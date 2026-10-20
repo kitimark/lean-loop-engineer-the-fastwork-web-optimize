@@ -7,28 +7,28 @@ ledger shared by the whole machine. `reserve` (one-off calls) and `next` (the po
 go now; `observe` folds the response headers back in. All times are integer seconds.
 
 The ledger has two shares per window, so one-off calls (downloads, logs) can never starve the poller: ticks get
-$B - R$ per hour and $B_1 - R_1$ per minute, one-offs $R$ and $R_1$. A response that cost more requests than charged
+`B - R` per hour and `B_1 - R_1` per minute, one-offs `R` and `R_1`. A response that cost more requests than charged
 is booked as a *correction* entry; corrections count against the share, so later calls wait until the window has room
 again. Only the REST `core` bucket's headers update the remaining count (`x-ratelimit-resource: core`).
 
 Proved here:
-- (a) `window_bound`: in every reachable state and for every time $t$, the charged requests of each share in the
-  3600 s and 60 s windows stay within the share, so all of them stay within $B$ and $B_1$; `window_total`: the
-  total over both kinds is at most $B$. Waiters never enter the ledger (`register_free`, `register_dup`), so the
-  bound holds for every number of waiters $N$. `overrun_absorbed`: with corrections the window holds at most the
+- (a) `window_bound`: in every reachable state and for every time `t`, the charged requests of each share in the
+  3600 s and 60 s windows stay within the share, so all of them stay within `B` and `B_1`; `window_total`: the
+  total over both kinds is at most `B`. Waiters never enter the ledger (`register_free`, `register_dup`), so the
+  bound holds for every number of waiters `N`. `overrun_absorbed`: with corrections the window holds at most the
   share plus the corrections in it.
 - (b) `no_issue_when_exhausted`, `next_no_issue_when_exhausted`: nothing is issued while `now < retryUntil`, nor while
-  remaining $\le F$ before the reset. `guard_persists`: a `retry-after` or a 403/429 with remaining 0 blocks every
+  remaining `≤ F` before the reset. `guard_persists`: a `retry-after` or a 403/429 with remaining 0 blocks every
   issue until that time, along every later trace. `backoff_ge`, `backoff_mono`, `stop_after_fails`: the bare-failure
   backoff.
 - (c) `poll_live`: whenever the guards allow and the interval has passed, `next` ticks and covers every watched run;
-  `next_wait_interval`: otherwise it waits at most $P$; `wait_future`: no wait is in the past.
-- (d) `interval_sound`: the interval $P$ makes any ticks spaced $\ge P$ fit both tick shares and the headroom before
-  the reset; `per_agent_interval`, `oldRate_linear`: the old scheme ($N$ pollers each on its own) grows linearly in
-  $N$ and needs $P \ge W c N / B$.
+  `next_wait_interval`: otherwise it waits at most `P`; `wait_future`: no wait is in the past.
+- (d) `interval_sound`: the interval `P` makes any ticks spaced `≥ P` fit both tick shares and the headroom before
+  the reset; `per_agent_interval`, `oldRate_linear`: the old scheme (`N` pollers each on its own) grows linearly in
+  `N` and needs `P ≥ W c N / B`.
 - (e) `clock_monotone`: `now` never goes back.
 - (f) `listed_within`, `listed_within_Pmin`: while the poller asks on time and the guards have room, a run completed
-  after the last tick is listed by the next tick, at most $P$ (with the gaps below $P_{\min}$: $P_{\min}$) after it
+  after the last tick is listed by the next tick, at most `P` (with the gaps below `P_min`: `P_min`) after it
   completed, and a waiter reading every `slice` seconds sees it within `slice` more.
 - (g) `budget_all_entries`: every ledger entry (charges and corrections) in a window plus the uncharged requests stays
   within GitHub's 5000 per hour per user account, given that corrections plus uncharged requests fit `margin`.
@@ -39,10 +39,7 @@ namespace Fw.Ci.Budget
 
 /-! ## Limits -/
 
-/-- The budget's constants (generated to `packages/contracts/golden/ci-budget/limits.json`; TS reads them there).
-
-$$\mathrm{Limits} = (W, B, R, W_1, B_1, R_1, F, P_{\min}, b_0, b_{\max}, m, c_{\text{list}}) \in \mathbb{N}^{12}, \quad \text{defaults } (3600, 3000, 1200, 60, 60, 40, 500, 10, 60, 3600, 6, 2)$$
--/
+/-- The budget's constants (generated to `packages/contracts/golden/ci-budget/limits.json`; TS reads them there). -/
 structure Limits where
   /-- window length, s -/
   W : Nat := 3600
@@ -75,35 +72,23 @@ structure Limits where
   maxRun : Nat := 10 ^ 13
 deriving Repr, DecidableEq
 
-/-- The default limits.
-
-$$\mathit{defaults} = (3600, 3000, 1200, 60, 60, 40, 500, 10, 60, 3600, 6, 2)$$
--/
+/-- The default limits. -/
 def defaults : Limits := {}
 
 #guard defaults.B = 3000 && defaults.R = 1200 && defaults.F = 500 && defaults.Pmin = 10 && defaults.B1 = 60
 
-/-- The two kinds of charged call: a poller tick, or a one-off call (dispatch, view, log, download, probe).
-
-$$\mathrm{Kind} = \{\mathrm{tick}, \mathrm{oneoff}\}$$
--/
+/-- The two kinds of charged call: a poller tick, or a one-off call (dispatch, view, log, download, probe). -/
 inductive Kind where
   | tick
   | oneoff
 deriving Repr, DecidableEq
 
-/-- The hourly share of a kind.
-
-$$\operatorname{share}(L, \mathrm{tick}) = L.B \mathbin{\dot-} L.R, \qquad \operatorname{share}(L, \mathrm{oneoff}) = L.R$$
--/
+/-- The hourly share of a kind. -/
 def share (L : Limits) : Kind → Nat
   | .tick => L.B - L.R
   | .oneoff => L.R
 
-/-- The per-minute share of a kind.
-
-$$\operatorname{share}_1(L, \mathrm{tick}) = L.B_1 \mathbin{\dot-} L.R_1, \qquad \operatorname{share}_1(L, \mathrm{oneoff}) = L.R_1$$
--/
+/-- The per-minute share of a kind. -/
 def share1 (L : Limits) : Kind → Nat
   | .tick => L.B1 - L.R1
   | .oneoff => L.R1
@@ -115,8 +100,6 @@ def share1 (L : Limits) : Kind → Nat
 
 /-- One ledger entry: the time it was charged, its cost in requests, its kind, and whether it is a charge
 (`true`) or a correction for a response that cost more than charged (`false`).
-
-$$\mathrm{Entry} = (\mathit{time}, \mathit{cost}, \mathit{kind}, \mathit{charged}) \in \mathbb{N}^2 \times \mathrm{Kind} \times \mathbb{B}$$
 -/
 structure Entry where
   time : Nat
@@ -125,66 +108,39 @@ structure Entry where
   charged : Bool
 deriving Repr, DecidableEq
 
-/-- Is time $x$ inside the window of length $W$ ending at $t$, that is $x \in (t - W, t]$?
-
-$$\operatorname{inWin}(W, t, x) \iff x \le t \land t < x + W$$
--/
+/-- Is time `x` inside the window of length `W` ending at `t`, that is `x ∈ (t - W, t]`? -/
 def inWin (W t x : Nat) : Bool := decide (x ≤ t) && decide (t < x + W)
 
-/-- The cost of the selected entries of a ledger that lie in the window of length $W$ ending at $t$.
-
-$$\Sigma_W(\mathit{sel}, \ell, t) = \sum_{e \in \ell,\ \mathit{sel}(e),\ e.\mathit{time} \le t < e.\mathit{time} + W} e.\mathit{cost}$$
--/
+/-- The cost of the selected entries of a ledger that lie in the window of length `W` ending at `t`. -/
 def wsum (W t : Nat) (sel : Entry → Bool) : List Entry → Nat
   | [] => 0
   | e :: es => (if sel e && inWin W t e.time then e.cost else 0) + wsum W t sel es
 
-/-- Entries of kind $k$ (charges and corrections).
-
-$$\operatorname{ofKind}(k)(e) \iff e.\mathit{kind} = k$$
--/
+/-- Entries of kind `k` (charges and corrections). -/
 def ofKind (k : Kind) (e : Entry) : Bool := decide (e.kind = k)
 
-/-- Charges of kind $k$.
-
-$$\operatorname{chargedOf}(k)(e) \iff e.\mathit{kind} = k \land e.\mathit{charged}$$
--/
+/-- Charges of kind `k`. -/
 def chargedOf (k : Kind) (e : Entry) : Bool := decide (e.kind = k) && e.charged
 
-/-- Corrections of kind $k$.
-
-$$\operatorname{corrOf}(k)(e) \iff e.\mathit{kind} = k \land \lnot e.\mathit{charged}$$
--/
+/-- Corrections of kind `k`. -/
 def corrOf (k : Kind) (e : Entry) : Bool := decide (e.kind = k) && !e.charged
 
-/-- Every charge, of either kind.
-
-$$\operatorname{isCharge}(e) \iff e.\mathit{charged}$$
--/
+/-- Every charge, of either kind. -/
 def isCharge (e : Entry) : Bool := e.charged
 
-/-- The window sum of a concatenation is the sum of the window sums.
-
-$$\forall W, t, \mathit{sel}, a, b:\quad \Sigma_W(\mathit{sel}, a \mathbin{+\!\!+} b, t) = \Sigma_W(\mathit{sel}, a, t) + \Sigma_W(\mathit{sel}, b, t)$$
--/
+/-- The window sum of a concatenation is the sum of the window sums. -/
 theorem wsum_append (W t : Nat) (sel : Entry → Bool) (a b : List Entry) :
     wsum W t sel (a ++ b) = wsum W t sel a + wsum W t sel b := by
   induction a with
   | nil => simp [wsum]
   | cons e es ih => simp only [List.cons_append, wsum, ih]; omega
 
-/-- The window sum of one entry.
-
-$$\forall W, t, \mathit{sel}, e:\quad \Sigma_W(\mathit{sel}, [e], t) = \begin{cases} e.\mathit{cost} & \mathit{sel}(e) \land \operatorname{inWin}(W, t, e.\mathit{time}) \\ 0 & \text{otherwise} \end{cases}$$
--/
+/-- The window sum of one entry. -/
 theorem wsum_single (W t : Nat) (sel : Entry → Bool) (e : Entry) :
     wsum W t sel [e] = if sel e && inWin W t e.time then e.cost else 0 := by
   simp [wsum]
 
-/-- A weaker selector sums to no more.
-
-$$\forall W, t, \mathit{sel}, \mathit{sel}', \ell:\quad (\forall e \in \ell:\ \mathit{sel}(e) \Rightarrow \mathit{sel}'(e)) \Rightarrow \Sigma_W(\mathit{sel}, \ell, t) \le \Sigma_W(\mathit{sel}', \ell, t)$$
--/
+/-- A weaker selector sums to no more. -/
 theorem wsum_mono_sel (W t : Nat) (sel sel' : Entry → Bool) (l : List Entry)
     (h : ∀ e ∈ l, sel e = true → sel' e = true) : wsum W t sel l ≤ wsum W t sel' l := by
   induction l with
@@ -195,10 +151,7 @@ theorem wsum_mono_sel (W t : Nat) (sel sel' : Entry → Bool) (l : List Entry)
     have h2 := ih (fun x hx => h x (by simp [hx]))
     cases hs : sel e <;> cases hs' : sel' e <;> simp_all <;> split <;> omega
 
-/-- Dropping entries does not increase a window sum.
-
-$$\forall W, t, \mathit{sel}, p, \ell:\quad \Sigma_W(\mathit{sel}, [\,e \in \ell \mid p(e)\,], t) \le \Sigma_W(\mathit{sel}, \ell, t)$$
--/
+/-- Dropping entries does not increase a window sum. -/
 theorem wsum_filter_le (W t : Nat) (sel p : Entry → Bool) (l : List Entry) :
     wsum W t sel (l.filter p) ≤ wsum W t sel l := by
   induction l with
@@ -207,10 +160,7 @@ theorem wsum_filter_le (W t : Nat) (sel p : Entry → Bool) (l : List Entry) :
     simp only [List.filter]
     cases p e <;> simp only [wsum] <;> omega
 
-/-- When every entry is at or before $n$, a window ending later than $n$ holds no more than the one ending at $n$.
-
-$$\forall W, t, n, \mathit{sel}, \ell:\quad (\forall e \in \ell:\ e.\mathit{time} \le n) \land n \le t \Rightarrow \Sigma_W(\mathit{sel}, \ell, t) \le \Sigma_W(\mathit{sel}, \ell, n)$$
--/
+/-- When every entry is at or before `n`, a window ending later than `n` holds no more than the one ending at `n`. -/
 theorem wsum_later (W t n : Nat) (sel : Entry → Bool) (l : List Entry)
     (hall : ∀ e ∈ l, e.time ≤ n) (hnt : n ≤ t) : wsum W t sel l ≤ wsum W n sel l := by
   induction l with
@@ -223,10 +173,7 @@ theorem wsum_later (W t n : Nat) (sel : Entry → Bool) (l : List Entry)
       split <;> split <;> simp_all [inWin] <;> omega
     omega
 
-/-- The window sum of a kind splits into its charges and its corrections.
-
-$$\forall W, t, k, \ell:\quad \Sigma_W(\operatorname{ofKind}(k), \ell, t) = \Sigma_W(\operatorname{chargedOf}(k), \ell, t) + \Sigma_W(\operatorname{corrOf}(k), \ell, t)$$
--/
+/-- The window sum of a kind splits into its charges and its corrections. -/
 theorem wsum_split (W t : Nat) (k : Kind) (l : List Entry) :
     wsum W t (ofKind k) l = wsum W t (chargedOf k) l + wsum W t (corrOf k) l := by
   induction l with
@@ -236,10 +183,7 @@ theorem wsum_split (W t : Nat) (k : Kind) (l : List Entry) :
     simp only [wsum, ih, ofKind, chargedOf, corrOf]
     cases charged <;> simp <;> omega
 
-/-- The charges of both kinds are the charges of ticks plus the charges of one-offs.
-
-$$\forall W, t, \ell:\quad \Sigma_W(\operatorname{isCharge}, \ell, t) = \Sigma_W(\operatorname{chargedOf}(\mathrm{tick}), \ell, t) + \Sigma_W(\operatorname{chargedOf}(\mathrm{oneoff}), \ell, t)$$
--/
+/-- The charges of both kinds are the charges of ticks plus the charges of one-offs. -/
 theorem wsum_charges (W t : Nat) (l : List Entry) :
     wsum W t isCharge l = wsum W t (chargedOf .tick) l + wsum W t (chargedOf .oneoff) l := by
   induction l with
@@ -253,8 +197,6 @@ theorem wsum_charges (W t : Nat) (l : List Entry) :
 
 /-- The rate-limit facts of a response, as read from its header lines; `resource` names the bucket that `remaining`
 and `reset` count (`core` for the REST API).
-
-$$\mathrm{Headers} = (\mathit{status}, \mathit{remaining}, \mathit{reset}, \mathit{retryAfter}, \mathit{etag}, \mathit{resource}) \in \mathbb{N} \times \mathbb{N}_\bot^3 \times \mathrm{String}_\bot^2$$
 -/
 structure Headers where
   status : Nat := 0
@@ -265,17 +207,12 @@ structure Headers where
   resource : Option String := none
 deriving Repr, DecidableEq
 
-/-- A line with the debug prefix `< ` (httpretty's response marker) and the surrounding blanks removed.
-
-$$\operatorname{unprefix}(s) = \begin{cases} \operatorname{trim}(s') & \operatorname{trim}(s) = \texttt{<}\,s' \\ \operatorname{trim}(s) & \text{otherwise} \end{cases}$$
--/
+/-- A line with the debug prefix `< ` (httpretty's response marker) and the surrounding blanks removed. -/
 def unprefix (s : String) : String :=
   let t := s.trimAscii.toString
   if t.startsWith "<" then (t.drop 1).trimAscii.toString else t
 
 /-- The status code of a status line `HTTP/<v> <code> <text>`; `none` for any other line.
-
-$$\operatorname{statusOf}(s) = \begin{cases} n & \operatorname{unprefix}(s) \text{ starts with } \texttt{HTTP/} \text{ and its 2nd non-empty } \texttt{\char"2423}\text{-separated token } c \text{ has } \mathrm{toNat?}(c) = n \\ \bot & \text{otherwise (no such token, or } \mathrm{toNat?}(c) = \bot\text{)} \end{cases}$$
 
 Here toNat? is Lean's `String.toNat?`, which reads decimal digits and also accepts `_` separators (`1_000` gives 1000).
 -/
@@ -287,10 +224,7 @@ def statusOf (s : String) : Option Nat :=
     | _ => none
   else none
 
-/-- A header line `Name: value` as (lower-case name, trimmed value); `none` for a line without a colon.
-
-$$\operatorname{headerOf}(s) = \begin{cases} (\operatorname{lower}(\operatorname{trim}(a)), \operatorname{trim}(b)) & \operatorname{unprefix}(s) = a \mathbin{+\!\!+} \texttt{:} \mathbin{+\!\!+} b,\ \texttt{:} \notin a \\ \bot & \text{otherwise} \end{cases}$$
--/
+/-- A header line `Name: value` as (lower-case name, trimmed value); `none` for a line without a colon. -/
 def headerOf (s : String) : Option (String × String) :=
   match (unprefix s).splitOn ":" with
   | name :: rest@(_ :: _) =>
@@ -299,8 +233,6 @@ def headerOf (s : String) : Option (String × String) :=
 
 /-- Fold one line into the headers read so far; a later line overrides an earlier one, and a status line starts a
 new response, so `remaining`, `reset` and `resource` always come from one response.
-
-$$\operatorname{readLine}(h, s) = \begin{cases} h[\mathit{status} := n,\ \mathit{remaining} := \bot,\ \mathit{reset} := \bot,\ \mathit{resource} := \bot] & \operatorname{statusOf}(s) = n \\ h[\mathit{remaining} := v] & \operatorname{headerOf}(s) = (\texttt{x-ratelimit-remaining}, v),\ v \in \mathbb{N} \\ h[\mathit{reset} := v] & \operatorname{headerOf}(s) = (\texttt{x-ratelimit-reset}, v),\ v \in \mathbb{N} \\ h[\mathit{retryAfter} := v] & \operatorname{headerOf}(s) = (\texttt{retry-after}, v),\ v \in \mathbb{N} \\ h[\mathit{etag} := v] & \operatorname{headerOf}(s) = (\texttt{etag}, v) \\ h[\mathit{resource} := v] & \operatorname{headerOf}(s) = (\texttt{x-ratelimit-resource}, v) \\ h & \text{otherwise} \end{cases}$$
 -/
 def readLine (h : Headers) (s : String) : Headers :=
   match statusOf s with
@@ -316,8 +248,6 @@ def readLine (h : Headers) (s : String) : Headers :=
 
 /-- The headers of a trace and the number of responses in it (status lines): `status`, `retryAfter` and `etag` are
 the last values in the trace; `remaining`, `reset` and `resource` are those of the last response.
-
-$$\operatorname{parse}(\mathit{ls}) = \big(\operatorname{foldl}(\operatorname{readLine}, \mathbf{0}, \mathit{ls}),\ \lvert[\,s \in \mathit{ls} \mid \operatorname{statusOf}(s) \ne \bot\,]\rvert\big)$$
 -/
 def parse (ls : List String) : Headers × Nat :=
   (ls.foldl readLine {}, (ls.filter fun s => (statusOf s).isSome).length)
@@ -336,10 +266,7 @@ def parse (ls : List String) : Headers × Nat :=
 
 /-! ## State -/
 
-/-- A run some waiter is waiting on: its id, its creation time, and the last tick that covered it.
-
-$$\mathrm{Watch} = (\mathit{runId}, \mathit{createdAt}, \mathit{lastCovered}, \mathit{misses}) \in \mathbb{N}^2 \times \mathbb{N}_\bot \times \mathbb{N}$$
--/
+/-- A run some waiter is waiting on: its id, its creation time, and the last tick that covered it. -/
 structure Watch where
   runId : Nat
   createdAt : Nat
@@ -356,10 +283,7 @@ inductive Drop where
   | orphan
 deriving Repr, DecidableEq
 
-/-- An incident: the run dropped, when, and why.
-
-$$\mathrm{Incident} = (\mathit{runId}, \mathit{time}, \mathit{why}) \in \mathbb{N}^2 \times \mathrm{Drop}$$
--/
+/-- An incident: the run dropped, when, and why. -/
 structure Incident where
   runId : Nat
   time : Nat
@@ -368,8 +292,6 @@ deriving Repr, DecidableEq
 
 /-- The budget state shared by the machine: the clock, the ledger, the last seen headers, the retry and failure
 state, the watched runs, the last tick, the call in flight, and the pages one tick needs.
-
-$$\mathrm{State} = (\mathit{now}, \ell, \mathit{rem}, \mathit{reset}, \mathit{retryUntil}, \mathit{fails}, \mathit{etag}, \mathit{watched}, \mathit{lastTick}, \mathit{pending}, \mathit{pages}) \in \mathbb{N} \times \mathrm{Entry}^{*} \times \mathbb{N}_\bot^2 \times \mathbb{N}^2 \times \mathrm{String}_\bot \times \mathrm{Watch}^{*} \times \mathbb{N}_\bot \times (\mathrm{Kind} \times \mathbb{N})_\bot \times \mathbb{N}$$
 -/
 structure State where
   now : Nat
@@ -387,73 +309,44 @@ structure State where
   incidents : List Incident := []
 deriving Repr, DecidableEq
 
-/-- The empty state at time $t$.
-
-$$\operatorname{init}(t) = (t, [\,], \bot, \bot, 0, 0, \bot, [\,], \bot, \bot, 1)$$
--/
+/-- The empty state at time `t`. -/
 def init (t : Nat) : State := { now := t }
 
 /-! ## Guards and costs -/
 
-/-- Do the last seen headers leave room: remaining unknown, above the floor, or the reset already passed?
-
-$$\operatorname{headroom}(L, s) \iff s.\mathit{rem} = \bot \lor \exists r:\ \big(s.\mathit{rem} = r \land (L.F < r \lor \exists T:\ s.\mathit{reset} = T \land T \le s.\mathit{now})\big)$$
--/
+/-- Do the last seen headers leave room: remaining unknown, above the floor, or the reset already passed? -/
 def headroom (L : Limits) (s : State) : Bool :=
   match s.remaining with
   | none => true
   | some r => decide (L.F < r) || (match s.reset with | some T => decide (T ≤ s.now) | none => false)
 
-/-- The most pages one tick may read: the pages whose list cost fits the per-minute tick share (at least one).
-
-$$\operatorname{pageCap}(L) = \max\big(1, \lfloor (B_1 \mathbin{\dot-} R_1) / c_{\text{list}} \rfloor\big)$$
--/
+/-- The most pages one tick may read: the pages whose list cost fits the per-minute tick share (at least one). -/
 def pageCap (L : Limits) : Nat := max 1 (share1 L .tick / L.listCost)
 
-/-- The pages the next tick reads: those the state asks for, at least one, at most `pageCap`.
-
-$$\operatorname{pages}(L, s) = \min(\operatorname{pageCap}(L),\ \max(1, s.\mathit{pages}))$$
--/
+/-- The pages the next tick reads: those the state asks for, at least one, at most `pageCap`. -/
 def pagesOf (L : Limits) (s : State) : Nat := min (pageCap L) (max 1 s.pages)
 
-/-- The cost of one tick: the list cost per page times the pages it reads.
-
-$$\operatorname{tickCost}(L, s) = L.c_{\text{list}} \cdot \operatorname{pages}(L, s)$$
--/
+/-- The cost of one tick: the list cost per page times the pages it reads. -/
 def tickCost (L : Limits) (s : State) : Nat := L.listCost * pagesOf L s
 
-/-- Integer ceiling division ($0$ when dividing by $0$, as Lean's `/`).
-
-$$\operatorname{ceilDiv}(a, b) = \Big\lfloor \frac{a + b \mathbin{\dot-} 1}{b} \Big\rfloor \quad (\text{and } 0 \text{ for } b = 0)$$
--/
+/-- Integer ceiling division (`0` when dividing by `0`, as Lean's `/`). -/
 def ceilDiv (a b : Nat) : Nat := (a + b - 1) / b
 
 #guard ceilDiv 3600 900 = 4 && ceilDiv 10 3 = 4 && ceilDiv 0 5 = 0 && ceilDiv 7 0 = 0
 
-/-- The backoff after $k$ bare failures in a row: $b_0 \cdot 2^k$, at most $b_{\max}$.
-
-$$\operatorname{backoff}(L, k) = \min(L.b_{\max},\ L.b_0 \cdot 2^k)$$
--/
+/-- The backoff after `k` bare failures in a row: `b_0 · 2^k`, at most `b_max`. -/
 def backoff (L : Limits) (k : Nat) : Nat := min L.backMax (L.back0 * 2 ^ k)
 
 #guard (List.range 8).map (backoff defaults) = [60, 120, 240, 480, 960, 1920, 3600, 3600]
 
-/-- The gap between ticks that fits the hourly tick share.
-
-$$\operatorname{hourGap}(L, s) = \Big\lceil \frac{W}{\max(1, \lfloor (B \mathbin{\dot-} R)/c \rfloor)} \Big\rceil, \quad c = \operatorname{tickCost}(L, s),\ x / 0 = 0$$
--/
+/-- The gap between ticks that fits the hourly tick share. -/
 def hourGap (L : Limits) (s : State) : Nat := ceilDiv L.W (max 1 (share L .tick / tickCost L s))
 
-/-- The gap between ticks that fits the per-minute tick share.
-
-$$\operatorname{minuteGap}(L, s) = \Big\lceil \frac{W_1}{\max(1, \lfloor (B_1 \mathbin{\dot-} R_1)/c \rfloor)} \Big\rceil, \quad c = \operatorname{tickCost}(L, s),\ x / 0 = 0$$
--/
+/-- The gap between ticks that fits the per-minute tick share. -/
 def minuteGap (L : Limits) (s : State) : Nat := ceilDiv L.W1 (max 1 (share1 L .tick / tickCost L s))
 
 /-- The gap that spreads the headroom above the floor until the reset, when the headers are known and the reset is
 ahead; 0 otherwise.
-
-$$\operatorname{spread}(L, s) = \begin{cases} \Big\lceil \dfrac{T - s.\mathit{now}}{\max(1, \lfloor (r \mathbin{\dot-} F)/c \rfloor)} \Big\rceil & s.\mathit{rem} = r,\ s.\mathit{reset} = T,\ s.\mathit{now} < T \\ 0 & \text{otherwise} \end{cases}, \quad c = \operatorname{tickCost}(L, s),\ x / 0 = 0$$
 -/
 def spread (L : Limits) (s : State) : Nat :=
   match s.remaining, s.reset with
@@ -462,8 +355,6 @@ def spread (L : Limits) (s : State) : Nat :=
 
 /-- The tick interval: the minimum interval, the gaps that fit both tick shares, and the gap that spreads the
 headroom until the reset.
-
-$$P(L, s) = \max\big(P_{\min},\ \operatorname{hourGap}(L, s),\ \operatorname{minuteGap}(L, s),\ \operatorname{spread}(L, s)\big)$$
 -/
 def interval (L : Limits) (s : State) : Nat :=
   max L.Pmin (max (hourGap L s) (max (minuteGap L s) (spread L s)))
@@ -480,10 +371,7 @@ def interval (L : Limits) (s : State) : Nat :=
 #guard ceilDiv 3600 defaults.Pmin * tickCost defaults { init 0 with pages := 2 } ≤ share defaults .tick
 #guard ceilDiv 3600 (interval defaults { init 0 with pages := 2 }) * tickCost defaults { init 0 with pages := 2 } = 1200
 
-/-- Why a call waits or stops.
-
-$$\mathrm{Reason} = \{\mathrm{failures}, \mathrm{idle}, \mathrm{tooBig}, \mathrm{retryAfter}, \mathrm{floor}, \mathrm{hour}, \mathrm{minute}, \mathrm{interval}\}$$
--/
+/-- Why a call waits or stops. -/
 inductive Reason where
   | failures
   | idle
@@ -495,40 +383,30 @@ inductive Reason where
   | interval
 deriving Repr, DecidableEq
 
-/-- A decision: issue the call (kind, charged cost, the state with the charge booked), wait until a time, or stop.
-
-$$\mathrm{Decision} = \mathrm{issue}(\mathrm{Kind}, \mathbb{N}, \mathrm{State}) \mid \mathrm{wait}(\mathbb{N}, \mathrm{Reason}) \mid \mathrm{stop}(\mathrm{Reason})$$
--/
+/-- A decision: issue the call (kind, charged cost, the state with the charge booked), wait until a time, or stop. -/
 inductive Decision where
   | issue (k : Kind) (cost : Nat) (s' : State)
   | wait (untilT : Nat) (why : Reason)
   | stop (why : Reason)
 deriving Repr
 
-/-- The earliest time a window frees enough room for cost $c$: the first expiry time $e.\mathit{time} + W$ after
-$t$ of a ledger entry at which the window sum plus $c$ fits the cap, else $t + \max(1, W)$.
-
-$$\operatorname{freeAt}(W, t, \mathit{sel}, \mathit{cap}, c, \ell) = \begin{cases} e.\mathit{time} + W & e = \text{the first } e \in \ell \text{ with } t < e.\mathit{time} + W \land \Sigma_W(\mathit{sel}, \ell, e.\mathit{time} + W) + c \le \mathit{cap} \\ t + \max(1, W) & \text{no such } e \end{cases}$$
+/-- The earliest time a window frees enough room for cost `c`: the first expiry time `e.time + W` after
+`t` of a ledger entry at which the window sum plus `c` fits the cap, else `t + max(1, W)`.
 -/
 def freeAt (W t : Nat) (sel : Entry → Bool) (cap c : Nat) (l : List Entry) : Nat :=
   match l.find? (fun e => decide (t < e.time + W) && decide (wsum W (e.time + W) sel l + c ≤ cap)) with
   | some e => e.time + W
   | none => t + max 1 W
 
-/-- When the floor guard blocks: the reset if it is ahead, else $b_0$ (at least 1 s) from now.
-
-$$\operatorname{floorUntil}(L, s) = \begin{cases} T & s.\mathit{reset} = T \land s.\mathit{now} < T \\ s.\mathit{now} + \max(1, L.b_0) & \text{otherwise} \end{cases}$$
--/
+/-- When the floor guard blocks: the reset if it is ahead, else `b_0` (at least 1 s) from now. -/
 def floorUntil (L : Limits) (s : State) : Nat :=
   match s.reset with
   | some T => if s.now < T then T else s.now + max 1 L.back0
   | none => s.now + max 1 L.back0
 
-/-- Charge a call of kind $k$ and cost $c$, first match wins: stop after `maxFails` bare failures; stop when $c$
+/-- Charge a call of kind `k` and cost `c`, first match wins: stop after `maxFails` bare failures; stop when `c`
 exceeds a share (it could never go); wait for `retryUntil`; wait while the floor guard blocks; wait while the hour
-or the minute share has no room for $c$; else issue, booking $(\mathit{now}, c, k, \text{charged})$.
-
-$$\operatorname{charge}(L, s, k, c) = \begin{cases} \mathrm{stop}(\mathrm{failures}) & L.m \le s.\mathit{fails} \\ \mathrm{stop}(\mathrm{tooBig}) & \text{else if } c > \operatorname{share}(L, k) \lor c > \operatorname{share}_1(L, k) \\ \mathrm{wait}(s.\mathit{retryUntil}, \mathrm{retryAfter}) & \text{else if } s.\mathit{now} < s.\mathit{retryUntil} \\ \mathrm{wait}(\operatorname{floorUntil}(L, s), \mathrm{floor}) & \text{else if } \lnot\operatorname{headroom}(L, s) \\ \mathrm{wait}(\operatorname{freeAt}(W, \mathit{now}, \operatorname{ofKind}(k), \operatorname{share}(L, k), c, \ell), \mathrm{hour}) & \text{else if } \Sigma_W(\operatorname{ofKind}(k), \ell, \mathit{now}) + c > \operatorname{share}(L, k) \\ \mathrm{wait}(\operatorname{freeAt}(W_1, \mathit{now}, \operatorname{ofKind}(k), \operatorname{share}_1(L, k), c, \ell), \mathrm{minute}) & \text{else if } \Sigma_{W_1}(\operatorname{ofKind}(k), \ell, \mathit{now}) + c > \operatorname{share}_1(L, k) \\ \mathrm{issue}\big(k, c, s[\ell := \ell \mathbin{+\!\!+} [(\mathit{now}, c, k, \top)],\ \mathit{pending} := (k, c)]\big) & \text{otherwise} \end{cases} \quad \text{where } \ell = s.\ell,\ \mathit{now} = s.\mathit{now}$$
+or the minute share has no room for `c`; else issue, booking `(now, c, k, charged)`.
 -/
 def charge (L : Limits) (s : State) (k : Kind) (c : Nat) : Decision :=
   if L.maxFails ≤ s.fails then .stop .failures
@@ -541,32 +419,21 @@ def charge (L : Limits) (s : State) (k : Kind) (c : Nat) : Decision :=
     .wait (freeAt L.W1 s.now (ofKind k) (share1 L k) c s.ledger) .minute
   else .issue k c { s with ledger := s.ledger ++ [⟨s.now, c, k, true⟩], pending := some (k, c) }
 
-/-- `reserve`: may a one-off call of cost $c$ go now? It is charged at least 1 request.
-
-$$\operatorname{reserve}(L, s, c) = \operatorname{charge}(L, s, \mathrm{oneoff}, \max(1, c))$$
--/
+/-- `reserve`: may a one-off call of cost `c` go now? It is charged at least 1 request. -/
 def reserve (L : Limits) (s : State) (c : Nat) : Decision := charge L s .oneoff (max 1 c)
 
-/-- Mark a tick at `now`: the last tick, and every watched run covered.
-
-$$\operatorname{cover}(s) = s[\mathit{lastTick} := s.\mathit{now},\ \mathit{watched} := [\,w[\mathit{lastCovered} := s.\mathit{now}] \mid w \in s.\mathit{watched}\,]]$$
--/
+/-- Mark a tick at `now`: the last tick, and every watched run covered. -/
 def cover (s : State) : State :=
   { s with lastTick := some s.now, watched := s.watched.map fun w => { w with lastCovered := some s.now } }
 
-/-- Tick now if the charge allows it, covering every watched run.
-
-$$\operatorname{tickNow}(L, s) = \begin{cases} \mathrm{issue}(k, c, \operatorname{cover}(s')) & \operatorname{charge}(L, s, \mathrm{tick}, \operatorname{tickCost}(L, s)) = \mathrm{issue}(k, c, s') \\ d & \operatorname{charge}(L, s, \mathrm{tick}, \operatorname{tickCost}(L, s)) = d \text{ otherwise} \end{cases}$$
--/
+/-- Tick now if the charge allows it, covering every watched run. -/
 def tickNow (L : Limits) (s : State) : Decision :=
   match charge L s .tick (tickCost L s) with
   | .issue k c s' => .issue k c (cover s')
   | d => d
 
 /-- `next`: the poller's decision, first match wins: stop after `maxFails` failures; stop when nothing is watched;
-wait until the last tick plus $P$; else tick now.
-
-$$\operatorname{next}(L, s) = \begin{cases} \mathrm{stop}(\mathrm{failures}) & L.m \le s.\mathit{fails} \\ \mathrm{stop}(\mathrm{idle}) & \text{else if } s.\mathit{watched} = [\,] \\ \mathrm{wait}(t_0 + P(L, s), \mathrm{interval}) & \text{else if } s.\mathit{lastTick} = t_0 \land s.\mathit{now} < t_0 + P(L, s) \\ \operatorname{tickNow}(L, s) & \text{otherwise} \end{cases}$$
+wait until the last tick plus `P`; else tick now.
 -/
 def next (L : Limits) (s : State) : Decision :=
   if L.maxFails ≤ s.fails then .stop .failures
@@ -577,24 +444,16 @@ def next (L : Limits) (s : State) : Decision :=
 
 /-- The oldest creation time among the watched runs: a tick lists the runs created since then
 (`created>=…&per_page=100`), so one list call covers every watched run however many waiters there are.
-
-$$\operatorname{since}(s) = \min_{w \in s.\mathit{watched}} w.\mathit{createdAt} \quad (\bot \text{ when nothing is watched})$$
 -/
 def since (s : State) : Option Nat := (s.watched.map (·.createdAt)).min?
 
 /-! ## Responses and events -/
 
-/-- Is the status a rate-limit refusal (403 or 429)?
-
-$$\operatorname{refused}(n) \iff n \in \{403, 429\}$$
--/
+/-- Is the status a rate-limit refusal (403 or 429)? -/
 def refused (n : Nat) : Bool := n == 403 || n == 429
 
 /-- The time a response forbids calls until (0 for none): `now` plus its `retry-after`; its reset, on a refusal with
 remaining 0; `now` plus the backoff, on a refusal with neither.
-
-$$\operatorname{retryFrom}(L, s, h) = \max(u_a, u_z, u_b), \quad u_a = \begin{cases} s.\mathit{now} + a' & h.\mathit{retryAfter} = a' \\ 0 & \text{otherwise} \end{cases}, \quad u_z = \begin{cases} T & \operatorname{refused}(h.\mathit{status}) \land h.\mathit{rem} = 0 \land h.\mathit{reset} = T \\ 0 & \text{otherwise} \end{cases},$$
-$$u_b = \begin{cases} s.\mathit{now} + \operatorname{backoff}(L, s.\mathit{fails}) & \operatorname{refused}(h.\mathit{status}) \land h.\mathit{retryAfter} = \bot \land \lnot(h.\mathit{rem} = 0 \land h.\mathit{reset} \ne \bot) \\ 0 & \text{otherwise} \end{cases}$$
 -/
 def retryFrom (L : Limits) (s : State) (h : Headers) : Nat :=
   let ua := match h.retryAfter with
@@ -608,8 +467,6 @@ def retryFrom (L : Limits) (s : State) (h : Headers) : Nat :=
 /-- The remaining count and reset kept after a response: a response of the REST `core` bucket that carries both
 replaces them, except that within the same reset window the remaining count never rises (the smaller one is kept);
 any other response (another bucket such as `graphql`, no `x-ratelimit-resource`, or a missing field) keeps them.
-
-$$\operatorname{bucket}(s, h) = \begin{cases} (\min(r, r_0), T) & h.\mathit{resource} = \texttt{core} \land h.\mathit{rem} = r \land h.\mathit{reset} = T \land s.\mathit{reset} = T \land s.\mathit{rem} = r_0 \\ (r, T) & \text{else if } h.\mathit{resource} = \texttt{core} \land h.\mathit{rem} = r \land h.\mathit{reset} = T \\ (s.\mathit{rem}, s.\mathit{reset}) & \text{otherwise} \end{cases}$$
 -/
 def bucket (s : State) (h : Headers) : Option Nat × Option Nat :=
   if h.resource = some "core" then
@@ -632,8 +489,6 @@ def bucket (s : State) (h : Headers) : Option Nat × Option Nat :=
 /-- Fold a response into the state: book a correction when the call took more responses than it was charged;
 take the remaining count and reset from `bucket`; keep the etag when present; never lower `retryUntil`; count
 refusals in a row.
-
-$$\begin{aligned} \operatorname{observe}(L, s, h, a) = s[\ & \ell := \ell \mathbin{+\!\!+} [(s.\mathit{now}, a \mathbin{\dot-} c, k, \bot) \mid c < a],\ \mathit{pending} := \bot, \\ & (\mathit{rem}, \mathit{reset}) := \operatorname{bucket}(s, h),\ \mathit{etag} := h.\mathit{etag} \mathbin{?} s.\mathit{etag}, \\ & \mathit{retryUntil} := \max(s.\mathit{retryUntil}, \operatorname{retryFrom}(L, s, h)),\ \mathit{fails} := f\,], \\ (k, c) ={} & \begin{cases} p & s.\mathit{pending} = p \\ (\mathrm{oneoff}, 0) & s.\mathit{pending} = \bot \end{cases}, \qquad x \mathbin{?} y = \begin{cases} x & x \ne \bot \\ y & x = \bot \end{cases}, \\ f ={} & \begin{cases} s.\mathit{fails} + 1 & \operatorname{refused}(h.\mathit{status}) \\ 0 & \text{else if } 200 \le h.\mathit{status} < 400 \\ s.\mathit{fails} & \text{otherwise} \end{cases} \end{aligned}$$
 -/
 def observe (L : Limits) (s : State) (h : Headers) (actual : Nat) : State :=
   let p := s.pending.getD (.oneoff, 0)
@@ -646,50 +501,31 @@ def observe (L : Limits) (s : State) (h : Headers) (actual : Nat) : State :=
 
 /-- The first id of the branch watches: a waiter on a branch (no run id yet) registers a sentinel
 `sentinelBase + h`, with `h` a 32-bit hash of branch, workflow and commit.
-
-$$\mathit{sentinelBase} = 10^{15}$$
 -/
 def sentinelBase : Nat := 10 ^ 15
 
-/-- The number of sentinel ids.
-
-$$\mathit{sentinelSpan} = 2^{32}$$
--/
+/-- The number of sentinel ids. -/
 def sentinelSpan : Nat := 2 ^ 32
 
-/-- Is the id a branch watch's sentinel?
-
-$$\operatorname{isSentinel}(r) \iff 10^{15} \le r < 10^{15} + 2^{32}$$
--/
+/-- Is the id a branch watch's sentinel? -/
 def isSentinel (r : Nat) : Bool := decide (sentinelBase ≤ r ∧ r < sentinelBase + sentinelSpan)
 
-/-- Is the id a GitHub run id: positive and below `maxRun`?
-
-$$\operatorname{validRunId}(L, r) \iff 0 < r < L.\mathit{maxRun}$$
--/
+/-- Is the id a GitHub run id: positive and below `maxRun`? -/
 def validRunId (L : Limits) (r : Nat) : Bool := decide (0 < r ∧ r < L.maxRun)
 
-/-- May a waiter register this id: a GitHub run id or a branch sentinel?
-
-$$\operatorname{validWatch}(L, r) \iff \operatorname{validRunId}(L, r) \lor \operatorname{isSentinel}(r)$$
--/
+/-- May a waiter register this id: a GitHub run id or a branch sentinel? -/
 def validWatch (L : Limits) (r : Nat) : Bool := validRunId L r || isSentinel r
 
 #guard validWatch defaults 25000000000 && validWatch defaults 1000000000838323
 #guard !validWatch defaults 0 && !validWatch defaults 5000000000000000 && !validWatch defaults (10 ^ 13)
 #guard !validRunId defaults 1000000000838323
 
-/-- Is a list full, i.e. cut at the page limit? `count` rows came back from `pagesRead` pages of 100 rows.
-
-$$\operatorname{isFull}(\mathit{count}, p) \iff \max(1, p) \cdot 100 \le \mathit{count}$$
--/
+/-- Is a list full, i.e. cut at the page limit? `count` rows came back from `pagesRead` pages of 100 rows. -/
 def isFull (count pagesRead : Nat) : Bool := decide (max 1 pagesRead * 100 ≤ count)
 
 /-- Does a list cover the creation time of a watch? A list that is not full holds every run created since the
 oldest watch (`since`, the `createdSince` of the tick); a full list (cut at the page limit) holds only the runs
 created after its oldest row.
-
-$$\operatorname{covers}(\mathit{rows}, \mathit{full}, \mathit{since}, w) \iff \mathit{since} \le w.\mathit{createdAt} \land (\lnot\mathit{full} \lor \exists f:\ \min_{(\_, c) \in \mathit{rows}} c = f \land f < w.\mathit{createdAt})$$
 -/
 def covers (rows : List (Nat × Nat)) (full : Bool) (since : Nat) (w : Watch) : Bool :=
   decide (since ≤ w.createdAt) &&
@@ -699,8 +535,6 @@ def covers (rows : List (Nat × Nat)) (full : Bool) (since : Nat) (w : Watch) : 
 the list stays with its misses cleared; a run created before the list's window (`createdAt < since`, registered
 after the tick began) is not judged and stays until the next tick; a run the list cannot cover is dropped
 (`uncovered`); a covered run that is missing stays for `missMax - 1` ticks and is then dropped (`unseen`).
-
-$$\operatorname{judge}(L, \mathit{rows}, \mathit{full}, \mathit{since}, w) = \begin{cases} \text{keep } w & \operatorname{isSentinel}(w.\mathit{runId}) \\ \text{keep } w[\mathit{misses} := 0] & \text{else if } w.\mathit{runId} \in \mathit{rows} \\ \text{keep } w & \text{else if } w.\mathit{createdAt} < \mathit{since} \\ \text{drop } \mathrm{uncovered} & \text{else if } \lnot\operatorname{covers}(\mathit{rows}, \mathit{full}, \mathit{since}, w) \\ \text{drop } \mathrm{unseen} & \text{else if } L.\mathit{missMax} \le w.\mathit{misses} + 1 \\ \text{keep } w[\mathit{misses} := w.\mathit{misses} + 1] & \text{otherwise} \end{cases}$$
 -/
 def judge (L : Limits) (rows : List (Nat × Nat)) (full : Bool) (since : Nat) (w : Watch) : Drop ⊕ Watch :=
   if isSentinel w.runId then .inr w
@@ -712,8 +546,6 @@ def judge (L : Limits) (rows : List (Nat × Nat)) (full : Bool) (since : Nat) (w
 
 /-- Apply one tick's list (rows `(runId, createdAt)`; `full` when it hit the page limit; `since` the window start the
 tick asked for) to every watch.
-
-$$\operatorname{listed}(L, s, \mathit{rows}, \mathit{full}, \mathit{since}) = s[\mathit{watched} := [\,w' \mid w \in s.\mathit{watched},\ \operatorname{judge}(L, \mathit{rows}, \mathit{full}, \mathit{since}, w) = \text{keep } w'\,],\ \mathit{incidents} := s.\mathit{incidents} \mathbin{+\!\!+} [\,(w.\mathit{runId}, s.\mathit{now}, d) \mid w \in s.\mathit{watched},\ \operatorname{judge}(L, \mathit{rows}, \mathit{full}, \mathit{since}, w) = \text{drop } d\,]]$$
 -/
 def listed (L : Limits) (s : State) (rows : List (Nat × Nat)) (full : Bool) (since : Nat) : State :=
   { s with
@@ -773,8 +605,6 @@ deriving Repr
 /-- Apply an event. The clock never goes back (`now := max(now, t)`) and drops ledger entries no window can see
 again; an id that is neither a GitHub run id nor a branch sentinel is refused (the state stays), and a second waiter
 on a watched run changes nothing.
-
-$$\begin{aligned} \operatorname{step}(L, s, \mathrm{clock}(t)) &= s[\mathit{now} := n,\ \ell := [\,e \in s.\ell \mid n < e.\mathit{time} + \max(W, W_1)\,]], \quad n = \max(s.\mathit{now}, t) \\ \operatorname{step}(L, s, \mathrm{register}(r, c)) &= \begin{cases} s & \lnot\operatorname{validWatch}(L, r) \lor \exists w \in s.\mathit{watched}:\ w.\mathit{runId} = r \\ s[\mathit{watched} := s.\mathit{watched} \mathbin{+\!\!+} [(r, c, \bot, 0)]] & \text{otherwise} \end{cases} \\ \operatorname{step}(L, s, \mathrm{unregister}(r)) &= s[\mathit{watched} := [\,w \in s.\mathit{watched} \mid w.\mathit{runId} \ne r\,]] \\ \operatorname{step}(L, s, \mathrm{pages}(n)) &= s[\mathit{pages} := \max(1, n)] \\ \operatorname{step}(L, s, \mathrm{response}(h, a)) &= \operatorname{observe}(L, s, h, a) \\ \operatorname{step}(L, s, \mathrm{resume}) &= s[\mathit{fails} := 0] \\ \operatorname{step}(L, s, \mathrm{listed}(\mathit{rows}, n, p, c)) &= \operatorname{listed}(L, s, \mathit{rows}, \operatorname{isFull}(n, p), c) \\ \operatorname{step}(L, s, \mathrm{ack}(n)) &= s[\mathit{incidents} := \operatorname{drop}(n, s.\mathit{incidents})] \\ \operatorname{step}(L, s, \mathrm{sweep}(A)) &= \operatorname{sweep}(s, A) \end{aligned}$$
 -/
 def step (L : Limits) (s : State) : Event → State
   | .clock t =>
@@ -837,10 +667,7 @@ private def stopOf : Decision → Option Reason | .stop r => some r | _ => none
 
 /-! ## (e) The clock -/
 
-/-- The clock never goes back: no event decreases `now`.
-
-$$\forall L, s, e:\quad \operatorname{step}(L, s, e).\mathit{now} \ge s.\mathit{now}$$
--/
+/-- The clock never goes back: no event decreases `now`. -/
 theorem clock_monotone (L : Limits) (s : State) (e : Event) : (step L s e).now ≥ s.now := by
   cases e with
   | clock t => simp only [step]; omega
@@ -848,10 +675,7 @@ theorem clock_monotone (L : Limits) (s : State) (e : Event) : (step L s e).now �
   | response h a => simp [step, observe]
   | _ => simp [step, listed, sweep]
 
-/-- An issued charge keeps the clock, appends exactly the charge, and changes no guard field.
-
-$$\forall L, s, k, c, k', c', s':\quad \operatorname{charge}(L, s, k, c) = \mathrm{issue}(k', c', s') \Rightarrow k' = k \land c' = c \land s'.\ell = s.\ell \mathbin{+\!\!+} [(s.\mathit{now}, c, k, \top)] \land s'.\mathit{now} = s.\mathit{now} \land s'.\mathit{retryUntil} = s.\mathit{retryUntil}$$
--/
+/-- An issued charge keeps the clock, appends exactly the charge, and changes no guard field. -/
 theorem charge_issue (L : Limits) (s : State) (k : Kind) (c : Nat) (k' : Kind) (c' : Nat) (s' : State)
     (h : charge L s k c = .issue k' c' s') :
     k' = k ∧ c' = c ∧ s'.ledger = s.ledger ++ [⟨s.now, c, k, true⟩] ∧ s'.now = s.now ∧
@@ -874,9 +698,7 @@ theorem charge_issue (L : Limits) (s : State) (k : Kind) (c : Nat) (k' : Kind) (
 
 
 /-- An issued charge passed every guard: fewer than `maxFails` failures, `now` at or after `retryUntil`, headroom,
-and room for $c$ in both windows of its kind (corrections included).
-
-$$\forall L, s, k, c, k', c', s':\quad \operatorname{charge}(L, s, k, c) = \mathrm{issue}(k', c', s') \Rightarrow s.\mathit{fails} < L.m \land s.\mathit{retryUntil} \le s.\mathit{now} \land \operatorname{headroom}(L, s) \land \Sigma_W(\operatorname{ofKind}(k), s.\ell, s.\mathit{now}) + c \le \operatorname{share}(L, k) \land \Sigma_{W_1}(\operatorname{ofKind}(k), s.\ell, s.\mathit{now}) + c \le \operatorname{share}_1(L, k)$$
+and room for `c` in both windows of its kind (corrections included).
 -/
 theorem charge_issue_guards (L : Limits) (s : State) (k : Kind) (c : Nat) (k' : Kind) (c' : Nat) (s' : State)
     (h : charge L s k c = .issue k' c' s') :
@@ -905,8 +727,6 @@ theorem charge_issue_guards (L : Limits) (s : State) (k : Kind) (c : Nat) (k' : 
 
 /-- A wait is never in the past: every `wait` that `charge` returns is strictly after `now`, and it is never the
 interval wait.
-
-$$\forall L, s, k, c, u, r:\quad \operatorname{charge}(L, s, k, c) = \mathrm{wait}(u, r) \Rightarrow s.\mathit{now} < u \land r \ne \mathrm{interval}$$
 -/
 theorem charge_wait (L : Limits) (s : State) (k : Kind) (c u : Nat) (r : Reason)
     (h : charge L s k c = .wait u r) : s.now < u ∧ r ≠ .interval := by
@@ -939,10 +759,7 @@ theorem charge_wait (L : Limits) (s : State) (k : Kind) (c u : Nat) (r : Reason)
   · cases h; exact ⟨hfree _ _ _, by simp⟩
   · cases h
 
-/-- `charge` never stops for a reason other than failures or a cost no share can hold.
-
-$$\forall L, s, k, c, r:\quad \operatorname{charge}(L, s, k, c) = \mathrm{stop}(r) \Rightarrow (r = \mathrm{failures} \land L.m \le s.\mathit{fails}) \lor r = \mathrm{tooBig}$$
--/
+/-- `charge` never stops for a reason other than failures or a cost no share can hold. -/
 theorem charge_stop (L : Limits) (s : State) (k : Kind) (c : Nat) (r : Reason)
     (h : charge L s k c = .stop r) : (r = .failures ∧ L.maxFails ≤ s.fails) ∨ r = .tooBig := by
   unfold charge at h
@@ -955,10 +772,7 @@ theorem charge_stop (L : Limits) (s : State) (k : Kind) (c : Nat) (r : Reason)
 
 /-! ## (b) No call under a guard -/
 
-/-- `headroom` spelled out.
-
-$$\forall L, s:\quad \operatorname{headroom}(L, s) \iff s.\mathit{rem} = \bot \lor \exists r:\ s.\mathit{rem} = r \land \big(L.F < r \lor \exists T:\ s.\mathit{reset} = T \land T \le s.\mathit{now}\big)$$
--/
+/-- `headroom` spelled out. -/
 theorem headroom_iff (L : Limits) (s : State) :
     headroom L s = true ↔ s.remaining = none ∨
       ∃ r, s.remaining = some r ∧ (L.F < r ∨ ∃ T, s.reset = some T ∧ T ≤ s.now) := by
@@ -966,9 +780,7 @@ theorem headroom_iff (L : Limits) (s : State) :
   cases hr : s.remaining <;> cases ht : s.reset <;> simp
 
 /-- (b) A one-off call is issued only when `now` is at or after `retryUntil` and the headers leave room: remaining
-unknown, above the floor $F$, or the reset already passed.
-
-$$\forall L, s, c, k, c', s':\quad \operatorname{reserve}(L, s, c) = \mathrm{issue}(k, c', s') \Rightarrow s.\mathit{now} \ge s.\mathit{retryUntil} \land \Big(s.\mathit{rem} = \bot \lor \exists r:\ s.\mathit{rem} = r \land \big(r > F \lor \exists T:\ s.\mathit{reset} = T \land s.\mathit{now} \ge T\big)\Big)$$
+unknown, above the floor `F`, or the reset already passed.
 -/
 theorem no_issue_when_exhausted (L : Limits) (s : State) (c : Nat) (k : Kind) (c' : Nat) (s' : State)
     (h : reserve L s c = .issue k c' s') :
@@ -977,10 +789,7 @@ theorem no_issue_when_exhausted (L : Limits) (s : State) (c : Nat) (k : Kind) (c
   have g := charge_issue_guards L s _ _ _ _ _ h
   exact ⟨g.2.1, (headroom_iff L s).1 g.2.2.1⟩
 
-/-- The decisions of `next`: an issue is `tickNow`'s charge with the watched runs covered.
-
-$$\forall L, s, k, c, s':\quad \operatorname{next}(L, s) = \mathrm{issue}(k, c, s') \Rightarrow \exists s'':\ \operatorname{charge}(L, s, \mathrm{tick}, \operatorname{tickCost}(L, s)) = \mathrm{issue}(k, c, s'') \land s' = \operatorname{cover}(s'')$$
--/
+/-- The decisions of `next`: an issue is `tickNow`'s charge with the watched runs covered. -/
 theorem next_issue (L : Limits) (s : State) (k : Kind) (c : Nat) (s' : State) (h : next L s = .issue k c s') :
     ∃ s'', charge L s .tick (tickCost L s) = .issue k c s'' ∧ s' = cover s'' := by
   have ht : tickNow L s = .issue k c s' → ∃ s'', charge L s .tick (tickCost L s) = .issue k c s'' ∧ s' = cover s'' := by
@@ -1003,10 +812,7 @@ theorem next_issue (L : Limits) (s : State) (k : Kind) (c : Nat) (s' : State) (h
     · exact ht h
   · exact ht h
 
-/-- (b) The poller ticks only under the same guards as `reserve`.
-
-$$\forall L, s, k, c, s':\quad \operatorname{next}(L, s) = \mathrm{issue}(k, c, s') \Rightarrow s.\mathit{now} \ge s.\mathit{retryUntil} \land \Big(s.\mathit{rem} = \bot \lor \exists r:\ s.\mathit{rem} = r \land \big(r > F \lor \exists T:\ s.\mathit{reset} = T \land s.\mathit{now} \ge T\big)\Big)$$
--/
+/-- (b) The poller ticks only under the same guards as `reserve`. -/
 theorem next_no_issue_when_exhausted (L : Limits) (s : State) (k : Kind) (c : Nat) (s' : State)
     (h : next L s = .issue k c s') :
     s.retryUntil ≤ s.now ∧ (s.remaining = none ∨
@@ -1017,10 +823,8 @@ theorem next_no_issue_when_exhausted (L : Limits) (s : State) (k : Kind) (c : Na
 
 /-! ## Reachable states -/
 
-/-- The states reachable from $s_0$: events, issued charges of any kind and cost, and issued ticks with their cover
+/-- The states reachable from `s_0`: events, issued charges of any kind and cost, and issued ticks with their cover
 (a superset of what `reserve` and `next` do, so every theorem over it holds for them).
-
-$$\begin{aligned} & s_0 \in \operatorname{Reach}(L, s_0) \\ & s \in \operatorname{Reach}(L, s_0) \Rightarrow \operatorname{step}(L, s, e) \in \operatorname{Reach}(L, s_0) \\ & s \in \operatorname{Reach}(L, s_0) \land \operatorname{charge}(L, s, k, c) = \mathrm{issue}(k, c, s') \Rightarrow s' \in \operatorname{Reach}(L, s_0) \\ & s \in \operatorname{Reach}(L, s_0) \land \operatorname{charge}(L, s, \mathrm{tick}, c) = \mathrm{issue}(\mathrm{tick}, c, s') \Rightarrow \operatorname{cover}(s') \in \operatorname{Reach}(L, s_0) \end{aligned}$$
 -/
 inductive Reach (L : Limits) (s0 : State) : State → Prop where
   | refl : Reach L s0 s0
@@ -1028,20 +832,14 @@ inductive Reach (L : Limits) (s0 : State) : State → Prop where
   | charge {s s' : State} {k : Kind} {c : Nat} : Reach L s0 s → charge L s k c = .issue k c s' → Reach L s0 s'
   | cover {s s' : State} {c : Nat} : Reach L s0 s → charge L s .tick c = .issue .tick c s' → Reach L s0 (cover s')
 
-/-- An issued `reserve` stays reachable.
-
-$$\forall L, s_0, s, c, k, c', s':\quad s \in \operatorname{Reach}(L, s_0) \land \operatorname{reserve}(L, s, c) = \mathrm{issue}(k, c', s') \Rightarrow s' \in \operatorname{Reach}(L, s_0)$$
--/
+/-- An issued `reserve` stays reachable. -/
 theorem Reach.reserve {L : Limits} {s0 s : State} {c : Nat} {k : Kind} {c' : Nat} {s' : State}
     (hr : Reach L s0 s) (h : Fw.Ci.Budget.reserve L s c = .issue k c' s') : Reach L s0 s' := by
   have hi := charge_issue L s _ _ _ _ _ h
   obtain ⟨rfl, rfl, -⟩ := hi
   exact .charge hr h
 
-/-- An issued `next` stays reachable.
-
-$$\forall L, s_0, s, k, c, s':\quad s \in \operatorname{Reach}(L, s_0) \land \operatorname{next}(L, s) = \mathrm{issue}(k, c, s') \Rightarrow s' \in \operatorname{Reach}(L, s_0)$$
--/
+/-- An issued `next` stays reachable. -/
 theorem Reach.next {L : Limits} {s0 s : State} {k : Kind} {c : Nat} {s' : State}
     (hr : Reach L s0 s) (h : Fw.Ci.Budget.next L s = .issue k c s') : Reach L s0 s' := by
   obtain ⟨s'', hc, rfl⟩ := next_issue L s k c s' h
@@ -1051,27 +849,20 @@ theorem Reach.next {L : Limits} {s0 s : State} {k : Kind} {c : Nat} {s' : State}
 
 /-! ## (a) The window bound -/
 
-/-- The invariant: every ledger entry is at or before `now`, and for each kind and every time $t$ the charges in
+/-- The invariant: every ledger entry is at or before `now`, and for each kind and every time `t` the charges in
 both windows stay within the shares.
-
-$$\operatorname{Inv}(L, s) \iff (\forall e \in s.\ell:\ e.\mathit{time} \le s.\mathit{now}) \land \forall k, t:\ \Sigma_W(\operatorname{chargedOf}(k), s.\ell, t) \le \operatorname{share}(L, k) \land \Sigma_{W_1}(\operatorname{chargedOf}(k), s.\ell, t) \le \operatorname{share}_1(L, k)$$
 -/
 def Inv (L : Limits) (s : State) : Prop :=
   (∀ e ∈ s.ledger, e.time ≤ s.now) ∧
     ∀ k t, wsum L.W t (chargedOf k) s.ledger ≤ share L k ∧ wsum L.W1 t (chargedOf k) s.ledger ≤ share1 L k
 
-/-- Appending an entry the selector skips leaves the window sum unchanged.
-
-$$\forall W, t, \mathit{sel}, \ell, e:\quad \lnot\mathit{sel}(e) \Rightarrow \Sigma_W(\mathit{sel}, \ell \mathbin{+\!\!+} [e], t) = \Sigma_W(\mathit{sel}, \ell, t)$$
--/
+/-- Appending an entry the selector skips leaves the window sum unchanged. -/
 theorem wsum_append_skip (W t : Nat) (sel : Entry → Bool) (l : List Entry) (e : Entry) (h : sel e = false) :
     wsum W t sel (l ++ [e]) = wsum W t sel l := by
   rw [wsum_append, wsum_single]; simp [h]
 
-/-- Appending a charge $(n, c, k)$ at the latest time $n$ keeps the charges of kind $k$ within the cap, when the
-window ending at $n$ had room for $c$ (corrections included).
-
-$$\forall W, \mathit{cap}, k, \ell, n, c:\quad (\forall e \in \ell:\ e.\mathit{time} \le n) \land (\forall t:\ \Sigma_W(\operatorname{chargedOf}(k), \ell, t) \le \mathit{cap}) \land \Sigma_W(\operatorname{ofKind}(k), \ell, n) + c \le \mathit{cap} \Rightarrow \forall t:\ \Sigma_W(\operatorname{chargedOf}(k), \ell \mathbin{+\!\!+} [(n, c, k, \top)], t) \le \mathit{cap}$$
+/-- Appending a charge `(n, c, k)` at the latest time `n` keeps the charges of kind `k` within the cap, when the
+window ending at `n` had room for `c` (corrections included).
 -/
 theorem charged_append_ok (W cap : Nat) (k : Kind) (l : List Entry) (n c : Nat)
     (hall : ∀ e ∈ l, e.time ≤ n) (hok : ∀ t, wsum W t (chargedOf k) l ≤ cap)
@@ -1088,18 +879,12 @@ theorem charged_append_ok (W cap : Nat) (k : Kind) (l : List Entry) (n c : Nat)
     omega
   · have := hok t; omega
 
-/-- The invariant holds for the empty state at any time.
-
-$$\forall L, t:\quad \operatorname{Inv}(L, \operatorname{init}(t))$$
--/
+/-- The invariant holds for the empty state at any time. -/
 theorem inv_init (L : Limits) (t : Nat) : Inv L (init t) := by
   refine ⟨by simp [init], fun k t => ?_⟩
   simp [init, wsum]
 
-/-- Every event keeps the invariant.
-
-$$\forall L, s, e:\quad \operatorname{Inv}(L, s) \Rightarrow \operatorname{Inv}(L, \operatorname{step}(L, s, e))$$
--/
+/-- Every event keeps the invariant. -/
 theorem inv_step (L : Limits) (s : State) (e : Event) (h : Inv L s) : Inv L (step L s e) := by
   obtain ⟨hall, hok⟩ := h
   cases e with
@@ -1136,10 +921,7 @@ theorem inv_step (L : Limits) (s : State) (e : Event) (h : Inv L s) : Inv L (ste
         exact hok k t'
       · exact hok k t'
 
-/-- An issued charge keeps the invariant.
-
-$$\forall L, s, k, c, s':\quad \operatorname{Inv}(L, s) \land \operatorname{charge}(L, s, k, c) = \mathrm{issue}(k, c, s') \Rightarrow \operatorname{Inv}(L, s')$$
--/
+/-- An issued charge keeps the invariant. -/
 theorem inv_charge (L : Limits) (s : State) (k : Kind) (c : Nat) (s' : State) (h : Inv L s)
     (hc : charge L s k c = .issue k c s') : Inv L s' := by
   obtain ⟨hall, hok⟩ := h
@@ -1161,10 +943,7 @@ theorem inv_charge (L : Limits) (s : State) (k : Kind) (c : Nat) (s' : State) (h
       rw [wsum_append_skip _ _ _ _ _ hs, wsum_append_skip _ _ _ _ _ hs]
       exact hok k' t
 
-/-- The invariant holds in every state reachable from a state where it holds.
-
-$$\forall L, s_0, s:\quad \operatorname{Inv}(L, s_0) \land s \in \operatorname{Reach}(L, s_0) \Rightarrow \operatorname{Inv}(L, s)$$
--/
+/-- The invariant holds in every state reachable from a state where it holds. -/
 theorem inv_reach (L : Limits) (s0 s : State) (h0 : Inv L s0) (hr : Reach L s0 s) : Inv L s := by
   induction hr with
   | refl => exact h0
@@ -1174,20 +953,16 @@ theorem inv_reach (L : Limits) (s0 s : State) (h0 : Inv L s0) (hr : Reach L s0 s
     have := inv_charge L _ _ _ _ ih hc
     exact this
 
-/-- (a) In every state reachable from an empty state, for each kind and every time $t$, the charged requests in the
-window $(t - W, t]$ stay within the hourly share and those in $(t - W_1, t]$ within the per-minute share. No
-hypothesis mentions the watched runs, so this holds for every number $N$ of waiters.
-
-$$\forall L, t_0, s, k, t:\quad s \in \operatorname{Reach}(L, \operatorname{init}(t_0)) \Rightarrow \Sigma_W(\operatorname{chargedOf}(k), s.\ell, t) \le \operatorname{share}(L, k) \land \Sigma_{W_1}(\operatorname{chargedOf}(k), s.\ell, t) \le \operatorname{share}_1(L, k)$$
+/-- (a) In every state reachable from an empty state, for each kind and every time `t`, the charged requests in the
+window `(t - W, t]` stay within the hourly share and those in `(t - W_1, t]` within the per-minute share. No
+hypothesis mentions the watched runs, so this holds for every number `N` of waiters.
 -/
 theorem window_bound (L : Limits) (t0 : Nat) (s : State) (hr : Reach L (init t0) s) (k : Kind) (t : Nat) :
     wsum L.W t (chargedOf k) s.ledger ≤ share L k ∧ wsum L.W1 t (chargedOf k) s.ledger ≤ share1 L k :=
   (inv_reach L _ s (inv_init L t0) hr).2 k t
 
-/-- (a) The total: with $R \le B$ and $R_1 \le B_1$, all charged requests in any 3600 s window stay within $B$ and
-those in any 60 s window within $B_1$.
-
-$$\forall L, t_0, s, t:\quad L.R \le L.B \land L.R_1 \le L.B_1 \land s \in \operatorname{Reach}(L, \operatorname{init}(t_0)) \Rightarrow \Sigma_W(\operatorname{isCharge}, s.\ell, t) \le L.B \land \Sigma_{W_1}(\operatorname{isCharge}, s.\ell, t) \le L.B_1$$
+/-- (a) The total: with `R ≤ B` and `R_1 ≤ B_1`, all charged requests in any 3600 s window stay within `B` and
+those in any 60 s window within `B_1`.
 -/
 theorem window_total (L : Limits) (t0 : Nat) (s : State) (hR : L.R ≤ L.B) (hR1 : L.R1 ≤ L.B1)
     (hr : Reach L (init t0) s) (t : Nat) :
@@ -1201,9 +976,6 @@ theorem window_total (L : Limits) (t0 : Nat) (s : State) (hR : L.R ≤ L.B) (hR1
 /-- (a) Overruns: in every reachable state the requests of a kind in a window (charges and corrections) stay within
 the share plus the corrections in that window, and a call is issued only when the whole window, corrections
 included, has room for it.
-
-$$\forall L, t_0, s, k, t:\quad s \in \operatorname{Reach}(L, \operatorname{init}(t_0)) \Rightarrow \Sigma_W(\operatorname{ofKind}(k), s.\ell, t) \le \operatorname{share}(L, k) + \Sigma_W(\operatorname{corrOf}(k), s.\ell, t) \land \Sigma_{W_1}(\operatorname{ofKind}(k), s.\ell, t) \le \operatorname{share}_1(L, k) + \Sigma_{W_1}(\operatorname{corrOf}(k), s.\ell, t)$$
-$$\forall L, s, k, c, s':\quad \operatorname{charge}(L, s, k, c) = \mathrm{issue}(k, c, s') \Rightarrow \Sigma_W(\operatorname{ofKind}(k), s.\ell, s.\mathit{now}) + c \le \operatorname{share}(L, k)$$
 -/
 theorem overrun_absorbed (L : Limits) (t0 : Nat) (s : State) (hr : Reach L (init t0) s) (k : Kind) (t : Nat) :
     (wsum L.W t (ofKind k) s.ledger ≤ share L k + wsum L.W t (corrOf k) s.ledger ∧
@@ -1214,39 +986,27 @@ theorem overrun_absorbed (L : Limits) (t0 : Nat) (s : State) (hr : Reach L (init
   rw [wsum_split, wsum_split]
   refine ⟨⟨by omega, by omega⟩, fun s1 c s' hc => (charge_issue_guards L s1 k c k c s' hc).2.2.2.1⟩
 
-/-- (a′) Waiters cost nothing: registering or unregistering a run leaves the ledger and the clock as they are.
-
-$$\forall L, s, r, c:\quad \operatorname{step}(L, s, \mathrm{register}(r, c)).\ell = s.\ell \land \operatorname{step}(L, s, \mathrm{unregister}(r)).\ell = s.\ell \land \operatorname{step}(L, s, \mathrm{register}(r, c)).\mathit{now} = s.\mathit{now}$$
--/
+/-- (a′) Waiters cost nothing: registering or unregistering a run leaves the ledger and the clock as they are. -/
 theorem register_free (L : Limits) (s : State) (r c : Nat) :
     (step L s (.register r c)).ledger = s.ledger ∧ (step L s (.unregister r)).ledger = s.ledger ∧
       (step L s (.register r c)).now = s.now := by
   simp only [step]; split <;> simp
 
-/-- (a′) Another waiter on a run already watched changes nothing: $N$ waiters on one run are one entry.
-
-$$\forall L, s, r, c:\quad (\exists w \in s.\mathit{watched}:\ w.\mathit{runId} = r) \Rightarrow \operatorname{step}(L, s, \mathrm{register}(r, c)) = s$$
--/
+/-- (a′) Another waiter on a run already watched changes nothing: `N` waiters on one run are one entry. -/
 theorem register_dup (L : Limits) (s : State) (r c : Nat) (h : ∃ w ∈ s.watched, w.runId = r) :
     step L s (.register r c) = s := by
   obtain ⟨w, hw, hr⟩ := h
   have : s.watched.any (·.runId == r) = true := List.any_eq_true.2 ⟨w, hw, by simp [hr]⟩
   simp [step, this]
 
-/-- (a″) A tick's cost and interval do not depend on the watched runs: one list call covers them all.
-
-$$\forall L, s, \mathit{ws}:\quad \operatorname{tickCost}(L, s[\mathit{watched} := \mathit{ws}]) = \operatorname{tickCost}(L, s) \land P(L, s[\mathit{watched} := \mathit{ws}]) = P(L, s)$$
--/
+/-- (a″) A tick's cost and interval do not depend on the watched runs: one list call covers them all. -/
 theorem tick_cost_indep_N (L : Limits) (s : State) (ws : List Watch) :
     tickCost L { s with watched := ws } = tickCost L s ∧ interval L { s with watched := ws } = interval L s := by
   constructor <;> rfl
 
 /-! ## (b′, b″) Guards persist, and the backoff -/
 
-/-- No event or issued charge lowers `retryUntil`.
-
-$$\forall L, s_0, s:\quad s \in \operatorname{Reach}(L, s_0) \Rightarrow s_0.\mathit{retryUntil} \le s.\mathit{retryUntil}$$
--/
+/-- No event or issued charge lowers `retryUntil`. -/
 theorem retry_mono (L : Limits) (s0 s : State) (hr : Reach L s0 s) : s0.retryUntil ≤ s.retryUntil := by
   induction hr with
   | refl => exact Nat.le_refl _
@@ -1266,8 +1026,6 @@ theorem retry_mono (L : Limits) (s0 s : State) (hr : Reach L s0 s) : s0.retryUnt
 
 /-- A response pushes `retryUntil` to at least `now` plus its `retry-after`, and a refusal with remaining 0 to at
 least its reset.
-
-$$\forall L, s, h, a:\quad (\forall a':\ h.\mathit{retryAfter} = a' \Rightarrow s.\mathit{now} + a' \le \operatorname{observe}(L, s, h, a).\mathit{retryUntil}) \land (\forall T:\ \operatorname{refused}(h.\mathit{status}) \land h.\mathit{rem} = 0 \land h.\mathit{reset} = T \Rightarrow T \le \operatorname{observe}(L, s, h, a).\mathit{retryUntil})$$
 -/
 theorem observe_retry (L : Limits) (s : State) (h : Headers) (a : Nat) :
     (∀ a', h.retryAfter = some a' → s.now + a' ≤ (observe L s h a).retryUntil) ∧
@@ -1282,10 +1040,8 @@ theorem observe_retry (L : Limits) (s : State) (h : Headers) (a : Nat) :
     simp
     omega
 
-/-- (b′) After a response with `retry-after` $a'$ at time $t_0$, or a refusal with remaining 0 and reset $T$, no
-call is issued along any later trace before $t_0 + a'$, or before $T$.
-
-$$\forall L, s, h, a, s_2, k, c, s':\quad s_2 \in \operatorname{Reach}(L, \operatorname{step}(L, s, \mathrm{response}(h, a))) \land \operatorname{charge}(L, s_2, k, c) = \mathrm{issue}(k, c, s') \Rightarrow (\forall a':\ h.\mathit{retryAfter} = a' \Rightarrow s.\mathit{now} + a' \le s_2.\mathit{now}) \land (\forall T:\ \operatorname{refused}(h.\mathit{status}) \land h.\mathit{rem} = 0 \land h.\mathit{reset} = T \Rightarrow T \le s_2.\mathit{now})$$
+/-- (b′) After a response with `retry-after` `a'` at time `t_0`, or a refusal with remaining 0 and reset `T`, no
+call is issued along any later trace before `t_0 + a'`, or before `T`.
 -/
 theorem guard_persists (L : Limits) (s : State) (h : Headers) (a : Nat) (s2 : State)
     (hr : Reach L (step L s (.response h a)) s2) (k : Kind) (c : Nat) (s' : State)
@@ -1299,28 +1055,19 @@ theorem guard_persists (L : Limits) (s : State) (h : Headers) (a : Nat) (s2 : St
   exact ⟨fun a' ha => by have := ho.1 a' ha; omega,
     fun T h1 h2 h3 => by have := ho.2 T h1 h2 h3; omega⟩
 
-/-- (b″) The backoff is at least $b_0$ (when $b_0 \le b_{\max}$).
-
-$$\forall L, k:\quad L.b_0 \le L.b_{\max} \Rightarrow L.b_0 \le \operatorname{backoff}(L, k)$$
--/
+/-- (b″) The backoff is at least `b_0` (when `b_0 ≤ b_max`). -/
 theorem backoff_ge (L : Limits) (k : Nat) (h : L.back0 ≤ L.backMax) : L.back0 ≤ backoff L k := by
   unfold backoff
   have : L.back0 ≤ L.back0 * 2 ^ k := Nat.le_mul_of_pos_right _ (Nat.two_pow_pos k)
   omega
 
-/-- (b″) The backoff never shrinks as failures accumulate.
-
-$$\forall L, k, k':\quad k \le k' \Rightarrow \operatorname{backoff}(L, k) \le \operatorname{backoff}(L, k')$$
--/
+/-- (b″) The backoff never shrinks as failures accumulate. -/
 theorem backoff_mono (L : Limits) (k k' : Nat) (h : k ≤ k') : backoff L k ≤ backoff L k' := by
   unfold backoff
   have : L.back0 * 2 ^ k ≤ L.back0 * 2 ^ k' := Nat.mul_le_mul_left _ (Nat.pow_le_pow_right (by omega) h)
   omega
 
-/-- (b″) After `maxFails` failures in a row both decisions stop.
-
-$$\forall L, s, c:\quad L.m \le s.\mathit{fails} \Rightarrow \operatorname{reserve}(L, s, c) = \mathrm{stop}(\mathrm{failures}) \land \operatorname{next}(L, s) = \mathrm{stop}(\mathrm{failures})$$
--/
+/-- (b″) After `maxFails` failures in a row both decisions stop. -/
 theorem stop_after_fails (L : Limits) (s : State) (c : Nat) (h : L.maxFails ≤ s.fails) :
     reserve L s c = .stop .failures ∧ next L s = .stop .failures := by
   simp [reserve, charge, next, h]
@@ -1329,8 +1076,6 @@ theorem stop_after_fails (L : Limits) (s : State) (c : Nat) (h : L.maxFails ≤ 
 
 /-- (c) While the guards allow, the shares have room and the interval has passed, `next` ticks, and the tick covers
 every watched run at `now`.
-
-$$\begin{aligned} \forall L, s:\quad & s.\mathit{fails} < L.m \land s.\mathit{watched} \ne [\,] \land (\forall t_0:\ s.\mathit{lastTick} = t_0 \Rightarrow t_0 + P(L, s) \le s.\mathit{now}) \land s.\mathit{retryUntil} \le s.\mathit{now} \land \operatorname{headroom}(L, s) \\ & \land\ c \le \operatorname{share}(L, \mathrm{tick}) \land c \le \operatorname{share}_1(L, \mathrm{tick}) \land \Sigma_W(\operatorname{ofKind}(\mathrm{tick}), s.\ell, s.\mathit{now}) + c \le \operatorname{share}(L, \mathrm{tick}) \land \Sigma_{W_1}(\operatorname{ofKind}(\mathrm{tick}), s.\ell, s.\mathit{now}) + c \le \operatorname{share}_1(L, \mathrm{tick}) \\ & \Rightarrow \exists s':\ \operatorname{next}(L, s) = \mathrm{issue}(\mathrm{tick}, c, s') \land s'.\mathit{lastTick} = s.\mathit{now} \land \forall w \in s'.\mathit{watched}:\ w.\mathit{lastCovered} = s.\mathit{now} \\ & \text{where } c = \operatorname{tickCost}(L, s) \end{aligned}$$
 -/
 theorem poll_live (L : Limits) (s : State) (hf : s.fails < L.maxFails) (hw : s.watched ≠ [])
     (hint : ∀ t0, s.lastTick = some t0 → t0 + interval L s ≤ s.now)
@@ -1370,10 +1115,8 @@ theorem poll_live (L : Limits) (s : State) (hf : s.fails < L.maxFails) (hw : s.w
     rfl
   all_goals rfl
 
-/-- (c) The only other way `next` waits on the interval: it waits until the last tick plus $P$, which is after `now`
-and at most $P$ after `now` when the last tick is not in the future.
-
-$$\forall L, s, u:\quad \operatorname{next}(L, s) = \mathrm{wait}(u, \mathrm{interval}) \Rightarrow \exists t_0:\ s.\mathit{lastTick} = t_0 \land u = t_0 + P(L, s) \land s.\mathit{now} < u \land (t_0 \le s.\mathit{now} \Rightarrow u \le s.\mathit{now} + P(L, s))$$
+/-- (c) The only other way `next` waits on the interval: it waits until the last tick plus `P`, which is after `now`
+and at most `P` after `now` when the last tick is not in the future.
 -/
 theorem next_wait_interval (L : Limits) (s : State) (u : Nat) (h : next L s = .wait u .interval) :
     ∃ t0, s.lastTick = some t0 ∧ u = t0 + interval L s ∧ s.now < u ∧ (t0 ≤ s.now → u ≤ s.now + interval L s) := by
@@ -1396,10 +1139,7 @@ theorem next_wait_interval (L : Limits) (s : State) (u : Nat) (h : next L s = .w
     · exact (ht u h).elim
   · exact (ht u h).elim
 
-/-- No wait is in the past: every `wait` from `reserve` or `next` is strictly after `now`.
-
-$$\forall L, s, c, u, r:\quad (\operatorname{reserve}(L, s, c) = \mathrm{wait}(u, r) \Rightarrow s.\mathit{now} < u) \land (\operatorname{next}(L, s) = \mathrm{wait}(u, r) \Rightarrow s.\mathit{now} < u)$$
--/
+/-- No wait is in the past: every `wait` from `reserve` or `next` is strictly after `now`. -/
 theorem wait_future (L : Limits) (s : State) (c u : Nat) (r : Reason) :
     (reserve L s c = .wait u r → s.now < u) ∧ (next L s = .wait u r → s.now < u) := by
   have ht : tickNow L s = .wait u r → s.now < u := by
@@ -1422,28 +1162,19 @@ theorem wait_future (L : Limits) (s : State) (c u : Nat) (r : Reason) :
 
 /-! ## (d) The interval formula, and the old scheme -/
 
-/-- Times spaced at least $P$ apart, in order.
-
-$$\operatorname{spaced}(P, [x_1, \dots, x_n]) \iff \forall i,\ 1 \le i < n:\ x_i + P \le x_{i+1} \quad (\text{true for } n \le 1)$$
--/
+/-- Times spaced at least `P` apart, in order. -/
 def spaced (P : Nat) : List Nat → Bool
   | x :: y :: r => decide (x + P ≤ y) && spaced P (y :: r)
   | _ => true
 
-/-- The ceiling division times the divisor reaches the dividend.
-
-$$\forall a, b:\quad 0 < b \Rightarrow a \le \operatorname{ceilDiv}(a, b) \cdot b$$
--/
+/-- The ceiling division times the divisor reaches the dividend. -/
 theorem le_ceilDiv_mul (a b : Nat) (hb : 0 < b) : a ≤ ceilDiv a b * b := by
   unfold ceilDiv
   have := Nat.lt_mul_div_succ (a + b - 1) hb
   rw [Nat.mul_succ, Nat.mul_comm] at this
   omega
 
-/-- The span of spaced times: $n$ steps of at least $P$ after the first one.
-
-$$\forall P, x, r, h:\quad \operatorname{spaced}(P, x :: r) \land (\forall z \in x :: r:\ z \le h) \Rightarrow \lvert r \rvert \cdot P + x \le h$$
--/
+/-- The span of spaced times: `n` steps of at least `P` after the first one. -/
 theorem spaced_span (P : Nat) (x : Nat) (r : List Nat) (hi : Nat) (hs : spaced P (x :: r) = true)
     (hle : ∀ z ∈ x :: r, z ≤ hi) : r.length * P + x ≤ hi := by
   induction r generalizing x with
@@ -1454,10 +1185,7 @@ theorem spaced_span (P : Nat) (x : Nat) (r : List Nat) (hi : Nat) (hs : spaced P
     simp only [List.length_cons, Nat.succ_mul]
     omega
 
-/-- At most $\lceil W/P \rceil$ times spaced at least $P$ apart fit in a window $(t - W, t]$.
-
-$$\forall P, W, t, \mathit{xs}:\quad 0 < P \land \operatorname{spaced}(P, \mathit{xs}) \land (\forall z \in \mathit{xs}:\ \operatorname{inWin}(W, t, z)) \Rightarrow \lvert \mathit{xs} \rvert \le \operatorname{ceilDiv}(W, P)$$
--/
+/-- At most `⌈ W/P ⌉` times spaced at least `P` apart fit in a window `(t - W, t]`. -/
 theorem spaced_count (P W t : Nat) (xs : List Nat) (hP : 0 < P) (hs : spaced P xs = true)
     (hw : ∀ z ∈ xs, inWin W t z = true) : xs.length ≤ ceilDiv W P := by
   cases xs with
@@ -1475,10 +1203,8 @@ theorem spaced_count (P W t : Nat) (xs : List Nat) (hP : 0 < P) (hs : spaced P x
     rw [this, h3]
     omega
 
-/-- An interval at least $\lceil W / \max(1, \lfloor \mathit{cap}/c \rfloor) \rceil$ fits $\lceil W/P \rceil$ calls of
-cost $c$ into the cap.
-
-$$\forall W, \mathit{cap}, c, P:\quad 0 < c \le \mathit{cap} \land 0 < P \land \operatorname{ceilDiv}(W, \max(1, \lfloor \mathit{cap}/c \rfloor)) \le P \Rightarrow \operatorname{ceilDiv}(W, P) \cdot c \le \mathit{cap}$$
+/-- An interval at least `⌈ W / max(1, ⌊ cap/c ⌋) ⌉` fits `⌈ W/P ⌉` calls of
+cost `c` into the cap.
 -/
 theorem ceilDiv_fit (W cap c P : Nat) (hc0 : 0 < c) (hc : c ≤ cap) (hP : 0 < P)
     (h : ceilDiv W (max 1 (cap / c)) ≤ P) : ceilDiv W P * c ≤ cap := by
@@ -1498,11 +1224,9 @@ theorem ceilDiv_fit (W cap c P : Nat) (hc0 : 0 < c) (hc : c ≤ cap) (hP : 0 < P
     omega
   exact Nat.le_trans (Nat.mul_le_mul_right c h3) (Nat.div_mul_le_self cap c)
 
-/-- (d) The interval formula is sound: for any $P \ge \operatorname{interval}(L, s)$ (and $P > 0$), ticks of cost $c$ spaced at least $P$
-apart fit the hourly tick share in every window $(t - W, t]$, the per-minute tick share in every window
-$(t - W_1, t]$, and, with remaining $r$ and the reset $T$ ahead, the headroom $r \mathbin{\dot-} F$ in $[\mathit{now}, T)$.
-
-$$\begin{aligned} \forall L, s, P:\quad & \operatorname{interval}(L, s) \le P \land 0 < P \land 0 < c \Rightarrow \\ & \big(c \le \operatorname{share}(L, \mathrm{tick}) \Rightarrow \forall \mathit{xs}, t:\ \operatorname{spaced}(P, \mathit{xs}) \land (\forall z \in \mathit{xs}:\ \operatorname{inWin}(W, t, z)) \Rightarrow \lvert \mathit{xs} \rvert \cdot c \le \operatorname{share}(L, \mathrm{tick})\big) \\ & \land \big(c \le \operatorname{share}_1(L, \mathrm{tick}) \Rightarrow \forall \mathit{xs}, t:\ \operatorname{spaced}(P, \mathit{xs}) \land (\forall z \in \mathit{xs}:\ \operatorname{inWin}(W_1, t, z)) \Rightarrow \lvert \mathit{xs} \rvert \cdot c \le \operatorname{share}_1(L, \mathrm{tick})\big) \\ & \land \big(\forall r, T:\ s.\mathit{rem} = r \land s.\mathit{reset} = T \land s.\mathit{now} < T \land c \le r \mathbin{\dot-} F \Rightarrow \forall \mathit{xs}:\ \operatorname{spaced}(P, \mathit{xs}) \land (\forall z \in \mathit{xs}:\ s.\mathit{now} \le z < T) \Rightarrow \lvert \mathit{xs} \rvert \cdot c \le r \mathbin{\dot-} F\big) \\ & \text{where } c = \operatorname{tickCost}(L, s) \end{aligned}$$
+/-- (d) The interval formula is sound: for any `P ≥ interval(L, s)` (and `P > 0`), ticks of cost `c` spaced at least `P`
+apart fit the hourly tick share in every window `(t - W, t]`, the per-minute tick share in every window
+`(t - W_1, t]`, and, with remaining `r` and the reset `T` ahead, the headroom `r ∸ F` in `[now, T)`.
 -/
 theorem interval_sound (L : Limits) (s : State) (P : Nat) (hP : interval L s ≤ P) (hP0 : 0 < P)
     (hc0 : 0 < tickCost L s) :
@@ -1527,10 +1251,7 @@ theorem interval_sound (L : Limits) (s : State) (P : Nat) (hP : interval L s ≤
     have hfit := ceilDiv_fit (T - s.now) (r - L.F) (tickCost L s) P hc0 hc hP0 (by omega)
     exact Nat.le_trans (Nat.mul_le_mul_right _ this) hfit
 
-/-- The old scheme's requests per window: $N$ agents, each polling on its own at interval $P$ with cost $c$.
-
-$$\operatorname{oldRate}(L, N, c, P) = N \cdot c \cdot \operatorname{ceilDiv}(W, P)$$
--/
+/-- The old scheme's requests per window: `N` agents, each polling on its own at interval `P` with cost `c`. -/
 def oldRate (L : Limits) (N c P : Nat) : Nat := N * (c * ceilDiv L.W P)
 
 #guard oldRate defaults 12 2 30 = 2880      -- 12 agents, `gh run view` every 30 s
@@ -1538,17 +1259,11 @@ def oldRate (L : Limits) (N c P : Nat) : Nat := N * (c * ceilDiv L.W P)
 #guard oldRate defaults 12 2 30 + oldRate defaults 1 4 3 > 5000   -- the 10-18 incident
 #guard ceilDiv defaults.W defaults.Pmin * defaults.listCost = 720  -- the shared poller at P_min = 10 s, for any N
 
-/-- (d′) The old scheme grows linearly in the number of agents.
-
-$$\forall L, N, c, P:\quad \operatorname{oldRate}(L, N, c, P) = N \cdot \operatorname{oldRate}(L, 1, c, P)$$
--/
+/-- (d′) The old scheme grows linearly in the number of agents. -/
 theorem oldRate_linear (L : Limits) (N c P : Nat) : oldRate L N c P = N * oldRate L 1 c P := by
   simp [oldRate]
 
-/-- (d′) $N$ independent pollers of cost $c$ stay within $B$ only if $P \ge W c N / B$.
-
-$$\forall L, N, c, P:\quad 0 < P \land \operatorname{oldRate}(L, N, c, P) \le L.B \Rightarrow L.W \cdot c \cdot N \le L.B \cdot P$$
--/
+/-- (d′) `N` independent pollers of cost `c` stay within `B` only if `P ≥ W c N / B`. -/
 theorem per_agent_interval (L : Limits) (N c P : Nat) (hP : 0 < P) (h : oldRate L N c P ≤ L.B) :
     L.W * c * N ≤ L.B * P := by
   unfold oldRate at h
@@ -1563,24 +1278,15 @@ theorem per_agent_interval (L : Limits) (N c P : Nat) (hP : 0 < P) (h : oldRate 
 
 /-- The waiter's re-read period in seconds (`SLICE` in `packages/gh-budget/src/wait.ts`, which a test checks
 against `limits.json`).
-
-$$\mathit{slice} = 2$$
 -/
 def slice : Nat := 2
 
-/-- The first read at or after time $y$ of a waiter that reads the runs-status file at $r_0, r_0 + q, r_0 + 2q,
-\dots$ (and $r_0$ itself when $y \le r_0$ or $q = 0$, since $\operatorname{ceilDiv}(a, 0) = 0$).
-
-$$\operatorname{firstRead}(r_0, q, y) = r_0 + \operatorname{ceilDiv}(y \mathbin{\dot-} r_0, q) \cdot q$$
--/
+/-- The first read at or after time `y` of a waiter that reads the runs-status file at `r_0, r_0 + q, r_0 + 2q, ...` (and `r_0` itself when `y ≤ r_0` or `q = 0`, since `ceilDiv(a, 0) = 0`). -/
 def firstRead (r0 q y : Nat) : Nat := r0 + ceilDiv (y - r0) q * q
 
 #guard firstRead 100 2 105 = 106 && firstRead 100 2 106 = 106 && firstRead 100 2 100 = 100
 
-/-- A waiter that started reading by $y$ reads at $y$ or less than one period after it.
-
-$$\forall r_0, q, y:\quad 0 < q \land r_0 \le y \Rightarrow y \le \operatorname{firstRead}(r_0, q, y) < y + q$$
--/
+/-- A waiter that started reading by `y` reads at `y` or less than one period after it. -/
 theorem firstRead_bound (r0 q y : Nat) (hq : 0 < q) (hy : r0 ≤ y) :
     y ≤ firstRead r0 q y ∧ firstRead r0 q y < y + q := by
   unfold firstRead
@@ -1591,8 +1297,6 @@ theorem firstRead_bound (r0 q y : Nat) (hq : 0 < q) (hy : r0 ≤ y) :
 
 /-- The clock moving forward does not lengthen the interval: the share gaps depend only on the pages, and the spread
 gap shrinks as the reset comes closer.
-
-$$\forall L, s, t:\quad P(L, \operatorname{step}(L, s, \mathrm{clock}(t))) \le P(L, s)$$
 -/
 theorem interval_clock (L : Limits) (s : State) (t : Nat) : interval L (step L s (.clock t)) ≤ interval L s := by
   have hsp : spread L (step L s (.clock t)) ≤ spread L s := by
@@ -1616,10 +1320,7 @@ theorem interval_clock (L : Limits) (s : State) (t : Nat) : interval L (step L s
   rw [hh, hm]
   omega
 
-/-- Headroom stays when the clock moves forward.
-
-$$\forall L, s, t:\quad \operatorname{headroom}(L, s) \Rightarrow \operatorname{headroom}(L, \operatorname{step}(L, s, \mathrm{clock}(t)))$$
--/
+/-- Headroom stays when the clock moves forward. -/
 theorem headroom_clock (L : Limits) (s : State) (t : Nat) (h : headroom L s = true) :
     headroom L (step L s (.clock t)) = true := by
   unfold headroom at h ⊢
@@ -1635,14 +1336,12 @@ theorem headroom_clock (L : Limits) (s : State) (t : Nat) (h : headroom L s = tr
       · exact Or.inl h
       · exact Or.inr (decide_eq_true (by omega))
 
-/-- (f) Liveness with latency. Let the last tick be at $t_0$ and $x = t_0 + P(L, s)$ the next scheduled tick. If the
-poller holds the lock and asks on time ($s.\mathit{now} \le x$), nothing but the clock happens before $x$, and the
-guards have room at $x$ (fewer than $m$ failures, a run watched, no `retry-after` past $x$, headroom, and room for one
-tick in both tick windows ending at $x$), then the poller ticks at $x$: at once when $s.\mathit{now} = x$, else after
-waiting for the interval until $x$. The tick covers every watched run, so a run that completed at any $f$ with
-$t_0 \le f \le x$ is listed at most $P(L, s)$ after it completed.
-
-$$\begin{aligned} \forall L, s, t_0:\quad & s.\mathit{fails} < L.m \land s.\mathit{watched} \ne [\,] \land s.\mathit{lastTick} = t_0 \land s.\mathit{now} \le x \land s.\mathit{retryUntil} \le x \land \operatorname{headroom}(L, s) \\ & \land\ \Sigma_W(\operatorname{ofKind}(\mathrm{tick}), s.\ell, x) + c \le \operatorname{share}(L, \mathrm{tick}) \land \Sigma_{W_1}(\operatorname{ofKind}(\mathrm{tick}), s.\ell, x) + c \le \operatorname{share}_1(L, \mathrm{tick}) \\ \Rightarrow\ & \exists s':\ \big((s.\mathit{now} = x \land \operatorname{next}(L, s) = \mathrm{issue}(\mathrm{tick}, c, s')) \\ & \qquad \lor (\operatorname{next}(L, s) = \mathrm{wait}(x, \mathrm{interval}) \land \operatorname{next}(L, \operatorname{step}(L, s, \mathrm{clock}(x))) = \mathrm{issue}(\mathrm{tick}, c, s'))\big) \\ & \land\ s'.\mathit{lastTick} = x \land (\forall w \in s'.\mathit{watched}:\ w.\mathit{lastCovered} = x) \land \forall f:\ t_0 \le f \le x \Rightarrow f \le x \le f + P(L, s) \\ & \text{where } x = t_0 + P(L, s),\ c = \operatorname{tickCost}(L, s) \end{aligned}$$
+/-- (f) Liveness with latency. Let the last tick be at `t_0` and `x = t_0 + P(L, s)` the next scheduled tick. If the
+poller holds the lock and asks on time (`s.now ≤ x`), nothing but the clock happens before `x`, and the
+guards have room at `x` (fewer than `m` failures, a run watched, no `retry-after` past `x`, headroom, and room for one
+tick in both tick windows ending at `x`), then the poller ticks at `x`: at once when `s.now = x`, else after
+waiting for the interval until `x`. The tick covers every watched run, so a run that completed at any `f` with
+`t_0 ≤ f ≤ x` is listed at most `P(L, s)` after it completed.
 -/
 theorem listed_within (L : Limits) (s : State) (t0 : Nat)
     (hf : s.fails < L.maxFails) (hw : s.watched ≠ []) (hlast : s.lastTick = some t0)
@@ -1681,22 +1380,17 @@ theorem listed_within (L : Limits) (s : State) (t0 : Nat)
     rw [hc1] at hn
     exact ⟨s', Or.inr ⟨hwait, hn⟩, by rw [hl, hn1], fun w hw' => by rw [hc w hw', hn1], hfa⟩
 
-/-- When the three gaps are at most $P_{\min}$, the interval is $P_{\min}$.
-
-$$\forall L, s:\quad \operatorname{hourGap}(L, s) \le P_{\min} \land \operatorname{minuteGap}(L, s) \le P_{\min} \land \operatorname{spread}(L, s) \le P_{\min} \Rightarrow P(L, s) = P_{\min}$$
--/
+/-- When the three gaps are at most `P_min`, the interval is `P_min`. -/
 theorem interval_eq_Pmin (L : Limits) (s : State) (h1 : hourGap L s ≤ L.Pmin) (h2 : minuteGap L s ≤ L.Pmin)
     (h3 : spread L s ≤ L.Pmin) : interval L s = L.Pmin := by
   unfold interval; omega
 
-/-- (f) The latency at $P_{\min}$. Under the hypotheses of `listed_within` with every gap at most $P_{\min}$ (the hour
-and minute shares fit a tick every $P_{\min}$, and the headroom above the floor lasts until the reset at that pace),
-the poller ticks at $x = t_0 + P_{\min}$ and covers every watched run. A run that completed at any $f$ with
-$t_0 \le f \le x$ is listed at most $P_{\min}$ after it completed; once the list is written $d$ seconds after the tick
-(the duration of the `gh` call), a waiter that has been reading every `slice` seconds since $r_0 \le x + d$ reads it
-before $f + P_{\min} + d + \mathit{slice}$.
-
-$$\begin{aligned} \forall L, s, t_0:\quad & s.\mathit{fails} < L.m \land s.\mathit{watched} \ne [\,] \land s.\mathit{lastTick} = t_0 \land \operatorname{hourGap}(L, s) \le P_{\min} \land \operatorname{minuteGap}(L, s) \le P_{\min} \land \operatorname{spread}(L, s) \le P_{\min} \\ & \land\ s.\mathit{now} \le x \land s.\mathit{retryUntil} \le x \land \operatorname{headroom}(L, s) \\ & \land\ \Sigma_W(\operatorname{ofKind}(\mathrm{tick}), s.\ell, x) + c \le \operatorname{share}(L, \mathrm{tick}) \land \Sigma_{W_1}(\operatorname{ofKind}(\mathrm{tick}), s.\ell, x) + c \le \operatorname{share}_1(L, \mathrm{tick}) \\ \Rightarrow\ & \exists s':\ \big((s.\mathit{now} = x \land \operatorname{next}(L, s) = \mathrm{issue}(\mathrm{tick}, c, s')) \\ & \qquad \lor (\operatorname{next}(L, s) = \mathrm{wait}(x, \mathrm{interval}) \land \operatorname{next}(L, \operatorname{step}(L, s, \mathrm{clock}(x))) = \mathrm{issue}(\mathrm{tick}, c, s'))\big) \\ & \land\ s'.\mathit{lastTick} = x \land (\forall w \in s'.\mathit{watched}:\ w.\mathit{lastCovered} = x) \\ & \land\ \forall f, d, r_0:\ t_0 \le f \le x \land r_0 \le x + d \Rightarrow f \le x \le f + P_{\min} \land x + d \le \operatorname{firstRead}(r_0, \mathit{slice}, x + d) < f + P_{\min} + d + \mathit{slice} \\ & \text{where } x = t_0 + P_{\min},\ c = \operatorname{tickCost}(L, s) \end{aligned}$$
+/-- (f) The latency at `P_min`. Under the hypotheses of `listed_within` with every gap at most `P_min` (the hour
+and minute shares fit a tick every `P_min`, and the headroom above the floor lasts until the reset at that pace),
+the poller ticks at `x = t_0 + P_min` and covers every watched run. A run that completed at any `f` with
+`t_0 ≤ f ≤ x` is listed at most `P_min` after it completed; once the list is written `d` seconds after the tick
+(the duration of the `gh` call), a waiter that has been reading every `slice` seconds since `r_0 ≤ x + d` reads it
+before `f + P_min + d + slice`.
 -/
 theorem listed_within_Pmin (L : Limits) (s : State) (t0 : Nat)
     (hf : s.fails < L.maxFails) (hw : s.watched ≠ []) (hlast : s.lastTick = some t0)
@@ -1719,7 +1413,7 @@ theorem listed_within_Pmin (L : Limits) (s : State) (t0 : Nat)
   have hb := firstRead_bound r0 slice (t0 + L.Pmin + d) (by decide) h3
   refine ⟨h2, by omega, hb.1, by omega⟩
 
-/-- With the default limits and one page, the share gaps are below $P_{\min}$; only `spread` can lengthen the
+/-- With the default limits and one page, the share gaps are below `P_min`; only `spread` can lengthen the
 interval, and only when the headroom above the floor runs short before the reset. -/
 example : hourGap defaults (init 0) ≤ defaults.Pmin ∧ minuteGap defaults (init 0) ≤ defaults.Pmin := by decide
 
@@ -1727,29 +1421,18 @@ example : hourGap defaults (init 0) ≤ defaults.Pmin ∧ minuteGap defaults (in
 
 /-- GitHub's primary REST limit: requests per hour per user account, shared by all of that user's tokens
 (docs.github.com, rate limits for the REST API).
-
-$$\mathit{ghLimit} = 5000$$
 -/
 def ghLimit : Nat := 5000
 
-/-- What the ledger's cap leaves of GitHub's limit, for corrections and for callers that skip the ledger.
-
-$$\mathit{margin} = \mathit{ghLimit} \mathbin{\dot-} \mathit{defaults}.B = 2000$$
--/
+/-- What the ledger's cap leaves of GitHub's limit, for corrections and for callers that skip the ledger. -/
 def margin : Nat := ghLimit - defaults.B
 
 #guard margin = 2000 && defaults.B + margin = ghLimit
 
-/-- A correction entry (a response that cost more than charged).
-
-$$\operatorname{isCorrection}(e) \iff \lnot e.\mathit{charged}$$
--/
+/-- A correction entry (a response that cost more than charged). -/
 def isCorrection (e : Entry) : Bool := !e.charged
 
-/-- Every entry of a window is a charge or a correction.
-
-$$\forall W, t, \ell:\quad \Sigma_W(\top, \ell, t) = \Sigma_W(\operatorname{isCharge}, \ell, t) + \Sigma_W(\operatorname{isCorrection}, \ell, t)$$
--/
+/-- Every entry of a window is a charge or a correction. -/
 theorem wsum_all (W t : Nat) (l : List Entry) :
     wsum W t (fun _ => true) l = wsum W t isCharge l + wsum W t isCorrection l := by
   induction l with
@@ -1759,14 +1442,11 @@ theorem wsum_all (W t : Nat) (l : List Entry) :
     simp only [wsum, ih, isCharge, isCorrection]
     cases charged <;> simp <;> omega
 
-/-- (g) The budget over every ledger entry. In every reachable state with $R \le B$ and $B + \mathit{margin} \le
-\mathit{ghLimit}$, for every time $t$ and every count $u$ of requests made in the window $(t - W, t]$ by callers that
-skip the ledger: if the corrections in that window plus $u$ fit the margin, then all ledger entries in the window
-(charges and corrections) plus $u$ stay within $\mathit{ghLimit} = 5000$ (GitHub's hourly limit when $W = 3600$, as
+/-- (g) The budget over every ledger entry. In every reachable state with `R ≤ B` and `B + margin ≤ ghLimit`, for every time `t` and every count `u` of requests made in the window `(t - W, t]` by callers that
+skip the ledger: if the corrections in that window plus `u` fit the margin, then all ledger entries in the window
+(charges and corrections) plus `u` stay within `ghLimit = 5000` (GitHub's hourly limit when `W = 3600`, as
 in the defaults). The margin is an assumption about the
 corrections and the uncharged callers, not a result.
-
-$$\forall L, t_0, s, t, u:\quad s \in \operatorname{Reach}(L, \operatorname{init}(t_0)) \land L.R \le L.B \land L.B + \mathit{margin} \le \mathit{ghLimit} \land \Sigma_W(\operatorname{isCorrection}, s.\ell, t) + u \le \mathit{margin} \Rightarrow \Sigma_W(\top, s.\ell, t) + u \le \mathit{ghLimit}$$
 -/
 theorem budget_all_entries (L : Limits) (t0 : Nat) (s : State) (hr : Reach L (init t0) s) (hR : L.R ≤ L.B)
     (hM : L.B + margin ≤ ghLimit) (t u : Nat) (hu : wsum L.W t isCorrection s.ledger + u ≤ margin) :
@@ -1781,17 +1461,12 @@ theorem budget_all_entries (L : Limits) (t0 : Nat) (s : State) (hr : Reach L (in
 
 /-- Headers of any other bucket than `core` (or without `x-ratelimit-resource`) leave the remaining count and the
 reset as they were.
-
-$$\forall L, s, h, a:\quad h.\mathit{resource} \ne \texttt{core} \Rightarrow \operatorname{observe}(L, s, h, a).\mathit{rem} = s.\mathit{rem} \land \operatorname{observe}(L, s, h, a).\mathit{reset} = s.\mathit{reset}$$
 -/
 theorem bucket_core_only (L : Limits) (s : State) (h : Headers) (a : Nat) (hc : h.resource ≠ some "core") :
     (observe L s h a).remaining = s.remaining ∧ (observe L s h a).reset = s.reset := by
   simp [observe, bucket, hc]
 
-/-- An issued charge leaves the remaining count and the reset as they were.
-
-$$\forall L, s, k, c, k', c', s':\quad \operatorname{charge}(L, s, k, c) = \mathrm{issue}(k', c', s') \Rightarrow s'.\mathit{rem} = s.\mathit{rem} \land s'.\mathit{reset} = s.\mathit{reset}$$
--/
+/-- An issued charge leaves the remaining count and the reset as they were. -/
 theorem charge_bucket (L : Limits) (s : State) (k : Kind) (c : Nat) (k' : Kind) (c' : Nat) (s' : State)
     (h : charge L s k c = .issue k' c' s') : s'.remaining = s.remaining ∧ s'.reset = s.reset := by
   unfold charge at h
@@ -1810,11 +1485,9 @@ theorem charge_bucket (L : Limits) (s : State) (k : Kind) (c : Nat) (k' : Kind) 
   cases h
   exact ⟨rfl, rfl⟩
 
-/-- (h) Within one reset window the remaining count never rises: from a state with remaining $r$ and reset $T$, every
-event that leaves the reset at $T$ leaves a remaining count of at most $r$, and an issued charge and a tick's cover
+/-- (h) Within one reset window the remaining count never rises: from a state with remaining `r` and reset `T`, every
+event that leaves the reset at `T` leaves a remaining count of at most `r`, and an issued charge and a tick's cover
 change neither.
-
-$$\begin{aligned} \forall L, s, T, r:\quad s.\mathit{reset} = T \land s.\mathit{rem} = r \Rightarrow\ & (\forall e:\ \operatorname{step}(L, s, e).\mathit{reset} = T \Rightarrow \exists r' \le r:\ \operatorname{step}(L, s, e).\mathit{rem} = r') \\ & \land (\forall k, c, k', c', s':\ \operatorname{charge}(L, s, k, c) = \mathrm{issue}(k', c', s') \Rightarrow s'.\mathit{rem} = r \land s'.\mathit{reset} = T) \\ & \land \operatorname{cover}(s).\mathit{rem} = r \land \operatorname{cover}(s).\mathit{reset} = T \end{aligned}$$
 -/
 theorem remaining_no_rise (L : Limits) (s : State) (T r : Nat) (hT : s.reset = some T) (hr : s.remaining = some r) :
     (∀ e, (step L s e).reset = some T → ∃ r', r' ≤ r ∧ (step L s e).remaining = some r') ∧
@@ -1858,18 +1531,13 @@ manual resume lifts. Three rules close it: an unknown id is refused at registrat
 with an incident, and a tick never reads more pages than its share allows. Section (j) adds the fourth: a watch whose
 waiter is gone is dropped. -/
 
-/-- (i-a) Registration refuses an id that is neither a GitHub run id nor a branch sentinel: the state stays.
-
-$$\forall L, s, r, c:\quad \lnot\operatorname{validWatch}(L, r) \Rightarrow \operatorname{step}(L, s, \mathrm{register}(r, c)) = s$$
--/
+/-- (i-a) Registration refuses an id that is neither a GitHub run id nor a branch sentinel: the state stays. -/
 theorem register_refused (L : Limits) (s : State) (r c : Nat) (h : validWatch L r = false) :
     step L s (.register r c) = s := by
   simp [step, h]
 
 /-- (i-a) Registration accepts a valid id: the run is watched afterwards (a first registration appends it with no
 misses, a second changes nothing).
-
-$$\forall L, s, r, c:\quad \operatorname{validWatch}(L, r) \Rightarrow \exists w \in \operatorname{step}(L, s, \mathrm{register}(r, c)).\mathit{watched}:\ w.\mathit{runId} = r$$
 -/
 theorem register_accepted (L : Limits) (s : State) (r c : Nat) (h : validWatch L r = true) :
     ∃ w ∈ (step L s (.register r c)).watched, w.runId = r := by
@@ -1884,16 +1552,12 @@ theorem register_accepted (L : Limits) (s : State) (r c : Nat) (h : validWatch L
 
 /-- (i-a) The stray id of the incident, `10^15 + 838323`, is a branch sentinel (the glue's `sentinelId`) and so is
 accepted at registration. An id above the sentinel range is refused.
-
-$$\operatorname{validWatch}(L, 10^{15} + 838323) \land \lnot\operatorname{validRunId}(L, 10^{15} + 838323) \land \lnot\operatorname{validWatch}(L, 10^{15} + 2^{32})$$
 -/
 theorem incident_id : validWatch defaults 1000000000838323 = true ∧ validRunId defaults 1000000000838323 = false ∧
     validWatch defaults (10 ^ 15 + 2 ^ 32) = false := by decide
 
 /-- (i-b) Every watch is covered or dropped with an incident: after a list, each watch is still watched (under its
 run id) or has an incident with its id at the current time.
-
-$$\forall L, s, \mathit{rows}, \mathit{full}, c, w \in s.\mathit{watched}:\ (\exists w' \in \operatorname{listed}(L, s, \mathit{rows}, \mathit{full}, c).\mathit{watched}:\ w'.\mathit{runId} = w.\mathit{runId}) \lor (\exists d:\ (w.\mathit{runId}, s.\mathit{now}, d) \in \operatorname{listed}(L, s, \mathit{rows}, \mathit{full}, c).\mathit{incidents})$$
 -/
 theorem listed_total (L : Limits) (s : State) (rows : List (Nat × Nat)) (full : Bool) (since : Nat) (w : Watch)
     (hw : w ∈ s.watched) :
@@ -1928,8 +1592,6 @@ list's rows, was created before the list's window (registered after the tick beg
 covered by the list. A real run the list cannot cover is not kept. Accepted limit: a sentinel is kept without a
 coverage check (it is not a run), and under a full, narrowed list a sentinel's run may lie outside the pages read;
 a sentinel whose waiter died is dropped by `sweep`, not by a list.
-
-$$\forall L, s, \mathit{rows}, \mathit{full}, c, w' \in \operatorname{listed}(L, s, \mathit{rows}, \mathit{full}, c).\mathit{watched}:\ \operatorname{isSentinel}(w'.\mathit{runId}) \lor w'.\mathit{runId} \in \mathit{rows} \lor w'.\mathit{createdAt} < c \lor \operatorname{covers}(\mathit{rows}, \mathit{full}, c, w')$$
 -/
 theorem listed_kept_covered (L : Limits) (s : State) (rows : List (Nat × Nat)) (full : Bool) (since : Nat)
     (w' : Watch) (hm : w' ∈ (listed L s rows full since).watched) :
@@ -1960,8 +1622,6 @@ theorem listed_kept_covered (L : Limits) (s : State) (rows : List (Nat × Nat)) 
 
 /-- (i-b) A run that the narrowed list cannot cover is dropped with an `uncovered` incident: on a full list, a
 real run (not a sentinel) absent from the rows, inside the list's window, and created no later than the oldest row.
-
-$$\forall L, s, \mathit{rows}, c, w \in s.\mathit{watched}:\ \lnot\operatorname{isSentinel}(w.\mathit{runId}) \land w.\mathit{runId} \notin \mathit{rows} \land c \le w.\mathit{createdAt} \land \lnot\operatorname{covers}(\mathit{rows}, \top, c, w) \Rightarrow (w.\mathit{runId}, s.\mathit{now}, \mathrm{uncovered}) \in \operatorname{listed}(L, s, \mathit{rows}, \top, c).\mathit{incidents}$$
 -/
 theorem listed_uncovered (L : Limits) (s : State) (rows : List (Nat × Nat)) (since : Nat) (w : Watch)
     (hw : w ∈ s.watched)
@@ -1973,10 +1633,7 @@ theorem listed_uncovered (L : Limits) (s : State) (rows : List (Nat × Nat)) (si
   simp only [listed, List.mem_append, List.mem_filterMap]
   exact Or.inr ⟨w, hw, by simp [hj]⟩
 
-/-- (i-b) A covered run missing from a list for the `missMax`-th tick in a row is dropped with an `unseen` incident.
-
-$$\forall L, s, \mathit{rows}, \mathit{full}, c, w \in s.\mathit{watched}:\ \lnot\operatorname{isSentinel}(w.\mathit{runId}) \land w.\mathit{runId} \notin \mathit{rows} \land \operatorname{covers}(\mathit{rows}, \mathit{full}, c, w) \land L.\mathit{missMax} \le w.\mathit{misses} + 1 \Rightarrow (w.\mathit{runId}, s.\mathit{now}, \mathrm{unseen}) \in \operatorname{listed}(L, s, \mathit{rows}, \mathit{full}, c).\mathit{incidents}$$
--/
+/-- (i-b) A covered run missing from a list for the `missMax`-th tick in a row is dropped with an `unseen` incident. -/
 theorem listed_unseen (L : Limits) (s : State) (rows : List (Nat × Nat)) (full : Bool) (since : Nat) (w : Watch)
     (hw : w ∈ s.watched) (hs : isSentinel w.runId = false) (hr : rows.any (·.1 == w.runId) = false)
     (hc : covers rows full since w = true) (hm : L.missMax ≤ w.misses + 1) :
@@ -1988,23 +1645,16 @@ theorem listed_unseen (L : Limits) (s : State) (rows : List (Nat × Nat)) (full 
 
 /-- (i-b) Whether a list was cut is decided here, not by the glue: `count` rows from `pagesRead` pages is full
 exactly when every page was full (`pagesRead * 100 ≤ count`, with at least one page).
-
-$$\operatorname{isFull}(n, p) \iff \max(1, p) \cdot 100 \le n$$
 -/
 theorem isFull_iff (n p : Nat) : isFull n p = true ↔ max 1 p * 100 ≤ n := by
   simp [isFull]
 
 /-- (i-b) The `listed` event applies the decision of `isFull`: a list of 100 rows from one page is full, 99 rows are
 not, 200 rows from 2 pages are full.
-
-$$\operatorname{isFull}(100, 1) \land \lnot\operatorname{isFull}(99, 1) \land \operatorname{isFull}(200, 2) \land \lnot\operatorname{isFull}(199, 2)$$
 -/
 theorem isFull_cases : isFull 100 1 = true ∧ isFull 99 1 = false ∧ isFull 200 2 = true ∧ isFull 199 2 = false := by decide
 
-/-- (i-c) The tick cost is at most the per-minute tick share, for every state, when one page fits the share.
-
-$$\forall L, s:\quad L.c_{\text{list}} \le \operatorname{share}_1(L, \mathrm{tick}) \Rightarrow \operatorname{tickCost}(L, s) \le \operatorname{share}_1(L, \mathrm{tick})$$
--/
+/-- (i-c) The tick cost is at most the per-minute tick share, for every state, when one page fits the share. -/
 theorem tickCost_le (L : Limits) (s : State) (h1 : L.listCost ≤ share1 L .tick) (h0 : 0 < L.listCost) :
     tickCost L s ≤ share1 L .tick := by
   unfold tickCost pagesOf pageCap
@@ -2018,8 +1668,6 @@ theorem tickCost_le (L : Limits) (s : State) (h1 : L.listCost ≤ share1 L .tick
 /-- (i-c) The charge of a tick never stops `tooBig`: with one page within the per-minute tick share and the
 per-minute share within the hourly one, `charge` of a tick answers `stop` only with `failures`, for any state and
 any pages the state asks for.
-
-$$\forall L, s:\quad 0 < L.c_{\text{list}} \le \operatorname{share}_1(L, \mathrm{tick}) \le \operatorname{share}(L, \mathrm{tick}) \Rightarrow \operatorname{charge}(L, s, \mathrm{tick}, \operatorname{tickCost}(L, s)) = \mathrm{stop}(r) \Rightarrow r = \mathrm{failures}$$
 -/
 theorem tick_charge_no_tooBig (L : Limits) (s : State) (h0 : 0 < L.listCost) (h1 : L.listCost ≤ share1 L .tick)
     (h2 : share1 L .tick ≤ share L .tick) (r : Reason) (hr : charge L s .tick (tickCost L s) = .stop r) :
@@ -2038,8 +1686,6 @@ theorem tick_charge_no_tooBig (L : Limits) (s : State) (h0 : 0 < L.listCost) (h1
 /-- (i-c) The poller never stops `tooBig`: under the same shape, `tickNow` stops only with `failures`, and `next`
 only with `failures` or `idle`. A tick that would need more pages than the share allows reads `pageCap` pages
 instead (and `listed` drops what the narrowed list cannot cover).
-
-$$\forall L, s:\quad 0 < L.c_{\text{list}} \le \operatorname{share}_1 \le \operatorname{share} \Rightarrow (\operatorname{tickNow}(L, s) = \mathrm{stop}(r) \Rightarrow r = \mathrm{failures}) \land (\operatorname{next}(L, s) = \mathrm{stop}(r) \Rightarrow r \in \{\mathrm{failures}, \mathrm{idle}\})$$
 -/
 theorem tick_no_tooBig (L : Limits) (s : State) (h0 : 0 < L.listCost) (h1 : L.listCost ≤ share1 L .tick)
     (h2 : share1 L .tick ≤ share L .tick) :
@@ -2065,24 +1711,17 @@ theorem tick_no_tooBig (L : Limits) (s : State) (h0 : 0 < L.listCost) (h1 : L.li
 
 /-- (i-c) The default limits satisfy the shape the no-`tooBig` theorem needs: a page costs 2, within the per-minute
 tick share 20, within the hourly tick share 1800. A tick reads at most `pageCap` = 10 pages.
-
-$$0 < c_{\text{list}} = 2 \le \operatorname{share}_1(\mathrm{tick}) = 20 \le \operatorname{share}(\mathrm{tick}) = 1800 \land \operatorname{pageCap} = 10$$
 -/
 theorem defaults_shape : 0 < defaults.listCost ∧ defaults.listCost ≤ share1 defaults .tick ∧
     share1 defaults .tick ≤ share defaults .tick ∧ pageCap defaults = 10 := by decide
 
 /-- (i-c) The incident's tick: a stale stored `pages` of 11 is capped at `pageCap` = 10 when the tick reads it, so the
 tick costs 20 (pageCap 10 x listCost 2), the per-minute tick share, and `tick_no_tooBig` holds for it.
-
-$$\operatorname{pages}(\mathit{defaults}, s[\mathit{pages} := 11]) = 10 \land \operatorname{tickCost} = 20$$
 -/
 theorem incident_tick : pagesOf defaults { init 0 with pages := 11 } = 10 ∧
     tickCost defaults { init 0 with pages := 11 } = 20 := by decide
 
-/-- The incidents leave only through `ack`: acknowledging `n` incidents keeps the later ones, and the watches stay.
-
-$$\operatorname{step}(L, s, \mathrm{ack}(n)).\mathit{incidents} = \operatorname{drop}(n, s.\mathit{incidents}) \land \operatorname{step}(L, s, \mathrm{ack}(n)).\mathit{watched} = s.\mathit{watched}$$
--/
+/-- The incidents leave only through `ack`: acknowledging `n` incidents keeps the later ones, and the watches stay. -/
 theorem ack_drops (L : Limits) (s : State) (n : Nat) :
     (step L s (.ack n)).incidents = s.incidents.drop n ∧ (step L s (.ack n)).watched = s.watched := by
   simp [step]
