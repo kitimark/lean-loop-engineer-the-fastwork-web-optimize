@@ -6,6 +6,7 @@ import { serve } from "@hono/node-server";
 import { createApp } from "./app.ts";
 import { selectCore } from "./core/index.ts";
 import { Store, consoleDir } from "./store.ts";
+import { ensureReviewSteps } from "./review/routes.ts";
 import { Reconciler } from "./reconcile/reconciler.ts";
 import { startDrainWatch } from "./spool/drain-watch.ts";
 import { execFileSync } from "node:child_process";
@@ -63,6 +64,9 @@ core.onSpawn = (binPath) => {
 const store = await Store.open(dir, core);
 const reconciler = new Reconciler(store, root);
 reconciler.startWatching();
+// The review steps Lean says are missing are posted here and every minute, not by GET /api/reviews.
+await ensureReviewSteps(store).catch((e) => console.error("review steps failed:", e));
+setInterval(() => { void ensureReviewSteps(store).catch((e) => console.error("review steps failed:", e)); }, 60_000).unref();
 const previews = new PreviewManager(dirname(dir), dir, core);
 await previews.reapRecorded().catch((e) => console.error("preview reap failed:", e)); // previews a crashed run left behind
 setInterval(() => { void previews.tick().catch((e) => console.error("preview tick failed:", e)); }, 30_000).unref();

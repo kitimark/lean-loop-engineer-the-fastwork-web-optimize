@@ -98,20 +98,30 @@ The judge (Lean `judgeUnit`, TS twin `judgeUnit` in `reduce.mjs`) decides each u
   as at rest; rules 6 and 167 still run transitions driven by `--morph` (nav transform/opacity, earn
   max-width/opacity/padding), which are judged strictly against the m-window.
 - `inFlight d s`: the sample's own class set selects a transition `t` and `since < t + startLag`, `startLag` = 200 ms.
-- A rewrite sample in flight is judged against the original's samples of the same transition only: the same rep, phase
-  and epoch (a run of samples with no class change), within 200 ms of its `since` (`isCore`), plus the epoch's sample
-  before them and one after. A colour must match one core reading on r, g, b (rgb readings only; see Limits for WebKit
-  in flight) and the band on alpha. No core sample: the
-  m-window as before.
+- A rewrite sample in flight is judged against the envelope of the original's samples of the same transition (Lean
+  `envelope`): in every pass of the original, the samples of the same phase and epoch (a run of samples with no class
+  change) within 200 ms of its `since` (`isCoreIn`), plus that epoch's sample before them and one after, joined over
+  the passes. A colour must match one core reading of some pass on r, g, b (rgb readings only; see Limits for WebKit in
+  flight) and the band on alpha. No core sample in any pass: the m-window.
 - A rewrite sample at rest is judged against the original's settled end value: the window sample if at rest, else the
   last sample of its epoch if that one is at rest, else coverage.
+- A rewrite sample at rest at the end of a push, at a morph value a pass of the original never sampled in that push, is
+  judged in that pass against the pass's first row of the next hold when that row has the same morph value (Lean
+  `windowPass`, `windowAt`); otherwise the pass gives its `windowOne`.
 
 Proved: an arm whose samples are the original's never fails (`judgeUnit_self`, `byM_self`, `byStep_self`); a rewrite
 sample at rest is judged only against settled values, whatever the original's state (`judgeUnit_settled`, golden: pure
 red and pure green at rest fail, `byStep_settled_red_green`); a reading with one component outside every reading of the
 window fails, for any number of components (`judgeEls_outside`, `judgeUnit_flight_outside`, `judgeUnit_settled_outside`,
-colours `judgeUnit_colour_chan_outside`, `judgeUnit_colour_alpha_outside`); a reversed rect curve in flight fails
-(`byM_reversed_in_flight`). Each branch of `judgeUnit` has its own theorem (`judgeUnit_flight_*`, `judgeUnit_settled_*`).
+colours `judgeUnit_colour_chan_outside`, `judgeUnit_colour_alpha_outside`; in flight "every reading" is every reading
+of every pass's window); a reversed rect curve in flight fails (`byM_reversed_in_flight`, over two passes
+`byM_reversed_two_passes`), pure red over two passes fails (`judgeUnit_red_two_passes`). When every pass of the original
+gives the same window as the sample's own pass, the judge is the one-pass rule `judgeOwn` (`judgeUnit_agree`); when no
+pass takes the hold-row branch the window is the old `windowOf` (`windowAt_old`). A start that only another pass had
+passes and fails against the own pass alone (`judgeUnit_other_start`). Each branch of `judgeUnit` and `windowPass` has
+its own theorem (`judgeUnit_flight_*`, `judgeUnit_settled_*`, `windowPass_head`, `windowPass_sampled`,
+`windowPass_other`, `windowPass_in_flight`, `windowPass_no_head`); golden `settled push end, hold head`, `settled push
+end, stuck class`, `push sampled its end`, `push end in flight`.
 
 In flight, MEASURED over all arms and the 10 properties with a CSS transition (morph phases; approach steps):
 
@@ -131,13 +141,102 @@ Limits of the in-flight rule, for that fraction of samples:
   `reversed curve in flight`).
 - `since` sees only nav class changes; a transition started by something else is read as at rest.
 - `startLag` = 200 ms is a measured bound on the 140 ms overrun, not a proved one.
-- No core sample in the original: the unit falls back to the m-window of the original's samples.
-- The kit reads a WebKit mid-transition colour as oklab `[L×1000, a, b, α]` and a settled one as rgb. A colour read in
-  oklab on one arm and rgb on the other fails `apart`; that is the kit-colour-space task (owner of `kit.mjs`), not widened
-  here.
-- Until the kit normalises colour space (task kit-colour-space), WebKit in-flight colour channels are unchecked (oklab L
-  in 0..1000 lies inside the rgb tolerance 2000); only alpha is judged; after normalisation
-  `judgeUnit_colour_chan_outside` applies.
+- No core sample in any pass of the original: the unit falls back to the m-window of the original's samples. A pass
+  with no core sample does not fall back on its own: when another pass has one, the envelope decides.
+- Envelope band: geometry, unit and alpha are judged against the band of every pass's readings, so a value between two
+  passes' readings passes though no pass read it; r, g, b must match one core reading of one pass.
+- A start outside every pass: a rewrite whose transition starts from a value no pass of the original started from (a
+  skipped frame, an interrupted earlier transition) still fails; the envelope widens only by what the original's own
+  passes read.
+- Hold row at a push end: the pass's next hold's first row stands for the settled end only when the push never sampled
+  that morph value; a sample in flight there keeps `windowOne`.
+- Colour space (task kit-colour-space): the kit reads every colour (`rgb`, `rgba`, `hsl`, `color(srgb ..)`, `oklab`, `oklch`,
+  `lab`, `lch`; engines print a mid-transition colour as `oklab(..)`/`color(srgb ..)`) as sRGB `[r, g, b, α]` × 1000 on the
+  0 to 255 scale, so `judgeUnit_colour_chan_outside` judges real channels. Lean `Fw.Gate.Colour` states the error budget
+  (`chanErr` 500: an integer rgb channel is 0.5 level off; `alphaErr` 1000: 8 bit rounding plus a 2 decimal print) and proves
+  `budget_inside_tol`, twice the budget at most the judge's `tol .colour` = 2000, so the tolerance is unchanged. Golden
+  `golden/gate/trajectory-colour.jsonl`, test `kit-colour.test.mjs`. MEASURED worst error: 8 thousandths of a level on
+  channels (6 digit print over a 16^3 grid of the cube), 765 on alpha. Accepted limits: a clipped out-of-gamut colour is
+  read unclamped, `lab`/`lch` use CSS Color 4's D50 to D65 Bradford and are unchecked against a device, relative colour
+  syntax and `calc()` stay strings.
+- The stored raw files (runs 39453181962, 39471466367, 39457063232) hold the old numeric tuples, not the colour string,
+  so the re-reduction reads the old `oklab` shape back (`colourFromV1`: lightness 0..1000, a and b within 500) and leaves
+  every other tuple as stored. MEASURED tuple range over the three runs: L 0.234 to 1.0, a -0.004 to 0, b -0.019 to 0
+  (the first tuple of L below 0.3 is one Linux WebKit nav reading, `[234,-4,-19,212479]`). Counts, oklab-shaped tuples of
+  all colour reads (of those, with a or b not 0): 39453181962 apple 1321 of 10432 (44), chromium 1629 of 13844 (0);
+  39471466367 apple 726 of 9248 (65), chromium 1126 of 14252 (0); 39457063232 playwright-webkit 67 of 1304 (34),
+  chromium 1014 of 8764 (10). The shape is not always a = b = 0 (L near 1). Recovery error, MEASURED: the 0.001 rounding of
+  the stored tuple gives up to 0.64 level (640 thousandths, at L 0.998, a -0.004, b -0.019, red channel; a grid of every
+  0.001 tuple over the range above with the true value at the 8 corners of +-0.0005), outside the Lean `chanErr` 500. A
+  recovered reading is within 0.64 + 0.008 level of the truth, so one recovered arm against an `rgb` arm (0.5 level) differs
+  by at most 0.64 + 0.5 + 0.008 < 2 levels, inside the judge's 2000; when both arms are recovered, 2 x (0.64 + 0.008) =
+  1.296 < 2 levels (arithmetic from the MEASURED error). Ambiguity: an old `color(srgb ..)` reading of a
+  near-black non-integer colour (for example `[510,255,255]`) has the same shape and would be read as `oklab`; none is in
+  the stored data (every oklab-shaped tuple there has b at most 0). Re-reduced with the same `reduce.mjs` over every
+  `raw-<engine>.json` of the three runs (artifacts `trajectory-apple` = Safari on the Mac, `trajectory-playwright-webkit` =
+  Linux WebKit, `trajectory-chromium`; `before` = as stored, `after` = oklab-shaped tuples converted, same files). The
+  failing colour units of `nav.background-color` and `logo.color` are tabulated for 9 whole-run artifacts (3 runs x
+  `trajectory-apple`, `trajectory-playwright-webkit`, `trajectory-chromium`) x 4 widths (390, 640, 641, 1280) = 36 cells,
+  every cell present. Each cell is exactly one of three values: (a) `not measured (0 morph runs)`: the artifact's runs have
+  no morph phase, so they hold no nav or logo reading and show nothing about colour; (b) `measured (3 morph runs), no
+  colour unit before or after`; (c) the failing units before and after. Count over the 36 cells: (a) 12, (b) 3, (c) 21.
+  Each cell is checked by re-reducing the one raw file of its artifact (`raw-playwright-webkit.json` in
+  `trajectory-apple` and in `trajectory-playwright-webkit`, `raw-chromium.json` in `trajectory-chromium`). Legend for (c):
+  `-` = no unit; `*` after a unit = new against the base arm, an unmarked unit fails in the base arm too; a `*` after a
+  list or range marks every step in it as new (`close@0,7*` = close@0* close@7*); `aN` approach, `open@b`, `close@b` push
+  buckets, `-hold` the hold after a push; ranges `3-9`, lists `3,5`.
+
+| run, artifact | width | cell |
+|---|---|---|
+| 39453181962 apple | 390 | nav.background-color before `-` after `close@0`; logo.color before `a0 open@7-10 open-hold@10 close@1-10` after `a0 open@7-10 open-hold@10 close@1-10` |
+| 39453181962 apple | 640 | nav.background-color before `open@2-4 close@0* close@8` after `open@2-4 close@0,8 close-hold@0*`; logo.color before `open@2-4 close@8` after `open@2-4 close@8` |
+| 39453181962 apple | 641 | nav.background-color before `a3 a8* a11* open@2` after `a3 open@2 close@0`; logo.color before `open@2` after `open@2` |
+| 39453181962 apple | 1280 | nav.background-color before `a7* open@3,5* close@0*` after `open@3,5* close@0 close-hold@0*`; logo.color before `open@3,5*` after `open@3,5*` |
+| 39453181962 playwright-webkit | 390 | not measured (0 morph runs) |
+| 39453181962 playwright-webkit | 640 | not measured (0 morph runs) |
+| 39453181962 playwright-webkit | 641 | not measured (0 morph runs) |
+| 39453181962 playwright-webkit | 1280 | not measured (0 morph runs) |
+| 39453181962 chromium | 390 | nav.background-color before `open@1` after `open@1`; logo.color before `a0 open@1,6-10 open-hold@10 close@0-10` after `a0 open@1,6-10 open-hold@10 close@0-10` |
+| 39453181962 chromium | 640 | measured (3 morph runs), no colour unit before or after |
+| 39453181962 chromium | 641 | nav.background-color before `open@1*` after `open@1*`; logo.color before `open@1*` after `open@1*` |
+| 39453181962 chromium | 1280 | nav.background-color before `a7*` after `-`; logo.color before `-` after `-` |
+| 39471466367 apple | 390 | nav.background-color before `open@3* close@0* close-hold@0` after `open@3* close@0 close-hold@0`; logo.color before `a0 open@3*` after `a0 open@3*` |
+| 39471466367 apple | 640 | nav.background-color before `open@2 close@0,7* close@8 close-hold@0*` after `open@2 close@0,8 close@7*`; logo.color before `open@2 close@7* close@8` after `open@2 close@7* close@8` |
+| 39471466367 apple | 641 | nav.background-color before `open@3* open@4 close@0* close@8 close-hold@0*` after `open@3* open@4 close@0,8`; logo.color before `open@3* open@4 close@8` after `open@3* open@4 close@8` |
+| 39471466367 apple | 1280 | nav.background-color before `open@2* open@4 close@0 close-hold@0*` after `open@2* open@4 close@0`; logo.color before `open@2* open@4` after `open@2* open@4` |
+| 39471466367 playwright-webkit | 390 | not measured (0 morph runs) |
+| 39471466367 playwright-webkit | 640 | not measured (0 morph runs) |
+| 39471466367 playwright-webkit | 641 | not measured (0 morph runs) |
+| 39471466367 playwright-webkit | 1280 | not measured (0 morph runs) |
+| 39471466367 chromium | 390 | nav.background-color before `open@1 close@0* close-hold@0*` after `open@1 close@0*`; logo.color before `open@1` after `open@1` |
+| 39471466367 chromium | 640 | nav.background-color before `open@1 close@0* close-hold@0*` after `open@1 close@0*`; logo.color before `open@1` after `open@1` |
+| 39471466367 chromium | 641 | nav.background-color before `open@2* close@0* close-hold@0*` after `open@2* close@0*`; logo.color before `open@2*` after `open@2*` |
+| 39471466367 chromium | 1280 | nav.background-color before `close@0* close-hold@0*` after `close@0*`; logo.color before `-` after `-` |
+| 39457063232 apple | 390 | not measured (0 morph runs) |
+| 39457063232 apple | 640 | not measured (0 morph runs) |
+| 39457063232 apple | 641 | not measured (0 morph runs) |
+| 39457063232 apple | 1280 | not measured (0 morph runs) |
+| 39457063232 playwright-webkit | 390 | nav.background-color before `open@1,3-9 close@0,3-6,9` after `open@1,3-9 close@0,3-6,9 close-hold@0*`; logo.color before `a0 open@1,3-9 open@10* close@0* close@3-6,9` after `a0 open@1,3-9 open@10* close@0* close@3-6,9` |
+| 39457063232 playwright-webkit | 640 | nav.background-color before `open@1,3-9 close@0,1,4,6,8,9 close@3* close-hold@0*` after `open@1,3-9 close@1,4,6,8,9 close@3* close-hold@0`; logo.color before `open@1,3-9 close@1,4,6,8,9 close@3*` after `open@1,3-9 close@1,4,6,8,9 close@3*` |
+| 39457063232 playwright-webkit | 641 | nav.background-color before `a3 open@3-8 close@2,3,5-7,9` after `open@3-8 close@0,2,3,5-7,9`; logo.color before `open@3-8 close@2,3,5-7,9` after `open@3-8 close@2,3,5-7,9` |
+| 39457063232 playwright-webkit | 1280 | nav.background-color before `open@2-8 close@0* close@1,3-7,9 close-hold@0` after `open@2-8 close@0* close@1,3-7,9 close-hold@0`; logo.color before `open@2-8 close@1,3-7,9` after `open@2-8 close@1,3-7,9` |
+| 39457063232 chromium | 390 | measured (3 morph runs), no colour unit before or after |
+| 39457063232 chromium | 640 | nav.background-color before `open@1` after `open@1`; logo.color before `open@1` after `open@1` |
+| 39457063232 chromium | 641 | measured (3 morph runs), no colour unit before or after |
+| 39457063232 chromium | 1280 | nav.background-color before `-` after `close@0*`; logo.color before `-` after `-` |
+
+  Every run in each trajectory-leg-* artifact of 39453181962 and 39471466367 is identical (as parsed JSON) to a run in its
+  whole-run artifact (12 of 12 per engine); 39457063232 has no leg artifacts. The leg artifacts are not tabulated again.
+  The A/A is the base arm against the original: a unit without `*`
+  fails in both, and the long unmarked lists (`open@1,3-9`, `close@1,4,6,8,9`) are not colour-space units and did not
+  change. The approach units a7, a8, a11 (new before) were colour space and are gone. `close@0` and `close-hold@0`
+  remain, some gained, some lost: both arms are now in sRGB and the candidate's reading differs by 7 to 8 channel levels
+  from the original's, outside 2 (MEASURED: 39453181962 Chromium 1280 candidate rep 1 holds `[243.7, 243.9, 244.7]` for
+  218 ms from the class change while the original reads `[251.0, 251.0, 251.0]`; Mac 1280 original ramps 244.7 to 255
+  over 700 ms where a base rep starts at 252.3). INFERRED: where the colour starts depends on the interrupted earlier
+  transition, a timing case (follow-up `trajectory-close-start`), not the colour space. Every new (`*`) unit after
+  normalisation, at the start of the close or not, is a marker in the table.
+  Coverage fails are not colour units and did not change.
 - `--morph`-driven transitions under `is-morphing` are judged at rest. MEASURED residual: raw 39457063232, 641
   `earn.max-width` close@0, one width (content `new` 1; main gave 2). Follow-up: `morph-driven-transitions`.
 
@@ -156,6 +255,75 @@ empty. The 39453181962 mac morph fail: `nav.background-color` content `new` at 6
 not the colour space. MEASURED: candidate rep 4 starts at alpha 0.296, outside the original's start range across reps
 0.261 to 0.281; whether a flag causes it is unknown (INFERRED timing), so it stays pending until a flag-alone run. Its 641 a8/a11 and 1280 a7 units are the
 colour-space case. The 39455284967 mac morph colour units (641 a7, a11) are colour space at one width and do not decide it.
+
+### Transition start and settled push end (task trajectory-close-start)
+
+Re-reduced (MEASURED, no new dispatch) with `reduce.mjs` before and after this task over every `raw-<engine>.json` of
+runs 39466179818 (`?fw=hero.exit:scoped`), 39472217441 (`?fw=hero.exit:faithful`, the A/A), 39453181962 and 39453764374
+(`?preset=` of 8 flags), 39449092483 (`?fw=morph.tween:waapi`) and 39457767229 (`?fw=morph.tween:waapi-scoped`); old
+colour tuples converted by `colourFromV1` in both columns. Hero: no unit changed in any artifact. Morph, content `new`
+groups (`-` none); coverage `new` groups are the same before and after in every cell:
+
+| run | engine | width | before | after |
+|---|---|---|---|---|
+| 39466179818 | mac-webkit | 390 | bg close-hold@0; earn.max-width close@0 | bg close@0,close-hold@0; earn.max-width close@0 |
+| 39466179818 | mac-webkit | 640 | bg close-hold@0 | bg close-hold@0 |
+| 39466179818 | mac-webkit | 641 | bg a7 | bg a7 |
+| 39466179818 | mac-webkit | 1280 | nav.rect, nav.transform.shift close@0 | - |
+| 39466179818 | chromium | all 4 | - | - |
+| 39472217441 | mac-webkit | 390 | bg close-hold@0; earn.opacity, earn.max-width close@0 | bg close@0,close-hold@0 |
+| 39472217441 | mac-webkit | 640 | bg close@0 | - |
+| 39472217441 | mac-webkit | 1280 | earn.max-width close@0 | - |
+| 39472217441 | chromium | 640 | earn.max-width close@0 | - |
+| 39453181962 | mac-webkit | 640 | bg close-hold@0 | bg close-hold@0 |
+| 39453181962 | mac-webkit | 641 | earn.max-width close@0 | - |
+| 39453181962 | mac-webkit | 1280 | nav.rect, bg close-hold@0, nav.transform.shift, actions.gap close@0 | nav.rect, bg close@0,close-hold@0, nav.transform.shift, actions.gap close@0 |
+| 39453181962 | chromium | 1280 | - | earn.max-width close@0 |
+| 39453764374 | linux-webkit | 390 | nav.rect close@0; bg close@0,close-hold@0; earn.opacity open@10,close@0; earn.max-width close@0,close-hold@0 | bg close@0; earn.opacity open@10 |
+| 39453764374 | linux-webkit | 1280 | - | nav.rect close@0; nav.transform.shift close@0,close-hold@0; actions.gap close@0 |
+| 39449092483 | chromium | 640 | bg close@0; earn.max-width close@0 | earn.max-width close@0 |
+| 39449092483 | chromium | 641 | bg close@0; earn.max-width close@0 | - |
+| 39449092483 | linux-webkit | 390 | earn.opacity, earn.max-width open@10 | nav.rect, actions.gap close@0; earn.opacity open@10; earn.max-width open@10,close@0 |
+| 39449092483 | linux-webkit | 640 | nav.cls.is-morphing, logo.position, logo.transform-origin, earn.opacity, earn.max-width, panel.attr.data-start-selling-scene close@0 | actions.gap, earn.opacity, earn.max-width close@0 |
+| 39449092483 | linux-webkit | 641 | bg a3; earn.max-width close-hold@0 | bg a3 |
+| 39449092483 | linux-webkit | 1280 | earn.opacity, earn.max-width open-hold@10,close@10 | nav.rect, nav.transform.shift close@0; earn.opacity, earn.max-width open-hold@10,close@10 |
+| 39457767229 | chromium | 390 | bg close@0; earn.max-width close@0 | bg close@0 |
+| 39457767229 | chromium | 640 | bg close@0; earn.max-width close@0 | earn.max-width close@0 |
+| 39457767229 | chromium | 1280 | - | earn.max-width close@0 |
+| 39457767229 | linux-webkit | 390 | 12 groups close@0 (nav, logo, earn, panel) | bg, logo.color, earn.opacity, earn.max-width close@0 |
+| 39457767229 | linux-webkit | 640 | bg, earn.opacity, earn.max-width close@0 | nav.backdrop-filter.num, earn.filter.num close@0 |
+| 39457767229 | linux-webkit | 641 | bg close-hold@0; earn.opacity close@0; earn.max-width open@10,close@0 | - |
+| 39457767229 | linux-webkit | 1280 | nav.rect, bg close@2; nav.transform.shift close-hold@0 | nav.rect, bg close@2 |
+
+`bg` = `nav.background-color`. A morph cell not listed has the same content `new` groups before and after. Lean outcome lines
+(`Fw.Preset.Gen.storedOf` and `outcome` over the re-reduced units, nothing stored), before → after:
+
+| run | mac-webkit morph | chromium morph | linux-webkit morph |
+|---|---|---|---|
+| 39466179818 | fail → fail | pass → pass | - |
+| 39472217441 | fail → no verdict: coverage | pass → pass | - |
+| 39453181962 | fail → fail | pass → pass | - |
+| 39453764374 | - | pass → pass | no verdict: coverage → no verdict: coverage |
+| 39449092483 | - | fail → fail | no verdict: coverage → no verdict: coverage |
+| 39457767229 | - | fail → fail | no verdict: coverage → no verdict: coverage |
+
+Every hero outcome is `pass` before and after. `hero.exit:scoped` (39466179818) still fails on macOS WebKit morph:
+`nav.background-color` is content `new` at 390, 640 and 641. MEASURED at 390 close@0: the candidate's rep 0 reads
+`[226.5, 227.1, 228.5]` 29 ms into the close, while every pass of the original starts the close between 249.3 and
+252.3, so the envelope cannot pass it (Limits: a start outside every pass). Some units moved from `both` to `new`: the
+base arm now passes them while the candidate still fails (39466179818 mac 390 bg close@0, 39453181962 Chromium 1280
+earn.max-width close@0). Linux WebKit `ok` to `both` units (39453764374 390 close-hold@0): the sample's own pass has no
+core sample, another pass has one, and the reading is outside it (Limits: a pass does not fall back on its own).
+
+Scope (accepted limit, lead sign-off 2026-10-21): the envelope judges every in-flight sample of a transition epoch, not
+only its start, and a pass with no core sample of its own no longer falls back on its own m-window. This is stricter
+than the old rule in some cells: new failures on Linux WebKit 1280 (39453764374), Linux WebKit 390 and 1280
+(39449092483) and Chromium 1280 earn.max-width close@0 (39457767229). A rewrite pass with no counterpart in the
+original is now judged against the envelope of the original's passes; the old 'no counterpart' coverage fail is gone
+(golden cases 'in flight, other pass' pass to fail:apart, 'in flight, other pass, no counterpart' fail:coverage to
+pass). Open, INFERRED: `close-hold@0` failures (39466179818 mac 640, 39472217441 mac 390) are hold samples judged by
+windowOf/settledRef, which neither new rule touches; the Chromium earn.max-width close@0 change in 39457767229 is not
+explained yet. Follow-up task trajectory-envelope-scope.
 
 ## Admission
 
