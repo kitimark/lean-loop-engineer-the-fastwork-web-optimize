@@ -33,7 +33,7 @@ imports it, so it decodes the card fields it needs itself).
 | `console.landPool` | `cores`, `load` (one-minute load average rounded up) | `pool` (`Fw.Console.LandPool.poolFair`) |
 | `console.landRetry` | `passed`, `loadFailure` | `rerun` (`Fw.Console.LandPool.rerunAlone`), `pool` (the re-run's pool, 1) |
 | `console.previewTarget` | `main` (main's sha), `facts` [{src, sha, onMain, noCode, fpLine? (the head is on main's first-parent line), path? [{sha, p2Has}] (first-parent ancestry path from the head to main, oldest first), ownWork? (a merge's second parent contains the task's own work; default true), behind? (another candidate holds code this one lacks), cands [{ref, sha, contains}]}] (head candidates in priority order), `children` [{facts}] (the candidate lists of the sub-tasks of an umbrella) | `kind` (`main`/`integration`/`own`/`none`), `ref`, `sha`, `head` (sha or null), `headSrc` (`Fw.Console.Preview.headOf`) |
-| `console.previewAdmit` | `secret`, `cookie`, `origin` (the proofs the route checked: `Fw.Console.Preview.Proof`), `preview` (the new preview's id), `task`, `now` (ms), `diskMb`, `hasTarget`, `portBase?` (first port of the range, default `portLo` = 47100), `live` [{id, task, rp, op, started}] | `ok`, `reason` (`notOwner`/`taskBusy`/`tooMany`/`lowDisk`/`noTarget`/`noPorts`), `actor`, `rp`, `op` (the arms' public ports), `brp`, `bop` (their private backend ports, `Arm.backendOf`), `deadline`, `ttl`, `k`, `portLo`, `portN` (`Fw.Console.Preview.admit`) |
+| `console.previewAdmit` | `secret`, `cookie`, `origin` (the proofs the route checked: `Fw.Console.Preview.Proof`), `preview` (the new preview's id), `task`, `now` (ms), `diskMb`, `hasTarget`, `portBase?` (first port of the range, default `portLo` = 47100), `live` [{id, task, rp, op, started}] | `ok`, `reason` (`notOwner`/`taskBusy`/`tooMany`/`lowDisk`/`noTarget`/`noPorts`), `actor`, `rp`, `op` (the arms' public ports), `brp`, `bop` (their private backend ports, `Arm.backendOf`), `deadline`, `ttl`, `k`, `portLo`, `portN`, `backendOff` (the arms' backend port offset; a base with `portBase + portN + backendOff > 65536` is refused `noPorts`) (`Fw.Console.Preview.admit`) |
 | `console.previewTick` | `now`, `live` | `keep` [ids], `kill` [ids] (`tick`, `expired`) |
 | `console.previewStop` | `secret`, `cookie`, `origin`, `preview` (id), `live` | `ok`, `reason` (`notOwner`/`unknown`), `actor`, `kill` [ids] (`stop`, `own`) |
 | `console.previewFail` | `preview` (id), `live` | `keep` [ids], `kill` [ids] (a failed build's teardown: `fail`, `own`) |
@@ -382,7 +382,7 @@ def opPreviewAdmit (req : Json) : Except String Reply := do
   let lo ← match opt req "portBase" with
     | none => pure portLo
     | some _ => nat req "portBase"
-  let lim := [("ttl", Json.num ttl), ("k", Json.num K), ("portLo", Json.num portLo), ("portN", Json.num portN), ("actor", Json.str (Fw.Console.Actor.name p.actor))]
+  let lim := [("ttl", Json.num ttl), ("k", Json.num K), ("portLo", Json.num portLo), ("portN", Json.num portN), ("backendOff", Json.num backendOff), ("actor", Json.str (Fw.Console.Actor.name p.actor))]
   pure (match admit lo s r with
     | .error e => [("ok", .bool false), ("reason", .str e.name), ("rp", .null), ("op", .null), ("brp", .null), ("bop", .null), ("deadline", .null)] ++ lim
     | .ok (p :: _) => [("ok", .bool true), ("reason", .null), ("rp", .num p.rp), ("op", .num p.op),
