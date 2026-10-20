@@ -12,11 +12,15 @@ Verified:
   `nav-earn golden check` in `lean/scripts/check.sh`, listed in lean.yml inputs via `Fw.Ci.Trigger`).
 - Flag `nav:earn-no-transition`: `apps/site/src/parts/nav/{part.json,logic.ts,index.tsx,nav.module.css}`; checked by
   `nav/earn.golden.test.ts` (transitionsOn rows, the CSS transition list, frame and work rows).
+- CI trajectory probe at c414428, both engines: flag 39463486725, 39464309993; A/A 39464294630, 39464322751. New
+  units only on earn opacity and max-width (Chromium 92/94, WebKit 17/18). Chromium open push settles in 43-81 ms
+  instead of 330-357 ms. Ledger row n 39 `nav.earn.noTransition` (partly-proved).
 
 Conventions:
 - The flag name deviates from the task's `nav.earn:no-transition`: the earn button belongs to the `nav` part.
-- It is an L-class change (look change mid-transition); never a parity proof. The trajectory probe is expected to show
-  `new` units on earn `max-width` and `opacity` (`faithful_lags`).
+- It is an L-class change (look change mid-transition); never a parity proof. Its `new` units on earn `max-width` and
+  `opacity` follow from `faithful_lags`.
+- The flag is not in `Fw.Preset.Gen.linkTable`, so it stays out of v2-proved.
 
 Open:
 - Close push keeps faithful work (transitions return at m ≤ 0.001): hold `is-earn-still` to the tween's end.

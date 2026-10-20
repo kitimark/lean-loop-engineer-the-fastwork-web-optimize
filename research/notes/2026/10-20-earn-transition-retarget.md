@@ -107,4 +107,48 @@ Why the 0.68 s lag is not the design intent (INFERRED from the original's CSS an
 
 ## CI (trajectory probe)
 
-PENDING.
+MEASURED. Branch `ci/earn-transition-retarget` at c414428, `--engines both`, widths 390/640/641/1280, 3 reps per
+run. The search field in each raw file names the arm.
+
+| run | arm |
+|---|---|
+| 39463486725 | flag rep 1 (`?fw=nav:earn-no-transition`) |
+| 39464309993 | flag rep 2 |
+| 39464294630 | A/A rep 1 (default) |
+| 39464322751 | A/A rep 2 |
+
+New content units (`fail:apart`, fails here and not in the faithful arm), summed over widths:
+
+| engine | run | earn opacity | earn max-width | other nodes |
+|---|---|---|---|---|
+| Chromium | flag 1 / flag 2 | 47 / 46 | 45 / 48 | 1 / 1 |
+| Chromium | A/A 1 / A/A 2 | 1 / 0 | 2 / 0 | 1 / 1 |
+| WebKit | flag 1 / flag 2 | 6 / 8 | 11 / 10 | 1 / 4 |
+| WebKit | A/A 1 / A/A 2 | 0 / 2 | 0 / 4 | 2 / 5 |
+
+- The flag adds new units only on earn opacity and max-width, in the open and close pushes. That is the L-class look
+  change above, so "no new visual units" does not hold for those two properties. Every other node stays at the A/A
+  level: one 641 approach `nav.background-color` unit in all four Chromium runs, plus WebKit noise.
+- Coverage-new units (Chromium 0 to 42, WebKit 84 to 126) appear in the A/A runs too. On Linux WebKit the push phases
+  get 3 to 9 samples, so push coverage fails by construction.
+
+Earn value changes per push (Chromium, frames whose reading differs from the previous one, 3 reps; flag 2 shown, flag 1
+within 2):
+
+| width | push | opacity faithful / arm | max-width faithful / arm | last change faithful / arm |
+|---|---|---|---|---|
+| 390 | open | 18 / 1-4 | 41 / 1-4 | 353 ms / 43-59 ms |
+| 640 | open | 11-12 / 4 | 29-30 / 4 | 330-347 ms / 66 ms |
+| 641 | open | 11-12 / 1-2 | 29-30 / 1-2 | 335-354 ms / 43-81 ms |
+| 1280 | open | 6-8 / 3 | 17-21 / 3 | 333-357 ms / 50-62 ms |
+| 390 | close | 12 / 25-26 | 38-40 / 40-41 | 386 ms / 386 ms |
+| 1280 | close | 9-10 / 13 | 23-25 / 21-24 | 370-374 ms / 362-377 ms |
+
+- Open push: the arm settles within 43-81 ms, the faithful arm keeps changing to 330-357 ms
+  (1280 rep 0: the arm reaches max-width 0 at frame 8, the faithful arm at frame 24). This matches the model's 3 vs 43
+  frames.
+- Close push: no reduction, as the model predicts. The arm changes opacity more often because the faithful opacity is
+  held at 0 by the restarting 120 ms delay (`faithful_lags`); the faithful arm still restyles every frame.
+- WebKit (playwright-webkit on Linux) samples 3 to 9 frames per push, too few for change counts; the arm's open push
+  settles at 25-28 ms on 390 and 1280. WebKit paint and composite counts stay a follow-up (accepted limit).
+- Read timing: gap p50 17-19 ms in Chromium, reads do not dominate.
