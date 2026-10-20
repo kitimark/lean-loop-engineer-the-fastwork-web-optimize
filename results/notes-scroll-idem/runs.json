@@ -1,0 +1,55 @@
+{
+  "task": "notes-scroll-idem",
+  "variant": "pain.notes:visible-idem",
+  "commit": "9ec81757",
+  "image_run": 39292317241,
+  "chromium-counts": {
+    "runs": 3,
+    "target": "rewrite",
+    "base": "?preset=v2-proved",
+    "arm": "?preset=v2-proved&fw=pain.notes:visible-idem",
+    "swipe-v1": {
+      "base": 39343940969,
+      "arm": 39343944510,
+      "frames": 503,
+      "FunctionCall": { "base": [4413, 4412, 4412], "arm": [3679, 3679, 3680], "delta": [-734, -732] },
+      "nonRafFunctionCall": { "base": [2725, 2725, 2725], "arm": [1992, 1992, 1992], "delta": -733 },
+      "FireAnimationFrame": { "base": [1688, 1687, 1687], "arm": [1687, 1687, 1688] },
+      "Paint": { "base": [2220, 2219, 2222], "arm": [2218, 2219, 2220] },
+      "RasterTask": { "base": [935, 935, 933], "arm": [933, 934, 933] },
+      "MinorGC": { "base": "2-3", "arm": "0-1" },
+      "framesAtMinus3": 217,
+      "firstChangedFrame": 61
+    },
+    "swipe-touch-v1": {
+      "base": 39343947925,
+      "arm": 39343951333,
+      "frames": 531,
+      "FunctionCall": { "base": [6329, 6329, 6329], "arm": [5605, 5605, 5609], "delta": [-724, -720] },
+      "nonRafFunctionCall": { "base": [4607, 4607, 4607], "arm": [3883, 3883, 3887], "delta": [-724, -720] },
+      "FireAnimationFrame": { "base": [1722, 1722, 1722], "arm": [1722, 1722, 1722] },
+      "Paint": { "base": [2468, 2470, 2469], "arm": [2468, 2468, 2468] },
+      "RasterTask": { "base": [1743, 1743, 1745], "arm": [1743, 1743, 1745] },
+      "MinorGC": { "base": "2-3", "arm": "0-1" },
+      "framesAtMinus3": 221,
+      "firstChangedFrame": 61
+    }
+  },
+  "webkit-sim": {
+    "arm": 39343964250,
+    "base": 39343967737,
+    "conclusion": { "arm": "success", "base": "success" },
+    "scrollFunctionCallReduced": { "base": [1691, 1959], "arm": [1736, 1626], "class": "quarantined", "verdict": "no delta claimed: ranges overlap" }
+  },
+  "breakpoint-gate": {
+    "run": 39343960834,
+    "fw": "pain.notes:visible-idem",
+    "attempts": [
+      { "attempt": 1, "conclusion": "failure", "only": "chromium commission margin-inline-start/end at sweep pain-1440-600-1440 stop #0 (a 0px, b 96px / 8px)" },
+      { "attempt": 2, "rerun": "--failed (merge only, same readings)", "conclusion": "failure", "only": "same readings as attempt 1" },
+      { "attempt": 3, "rerun": "full", "conclusion": "failure", "only": "chromium commission margin-inline-start/end at sweep pain-1440-600-1440 stop #0 and desktop-1512-320-1512 stop #0 (a 0px, b 132px / 8px)" }
+    ],
+    "painNotes": "pass in every column, chromium and playwright-webkit (webkit: 2 cells UNREACHABLE by the reach rule)",
+    "otherFailures": "none: every other part passes on both engines"
+  }
+}
