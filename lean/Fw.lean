@@ -114,6 +114,7 @@ import Fw.Obs.Next  -- obs-next-lean: next action per agent (obs.next)
 import Fw.Obs.GhStatus -- gh-status: GitHub Actions degraded flag and incident naming
 import Fw.Obs.Stale  -- console-stale: a service whose inputs changed on main after it started is stale
 import Fw.Obs.Signals -- obs-signals: agent state from transcript signals (obs.signals)
+import Fw.Obs.Fold  -- watch-incremental: transcript summaries as a fold, resume from saved state
 import Fw.Plan.Incident  -- incident-lint: plan.incidentLint
 import Fw.Plan.Workflow  -- workflow-claim: workflow runs as agent events
 import Fw.Obs.Timing  -- timing-lean: slow / structural verdicts over timing samples
@@ -158,6 +159,7 @@ import Fw.Gate.Schedule  -- gate-speed-ci: Graham bound and the gate job split
 import Fw.Gate.Shard  -- gate-shard-balance: LPT shard plan over measured unit costs
 import Fw.Gate.ShardObs  -- gate-shard-balance: observed jobs of a CI run, reduced to the cost table (ShardCosts)
 import Fw.Gate.Search  -- gate-preset-input: the search string of the gate rewrite arm from its fw and preset inputs
+import Fw.Gate.Trajectory  -- trajectory-probe: per-unit verdict of the rewrite against the original along a scroll path
 import Fw.Wire.ShardGolden  -- gate-shard-balance: golden/gate/shards.jsonl
 import Fw.Measure.WktrLayout  -- wktr-fixture-speed: lane layout, premise gate, fixture assertions
 import Fw.Measure.WktrVariance  -- wktr-serial-baseline: run-to-run variance of class kinds, findings, verdict

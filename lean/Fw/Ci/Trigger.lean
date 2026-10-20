@@ -299,6 +299,13 @@ def table : List Wf := [
     "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/verify-snapshot.mjs",
     ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", ".github/actions/setup-pnpm/**",
     ".github/actions/gate-engine/**", own "snapshot-extract.yml"], []⟩,
+  ⟨"trajectory-probe.yml", ciAll, [
+    "packages/gate-breakpoints/**", "apps/site/**", "@breakgen", "snapshot/**", "snapshot.lock.json",
+    "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/gate-search.mjs", ".github/scripts/gate-search.test.mjs",
+    ".github/scripts/gate-smoke.mjs", ".github/scripts/verify-snapshot.mjs", ".github/scripts/cache-key.mjs",
+    "packages/contracts/golden/gate/search.jsonl", "packages/contracts/golden/gate/trajectory.jsonl", "packages/contracts/golden/ops/cache.jsonl",
+    ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", ".github/actions/setup-pnpm/**",
+    ".github/actions/gate-engine/**", ".github/actions/telemetry/**", "scripts/ci-telemetry/**", own "trajectory-probe.yml"], []⟩,
   ⟨"visual-diff.yml", ciAll, [
     "packages/visual-diff/**", "packages/gate-breakpoints/src/**", "packages/gate-breakpoints/package.json",
     "packages/contracts/golden/gate/**", "packages/contracts/golden/port/**", "scripts/port/**", "apps/site/**",
@@ -338,7 +345,7 @@ def run (diff merged : List String) : List String :=
 #guard run ["lean/Fw/Wire.lean"] [] == ["breakpoint-gate.yml", "chromium-counts.yml", "difftest.yml", "gate-gaps.yml", "land.yml", "lean.yml", "mutants.yml", "preview-e2e.yml", "wktr-fixtures.yml", "wktr.yml"]
 #guard run ["lean/Fw/Parts/HeroExit.lean"] [] == ["land.yml", "lean.yml"]
 -- the site builder (breakgen) cone starts the lanes that build the site; a pixel golden starts the visual diff only
-#guard run ["lean/Fw/Site/Breakpoints.lean"] [] == ["breakpoint-gate.yml", "chromium-counts.yml", "gate-gaps.yml", "land.yml", "lean.yml", "visual-diff.yml"]
+#guard run ["lean/Fw/Site/Breakpoints.lean"] [] == ["breakpoint-gate.yml", "chromium-counts.yml", "gate-gaps.yml", "land.yml", "lean.yml", "trajectory-probe.yml", "visual-diff.yml"]
 #guard run ["packages/contracts/golden/gate/pixel.jsonl"] [] == ["land.yml", "visual-diff.yml"]
 #guard run ["docs/team/handoffs/x.md"] [] == []
 -- a merge of main changes lean/ and apps/site but starts nothing
@@ -365,7 +372,9 @@ def cacheWriters : List (String × String × String) := [
   ("preview-e2e.yml", "engine", "gate-apt"), ("preview-e2e.yml", "engine", "ms-playwright"),
   ("preview-e2e.yml", "engine", "hs-zip"),
   ("snapshot-extract.yml", "extract", "gate-apt"), ("snapshot-extract.yml", "extract", "ms-playwright"),
-  ("snapshot-extract.yml", "extract", "hs-zip"), ("visual-diff.yml", "navscroll", "gate-apt"),
+  ("snapshot-extract.yml", "extract", "hs-zip"), ("trajectory-probe.yml", "probe", "gate-apt"),
+  ("trajectory-probe.yml", "probe", "ms-playwright"), ("trajectory-probe.yml", "probe", "hs-zip"),
+  ("visual-diff.yml", "navscroll", "gate-apt"),
   ("visual-diff.yml", "navscroll", "ms-playwright"), ("visual-diff.yml", "navscroll", "hs-zip"),
   ("visual-diff.yml", "people-layout", "gate-apt"),
   ("visual-diff.yml", "people-layout", "ms-playwright"), ("visual-diff.yml", "people-layout", "hs-zip"),
@@ -479,7 +488,7 @@ theorem ci_triggers : table.map (fun w => (w.file, ciPart w.branches)) = [
     ("breakpoint-gate.yml", ["ci/**"]), ("chromium-counts.yml", ["ci/**"]), ("difftest.yml", ["ci/**"]),
     ("engine-premises.yml", ["ci/**"]), ("gate-gaps.yml", ["ci/**"]), ("land.yml", ["ci/land-*"]),
     ("lean.yml", ["ci/**"]), ("mutants.yml", ["ci/**"]), ("premise-tests.yml", ["ci/**"]), ("preview-e2e.yml", ["ci/**"]), ("sim-speed.yml", ["ci/sim-speed"]),
-    ("snapshot-extract.yml", ["ci/**"]), ("visual-diff.yml", ["ci/**"]), ("webkit-sim.yml", ["ci/**"]),
+    ("snapshot-extract.yml", ["ci/**"]), ("trajectory-probe.yml", ["ci/**"]), ("visual-diff.yml", ["ci/**"]), ("webkit-sim.yml", ["ci/**"]),
     ("wktr-fixtures.yml", ["ci/**"]), ("wktr.yml", ["ci/**"])] := by decide
 
 #guard (table.filter (·.onMain)).map (·.file) == ["lean.yml", "premise-tests.yml"]
@@ -733,7 +742,7 @@ def filtered (diff : List String) : List String :=
   (table.filter fun w => selected (pushPaths w) diff).map (·.file)
 
 -- the coarse filter passes a new module under lean/Fw for every fwcore user; the guard then starts only lean.yml
-#guard filtered ["lean/Fw/New.lean"] == ["breakpoint-gate.yml", "chromium-counts.yml", "difftest.yml", "gate-gaps.yml", "land.yml", "lean.yml", "preview-e2e.yml", "visual-diff.yml", "wktr-fixtures.yml", "wktr.yml"]
+#guard filtered ["lean/Fw/New.lean"] == ["breakpoint-gate.yml", "chromium-counts.yml", "difftest.yml", "gate-gaps.yml", "land.yml", "lean.yml", "preview-e2e.yml", "trajectory-probe.yml", "visual-diff.yml", "wktr-fixtures.yml", "wktr.yml"]
 #guard run ["lean/Fw/New.lean"] [] == ["land.yml", "lean.yml"]
 -- a test module is outside every coarse fwcore glob
 #guard filtered ["lean/FwTest/Lease.lean"] == ["land.yml", "lean.yml"]

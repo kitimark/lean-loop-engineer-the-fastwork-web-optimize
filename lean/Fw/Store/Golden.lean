@@ -29,6 +29,16 @@ def gateCases : List (String × String × Json) := [
   ("an engines value the workflow does not list is a problem", "store.gate", lit "{\"engines\":\"webkit\"}"),
   ("a part given twice is a problem", "store.gate", lit "{\"fw\":[\"a.b:c\",\"a.b:d\"]}")]
 
+/-- The `store.trajectory` cases. -/
+def trajectoryCases : List (String × String × Json) := [
+  ("the probe in its default configuration: four inputs sent, all widths", "store.trajectory", lit "{}"),
+  ("one engine, a flag set and two widths", "store.trajectory",
+   lit "{\"engines\":\"chromium\",\"fw\":[\"morph.tween:waapi\"],\"widths\":\"390,641\"}"),
+  ("a preset of the rewrite arm", "store.trajectory", lit "{\"preset\":\"v2-proved\"}"),
+  ("a width outside the allowlist is a problem, no job", "store.trajectory", lit "{\"widths\":\"390,800\"}"),
+  ("a width given twice is a problem", "store.trajectory", lit "{\"widths\":\"390,390\"}"),
+  ("preset and flags are exclusive", "store.trajectory", lit "{\"preset\":\"v2-proved\",\"fw\":[\"morph.tween:waapi\"]}")]
+
 /-- The `store.plan` cases. -/
 def planCases : List (String × String × Json) := [
   ("both engines, the original site in the default configuration: two jobs in canonical order, target sent to chromium, nothing blocked", "store.plan",
@@ -154,7 +164,7 @@ def ciRunCases : List (String × String × Json) := [
 
 /-- The files: (file stem, cases). -/
 def files : List (String × List (String × String × Json)) :=
-  [("plan", planCases), ("gate", gateCases), ("manifest", manifestCases), ("objectPath", pathCases), ("reduce", reduceCases), ("ciRun", ciRunCases)]
+  [("plan", planCases), ("gate", gateCases), ("trajectory", trajectoryCases),("manifest", manifestCases), ("objectPath", pathCases), ("reduce", reduceCases), ("ciRun", ciRunCases)]
 
 /-- The text of one golden file. -/
 def fileText (cs : List (String × String × Json)) : String :=
