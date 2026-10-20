@@ -5,7 +5,8 @@ needed `FW_CORE_CALL_MS=60000` once the log reached about 4 days of events.
 
 ## Cause (MEASURED, CONFIRMED in source)
 `fastBoard` was already linear. The cost sat in `Fw.Plan.view`. A compiled timing of its parts at 4x (2,188 rows,
-`lean/scripts/QueryProfile.lean`):
+`lean/scripts/QueryProfile.lean`; MEASURED once, compiled through a lakefile entry that was not committed, so the
+repo reproduces only the interpreted ratios):
 
 | part | before | after |
 |---|---|---|
@@ -34,6 +35,7 @@ needed `FW_CORE_CALL_MS=60000` once the log reached about 4 days of events.
 | `view` | `fastView_eq`; the `Fw.Serve` theorems `query_keeps`, `query_eq_of_st`, `query_after_run` keep their statements |
 
 ## Measurement (local debug run of our own binaries, no CI lane; `lean/scripts/query-golden.sh`)
+Taken on the 2026-10-20 log at 14,557 events. The review re-ran it at 14,587 events: 4x old 38.4 s, new 230 ms.
 | log | events | query old | query new | replay old / new | reply |
 |---|---|---|---|---|---|
 | real | 14,557 | 630 ms | 22 ms | 139 / 141 ms | byte-identical |
@@ -49,4 +51,6 @@ log is committed.
   and the label and spawn scans in `taskView` for rows with an agent. Replace if the log grows 10x.
 - Replay of a synthetic deep dependency chain (600 tasks, each depending on the previous) takes 1.7 s per 2.8k events
   (`checkFast` follows the whole ancestor chain for each define). The real log does not have that shape.
+- `fastCriticalPath` is O(n x d^2) in chain depth d: a synthetic 600-task undone chain takes 557 ms per query (300
+  tasks: 68 ms). Replace it with a memoised longest path in reverse topological order if the log grows deep chains.
 - Timings are local debug runs.
