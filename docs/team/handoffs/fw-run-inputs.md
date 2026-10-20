@@ -26,6 +26,8 @@ Hand over as a `!` command of the lead's usual settings-edit form.
 **Open items**
 - The gate's `parts`, `runs`, `free`, `times` are not sent (workflow defaults). Add to `GateRequest` if a task needs them.
 - webkit `runs`/vms/sessions stay workflow defaults (the Request run count is chromium only).
-- Real dispatches: see the report (run ids or the exact commands for the lead).
+- Real dispatches through `fw run` on `ci/fw-run-inputs` (sha 12961b0), all accepted: chromium-counts 39360071347 (`--target rewrite --engines chromium --runs 2`),
+  webkit-sim 39360085910 (`--target rewrite --engines webkit`), breakpoint-gate 39360092244 (`--gate --engines chromium`). In flight at handoff; their
+  waiters ended with the agent, so file them with `--from-run chromium=<id>` / `webkit=<id>` / `gate=<id>` (same args and `--ref`).
 
 **Read first:** `Lane`, `blocked_eq_none_iff`, the gate section in lean/Fw/Store/Layout.lean; `runGate`, `refShaOf` in apps/runner/src/run.ts.
