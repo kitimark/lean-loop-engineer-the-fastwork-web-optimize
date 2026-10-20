@@ -74,8 +74,12 @@ function counterTable(winPerPass, basePerPass) {
 
 const toPx2 = (ledger) => ledger.map(([k, v]) => [k, v / PX2]);
 
+/** Sessions that kept at least one pass with `part` (a partly failed session still carries its completed passes). */
+const withPart = (arm, part) => arm.map((s) => ({ ...s, passes: s.passes.filter((p) => p[part]) })).filter((s) => s.passes.length);
+
 /** Per-region analysis of one arm (its sessions). */
-export function analyzeScroll(arm) {
+export function analyzeScroll(rawArm) {
+  const arm = withPart(rawArm, 'scroll');
   const base = scrollWindow(arm, 'calm');
   const out = {};
   for (const region of ['A', 'B']) {
@@ -112,7 +116,8 @@ export function analyzeScroll(arm) {
 }
 
 /** Morph analysis of one arm: the open and close phases against the idle frames. */
-export function analyzeMorph(arm) {
+export function analyzeMorph(rawArm) {
+  const arm = withPart(rawArm, 'morph');
   const slice = (rows, [a, b]) => rows.slice(a, b);
   const runs = arm.flatMap((s) => s.passes.map((p) => ({ s, m: p.morph })));
   const idle = runs.map(({ m }) => slice(rowsOf(m.reduced), MORPH_PHASES.idle));
@@ -120,9 +125,12 @@ export function analyzeMorph(arm) {
   for (const phase of ['open', 'close']) {
     const win = runs.map(({ m }) => slice(rowsOf(m.reduced), MORPH_PHASES[phase]));
     const table = counterTable(win, idle);
-    const area = [], count = [], filt = [];
+    const area = [], count = [], filt = [], active = [];
     for (const { s, m } of runs) {
       const g = s.geometry.morph, [a, b] = MORPH_PHASES[phase];
+      // frames of the phase whose nav box differs from its idle box: how long the tween really moved (the sampling pass, INFERRED)
+      const nav = (smp) => JSON.stringify(smp?.boxes.find((x) => x.name === 'nav')?.rect ?? null);
+      active.push(g.samples.slice(a, b).filter((smp) => nav(smp) !== nav(g.samples[0])).length);
       const clips = clipsPerStep(m, m.before?.y ?? 0);
       const vp = [0, 0, Math.round(m.info.vw * Q), Math.round(m.info.vh * Q)];
       for (let k = a; k < b; k++) {
@@ -136,7 +144,7 @@ export function analyzeMorph(arm) {
     const n = runs.length;
     const scale = (l) => l.map(([k, v]) => [k, v / n]);
     out[phase] = {
-      steps: MORPH_PHASES[phase][1] - MORPH_PHASES[phase][0], table, passes: n,
+      steps: MORPH_PHASES[phase][1] - MORPH_PHASES[phase][0], table, passes: n, activeFrames: mean(active),
       paintAreaByPart: toPx2(scale(byKey(area))), paintAreaByCoarse: toPx2(scale(rollup(byKey(area)))), paintCountByPart: scale(byKey(count)), paintCountByCoarse: scale(rollup(byKey(count))),
       filter: { count: mean(filt.map((f) => f.count)), area: mean(filt.map((f) => f.area)) / PX2, areaRadius: mean(filt.map((f) => f.areaRadius)) / PX2 },
     };
@@ -167,8 +175,10 @@ function counterMd(t, label) {
 /** Markdown of one arm. */
 export function armMd(name, arm) {
   const sc = analyzeScroll(arm), mo = analyzeMorph(arm);
-  const info = arm[0].passes[0].scroll.info;
-  const L = [`## ${name}`, '', `${arm.length} sessions, ${arm.reduce((n, s) => n + s.passes.length, 0)} passes; viewport ${info.vw}x${info.vh}, maxY ${info.maxY}.`, ''];
+  const info = withPart(arm, 'scroll')[0].passes[0].scroll.info;
+  const nS = withPart(arm, 'scroll').reduce((n, s) => n + s.passes.length, 0), nM = withPart(arm, 'morph').reduce((n, s) => n + s.passes.length, 0);
+  const L = [`## ${name}`, '', `${arm.length} sessions, ${nS} scroll passes, ${nM} morph passes; viewport ${info.vw}x${info.vh}, maxY ${info.maxY}.`,
+    ...arm.flatMap((s, i) => (s.failed?.length ? [`session ${i + 1} stopped early: ${s.failed.join('; ')}`] : [])), ''];
   for (const region of ['A', 'B']) {
     const r = sc[region];
     L.push(`### Region ${region} (scroll)`, '', `${r.steps} steps per pass.`, '', counterMd(r.table, `region ${region}`), '',
@@ -178,7 +188,7 @@ export function armMd(name, arm) {
   }
   for (const phase of ['open', 'close']) {
     const r = mo[phase];
-    L.push(`### Region B morph, ${phase} (${r.steps} frames)`, '', counterMd(r.table, `morph ${phase}`), '',
+    L.push(`### Region B morph, ${phase} (${r.steps} frames, the nav box differs from idle in ${fmt(r.activeFrames, 0)})`, '', counterMd(r.table, `morph ${phase}`), '',
       `paint area per pass by part (css px^2): ${topLines(r.paintAreaByCoarse)}`, `paint area by leaf part: ${topLines(r.paintAreaByPart, 8)}`,
       `paint count per pass by part: ${topLines(r.paintCountByCoarse)}`,
       `filter/backdrop elements per frame: ${fmt(r.filter.count)} visible, ${fmt(r.filter.area, 0)} px^2, area x radius ${fmt(r.filter.areaRadius, 0)}`, '');

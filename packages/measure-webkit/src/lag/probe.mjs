@@ -147,21 +147,31 @@ export async function morphRun(c, { clock, settleMs }) {
   return { schema: 'fw.webkit.lag.morph/1', info, frames: MORPH_FRAMES, before, after, taken: res.taken, scrollTo: res.scrollTo, marks, endTime, records, reduced: reduceSteps(records, marks, endTime) };
 }
 
-/** A session: the geometry pass once, then `passes` times a fresh-load scroll run and morph run. */
+/**
+ * A session: the geometry pass once, then `passes` times a fresh-load scroll run and morph run. A run that still fails
+ * after its retries ends the session; the completed runs are kept and the reason goes to `failed` (CI lost r2 and v3 of
+ * the first dispatch whole to such a stall, 2026-10-21).
+ */
 export async function lagSession(ctx, { passes, clock, settleMs, step, framesPerStep, log }) {
   const geometry = await geometryPass(ctx, { clock, settleMs, step, log });
-  const out = [];
+  const out = [], failed = [];
   for (let i = 0; i < passes; i++) {
-    const scroll = await retrying(ctx, 'scroll', log, async () => {
-      await loadFresh(ctx.c, { clock, settleMs });
-      return scrollRun(ctx.c, { step, framesPerStep, mode: 'base' });
-    });
+    let scroll;
+    try {
+      scroll = await retrying(ctx, 'scroll', log, async () => {
+        await loadFresh(ctx.c, { clock, settleMs });
+        return scrollRun(ctx.c, { step, framesPerStep, mode: 'base' });
+      });
+    } catch (e) { failed.push(`pass ${i + 1} scroll: ${e.message}`); log(`  ${failed.at(-1)}`); break; }
     const t = scroll.reduced.total;
     log(`pass ${i + 1}/${passes} scroll: ${scroll.ys.length} steps, style ${t.RecalculateStyles} layout ${t.Layout} paint ${t.Paint} composite ${t.Composite}`);
-    const morph = await retrying(ctx, 'morph', log, () => morphRun(ctx.c, { clock, settleMs }));
+    let morph;
+    try {
+      morph = await retrying(ctx, 'morph', log, () => morphRun(ctx.c, { clock, settleMs }));
+    } catch (e) { out.push({ scroll }); failed.push(`pass ${i + 1} morph: ${e.message}`); log(`  ${failed.at(-1)}`); break; }
     const m = morph.reduced.total;
     log(`pass ${i + 1}/${passes} morph: taken ${JSON.stringify(morph.taken)}, scrollTo ${morph.scrollTo}, style ${m.RecalculateStyles} layout ${m.Layout} paint ${m.Paint} composite ${m.Composite}`);
     out.push({ scroll, morph });
   }
-  return { schema: 'fw.webkit.lag/1', step, framesPerStep, geometry, passes: out };
+  return { schema: 'fw.webkit.lag/1', step, framesPerStep, geometry, passes: out, failed };
 }

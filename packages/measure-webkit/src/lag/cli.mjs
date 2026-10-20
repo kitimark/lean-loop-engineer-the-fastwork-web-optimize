@@ -33,7 +33,8 @@ async function main() {
       const file = resolve(v.out ?? 'out/lag.json');
       mkdirSync(dirname(file), { recursive: true });
       writeFileSync(file, JSON.stringify(res) + '\n');
-      log(`wrote ${file}`);
+      log(`wrote ${file}${res.failed.length ? ` (stopped early: ${res.failed.join('; ')})` : ''}`);
+      if (!res.passes.length) throw new Error('no pass completed');
       break;
     }
     case 'report': {

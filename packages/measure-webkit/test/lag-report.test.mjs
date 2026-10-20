@@ -80,6 +80,16 @@ test('the markdown has a section per region', () => {
   assert.equal(COLUMNS.length, COUNT_TYPES.length + 1);
 });
 
+test('a session that stopped early still counts its completed runs', () => {
+  const s = session();
+  const partial = { ...s, passes: [s.passes[0], { scroll: s.passes[1].scroll }], failed: ['pass 2 morph: timed out'] };
+  assert.equal(analyzeScroll([partial]).A.passes, 2);
+  assert.equal(analyzeMorph([partial]).open.passes, 1);
+  const md = armMd('x', [partial]);
+  assert.ok(md.includes('2 scroll passes, 1 morph passes'));
+  assert.ok(md.includes('stopped early: pass 2 morph: timed out'));
+});
+
 test('the filter scan covers every step of A and B and every eighth of the rest', () => {
   const ys = [0, 50, 100, 150, 300, 500, 800, 900, 1000];
   assert.deepEqual(scanSteps(ys, 100, 1000), [0, 1, 2, 7, 8]);
