@@ -3,7 +3,7 @@
   "private": true,
   "packageManager": "pnpm@10.34.5",
   "engines": {
-    "node": ">=24"
+    "node": "24.22.0"
   },
   "scripts": {
     "lean:build": "if command -v lake >/dev/null 2>&1; then (cd lean && lake build); else echo '!!! lake not found: SKIPPING the Lean build. console-api tests need lean/.lake/build/bin/fwcore and fail without it (brew install elan-init, then cd lean && lake build).' >&2; fi",
