@@ -11047,7 +11047,16 @@
     "packages/measure-webkit/src/**",
     "packages/measure-webkit/test/**",
     ".github/workflows/webkit-sim.yml",
-    "docs/team/handoffs/webkit-sim-failfast.md"
+    "docs/team/handoffs/webkit-sim-failfast.md",
+    "lean/Fw.lean",
+    "lean/Fw/Measure/Golden.lean",
+    "lean/Fw/Measure/SimBound.lean",
+    "lean/Fw/Measure/Wire.lean",
+    "lean/Fw/Store/Layout.lean",
+    "packages/contracts/golden/measure/measure.inspector.jsonl",
+    "packages/contracts/golden/measure/measure.simBounds.jsonl",
+    "packages/contracts/golden/measure/measure.simPlan.jsonl",
+    "research/notes/2026/10-20-macos-pool-v2.md"
    ]
   },
   {
