@@ -11359,6 +11359,41 @@
     "research/notes/2026/10-2*-lean-mem-profile.md",
     "docs/team/handoffs/lean-mem-profile.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "webkit-lag-source",
+   "owner": "researcher",
+   "stream": "research",
+   "deps": [],
+   "title": "User 2026-10-20: visible lag in Safari (WebKit) on Mac and iPhone in two regions: hero cards moving out (hero.exit drives opacity, translate and blur(scatter*18px) on 16 readers incl. hero.orbit/hero.deck cards, per frame from a JS-written custom property) and the end of page (morph.tween layout of top/width/height, morph.panel animated backdrop-filter glass, morph.mount +9 drawing layers, morph.countdown will-change faces, morph.columns 1282 px PNGs in ~138 px columns). Read WebKit at the pin (862f17d) and the WebKit/Safari feature posts: for each property and driver (JS var per frame vs CSS/WAAPI animation vs scroll timeline) the path through style, layout, paint, compositing (GraphicsLayerCA, PlatformCAFilters, CABackdropLayer, RemoteLayerTree commit on iOS and macOS), when a filter or backdrop-filter is done by CoreAnimation vs repainted in software, what invalidates backing stores, which animations WebKit runs threaded. Output: a cited table per region (stage, cost driver, CONFIRMED/INFERRED), the predicted dominant cost, candidate changes with their predicted effect, and the WebKit cost terms Fw.Engine.WebKit lacks today",
+   "writes": [
+    "research/notes/2026/10-2*-webkit-lag-source.md",
+    "docs/team/handoffs/webkit-lag-source.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "webkit-lag-probe",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "webkit-lag-source",
+    "webkit-sim-failfast"
+   ],
+   "title": "Measure the two Safari lag regions (hero cards moving out; end of page) on the WebKit Simulator lane on CI: per scroll step style/layout/paint/composite counts, paint area, layer-tree commits and the layers with filter/backdrop-filter and their painted area, original vs faithful; localize the top steps to parts through the footprint; add the counters webkit-lag-source names as missing, reduced in Lean (Fw.Measure.WebKit zones) with goldens; output a ranked attribution per region that the candidate fixes are judged against",
+   "writes": [
+    "packages/measure-webkit/src/lag/**",
+    "packages/measure-webkit/test/lag*.test.mjs",
+    "lean/Fw/Measure/WebKitLag.lean",
+    "packages/contracts/golden/measure/webkit-lag*.jsonl",
+    "research/notes/2026/10-2*-webkit-lag-probe.md",
+    "docs/team/handoffs/webkit-lag-probe.md"
+   ]
   }
  ],
  "deadline": {
