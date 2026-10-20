@@ -20,15 +20,24 @@ open Fw.Wire.Ops.Golden (lit withOp respond)
 /-- A git sha used by the cases. -/
 def sha : String := "0123456789abcdef0123456789abcdef01234567"
 
+/-- The `store.gate` cases. -/
+def gateCases : List (String × String × Json) := [
+  ("the gate in its default configuration: all three inputs sent, nothing blocked", "store.gate", lit "{}"),
+  ("one engine and a flag set", "store.gate", lit "{\"engines\":\"chromium\",\"fw\":[\"nav.hitTest:hit-skip\",\"morph.tween:waapi\"]}"),
+  ("a preset of the rewrite arm", "store.gate", lit "{\"preset\":\"v2-proved\"}"),
+  ("preset and flags are exclusive: a problem, no job", "store.gate", lit "{\"preset\":\"v2-proved\",\"fw\":[\"morph.tween:waapi\"]}"),
+  ("an engines value the workflow does not list is a problem", "store.gate", lit "{\"engines\":\"webkit\"}"),
+  ("a part given twice is a problem", "store.gate", lit "{\"fw\":[\"a.b:c\",\"a.b:d\"]}")]
+
 /-- The `store.plan` cases. -/
 def planCases : List (String × String × Json) := [
   ("both engines, the original site in the default configuration: two jobs in canonical order, target sent to chromium, nothing blocked", "store.plan",
    lit s!"\{\"target\":\"original\",\"engines\":[\"webkit\",\"chromium\"],\"sha\":\"{sha}\"}"),
   ("duplicate engine names collapse to one job", "store.plan",
    lit s!"\{\"target\":\"original\",\"engines\":[\"chromium\",\"chromium\"],\"sha\":\"{sha}\",\"runs\":4}"),
-  ("the rewrite with flags sorted by part (a camelCase part is allowed); chromium-counts takes target and fw, webkit-sim does not, so only webkit is blocked (on target)", "store.plan",
+  ("the rewrite with flags sorted by part (a camelCase part is allowed); both workflows take target, preset and fw, so nothing is blocked", "store.plan",
    lit s!"\{\"target\":\"rewrite\",\"preset\":\"original\",\"fw\":[\"nav.hitTest:hit-skip\",\"hero.countdown:strip\"],\"engines\":[\"chromium\",\"webkit\"],\"sha\":\"{sha}\"}"),
-  ("another profile is an input of chromium-counts but not of webkit-sim", "store.plan",
+  ("another profile is an input of chromium-counts but not of webkit-sim: webkit is blocked on profile", "store.plan",
    lit s!"\{\"target\":\"original\",\"profile\":\"swipe-wheel-v1\",\"engines\":[\"chromium\",\"webkit\"],\"sha\":\"{sha}\"}"),
   ("digests and the store: one cache hit, one miss", "store.plan",
    lit s!"\{\"target\":\"original\",\"engines\":[\"chromium\",\"webkit\"],\"sha\":\"{sha}\",\"digests\":\{\"chromium\":\"aa00\",\"webkit\":\"bb11\"},\"present\":[\"aa00\"]}"),
@@ -42,7 +51,7 @@ def planCases : List (String × String × Json) := [
    lit s!"\{\"target\":\"original\",\"engines\":[\"gecko\"],\"sha\":\"{sha}\"}"),
   ("a flag without a colon is refused as an id problem", "store.plan",
    lit s!"\{\"target\":\"rewrite\",\"fw\":[\"hero\"],\"engines\":[\"chromium\"],\"sha\":\"{sha}\"}"),
-  ("the rewrite in its default configuration: same as the first case but target rewrite, so a different key; webkit is blocked on target", "store.plan",
+  ("the rewrite in its default configuration: same as the first case but target rewrite, so a different key", "store.plan",
    lit s!"\{\"target\":\"rewrite\",\"engines\":[\"webkit\",\"chromium\"],\"sha\":\"{sha}\"}"),
   ("target both is not one target: a problem, no job", "store.plan",
    lit s!"\{\"target\":\"both\",\"engines\":[\"chromium\"],\"sha\":\"{sha}\"}"),
@@ -145,7 +154,7 @@ def ciRunCases : List (String × String × Json) := [
 
 /-- The files: (file stem, cases). -/
 def files : List (String × List (String × String × Json)) :=
-  [("plan", planCases), ("manifest", manifestCases), ("objectPath", pathCases), ("reduce", reduceCases), ("ciRun", ciRunCases)]
+  [("plan", planCases), ("gate", gateCases), ("manifest", manifestCases), ("objectPath", pathCases), ("reduce", reduceCases), ("ciRun", ciRunCases)]
 
 /-- The text of one golden file. -/
 def fileText (cs : List (String × String × Json)) : String :=

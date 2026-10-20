@@ -9400,7 +9400,8 @@
     "packages/contracts/golden/parts/footprint*.gen.json",
     "packages/contracts/golden/preset/**",
     "refs/upstream/sources.lock.yaml",
-    ".github/workflows/lean.yml"
+    ".github/workflows/lean.yml",
+    "apps/site/src/parts/morph.tween/**"
    ]
   },
   {
@@ -10322,8 +10323,11 @@
     "lean/scripts/check.sh",
     "lean/scripts/*Golden.lean",
     "research/notes/2026/10-2*-fw-run-inputs.md",
-    "docs/team/handoffs/fw-run-inputs.md"
-   ]
+    "docs/team/handoffs/fw-run-inputs.md",
+    "lean/scripts/LaneInputs.lean",
+    "packages/contracts/src/artifacts.ts"
+   ],
+   "evidence": "eabffe0"
   },
   {
    "devices": [
