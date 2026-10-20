@@ -940,8 +940,9 @@ inductive Case where
   | path (name : String) (k : Kind) (orig rew : List (String × Samp))
   | picks (name : String) (input : String)
 
-/-- The golden cases: every branch above, per kind where the kind matters. -/
-def cases : List Case := [
+/-- The golden cases of the window judgement (`judgeIn` per kind and per branch). Two constants, not one, so that each stays
+under the start-cost bound (`Fw.Lint.InitCost.bound`). -/
+def casesJudge : List Case := [
   .judge "empty window" .unit [] (s0 [.num [1000]]),
   .judge "absent both" .discrete [s0 [.absent]] (s0 [.absent]),
   .judge "absent rewrite" .unit [s0 [.num [1000]]] (s0 [.absent]),
@@ -972,6 +973,10 @@ def cases : List Case := [
   .judge "count" .unit [s0 [.num [1000]]] (s0 [.num [1000], .num [1000]]),
   .judge "one element bad" .unit [s0 [.num [1000], .num [500]]] (s0 [.num [1000], .num [900]]),
   .judge "no elements" .unit [s0 []] (s0 []),
+  ]
+
+/-- The golden cases of the rest: windows, buckets, coverage, the baseline relation, arm identity and read timing. -/
+def casesRest : List Case := [
   .bracket "interior hit" [0, 2000, 4000, 6000] 4000,
   .bracket "between" [0, 2000, 4000, 6000] 3000,
   .bracket "falling" [10000, 8000, 6000] 7000,
@@ -1030,6 +1035,9 @@ def cases : List Case := [
   .runOf "run ok" [⟨.orig, none, none, none⟩, ⟨.rewrite, some "ab12", some "ab12", some "hydrate"⟩],
   .runOf "run one bad" [⟨.orig, none, none, none⟩, ⟨.rewrite, some "ab12", some "cd34", some "client-render"⟩],
   .runOf "run empty" []]
+
+/-- The golden cases: every branch above, per kind where the kind matters. -/
+def cases : List Case := casesJudge ++ casesRest
 
 /-- A widths pick as JSON. -/
 def Widths.json : Widths → Json
