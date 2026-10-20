@@ -10,9 +10,10 @@ import { bodyLimit } from "hono/body-limit";
 import type { Core } from "../core/index.ts";
 import { OwnerAuth } from "./owner.ts";
 import { LoginGuard, loginPage } from "./login.ts";
+import { NONCE, type ReturnStore } from "./return.ts";
 import { isLoopback } from "./lan.ts";
 
-export type OwnerDeps = { core: Core; owner: OwnerAuth; login: LoginGuard; lan: boolean };
+export type OwnerDeps = { core: Core; owner: OwnerAuth; login: LoginGuard; lan: boolean; returns?: ReturnStore };
 
 /** The login body is a passphrase: nothing legitimate is larger (bytes). */
 export const LOGIN_BODY_MAX = 1024;
@@ -39,7 +40,8 @@ export function mountOwnerGate(app: Hono, d: OwnerDeps) {
 
   app.get("/owner/login", (c) => {
     c.header("Cache-Control", "no-store");
-    return c.html(loginPage({ enabled: d.login.enabled }), d.login.enabled ? 200 : 503);
+    const r = c.req.query("r");
+    return c.html(loginPage({ enabled: d.login.enabled, ...(r && NONCE.test(r) ? { ret: r } : {}) }), d.login.enabled ? 200 : 503);
   });
 
   // the body is capped before it is read (a chunked body too)
@@ -54,9 +56,12 @@ export function mountOwnerGate(app: Hono, d: OwnerDeps) {
     if (!(await d.owner.actionOk(d.core, "login", false, c.req.header("origin"), c.req.header("host")))) return reply(403, "refused: cross-origin login");
     // a body that does not parse says nothing about its content: the passphrase must not reach any message
     let presented = "";
+    let ret: unknown;
     try {
       const text = await c.req.text();
-      presented = String((JSON.parse(text) as { passphrase?: unknown }).passphrase ?? "");
+      const body = JSON.parse(text) as { passphrase?: unknown; r?: unknown };
+      presented = String(body.passphrase ?? "");
+      ret = body.r;
     } catch { return reply(400, "unreadable request"); }
     const o = await d.login.attempt(remoteOf(c) ?? "unknown", presented);
     presented = "";
@@ -64,7 +69,8 @@ export function mountOwnerGate(app: Hono, d: OwnerDeps) {
       case "ok": {
         const token = d.owner.open();
         for (const ck of d.owner.previewCookieFor(token)) c.header("Set-Cookie", ck, { append: true }); // preview viewing only
-        return c.json({ ok: true, token });
+        const next = d.returns ? await d.returns.landing(ret, c.req.header("host")) : "/";
+        return c.json({ ok: true, token, next });
       }
       case "locked": return reply(429, "too many tries; wait before trying again", o.retryAt);
       case "disabled": return reply(503, "owner login is disabled on this console");

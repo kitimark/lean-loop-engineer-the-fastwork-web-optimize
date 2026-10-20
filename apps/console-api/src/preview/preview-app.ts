@@ -15,8 +15,10 @@ import { isLoopback } from "./lan.ts";
 import { remoteOf } from "./gate.ts";
 import { mountPreviewProxy } from "./proxy.ts";
 import { Grants } from "./grants.ts";
+import type { ReturnStore } from "./return.ts";
+import { localPortOf } from "./arm-app.ts";
 
-export function createPreviewApp(core: Core, owner: OwnerAuth, pm: PreviewManager, opts: { lan: boolean; grants?: Grants }) {
+export function createPreviewApp(core: Core, owner: OwnerAuth, pm: PreviewManager, opts: { lan: boolean; grants?: Grants; returns?: ReturnStore }) {
   const app = new Hono();
   app.onError((e, c) => c.json({ ok: false, reason: `decision core failed: ${e.message}` }, 500));
   const wantsHtml = (c: Context) => (c.req.method === "GET" || c.req.method === "HEAD") && (c.req.header("accept") ?? "").includes("text/html");
@@ -48,6 +50,11 @@ export function createPreviewApp(core: Core, owner: OwnerAuth, pm: PreviewManage
     c.header("Cache-Control", "no-store");
     if (lan && !hostOk) return c.json({ ok: false, reason: "unknown host" }, 421);
     const msg = "preview access needed: open this link from the console task page, after logging in there";
+    if (hostOk && c.req.method === "GET" && wantsHtml(c) && opts.returns) {
+      const u = new URL(c.req.url);
+      const to = await opts.returns.redirectFor({ method: c.req.method, html: true, host: c.req.header("host"), port: localPortOf(c), pathq: u.pathname + u.search });
+      if (to) return c.redirect(to, 303);
+    }
     if (wantsHtml(c)) return c.html(`<!doctype html><meta charset="utf-8"><title>fw preview</title><p>${msg}.</p>`, 401);
     return c.json({ ok: false, reason: msg }, 401);
   });
