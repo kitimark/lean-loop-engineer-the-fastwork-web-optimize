@@ -11178,7 +11178,8 @@
     "docs/team/handoffs/land-check-remote.md",
     "apps/runner/test/checks.test.ts",
     "apps/runner/src/land-tier*.ts"
-   ]
+   ],
+   "evidence": "47f37e0"
   },
   {
    "devices": [

@@ -67,13 +67,14 @@ jobs:
     if: ${{ needs.guard.outputs.run == 'true' }}
     concurrency:
       group: ci-lane:land:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:land:${{ strategy.job-index }}
-    # One job per leg (Lean Fw.Console.LandLegs, lean/land-legs.txt): the suites legs split the remote checks, the engine legs run the
-    # preview browser suite on their engine. Every leg builds fwcore and selects the same checks, so the wall time is the slowest leg.
+    # One job per leg (Lean Fw.Console.LandLegs, lean/land-legs.txt): the check-sh leg runs lean/scripts/check.sh (off the Mac, task
+    # land-check-remote; the toolchain and the Lake cache come from setup-lean like lean.yml), the suites legs split the other remote
+    # checks, the engine legs run the preview browser suite on their engine. Every leg builds fwcore and selects the same checks, so the wall time is the slowest leg.
     # fail-fast is off: every leg reports. The run passes iff every leg passed (Lean legsOk; the adapter re-checks it, land-remote.ts).
     strategy:
       fail-fast: false
       matrix:
-        leg: [suites-a, suites-b, chromium, playwright-webkit]
+        leg: [check-sh, suites-a, suites-b, chromium, playwright-webkit]
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
     steps:
