@@ -62,6 +62,7 @@
 {"kind":"pinGuard","pinned":"24.22.0","refusal":"refusing to start: running Node v24.22.0 but .node-version pins 24.22.0; run `nvm install && nvm use` (or start through `pnpm`, which uses the pinned Node) and retry","running":"vv24.22.0"}
 {"kind":"pinGuard","pinned":null,"refusal":null,"running":"v1.0.0"}
 {"kind":"pinGuard","pinned":"","refusal":"refusing to start: running Node 24.22.0 but .node-version pins ; run `nvm install && nvm use` (or start through `pnpm`, which uses the pinned Node) and retry","running":"v24.22.0"}
+{"kind":"pinGuard","pinned":"﻿24.22.0","refusal":"refusing to start: running Node 24.22.0 but .node-version pins ﻿24.22.0; run `nvm install && nvm use` (or start through `pnpm`, which uses the pinned Node) and retry","running":"v24.22.0"}
 {"kind":"pinRow","problems":[],"row":[".node-version","apps/**"],"usesNode":true}
 {"kind":"pinRow","problems":["rowLacksPin"],"row":["apps/**"],"usesNode":true}
 {"kind":"pinRow","problems":["noRow"],"row":null,"usesNode":true}

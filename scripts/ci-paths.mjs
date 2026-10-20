@@ -894,10 +894,13 @@ export function jobProblems(j) {
   return out;
 }
 
+/** The one trim of a pin file's content: ASCII space, tab, CR, LF only, as Lean `trimAscii` (Init/Data/Char/Basic.lean:97-98@v4.35.0). Not `String.trim`, which also strips U+FEFF, U+00A0, \f and \v. */
+export const trimPin = (s) => s.replace(/^[ \t\r\n]+|[ \t\r\n]+$/g, '');
+
 /** Twin of Lean `nodePinRefusal`: the refusal line when the running Node is not the pin, else null. */
 export function nodePinRefusal(running, pinned) {
   if (pinned === null || pinned === undefined) return null;
-  const want = pinned.trim();
+  const want = trimPin(pinned);
   const seen = running.startsWith('v') ? running.slice(1) : running;
   if (seen === want) return null;
   return `refusing to start: running Node ${seen} but ${NODE_FILE} pins ${want}; run \`nvm install && nvm use\` (or start through \`pnpm\`, which uses the pinned Node) and retry`;
@@ -953,7 +956,7 @@ export function jobFacts(lines, nodeActions = []) {
     if ((SETUP_NODE.test(code) || SETUP_PNPM.test(code)) && firstSetup < 0) firstSetup = i;
     if (nodeActions.some((a) => code.includes(`./.github/actions/${a}`))) { // a composite action that runs node
       f.runsNode = true;
-      if (!code.includes('./.github/actions/telemetry') && firstNode < 0) firstNode = i; // telemetry start is a best-effort sampler (Lean PinJob)
+      if (firstNode < 0) firstNode = i; // no exemption (Lean PinJob)
     }
     let run = null;
     if (runIndent >= 0) {
@@ -978,7 +981,7 @@ export function nodePinProblems(root, table) {
   const out = [];
   const read = (rel) => (existsSync(join(root, rel)) ? readFileSync(join(root, rel), 'utf8') : null);
   const raw = read(NODE_FILE);
-  const pin = raw === null ? null : raw.trim();
+  const pin = raw === null ? null : trimPin(raw);
   for (const c of pinValueProblems(pin)) {
     out.push(`${NODE_FILE}: ${c === 'tooOld' ? `${pin} is older than ${NODE_MIN.join('.')}` : `must hold one exact version x.y.z (got ${pin === null ? 'no file' : JSON.stringify(pin)})`}`);
   }
@@ -986,7 +989,7 @@ export function nodePinProblems(root, table) {
   const ws = read('pnpm-workspace.yaml');
   const nvmrc = read('.nvmrc');
   const copies = [
-    ['.nvmrc', nvmrc === null ? null : nvmrc.trim()],
+    ['.nvmrc', nvmrc === null ? null : trimPin(nvmrc)],
     ['package.json engines.node', pkg === null ? null : (JSON.parse(pkg).engines?.node ?? null)],
     ['pnpm-workspace.yaml useNodeVersion', ws === null ? null : (/^useNodeVersion:\s*['"]?([^'"\s#]+)/m.exec(ws)?.[1] ?? null)],
   ];

@@ -700,8 +700,11 @@ def copyProblems (pin : Option String) (copies : List (String × Option String))
 value (`""` when the step has none); `versionKey` is a `node-version:` key anywhere in the job; `pnpmAction` is a use of
 the repo's setup-pnpm action (which sets Node up); `runsNode` is a `run:` line that calls node, pnpm, npm or npx.
 `nodeBeforeSetup` is true when the first step that runs Node comes before the first setup-node or setup-pnpm step. A
-step that runs Node is a `run:` line or a composite action that runs node, except `telemetry` (its start is a
-best-effort sampler that skips itself when the runner has no node and is not part of the job's build). -/
+step that runs Node is a `run:` line or a composite action that runs node, with no exemption: the telemetry steps
+follow the setup step too. Under `pnpmAction`, the pinned Node is also what pnpm uses: pnpm skips its own Node fetch
+when the Node running pnpm (`process.version` under corepack, the PATH node for the packaged binary;
+system-node-version/src/index.ts:5-14@v10.34.5) equals `useNodeVersion` (env/plugin-commands-env/src/node.ts:46-48).
+INFERRED until the CI log of the snapshot-extract run confirms it. -/
 structure PinJob where
   setups : List String
   versionKey : Bool
@@ -765,7 +768,7 @@ def nodePinRefusal (running : String) (pinned : Option String) : Option String :
   match pinned with
   | none => none
   | some p =>
-    let want := p.trimAscii.copy
+    let want := p.trimAscii.copy -- ASCII space, \t, \r, \n only (Init/Data/Char/Basic.lean:97-98@v4.35.0); no BOM, no \f, \v
     let seen := if running.startsWith "v" then (running.drop 1).copy else running
     if seen == want then none else
       some ("refusing to start: running Node " ++ seen ++ " but .node-version pins " ++ want ++
@@ -852,7 +855,7 @@ def pinJobs : List PinJob := [
 def pinGuards : List (String × Option String) := [
   ("v24.22.0", some "24.22.0"), ("24.22.0", some "24.22.0"), ("v24.22.0", some "24.22.0\n"), ("v24.22.0", some " 24.22.0 "),
   ("v24.14.0", some "24.22.0"), ("v24.23.0", some "24.22.0"), ("24.14.0", some "24.22.0"), ("vv24.22.0", some "24.22.0"),
-  ("v1.0.0", none), ("v24.22.0", some "")]
+  ("v1.0.0", none), ("v24.22.0", some ""), ("v24.22.0", some "\uFEFF24.22.0")]
 
 /-- Rows the golden decides: (usesNode, row inputs). -/
 def pinRows : List (Bool × Option (List String)) := [

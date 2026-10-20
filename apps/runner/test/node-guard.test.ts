@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { nodePinRefusal, readNodePin } from "../src/node-guard.ts";
@@ -31,6 +32,19 @@ describe("node pin runtime guard", () => {
   });
   it("reads the repo-root .node-version", () => {
     const src = join(dirname(fileURLToPath(import.meta.url)), "..", "src");
-    expect(readNodePin(src)).toBe(readFileSync(join(src, "..", "..", "..", ".node-version"), "utf8").trim());
+    expect(readNodePin(src)).toBe(readFileSync(join(src, "..", "..", "..", ".node-version"), "utf8"));
+  });
+  it("refuses a .node-version that starts with a BOM, as Lean does (golden pinGuard case)", () => {
+    const root = mkdtempSync(join(tmpdir(), "nodepin-"));
+    try {
+      const src = join(root, "apps", "x", "src");
+      mkdirSync(src, { recursive: true });
+      writeFileSync(join(root, ".node-version"), "\uFEFF24.22.0\n");
+      const pin = readNodePin(src);
+      expect(pin).toBe("\uFEFF24.22.0\n");
+      expect(nodePinRefusal("v24.22.0", pin)).not.toBeNull();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });

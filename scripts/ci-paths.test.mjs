@@ -610,7 +610,7 @@ test('node pin facts: the reader sees block, quoted and flow-map setup-node step
   assert.equal(order('run: pnpm test', 'uses: ./.github/actions/setup-pnpm'), true, 'pnpm before setup-pnpm');
   assert.equal(order('uses: actions/setup-node@abc', 'run: node x.mjs'), false, 'setup first');
   assert.equal(order('run: echo hi', 'uses: actions/setup-node@abc'), false, 'no node before setup');
-  assert.equal(jobFacts('  a:\n    steps:\n      - uses: ./.github/actions/telemetry\n      - uses: actions/setup-node@abc'.split('\n'), ['telemetry']).nodeBeforeSetup, false, 'telemetry start is exempt');
+  assert.equal(jobFacts('  a:\n    steps:\n      - uses: ./.github/actions/telemetry\n      - uses: actions/setup-node@abc'.split('\n'), ['telemetry']).nodeBeforeSetup, true, 'telemetry before setup is not exempt');
   assert.equal(jobFacts('  a:\n    steps:\n      - uses: ./.github/actions/gate-engine\n      - uses: actions/setup-node@abc'.split('\n'), ['gate-engine']).nodeBeforeSetup, true, 'another node action is not');
 });
 

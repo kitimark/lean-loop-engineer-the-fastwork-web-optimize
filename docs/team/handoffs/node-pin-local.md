@@ -1,16 +1,11 @@
-# node-pin-local handoff (round 2)
+# node-pin-local handoff (round 3, final design round)
 
-State: branch worktree-wf_d0d6e462-6cd-1, main (3cc1a065) merged. Read first: lean/Fw/Ci/Trigger.lean section "The Node pin rule".
-- .nvmrc 24.22.0 (CONFIRMED: installed nvm 0.39.7 has no .node-version lookup); package.json engines.node; .npmrc engine-strict; pnpm useNodeVersion; all equal .node-version (copyProblems).
-- Step order (r1 high): PinJob.nodeBeforeSetup + jobProblems "nodeBeforeSetup" + theorem jobProblems_nodeBeforeSetup, golden pinJob lines (3 new), TS twin in
-  jobFacts (first run:/node-action line before first setup-node/setup-pnpm line). 14 jobs fixed by moving the setup step directly after checkout
-  (breakpoint-gate gate, chromium-counts counts, gate-gaps x2, snapshot-extract, trajectory-probe x2, visual-diff x5, webkit-sim, wktr).
-  Exempt in Lean (PinJob docstring): the telemetry action, a best-effort sampler that skips itself without node; 19 in r1 counted it. Limit: telemetry start may run on the runner's Node.
-- Refuse-or-run (r1 medium): Lean nodePinRefusal + theorems (_none_noPin, _none_iff, _some_iff), golden pinGuard lines (10); TS twins in scripts/ci-paths.mjs and both apps/*/src/node-guard.ts; apps/*/test/node-guard.test.ts assert equality with the golden.
-- pinValueProblems theorems: _noFile, _notExact, _tooOld, _ok. ci-paths: unreadable jobs are now a problem, not silence.
-- Verified (local, debug): lean/scripts/check.sh green; ci-paths.test.mjs 49/49; ci-paths --check green; runner 1514/1514; console-api 575/575.
-- CI: ci/node-pin-local, run 39456448428 (lean workflow, success): guard and lean jobs log `node: v24.22.0` (setup-node step 4 s, right after checkout). MEASURED.
-  All other lanes were skipped by their guards, and the lean job runs no pnpm, so pnpm's useNodeVersion download cost is NOT measured. Open: dispatch a pnpm lane
-  (e.g. premise-tests) on ci/node-pin-local and read the setup-pnpm "pnpm install" step time; if large, export npm_config_use_node_version empty in the setup-pnpm action.
-- TS stand-ins: YAML reader jobFacts, .npmrc engine-strict check. Follow-ups: .claude/settings.json hooks run `node` from PATH unguarded; jobFacts misses node started from shell scripts (check-simulator.sh).
-- Writes outside the graph list: none new (work-graph.json taken from main, lead-only).
+State: branch worktree-wf_d0d6e462-6cd-1, main (3aa12c09) merged. Read first: lean/Fw/Ci/Trigger.lean section "The Node pin rule".
+- Pin: .node-version 24.22.0 equals .nvmrc, engines.node, .npmrc engine-strict, pnpm useNodeVersion (copyProblems). Lean rules: jobProblems (nodeBeforeSetup), nodePinRefusal, pinValueProblems, with theorems and golden pin* lines.
+- r3 item 1: setup-node/setup-pnpm now directly after checkout in breakpoint-gate site, trajectory-probe site, chromium-counts site, webkit-sim site, premise-tests engine, ahead of both telemetry steps and setup-lean. The telemetry exemption is gone (PinJob docstring, jobFacts); ci-paths --check green.
+- r3 item 2: the one trim is nodePinRefusal's, ASCII space/tab/CR/LF (Init/Data/Char/Basic.lean:97-98@v4.35.0); readNodePin returns raw; ci-paths `trimPin` serves pin file and .nvmrc. Golden pinGuard case with U+FEFF; both node-guard tests check a BOM .node-version (temp tree, readNodePin + nodePinRefusal) is refused.
+- r3 item 3: PinJob docstring cites system-node-version/src/index.ts:5-14@v10.34.5 and env/plugin-commands-env/src/node.ts:46-48; INFERRED until the CI run below.
+- Verified locally (debug): lean/scripts/check.sh green; ci-paths.test.mjs 49/49; ci-paths --check green; runner 1570, console-api 576 (incl. tsc).
+- CI evidence (item 4): see the report; run on ci/node-pin-local, tip commit carries [ci:snapshot-extract].
+- TS stand-ins: YAML reader jobFacts, .npmrc engine-strict check. Follow-ups (accepted limits c, d): .claude/settings.json hooks run PATH node unguarded; jobFacts misses node in .github/scripts/*.sh.
+- Writes outside the graph list: none.
