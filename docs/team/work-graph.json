@@ -9442,7 +9442,10 @@
     "packages/contracts/golden/parts/footprint*.gen.json",
     "packages/contracts/golden/preset/**",
     "refs/upstream/sources.lock.yaml",
-    ".github/workflows/lean.yml"
+    ".github/workflows/lean.yml",
+    "apps/site/package.json",
+    "pnpm-lock.yaml",
+    "apps/site/src/parts/morph.mount/**"
    ]
   },
   {
