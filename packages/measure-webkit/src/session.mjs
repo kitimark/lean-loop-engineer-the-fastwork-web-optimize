@@ -6,7 +6,7 @@ import { resolve, dirname, join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { serveTree } from './serve.mjs';
 import { bootDevice, terminateSafari, startSafari, waitSocket, openUrl, shutdownDevice, startProxy, proxyCheck, probeInspector, findDevice, listTabs, sleep } from './sim.mjs';
-import { BOUNDS } from './inspector.mjs';
+import { BOUNDS, InspectorDeadError } from './inspector.mjs';
 import { createGuard, runSteps } from './guard.mjs';
 import { armFault, faultPlan } from './fault.mjs';
 import { openTab } from './wip.mjs';
@@ -114,7 +114,8 @@ export async function withSession(fn, { keep = false, vendors = 'off', site = nu
         // no openurl first: Safari restores its tab, and a second one would make `openTab` see two; one ask if none is listed
         { name: 'wait for the Safari tab', ms: BOUNDS.tabMs + BOUNDS.askMs, run: () => ensureTab({
           list: listPageTabs, ask: () => openUrl(device.udid, tabUrl, { timeoutMs: BOUNDS.askMs, max: 1 }), maxAsks: 1, timeoutMs: BOUNDS.tabMs, log }) },
-        { name: 'connect to the tab', ms: BOUNDS.connectMs, run: async () => { ctx.setClient(await openTab(server.url, { waitMs: BOUNDS.connectMs, log })); } },
+        // the page answers: connect once and let go again; the run's own retry connects its client (one owner of ctx.c)
+        { name: 'connect to the tab', ms: BOUNDS.connectMs, run: async () => { await (await openTab(server.url, { waitMs: BOUNDS.connectMs, log })).close(); } },
       ], { log });
     };
     guard = createGuard({
@@ -132,7 +133,15 @@ export async function withSession(fn, { keep = false, vendors = 'off', site = nu
       });
       log(`fault ${plan.kind} armed: the first kill comes ${plan.afterMs / 1000} s from now`);
     }
-    return await Promise.race([fn(ctx), deadP]);
+    try {
+      return await Promise.race([fn(ctx), deadP]);
+    } catch (e) {
+      if (e instanceof InspectorDeadError) throw e;
+      // the run failed for another reason: one more probe says whether the inspector was dead (exit 4) or not (the error stands)
+      log(`the run failed (${e.message}); probing the inspector once more`);
+      await guard.check('end of run');
+      throw e;
+    }
   } finally {
     await cleanup();
   }

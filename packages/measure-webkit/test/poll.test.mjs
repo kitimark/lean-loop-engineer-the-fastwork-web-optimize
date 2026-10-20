@@ -57,15 +57,6 @@ test('ensureTab with maxAsks 1 (the relaunch) asks at most once and not at all w
   assert.equal(r.asks, 0);
   assert.equal(asked, 0, 'one restored tab: no second one is opened');
 });
-test('reconnect keeps the client that a relaunch connected and opens no second one', async () => {
-  const old = { close: async () => {} }, fresh = { id: 'fresh' };
-  const ctx = { c: old, url: 'u', setClient: (c) => { ctx.c = c; }, ensureProxy: async () => { ctx.setClient(fresh); } };
-  let opened = 0;
-  await reconnect(ctx, { openTabFn: async () => { opened++; return 'again'; } });
-  assert.equal(ctx.c, fresh);
-  assert.equal(opened, 0);
-});
-
 test('attachFresh releases a client that attached to the old document and returns the fresh one', async () => {
   const clock = fakeClock();
   const docs = [{ fresh: false }, { fresh: false }, { fresh: true, complete: 2 }];
