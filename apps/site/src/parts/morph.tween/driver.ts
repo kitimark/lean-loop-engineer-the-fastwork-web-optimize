@@ -1,4 +1,5 @@
 import { active, armed, dir, fade, frame, pointerNone, push, REST, taken, type St } from './logic';
+import { lockWrite, readsAt } from './scroll-lock.logic';
 
 export interface PlatformEl {
   getBoundingClientRect(): { height: number; bottom: number };
@@ -31,6 +32,8 @@ export interface TweenEnv {
   publish(value: number): void;
   /** The panel may mount: first intersection or first push (N2:13040 and 13076 `z(b, !0)`). */
   onActivate?(): void;
+  /** The `scroll-lock` arm's root lock (Lean `MorphTweenOpt.stepR`); absent in the original and unless `lockAllowed`. */
+  lock?: { overlay(): boolean; set(on: boolean): void };
 }
 
 /**
@@ -48,8 +51,20 @@ export function createTweenDriver(env: TweenEnv) {
   let touchY = 0;
   let pinned = env.scrollY();
   let cancelFrame: (() => void) | null = null;
+  let locked = false;
+  let overlay = false;
 
   const isActive = () => active({ target: st.target, value: st.value });
+  const readOverlay = (was: boolean, now: boolean) => {
+    if (env.lock && readsAt(was, now)) overlay = env.lock.overlay();
+  };
+  const syncLock = () => {
+    if (!env.lock) return;
+    const w = lockWrite(overlay, locked, isActive());
+    if (w === null) return;
+    locked = w;
+    env.lock.set(w);
+  };
   const updateFade = () => {
     const p = env.platform();
     if (!p) return;
@@ -100,13 +115,16 @@ export function createTweenDriver(env: TweenEnv) {
   const arm = () => (near || isActive() ? attach() : detach());
 
   const tick = (t: number) => {
+    const was = isActive();
     st = frame({ state: st, now: t });
+    readOverlay(was, isActive());
     if (!st.pending) {
       cancelFrame?.();
       cancelFrame = null;
     }
     env.publish(st.value);
     updateFade();
+    syncLock();
     if (!isActive()) arm();
   };
 
@@ -116,8 +134,10 @@ export function createTweenDriver(env: TweenEnv) {
     const reduced = env.reduced();
     const next = push({ state: st, goal, reduced, now: env.now() });
     if (next === st) return; // already heading there: nothing happens (N2:13037)
+    readOverlay(isActive(), active({ target: next.target, value: next.value }));
     env.onActivate?.();
     st = next;
+    syncLock();
     if (reduced) {
       cancelFrame?.();
       cancelFrame = null;
@@ -146,6 +166,10 @@ export function createTweenDriver(env: TweenEnv) {
     dispose() {
       cancelFrame?.();
       cancelFrame = null;
+      if (locked) {
+        locked = false;
+        env.lock?.set(false);
+      }
       detach();
     },
   };
