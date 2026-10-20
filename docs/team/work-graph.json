@@ -10813,7 +10813,10 @@
     "apps/console-api/test/**",
     "lean/Fw/Console/**",
     "packages/contracts/golden/console/**",
-    "docs/team/handoffs/console-idle-cpu.md"
+    "docs/team/handoffs/console-idle-cpu.md",
+    "lean/Fw.lean",
+    "lean/scripts/JournalCacheGolden.lean",
+    "lean/scripts/check.sh"
    ]
   },
   {
