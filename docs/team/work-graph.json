@@ -10225,7 +10225,10 @@
     "lean/scripts/check.sh",
     "packages/contracts/golden/gate/**",
     "research/notes/2026/10-21-cmr-margin-rect-rule.md",
-    "docs/team/handoffs/cmr-margin-rect-rule.md"
+    "docs/team/handoffs/cmr-margin-rect-rule.md",
+    "lean/Fw/Ops/Premise.lean",
+    "packages/premise-tests/**",
+    "packages/contracts/golden/ops/premise.jsonl"
    ]
   },
   {
