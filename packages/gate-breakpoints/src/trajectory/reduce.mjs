@@ -225,8 +225,8 @@ export function armsOf(raw) {
   const out = [];
   for (const r of raw.runs) {
     for (const path of ['hero', 'morph']) {
-      const a = r[path]?.arm;
-      if (r[path]) out.push({ role: r.role ?? (r.site === 'orig' ? 'orig' : 'cand'), width: r.width, path, site: r.site, want: r.want ?? null, config: a?.config ?? null, mode: a?.mode ?? null });
+      if (!r[path]) continue;
+      for (const a of [r[path].arm, ...(r[path].extraArms ?? [])]) out.push({ role: r.role ?? (r.site === 'orig' ? 'orig' : 'cand'), width: r.width, path, site: r.site, want: r.want ?? null, config: a?.config ?? null, mode: a?.mode ?? null });
     }
   }
   return out;
@@ -247,7 +247,7 @@ export function timingOf(raw) {
       const reads = [], gaps = [];
       for (const r of runs) {
         const rows = (r.morph.phases[phase] ?? []).filter((x) => typeof x.t0 === 'number' && typeof x.t1 === 'number');
-        rows.forEach((x, i) => { reads.push(tenths(x.t1 - x.t0)); if (i + 1 < rows.length) gaps.push(tenths(rows[i + 1].t0 - x.t0)); });
+        rows.forEach((x, i) => { reads.push(tenths(x.t1 - x.t0)); if (i + 1 < rows.length && rows[i + 1].rep === x.rep) gaps.push(tenths(rows[i + 1].t0 - x.t0)); });
       }
       if (reads.length === 0) continue;
       const row = { role, phase, n: reads.length, readP50: quantile(reads, 50), readP90: quantile(reads, 90), gapP50: quantile(gaps, 50), gapP90: quantile(gaps, 90) };

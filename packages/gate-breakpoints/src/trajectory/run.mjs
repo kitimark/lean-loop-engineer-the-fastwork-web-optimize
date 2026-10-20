@@ -49,8 +49,23 @@ export async function heroPath(engine, env, origin, site, search = '') {
 /**
  * The end-of-page path of one arm: approach, rest, a wheel push open and a push close, each held. With `reads: 'lean'` the two
  * pushes read only the lean properties of the registry in every frame (the holds and the approach read everything).
+ * The tween is driven by time, so one push lands about two frames per tenth of the morph value and sometimes none. With `reps`
+ * above 1 the whole path is walked on a fresh page that many times and the rows of each phase are pooled (every row carries
+ * its `rep`; the approach is the first rep's). Every rep's arm identity is kept (`arm` is the first, `extraArms` the rest).
  */
-export async function morphPath(engine, env, origin, site, search = '', reads = 'full') {
+export async function morphPath(engine, env, origin, site, search = '', reads = 'full', reps = 1) {
+  let out = null;
+  for (let rep = 0; rep < reps; rep++) {
+    const one = await morphPass(engine, env, origin, site, search, reads);
+    for (const rows of Object.values(one.phases)) for (const r of rows) r.rep = rep;
+    if (out === null) { out = { ...one, reps, extraArms: [] }; continue; }
+    out.extraArms.push(one.arm);
+    for (const [ph, rows] of Object.entries(one.phases)) out.phases[ph] = (out.phases[ph] ?? []).concat(rows);
+  }
+  return out;
+}
+
+async function morphPass(engine, env, origin, site, search, reads) {
   const { s, ready, arm } = await open(engine, env, origin, site, search);
   try {
     const nodes = forArm(resolveNodes(MORPH_NODES), site);
@@ -73,7 +88,7 @@ export async function morphPath(engine, env, origin, site, search = '', reads = 
 }
 
 /** The arms of a role, as armCheck reads them. */
-const armsOfRun = (run) => ['hero', 'morph'].filter((p) => run[p]).map((p) => ({ site: run.site, want: run.want, config: run[p].arm.config, mode: run[p].arm.mode }));
+const armsOfRun = (run) => ['hero', 'morph'].filter((p) => run[p]).flatMap((p) => [run[p].arm, ...(run[p].extraArms ?? [])].map((a) => ({ site: run.site, want: run.want, config: a.config, mode: a.mode })));
 
 /**
  * Run the lane for one engine over `widths`: at each width the original, the faithful rewrite (default config, role `base`) and
@@ -83,7 +98,7 @@ const armsOfRun = (run) => ['hero', 'morph'].filter((p) => run[p]).map((p) => ({
  * refuses it again from the same readings).
  * Returns { engine, version, search, hash, baseHash, paths, reads, refused, runs: [{ width, site, role, search, want, hero, morph }] }.
  */
-export async function runLane({ engineName, widths, search = '', paths = ['hero', 'morph'], reads = 'full', env = process.env }) {
+export async function runLane({ engineName, widths, search = '', paths = ['hero', 'morph'], reads = 'full', reps = 3, env = process.env }) {
   const variant = rewriteFor(siteDist(env), { ...env, FW_SEARCH: search });
   const configs = JSON.parse(readFileSync(join(siteDist(env), 'configs.json'), 'utf8'));
   const baseHash = configs.bySearch[''];
@@ -108,13 +123,13 @@ export async function runLane({ engineName, widths, search = '', paths = ['hero'
         const t0 = Date.now();
         const run = { width, site: a.site, role: a.role, search: a.search, want: a.want };
         if (paths.includes('hero')) { log(`trajectory ${engineName} ${width} ${a.role}: hero`); run.hero = await heroPath(engine, e, a.origin, a.site, a.search); }
-        if (paths.includes('morph')) { log(`trajectory ${engineName} ${width} ${a.role}: morph`); run.morph = await morphPath(engine, e, a.origin, a.site, a.search, reads); }
+        if (paths.includes('morph')) { log(`trajectory ${engineName} ${width} ${a.role}: morph`); run.morph = await morphPath(engine, e, a.origin, a.site, a.search, reads, reps); }
         runs.push(run);
         log(`trajectory ${engineName} ${width} ${a.role}: done in ${Date.now() - t0} ms`);
         if (runCheck(armsOfRun(run)) !== 'ok') { refused = true; log(`trajectory ${engineName} ${width} ${a.role}: REFUSED config (${JSON.stringify(armsOfRun(run))})`); break outer; }
       }
     }
-    return { engine: engineName, version: await engine.version(), search, hash: want, baseHash, paths, reads, refused, runs };
+    return { engine: engineName, version: await engine.version(), search, hash: want, baseHash, paths, reads, reps, refused, runs };
   } finally {
     await engine.close().catch(() => {});
     await origin.close(); await faithful.close();

@@ -190,6 +190,30 @@ test('reduceRaw: the timing rows split the read cost from the gap between sample
   assert.deepEqual([t.n, t.readP50, t.gapP50, t.dominate], [11, 4, 20, false]);
 });
 
+test('reps: the rows of two passes are pooled, an empty bucket one pass left is filled by the other', () => {
+  const half = (ms) => phaseRows(ms, () => 'off');
+  const pooled = (a, b) => [...half(a).map((r) => ({ ...r, rep: 0 })), ...half(b).map((r) => ({ ...r, rep: 1 }))];
+  const evens = [0, 2000, 4000, 6000, 8000, 10000], odds = [1000, 3000, 5000, 7000, 9000];
+  const r = { engine: 'x', runs: ['orig', 'base', 'cand'].map((role) => runOf(role, morphOf(pooled(evens, odds), role === 'orig' ? NO_FW : OK_REWRITE))) };
+  const red = reduceRaw(r, registries);
+  const gaps = (x) => x.units.filter((u) => u.phase === 'open' && u.verdict === 'fail:coverage').length;
+  assert.equal(gaps(red), 0);
+  assert.equal(gaps(reduceRaw({ ...r, runs: r.runs.map((x) => ({ ...x, morph: { ...x.morph, phases: { open: half(evens).map((q) => ({ ...q, rep: 0 })) } } })) }, registries)) > 0, true);
+  // the gap is taken inside a pass: the step from the last row of pass 0 to the first of pass 1 is not a frame gap
+  const t = red.timing.find((x) => x.role === 'cand' && x.phase === 'open');
+  assert.equal(t.n, 11);
+  assert.equal(t.gapP90, 20);
+});
+
+test('reps: every pass keeps its arm identity, a pass that client-rendered refuses the run', () => {
+  const m = morphOf(phaseRows(EVERY, () => 'off'), OK_REWRITE);
+  const bad = { ...m, extraArms: [{ config: 'h0', mode: 'client-render' }] };
+  const r = { engine: 'x', runs: [runOf('orig', morphOf(phaseRows(EVERY, () => 'off'), NO_FW)), runOf('base', m), runOf('cand', bad)] };
+  const red = reduceRaw(r, registries);
+  assert.equal(red.refused, true);
+  assert.match(red.detail, /cand w=390 morph: config h0 mode client-render/);
+});
+
 test('registry: the lane widths and the motion properties are the ones the Lean tolerance table covers', () => {
   assert.deepEqual(WIDTHS, [390, 640, 641, 1280]);
   assert.ok(MOTION_PROPS.every((p) => ['discrete', 'geometry', 'unit', 'colour'].includes(p.kind)));

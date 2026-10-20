@@ -1,6 +1,6 @@
 // The trajectory probe's command line (task trajectory-probe; docs/team/tools/trajectory-probe.md).
 //   node src/trajectory/cli.mjs run --engine chromium|playwright-webkit --out out/traj [--widths 390,640,641,1280] [--search '?fw=morph.tween:waapi']
-//        [--paths hero,morph] [--reads full|lean] [--strict]
+//        [--paths hero,morph] [--reads full|lean] [--reps 1..5] [--strict]
 //   node src/trajectory/cli.mjs summary --out out/traj [--engine chromium|playwright-webkit] [--strict]   (re-reduces raw-<engine>.json files there)
 // `run` refuses a widths list outside the Lean allowlist and a search the build did not prerender (rewriteFor throws, like the gate's
 // smoke step). It walks, per width, the original, the faithful rewrite (default config) and the candidate (the search), writes
@@ -21,7 +21,7 @@ const arg = (argv, name, dflt = '') => { const i = argv.indexOf(name); return i 
 
 /** The markdown of one engine's reduction: arm identity, relation to the faithful arm, the new groups, the timing. */
 export function summaryMd(raw, red) {
-  const head = `## trajectory ${raw.engine} (${raw.version ?? '?'}) search=${raw.search || '(default)'} reads=${raw.reads ?? 'full'} paths=${(raw.paths ?? ['hero', 'morph']).join('+')}`;
+  const head = `## trajectory ${raw.engine} (${raw.version ?? '?'}) search=${raw.search || '(default)'} reads=${raw.reads ?? 'full'} paths=${(raw.paths ?? ['hero', 'morph']).join('+')} reps=${raw.reps ?? 1}`;
   if (red.refused) return [`${head} REFUSED config`, '', `The run was not measured as asked, so it has no verdict: ${red.detail}`, ''].join('\n');
   const out = [`${head} ${red.red ? 'RED' : 'CLEAN'}`, '',
     `arms: ${red.arms.length}, all with the config hash of their search and fwMode hydrate (rewrite) or no window.__fw (original)`, '',
@@ -72,7 +72,9 @@ export async function main(argv) {
     if (paths === null) { console.error('trajectory: refused: paths must be hero, morph or hero,morph'); return 1; }
     const reads = arg(argv, '--reads', 'full');
     if (reads !== 'full' && reads !== 'lean') { console.error('trajectory: refused: reads must be full or lean'); return 1; }
-    const raw = await runLane({ engineName, widths, search: arg(argv, '--search'), paths, reads, env: process.env });
+    const reps = Number(arg(argv, '--reps', '3'));
+    if (!Number.isInteger(reps) || reps < 1 || reps > 5) { console.error('trajectory: refused: reps must be 1 to 5'); return 1; }
+    const raw = await runLane({ engineName, widths, search: arg(argv, '--search'), paths, reads, reps, env: process.env });
     writeFileSync(join(out, `raw-${raw.engine}.json`), JSON.stringify(raw));
     return report(out, raw, strict);
   }
