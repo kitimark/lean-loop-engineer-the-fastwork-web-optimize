@@ -142,32 +142,78 @@ Limits of the in-flight rule, for that fraction of samples:
   read unclamped, `lab`/`lch` use CSS Color 4's D50 to D65 Bradford and are unchecked against a device, relative colour
   syntax and `calc()` stay strings.
 - The stored raw files (runs 39453181962, 39471466367, 39457063232) hold the old numeric tuples, not the colour string,
-  so the re-reduction reads the old `oklab` shape back (`colourFromV1`: lightness 0..1000, a and b within 500; the
-  stored runs hold only near-white greys of this shape) and leaves every other tuple as stored. Error: the 0.001
-  rounding of the old tuple, up to 0.5 level, plus the budget above. Re-reduced with the same `reduce.mjs`, units
-  `apart` of `nav.background-color` and `logo.color` (`*` = new against the base arm; steps `aN` are approach, `open@b`
-  and `close@b` push buckets):
+  so the re-reduction reads the old `oklab` shape back (`colourFromV1`: lightness 0..1000, a and b within 500) and leaves
+  every other tuple as stored. MEASURED tuple range over the three runs: L 0.234 to 1.0, a -0.004 to 0, b -0.019 to 0
+  (the first tuple of L below 0.3 is one Linux WebKit nav reading, `[234,-4,-19,212479]`). Counts, oklab-shaped tuples of
+  all colour reads (of those, with a or b not 0): 39453181962 apple 1321 of 10432 (44), chromium 1629 of 13844 (0);
+  39471466367 apple 726 of 9248 (65), chromium 1126 of 14252 (0); 39457063232 playwright-webkit 67 of 1304 (34),
+  chromium 1014 of 8764 (10). The shape is not always a = b = 0 (L near 1). Recovery error, MEASURED: the 0.001 rounding of
+  the stored tuple gives up to 0.64 level (640 thousandths, at L 0.998, a -0.004, b -0.019, red channel; a grid of every
+  0.001 tuple over the range above with the true value at the 8 corners of +-0.0005), outside the Lean `chanErr` 500. A
+  recovered reading is within 0.64 + 0.008 level of the truth, so one recovered arm against an `rgb` arm (0.5 level) differs
+  by at most 0.64 + 0.5 + 0.008 < 2 levels, inside the judge's 2000. Ambiguity: an old `color(srgb ..)` reading of a
+  near-black non-integer colour (for example `[510,255,255]`) has the same shape and would be read as `oklab`; none is in
+  the stored data (every oklab-shaped tuple there has b at most 0). Re-reduced with the same `reduce.mjs` over every
+  `raw-<engine>.json` of the three runs (artifacts `trajectory-apple` = Safari on the Mac, `trajectory-playwright-webkit` =
+  Linux WebKit, `trajectory-chromium`; `before` = as stored, `after` = oklab-shaped tuples converted, same files). The
+  failing colour units of `nav.background-color` and `logo.color` per width (`*` = new against the base arm; an unmarked
+  unit fails in the base arm too; `aN` approach, `open@b`, `close@b` push buckets, `-hold` the hold after a push; ranges
+  `3-9` and lists `3,5`). Artifacts with no row had no colour unit before or after; `39453181962 playwright-webkit` and
+  `39457063232 apple` hold no nav reading (0 colour reads):
 
-| run, engine | width | `nav.background-color` before | after | `logo.color` before | after |
-|---|---|---|---|---|---|
-| 39453181962 mac | 390 | - | close@0 | 16 units, a0 open@7..10 close@1..10 | same 16 |
-| | 640 | close@0* | close@0 close-hold@0* | - | - |
-| | 641 | a3 a8* a11* | a3 close@0 | - | - |
-| | 1280 | a7* close@0* | close@0 close-hold@0* | - | - |
-| 39471466367 mac waapi | 390 | close@0* close-hold@0 | close@0 close-hold@0 | a0 | a0 |
-| | 640, 641 | close@0* close-hold@0* | close@0 | - | - |
-| | 1280 | close@0 close-hold@0* | close@0 | - | - |
-| 39457063232 chromium | 390, 640, 641 | - | - | - | - |
-| | 1280 | - | close@0* | - | - |
+| run, artifact | width | node.property | before | after |
+|---|---|---|---|---|
+| 39453181962 apple | 390 | logo.color | a0 open@7-10 open-hold@10 close@1-10 | same |
+| | 390 | nav.background-color | - | close@0 |
+| | 640 | nav.background-color | open@2-4 close@0* close@8 | open@2-4 close@0,8 close-hold@0* |
+| | 640 | logo.color | open@2-4 close@8 | same |
+| | 641 | nav.background-color | a3 a8* a11* open@2 | a3 open@2 close@0 |
+| | 641 | logo.color | open@2 | same |
+| | 1280 | nav.background-color | a7* open@3,5* close@0* | open@3,5* close@0 close-hold@0* |
+| | 1280 | logo.color | open@3,5* | same |
+| 39453181962 chromium | 390 | logo.color | a0 open@1,6-10 open-hold@10 close@0-10 | same |
+| | 390 | nav.background-color | open@1 | same |
+| | 641 | nav.background-color, logo.color | open@1* | same |
+| | 1280 | nav.background-color | a7* | - |
+| 39471466367 apple | 390 | nav.background-color | open@3* close@0* close-hold@0 | open@3* close@0 close-hold@0 |
+| | 390 | logo.color | a0 open@3* | same |
+| | 640 | nav.background-color | open@2 close@0,7* close@8 close-hold@0* | open@2 close@0,8 close@7* |
+| | 640 | logo.color | open@2 close@7* close@8 | same |
+| | 641 | nav.background-color | open@3* open@4 close@0* close@8 close-hold@0* | open@3* open@4 close@0,8 |
+| | 641 | logo.color | open@3* open@4 close@8 | same |
+| | 1280 | nav.background-color | open@2* open@4 close@0 close-hold@0* | open@2* open@4 close@0 |
+| | 1280 | logo.color | open@2* open@4 | same |
+| 39471466367 chromium | 390, 640 | nav.background-color | open@1 close@0* close-hold@0* | open@1 close@0* |
+| | 390, 640 | logo.color | open@1 | same |
+| | 641 | nav.background-color | open@2* close@0* close-hold@0* | open@2* close@0* |
+| | 641 | logo.color | open@2* | same |
+| | 1280 | nav.background-color | close@0* close-hold@0* | close@0* |
+| 39457063232 playwright-webkit | 390 | nav.background-color | open@1,3-9 close@0,3-6,9 | open@1,3-9 close@0,3-6,9 close-hold@0* |
+| | 390 | logo.color | a0 open@1,3-9 open@10* close@0* close@3-6,9 | same |
+| | 640 | nav.background-color | open@1,3-9 close@0,1,4,6,8,9 close@3* close-hold@0* | open@1,3-9 close@1,4,6,8,9 close@3* close-hold@0 |
+| | 640 | logo.color | open@1,3-9 close@1,4,6,8,9 close@3* | same |
+| | 641 | nav.background-color | a3 open@3-8 close@2,3,5-7,9 | open@3-8 close@0,2,3,5-7,9 |
+| | 641 | logo.color | open@3-8 close@2,3,5-7,9 | same |
+| | 1280 | nav.background-color | open@2-8 close@0* close@1,3-7,9 close-hold@0 | same |
+| | 1280 | logo.color | open@2-8 close@1,3-7,9 | same |
+| 39457063232 chromium | 640 | nav.background-color, logo.color | open@1 | same |
+| | 1280 | nav.background-color | - | close@0* |
 
-  The A/A is the base arm against the original: a unit without `*` fails in both. All 16 mac `logo.color` units at 390
-  fail in the base arm too and are unchanged (not a colour-space unit). The approach units a7, a8, a11 (new before) were
-  colour space and are gone. `close@0` and `close-hold@0` remain: both arms are now in sRGB and the candidate's
-  reading differs by 7 to 8 channel levels from the original's, outside 2 (MEASURED: Chromium 1280 candidate rep 1
-  holds `[243.7, 243.9, 244.7]` for 218 ms from the class change while the original reads `[251.0, 251.0, 251.0]`;
-  mac 1280 original ramps 244.7 to 255 over 700 ms where a base rep starts at 252.3). INFERRED: where the colour
-  starts depends on the interrupted earlier transition, a timing case, not the colour space. New (`*`) after
-  normalisation: mac 640 and 1280 close-hold@0, Chromium 1280 close@0; the waapi run has none.
+  A width not listed had no colour unit in that artifact. The A/A is the base arm against the original: a unit without `*`
+  fails in both, and the long unmarked lists (`open@1,3-9`, `close@1,4,6,8,9`) are not colour-space units and did not
+  change. The approach units a7, a8, a11 (new before) were colour space and are gone. `close@0` and `close-hold@0`
+  remain, some gained, some lost: both arms are now in sRGB and the candidate's reading differs by 7 to 8 channel levels
+  from the original's, outside 2 (MEASURED: 39453181962 Chromium 1280 candidate rep 1 holds `[243.7, 243.9, 244.7]` for
+  218 ms from the class change while the original reads `[251.0, 251.0, 251.0]`; Mac 1280 original ramps 244.7 to 255
+  over 700 ms where a base rep starts at 252.3). INFERRED: where the colour starts depends on the interrupted earlier
+  transition, a timing case (follow-up `trajectory-close-start`), not the colour space. New (`*`) start-of-close units
+  after normalisation, `nav.background-color` unless noted: 39453181962 apple 640 and 1280 close-hold@0; 39453181962
+  chromium none; 39471466367 apple none; 39471466367 chromium (the waapi run) close@0 at 390, 640, 641 and 1280;
+  39457063232 apple no nav reading; 39457063232 playwright-webkit 390 close-hold@0 and `logo.color` 390 close@0, 1280
+  close@0; 39457063232 chromium 1280 close@0. New units the conversion did not change, not at the start of the close
+  (`nav.background-color` and `logo.color` both unless noted): 39453181962 apple 1280 open@3,5; 39453181962 chromium 641
+  open@1; 39471466367 apple 390 open@3, 640 close@7, 641 open@3, 1280 open@2; 39471466367 chromium 641 open@2;
+  39457063232 playwright-webkit 640 close@3 and `logo.color` 390 open@10.
   Coverage fails are not colour units and did not change.
 - `--morph`-driven transitions under `is-morphing` are judged at rest. MEASURED residual: raw 39457063232, 641
   `earn.max-width` close@0, one width (content `new` 1; main gave 2). Follow-up: `morph-driven-transitions`.

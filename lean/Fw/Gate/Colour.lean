@@ -27,8 +27,9 @@ The engines do not serialise a computed colour in one space. A colour at rest is
   engines implement these formulas, so the kit does too.
 
 This file specifies the conversion to that one space in `Float` (it generates the golden file the kit is checked against,
-`packages/contracts/golden/gate/trajectory-colour.jsonl`) and proves what the judge needs: the conversion error stays
-inside the judge's colour tolerance.
+`packages/contracts/golden/gate/trajectory-colour.jsonl`) and proves the conditional the judge needs: readings within the
+error budget (`chanErr`, `alphaErr`) pass the judge. That the kit's conversion stays within that budget is MEASURED by
+`kit-colour.test.mjs` (worst 8 thousandths of a level on channels, 765 on alpha), not proved here.
 
 ```
 cd lean && lake env lean --run scripts/ColourGolden.lean           # write the file
@@ -66,8 +67,8 @@ theorem errAt_le (j : Nat) : errAt j ≤ alphaErr := by
   unfold errAt chanErr alphaErr
   split <;> omega
 
-/-- Two readings of one colour, each inside the error budget, differ by less than the judge's colour tolerance: the
-budget leaves room (`2 * 628 = 1256` of 2000). -/
+/-- Two readings of one colour, each inside the error budget, differ by at most the judge's colour tolerance: channels
+`2 * 500 = 1000` of 2000, alpha `2 * 1000 = 2000` of 2000 (no slack on alpha). -/
 theorem budget_inside_tol (j : Nat) : 2 * errAt j ≤ tol .colour := by
   have h := errAt_le j
   have ht : tol .colour = 2000 := by decide

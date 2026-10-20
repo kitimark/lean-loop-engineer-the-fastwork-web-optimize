@@ -15,9 +15,15 @@ let offlineColour = null;
  * and anything else with its numbers as they were (`oklab(0.989 0 0 / 0.1)` as `[989, 0, 0, 25500]`, alpha already x 255).
  * A tuple whose first number is 0..1000 and whose second and third are within +-500 is read as an old `oklab` (lightness
  * 0..1, a and b within +-0.5: the range of the sRGB gamut) and converted; any other tuple already is sRGB x 1000.
- * Accepted limits: an `rgb` reading with all channels 0 or 1 (a colour 1 of 255 levels from black) is read as oklab; a stored
- * `lab`, `lch` or `oklch` reading is not recognised (the stored runs hold none: every tuple of this shape has a = b = 0, L
- * near 1). The oklab numbers were rounded to thousandths when stored, at most 0.5 channel level of error (Lean `chanErr`).
+ * MEASURED range of the oklab-shaped tuples in the three runs: L 0.234 to 1.0, a -0.004 to 0, b -0.019 to 0 (counts:
+ * 39453181962 apple 1321, chromium 1629; 39471466367 apple 726, chromium 1126; 39457063232 playwright-webkit 67, chromium
+ * 1014; of them 44, 0, 65, 0, 34 and 10 have a or b not 0). The 0.001 rounding of a stored tuple gives a recovery error of up
+ * to 0.64 level on that range (MEASURED, outside the Lean `chanErr` 500): a recovered reading is within 0.64 + 0.008 level of
+ * the truth, one recovered arm against an `rgb` arm within 0.64 + 0.5 + 0.008 < 2 levels.
+ * Accepted limits: an `rgb` reading with all channels 0 or 1 (a colour 1 of 255 levels from black) is read as oklab; a
+ * near-black non-integer old `color(srgb ..)` tuple, such as `[510,255,255]`, has the same shape and is misread as oklab (the
+ * stored runs hold none: every oklab-shaped tuple there has b at most 0); a stored `lab`, `lch` or `oklch` reading is not
+ * recognised (the stored runs hold none of that shape).
  */
 export function colourFromV1(v) {
   if (!Array.isArray(v) || v.length !== 4) return v;
