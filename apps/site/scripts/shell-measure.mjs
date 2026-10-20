@@ -121,7 +121,7 @@ async function check(browser, arm, tol) {
 }
 
 const { cmd, out, arm, tol } = args();
-const browser = await puppeteer.launch({ executablePath: CHROME, headless: true });
+const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, pipe: true });
 let ok = true;
 try {
   if (cmd === 'samples') await samples(browser, out);

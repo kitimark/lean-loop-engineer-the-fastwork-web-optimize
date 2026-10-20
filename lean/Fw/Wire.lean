@@ -23,6 +23,7 @@ import Fw.Ops.CheckMap
 import Fw.Ops.WatchDiff
 import Fw.Lint.Context
 import Fw.Ops.LakeGc
+import Fw.Ops.Reap
 /-!
 # JSON-lines protocol (the only boundary the TypeScript shell sees)
 
@@ -458,6 +459,7 @@ def ops : List String :=
   ++ Fw.Wire.CheckMap.ops -- check-map-lean: ops.checkMap, ops.checkVerdict
   ++ Fw.Wire.Lint.ops -- context-slop: lint.context
   ++ Fw.Wire.LakeGc.ops -- lean-bin-slim: ops.lakeGc
+  ++ Fw.Wire.Reap.ops -- orphan-guard: ops.lspReap
   ++ Fw.Wire.WatchDiff.ops -- watch-stream: ops.watchDiff, ops.watchKeep
   ++ Fw.Wire.Faithful.ops -- faithful-checks: faithful.verdict
   ++ ["console.replay", "console.query", "console.reset"] -- stateful ops: Fw/Serve.lean (fwcore serve)
@@ -510,6 +512,9 @@ def handleCore (req : Json) : Except String Reply := do
     | some r => r
     | none =>
     match Fw.Wire.LakeGc.handle other req with  -- lean-bin-slim: ops.lakeGc
+    | some r => r
+    | none =>
+    match Fw.Wire.Reap.handle other req with  -- orphan-guard: ops.lspReap
     | some r => r
     | none =>
     match Fw.Wire.WatchDiff.handle other req with  -- watch-stream
