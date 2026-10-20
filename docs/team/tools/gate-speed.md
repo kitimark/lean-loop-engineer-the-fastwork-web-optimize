@@ -44,3 +44,5 @@ Tests: `node --test .github/scripts/gate-jobs.test.mjs` (golden invariants, matr
 ## Measurements
 
 See the table in `docs/team/handoffs/gate-speed-ci.md`.
+
+Land lane: a shared fwcore prep job is serial and never beats parallel leg builds (477 s vs 553 s; `Fw.Ops.WallTime.wallPrep_ge`); `research/notes/2026/10-20-land-fwcore-once.md`.
