@@ -10552,7 +10552,9 @@
     "docs/team/tools/console.md",
     "docs/team/tools/preview-grant.md",
     "research/notes/2026/10-2*-console-preview-search.md",
-    "docs/team/handoffs/console-preview-search.md"
+    "docs/team/handoffs/console-preview-search.md",
+    "apps/runner/src/land.ts",
+    "lean/Fw/Ops/Golden.lean"
    ]
   },
   {
