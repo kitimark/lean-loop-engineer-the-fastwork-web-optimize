@@ -74,7 +74,7 @@ export function Steps({ board, act, now }: { board: Board; act: Act; now: number
         {mine.map((s) => <StepRow key={s.id} step={s} act={act} now={now} />)}
         {leads.length > 0 && (
           <details data-testid="lead-work">
-            <summary className="cursor-pointer text-sm text-muted-foreground">The lead is handling ({leads.length}); no action from you</summary>
+            <summary className="cursor-pointer text-sm text-muted-foreground">For the lead ({leads.length}); no action from you</summary>
             <div className="mt-2 space-y-2">{leads.map((s) => <StepRow key={s.id} step={s} act={act} now={now} readOnly />)}</div>
           </details>
         )}

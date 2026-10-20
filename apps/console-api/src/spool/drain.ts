@@ -180,10 +180,10 @@ export class Drain {
       const buf = readFileSync(path).subarray(start);
       const end = buf.lastIndexOf(10) + 1; // a torn last line (no newline yet) waits for the next drain
       const raws = buf.subarray(0, end).toString("utf8").split("\n").slice(0, -1);
-      this.passLines += raws.length;
       let verdicts: Admitted[];
       try { verdicts = raws.length ? await admitLines(this.store.core, raws) : []; }
       catch (e) { this.caught("admit", e, res); continue; } // offset kept: the lines are read again next drain
+      this.passLines += raws.length; // counted only once Lean admitted them: the reader ran (Lean `other_closes_only_after_lines`)
       let pos = 0, advance = true, consumed = 0;
       for (let i = 0; i < raws.length; i++) {
         const len = Buffer.byteLength(raws[i]!) + 1;
@@ -204,14 +204,18 @@ export class Drain {
     try {
       const board = await this.store.board();
       const steps = board.steps
-        .filter((st) => st.id.startsWith("alert-spool-") && st.status === "waiting" && st.audience === "lead")
+        .filter((st) => st.id.startsWith("alert-spool-") && (st.status === "waiting" || st.status === "started") && st.audience === "lead")
         .map((st) => ({ id: st.id, title: st.title, body: st.body, audience: st.audience }));
       if (steps.length === 0) return;
       const r = await this.store.core.ops("ops.obs", { resolve: { now: board.now,
         window: { lines: this.passLines, issues: [...this.passIssues] }, steps } });
       for (const c of r.resolve as { step: string; key: string; note: string }[]) {
         const reply = await this.store.submit({ type: "step.done", key: c.key, actor: "script", step: c.step, note: c.note });
-        if (reply.ok) this.openAlerts.delete(c.step);
+        if (reply.ok) {
+          this.openAlerts.delete(c.step);
+          // counts gathered while the step was open, for keys that did not occur in this sweep, are not raised again
+          for (const k of [...this.issues.keys()]) if (!this.passIssues.has(k)) this.issues.delete(k);
+        }
       }
     } catch (e) { this.caught("resolve", e, res); } // the next drain tries again
   }

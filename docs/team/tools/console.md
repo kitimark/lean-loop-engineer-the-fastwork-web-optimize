@@ -99,7 +99,7 @@ Every step the drain posts from an alert has an audience and a plain body, both 
 `Fw.Ops.Obs.spoolPlain`); TS only renders them.
 
 - **Audience.** `user` only when the owner is needed: a helper's permission prompt, a helper's question, a stop of the lead session.
-  Everything the lead can fix goes to the lead and is shown under "The lead is handling (n); no action from you", with no buttons:
+  Everything the lead can fix goes to the lead and is shown under "For the lead (n); no action from you", with no buttons:
   a helper's API stop, every spool alert (unknown field, rejected lines, a failed background check). "Your steps (n)" counts only
   the owner's. Steps posted before this change read as `user` unless their id says otherwise (`legacyAudience`).
 - **Text.** The title has no identifiers ("A helper needs your permission"). The body has four lines: What happened, Impact,

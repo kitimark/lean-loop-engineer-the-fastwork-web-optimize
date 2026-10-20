@@ -747,7 +747,7 @@ def classImpact : IssueClass → String
 
 /-- The action for the lead, one sentence per class (the fix location). -/
 def classAction : IssueClass → String
-  | .unknownField => "Add the field to Fw.Ops.Obs.specs (lean/Fw/Ops/Obs.lean) or stop sending it from .claude/hooks/emit.mjs."
+  | .unknownField => "Add the field to Fw.Ops.Obs.specs (lean/Fw/Ops/Obs.lean)."
   | .rejected => "Read the reason in the details, then fix the sender (.claude/hooks/emit.mjs) or the record spec Fw.Ops.Obs.specs."
   | .sweep => "Read the console-api log for the error and fix the failing step."
   | .other => "Compare the note in the details with Fw.Ops.Obs.specs."
@@ -1441,7 +1441,7 @@ private def realStop : List (String × Val) :=
 #guard (spoolPlain [("session_pid:unknown", 1)]).body ==
   "What happened: The log reader met a field it does not know.\n" ++
   "Impact: Nothing is lost: the lines were still read; only the new field is not used by any rule yet.\n" ++
-  "Action (lead): Add the field to Fw.Ops.Obs.specs (lean/Fw/Ops/Obs.lean) or stop sending it from .claude/hooks/emit.mjs. This step closes by itself when a later sweep no longer shows these problems.\n" ++
+  "Action (lead): Add the field to Fw.Ops.Obs.specs (lean/Fw/Ops/Obs.lean). This step closes by itself when a later sweep no longer shows these problems.\n" ++
   "Details: session_pid:unknown x1"
 #guard (spoolPlain [("rejected:json", 2)]).title == "The log reader rejected some lines"
 #guard (spoolPlain [("sweep:lifeOf", 3)]).title == "A console background check failed"
