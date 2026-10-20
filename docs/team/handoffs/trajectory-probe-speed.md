@@ -27,5 +27,4 @@ Open
   cost 8 macOS dispatches, over the 6 allowed.
 - Cap is `thin` (4 successes); re-derive at 10. `mergeRaws` is a TS stand-in (glue, no Lean spec).
 
-Conventions: Bash hook refuses compound commands; use script files in the scratchpad. Rebuild with `lake build <module>`
-before running a golden script (it reads the compiled olean).
+Conventions: Bash hook refuses compound commands; use script files in the scratchpad. Rebuild with `lake build <module>` before running a golden script (it reads the compiled olean).

@@ -135,11 +135,13 @@ few to say reps 5 helps or hurts (the widths now run on separate runners).
 
 Wall time per cell (CI, one dispatch, start of the first job to the end of its merge):
 
-| lane | before (one job, 4 widths) | after (width legs) |
+| lane | before (one job, 4 widths, run 39442517769, reps 3) | after (width legs, reps 5) |
 |---|---|---|
 | chromium | 12.1 min | legs 4.5 to 5.5 min, 6 min with merge (run 39455284967) |
-| linux-webkit | 26.6 min | legs 2.2 to 3.3 min |
+| linux-webkit | 26.6 min (hero plus morph) | legs 2.2 to 3.3 min (hero only) |
 | mac-webkit | no baseline for hero plus morph (hero only: 3.1 and 3.8 min) | two legs 9.1 / 11.3 and 9.2 / 10.9 min |
+
+The Linux WebKit drop is mostly the removed morph walk (a cell that lane cannot decide), not the width legs; Chromium walks the same paths in both columns and shows the leg gain (reps 3 to 5 also changed).
 
 Cap of `probe-apple` (Lean `Fw.Ci.Pool.Caps`, `capMin`): 4 successes (9.1, 9.2, 10.9, 11.3 min), linear p90 11.2 min, cap 15 min,
 `thin` until 10 successes (the cap is re-derived then).
