@@ -390,12 +390,16 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: images-arm-${{ matrix.engine }}-${{ matrix.rep }}-s${{ matrix.shard }}
-          path: |
-            packages/gate-breakpoints/out/images-arm/arm-*.json
-            packages/gate-breakpoints/out/images-arm/v/*/exact/img
-            packages/gate-breakpoints/out/images-arm/v/*/fit/img
+          path: packages/gate-breakpoints/out/images-arm/arm-*.json
           if-no-files-found: ignore
           retention-days: 14
+      # the diff images of the exact policy only (a few cells); the fit control's are not kept (about 100 MB per job)
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: armimg-${{ matrix.engine }}-${{ matrix.rep }}-s${{ matrix.shard }}
+          path: packages/gate-breakpoints/out/images-arm/v/*/exact/img
+          if-no-files-found: ignore
+          retention-days: 3
 
   # The decision of each part per policy and engine (arm decide in armdecide.mjs, over the Lean twin armplan.mjs), as a table with the cells behind it.
   images-decide:
