@@ -11,6 +11,7 @@ import { Reconciler } from "../../console-api/src/reconcile/reconciler.ts";
 import { Store } from "../../console-api/src/store.ts";
 import { makeRepo } from "../../console-api/test/reconcile-fixture.ts";
 import { land, type Http } from "../src/land.ts";
+import { REBUILD_REASON, afterLand, needsRebuild, stopKind } from "../src/land-verdict.ts";
 import { enqueue, landAttemptResult, landLogOf, parseLog, pending, queued, queuedBranches, queueFile, readLog, results, retryAfter, runQueue, runnerFile, runnerLive, takeRunner, type Ev } from "../src/land-queue.ts";
 import { fwcoreStale, KINDS, reasonOf, refusalReason, refusedLine, type Kind } from "../src/land-verdict.ts";
 
@@ -32,7 +33,11 @@ describe("land queue vs Lean golden", () => {
     else if (q.op === "landQueue.reason") expect(g.response).toEqual({ reason: reasonOf(q.message as string), line: refusedLine(q.message as string) });
     else if (q.op === "landQueue.refusalReason") expect(g.response).toEqual({ reason: refusalReason(q.kind as Kind, (q.reason as string | null) ?? undefined) ?? null });
     else if (q.op === "landQueue.fwcoreStale") expect(g.response).toEqual({ stale: fwcoreStale(q.recorded as string | null, q.same as boolean, q.moved as boolean) });
-    else throw new Error(`unknown op ${q.op}`);
+    else if (q.op === "landQueue.afterLand") {
+      const a = afterLand(q.kind as Kind, q.paths as string[], () => q.rebuildOk as boolean);
+      expect(g.response).toEqual({ rebuild: needsRebuild(q.kind as Kind, q.paths as string[]), action: a.proceed ? "proceed" : "stop", rebuilt: a.proceed && a.rebuilt,
+        nextKind: stopKind(a), reason: stopKind(a) === null ? null : REBUILD_REASON });
+    } else throw new Error(`unknown op ${q.op}`);
   });
   it("covers every kind", () => expect(rows.filter((g) => g.request.op === "landQueue.retry").length).toBeGreaterThanOrEqual(KINDS.length));
 });
@@ -82,6 +87,60 @@ describe("runner lock", () => {
 });
 
 describe("runQueue", () => {
+  const entry2 = (dir: string, t: string) => enqueue(dir, { task: t, branch: `w-${t}`, allow: [] });
+  // task land-queue-fwcore-rebuild: the incident (a land that touched lean/, entries queued behind it refused fwcore-stale)
+  // The mocked attempt is refused `stale` while a core path changed since the last rebuild (the preflight of the real land).
+  const rebuildOpts = (dir: string, changed: Record<string, string[]>, built: string[], ok = true) => {
+    let n = 0; let fresh = true; const order = Object.keys(changed);
+    const attempt = async () => { if (!fresh) return "stale" as Kind; n++; if ((changed[order[n - 1]!] ?? []).some((p) => p.startsWith("lean/") || p === "scripts/fwcore-build.sh")) fresh = false; return "done" as Kind; };
+    return { consoleDir: dir, retryMs: 1, attempt,
+      head: () => `h${n}`,
+      diff: (_from: string) => changed[order[n - 1]!] ?? [],
+      rebuild: async () => { built.push(`after-${n}`); fresh = ok; return ok; } };
+  };
+  it("a land that touched lean/ rebuilds fwcore before the next entry, which is then not refused stale", async () => {
+    const dir = tmp();
+    ["a", "b", "c"].forEach((t) => entry2(dir, t));
+    const built: string[] = [];
+    const r = await runQueue(rebuildOpts(dir, { a: ["lean/Fw/X.lean"], b: ["docs/x.md"], c: [] }, built));
+    expect(built).toEqual(["after-1"]); // only after the first land
+    expect(r.results.map((x) => [x.task, x.kind])).toEqual([["a", "done"], ["b", "done"], ["c", "done"]]);
+  });
+  it("negative control: without the rebuild options the entry behind a lean/ land is refused stale", async () => {
+    const dir = tmp();
+    ["a", "b"].forEach((t) => entry2(dir, t));
+    const { head, diff, rebuild, ...bare } = rebuildOpts(dir, { a: ["lean/Fw/X.lean"] }, []);
+    void head; void diff; void rebuild;
+    const r = await runQueue({ ...bare, maxTries: 1 });
+    expect(r.results.map((x) => [x.task, x.kind])).toEqual([["a", "done"], ["b", "stale"]]);
+  });
+  it("a diff that throws fails closed into a rebuild", async () => {
+    const dir = tmp();
+    ["a", "b"].forEach((t) => entry2(dir, t));
+    const built: string[] = [];
+    const r = await runQueue({ ...rebuildOpts(dir, { a: ["lean/Fw/X.lean"] }, built), diff: () => { throw new Error("git"); } });
+    expect(built).toEqual(["after-1", "after-2"]); // every land rebuilds: the diff is unknown
+    expect(r.results.map((x) => x.kind)).toEqual(["done", "done"]);
+  });
+  it("a failed rebuild with nothing pending still prints the refused line", async () => {
+    const dir = tmp();
+    entry2(dir, "a");
+    const errs: string[] = [];
+    const r = await runQueue({ ...rebuildOpts(dir, { a: ["lean/Fw/X.lean"] }, [], false), err: (l) => errs.push(l) });
+    expect(r.results.map((x) => x.kind)).toEqual(["done"]);
+    expect(errs).toEqual([`REFUSED: ${REBUILD_REASON}`]);
+  });
+  it("a failed rebuild gives the next entry the kind rebuild (not stale), stops the queue and leaves the rest pending", async () => {
+    const dir = tmp();
+    ["a", "b", "c"].forEach((t) => entry2(dir, t));
+    const built: string[] = []; const errs: string[] = [];
+    const r = await runQueue({ ...rebuildOpts(dir, { a: ["scripts/fwcore-build.sh"] }, built, false), err: (l) => errs.push(l) });
+    expect(r.results.map((x) => [x.task, x.kind])).toEqual([["a", "done"], ["b", "rebuild"]]);
+    expect(r.results[1]!.reason).toBe(REBUILD_REASON);
+    expect(errs).toEqual([`REFUSED: ${REBUILD_REASON}`]);
+    expect(pending(readLog(dir)).map((x) => x.task)).toEqual(["c"]);
+    expect(existsSync(runnerFile(dir))).toBe(false);
+  });
   const entry = (dir: string, t: string) => enqueue(dir, { task: t, branch: `w-${t}`, allow: [] });
   it("lands first in first out, records one result per task and leaves nothing pending", async () => {
     const dir = tmp();
