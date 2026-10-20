@@ -2064,4 +2064,170 @@ theorem waapi_work_leE (as : List Chromium.CrAnim) (a : WebKit.WkAnim) (cs : Lis
 
 end EndPass
 
+/-! ## The nav width tail after a close (`waapi-nav-width-tail`) -/
+
+section WidthTail
+
+/-- The original's morph value `T` ms into a close from 1 to 0. -/
+def closeAt (T : Rat) : Rat := 1 - ease (T / duration)
+
+/-- Where a close crosses `activeCut`, so `is-morphing` turns off (JS 12947): `(1 - 612/680)^3 = 1/1000`. -/
+def crossMs : Rat := 612
+
+theorem closeAt_cross : closeAt crossMs = activeCut := by
+  have h : min 1 (max 0 ((612 : Rat) / 680)) = 612 / 680 := by grind
+  unfold closeAt ease clamp01 crossMs duration activeCut; rw [h]; grind
+
+theorem cube_lt (a b : Rat) (hb : 0 ≤ b) (h : b < a) : b * b * b < a * a * a := by
+  have ha : 0 < a := by grind
+  have h1 : 0 < a - b := by grind
+  have h2 : 0 < a * a := Rat.mul_pos ha ha
+  have h3 : 0 ≤ a * b := Rat.mul_nonneg (by grind) hb
+  have h4 : 0 ≤ b * b := Rat.mul_nonneg hb hb
+  have h5 : 0 < (a - b) * (a * a + a * b + b * b) := Rat.mul_pos h1 (by grind)
+  grind
+
+theorem closeAt_eq (T : Rat) (h0 : 0 ≤ T) (h1 : T ≤ duration) :
+    closeAt T = (1 - T / duration) * (1 - T / duration) * (1 - T / duration) := by
+  have hd : T / duration = T * (1 / 680) := div_dur T
+  have hc : clamp01 (T / duration) = T / duration := by unfold clamp01 duration at *; grind
+  unfold closeAt ease; rw [hc]; grind
+
+theorem closeAt_strict (T T' : Rat) (h0 : 0 ≤ T) (h : T < T') (h1 : T' ≤ duration) : closeAt T' < closeAt T := by
+  rw [closeAt_eq T h0 (by grind), closeAt_eq T' (by grind) h1]
+  have hd : ∀ e : Rat, e / duration = e * (1 / 680) := div_dur
+  apply cube_lt
+  · rw [hd]; unfold duration at h1; grind
+  · rw [hd, hd]; grind
+
+theorem closeAt_inj (T T' : Rat) (h0 : 0 ≤ T) (h1 : T ≤ duration) (h0' : 0 ≤ T') (h1' : T' ≤ duration)
+    (h : closeAt T = closeAt T') : T = T' := by
+  rcases (show T < T' ∨ T = T' ∨ T' < T by grind) with hl | he | hg
+  · have := closeAt_strict T T' h0 hl h1'; grind
+  · exact he
+  · have := closeAt_strict T' T h0' hg h1; grind
+
+theorem closeAt_after (R : Rat) (h : crossMs ≤ R) : closeAt R ≤ activeCut := by
+  rw [← closeAt_cross]
+  unfold closeAt
+  have := ease_mono (crossMs / duration) (R / duration) (by
+    rw [div_dur, div_dur]; exact Rat.mul_le_mul_of_nonneg_right h (by grind))
+  grind
+
+/-- `is-morphing` is on exactly before `crossMs` on a close. -/
+theorem morphing_iff (T : Rat) (h0 : 0 ≤ T) : activeCut < closeAt T ↔ T < crossMs := by
+  constructor
+  · intro h
+    rcases (show T < crossMs ∨ T = crossMs ∨ crossMs < T by grind) with hl | he | hg
+    · exact hl
+    · rw [he, closeAt_cross] at h; grind
+    · have := closeAt_after T (by grind); grind
+  · intro h
+    have := closeAt_strict T crossMs h0 h (by unfold crossMs duration; decide)
+    rw [closeAt_cross] at this; exact this
+
+/-- The jump of the nav width when a `width` transition starts, from the base value `before` to `after`.
+The engines start it from the before-change style, the base style of the previous style change event without script
+animations (Chromium `css_animations.cc:3214-3215,3242-3293`@f842f52; WebKit `Styleable.cpp:604-617`@862f17d and
+`StyleTreeResolver.cpp:894-898`@862f17d), to the after-change base style (`Styleable.cpp:624-632`@862f17d). -/
+def tailPx (v : Nav.Vp) (hp : Bool) (before after : Rat) : Rat := Nav.navWidth v hp before - Nav.navWidth v hp after
+
+theorem tailPx_eq (v : Nav.Vp) (hp : Bool) (b a : Rat) : tailPx v hp b a = (Nav.panelW v - Nav.pillW v) * (b - a) := by
+  unfold tailPx Nav.navWidth; grind
+
+/-- **The original's tail.** It writes `--morph` inline every frame, so its width transition starts at `prev`. -/
+theorem tail_orig_pos (v : Nav.Vp) (hp : Bool) (prev R : Rat) (hD : Nav.pillW v < Nav.panelW v) (h0 : 0 ≤ prev)
+    (hl : prev < crossMs) (hR : crossMs ≤ R) : 0 < tailPx v hp (closeAt prev) (closeAt R) := by
+  rw [tailPx_eq]
+  have h1 := (morphing_iff prev h0).mpr hl
+  have h2 := closeAt_after R hR
+  exact Rat.mul_pos (by grind) (by grind)
+
+/-- **The waapi arm has no tail.** It writes no inline `--morph` during a tween, so its base value does not move. -/
+theorem tail_waapi_zero (v : Nav.Vp) (hp : Bool) (b : Rat) : tailPx v hp b b = 0 := by
+  unfold tailPx; grind
+
+/-- **Not a function of the frame.** The original's flip-frame width depends on the frame before (outside `waapi_vis`). -/
+theorem tail_not_view (v : Nav.Vp) (hp : Bool) (hD : Nav.pillW v < Nav.panelW v) :
+    tailPx v hp (closeAt 500) (closeAt crossMs) ≠ tailPx v hp (closeAt 600) (closeAt crossMs) := by
+  rw [tailPx_eq, tailPx_eq]
+  intro h
+  have hs := closeAt_strict 500 600 (by decide) (by decide) (by unfold duration; decide)
+  have hpos : 0 < Nav.panelW v - Nav.pillW v := by grind
+  have := Rat.mul_lt_mul_of_pos_left (show closeAt 600 - closeAt crossMs < closeAt 500 - closeAt crossMs by grind) hpos
+  grind
+
+/-- A driver: script on the last frame of prefix `p` iff `wk p`; flip-frame jump `out ws R` from its run frames `ws`. -/
+structure Skipper where
+  wk : List Rat → Bool
+  out : List Rat → Rat → Rat
+
+/-- The frames of `fs` the driver runs on, after the prefix `p`. -/
+def Skipper.ran (d : Skipper) : List Rat → List Rat → List Rat
+  | _, [] => []
+  | p, T :: fs => (if d.wk (p ++ [T]) then [T] else []) ++ d.ran (p ++ [T]) fs
+
+theorem Skipper.ran_snoc (d : Skipper) (q : List Rat) (T : Rat) :
+    ∀ p : List Rat, d.ran p (q ++ [T]) = d.ran p q ++ (if d.wk (p ++ q ++ [T]) then [T] else []) := by
+  induction q with
+  | nil => intro p; simp [Skipper.ran]
+  | cons x xs ih => intro p; simp [Skipper.ran, ih (p ++ [x])]
+
+/-- Exact on the frames `q ++ [T, R]`: the jump on the flip frame `R` is the original's, from the frame `T` before it. -/
+def Skipper.Exact (d : Skipper) (q : List Rat) (T R : Rat) : Prop :=
+  d.out (d.ran [] (q ++ [T])) R = closeAt T - closeAt R
+
+/-- **Skip at most once.** After a frame history `q`, an exact driver skips the script on at most one next frame. -/
+theorem skip_once (d : Skipper) (q : List Rat) (T T' R : Rat) (h0 : 0 ≤ T) (h1 : T < crossMs) (h0' : 0 ≤ T')
+    (h1' : T' < crossMs) (hx : d.Exact q T R) (hx' : d.Exact q T' R) (hs : d.wk (q ++ [T]) = false)
+    (hs' : d.wk (q ++ [T']) = false) : T = T' := by
+  unfold Skipper.Exact at hx hx'
+  rw [d.ran_snoc q T [], List.nil_append, hs] at hx
+  rw [d.ran_snoc q T' [], List.nil_append, hs'] at hx'
+  simp only [Bool.false_eq_true, ite_false, List.append_nil] at hx hx'
+  have hd : crossMs ≤ duration := by unfold crossMs duration; decide
+  exact closeAt_inj T T' h0 (by grind) h0' (by grind) (by grind)
+
+theorem skips_le_one (d : Skipper) (q : List Rat) (R : Rat) (ts : List Rat) (hnd : ts.Nodup)
+    (hin : ∀ T ∈ ts, 0 ≤ T ∧ T < crossMs ∧ d.Exact q T R ∧ d.wk (q ++ [T]) = false) : ts.length ≤ 1 := by
+  rcases ts with _ | ⟨a, _ | ⟨b, rest⟩⟩
+  · simp
+  · simp
+  · have ha := hin a (by simp)
+    have hb := hin b (by simp)
+    have hab := skip_once d q a b R ha.1 ha.2.1 hb.1 hb.2.1 ha.2.2.1 hb.2.2.1 ha.2.2.2 hb.2.2.2
+    subst hab
+    simp at hnd
+
+/-- The two outcomes for the tail: modelled in the driver, or a look change. -/
+inductive TailArm where
+  | model
+  | lookChange
+deriving DecidableEq, Repr
+
+/-- Model the tail when an exact driver can skip the script on at least two next frame times; else a look change. -/
+def tailArm (skips : Nat) : TailArm := if 2 ≤ skips then .model else .lookChange
+
+theorem tailArm_model (n : Nat) (h : 2 ≤ n) : tailArm n = .model := by unfold tailArm; simp [h]
+
+theorem tailArm_look (n : Nat) (h : n < 2) : tailArm n = .lookChange := by
+  unfold tailArm; simp; omega
+
+/-- **The decision: a look change.** An exact driver skips at most one next frame time per history. -/
+theorem tail_decided (d : Skipper) (q : List Rat) (R : Rat) (ts : List Rat) (hnd : ts.Nodup)
+    (hin : ∀ T ∈ ts, 0 ≤ T ∧ T < crossMs ∧ d.Exact q T R ∧ d.wk (q ++ [T]) = false) :
+    tailArm ts.length = .lookChange :=
+  tailArm_look _ (by have := skips_le_one d q R ts hnd hin; omega)
+
+#guard tailArm 0 == .lookChange && tailArm 1 == .lookChange && tailArm 2 == .model
+#guard closeAt crossMs == activeCut && closeAt 0 == 1 && closeAt 680 == 0 && closeAt 900 == 0
+#guard (Skipper.ran ⟨fun p => decide (p.length % 2 = 0), fun _ _ => 0⟩ [] [10, 20, 30, 40]) == [20, 40]
+#guard let t := tailPx ⟨1280, 800⟩ false (closeAt (crossMs - 50 / 3)) 0; 49 / 100 < t && t < 1 / 2
+#guard let t := tailPx ⟨1440, 900⟩ false (closeAt (crossMs - 50 / 3)) 0; 79 / 100 < t && t < 4 / 5
+#guard let t := tailPx ⟨390, 844⟩ false (closeAt (crossMs - 50 / 3)) 0; 0 < t && t < 1 / 50
+#guard let t := tailPx ⟨1280, 800⟩ false (closeAt (crossMs - 173)) 0; 11 < t && t < 12
+#guard let t := tailPx ⟨1280, 800⟩ false (closeAt (crossMs - 411)) 0; 89 < t && t < 90
+
+end WidthTail
+
 end Fw.Parts.MorphTweenOpt
