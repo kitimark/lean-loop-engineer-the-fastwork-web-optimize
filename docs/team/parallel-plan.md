@@ -27,7 +27,7 @@ that run heavy commands count as jobs: they go through `fw job` like any other h
 Window = a span of lead wall time with the user's AskUserQuestion wait and away periods removed [M§2]. Busy = an
 agent is in a model request or a tool call (merged per agent) [M§1]. Polling = a tool call that is a sleep or wait loop
 [M§1]. Heavy command = the command list of [M§3] (lake build/exe/test, check.sh, pnpm test/determinism/census,
-host.mjs, cli.mjs, vitest, build-math-view, simctl, measure.mjs).
+host.mjs, cli.mjs, vitest, build-math-view (retired), simctl, measure.mjs).
 
 | Metric | Definition | Baseline (MEASURED) | Target (INFERRED) | Data source |
 |---|---|---|---|---|
