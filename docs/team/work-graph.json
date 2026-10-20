@@ -10607,6 +10607,31 @@
     "research/notes/2026/10-2*-preset-drop-waapi.md",
     "docs/team/handoffs/preset-drop-waapi.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "preview-login-return",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "User 2026-10-20: opening a preview arm link (e.g. http://<lan>:47100/?preset=..&fw=..) without the owner session should redirect to the owner login and, after login, return to the exact requested link. Return target decided in Lean (allowlist: only live preview arm origins / preview paths on the console's own hosts; anything else -> console home; no open redirect); a stopped preview after login lands on the Builds tab with a note.",
+   "writes": [
+    "lean/Fw/Console/**",
+    "lean/Fw/Wire/Console.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/console/**",
+    "apps/console-api/src/**",
+    "apps/console-api/test/**",
+    "apps/console-web/src/**",
+    "apps/console-web/test/**",
+    "apps/runner/src/land.ts",
+    "docs/team/tools/console.md",
+    "docs/team/tools/preview-grant.md",
+    "docs/team/handoffs/preview-login-return.md"
+   ]
   }
  ],
  "deadline": {
