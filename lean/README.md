@@ -80,7 +80,7 @@ JSON lines on stdin/stdout, one reply line per input line, in order, flushed aft
 | `Fw/Measure/Classes` | determinism classes deterministic / stable(k, t) / quarantined, `classify` sound, strictest admissible, monotone in the runs; deterministic iff stable(0, 0) |
 | `Fw/Measure/Tolerance` | which classes enter the screen: deterministic frame by frame, stable(k, t) by totals with margin 2t (exact: no smaller margin is sound), quarantined never; `noMoreWork` and its run-cost soundness |
 | `Fw/Measure/WebKit` | WebKit `reduce.mjs`: tally, step join (partition, rows conserved), dense zones (partition), cell-spread classes (monotone for relTol ≤ 1, deterministic cells ⇒ deterministic runs), symDiff, summarize |
-| `Fw/Wire`, `Fw/Measure/Wire`, `Fw/Measure/Golden`, `Main` | the JSON-lines boundary and golden generator (not in the math view) |
+| `Fw/Wire`, `Fw/Measure/Wire`, `Fw/Measure/Golden`, `Main` | the JSON-lines boundary and golden generator |
 
 Not proved (stated in `Fw/Spec/Null`): that exchangeable runs make labelings equally likely (the
 modeling premise, L3). Every probability above is a share of labelings under that premise.
