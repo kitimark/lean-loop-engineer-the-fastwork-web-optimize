@@ -371,6 +371,11 @@ theorem skip_keeps_local_build (ids : List String) (u : String) (hu : u ∈ ids)
   · exact absurd h (by decide)
   · exact h
 
+/-- Table for the phase-1 cases: the Lean gate script, two fwcore users and a site check. -/
+def phase1Decls : List Fw.Console.LandSpeed.Decl :=
+  [⟨"check.sh", ["lean/**", "scripts/fwcore-build.sh"]⟩, ⟨"console-api", ["apps/console-api/**", Fw.Console.LandSpeed.fwcoreBin]⟩,
+   ⟨"difftest", ["packages/difftest/**", Fw.Console.LandSpeed.fwcoreBin]⟩, ⟨"site", ["apps/site/**"]⟩]
+
 #guard phase1Build ["lean/Fw/Console/Land.lean"]
 #guard phase1Build ["scripts/fwcore-build.sh"]
 #guard phase1Build ["lean/README.md", "lean/lakefile.toml"]
@@ -378,25 +383,24 @@ theorem skip_keeps_local_build (ids : List String) (u : String) (hu : u ∈ ids)
 #guard !phase1Build ["lean/scripts/LandTierGolden.lean", "lean/golden/console-board.jsonl", "lean/land-filter.txt", "lean/land-legs.txt"]
 #guard !phase1Build ["apps/site/src/x.ts", "docs/team/handoffs/x.md"]
 #guard !phase1Build []
-#guard selectBin Fw.Console.LandSpeed.binDecls ["lean/README.md"] none none == ["check.sh", "reads-scan"]
+#guard selectBin phase1Decls ["lean/README.md"] none none == ["check.sh"]
+#guard selectBin phase1Decls ["lean/Fw/Console/Land.lean"] (some "a") (some "a") == ["check.sh"]
+#guard selectBin phase1Decls ["lean/Fw/Console/Land.lean"] (some "a") (some "b") == ["check.sh", "console-api", "difftest"]
 
-/-- Table for the phase-1 cases: check.sh, two fwcore users, a site check and the scan (`LandSpeed.binDecls`). -/
-def phase1Decls : List Fw.Console.LandSpeed.Decl := Fw.Console.LandSpeed.binDecls
 
 private def optStr : Option String → Json
   | some s => .str s
   | none => .null
 
-/-- One phase-1 golden line. -/
+/-- One phase-1 golden line; the check table is `phase1Decls` (the test holds the same four rows). -/
 def phase1Line (name : String) (changed : List String) (d0 d1 : Option String) : Json :=
   Json.mkObj [("name", .str name),
-    ("request", Json.mkObj [("changed", strs changed), ("d0", optStr d0), ("d1", optStr d1),
-      ("decls", .arr (phase1Decls.map fun d => Json.mkObj [("id", .str d.id), ("reads", strs d.reads)]).toArray)]),
+    ("request", Json.mkObj [("changed", strs changed), ("d0", optStr d0), ("d1", optStr d1)]),
     ("response", Json.mkObj [("build", .bool (phase1Build changed)), ("binaryChange", strs (binaryChange changed)),
       ("select", strs (selectBin phase1Decls changed d0 d1))])]
 
-/-- The phase-1 cases: every branch of the rule (input changed, only build-free changed, mixed, no lean path, nothing) and the digests. -/
-def phase1Cases : List Json :=
+/-- The phase-1 cases: every branch of the rule (input changed, only build-free changed, mixed, no lean path, nothing) and the digests. A function of `Unit`, so that it is not computed at program start (init-cost lint). -/
+def phase1Cases (_ : Unit) : List Json :=
   [phase1Line "lean module: build" ["lean/Fw/Console/Land.lean"] (some "a") (some "b"),
    phase1Line "lean module, same digest: build" ["lean/Fw/Console/Land.lean"] (some "a") (some "a"),
    phase1Line "build script: build" ["scripts/fwcore-build.sh"] none none,
@@ -410,7 +414,7 @@ def phase1Cases : List Json :=
    phase1Line "nothing changed: skip" [] none none]
 
 /-- The golden text of the phase-1 cases. -/
-def phase1Text : String := String.join (phase1Cases.map fun c => c.compress ++ "\n")
+def phase1Text (_ : Unit) : String := String.join ((phase1Cases ()).map fun c => c.compress ++ "\n")
 
 /-- The phase-1 golden file, relative to `lean/`. -/
 def phase1Path : System.FilePath := "../packages/contracts/golden/console/land-phase1.jsonl"
@@ -453,11 +457,11 @@ def filterPath : System.FilePath := "land-filter.txt"
 def writeGolden : IO Unit := do
   IO.FS.writeFile goldenPath goldenText
   IO.FS.writeFile filterPath filterText
-  IO.FS.writeFile phase1Path phase1Text
+  IO.FS.writeFile phase1Path (phase1Text ())
 
 /-- Are the golden file and the filter file the Lean output? -/
 def checkGolden : IO Bool := do
   return (← IO.FS.readFile goldenPath) == goldenText && (← IO.FS.readFile filterPath) == filterText
-    && (← IO.FS.readFile phase1Path) == phase1Text
+    && (← IO.FS.readFile phase1Path) == phase1Text ()
 
 end Fw.Console.LandTier

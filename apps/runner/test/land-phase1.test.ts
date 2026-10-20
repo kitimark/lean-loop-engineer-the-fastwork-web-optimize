@@ -5,11 +5,14 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { BUILD_FREE, binaryChange, inScope, phase1Build, selectBin } from "../src/land.ts";
+import { BUILD_FREE, FWCORE_BIN, binaryChange, inScope, phase1Build, selectBin } from "../src/land.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const lean = join(root, "lean");
-type Row = { name: string; request: { changed: string[]; d0: string | null; d1: string | null; decls: { id: string; reads: string[] }[] }; response: { build: boolean; binaryChange: string[]; select: string[] } };
+type Row = { name: string; request: { changed: string[]; d0: string | null; d1: string | null }; response: { build: boolean; binaryChange: string[]; select: string[] } };
+/** Lean `LandTier.phase1Decls`: the check table of the golden's `select` field. */
+const DECLS = [{ id: "check.sh", reads: ["lean/**", "scripts/fwcore-build.sh"] }, { id: "console-api", reads: ["apps/console-api/**", FWCORE_BIN] },
+  { id: "difftest", reads: ["packages/difftest/**", FWCORE_BIN] }, { id: "site", reads: ["apps/site/**"] }];
 const rows: Row[] = readFileSync(join(root, "packages/contracts/golden/console/land-phase1.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
 
 describe("phase 1 follows the Lean golden", () => {
@@ -22,7 +25,7 @@ describe("phase 1 follows the Lean golden", () => {
     it(r.name, () => {
       expect(phase1Build(r.request.changed)).toBe(r.response.build);
       expect(binaryChange(r.request.changed)).toEqual(r.response.binaryChange);
-      expect(selectBin(r.request.decls, r.request.changed, r.request.d0, r.request.d1)).toEqual(r.response.select);
+      expect(selectBin(DECLS, r.request.changed, r.request.d0, r.request.d1)).toEqual(r.response.select);
     });
   }
 });
