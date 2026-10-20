@@ -10794,8 +10794,6 @@
    "writes": [
     "lean/Fw/**/*.lean",
     "lean/FwTest/**",
-    "scripts/latex-strip.mjs",
-    "scripts/latex-strip.test.mjs",
     "package.json",
     "lean/scripts/**",
     "docs/team/handoffs/latex-close.md",
@@ -11129,6 +11127,35 @@
     "scripts/lake-slot.test.mjs",
     "lean/Fw/Sched/LakeSlot.lean",
     "docs/team/handoffs/check-stage2-bound.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-check-remote",
+   "owner": "console-builder",
+   "stream": "ops",
+   "deps": [
+    "lake-build-slots",
+    "orphan-guard"
+   ],
+   "title": "User 2026-10-20: move lean/scripts/check.sh from the land's local tier to the land lane as its own CI leg (Lean LandTier remoteIds and LandLegs gain it; theorems updated: gates_local becomes install and reads-scan only, shards cover, no check dropped or run twice); install and reads-scan stay on the Mac; the local fallback (CI unavailable) still runs everything here. Measure: land wall time and Mac CPU per land before/after on real lands (spans local tier, remote lane), lane wall time must not grow (the check.sh leg runs in parallel with suites-a/b)",
+   "writes": [
+    "lean/Fw/Console/LandTier.lean",
+    "lean/Fw/Console/LandLegs.lean",
+    "lean/land-legs.txt",
+    "lean/scripts/LandTierGolden.lean",
+    "lean/scripts/LandLegsGolden.lean",
+    "packages/contracts/golden/console/land-tier.jsonl",
+    "packages/contracts/golden/console/land-legs.jsonl",
+    ".github/workflows/land.yml",
+    "apps/runner/src/land.ts",
+    "apps/runner/src/land-remote.ts",
+    "apps/runner/src/checks.ts",
+    "apps/runner/test/land*.ts",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/land-check-remote.md"
    ]
   }
  ],
