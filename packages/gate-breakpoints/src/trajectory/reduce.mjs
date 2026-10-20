@@ -80,13 +80,25 @@ export const REACH = 1000;
 /** Lean `beyond`: `m` is farther than REACH below every sample of `ms`, or above every one. */
 export const beyond = (ms, m) => ms.every((x) => x + REACH < m) || ms.every((x) => m + REACH < x);
 
-/** Lean `windowOf`: the original's samples a rewrite sample at `m` is compared with, or null (no counterpart: a coverage failure). */
-export const windowOf = (orig, m) => {
+/** Lean `windowOne`: the samples of ONE pass a rewrite sample at `m` is compared with, or null (no counterpart: a coverage failure). */
+export const windowOne = (orig, m) => {
   if (m === null || m === undefined) return null;
   if (orig.some((s) => s.m === null || s.m === undefined)) return null;
   const ms = orig.map((s) => s.m);
   if (beyond(ms, m)) return null;
   return window(ms, m).map((i) => orig[i]).filter((s) => s !== undefined);
+};
+
+/** Lean `repsOf`: the passes of a pooled list, each once, in order of first appearance. */
+export const repsOf = (orig) => [...new Set(orig.map((s) => s.rep ?? 0))];
+
+/**
+ * Lean `windowOf`: the window of a pooled list is the union of the windows of its passes (each aligned on its own through
+ * `windowOne`, so a neighbouring pair never crosses a pass boundary), or null when no pass has one.
+ */
+export const windowOf = (orig, m) => {
+  const ws = repsOf(orig).map((r) => windowOne(orig.filter((s) => (s.rep ?? 0) === r), m)).filter((w) => w !== null);
+  return ws.length === 0 ? null : ws.flat();
 };
 
 /** Lean `judgeIn`: no window is `fail:coverage`. */
@@ -129,10 +141,13 @@ export const laneFails = (vs) => vs.some(isFail);
 
 // ---- against the faithful arm (Lean `rel`, `laneRed`) -----------------------------------------------------------------------
 
-/** Lean `rel`: one unit of the candidate against the same unit of the faithful arm. A unit the baseline lacks is not a failure there. */
+/**
+ * Lean `rel`: one unit of the candidate against the same unit of the faithful arm. A unit the baseline lacks is not a failure there.
+ * `unmeasured`: the candidate fails on content where the faithful arm fails on coverage (no verdict, not `both`, not `new`).
+ */
 export function rel(cand, base) {
   const c = isFail(cand), b = base !== undefined && isFail(base);
-  if (c) return b ? 'both' : 'new';
+  if (c) return b ? (base === fail('coverage') && cand !== fail('coverage') ? 'unmeasured' : 'both') : 'new';
   return b ? 'cleared' : 'ok';
 }
 /** Lean `laneRed`: the candidate is red when some unit is new. */
@@ -172,6 +187,7 @@ const sampleOf = (row, ni, pi, withM) => ({
   m: withM && row.m !== null && row.m !== undefined ? row.m : null,
   quiet: isQuiet(row.since),
   els: (row.nodes[ni] ?? []).map((e) => (e[pi] === undefined ? null : e[pi])),
+  rep: row.rep ?? 0,
 });
 
 /**
@@ -298,13 +314,13 @@ export function reduceRaw(raw, registries) {
   const groups = new Map();
   for (const u of units) {
     const key = `${u.width}\u0000${u.path}\u0000${u.node}\u0000${u.prop}`;
-    const g = groups.get(key) ?? { width: u.width, path: u.path, node: u.node, prop: u.prop, kind: u.kind, pass: 0, fail: 0, skip: 0, new: 0, both: 0, cleared: 0, failing: [], newSteps: [] };
+    const g = groups.get(key) ?? { width: u.width, path: u.path, node: u.node, prop: u.prop, kind: u.kind, pass: 0, fail: 0, skip: 0, new: 0, both: 0, cleared: 0, unmeasured: 0, failing: [], newSteps: [] };
     if (u.verdict === pass) g.pass++; else if (isFail(u.verdict)) { g.fail++; g.failing.push(`${u.step}=${u.verdict.slice(5)}`); } else g.skip++;
-    if (u.rel === 'both' || u.rel === 'cleared') g[u.rel]++;
+    if (u.rel === 'both' || u.rel === 'cleared' || u.rel === 'unmeasured') g[u.rel]++;
     if (u.rel === 'new') g.newSteps.push(`${u.step}=${u.verdict.slice(5)}`);
     groups.set(key, g);
   }
-  const rels = { ok: 0, both: 0, cleared: 0, new: 0 };
+  const rels = { ok: 0, both: 0, cleared: 0, new: 0, unmeasured: 0 };
   for (const u of units) rels[u.rel]++;
   const totals = { units: units.length, pass: 0, fail: 0, skip: 0, coverageFail: 0, coverageNew: 0 };
   for (const u of units) {
@@ -322,7 +338,7 @@ export function verdictLines(engine, search, red) {
   for (const g of red.groups.filter((x) => x.newSteps.length > 0)) {
     lines.push(`VERDICT trajectory ${engine} w=${g.width} ${g.path} ${g.node}.${g.prop} NEW ${g.newSteps.length}/${g.pass + g.fail + g.skip} units: ${g.newSteps.slice(0, 6).join(' ')}${g.newSteps.length > 6 ? ' ...' : ''}`);
   }
-  lines.push(`VERDICT trajectory ${engine} search=${s} ${red.red ? 'RED' : 'CLEAN'} new=${red.rels.new} both=${red.rels.both} cleared=${red.rels.cleared} ok=${red.rels.ok} units=${red.totals.units} fail=${red.totals.fail} coverage=${red.totals.coverageFail} coverage_new=${red.totals.coverageNew}`);
+  lines.push(`VERDICT trajectory ${engine} search=${s} ${red.red ? 'RED' : 'CLEAN'} new=${red.rels.new} both=${red.rels.both} unmeasured=${red.rels.unmeasured} cleared=${red.rels.cleared} ok=${red.rels.ok} units=${red.totals.units} fail=${red.totals.fail} coverage=${red.totals.coverageFail} coverage_new=${red.totals.coverageNew}`);
   for (const t of red.timing) lines.push(`TIMING trajectory ${engine} ${t.role} ${t.phase} n=${t.n} read p50=${t.readP50} p90=${t.readP90} ms gap p50=${t.gapP50 ?? '-'} p90=${t.gapP90 ?? '-'} ms${t.dominate ? ' READS-DOMINATE' : ''}`);
   return lines;
 }

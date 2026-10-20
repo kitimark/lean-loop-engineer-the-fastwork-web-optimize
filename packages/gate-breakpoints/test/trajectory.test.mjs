@@ -12,7 +12,8 @@ const golden = readFileSync(fileURLToPath(new URL('../../contracts/golden/gate/t
 
 test('the golden file holds every operation', () => {
   assert.deepEqual([...new Set(golden.map((g) => g.op))].sort(), ['against', 'window', 'bucket', 'byM', 'byStep', 'widths', 'rel', 'arm', 'run', 'quantile', 'dominate'].sort());
-  assert.ok(golden.length >= 100);
+  assert.ok(golden.length >= 110);
+  assert.ok(golden.some((g) => g.op === 'byM' && [...g.orig, ...g.rew].some((x) => x.rep > 0)), 'golden has rows with rep > 0');
 });
 
 for (const g of golden) {
@@ -190,16 +191,34 @@ test('reduceRaw: the timing rows split the read cost from the gap between sample
   assert.deepEqual([t.n, t.readP50, t.gapP50, t.dominate], [11, 4, 20, false]);
 });
 
-test('reps: the rows of two passes are pooled, an empty bucket one pass left is filled by the other', () => {
-  const half = (ms) => phaseRows(ms, () => 'off');
-  const pooled = (a, b) => [...half(a).map((r) => ({ ...r, rep: 0 })), ...half(b).map((r) => ({ ...r, rep: 1 }))];
+/** Rows of a ramping nav class: `is-expanded` is on from m = 0.93 (the original), per pass. */
+const rampRows = (ms, rep, cls) => phaseRows(ms, cls).map((r) => ({ ...r, rep }));
+
+test('reps: a rewrite stuck off while the original ramps on fails across two passes (the pooled window was the whole phase)', () => {
+  const evens = [0, 2000, 4000, 6000, 8000, 9000, 9300, 9400, 9500, 9600, 9700, 9800, 9900, 10000];
+  const on = (m) => (m >= 9300 ? 'on' : 'off');
+  const pooledOrig = [...rampRows(evens, 0, on), ...rampRows(evens, 1, on)];
+  const mk = (cand) => ({ engine: 'x', runs: [runOf('orig', morphOf(pooledOrig, NO_FW)), runOf('base', morphOf(pooledOrig, OK_REWRITE)), runOf('cand', morphOf(cand, OK_REWRITE))] });
+  const stuck = [...rampRows([4000, 9700, 9800], 0, () => 'off'), ...rampRows([4000, 9700, 9800], 1, () => 'off')];
+  const red = reduceRaw(mk(stuck), registries);
+  const cls = red.units.filter((u) => u.phase === 'open' && u.node === 'nav' && u.prop === 'cls.is-expanded' && u.verdict === 'fail:differs');
+  assert.deepEqual(cls.map((u) => u.step), ['open@10']);
+  assert.ok(cls.every((u) => u.rel === 'new'));
+  // the same rewrite following the ramp is clean on that property
+  const follows = [...rampRows([4000, 9700, 9800], 0, on), ...rampRows([4000, 9700, 9800], 1, on)];
+  const ok = reduceRaw(mk(follows), registries);
+  assert.equal(ok.units.filter((u) => u.phase === 'open' && u.node === 'nav' && u.prop === 'cls.is-expanded' && u.verdict === 'fail:differs').length, 0);
+});
+
+test('reps: an empty bucket one pass left is filled by the other, and gaps are taken inside a pass', () => {
+  const half = (ms, rep) => phaseRows(ms, () => 'off').map((r) => ({ ...r, rep }));
   const evens = [0, 2000, 4000, 6000, 8000, 10000], odds = [1000, 3000, 5000, 7000, 9000];
-  const r = { engine: 'x', runs: ['orig', 'base', 'cand'].map((role) => runOf(role, morphOf(pooled(evens, odds), role === 'orig' ? NO_FW : OK_REWRITE))) };
+  const pooled = [...half(evens, 0), ...half(odds, 1)];
+  const r = { engine: 'x', runs: ['orig', 'base', 'cand'].map((role) => runOf(role, morphOf(pooled, role === 'orig' ? NO_FW : OK_REWRITE))) };
   const red = reduceRaw(r, registries);
   const gaps = (x) => x.units.filter((u) => u.phase === 'open' && u.verdict === 'fail:coverage').length;
   assert.equal(gaps(red), 0);
-  assert.equal(gaps(reduceRaw({ ...r, runs: r.runs.map((x) => ({ ...x, morph: { ...x.morph, phases: { open: half(evens).map((q) => ({ ...q, rep: 0 })) } } })) }, registries)) > 0, true);
-  // the gap is taken inside a pass: the step from the last row of pass 0 to the first of pass 1 is not a frame gap
+  assert.equal(gaps(reduceRaw({ ...r, runs: r.runs.map((x) => ({ ...x, morph: { ...x.morph, phases: { open: half(evens, 0) } } })) }, registries)) > 0, true);
   const t = red.timing.find((x) => x.role === 'cand' && x.phase === 'open');
   assert.equal(t.n, 11);
   assert.equal(t.gapP90, 20);

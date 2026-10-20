@@ -52,6 +52,8 @@ export async function heroPath(engine, env, origin, site, search = '') {
  * The tween is driven by time, so one push lands about two frames per tenth of the morph value and sometimes none. With `reps`
  * above 1 the whole path is walked on a fresh page that many times and the rows of each phase are pooled (every row carries
  * its `rep`; the approach is the first rep's). Every rep's arm identity is kept (`arm` is the first, `extraArms` the rest).
+ * The reducer never pairs neighbours across reps (Lean `windowOf`, `windowOf_pass_iff`): a rewrite sample is compared with the
+ * union of the windows of the original's reps, each aligned on its own.
  */
 export async function morphPath(engine, env, origin, site, search = '', reads = 'full', reps = 1) {
   let out = null;

@@ -1,27 +1,30 @@
-# Handoff: trajectory-probe (round 2)
+# Handoff: trajectory-probe (round 3)
 
-State: branch worktree-wf_b2d9cca1-299-1, CI branch ci/trajectory-probe. Measured code = f19913eb (+ e85d995e summary split).
-Round 2 is delivered except bug B, which the probe did not witness (open item 1). Results: research/notes/2026/10-21-trajectory-probe.md.
+State: branch worktree-wf_b2d9cca1-299-1, CI branch ci/trajectory-probe (measured code f19913eb / e85d995e; round 3 re-reduced
+the same raw artifacts, no new CI run). Results: research/notes/2026/10-21-trajectory-probe.md. Tool doc: docs/team/tools/trajectory-probe.md.
+Round 3 : the passes of --reps were concatenated, so every morph window was the whole phase (incident
+inc-trajectory-pooled-window). Lean: Samp.rep, windowOne, windowOf = union of per-pass windows, theorems windowOf_pass_iff
+(pooling never widens a window), windowOf_none_iff, window_concat_whole_phase; Rel.unmeasured; golden 113 rows incl. rep > 0.
+reduce.mjs mirrors it; the reps test (ramping original, stuck rewrite, 2 passes) fails on the old window.
 
-Verified (CI run ids in the note): arm identity on every arm of 6 runs; bug A (WebKit only, Linux 228 and macos-26 187 new
-units); bug C is baseline red (never new); coverage and the baseline relation per unit; read timing (reads do not dominate).
-Local: gate-breakpoints tests 265, ci-paths 41, apps/runner 1442, `sh lean/scripts/check.sh` green at the last commit.
+Verified (MEASURED, re-reduced from runs 39409003529, 39415671864, 39412301221, 39419128841): bug A WebKit only (Linux 228,
+macos-26 187 new in copy/cta/countdown/deck.card); bug B IS in Chromium (waapi: 205 new nav+logo units, 0 in A/A and the other
+two); bug C is baseline `both` (18 units Chromium). Linux WebKit push cells are "no verdict: coverage" (1150-1288 of 2208).
+Local at the last commit: lean check.sh, gate-breakpoints, ci-paths and apps/runner tests green.
 
 Conventions
 - Lean decides (lean/Fw/Gate/Trajectory.lean); reduce.mjs is the twin, checked against packages/contracts/golden/gate/trajectory.jsonl
-  (regenerate: `cd lean && lake env lean --run scripts/TrajectoryGolden.lean`, never by hand). The golden `cases` are two
-  constants (init-cost bound 10000).
-- Dispatch: `pnpm -s fw run --trajectory --ref ci/trajectory-probe [--fw ..|--preset ..]`, one at a time per sha. Push first, wait
-  a minute before dispatching (the push run is skipped by the guard and can be mistaken for the dispatch: use `fw ci wait <runId>`).
-- The Apple job runs only on a dispatch with a search (`--fw`/`--preset`) and engines including playwright-webkit.
-- Re-reduce artifacts offline: `node packages/gate-breakpoints/src/trajectory/cli.mjs summary --out <dir> --engine <e>`.
+  (regenerate: `cd lean && lake build Fw.Gate.Trajectory && lake env lean --run scripts/TrajectoryGolden.lean`, never by hand).
+- Dispatch: `pnpm -s fw run --trajectory --ref ci/trajectory-probe [--fw ..|--preset ..]`. The Apple job runs only when the search
+  contains hero.exit and engines include playwright-webkit (a preset holding hero.exit: dispatch as --fw).
+- Re-reduce artifacts offline: copy raw-<engine>.json to a new dir, `node packages/gate-breakpoints/src/trajectory/cli.mjs summary --out <dir>`.
 
 Open items
-1. Bug B not witnessed (waapi: 0 new nav/logo units in Chromium). Record `document.getAnimations().length` per push sample; try a
-   touch drag; compare with the user's repro.
-2. Linux WebKit cannot cover the morph push (150 ms frames); use macos-26 for morph too (extend the Apple job to `--paths hero,morph`).
-3. Faithful rewrite is baseline red in 57 hero units on macos-26 (mid/hold/b25 rects): investigate.
-4. A default-vs-default run is RED from one empty coverage bucket; consider reps 5 or deciding coverage per bucket across reps.
-5. Not run: `--reads lean` (not needed). Not wired to the gate or the preset generator (by task).
+1. Bug B in Chromium needs a repeat run (each case ran once) and the same on macOS: extend the Apple job to `--paths hero,morph`
+   (Linux WebKit cannot cover the push, 150 ms frames).
+2. Faithful rewrite is baseline red in the macos-26 hero path (114 units in d, 54 in b and c): investigate.
+3. A default-vs-default run is RED from one empty coverage bucket (42 units at one width in runs a, b): consider reps 5.
+4. Touch input, WebKit 325900 premise test, stale anchor exclusions, Mobile Safari, trajectory-probe-speed (parallel widths).
+5. Not a gate stage and no preset reads it (by task). Writes outside the graph: see the note (adds docs/team/incidents/ledger.json).
 
 Read first: docs/team/tools/trajectory-probe.md, then the note.

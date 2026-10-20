@@ -10,7 +10,8 @@ name: trajectory-probe
 # probe completed (the verdicts are in the step summary and the artifact `trajectory-<engine>`).
 # Apple witness (job probe-apple): the same lane on a free standard macos-26 runner with Playwright WebKit (the macOS build, the
 # closest engine CI has to Safari), hero path only, rewrite arm = the dispatched search vs the original. It runs only when the
-# dispatch (never a push) names a rewrite search and includes playwright-webkit; max-parallel 1 (the macOS slots are shared across lanes); its
+# dispatch (never a push) names a search containing hero.exit (the witness is for bug A; any other search would spend one of the
+# shared macOS slots on a hero path that cannot change; a preset that holds hero.exit must be dispatched as ?fw=...) and includes playwright-webkit; max-parallel 1 (the macOS slots are shared across lanes); its
 # verdict is a separate artifact `trajectory-apple` and never part of the Linux verdicts.
 on:
   # Every push creates a run and its guard job decides on these inputs (Lean Fw.Ci.Intent); `workflow_dispatch` runs it on demand
@@ -254,7 +255,7 @@ jobs:
   # the original. One job at a time (max-parallel 1). The Linux jobs above never wait for it and it never changes their verdicts.
   probe-apple:
     needs: [site]
-    if: ${{ github.event_name == 'workflow_dispatch' && needs.site.outputs.search != '' && contains(needs.site.outputs.engines, 'playwright-webkit') }}
+    if: ${{ github.event_name == 'workflow_dispatch' && contains(needs.site.outputs.search, 'hero.exit') && contains(needs.site.outputs.engines, 'playwright-webkit') }}
     concurrency:
       group: ci-lane:trajectory-probe:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:probe-apple:${{ strategy.job-index }}
     runs-on: macos-26

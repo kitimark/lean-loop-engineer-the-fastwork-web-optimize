@@ -28,6 +28,7 @@ export function summaryMd(raw, red) {
     `units ${red.totals.units}: pass ${red.totals.pass}, fail ${red.totals.fail}, skip ${red.totals.skip}; coverage failures ${red.totals.coverageFail}`, '',
     '| against the faithful arm | units |', '|---|---|',
     `| new (fails here, not in the faithful arm) | ${red.rels.new} (content ${red.rels.new - red.totals.coverageNew}, coverage ${red.totals.coverageNew}) |`, `| both (fails in both: baseline red) | ${red.rels.both} |`,
+    `| unmeasured (fails on content here, on coverage in the faithful arm: no verdict) | ${red.rels.unmeasured} |`,
     `| cleared (fails only in the faithful arm) | ${red.rels.cleared} |`, `| ok | ${red.rels.ok} |`, ''];
   for (const n of red.notes) out.push(`- note: ${n}`);
   const news = red.groups.filter((g) => g.newSteps.length > 0);

@@ -152,21 +152,29 @@ def judgeEls (k : Kind) (win : List (List Val)) (r : List Val) : Verdict :=
   else if win.any (·.length != r.length) then .fail .count
   else combine ((List.range r.length).map fun i => judgeVal k (win.map (·.getD i .absent)) (r.getD i .absent))
 
-/-- A sample of one (node, property) at one instant: the morph value times 10000, whether it is quiet, the elements. -/
+/-- A sample of one (node, property) at one instant: the morph value times 10000, whether it is quiet, the elements, and the
+pass (`rep`) it was read in.
+
+The probe walks the morph path several times (`--reps`) and keeps every row. A morph value rises or falls within one pass
+only, so two samples of different passes are not neighbours in time and no window may pair them. -/
 structure Samp where
   m : Option Int
   quiet : Bool
   els : List Val
+  rep : Nat
   deriving DecidableEq, Repr
 
-/-- A sample with a morph value, quiet. -/
-def sm (m : Int) (els : List Val) : Samp := ⟨some m, true, els⟩
+/-- A sample with a morph value, quiet, in pass 0. -/
+def sm (m : Int) (els : List Val) : Samp := ⟨some m, true, els, 0⟩
 
-/-- A sample without a morph value, quiet. -/
-def s0 (els : List Val) : Samp := ⟨none, true, els⟩
+/-- A sample with a morph value, quiet, in pass `rep`. -/
+def smr (rep : Nat) (m : Int) (els : List Val) : Samp := ⟨some m, true, els, rep⟩
 
-/-- A sample without a morph value, not quiet. -/
-def sq (els : List Val) : Samp := ⟨none, false, els⟩
+/-- A sample without a morph value, quiet, in pass 0. -/
+def s0 (els : List Val) : Samp := ⟨none, true, els, 0⟩
+
+/-- A sample without a morph value, not quiet, in pass 0. -/
+def sq (els : List Val) : Samp := ⟨none, false, els, 0⟩
 
 /-- The rewrite's sample against a window of the original's samples.
 
@@ -214,13 +222,13 @@ def reach : Int := 1000
 def beyond (ms : List Int) (m : Int) : Bool :=
   ms.all (fun x => x + reach < m) || ms.all (fun x => m + reach < x)
 
-/-- The original's samples a rewrite sample at morph value `m` is compared with, or none when there is nothing to compare with.
+/-- The original's samples of one pass that a rewrite sample at morph value `m` is compared with, or none when there is
+nothing to compare with.
 
-No window (`none`) when the rewrite sample has no morph value, when any original sample has none (the phases cannot be
-aligned), or when `m` is farther than `reach` outside the range the original was sampled over (a slow frame can leave the
-original's phase with a few samples, and the rewrite's 0.98 must not be judged against the original's 0.15). Each of these
-is `fail coverage` in `judgeIn`. An earlier version returned the whole phase or an empty window, and both passed or skipped. -/
-def windowOf (orig : List Samp) (m : Option Int) : Option (List Samp) :=
+`orig` is one monotone pass. No window (`none`) when the rewrite sample has no morph value, when any original sample has
+none (the pass cannot be aligned), or when `m` is farther than `reach` outside the range the pass was sampled over (a slow
+frame can leave a pass with a few samples, and the rewrite's 0.98 must not be judged against the original's 0.15). -/
+def windowOne (orig : List Samp) (m : Option Int) : Option (List Samp) :=
   match m with
   | none => none
   | some m =>
@@ -228,6 +236,24 @@ def windowOf (orig : List Samp) (m : Option Int) : Option (List Samp) :=
     else
       let ms := orig.map (·.m.getD 0)
       if beyond ms m then none else some ((window ms m).filterMap fun i => orig[i]?)
+
+/-- The passes of a pooled list of samples, each once, in order of first appearance. -/
+def repsOf (orig : List Samp) : List Nat := (orig.map (·.rep)).eraseDups
+
+/-- The samples of pass `r`, in order. -/
+def passOf (orig : List Samp) (r : Nat) : List Samp := orig.filter (·.rep == r)
+
+/-- The original's samples a rewrite sample at morph value `m` is compared with, or none when there is nothing to compare with.
+
+`orig` pools the passes of `--reps`. Each pass is aligned on its own (`windowOne` of the samples of that pass); the window
+is the union of the windows of the passes that have one, and none only when no pass has one. A pair of neighbours never
+crosses a pass boundary: the last sample of a pass (m = 1.0) and the first of the next (m = 0) would enclose every `m` and
+put both ends of the phase into every window, so a stuck class passed. Each of the rules of `windowOne` is decided per
+pass (`windowOf_mem`). -/
+def windowOf (orig : List Samp) (m : Option Int) : Option (List Samp) :=
+  match (repsOf orig).filterMap fun r => windowOne (passOf orig r) m with
+  | [] => none
+  | ws => some ws.flatten
 
 /-- A rewrite sample against its window of the original's samples; no window is a coverage failure, never a skip. -/
 def judgeIn (k : Kind) (win : Option (List Samp)) (r : Samp) : Verdict :=
@@ -452,23 +478,23 @@ theorem combine_skips : combine [.skip .noSample, .skip .transient] = .skip .tra
 
 /-- A colour reading before `quietMs` is not compared. -/
 theorem judgeAgainst_transient :
-    judgeAgainst .colour [⟨none, true, [.num [255000]]⟩] ⟨none, false, [.num [0]]⟩ = .skip .transient := by decide
+    judgeAgainst .colour [⟨none, true, [.num [255000]], 0⟩] ⟨none, false, [.num [0]], 0⟩ = .skip .transient := by decide
 
 /-- A colour reading after `quietMs` is compared. -/
 theorem judgeAgainst_quiet :
-    judgeAgainst .colour [⟨none, true, [.num [255000]]⟩] ⟨none, true, [.num [0]]⟩ = .fail .apart := by decide
+    judgeAgainst .colour [⟨none, true, [.num [255000]], 0⟩] ⟨none, true, [.num [0]], 0⟩ = .fail .apart := by decide
 
 /-- A window sample that is not quiet still bounds a quiet colour. -/
 theorem judgeAgainst_window_not_quiet :
-    judgeAgainst .colour [⟨none, false, [.num [255000]]⟩] ⟨none, true, [.num [0]]⟩ = .fail .apart := by decide
+    judgeAgainst .colour [⟨none, false, [.num [255000]], 0⟩] ⟨none, true, [.num [0]], 0⟩ = .fail .apart := by decide
 
 /-- A window sample that is not quiet passes a colour inside its band. -/
 theorem judgeAgainst_window_not_quiet_pass :
-    judgeAgainst .colour [⟨none, false, [.num [255000]]⟩] ⟨none, true, [.num [255000]]⟩ = .pass := by decide
+    judgeAgainst .colour [⟨none, false, [.num [255000]], 0⟩] ⟨none, true, [.num [255000]], 0⟩ = .pass := by decide
 
 /-- A non-colour kind ignores quiet. -/
 theorem judgeAgainst_other_kind :
-    judgeAgainst .unit [⟨none, true, [.num [1000]]⟩] ⟨none, false, [.num [0]]⟩ = .fail .apart := by decide
+    judgeAgainst .unit [⟨none, true, [.num [1000]], 0⟩] ⟨none, false, [.num [0]], 0⟩ = .fail .apart := by decide
 
 -- Alignment ---------------------------------------------------------------------------------------------------------
 
@@ -488,27 +514,126 @@ theorem window_outside : window [0, 2000, 4000] 9000 = [1, 2] := by decide
 
 The original was sampled over 0 to 0.15 only; the rewrite's 0.98 is not judged against it. -/
 theorem windowOf_beyond :
-    windowOf [⟨some 0, true, [.num [0]]⟩, ⟨some 1500, true, [.num [0]]⟩] (some 9800) = none := by decide
+    windowOf [⟨some 0, true, [.num [0]], 0⟩, ⟨some 1500, true, [.num [0]], 0⟩] (some 9800) = none := by decide
 
 /-- Branch beyond reach, below: the same on the low side. -/
 theorem windowOf_beyond_low :
-    windowOf [⟨some 6000, true, [.num [0]]⟩, ⟨some 9000, true, [.num [0]]⟩] (some 0) = none := by decide
+    windowOf [⟨some 6000, true, [.num [0]], 0⟩, ⟨some 9000, true, [.num [0]], 0⟩] (some 0) = none := by decide
 
 /-- Branch within reach: the nearest sample (and one frame before it) is the window. -/
 theorem windowOf_within_reach :
-    ((windowOf [⟨some 0, true, [.num [0]]⟩, ⟨some 9000, true, [.num [0]]⟩] (some 9800)).map List.length) = some 2 := by
+    ((windowOf [⟨some 0, true, [.num [0]], 0⟩, ⟨some 9000, true, [.num [0]], 0⟩] (some 9800)).map List.length) = some 2 := by
   decide
 
 /-- Branch no morph value in the rewrite sample: no window. -/
-theorem windowOf_rewrite_no_m : windowOf [⟨some 0, true, [.num [0]]⟩] none = none := by decide
+theorem windowOf_rewrite_no_m : windowOf [⟨some 0, true, [.num [0]], 0⟩] none = none := by decide
 
 /-- Branch no morph value in an original sample: no window, whatever the rewrite's value. -/
 theorem windowOf_orig_no_m :
-    windowOf [⟨some 0, true, [.num [0]]⟩, ⟨none, true, [.num [0]]⟩] (some 0) = none := by decide
+    windowOf [⟨some 0, true, [.num [0]], 0⟩, ⟨none, true, [.num [0]], 0⟩] (some 0) = none := by decide
 
 /-- Branch no original sample: no window. -/
 theorem windowOf_orig_empty (m : Option Int) : windowOf [] m = none := by
-  cases m <;> simp [windowOf, beyond]
+  simp [windowOf, repsOf]
+
+/-- The ramp of a pass: morph values 0 to 1 in steps of 0.2, each sample reading its own value. -/
+def ramp (rep : Nat) : List Samp :=
+  [0, 2000, 4000, 6000, 8000, 10000].map fun m => smr rep m [.num [m]]
+
+/-- Why the passes are not concatenated: the last sample of pass 0 (m = 1) and the first of pass 1 (m = 0) are neighbours in
+a list, and that pair encloses every `m`. Over the concatenation, the window of m = 0.4 holds the 1.0 end (index 5) and the 0.0
+start (index 6) of the phase, and every sample but the last. -/
+theorem window_concat_whole_phase :
+    window [0, 2000, 4000, 6000, 8000, 10000, 0, 2000, 4000, 6000, 8000, 10000] 4000 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] := by
+  decide
+
+/-- Branch pooled: each pass is aligned on its own. Two passes of the ramp give the window of m = 0.4 from each pass (the
+samples 0 to 0.8 of both), never the 1.0 end. -/
+theorem windowOf_pooled_ramp :
+    ((windowOf (ramp 0 ++ ramp 1) (some 4000)).getD []).map (fun s => (s.rep, s.m)) =
+      [(0, some 0), (0, some 2000), (0, some 4000), (0, some 6000), (0, some 8000),
+       (1, some 0), (1, some 2000), (1, some 4000), (1, some 6000), (1, some 8000)] := by
+  decide
+
+/-- Branch pooled, one pass slow: a rewrite sample at 0.98 is beyond the reach of a pass that stopped at 0.4 and has the
+window of the pass that reached 1.0. -/
+theorem windowOf_union_has_pass :
+    ((windowOf ([0, 2000, 4000].map (fun m => smr 0 m [.num [m]]) ++ ramp 1) (some 9800)).getD []).map (·.rep) = [1, 1, 1] := by
+  decide
+
+/-- Branch pooled, no pass has a window: none. -/
+theorem windowOf_pooled_beyond :
+    windowOf ([0, 1500].map (fun m => smr 0 m [.num [m]]) ++ [0, 1500].map (fun m => smr 1 m [.num [m]])) (some 9800) = none := by
+  decide
+
+/-- Branch pooled, a pass without morph values: the other passes still align. -/
+theorem windowOf_pooled_one_pass_no_m :
+    ((windowOf ([⟨none, true, [.num [0]], 0⟩] ++ ramp 1) (some 4000)).getD []).map (·.rep) = [1, 1, 1, 1, 1] := by
+  decide
+
+/-- Every sample of a window of one pass is a sample of that pass's input. -/
+theorem windowOne_sub (orig : List Samp) (m : Option Int) (x : Samp) (h : x ∈ (windowOne orig m).getD []) : x ∈ orig := by
+  unfold windowOne at h
+  cases m with
+  | none => simp at h
+  | some m =>
+    simp only at h
+    split at h
+    · simp at h
+    · split at h
+      · simp at h
+      · simp only [Option.getD_some, List.mem_filterMap] at h
+        obtain ⟨i, _, hi⟩ := h
+        exact List.mem_of_getElem? hi
+
+/-- The window of a pooled list is the windows of its passes side by side. -/
+theorem windowOf_getD (orig : List Samp) (m : Option Int) :
+    (windowOf orig m).getD [] = ((repsOf orig).filterMap fun r => windowOne (passOf orig r) m).flatten := by
+  unfold windowOf
+  split <;> simp_all
+
+/-- Pooling never widens a window: a sample is in the window of the pooled list exactly when it is in the window of its own
+pass alone. No window mixes the samples of two passes. -/
+theorem windowOf_pass_iff (orig : List Samp) (m : Option Int) (x : Samp) :
+    x ∈ (windowOf orig m).getD [] ↔ x ∈ (windowOne (passOf orig x.rep) m).getD [] := by
+  rw [windowOf_getD]
+  constructor
+  · intro h
+    simp only [List.mem_flatten, List.mem_filterMap] at h
+    obtain ⟨w, ⟨r, _, hr⟩, hx⟩ := h
+    have hw : w = (windowOne (passOf orig r) m).getD [] := by simp [hr]
+    rw [hw] at hx
+    have hmem := windowOne_sub _ _ _ hx
+    simp only [passOf, List.mem_filter, beq_iff_eq] at hmem
+    have : r = x.rep := hmem.2.symm
+    subst this
+    exact hx
+  · intro h
+    have hmem := windowOne_sub _ _ _ h
+    simp only [passOf, List.mem_filter, beq_iff_eq] at hmem
+    simp only [List.mem_flatten, List.mem_filterMap]
+    refine ⟨(windowOne (passOf orig x.rep) m).getD [], ⟨x.rep, ?_, ?_⟩, h⟩
+    · simp only [repsOf, List.mem_eraseDups, List.mem_map]
+      exact ⟨x, hmem.1, rfl⟩
+    · cases hw : windowOne (passOf orig x.rep) m with
+      | none => simp [hw] at h
+      | some w => rfl
+
+/-- Branch pooled, no window: the pooled list has none exactly when no pass has one. -/
+theorem windowOf_none_iff (orig : List Samp) (m : Option Int) :
+    windowOf orig m = none ↔ ∀ r ∈ repsOf orig, windowOne (passOf orig r) m = none := by
+  unfold windowOf
+  constructor
+  · intro h r hr
+    split at h
+    · rename_i hnil
+      have := List.filterMap_eq_nil_iff.mp hnil
+      exact this r hr
+    · simp at h
+  · intro h
+    have : (repsOf orig).filterMap (fun r => windowOne (passOf orig r) m) = [] :=
+      List.filterMap_eq_nil_iff.mpr h
+    simp [this]
 
 /-- The ends of the reach: exactly one bucket outside still has a window; one unit more has none. -/
 theorem beyond_edge : beyond [0, 2000] 3000 = false ∧ beyond [0, 2000] 3001 = true := by decide
@@ -576,8 +701,8 @@ theorem bucket_values :
 
 The original reads `off` at 0.90 and `on` at 0.93; the rewrite reads `on` at 0.92 and passes. -/
 theorem byM_threshold_slack :
-    (byM .push .discrete [⟨some 9000, true, [.str "off"]⟩, ⟨some 9300, true, [.str "on"]⟩]
-        [⟨some 9200, true, [.str "on"]⟩]).getD 9 (9, .skip .noSample) = (9, .pass) := by decide
+    (byM .push .discrete [⟨some 9000, true, [.str "off"], 0⟩, ⟨some 9300, true, [.str "on"], 0⟩]
+        [⟨some 9200, true, [.str "on"], 0⟩]).getD 9 (9, .skip .noSample) = (9, .pass) := by decide
 
 /-- Bug B: a class that stays `off` through the tween is a failure at the buckets where the original has `on`.
 
@@ -649,6 +774,18 @@ theorem byM_hold_interior :
     (byM .hold .discrete [sm 10000 [.str "on"]] [sm 10000 [.str "on"]]).getD 5 (5, .pass) = (5, .skip .noSample) := by
   decide
 
+/-- Branch pooled passes, the stuck rewrite: three passes of a ramp against a rewrite that stays at 0 fail at 0.5.
+
+Over the concatenation of the passes the window of 0.5 held the 0 end of the phase and this passed. -/
+theorem byM_pooled_stuck :
+    (byM .push .discrete (ramp 0 ++ ramp 1 ++ ramp 2) [smr 0 5000 [.num [0]]]).getD 5 (5, .pass) = (5, .fail .differs) := by
+  decide
+
+/-- Branch pooled passes, a ramping rewrite: a rewrite that follows the ramp passes in its bucket. -/
+theorem byM_pooled_ramp :
+    (byM .push .discrete (ramp 0 ++ ramp 1 ++ ramp 2) [smr 0 4000 [.num [4000]]]).getD 4 (4, .fail .differs) = (4, .pass) := by
+  decide
+
 /-- Every bucket 0 to 11 gets its own verdict: twelve per phase, in order. -/
 theorem byM_length (ph : Phase) (k : Kind) (orig rew : List Samp) : (byM ph k orig rew).length = 12 := by
   simp [byM]
@@ -662,12 +799,12 @@ theorem bucketVerdict_independent (ph : Phase) (k : Kind) (orig rew : List Samp)
 
 /-- A step the original has and the rewrite lacks is a skip. -/
 theorem byStep_missing :
-    byStep .unit [("s25", ⟨none, true, [.num [750]]⟩)] [] = [("s25", .skip .noSample)] := by decide
+    byStep .unit [("s25", ⟨none, true, [.num [750]], 0⟩)] [] = [("s25", .skip .noSample)] := by decide
 
 /-- A step is decided by that step's two samples only. -/
 theorem byStep_pair :
-    byStep .unit [("s25", ⟨none, true, [.num [750]]⟩), ("s50", ⟨none, true, [.num [500]]⟩)]
-      [("s25", ⟨none, true, [.num [1000]]⟩), ("s50", ⟨none, true, [.num [500]]⟩)] =
+    byStep .unit [("s25", ⟨none, true, [.num [750]], 0⟩), ("s50", ⟨none, true, [.num [500]], 0⟩)]
+      [("s25", ⟨none, true, [.num [1000]], 0⟩), ("s50", ⟨none, true, [.num [500]], 0⟩)] =
     [("s25", .fail .apart), ("s50", .pass)] := by decide
 
 /-- The lane fails when one unit fails, and only then. -/
@@ -682,18 +819,28 @@ theorem laneFails_none : laneFails [.pass, .skip .noSample, .skip .transient] = 
 /-- What one unit says relative to the same unit of the faithful arm (the default config against the original).
 
 `new` fails here and passes (or is not compared) there; `both` fails in both, so the candidate did not cause it; `cleared`
-fails only there; `ok` fails in neither. -/
+fails only there; `ok` fails in neither. `unmeasured`: the candidate fails on content (a difference) where the faithful arm
+fails on coverage, so the faithful arm was not measured there and the unit has no verdict either way. -/
 inductive Rel where
   | ok
   | both
   | cleared
   | new
+  | unmeasured
   deriving DecidableEq, Repr
 
-/-- One unit against the same unit of the baseline. A unit the baseline does not have is a skip there, so a failure is `new`. -/
+/-- The failure is a coverage failure (nothing to compare with), not a difference between the arms. -/
+def isCoverage : Verdict → Bool
+  | .fail .coverage => true
+  | _ => false
+
+/-- One unit against the same unit of the baseline. A unit the baseline does not have is a skip there, so a failure is `new`.
+
+Both fail: `unmeasured` when the candidate's failure is a difference and the baseline's is coverage (the faithful arm has no
+sample to compare, so the candidate's difference is not shown to be shared); else `both`. -/
 def rel (cand base : Verdict) : Rel :=
   match isFail cand, isFail base with
-  | true, true => .both
+  | true, true => if isCoverage base && !isCoverage cand then .unmeasured else .both
   | true, false => .new
   | false, true => .cleared
   | false, false => .ok
@@ -707,8 +854,20 @@ theorem rel_new : rel (.fail .apart) .pass = .new := by decide
 /-- Branch fails here, is not compared there: new (no evidence that the faithful arm fails). -/
 theorem rel_new_skip : rel (.fail .differs) (.skip .noSample) = .new := by decide
 
-/-- Branch fails in both: not new, whatever the reasons are. -/
-theorem rel_both : rel (.fail .apart) (.fail .coverage) = .both := by decide
+/-- Branch fails in both, same kind of reason: not new. -/
+theorem rel_both : rel (.fail .apart) (.fail .apart) = .both := by decide
+
+/-- Branch fails in both, the baseline for a different content reason: still `both`. -/
+theorem rel_both_content : rel (.fail .apart) (.fail .differs) = .both := by decide
+
+/-- Branch both fail coverage: `both` (neither arm was measured, the candidate adds nothing). -/
+theorem rel_both_coverage : rel (.fail .coverage) (.fail .coverage) = .both := by decide
+
+/-- Branch the candidate fails coverage, the baseline on content: `both`. -/
+theorem rel_both_cand_coverage : rel (.fail .coverage) (.fail .apart) = .both := by decide
+
+/-- Branch the candidate fails on content, the baseline on coverage: `unmeasured`, never `both` and never `new`. -/
+theorem rel_unmeasured : rel (.fail .apart) (.fail .coverage) = .unmeasured := by decide
 
 /-- Branch fails only in the baseline: cleared. -/
 theorem rel_cleared : rel .pass (.fail .apart) = .cleared := by decide
@@ -722,7 +881,7 @@ theorem rel_ok : rel .pass .pass = .ok ∧ rel (.skip .noSample) .pass = .ok := 
 /-- A unit is new exactly when it fails in the candidate and not in the baseline. -/
 theorem rel_new_iff (c b : Verdict) : rel c b = .new ↔ isFail c = true ∧ isFail b = false := by
   unfold rel
-  cases hc : isFail c <;> cases hb : isFail b <;> simp
+  cases hc : isFail c <;> cases hb : isFail b <;> simp <;> split <;> simp
 
 /-- The candidate is red exactly when some unit is new. -/
 theorem laneRed_iff (rs : List Rel) : laneRed rs = true ↔ Rel.new ∈ rs := by
@@ -731,6 +890,9 @@ theorem laneRed_iff (rs : List Rel) : laneRed rs = true ↔ Rel.new ∈ rs := by
 /-- A candidate whose every unit fails where the baseline fails is not red: the baseline's red does not count. -/
 theorem laneRed_baseline_red : laneRed [rel (.fail .apart) (.fail .apart), rel (.fail .coverage) (.fail .apart)] = false := by
   decide
+
+/-- An unmeasured unit is not new: the lane does not go red on it, and the report lists it apart. -/
+theorem laneRed_unmeasured : laneRed [rel (.fail .apart) (.fail .coverage)] = false := by decide
 
 -- Which arm was measured --------------------------------------------------------------------------------------------
 
@@ -904,6 +1066,7 @@ def Phase.name : Phase → String
 /-- The name of a relative verdict in the golden file. -/
 def Rel.name : Rel → String
   | .ok => "ok" | .both => "both" | .cleared => "cleared" | .new => "new"
+  | .unmeasured => "unmeasured"
 
 /-- The name of an arm verdict in the golden file. -/
 def ArmVerdict.name : ArmVerdict → String
@@ -924,7 +1087,7 @@ def Val.json : Val → Json
 /-- A sample as JSON. -/
 def Samp.json (s : Samp) : Json :=
   Json.mkObj [("m", match s.m with | none => Json.null | some m => toJson m), ("quiet", Json.bool s.quiet),
-    ("els", Json.arr (s.els.map Val.json).toArray)]
+    ("els", Json.arr (s.els.map Val.json).toArray), ("rep", toJson s.rep)]
 
 /-- One golden line. -/
 inductive Case where
@@ -1001,8 +1164,8 @@ def casesRest : List Case := [
       sm 10000 [.num [10000]]],
   .phase "push first bucket only" .push .geometry [sm 0 [.num [0]], sm 10000 [.num [10000]]] [sm 1000 [.num [1000]]],
   .phase "push no rewrite sample" .push .discrete [sm 0 [.str "off"], sm 10000 [.str "on"]] [],
-  .phase "hold colour" .hold .colour [⟨some 10000, false, [.num [43000]]⟩, ⟨some 10000, true, [.num [255000]]⟩]
-    [⟨some 10000, false, [.num [43000]]⟩, ⟨some 10000, true, [.num [43000]]⟩],
+  .phase "hold colour" .hold .colour [⟨some 10000, false, [.num [43000]], 0⟩, ⟨some 10000, true, [.num [255000]], 0⟩]
+    [⟨some 10000, false, [.num [43000]], 0⟩, ⟨some 10000, true, [.num [43000]], 0⟩],
   .phase "hold interior empty" .hold .discrete [sm 10000 [.str "on"]] [sm 10000 [.str "on"]],
   .phase "hold no rewrite sample" .hold .discrete [sm 10000 [.str "on"]] [],
   .phase "push no morph value" .push .discrete [s0 [.str "on"]] [s0 [.str "on"]],
@@ -1011,6 +1174,16 @@ def casesRest : List Case := [
   .phase "beyond reach" .push .geometry [sm 0 [.num [0]], sm 1500 [.num [3000]]] [sm 9800 [.num [10000]]],
   .phase "hold beyond reach" .hold .geometry [sm 0 [.num [0]], sm 1500 [.num [3000]]] [sm 9800 [.num [10000]]],
   .phase "within reach" .push .geometry [sm 0 [.num [0]], sm 9000 [.num [9000]]] [sm 9800 [.num [9800]]],
+  .phase "pooled ramp original, static rewrite" .push .discrete (ramp 0 ++ ramp 1 ++ ramp 2) [smr 0 5000 [.num [0]]],
+  .phase "pooled ramp original, ramping rewrite" .push .discrete (ramp 0 ++ ramp 1 ++ ramp 2)
+    [smr 0 2000 [.num [2000]], smr 0 4000 [.num [4000]], smr 1 6000 [.num [6000]], smr 2 8000 [.num [8000]]],
+  .phase "pooled ramp original, stuck class" .push .discrete (ramp 0 ++ ramp 1)
+    [smr 0 9000 [.num [0]], smr 1 9000 [.num [0]]],
+  .phase "pooled slow pass" .push .discrete ([0, 2000, 4000].map (fun m => smr 0 m [.num [m]]) ++ ramp 1)
+    [smr 1 9800 [.num [10000]]],
+  .phase "pooled all passes beyond" .push .discrete ([0, 1500].map (fun m => smr 0 m [.num [m]]) ++ [0, 1500].map (fun m => smr 1 m [.num [m]]))
+    [smr 0 9800 [.num [10000]]],
+  .phase "pooled pass without morph value" .push .discrete ([⟨none, true, [.num [0]], 0⟩] ++ ramp 1) [smr 1 4000 [.num [4000]]],
   .path "missing step" .unit [("s25", s0 [.num [750]])] [],
   .path "pair" .unit [("s25", s0 [.num [750]]), ("s50", s0 [.num [500]])]
     [("s25", s0 [.num [1000]]), ("s50", s0 [.num [500]])],
@@ -1019,7 +1192,9 @@ def casesRest : List Case := [
   .quant "median" [50, 10, 40, 20, 30] 50, .quant "p90" [10, 20, 30, 40, 50, 60, 70, 80, 90, 100] 90, .quant "empty" [] 50,
   .quant "one" [7] 90, .quant "p100" [3, 1, 2] 100, .quant "unsorted" [3, 1, 2] 90,
   .dominate "yes" 90 150, .dominate "edge" 50 100, .dominate "no" 5 18, .dominate "no gap" 5 0,
-  .versus "new" (.fail .apart) .pass, .versus "new skip" (.fail .differs) (.skip .noSample), .versus "both" (.fail .apart) (.fail .coverage),
+  .versus "new" (.fail .apart) .pass, .versus "new skip" (.fail .differs) (.skip .noSample), .versus "both" (.fail .apart) (.fail .apart),
+  .versus "both content" (.fail .apart) (.fail .differs), .versus "both coverage" (.fail .coverage) (.fail .coverage),
+  .versus "both cand coverage" (.fail .coverage) (.fail .apart), .versus "unmeasured" (.fail .apart) (.fail .coverage),
   .versus "cleared" .pass (.fail .apart), .versus "skip cleared" (.skip .transient) (.fail .differs), .versus "ok" .pass .pass,
   .versus "ok skip" (.skip .noSample) .pass, .versus "coverage new" (.fail .coverage) .pass,
   .armOf "rewrite ok" ⟨.rewrite, some "ab12", some "ab12", some "hydrate"⟩,

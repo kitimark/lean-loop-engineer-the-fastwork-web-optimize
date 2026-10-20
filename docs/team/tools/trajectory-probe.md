@@ -29,12 +29,16 @@ readings plus what each arm's page reported), `units-<engine>.json` and `summary
 2. **Coverage is a verdict.** In a push phase (open, close) an empty bucket 1-9 (a tenth of the morph value `m`), a missing
    morph value or a `beyond` window is `fail:coverage`, never skip. Hold phases may skip an empty bucket. The tween is driven
    by time, so one push lands about two frames per tenth (Chromium, 17 ms frames) and sometimes none; `--reps N` (1 to 5,
-   default 3) walks the morph path on N fresh pages and pools the rows of each phase (each row carries its `rep`; every
-   rep's arm identity is checked). Linux WebKit renders a frame every 150 ms or more, so its push coverage fails by
-   construction there (see the research note); read its morph rows as "not measurable", and its hero rows as usable.
+   default 3) walks the morph path on N fresh pages and keeps the rows of each phase (each row carries its `rep`; every
+   rep's arm identity is checked). Windows are per pass: a rewrite sample is compared with the union of the windows of the
+   original's passes, each aligned on its own (Lean `windowOf`, `windowOf_pass_iff`: pooling never widens a window); a pair of
+   neighbours never crosses a pass boundary. (Round 2 concatenated the passes, every window became the whole phase and a stuck
+   rewrite passed; incident `inc-trajectory-pooled-window`.) Linux WebKit renders a frame every 150 ms or more, so its push coverage fails by
+   construction there (see the research note): report a Linux WebKit push cell as "no verdict: coverage" on the units where the
+   faithful arm fails coverage, and read its hero rows as usable.
 3. **Per-unit baseline.** A unit is (width, path, phase, node, property, step), decided on its own. The faithful arm is
    judged against the original by the same Lean code, so each unit is `new` (fails here, passes faithful), `both` (baseline
-   red), `cleared` or `ok`. The lane is RED iff some unit is `new` (`laneRed`; no pooled aggregate). The summary splits the
+   red), `unmeasured` (fails on content here, on coverage in the faithful arm: no verdict), `cleared` or `ok`. The lane is RED iff some unit is `new` (`laneRed`; no pooled aggregate). The summary splits the
    `new` count into content (apart, differs, ...) and coverage. A coverage-only RED is sampling noise (a default-vs-default
    run turns RED from one empty bucket); the signal is the content-new groups. Steps at `close@0` (the first sample of a
    push) and `a*` (approach) also flicker; read a group only when it repeats across widths or runs.
@@ -52,7 +56,9 @@ is read at rest. The setting is in the artifact header.
 
 Job `probe-apple` (workflow dispatch only, never on a push) runs the same lane with Playwright WebKit on a free standard
 `macos-26` runner: hero path only, the dispatched search against the original, `max-parallel: 1` (5 macOS slots are shared by
-all lanes). It runs when the dispatch names a search (`--fw` or `--preset`) and includes `playwright-webkit`. Its verdict is
+all lanes). It runs only when the dispatch's search contains `hero.exit` (the witness is for bug A; every other search would
+spend one of the shared macOS slots on a path it cannot change; a preset that holds `hero.exit` is dispatched as `--fw`) and
+includes `playwright-webkit`. Its verdict is
 the separate artifact `trajectory-apple`; it is the closest engine CI has to Safari, still not Safari.
 
 ## Limits
