@@ -253,6 +253,15 @@ export type Digest = string | null;
 /** Lean `binMoved`, checked against the `landSpeed.select2` golden. */
 export const binMoved = (changed: string[], d0: Digest, d1: Digest): boolean =>
   changed.some((c) => inScope(FWCORE_BUILD_READS, c)) && (d0 === null || d1 === null || d0 !== d1);
+/** Lean `LandTier.buildFree`: the `lean/` paths no default Lake target reads (checked against the import closure by test/land-phase1.test.ts). */
+export const BUILD_FREE = ["lean/scripts/**", "lean/golden/**", "lean/README.md", "lean/land-filter.txt", "lean/land-legs.txt"];
+/** Lean `LandTier.binaryChange`, checked against the `land-phase1.jsonl` golden. */
+export const binaryChange = (changed: string[]): string[] => changed.filter((p) => !inScope(BUILD_FREE, p));
+/** Lean `LandTier.phase1Build`: does phase 1 build `fwcore` (a changed build input that is not build-free)? */
+export const phase1Build = (changed: string[]): boolean => binaryChange(changed).some((p) => inScope(FWCORE_BUILD_READS, p));
+/** Lean `LandTier.selectBin`: `selectTwoPhase` with the binary-moved test over the binary change. */
+export const selectBin = (ds: { id: string; reads: string[] }[], changed: string[], d0: Digest, d1: Digest) =>
+  selectChecks(ds, binMoved(binaryChange(changed), d0, d1) ? [...changed, FWCORE_BIN] : changed);
 /** Lean `selectTwoPhase`, checked against the `landSpeed.select2` golden. */
 export const selectTwoPhase = (ds: { id: string; reads: string[] }[], changed: string[], d0: Digest, d1: Digest) =>
   selectChecks(ds, binMoved(changed, d0, d1) ? [...changed, FWCORE_BIN] : changed);
@@ -298,9 +307,9 @@ export function candidateChecks(root: string): Check[] {
 
 /** The checks that cover the changed files, each with its declared input set. Digests main0 `d0` and merge tree `d1`
  *  default to unknown (every fwcore user follows a change to `FWCORE_BUILD_READS`). */
-export function checksWithReads(root: string, changed: string[], d0: Digest = null, d1: Digest = null): Check[] {
+export function checksWithReads(root: string, changed: string[], d0: Digest = null, d1: Digest = null, select: typeof selectTwoPhase = selectTwoPhase): Check[] {
   const all = candidateChecks(root);
-  const ids = new Set(selectTwoPhase(all, changed, d0, d1));
+  const ids = new Set(select(all, changed, d0, d1));
   return all.filter((c) => ids.has(c.id));
 }
 
@@ -632,14 +641,16 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     const d0 = storedDigest(mainDir, main0);
     let d1: Digest = d0;
     phase1Built = false;
-    if (changed.some((p) => inScope(FWCORE_BUILD_READS, p))) {
+    // Lean `LandTier.phase1Build`: no build when every changed build read is build-free (the binary is main0's: `skip_binMoved`);
+    // a local fwcore user then still builds in the local plan (`skip_keeps_local_build`)
+    if (phase1Build(changed)) {
       const r = await span("fw land", "fwcore build (phase 1)", () => runCheck(dir, ["sh", "scripts/fwcore-build.sh"]), (p) => p.status);
       phase1Built = r.status === 0; // a failed build leaves the slot binary stale, so the local plan builds again
       d1 = r.status === 0 && buildClean(dir) ? binDigest(dir) : null;
       lines.push(`fwcore digest: ${main} ${d0?.slice(0, 12) ?? "unknown"}, merge ${d1?.slice(0, 12) ?? "unknown"}: fwcore users ${binMoved(changed, d0, d1) ? "selected" : "skipped"}`);
     }
     if (d1) storeDigest(mainDir, c, d1);
-    return checksWithReads(dir, changed, d0, d1);
+    return checksWithReads(dir, changed, d0, d1, selectBin);
   };
   // Lean `Fw.Console.LandRemote`: the Lean local tier runs here, the remote tier on the land lane of the allowed providers (land-remote.ts)
   const tieredChecks = async (dir: string, main0: string, c: string, list: Check[]): Promise<string | null> => {
