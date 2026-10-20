@@ -3,26 +3,151 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { isDeepStrictEqual } from 'node:util';
 import { fileURLToPath } from 'node:url';
-import { armCheck, byM, byStep, bucket, judgeAgainst, pickWidths, quantile, readsDominate, reduceRaw, reduceWidth, rel, runCheck, verdictLines, window as windowOf } from '../src/trajectory/reduce.mjs';
+import { annotate, armCheck, byM, byStep, bucket, durOf, judgeEls, judgeUnit, pickWidths, quantile, readsDominate, reduceRaw, reduceWidth, rel, RULES, runCheck, START_LAG, verdictLines, window as windowOf } from '../src/trajectory/reduce.mjs';
 import { mergeRaws, planOf } from '../src/trajectory/plan.mjs';
 import { HERO_NODES, MORPH_NODES, PAGE_PROPS, HERO_STEPS, WIDTHS, MOTION_PROPS } from '../src/trajectory/registry.mjs';
 
 const golden = readFileSync(fileURLToPath(new URL('../../contracts/golden/gate/trajectory.jsonl', import.meta.url)), 'utf8')
   .split('\n').filter(Boolean).map((l) => JSON.parse(l));
+const navCss = readFileSync(fileURLToPath(new URL('../../../apps/site/src/parts/nav/nav.module.css', import.meta.url)), 'utf8');
+
+/** The transition function a golden line names: the table's for (node, prop, width), or none under any class set. */
+const durFn = (dur) => (dur === null ? () => null : (cls) => durOf(dur.node, dur.prop, dur.width, cls));
+
+/** Milliseconds of a CSS time (`0.7s`, `120ms`). */
+const msOf = (t) => (t.endsWith('ms') ? Number(t.slice(0, -2)) : Math.round(Number(t.slice(0, -1)) * 1000));
+
+/** Split at the commas outside parentheses. */
+function topSplit(s) {
+  const out = [];
+  let depth = 0;
+  let cur = '';
+  for (const c of s) {
+    if (c === '(') depth++;
+    if (c === ')') depth--;
+    if (c === ',' && depth === 0) { out.push(cur.trim()); cur = ''; } else cur += c;
+  }
+  out.push(cur.trim());
+  return out;
+}
+
+/** A `transition` value as [property, duration, delay] in ms; `none` is []. */
+function transitionOf(v) {
+  if (v.trim() === 'none') return [];
+  return topSplit(v).map((item) => {
+    const toks = item.replace(/\([^)]*\)/g, '()').split(/\s+/);
+    const times = toks.filter((t) => /^[\d.]+m?s$/.test(t)).map(msOf);
+    const prop = toks.find((t) => /^[a-z-]+$/.test(t) && !['linear', 'ease', 'ease-in', 'ease-out', 'ease-in-out', 'step-start', 'step-end'].includes(t));
+    assert.ok(prop !== undefined && times.length >= 1 && times.length <= 2, `unparsed transition ${item}`);
+    return [prop, times[0], times[1] ?? 0];
+  });
+}
+
+/** One selector of a rule as the table keys it: its node, the nav classes it needs on and off, its specificity in classes. */
+function selectorOf(sel) {
+  const flat = sel.replace(/:global\(([^()]*)\)/g, '$1');
+  const spec = (flat.match(/\.[a-z][a-z-]*/g) ?? []).length;
+  const compounds = flat.replace(/\(([^()]*)\)/g, (m) => m.replace(/\s+/g, '')).split(/\s+/);
+  const last = compounds[compounds.length - 1];
+  const classes = (c) => (c.replace(/:not\([^)]*\)/g, '').match(/\.[a-z][a-z-]*/g) ?? []).map((x) => x.slice(1));
+  const subject = classes(last);
+  const node = subject.includes('nav') ? 'nav' : subject.includes('logo') ? 'logo' : subject.includes('actions') ? 'actions'
+    : subject.includes('btn') && subject.includes('earn') ? 'earn' : null;
+  assert.ok(node !== null, `unknown subject ${sel}`);
+  const navC = compounds.find((c) => classes(c).includes('nav')) ?? '';
+  const on = classes(navC).filter((x) => x !== 'nav');
+  const off = [...navC.matchAll(/:not\(([^)]*)\)/g)].flatMap((m) => (m[1].match(/\.[a-z][a-z-]*/g) ?? []).map((x) => x.slice(1)));
+  return { node, on, off, spec };
+}
+
+/** The rules of the nav's CSS that set `transition` or `transition-delay`, in source order, one per selector. */
+function rulesOfCss(css) {
+  const text = css.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '));
+  const out = [];
+  const stack = [];
+  let start = 0;
+  let line = 1;
+  let startLine = 1;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === '\n') line++;
+    if (/\S/.test(c) && text.slice(start, i).trim() === '') startLine = line;
+    if (c === '{') {
+      const prelude = text.slice(start, i).trim();
+      stack.push({ prelude, line: startLine, body: '' });
+      start = i + 1;
+    } else if (c === '}') {
+      const top = stack.pop();
+      const body = top.body + text.slice(start, i);
+      start = i + 1;
+      if (top.prelude.startsWith('@')) continue;
+      if (stack.some((b) => b.prelude.startsWith('@keyframes'))) continue;
+      const decls = Object.fromEntries(body.split(';').map((d) => d.trim()).filter((d) => d.includes(':')).map((d) => [d.slice(0, d.indexOf(':')).trim(), d.slice(d.indexOf(':') + 1).trim()]));
+      assert.ok(!Object.keys(decls).some((k) => k.startsWith('transition-') && k !== 'transition-delay'), 'unmodelled transition longhand');
+      if (!('transition' in decls) && !('transition-delay' in decls)) continue;
+      const media = stack.map((b) => b.prelude).filter((p) => p.startsWith('@media'));
+      let minW = null;
+      let reduce = false;
+      for (const m of media) {
+        const w = m.match(/^@media \(width>(\d+)px\)$/);
+        if (w) minW = Number(w[1]);
+        else if (m === '@media (prefers-reduced-motion: reduce)') reduce = true;
+        else assert.fail(`a transition under an unmodelled media query: ${m}`);
+      }
+      const set = 'transition' in decls ? transitionOf(decls.transition) : null;
+      const delay = 'transition-delay' in decls ? msOf(decls['transition-delay']) : null;
+      let at = 0;
+      for (const sel of topSplit(top.prelude)) {
+        at = top.prelude.indexOf(sel, at);
+        const selLine = top.line + (top.prelude.slice(0, at).match(/\n/g) ?? []).length;
+        out.push({ line: selLine, ...selectorOf(sel), minW, reduce, set, delay });
+      }
+    } else if (c === ';' && stack.length > 0) {
+      stack[stack.length - 1].body += text.slice(start, i + 1);
+      start = i + 1;
+    }
+  }
+  return out.map(({ line, node, on, off, minW, reduce, spec, set, delay }) => ({ line, node, on, off, minW, reduce, spec, set, delay }));
+}
 
 test('the golden file holds every operation', () => {
-  assert.deepEqual([...new Set(golden.map((g) => g.op))].sort(), ['against', 'window', 'bucket', 'byM', 'byStep', 'widths', 'rel', 'arm', 'run', 'quantile', 'dominate', 'plan'].sort());
-  assert.ok(golden.length >= 110);
-  assert.ok(golden.some((g) => g.op === 'byM' && [...g.orig, ...g.rew].some((x) => x.rep > 0)), 'golden has rows with rep > 0');
+  assert.deepEqual([...new Set(golden.map((g) => g.op))].sort(), ['els', 'window', 'bucket', 'byM', 'byStep', 'unit', 'rule', 'dur', 'annotate', 'widths', 'rel', 'arm', 'run', 'quantile', 'dominate', 'plan'].sort());
+  assert.ok(golden.length >= 200);
+  assert.ok(golden.some((g) => g.op === 'byM' && [...g.oSeg, ...g.wSeg].some((x) => x.rep > 0)), 'golden has rows with rep > 0');
+});
+
+test('the transition table is the CSS: every rule of nav.module.css that sets a transition, as Lean `rules` and RULES', () => {
+  const lean = golden.filter((g) => g.op === 'rule').map((g) => g.rule);
+  assert.deepEqual(rulesOfCss(navCss), lean);
+  assert.deepEqual(RULES, lean);
+});
+
+test('the CSS reader keys a rule by its selector and reads its transitions', () => {
+  const css = '@layer p {\n  .nav:global(.is-a):not(:global(.is-b)) {\n    transition: width 0.5s ease 0.1s, opacity 80ms;\n  }\n  @keyframes k { 0% { opacity: 0; } }\n  .nav .btn.earn,\n  .logo { transition: none; }\n}\n';
+  assert.deepEqual(rulesOfCss(css), [
+    { line: 2, node: 'nav', on: ['is-a'], off: ['is-b'], minW: null, reduce: false, spec: 3, set: [['width', 500, 100], ['opacity', 80, 0]], delay: null },
+    { line: 6, node: 'earn', on: [], off: [], minW: null, reduce: false, spec: 3, set: [], delay: null },
+    { line: 7, node: 'logo', on: [], off: [], minW: null, reduce: false, spec: 1, set: [], delay: null },
+  ]);
+  assert.throws(() => rulesOfCss('.pill { transition: none; }'), /unknown subject/);
+  assert.throws(() => rulesOfCss('@media (width<=640px) { .nav { transition: none; } }'), /unmodelled media/);
 });
 
 for (const g of golden) {
   test(`golden ${g.op}: ${g.name}`, () => {
-    if (g.op === 'against') assert.equal(judgeAgainst(g.kind, g.win, g.r), g.verdict);
+    if (g.op === 'els') assert.equal(judgeEls(g.kind, g.win, g.r), g.verdict);
     else if (g.op === 'window') assert.deepEqual(windowOf(g.ms, g.m), g.idx);
     else if (g.op === 'bucket') assert.equal(bucket(g.m), g.bucket);
-    else if (g.op === 'byM') assert.deepEqual(byM(g.phase, g.kind, g.orig, g.rew).map((x) => x[1]), g.verdicts);
+    else if (g.op === 'byM') assert.deepEqual(byM(g.phase, g.p, g.kind, durFn(g.dur), g.oSeg, g.wSeg).map((x) => x[1]), g.verdicts);
+    else if (g.op === 'unit') assert.equal(judgeUnit(g.kind, durFn(g.dur), g.seg, g.win, g.r), g.verdict);
+    else if (g.op === 'rule') assert.ok(RULES.some((r) => isDeepStrictEqual(r, g.rule)), `no RULES entry for ${g.name}`);
+    else if (g.op === 'dur') {
+      assert.equal(START_LAG, g.lag);
+      const got = g.durs.map((_, k) => durOf(g.node, g.prop, g.width, g.classes.filter((_, i) => (k >> i) & 1)));
+      assert.deepEqual(got, g.durs);
+    } else if (g.op === 'annotate') assert.deepEqual(annotate(g.seg).map((s) => s.ord), g.ords);
     else if (g.op === 'rel') assert.equal(rel(g.cand, g.base), g.rel);
     else if (g.op === 'arm') assert.equal(armCheck(g.arm), g.verdict);
     else if (g.op === 'run') assert.equal(runCheck(g.arms), g.verdict);
@@ -30,7 +155,7 @@ for (const g of golden) {
     else if (g.op === 'dominate') assert.equal(readsDominate(g.read, g.gap), g.dominates);
     else if (g.op === 'byStep') {
       const side = (xs) => xs.map((x) => [x.step, x.s]);
-      assert.deepEqual(byStep(g.kind, side(g.orig), side(g.rew)).map(([step, verdict]) => ({ step, verdict })), g.verdicts);
+      assert.deepEqual(byStep(g.kind, durFn(g.dur), side(g.orig), side(g.rew)).map(([step, verdict]) => ({ step, verdict })), g.verdicts);
     } else if (g.op === 'widths') {
       const got = pickWidths(g.input);
       assert.deepEqual(got === null ? { ok: false } : { ok: true, widths: got }, g.pick);

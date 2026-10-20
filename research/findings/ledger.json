@@ -2249,17 +2249,18 @@
     "Fw.Parts.HeroExitOpt.wk_units",
     "Fw.Engine.Restyle.wkScoped_le_crScoped"
    ],
-   "leanAgainst": [],
-   "missingWhy": [
-    "a WebKit style cache keyed on (matched rules, parent's inherited data) in Fw.Engine.Restyle, giving the current design a counterexample (OPEN)"
+   "leanAgainst": [
+    "Fw.Parts.HeroExitOpt.wkRun_chain_frozen",
+    "Fw.Parts.HeroExitOpt.chain_stale_webkit"
    ],
+   "missingWhy": [],
    "premises": [],
    "v1Evidence": "none",
    "lesson": "A value proof per reader in one style pass says nothing about incremental restyle: an engine style cache can keep a stale dependent property when an inherited value stops changing the parent's inherited data.",
-   "next": "Not in v2-proved (no link, and now falsifiedFlag). Fix task: write the exit values inline on each reader instead of the inherit chain, and model WebKit's style cache in Fw.Engine.Restyle; CI confirmation by trajectory-probe.",
+   "next": "Not in v2-proved (no link, and falsifiedFlag). Fixed in code by row hero.exit.scoped.inline (task exit-scoped-inline, inline reader writes, MEASURED on the trajectory probe); clearing this row's fResult and recording the trajectory cells is the lead's decision.",
    "flag": "hero.exit:scoped",
    "fResult": "model-bug",
-   "evidence": "user's real-device observation 2026-10-20 (CONFIRMED by user report): the hero cards freeze during scroll and the hero is gone after scrolling away and back, Safari WebKit only, desktop and mobile; local debug repro (Playwright Chromium and WebKit on the preview build of main 84a662d4; MEASURED (local debug), not a result), CI pending (task trajectory-probe)"
+   "evidence": "user's real-device observation 2026-10-20 (CONFIRMED by user report): the hero cards freeze during scroll and the hero is gone after scrolling away and back, Safari WebKit only, desktop and mobile; local debug repro (Playwright Chromium and WebKit on the preview build of main 84a662d4; MEASURED (local debug), not a result), CI pending (task trajectory-probe); CI: trajectory-probe bug A, new hero units macos-26 187 and Linux WebKit 228, Chromium 0 (runs 39419128841, 39407166794; MEASURED)"
   },
   {
    "id": "morph.panel.finalSize.visual",
@@ -2288,6 +2289,39 @@
    "v1Evidence": "none",
    "lesson": "Fixing a box's size to skip its relayout keeps the picture only if no descendant's ink depends on that size; a percentage inset, gradient, offset or bottom anchor turns a crop into a different picture.",
    "next": "Closed as a finding; C1b (transform: scale with clip-path) needs its own VisSame model with counter-scaled content, and per-box fixed sizes need a size_gap bound under 1/2 px each."
+  },
+  {
+   "id": "hero.exit.scoped.inline",
+   "n": 6,
+   "part": "hero.exit",
+   "candidate": "hero.exit:scoped with inline reader writes (task exit-scoped-inline): the writer sets --exit-opacity and --exit-scatter inline on each of the 16 readers in the frame it writes the stage",
+   "status": "proved",
+   "chromium": "win",
+   "webkit": "unknown",
+   "visual": "E: inline_visSame, given the .inline branch of wkResolve (the WebKit source premise below). MEASURED by the trajectory probe, hero path: 0 new units on macOS WebKit, Linux WebKit and Chromium in runs 39448209903 and 39452631146 at 071906af and 39466179818 at 45a40e7b (merged head; its A/A run 39472217441), against bug A 187 (macos-26) and 228 (Linux WebKit); A/A hero.exit:faithful run 39456741492 also 0. Lean outcome: hero pass on chromium, linux-webkit and mac-webkit in each run. Morph-path new units (nav, logo, earn, actions: approach, close@0 and close-hold@0 steps of CSS transitions, and the 390 px is-on-dark unit that fails in both arms of the A/A): morph-path content-new units are in-flight CSS transition samples (approach, close@0, close-hold@0) of a class that is also new in the A/A runs; on macOS 39466179818 they repeat across widths (earn.opacity 390/640/1280, earn.max-width 390/640), and the A/A 39472217441 fails the same Lean cell (mac-webkit morph: fail); Lean outcome chromium morph pass in every run, linux-webkit morph no verdict: coverage at 071906af, mac-webkit morph fail in both 39466179818 and its A/A 39472217441 (macOS A/A floor; 2 of its 8 units, earn.max-width 640 close-hold@0 and earn.opacity 1280 close@0, fail in neither arm of the macOS A/A).",
+   "mechanism": "CONFIRMED @862f17d: the MatchedDeclarationsCache key is matchResult plus the parent inheritedCustomProperties (MatchedDeclarationsCache.cpp:123-137,153); registered inherits:false properties are non-inherited data (StyleComputedStyleBase+GettersInlines.h:293-295), so a stage write keeps each reader on its cache hit; the hit copies non-inherited properties (StyleResolver.cpp:703) and re-applies only ExplicitlyInherited (:706-707,723-724), i.e. inherit declarations (PropertyCascade.cpp:332-333). Inline: mutable inline style is IsCacheable::No (ElementRuleCollector.cpp:968-971), the match is completely non-cacheable (:994-996) and the hash is 0 (MatchedDeclarationsCache.cpp:125-126): no lookup (:141-142), no add (StyleResolver.cpp:747). Work, MEASURED (chromium-counts swipe-v1, 430 px, 3 runs each, per-frame counts identical across the 3 runs in the exit window; swipe totals within 67 (default) and 9 (scoped); r1 quoted): trace.UpdateLayoutTree.elementCount per exit frame 136 -> 45 (median, scrollY 40-900), delta 90 at scrollY 20-140 (Lean inline_narrow_delta 90) and 91 at 150-940; swipe total 43631 -> 35269 (-19.2 %); runs 39461009752 (scoped) and 39462188464 (default). Readers are re-queried after a DOM change below the stage (liveReaders). Note research/notes/2026/10-20-exit-scoped-inline.md.",
+   "leanFor": [
+    "Fw.Parts.HeroExitOpt.wkRun_inline",
+    "Fw.Parts.HeroExitOpt.shown_inline_eq",
+    "Fw.Parts.HeroExitOpt.inline_visSame",
+    "Fw.Parts.HeroExitOpt.inline_units",
+    "Fw.Parts.HeroExitOpt.inline_touched",
+    "Fw.Parts.HeroExitOpt.inline_lt_faithful",
+    "Fw.Parts.HeroExitOpt.inline_narrow_delta",
+    "Fw.Parts.HeroExitOpt.readers_exact"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "the .inline branch of wkResolve is a premise from WebKit source, not derived (measured by the trajectory runs)",
+    "WebKit work saving not measured (Lean model only: inline_units)",
+    "one element per frame more saved than modelled at scrollY 150-940 (91 vs 90), cause not identified",
+    "scoped resolves one element per frame more than default at scrollY 1400-1800 (about 40 frames), cause not identified"
+   ],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "A registered non-inherited custom property is not part of the WebKit matched-declarations cache key, so a reader keyed on its parent can keep a stale var() result; write the value inline on the reader, which also takes the reader out of that cache.",
+   "next": "Not in v2-proved: row hero.exit.scoped.falsified still has fResult model-bug for flag hero.exit:scoped (Fw.Preset.falsified_not_mem), and the trajectory cells need Fw.Preset.Gen.record on these runs; both write files outside this task (v2-proved.decisions.jsonl, v2-proved.trajectory.jsonl), lead decision.",
+   "evidence": "trajectory-probe runs 39448209903, 39452631146 (hero.exit:scoped), 39456741492 (hero.exit:faithful A/A) and 39466179818 at 45a40e7b (merged head; its A/A run 39472217441); chromium-counts runs 39461009752, 39462188464"
   }
  ],
  "notes": [
