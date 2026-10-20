@@ -1,5 +1,5 @@
 import { active, armed, dir, push, REST, taken, type St } from './logic';
-import { navKeyframes, platformKeyframes, settledProps, TIMING, toWaapi, type WaapiArm } from './waapi.logic';
+import { hasMarker, MARKER_THETAS, markerDelay, navKeyframes, pastS, platformKeyframes, settledProps, TIMING, toWaapi, type WaapiArm } from './waapi.logic';
 import type { TouchLike, WheelLike } from './driver';
 
 export interface AnimLike {
@@ -25,8 +25,12 @@ export interface WaapiEnv {
   removeListener(type: 'wheel' | 'touchstart' | 'touchmove', fn: (e: never) => void): void;
   /** Write the settled value inline (reduced-motion jump); never per frame. */
   settle(value: number, props: ReturnType<typeof settledProps>): void;
-  /** Publish `data-fw-morph` at the start and the end of a tween only. */
+  /** Publish `data-fw-morph`: at a push, at a threshold crossing and at the end of a tween. */
   hint(value: number): void;
+  /** A target-less animation of `durationMs` from `startTime` (now if null); its finish event fires on the first frame at or after its end. */
+  marker(durationMs: number, startTime: number | null): AnimLike;
+  /** Run `cb` on every animation frame until the returned function is called. */
+  everyFrame(cb: () => void): () => void;
   /** The platform needs its fade expression (idempotent). */
   preparePlatform?(): void;
   onActivate?(): void;
@@ -35,9 +39,10 @@ export interface WaapiEnv {
 /**
  * The `waapi` driver: the same decisions as the faithful driver (logic.ts: dir, taken, armed, push), but the tween is
  * one Web Animations animation per element (nav: `--morph` and the two flags; platform: `--morph` and the pointer cut)
- * with `startTime = document.timeline.currentTime` read at the push (R5). No rAF subscription and no style write per
- * frame. The running value is read from the animation's computed progress, only at a push or a listener decision. A
- * retarget cancels the old animations and starts from that value; reduced motion cancels and jumps.
+ * with `startTime = document.timeline.currentTime` read at the push (R5). `data-fw-morph` is written at the push, on
+ * each threshold crossing and at the end (Lean `fixW`): one marker animation per threshold ahead finishes 1 ms before
+ * the crossing, and from its frame on the value is written each frame until it is past the threshold (Lean `waapi_vis`).
+ * A retarget cancels the old animations and markers and starts from the live value; reduced motion cancels and jumps.
  */
 export function createWaapiDriver(env: WaapiEnv, variant: WaapiArm = 'waapi') {
   let st: St = REST;
@@ -46,6 +51,10 @@ export function createWaapiDriver(env: WaapiEnv, variant: WaapiArm = 'waapi') {
   let touchY = 0;
   let pinned = env.scrollY();
   let anims: AnimLike[] = [];
+  let markers: AnimLike[] = [];
+  let polling: number[] = [];
+  let stopPoll: (() => void) | null = null;
+  let written: number | null = null;
   let flight = false;
 
   const valueNow = (): number => {
@@ -97,17 +106,50 @@ export function createWaapiDriver(env: WaapiEnv, variant: WaapiArm = 'waapi') {
   };
   const arm = () => (near || isActive() ? attach() : detach());
 
+  const write = (v: number) => {
+    if (v === written) return;
+    written = v;
+    env.hint(v);
+  };
+  const stopMarkers = () => {
+    for (const m of markers) {
+      m.onfinish = null;
+      m.cancel();
+    }
+    markers = [];
+    polling = [];
+    stopPoll?.();
+    stopPoll = null;
+  };
+  const poll = () => {
+    const v = valueNow();
+    write(v);
+    polling = polling.filter((theta) => !pastS(st.from, st.to, theta, v));
+    if (polling.length === 0) {
+      stopPoll?.();
+      stopPoll = null;
+    }
+  };
+  const onMarker = (theta: number) => {
+    const v = valueNow();
+    write(v);
+    if (pastS(st.from, st.to, theta, v)) return;
+    polling.push(theta);
+    stopPoll ??= env.everyFrame(poll);
+  };
   const cancelAll = () => {
     for (const a of anims) {
       a.onfinish = null;
       a.cancel();
     }
     anims = [];
+    stopMarkers();
   };
   const settleFlight = () => {
     flight = false;
+    stopMarkers();
     st = { ...st, value: st.to, pending: false };
-    env.hint(st.value);
+    write(st.value);
     if (!isActive()) arm();
   };
 
@@ -124,6 +166,7 @@ export function createWaapiDriver(env: WaapiEnv, variant: WaapiArm = 'waapi') {
     st = next;
     if (reduced) {
       flight = false;
+      written = st.value;
       env.settle(st.value, settledProps(st.value, variant));
       if (!isActive()) arm();
       return;
@@ -137,10 +180,16 @@ export function createWaapiDriver(env: WaapiEnv, variant: WaapiArm = 'waapi') {
     const first = anims[0];
     if (!first) return settleFlight();
     flight = true;
-    env.hint(st.from);
+    write(st.from);
     first.onfinish = () => {
       if (anims[0] === first) settleFlight();
     };
+    for (const theta of MARKER_THETAS) {
+      if (!hasMarker(st.from, st.to, theta)) continue;
+      const m = env.marker(markerDelay(st.from, st.to, theta), t);
+      m.onfinish = () => onMarker(theta);
+      markers.push(m);
+    }
   }
 
   return {
