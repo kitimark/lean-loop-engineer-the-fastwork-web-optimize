@@ -143,8 +143,8 @@ const NOT_REACHED_BY_CHECK_SH: Record<string, string> = {
 };
 
 /** Gitignored build outputs a package reads at run time, each with the reason. Named paths only: the scan finds them just
- *  when the folder exists on this machine, so a local build must not change the result. Their inputs are tracked sources
- *  (apps/site/**), which a change selects already; a declared read of a path git does not hold would match no file in a CI
+ *  when the folder exists on this machine, so a local build must not change the result. The land check (`pnpm test`) of these
+ *  packages never reads it; only the serve/lane scripts do at run time, outside the land key. A declared read of a path git does not hold would match no file in a CI
  *  checkout, and the PACKAGE_EXTRA_READS exercised-entry test would refuse it. */
 const BUILD_OUTPUT_READS: Record<string, string> = {
   "apps/site/dist/aot": "output of `pnpm --filter @fw/site build`; read by gate-breakpoints/src/serve.mjs and the measure-webkit site/stamped lane scripts",
