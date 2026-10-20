@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { composeRewrite, drawnFile } from '../src/images/arm.mjs';
-import { copyPath, LADDER, needW, rowsFor, rungFor } from '../src/images/arm-build.mjs';
+import { copyPath, fitDims, LADDER, needW, requirements, rowsFor, rungFor } from '../src/images/arm-build.mjs';
 import { stopsFor, mergeStops } from '../src/images/audit.mjs';
 import { bgDrawn, fitDrawn, splitTop } from '../src/images/inpage.mjs';
 import { aggregate, effectClasses, regionOf, rowsOfCell, sniff, totals } from '../src/images/reduce.mjs';
@@ -134,6 +134,31 @@ test('rowsFor: rows follow the width, a probe is sized with the next one unless 
   assert.equal(rows.length, 2);
   const keep = rowsFor({ nat: [300, 300], cells: mkcells(100, 100, 100) }, widths, 3);
   assert.deepEqual(keep, [{ from: 0, w: null }]);
+});
+
+test('rowsFor: a width no audit saw the image at takes the larger need of the widths around it', () => {
+  const widths = [400, 500, 600, 700];
+  const cells = new Map([[400, { cssW: 100, cssH: 100, scale: 1 }], [700, { cssW: 300, cssH: 300, scale: 1 }]]);
+  const rows = rowsFor({ nat: [4000, 4000], cells }, widths, 2);
+  assert.deepEqual(rows.map((r) => r.w), [rungFor(600, 4000)]);
+  assert.equal(rows.length, 1);
+});
+
+test('requirements: the largest reading over several audit files', () => {
+  const item = (w) => ({ kind: 'img', url: '/a.jpg', nat: [100, 100], box: [w, w], img: [w, w], none: false, fw: ['hero-orbit'], fit: 'cover', vis: 1, effects: [] });
+  const f = (w) => ({ cells: { 'w400@2': { width: 400, dpr: 2, items: [item(w)] } } });
+  const r = requirements([f(10), f(30), f(20)]).get('/a.jpg');
+  assert.equal(r.cells.get(400).cssW, 30);
+  assert.equal(r.maxCssW, 30);
+});
+
+test('fitDims: a rung keeps the aspect ratio within a fraction of a CSS pixel at the largest drawn size', () => {
+  const d = fitDims(1035, 1400, 64, 300, 405);
+  assert.ok(d.w >= 64 && d.w <= Math.ceil(64 * 1.15) && d.err < 0.2, JSON.stringify(d));
+  const plain = Math.abs(Math.round(64 * 1400 / 1035) / 64 - 1400 / 1035) * 300;
+  assert.ok(plain > d.err);
+  assert.deepEqual(fitDims(100, 100, 40, 50, 50), { w: 40, h: 40, err: 0 });
+  assert.ok(fitDims(70, 100, 64, 10, 10).w <= 70);
 });
 
 const manifest = { images: { '/s/a.jpg': { dprs: { 2: [{ from: 0, file: '/images-drawn/s/a-160.jpg' }, { from: 600, file: null }, { from: 900, file: '/images-drawn/s/a-480.jpg' }], 3: [{ from: 0, file: '/images-drawn/s/a-248.jpg' }] } } } };

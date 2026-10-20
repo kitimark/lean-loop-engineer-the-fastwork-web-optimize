@@ -2,7 +2,7 @@
 //                                 [--pool 2] [--drawn drawn.json]   (arm "drawn" = the images-at-drawn-size arm, arm.mjs)
 // node src/images/cli.mjs summary --in DIR[,DIR...] --out DIR        (ranked tables, per-cell rows, key hash and stability per engine/arm)
 // node src/images/cli.mjs compare --in A.json,B.json,...             (key hash and stability of the same engine and arm across reps)
-// node src/images/cli.mjs arm     build --audit images-chromium-rewrite.json --out DIR   (resized copies + drawn.json; arm-build.mjs)
+// node src/images/cli.mjs arm     build --audit a.json,b.json --out DIR   (resized copies + drawn.json; arm-build.mjs)
 // node src/images/cli.mjs arm     check                                                    (files and sources against drawn.json)
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
