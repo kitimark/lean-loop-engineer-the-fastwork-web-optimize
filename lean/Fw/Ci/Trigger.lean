@@ -189,6 +189,7 @@ def table : List Wf := [
     "packages/contracts/golden/parts/stage.jsonl", "packages/contracts/golden/parts/stage-mode.jsonl",
     "packages/contracts/golden/parts/hero.exit.scoped.json", "packages/measure-chromium/scenarios.gen.json",
     "packages/contracts/golden/parts/morph.mount.dormant.jsonl", "packages/contracts/golden/parts/morph-mount-tap.jsonl",
+    "packages/contracts/golden/parts/nav-earn.jsonl",
     ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", ".github/scripts/runner-info.sh",
     ".github/actions/telemetry/**", "scripts/ci-telemetry/**", own "lean.yml"], []⟩,
   ⟨"mutants.yml", ciAll, [

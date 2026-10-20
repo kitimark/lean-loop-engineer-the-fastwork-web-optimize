@@ -5,7 +5,7 @@ import type { PanelWriter } from '../morph.panel';
 import { LangMenu, type LocaleCode } from '../nav.langMenu';
 import { PROFILE_SECTION_SELECTOR, PROFILE_STICKY_SELECTOR } from '../nav.hitTest/probe';
 import { createNavDriver, type NavEnv } from './driver';
-import { CLASS_OF, type Sticky } from './logic';
+import { CLASS_OF, EARN_STILL_CLASS, EARN_STILL_VARIANT, earnTransitionOn, type Sticky } from './logic';
 import { matchList } from './media';
 import css from './nav.module.css';
 import { art, GenSvg } from '../../GenSvg';
@@ -61,6 +61,7 @@ function measureSticky(stickySelector: string, sectionSelector: string): Sticky 
  * the profile sticky and section are the people section's data-fw hooks (nav.hitTest/probe.ts).
  */
 export function Nav({
+  variant,
   heroSelector = '[data-fw="hero-exit"]',
   splashSelector = '.hero.is-ring-splash-done',
   stickySelector = PROFILE_STICKY_SELECTOR,
@@ -80,6 +81,7 @@ export function Nav({
     const reduce = matchList('mq.rm-reduce');
     const narrow = matchList('mq.w-le-600');
     const earn = nav.querySelector<HTMLElement>('[data-fw="nav-earn"]');
+    const still = variant === EARN_STILL_VARIANT;
     const env: NavEnv = {
       reduced: () => reduce.matches,
       narrow: () => narrow.matches,
@@ -98,6 +100,7 @@ export function Nav({
       },
       apply: (v, e) => {
         for (const key of Object.keys(CLASS_OF) as (keyof typeof CLASS_OF)[]) for (const c of CLASS_OF[key]) nav.classList.toggle(c, v[key]);
+        nav.classList.toggle(EARN_STILL_CLASS, !earnTransitionOn({ flag: still, morphing: v.morphing }));
         if (earn) {
           earn.tabIndex = e.tabOff ? -1 : 0;
           if (e.ariaHidden) earn.setAttribute('aria-hidden', 'true');
@@ -133,7 +136,7 @@ export function Nav({
       d.dispose();
       driver.current = null;
     };
-  }, [heroSelector, splashSelector, stickySelector, sectionSelector, panelWriterRef]);
+  }, [variant, heroSelector, splashSelector, stickySelector, sectionSelector, panelWriterRef]);
 
   const onOpenChange = useCallback((open: boolean) => driver.current?.setLocaleOpen(open), []);
 

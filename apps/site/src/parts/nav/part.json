@@ -6,7 +6,8 @@
   "impls": ["plain"],
   "muiStates": [],
   "variants": {
-    "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:12897-13018,13224-13245; assets/2.gBuqKVzi.css:11296-11640" } }
+    "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:12897-13018,13224-13245; assets/2.gBuqKVzi.css:11296-11640" } },
+    "earn-no-transition": { "kind": "optimized", "tier": "T0", "provenance": { "lean": "Fw.Parts.NavEarnOpt", "ledger": "earn-transition-retarget", "limit": "look change (L) while the nav morphs: the earn button follows --morph without its 0.68 s lag; VisSame only at settled frames" } }
   },
   "requires": {},
   "conflicts": {}
