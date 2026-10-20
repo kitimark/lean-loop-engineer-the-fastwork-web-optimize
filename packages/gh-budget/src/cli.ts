@@ -81,6 +81,8 @@ async function budget(env: Env, argv: string[]): Promise<number> {
   console.log(`requests in the last hour: tick ${u.tick.hour}/${L.shares.tick.hour}, one-off ${u.oneoff.hour}/${L.shares.oneoff.hour} (cap ${L.B})`);
   console.log(`last minute: tick ${u.tick.minute}/${L.shares.tick.minute}, one-off ${u.oneoff.minute}/${L.shares.oneoff.minute}`);
   console.log(`GitHub says: remaining ${st.remaining ?? "unknown"}, reset ${st.reset ?? "unknown"} (floor ${L.F}); retry-until ${r.retryUntil}, failures ${r.fails}`);
+  const inc = (st.incidents as Json[] | undefined) ?? [];
+  if (inc.length > 0) console.log(`dropped watches not yet logged: ${inc.map((i) => `${String(i.runId)} ${String(i.why)}`).join(", ")}`);
   console.log(`poll interval ${r.interval} s, headroom ${r.headroom ? "yes" : "no"}, watched runs ${r.watched}, list created>= ${r.createdSince ?? "-"}, poller pid ${holder?.pid ?? "none"}`);
   return 0;
 }

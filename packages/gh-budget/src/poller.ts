@@ -1,8 +1,9 @@
 // The elected poller's one step: ask `ci.budget.next`; on `issue` make ONE `gh run list` (every run created since
 // `createdSince`, one call covers all waiters) and write the runs-status file. Waiters read that file and call no gh.
+import { appendFileSync } from "node:fs";
 import type { Env, Json } from "./core.ts";
 import { chargedCall } from "./charged.ts";
-import { loadState, readStatus, stepEvent, writeStatus, type Row } from "./state.ts";
+import { loadState, locked, paths, readStatus, stepEvent, stepUnlocked, writeStatus, type Row } from "./state.ts";
 
 export const LIST_FIELDS = "status,conclusion,databaseId,headBranch,workflowName,headSha,createdAt";
 /** gh rows per page (a page is what `pages` in the budget state counts). */
@@ -19,12 +20,28 @@ export type Poll = {
   stopped?: string;
 };
 
+/** Watches fwcore dropped (expired, unseen, uncovered) are logged to `incidents.jsonl`, then acknowledged. The decision
+ *  to drop is fwcore's (`Fw.Ci.Budget.expire`, `listed`); this only writes them down. */
+export function drainIncidents(env: Env): number {
+  return locked(env, () => {
+    const inc = (loadState(env.dir)?.incidents as Json[] | undefined) ?? [];
+    if (inc.length === 0) return 0;
+    appendFileSync(paths(env.dir).incidents, inc.map((i) => JSON.stringify(i)).join("\n") + "\n");
+    stepUnlocked(env, { ack: inc.length });
+    return inc.length;
+  });
+}
+
 export async function pollOnce(env: Env): Promise<Poll> {
+  try { return await pollTick(env); } finally { drainIncidents(env); }
+}
+
+async function pollTick(env: Env): Promise<Poll> {
   const res = await chargedCall(
     env,
     (state, now) => env.core({ op: "ci.budget.next", now, state }),
     (r) => {
-      const pages = Number((r.state as Json).pages ?? 1);
+      const pages = Number(r.pages ?? 1); // fwcore's pages: at most the cap its tick share allows
       return ["run", "list", ...(r.createdSince == null ? [] : ["--created", `>=${iso(Number(r.createdSince))}`]),
         "--limit", String(PAGE * pages), "--json", LIST_FIELDS];
     },
@@ -51,6 +68,9 @@ export async function pollOnce(env: Env): Promise<Poll> {
   const st = loadState(env.dir);
   const watched = (st?.watched as { runId: number }[] | undefined) ?? [];
   for (const w of watched) if (rows.some((r) => r.databaseId === w.runId && r.status === "completed")) stepEvent(env, { unregister: w.runId });
+  // fwcore decides which watches this list covers: it keeps or drops each (`listed`); a full list was cut at the page limit
+  const read = Number(res.reply.pages ?? 1);
+  stepEvent(env, { listed: { rows: rows.map((r) => ({ runId: r.databaseId, createdAt: Math.floor(Date.parse(r.createdAt) / 1000) })), full: rows.length >= PAGE * read } });
   const pages = Math.floor(rows.length / PAGE) + 1;
   if (pages !== Number(st?.pages ?? 1)) stepEvent(env, { pages });
   return { wakeAt: now, ticked: true };

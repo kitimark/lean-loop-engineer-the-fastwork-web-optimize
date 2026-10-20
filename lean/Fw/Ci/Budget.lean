@@ -69,6 +69,12 @@ structure Limits where
   /-- requests per page of one tick: the poller's `gh run list` without `--workflow`, measured at 2 (82 ticks, no
   tick correction, 2026-10-19) -/
   listCost : Nat := 2
+  /-- longest age of a watched run, s: the longest workflow timeout (60 min) plus queueing; an older watch is dropped -/
+  maxAge : Nat := 7200
+  /-- ticks that list a watched run's creation time without it before the watch is dropped -/
+  missMax : Nat := 3
+  /-- exclusive bound of a GitHub run id (ids are about 2.5e10 in 2026) -/
+  maxRun : Nat := 10 ^ 13
 deriving Repr, DecidableEq
 
 /-- The default limits.
@@ -340,6 +346,26 @@ structure Watch where
   runId : Nat
   createdAt : Nat
   lastCovered : Option Nat := none
+  /-- ticks in a row whose list covered `createdAt` and lacked the run -/
+  misses : Nat := 0
+deriving Repr, DecidableEq
+
+/-- Why a watch was dropped: older than the longest workflow timeout, unseen in `missMax` covering lists, or older
+than the newest pages a tick may read. -/
+inductive Drop where
+  | expired
+  | unseen
+  | uncovered
+deriving Repr, DecidableEq
+
+/-- An incident: the run dropped, when, and why.
+
+$$\mathrm{Incident} = (\mathit{runId}, \mathit{time}, \mathit{why}) \in \mathbb{N}^2 \times \mathrm{Drop}$$
+-/
+structure Incident where
+  runId : Nat
+  time : Nat
+  why : Drop
 deriving Repr, DecidableEq
 
 /-- The budget state shared by the machine: the clock, the ledger, the last seen headers, the retry and failure
@@ -359,6 +385,8 @@ structure State where
   lastTick : Option Nat := none
   pending : Option (Kind × Nat) := none
   pages : Nat := 1
+  /-- watches dropped and not yet acknowledged (the poller logs them, then sends `ack`) -/
+  incidents : List Incident := []
 deriving Repr, DecidableEq
 
 /-- The empty state at time $t$.
@@ -378,11 +406,23 @@ def headroom (L : Limits) (s : State) : Bool :=
   | none => true
   | some r => decide (L.F < r) || (match s.reset with | some T => decide (T ≤ s.now) | none => false)
 
-/-- The cost of one tick: the list cost per page times the pages (at least one).
+/-- The most pages one tick may read: the pages whose list cost fits the per-minute tick share (at least one).
 
-$$\operatorname{tickCost}(L, s) = L.c_{\text{list}} \cdot \max(1, s.\mathit{pages})$$
+$$\operatorname{pageCap}(L) = \max\big(1, \lfloor (B_1 \mathbin{\dot-} R_1) / c_{\text{list}} \rfloor\big)$$
 -/
-def tickCost (L : Limits) (s : State) : Nat := L.listCost * max 1 s.pages
+def pageCap (L : Limits) : Nat := max 1 (share1 L .tick / L.listCost)
+
+/-- The pages the next tick reads: those the state asks for, at least one, at most `pageCap`.
+
+$$\operatorname{pages}(L, s) = \min(\operatorname{pageCap}(L),\ \max(1, s.\mathit{pages}))$$
+-/
+def pagesOf (L : Limits) (s : State) : Nat := min (pageCap L) (max 1 s.pages)
+
+/-- The cost of one tick: the list cost per page times the pages it reads.
+
+$$\operatorname{tickCost}(L, s) = L.c_{\text{list}} \cdot \operatorname{pages}(L, s)$$
+-/
+def tickCost (L : Limits) (s : State) : Nat := L.listCost * pagesOf L s
 
 /-- Integer ceiling division ($0$ when dividing by $0$, as Lean's `/`).
 
@@ -606,10 +646,91 @@ def observe (L : Limits) (s : State) (h : Headers) (actual : Nat) : State :=
            remaining := (bucket s h).1, reset := (bucket s h).2, etag := h.etag <|> s.etag,
            retryUntil := max s.retryUntil (retryFrom L s h), fails }
 
-/-- The events that change the state without a call: the clock, a waiter registering or leaving a run, the pages a
-tick needs, a response, and a manual resume after the poller stopped.
+/-- The first id of the branch watches: a waiter on a branch (no run id yet) registers a sentinel
+`sentinelBase + h`, with `h` a 32-bit hash of branch, workflow and commit.
 
-$$\mathrm{Event} = \mathrm{clock}(\mathbb{N}) \mid \mathrm{register}(\mathit{runId}, \mathit{createdAt}) \mid \mathrm{unregister}(\mathit{runId}) \mid \mathrm{pages}(\mathbb{N}) \mid \mathrm{response}(\mathrm{Headers}, \mathbb{N}) \mid \mathrm{resume}$$
+$$\mathit{sentinelBase} = 10^{15}$$
+-/
+def sentinelBase : Nat := 10 ^ 15
+
+/-- The number of sentinel ids.
+
+$$\mathit{sentinelSpan} = 2^{32}$$
+-/
+def sentinelSpan : Nat := 2 ^ 32
+
+/-- Is the id a branch watch's sentinel?
+
+$$\operatorname{isSentinel}(r) \iff 10^{15} \le r < 10^{15} + 2^{32}$$
+-/
+def isSentinel (r : Nat) : Bool := decide (sentinelBase ≤ r ∧ r < sentinelBase + sentinelSpan)
+
+/-- Is the id a GitHub run id: positive and below `maxRun`?
+
+$$\operatorname{validRunId}(L, r) \iff 0 < r < L.\mathit{maxRun}$$
+-/
+def validRunId (L : Limits) (r : Nat) : Bool := decide (0 < r ∧ r < L.maxRun)
+
+/-- May a waiter register this id: a GitHub run id or a branch sentinel?
+
+$$\operatorname{validWatch}(L, r) \iff \operatorname{validRunId}(L, r) \lor \operatorname{isSentinel}(r)$$
+-/
+def validWatch (L : Limits) (r : Nat) : Bool := validRunId L r || isSentinel r
+
+#guard validWatch defaults 25000000000 && validWatch defaults 1000000000838323
+#guard !validWatch defaults 0 && !validWatch defaults 5000000000000000 && !validWatch defaults (10 ^ 13)
+#guard !validRunId defaults 1000000000838323
+
+/-- Is the watch older than the longest workflow timeout?
+
+$$\operatorname{tooOld}(L, s, w) \iff L.\mathit{maxAge} < s.\mathit{now} \mathbin{\dot-} w.\mathit{createdAt}$$
+-/
+def tooOld (L : Limits) (s : State) (w : Watch) : Bool := decide (L.maxAge < s.now - w.createdAt)
+
+/-- Drop the watches older than the longest workflow timeout, one incident each.
+
+$$\operatorname{expire}(L, s) = s[\mathit{watched} := [\,w \in s.\mathit{watched} \mid \lnot\operatorname{tooOld}(L, s, w)\,],\ \mathit{incidents} := s.\mathit{incidents} \mathbin{+\!\!+} [\,(w.\mathit{runId}, s.\mathit{now}, \mathrm{expired}) \mid w \in s.\mathit{watched},\ \operatorname{tooOld}(L, s, w)\,]]$$
+-/
+def expire (L : Limits) (s : State) : State :=
+  { s with watched := s.watched.filter (fun w => !tooOld L s w),
+           incidents := s.incidents ++ (s.watched.filter (tooOld L s)).map fun w => ⟨w.runId, s.now, .expired⟩ }
+
+/-- Does a list cover the creation time of a watch? A list that is not full holds every run created since the
+oldest watch; a full list (cut at the page limit) holds only the runs created after its oldest row.
+
+$$\operatorname{covers}(\mathit{rows}, \mathit{full}, w) \iff \lnot\mathit{full} \lor \exists f:\ \min_{(\_, c) \in \mathit{rows}} c = f \land f < w.\mathit{createdAt}$$
+-/
+def covers (rows : List (Nat × Nat)) (full : Bool) (w : Watch) : Bool :=
+  !full || (match (rows.map (·.2)).min? with | some f => decide (f < w.createdAt) | none => false)
+
+/-- What one tick's list says of one watch, first match wins: a branch sentinel is not a run and stays; a run in
+the list stays with its misses cleared; a run the list cannot cover is dropped (`uncovered`); a covered run that is
+missing stays for `missMax - 1` ticks and is then dropped (`unseen`).
+
+$$\operatorname{judge}(L, \mathit{rows}, \mathit{full}, w) = \begin{cases} \text{keep } w & \operatorname{isSentinel}(w.\mathit{runId}) \\ \text{keep } w[\mathit{misses} := 0] & \text{else if } w.\mathit{runId} \in \mathit{rows} \\ \text{drop } \mathrm{uncovered} & \text{else if } \lnot\operatorname{covers}(\mathit{rows}, \mathit{full}, w) \\ \text{drop } \mathrm{unseen} & \text{else if } L.\mathit{missMax} \le w.\mathit{misses} + 1 \\ \text{keep } w[\mathit{misses} := w.\mathit{misses} + 1] & \text{otherwise} \end{cases}$$
+-/
+def judge (L : Limits) (rows : List (Nat × Nat)) (full : Bool) (w : Watch) : Drop ⊕ Watch :=
+  if isSentinel w.runId then .inr w
+  else if rows.any (·.1 == w.runId) then .inr { w with misses := 0 }
+  else if !covers rows full w then .inl .uncovered
+  else if L.missMax ≤ w.misses + 1 then .inl .unseen
+  else .inr { w with misses := w.misses + 1 }
+
+/-- Apply one tick's list (rows `(runId, createdAt)`; `full` when it hit the page limit) to every watch.
+
+$$\operatorname{listed}(L, s, \mathit{rows}, \mathit{full}) = s[\mathit{watched} := [\,w' \mid w \in s.\mathit{watched},\ \operatorname{judge}(L, \mathit{rows}, \mathit{full}, w) = \text{keep } w'\,],\ \mathit{incidents} := s.\mathit{incidents} \mathbin{+\!\!+} [\,(w.\mathit{runId}, s.\mathit{now}, d) \mid w \in s.\mathit{watched},\ \operatorname{judge}(L, \mathit{rows}, \mathit{full}, w) = \text{drop } d\,]]$$
+-/
+def listed (L : Limits) (s : State) (rows : List (Nat × Nat)) (full : Bool) : State :=
+  { s with
+    watched := s.watched.filterMap fun w => match judge L rows full w with | .inr w' => some w' | .inl _ => none,
+    incidents := s.incidents ++ s.watched.filterMap fun w =>
+      match judge L rows full w with | .inl d => some ⟨w.runId, s.now, d⟩ | .inr _ => none }
+
+/-- The events that change the state without a call: the clock, a waiter registering or leaving a run, the pages a
+tick needs, a response, a manual resume after the poller stopped, the expiry of old watches, one tick's list, and
+the acknowledgement of logged incidents.
+
+$$\mathrm{Event} = \mathrm{clock}(\mathbb{N}) \mid \mathrm{register}(\mathit{runId}, \mathit{createdAt}) \mid \mathrm{unregister}(\mathit{runId}) \mid \mathrm{pages}(\mathbb{N}) \mid \mathrm{response}(\mathrm{Headers}, \mathbb{N}) \mid \mathrm{resume} \mid \mathrm{expire} \mid \mathrm{listed}(\mathit{rows}, \mathit{full}) \mid \mathrm{ack}(\mathbb{N})$$
 -/
 inductive Event where
   | clock (t : Nat)
@@ -618,23 +739,30 @@ inductive Event where
   | pages (n : Nat)
   | response (h : Headers) (actual : Nat)
   | resume
+  | expire
+  | listed (rows : List (Nat × Nat)) (full : Bool)
+  | ack (n : Nat)
 deriving Repr
 
 /-- Apply an event. The clock never goes back (`now := max(now, t)`) and drops ledger entries no window can see
-again; a second waiter on a watched run changes nothing.
+again; an id that is neither a GitHub run id nor a branch sentinel is refused (the state stays), and a second waiter
+on a watched run changes nothing.
 
-$$\begin{aligned} \operatorname{step}(L, s, \mathrm{clock}(t)) &= s[\mathit{now} := n,\ \ell := [\,e \in s.\ell \mid n < e.\mathit{time} + \max(W, W_1)\,]], \quad n = \max(s.\mathit{now}, t) \\ \operatorname{step}(L, s, \mathrm{register}(r, c)) &= \begin{cases} s & \exists w \in s.\mathit{watched}:\ w.\mathit{runId} = r \\ s[\mathit{watched} := s.\mathit{watched} \mathbin{+\!\!+} [(r, c, \bot)]] & \text{otherwise} \end{cases} \\ \operatorname{step}(L, s, \mathrm{unregister}(r)) &= s[\mathit{watched} := [\,w \in s.\mathit{watched} \mid w.\mathit{runId} \ne r\,]] \\ \operatorname{step}(L, s, \mathrm{pages}(n)) &= s[\mathit{pages} := \max(1, n)] \\ \operatorname{step}(L, s, \mathrm{response}(h, a)) &= \operatorname{observe}(L, s, h, a) \\ \operatorname{step}(L, s, \mathrm{resume}) &= s[\mathit{fails} := 0] \end{aligned}$$
+$$\begin{aligned} \operatorname{step}(L, s, \mathrm{clock}(t)) &= s[\mathit{now} := n,\ \ell := [\,e \in s.\ell \mid n < e.\mathit{time} + \max(W, W_1)\,]], \quad n = \max(s.\mathit{now}, t) \\ \operatorname{step}(L, s, \mathrm{register}(r, c)) &= \begin{cases} s & \lnot\operatorname{validWatch}(L, r) \lor \exists w \in s.\mathit{watched}:\ w.\mathit{runId} = r \\ s[\mathit{watched} := s.\mathit{watched} \mathbin{+\!\!+} [(r, c, \bot, 0)]] & \text{otherwise} \end{cases} \\ \operatorname{step}(L, s, \mathrm{unregister}(r)) &= s[\mathit{watched} := [\,w \in s.\mathit{watched} \mid w.\mathit{runId} \ne r\,]] \\ \operatorname{step}(L, s, \mathrm{pages}(n)) &= s[\mathit{pages} := \max(1, n)] \\ \operatorname{step}(L, s, \mathrm{response}(h, a)) &= \operatorname{observe}(L, s, h, a) \\ \operatorname{step}(L, s, \mathrm{resume}) &= s[\mathit{fails} := 0] \\ \operatorname{step}(L, s, \mathrm{expire}) &= \operatorname{expire}(L, s) \\ \operatorname{step}(L, s, \mathrm{listed}(\mathit{rows}, \mathit{full})) &= \operatorname{listed}(L, s, \mathit{rows}, \mathit{full}) \\ \operatorname{step}(L, s, \mathrm{ack}(n)) &= s[\mathit{incidents} := \operatorname{drop}(n, s.\mathit{incidents})] \end{aligned}$$
 -/
 def step (L : Limits) (s : State) : Event → State
   | .clock t =>
     let n := max s.now t
     { s with now := n, ledger := s.ledger.filter fun e => decide (n < e.time + max L.W L.W1) }
   | .register r c =>
-    if s.watched.any (·.runId == r) then s else { s with watched := s.watched ++ [⟨r, c, none⟩] }
+    if !validWatch L r || s.watched.any (·.runId == r) then s else { s with watched := s.watched ++ [{ runId := r, createdAt := c }] }
   | .unregister r => { s with watched := s.watched.filter (·.runId != r) }
   | .pages n => { s with pages := max 1 n }
   | .response h a => observe L s h a
   | .resume => { s with fails := 0 }
+  | .expire => expire L s
+  | .listed rows full => listed L s rows full
+  | .ack n => { s with incidents := s.incidents.drop n }
 
 /-! ## Examples -/
 
@@ -678,7 +806,7 @@ private def stopOf : Decision → Option Reason | .stop r => some r | _ => none
 #guard (observe defaults { init 5 with pending := some (.tick, 2) } { status := 200 } 3).ledger = [⟨5, 1, .tick, false⟩]
 #guard (observe defaults { init 5 with pending := some (.tick, 2) } { status := 200 } 2).ledger = []
 -- registering the same run twice is one entry
-#guard (step defaults (step defaults (init 0) (.register 7 0)) (.register 7 5)).watched = [⟨7, 0, none⟩]
+#guard (step defaults (step defaults (init 0) (.register 7 0)) (.register 7 5)).watched = [⟨7, 0, none, 0⟩]
 #guard since (step defaults (step defaults (init 0) (.register 7 50)) (.register 8 20)) = some 20
 
 /-! ## (e) The clock -/
@@ -692,7 +820,7 @@ theorem clock_monotone (L : Limits) (s : State) (e : Event) : (step L s e).now �
   | clock t => simp only [step]; omega
   | register r c => simp only [step]; split <;> simp
   | response h a => simp [step, observe]
-  | _ => simp [step]
+  | _ => simp [step, expire, listed]
 
 /-- An issued charge keeps the clock, appends exactly the charge, and changes no guard field.
 
@@ -965,6 +1093,9 @@ theorem inv_step (L : Limits) (s : State) (e : Event) (h : Inv L s) : Inv L (ste
   | unregister r => exact ⟨hall, hok⟩
   | pages n => exact ⟨hall, hok⟩
   | resume => exact ⟨hall, hok⟩
+  | expire => exact ⟨hall, hok⟩
+  | listed rows full => exact ⟨hall, hok⟩
+  | ack n => exact ⟨hall, hok⟩
   | response hd a =>
     simp only [step, observe]
     refine ⟨fun e he => ?_, fun k t' => ?_⟩
@@ -1100,7 +1231,7 @@ theorem retry_mono (L : Limits) (s0 s : State) (hr : Reach L s0 s) : s0.retryUnt
       | clock t => simp [step]
       | register r c => simp only [step]; split <;> simp
       | response hd a => simp only [step, observe]; exact Nat.le_max_left _ _
-      | _ => simp [step]
+      | _ => simp [step, expire, listed]
     omega
   | charge _ hc ih =>
     have := (charge_issue L _ _ _ _ _ _ hc).2.2.2.2; omega
@@ -1440,7 +1571,9 @@ $$\forall L, s, t:\quad P(L, \operatorname{step}(L, s, \mathrm{clock}(t))) \le P
 theorem interval_clock (L : Limits) (s : State) (t : Nat) : interval L (step L s (.clock t)) ≤ interval L s := by
   have hsp : spread L (step L s (.clock t)) ≤ spread L s := by
     unfold spread
-    simp only [step, tickCost]
+    have htc : tickCost L (step L s (.clock t)) = tickCost L s := rfl
+    simp only [step] at htc ⊢
+    rw [htc]
     split
     · rename_i r T _ _
       by_cases hlt : max s.now t < T
@@ -1685,7 +1818,245 @@ theorem remaining_no_rise (L : Limits) (s : State) (T r : Nat) (hT : s.reset = s
     | unregister rid => exact ⟨r, Nat.le_refl _, hr⟩
     | pages n => exact ⟨r, Nat.le_refl _, hr⟩
     | resume => exact ⟨r, Nat.le_refl _, hr⟩
+    | expire => exact ⟨r, Nat.le_refl _, hr⟩
+    | listed rows full => exact ⟨r, Nat.le_refl _, hr⟩
+    | ack n => exact ⟨r, Nat.le_refl _, hr⟩
   · have := charge_bucket L s k c k' c' s' hc
     rw [this.1, this.2, hr, hT]; exact ⟨rfl, rfl⟩
+
+/-! ## (i) Stale watches and the bounded tick
+
+The incident of 2026-10-20: a branch watch (id `10^15 + h`) never finished, the list window `created >= createdAt`
+stayed open for 4.5 h, a tick needed 11 pages (cost 22) and `charge` stopped the poller with `tooBig`, a stop only a
+manual resume lifts. Three rules close it: an unknown id is refused at registration, an old or unseen watch is dropped
+with an incident, and a tick never reads more pages than its share allows. -/
+
+/-- (i-a) Registration refuses an id that is neither a GitHub run id nor a branch sentinel: the state stays.
+
+$$\forall L, s, r, c:\quad \lnot\operatorname{validWatch}(L, r) \Rightarrow \operatorname{step}(L, s, \mathrm{register}(r, c)) = s$$
+-/
+theorem register_refused (L : Limits) (s : State) (r c : Nat) (h : validWatch L r = false) :
+    step L s (.register r c) = s := by
+  simp [step, h]
+
+/-- (i-a) Registration accepts a valid id: the run is watched afterwards (a first registration appends it with no
+misses, a second changes nothing).
+
+$$\forall L, s, r, c:\quad \operatorname{validWatch}(L, r) \Rightarrow \exists w \in \operatorname{step}(L, s, \mathrm{register}(r, c)).\mathit{watched}:\ w.\mathit{runId} = r$$
+-/
+theorem register_accepted (L : Limits) (s : State) (r c : Nat) (h : validWatch L r = true) :
+    ∃ w ∈ (step L s (.register r c)).watched, w.runId = r := by
+  unfold step
+  by_cases hd : s.watched.any (·.runId == r) = true
+  · simp only [h, hd]
+    simp only [List.any_eq_true, beq_iff_eq] at hd
+    obtain ⟨w, hw, hwr⟩ := hd
+    simpa using ⟨w, hw, hwr⟩
+  · simp only [h, hd]
+    simp
+
+/-- (i-a) The stray id of the incident, `10^15 + 838323`, is a branch sentinel (the glue's `sentinelId`) and so is
+accepted at registration; its age, not its form, ends it. An id above the sentinel range is refused.
+
+$$\operatorname{validWatch}(L, 10^{15} + 838323) \land \lnot\operatorname{validRunId}(L, 10^{15} + 838323) \land \lnot\operatorname{validWatch}(L, 10^{15} + 2^{32})$$
+-/
+theorem incident_id : validWatch defaults 1000000000838323 = true ∧ validRunId defaults 1000000000838323 = false ∧
+    validWatch defaults (10 ^ 15 + 2 ^ 32) = false := by decide
+
+/-- (i-b) Expiry is complete: every watch is kept, or dropped with an expiry incident at the current time.
+
+$$\forall L, s, w \in s.\mathit{watched}:\ w \in \operatorname{expire}(L, s).\mathit{watched} \ \lor\ (w.\mathit{runId}, s.\mathit{now}, \mathrm{expired}) \in \operatorname{expire}(L, s).\mathit{incidents}$$
+-/
+theorem expire_total (L : Limits) (s : State) (w : Watch) (hw : w ∈ s.watched) :
+    w ∈ (expire L s).watched ∨ (⟨w.runId, s.now, .expired⟩ : Incident) ∈ (expire L s).incidents := by
+  by_cases h : tooOld L s w = true
+  · right
+    simp only [expire, List.mem_append, List.mem_map, List.mem_filter]
+    exact Or.inr ⟨w, ⟨hw, h⟩, rfl⟩
+  · left
+    simp only [expire, List.mem_filter]
+    exact ⟨hw, by simpa using h⟩
+
+/-- (i-b) Expiry is sound: no watch older than `maxAge` survives it.
+
+$$\forall L, s, w \in \operatorname{expire}(L, s).\mathit{watched}:\ s.\mathit{now} \mathbin{\dot-} w.\mathit{createdAt} \le L.\mathit{maxAge}$$
+-/
+theorem expire_sound (L : Limits) (s : State) (w : Watch) (hw : w ∈ (expire L s).watched) :
+    s.now - w.createdAt ≤ L.maxAge := by
+  simp only [expire, List.mem_filter, tooOld] at hw
+  have := hw.2
+  simp at this
+  omega
+
+/-- (i-b) The watch of the incident is dropped: a watch created more than `maxAge` before `now` is gone after
+`expire`, with its incident.
+
+$$\forall L, s, w \in s.\mathit{watched}:\ L.\mathit{maxAge} < s.\mathit{now} \mathbin{\dot-} w.\mathit{createdAt} \Rightarrow w \notin \operatorname{expire}(L, s).\mathit{watched} \land (w.\mathit{runId}, s.\mathit{now}, \mathrm{expired}) \in \operatorname{expire}(L, s).\mathit{incidents}$$
+-/
+theorem expire_old (L : Limits) (s : State) (w : Watch) (hw : w ∈ s.watched) (ho : L.maxAge < s.now - w.createdAt) :
+    w ∉ (expire L s).watched ∧ (⟨w.runId, s.now, .expired⟩ : Incident) ∈ (expire L s).incidents := by
+  have h : tooOld L s w = true := by simp [tooOld, ho]
+  refine ⟨fun hm => ?_, ?_⟩
+  · simp only [expire, List.mem_filter] at hm
+    simp [h] at hm
+  · simp only [expire, List.mem_append, List.mem_map, List.mem_filter]
+    exact Or.inr ⟨w, ⟨hw, h⟩, rfl⟩
+
+/-- (i-b) Every watch is covered or dropped with an incident: after a list, each watch is still watched (under its
+run id) or has an incident with its id at the current time.
+
+$$\forall L, s, \mathit{rows}, \mathit{full}, w \in s.\mathit{watched}:\ (\exists w' \in \operatorname{listed}(L, s, \mathit{rows}, \mathit{full}).\mathit{watched}:\ w'.\mathit{runId} = w.\mathit{runId}) \lor (\exists d:\ (w.\mathit{runId}, s.\mathit{now}, d) \in \operatorname{listed}(L, s, \mathit{rows}, \mathit{full}).\mathit{incidents})$$
+-/
+theorem listed_total (L : Limits) (s : State) (rows : List (Nat × Nat)) (full : Bool) (w : Watch)
+    (hw : w ∈ s.watched) :
+    (∃ w' ∈ (listed L s rows full).watched, w'.runId = w.runId) ∨
+    ∃ d, (⟨w.runId, s.now, d⟩ : Incident) ∈ (listed L s rows full).incidents := by
+  cases hj : judge L rows full w with
+  | inl d =>
+    right
+    refine ⟨d, ?_⟩
+    simp only [listed, List.mem_append, List.mem_filterMap]
+    exact Or.inr ⟨w, hw, by simp [hj]⟩
+  | inr w2 =>
+    left
+    refine ⟨w2, ?_, ?_⟩
+    · simp only [listed, List.mem_filterMap]
+      exact ⟨w, hw, by simp [hj]⟩
+    · unfold judge at hj
+      split at hj
+      · simp at hj; subst hj; rfl
+      · split at hj
+        · simp at hj; subst hj; rfl
+        · split at hj
+          · simp at hj
+          · split at hj
+            · simp at hj
+            · simp at hj; subst hj; rfl
+
+/-- (i-b) A run that the narrowed list cannot cover is dropped with an `uncovered` incident: on a full list, a
+real run (not a sentinel) absent from the rows and created no later than the oldest row.
+
+$$\forall L, s, \mathit{rows}, w \in s.\mathit{watched}:\ \lnot\operatorname{isSentinel}(w.\mathit{runId}) \land w.\mathit{runId} \notin \mathit{rows} \land \lnot\operatorname{covers}(\mathit{rows}, \top, w) \Rightarrow (w.\mathit{runId}, s.\mathit{now}, \mathrm{uncovered}) \in \operatorname{listed}(L, s, \mathit{rows}, \top).\mathit{incidents}$$
+-/
+theorem listed_uncovered (L : Limits) (s : State) (rows : List (Nat × Nat)) (w : Watch) (hw : w ∈ s.watched)
+    (hs : isSentinel w.runId = false) (hr : rows.any (·.1 == w.runId) = false)
+    (hc : covers rows true w = false) :
+    (⟨w.runId, s.now, .uncovered⟩ : Incident) ∈ (listed L s rows true).incidents := by
+  have hj : judge L rows true w = .inl .uncovered := by simp [judge, hs, hr, hc]
+  simp only [listed, List.mem_append, List.mem_filterMap]
+  exact Or.inr ⟨w, hw, by simp [hj]⟩
+
+/-- (i-b) A covered run missing from a list for the `missMax`-th tick in a row is dropped with an `unseen` incident.
+
+$$\forall L, s, \mathit{rows}, \mathit{full}, w \in s.\mathit{watched}:\ \lnot\operatorname{isSentinel}(w.\mathit{runId}) \land w.\mathit{runId} \notin \mathit{rows} \land \operatorname{covers}(\mathit{rows}, \mathit{full}, w) \land L.\mathit{missMax} \le w.\mathit{misses} + 1 \Rightarrow (w.\mathit{runId}, s.\mathit{now}, \mathrm{unseen}) \in \operatorname{listed}(L, s, \mathit{rows}, \mathit{full}).\mathit{incidents}$$
+-/
+theorem listed_unseen (L : Limits) (s : State) (rows : List (Nat × Nat)) (full : Bool) (w : Watch)
+    (hw : w ∈ s.watched) (hs : isSentinel w.runId = false) (hr : rows.any (·.1 == w.runId) = false)
+    (hc : covers rows full w = true) (hm : L.missMax ≤ w.misses + 1) :
+    (⟨w.runId, s.now, .unseen⟩ : Incident) ∈ (listed L s rows full).incidents := by
+  have hj : judge L rows full w = .inl .unseen := by simp [judge, hs, hr, hc, hm]
+  simp only [listed, List.mem_append, List.mem_filterMap]
+  exact Or.inr ⟨w, hw, by simp [hj]⟩
+
+/-- (i-c) The tick cost is at most the per-minute tick share, for every state, when one page fits the share.
+
+$$\forall L, s:\quad L.c_{\text{list}} \le \operatorname{share}_1(L, \mathrm{tick}) \Rightarrow \operatorname{tickCost}(L, s) \le \operatorname{share}_1(L, \mathrm{tick})$$
+-/
+theorem tickCost_le (L : Limits) (s : State) (h1 : L.listCost ≤ share1 L .tick) (h0 : 0 < L.listCost) :
+    tickCost L s ≤ share1 L .tick := by
+  unfold tickCost pagesOf pageCap
+  have hq : 1 ≤ share1 L .tick / L.listCost := (Nat.le_div_iff_mul_le h0).2 (by omega)
+  have hmax : max 1 (share1 L .tick / L.listCost) = share1 L .tick / L.listCost := Nat.max_eq_right hq
+  rw [hmax]
+  calc L.listCost * min (share1 L .tick / L.listCost) (max 1 s.pages)
+      ≤ L.listCost * (share1 L .tick / L.listCost) := Nat.mul_le_mul_left _ (Nat.min_le_left _ _)
+    _ ≤ share1 L .tick := Nat.mul_div_le _ _
+
+/-- (i-c) The charge of a tick never stops `tooBig`: with one page within the per-minute tick share and the
+per-minute share within the hourly one, `charge` of a tick answers `stop` only with `failures`, for any state and
+any pages the state asks for.
+
+$$\forall L, s:\quad 0 < L.c_{\text{list}} \le \operatorname{share}_1(L, \mathrm{tick}) \le \operatorname{share}(L, \mathrm{tick}) \Rightarrow \operatorname{charge}(L, s, \mathrm{tick}, \operatorname{tickCost}(L, s)) = \mathrm{stop}(r) \Rightarrow r = \mathrm{failures}$$
+-/
+theorem tick_charge_no_tooBig (L : Limits) (s : State) (h0 : 0 < L.listCost) (h1 : L.listCost ≤ share1 L .tick)
+    (h2 : share1 L .tick ≤ share L .tick) (r : Reason) (hr : charge L s .tick (tickCost L s) = .stop r) :
+    r = .failures := by
+  have hc := tickCost_le L s h1 h0
+  unfold charge at hr
+  by_cases hf : L.maxFails ≤ s.fails
+  · simp [hf] at hr; exact hr.symm
+  · have hn : ¬ (share L .tick < tickCost L s ∨ share1 L .tick < tickCost L s) := by omega
+    simp only [hf, hn, ite_false] at hr
+    split at hr <;> try simp at hr
+    all_goals (split at hr <;> try simp at hr)
+    all_goals (split at hr <;> try simp at hr)
+    all_goals (split at hr <;> try simp at hr)
+
+/-- (i-c) The poller never stops `tooBig`: under the same shape, `tickNow` stops only with `failures`, and `next`
+only with `failures` or `idle`. A tick that would need more pages than the share allows reads `pageCap` pages
+instead (and `listed` drops what the narrowed list cannot cover).
+
+$$\forall L, s:\quad 0 < L.c_{\text{list}} \le \operatorname{share}_1 \le \operatorname{share} \Rightarrow (\operatorname{tickNow}(L, s) = \mathrm{stop}(r) \Rightarrow r = \mathrm{failures}) \land (\operatorname{next}(L, s) = \mathrm{stop}(r) \Rightarrow r \in \{\mathrm{failures}, \mathrm{idle}\})$$
+-/
+theorem tick_no_tooBig (L : Limits) (s : State) (h0 : 0 < L.listCost) (h1 : L.listCost ≤ share1 L .tick)
+    (h2 : share1 L .tick ≤ share L .tick) :
+    (∀ r, tickNow L s = .stop r → r = .failures) ∧ (∀ r, next L s = .stop r → r = .failures ∨ r = .idle) := by
+  have htick : ∀ r, tickNow L s = .stop r → r = .failures := by
+    intro r hr
+    unfold tickNow at hr
+    cases hq : charge L s .tick (tickCost L s) with
+    | issue k c s' => rw [hq] at hr; simp at hr
+    | wait u w => rw [hq] at hr; simp at hr
+    | stop w => rw [hq] at hr; simp at hr; subst hr; exact tick_charge_no_tooBig L s h0 h1 h2 w hq
+  refine ⟨htick, fun r hr => ?_⟩
+  unfold next at hr
+  split at hr
+  · simp at hr; exact Or.inl hr.symm
+  · split at hr
+    · simp at hr; exact Or.inr hr.symm
+    · split at hr
+      · split at hr
+        · simp at hr
+        · exact Or.inl (htick r hr)
+      · exact Or.inl (htick r hr)
+
+/-- (i-c) The default limits satisfy the shape the no-`tooBig` theorem needs: a page costs 2, within the per-minute
+tick share 20, within the hourly tick share 1800. A tick reads at most `pageCap` = 10 pages.
+
+$$0 < c_{\text{list}} = 2 \le \operatorname{share}_1(\mathrm{tick}) = 20 \le \operatorname{share}(\mathrm{tick}) = 1800 \land \operatorname{pageCap} = 10$$
+-/
+theorem defaults_shape : 0 < defaults.listCost ∧ defaults.listCost ≤ share1 defaults .tick ∧
+    share1 defaults .tick ≤ share defaults .tick ∧ pageCap defaults = 10 := by decide
+
+/-- (i-c) The incident's tick: 11 pages asked for, 10 read, cost 20, the per-minute tick share.
+
+$$\operatorname{pages}(\mathit{defaults}, s[\mathit{pages} := 11]) = 10 \land \operatorname{tickCost} = 20$$
+-/
+theorem incident_tick : pagesOf defaults { init 0 with pages := 11 } = 10 ∧
+    tickCost defaults { init 0 with pages := 11 } = 20 := by decide
+
+/-- The incidents leave only through `ack`: acknowledging `n` incidents keeps the later ones, and the watches stay.
+
+$$\operatorname{step}(L, s, \mathrm{ack}(n)).\mathit{incidents} = \operatorname{drop}(n, s.\mathit{incidents}) \land \operatorname{step}(L, s, \mathrm{ack}(n)).\mathit{watched} = s.\mathit{watched}$$
+-/
+theorem ack_drops (L : Limits) (s : State) (n : Nat) :
+    (step L s (.ack n)).incidents = s.incidents.drop n ∧ (step L s (.ack n)).watched = s.watched := by
+  simp [step]
+
+-- the incident replayed: a stale sentinel watch, 11 pages asked for: the tick goes, then the watch expires
+#guard (match next defaults ((step defaults (step defaults (init 100000) (.register 1000000000838323 90000)) (.pages 11))) with
+  | .issue _ c _ => c = 20 | _ => false)
+#guard (step defaults (step defaults (init 100000) (.register 1000000000838323 90000)) .expire).watched = []
+#guard (step defaults (step defaults (init 100000) (.register 1000000000838323 90000)) .expire).incidents =
+  [⟨1000000000838323, 100000, .expired⟩]
+#guard (step defaults (init 0) (.register 5000000000000000 0)).watched = []
+-- three covered lists without the run drop it; a list holding it clears its misses
+#guard (step defaults (step defaults (step defaults (step defaults (init 100) (.register 7 90))
+  (.listed [] false)) (.listed [] false)) (.listed [] false)).incidents = [⟨7, 100, .unseen⟩]
+#guard (step defaults (step defaults (step defaults (init 100) (.register 7 90)) (.listed [] false))
+  (.listed [(7, 90)] false)).watched = [⟨7, 90, none, 0⟩]
+-- a full list cut at created 95 cannot cover a run created at 90
+#guard (step defaults (step defaults (init 100) (.register 7 90)) (.listed [(9, 95), (8, 99)] true)).incidents =
+  [⟨7, 100, .uncovered⟩]
 
 end Fw.Ci.Budget

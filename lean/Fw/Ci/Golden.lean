@@ -82,6 +82,20 @@ def cases : List (String × String × Json) := [
     lit "{\"now\":1000,\"state\":{\"now\":1000,\"fails\":6},\"event\":{\"resume\":true}}"),
   ("step: two events in one request is an error", "ci.budget.step",
     lit "{\"now\":1000,\"event\":{\"pages\":2,\"resume\":true}}"),
+  ("step: a branch sentinel id registers", "ci.budget.step",
+    lit "{\"now\":1000,\"event\":{\"register\":{\"runId\":1000000000838323,\"createdAt\":950}}}"),
+  ("step: an id that is no run id and no sentinel is refused", "ci.budget.step",
+    lit "{\"now\":1000,\"event\":{\"register\":{\"runId\":5000000000000000,\"createdAt\":950}}}"),
+  ("step: expire drops a watch older than the longest workflow timeout, with an incident", "ci.budget.step",
+    lit "{\"now\":100000,\"state\":{\"now\":100000,\"watched\":[{\"runId\":1000000000838323,\"createdAt\":90000},{\"runId\":7,\"createdAt\":99000}]},\"event\":{\"expire\":true}}"),
+  ("step: a list without the run counts a miss, the third drops it as unseen", "ci.budget.step",
+    lit "{\"now\":1000,\"state\":{\"now\":1000,\"watched\":[{\"runId\":7,\"createdAt\":950,\"misses\":2},{\"runId\":8,\"createdAt\":960}]},\"event\":{\"listed\":{\"rows\":[{\"runId\":8,\"createdAt\":960}],\"full\":false}}}"),
+  ("step: a full list drops the run it cannot cover as uncovered, keeps a sentinel", "ci.budget.step",
+    lit "{\"now\":1000,\"state\":{\"now\":1000,\"watched\":[{\"runId\":7,\"createdAt\":900},{\"runId\":1000000000000001,\"createdAt\":900},{\"runId\":9,\"createdAt\":990}]},\"event\":{\"listed\":{\"rows\":[{\"runId\":10,\"createdAt\":980},{\"runId\":9,\"createdAt\":990}],\"full\":true}}}"),
+  ("step: ack removes the logged incidents", "ci.budget.step",
+    lit "{\"now\":1000,\"state\":{\"now\":1000,\"incidents\":[{\"runId\":7,\"time\":900,\"why\":\"unseen\"},{\"runId\":8,\"time\":990,\"why\":\"expired\"}]},\"event\":{\"ack\":1}}"),
+  ("next: 11 pages asked for, 10 read, the tick costs the per-minute tick share 20", "ci.budget.next",
+    lit "{\"now\":1000,\"state\":{\"now\":990,\"pages\":11,\"watched\":[{\"runId\":7,\"createdAt\":950}]}}"),
   ("status: window sums, interval and guards", "ci.budget.status",
     lit "{\"now\":1000,\"state\":{\"now\":1000,\"ledger\":[{\"time\":980,\"cost\":2,\"kind\":\"tick\",\"charged\":true},{\"time\":980,\"cost\":1,\"kind\":\"tick\",\"charged\":false},{\"time\":100,\"cost\":1,\"kind\":\"oneoff\",\"charged\":true}],\"watched\":[{\"runId\":7,\"createdAt\":950}]}}"),
   ("limits", "ci.budget.limits", lit "{}")]
@@ -161,7 +175,7 @@ def run (root : System.FilePath) (write : Bool) : IO Nat := do
   IO.println s!"ci-budget golden: {files.length} files, {cases.length} wire cases, {stale} stale"
   return stale
 
-#guard cases.length = 31
+#guard cases.length = 38
 #guard fixtures.length = 7
 
 end Fw.Wire.Ci.Golden
