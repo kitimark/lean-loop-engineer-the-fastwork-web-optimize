@@ -10740,7 +10740,8 @@
     "lean/lakefile.toml",
     "packages/contracts/golden/**",
     "docs/team/handoffs/latex-teardown.md"
-   ]
+   ],
+   "evidence": "9e3651d"
   },
   {
    "devices": [

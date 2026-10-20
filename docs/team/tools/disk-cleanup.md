@@ -11,7 +11,7 @@ through hardlinks and APFS clones, so removing a tree can free far less than its
 | `~/.elan/toolchains/<toolchain>/lake/cache/artifacts` | 62 GB, 55 GB unreferenced | Lake artifact cache: every build of the 6 Lean executables (~100 MB each) is kept; nothing evicts | yes |
 | `.claude/worktrees/*` | ~1.3 GB each by `du`; 15 removed freed only 2 GB | worktree checkouts; `lean/.lake/build` is hardlinked from the cache above | yes (branch refs stay) |
 | `lean/.lake/build/bin` | 693 MB per checkout before `lean-bin-slim`, 358 MB after (decimal MB) | 3 executables since `lean-bin-slim`: fwcore (stripped, 78.7 MB; runs `fwtest`, `sweepsgen`, `partsgolden` as subcommands), mathview, breakgen | yes |
-| `lean/.lake/mathview-cache` | 37 MB | math-view export cache (JSON) | yes |
+| `lean/.lake/mathview-cache` | 37 MB | left by a retired export cache; nothing reads it | yes |
 | `~/Library/Developer` | 35 GB | CoreSimulator 19, DerivedData 11, DeviceSupport 6 | mostly |
 | pnpm store, `~/.cache`, `~/Library/Caches` | 8 + 8 + 9 GB | package and tool caches | yes |
 
