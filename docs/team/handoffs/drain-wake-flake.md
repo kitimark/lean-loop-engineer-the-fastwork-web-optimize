@@ -22,5 +22,8 @@ the longest pass). Golden `packages/contracts/golden/console/wake-bound.jsonl`, 
 `wakeDoneBound` in `src/spool/drain-watch.ts`, checked on the golden. The test takes `p1` at the write, uses a 1 s tick, waits for
 `wakeStartBound(tick, longest pass)` + 500 ms margin + its own event-loop stall, prints a trail on a miss, and runs 10 times.
 
+Verified: land lane run 39438056251 (Linux, commit 31ff21ac) green with the wake test at 10 runs (vitest `repeats: 9` = 10 runs);
+`sh lean/scripts/check.sh` green; console-api, ci-paths and land-inputs tests green locally.
+
 Open: the CI miss's root cause stays unproven; if it returns, the error trail says whether a pass was long, the loop stalled, or
 no pass started. Read first: end of `ReconcileSched.lean`, `drain-watch.ts`, the test in `journal-cache.test.ts`.
