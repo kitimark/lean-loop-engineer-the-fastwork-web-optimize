@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { isDeepStrictEqual } from 'node:util';
 import { fileURLToPath } from 'node:url';
-import { annotate, armCheck, byM, byStep, bucket, durOf, judgeEls, judgeUnit, pickWidths, quantile, readsDominate, reduceRaw, reduceWidth, rel, RULES, runCheck, START_LAG, verdictLines, window as windowOf } from '../src/trajectory/reduce.mjs';
+import { annotate, armCheck, byM, byStep, bucket, durOf, judgeEls, judgeOwn, judgeUnit, pickWidths, quantile, readsDominate, reduceRaw, reduceWidth, rel, RULES, runCheck, START_LAG, verdictLines, window as windowOf, windowAt } from '../src/trajectory/reduce.mjs';
 import { mergeRaws, planOf } from '../src/trajectory/plan.mjs';
 import { HERO_NODES, MORPH_NODES, PAGE_PROPS, HERO_STEPS, WIDTHS, MOTION_PROPS } from '../src/trajectory/registry.mjs';
 
@@ -163,6 +163,28 @@ for (const g of golden) {
     else assert.fail(`unknown op ${g.op}`);
   });
 }
+
+test('envelope: a start another pass of the original had passes, and fails against its own pass (Lean judgeUnit_other_start)', () => {
+  const g = golden.find((x) => x.op === 'unit' && x.name === "envelope, another pass's start");
+  assert.equal(judgeUnit(g.kind, durFn(g.dur), g.seg, g.win, g.r), 'pass');
+  assert.equal(judgeOwn(g.kind, durFn(g.dur), g.seg, g.win, g.r), 'fail:apart');
+});
+
+test('envelope: with one pass the judge is the own-pass rule (Lean judgeUnit_agree)', () => {
+  const one = golden.filter((x) => x.op === 'unit' && (x.r.rep ?? 0) === 0 && x.seg.every((s) => (s.rep ?? 0) === 0));
+  assert.ok(one.length >= 5);
+  for (const g of one) assert.equal(judgeUnit(g.kind, durFn(g.dur), g.seg, g.win, g.r), judgeOwn(g.kind, durFn(g.dur), g.seg, g.win, g.r), g.name);
+});
+
+test('windowAt: a hold keeps windowOf; a push value the pass sampled keeps windowOne (Lean windowAt_hold, windowPass_sampled)', () => {
+  const s = (rep, ph, m, v) => ({ m, since: null, els: [v], rep, cls: [], ph, ord: 0 });
+  const seg = [s(0, 0, 1000, 'on'), s(0, 0, 0, 'on'), s(0, 1, 0, 'off')];
+  const orig = seg.filter((o) => o.ph === 0);
+  assert.deepEqual(windowAt('hold', seg, orig, s(0, 0, 0, 'off')), orig);
+  assert.deepEqual(windowAt('push', seg, orig, s(0, 0, 0, 'off')), orig);
+  assert.deepEqual(windowAt('push', seg, orig.slice(0, 1), s(0, 0, 0, 'off')), [seg[2]]);
+  assert.equal(windowAt('push', seg, [], s(0, 0, 0, 'off')), null);
+});
 
 // ---- the legs of a dispatch (src/trajectory/plan.mjs, the twin of Lean `plan`) ----
 

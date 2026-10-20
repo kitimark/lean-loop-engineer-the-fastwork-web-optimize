@@ -208,17 +208,28 @@ export function matchOne(kind, win, r) {
 export const judgeColour = (core, win, r) =>
   combine([matchOne('colour', core.map((x) => chan(x.els)), chan(r.els)), judgeEls('colour', win.map((x) => alpha(x.els)), alpha(r.els))]);
 
-/** Lean `judgeUnit`. */
-export function judgeUnit(kind, d, seg, win, r) {
+/** Lean `isCoreIn`. */
+export const isCoreIn = (r, o) => isCore({ ...r, rep: o.rep }, o);
+
+/** Lean `envelope`. */
+export const envelope = (seg, r) => repsOf(seg).flatMap((q) => flightWindow(seg, { ...r, rep: q }));
+
+/** Lean `judgeWith`. */
+export function judgeWith(kind, d, seg, fw, core, win, r) {
   if (inFlight(d, r)) {
-    const w = flightWindow(seg, r);
-    if (w.length === 0) return win === null ? fail('coverage') : judgeEls(kind, win.map((s) => s.els), r.els);
-    return kind === 'colour' ? judgeColour(w.filter((o) => isCore(r, o)), w, r) : judgeEls(kind, w.map((s) => s.els), r.els);
+    if (fw.length === 0) return win === null ? fail('coverage') : judgeEls(kind, win.map((s) => s.els), r.els);
+    return kind === 'colour' ? judgeColour(fw.filter(core), fw, r) : judgeEls(kind, fw.map((s) => s.els), r.els);
   }
   if (win === null) return fail('coverage');
   const ref = win.map((w) => settledRef(d, seg, w)).filter((w) => w !== null);
   return ref.length === 0 ? fail('coverage') : judgeEls(kind, ref.map((x) => x.els), r.els);
 }
+
+/** Lean `judgeUnit`. */
+export const judgeUnit = (kind, d, seg, win, r) => judgeWith(kind, d, seg, envelope(seg, r), (o) => isCoreIn(r, o), win, r);
+
+/** Lean `judgeOwn`. */
+export const judgeOwn = (kind, d, seg, win, r) => judgeWith(kind, d, seg, flightWindow(seg, r), (o) => isCore(r, o), win, r);
 
 /** Lean `bucket`: the tenth of a morph value (floor((m + 500) / 1000), clamped to 0..10); 11 for no morph value. */
 export const bucket = (m) => (m === null || m === undefined ? 11 : Math.min(10, Math.max(0, Math.floor((m + 500) / 1000))));
@@ -226,11 +237,29 @@ export const bucket = (m) => (m === null || m === undefined ? 11 : Math.min(10, 
 /** Lean `needsSample`: the interior buckets of a push. */
 export const needsSample = (b) => b >= 1 && b <= 9;
 
+/** Lean `headOf`. */
+export const headOf = (seg, q, p) => seg.find((o) => (o.rep ?? 0) === q && o.ph === p + 1) ?? null;
+
+/** Lean `windowPass`. */
+export function windowPass(seg, orig, r, q) {
+  const p = orig.filter((s) => (s.rep ?? 0) === q);
+  const h = headOf(seg, q, r.ph);
+  const hasM = r.m !== null && r.m !== undefined;
+  return h !== null && hasM && h.m === r.m && !p.some((s) => s.m === r.m) ? [h] : windowOne(p, r.m);
+}
+
+/** Lean `windowAt`. `ph` is 'push' or 'hold'. */
+export function windowAt(ph, seg, orig, r) {
+  if (ph !== 'push') return windowOf(orig, r.m);
+  const ws = repsOf(orig).map((q) => windowPass(seg, orig, r, q)).filter((w) => w !== null);
+  return ws.length === 0 ? null : ws.flat();
+}
+
 /** Lean `bucketVerdict`. `ph` is 'push' or 'hold'; `seg` the original's annotated samples of the whole path, `orig` and `rew` the phase's. */
 export function bucketVerdict(ph, kind, d, seg, orig, rew, b) {
   const rs = rew.filter((r) => bucket(r.m) === b);
   if (rs.length === 0) return ph === 'push' && needsSample(b) ? fail('coverage') : skip('noSample');
-  return combine(rs.map((r) => judgeUnit(kind, d, seg, windowOf(orig, r.m), r)));
+  return combine(rs.map((r) => judgeUnit(kind, d, seg, windowAt(ph, seg, orig, r), r)));
 }
 
 /** Lean `byM`: twelve verdicts, one per bucket, of phase `p` of the two arms' whole paths. */
