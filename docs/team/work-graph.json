@@ -10835,7 +10835,16 @@
     "apps/runner/test/**",
     "packages/contracts/golden/sched/**",
     "docs/team/parallel-plan.md",
-    "docs/team/handoffs/lake-build-slots.md"
+    "docs/team/handoffs/lake-build-slots.md",
+    "apps/runner/src/land.ts",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Console/LandDry.lean",
+    "lean/Fw/Console/LandSpeed.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/console/land-dry.jsonl",
+    "packages/contracts/golden/console/land-speed.jsonl",
+    ".github/workflows/lean.yml"
    ]
   },
   {
@@ -10860,7 +10869,17 @@
     "apps/runner/src/fw.ts",
     "apps/runner/test/**",
     "packages/contracts/golden/ops/**",
-    "docs/team/handoffs/orphan-guard.md"
+    "docs/team/handoffs/orphan-guard.md",
+    "apps/runner/src/lib.ts",
+    "apps/runner/test/e2e-land.sh",
+    "apps/site/scripts/census.mjs",
+    "apps/site/scripts/shell-measure.mjs",
+    "docs/team/handoffs/task-preview.md",
+    "lean/Fw/Ops/Reap.lean",
+    "lean/Fw/Wire.lean",
+    "lean/scripts/ReapGolden.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/ops/lspreap.jsonl"
    ]
   },
   {
