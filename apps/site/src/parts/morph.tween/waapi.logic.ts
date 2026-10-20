@@ -1,11 +1,11 @@
-import { clamp01, DURATION_MS, FADE_END } from './logic';
+import { ACTIVE_CUT, clamp01, DURATION_MS, FADE_END } from './logic';
 
 /**
  * Pure plan of the `waapi` variant of morph.tween: the keyframes, offsets and easing of the one animation per element
  * that replaces the per-frame JS lerp. Spec and proofs: lean/Fw/Parts/MorphTweenOpt.lean (MT1 `bezier_eq_ease`, MT3
  * `waapi_eq_tween`, MT4 `flags_same_frame`: a flag is a discrete keyframe quadruple `[0: a, c: a, c: b, 1: b]` at the
  * eased progress `c = clamp01((theta - f) / (t - f))`, and both engines give `b` iff the progress is `>= c`). Golden
- * vectors: packages/contracts/golden/parts/morph-tween-waapi.jsonl and morph-tween-waapi.attr.jsonl (waapi.golden.test.ts).
+ * vectors: packages/contracts/golden/parts/morph-tween-waapi.jsonl, .attr.jsonl and .tail.jsonl (waapi.golden.test.ts).
  */
 
 /** The curve of the effect: in exact arithmetic `1 - (1 - x)^3` (Lean `bezier_eq_ease`, control points 1/3, 1, 2/3, 1). */
@@ -166,3 +166,10 @@ export function markerDelay(from: number, to: number, theta: number): number {
   const c = (theta - from) / (to - from);
   return Math.max(0, DURATION_MS * (1 - Math.cbrt(1 - c)) - 1);
 }
+
+/** How long before its `activeCut` marker a close starts writing the base `--morph`, in ms (Lean `tailWindow`). */
+export const TAIL_WINDOW_MS = 100;
+/** A push from `from` to `to` opens a base window iff it closes and gets the `activeCut` marker (Lean `baseB`). */
+export const baseWindow = (from: number, to: number): boolean => to < from && hasMarker(from, to, ACTIVE_CUT);
+/** The base window's delay in ms: `TAIL_WINDOW_MS` before the `activeCut` marker's, at least 0 (Lean `baseDelay`). */
+export const baseDelay = (from: number, to: number): number => Math.max(0, markerDelay(from, to, ACTIVE_CUT) - TAIL_WINDOW_MS);

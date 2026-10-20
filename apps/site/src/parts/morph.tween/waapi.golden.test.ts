@@ -8,14 +8,17 @@
 //   variant's EASING string) must give them (MT1 `bezier_eq_ease`), and every flag keyframe must flip on the same
 //   sample as the original's strict test, except at the exact tie (MT4 `flags_same_frame`).
 // - packages/contracts/golden/parts/morph-tween-waapi.attr.jsonl (`attrJsonl`): the readers of `data-fw-morph`, the
-//   marker rows (TS delay at most Lean `dlLo`, so sound, and within 2 ms of it) and two replayed histories; the driver's
+//   marker rows (TS delay at most Lean `dlLo`, so sound, and within 2 ms of it) and three replayed histories; the driver's
 //   written attribute must be in the band of the original's value after every frame (Lean `attr_band`).
+// - packages/contracts/golden/parts/morph-tween-waapi.tail.jsonl (`tailJsonl`): the base window (TAIL_WINDOW_MS, and per
+//   push `baseWindow` and a `baseDelay` at most Lean's and within 2 ms of it) and the script frames of each replayed
+//   history: the driver runs script on exactly Lean's `tail` count of frames (`cost`, window included).
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { decodeRat } from '../../engine/golden.testutil';
 import { ease } from './logic';
 import { faithfulSubscribes, waapiRun } from './waapi.fake.testutil';
-import { ATTR_READERS, band, EASING, FADE_CSS, hasMarker, MARKER_THETAS, markerDelay, fadeCss, flagOffset, navKeyframes, PROP_DARK, PROP_EXPANDED, PROP_FADE, PROP_MORPH, PROP_PLATFORM, platformKeyframes, REGISTRATIONS, REGISTRATIONS_SCOPED, settledProps, THETA_DARK, THETA_EXPANDED, THETA_POINTER, type Registration } from './waapi.logic';
+import { ATTR_READERS, band, baseDelay, baseWindow, EASING, FADE_CSS, hasMarker, MARKER_THETAS, markerDelay, fadeCss, flagOffset, navKeyframes, PROP_DARK, PROP_EXPANDED, PROP_FADE, PROP_MORPH, PROP_PLATFORM, platformKeyframes, REGISTRATIONS, REGISTRATIONS_SCOPED, settledProps, TAIL_WINDOW_MS, THETA_DARK, THETA_EXPANDED, THETA_POINTER, type Registration } from './waapi.logic';
 
 const golden = (name: string) =>
   readFileSync(new URL(`../../../../../packages/contracts/golden/parts/${name}.jsonl`, import.meta.url), 'utf8')
@@ -255,10 +258,11 @@ describe('morph.tween:waapi attribute writes vs morph-tween-waapi.attr.jsonl (Le
     }
   });
 
-  // script runs (finish and marker events, frame callbacks) against the faithful driver's one rAF callback per frame
-  const runs: Record<string, [number, number]> = { open: [7, 42], reverse: [13, 64] };
+  // frames with script (finish and marker events, frame callbacks; Lean `cost`, base window included)
+  const tail = golden('morph-tween-waapi.tail');
+  const frameRows = tail.filter((r) => r.kind === 'scriptFrames') as { case: string; frames: number; tail: number }[];
   for (const arm of ['waapi', 'waapi-scoped'] as const) {
-    for (const name of ['open', 'reverse']) {
+    for (const name of ['open', 'reverse', 'close']) {
       it(`${arm} ${name}: after every frame the written attribute is in the band of the original's value; the old driver's is not`, () => {
         const w = waapiRun({ arm });
         let stale = 0;
@@ -275,8 +279,29 @@ describe('morph.tween:waapi attribute writes vs morph-tween-waapi.attr.jsonl (Le
           if (JSON.stringify(e.old) !== JSON.stringify(e.band)) stale++;
         }
         expect(stale).toBeGreaterThan(0);
-        expect([w.scriptRuns(), frames]).toEqual(runs[name]);
+        const row = frameRows.find((r) => r.case === name)!;
+        expect([w.scriptFrames(), frames]).toEqual([row.tail, row.frames]);
       });
     }
   }
+});
+
+describe('morph.tween:waapi base window vs morph-tween-waapi.tail.jsonl (Lean baseB, baseDelay)', () => {
+  const tail = golden('morph-tween-waapi.tail');
+
+  it('TAIL_WINDOW_MS equals the Lean tailWindow', () => {
+    expect(tail.filter((r) => r.kind === 'tailWindow').map((r) => r.ms)).toEqual([TAIL_WINDOW_MS]);
+  });
+
+  it('a push opens a base window iff Lean baseB, with a delay at most Lean baseDelay and within 2 ms of it', () => {
+    const rows = tail.filter((r) => r.kind === 'baseWindow') as { from: number; to: number; window: boolean; delay: number | null }[];
+    expect(rows).toHaveLength(18);
+    for (const r of rows) {
+      expect(baseWindow(r.from, r.to), JSON.stringify(r)).toBe(r.window);
+      if (!r.window) continue;
+      const d = baseDelay(r.from, r.to);
+      expect(d, JSON.stringify(r)).toBeLessThanOrEqual(r.delay!);
+      expect(d, JSON.stringify(r)).toBeGreaterThanOrEqual(r.delay! - 2);
+    }
+  });
 });

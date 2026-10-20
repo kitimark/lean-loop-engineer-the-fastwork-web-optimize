@@ -31,9 +31,11 @@ MT3 (`waapi_eq_tween`): with linear interpolation (R3), the exact curve (MT1) an
 rAF clock plus one constant `c` (R5; the start time is read from `document.timeline.currentTime`), the WAAPI value at
 every frame equals `MorphTween.tween` in `ℚ`, over every push sequence. MT4 (`flags_same_frame`): the four
 flags, as discrete keyframes at the eased-progress offset, flip on the same frame as the original's strict
-`>` tests, except at an exact tie `p = c` (R3b: the engines flip at `p ≥ c`). Visual (`waapi_vis`): the scene, the readers of the written `data-fw-morph` included, is
-`VisSame E` for every env. MT-W (`waapi_work_le`): per tween frame the variant drops the script stage and keeps
-every other stage, in both engine tables (a custom property animates on the main thread in both). MT-R
+`>` tests, except at an exact tie `p = c` (R3b: the engines flip at `p ≥ c`). Visual (`waapi_vis`): the frame's
+view (value, target, flags) and the readers of the written `data-fw-morph` are `VisSame E` for every env; CSS
+transitions started by the `is-morphing` flip are outside the view (their start is the base style of the frame before;
+section WidthTail). MT-W (`waapi_work_le`): per tween frame the variant drops the script stage and keeps every other
+stage, in both engine tables (a custom property animates on the main thread in both). MT-R
 (`registrations_see`, `morph_scope_eq`): `--morph` and `--morph-fade` are registered inherited, so every reader below
 the nav (the hosted panel included) sees the animated value and the style invalidation scope on the nav equals the
 original's. On the platform section the waapi arm restyles the subtree's dependent elements on frames where the
@@ -1195,10 +1197,11 @@ def markerRows (_ : Unit) : List String :=
 /-- Frames every 17 ms from the `a`-th to the `b`-th. -/
 def ticks17 (a b : Nat) : List Ev := (List.range (b + 1 - a)).map fun i => .tick (17 * ((a + i : Nat) : Rat))
 
-/-- The replayed histories: an opening push, and an opening push reversed at 300 ms. -/
+/-- The replayed histories: an opening push, one reversed at 300 ms, and one closed after it ends. -/
 def attrCases : List (String × List Ev) :=
   [("open", .push 1 false 0 :: ticks17 1 42),
-    ("reverse", (.push 1 false 0 :: ticks17 1 17) ++ .push 0 false 300 :: ticks17 18 64)]
+    ("reverse", (.push 1 false 0 :: ticks17 1 17) ++ .push 0 false 300 :: ticks17 18 64),
+    ("close", (.push 1 false 0 :: ticks17 1 42) ++ .push 0 false 720 :: ticks17 43 84)]
 
 /-- The premises of the golden replay: WebKit's form, offset 0. -/
 def attrP : WaapiPremises := premisesWk 0
@@ -1236,7 +1239,10 @@ def attrJsonl (_ : Unit) : String :=
 #guard markerThetas == [1 / 1000, 1 / 5, 2 / 5, 11 / 20, 23 / 25, 7 / 20]
 #guard (markerRows ()).length == 108
 
-/-- **The visual theorem (class E-s).** With sound marker delays, the variant's scene, readers of the attribute included, equals the original's on every admissible frame; it holds for both arms, which share `fixW` and `attrReaders`. -/
+/-- **The visual theorem (class E-s).** With sound marker delays, every scene built from the frame's view and the
+attribute's readers equals the original's on every admissible frame, for both arms (shared `fixW`, `attrReaders`).
+A transition started by the `is-morphing` flip is not such a scene: it starts from the previous frame's base
+(WidthTail). -/
 theorem waapi_vis (P : WaapiPremises) (dl : Rat → Rat → Rat → Rat) (hd : DlSound dl)
     (vp : Fw.Site.Breakpoints.Env → Rect) (c : Fw.Site.Breakpoints.Env → Hist → AttrCtx)
     (S : Fw.Site.Breakpoints.Env → View → AttrScene → Scene) :
@@ -2143,11 +2149,14 @@ theorem tail_orig_pos (v : Nav.Vp) (hp : Bool) (prev R : Rat) (hD : Nav.pillW v 
   have h2 := closeAt_after R hR
   exact Rat.mul_pos (by grind) (by grind)
 
-/-- **The waapi arm has no tail.** It writes no inline `--morph` during a tween, so its base value does not move. -/
-theorem tail_waapi_zero (v : Nav.Vp) (hp : Bool) (b : Rat) : tailPx v hp b b = 0 := by
-  unfold tailPx; grind
+/-- **No base change, no tail.** An unchanged base value starts no width jump. The driver writes no base on an open
+(`waapi.driver.test.ts`, test "a close writes the base --morph ...; an open writes none"). -/
+theorem tail_zero_of_base_still (v : Nav.Vp) (hp : Bool) (before after : Rat) (h : before = after) :
+    tailPx v hp before after = 0 := by
+  subst h; unfold tailPx; grind
 
-/-- **Not a function of the frame.** The original's flip-frame width depends on the frame before (outside `waapi_vis`). -/
+/-- **Not a function of the frame.** The original's flip-frame width depends on the frame before (outside
+`waapi_vis`). -/
 theorem tail_not_view (v : Nav.Vp) (hp : Bool) (hD : Nav.pillW v < Nav.panelW v) :
     tailPx v hp (closeAt 500) (closeAt crossMs) ≠ tailPx v hp (closeAt 600) (closeAt crossMs) := by
   rw [tailPx_eq, tailPx_eq]
@@ -2157,47 +2166,102 @@ theorem tail_not_view (v : Nav.Vp) (hp : Bool) (hD : Nav.pillW v < Nav.panelW v)
   have := Rat.mul_lt_mul_of_pos_left (show closeAt 600 - closeAt crossMs < closeAt 500 - closeAt crossMs by grind) hpos
   grind
 
-/-- A driver: script on the last frame of prefix `p` iff `wk p`; flip-frame jump `out ws R` from its run frames `ws`. -/
-structure Skipper where
-  wk : List Rat → Bool
-  out : List Rat → Rat → Rat
+/-! ### The base window -/
 
-/-- The frames of `fs` the driver runs on, after the prefix `p`. -/
-def Skipper.ran (d : Skipper) : List Rat → List Rat → List Rat
-  | _, [] => []
-  | p, T :: fs => (if d.wk (p ++ [T]) then [T] else []) ++ d.ran (p ++ [T]) fs
+/-- How long before its `activeCut` marker a close starts writing the base `--morph`, in ms (`TAIL_WINDOW_MS`). -/
+def tailWindow : Rat := 100
 
-theorem Skipper.ran_snoc (d : Skipper) (q : List Rat) (T : Rat) :
-    ∀ p : List Rat, d.ran p (q ++ [T]) = d.ran p q ++ (if d.wk (p ++ q ++ [T]) then [T] else []) := by
-  induction q with
-  | nil => intro p; simp [Skipper.ran]
-  | cons x xs ih => intro p; simp [Skipper.ran, ih (p ++ [x])]
+/-- A push from `f` to `t` opens a base window iff it closes and gets the `activeCut` marker (`baseWindow`). -/
+def baseB (f t : Rat) : Bool := decide (t < f) && markerB f t activeCut
 
-/-- Exact on the frames `q ++ [T, R]`: the jump on the flip frame `R` is the original's, from the frame `T` before it. -/
-def Skipper.Exact (d : Skipper) (q : List Rat) (T R : Rat) : Prop :=
-  d.out (d.ran [] (q ++ [T])) R = closeAt T - closeAt R
+/-- The base window's delay in ms: `G` before the `activeCut` marker's, at least 0 (`baseDelay`). -/
+def baseDelay (dl : Rat → Rat → Rat → Rat) (G f t : Rat) : Rat := max 0 (dl f t activeCut - G)
 
-/-- **Skip at most once.** After a frame history `q`, an exact driver skips the script on at most one next frame. -/
-theorem skip_once (d : Skipper) (q : List Rat) (T T' R : Rat) (h0 : 0 ≤ T) (h1 : T < crossMs) (h0' : 0 ≤ T')
-    (h1' : T' < crossMs) (hx : d.Exact q T R) (hx' : d.Exact q T' R) (hs : d.wk (q ++ [T]) = false)
-    (hs' : d.wk (q ++ [T']) = false) : T = T' := by
-  unfold Skipper.Exact at hx hx'
-  rw [d.ran_snoc q T [], List.nil_append, hs] at hx
-  rw [d.ran_snoc q T' [], List.nil_append, hs'] at hx'
-  simp only [Bool.false_eq_true, ite_false, List.append_nil] at hx hx'
-  have hd : crossMs ≤ duration := by unfold crossMs duration; decide
-  exact closeAt_inj T T' h0 (by grind) h0' (by grind) (by grind)
+/-- The window writes the base `--morph` on frame `T`: from its delay until the animation ends. -/
+def baseW (dl : Rat → Rat → Rat → Rat) (G : Rat) (w : VSt) (T : Rat) : Bool :=
+  match w.anim with
+  | none => false
+  | some a => baseB a.f a.t && decide (a.st + baseDelay dl G a.f a.t ≤ T) && decide (T < a.st + duration)
 
-theorem skips_le_one (d : Skipper) (q : List Rat) (R : Rat) (ts : List Rat) (hnd : ts.Nodup)
-    (hin : ∀ T ∈ ts, 0 ≤ T ∧ T < crossMs ∧ d.Exact q T R ∧ d.wk (q ++ [T]) = false) : ts.length ≤ 1 := by
-  rcases ts with _ | ⟨a, _ | ⟨b, rest⟩⟩
-  · simp
-  · simp
-  · have ha := hin a (by simp)
-    have hb := hin b (by simp)
-    have hab := skip_once d q a b R ha.1 ha.2.1 hb.1 hb.2.1 ha.2.2.1 hb.2.2.1 ha.2.2.2 hb.2.2.2
-    subst hab
-    simp at hnd
+/-- **The window covers the frame before the flip.** With sound delays, a frame at most `G` before a frame `R` at which
+the close has reached `activeCut` is in the window. -/
+theorem base_hits (P : WaapiPremises) (dl : Rat → Rat → Rat → Rat) (hd : DlSound dl) (G : Rat) (w : VSt) (a : Anim)
+    (hw : w.anim = some a) (hb : baseB a.f a.t = true) (T R : Rat) (hR : reach a.f a.t activeCut (valA P a R))
+    (hst : a.st < R) (h0 : a.st ≤ T) (hT : R - G ≤ T) (hend : T < a.st + duration) : baseW dl G w T = true := by
+  have hdl := hd a.f a.t activeCut (R - a.st) (by grind) (by rw [← valA_path]; exact hR)
+  have hm : max 0 (dl a.f a.t activeCut - G) ≤ T - a.st := by
+    rw [Rat.max_def]; split <;> grind
+  unfold baseW baseDelay
+  simp only [hw, hb, Bool.true_and, Bool.and_eq_true, decide_eq_true_eq]
+  exact ⟨by grind, hend⟩
+
+/-- **On a hit the tail is the original's.** The window writes each frame's value as the base, and that value is the
+original's on the frame (`waapi_frame_eq`), so the width transition starts from the same base to the same value. -/
+theorem tail_eq_of_base (P : WaapiPremises) (v : Nav.Vp) (hp : Bool) (es es' : List Ev) (T R l l' : Rat)
+    (h : monoB l (es ++ [.tick T]) = true) (h' : monoB l' (es' ++ [.tick R]) = true) :
+    tailPx v hp (valV P (runV P initV es) (P.tl T)) (valV P (runV P initV es') (P.tl R)) =
+      tailPx v hp (runO rest (es ++ [.tick T])).value (runO rest (es' ++ [.tick R])).value := by
+  rw [waapi_frame_eq P es T l h, waapi_frame_eq P es' R l' h']
+
+/-- **A miss stays below the cut.** If the window opens after the flip, the base is the push's reset `0`, so the jump
+is to the flip frame's value `m ≤ activeCut`: at most `(panelW - pillW) · activeCut` and reversed. -/
+theorem tail_miss_le (v : Nav.Vp) (hp : Bool) (m : Rat) (hD : Nav.pillW v ≤ Nav.panelW v) (h0 : 0 ≤ m)
+    (h1 : m ≤ activeCut) :
+    -((Nav.panelW v - Nav.pillW v) * activeCut) ≤ tailPx v hp 0 m ∧ tailPx v hp 0 m ≤ 0 := by
+  rw [tailPx_eq]
+  have hD' : 0 ≤ Nav.panelW v - Nav.pillW v := by grind
+  have := Rat.mul_le_mul_of_nonneg_left h1 hD'
+  have := Rat.mul_nonneg hD' h0
+  constructor <;> grind
+
+/-! ### Cost: script frames of the window against the saving -/
+
+/-- Frame counts of a replay: frames, script frames of the original, of the fixed driver, and with the base window. -/
+structure Cost where
+  frames : Nat
+  orig : Nat
+  fix : Nat
+  tail : Nat
+deriving Repr, DecidableEq
+
+/-- One event of the count; the finish handler runs once, on the first frame at or after the end (`d` records it). -/
+def costStep (dl : Rat → Rat → Rat → Rat) (G : Rat) : St × VSt × Bool × Cost → Ev → St × VSt × Bool × Cost
+  | (s, w, d, c), .push g rm n =>
+    (stepO s (.push g rm n), stepV attrP w (.push g rm n), d && decide (w.target = g ∧ w.aim = g), c)
+  | (s, w, d, c), .tick R =>
+    let T := attrP.tl R
+    let fin := finishW w T && !d
+    let fx := fin || pollW dl w T
+    (stepO s (.tick R), stepV attrP w (.tick R), d || fin,
+      ⟨c.frames + 1, c.orig + (if s.pending then 1 else 0), c.fix + (if fx then 1 else 0),
+        c.tail + (if fx || baseW dl G w T then 1 else 0)⟩)
+
+/-- The driver's marker delay: 1 ms before the golden delay, at least 0 (`markerDelay`). -/
+def dlTs (f t θ : Rat) : Rat := if reach f t θ f then 0 else max 0 (dlLo delayDepth f t θ - 1)
+
+theorem dlTs_sound : DlSound dlTs := by
+  intro f t θ e he hr
+  have := dlLo_sound delayDepth f t θ e he hr
+  unfold dlTs
+  split
+  · grind
+  · rw [Rat.max_def]; split <;> grind
+
+/-- The counts of the events `es` from the original `s` and the variant `w`, window `G`, the driver's delays. -/
+def cost (G : Rat) (s : St) (w : VSt) (es : List Ev) : Cost :=
+  (es.foldl (costStep dlTs G) (s, w, false, ⟨0, 0, 0, 0⟩)).2.2.2
+
+/-- Both at rest at `1`, an open long finished. -/
+def atOne : St × VSt :=
+  let es := [Ev.push 1 false (-1000), .tick 0]
+  (runO rest es, runV attrP initV es)
+
+/-- A close from `1` pushed at `0`, frames every `g` ms until the first at or after the end. -/
+def closeEvs (g : Rat) : List Ev :=
+  .push 0 false 0 :: (List.range ((duration / g).ceil.toNat)).map fun k => .tick (g * ((k + 1 : Nat) : Rat))
+
+/-- The counts of a close at frame gap `g` with window `G`. -/
+def closeCost (G g : Rat) : Cost := cost G atOne.1 atOne.2 (closeEvs g)
 
 /-- The two outcomes for the tail: modelled in the driver, or a look change. -/
 inductive TailArm where
@@ -2205,23 +2269,62 @@ inductive TailArm where
   | lookChange
 deriving DecidableEq, Repr
 
-/-- Model the tail when an exact driver can skip the script on at least two next frame times; else a look change. -/
-def tailArm (skips : Nat) : TailArm := if 2 ≤ skips then .model else .lookChange
+/-- Model the tail iff the window's extra script frames stay below the frames the fixed driver saves. -/
+def tailArm (c : Cost) : TailArm := if c.tail - c.fix < c.orig - c.fix then .model else .lookChange
 
-theorem tailArm_model (n : Nat) (h : 2 ≤ n) : tailArm n = .model := by unfold tailArm; simp [h]
+theorem tailArm_model (c : Cost) (h : c.tail - c.fix < c.orig - c.fix) : tailArm c = .model := by
+  unfold tailArm; simp [h]
 
-theorem tailArm_look (n : Nat) (h : n < 2) : tailArm n = .lookChange := by
+theorem tailArm_look (c : Cost) (h : c.orig - c.fix ≤ c.tail - c.fix) : tailArm c = .lookChange := by
   unfold tailArm; simp; omega
 
-/-- **The decision: a look change.** An exact driver skips at most one next frame time per history. -/
-theorem tail_decided (d : Skipper) (q : List Rat) (R : Rat) (ts : List Rat) (hnd : ts.Nodup)
-    (hin : ∀ T ∈ ts, 0 ≤ T ∧ T < crossMs ∧ d.Exact q T R ∧ d.wk (q ++ [T]) = false) :
-    tailArm ts.length = .lookChange :=
-  tailArm_look _ (by have := skips_le_one d q R ts hnd hin; omega)
+/-- The display frame gaps the decision is made at: 60 Hz and 120 Hz. -/
+def displayGaps : List Rat := [50 / 3, 25 / 3]
 
-#guard tailArm 0 == .lookChange && tailArm 1 == .lookChange && tailArm 2 == .model
+/-- The decision: model the tail iff it is cheaper than the saving at every display frame gap. -/
+def tailDecision (G : Rat) : TailArm :=
+  if displayGaps.all fun g => tailArm (closeCost G g) == .model then .model else .lookChange
+
+/-- The frame gaps of the cost rows: 60 Hz, 120 Hz, and the flip-frame gaps measured on CI (Chromium about 22 ms,
+macOS WebKit 45 to 100 ms, Linux WebKit 300 ms and more). -/
+def costGaps : List Rat := [50 / 3, 25 / 3, 22, 45, 100, 300]
+
+/-- The arm's wire name. -/
+def TailArm.name : TailArm → String
+  | .model => "model"
+  | .lookChange => "lookChange"
+
+/-- One cost row's counts. -/
+def costFields (c : Cost) : List (String × Lean.Json) :=
+  [("frames", .num c.frames), ("orig", .num c.orig), ("fix", .num c.fix), ("tail", .num c.tail)]
+
+/-- The contents of `packages/contracts/golden/parts/morph-tween-waapi.tail.jsonl`: the window, its delay per push,
+script frames per replayed case, and the cost of a close per frame gap. -/
+def tailJsonl (_ : Unit) : String :=
+  let rows := [Lean.Json.mkObj [("kind", .str "tailWindow"), ("ms", ratJ tailWindow)]] ++
+    markerFroms.flatMap (fun f => [0, 1].map fun t => Lean.Json.mkObj [("kind", .str "baseWindow"), ("from", ratJ f),
+      ("to", ratJ t), ("window", .bool (baseB f t)),
+      ("delay", if baseB f t then ratJ (baseDelay (dlLo delayDepth) tailWindow f t) else .null)]) ++
+    attrCases.map (fun (n, es) => Lean.Json.mkObj ([("kind", .str "scriptFrames"), ("case", .str n)] ++
+      costFields (cost tailWindow rest initV es))) ++
+    costGaps.map fun g => let c := closeCost tailWindow g
+      Lean.Json.mkObj ([("kind", .str "closeCost"), ("gap", ratJ g)] ++ costFields c ++
+        [("arm", .str (tailArm c).name)])
+  String.join (rows.map fun r => r.compress ++ "\n")
+
+#guard tailDecision tailWindow == .model
+#guard closeCost tailWindow (50 / 3) == ⟨41, 41, 8, 17⟩ && closeCost tailWindow (25 / 3) == ⟨82, 82, 8, 27⟩
+#guard closeCost tailWindow 22 == ⟨31, 31, 7, 13⟩ && tailArm (closeCost tailWindow 22) == .model
+#guard closeCost tailWindow 45 == ⟨16, 16, 7, 10⟩ && tailArm (closeCost tailWindow 45) == .model
+#guard closeCost tailWindow 100 == ⟨7, 7, 4, 5⟩ && tailArm (closeCost tailWindow 100) == .model
+#guard closeCost tailWindow 300 == ⟨3, 3, 2, 3⟩ && tailArm (closeCost tailWindow 300) == .lookChange
+#guard baseB 1 0 && baseB (1 / 2) 0 && !baseB 0 1 && !baseB (1 / 2000) 0 && !baseB 1 1
+#guard baseDelay (dlLo delayDepth) tailWindow 1 0 < 512 && 511 < baseDelay (dlLo delayDepth) tailWindow 1 0
+#guard let c : VSt := ⟨0, 0, some ⟨1, 0, 0⟩, 0, 1⟩
+  baseW dlTs tailWindow c 600 && !baseW dlTs tailWindow c 500 && !baseW dlTs tailWindow c 680
+#guard !baseW dlTs tailWindow ⟨1, 1, some ⟨0, 1, 0⟩, 0, 0⟩ 600 && !baseW dlTs tailWindow ⟨0, 0, none, 0, 0⟩ 600
+#guard tailJsonl () == include_str "../../../packages/contracts/golden/parts/morph-tween-waapi.tail.jsonl"
 #guard closeAt crossMs == activeCut && closeAt 0 == 1 && closeAt 680 == 0 && closeAt 900 == 0
-#guard (Skipper.ran ⟨fun p => decide (p.length % 2 = 0), fun _ _ => 0⟩ [] [10, 20, 30, 40]) == [20, 40]
 #guard let t := tailPx ⟨1280, 800⟩ false (closeAt (crossMs - 50 / 3)) 0; 49 / 100 < t && t < 1 / 2
 #guard let t := tailPx ⟨1440, 900⟩ false (closeAt (crossMs - 50 / 3)) 0; 79 / 100 < t && t < 4 / 5
 #guard let t := tailPx ⟨390, 844⟩ false (closeAt (crossMs - 50 / 3)) 0; 0 < t && t < 1 / 50
