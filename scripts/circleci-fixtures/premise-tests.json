@@ -1,5 +1,5 @@
 {
- "note": "Recorded: the API responses of CircleCI pipeline 15 (premise-tests on arm.medium.gen2, API v2, 2026-10-19) and gh run view of the GitHub twin (workflow_dispatch run, same commit). Only identity strings were replaced (organisation, repository, user, avatar); no token is sent in a response.",
+ "note": "Recorded: the API responses of CircleCI pipeline 15 (premise-tests on arm.medium.gen2, API v2, 2026-10-19) and gh run view of the GitHub twin (workflow_dispatch run, same commit). Only identity strings were replaced (organisation, repository, user, avatar); no token is sent in a response. The v1.1 job steps (names, statuses, run times) and the output of the Saving cache step of each engine job were added on 2026-10-21 (task circleci-cache-accounting); the other step outputs are not kept.",
  "slug": "gh/example-org/example-repo",
  "pipelineId": "c23e8bd1-26a6-40c2-88e3-a340dc2550cd",
  "sha": "9145de1d8afc378a2b260530f3cb01745325cc7d",
@@ -280,6 +280,526 @@
       "url": "https://output.circle-artifacts.com/output/job/6d72227f-4aa6-4350-9a62-e4fd5dcd11e3/artifacts/0/tmp/fw/artifacts/timings.json"
      }
     ]
+   },
+   "GET https://circleci.com/api/v1.1/project/gh/example-org/example-repo/10": {
+    "steps": [
+     {
+      "name": "Spin up environment",
+      "actions": [
+       {
+        "name": "Spin up environment",
+        "status": "success",
+        "run_time_millis": 277,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "Preparing environment variables",
+      "actions": [
+       {
+        "name": "Preparing environment variables",
+        "status": "success",
+        "run_time_millis": 15,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "mark time",
+      "actions": [
+       {
+        "name": "mark time",
+        "status": "success",
+        "run_time_millis": 177,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "Checkout code",
+      "actions": [
+       {
+        "name": "Checkout code",
+        "status": "success",
+        "run_time_millis": 3002,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "span checkout",
+      "actions": [
+       {
+        "name": "span checkout",
+        "status": "success",
+        "run_time_millis": 186,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "toolchain (node 24, pnpm)",
+      "actions": [
+       {
+        "name": "toolchain (node 24, pnpm)",
+        "status": "success",
+        "run_time_millis": 2385,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "mark time",
+      "actions": [
+       {
+        "name": "mark time",
+        "status": "success",
+        "run_time_millis": 184,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "Restoring cache",
+      "actions": [
+       {
+        "name": "Restoring cache",
+        "status": "success",
+        "run_time_millis": 420,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "span cache restore",
+      "actions": [
+       {
+        "name": "span cache restore",
+        "status": "success",
+        "run_time_millis": 185,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "deps install",
+      "actions": [
+       {
+        "name": "deps install",
+        "status": "success",
+        "run_time_millis": 610,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "Saving cache",
+      "actions": [
+       {
+        "name": "Saving cache",
+        "status": "success",
+        "run_time_millis": 69,
+        "type": "test",
+        "output_url": "https://action-output.example/premise-tests/job-10/saving-cache"
+       }
+      ]
+     },
+     {
+      "name": "browser and system libraries",
+      "actions": [
+       {
+        "name": "browser and system libraries",
+        "status": "success",
+        "run_time_millis": 24896,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "premise tests",
+      "actions": [
+       {
+        "name": "premise tests",
+        "status": "success",
+        "run_time_millis": 5119,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "Persisting to workspace",
+      "actions": [
+       {
+        "name": "Persisting to workspace",
+        "status": "success",
+        "run_time_millis": 165,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "timings.json",
+      "actions": [
+       {
+        "name": "timings.json",
+        "status": "success",
+        "run_time_millis": 215,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "Uploading artifacts",
+      "actions": [
+       {
+        "name": "Uploading artifacts",
+        "status": "success",
+        "run_time_millis": 146,
+        "type": "test"
+       }
+      ]
+     }
+    ]
+   },
+   "GET https://circleci.com/api/v1.1/project/gh/example-org/example-repo/11": {
+    "steps": [
+     {
+      "name": "Spin up environment",
+      "actions": [
+       {
+        "name": "Spin up environment",
+        "status": "success",
+        "run_time_millis": 277,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "Preparing environment variables",
+      "actions": [
+       {
+        "name": "Preparing environment variables",
+        "status": "success",
+        "run_time_millis": 13,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "mark time",
+      "actions": [
+       {
+        "name": "mark time",
+        "status": "success",
+        "run_time_millis": 176,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "Checkout code",
+      "actions": [
+       {
+        "name": "Checkout code",
+        "status": "success",
+        "run_time_millis": 2927,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "span checkout",
+      "actions": [
+       {
+        "name": "span checkout",
+        "status": "success",
+        "run_time_millis": 182,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "toolchain (node 24, pnpm)",
+      "actions": [
+       {
+        "name": "toolchain (node 24, pnpm)",
+        "status": "success",
+        "run_time_millis": 2349,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "mark time",
+      "actions": [
+       {
+        "name": "mark time",
+        "status": "success",
+        "run_time_millis": 179,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "Restoring cache",
+      "actions": [
+       {
+        "name": "Restoring cache",
+        "status": "success",
+        "run_time_millis": 148,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "span cache restore",
+      "actions": [
+       {
+        "name": "span cache restore",
+        "status": "success",
+        "run_time_millis": 182,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "deps install",
+      "actions": [
+       {
+        "name": "deps install",
+        "status": "success",
+        "run_time_millis": 868,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "Saving cache",
+      "actions": [
+       {
+        "name": "Saving cache",
+        "status": "success",
+        "run_time_millis": 483,
+        "type": "test",
+        "output_url": "https://action-output.example/premise-tests/job-11/saving-cache"
+       }
+      ]
+     },
+     {
+      "name": "browser and system libraries",
+      "actions": [
+       {
+        "name": "browser and system libraries",
+        "status": "success",
+        "run_time_millis": 35822,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "premise tests",
+      "actions": [
+       {
+        "name": "premise tests",
+        "status": "success",
+        "run_time_millis": 6856,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "Persisting to workspace",
+      "actions": [
+       {
+        "name": "Persisting to workspace",
+        "status": "success",
+        "run_time_millis": 174,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "timings.json",
+      "actions": [
+       {
+        "name": "timings.json",
+        "status": "success",
+        "run_time_millis": 226,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "Uploading artifacts",
+      "actions": [
+       {
+        "name": "Uploading artifacts",
+        "status": "success",
+        "run_time_millis": 120,
+        "type": "test"
+       }
+      ]
+     }
+    ]
+   },
+   "GET https://circleci.com/api/v1.1/project/gh/example-org/example-repo/12": {
+    "steps": [
+     {
+      "name": "Spin up environment",
+      "actions": [
+       {
+        "name": "Spin up environment",
+        "status": "success",
+        "run_time_millis": 291,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "Preparing environment variables",
+      "actions": [
+       {
+        "name": "Preparing environment variables",
+        "status": "success",
+        "run_time_millis": 16,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "mark time",
+      "actions": [
+       {
+        "name": "mark time",
+        "status": "success",
+        "run_time_millis": 171,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "Checkout code",
+      "actions": [
+       {
+        "name": "Checkout code",
+        "status": "success",
+        "run_time_millis": 3669,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "span checkout",
+      "actions": [
+       {
+        "name": "span checkout",
+        "status": "success",
+        "run_time_millis": 175,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "toolchain (node 24, pnpm)",
+      "actions": [
+       {
+        "name": "toolchain (node 24, pnpm)",
+        "status": "success",
+        "run_time_millis": 2069,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "mark time",
+      "actions": [
+       {
+        "name": "mark time",
+        "status": "success",
+        "run_time_millis": 175,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "Restoring cache",
+      "actions": [
+       {
+        "name": "Restoring cache",
+        "status": "success",
+        "run_time_millis": 443,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "span cache restore",
+      "actions": [
+       {
+        "name": "span cache restore",
+        "status": "success",
+        "run_time_millis": 176,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "deps install",
+      "actions": [
+       {
+        "name": "deps install",
+        "status": "success",
+        "run_time_millis": 1208,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "Attaching workspace",
+      "actions": [
+       {
+        "name": "Attaching workspace",
+        "status": "success",
+        "run_time_millis": 173,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "premises against the Lean registry",
+      "actions": [
+       {
+        "name": "premises against the Lean registry",
+        "status": "success",
+        "run_time_millis": 589,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "timings.json",
+      "actions": [
+       {
+        "name": "timings.json",
+        "status": "success",
+        "run_time_millis": 209,
+        "type": "test"
+       }
+      ]
+     },
+     {
+      "name": "Uploading artifacts",
+      "actions": [
+       {
+        "name": "Uploading artifacts",
+        "status": "success",
+        "run_time_millis": 180,
+        "type": "test"
+       }
+      ]
+     }
+    ]
    }
   },
   "files": {
@@ -291,7 +811,23 @@
    "https://output.circle-artifacts.com/output/job/e4edf9fd-1988-4836-86f0-4c72b7b61fdc/artifacts/0/tmp/fw/artifacts/premises-playwright-webkit/webkit.json": "{\n  \"schema\": 1,\n  \"engine\": \"webkit\",\n  \"browser\": \"27.2\",\n  \"playwrightCore\": \"1.64.1\",\n  \"tests\": [\n    {\n      \"id\": \"prem.anim.list\",\n      \"premise\": \"anim.list\"\n    },\n    {\n      \"id\": \"prem.cv.auto-margin\",\n      \"premise\": \"cv.auto-margin\"\n    },\n    {\n      \"id\": \"prem.cv.read-forces-lock\",\n      \"premise\": \"cv.read-forces-lock\"\n    },\n    {\n      \"id\": \"prem.cv.skip-flag\",\n      \"premise\": \"cv.skip-flag\"\n    },\n    {\n      \"id\": \"prem.cv.fresh-after-resize\",\n      \"premise\": \"cv.fresh-after-resize\"\n    },\n    {\n      \"id\": \"prem.frame.raf-order\",\n      \"premise\": \"frame.raf-order\"\n    },\n    {\n      \"id\": \"prem.frame.ro-same-frame\",\n      \"premise\": \"frame.ro-same-frame\"\n    },\n    {\n      \"id\": \"prem.resize.lag\",\n      \"premise\": \"resize.lag\"\n    },\n    {\n      \"id\": \"prem.clock.raf-timeline\",\n      \"premise\": \"clock.raf-timeline\"\n    },\n    {\n      \"id\": \"prem.css.number-linear\",\n      \"premise\": \"css.number-linear\"\n    },\n    {\n      \"id\": \"prem.css.inherits-false\",\n      \"premise\": \"css.inherits-false\"\n    },\n    {\n      \"id\": \"prem.dom.token-toggle-noop\",\n      \"premise\": \"dom.token-toggle-noop\"\n    },\n    {\n      \"id\": \"prem.dom.inline-same-value\",\n      \"premise\": \"dom.inline-same-value\"\n    },\n    {\n      \"id\": \"prem.read.forced-update\",\n      \"premise\": \"read.forced-update\"\n    },\n    {\n      \"id\": \"prem.hit.pointer-events\",\n      \"premise\": \"hit.pointer-events\"\n    },\n    {\n      \"id\": \"prem.layout.unit-truncation\",\n      \"premise\": \"layout.unit-truncation\"\n    },\n    {\n      \"id\": \"prem.io.async-delivery\",\n      \"premise\": \"io.async-delivery\"\n    },\n    {\n      \"id\": \"prem.grid.normal-aspect-ratio-no-stretch\",\n      \"premise\": \"grid.normal-aspect-ratio-no-stretch\"\n    },\n    {\n      \"id\": \"prem.grid.stretch-fill-equals-start\",\n      \"premise\": \"grid.stretch-fill-equals-start\"\n    }\n  ],\n  \"results\": [\n    {\n      \"testId\": \"prem.anim.list\",\n      \"engine\": \"webkit\",\n      \"ok\": true,\n      \"observed\": {\n        \"during\": [\n          {\n            \"kind\": \"transition\",\n            \"target\": \"tr\",\n            \"name\": \"width\"\n          },\n          {\n            \"kind\": \"transition\",\n            \"target\": \"quick\",\n            \"name\": \"width\"\n          },\n          {\n            \"kind\": \"animation\",\n            \"target\": \"css\",\n            \"name\": \"grow\"\n          }\n        ],\n        \"after\": [\n          {\n            \"kind\": \"transition\",\n            \"target\": \"tr\",\n            \"name\": \"width\"\n          },\n          {\n            \"kind\": \"animation\",\n            \"target\": \"css\",\n            \"name\": \"grow\"\n          }\n        ],\n        \"lerpMoved\": true,\n        \"msToDuring\": 182\n      },\n      \"ms\": 1723\n    },\n    {\n      \"testId\": \"prem.cv.auto-margin\",\n      \"engine\": \"webkit\",\n      \"ok\": false,\n      \"observed\": {\n        \"skipped\": {\n          \"margin\": \"150px\",\n          \"width\": \"100px\",\n          \"wasSkipped\": true,\n          \"state\": {\n            \"events\": [\n              true\n            ],\n            \"scrollY\": 0,\n            \"innerHeight\": 600,\n            \"top\": 4000\n          }\n        },\n        \"shown\": \"150px\"\n      },\n      \"error\": \"skipped subtree reports unresolved auto margin, got 150px\\n\\n'150px' !== 'auto'\\n\",\n      \"ms\": 62\n    },\n    {\n      \"testId\": \"prem.cv.read-forces-lock\",\n      \"engine\": \"webkit\",\n      \"ok\": true,\n      \"observed\": {\n        \"skippedBefore\": true,\n        \"margin\": \"150px\",\n        \"width\": \"100px\",\n        \"displayNoneMargin\": \"auto\",\n        \"state\": {\n          \"events\": [\n            true\n          ],\n          \"scrollY\": 0,\n          \"innerHeight\": 600,\n          \"top\": 4000\n        }\n      },\n      \"ms\": 40\n    },\n    {\n      \"testId\": \"prem.cv.skip-flag\",\n      \"engine\": \"webkit\",\n      \"ok\": true,\n      \"observed\": {\n        \"state\": {\n          \"events\": [\n            true\n          ],\n          \"scrollY\": 0,\n          \"innerHeight\": 600,\n          \"top\": 4019\n        },\n        \"skipped\": {\n          \"m\": {\n            \"visible\": true,\n            \"visibleAuto\": false\n          },\n          \"plain\": {\n            \"visible\": true,\n            \"visibleAuto\": true\n          },\n          \"events\": [\n            true\n          ]\n        },\n        \"shown\": {\n          \"m\": {\n            \"visible\": true,\n            \"visibleAuto\": true\n          },\n          \"plain\": {\n            \"visible\": true,\n            \"visibleAuto\": true\n          },\n          \"events\": [\n            true,\n            false\n          ]\n        }\n      },\n      \"ms\": 119\n    },\n    {\n      \"testId\": \"prem.cv.fresh-after-resize\",\n      \"engine\": \"webkit\",\n      \"ok\": true,\n      \"observed\": {\n        \"state\": {\n          \"events\": [\n            true\n          ],\n          \"scrollY\": 0,\n          \"innerHeight\": 600,\n          \"top\": 4000\n        },\n        \"lateSkipped\": true,\n        \"lateBefore\": {\n          \"style\": \"380px\",\n          \"geometry\": 380,\n          \"width\": 300,\n          \"innerWidth\": 1100\n        },\n        \"out\": {\n          \"m\": {\n            \"style\": \"380px\",\n            \"geometry\": 380,\n            \"width\": 300,\n            \"innerWidth\": 1100\n          },\n          \"lm\": {\n            \"style\": \"380px\",\n            \"geometry\": 380,\n            \"width\": 300,\n            \"innerWidth\": 1100\n          }\n        },\n        \"want\": 380\n      },\n      \"ms\": 222\n    },\n    {\n      \"testId\": \"prem.frame.raf-order\",\n      \"engine\": \"webkit\",\n      \"ok\": true,\n      \"observed\": {\n        \"log\": [\n          \"raf1\",\n          \"raf2\",\n          \"ro:50\"\n        ]\n      },\n      \"ms\": 227\n    },\n    {\n      \"testId\": \"prem.frame.ro-same-frame\",\n      \"engine\": \"webkit\",\n      \"ok\": true,\n      \"observed\": {\n        \"log\": [\n          \"raf-n\",\n          \"ro:50\",\n          \"raf-n+1\"\n        ]\n      },\n      \"ms\": 228\n    },\n    {\n      \"testId\": \"prem.resize.lag\",\n      \"engine\": \"webkit\",\n      \"ok\": true,\n      \"observed\": {\n        \"firstNewViewportFrame\": 3,\n        \"firstFullyAgreeingFrame\": 4,\n        \"lag\": 1,\n        \"K\": 2\n      },\n      \"ms\": 237\n    },\n    {\n      \"testId\": \"prem.clock.raf-timeline\",\n      \"engine\": \"webkit\",\n      \"ok\": true,\n      \"observed\": {\n        \"worst\": 0,\n        \"sample\": {\n          \"t\": 12,\n          \"tl\": 12,\n          \"now\": 12\n        }\n      },\n      \"ms\": 208\n    },\n    {\n      \"testId\": \"prem.css.number-linear\",\n      \"engine\": \"webkit\",\n      \"ok\": true,\n      \"observed\": {\n        \"values\": [\n          2.5,\n          5,\n          7.5\n        ]\n      },\n      \"ms\": 45\n    },\n    {\n      \"testId\": \"prem.css.inherits-false\",\n      \"engine\": \"webkit\",\n      \"ok\": true,\n      \"observed\": {\n        \"parentNo\": \"5\",\n        \"childNo\": \"0\",\n        \"childYes\": \"5\"\n      },\n      \"ms\": 12\n    },\n    {\n      \"testId\": \"prem.dom.token-toggle-noop\",\n      \"engine\": \"webkit\",\n      \"ok\": true,\n      \"observed\": {\n        \"counts\": [\n          0,\n          0,\n          1,\n          0,\n          1\n        ]\n      },\n      \"ms\": 11\n    },\n    {\n      \"testId\": \"prem.dom.inline-same-value\",\n      \"engine\": \"webkit\",\n      \"ok\": true,\n      \"observed\": {\n        \"counts\": [\n          1,\n          0,\n          0,\n          1,\n          1,\n          0\n        ]\n      },\n      \"ms\": 10\n    },\n    {\n      \"testId\": \"prem.read.forced-update\",\n      \"engine\": \"webkit\",\n      \"ok\": true,\n      \"observed\": {\n        \"rect\": 70,\n        \"computed\": \"33px\",\n        \"offset\": 44,\n        \"before\": \"top\",\n        \"off\": \"under\",\n        \"on\": \"top\"\n      },\n      \"ms\": 12\n    },\n    {\n      \"testId\": \"prem.hit.pointer-events\",\n      \"engine\": \"webkit\",\n      \"ok\": true,\n      \"observed\": {\n        \"top\": \"under\",\n        \"hole\": \"hole\",\n        \"stackNone\": [\n          \"under\"\n        ],\n        \"stackHole\": [\n          \"hole\",\n          \"under\"\n        ]\n      },\n      \"ms\": 11\n    },\n    {\n      \"testId\": \"prem.layout.unit-truncation\",\n      \"engine\": \"webkit\",\n      \"ok\": true,\n      \"observed\": {\n        \"got\": [\n          10,\n          10.015625,\n          100.984375,\n          33.328125\n        ],\n        \"want\": [\n          10,\n          10.015625,\n          100.984375,\n          33.328125\n        ]\n      },\n      \"ms\": 11\n    },\n    {\n      \"testId\": \"prem.io.async-delivery\",\n      \"engine\": \"webkit\",\n      \"ok\": true,\n      \"observed\": {\n        \"syncDelivery\": false,\n        \"deliveredAt\": 1,\n        \"K\": 3\n      },\n      \"ms\": 161\n    },\n    {\n      \"testId\": \"prem.grid.normal-aspect-ratio-no-stretch\",\n      \"engine\": \"webkit\",\n      \"ok\": true,\n      \"observed\": {\n        \"normalWithRatio\": \"content\",\n        \"fresh\": [\n          {\n            \"w\": 320,\n            \"h\": 256\n          },\n          {\n            \"w\": 320,\n            \"h\": 256\n          },\n          {\n            \"w\": 320,\n            \"h\": 300\n          },\n          {\n            \"w\": 320,\n            \"h\": 300\n          }\n        ],\n        \"narrow\": [\n          {\n            \"w\": 280,\n            \"h\": 224\n          },\n          {\n            \"w\": 280,\n            \"h\": 224\n          },\n          {\n            \"w\": 280,\n            \"h\": 300\n          },\n          {\n            \"w\": 280,\n            \"h\": 300\n          }\n        ],\n        \"after\": [\n          {\n            \"w\": 320,\n            \"h\": 256\n          },\n          {\n            \"w\": 320,\n            \"h\": 256\n          },\n          {\n            \"w\": 320,\n            \"h\": 300\n          },\n          {\n            \"w\": 320,\n            \"h\": 300\n          }\n        ],\n        \"ratioH\": 256\n      },\n      \"ms\": 94\n    },\n    {\n      \"testId\": \"prem.grid.stretch-fill-equals-start\",\n      \"engine\": \"webkit\",\n      \"ok\": true,\n      \"observed\": {\n        \"fresh\": {\n          \"a\": {\n            \"rows\": \"384px 52.1875px\",\n            \"h\": 384,\n            \"top\": 0\n          },\n          \"b\": {\n            \"rows\": \"384px 52.1875px\",\n            \"h\": 384,\n            \"top\": 0\n          },\n          \"c\": {\n            \"rows\": \"384px 52.1875px\",\n            \"h\": 384,\n            \"top\": 0\n          }\n        },\n        \"after\": {\n          \"a\": {\n            \"rows\": \"384px 52.1875px\",\n            \"h\": 384,\n            \"top\": 0\n          },\n          \"b\": {\n            \"rows\": \"384px 52.1875px\",\n            \"h\": 384,\n            \"top\": 0\n          },\n          \"c\": {\n            \"rows\": \"384px 52.1875px\",\n            \"h\": 384,\n            \"top\": 0\n          },\n          \"fills\": true,\n          \"equiv\": true\n        }\n      },\n      \"ms\": 96\n    }\n  ]\n}\n",
    "https://output.circle-artifacts.com/output/job/6d72227f-4aa6-4350-9a62-e4fd5dcd11e3/artifacts/0/tmp/fw/artifacts/premises-verdict.txt": "\n> fastwork-loop-v2@ fw /home/circleci/project\n> node apps/runner/src/fw.ts premises --results /tmp/fw/ws/premise-results\n\npremises: 32 registered (13 lane), 32 with a test, 18 page premises hold on chromium + webkit\nacknowledged findings (2, Fw.Ops.Premise.acks; not failing):\n  ACK premise cv.auto-margin on chromium: skipped subtree reports unresolved auto margin, got 150px [premise.cv.auto-margin]\n    theorems that assume it, not proved for this engine: planned:gate-settle, planned:fix-commission\n  ACK premise cv.auto-margin on webkit: skipped subtree reports unresolved auto margin, got 150px [premise.cv.auto-margin]\n    theorems that assume it, not proved for this engine: planned:gate-settle, planned:fix-commission\npremises: ok\n",
    "https://output.circle-artifacts.com/output/job/6d72227f-4aa6-4350-9a62-e4fd5dcd11e3/artifacts/0/tmp/fw/artifacts/spans.jsonl": "{\"tool\":\"circleci/verdict\",\"step\":\"checkout\",\"startMs\":1792439852877,\"durMs\":4021,\"exit\":0,\"commit\":\"9145de1\",\"load\":1.35,\"host\":\"ci\"}\n{\"tool\":\"circleci/verdict\",\"step\":\"node\",\"startMs\":1792439857115,\"durMs\":1249,\"exit\":0,\"commit\":\"9145de1\",\"load\":1.35,\"host\":\"ci\"}\n{\"tool\":\"circleci/verdict\",\"step\":\"pnpm\",\"startMs\":1792439858365,\"durMs\":631,\"exit\":0,\"commit\":\"9145de1\",\"load\":1.35,\"host\":\"ci\"}\n{\"tool\":\"circleci/verdict\",\"step\":\"cache restore\",\"startMs\":1792439859229,\"durMs\":783,\"exit\":0,\"commit\":\"9145de1\",\"load\":1.24,\"host\":\"ci\"}\n{\"tool\":\"circleci/verdict\",\"step\":\"deps install\",\"startMs\":1792439860246,\"durMs\":1029,\"exit\":0,\"commit\":\"9145de1\",\"load\":1.24,\"host\":\"ci\"}\n{\"commit\":\"9145de1\",\"load\":1.24,\"host\":\"ci\",\"tool\":\"fw\",\"step\":\"premises\",\"startMs\":1792439862079,\"durMs\":47,\"exit\":0}\n{\"tool\":\"circleci/verdict\",\"step\":\"fw premises\",\"startMs\":1792439861736,\"durMs\":407,\"exit\":0,\"commit\":\"9145de1\",\"load\":1.24,\"host\":\"ci\"}\n",
-   "https://output.circle-artifacts.com/output/job/6d72227f-4aa6-4350-9a62-e4fd5dcd11e3/artifacts/0/tmp/fw/artifacts/timings.json": "{\n  \"schema\": \"fw.circleci-timings/1\",\n  \"job\": \"verdict\",\n  \"class\": \"arm.medium.gen2\",\n  \"sha\": \"9145de1d8afc378a2b260530f3cb01745325cc7d\",\n  \"digest\": null,\n  \"bytes\": {\n    \"cache\": 0,\n    \"workspace\": 0\n  },\n  \"spans\": [\n    {\n      \"tool\": \"circleci/verdict\",\n      \"step\": \"checkout\",\n      \"startMs\": 1792439852877,\n      \"durMs\": 4021,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 1.35,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/verdict\",\n      \"step\": \"node\",\n      \"startMs\": 1792439857115,\n      \"durMs\": 1249,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 1.35,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/verdict\",\n      \"step\": \"pnpm\",\n      \"startMs\": 1792439858365,\n      \"durMs\": 631,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 1.35,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/verdict\",\n      \"step\": \"cache restore\",\n      \"startMs\": 1792439859229,\n      \"durMs\": 783,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 1.24,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/verdict\",\n      \"step\": \"deps install\",\n      \"startMs\": 1792439860246,\n      \"durMs\": 1029,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 1.24,\n      \"host\": \"ci\"\n    },\n    {\n      \"commit\": \"9145de1\",\n      \"load\": 1.24,\n      \"host\": \"ci\",\n      \"tool\": \"fw\",\n      \"step\": \"premises\",\n      \"startMs\": 1792439862079,\n      \"durMs\": 47,\n      \"exit\": 0\n    },\n    {\n      \"tool\": \"circleci/verdict\",\n      \"step\": \"fw premises\",\n      \"startMs\": 1792439861736,\n      \"durMs\": 407,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 1.24,\n      \"host\": \"ci\"\n    }\n  ]\n}\n"
+   "https://output.circle-artifacts.com/output/job/6d72227f-4aa6-4350-9a62-e4fd5dcd11e3/artifacts/0/tmp/fw/artifacts/timings.json": "{\n  \"schema\": \"fw.circleci-timings/1\",\n  \"job\": \"verdict\",\n  \"class\": \"arm.medium.gen2\",\n  \"sha\": \"9145de1d8afc378a2b260530f3cb01745325cc7d\",\n  \"digest\": null,\n  \"bytes\": {\n    \"cache\": 0,\n    \"workspace\": 0\n  },\n  \"spans\": [\n    {\n      \"tool\": \"circleci/verdict\",\n      \"step\": \"checkout\",\n      \"startMs\": 1792439852877,\n      \"durMs\": 4021,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 1.35,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/verdict\",\n      \"step\": \"node\",\n      \"startMs\": 1792439857115,\n      \"durMs\": 1249,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 1.35,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/verdict\",\n      \"step\": \"pnpm\",\n      \"startMs\": 1792439858365,\n      \"durMs\": 631,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 1.35,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/verdict\",\n      \"step\": \"cache restore\",\n      \"startMs\": 1792439859229,\n      \"durMs\": 783,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 1.24,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/verdict\",\n      \"step\": \"deps install\",\n      \"startMs\": 1792439860246,\n      \"durMs\": 1029,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 1.24,\n      \"host\": \"ci\"\n    },\n    {\n      \"commit\": \"9145de1\",\n      \"load\": 1.24,\n      \"host\": \"ci\",\n      \"tool\": \"fw\",\n      \"step\": \"premises\",\n      \"startMs\": 1792439862079,\n      \"durMs\": 47,\n      \"exit\": 0\n    },\n    {\n      \"tool\": \"circleci/verdict\",\n      \"step\": \"fw premises\",\n      \"startMs\": 1792439861736,\n      \"durMs\": 407,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 1.24,\n      \"host\": \"ci\"\n    }\n  ]\n}\n",
+   "https://action-output.example/premise-tests/job-10/saving-cache": [
+    {
+     "message": "Skipping cache generation, cache already exists for key: pnpm-store-v1-d7DJXJB9BCmE0a5g1+4mYj6h3xteLfqQCUdUbl0kQsI=, or is locked for use by another job\r\nFound one created at 2026-10-19 19:56:01 +0000 UTC by build number: 11\r\n",
+     "time": "2026-10-19T19:56:27Z",
+     "type": "out",
+     "truncated": false
+    }
+   ],
+   "https://action-output.example/premise-tests/job-11/saving-cache": [
+    {
+     "message": "Creating cache archive...\r\nUsing zstd compression\r\nUploading cache archive...\r\nStored Cache to pnpm-store-v1-d7DJXJB9BCmE0a5g1+4mYj6h3xteLfqQCUdUbl0kQsI=\r\n  * /home/circleci/.local/share/pnpm/store\r\nTotal size uploaded: 9.3 MiB\r\n",
+     "time": "2026-10-19T19:56:00Z",
+     "type": "out",
+     "truncated": false
+    }
+   ]
   }
  },
  "github": {
