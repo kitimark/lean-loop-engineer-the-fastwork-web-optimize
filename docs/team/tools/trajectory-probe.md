@@ -151,69 +151,73 @@ Limits of the in-flight rule, for that fraction of samples:
   the stored tuple gives up to 0.64 level (640 thousandths, at L 0.998, a -0.004, b -0.019, red channel; a grid of every
   0.001 tuple over the range above with the true value at the 8 corners of +-0.0005), outside the Lean `chanErr` 500. A
   recovered reading is within 0.64 + 0.008 level of the truth, so one recovered arm against an `rgb` arm (0.5 level) differs
-  by at most 0.64 + 0.5 + 0.008 < 2 levels, inside the judge's 2000. Ambiguity: an old `color(srgb ..)` reading of a
+  by at most 0.64 + 0.5 + 0.008 < 2 levels, inside the judge's 2000; when both arms are recovered, 2 x (0.64 + 0.008) =
+  1.296 < 2 levels (arithmetic from the MEASURED error). Ambiguity: an old `color(srgb ..)` reading of a
   near-black non-integer colour (for example `[510,255,255]`) has the same shape and would be read as `oklab`; none is in
   the stored data (every oklab-shaped tuple there has b at most 0). Re-reduced with the same `reduce.mjs` over every
   `raw-<engine>.json` of the three runs (artifacts `trajectory-apple` = Safari on the Mac, `trajectory-playwright-webkit` =
   Linux WebKit, `trajectory-chromium`; `before` = as stored, `after` = oklab-shaped tuples converted, same files). The
-  failing colour units of `nav.background-color` and `logo.color` per width (`*` = new against the base arm; an unmarked
-  unit fails in the base arm too; `aN` approach, `open@b`, `close@b` push buckets, `-hold` the hold after a push; ranges
-  `3-9` and lists `3,5`). Artifacts with no row had no colour unit before or after; `39453181962 playwright-webkit` and
-  `39457063232 apple` hold no nav reading (0 colour reads):
+  failing colour units of `nav.background-color` and `logo.color` are tabulated for 9 whole-run artifacts (3 runs x
+  `trajectory-apple`, `trajectory-playwright-webkit`, `trajectory-chromium`) x 4 widths (390, 640, 641, 1280) = 36 cells,
+  every cell present. Each cell is exactly one of three values: (a) `not measured (0 morph runs)`: the artifact's runs have
+  no morph phase, so they hold no nav or logo reading and show nothing about colour; (b) `measured (3 morph runs), no
+  colour unit before or after`; (c) the failing units before and after. Count over the 36 cells: (a) 12, (b) 3, (c) 21.
+  Each cell is checked by re-reducing the one raw file of its artifact (`raw-playwright-webkit.json` in
+  `trajectory-apple` and in `trajectory-playwright-webkit`, `raw-chromium.json` in `trajectory-chromium`). Legend for (c):
+  `-` = no unit; `*` after a unit = new against the base arm, an unmarked unit fails in the base arm too; a `*` after a
+  list or range marks every step in it as new (`close@0,7*` = close@0* close@7*); `aN` approach, `open@b`, `close@b` push
+  buckets, `-hold` the hold after a push; ranges `3-9`, lists `3,5`.
 
-| run, artifact | width | node.property | before | after |
-|---|---|---|---|---|
-| 39453181962 apple | 390 | logo.color | a0 open@7-10 open-hold@10 close@1-10 | same |
-| | 390 | nav.background-color | - | close@0 |
-| | 640 | nav.background-color | open@2-4 close@0* close@8 | open@2-4 close@0,8 close-hold@0* |
-| | 640 | logo.color | open@2-4 close@8 | same |
-| | 641 | nav.background-color | a3 a8* a11* open@2 | a3 open@2 close@0 |
-| | 641 | logo.color | open@2 | same |
-| | 1280 | nav.background-color | a7* open@3,5* close@0* | open@3,5* close@0 close-hold@0* |
-| | 1280 | logo.color | open@3,5* | same |
-| 39453181962 chromium | 390 | logo.color | a0 open@1,6-10 open-hold@10 close@0-10 | same |
-| | 390 | nav.background-color | open@1 | same |
-| | 641 | nav.background-color, logo.color | open@1* | same |
-| | 1280 | nav.background-color | a7* | - |
-| 39471466367 apple | 390 | nav.background-color | open@3* close@0* close-hold@0 | open@3* close@0 close-hold@0 |
-| | 390 | logo.color | a0 open@3* | same |
-| | 640 | nav.background-color | open@2 close@0,7* close@8 close-hold@0* | open@2 close@0,8 close@7* |
-| | 640 | logo.color | open@2 close@7* close@8 | same |
-| | 641 | nav.background-color | open@3* open@4 close@0* close@8 close-hold@0* | open@3* open@4 close@0,8 |
-| | 641 | logo.color | open@3* open@4 close@8 | same |
-| | 1280 | nav.background-color | open@2* open@4 close@0 close-hold@0* | open@2* open@4 close@0 |
-| | 1280 | logo.color | open@2* open@4 | same |
-| 39471466367 chromium | 390, 640 | nav.background-color | open@1 close@0* close-hold@0* | open@1 close@0* |
-| | 390, 640 | logo.color | open@1 | same |
-| | 641 | nav.background-color | open@2* close@0* close-hold@0* | open@2* close@0* |
-| | 641 | logo.color | open@2* | same |
-| | 1280 | nav.background-color | close@0* close-hold@0* | close@0* |
-| 39457063232 playwright-webkit | 390 | nav.background-color | open@1,3-9 close@0,3-6,9 | open@1,3-9 close@0,3-6,9 close-hold@0* |
-| | 390 | logo.color | a0 open@1,3-9 open@10* close@0* close@3-6,9 | same |
-| | 640 | nav.background-color | open@1,3-9 close@0,1,4,6,8,9 close@3* close-hold@0* | open@1,3-9 close@1,4,6,8,9 close@3* close-hold@0 |
-| | 640 | logo.color | open@1,3-9 close@1,4,6,8,9 close@3* | same |
-| | 641 | nav.background-color | a3 open@3-8 close@2,3,5-7,9 | open@3-8 close@0,2,3,5-7,9 |
-| | 641 | logo.color | open@3-8 close@2,3,5-7,9 | same |
-| | 1280 | nav.background-color | open@2-8 close@0* close@1,3-7,9 close-hold@0 | same |
-| | 1280 | logo.color | open@2-8 close@1,3-7,9 | same |
-| 39457063232 chromium | 640 | nav.background-color, logo.color | open@1 | same |
-| | 1280 | nav.background-color | - | close@0* |
+| run, artifact | width | cell |
+|---|---|---|
+| 39453181962 apple | 390 | nav.background-color before `-` after `close@0`; logo.color before `a0 open@7-10 open-hold@10 close@1-10` after `a0 open@7-10 open-hold@10 close@1-10` |
+| 39453181962 apple | 640 | nav.background-color before `open@2-4 close@0* close@8` after `open@2-4 close@0,8 close-hold@0*`; logo.color before `open@2-4 close@8` after `open@2-4 close@8` |
+| 39453181962 apple | 641 | nav.background-color before `a3 a8* a11* open@2` after `a3 open@2 close@0`; logo.color before `open@2` after `open@2` |
+| 39453181962 apple | 1280 | nav.background-color before `a7* open@3,5* close@0*` after `open@3,5* close@0 close-hold@0*`; logo.color before `open@3,5*` after `open@3,5*` |
+| 39453181962 playwright-webkit | 390 | not measured (0 morph runs) |
+| 39453181962 playwright-webkit | 640 | not measured (0 morph runs) |
+| 39453181962 playwright-webkit | 641 | not measured (0 morph runs) |
+| 39453181962 playwright-webkit | 1280 | not measured (0 morph runs) |
+| 39453181962 chromium | 390 | nav.background-color before `open@1` after `open@1`; logo.color before `a0 open@1,6-10 open-hold@10 close@0-10` after `a0 open@1,6-10 open-hold@10 close@0-10` |
+| 39453181962 chromium | 640 | measured (3 morph runs), no colour unit before or after |
+| 39453181962 chromium | 641 | nav.background-color before `open@1*` after `open@1*`; logo.color before `open@1*` after `open@1*` |
+| 39453181962 chromium | 1280 | nav.background-color before `a7*` after `-`; logo.color before `-` after `-` |
+| 39471466367 apple | 390 | nav.background-color before `open@3* close@0* close-hold@0` after `open@3* close@0 close-hold@0`; logo.color before `a0 open@3*` after `a0 open@3*` |
+| 39471466367 apple | 640 | nav.background-color before `open@2 close@0,7* close@8 close-hold@0*` after `open@2 close@0,8 close@7*`; logo.color before `open@2 close@7* close@8` after `open@2 close@7* close@8` |
+| 39471466367 apple | 641 | nav.background-color before `open@3* open@4 close@0* close@8 close-hold@0*` after `open@3* open@4 close@0,8`; logo.color before `open@3* open@4 close@8` after `open@3* open@4 close@8` |
+| 39471466367 apple | 1280 | nav.background-color before `open@2* open@4 close@0 close-hold@0*` after `open@2* open@4 close@0`; logo.color before `open@2* open@4` after `open@2* open@4` |
+| 39471466367 playwright-webkit | 390 | not measured (0 morph runs) |
+| 39471466367 playwright-webkit | 640 | not measured (0 morph runs) |
+| 39471466367 playwright-webkit | 641 | not measured (0 morph runs) |
+| 39471466367 playwright-webkit | 1280 | not measured (0 morph runs) |
+| 39471466367 chromium | 390 | nav.background-color before `open@1 close@0* close-hold@0*` after `open@1 close@0*`; logo.color before `open@1` after `open@1` |
+| 39471466367 chromium | 640 | nav.background-color before `open@1 close@0* close-hold@0*` after `open@1 close@0*`; logo.color before `open@1` after `open@1` |
+| 39471466367 chromium | 641 | nav.background-color before `open@2* close@0* close-hold@0*` after `open@2* close@0*`; logo.color before `open@2*` after `open@2*` |
+| 39471466367 chromium | 1280 | nav.background-color before `close@0* close-hold@0*` after `close@0*`; logo.color before `-` after `-` |
+| 39457063232 apple | 390 | not measured (0 morph runs) |
+| 39457063232 apple | 640 | not measured (0 morph runs) |
+| 39457063232 apple | 641 | not measured (0 morph runs) |
+| 39457063232 apple | 1280 | not measured (0 morph runs) |
+| 39457063232 playwright-webkit | 390 | nav.background-color before `open@1,3-9 close@0,3-6,9` after `open@1,3-9 close@0,3-6,9 close-hold@0*`; logo.color before `a0 open@1,3-9 open@10* close@0* close@3-6,9` after `a0 open@1,3-9 open@10* close@0* close@3-6,9` |
+| 39457063232 playwright-webkit | 640 | nav.background-color before `open@1,3-9 close@0,1,4,6,8,9 close@3* close-hold@0*` after `open@1,3-9 close@1,4,6,8,9 close@3* close-hold@0`; logo.color before `open@1,3-9 close@1,4,6,8,9 close@3*` after `open@1,3-9 close@1,4,6,8,9 close@3*` |
+| 39457063232 playwright-webkit | 641 | nav.background-color before `a3 open@3-8 close@2,3,5-7,9` after `open@3-8 close@0,2,3,5-7,9`; logo.color before `open@3-8 close@2,3,5-7,9` after `open@3-8 close@2,3,5-7,9` |
+| 39457063232 playwright-webkit | 1280 | nav.background-color before `open@2-8 close@0* close@1,3-7,9 close-hold@0` after `open@2-8 close@0* close@1,3-7,9 close-hold@0`; logo.color before `open@2-8 close@1,3-7,9` after `open@2-8 close@1,3-7,9` |
+| 39457063232 chromium | 390 | measured (3 morph runs), no colour unit before or after |
+| 39457063232 chromium | 640 | nav.background-color before `open@1` after `open@1`; logo.color before `open@1` after `open@1` |
+| 39457063232 chromium | 641 | measured (3 morph runs), no colour unit before or after |
+| 39457063232 chromium | 1280 | nav.background-color before `-` after `close@0*`; logo.color before `-` after `-` |
 
-  A width not listed had no colour unit in that artifact. The A/A is the base arm against the original: a unit without `*`
+  Every run in each trajectory-leg-* artifact of 39453181962 and 39471466367 is identical (as parsed JSON) to a run in its
+  whole-run artifact (12 of 12 per engine); 39457063232 has no leg artifacts. The leg artifacts are not tabulated again.
+  The A/A is the base arm against the original: a unit without `*`
   fails in both, and the long unmarked lists (`open@1,3-9`, `close@1,4,6,8,9`) are not colour-space units and did not
   change. The approach units a7, a8, a11 (new before) were colour space and are gone. `close@0` and `close-hold@0`
   remain, some gained, some lost: both arms are now in sRGB and the candidate's reading differs by 7 to 8 channel levels
   from the original's, outside 2 (MEASURED: 39453181962 Chromium 1280 candidate rep 1 holds `[243.7, 243.9, 244.7]` for
   218 ms from the class change while the original reads `[251.0, 251.0, 251.0]`; Mac 1280 original ramps 244.7 to 255
   over 700 ms where a base rep starts at 252.3). INFERRED: where the colour starts depends on the interrupted earlier
-  transition, a timing case (follow-up `trajectory-close-start`), not the colour space. New (`*`) start-of-close units
-  after normalisation, `nav.background-color` unless noted: 39453181962 apple 640 and 1280 close-hold@0; 39453181962
-  chromium none; 39471466367 apple none; 39471466367 chromium (the waapi run) close@0 at 390, 640, 641 and 1280;
-  39457063232 apple no nav reading; 39457063232 playwright-webkit 390 close-hold@0 and `logo.color` 390 close@0, 1280
-  close@0; 39457063232 chromium 1280 close@0. New units the conversion did not change, not at the start of the close
-  (`nav.background-color` and `logo.color` both unless noted): 39453181962 apple 1280 open@3,5; 39453181962 chromium 641
-  open@1; 39471466367 apple 390 open@3, 640 close@7, 641 open@3, 1280 open@2; 39471466367 chromium 641 open@2;
-  39457063232 playwright-webkit 640 close@3 and `logo.color` 390 open@10.
+  transition, a timing case (follow-up `trajectory-close-start`), not the colour space. Every new (`*`) unit after
+  normalisation, at the start of the close or not, is a marker in the table.
   Coverage fails are not colour units and did not change.
 - `--morph`-driven transitions under `is-morphing` are judged at rest. MEASURED residual: raw 39457063232, 641
   `earn.max-width` close@0, one width (content `new` 1; main gave 2). Follow-up: `morph-driven-transitions`.
