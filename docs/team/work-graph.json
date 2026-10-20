@@ -10690,7 +10690,8 @@
     "docs/team/tools/fw-watch.md",
     "docs/team/handoffs/alert-steps-plain.md",
     "lean/Fw/Serve.lean",
-    "packages/contracts/schema/**"
+    "packages/contracts/schema/**",
+    "packages/contracts/src/index.ts"
    ]
   },
   {
