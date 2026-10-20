@@ -77,3 +77,23 @@ describe("rig over plain HTTP", () => {
     assert.equal((await fetch(link, { redirect: "manual" })).status, 403);
   });
 });
+
+describe("two rig runs in one process never collide on ports (the land lane runs both engines in one job)", () => {
+  it("a second rig starts after the first closed, and two rigs open together get disjoint ports; none is left listening", async () => {
+    const { createServer } = await import("node:net");
+    const bindable = (port) => new Promise((res) => { const s = createServer(); s.once("error", () => res(false)); s.listen(port, "127.0.0.1", () => s.close(() => res(true))); });
+    const used = (r) => Object.entries(r.ports).filter(([k]) => k !== "proxy").map(([, v]) => v);
+    const first = await startRig();
+    const firstPorts = used(first);
+    await first.close();
+    for (const p of firstPorts) assert.equal(await bindable(p), true, `port ${p} still listening after close`);
+    const second = await startRig(); // chromium run then webkit run: same process, same sequence
+    const third = await startRig(); // overlapping runs: disjoint ports
+    try {
+      const all = [...used(second), ...used(third)];
+      assert.equal(new Set(all).size, all.length, "ports of two live rigs overlap");
+      for (const r of [second, third]) assert.ok(r.ports.rp + 1000 <= 65535 && r.ports.op + 1000 <= 65535, "private arm port above the Lean bound");
+    } finally { await second.close(); await third.close(); }
+    for (const p of used(second).concat(used(third))) assert.equal(await bindable(p), true, `port ${p} still listening after close`);
+  });
+});

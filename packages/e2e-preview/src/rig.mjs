@@ -30,27 +30,53 @@ export const BACKEND_OFF = 1000;
  *  first (`sh scripts/fwcore-build.sh`); the land lane and the preview-e2e workflow build it before this package runs. */
 export const FWCORE_BIN = join(REPO, "lean/.lake/build/bin/fwcore");
 
+/** Close a server and wait until its port is released (open connections are cut). */
+const stopSrv = (s) => new Promise((res) => { s.close(() => res()); s.closeAllConnections?.(); });
+
 const imp = (rel) => import(pathToFileURL(join(API, rel)).href);
 
-async function freePort(host = "127.0.0.1") {
-  return await new Promise((resolve, reject) => {
-    const s = createServer();
-    s.on("error", reject);
-    s.listen(0, host, () => { const p = s.address().port; s.close(() => resolve(p)); });
-  });
+/** Ports to listen on, chosen at run time: the OS hands out `n` distinct free ports and keeps every one bound until all `n` are
+ *  known, so no two of them are equal and none is a port another run is using (a probe that closed at once could hand the same
+ *  port out twice). `release()` frees them all together, right before the caller binds. */
+async function holdPorts(n, { max = 65535 - BACKEND_OFF, host = "127.0.0.1" } = {}) {
+  const held = [];
+  const release = () => Promise.all(held.map((s) => new Promise((res) => s.close(() => res()))));
+  try {
+    for (let tries = 0; held.length < n; tries++) {
+      if (tries > 400) throw new Error(`no ${n} free ports at or below ${max}`);
+      const s = createServer();
+      await new Promise((res, rej) => { s.once("error", rej); s.listen(0, host, res); });
+      held.push(s);
+      if (s.address().port > max) { held.pop(); await new Promise((res) => s.close(res)); }
+    }
+  } catch (e) { await release(); throw e; }
+  return { ports: held.map((s) => s.address().port), release };
 }
 
-/** Two public arm ports whose private ports (+ BACKEND_OFF) are free too and below 65536. */
-async function armPorts() {
-  for (let i = 0; i < 100; i++) {
-    const [a, b] = [await freePort(), await freePort()];
-    if (a > 64000 || b > 64000 || a === b) continue;
-    const free = await Promise.all([a + BACKEND_OFF, b + BACKEND_OFF].map((p) => new Promise((res) => {
-      const s = createServer(); s.on("error", () => res(false)); s.listen(p, "127.0.0.1", () => s.close(() => res(true)));
-    })));
-    if (free.every(Boolean)) return [a, b];
+/** One run's ports: two public arm ports `rp`/`op` (their private ports +BACKEND_OFF stay <= 65535, within the Lean bound
+ *  `portBase + portN + backendOff <= 65536`), where the preview server really listens, and the console and preview ports. All
+ *  distinct and free at this moment; every one is bound again straight after `release()`. */
+async function runPorts() {
+  const arm = await holdPorts(2); // <= 64535, so the +BACKEND_OFF ports below exist
+  const priv = [];
+  const rest = await holdPorts(4, { max: 65535 });
+  try {
+    const own = arm.ports.map((p) => p + BACKEND_OFF);
+    // the private ports must be free and unequal to the others: bind them too
+    for (const p of own) {
+      const s = createServer();
+      await new Promise((res, rej) => { s.once("error", rej); s.listen(p, "127.0.0.1", res); });
+      priv.push(s);
+    }
+  } catch (e) {
+    await Promise.all(priv.map((s) => new Promise((res) => s.close(res))));
+    await arm.release(); await rest.release();
+    return runPorts(); // a private port was taken: draw again
   }
-  throw new Error("no free arm port pair");
+  const [rp, op] = arm.ports;
+  const [rawRp, rawOp, consolePort, previewPort] = rest.ports;
+  const release = async () => { await Promise.all(priv.map((s) => new Promise((res) => s.close(res)))); await arm.release(); await rest.release(); };
+  return { rp, op, rawRp, rawOp, consolePort, previewPort, release };
 }
 
 /** The first private LAN IPv4 address (console-api's own picker), or null when the machine has none. */
@@ -127,14 +153,17 @@ export async function startRig({ lan = null } = {}) {
   ]);
   const tmp = mkdtempSync(join(tmpdir(), "fw-e2e-preview-"));
   const closers = [];
-  const [rp, op] = await armPorts(); // the arms' public origins; the arm app reaches their servers at rp/op + BACKEND_OFF
-  const [rawRp, rawOp] = [await freePort(), await freePort()]; // where the preview server process really listens
+  // rp/op: the arms' public origins (the arm app reaches their servers at rp/op + BACKEND_OFF); rawRp/rawOp: where the preview
+  // server process really listens. Chosen at run time, held together, released just before each is bound.
+  const { rp, op, rawRp, rawOp, consolePort, previewPort, release: releasePorts } = await runPorts();
+  await releasePorts();
 
   // the preview server process, as PreviewManager.defaultHooks.serve starts it (--rp/--op: where it listens, --arm-*: the arms' origins)
   const child = spawn(process.execPath, [join(API, "src/preview/serve-child.ts"), "--serve", `--fw-preview=${PREVIEW_ID}`, "--rewrite", FIXTURE_DIST,
     "--original", SNAPSHOT, "--media", SNAPSHOT, "--rp", String(rawRp), "--op", String(rawOp), "--arm-rp", String(rp), "--arm-op", String(op)],
   { stdio: ["ignore", "pipe", "pipe"] });
-  closers.push(() => { try { child.kill("SIGTERM"); } catch { /* gone */ } });
+  const childExit = new Promise((res) => child.once("exit", res));
+  closers.push(async () => { if (child.exitCode === null && child.signalCode === null) { try { child.kill("SIGTERM"); } catch { /* gone */ } await childExit; } });
   await new Promise((resolve, reject) => {
     let out = "";
     const t = setTimeout(() => reject(new Error(`preview server did not start: ${out.slice(-300)}`)), 15_000);
@@ -147,7 +176,7 @@ export async function startRig({ lan = null } = {}) {
    *  pass-through (the control "arm without tap"). */
   const mode = { tap: true };
   const [tapR, tapO] = await Promise.all([startTap(rp + BACKEND_OFF, rawRp, mode), startTap(op + BACKEND_OFF, rawOp, mode)]);
-  closers.push(() => tapR.close(), () => tapO.close());
+  closers.push(() => stopSrv(tapR), () => stopSrv(tapO));
   const core = selectCore();
   const store = await Store.open(join(tmp, ".fw-console"), core);
   closers.push(() => store.close());
@@ -159,7 +188,6 @@ export async function startRig({ lan = null } = {}) {
     list: () => ({ previews: [], failed: [] }),
     liveTable: () => [{ id: PREVIEW_ID, task: "e2e", rp, op, started: 0 }],
   };
-  const consolePort = await freePort(), previewPort = await freePort();
   const owner = new OwnerAuth();
   owner.setPorts(consolePort, previewPort);
   const audit = [];
@@ -181,16 +209,16 @@ export async function startRig({ lan = null } = {}) {
     const srv = serve({ fetch, port, hostname }, () => resolve(srv));
     srv.on("error", reject);
   });
-  closers.push(...(await Promise.all([listen(app.fetch, consolePort, "127.0.0.1"), listen(observe(previewPort), previewPort, "127.0.0.1")])).map((s) => () => s.close()));
+  closers.push(...(await Promise.all([listen(app.fetch, consolePort, "127.0.0.1"), listen(observe(previewPort), previewPort, "127.0.0.1")])).map((s) => () => stopSrv(s)));
   const arms = new ArmServers(observe(0), lan);
   await arms.open({ id: PREVIEW_ID, rp, op });
   closers.push(() => arms.close(PREVIEW_ID));
   if (isLan) {
     owner.setLanHosts([`${lan}:${consolePort}`], [`${lan}:${previewPort}`]);
-    closers.push(...(await Promise.all([listen(app.fetch, consolePort, lan), listen(observe(previewPort), previewPort, lan)])).map((s) => () => s.close()));
+    closers.push(...(await Promise.all([listen(app.fetch, consolePort, lan), listen(observe(previewPort), previewPort, lan)])).map((s) => () => stopSrv(s)));
   }
   const proxy = await startHostProxy();
-  closers.push(() => proxy.close());
+  closers.push(() => stopSrv(proxy));
 
   const consoleOrigin = `http://127.0.0.1:${consolePort}`;
   /** A one-time grant link for the preview, asked of the console like the lead does (loopback POST, console Origin). */

@@ -118,7 +118,7 @@ describe("ArmServers (listeners of a preview's two arm ports)", () => {
     await arms.open({ id: "x", rp, op });
     expect(await (await fetch(`http://127.0.0.1:${rp}/`)).text()).toBe(`arm ${rp}`);
     expect(arms.open_ids).toEqual(["x"]);
-    arms.close("x");
+    await arms.close("x");
     await expect(fetch(`http://127.0.0.1:${op}/`)).rejects.toThrow();
     expect(arms.open_ids).toEqual([]);
     // a taken op port: the whole open fails and rp is released again
@@ -126,6 +126,6 @@ describe("ArmServers (listeners of a preview's two arm ports)", () => {
     await expect(arms.open({ id: "y", rp, op })).rejects.toThrow(/could not be bound/);
     await new Promise((r) => hold.close(r));
     await expect(fetch(`http://127.0.0.1:${rp}/`)).rejects.toThrow();
-    arms.close("nope"); // unknown id: no-op
+    await arms.close("nope"); // unknown id: no-op
   });
 });

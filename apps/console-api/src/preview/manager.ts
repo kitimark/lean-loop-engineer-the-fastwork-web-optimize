@@ -127,7 +127,7 @@ export type StartReply =
   | { ok: false; reason: string; detail?: string };
 
 /** The arm origins of the previews (arm-servers.ts): one gated listener per arm, on the arm's public port. */
-export type Arms = { open(e: Entry): Promise<void>; close(id: string): void };
+export type Arms = { open(e: Entry): Promise<void>; close(id: string): void | Promise<void> };
 
 export class PreviewManager {
   private entries: Entry[] = [];
@@ -235,7 +235,7 @@ export class PreviewManager {
       const e = this.entries.find((x) => x.id === id);
       if (!e) continue; // not in our table: nothing to kill
       this.cancelled.add(id);
-      this.arms?.close(id);
+      void this.arms?.close(id);
       if (e.pid !== null) {
         if (this.hooks.isOurs(e.pid, e)) this.hooks.killGroup(e.pid);
         else this.note({ ev: "pidNotOurs", id, pid: e.pid }); // gone or recycled: never signalled

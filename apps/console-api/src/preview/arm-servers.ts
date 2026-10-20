@@ -7,7 +7,10 @@
 import { serve } from "@hono/node-server";
 import type { Entry } from "./manager.ts";
 
-type Srv = { close(cb?: () => void): unknown; on(ev: "error", f: (e: Error) => void): unknown };
+type Srv = { close(cb?: () => void): unknown; closeAllConnections?(): void; on(ev: "error", f: (e: Error) => void): unknown };
+
+/** Stop a listener and resolve once its port is released (open keep-alive connections are cut). */
+const stop = (s: Srv): Promise<void> => new Promise((res) => { s.close(() => res()); s.closeAllConnections?.(); });
 
 export class ArmServers {
   private byId = new Map<string, Srv[]>();
@@ -32,16 +35,17 @@ export class ArmServers {
         if (this.lanAddr) got.push(await this.listen(port, this.lanAddr));
       }
     } catch (err) {
-      for (const s of got) s.close();
+      await Promise.all(got.map(stop));
       throw new Error(`arm ports ${e.rp}/${e.op} could not be bound: ${(err as Error).message}`);
     }
     this.byId.set(e.id, got);
   }
 
-  /** Stop listening for a preview (no-op for an unknown id). */
-  close(id: string): void {
-    for (const s of this.byId.get(id) ?? []) s.close();
+  /** Stop listening for a preview and resolve when its ports are released (no-op for an unknown id). */
+  async close(id: string): Promise<void> {
+    const got = this.byId.get(id) ?? [];
     this.byId.delete(id);
+    await Promise.all(got.map(stop));
   }
 
   get open_ids(): string[] { return [...this.byId.keys()]; }
