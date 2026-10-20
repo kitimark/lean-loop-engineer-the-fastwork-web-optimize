@@ -11760,7 +11760,8 @@
     "apps/site/src/registry/presets/v2-proved.json",
     "packages/contracts/golden/preset/**",
     "docs/team/handoffs/admit-hero-exit-scoped.md"
-   ]
+   ],
+   "evidence": "ce075a8"
   },
   {
    "devices": [
@@ -11775,7 +11776,8 @@
    "title": "exit-scoped-inline r2 #7: one driver-level jsdom case: append an article after mount, call the writer, assert the inline --exit-opacity on it",
    "writes": [
     "apps/site/src/parts/hero.exit/*.test.ts"
-   ]
+   ],
+   "evidence": "caf2b2a"
   },
   {
    "devices": [
@@ -11796,7 +11798,8 @@
     "lean/Fw/Ops/Golden.lean",
     "lean/Fw.lean",
     "lean/Fw/Wire/**"
-   ]
+   ],
+   "evidence": "c22532e"
   },
   {
    "devices": [
