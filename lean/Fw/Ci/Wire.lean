@@ -1,6 +1,7 @@
 import Lean.Data.Json
 import Fw.Ci.Budget
 import Fw.Ci.Verdict
+import Fw.Ci.Attempt
 import Fw.Ci.Intent
 import Fw.Ops.Wire
 /-!
@@ -23,6 +24,7 @@ and passes it to the next call.
 | `ci.budget.limits` | (nothing) | `limits` |
 | `ci.verdict` | `runs` [Facts] | `runs` [{`verdict`, `code`, `reason`}], `verdict`, `code` (`Fw.Ci.Verdict.combine`) |
 | `ci.verdict` | `msg` (null: unknown), `lanes` {name: Facts or null} | `lanes` [{`name`, `verdict`, `code`, `reason`}], `verdict`, `code` (`Fw.Ci.Verdict.waitVerdict`) |
+| `ci.attempt` | `recorded`?, `live`? (a cached fact against the live run) or `row`?, `view` (jobs view against a listed row) or `floor`, `row`? (row against the newest attempt seen) or `read`, `now` (a finished row's age) | `reuse` / `settled` / `current` / `fresh` (bool; `Fw.Ci.Attempt`) |
 | `ci.required` | `msg` (null: unknown) | `lanes` [name] (`Fw.Ci.Intent.wanted`, table order); unknown: `lanes` null, `verdict`, `code`, `reason` |
 
 Facts: `{guard, steps:[{name, conclusion}], jobs:[conclusion], heavySteps:[{name, conclusion}]}` (`heavySteps`: the
@@ -346,10 +348,28 @@ def opRequired (req : Json) : Except String Reply := do
   | none => pure (unknownReply [("lanes", .null)])
   | some msg => pure [("lanes", .arr ((Fw.Ci.Intent.waitLanes msg).map fun l => Json.str l.name).toArray)]
 
+/-- `ci.attempt`: which attempt of a run a recorded fact answers for (`Fw.Ci.Attempt`). Request `{recorded?, live?}`:
+reply `{reuse}`; request `{view, row?}`: reply `{settled}`; request `{floor, row?}`: reply `{current}`; request `{read, now}` (seconds): reply `{fresh}`. An attempt is a
+natural number, absent or `null` when unknown. The cases are tried in this order: `view` gives settled, `read` gives
+fresh, `floor` gives current, otherwise reuse. -/
+def opAttempt (req : Json) : Except String Reply := do
+  let n? (k : String) : Except String (Option Nat) := do
+    match opt req k with
+    | none | some .null => pure none
+    | some _ => pure (some (← nat req k))
+  if (opt req "view").isSome then
+    pure [("settled", .bool (Fw.Ci.Attempt.settled (← n? "row") (← nat req "view")))]
+  else if (opt req "read").isSome then
+    pure [("fresh", .bool (Fw.Ci.Attempt.fresh (← nat req "read") (← nat req "now")))]
+  else if (opt req "floor").isSome then
+    pure [("current", .bool (Fw.Ci.Attempt.current (← nat req "floor") (← n? "row")))]
+  else
+    pure [("reuse", .bool (Fw.Ci.Attempt.reuse (← n? "recorded") (← n? "live")))]
+
 /-- The ops of this module. -/
 def ops : List String :=
   ["ci.budget.reserve", "ci.budget.next", "ci.budget.observe", "ci.budget.step", "ci.budget.status", "ci.budget.limits",
-    "ci.verdict", "ci.required"]
+    "ci.verdict", "ci.required", "ci.attempt"]
 
 /-- Dispatch a `ci.budget.*` op (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -362,6 +382,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "ci.budget.limits" => some (opLimits req)
   | "ci.verdict" => some (opVerdict req)
   | "ci.required" => some (opRequired req)
+  | "ci.attempt" => some (opAttempt req)
   | _ => none
 
 /-! ## Examples -/

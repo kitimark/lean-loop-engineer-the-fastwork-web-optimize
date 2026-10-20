@@ -1,0 +1,1017 @@
+{
+ "source": "chromium-counts artifacts chromium-counts-rewrite-r{1,2,3}, file counts.json, target rewrite, ?preset=v2-proved; branch ci/mount-scroll-tap @52cd4856 minus base ci/mount-scroll-tap-base @8a82226a, per frame of trace.FunctionCall - trace.FireAnimationFrame",
+ "rows": [
+  {
+   "profile": "swipe-v1",
+   "run": 1,
+   "baseRun": 39357724420,
+   "branchRun": 39357738977,
+   "search": "?preset=v2-proved",
+   "morphMount": "shift",
+   "frames": 503,
+   "scrollMovedFrames": 463,
+   "scrollYEqual": true,
+   "minusOneFrames": 425,
+   "minusOneFramesOutsideMoved": 0,
+   "nonzeroFramesOutsideMoved": 2,
+   "functionCall": [
+    4412,
+    3950
+   ],
+   "fireAnimationFrame": [
+    1687,
+    1688
+   ],
+   "functionCallDelta": -462,
+   "nonRafDiffSum": -463,
+   "nonRafDiffHistogram": {
+    "-9": 2,
+    "-7": 8,
+    "-3": 9,
+    "-2": 1,
+    "-1": 425,
+    "0": 38,
+    "1": 9,
+    "2": 1,
+    "5": 8,
+    "7": 2
+   }
+  },
+  {
+   "profile": "swipe-v1",
+   "run": 2,
+   "baseRun": 39357724420,
+   "branchRun": 39357738977,
+   "search": "?preset=v2-proved",
+   "morphMount": "shift",
+   "frames": 503,
+   "scrollMovedFrames": 463,
+   "scrollYEqual": true,
+   "minusOneFrames": 425,
+   "minusOneFramesOutsideMoved": 0,
+   "nonzeroFramesOutsideMoved": 4,
+   "functionCall": [
+    4412,
+    3949
+   ],
+   "fireAnimationFrame": [
+    1687,
+    1687
+   ],
+   "functionCallDelta": -463,
+   "nonRafDiffSum": -463,
+   "nonRafDiffHistogram": {
+    "-11": 1,
+    "-9": 1,
+    "-7": 10,
+    "-6": 1,
+    "-4": 1,
+    "-3": 6,
+    "-1": 425,
+    "0": 36,
+    "1": 8,
+    "3": 1,
+    "4": 1,
+    "5": 10,
+    "6": 1,
+    "9": 1
+   }
+  },
+  {
+   "profile": "swipe-v1",
+   "run": 3,
+   "baseRun": 39357724420,
+   "branchRun": 39357738977,
+   "search": "?preset=v2-proved",
+   "morphMount": "shift",
+   "frames": 503,
+   "scrollMovedFrames": 463,
+   "scrollYEqual": true,
+   "minusOneFrames": 419,
+   "minusOneFramesOutsideMoved": 0,
+   "nonzeroFramesOutsideMoved": 6,
+   "functionCall": [
+    4412,
+    3949
+   ],
+   "fireAnimationFrame": [
+    1687,
+    1687
+   ],
+   "functionCallDelta": -463,
+   "nonRafDiffSum": -463,
+   "nonRafDiffHistogram": {
+    "-11": 1,
+    "-9": 1,
+    "-7": 9,
+    "-6": 2,
+    "-5": 1,
+    "-3": 10,
+    "-2": 1,
+    "-1": 419,
+    "0": 34,
+    "1": 10,
+    "2": 1,
+    "3": 1,
+    "5": 9,
+    "6": 2,
+    "7": 1,
+    "9": 1
+   }
+  },
+  {
+   "profile": "swipe-touch-v1",
+   "run": 1,
+   "baseRun": 39357727065,
+   "branchRun": 39357741879,
+   "search": "?preset=v2-proved",
+   "morphMount": "shift",
+   "frames": 531,
+   "scrollMovedFrames": 459,
+   "scrollYEqual": true,
+   "minusOneFrames": 418,
+   "minusOneFramesOutsideMoved": 0,
+   "nonzeroFramesOutsideMoved": 4,
+   "functionCall": [
+    6329,
+    5870
+   ],
+   "fireAnimationFrame": [
+    1722,
+    1722
+   ],
+   "functionCallDelta": -459,
+   "nonRafDiffSum": -459,
+   "nonRafDiffHistogram": {
+    "-9": 1,
+    "-8": 1,
+    "-7": 7,
+    "-6": 1,
+    "-5": 3,
+    "-3": 10,
+    "-1": 418,
+    "0": 68,
+    "1": 9,
+    "3": 2,
+    "5": 8,
+    "6": 1,
+    "7": 1,
+    "8": 1
+   }
+  },
+  {
+   "profile": "swipe-touch-v1",
+   "run": 2,
+   "baseRun": 39357727065,
+   "branchRun": 39357741879,
+   "search": "?preset=v2-proved",
+   "morphMount": "shift",
+   "frames": 531,
+   "scrollMovedFrames": 459,
+   "scrollYEqual": true,
+   "minusOneFrames": 419,
+   "minusOneFramesOutsideMoved": 0,
+   "nonzeroFramesOutsideMoved": 7,
+   "functionCall": [
+    6325,
+    5870
+   ],
+   "fireAnimationFrame": [
+    1722,
+    1722
+   ],
+   "functionCallDelta": -455,
+   "nonRafDiffSum": -455,
+   "nonRafDiffHistogram": {
+    "-8": 1,
+    "-7": 10,
+    "-6": 2,
+    "-5": 1,
+    "-3": 8,
+    "-2": 1,
+    "-1": 419,
+    "0": 65,
+    "1": 9,
+    "2": 1,
+    "3": 2,
+    "5": 9,
+    "6": 1,
+    "8": 1,
+    "9": 1
+   }
+  },
+  {
+   "profile": "swipe-touch-v1",
+   "run": 3,
+   "baseRun": 39357727065,
+   "branchRun": 39357741879,
+   "search": "?preset=v2-proved",
+   "morphMount": "shift",
+   "frames": 531,
+   "scrollMovedFrames": 459,
+   "scrollYEqual": true,
+   "minusOneFrames": 439,
+   "minusOneFramesOutsideMoved": 0,
+   "nonzeroFramesOutsideMoved": 4,
+   "functionCall": [
+    6325,
+    5866
+   ],
+   "fireAnimationFrame": [
+    1722,
+    1722
+   ],
+   "functionCallDelta": -459,
+   "nonRafDiffSum": -459,
+   "nonRafDiffHistogram": {
+    "-9": 2,
+    "-8": 1,
+    "-7": 3,
+    "-4": 1,
+    "-3": 5,
+    "-1": 439,
+    "0": 68,
+    "1": 5,
+    "4": 1,
+    "5": 3,
+    "7": 2,
+    "8": 1
+   }
+  }
+ ],
+ "otherCountsOutsideBaseRange": [
+  {
+   "profile": "swipe-v1",
+   "count": "metric.Documents",
+   "base": [
+    9,
+    9,
+    9
+   ],
+   "branch": [
+    8,
+    9,
+    9
+   ]
+  },
+  {
+   "profile": "swipe-v1",
+   "count": "metric.JSEventListeners",
+   "base": [
+    -68,
+    -68,
+    -68
+   ],
+   "branch": [
+    -70,
+    -70,
+    -70
+   ]
+  },
+  {
+   "profile": "swipe-v1",
+   "count": "metric.LayoutObjects",
+   "base": [
+    176,
+    175,
+    176
+   ],
+   "branch": [
+    176,
+    173,
+    180
+   ]
+  },
+  {
+   "profile": "swipe-v1",
+   "count": "metric.Nodes",
+   "base": [
+    380,
+    379,
+    380
+   ],
+   "branch": [
+    377,
+    377,
+    384
+   ]
+  },
+  {
+   "profile": "swipe-v1",
+   "count": "trace.EventDispatch",
+   "base": [
+    1537,
+    1537,
+    1537
+   ],
+   "branch": [
+    1536,
+    1537,
+    1537
+   ]
+  },
+  {
+   "profile": "swipe-v1",
+   "count": "trace.InvalidateLayout",
+   "base": [
+    408,
+    408,
+    408
+   ],
+   "branch": [
+    406,
+    408,
+    408
+   ]
+  },
+  {
+   "profile": "swipe-v1",
+   "count": "trace.Layout",
+   "base": [
+    354,
+    354,
+    354
+   ],
+   "branch": [
+    353,
+    354,
+    354
+   ]
+  },
+  {
+   "profile": "swipe-v1",
+   "count": "trace.Layout.dirtyObjects",
+   "base": [
+    9477,
+    9477,
+    9477
+   ],
+   "branch": [
+    9475,
+    9477,
+    9477
+   ]
+  },
+  {
+   "profile": "swipe-v1",
+   "count": "trace.Layout.totalObjects",
+   "base": [
+    336602,
+    336602,
+    336602
+   ],
+   "branch": [
+    336595,
+    336602,
+    336602
+   ]
+  },
+  {
+   "profile": "swipe-v1",
+   "count": "trace.Paint",
+   "base": [
+    2221,
+    2220,
+    2223
+   ],
+   "branch": [
+    2220,
+    2219,
+    2219
+   ]
+  },
+  {
+   "profile": "swipe-v1",
+   "count": "trace.RequestAnimationFrame",
+   "base": [
+    1778,
+    1778,
+    1778
+   ],
+   "branch": [
+    1779,
+    1778,
+    1778
+   ]
+  },
+  {
+   "profile": "swipe-v1",
+   "count": "trace.UpdateLayoutTree.elementCount",
+   "base": [
+    24149,
+    24153,
+    24154
+   ],
+   "branch": [
+    24143,
+    24147,
+    24141
+   ]
+  },
+  {
+   "profile": "swipe-touch-v1",
+   "count": "census.activeTileAreaPx",
+   "base": [
+    2927063040,
+    2926686208,
+    2926669824
+   ],
+   "branch": [
+    2926669824,
+    2927079424,
+    2927079424
+   ]
+  },
+  {
+   "profile": "swipe-touch-v1",
+   "count": "census.activeTiles",
+   "base": [
+    46331,
+    46327,
+    46325
+   ],
+   "branch": [
+    46325,
+    46333,
+    46333
+   ]
+  },
+  {
+   "profile": "swipe-touch-v1",
+   "count": "census.drawingAreaPx",
+   "base": [
+    6032937126,
+    6030904320,
+    6030902866
+   ],
+   "branch": [
+    6030900166,
+    6032942874,
+    6032945478
+   ]
+  },
+  {
+   "profile": "swipe-touch-v1",
+   "count": "census.drawingLayers",
+   "base": [
+    27214,
+    27215,
+    27213
+   ],
+   "branch": [
+    27213,
+    27217,
+    27217
+   ]
+  },
+  {
+   "profile": "swipe-touch-v1",
+   "count": "census.layers",
+   "base": [
+    30555,
+    30556,
+    30554
+   ],
+   "branch": [
+    30554,
+    30558,
+    30558
+   ]
+  },
+  {
+   "profile": "swipe-touch-v1",
+   "count": "census.tiles",
+   "base": [
+    53255,
+    53251,
+    53249
+   ],
+   "branch": [
+    53249,
+    53257,
+    53257
+   ]
+  },
+  {
+   "profile": "swipe-touch-v1",
+   "count": "metric.JSEventListeners",
+   "base": [
+    -67,
+    -67,
+    -67
+   ],
+   "branch": [
+    -69,
+    -69,
+    -69
+   ]
+  },
+  {
+   "profile": "swipe-touch-v1",
+   "count": "runLevel.trace.ImageDecodeTask",
+   "base": [
+    703,
+    705,
+    703
+   ],
+   "branch": [
+    701,
+    703,
+    703
+   ]
+  },
+  {
+   "profile": "swipe-touch-v1",
+   "count": "trace.EventDispatch",
+   "base": [
+    1663,
+    1663,
+    1663
+   ],
+   "branch": [
+    1663,
+    1664,
+    1663
+   ]
+  },
+  {
+   "profile": "swipe-touch-v1",
+   "count": "trace.ImageDecodeTask",
+   "base": [
+    703,
+    705,
+    703
+   ],
+   "branch": [
+    701,
+    703,
+    703
+   ]
+  },
+  {
+   "profile": "swipe-touch-v1",
+   "count": "trace.InvalidateLayout",
+   "base": [
+    462,
+    463,
+    464
+   ],
+   "branch": [
+    461,
+    463,
+    464
+   ]
+  },
+  {
+   "profile": "swipe-touch-v1",
+   "count": "trace.Layout",
+   "base": [
+    413,
+    413,
+    414
+   ],
+   "branch": [
+    412,
+    413,
+    414
+   ]
+  },
+  {
+   "profile": "swipe-touch-v1",
+   "count": "trace.Layout.dirtyObjects",
+   "base": [
+    11527,
+    11525,
+    11529
+   ],
+   "branch": [
+    11523,
+    11525,
+    11529
+   ]
+  },
+  {
+   "profile": "swipe-touch-v1",
+   "count": "trace.Layout.totalObjects",
+   "base": [
+    428419,
+    428373,
+    428426
+   ],
+   "branch": [
+    428366,
+    428373,
+    428426
+   ]
+  },
+  {
+   "profile": "swipe-touch-v1",
+   "count": "trace.MajorGC",
+   "base": [
+    9,
+    9,
+    9
+   ],
+   "branch": [
+    9,
+    10,
+    9
+   ]
+  },
+  {
+   "profile": "swipe-touch-v1",
+   "count": "trace.MinorGC",
+   "base": [
+    4,
+    3,
+    4
+   ],
+   "branch": [
+    3,
+    2,
+    4
+   ]
+  },
+  {
+   "profile": "swipe-touch-v1",
+   "count": "trace.UpdateLayer",
+   "base": [
+    20313,
+    20314,
+    20312
+   ],
+   "branch": [
+    20312,
+    20315,
+    20315
+   ]
+  },
+  {
+   "profile": "swipe-touch-v1",
+   "count": "trace.cc.SynchronizeTrees",
+   "base": [
+    96,
+    96,
+    96
+   ],
+   "branch": [
+    96,
+    94,
+    94
+   ]
+  }
+ ],
+ "rerun": {
+  "source": "lead reruns: chromium-counts swipe-v1 base 39363612059, branch 39363621551 (3 runs each, same refs, inputs and reduction as `source`); breakpoint-gate not-ok cell set per run from each merge job log (`gate verdict`, `not ok:` lines, flag from `Flags: ?fw=...`), round 3 rows copied from the note",
+  "rows": [
+   {
+    "profile": "swipe-v1",
+    "run": 1,
+    "baseRun": 39363612059,
+    "branchRun": 39363621551,
+    "search": "?preset=v2-proved",
+    "morphMount": "shift",
+    "frames": 503,
+    "scrollMovedFrames": 463,
+    "scrollYEqual": true,
+    "minusOneFrames": 423,
+    "minusOneFramesOutsideMoved": 0,
+    "nonzeroFramesOutsideMoved": 6,
+    "functionCall": [
+     4412,
+     3949
+    ],
+    "fireAnimationFrame": [
+     1687,
+     1687
+    ],
+    "functionCallDelta": -463,
+    "nonRafDiffSum": -463,
+    "fireAnimationFrameFramesDiffering": 0,
+    "fireAnimationFrameFrame0": null,
+    "nonRafDiffHistogram": {
+     "-7": 10,
+     "-6": 1,
+     "-5": 3,
+     "-4": 1,
+     "-3": 8,
+     "-2": 1,
+     "-1": 423,
+     "0": 34,
+     "1": 8,
+     "2": 1,
+     "3": 1,
+     "4": 1,
+     "5": 8,
+     "6": 1,
+     "9": 2
+    }
+   },
+   {
+    "profile": "swipe-v1",
+    "run": 2,
+    "baseRun": 39363612059,
+    "branchRun": 39363621551,
+    "search": "?preset=v2-proved",
+    "morphMount": "shift",
+    "frames": 503,
+    "scrollMovedFrames": 463,
+    "scrollYEqual": true,
+    "minusOneFrames": 427,
+    "minusOneFramesOutsideMoved": 0,
+    "nonzeroFramesOutsideMoved": 6,
+    "functionCall": [
+     4412,
+     3949
+    ],
+    "fireAnimationFrame": [
+     1687,
+     1687
+    ],
+    "functionCallDelta": -463,
+    "nonRafDiffSum": -463,
+    "fireAnimationFrameFramesDiffering": 0,
+    "fireAnimationFrameFrame0": null,
+    "nonRafDiffHistogram": {
+     "-15": 1,
+     "-7": 8,
+     "-6": 2,
+     "-5": 1,
+     "-3": 7,
+     "-2": 1,
+     "-1": 427,
+     "0": 34,
+     "1": 8,
+     "2": 1,
+     "3": 2,
+     "5": 8,
+     "6": 2,
+     "7": 1
+    }
+   },
+   {
+    "profile": "swipe-v1",
+    "run": 3,
+    "baseRun": 39363612059,
+    "branchRun": 39363621551,
+    "search": "?preset=v2-proved",
+    "morphMount": "shift",
+    "frames": 503,
+    "scrollMovedFrames": 463,
+    "scrollYEqual": true,
+    "minusOneFrames": 434,
+    "minusOneFramesOutsideMoved": 0,
+    "nonzeroFramesOutsideMoved": 2,
+    "functionCall": [
+     4413,
+     3949
+    ],
+    "fireAnimationFrame": [
+     1688,
+     1687
+    ],
+    "functionCallDelta": -464,
+    "nonRafDiffSum": -463,
+    "fireAnimationFrameFramesDiffering": 18,
+    "fireAnimationFrameFrame0": [
+     2,
+     0
+    ],
+    "nonRafDiffHistogram": {
+     "-9": 2,
+     "-7": 6,
+     "-6": 1,
+     "-5": 1,
+     "-3": 5,
+     "-1": 434,
+     "0": 38,
+     "1": 6,
+     "3": 1,
+     "5": 7,
+     "6": 1,
+     "7": 1
+    }
+   }
+  ],
+  "otherCountsOutsideBaseRange": [
+   {
+    "profile": "swipe-v1",
+    "count": "census.activeTileAreaPx",
+    "base": [
+     2833928192,
+     2833911808,
+     2833469440
+    ],
+    "branch": [
+     2833453056,
+     2833453056,
+     2833469440
+    ]
+   },
+   {
+    "profile": "swipe-v1",
+    "count": "census.activeTiles",
+    "base": [
+     45329,
+     45327,
+     45322
+    ],
+    "branch": [
+     45320,
+     45320,
+     45322
+    ]
+   },
+   {
+    "profile": "swipe-v1",
+    "count": "census.drawingAreaPx",
+    "base": [
+     5735778950,
+     5735778198,
+     5733734782
+    ],
+    "branch": [
+     5733734030,
+     5733734030,
+     5733734782
+    ]
+   },
+   {
+    "profile": "swipe-v1",
+    "count": "census.drawingLayers",
+    "base": [
+     25957,
+     25956,
+     25956
+    ],
+    "branch": [
+     25955,
+     25954,
+     25956
+    ]
+   },
+   {
+    "profile": "swipe-v1",
+    "count": "census.tiles",
+    "base": [
+     50392,
+     50390,
+     50385
+    ],
+    "branch": [
+     50383,
+     50383,
+     50385
+    ]
+   },
+   {
+    "profile": "swipe-v1",
+    "count": "metric.JSEventListeners",
+    "base": [
+     -68,
+     -68,
+     -68
+    ],
+    "branch": [
+     -70,
+     -70,
+     -70
+    ]
+   },
+   {
+    "profile": "swipe-v1",
+    "count": "metric.LayoutObjects",
+    "base": [
+     176,
+     176,
+     176
+    ],
+    "branch": [
+     176,
+     176,
+     175
+    ]
+   },
+   {
+    "profile": "swipe-v1",
+    "count": "trace.UpdateLayer",
+    "base": [
+     19704,
+     19702,
+     19703
+    ],
+    "branch": [
+     19701,
+     19701,
+     19703
+    ]
+   },
+   {
+    "profile": "swipe-v1",
+    "count": "trace.UpdateLayoutTree.elementCount",
+    "base": [
+     24150,
+     24148,
+     24148
+    ],
+    "branch": [
+     24144,
+     24149,
+     24155
+    ]
+   }
+  ],
+  "gate": [
+   {
+    "round": 3,
+    "flag": "morph.mount:shift",
+    "ref": "base",
+    "run": 39357730181,
+    "chromium": [],
+    "webkit": [
+     "matchMedia phone-rotation#1, #3 not-comparable"
+    ]
+   },
+   {
+    "round": 3,
+    "flag": "morph.mount:shift",
+    "ref": "branch",
+    "run": 39357744868,
+    "chromium": [
+     "commission pain-1440-600-1440#0"
+    ],
+    "webkit": [
+     "matchMedia phone-rotation#1, #3 not-comparable"
+    ]
+   },
+   {
+    "round": 3,
+    "flag": "morph.mount:shift-dormant",
+    "ref": "base",
+    "run": 39357733045,
+    "chromium": [],
+    "webkit": [
+     "matchMedia phone-rotation#1, #3 not-comparable"
+    ]
+   },
+   {
+    "round": 3,
+    "flag": "morph.mount:shift-dormant",
+    "ref": "branch",
+    "run": 39357747743,
+    "chromium": [
+     "commission pain-1440-600-1440#0"
+    ],
+    "webkit": [
+     "matchMedia phone-rotation#1, #3 not-comparable"
+    ]
+   },
+   {
+    "round": "rerun",
+    "flag": "morph.mount:shift",
+    "ref": "base",
+    "run": 39363615245,
+    "chromium": [
+     "commission desktop-1512-320-1512#0",
+     "commission pain-1440-600-1440#0"
+    ],
+    "webkit": [
+     "matchMedia phone-rotation#1, #3 not-comparable"
+    ]
+   },
+   {
+    "round": "rerun",
+    "flag": "morph.mount:shift",
+    "ref": "branch",
+    "run": 39363624577,
+    "chromium": [],
+    "webkit": [
+     "matchMedia phone-rotation#1, #3 not-comparable"
+    ]
+   },
+   {
+    "round": "rerun",
+    "flag": "morph.mount:shift-dormant",
+    "ref": "base",
+    "run": 39363618323,
+    "chromium": [],
+    "webkit": [
+     "matchMedia phone-rotation#1, #3 not-comparable"
+    ]
+   },
+   {
+    "round": "rerun",
+    "flag": "morph.mount:shift-dormant",
+    "ref": "branch",
+    "run": 39363627657,
+    "chromium": [
+     "commission desktop-1512-320-1512#0",
+     "commission pain-1440-600-1440#0"
+    ],
+    "webkit": [
+     "matchMedia phone-rotation#1, #3 not-comparable"
+    ]
+   }
+  ]
+ }
+}
