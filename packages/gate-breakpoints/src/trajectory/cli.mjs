@@ -27,7 +27,7 @@ export function summaryMd(raw, red) {
     `arms: ${red.arms.length}, all with the config hash of their search and fwMode hydrate (rewrite) or no window.__fw (original)`, '',
     `units ${red.totals.units}: pass ${red.totals.pass}, fail ${red.totals.fail}, skip ${red.totals.skip}; coverage failures ${red.totals.coverageFail}`, '',
     '| against the faithful arm | units |', '|---|---|',
-    `| new (fails here, not in the faithful arm) | ${red.rels.new} |`, `| both (fails in both: baseline red) | ${red.rels.both} |`,
+    `| new (fails here, not in the faithful arm) | ${red.rels.new} (content ${red.rels.new - red.totals.coverageNew}, coverage ${red.totals.coverageNew}) |`, `| both (fails in both: baseline red) | ${red.rels.both} |`,
     `| cleared (fails only in the faithful arm) | ${red.rels.cleared} |`, `| ok | ${red.rels.ok} |`, ''];
   for (const n of red.notes) out.push(`- note: ${n}`);
   const news = red.groups.filter((g) => g.newSteps.length > 0);
