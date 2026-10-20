@@ -119,6 +119,8 @@ import Fw.Obs.Backoff  -- alert-rules-fix: wait or restart when an fwcore call m
 import Fw.Ci.Trigger  -- ci-trigger-lean: which workflows a push starts
 import Fw.Ci.Intent  -- ci-own-trigger: a ci/* push starts only the lanes its head commit asks for
 import Fw.Ci.Verdict  -- ci-own-trigger: a run passes only if its guard ran and some heavy job ran and all passed
+import Fw.Ci.Attempt  -- ci-wait-lag: a cached fact answers for a run only at the attempt it was recorded at
+import Fw.Ci.Lag  -- ci-wait-lag: the partition of a wait's lag into phases
 import Fw.Ci.Cancel  -- ci-own-trigger: no concurrency group is shared on ci/**, so nothing cancels a ci/** run
 import Fw.Ci.Provider  -- circleci-pilot: pair verdict, credits, stop rule and routing rule of the CircleCI pilot
 import Fw.Ci.Telemetry  -- ci-telemetry: the CI job telemetry record and its slow verdicts (ci.telemetry)
