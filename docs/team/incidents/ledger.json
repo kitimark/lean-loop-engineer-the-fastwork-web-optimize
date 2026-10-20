@@ -3467,6 +3467,39 @@
    "leanVerdict": "no",
    "leanReason": "The file mode is set by the package manager's install step, not by a decision of ours; a repo test over git ls-files modes and package.json bin fields covers it.",
    "empiricalCheck": "proposed runner-bin-mode test (every bin target is 100755 in the git index; pnpm install leaves git diff --summary empty)"
+  },
+  {
+   "id": "inc-trajectory-pooled-window",
+   "at": "2026-10-20T20:00+07:00",
+   "title": "The trajectory probe pooled the passes of --reps into one list, so every morph window became the whole phase and bug B was reported as not witnessed",
+   "symptom": "Round 2 of trajectory-probe walked the morph path 3 times and concatenated the rows. In Chromium run 39412301221 (?fw=morph.tween:waapi) the pooled reduction showed 0 new nav or logo units and the note said 'B not witnessed'; reduced per pass the same raw file shows 205 new nav and logo units (nav.cls.is-expanded, is-morphing, logo position and rect) and the A/A run 39409003529 shows 0. The round-2 review found it.",
+   "cause": "CONFIRMED (code read and replay): lean/Fw/Gate/Trajectory.lean window/pairHit pair neighbours of one list and assume one monotone pass; run.mjs morphPath concatenated the passes, so the pair (last sample of pass k at m = 1, first of pass k+1 at m = 0) enclosed every m and every window held both ends of the phase, and any value between them passed. The Lean statements and the 103 golden rows covered single-pass phases only, so the TS twin and the golden agreed on a shape Lean never specified (reduce.mjs consumed pooling that no Lean statement held).",
+   "evidence": [
+    {
+     "kind": "ci",
+     "ref": "39412301221",
+     "note": "waapi, Chromium: 0 new B units pooled by the round-2 reducer, 205 per pass"
+    },
+    {
+     "kind": "ci",
+     "ref": "39409003529",
+     "note": "A/A default control: 0 new B content units in Chromium, so the 205 are not noise"
+    },
+    {
+     "kind": "file",
+     "ref": "lean/Fw/Gate/Trajectory.lean",
+     "note": "window_concat_whole_phase shows the concatenated window; windowOf_pass_iff proves pooling never widens a window"
+    }
+   ],
+   "repro": "Download the artifact trajectory-chromium of run 39412301221 and reduce raw-chromium.json (node src/trajectory/cli.mjs summary --out <dir>) with the round-2 reducer (commit 17670f98): 0 new nav or logo content units. With the per-pass windowOf of this branch: 205.",
+   "fix": {
+    "task": "trajectory-probe"
+   },
+   "regression": "Samp carries its pass (rep); windowOf is the union of per-pass windowOne; theorems windowOf_pass_iff (pooling never widens a window), windowOf_none_iff, window_concat_whole_phase; golden rows with rep > 0 ('pooled ramp original, static rewrite' fails differs); a reducer test with a ramping original and a stuck rewrite over 2 passes.",
+   "mistakeClass": "c-spec-gap",
+   "leanVerdict": "provable",
+   "leanReason": "The window of a pooled list equals the windows of its passes side by side: a pure statement over lists, proved as windowOf_pass_iff.",
+   "hardening": "trajectory-probe"
   }
  ]
 }

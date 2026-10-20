@@ -1,7 +1,7 @@
 import Fw.Store.Layout
 
 /-! Check that `Fw.Store.Lane.inputs` (the table `fw run` dispatches against) equals the `workflow_dispatch` inputs the
-three measurement workflows declare. One canonical source: the workflow file. The parse is by indentation: under
+four measurement workflows declare. One canonical source: the workflow file. The parse is by indentation: under
 `  workflow_dispatch:` and `    inputs:`, an input is a line `      <name>:` (6 spaces); deeper lines (descriptions, options)
 and comments are skipped; the block ends at the first line indented 4 or less that is not a comment.
 Run from `lean/`: `lake env lean --run scripts/LaneInputs.lean [--check]` (`--check` is the default; the flag is accepted
@@ -37,6 +37,7 @@ def laneName : Lane → String
   | .chromiumCounts => "chromium-counts"
   | .webkitSim => "webkit-sim"
   | .breakpointGate => "breakpoint-gate"
+  | .trajectory => "trajectory-probe"
 
 def main (_args : List String) : IO UInt32 := do
   let mut bad := 0
