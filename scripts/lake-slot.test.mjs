@@ -143,3 +143,9 @@ test("the call sites build through the wrapper: fwcore-build.sh (and with it che
   assert.ok(plans.length > 0);
   for (const r of plans) assert.match(r.response.argv.at(-1).join(" "), /LAKE_SLOT_LIB=1 \. \.\.\/scripts\/lake-slot\.sh && \(lake_slot \.\. lake build\)/);
 });
+
+test("the lock tool the wrapper picks: lockf on macOS, flock on Linux (no lockf there)", () => {
+  const tool = spawnSync("sh", ["-c", "command -v lockf || command -v flock"], { encoding: "utf8" }).stdout.trim();
+  if (process.platform === "darwin") assert.match(tool, /\/lockf$/);
+  if (process.platform === "linux") assert.match(tool, /\/flock$/);
+});
