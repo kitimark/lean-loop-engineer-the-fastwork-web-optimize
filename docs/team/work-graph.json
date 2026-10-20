@@ -10349,7 +10349,8 @@
     "docs/team/tools/fw-ci.md",
     "lean/scripts/check.sh",
     "research/notes/2026/10-2*-gh-budget-waiter-liveness.md",
-    "docs/team/handoffs/gh-budget-waiter-liveness.md"
+    "docs/team/handoffs/gh-budget-waiter-liveness.md",
+    "research/notes/2026/10-20-gh-budget-watch-expiry.md"
    ]
   }
  ],
