@@ -2,3 +2,5 @@
 # Regenerate from lean/: printf 'import Fw.Sched.LakeSlot\n#eval Fw.Sched.LakeSlot.gen []\n' | lake env lean --stdin
 LAKE_SLOT_POOLS='full 4'
 LAKE_SLOT_BOUND=12
+LAKE_SLOT_WIDTHS='8 4'
+LAKE_SLOT_WIDTH_CASES='0:0:1 0:1:1 0:4:4 0:8:8 0:16:8 1:0:1 1:2:2 1:4:4 1:8:4'

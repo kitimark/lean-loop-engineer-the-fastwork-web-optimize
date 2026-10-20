@@ -3,7 +3,7 @@ import { enforceNodePin } from "./node-guard.ts";
 import { Command } from "@fw/contracts";
 import { NO_API_GROUPS, UsageError, apiBase, gitFullRef, renderBoard, send, stepCommand, taskCommand } from "./lib.ts";
 import { CARD_USAGE, cardCommand } from "./card.ts";
-import { fwcorePreflight, httpFor, land, type LandResult } from "./land.ts";
+import { fwcorePreflight, httpFor, land, loopback, type LandResult } from "./land.ts";
 import { dryRun, exitCode, outcome, outcomeKind, verdictLine } from "./land-verdict.ts";
 import { gitOnMain, lintCli, renderPlan, syncCommands, syncRefusal, type WorkGraph } from "./plan.ts";
 import { readFileSync } from "node:fs";
@@ -137,6 +137,8 @@ try {
             for (const l of res.lines) console.error(l);
             return landAttemptResult(res);
           },
+          // Lean `attemptNext` / `healthWaitAfter`: one probe of GET /api/health (the queue waits for a restarting console, bounded)
+          health: async () => { try { return (await fetch(`${loopback(base)}/api/health`, { headers: { connection: "close" }, signal: AbortSignal.timeout(3000) })).ok; } catch { return false; } },
           // glue for Lean `afterLand`: a land that changed a fwcore source rebuilds fwcore (in the main checkout, timed) before the next entry
           head: () => execFileSync("git", ["rev-parse", "main"], { cwd: mainDir, encoding: "utf8" }).trim(),
           diff: (from) => execFileSync("git", ["diff", "--name-only", "--no-renames", from, "main"], { cwd: mainDir, encoding: "utf8" }).split("\n").filter(Boolean),

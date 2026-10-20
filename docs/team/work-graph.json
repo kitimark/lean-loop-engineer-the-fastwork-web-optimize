@@ -11133,7 +11133,8 @@
     "lean/Fw/Sched/LakeSlot.lean",
     "docs/team/handoffs/check-stage2-bound.md",
     "packages/contracts/golden/sched/lake-slot.gen.sh"
-   ]
+   ],
+   "evidence": "77eb42c"
   },
   {
    "devices": [
@@ -11183,7 +11184,8 @@
     "packages/contracts/golden/console/land-queue.jsonl",
     "docs/team/tools/land-queue.md",
     "docs/team/handoffs/land-queue-unreachable.md"
-   ]
+   ],
+   "evidence": "05f6a3f"
   },
   {
    "devices": [
