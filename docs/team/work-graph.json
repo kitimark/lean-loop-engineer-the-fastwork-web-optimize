@@ -12195,6 +12195,68 @@
     ".github/workflows/trajectory-probe.yml",
     "docs/team/handoffs/fw-run-dispatch-pick.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "scoped-gap-did",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "scoped-close-start-cause"
+   ],
+   "title": "Follow-up B of scoped-close-start-cause (Fable + check, 2026-10-21): does hero.exit:scoped lengthen the class-removal gap g on macOS WebKit morph? Pre-registered run-level test: statistic per run = mean over the 4 widths of [mean log g cand - mean log g orig+base]; exact permutation of arm labels over runs (scoped vs faithful A/A), one-sided; only the 10 fresh runs the lead dispatched on ci/scoped-close-start-cause at ONE headSha (5 scoped, 5 A/A; arms identified by search and hash, never order); cells = closegap.mjs closeCells. p < 0.05 -> perf regression CONFIRMED (open a part-fix task that profiles the class-removal frame); else 'not shown at 5 vs 5' with the minimum detectable effect in log g computed from the run-level SD, recorded in the ledger; no more runs (optional stopping). Statistic in Lean (golden), TS only parses",
+   "writes": [
+    "lean/Fw/Gate/RunPerm.lean",
+    "packages/contracts/golden/gate/run-perm*.jsonl",
+    "packages/gate-breakpoints/src/trajectory/closegap*.mjs",
+    "packages/gate-breakpoints/test/closegap*.test.mjs",
+    "research/notes/2026/10-2*-scoped-gap-did.md",
+    "docs/team/handoffs/scoped-gap-did.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "earn-close-start-rule",
+   "owner": "lean-prover",
+   "stream": "gate",
+   "deps": [
+    "scoped-close-start-cause"
+   ],
+   "title": "Follow-up C of scoped-close-start-cause: what actually fails hero.exit:scoped on mac morph are earn.opacity and earn.max-width close@0 'new' at 390 and 641 (fresh 39508414669); they are running transitions sampled at a later wall time, not before-change identities (390 cand rep 1: opacity 0 -> .636, max-width 160.6 -> 922.4 px across the gap). Derive their close-start rule in Lean: compare at matched time since the transition's trigger (earn opacity 320/200 ms, delay 120; max-width 680 ms; reduce.mjs:108-109 and the Lean transition table), soundness and mutation theorems (reversed, stale, changed curve fail), TS twin golden-checked, re-reduce the 4 stored/fresh runs",
+   "writes": [
+    "lean/Fw/Gate/Trajectory.lean",
+    "packages/gate-breakpoints/src/trajectory/reduce.mjs",
+    "packages/gate-breakpoints/test/trajectory.test.mjs",
+    "packages/contracts/golden/gate/trajectory.jsonl",
+    "docs/team/tools/trajectory-probe.md",
+    "docs/team/handoffs/earn-close-start-rule.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "close-start-identity-rule",
+   "owner": "lean-prover",
+   "stream": "gate",
+   "deps": [
+    "scoped-gap-did",
+    "earn-close-start-rule"
+   ],
+   "title": "Follow-up A of scoped-close-start-cause (only after B says 'not shown' and C lands): judge the first in-flight sample after a class removal by the identity |reading - f(m_i)| <= 0.5 (f = bgRed/bgAlpha restated from the CSS in Lean; m_i = the SAME arm and rep's last sample with the class), plus identity checks against Fw.Parts.Nav.morphingCut: m_i > cut at the last sample with the class and m_j <= cut at the first without (an early class removal must fail). Accepted limits: depends on the probe reading sample j at progress 0; m rounding 1e-4; admits any gap regression below B's minimum detectable effect",
+   "writes": [
+    "lean/Fw/Gate/Trajectory.lean",
+    "lean/Fw/Parts/HeroExitCloseStart.lean",
+    "packages/gate-breakpoints/src/trajectory/reduce.mjs",
+    "packages/gate-breakpoints/test/trajectory.test.mjs",
+    "packages/contracts/golden/gate/trajectory.jsonl",
+    "docs/team/tools/trajectory-probe.md",
+    "docs/team/handoffs/close-start-identity-rule.md"
+   ]
   }
  ],
  "deadline": {
