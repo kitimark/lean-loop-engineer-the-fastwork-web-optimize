@@ -4,7 +4,7 @@ State: branch `worktree-wf_73319e74-c87-1`, not landed; the lead lands it. Read 
 
 Built: Lean `Fw.Console.Review` (items from `Gen.lookDecisions`, `one_item_per_pending`, `closed_only_on_decision`,
 `recorded_append`, `decided_stays`, `accept_ok`, `open_accepts`, `closed_refused`, `repost_accepts`, `undecided_actionable`),
-wire `Fw.Wire.Review` (`console.review`; steps now carry `open`), goldens `golden/console/review.jsonl` (23 cases).
+wire `Fw.Wire.Review` (`console.review`; steps now carry `open`), goldens `golden/console/review.jsonl` (22 cases).
 console-api `src/review/routes.ts`, console-web `Reviews.tsx`, tab Reviews with count badge, Compose marker.
 
 Round 2 changes (findings 1-6 of round 1):
@@ -21,5 +21,5 @@ Round 2 changes (findings 1-6 of round 1):
 
 Not delivered / limits: the lead applies a keep or reject to `Gen.lookDecisions` by hand; `freshId` unused-ness is not proved
 (the reducer refuses a duplicate post). The startup post means a cancelled step is re-posted within a minute, not at once.
-TS stand-ins: none. Generated: `golden/preset/look-change.candidates.jsonl`, `golden/console/review.jsonl`.
+TS stand-ins (follow-up: decide in Lean): the step open state in routes.ts ask() re-implements StepStatus.isOpen; App.tsx marks review steps by the id prefix review- instead of Lean ids. Unproved: freshId is not shown unused (follow-up theorem freshId_unused). Generated: `golden/preset/look-change.candidates.jsonl`, `golden/console/review.jsonl`.
 Open: put the private link in `.local/reviews.json` on the lead's machine; restart the console to load the new fwcore.
