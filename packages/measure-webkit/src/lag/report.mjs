@@ -14,17 +14,25 @@ export function clipRect(q) {
   return [Math.round(Math.min(...xs) * Q), Math.round(Math.min(...ys) * Q), Math.round(Math.max(...xs) * Q), Math.round(Math.max(...ys) * Q)];
 }
 
-/** Per-step paint clips of a timed run, from its raw records. */
-export function clipsPerStep(run) {
+/**
+ * Per-step paint clips of a timed run, from its raw records, moved from document to viewport coordinates.
+ * The Paint quad is in document (contents) coordinates, MEASURED: at y=0 the first clip of the debug run equals the
+ * `people` box, at y=200 the same box has moved up by 200 px while its clip did not (the 2026-10-21 debug run).
+ * `scrollY` is the scroll position of each step (a number for all steps, or one per step).
+ */
+export function clipsPerStep(run, scrollY = 0) {
   const { steps } = bucketBySteps(run.records, run.marks, run.endTime);
-  return steps.map((rows) => rows.filter((r) => r[0] === 'Paint' && Array.isArray(r[3]) && r[3].length >= 8).map((r) => clipRect(r[3])));
+  return steps.map((rows, k) => {
+    const dy = Math.round((Array.isArray(scrollY) ? scrollY[k] ?? 0 : scrollY) * Q);
+    return rows.filter((r) => r[0] === 'Paint' && Array.isArray(r[3]) && r[3].length >= 8).map((r) => { const c = clipRect(r[3]); return [c[0], c[1] - dy, c[2], c[3] - dy]; });
+  });
 }
 
 const rowsOf = (reduced) => reduced.perStep.map((row, i) => [...row, reduced.perStepPaintArea[i]]);
 
 /** Steps of a scroll run joined to the geometry: y, boxes, clips. */
 export function scrollSteps(session, pass) {
-  const g = session.geometry, clips = clipsPerStep(pass.scroll);
+  const g = session.geometry, clips = clipsPerStep(pass.scroll, pass.scroll.ys);
   if (g.ys.length !== pass.scroll.ys.length) throw new Error(`geometry has ${g.ys.length} steps, the scroll ${pass.scroll.ys.length}`);
   return g.ys.map((y, k) => ({ y, boxes: g.scroll[k].boxes, clips: clips[k] }));
 }
@@ -113,7 +121,7 @@ export function analyzeMorph(arm) {
     const area = [], count = [], filt = [];
     for (const { s, m } of runs) {
       const g = s.geometry.morph, [a, b] = MORPH_PHASES[phase];
-      const clips = clipsPerStep(m);
+      const clips = clipsPerStep(m, m.before?.y ?? 0);
       const vp = [0, 0, Math.round(m.info.vw * Q), Math.round(m.info.vh * Q)];
       for (let k = a; k < b; k++) {
         const smp = g.samples[k];

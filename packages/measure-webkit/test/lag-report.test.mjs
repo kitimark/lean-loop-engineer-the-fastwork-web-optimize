@@ -25,7 +25,7 @@ const boxes = [{ name: 'hero-deck', rect: [0, 0, 400, 400] }, { name: 'hero', re
 
 function session() {
   const ys = [0, 50, 100, 150, 300, 500, 800, 900, 1000];
-  const r = run(ys.length, (k) => (k < 3 ? [quad(0, 0, 90, 90)] : [quad(0, 500, 10, 520)]), (k) => (k < 3 ? 4 : 1));
+  const r = run(ys.length, (k) => (k < 3 ? [quad(0, ys[k], 90, ys[k] + 90)] : [quad(0, 500 + ys[k], 10, 520 + ys[k])]), (k) => (k < 3 ? 4 : 1));
   const scroll = { info, ys, marks: r.marks, endTime: r.endTime, records: r.rows, reduced: reduceSteps(r.rows, r.marks, r.endTime) };
   const n = MORPH_FRAMES.idle + MORPH_FRAMES.open + MORPH_FRAMES.close;
   const m = run(n, (k) => (k >= MORPH_FRAMES.idle ? [quad(0, 500, 12, 515)] : []), (k) => (k >= MORPH_FRAMES.idle ? 3 : 0));
@@ -47,7 +47,11 @@ test('clips are joined to steps by the step marks', () => {
   const clips = clipsPerStep(s.passes[0].scroll);
   assert.equal(clips.length, s.passes[0].scroll.ys.length);
   assert.deepEqual(clips[0], [[0, 0, 360, 360]]);
-  assert.deepEqual(clips[4], [[0, 2000, 40, 2080]]);
+  assert.deepEqual(clips[4], [[0, 3200, 40, 3280]]);
+  // the quad is in document coordinates: the scroll position of the step moves it into the viewport
+  const inView = clipsPerStep(s.passes[0].scroll, s.passes[0].scroll.ys);
+  assert.deepEqual(inView[4], [[0, 2000, 40, 2080]]);
+  assert.deepEqual(inView[2], [[0, 0, 360, 360]]);
 });
 
 test('region A is ranked by its excess over the calm baseline and its paints go to the smallest covering part', () => {
