@@ -38,8 +38,9 @@ is no default branch). With `--branch` and no run id: the latest run of the work
   - Dropped watches (Lean `Fw.Ci.Budget`, section (i); note `research/notes/2026/10-20-gh-budget-watch-expiry.md`). There is no age
     rule. For a real run id fwcore drops a watch with an incident when `missMax` = 3 covering lists lack it (`unseen`), or when
     a full list cannot reach its creation time (`uncovered`); Lean decides from the row count and pages read whether a list was
-    cut. Branch sentinels are not dropped by lists; a sentinel whose waiter died stays until the follow-up
-    `gh-budget-waiter-liveness` lands. A tick reads at most `pageCap` = 10 pages (cost 20, the per-minute tick share), also when
+    cut. Branch sentinels are not dropped by lists. A watch (run or sentinel) is kept exactly while its waiter lives: each
+    waiter marker holds pid and process start time, and `ci.budget.next` sweeps the watches without a live marker with an
+    `orphan` incident (`Fw.Ci.Budget.sweep`; note `research/notes/2026/10-20-gh-budget-waiter-liveness.md`). A tick reads at most `pageCap` = 10 pages (cost 20, the per-minute tick share), also when
     the stored `pages` is stale and larger, so the poller never stops `tooBig` (`tick_no_tooBig`, `incident_tick`). Dropped
     watches are appended to `.git/fw-gh-budget/incidents.jsonl` (`{runId,time,why}`) and shown by `fw ci budget` until logged.
     A failed cleanup in a waiter's signal handler is appended there as `{cleanupFailed,at}` (a message and a time, no run id).
