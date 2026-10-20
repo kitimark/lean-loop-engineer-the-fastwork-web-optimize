@@ -11,7 +11,9 @@ facts the I/O glue reads (`part.json`, the presets, the findings ledger's identi
   `proved` (a member of the `v2-proved` preset: equal look, proved), `lookChange` (the part file records a look change, accepted
   pending review), `ledgerProved` (every matching ledger row is `proved`, but the gate has not admitted the variant to `v2-proved`), `measured` (a ledger
   row matches, but it is not admitted and not every row is `proved`), `unrated` (no ledger row measured it).
+  A row whose `supersededBy` names a later row's `id` counts for no class; `supersedeErrors` refuses a name with no row.
 * `rowsFor`: which ledger rows speak of a variant. The ledger is the one source of the explanations; this says which rows.
+  `varRows` adds the rows that supersede one of them, by identity.
 * `entries` and `search`: the canonical search of a combination, in page order, default variants left out.
 * `decide`: whether a combination gets a link. It is refused with reasons when a pick names no registered variant, picks a
   refuted variant, or breaks a `requires` or `conflicts` rule of the site (`Fw.Console.BuildsOpen.validate`, the proved mirror
@@ -46,12 +48,15 @@ deriving Repr
 def PartInfo.fact (p : PartInfo) : PartFact :=
   { id := p.id, variants := p.variants.map (·.name), impls := p.impls, requires := p.requires, conflicts := p.conflicts }
 
-/-- The identity columns of one findings-ledger row, and its optional `flag` (`part:variant`). -/
+/-- The identity columns of one findings-ledger row: its optional `flag` (`part:variant`), its optional `id`, and the optional
+`supersededBy`, the `id` of the later row that fixed or replaced it. -/
 structure LRow where
   part : String
   candidate : String
   status : String
   flag : Option String
+  id : Option String := none
+  supersededBy : Option String := none
 deriving Repr, DecidableEq
 
 /-- The regions of the page, in page order (`apps/site/src/App.tsx` render order; engine and morph parts have no box of their own). -/
@@ -124,9 +129,86 @@ def matchRow (p : PartInfo) (v : String) (r : LRow) : Bool :=
 def rowsFor (rows : List LRow) (p : PartInfo) (v : String) : List Nat :=
   (rows.zipIdx.filter (fun e => matchRow p v e.1)).map (·.2)
 
-/-- The indices of the rows that name part `p` and speak of none of its variants. -/
+/-! ## Superseded rows
+
+A row whose `supersededBy` names a later row's `id` no longer counts for a class; the later row does, and it joins the
+variant's rows by that identity, whether or not its text matches the variant. -/
+
+/-- No later row has fixed or replaced the row. -/
+def LRow.live (r : LRow) : Bool := r.supersededBy.isNone
+
+/-- The rows that count for a class: the live ones. -/
+def live (rows : List LRow) : List LRow := rows.filter (·.live)
+
+/-- The index of the first row whose `id` is `s`. -/
+def idxOf (rows : List LRow) (s : String) : Option Nat := rows.findIdx? (·.id == some s)
+
+/-- The index of the row that supersedes row `i`. -/
+def nextOf (rows : List LRow) (i : Nat) : Option Nat := (rows[i]?.bind (·.supersededBy)).bind (idxOf rows)
+
+/-- The rows that supersede row `i`, transitively, at most `fuel` of them. -/
+def successors (rows : List LRow) : Nat → Nat → List Nat
+  | 0, _ => []
+  | fuel + 1, i =>
+    match nextOf rows i with
+    | some j => j :: successors rows fuel j
+    | none => []
+
+/-- The rows that supersede a row speaking of variant `v` of part `p`, transitively, and do not speak of it by `matchRow`. -/
+def extraRows (rows : List LRow) (p : PartInfo) (v : String) : List Nat :=
+  let m := rowsFor rows p v
+  ((m.flatMap (successors rows rows.length)).filter (!m.contains ·)).eraseDups
+
+/-- The rows of variant `v` of part `p`: those that speak of it, then those that supersede one of them. -/
+def varRows (rows : List LRow) (p : PartInfo) (v : String) : List Nat := rowsFor rows p v ++ extraRows rows p v
+
+/-- A row with no `supersededBy` has no successor. -/
+theorem nextOf_none (rows : List LRow) (i : Nat) (h : ∀ r ∈ rows, r.supersededBy = none) : nextOf rows i = none := by
+  unfold nextOf
+  cases hr : rows[i]? with
+  | none => rfl
+  | some r => simp [h r (List.mem_of_getElem? hr)]
+
+/-- With no `supersededBy` in the ledger, no row joins a variant by identity. -/
+theorem extraRows_no_superseded (rows : List LRow) (p : PartInfo) (v : String) (h : ∀ r ∈ rows, r.supersededBy = none) :
+    extraRows rows p v = [] := by
+  have hs : successors rows rows.length = fun _ => [] := by
+    funext i
+    cases rows.length with
+    | zero => rfl
+    | succ n => simp [successors, nextOf_none rows i h]
+  have hn : ∀ l : List Nat, l.flatMap (fun _ => ([] : List Nat)) = [] := fun l => by
+    induction l <;> simp_all [List.flatMap_cons]
+  simp only [extraRows, hs, hn]
+  rfl
+
+/-- With no `supersededBy` in the ledger, a variant's rows are the rows that speak of it. -/
+theorem varRows_no_superseded (rows : List LRow) (p : PartInfo) (v : String) (h : ∀ r ∈ rows, r.supersededBy = none) :
+    varRows rows p v = rowsFor rows p v := by
+  simp [varRows, extraRows_no_superseded rows p v h]
+
+/-- The row that supersedes a row of the variant is among the variant's rows. -/
+theorem varRows_superseding (rows : List LRow) (p : PartInfo) (v : String) (i j : Nat) (hi : i ∈ rowsFor rows p v)
+    (hj : nextOf rows i = some j) : j ∈ varRows rows p v := by
+  unfold varRows extraRows
+  by_cases hm : (rowsFor rows p v).contains j = true
+  · exact List.mem_append_left _ (by simpa using hm)
+  · apply List.mem_append_right
+    rw [List.mem_eraseDups, List.mem_filter]
+    refine ⟨List.mem_flatMap.2 ⟨i, hi, ?_⟩, by simpa using hm⟩
+    have hlt : i < rows.length := by
+      unfold nextOf at hj
+      cases hr : rows[i]? with
+      | none => simp [hr] at hj
+      | some r => exact (List.getElem?_eq_some_iff.1 hr).1
+    obtain ⟨n, hn⟩ : ∃ n, rows.length = n + 1 := ⟨rows.length - 1, by omega⟩
+    rw [hn]
+    simp [successors, hj]
+
+/-- The indices of the rows that name part `p` and are none of its variants' rows. -/
 def otherRows (rows : List LRow) (p : PartInfo) : List Nat :=
-  (rows.zipIdx.filter (fun e => (rowParts e.1.part).contains p.id && !(p.variants.any (fun v => matchRow p v.name e.1)))).map (·.2)
+  (rows.zipIdx.filter (fun e => (rowParts e.1.part).contains p.id &&
+    !(p.variants.any (fun v => matchRow p v.name e.1 || (extraRows rows p v.name).contains e.2)))).map (·.2)
 
 /-! ## Classes -/
 
@@ -153,9 +235,9 @@ def Cls.why : Cls → String
 /-- A part file records a look change in the variant's `limit` text. -/
 def lookChange (limit : String) : Bool := limit.startsWith "look change"
 
-/-- The class of variant `v` given its kind, whether it is in `v2-proved`, and the rows that speak of it. A refuting row wins over
+/-- The class of variant `v` given its kind, whether it is in `v2-proved`, and the rows that count. A refuting row wins over
 every membership; then the faithful variant, `v2-proved`, a recorded look change, any row with a verdict; else unrated. -/
-def classOf (v : VariantFact) (inProved : Bool) (rows : List LRow) : Cls :=
+def classBy (v : VariantFact) (inProved : Bool) (rows : List LRow) : Cls :=
   if v.kind == "faithful" then .original
   else if rows.any (·.status == "refuted") then .refuted
   else if inProved then .proved
@@ -164,41 +246,80 @@ def classOf (v : VariantFact) (inProved : Bool) (rows : List LRow) : Cls :=
   else if rows.any (·.status != "not-tried") then .measured
   else .unrated
 
+/-- The class of variant `v` from its rows: `classBy` over the live ones. A superseded row neither refutes nor counts. -/
+def classOf (v : VariantFact) (inProved : Bool) (rows : List LRow) : Cls := classBy v inProved (live rows)
+
 theorem classOf_original (v rows p) (h : v.kind = "faithful") : classOf v p rows = .original := by
-  simp [classOf, h]
+  simp [classOf, classBy, h]
 
-theorem classOf_refuted (v inProved rows) (hk : v.kind ≠ "faithful") (h : rows.any (·.status == "refuted") = true) :
+theorem classOf_refuted (v inProved rows) (hk : v.kind ≠ "faithful") (h : (live rows).any (·.status == "refuted") = true) :
     classOf v inProved rows = .refuted := by
-  simp [classOf, hk, h]
+  simp [classOf, classBy, hk, h]
 
-theorem classOf_proved (v rows) (hk : v.kind ≠ "faithful") (h : rows.any (·.status == "refuted") = false) :
+theorem classOf_proved (v rows) (hk : v.kind ≠ "faithful") (h : (live rows).any (·.status == "refuted") = false) :
     classOf v true rows = .proved := by
-  simp [classOf, hk, h]
+  simp [classOf, classBy, hk, h]
 
-theorem classOf_lookChange (v rows) (hk : v.kind ≠ "faithful") (h : rows.any (·.status == "refuted") = false)
+theorem classOf_lookChange (v rows) (hk : v.kind ≠ "faithful") (h : (live rows).any (·.status == "refuted") = false)
     (hl : lookChange v.limit = true) : classOf v false rows = .lookChange := by
-  simp [classOf, hk, h, hl]
+  simp [classOf, classBy, hk, h, hl]
 
-theorem classOf_ledgerProved (v rows) (hk : v.kind ≠ "faithful") (h : rows.any (·.status == "refuted") = false)
-    (hl : lookChange v.limit = false) (hne : rows.isEmpty = false) (hp : rows.all (·.status == "proved") = true) :
+theorem classOf_ledgerProved (v rows) (hk : v.kind ≠ "faithful") (h : (live rows).any (·.status == "refuted") = false)
+    (hl : lookChange v.limit = false) (hne : (live rows).isEmpty = false) (hp : (live rows).all (·.status == "proved") = true) :
     classOf v false rows = .ledgerProved := by
-  simp [classOf, hk, h, hl, hne, hp]
+  simp [classOf, classBy, hk, h, hl, hne, hp]
 
-theorem classOf_measured (v rows) (hk : v.kind ≠ "faithful") (h : rows.any (·.status == "refuted") = false)
-    (hl : lookChange v.limit = false) (hnp : (!rows.isEmpty && rows.all (·.status == "proved")) = false) (hm : rows.any (·.status != "not-tried") = true) :
-    classOf v false rows = .measured := by
-  simp [classOf, hk, h, hl, hnp, hm]
+theorem classOf_measured (v rows) (hk : v.kind ≠ "faithful") (h : (live rows).any (·.status == "refuted") = false)
+    (hl : lookChange v.limit = false) (hnp : (!(live rows).isEmpty && (live rows).all (·.status == "proved")) = false)
+    (hm : (live rows).any (·.status != "not-tried") = true) : classOf v false rows = .measured := by
+  simp [classOf, classBy, hk, h, hl, hnp, hm]
 
-theorem classOf_unrated (v rows) (hk : v.kind ≠ "faithful") (h : rows.any (·.status == "refuted") = false)
-    (hl : lookChange v.limit = false) (hm : rows.any (·.status != "not-tried") = false) :
+theorem classOf_unrated (v rows) (hk : v.kind ≠ "faithful") (h : (live rows).any (·.status == "refuted") = false)
+    (hl : lookChange v.limit = false) (hm : (live rows).any (·.status != "not-tried") = false) :
     classOf v false rows = .unrated := by
-  simp [classOf, hk, h, hl, hm]
+  unfold classOf
+  generalize live rows = rs at h hm ⊢
+  simp [classBy, hk, h, hl, hm]
   intro hne
-  obtain ⟨x, hx⟩ := List.exists_mem_of_ne_nil rows hne
+  obtain ⟨x, hx⟩ := List.exists_mem_of_ne_nil rs hne
   refine ⟨x, hx, ?_⟩
-  have hall := List.all_eq_true.1 (by simpa using hm : rows.all (fun x => !(x.status != "not-tried")) = true) x hx
+  have hall := List.all_eq_true.1 (by simpa using hm : rs.all (fun x => !(x.status != "not-tried")) = true) x hx
   intro hp
   simp [hp] at hall
+
+/-- A superseded row changes no class: the class is the one of the other rows. -/
+theorem classOf_superseded_cons (v inProved) (r : LRow) (rows) (h : r.supersededBy.isSome = true) :
+    classOf v inProved (r :: rows) = classOf v inProved rows := by
+  have : r.live = false := by simpa [LRow.live, Option.isNone_iff_eq_none, Option.isSome_iff_ne_none] using h
+  simp [classOf, live, this]
+
+/-- **A superseded refuted row never refutes**: when every refuted row has a `supersededBy`, the class is not `refuted`. -/
+theorem classOf_superseded_never_refutes (v inProved rows)
+    (h : ∀ r ∈ rows, r.status = "refuted" → r.supersededBy.isSome = true) : classOf v inProved rows ≠ .refuted := by
+  have hl : (live rows).any (·.status == "refuted") = false := by
+    rw [List.any_eq_false]
+    intro r hr hs
+    have hm := List.mem_filter.1 hr
+    have := h r hm.1 (by simpa using hs)
+    simp [LRow.live, Option.isNone_iff_eq_none, Option.isSome_iff_ne_none] at hm this
+    exact this hm.2
+  intro hc
+  unfold classOf classBy at hc
+  rw [hl] at hc
+  simp only [Bool.false_eq_true, ↓reduceIte] at hc
+  split at hc <;> (try split at hc) <;> (try split at hc) <;> (try split at hc) <;> (try split at hc) <;> cases hc
+
+/-- **The superseding row's class applies**: a refuted row and the row its `supersededBy` names give the class of that row
+alone. -/
+theorem classOf_superseding (v inProved) (old new : LRow) (s : String) (ho : old.supersededBy = some s)
+    (_hn : new.id = some s) : classOf v inProved [old, new] = classOf v inProved [new] :=
+  classOf_superseded_cons v inProved old [new] (by simp [ho])
+
+/-- **With no `supersededBy`, the class is unchanged**: `classOf` is `classBy` over every row that speaks of the variant. -/
+theorem classOf_no_superseded (v inProved rows) (h : ∀ r ∈ rows, r.supersededBy = none) :
+    classOf v inProved rows = classBy v inProved rows := by
+  have : live rows = rows := List.filter_eq_self.2 fun r hr => by simp [LRow.live, h r hr]
+  simp [classOf, this]
 
 /-- The (part, variant) pairs of the `v2-proved` preset, `@impl` dropped; empty when the preset is not registered. -/
 def provedFlags (presets : List PresetFact) : List (String × String) :=
@@ -257,9 +378,51 @@ deriving Repr
 /-- The first 80 characters of a text. -/
 def clip (s : String) : String := String.ofList (s.toList.take 80)
 
-/-- The refusal text of a refuted variant: the first refuting row it matches. -/
+/-- The refusal text of a refuted variant: the first live refuting row among its rows. -/
 def refusalOf (rows : List LRow) (idx : List Nat) : Option String :=
-  (idx.filterMap fun i => rows[i]?).find? (·.status == "refuted") |>.map fun r => "refuted by the finding \"" ++ clip r.candidate ++ "\""
+  (live (idx.filterMap fun i => rows[i]?)).find? (·.status == "refuted") |>.map fun r => "refuted by the finding \"" ++ clip r.candidate ++ "\""
+
+/-- The errors of a ledger: a `supersededBy` that names no row's `id`. -/
+def supersedeErrors (rows : List LRow) : List String :=
+  rows.filterMap fun r =>
+    match r.supersededBy with
+    | some s => if rows.any (·.id == some s) then none
+      else some s!"ledger row \"{clip r.candidate}\": supersededBy \"{s}\" names no ledger row id"
+    | none => none
+
+/-- **A dangling `supersededBy` is an error**: the ledger has no error exactly when every `supersededBy` names an `id` of a row. -/
+theorem supersedeErrors_nil_iff (rows : List LRow) :
+    supersedeErrors rows = [] ↔ ∀ r ∈ rows, ∀ s, r.supersededBy = some s → ∃ r' ∈ rows, r'.id = some s := by
+  unfold supersedeErrors
+  rw [List.filterMap_eq_nil_iff]
+  refine ⟨fun h r hr s hs => ?_, fun h r hr => ?_⟩
+  · have := h r hr
+    rw [hs] at this
+    simp only [] at this
+    split at this
+    · rename_i ha
+      obtain ⟨r', hr', he⟩ := List.any_eq_true.1 ha
+      exact ⟨r', hr', by simpa using he⟩
+    · cases this
+  · cases hs : r.supersededBy with
+    | none => rfl
+    | some s =>
+      obtain ⟨r', hr', he⟩ := h r hr s hs
+      have : rows.any (·.id == some s) = true := List.any_eq_true.2 ⟨r', hr', by simp [he]⟩
+      simp [this]
+
+/-- In a ledger with no error, a row of a variant that has a `supersededBy` brings the row of that `id` into the variant's rows. -/
+theorem varRows_superseded_by (rows : List LRow) (p : PartInfo) (v : String) (hok : supersedeErrors rows = []) (i : Nat)
+    (hi : i ∈ rowsFor rows p v) (r : LRow) (hr : rows[i]? = some r) (s : String) (hs : r.supersededBy = some s) :
+    ∃ j, j ∈ varRows rows p v ∧ ∃ h : j < rows.length, rows[j].id = some s := by
+  obtain ⟨r', hr', he⟩ := (supersedeErrors_nil_iff rows).1 hok r (List.mem_of_getElem? hr) s hs
+  have hsome : (idxOf rows s).isSome = true := by
+    rw [idxOf, List.findIdx?_isSome]
+    exact List.any_eq_true.2 ⟨r', hr', by simp [he]⟩
+  obtain ⟨j, hj⟩ := Option.isSome_iff_exists.1 hsome
+  have hn : nextOf rows i = some j := by simp [nextOf, hr, hs, hj]
+  obtain ⟨hlt, hid, _⟩ := List.findIdx?_eq_some_iff_getElem.1 hj
+  exact ⟨j, varRows_superseding rows p v i j hi hn, hlt, by simpa using hid⟩
 
 /-- The coupled group of a part in the part contract (`solo` when the contract has no row). -/
 def groupOf (id : String) : String := ((Fw.Parts.Contract.parts.find? (·.id == id)).map (·.group.name)).getD "solo"
@@ -267,11 +430,11 @@ def groupOf (id : String) : String := ((Fw.Parts.Contract.parts.find? (·.id == 
 /-- The part is page-level in the part contract. -/
 def pageLevelOf (id : String) : Bool := ((Fw.Parts.Contract.parts.find? (·.id == id)).map Fw.Parts.Contract.pageLevel).getD false
 
-/-- One part's card: every variant with its class and rows. -/
+/-- One part's card: every variant with its class and rows (`varRows`: the superseding rows join by identity). -/
 def partOut (rows : List LRow) (proved : List (String × String)) (p : PartInfo) : PartOut :=
   { id := p.id, slot := p.slot, group := groupOf p.id, pageLevel := pageLevelOf p.id, other := otherRows rows p
     variants := p.variants.map fun v =>
-      let idx := rowsFor rows p v.name
+      let idx := varRows rows p v.name
       let rs := idx.filterMap fun i => rows[i]?
       let c := classOf v (proved.contains (p.id, v.name)) rs
       { name := v.name, kind := v.kind, isDefault := v.name == defaultOf p, cls := c, rows := idx,
@@ -553,6 +716,25 @@ def rows : List LRow :=
 #guard (decide parts rows [] [("p.late", "fast"), ("p.late", "faithful")]).link == some ""
 #guard ((table parts rows []).map fun p => (p.id, p.variants.map (·.cls.name))) ==
   [("p.early", ["original", "ledger-proved", "look-change"]), ("p.late", ["original", "measured", "refuted"])]
+#guard supersedeErrors rows == []
+
+/-- The rows above with the refuting row of `p.late:bad` superseded by a proved row whose text names no variant. -/
+def fixedRows : List LRow :=
+  [{ part := "p.late", candidate := "p.late `fast`", status := "measured", flag := none },
+   { part := "p.late", candidate := "p.late `bad`", status := "refuted", flag := some "p.late:bad", id := some "bad.falsified",
+     supersededBy := some "bad.fixed" },
+   { part := "p.early", candidate := "p.early `fast`", status := "proved", flag := none },
+   { part := "p.late", candidate := "the fixed driver", status := "proved", flag := none, id := some "bad.fixed" }]
+
+#guard supersedeErrors fixedRows == []
+#guard ((table parts fixedRows []).map fun p => (p.id, p.variants.map (·.cls.name))) ==
+  [("p.early", ["original", "ledger-proved", "look-change"]), ("p.late", ["original", "measured", "ledger-proved"])]
+#guard ((table parts fixedRows []).map fun p => (p.id, p.variants.map (·.rows), p.other)) ==
+  [("p.early", [[], [2], []], []), ("p.late", [[], [0], [1, 3]], [])]
+#guard ((table parts fixedRows []).flatMap fun p => p.variants.filterMap (·.refusal)) == []
+#guard (decide parts fixedRows [] [("p.late", "bad")]).link == some "?fw=p.late:bad"
+#guard (supersedeErrors (fixedRows.take 3)).length == 1
+#guard (supersedeErrors (fixedRows.map fun r => { r with id := none })).length == 1
 
 /-- Presets: one with a default impl, one with a non-default impl. -/
 def presets : List PresetFact :=

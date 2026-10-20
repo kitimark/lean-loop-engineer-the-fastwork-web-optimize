@@ -1779,6 +1779,7 @@
   },
   {
    "id": "hero.exit.scoped",
+   "supersededBy": "hero.exit.scoped.inline",
    "n": 6,
    "part": "hero.exit",
    "candidate": "hero.exit:scoped (exit-scoped-var): register --exit-opacity and --exit-scatter with inherits: false and re-inherit them only on the 7 classes between the stage and the 16 readers",
@@ -2235,6 +2236,7 @@
   },
   {
    "id": "hero.exit.scoped.falsified",
+   "supersededBy": "hero.exit.scoped.inline",
    "n": 6,
    "part": "hero.exit",
    "candidate": "hero.exit:scoped falsified on WebKit: the hero readers keep a stale cached style while --exit-opacity changes",
