@@ -8,7 +8,8 @@
   "variants": {
     "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:12683-12701,12999-13089" } },
     "waapi": { "kind": "optimized", "tier": "T0", "provenance": { "lean": "Fw.Parts.MorphTweenOpt waapi_eq_tween, flags_same_frame, waapi_vis, waapi_work_le" } },
-    "waapi-scoped": { "kind": "optimized", "tier": "T0", "provenance": { "lean": "Fw.Parts.MorphTweenOpt waapi_eq_tween, flags_same_frame, waapi_vis, registrationsScoped_see, fade_eq, scoped_below_nil" } }
+    "waapi-scoped": { "kind": "optimized", "tier": "T0", "provenance": { "lean": "Fw.Parts.MorphTweenOpt waapi_eq_tween, flags_same_frame, waapi_vis, registrationsScoped_see, fade_eq, scoped_below_nil" } },
+    "scroll-lock": { "kind": "proposal", "visClass": "L", "provenance": { "lean": "Fw.Parts.MorphTweenOpt lock_vis, seen_eq, forced_le, forced_lt, gutter_same, ungated_eq, work_le", "limit": "look change (L) during a trackpad gesture in flight: the pinned page no longer jitters and the overlay scrollbar hides while the morph runs; on classic scrollbars the arm is the original" } }
   },
   "requires": {},
   "conflicts": {}

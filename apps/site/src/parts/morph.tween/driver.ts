@@ -1,4 +1,5 @@
 import { active, armed, dir, fade, frame, pointerNone, push, REST, taken, type St } from './logic';
+import { lockWrite } from './scroll-lock.logic';
 
 export interface PlatformEl {
   getBoundingClientRect(): { height: number; bottom: number };
@@ -31,6 +32,8 @@ export interface TweenEnv {
   publish(value: number): void;
   /** The panel may mount: first intersection or first push (N2:13040 and 13076 `z(b, !0)`). */
   onActivate?(): void;
+  /** The `scroll-lock` arm's root lock (Lean `MorphTweenOpt.lockWrite`); absent in the original. */
+  lock?: { overlay(): boolean; set(on: boolean): void };
 }
 
 /**
@@ -48,8 +51,17 @@ export function createTweenDriver(env: TweenEnv) {
   let touchY = 0;
   let pinned = env.scrollY();
   let cancelFrame: (() => void) | null = null;
+  let locked = false;
 
   const isActive = () => active({ target: st.target, value: st.value });
+  const syncLock = () => {
+    if (!env.lock) return;
+    const a = isActive();
+    const w = lockWrite(locked || (a && env.lock.overlay()), locked, a);
+    if (w === null) return;
+    locked = w;
+    env.lock.set(w);
+  };
   const updateFade = () => {
     const p = env.platform();
     if (!p) return;
@@ -107,6 +119,7 @@ export function createTweenDriver(env: TweenEnv) {
     }
     env.publish(st.value);
     updateFade();
+    syncLock();
     if (!isActive()) arm();
   };
 
@@ -118,6 +131,7 @@ export function createTweenDriver(env: TweenEnv) {
     if (next === st) return; // already heading there: nothing happens (N2:13037)
     env.onActivate?.();
     st = next;
+    syncLock();
     if (reduced) {
       cancelFrame?.();
       cancelFrame = null;
@@ -146,6 +160,10 @@ export function createTweenDriver(env: TweenEnv) {
     dispose() {
       cancelFrame?.();
       cancelFrame = null;
+      if (locked) {
+        locked = false;
+        env.lock?.set(false);
+      }
       detach();
     },
   };
