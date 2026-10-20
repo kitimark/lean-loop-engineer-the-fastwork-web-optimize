@@ -11776,7 +11776,8 @@
    "title": "exit-scoped-inline r2 #7: one driver-level jsdom case: append an article after mount, call the writer, assert the inline --exit-opacity on it",
    "writes": [
     "apps/site/src/parts/hero.exit/*.test.ts"
-   ]
+   ],
+   "evidence": "caf2b2a"
   },
   {
    "devices": [
