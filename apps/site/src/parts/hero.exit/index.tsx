@@ -4,7 +4,7 @@ import { getScrollEngine } from '../../engine/scroll';
 import { createExitDriver, mountExit } from './driver';
 import { matchList } from './media';
 import css from './hero.module.css';
-import { registerScoped, SCOPED } from './scope';
+import { READER_SELECTOR, registerScoped, SCOPED } from './scope';
 
 export interface HeroExitProps {
   variant: string;
@@ -25,9 +25,11 @@ export function HeroExit({ variant, children }: HeroExitProps) {
     const track = trackRef.current;
     const hero = heroRef.current;
     if (!track || !hero) return;
-    if (variant === SCOPED) registerScoped(globalThis.CSS);
+    const scoped = variant === SCOPED;
+    if (scoped) registerScoped(globalThis.CSS);
     const reduce = matchList('mq.rm-reduce');
-    const driver = createExitDriver({ track, hero, reduced: () => reduce?.matches ?? false });
+    const readers = scoped ? [...hero.querySelectorAll<HTMLElement>(READER_SELECTOR)] : [];
+    const driver = createExitDriver({ track, hero, reduced: () => reduce?.matches ?? false, readers });
     // faithful engine: own rAF per frame, run once on mount; batched engine: read in the callback, write in its writer
     return mountExit({ driver, engine: getScrollEngine(), clock: getClock(), readVh: () => window.innerHeight });
   }, [variant]);

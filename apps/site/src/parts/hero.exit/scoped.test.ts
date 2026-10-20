@@ -13,7 +13,8 @@ import cardCss from '../hero.orbit/card.module.css';
 import orbitCss from '../hero.orbit/orbit.module.css';
 import exitCss from './hero.module.css';
 import part from './part.json';
-import { SCOPE_ATTR, SCOPED, SCOPED_PROPS } from './scope';
+import { createExitDriver } from './driver';
+import { READER_CLASSES, READER_SELECTOR, readerWrites, SCOPE_ATTR, SCOPED, SCOPED_PROPS } from './scope';
 
 type GNode = [string, string] | [string, string, GNode[]];
 interface Golden {
@@ -25,6 +26,9 @@ interface Golden {
   stageDefaults: { opacity: string; scatter: string; reducedScatter: string };
   trees: { narrow: GNode; wide: GNode };
   units: Record<'narrow' | 'wide', { chromiumFaithful: number; webkitFaithful: number; chromiumScoped: number; webkitScoped: number }>;
+  inline: Record<'narrow' | 'wide', { touched: number; chromium: number; webkit: number }>;
+  readerWrites: { reduced: boolean; opacity: string; writes: [string, string][] }[];
+  frameWrites: { element: string; property: string }[];
 }
 
 const root = resolve(__dirname, '../../../../..');
@@ -502,5 +506,61 @@ describe('registerScoped', () => {
         },
       }),
     ).toThrow(TypeError);
+  });
+});
+
+describe('inline writes on the readers (Lean inline_visSame)', () => {
+  it('readerWrites matches the golden vectors', () => {
+    for (const c of golden.readerWrites) expect(readerWrites(c.reduced, c.opacity)).toEqual(c.writes);
+  });
+
+  it('the reader classes are the golden readers and the frame writes cover each of them', () => {
+    expect(Object.keys(READER_CLASSES).sort()).toEqual([...golden.readers].sort());
+    const per = golden.readers.flatMap((r) => EXIT_PROPS.map((property) => ({ element: r, property })));
+    expect(golden.frameWrites).toEqual([{ element: 'hero.exit/hero', property: '--exit-opacity' }, ...per]);
+  });
+
+  it('the selector finds every reader of the SSR stage', () => {
+    const html = renderToString(createElement(Hero, { variants: { 'hero.exit': SCOPED } }));
+    const stage = find(parseHtml(html), (e) => attr(e, SCOPE_ATTR) !== undefined)!;
+    const wanted = new Set(Object.values(READER_CLASSES));
+    const count = (el: El): number => (classes(el).some((c) => wanted.has(c)) ? 1 : 0) + el.kids.reduce((a, k) => a + count(k), 0);
+    expect(count(stage)).toBe(golden.inline.narrow.touched - 1);
+    expect(count(stage)).toBe(golden.inline.wide.touched - 1);
+    expect(READER_SELECTOR.split(',').map((s) => s.slice(1)).sort()).toEqual([...wanted].sort());
+  });
+
+  it('the writer writes the stage and then every reader, reads nothing more', () => {
+    const log: string[] = [];
+    const el = (n: string) => ({ style: { pointerEvents: '', setProperty: (p: string, v: string) => log.push(`${n} ${p} ${v}`) } });
+    const d = createExitDriver({
+      track: { getBoundingClientRect: () => ({ top: -400, height: 1600 }) },
+      hero: el('stage'),
+      reduced: () => false,
+      readers: [el('a'), el('b')],
+    });
+    const w = d.read(800);
+    expect(log).toEqual([]);
+    w();
+    expect(log).toEqual([
+      'stage --exit-opacity 0.5',
+      'a --exit-opacity 0.5',
+      'a --exit-scatter calc(1 - 0.5)',
+      'b --exit-opacity 0.5',
+      'b --exit-scatter calc(1 - 0.5)',
+    ]);
+  });
+
+  it('under reduced motion the readers get opacity 1 and scatter 0', () => {
+    const log: string[] = [];
+    const el = (n: string) => ({ style: { pointerEvents: '', setProperty: (p: string, v: string) => log.push(`${n} ${p} ${v}`) } });
+    const d = createExitDriver({
+      track: { getBoundingClientRect: () => ({ top: -400, height: 1600 }) },
+      hero: el('stage'),
+      reduced: () => true,
+      readers: [el('a')],
+    });
+    d.read(800)();
+    expect(log).toEqual(['stage --exit-opacity 1', 'a --exit-opacity 1', 'a --exit-scatter 0']);
   });
 });

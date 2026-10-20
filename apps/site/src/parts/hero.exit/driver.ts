@@ -1,7 +1,11 @@
 import { exitFrame } from './logic';
+import { readerWrites } from './scope';
 
 export interface ExitTarget {
   style: { pointerEvents: string; setProperty(name: string, value: string): void };
+}
+export interface ExitReader {
+  style: { setProperty(name: string, value: string): void };
 }
 export interface TrackRect {
   getBoundingClientRect(): { top: number; height: number };
@@ -11,9 +15,15 @@ export interface TrackRect {
  * The faithful per-frame handler (N2:4155-4172): read the track's rect, write `--exit-opacity` and `pointer-events`
  * on the hero (a custom property on a subtree: the bad write the faithful variant keeps). Reduced motion is read at
  * each frame (`matches`), as the original does. `read` is the scroll callback's read phase (rect read, maths) and
- * returns the writer, so the engine can interleave (faithful) or batch the writes.
+ * returns the writer, so the engine can interleave (faithful) or batch the writes. `readers` (variant `scoped`) get
+ * Lean `readerWrites` inline in the same writer (`Fw.Parts.HeroExitOpt.inline_visSame`).
  */
-export function createExitDriver(opts: { track: TrackRect; hero: ExitTarget; reduced: () => boolean }) {
+export function createExitDriver(opts: {
+  track: TrackRect;
+  hero: ExitTarget;
+  reduced: () => boolean;
+  readers?: readonly ExitReader[];
+}) {
   return {
     read(viewportHeight: number): () => void {
       const reduced = opts.reduced();
@@ -21,8 +31,12 @@ export function createExitDriver(opts: { track: TrackRect; hero: ExitTarget; red
       const rect = reduced ? { top: 0, height: 0 } : opts.track.getBoundingClientRect();
       const r = exitFrame(reduced, rect.top, rect.height, viewportHeight);
       return () => {
-        opts.hero.style.setProperty('--exit-opacity', String(r.opacity));
+        const opacity = String(r.opacity);
+        opts.hero.style.setProperty('--exit-opacity', opacity);
         opts.hero.style.pointerEvents = r.pointerNone ? 'none' : '';
+        if (!opts.readers?.length) return;
+        const writes = readerWrites(reduced, opacity);
+        for (const el of opts.readers) for (const [name, value] of writes) el.style.setProperty(name, value);
       };
     },
   };
