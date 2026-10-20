@@ -11462,7 +11462,10 @@
     "lean/Fw/Parts/NavEarn*.lean",
     "apps/site/src/parts/nav/**",
     "packages/contracts/golden/parts/nav-earn*.jsonl",
-    "docs/team/handoffs/earn-transition-retarget.md"
+    "docs/team/handoffs/earn-transition-retarget.md",
+    "lean/scripts/NavEarn*.lean",
+    "research/notes/2026/10-2*-earn-transition-retarget.md",
+    "research/findings/ledger.json"
    ]
   }
  ],
