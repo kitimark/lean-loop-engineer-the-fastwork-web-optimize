@@ -1,7 +1,7 @@
 ---
 id: 2026-10-21-scoped-close-start-cause
 kind: note
-title: "The nav close starts at bgRed(m_prev) in every arm: the close-start colour is an identity, and the bg and earn close@0 failures are gap-driven and appear in A/A too"
+title: "The nav close starts at bgRed(m_prev) in every arm: the close-start colour is an identity, and the bg and earn close@0 failures appear in A/A too"
 status: final
 created: 2026-10-21
 authors: [agent:measure-engineer]
@@ -22,18 +22,17 @@ to 252. Is it (a) a part fix, (b) timing only, or (c) a look change? Each claim 
    |reading - bgRed m| <= 1/2` (Lean `Fw.Parts.HeroExitCloseStart`); `closegap.mjs` check 3 applies it to every cell
    and is golden-checked against Lean. Output of the 4 runs, committed:
    `10-21-scoped-close-start-cause.closegap-output.txt`.
-2. **The bg and earn close@0 failures appear in A/A too, and they follow the class-removal gap `g`.** The A/A candidate
-   (`?fw=hero.exit:faithful`) reads red 185.6 at g 178 (390, fresh A/A run), and its bg `close@0` and `close-hold@0` at
-   390 are `new`; the run passes only because that does not repeat at a second width. A darker start follows from a longer
-   `g`, with the same `bgRed(m_prev)`.
+2. **The bg and earn close@0 failures appear in A/A too.** The start is bgRed(m_prev). A longer g permits a darker start
+   (m_prev <= prevBound g, Lean prev_le_bound / redFloor_anti) but does not fix it: 185.6 at g 178 (A/A 390 rep 0, m_i
+   407e-4); 249.9 at g 175 vs 212.6 at g 154 (scoped 390 reps 0 and 2). bg close@0 fails in A/A as new (390); earn
+   close@0 fails in A/A only as both (640 max-width, base fails too).
 3. **This task takes none of (a), (b), (c).**
    - (a) part fix: waits on the perf question (B), below.
    - (b) timing only: refuted for the judge as written. The judge's close@0 comparison fails the A/A candidate at 390
      (bg `new`) and, in the scoped run, fails the base arm too (bg 390 `both`), so "timing only, the judge passes it" does
      not hold; a judge rule is its own task (A).
-   - (c) look change: excluded only at equal `g`. At equal `g` the start is the colour of the previous frame, the same
-     function of `m` in every arm (identity). A longer `g` gives a darker start (185.6 at g 178), so whether scoped
-     changes `g` is (B), not (c).
+   - (c) is excluded at equal m_prev: the start is the same function bgRed of m_prev in every arm (identity, 240/240).
+     Whether scoped shifts m_prev (through g or frame timing) is B.
 4. **Perf question (B): INFERRED, open.** See the Perf section. Not answered here.
 5. **Earn.** `earn.opacity` and `earn.max-width` close@0 are what fail the scoped run (`new` at 390 and 641). They are
    not an identity in `m`. INFERRED: mostly `g`-driven, with exceptions (Earn section). The earn start rule (C) is not
@@ -62,14 +61,15 @@ both. In 39508414669 bg `close@0` at 390 is `both` (the base fails it too) and `
    condition (`apps/site/src/parts/nav/nav.module.css:22-26`). The mix is premultiplied: alpha `26/255 (1-m) + m`
    (`bgAlpha`), premultiplied red `26 (1-m) + 19 m`, so the red the probe reads is `bgRed m`. `bgRed` falls strictly from
    255 at m = 0 to 19 at m = 1 (`bgRed_lt`, `bgRed_le_iff`). A `background-color` transition (0.7 s) exists only on
-   `.nav:not(.is-morphing)` (lines 41-48). Above 640 px that rule's target also switches to `#ffffff7a` / `#ffffff38`
-   (media block, lines 55-62); at 640 and below the target stays the `color-mix` and keeps following `--morph`.
+   `.nav:not(.is-morphing)` (lines 41-48). Above 640 px and when not is-on-dark, that rule's target switches to `#ffffff7a` / `#ffffff38`
+   (media block, nav.module.css:55-62); otherwise the target stays the color-mix and keeps following --morph.
 3. When the class goes, the transition starts. WebKit's before-change style is the style of the previous style-change
    event, so the start colour is `bgRed(m_prev)`, `m_prev` the morph value of the last frame that saw the class
    (`Source/WebCore/style/Styleable.cpp:603-617@862f17d`). CONFIRMED on the pinned clone; the CI Playwright WebKit build
    differs, so for CI it is INFERRED. The ordering of this against the running tween inside `StyleTreeResolver` is not
    claimed.
-4. A longer `g` means the last morphing frame is earlier on the tween, so `m_prev` is larger and the start is darker.
+4. A longer g lets the last morphing frame lie earlier on the tween, so it bounds m_prev from above (prevBound g); the
+   start is darker only when m_prev actually is larger.
 5. Over the model `Fw.Parts.HeroExitOpt.frameWrites`, the scoped exit writes `--exit-opacity` and `--exit-scatter` on
    hero elements and none the nav background reads (`scoped_writes_miss_nav_bg`, `scoped_writes_miss_nav_elements`). The
    model is not the whole driver: `driver.ts:37` also sets `pointerEvents` on the hero (not on the nav). The model gives
@@ -137,8 +137,8 @@ Close-start readings of the scoped arm, fresh run, by width (red at sample j, g 
   the confirmatory number. The fresh A/A run gives 0.69.
 - The pooled p 0.013 (mean log g; 0.020 for mean g; 20000 seeded draws, so the third digit moves) includes 39466179818,
   the run that raised the question (its own p is 0.018); it is not confirmatory. The pooled A/A is 0.89.
-- The effect sits at 390, where the A/A candidate is also high. Block difference per width (candidate minus orig+base,
-  mean of log g):
+- The effect is largest at 390, where the A/A candidate is also high (0.24 fresh, 0.09 stored); fresh 641 is +0.35 vs A/A
+  -0.30. Block difference per width (candidate minus orig+base, mean of log g):
 
   | run | 390 | 640 | 641 | 1280 |
   |---|---|---|---|---|
@@ -147,11 +147,11 @@ Close-start readings of the scoped arm, fresh run, by width (red at sample j, g 
   | 39466179818 scoped (stored) | 0.64 | 0.15 | 0.15 | 0.08 |
   | 39472217441 A/A (stored) | 0.09 | -0.09 | -0.45 | -0.10 |
 
-- Close-phase frame intervals (mean / median ms over all consecutive samples of a rep) are equal across arms within each
-  run: 39508414669 orig 40.1 / 31, base 42.5 / 30, scoped 42.0 / 32; 39508421419 31.3 / 23, 32.0 / 22, 33.3 / 24;
+- Close-phase frame intervals (mean / median ms over all consecutive samples of a rep) are within 2.4 ms (mean) and 2 ms
+  (median) of each other within each run, no test run: 39508414669 orig 40.1 / 31, base 42.5 / 30, scoped 42.0 / 32; 39508421419 31.3 / 23, 32.0 / 22, 33.3 / 24;
   39466179818 39.8 / 31, 40.5 / 29.5, 41.8 / 31; 39472217441 28.8 / 22, 29.2 / 21.5, 28.1 / 21. Across runs they differ
-  by up to 14 ms. These runs show no frame-time cost during the close, only the single class-removal gap; no cause of
-  that gap is claimed.
+  by up to 14 ms. No frame-time difference during the close is visible at this size; no cause of the class-removal gap
+  is claimed.
 - The statistics assume cells are exchangeable within a (run, width) block. The decision needs a run-level test on more
   fresh runs at one `headSha` (follow-up B, not this task).
 

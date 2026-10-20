@@ -1,8 +1,8 @@
 # Handoff: scoped-close-start-cause (round 3, final design round)
 State: branch `worktree-wf_da1a1d10-06c-1`, content commit bafd7523 (the handoff is the commit after it). Not pushed to
 `ci/scoped-close-start-cause` (the lead's 10 queued runs sit on its head).
-Decision: none of (a), (b), (c) is taken. (b) is refuted for the judge as written; (a) waits on B; (c) is excluded only at
-equal g (a longer g gives a darker start, 185.6 at g 178). Judge (`Trajectory.lean`) and parts unchanged.
+Decision: none of (a), (b), (c) is taken. (b) is refuted for the judge as written; (a) waits on B; (c) is excluded at
+equal m_prev (start = bgRed(m_prev) in every arm); whether scoped shifts m_prev is B. Judge (`Trajectory.lean`) and parts unchanged.
 Claims, each on its own (note `research/notes/2026/10-21-scoped-close-start-cause.md`):
 - Identity: close-start red = `bgRed(m_prev)`, 240/240 cells within 0.38. Lean `closeStartOk` in `HeroExitCloseStart.lean`
   with `closeStartOk_self`, `closeStartOk_rejects_target` (bgRed m < 254.5), `_rejects_below`, `_rejects_above`, golden list
