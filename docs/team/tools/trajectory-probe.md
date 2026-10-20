@@ -315,6 +315,16 @@ base arm now passes them while the candidate still fails (39466179818 mac 390 bg
 earn.max-width close@0). Linux WebKit `ok` to `both` units (39453764374 390 close-hold@0): the sample's own pass has no
 core sample, another pass has one, and the reading is outside it (Limits: a pass does not fall back on its own).
 
+Scope (accepted limit, lead sign-off 2026-10-21): the envelope judges every in-flight sample of a transition epoch, not
+only its start, and a pass with no core sample of its own no longer falls back on its own m-window. This is stricter
+than the old rule in some cells: new failures on Linux WebKit 1280 (39453764374), Linux WebKit 390 and 1280
+(39449092483) and Chromium 1280 earn.max-width close@0 (39457767229). A rewrite pass with no counterpart in the
+original is now judged against the envelope of the original's passes; the old 'no counterpart' coverage fail is gone
+(golden cases 'in flight, other pass' pass to fail:apart, 'in flight, other pass, no counterpart' fail:coverage to
+pass). Open, INFERRED: `close-hold@0` failures (39466179818 mac 640, 39472217441 mac 390) are hold samples judged by
+windowOf/settledRef, which neither new rule touches; the Chromium earn.max-width close@0 change in 39457767229 is not
+explained yet. Follow-up task trajectory-envelope-scope.
+
 ## Admission
 
 No flag enters `v2-proved` without a stored pass in Chromium and in WebKit on both paths (Lean `member_needs_trajectory`,

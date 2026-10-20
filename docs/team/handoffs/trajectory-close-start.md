@@ -1,6 +1,6 @@
 # Handoff: trajectory-close-start
 
-State: branch `worktree-wf_a71b0089-ac6-1`, final commit after 6be54a90 (see `git log`). Absorbs trajectory-settled-sample.
+State: branch `worktree-wf_a71b0089-ac6-1` at 21dcd854 (doc follow-up is the tip). Absorbs trajectory-settled-sample.
 
 Verified:
 - Lean `Fw.Gate.Trajectory`: `envelope`, `isCoreIn`, `judgeWith`, `judgeUnit` (envelope), `judgeOwn` (one pass), `headOf`,
@@ -25,3 +25,4 @@ Open: Linux WebKit morph stays unjudged (coverage); the close-start colour gap n
 Conventions: the TS twin names match Lean (`windowAt(ph, d, seg, orig, r)`); the head branch needs a settled sample.
 Read first: the Limits list under "Transitions in flight" in trajectory-probe.md, then `windowPass` in Trajectory.lean.
 Scratch re-reduce tools were local only (rr.mjs: v1 colour conversion via `colourFromV1`, then `reduceRaw`).
+Envelope scope, the two flipped goldens and the new failures: trajectory-probe.md, 'Scope (accepted limit)'.
