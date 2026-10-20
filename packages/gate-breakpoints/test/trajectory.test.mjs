@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { armCheck, byM, byStep, bucket, judgeAgainst, pickWidths, quantile, readsDominate, reduceRaw, reduceWidth, rel, runCheck, verdictLines, window as windowOf } from '../src/trajectory/reduce.mjs';
+import { armCheck, byM, byStep, bucket, judgeAgainst, judgeFlight, pickWidths, quantile, readsDominate, reduceRaw, reduceWidth, rel, runCheck, SETTLE, settleOf, START_LAG, verdictLines, window as windowOf } from '../src/trajectory/reduce.mjs';
 import { mergeRaws, planOf } from '../src/trajectory/plan.mjs';
 import { HERO_NODES, MORPH_NODES, PAGE_PROPS, HERO_STEPS, WIDTHS, MOTION_PROPS } from '../src/trajectory/registry.mjs';
 
@@ -12,9 +12,14 @@ const golden = readFileSync(fileURLToPath(new URL('../../contracts/golden/gate/t
   .split('\n').filter(Boolean).map((l) => JSON.parse(l));
 
 test('the golden file holds every operation', () => {
-  assert.deepEqual([...new Set(golden.map((g) => g.op))].sort(), ['against', 'window', 'bucket', 'byM', 'byStep', 'widths', 'rel', 'arm', 'run', 'quantile', 'dominate', 'plan'].sort());
-  assert.ok(golden.length >= 110);
+  assert.deepEqual([...new Set(golden.map((g) => g.op))].sort(), ['against', 'window', 'bucket', 'byM', 'byStep', 'widths', 'rel', 'arm', 'run', 'quantile', 'dominate', 'plan', 'flight', 'settle'].sort());
+  assert.ok(golden.length >= 140);
   assert.ok(golden.some((g) => g.op === 'byM' && [...g.orig, ...g.rew].some((x) => x.rep > 0)), 'golden has rows with rep > 0');
+});
+
+test('the settle table is the golden table, entry for entry', () => {
+  const listed = golden.filter((g) => g.op === 'settle' && g.settle !== null).map((g) => [g.node, g.prop, g.settle]);
+  assert.deepEqual(listed, SETTLE);
 });
 
 for (const g of golden) {
@@ -22,7 +27,9 @@ for (const g of golden) {
     if (g.op === 'against') assert.equal(judgeAgainst(g.kind, g.win, g.r), g.verdict);
     else if (g.op === 'window') assert.deepEqual(windowOf(g.ms, g.m), g.idx);
     else if (g.op === 'bucket') assert.equal(bucket(g.m), g.bucket);
-    else if (g.op === 'byM') assert.deepEqual(byM(g.phase, g.kind, g.orig, g.rew).map((x) => x[1]), g.verdicts);
+    else if (g.op === 'byM') assert.deepEqual(byM(g.phase, g.kind, g.settle, g.seg, g.orig, g.rew).map((x) => x[1]), g.verdicts);
+    else if (g.op === 'flight') assert.equal(judgeFlight(g.kind, g.settle, g.seg, g.win, g.r), g.verdict);
+    else if (g.op === 'settle') assert.deepEqual([settleOf(g.node, g.prop), START_LAG], [g.settle, g.lag]);
     else if (g.op === 'rel') assert.equal(rel(g.cand, g.base), g.rel);
     else if (g.op === 'arm') assert.equal(armCheck(g.arm), g.verdict);
     else if (g.op === 'run') assert.equal(runCheck(g.arms), g.verdict);
@@ -30,7 +37,7 @@ for (const g of golden) {
     else if (g.op === 'dominate') assert.equal(readsDominate(g.read, g.gap), g.dominates);
     else if (g.op === 'byStep') {
       const side = (xs) => xs.map((x) => [x.step, x.s]);
-      assert.deepEqual(byStep(g.kind, side(g.orig), side(g.rew)).map(([step, verdict]) => ({ step, verdict })), g.verdicts);
+      assert.deepEqual(byStep(g.kind, g.settle, side(g.orig), side(g.rew)).map(([step, verdict]) => ({ step, verdict })), g.verdicts);
     } else if (g.op === 'widths') {
       const got = pickWidths(g.input);
       assert.deepEqual(got === null ? { ok: false } : { ok: true, widths: got }, g.pick);

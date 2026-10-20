@@ -2119,8 +2119,58 @@ def casesPlan : List Case := [
   .planOf "chromium, all widths" "chromium" "", .planOf "webkit, one width" "playwright-webkit" "640",
   .planOf "both, a subset" "both" "1280,390", .planOf "unknown engines" "safari" "", .planOf "refused widths" "both" "390,500"]
 
+/-- A sample of pass `rep` at morph value `m`, read `t` ms after the last class change. -/
+def smt (rep : Nat) (m : Int) (t : Nat) (els : List Val) : Samp := ⟨some m, some t, els, rep⟩
+
+/-- A sample with no morph value, read `t` ms after the last class change. -/
+def st (t : Nat) (els : List Val) : Samp := ⟨none, some t, els, 0⟩
+
+/-- The golden cases of transitions in flight: the settle table, each branch of `judgeFlight`, the start-lag boundary, and
+the morph and step paths with a settle time. -/
+def casesFlight : List Case := [
+  .settle "nav visibility" "nav" "visibility", .settle "nav rect" "nav" "rect",
+  .settle "nav background" "nav" "background-color", .settle "nav opacity" "nav" "opacity",
+  .settle "nav lin" "nav" "transform.lin", .settle "nav shift" "nav" "transform.shift", .settle "logo colour" "logo" "color",
+  .settle "actions gap" "actions" "gap", .settle "earn opacity" "earn" "opacity", .settle "earn max-width" "earn" "max-width",
+  .settle "unlisted" "nav" "filter", .settle "unlisted node" "pill" "opacity",
+  .flight "rewrite in flight, inside crossed" .colour (some 700) [st 5000 [.num [0]], st 100 [.num [5000]], st 5000 [.num [9000]]]
+    [st 5000 [.num [9000]]] (st 100 [.num [4000]]),
+  .flight "rewrite in flight, outside" .colour (some 700) [st 5000 [.num [0]], st 100 [.num [5000]], st 5000 [.num [9000]]]
+    [st 5000 [.num [9000]]] (st 100 [.num [12000]]),
+  .flight "window in flight" .unit (some 440) [st 5000 [.num [0]], st 200 [.num [500]], st 5000 [.num [1000]]]
+    [st 200 [.num [500]]] (st 5000 [.num [1000]]),
+  .flight "settled differs" .colour (some 700) [st 100 [.num [5000]]] [st 5000 [.num [9000]]] (st 5000 [.num [0]]),
+  .flight "settled same" .colour (some 700) [] [st 5000 [.num [9000]]] (st 5000 [.num [9000]]),
+  .flight "lag edge in flight" .unit (some 700) [st 5000 [.num [0]], st 100 [.num [500]], st 5000 [.num [1000]]]
+    [st 5000 [.num [1000]]] (st 899 [.num [0]]),
+  .flight "lag edge settled" .unit (some 700) [st 5000 [.num [0]], st 100 [.num [500]], st 5000 [.num [1000]]]
+    [st 5000 [.num [1000]]] (st 900 [.num [0]]),
+  .flight "no settle colour" .colour none [st 100 [.num [0]]] [st 5000 [.num [9000]]] (st 100 [.num [0]]),
+  .flight "no settle unit" .unit none [st 100 [.num [0]]] [st 5000 [.num [1000]]] (st 100 [.num [0]]),
+  .flight "no class change" .unit (some 700) [] [s0 [.num [1000]]] (s0 [.num [0]]),
+  .flight "crossed per pass" .unit (some 440)
+    [⟨none, some 5000, [.num [0]], 0⟩, ⟨none, some 5000, [.num [200]], 0⟩, ⟨none, some 100, [.num [600]], 1⟩,
+      ⟨none, some 5000, [.num [1000]], 1⟩]
+    [st 100 [.num [1000]]] (st 100 [.num [200]]),
+  .flight "discrete in flight" .discrete (some 320) [st 5000 [.str "hidden"], st 100 [.str "visible"]]
+    [st 100 [.str "visible"]] (st 100 [.str "hidden"]),
+  .phase "morph in flight" .push .colour (some 700)
+    [smt 0 0 5000 [.num [0]], smt 0 5000 100 [.num [5000]], smt 0 10000 5000 [.num [9000]]]
+    [smt 0 0 5000 [.num [0]], smt 0 5000 100 [.num [5000]], smt 0 10000 5000 [.num [9000]]]
+    [smt 0 4000 150 [.num [2000]], smt 0 6000 150 [.num [7000]]],
+  .phase "morph settled differs" .push .colour (some 700)
+    [smt 0 0 5000 [.num [0]], smt 0 5000 100 [.num [5000]], smt 0 10000 5000 [.num [9000]]]
+    [smt 0 0 5000 [.num [0]], smt 0 10000 5000 [.num [9000]]] [smt 0 9500 5000 [.num [0]]],
+  .path "steps in flight" .colour (some 700)
+    [("a5", st 2222 [.num [255000, 255000, 255000, 122400]]), ("a6", st 481 [.num [1000, 0, 0, 33340]]),
+      ("a7", st 1134 [.num [255000, 255000, 255000, 26000]])]
+    [("a5", st 1271 [.num [255000, 255000, 255000, 122400]]), ("a6", st 327 [.num [1000, 0, 0, 51667]]),
+      ("a7", st 703 [.num [1000, 0, 0, 26029]])],
+  .path "step settled differs" .colour (some 700) [("a1", st 5000 [.num [255000]]), ("a2", st 5000 [.num [9000]])]
+    [("a1", st 5000 [.num [255000]]), ("a2", st 5000 [.num [0]])]]
+
 /-- The golden cases: every branch above, per kind where the kind matters. -/
-def cases : List Case := casesJudge ++ casesRest ++ casesPlan
+def cases : List Case := casesJudge ++ casesRest ++ casesPlan ++ casesFlight
 
 /-- A widths pick as JSON. -/
 def Widths.json : Widths → Json
