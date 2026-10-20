@@ -1993,7 +1993,7 @@
    "n": 31,
    "part": "premise",
    "candidate": "premise cv.margin-typed-om: computedStyleMap margin reads give the computed value, not the used one (cmr-margin-typed-om)",
-   "status": "holds",
+   "status": "proved",
    "chromium": "premise-holds",
    "webkit": "premise-holds",
    "visual": "n/a (a gate read path, not an optimization)",
