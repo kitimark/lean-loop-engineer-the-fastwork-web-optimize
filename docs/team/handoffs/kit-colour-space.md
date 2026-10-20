@@ -12,7 +12,7 @@ Branch `worktree-wf_e1d953e4-5eb-2`. State: done (round 3, text only), nothing p
   `lean/scripts/ColourGolden.lean`, `golden/ci/triggers.jsonl`.
 
 ## Verified
-- `sh lean/scripts/check.sh`, gate-breakpoints `pnpm test`, `scripts/ci-paths.test.mjs`, apps/runner `land-inputs.test.ts`.
+- `sh lean/scripts/check.sh`, gate-breakpoints `pnpm test`, `scripts/ci-paths.test.mjs`, apps/runner `land-inputs.test.ts` (ci-paths and land-inputs last run in round 2; round 3 changed docs only).
 - Limits table in `docs/team/tools/trajectory-probe.md`: 36 cells = 9 whole-run artifacts x 4 widths, re-reduced from each raw
   file: (a) not measured 12, (b) measured with no colour unit 3, (c) unit lists 21. Not measured (0 morph runs, 0 colour
   reads): 39453181962 playwright-webkit, 39471466367 playwright-webkit, 39457063232 apple. Leg artifacts: identity sentence.
