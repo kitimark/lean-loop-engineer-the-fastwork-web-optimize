@@ -2251,6 +2251,34 @@
    "flag": "hero.exit:scoped",
    "fResult": "model-bug",
    "evidence": "user's real-device observation 2026-10-20 (CONFIRMED by user report): the hero cards freeze during scroll and the hero is gone after scrolling away and back, Safari WebKit only, desktop and mobile; local debug repro (Playwright Chromium and WebKit on the preview build of main 84a662d4; MEASURED (local debug), not a result), CI pending (task trajectory-probe)"
+  },
+  {
+   "id": "morph.panel.finalSize.visual",
+   "n": 11,
+   "part": "morph.panel",
+   "candidate": "C1 final-size: lay the panel, backdrop and columns out once at the final panel size, centred in the nav and clipped by its overflow: hidden (panel-final-size)",
+   "status": "refuted",
+   "chromium": "not-tried",
+   "webkit": "not-tried",
+   "visual": "not-equal: every frame with 0.08 < m < 1 - 1/(2·ΔH) differs beyond the 1/2 px tolerance (Lean desk_not_Q, phone_not_Q); push 0 to 1 differs on frames 2-37 (600 ms), push 1 to 0 on frames 1-23, at 1440x900 and 390x844 (#guard); the layout height gap is (1 - m)·ΔH, 650 px at frame 2 and 325 px at frame 10 on desktop",
+   "mechanism": "CONFIRMED in Lean (Fw.Parts.MorphPanelOpt.FinalSize): the panel subtree's boxes are sized from the panel box (morph.panel inset: 0, veil radial-gradient 123% 74% of its box, backdrop inset: 0 -3% with flex: 1 1 0 columns and translateY(--col-offset) in % of their own height, footer bottom: 0), so laying them out at the final size shows a crop of the end layout instead of the layout at the current nav size; the footer moves (1 - m)·ΔH/2 below the nav clip (footer_shift). The size-change bound holds: the arm changes the subtree size on no frame (relayouts_final), the original on all 41 changing frames; that skipping the subtree layout follows is INFERRED (the panel box still gets a layout call each frame). CONFIRMED (source, WebKit @862f17d): a layer resize clears and repaints its backing store (PlatformCALayerRemote.mm:596-607, RemoteLayerBackingStore.mm:139-152), a move does not (PlatformCALayerRemote.mm:615-622, RenderElement.cpp:1482-1565); Chromium @f842f52 raster_invalidator.cc:64-143 invalidates only on a chunk's own clip or effect change (INFERRED for the nav clip). No flag or CI run: the visual premise failed first. Note research/notes/2026/10-21-panel-final-size.md.",
+   "leanFor": [
+    "Fw.Parts.MorphPanelOpt.FinalSize.end_E",
+    "Fw.Parts.MorphPanelOpt.FinalSize.hidden_E",
+    "Fw.Parts.MorphPanelOpt.FinalSize.relayouts_final"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.MorphPanelOpt.FinalSize.not_Q",
+    "Fw.Parts.MorphPanelOpt.FinalSize.desk_not_Q",
+    "Fw.Parts.MorphPanelOpt.FinalSize.phone_not_Q",
+    "Fw.Parts.MorphPanelOpt.FinalSize.size_gap",
+    "Fw.Parts.MorphPanelOpt.FinalSize.footer_shift"
+   ],
+   "missingWhy": [],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "Fixing a box's size to skip its relayout keeps the picture only if no descendant's ink depends on that size; a percentage inset, gradient, offset or bottom anchor turns a crop into a different picture.",
+   "next": "Closed as a finding; C1b (transform: scale with clip-path) needs its own VisSame model with counter-scaled content, and per-box fixed sizes need a size_gap bound under 1/2 px each."
   }
  ],
  "notes": [
