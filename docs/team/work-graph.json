@@ -11131,7 +11131,8 @@
     "scripts/lake-slot.sh",
     "scripts/lake-slot.test.mjs",
     "lean/Fw/Sched/LakeSlot.lean",
-    "docs/team/handoffs/check-stage2-bound.md"
+    "docs/team/handoffs/check-stage2-bound.md",
+    "packages/contracts/golden/sched/lake-slot.gen.sh"
    ]
   },
   {
@@ -11302,7 +11303,8 @@
     "scripts/ci-paths.mjs",
     "scripts/ci-paths.test.mjs",
     "docs/team/handoffs/node-pin.md"
-   ]
+   ],
+   "evidence": "3275bc7"
   },
   {
    "devices": [
@@ -11433,7 +11435,13 @@
     "packages/contracts/golden/ci/**",
     "scripts/ci-paths.mjs",
     "scripts/ci-paths.test.mjs",
-    "docs/team/handoffs/node-pin-local.md"
+    "docs/team/handoffs/node-pin-local.md",
+    "apps/runner/src/node-guard.ts",
+    "apps/console-api/src/node-guard.ts",
+    "apps/runner/test/node-guard.test.ts",
+    "apps/console-api/test/node-guard.test.ts",
+    "lean/Fw/Ops/CheckMap.lean",
+    ".github/actions/**"
    ]
   }
  ],
