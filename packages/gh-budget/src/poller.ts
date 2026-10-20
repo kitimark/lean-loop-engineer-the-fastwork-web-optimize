@@ -3,6 +3,7 @@
 import { appendFileSync } from "node:fs";
 import type { Env, Json } from "./core.ts";
 import { chargedCall } from "./charged.ts";
+import { readMarkers } from "./waiters.ts";
 import { loadState, locked, paths, readStatus, stepEvent, stepUnlocked, writeStatus, type Row } from "./state.ts";
 
 export const LIST_FIELDS = "status,conclusion,databaseId,headBranch,workflowName,headSha,createdAt";
@@ -20,7 +21,7 @@ export type Poll = {
   stopped?: string;
 };
 
-/** Watches fwcore dropped (unseen, uncovered) are logged to `incidents.jsonl`, then acknowledged. The decision
+/** Watches fwcore dropped (unseen, uncovered, orphan) are logged to `incidents.jsonl`, then acknowledged. The decision
  *  to drop is fwcore's (`Fw.Ci.Budget.listed`); this only writes them down. */
 export function drainIncidents(env: Env): number {
   return locked(env, () => {
@@ -39,7 +40,9 @@ export async function pollOnce(env: Env): Promise<Poll> {
 async function pollTick(env: Env): Promise<Poll> {
   const res = await chargedCall(
     env,
-    (state, now) => env.core({ op: "ci.budget.next", now, state }),
+    // under the state lock: the waiters dir is read here, so fwcore sweeps the watches whose waiter is gone before it
+    // computes the window (`Fw.Ci.Budget.sweep`, `next_window_from_live`)
+    (state, now) => env.core({ op: "ci.budget.next", now, state, markers: readMarkers(env) }),
     (r) => {
       const pages = Number(r.pages ?? 1); // fwcore's pages: at most the cap its tick share allows
       return ["run", "list", ...(r.createdSince == null ? [] : ["--created", `>=${iso(Number(r.createdSince))}`]),

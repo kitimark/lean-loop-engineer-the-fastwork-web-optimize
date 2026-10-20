@@ -69,7 +69,7 @@ structure Limits where
   /-- requests per page of one tick: the poller's `gh run list` without `--workflow`, measured at 2 (82 ticks, no
   tick correction, 2026-10-19) -/
   listCost : Nat := 2
-    /-- ticks that list a watched run's creation time without it before the watch is dropped -/
+  /-- ticks that list a watched run's creation time without it before the watch is dropped -/
   missMax : Nat := 3
   /-- exclusive bound of a GitHub run id (ids are about 2.5e10 in 2026) -/
   maxRun : Nat := 10 ^ 13
@@ -348,10 +348,12 @@ structure Watch where
   misses : Nat := 0
 deriving Repr, DecidableEq
 
-/-- Why a watch was dropped: unseen in `missMax` covering lists, or older than the newest pages a tick may read. -/
+/-- Why a watch was dropped: unseen in `missMax` covering lists, older than the newest pages a tick may read, or
+left without a live waiter (`orphan`). -/
 inductive Drop where
   | unseen
   | uncovered
+  | orphan
 deriving Repr, DecidableEq
 
 /-- An incident: the run dropped, when, and why.
@@ -719,11 +721,42 @@ def listed (L : Limits) (s : State) (rows : List (Nat × Nat)) (full : Bool) (si
     incidents := s.incidents ++ s.watched.filterMap fun w =>
       match judge L rows full since w with | .inl d => some ⟨w.runId, s.now, d⟩ | .inr _ => none }
 
+/-- What the glue read of one waiter marker: the run it waits on, whether `kill(pid, 0)` found the process (a process
+of another user, `EPERM`, counts as found), the process start time the marker recorded when the waiter began, and the
+start time of that pid now. A start time is an opaque token (the output of `ps -o lstart= -p <pid>`), compared only for
+equality; `none` is a token that was not recorded or could not be read.
+-/
+structure Marker where
+  runId : Nat
+  killOk : Bool
+  recorded : Option String := none
+  now : Option String := none
+deriving Repr, DecidableEq
+
+/-- Is the waiter behind a marker alive? The process exists and, when both start times are known, it is the process
+that wrote the marker (a reused pid has another start time). A marker written without a token (older code) is alive
+when the process exists; accepted limit: a reused pid is then taken for the waiter. A marker with a token whose pid
+`ps` cannot see now is dead. Two processes with one pid started within the token's resolution (1 s) are not told apart.
+-/
+def Marker.alive (m : Marker) : Bool :=
+  m.killOk && (match m.recorded, m.now with | some a, some b => a == b | some _, none => false | none, _ => true)
+
+/-- The run ids that have a live waiter.
+-/
+def aliveIds (ms : List Marker) : List Nat := (ms.filter Marker.alive).map (·.runId)
+
+/-- Drop every watch with no live waiter, with an `orphan` incident; keep the others unchanged. The rule does not look
+at the kind of the id: a real run nobody waits on has no reader either.
+-/
+def sweep (s : State) (alive : List Nat) : State :=
+  { s with
+    watched := s.watched.filter fun w => alive.contains w.runId,
+    incidents := s.incidents ++ s.watched.filterMap fun w =>
+      if alive.contains w.runId then none else some ⟨w.runId, s.now, .orphan⟩ }
+
 /-- The events that change the state without a call: the clock, a waiter registering or leaving a run, the pages a
 tick needs, a response, a manual resume after the poller stopped, one tick's list, and
-the acknowledgement of logged incidents.
-
-$$\mathrm{Event} = \mathrm{clock}(\mathbb{N}) \mid \mathrm{register}(\mathit{runId}, \mathit{createdAt}) \mid \mathrm{unregister}(\mathit{runId}) \mid \mathrm{pages}(\mathbb{N}) \mid \mathrm{response}(\mathrm{Headers}, \mathbb{N}) \mid \mathrm{resume} \mid \mathrm{listed}(\mathit{rows}, \mathit{count}, \mathit{pagesRead}, \mathit{since}) \mid \mathrm{ack}(\mathbb{N})$$
+the acknowledgement of logged incidents, and the sweep of watches without a live waiter.
 -/
 inductive Event where
   | clock (t : Nat)
@@ -734,13 +767,14 @@ inductive Event where
   | resume
   | listed (rows : List (Nat × Nat)) (count pagesRead since : Nat)
   | ack (n : Nat)
+  | sweep (alive : List Nat)
 deriving Repr
 
 /-- Apply an event. The clock never goes back (`now := max(now, t)`) and drops ledger entries no window can see
 again; an id that is neither a GitHub run id nor a branch sentinel is refused (the state stays), and a second waiter
 on a watched run changes nothing.
 
-$$\begin{aligned} \operatorname{step}(L, s, \mathrm{clock}(t)) &= s[\mathit{now} := n,\ \ell := [\,e \in s.\ell \mid n < e.\mathit{time} + \max(W, W_1)\,]], \quad n = \max(s.\mathit{now}, t) \\ \operatorname{step}(L, s, \mathrm{register}(r, c)) &= \begin{cases} s & \lnot\operatorname{validWatch}(L, r) \lor \exists w \in s.\mathit{watched}:\ w.\mathit{runId} = r \\ s[\mathit{watched} := s.\mathit{watched} \mathbin{+\!\!+} [(r, c, \bot, 0)]] & \text{otherwise} \end{cases} \\ \operatorname{step}(L, s, \mathrm{unregister}(r)) &= s[\mathit{watched} := [\,w \in s.\mathit{watched} \mid w.\mathit{runId} \ne r\,]] \\ \operatorname{step}(L, s, \mathrm{pages}(n)) &= s[\mathit{pages} := \max(1, n)] \\ \operatorname{step}(L, s, \mathrm{response}(h, a)) &= \operatorname{observe}(L, s, h, a) \\ \operatorname{step}(L, s, \mathrm{resume}) &= s[\mathit{fails} := 0] \\ \operatorname{step}(L, s, \mathrm{listed}(\mathit{rows}, n, p, c)) &= \operatorname{listed}(L, s, \mathit{rows}, \operatorname{isFull}(n, p), c) \\ \operatorname{step}(L, s, \mathrm{ack}(n)) &= s[\mathit{incidents} := \operatorname{drop}(n, s.\mathit{incidents})] \end{aligned}$$
+$$\begin{aligned} \operatorname{step}(L, s, \mathrm{clock}(t)) &= s[\mathit{now} := n,\ \ell := [\,e \in s.\ell \mid n < e.\mathit{time} + \max(W, W_1)\,]], \quad n = \max(s.\mathit{now}, t) \\ \operatorname{step}(L, s, \mathrm{register}(r, c)) &= \begin{cases} s & \lnot\operatorname{validWatch}(L, r) \lor \exists w \in s.\mathit{watched}:\ w.\mathit{runId} = r \\ s[\mathit{watched} := s.\mathit{watched} \mathbin{+\!\!+} [(r, c, \bot, 0)]] & \text{otherwise} \end{cases} \\ \operatorname{step}(L, s, \mathrm{unregister}(r)) &= s[\mathit{watched} := [\,w \in s.\mathit{watched} \mid w.\mathit{runId} \ne r\,]] \\ \operatorname{step}(L, s, \mathrm{pages}(n)) &= s[\mathit{pages} := \max(1, n)] \\ \operatorname{step}(L, s, \mathrm{response}(h, a)) &= \operatorname{observe}(L, s, h, a) \\ \operatorname{step}(L, s, \mathrm{resume}) &= s[\mathit{fails} := 0] \\ \operatorname{step}(L, s, \mathrm{listed}(\mathit{rows}, n, p, c)) &= \operatorname{listed}(L, s, \mathit{rows}, \operatorname{isFull}(n, p), c) \\ \operatorname{step}(L, s, \mathrm{ack}(n)) &= s[\mathit{incidents} := \operatorname{drop}(n, s.\mathit{incidents})] \\ \operatorname{step}(L, s, \mathrm{sweep}(A)) &= \operatorname{sweep}(s, A) \end{aligned}$$
 -/
 def step (L : Limits) (s : State) : Event → State
   | .clock t =>
@@ -754,6 +788,7 @@ def step (L : Limits) (s : State) : Event → State
   | .resume => { s with fails := 0 }
   | .listed rows count pagesRead since => listed L s rows (isFull count pagesRead) since
   | .ack n => { s with incidents := s.incidents.drop n }
+  | .sweep alive => sweep s alive
 
 /-! ## Examples -/
 
@@ -811,7 +846,7 @@ theorem clock_monotone (L : Limits) (s : State) (e : Event) : (step L s e).now �
   | clock t => simp only [step]; omega
   | register r c => simp only [step]; split <;> simp
   | response h a => simp [step, observe]
-  | _ => simp [step, listed]
+  | _ => simp [step, listed, sweep]
 
 /-- An issued charge keeps the clock, appends exactly the charge, and changes no guard field.
 
@@ -1086,6 +1121,7 @@ theorem inv_step (L : Limits) (s : State) (e : Event) (h : Inv L s) : Inv L (ste
   | resume => exact ⟨hall, hok⟩
   | listed rows count pagesRead since => exact ⟨hall, hok⟩
   | ack n => exact ⟨hall, hok⟩
+  | sweep alive => exact ⟨hall, hok⟩
   | response hd a =>
     simp only [step, observe]
     refine ⟨fun e he => ?_, fun k t' => ?_⟩
@@ -1221,7 +1257,7 @@ theorem retry_mono (L : Limits) (s0 s : State) (hr : Reach L s0 s) : s0.retryUnt
       | clock t => simp [step]
       | register r c => simp only [step]; split <;> simp
       | response hd a => simp only [step, observe]; exact Nat.le_max_left _ _
-      | _ => simp [step, listed]
+      | _ => simp [step, listed, sweep]
     omega
   | charge _ hc ih =>
     have := (charge_issue L _ _ _ _ _ _ hc).2.2.2.2; omega
@@ -1810,6 +1846,7 @@ theorem remaining_no_rise (L : Limits) (s : State) (T r : Nat) (hT : s.reset = s
     | resume => exact ⟨r, Nat.le_refl _, hr⟩
     | listed rows count pagesRead since => exact ⟨r, Nat.le_refl _, hr⟩
     | ack n => exact ⟨r, Nat.le_refl _, hr⟩
+    | sweep alive => exact ⟨r, Nat.le_refl _, hr⟩
   · have := charge_bucket L s k c k' c' s' hc
     rw [this.1, this.2, hr, hT]; exact ⟨rfl, rfl⟩
 
@@ -1817,8 +1854,9 @@ theorem remaining_no_rise (L : Limits) (s : State) (T r : Nat) (hT : s.reset = s
 
 The incident of 2026-10-20: a branch watch (id `10^15 + h`) never finished, the list window `created >= createdAt`
 stayed open for 4.5 h, a tick needed 11 pages (cost 22) and `charge` stopped the poller with `tooBig`, a stop only a
-manual resume lifts. Three rules close it: an unknown id is refused at registration, an old or unseen watch is dropped
-with an incident, and a tick never reads more pages than its share allows. -/
+manual resume lifts. Three rules close it: an unknown id is refused at registration, a watch a list cannot find is dropped
+with an incident, and a tick never reads more pages than its share allows. Section (j) adds the fourth: a watch whose
+waiter is gone is dropped. -/
 
 /-- (i-a) Registration refuses an id that is neither a GitHub run id nor a branch sentinel: the state stays.
 
@@ -1889,7 +1927,7 @@ theorem listed_total (L : Limits) (s : State) (rows : List (Nat × Nat)) (full :
 list's rows, was created before the list's window (registered after the tick began, judged by the next tick), or is
 covered by the list. A real run the list cannot cover is not kept. Accepted limit: a sentinel is kept without a
 coverage check (it is not a run), and under a full, narrowed list a sentinel's run may lie outside the pages read;
-a sentinel whose waiter died stays registered until the waiter-liveness follow-up (`gh-budget-waiter-liveness`).
+a sentinel whose waiter died is dropped by `sweep`, not by a list.
 
 $$\forall L, s, \mathit{rows}, \mathit{full}, c, w' \in \operatorname{listed}(L, s, \mathit{rows}, \mathit{full}, c).\mathit{watched}:\ \operatorname{isSentinel}(w'.\mathit{runId}) \lor w'.\mathit{runId} \in \mathit{rows} \lor w'.\mathit{createdAt} < c \lor \operatorname{covers}(\mathit{rows}, \mathit{full}, c, w')$$
 -/
@@ -2034,7 +2072,7 @@ theorem defaults_shape : 0 < defaults.listCost ∧ defaults.listCost ≤ share1 
     share1 defaults .tick ≤ share defaults .tick ∧ pageCap defaults = 10 := by decide
 
 /-- (i-c) The incident's tick: a stale stored `pages` of 11 is capped at `pageCap` = 10 when the tick reads it, so the
-tick costs 20, the per-minute tick share, and `tick_no_tooBig` holds for it.
+tick costs 20 (pageCap 10 x listCost 2), the per-minute tick share, and `tick_no_tooBig` holds for it.
 
 $$\operatorname{pages}(\mathit{defaults}, s[\mathit{pages} := 11]) = 10 \land \operatorname{tickCost} = 20$$
 -/
@@ -2049,7 +2087,8 @@ theorem ack_drops (L : Limits) (s : State) (n : Nat) :
     (step L s (.ack n)).incidents = s.incidents.drop n ∧ (step L s (.ack n)).watched = s.watched := by
   simp [step]
 
--- the incident replayed: a stale sentinel watch registered at 90000, 11 pages stored: the tick goes at the capped 20
+-- the incident replayed: a sentinel watch (createdAt 90000 as the window start) with 11 pages stored: the tick goes at
+-- the capped 20 = pageCap 10 x listCost 2
 #guard (match next defaults ((step defaults (step defaults (init 100000) (.register 1000000000838323 90000)) (.pages 11))) with
   | .issue _ c _ => c = 20 | _ => false)
 #guard (step defaults (init 0) (.register 5000000000000000 0)).watched = []
@@ -2067,5 +2106,148 @@ theorem ack_drops (L : Limits) (s : State) (n : Nat) :
 -- a run registered after the tick began (created before the window start 95) is not judged
 #guard (step defaults (step defaults (init 100) (.register 7 90)) (.listed [(9, 95)] 100 1 95)).watched =
   [⟨7, 90, none, 0⟩]
+
+/-! ## (j) Orphan watches: a watch is kept exactly while its waiter lives
+
+The origin incident's sentinel stayed registered because its waiter had died, not because it was old. No age or
+heartbeat constant can tell a slow workflow from a dead waiter; the identity of the waiter can: a watch is kept
+exactly while a marker of a live waiter names its run. The glue reads the waiter directory under the state lock and
+hands the markers to `ci.budget.next`; this section is the decision. -/
+
+/-- (j-a) A dead process is a dead waiter, whatever the tokens say.
+-/
+theorem marker_dead (m : Marker) (h : m.killOk = false) : m.alive = false := by
+  simp [Marker.alive, h]
+
+/-- (j-a) A reused pid is a dead waiter: the process exists but its start time is not the one the marker recorded.
+-/
+theorem marker_reused (m : Marker) (a b : String) (hk : m.killOk = true) (ha : m.recorded = some a)
+    (hb : m.now = some b) (hne : a ≠ b) : m.alive = false := by
+  simp [Marker.alive, hk, ha, hb, hne]
+
+/-- (j-a) A live process with the recorded start time is a live waiter.
+-/
+theorem marker_same (m : Marker) (a : String) (hk : m.killOk = true) (ha : m.recorded = some a)
+    (hb : m.now = some a) : m.alive = true := by
+  simp [Marker.alive, hk, ha, hb]
+
+/-- (j-a) A marker without a recorded token (older code) is alive exactly when its process exists.
+-/
+theorem marker_tokenless (m : Marker) (h : m.recorded = none) : m.alive = m.killOk := by
+  simp [Marker.alive, h]
+
+/-- (j-a) A recorded token with a start time that cannot be read now (`ps` does not see the pid) is a dead waiter, even
+when `kill` finds the process.
+-/
+theorem marker_unreadable (m : Marker) (a : String) (ha : m.recorded = some a) (h : m.now = none) :
+    m.alive = false := by
+  simp [Marker.alive, ha, h]
+
+/-- (j-a) A run id has a live waiter exactly when some live marker names it.
+-/
+theorem mem_aliveIds (ms : List Marker) (r : Nat) :
+    r ∈ aliveIds ms ↔ ∃ m ∈ ms, m.runId = r ∧ m.alive = true := by
+  simp only [aliveIds, List.mem_map, List.mem_filter]
+  constructor
+  · rintro ⟨m, ⟨hm, ha⟩, rfl⟩; exact ⟨m, hm, rfl, ha⟩
+  · rintro ⟨m, hm, rfl, ha⟩; exact ⟨m, ⟨hm, ha⟩, rfl⟩
+
+/-- (j-b) A watch with a live waiter is kept, unchanged.
+-/
+theorem sweep_keeps_alive (s : State) (alive : List Nat) (w : Watch) (hw : w ∈ s.watched)
+    (ha : w.runId ∈ alive) : w ∈ (sweep s alive).watched := by
+  simp [sweep, List.mem_filter, hw, ha]
+
+/-- (j-b) A watch with no live waiter is dropped and logged with an `orphan` incident at the current time. The rule has
+no premise on the kind of id: a real run and a branch sentinel are treated alike.
+-/
+theorem sweep_drops_orphan (s : State) (alive : List Nat) (w : Watch) (hw : w ∈ s.watched)
+    (ha : w.runId ∉ alive) :
+    (∀ w' ∈ (sweep s alive).watched, w'.runId ≠ w.runId) ∧
+    (⟨w.runId, s.now, .orphan⟩ : Incident) ∈ (sweep s alive).incidents := by
+  refine ⟨fun w' hw' he => ?_, ?_⟩
+  · simp only [sweep, List.mem_filter, List.contains_iff_mem] at hw'
+    exact ha (he ▸ hw'.2)
+  · simp only [sweep, List.mem_append, List.mem_filterMap]
+    exact Or.inr ⟨w, hw, by simp [ha]⟩
+
+/-- (j-b) Every watch is kept or has an incident: after a sweep, each watch is still watched under its run id, or an
+`orphan` incident names its run at the current time.
+-/
+theorem sweep_total (s : State) (alive : List Nat) (w : Watch) (hw : w ∈ s.watched) :
+    (∃ w' ∈ (sweep s alive).watched, w'.runId = w.runId) ∨
+    (⟨w.runId, s.now, .orphan⟩ : Incident) ∈ (sweep s alive).incidents := by
+  by_cases ha : w.runId ∈ alive
+  · exact Or.inl ⟨w, sweep_keeps_alive s alive w hw ha, rfl⟩
+  · exact Or.inr (sweep_drops_orphan s alive w hw ha).2
+
+/-- (j-b) A sweep only removes watches, and only the orphans: the survivors are watches of the state, each with a live
+waiter, and the incidents already logged stay.
+-/
+theorem sweep_only_orphans (s : State) (alive : List Nat) :
+    (∀ w' ∈ (sweep s alive).watched, w' ∈ s.watched ∧ w'.runId ∈ alive) ∧
+    ∃ t, (sweep s alive).incidents = s.incidents ++ t := by
+  refine ⟨fun w' hw' => ?_, _, rfl⟩
+  simp only [sweep, List.mem_filter, List.contains_iff_mem] at hw'
+  exact hw'
+
+/-- A charge changes no watch.
+-/
+theorem charge_watched (L : Limits) (s : State) (k : Kind) (c : Nat) (k' : Kind) (c' : Nat) (s' : State)
+    (h : charge L s k c = .issue k' c' s') : s'.watched = s.watched := by
+  unfold charge at h
+  split at h
+  · cases h
+  split at h
+  · cases h
+  split at h
+  · cases h
+  split at h
+  · cases h
+  split at h
+  · cases h
+  split at h
+  · cases h
+  cases h
+  rfl
+
+/-- (j-c) The window comes from live waiters only: when the poller issues a tick after a sweep, the oldest creation time
+it lists from (`createdSince`) is the creation time of a watch that has a live waiter, so an orphan never widens the
+window.
+-/
+theorem next_window_from_live (L : Limits) (s : State) (alive : List Nat) (k : Kind) (c : Nat) (s' : State)
+    (h : next L (step L s (.sweep alive)) = .issue k c s') (x : Nat) (hx : since s' = some x) :
+    ∃ w ∈ s.watched, w.runId ∈ alive ∧ w.createdAt = x := by
+  obtain ⟨s'', hc, rfl⟩ := next_issue L _ k c s' h
+  have hw := charge_watched L _ _ _ _ _ _ hc
+  have hm : x ∈ (cover s'').watched.map (·.createdAt) := List.min?_mem hx
+  simp only [cover, List.map_map, List.mem_map, Function.comp] at hm
+  obtain ⟨w, hw1, rfl⟩ := hm
+  rw [hw] at hw1
+  have hw2 : w ∈ (step L s (.sweep alive)).watched := hw1
+  simp only [step, sweep, List.mem_filter, List.contains_iff_mem] at hw2
+  exact ⟨w, hw2.1, hw2.2, rfl⟩
+
+/-- (j-c) A sweep with no live waiter leaves no watch, so `next` stops idle afterwards (or on failures first) and a
+dead waiter's tick cost ends with the sweep.
+-/
+theorem sweep_nobody (s : State) : (sweep s []).watched = [] := by
+  simp [sweep]
+
+-- a sentinel and a real run, one waiter alive: the dead one is dropped with an orphan incident at the clock
+#guard (sweep { init 100 with watched := [⟨7, 90, none, 0⟩, ⟨1000000000838323, 80, none, 0⟩] } [7]).incidents =
+  [⟨1000000000838323, 100, .orphan⟩]
+#guard (sweep { init 100 with watched := [⟨7, 90, none, 0⟩, ⟨1000000000838323, 80, none, 0⟩] } [7]).watched =
+  [⟨7, 90, none, 0⟩]
+-- the dead sentinel does not widen the window: the oldest watch is 90, not 80
+#guard (match next defaults (step defaults { init 100 with watched := [⟨7, 90, none, 0⟩, ⟨1000000000838323, 80, none, 0⟩] }
+    (.sweep [7])) with
+  | .issue _ _ s' => since s' = some 90 | _ => false)
+-- nobody alive: the poller is idle
+#guard stopOf (next defaults (step defaults { init 100 with watched := [⟨7, 90, none, 0⟩] } (.sweep []))) = some .idle
+-- the marker cases: dead, live, reused pid, tokenless, recorded but unreadable now
+#guard !(Marker.alive ⟨7, false, some "a", some "a"⟩) && Marker.alive ⟨7, true, some "a", some "a"⟩ &&
+  !(Marker.alive ⟨7, true, some "a", some "b"⟩) && Marker.alive ⟨7, true, none, some "b"⟩ &&
+  !(Marker.alive ⟨7, true, some "a", none⟩) && Marker.alive ⟨7, true, none, none⟩
 
 end Fw.Ci.Budget

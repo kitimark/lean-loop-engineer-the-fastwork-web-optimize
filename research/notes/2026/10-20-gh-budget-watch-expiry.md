@@ -36,7 +36,7 @@ The task asked rule (a) to refuse non-run ids. This id is a valid sentinel, so (
 | rule | definition | theorems |
 |---|---|---|
 | (a) registration | `validWatch L r = validRunId L r || isSentinel r`; `step .register` keeps the state for others; the wire op answers an error | `register_refused`, `register_accepted`, `incident_id` |
-| (b) stale drop | `listed` drops a real run unseen in `missMax` = 3 covering lists (`unseen`) or uncovered by a full list (`uncovered`); sentinels are not dropped by lists; there is no age rule; a dead waiter's watch is the follow-up `gh-budget-waiter-liveness` | `listed_unseen`, `listed_uncovered`, `listed_total`, `listed_kept_covered` |
+| (b) stale drop | `listed` drops a real run unseen in `missMax` = 3 covering lists (`unseen`) or uncovered by a full list (`uncovered`); sentinels are not dropped by lists; there is no age rule; a dead waiter's watch is swept as `orphan` (`gh-budget-waiter-liveness`) | `listed_unseen`, `listed_uncovered`, `listed_total`, `listed_kept_covered` |
 | (c) bounded tick | `pageCap = max 1 (share1 tick / listCost)` = 10; `tickCost = listCost * min pageCap (max 1 pages)`; a full list cannot cover a run created at or before its oldest row, so it drops it `uncovered` | `tickCost_le`, `tick_charge_no_tooBig`, `tick_no_tooBig`, `defaults_shape`, `incident_tick`, `listed_uncovered`, `listed_total`, `listed_kept_covered`, `isFull_iff` |
 
 Stale state.pages: a state file may store `pages` larger than the cap (the incident stored 11). `pagesOf` caps it at `pageCap` = 10
@@ -68,8 +68,6 @@ the simulated clock (temp dirs only).
 - No change to the GitHub shares. No `gh api`.
 - A waiter whose watch was dropped waits until its own timeout (default 540 s) and then says "timed out"; it does not learn of the
   drop. Follow-up: have `evaluate` read `incidents.jsonl`.
-- A sentinel whose waiter died stays registered until `gh-budget-waiter-liveness` lands. It pins the list window, so every tick reads
-  `pageCap` pages (listCost 20, the whole tick minute share) and waiters poll slower, but the poller never stops (`tick_no_tooBig`).
 - Sentinels are not coverage-checked.
 - Failure incident shape: a cleanup that throws in a signal handler is appended to `incidents.jsonl` as `{cleanupFailed, at}`, a
   message and a time without a run id. Tested in `stale-watch.test.ts` with a throwing core.

@@ -100,6 +100,22 @@ def cases : List (String × String × Json) := [
     lit "{\"now\":1000,\"state\":{\"now\":1000,\"incidents\":[{\"runId\":7,\"time\":900,\"why\":\"unseen\"},{\"runId\":8,\"time\":990,\"why\":\"uncovered\"}]},\"event\":{\"ack\":1}}"),
   ("next: a stale stored pages of 11 is capped at 10, the tick costs the per-minute tick share 20", "ci.budget.next",
     lit "{\"now\":1000,\"state\":{\"now\":990,\"pages\":11,\"watched\":[{\"runId\":7,\"createdAt\":950}]}}"),
+  ("step: a stored watch with an old registeredAt loads; the reply omits the key", "ci.budget.step",
+    lit "{\"now\":1000,\"state\":{\"now\":1000,\"watched\":[{\"runId\":7,\"createdAt\":950,\"registeredAt\":10}]},\"event\":{\"resume\":true}}"),
+  ("step: sweep drops the watches not in the list (a real run and a sentinel) with orphan incidents", "ci.budget.step",
+    lit "{\"now\":1000,\"state\":{\"now\":1000,\"watched\":[{\"runId\":7,\"createdAt\":950},{\"runId\":8,\"createdAt\":960},{\"runId\":1000000000838323,\"createdAt\":900}]},\"event\":{\"sweep\":[8]}}"),
+  ("next: markers of a dead pid and a live one: the dead sentinel is swept and does not widen createdSince", "ci.budget.next",
+    lit "{\"now\":1000,\"state\":{\"now\":990,\"watched\":[{\"runId\":7,\"createdAt\":950},{\"runId\":1000000000838323,\"createdAt\":900}]},\"markers\":[{\"runId\":7,\"killOk\":true,\"recorded\":\"Tue Oct 20 09:49:39 2026\",\"now\":\"Tue Oct 20 09:49:39 2026\"},{\"runId\":1000000000838323,\"killOk\":false,\"recorded\":\"Tue Oct 20 08:00:00 2026\"}]}"),
+  ("next: a reused pid (start time differs) is no waiter: the watch is swept and the poller is idle", "ci.budget.next",
+    lit "{\"now\":1000,\"state\":{\"now\":990,\"watched\":[{\"runId\":7,\"createdAt\":950}]},\"markers\":[{\"runId\":7,\"killOk\":true,\"recorded\":\"Tue Oct 20 09:49:39 2026\",\"now\":\"Tue Oct 20 10:15:02 2026\"}]}"),
+  ("next: a marker without a recorded token is alive when its pid exists", "ci.budget.next",
+    lit "{\"now\":1000,\"state\":{\"now\":990,\"watched\":[{\"runId\":7,\"createdAt\":950}]},\"markers\":[{\"runId\":7,\"killOk\":true,\"now\":\"Tue Oct 20 10:15:02 2026\"}]}"),
+  ("next: a recorded token whose pid ps cannot see now is no waiter: the watch is swept", "ci.budget.next",
+    lit "{\"now\":1000,\"state\":{\"now\":990,\"watched\":[{\"runId\":7,\"createdAt\":950}]},\"markers\":[{\"runId\":7,\"killOk\":true,\"recorded\":\"Tue Oct 20 09:49:39 2026\"}]}"),
+  ("next: without a markers key nothing is swept, the watch is ticked", "ci.budget.next",
+    lit "{\"now\":1000,\"state\":{\"now\":990,\"watched\":[{\"runId\":7,\"createdAt\":950}]}}"),
+  ("next: an empty marker list sweeps every watch", "ci.budget.next",
+    lit "{\"now\":1000,\"state\":{\"now\":990,\"watched\":[{\"runId\":7,\"createdAt\":950}]},\"markers\":[]}"),
   ("status: window sums, interval and guards", "ci.budget.status",
     lit "{\"now\":1000,\"state\":{\"now\":1000,\"ledger\":[{\"time\":980,\"cost\":2,\"kind\":\"tick\",\"charged\":true},{\"time\":980,\"cost\":1,\"kind\":\"tick\",\"charged\":false},{\"time\":100,\"cost\":1,\"kind\":\"oneoff\",\"charged\":true}],\"watched\":[{\"runId\":7,\"createdAt\":950}]}}"),
   ("limits", "ci.budget.limits", lit "{}")]
@@ -179,7 +195,7 @@ def run (root : System.FilePath) (write : Bool) : IO Nat := do
   IO.println s!"ci-budget golden: {files.length} files, {cases.length} wire cases, {stale} stale"
   return stale
 
-#guard cases.length = 40
+#guard cases.length = 48
 #guard fixtures.length = 7
 
 end Fw.Wire.Ci.Golden

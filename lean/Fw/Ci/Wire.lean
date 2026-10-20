@@ -16,7 +16,7 @@ and passes it to the next call.
 | op | request | reply |
 |---|---|---|
 | `ci.budget.reserve` | `now`, `state`?, `cost` | Decision |
-| `ci.budget.next` | `now`, `state`? | Decision, and on `issue` also `createdSince` (n or null) |
+| `ci.budget.next` | `now`, `state`?, `markers`? [Marker] | Decision (the state swept of watches without a live waiter when `markers` is present), and on `issue` also `createdSince` (n or null) and `pages` |
 | `ci.budget.observe` | `now`, `state`?, `lines` [string], `actual`? | `state`, `headers` Headers, `actual` |
 | `ci.budget.step` | `now`, `state`?, `event` Event | `state` |
 | `ci.budget.status` | `now`, `state`? | `limits`, `shares`, `used`, `interval`, `headroom`, `retryUntil`, `fails`, `watched`, `createdSince`, `state` |
@@ -33,10 +33,11 @@ tick every watched run is covered), `{decision:"wait", until, reason, state}` or
 reason ∈ `failures idle tooBig retryAfter floor hour minute interval`. State: `{now, ledger:[{time, cost,
 kind, charged}], remaining, reset, retryUntil, fails, etag, watched:[{runId, createdAt, lastCovered, misses}], lastTick,
 pending:{kind, cost}|null, pages}` (`remaining reset etag lastTick lastCovered` may be null; every field but `now` is
-optional on input). Headers: `{status, remaining, reset, retryAfter, etag, resource}` (null when absent). `lines` are the
+optional on input). Marker: `{runId, killOk, recorded?, now?}` (`killOk`: `kill(pid, 0)` found the process; `recorded`/`now`: the process start time
+the marker holds and the pid's now, opaque strings; absent or null: unknown). Headers: `{status, remaining, reset, retryAfter, etag, resource}` (null when absent). `lines` are the
 response header lines of `gh api --include` (or `curl -i`), one per element, `< ` prefixes allowed; `actual` (default:
 the number of status lines, i.e. responses) is the number of requests the call really made. Event: `{register:{runId,
-createdAt}}`, `{unregister:runId}`, `{pages:n}`, `{resume:true}` or `{listed:{rows, count, pagesRead, createdSince}}` (Lean decides whether
+createdAt}}`, `{unregister:runId}`, `{pages:n}`, `{resume:true}`, `{sweep:[runId]}` (drop every watch not in the list, with an `orphan` incident) or `{listed:{rows, count, pagesRead, createdSince}}` (Lean decides whether
 the list was cut: `pagesRead * 100 <= count`). A stored watch may carry an old `registeredAt`; it is ignored.
 -/
 namespace Fw.Wire.Ci
@@ -116,11 +117,13 @@ def pendingOf (j : Json) : Except String (Option (Kind × Nat)) :=
 def dropName : Drop → String
   | .unseen => "unseen"
   | .uncovered => "uncovered"
+  | .orphan => "orphan"
 
 /-- A drop reason from its name. -/
 def dropOf (k : String) : String → Except String Drop
   | "unseen" => .ok .unseen
   | "uncovered" => .ok .uncovered
+  | "orphan" => .ok .orphan
   | v => .error s!"field {k}: unknown value {v}"
 
 /-- An incident as JSON. -/
@@ -164,9 +167,14 @@ def limitsJson (L : Limits) : Json :=
 def rowOf (j : Json) : Except String (Nat × Nat) := do
   pure (← nat j "runId", ← nat j "createdAt")
 
-/-- An event from JSON (exactly one of `register`, `unregister`, `pages`, `resume`, `listed`, `ack`). -/
+/-- A waiter marker as the glue read it, from JSON: `{runId, killOk, recorded?, now?}`. -/
+def markerOf (j : Json) : Except String Marker := do
+  pure { runId := ← nat j "runId", killOk := ← asBool "killOk" (← field j "killOk"),
+         recorded := ← optStr j "recorded", now := ← optStr j "now" }
+
+/-- An event from JSON (exactly one of `register`, `unregister`, `pages`, `resume`, `listed`, `ack`, `sweep`). -/
 def eventOf (j : Json) : Except String Event := do
-  let keys := ["register", "unregister", "pages", "resume", "listed", "ack"].filter fun k => (opt j k).isSome
+  let keys := ["register", "unregister", "pages", "resume", "listed", "ack", "sweep"].filter fun k => (opt j k).isSome
   match keys with
   | ["register"] => let r ← field j "register"; pure (.register (← nat r "runId") (← nat r "createdAt"))
   | ["unregister"] => pure (.unregister (← asNat "unregister" (← field j "unregister")))
@@ -176,7 +184,8 @@ def eventOf (j : Json) : Except String Event := do
     let l ← field j "listed"
     pure (.listed (← (← arr l "rows").toList.mapM rowOf) (← nat l "count") (← natD l "pagesRead" 1) (← natD l "createdSince" 0))
   | ["ack"] => pure (.ack (← asNat "ack" (← field j "ack")))
-  | _ => .error "field event: expected exactly one of register, unregister, pages, resume, listed, ack"
+  | ["sweep"] => pure (.sweep (← (← asArr "sweep" (← field j "sweep")).toList.mapM (asNat "sweep")))
+  | _ => .error "field event: expected exactly one of register, unregister, pages, resume, listed, ack, sweep"
 
 /-! ## Ops -/
 
@@ -200,9 +209,17 @@ def opReserve (req : Json) : Except String Reply := do
   let c ← nat req "cost"
   pure (decisionReply s (reserve defaults s c))
 
-/-- `ci.budget.next`: the shared poller's decision; a tick lists the runs created since `createdSince`. -/
+/-- `ci.budget.next`: the shared poller's decision; a tick lists the runs created since `createdSince`. With
+`markers` (the waiter markers the glue read under the state lock) the watches without a live waiter are swept first
+(`sweep`, `aliveIds`), so `createdSince` and the reply's `state` come from live watches only
+(`next_window_from_live`); without `markers` nothing is swept. -/
 def opNext (req : Json) : Except String Reply := do
-  let s ← clocked req
+  let s0 ← clocked req
+  let s ← match opt req "markers" with
+    | none => pure s0
+    | some ms => do
+      let alive := aliveIds (← (← asArr "markers" ms).toList.mapM markerOf)
+      pure (step defaults s0 (.sweep alive))
   match next defaults s with
   | d@(.issue _ _ s') => pure (decisionReply s d ++ [("createdSince", ojn (since s')), ("pages", jn (pagesOf defaults s'))])
   | d => pure (decisionReply s d)
@@ -409,7 +426,7 @@ def sample : State where
 #guard runField "ci.budget.step" "{\"now\":100,\"event\":{\"register\":{\"runId\":5,\"createdAt\":80}}}" "state" |>.endsWith
   "\"watched\":[{\"createdAt\":80,\"lastCovered\":null,\"misses\":0,\"runId\":5}]}"
 #guard run "ci.budget.step" "{\"now\":100,\"event\":{\"pages\":2,\"resume\":true}}" ==
-  "error: field event: expected exactly one of register, unregister, pages, resume, listed, ack"
+  "error: field event: expected exactly one of register, unregister, pages, resume, listed, ack, sweep"
 #guard run "ci.budget.reserve" "{\"now\":100,\"cost\":1.5}" == "error: field cost: expected a non-negative integer"
 #guard runField "ci.budget.limits" "{}" "limits" ==
   "{\"B\":3000,\"B1\":60,\"F\":500,\"Pmin\":10,\"R\":1200,\"R1\":40,\"W\":3600,\"W1\":60,\"back0\":60,\"backMax\":3600,\"listCost\":2,\"maxFails\":6,\"maxRun\":10000000000000,\"missMax\":3,\"pageCap\":10,\"sentinelBase\":1000000000000000,\"sentinelSpan\":4294967296,\"shares\":{\"oneoff\":{\"hour\":1200,\"minute\":40},\"tick\":{\"hour\":1800,\"minute\":20}},\"slice\":2}"

@@ -15,16 +15,20 @@ const incidents = (dir: string) => {
 };
 const watched = (dir: string) => ((loadState(dir)?.watched as { runId: number }[] | undefined) ?? []).map((w) => w.runId);
 
-test("a sentinel is not dropped by lists: it stays registered and the poller keeps ticking (waiter liveness is a follow-up)", async () => {
+test("a sentinel with a live waiter is not dropped by lists: it stays registered and the poller keeps ticking", async () => {
   const w = mkWorld(T0, { fastGh: true });
   w.config({ start: T0, listCost: 2, runs: [] });
   const id = sentinelId({ branch: "ci/x", sha: "abc" });
-  stepEvent(w.env, { register: { runId: id, createdAt: T0 - 16_200 } });
+  addWaiter(w.env, id, T0 - 16_200);
+  let ticks = 0;
   for (let i = 0; i < 5; i++) {
     const p = await pollOnce(w.env);
     assert.equal(p.stopped, undefined);
+    if (p.ticked) ticks++;
     w.sim.set(p.wakeAt);
   }
+  assert.ok(ticks >= 2, `the poller ticked ${ticks} times`);
+  assert.equal(w.calls().filter((c) => c.args[1] === "list").length, ticks);
   assert.deepEqual(watched(w.stateDir), [id]);
   assert.deepEqual(incidents(w.stateDir), []);
 });
@@ -58,8 +62,8 @@ test("the unregister goes before the marker is unlinked: a failed step leaves th
 test("a run missing from three covering lists is dropped as unseen; one that shows up keeps its place", async () => {
   const w = mkWorld(T0, { fastGh: true });
   w.config({ start: T0, listCost: 2, runs: [{ databaseId: 501, createdAt: T0 - 5, completeAt: T0 + 100_000 }] });
-  stepEvent(w.env, { register: { runId: 501, createdAt: T0 - 10 } });
-  stepEvent(w.env, { register: { runId: 502, createdAt: T0 - 10 } }); // no such run on GitHub
+  addWaiter(w.env, 501, T0 - 10);
+  addWaiter(w.env, 502, T0 - 10); // no such run on GitHub
   let ticks = 0;
   for (let i = 0; i < 20 && ticks < 3; i++) {
     const p = await pollOnce(w.env);
@@ -79,8 +83,8 @@ test("a tick needing more pages than the share reads the newest pages, drops wha
   const w = mkWorld(T0, { fastGh: true });
   const runs = Array.from({ length: 1_200 }, (_, i) => ({ databaseId: 1_000 + i, createdAt: T0 - 50, completeAt: T0 + 100_000 }));
   w.config({ start: T0, listCost: 20, runs }); // what GitHub bills for 10 pages
-  stepEvent(w.env, { register: { runId: 7, createdAt: T0 - 100 } }); // older than every listed row
-  stepEvent(w.env, { register: { runId: 2_199, createdAt: T0 - 50 } }); // among the newest 1000
+  addWaiter(w.env, 7, T0 - 100); // older than every listed row
+  addWaiter(w.env, 2_199, T0 - 50); // among the newest 1000
   stepEvent(w.env, { pages: 11 }); // the state of the incident: 11 pages asked for, cost 22 > the minute share 20
   const p = await pollOnce(w.env);
   assert.equal(p.stopped, undefined, "no tooBig stop");
