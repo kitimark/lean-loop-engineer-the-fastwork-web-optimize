@@ -23,6 +23,7 @@ import { API, CLASSES, MIN_POLL_S, call, credits, fetchPipeline, keychainToken, 
 const here = dirname(fileURLToPath(import.meta.url));
 export const ROOT = resolve(here, '..');
 export const MAX_RUNS = 30;
+const idsPath = join(ROOT, '.local', 'circleci-series-ids.json'); // { <pipeline number>: { pipelineId, workflowId } }, gitignored
 
 // ------------------------------------------------------------------------------------------------------------ statistics
 
@@ -44,7 +45,7 @@ export function rowOf({ g, number, pipelineId, cls, workflow, runs, pipelineCrea
   const created = ms(workflow.created_at), stopped = ms(workflow.stopped_at);
   const jobs = runs.map((r) => ({ job: r.job, conclusion: r.conclusion, class: r.class, queueMs: r.queueMs, durMs: r.durMs, credits: credits(g, r.class || cls, r.durMs) }));
   return {
-    number, pipelineId, class: cls, sha: runs[0]?.sha ?? '', status: workflow.status, workflowId: workflow.id,
+    number, class: cls, sha: runs[0]?.sha ?? '', status: workflow.status, // no pipeline or workflow ids in a row (public file): `idsPath` keeps them locally
     workflowWallMs: created != null && stopped != null ? stopped - created : null,
     pipelineCreatedMs, jobs,
     jobCredits: jobs.reduce((n, j) => n + (j.credits ?? 0), 0), billedCredits: null,
@@ -67,11 +68,18 @@ function flags(argv) {
 const rowsDir = (out) => join(out, 'rows');
 export const readRows = (out) => (existsSync(rowsDir(out)) ? readdirSync(rowsDir(out)).filter((f) => f.endsWith('.json')).sort().map((f) => JSON.parse(readFileSync(join(rowsDir(out), f), 'utf8'))) : []);
 
+/** waitPipeline, but a 404 right after the trigger (the workflow is listed before its jobs are readable) is retried every 15 s, at most 12 times. */
+async function waitRetry(ctx, args) {
+  for (let n = 0; ; n++) {
+    try { return await waitPipeline(ctx, args); } catch (e) { if (!/HTTP 404/.test(e.message) || n >= 12) throw e; await ctx.sleep(15); }
+  }
+}
+
 async function runSeries(o) {
   const out = resolve(o.out ?? 'results/circleci-series'), scratch = resolve(o.scratch ?? join(ROOT, '.local', 'circleci-series'));
   const per = Number(o.runs ?? 10), classes = String(o.classes ?? 'arm.medium.gen2,arm.large.gen2').split(',');
   for (const c of classes) if (!CLASSES.includes(c)) throw new Error(`class ${c} is not a free class of the config`);
-  const branch = String(o.branch ?? '');
+  const branch = String(o.branch ?? ''), adopt = o.adopt ?? null; // --adopt N: pipeline N (already started by an aborted driver) is run 1 of the first class
   if (!/^ci\/[A-Za-z0-9._/-]+$/.test(branch)) throw new Error('--branch ci/<name> is required');
   const done = readRows(out);
   const planned = per * classes.length;
@@ -87,14 +95,22 @@ async function runSeries(o) {
       if (failures >= 3) throw new Error('three failed pipelines in a row: stopping (budget guard)');
       const req = triggerRequest({ slug: cfg.slug, definitionId: cfg.definitionId, branch, lane: 'premise-tests', cls });
       const t0 = Date.now();
-      const p = await call(ctx, req.method, req.url, req.body);
+      let p;
+      if (adopt && i === 1 && cls === classes[0]) {
+        p = (await listAll(ctx, urls.pipelines(cfg.slug, branch), { maxPages: 5 })).find((x) => x.number === Number(adopt));
+        if (!p) throw new Error(`--adopt: pipeline ${adopt} not found on ${branch}`);
+      } else p = await call(ctx, req.method, req.url, req.body);
       console.log(`series: run ${i}/${per} ${cls}: pipeline number ${p.number}`);
-      const w = await waitPipeline(ctx, { slug: cfg.slug, pipelineId: p.id, timeoutS: 3600, intervalS: MIN_POLL_S });
+      const w = await waitRetry(ctx, { slug: cfg.slug, pipelineId: p.id, timeoutS: 3600, intervalS: MIN_POLL_S });
       if (w.code === 5 || w.code === 3) throw new Error(`pipeline ${p.number}: wait exit ${w.code}`);
       const doc = await fetchPipeline(ctx, { slug: cfg.slug, pipelineId: p.id, out: join(scratch, `p${p.number}`) });
       const wf = (await listAll(ctx, urls.workflows(p.id)))[0];
       const row = rowOf({ g, number: p.number, pipelineId: p.id, cls, workflow: wf, runs: doc.runs, pipelineCreatedMs: ms(p.created_at) });
       row.series = { index: i, waitExit: w.code, startedAtMs: t0 };
+      const ids = existsSync(idsPath) ? JSON.parse(readFileSync(idsPath, 'utf8')) : {};
+      ids[p.number] = { pipelineId: p.id, workflowId: wf.id };
+      mkdirSync(dirname(idsPath), { recursive: true });
+      writeFileSync(idsPath, `${JSON.stringify(ids)}\n`);
       writeFileSync(join(rowsDir(out), `p${String(p.number).padStart(5, '0')}.json`), `${JSON.stringify(row, null, 2)}\n`);
       failures = row.status === 'success' ? 0 : failures + 1;
       console.log(`series: pipeline ${p.number} ${row.status}, wall ${row.workflowWallMs} ms`);
@@ -110,13 +126,14 @@ async function insights(o) {
   const cfg = loadConfig(o['config-root'] ? resolve(o['config-root']) : ROOT);
   const ctx = { golden: loadGolden(), fetchFn: fetch, getToken: keychainToken, sleep, now: Date.now, log: () => {} };
   const rows = readRows(out);
+  const ids = existsSync(idsPath) ? JSON.parse(readFileSync(idsPath, 'utf8')) : {};
   const branch = String(o.branch ?? 'ci/circleci-series');
   const url = `${API}/insights/${cfg.slug}/workflows/premise-tests/runs?branch=${encodeURIComponent(branch)}&start-date=${new Date(Date.now() - 2 * 864e5).toISOString().slice(0, 10)}T00:00:00Z`;
   const items = await listAll(ctx, url);
   const byId = new Map(items.map((x) => [x.id, x]));
   let matched = 0;
   for (const r of rows) {
-    const x = byId.get(r.workflowId);
+    const x = byId.get(ids[r.number]?.workflowId);
     if (!x || x.credits_used == null) continue;
     r.billedCredits = x.credits_used;
     r.insights = { durationS: x.duration, status: x.status };
@@ -143,16 +160,20 @@ export function ghRow(run) {
   return { runId: run.databaseId, event: run.event, branch: run.headBranch, createdAt: run.createdAt, conclusion: run.conclusion, wallMs: ends.length && created != null ? Math.max(...ends) - created : null, jobs };
 }
 
+/** The stored GitHub runs of the workflow in which both engine jobs ran (a push whose lane inputs equal main's skips the whole workflow,
+ *  and a successful-looking push run then has no engine job): the newest `limit`, any branch, any event, newest first. */
 function github(o) {
   const out = resolve(o.out ?? 'results/circleci-series'), limit = Number(o.limit ?? 20);
-  const list = JSON.parse(execFileSync('gh', ['run', 'list', '--workflow', 'premise-tests.yml', '--branch', 'main', '--event', 'push', '--status', 'success', '--limit', String(limit), '--json', 'databaseId'], { encoding: 'utf8' }));
+  const list = JSON.parse(execFileSync('gh', ['run', 'list', '--workflow', 'premise-tests.yml', '--status', 'success', '--limit', '300', '--json', 'databaseId'], { encoding: 'utf8' }));
   const rows = [];
   for (const r of list) {
+    if (rows.length >= limit) break;
     const run = JSON.parse(execFileSync('gh', ['run', 'view', String(r.databaseId), '--json', 'databaseId,event,headBranch,conclusion,createdAt,jobs'], { encoding: 'utf8' }));
-    rows.push(ghRow(run));
+    const row = ghRow(run);
+    if (['engine (chromium)', 'engine (playwright-webkit)'].every((n) => row.jobs[n]?.conclusion === 'success')) rows.push(row);
   }
   mkdirSync(out, { recursive: true });
-  writeFileSync(join(out, 'github-runs.json'), `${JSON.stringify({ schema: 'fw.circleci-series-github/1', workflow: 'premise-tests', selection: `last ${limit} successful push runs on main`, runs: rows }, null, 2)}\n`);
+  writeFileSync(join(out, 'github-runs.json'), `${JSON.stringify({ schema: 'fw.circleci-series-github/1', workflow: 'premise-tests', runner: 'ubuntu-24.04-arm', selection: `newest ${limit} successful runs (any branch, any event) in which both engine jobs ran`, runs: rows }, null, 2)}\n`);
   console.log(`github: ${rows.length} runs`);
 }
 
@@ -180,7 +201,7 @@ export function summarize(rows, gh) {
     const rs = gh.runs.filter((r) => r.conclusion === 'success');
     github = { runs: rs.length, runIds: rs.map((r) => r.runId), wallMs: spread(rs.map((r) => r.wallMs).filter((x) => x != null)), jobs: {} };
     for (const [name, ghName] of JOBS) {
-      const js = rs.map((r) => r.jobs[ghName]).filter((j) => j && j.durMs != null);
+      const js = rs.map((r) => r.jobs[ghName]).filter((j) => j && j.durMs != null && j.conclusion === 'success');
       github.jobs[name] = { dur: spread(js.map((j) => j.durMs)), queue: spread(js.map((j) => j.queueMs ?? 0)) };
     }
     github.queueEngine = spread(rs.flatMap((r) => ['engine (chromium)', 'engine (playwright-webkit)'].map((n) => r.jobs[n]?.queueMs).filter((x) => x != null)));

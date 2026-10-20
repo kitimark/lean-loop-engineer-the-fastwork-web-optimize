@@ -439,7 +439,8 @@ export async function fetchPipeline(ctx, { slug, pipelineId, out }) {
   const cacheSaves = [];
   for (const wf of await listAll(ctx, urls.workflows(pipelineId))) {
     for (const j of await listAll(ctx, urls.jobs(wf.id))) {
-      if (j.job_number == null || !TERMINAL.has(j.status)) continue;
+      // A job that never ran (`not_run`, e.g. the verdict job after a failed engine job) has no detail: GET /project/{slug}/job/{n} answers 404 (pipeline 261).
+      if (j.job_number == null || !TERMINAL.has(j.status) || j.status === 'not_run') continue;
       const d = await call(ctx, 'GET', urls.job(slug, j.job_number));
       const dir = join(out, j.name);
       mkdirSync(dir, { recursive: true });

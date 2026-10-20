@@ -1,0 +1,33 @@
+{
+  "number": 262,
+  "class": "arm.medium.gen2",
+  "sha": "2d7720fec3a5cc5ed41985f8af793d91257a406d",
+  "status": "failed",
+  "workflowWallMs": 39554,
+  "pipelineCreatedMs": 1792528932721,
+  "jobs": [
+    {
+      "job": "engine-chromium",
+      "conclusion": "fail",
+      "class": "arm.medium.gen2",
+      "queueMs": 31671,
+      "durMs": 1000,
+      "credits": 1
+    },
+    {
+      "job": "engine-playwright-webkit",
+      "conclusion": "fail",
+      "class": "arm.medium.gen2",
+      "queueMs": 37811,
+      "durMs": 957,
+      "credits": 1
+    }
+  ],
+  "jobCredits": 2,
+  "billedCredits": null,
+  "series": {
+    "index": 1,
+    "waitExit": 1,
+    "startedAtMs": 1792528931825
+  }
+}
