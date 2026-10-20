@@ -25,3 +25,11 @@ The local mac WebKit flakes had the same cause (fixed); CI decides.
 
 ## Read first
 `research/notes/2026/10-20-preview-proxy-direct.md`, `docs/team/tools/preview-e2e.md`, `lean/Fw/Console/PreviewArm.lean`.
+
+## Round 2 (land refusal EADDRINUSE 127.0.0.1:35787)
+- Cause (INFERRED, not reproduced): the rig drew its ports with a probe that closed at once (`freePort`), so two draws in one start
+  could return the same port (e.g. an arm port reused as console/preview port), and `close()` did not await the server or child exits.
+- Fix: `packages/e2e-preview/src/rig.mjs` holds all ports of a run open together (`holdPorts`/`runPorts`), arm ports <= 64535 so
+  +1000 stays <= 65535, releases just before binding; every server and the preview child are awaited on close; `ArmServers.close` is async.
+- Test: `rig.test.mjs` last describe (rig, close, rig, plus an overlapping rig; ports disjoint and free after close).
+- CI: land lane run 39347735107 (branch ci/land-preview-proxy-direct-r2, sha 543d7dbb) green; browser suite chromium and webkit ran.
