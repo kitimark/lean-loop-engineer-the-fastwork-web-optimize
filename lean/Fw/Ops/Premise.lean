@@ -6,9 +6,9 @@ Lean proves "premises `⇒` conclusion". A premise about a real browser (Chromiu
 it is false the proof silently stops applying (that is how the base engine model overcounted, and how the gate
 sampled unsettled pages). This module is the registry of those premises and the two pure checks around it.
 
-* `registry`: per premise its id, statement (Unicode plain text), the theorems that assume it, the engines it must hold on, and the
-  id of the browser test that asserts it: a `page` test (`packages/premise-tests`, run on CI on both engines) or, for
-  a premise a page cannot observe, a `lane` (its test id is the CI workflow file that asserts it).
+* `registry`: per premise its id, statement (Unicode plain text), the theorems that assume it, the engines it must hold
+  on, and the id of the browser test that asserts it: a `page` test (`packages/premise-tests`, run on CI on both
+  engines) or, for a premise a page cannot observe, a `lane` (its test id is the CI workflow file that asserts it).
 * `premiseLint`: the premises without a test (a lane premise: whose workflow file does not exist), and the tests that
   name an unknown premise (`premiseLint_sound`, `untested_of_lane_missing`).
 * `flagged`: given the page-test CI results, the page premises whose test failed (or is missing) on an engine they

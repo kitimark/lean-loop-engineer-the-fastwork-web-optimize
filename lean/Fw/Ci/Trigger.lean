@@ -669,7 +669,7 @@ def tableLine : Json :=
     ("cacheWriters", .arr (cacheWriters.map fun (f, j, c) =>
       Json.mkObj [("file", .str f), ("job", .str j), ("cache", .str c)]).toArray)]
 
-/-- The replay cases: a push (its diff, the paths that already equal `main`); the workflows it starts under the
+/-- The replay cases: each is (name, diff, the paths that already equal `main`); the workflows it starts under the
 sample cones are added by `caseLine`. -/
 def cases : List (String × List String × List String) := [
   ("docs only", ["docs/team/handoffs/x.md"], []),
