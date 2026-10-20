@@ -14,38 +14,28 @@ namespace Fw.Engine.Keys
 
 /-- The two harness arguments a counts run records in `meta` (`packages/measure-chromium/src/run.mjs:312-317`).
 
-$$\mathrm{RunMeta} = \mathrm{String} \times \mathrm{String}\quad(\mathrm{target}, \mathrm{search})$$
-
 The page a run measured: `original` or `rewrite`, and the rewrite's query string (empty for the default config). -/
 structure RunMeta where
   target : String
   search : String
   deriving DecidableEq, Repr
 
-/-- The target contains no `+`, the separator of the key.
-
-$$\operatorname{NoPlus}(s) \iff \texttt{+} \notin \operatorname{chars}(s)$$ -/
+/-- The target contains no `+`, the separator of the key. -/
 def NoPlus (s : String) : Prop := '+' ∉ s.toList
 
 instance (s : String) : Decidable (NoPlus s) := inferInstanceAs (Decidable ('+' ∉ s.toList))
 
 /-- **The faithful key of a run.** The target alone for a run without a query, else the target, a `+` and the query.
 
-$$\operatorname{runKey}(t, s) = \begin{cases} t & s = \varepsilon \\ t \mathbin{+\!\!+} \texttt{+} \mathbin{+\!\!+} s & s \ne \varepsilon \end{cases}$$
-
 One string per run; the default rewrite is `rewrite`, a flag run is `rewrite+?fw=...`. -/
 def runKey (m : RunMeta) : String :=
   if m.search = "" then m.target else m.target ++ "+" ++ m.search
 
-/-- The three parts that have a `hidden-pause` arm (`apps/site/src/parts/*/part.json`).
-
-$$\mathrm{hiddenPauseArms} = [\texttt{engine.scene:hidden-pause}, \texttt{morph.columns:hidden-pause}, \texttt{morph.countdown:hidden-pause}]$$ -/
+/-- The three parts that have a `hidden-pause` arm (`apps/site/src/parts/*/part.json`). -/
 def hiddenPauseArms : List String :=
   ["engine.scene:hidden-pause", "morph.columns:hidden-pause", "morph.countdown:hidden-pause"]
 
 /-- The query is `?fw=` followed by a nonempty comma list of `hidden-pause` arms and nothing else.
-
-$$\operatorname{hpSearch}(s) \iff s = \texttt{?fw=}\mathbin{+\!\!+}\operatorname{join}(\texttt{,}, F) \land F \ne [\,] \land F \subseteq \mathrm{hiddenPauseArms}$$
 
 A run that sets some of the three arms and no other flag. The empty flag list splits to `[""]`, which is no arm. -/
 def hpSearch (s : String) : Bool :=
@@ -53,16 +43,12 @@ def hpSearch (s : String) : Bool :=
 
 /-- **The run answers the row variant.** A row variant is answered by the run whose faithful key equals it; the name
 `hidden-pause` is answered by a rewrite run whose flags are a nonempty subset of the three arms (INFERRED: the golden
-rows of `HiddenPause.lean` are `=o` and `≤o`, which each arm keeps, `Fw.Parts.HiddenPause`).
-
-$$\operatorname{answers}(m, v) \iff \operatorname{runKey}(m) = v \ \lor\ (v = \texttt{hidden-pause} \land m.\mathrm{target} = \texttt{rewrite} \land \operatorname{hpSearch}(m.\mathrm{search}))$$ -/
+rows of `HiddenPause.lean` are `=o` and `≤o`, which each arm keeps, `Fw.Parts.HiddenPause`). -/
 def answers (m : RunMeta) (v : String) : Bool :=
   runKey m == v || (v == "hidden-pause" && m.target == "rewrite" && hpSearch m.search)
 
 /-- **The first `+` splits a list uniquely.** If two lists with a `+` in the middle are equal and neither prefix contains `+`,
-the prefixes are equal and so are the tails.
-
-$$\forall a, b, c, d \in \mathrm{Char}^{*}:\ \texttt{+} \notin a \land \texttt{+} \notin c \land a \mathbin{+\!\!+} \texttt{+} :: b = c \mathbin{+\!\!+} \texttt{+} :: d \Rightarrow a = c \land b = d$$ -/
+the prefixes are equal and so are the tails. -/
 theorem list_split_plus : ∀ (a b c d : List Char),
     '+' ∉ a → '+' ∉ c → a ++ '+' :: b = c ++ '+' :: d → a = c ∧ b = d := by
   intro a
@@ -89,8 +75,6 @@ theorem list_split_plus : ∀ (a b c d : List Char),
 
 /-- **A run key determines its run.** If neither target contains `+`, two runs with the same key have the same target and
 the same query.
-
-$$\forall m, m':\ \operatorname{NoPlus}(m.\mathrm{target}) \land \operatorname{NoPlus}(m'.\mathrm{target}) \land \operatorname{runKey}(m) = \operatorname{runKey}(m') \Rightarrow m = m'$$
 
 No two different runs share a key. -/
 theorem runKey_inj (m m' : RunMeta) (h : NoPlus m.target) (h' : NoPlus m'.target)
@@ -119,8 +103,6 @@ theorem runKey_inj (m m' : RunMeta) (h : NoPlus m.target) (h' : NoPlus m'.target
 /-- **A flag run never answers for the base.** A run with a nonempty query does not answer `rewrite`, and `rewrite`
 is answered exactly by the default rewrite run.
 
-$$\forall m:\ \operatorname{NoPlus}(m.\mathrm{target}) \Rightarrow \big(\operatorname{answers}(m, \texttt{rewrite}) \iff m = (\texttt{rewrite}, \varepsilon)\big)$$
-
 The base series of a row never mixes in a `+search` run. -/
 theorem answers_base_iff (m : RunMeta) (h : NoPlus m.target) :
     answers m "rewrite" = true ↔ m = ⟨"rewrite", ""⟩ := by
@@ -136,23 +118,17 @@ theorem answers_base_iff (m : RunMeta) (h : NoPlus m.target) :
     subst e
     simp [answers, hk]
 
-/-- **The key of a flag run answers itself.** Any run answers the variant that is its own key.
-
-$$\forall m:\ \operatorname{answers}(m, \operatorname{runKey}(m))$$ -/
+/-- **The key of a flag run answers itself.** Any run answers the variant that is its own key. -/
 theorem answers_self (m : RunMeta) : answers m (runKey m) = true := by simp [answers]
 
 /-- **Without the alias, the key decides.** For a row variant other than `hidden-pause`, a run answers it iff its key
-equals it.
-
-$$\forall m, v:\ v \ne \texttt{hidden-pause} \Rightarrow (\operatorname{answers}(m, v) \iff \operatorname{runKey}(m) = v)$$ -/
+equals it. -/
 theorem answers_exact (m : RunMeta) (v : String) (hv : v ≠ "hidden-pause") :
     answers m v = true ↔ runKey m = v := by
   simp [answers, hv]
 
 /-- **A part-page run answers only its own key.** The run of the part page `?only=hero` has the key `rewrite+?only=hero`, is no
 `hidden-pause` run, and so answers a variant exactly when that variant is its key.
-
-$$\forall v:\ \operatorname{answers}((\texttt{rewrite}, \texttt{?only=hero}), v) \iff v = \texttt{rewrite+?only=hero}$$
 
 Key branch: `runKey` of the pair is `rewrite+?only=hero`. Alias branch: `hpSearch ?only=hero` is false (it does not start with `?fw=`),
 so `hidden-pause` is not answered. -/
@@ -183,8 +159,6 @@ theorem answers_only_hero (v : String) :
 
 /-- The runs of the golden vectors: the default rewrite, the flag runs of task model-checks, a mixed flag set and the original.
 
-$$\mathrm{goldenRuns} = [(\texttt{rewrite}, \varepsilon), (\texttt{rewrite}, \texttt{?fw=morph.tween:waapi}), (\texttt{rewrite}, \texttt{?fw=engine.scene:hidden-pause}), (\texttt{rewrite}, \texttt{?fw=morph.columns:hidden-pause}), (\texttt{rewrite}, \texttt{?fw=morph.countdown:hidden-pause}), (\texttt{rewrite}, \texttt{?fw=engine.scene:hidden-pause,morph.columns:hidden-pause,morph.countdown:hidden-pause}), (\texttt{rewrite}, \texttt{?fw=morph.mount:shift}), (\texttt{rewrite}, \texttt{?fw=hero.countdown:strip,morph.countdown:strip}), (\texttt{rewrite}, \texttt{?fw=nav.hitTest:hit-skip}), (\texttt{rewrite}, \texttt{?fw=nav.hitTest:elements-skip}), (\texttt{rewrite}, \texttt{?fw=engine.scene:hidden-pause,nav.hitTest:hit-skip}), (\texttt{rewrite}, \texttt{?only=hero}), (\texttt{original}, \varepsilon)]$$
-
 The part-page run `?only=hero` (task counts-only) has the key `rewrite+?only=hero`: `runKey_inj` covers any query, so it answers no other variant and not the base. -/
 def goldenRuns : List RunMeta :=
   [⟨"rewrite", ""⟩, ⟨"rewrite", "?fw=morph.tween:waapi"⟩, ⟨"rewrite", "?fw=engine.scene:hidden-pause"⟩,
@@ -194,31 +168,23 @@ def goldenRuns : List RunMeta :=
    ⟨"rewrite", "?fw=nav.hitTest:hit-skip"⟩, ⟨"rewrite", "?fw=nav.hitTest:elements-skip"⟩,
    ⟨"rewrite", "?fw=engine.scene:hidden-pause,nav.hitTest:hit-skip"⟩, ⟨"rewrite", "?only=hero"⟩, ⟨"original", ""⟩]
 
-/-- The row variants of the golden vectors: the base, an exact flag key, the alias, the original.
-
-$$\mathrm{goldenVariants} = [\texttt{rewrite}, \texttt{rewrite+?fw=morph.tween:waapi}, \texttt{rewrite+?fw=nav.hitTest:hit-skip}, \texttt{rewrite+?fw=hero.countdown:strip,morph.countdown:strip}, \texttt{hidden-pause}, \texttt{original}]$$ -/
+/-- The row variants of the golden vectors: the base, an exact flag key, the alias, the original. -/
 def goldenVariants : List String :=
   ["rewrite", "rewrite+?fw=morph.tween:waapi", "rewrite+?fw=nav.hitTest:hit-skip",
    "rewrite+?fw=hero.countdown:strip,morph.countdown:strip", "hidden-pause", "original"]
 
-/-- One vector as compact JSON.
-
-$$\operatorname{row}(m, v) = \{\mathrm{answers}: \operatorname{answers}(m, v) \in \{\mathtt{true}, \mathtt{false}\},\ \mathrm{key}: \operatorname{runKey}(m),\ \mathrm{search}: m.\mathrm{search},\ \mathrm{target}: m.\mathrm{target},\ \mathrm{variant}: v\}$$ -/
+/-- One vector as compact JSON. -/
 def goldenRow (m : RunMeta) (v : String) : String :=
   (Lean.Json.mkObj [("target", .str m.target), ("search", .str m.search), ("variant", .str v),
     ("key", .str (runKey m)), ("answers", .bool (answers m v))]).compress
 
-/-- The golden file `packages/engine-check/golden/keys.jsonl`: one vector per (run, variant), runs outer.
-
-$$\mathrm{goldenJsonl} = \mathop{\Vert}_{m \in \mathrm{goldenRuns}}\ \mathop{\Vert}_{v \in \mathrm{goldenVariants}} \big(\operatorname{row}(m, v) \mathbin{+\!\!+} \texttt{\textbackslash n}\big)$$ -/
+/-- The golden file `packages/engine-check/golden/keys.jsonl`: one vector per (run, variant), runs outer. -/
 def goldenJsonl : String :=
   String.join (goldenRuns.flatMap fun m => goldenVariants.map fun v => goldenRow m v ++ "\n")
 
 #guard (goldenJsonl.splitOn "\n").length == goldenRuns.length * goldenVariants.length + 1
 
-/-- Exactly one golden run answers `rewrite`: the default rewrite.
-
-$$|\{\,m \in \mathrm{goldenRuns} \mid \operatorname{answers}(m, \texttt{rewrite})\,\}| = 1$$ -/
+/-- Exactly one golden run answers `rewrite`: the default rewrite. -/
 theorem golden_base_unique :
     (goldenRuns.filter fun m => answers m "rewrite").length = 1 := by decide
 

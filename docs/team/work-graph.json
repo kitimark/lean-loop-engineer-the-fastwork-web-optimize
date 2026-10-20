@@ -10688,7 +10688,9 @@
     "apps/runner/test/**",
     "docs/team/tools/console.md",
     "docs/team/tools/fw-watch.md",
-    "docs/team/handoffs/alert-steps-plain.md"
+    "docs/team/handoffs/alert-steps-plain.md",
+    "lean/Fw/Serve.lean",
+    "packages/contracts/schema/**"
    ]
   },
   {
@@ -10706,7 +10708,8 @@
     "lean/Fw/**/*.lean",
     "lean/FwTest/**",
     "docs/team/handoffs/latex-strip-c2.md"
-   ]
+   ],
+   "evidence": "95a97e6"
   },
   {
    "devices": [
@@ -10761,7 +10764,8 @@
     "docs/plan/math-view.html",
     "docs/plan/tools/**",
     "docs/team/handoffs/latex-plan-text.md"
-   ]
+   ],
+   "evidence": "598c76a"
   },
   {
    "devices": [
@@ -10776,7 +10780,7 @@
     "latex-plan-text",
     "trajectory-probe"
    ],
-   "title": "lean-latex-removal last step: sweep lean/Fw/Ci/Trigger.lean and lean/Fw/Wire/Store.lean after trajectory-probe lands; repo-wide --check 0 on every lean/**/*.lean; retire the migration scaffolding (scripts/latex-strip.mjs and its tests, any hook or check that only existed for the migration); write docs/team/handoffs/lean-latex-removal.md that closes the parent task",
+   "title": "lean-latex-removal last step: sweep lean/Fw/Ci/Trigger.lean and lean/Fw/Wire/Store.lean after trajectory-probe lands; repo-wide --check 0 on every lean/**/*.lean; retire the migration scaffolding (scripts/latex-strip.mjs and its tests, any hook or check that only existed for the migration); write docs/team/handoffs/lean-latex-removal.md that closes the parent task; also: Premise.statement strings (LaTeX in code: decide artifact data vs Unicode), MathView.lean:16 \\mathrm note (Step D), CheckMap.lean retired build-math-view.mjs sample path, Fw/Site/README mathview --lint wording",
    "writes": [
     "lean/Fw/**/*.lean",
     "lean/FwTest/**",
@@ -10785,7 +10789,13 @@
     "package.json",
     "lean/scripts/**",
     "docs/team/handoffs/latex-close.md",
-    "docs/team/handoffs/lean-latex-removal.md"
+    "docs/team/handoffs/lean-latex-removal.md",
+    "lean/Fw/Ops/Premise.lean",
+    "lean/MathView.lean",
+    "lean/MathViewMain.lean",
+    "lean/Fw/Ops/CheckMap.lean",
+    "lean/Fw/Site/README.md",
+    "packages/contracts/golden/**"
    ]
   },
   {
@@ -10931,6 +10941,28 @@
     ".claude/agents/**",
     "docs/team/serena.md",
     "docs/team/handoffs/serena-trim.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "alert-resolve-keys",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "alert-steps-plain"
+   ],
+   "title": "alert-steps-plain review follow-ups: after a resolve delete only the resolved step's keys (Lean Resolution.keys = spoolKeys of the step, emitted in the ops.obs resolve reply) so a held unrelated alert is still posted; keyClean for non-unknown-field keys also requires no sweep:admit in the window (theorem admit_failure_closes_no_other, golden row); handoff <= 30 lines; fw watch alert while an audience:lead step is open",
+   "writes": [
+    "lean/Fw/Ops/Obs.lean",
+    "packages/contracts/golden/ops/**",
+    "apps/console-api/src/spool/**",
+    "apps/console-api/test/**",
+    "apps/runner/src/watch*.ts",
+    "lean/Fw/Obs/**",
+    "docs/team/handoffs/alert-steps-plain.md",
+    "docs/team/handoffs/alert-resolve-keys.md"
    ]
   }
  ],
