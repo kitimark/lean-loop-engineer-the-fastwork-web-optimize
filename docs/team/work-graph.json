@@ -10401,7 +10401,7 @@
    "owner": "console-builder",
    "stream": "tooling",
    "deps": [],
-   "title": "A land that changes lean/ builds fwcore in each of the 4 land legs (206 s each in 39360937987 vs ~20 s on a cache hit); every lean land pays it 4x on runners and in land latency. Build fwcore once in a prep job (one writer) and hand it to the legs as an artifact or a cache key written once; the leg plan stays Lean-decided (Fw.Console.LandLegs); before/after MEASURED on a lean-changing land with run ids",
+   "title": "A land that changes lean/ builds fwcore in each of the 4 land legs (206 s each in 39360937987 vs ~20 s on a cache hit); every lean land pays it 4x on runners and in land latency. Build fwcore once in a prep job (one writer) and hand it to the legs as an artifact or a cache key written once; the leg plan stays Lean-decided (Fw.Console.LandLegs); before/after MEASURED on a lean-changing land with run ids | closed as a negative finding: the 4 leg builds ran in parallel (1x latency); a prep job made lean lands +76 s (477 -> 553 s); Lean Fw.Ops.WallTime",
    "writes": [
     ".github/workflows/land.yml",
     ".github/actions/**",
@@ -10417,7 +10417,9 @@
     "docs/team/tools/gate-speed.md",
     "lean/scripts/check.sh",
     "research/notes/2026/10-2*-land-fwcore-once.md",
-    "docs/team/handoffs/land-fwcore-once.md"
+    "docs/team/handoffs/land-fwcore-once.md",
+    "lean/Fw/Ops/WallTime.lean",
+    "lean/Fw.lean"
    ]
   },
   {
