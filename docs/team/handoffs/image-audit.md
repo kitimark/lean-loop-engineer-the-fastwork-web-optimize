@@ -1,4 +1,4 @@
-# Handoff: image-audit (branch worktree-wf_0a8e32fb-ee5-1, round 2)
+# Handoff: image-audit (branch worktree-wf_0a8e32fb-ee5-1, land-fix round)
 
 Read first: `research/notes/2026/10-20-image-audit.md` (Outcome, tables, "The drawn-size arm", WebKit facts).
 ## State
@@ -27,3 +27,16 @@ Read first: `research/notes/2026/10-20-image-audit.md` (Outcome, tables, "The dr
 `packages/gate-breakpoints/test/images.test.mjs` (unchanged this round), `packages/measure-webkit/test/images-switch.test.mjs`,
 `research/findings/ledger.json` (one mechanism row on the dprSized entry). The graph still lists `apps/site/public/images-drawn/**` as a write; nothing uses it now.
 TS stand-ins (no Lean golden): `reduce.mjs`, `table.mjs` (ranking, waste ratio), the ladder rows in `arm-build.mjs`.
+
+## Land-fix round (land run 39495702143 refused two legs)
+- suites-a: `packages/gate-breakpoints` now declares `"@fw/visual-diff": "workspace:*"` (package.json, pnpm-lock.yaml via
+  `pnpm install --lockfile-only`); `src/images/verify.mjs` imports `@fw/visual-diff/src/{engines,diff,verdict}.mjs`, `pages.mjs` resolves
+  the CLI with `import.meta.resolve('@fw/visual-diff/src/cli.mjs')`. The land filter is `@fw/gate-breakpoints...` (lean/land-filter.txt,
+  Lean `filterList`), so the install now takes visual-diff and its deps: no Lean change. `land.ts` `workspaceDeps` adds
+  `packages/visual-diff/**` to gate-breakpoints' reads, so its four hand-listed visual-diff files in PACKAGE_EXTRA_READS were removed.
+  Reproduced in a clean clone: `pnpm install --offline --frozen-lockfile --filter "@fw/gate-breakpoints..."` then the image tests pass (24).
+- playwright-webkit: `cancelled-same-origin-0` is `packages/e2e-preview/src/suite.mjs:110` (`noiseChecks`): any failed same-origin request of a
+  load fails it; the failed line is `GET /selling/.../service-strawberry.jpg Load request cancelled` in the compare page's original (snapshot)
+  frame. The branch changes no file that load reads (`git diff main...HEAD` has no snapshot/, packages/e2e-preview, apps/console-api,
+  fixture/site path); a lazy image in flight cancelled by a frame navigation is the race the suite already documents (suite.mjs:139, :339).
+  Same leg passed on the land runs 39495148083, 39494253388 and 39493043079 (same suite code). Result: see the CI lines below.
