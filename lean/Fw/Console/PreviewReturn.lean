@@ -67,11 +67,12 @@ inductive Red where
   | login (keep : Bool)
 deriving Repr, DecidableEq
 
-/-- Redirect an HTML request to the login (keeping the link when it is accepted); anything else stays refused. -/
-def redirect (html : Bool) (host : String) (nonce : String) (live : List Pv) (consolePort : Nat) (previewPort : Option Nat)
-    (t : Target) : Red :=
-  if !html || !hostOk host then .deny
-  else .login (nonceOk nonce && accepts live consolePort previewPort t)
+/-- Redirect an HTML GET request to the login, on a host that is one of the console's `hosts`. The link is kept when it is
+accepted, the nonce is well formed and fewer than `cap` references are held (`heldCount`); anything else stays refused. -/
+def redirect (get html : Bool) (hosts : List String) (heldCount : Nat) (host : String) (nonce : String) (live : List Pv)
+    (consolePort : Nat) (previewPort : Option Nat) (t : Target) : Red :=
+  if !get || !html || !hostOk host || !hosts.contains host then .deny
+  else .login (nonceOk nonce && decide (heldCount < cap) && accepts live consolePort previewPort t)
 
 /-- Where the owner goes after login. -/
 inductive Land where
@@ -82,12 +83,12 @@ deriving Repr, DecidableEq
 
 /-- The destination after a login: the held link when it is still accepted, the Builds tab when its preview has stopped,
 the console home otherwise. -/
-def landing (live : List Pv) (consolePort : Nat) (previewPort : Option Nat) (host : String) (now : Nat)
+def landing (hosts : List String) (live : List Pv) (consolePort : Nat) (previewPort : Option Nat) (host : String) (now : Nat)
     (held : Option (Target × Nat)) : Land :=
   match held with
   | none => .home
   | some (t, issued) =>
-    if issued + ttl < now || !hostOk host then .home
+    if issued + ttl < now || !hostOk host || !hosts.contains host then .home
     else if accepts live consolePort previewPort t then .target (urlOf host t)
     else if pathOk t.pathq then .builds
     else .home
@@ -160,105 +161,132 @@ theorem accepts_console {live : List Pv} {pp : Option Nat} {t : Target} : accept
   simp [accepts]
 
 /-- **An API request stays refused**, whatever the link. -/
-theorem redirect_api (host nonce : String) (live : List Pv) (cp : Nat) (pp : Option Nat) (t : Target) :
-    redirect false host nonce live cp pp t = .deny := by
+theorem redirect_api (get : Bool) (hosts : List String) (n : Nat) (host nonce : String) (live : List Pv) (cp : Nat) (pp : Option Nat) (t : Target) :
+    redirect get false hosts n host nonce live cp pp t = .deny := by
+  simp [redirect]
+
+/-- **A request that is not a GET stays refused** (HEAD and the rest get no login address, no held reference). -/
+theorem redirect_not_get (html : Bool) (hosts : List String) (n : Nat) (host nonce : String) (live : List Pv) (cp : Nat) (pp : Option Nat) (t : Target) :
+    redirect false html hosts n host nonce live cp pp t = .deny := by
   simp [redirect]
 
 /-- **A bad host name is refused** (no login address can be built). -/
-theorem redirect_bad_host (nonce : String) (live : List Pv) (cp : Nat) (pp : Option Nat) (t : Target) (host : String)
-    (h : hostOk host = false) : redirect true host nonce live cp pp t = .deny := by
+theorem redirect_bad_host (get html : Bool) (hosts : List String) (n : Nat) (nonce : String) (live : List Pv) (cp : Nat) (pp : Option Nat) (t : Target) (host : String)
+    (h : hostOk host = false) : redirect get html hosts n host nonce live cp pp t = .deny := by
   simp [redirect, h]
 
-/-- **A link is kept only if it is accepted** (and the nonce is well formed). -/
-theorem redirect_keep_sound {host nonce : String} {live : List Pv} {cp : Nat} {pp : Option Nat} {t : Target}
-    (h : redirect true host nonce live cp pp t = .login true) : accepts live cp pp t = true ∧ nonceOk nonce = true := by
-  unfold redirect at h
-  by_cases hh : (!true || !hostOk host) = true
-  · have : hostOk host = false := by simpa using hh
-    simp [this] at h
-  · have : hostOk host = true := by simpa using hh
-    simp [this] at h
-    exact ⟨h.2, h.1⟩
+/-- **A well-formed host that is not one of the console's hosts is refused.** -/
+theorem redirect_foreign_host (get html : Bool) (hosts : List String) (n : Nat) (nonce : String) (live : List Pv) (cp : Nat) (pp : Option Nat) (t : Target) (host : String)
+    (h : hosts.contains host = false) : redirect get html hosts n host nonce live cp pp t = .deny := by
+  have h' : host ∉ hosts := by simpa using h
+  simp [redirect, h']
 
-/-- **An accepted link is kept.** -/
-theorem redirect_keeps {host nonce : String} {live : List Pv} {cp : Nat} {pp : Option Nat} {t : Target}
-    (hh : hostOk host = true) (hn : nonceOk nonce = true) (ha : accepts live cp pp t = true) :
-    redirect true host nonce live cp pp t = .login true := by
-  simp [redirect, hh, hn, ha]
+/-- **A link is kept only if it is accepted**, the nonce is well formed and the store has room. -/
+theorem redirect_keep_sound {get html : Bool} {hosts : List String} {n : Nat} {host nonce : String} {live : List Pv} {cp : Nat} {pp : Option Nat} {t : Target}
+    (h : redirect get html hosts n host nonce live cp pp t = .login true) :
+    accepts live cp pp t = true ∧ nonceOk nonce = true ∧ n < cap ∧ get = true ∧ html = true ∧ hostOk host = true ∧ hosts.contains host = true := by
+  unfold redirect at h
+  by_cases hh : (!get || !html || !hostOk host || !hosts.contains host) = true
+  · simp only [hh, ↓reduceIte] at h; cases h
+  · simp only [hh, ↓reduceIte] at h
+    have h' := Red.login.inj h
+    simp only [Bool.and_eq_true, decide_eq_true_eq] at h'
+    obtain ⟨⟨hn, hc⟩, ha⟩ := h'
+    simp only [Bool.or_eq_true, Bool.not_eq_true', not_or] at hh
+    refine ⟨ha, hn, hc, ?_, ?_, ?_, ?_⟩ <;> first | (cases hg : get <;> simp_all) | (cases hg : html <;> simp_all) | (cases hg : hostOk host <;> simp_all) | (cases hg : hosts.contains host <;> simp_all)
+
+/-- **An accepted link is kept** when the store has room. -/
+theorem redirect_keeps {hosts : List String} {n : Nat} {host nonce : String} {live : List Pv} {cp : Nat} {pp : Option Nat} {t : Target}
+    (hh : hostOk host = true) (hm : hosts.contains host = true) (hn : nonceOk nonce = true) (hc : n < cap) (ha : accepts live cp pp t = true) :
+    redirect true true hosts n host nonce live cp pp t = .login true := by
+  simp [redirect, hh, List.contains_iff_mem.mp hm, hn, hc, ha]
 
 /-- **A refused link goes to the login without a return.** -/
-theorem redirect_plain {host nonce : String} {live : List Pv} {cp : Nat} {pp : Option Nat} {t : Target}
-    (hh : hostOk host = true) (ha : accepts live cp pp t = false) :
-    redirect true host nonce live cp pp t = .login false := by
-  simp [redirect, hh, ha]
+theorem redirect_plain {hosts : List String} {n : Nat} {host nonce : String} {live : List Pv} {cp : Nat} {pp : Option Nat} {t : Target}
+    (hh : hostOk host = true) (hm : hosts.contains host = true) (ha : accepts live cp pp t = false) :
+    redirect true true hosts n host nonce live cp pp t = .login false := by
+  simp [redirect, hh, List.contains_iff_mem.mp hm, ha]
+
+/-- **A full store keeps nothing**: at `cap` held references the owner logs in plain. -/
+theorem redirect_full {hosts : List String} {n : Nat} {host nonce : String} {live : List Pv} {cp : Nat} {pp : Option Nat} {t : Target}
+    (hh : hostOk host = true) (hm : hosts.contains host = true) (hc : cap ≤ n) :
+    redirect true true hosts n host nonce live cp pp t = .login false := by
+  have : ¬ n < cap := by omega
+  simp [redirect, hh, List.contains_iff_mem.mp hm, this]
 
 /-- **No held link, no destination: home.** -/
-theorem landing_none (live : List Pv) (cp : Nat) (pp : Option Nat) (host : String) (now : Nat) :
-    landing live cp pp host now none = .home := rfl
+theorem landing_none (hosts : List String) (live : List Pv) (cp : Nat) (pp : Option Nat) (host : String) (now : Nat) :
+    landing hosts live cp pp host now none = .home := rfl
 
 /-- **An expired reference goes home.** -/
-theorem landing_expired {live : List Pv} {cp : Nat} {pp : Option Nat} {host : String} {now issued : Nat} {t : Target}
-    (h : issued + ttl < now) : landing live cp pp host now (some (t, issued)) = .home := by
+theorem landing_expired {hosts : List String} {live : List Pv} {cp : Nat} {pp : Option Nat} {host : String} {now issued : Nat} {t : Target}
+    (h : issued + ttl < now) : landing hosts live cp pp host now (some (t, issued)) = .home := by
   simp [landing, h]
 
+/-- **A well-formed host that is not one of the console's hosts goes home.** -/
+theorem landing_foreign_host {hosts : List String} {live : List Pv} {cp : Nat} {pp : Option Nat} {host : String} {now issued : Nat} {t : Target}
+    (h : hosts.contains host = false) : landing hosts live cp pp host now (some (t, issued)) = .home := by
+  have h' : host ∉ hosts := by simpa using h
+  simp [landing, h']
+
 /-- **A bad host name goes home.** -/
-theorem landing_bad_host {live : List Pv} {cp : Nat} {pp : Option Nat} {host : String} {now issued : Nat} {t : Target}
-    (h : hostOk host = false) : landing live cp pp host now (some (t, issued)) = .home := by
+theorem landing_bad_host {hosts : List String} {live : List Pv} {cp : Nat} {pp : Option Nat} {host : String} {now issued : Nat} {t : Target}
+    (h : hostOk host = false) : landing hosts live cp pp host now (some (t, issued)) = .home := by
   simp [landing, h]
 
 /-- **A link that is still accepted is the destination.** -/
-theorem landing_live {live : List Pv} {cp : Nat} {pp : Option Nat} {host : String} {now issued : Nat} {t : Target}
-    (hf : ¬ issued + ttl < now) (hh : hostOk host = true) (ha : accepts live cp pp t = true) :
-    landing live cp pp host now (some (t, issued)) = .target (urlOf host t) := by
-  simp [landing, hf, hh, ha]
+theorem landing_live {hosts : List String} {live : List Pv} {cp : Nat} {pp : Option Nat} {host : String} {now issued : Nat} {t : Target}
+    (hf : ¬ issued + ttl < now) (hh : hostOk host = true) (hm : hosts.contains host = true) (ha : accepts live cp pp t = true) :
+    landing hosts live cp pp host now (some (t, issued)) = .target (urlOf host t) := by
+  simp [landing, hf, hh, List.contains_iff_mem.mp hm, ha]
 
 /-- **A stopped preview goes to the Builds tab.** -/
-theorem landing_stopped {live : List Pv} {cp : Nat} {pp : Option Nat} {host : String} {now issued : Nat} {t : Target}
-    (hf : ¬ issued + ttl < now) (hh : hostOk host = true) (ha : accepts live cp pp t = false) (hp : pathOk t.pathq = true) :
-    landing live cp pp host now (some (t, issued)) = .builds := by
-  simp [landing, hf, hh, ha, hp]
+theorem landing_stopped {hosts : List String} {live : List Pv} {cp : Nat} {pp : Option Nat} {host : String} {now issued : Nat} {t : Target}
+    (hf : ¬ issued + ttl < now) (hh : hostOk host = true) (hm : hosts.contains host = true) (ha : accepts live cp pp t = false) (hp : pathOk t.pathq = true) :
+    landing hosts live cp pp host now (some (t, issued)) = .builds := by
+  simp [landing, hf, hh, List.contains_iff_mem.mp hm, ha, hp]
 
 /-- **A link outside the allowlist goes home.** -/
-theorem landing_invalid {live : List Pv} {cp : Nat} {pp : Option Nat} {host : String} {now issued : Nat} {t : Target}
-    (hf : ¬ issued + ttl < now) (hh : hostOk host = true) (ha : accepts live cp pp t = false) (hp : pathOk t.pathq = false) :
-    landing live cp pp host now (some (t, issued)) = .home := by
-  simp [landing, hf, hh, ha, hp]
+theorem landing_invalid {hosts : List String} {live : List Pv} {cp : Nat} {pp : Option Nat} {host : String} {now issued : Nat} {t : Target}
+    (hf : ¬ issued + ttl < now) (hh : hostOk host = true) (hm : hosts.contains host = true) (ha : accepts live cp pp t = false) (hp : pathOk t.pathq = false) :
+    landing hosts live cp pp host now (some (t, issued)) = .home := by
+  simp [landing, hf, hh, List.contains_iff_mem.mp hm, ha, hp]
 
 /-- **No open redirect.** A landing that is an absolute link is built from a held link that is accepted against the current
-table, on the validated host. -/
-theorem landing_sound {live : List Pv} {cp : Nat} {pp : Option Nat} {host : String} {now : Nat} {held : Option (Target × Nat)}
-    {u : String} (h : landing live cp pp host now held = .target u) :
-    ∃ t issued, held = some (t, issued) ∧ accepts live cp pp t = true ∧ hostOk host = true ∧ u = urlOf host t := by
+table, on a validated host that is one of the console's `hosts`. -/
+theorem landing_sound {hosts : List String} {live : List Pv} {cp : Nat} {pp : Option Nat} {host : String} {now : Nat} {held : Option (Target × Nat)}
+    {u : String} (h : landing hosts live cp pp host now held = .target u) :
+    ∃ t issued, held = some (t, issued) ∧ accepts live cp pp t = true ∧ hostOk host = true ∧ host ∈ hosts ∧ u = urlOf host t := by
   unfold landing at h
   cases held with
   | none => simp at h
   | some p =>
     obtain ⟨t, issued⟩ := p
     simp only at h
-    by_cases h1 : (decide (issued + ttl < now) || !hostOk host) = true
-    · simp [h1] at h
-    · simp only [h1] at h
-      have hh : hostOk host = true := by
-        simp only [Bool.or_eq_true, decide_eq_true_eq, Bool.not_eq_true'] at h1
-        cases hc : hostOk host <;> simp_all
+    by_cases h1 : (decide (issued + ttl < now) || !hostOk host || !hosts.contains host) = true
+    · simp only [h1, ↓reduceIte] at h; cases h
+    · simp only [h1, ↓reduceIte] at h
+      have hh : hostOk host = true ∧ hosts.contains host = true := by
+        simp only [Bool.or_eq_true, decide_eq_true_eq, Bool.not_eq_true', not_or] at h1
+        cases hc : hostOk host <;> cases hd : hosts.contains host <;> simp_all
       by_cases h2 : accepts live cp pp t = true
       · simp only [h2, ↓reduceIte] at h
-        exact ⟨t, issued, rfl, h2, hh, (Land.target.inj h).symm⟩
+        exact ⟨t, issued, rfl, h2, hh.1, List.contains_iff_mem.mp hh.2, (Land.target.inj h).symm⟩
       · have h2' : accepts live cp pp t = false := by simpa using h2
         simp only [h2'] at h
         by_cases hp : pathOk t.pathq = true <;> simp [hp] at h
 
-/-- **The authority of a returned link is the validated host and a live port**: the host holds no delimiter, the next
+/-- **The authority of a returned link is one of the console's hosts and a live port**: the host holds no delimiter, the next
 character after the port is `/`, and the path holds none of CR, LF, `%`, `#`, `\`. -/
-theorem landing_url_shape {live : List Pv} {cp : Nat} {pp : Option Nat} {host : String} {now : Nat} {held : Option (Target × Nat)}
-    {u : String} (h : landing live cp pp host now held = .target u) :
+theorem landing_url_shape {hosts : List String} {live : List Pv} {cp : Nat} {pp : Option Nat} {host : String} {now : Nat} {held : Option (Target × Nat)}
+    {u : String} (h : landing hosts live cp pp host now held = .target u) :
     ∃ t : Target, u = "http://" ++ host ++ ":" ++ toString t.port ++ t.pathq ∧ t.pathq.startsWith "/" = true ∧
-      t.pathq.startsWith "//" = false ∧ (∀ c ∈ host.toList, c ≠ '/' ∧ c ≠ '@' ∧ c ≠ '?' ∧ c ≠ '#' ∧ c ≠ '\\' ∧ c ≠ '%') ∧
+      t.pathq.startsWith "//" = false ∧ host ∈ hosts ∧ (∀ c ∈ host.toList, c ≠ '/' ∧ c ≠ '@' ∧ c ≠ '?' ∧ c ≠ '#' ∧ c ≠ '\\' ∧ c ≠ '%') ∧
       (∀ c ∈ t.pathq.toList, c ≠ '\r' ∧ c ≠ '\n' ∧ c ≠ '%' ∧ c ≠ '#' ∧ c ≠ '\\') ∧ (t.port ∈ ports live ∨ pp = some t.port) := by
-  obtain ⟨t, issued, _, ha, hh, rfl⟩ := landing_sound h
+  obtain ⟨t, issued, _, ha, hh, hm, rfl⟩ := landing_sound h
   obtain ⟨hp, _, hl⟩ := accepts_sound ha
   obtain ⟨s1, s2⟩ := pathOk_slash hp
-  refine ⟨t, rfl, s1, s2, hostOk_plain hh, fun c hc => ?_, hl⟩
+  refine ⟨t, rfl, s1, s2, hm, hostOk_plain hh, fun c hc => ?_, hl⟩
   have := pathOk_plain hp c hc
   exact ⟨this.1, this.2.1, this.2.2.1, this.2.2.2.1, this.2.2.2.2.1⟩
 

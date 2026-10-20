@@ -62,8 +62,8 @@ export function createArmApp(core: Core, owner: OwnerAuth, pm: PreviewManager, o
     if (r.allow !== true) {
       if (lan && !hostOk) return c.json({ ok: false, reason: "unknown host" }, 421);
       const msg = "preview access needed: open this link from the console task page, after logging in there";
-      if (hostOk && wantsHtml(c) && opts.returns) {
-        const to = await opts.returns.redirectFor({ html: true, host: c.req.header("host"), port, pathq });
+      if (hostOk && c.req.method === "GET" && wantsHtml(c) && opts.returns) {
+        const to = await opts.returns.redirectFor({ method: c.req.method, html: true, host: c.req.header("host"), port, pathq });
         if (to) return c.redirect(to, 303);
       }
       if (wantsHtml(c)) return c.html(`<!doctype html><meta charset="utf-8"><title>fw preview</title><p>${msg}.</p>`, 401);

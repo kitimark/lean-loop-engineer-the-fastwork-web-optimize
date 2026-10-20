@@ -110,6 +110,21 @@ describe("preview-login-return", () => {
     expect((await raw(t.ports.rp, LINK, { ...HTML }, "POST")).headers.location).toBeUndefined(); // not a GET: no page request
   });
 
+  it("HEAD keeps 401 with no Location and holds no reference; a full store logs in plain (Lean decides)", async () => {
+    for (const port of [t.ports.rp, t.ports.preview]) {
+      const path = port === t.ports.rp ? LINK : "/preview/p1/compare";
+      const h = await raw(port, path, { ...HTML }, "HEAD");
+      expect(h.status).toBe(401); expect(h.headers.location).toBeUndefined();
+    }
+    expect(t.returns.size).toBe(0);
+    for (let i = 0; i < 256; i++) await raw(t.ports.rp, LINK, HTML);
+    expect(t.returns.size).toBe(256);
+    const full = await raw(t.ports.rp, LINK, HTML);
+    expect(full.status).toBe(303);
+    expect(full.headers.location).toBe(`http://127.0.0.1:${t.ports.console}/owner/login`);
+    expect(t.returns.size).toBe(256);
+  });
+
   it("links outside the allowlist go to the login without a return reference", async () => {
     for (const path of ["/%0d%0aSet-Cookie:a=1", "/a%0D%0Ab", "/" + "a".repeat(2100)]) {
       const r = await raw(t.ports.rp, path, HTML);
@@ -135,14 +150,16 @@ describe("preview-login-return", () => {
   });
 
   it("direct decisions: javascript:, other port, console port, userinfo host", async () => {
-    const f = (o: Partial<{ host: string; port: number; pathq: string }>) =>
-      t.returns.redirectFor({ html: true, host: `127.0.0.1:${t.ports.rp}`, port: t.ports.rp, pathq: LINK, ...o });
+    const f = (o: Partial<{ method: string; host: string; port: number; pathq: string }>) =>
+      t.returns.redirectFor({ method: "GET", html: true, host: `127.0.0.1:${t.ports.rp}`, port: t.ports.rp, pathq: LINK, ...o });
     const plain = `http://127.0.0.1:${t.ports.console}/owner/login`;
     expect(await f({ pathq: "javascript:alert(1)" })).toBe(plain);
     expect(await f({ pathq: "\\\\evil.example" })).toBe(plain);
     expect(await f({ port: t.ports.rp + 7 })).toBe(plain);
     expect(await f({ port: t.ports.console })).toBe(plain);
     expect(await f({ host: "evil@127.0.0.1:1" })).toBeNull();
+    expect(await f({ host: "evil.example" })).toBeNull(); // well formed, but not one of the console's hosts (Lean)
+    expect(await f({ method: "HEAD" })).toBeNull();
     expect(await f({ host: undefined })).toBeNull();
     expect(await f({ port: undefined })).toBeNull();
     expect((await f({}))!.startsWith(`${plain}?r=`)).toBe(true);

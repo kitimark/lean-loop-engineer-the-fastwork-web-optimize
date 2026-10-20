@@ -34,11 +34,15 @@ without a bound, so `status` prints the log size and warns above 50 MiB (`pnpm f
 - **Login return link** (Lean `console.loginReturn`, `Fw/Console/PreviewReturn.lean`). A browser (HTML GET) without the owner session that
   opens a preview arm link or a `/preview/<id>/` path is redirected (303) to the console `/owner/login?r=<nonce>` on the same host name;
   after the login it lands on the exact link (path and query). The server holds the link under a random nonce for 10 minutes (at most
-  256, single use); only the nonce travels, never a cookie. A link is kept only if it is on a live arm port (or a live preview path on the
-  preview port), starts with one `/`, is at most 2000 characters and holds only A-Z a-z 0-9 `. : , - _ @ = & / ?` (no `%`, `#`, `\`,
-  space or quote), and the Host names this console (identity, not inference). Anything else logs in plain and lands on `/`. After the
-  login Lean checks the link against the current table: live, the link; stopped, `/?tab=builds&note=stopped` (the Builds tab with
-  "That preview has stopped; press Open."); never an unknown target. API and non-GET requests keep 401. The console-port redirect has no return.
+  256, single use); only the nonce travels, never a cookie. Lean decides: the method is GET and the request wants HTML (HEAD, POST and API
+  requests keep 401 with no Location); the host name is well formed and is one of the console's host names (loopback names plus the LAN
+  address, passed from `OwnerAuth.hostNames`); the link is on a live arm port (or a live preview path on the preview port), starts with
+  one `/`, is at most 2000 characters and holds only A-Z a-z 0-9 `. : , - _ @ = & / ?` (no `%`, `#`, `\`, space or quote); and fewer than
+  256 references are held (`heldCount`; a full store logs in plain). Anything else logs in plain and lands on `/`. After the login Lean
+  checks the link against the current table and the host again: live, the link; stopped, `/?tab=builds&note=stopped` (the Builds tab with
+  "That preview has stopped; press Open."); never an unknown target. The theorem `landing_sound` concludes the host is one of the console's
+  hosts. TS keeps the nonce map (random nonce, dropping expired entries, single use) and reads the facts; it uses Lean's `location`
+  unchanged. The console-port redirect has no return.
 - A one-time link in your own terminal: start the console from that terminal (`pnpm --filter @fw/console-api start`) and
   run `pnpm --filter @fw/console-api owner-link` there. It signals only a console that proves itself by `/api/health`.
   A detached console has no terminal, so `owner-link` prints nothing to it.

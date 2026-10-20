@@ -15,6 +15,9 @@ export const NONCE = /^[A-Za-z0-9_-]{16,64}$/;
 /** The host name of a Host header, without its port. */
 export const hostName = (host: string | undefined): string | null => (host ? host.replace(/:\d+$/, "") : null);
 
+/** Housekeeping bound only (Lean `ttl`): expired entries are dropped from the map; Lean decides expiry on landing. */
+const TTL_MS = 600000;
+
 export class ReturnStore {
   private held = new Map<string, Held>();
   private readonly core: Core; private readonly owner: OwnerAuth; private readonly live: () => unknown[]; private readonly clock: () => number;
@@ -27,21 +30,19 @@ export class ReturnStore {
 
   private base() {
     const consolePort = this.owner.consolePort;
-    return consolePort === null ? null : { consolePort, previewPort: this.owner.previewPort, live: this.live() };
+    return consolePort === null ? null : { consolePort, previewPort: this.owner.previewPort, live: this.live(), hosts: this.owner.hostNames };
   }
 
   /** The login address a refused request is redirected to, or null (the caller keeps its own refusal). */
-  async redirectFor(o: { html: boolean; host: string | undefined; port: number | undefined; pathq: string }): Promise<string | null> {
+  async redirectFor(o: { method: string; html: boolean; host: string | undefined; port: number | undefined; pathq: string }): Promise<string | null> {
     const b = this.base(); const host = hostName(o.host);
     if (!b || !host || o.port === undefined) return null;
     const nonce = randomBytes(18).toString("base64url");
-    const r = await this.core.ops("console.loginReturn", { kind: "redirect", html: o.html, host, nonce, port: o.port, path: o.pathq, ...b });
-    if (r.act !== "login" || typeof r.location !== "string") return null;
-    if (r.keep !== true) return r.location;
     const now = this.clock();
-    for (const [k, v] of this.held) if (v.issuedAt + Number(r.ttlMs) < now) this.held.delete(k);
-    if (this.held.size >= Number(r.cap)) return r.location.split("?")[0]!; // full: log in, return nowhere
-    this.held.set(nonce, { port: o.port, path: o.pathq, issuedAt: now });
+    for (const [k, v] of this.held) if (v.issuedAt + TTL_MS < now) this.held.delete(k); // housekeeping; Lean re-checks expiry on landing
+    const r = await this.core.ops("console.loginReturn", { kind: "redirect", method: o.method, html: o.html, heldCount: this.held.size, host, nonce, port: o.port, path: o.pathq, ...b });
+    if (r.act !== "login" || typeof r.location !== "string") return null;
+    if (r.keep === true) this.held.set(nonce, { port: o.port, path: o.pathq, issuedAt: now });
     return r.location;
   }
 

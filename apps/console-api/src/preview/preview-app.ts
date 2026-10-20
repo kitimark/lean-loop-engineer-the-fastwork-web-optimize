@@ -50,9 +50,9 @@ export function createPreviewApp(core: Core, owner: OwnerAuth, pm: PreviewManage
     c.header("Cache-Control", "no-store");
     if (lan && !hostOk) return c.json({ ok: false, reason: "unknown host" }, 421);
     const msg = "preview access needed: open this link from the console task page, after logging in there";
-    if (hostOk && wantsHtml(c) && opts.returns) {
+    if (hostOk && c.req.method === "GET" && wantsHtml(c) && opts.returns) {
       const u = new URL(c.req.url);
-      const to = await opts.returns.redirectFor({ html: true, host: c.req.header("host"), port: localPortOf(c), pathq: u.pathname + u.search });
+      const to = await opts.returns.redirectFor({ method: c.req.method, html: true, host: c.req.header("host"), port: localPortOf(c), pathq: u.pathname + u.search });
       if (to) return c.redirect(to, 303);
     }
     if (wantsHtml(c)) return c.html(`<!doctype html><meta charset="utf-8"><title>fw preview</title><p>${msg}.</p>`, 401);
