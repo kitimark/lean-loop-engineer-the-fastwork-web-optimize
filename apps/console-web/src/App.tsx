@@ -7,11 +7,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { PlanView } from "./Plan";
 import { HealthView } from "./Health";
 import { BuildsView } from "./Builds";
+import { ComposeView } from "./Compose";
 import { age, sendAsUser, useBoard, useNow } from "@/lib/api";
 
 /** The tab and note a login landing asks for (`/?tab=builds&note=stopped`); anything else is the console tab. */
-export function landingOf(search: string): { tab: "console" | "builds"; note: string | null } {
+export function landingOf(search: string): { tab: "console" | "builds" | "compose"; note: string | null } {
   const q = new URLSearchParams(search);
+  if (q.get("tab") === "compose") return { tab: "compose", note: null };
   if (q.get("tab") !== "builds") return { tab: "console", note: null };
   return { tab: "builds", note: q.get("note") === "stopped" ? "That preview has stopped; press Open." : null };
 }
@@ -21,7 +23,7 @@ export function App() {
   const now = useNow(offset);
   const [error, setError] = useState<string | null>(null);
   const landed = landingOf(typeof window === "undefined" ? "" : window.location.search);
-  const [tab, setTab] = useState<"console" | "plan" | "builds" | "health">(landed.tab);
+  const [tab, setTab] = useState<"console" | "plan" | "builds" | "compose" | "health">(landed.tab);
   const [note] = useState(landed.note);
 
   // every click is a typed command that the reducer may refuse; the reason is shown, never hidden
@@ -31,14 +33,15 @@ export function App() {
   };
 
   return (
-    <main className={`mx-auto space-y-6 p-6 ${tab === "plan" ? "max-w-7xl" : "max-w-5xl"}`}>
-      <header className="flex items-center justify-between">
+    <main className={`mx-auto space-y-6 p-3 sm:p-6 ${tab === "plan" ? "max-w-7xl" : "max-w-5xl"}`}>
+      <header className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-semibold">fw console</h1>
-        <nav className="flex gap-1" aria-label="views">
+        <nav className="flex flex-wrap gap-1" aria-label="views">
           <Button size="sm" variant={tab === "console" ? "default" : "outline"} onClick={() => setTab("console")}>Console</Button>
           <Button size="sm" variant={tab === "plan" ? "default" : "outline"} onClick={() => setTab("plan")}>
             Plan{board ? ` (${board.plan.tasks.filter((t) => t.state === "ready").length} ready)` : ""}</Button>
           <Button size="sm" variant={tab === "builds" ? "default" : "outline"} onClick={() => setTab("builds")}>Builds</Button>
+          <Button size="sm" variant={tab === "compose" ? "default" : "outline"} onClick={() => setTab("compose")}>Compose</Button>
           <Button size="sm" variant={tab === "health" ? "default" : "outline"} onClick={() => setTab("health")}>Health</Button>
         </nav>
         <Badge variant={live ? "default" : "destructive"}>{live ? "live" : "reconnecting"}</Badge>
@@ -46,7 +49,7 @@ export function App() {
       {note && tab === "builds" && <p role="status" className="rounded border p-2 text-sm">{note}</p>}
       {error && <p role="alert" className="rounded border border-destructive p-2 text-sm text-destructive">{error}</p>}
       {!board ? <p className="text-muted-foreground">Waiting for console-api...</p> : (
-        tab === "plan" ? <PlanView board={board} /> : tab === "builds" ? <BuildsView /> : tab === "health" ? <HealthView now={now} /> : (
+        tab === "plan" ? <PlanView board={board} /> : tab === "builds" ? <BuildsView /> : tab === "compose" ? <ComposeView /> : tab === "health" ? <HealthView now={now} /> : (
           <>
             <Steps board={board} act={act} now={now} />
             <StatusBoard board={board} now={now} />

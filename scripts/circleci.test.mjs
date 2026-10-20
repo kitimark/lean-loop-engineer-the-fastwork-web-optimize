@@ -3,12 +3,13 @@
 // No network, no Keychain: the API is a fixture and the token is a fake.
 import { strict as assert } from 'node:assert';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir, userInfo } from 'node:os';
-import { dirname, join } from 'node:path';
+import { delimiter, dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { classOfApi, API, MIN_POLL_S, ROOT, call, callBytes, comparePairs, compare, credits, digestJob, dryRun, fetchPipeline, fixtureFetch, githubDigests, githubRuns, isPilotPipeline, jobOfGithub, listAll, loadFixture, loadGolden, main, ofCircleStatus, ofGithubConclusion, parseLoose, premiseDigest, premisesArtifact, readLedger, redact, renderComparison, route, stops, storageMilli, timingsDoc, triggerRequest, urls, waitPipeline, waitStep } from './circleci.mjs';
+import { cachePipelineBytes, cacheSavedBytes, classOfApi, parseCacheSave, readCacheSave, savesCacheJob, API, MIN_POLL_S, ROOT, call, callBytes, comparePairs, compare, credits, digestJob, dryRun, fetchPipeline, fixtureFetch, githubDigests, githubRuns, isPilotPipeline, jobOfGithub, listAll, loadFixture, loadGolden, main, ofCircleStatus, ofGithubConclusion, parseLoose, premiseDigest, premisesArtifact, readLedger, redact, renderComparison, route, stops, storageMilli, timingsDoc, triggerRequest, urls, waitPipeline, waitStep } from './circleci.mjs';
 
 const g = loadGolden();
 const here = dirname(fileURLToPath(import.meta.url));
@@ -16,8 +17,8 @@ const rowsOf = (op) => g.byOp[op] ?? [];
 const toRun = (r) => ({ ...r, class: r.class });
 
 test('the golden has every op the glue replays, and no more', () => {
-  assert.deepEqual([...new Set(g.rows.map((r) => r.op))].sort(), ['circleStatus', 'classOfApi', 'compare', 'constants', 'credits', 'ghJob', 'githubConclusion', 'jobMap', 'rates', 'route', 'stop', 'storage', 'wait']);
-  assert.ok(g.rows.length >= 120);
+  assert.deepEqual([...new Set(g.rows.map((r) => r.op))].sort(), ['cachePipeline', 'cacheSaved', 'circleStatus', 'classOfApi', 'compare', 'constants', 'credits', 'ghJob', 'githubConclusion', 'jobMap', 'rates', 'route', 'stop', 'storage', 'wait']);
+  assert.ok(g.rows.length >= 140);
 });
 
 test('credits: every golden row', () => {
@@ -440,7 +441,8 @@ test('storage: the ledger adds cache, workspace and artifact bytes over all pilo
   const doc = await fetchPipeline(ctx, { slug: fx.slug, pipelineId: fx.pipelineId, out: join(dir, 'o') });
   const b = readLedger(ledgerPath).pipelines[fx.pipelineId];
   assert.equal(b.artifacts, doc.storage.artifacts);
-  assert.ok(b.cache > 0 && b.workspace > 0, 'the engine jobs report what they saved');
+  assert.equal(b.cache, 9856615, 'pipeline 15: one job stored a 9.3 MiB archive, the other found the key (skipped)');
+  assert.ok(b.workspace > 0, 'the engine jobs report the workspace they persisted');
   assert.equal(doc.storage.ledgerBytes, b.artifacts + b.cache + b.workspace);
   assert.equal(doc.storage.milli, storageMilli(doc.storage.ledgerBytes, 30));
   // an earlier pilot pipeline of 1.2 GB: the next fetch stops, and so does a wait before any job runs
@@ -467,7 +469,127 @@ test('wait: a cancelled workflow is not a pass (exit 4, Lean waitStep)', async (
   assert.equal((await waitPipeline(ctx, { slug: fx.slug, pipelineId: fx.pipelineId })).code, 4);
 });
 
-test('timings.json carries the bytes a job saved', () => {
-  const d = timingsDoc({ spansText: '', job: 'j', cls: 'c', sha: 's', digest: null, cacheBytes: 5, workspaceBytes: 7 });
-  assert.deepEqual(d.bytes, { cache: 5, workspace: 7 });
+test('timings.json carries the bytes a job persisted to the workspace, not the cache (the ledger reads the save step)', () => {
+  const d = timingsDoc({ spansText: '', job: 'j', cls: 'c', sha: 's', digest: null, workspaceBytes: 7 });
+  assert.deepEqual(d.bytes, { workspace: 7 });
+});
+
+// ------------------------------------------------------------------------------------------ cache saves (circleci-cache-accounting)
+
+test('cacheSaved and cachePipeline: every golden row (Lean cacheSavedBytes, cachePipelineBytes)', () => {
+  for (const r of rowsOf('cacheSaved')) assert.equal(cacheSavedBytes(r.request.save), r.response.bytes, r.name);
+  for (const r of rowsOf('cachePipeline')) assert.equal(cachePipelineBytes(r.request.saves), r.response.bytes, r.name);
+  assert.throws(() => cacheSavedBytes({ kind: 'weird' }));
+});
+
+test('jobMap: savesCache per row, and savesCacheJob (Lean) is false for a job outside the map', () => {
+  for (const r of g.jobMap) assert.equal(savesCacheJob(g, r.circleci), r.savesCache, r.circleci);
+  assert.deepEqual(g.jobMap.filter((r) => r.savesCache).map((r) => r.circleci), ['engine-chromium', 'engine-playwright-webkit']);
+  assert.equal(savesCacheJob(g, 'probe'), false);
+});
+
+const saveText = (name, n) => loadFixture(name).api.files[`https://action-output.example/${name}/job-${n}/saving-cache`].map((x) => x.message).join('');
+
+test('parseCacheSave: the recorded outputs of pipelines 15 and 16; anything else is an error', () => {
+  assert.deepEqual(parseCacheSave(saveText('premise-tests', 10)), { kind: 'skipped' });
+  assert.deepEqual(parseCacheSave(saveText('premise-tests', 11)), { kind: 'stored', tenthsMiB: 93 });
+  assert.deepEqual(parseCacheSave(saveText('premise-tests-large', 13)), { kind: 'skipped' });
+  assert.deepEqual(parseCacheSave('Total size uploaded: 512.0 KiB'), { kind: 'stored', tenthsMiB: 5 });
+  assert.deepEqual(parseCacheSave('Total size uploaded: 1.2 GiB'), { kind: 'stored', tenthsMiB: 12288 });
+  assert.throws(() => parseCacheSave('Creating cache archive...'), /neither a skip nor a size/);
+  assert.throws(() => parseCacheSave(''), /neither a skip nor a size/);
+});
+
+test('readCacheSave: no save step is absent; a failed save step is an error', async () => {
+  const fx = loadFixture('premise-tests');
+  const url = `https://circleci.com/api/v1.1/project/${fx.slug}/11`;
+  const withSteps = (steps) => ({ fetchFn: fixtureFetch({ ...fx.api, routes: { ...fx.api.routes, [`GET ${url}`]: { steps } } }), getToken: () => 't', sleep: async () => {} });
+  const act = (name, status) => ({ name: 'x', actions: [{ name, status }] });
+  const read = (steps) => readCacheSave(withSteps(steps), { slug: fx.slug, jobNumber: 11 });
+  assert.deepEqual(await read([act('premise tests', 'success')]), { kind: 'absent' });
+  assert.deepEqual(await read([act('Saving cache', 'not_run')]), { kind: 'absent' });
+  await assert.rejects(read([act('Saving cache', 'failed')]), /unknown/);
+  await assert.rejects(read([act('Saving cache', 'success')]), /no output/);
+  await assert.rejects(read([act('Saving cache', 'success'), act('Saving cache', 'success')]), /at most one/);
+});
+
+test('the ledger over a series: only real saves count (pipeline 15 stored once, 16 skipped twice, a halted pipeline has no save step)', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'fwseries-'));
+  const ledgerPath = join(dir, 'ledger.json');
+  const p15 = loadFixture('premise-tests'), p16 = loadFixture('premise-tests-large');
+  const d15 = await fetchPipeline(ctxOf(p15, { ledgerPath }).ctx, { slug: p15.slug, pipelineId: p15.pipelineId, out: join(dir, 'a') });
+  const d16 = await fetchPipeline(ctxOf(p16, { ledgerPath }).ctx, { slug: p16.slug, pipelineId: p16.pipelineId, out: join(dir, 'b') });
+  assert.deepEqual(d15.storage.cacheSaves.map((x) => [x.job, x.kind]), [['engine-chromium', 'skipped'], ['engine-playwright-webkit', 'stored']]);
+  assert.deepEqual(d16.storage.cacheSaves.map((x) => x.kind), ['skipped', 'skipped']);
+  assert.equal(d15.storage.cache, 9856615);
+  assert.equal(d16.storage.cache, 0);
+  // the new job shape: the cache gate halts the job, so the job has no save step at all
+  const halted = JSON.parse(JSON.stringify(p16));
+  for (const [k, v] of Object.entries(halted.api.routes)) if (k.startsWith('GET https://circleci.com/api/v1.1/')) v.steps = v.steps.filter((st) => !st.actions.some((a) => a.name === 'Saving cache'));
+  halted.pipelineId = 'halted-pipeline';
+  halted.api.routes = Object.fromEntries(Object.entries(halted.api.routes).map(([k, v]) => [k.replace(p16.pipelineId, halted.pipelineId), v]));
+  const d17 = await fetchPipeline(ctxOf(halted, { ledgerPath }).ctx, { slug: halted.slug, pipelineId: halted.pipelineId, out: join(dir, 'c') });
+  assert.deepEqual(d17.storage.cacheSaves.map((x) => x.kind), ['absent', 'absent']);
+  assert.equal(d17.storage.cache, 0);
+  const l = readLedger(ledgerPath).pipelines;
+  assert.equal(l[p15.pipelineId].cache + l[p16.pipelineId].cache + l['halted-pipeline'].cache, 9856615);
+  assert.deepEqual(d17.storage.stops, []);
+  // the old accounting counted du of the store at every job: 2 x 53637120 bytes = 108 thousandths per pipeline
+  assert.equal(storageMilli(2 * 53637120, 30), 108);
+  assert.ok(d17.storage.milli < 20, `ledger after three pipelines: ${d17.storage.milli} thousandths`);
+});
+
+// --------------------------------------------------------------------------------------- the cache gate in the job script
+
+/** Run `job.sh <step>` with a temporary HOME and job dir; `circleci-agent` is a stub that records its arguments. */
+function jobStep(step, { marker, dir }) {
+  const home = join(dir, 'home'), fwDir = join(dir, 'fw'), bin = join(dir, 'bin');
+  mkdirSync(join(home, '.fw-cache'), { recursive: true });
+  mkdirSync(bin, { recursive: true });
+  writeFileSync(join(bin, 'circleci-agent'), `#!/bin/sh\necho "$@" >> "${join(dir, 'agent.log')}"\n`);
+  chmodSync(join(bin, 'circleci-agent'), 0o755);
+  if (marker !== undefined) writeFileSync(join(home, '.fw-cache', 'lock-sha256'), `${marker}\n`);
+  const env = { PATH: `${bin}${delimiter}${dirname(process.execPath)}${delimiter}/usr/bin${delimiter}/bin`, HOME: home, FW_JOB_DIR: fwDir };
+  return execFileSync('sh', [join(ROOT, '.circleci', 'job.sh'), step], { env, encoding: 'utf8' });
+}
+
+const lockSha = createHash('sha256').update(readFileSync(join(ROOT, 'pnpm-lock.yaml'))).digest('hex');
+
+test('cache gate: a restored marker that names this lockfile halts the job before save_cache; anything else writes the marker', () => {
+  const fresh = () => mkdtempSync(join(tmpdir(), 'fwgate-'));
+  // hit: the marker is this lockfile's hash
+  let dir = fresh();
+  jobStep('cache-probe', { marker: lockSha, dir });
+  assert.ok(existsSync(join(dir, 'fw', 'cache-current')));
+  jobStep('cache-gate', { marker: lockSha, dir });
+  assert.equal(readFileSync(join(dir, 'agent.log'), 'utf8').trim(), 'step halt');
+  // miss: nothing restored
+  dir = fresh();
+  jobStep('cache-probe', { dir });
+  assert.ok(!existsSync(join(dir, 'fw', 'cache-current')));
+  jobStep('cache-gate', { dir });
+  assert.ok(!existsSync(join(dir, 'agent.log')), 'no halt on a miss');
+  assert.equal(readFileSync(join(dir, 'home', '.fw-cache', 'lock-sha256'), 'utf8').trim(), lockSha, 'the marker is written for the save');
+  // stale: the restored marker names another lockfile
+  dir = fresh();
+  jobStep('cache-probe', { marker: 'f'.repeat(64), dir });
+  assert.ok(!existsSync(join(dir, 'fw', 'cache-current')));
+  jobStep('cache-gate', { marker: 'f'.repeat(64), dir });
+  assert.ok(!existsSync(join(dir, 'agent.log')));
+  assert.equal(readFileSync(join(dir, 'home', '.fw-cache', 'lock-sha256'), 'utf8').trim(), lockSha);
+});
+
+test('config: the engine jobs save the pnpm cache once, after the gate; the verdict job only restores', () => {
+  const cfg = readFileSync(join(ROOT, '.circleci', 'config.yml'), 'utf8');
+  const jobs = cfg.slice(cfg.indexOf('\njobs:'), cfg.indexOf('\nworkflows:'));
+  const engine = jobs.slice(jobs.indexOf('\n  engine:'), jobs.indexOf('\n  verdict:'));
+  const verdict = jobs.slice(jobs.indexOf('\n  verdict:'), jobs.indexOf('\n  webkit-sim:'));
+  assert.equal((engine.match(/- save_cache:/g) ?? []).length, 1);
+  assert.ok(engine.indexOf('cache-probe') > engine.indexOf('restore_cache') && engine.indexOf('cache-probe') < engine.indexOf('deps install'));
+  assert.ok(engine.indexOf('cache-gate') > engine.indexOf('- finish') && engine.indexOf('cache-gate') < engine.indexOf('- save_cache:'));
+  assert.ok(!/save_cache/.test(verdict) && /restore_cache/.test(verdict));
+  const keys = [...cfg.matchAll(/pnpm-store-v\d+-\{\{ checksum "pnpm-lock\.yaml" \}\}/g)].map((m) => m[0]);
+  assert.equal(new Set(keys).size, 1, 'one key for restore and save');
+  assert.match(keys[0], /pnpm-store-v2-/);
+  assert.match(engine, /~\/\.fw-cache/);
 });

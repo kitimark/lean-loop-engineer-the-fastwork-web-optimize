@@ -708,6 +708,26 @@
  [{"syntax": "*", "name": "--exit-opacity", "inherits": false},
   {"syntax": "*", "name": "--exit-scatter", "inherits": false}],
  "readers": ["hero.orbit/card", "hero/copy", "hero.cue/cue"],
+ "readerWrites":
+ [{"writes": [["--exit-opacity", "1"], ["--exit-scatter", "calc(1 - 1)"]],
+   "reduced": false,
+   "opacity": "1"},
+  {"writes": [["--exit-opacity", "0.5"], ["--exit-scatter", "calc(1 - 0.5)"]],
+   "reduced": false,
+   "opacity": "0.5"},
+  {"writes": [["--exit-opacity", "0"], ["--exit-scatter", "calc(1 - 0)"]],
+   "reduced": false,
+   "opacity": "0"},
+  {"writes":
+   [["--exit-opacity", "0.0429"], ["--exit-scatter", "calc(1 - 0.0429)"]],
+   "reduced": false,
+   "opacity": "0.0429"},
+  {"writes": [["--exit-opacity", "1"], ["--exit-scatter", "0"]],
+   "reduced": true,
+   "opacity": "1"}],
+ "inline":
+ {"wide": {"webkit": 17, "touched": 17, "chromium": 17},
+  "narrow": {"webkit": 9, "touched": 17, "chromium": 9}},
  "inheritRules":
  ["hero.orbit/orbit",
   "hero.orbit/stage",
@@ -716,4 +736,11 @@
   "hero.deck/deck",
   "hero/copy",
   "hero.cue/cue"],
- "frameWrites": [{"property": "--exit-opacity", "element": "hero.exit/hero"}]}
+ "frameWrites":
+ [{"property": "--exit-opacity", "element": "hero.exit/hero"},
+  {"property": "--exit-opacity", "element": "hero.orbit/card"},
+  {"property": "--exit-scatter", "element": "hero.orbit/card"},
+  {"property": "--exit-opacity", "element": "hero/copy"},
+  {"property": "--exit-scatter", "element": "hero/copy"},
+  {"property": "--exit-opacity", "element": "hero.cue/cue"},
+  {"property": "--exit-scatter", "element": "hero.cue/cue"}]}

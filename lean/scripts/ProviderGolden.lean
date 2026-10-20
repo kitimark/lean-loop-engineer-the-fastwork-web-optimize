@@ -80,7 +80,7 @@ def tables : List String := [
     (Json.mkObj [("capMs", toJson capMs), ("queueMaxMs", toJson queueMaxMs), ("storageMaxMilli", toJson storageMaxMilli)]),
   line "jobMap" "GitHub job against CircleCI job" (Json.mkObj [])
     (Json.mkObj [("jobs", .arr (jobMap.map fun r =>
-      Json.mkObj [("lane", .str r.lane), ("github", ghNameJson r.gh), ("circleci", .str r.circleci), ("digest", .bool r.digest)]).toArray)])]
+      Json.mkObj [("lane", .str r.lane), ("github", ghNameJson r.gh), ("circleci", .str r.circleci), ("digest", .bool r.digest), ("savesCache", .bool r.savesCache)]).toArray)])]
 
 def creditCases : List (String × String × Nat) := [
   ("one minute of arm.medium.gen2 costs its rate", "arm.medium.gen2", 60000),
@@ -96,6 +96,24 @@ def storageCases : List (String × Nat × Nat) := [
   ("nothing stored", 0, 15),
   ("exactly one GB for 30 days", 1000000000, 30),
   ("one byte for one day rounds up", 1, 1)]
+
+def saveJson : CacheSave → Json
+  | .absent => Json.mkObj [("kind", .str "absent")]
+  | .skipped => Json.mkObj [("kind", .str "skipped")]
+  | .stored t => Json.mkObj [("kind", .str "stored"), ("tenthsMiB", toJson t)]
+
+def cacheSaveCases : List (String × CacheSave) := [
+  ("no save step ran (the restored cache was current)", .absent),
+  ("the step found the key stored and uploaded nothing", .skipped),
+  ("the 9.3 MiB archive of the first Arm pipeline", .stored 93),
+  ("a zero-size archive still counts one tenth", .stored 0),
+  ("one MiB", .stored 10)]
+
+def cachePipelineCases : List (String × List CacheSave) := [
+  ("a pipeline on an unchanged lockfile (hit, then skipped)", [.absent, .skipped]),
+  ("a pipeline on a new lockfile (one job stores, one finds the key locked)", [.stored 93, .skipped]),
+  ("both jobs store", [.stored 93, .stored 93]),
+  ("no job", [])]
 
 def mk (provider : Provider) (job sha : String) (c : Conclusion) (d : Option String) (cls : String) (q t : Nat) : Run :=
   ⟨provider, job, sha, c, d, cls, q, t⟩
@@ -224,6 +242,11 @@ def text : String :=
     ++ storageCases.map (fun (n, b, d) =>
       line "storage" n (Json.mkObj [("bytes", toJson b), ("days", toJson d)])
         (Json.mkObj [("milli", toJson (storageMilli b d))]))
+    ++ cacheSaveCases.map (fun (n, c) =>
+      line "cacheSaved" n (Json.mkObj [("save", saveJson c)]) (Json.mkObj [("bytes", toJson (cacheSavedBytes c))]))
+    ++ cachePipelineCases.map (fun (n, cs) =>
+      line "cachePipeline" n (Json.mkObj [("saves", .arr (cs.map saveJson).toArray)])
+        (Json.mkObj [("bytes", toJson (cachePipelineBytes cs))]))
     ++ circleStatuses.map (fun st =>
       line "circleStatus" st (Json.mkObj [("status", .str st)]) (Json.mkObj [("conclusion", .str (conclusionName (ofCircleStatus st)))]))
     ++ githubConclusions.map (fun st =>

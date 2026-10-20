@@ -1,6 +1,6 @@
 {"name":"the price list the pilot meets","op":"rates","request":{},"response":{"pools":{"base":30000,"oss":400000},"rates":[{"class":"arm.medium","creditsPerMin":10,"free":true,"platform":"linux-arm","pool":"oss","source":"https://circleci.com/pricing/price-list/"},{"class":"arm.large","creditsPerMin":20,"free":true,"platform":"linux-arm","pool":"oss","source":"https://circleci.com/pricing/price-list/"},{"class":"arm.medium.gen2","creditsPerMin":6,"free":true,"platform":"linux-arm","pool":"oss","source":"https://circleci.com/pricing/price-list/"},{"class":"arm.large.gen2","creditsPerMin":12,"free":true,"platform":"linux-arm","pool":"oss","source":"https://circleci.com/pricing/price-list/"},{"class":"m4pro.medium","creditsPerMin":200,"free":true,"platform":"macos","pool":"base","source":"https://circleci.com/pricing/price-list/"},{"class":"m4pro.large","creditsPerMin":400,"free":false,"platform":"macos","pool":"base","source":"https://circleci.com/pricing/price-list/"}]}}
 {"name":"the stop-rule limits","op":"constants","request":{},"response":{"capMs":3600000,"queueMaxMs":600000,"storageMaxMilli":1000}}
-{"name":"GitHub job against CircleCI job","op":"jobMap","request":{},"response":{"jobs":[{"circleci":"engine-chromium","digest":true,"github":{"exact":"engine (chromium)"},"lane":"premise-tests"},{"circleci":"engine-playwright-webkit","digest":true,"github":{"exact":"engine (playwright-webkit)"},"lane":"premise-tests"},{"circleci":"verdict","digest":false,"github":{"exact":"verdict"},"lane":"premise-tests"},{"circleci":"webkit-sim","digest":false,"github":{"prefix":"sim (original,","suffix":", v1)","vm":"v1"},"lane":"webkit-sim"}]}}
+{"name":"GitHub job against CircleCI job","op":"jobMap","request":{},"response":{"jobs":[{"circleci":"engine-chromium","digest":true,"github":{"exact":"engine (chromium)"},"lane":"premise-tests","savesCache":true},{"circleci":"engine-playwright-webkit","digest":true,"github":{"exact":"engine (playwright-webkit)"},"lane":"premise-tests","savesCache":true},{"circleci":"verdict","digest":false,"github":{"exact":"verdict"},"lane":"premise-tests","savesCache":false},{"circleci":"webkit-sim","digest":false,"github":{"prefix":"sim (original,","suffix":", v1)","vm":"v1"},"lane":"webkit-sim","savesCache":false}]}}
 {"name":"one minute of arm.medium.gen2 costs its rate","op":"credits","request":{"class":"arm.medium.gen2","durMs":60000},"response":{"credits":6}}
 {"name":"one minute of arm.large.gen2 costs its rate","op":"credits","request":{"class":"arm.large.gen2","durMs":60000},"response":{"credits":12}}
 {"name":"a minute and a half of arm.large.gen2 rounds up to 18","op":"credits","request":{"class":"arm.large.gen2","durMs":90000},"response":{"credits":18}}
@@ -12,6 +12,15 @@
 {"name":"nothing stored","op":"storage","request":{"bytes":0,"days":15},"response":{"milli":0}}
 {"name":"exactly one GB for 30 days","op":"storage","request":{"bytes":1000000000,"days":30},"response":{"milli":1000}}
 {"name":"one byte for one day rounds up","op":"storage","request":{"bytes":1,"days":1},"response":{"milli":1}}
+{"name":"no save step ran (the restored cache was current)","op":"cacheSaved","request":{"save":{"kind":"absent"}},"response":{"bytes":0}}
+{"name":"the step found the key stored and uploaded nothing","op":"cacheSaved","request":{"save":{"kind":"skipped"}},"response":{"bytes":0}}
+{"name":"the 9.3 MiB archive of the first Arm pipeline","op":"cacheSaved","request":{"save":{"kind":"stored","tenthsMiB":93}},"response":{"bytes":9856615}}
+{"name":"a zero-size archive still counts one tenth","op":"cacheSaved","request":{"save":{"kind":"stored","tenthsMiB":0}},"response":{"bytes":104858}}
+{"name":"one MiB","op":"cacheSaved","request":{"save":{"kind":"stored","tenthsMiB":10}},"response":{"bytes":1153434}}
+{"name":"a pipeline on an unchanged lockfile (hit, then skipped)","op":"cachePipeline","request":{"saves":[{"kind":"absent"},{"kind":"skipped"}]},"response":{"bytes":0}}
+{"name":"a pipeline on a new lockfile (one job stores, one finds the key locked)","op":"cachePipeline","request":{"saves":[{"kind":"stored","tenthsMiB":93},{"kind":"skipped"}]},"response":{"bytes":9856615}}
+{"name":"both jobs store","op":"cachePipeline","request":{"saves":[{"kind":"stored","tenthsMiB":93},{"kind":"stored","tenthsMiB":93}]},"response":{"bytes":19713230}}
+{"name":"no job","op":"cachePipeline","request":{"saves":[]},"response":{"bytes":0}}
 {"name":"success","op":"circleStatus","request":{"status":"success"},"response":{"conclusion":"pass"}}
 {"name":"failed","op":"circleStatus","request":{"status":"failed"},"response":{"conclusion":"fail"}}
 {"name":"infrastructure_fail","op":"circleStatus","request":{"status":"infrastructure_fail"},"response":{"conclusion":"fail"}}

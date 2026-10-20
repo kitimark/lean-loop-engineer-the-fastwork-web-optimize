@@ -92,7 +92,7 @@ What this says:
 
 Limits: one sample per pair, so no spread is known (follow-up `circleci-series`). The sim pair compares the first matching
 GitHub matrix job `sim (original, 430, 1, <sha>, v1)` only; the other breakpoints are not paired. Storage is counted by
-the ledger from every fetched run, with the pnpm cache (107 MB) counted at every save, so it is an upper bound (follow-up
+the ledger from every fetched run, with the pnpm cache (107 MB) counted at every job, so it was an overcount (fixed, see "Cache accounting" below; follow-up
 `circleci-cache-accounting`). Measured by the ledger: 108 thousandths of a GB-month per Arm pipeline (`storageMilli` of
 107,354,269 bytes for pipeline 15; 107,354,252 for 16), 219 after the first three pipelines (15, 16, 18) and 222 after the
 five fetched (15, 16, 18, 36, 45; `storage.milli` of the latest `run.json`). The stop is 1000: eight more Arm pipelines
@@ -103,3 +103,34 @@ lane. `wait --branch` skips webhook pipelines only. Nothing here is phone time; 
 Fixtures: `scripts/circleci-fixtures/premise-tests.json`, `premise-tests-large.json`, `webkit-sim.json` (pipeline 45) and
 `webkit-sim-stall.json` (pipeline 36) are the recorded API responses (token not present; one simulator UDID in
 `v1-host.txt` was replaced by zeros; `v1-session-1.json` and `.log` are left out).
+
+## Cache accounting (task circleci-cache-accounting, 2026-10-21)
+
+The 108 thousandths per Arm pipeline above were an accounting artefact, not storage. CONFIRMED by the job steps of pipelines 15 and
+16 (API v1.1 `GET /project/{slug}/{job}`, step `Saving cache`, output text): CircleCI itself skips the upload of a key that exists
+("Skipping cache generation, cache already exists for key ..., or is locked for use by another job"), and the one real upload of
+the pilot was "Total size uploaded: 9.3 MiB". The ledger had instead counted `du` of the pnpm store (53.6 MB) at every engine job.
+CircleCI docs (configuration reference, `save_cache`): "If a cache already exists for the given `key`, CircleCI uses the existing
+cache and proceeds to the next step"; the cache of a key "is immutable"; there is no `when`-by-key and `restore_cache` sets no flag.
+The documented way to end a job early is `run: circleci-agent step halt` (the job ends as a success).
+
+What changed:
+- Config: the engine jobs `restore_cache`, then `cache-probe` (does the restored marker `~/.fw-cache/lock-sha256` equal the sha256 of
+  `pnpm-lock.yaml`?), and last, after `finish`, `cache-gate`: on a hit it runs `circleci-agent step halt` so `save_cache` never runs;
+  on a miss it writes the marker and `save_cache` stores the store and the marker. The key is `pnpm-store-v2-...` (a v1 cache is
+  immutable and has no marker). The verdict job only restores.
+- Ledger: `fetch` reads the `Saving cache` step of each engine job (Lean `savesCacheJob`) and counts the bytes the step uploaded
+  (Lean `cacheSavedBytes`: absent 0, skipped 0, stored = the printed MiB plus one tenth, an upper bound). Lean `storageMilli` is unchanged.
+
+MEASURED, 3 premise-tests pipelines on `arm.medium.gen2`, commit 3a531f48, one lockfile (ledger started empty; `storage` of each
+`run.json`; credits are Lean `credits` over the job durations, INFERRED):
+
+| pipeline | cache saves | cache bytes | ledger milli after | credits | old accounting |
+|---|---|---|---|---|---|
+| 254 | webkit job skipped, chromium job stored 9.3 MiB | 9,856,615 | 10 | 11 | 108 |
+| 255 | both jobs halted before `save_cache` (no save step) | 0 | 11 | 12 | 108 |
+| 256 | both jobs halted | 0 | 11 | 11 | 108 |
+
+Before: 108 per pipeline, 324 after three. After: 10 for the first, then about 0.13 per pipeline (artifacts 52 KB, workspace 74 KB: 126 KB), 11 after three.
+The stop at 1000 is now thousands of pipelines away (990 / 0.13), not 9. Digests equal in all three. Limit: the printed size has one decimal MiB, so a stored save is counted with one tenth more;
+the workspace is still `du` of `/tmp/fw/ws` (24 KB per engine job).
