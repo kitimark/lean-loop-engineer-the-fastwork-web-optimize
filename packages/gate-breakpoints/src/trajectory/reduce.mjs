@@ -255,7 +255,7 @@ export function timingOf(raw) {
       for (const k of ['readP50', 'readP90', 'gapP50', 'gapP90']) row[k] = ms1(row[k]);
       out.push(row);
     }
-    const hero = runs.length === 0 ? raw.runs.filter((r) => roleOf(r) === role && r.hero) : [];
+    const hero = raw.runs.filter((r) => roleOf(r) === role && r.hero);
     const hreads = hero.flatMap((r) => r.hero.rows.filter((x) => typeof x.t0 === 'number').map((x) => tenths(x.t1 - x.t0)));
     if (hreads.length > 0) out.push({ role, phase: 'hero', n: hreads.length, readP50: ms1(quantile(hreads, 50)), readP90: ms1(quantile(hreads, 90)), gapP50: null, gapP90: null, dominate: false });
   }

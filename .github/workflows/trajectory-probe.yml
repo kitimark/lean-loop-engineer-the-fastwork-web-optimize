@@ -8,6 +8,10 @@ name: trajectory-probe
 # Engines on the runner: Chrome Headless Shell (the counts lane's browser) and Playwright WebKit on Linux (a WebKitGTK/WPE port,
 # NOT Safari). The probe reads getComputedStyle and takes no screenshot; a FAIL verdict is a result, so the job exits 0 once the
 # probe completed (the verdicts are in the step summary and the artifact `trajectory-<engine>`).
+# Apple witness (job probe-apple): the same lane on a free standard macos-26 runner with Playwright WebKit (the macOS build, the
+# closest engine CI has to Safari), hero path only, rewrite arm = the dispatched search vs the original. It runs only when the
+# dispatch (never a push) names a rewrite search and includes playwright-webkit; max-parallel 1 (the macOS slots are shared across lanes); its
+# verdict is a separate artifact `trajectory-apple` and never part of the Linux verdicts.
 on:
   # Every push creates a run and its guard job decides on these inputs (Lean Fw.Ci.Intent); `workflow_dispatch` runs it on demand
   # (pnpm -s fw run --trajectory ...). Why: docs/team/handoffs/ci-trigger-scope.md.
@@ -228,8 +232,11 @@ jobs:
           SEARCH: ${{ needs.site.outputs.search }}
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
+          # full = every property in every frame; lean = discrete props, m, logo rect and hero copy/cards during pushes (switch it
+          # when the read-timing table shows reads dominate the frame; the setting is recorded in the artifact).
+          READS: full
         working-directory: packages/gate-breakpoints
-        run: node src/trajectory/cli.mjs run --engine "$ENGINE" --widths "$WIDTHS" --search "$SEARCH" --out out/trajectory
+        run: node src/trajectory/cli.mjs run --engine "$ENGINE" --widths "$WIDTHS" --search "$SEARCH" --reads "$READS" --out out/trajectory
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
         with:
@@ -242,3 +249,76 @@ jobs:
         with:
           mode: finish
           label: probe-${{ matrix.engine }}
+
+  # The Apple witness: Playwright WebKit on macOS (free standard runner), hero path only, the dispatched rewrite search against
+  # the original. One job at a time (max-parallel 1). The Linux jobs above never wait for it and it never changes their verdicts.
+  probe-apple:
+    needs: [site]
+    if: ${{ github.event_name == 'workflow_dispatch' && needs.site.outputs.search != '' && contains(needs.site.outputs.engines, 'playwright-webkit') }}
+    concurrency:
+      group: ci-lane:trajectory-probe:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:probe-apple:${{ strategy.job-index }}
+    runs-on: macos-26
+    timeout-minutes: 60
+    name: probe apple (playwright-webkit, macos-26)
+    strategy:
+      max-parallel: 1
+      fail-fast: false
+      matrix:
+        engine: [playwright-webkit]
+    steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - name: Verify the snapshot against snapshot.lock.json
+        run: node .github/scripts/verify-snapshot.mjs
+      - uses: ./.github/actions/setup-pnpm
+        with:
+          filter: '@fw/gate-breakpoints'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: site-dist
+          path: apps/site/dist/aot
+      - name: Playwright WebKit (macOS build; no system libraries to install)
+        working-directory: packages/gate-breakpoints
+        run: pnpm exec playwright-core install webkit
+      - name: Smoke test the engine
+        env:
+          ENGINE: ${{ matrix.engine }}
+          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
+          FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
+          FW_SEARCH: ${{ needs.site.outputs.search }}
+          SMOKE: ${{ github.workspace }}/.github/scripts/gate-smoke.mjs
+        working-directory: packages/gate-breakpoints
+        timeout-minutes: 5
+        run: node "$SMOKE" --engine "$ENGINE"
+      - name: Walk the hero path (both arms, every width) and reduce
+        env:
+          ENGINE: ${{ matrix.engine }}
+          WIDTHS: ${{ needs.site.outputs.widths }}
+          SEARCH: ${{ needs.site.outputs.search }}
+          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
+          FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
+        working-directory: packages/gate-breakpoints
+        run: node src/trajectory/cli.mjs run --engine "$ENGINE" --widths "$WIDTHS" --search "$SEARCH" --paths hero --reads full --out out/trajectory
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
+        with:
+          name: trajectory-apple
+          path: packages/gate-breakpoints/out/trajectory
+          if-no-files-found: error
+          retention-days: 30
