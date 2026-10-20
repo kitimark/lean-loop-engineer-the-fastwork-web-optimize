@@ -144,7 +144,14 @@ export function installKit() {
       y0 = yt;
       window.scrollTo(0, yt);
       // The original smooths scrollTo, so the rest is "the scroll position has stopped" (same value on 8 frames, capped), then the dwell.
-      const s = await settle(arg.settleCapMs);
+      // WebKit's smooth scroll sometimes stops short or never starts while the position stays still for 8 frames (macos-26: 114 of the
+      // faithful rewrite's units fell on a step where the original rested at an older y). A rest short of its target is retried
+      // twice with an instant scroll, so both arms are read at the position the step names. The row keeps `target` for the reducer.
+      let s = await settle(arg.settleCapMs);
+      for (let k = 0; k < 2 && Math.round(window.scrollY) !== yt; k++) {
+        window.scrollTo({ top: yt, left: 0, behavior: 'instant' });
+        s = await settle(arg.settleCapMs);
+      }
       await sleep(st.dwellMs || arg.restMs);
       await frameEnd();
       rows.push(snap(arg, `${st.id}/rest`, { step: st.id, frame: 'rest', target: yt, ...s }));

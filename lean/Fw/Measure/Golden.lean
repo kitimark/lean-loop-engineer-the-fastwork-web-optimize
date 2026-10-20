@@ -155,6 +155,16 @@ def simPlanReq (target vms sessions preset fw experiment : String) : Json :=
   Json.mkObj [("target", .str target), ("vms", .str vms), ("sessions", .str sessions), ("preset", .str preset),
     ("fw", .str fw), ("experiment", .str experiment), ("sha", .str "0123456789abcdef0123456789abcdef01234567")]
 
+/-- A `measure.inspector` request. -/
+def inspectorReq (relaunched : Bool) (fails : Nat) (socket proxy page : Bool) : Json :=
+  Json.mkObj [("relaunched", .bool relaunched), ("fails", toJson fails), ("socket", .bool socket), ("proxy", .bool proxy),
+    ("page", .bool page)]
+
+/-- A `measure.inspector` request that also names the outcome of the relaunch. -/
+def inspectorRelaunchReq (relaunchOk : Bool) : Json :=
+  Json.mkObj [("relaunched", .bool true), ("fails", toJson (0 : Nat)), ("socket", .bool true), ("proxy", .bool true),
+    ("page", .bool true), ("relaunchOk", .bool relaunchOk)]
+
 /-- A one-frame zone record of a `measure.compose` run. -/
 def czone (id : String) (i : Nat) (sums : List (String × Int)) : Json :=
   Json.mkObj [("id", .str id), ("frames", toJson (1 : Nat)), ("scrolledPx", toJson (0 : Int)),
@@ -481,7 +491,24 @@ def cases (_ : Unit := ()) : List (String × List (String × Json)) := [
     ("a part twice is refused", simPlanReq "both" "1" "1" "original" "a.b:c,a.b:d" "determinism"),
     ("parts out of order are refused", simPlanReq "both" "1" "1" "original" "nav.hitTest:hit-skip,hero.countdown:strip" "determinism"),
     ("an unknown target, four VMs and zero sessions are all listed", simPlanReq "neither" "4" "0" "original" "" "determinism"),
-    ("a leading zero is not a count", simPlanReq "both" "01" "1" "original" "" "determinism")]),
+    ("a leading zero is not a count", simPlanReq "both" "01" "1" "original" "" "determinism"),
+    ("two determinism sessions: step 70 min, job 80 min", simPlanReq "original" "1" "2" "original" "" "determinism"),
+    ("four sessions: step 140 min", simPlanReq "original" "1" "4" "original" "" "determinism"),
+    ("quiet keeps the fixed 50 min step whatever the sessions", simPlanReq "original" "1" "3" "original" "" "quiet")]),
+  ("measure.inspector", [
+    ("all three alive: proceed, count reset", inspectorReq false 1 true true true),
+    ("first failed probe (proxy refused or silent): proceed, count 1", inspectorReq false 0 true false true),
+    ("first failed probe (Safari gone, page tab missing): proceed, count 1", inspectorReq false 0 true true false),
+    ("second failed probe in a row (proxy): relaunch Safari", inspectorReq false 1 true false true),
+    ("second failed probe in a row (page tab missing): relaunch Safari", inspectorReq false 1 true true false),
+    ("no socket on the first probe: relaunch Safari", inspectorReq false 0 false true true),
+    ("no socket after the relaunch: give up", inspectorReq true 0 false true true),
+    ("second failed probe in a row after the relaunch (page tab missing): give up", inspectorReq true 1 true true false),
+    ("first failed probe after the relaunch: proceed", inspectorReq true 0 true false false),
+    ("healthy after the relaunch: proceed", inspectorReq true 1 true true true),
+    ("the relaunch worked: go on", inspectorRelaunchReq true),
+    ("the relaunch failed: give up", inspectorRelaunchReq false)]),
+  ("measure.simBounds", [("the time constants of the dead-inspector path", Json.mkObj [])]),
   ("measure.compose",
     let comb := carm [("a", "x"), ("b", "y")] 5 4 9 2
     let sa := carm [("a", "x"), ("b", "faithful")] 7 9 6 3
