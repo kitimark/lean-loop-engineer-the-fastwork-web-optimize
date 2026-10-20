@@ -24,8 +24,11 @@
 //   network: --host-resolver-rules makes every host except 127.0.0.1 unresolvable.
 //
 // Playwright WebKit (playwright-core 1.64.1, WebKit 27.2 on this Mac, not Safari, no toolbar):
-//   width/height: context `viewport`; DPR: `deviceScaleFactor`; device width: context `screen` (fixed for the context's
-//     life, so a live resize cannot change it).
+//   width/height: context `viewport`; DPR: `deviceScaleFactor`; device width: context `screen`. A live resize through
+//     `page.setViewportSize` sets the page's screen to the NEW VIEWPORT size (playwright-core 1.64.1 coreBundle.js:23896,
+//     `screen: { ...viewportSize }`), so the rotation stops 932x430 of the phone sweep had screen.width 932, not 430, and the
+//     gate called the environment not achieved (Lean Fw.Gate.WebkitScreen, note gate-green-baseline). `resize` below sets
+//     the emulated size itself, viewport and screen, and lets the engine apply both in one `updateEmulatedViewportSize`.
 //   hover/pointer: WebKit takes them from the platform (WebCore css/query/MediaQueryFeatures.cpp: hover from
 //     Chrome::client().hoverSupportedByPrimaryPointingDevice(), pointer from pointerCharacteristicsOfPrimaryPointingDevice()),
 //     and Playwright only offers `hasTouch`, which flips BOTH to (hover: none)+(pointer: coarse). So desktop (hover, fine)
@@ -43,6 +46,11 @@ import { chromium, webkit } from 'playwright-core';
 const CHROME_DEFAULT = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 /** Whole CSS px the engine is asked for: the width itself, or the next whole px for a fractional width. */
 const hostWidth = (env) => Math.ceil(env.width);
+/** The emulated size of a WebKit live resize: the viewport and, kept apart from it, the screen (golden/gate/webkit-screen.jsonl). */
+export const webkitEmulatedSize = (env) => ({
+  viewport: { width: env.width, height: env.height },
+  screen: { width: Math.round(env.deviceWidth), height: Math.round(env.deviceHeight) },
+});
 /** The instant the page clock is frozen at: page.mjs PIN_SRC pins Date to the same one. */
 const CLOCK_T0 = Date.parse('2026-10-01T00:00:00+07:00');
 /** Real ms a frame confirmation may take before it answers false. */
@@ -160,7 +168,17 @@ export async function launchWebkit() {
       const frame = page.mainFrame();
       return {
         evaluate: (fn, arg) => frame.evaluate(fn, arg),
-        async resize(next) { await page.setViewportSize({ width: next.width, height: next.height }); },
+        async resize(next) {
+          // The server-side Page of this in-process Playwright (the same call a window.open popup makes with its inherited
+          // size); without it the plain viewport call is the fallback and the gate reports the stop not achieved.
+          const impl = page._connection?.toImpl?.(page);
+          if (!impl?.setEmulatedSizeFromWindowOpen || !impl.delegate?.updateEmulatedViewportSize) {
+            await page.setViewportSize({ width: next.width, height: next.height });
+            return;
+          }
+          impl.setEmulatedSizeFromWindowOpen(webkitEmulatedSize(next));
+          await impl.delegate.updateEmulatedViewportSize();
+        },
         async mouse(x, y) { await page.mouse.move(x, y); },
         ...(clock ? { advance: clock.advance, holdTo: clock.holdTo, clockMs: clock.clockMs } : {}),
         async close() { await context.close(); },
