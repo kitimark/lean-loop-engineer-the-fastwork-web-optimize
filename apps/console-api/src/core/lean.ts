@@ -10,7 +10,7 @@
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { loadavg } from "node:os";
+import { cpus, loadavg } from "node:os";
 import { createInterface } from "node:readline";
 import { z } from "zod";
 import { ApplyResponse, Board, LiveBoard, Card, Outcome, Run, Step, type ReducerEvent, type State } from "@fw/contracts";
@@ -62,10 +62,11 @@ export const REPLAY_TIMEOUT_MS = 120_000;
 
 /** What to do when a call misses its deadline: `Fw.Obs.Backoff.onTimeout` (op `obs.backoff`; golden
  *  packages/contracts/golden/obs/backoff.jsonl). TS stand-in: the timeout path cannot ask the busy child, so the rule is
- *  run here and checked against the Lean golden by test/backoff.test.ts. Under load (>= loadHigh) a call waits (1+extra)
- *  base deadlines before the child is killed (a kill forces a full log replay, which adds load). */
-export function backoffDecision(load: number, baseMs: number, waitedMs: number, loadHigh = 50, extra = 2): { action: "restart" | "wait"; waitMs: number } {
-  const total = loadHigh <= load ? (1 + extra) * baseMs : baseMs;
+ *  run here and checked against the Lean golden by test/backoff.test.ts. The machine is loaded when the floor of its
+ *  1-min load average is at least its core count (a count of 0 reads as 1); a loaded call waits (1+extra) base deadlines
+ *  before the child is killed (a kill forces a full log replay, which adds load). */
+export function backoffDecision(cores: number, load: number, baseMs: number, waitedMs: number, extra = 2): { action: "restart" | "wait"; waitMs: number } {
+  const total = Math.max(1, cores) <= load ? (1 + extra) * baseMs : baseMs;
   return waitedMs < total ? { action: "wait", waitMs: total - waitedMs } : { action: "restart", waitMs: 0 };
 }
 
@@ -91,8 +92,10 @@ export class LeanCore implements Core {
   get binPath(): string { return this.bin.path; }
   private onIncident: (i: Incident) => void;
   private callTimeoutMs: number;
-  /** the floor of the 1-min load average (the input of `backoffDecision`) */
+  /** the floor of the 1-min load average (an input of `backoffDecision`) */
   private loadFloor: () => number = () => Math.floor(loadavg()[0] ?? 0);
+  /** the CPU core count (an input of `backoffDecision`) */
+  private coreCount: () => number = () => cpus().length;
 
   constructor(bin: LeanBin, onIncident: (i: Incident) => void = (i) => console.error("fwcore incident:", JSON.stringify(i)),
     callTimeoutMs = CALL_TIMEOUT_MS) {
@@ -186,7 +189,7 @@ export class LeanCore implements Core {
     return new Promise((ok, err) => {
       const id = this.nextId++;
       const fire = (waited: number) => {
-        const d = backoffDecision(this.loadFloor(), timeoutMs, waited);
+        const d = backoffDecision(this.coreCount(), this.loadFloor(), timeoutMs, waited);
         const p = this.pending.get(id);
         if (d.action === "wait" && p) {
           this.incident("timeout", `call ${id} unanswered after ${waited} ms at load; waiting ${d.waitMs} ms more before a restart`);
@@ -204,9 +207,14 @@ export class LeanCore implements Core {
     });
   }
 
-  private call(op: string, fields: Record<string, unknown>): Promise<Record<string, unknown>> {
-    let child: ChildProcessWithoutNullStreams;
-    try { child = this.ensure(); } catch (e) { return Promise.reject(e as Error); }
+  /** A call is written (and its timer started) only after the replay into its child has settled: its deadline covers
+   *  the call, not the queue behind a replay that may take longer than the deadline. Every call hops once through the
+   *  same promise, so calls are still written in the order they were made. */
+  private async call(op: string, fields: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const child = this.ensure();
+    const ready = this.replayDone;
+    await ready; // a failed replay rejects here, with the replay's error
+    if (this.child !== child) throw new Error("fwcore crashed while the log was replayed; it restarts on the next call");
     return this.send(child, JSON.stringify({ op, ...fields }).slice(1, -1));
   }
 
@@ -266,6 +274,9 @@ export class LeanCore implements Core {
       await new Promise((r) => setImmediate(r));
     }
   }
+
+  /** test hook: replace the core count of the timeout rule */
+  coresForTest(f: () => number) { this.coreCount = f; }
 
   /** test hook: replace the load reading of the timeout rule */
   loadForTest(f: () => number) { this.loadFloor = f; }

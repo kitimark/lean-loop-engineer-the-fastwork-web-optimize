@@ -97,6 +97,7 @@ require("readline").createInterface({ input: process.stdin }).on("line", (l) => 
     const incidents: Incident[] = [];
     core = selectCore(fake("() => null"), undefined, (i) => incidents.push(i), DEADLINE_MS);
     await core.open(() => []);
+    core.coresForTest(() => 8);
     core.loadForTest(() => 0); // not loaded: restart at the first deadline (Fw.Obs.Backoff)
     const t0 = Date.now();
     await expect(core.apply(open)).rejects.toThrow(new RegExp(`timed out after ${DEADLINE_MS} ms`));
@@ -108,6 +109,7 @@ require("readline").createInterface({ input: process.stdin }).on("line", (l) => 
     const log = [JSON.stringify({ ...open, seq: 1 })];
     core = selectCore(process.env, undefined, () => undefined, CALL_MS);
     await core.open(() => log);
+    core.coresForTest(() => 8);
     core.loadForTest(() => 0);
     await core.stopForTest(); // frozen child never answers
     core.callTimeoutForTest(DEADLINE_MS);
@@ -120,11 +122,35 @@ require("readline").createInterface({ input: process.stdin }).on("line", (l) => 
     const incidents: Incident[] = [];
     core = selectCore(fake("() => null"), undefined, (i) => incidents.push(i), DEADLINE_MS);
     await core.open(() => []);
+    core.coresForTest(() => 8);
     core.loadForTest(() => 115);
     const t0 = Date.now();
     await expect(core.apply(open)).rejects.toThrow(new RegExp(`timed out after ${3 * DEADLINE_MS} ms`));
     expect(Date.now() - t0).toBeGreaterThanOrEqual(3 * DEADLINE_MS - 50);
     expect(core.restarts).toBe(1);
     expect(incidents.filter((i) => i.kind === "timeout").length).toBe(2);
+  });
+  it("a call made during a replay longer than the call deadline does not time out behind it (no restart loop)", async () => {
+    // fake core: answers console.replay after 2 deadlines, everything else at once
+    const f = join(mkdtempSync(join(tmpdir(), "fw-fake-")), "fwcore");
+    writeFileSync(f, `#!/usr/bin/env node
+require("readline").createInterface({ input: process.stdin }).on("line", (l) => {
+  const m = JSON.parse(l);
+  const r = m.op === "console.replay" ? { id: m.id, replayed: { accepted: 0, duplicate: 0, refused: 0 } } : { id: m.id, board: null, outcome: { accepted: true, duplicate: false }, changed: { cards: [], steps: [], runs: [] } };
+  setTimeout(() => console.log(JSON.stringify(r)), m.op === "console.replay" ? ${2 * DEADLINE_MS} : 0);
+});
+`);
+    chmodSync(f, 0o755);
+    const incidents: Incident[] = [];
+    core = selectCore({ ...process.env, FW_CORE_BIN: f }, undefined, (i) => incidents.push(i), DEADLINE_MS);
+    core.coresForTest(() => 8);
+    core.loadForTest(() => 0); // not loaded: a call unanswered at its deadline would kill the child at once
+    const opened = core.open(() => [JSON.stringify({ ...open, seq: 1 })]);
+    const applied = core.apply(open); // queued behind the replay: its timer starts when the replay settles
+    await expect(opened).resolves.toMatchObject({ accepted: 0 });
+    expect((await applied).outcome).toEqual({ accepted: true, duplicate: false });
+    expect(core.restarts).toBe(0);
+    expect(core.replays).toBe(1);
+    expect(incidents.filter((i) => i.kind === "timeout")).toEqual([]);
   });
 });

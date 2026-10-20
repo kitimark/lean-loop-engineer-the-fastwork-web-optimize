@@ -354,39 +354,44 @@ def fileText (_ : Unit := ()) : String :=
     (Json.mkObj [("name", .str name), ("request", withOp "obs.health" req),
       ("response", respond "obs.health" req)]).compress ++ "\n")
 
-/-- An `obs.backoff` case: name, thresholds, load, base deadline, ms already waited. -/
+/-- An `obs.backoff` case: name, params, core count, load, base deadline, ms already waited. -/
 structure BackoffCase where
   name   : String
   p      : Fw.Obs.Backoff.Params := {}
+  cores  : Nat := 8
   load   : Nat
   base   : Nat := 10000
   waited : Nat := 10000
   noParams : Bool := false
 
-/-- The `obs.backoff` cases: both sides of `loadHigh`, the wait, the restart after it, and the edges of the total. -/
+/-- The `obs.backoff` cases: both sides of `load = cores`, the wait, the restart after it, and the edges of the total. -/
 def backoffCases : List BackoffCase := [
   { name := "not loaded (load 3): a call that missed its 10 s deadline restarts the child", load := 3 },
-  { name := "load 49, one under loadHigh 50: restart at the first deadline", load := 49 },
-  { name := "load 50 = loadHigh: wait 20 s more (total 30 s) instead of killing", load := 50 },
+  { name := "8 cores, load 7, one under the core count: restart at the first deadline", load := 7 },
+  { name := "8 cores, load 8 = cores: wait 20 s more (total 30 s) instead of killing", load := 8 },
+  { name := "8 cores, load 10 (the 2026-10-20 replay incident): wait 20 s more", load := 10 },
+  { name := "2 cores, load 2: wait 20 s more", cores := 2, load := 2 },
+  { name := "64 cores, load 50: not loaded, restart", cores := 64, load := 50 },
+  { name := "0 cores reads as 1: load 1 waits", cores := 0, load := 1 },
   { name := "load 115 (the sweepError storm): wait 20 s more", load := 115 },
   { name := "load 115, waited the whole 30 s: restart", load := 115, waited := 30000 },
   { name := "load 115, waited 29.999 s: wait the last 1 ms", load := 115, waited := 29999 },
   { name := "load fell to 3 while waiting: restart at once", load := 3, waited := 20000 },
   { name := "replay chunk (base 120 s), load 115: wait 240 s more", load := 115, base := 120000, waited := 120000 },
-  { name := "no params in the request: the defaults loadHigh 50, extra 2 apply", load := 115, noParams := true },
+  { name := "no params in the request: the default extra 2 applies", load := 115, noParams := true },
   { name := "extra 0: loaded or not, restart at the first deadline", p := { extra := 0 }, load := 115 },
-  { name := "loadHigh 10, extra 5, base 1 s, load 10: wait 5 s more", p := { loadHigh := 10, extra := 5 }, load := 10, base := 1000, waited := 1000 }]
+  { name := "extra 5, base 1 s, 10 cores, load 10: wait 5 s more", p := { extra := 5 }, cores := 10, load := 10, base := 1000, waited := 1000 }]
 
 /-- The text of the `obs.backoff` golden file. -/
 def backoffText : String :=
   String.join (backoffCases.map fun c =>
     let params := if c.noParams then [] else
-      [("params", Json.mkObj [("loadHigh", toJson c.p.loadHigh), ("extra", toJson c.p.extra)])]
+      [("params", Json.mkObj [("extra", toJson c.p.extra)])]
     let req := Json.mkObj ([("op", .str "obs.backoff")] ++ params ++
-      [("load", toJson c.load), ("baseMs", toJson c.base), ("waitedMs", toJson c.waited)])
+      [("cores", toJson c.cores), ("load", toJson c.load), ("baseMs", toJson c.base), ("waitedMs", toJson c.waited)])
     (Json.mkObj [("name", .str c.name), ("request", req),
       ("response", Json.mkObj (Fw.Wire.Obs.Backoff.decisionJson
-        (Fw.Obs.Backoff.onTimeout c.p c.load c.base c.waited)))]).compress ++ "\n")
+        (Fw.Obs.Backoff.onTimeout c.p c.cores c.load c.base c.waited)))]).compress ++ "\n")
 
 /-- The `obs.backoff` golden file, relative to `lean/`. -/
 def backoffPath : System.FilePath := ".." / "packages" / "contracts" / "golden" / "obs" / "backoff.jsonl"

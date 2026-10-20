@@ -46,3 +46,15 @@ no new Terminal window. Read the result with `pnpm fw console status` and `pnpm 
 - launchd or login items are out of scope: after a reboot, run `pnpm fw console start --lan` once.
 - A same-UID process can read `console.log` (it holds no secret) and can signal the pid itself; this is not a boundary.
 - TS stand-ins: none for decisions. The spawn, the signal, the health request and the file reads are unproved glue.
+
+## fwcore calls, replay and timeouts
+
+- A fresh fwcore child first replays the whole log (`console.replay`, 120 s per chunk). A call made during the replay is
+  written only after the replay settles, so its 10 s deadline (`CALL_TIMEOUT_MS`) covers the call, never the queue.
+  Measured 2026-10-20 (local debug run): 14,460 real events replay in 0.14 s (was 12.8 s); 4x in 0.6 s.
+- The deadline rule is `Fw.Obs.Backoff.onTimeout` (op `obs.backoff`, golden `packages/contracts/golden/obs/backoff.jsonl`).
+  A machine is loaded when the floor of its 1-min load average is at least `os.cpus().length`; a loaded call waits
+  3 base deadlines before the kill, an unloaded one is killed at the first. TS stand-in: `backoffDecision` in
+  `apps/console-api/src/core/lean.ts`, checked against the golden by `test/backoff.test.ts`.
+- `FW_CORE_CALL_MS` is no longer needed as a mitigation.
+

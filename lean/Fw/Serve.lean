@@ -3,6 +3,7 @@ import Fw.Console
 import Fw.Board
 import Fw.Wire
 import Fw.Wire.Plan
+import Fw.Plan.Fast
 /-!
 # `fwcore serve`: the stateful console session (PLAN §3.2, the `TS → fwcore` row)
 
@@ -25,7 +26,8 @@ writes the reply.
   proved equal to `Fw.Console.board` (`fastBoard_eq`).
 
 Measured (`lake test`, console-api `test/serve.test.ts`): 100k synthetic events replay in ≈0.4 s
-through console-api, apply round trip ≈40 µs, query ≈40 ms on that state.
+through console-api, apply round trip ≈40 µs, query ≈40 ms on that state. The real log (14,460 events, 2026-10-20)
+replays in ≈0.14 s, 4× that in ≈0.6 s (`Fw.Plan.Fast`: no whole-graph cycle pass per `task.define`).
 
 The JSON codecs and the IO loop are in `Fw.Wire.Serve` (glue, outside the math view).
 -/
@@ -230,7 +232,7 @@ end Tbl
 /-! ## The server state -/
 
 /-- The server state: the seen keys (a list, newest first, and a hash set), the three tables and
-the plan (the work graph, kept as the console keeps it).
+the plan (the work graph; its spawn, stop, mark and label lists are stored newest first, see `Fw.Plan.unrev`).
 -/
 structure Srv where
   seen  : List String
@@ -242,18 +244,21 @@ structure Srv where
 
 /-- The console state a server state stands for. -/
 def Srv.st (v : Srv) : State :=
-  ⟨v.seen, v.cards.rows.toList, v.steps.rows.toList, v.runs.rows.toList, v.plan⟩
+  ⟨v.seen, v.cards.rows.toList, v.steps.rows.toList, v.runs.rows.toList, Fw.Plan.unrev v.plan⟩
 
 /-- The initial server state. -/
 def init : Srv := ⟨[], {}, .empty, .empty, .empty, {}⟩
 
-/-- The indexes agree with the rows: the key set is the seen list, and every table is exact for its id. -/
+/-- The indexes agree with the rows: the key set is the seen list, every table is exact for its id, and the plan holds its
+invariant (unique task ids, acyclic graph), which the fast cycle test of `fcheck` relies on.
+-/
 def Indexed (v : Srv) : Prop :=
-  (∀ k, v.keys.contains k = v.seen.contains k) ∧ v.cards.Ok Card.id ∧ v.steps.Ok Step.id ∧ v.runs.Ok Run.id
+  (∀ k, v.keys.contains k = v.seen.contains k) ∧ v.cards.Ok Card.id ∧ v.steps.Ok Step.id ∧ v.runs.Ok Run.id ∧
+    Fw.Plan.Inv v.plan
 
 /-- The initial server state is indexed and stands for the empty console state. -/
 theorem init_spec : Indexed init ∧ init.st = {} :=
-  ⟨⟨by intro k; simp [init], Tbl.empty_ok, Tbl.empty_ok, Tbl.empty_ok⟩, rfl⟩
+  ⟨⟨by intro k; simp [init], Tbl.empty_ok, Tbl.empty_ok, Tbl.empty_ok, Fw.Plan.inv_init⟩, rfl⟩
 
 /-- `check` with index lookups instead of list scans (same cases, same reasons, same order). -/
 def fcheck (v : Srv) (e : Event) : Option String :=
@@ -276,7 +281,7 @@ def fcheck (v : Srv) (e : Event) : Option String :=
     match v.runs.get? r with
     | none => some "no such run"
     | some run => if run.status = .running then none else some "run already finished"
-  | .plan c => Fw.Plan.check v.plan c
+  | .plan c => Fw.Plan.checkFast v.plan c
   | b => match cardOf b with
     | none => none
     | some id => match v.cards.get? id with
@@ -310,7 +315,7 @@ def faccept (v : Srv) (e : Event) : Srv :=
     match runs.get? r with
     | some run => ⟨seen, keys, cards.modify run.card (touch t), steps, runs.modify r (runFin ok), plan⟩
     | none => ⟨seen, keys, cards, steps, runs, plan⟩
-  | .plan c => ⟨seen, keys, cards, steps, runs, Fw.Plan.exec plan c⟩
+  | .plan c => ⟨seen, keys, cards, steps, runs, Fw.Plan.execR plan c⟩
   | b => match cardOf b with
     | some id => ⟨seen, keys, cards.modify id (cardStep t b), steps, runs, plan⟩
     | none => ⟨seen, keys, cards, steps, runs, plan⟩
@@ -346,22 +351,24 @@ theorem cardStep_id (t : Nat) (b : Body) (c : Card) : (cardStep t b c).id = c.id
 
 /-- On an indexed server, `fcheck` gives the same answer as `check` on the console state. -/
 theorem fcheck_eq {v : Srv} (h : Indexed v) (e : Event) : fcheck v e = check v.st e := by
-  obtain ⟨_, hc, hs, hr⟩ := h
+  obtain ⟨_, hc, hs, hr, hp⟩ := h
   cases e with
   | mk key ts actor body =>
     cases body <;>
       simp only [fcheck, check, Srv.st, Tbl.has_eq hc, Tbl.has_eq hs, Tbl.has_eq hr, Tbl.get?_eq hc,
         Tbl.get?_eq hs, Tbl.get?_eq hr]
+    case plan c => simp only [Fw.Plan.checkFast_eq hp.2 c, Fw.Plan.check_unrev]
     all_goals rfl
 
 /-- On an indexed server, `faccept` stands for `accept` on the console state. -/
 theorem faccept_st {v : Srv} (h : Indexed v) (e : Event) : (faccept v e).st = accept v.st e := by
-  obtain ⟨_, hc, hs, hr⟩ := h
+  obtain ⟨_, hc, hs, hr, hp⟩ := h
   cases e with
   | mk key ts actor body =>
     cases body <;>
       simp only [faccept, accept, Srv.st, Tbl.push_rows, Tbl.modify_rows hc, Tbl.modify_rows hs,
         Tbl.get?_eq hr, mapCards, mapSteps, stepUpd, cardOf]
+    case plan c => simp only [Fw.Plan.unrev_execR]
     case runFinish r ok =>
       cases hf : List.find? (fun x => x.id == r) v.runs.rows.toList with
       | none => rfl
@@ -372,7 +379,7 @@ and every in-place edit keeps the row's id).
 -/
 theorem faccept_indexed {v : Srv} (h : Indexed v) (e : Event) (hn : fcheck v e = none) :
     Indexed (faccept v e) := by
-  obtain ⟨hk, hc, hs, hr⟩ := h
+  obtain ⟨hk, hc, hs, hr, hp⟩ := h
   have mc : ∀ k (f : Card → Card), (∀ x, (f x).id = x.id) → Tbl.Ok Card.id (v.cards.modify k f) :=
     fun k _ hf => Tbl.modify_ok hc k hf
   have ms : ∀ t k (f : Step → Step), (∀ x, (f x).id = x.id) →
@@ -387,14 +394,14 @@ theorem faccept_indexed {v : Srv} (h : Indexed v) (e : Event) (hn : fcheck v e =
       · cases hn
       · split at hn
         · cases hn
-        · exact ⟨hk, Tbl.push_ok hc (Bool.eq_false_iff.mpr ‹¬ v.cards.has id = true›), hs, hr⟩
+        · exact ⟨hk, Tbl.push_ok hc (Bool.eq_false_iff.mpr ‹¬ v.cards.has id = true›), hs, hr, hp⟩
     | stepPost id card title kind opts =>
       simp only [fcheck] at hn
       split at hn
       · cases hn
       · split at hn
         · cases hn
-        · exact ⟨hk, hc, Tbl.push_ok hs (Bool.eq_false_iff.mpr ‹¬ v.steps.has id = true›), hr⟩
+        · exact ⟨hk, hc, Tbl.push_ok hs (Bool.eq_false_iff.mpr ‹¬ v.steps.has id = true›), hr, hp⟩
     | runStart r card kind =>
       simp only [fcheck] at hn
       split at hn
@@ -403,18 +410,22 @@ theorem faccept_indexed {v : Srv} (h : Indexed v) (e : Event) (hn : fcheck v e =
         · cases hn
         · split at hn
           · cases hn
-          · exact ⟨hk, mc _ _ (fun _ => rfl), hs, Tbl.push_ok hr (Bool.eq_false_iff.mpr ‹¬ v.runs.has r = true›)⟩
+          · exact ⟨hk, mc _ _ (fun _ => rfl), hs, Tbl.push_ok hr (Bool.eq_false_iff.mpr ‹¬ v.runs.has r = true›), hp⟩
     | runFinish r ok =>
       simp only [faccept]
       split
-      · exact ⟨hk, mc _ _ (fun _ => rfl), hs, Tbl.modify_ok hr _ (fun _ => rfl)⟩
-      · exact ⟨hk, hc, hs, hr⟩
-    | stepStart id => exact ⟨hk, hc, ms _ _ _ (fun _ => rfl), hr⟩
-    | stepAnswer id a => exact ⟨hk, hc, ms _ _ _ (fun _ => rfl), hr⟩
-    | stepDone id => exact ⟨hk, hc, ms _ _ _ (fun _ => rfl), hr⟩
-    | stepCancel id => exact ⟨hk, hc, ms _ _ _ (fun _ => rfl), hr⟩
-    | plan c => exact ⟨hk, hc, hs, hr⟩
-    | _ => exact ⟨hk, mc _ _ (cardStep_id _ _), hs, hr⟩
+      · exact ⟨hk, mc _ _ (fun _ => rfl), hs, Tbl.modify_ok hr _ (fun _ => rfl), hp⟩
+      · exact ⟨hk, hc, hs, hr, hp⟩
+    | stepStart id => exact ⟨hk, hc, ms _ _ _ (fun _ => rfl), hr, hp⟩
+    | stepAnswer id a => exact ⟨hk, hc, ms _ _ _ (fun _ => rfl), hr, hp⟩
+    | stepDone id => exact ⟨hk, hc, ms _ _ _ (fun _ => rfl), hr, hp⟩
+    | stepCancel id => exact ⟨hk, hc, ms _ _ _ (fun _ => rfl), hr, hp⟩
+    | plan c =>
+      simp only [fcheck] at hn
+      split at hn
+      · cases hn
+      · exact ⟨hk, hc, hs, hr, (Fw.Plan.inv_unrev (Fw.Plan.execR v.plan c)).mp (by rw [Fw.Plan.unrev_execR]; exact Fw.Plan.exec_inv ((Fw.Plan.inv_unrev _).mpr hp) (by rw [Fw.Plan.check_unrev, ← Fw.Plan.checkFast_eq hp.2 c]; exact hn))⟩
+    | _ => exact ⟨hk, mc _ _ (cardStep_id _ _), hs, hr, hp⟩
 
 /-- On an indexed server, `fstep` gives exactly the console state and the outcome of `step`. -/
 theorem fstep_spec {v : Srv} (h : Indexed v) (e : Event) :
@@ -443,8 +454,8 @@ theorem fstep_indexed {v : Srv} (h : Indexed v) (e : Event) : Indexed (fstep v e
   · split
     · exact h
     · rename_i hn
-      obtain ⟨_, hc, hs, hr⟩ := faccept_indexed h e hn
-      refine ⟨?_, hc, hs, hr⟩
+      obtain ⟨_, hc, hs, hr, hp⟩ := faccept_indexed h e hn
+      refine ⟨?_, hc, hs, hr, hp⟩
       intro k
       simp only [Std.HashSet.contains_insert, List.contains_cons]
       cases hk : (e.key == k) <;> cases hk' : (k == e.key) <;> simp_all [beq_iff_eq]
@@ -503,7 +514,7 @@ def ftouched (v : Srv) (e : Event) : Delta :=
 
 /-- On an indexed server, `ftouched` is `touched` of the console state. -/
 theorem ftouched_eq {v : Srv} (h : Indexed v) (e : Event) : ftouched v e = touched v.st e := by
-  obtain ⟨_, hc, hs, hr⟩ := h
+  obtain ⟨_, hc, hs, hr, hp⟩ := h
   cases e with
   | mk key ts actor body =>
     cases body <;>
