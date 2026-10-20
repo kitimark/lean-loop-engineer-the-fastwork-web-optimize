@@ -11882,7 +11882,8 @@
     "apps/runner/test/land-sha*.test.ts",
     "docs/team/tools/land.md",
     "docs/team/handoffs/land-sha-pin.md"
-   ]
+   ],
+   "evidence": "d92bd3d"
   },
   {
    "devices": [

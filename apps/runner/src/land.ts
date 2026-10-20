@@ -537,7 +537,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     }
   }
   const sha = git(o.cwd, ["rev-parse", `refs/heads/${branch}`]);
-  const behind = !tryGit(o.cwd, ["merge-base", "--is-ancestor", main, branch]);
+  const behind = !tryGit(o.cwd, ["merge-base", "--is-ancestor", main, sha]);
   if (o.dry && behind) return fail(`${branch} does not contain ${main}: merge ${main} into it (git merge ${main}) and run the dry land again; a stale base can carry another task's diff into the scope check`, "stale", outcome({ fresh: false }));
   // no commit of its own (the tip is already in main): nothing to land. Lean `Outcome.first` (after `stale`): VERDICT empty, exit 0.
   if (o.dry && tryGit(o.cwd, ["merge-base", "--is-ancestor", sha, main])) {
@@ -570,7 +570,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       stream = row?.stream ?? stream;
     } catch { /* no work graph file: no writes */ }
   }
-  const changed = git(o.cwd, ["diff", "--name-only", `${main}...${branch}`]).split("\n").filter(Boolean);
+  const changed = git(o.cwd, ["diff", "--name-only", `${main}...${sha}`]).split("\n").filter(Boolean);
   const allow = o.allow ?? [];
   const sc = await o.http.post("/api/ops/land-scope", { writes, names: [o.task, task?.owner].filter(Boolean), allow, paths: changed, task: o.task ?? "", stream });
   if (sc.status !== 200) return fail(`scope check unavailable: ${sc.body.reason ?? sc.status}`);
