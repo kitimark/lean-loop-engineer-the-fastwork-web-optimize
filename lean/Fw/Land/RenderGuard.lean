@@ -1,6 +1,6 @@
 /-!
 # Render guard: `fw land` refuses a branch whose history writes a media file outside `snapshot/`
-Op `console.landRenderGuard` over the `git log -z --name-status` tokens of `main..branch`; golden `golden/land/render-guard.jsonl`.
+Op `console.landRenderGuard` over the `git log -z --name-status` tokens of `main..tip`; golden `golden/land/render-guard.jsonl`.
 -/
 namespace Fw.Land.RenderGuard
 
@@ -20,12 +20,12 @@ def table : List (String × Media) :=
   (["mp4", "m4v", "webm", "mov", "mkv", "avi", "ogv", "mpg", "mpeg", "wmv", "flv", "3gp", "3g2"].map (·, Media.video)) ++
   (["mp3", "wav", "ogg", "oga", "m4a", "aac", "flac", "opus", "weba", "aif", "aiff", "mid", "midi", "wma", "amr"].map (·, Media.audio))
 
-/-- The lower-case text after the last `.` of the last path segment, or `""` when that segment has no `.`. -/
+/-- The lower-case text after the last `.` of the last path segment without its trailing white space, or `""` when that segment has no `.`. -/
 def ext (p : String) : String :=
   let base := ((p.splitOn "/").getLast?).getD p
   match base.splitOn "." with
   | [] | [_] => ""
-  | parts => (parts.getLast?.getD "").toLower
+  | parts => (parts.getLast?.getD "").trimAsciiEnd.toString.toLower
 
 /-- The media class of a path, decided by its extension alone. -/
 def mediaOf (p : String) : Option Media := table.lookup (ext p)
@@ -122,13 +122,18 @@ theorem refusal_survives_later (al : List Allow) (a later : List Change) (h : re
 theorem removal_hits_none (al : List Allow) (c : Change) (h : c.status = .removed) : hit? al c = none := by
   simp [hit?, h, Status.writes]
 
+theorem removals_hit_nothing (al : List Allow) (rm : List Change) (h : ∀ c ∈ rm, c.status = .removed) :
+    hits al rm = [] := by
+  simp only [hits, List.filterMap_eq_nil_iff]
+  intro c hc; exact removal_hits_none al c (h c hc)
+
 theorem removal_keeps_refusal (al : List Allow) (a rm : List Change) (h : ∀ c ∈ rm, c.status = .removed) :
     hits al (a ++ rm) = hits al a := by
-  rw [hits_append]
-  have : hits al rm = [] := by
-    simp only [hits, List.filterMap_eq_nil_iff]
-    intro c hc; exact removal_hits_none al c (h c hc)
-  simp [this]
+  simp [hits_append, removals_hit_nothing al rm h]
+
+theorem removal_keeps_refusal_prefix (al : List Allow) (rm a : List Change) (h : ∀ c ∈ rm, c.status = .removed) :
+    hits al (rm ++ a) = hits al a := by
+  simp [hits_append, removals_hit_nothing al rm h]
 
 theorem allowed_hit_none (al : List Allow) (c : Change) (h : al.any (·.covers c.path) = true) : hit? al c = none := by
   simp [hit?, h]
@@ -172,6 +177,7 @@ theorem under_covers (d r p : String) (h : p.startsWith (d ++ "/") = true) : (Al
 #guard ext "results/a.PNG" == "png"
 #guard ext "a.b/Makefile" == ""
 #guard ext "x.png.gz" == "gz"
+#guard ext "results/hero.png " == "png"
 #guard mediaOf "apps/site/public/f.woff2" == some .font
 #guard mediaOf "docs/a.md" == none
 #guard mediaOf "apps/x.ts" == none

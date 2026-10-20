@@ -916,6 +916,7 @@ def renderGuardCases (_ : Unit := ()) : List (String × Json) := [
   ("a lookalike snapshots/ directory: refused", rgReq ["commit c1", "\nA", "snapshots/a.png", ""]),
   ("snapshot/ nested below another directory: refused", rgReq ["commit c1", "\nA", "results/snapshot/a.png", ""]),
   ("upper-case extension: refused", rgReq ["commit c1", "\nA", "results/A.JPG", ""]),
+  ("a trailing space after the extension: refused", rgReq ["commit c1", "\nA", "results/hero.png ", ""]),
   ("font, video and audio: each refused", rgReq ["commit c1", "\nA", "a/f.ttf", "A", "b/v.mp4", "A", "c/s.wav", ""]),
   ("a modified media path: refused", rgReq ["commit c1", "\nM", "results/a.webp", ""]),
   ("a type change to a media path: refused", rgReq ["commit c1", "\nT", "results/a.svg", ""]),

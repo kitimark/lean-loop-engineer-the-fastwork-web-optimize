@@ -63,7 +63,7 @@ imports it, so it decodes the card fields it needs itself).
 | `console.landRemote` | `localOk`, `needed`, `allow` [`github`/`circleci`, preference order], `want` {sha, laneId, laneDigest}, `waitsLeft`, `runs` [{provider, sha, laneId, laneDigest, state (`queued`/`running`/`pass`/`fail`/`cancelled`/`timeout`/`unavailable`)}] | `kind` (`accept`/`refuse`/`wait`/`try`/`local`), `reason` (the word on the VERDICT line), `ok`, `provider` (the one to try, else null) (`Fw.Console.LandRemote.verdict`) |
 | `console.landLaneState` | `exit` (`fw ci wait` exit code), `timedOut`? (its output said `timed out after`), `status`? and `conclusion`? (the run's own, from `gh run view`; empty when no view) | `state` (`Fw.Console.LandRemote.laneState`: a completed run with conclusion failure is `fail` whatever the exit; else the waiter's outcome) |
 | `console.landDigest` | `ids` [remote check ids] | `digest` (`Fw.Console.LandRemote.laneDigest`, tier remote) |
-| `console.landRenderGuard` | `tokens` [the NUL-separated fields of the `main..branch` name-status log, `Fw.Land.RenderGuard.parse`] | `refuse`, `hits` [{commit, path, media}] (`Fw.Land.RenderGuard.guard`) |
+| `console.landRenderGuard` | `tokens` [the NUL-separated fields of the `main..tip` name-status log of the pinned branch tip, `Fw.Land.RenderGuard.parse`] | `refuse`, `hits` [{commit, path, media}] (`Fw.Land.RenderGuard.guard`) |
 | `console.previewCache` | `path` (the request path, no query), `manifest`? [names] (the rewrite build's `.vite/manifest.json` `file`/`css`/`assets` entries, each as `/<name>`) | `kind` (`hashed`/`html`/`other`), `cacheControl`, `immutable`, `compress` (`Fw.Console.PreviewCache.kind`, `cacheControl`, `compressible`) |
 | `console.builds` | `main` (main's sha), `log` [{sha, time, body}] (main's first-parent log, newest first), `known` [{id, title}] (the work graph), `evidence`? [{task, sha}] (a work-graph task whose evidence commit is on main: sha = its land commit on main's first-parent line), `flags` [{part, variant, kind, requires? [keys]}], `presets` [{name, fw {part: variant}}] (fw with `extends` already resolved) | `ports` [{id, task, group, sha, landedAt, title, slot, search, target}], `optimize` [{id, kind, name, search, status, note, slot, target}], `searches` (`Fw.Console.Builds.portRows`, `optRows`, `enumerate`) |
 | `console.buildsPicker` | `keys` (the `bySearch` keys of a build), `current`? | `searches` (the picker list), `current` (the search the compare view loads) (`Fw.Console.Builds.picker`, `choose`) |
@@ -315,7 +315,7 @@ def opLandDigest (req : Json) : Except String Reply := do
   pure [("digest", .str (laneDigest .onCi (← strsD req "ids")))]
 
 open Fw.Land.RenderGuard in
-/-- `console.landRenderGuard`: the media paths outside `snapshot/` that `main..branch` writes (`Fw.Land.RenderGuard.guard`). -/
+/-- `console.landRenderGuard`: the media paths outside `snapshot/` that `main..tip` writes (`Fw.Land.RenderGuard.guard`). -/
 def opLandRenderGuard (req : Json) : Except String Reply := do
   let ts ← (← arr req "tokens").toList.mapM (asStr "tokens")
   let hs := guard ts
