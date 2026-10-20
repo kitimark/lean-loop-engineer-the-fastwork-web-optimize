@@ -17,7 +17,11 @@ export function checkGraph(text: string): string[] {
   for (const m of g.milestones) { try { syncCommands({ milestones: [m], tasks: [] }); } catch (e) { why(`milestone ${m.id}`, e); } }
   // one task at a time (its deps stood in by bare stubs), so a task's own field failure is named by its id
   const stub = (id: string) => ({ id, title: "stub", stream: "s", owner: "o", deps: [] as string[] });
-  for (const t of g.tasks) {
+  const seen = new Set<string>();
+  for (const [i, t] of g.tasks.entries()) {
+    if (typeof t !== "object" || t === null || Array.isArray(t)) { out.push(`<graph>: tasks[${i}]: not an object`); continue; }
+    if (seen.has(String(t.id))) out.push(`${String(t.id)}: id: duplicate task id`);
+    seen.add(String(t.id));
     const deps = Array.isArray(t.deps) ? t.deps.filter((d) => d !== t.id) : [];
     try { syncCommands({ milestones: [], tasks: [...new Set(deps)].map(stub).concat({ ...t, deps }) }); } catch (e) { why(String(t.id), e); }
   }

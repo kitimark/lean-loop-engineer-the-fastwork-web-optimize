@@ -25,6 +25,8 @@ def checkCases : List (String × String × Json) := [
     paths ["snapshot/site/__vendor/x/gtm.js.__q_141790bd5c", "snapshot/site/a.js", "research/kickoff/05-lean-sketch/Fw.lean",
       "research/kickoff/05-lean-sketch/lean-toolchain", "research/kickoff/a.json"]),
   ("ops.checkMap", "unmapped: an unknown extension and an unknown extensionless name", paths ["x.unknownext", "Makefile", "a.mjs"]),
+  ("ops.checkMap", "the work graph gets the graph schema check, the findings ledger the preset check, other JSON a parse",
+    paths ["docs/team/work-graph.json", "research/findings/ledger.json", "docs/team/incidents/ledger.json"]),
   ("ops.checkMap", "no paths: no commands", paths []),
   ("ops.checkMap", "paths missing: refused", Json.mkObj []),
   ("ops.checkVerdict", "all passed: ok", lit "{\"codes\":[0,0,0]}"),

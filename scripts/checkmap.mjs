@@ -11,7 +11,8 @@
 //   node scripts/checkmap.mjs --tracked       every tracked file is mapped to a kind (no command runs)
 //   node scripts/checkmap.mjs --paths a b ..  these paths
 //   --strict: a missing tool (exit 127) or a missing fwcore fails instead of being skipped.
-//   node scripts/checkmap.mjs file <json|jsonl|ts|tsc> <args..>   our own parse checks (argv emitted by Lean)
+//   node scripts/checkmap.mjs file <json|jsonl|ts|graph|tsc> <args..>   our own checks (argv emitted by Lean); with
+//                                             --staged the commands read each file's index blob (`:path`), not the tree
 // Exit 0 when the run passes (Lean runOk), 1 otherwise.
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, realpathSync } from "node:fs";
@@ -53,9 +54,10 @@ function listPaths(top, args) {
 }
 
 /** Run one command; its exit code (127 when the tool is not installed, as a shell reports it). */
-function run(top, cmd) {
+function run(top, cmd, staged) {
   const t0 = Date.now();
-  const r = spawnSync(cmd.argv[0], cmd.argv.slice(1), { cwd: join(top, cmd.cwd), encoding: "utf8", maxBuffer: 64 << 20 });
+  const env = staged ? { ...process.env, FW_CHECKMAP_STAGED: "1" } : process.env;
+  const r = spawnSync(cmd.argv[0], cmd.argv.slice(1), { cwd: join(top, cmd.cwd), encoding: "utf8", maxBuffer: 64 << 20, env });
   const code = r.error?.code === "ENOENT" ? 127 : r.error ? 1 : r.status ?? 1;
   return { code, ms: Date.now() - t0, out: `${r.stdout ?? ""}${r.stderr ?? ""}${r.error && code !== 127 ? String(r.error) : ""}` };
 }
@@ -74,7 +76,7 @@ function main(args) {
   const cmds = args.includes("--tracked") ? [] : m.cmds;
   const codes = [];
   for (const c of cmds) {
-    const r = run(top, c);
+    const r = run(top, c, args.includes("--staged"));
     codes.push(r.code);
     const what = c.files.length === 1 ? c.files[0] : `${c.files.length} files`;
     const tag = r.code === 0 ? "ok" : r.code === 127 ? "MISSING TOOL" : "FAIL";
@@ -85,6 +87,12 @@ function main(args) {
   if (!v) { console.error("checkmap: fwcore refused ops.checkVerdict"); return 1; }
   console.error(`checkmap: ${v.ok ? "ok" : "FAILED"}: ${paths.length} paths, ${cmds.length} commands, ${v.failed.length} failed, ${v.unavailable.length} tool missing, ${m.unmapped.length} unmapped`);
   return v.ok ? 0 : 1;
+}
+
+/** The text a `file` check judges: the index blob when FW_CHECKMAP_STAGED is set (set by `--staged`), else the file. */
+function source(top, f) {
+  if (process.env.FW_CHECKMAP_STAGED !== "1") return readFileSync(join(top, f), "utf8");
+  return git(top, ["show", `:${f}`]);
 }
 
 /** `file <mode>`: our own parse checks. Exit 0 parsed, 1 a file does not parse, 127 the tool is missing. */
@@ -104,20 +112,25 @@ async function fileMode([mode, ...files]) {
     const warn = process.emitWarning;
     process.emitWarning = () => {};  // the API is marked experimental; its warning is noise here
     for (const f of files) {
-      try { mod.stripTypeScriptTypes(readFileSync(join(top, f), "utf8"), { mode: "transform" }); } catch (e) { fail(f, e); }
+      try { mod.stripTypeScriptTypes(source(top, f), { mode: "transform" }); } catch (e) { fail(f, e); }
     }
     process.emitWarning = warn;
     return bad ? 1 : 0;
   }
+  if (mode === "graph") {  // the work graph's schema (Lean routes docs/team/work-graph.json here; plan.test runs the same conversion)
+    const { checkGraph } = await import("../apps/runner/src/plan-check.ts");
+    for (const f of files) {
+      let text;
+      try { text = source(top, f); } catch (e) { fail(f, e); continue; }
+      for (const p of checkGraph(text)) fail(`${f} task`, p);
+    }
+    return bad ? 1 : 0;
+  }
   if (mode === "json" || mode === "jsonl") {
     for (const f of files) {
-      const text = readFileSync(join(top, f), "utf8");
+      const text = source(top, f);
       if (mode === "json") {
         try { JSON.parse(text); } catch (e) { fail(f, e); continue; }
-        if (f === "docs/team/work-graph.json") {  // the runner's own schema (plan.test runs the same conversion)
-          const { checkGraph } = await import("../apps/runner/src/plan-check.ts");
-          for (const p of checkGraph(text)) fail(`${f} task`, p);
-        }
         continue;
       }
       text.split("\n").forEach((l, i) => { if (l.trim()) try { JSON.parse(l); } catch (e) { fail(`${f}:${i + 1}`, e); } });
