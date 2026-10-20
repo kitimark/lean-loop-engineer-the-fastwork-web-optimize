@@ -23,6 +23,7 @@ export async function quietPasses(ctx, { arms, reps, clock, settleMs, step, fram
       let scroll, host;
       const load = { start: loadStamp() };
       for (let attempt = 1; ; attempt++) {
+        await ctx.check?.();
         let b = null, sampler = null;
         try {
           await loadFresh(ctx.c, { clock, settleMs, timers: mode.includes('hold') ? 'hold' : 'live' });

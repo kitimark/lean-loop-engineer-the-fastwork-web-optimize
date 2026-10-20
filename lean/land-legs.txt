@@ -1,1 +1,1 @@
-suites-a suites-b chromium playwright-webkit
+check-sh suites-a suites-b chromium playwright-webkit

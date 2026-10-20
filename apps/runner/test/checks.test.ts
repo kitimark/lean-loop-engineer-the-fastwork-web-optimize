@@ -13,23 +13,30 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const core = fwcoreCall(root);
 const golden = readFileSync(join(root, "packages/contracts/golden/console/land-tier.jsonl"), "utf8").trim().split("\n")
   .map((l) => JSON.parse(l) as { name: string; request: Record<string, unknown>; response: Record<string, unknown> });
-const REMOTE = ["apps/runner", "apps/console-api", "packages/gate-breakpoints", "packages/gh-budget", "packages/measure-chromium", "packages/engine-check", "packages/e2e-preview"];
+const REMOTE = ["apps/runner", "apps/console-api", "packages/gate-breakpoints", "packages/gh-budget", "packages/measure-chromium", "packages/engine-check", "packages/e2e-preview", "check.sh"];
 
 describe("fwcore reproduces the land-tier golden", () => {
   it("has tier and lane cases", () => {
     expect(golden.filter((c) => c.request.op === "console.landTier").length).toBeGreaterThan(10);
-    expect(golden.filter((c) => c.request.op === "console.landLane").length).toBe(9);
+    expect(golden.filter((c) => c.request.op === "console.landLane").length).toBe(11);
+  });
+  it("the local fwcore users are the Lean list: a plan builds for exactly the local candidate checks in FWCORE_USERS (LandTier.fwcoreUsers)", () => {
+    for (const { id } of candidateChecks(root)) {
+      const r = core({ op: "console.landTier", ids: [id], built: false }) as { build: boolean };
+      expect(r.build, id).toBe(FWCORE_USERS.includes(id) && !REMOTE.includes(id));
+    }
   });
   for (const c of golden) it(c.name, () => expect(core(c.request)).toEqual(c.response));
 });
 
 describe("planFor: Lean selection, Lean tier", () => {
   const ids = (ps: { id: string }[]) => ps.map((c) => c.id);
-  it("a Lean-only change selects check.sh, the fwcore users and the scan; the allowlisted suites are remote", () => {
+  it("a Lean-only change selects check.sh, the fwcore users and the scan; check.sh and the allowlisted suites are remote", () => {
     const p = planFor(root, ["lean/Fw/Console/LandTier.lean"], core);
     expect(ids(p.selected)).toEqual(expect.arrayContaining(["check.sh", "reads-scan", ...FWCORE_USERS]));
-    expect(p.remote.sort()).toEqual(FWCORE_USERS.filter((u) => REMOTE.includes(u)).sort());
-    expect(p.local).toEqual(expect.arrayContaining(["check.sh", "reads-scan", "packages/difftest", "packages/measure-webkit"]));
+    expect(p.remote.sort()).toEqual([...FWCORE_USERS.filter((u) => REMOTE.includes(u)), "check.sh"].sort());
+    expect(p.local).toEqual(expect.arrayContaining(["reads-scan", "packages/difftest", "packages/measure-webkit"]));
+    expect(p.local).not.toContain("check.sh");
     expect([...p.local, ...p.remote].sort()).toEqual(ids(p.selected).sort());
   });
   it("a runner-only change selects the runner and what depends on it; engine-check is remote", () => {
@@ -80,6 +87,23 @@ describe("skippedCount", () => {
   });
 });
 
+describe("check.sh in the remote tier (task land-check-remote)", () => {
+  const sh = () => candidateChecks(root).find((x) => x.id === "check.sh")!;
+  it("check.sh prints no test summary: exit 0 is a pass, a failing exit fails", async () => {
+    const ok: string[] = [], bad: string[] = [];
+    expect(await runTier([sh()], root, core, async () => ({ code: 0, out: "check: all stages passed\n" }), (s) => ok.push(s))).toBe(0);
+    expect(ok).toContain("VERDICT pass check.sh");
+    expect(await runTier([sh()], root, core, async () => ({ code: 1, out: "check: FAILED stage: lake build\n" }), (s) => bad.push(s))).toBe(1);
+    expect(bad).toContain("VERDICT fail check.sh");
+  });
+  it("a suite without a summary is still unknown, not a pass", async () => {
+    const lines: string[] = [];
+    const c = candidateChecks(root).find((x) => x.id === "packages/visual-diff")!;
+    expect(await runTier([c], root, core, async () => ({ code: 0, out: "nothing" }), (s) => lines.push(s))).toBe(1);
+    expect(lines).toContain("VERDICT unknown packages/visual-diff");
+  });
+});
+
 describe("runTier", () => {
   const mk = (id: string) => candidateChecks(root).find((c) => c.id === id)!;
   const run = (code: number, out: string): Runner => async () => ({ code, out });
@@ -109,7 +133,7 @@ describe("fw checks", () => {
     const lines: string[] = [];
     const code = await checksCli(["--affected", "--base", "x", "--tier", "remote", "--list"], root, { core, changed: ["lean/Fw/A.lean"], log: (s) => lines.push(s) });
     expect(code).toBe(0);
-    expect(lines.slice(1).filter((l) => !l.startsWith("LANE ")).sort()).toEqual(REMOTE.filter((r) => FWCORE_USERS.includes(r)).map((r) => `remote ${r}`).sort());
+    expect(lines.slice(1).filter((l) => !l.startsWith("LANE ")).sort()).toEqual([...REMOTE.filter((r) => FWCORE_USERS.includes(r)), "check.sh"].map((r) => `remote ${r}`).sort());
   });
   it("runs the remote tier only and prints one VERDICT per check", async () => {
     const lines: string[] = [];

@@ -7,7 +7,7 @@
 // The timers are unref'ed, so they never keep a healthy process alive. Counts never depend on any of this.
 import { timeoutScale } from './timeouts.mjs';
 
-/** Default stall limit: 90 s of silence, scaled like every other wait (12 min on the CI runners, FW_WK_TIMEOUT_SCALE 8). */
+/** Default stall limit: 90 s of silence, scaled like every other wait (12 min at FW_WK_TIMEOUT_SCALE 8); FW_WK_STALL_MS overrides (the workflow passes Lean's `stallMs`, the same 12 min). */
 export const defaultStallMs = (env = process.env) => {
   const n = Number(env.FW_WK_STALL_MS);
   return Number.isFinite(n) && n > 0 ? n : Math.round(90000 * timeoutScale(env));

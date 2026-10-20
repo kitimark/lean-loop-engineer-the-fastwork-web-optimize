@@ -47,6 +47,11 @@ on:
         description: Flags of the rewrite arm as part:variant,part:variant (parts increasing, each once; the store request field fw). Served as ?fw=...; the original arm never gets them. Needs target rewrite or both
         type: string
         default: ''
+      fault:
+        description: Fault injection for the fail-fast proof, off by default. kill-safari or kill-proxy starts killing Safari or the inspector proxy 120 s into the session and keeps killing; the run must end with exit 4 within the Lean bound (Fw.Measure.SimBound). A ci/* push sets it with a commit token (fault:kill-safari or fault:kill-proxy in square brackets)
+        type: choice
+        options: ['', kill-safari, kill-proxy]
+        default: ''
 
 permissions:
   contents: read
@@ -69,6 +74,9 @@ jobs:
           fetch-depth: 0
           filter: blob:none
           persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
       - id: g
         env:
           EVENT_NAME: ${{ github.event_name }}
@@ -136,6 +144,9 @@ jobs:
       rewrite: ${{ steps.m.outputs.rewrite }}
       both: ${{ steps.m.outputs.both }}
       original: ${{ steps.m.outputs.original }}
+      step_min: ${{ steps.m.outputs.step_min }}
+      job_min: ${{ steps.m.outputs.job_min }}
+      stall_ms: ${{ steps.m.outputs.stall_ms }}
     steps:
       - name: 'tip re-check'
         id: tip
@@ -206,6 +217,9 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
+      - uses: ./.github/actions/setup-pnpm
+        with:
+          filter: '@fw/site...'
       - uses: ./.github/actions/telemetry
         with:
           mode: start
@@ -215,9 +229,6 @@ jobs:
         with:
           mode: cache
           cache-dirs: lake=${{ github.workspace }}/.lake-cache
-      - uses: ./.github/actions/setup-pnpm
-        with:
-          filter: '@fw/site...'
       - name: Build the rewrite (the default config and the query of the plan)
         env:
           SEARCH: ${{ needs.plan.outputs.search }}
@@ -243,8 +254,8 @@ jobs:
     concurrency:
       group: ci-lane:webkit-sim:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:sim:${{ strategy.job-index }}
     runs-on: xcode-27
-    # healthy: 33-43 min for 2 sessions (3 runs, before the readiness polling replaced the fixed sleeps); one stalled job held a slot for 90 min
-    timeout-minutes: 60
+    # Lean's bound (Fw.Measure.SimBound.jobMin via the plan): setup, the measuring step's bound and the tail; the setup allowance is checked against Fw.Measure.SimBound.Seen
+    timeout-minutes: ${{ fromJSON(needs.plan.outputs.job_min) }}
     strategy:
       fail-fast: false
       max-parallel: 2
@@ -273,6 +284,9 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
 
       - name: Pinned iOS runtime build, then create the device
         run: sh .github/scripts/check-simulator.sh --create
@@ -281,9 +295,6 @@ jobs:
         if: ${{ matrix.arm == 'original' }}
         run: node .github/scripts/verify-snapshot.mjs
 
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version-file: .node-version
       - uses: ./.github/actions/telemetry
         with:
           mode: start
@@ -330,7 +341,7 @@ jobs:
           node scripts/ci-telemetry/cli.mjs sim-boot-ms $(( ($(date +%s) - boot_from) * 1000 )) || true
 
       - name: Determinism sessions
-        timeout-minutes: 50   # leaves time for the log steps below inside the job's 60
+        timeout-minutes: ${{ fromJSON(needs.plan.outputs.step_min) }}   # Lean: Fw.Measure.SimBound.stepMin, via the plan
         env:
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           SESSIONS: ${{ inputs.sessions || '1' }}
@@ -348,6 +359,10 @@ jobs:
           # may retry twice after a reconnect. Local runs use neither (defaults 1 and 2).
           FW_WK_TIMEOUT_SCALE: '8'
           FW_WK_ATTEMPTS: '3'
+          # stall watchdog: Lean's Fw.Measure.SimBound.stallMs via the plan; it is main's limit, checked against the silences in Fw.Measure.SimBound.Seen
+          FW_WK_STALL_MS: ${{ needs.plan.outputs.stall_ms }}
+          # fail-fast proof: the fault input, or the commit token of a ci/* push (a push carries no inputs); empty = no fault
+          FW_WK_FAULT: ${{ inputs.fault || (contains(github.event.head_commit.message, '[fault:kill-safari]') && 'kill-safari') || (contains(github.event.head_commit.message, '[fault:kill-proxy]') && 'kill-proxy') || '' }}
         working-directory: packages/measure-webkit
         run: |
           set -euo pipefail
@@ -370,27 +385,32 @@ jobs:
 
       # The within-VM class tables are made by the merge job: pairing rows is fwcore's (Lean) and this job has no Linux binary.
 
-      # Kept even when a session failed: the logs say where a slow start stalled.
+      # Kept even when a session failed: the logs say where a slow start stalled. The logs are copied first and each host
+      # command is bounded by an alarm: a wedged CoreSimulator held this step for 28 min (run 39426562165), and a job
+      # that ends by its timeout keeps no log at all.
       - name: Keep logs and host state
-        if: ${{ (always()) && steps.stale.outcome == 'skipped' }}
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
+        timeout-minutes: 3
         working-directory: packages/measure-webkit
         env:
           VM: ${{ matrix.vm }}
         run: |
           mkdir -p out "$RUNNER_TEMP/result"
-          # shellcheck disable=SC2009
-          { uptime; xcrun simctl list devices booted; ps -axo pid,pcpu,rss,comm | sort -k2 -nr | head -15; ps -axo pid,ppid,etime,stat,command | grep -E "cli.mjs|ios_webkit|tee " | grep -v grep; } > out/"$VM"-host.txt 2>&1 || true
           cp out/"$VM"-* "$RUNNER_TEMP/result/" 2>/dev/null || true
+          bounded() { perl -e 'alarm 20; exec @ARGV' -- "$@"; }
+          # shellcheck disable=SC2009
+          { uptime; bounded xcrun simctl list devices booted; ps -axo pid,pcpu,rss,comm | sort -k2 -nr | head -15; ps -axo pid,ppid,etime,stat,command | grep -E "cli.mjs|ios_webkit|tee " | grep -v grep; } > "$RUNNER_TEMP/result/$VM-host.txt" 2>&1 || true
 
-      # Always: stop the proxy's device and delete it, even when a step failed or the job was cancelled.
+      # Stop the proxy's device and delete it, also when a step failed; a cancelled job skips this (the runner is discarded).
       - name: Shut down and delete the Simulator
-        if: ${{ (always()) && steps.stale.outcome == 'skipped' }}
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
+        timeout-minutes: 3
         run: |
           xcrun simctl shutdown all || true
           xcrun simctl delete "$FW_SIM_NAME" || true
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: ${{ (always()) && steps.stale.outcome == 'skipped' }}
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
         with:
           name: webkit-sim-${{ matrix.vm }}
           path: ${{ runner.temp }}/result

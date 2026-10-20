@@ -66,10 +66,10 @@ async function settle(frame) {
   await frame.evaluate(async () => {
     const step = Math.max(200, innerHeight / 2);
     for (let y = 0; y < document.documentElement.scrollHeight && y < 40000; y += step) {
-      scrollTo(0, y);
+      scrollTo({ top: y, left: 0, behavior: 'instant' });
       await new Promise((r) => setTimeout(r, 40));
     }
-    scrollTo(0, 0);
+    scrollTo({ top: 0, left: 0, behavior: 'instant' });
   });
   await frame.page().waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => undefined);
 }

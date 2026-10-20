@@ -1,5 +1,6 @@
 import { appendFileSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { enforceNodePin } from "./node-guard.ts";
 import { fileURLToPath } from "node:url";
 import { serve } from "@hono/node-server";
 import { createApp } from "./app.ts";
@@ -26,6 +27,7 @@ function codeCommit(root: string): string | null {
   try { return execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8", timeout: 3000 }).trim() || null; } catch { return null; }
 }
 
+enforceNodePin();
 const startedAt = Date.now(); // first statement of main.ts; the imported modules were loaded just before it (informational: staleness uses the start commit, not this time)
 const dir = consoleDir();
 mkdirSync(dir, { recursive: true });
