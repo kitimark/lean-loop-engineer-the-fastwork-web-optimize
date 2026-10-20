@@ -10322,7 +10322,9 @@
     "lean/scripts/check.sh",
     "lean/scripts/*Golden.lean",
     "research/notes/2026/10-2*-fw-run-inputs.md",
-    "docs/team/handoffs/fw-run-inputs.md"
+    "docs/team/handoffs/fw-run-inputs.md",
+    "lean/scripts/LaneInputs.lean",
+    "packages/contracts/src/artifacts.ts"
    ]
   },
   {
