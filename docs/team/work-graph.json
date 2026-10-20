@@ -10596,7 +10596,15 @@
     "packages/gate-breakpoints/src/engines.mjs",
     "packages/gate-breakpoints/package.json",
     "packages/contracts/golden/gate/trajectory*.jsonl",
-    "apps/runner/src/land.ts"
+    "apps/runner/src/land.ts",
+    "lean/Fw/Store/Layout.lean",
+    "lean/Fw/Wire/Store.lean",
+    "lean/Fw/Store/Golden.lean",
+    "lean/Fw/Ops/LakeJobsGen.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/store/trajectory.jsonl",
+    "packages/contracts/src/artifacts.ts",
+    "docs/team/incidents/ledger.json"
    ]
   },
   {
