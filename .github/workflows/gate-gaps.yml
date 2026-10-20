@@ -399,13 +399,28 @@ jobs:
 
   # The decision of each part per policy and engine (arm decide in armdecide.mjs, over the Lean twin armplan.mjs), as a table with the cells behind it.
   images-decide:
-    needs: [images-pages]
-    if: ${{ !cancelled() && needs.images-pages.result != 'skipped' }}
+    needs: [guard, images-pages]
+    if: ${{ !cancelled() && needs.guard.outputs.run == 'true' && needs.images-pages.result != 'skipped' }}
     concurrency:
       group: ci-lane:gate-gaps:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:images-decide:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
