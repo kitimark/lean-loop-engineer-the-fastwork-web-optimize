@@ -10486,6 +10486,23 @@
     "research/notes/2026/10-2*-fwcore-query-speed.md",
     "docs/team/handoffs/fwcore-query-speed.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-queue-fwcore-rebuild",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "Land queue: 2026-10-20 three queued lands (gate-green-baseline, fwcore-replay-speed, countdown-one-chain) refused fwcore-stale right after land-fwcore-once landed Lean; the queue runner dequeues the next land without rebuilding fwcore. Unit: Fw.Console.LandQueue step = land; if the landed diff touches lean/ then rebuild fwcore before the next dequeue (or the stale check runs against the queue's own rebuild); theorem per branch; golden vectors for land-verdict.ts; test with two queued lands where the first touches lean/",
+   "writes": [
+    "lean/Fw/Console/LandQueue.lean",
+    "packages/contracts/golden/console/**",
+    "apps/runner/src/land*.ts",
+    "apps/runner/test/**",
+    "docs/team/handoffs/land-queue-fwcore-rebuild.md"
+   ]
   }
  ],
  "deadline": {
