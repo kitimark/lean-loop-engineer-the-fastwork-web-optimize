@@ -63,7 +63,7 @@ theorem wallPrep_eq_par_iff (P b U d : Nat) (l : Nat × Nat) (ls : List (Nat × 
     wallPrep P b U d l ls = wallPar b l ls ↔ P + U + d = 0 := by
   rw [wallPar_eq, wallPrep_eq]; omega
 
--- Measured: legs 4 x ~260 s build, prep job 321 s (setup 46, build 259, upload 9) + legs up to 211 s.
+-- Measured: legs 4 x ~260 s build, prep job 321 s (setup 46, build 259, upload 9, other 7) + legs up to 211 s.
 #guard (477 : Nat) < 553
 #guard 553 - 477 = 76
 

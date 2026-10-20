@@ -9,12 +9,12 @@ The shipped design (prep job, download in the legs) was reverted; `git diff main
 |---|---|---|---|
 | lean change, before (main) | 39369049545 | 477 s | 251 to 265 s, in parallel |
 | lean change, after (binary only, failed) | 39369120267 | 769 s | download 2 s, then suites-a 314 s (modules rebuilt) |
-| lean change, after (build tree) | 39370530353 | 553 s | prep job 321 s (setup 46, build 259, upload 9), legs 4 to 6 s download |
+| lean change, after (build tree) | 39370530353 | 553 s | prep job 321 s (setup 46, build 259, upload 9, other 7), legs 4 to 6 s download |
 | non-lean, before | 39369095720 | 116 s | 0 to 1 s |
 | non-lean, after (exact key, prep skipped) | 39369869288 | 129 s | 0 to 1 s |
 | non-lean, after (no exact key) | 39369107918 | 187 s | 19 s (cache state, not the change) |
 
-Runner time fell 43% (1650 s to 937 s in the legs); wall time rose 76 s (477 s to 553 s). The probe branches stay on origin as evidence.
+Runner time fell 43% (1650 s in the four legs to 937 s in prep job + legs; guard excluded); wall time rose 76 s (477 s to 553 s). The probe branches stay on origin as evidence.
 
 ## Mechanism
 
