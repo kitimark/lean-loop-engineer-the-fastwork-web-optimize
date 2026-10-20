@@ -51,7 +51,7 @@ describe("compare page picker", () => {
   const compare = async (configs: unknown, search: string) => {
     const root = tmp("fw-cmp-");
     writeFileSync(join(root, "configs.json"), JSON.stringify(configs));
-    const srv = createServer(handler({ root, prerendered: true, compare: { rp: 1, op: 2, prefix: "/preview/p1" } }));
+    const srv = createServer(handler({ root, prerendered: true, compare: { rp: 1, op: 2 } }));
     servers.push(srv);
     const port = await new Promise<number>((r) => srv.listen(0, "127.0.0.1", () => r((srv.address() as AddressInfo).port)));
     const t = await (await fetch(`http://127.0.0.1:${port}/__fw/compare${search}`)).text();
@@ -64,13 +64,13 @@ describe("compare page picker", () => {
     const html = await compare(configs, "?fw=hero:x,y:z");
     expect(pickerOf(html).match(/<option value="([^"]*)"/g)).toEqual(['<option value=""', '<option value="?preset=original"', '<option value="?fw=hero:x,y:z"']);
     expect(html).toContain('<option value="?fw=hero:x,y:z" selected>');
-    expect(html).toContain('<iframe id=b src="/preview/p1/r/?fw=hero:x,y:z">');
-    expect(html).toContain('<iframe id=a src="/preview/p1/o/">'); // the original has no search
+    expect(html).toContain(`getElementById('b').src=at(1,"?fw=hero:x,y:z")`); // the task arm's own origin (its port) with the search
+    expect(html).toContain(`getElementById('a').src=at(2,'')`); // the original has no search
   });
   it("a search that is not prerendered, or not well formed, opens the default and is never written into the page", async () => {
     for (const bad of ["?fw=zzz", "?preset=%22%3E%3Cscript%3E", "?fw=a%22b"]) {
       const html = await compare(configs, bad);
-      expect(html).toContain('<iframe id=b src="/preview/p1/r/">');
+      expect(html).toContain(`getElementById('b').src=at(1,"")`);
       expect(html).not.toContain("<script>alert");
       expect(html).not.toContain('a"b');
     }
@@ -214,7 +214,7 @@ describe("Builds routes and the manager", () => {
     expect(e2.target.sha).toBe(j.mainSha);
     expect(e2.phase).toBe("serving");
     // the compare view of the running build lists the build's own searches and opens at the row's
-    const html = await (await fetch(`http://127.0.0.1:${e2.rp}/__fw/compare${e2.search}`)).text();
+    const html = await (await fetch(`http://127.0.0.1:${e2.brp}/__fw/compare${e2.search}`)).text();
     expect(html).toContain('<option value="?fw=nav:skip,hero:strip" selected>');
     expect(pickerOf(html).match(/<option value="/g)?.length).toBe(3);
   });

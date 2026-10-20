@@ -13,8 +13,7 @@ import { OwnerAuth } from "../src/preview/owner.ts";
 import { createPreviewApp } from "../src/preview/preview-app.ts";
 import { LoginGuard, readPassphrase, sameSecret, loginPage, KEYCHAIN_HINT } from "../src/preview/login.ts";
 import { isLoopback, isPrivateV4, pickLanAddr } from "../src/preview/lan.ts";
-import { rewriteBody } from "../src/preview/rewrite.ts";
-import { viaReferer, isScriptPath } from "../src/preview/proxy.ts";
+import { armOrigin } from "../src/preview/proxy.ts";
 import type { PreviewManager } from "../src/preview/manager.ts";
 
 const FAKE = "fake-pass-for-tests-only";
@@ -224,11 +223,11 @@ describe("gate and login routes", () => {
     const up = createServer((_q, res) => { res.setHeader("content-type", "text/plain"); res.end("preview body"); });
     await new Promise<void>((r) => up.listen(0, "127.0.0.1", () => r())); servers.push(up);
     const port = (up.address() as { port: number }).port;
-    const pm = { serving: (id: string) => (id === "p1" ? { rp: port, op: port } : null), touch: () => undefined } as unknown as PreviewManager;
+    const pm = { serving: (id: string) => (id === "p1" ? { rp: 1, op: 2, brp: port, bop: port } : null), touch: () => undefined } as unknown as PreviewManager;
     const pv = createPreviewApp((await store()).core, owner, pm, { lan: false });
-    expect((await pv.request("/preview/p1/r/x")).status).toBe(401);
+    expect((await pv.request("/preview/p1/compare")).status).toBe(401);
     const cookie = (ok.headers.get("set-cookie") ?? "").split(";")[0]!;
-    const seen = await pv.request("/preview/p1/r/x", { headers: { cookie } });
+    const seen = await pv.request("/preview/p1/compare", { headers: { cookie } });
     expect([seen.status]).not.toContain(401); expect([seen.status]).not.toContain(403);
     expect(seen.status).toBe(200);
   });
@@ -246,42 +245,36 @@ describe("gate and login routes", () => {
   });
 });
 
-describe("preview proxy", () => {
-  it("serves below the prefix with rewritten HTML, touches, 404 for unknown, 405 for POST; needs a session", async () => {
+describe("preview port shell (compare page and entry redirects; the arms have their own ports)", () => {
+  it("compare page proxied from the private port, touches; entries 302 to the arm origin; 404 unknown, 405 POST; needs a session", async () => {
     const up = createServer((req, res) => {
-      if (req.url === "/") { res.setHeader("content-type", "text/html"); res.end('<link href="/assets/a.css"><script src="/assets/a.js"></script>'); }
-      else { res.setHeader("content-type", "application/javascript"); res.end('import("/x.js")'); }
+      res.setHeader("content-type", "text/html"); res.end(`path=${req.url}`);
     });
     await new Promise<void>((r) => up.listen(0, "127.0.0.1", () => r())); servers.push(up);
     const port = (up.address() as { port: number }).port;
     const touched: string[] = [];
-    const pm = { serving: (id: string) => (id === "p1" ? { rp: port, op: port } : null), touch: (id: string) => { touched.push(id); } } as unknown as PreviewManager;
+    const pm = { serving: (id: string) => (id === "p1" ? { rp: 5001, op: 5002, brp: port, bop: port } : null), touch: (id: string) => { touched.push(id); } } as unknown as PreviewManager;
     const s = await store(); const owner = new OwnerAuth();
     const app = createPreviewApp(s.core, owner, pm, { lan: false });
-    expect((await app.request("/preview/p1/r/")).status).toBe(401);
+    expect((await app.request("/preview/p1/compare")).status).toBe(401);
     const token = owner.open();
     const ck = owner.previewCookieFor(token).map((c) => c.split(";")[0]!);
-    expect((await app.request("/preview/p1/r/", { headers: { cookie: `fw_owner=${token}` } })).status).toBe(401); // the owner token is no preview access
-    expect((await app.request("/preview/p1/r/", { headers: { authorization: `Bearer ${token}` } })).status).toBe(401); // nor as a header
-    const H = { cookie: ck[0]! };
-    const r = await app.request("/preview/p1/r/", { headers: H });
+    expect((await app.request("/preview/p1/compare", { headers: { cookie: `fw_owner=${token}` } })).status).toBe(401); // the owner token is no preview access
+    expect((await app.request("/preview/p1/compare", { headers: { authorization: `Bearer ${token}` } })).status).toBe(401); // nor as a header
+    const H = { cookie: ck[0]!, host: "127.0.0.1:8788" };
+    const r = await app.request("/preview/p1/compare?fw=x", { headers: H });
     expect(r.status).toBe(200);
-    expect(await r.text()).toBe('<link href="/preview/p1/r/assets/a.css"><script src="/preview/p1/r/assets/a.js"></script>');
+    expect(await r.text()).toBe("path=/__fw/compare?fw=x");
     expect(touched).toEqual(["p1"]);
-    expect(await (await app.request("/preview/p1/r/a.js", { headers: H })).text()).toBe('import("/x.js")'); // JS is not rewritten
-    // a path built inside the preview's scripts ("/x.js") reaches that preview by its Referer, and is gated as a preview path
-    const ref = { referer: "http://h:1/preview/p1/r/", host: "h:1" };
-    // a script is moved below the prefix whether or not the browser sent Sec-Fetch-Dest (it sends none to a plain-HTTP LAN address:
-    // the phone's original arm broke on this, preview-inspect), so its relative imports stay inside the preview
-    const mv = await app.request("/x.js", { headers: { ...H, ...ref }, redirect: "manual" });
-    expect(mv.status).toBe(302); expect(mv.headers.get("location")).toBe("/preview/p1/r/x.js");
-    expect((await app.request("/x.js", { headers: { ...H, ...ref, "sec-fetch-dest": "script" } })).status).toBe(302);
-    expect((await app.request("/x.png", { headers: { ...H, ...ref } })).status).toBe(200); // other files are served in place
-    expect((await app.request("/x.js", { headers: ref })).status).toBe(401);
-    expect((await app.request("/x.js", { headers: { ...H, referer: "http://evil/preview/p1/r/", host: "h:1" } })).status).toBe(404); // another origin's Referer is the console's own path
-    expect((await app.request("/preview/nope/r/", { headers: H })).status).toBe(404);
-    expect((await app.request("/preview/p1/r/", { method: "POST", headers: H })).status).toBe(405);
-    expect((await app.request("/preview/p1/r", { headers: H })).status).toBe(302);
+    const go = async (path: string) => app.request(path, { headers: H, redirect: "manual" });
+    for (const [path, to] of [["/preview/p1", "5001/"], ["/preview/p1/", "5001/"], ["/preview/p1/r", "5001/"], ["/preview/p1/r/", "5001/"], ["/preview/p1/o", "5002/"], ["/preview/p1/o/", "5002/"]] as const) {
+      const e = await go(path);
+      expect(e.status).toBe(302); expect(e.headers.get("location")).toBe(`http://127.0.0.1:${to}`);
+    }
+    expect((await go("/preview/p1/r/?fw=a:b")).headers.get("location")).toBe("http://127.0.0.1:5001/?fw=a:b"); // the query survives the hop
+    expect((await app.request("/preview/p1/r/_app/x.js", { headers: H })).status).toBe(404); // no subresource is served here, and none is redirected
+    expect((await app.request("/preview/nope/compare", { headers: H })).status).toBe(404);
+    expect((await app.request("/preview/p1/compare", { method: "POST", headers: H })).status).toBe(405);
   });
 });
 
@@ -334,7 +327,7 @@ describe("two origins: a preview page cannot act as the owner", () => {
     const calls: string[] = [];
     const seen: Array<string | undefined> = [];
     const pmStub = {
-      serving: (id: string) => (id === "p1" ? { rp: upPort, op: upPort } : null), touch: () => undefined, list: () => ({ previews: [] }),
+      serving: (id: string) => (id === "p1" ? { rp: 1, op: 2, brp: upPort, bop: upPort } : null), touch: () => undefined, list: () => ({ previews: [] }),
       start: async (_t: string, proof: { cookie: boolean; origin: boolean }) => { calls.push("start"); return proof.cookie && proof.origin ? { ok: true, id: "p9", entry: {} } : { ok: false, reason: "notOwner" }; },
       stop: async (_i: string, proof: { cookie: boolean; origin: boolean }) => { calls.push("stop"); return proof.cookie && proof.origin ? { ok: true } : { ok: false, reason: "notOwner" }; },
     } as unknown as PreviewManager;
@@ -342,8 +335,8 @@ describe("two origins: a preview page cannot act as the owner", () => {
     // the preview's own server: its page script ("attack") runs fetch() against the console as a browser would, with the
     // preview page's Origin and every cookie the browser holds for that host (cookies ignore ports; no header is ambient)
     const up = createServer(async (req, res) => {
-      if (req.url === "/echo") { seen.push(req.headers.cookie); res.end("echo"); return; }
-      if (req.url === "/attack") {
+      if (req.url === "/__fw/compare?echo") { seen.push(req.headers.cookie); res.end("echo"); return; }
+      if (req.url === "/__fw/compare?attack") {
         const base = `http://127.0.0.1:${consolePort}`;
         const hdr = { origin: `http://127.0.0.1:${previewPort}`, cookie: browserCookies, "content-type": "application/json" };
         const out: Record<string, number> = {};
@@ -371,17 +364,17 @@ describe("two origins: a preview page cannot act as the owner", () => {
     browserCookies = pc!; // the only cookie there is; the owner token lives in console-origin localStorage, which no preview page can read
 
     // 1. the preview port: no cookie -> 401; preview cookie -> page; the proxied upstream gets no cookie at all
-    expect((await fetch(`http://127.0.0.1:${previewPort}/preview/p1/r/`)).status).toBe(401);
-    expect((await fetch(`http://127.0.0.1:${previewPort}/preview/p1/r/`, { headers: { cookie: `fw_owner=${token}` } })).status).toBe(401);
-    expect((await fetch(`http://127.0.0.1:${previewPort}/preview/p1/r/echo`, { headers: { cookie: browserCookies } })).status).toBe(200);
+    expect((await fetch(`http://127.0.0.1:${previewPort}/preview/p1/compare`)).status).toBe(401);
+    expect((await fetch(`http://127.0.0.1:${previewPort}/preview/p1/compare`, { headers: { cookie: `fw_owner=${token}` } })).status).toBe(401);
+    expect((await fetch(`http://127.0.0.1:${previewPort}/preview/p1/compare?echo`, { headers: { cookie: browserCookies } })).status).toBe(200);
     expect(seen).toEqual([undefined]);
     // 2. the page's own script posts to the console API: every owner action is refused before it reaches the manager
-    const r = await fetch(`http://127.0.0.1:${previewPort}/preview/p1/r/attack`, { headers: { cookie: browserCookies } });
+    const r = await fetch(`http://127.0.0.1:${previewPort}/preview/p1/compare?attack`, { headers: { cookie: browserCookies } });
     expect(await r.json()).toEqual({ start: 403, stop: 403, commands: 403, reconcile: 403, logout: 403, login: 403 });
     expect(calls).toEqual([]);
     // 3. the raw preview server port (reviewer probe): the browser hands the preview server every cookie it holds, with no proxy
     //    in between. Replaying what it got, even with a forged console Origin, yields no owner rights.
-    await fetch(`http://127.0.0.1:${upPort}/echo`, { headers: { cookie: browserCookies } });
+    await fetch(`http://127.0.0.1:${upPort}/__fw/compare?echo`, { headers: { cookie: browserCookies } });
     const stolen = seen[1]!;
     expect(stolen).toBe(browserCookies); expect(stolen).not.toContain(token);
     const forged = { origin: `http://127.0.0.1:${consolePort}`, cookie: stolen, "content-type": "application/json" };
@@ -400,25 +393,12 @@ describe("two origins: a preview page cannot act as the owner", () => {
 });
 
 describe("helpers", () => {
-  it("rewriteBody", () => {
-    const P = "/preview/a/r";
-    expect(rewriteBody("text/html", '<a href="/x"><img src=\'/y.png\'><a href="//cdn/x"><a href="/preview/b/r/z"><a href="rel">', P))
-      .toBe('<a href="/preview/a/r/x"><img src=\'/preview/a/r/y.png\'><a href="//cdn/x"><a href="/preview/b/r/z"><a href="rel">');
-    expect(rewriteBody("text/html", '<img srcset="/a.png 1x, /b.png 2x">', P)).toBe('<img srcset="/preview/a/r/a.png 1x, /preview/a/r/b.png 2x">');
-    expect(rewriteBody("text/css", "a{background:url(/i.png)} @import '/b.css'; b{background:url(https://x/y)}", P))
-      .toBe("a{background:url(/preview/a/r/i.png)} @import '/preview/a/r/b.css'; b{background:url(https://x/y)}");
-    expect(rewriteBody("application/javascript", "import('/x')", P)).toBeNull();
-  });
-  it("isScriptPath: only .js/.mjs files are moved", () => {
-    expect(isScriptPath("/_app/immutable/entry/start.X.js")).toBe(true);
-    expect(isScriptPath("/a/b.MJS")).toBe(true);
-    for (const p of ["/a.json", "/a.js.map", "/a.png", "/js", "/a.jsx"]) expect(isScriptPath(p)).toBe(false);
-  });
-  it("viaReferer", () => {
-    expect(viaReferer("/a/b.png", "http://h:1/preview/p1/o/x", "h:1")).toBe("/preview/p1/o/a/b.png");
-    expect(viaReferer("/api/tasks", "http://h:1/preview/p1/r/", "h:1")).toBeNull();
-    expect(viaReferer("/a", "http://h:1/other", "h:1")).toBeNull();
-    expect(viaReferer("/a", undefined, "h:1")).toBeNull();
+  it("armOrigin: the host of the request with the arm's port, nothing else", () => {
+    expect(armOrigin("127.0.0.1:8788", 5001)).toBe("http://127.0.0.1:5001/");
+    expect(armOrigin("localhost", 5002)).toBe("http://localhost:5002/");
+    expect(armOrigin("[::1]:8788", 5001)).toBe("http://[::1]:5001/");
+    expect(armOrigin("a/b", 5001)).toBeNull();
+    expect(armOrigin(undefined, 5001)).toBeNull();
   });
   it("lan helpers", () => {
     const ip = (...n: number[]) => n.join("."); // built at run time: no address literal in the source

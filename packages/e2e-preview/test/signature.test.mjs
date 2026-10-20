@@ -1,47 +1,26 @@
-// The browser-free half of the WebKit cancelled-preload signature, the attribution and the start() counter: pure functions of
-// the suite and the rig's tap, exercised on both sides of every branch (accepts the exact signature, refuses each deviation).
+// The browser-free half of the strict attribution and the start() counter: pure functions of the suite and the rig's tap,
+// exercised on both sides of every branch. (There is no accepted noise: any rejection or cancelled request in a control fails.)
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import { instrumentModule, SNAPSHOT } from "../src/rig.mjs";
-import { attribution, cancelSignature, CANCEL_SIGNATURE } from "../src/suite.mjs";
 import { join } from "node:path";
+import { instrumentModule, SNAPSHOT, startRig, PREVIEW_ID } from "../src/rig.mjs";
+import { attribution } from "../src/suite.mjs";
 
-const host = { origin: "http://127.0.0.1:9" };
-const rej = ["Unhandled Promise Rejection: TypeError: Importing a module script failed.", "Unhandled Promise Rejection: Error: Unable to preload CSS for http://127.0.0.1:9/_app/immutable/assets/0.X.css", "Unhandled Promise Rejection: TypeError: Importing a module script failed."];
-const paths = Array.from({ length: CANCEL_SIGNATURE.cancelled - 1 }, (_, i) => `/_app/immutable/chunks/m${i}.js`).concat(["/_app/immutable/assets/0.X.css"]);
-const failed = paths.map((p, i) => `GET ${i === 0 ? `/preview/e2e/o${p}` : p} Load request cancelled`);
-const seen = paths.map((p) => ({ host: "127.0.0.1:9", path: p, status: p.endsWith(".css") ? 200 : 302 }));
-
-describe("cancelSignature", () => {
-  it("accepts 3 rejections (2 module imports + 1 /_app/ CSS preload) with 13 reported cancels, each root request answered", () => {
-    assert.equal(cancelSignature(rej, failed, seen, host).ok, true);
+describe("attribution (strict)", () => {
+  const arm = (a, r, c, ok = true) => [1, 2, 3].map(() => ({ arm: a, ok, rejections: r, cancelled: c }));
+  const clean = [...arm("raw", 0, 0), ...arm("tap-only", 0, 0), ...arm("arm-only", 0, 0)];
+  it("passes only when every control load of every arm is clean", () => {
+    assert.deepEqual(attribution(clean), { shown: [], ok: true });
   });
-  it("accepts the same rejections when Playwright reported no cancel (it reports them in only some loads)", () => {
-    assert.equal(cancelSignature(rej, [], seen, host).ok, true);
+  it("names an arm that shows a rejection or a cancelled request, and fails", () => {
+    assert.deepEqual(attribution([...arm("raw", 0, 0), ...arm("tap-only", 0, 0), ...arm("arm-only", 3, 13)]), { shown: ["arm-only"], ok: false });
+    assert.deepEqual(attribution([...arm("raw", 1, 0), ...arm("tap-only", 0, 0), ...arm("arm-only", 0, 0)]), { shown: ["raw"], ok: false });
+    assert.deepEqual(attribution([...arm("raw", 0, 0), ...arm("tap-only", 0, 2), ...arm("arm-only", 0, 0)]), { shown: ["tap-only"], ok: false });
   });
-  it("refuses each deviation", () => {
-    assert.equal(cancelSignature(rej.slice(0, 2), failed, seen, host).ok, false, "two rejections");
-    assert.equal(cancelSignature([...rej.slice(0, 2), "TypeError: x is not a function"], failed, seen, host).ok, false, "foreign error");
-    assert.equal(cancelSignature([rej[0], rej[0], rej[2]], failed, seen, host).ok, false, "no CSS preload failure");
-    assert.equal(cancelSignature([rej[0], "Unhandled Promise Rejection: Error: Unable to preload CSS for http://h/other/a.css", rej[2]], failed, seen, host).ok, false, "CSS outside /_app/");
-    assert.equal(cancelSignature(rej, failed.slice(1), seen, host).ok, false, "12 cancels");
-    assert.equal(cancelSignature(rej, [...failed.slice(1), "GET /api/x Load request cancelled"], seen, host).ok, false, "cancel outside /_app/");
-    assert.equal(cancelSignature(rej, failed, seen.slice(1), host).ok, false, "a cancelled script never had a root request");
-    assert.equal(cancelSignature(rej, failed, seen.map((r, i) => (i === 3 ? { ...r, status: 200 } : r)), host).ok, false, "a script root request not redirected");
-    assert.equal(cancelSignature(rej, failed, seen.map((r) => ({ ...r, host: "other:1" })), host).ok, false, "seen at another host");
-    assert.equal(cancelSignature(rej, [], seen.filter((r) => !r.path.endsWith(".css")), host).ok, false, "the CSS root request was not answered");
-  });
-});
-
-describe("attribution", () => {
-  const arm = (a, r, c) => [1, 2, 3].map(() => ({ arm: a, ok: true, rejections: r, cancelled: c }));
-  it("names the arm that shows the signature", () => {
-    assert.match(attribution([...arm("raw", 0, 0), ...arm("tap-only", 3, 13), ...arm("proxy-only", 0, 0)], true).cause, /the tap/);
-    assert.match(attribution([...arm("raw", 0, 0), ...arm("tap-only", 0, 0), ...arm("proxy-only", 3, 13)], true).cause, /proxy path/);
-    assert.match(attribution([...arm("raw", 3, 13), ...arm("tap-only", 3, 13), ...arm("proxy-only", 3, 13)], true).cause, /engine/);
-    assert.match(attribution([...arm("raw", 0, 0), ...arm("tap-only", 0, 0), ...arm("proxy-only", 0, 0)], true).cause, /combination/);
-    assert.match(attribution([...arm("raw", 0, 0)], false).cause, /no signature/);
+  it("a load that did not complete fails, and so does a missing arm", () => {
+    assert.equal(attribution([...arm("raw", -1, -1, false), ...arm("tap-only", 0, 0), ...arm("arm-only", 0, 0)]).ok, false);
+    assert.equal(attribution(clean.filter((c) => c.arm !== "arm-only")).ok, false);
   });
 });
 
@@ -57,20 +36,18 @@ describe("the tap's start() counter", () => {
 });
 
 describe("rig.useTap", () => {
-  it("false hands the proxy the raw preview ports (no counter in a module), true restores the tap", async () => {
-    const { startRig, PREVIEW_ID } = await import("../src/rig.mjs");
+  it("false makes the evaluation counter a pass-through (no counter in a module), true restores it", async () => {
     const rig = await startRig();
     try {
-      const get = async () => {
-        const link = await rig.grantUrl(rig.hosts.loopback.origin, "r");
-        const cookie = ((await fetch(link, { redirect: "manual" })).headers.get("set-cookie") ?? "").split(";")[0];
-        return await (await fetch(`${rig.hosts.loopback.origin}/preview/${PREVIEW_ID}/r/_app/immutable/entry/start.fix1.js`, { headers: { cookie } })).text();
-      };
+      const link = await rig.grantUrl(rig.hosts.loopback.origin, "r");
+      const cookie = ((await fetch(link, { redirect: "manual" })).headers.get("set-cookie") ?? "").split(";")[0];
+      const get = async () => await (await fetch(`${rig.hosts.loopback.arm.r}/_app/immutable/entry/start.fix1.js`, { headers: { cookie } })).text();
       assert.match(await get(), /__fwEvals/);
       rig.useTap(false);
       assert.doesNotMatch(await get(), /__fwEvals/);
       rig.useTap(true);
       assert.match(await get(), /__fwEvals/);
+      assert.ok(PREVIEW_ID);
     } finally { await rig.close(); }
   });
 });
