@@ -202,15 +202,28 @@ def window (ms : List Int) (m : Int) : List Nat :=
   if ms.isEmpty then []
   else (List.range ms.length).filter fun i => (List.range ms.length).any fun j => coreIdx ms m j && i ≤ j + 1 && j ≤ i + 1
 
+/-- How far, in morph units (x 10000), a rewrite sample may lie outside the range the original was sampled over and still
+have a counterpart: one bucket (a tenth of the morph). -/
+def reach : Int := 1000
+
+/-- `m` lies farther than `reach` below every sample of `ms`, or farther than `reach` above every one. -/
+def beyond (ms : List Int) (m : Int) : Bool :=
+  ms.all (fun x => x + reach < m) || ms.all (fun x => m + reach < x)
+
 /-- The original's samples a rewrite sample at morph value `m` is compared with.
 
-No morph value on either side means no alignment: the whole phase. -/
+No morph value on either side means no alignment: the whole phase. A morph value farther than `reach` outside the range the
+original was sampled over has no counterpart: the window is empty (a skip), never the nearest sample. A slow frame can
+leave the original's phase with a few samples (WebKit on a software renderer), and the rewrite's sample at 0.98 must not be
+judged against the original's at 0.15. -/
 def windowOf (orig : List Samp) (m : Option Int) : List Samp :=
   match m with
   | none => orig
   | some m =>
     if orig.any (·.m.isNone) then orig
-    else (window (orig.map (·.m.getD 0)) m).filterMap fun i => orig[i]?
+    else
+      let ms := orig.map (·.m.getD 0)
+      if beyond ms m then [] else (window ms m).filterMap fun i => orig[i]?
 
 /-- The unit a morph value falls in: tenths of the morph, 0 to 10, and 11 for no morph value. -/
 def bucket (m : Option Int) : Nat :=
@@ -447,6 +460,26 @@ theorem window_falling : window [10000, 8000, 6000, 4000, 2000] 7000 = [0, 1, 2,
 /-- A value beyond the range takes the nearest sample and one frame before it. -/
 theorem window_outside : window [0, 2000, 4000] 9000 = [1, 2] := by decide
 
+/-- Branch beyond reach: a morph value more than one bucket outside the original's range has an empty window.
+
+The original was sampled over 0 to 0.15 only; the rewrite's 0.98 is not judged against it. -/
+theorem windowOf_beyond :
+    windowOf [⟨some 0, true, [.num [0]]⟩, ⟨some 1500, true, [.num [0]]⟩] (some 9800) = [] := by decide
+
+/-- Branch beyond reach, below: the same on the low side. -/
+theorem windowOf_beyond_low :
+    windowOf [⟨some 6000, true, [.num [0]]⟩, ⟨some 9000, true, [.num [0]]⟩] (some 0) = [] := by decide
+
+/-- Within reach of the original's range the nearest sample (and one frame before it) is the window. -/
+theorem windowOf_within_reach :
+    (windowOf [⟨some 0, true, [.num [0]]⟩, ⟨some 9000, true, [.num [0]]⟩] (some 9800)).length = 2 := by decide
+
+/-- The ends of the reach: exactly one bucket outside still has a window; one unit more has none. -/
+theorem beyond_edge : beyond [0, 2000] 3000 = false ∧ beyond [0, 2000] 3001 = true := by decide
+
+/-- A phase with no samples has every morph value beyond reach. -/
+theorem beyond_empty (m : Int) : beyond [] m = true := by simp [beyond]
+
 /-- A hold (all values equal) puts every sample of the hold in the window. -/
 theorem window_hold : window [10000, 10000, 10000] 10000 = [0, 1, 2] := by decide
 
@@ -655,6 +688,8 @@ def cases : List Case := [
   .phase "hold colour" .colour [⟨some 10000, false, [.num [43000]]⟩, ⟨some 10000, true, [.num [255000]]⟩]
     [⟨some 10000, false, [.num [43000]]⟩, ⟨some 10000, true, [.num [43000]]⟩],
   .phase "no morph value" .discrete [s0 [.str "on"]] [s0 [.str "on"]],
+  .phase "beyond reach" .geometry [sm 0 [.num [0]], sm 1500 [.num [3000]]] [sm 9800 [.num [10000]]],
+  .phase "within reach" .geometry [sm 0 [.num [0]], sm 9000 [.num [9000]]] [sm 9800 [.num [9800]]],
   .path "missing step" .unit [("s25", s0 [.num [750]])] [],
   .path "pair" .unit [("s25", s0 [.num [750]]), ("s50", s0 [.num [500]])]
     [("s25", s0 [.num [1000]]), ("s50", s0 [.num [500]])],

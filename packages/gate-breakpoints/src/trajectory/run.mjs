@@ -1,5 +1,7 @@
 // The driver of the trajectory probe: loads one arm in one engine at one width, walks the hero path and the end-of-page path in
 // real time (native rAF, native timers, no frozen clock, no screenshot) and returns the RAW readings. Glue only.
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { LAUNCHERS } from '../engines.mjs';
 import { PIN_SRC, waitReady } from '../page.mjs';
 import { startServer, snapshotRoot, siteDist, rewriteFor } from '../serve.mjs';
@@ -18,17 +20,28 @@ export const PUSH_PHASES = [
   { phase: 'close-hold', dy: 0, stride: 4, ms: 600 },
 ];
 
+/** The rewrite arm must have resolved the config the search names (the default config for no search); the original has none. */
+function assertConfig(site, ready, want, search) {
+  if (site === 'rewrite' && ready.config !== want) throw new Error(`rewrite arm resolved config ${ready.config}, expected ${want} for search "${search}"`);
+}
+
 const forArm = (nodes, site) => nodes.map((n) => ({ id: n.id, sel: site === 'orig' ? n.orig : n.rewrite, props: n.props }));
 
-async function open(engine, env, origin, site) {
-  const s = await engine.open(env, { origin, path: '/', init: INIT, frozen: false });
+/**
+ * Opens one arm. The rewrite is loaded at `/` + the search: the page resolves its flags from `location.search` (entry-client.tsx),
+ * so the flagged HTML alone would run the default config (incident inc-variant-gate-flags-off). The config the page resolved
+ * (`window.__fw.configHash`) is returned in `ready.config`; runLane refuses a mismatch.
+ */
+async function open(engine, env, origin, site, search) {
+  const s = await engine.open(env, { origin, path: site === 'rewrite' ? '/' + search : '/', init: INIT, frozen: false });
   const ready = await s.evaluate(waitReady, { site, capMs: 20000 });
+  ready.config = await s.evaluate(() => (window.__fw ? window.__fw.configHash ?? null : null));
   return { s, ready };
 }
 
 /** The hero path of one arm: scroll steps with per-frame reads while moving and a read after each rest. */
-export async function heroPath(engine, env, origin, site) {
-  const { s, ready } = await open(engine, env, origin, site);
+export async function heroPath(engine, env, origin, site, search = '') {
+  const { s, ready } = await open(engine, env, origin, site, search);
   try {
     const arg = { arm: site, nodes: forArm(resolveNodes(HERO_NODES), site), pageProps: PAGE_PROPS, navSel: null, steps: HERO_STEPS, moveFrames: 4, restMs: 300, settleCapMs: 4000 };
     const rows = await s.evaluate((a) => window.__traj.heroPath(a), arg);
@@ -37,8 +50,8 @@ export async function heroPath(engine, env, origin, site) {
 }
 
 /** The end-of-page path of one arm: approach, rest, a wheel push open and a push close, each held. */
-export async function morphPath(engine, env, origin, site) {
-  const { s, ready } = await open(engine, env, origin, site);
+export async function morphPath(engine, env, origin, site, search = '') {
+  const { s, ready } = await open(engine, env, origin, site, search);
   try {
     const nodes = forArm(resolveNodes(MORPH_NODES), site);
     const navSel = nodes.find((n) => n.id === 'nav').sel;
@@ -63,6 +76,7 @@ export async function morphPath(engine, env, origin, site) {
 export async function runLane({ engineName, widths, search = '', env = process.env }) {
   const variant = rewriteFor(siteDist(env), { ...env, FW_SEARCH: search });
   const servers = { orig: await startServer(snapshotRoot(env)), rewrite: await startServer(siteDist(env), variant.rewrite) };
+  const want = variant.hash ?? JSON.parse(readFileSync(join(siteDist(env), 'configs.json'), 'utf8')).bySearch[''];
   const engine = await LAUNCHERS[engineName]();
   const runs = [];
   try {
@@ -71,14 +85,16 @@ export async function runLane({ engineName, widths, search = '', env = process.e
         const e = envFor(width);
         const t0 = Date.now();
         log(`trajectory ${engineName} ${width} ${site}: hero`);
-        const hero = await heroPath(engine, e, servers[site].origin, site);
+        const hero = await heroPath(engine, e, servers[site].origin, site, search);
+        assertConfig(site, hero.ready, want, search);
         log(`trajectory ${engineName} ${width} ${site}: morph`);
-        const morph = await morphPath(engine, e, servers[site].origin, site);
+        const morph = await morphPath(engine, e, servers[site].origin, site, search);
+        assertConfig(site, morph.ready, want, search);
         log(`trajectory ${engineName} ${width} ${site}: done in ${Date.now() - t0} ms`);
         runs.push({ width, site, hero, morph });
       }
     }
-    return { engine: engineName, version: await engine.version(), search, hash: variant.hash, runs };
+    return { engine: engineName, version: await engine.version(), search, hash: want, runs };
   } finally {
     await engine.close().catch(() => {});
     await servers.orig.close(); await servers.rewrite.close();

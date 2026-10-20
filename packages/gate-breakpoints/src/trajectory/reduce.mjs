@@ -75,10 +75,17 @@ export function window(ms, m) {
   return idx.filter((i) => core.some((j) => i <= j + 1 && j <= i + 1));
 }
 
+/** Lean `reach`: one bucket (a tenth of the morph, x 10000). */
+export const REACH = 1000;
+/** Lean `beyond`: `m` is farther than REACH below every sample of `ms`, or above every one. */
+export const beyond = (ms, m) => ms.every((x) => x + REACH < m) || ms.every((x) => m + REACH < x);
+
 export const windowOf = (orig, m) => {
   if (m === null) return orig;
   if (orig.some((s) => s.m === null)) return orig;
-  return window(orig.map((s) => s.m), m).map((i) => orig[i]).filter((s) => s !== undefined);
+  const ms = orig.map((s) => s.m);
+  if (beyond(ms, m)) return [];
+  return window(ms, m).map((i) => orig[i]).filter((s) => s !== undefined);
 };
 
 /** Lean `Int` division rounds down, so the tenth of a morph value is floor((m + 500) / 1000), clamped to 0..10. */
