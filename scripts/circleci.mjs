@@ -58,6 +58,9 @@ export function ghMatches(rule, name) {
 /** Lean `jobOfGithub`: the first job-map row a GitHub job name belongs to, or undefined. */
 export const jobOfGithub = (g, name) => g.jobMap.find((r) => ghMatches(r.github, name));
 
+/** Lean `savesCacheJob`: the CircleCI job has a `save_cache` step. */
+export const savesCacheJob = (g, job) => g.jobMap.some((r) => r.circleci === job && r.savesCache);
+
 /** Lean `digestJob`: the pilot job (CircleCI name) is judged by its premise digest. */
 export const digestJob = (g, job) => g.jobMap.some((r) => r.circleci === job && r.digest);
 
@@ -115,6 +118,17 @@ export function compare(g, gh, cc) {
     queueGithubMs: gh.queueMs, queueCircleMs: cc.queueMs, credits: credits(g, cc.class, cc.durMs) };
 }
 
+/** Lean `cacheSavedBytes`: what one `save_cache` step added to the cache. `save` is { kind: 'absent' | 'skipped' | 'stored', tenthsMiB }.
+ *  The printed size is rounded to a tenth of a MiB, so one more tenth is added (an upper bound). */
+export function cacheSavedBytes(save) {
+  if (save.kind === 'absent' || save.kind === 'skipped') return 0;
+  if (save.kind === 'stored') return Math.floor(((save.tenthsMiB + 1) * 1048576 + 9) / 10);
+  throw new Error(`unknown cache save kind ${save.kind}`);
+}
+
+/** Lean `cachePipelineBytes`: the sum over the saves of a pipeline's jobs. */
+export const cachePipelineBytes = (saves) => saves.reduce((n, s) => n + cacheSavedBytes(s), 0);
+
 /** Lean `stops`: every reason the pilot stops, in the order cap, queue, storage. */
 export function stops(g, i) {
   const c = g.constants;
@@ -152,10 +166,10 @@ const span = (job, step, startMs, durMs, commit = '') => ({ tool: `circleci/${jo
 
 // --------------------------------------------------------------------------------------------------------- in-job timings
 
-/** `timings.json` of a job: its spans (the span.sh lines) with the job, class, commit, digest and the bytes the job saved (cache, workspace). */
-export function timingsDoc({ spansText, job, cls, sha, digest, cacheBytes = 0, workspaceBytes = 0 }) {
+/** `timings.json` of a job: its spans (the span.sh lines) with the job, class, commit, digest and the bytes the job persisted to the workspace. */
+export function timingsDoc({ spansText, job, cls, sha, digest, workspaceBytes = 0 }) {
   const spans = spansText.split('\n').filter(Boolean).flatMap((l) => { try { return [JSON.parse(l)]; } catch { return []; } });
-  return { schema: 'fw.circleci-timings/1', job, class: cls, sha, digest: digest ?? null, bytes: { cache: cacheBytes, workspace: workspaceBytes }, spans };
+  return { schema: 'fw.circleci-timings/1', job, class: cls, sha, digest: digest ?? null, bytes: { workspace: workspaceBytes }, spans };
 }
 
 // ------------------------------------------------------------------------------------------------------------------ HTTP
@@ -246,6 +260,8 @@ export const urls = {
   workflows: (pipelineId) => `${API}/pipeline/${pipelineId}/workflow`,
   jobs: (workflowId) => `${API}/workflow/${workflowId}/job`,
   job: (slug, n) => `${API}/project/${slug}/job/${n}`,
+  /** API v1.1 job details: the only endpoint that lists the steps of a job and the URL of each step's output. */
+  jobSteps: (slug, n) => `https://circleci.com/api/v1.1/project/${slug}/${n}`,
   artifacts: (slug, n) => `${API}/project/${slug}/${n}/artifacts`,
   cancel: (workflowId) => `${API}/workflow/${workflowId}/cancel`,
   pipelines: (slug, branch) => `${API}/project/${slug}/pipeline?branch=${encodeURIComponent(branch)}`,
@@ -308,6 +324,40 @@ export function githubDigests(g, run, base, download = ghDownload) {
 /** `gh run download <id> -n <artifact> -D <dir>`. */
 export function ghDownload(runId, artifact, dir) {
   execFileSync('gh', ['run', 'download', String(runId), '-n', artifact, '-D', dir], { stdio: ['ignore', 'pipe', 'pipe'] });
+}
+
+// ------------------------------------------------------------------------------------------------------- cache saves of a job
+
+/** The name CircleCI gives the `save_cache` step in the job steps. */
+export const SAVE_STEP = 'Saving cache';
+
+const UNIT_TENTHS_MIB = { B: 10 / 1048576, KiB: 10 / 1024, MiB: 10, GiB: 10 * 1024 };
+
+/** Glue: the output text of a `Saving cache` step into a Lean `CacheSave`. The two outputs recorded on pipelines 15 and 16:
+ *  "Skipping cache generation, cache already exists for key ..." (nothing uploaded) and "... Total size uploaded: 9.3 MiB". A text
+ *  that is neither is an error: the bytes are not known, so the stop rule must not read a guess. */
+export function parseCacheSave(text) {
+  if (/Skipping cache generation/.test(text)) return { kind: 'skipped' };
+  const m = /Total size uploaded:\s*([0-9]+(?:\.[0-9]+)?)\s*(B|KiB|MiB|GiB)\b/.exec(text);
+  if (m) return { kind: 'stored', tenthsMiB: Math.ceil(Number(m[1]) * UNIT_TENTHS_MIB[m[2]]) };
+  throw new Error(`the save_cache step output is neither a skip nor a size: ${JSON.stringify(text.slice(0, 120))}`);
+}
+
+/** The Lean `CacheSave` of one job, from its steps (API v1.1) and the output of its save step. No save step (the job halted before
+ *  it, or never reached it) is `absent`; a save step that failed is an error (what it uploaded is unknown). */
+export async function readCacheSave(ctx, { slug, jobNumber }) {
+  const d = await call(ctx, 'GET', urls.jobSteps(slug, jobNumber));
+  const saves = (d.steps ?? []).flatMap((st) => st.actions ?? []).filter((a) => a.name === SAVE_STEP);
+  if (saves.length === 0) return { kind: 'absent' };
+  if (saves.length > 1) throw new Error(`job ${jobNumber}: ${saves.length} save_cache steps, expected at most one`);
+  const a = saves[0];
+  if (a.status !== 'success') {
+    if (['not_run', 'canceled', 'queued', 'running'].includes(a.status)) return { kind: 'absent' };
+    throw new Error(`job ${jobNumber}: the save_cache step ended ${a.status}; what it uploaded is unknown`);
+  }
+  if (!a.output_url) throw new Error(`job ${jobNumber}: the save_cache step has no output`);
+  const parts = JSON.parse((await callBytes(ctx, a.output_url)).toString('utf8'));
+  return parseCacheSave(parts.map((x) => x.message ?? '').join(''));
 }
 
 // ----------------------------------------------------------------------------------------------------------- storage ledger
@@ -376,8 +426,9 @@ export async function waitPipeline(ctx, { slug, pipelineId, timeoutS = 3600, int
 
 /** Download the artifacts of every finished job of the pipeline into `out/<job>/...` and write `out/run.json`
  *  ({schema, pipelineId, sha, runs: [Lean Run], spans, storage}). The commit is `vcs.revision` of GET /pipeline/{id}. The artifact path is
- *  checked: no `..`, no absolute path. Storage = artifact bytes + the cache and workspace bytes each job reports in timings.json,
- *  added to the ledger (`ctx.ledgerPath`) of all pilot pipelines. */
+ *  checked: no `..`, no absolute path. Storage = artifact bytes + the cache bytes the save steps of the jobs uploaded (job steps, Lean
+ *  `cachePipelineBytes`: a skipped or absent save counts 0) + the workspace bytes each job reports in timings.json, added to the
+ *  ledger (`ctx.ledgerPath`) of all pilot pipelines. */
 export async function fetchPipeline(ctx, { slug, pipelineId, out }) {
   const g = ctx.golden;
   mkdirSync(out, { recursive: true });
@@ -385,6 +436,7 @@ export async function fetchPipeline(ctx, { slug, pipelineId, out }) {
   if (!/^[0-9a-f]{40}$/.test(sha)) throw new Error(`pipeline ${pipelineId} has no vcs.revision`);
   const runs = [], spans = [];
   const bytes = { artifacts: 0, cache: 0, workspace: 0 };
+  const cacheSaves = [];
   for (const wf of await listAll(ctx, urls.workflows(pipelineId))) {
     for (const j of await listAll(ctx, urls.jobs(wf.id))) {
       if (j.job_number == null || !TERMINAL.has(j.status)) continue;
@@ -407,7 +459,7 @@ export async function fetchPipeline(ctx, { slug, pipelineId, out }) {
       const started = ms(d.started_at), stopped = ms(d.stopped_at), queuedAt = ms(d.queued_at) ?? ms(d.created_at);
       let own = [], saved = {};
       try { const t = JSON.parse(readFileSync(timingsPath, 'utf8')); own = t.spans ?? []; saved = t.bytes ?? {}; } catch { /* no timings.json: the job died before finish */ }
-      bytes.cache += Number(saved.cache) || 0;
+      if (savesCacheJob(g, j.name)) cacheSaves.push({ job: j.name, number: j.job_number, ...(await readCacheSave(ctx, { slug, jobNumber: j.job_number })) });
       bytes.workspace += Number(saved.workspace) || 0;
       const lastEnd = own.reduce((m, s) => Math.max(m, s.startMs + s.durMs), started ?? 0);
       if (queuedAt != null && started != null) spans.push(span(j.name, 'queue', queuedAt, started - queuedAt, sha.slice(0, 7)));
@@ -416,6 +468,7 @@ export async function fetchPipeline(ctx, { slug, pipelineId, out }) {
       if (started != null && stopped != null) spans.push(span(j.name, 'job', started, stopped - started, sha.slice(0, 7)));
     }
   }
+  bytes.cache = cachePipelineBytes(cacheSaves);
   const total = bytes.artifacts + bytes.cache + bytes.workspace;
   let ledger = { pipelines: {} };
   if (ctx.ledgerPath) {
@@ -426,7 +479,7 @@ export async function fetchPipeline(ctx, { slug, pipelineId, out }) {
   }
   const all = ctx.ledgerPath ? ledgerBytes(ledger) : total;
   const milli = storageMilli(all, RETENTION_DAYS);
-  const doc = { schema: 'fw.circleci-run/1', pipelineId, sha, runs, spans, storage: { ...bytes, bytes: total, ledgerBytes: all, days: RETENTION_DAYS, milli, stops: stops(g, { durMs: 0, queueMs: 0, storageMilli: milli }) } };
+  const doc = { schema: 'fw.circleci-run/1', pipelineId, sha, runs, spans, storage: { ...bytes, cacheSaves, bytes: total, ledgerBytes: all, days: RETENTION_DAYS, milli, stops: stops(g, { durMs: 0, queueMs: 0, storageMilli: milli }) } };
   writeFileSync(join(out, 'run.json'), `${JSON.stringify(doc, null, 2)}\n`);
   return doc;
 }
@@ -476,7 +529,7 @@ export async function dryRun({ golden, lane, branch, cls = CLASSES[0], xcode = '
   log(`${req.method} ${req.url}`);
   for (const [k, v] of Object.entries(req.headers)) log(`  ${k}: ${v}`);
   log(`  ${JSON.stringify(req.body)}`);
-  for (const [name, url] of [['pipeline workflows', urls.workflows('<pipeline-id>')], ['workflow jobs', urls.jobs('<workflow-id>')], ['pipeline (commit)', urls.pipeline('<pipeline-id>')], ['job detail', urls.job(slug, '<job-number>')], ['job artifacts', urls.artifacts(slug, '<job-number>')], ['cancel on stop', urls.cancel('<workflow-id>')]]) {
+  for (const [name, url] of [['pipeline workflows', urls.workflows('<pipeline-id>')], ['workflow jobs', urls.jobs('<workflow-id>')], ['pipeline (commit)', urls.pipeline('<pipeline-id>')], ['job detail', urls.job(slug, '<job-number>')], ['job artifacts', urls.artifacts(slug, '<job-number>')], ['job steps (v1.1, the save_cache step)', urls.jobSteps(slug, '<job-number>')], ['cancel on stop', urls.cancel('<workflow-id>')]]) {
     log(`${name === 'cancel on stop' ? 'POST' : 'GET'} ${url}   (${name}; header Circle-Token: <redacted>)`);
   }
   const fx = loadFixture(fixture);
@@ -521,8 +574,8 @@ export async function main(argv, { root = ROOT, env = process.env, ctx: ctx0 = {
   const golden = ctx0.golden ?? loadGolden();
   try {
     if (sub === 'timings') {
-      const o = flags(rest, { spans: 'v', out: 'v', job: 'v', class: 'v', sha: 'v', 'digest-from': 'v', 'cache-bytes': 'v', 'workspace-bytes': 'v' });
-      const doc = timingsDoc({ spansText: readFileSync(o.spans, 'utf8'), job: o.job, cls: o.class, sha: o.sha ?? '', digest: o['digest-from'] ? premiseDigest(o['digest-from']) : null, cacheBytes: Number(o['cache-bytes']) || 0, workspaceBytes: Number(o['workspace-bytes']) || 0 });
+      const o = flags(rest, { spans: 'v', out: 'v', job: 'v', class: 'v', sha: 'v', 'digest-from': 'v', 'workspace-bytes': 'v' });
+      const doc = timingsDoc({ spansText: readFileSync(o.spans, 'utf8'), job: o.job, cls: o.class, sha: o.sha ?? '', digest: o['digest-from'] ? premiseDigest(o['digest-from']) : null, workspaceBytes: Number(o['workspace-bytes']) || 0 });
       writeFileSync(o.out, `${JSON.stringify(doc, null, 2)}\n`);
       return 0;
     }

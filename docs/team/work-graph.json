@@ -9193,7 +9193,8 @@
     "scripts/circleci*",
     "research/notes/2026/10-20-circleci-pilot.md",
     "docs/team/handoffs/circleci-cache-accounting.md"
-   ]
+   ],
+   "evidence": "b2204d2"
   },
   {
    "devices": [

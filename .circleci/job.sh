@@ -3,12 +3,12 @@
 # /tmp/fw/spans.jsonl (the .fw-console/timings.jsonl format). Glue only: no decision. The steps are ports of the GitHub
 # twins (.github/workflows/premise-tests.yml, webkit-sim.yml, .github/actions/{setup-pnpm,gate-engine}).
 #   sh .circleci/job.sh <step> [args]
-#   steps: since <name> | toolchain | install <filters> | browser | test | verdict
+#   steps: since <name> | toolchain | install <filters> | browser | test | verdict | cache-probe | cache-gate
 #          sim-prepare | sim-boot | sim-run | sim-delete | finish
 # Env (set by the job): FW_CI_JOB, FW_CI_CLASS, FW_CI_ENGINE (engine jobs), HS_VERSION and HS_SHA256 (chromium).
 set -eu
 cd "$(dirname "$0")/.."
-fw=/tmp/fw
+fw=${FW_JOB_DIR:-/tmp/fw}
 mkdir -p "$fw/artifacts" "$fw/ws"
 export FW_TIMINGS_FILE=$fw/spans.jsonl
 export RUNNER_TEMP=$fw
@@ -26,6 +26,35 @@ since() {
   _span_now
   printf '{"tool":"%s","step":"%s","startMs":%s,"durMs":%s,"exit":0,"commit":"%s","load":%s,"host":"%s"}\n' \
     "$tool" "$1" "$s" "$((_t - s))" "$_span_commit" "$_span_load" "$_span_host" >> "$FW_TIMINGS_FILE"
+}
+
+# The pnpm cache is saved only when the lockfile changed. CircleCI has no "cache was restored" flag and no condition on save_cache,
+# so the job keeps its own marker: ~/.fw-cache/lock-sha256 holds the sha256 of the pnpm-lock.yaml the saved store belongs to, and
+# it is a cached path next to the store. cache-probe (right after restore_cache) says whether the restored marker names this
+# lockfile; cache-gate (the last step before save_cache) halts the job when it does (`circleci-agent step halt`, documented in the
+# configuration reference: the job ends as a success and save_cache never runs), else writes the marker so the save carries it.
+cache_marker=$HOME/.fw-cache/lock-sha256
+lock_sha() { node -p "require('crypto').createHash('sha256').update(require('fs').readFileSync('pnpm-lock.yaml')).digest('hex')"; }
+
+cache_probe() {
+  rm -f "$fw/cache-current"
+  if [ -f "$cache_marker" ] && [ "$(cat "$cache_marker")" = "$(lock_sha)" ]; then
+    : > "$fw/cache-current"
+    echo "pnpm cache: the restored store belongs to this lockfile; no save at the end"
+  else
+    echo "pnpm cache: none restored for this lockfile; the job saves one at the end"
+  fi
+}
+
+cache_gate() {
+  if [ -f "$fw/cache-current" ]; then
+    echo "pnpm cache: current, halting before save_cache"
+    circleci-agent step halt
+  else
+    mkdir -p "$(dirname "$cache_marker")"
+    lock_sha > "$cache_marker"
+    echo "pnpm cache: marker written, save_cache follows"
+  fi
 }
 
 install_pnpm() {
@@ -128,14 +157,14 @@ sim_delete() {
 finish() {  # timings.json beside the result files; the spans are kept even when the helper cannot run
   cp "$FW_TIMINGS_FILE" "$fw/artifacts/spans.jsonl" 2>/dev/null || true
   if command -v node >/dev/null 2>&1; then
-    # bytes this job saved to the CircleCI cache and workspace (the engine jobs only; the stop rule counts them, scripts/circleci.mjs)
-    cache=0; ws=0
+    # bytes this job persisted to the workspace (the engine jobs only; the stop rule counts them, scripts/circleci.mjs). The cache
+    # bytes are not measured here: the ledger reads them from the job steps API (what the save step actually uploaded).
+    ws=0
     if [ -n "${FW_CI_ENGINE:-}" ]; then
-      cache=$(( $(du -sk "$HOME/.local/share/pnpm/store" 2>/dev/null | cut -f1) * 1024 )) || cache=0
       ws=$(( $(du -sk "$fw/ws" 2>/dev/null | cut -f1) * 1024 )) || ws=0
     fi
     node scripts/circleci.mjs timings --spans "$FW_TIMINGS_FILE" --out "$fw/artifacts/timings.json" --job "${FW_CI_JOB:-unknown}" \
-      --class "${FW_CI_CLASS:-unknown}" --sha "${CIRCLE_SHA1:-}" --cache-bytes "$cache" --workspace-bytes "$ws" ${FW_CI_ENGINE:+--digest-from "$fw/artifacts/premises-$FW_CI_ENGINE"} || true
+      --class "${FW_CI_CLASS:-unknown}" --sha "${CIRCLE_SHA1:-}" --workspace-bytes "$ws" ${FW_CI_ENGINE:+--digest-from "$fw/artifacts/premises-$FW_CI_ENGINE"} || true
   fi
 }
 
@@ -153,6 +182,8 @@ case "$cmd" in
   sim-boot) T "simulator boot" sim_boot ;;
   sim-run) T "determinism session" sim_run ;;
   sim-delete) T "simulator delete" sim_delete ;;
+  cache-probe) cache_probe ;;
+  cache-gate) cache_gate ;;
   finish) finish ;;
   *) echo "job.sh: unknown step $cmd" >&2; exit 64 ;;
 esac
