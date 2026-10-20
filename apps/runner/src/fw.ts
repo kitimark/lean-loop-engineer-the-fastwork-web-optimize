@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { enforceNodePin } from "./node-guard.ts";
 import { Command } from "@fw/contracts";
 import { NO_API_GROUPS, UsageError, apiBase, gitFullRef, renderBoard, send, stepCommand, taskCommand } from "./lib.ts";
 import { CARD_USAGE, cardCommand } from "./card.ts";
@@ -17,6 +18,7 @@ import { engineCheckCli } from "./engine-check.ts";
 import { begin, span, timingsView } from "./timing.ts";
 import { backfill, ingestRuns, lagCli, runIdsOf, waitSpanExtra } from "./timing-ci.ts";
 
+enforceNodePin();
 const [group, ...rest] = process.argv.slice(2);
 // timing-spans: one span per invocation (step = group + subcommand); `watch` times each pass itself, `timings` is a view
 const SUBS = new Set(["plan", "ci", "incidents", "step", "card", "task", "console"]);

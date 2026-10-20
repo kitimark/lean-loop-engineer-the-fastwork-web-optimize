@@ -50,6 +50,9 @@ jobs:
           fetch-depth: 0
           filter: blob:none
           persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
       - name: Unit-test the guard
         run: node --test .github/scripts/changed-inputs.test.mjs
       - id: g

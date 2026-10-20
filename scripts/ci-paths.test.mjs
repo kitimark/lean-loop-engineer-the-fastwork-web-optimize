@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { decide, loadIntent, matches, preciseInputs } from '../.github/scripts/changed-inputs.mjs';
-import { capProblems, coarseMap, coneOf, coneProblems, loadCaps, dispatchOnly, expand, guardIf, jobConcurrency, LAKE_GEN, leanInputProblems, leanScriptPaths, recheckSteps, withConj, macosJobs, unsafeStatusIf, lakeGenProblems, lakeImportFacts, lakeJobs, lakeTargetsOf, loadGolden, portableGlob, withNotMain, notMainIf, carriesNotMain, cacheWriters, guardComment, readJobs, readLakefile, reconcile, renderPush, run, setMapFor, setupLeanJobs, unguarded, nodePinProblems } from './ci-paths.mjs';
+import { capProblems, coarseMap, coneOf, coneProblems, loadCaps, dispatchOnly, expand, guardIf, jobConcurrency, LAKE_GEN, leanInputProblems, leanScriptPaths, recheckSteps, withConj, macosJobs, unsafeStatusIf, lakeGenProblems, lakeImportFacts, lakeJobs, lakeTargetsOf, loadGolden, portableGlob, withNotMain, notMainIf, carriesNotMain, cacheWriters, guardComment, readJobs, readLakefile, reconcile, renderPush, run, setMapFor, setupLeanJobs, unguarded, nodePinProblems, jobFacts, jobProblems, pinValueProblems, rowProblems, copyProblems } from './ci-paths.mjs';
 
 const root = join(dirname(new URL(import.meta.url).pathname), '..');
 const WF = ['.git', 'hub/workflows'].join('');
@@ -580,28 +580,77 @@ test('node pin: the repo pins one exact Node >= 24.22.0 and every Node lane list
   assert.match(readFileSync(join(root, '.node-version'), 'utf8').trim(), /^24\.(2[2-9]|[3-9]\d)\.\d+$/);
 });
 
-test('node pin lint: floating version, wrong file, old pin and a row without the file each fail', () => {
+test('node pin golden: the TS twins decide exactly as Lean (Fw.Ci.Trigger pinValueProblems, jobProblems, rowProblems, copyProblems)', () => {
+  const g = (k) => goldenLines.filter((l) => l.kind === k);
+  assert.ok(g('pinValue').length >= 10 && g('pinJob').length >= 6 && g('pinRow').length >= 4 && g('pinCopies').length >= 3);
+  for (const l of g('pinValue')) assert.deepEqual(pinValueProblems(l.pin), l.problems, `pin ${JSON.stringify(l.pin)}`);
+  for (const l of g('pinJob')) assert.deepEqual(jobProblems(l), l.problems, JSON.stringify(l));
+  for (const l of g('pinRow')) assert.deepEqual(rowProblems(l.usesNode, l.row), l.problems, JSON.stringify(l));
+  for (const l of g('pinCopies')) assert.deepEqual(copyProblems(l.pin, l.copies.map((c) => [c.name, c.value])), l.problems, JSON.stringify(l));
+});
+
+test('node pin facts: the reader sees block, quoted and flow-map setup-node steps and the commands a job runs', () => {
+  const f = (text) => jobFacts(text.split('\n'));
+  const block = f('  a:\n    steps:\n      - uses: actions/setup-node@abc # v7\n        with:\n          node-version-file: .node-version\n      - run: node x.mjs');
+  assert.deepEqual([block.setups, block.versionKey, block.runsNode], [['.node-version'], false, true]);
+  assert.deepEqual(f("  a:\n    steps:\n      - uses: 'actions/setup-node@abc'\n        with:\n          node-version-file: '.node-version'").setups, ['.node-version']);
+  assert.deepEqual(f('  a:\n    steps:\n      - { uses: actions/setup-node@abc, with: { node-version-file: .node-version } }').setups, ['.node-version']);
+  assert.deepEqual(f('  a:\n    steps:\n      - { uses: "actions/setup-node@abc", with: { node-version: 24 } }').setups, ['']);
+  assert.equal(f('  a:\n    steps:\n      - { uses: "actions/setup-node@abc", with: { "node-version": 24 } }').versionKey, true);
+  assert.deepEqual(f("  a:\n    steps:\n      - uses: actions/setup-node@abc\n        with:\n          node-version-file: 'package.json'").setups, ['package.json']);
+  assert.deepEqual(f("  a:\n    steps:\n      - with:\n          node-version-file: package.json\n        uses: actions/setup-node@abc").setups, ['package.json'], 'uses after with');
+  assert.equal(f('  a:\n    steps:\n      - run: |\n          echo hi\n          pnpm install').runsNode, true);
+  assert.equal(f('  a:\n    steps:\n      - run: "cd x && node y"').runsNode, true);
+  assert.equal(f('  a:\n    steps:\n      - run: echo node is fine\n      # run: node x').runsNode, false);
+  assert.equal(f('  a:\n    steps:\n      - uses: ./.github/actions/setup-pnpm\n      - run: pnpm test').pnpmAction, true);
+});
+
+test('node pin lint: floating version, wrong file, old pin, a copy that differs, no setup, and a row missing or without the file each fail', () => {
   const dir = mkdtempSync(join(tmpdir(), 'ci-paths-node-'));
   const put = (rel, text) => { mkdirSync(dirname(join(dir, rel)), { recursive: true }); writeFileSync(join(dir, rel), text); };
   const wf = (w) => `jobs:\n  a:\n    steps:\n      - uses: actions/setup-node@abc # v7\n        with:\n          ${w}\n`;
-  const t = (inputs) => ({ sets: {}, workflows: [{ file: 'x.yml', inputs }] });
+  const t = (inputs, file = 'x.yml') => ({ sets: {}, workflows: inputs === null ? [] : [{ file, inputs }] });
   const ACT = WF.replace('workflows', 'actions');
+  const problems = (tbl) => nodePinProblems(dir, tbl);
   try {
     put('.node-version', '24.22.0\n');
+    put('.nvmrc', '24.22.0\n');
+    put('.npmrc', 'engine-strict=true\n');
+    put('package.json', JSON.stringify({ engines: { node: '24.22.0' } }));
+    put('pnpm-workspace.yaml', 'packages:\n  - "apps/*"\nuseNodeVersion: 24.22.0\n');
     put(`${WF}/x.yml`, wf('node-version-file: .node-version'));
-    assert.deepEqual(nodePinProblems(dir, t(['.node-version'])), []);
-    assert.equal(nodePinProblems(dir, t(['apps/**'])).length, 1, 'row without the file');
+    assert.deepEqual(problems(t(['.node-version'])), []);
+    assert.equal(problems(t(['apps/**'])).length, 1, 'row without the file');
+    assert.ok(problems(t(null)).some((p) => /has no row in the Lean table/.test(p)), 'a workflow with no Lean row is a problem');
     put(`${WF}/x.yml`, wf("node-version: '24'"));
-    assert.ok(nodePinProblems(dir, t(['.node-version'])).some((p) => /sets node-version/.test(p)), 'floating');
+    assert.ok(problems(t(['.node-version'])).some((p) => /sets node-version/.test(p)), 'floating');
     put(`${WF}/x.yml`, wf('node-version-file: package.json'));
-    assert.ok(nodePinProblems(dir, t(['.node-version'])).some((p) => /is not \.node-version/.test(p)), 'other file');
+    assert.ok(problems(t(['.node-version'])).some((p) => /is not \.node-version/.test(p)), 'other file');
+    put(`${WF}/x.yml`, "jobs:\n  a:\n    steps:\n      - { uses: 'actions/setup-node@abc', with: { node-version-file: package.json } }\n");
+    assert.ok(problems(t(['.node-version'])).some((p) => /is not \.node-version/.test(p)), 'flow-map form');
+    put(`${WF}/x.yml`, 'jobs:\n  a:\n    steps:\n      - run: node x.mjs\n');
+    assert.ok(problems(t(['.node-version'])).some((p) => /job a: runs node.*no setup-node/.test(p)), 'node without setup');
+    put(`${WF}/x.yml`, 'jobs:\n  a:\n    steps:\n      - uses: ./.github/actions/setup-pnpm\n      - run: pnpm test\n');
+    assert.deepEqual(problems(t(['.node-version'])), [], 'the setup-pnpm action counts as the setup');
     put(`${WF}/x.yml`, wf('node-version-file: .node-version'));
     put(`${ACT}/y/action.yml`, 'runs:\n  steps:\n    - uses: actions/setup-node@abc\n      with:\n        node-version: 24.22.0\n');
-    assert.ok(nodePinProblems(dir, t(['.node-version'])).some((p) => /actions\/y/.test(p)), 'action drift');
+    assert.ok(problems(t(['.node-version'])).some((p) => /actions\/y/.test(p)), 'action drift');
     rmSync(join(dir, ACT), { recursive: true });
+    put('.nvmrc', '24.21.0\n');
+    assert.ok(problems(t(['.node-version'])).some((p) => /^\.nvmrc: must equal/.test(p)), '.nvmrc differs');
+    put('.nvmrc', '24.22.0\n');
+    put('package.json', JSON.stringify({ engines: { node: '>=24' } }));
+    assert.ok(problems(t(['.node-version'])).some((p) => /engines\.node: must equal/.test(p)), 'engines differs');
+    put('package.json', JSON.stringify({ engines: { node: '24.22.0' } }));
+    put('pnpm-workspace.yaml', 'packages: []\n');
+    assert.ok(problems(t(['.node-version'])).some((p) => /useNodeVersion: must equal/.test(p)), 'pnpm setting missing');
+    put('pnpm-workspace.yaml', 'useNodeVersion: 24.22.0\n');
+    put('.npmrc', '');
+    assert.ok(problems(t(['.node-version'])).some((p) => /engine-strict/.test(p)), 'engine-strict');
+    put('.npmrc', 'engine-strict=true\n');
     put('.node-version', '24.21.0\n');
-    assert.ok(nodePinProblems(dir, t(['.node-version'])).some((p) => /older than/.test(p)), 'old');
+    assert.ok(problems(t(['.node-version'])).some((p) => /older than/.test(p)), 'old');
     put('.node-version', '24\n');
-    assert.ok(nodePinProblems(dir, t(['.node-version'])).some((p) => /exact version/.test(p)), 'floating file');
+    assert.ok(problems(t(['.node-version'])).some((p) => /exact version/.test(p)), 'floating file');
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });

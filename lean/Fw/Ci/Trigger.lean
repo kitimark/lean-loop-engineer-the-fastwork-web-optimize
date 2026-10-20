@@ -190,7 +190,7 @@ def table : List Wf := [
     "packages/contracts/golden/parts/hero.exit.scoped.json", "packages/measure-chromium/scenarios.gen.json",
     "packages/contracts/golden/parts/morph.mount.dormant.jsonl", "packages/contracts/golden/parts/morph-mount-tap.jsonl",
     ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", ".github/scripts/runner-info.sh",
-    ".github/actions/telemetry/**", "scripts/ci-telemetry/**", own "lean.yml"], []⟩,
+    ".github/actions/telemetry/**", "scripts/ci-telemetry/**", own "lean.yml", ".node-version"], []⟩,
   ⟨"mutants.yml", ciAll, [
     "lean/Fw/Console.lean", "lean/Fw/Serve.lean", "lean/Fw/Ops/Meter.lean", "lean/Fw/Ops/PathCheck.lean",
     "lean/Fw/Ops/SpawnGuard.lean", "lean/Fw/Ops/Usage.lean", "lean/Fw/Ops/Wire.lean", "lean/Fw/Spec/DeviceQueue.lean",
@@ -263,7 +263,7 @@ def run (diff merged : List String) : List String :=
 #guard run ["packages/contracts/golden/gate/pixel.jsonl"] [] == ["land.yml", "visual-diff.yml"]
 #guard run ["docs/team/handoffs/x.md"] [] == []
 -- a change of the Node pin starts every lane that sets up Node (task node-pin)
-#guard run [".node-version"] [] == ["breakpoint-gate.yml", "chromium-counts.yml", "difftest.yml", "engine-premises.yml", "gate-gaps.yml", "land.yml", "mutants.yml", "premise-tests.yml", "preview-e2e.yml", "sim-speed.yml", "snapshot-extract.yml", "trajectory-probe.yml", "visual-diff.yml", "webkit-sim.yml", "wktr-fixtures.yml", "wktr.yml"]
+#guard run [".node-version"] [] == ["breakpoint-gate.yml", "chromium-counts.yml", "difftest.yml", "engine-premises.yml", "gate-gaps.yml", "land.yml", "lean.yml", "mutants.yml", "premise-tests.yml", "preview-e2e.yml", "sim-speed.yml", "snapshot-extract.yml", "trajectory-probe.yml", "visual-diff.yml", "webkit-sim.yml", "wktr-fixtures.yml", "wktr.yml"]
 -- a merge of main changes lean/ and apps/site but starts nothing
 #guard run ["lean/Fw/Wire.lean", "apps/site/src/a.ts"] ["lean/Fw/Wire.lean", "apps/site/src/a.ts"] == []
 #guard run ["packages/measure-wktr/src/a.mjs", "lean/Fw/Wire.lean"] ["lean/Fw/Wire.lean"] == ["engine-premises.yml", "land.yml", "wktr-fixtures.yml", "wktr.yml"]
@@ -656,6 +656,113 @@ def filtered (diff : List String) : List String :=
 -- the old precise paths moved with a new module; the push paths do not depend on the cone
 #guard expand (setMap sampleCone) ["@fwcore"] != expand (setMap (addModule sampleCone "Main" "lean/Fw/New.lean")) ["@fwcore"]
 
+/-! ## The Node pin rule (task node-pin-local)
+
+One canonical Node version: the repo-root `.node-version`, an exact `x.y.z` at least `nodeMin`. The TS scanner
+(`scripts/ci-paths.mjs`) reads the YAML into facts; the decisions below are Lean, and the TS twin is checked against
+the golden vectors. -/
+
+/-- The file that holds the pin. -/
+def nodeFile : String := ".node-version"
+
+/-- The oldest pin allowed (the first Node whose recursive `fs.watch` of a missing path throws). -/
+def nodeMin : Nat × Nat × Nat := (24, 22, 0)
+
+/-- Parse an exact `x.y.z` (three digit-only parts), else `none`. -/
+def parseExact (s : String) : Option (Nat × Nat × Nat) :=
+  match s.splitOn "." with
+  | [a, b, c] =>
+    if [a, b, c].all (fun p => p != "" && p.all Char.isDigit) then
+      match a.toNat?, b.toNat?, c.toNat? with
+      | some x, some y, some z => some (x, y, z)
+      | _, _, _ => none
+    else none
+  | _ => none
+
+/-- Triple order `a ≥ b`. -/
+def tripleGe (a b : Nat × Nat × Nat) : Bool :=
+  a.1 > b.1 || (a.1 == b.1 && (a.2.1 > b.2.1 || (a.2.1 == b.2.1 && a.2.2 ≥ b.2.2)))
+
+/-- The problems of the pin file's content (`none`: no file): `noFile`, `notExact` or `tooOld`. -/
+def pinValueProblems (pin : Option String) : List String :=
+  match pin with
+  | none => ["noFile"]
+  | some s => match parseExact s with
+    | none => ["notExact"]
+    | some v => if tripleGe v nodeMin then [] else ["tooOld"]
+
+/-- Where the pin is repeated (`.nvmrc`, `engines.node`, pnpm `useNodeVersion`): each copy that is not equal to the
+pin is a `differs:<name>` problem; each copy is decided on its own. -/
+def copyProblems (pin : Option String) (copies : List (String × Option String)) : List String :=
+  copies.filterMap fun (n, v) => if v == pin then none else some ("differs:" ++ n)
+
+/-- What the scanner reads off one job. `setups` holds, for each `actions/setup-node` step, its `node-version-file`
+value (`""` when the step has none); `versionKey` is a `node-version:` key anywhere in the job; `pnpmAction` is a use of
+the repo's setup-pnpm action (which sets Node up); `runsNode` is a `run:` line that calls node, pnpm, npm or npx. -/
+structure PinJob where
+  setups : List String
+  versionKey : Bool
+  pnpmAction : Bool
+  runsNode : Bool
+  deriving Repr
+
+/-- The problems of one job: `versionKey`, `otherFile` (a setup-node that does not read the pin file) and
+`unpinnedNode` (it runs Node with no setup step at all, so it gets the runner's own Node). -/
+def jobProblems (j : PinJob) : List String :=
+  (if j.versionKey then ["versionKey"] else []) ++
+  (if j.setups.any (· != nodeFile) then ["otherFile"] else []) ++
+  (if j.runsNode && j.setups.isEmpty && !j.pnpmAction then ["unpinnedNode"] else [])
+
+/-- The problems of a workflow that uses Node, given its Lean row's inputs (`none`: it has no row): `noRow` or
+`rowLacksPin`. -/
+def rowProblems (usesNode : Bool) (row : Option (List String)) : List String :=
+  if !usesNode then [] else
+    match row with
+    | none => ["noRow"]
+    | some ins => if ins.contains nodeFile then [] else ["rowLacksPin"]
+
+theorem jobProblems_versionKey (j : PinJob) : "versionKey" ∈ jobProblems j ↔ j.versionKey = true := by
+  simp [jobProblems]
+
+theorem jobProblems_otherFile (j : PinJob) :
+    "otherFile" ∈ jobProblems j ↔ ∃ s ∈ j.setups, s ≠ nodeFile := by
+  simp [jobProblems]
+
+theorem jobProblems_unpinned (j : PinJob) :
+    "unpinnedNode" ∈ jobProblems j ↔ j.runsNode = true ∧ j.setups = [] ∧ j.pnpmAction = false := by
+  simp [jobProblems, and_assoc]
+
+theorem rowProblems_noRow (u : Bool) : "noRow" ∈ rowProblems u none ↔ u = true := by
+  cases u <;> simp [rowProblems]
+
+theorem rowProblems_lacks (u : Bool) (ins : List String) :
+    "rowLacksPin" ∈ rowProblems u (some ins) ↔ u = true ∧ nodeFile ∉ ins := by
+  cases u <;> simp [rowProblems]
+
+theorem copyProblems_iff (pin : Option String) (copies : List (String × Option String)) (n : String) :
+    "differs:" ++ n ∈ copyProblems pin copies ↔ ∃ c ∈ copies, c.1 = n ∧ c.2 ≠ pin := by
+  simp only [copyProblems, List.mem_filterMap, Option.ite_none_left_eq_some, Option.some.injEq]
+  constructor
+  · rintro ⟨⟨a, b⟩, hc, hne, he⟩
+    exact ⟨(a, b), hc, by simpa using he, by simpa using hne⟩
+  · rintro ⟨⟨a, b⟩, hc, rfl, hne⟩
+    exact ⟨(a, b), hc, by simpa using hne, rfl⟩
+
+#guard pinValueProblems (some "24.22.0") == []
+#guard pinValueProblems (some "24.30.1") == []
+#guard pinValueProblems (some "25.0.0") == []
+#guard pinValueProblems (some "24.21.9") == ["tooOld"]
+#guard pinValueProblems (some "24") == ["notExact"]
+#guard pinValueProblems (some ">=24.22.0") == ["notExact"]
+#guard pinValueProblems none == ["noFile"]
+#guard jobProblems ⟨[".node-version"], false, false, true⟩ == []
+#guard jobProblems ⟨[], false, false, true⟩ == ["unpinnedNode"]
+#guard jobProblems ⟨[], false, true, true⟩ == []
+#guard jobProblems ⟨["package.json"], true, false, true⟩ == ["versionKey", "otherFile"]
+#guard rowProblems true none == ["noRow"]
+#guard rowProblems true (some ["apps/**"]) == ["rowLacksPin"]
+#guard rowProblems false none == []
+
 /-! ## Golden (`packages/contracts/golden/ci/triggers.jsonl`) -/
 
 /-- A JSON array of strings. -/
@@ -671,6 +778,41 @@ def tableLine : Json :=
     ("notMainPush", .str notMainPush),
     ("cacheWriters", .arr (cacheWriters.map fun (f, j, c) =>
       Json.mkObj [("file", .str f), ("job", .str j), ("cache", .str c)]).toArray)]
+
+/-- A string or `null`. -/
+def optStr (o : Option String) : Json := match o with | none => .null | some x => .str x
+
+/-- Pin-file contents the golden decides. -/
+def pinValues : List (Option String) :=
+  [some "24.22.0", some "24.30.1", some "25.0.0", some "24.21.9", some "23.99.99", some "24", some "24.22",
+   some ">=24.22.0", some "v24.22.0", some "24.22.x", some "24.22.0.1", some "", none]
+
+/-- Jobs the golden decides: (setups, versionKey, pnpmAction, runsNode). -/
+def pinJobs : List PinJob := [
+  ⟨[".node-version"], false, false, true⟩, ⟨[], false, false, true⟩, ⟨[], false, true, true⟩, ⟨[], false, false, false⟩,
+  ⟨["package.json"], false, false, true⟩, ⟨[""], false, false, true⟩, ⟨[], true, false, true⟩,
+  ⟨[".node-version", "x"], true, false, true⟩]
+
+/-- Rows the golden decides: (usesNode, row inputs). -/
+def pinRows : List (Bool × Option (List String)) := [
+  (true, some [".node-version", "apps/**"]), (true, some ["apps/**"]), (true, none), (false, none), (false, some [])]
+
+/-- Copy sets the golden decides. -/
+def pinCopies : List (Option String × List (String × Option String)) := [
+  (some "24.22.0", [(".nvmrc", some "24.22.0"), ("engines.node", some "24.22.0"), ("useNodeVersion", some "24.22.0")]),
+  (some "24.22.0", [(".nvmrc", some "24.21.0"), ("engines.node", some "24.22.0"), ("useNodeVersion", none)]),
+  (some "24.22.0", [(".nvmrc", some "24.22.0"), ("engines.node", some ">=24")])]
+
+/-- The Node pin golden lines. -/
+def pinLines : List Json :=
+  pinValues.map (fun p => Json.mkObj [("kind", "pinValue"), ("pin", optStr p), ("problems", strs (pinValueProblems p))]) ++
+  pinJobs.map (fun j => Json.mkObj [("kind", "pinJob"), ("setups", strs j.setups), ("versionKey", .bool j.versionKey),
+    ("pnpmAction", .bool j.pnpmAction), ("runsNode", .bool j.runsNode), ("problems", strs (jobProblems j))]) ++
+  pinRows.map (fun (u, r) => Json.mkObj [("kind", "pinRow"), ("usesNode", .bool u),
+    ("row", match r with | none => .null | some xs => strs xs), ("problems", strs (rowProblems u r))]) ++
+  pinCopies.map (fun (p, cs) => Json.mkObj [("kind", "pinCopies"), ("pin", optStr p),
+    ("copies", .arr (cs.map fun (n, v) => Json.mkObj [("name", .str n), ("value", optStr v)]).toArray),
+    ("problems", strs (copyProblems p cs))])
 
 /-- The replay cases: each is (name, diff, the paths that already equal `main`); the workflows it starts under the
 sample cones are added by `caseLine`. -/
@@ -712,7 +854,7 @@ def ifCheckLine (t : String) : Json :=
 /-- The text of the golden file: one JSON object per line for the table, the cases, the `if:` forms and the `if:`
 checks. -/
 def goldenText (_ : Unit := ()) : String :=
-  String.join ((tableLine :: cases.map caseLine ++ ifOrigs.map ifFormLine ++ ifTexts.map ifCheckLine).map
+  String.join ((tableLine :: cases.map caseLine ++ ifOrigs.map ifFormLine ++ ifTexts.map ifCheckLine ++ pinLines).map
     fun j => j.compress ++ "\n")
 
 /-- Compare (or write) the golden file; returns the number of stale files. -/
