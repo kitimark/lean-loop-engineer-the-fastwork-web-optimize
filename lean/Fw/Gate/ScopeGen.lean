@@ -38,6 +38,7 @@ def partJson (u : PartUse) : Json :=
   Json.mkObj [
     ("owners", toJson u.owners),
     ("conditions", Json.mkObj [("orig", toJson u.orig), ("rewrite", toJson u.rewrite)]),
+    ("added", Json.arr (u.added.map fun (i, w) => Json.mkObj [("id", toJson i), ("why", toJson w)]).toArray),
     ("extra", Json.arr (u.extra.map fun x =>
       Json.mkObj [("id", toJson x.id), ("css", toJson x.query.css), ("why", toJson x.why)]).toArray),
     ("knees", Json.arr (u.knees.map fun k =>
