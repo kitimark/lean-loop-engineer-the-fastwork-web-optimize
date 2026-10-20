@@ -11942,7 +11942,8 @@
     "packages/contracts/golden/gate/trajectory.jsonl",
     "docs/team/tools/trajectory-probe.md",
     "docs/team/handoffs/trajectory-close-start.md"
-   ]
+   ],
+   "evidence": "257cc48"
   },
   {
    "devices": [
