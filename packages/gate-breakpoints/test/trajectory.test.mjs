@@ -5,13 +5,14 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { armCheck, byM, byStep, bucket, judgeAgainst, pickWidths, quantile, readsDominate, reduceRaw, reduceWidth, rel, runCheck, verdictLines, window as windowOf } from '../src/trajectory/reduce.mjs';
+import { mergeRaws, planOf } from '../src/trajectory/plan.mjs';
 import { HERO_NODES, MORPH_NODES, PAGE_PROPS, HERO_STEPS, WIDTHS, MOTION_PROPS } from '../src/trajectory/registry.mjs';
 
 const golden = readFileSync(fileURLToPath(new URL('../../contracts/golden/gate/trajectory.jsonl', import.meta.url)), 'utf8')
   .split('\n').filter(Boolean).map((l) => JSON.parse(l));
 
 test('the golden file holds every operation', () => {
-  assert.deepEqual([...new Set(golden.map((g) => g.op))].sort(), ['against', 'window', 'bucket', 'byM', 'byStep', 'widths', 'rel', 'arm', 'run', 'quantile', 'dominate'].sort());
+  assert.deepEqual([...new Set(golden.map((g) => g.op))].sort(), ['against', 'window', 'bucket', 'byM', 'byStep', 'widths', 'rel', 'arm', 'run', 'quantile', 'dominate', 'plan'].sort());
   assert.ok(golden.length >= 110);
   assert.ok(golden.some((g) => g.op === 'byM' && [...g.orig, ...g.rew].some((x) => x.rep > 0)), 'golden has rows with rep > 0');
 });
@@ -33,9 +34,30 @@ for (const g of golden) {
     } else if (g.op === 'widths') {
       const got = pickWidths(g.input);
       assert.deepEqual(got === null ? { ok: false } : { ok: true, widths: got }, g.pick);
-    } else assert.fail(`unknown op ${g.op}`);
+    } else if (g.op === 'plan') assert.deepEqual(planOf(g.engines, g.widths), g.legs);
+    else assert.fail(`unknown op ${g.op}`);
   });
 }
+
+// ---- the legs of a dispatch (src/trajectory/plan.mjs, the twin of Lean `plan`) ----
+
+test('plan: macOS WebKit joins every WebKit dispatch and walks the morph path; Linux WebKit walks hero only', () => {
+  const apple = (p) => p.filter((l) => l.engine === 'mac-webkit');
+  assert.deepEqual(apple(planOf('playwright-webkit', '')).map((l) => [l.widths, l.walks]), [[[390, 641], ['hero', 'morph']], [[640, 1280], ['hero', 'morph']]]);
+  assert.deepEqual(apple(planOf('chromium', '')), []);
+  assert.deepEqual(planOf('both', '').filter((l) => l.engine === 'linux-webkit').map((l) => l.walks), [['hero'], ['hero'], ['hero'], ['hero']]);
+  assert.equal(planOf('safari', ''), null);
+  assert.equal(planOf('both', '390,500'), null);
+});
+
+test('mergeRaws: legs of one engine join in width order; a leg that disagrees on the search or a refused leg is kept visible', () => {
+  const leg = (width, extra = {}) => ({ engine: 'chromium', version: '1', search: '?fw=a:b', hash: 'h', baseHash: 'b', paths: ['hero'], reads: 'full', reps: 5, refused: false, runs: [{ width, role: 'orig' }], ...extra });
+  const m = mergeRaws([leg(1280), leg(390), leg(641, { refused: true })]);
+  assert.deepEqual(m.runs.map((r) => r.width), [390, 641, 1280]);
+  assert.equal(m.refused, true);
+  assert.throws(() => mergeRaws([leg(390), leg(640, { search: '?fw=c:d' })]), /disagree on search/);
+  assert.throws(() => mergeRaws([]), /no leg/);
+});
 
 // ---- the loop around the reducer ------------------------------------------------------------------------------------------
 
