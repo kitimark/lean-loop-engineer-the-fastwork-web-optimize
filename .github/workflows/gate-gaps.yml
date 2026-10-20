@@ -20,6 +20,10 @@ on:
         description: Also run the one macOS job (Simulator and WKWebView arms); uses one of the shared macOS slots
         type: boolean
         default: true
+      images:
+        description: Also run the images-* jobs (task image-audit; a push asks for them with `[images]` in the commit message)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -97,6 +101,8 @@ jobs:
 
   collect-linux:
     needs: [site]
+    # A commit that says `[images-only]` (task image-audit) runs the images-* jobs below and not the gaps collection.
+    if: ${{ !contains(github.event.head_commit.message, '[images-only]') }}
     concurrency:
       group: ci-lane:gate-gaps:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:collect-linux:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
@@ -230,6 +236,220 @@ jobs:
           path: packages/gate-breakpoints/out/gaps
           if-no-files-found: error
           retention-days: 14
+
+  # Task image-audit: the image audit (every image of the hero, morph and people regions: natural against drawn size, bytes, decoded
+  # memory, effects above it) in the original snapshot, the rewrite and the images-at-drawn-size arm, in Chromium and Playwright
+  # WebKit; the page-level visual diff of that arm against the build as it is; the summary. Runs on a commit that says `[images]`
+  # (or `[images-only]`, which also skips the gaps collection). packages/gate-breakpoints/src/images/. Counts and sizes only:
+  # nothing measured here is frame time or phone time.
+  images-audit:
+    needs: [site]
+    if: ${{ contains(github.event.head_commit.message, '[images') || (github.event_name == 'workflow_dispatch' && inputs.images) }}
+    concurrency:
+      group: ci-lane:gate-gaps:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:images-audit:${{ strategy.job-index }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { engine: chromium, arm: rewrite, rep: r1 }
+          - { engine: chromium, arm: rewrite, rep: r2 }
+          - { engine: chromium, arm: rewrite, rep: r3 }
+          - { engine: playwright-webkit, arm: rewrite, rep: r1 }
+          - { engine: playwright-webkit, arm: rewrite, rep: r2 }
+          - { engine: playwright-webkit, arm: rewrite, rep: r3 }
+          - { engine: chromium, arm: original, rep: r1 }
+          - { engine: playwright-webkit, arm: original, rep: r1 }
+          - { engine: chromium, arm: drawn, rep: r1 }
+          - { engine: chromium, arm: drawn, rep: r2 }
+          - { engine: chromium, arm: drawn, rep: r3 }
+          - { engine: playwright-webkit, arm: drawn, rep: r1 }
+          - { engine: playwright-webkit, arm: drawn, rep: r2 }
+          - { engine: playwright-webkit, arm: drawn, rep: r3 }
+    steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - name: Verify the snapshot against snapshot.lock.json
+        run: node .github/scripts/verify-snapshot.mjs
+      - uses: ./.github/actions/setup-pnpm
+        with:
+          filter: '@fw/gate-breakpoints @fw/visual-diff'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: site-dist
+          path: apps/site/dist/aot
+      - name: Playwright Chromium (full build, new headless) and WebKit (Linux build)
+        working-directory: packages/gate-breakpoints
+        run: |
+          set -euo pipefail
+          pnpm exec playwright-core install --with-deps chromium webkit
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+          chrome=$(node -e "import('playwright-core').then((m) => console.log(m.chromium.executablePath()))")
+          test -x "$chrome"
+          echo "CHROME_PATH=$chrome" >> "$GITHUB_ENV"
+          "$chrome" --version
+      - name: 'Audit: ${{ matrix.engine }} / ${{ matrix.arm }} / ${{ matrix.rep }} (the Lean widths at DPR 2, the headline widths at DPR 1 and 3)'
+        if: ${{ matrix.arm != 'drawn' || hashFiles('apps/site/src/flags/images/drawn.json') != '' }}
+        env:
+          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
+          FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
+        working-directory: packages/gate-breakpoints
+        run: node src/images/cli.mjs audit --engine ${{ matrix.engine }} --arms ${{ matrix.arm }} --widths lean --dprs 2 --extra 1512:1,1512:3,430:1,430:3,393:3 --pool 3 --out out/images
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: images-audit-${{ matrix.engine }}-${{ matrix.arm }}-${{ matrix.rep }}
+          path: packages/gate-breakpoints/out/images
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # The arm against the build as it is, with the real visual diff on the parts of the lag regions (arm pages in arm-build.mjs).
+  images-pages:
+    needs: [site]
+    if: ${{ contains(github.event.head_commit.message, '[images') || (github.event_name == 'workflow_dispatch' && inputs.images) }}
+    concurrency:
+      group: ci-lane:gate-gaps:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:images-pages:${{ strategy.job-index }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [chromium, playwright-webkit]
+        rep: [r1, r2, r3]
+    steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - name: Verify the snapshot against snapshot.lock.json
+        run: node .github/scripts/verify-snapshot.mjs
+      - uses: ./.github/actions/setup-pnpm
+        with:
+          filter: '@fw/gate-breakpoints @fw/visual-diff'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: site-dist
+          path: apps/site/dist/aot
+      - name: Playwright Chromium (full build, new headless) and WebKit (Linux build)
+        working-directory: packages/gate-breakpoints
+        run: |
+          set -euo pipefail
+          pnpm exec playwright-core install --with-deps chromium webkit
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+          chrome=$(node -e "import('playwright-core').then((m) => console.log(m.chromium.executablePath()))")
+          test -x "$chrome"
+          echo "CHROME_PATH=$chrome" >> "$GITHUB_ENV"
+          "$chrome" --version
+      - name: 'The table against its files and the sources'
+        if: ${{ hashFiles('apps/site/src/flags/images/drawn.json') != '' }}
+        env:
+          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
+          FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
+        working-directory: packages/gate-breakpoints
+        run: node src/images/cli.mjs arm check --out ../../apps/site/dist/aot/images-drawn
+      - name: 'Pages: ${{ matrix.engine }} / ${{ matrix.rep }} (baseline against the arm, visual diff of the lag parts)'
+        if: ${{ hashFiles('apps/site/src/flags/images/drawn.json') != '' }}
+        env:
+          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
+          FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
+        working-directory: packages/gate-breakpoints
+        run: node src/images/cli.mjs arm pages --engine ${{ matrix.engine }} --out out/images-pages
+        continue-on-error: true
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: images-pages-${{ matrix.engine }}-${{ matrix.rep }}
+          path: |
+            packages/gate-breakpoints/out/images-pages/pages-*.json
+            packages/gate-breakpoints/out/images-pages/pages-*.md
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # The ranked tables and the cross-run canon of the audit files; no judging of frame time (there is none).
+  images-summary:
+    needs: [guard, images-audit]
+    if: ${{ !cancelled() && needs.guard.outputs.run == 'true' && needs.images-audit.result != 'skipped' }}
+    concurrency:
+      group: ci-lane:gate-gaps:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:images-summary:${{ strategy.job-index }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-pnpm
+        with:
+          filter: '@fw/gate-breakpoints'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: images-audit-*
+          path: ${{ runner.temp }}/audits
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: site-dist
+          path: apps/site/dist/aot
+      - name: Summarize (ranked tables, per-cell rows, canonical hash per run)
+        env:
+          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
+          FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
+        working-directory: packages/gate-breakpoints
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          dirs=$(ls -d "$RUNNER_TEMP"/audits/images-audit-* | paste -sd, -)
+          node src/images/cli.mjs summary --in "$dirs" --out out/images-summary | tee out/images-summary.log
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: images-summary
+          path: |
+            packages/gate-breakpoints/out/images-summary
+            packages/gate-breakpoints/out/images-summary.log
+          if-no-files-found: error
+          retention-days: 30
 
   judge:
     needs: [collect-linux, collect-macos]
