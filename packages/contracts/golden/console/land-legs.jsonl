@@ -28,3 +28,10 @@
 {"name":"all fail","request":{"op":"console.landLegs","results":[false,false]},"response":{"ok":false}}
 {"name":"one leg passes","request":{"op":"console.landLegs","results":[true]},"response":{"ok":true}}
 {"name":"no legs","request":{"op":"console.landLegs","results":[]},"response":{"ok":false}}
+{"name":"no per-job conclusions: no veto","request":{"op":"console.landLegsVeto","results":null},"response":{"veto":false}}
+{"name":"a record with no leg: no veto","request":{"op":"console.landLegsVeto","results":[]},"response":{"veto":false}}
+{"name":"all legs passed: no veto","request":{"op":"console.landLegsVeto","results":[true,true,true,true]},"response":{"veto":false}}
+{"name":"one leg failed: veto","request":{"op":"console.landLegsVeto","results":[true,false,true,true]},"response":{"veto":true}}
+{"name":"the last leg failed: veto","request":{"op":"console.landLegsVeto","results":[true,true,true,false]},"response":{"veto":true}}
+{"name":"one leg, passed","request":{"op":"console.landLegsVeto","results":[true]},"response":{"veto":false}}
+{"name":"one leg, not passed","request":{"op":"console.landLegsVeto","results":[false]},"response":{"veto":true}}

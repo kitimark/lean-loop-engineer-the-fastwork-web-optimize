@@ -32,7 +32,7 @@ force push), waits with `fw ci wait` (no CPU: one sleeping child per slice) and 
   `verdict_completed_failure_refuses`, `verdict_no_local_after_failure`; golden per waiter exit 0..5 in `land-remote.jsonl`. A bound
   fail is never followed by `remote: running the remote tier on this Mac instead`.
 - Every remote line (`remote: ...`, including `remote: verdict <kind> reason=<reason>` and the fallback line) goes to the land log
-  file `.fw-console/land-logs/<task>-<sha7>.log` and to stderr, whether or not the land passes.
+  file `.fw-console/land-logs/<task>-<sha7>.log` and to stderr as they happen, whether or not the land passes; they are not repeated in the result lines `fw land` prints at the end.
 - `fw ci wait` exit 3 means a run still going only when its output says `timed out after`; a stopped poller or a refused gh call
   is `unavailable` (no retry on a refusal). After any exit but a plain timeout the adapter reads the land workflow's own run (`--workflow land`; a view whose `workflowName` is not the lane is dropped, so another workflow's run on the commit never decides): first the waiter's cached facts (gh-budget runs-status file, `meta/<id>.jobs.json`; no budget), then at most a list and a view, bounded by the slice deadline and the abort signal. Accepted limit: if the budget refuses those calls and no cached record exists, the waiter's outcome stands (fallback to the local tier), logged as `land run record not read (<reason>)`. A `running` poll that returns before its slice is slept out, so waiting costs no CPU.
 - Before the push, `scripts/scrub.mjs --range origin/main <C>` scans the lines the push adds (home paths, Claude session/project paths and encoded home paths such as `-Users-<name>-`, the run-time account name, LAN IPs, emails, ...);
@@ -59,10 +59,17 @@ then does only its part, so the wall time of the lane is the slowest leg:
   `chromium_runs_of_selected`, `webkit_runs_of_selected`, `engines_idle_of_unselected`). The browser is installed only then
   (`LANE leg=<name> engine=<bool> checks=<n>`); without the check the leg ends after the selection.
 - All legs print the same `LANE digest=` (the whole remote tier) and the same `lane: sha=.. digest=..` step; `bind` reads any job's step.
-- Verdict over all legs: GitHub's run conclusion is failure when any leg failed (`fail-fast: false`, so every leg reports); the adapter
-  also asks `console.landLegs` (Lean `legsOk`: every leg passed, a lane with no leg never passes) over the run's job conclusions, so a
-  `success` run with a leg that did not pass is `fail` (`legsOk_fail_wins`, `legsOk_empty`). Golden `land-legs.jsonl`; TS only replays it
-  (`apps/runner/test/land-legs.test.ts`, which also holds the matrix in land.yml equal to `land-legs.txt`).
+- Verdict over all legs: GitHub's run conclusion is failure when any leg failed (`fail-fast: false`, so every leg reports). For a run GitHub
+  called `success`, the adapter hands the conclusions of every job but the guard to `console.landLegsVeto` (Lean `legsVeto`) and takes
+  its answer: a record without per-job conclusions (no cached conclusions, a job without one) or with no leg says nothing and does not veto
+  (`legsVeto_none`, `legsVeto_empty`); otherwise the run is vetoed iff `legsOk` refuses (`legsVeto_fail`, `legsVeto_all_pass`,
+  `legsVeto_iff`), so a `success` run with a leg that did not pass is `fail`. `legsPass` in `land-remote.ts` only builds that input and replays
+  the answer. Golden `land-legs.jsonl`; TS only replays it (`apps/runner/test/land-legs.test.ts`, which also holds the matrix in land.yml equal to `land-legs.txt`).
+- WebKit leg cache: the gate-engine action restores the apt `.deb` files and the Playwright browser directory; a `ci/*` run reads only its own
+  branch's and `main`'s caches. The keys are the Playwright version, the Ubuntu release, the architecture and the engine; the runner image
+  version is not in them, so the two image versions the fleet runs share one key. `main` seeds them through the premise-tests `engine` job on each
+  `main` push (no cron by `Fw.Ci.Trigger.no_crons`). Re-seed by hand (`gh workflow run premise-tests.yml --ref main`) only after a Playwright bump.
+  Measurements: `docs/team/handoffs/land-legs-followups.md`.
 - Cost: one runner per leg (free runners; four per land, the engine legs idle after setup when no browser suite is selected). Numbers and
   the phases that remain: `research/notes/2026/10-20-land-lane-speed.md`. Not changed: the local tier already starts with the push.
 
