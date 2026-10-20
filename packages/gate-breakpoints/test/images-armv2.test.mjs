@@ -88,5 +88,9 @@ test('decide: each cell of a part is decided on its own, over reps and engines',
   assert.equal(d('exact', 'chromium', 'hero.deck'), 'noCopy');
   assert.equal(d('exact', 'playwright-webkit', 'hero.exit'), 'undecided');
   assert.equal(d('exact', 'all', 'hero'), 'admissible');
-  assert.match(tablesMd(res), /Decision per part, policy exact/);
+  const md = tablesMd(res);
+  assert.match(md, /Decision per part, policy exact/);
+  assert.match(md, /\| exact \| chromium \| hero\.orbit \| 1 \| 0 \| 1 \|/);
+  assert.match(md, /Cells where the copy fails and the baseline passes[^]*\| exact \| chromium \| p \| 400@3 \| hero\.orbit \| 1\/1 \|/);
+  assert.match(md, /Decoded saving per part and probe[^]*\| exact \| chromium \| hero \| admissible \| 2 \| 4\.0 \| 4\.0 \| 4\.0 \| 1 \|/);
 });

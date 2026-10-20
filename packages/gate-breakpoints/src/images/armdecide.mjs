@@ -49,7 +49,7 @@ export function decide(results) {
 
 const kib = (n) => `${(n / 1024).toFixed(1)}`;
 
-export function tablesMd(results) {
+export function tablesMd(results, opts = {}) {
   const L = [];
   const runs = results.map((r) => `${r.engine} ${r.tag} (${r.browser ?? '?'}${r.truncated ? ', TRUNCATED' : ''})`);
   L.push(`### Runs`, '', ...runs.map((x) => `- ${x}`), '');
@@ -66,15 +66,53 @@ export function tablesMd(results) {
     }
     L.push('');
   }
-  // the cells behind the decisions
-  L.push('### Cells (probe, base verdict, drawn verdict, ppm of the drawn run, files with a copy, decoded saving KiB)', '', '| policy | engine | probe | width@dpr | part | rep | base | drawn | drawn ppm / delta | files | saving KiB |', '|---|---|---|---|---|---|---|---|---|---|---|');
-  for (const r of results) {
-    for (const row of r.rows) {
-      if (row.error || row.files === 0) continue;
-      L.push(`| ${row.policy} | ${r.engine} | ${row.probe} | ${row.width}@${row.dpr} | ${row.part} | ${r.tag} | ${word(row.base)} ${row.base?.ppm ?? ''} | **${word(row.drawn)}** | ${row.drawn?.ppm ?? '-'} / ${row.drawn?.delta ?? '-'} | ${row.files} | ${kib(row.saving)} |`);
-    }
+  // what the cells did: base verdict -> drawn verdict, counted per (policy, engine, part)
+  const cls = (c) => `${c.base === 'pass' ? 'pass' : c.base === 'fail' ? 'fail' : 'open'}>${c.drawn === 'pass' ? 'pass' : c.drawn === 'fail' ? 'fail' : 'open'}`;
+  const COLS = ['pass>pass', 'pass>fail', 'fail>pass', 'fail>fail', 'pass>open', 'fail>open', 'open>pass', 'open>fail', 'open>open'];
+  const rowsAll = results.flatMap((r) => r.rows.filter((x) => !x.error && x.files > 0).map((x) => ({ ...x, engine: r.engine, rep: r.tag.replace(/-s\d+$/, '') })));
+  const groups = new Map();
+  for (const x of rowsAll) (groups.get(`${x.policy}|${x.engine}|${x.part}`) ?? groups.set(`${x.policy}|${x.engine}|${x.part}`, []).get(`${x.policy}|${x.engine}|${x.part}`)).push(x);
+  L.push('### What the cells did (base verdict > drawn verdict; open = unsettled, invalid, nc or error)', '', `| policy | engine | part | cells | ${COLS.join(' | ')} | mean saving KiB per cell |`, `|---|---|---|---|${COLS.map(() => '---|').join('')}---|`);
+  for (const [k, xs] of [...groups].sort(([a1], [b1]) => a1.localeCompare(b1))) {
+    const [policy, engine, part] = k.split('|');
+    const n = (c) => xs.filter((x) => cls({ base: word(x.base), drawn: word(x.drawn) }) === c).length;
+    L.push(`| ${policy} | ${engine} | ${part} | ${xs.length} | ${COLS.map(n).join(' | ')} | ${kib(xs.reduce((t, x) => t + x.saving, 0) / xs.length)} |`);
   }
   L.push('');
+  // the cells that would change the look: drawn fails where the baseline passes, with how many reps did it
+  L.push('### Cells where the copy fails and the baseline passes (reps with that / reps with a copy)', '', '| policy | engine | probe | width@dpr | part | reps | drawn ppm / delta per rep | files |', '|---|---|---|---|---|---|---|---|');
+  const byCell = new Map();
+  for (const x of rowsAll) (byCell.get(`${x.policy}|${x.engine}|${x.probe}|${x.part}`) ?? byCell.set(`${x.policy}|${x.engine}|${x.probe}|${x.part}`, []).get(`${x.policy}|${x.engine}|${x.probe}|${x.part}`)).push(x);
+  for (const [k, xs] of [...byCell].sort(([a1], [b1]) => a1.localeCompare(b1))) {
+    const bad = xs.filter((x) => word(x.base) === 'pass' && word(x.drawn) === 'fail');
+    if (bad.length === 0) continue;
+    const [policy, engine, probe, part] = k.split('|');
+    L.push(`| ${policy} | ${engine} | ${probe} | ${xs[0].width}@${xs[0].dpr} | ${part} | ${bad.length}/${xs.length} | ${xs.map((x) => `${word(x.base)[0]}>${word(x.drawn)[0]} ${x.drawn?.ppm ?? '-'}/${x.drawn?.delta ?? '-'}`).join(', ')} | ${xs[0].files} |`);
+  }
+  L.push('');
+  // the decoded memory a part's copies save, per probe (one value per probe: the first rep; the plan is the same in every rep)
+  const savingRows = new Map();
+  for (const x of rowsAll) { const k = `${x.policy}|${x.engine}|${x.part}|${x.probe}`; if (!savingRows.has(k)) savingRows.set(k, x); }
+  L.push('### Decoded saving per part and probe (KiB, 4 bytes per pixel, natural size minus copy size; decision of the part in brackets)', '', `| policy | engine | part | decision | files (max) | KiB min | KiB median | KiB max | probes |`, '|---|---|---|---|---|---|---|---|---|');
+  const sg = new Map();
+  for (const x of savingRows.values()) (sg.get(`${x.policy}|${x.engine}|${x.part}`) ?? sg.set(`${x.policy}|${x.engine}|${x.part}`, []).get(`${x.policy}|${x.engine}|${x.part}`)).push(x);
+  for (const [k, xs] of [...sg].sort(([a1], [b1]) => a1.localeCompare(b1))) {
+    const [policy, engine, part] = k.split('|');
+    const v = xs.map((x) => x.saving).sort((p1, p2) => p1 - p2);
+    const d = dec.find((x) => x.policy === policy && x.engine === engine && x.part === part)?.decision;
+    L.push(`| ${policy} | ${engine} | ${part} | ${d} | ${Math.max(...xs.map((x) => x.files))} | ${kib(v[0])} | ${kib(v[Math.floor(v.length / 2)])} | ${kib(v[v.length - 1])} | ${xs.length} |`);
+  }
+  L.push('');
+  if (opts.cells) {
+    L.push('### Cells (probe, base verdict, drawn verdict, ppm of the drawn run, files with a copy, decoded saving KiB)', '', '| policy | engine | probe | width@dpr | part | rep | base | drawn | drawn ppm / delta | files | saving KiB |', '|---|---|---|---|---|---|---|---|---|---|---|');
+    for (const r of results) {
+      for (const row of r.rows) {
+        if (row.error || row.files === 0) continue;
+        L.push(`| ${row.policy} | ${r.engine} | ${row.probe} | ${row.width}@${row.dpr} | ${row.part} | ${r.tag} | ${word(row.base)} ${row.base?.ppm ?? ''} | **${word(row.drawn)}** | ${row.drawn?.ppm ?? '-'} / ${row.drawn?.delta ?? '-'} | ${row.files} | ${kib(row.saving)} |`);
+      }
+    }
+    L.push('');
+  }
   // why files have no exact copy: each (engine, probe) is counted once, from the first result file that has it
   const seen = new Set();
   const per = [];
@@ -98,7 +136,7 @@ export function tablesMd(results) {
 export async function decideCli(_args, { arg, list }) {
   const results = loadResults(list(arg('in')).map((d) => resolve(d)));
   if (results.length === 0) throw new Error(`no arm result files in ${arg('in')}`);
-  const md = tablesMd(results);
+  const md = tablesMd(results, { cells: process.argv.includes('--cells') });
   if (arg('out')) writeFileSync(resolve(arg('out')), md + '\n');
   console.log(md);
 }
