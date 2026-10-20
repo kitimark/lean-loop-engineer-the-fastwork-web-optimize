@@ -37,6 +37,22 @@ topics: [morph.mount, shift, shift-dormant, scroll, FunctionCall, lean]
 - A component test (jsdom) runs the real effect of `MorphMount` under `shift` and `shift-dormant` and fails when the
   removal at mount is deleted or wrongly guarded (mutants below).
 
+## Lead decision (2026-10-20)
+
+Both rows the accepted limits reserved for the lead pass, from the facts recorded under "Round 3 runs (lead-dispatched)":
+
+- Counts, swipe-v1: the FunctionCall delta is inside [-470, -400] in all 6 runs (-462 to -464) and the per-frame
+  (FunctionCall - FireAnimationFrame) sum is -463 in all 6. FireAnimationFrame differs by 1 at frame 0 in 2 of 6 runs, once
+  on each side (branch +1 in round 3 run 1, base +1 in rerun run 3, with RequestAnimationFrame moving by the same 1), so it
+  is start-up timing, not the change (MEASURED: runs 39357724420/39357738977, 39363612059/39363621551).
+- Gate: the commission pain-1440 and desktop-1512 margin cells appear on the base too (1 of 4 runs) and on the branch
+  (3 of 4), with the stale 0px on either arm; the change does not touch commission. This is main's margin flake, fixed
+  on main by cmr-margin-rect-rule (research/notes/2026/10-21-cmr-margin-rect-rule.md). The WebKit phone-rotation
+  matchMedia cell is identical on both refs in all 8 runs.
+
+The flag lands; adding morph.mount:shift's listener removal to the preset decision is unchanged (v2-proved already ships
+morph.mount:shift).
+
 ## Mechanism (engine source)
 
 - Chromium queues one scroll event per scrolled target per frame and dispatches it to the window in the frame's
