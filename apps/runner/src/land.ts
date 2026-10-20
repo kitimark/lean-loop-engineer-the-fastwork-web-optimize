@@ -157,7 +157,7 @@ export const selectChecks = (ds: { id: string; reads: string[] }[], changed: str
   ds.filter((d) => changed.some((c) => inScope(d.reads, c))).map((d) => d.id);
 
 /** What `lean/scripts/check.sh` reads: Lean `Fw.Console.LandSpeed.checkShReads` (equal to the golden's declaration). */
-export const CHECK_SH_READS = ["lean/**", "packages/contracts/golden/**", "apps/site/src/breakpoints.gen.json", "apps/site/src/sweeps.gen.json", "apps/site/src/head.gen.json", "packages/gate-breakpoints/src/scope.gen.json", ".github/workflows/**", "scripts/span.sh", "scripts/fwcore-build.sh", "scripts/lake-slot.sh", "docs/team/incidents/ledger.json",
+export const CHECK_SH_READS = ["lean/**", "packages/contracts/golden/**", "apps/site/src/breakpoints.gen.json", "apps/site/src/sweeps.gen.json", "apps/site/src/head.gen.json", "packages/gate-breakpoints/src/scope.gen.json", ".github/workflows/**", "scripts/span.sh", "scripts/fwcore-build.sh", "scripts/lake-slot.sh", "scripts/lake-slot-lib.sh", "docs/team/incidents/ledger.json",
   "research/findings/ledger.json", "apps/site/src/parts/**", "apps/site/src/registry/presets/v2-proved.json", "packages/measure-chromium/scenarios.gen.json"];
 export const INSTALL_READS = ["pnpm-lock.yaml", "**/package.json"];
 /** apps/site reads of snapshot assets, derived from the one source apps/site/assets.manifest.json (listed <=> copied <=> read). */
@@ -185,7 +185,7 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     // circleci-pilot: the glue, its fixtures and the pilot config (test/ci-triggers.test.ts runs scripts/circleci.test.mjs; fw ci circleci spawns the glue)
     "scripts/circleci.mjs", "scripts/circleci.test.mjs", "scripts/circleci-fixtures/**", ".circleci/**",
     // lake-build-slots: test/ci-triggers.test.ts runs the build-slot wrapper's tests (they also read golden/** above)
-    "scripts/lake-slot.sh", "scripts/lake-slot.test.mjs",
+    "scripts/lake-slot.sh", "scripts/lake-slot-lib.sh", "scripts/lake-slot.test.mjs",
     // scrub-session-paths: test/scrub.test.ts runs the privacy scrub's tests (test-scrub.mjs is outside the scripts/*.test.mjs glob)
     "scripts/scrub.mjs", "scripts/test-scrub.mjs", "scripts/scrub.test.mjs", "scripts/scrub-allow.json",
     // ci-telemetry: test/ci-telemetry.test.ts runs the producer's own tests and replays golden/ci/telemetry.jsonl (golden/** above)

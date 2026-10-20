@@ -1,4 +1,5 @@
-// node --test scripts/lake-slot.test.mjs (task lake-build-slots): scripts/lake-slot.sh on a scratch slot directory.
+// node --test scripts/lake-slot.test.mjs (task lake-build-slots): scripts/lake-slot.sh and scripts/lake-slot-lib.sh on a
+// scratch slot directory.
 // Plain JS on purpose: lean.yml runs it on Linux (the flock branch) with the runner's stock node; apps/runner's
 // test/ci-triggers.test.ts runs it on a land.
 import { test } from "node:test";
@@ -11,6 +12,7 @@ import { fileURLToPath } from "node:url";
 
 const top = join(dirname(fileURLToPath(import.meta.url)), "..");
 const wrapper = join(top, "scripts/lake-slot.sh");
+const lib = join(top, "scripts/lake-slot-lib.sh");
 const genText = readFileSync(join(top, "packages/contracts/golden/sched/lake-slot.gen.sh"), "utf8");
 const gen = Object.fromEntries(genText.split("\n").filter((l) => /^[A-Z_]+=/.test(l)).map((l) => {
   const [k, v] = l.split(/=(.*)/s);
@@ -108,6 +110,7 @@ test("without LAKE_SLOT_DIR the slot files live under the git common dir, from t
       mkdirSync(join(r, "scripts"), { recursive: true });
       mkdirSync(join(r, "packages/contracts/golden/sched"), { recursive: true });
       copyFileSync(wrapper, join(r, "scripts/lake-slot.sh"));
+      copyFileSync(lib, join(r, "scripts/lake-slot-lib.sh"));
       writeFileSync(join(r, "packages/contracts/golden/sched/lake-slot.gen.sh"), genText);
     };
     mkdirSync(main);
@@ -126,10 +129,10 @@ test("without LAKE_SLOT_DIR the slot files live under the git common dir, from t
   } finally { rmSync(d, { recursive: true, force: true }); }
 });
 
-test("sourced with LAKE_SLOT_LIB=1, lake_slot <root> <cmd> takes a slot in the caller's shell", () => {
+test("sourced, lake-slot-lib.sh defines lake_slot <root> <cmd>, which takes a slot in the caller's shell", () => {
   const { d, env } = scratch();
   try {
-    const r = spawnSync("sh", ["-c", `set -eu; LAKE_SLOT_LIB=1 . "$1"; (lake_slot "$2" sh -c '${probe}'); echo after`, "_", wrapper, top], { env, encoding: "utf8" });
+    const r = spawnSync("sh", ["-c", `set -eu; . "$1"; (lake_slot "$2" sh -c '${probe}'); echo after`, "_", lib, top], { env, encoding: "utf8" });
     assert.equal(r.status, 0, r.stderr);
     assert.deepEqual(r.stdout.trim().split("\n"), ["0 unset", "after"]);
   } finally { rmSync(d, { recursive: true, force: true }); }
@@ -141,7 +144,37 @@ test("the call sites build through the wrapper: fwcore-build.sh (and with it che
   const plans = readFileSync(join(top, "packages/contracts/golden/console/land-dry.jsonl"), "utf8").trim().split("\n")
     .map((l) => JSON.parse(l)).filter((r) => r.request.op === "landDry.lintPlan" && r.request.hasAxioms && r.request.changed.some((p) => p.startsWith("lean/")));
   assert.ok(plans.length > 0);
-  for (const r of plans) assert.match(r.response.argv.at(-1).join(" "), /LAKE_SLOT_LIB=1 \. \.\.\/scripts\/lake-slot\.sh && \(lake_slot \.\. lake build\)/);
+  for (const r of plans) assert.match(r.response.argv.at(-1).join(" "), / \. \.\.\/scripts\/lake-slot-lib\.sh && \(lake_slot \.\. lake build\)/);
+});
+
+test("sourcing lake-slot-lib.sh runs nothing: no output, exit 0, and the lock fd stays closed", () => {
+  const { d, env } = scratch();
+  try {
+    const r = spawnSync("sh", ["-c", `. "$1"; echo "[$(command -v lake_slot)]"; { : >&9; } 2>/dev/null && echo fd9 || echo nofd9`, "_", lib], { env, encoding: "utf8" });
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(r.stderr, "");
+    assert.deepEqual(r.stdout.trim().split("\n"), ["[lake_slot]", "nofd9"]);
+    assert.equal(existsSync(join(d, "slots")), false);
+  } finally { rmSync(d, { recursive: true, force: true }); }
+});
+
+test("LAKE_SLOT_LIB in the environment does not turn the command-line form into a no-op", () => {
+  const { d, env } = scratch();
+  try {
+    const r = spawnSync("sh", [wrapper, "sh", "-c", "echo ran"], { env: { ...env, LAKE_SLOT_LIB: "1" }, encoding: "utf8" });
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(r.stdout, "ran\n");
+  } finally { rmSync(d, { recursive: true, force: true }); }
+});
+
+test("after sourcing the lib, a child's environment has no LAKE_SLOT_LIB", () => {
+  const { d, env } = scratch();
+  try {
+    const { LAKE_SLOT_LIB: _, ...clean } = env;
+    const r = spawnSync("sh", ["-c", `. "$1"; env`, "_", lib], { env: clean, encoding: "utf8" });
+    assert.equal(r.status, 0, r.stderr);
+    assert.doesNotMatch(r.stdout, /^LAKE_SLOT_LIB=/m);
+  } finally { rmSync(d, { recursive: true, force: true }); }
 });
 
 test("the lock tool the wrapper picks: lockf on macOS, flock on Linux (no lockf there)", () => {
