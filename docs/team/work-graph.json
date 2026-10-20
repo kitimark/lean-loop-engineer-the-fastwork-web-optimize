@@ -11715,7 +11715,7 @@
    "deps": [
     "waapi-threshold-attr"
    ],
-   "title": "waapi r2 check #2: morph.tween:waapi skips the original's post-flip nav width ease. Linux WebKit's 20-55 px (1280 close@0) was runner frame jank: flip gaps 417-562 ms in 39412301221 (waapi, pre-fix), 39457063232 (faithful) and 39457767229 (cand morph.tween:waapi-scoped) on an older probe that walked the morph; display grids give <= 0.5 px at 60 Hz at 1280, 0.3-3 px at CI Chromium/macOS gaps. Decide in Lean: model the tail in the driver, or classify as a look change",
+   "title": "Split after round 3 (3rd refusal): the Chromium half landed (base-write window restores the nav width tail, 5/5 hits within 0.008 px at 1280, run 39504209400); the macOS WebKit cells moved to waapi-tail-webkit. waapi r2 check #2: morph.tween:waapi skips the original's post-flip nav width ease. Linux WebKit's 20-55 px (1280 close@0) was runner frame jank: flip gaps 417-562 ms in 39412301221 (waapi, pre-fix), 39457063232 (faithful) and 39457767229 (cand morph.tween:waapi-scoped) on an older probe that walked the morph; display grids give <= 0.5 px at 60 Hz at 1280, 0.3-3 px at CI Chromium/macOS gaps. Decide in Lean: model the tail in the driver, or classify as a look change",
    "writes": [
     "lean/Fw/Parts/MorphTweenOpt.lean",
     "apps/site/src/parts/morph.tween/**",
@@ -12081,7 +12081,8 @@
     "packages/contracts/golden/gate/trajectory.jsonl",
     "docs/team/tools/trajectory-probe.md",
     "docs/team/handoffs/trajectory-envelope-scope.md"
-   ]
+   ],
+   "evidence": "99367f3"
   },
   {
    "devices": [
@@ -12118,6 +12119,80 @@
     "packages/contracts/golden/parts/morph-tween*.jsonl",
     "research/notes/2026/10-2*-waapi-tail-drop.md",
     "docs/team/handoffs/waapi-tail-drop.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "waapi-tail-webkit",
+   "owner": "measure-engineer",
+   "stream": "parts",
+   "deps": [
+    "waapi-nav-width-tail"
+   ],
+   "title": "Split from waapi-nav-width-tail r3: on macOS WebKit the waapi arm starts no nav width transition at the is-morphing flip, with or without the base-write window (runs 39504209400, 39471466367: cand tail 0.00-0.17 px vs pred 0.65-1.67 px at 1280; 390 fails no-regression on 2 of 4 hits). Find the mechanism with a CI debug run that logs transitionrun/transitionstart on the nav and the timing of the class flip (MutationObserver, apps/site/src/parts/nav/index.tsx:126) against the base write; state a Lean premise for WebKit's before-change style when the class flip and the base write fall in different style updates (cite Styleable.cpp/StyleTreeResolver.cpp @862f17d); decide the WebKit cell on its own: fix that keeps the tail, or drop the window on WebKit (it costs 9 script frames per close and restores nothing there). Hit threshold from the golden baseWindow.delay, not hand-typed",
+   "writes": [
+    "lean/Fw/Parts/MorphTweenOpt.lean",
+    "apps/site/src/parts/morph.tween/**",
+    "packages/contracts/golden/parts/morph-tween*.jsonl",
+    "research/notes/2026/10-2*-waapi-tail-webkit.md",
+    "docs/team/handoffs/waapi-tail-webkit.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "spawn-write-overlap",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "Mistake 2026-10-21: the lead ran waapi-nav-width-tail and morph-scroll-lock at once although both write lean/Fw/Parts/MorphTweenOpt.lean and apps/site/src/parts/morph.tween/** (CLAUDE.md: two teammates never edit one file at once). A Lean-decided check (Fw.Plan) that refuses starting a task whose graph writes intersect a running task's writes (glob intersection), listing the pair; fw exposes it for the lead before a spawn; override only with a named reason recorded in the event log",
+   "writes": [
+    "lean/Fw/Plan/Overlap.lean",
+    "packages/contracts/golden/plan/overlap*.jsonl",
+    "apps/runner/src/plan-overlap*.ts",
+    "apps/runner/test/plan-overlap*.test.ts",
+    "docs/team/tools/plan-overlap.md",
+    "docs/team/handoffs/spawn-write-overlap.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-push-probe-inputs",
+   "owner": "console-builder",
+   "stream": "ci",
+   "deps": [],
+   "title": "Mistake 2026-10-21 (waapi r2, scoped-close-start-cause r1): units that must measure the builder's NEW code on CI cannot get a lead dispatch before launch, and agents' sandbox refuses workflow dispatch (inc m195), so two review rounds were refused for missing runs. Let a ci/* push run the trajectory probe with inputs read from its commit message (e.g. [trajectory fw=part:variant widths=390,1280 engines=both]); Lean Fw.Ci.Trigger decides and parses (golden); the run records the inputs it used; update the build-review preamble line 16 to point builders at it",
+   "writes": [
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    ".github/workflows/trajectory-probe.yml",
+    "scripts/ci-paths*.mjs",
+    ".claude/workflows/build-review.js",
+    "docs/team/tools/trajectory-probe.md",
+    "docs/team/handoffs/ci-push-probe-inputs.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "fw-run-dispatch-pick",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "Tool bug (morph-scroll-lock r2): fw run --trajectory took the skipped push run 39505172794 as its dispatch run and exited; the real dispatches were 39505188144 and 39505203727. Identify the dispatched run by identity (workflow_dispatch event, the inputs echoed in the run name or a dispatch nonce), never by 'newest run on the ref'; Lean decides the match from the run list (golden)",
+   "writes": [
+    "apps/runner/src/run*.ts",
+    "apps/runner/test/run*.test.ts",
+    "lean/Fw/Ci/Dispatch*.lean",
+    "packages/contracts/golden/ci/dispatch*.jsonl",
+    ".github/workflows/trajectory-probe.yml",
+    "docs/team/handoffs/fw-run-dispatch-pick.md"
    ]
   }
  ],
