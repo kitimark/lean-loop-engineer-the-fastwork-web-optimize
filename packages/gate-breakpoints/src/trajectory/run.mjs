@@ -7,6 +7,7 @@ import { PIN_SRC, waitReady } from '../page.mjs';
 import { startServer, snapshotRoot, siteDist, rewriteFor } from '../serve.mjs';
 import { HERO_NODES, HERO_STEPS, MORPH_NODES, PAGE_PROPS, envFor, resolveNodes } from './registry.mjs';
 import { installKit } from './kit.mjs';
+import { runCheck } from './reduce.mjs';
 
 const INIT = `${PIN_SRC}\n(${installKit.toString()})();`;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -20,38 +21,37 @@ export const PUSH_PHASES = [
   { phase: 'close-hold', dy: 0, stride: 4, ms: 600 },
 ];
 
-/** The rewrite arm must have resolved the config the search names (the default config for no search); the original has none. */
-function assertConfig(site, ready, want, search) {
-  if (site === 'rewrite' && ready.config !== want) throw new Error(`rewrite arm resolved config ${ready.config}, expected ${want} for search "${search}"`);
-}
-
 const forArm = (nodes, site) => nodes.map((n) => ({ id: n.id, sel: site === 'orig' ? n.orig : n.rewrite, props: n.props }));
 
 /**
  * Opens one arm. The rewrite is loaded at `/` + the search: the page resolves its flags from `location.search` (entry-client.tsx),
- * so the flagged HTML alone would run the default config (incident inc-variant-gate-flags-off). The config the page resolved
- * (`window.__fw.configHash`) is returned in `ready.config`; runLane refuses a mismatch.
+ * so the flagged HTML alone would run the default config (incident inc-variant-gate-flags-off). What the page reports about itself
+ * (`window.__fw.configHash` and `.mode`; the original has no `window.__fw`) is returned in `arm` and written into the raw artifact;
+ * Lean's `armCheck` decides on it (reduce.mjs), never this function.
  */
 async function open(engine, env, origin, site, search) {
   const s = await engine.open(env, { origin, path: site === 'rewrite' ? '/' + search : '/', init: INIT, frozen: false });
   const ready = await s.evaluate(waitReady, { site, capMs: 20000 });
-  ready.config = await s.evaluate(() => (window.__fw ? window.__fw.configHash ?? null : null));
-  return { s, ready };
+  const arm = await s.evaluate(() => (window.__fw ? { config: window.__fw.configHash ?? null, mode: window.__fw.mode ?? null } : { config: null, mode: null }));
+  return { s, ready, arm };
 }
 
 /** The hero path of one arm: scroll steps with per-frame reads while moving and a read after each rest. */
 export async function heroPath(engine, env, origin, site, search = '') {
-  const { s, ready } = await open(engine, env, origin, site, search);
+  const { s, ready, arm } = await open(engine, env, origin, site, search);
   try {
-    const arg = { arm: site, nodes: forArm(resolveNodes(HERO_NODES), site), pageProps: PAGE_PROPS, navSel: null, steps: HERO_STEPS, moveFrames: 4, restMs: 300, settleCapMs: 4000 };
-    const rows = await s.evaluate((a) => window.__traj.heroPath(a), arg);
-    return { ready, rows };
+    const a = { arm: site, nodes: forArm(resolveNodes(HERO_NODES), site), pageProps: PAGE_PROPS, navSel: null, steps: HERO_STEPS, moveFrames: 4, restMs: 300, settleCapMs: 4000 };
+    const rows = await s.evaluate((x) => window.__traj.heroPath(x), a);
+    return { ready, arm, rows };
   } finally { await s.close().catch(() => {}); }
 }
 
-/** The end-of-page path of one arm: approach, rest, a wheel push open and a push close, each held. */
-export async function morphPath(engine, env, origin, site, search = '') {
-  const { s, ready } = await open(engine, env, origin, site, search);
+/**
+ * The end-of-page path of one arm: approach, rest, a wheel push open and a push close, each held. With `reads: 'lean'` the two
+ * pushes read only the lean properties of the registry in every frame (the holds and the approach read everything).
+ */
+export async function morphPath(engine, env, origin, site, search = '', reads = 'full') {
+  const { s, ready, arm } = await open(engine, env, origin, site, search);
   try {
     const nodes = forArm(resolveNodes(MORPH_NODES), site);
     const navSel = nodes.find((n) => n.id === 'nav').sel;
@@ -59,44 +59,65 @@ export async function morphPath(engine, env, origin, site, search = '') {
     const watched = await s.evaluate((sel) => window.__traj.watchNav(sel), navSel);
     const approach = await s.evaluate((a) => window.__traj.approach(a), base);
     const phases = {};
+    const phaseReads = {};
     for (const p of PUSH_PHASES) {
-      await s.evaluate((a) => window.__traj.startSampler(a), { ...base, phase: p.phase, stride: p.stride });
+      const lean = reads === 'lean' && p.dy !== 0;
+      phaseReads[p.phase] = lean ? 'lean' : 'full';
+      await s.evaluate((a) => window.__traj.startSampler(a), { ...base, pageProps: lean ? [] : PAGE_PROPS, phase: p.phase, stride: p.stride, lean });
       if (p.dy !== 0) await s.wheel(env.width / 2, env.height / 2, p.dy);
       await sleep(p.ms);
       phases[p.phase] = await s.evaluate(() => window.__traj.stopSampler());
     }
-    return { ready, watched, approach, phases };
+    return { ready, arm, watched, approach, phases, phaseReads };
   } finally { await s.close().catch(() => {}); }
 }
 
+/** The arms of a role, as armCheck reads them. */
+const armsOfRun = (run) => ['hero', 'morph'].filter((p) => run[p]).map((p) => ({ site: run.site, want: run.want, config: run[p].arm.config, mode: run[p].arm.mode }));
+
 /**
- * Run the lane for one engine over `widths` against the original and the rewrite (`search` picks the rewrite's prerendered page).
- * A refused search throws (rewriteFor), like the gate's smoke step. Returns { engine, version, search, runs: [{ width, site, hero, morph }] }.
+ * Run the lane for one engine over `widths`: at each width the original, the faithful rewrite (default config, role `base`) and
+ * the candidate (`search` picks its prerendered page, role `cand`). `paths` picks the hero path, the morph path or both. A refused
+ * search throws (rewriteFor), like the gate's smoke step. The arm identity is checked (Lean armCheck, reduce.mjs) as soon as an
+ * arm has been walked: on a refusal the walk stops, and the raw artifact up to there is returned with `refused: true` (reduceRaw
+ * refuses it again from the same readings).
+ * Returns { engine, version, search, hash, baseHash, paths, reads, refused, runs: [{ width, site, role, search, want, hero, morph }] }.
  */
-export async function runLane({ engineName, widths, search = '', env = process.env }) {
+export async function runLane({ engineName, widths, search = '', paths = ['hero', 'morph'], reads = 'full', env = process.env }) {
   const variant = rewriteFor(siteDist(env), { ...env, FW_SEARCH: search });
-  const servers = { orig: await startServer(snapshotRoot(env)), rewrite: await startServer(siteDist(env), variant.rewrite) };
-  const want = variant.hash ?? JSON.parse(readFileSync(join(siteDist(env), 'configs.json'), 'utf8')).bySearch[''];
+  const configs = JSON.parse(readFileSync(join(siteDist(env), 'configs.json'), 'utf8'));
+  const baseHash = configs.bySearch[''];
+  const want = variant.hash ?? baseHash;
+  const origin = await startServer(snapshotRoot(env));
+  // The faithful arm is served the default page; only the candidate gets the page prerendered for its search (a flagged page
+  // served to the default search would client-render, and armCheck refuses a client render).
+  const faithful = await startServer(siteDist(env));
+  const rewrite = variant.rewrite ? await startServer(siteDist(env), variant.rewrite) : faithful;
   const engine = await LAUNCHERS[engineName]();
   const runs = [];
+  let refused = false;
   try {
-    for (const width of widths) {
-      for (const site of ['orig', 'rewrite']) {
-        const e = envFor(width);
+    outer: for (const width of widths) {
+      const e = envFor(width);
+      const arms = [
+        { site: 'orig', role: 'orig', search: '', want: null, origin: origin.origin },
+        { site: 'rewrite', role: 'base', search: '', want: baseHash, origin: faithful.origin },
+        { site: 'rewrite', role: 'cand', search, want, origin: rewrite.origin },
+      ];
+      for (const a of arms) {
         const t0 = Date.now();
-        log(`trajectory ${engineName} ${width} ${site}: hero`);
-        const hero = await heroPath(engine, e, servers[site].origin, site, search);
-        assertConfig(site, hero.ready, want, search);
-        log(`trajectory ${engineName} ${width} ${site}: morph`);
-        const morph = await morphPath(engine, e, servers[site].origin, site, search);
-        assertConfig(site, morph.ready, want, search);
-        log(`trajectory ${engineName} ${width} ${site}: done in ${Date.now() - t0} ms`);
-        runs.push({ width, site, hero, morph });
+        const run = { width, site: a.site, role: a.role, search: a.search, want: a.want };
+        if (paths.includes('hero')) { log(`trajectory ${engineName} ${width} ${a.role}: hero`); run.hero = await heroPath(engine, e, a.origin, a.site, a.search); }
+        if (paths.includes('morph')) { log(`trajectory ${engineName} ${width} ${a.role}: morph`); run.morph = await morphPath(engine, e, a.origin, a.site, a.search, reads); }
+        runs.push(run);
+        log(`trajectory ${engineName} ${width} ${a.role}: done in ${Date.now() - t0} ms`);
+        if (runCheck(armsOfRun(run)) !== 'ok') { refused = true; log(`trajectory ${engineName} ${width} ${a.role}: REFUSED config (${JSON.stringify(armsOfRun(run))})`); break outer; }
       }
     }
-    return { engine: engineName, version: await engine.version(), search, hash: want, runs };
+    return { engine: engineName, version: await engine.version(), search, hash: want, baseHash, paths, reads, refused, runs };
   } finally {
     await engine.close().catch(() => {});
-    await servers.orig.close(); await servers.rewrite.close();
+    await origin.close(); await faithful.close();
+    if (rewrite !== faithful) await rewrite.close();
   }
 }

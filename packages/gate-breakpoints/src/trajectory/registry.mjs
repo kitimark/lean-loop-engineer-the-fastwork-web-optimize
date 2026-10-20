@@ -4,8 +4,12 @@
 // The kind of a property (discrete, geometry, unit, colour) picks its tolerance in Lean (Fw.Gate.Trajectory.tol).
 import { loadAnchors } from '../spec.mjs';
 
-/** One property of a node. `r` names the in-page reader (kit.mjs); the other fields are its parameters. */
-const P = (id, kind, r, extra = {}) => ({ id, kind, r, ...extra });
+/**
+ * One property of a node. `r` names the in-page reader (kit.mjs); the other fields are its parameters. `lean` marks the properties
+ * read in every frame of a wheel push when the lean read set is asked for (`--reads lean`): the discrete ones (classes, attributes,
+ * focus, visibility) and the logo's rectangle in the nav; the rest is read at rest and in the holds.
+ */
+const P = (id, kind, r, extra = {}) => ({ id, kind, r, lean: kind === 'discrete', ...extra });
 
 const cls = (name) => P(`cls.${name}`, 'discrete', 'cls', { name });
 const attr = (name, extra = {}) => P(`attr.${name}`, 'discrete', 'attr', { name, ...extra });
@@ -53,7 +57,7 @@ export const MORPH_NODES = [
     P('backdrop-filter.num', 'unit', 'fnnum', { css: ['backdrop-filter', '-webkit-backdrop-filter'] }), ...LINEAR] },
   { id: 'logo', part: 'nav', role: 'logo', props: [
     P('position', 'discrete', 'css', { css: 'position' }), P('transform-origin', 'geometry', 'lens', { css: 'transform-origin' }),
-    P('rect-in-nav', 'geometry', 'relrect', { to: 'nav' }), P('color', 'colour', 'colour', { css: 'color' }),
+    P('rect-in-nav', 'geometry', 'relrect', { to: 'nav', lean: true }), P('color', 'colour', 'colour', { css: 'color' }),
     P('translate', 'geometry', 'translate'), P('scale', 'unit', 'scale'), ...LINEAR] },
   { id: 'actions', part: 'nav', role: 'actions', props: [
     P('gap', 'geometry', 'lens', { css: 'column-gap' }), P('opacity', 'unit', 'num', { css: 'opacity' })] },

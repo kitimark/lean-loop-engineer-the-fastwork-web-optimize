@@ -65,16 +65,22 @@ export function installKit() {
     flag: (el, p) => (el.hasAttribute(p.name) && el.getAttribute(p.name) !== 'false' ? 'on' : 'off'),
     scrollHeight: () => [q(document.documentElement.scrollHeight)],
   };
-  /** Every property of every element of each node, in the registry order. Values read from one style per element. */
-  const readNodes = (arm, nodes) => {
+  /**
+   * Every property of every element of each node, in the registry order. Values read from one style per element, created on the
+   * first property that needs it. With `lean`, a property not marked `lean` is not read (null in its place), so the indices
+   * of the reading stay those of the registry.
+   */
+  const readNodes = (arm, nodes, lean) => {
     const first = {};
     const els = {};
     for (const n of nodes) { els[n.id] = Array.from(document.querySelectorAll(n.sel)); first[n.id] = els[n.id][0] || null; }
     const out = {};
     for (const n of nodes) {
       out[n.id] = els[n.id].map((el) => {
-        const c = { cs: getComputedStyle(el), first };
+        let style = null;
+        const c = { get cs() { return style || (style = getComputedStyle(el)); }, first };
         return n.props.map((p0) => {
+          if (lean && !p0.lean) return null;
           const p = arm === 'orig' && p0.orig ? { ...p0, ...p0.orig } : p0;
           try { return readers[p.r](el, p, c); } catch (e) { return 'error: ' + String(e && e.message || e).slice(0, 60); }
         });
@@ -87,7 +93,8 @@ export function installKit() {
   /** The end of a rendering frame: after the rAF callbacks of that frame, whatever they wrote is in the next style read. */
   const frameEnd = async () => { await raf(); await sleep(0); };
   const T0 = performance.now();
-  const stamp = () => Math.round(performance.now() - T0);
+  /** Milliseconds since the kit was installed, with a tenth of a millisecond (the read of one frame is a few ms). */
+  const stamp = () => Math.round((performance.now() - T0) * 10) / 10;
 
   /** Wait until the scroll position has not changed for 8 frames (or `cap` ms): the original smooths a scroll, the rewrite does not. */
   const settle = async (cap) => {
@@ -103,14 +110,19 @@ export function installKit() {
   };
 
   const state = { rows: [], loop: false, gen: 0, lastMut: null, observer: null };
-  /** One sample: time, scroll, the morph value (x 10000) and ms since the last nav class change, the nodes. */
+  /**
+   * One sample: the time before the reads (`t0`) and after (`t1`, also `t`), scroll, the morph value (x 10000) and ms since the
+   * last nav class change, the nodes. `t1 - t0` is the read cost; the gap between two `t0` is the frame time with the reads in it.
+   */
   const snap = (arg, tag, extra) => {
+    const t0 = stamp();
     const nav = arg.navSel ? document.querySelector(arg.navSel) : null;
     let m = null;
     if (nav) { const v = parseFloat(getComputedStyle(nav).getPropertyValue('--morph')); if (Number.isFinite(v)) m = Math.round(v * 10000); }
-    const nodes = readNodes(arg.arm, arg.nodes);
-    const page = readNodes(arg.arm, [{ id: 'page', sel: 'html', props: arg.pageProps }]).page[0];
-    return { tag, t: stamp(), y: Math.round(window.scrollY), m, since: state.lastMut === null ? null : Math.round(performance.now() - state.lastMut), page, nodes, ...extra };
+    const nodes = readNodes(arg.arm, arg.nodes, arg.lean === true);
+    const page = arg.pageProps.length === 0 ? [] : readNodes(arg.arm, [{ id: 'page', sel: 'html', props: arg.pageProps }], false).page[0];
+    const t1 = stamp();
+    return { tag, t: t1, t0, t1, y: Math.round(window.scrollY), m, since: state.lastMut === null ? null : Math.round(performance.now() - state.lastMut), page, nodes, ...extra };
   };
 
   const heroPath = async (arg) => {
