@@ -50,7 +50,6 @@ artifact and path.
 
 - macOS Playwright WebKit is not Safari on a phone. Linux WebKit (WebKitGTK/WPE) screenshots land 1 to 10 shots per push.
 - Pooled repeats mix the timing jitter of separate pushes: a column shows shots of different repeats at about the same ms, not one continuous run.
-- Screencast times: Chromium takes the compositor's swap time; Playwright WebKit takes the engine's frame timestamp plus a clock offset fixed at the
-  first frame (coreBundle.js `_onScreencastFrame`), so all WebKit screencast intervals carry that one constant, the delivery delay of the first frame.
+- Screencast times: Playwright WebKit fixes a clock offset per page at its first delivered frame (coreBundle.js `_onScreencastFrame`). Each arm is its own page, so the two rows carry different unknown offsets. In run 39530106935 the labels trail the in-page recorder by about 150 to 450 ms. Screencast columns are not time-aligned between rows. Use the screenshot strips to compare timing, and the screencast strips only for the frame sequence within one row. (Chromium screencast times are the compositor's swap time.)
 - The wheel time is the node wall clock after the mouse moved to the wheel point, before the wheel call; its latency to the page is not subtracted.
 - No flag or site change: the strips show the flag as built.
