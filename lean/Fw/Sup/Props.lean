@@ -4573,4 +4573,513 @@ example : Cmd.signal (.group ⟨500, 7⟩) .term ∈ (run Ex.slow (init Ex.slow)
     ((run Ex.slow (init Ex.slow) Ex.starve).1.pending.map fun q => (q.id, q.age)).head? = some (6, 1) := by
   decide
 
+/-! ## Head job granted -/
+/-- Whether a phase is stopping. -/
+def Phase.isStop : Phase → Bool
+  | .stopping _ _ => true
+  | _ => false
+
+/-- The ready resources with a group and an unpinned kind. -/
+def stoppable (c : Cfg) (s : State) : List Rsrc :=
+  s.res.filter fun x => x.phase == .ready && x.proc.isSome && !c.pinned x.kind
+
+/-- The number of resources of an unpinned kind. -/
+def unpinned (c : Cfg) (s : State) : Nat := (s.res.filter fun x => !c.pinned x.kind).length
+
+/-- The wait bound for the head job: every lease gone, one tick, then per unpinned resource a TERM, a KILL and the
+exit. -/
+def bound (c : Cfg) (tm k : Nat) : Nat := span c + tm + k * (c.killAfter + 2 * tm)
+
+/-- An event while the head job `q` waits: no drain or restart, `q`'s owner stays a client, a tick moves the clock by
+at most `tm` and finds no KILL outstanding. -/
+def Along (q : Req) (tm : Nat) (s : State) : Event → Prop
+  | .drain _ _ => False
+  | .restart _ _ _ => False
+  | .clientGone o => o ≠ q.owner
+  | .tick now smp => q.owner ∈ smp.clients ∧ now ≤ s.now + tm ∧ ∀ x ∈ s.res, ∀ t, x.phase ≠ .stopping t .kill
+  | _ => True
+
+/-- Nothing is shed and `q` fits once the leases, the stopping resources and the stoppable resources are gone. -/
+def Room (c : Cfg) (q : Req) (s : State) : Prop :=
+  s.shedding = false ∧ fitsFree c { s with leases := [] } q.cost.get (stoppable c s) = true
+
+/-- The clock value by which a stopping resource has left: a TERM escalates by `max n (t + killAfter) + tm`, a KILL
+exits before the next tick. -/
+def due (c : Cfg) (tm n : Nat) : Phase → Nat
+  | .stopping t .term => max n (t + c.killAfter) + tm
+  | _ => n
+
+/-- One resource across a stage from clock `n` to `n'`: id and kind kept, nothing becomes live, a stopping resource
+stays stopping or leaves by its due time, and a new stop is of an unpinned kind and due within
+`killAfter + tm`. -/
+def Tr (c : Cfg) (tm n n' : Nat) (x y : Rsrc) : Prop :=
+  y.id = x.id ∧ y.kind = x.kind ∧ (y.phase.live = true → x.phase.live = true) ∧
+  (x.phase.isStop = true → (y.phase.live = true → y.phase.isStop = true) ∧ n' ≤ due c tm n x.phase) ∧
+  (y.phase.isStop = true → (x.phase.isStop = true → due c tm n' y.phase ≤ due c tm n x.phase) ∧
+    (x.phase.isStop = false → due c tm n' y.phase ≤ n' + c.killAfter + tm ∧ c.pinned y.kind = false))
+
+/-- The resources of `s'` are those of `s` mapped by `Tr`. -/
+def TrS (c : Cfg) (tm : Nat) (s s' : State) : Prop :=
+  ∃ F : Rsrc → Rsrc, s'.res = s.res.map F ∧ ∀ x ∈ s.res, Tr c tm s.now s'.now x (F x)
+
+/-- The live resources of an unpinned kind. -/
+def mu (c : Cfg) (s : State) : Nat := s.res.countP fun x => x.phase.live && !c.pinned x.kind
+
+theorem isStop_live {p : Phase} (h : p.isStop = true) : p.live = true := by
+  cases p <;> first | rfl | cases h
+
+theorem le_due (c : Cfg) (tm n : Nat) (p : Phase) : n ≤ due c tm n p := by
+  unfold due; split
+  · exact Nat.le_trans (Nat.le_max_left _ _) (Nat.le_add_right _ _)
+  · exact Nat.le_refl n
+
+theorem tr_eq {c : Cfg} {tm n : Nat} {x y : Rsrc} (hi : y.id = x.id) (hk : y.kind = x.kind)
+    (hp : y.phase = x.phase ∨ y.phase.live = false) : Tr c tm n n x y := by
+  refine ⟨hi, hk, fun hl => ?_, fun _ => ⟨fun hl => ?_, le_due c tm n _⟩, fun hs => ?_⟩
+  · rcases hp with e | e
+    · rw [← e]; exact hl
+    · rw [e] at hl; cases hl
+  · rcases hp with e | e
+    · rw [e]; assumption
+    · rw [e] at hl; cases hl
+  · rcases hp with e | e
+    · rw [e] at hs ⊢
+      exact ⟨fun _ => Nat.le_refl _, fun h => by rw [hs] at h; cases h⟩
+    · rw [isStop_live hs] at e; cases e
+
+theorem tr_nonstop {c : Cfg} {tm n n' : Nat} {x y : Rsrc} (hi : y.id = x.id) (hk : y.kind = x.kind)
+    (hx : x.phase.isStop = false) (hy : y.phase.isStop = false) (hl : y.phase.live = true → x.phase.live = true) :
+    Tr c tm n n' x y :=
+  ⟨hi, hk, hl, fun h => (by rw [hx] at h; cases h), fun h => (by rw [hy] at h; cases h)⟩
+
+theorem Tr.trans {c : Cfg} {tm n n1 : Nat} {x y z : Rsrc} (h1 : Tr c tm n n1 x y) (h2 : Tr c tm n1 n1 y z) :
+    Tr c tm n n1 x z := by
+  obtain ⟨i1, k1, l1, s1, f1⟩ := h1
+  obtain ⟨i2, k2, l2, s2, f2⟩ := h2
+  refine ⟨i2.trans i1, k2.trans k1, fun h => l1 (l2 h), fun hx => ⟨fun hz => ?_, (s1 hx).2⟩, fun hz => ⟨fun hx => ?_,
+    fun hx => ?_⟩⟩
+  · exact (s2 ((s1 hx).1 (l2 hz))).1 hz
+  · have hy : y.phase.isStop = true := (s1 hx).1 (l2 (isStop_live hz))
+    exact Nat.le_trans ((f2 hz).1 hy) ((f1 hy).1 hx)
+  · cases hy : y.phase.isStop
+    · obtain ⟨a, b⟩ := (f2 hz).2 hy
+      exact ⟨a, b⟩
+    · obtain ⟨a, b⟩ := (f1 hy).2 hx
+      exact ⟨Nat.le_trans ((f2 hz).1 hy) a, by rw [k2]; exact b⟩
+
+theorem TrS.trans {c : Cfg} {tm : Nat} {s s1 s2 : State} (h1 : TrS c tm s s1) (h2 : TrS c tm s1 s2)
+    (hn : s2.now = s1.now) : TrS c tm s s2 := by
+  obtain ⟨F, hF, hFt⟩ := h1
+  obtain ⟨G, hG, hGt⟩ := h2
+  refine ⟨G ∘ F, by rw [hG, hF, List.map_map], fun x hx => ?_⟩
+  have hy : F x ∈ s1.res := by rw [hF]; exact List.mem_map_of_mem hx
+  have := hGt (F x) hy
+  rw [hn] at this ⊢
+  exact (hFt x hx).trans this
+
+theorem trS_eq {c : Cfg} {tm : Nat} {s s' : State} (f : Rsrc → Rsrc) (hr : s'.res = s.res.map f) (hn : s'.now = s.now)
+    (hf : ∀ x ∈ s.res, (f x).id = x.id ∧ (f x).kind = x.kind ∧ ((f x).phase = x.phase ∨ (f x).phase.live = false)) :
+    TrS c tm s s' :=
+  ⟨f, hr, fun x hx => by rw [hn]; exact tr_eq (hf x hx).1 (hf x hx).2.1 (hf x hx).2.2⟩
+
+theorem trS_res {c : Cfg} {tm : Nat} {s s' : State} (hr : s'.res = s.res) (hn : s'.now = s.now) : TrS c tm s s' :=
+  trS_eq id (by rw [hr, List.map_id]) hn fun _ _ => ⟨rfl, rfl, Or.inl rfl⟩
+
+theorem crash_live (c : Cfg) (now : Nat) (f : Bool) (x : Rsrc) : (crash c now f x).phase.live = false := by
+  unfold crash
+  dsimp only
+  split
+  · rfl
+  · split <;> rfl
+
+theorem exits_phase (c : Cfg) (now : Nat) (x : Rsrc) :
+    (exits c now x).phase = x.phase ∨ (exits c now x).phase.live = false := by
+  unfold exits
+  split
+  · exact Or.inr rfl
+  · exact Or.inr (crash_live c now false x)
+  · exact Or.inr (crash_live c now false x)
+  · exact Or.inl rfl
+
+theorem goneRec_phase (c : Cfg) (now : Nat) (rows : List Fw.Ops.Reap.Row) (x : Rsrc) :
+    (goneRec c now rows x).phase = x.phase ∨ (goneRec c now rows x).phase.live = false := by
+  unfold goneRec
+  split
+  · split
+    · exact exits_phase c now x
+    · exact Or.inl rfl
+  · exact Or.inl rfl
+
+theorem ageRec_phase (c : Cfg) (now : Nat) (x : Rsrc) :
+    ((ageRec c now x).1.phase = x.phase ∧ ∀ t, x.phase = .stopping t .term → now < t + c.killAfter) ∨
+    (ageRec c now x).1.phase.live = false ∨
+    ∃ t, x.phase = .stopping t .term ∧ (ageRec c now x).1.phase = .stopping now .kill := by
+  unfold ageRec
+  split
+  · rename_i u w hp
+    split
+    · exact Or.inr (Or.inl rfl)
+    · exact Or.inl ⟨rfl, fun t e => by rw [hp] at e; cases e⟩
+  · rename_i t hp
+    split
+    · exact Or.inr (Or.inr ⟨t, hp, rfl⟩)
+    · rename_i hn
+      exact Or.inl ⟨rfl, fun t' e => by rw [hp] at e; cases e; exact Nat.lt_of_not_le hn⟩
+  · rename_i t hp
+    split
+    · exact Or.inr (Or.inl (crash_live c now true x))
+    · exact Or.inl ⟨rfl, fun t' e => by rw [hp] at e; cases e⟩
+  · rename_i hp1 hp2 hp3
+    refine Or.inl ⟨rfl, fun t e => ?_⟩
+    exact absurd e (hp2 t)
+
+theorem tickRec_tr (c : Cfg) (tm : Nat) (ls : List Lease) (n n' : Nat) (smp : Sample) (x : Rsrc) (h1 : n ≤ n')
+    (h2 : n' ≤ n + tm) (hk : ∀ t, x.phase ≠ .stopping t .kill) : Tr c tm n n' x (tickRec c ls n' smp x).1 := by
+  simp only [tickRec]
+  generalize hx0 : ({ x with foot := footOf smp x.proc, lastUse := _ } : Rsrc) = x0
+  have hs0 : Same x x0 := by rw [← hx0]; exact Same.refl x
+  have hp0 : x0.phase = x.phase := by rw [← hx0]
+  generalize hy0 : (ageRec c n' x0).1 = y0
+  have hs1 : Same x y0 := by rw [← hy0]; exact hs0.trans (ageRec_same c n' x0)
+  generalize hy1 : goneRec c n' smp.rows y0 = y1
+  have hs2 : Same x y1 := by rw [← hy1]; exact hs1.trans (goneRec_same c n' smp.rows y0)
+  have hpa : (auditRec smp.rows y1).1.phase = y1.phase := auditRec_phase smp.rows y1
+  have hia := (auditRec_same smp.rows y1).1
+  have hka : (auditRec smp.rows y1).1.kind = y1.kind := by
+    unfold auditRec; split
+    · split
+      · rfl
+      · dsimp only; split <;> rfl
+    · rfl
+  generalize (auditRec smp.rows y1).1 = y at hpa hia hka
+  have hg := goneRec_phase c n' smp.rows y0
+  rw [hy1] at hg
+  have ha := ageRec_phase c n' x0
+  rw [hy0, hp0] at ha
+  have hlive : y.phase.live = true → y.phase = y0.phase := fun hl => by
+    rcases hg with e | e
+    · rw [hpa, e]
+    · rw [hpa, e] at hl; cases hl
+  refine ⟨hia.trans hs2.1, hka.trans hs2.2.1, fun hl => ?_, fun hx => ⟨fun hl => ?_, ?_⟩, fun hs => ⟨fun hx => ?_,
+    fun hx => ?_⟩⟩
+  · rw [hlive hl] at hl
+    rcases ha with ⟨e, _⟩ | e | ⟨t, e1, e2⟩
+    · rw [← e]; exact hl
+    · rw [e] at hl; cases hl
+    · rw [e1]; rfl
+  · rw [hlive hl]
+    rw [hlive hl] at hl
+    rcases ha with ⟨e, _⟩ | e | ⟨t, e1, e2⟩
+    · rw [e]; exact hx
+    · rw [e] at hl; cases hl
+    · rw [e2]; rfl
+  · cases hp : x.phase with
+    | stopping t g =>
+      cases g with
+      | term =>
+        simp only [due]
+        exact Nat.le_trans h2 (Nat.add_le_add_right (Nat.le_max_left _ _) _)
+      | kill => exact absurd hp (hk t)
+    | _ => rw [hp] at hx; cases hx
+  · have hy := hlive (isStop_live hs)
+    cases hp : x.phase with
+    | stopping t g =>
+      cases g with
+      | term =>
+        rcases ha with ⟨e, hlt⟩ | e | ⟨t', e1, e2⟩
+        · rw [hy, e, hp]
+          simp only [due]
+          have := hlt t hp
+          rw [Nat.max_eq_right (Nat.le_of_lt this), Nat.max_eq_right (Nat.le_trans h1 (Nat.le_of_lt this))]
+          exact Nat.le_refl _
+        · rw [← hy, isStop_live hs] at e; cases e
+        · rw [hy, e2]
+          simp only [due]
+          exact Nat.le_trans h2 (Nat.add_le_add_right (Nat.le_max_left _ _) _)
+      | kill => exact absurd hp (hk t)
+    | _ => rw [hp] at hx; cases hx
+  · have hy := hlive (isStop_live hs)
+    rcases ha with ⟨e, _⟩ | e | ⟨t', e1, e2⟩
+    · rw [hy, e, hx] at hs; cases hs
+    · rw [← hy, isStop_live hs] at e; cases e
+    · rw [e1] at hx; cases hx
+
+
+theorem stopRec_cases (now : Nat) (ids : List Nat) (x : Rsrc) : (stopRec now ids x).1 = x ∨
+    (x.phase = .ready ∧ x.id ∈ ids ∧ (stopRec now ids x).1 = { x with phase := .stopping now .term }) := by
+  unfold stopRec; split
+  · split
+    · rename_i hc
+      simp only [Bool.and_eq_true, beq_iff_eq, List.contains_iff_mem] at hc
+      exact Or.inr ⟨hc.1, hc.2, rfl⟩
+    · exact Or.inl rfl
+  · exact Or.inl rfl
+
+theorem stop_tr (c : Cfg) (tm : Nat) (s : State) (xs : List Rsrc) (hn : (s.res.map (·.id)).Nodup)
+    (hx : ∀ x ∈ xs, x ∈ cands c s) : TrS c tm s (stopAll s xs).1 := by
+  refine ⟨fun x => (stopRec s.now (xs.map (·.id)) x).1, rfl, fun x hxs => ?_⟩
+  dsimp only
+  rcases stopRec_cases s.now (xs.map (·.id)) x with e | ⟨hr, hm, e⟩
+  · rw [e]; exact tr_eq rfl rfl (Or.inl rfl)
+  · rw [e]
+    obtain ⟨z, hz, hzi⟩ := List.mem_map.1 hm
+    have hzc := hx z hz
+    have hzx : z = x := eq_of_nodup_map (·.id) _ hn z x (cands_ready hzc).1 hxs hzi
+    subst hzx
+    refine ⟨rfl, rfl, fun _ => (by rw [hr]; rfl), fun h => (by rw [hr] at h; cases h), fun _ => ⟨fun h => (by
+      rw [hr] at h; cases h), fun _ => ⟨?_, (cands_unpinned hzc : c.pinned z.kind = false)⟩⟩⟩
+    show due c tm s.now (.stopping s.now .term) ≤ s.now + c.killAfter + tm
+    simp only [due]
+    rw [Nat.max_eq_right (Nat.le_add_right _ _)]
+    exact Nat.le_refl _
+
+/-- A lease of cost zero that is a nested job lease or a share of a resource of a pinned kind. -/
+def Shaped (c : Cfg) (s : State) (l : Lease) : Prop :=
+  l.cost = {} ∧ (l.kind = .job ∨ ∃ r ∈ s.res, r.id = l.rid ∧ c.pinned r.kind = true)
+
+theorem shaped_tr {c : Cfg} {tm : Nat} {s s' : State} {l : Lease} (h : TrS c tm s s') (hl : Shaped c s l) :
+    Shaped c s' l := by
+  obtain ⟨F, hF, hFt⟩ := h
+  refine ⟨hl.1, ?_⟩
+  rcases hl.2 with hk | ⟨r, hr, hid, hp⟩
+  · exact Or.inl hk
+  · refine Or.inr ⟨F r, by rw [hF]; exact List.mem_map_of_mem hr, (hFt r hr).1.trans hid, ?_⟩
+    rw [(hFt r hr).2.1]; exact hp
+
+/-- The head-job invariant: `q` heads the queue, no queued request or ticket is older, the clock is past `n0`, no
+drain, every stopping resource unpinned and due within `killAfter + tm`, every lease shaped or granted by `n0` while
+the clock is before `n0 + span`, and at most `k` live unpinned resources. -/
+structure HJ (c : Cfg) (q : Req) (tm n0 k : Nat) (s : State) : Prop where
+  inv : Inv c s
+  head : ∃ rest, s.pending = q :: rest
+  ages : ∀ p ∈ s.pending, q.age ≤ p.age
+  tickets : ∀ t ∈ s.tickets, q.age ≤ t.age
+  age : q.age ≤ s.now
+  start : n0 ≤ s.now
+  draining : s.draining = false
+  stops : ∀ x ∈ s.res, x.phase.isStop = true →
+    c.pinned x.kind = false ∧ due c tm s.now x.phase ≤ s.now + c.killAfter + tm
+  leases : ∀ l ∈ s.leases, Shaped c s l ∨ (l.granted ≤ n0 ∧ s.now < n0 + span c)
+  mu : mu c s ≤ k
+
+/-- The state after the stage before the pump, against the state `s` before it. -/
+structure PF (c : Cfg) (q : Req) (tm n0 : Nat) (s p : State) : Prop where
+  tr : TrS c tm s p
+  now1 : s.now ≤ p.now
+  now2 : p.now ≤ s.now + tm
+  head : ∃ rest, p.pending = q :: rest
+  ages : ∀ x ∈ p.pending, q.age ≤ x.age
+  tickets : ∀ t ∈ p.tickets, q.age ≤ t.age
+  draining : p.draining = false
+  leases : ∀ l ∈ p.leases, Shaped c p l ∨ (l.granted ≤ n0 ∧ p.now < n0 + span c)
+
+theorem pf_same {c : Cfg} {q : Req} {tm n0 k : Nat} {s p : State} (h : HJ c q tm n0 k s) (htr : TrS c tm s p)
+    (hn : p.now = s.now) (hpend : p.pending = s.pending) (ht : ∀ t ∈ p.tickets, t ∈ s.tickets)
+    (hd : p.draining = s.draining)
+    (hl : ∀ l ∈ p.leases, (∃ l0 ∈ s.leases, l.cost = l0.cost ∧ l.kind = l0.kind ∧ l.rid = l0.rid ∧
+      l.granted = l0.granted) ∨ Shaped c p l) : PF c q tm n0 s p := by
+  refine ⟨htr, by rw [hn]; exact Nat.le_refl _, by rw [hn]; exact Nat.le_add_right _ _, by rw [hpend]; exact h.head,
+    by rw [hpend]; exact h.ages, fun t ht' => h.tickets t (ht t ht'), by rw [hd]; exact h.draining, fun l hl' => ?_⟩
+  rcases hl l hl' with ⟨l0, hl0, e1, e2, e3, e4⟩ | hs
+  · rcases h.leases l0 hl0 with hs | ⟨hg, hlt⟩
+    · refine Or.inl (shaped_tr htr ⟨by rw [e1]; exact hs.1, ?_⟩)
+      rcases hs.2 with hk | ⟨r, hr, hid, hp⟩
+      · exact Or.inl (by rw [e2]; exact hk)
+      · exact Or.inr ⟨r, hr, by rw [e3]; exact hid, hp⟩
+    · exact Or.inr ⟨by rw [e4]; exact hg, by rw [hn]; exact hlt⟩
+  · exact Or.inl hs
+
+theorem older_head {q q' : Req} (ha : q.age ≤ q'.age) (hi : q.id < q'.id) : older q' q = false := by
+  unfold older
+  simp only [Bool.or_eq_false_iff, decide_eq_false_iff_not, Bool.and_eq_false_iff]
+  omega
+
+theorem ins_head {q q' : Req} {rest : List Req} (ha : q.age ≤ q'.age) (hi : q.id < q'.id) :
+    insertReq q' (q :: rest) = q :: insertReq q' rest := by
+  show (if older q' q = true then q' :: q :: rest else q :: insertReq q' rest) = _
+  rw [older_head ha hi]; simp only [Bool.false_eq_true, ↓reduceIte]
+
+theorem age_le {q : Req} {s : State} (ht : ∀ t ∈ s.tickets, q.age ≤ t.age) (hn : q.age ≤ s.now)
+    (p : Ticket → Bool) : q.age ≤ min (((s.tickets.find? p).map (·.age)).getD s.now) s.now := by
+  refine Nat.le_min.2 ⟨?_, hn⟩
+  cases hf : s.tickets.find? p with
+  | none => exact hn
+  | some t => exact ht t (List.mem_of_find?_eq_some hf)
+
+theorem request_pf {c : Cfg} {q : Req} {tm n0 k : Nat} {s : State} (o : Nat) (a : Ask) (h : HJ c q tm n0 k s) :
+    PF c q tm n0 s (request c s o a).1 := by
+  obtain ⟨rest, hr⟩ := h.head
+  have hqn : q.id < s.next := h.inv.1.below q.id (List.mem_append_right _ (by rw [hr]; exact List.mem_map_of_mem List.mem_cons_self))
+  have htr : ∀ p : State, p.res = s.res → p.now = s.now → TrS c tm s p := fun p h1 h2 => trS_res h1 h2
+  unfold request
+  dsimp only
+  split
+  · split
+    · split
+      · exact pf_same h (htr _ rfl rfl) rfl rfl (fun _ ht => ht) rfl fun l hl => Or.inl ⟨l, hl, rfl, rfl, rfl, rfl⟩
+      · refine pf_same h (htr _ rfl rfl) rfl rfl (fun _ ht => ht) rfl fun l hl => ?_
+        rcases List.mem_append.1 hl with hl | hl
+        · exact Or.inl ⟨l, hl, rfl, rfl, rfl, rfl⟩
+        · rw [List.mem_singleton.1 hl]
+          exact Or.inr ⟨rfl, Or.inl rfl⟩
+    · exact pf_same h (htr _ rfl rfl) rfl rfl (fun _ ht => ht) rfl fun l hl => Or.inl ⟨l, hl, rfl, rfl, rfl, rfl⟩
+  · refine ⟨htr _ rfl rfl, Nat.le_refl _, Nat.le_add_right _ _, ⟨_, by rw [hr]; exact ins_head (age_le h.tickets h.age _) hqn⟩,
+      fun x hx => ?_, fun t ht => h.tickets t (List.mem_filter.1 ht).1, h.draining, fun l hl => ?_⟩
+    · rcases List.mem_cons.1 ((insertReq_perm _ s.pending).subset hx) with e | hx
+      · rw [e]; exact age_le h.tickets h.age _
+      · exact h.ages x hx
+    · rcases h.leases l hl with hs | hs
+      · exact Or.inl (shaped_tr (htr _ rfl rfl) hs)
+      · exact Or.inr hs
+
+theorem lease_kept {s : State} {l : Lease} (hl : l ∈ s.leases) :
+    (∃ l0 ∈ s.leases, l.cost = l0.cost ∧ l.kind = l0.kind ∧ l.rid = l0.rid ∧ l.granted = l0.granted) :=
+  ⟨l, hl, rfl, rfl, rfl, rfl⟩
+
+theorem ite_keep (b : Prop) [Decidable b] (x y : Rsrc) (h1 : y.id = x.id) (h2 : y.kind = x.kind)
+    (h3 : y.phase = x.phase ∨ y.phase.live = false) :
+    (if b then y else x).id = x.id ∧ (if b then y else x).kind = x.kind ∧
+      ((if b then y else x).phase = x.phase ∨ (if b then y else x).phase.live = false) := by
+  split
+  · exact ⟨h1, h2, h3⟩
+  · exact ⟨rfl, rfl, Or.inl rfl⟩
+
+theorem ite_tr {c : Cfg} {tm n : Nat} (b : Prop) [Decidable b] (x y : Rsrc) (h : b → Tr c tm n n x y) :
+    Tr c tm n n x (if b then y else x) := by
+  split
+  · exact h ‹_›
+  · exact tr_eq rfl rfl (Or.inl rfl)
+
+theorem release_pf {c : Cfg} {q : Req} {tm n0 k : Nat} {s : State} (o lid : Nat) (h : HJ c q tm n0 k s) :
+    PF c q tm n0 s (release s o lid).1 := by
+  unfold release
+  dsimp only
+  split
+  · exact pf_same h (trS_eq _ rfl rfl fun x _ => ite_keep _ x _ rfl rfl (Or.inl rfl)) rfl rfl (fun _ ht => ht) rfl fun l hl =>
+      Or.inl (lease_kept (List.mem_filter.1 hl).1)
+  · exact pf_same h (trS_res rfl rfl) rfl rfl (fun _ ht => ht) rfl fun l hl => Or.inl (lease_kept hl)
+
+theorem renew_pf {c : Cfg} {q : Req} {tm n0 k : Nat} {s : State} (o lid : Nat) (h : HJ c q tm n0 k s) :
+    PF c q tm n0 s (renew c s o lid).1 := by
+  unfold renew
+  dsimp only
+  split
+  · split
+    · refine pf_same h (trS_res rfl rfl) rfl rfl (fun _ ht => ht) rfl fun l hl => Or.inl ?_
+      obtain ⟨l0, hl0, e⟩ := List.mem_map.1 hl
+      refine ⟨l0, hl0, ?_⟩
+      rw [← e]
+      split <;> exact ⟨rfl, rfl, rfl, rfl⟩
+    · exact pf_same h (trS_res rfl rfl) rfl rfl (fun _ ht => ht) rfl fun l hl => Or.inl (lease_kept hl)
+  · exact pf_same h (trS_res rfl rfl) rfl rfl (fun _ ht => ht) rfl fun l hl => Or.inl (lease_kept hl)
+
+theorem spawned_pf {c : Cfg} {q : Req} {tm n0 k : Nat} {s : State} (rid : Nat) (i : Option Ident)
+    (h : HJ c q tm n0 k s) : PF c q tm n0 s (spawned c s rid i).1 := by
+  cases i with
+  | none =>
+    exact pf_same h (trS_eq _ rfl rfl fun x _ => ite_keep _ x _ rfl rfl (Or.inr (crash_live c s.now true x))) rfl rfl
+      (fun _ ht => ht) rfl fun l hl => Or.inl (lease_kept hl)
+  | some i =>
+    rw [spawned.eq_2]
+    split
+    · exact pf_same h (trS_res rfl rfl) rfl rfl (fun _ ht => ht) rfl fun l hl => Or.inl (lease_kept hl)
+    · split
+      · exact pf_same h (trS_eq _ rfl rfl fun x _ => ite_keep _ x _ rfl rfl (Or.inl rfl)) rfl rfl (fun _ ht => ht) rfl fun l hl => Or.inl (lease_kept hl)
+      · exact pf_same h (trS_res rfl rfl) rfl rfl (fun _ ht => ht) rfl fun l hl => Or.inl (lease_kept hl)
+
+theorem readyEv_pf {c : Cfg} {q : Req} {tm n0 k : Nat} {s : State} (rid : Nat) (h : HJ c q tm n0 k s) :
+    PF c q tm n0 s (readyEv s rid) := by
+  refine pf_same h ⟨_, rfl, fun x _ => ite_tr _ x _ fun hc => ?_⟩ rfl rfl (fun _ ht => ht) rfl fun l hl =>
+    Or.inl (lease_kept hl)
+  · simp only [Bool.and_eq_true] at hc
+    have hst : x.phase.isStop = false ∧ x.phase.live = true := by
+      have := hc.2
+      split at this
+      · rename_i t ht; rw [ht]; exact ⟨rfl, rfl⟩
+      · cases this
+    exact tr_nonstop rfl rfl hst.1 rfl fun _ => hst.2
+
+theorem childExit_pf {c : Cfg} {q : Req} {tm n0 k : Nat} {s : State} (i : Ident) (h : HJ c q tm n0 k s) :
+    PF c q tm n0 s (childExit c s i).1 := by
+  exact pf_same h (trS_eq _ rfl rfl fun x _ => ite_keep _ x _ (exits_same c s.now x).1 (exits_same c s.now x).2.1
+    (exits_phase c s.now x)) rfl rfl (fun _ ht => ht) rfl fun l hl => Or.inl (lease_kept (List.mem_filter.1 hl).1)
+
+theorem gone_pf {c : Cfg} {q : Req} {tm n0 k : Nat} {s : State} (o : Nat) (h : HJ c q tm n0 k s)
+    (ho : o ≠ q.owner) : PF c q tm n0 s (gone s o) := by
+  obtain ⟨rest, hr⟩ := h.head
+  refine ⟨trS_res rfl rfl, Nat.le_refl _, Nat.le_add_right _ _, ⟨rest.filter (·.owner != o), ?_⟩,
+    fun x hx => h.ages x (List.mem_filter.1 hx).1, fun t ht => h.tickets t (List.mem_filter.1 ht).1, h.draining,
+    fun l hl => ?_⟩
+  · show s.pending.filter (·.owner != o) = _
+    rw [hr, List.filter_cons_of_pos (by simpa using fun e => ho e.symm)]
+  · rcases h.leases l (List.mem_filter.1 hl).1 with hs | hs
+    · exact Or.inl (shaped_tr (tm := tm) (trS_res rfl rfl) hs)
+    · exact Or.inr hs
+
+theorem tick_pf {c : Cfg} {q : Req} {tm n0 k : Nat} {s : State} (now : Nat) (smp : Sample) (h : HJ c q tm n0 k s)
+    (hA : Along q tm s (.tick now smp)) : PF c q tm n0 s (tick c s now smp).1 := by
+  obtain ⟨hc, hn, hk⟩ := hA
+  have hw := h.inv.1
+  have hwo := wf_observe now smp hw
+  generalize hO : (observe c s now smp).1 = O at hwo
+  have hOn : O.now = max s.now now := by rw [← hO]; rfl
+  have h1 : TrS c tm s O := ⟨_, by rw [← hO]; exact observe_res c s now smp, fun x hx => by
+    rw [hOn]
+    exact tickRec_tr c tm s.leases s.now _ smp x (Nat.le_max_left _ _) (Nat.max_le.2 ⟨Nat.le_add_right _ _, hn⟩)
+      (hk x hx)⟩
+  have hwi := wf_stopAll _ hwo fun _ hx => idle_cands hx
+  have h2 : TrS c tm O (idleStage c O).1 := stop_tr c tm O _ hwo.rids fun _ hx => idle_cands hx
+  have h3 : TrS c tm (idleStage c O).1 (shedStage c (idleStage c O).1).1 := by
+    unfold shedStage
+    split
+    · exact stop_tr c tm _ _ hwi.rids fun _ hx => shedPick_cands hx
+    · exact trS_res rfl rfl
+  have hn3 : (shedStage c (idleStage c O).1).1.now = (idleStage c O).1.now := by
+    unfold shedStage; split <;> rfl
+  have htr : TrS c tm s (tick c s now smp).1 := by
+    have e : (tick c s now smp).1 = (shedStage c (idleStage c O).1).1 := by rw [← hO]; rfl
+    rw [e]
+    exact (h1.trans h2 rfl).trans h3 hn3
+  have hst := tick_st c s now smp
+  rw [hO] at hst
+  have hpn : (tick c s now smp).1.now = max s.now now := by rw [hst]; exact hOn
+  have hpp : (tick c s now smp).1.pending = s.pending.filter fun q => smp.clients.contains q.owner := by
+    rw [hst, ← hO]; rfl
+  have hpt : (tick c s now smp).1.tickets = s.tickets.filter fun k => smp.clients.contains k.owner := by
+    rw [hst, ← hO]; rfl
+  have hpd : (tick c s now smp).1.draining = s.draining := by rw [hst, ← hO]; rfl
+  have hpl : (tick c s now smp).1.leases = O.leases := by rw [hst]
+  obtain ⟨rest, hr⟩ := h.head
+  refine ⟨htr, by rw [hpn]; exact Nat.le_max_left _ _, by rw [hpn]; exact Nat.max_le.2 ⟨Nat.le_add_right _ _, hn⟩,
+    ⟨rest.filter fun q => smp.clients.contains q.owner, ?_⟩, fun x hx => ?_, fun t ht => ?_, by rw [hpd]; exact h.draining,
+    fun l hl => ?_⟩
+  · rw [hpp, hr]
+    exact List.filter_cons_of_pos (p := fun r : Req => smp.clients.contains r.owner) (List.contains_iff_mem.2 hc)
+  · rw [hpp] at hx; exact h.ages x (List.mem_filter.1 hx).1
+  · rw [hpt] at ht; exact h.tickets t (List.mem_filter.1 ht).1
+  · rw [hpl] at hl
+    have hls : l ∈ s.leases := by rw [← hO] at hl; exact observe_lease hl
+    rcases h.leases l hls with hs | ⟨hg, _⟩
+    · exact Or.inl (shaped_tr htr hs)
+    · refine Or.inr ⟨hg, ?_⟩
+      have hlt := (hwo.live l hl).1
+      have hsp := lease_span h.inv hls
+      rw [hpn, ← hOn]
+      omega
+
+theorem pre_pf {c : Cfg} {q : Req} {tm n0 k : Nat} {s : State} (e : Event) (h : HJ c q tm n0 k s)
+    (hA : Along q tm s e) : PF c q tm n0 s (pre c s e).1 := by
+  cases e with
+  | request t o a => exact request_pf o a h
+  | release t o l => exact release_pf o l h
+  | renew t o l => exact renew_pf o l h
+  | op t n => exact pf_same h (trS_res rfl rfl) rfl rfl (fun _ ht => ht) rfl fun l hl => Or.inl (lease_kept hl)
+  | drain t n => exact absurd hA id
+  | spawned rid i => exact spawned_pf rid i h
+  | ready rid => exact readyEv_pf rid h
+  | childExit i => exact childExit_pf i h
+  | tick now smp => exact tick_pf now smp h hA
+  | clientGone o => exact gone_pf o h hA
+  | restart now snap inp => exact absurd hA id
+
 end Fw.Sup
