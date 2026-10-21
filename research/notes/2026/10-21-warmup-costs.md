@@ -232,10 +232,10 @@ rule that fits the measurements, stated as an input; whether it is the right one
     `gMin` is a function of the tick and the grace table above shows two: tick 20 s gives `gMin` 40 s, tick 300 s gives
     600 s. At tick 300 s `gMin` (600 s)
     exceeds every `K x cold` (largest 133 s, MEASURED) and all three kinds get 600 s; at tick 20 s only the
-    Simulator's 133 s exceeds `gMin` 40 s. sup-model fixes `tickMax`; this note does not. `gMax` is the 30-minute re-arm period of the watch stream: a
+    Simulator's 133 s exceeds `gMin` 40 s. sup-model fixes `tickMax`; this note does not. `gMax` is the 30-minute re-arm period of the watch stream (INFERRED, a chosen bound; docs/team/tools/fw-watch.md:7): a
     resource unused for that long is not in a work loop.
   - Under pressure the grace does not apply (`shedding s`), so `K` only decides the idle-and-comfortable case.
-- **Typical, not worst.** The rule uses the typical restart: the median of the n runs of an existing device rebooted on fresh oleans (the max of the runs is the worst column). The worst
+- **Typical, not worst.** The rule uses the typical restart: the median of the n runs of each kind (a Simulator: an existing device rebooted; lake serve: a fresh server on built oleans; fwcore: one request). The max of the runs is the worst column. The worst
   case (a first boot of a new device, `lake serve` on stale oleans that need the longest rebuild) belongs to the
   start timeout (`startMax`, theorem `start_bounded`), not to the grace.
 - **Per kind.** The long cold start (Simulator) gets the longest grace and is the only kind whose stop is ours to
