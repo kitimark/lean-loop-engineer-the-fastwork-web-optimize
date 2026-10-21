@@ -157,34 +157,35 @@ export async function morphRun(c, { clock, settleMs }) {
  * after its retries ends the session; the completed runs are kept and the reason goes to `failed` (CI lost r2 and v3 of
  * the first dispatch whole to such a stall, 2026-10-21).
  */
-export async function lagSession(ctx, { passes, clock, settleMs, step, framesPerStep, log, cost = true }) {
-  const geometry = await geometryPass(ctx, { clock, settleMs, step, log });
+export async function lagSession(ctx, { passes, clock, settleMs, step, framesPerStep, log, cost = true, costOnly = false }) {
+  const geometry = costOnly ? null : await geometryPass(ctx, { clock, settleMs, step, log });
   const out = [], failed = [];
   let targetLost = false;
   for (let i = 0; i < passes; i++) {
-    let scroll;
-    try {
-      scroll = await retrying(ctx, 'scroll', log, async () => {
-        await loadFresh(ctx.c, { clock, settleMs });
-        return scrollRun(ctx.c, { step, framesPerStep, mode: 'base' });
-      });
-    } catch (e) { targetLost = e instanceof TargetLostError; failed.push(`pass ${i + 1} scroll: ${e.message}`); log(`  ${failed.at(-1)}`); break; }
-    const t = scroll.reduced.total;
-    log(`pass ${i + 1}/${passes} scroll: ${scroll.ys.length} steps, style ${t.RecalculateStyles} layout ${t.Layout} paint ${t.Paint} composite ${t.Composite}`);
-    let morph;
-    try {
-      morph = await retrying(ctx, 'morph', log, () => morphRun(ctx.c, { clock, settleMs }));
-    } catch (e) { targetLost = e instanceof TargetLostError; out.push({ scroll }); failed.push(`pass ${i + 1} morph: ${e.message}`); log(`  ${failed.at(-1)}`); break; }
-    const m = morph.reduced.total;
-    log(`pass ${i + 1}/${passes} morph: taken ${JSON.stringify(morph.taken)}, scrollTo ${morph.scrollTo}, style ${m.RecalculateStyles} layout ${m.Layout} paint ${m.Paint} composite ${m.Composite}`);
+    let scroll = null, morph = null;
+    if (!costOnly) {
+      try {
+        scroll = await retrying(ctx, 'scroll', log, async () => {
+          await loadFresh(ctx.c, { clock, settleMs });
+          return scrollRun(ctx.c, { step, framesPerStep, mode: 'base' });
+        });
+      } catch (e) { targetLost = e instanceof TargetLostError; failed.push(`pass ${i + 1} scroll: ${e.message}`); log(`  ${failed.at(-1)}`); break; }
+      const t = scroll.reduced.total;
+      log(`pass ${i + 1}/${passes} scroll: ${scroll.ys.length} steps, style ${t.RecalculateStyles} layout ${t.Layout} paint ${t.Paint} composite ${t.Composite}`);
+      try {
+        morph = await retrying(ctx, 'morph', log, () => morphRun(ctx.c, { clock, settleMs }));
+      } catch (e) { targetLost = e instanceof TargetLostError; out.push({ scroll }); failed.push(`pass ${i + 1} morph: ${e.message}`); log(`  ${failed.at(-1)}`); break; }
+      const m = morph.reduced.total;
+      log(`pass ${i + 1}/${passes} morph: taken ${JSON.stringify(morph.taken)}, scrollTo ${morph.scrollTo}, style ${m.RecalculateStyles} layout ${m.Layout} paint ${m.Paint} composite ${m.Composite}`);
+    }
     let costs = null;
-    if (cost) {
+    if (cost || costOnly) {
       try {
         costs = await costPasses((name, fn) => retrying(ctx, `cost ${name}`, log, () => fn(ctx.c, { clock, settleMs, step, framesPerStep })), log);
       } catch (e) { targetLost = e instanceof TargetLostError; failed.push(`pass ${i + 1} cost: ${e.message}`); log(`  ${failed.at(-1)}`); out.push({ scroll, morph }); break; }
       log(`pass ${i + 1}/${passes} cost: ${['scroll', 'morph', 'layersScroll', 'layersMorph'].map((k) => `${k} ${costs[k] ? 'ok' : 'failed'}`).join(', ')}`);
     }
-    out.push({ scroll, morph, ...(costs ? { cost: costs } : {}) });
+    out.push({ ...(scroll ? { scroll, morph } : {}), ...(costs ? { cost: costs } : {}) });
   }
   return { schema: 'fw.webkit.lag/1', step, framesPerStep, geometry, passes: out, failed, ...(targetLost ? { targetLost } : {}) };
 }

@@ -33,7 +33,7 @@ async function main() {
   switch (cmd) {
     case 'run': {
       const res = await withSession((ctx) => lagSession(ctx, {
-        passes: Number(v.passes), clock: v.clock, settleMs: Number(v.settle), step: Number(v.step), framesPerStep: Number(v.frames), log, cost: v.cost !== 'off',
+        passes: Number(v.passes), clock: v.clock, settleMs: Number(v.settle), step: Number(v.step), framesPerStep: Number(v.frames), log, cost: v.cost !== 'off', costOnly: v.cost === 'only',
       }), { keep: v.keep, vendors: v.vendors, site: v.site ? { dir: v.site, search: v.search } : null });
       const file = resolve(v.out ?? 'out/lag.json');
       mkdirSync(dirname(file), { recursive: true });
