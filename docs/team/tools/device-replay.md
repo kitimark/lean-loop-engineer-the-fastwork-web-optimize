@@ -35,7 +35,8 @@ FW_REPLAY_URL=<page> node src/device-replay-cli.mjs run --source source.json --k
 ```
 
 Success: all 3 passes satisfy `replayMatches` and the spread between the 3 replays is below the gap between rec-1 and rec-4. The CLI
-prints both numbers. The capabilities (`--caps`, default `{"browserName":"Safari","platformName":"iOS"}`) are UNKNOWN until the
+prints replayMatches per pass and the frame counts and writes run.json; the spread of the 3 replays and the rec-1 vs rec-4 gap are
+not computed yet (follow-up pilot-verdict, with the verdict function in Lean). The capabilities (`--caps`, default `{"browserName":"Safari","platformName":"iOS"}`) are UNKNOWN until the
 pilot. The automation session may need the phone unlocked; a Safari window in Remote Automation shows an orange bar.
 
 ## Chromium lane on CI

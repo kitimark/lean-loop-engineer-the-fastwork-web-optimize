@@ -21,7 +21,9 @@ measurement cited), INFERRED, UNKNOWN (to measure), MEASURED.
 2. **Compile (Lean `compile`, TS twin `device-replay.mjs`).** The swipes become W3C Actions for one touch pointer: down, moves, up.
    Theorem `compile_dur_le`: every tick is 0 to 16 ms. Theorem `compile_targets`: every move lands on a sample position rounded to
    a whole px (`px_err`: the rounding error is at most half a px).
-3. **Why 16 ms and whole px.** CONFIRMED (`.cache/upstream/WebKit@862f17d/`, `SimulatedInputDispatcher.cpp:315-345`): pointer down
+3. **Why 16 ms and whole px.** CONFIRMED (WebKit@862f17d: `SimulatedInputDispatcher.cpp:331-341` TouchDown/LiftUp/MoveTo only on a
+   changed location, `:201` tick timer; `_WKTouchEventGenerator.mm:46,330-343`: a move of at most 16 ms is one event, sent at the start
+   of the tick; locations are IntPoint): pointer down
    sends TouchDown, up sends LiftUp; a move sends an event only if the location changed (the tick time still passes) and a move with
    duration up to 16 ms is one event; the locations are whole CSS px.
 4. **Send.** Phone: safaridriver (W3C `/actions`, `pointerType touch`) to Safari on the iPhone, driver in
@@ -62,8 +64,9 @@ measurement cited), INFERRED, UNKNOWN (to measure), MEASURED.
   profile.
 - MEASURED, run 39646030536 (ubuntu-24.04-arm, one run, 3 kinds x 2 repeats, 5 swipes each): every dispatch left within 5 ms of its
   time (p95 at most 1.1 ms), all 5 swipes were seen in every pass, but the page saw 105 to 113 of the 300 to 307 touch events
-  sent, so `eventsOk` and `replayMatches` are false in all 6 passes. That is the predicted coalescing: Chromium merges touchmoves
-  under 6x throttle, so Chromium cannot stand in for the phone's event stream; it can still load the page with the finger path. Frames
+  sent, so `eventsOk` and `replayMatches` are false in all 6 passes. Cause INFERRED: renderer-side coalescing of continuous touchmove
+  (main-thread event queue, rAF-aligned input) under 6x throttle; not yet cited from Chromium source and not separated from coalescing
+  at 1x. So Chromium cannot stand in for the phone's event stream; it can still load the page with the finger path. Frames
   above 34 ms: 82 to 93 of 111 to 117 moving frames. The numbers are one run, not class counts.
 - The phone pilot did not run (needs the user step and a booked session): UNKNOWN.
 
@@ -71,7 +74,8 @@ measurement cited), INFERRED, UNKNOWN (to measure), MEASURED.
 
 - Limits are defaults, not calibrated. Calibration needs phone replays (follow-up `limit-calibration`).
 - The pilot verdict (success: all three replays of rec-1 pass `replayMatches` and their spread is below the gap between two different
-  recordings) is a number the CLI prints; the verdict function is not yet in Lean (follow-up).
+  recordings): the CLI prints replayMatches per pass and the frame counts and writes run.json; the spread of the 3 replays and the
+  rec-1 vs rec-4 gap are not computed yet (follow-up pilot-verdict, with the verdict function in Lean).
 - Simulator lane: the existing harness has no touch path (follow-up).
 - `fromCiProfile`, `makeProfile`, `simulateEvents` and the driver glue are TS stand-ins; the decisions they feed (`compile`,
   `replayMatches`, the generators) are Lean-proved and golden-checked.
