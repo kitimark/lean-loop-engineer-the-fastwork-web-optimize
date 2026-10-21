@@ -133,7 +133,12 @@ describe('threaded.module.css restates the Lean endpoints and conditions', () =>
     expect(keyframes('copyBlur', true)).toEqual({ from: 0, to: 0 });
     // the card moves by exactly its scatter vector: 0 to 1 times var(--scatter-x/y)
     expect(keyframes('cardTranslate', false)).toEqual({ from: 0, to: 1 });
-    expect(frames.get('exitCardMove')).toEqual({ from: 'translate: 0px 0px', to: 'translate: var(--scatter-x) var(--scatter-y)' });
+    // read with the card's own entrance state (Lean cardTranslate entered enter off): `entered = 1` makes `from` 0 and `to` the scatter vector
+    const m = frames.get('exitCardMove')!;
+    expect(m.from).toBe('translate: calc((1 - var(--entered)) * var(--orbit-enter-x)) calc((1 - var(--entered)) * var(--orbit-enter-y))');
+    expect(m.to).toBe(
+      'translate: calc((1 - var(--entered)) * var(--orbit-enter-x) + var(--scatter-x)) calc((1 - var(--entered)) * var(--orbit-enter-y) + var(--scatter-y))',
+    );
   });
 
   it('desktop copy and cue blur only in the wide band; phone copy has no blur animation', () => {
@@ -153,7 +158,7 @@ describe('threaded.module.css restates the Lean endpoints and conditions', () =>
 
   it('every animation rule reads the track timeline over the contain range, linear, filled both ways', () => {
     const rules = [...css.matchAll(/animation-name:[^}]*\}/g)].map((m) => m[0]);
-    expect(rules.length).toBe(6);
+    expect(rules.length).toBe(5);
     for (const r of rules) {
       expect(r).toContain('animation-timeline: --hero-exit;');
       expect(r).toContain('animation-range: contain;');

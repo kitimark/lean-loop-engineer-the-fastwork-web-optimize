@@ -22,7 +22,7 @@ export interface HeroExitProps {
 export function HeroExit({ variant, children }: HeroExitProps) {
   const trackRef = useRef<HTMLElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
-  const sentinelRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
     const track = trackRef.current;
@@ -80,7 +80,7 @@ export function HeroExit({ variant, children }: HeroExitProps) {
       <div ref={heroRef} className={css.hero} data-splash="prep" data-exit-scope={variant === SCOPED ? '' : undefined}>
         {children}
       </div>
-      {variant === THREADED ? <div ref={sentinelRef} className={threaded.sentinel} aria-hidden="true" /> : null}
+      {variant === THREADED ? <span ref={sentinelRef} className={threaded.sentinel} aria-hidden="true" /> : null}
     </section>
   );
 }

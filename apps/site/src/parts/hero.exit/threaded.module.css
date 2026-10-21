@@ -9,6 +9,7 @@
     pointer-events: none;
     width: 1px;
     height: 1px;
+    display: block;
     position: absolute;
     left: 0;
   }
@@ -43,17 +44,9 @@
         animation-timeline: --hero-exit;
         animation-range: contain;
       }
+      /* the settled orbit keeps its entrance end state itself, because the animation list below replaces the entrance's */
       [data-exit-live] [data-splash='done'] [data-orbit-id] {
         --entered: 1;
-        animation-name: exitCardFade, exitCardMove;
-        animation-duration: auto;
-        animation-delay: 0s;
-        animation-iteration-count: 1;
-        animation-direction: normal;
-        animation-timing-function: linear;
-        animation-fill-mode: both;
-        animation-timeline: --hero-exit;
-        animation-range: contain;
       }
     }
 
@@ -82,17 +75,19 @@
         animation-timeline: --hero-exit;
         animation-range: contain;
       }
-      [data-exit-live] [data-splash='done'] [data-fw='hero-deck'] > article {
-        animation-name: exitCardFade, exitCardMove;
-        animation-duration: auto;
-        animation-delay: 0s;
-        animation-iteration-count: 1;
-        animation-direction: normal;
-        animation-timing-function: linear;
-        animation-fill-mode: both;
-        animation-timeline: --hero-exit;
-        animation-range: contain;
-      }
+    }
+
+    /* Cards in both bands: the band that hides them is read too, and a hidden element runs no animation. */
+    [data-exit-live] [data-splash='done'] :is([data-orbit-id], [data-fw='hero-deck'] > article) {
+      animation-name: exitCardFade, exitCardMove;
+      animation-duration: auto;
+      animation-delay: 0s;
+      animation-iteration-count: 1;
+      animation-direction: normal;
+      animation-timing-function: linear;
+      animation-fill-mode: both;
+      animation-timeline: --hero-exit;
+      animation-range: contain;
     }
   }
 
@@ -144,12 +139,14 @@
       filter: blur(18px);
     }
   }
+  /* Lean `cardTranslate` for the card's own entrance state: `(1 - entered) * enter` at rest, plus the scatter vector at the end */
   @keyframes exitCardMove {
     from {
-      translate: 0px 0px;
+      translate: calc((1 - var(--entered)) * var(--orbit-enter-x)) calc((1 - var(--entered)) * var(--orbit-enter-y));
     }
     to {
-      translate: var(--scatter-x) var(--scatter-y);
+      translate: calc((1 - var(--entered)) * var(--orbit-enter-x) + var(--scatter-x))
+        calc((1 - var(--entered)) * var(--orbit-enter-y) + var(--scatter-y));
     }
   }
 }
