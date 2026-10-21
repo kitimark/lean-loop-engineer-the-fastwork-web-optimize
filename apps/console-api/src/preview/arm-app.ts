@@ -24,10 +24,16 @@ import type { ReturnStore } from "./return.ts";
 const DROP = new Set(["connection", "keep-alive", "transfer-encoding", "set-cookie", "upgrade", "proxy-authenticate"]);
 const agent = new http.Agent({ keepAlive: true, maxSockets: 64 });
 
+const lastEnd = new WeakMap<object, number>(); // TEMP evidence: when a socket last finished a response
 function upstream(port: number, pathq: string, method: string, headers: Record<string, string>): Promise<IncomingMessage> {
   return new Promise((resolve, reject) => {
-    const r = http.request({ host: "127.0.0.1", port, path: pathq, method, agent, headers }, resolve);
-    r.on("error", (e) => reject(Object.assign(e, { fwReused: r.reusedSocket })));
+    let idle: number | undefined;
+    const r = http.request({ host: "127.0.0.1", port, path: pathq, method, agent, headers }, (res) => {
+      res.on("end", () => { if (res.socket) lastEnd.set(res.socket, Date.now()); });
+      resolve(res);
+    });
+    r.on("socket", (s) => { const t = lastEnd.get(s); idle = t === undefined ? undefined : Date.now() - t; });
+    r.on("error", (e) => reject(Object.assign(e, { fwReused: r.reusedSocket, fwIdle: idle })));
     r.end();
   });
 }
@@ -86,8 +92,8 @@ export function createArmApp(core: Core, owner: OwnerAuth, pm: PreviewManager, o
       if (c.req.method === "HEAD" || status === 304) { up.resume(); return new Response(null, { status, headers }); }
       return new Response(Readable.toWeb(up) as unknown as ReadableStream, { status, headers });
     } catch (e) {
-      const x = e as NodeJS.ErrnoException & { fwReused?: boolean };
-      console.error(`preview-502 ${JSON.stringify({ code: x.code, syscall: x.syscall, msg: x.message, reused: x.fwReused, path: pathq })}`);
+      const x = e as NodeJS.ErrnoException & { fwReused?: boolean; fwIdle?: number };
+      console.error(`preview-502 ${JSON.stringify({ code: x.code, syscall: x.syscall, msg: x.message, reused: x.fwReused, idleMs: x.fwIdle, path: pathq })}`);
       return c.json({ ok: false, reason: "preview server not reachable" }, 502);
     }
   });

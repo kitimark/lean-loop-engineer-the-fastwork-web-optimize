@@ -4,7 +4,7 @@ name: preview-502-flake
 # `repeat` loads each, on the same runner image as the land lane. Removed again once the repeats are recorded.
 on:
   push:
-    branches: ['ci/preview-502-flake']
+    branches: ['ci/preview-502-flake', 'ci/preview-502-flake-fix']
   workflow_dispatch:
     inputs:
       repeat:
