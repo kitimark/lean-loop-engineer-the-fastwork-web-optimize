@@ -11435,7 +11435,8 @@
     "packages/contracts/golden/measure/webkit-lag*.jsonl",
     "research/notes/2026/10-2*-webkit-lag-probe.md",
     "docs/team/handoffs/webkit-lag-probe.md"
-   ]
+   ],
+   "evidence": "dbbddf8"
   },
   {
    "devices": [
