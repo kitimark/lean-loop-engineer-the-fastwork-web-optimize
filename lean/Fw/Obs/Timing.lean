@@ -95,7 +95,7 @@ structure Stage where
 deriving DecidableEq, Repr
 
 /-- **The load above which a local sample is contended**, in CPUs of the local Mac (`hw.ncpu` = 8). MEASURED
-2026-10-21 over the `lean/check` spans of `.fw-console/timings.jsonl` (47 086 local samples), the
+2026-10-21 over the `lean/check` spans of `.fw-console/timings.jsonl` (36 831 local samples of the `lean/check` spans), the
 median duration of one step by the floor of the 1-min load average `λ`, in seconds:
 
 | step | `λ < 4` | `4 ≤ λ < 8` | `8 ≤ λ < 12` | `12 ≤ λ < 16` | `16 ≤ λ < 24` | `24 ≤ λ < 40` |
@@ -106,8 +106,23 @@ median duration of one step by the floor of the 1-min load average `λ`, in seco
 
 The median of every step rises with `λ` (init cost lint 9.0 s at `λ < 4`, 20.1 s at `24 ≤ λ < 40`), and the burst of
 `timing.slow` of 2026-10-21 (props lint 32 to 51 s against a 22.6 s median) came at `λ` 11 to 23, mostly between this
-limit and the old 16. The limit is a constant of the machine, not tuned to make a verdict pass: `p.loadMax` still overrides it in tests. -/
+limit and the old 16. The limit is a constant of the machine, not tuned to make a verdict pass: `p.loadMax` still overrides it in tests.
+
+ACCEPTED LIMIT (measured 2026-10-21 over the same spans): 60 to 96 percent of the local `lean/check` samples of a day are
+contended at `L = 8` (2026-10-17 96, 10-18 83, 10-19 86, 10-20 60, 10-21 82), so the local `timing.slow` is silent for most
+samples and a regression that shows only on a loaded machine is seen by the CI timings, not here. The heavy-job lock
+(`Fw.Sched.Heavy`) exists to lower that fraction; this module does not hide it. -/
 def contendedLoad : Nat := 8
+
+/-- The load at or below which an open `sys.contended` closes (hysteresis, `Fw.Obs.Health.contendedNow`): half the CPUs of
+the local Mac. The table above measures the steps at `λ < 4` as the fastest column (props lint 16.8 s against 19.2 s at
+`4 ≤ λ < 8`), so a floor at or below 4 is a calm machine. Replayed over the 5-minute bins of the local timing samples of
+`.fw-console/timings.jsonl` (lowest load floor of each bin; 2026-10-17 to 21), opening above 8 gives 5, 32, 25, 25, 12 OPEN
+lines a day, and holding it open down to 5 gives 1, 11, 6, 14, 2. -/
+def calmLoad : Nat := 4
+
+/-- The closing load is below the opening load, so the alert has a band to hold in. -/
+theorem calmLoad_lt : calmLoad < contendedLoad := by decide
 
 /-- The parameters: `n_min` (`nMin`), the window length `N` (`window`), the multiplier `k = k_n / k_d`
 (`kNum`, `kDen`), the default budget `B_0` in ms (`budgetMs`), per-tool budget overrides (`budgets`, first match

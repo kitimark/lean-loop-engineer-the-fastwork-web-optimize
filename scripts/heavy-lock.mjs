@@ -5,7 +5,7 @@
 //
 // Runs <command> once the machine can take one more heavy job: FIFO queue, a cap of concurrent holders
 // derived from the CPU count, free memory for the job plus a reserve, and swap below a limit. An idle
-// machine always admits. FW_HEAVY_LOCK=off skips the lock; FW_HEAVY_HELD=1 (set for the child) makes nested
+// machine always admits. FW_HEAVY_LOCK=off skips the lock; after FW_HEAVY_MAX_WAIT_S seconds (default 1800, Lean `maxWaitS`) the job is refused with exit 75 and the reason (never run anyway); FW_HEAVY_HELD=1 (set for the child) makes nested
 // calls run directly.
 //
 // TS/JS STAND-IN: `decide` and `prune` mirror `Fw.Sched.Heavy.verdict` / `prune`
@@ -13,13 +13,13 @@
 // packages/contracts/golden/sched/heavy.jsonl against them; replace by `fwcore` when it serves
 // `sched.heavy`. The rest (files, ps, memory_pressure, sysctl) is I/O glue and holds no decision logic.
 import { execFileSync, spawn } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, watch, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, watch, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /** Defaults equal `Fw.Sched.Heavy.Params`. */
-export const DEFAULT_PARAMS = { capMax: 2, cpusPerJob: 4, jobMB: 5000, reserveMB: 2048, swapPct: 60 };
+export const DEFAULT_PARAMS = { capMax: 2, cpusPerJob: 4, jobMB: 5000, reserveMB: 2048, swapPct: 60, maxWaitS: 1800 };
 
 export function cap(p, cpus) {
   return Math.max(1, Math.min(p.capMax, Math.floor(cpus / p.cpusPerJob)));
@@ -29,15 +29,20 @@ export function swapHigh(p, o) {
   return o.swapTotalMB > 0 && p.swapPct * o.swapTotalMB <= 100 * o.swapUsedMB;
 }
 
-/** `Fw.Sched.Heavy.verdict`: `n` live holders, `rank` askers ahead in the queue. */
-export function decide(p, o, n, rank) {
-  if (rank > 0) return { verdict: 'wait', why: 'queued', ahead: rank };
+/** `Fw.Sched.Heavy.waitOr`: wait, or after `maxWaitS` seconds waited, time out. */
+function waitOr(p, waited, w) {
+  return { verdict: p.maxWaitS <= waited ? 'timeout' : 'wait', ...w };
+}
+
+/** `Fw.Sched.Heavy.verdict`: `n` live holders, `rank` askers ahead in the queue, `waited` seconds waited. */
+export function decide(p, o, n, rank, waited = 0) {
+  if (rank > 0) return waitOr(p, waited, { why: 'queued', ahead: rank });
   if (n === 0) return { verdict: 'admit' };
   const c = cap(p, o.cpus);
-  if (c <= n) return { verdict: 'wait', why: 'cap', running: n, limit: c };
-  if (swapHigh(p, o)) return { verdict: 'wait', why: 'swap' };
+  if (c <= n) return waitOr(p, waited, { why: 'cap', running: n, limit: c });
+  if (swapHigh(p, o)) return waitOr(p, waited, { why: 'swap' });
   if (o.freeMB < p.jobMB + p.reserveMB) {
-    return { verdict: 'wait', why: 'memory', needMB: p.jobMB + p.reserveMB, freeMB: o.freeMB };
+    return waitOr(p, waited, { why: 'memory', needMB: p.jobMB + p.reserveMB, freeMB: o.freeMB });
   }
   return { verdict: 'admit' };
 }
@@ -113,38 +118,52 @@ function dropStale(entries) {
   return live;
 }
 
+/** Write `entry` to `dir/name` atomically (temp file in `root`, then rename), so a reader never sees half of it. */
+function putAtomic(root, dir, name, entry) {
+  const tmp = path.join(root, `.tmp-${process.pid}-${Date.now()}`);
+  writeFileSync(tmp, JSON.stringify(entry));
+  renameSync(tmp, path.join(dir, name));
+}
+
 async function acquire(kind) {
   const root = lockDir();
   const hd = path.join(root, 'holders');
   const qd = path.join(root, 'queue');
   mkdirSync(hd, { recursive: true });
   mkdirSync(qd, { recursive: true });
-  const me = { pid: process.pid, start: startOf(process.pid) ?? 0, kind };
-  const ticket = path.join(qd, `${String(Date.now()).padStart(15, '0')}-${process.pid}.json`);
-  writeFileSync(ticket, JSON.stringify(me));
+  const start = startOf(process.pid);
+  if (start === null) throw new Error('cannot read this process\'s start time (ps lstart), so the lock cannot identify its holder');
+  const me = { pid: process.pid, start, kind };
+  const enqueue = () => {
+    const name = `${String(Date.now()).padStart(15, '0')}-${process.pid}.json`;
+    putAtomic(root, qd, name, me);
+    return path.join(qd, name);
+  };
+  let ticket = enqueue();
   const params = {
     ...DEFAULT_PARAMS,
     ...(process.env.FW_HEAVY_CAP ? { capMax: Number(process.env.FW_HEAVY_CAP) } : {}),
+    ...(process.env.FW_HEAVY_MAX_WAIT_S ? { maxWaitS: Number(process.env.FW_HEAVY_MAX_WAIT_S) } : {}),
   };
-  const maxWaitMs = Number(process.env.FW_HEAVY_MAX_WAIT_S ?? 1800) * 1000;
   const t0 = Date.now();
   let lastSaid = '';
   let lastAt = 0;
   for (;;) {
     const holders = dropStale(readEntries(hd));
     const queue = dropStale(readEntries(qd));
-    const rank = queue.findIndex((q) => q.pid === me.pid);
-    const d = decide(params, observe(), holders.length, rank < 0 ? 0 : rank);
+    let rank = queue.findIndex((q) => q.pid === me.pid);
+    if (rank < 0) { ticket = enqueue(); rank = queue.length; } // the ticket was lost: go to the back of the queue, never to the head
+    const waited = Math.floor((Date.now() - t0) / 1000);
+    const d = decide(params, observe(), holders.length, rank, waited);
     if (d.verdict === 'admit') {
-      writeFileSync(path.join(hd, `${me.pid}.json`), JSON.stringify(me));
+      putAtomic(root, hd, `${me.pid}.json`, me);
       rmSync(ticket, { force: true });
-      if (Date.now() - t0 > 1000) console.error(`heavy-lock: admitted after ${Math.round((Date.now() - t0) / 1000)} s`);
+      if (waited >= 1) console.error(`heavy-lock: admitted after ${waited} s`);
       return () => rmSync(path.join(hd, `${me.pid}.json`), { force: true });
     }
-    if (Date.now() - t0 > maxWaitMs) {
-      console.error(`heavy-lock: waited ${Math.round(maxWaitMs / 1000)} s (${describe(d)}); running anyway`);
+    if (d.verdict === 'timeout') {
       rmSync(ticket, { force: true });
-      return () => {};
+      throw new Error(`waited ${waited} s (limit ${params.maxWaitS} s), ${describe(d)}; not running the job (set FW_HEAVY_LOCK=off to skip the lock)`);
     }
     const say = describe(d);
     if (say !== lastSaid || Date.now() - lastAt > 30000) {
@@ -169,7 +188,9 @@ async function main(argv) {
   const kind = ki >= 0 && ki < dash ? argv[ki + 1] : 'heavy';
   const cmd = argv.slice(dash + 1);
   let release = () => {};
-  if (process.env.FW_HEAVY_LOCK !== 'off' && !process.env.FW_HEAVY_HELD) release = await acquire(kind);
+  if (process.env.FW_HEAVY_LOCK !== 'off' && !process.env.FW_HEAVY_HELD) {
+    try { release = await acquire(kind); } catch (e) { console.error(`heavy-lock: ${e.message}`); return 75; }
+  }
   const child = spawn(cmd[0], cmd.slice(1), { stdio: 'inherit', env: { ...process.env, FW_HEAVY_HELD: '1' } });
   const fwd = (sig) => () => child.kill(sig);
   for (const s of ['SIGINT', 'SIGTERM']) process.on(s, fwd(s));

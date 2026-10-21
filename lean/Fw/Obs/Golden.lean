@@ -298,7 +298,7 @@ def typed : List Typed := [
   { name := "loadMax 150: load floor 150 is load.high", o := { now := t0, system := { okSys with loadFloor := 150 } } },
   { name := "contendedLoad 8: load floor 8 is not sys.contended", o := { now := t0, system := { okSys with loadFloor := 8 } } },
   { name := "contendedLoad 8: load floor 9 is sys.contended, with the builders and heavy jobs in the detail",
-    o := { now := t0, system := { okSys with loadFloor := 9, builders := 4, heavyJobs := 2 } } },
+    o := { now := t0, system := { okSys with loadFloor := 9, load := { builders := 4, heavyJobs := 2 } } } },
   { name := "every code at once, with tight thresholds",
     p := { idleMin := 1, stallMin := 2, toolHangMin := 3, errStreak := 1, ctxResumeMax := 100, ctxWarn := 50,
            diskMinGB := 500, agentCap := 1, simLockMaxMin := 1, worktreesMax := 1 },

@@ -219,11 +219,15 @@ describe("sys.contended counts", () => {
     const rows = parsePs("10 1 00:05 /Users/x/.elan/bin/lake\n11 10 00:05 /bin/zsh\n12 1 00:05 /Users/x/.elan/bin/lake\n13 1 00:05 node");
     expect(countBuilders(rows)).toBe(2);
     const root = mkdtempSync(join(tmpdir(), "fw-heavy-"));
-    expect(countHeavy(root, rows)).toBe(0);
+    const starts = [{ pid: 13, start: 1000, args: "node" }, { pid: 14, start: 2000, args: "node" }];
+    expect(countHeavy(root, starts)).toBe(0);
     mkdirSync(join(root, ".git", "fw-heavy", "holders"), { recursive: true });
-    writeFileSync(join(root, ".git", "fw-heavy", "holders", "13.json"), "{}");
-    writeFileSync(join(root, ".git", "fw-heavy", "holders", "99.json"), "{}");
-    expect(countHeavy(root, rows)).toBe(1);
+    const put = (pid: number, start: number) => writeFileSync(join(root, ".git", "fw-heavy", "holders", `${pid}.json`), JSON.stringify({ pid, start, kind: "check" }));
+    put(13, 1000); // alive, same start: a holder
+    put(14, 1999); // pid reused (another start time): stale, as Lean Fw.Sched.Heavy.reused_pid_stale
+    put(99, 5);   // no such process
+    writeFileSync(join(root, ".git", "fw-heavy", "holders", "bad.json"), "{");
+    expect(countHeavy(root, starts)).toBe(1);
     rmSync(root, { recursive: true, force: true });
   });
 });

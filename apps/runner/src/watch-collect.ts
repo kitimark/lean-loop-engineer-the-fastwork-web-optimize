@@ -55,9 +55,9 @@ export interface SystemSnap {
   ci: { id?: number; workflow: string; branch: string; status: string; conclusion: string | null; startedAt: number; endedAt?: number | null; headSha?: string }[];
   /** floor of the 1-min load average (fwcore compares it with loadMax) */
   loadFloor?: number;
-  /** `lake` processes running (the local builders) and live heavy-lock holders (scripts/heavy-lock.mjs); both only
-   *  fill the sys.contended detail */
-  builders?: number; heavyJobs?: number;
+  /** `lake` processes running (the local builders), live heavy-lock holders (scripts/heavy-lock.mjs) and whether the
+   *  previous check raised sys.contended (the hysteresis bit, Lean `Fw.Obs.LoadInfo`) */
+  load?: { builders: number; heavyJobs: number; prevContended: boolean };
   /** process trees this Claude session started through its Bash tool: root shell pid, the first non-shell program's
    *  name (executable basename only, never arguments), start time, and every descendant pid */
   procs?: Proc[];
@@ -563,11 +563,20 @@ export function parseCi(out: string | null): SystemSnap["ci"] {
 export interface PsRow { pid: number; ppid: number; ageMs: number; comm: string }
 /** The `lake` processes in the process table (the local builders). */
 export const countBuilders = (rows: PsRow[]): number => rows.filter((r) => exe(r.comm) === "lake").length;
-/** The holders of the heavy-job lock (scripts/heavy-lock.mjs, `<git dir>/fw-heavy/holders/<pid>.json`) whose pid runs. */
-export function countHeavy(root: string, rows: PsRow[]): number {
+/** The live holders of the heavy-job lock (scripts/heavy-lock.mjs, `<git dir>/fw-heavy/holders/<pid>.json`): the same
+ *  rule as Lean `Fw.Sched.Heavy.prune` (a holder counts only when its pid AND start time match a running process; a reused
+ *  pid has another start), over the `ps lstart` rows `starts`. */
+export function countHeavy(root: string, starts: StartRow[]): number {
   try {
-    const alive = new Set(rows.map((r) => r.pid));
-    return readdirSync(join(root, ".git", "fw-heavy", "holders")).filter((f) => alive.has(Number(f.replace(/\.json$/, "")))).length;
+    const dir = join(root, ".git", "fw-heavy", "holders");
+    let n = 0;
+    for (const f of readdirSync(dir)) {
+      try {
+        const h = JSON.parse(readFileSync(join(dir, f), "utf8")) as { pid?: unknown; start?: unknown };
+        if (starts.some((r) => r.pid === h.pid && r.start === h.start)) n++;
+      } catch { /* a half-written or foreign file is not a holder */ }
+    }
+    return n;
   } catch { return 0; }
 }
 /** `[[dd-]hh:]mm:ss` to milliseconds; null when malformed. */
@@ -705,7 +714,7 @@ export function parseStartRows(out: string | null): StartRow[] {
 export type KeepDecide = (entries: { pid: number; start: number }[], rows: StartRow[]) => Promise<{ live: number[]; keep: number[] }>;
 
 /** The previous check's system part, if it is recent enough to carry forward (SCOPE.carryMs). */
-export interface Prev { at: number; system: SystemSnap; critical?: string[]; ghDegraded?: boolean }
+export interface Prev { at: number; system: SystemSnap; critical?: string[]; ghDegraded?: boolean; contended?: boolean }
 
 /** `owners`: Bash task id -> agent id (from `collectAgents`); trees whose task id is not in it have no owner. */
 /** `keepOf`: fwcore's keep decision; null leaves `keep` empty. A failed `ps` or decision keeps the previous value
@@ -752,7 +761,7 @@ export async function collectSystem(p: Paths, prev: Prev | null = null, now = Da
   try { const s = statfsSync(p.root); disk = Math.floor((Number(s.bavail) * Number(s.bsize)) / 1e9); } catch { /* unknown -> 0 raises sys.diskLow */ }
   return {
     load1: Math.round(loadavg()[0]! * 100) / 100, loadFloor: Math.floor(loadavg()[0]!),
-    builders: countBuilders(rows), heavyJobs: countHeavy(p.root, rows), memPressure: parseMemLevel(text(mem)),
+    load: { builders: countBuilders(rows), heavyJobs: countHeavy(p.root, parseStartRows(text(psStart))), prevContended: prev?.contended === true }, memPressure: parseMemLevel(text(mem)),
     diskFreeGB: disk, simLock: collectSimLock(p.root), docker, worktrees: parseWorktreeCount(text(wt)),
     consolePids, ci: ciRuns, procs, services: [process.pid, ...consolePids], keep, svcs, stale,
     ...(ps === null || rows.length === 0 ? {} : { alivePids: rows.map((r) => r.pid) }),

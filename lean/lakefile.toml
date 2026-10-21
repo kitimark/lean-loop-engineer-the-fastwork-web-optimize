@@ -41,7 +41,7 @@ root = "BreakgenMain"
 
 # The properties lint (scripts/PropsLint.lean) as a compiled executable. Run through `lean --run`, the interpreter has
 # already mapped the `Lean` oleans of the script's own `import Lean`, so `importModules` of the same files reads each
-# one into the heap a second time: 2.3 GB peak footprint. Compiled, nothing is mapped before the import: 0.7 GB
+# one into the heap a second time: 2.3 GB peak footprint. Compiled, nothing is mapped before the import: 0.2 GB
 # (MEASURED 2026-10-21, `lake env /usr/bin/time -l`; task local-mem-budget).
 [[lean_exe]]
 name = "propslint"

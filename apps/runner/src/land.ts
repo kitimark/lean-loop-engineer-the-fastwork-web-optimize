@@ -168,7 +168,7 @@ export const selectChecks = (ds: { id: string; reads: string[] }[], changed: str
   ds.filter((d) => changed.some((c) => inScope(d.reads, c))).map((d) => d.id);
 
 /** What `lean/scripts/check.sh` reads: Lean `Fw.Console.LandSpeed.checkShReads` (equal to the golden's declaration). */
-export const CHECK_SH_READS = ["lean/**", "packages/contracts/golden/**", "apps/site/src/breakpoints.gen.json", "apps/site/src/sweeps.gen.json", "apps/site/src/head.gen.json", "packages/gate-breakpoints/src/scope.gen.json", ".github/workflows/**", "scripts/span.sh", "scripts/fwcore-build.sh", "scripts/lake-slot.sh", "scripts/lake-slot-lib.sh", "scripts/heavy-lock.mjs", "docs/team/incidents/ledger.json",
+export const CHECK_SH_READS = ["lean/**", "packages/contracts/golden/**", "apps/site/src/breakpoints.gen.json", "apps/site/src/sweeps.gen.json", "apps/site/src/head.gen.json", "packages/gate-breakpoints/src/scope.gen.json", ".github/workflows/**", "scripts/span.sh", "scripts/fwcore-build.sh", "scripts/fwcore-record-rule.sh", "scripts/lake-slot.sh", "scripts/lake-slot-lib.sh", "scripts/heavy-lock.mjs", "docs/team/incidents/ledger.json",
   "research/findings/ledger.json", "apps/site/src/parts/**", "apps/site/src/registry/presets/v2-proved.json", "packages/measure-chromium/scenarios.gen.json"];
 export const INSTALL_READS = ["pnpm-lock.yaml", "**/package.json"];
 /** apps/site reads of snapshot assets, derived from the one source apps/site/assets.manifest.json (listed <=> copied <=> read). */
@@ -436,20 +436,35 @@ const digestFile = (mainDir: string, commit: string) =>
 export function storedDigest(mainDir: string, commit: string): Digest {
   try { const d = readFileSync(digestFile(mainDir, commit), "utf8").trim(); if (HEX64.test(d)) return d; } catch { /* none stored */ }
   try {
-    const [c, h] = readFileSync(join(mainDir, `${FWCORE_BIN}.commit`), "utf8").trim().split(" ");
-    if (c === commit && h !== undefined && HEX64.test(h) && binDigest(mainDir) === h) return h;
+    const r = parseBuildRecord(readFileSync(join(mainDir, `${FWCORE_BIN}.commit`), "utf8"));
+    if (r && binDigest(mainDir) === r.hash) {
+      if (r.kind === "commit" ? r.id === commit : git(mainDir, ["rev-parse", `${commit}^{tree}`]) === r.id) return r.hash;
+    }
   } catch { /* no record */ }
   return null;
 }
+/** The build record (`fwcore.commit`): `tree <tree id> <sha256>` (scripts/fwcore-build.sh) or the legacy `<commit> <sha256>`. */
+export function parseBuildRecord(text: string): { kind: "tree" | "commit"; id: string; hash: string } | null {
+  const f = text.trim().split(/\s+/);
+  if (f[0] === "tree" && f.length === 3 && f[1] && HEX64.test(f[2] ?? "")) return { kind: "tree", id: f[1], hash: f[2] as string };
+  if (f.length === 2 && f[0] && f[0] !== "tree" && HEX64.test(f[1] ?? "")) return { kind: "commit", id: f[0], hash: f[1] as string };
+  return null;
+}
 /** The land preflight (task land-queue-why): the reason to refuse early, or null. Facts only; Lean `fwcoreStale` decides. The installed binary is
- *  the main checkout's; its record (`fwcore.commit`) names the commit it was built from, and counts only when the binary's sha256 is the recorded one.
+ *  the main checkout's; its record (`fwcore.commit`) names the commit or tree it was built from, and counts only when the binary's sha256 is the recorded one.
  *  A tree without `scripts/fwcore-build.sh` has no binary to be stale. */
 export function fwcorePreflight(mainDir: string, main: string): string | null {
   if (!tryGit(mainDir, ["cat-file", "-e", `${main}:scripts/fwcore-build.sh`])) return null;
   let recorded: string | null = null;
   try {
-    const [c, h] = readFileSync(join(mainDir, `${FWCORE_BIN}.commit`), "utf8").trim().split(" ");
-    if (c && h !== undefined && HEX64.test(h) && binDigest(mainDir) === h) recorded = c;
+    const r = parseBuildRecord(readFileSync(join(mainDir, `${FWCORE_BIN}.commit`), "utf8"));
+    if (r && binDigest(mainDir) === r.hash) {
+      if (r.kind === "commit") recorded = r.id;
+      else { // a tree record names the newest first-parent commit of main with that tree; none: the record is unknown
+        const hit = git(mainDir, ["log", "--first-parent", "-n", "1000", "--format=%H %T", main]).split("\n").find((l) => l.endsWith(` ${r.id}`));
+        if (hit) recorded = hit.split(" ")[0] ?? null;
+      }
+    }
   } catch { /* no record */ }
   const head = git(mainDir, ["rev-parse", main]);
   const same = recorded === head;
