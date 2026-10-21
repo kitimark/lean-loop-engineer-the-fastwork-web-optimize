@@ -205,7 +205,7 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     // the generated lean/Fw/Ops/LakeJobsGen.lean and compares
     "lean/lakefile.toml", "lean/scripts/**", "apps/site/scripts/**", "lean/Fw/Ops/LakeJobsGen.lean"],
   // svg-extract: scripts/svg-extract.mjs (build, test, typecheck) and src/svg-extract.test.ts read the snapshot page and its scripts
-  "apps/site": ["lean/Fw/Parts/HiddenPause.lean", "lean/Fw/Parts/HeroCountdownHidden.lean", "packages/gate-breakpoints/src/serve.mjs", "packages/gate-breakpoints/src/anchors.json", "packages/contracts/golden/parts/**", "packages/contracts/golden/sched/node-budget.gen.json",
+  "apps/site": ["lean/Fw/Parts/HiddenPause.lean", "lean/Fw/Parts/HeroCountdownHidden.lean", "packages/gate-breakpoints/src/serve.mjs", "packages/gate-breakpoints/src/anchors.json", "packages/contracts/golden/parts/**",
     // earn-transition-retarget: src/parts/nav/look-change.test.ts reads the look-change list
     "packages/contracts/golden/preset/look-change.candidates.jsonl",
     "packages/contracts/golden/port/**", "scripts/port/**", "packages/visual-diff/src/engines.mjs", "packages/visual-diff/src/fonts.mjs", "snapshot/site/index.html", "snapshot/site/_app/**", ...siteAssetReads()],
@@ -300,7 +300,7 @@ export function candidateChecks(root: string): Check[] {
       try {
         const pkg = JSON.parse(readFileSync(join(root, p, "package.json"), "utf8"));
         if (pkg.scripts?.test) out.push({ id: p, argv: ["pnpm", "--filter", `./${p}`, "test"],
-          reads: [`${p}/**`, ...workspaceDeps(root, pkg).map((d) => `${d}/**`), ...(PACKAGE_EXTRA_READS[p] ?? []), ...(FWCORE_USERS.includes(p) ? [FWCORE_BIN] : [])] });
+          reads: [`${p}/**`, NODE_BUDGET_GEN, ...workspaceDeps(root, pkg).map((d) => `${d}/**`), ...(PACKAGE_EXTRA_READS[p] ?? []), ...(FWCORE_USERS.includes(p) ? [FWCORE_BIN] : [])] });
       } catch { /* no package.json: nothing to run */ }
     }
   }

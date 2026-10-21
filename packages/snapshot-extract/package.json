@@ -7,6 +7,6 @@
   "engines": { "node": ">=24" },
   "scripts": {
     "extract": "node src/cli.mjs extract",
-    "test": "node --test \"test/*.test.mjs\""
+    "test": "node --test --test-concurrency=${VITEST_MAX_WORKERS:-$(node -p \"require('../contracts/golden/sched/node-budget.gen.json').workers\")} \"test/*.test.mjs\""
   }
 }
