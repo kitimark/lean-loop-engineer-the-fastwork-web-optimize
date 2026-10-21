@@ -12,7 +12,9 @@ Workflow: `.github/workflows/trajectory-probe.yml`. The probe is the admission g
 
 ## Run it
 
-    pnpm -s fw run --trajectory --ref ci/<branch> [--fw hero.exit:scoped | --preset v2-proved] [--engines both|chromium|playwright-webkit] [--widths 390,641]
+    pnpm -s fw run --trajectory --ref ci/<branch> [--fw hero.exit:scoped | --preset v2-proved] [--engines both|chromium|playwright-webkit] [--widths 390,641 --diagnostic]
+
+A verdict run (the default, stored and judged) walks all four widths, so `--widths` with a subset needs `--diagnostic` (a run read by hand, never judged); the push line takes the word `diagnostic` and the workflow takes the boolean input `diagnostic`, all three from the one Lean rule `Fw.Gate.Trajectory.Dispatch`.
 
 Push the branch first (`git branch -f ci/<name> HEAD`, then `git push origin ci/<name>`). Artifacts: `trajectory-chromium`,
 `trajectory-playwright-webkit` (Linux arm), and `trajectory-apple` (macos-26, see below). Each engine runs as width legs in
@@ -27,8 +29,9 @@ Agents cannot dispatch a workflow (sandbox, incident m195), but they can push. A
 runs the probe with the inputs of one message line:
 
     [ci:trajectory-probe]
-    [trajectory fw=hero.exit:scoped,morph.tween:waapi widths=390,1280 engines=both]
+    [trajectory fw=hero.exit:scoped,morph.tween:waapi widths=390,1280 engines=both diagnostic]
 
+- The bare word `diagnostic` (no `=`, at most once) marks the run diagnostic; without it `widths` must name all four widths or be absent, else the `site` job fails with the Dispatch text (`widths ... is a subset, and a verdict run (stored, judged) walks all four widths ...`; Lean `Fw.Ci.Trigger.push_verdict_all_widths`). `diagnostic=...` is refused.
 - Keys `fw` (flag set) or `preset` (exclusive with `fw`), `widths`, `engines`, `debug` (a page recorder, only `nav-transition`; any other value is refused; the workflow sets `FW_DEBUG` from it and the probe loads the rewrite arms with `fw-debug=<name>`, `src/trajectory/debug.mjs`; a push with `debug=` also runs the macOS leg, see Apple witness); each at most once; values from `A-Za-z0-9.:,_@-`; no
   line = the dispatch defaults. Only a line that starts with `[trajectory` counts (prose that quotes it asks for nothing). A line that
   does not parse, or a second line, fails the `site` job with the reason (Lean `Fw.Ci.Trigger.pushProbe`, golden `probe` lines of
@@ -41,7 +44,7 @@ runs the probe with the inputs of one message line:
   `packages/gh-budget/src/want.ts`). Never the newest run. Accepted limit: `--gate` and the count lanes of `fw run` keep the newest-run rule.
 - A run with one leg (one engine, one width) merges: each leg file `artifact-name.txt` names its artifact; the merge job moves a single download under
   `legs/<artifact name>/`, so the join sees one directory per leg in every case.
-- The run records its inputs: step name `trajectory inputs: engines=.. fw=.. preset=.. widths=.. (commit-line|defaults|dispatch)` of job
+- The run records its inputs: step name `trajectory inputs: engines=.. fw=.. preset=.. widths=.. debug=.. diagnostic=.. (commit-line|defaults|dispatch)` of job
   `site` (`gh run view <id> --json jobs`) and artifact `trajectory-inputs` (`inputs.json`: event, sha, nonce, inputs, source).
 - `fw run --trajectory` sends a fresh `nonce` input; the workflow's `run-name` is `trajectory-probe dispatch nonce=<n>`; the command lists
   `workflow_dispatch` runs of the ref and takes the one whose title is exactly that (Lean `Fw.Ci.Dispatch.pick`, golden

@@ -2,6 +2,7 @@ import Lean.Data.Json
 import Fw.Console.LandSpeed
 import Fw.Ops.PathCheck
 import Fw.Gate.Trajectory
+import Fw.Gate.Trajectory.Dispatch
 /-!
 # Which workflows a push to `ci/*` starts (task `ci-trigger-lean`)
 
@@ -237,7 +238,7 @@ def table : List Wf := [
     "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/gate-search.mjs", ".github/scripts/gate-search.test.mjs",
     ".github/scripts/gate-smoke.mjs", ".github/scripts/verify-snapshot.mjs", ".github/scripts/cache-key.mjs",
     ".github/scripts/trajectory-line.mjs", ".github/scripts/trajectory-line.test.mjs", "packages/contracts/golden/ci/triggers.jsonl",
-    "packages/contracts/golden/gate/search.jsonl", "packages/contracts/golden/gate/trajectory.jsonl", "packages/contracts/golden/gate/trajectory-colour.jsonl", "packages/contracts/golden/ops/cache.jsonl",
+    "packages/contracts/golden/gate/search.jsonl", "packages/contracts/golden/gate/trajectory.jsonl", "packages/contracts/golden/gate/trajectory-colour.jsonl", "packages/contracts/golden/gate/trajectory-dispatch.jsonl", "packages/contracts/golden/ops/cache.jsonl",
     ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", ".node-version", ".github/actions/setup-pnpm/**",
     ".github/actions/gate-engine/**", ".github/actions/telemetry/**", "scripts/ci-telemetry/**", own "trajectory-probe.yml"], []⟩,
   ⟨"visual-diff.yml", ciAll, [
@@ -918,17 +919,42 @@ of the repo can turn a recorder on, so nothing that lands on `main` does. A line
 never ignored. Two such lines are refused too. -/
 
 /-- The inputs of one probe run (an empty string is "none"; `engines` defaults to `both`; `debug` is the page recorder
-the run switches on, `""` for none). -/
+the run switches on, `""` for none; `diagnostic` marks a run read by hand, which may walk a subset of the widths, see
+`Fw.Gate.Trajectory.Dispatch`). -/
 structure ProbeIn where
   engines : String
   fw : String
   preset : String
   widths : String
   debug : String
+  diagnostic : Bool
 deriving Repr, DecidableEq
 
-/-- The inputs of a run whose message names none: the dispatch defaults. -/
-def ProbeIn.default : ProbeIn := ⟨"both", "", "", "", ""⟩
+/-- The inputs of a run whose message names none: the dispatch defaults (a verdict run, all four widths). -/
+def ProbeIn.default : ProbeIn := ⟨"both", "", "", "", "", false⟩
+
+/-- The mark of a run: diagnostic when its line says so, else verdict. -/
+def ProbeIn.mark (p : ProbeIn) : Fw.Gate.Trajectory.Dispatch.Mark :=
+  if p.diagnostic then .diagnostic else .verdict
+
+/-- The decision of the one Lean dispatch rule on the mark and the `widths` of a run. -/
+def ProbeIn.walk (p : ProbeIn) : Fw.Gate.Trajectory.Dispatch.Decision :=
+  Fw.Gate.Trajectory.Dispatch.dispatchIn p.mark p.widths
+
+/-- Does the dispatch rule accept the widths of the run? -/
+def ProbeIn.walksOk (p : ProbeIn) : Bool :=
+  match p.walk with
+  | .accepted _ => true
+  | .refused _ => false
+
+/-- The reason the widths of a run are refused (`""` when they are accepted): the shared dispatch text, and for a subset
+what to add to the line. -/
+def ProbeIn.walkWhy (p : ProbeIn) : String :=
+  match p.walk with
+  | .accepted _ => ""
+  | .refused .scopedVerdict => Fw.Gate.Trajectory.Dispatch.Why.text .scopedVerdict p.widths ++
+      "; add the word diagnostic to the line for a run read by hand"
+  | .refused w => w.text p.widths
 
 /-- What the message says about the probe inputs. -/
 inductive ProbeLine where
@@ -971,6 +997,9 @@ def valueChar (c : Char) : Bool := c.isAlphanum || c == '.' || c == ':' || c == 
 /-- The keys of a line. -/
 def probeKeys : List String := ["fw", "preset", "widths", "engines", "debug"]
 
+/-- The bare word that marks the run diagnostic (a flag, not a `key=value` pair). -/
+def diagnosticWord : String := "diagnostic"
+
 /-- The engines input values. -/
 def probeEngines : List String := ["both", "chromium", "playwright-webkit"]
 
@@ -986,10 +1015,15 @@ def splitEq : List Char → Option (List Char × List Char)
 /-- Add one `key=value` token to the pairs read so far. -/
 def addTok (acc : List (String × String)) (t : List Char) : Except String (List (String × String)) :=
   match splitEq t with
-  | none => .error s!"token '{String.ofList t}' has no '='"
+  | none =>
+    if String.ofList t == diagnosticWord then
+      if acc.any (·.1 == diagnosticWord) then .error s!"key '{diagnosticWord}' given twice"
+      else .ok (acc ++ [(diagnosticWord, "true")])
+    else .error s!"token '{String.ofList t}' has no '='"
   | some (k, v) =>
     let ks := String.ofList k
-    if !probeKeys.contains ks then .error s!"unknown key '{ks}' (keys: fw, preset, widths, engines, debug)"
+    if ks == diagnosticWord then .error "diagnostic is a bare word, not diagnostic=..."
+    else if !probeKeys.contains ks then .error s!"unknown key '{ks}' (keys: fw, preset, widths, engines, debug, diagnostic)"
     else if acc.any (·.1 == ks) then .error s!"key '{ks}' given twice"
     else if v.isEmpty then .error s!"key '{ks}' has no value"
     else if !v.all valueChar then .error s!"the value of '{ks}' has a character outside A-Z a-z 0-9 . : , _ @ -"
@@ -1000,14 +1034,15 @@ def addAll (toks : List (List Char)) : Except String (List (String × String)) :
   toks.foldl (fun r t => r.bind fun acc => addTok acc t) (.ok [])
 
 /-- The inputs from the pairs: defaults, the exclusivity of `fw` and `preset`, the engines allowlist, the widths allowlist
-and the recorder allowlist (`debug` is empty or one of `probeDebugs`). -/
+the dispatch rule on the mark and the widths (`ProbeIn.walk`) and the recorder allowlist (`debug` is empty or one of
+`probeDebugs`). -/
 def build (kv : List (String × String)) : Except String ProbeIn :=
   let g := fun (k d : String) => (kv.lookup k).getD d
-  let p : ProbeIn := ⟨g "engines" "both", g "fw" "", g "preset" "", g "widths" "", g "debug" ""⟩
+  let p : ProbeIn := ⟨g "engines" "both", g "fw" "", g "preset" "", g "widths" "", g "debug" "",
+    (kv.lookup diagnosticWord).isSome⟩
   if p.fw != "" && p.preset != "" then .error "fw and preset are exclusive"
   else if !probeEngines.contains p.engines then .error "engines must be both, chromium or playwright-webkit"
-  else if decide (Fw.Gate.Trajectory.pickWidths p.widths = .refused) then
-    .error "widths must be a comma list of 390, 640, 641, 1280 without repeats"
+  else if !p.walksOk then .error p.walkWhy
   else if p.debug != "" && !probeDebugs.contains p.debug then .error "debug must be nav-transition"
   else .ok p
 
@@ -1063,9 +1098,9 @@ theorem parse_one_err (m : String) (l : List Char) (w : String) (h : candidates 
   simp [parseLine, h, hp]
 
 /-- **Every accepted input set is allowed.** `fw` and `preset` are never both set, the engines are one of the three
-values, the widths pass the Lean allowlist of the probe and the recorder is none or one of `probeDebugs`. -/
+values, the dispatch rule accepts the mark and the widths and the recorder is none or one of `probeDebugs`. -/
 theorem build_ok (kv : List (String × String)) (p : ProbeIn) (h : build kv = .ok p) :
-    (p.fw = "" ∨ p.preset = "") ∧ p.engines ∈ probeEngines ∧ Fw.Gate.Trajectory.pickWidths p.widths ≠ .refused ∧
+    (p.fw = "" ∨ p.preset = "") ∧ p.engines ∈ probeEngines ∧ p.walksOk = true ∧
       (p.debug = "" ∨ p.debug ∈ probeDebugs) := by
   unfold build at h
   dsimp only at h
@@ -1172,6 +1207,110 @@ theorem push_run_is_parse (lane : Bool) (m : String) (p : ProbeIn) (h : pushProb
     parseLine m = .inputs p ∨ (parseLine m = .absent ∧ p = ProbeIn.default) := by
   unfold pushProbe at h
   cases hp : parseLine m <;> cases lane <;> simp_all
+
+/-! ### The mark rule on the push line (task `traj-dispatch-push-lane`)
+
+A line without the bare word `diagnostic` is a verdict run: the rule of `Fw.Gate.Trajectory.Dispatch` accepts it only with
+all four widths. The same rule gates `fw run --trajectory` and the `widths` input of the workflow. -/
+
+/-- A run whose widths the rule accepts has a decision `accepted xs`. -/
+theorem walksOk_walk (p : ProbeIn) (h : p.walksOk = true) : ∃ xs, p.walk = .accepted xs := by
+  unfold ProbeIn.walksOk at h
+  split at h
+  · rename_i xs hx; exact ⟨xs, hx⟩
+  · simp at h
+
+/-- Branch no `diagnostic` word: the mark of the run is verdict. -/
+theorem mark_verdict (p : ProbeIn) (h : p.diagnostic = false) : p.mark = .verdict := by
+  simp [ProbeIn.mark, h]
+
+/-- Branch the `diagnostic` word: the mark of the run is diagnostic. -/
+theorem mark_diagnostic (p : ProbeIn) (h : p.diagnostic = true) : p.mark = .diagnostic := by
+  simp [ProbeIn.mark, h]
+
+/-- Branch verdict run accepted by the rule: it walks all four lane widths. -/
+theorem walk_verdict_all (p : ProbeIn) (hd : p.diagnostic = false) (h : p.walksOk = true) :
+    ∃ xs, Fw.Gate.Trajectory.Dispatch.dispatchIn .verdict p.widths = .accepted xs ∧
+      ∀ w ∈ Fw.Gate.Trajectory.allowedWidths, w ∈ xs := by
+  obtain ⟨xs, hx⟩ := walksOk_walk p h
+  unfold ProbeIn.walk at hx
+  rw [mark_verdict p hd] at hx
+  exact ⟨xs, hx, Fw.Gate.Trajectory.Dispatch.verdict_in_all_widths _ _ hx⟩
+
+/-- Branch diagnostic run accepted by the rule: it walks at least one lane width, none twice. -/
+theorem walk_diagnostic_some (p : ProbeIn) (hd : p.diagnostic = true) (h : p.walksOk = true) :
+    ∃ xs, Fw.Gate.Trajectory.Dispatch.dispatchIn .diagnostic p.widths = .accepted xs ∧ xs ≠ [] ∧
+      (∀ w ∈ xs, w ∈ Fw.Gate.Trajectory.allowedWidths) ∧ xs.Nodup := by
+  obtain ⟨xs, hx⟩ := walksOk_walk p h
+  unfold ProbeIn.walk at hx
+  rw [mark_diagnostic p hd] at hx
+  unfold Fw.Gate.Trajectory.Dispatch.dispatchIn at hx
+  split at hx
+  · simp at hx
+  · rename_i ws _
+    exact ⟨xs, by unfold Fw.Gate.Trajectory.Dispatch.dispatchIn; simp_all,
+      (Fw.Gate.Trajectory.Dispatch.accepted_nonempty _ _ _ hx).1,
+      (Fw.Gate.Trajectory.Dispatch.accepted_nonempty _ _ _ hx).2,
+      Fw.Gate.Trajectory.Dispatch.accepted_nodup _ _ _ hx⟩
+
+/-- The inputs of a line that parses pass the dispatch rule. -/
+theorem parseOne_walks (l : List Char) (p : ProbeIn) (h : parseOne l = .ok p) : p.walksOk = true := by
+  unfold parseOne at h
+  dsimp only at h
+  split at h
+  · simp at h
+  split at h
+  · simp at h
+  split at h
+  · simp at h
+  · rename_i kv _
+    exact (build_ok kv p h).2.2.1
+
+/-- The inputs of a parsed message pass the dispatch rule. -/
+theorem parseLine_walks (m : String) (p : ProbeIn) (h : parseLine m = .inputs p) : p.walksOk = true := by
+  unfold parseLine at h
+  rcases hc : candidates m with _ | ⟨l, _ | ⟨l2, r⟩⟩
+  · simp [hc] at h
+  · rw [hc] at h
+    simp only at h
+    cases ho : parseOne l with
+    | error w => simp [ho] at h
+    | ok q => simp only [ho, ProbeLine.inputs.injEq] at h; subst h; exact parseOne_walks l q ho
+  · simp [hc] at h
+
+/-- **A push whose line carries no `diagnostic` word walks all four widths.** Every run `pushProbe` starts is either a
+default run (no line) or the inputs of a parsed line, and both pass the dispatch rule. -/
+theorem push_verdict_all_widths (lane : Bool) (m : String) (p : ProbeIn) (h : pushProbe lane m = .run p)
+    (hd : p.diagnostic = false) :
+    ∃ xs, Fw.Gate.Trajectory.Dispatch.dispatchIn .verdict p.widths = .accepted xs ∧
+      ∀ w ∈ Fw.Gate.Trajectory.allowedWidths, w ∈ xs := by
+  apply walk_verdict_all p hd
+  rcases push_run_is_parse lane m p h with hp | ⟨_, rfl⟩
+  · exact parseLine_walks m p hp
+  · decide
+
+/-- **A push whose line carries the `diagnostic` word walks a nonempty subset of the lane widths.** -/
+theorem push_diagnostic_widths (lane : Bool) (m : String) (p : ProbeIn) (h : pushProbe lane m = .run p)
+    (hd : p.diagnostic = true) :
+    ∃ xs, Fw.Gate.Trajectory.Dispatch.dispatchIn .diagnostic p.widths = .accepted xs ∧ xs ≠ [] ∧
+      (∀ w ∈ xs, w ∈ Fw.Gate.Trajectory.allowedWidths) ∧ xs.Nodup := by
+  apply walk_diagnostic_some p hd
+  rcases push_run_is_parse lane m p h with hp | ⟨_, rfl⟩
+  · exact parseLine_walks m p hp
+  · simp [ProbeIn.default] at hd
+
+-- Branch a subset without the word: refused with the dispatch text and the hint.
+set_option maxRecDepth 8000 in
+example : pushProbe true "[trajectory widths=390,641]" = .refused
+    ("widths 390,641 is a subset, and a verdict run (stored, judged) walks all four widths (390,640,641,1280); a run short of a width gets no verdict; add the word diagnostic to the line for a run read by hand") := by decide
+-- Branch a subset with the word, a complete list with or without it: accepted.
+example : pushProbe true "[trajectory widths=390,641 diagnostic]" = .run ⟨"both", "", "", "390,641", "", true⟩ := by decide
+example : pushProbe true "[trajectory widths=390,640,641,1280]" = .run ⟨"both", "", "", "390,640,641,1280", "", false⟩ := by decide
+example : pushProbe true "[trajectory diagnostic]" = .run { ProbeIn.default with diagnostic := true } := by decide
+-- Branch bad input stays bad under the word; the word is a flag, once.
+example : pushProbe true "[trajectory widths=800 diagnostic]" = .refused "widths must be a comma list of 390, 640, 641, 1280 without repeats" := by decide
+example : pushProbe true "[trajectory diagnostic diagnostic]" = .refused "key 'diagnostic' given twice" := by decide
+example : pushProbe true "[trajectory diagnostic=true]" = .refused "diagnostic is a bare word, not diagnostic=..." := by decide
 
 /-! ## The macOS leg on a push (task `waapi-tail-webkit-p2`)
 
@@ -1286,6 +1425,15 @@ def probeMsgs : List String := [
   "[trajectory widths=800]",
   "[trajectory widths=390,390]",
   "[trajectory widths=390,]",
+  "[trajectory widths=390,641 diagnostic]",
+  "[trajectory widths=390,641]",
+  "[trajectory widths=1280,390,640,641]",
+  "[trajectory diagnostic]",
+  "[trajectory diagnostic widths=800]",
+  "[trajectory diagnostic widths=390,390]",
+  "[trajectory diagnostic diagnostic]",
+  "[trajectory diagnostic=true]",
+  "[trajectory fw=a.b:c widths=1280 diagnostic debug=nav-transition]",
   "[trajectory fw=a.b:c;rm]",
   "[trajectory fw=$(x)]",
   "[trajectory fw=a b]",
@@ -1305,7 +1453,7 @@ def pushProbeJson : PushProbe → Json
   | .notAsked => Json.mkObj [("kind", "notAsked")]
   | .needsLane => Json.mkObj [("kind", "needsLane")]
   | .run p => Json.mkObj [("kind", "run"), ("engines", .str p.engines), ("fw", .str p.fw), ("preset", .str p.preset),
-      ("widths", .str p.widths), ("debug", .str p.debug)]
+      ("widths", .str p.widths), ("debug", .str p.debug), ("diagnostic", .bool p.diagnostic)]
   | .refused w => Json.mkObj [("kind", "refused"), ("why", .str w)]
 
 /-- One probe golden line. -/
@@ -1315,7 +1463,7 @@ def probeLine (lane : Bool) (m : String) : Json :=
 /-- All probe golden lines: each message with the lane asked and not asked. -/
 def probeLines (_ : Unit := ()) : List Json := probeMsgs.flatMap fun m => [probeLine true m, probeLine false m]
 
-example : pushProbe true "[trajectory fw=a.b:c widths=390]" = .run ⟨"both", "a.b:c", "", "390", ""⟩ := by decide
+example : pushProbe true "[trajectory fw=a.b:c widths=390 diagnostic]" = .run ⟨"both", "a.b:c", "", "390", "", true⟩ := by decide
 example : pushProbe true "[trajectory debug=nav-transition]" = .run { ProbeIn.default with debug := "nav-transition" } := by decide
 example : pushProbe true "[trajectory debug=other]" = .refused "debug must be nav-transition" := by decide
 example : pushProbe true "x [trajectory fw=a.b:c]" = .run ProbeIn.default := by decide

@@ -427,7 +427,7 @@ def Lane.inputs : Lane → List String
   | .chromiumCounts => ["profile", "runs", "target", "preset", "fw", "only", "image_run", "nonce"]
   | .webkitSim => ["vms", "sessions", "fresh_boot", "experiment", "arms", "reps", "lag", "target", "preset", "fw", "fault", "nonce"]
   | .breakpointGate => ["engines", "runs", "free", "times", "fw", "preset", "parts", "nonce"]
-  | .trajectory => ["engines", "fw", "preset", "widths", "nonce"]
+  | .trajectory => ["engines", "fw", "preset", "widths", "diagnostic", "nonce"]
 
 /-- The lane that measures an engine's counts. -/
 def Lane.ofEngine : Engine → Lane
