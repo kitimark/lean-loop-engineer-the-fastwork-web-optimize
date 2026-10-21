@@ -5,8 +5,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 import { parseWait } from "../src/cli.ts";
-import { hintOf, relevant, waitFor } from "../src/wait.ts";
-import { DISPATCH_WORKFLOWS, dispatchOnly, select, titleFor, titleOf, type WRun, type Want } from "../src/want.ts";
+import { ambiguousIds, hintOf, relevant, waitFor } from "../src/wait.ts";
+import { DISPATCH_WORKFLOWS, dispatchOnly, select, selectOne, titleFor, titleOf, type WRun, type Want } from "../src/want.ts";
 import { drive, mkWorld, repoRoot } from "./util.ts";
 
 const all = readFileSync(join(repoRoot, "packages", "contracts", "golden", "ci", "dispatch.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
@@ -22,6 +22,14 @@ test("the workflows that carry a nonce equal Lean dispatchWorkflows, and the hin
 test("the golden has select cases of both wants", () => {
   assert.ok(lines.length >= 12);
   for (const k of ["push", "dispatch"]) assert.ok(lines.some((l) => l.want.kind === k), k);
+});
+
+test("selectOne equals Lean on every golden line (one dispatch is found, several are ambiguous, a push takes the greatest id)", () => {
+  const ones = all.filter((l) => l.kind === "one");
+  assert.ok(ones.length >= 8);
+  for (const k of ["found", "absent", "ambiguous"]) assert.ok(ones.some((l) => l.result.kind === k), k);
+  assert.ok(ones.some((l) => l.want.kind === "push" && l.result.kind === "found" && l.rows.length > 1));
+  for (const l of ones) assert.deepEqual(selectOne(l.want as Want, l.rows as WRun[]), l.result, l.name);
 });
 
 test("select equals Lean on every golden line", () => {
@@ -65,7 +73,7 @@ test("parseWait: --workflow means the push of --sha; --nonce the dispatch; --non
   assert.throws(() => t(["--workflow", "land", "--nonce", "abc12345"]), /no run-name/);
 });
 
-test("relevant: a nonce dispatch on another head sha, created before the commit, is found (Lean dispatch_any_sha)", () => {
+test("relevant: of the rows the poller read, a nonce dispatch on another head sha is found (Lean dispatch_any_sha); the poller never reads one created before --since", () => {
   const OTHER = "1234567abcdef1234567abcdef1234567abcdef1";
   const r = { status: "completed", conclusion: "success", databaseId: 7, headBranch: "ci/x", workflowName: "breakpoint-gate", headSha: OTHER, createdAt: new Date((T0 - 5000) * 1000).toISOString(), event: "workflow_dispatch", displayTitle: titleFor("breakpoint-gate", "aaaa1111") };
   const t = { kind: "branch" as const, branch: "ci/x", workflow: "breakpoint-gate", sha: SHA, since: T0 };
@@ -82,4 +90,19 @@ test("hintOf: only dispatch runs of the commit under a push wait say so; a push 
   assert.equal(hintOf(st([r(1, "workflow_dispatch"), r(2, "push")]), t), null);
   assert.equal(hintOf(st([]), t), null);
   assert.equal(hintOf(st([r(1, "workflow_dispatch")]), { ...t, want: { kind: "dispatch", workflow: "trajectory-probe", nonce: "abc12345" } }), null);
+});
+
+test("two runs with one nonce: relevant keeps none, ambiguousIds names both, and the wait fails with code 2 instead of taking the newest", async () => {
+  const mine = (databaseId: number) => ({ status: "completed", conclusion: "success", databaseId, headBranch: "ci/x", workflowName: "trajectory-probe", headSha: SHA, createdAt: new Date(T0 * 1000).toISOString(), event: "workflow_dispatch", displayTitle: titleOf("aaaa1111") });
+  const want: Want = { kind: "dispatch", workflow: "trajectory-probe", nonce: "aaaa1111" };
+  const t = { kind: "branch" as const, branch: "ci/x", workflow: "trajectory-probe", sha: SHA, since: T0 - 1, want };
+  assert.deepEqual(relevant([mine(5), mine(6)], t), []);
+  assert.deepEqual(ambiguousIds([mine(5), mine(6)], t), [5, 6]);
+  assert.equal(ambiguousIds([mine(5)], t), null);
+  assert.equal(ambiguousIds([mine(5), mine(6)], { ...t, want: { kind: "push", sha: SHA } }), null);
+  const w = mkWorld(T0 + 100, { fastGh: true });
+  w.config({ start: T0 + 100, listCost: 2, runs: [6, 5].map((id) => row(id, "workflow_dispatch", titleOf("aaaa1111"))) });
+  const [res] = await drive(w.sim, [waitFor(w.env, t, { timeoutS: 3600 })]);
+  assert.equal(res!.code, 2);
+  assert.match(res!.lines[0] ?? "", /nonce aaaa1111 matches several runs \(6, 5\); not guessing/);
 });

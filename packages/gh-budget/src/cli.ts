@@ -21,6 +21,7 @@ export const WAIT_USAGE = [
   "  --branch with --workflow: the run of that workflow that is the push of --sha (event push, head sha), or with --nonce the",
   "  dispatch whose run-name carries the nonce (Lean Fw.Ci.Dispatch.select); never merely the newest.",
   "  --nonce only for a workflow whose run-name echoes it (trajectory-probe, breakpoint-gate, chromium-counts, webkit-sim), on any head sha.",
+  "  Several runs with one nonce are an error (exit 2). Runs created before --since (default: the commit time) are never read.",
   "usage: fw ci budget [--json] [--resume] [--probe]   (0 requests; --probe makes 1 charged `gh run list --limit 1`)",
 ].join("\n");
 

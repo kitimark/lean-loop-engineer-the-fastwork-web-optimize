@@ -18,12 +18,13 @@ import { ghCharged } from "./charged.ts";
 import { lockAsync, tryLock, type Lock } from "./lock.ts";
 import { pollOnce, LIST_FIELDS } from "./poller.ts";
 import { killOk, markerText } from "./waiters.ts";
-import { dispatchOnly, wanted, type WRun, type Want } from "./want.ts";
+import { dispatchOnly, selectOne, wanted, type WRun, type Want } from "./want.ts";
 import { locked, paths, readJson, readStatus, stepEvent, stepUnlocked, writeAtomic, type Row, type Status } from "./state.ts";
 
 export type Target =
   | { kind: "run"; runId: number }
-  /** `since`: epoch second of the commit being waited for (runs created before it are not ours). `msg`: the commit's
+  /** `since`: epoch second of the commit being waited for (runs created before it are not ours; for a dispatch want it is the poller's window, so a dispatch created before `since` is
+   *  never read: pass an earlier `--since`). `msg`: the commit's
    *  message (null or absent: unknown); without `workflow` it selects the lanes mode (every requested lane on this sha). */
   | { kind: "branch"; branch: string; workflow?: string; sha: string; since: number; msg?: string | null;
       /** With `workflow`: the identity of the run waited for (Lean Fw.Ci.Dispatch.select): a push of `sha`, or a dispatch's nonce.
@@ -108,15 +109,26 @@ export function hintOf(st: Status | null, t: Target): string | null {
     : null;
 }
 
+/** The ids of several runs that carry the nonce of a dispatch wait (Lean `Fw.Ci.Dispatch.selectOne` is `ambiguous`), else null.
+ *  Two runs with one nonce cannot both be the dispatch's; the wait fails instead of taking the newest. */
+export function ambiguousIds(rows: Row[], t: Target): number[] | null {
+  if (t.kind !== "branch" || t.want?.kind !== "dispatch") return null;
+  const mine = rows.filter((r) => r.headBranch === t.branch && (t.workflow === undefined || r.workflowName === t.workflow)).map(wrun);
+  const one = selectOne(t.want, mine);
+  return one.kind === "ambiguous" ? one.ids : null;
+}
+
 /** Which rows decide the wait: the run; in lanes mode the newest run of each workflow for the exact commit; else the
  *  newest run of the workflow on the branch for the exact commit, created after it. */
 export function relevant(rows: Row[], t: Target): Row[] {
   if (t.kind === "run") return rows.filter((r) => r.databaseId === t.runId);
+  if (ambiguousIds(rows, t)) return []; // several runs of one nonce decide nothing (Lean `selectOne`); the wait reports it
   const mine = lanesMode(t)
     ? rows.filter((r) => r.headBranch === t.branch && r.headSha.startsWith(t.sha))
     : t.want !== undefined
       // identity (Lean `Fw.Ci.Dispatch.select`): a push is its commit's push run; a dispatch is its nonce's run on any head sha
-      // (`dispatch_any_sha`), so neither is cut by the sha or the time of the commit being waited for
+      // (`dispatch_any_sha`), so neither is cut by the sha or the time of the commit being waited for here. Which runs reach this
+      // list at all is the poller's window (`createdSince` = the waiter's `since`): a dispatch created before `since` is not read
       ? rows.filter((r) => r.headBranch === t.branch && (t.workflow === undefined || r.workflowName === t.workflow) && wanted(t.want!, wrun(r)))
       : rows.filter((r) => r.headBranch === t.branch && r.headSha.startsWith(t.sha) && (t.workflow === undefined || r.workflowName === t.workflow) && epoch(r.createdAt) >= t.since);
   const newest = new Map<string, Row>();
@@ -391,6 +403,8 @@ async function waitRun(env: Env, t: Target, o: WaitOpts, pr: Probe): Promise<Wai
         reregAt = st.tickAt;
         if (ev.done.some((r) => floor.has(r.databaseId))) stepEvent(env, { register: { runId: id, createdAt } }); // the watch this waiter owns
       }
+      const amb = ambiguousIds(st?.rows ?? [], t);
+      if (amb) { return { code: 2, lines: [`wait: nonce ${t.kind === "branch" && t.want?.kind === "dispatch" ? t.want.nonce : ""} matches several runs (${amb.join(", ")}); not guessing (Lean Fw.Ci.Dispatch.selectOne)`] }; }
       if ("stopped" in ev) { pr.ph.how = "stopped"; return { code: 3, lines: [`wait: the poller stopped (${ev.stopped}); see \`fw ci budget\`, \`fw ci budget --resume\``] }; }
       if (env.now() >= deadline) {
         const hint = hintOf(st, t);

@@ -29,3 +29,16 @@ export function dispatchOnly(w: Want, rows: WRun[]): boolean {
   if (w.kind !== "push") return false;
   return validSha(w.sha) && select(w, rows).length === 0 && rows.some((r) => r.event === "workflow_dispatch" && r.sha.startsWith(w.sha));
 }
+
+/** Lean `Fw.Ci.Dispatch.One`: the one run a wait means, or why there is none. */
+export type One = { kind: "found"; id: number } | { kind: "absent" } | { kind: "ambiguous"; ids: number[] };
+
+/** Lean `Fw.Ci.Dispatch.selectOne`: no wanted run is `absent`; a push wait takes the greatest id of its commit's push runs;
+ *  a dispatch wait takes its only run, and several runs of one nonce are `ambiguous` (an error, never the newest). */
+export function selectOne(w: Want, rows: WRun[]): One {
+  const ids = select(w, rows);
+  if (ids.length === 0) return { kind: "absent" };
+  if (w.kind === "push") return { kind: "found", id: ids.reduce((a, b) => Math.max(a, b), ids[0] as number) };
+  if (ids.length === 1) return { kind: "found", id: ids[0] as number };
+  return { kind: "ambiguous", ids };
+}

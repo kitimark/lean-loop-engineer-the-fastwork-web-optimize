@@ -25,6 +25,12 @@ def dispatchWorkflows : List String := ["trajectory-probe", "breakpoint-gate", "
 /-- The run title of a dispatch of workflow `wf` with this nonce (`run-name` of the workflow). -/
 def titleFor (wf n : String) : String := wf ++ " dispatch nonce=" ++ n
 
+/-- The `run-name:` expression a dispatch workflow's yml must carry so that its run gets the title `titleFor wf n`: on a
+`workflow_dispatch` the title with the input `nonce` in place of the `{0}`, else the default title. The check
+`scripts/ci-paths.mjs` (`runNameProblems`) compares the yml line with this text (golden `workflows` line, `runNames`). -/
+def runNameFor (wf : String) : String :=
+  "${{ github.event_name == 'workflow_dispatch' && format('" ++ titleFor wf "{0}" ++ "', inputs.nonce || 'none') || '' }}"
+
 /-- The run title of a trajectory-probe dispatch. -/
 def title (n : String) : String := titleFor "trajectory-probe" n
 
@@ -171,6 +177,67 @@ def wanted : Want → Run → Bool
 
 /-- The ids of the runs the wait means, in list order. -/
 def select (w : Want) (rows : List Run) : List Nat := (rows.filter (wanted w)).map (·.id)
+
+/-- The one run a wait means, or why there is none. -/
+inductive One where
+  | found (id : Nat)
+  | absent
+  | ambiguous (ids : List Nat)
+deriving Repr, DecidableEq
+
+/-- Choose one run from the selected ones. No run is `absent`. A push wait takes the greatest id (a commit may have several push
+runs: a rerun keeps its id, a new push run is newer). A dispatch wait takes its only run; several runs of one nonce are `ambiguous`
+(an error, never the newest, as `pick` says for the same case). -/
+def selectOne (w : Want) (rows : List Run) : One :=
+  match w, select w rows with
+  | _, [] => .absent
+  | .push _, a :: t => .found (t.foldl max a)
+  | .dispatch _ _, [i] => .found i
+  | .dispatch _ _, is => .ambiguous is
+
+/-- Branch no wanted run: absent, for either want. -/
+theorem selectOne_absent (w : Want) (rows : List Run) (h : select w rows = []) : selectOne w rows = .absent := by
+  cases w <;> simp [selectOne, h]
+
+/-- Branch push with a run: the greatest selected id is found; a push wait is never ambiguous. -/
+theorem selectOne_push (s : String) (rows : List Run) (a : Nat) (t : List Nat) (h : select (.push s) rows = a :: t) :
+    selectOne (.push s) rows = .found (t.foldl max a) := by
+  simp [selectOne, h]
+
+/-- Branch dispatch with one run: found. -/
+theorem selectOne_dispatch_found (w n : String) (rows : List Run) (i : Nat) (h : select (.dispatch w n) rows = [i]) :
+    selectOne (.dispatch w n) rows = .found i := by
+  simp [selectOne, h]
+
+/-- Branch dispatch with two or more runs: ambiguous, listing all of them. -/
+theorem selectOne_dispatch_ambiguous (w n : String) (rows : List Run) (a b : Nat) (rest : List Nat)
+    (h : select (.dispatch w n) rows = a :: b :: rest) : selectOne (.dispatch w n) rows = .ambiguous (a :: b :: rest) := by
+  simp [selectOne, h]
+
+/-- The fold of `max` from `m` is `m` or an element. -/
+theorem foldl_max_mem (l : List Nat) (m : Nat) : l.foldl max m ∈ m :: l := by
+  induction l generalizing m with
+  | nil => simp
+  | cons x xs ih =>
+    have h := ih (max m x)
+    simp only [List.foldl, List.mem_cons] at h ⊢
+    rcases h with h | h
+    · rcases Nat.le_total m x with hle | hle
+      · rw [Nat.max_eq_right hle] at h ⊢
+        exact Or.inr (Or.inl h)
+      · rw [Nat.max_eq_left hle] at h ⊢
+        exact Or.inl h
+    · exact Or.inr (Or.inr h)
+
+/-- Branch push: a found id is one of the selected ids (the greatest). -/
+theorem selectOne_push_mem (s : String) (rows : List Run) (i : Nat) (h : selectOne (.push s) rows = .found i) :
+    i ∈ select (.push s) rows := by
+  cases hs : select (.push s) rows with
+  | nil => simp [selectOne, hs] at h
+  | cons a t =>
+    simp only [selectOne, hs, One.found.injEq] at h
+    subst h
+    exact foldl_max_mem t a
 
 /-- Branch push: a dispatch run is never selected, whatever its sha and title. -/
 theorem push_never_dispatch (s : String) (r : Run) (h : r.event ≠ "push") : wanted (.push s) r = false := by
@@ -326,8 +393,35 @@ def hintLine (c : String × Want × List Run) : Json :=
     ("rows", .arr (c.2.2.map fun r => Json.mkObj [("id", .num r.id), ("event", .str r.event), ("title", .str r.title), ("sha", .str r.sha)]).toArray),
     ("hint", .bool (dispatchOnly c.2.1 c.2.2))]
 
-/-- The golden line of `dispatchWorkflows`. -/
-def workflowsLine : Json := Json.mkObj [("kind", "workflows"), ("list", .arr (dispatchWorkflows.map Json.str).toArray)]
+/-- The golden line of `dispatchWorkflows`: the names and, in the same order, the `run-name:` text each yml must carry. -/
+def workflowsLine : Json := Json.mkObj [("kind", "workflows"), ("list", .arr (dispatchWorkflows.map Json.str).toArray),
+  ("runNames", .arr (dispatchWorkflows.map (Json.str ∘ runNameFor)).toArray)]
+
+/-- Cases of `selectOne`: (name, want, rows). -/
+def oneCases : List (String × Want × List Run) := [
+  ("one: a dispatch with one run", .dispatch "trajectory-probe" "abc12345", [sr 9 "workflow_dispatch" (title "abc12345") "abcdef1234567"]),
+  ("one: a dispatch with no run", .dispatch "trajectory-probe" "abc12345", []),
+  ("one: a dispatch with two runs of one nonce is ambiguous", .dispatch "trajectory-probe" "abc12345", [sr 9 "workflow_dispatch" (title "abc12345") "abcdef1234567", sr 8 "workflow_dispatch" (title "abc12345") "1234567abcdef"]),
+  ("one: a dispatch with three runs of one nonce", .dispatch "webkit-sim" "abc12345", [sr 7 "workflow_dispatch" (titleFor "webkit-sim" "abc12345") "a", sr 9 "workflow_dispatch" (titleFor "webkit-sim" "abc12345") "b", sr 8 "workflow_dispatch" (titleFor "webkit-sim" "abc12345") "c"]),
+  ("one: a dispatch beside a run of another nonce", .dispatch "trajectory-probe" "aaaa1111", [sr 9 "workflow_dispatch" (title "bbbb2222") "x", sr 8 "workflow_dispatch" (title "aaaa1111") "x"]),
+  ("one: a dispatch with a bad nonce", .dispatch "trajectory-probe" "abc", [sr 9 "workflow_dispatch" (title "abc") "x"]),
+  ("one: a push with one run", .push "abcdef1234", [sr 9 "push" "ci: m" "abcdef1234567"]),
+  ("one: a push with two push runs takes the greatest id", .push "abcdef1234", [sr 8 "push" "ci: m" "abcdef1234567", sr 9 "push" "ci: m" "abcdef1234567"]),
+  ("one: a push with two push runs, newest first", .push "abcdef1234", [sr 9 "push" "ci: m" "abcdef1234567", sr 8 "push" "ci: m" "abcdef1234567"]),
+  ("one: a push beside a dispatch", .push "abcdef1234", [sr 9 "workflow_dispatch" (title "abc12345") "abcdef1234567", sr 8 "push" "ci: m" "abcdef1234567"]),
+  ("one: a push with no run", .push "abcdef1234", [sr 9 "push" "ci: x" "1234567abcdef"])]
+
+/-- The JSON of a `One`. -/
+def oneJson : One → Json
+  | .found i => Json.mkObj [("kind", "found"), ("id", .num i)]
+  | .absent => Json.mkObj [("kind", "absent")]
+  | .ambiguous ids => Json.mkObj [("kind", "ambiguous"), ("ids", .arr (ids.map fun (i : Nat) => (Json.num i : Json)).toArray)]
+
+/-- One golden line of `selectOne`. -/
+def oneLine (c : String × Want × List Run) : Json :=
+  Json.mkObj [("kind", "one"), ("name", .str c.1), ("want", wantJson c.2.1),
+    ("rows", .arr (c.2.2.map fun r => Json.mkObj [("id", .num r.id), ("event", .str r.event), ("title", .str r.title), ("sha", .str r.sha)]).toArray),
+    ("result", oneJson (selectOne c.2.1 c.2.2))]
 
 /-- One golden line. -/
 def caseLine (c : String × String × List Row) : Json :=
@@ -337,7 +431,7 @@ def caseLine (c : String × String × List Row) : Json :=
 /-- The text of the golden file. -/
 def goldenText (_ : Unit := ()) : String := String.join (cases.map fun c => (caseLine c).compress ++ "\n") ++
   String.join (selectCases.map fun c => (selectLine c).compress ++ "\n") ++
-  String.join (hintCases.map fun c => (hintLine c).compress ++ "\n") ++ workflowsLine.compress ++ "\n"
+  String.join (hintCases.map fun c => (hintLine c).compress ++ "\n") ++ String.join (oneCases.map fun c => (oneLine c).compress ++ "\n") ++ workflowsLine.compress ++ "\n"
 
 /-- Compare (or write) the golden file; returns the number of stale files. -/
 def runGolden (root : System.FilePath) (write : Bool) : IO Nat := do
@@ -345,13 +439,13 @@ def runGolden (root : System.FilePath) (write : Bool) : IO Nat := do
   if write then
     IO.FS.createDirAll (root / ".." / "packages" / "contracts" / "golden" / "ci")
     IO.FS.writeFile p goldenText
-    IO.println s!"ci dispatch golden: written {cases.length + selectCases.length + hintCases.length + 1} cases"
+    IO.println s!"ci dispatch golden: written {cases.length + selectCases.length + hintCases.length + oneCases.length + 1} cases"
     return 0
   let cur ← try IO.FS.readFile p catch _ => pure ""
   if cur != goldenText then
     IO.println s!"ci dispatch golden: {p} is stale (regenerate: cd lean && lake test -- --write-ci-trigger-golden)"
     return 1
-  IO.println s!"ci dispatch golden: {cases.length + selectCases.length + hintCases.length + 1} cases ok"
+  IO.println s!"ci dispatch golden: {cases.length + selectCases.length + hintCases.length + oneCases.length + 1} cases ok"
   return 0
 
 end Fw.Ci.Dispatch

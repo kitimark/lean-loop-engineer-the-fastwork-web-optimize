@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { decide, loadIntent, matches, preciseInputs } from '../.github/scripts/changed-inputs.mjs';
-import { capProblems, coarseMap, coneOf, coneProblems, loadCaps, dispatchOnly, expand, guardIf, jobConcurrency, LAKE_GEN, leanInputProblems, leanScriptPaths, recheckSteps, withConj, macosJobs, unsafeStatusIf, lakeGenProblems, lakeImportFacts, lakeJobs, lakeTargetsOf, loadGolden, portableGlob, withNotMain, notMainIf, carriesNotMain, cacheWriters, guardComment, readJobs, readLakefile, reconcile, renderPush, run, setMapFor, setupLeanJobs, unguarded, nodePinProblems, jobFacts, jobProblems, pinValueProblems, rowProblems, copyProblems, nodePinRefusal } from './ci-paths.mjs';
+import { capProblems, coarseMap, coneOf, coneProblems, loadCaps, dispatchOnly, expand, guardIf, jobConcurrency, LAKE_GEN, leanInputProblems, leanScriptPaths, recheckSteps, withConj, macosJobs, unsafeStatusIf, lakeGenProblems, lakeImportFacts, lakeJobs, lakeTargetsOf, loadGolden, portableGlob, withNotMain, notMainIf, carriesNotMain, cacheWriters, guardComment, readJobs, readLakefile, reconcile, renderPush, run, setMapFor, setupLeanJobs, unguarded, nodePinProblems, jobFacts, jobProblems, pinValueProblems, rowProblems, copyProblems, nodePinRefusal, runNameProblems } from './ci-paths.mjs';
 
 const root = join(dirname(new URL(import.meta.url).pathname), '..');
 const WF = ['.git', 'hub/workflows'].join('');
@@ -714,4 +714,28 @@ test('scripts a workflow runs: a " #" inside a quoted string is not a comment (t
 
 test('scripts a workflow runs: the scanner reads run and env lines, not comments', () => {
   assert.deepEqual(scriptsNamed('run: node .github/scripts/a.mjs --x\n  SMOKE: ${{ github.workspace }}/.github/scripts/b.mjs\n# .github/scripts/c.mjs\n  run: x  # .github/scripts/d.mjs'), ['.github/scripts/a.mjs', '.github/scripts/b.mjs']);
+});
+
+test('run names: name and run-name of each dispatch workflow equal Lean titleFor; each drift is a problem', () => {
+  assert.deepEqual(runNameProblems(root), []);
+  const dir = mkdtempSync(join(tmpdir(), 'runname-'));
+  try {
+    mkdirSync(join(dir, WF), { recursive: true });
+    mkdirSync(join(dir, 'packages', 'contracts', 'golden', 'ci'), { recursive: true });
+    copyFileSync(join(root, 'packages', 'contracts', 'golden', 'ci', 'dispatch.jsonl'), join(dir, 'packages', 'contracts', 'golden', 'ci', 'dispatch.jsonl'));
+    const list = readFileSync(join(dir, 'packages', 'contracts', 'golden', 'ci', 'dispatch.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)).find((l) => l.kind === 'workflows').list;
+    assert.ok(list.length >= 4);
+    for (const w of list) copyFileSync(join(root, WF, `${w}.yml`), join(dir, WF, `${w}.yml`));
+    assert.deepEqual(runNameProblems(dir), []);
+    const f = join(dir, WF, `${list[1]}.yml`);
+    const text = readFileSync(f, 'utf8');
+    writeFileSync(f, text.replace(/^run-name:.*$/m, "run-name: ${{ format('x {0}', inputs.nonce) }}"));
+    assert.equal(runNameProblems(dir).filter((p) => p.includes('run-name')).length, 1);
+    writeFileSync(f, text.replace(/^name:.*$/m, 'name: other'));
+    assert.equal(runNameProblems(dir).filter((p) => p.includes('`name:`')).length, 1);
+    writeFileSync(f, text.replace(/^run-name:.*\n/m, ''));
+    assert.equal(runNameProblems(dir).length, 1);
+    rmSync(f);
+    assert.match(runNameProblems(dir)[0], /no such workflow file/);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
