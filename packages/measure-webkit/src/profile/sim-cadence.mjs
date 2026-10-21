@@ -13,7 +13,7 @@ import { startTimeline } from '../timeline.mjs';
 import { findDevice } from '../sim.mjs';
 import { sessionPlan } from '../device-arms.mjs';
 import { reconnect } from '../wip.mjs';
-import { attempts } from '../timeouts.mjs';
+import { attempts, T } from '../timeouts.mjs';
 import { RECORDER_SRC, TO_END_JS, heroJs, endJs, pageOf, intervalsOf } from './recorder.mjs';
 import { profileWindow, toHundredths } from './reduce.mjs';
 import { orderFor, HERO_BURST, END_PUSH } from '../../../gate-breakpoints/src/smooth/schedule.mjs';
@@ -46,6 +46,8 @@ export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 
   /** One window on one arm from a fresh load: the finished row, or `{refused: row}` when the page is not the arm asked for. */
   const readWindow = async (ctx, a, win, rep) => {
     ctx.setArm(a.id);
+    // the page reads its configuration from location.search and the reload keeps the tab's URL: put the arm's query on it first
+    await ctx.c.evaluate(`history.replaceState(null, '', ${JSON.stringify('/' + a.search)}); location.search`);
     await loadFresh(ctx.c, { clock: 'pinned', settleMs });
     const info = await pageInfo(ctx.c);
     ua = info.ua;
@@ -57,7 +59,7 @@ export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 
     }
     await ctx.c.evaluate(RECORDER_SRC);
     if (win === 'end') await ctx.c.runAsync(TO_END_JS);
-    const tl = await startTimeline(ctx.c);
+    const tl = await startTimeline(ctx.c, { stopMs: T(7500) });
     const rec = await ctx.c.runAsync(win === 'hero' ? heroJs(HERO_BURST) : endJs(END_PUSH), { pollMs: 250 });
     await tl.stop();
     const pw = profileWindow(pageOf(rec, toHundredths), tl.top);
