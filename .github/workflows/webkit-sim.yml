@@ -42,6 +42,11 @@ on:
         description: Run the webkit-lag-probe (packages/measure-webkit/src/lag) instead of the determinism sessions; each VM records one session of it, and the lag-report job ranks the regions. Use with target both and vms 3
         type: boolean
         default: false
+      cost:
+        description: lag only. The WebKit cost-counter passes (Fw.Measure.WkCost) next to the lag passes. off = lag passes only, on = both, only = cost passes only. Passed as --cost to lag/cli.mjs run; the dispatch input is the only selector
+        type: choice
+        options: [off, on, only]
+        default: off
       target:
         description: Which page to measure. original = the read-only snapshot; rewrite = the default prerendered build of apps/site (own VM jobs r1..); both = the two arms, then the step-aligned comparison (align job)
         type: choice
@@ -403,6 +408,8 @@ jobs:
           SITE_DIR: ${{ runner.temp }}/site
           EXPERIMENT: ${{ inputs.experiment || 'determinism' }}
           LAG: ${{ inputs.lag && 'yes' || 'no' }}
+          # lag cost passes: the cost dispatch input (off|on|only); a push carries no inputs, so it is off
+          COST: ${{ inputs.cost || 'off' }}
           ARMS: ${{ inputs.arms || '0,1,3' }}
           REPS: ${{ inputs.reps || '3' }}
           # The runner (3 vCPU) boots the Simulator and Safari several times slower than a Mac: every wait in
@@ -427,7 +434,7 @@ jobs:
             exit 0
           fi
           if [ "$LAG" = yes ]; then
-            node src/lag/cli.mjs run --passes 2 --keep ${site[@]+"${site[@]}"} --out "out/$VM-lag.json" 2> >(tee "out/$VM-lag.log" >&2)
+            node src/lag/cli.mjs run --passes 2 --cost "$COST" --keep ${site[@]+"${site[@]}"} --out "out/$VM-lag.json" 2> >(tee "out/$VM-lag.log" >&2)
             ls -l out
             exit 0
           fi

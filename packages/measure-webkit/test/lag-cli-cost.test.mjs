@@ -1,0 +1,26 @@
+// The --cost flag of lag/cli.mjs run accepts only off|on|only.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { parseCost, COST_MODES } from '../src/lag/costmode.mjs';
+
+const cli = join(dirname(fileURLToPath(import.meta.url)), '../src/lag/cli.mjs');
+
+test('the three modes map to the probe options', () => {
+  assert.deepEqual(COST_MODES, ['off', 'on', 'only']);
+  assert.deepEqual(parseCost('off'), { cost: false, costOnly: false });
+  assert.deepEqual(parseCost('on'), { cost: true, costOnly: false });
+  assert.deepEqual(parseCost('only'), { cost: true, costOnly: true });
+});
+
+test('anything else throws', () => {
+  for (const bad of ['', 'ON', 'true', 'yes', 'no', 'both', 'off,on', undefined, null]) assert.throws(() => parseCost(bad), /--cost must be one of off\|on\|only/, String(bad));
+});
+
+test('the CLI refuses a bad value before it opens a session', () => {
+  const r = spawnSync(process.execPath, [cli, 'run', '--cost', 'bogus'], { encoding: 'utf8', timeout: 20000 });
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /--cost must be one of off\|on\|only, got "bogus"/);
+});

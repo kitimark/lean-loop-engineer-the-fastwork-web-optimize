@@ -13,6 +13,7 @@ import { lagSession } from './probe.mjs';
 import { analyzeArm, reportMd } from './report.mjs';
 import { fillBlock } from './note.mjs';
 import { collectArm, costMd } from './costreport.mjs';
+import { parseCost } from './costmode.mjs';
 
 const argv = process.argv.slice(2).filter((a) => a !== '--');
 const [cmd, ...rest] = argv;
@@ -32,8 +33,9 @@ const read = (list) => list.split(',').map((f) => JSON.parse(readFileSync(resolv
 async function main() {
   switch (cmd) {
     case 'run': {
+      const costMode = parseCost(v.cost);
       const res = await withSession((ctx) => lagSession(ctx, {
-        passes: Number(v.passes), clock: v.clock, settleMs: Number(v.settle), step: Number(v.step), framesPerStep: Number(v.frames), log, cost: v.cost !== 'off', costOnly: v.cost === 'only',
+        passes: Number(v.passes), clock: v.clock, settleMs: Number(v.settle), step: Number(v.step), framesPerStep: Number(v.frames), log, ...costMode,
       }), { keep: v.keep, vendors: v.vendors, site: v.site ? { dir: v.site, search: v.search } : null });
       const file = resolve(v.out ?? 'out/lag.json');
       mkdirSync(dirname(file), { recursive: true });
