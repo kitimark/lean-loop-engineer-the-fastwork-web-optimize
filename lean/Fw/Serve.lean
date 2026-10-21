@@ -282,6 +282,7 @@ def fcheck (v : Srv) (e : Event) : Option String :=
     match v.runs.get? r with
     | none => some "no such run"
     | some run => if run.status = .running then none else some "run already finished"
+  | .reviewPreviewed flag device => reviewPreviewedRefusal flag device
   | .plan c => Fw.Plan.checkFast v.plan c
   | b => match cardOf b with
     | none => none
@@ -427,6 +428,7 @@ theorem faccept_indexed {v : Srv} (h : Indexed v) (e : Event) (hn : fcheck v e =
       split at hn
       · cases hn
       · exact ⟨hk, hc, hs, hr, (Fw.Plan.inv_unrev (Fw.Plan.execR v.plan c)).mp (by rw [Fw.Plan.unrev_execR]; exact Fw.Plan.exec_inv ((Fw.Plan.inv_unrev _).mpr hp) (by rw [Fw.Plan.check_unrev, ← Fw.Plan.checkFast_eq hp.2 c]; exact hn))⟩
+    | reviewPreviewed f d => exact ⟨hk, hc, hs, hr, hp⟩
     | _ => exact ⟨hk, mc _ _ (cardStep_id _ _), hs, hr, hp⟩
 
 /-- On an indexed server, `fstep` gives exactly the console state and the outcome of `step`. -/
@@ -949,6 +951,7 @@ def eventJson (e : Event) : Json :=
     | .stepCancel s => [("step", .str s)]
     | .runStart r c k => [("run", .str r), ("card", .str c), ("kind", .str (runKindName k))]
     | .runFinish r ok => [("run", .str r), ("ok", .bool ok)]
+    | .reviewPreviewed f d => [("flag", .str f), ("device", .str d)]
     | .plan c => Fw.Wire.Plan.cmdFields c
   Json.mkObj ([("key", .str e.key), ("ts", toJson e.ts), ("type", .str e.body.type.name),
     ("actor", .str e.actor.name)] ++ b)

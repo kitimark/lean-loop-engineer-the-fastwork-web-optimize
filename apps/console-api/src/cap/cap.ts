@@ -5,7 +5,7 @@
 import { createHmac, createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, writeFileSync, writeSync } from "node:fs";
 import { join } from "node:path";
-import { CapRecord, Command, type Actor } from "@fw/contracts";
+import { CapRecord, PublicCommand, type Actor } from "@fw/contracts";
 
 export const CAP_TTL_MS = 10 * 60_000;
 
@@ -107,9 +107,9 @@ export class CapStore {
 }
 
 /** Put the stamp on a request body: actor always, signedBy on reviews. Any actor the client sent is overwritten. */
-export function stamp(body: unknown, s: Stamp): ReturnType<typeof Command.safeParse> {
+export function stamp(body: unknown, s: Stamp): ReturnType<typeof PublicCommand.safeParse> {
   const o = typeof body === "object" && body !== null ? { ...(body as Record<string, unknown>) } : {};
   o.actor = s.actor;
   if (o.type === "card.review") o.signedBy = s.signedBy;
-  return Command.safeParse(o);
+  return PublicCommand.safeParse(o);
 }

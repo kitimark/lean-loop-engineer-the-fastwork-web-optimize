@@ -1,0 +1,759 @@
+{
+ "excerpts": [
+  {
+   "anchor": "max-width 0.68s",
+   "file": "apps/site/src/parts/nav/nav.module.css",
+   "first": 167,
+   "id": "css-rule",
+   "last": 185,
+   "note": "Both arms. The three properties are functions of --morph and carry a 680 ms transition (opacity 320 ms after a 120 ms delay).",
+   "side": "faithful"
+  },
+  {
+   "anchor": "transition: none",
+   "file": "apps/site/src/parts/nav/nav.module.css",
+   "first": 201,
+   "id": "css-flag",
+   "last": 203,
+   "note": "Flag only: while the nav carries is-earn-still, the button has no transition, so it shows the computed value.",
+   "side": "flag"
+  },
+  {
+   "anchor": "return !(flag && morphing)",
+   "file": "apps/site/src/parts/nav/logic.ts",
+   "first": 92,
+   "id": "js-decision",
+   "last": 95,
+   "note": "The decision (Lean transitionsOn): transitions run unless the flag is on and the nav is morphing.",
+   "side": "flag"
+  },
+  {
+   "anchor": "m > MORPHING_CUT",
+   "file": "apps/site/src/parts/nav/logic.ts",
+   "first": 63,
+   "id": "js-morphing",
+   "last": 63,
+   "note": "The nav counts as morphing above m = 0.001.",
+   "side": "both"
+  },
+  {
+   "anchor": "EARN_STILL_CLASS",
+   "file": "apps/site/src/parts/nav/index.tsx",
+   "first": 104,
+   "id": "js-apply",
+   "last": 104,
+   "note": "Each frame the class is set from the decision. Without the flag the call is always true, so the class is never set.",
+   "side": "flag"
+  }
+ ],
+ "flag": "nav:earn-no-transition",
+ "formulas": [
+  {
+   "decl": "transitionsOn",
+   "file": "lean/Fw/Parts/NavEarnOpt.lean",
+   "id": "on",
+   "kind": "def",
+   "line": 16,
+   "says": "Transitions are listed unless the flag is on and the nav is morphing.",
+   "tex": "\\mathrm{on}(f,m)=\\lnot(f\\wedge m)"
+  },
+  {
+   "decl": "shown_off",
+   "file": "lean/Fw/Parts/NavEarnOpt.lean",
+   "id": "off",
+   "kind": "theorem",
+   "line": 88,
+   "says": "Unlisted, the button shows the computed value: it follows --morph with no lag.",
+   "tex": "\\mathrm{on}_k=\\mathrm{false}\\ \\Rightarrow\\ \\mathrm{shown}_k=g_k"
+  },
+  {
+   "decl": "faithful_lags",
+   "file": "lean/Fw/Parts/NavEarnOpt.lean",
+   "id": "lags",
+   "kind": "theorem",
+   "line": 107,
+   "says": "Faithful arm F (on_k = true for every k), from rest: at the frame the computed value changes, the old value is still shown. One frame only; the longer hold is witnessed by #guards (mechanism step 4).",
+   "tex": "0\\le\\delta,\\ 0<d,\\ \\mathrm{live}(\\mathrm{run}^{F}_k)=\\mathrm{false},\\ g_{k+1}\\neq g_k\\ \\Rightarrow\\ \\mathrm{shown}^{F}_{k+1}=g_k"
+  },
+  {
+   "decl": "shown_settled",
+   "file": "lean/Fw/Parts/NavEarnOpt.lean",
+   "id": "settled",
+   "kind": "theorem",
+   "line": 145,
+   "says": "Once the computed value has been still for the delay plus the duration, every arm shows it.",
+   "tex": "t\\ \\text{monotone},\\ 0<d,\\ \\big(\\forall i\\in(j,j{+}n]:\\ g_i=g_j\\big),\\ t_j+\\delta+d\\le t_{j+n}\\ \\Rightarrow\\ \\mathrm{shown}_{j+n}=g_{j+n}"
+  },
+  {
+   "decl": "visSame_settled",
+   "file": "lean/Fw/Parts/NavEarnOpt.lean",
+   "id": "same",
+   "kind": "theorem",
+   "line": 177,
+   "says": "On settled frames the two arms look the same (VisSame E), for any scene drawn from the shown value.",
+   "tex": "\\forall\\,\\mathrm{draw}:\\ \\mathrm{draw}\\big(\\mathrm{shown}^{\\mathrm{on}}_{j+n}\\big)=\\mathrm{draw}\\big(\\mathrm{shown}^{\\mathrm{on}'}_{j+n}\\big)\\quad\\text{on every settled window }(j,n)"
+  },
+  {
+   "decl": "work",
+   "file": "lean/Fw/Parts/NavEarnOpt.lean",
+   "id": "work",
+   "kind": "def",
+   "line": 192,
+   "says": "The work of a property is the number of frames on which its style changes: the value moved or a transition runs.",
+   "tex": "\\mathrm{work}_{\\mathrm{on}}(n)=\\#\\{k<n\\mid \\mathrm{dirty}_{\\mathrm{on}}(k)\\},\\quad \\mathrm{dirty}(k{+}1)=[g_{k+1}\\neq g_k]\\vee\\mathrm{running}_{k+1}"
+  },
+  {
+   "decl": "work_le",
+   "file": "lean/Fw/Parts/NavEarnOpt.lean",
+   "id": "worklE",
+   "kind": "theorem",
+   "line": 230,
+   "says": "Over any frame range, the flag restyles the property on at most as many frames as the faithful arm.",
+   "tex": "\\mathrm{work}_{\\mathrm{on}}(n)\\ \\le\\ \\mathrm{work}_{\\mathrm{faithful}}(n)"
+  },
+  {
+   "decl": "countFor",
+   "file": "lean/Fw/Parts/NavEarnOpt.lean",
+   "id": "saving",
+   "kind": "guard",
+   "line": 371,
+   "says": "The saving is never negative (work_le). The numbers are the fn=work lines of packages/contracts/golden/parts/nav-earn.jsonl (1440 and 390, 91 frames); the #guards at NavEarnOpt.lean:371-373 witness 43-3, 29-3 and the close max-width count only.",
+   "tex": "s=\\mathrm{work}_{\\mathrm{faithful}}-\\mathrm{work}_{\\mathrm{flag}}\\ \\ge 0:\\quad 43-3=40,\\ \\ 29-3=26\\ (\\text{open}),\\ \\ 65-65=0,\\ \\ 51-51=0\\ (\\text{close})"
+  },
+  {
+   "decl": "trace_eq",
+   "file": "lean/Fw/Parts/NavEarnOpt.lean",
+   "id": "trace",
+   "kind": "theorem",
+   "line": 255,
+   "says": "The linear-time trace the golden uses equals the per-frame state, so the golden counts are the model's.",
+   "tex": "\\mathrm{trace}\\ k\\ (\\mathrm{run}_k)\\ m=\\big[\\mathrm{run}_{k+i}\\big]_{i=0}^{m}"
+  },
+  {
+   "decl": "settled3_same",
+   "file": "lean/Fw/Parts/NavEarnOpt.lean",
+   "id": "all3",
+   "kind": "theorem",
+   "line": 429,
+   "says": "At a frame where all three properties have settled, each shows the same value in both arms.",
+   "tex": "K\\in\\mathrm{Settled3}\\ \\Rightarrow\\ \\forall p\\in\\{\\mathrm{maxW},\\mathrm{pad},\\mathrm{opacity}\\}:\\ \\mathrm{shown}^{\\mathrm{on}}_p(K)=\\mathrm{shown}^{\\mathrm{on}'}_p(K)"
+  },
+  {
+   "decl": "settled3B",
+   "file": "lean/Fw/Parts/NavEarnOpt.lean",
+   "id": "window",
+   "kind": "guard",
+   "line": 448,
+   "says": "The morph stops at frame 41; 41 more frames (683 ms) cover the longest delay plus duration, 40 do not. Witnessed per push and viewport.",
+   "tex": "40\\cdot\\tfrac{50}{3}\\approx 666.7\\ \\mathrm{ms}<680\\ \\mathrm{ms}=\\max(0{+}680,\\,120{+}320)\\le 41\\cdot\\tfrac{50}{3}\\approx 683.3\\ \\mathrm{ms}"
+  }
+ ],
+ "gains": [
+  {
+   "after": [
+    3,
+    3
+   ],
+   "before": [
+    43,
+    43
+   ],
+   "engine": "model (both engines)",
+   "metric": "earn max-width",
+   "noise": 0,
+   "push": "open",
+   "shown": {
+    "kind": "gain",
+    "n": 40,
+    "text": "40 fewer"
+   },
+   "status": {
+    "golden": "golden/parts/nav-earn.jsonl (Fw.Parts.MorphTween time tween)",
+    "kind": "modelled",
+    "theorem": "Fw.Parts.NavEarnOpt.work_le"
+   },
+   "unit": "frames of 91 with a style change",
+   "viewport": "1440 and 390 (same)"
+  },
+  {
+   "after": [
+    3,
+    3
+   ],
+   "before": [
+    43,
+    43
+   ],
+   "engine": "model (both engines)",
+   "metric": "earn padding-inline",
+   "noise": 0,
+   "push": "open",
+   "shown": {
+    "kind": "gain",
+    "n": 40,
+    "text": "40 fewer"
+   },
+   "status": {
+    "golden": "golden/parts/nav-earn.jsonl (Fw.Parts.MorphTween time tween)",
+    "kind": "modelled",
+    "theorem": "Fw.Parts.NavEarnOpt.work_le"
+   },
+   "unit": "frames of 91 with a style change",
+   "viewport": "1440 and 390 (same)"
+  },
+  {
+   "after": [
+    3,
+    3
+   ],
+   "before": [
+    29,
+    29
+   ],
+   "engine": "model (both engines)",
+   "metric": "earn opacity",
+   "noise": 0,
+   "push": "open",
+   "shown": {
+    "kind": "gain",
+    "n": 26,
+    "text": "26 fewer"
+   },
+   "status": {
+    "golden": "golden/parts/nav-earn.jsonl (Fw.Parts.MorphTween time tween)",
+    "kind": "modelled",
+    "theorem": "Fw.Parts.NavEarnOpt.work_le"
+   },
+   "unit": "frames of 91 with a style change",
+   "viewport": "1440 and 390 (same)"
+  },
+  {
+   "after": [
+    65,
+    65
+   ],
+   "before": [
+    65,
+    65
+   ],
+   "engine": "model (both engines)",
+   "metric": "earn max-width",
+   "noise": 0,
+   "push": "close",
+   "shown": {
+    "kind": "noSaving",
+    "text": "no saving"
+   },
+   "status": {
+    "golden": "golden/parts/nav-earn.jsonl (Fw.Parts.MorphTween time tween)",
+    "kind": "modelled",
+    "theorem": "Fw.Parts.NavEarnOpt.work_le"
+   },
+   "unit": "frames of 91 with a style change",
+   "viewport": "1440 and 390 (same)"
+  },
+  {
+   "after": [
+    65,
+    65
+   ],
+   "before": [
+    65,
+    65
+   ],
+   "engine": "model (both engines)",
+   "metric": "earn padding-inline",
+   "noise": 0,
+   "push": "close",
+   "shown": {
+    "kind": "noSaving",
+    "text": "no saving"
+   },
+   "status": {
+    "golden": "golden/parts/nav-earn.jsonl (Fw.Parts.MorphTween time tween)",
+    "kind": "modelled",
+    "theorem": "Fw.Parts.NavEarnOpt.work_le"
+   },
+   "unit": "frames of 91 with a style change",
+   "viewport": "1440 and 390 (same)"
+  },
+  {
+   "after": [
+    51,
+    51
+   ],
+   "before": [
+    51,
+    51
+   ],
+   "engine": "model (both engines)",
+   "metric": "earn opacity",
+   "noise": 0,
+   "push": "close",
+   "shown": {
+    "kind": "noSaving",
+    "text": "no saving"
+   },
+   "status": {
+    "golden": "golden/parts/nav-earn.jsonl (Fw.Parts.MorphTween time tween)",
+    "kind": "modelled",
+    "theorem": "Fw.Parts.NavEarnOpt.work_le"
+   },
+   "unit": "frames of 91 with a style change",
+   "viewport": "1440 and 390 (same)"
+  },
+  {
+   "after": [
+    1,
+    4
+   ],
+   "before": [
+    41,
+    41
+   ],
+   "engine": "chromium",
+   "metric": "earn max-width changes",
+   "noise": 4,
+   "push": "open",
+   "shown": {
+    "kind": "gain",
+    "n": 37,
+    "text": "37 fewer"
+   },
+   "status": {
+    "aa": [
+     "39464294630",
+     "39464322751"
+    ],
+    "kind": "measured",
+    "runs": [
+     "39463486725",
+     "39464309993"
+    ]
+   },
+   "unit": "frames whose value differs from the previous (3 reps)",
+   "viewport": "390"
+  },
+  {
+   "after": [
+    1,
+    4
+   ],
+   "before": [
+    18,
+    18
+   ],
+   "engine": "chromium",
+   "metric": "earn opacity changes",
+   "noise": 2,
+   "push": "open",
+   "shown": {
+    "kind": "gain",
+    "n": 14,
+    "text": "14 fewer"
+   },
+   "status": {
+    "aa": [
+     "39464294630",
+     "39464322751"
+    ],
+    "kind": "measured",
+    "runs": [
+     "39463486725",
+     "39464309993"
+    ]
+   },
+   "unit": "frames whose value differs from the previous (3 reps)",
+   "viewport": "390"
+  },
+  {
+   "after": [
+    3,
+    3
+   ],
+   "before": [
+    17,
+    21
+   ],
+   "engine": "chromium",
+   "metric": "earn max-width changes",
+   "noise": 4,
+   "push": "open",
+   "shown": {
+    "kind": "gain",
+    "n": 14,
+    "text": "14 fewer"
+   },
+   "status": {
+    "aa": [
+     "39464294630",
+     "39464322751"
+    ],
+    "kind": "measured",
+    "runs": [
+     "39463486725",
+     "39464309993"
+    ]
+   },
+   "unit": "frames whose value differs from the previous (3 reps)",
+   "viewport": "1280"
+  },
+  {
+   "after": [
+    3,
+    3
+   ],
+   "before": [
+    6,
+    8
+   ],
+   "engine": "chromium",
+   "metric": "earn opacity changes",
+   "noise": 2,
+   "push": "open",
+   "shown": {
+    "kind": "gain",
+    "n": 3,
+    "text": "3 fewer"
+   },
+   "status": {
+    "aa": [
+     "39464294630",
+     "39464322751"
+    ],
+    "kind": "measured",
+    "runs": [
+     "39463486725",
+     "39464309993"
+    ]
+   },
+   "unit": "frames whose value differs from the previous (3 reps)",
+   "viewport": "1280"
+  },
+  {
+   "after": [
+    40,
+    41
+   ],
+   "before": [
+    38,
+    40
+   ],
+   "engine": "chromium",
+   "metric": "earn max-width changes",
+   "noise": 4,
+   "push": "close",
+   "shown": {
+    "kind": "overlap",
+    "text": "no difference shown (ranges overlap)"
+   },
+   "status": {
+    "aa": [
+     "39464294630",
+     "39464322751"
+    ],
+    "kind": "measured",
+    "runs": [
+     "39463486725",
+     "39464309993"
+    ]
+   },
+   "unit": "frames whose value differs from the previous (3 reps)",
+   "viewport": "390"
+  },
+  {
+   "after": [
+    25,
+    26
+   ],
+   "before": [
+    12,
+    12
+   ],
+   "engine": "chromium",
+   "metric": "earn opacity changes",
+   "noise": 2,
+   "push": "close",
+   "shown": {
+    "kind": "worse",
+    "n": 13,
+    "text": "13 more"
+   },
+   "status": {
+    "aa": [
+     "39464294630",
+     "39464322751"
+    ],
+    "kind": "measured",
+    "runs": [
+     "39463486725",
+     "39464309993"
+    ]
+   },
+   "unit": "frames whose value differs from the previous (3 reps)",
+   "viewport": "390"
+  },
+  {
+   "after": [
+    21,
+    24
+   ],
+   "before": [
+    23,
+    25
+   ],
+   "engine": "chromium",
+   "metric": "earn max-width changes",
+   "noise": 4,
+   "push": "close",
+   "shown": {
+    "kind": "overlap",
+    "text": "no difference shown (ranges overlap)"
+   },
+   "status": {
+    "aa": [
+     "39464294630",
+     "39464322751"
+    ],
+    "kind": "measured",
+    "runs": [
+     "39463486725",
+     "39464309993"
+    ]
+   },
+   "unit": "frames whose value differs from the previous (3 reps)",
+   "viewport": "1280"
+  },
+  {
+   "after": [
+    13,
+    13
+   ],
+   "before": [
+    9,
+    10
+   ],
+   "engine": "chromium",
+   "metric": "earn opacity changes",
+   "noise": 2,
+   "push": "close",
+   "shown": {
+    "kind": "worse",
+    "n": 3,
+    "text": "3 more"
+   },
+   "status": {
+    "aa": [
+     "39464294630",
+     "39464322751"
+    ],
+    "kind": "measured",
+    "runs": [
+     "39463486725",
+     "39464309993"
+    ]
+   },
+   "unit": "frames whose value differs from the previous (3 reps)",
+   "viewport": "1280"
+  },
+  {
+   "after": [
+    4,
+    4
+   ],
+   "before": [
+    29,
+    30
+   ],
+   "engine": "chromium",
+   "metric": "earn max-width changes",
+   "noise": 4,
+   "push": "open",
+   "shown": {
+    "kind": "gain",
+    "n": 25,
+    "text": "25 fewer"
+   },
+   "status": {
+    "aa": [
+     "39464294630",
+     "39464322751"
+    ],
+    "kind": "measured",
+    "runs": [
+     "39463486725",
+     "39464309993"
+    ]
+   },
+   "unit": "frames whose value differs from the previous (3 reps)",
+   "viewport": "640"
+  },
+  {
+   "after": [
+    4,
+    4
+   ],
+   "before": [
+    11,
+    12
+   ],
+   "engine": "chromium",
+   "metric": "earn opacity changes",
+   "noise": 2,
+   "push": "open",
+   "shown": {
+    "kind": "gain",
+    "n": 7,
+    "text": "7 fewer"
+   },
+   "status": {
+    "aa": [
+     "39464294630",
+     "39464322751"
+    ],
+    "kind": "measured",
+    "runs": [
+     "39463486725",
+     "39464309993"
+    ]
+   },
+   "unit": "frames whose value differs from the previous (3 reps)",
+   "viewport": "640"
+  },
+  {
+   "after": [
+    1,
+    2
+   ],
+   "before": [
+    29,
+    30
+   ],
+   "engine": "chromium",
+   "metric": "earn max-width changes",
+   "noise": 4,
+   "push": "open",
+   "shown": {
+    "kind": "gain",
+    "n": 27,
+    "text": "27 fewer"
+   },
+   "status": {
+    "aa": [
+     "39464294630",
+     "39464322751"
+    ],
+    "kind": "measured",
+    "runs": [
+     "39463486725",
+     "39464309993"
+    ]
+   },
+   "unit": "frames whose value differs from the previous (3 reps)",
+   "viewport": "641"
+  },
+  {
+   "after": [
+    1,
+    2
+   ],
+   "before": [
+    11,
+    12
+   ],
+   "engine": "chromium",
+   "metric": "earn opacity changes",
+   "noise": 2,
+   "push": "open",
+   "shown": {
+    "kind": "gain",
+    "n": 9,
+    "text": "9 fewer"
+   },
+   "status": {
+    "aa": [
+     "39464294630",
+     "39464322751"
+    ],
+    "kind": "measured",
+    "runs": [
+     "39463486725",
+     "39464309993"
+    ]
+   },
+   "unit": "frames whose value differs from the previous (3 reps)",
+   "viewport": "641"
+  },
+  {
+   "after": null,
+   "before": null,
+   "engine": "webkit",
+   "metric": "earn value changes",
+   "noise": 0,
+   "push": "open",
+   "shown": {
+    "kind": "unknown",
+    "text": "unknown"
+   },
+   "status": {
+    "kind": "unknown",
+    "why": "playwright-webkit on Linux samples 3 to 9 frames per push, too few to count changes; WebKit paint and composite counters are a follow-up"
+   },
+   "unit": "-",
+   "viewport": "390 and 1280"
+  },
+  {
+   "after": null,
+   "before": null,
+   "engine": "webkit",
+   "metric": "earn value changes",
+   "noise": 0,
+   "push": "close",
+   "shown": {
+    "kind": "unknown",
+    "text": "unknown"
+   },
+   "status": {
+    "kind": "unknown",
+    "why": "playwright-webkit on Linux samples 3 to 9 frames per push, too few to count changes; WebKit paint and composite counters are a follow-up"
+   },
+   "unit": "-",
+   "viewport": "390 and 1280"
+  }
+ ],
+ "id": 1,
+ "mechanism": [
+  "Each frame --morph changes, so the computed max-width, padding-inline and opacity of the earn button change (nav.module.css:173-175).",
+  "The same rule lists transitions: 680 ms for max-width and padding-inline, 320 ms after a 120 ms delay for opacity (nav.module.css:179-182).",
+  "In both engines a changed computed value while a transition runs cancels it and starts a new one from the value shown now, with the full duration and delay. So every frame restarts a 680 ms transition and the 120 ms delay.",
+  "The curve starts flat and each restart begins at its start, so the shown value creeps while the computed value moves. At the frame the computed value first changes from rest, the old value is still shown (Lean faithful_lags, one frame). Over a whole close push the faithful opacity stays at 0 until the morph stops: #guard witnesses NavEarnOpt.lean:376 (frame 37, faithful 0) and :391 (opacity value changes 20 against 40).",
+  "The flag sets is-earn-still while the nav morphs, which turns the transitions off. An unlisted property shows its computed value, so the button follows --morph directly (Lean shown_off).",
+  "On the open push the computed values reach their end at frame 3 (--earn-out saturates at m = 0.2), so the flag restyles the button on 3 frames instead of 43. On the close push the transitions return at m <= 0.001 (frame 37), so the last steps still run as transitions and the work count is the same.",
+  "A row that says 'N more' counts value changes, not restyle work. On the close push the faithful opacity is held at 0 by the restarting 120 ms delay, so it changes on fewer frames, yet the faithful arm restyles the button on as many frames as the flag arm (modelled work 51 against 51 of 91, golden nav-earn.jsonl fn=work); the flag arm's opacity follows the morph and so changes value more often.",
+  "A delta uses the cautious bound of its direction: a gain is the lowest faithful count minus the highest flag count, a loss is the highest faithful count minus the lowest flag count; ranges that share a count show no difference. A delta inside the A/A noise of the same metric is not shown. The 640 and 641 close rows are left out: the research note's value-change table has only their open rows."
+ ],
+ "ok": true,
+ "sources": [
+  {
+   "cite": "WebKit@862f17d Source/WebCore/style/Styleable.cpp:743-756",
+   "claim": "WebKit: a computed-value change of a listed property while a transition runs cancels it and starts a new one from the current value, with the full duration and delay",
+   "status": "CONFIRMED"
+  },
+  {
+   "cite": "Chromium@f842f52 third_party/blink/renderer/core/animation/css/css_animations.cc:2703-2715, 2727-2732, 3191",
+   "claim": "Chromium: a running transition whose end value differs from the after-change value is cancelled and a new one starts from the before-change style, which includes the current animated value",
+   "status": "CONFIRMED"
+  },
+  {
+   "cite": "WebKit@862f17d Source/WebCore/style/Styleable.cpp:648-654, 683-690",
+   "claim": "WebKit: a property the new style does not list starts no transition and cancels a running one",
+   "status": "CONFIRMED"
+  },
+  {
+   "cite": "Chromium@f842f52 css_animations.cc:3175-3182",
+   "claim": "Chromium: active transitions on properties that are no longer listed are cancelled",
+   "status": "CONFIRMED"
+  }
+ ],
+ "summary": "Open push: the earn button restyles 40 fewer frames for max-width and 26 fewer for opacity (modelled, Chromium measured the same direction); close push: no saving (0, modelled); Chromium measured the opacity changing value on more frames on the close push (by at least 13 at 390 and 3 at 1280; the 640 and 641 close pushes, not in the table, show at least 8 and 7 in run 39464309993), because the faithful opacity is held at 0 by the restarting delay, not because of more restyle work; WebKit: unknown."
+}
