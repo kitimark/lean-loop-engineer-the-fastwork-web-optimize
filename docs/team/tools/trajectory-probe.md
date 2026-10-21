@@ -473,8 +473,9 @@ Re-reduced (MEASURED, artifacts of the four runs downloaded into new empty dirs;
 | 39508414669 | hero.exit:scoped | 257 | 257 | 253 |
 | 39508421419 | hero.exit:faithful | 44 | 44 | 44 |
 
-Chromium (0, 0, 84, 0) and Linux WebKit (0 in all four) keep their counts. All 96 earn close@0 cells (4 runs, 3
-engines, 4 widths, 2 properties) read `pass / pass / ok` after the rule. The cells that change against main, each an
+Chromium (0, 0, 84, 0) and Linux WebKit (0 in all four) keep their counts. All 64 earn close@0 cells (4 runs, macOS
+WebKit and Chromium, 4 widths, 2 properties; the Linux WebKit arms report none) read `pass / pass / ok` after the
+rule. The cells that change against main, each an
 earn close@0 cell on macOS WebKit (candidate / base / rel; no other cell changes):
 
 | run | width | property | main | after |
