@@ -704,4 +704,331 @@ theorem answer_pj {c : Cfg} {s0 : State} {a : Acc} {q : Req} {rest : List Req} (
     · exact h.gid n l hm
     · simp only [List.mem_singleton, Cmd.reply.injEq] at hm; exact absurd hm.2.symm (hr l)
 
+theorem refuseT_pj {c : Cfg} {s0 : State} {a : Acc} {q : Req} {rest : List Req} (why : Why)
+    (h : PJ c s0 a (q :: rest)) : PJ c s0 (refuseT a q why) rest :=
+  answer_pj (a := { a with st := { a.st with tickets := a.st.tickets ++ [⟨q.owner, q.rid, q.age⟩] } })
+    (.refused why) ⟨h.now, h.next, h.draining, h.shedding, h.obs, h.key, h.sub, h.perm, h.leases, h.gid, h.live, h.svc,
+      h.dl⟩ fun _ e => Reply.noConfusion e
+
+theorem noReply_nil : ∀ cs : List Cmd, (∀ x ∈ cs, ∀ n r, x ≠ .reply n r) → replyIds cs = [] ∧ grantsIn cs = []
+  | [], _ => ⟨rfl, rfl⟩
+  | x :: cs, h => by
+    have ih := noReply_nil cs fun y hy => h y (List.mem_cons_of_mem _ hy)
+    cases x with
+    | reply n r => exact absurd rfl (h _ List.mem_cons_self n r)
+    | _ => exact ih
+
+theorem stopAll_sig {s : State} {xs : List Rsrc} {x : Cmd} (hx : x ∈ (stopAll s xs).2) :
+    ∃ y ∈ s.res, ∃ i, y.proc = some i ∧ y.id ∈ xs.map (·.id) ∧ y.phase = .ready ∧ x = .signal (.group i) .term := by
+  unfold stopAll mapRes at hx
+  obtain ⟨y, hy, hm⟩ := List.mem_flatMap.1 hx
+  refine ⟨y, hy, ?_⟩
+  unfold stopRec at hm
+  split at hm
+  · rename_i i hi
+    split at hm
+    · rename_i hc
+      simp only [Bool.and_eq_true, beq_iff_eq, List.contains_iff_mem] at hc
+      exact ⟨i, hi, hc.2, hc.1, List.mem_singleton.1 hm⟩
+    · exact absurd hm List.not_mem_nil
+  · exact absurd hm List.not_mem_nil
+
+theorem stopRec_key (now : Nat) (ids : List Nat) (x : Rsrc) : key (stopRec now ids x).1 = key x := by
+  unfold stopRec; split
+  · split <;> rfl
+  · rfl
+
+theorem stopRec_ready (now : Nat) (ids : List Nat) (x : Rsrc) (h : (stopRec now ids x).1.phase = .ready) :
+    x.phase = .ready := by
+  unfold stopRec at h; split at h
+  · split at h
+    · cases h
+    · exact h
+  · exact h
+
+theorem stop_pj {c : Cfg} {s0 : State} {a : Acc} {rest : List Req} (xs : List Rsrc) (h : PJ c s0 a rest)
+    (hx : ∀ x ∈ xs, x ∈ cands c a.st) :
+    PJ c s0 { a with st := (stopAll a.st xs).1, out := a.out ++ (stopAll a.st xs).2 } rest := by
+  have hn := noReply_nil (stopAll a.st xs).2 fun y hy n r e => by
+    obtain ⟨_, _, _, _, _, _, e'⟩ := stopAll_sig hy
+    rw [e'] at e; cases e
+  refine { h with key := ?_, perm := ?_, leases := ?_, gid := ?_, svc := ?_ }
+  · show (a.st.res.map fun x => (stopRec a.st.now (xs.map (·.id)) x).1).map key = _
+    rw [List.map_map, ← h.key]
+    exact List.map_congr_left fun x _ => stopRec_key _ _ x
+  · show (replyIds (a.out ++ (stopAll a.st xs).2) ++ _).Perm _
+    rw [replyIds_append, hn.1, List.append_nil]; exact h.perm
+  · show a.st.leases = s0.leases ++ grantsIn (a.out ++ (stopAll a.st xs).2)
+    rw [grantsIn_append, hn.2, List.append_nil]; exact h.leases
+  · intro n l hm
+    rcases List.mem_append.1 hm with hm | hm
+    · exact h.gid n l hm
+    · obtain ⟨_, _, _, _, _, _, e'⟩ := stopAll_sig hm; cases e'
+  · intro l hl hk
+    obtain ⟨h0, r, hr, h1, h2⟩ := h.svc l hl hk
+    refine ⟨h0, r, List.mem_map.2 ⟨r, hr, stopRec_keep _ _ _ ?_⟩, h1, h2⟩
+    cases hc : (xs.map (·.id)).contains r.id
+    · rfl
+    · obtain ⟨y, hy, e⟩ := List.mem_map.1 (List.contains_iff_mem.1 hc)
+      exact absurd (h1.symm.trans e.symm) (cands_unleased (hx y hy) hl hk)
+
+theorem block_pj {c : Cfg} {s0 : State} {a : Acc} {q : Req} {rest : List Req} (add : Res → Nat)
+    (h : PJ c s0 a (q :: rest)) (hd : s0.now < q.deadline) : PJ c s0 (block c a q add) rest := by
+  unfold block
+  split
+  · exact keepQ_pj true h hd
+  · exact keepQ_pj true (stop_pj _ h fun _ hx => evictPick_cands hx) hd
+
+theorem find_mem {s : State} {rid : Nat} {r : Rsrc} (h : find s rid = some r) : r ∈ s.res ∧ r.id = rid := by
+  unfold find at h
+  exact ⟨List.mem_of_find?_eq_some h, by simpa using List.find?_some h⟩
+
+theorem grant_pj {c : Cfg} {s0 : State} {a : Acc} {q : Req} {rest : List Req} (h : PJ c s0 a (q :: rest))
+    (hw : Wf c s0) (hs : q.kind = .svc → ∃ r, find a.st q.rid = some r ∧ r.phase = .ready) :
+    PJ c s0 (grant a q) rest := by
+  have hq : q ∈ s0.pending := h.sub.subset (List.mem_append_right _ List.mem_cons_self)
+  have hp := hw.preq q hq
+  have hf : ∀ x : Rsrc, key (if (q.kind == .svc && x.id == q.rid) = true then { x with lastUse := a.st.now } else x)
+      = key x := fun x => ite_field key _ _ _ rfl
+  have hph : ∀ x : Rsrc, (if (q.kind == .svc && x.id == q.rid) = true then { x with lastUse := a.st.now } else x).phase
+      = x.phase := fun x => ite_field (·.phase) _ _ _ rfl
+  have hid : ∀ x : Rsrc, (if (q.kind == .svc && x.id == q.rid) = true then { x with lastUse := a.st.now } else x).id
+      = x.id := fun x => ite_field (·.id) _ _ _ rfl
+  have e1 : replyIds [Cmd.reply q.id (.granted (leaseOf q a.st.now (if q.kind == .svc then {} else q.cost)))] = [q.id] :=
+    rfl
+  refine { h with key := ?_, sub := ?_, perm := ?_, leases := ?_, gid := ?_, live := ?_, svc := ?_ }
+  · show (a.st.res.map _).map key = _
+    rw [List.map_map, ← h.key]
+    exact List.map_congr_left fun x _ => hf x
+  · show (a.st.pending ++ rest).Sublist s0.pending
+    exact (List.Sublist.append_left (List.sublist_cons_self q rest) a.st.pending).trans h.sub
+  · show (replyIds (a.out ++ [_]) ++ (a.st.pending ++ rest).map (·.id)).Perm _
+    rw [replyIds_append, e1, List.map_append]
+    refine (perm_move _ _ _ _).trans ?_
+    simpa using h.perm
+  · show a.st.leases ++ [_] = s0.leases ++ grantsIn (a.out ++ [_])
+    rw [grantsIn_append, h.leases, List.append_assoc]; rfl
+  · intro n l hm
+    rcases List.mem_append.1 hm with hm | hm
+    · exact h.gid n l hm
+    · simp only [List.mem_singleton, Cmd.reply.injEq, Reply.granted.injEq] at hm
+      obtain ⟨e1, e2⟩ := hm
+      subst e2; subst e1
+      exact ⟨rfl, h.now, q, hq, rfl, rfl, rfl, rfl⟩
+  · intro l hl
+    rcases List.mem_append.1 hl with hl | hl
+    · exact h.live l hl
+    · rw [List.mem_singleton.1 hl]
+      simp only [leaseOf, h.now]
+      refine ⟨by omega, Nat.le_refl _, by omega, Nat.zero_le _⟩
+  · intro l hl hk
+    rcases List.mem_append.1 hl with hl | hl
+    · obtain ⟨h0, r, hr, h1, h2⟩ := h.svc l hl hk
+      exact ⟨h0, _, List.mem_map.2 ⟨r, hr, rfl⟩, (hid r).trans h1, (hph r).trans h2⟩
+    · rw [List.mem_singleton.1 hl] at hk ⊢
+      have hk' : q.kind = .svc := hk
+      obtain ⟨r, hr, h2⟩ := hs hk'
+      obtain ⟨hm, h1⟩ := find_mem hr
+      refine ⟨by simp [leaseOf, hk'], _, List.mem_map.2 ⟨r, hm, rfl⟩, (hid r).trans h1, (hph r).trans h2⟩
+
+theorem start_pj {c : Cfg} {s0 : State} {a : Acc} {q : Req} {rest : List Req} {r : Rsrc}
+    (h : PJ c s0 a (q :: rest)) (hw : Wf c s0) (hd : s0.now < q.deadline) (hr : find a.st q.rid = some r)
+    (hp : r.phase = .absent) : PJ c s0 (start a q r) rest := by
+  obtain ⟨hm, _⟩ := find_mem hr
+  have hnd : (a.st.res.map (·.id)).Nodup := by rw [rids_of_key h.key]; exact hw.rids
+  have hn := noReply_nil [Cmd.spawn r.id r.kind] fun y hy n r' e => by
+    rw [List.mem_singleton.1 hy] at e; cases e
+  refine keepQ_pj false { h with key := ?_, perm := ?_, leases := ?_, gid := ?_, svc := ?_ } hd
+  · show (a.st.res.map _).map key = _
+    rw [List.map_map, ← h.key]
+    exact List.map_congr_left fun x _ => ite_field key _ _ _ rfl
+  · show (replyIds (a.out ++ [_]) ++ _).Perm _
+    rw [replyIds_append, hn.1, List.append_nil]; exact h.perm
+  · show a.st.leases = s0.leases ++ grantsIn (a.out ++ [_])
+    rw [grantsIn_append, hn.2, List.append_nil]; exact h.leases
+  · intro n l hm'
+    rcases List.mem_append.1 hm' with hm' | hm'
+    · exact h.gid n l hm'
+    · cases List.mem_singleton.1 hm'
+  · intro l hl hk
+    obtain ⟨h0, r', hr', h1, h2⟩ := h.svc l hl hk
+    refine ⟨h0, r', List.mem_map.2 ⟨r', hr', ?_⟩, h1, h2⟩
+    have hne : (r'.id == r.id) = false := by
+      cases hc : r'.id == r.id
+      · rfl
+      · have := eq_of_nodup_map (·.id) _ hnd r' r hr' hm (by simpa using hc)
+        rw [this, hp] at h2; cases h2
+    simp [hne]
+
+theorem pumpOne_pj {c : Cfg} {s0 : State} {a : Acc} {q : Req} {rest : List Req} (hw : Wf c s0)
+    (h : PJ c s0 a (q :: rest)) : PJ c s0 (pumpOne c a q) rest := by
+  have hn : a.st.now = s0.now := h.now
+  refine pumpOne_cases c a q (fun a' => PJ c s0 a' rest) (fun w _ => answer_pj _ h fun _ e => Reply.noConfusion e)
+    (fun _ _ _ hc => grant_pj h hw fun hk => ?_) (fun hd _ add _ => block_pj add h (hn ▸ hd))
+    (fun hd _ _ => keepQ_pj false h (hn ▸ hd)) (fun _ _ _ _ _ why _ _ => refuseT_pj why h)
+    (fun hd _ _ _ _ r hr hp _ _ _ => start_pj h hw (hn ▸ hd) hr hp)
+  rcases hc with hc | hc
+  · rw [hc.1] at hk; cases hk
+  · exact hc.2
+
+/-- The pump started from `s0`, as an accumulator. -/
+def pumpAcc (c : Cfg) (s0 : State) : Acc := s0.pending.foldl (pumpOne c) ⟨{ s0 with pending := [] }, [], false⟩
+
+theorem pump_eq (c : Cfg) (s0 : State) : pump c s0 = ((pumpAcc c s0).st, (pumpAcc c s0).out) := rfl
+
+theorem pump_pj {c : Cfg} {s0 : State} (hw : Wf c s0) : PJ c s0 (pumpAcc c s0) [] := by
+  refine foldl_ind (pumpOne c) (PJ c s0) (fun _ _ _ h => pumpOne_pj hw h) s0.pending _ ?_
+  refine ⟨rfl, rfl, rfl, rfl, rfl, rfl, by simp, by simp [replyIds], by simp [grantsIn], fun _ _ hm => ?_, hw.live,
+    hw.svc, fun _ hq => ?_⟩
+  · cases hm
+  · cases hq
+
+theorem pj_wf {c : Cfg} {s0 : State} {a : Acc} (hw : Wf c s0) (h : PJ c s0 a []) : Wf c a.st := by
+  have hsub : a.st.ids.Sublist (s0.leases.map (·.id) ++ (replyIds a.out ++ a.st.pending.map (·.id))) := by
+    simp only [State.ids, h.leases, List.map_append, List.append_assoc]
+    exact (List.Sublist.refl _).append ((grantIds_sub a.out fun n l hm => (h.gid n l hm).1).append (List.Sublist.refl _))
+  have hp : (s0.leases.map (·.id) ++ (replyIds a.out ++ a.st.pending.map (·.id))).Perm s0.ids :=
+    List.Perm.append_left _ (by simpa using h.perm)
+  have hpend : a.st.pending.Sublist s0.pending := by simpa using h.sub
+  refine ⟨by rw [rids_of_key h.key]; exact hw.rids, by rw [procs_of_key h.key]; exact hw.procs,
+    hsub.nodup (hp.nodup_iff.2 hw.ids), fun n hn => ?_, fun q hq => hw.preq q (hpend.subset hq), ?_, h.svc⟩
+  · rw [h.next]; exact hw.below n (hp.subset (hsub.subset hn))
+  · intro l hl
+    rw [h.now]; exact h.live l hl
+
+/-- The pump keeps the invariant. -/
+theorem pump_inv {c : Cfg} {s : State} (hw : Wf c s) : Inv c (pump c s).1 := by
+  have h := pump_pj (c := c) hw
+  rw [pump_eq]
+  exact ⟨pj_wf hw h, fun q hq => by rw [h.now]; exact h.dl q hq⟩
+
+/-! ## Restart -/
+
+theorem nubRes_nodup : ∀ l : List Rsrc, ((nubRes l).map (·.id)).Nodup
+  | [] => List.nodup_nil
+  | x :: xs => by
+    simp only [nubRes, List.map_cons, List.nodup_cons]
+    refine ⟨fun hm => ?_, (List.filter_sublist.map _).nodup (nubRes_nodup xs)⟩
+    obtain ⟨y, hy, e⟩ := List.mem_map.1 hm
+    have := (List.mem_filter.1 hy).2
+    simp [e] at this
+
+theorem nubLease_nodup : ∀ l : List Lease, ((nubLease l).map (·.id)).Nodup
+  | [] => List.nodup_nil
+  | x :: xs => by
+    simp only [nubLease, List.map_cons, List.nodup_cons]
+    refine ⟨fun hm => ?_, (List.filter_sublist.map _).nodup (nubLease_nodup xs)⟩
+    obtain ⟨y, hy, e⟩ := List.mem_map.1 hm
+    have := (List.mem_filter.1 hy).2
+    simp [e] at this
+
+theorem nubLease_sub : ∀ l : List Lease, (nubLease l).Sublist l
+  | [] => List.Sublist.slnil
+  | x :: xs => (List.filter_sublist.trans (nubLease_sub xs)).cons₂ x
+
+theorem adopt_ids (rows : List Fw.Ops.Reap.Row) : ∀ (seen : List Ident) (xs : List Rsrc),
+    (adopt rows seen xs).map (·.id) = xs.map (·.id)
+  | _, [] => rfl
+  | seen, x :: xs => by
+    unfold adopt
+    split
+    · split
+      · exact congrArg (x.id :: ·) (adopt_ids rows _ xs)
+      · exact congrArg (x.id :: ·) (adopt_ids rows _ xs)
+    · exact congrArg (x.id :: ·) (adopt_ids rows _ xs)
+
+theorem adopt_procs (rows : List Fw.Ops.Reap.Row) : ∀ (seen : List Ident) (xs : List Rsrc),
+    ((adopt rows seen xs).filterMap (·.proc)).Nodup ∧ ∀ i ∈ (adopt rows seen xs).filterMap (·.proc), i ∉ seen
+  | _, [] => ⟨List.nodup_nil, fun _ h => absurd h List.not_mem_nil⟩
+  | seen, x :: xs => by
+    unfold adopt
+    split
+    · rename_i i hi
+      split
+      · rename_i hc
+        have hs : i ∉ seen := by
+          simp only [Bool.and_eq_true, Bool.not_eq_true'] at hc
+          exact fun hm => by rw [List.contains_iff_mem.2 hm] at hc; exact Bool.noConfusion hc.2
+        obtain ⟨ih1, ih2⟩ := adopt_procs rows (i :: seen) xs
+        have e : (({ x with adopted := true } :: adopt rows (i :: seen) xs).filterMap (·.proc))
+            = i :: (adopt rows (i :: seen) xs).filterMap (·.proc) := by simp [hi]
+        rw [e]
+        refine ⟨List.nodup_cons.2 ⟨fun hm => ih2 i hm List.mem_cons_self, ih1⟩, fun j hj => ?_⟩
+        rcases List.mem_cons.1 hj with e | hj
+        · rw [e]; exact hs
+        · exact fun hm => ih2 j hj (List.mem_cons_of_mem _ hm)
+      · exact adopt_procs rows seen xs
+    · exact adopt_procs rows seen xs
+
+theorem foldr_max_lt (b : Nat) : ∀ (ls : List Lease), ∀ l ∈ ls, l.id < ls.foldr (fun l n => max n (l.id + 1)) b
+  | [], _, h => absurd h List.not_mem_nil
+  | x :: xs, l, h => by
+    simp only [List.foldr_cons]
+    rcases List.mem_cons.1 h with e | h
+    · rw [e]; exact Nat.lt_of_lt_of_le (Nat.lt_succ_self _) (Nat.le_max_right _ _)
+    · exact Nat.lt_of_lt_of_le (foldr_max_lt b xs l h) (Nat.le_max_left _ _)
+
+/-- restart_inv: recovery from any snapshot gives a well-formed state. -/
+theorem restart_inv (c : Cfg) (now : Nat) (snap : State) (inp : Fw.Ops.Reap.Input) : Wf c (recover c now snap inp).1 := by
+  unfold recover
+  dsimp only
+  refine ⟨?_, (adopt_procs _ _ _).1, ?_, ?_, fun q hq => absurd hq List.not_mem_nil, ?_, ?_⟩
+  · rw [adopt_ids]; exact nubRes_nodup _
+  · simp only [State.ids, List.map_nil, List.append_nil]; exact nubLease_nodup _
+  · intro n hn
+    simp only [State.ids, List.map_nil, List.append_nil] at hn
+    obtain ⟨l, hl, e⟩ := List.mem_map.1 hn
+    rw [← e]; exact foldr_max_lt _ _ l hl
+  · intro l hl
+    have := (List.mem_filter.1 ((nubLease_sub _).subset hl)).2
+    simp only [validLease, Bool.and_eq_true, decide_eq_true_eq] at this
+    exact ⟨this.1.1.1.2, this.1.1.1.1, this.1.1.2, this.1.2⟩
+  · intro l hl hk
+    have := (List.mem_filter.1 ((nubLease_sub _).subset hl)).2
+    simp only [validLease, Bool.and_eq_true, hk] at this
+    have h2 := this.2
+    simp only [Bool.or_eq_true, beq_iff_eq, Bool.and_eq_true, reduceCtorEq, false_or] at h2
+    exact ⟨h2.2, (readyId_iff _ _).1 h2.1⟩
+
+/-! ## The step -/
+
+theorem wf_pre {c : Cfg} {s : State} (e : Event) (h : Wf c s) : Wf c (pre c s e).1 := by
+  cases e with
+  | request _ o a => exact wf_request o a h
+  | release _ o l => exact wf_release o l h
+  | renew _ o l => exact wf_renew o l h
+  | op _ _ => exact wf_next h
+  | drain _ _ => exact wf_same h rfl rfl rfl (Nat.le_succ _) rfl
+  | spawned rid i => exact wf_spawned rid i h
+  | ready rid => exact wf_readyEv rid h
+  | childExit i => exact wf_childExit i h
+  | tick now smp => exact wf_tick now smp h
+  | clientGone o => exact wf_gone o h
+  | restart now snap inp => exact restart_inv c now snap inp
+
+theorem step_eq {c : Cfg} {s : State} {e : Event} (h : authed c e = true) :
+    step c s e = ((pump c (pre c s e).1).1, (pre c s e).2 ++ (pump c (pre c s e).1).2) := by
+  simp [step, h, andThen]
+
+/-- step_inv: every step keeps the invariant. -/
+theorem step_inv {c : Cfg} {s : State} (e : Event) (h : Inv c s) : Inv c (step c s e).1 := by
+  cases ha : authed c e
+  · simp only [step, ha]; exact h
+  · rw [step_eq ha]; exact pump_inv (wf_pre e h.1)
+
+/-- The start state satisfies the invariant. -/
+theorem init_inv (c : Cfg) : Inv c (init c) :=
+  ⟨restart_inv c 0 _ _, fun _ hq => absurd hq List.not_mem_nil⟩
+
+/-- Every state a run reaches satisfies the invariant. -/
+theorem run_inv {c : Cfg} : ∀ (es : List Event) (s : State), Inv c s → Inv c (run c s es).1 := by
+  intro es s h
+  unfold run
+  suffices ∀ (es : List Event) (a : State × List Cmd), Inv c a.1 →
+      Inv c (es.foldl (fun a e => let r := step c a.1 e; (r.1, a.2 ++ r.2)) a).1 from this es _ h
+  intro es
+  induction es with
+  | nil => exact fun _ h => h
+  | cons e es ih => exact fun a h => ih _ (step_inv e h)
+
 end Fw.Sup
