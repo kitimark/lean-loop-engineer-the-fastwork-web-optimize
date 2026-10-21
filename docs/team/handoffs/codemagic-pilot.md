@@ -1,7 +1,7 @@
 # Handoff: codemagic-pilot (measure-engineer)
 
 State: branch `worktree-wf_5ac2953f-445-1` (local `ci/codemagic-pilot` is pushed at the WIP commit 476da151, the yaml the three builds used).
-Everything else is committed on the worktree branch; read `git log -3` for the tip.
+
 
 Read first: `research/notes/2026/10-2x-codemagic-pilot.md` (results, recommendation), then `docs/team/tools/codemagic.md` (setup, commands, rules).
 
