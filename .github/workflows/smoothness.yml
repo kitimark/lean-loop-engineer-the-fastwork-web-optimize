@@ -208,7 +208,7 @@ jobs:
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
           # Repeats that enter the verdict (Lean minReps is 5) and extra repeats with the frame trace on (reported apart).
           REPS: 7
-          TRACE_REPS: 3
+          TRACE_REPS: 5
         working-directory: packages/gate-breakpoints
         run: node src/smooth/cli.mjs run --widths "$WIDTH" --search "$SEARCH" --reps "$REPS" --trace-reps "$TRACE_REPS" --out out/smoothness
       - name: Table of this leg (the verdict is the Lean twin; the step summary is a convenience, the artifact is the record)

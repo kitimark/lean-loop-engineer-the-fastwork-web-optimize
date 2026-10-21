@@ -108,3 +108,31 @@ export const judge = (sp, ra, rb) => (ra + sp < rb ? 'first' : rb + sp < ra ? 's
 /** The verdict on arms a and b against the A/A pair; any arm under MIN_REPS repeats is 'insufficient' (Lean `verdict`). */
 export const verdict = (a, b, aa1, aa2) =>
   enough(a) && enough(b) && enough(aa1) && enough(aa2) ? judge(spread(aa1, aa2), armRate(a), armRate(b)) : 'insufficient';
+
+export const HITCH_TENTHS = 600;
+export const MIN_SAMPLES = 3;
+
+/** Frames over 60 ms in one repeat, from its frame intervals in tenths of ms (Lean `hitches`). */
+export const hitches = (ivs) => ivs.filter((i) => HITCH_TENTHS < i).length;
+
+/** Every repeat of `a` has more hitches than every repeat of `b` (Lean `above`). */
+export const above = (a, b) => a.every((x) => b.every((y) => y < x));
+export const enoughN = (c) => MIN_REPS <= c.length;
+
+/** 'first' when every repeat of the second arm has more hitches than every repeat of the first, 'second' the other way, else 'same' (Lean `hitchJudge`). */
+export const hitchJudge = (a, b) => (above(b, a) ? 'first' : above(a, b) ? 'second' : 'same');
+
+/** The hitch verdict on per-repeat hitch counts against the A/A pair; 'insufficient' under MIN_REPS repeats, 'same' when the A/A pair is itself told apart (Lean `hitchVerdict`). */
+export const hitchVerdict = (a, b, aa1, aa2) =>
+  !(enoughN(a) && enoughN(b) && enoughN(aa1) && enoughN(aa2)) ? 'insufficient' : hitchJudge(aa1, aa2) === 'same' ? hitchJudge(a, b) : 'same';
+
+/** The agreement asked of n samples: two thirds, rounded up (Lean `agreeNeeded`). */
+export const agreeNeeded = (n) => Math.floor((2 * n + 2) / 3);
+
+/** The verdict over per-sample verdicts: 'first' when at least k say first and none says second, 'second' the other way, else 'same'; 'insufficient' under MIN_SAMPLES samples or k = 0 (Lean `across`). */
+export function across(k, vs) {
+  if (vs.length < MIN_SAMPLES || k === 0) return 'insufficient';
+  const f = vs.filter((v) => v === 'first').length;
+  const s = vs.filter((v) => v === 'second').length;
+  return k <= f && s === 0 ? 'first' : k <= s && f === 0 ? 'second' : 'same';
+}

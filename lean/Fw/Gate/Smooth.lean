@@ -536,6 +536,224 @@ theorem verdict_swap (a b aa1 aa2 : Arm) : verdict b a aa1 aa2 = (verdict a b aa
   · simp only [h, ite_true]; exact judge_swap _ _ _
   · simp [h, Verdict.swap]
 
+/-! ### Hitches: frames over 60 ms, counted per repeat
+
+The rate rule above pools bad frames over repeats and compares the difference with a per-repeat range, so one more bad frame in one
+A/A repeat can be as large as a one-frame-per-repeat effect (a repeat has about 172 frames at 390 px: one frame is 0.58 points).
+The hitch metric counts frames over 60 ms in each repeat and compares whole repeats: an arm is hitchier only when every one of its
+repeats has more hitches than every repeat of the other. -/
+
+/-- A frame interval above this many tenths of a millisecond is a hitch (60 ms). -/
+def hitchTenths : Nat := 600
+
+/-- Hitches in one repeat, from its frame intervals (tenths of ms). -/
+def hitches (ivs : List Nat) : Nat := ivs.countP fun i => decide (hitchTenths < i)
+
+/-- Every repeat of `a` has more hitches than every repeat of `b`. -/
+def above (a b : List Nat) : Bool := a.all fun x => b.all fun y => decide (y < x)
+
+theorem above_iff (a b : List Nat) : above a b = true ↔ ∀ x ∈ a, ∀ y ∈ b, y < x := by
+  simp [above, List.all_eq_true]
+
+/-- An arm's hitch counts have enough repeats to be judged. -/
+def enoughN (c : List Nat) : Bool := decide (minReps ≤ c.length)
+
+/-- Which arm is smoother by hitch counts: the first when every repeat of the second has more hitches than every repeat of the first. -/
+def hitchJudge (a b : List Nat) : Verdict :=
+  if above b a then .first else if above a b then .second else .same
+
+/-- All four arms have enough repeats of hitch counts. -/
+def okN (a b aa1 aa2 : List Nat) : Bool := enoughN a && enoughN b && enoughN aa1 && enoughN aa2
+
+/-- The hitch verdict on the repeat counts of `a` and `b` against the A/A pair. Fewer than `minReps` repeats in any of the four is
+`insufficient`. When the A/A pair is itself told apart the metric is not steady on this runner and no difference is claimed (`same`). -/
+def hitchVerdict (a b aa1 aa2 : List Nat) : Verdict :=
+  if okN a b aa1 aa2 then
+    (match hitchJudge aa1 aa2 with
+      | .same => hitchJudge a b
+      | _ => .same)
+  else .insufficient
+
+private theorem ne_nil_of_enoughN (c : List Nat) (h : enoughN c = true) : c ≠ [] := by
+  intro hc
+  subst hc
+  simp [enoughN, minReps] at h
+
+private theorem not_above_both (a b : List Nat) (ha : a ≠ []) (hb : b ≠ []) (h : above a b = true) : above b a = false := by
+  cases h2 : above b a
+  · rfl
+  · rw [above_iff] at h h2
+    obtain ⟨x, hx⟩ := List.exists_mem_of_ne_nil a ha
+    obtain ⟨y, hy⟩ := List.exists_mem_of_ne_nil b hb
+    have := h x hx y hy
+    have := h2 y hy x hx
+    omega
+
+/-- The branch where every repeat of the second arm has more hitches: the first arm is smoother. -/
+theorem hitchJudge_first (a b : List Nat) (h : above b a = true) : hitchJudge a b = .first := by
+  simp [hitchJudge, h]
+
+/-- The branch where every repeat of the first arm has more hitches: the second arm is smoother. -/
+theorem hitchJudge_second (a b : List Nat) (ha : a ≠ []) (hb : b ≠ []) (h : above a b = true) : hitchJudge a b = .second := by
+  have := not_above_both a b ha hb h
+  simp [hitchJudge, this, h]
+
+/-- The branch where neither arm's repeats are all above the other's: same. -/
+theorem hitchJudge_same (a b : List Nat) (h1 : above b a = false) (h2 : above a b = false) : hitchJudge a b = .same := by
+  simp [hitchJudge, h1, h2]
+
+/-- Judging the arms the other way round swaps the verdict (for arms with repeats). -/
+theorem hitchJudge_swap (a b : List Nat) (ha : a ≠ []) (hb : b ≠ []) : hitchJudge b a = (hitchJudge a b).swap := by
+  by_cases h1 : above b a = true
+  · have h2 := not_above_both b a hb ha h1
+    simp [hitchJudge, h1, h2, Verdict.swap]
+  · by_cases h2 : above a b = true
+    · simp [hitchJudge, h1, h2, Verdict.swap]
+    · simp [hitchJudge, h1, h2, Verdict.swap]
+
+/-- **A hitch in every repeat of one arm and none in the other is detected.** If every repeat of `a` has at least one frame over 60 ms
+and no repeat of `b` has any, and both have repeats, the second arm is smoother. -/
+theorem hitch_detected (a b : List Nat) (ha : a ≠ []) (hb : b ≠ []) (hall : ∀ x ∈ a, 0 < x) (hnone : ∀ y ∈ b, y = 0) :
+    hitchJudge a b = .second := by
+  apply hitchJudge_second a b ha hb
+  rw [above_iff]
+  intro x hx y hy
+  rw [hnone y hy]
+  exact hall x hx
+
+/-- The same through the full verdict, against a steady A/A pair. -/
+theorem hitchVerdict_detected (a b aa1 aa2 : List Nat) (hok : okN a b aa1 aa2 = true)
+    (haa : hitchJudge aa1 aa2 = .same) (hall : ∀ x ∈ a, 0 < x) (hnone : ∀ y ∈ b, y = 0) :
+    hitchVerdict a b aa1 aa2 = .second := by
+  have ha : enoughN a = true := by simp [okN] at hok; exact hok.1.1.1
+  have hb : enoughN b = true := by simp [okN] at hok; exact hok.1.1.2
+  unfold hitchVerdict
+  simp only [hok, ↓reduceIte, haa]
+  exact hitch_detected a b (ne_nil_of_enoughN a ha) (ne_nil_of_enoughN b hb) hall hnone
+
+/-- The mirror: a hitch in every repeat of the second arm and none in the first makes the first smoother. -/
+theorem hitchVerdict_detected_first (a b aa1 aa2 : List Nat) (hok : okN a b aa1 aa2 = true)
+    (haa : hitchJudge aa1 aa2 = .same) (hall : ∀ y ∈ b, 0 < y) (hnone : ∀ x ∈ a, x = 0) :
+    hitchVerdict a b aa1 aa2 = .first := by
+  unfold hitchVerdict
+  simp only [hok, ↓reduceIte, haa]
+  apply hitchJudge_first
+  rw [above_iff]
+  intro y hy x hx
+  rw [hnone x hx]
+  exact hall y hy
+
+/-- **Too few repeats is never a verdict.** -/
+theorem hitchVerdict_insufficient (a b aa1 aa2 : List Nat) (h : okN a b aa1 aa2 = false) :
+    hitchVerdict a b aa1 aa2 = .insufficient := by
+  simp [hitchVerdict, h]
+
+/-- **An A/A pair that is itself told apart claims no difference.** -/
+theorem hitchVerdict_noisy (a b aa1 aa2 : List Nat) (hok : okN a b aa1 aa2 = true)
+    (haa : hitchJudge aa1 aa2 ≠ .same) : hitchVerdict a b aa1 aa2 = .same := by
+  unfold hitchVerdict
+  split
+  · split
+    · exact absurd ‹hitchJudge aa1 aa2 = .same› haa
+    · rfl
+  · simp_all
+
+/-- **The A/A pair is never told apart.** -/
+theorem hitchVerdict_aa_same (aa1 aa2 : List Nat) (h1 : enoughN aa1 = true) (h2 : enoughN aa2 = true) :
+    hitchVerdict aa1 aa2 aa1 aa2 = .same := by
+  have hok : okN aa1 aa2 aa1 aa2 = true := by simp [okN, h1, h2]
+  unfold hitchVerdict
+  simp only [hok, ↓reduceIte]
+  cases h : hitchJudge aa1 aa2 <;> simp
+
+private theorem okN_swap (a b aa1 aa2 : List Nat) : okN b a aa1 aa2 = okN a b aa1 aa2 := by
+  unfold okN
+  cases enoughN a <;> cases enoughN b <;> simp
+
+/-- Swapping the two arms swaps the hitch verdict. -/
+theorem hitchVerdict_swap (a b aa1 aa2 : List Nat) : hitchVerdict b a aa1 aa2 = (hitchVerdict a b aa1 aa2).swap := by
+  by_cases h : okN a b aa1 aa2 = true
+  · have hb : okN b a aa1 aa2 = true := by rw [okN_swap]; exact h
+    have ha' : enoughN a = true := by simp [okN] at h; exact h.1.1.1
+    have hb' : enoughN b = true := by simp [okN] at h; exact h.1.1.2
+    unfold hitchVerdict
+    simp only [hb, h, ↓reduceIte]
+    cases hh : hitchJudge aa1 aa2
+    all_goals simp [Verdict.swap]
+    exact hitchJudge_swap a b (ne_nil_of_enoughN a ha') (ne_nil_of_enoughN b hb')
+  · have hb : okN b a aa1 aa2 = false := by rw [okN_swap]; simpa using h
+    have h' : okN a b aa1 aa2 = false := by simpa using h
+    simp [hitchVerdict, h', hb, Verdict.swap]
+
+/-! ### Across samples: how sure is a verdict that came out of several independent samples
+
+One CI job is one sample. Each sample gives its own verdict; `across k` says the first (second) arm is smoother only when at least
+`k` samples say so and no sample says the other. `same` and `insufficient` samples agree with neither side and disagree with neither. -/
+
+/-- Fewest samples before agreement means anything. -/
+def minSamples : Nat := 3
+
+/-- The agreement asked of `n` samples: two thirds, rounded up (5 of 7, 7 of 10). -/
+def agreeNeeded (n : Nat) : Nat := (2 * n + 2) / 3
+
+/-- The verdict over samples: `first` when at least `k` say first and none says second, `second` the other way, `same` otherwise;
+`insufficient` below `minSamples` samples or for `k = 0`. -/
+def across (k : Nat) (vs : List Verdict) : Verdict :=
+  if vs.length < minSamples ∨ k = 0 then .insufficient
+  else if k ≤ vs.count .first ∧ vs.count .second = 0 then .first
+  else if k ≤ vs.count .second ∧ vs.count .first = 0 then .second
+  else .same
+
+/-- **Too few samples is never a verdict.** -/
+theorem across_few (k : Nat) (vs : List Verdict) (h : vs.length < minSamples) : across k vs = .insufficient := by
+  unfold across
+  repeat' split
+  all_goals first | rfl | omega
+
+/-- The branch where at least `k` samples say first and none says second. -/
+theorem across_first (k : Nat) (vs : List Verdict) (hk : 0 < k) (hn : minSamples ≤ vs.length)
+    (hf : k ≤ vs.count .first) (hs : vs.count .second = 0) : across k vs = .first := by
+  unfold across
+  repeat' split
+  all_goals first | rfl | omega
+
+/-- The branch where at least `k` samples say second and none says first. -/
+theorem across_second (k : Nat) (vs : List Verdict) (hk : 0 < k) (hn : minSamples ≤ vs.length)
+    (hs : k ≤ vs.count .second) (hf : vs.count .first = 0) : across k vs = .second := by
+  unfold across
+  repeat' split
+  all_goals first | rfl | omega
+
+/-- **One disagreeing sample blocks the claim.** Any sample for each side gives `same`. -/
+theorem across_split (k : Nat) (vs : List Verdict) (hk : 0 < k) (hn : minSamples ≤ vs.length)
+    (hf : 0 < vs.count .first) (hs : 0 < vs.count .second) : across k vs = .same := by
+  unfold across
+  repeat' split
+  all_goals first | rfl | omega
+
+/-- The branch where too few samples agree and none disagrees: same. -/
+theorem across_same (k : Nat) (vs : List Verdict) (hk : 0 < k) (hn : minSamples ≤ vs.length)
+    (hf : vs.count .first < k) (hs : vs.count .second < k) : across k vs = .same := by
+  unfold across
+  repeat' split
+  all_goals first | rfl | omega
+
+private theorem count_swap (vs : List Verdict) (v : Verdict) : (vs.map Verdict.swap).count v.swap = vs.count v := by
+  induction vs with
+  | nil => simp
+  | cons x xs ih =>
+    simp only [List.map_cons, List.count_cons, ih]
+    cases x <;> cases v <;> simp [Verdict.swap] <;> decide
+
+/-- Swapping the sides of every sample swaps the verdict. -/
+theorem across_swap (k : Nat) (vs : List Verdict) : across k (vs.map Verdict.swap) = (across k vs).swap := by
+  have hf : (vs.map Verdict.swap).count .first = vs.count .second := count_swap vs .second
+  have hs : (vs.map Verdict.swap).count .second = vs.count .first := count_swap vs .first
+  unfold across
+  rw [List.length_map, hf, hs]
+  repeat' split
+  all_goals first | rfl | omega
+
 /-! ### Golden vectors the TS twin is checked against -/
 
 open Lean in
@@ -592,6 +810,36 @@ def verdictCases : List (Arm × Arm × Arm × Arm) := [
   (armOf 5 [0], armOf 5 [6], armOf 5 [0, 2], armOf 5 [3, 1]),
   (armOf 5 [0], armOf 5 [1], armOf 5 [0, 0, 0, 0, 0], armOf 5 [0, 0, 0, 0, 0])]
 
+/-- Interval lists in tenths of ms for the hitch count (600 is not a hitch, 601 is). -/
+def hitchIvCases : List (List Nat) := [[], [167, 600, 601, 1000], [600, 600], [601], [167, 167], [833, 167, 167, 167]]
+
+/-- Hitch verdict cases `(a, b, aa1, aa2)` of per-repeat hitch counts. -/
+def hitchVerdictCases : List (List Nat × List Nat × List Nat × List Nat) := [
+  ([1, 1, 1, 1, 1], [0, 0, 0, 0, 0], [1, 1, 1, 1, 1], [1, 1, 1, 1, 1]),
+  ([0, 0, 0, 0, 0], [1, 1, 1, 1, 1], [1, 1, 1, 1, 1], [1, 1, 1, 1, 1]),
+  ([1, 1, 0, 1, 1], [0, 0, 0, 0, 0], [1, 1, 1, 1, 1], [1, 1, 1, 1, 1]),
+  ([3, 3, 4, 3, 3], [1, 2, 1, 1, 1], [1, 1, 1, 1, 1], [1, 1, 1, 1, 1]),
+  ([2, 3, 2, 2, 3], [1, 1, 2, 1, 1], [1, 1, 1, 1, 1], [1, 1, 1, 1, 1]),
+  ([1, 1, 1, 1], [0, 0, 0, 0, 0], [1, 1, 1, 1, 1], [1, 1, 1, 1, 1]),
+  ([1, 1, 1, 1, 1], [0, 0, 0, 0, 0], [1, 1, 1, 1, 1], [0, 0, 0, 0, 0]),
+  ([1, 1, 1, 1, 1], [1, 1, 1, 1, 1], [1, 1, 1, 1, 1], [1, 1, 1, 1, 1]),
+  ([1, 1, 1, 1, 1, 1, 1], [0, 0, 0, 0, 0, 0, 0], [1, 1, 1, 1, 1, 1, 1], [1, 1, 1, 1, 1, 1, 1])]
+
+/-- Across cases `(k, per-sample verdicts)`. -/
+def acrossCases : List (Nat × List Verdict) := [
+  (5, [.first, .first, .first, .first, .first, .same, .same]),
+  (5, [.first, .first, .first, .first, .first, .second]),
+  (5, [.first, .first, .first, .first, .same, .same, .same]),
+  (5, [.second, .second, .second, .second, .second, .second, .second]),
+  (3, [.first, .first]),
+  (0, [.first, .first, .first, .first, .first]),
+  (2, [.first, .first, .insufficient]),
+  (5, []),
+  (3, [.second, .second, .second, .insufficient, .same])]
+
+/-- Sample counts for the agreement asked. -/
+def agreeCases : List Nat := [0, 1, 3, 4, 7, 10]
+
 open Lean in
 private def frameJson (f : Frame) : Json := Json.arr #[Lean.toJson f.t, Lean.toJson f.want, Lean.toJson f.shown]
 open Lean in
@@ -602,7 +850,7 @@ open Lean in
 def goldenLines (_ : Unit := ()) : List String :=
   let consts := (Json.mkObj [("op", "constants"), ("stallPm", Lean.toJson stallPm), ("stallDiv", Lean.toJson stallDiv),
     ("jumpPm", Lean.toJson jumpPm), ("reversePm", Lean.toJson reversePm), ("badTenths", Lean.toJson badTenths),
-    ("minReps", Lean.toJson minReps)]).compress
+    ("minReps", Lean.toJson minReps), ("hitchTenths", Lean.toJson hitchTenths), ("minSamples", Lean.toJson minSamples)]).compress
   let ms := metricCases.map fun (name, fs) =>
     (Json.mkObj [("op", "metrics"), ("case", Json.str name), ("frames", Json.arr (fs.map frameJson).toArray),
       ("out", (metrics fs).toJson), ("flat", Lean.toJson (metrics fs).flat), ("flagged", Lean.toJson (metrics fs).flagged)]).compress
@@ -625,7 +873,15 @@ def goldenLines (_ : Unit := ()) : List String :=
     (Json.mkObj [("op", "verdict"), ("a", armJson a), ("b", armJson b), ("aa1", armJson aa1), ("aa2", armJson aa2),
       ("spread", Lean.toJson (spread aa1 aa2)), ("rateA", Lean.toJson (armRate a)), ("rateB", Lean.toJson (armRate b)),
       ("out", Json.str (verdict a b aa1 aa2).name)]).compress
-  [consts] ++ ms ++ ls ++ ws ++ qs ++ [med, med0] ++ reps ++ rs ++ vs
+  let hs := hitchIvCases.map fun ivs => (Json.mkObj [("op", "hitches"), ("ivs", Lean.toJson ivs), ("out", Lean.toJson (hitches ivs))]).compress
+  let hv := hitchVerdictCases.map fun (a, b, aa1, aa2) =>
+    (Json.mkObj [("op", "hitchVerdict"), ("a", Lean.toJson a), ("b", Lean.toJson b), ("aa1", Lean.toJson aa1), ("aa2", Lean.toJson aa2),
+      ("out", Json.str (hitchVerdict a b aa1 aa2).name)]).compress
+  let ac := acrossCases.map fun (k, xs) =>
+    (Json.mkObj [("op", "across"), ("k", Lean.toJson k), ("vs", Json.arr (xs.map fun v => Json.str v.name).toArray),
+      ("out", Json.str (across k xs).name)]).compress
+  let ag := agreeCases.map fun n => (Json.mkObj [("op", "agreeNeeded"), ("n", Lean.toJson n), ("out", Lean.toJson (agreeNeeded n))]).compress
+  [consts] ++ ms ++ ls ++ ws ++ qs ++ [med, med0] ++ reps ++ rs ++ vs ++ hs ++ hv ++ ac ++ ag
 
 /-- The exact bytes of `packages/contracts/golden/gate/smooth.jsonl`: the lines, each newline-terminated. -/
 def goldenText (_ : Unit := ()) : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
@@ -654,8 +910,13 @@ def run (args : List String) : IO UInt32 := do
 #guard (metrics (ramp 1000 10 [0, 0, 0, 0, 0, 0, 600, 700, 800, 900, 1000])).stalls == 5
 #guard (metrics (ramp 1000 10 [0, 0, 0, 0, 0, 0, 600, 700, 800, 900, 1000])).jumps == 1
 #guard (metrics (frames [(0, 0, 0), (160, 400, 400), (320, 800, 800), (480, 1000, 1000), (640, 1000, 1030), (800, 1000, 1050), (960, 1000, 1050)])).tailSteps == 2
-#guard goldenLines.length == 61
+#guard goldenLines.length == 61 + 6 + 9 + 9 + 6
 #guard (verdict (armOf 5 [1, 2, 1]) (armOf 5 [9, 11, 10]) (armOf 5 [3, 4, 3]) (armOf 5 [3, 3, 4])) == .first
 #guard (verdict (armOf 4 [1]) (armOf 5 [9]) (armOf 5 [3]) (armOf 5 [3])) == .insufficient
+#guard hitches [167, 600, 601, 1000] == 2
+#guard hitchVerdict [1, 1, 1, 1, 1] [0, 0, 0, 0, 0] [1, 1, 1, 1, 1] [1, 1, 1, 1, 1] == .second
+#guard hitchVerdict [1, 1, 0, 1, 1] [0, 0, 0, 0, 0] [1, 1, 1, 1, 1] [1, 1, 1, 1, 1] == .same
+#guard across 5 [.first, .first, .first, .first, .first, .same, .same] == .first
+#guard across 5 [.first, .first, .first, .first, .first, .second] == .same
 
 end Fw.Gate.Smooth

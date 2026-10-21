@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as S from '../src/smooth/reduce.mjs';
-import { slowOf, summariseTrace } from '../src/smooth/trace.mjs';
+import { pageSink, slowOf, summariseTrace } from '../src/smooth/trace.mjs';
 import { cellOf, hitchesOf, summary } from '../src/smooth/cadence-table.mjs';
 import { intervalsOf, orderFor } from '../src/smooth/cadence.mjs';
 
@@ -69,31 +69,84 @@ test('the verdict set covers first, second, same and insufficient', () => {
   assert.deepEqual([...new Set(ops('verdict').map((g) => g.out))].sort(), ['first', 'insufficient', 'same', 'second']);
 });
 
-test('trace: pipeline pairs are counted by state and begin/draw/drop events by name', () => {
-  const b = (id, state, ts) => ({ name: 'PipelineReporter', ph: 'b', pid: 1, cat: 'cc', id2: { local: id }, ts, args: { frame_reporter: { state } } });
-  const e = (id, ts) => ({ name: 'PipelineReporter', ph: 'e', pid: 1, cat: 'cc', id2: { local: id }, ts, args: {} });
-  const t = summariseTrace([
-    b('0x1', 'STATE_PRESENTED_ALL', 1000), e('0x1', 18000), b('0x2', 'STATE_DROPPED', 20000), e('0x2', 60000),
-    { name: 'BeginFrame', ph: 'I', ts: 1 }, { name: 'DrawFrame', ph: 'I', ts: 2 }, { name: 'DroppedFrame', ph: 'I', ts: 3 }, { name: 'DroppedFrame', ph: 'I', ts: 4 },
-  ]);
-  assert.equal(t.presented, 1);
-  assert.equal(t.dropped, 1);
-  assert.equal(t.DroppedFrame, 2);
-  assert.equal(t.pipelines, 2);
-  assert.equal(t.presentedMax, 170);
+// A trace has every process: the browser draws its own UI frames (pid 1, layer tree 1), the page is the renderer (pid 2, layer tree 2),
+// a second renderer (pid 3) began fewer frames. Only pid 2 may be counted.
+const rb = (pid, id, state, ts, seq, tree) => ({ name: 'PipelineReporter', ph: 'b', pid, cat: 'cc', id2: { local: id }, ts, args: { frame_reporter: { state, frame_sequence: seq, layer_tree_host_id: tree } } });
+const re = (pid, id, ts) => ({ name: 'PipelineReporter', ph: 'e', pid, cat: 'cc', id2: { local: id }, ts, args: {} });
+const ev = (pid, name, tree) => ({ name, ph: 'I', pid, ts: 1, args: { layerTreeId: tree } });
+const twoProcess = () => [
+  { name: 'process_name', ph: 'M', pid: 1, args: { name: 'Browser' } }, { name: 'process_name', ph: 'M', pid: 2, args: { name: 'Renderer' } },
+  // browser UI: 4 reporters, 3 of them dropped, on its own layer tree
+  rb(1, '0x1', 'STATE_DROPPED', 100, 7, 1), re(1, '0x1', 5000), rb(1, '0x2', 'STATE_DROPPED', 6000, 8, 1), re(1, '0x2', 9000),
+  rb(1, '0x3', 'STATE_DROPPED', 9100, 9, 1), re(1, '0x3', 9900), rb(1, '0x4', 'STATE_PRESENTED_ALL', 10000, 10, 1), re(1, '0x4', 12000),
+  ev(1, 'BeginFrame', 1), ev(1, 'DrawFrame', 1), ev(1, 'DroppedFrame', 1),
+  // the page: frame 11 presented by two reporters, frame 12 dropped (compositor) with a presented partial update, frame 13 dropped by both, frame 14 no update
+  rb(2, '0x5', 'STATE_PRESENTED_ALL', 1000, 11, 2), re(2, '0x5', 18000), rb(2, '0x6', 'STATE_PRESENTED_PARTIAL', 1000, 11, 2), re(2, '0x6', 19000),
+  rb(2, '0x5', 'STATE_PRESENTED_ALL', 20000, 12, 2), re(2, '0x5', 38000), rb(2, '0x7', 'STATE_DROPPED', 20000, 12, 2), re(2, '0x7', 60000),
+  rb(2, '0x5', 'STATE_DROPPED', 40000, 13, 2), re(2, '0x5', 70000), rb(2, '0x8', 'STATE_DROPPED', 40000, 13, 2), re(2, '0x8', 71000),
+  rb(2, '0x5', 'STATE_NO_UPDATE_DESIRED', 80000, 14, 2), re(2, '0x5', 90000),
+  ev(2, 'BeginFrame', 2), ev(2, 'BeginFrame', 2), ev(2, 'DrawFrame', 2), ev(2, 'DroppedFrame', 2), ev(2, 'DroppedFrame', 2),
+  ev(2, 'BeginMainThreadFrame', 2), ev(2, 'BeginMainThreadFrame', 2), ev(2, 'BeginMainThreadFrame', 2),
+  // another renderer: one main-thread frame and one dropped reporter that must not count
+  ev(3, 'BeginMainThreadFrame', 9), rb(3, '0x9', 'STATE_DROPPED', 1000, 99, 9), re(3, '0x9', 2000),
+];
+
+test('trace: the page sink is the renderer that began the most frames, not the browser or another renderer', () => {
+  assert.deepEqual(pageSink(twoProcess()), { pid: 2, layerTree: 2 });
+  assert.equal(pageSink([{ name: 'x', ph: 'X', pid: 1 }]), null);
 });
 
-test('trace: the slow list keeps events of 15 ms or more, longest name first', () => {
+test('trace: counts come from the page sink only (two-process fixture)', () => {
+  const t = summariseTrace(twoProcess());
+  assert.equal(t.sink.pid, 2);
+  assert.equal(t.reporters, 7);
+  assert.equal(t.frames, 4);
+  assert.equal(t.presented, 1);
+  assert.equal(t.dropped, 2);
+  assert.equal(t.droppedAll, 1);
+  assert.equal(t.noUpdate, 1);
+  assert.deepEqual([t.BeginFrame, t.DrawFrame, t.DroppedFrame, t.BeginMainThreadFrame], [2, 1, 2, 3]);
+  assert.equal(t.states.STATE_DROPPED, 3);
+  assert.equal(t.presentedMax, 180);
+  // the same events counted over every process would give the browser's 3 dropped reporters too
+  const all = twoProcess().filter((e) => e.name === 'PipelineReporter' && e.ph === 'b' && e.args.frame_reporter.state === 'STATE_DROPPED').length;
+  assert.equal(all, 7);
+});
+
+test('trace: a trace without a renderer main thread has no sink and counts nothing', () => {
+  const t = summariseTrace([rb(1, '0x1', 'STATE_DROPPED', 0, 1, 1), re(1, '0x1', 100)]);
+  assert.equal(t.sink, null);
+  assert.equal(t.frames, 0);
+  assert.equal(t.dropped, 0);
+});
+
+test('trace: the slow table has a fixed set of rows, none capped, absent events are 0, other processes are left out', () => {
   const s = slowOf([
-    { name: 'Layout', ph: 'X', dur: 40000 }, { name: 'Layout', ph: 'X', dur: 20000 }, { name: 'Paint', ph: 'X', dur: 14999 },
-    { name: 'Decode', ph: 'X', dur: 60000 }, { name: 'Decode', ph: 'B', dur: 90000 },
-  ]);
-  assert.deepEqual(s, [{ name: 'Decode', n: 1, max: 600, sum: 600 }, { name: 'Layout', n: 2, max: 400, sum: 600 }]);
+    { name: 'Layout', ph: 'X', pid: 2, dur: 40000 }, { name: 'Layout', ph: 'X', pid: 2, dur: 20000 }, { name: 'Layout', ph: 'X', pid: 2, dur: 1000 },
+    { name: 'Paint', ph: 'X', pid: 2, dur: 14999 }, { name: 'ProxyMain::BeginMainFrame', ph: 'X', pid: 2, dur: 177000 }, { name: 'ProxyMain::BeginMainFrame', ph: 'X', pid: 2, dur: 3000 },
+    { name: 'SoftwareImageDecodeTaskImpl::RunOnWorkerThread', ph: 'X', pid: 2, dur: 60000 }, { name: 'GpuImageDecodeTaskImpl::RunOnWorkerThread', ph: 'X', pid: 2, dur: 16000 },
+    { name: 'Layout', ph: 'X', pid: 1, dur: 99000 }, { name: 'Decode', ph: 'B', pid: 2, dur: 90000 }, { name: 'Other', ph: 'X', pid: 2, dur: 90000 },
+  ], { pid: 2, layerTree: 2 });
+  assert.deepEqual(s.map((r) => r.name), ['BeginMainFrame', 'Paint', 'UpdateLayoutTree', 'Layout', 'image decode task']);
+  assert.deepEqual(s.map((r) => [r.n, r.nLong, r.max]), [[2, 1, 1770], [1, 0, 150], [0, 0, 0], [3, 2, 400], [2, 2, 600]]);
+  assert.deepEqual(s.find((r) => r.name === 'Layout').long, [400, 200]);
+  assert.equal(slowOf([]).length, 5);
+});
+
+test('golden: hitches, hitch verdict, across and agreeNeeded equal the Lean values', () => {
+  const c = ops('constants')[0];
+  assert.deepEqual([S.HITCH_TENTHS, S.MIN_SAMPLES], [c.hitchTenths, c.minSamples]);
+  for (const g of ops('hitches')) assert.equal(S.hitches(g.ivs), g.out, JSON.stringify(g.ivs));
+  for (const g of ops('hitchVerdict')) assert.equal(S.hitchVerdict(g.a, g.b, g.aa1, g.aa2), g.out, JSON.stringify(g));
+  for (const g of ops('across')) assert.equal(S.across(g.k, g.vs), g.out, JSON.stringify(g));
+  for (const g of ops('agreeNeeded')) assert.equal(S.agreeNeeded(g.n), g.out, String(g.n));
+  assert.deepEqual([...new Set(ops('hitchVerdict').map((g) => g.out))].sort(), ['first', 'insufficient', 'same', 'second']);
+  assert.deepEqual([...new Set(ops('across').map((g) => g.out))].sort(), ['first', 'insufficient', 'same', 'second']);
 });
 
 test('cadence table: hitches are the gaps of 60 ms or more with their scroll position', () => {
   const h = hitchesOf([{ arm: 'base', rep: 2, ivs: [167, 833, 599, 600], ys: [10, 20, 30, 40], loaf: [{ d: 76, block: 0, scripts: [] }] }]);
-  assert.deepEqual(h.base.map((x) => [x.rep, x.i, x.ms, x.y]), [[2, 1, 83.3, 20], [2, 3, 60, 40]]);
+  assert.deepEqual(h.base.map((x) => [x.rep, x.i, x.ms, x.y]), [[2, 1, 83.3, 20]]);
   assert.deepEqual(h.orig, []);
 });
 
