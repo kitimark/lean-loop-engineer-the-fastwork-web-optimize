@@ -6,7 +6,8 @@ import { newNonce, parseRunRows, pickRun, titleOf, validNonce, type Pick, type R
 // The pick of a dispatch's run is Lean's (lean/Fw/Ci/Dispatch.lean); every golden case is replayed against the TS stand-in.
 const root = join(process.cwd(), "..", "..");
 const cases = readFileSync(join(root, "packages", "contracts", "golden", "ci", "dispatch.jsonl"), "utf8").trim().split("\n")
-  .map((l) => JSON.parse(l) as { name: string; nonce: string; rows: RunRow[]; title: string; valid: boolean; result: Pick });
+  .map((l) => JSON.parse(l) as { kind: string; name: string; nonce: string; rows: RunRow[]; title: string; valid: boolean; result: Pick })
+  .filter((c) => c.kind === "pick"); // the `select` lines are replayed by packages/gh-budget/test/want.test.ts
 
 describe("pickRun equals Lean Fw.Ci.Dispatch.pick", () => {
   it("has cases of every outcome", () => {
