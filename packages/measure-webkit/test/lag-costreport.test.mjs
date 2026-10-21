@@ -31,6 +31,13 @@ test('per-pass metrics of a zone are fractions of the Lean counts', () => {
   assert.equal(m['scroll-calm'], undefined);
 });
 
+test('the histogram shares of a zone add up to 100 percent and appear in the table', () => {
+  const m = passMetrics(session(true).passes[0])['scroll-A'];
+  const total = [0, 1, 2, 3, 4, 5, 6].reduce((s, i) => s + (m[`h${i}`] ? m[`h${i}`][0] / m[`h${i}`][1] : 0), 0);
+  assert.equal(total, 100);
+  assert.match(costMd([['original', collectArm([session(true)])]]), /rAF interval histogram[\s\S]*\| > 100 ms \|/);
+});
+
 test('a difference is stated only when the per-pass ranges are separated', () => {
   const a = collectArm([session(false), session(false)]), b = collectArm([session(true), session(true)]);
   assert.equal(a.withCost, 2);

@@ -1,6 +1,6 @@
 // The per-zone table of the cost counters, one row per zone and arm (reductions: cost.mjs, Lean Fw.Measure.WkCost; the
 // arm verdict is reduce.mjs `verdict`, Fw.Measure.WebKitLag.verdict: a difference is stated only when the per-pass ranges are separated).
-import { cadence, sumsOf, layerSums, early, late } from './cost.mjs';
+import { cadence, sumsOf, layerSums, early, late, HIST_EDGES } from './cost.mjs';
 import { frac, verdict, fracLt } from './reduce.mjs';
 
 export const SCROLL_ZONES = Object.freeze(['scroll-A', 'scroll-B', 'scroll-calm']);
@@ -28,6 +28,8 @@ export function passMetrics(pass) {
     put(z, 'paintPF', s.paintUs, s.frames);
     put(z, 'compPF', s.compUs, s.frames);
     put(z, 'bound100', s.bound * 100, s.frames);
+    const iv = c.hist.reduce((a, b) => a + b, 0);
+    c.hist.forEach((n, i) => put(z, `h${i}`, n * 100, iv));
   };
   const layersOf = (z, snaps) => {
     const l = layerSums(z, snaps);
@@ -66,10 +68,15 @@ const span = (lo, hi) => (lo === hi ? lo : `${lo}-${hi}`);
 const cell = (qs, d = 1) => { const r = rangeOf(qs ?? []); return r ? span(fmt(num(r[0]), d), fmt(num(r[1]), d)) : '-'; };
 const vs = (base, other) => (base && other && base.length && other.length ? verdict(base, other) : '-');
 
+/** The histogram bin labels, from the Lean edges in microseconds: `<= 12`, `12-20`, ..., `> 100` (milliseconds). */
+const BIN_LABELS = HIST_EDGES.map((e, i) => (i === 0 ? `<= ${e / 1000} ms` : `${HIST_EDGES[i - 1] / 1000}-${e / 1000} ms`)).concat(`> ${HIST_EDGES[HIST_EDGES.length - 1] / 1000} ms`);
+
 const TABLES = Object.freeze([
   ['Frame cadence (rAF intervals; slot = round((t - t0) / 16.67 ms), skipped when it jumps more than one)', [
     ['frames', 'frames', 0], ['skipped100', 'skipped slots events / 100 frames', 1], ['slots100', 'slots lost / 100 frames', 1],
     ['over25_100', '> 25 ms / 100 frames', 1], ['over50_100', '> 50 ms / 100 frames', 1]], 'skipped100'],
+  ['rAF interval histogram (% of intervals per bin; bin edges from Lean `histEdges`)',
+    BIN_LABELS.map((l, i) => [`h${i}`, l, 0]), 'h6'],
   ['Paint against Composite per frame (Timeline durations, microseconds; the Inspector files raster under Composite)', [
     ['paintPF', 'Paint us / frame', 0], ['compPF', 'Composite us / frame', 0], ['bound100', 'Composite > Paint, % of frames', 0]], 'compPF'],
   ['Layers between layer-tree reads (new layer = id not in the previous read; resized = composited width or height changed)', [

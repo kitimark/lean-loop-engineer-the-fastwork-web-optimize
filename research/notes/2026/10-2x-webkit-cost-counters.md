@@ -12,7 +12,7 @@ MEASURED (CI run cited), INFERRED. Source cites are `file:line@862f17d` (WebKit,
 | Golden (54 lines) | `packages/contracts/golden/measure/wkcost.jsonl`, written by `lean/scripts/WkCostGolden.lean`, `--check` in `check.sh` | CONFIRMED |
 | TS twin of the reductions | `packages/measure-webkit/src/lag/cost.mjs`, replayed against the golden in `test/lag-cost.test.mjs` (9 tests) | CONFIRMED |
 | Probe passes (I/O only) | `src/lag/costprobe.mjs`: `scrollCost`, `morphCost`, `scrollLayers`, `morphLayers`, run by `lagSession` (`--cost on|off|only`) | MEASURED |
-| Per-zone table | `src/lag/costreport.mjs`, `cli.mjs cost-report --original a,b --rewrite c,d [--preset e]`, 3 tests | CONFIRMED on synthetic data, MEASURED on CI data |
+| Per-zone table | `src/lag/costreport.mjs`, `cli.mjs cost-report --original a,b --rewrite c,d [--preset e]`, 4 tests | CONFIRMED on synthetic data, MEASURED on CI data |
 | CI trigger | `.github/workflows/webkit-sim.yml`: commit tokens `[lag]` (both arms), `[lag:rewrite]`, `[lag:v2-proved]`, 3 VMs each | MEASURED |
 
 Lean theorems (all in `Fw.Measure.WkCost`): `nOver_anti`, `over_chain` (over 50 ms <= over 34 ms <= over 25 ms),
@@ -45,7 +45,7 @@ less stable is OPEN. The Lean step bound for `determinism` (35 min) is close for
 
 | Counter | Result on CI | Separates original from rewrite? |
 |---|---|---|
-| rAF interval, skipped display slots, over 25 and 50 ms | Works in every zone and arm. The VM is slow: in the stepped scroll 44 to 100 of 100 frames skip a slot, so the counter nearly saturates. | Hero exit only: skipped slots 72-88 per 100 frames (rewrite) against 97 (original); the preset arm (same code as rewrite) gives 72-81, so the result replicates. The other zones overlap. |
+| rAF interval histogram (7 bins), skipped display slots, over 25 and 50 ms | Works in every zone and arm. The VM is slow: in the stepped scroll 44 to 100 of 100 frames skip a slot, so the counter nearly saturates. | Hero exit only: skipped slots 72-88 per 100 frames (rewrite) against 97 (original), and intervals over 100 ms 16-39 percent against 48-94 percent; the preset arm (same code as rewrite) gives 72-81 and 16-42, so the result replicates. The other zones overlap. |
 | Paint against Composite per frame (Timeline) | Works. Composite is 16 to 655 ms per frame and Paint 0.7 to 30 ms; Composite exceeds Paint in 83 to 100 percent of frames in every zone. The Inspector files GPU raster and buffer waits under Composite (`RenderLayerBacking.cpp:4164,4198`, `RemoteLayerTreeDrawingArea.mm:357,445-448`@862f17d, CONFIRMED), so the Simulator frame is raster-bound (INFERRED, software raster). | No, all zones overlap. It attributes cost; it does not rank the arms here. |
 | New layers per layer-tree read | Works. Hero exit: original 4.3 to 4.8 new layer ids per read, rewrite 1.0 to 1.5, preset 1.0 to 1.3. | Yes, hero exit (lower, replicated by the preset arm). Other zones overlap. What creates the layers is not identified here. |
 | Layer bounds changes (resized) | Works. Hero exit 72 to 119 per 100 reads in all arms. | No. |
@@ -90,6 +90,32 @@ Arms: original (6/6 passes with the cost counters), rewrite (7/8 passes with the
 | morph rest | original | 18-60 | 75.0-100 | 152-800 | 71.7-100 | 8.3-100 |  |
 | morph rest | rewrite | 6-44 | 88.6-100 | 252-3467 | 97.7-100 | 18.2-100 | overlap |
 | morph rest | preset | 14-66 | 60.6-100 | 124-1229 | 56.1-100 | 7.6-100 | overlap |
+
+#### rAF interval histogram (% of intervals per bin; bin edges from Lean `histEdges`)
+
+| zone | arm | <= 12 ms | 12-20 ms | 20-25 ms | 25-34 ms | 34-50 ms | 50-100 ms | > 100 ms | h6 vs original |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---|
+| hero exit (scroll A) | original | 0 | 0 | 0 | 0-6 | 0-19 | 6-32 | 48-94 |  |
+| hero exit (scroll A) | rewrite | 0-3 | 0-16 | 0-16 | 6-35 | 16-23 | 13-35 | 16-39 | lower |
+| hero exit (scroll A) | preset | 0-3 | 0-13 | 6-23 | 6-35 | 6-26 | 10-29 | 16-42 | lower |
+| end of page (scroll B) | original | 0-6 | 0-26 | 0-24 | 0-26 | 3-32 | 15-41 | 0-56 |  |
+| end of page (scroll B) | rewrite | 0-3 | 0-15 | 0-9 | 0-26 | 3-29 | 24-56 | 3-71 | overlap |
+| end of page (scroll B) | preset | 0-6 | 0-22 | 3-9 | 0-16 | 3-35 | 19-56 | 3-50 | overlap |
+| calm scroll (baseline) | original | 1-10 | 5-22 | 3-8 | 1-8 | 3-16 | 22-36 | 13-51 |  |
+| calm scroll (baseline) | rewrite | 1-5 | 9-36 | 8-24 | 11-28 | 8-17 | 9-26 | 2-23 | overlap |
+| calm scroll (baseline) | preset | 1-8 | 13-42 | 9-19 | 8-30 | 9-27 | 5-25 | 3-11 | lower |
+| morph idle (baseline) | original | 0 | 0 | 0-63 | 0-38 | 0-88 | 0-75 | 0-33 |  |
+| morph idle (baseline) | rewrite | 0 | 0 | 0-75 | 0-63 | 0-63 | 0-88 | 0 | overlap |
+| morph idle (baseline) | preset | 0 | 0 | 0-89 | 11-78 | 0-78 | 0 | 0 | overlap |
+| morph open (push down) | original | 0 | 0 | 0-50 | 0-33 | 0-50 | 0-67 | 0-50 |  |
+| morph open (push down) | rewrite | 0 | 0 | 0-20 | 0 | 0-67 | 0-67 | 0-60 | overlap |
+| morph open (push down) | preset | 0 | 0 | 0-50 | 0-50 | 0-50 | 0-50 | 0-100 | overlap |
+| morph close (push up) | original | 0 | 0 | 0 | 0-25 | 0-25 | 0-67 | 33-60 |  |
+| morph close (push up) | rewrite | 0 | 0 | 0 | 0-50 | 0-50 | 0-50 | 50-100 | overlap |
+| morph close (push up) | preset | 0 | 0-20 | 0-20 | 0-50 | 0-50 | 0-43 | 29-80 | overlap |
+| morph rest | original | 0 | 0 | 0-28 | 0-50 | 0-39 | 2-56 | 7-47 |  |
+| morph rest | rewrite | 0 | 0 | 0-2 | 0-43 | 0-55 | 6-32 | 9-83 | overlap |
+| morph rest | preset | 0 | 0-6 | 0-38 | 0-46 | 0-54 | 2-36 | 3-64 | overlap |
 
 #### Paint against Composite per frame (Timeline durations, microseconds; the Inspector files raster under Composite)
 
