@@ -185,6 +185,7 @@ function mediaOk(prelude: string, env: Env): boolean {
           return w[1] === '<=' ? env.width <= n : w[1] === '>=' ? env.width >= n : w[1] === '<' ? env.width < n : env.width > n;
         }
         if (f.trim() === '(prefers-reduced-motion: reduce)') return env.reduced;
+        if (f.trim() === '(prefers-reduced-motion: no-preference)') return !env.reduced;
         if (f.trim() === '(hover: none)') return env.hoverNone;
         if (f.trim() === '(pointer: coarse)') return env.coarse;
         throw new Error(`media feature ${f}`);

@@ -10,13 +10,14 @@ export type Params = {
   nMin: number; nMax: number; targetCenti: number; highCenti: number; floorMB: number; headroomMB: number; cmprsPct: number;
   swapRiseMBPerMin: number; holdS: number; leanProcMB: number; testMB: number; landMB: number; simMB: number; otherMB: number;
   warmS: number; ageS: number; maxWaitS: number; leaseS: number; leaseMaxS: number; simIdleS: number; graceMs: number;
+  simPollS: number; buildMB: number; agentsMax: number; agentsAgeS: number;
 };
 
 /** Equal to `Fw.Sup.Adapt.Params` defaults (golden case "default parameters"). */
 export const DEFAULT_PARAMS: Params = {
   nMin: 1, nMax: 4, targetCenti: 800, highCenti: 1600, floorMB: 1024, headroomMB: 2048, cmprsPct: 40, swapRiseMBPerMin: 512,
   holdS: 30, leanProcMB: 700, testMB: 1600, landMB: 1500, simMB: 2800, otherMB: 1000, warmS: 60, ageS: 300, maxWaitS: 1800,
-  leaseS: 60, leaseMaxS: 3600, simIdleS: 600, graceMs: 5000,
+  leaseS: 60, leaseMaxS: 3600, simIdleS: 600, graceMs: 5000, simPollS: 30, buildMB: 2100, agentsMax: 8, agentsAgeS: 900,
 };
 
 export type Sample = { time: number; loadCenti: number; freeMB: number; ramMB: number; compressorMB: number; swapUsedMB: number; cores: number };
@@ -86,7 +87,9 @@ export type Why =
   | { why: "older" }
   | { why: "full"; running: number; limit: number }
   | { why: "simBusy" }
-  | { why: "memory"; needMB: number; roomMB: number };
+  | { why: "drain"; others: number }
+  | { why: "memory"; needMB: number; roomMB: number }
+  | { why: "simFirst" };
 export type Verdict = { verdict: "admit"; threads: number; footMB: number } | ({ verdict: "wait" | "timeout" } & Why);
 
 const waitOr = (p: Params, waited: number, w: Why): Verdict => ({ verdict: p.maxWaitS <= waited ? "timeout" : "wait", ...w });
@@ -98,29 +101,68 @@ export function before(q: Entry[], me: Entry): Entry[] {
 
 export const aheadSame = (q: Entry[], me: Entry): number => before(q, me).filter((e) => e.kind === me.kind).length;
 export const simHeld = (now: number, hs: Entry[]): boolean => prune(now, hs).some((h) => h.kind === "sim");
+export const heldOf = (now: number, hs: Entry[], k: Kind): boolean => prune(now, hs).some((h) => h.kind === k);
+export const others = (now: number, hs: Entry[]): number => prune(now, hs).filter((h) => h.kind !== "sim").length;
+export const simPending = (now: number, hs: Entry[], q: Entry[]): boolean => q.some((e) => e.kind === "sim") && !simHeld(now, hs);
 export const starved = (p: Params, now: number, hs: Entry[], q: Entry[], me: Entry): boolean =>
   before(q, me).some((e) => e.kind !== me.kind && e.since + p.ageS <= now && !(e.kind === "sim" && simHeld(now, hs)));
+
+export function yieldsToSim(p: Params, n: number, s: Sample, hs: Entry[], q: Entry[], me: Entry): boolean {
+  if (me.kind === "sim") return false;
+  const o = others(s.time, hs);
+  if (simHeld(s.time, hs) && 0 < o) return true;
+  return (
+    simPending(s.time, hs, q) &&
+    (0 < o || n < prune(s.time, hs).length + 2 || s.freeMB < need(p, s, hs, me.kind) + p.floorMB + charged(p, s.time, hs) + p.simMB)
+  );
+}
 
 export function verdict(p: Params, n: number, s: Sample, hs: Entry[], q: Entry[], me: Entry, waited: number): Verdict {
   const running = prune(s.time, hs).length;
   const ahead = aheadSame(q, me);
   if (ahead > 0) return waitOr(p, waited, { why: "queued", ahead });
-  if (starved(p, s.time, hs, q, me)) return waitOr(p, waited, { why: "older" });
+  if (me.kind !== "sim" && starved(p, s.time, hs, q, me)) return waitOr(p, waited, { why: "older" });
   if (n <= running) return waitOr(p, waited, { why: "full", running, limit: n });
   if (me.kind === "sim" && simHeld(s.time, hs)) return waitOr(p, waited, { why: "simBusy" });
+  if (me.kind === "sim" && 1 < others(s.time, hs)) return waitOr(p, waited, { why: "drain", others: others(s.time, hs) });
   const needMB = need(p, s, hs, me.kind);
   if (s.freeMB < needMB + p.floorMB + charged(p, s.time, hs)) return waitOr(p, waited, { why: "memory", needMB, roomMB: room(p, s, hs) });
+  if (yieldsToSim(p, n, s, hs, q, me)) return waitOr(p, waited, { why: "simFirst" });
   return { verdict: "admit", threads: threadsFor(p, s, hs), footMB: needMB };
 }
+
+export const legacyEntry = (now: number): Entry => ({ owner: "sim-lock", token: "sim-lock", kind: "sim", since: 0, till: now + 1, foot: 0 });
+export const withLegacy = (now: number, legacy: boolean, hs: Entry[]): Entry[] => (legacy ? [...hs, legacyEntry(now)] : hs);
 
 export const simBoot = (now: number, owner: string, token: string, hs: Entry[]): boolean =>
   hs.some((h) => h.kind === "sim" && same(owner, token, h) && live(now, h));
 
 export type SimAct = "none" | "keep" | "shutdown";
-export function simAction(p: Params, now: number, hs: Entry[], booted: boolean, legacyHeld: boolean, idleSince: number): SimAct {
+export const simIdleNext = (now: number, held: boolean, booted: boolean, prev: number | null): number | null =>
+  booted && !held ? (prev ?? now) : null;
+export function simAction(p: Params, now: number, hs: Entry[], booted: boolean, legacyHeld: boolean, idleSince: number | null): SimAct {
   if (!booted) return "none";
   if (legacyHeld || simHeld(now, hs)) return "keep";
+  if (idleSince === null) return "keep";
   return idleSince + p.simIdleS <= now ? "shutdown" : "keep";
+}
+export const simDue = (p: Params, now: number, last: number): boolean => last + p.simPollS <= now;
+
+export type BuildWhy =
+  | { why: "simWaits" }
+  | { why: "agentsUnknown" }
+  | { why: "agents"; live: number; max: number }
+  | { why: "memory"; freeMB: number; needMB: number };
+export type BuildVerdict = { verdict: "admit" } | ({ verdict: "wait" } & BuildWhy);
+export const simQueued = (now: number, q: Entry[]): boolean => prune(now, q).some((e) => e.kind === "sim");
+export const agentsSeen = (p: Params, now: number, reading: { time: number; live: number } | null): number | null =>
+  reading !== null && now <= reading.time + p.agentsAgeS ? reading.live : null;
+export function admitBuild(p: Params, simWaits: boolean, freeMB: number, agents: number | null): BuildVerdict {
+  if (simWaits) return { verdict: "wait", why: "simWaits" };
+  if (agents === null) return { verdict: "wait", why: "agentsUnknown" };
+  if (p.agentsMax <= agents) return { verdict: "wait", why: "agents", live: agents, max: p.agentsMax };
+  if (freeMB < p.floorMB + p.buildMB) return { verdict: "wait", why: "memory", freeMB, needMB: p.floorMB + p.buildMB };
+  return { verdict: "admit" };
 }
 
 export type StopAct = "term" | "wait" | "kill" | "done";
