@@ -6,7 +6,8 @@ datasets of task jev-datasets (`.cache/jev`, gitignored). Numbers come from `res
 the prompt below.
 
 **Answer.** Jev is not yet useful as an advisor on either question. On D1 (incident class, 14 options) it is right
-on 61 of 116 incidents (52.6 %). On D2 (finding severity, 3 grades) it is right on 40 of the 83 sampled findings
+on 65 of 116 incidents (56.0 %; 61 of 116, 52.6 %, if the 9 replies rejected only for rounding count as
+wrong). On D2 (finding severity, 3 grades) it is right on 40 of the 83 sampled findings
 answered so far (48.2 %); one grade in three would be right by chance. Lean certifies no option on either set: no
 option reaches precision 9/10 with 5 right on the choose part. The whole run cost under one cent: Jev bills only
 input tokens. A Jev call took 0.3 s median.
@@ -23,8 +24,8 @@ input tokens. A Jev call took 0.3 s median.
 - Sample size from the certification math: at q = 9/10, k = 5, an option is certifiable only with at least 25
   held-out rows of its label (`certify_needs_holdout`, `minHoldout_least`; `minHoldout` = 25 by `#guard`). D2 takes
   25 held-out and 5 choose-part rows per grade, in a hash order other than the split's (`sampleHeld_mem`,
-  `d2_pick_le`: at most 90 rows). Follow-up has only 23 held-out rows that do not leak, so it can never certify on
-  this sample.
+  `d2_pick_le`: at most 90 rows). Follow-up has 25 held-out rows in the sample, but only 23 are answered so far: 2
+  of the 7 rows still to send are held out, so follow-up cannot certify before they are sent.
 - D2 leak filter: 281 of 1534 labeled findings start with their own grade ("Blocker: ...") in `what` or `where`
   (`leaks`); they are never sampled.
 - State: D1 sends title, symptom, cause; D2 sends finding, where, task, unit, limits (`rowState_declared`). Texts are
@@ -39,30 +40,33 @@ input tokens. A Jev call took 0.3 s median.
 
 | part | rows | valid answers | right | accuracy |
 |---|---|---|---|---|
-| all | 116 | 106 | 61 | 52.6 % (57.5 % of valid answers) |
-| holdout | 33 | 31 | 17 | 51.5 % |
+| all | 116 | 106 | 65 | 56.0 % |
+| holdout | 33 | 31 | 18 | 54.5 % |
 
 | class | labeled | chosen | right | precision | recall |
 |---|---|---|---|---|---|
 | c-orphan-wait | 6 | 6 | 5 | 0.83 | 0.83 |
-| c-order-derived | 16 | 7 | 4 | 0.57 | 0.25 |
-| c-shared-no-lock | 10 | 9 | 8 | 0.89 | 0.80 |
+| c-order-derived | 16 | 8 | 4 | 0.50 | 0.25 |
+| c-shared-no-lock | 10 | 10 | 9 | 0.90 | 0.90 |
 | c-quota | 7 | 6 | 4 | 0.67 | 0.57 |
 | c-proxy-verdict | 7 | 6 | 2 | 0.33 | 0.29 |
-| c-identity-heuristic | 8 | 7 | 3 | 0.43 | 0.38 |
+| c-identity-heuristic | 8 | 8 | 4 | 0.50 | 0.50 |
 | c-late-check | 14 | 6 | 6 | 1.00 | 0.43 |
 | c-unearned-claim | 9 | 5 | 3 | 0.60 | 0.33 |
-| c-sample-validity | 5 | 8 | 4 | 0.50 | 0.80 |
-| c-env-assume | 16 | 16 | 10 | 0.63 | 0.63 |
-| c-spec-gap | 14 | 18 | 8 | 0.44 | 0.57 |
-| c-handcopy | 2 | 5 | 2 | 0.40 | 1.00 |
+| c-sample-validity | 5 | 11 | 4 | 0.36 | 0.80 |
+| c-env-assume | 16 | 18 | 12 | 0.67 | 0.75 |
+| c-spec-gap | 14 | 19 | 8 | 0.42 | 0.57 |
+| c-handcopy | 2 | 6 | 2 | 0.33 | 1.00 |
 | c-policy-prose | 2 | 3 | 2 | 0.67 | 1.00 |
 | none | 0 | 4 | 0 | 0 | - |
 
 - The confusion matrix is in `results/jev/d1.json` (`arms.jev.confusion`). The largest mix-ups: c-late-check
   answered as c-spec-gap (3), c-order-derived as c-env-assume (3).
-- 10 replies failed validation and count as wrong. 9 have 14 probabilities that sum to 0.99: Jev rounds each to two
-  decimals, and `Core.eps` = 1/1000 rejects that. 1 picks an option that is not the most probable. Finding: with
+- 10 replies fail validation and are scored by their choice, the rule for every arm (`pickOf`). 9 have 14
+  probabilities that sum to 0.99: Jev rounds each to two decimals, and `Core.eps` = 1/1000 rejects that. 1 picks an
+  option that is not the most probable (wrong either way). 4 of the 9 rejected replies pick the labeled class (1 held
+  out); counted as wrong, D1 is 61 of 116 (52.6 %), holdout 17 of 33. That lower count is set by eps, not by Jev's
+  choices. A rejected reply still cannot be certified (`certify` reads valid answers only). Finding: with
   n options rounded to 0.01 the sum can be off by up to n·0.005, so `eps` should depend on n, or Jev's sums should
   be renormalized before validation (follow-up; `Fw.Oracle.Core` is outside this task).
 - Certification: none. A class has at most 5 held-out rows, under the 25 any certificate needs, so D1 measures
@@ -87,6 +91,7 @@ input tokens. A Jev call took 0.3 s median.
 | fix-before-land | 0.38 | 0.37 | 0.35 (9 of 26) |
 | follow-up | 0.55 | 0.26 | 0.55 (6 of 11) |
 
+- Rescored with the one rule for every arm (`pickOf`): unchanged, since all 83 D2 replies pass validation.
 - Jev leans towards the more severe grade: 43 of 83 answers are blocker, against 30 blocker labels.
 - The labels are noisy (an accepted limit): a D2 label is the grade the review round gave, not a ruling on the text.
 - Certification: none. The choose part has at most 5 answered rows per grade, so k = 5 would need every one advised
@@ -123,8 +128,9 @@ read 2026-10-22): Haiku 5.5 $0.10 in / $0.50 out, Sonnet 5.5 $2 / $10 per Mtok.
 3. Write one line per row: `{"id": ..., "choice": ..., "probabilities": {...}, "inputTokens": n, "outputTokens": n,
    "ms": n}`. A reply that is not valid JSON: keep `choice` only if it names an option, else omit the row.
 4. `pnpm fw oracle score --set d1 --arm haiku --answers <file>` (and `sonnet`, and `d2`) adds the arm to
-   `results/jev/<set>.json`. Lean validates each answer as it does Jev's; an answer without probabilities is scored
-   by its choice but cannot be certified.
+   `results/jev/<set>.json`. Lean validates each answer as it does Jev's; an answer that fails validation (no
+   probabilities, or a sum off by more than `Core.eps`) is scored by its choice, as a Jev reply is, but cannot be
+   certified.
 
 ## Limits
 

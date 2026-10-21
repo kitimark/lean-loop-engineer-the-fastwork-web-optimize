@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { fwcoreCall } from "@fw/gh-budget";
 import { ask, decisionLine, errorText, readLog, scrub, sha256, type Deps, type FwCall, type Json } from "@fw/oracle";
 import { fastCore } from "../../../packages/gh-budget/test/util.ts";
-import { oracleCli, thresholdsOf, type Io } from "../src/oracle.ts";
+import { ORACLE_USAGE, oracleCli, thresholdsOf, type Io } from "../src/oracle.ts";
 import { ARM_PREAMBLE } from "../src/oracle-score.ts";
 
 const hasCore = (() => { try { fwcoreCall(process.cwd()); return true; } catch { return false; } })();
@@ -313,13 +313,13 @@ describe.skipIf(!hasCore)("fw oracle send (jev-replay)", () => {
     const d = deps({ fetch: ff.fetch });
     const dir = d1Dir(70);
     const x = io({ deps: d });
-    expect(await oracleCli(["send", "--set", "d1", "--dir", dir], x.cwd, x)).toBe(2);
+    expect(await oracleCli(["send", "--set", "d1"], x.cwd, { ...x, datasets: dir })).toBe(2);
     expect(ff.sent).toHaveLength(60);
     expect(x.lines[0]).toMatch(/^oracle send d1 \(incident-class\): 60\/70 answered \(live 60, refused 1\); sent 60, /);
     expect(x.lines[0]).toContain("stopped: overBudget");
     expect(ff.sent.some((s) => /wf_\d+abc/.test(s.body))).toBe(false);
     const y = io({ deps: d });
-    expect(await oracleCli(["send", "--set", "d1", "--dir", dir], y.cwd, y)).toBe(0);
+    expect(await oracleCli(["send", "--set", "d1"], y.cwd, { ...y, datasets: dir })).toBe(0);
     expect(ff.sent).toHaveLength(70);
     expect(y.lines[0]).toMatch(/^oracle send d1 \(incident-class\): 70\/70 answered \(replay 60, live 10\); sent 10, /);
     expect(readLog(d.logPath)).toHaveLength(70);
@@ -327,14 +327,14 @@ describe.skipIf(!hasCore)("fw oracle send (jev-replay)", () => {
   it("--part and --limit cut the rows Lean picks", async () => {
     const ff = fakeFetch(() => new Response(quotaReply()));
     const x = io({ deps: deps({ fetch: ff.fetch }) });
-    expect(await oracleCli(["send", "--set", "d1", "--dir", d1Dir(20), "--part", "holdout", "--limit", "2"], x.cwd, x)).toBe(0);
+    expect(await oracleCli(["send", "--set", "d1", "--part", "holdout", "--limit", "2"], x.cwd, { ...x, datasets: d1Dir(20) })).toBe(0);
     expect(ff.sent).toHaveLength(2);
     expect(x.lines[0]).toContain(": 2/2 answered (live 2)");
   });
   it("no key: stops at the first row, sends nothing, exit 2", async () => {
     const ff = fakeFetch(() => new Response(quotaReply()));
     const x = io({ deps: deps({ fetch: ff.fetch, readKey: () => null }) });
-    expect(await oracleCli(["send", "--set", "d1", "--dir", d1Dir(3)], x.cwd, x)).toBe(2);
+    expect(await oracleCli(["send", "--set", "d1"], x.cwd, { ...x, datasets: d1Dir(3) })).toBe(2);
     expect(ff.sent).toHaveLength(0);
     expect(x.lines[0]).toContain("stopped: no key");
   });
@@ -343,7 +343,7 @@ describe.skipIf(!hasCore)("fw oracle send (jev-replay)", () => {
     const d = deps({ fetch: fakeFetch(() => new Response(reply)).fetch });
     const dir = d1Dir(8);
     const x = io({ deps: d, cwd: dir });
-    expect(await oracleCli(["send", "--set", "d1", "--dir", dir, "--limit", "6"], x.cwd, x)).toBe(0);
+    expect(await oracleCli(["send", "--set", "d1", "--limit", "6"], x.cwd, { ...x, datasets: dir })).toBe(0);
     expect(await oracleCli(["score", "--set", "d1", "--dir", dir, "--out", "r.json"], x.cwd, x)).toBe(2);
     expect(x.lines[1]).toMatch(/^oracle score d1 jev \(incident-class\): right [12]\/6, missing 2; wrote /);
     const ids = Array.from({ length: 8 }, (_, k) => `inc-${k}`);
@@ -379,9 +379,17 @@ describe.skipIf(!hasCore)("fw oracle send (jev-replay)", () => {
   });
   it("a missing dataset or a bad --limit sends nothing", async () => {
     const x = io({ deps: deps({ readKey: noKeychain }) });
-    expect(await oracleCli(["send", "--set", "d1", "--dir", mkdtempSync(join(tmpdir(), "jev-"))], x.cwd, x)).toBe(2);
+    expect(await oracleCli(["send", "--set", "d1"], x.cwd, { ...x, datasets: mkdtempSync(join(tmpdir(), "jev-")) })).toBe(2);
     expect(x.lines[0]).toMatch(/^oracle send: no dataset /);
     expect(await oracleCli(["send", "--set", "d1", "--limit", "-1"], x.cwd, x)).toBe(64);
     expect(await oracleCli(["send"], x.cwd, x)).toBe(64);
+  });
+  it("send takes a dataset id only: --dir exits 64 and sends nothing", async () => {
+    const ff = fakeFetch(() => new Response(quotaReply()));
+    const x = io({ deps: deps({ fetch: ff.fetch }) });
+    expect(await oracleCli(["send", "--set", "d1", "--dir", "x"], x.cwd, x)).toBe(64);
+    expect(await oracleCli(["send", "--set", "d1", "--dir", d1Dir(3)], x.cwd, x)).toBe(64);
+    expect(x.lines).toEqual([ORACLE_USAGE, ORACLE_USAGE]);
+    expect(ff.sent).toHaveLength(0);
   });
 });

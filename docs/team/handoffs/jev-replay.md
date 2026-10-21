@@ -1,8 +1,11 @@
 # Handoff: jev-replay (lean-prover)
 
 ## State
-- Branch `worktree-wf_30bab1a1-3ee-1` (main merged in); Jev arm run and scored on 2026-10-21 UTC (answer log
-  day).
+- Branch `worktree-wf_30bab1a1-3ee-1` (main merged in); Jev arm run on 2026-10-21 UTC (answer log day), rescored
+  in round 2 with the one-rule scorer.
+- Round 2 fixed: `fw oracle send` takes a set id only (`--dir` exits 64; tests pass `Io.datasets`); `pickOf` reads
+  the choice of a Jev reply as of any arm answer (`choiceIn`, `replyChoice`, `pickOf_*` theorems, equal-score
+  `#guard`); note sentences per review findings 3 and 4.
 - Lean: `Fw/Oracle/Questions.lean` (incident-class, finding-severity), `Send.lean` (`RunBudget`, `preRun`),
   `Replay.lean` (sets D1/D2, `scrubWf`, `minHoldout`, stratified sample, score math), `ReplayWire.lean` (ops
   `oracle.replay`, `oracle.preRun`, `oracle.score`), `Calibrate.lean` (`heldOut` = `Labels.heldOut`).
@@ -11,7 +14,8 @@
 
 ## Verified
 - `sh lean/scripts/check.sh` green; axioms standard; runner vitest + tsc, packages/oracle tests, ci-paths tests.
-- Live: D1 116/116, D2 83/90 (daily cap 200 reached). Accuracy D1 52.6 %, D2 48.2 %; nothing certified.
+- Live: D1 116/116, D2 83/90 (daily cap 200 reached). Accuracy D1 65/116 = 56.0 % (61 if the 9 eps-rejected
+  replies count as wrong), D2 40/83 = 48.2 %; nothing certified.
 
 ## Open
 - 7 D2 rows (follow-up) after the UTC day rolls over: `pnpm fw oracle send --set d2`, then

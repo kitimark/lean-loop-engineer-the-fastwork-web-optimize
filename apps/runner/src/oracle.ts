@@ -11,7 +11,7 @@ import { begin } from "./timing.ts";
 export const ORACLE_USAGE = "usage: fw oracle ask <question> --state <state.json> [--thresholds <table.json>] [--json] | " +
   "fw oracle calibrate <question> --replay <rows.jsonl> [--limit n] [--resume] [--out <table.json>] | " +
   "fw oracle eval <question> --replay <rows.jsonl> --thresholds <table.json> | " +
-  "fw oracle send --set <d1|d2> [--part calibrate|holdout] [--limit n] [--dir <datasets dir>] | " +
+  "fw oracle send --set <d1|d2> [--part calibrate|holdout] [--limit n] | " +
   "fw oracle score --set <d1|d2> [--arm jev|haiku|sonnet] [--answers <arm.jsonl>] [--dir] [--out <results.json>] | " +
   "fw oracle arm-input --set <d1|d2> --out <prompts.jsonl> [--dir]";
 
@@ -43,7 +43,7 @@ export function realDeps(cwd: string, core: FwCall = fwcoreCall(cwd)): Deps {
   };
 }
 
-export type Io = { deps: Deps; cwd: string; names: string[]; out: (s: string) => void };
+export type Io = { deps: Deps; cwd: string; names: string[]; out: (s: string) => void; datasets?: string };
 
 export type ReplayRow = { state: Record<string, string | string[]>; label: string | null; runId?: number; id?: string };
 
@@ -181,14 +181,16 @@ export function pickedRows(core: FwCall, set: string, dir: string, extra: Json =
   return { question: String(r.question), rows: r.rows as Picked[], reply: r };
 }
 
+const SEND_FLAGS = ["--set", "--part", "--limit"];
+
 async function sendSet(io: Io, args: string[]): Promise<number> {
   const set = flag(args, "--set");
   const part = flag(args, "--part");
   const lim = flag(args, "--limit");
   const limit = lim !== undefined ? Number(lim) : undefined;
-  if (!set || (limit !== undefined && !(Number.isInteger(limit) && limit >= 0))) { io.out(ORACLE_USAGE); return 64; }
-  const dir = flag(args, "--dir");
-  const picked = pickedRows(io.deps.core, set, dir !== undefined ? resolve(io.cwd, dir) : datasetsDir(io.cwd),
+  const known = args.every((a, k) => k % 2 === 1 || SEND_FLAGS.includes(a)) && args.length % 2 === 0;
+  if (!known || !set || (limit !== undefined && !(Number.isInteger(limit) && limit >= 0))) { io.out(ORACLE_USAGE); return 64; }
+  const picked = pickedRows(io.deps.core, set, io.datasets ?? datasetsDir(io.cwd),
     { ...(part !== undefined ? { part } : {}), ...(limit !== undefined ? { limit } : {}) });
   if (typeof picked === "string") { io.out(`oracle send: ${picked}`); return 2; }
   const counts: Record<string, number> = {};
@@ -216,7 +218,7 @@ function pickedOf(io: Io, args: string[]): ReturnType<typeof pickedRows> | undef
   const set = flag(args, "--set");
   if (!set) return undefined;
   const dir = flag(args, "--dir");
-  return pickedRows(io.deps.core, set, dir !== undefined ? resolve(io.cwd, dir) : datasetsDir(io.cwd));
+  return pickedRows(io.deps.core, set, dir !== undefined ? resolve(io.cwd, dir) : io.datasets ?? datasetsDir(io.cwd));
 }
 
 async function scoreCli(io: Io, args: string[]): Promise<number> {

@@ -12,9 +12,9 @@
       "all": {
         "accuracy": {
           "den": "116",
-          "num": "61"
+          "num": "65"
         },
-        "answered": 106,
+        "answered": 116,
         "options": [
           {
             "chosen": 6,
@@ -31,12 +31,12 @@
             "right": 5
           },
           {
-            "chosen": 7,
+            "chosen": 8,
             "labeled": 16,
             "option": "c-order-derived",
             "precision": {
-              "den": "7",
-              "num": "4"
+              "den": "2",
+              "num": "1"
             },
             "recall": {
               "den": "4",
@@ -45,18 +45,18 @@
             "right": 4
           },
           {
-            "chosen": 9,
+            "chosen": 10,
             "labeled": 10,
             "option": "c-shared-no-lock",
             "precision": {
-              "den": "9",
-              "num": "8"
+              "den": "10",
+              "num": "9"
             },
             "recall": {
-              "den": "5",
-              "num": "4"
+              "den": "10",
+              "num": "9"
             },
-            "right": 8
+            "right": 9
           },
           {
             "chosen": 6,
@@ -87,18 +87,18 @@
             "right": 2
           },
           {
-            "chosen": 7,
+            "chosen": 8,
             "labeled": 8,
             "option": "c-identity-heuristic",
             "precision": {
-              "den": "7",
-              "num": "3"
+              "den": "2",
+              "num": "1"
             },
             "recall": {
-              "den": "8",
-              "num": "3"
+              "den": "2",
+              "num": "1"
             },
-            "right": 3
+            "right": 4
           },
           {
             "chosen": 6,
@@ -129,12 +129,12 @@
             "right": 3
           },
           {
-            "chosen": 8,
+            "chosen": 11,
             "labeled": 5,
             "option": "c-sample-validity",
             "precision": {
-              "den": "2",
-              "num": "1"
+              "den": "11",
+              "num": "4"
             },
             "recall": {
               "den": "5",
@@ -143,26 +143,26 @@
             "right": 4
           },
           {
-            "chosen": 16,
+            "chosen": 18,
             "labeled": 16,
             "option": "c-env-assume",
             "precision": {
-              "den": "8",
-              "num": "5"
+              "den": "3",
+              "num": "2"
             },
             "recall": {
-              "den": "8",
-              "num": "5"
+              "den": "4",
+              "num": "3"
             },
-            "right": 10
+            "right": 12
           },
           {
-            "chosen": 18,
+            "chosen": 19,
             "labeled": 14,
             "option": "c-spec-gap",
             "precision": {
-              "den": "9",
-              "num": "4"
+              "den": "19",
+              "num": "8"
             },
             "recall": {
               "den": "7",
@@ -171,12 +171,12 @@
             "right": 8
           },
           {
-            "chosen": 5,
+            "chosen": 6,
             "labeled": 2,
             "option": "c-handcopy",
             "precision": {
-              "den": "5",
-              "num": "2"
+              "den": "3",
+              "num": "1"
             },
             "recall": {
               "den": "1",
@@ -210,7 +210,7 @@
             "right": 0
           }
         ],
-        "right": 61,
+        "right": 65,
         "rows": 116
       },
       "arm": "jev",
@@ -337,10 +337,10 @@
               0,
               3,
               1,
-              0,
+              1,
               0,
               2,
-              1
+              0
             ],
             "label": "c-order-derived"
           },
@@ -348,7 +348,7 @@
             "counts": [
               0,
               1,
-              8,
+              9,
               0,
               0,
               0,
@@ -360,7 +360,7 @@
               0,
               0,
               0,
-              1
+              0
             ],
             "label": "c-shared-no-lock"
           },
@@ -394,13 +394,13 @@
               0,
               0,
               1,
-              1,
+              2,
               0,
               2,
               0,
               0,
               0,
-              1
+              0
             ],
             "label": "c-proxy-verdict"
           },
@@ -411,7 +411,7 @@
               0,
               0,
               1,
-              3,
+              4,
               0,
               1,
               1,
@@ -420,7 +420,7 @@
               0,
               0,
               0,
-              1
+              0
             ],
             "label": "c-identity-heuristic"
           },
@@ -434,13 +434,13 @@
               1,
               6,
               0,
-              0,
+              1,
               1,
               3,
               0,
               0,
               0,
-              1
+              0
             ],
             "label": "c-late-check"
           },
@@ -454,13 +454,13 @@
               0,
               0,
               3,
-              0,
               1,
               1,
+              2,
               1,
               0,
               0,
-              2
+              0
             ],
             "label": "c-unearned-claim"
           },
@@ -495,19 +495,19 @@
               0,
               0,
               1,
-              10,
+              12,
               1,
               1,
               0,
               0,
-              2
+              0
             ],
             "label": "c-env-assume"
           },
           {
             "counts": [
               0,
-              0,
+              1,
               0,
               1,
               0,
@@ -520,7 +520,7 @@
               0,
               0,
               2,
-              1
+              0
             ],
             "label": "c-spec-gap"
           },
@@ -592,10 +592,10 @@
       },
       "holdout": {
         "accuracy": {
-          "den": "33",
-          "num": "17"
+          "den": "11",
+          "num": "6"
         },
-        "answered": 31,
+        "answered": 33,
         "options": [
           {
             "chosen": 3,
@@ -665,18 +665,18 @@
             "right": 0
           },
           {
-            "chosen": 3,
+            "chosen": 4,
             "labeled": 5,
             "option": "c-identity-heuristic",
             "precision": {
-              "den": "3",
-              "num": "2"
+              "den": "4",
+              "num": "3"
             },
             "recall": {
               "den": "5",
-              "num": "2"
+              "num": "3"
             },
-            "right": 2
+            "right": 3
           },
           {
             "chosen": 2,
@@ -707,11 +707,11 @@
             "right": 1
           },
           {
-            "chosen": 2,
+            "chosen": 3,
             "labeled": 1,
             "option": "c-sample-validity",
             "precision": {
-              "den": "2",
+              "den": "3",
               "num": "1"
             },
             "recall": {
@@ -785,7 +785,7 @@
             "right": 0
           }
         ],
-        "right": 17,
+        "right": 18,
         "rows": 33
       },
       "holdoutCert": {

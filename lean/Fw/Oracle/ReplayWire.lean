@@ -89,13 +89,46 @@ def armOutcome (q : Question) (a : Json) : Except String Outcome := do
       | .error e => .failure (.schema e)
   | none, none, none => throw "answer: needs failure, reply or choice"
 
-/-- The option an arm answer names: the validated pick, else its `choice` if that is an option. -/
+/-- A named choice, kept only if it is an option of the question. -/
+def choiceIn (q : Question) : Option Json → Option String
+  | some (.str c) => if q.spec.keys.contains c then some c else none
+  | _ => none
+
+/-- The `choice` inside a Jev reply's answer to the question. -/
+def replyChoice (q : Question) (a : Json) : Option Json :=
+  match opt a "reply" with
+  | some (.str t) =>
+    (Json.parse t >>= (·.getObjVal? "answers") >>= (·.getObjVal? q.name) >>= (·.getObjVal? "choice")).toOption
+  | _ => none
+
+/-- The option an arm answer names: the validated pick, else the `choice` of the answer or of its Jev reply,
+the same rule for every arm. -/
 def pickOf (q : Question) (a : Json) (o : Outcome) : Option String :=
   match o with
   | .answer (.choice pk _) => some pk
-  | _ => match opt a "choice" with
-    | some (.str c) => if q.spec.keys.contains c then some c else none
-    | _ => none
+  | _ => choiceIn q (opt a "choice" <|> replyChoice q a)
+
+theorem choiceIn_option {q : Question} {j : Option Json} {c : String} (h : choiceIn q j = some c) :
+    q.spec.keys.contains c := by
+  unfold choiceIn at h
+  split at h
+  · split at h <;> simp_all
+  · simp at h
+
+theorem pickOf_validated (q : Question) (a : Json) (pk : String) (p) :
+    pickOf q a (.answer (.choice pk p)) = some pk := rfl
+
+theorem pickOf_fallback_option {q : Question} {a : Json} {o : Outcome} {c : String}
+    (ho : ∀ pk p, o ≠ .answer (.choice pk p)) (h : pickOf q a o = some c) : q.spec.keys.contains c := by
+  unfold pickOf at h
+  split at h
+  · exact absurd rfl (ho _ _)
+  · exact choiceIn_option h
+
+theorem pickOf_arm_eq_jev {q : Question} {a b : Json} {c : String} {f g : Failure}
+    (ha : opt a "choice" = some (.str c)) (hb : opt b "choice" = none) (hr : replyChoice q b = some (.str c)) :
+    pickOf q a (.failure f) = pickOf q b (.failure g) := by
+  simp [pickOf, ha, hb, hr]
 
 /-- A token count of an arm answer: its own field, else (for a Jev reply) the reply's `usage` entry, else 0. -/
 def tokensOf (a : Json) (k usage : String) : Nat :=
@@ -219,6 +252,23 @@ def run (op : String) (r : String) : String :=
   "{\"advised\":0,\"hits\":0,\"option\":\"follow-up\"}]},\"inputTokens\":1000,\"labeled\":4,\"minHoldout\":25," ++
   "\"missing\":1,\"msMax\":30,\"msMean\":{\"den\":\"1\",\"num\":\"20\"},\"msMedian\":20,\"outputTokens\":100," ++
   "\"question\":\"finding-severity\",\"thresholds\":{\"blocker\":null,\"fix-before-land\":null,\"follow-up\":null}}"
+#guard
+  let probs := Json.mkObj [("blocker", .num ⟨60, 2⟩), ("fix-before-land", .num ⟨20, 2⟩),
+    ("follow-up", .num ⟨10, 2⟩), ("unclear", .num ⟨9, 2⟩)]
+  let jevAns := Json.mkObj [("type", .str "choice"), ("choice", .str "blocker"), ("probabilities", probs),
+    ("confidence", .num ⟨5, 1⟩)]
+  let reply := Json.mkObj [("model", .str model), ("answers", Json.mkObj [("finding-severity", jevAns)])]
+  let req (arm : String) (a : Json) := Json.mkObj [("name", .str "finding-severity"), ("arm", .str arm),
+    ("replay", .arr #[Json.mkObj [("id", .str "a"), ("label", .str "blocker")]]), ("answers", .arr #[a])]
+  let part (arm : String) (a : Json) (k : String) :=
+    (Json.parse (run "oracle.score" (req arm a).compress) >>= (·.getObjVal? k)).toOption
+  let jev := Json.mkObj [("id", .str "a"), ("reply", .str reply.compress)]
+  let haiku := Json.mkObj [("id", .str "a"), ("choice", .str "blocker"), ("probabilities", probs)]
+  let rejected := match questionOf (req "jev" jev) >>= fun q => armOutcome q jev with
+    | .ok (.failure (.schema _)) => true
+    | _ => false
+  rejected && ["all", "holdout", "confusion"].all (fun k => part "jev" jev k == part "haiku" haiku k) &&
+    ((part "jev" jev "all").bind fun j => (j.getObjVal? "right").toOption) == some (toJson 1)
 #guard (run "oracle.score" "{\"name\":\"finding-severity\",\"arm\":\"gpt\",\"replay\":[],\"answers\":[]}").startsWith
   "error: arm"
 
