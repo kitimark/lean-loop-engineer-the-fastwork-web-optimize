@@ -516,4 +516,129 @@ theorem dead_run_ends (ps : List Probe) (h : AllFail ps) (hl : 2 * failLimit ≤
   rw [hpc]
   exact dead_again_arith _ _ _ hd' hlen' hcnt'
 
+/-! ## Page target lost (task `webkit-sim-target-lost`): the proxy and the socket are up, the tab is listed, the page target is gone -/
+
+/-- The wait for the page target before a relaunch: 480 s, `FW_WK_TIMEOUT_SCALE` 8 times `reconnect`'s 60000 ms. -/
+def targetWaitMs : Nat := 480000
+
+/-- The wait for the page target after the relaunch: the relaunch has just connected once, so the tab wait and the connect bound. -/
+def targetAfterMs : Nat := tabMs + connectMs
+
+/-- Exit code of a session that lost its page target for good (4 is a dead inspector, 3 the stall watchdog). -/
+def targetLostExit : Nat := 5
+
+/-- What the session does at one poll of the page-target wait. -/
+inductive TargetAction where
+  | connect
+  | wait
+  | relaunch
+  | failSession
+deriving DecidableEq, Repr
+
+/-- The action's wire name. -/
+def TargetAction.name : TargetAction → String
+  | .connect => "connect"
+  | .wait => "wait"
+  | .relaunch => "relaunch"
+  | .failSession => "failSession"
+
+/-- The wait bound of a stretch: before the relaunch `targetWaitMs`, after it `targetAfterMs`. -/
+def targetLimit (relaunched : Bool) : Nat := if relaunched then targetAfterMs else targetWaitMs
+
+/-- The action at a poll `elapsedMs` into the stretch: connect to a found target, wait while inside the bound, past it relaunch
+once, then fail the session. -/
+def targetAction (relaunched : Bool) (elapsedMs : Nat) (found : Bool) : TargetAction :=
+  if found then .connect
+  else if elapsedMs < targetLimit relaunched then .wait
+  else if relaunched then .failSession else .relaunch
+
+/-- The action after the relaunch: a working one goes back to the wait, a failed one fails the session. -/
+def targetAfterRelaunch (ok : Bool) : TargetAction := if ok then .wait else .failSession
+
+/-- The longest time one poll of the wait may take: what is left of the bound. -/
+def targetCapMs (relaunched : Bool) (elapsedMs : Nat) : Nat := targetLimit relaunched - elapsedMs
+
+/-- From the start of the page-target wait to the exit: first wait, relaunch, second wait, exit (the timed-out command, the close and the proxy check before the wait are not counted). -/
+def targetEndMs : Nat := targetWaitMs + relaunchMs + targetAfterMs + exitMs
+
+/-- The cells of a matrix that still run after `failed` failed its session. -/
+def cellsAfter (cells : List String) (failed : String) : List String := cells.filter (· != failed)
+
+#guard targetAction false 0 false == .wait && targetAction false 480000 false == .relaunch
+#guard targetAction true 90000 false == .failSession && targetEndMs == 930000
+
+/-- **A found target connects.** Whatever the clock and the relaunch. -/
+theorem target_found_connects (r : Bool) (e : Nat) : targetAction r e true = .connect := by
+  simp [targetAction]
+
+/-- **Inside the bound the wait goes on.** -/
+theorem target_waits_inside (r : Bool) (e : Nat) (h : e < targetLimit r) : targetAction r e false = .wait := by
+  simp [targetAction, h]
+
+/-- **Past the bound, before any relaunch, Safari is relaunched.** -/
+theorem target_relaunches_once (e : Nat) (h : targetWaitMs ≤ e) : targetAction false e false = .relaunch := by
+  have : ¬ e < targetLimit false := by simp [targetLimit]; omega
+  simp [targetAction, this]
+
+/-- **Past the bound after the relaunch, the session fails.** -/
+theorem target_fails_after_relaunch (e : Nat) (h : targetAfterMs ≤ e) : targetAction true e false = .failSession := by
+  have : ¬ e < targetLimit true := by simp [targetLimit]; omega
+  simp [targetAction, this]
+
+/-- **Safari is relaunched only before a relaunch.** -/
+theorem target_relaunch_not_relaunched {r : Bool} {e : Nat} {f : Bool} (h : targetAction r e f = .relaunch) : r = false := by
+  cases r
+  · rfl
+  · exfalso
+    unfold targetAction at h
+    by_cases hf : f = true <;> by_cases he : e < targetLimit true <;> simp [hf, he] at h
+
+/-- **A session ends only after the bound.** A failed session needs a relaunch before it and the second bound used up. -/
+theorem target_fail_needs_bound {r : Bool} {e : Nat} {f : Bool} (h : targetAction r e f = .failSession) :
+    r = true ∧ targetAfterMs ≤ e := by
+  unfold targetAction at h
+  by_cases hf : f = true
+  · simp [hf] at h
+  · by_cases he : e < targetLimit r
+    · simp [hf, he] at h
+    · cases r
+      · simp [hf, he] at h
+      · simp [targetLimit] at he
+        exact ⟨rfl, he⟩
+
+/-- **The first bound is 480 s.** -/
+theorem target_first_bound : targetLimit false = 480000 := by decide
+
+/-- **A poll capped at the rest of the bound ends within it.** A poll started inside the bound (the wait branch) and given
+`targetCapMs` finishes by the bound, so one blocked poll cannot hold the wait past it (the 876 s of 480 s of the lost runs). -/
+theorem target_cap_fits (r : Bool) (e : Nat) (h : e < targetLimit r) : e + targetCapMs r e ≤ targetLimit r := by
+  unfold targetCapMs; omega
+
+/-- **A wait of any length reaches a final action.** Once the clock passes the bound, a missing target never waits again. -/
+theorem target_never_waits_past (r : Bool) (e : Nat) (h : targetLimit r ≤ e) : targetAction r e false ≠ .wait := by
+  have : ¬ e < targetLimit r := by omega
+  cases r <;> simp [targetAction, this]
+
+/-- **A working relaunch goes back to the wait, a failed one fails the session.** -/
+theorem target_after_relaunch (ok : Bool) :
+    (ok = true → targetAfterRelaunch ok = .wait) ∧ (ok = false → targetAfterRelaunch ok = .failSession) := by
+  cases ok <;> simp [targetAfterRelaunch]
+
+/-- **The lost-target exit is its own code.** Not the dead inspector's, the watchdog's or an ordinary failure's. -/
+theorem target_exit_distinct : targetLostExit ≠ deadExit ∧ targetLostExit ≠ 3 ∧ targetLostExit ≠ 1 := by decide
+
+/-- **From the start of the page-target wait to the exit: first wait, relaunch, second wait, exit (the timed-out command, the close and the proxy check before the wait are not counted). It takes at most `targetEndMs`, under the 38-minute job cap of the lag cells.** -/
+theorem target_end_bound : targetEndMs = 930000 ∧ targetEndMs < 38 * 60 * 1000 := by decide
+
+/-- **A failed session fails no other cell.** Every other cell of the matrix still runs. The workflow side is strategy.fail-fast: false (.github/workflows/webkit-sim.yml:273); this theorem covers only the cell list. -/
+theorem siblings_unaffected (cells : List String) (failed c : String) (hc : c ∈ cells) (hne : c ≠ failed) :
+    c ∈ cellsAfter cells failed := by
+  simp [cellsAfter, hc, hne]
+
+/-- **The failed cell is the only one left out.** -/
+theorem cellsAfter_sub (cells : List String) (failed : String) : ∀ c ∈ cellsAfter cells failed, c ∈ cells ∧ c ≠ failed := by
+  intro c hc
+  simp [cellsAfter] at hc
+  exact hc
+
 end Fw.Measure.SimBound

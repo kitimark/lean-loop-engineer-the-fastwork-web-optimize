@@ -10,6 +10,8 @@
 import { listTabs, sleep, ports } from './sim.mjs';
 import { T } from './timeouts.mjs';
 import { attachFresh } from './poll.mjs';
+import { capped, waitForTarget } from './target.mjs';
+import { remainingMs } from './inspector.mjs';
 
 /** Connect to a tab's websocket. Resolves once a page target exists. */
 export async function connect(wsUrl, { timeoutMs = T(15000) } = {}) {
@@ -90,41 +92,48 @@ export async function connect(wsUrl, { timeoutMs = T(15000) } = {}) {
 }
 
 /**
+ * One poll for the tab whose url starts with `urlPrefix`: list, connect, and see that the page answers. A failed poll closes
+ * its own socket and throws the reason (`pauseMs`: how long the caller waits before the next one).
+ */
+export async function tryTab(urlPrefix, { p = ports() } = {}) {
+  const tabs = (await listTabs(p)).filter((x) => x.webSocketDebuggerUrl && String(x.url).startsWith(urlPrefix));
+  if (tabs.length !== 1) throw new Error(`${tabs.length} tabs match ${urlPrefix}`);
+  const c = await connect(tabs[0].webSocketDebuggerUrl);
+  try { await c.evaluate('1', { timeoutMs: T(8000) }); return c; } catch (e) { await c.close(); throw Object.assign(e, { pauseMs: 2000 }); }
+}
+/** The pause after a failed poll: the old client may still be detaching after "no page target", so do not hammer it. */
+const pauseAfter = (e) => e.pauseMs ?? (/no page target/.test(e.cause?.code || e.message) ? 2000 : 500);
+const closeLate = (c) => { try { c?.close?.(); } catch { /* gone */ } };
+
+/**
  * Find the tab whose url starts with `urlPrefix` (waits: the proxy lists a fresh tab a few seconds late) and connect.
- * Bounded by `waitMs`; every change of the failure reason is logged (and at most one line per 10 s), so a slow start is
- * visible in the log. A failed attempt closes its own socket and waits before the next one (so attempts do not pile up
- * as inspector clients).
+ * Bounded by `waitMs`, and so is every poll: one that blocks is dropped at the bound (its late socket is closed). Every
+ * change of the failure reason is logged (and at most one line per 10 s), so a slow start is visible in the log. A failed
+ * poll closes its own socket and waits before the next one (so polls do not pile up as inspector clients).
  */
 export async function openTab(urlPrefix, { waitMs = T(30000), p = ports(), log = () => {} } = {}) {
   const t0 = Date.now();
   let last = 'no tab listed', logged = '', loggedAt = 0, tries = 0;
   while (Date.now() - t0 < waitMs) {
-    let pause = 500;
     tries++;
-    try {
-      const tabs = (await listTabs(p)).filter((x) => x.webSocketDebuggerUrl && String(x.url).startsWith(urlPrefix));
-      if (tabs.length === 1) {
-        const c = await connect(tabs[0].webSocketDebuggerUrl);
-        try { await c.evaluate('1', { timeoutMs: T(8000) }); return c; } catch (e) { await c.close(); last = e.message; pause = 2000; }
-      } else last = `${tabs.length} tabs match ${urlPrefix}`;
-    } catch (e) {
-      last = e.cause?.code || e.message;
-      if (/no page target/.test(last)) pause = 2000; // the old client may still be detaching: do not hammer it
-    }
+    let pause = 500;
+    try { return await capped(remainingMs(waitMs, Date.now() - t0), tryTab(urlPrefix, { p }), { late: closeLate }); } catch (e) { last = e.cause?.code || e.message; pause = pauseAfter(e); }
     if (last !== logged || Date.now() - loggedAt > 10000) { log(`  waiting for the Safari tab (${Math.round((Date.now() - t0) / 1000)} s of ${Math.round(waitMs / 1000)} s, try ${tries}): ${last}`); logged = last; loggedAt = Date.now(); }
-    await sleep(pause);
+    await sleep(Math.min(pause, remainingMs(waitMs, Date.now() - t0)));
   }
   throw new Error(`cannot reach a Safari tab at ${urlPrefix}: ${last} (${tries} tries in ${Math.round((Date.now() - t0) / 1000)} s)`);
 }
 
 /**
  * Drop the context's client and connect again. The old socket is closed and its close is awaited (so the proxy has
- * released the tab's inspector slot), then `openTab` polls until the tab is listed and answers: no fixed pause.
+ * released the tab's inspector slot), then the wait for the page target runs (`waitForTarget`, Lean `Fw.Measure.SimBound`):
+ * 480 s, then one Safari relaunch (`ctx.relaunchTab`), then 90 s, then the session fails with exit code 5. No fixed pause.
  */
-export async function reconnect(ctx, { log = () => {}, waitMs = T(60000), openTabFn = openTab } = {}) {
+export async function reconnect(ctx, { log = () => {}, openTabFn = null, clock = undefined } = {}) {
   try { await ctx.c.close(); } catch { /* closed */ }
   await ctx.ensureProxy?.();
-  ctx.setClient(await openTabFn(ctx.url, { waitMs, log }));
+  const tryOnce = openTabFn ? (cap) => openTabFn(ctx.url, { waitMs: cap, log }) : () => tryTab(ctx.url);
+  ctx.setClient(await waitForTarget({ tryOnce, relaunch: ctx.relaunchTab ?? null, relaunched: false, pauseMs: pauseAfter, log, late: closeLate, ...(clock ? { clock } : {}) }));
 }
 
 /**

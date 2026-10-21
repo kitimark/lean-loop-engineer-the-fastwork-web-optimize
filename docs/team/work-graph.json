@@ -13407,7 +13407,8 @@
     "scripts/circleci.test.mjs",
     "research/notes/2026/10-2x-circleci-lean-cache.md",
     "docs/team/handoffs/circleci-lean-cache.md"
-   ]
+   ],
+   "evidence": "85a24bd"
   },
   {
    "devices": [
@@ -13487,7 +13488,8 @@
     "packages/measure-webkit/test/**",
     ".github/workflows/webkit-sim.yml",
     "docs/team/handoffs/webkit-sim-target-lost.md"
-   ]
+   ],
+   "evidence": "5ed2e31"
   },
   {
    "devices": [

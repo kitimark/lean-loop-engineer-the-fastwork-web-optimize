@@ -6,7 +6,7 @@ import { resolve, dirname, join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { serveTree } from './serve.mjs';
 import { bootDevice, terminateSafari, startSafari, waitSocket, openUrl, shutdownDevice, startProxy, proxyCheck, probeInspector, findDevice, listTabs, sleep } from './sim.mjs';
-import { BOUNDS, InspectorDeadError } from './inspector.mjs';
+import { BOUNDS, InspectorDeadError, TargetLostError } from './inspector.mjs';
 import { createGuard, runSteps } from './guard.mjs';
 import { armFault, faultPlan } from './fault.mjs';
 import { openTab } from './wip.mjs';
@@ -124,6 +124,8 @@ export async function withSession(fn, { keep = false, vendors = 'off', site = nu
     // The proxy can die under host load (seen on a runner: ECONNREFUSED after a 1006 close): a single failed probe starts it again.
     ctx.check = () => guard.check('attempt').then(() => {});
     ctx.ensureProxy = () => guard.check('reconnect', { repair: true }).then(() => {});
+    // the wait for the page target (wip.mjs reconnect, Lean targetAction) relaunches Safari through the guard's one relaunch
+    ctx.relaunchTab = () => guard.relaunchTab();
     guard.start();
     const plan = faultPlan();
     if (plan) {
@@ -136,7 +138,7 @@ export async function withSession(fn, { keep = false, vendors = 'off', site = nu
     try {
       return await Promise.race([fn(ctx), deadP]);
     } catch (e) {
-      if (e instanceof InspectorDeadError) throw e;
+      if (e instanceof InspectorDeadError || e instanceof TargetLostError) throw e;
       // the run failed for another reason: one more probe; a dead inspector is found by the same rule (a relaunch, or exit 4 when it gives up), and a probe that does not give up lets this error stand (exit 1)
       log(`the run failed (${e.message}); probing the inspector once more`);
       await guard.check('end of run');

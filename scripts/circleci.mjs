@@ -49,7 +49,7 @@ export function loadGolden(path = GOLDEN) {
   const rows = readFileSync(path, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
   const byOp = {};
   for (const r of rows) (byOp[r.op] ??= []).push(r);
-  return { rows, byOp, rates: byOp.rates[0].response, constants: byOp.constants[0].response, jobMap: byOp.jobMap[0].response.jobs };
+  return { rows, byOp, rates: byOp.rates[0].response, constants: byOp.constants[0].response, jobMap: byOp.jobMap[0].response.jobs, landJobs: byOp.jobMap[0].response.landJobs };
 }
 
 /** Lean `Fw.Ci.Provider.ghMatches`: a GitHub job name fits an `exact` rule, or a matrix rule (prefix, `, <vm>)` suffix, no overlap). */
@@ -61,8 +61,8 @@ export function ghMatches(rule, name) {
 /** Lean `jobOfGithub`: the first job-map row a GitHub job name belongs to, or undefined. */
 export const jobOfGithub = (g, name) => g.jobMap.find((r) => ghMatches(r.github, name));
 
-/** Lean `savesCacheJob`: the CircleCI job has a `save_cache` step. */
-export const savesCacheJob = (g, job) => g.jobMap.some((r) => r.circleci === job && r.savesCache);
+/** Lean `savesCacheJob`: the CircleCI job has a `save_cache` step (a pilot job of the map that says so, or a land job of Lean `landJobs`). */
+export const savesCacheJob = (g, job) => g.jobMap.some((r) => r.circleci === job && r.savesCache) || g.landJobs.includes(job);
 
 /** Lean `digestJob`: the pilot job (CircleCI name) is judged by its premise digest. */
 export const digestJob = (g, job) => g.jobMap.some((r) => r.circleci === job && r.digest);
