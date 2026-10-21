@@ -13,7 +13,9 @@ What exists
 - Note `research/notes/2026/10-2x-toolbar-throttle.md` has the table.
 
 Verified: CI run 39667548341, 3 of 3 jobs `lifted`: rewrite 163 band runs / 10,104 exit frames, lift 0 / 9,740, original 53 / 5,290.
-Earlier runs 39659502492 and 39652336316 agree (harness lost the first pass; listed, not pooled).
+Earlier runs 39659502492 and 39652336316 read as failed in fw ci state (harness lost the first pass); the note lists both with the reason, not pooled.
+
+Round 2: main merged (check.sh green, dry land VERDICT dry with --allow for the CI-row files the lead accepted); no new CI runs.
 
 Open
 - Phone pass not done (device-replay driver not landed): compare production build with and without the flag at the same
