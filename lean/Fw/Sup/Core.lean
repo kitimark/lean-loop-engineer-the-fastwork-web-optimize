@@ -340,8 +340,13 @@ def cands (c : Cfg) (s : State) : List Rsrc :=
 /-- The rank key: cold-start cost per MB of charge, cheapest to restart per MB freed first. -/
 def rank (c : Cfg) (x : Rsrc) : Nat := c.coldStart x.kind * 1024 / (charge x .ram + 1)
 
+/-- Insert a resource before the first one of higher rank. -/
+def insRank (c : Cfg) (x : Rsrc) : List Rsrc → List Rsrc
+  | [] => [x]
+  | y :: ys => if rank c x ≤ rank c y then x :: y :: ys else y :: insRank c x ys
+
 /-- The candidates in rank order. -/
-def byRank (c : Cfg) (s : State) : List Rsrc := (cands c s).mergeSort fun a b => rank c a ≤ rank c b
+def byRank (c : Cfg) (s : State) : List Rsrc := (cands c s).foldr (insRank c) []
 
 /-- The idle candidates: unused for at least their kind's grace. -/
 def idle (c : Cfg) (s : State) : List Rsrc := (cands c s).filter fun x => decide (x.lastUse + c.grace x.kind ≤ s.now)
@@ -539,6 +544,11 @@ def keepQ (a : Acc) (q : Req) (b : Bool) : Acc :=
 /-- Answer a request and drop it. -/
 def answer (a : Acc) (q : Req) (r : Reply) : Acc := { a with out := a.out ++ [.reply q.id r] }
 
+/-- Refuse a request for cause; its owner keeps a ticket with the request's age. -/
+def refuseT (a : Acc) (q : Req) (why : Why) : Acc :=
+  { a with st := { a.st with tickets := a.st.tickets ++ [⟨q.owner, q.rid, q.age⟩] },
+           out := a.out ++ [.reply q.id (.refused why)] }
+
 /-- The lease a granted request gets. -/
 def leaseOf (q : Req) (now : Nat) (cost : Vec) : Lease :=
   { id := q.id, owner := q.owner, kind := q.kind, rid := q.rid, cost := cost, granted := now,
@@ -581,9 +591,7 @@ def pumpOne (c : Cfg) (a : Acc) (q : Req) : Acc :=
       | some r =>
         match r.phase with
         | .ready => if st.shedding then keepQ a q false else grant a q
-        | .failed _ why =>
-          let a' := answer a q (.refused why)
-          { a' with st := { a'.st with tickets := a'.st.tickets ++ [⟨q.owner, q.rid, q.age⟩] } }
+        | .failed _ why => refuseT a q why
         | .absent =>
           if r.proc.isNone && !st.shedding && !a.blk && decide ((recent c st.now r.crashes).length < c.maxRestarts)
              && fitsB c st (charge r) then start a q r
