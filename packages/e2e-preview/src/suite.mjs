@@ -191,6 +191,8 @@ async function runTarget(browser, rig, engine, host, target, opts) {
     // the real entry path, first half: the grant link and its landing page (the hop to the arm origin included) show no
     // rejection, no cancelled request and no failed one
     noiseChecks((id, ok, d) => check(`landing/${id}`, ok, d), log, own, { documentHops: true });
+    // debug (`--provoke n`): n uncached image requests started on the landing page just before it is left, the way its own lazy images are
+    if (opts.provoke > 0) await page.evaluate(({ base, n }) => { globalThis.__provoked = Array.from({ length: n }, (_, i) => Object.assign(new Image(), { src: `${base}?provoke=${i}-${Math.random()}` })); }, { base: `${host.arm.o}/selling/sellers/photographer/cover.jpg`, n: opts.provoke });
     // the landing page is left through a blank document: what it asked for has ended before the next load is observed (leavePage)
     const left = await leavePage(page, tracker);
     check("landing-page-requests-ended", left, left ? "none open" : `${tracker.open.size} still open`);
@@ -420,13 +422,13 @@ export function attribution(ctl) {
 
 /** `only`: run just these targets (ids of PATHS) on the loopback host `repeat` times and nothing else: the way to repeat one check on
  *  its own. `trace`: a sink `{ loads: [], ok: 0, keepOk: 2 }` that collects the timeline of each load (trace.mjs). */
-export async function runEngine(browser, rig, engine, { passphrase, keep, route, only, repeat = 1, trace } = {}) {
+export async function runEngine(browser, rig, engine, { passphrase, keep, route, only, repeat = 1, trace, provoke = 0 } = {}) {
   const out = [];
   if (only) {
     const host = rig.hosts.loopback;
     for (let i = 1; i <= repeat; i++) {
       for (const target of PATHS.filter((p) => only.includes(p.id))) {
-        const cs = await runTarget(browser, rig, engine, host, target, { keep, route, trace });
+        const cs = await runTarget(browser, rig, engine, host, target, { keep, route, trace, provoke });
         for (const c of cs) process.stderr.write(`  ${c.ok ? "ok  " : "FAIL"} #${i} ${c.id}  (${c.detail})\n`);
         out.push(...cs.map((c) => ({ ...c, id: `${c.id}#${i}` })));
       }
@@ -437,7 +439,7 @@ export async function runEngine(browser, rig, engine, { passphrase, keep, route,
     if (host.name === "lan") { out.push(...(await lanLogin(browser, rig, engine, host, passphrase))); continue; }
     for (const target of PATHS) {
       const t0 = Date.now();
-      const cs = await runTarget(browser, rig, engine, host, target, { keep, route, trace });
+      const cs = await runTarget(browser, rig, engine, host, target, { keep, route, trace, provoke });
       for (const c of cs) process.stderr.write(`  ${c.ok ? "ok  " : "FAIL"} ${c.id}  (${c.detail})\n`);
       process.stderr.write(`  # ${Date.now() - t0} ms\n`);
       out.push(...cs);

@@ -23,6 +23,7 @@ const out = resolve(opt("out", join(here, "..", "out")));
 // Debug runs: `--only compare[,o,...] --repeat 20` runs just those targets on loopback 20 times; `--trace` also writes out/trace-<engine>.json
 const only = opt("only", null)?.split(",") ?? null;
 const repeat = Number(opt("repeat", "1"));
+const provoke = Number(opt("provoke", "0")); // `--provoke 30`: 30 uncached image requests are started on the landing page just before it is left
 const trace = args.includes("--trace") ? { loads: [], ok: 0, keepOk: 2 } : null;
 
 const lan = args.includes("--no-lan") ? null : await lanAddress();
@@ -37,7 +38,7 @@ try {
     ? await webkit.launch()
     : await chromium.launch({ ...(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {}), ...(process.env.E2E_CHROMIUM_CHANNEL ? { channel: process.env.E2E_CHROMIUM_CHANNEL } : {}) });
   version = browser.version();
-  checks = await runEngine(browser, rig, engine, { passphrase: TEST_PASSPHRASE, route: !args.includes("--no-route"), only, repeat, trace });
+  checks = await runEngine(browser, rig, engine, { passphrase: TEST_PASSPHRASE, route: !args.includes("--no-route"), only, repeat, trace, provoke });
 } catch (e) {
   checks = [{ id: `${engine}/harness`, ok: false, detail: String(e?.message ?? e).split("\n")[0] }];
 } finally {
