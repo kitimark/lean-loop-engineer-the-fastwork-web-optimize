@@ -53,10 +53,10 @@ export function pickWidths(s: string): number[] | null {
   return ns.every((n) => ALLOWED_WIDTHS.includes(n)) && new Set(ns).size === ns.length ? ns : null;
 }
 
-/** Lean `dispatch`: none is empty, a width outside the lane is bad, a verdict run short of a lane width is scoped. */
+/** Lean `dispatch`: none is empty, a width outside the lane or a repeated one is bad, a verdict run short of a lane width is scoped. */
 export function dispatch(mark: Mark, ws: number[]): Decision {
   if (ws.length === 0) return { kind: "refused", why: "emptyWidths" };
-  if (!ws.every((w) => ALLOWED_WIDTHS.includes(w))) return { kind: "refused", why: "badInput" };
+  if (!ws.every((w) => ALLOWED_WIDTHS.includes(w)) || new Set(ws).size !== ws.length) return { kind: "refused", why: "badInput" };
   if (mark === "verdict" && !ALLOWED_WIDTHS.every((w) => ws.includes(w))) return { kind: "refused", why: "scopedVerdict" };
   return { kind: "accepted", widths: ws };
 }

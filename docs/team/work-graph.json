@@ -13006,7 +13006,8 @@
     "packages/contracts/golden/obs/**",
     "research/notes/2026/10-2x-sup-baseline.md",
     "docs/team/handoffs/sup-baseline.md"
-   ]
+   ],
+   "evidence": "6f1d28f"
   },
   {
    "devices": [
@@ -13582,7 +13583,8 @@
     ".claude/workflows/build-review.js",
     "docs/team/tools/trajectory-frames.md",
     "docs/team/tools/smoothness-probe.md"
-   ]
+   ],
+   "evidence": "f923d4a"
   },
   {
    "devices": [

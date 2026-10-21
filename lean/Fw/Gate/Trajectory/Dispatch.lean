@@ -33,14 +33,23 @@ inductive Decision where
   | refused (why : Why)
   deriving DecidableEq, Repr
 
-/-- The decision on a mark and the widths a dispatch walks: none is empty, a width outside the lane is bad, a verdict run
-short of a lane width is scoped. -/
+/-- The decision on a mark and the widths a dispatch walks: none is empty, a width outside the lane or a repeated one is
+bad, a verdict run short of a lane width is scoped. -/
 def dispatch (m : Mark) (ws : List Nat) : Decision :=
   if ws.isEmpty then .refused .emptyWidths
-  else if !ws.all allowedWidths.contains then .refused .badInput
+  else if !(ws.all allowedWidths.contains && decide ws.Nodup) then .refused .badInput
   else match m with
     | .diagnostic => .accepted ws
     | .verdict => if allowedWidths.all ws.contains then .accepted ws else .refused .scopedVerdict
+
+/-- Why a dispatch of the `widths` input `s` is refused, in words every entry point shares (the push line, the workflow
+input and `fw run` add how to mark the run diagnostic). -/
+def Why.text (w : Why) (s : String) : String :=
+  match w with
+  | .emptyWidths => "no widths to walk"
+  | .badInput => "widths must be a comma list of 390, 640, 641, 1280 without repeats"
+  | .scopedVerdict =>
+    s!"widths {s} is a subset, and a verdict run (stored, judged) walks all four widths (390,640,641,1280); a run short of a width gets no verdict"
 
 /-- The decision on a mark and the `widths` input: an empty input is all four widths, a refused one is bad. -/
 def dispatchIn (m : Mark) (s : String) : Decision :=
@@ -56,27 +65,52 @@ def dispatchLegs (e : Engine) (m : Mark) (s : String) : Option (List (List Nat))
 
 -- The decision, whole -----------------------------------------------------------------------------------------------
 
-/-- A dispatch is accepted, whole, exactly when it is nonempty, inside the lane, and (verdict only) complete. -/
+/-- A dispatch is accepted, whole, exactly when it is nonempty, inside the lane, without repeats, and (verdict only)
+complete. -/
 theorem dispatch_accepted_iff (m : Mark) (ws xs : List Nat) :
     dispatch m ws = .accepted xs ↔
-      xs = ws ∧ ws ≠ [] ∧ (∀ w ∈ ws, w ∈ allowedWidths) ∧ (m = .verdict → ∀ w ∈ allowedWidths, w ∈ ws) := by
-  unfold dispatch
+      xs = ws ∧ ws ≠ [] ∧ (∀ w ∈ ws, w ∈ allowedWidths) ∧ ws.Nodup ∧
+        (m = .verdict → ∀ w ∈ allowedWidths, w ∈ ws) := by
   by_cases h1 : ws = []
-  · subst h1; simp
+  · subst h1; simp [dispatch]
   have h1' : ws.isEmpty = false := by simpa using h1
-  by_cases h2 : ∀ w ∈ ws, w ∈ allowedWidths
-  · have h2' : ws.all allowedWidths.contains = true := by simpa using h2
+  by_cases h2 : (∀ w ∈ ws, w ∈ allowedWidths) ∧ ws.Nodup
+  · have h2' : (ws.all allowedWidths.contains && decide ws.Nodup) = true := by simpa using h2
     cases m
     · by_cases h3 : ∀ w ∈ allowedWidths, w ∈ ws
       · have h3' : allowedWidths.all ws.contains = true := by simpa using h3
-        simp [h1', h2', h3', h1, eq_comm]
-        rintro rfl; exact ⟨h2, h3⟩
+        have e : dispatch .verdict ws = .accepted ws := by simp [dispatch, h1', h2', h3']
+        rw [e]
+        constructor
+        · intro h
+          cases h
+          exact ⟨rfl, h1, h2.1, h2.2, fun _ => h3⟩
+        · intro h
+          rw [h.1]
       · have h3' : allowedWidths.all ws.contains = false := by simpa using h3
-        simp [h1', h2', h3', h1, h3]
-    · simp [h1', h2', h1, eq_comm]
-      rintro rfl; exact h2
-  · have h2' : ws.all allowedWidths.contains = false := by simpa using h2
-    simp [h1', h2', h1, h2]
+        have e : dispatch .verdict ws = .refused .scopedVerdict := by simp [dispatch, h1', h2', h3']
+        rw [e]
+        constructor
+        · intro h
+          cases h
+        · intro h
+          exact absurd (h.2.2.2.2 rfl) h3
+    · have e : dispatch .diagnostic ws = .accepted ws := by simp [dispatch, h1', h2']
+      rw [e]
+      constructor
+      · intro h
+        cases h
+        exact ⟨rfl, h1, h2.1, h2.2, fun h => by cases h⟩
+      · intro h
+        rw [h.1]
+  · have h2' : (ws.all allowedWidths.contains && decide ws.Nodup) = false := by simpa using h2
+    have e : dispatch m ws = .refused .badInput := by simp [dispatch, h1', h2']
+    rw [e]
+    constructor
+    · intro h
+      cases h
+    · intro h
+      exact absurd ⟨h.2.2.1, h.2.2.2.1⟩ h2
 
 -- Refusals -----------------------------------------------------------------------------------------------------------
 
@@ -91,19 +125,25 @@ theorem dispatch_bad (m : Mark) (ws : List Nat) (hne : ws ≠ []) (h : ¬ ∀ w 
   have h2 : ws.all allowedWidths.contains = false := by simpa using h
   simp [dispatch, h1, h2]
 
+/-- Branch repeat: a width given twice is refused, for either mark. -/
+theorem dispatch_repeat (m : Mark) (ws : List Nat) (hne : ws ≠ []) (h : ¬ ws.Nodup) :
+    dispatch m ws = .refused .badInput := by
+  have h1 : ws.isEmpty = false := by simpa using hne
+  simp [dispatch, h1, h]
+
 /-- Branch scoped verdict: a verdict run short of a lane width is refused. -/
-theorem dispatch_verdict_scoped (ws : List Nat) (hne : ws ≠ []) (hin : ∀ w ∈ ws, w ∈ allowedWidths)
+theorem dispatch_verdict_scoped (ws : List Nat) (hne : ws ≠ []) (hin : ∀ w ∈ ws, w ∈ allowedWidths) (hnd : ws.Nodup)
     (w : Nat) (hw : w ∈ allowedWidths) (hm : w ∉ ws) : dispatch .verdict ws = .refused .scopedVerdict := by
   have h1 : ws.isEmpty = false := by simpa using hne
   have h2 : ws.all allowedWidths.contains = true := by simpa using hin
   have h3 : allowedWidths.all ws.contains = false := by
     rw [List.all_eq_false]; exact ⟨w, hw, by simpa using hm⟩
-  simp [dispatch, h1, h2, h3]
+  simp [dispatch, h1, h2, h3, hnd]
 
-/-- Branch diagnostic: a nonempty subset of the lane widths is accepted, whole. -/
-theorem dispatch_diagnostic (ws : List Nat) (hne : ws ≠ []) (hin : ∀ w ∈ ws, w ∈ allowedWidths) :
+/-- Branch diagnostic: a nonempty subset of the lane widths without repeats is accepted, whole. -/
+theorem dispatch_diagnostic (ws : List Nat) (hne : ws ≠ []) (hin : ∀ w ∈ ws, w ∈ allowedWidths) (hnd : ws.Nodup) :
     dispatch .diagnostic ws = .accepted ws :=
-  (dispatch_accepted_iff _ _ _).2 ⟨rfl, hne, hin, fun h => by cases h⟩
+  (dispatch_accepted_iff _ _ _).2 ⟨rfl, hne, hin, hnd, fun h => by cases h⟩
 
 /-- Branch complete verdict: all four widths are accepted. -/
 theorem dispatch_verdict_all : dispatch .verdict allowedWidths = .accepted allowedWidths := by decide
@@ -117,7 +157,7 @@ theorem dispatchIn_default (m : Mark) : dispatchIn m "" = .accepted allowedWidth
 /-- An accepted verdict dispatch walks every lane width. -/
 theorem verdict_all_widths (ws xs : List Nat) (h : dispatch .verdict ws = .accepted xs) :
     ∀ w ∈ allowedWidths, w ∈ xs := by
-  obtain ⟨rfl, _, _, hv⟩ := (dispatch_accepted_iff _ _ _).1 h
+  obtain ⟨rfl, _, _, _, hv⟩ := (dispatch_accepted_iff _ _ _).1 h
   exact hv rfl
 
 /-- The `widths` input of an accepted verdict dispatch also walks every lane width. -/
@@ -142,8 +182,13 @@ theorem verdict_outcome_judged (ws : List Nat) (s : Stored) (h : dispatch .verdi
 /-- An accepted dispatch of either mark walks at least one width, in the lane. -/
 theorem accepted_nonempty (m : Mark) (ws xs : List Nat) (h : dispatch m ws = .accepted xs) :
     xs ≠ [] ∧ ∀ w ∈ xs, w ∈ allowedWidths := by
-  obtain ⟨rfl, hne, hin, _⟩ := (dispatch_accepted_iff _ _ _).1 h
+  obtain ⟨rfl, hne, hin, _, _⟩ := (dispatch_accepted_iff _ _ _).1 h
   exact ⟨hne, hin⟩
+
+/-- An accepted dispatch of either mark walks no width twice. -/
+theorem accepted_nodup (m : Mark) (ws xs : List Nat) (h : dispatch m ws = .accepted xs) : xs.Nodup := by
+  obtain ⟨rfl, _, _, hnd, _⟩ := (dispatch_accepted_iff _ _ _).1 h
+  exact hnd
 
 /-- A diagnostic dispatch walks at least one width and every engine has a leg for it. -/
 theorem diagnostic_nonempty (ws xs : List Nat) (h : dispatch .diagnostic ws = .accepted xs) (e : Engine) :

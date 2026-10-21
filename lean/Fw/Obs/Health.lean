@@ -2154,4 +2154,476 @@ def ci0 : CiRun := { workflow := "ci", branch := "main", status := "completed", 
   == [⟨.worktreesMany, "worktrees", "1", true⟩, ⟨.ctxHigh, "a", "x", false⟩, ⟨.ctxHigh, "b", "x", false⟩,
     ⟨.diskLow, "disk", "1", false⟩]
 
+/-! The resource baseline (task sup-baseline): the kind of each running process and the verdict `quiet`, `busy` or `pressured` of one sample. A process counts as heavy only when it is our work, decided by its program name, first argument and ancestry, never by its name alone. -/
+namespace Res
+
+/-- The process kinds the 20 s sampler counts. `leanBuild` is a `lake` or `lean` build, `leanServe` the `lake serve` language server and its workers,
+`system` a background service no work of ours owns (`CoreSimulatorService`, a WebKit XPC service outside our Safari or Simulator). -/
+inductive ProcKind where
+  | leanBuild | leanServe | fwcore | node | pnpm | chromium | simulator | webkit | system | other
+deriving DecidableEq, Repr
+
+/-- Every kind, in the order the sampler lists them. -/
+def ProcKind.all : List ProcKind :=
+  [.leanBuild, .leanServe, .fwcore, .node, .pnpm, .chromium, .simulator, .webkit, .system, .other]
+
+theorem ProcKind.mem_all (k : ProcKind) : k ∈ ProcKind.all := by cases k <;> decide
+
+/-- The wire name of a kind. -/
+def ProcKind.name : ProcKind → String
+  | .leanBuild => "leanBuild" | .leanServe => "leanServe" | .fwcore => "fwcore" | .node => "node" | .pnpm => "pnpm"
+  | .chromium => "chromium" | .simulator => "simulator" | .webkit => "webkit" | .system => "system" | .other => "other"
+
+/-- A kind whose presence rules out a quiet machine: our builds, our browsers, our Simulator device and our Safari. -/
+def ProcKind.heavy : ProcKind → Bool
+  | .leanBuild | .chromium | .simulator | .webkit => true
+  | .leanServe | .fwcore | .node | .pnpm | .system | .other => false
+
+theorem ProcKind.heavy_iff (k : ProcKind) : k.heavy = true ↔ k = .leanBuild ∨ k = .chromium ∨ k = .simulator ∨ k = .webkit := by
+  cases k <;> simp [ProcKind.heavy]
+
+/-- The always-on background kinds: the language server, the background services and the light tools are never heavy. -/
+theorem background_not_heavy (k : ProcKind) (h : k ∈ [ProcKind.leanServe, .fwcore, .node, .pnpm, .system, .other]) :
+    k.heavy = false := by
+  simp only [List.mem_cons, List.not_mem_nil, or_false] at h
+  rcases h with rfl | rfl | rfl | rfl | rfl | rfl <;> rfl
+
+/-- What a program name says about a process before its ancestry and arguments are read. -/
+inductive Role where
+  | kind (k : ProcKind) | leanTool | simRoot | safari | safariDriver | webkitHelper
+deriving DecidableEq, Repr
+
+/-- The wire name of a role. -/
+def Role.name : Role → String
+  | .kind k => k.name | .leanTool => "leanTool" | .simRoot => "simRoot" | .safari => "safari"
+  | .safariDriver => "safariDriver" | .webkitHelper => "webkitHelper"
+
+/-- The allowlist: executable basename to role. Every unlisted name has no role. -/
+def kindTable : List (String × Role) := [
+  ("lean", .leanTool), ("lake", .leanTool),
+  ("fwcore", .kind .fwcore), ("fwtest", .kind .fwcore),
+  ("node", .kind .node), ("pnpm", .kind .pnpm),
+  ("Chromium", .kind .chromium), ("Chromium Helper", .kind .chromium), ("Chromium Helper (Renderer)", .kind .chromium),
+  ("Chromium Helper (GPU)", .kind .chromium), ("chrome-headless-shell", .kind .chromium), ("headless_shell", .kind .chromium),
+  ("chrome_crashpad_handler", .kind .chromium),
+  ("launchd_sim", .simRoot),
+  ("com.apple.CoreSimulator.CoreSimulatorService", .kind .system),
+  ("Safari", .safari), ("safaridriver", .safariDriver),
+  ("com.apple.WebKit.WebContent", .webkitHelper), ("com.apple.WebKit.Networking", .webkitHelper),
+  ("com.apple.WebKit.GPU", .webkitHelper)]
+
+/-- One running process: its pid, parent pid, executable path (`ps comm`) and command line (read only for `lake`, `lean` and `launchd_sim`). -/
+structure Proc where
+  pid : Nat
+  ppid : Nat
+  comm : String
+  args : String := ""
+deriving Repr
+
+/-- A Simulator device by its id and name. -/
+structure Device where
+  udid : String
+  name : String
+deriving Repr
+
+/-- The program name of a `ps` command: the part after the last `/`, else the first word of a retitled process. -/
+def argv0Base (comm : String) : String :=
+  if comm.contains '/' then (comm.splitOn "/").getLastD comm else (comm.splitOn " ").headD comm
+
+/-- The role of a process by its program name only. -/
+def roleOf (p : Proc) : Option Role := kindTable.lookup (argv0Base p.comm)
+
+/-- A non-empty `sub` occurs in `s`. -/
+def hasSub (s sub : String) : Bool := !sub.isEmpty && 1 < (s.splitOn sub).length
+
+/-- The first argument of a command line: its second word. -/
+def firstArg (args : String) : String := ((args.splitOn " ").drop 1).headD ""
+
+/-- The language-server verbs: `lake serve`, `lean --server`, `lean --worker`. -/
+def serveVerb (args : String) : Bool :=
+  firstArg args == "serve" || firstArg args == "--server" || firstArg args == "--worker"
+
+/-- The Simulator devices of ours are the ones named `fw-…`. -/
+def ourDevice (d : Device) : Bool := d.name.startsWith "fw-"
+
+/-- The `launchd_sim` of a booted device of ours: its command line holds the device id. -/
+def isOurSimRoot (devs : List Device) (p : Proc) : Bool :=
+  roleOf p == some .simRoot && devs.any fun d => ourDevice d && hasSub p.args d.udid
+
+/-- A `lake serve`, `lean --server` or `lean --worker` process. -/
+def isServeRoot (p : Proc) : Bool := roleOf p == some .leanTool && serveVerb p.args
+
+/-- A `safaridriver` process. -/
+def isDriver (p : Proc) : Bool := roleOf p == some .safariDriver
+
+/-- A Safari process. -/
+def isSafari (p : Proc) : Bool := roleOf p == some .safari
+
+/-- A process whose ancestors include a Safari that a `safaridriver` started. -/
+def underOurSafari (anc : List Proc) : Bool := anc.any isSafari && anc.any isDriver
+
+/-- **The kind of a process** from its own program name and arguments and the list of its ancestors (parent first).
+A process inside the `launchd_sim` of a booted device of ours is `simulator`. `lake` and `lean` are `leanServe` when they or an ancestor run the
+language server, else `leanBuild`. Safari is `webkit` when a `safaridriver` started it, else `other`. A WebKit service is `webkit` under such a Safari,
+else `system`. A `launchd_sim` of another device is `other`. -/
+def kindAt (devs : List Device) (p : Proc) (anc : List Proc) : ProcKind :=
+  if (p :: anc).any (isOurSimRoot devs) then .simulator
+  else match roleOf p with
+    | some (.kind k) => k
+    | some .leanTool => if (p :: anc).any isServeRoot then .leanServe else .leanBuild
+    | some .safari => if anc.any isDriver then .webkit else .other
+    | some .webkitHelper => if underOurSafari anc then .webkit else .system
+    | some .simRoot => .other
+    | some .safariDriver => .other
+    | none => .other
+
+/-- The ancestors of `p`, parent first, by at most `n` steps (a parent loop stops). -/
+def ancestors (ps : List Proc) : Nat → Proc → List Proc
+  | 0, _ => []
+  | n + 1, p =>
+    match ps.find? (fun q => q.pid == p.ppid && q.pid != p.pid) with
+    | none => []
+    | some q => q :: ancestors ps n q
+
+/-- The kind of a process among all running ones. -/
+def kindOf (devs : List Device) (ps : List Proc) (p : Proc) : ProcKind := kindAt devs p (ancestors ps ps.length p)
+
+/-- The kind of each running process, in order. -/
+def kindsOf (devs : List Device) (ps : List Proc) : List ProcKind := ps.map (kindOf devs ps)
+
+/-- The listed names are distinct, so each has one role. -/
+theorem kindTable_nodup : (kindTable.map Prod.fst).Nodup := by decide
+
+theorem lookup_of_mem : ∀ (l : List (String × Role)), (l.map Prod.fst).Nodup →
+    ∀ a k, (a, k) ∈ l → l.lookup a = some k
+  | [], _, _, _, h => by simp at h
+  | (b, v) :: t, hn, a, k, h => by
+    rw [List.map_cons, List.nodup_cons] at hn
+    rcases List.mem_cons.mp h with h | h
+    · obtain ⟨rfl, rfl⟩ := Prod.mk.inj h
+      simp [List.lookup]
+    · have hne : a ≠ b := fun e => hn.1 (List.mem_map.mpr ⟨(a, k), h, e⟩)
+      simp only [List.lookup, beq_false_of_ne hne]
+      exact lookup_of_mem t hn.2 a k h
+
+theorem mem_of_lookup : ∀ (l : List (String × Role)) (a : String) (k : Role), l.lookup a = some k → (a, k) ∈ l
+  | [], _, _, h => by simp [List.lookup] at h
+  | (b, v) :: t, a, k, h => by
+    by_cases e : a = b
+    · subst e
+      simp [List.lookup] at h
+      simp [h]
+    · simp only [List.lookup, beq_false_of_ne e] at h
+      exact List.mem_cons_of_mem _ (mem_of_lookup t a k h)
+
+/-- The kinds a bare program name may give: none of them is an owned or heavy-by-identity kind. -/
+def plainKinds : List ProcKind := [.fwcore, .node, .pnpm, .chromium, .system]
+
+/-- Only `plainKinds` come from the name table alone, so `simulator`, `webkit`, `leanBuild` and `leanServe` need identity. -/
+theorem kindTable_plain : ∀ e ∈ kindTable, ∀ k ∈ ProcKind.all, e.2 = Role.kind k → k ∈ plainKinds := by decide
+
+theorem plain_of_role (p : Proc) (k : ProcKind) (h : roleOf p = some (.kind k)) : k ∈ plainKinds :=
+  kindTable_plain _ (mem_of_lookup _ _ _ h) k k.mem_all rfl
+
+/-- A name on the allowlist as a plain kind gets that kind, outside a Simulator of ours. -/
+theorem kindAt_plain (devs : List Device) (p : Proc) (anc : List Proc) (k : ProcKind) (h : roleOf p = some (.kind k))
+    (hs : (p :: anc).any (isOurSimRoot devs) = false) : kindAt devs p anc = k := by
+  simp [kindAt, hs, h]
+
+/-- A name off the allowlist is `other`, outside a Simulator of ours. -/
+theorem kindAt_unlisted (devs : List Device) (p : Proc) (anc : List Proc) (h : roleOf p = none)
+    (hs : (p :: anc).any (isOurSimRoot devs) = false) : kindAt devs p anc = .other := by
+  simp [kindAt, hs, h]
+
+/-- A process inside the `launchd_sim` of a booted device of ours is `simulator`. -/
+theorem simulator_of_sim_root (devs : List Device) (p : Proc) (anc : List Proc) (h : (p :: anc).any (isOurSimRoot devs) = true) :
+    kindAt devs p anc = .simulator := by
+  simp [kindAt, h]
+
+/-- Only a process inside the `launchd_sim` of a booted device of ours is `simulator`. -/
+theorem sim_root_of_simulator (devs : List Device) (p : Proc) (anc : List Proc) (h : kindAt devs p anc = .simulator) :
+    (p :: anc).any (isOurSimRoot devs) = true := by
+  by_cases hs0 : (p :: anc).any (isOurSimRoot devs) = true
+  · exact hs0
+  have hs : (p :: anc).any (isOurSimRoot devs) = false := by simpa using hs0
+  cases hr : roleOf p with
+  | none => simp [kindAt, hs, hr] at h
+  | some r =>
+    cases r with
+    | kind k =>
+      have := plain_of_role p k hr
+      simp only [kindAt, hs, hr] at h
+      subst h
+      simp [plainKinds] at this
+    | leanTool => by_cases c : (p :: anc).any isServeRoot = true <;> simp [kindAt, hs, hr, c] at h
+    | safari => by_cases c : anc.any isDriver = true <;> simp [kindAt, hs, hr, c] at h
+    | webkitHelper => by_cases c : underOurSafari anc = true <;> simp [kindAt, hs, hr, c] at h
+    | simRoot => simp [kindAt, hs, hr] at h
+    | safariDriver => simp [kindAt, hs, hr] at h
+
+/-- Only a Safari that a `safaridriver` started, or a WebKit service under one, is `webkit`: a `webkit` process has a `safaridriver` ancestor. -/
+theorem driver_of_webkit (devs : List Device) (p : Proc) (anc : List Proc) (h : kindAt devs p anc = .webkit) :
+    anc.any isDriver = true := by
+  by_cases hs : (p :: anc).any (isOurSimRoot devs) = true
+  · simp [kindAt, hs] at h
+  · have hs' : (p :: anc).any (isOurSimRoot devs) = false := by simpa using hs
+    cases hr : roleOf p with
+    | none => simp [kindAt, hs', hr] at h
+    | some r =>
+      cases r with
+      | kind k =>
+        have := plain_of_role p k hr
+        simp only [kindAt, hs', hr] at h
+        subst h
+        simp [plainKinds] at this
+      | leanTool => by_cases c : (p :: anc).any isServeRoot = true <;> simp [kindAt, hs', hr, c] at h
+      | safari => by_cases c : anc.any isDriver = true
+                  · exact c
+                  · simp [kindAt, hs', hr, c] at h
+      | webkitHelper => by_cases c : underOurSafari anc = true
+                        · simp only [underOurSafari, Bool.and_eq_true] at c
+                          exact c.2
+                        · simp [kindAt, hs', hr, c] at h
+      | simRoot => simp [kindAt, hs', hr] at h
+      | safariDriver => simp [kindAt, hs', hr] at h
+
+/-- A `lake` or `lean` that no language server owns is a build: `leanBuild` implies a lean tool and no server among it and its ancestors. -/
+theorem leanBuild_not_serving (devs : List Device) (p : Proc) (anc : List Proc) (h : kindAt devs p anc = .leanBuild) :
+    roleOf p = some .leanTool ∧ (p :: anc).any isServeRoot = false := by
+  by_cases hs : (p :: anc).any (isOurSimRoot devs) = true
+  · simp [kindAt, hs] at h
+  · have hs' : (p :: anc).any (isOurSimRoot devs) = false := by simpa using hs
+    cases hr : roleOf p with
+    | none => simp [kindAt, hs', hr] at h
+    | some r =>
+      cases r with
+      | kind k =>
+        have := plain_of_role p k hr
+        simp only [kindAt, hs', hr] at h
+        subst h
+        simp [plainKinds] at this
+      | leanTool =>
+        refine ⟨rfl, ?_⟩
+        by_cases c : (p :: anc).any isServeRoot = true
+        · simp [kindAt, hs', hr, c] at h
+        · simpa using c
+      | safari => by_cases c : anc.any isDriver = true <;> simp [kindAt, hs', hr, c] at h
+      | webkitHelper => by_cases c : underOurSafari anc = true <;> simp [kindAt, hs', hr, c] at h
+      | simRoot => simp [kindAt, hs', hr] at h
+      | safariDriver => simp [kindAt, hs', hr] at h
+
+/-- A `lake` or `lean` under a language-server process (or being one), outside our Simulator, is `leanServe`. -/
+theorem leanServe_of_serve (devs : List Device) (p : Proc) (anc : List Proc) (hr : roleOf p = some .leanTool)
+    (hs : (p :: anc).any (isOurSimRoot devs) = false) (hv : (p :: anc).any isServeRoot = true) : kindAt devs p anc = .leanServe := by
+  simp [kindAt, hs, hr, hv]
+
+/-- A WebKit service with no Safari of ours above it is `system`, whatever its parent is. -/
+theorem system_of_unowned_helper (devs : List Device) (p : Proc) (anc : List Proc) (hr : roleOf p = some .webkitHelper)
+    (hs : (p :: anc).any (isOurSimRoot devs) = false) (hu : underOurSafari anc = false) : kindAt devs p anc = .system := by
+  simp [kindAt, hs, hr, hu]
+
+/-- A Safari with no `safaridriver` above it is `other`. -/
+theorem other_of_unowned_safari (devs : List Device) (p : Proc) (anc : List Proc) (hr : roleOf p = some .safari)
+    (hs : (p :: anc).any (isOurSimRoot devs) = false) (hd : anc.any isDriver = false) : kindAt devs p anc = .other := by
+  simp [kindAt, hs, hr, hd]
+
+/-- The thresholds: pressured at swap use, compressor size or free memory (percent); busy at load (hundredths).
+All four are first guesses, revised after the first day of data. `swapPct` is the one flagged for revision: macOS adds swap files on demand, so swap
+used over swap total sits near a fixed high ratio and need not follow memory pressure; the free percentage is `memory_pressure`'s system-wide figure. -/
+structure Params where
+  swapPct : Nat := 90
+  cmprsPct : Nat := 50
+  freePct : Nat := 15
+  quietCenti : Nat := 200
+
+/-- One sample: the kind of each running process, 1-min load times 100, swap, compressor and RAM in MB, free memory in percent. -/
+structure Obs where
+  procs : List ProcKind := []
+  loadCenti : Nat := 0
+  swapUsedMB : Nat := 0
+  swapTotalMB : Nat := 0
+  compressorMB : Nat := 0
+  ramMB : Nat := 0
+  freePct : Nat := 100
+
+/-- The three verdicts, in order of pressure. -/
+inductive Verdict where
+  | quiet | busy | pressured
+deriving DecidableEq, Repr
+
+/-- The pressure rank of a verdict. -/
+def Verdict.rank : Verdict → Nat
+  | .quiet => 0 | .busy => 1 | .pressured => 2
+
+/-- Swap use at or above `swapPct` percent of the swap total (as `Fw.Sched.Heavy.swapHigh`); the swap total grows on demand, so this ratio is a dynamic-swap reading. -/
+def swapHigh (p : Params) (o : Obs) : Bool := decide (0 < o.swapTotalMB ∧ p.swapPct * o.swapTotalMB ≤ 100 * o.swapUsedMB)
+
+/-- Compressor at or above `cmprsPct` percent of RAM. -/
+def cmprsHigh (p : Params) (o : Obs) : Bool := decide (0 < o.ramMB ∧ p.cmprsPct * o.ramMB ≤ 100 * o.compressorMB)
+
+/-- Free memory at or below `freePct` percent. -/
+def freeLow (p : Params) (o : Obs) : Bool := decide (o.freePct ≤ p.freePct)
+
+/-- Some process of a heavy kind runs. -/
+def heavyRunning (o : Obs) : Bool := o.procs.any ProcKind.heavy
+
+/-- The 1-min load is at or above `quietCenti` hundredths. -/
+def loadBusy (p : Params) (o : Obs) : Bool := decide (p.quietCenti ≤ o.loadCenti)
+
+/-- Memory pressure: swap, compressor or free memory. -/
+def pressuredB (p : Params) (o : Obs) : Bool := swapHigh p o || cmprsHigh p o || freeLow p o
+
+/-- **The verdict of a sample**: `pressured` on memory, else `busy` on a heavy process or load, else `quiet`. -/
+def verdict (p : Params) (o : Obs) : Verdict :=
+  if pressuredB p o then .pressured else if heavyRunning o || loadBusy p o then .busy else .quiet
+
+/-- Pressured exactly when swap, compressor or free memory trips. -/
+theorem pressured_iff (p : Params) (o : Obs) :
+    verdict p o = .pressured ↔ swapHigh p o = true ∨ cmprsHigh p o = true ∨ freeLow p o = true := by
+  cases hh : heavyRunning o <;> cases hl : loadBusy p o <;> cases hs : swapHigh p o <;> cases hc : cmprsHigh p o <;>
+    cases hf : freeLow p o <;> simp [verdict, pressuredB, hh, hl, hs, hc, hf]
+
+theorem pressured_of_swap (p : Params) (o : Obs) (h : swapHigh p o = true) : verdict p o = .pressured :=
+  (pressured_iff p o).2 (Or.inl h)
+
+theorem pressured_of_cmprs (p : Params) (o : Obs) (h : cmprsHigh p o = true) : verdict p o = .pressured :=
+  (pressured_iff p o).2 (Or.inr (Or.inl h))
+
+theorem pressured_of_free (p : Params) (o : Obs) (h : freeLow p o = true) : verdict p o = .pressured :=
+  (pressured_iff p o).2 (Or.inr (Or.inr h))
+
+/-- Busy exactly when memory is fine and a heavy process runs or the load is high. -/
+theorem busy_iff (p : Params) (o : Obs) :
+    verdict p o = .busy ↔ pressuredB p o = false ∧ (heavyRunning o = true ∨ loadBusy p o = true) := by
+  cases hh : heavyRunning o <;> cases hl : loadBusy p o <;> cases hp : pressuredB p o <;> simp [verdict, hh, hl, hp]
+
+theorem busy_of_heavy (p : Params) (o : Obs) (hp : pressuredB p o = false) (h : heavyRunning o = true) :
+    verdict p o = .busy :=
+  (busy_iff p o).2 ⟨hp, Or.inl h⟩
+
+theorem busy_of_load (p : Params) (o : Obs) (hp : pressuredB p o = false) (h : loadBusy p o = true) :
+    verdict p o = .busy :=
+  (busy_iff p o).2 ⟨hp, Or.inr h⟩
+
+/-- Quiet exactly when memory is fine, no heavy process runs and the load is low. -/
+theorem quiet_iff (p : Params) (o : Obs) :
+    verdict p o = .quiet ↔ pressuredB p o = false ∧ heavyRunning o = false ∧ loadBusy p o = false := by
+  cases hh : heavyRunning o <;> cases hl : loadBusy p o <;> cases hp : pressuredB p o <;> simp [verdict, hh, hl, hp]
+
+/-- **A quiet sample has no process of a heavy kind.** -/
+theorem quiet_no_heavy (p : Params) (o : Obs) (h : verdict p o = .quiet) : ∀ k ∈ o.procs, k.heavy = false := by
+  intro k hk
+  have := ((quiet_iff p o).1 h).2.1
+  simp only [heavyRunning, List.any_eq_false] at this
+  simpa using this k hk
+
+/-- A quiet sample has a load below `quietCenti`. -/
+theorem quiet_low_load (p : Params) (o : Obs) (h : verdict p o = .quiet) : o.loadCenti < p.quietCenti := by
+  have := ((quiet_iff p o).1 h).2.2
+  simp only [loadBusy, decide_eq_false_iff_not, Nat.not_le] at this
+  exact this
+
+/-- `o'` is at least as pressed as `o`: more processes, load, swap and compressor, less free memory, same totals. -/
+structure Obs.Le (o o' : Obs) : Prop where
+  procs : ∀ k ∈ o.procs, k ∈ o'.procs
+  load : o.loadCenti ≤ o'.loadCenti
+  swap : o.swapUsedMB ≤ o'.swapUsedMB
+  swapTotal : o.swapTotalMB = o'.swapTotalMB
+  cmprs : o.compressorMB ≤ o'.compressorMB
+  ram : o.ramMB = o'.ramMB
+  free : o'.freePct ≤ o.freePct
+
+/-- The verdict never lowers as pressure grows. -/
+theorem verdict_rank_mono (p : Params) (o o' : Obs) (h : Obs.Le o o') : (verdict p o).rank ≤ (verdict p o').rank := by
+  have hs : swapHigh p o = true → swapHigh p o' = true := by
+    simp only [swapHigh, decide_eq_true_eq]
+    rw [← h.swapTotal]
+    intro ⟨a, b⟩
+    exact ⟨a, Nat.le_trans b (Nat.mul_le_mul_left 100 h.swap)⟩
+  have hc : cmprsHigh p o = true → cmprsHigh p o' = true := by
+    simp only [cmprsHigh, decide_eq_true_eq]
+    rw [← h.ram]
+    intro ⟨a, b⟩
+    exact ⟨a, Nat.le_trans b (Nat.mul_le_mul_left 100 h.cmprs)⟩
+  have hf : freeLow p o = true → freeLow p o' = true := by
+    simp only [freeLow, decide_eq_true_eq]
+    exact fun a => Nat.le_trans h.free a
+  have hh : heavyRunning o = true → heavyRunning o' = true := by
+    simp only [heavyRunning, List.any_eq_true]
+    exact fun ⟨k, hk, hv⟩ => ⟨k, h.procs k hk, hv⟩
+  have hl : loadBusy p o = true → loadBusy p o' = true := by
+    simp only [loadBusy, decide_eq_true_eq]
+    exact fun a => Nat.le_trans a h.load
+  have hP : pressuredB p o = true → pressuredB p o' = true := by
+    simp only [pressuredB, Bool.or_eq_true]
+    rintro ((a | a) | a)
+    · exact Or.inl (Or.inl (hs a))
+    · exact Or.inl (Or.inr (hc a))
+    · exact Or.inr (hf a)
+  have hB : (heavyRunning o || loadBusy p o) = true → (heavyRunning o' || loadBusy p o') = true := by
+    simp only [Bool.or_eq_true]
+    exact fun b => b.elim (fun x => Or.inl (hh x)) (fun x => Or.inr (hl x))
+  unfold verdict
+  cases e1 : pressuredB p o <;> cases e2 : pressuredB p o' <;> cases e3 : (heavyRunning o || loadBusy p o) <;>
+    cases e4 : (heavyRunning o' || loadBusy p o') <;> simp_all [Verdict.rank]
+
+/-- A quiet machine with only background processes: the language server, a Simulator service, a system WebContent and light tools. -/
+theorem quiet_with_background :
+    verdict {} { procs := [.leanServe, .leanServe, .system, .system, .node, .pnpm, .fwcore, .other], loadCenti := 50, freePct := 50 } = .quiet := by
+  decide
+
+/-- A quiet sample is reachable with every background kind present, and one heavy kind alone makes it busy. -/
+theorem busy_with_one_heavy (k : ProcKind) (hk : k.heavy = true) :
+    verdict {} { procs := [.leanServe, .system, k], loadCenti := 50, freePct := 50 } = .busy := by
+  rcases (ProcKind.heavy_iff k).1 hk with rfl | rfl | rfl | rfl <;> decide
+
+/-- The always-on background processes are not heavy, outside a Simulator of ours: a `CoreSimulatorService`, a WebKit service with no Safari of
+ours above it, and a `lake`/`lean` under a language server. -/
+theorem background_procs_not_heavy (devs : List Device) (p : Proc) (anc : List Proc) (hs : (p :: anc).any (isOurSimRoot devs) = false)
+    (h : roleOf p = some (.kind .system) ∨ (roleOf p = some .webkitHelper ∧ underOurSafari anc = false) ∨
+      (roleOf p = some .leanTool ∧ (p :: anc).any isServeRoot = true)) : (kindAt devs p anc).heavy = false := by
+  rcases h with h | ⟨h, hu⟩ | ⟨h, hv⟩
+  · rw [kindAt_plain devs p anc _ h hs]; rfl
+  · rw [system_of_unowned_helper devs p anc h hs hu]; rfl
+  · rw [leanServe_of_serve devs p anc h hs hv]; rfl
+
+private def pr (pid ppid : Nat) (comm : String) (args : String := "") : Proc := ⟨pid, ppid, comm, args⟩
+
+#guard argv0Base "/Users/x/.nvm/versions/node/v24.22.0/bin/node" == "node"
+#guard argv0Base "node server.js" == "node"
+#guard argv0Base "/Applications/Chromium.app/Contents/Frameworks/Chromium Helper (Renderer).app/Contents/MacOS/Chromium Helper (Renderer)" == "Chromium Helper (Renderer)"
+#guard argv0Base "/Users/x/node/not-node" == "not-node"
+#guard argv0Base "" == ""
+-- background processes with no owner of ours
+#guard kindsOf [] [pr 1 0 "/sbin/launchd", pr 10 1 "/L/CoreSimulator.framework/XPCServices/com.apple.CoreSimulator.CoreSimulatorService.xpc/Contents/MacOS/com.apple.CoreSimulator.CoreSimulatorService",
+    pr 11 1 "/S/WebKit.framework/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+    pr 12 20 "/e/bin/lean" "/e/bin/lean --server", pr 20 30 "/e/bin/lake" "/e/bin/lake serve -- -D"]
+  == [.other, .system, .system, .leanServe, .leanServe]
+-- a build is heavy, its children too
+#guard kindsOf [] [pr 20 1 "/e/bin/lake" "/e/bin/lake build", pr 21 20 "/e/bin/lean" "/e/bin/lean -R x"] == [.leanBuild, .leanBuild]
+-- a booted device of ours: the whole subtree is simulator; another device and another process of the same name are not
+#guard kindsOf [⟨"AAAA", "fw-sim 15"⟩] [pr 5 1 "/R/sbin/launchd_sim" "/R/sbin/launchd_sim /D/AAAA/data/var/run/launchd_bootstrap.plist",
+    pr 6 5 "/R/usr/libexec/backboardd", pr 7 6 "/R/usr/libexec/some-daemon", pr 8 1 "/R/usr/libexec/some-daemon"] == [.simulator, .simulator, .simulator, .other]
+#guard kindsOf [⟨"BBBB", "iPhone 17"⟩] [pr 5 1 "/R/sbin/launchd_sim" "/R/sbin/launchd_sim /D/BBBB/data", pr 6 5 "/R/usr/libexec/backboardd"] == [.other, .other]
+#guard verdict {} { procs := kindsOf [] [pr 10 1 "/x/com.apple.CoreSimulator.CoreSimulatorService", pr 11 1 "/x/com.apple.WebKit.WebContent",
+    pr 12 1 "/e/bin/lake" "/e/bin/lake serve"], loadCenti := 50, freePct := 50 } == .quiet
+private def simTree : List Proc := [pr 5 1 "/R/sbin/launchd_sim" "/R/sbin/launchd_sim /D/AAAA/data", pr 6 5 "/R/backboardd"]
+#guard verdict {} { procs := kindsOf [⟨"AAAA", "fw-sim"⟩] simTree, loadCenti := 50, freePct := 50 } == .busy
+#guard verdict {} {} == .quiet
+#guard verdict {} { procs := [.node, .other] } == .quiet
+#guard verdict {} { procs := [.leanServe, .system] } == .quiet
+#guard verdict {} { procs := [.leanBuild] } == .busy
+#guard verdict {} { loadCenti := 200 } == .busy
+#guard verdict {} { loadCenti := 199 } == .quiet
+#guard verdict {} { swapUsedMB := 900, swapTotalMB := 1000 } == .pressured
+#guard verdict {} { swapUsedMB := 899, swapTotalMB := 1000 } == .quiet
+#guard verdict {} { swapUsedMB := 900 } == .quiet
+#guard verdict {} { compressorMB := 50, ramMB := 100 } == .pressured
+#guard verdict {} { compressorMB := 49, ramMB := 100 } == .quiet
+#guard verdict {} { freePct := 15 } == .pressured
+#guard verdict {} { freePct := 16 } == .quiet
+#guard verdict {} { procs := [.leanBuild], freePct := 10 } == .pressured
+
+end Res
+
 end Fw.Obs.Health
