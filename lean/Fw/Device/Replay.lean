@@ -385,6 +385,213 @@ theorem swipeActs_dur_sum (f : Pt) (rest : List Pt) (fin : Int) (hc : chain f.m 
       Act.dur, nextMs, gap] at this ⊢
     omega
 
+/-! ## The replay in pieces -/
+
+/-- The actions cut at the swipes: one piece per swipe with points, its lead-in wait first, the finger up at its end. -/
+def goPieces : Int → List Swipe → List (List Act)
+  | _, [] => []
+  | prev, s :: ss =>
+    match swipePts s with
+    | [] => goPieces prev ss
+    | f :: _ => (pauseRun (gap prev f.m) ++ swipeActs (swipePts s) (swipeEnd s)) :: goPieces (swipeEnd s) ss
+
+/-- The pieces of a profile; joined they are `compile`. -/
+def pieces (p : Profile) : List (List Act) :=
+  match (p.swipes.filter fun s => !s.samples.isEmpty) with
+  | [] => []
+  | s :: ss =>
+    match swipePts s with
+    | [] => []
+    | f :: _ => goPieces f.m (s :: ss)
+
+/-- How long the client waits for the call of a piece that takes `d` ms before it names the call hung. -/
+def pieceTimeoutMs (d : Nat) : Nat := 2 * d + 10000
+
+theorem goPieces_join : ∀ (prev : Int) (ss : List Swipe), (goPieces prev ss).flatten = goActs prev ss := by
+  intro prev ss
+  induction ss generalizing prev with
+  | nil => simp [goPieces, goActs]
+  | cons s ss ih =>
+    unfold goPieces goActs
+    split
+    · exact ih prev
+    · simp [ih]
+
+theorem pieces_join (p : Profile) : (pieces p).flatten = compile p := by
+  unfold pieces compile
+  split
+  · simp
+  · split
+    · simp
+    · exact goPieces_join _ _
+
+theorem pieces_dur_le (p : Profile) : ∀ pc ∈ pieces p, ∀ a ∈ pc, 0 ≤ a.dur ∧ a.dur ≤ tickMax := by
+  intro pc hpc a ha
+  apply compile_dur_le p a
+  rw [← pieces_join]
+  exact List.mem_flatten.mpr ⟨pc, hpc, ha⟩
+
+theorem pieces_targets (p : Profile) : ((pieces p).flatMap fun pc => pc.filterMap Act.target) = (compile p).filterMap Act.target := by
+  rw [← pieces_join, List.filterMap_flatten]
+  simp [List.flatMap_def]
+
+theorem lt_pieceTimeoutMs (d : Nat) : d < pieceTimeoutMs d := by
+  unfold pieceTimeoutMs; omega
+
+theorem pieceTimeoutMs_mono {a b : Nat} (h : a ≤ b) : pieceTimeoutMs a ≤ pieceTimeoutMs b := by
+  unfold pieceTimeoutMs; omega
+
+theorem pieceTimeoutMs_floor (d : Nat) : 10000 ≤ pieceTimeoutMs d := by
+  unfold pieceTimeoutMs; omega
+
+theorem goPieces_length : ∀ (prev : Int) (ss : List Swipe), (∀ s ∈ ss, s.samples ≠ []) → (goPieces prev ss).length = ss.length := by
+  intro prev ss
+  induction ss generalizing prev with
+  | nil => intro _; simp [goPieces]
+  | cons s ss ih =>
+    intro h
+    have hs : swipePts s ≠ [] := by
+      have := h s (by simp)
+      unfold swipePts
+      simpa using this
+    unfold goPieces
+    split
+    · rename_i h2; exact absurd h2 hs
+    · simp [ih _ (fun t ht => h t (by simp [ht]))]
+
+theorem pieces_length (p : Profile) : (pieces p).length = (p.swipes.filter fun s => !s.samples.isEmpty).length := by
+  unfold pieces
+  split
+  · rename_i h; rw [h]; rfl
+  · rename_i s ss h
+    split
+    · rename_i h2
+      exfalso
+      have hs : s ∈ p.swipes.filter fun s => !s.samples.isEmpty := by rw [h]; simp
+      simp only [List.mem_filter, Bool.not_eq_true', List.isEmpty_eq_false_iff] at hs
+      unfold swipePts at h2
+      simp at h2
+      exact hs.2 h2
+    · rw [h, goPieces_length]
+      intro t ht
+      have : t ∈ p.swipes.filter fun s => !s.samples.isEmpty := by rw [h]; simp [ht]
+      simp only [List.mem_filter, Bool.not_eq_true', List.isEmpty_eq_false_iff] at this
+      exact this.2
+
+/-- A move or a pause: an action that neither puts the finger down nor lifts it. -/
+def Act.isStep : Act → Bool
+  | .move .. => true
+  | .pause _ => true
+  | _ => false
+
+theorem pauseRun_steps (n : Nat) : ∀ a ∈ pauseRun n, a.isStep = true := by
+  intro a ha
+  unfold pauseRun at ha
+  split at ha
+  · simp at ha
+  · simp only [List.mem_map] at ha
+    obtain ⟨c, _, rfl⟩ := ha
+    rfl
+
+theorem emit_steps : ∀ (n : Nat) (p : Pt) (rest : List Pt) (fin : Int), rest.length = n →
+    ∀ a ∈ emit p rest fin, a.isStep = true := by
+  intro n
+  induction n with
+  | zero =>
+    intro p rest fin hr a ha
+    have : rest = [] := List.length_eq_zero_iff.mp hr
+    subst this
+    unfold emit at ha
+    simp only [List.mem_append, List.mem_cons, List.not_mem_nil, or_false] at ha
+    rcases ha with rfl | ha
+    · rfl
+    · exact pauseRun_steps _ a ha
+  | succ n ih =>
+    intro p rest fin hr a ha
+    match rest, hr with
+    | q :: qs, hr =>
+      unfold emit at ha
+      simp only [List.mem_append, List.mem_cons, List.not_mem_nil, or_false] at ha
+      rcases ha with (rfl | ha) | ha
+      · rfl
+      · exact pauseRun_steps _ a ha
+      · exact ih q qs fin (by simpa using hr) a ha
+
+/-- A swipe's actions are its steps with one finger down before and one finger up after the later ones: `[move, down] ++ steps ++ [up]`. -/
+theorem swipeActs_shape (f : Pt) (rest : List Pt) (fin : Int) :
+    ∃ steps : List Act, (∀ a ∈ steps, a.isStep = true) ∧ swipeActs (f :: rest) fin = [.move f.x f.y 0, .down] ++ steps ++ [.up] := by
+  unfold swipeActs
+  match rest with
+  | [] => exact ⟨pauseRun (gap f.m (nextMs [] fin)), pauseRun_steps _, by simp⟩
+  | q :: qs =>
+    refine ⟨pauseRun (gap f.m (nextMs (q :: qs) fin)) ++ emit q qs fin, ?_, by simp⟩
+    intro a ha
+    rcases List.mem_append.mp ha with ha | ha
+    · exact pauseRun_steps _ a ha
+    · exact emit_steps _ q qs fin rfl a ha
+
+theorem goPieces_mem : ∀ (prev : Int) (ss : List Swipe) (pc : List Act), pc ∈ goPieces prev ss →
+    ∃ (prev' : Int) (s : Swipe) (f : Pt) (rest : List Pt), swipePts s = f :: rest ∧
+      pc = pauseRun (gap prev' f.m) ++ swipeActs (f :: rest) (swipeEnd s) := by
+  intro prev ss
+  induction ss generalizing prev with
+  | nil => intro pc h; simp [goPieces] at h
+  | cons s ss ih =>
+    intro pc h
+    unfold goPieces at h
+    split at h
+    · exact ih prev pc h
+    · rename_i f rest hf
+      rcases List.mem_cons.mp h with rfl | h
+      · exact ⟨prev, s, f, rest, hf, by rw [← hf]⟩
+      · exact ih _ pc h
+
+theorem piece_shape {prev' : Int} {f : Pt} {rest : List Pt} {fin : Int} {pc : List Act}
+    (h : pc = pauseRun (gap prev' f.m) ++ swipeActs (f :: rest) fin) :
+    pc.count .down = 1 ∧ pc.count .up = 1 ∧ pc.getLast? = some .up := by
+  obtain ⟨steps, hs, he⟩ := swipeActs_shape f rest fin
+  have hp : ∀ a ∈ pauseRun (gap prev' f.m), a.isStep = true := pauseRun_steps _
+  have step_ne : ∀ (l : List Act), (∀ a ∈ l, a.isStep = true) → ∀ b : Act, b.isStep = false → b ∉ l := by
+    intro l hl b hb hm
+    have := hl b hm
+    rw [hb] at this
+    exact Bool.noConfusion this
+  have c1 : (pauseRun (gap prev' f.m)).count .down = 0 := List.count_eq_zero.mpr (step_ne _ hp _ rfl)
+  have c2 : steps.count .down = 0 := List.count_eq_zero.mpr (step_ne _ hs _ rfl)
+  have c3 : (pauseRun (gap prev' f.m)).count .up = 0 := List.count_eq_zero.mpr (step_ne _ hp _ rfl)
+  have c4 : steps.count .up = 0 := List.count_eq_zero.mpr (step_ne _ hs _ rfl)
+  subst h
+  rw [he]
+  refine ⟨?_, ?_, ?_⟩
+  · simp [List.count_append, c1, c2]
+  · simp [List.count_append, c3, c4]
+  · rw [← List.append_assoc]
+    exact List.getLast?_concat
+
+theorem pieces_shape (p : Profile) : ∀ pc ∈ pieces p, pc.count .down = 1 ∧ pc.count .up = 1 ∧ pc.getLast? = some .up := by
+  intro pc hpc
+  unfold pieces at hpc
+  split at hpc
+  · simp at hpc
+  · split at hpc
+    · simp at hpc
+    · obtain ⟨_, _, _, _, _, h⟩ := goPieces_mem _ _ pc hpc
+      exact piece_shape h
+
+theorem piece_dur_sum {prev : Int} {f : Pt} {rest : List Pt} {fin : Int} (hc : chain f.m rest fin) :
+    ((pauseRun (gap prev f.m) ++ swipeActs (f :: rest) fin).map Act.dur).sum = (gap prev f.m : Int) + (fin - f.m) := by
+  simp only [List.map_append, List.sum_append, pauseRun_dur_sum, swipeActs_dur_sum f rest fin hc]
+
+theorem pieces_dur_sum (p : Profile) :
+    (((pieces p).map fun pc => (pc.map Act.dur).sum)).sum = ((compile p).map Act.dur).sum := by
+  rw [← pieces_join]
+  have : ∀ l : List (List Act), (l.flatten.map Act.dur).sum = (l.map fun pc => (pc.map Act.dur).sum).sum := by
+    intro l
+    induction l with
+    | nil => simp
+    | cons a l ih => simp only [List.flatten_cons, List.map_append, List.sum_append, List.map_cons, List.sum_cons, ih]
+  exact (this _).symm
+
 /-! ## What the page sees of a replay -/
 
 /-- The samples whose whole px differ from the sample kept before them. -/
