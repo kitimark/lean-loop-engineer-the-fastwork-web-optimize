@@ -724,4 +724,80 @@ open Ex in
 -- `least` finds the first index that passes, or the end.
 #guard least (· ≥ 3) 0 10 == 3 && least (fun _ => false) 0 4 == 4 && least (fun _ => true) 2 4 == 2
 
+-- Charge is the larger of declared cost and footprint; a job fits when load, request and external sum to the budget.
+#guard charge { id := 1, kind := 1, cost := { ram := 300 }, foot := { ram := 900 } } .ram == 900
+  && (let s : State := { leases := [⟨0, 1, .job, 0, { ram := 5000 }, 1, 61, 0⟩] }
+      fitsB Ex.cfg s ({ ram := 3000 } : Vec).get && !fitsB Ex.cfg s ({ ram := 3001 } : Vec).get
+      && !fitsB Ex.cfg { s with obs := { ext := { ram := 1 } } } ({ ram := 3000 } : Vec).get)
+
+-- Holds are clamped to `[1, hmax]`; a lease lives at most `hmax · (1 + renewCap)`; crashes older than the window drop.
+#guard holdOf Ex.cfg 0 == 1 && holdOf Ex.cfg 500 == 60 && holdOf Ex.cfg 30 == 30 && span Ex.cfg == 180
+  && recent Ex.cfg 150 [10, 60, 140] == [60, 140]
+
+-- The queue is ordered by age, then id; a ticket-aged request goes ahead of younger ones.
+#guard
+  let r := fun (i a : Nat) => (⟨i, 1, .job, 0, {}, 1, a, 0, 10⟩ : Req)
+  (insertReq (r 9 3) [r 1 1, r 2 5]).map (·.id) == [1, 9, 2] && (insertReq (r 0 1) [r 1 1]).map (·.id) == [0, 1]
+  && (insertReq (r 3 1) [r 1 1]).map (·.id) == [1, 3]
+
+-- A group is alive when its leader row has the recorded start second.
+#guard
+  let rows : List Fw.Ops.Reap.Row := [{ pid := 500, ppid := 1, pgid := 500, start := 7, cwd := none, kind := "x" }]
+  alive rows ⟨500, 7⟩ && !alive rows ⟨500, 8⟩ && !alive rows ⟨501, 7⟩
+
+-- A crash below the cap leaves the record absent, a failed start fails it, the cap fails it for the window.
+#guard
+  let x : Rsrc := { id := 1, kind := 1, cost := {} }
+  (crash Ex.cfg 5 false x).phase == .absent && (crash Ex.cfg 5 true x).phase == .failed 105 .startFailed
+  && (crash Ex.cfg 5 false { x with crashes := [3] }).phase == .failed 105 .restartCap
+  && (crash Ex.cfg 200 false { x with crashes := [3] }).phase == .absent
+
+-- An exit makes a stopping record absent, crashes a ready one and leaves an absent one.
+#guard
+  let x : Rsrc := { id := 1, kind := 1, cost := {} }
+  (exits Ex.cfg 5 { x with phase := .stopping 1 .term }).phase == .absent
+  && (exits Ex.cfg 5 { x with phase := .ready }).crashes == [5] && exits Ex.cfg 5 x == x
+
+-- Candidates exclude pinned and leased resources and are ranked by cold-start cost per MB; shedding at warn takes all,
+-- eviction takes the shortest prefix that makes the request fit, or nothing.
+#guard
+  let a : Rsrc := { id := 1, kind := 1, cost := { ram := 3000 }, phase := .ready, proc := some ⟨10, 1⟩ }
+  let b : Rsrc := { id := 3, kind := 2, cost := { ram := 100 }, phase := .ready, proc := some ⟨11, 1⟩ }
+  let p : Rsrc := { id := 2, kind := 7, cost := { ram := 100 }, phase := .ready, proc := some ⟨12, 1⟩ }
+  let s : State := { res := [b, p, a], now := 20 }
+  (byRank Ex.cfg s).map (·.id) == [1, 3] && (idle Ex.cfg s).map (·.id) == [3, 1]
+  && (idle Ex.cfg { s with now := 5 }).isEmpty
+  && (cands Ex.cfg { s with leases := [⟨0, 1, .svc, 3, {}, 1, 61, 0⟩] }).map (·.id) == [1]
+  && (shedPick Ex.cfg { s with obs := { pressure := 2 } }).map (·.id) == [1, 3] && (shedPick Ex.cfg s).isEmpty
+  && (evictPick Ex.cfg s ({ ram := 6000 } : Vec).get).map (·.id) == [1]
+  && (evictPick Ex.cfg s ({ ram := 12000 } : Vec).get).isEmpty
+
+-- Shedding starts at warn pressure and holds while the load is within the margin of the budget.
+#guard
+  let s : State := { leases := [⟨0, 1, .job, 0, { ram := 7600 }, 1, 61, 0⟩] }
+  shedOn Ex.cfg { obs := { pressure := 2 } } && !shedOn Ex.cfg {} && !shedOn Ex.cfg s
+  && shedOn Ex.cfg { s with shedding := true }
+
+-- Client events need the token; a service lease is kept only on a ready resource.
+#guard
+  let x : Rsrc := { id := 1, kind := 1, cost := {}, phase := .ready }
+  !authed Ex.cfg (.request 9 1 Ex.big) && authed Ex.cfg (.request 42 1 Ex.big) && authed Ex.cfg (.tick 1 Ex.calm)
+  && svcOk [x] ⟨0, 1, .svc, 1, {}, 1, 61, 0⟩ && !svcOk [x] ⟨0, 1, .svc, 2, {}, 1, 61, 0⟩
+  && svcOk [] ⟨0, 1, .job, 2, {}, 1, 61, 0⟩
+
+-- A snapshot lease survives recovery only while alive, within its hold and renew caps, and on a ready resource.
+#guard
+  let x : Rsrc := { id := 1, kind := 1, cost := {}, phase := .ready }
+  validLease Ex.cfg [x] 5 ⟨0, 1, .job, 0, {}, 1, 61, 0⟩ && !validLease Ex.cfg [x] 61 ⟨0, 1, .job, 0, {}, 1, 61, 0⟩
+  && !validLease Ex.cfg [x] 5 ⟨0, 1, .job, 0, {}, 1, 200, 0⟩ && validLease Ex.cfg [x] 5 ⟨0, 1, .svc, 1, {}, 1, 61, 0⟩
+  && !validLease Ex.cfg [] 5 ⟨0, 1, .svc, 1, {}, 1, 61, 0⟩
+
+-- Duplicates keep the first record of each id; a group gets a KILL only when recorded; unseen footprint is zero.
+#guard
+  let r := fun (i k : Nat) => ({ id := i, kind := k, cost := {} } : Rsrc)
+  (nubRes [r 1 1, r 1 2, r 2 3]).map (·.kind) == [1, 3]
+  && (nubLease [⟨0, 1, .job, 0, {}, 1, 61, 0⟩, ⟨0, 2, .job, 0, {}, 1, 61, 0⟩]).map (·.owner) == [1]
+  && killG none == [] && killG (some ⟨5, 1⟩) == [.signal (.group ⟨5, 1⟩) .kill]
+  && footOf { foot := [(⟨5, 1⟩, { ram := 70 })] } (some ⟨5, 1⟩) == { ram := 70 } && footOf {} (some ⟨5, 1⟩) == {}
+
 end Fw.Sup
