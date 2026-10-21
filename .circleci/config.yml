@@ -22,7 +22,11 @@ version: 2.1
 
 parameters:
   lane:
-    description: Which lane to run, empty for none. premise-tests or webkit-sim.
+    description: Which lane to run, empty for none. premise-tests, webkit-sim or land.
+    type: string
+    default: ""
+  legs:
+    description: The land legs to run when lane is land, comma separated (check-sh, suites-a, suites-b, chromium, playwright-webkit; the names of lean/land-legs.txt).
     type: string
     default: ""
   resource_class:
@@ -58,6 +62,7 @@ commands:
           when: always
           command: sh .circleci/job.sh finish
       - store_artifacts:
+          when: always
           path: /tmp/fw/artifacts
 
 jobs:
@@ -197,6 +202,57 @@ jobs:
           command: sh .circleci/job.sh sim-delete
       - finish
 
+  # The land lane (task land-lane-circleci): one leg of .github/workflows/land.yml, same entry (`pnpm fw checks --affected --tier remote
+  # --leg <leg>`), same lane digest. Linux Arm, the same class as the premise jobs. No cache of any kind: the Lean build is cold (about
+  # 260 s on a GitHub Arm runner), because a cache of the Lean build would count against the storage stop rule.
+  land:
+    parameters:
+      leg:
+        type: enum
+        enum: [check-sh, suites-a, suites-b, chromium, playwright-webkit]
+      rc:
+        type: enum
+        enum: [arm.medium.gen2, arm.large.gen2, arm.medium, arm.large]
+    machine:
+      image: ubuntu-2404:current
+    resource_class: << parameters.rc >>
+    environment:
+      FW_CI_JOB: land-<< parameters.leg >>
+      FW_CI_CLASS: << parameters.rc >>
+      # Same pinned browser as .github/workflows/land.yml.
+      HS_VERSION: 156.0.8078.4
+      HS_SHA256: 81ab9d4d3c301dc5fdfb6c541b9e6632b16fc819a6a854460f40a76fe2b2c476
+    steps:
+      - mark
+      - checkout
+      - since:
+          step: checkout
+      - run:
+          name: toolchain (node 24, pnpm)
+          command: sh .circleci/job.sh toolchain
+      - run:
+          name: Lean toolchain (pinned elan)
+          command: sh .circleci/job.sh land-lean
+      - run:
+          name: main ref and commit identity
+          command: sh .circleci/job.sh land-setup
+      - run:
+          name: deps install (package filter from Lean)
+          command: sh .circleci/job.sh install "$(cat lean/land-filter.txt)"
+      - run:
+          name: fwcore build
+          command: sh .circleci/job.sh land-fwcore
+          no_output_timeout: 30m
+      - run:
+          name: suites (the remote tier of the Lean-selected checks)
+          command: sh .circleci/job.sh land-suites << parameters.leg >>
+          no_output_timeout: 30m
+      - run:
+          name: browser suite
+          command: sh .circleci/job.sh land-engine << parameters.leg >>
+          no_output_timeout: 30m
+      - finish
+
 workflows:
   premise-tests:
     when: pipeline.parameters.lane == "premise-tests" and pipeline.git.branch starts-with "ci/"
@@ -218,3 +274,63 @@ workflows:
     jobs:
       - webkit-sim:
           xcode: << pipeline.parameters.xcode >>
+
+  land-check-sh:
+    when:
+      and:
+        - equal: [land, << pipeline.parameters.lane >>]
+        - matches: {pattern: "^(.*,)?check-sh(,.*)?$", value: << pipeline.parameters.legs >>}
+        - matches: {pattern: "^ci/.*", value: << pipeline.git.branch >> }
+    jobs:
+      - land:
+          name: land-check-sh
+          leg: check-sh
+          rc: << pipeline.parameters.resource_class >>
+
+  land-suites-a:
+    when:
+      and:
+        - equal: [land, << pipeline.parameters.lane >>]
+        - matches: {pattern: "^(.*,)?suites-a(,.*)?$", value: << pipeline.parameters.legs >>}
+        - matches: {pattern: "^ci/.*", value: << pipeline.git.branch >> }
+    jobs:
+      - land:
+          name: land-suites-a
+          leg: suites-a
+          rc: << pipeline.parameters.resource_class >>
+
+  land-suites-b:
+    when:
+      and:
+        - equal: [land, << pipeline.parameters.lane >>]
+        - matches: {pattern: "^(.*,)?suites-b(,.*)?$", value: << pipeline.parameters.legs >>}
+        - matches: {pattern: "^ci/.*", value: << pipeline.git.branch >> }
+    jobs:
+      - land:
+          name: land-suites-b
+          leg: suites-b
+          rc: << pipeline.parameters.resource_class >>
+
+  land-chromium:
+    when:
+      and:
+        - equal: [land, << pipeline.parameters.lane >>]
+        - matches: {pattern: "^(.*,)?chromium(,.*)?$", value: << pipeline.parameters.legs >>}
+        - matches: {pattern: "^ci/.*", value: << pipeline.git.branch >> }
+    jobs:
+      - land:
+          name: land-chromium
+          leg: chromium
+          rc: << pipeline.parameters.resource_class >>
+
+  land-playwright-webkit:
+    when:
+      and:
+        - equal: [land, << pipeline.parameters.lane >>]
+        - matches: {pattern: "^(.*,)?playwright-webkit(,.*)?$", value: << pipeline.parameters.legs >>}
+        - matches: {pattern: "^ci/.*", value: << pipeline.git.branch >> }
+    jobs:
+      - land:
+          name: land-playwright-webkit
+          leg: playwright-webkit
+          rc: << pipeline.parameters.resource_class >>
