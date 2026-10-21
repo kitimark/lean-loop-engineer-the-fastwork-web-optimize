@@ -210,7 +210,7 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     "packages/contracts/golden/preset/look-change.candidates.jsonl",
     "packages/contracts/golden/port/**", "scripts/port/**", "packages/visual-diff/src/engines.mjs", "packages/visual-diff/src/fonts.mjs", "snapshot/site/index.html", "snapshot/site/_app/**", ...siteAssetReads()],
   "packages/measure-wktr": ["packages/measure-chromium/src/fwcore.mjs", "packages/measure-webkit/src/page.mjs", "packages/measure-webkit/src/serve.mjs"],
-  "packages/measure-chromium": ["lean/Fw/Store/Layout.lean", "lean/Fw/Faithful/Measured.lean", "packages/contracts/golden/measure/**", "packages/contracts/golden/faithful/**", "packages/contracts/golden/parts/stage-mode.jsonl", ".github/workflows/chromium-counts.yml", "results/baselines/chromium/**"],
+  "packages/measure-chromium": ["lean/Fw/Store/Layout.lean", "packages/contracts/golden/device/**","packages/contracts/golden/device/**", "lean/Fw/Faithful/Measured.lean", "packages/contracts/golden/measure/**", "packages/contracts/golden/faithful/**", "packages/contracts/golden/parts/stage-mode.jsonl", ".github/workflows/chromium-counts.yml", "results/baselines/chromium/**"],
   "packages/gate-breakpoints": ["lean/**", "packages/measure-webkit/src/device.mjs", "scripts/sim-lock.sh", "apps/site/src/breakpoints.gen.json", "apps/site/src/parts/**",
     "packages/contracts/golden/gate/**", "packages/contracts/golden/parts/**",
     // image-audit: the test compares the byte copy of arm.mjs that packages/measure-webkit keeps (visual-diff is a workspace
@@ -223,6 +223,8 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
   "packages/difftest": ["apps/console-api/src/cap/cap.ts", "apps/runner/hooks/cap.mjs", "packages/measure-chromium/src/n0.mjs",
     "packages/measure-chromium/src/trace.mjs", "packages/measure-webkit/src/quietsteps.mjs", "packages/measure-webkit/src/reduce.mjs"],
   "packages/measure-webkit": ["packages/contracts/golden/measure/**", "apps/site/src/flags/images/drawn.json",
+    // device-lag-recorder: the session twin reads golden/device/session.jsonl and imports the CI profile loader that checks an exported replay
+    "packages/contracts/golden/device/**", "packages/measure-chromium/src/profile.mjs", "packages/measure-chromium/profiles/**",
     // webkit-lag-probe: test/lag-findings.test.mjs reads the note whose Findings it checks against the generated block
     "research/notes/2026/10-21-webkit-lag-probe.md"],
   "packages/snapshot-extract": ["packages/gate-breakpoints/src/**"],
