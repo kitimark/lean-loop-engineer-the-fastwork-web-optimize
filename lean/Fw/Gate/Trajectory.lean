@@ -3893,10 +3893,12 @@ def cutM : Int := 10
 /-- A morph value as the probe stores it: times 10000, rounded half up. -/
 def roundM (v : Rat) : Int := (v * 10000 + 1 / 2).floor
 
-/-- Red and alpha (0 to 255) of the colour the nav background mixes from at morph value 0 (`#ffffff1a`). -/
+/-- Red and alpha (0 to 255) of the colour the nav background mixes from at morph value 0 (`#ffffff1a`; snapshot site-pretty
+`2.gBuqKVzi.css` 11336-11340, ported `nav.module.css` 22-26). -/
 def mixFrom : Int × Int := (255, 26)
 
-/-- Red and alpha (0 to 255) of the colour the nav background mixes to at morph value 1 (`#131922`). -/
+/-- Red and alpha (0 to 255) of the colour the nav background mixes to at morph value 1 (`#131922`; snapshot site-pretty
+`2.gBuqKVzi.css` 11336-11340, ported `nav.module.css` 22-26). -/
 def mixTo : Int × Int := (19, 255)
 
 /-- `2550000 * bgAlpha (m / 10000)` (`idDen_eq`). -/

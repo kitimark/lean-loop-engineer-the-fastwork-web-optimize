@@ -520,7 +520,7 @@ mid-transition in one arm only is judged `fail apart`. Admission of the scoped a
 ### Close start by identity (task close-start-identity-rule)
 
 Mechanism (CONFIRMED from source, MEASURED in the five runs below): the nav background is
-`color-mix(in srgb, #ffffff1a (1 - m), #131922 m)` of `--morph` m (snapshot `2.gBuqKVzi.css`, ported in
+`color-mix(in srgb, #ffffff1a (1 - m), #131922 m)` of `--morph` m (snapshot `site-pretty/_app/immutable/assets/2.gBuqKVzi.css` 11336-11340, ported in
 `apps/site/src/parts/nav/nav.module.css` 22-26; Lean `bgRed`, `bgAlpha` in `lean/Fw/Parts/HeroExitCloseStart.lean`).
 `is-morphing` is on while m > `Nav.morphingCut` = 1/1000 (`Nav.lean` 35, `logic.ts` 10 and 63). When the class goes, the
 background transition starts from the colour of the last morph value with the class, so the first sample without it reads
@@ -544,7 +544,7 @@ close@0 at 390 px (`navAt`, `(…).lookup 0 = some (.fail .apart)`):
 
 | mutation | theorem | refused by |
 |---|---|---|
-| early removal: class off at m 0.03 | `byMId_early` | cut on m(q) |
+| early removal: class off at m 0.03 | `byMId_early` | cut on m(r) |
 | late removal: class still on at m 0 | `byMId_late` | cut on m(q) |
 | stale reading: the target colour at once | `byMId_stale_target` | red |
 | stale reading: the colour of an earlier frame (m 0.004 for 0.002) | `byMId_stale_frame` | red |
@@ -566,12 +566,16 @@ Accepted limits:
   up to 0.64 level error (`colourFromV1`, TS glue, `kit.mjs` 28), and green and blue are 315 and 502 thousandths off at
   that sample (MEASURED, red 446).
 - (iii) Rounding: m 1/1000 and 1049/1000000 both store 10 (`roundM_tie`), so a removal up to 0.000049 early passes.
-- (iv) The rule reads no time stamp (`idCheck_t0`): a longer gap between `q` and `r` is not seen. Gap regressions below
-  B's minimum detectable effect, 0.31 ln g (p 0.492), pass.
+- (iv) The decided sample passes any gap between `q` and `r` (`idCheck_t0`). Larger gap regressions (above B's minimum
+  detectable effect, 0.31 ln g, p 0.492) are caught only by `byM` on later samples of the pass, which is unproved; the
+  follow-up rule for those later samples must keep a gap check.
+- TS stand-in: `colourFromV1` (old-kit oklab to sRGB, `reduce.mjs`) runs inside `idCheck` in production; Lean has no
+  conversion and the golden calls `idCheck` without it.
 - (v) Admission retry of hero.exit scoped is a separate task (admit-hero-exit-scoped).
 
 Re-reduced (MEASURED, raw artifacts reduced by main's reducer and by this rule). Every unit that changes (candidate / base /
-rel), all Linux WebKit nav `background-color`, all fail to pass; no unit becomes stricter:
+rel), all Linux WebKit nav `background-color`. No candidate or base verdict goes from pass to fail; one relative verdict goes
+from both to new (39452631146 390 close@0), so Linux WebKit `new` rises 58 -> 59:
 
 | run | width | step | main | after |
 |---|---|---|---|---|
