@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import type { Target } from "@fw/gh-budget";
 import { dispatchArgs, fwcoreCall, keyDigest, parseRunArgs, planRun, runMain, sha256, type FwCall, type Gh } from "../src/run.ts";
 import { UsageError } from "../src/lib.ts";
+import { titleOf } from "../src/run-pick.ts";
 
 const SHA = "0123456789abcdef0123456789abcdef01234567";
 /** The waiting side of RunDeps: a stub that decides every wait at once as run 55 (the shared poller is tested in packages/gh-budget). */
@@ -209,11 +210,46 @@ describe("trajectory-probe lane", () => {
     it("dispatches with -f on the ref and reports the run id", async () => {
       const logs: string[] = [];
       const calls: string[][] = [];
-      const gh: Gh = async (a) => { calls.push(a); if (a[0] === "run" && a[1] === "list") return "[]"; if (a[0] === "run" && a[1] === "view") return JSON.stringify({ headSha: SHA }); return ""; };
-      expect(await runMain(parseRunArgs(["--trajectory", "--engines", "chromium", "--preset", "v2-proved", "--ref", "ci/t"]), { ...base(), call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: (l) => logs.push(l) })).toBe(0);
+      const gh: Gh = async (a) => { calls.push(a); if (a[0] === "run" && a[1] === "list") return JSON.stringify([{ databaseId: 55, displayTitle: titleOf("abcd1234"), event: "workflow_dispatch" }]); if (a[0] === "run" && a[1] === "view") return JSON.stringify({ headSha: SHA }); return ""; };
+      expect(await runMain(parseRunArgs(["--trajectory", "--engines", "chromium", "--preset", "v2-proved", "--ref", "ci/t"]), { ...base(), call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: (l) => logs.push(l), nonce: () => "abcd1234", sleep: async () => {} })).toBe(0);
       expect(calls.find((c) => c[0] === "workflow")?.slice(0, 5)).toEqual(["workflow", "run", "trajectory-probe.yml", "--ref", "ci/t"]);
       expect(logs.join("\n")).toMatch(/trajectory: run 55 succeeded/);
     });
+  });
+});
+
+// The trajectory dispatch is matched by its nonce (Lean Fw.Ci.Dispatch.pick); a stub fwcore answers the plan, so nothing here is skipped.
+describe("fw run --trajectory finds its run by nonce", () => {
+  const call: FwCall = () => ({ fw: [], job: { blocked: null, inputs: { engines: "chromium", fw: "", preset: "", widths: "390" }, workflow: "trajectory-probe.yml" }, problems: [] });
+  const mk = () => mkdtempSync(join(tmpdir(), "fw-run-"));
+  const args = () => parseRunArgs(["--trajectory", "--engines", "chromium", "--widths", "390", "--ref", "ci/t"]);
+  const row = (id: number, nonce: string, event = "workflow_dispatch") => ({ databaseId: id, displayTitle: titleOf(nonce), event });
+  const deps = (gh: Gh, logs: string[], nonce: string, waited: Target[] = []) => ({ now: () => 1_800_000_000, wait: async (t: Target) => { waited.push(t); return { code: 0 as const, lines: ["run 7 trajectory-probe success"] }; },
+    call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: (l: string) => logs.push(l), nonce: () => nonce, sleep: async () => {} });
+
+  it("sends the nonce as an input and waits for the run whose title echoes it, not the newest one", async () => {
+    const calls: string[][] = [];
+    const waited: Target[] = [];
+    const logs: string[] = [];
+    // a skipped push run is the newest, then the other parallel dispatch, then ours
+    const gh: Gh = async (a) => { calls.push(a); if (a[1] === "list") return JSON.stringify([{ databaseId: 900, displayTitle: "ci: x", event: "push" }, row(899, "zzzz9999"), row(898, "abcd1234")]); if (a[1] === "view") return JSON.stringify({ headSha: SHA }); return ""; };
+    expect(await runMain(args(), deps(gh, logs, "abcd1234", waited))).toBe(0);
+    expect(calls.find((c) => c[0] === "workflow")).toEqual(["workflow", "run", "trajectory-probe.yml", "--ref", "ci/t", "-f", "engines=chromium", "-f", "fw=", "-f", "preset=", "-f", "widths=390", "-f", "nonce=abcd1234"]);
+    expect(calls.find((c) => c[1] === "list")).toContain("workflow_dispatch");
+    expect(waited).toEqual([{ kind: "run", runId: 898 }]);
+    expect(logs.join("\n")).toMatch(/the run with nonce abcd1234 is 898/);
+  });
+  it("looks again every 120 s while the run is absent, then gives up", async () => {
+    const naps: number[] = [];
+    let lists = 0;
+    const gh: Gh = async (a) => { if (a[1] === "list") { lists++; return JSON.stringify([row(1, "other999")]); } return ""; };
+    await expect(runMain(args(), { ...deps(gh, [], "abcd1234"), sleep: async (s) => { naps.push(s); } })).rejects.toThrow(/no run titled/);
+    expect(lists).toBe(5);
+    expect(naps.every((s) => s >= 120)).toBe(true);
+  });
+  it("two runs with the nonce are refused, not guessed", async () => {
+    const gh: Gh = async (a) => (a[1] === "list" ? JSON.stringify([row(3, "abcd1234"), row(2, "abcd1234")]) : "");
+    await expect(runMain(args(), deps(gh, [], "abcd1234"))).rejects.toThrow(/matches several runs \(3, 2\)/);
   });
 });
 

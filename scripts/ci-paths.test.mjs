@@ -663,3 +663,33 @@ test('node pin lint: floating version, wrong file, old pin, a copy that differs,
     assert.ok(problems(t(['.node-version'])).some((p) => /exact version/.test(p)), 'floating file');
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+
+/** The `.github/scripts/*` paths a workflow text runs or reads (comment text left out). */
+export function scriptsNamed(text) {
+  const code = text.split('\n').map((l) => l.replace(/(^|\s)#.*$/, '')).join('\n');
+  return [...new Set(code.match(/\.github\/scripts\/[A-Za-z0-9._-]+/g) ?? [])].sort();
+}
+
+test('scripts a workflow runs: every .github/scripts/* path named in a workflow is an input of its Lean row', () => {
+  const S = setMapFor(root, table);
+  let seen = 0;
+  for (const w of table.workflows) {
+    const named = scriptsNamed(readFileSync(join(root, WF, w.file), 'utf8'));
+    seen += named.length;
+    const globs = expand(S, w.inputs);
+    for (const f of named) assert.ok(matches(globs, f), `${w.file} runs ${f}, which is not in its Lean inputs (lean/Fw/Ci/Trigger.lean): a push changing only it would skip the lane`);
+  }
+  assert.ok(seen >= 10);
+});
+
+test('scripts a workflow runs: a script missing from a row is reported (trajectory-probe without trajectory-line.mjs)', () => {
+  const S = setMapFor(root, table);
+  const w = table.workflows.find((x) => x.file === 'trajectory-probe.yml');
+  const globs = expand(S, w.inputs).filter((g) => g !== '.github/scripts/trajectory-line.mjs');
+  assert.ok(scriptsNamed(readFileSync(join(root, WF, w.file), 'utf8')).includes('.github/scripts/trajectory-line.mjs'));
+  assert.equal(matches(globs, '.github/scripts/trajectory-line.mjs'), false);
+});
+
+test('scripts a workflow runs: the scanner reads run and env lines, not comments', () => {
+  assert.deepEqual(scriptsNamed('run: node .github/scripts/a.mjs --x\n  SMOKE: ${{ github.workspace }}/.github/scripts/b.mjs\n# .github/scripts/c.mjs\n  run: x  # .github/scripts/d.mjs'), ['.github/scripts/a.mjs', '.github/scripts/b.mjs']);
+});
