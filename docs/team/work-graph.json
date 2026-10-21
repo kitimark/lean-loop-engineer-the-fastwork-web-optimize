@@ -12488,7 +12488,8 @@
     "packages/contracts/golden/ci/triggers.jsonl",
     ".github/workflows/trajectory-probe.yml",
     "docs/team/handoffs/waapi-tail-webkit-p2.md"
-   ]
+   ],
+   "evidence": "a32940d"
   },
   {
    "devices": [
