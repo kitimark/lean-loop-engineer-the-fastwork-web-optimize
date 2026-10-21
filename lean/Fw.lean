@@ -68,6 +68,7 @@ import Fw.Measure.Quiet
 import Fw.Measure.Tolerance
 import Fw.Measure.WebKit
 import Fw.Measure.WebKitLag  -- webkit-lag-probe: scroll regions, paint attribution to parts, counter ranking
+import Fw.Device.Session  -- device-lag-recorder: phone-session zones, frame intervals, felt marks, comparison, replay export
 import Fw.Measure.Retry
 import Fw.Measure.Viewport
 import Fw.Measure.SimPlan
@@ -89,6 +90,7 @@ import Fw.Ops.Salvage  -- workflow-salvage: a builder exit without a result (dec
 import Fw.Sched.Admit
 import Fw.Sched.ParMetrics
 import Fw.Sched.LakeSlot  -- lake-build-slots: slot pools and the thread bound of scripts/lake-slot.sh
+import Fw.Sched.NodeBudget  -- node-worker-budget: Node test workers per run from the room
 import Fw.Wire.Sched
 import Fw.Wire.SchedJson
 import Fw.Store.Layout
@@ -163,6 +165,9 @@ import Fw.Console.ReconcileSched  -- console-reconcile-speed: reconcile request 
 import Fw.Console.JournalFold  -- console-idle-cpu: journal cache, settled runs, safety tick
 import Fw.Console.Review  -- user-review-queue: pending look-change reviews as user steps
 import Fw.Console.ReviewPreview  -- review-preview-devices: Preview arms, URLs and the device class of a look-change review
+import Fw.Console.ReviewFeedback  -- review-feedback: feedback threads on the review cards
+import Fw.Console.ReviewFeedbackLaws  -- review-feedback: what the reducer guarantees about the threads
+import Fw.Obs.FeedbackAlert  -- review-feedback: the watch alert for open feedback
 import Fw.Console.LandPool -- land-pool-fair: fair-share floor under poolSize, wired into land.ts by console.landPool and console.landRetry
 import Fw.Land.RenderGuard  -- land-render-guard: refuse a land whose history writes a media file outside snapshot/ (console.landRenderGuard)
 import Fw.Ops.LedgerMerge  -- ledger-merge-driver: three-way id merge of the JSON ledgers (scripts/merge-ledger.mjs)
@@ -179,6 +184,7 @@ import Fw.Gate.Trajectory  -- trajectory-probe: per-unit verdict of the rewrite 
 import Fw.Gate.Colour  -- kit-colour-space: every trajectory colour reading in sRGB x1000, the error budget the judge allows
 import Fw.Gate.RunPerm  -- scoped-gap-did: run-level permutation test of the close gap g, statistic and exact p
 import Fw.Gate.Frames  -- earn-look-review-webkit: when a frame strip is usable (>= 10 shots per arm)
+import Fw.Gate.Smooth  -- smoothness-probe: motion continuity along a push (stalls, jumps, tail) and the bad-frame cadence verdict
 import Fw.Wire.ShardGolden  -- gate-shard-balance: golden/gate/shards.jsonl
 import Fw.Measure.WktrLayout  -- wktr-fixture-speed: lane layout, premise gate, fixture assertions
 import Fw.Measure.WktrVariance  -- wktr-serial-baseline: run-to-run variance of class kinds, findings, verdict
@@ -213,3 +219,4 @@ import Fw.Port.Fonts  -- port-fonts-check: check 5, fonts per leaf and loaded fa
 import Fw.Parts.NavOofRoot  -- nav-oof-root-finding: no boundary scopes the relayout of a dirty fixed box whose containing block is the view (negative finding)
 import Fw.Ci.Pool  -- pool-caps: per-lane macOS job time caps from measured p90 walls
 import Fw.Sup.Props  -- sup-model: supervisor daemon state machine, invariant and lease, queue, stop and reply theorems
+import Fw.Ci.Pool.Key  -- pool-key-outcome: request keys, provider-tagged artifact names, one terminal row per planned unit

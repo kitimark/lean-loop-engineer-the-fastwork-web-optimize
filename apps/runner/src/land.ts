@@ -210,7 +210,9 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     "packages/contracts/golden/preset/look-change.candidates.jsonl",
     "packages/contracts/golden/port/**", "scripts/port/**", "packages/visual-diff/src/engines.mjs", "packages/visual-diff/src/fonts.mjs", "snapshot/site/index.html", "snapshot/site/_app/**", ...siteAssetReads()],
   "packages/measure-wktr": ["packages/measure-chromium/src/fwcore.mjs", "packages/measure-webkit/src/page.mjs", "packages/measure-webkit/src/serve.mjs"],
-  "packages/measure-chromium": ["lean/Fw/Store/Layout.lean", "lean/Fw/Faithful/Measured.lean", "packages/contracts/golden/measure/**", "packages/contracts/golden/faithful/**", "packages/contracts/golden/parts/stage-mode.jsonl", ".github/workflows/chromium-counts.yml", "results/baselines/chromium/**"],
+  "packages/measure-chromium": ["lean/Fw/Store/Layout.lean", "lean/Fw/Faithful/Measured.lean", "packages/contracts/golden/measure/**", "packages/contracts/golden/faithful/**", "packages/contracts/golden/parts/stage-mode.jsonl", ".github/workflows/chromium-counts.yml", "results/baselines/chromium/**",
+    // device-lag-recorder: test/profile.test.mjs reads golden/device/session.jsonl loader lines
+    "packages/contracts/golden/device/**"],
   "packages/gate-breakpoints": ["lean/**", "packages/measure-webkit/src/device.mjs", "scripts/sim-lock.sh", "apps/site/src/breakpoints.gen.json", "apps/site/src/parts/**",
     "packages/contracts/golden/gate/**", "packages/contracts/golden/parts/**",
     // image-audit: the test compares the byte copy of arm.mjs that packages/measure-webkit keeps (visual-diff is a workspace
@@ -223,6 +225,10 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
   "packages/difftest": ["apps/console-api/src/cap/cap.ts", "apps/runner/hooks/cap.mjs", "packages/measure-chromium/src/n0.mjs",
     "packages/measure-chromium/src/trace.mjs", "packages/measure-webkit/src/quietsteps.mjs", "packages/measure-webkit/src/reduce.mjs"],
   "packages/measure-webkit": ["packages/contracts/golden/measure/**", "apps/site/src/flags/images/drawn.json",
+    // device-lag-recorder: the session twin reads golden/device/session.jsonl and imports the CI profile loader that checks an exported replay
+    "packages/contracts/golden/device/**", "packages/measure-chromium/src/profile.mjs", "packages/measure-chromium/profiles/**",
+    // device-lag-recorder: device-arms.mjs resolves the arms' URLs from the site's presets and part files at record time
+    "apps/site/src/registry/presets/**", "apps/site/src/parts/**",
     // webkit-lag-probe: test/lag-findings.test.mjs reads the note whose Findings it checks against the generated block
     "research/notes/2026/10-21-webkit-lag-probe.md"],
   "packages/snapshot-extract": ["packages/gate-breakpoints/src/**"],
@@ -300,7 +306,7 @@ export function candidateChecks(root: string): Check[] {
       try {
         const pkg = JSON.parse(readFileSync(join(root, p, "package.json"), "utf8"));
         if (pkg.scripts?.test) out.push({ id: p, argv: ["pnpm", "--filter", `./${p}`, "test"],
-          reads: [`${p}/**`, ...workspaceDeps(root, pkg).map((d) => `${d}/**`), ...(PACKAGE_EXTRA_READS[p] ?? []), ...(FWCORE_USERS.includes(p) ? [FWCORE_BIN] : [])] });
+          reads: [`${p}/**`, NODE_BUDGET_GEN, ...workspaceDeps(root, pkg).map((d) => `${d}/**`), ...(PACKAGE_EXTRA_READS[p] ?? []), ...(FWCORE_USERS.includes(p) ? [FWCORE_BIN] : [])] });
       } catch { /* no package.json: nothing to run */ }
     }
   }
@@ -378,6 +384,16 @@ export const poolFor = (cores: number, loadCeil: number): number => {
   const r = askCore("console.landPool", { cores, load: loadCeil });
   return r && Number.isInteger(r.pool) && r.pool >= 1 ? r.pool : 1;
 };
+/** Path of the generated Lean `Fw.Sched.NodeBudget` table, from the repo root. */
+export const NODE_BUDGET_GEN = "packages/contracts/golden/sched/node-budget.gen.json";
+/** Env of a check that runs in a pool of `pool` checks: `VITEST_MAX_WORKERS` (vitest's own override, also read by the node --test
+ *  scripts) is Lean `Fw.Sched.NodeBudget.workers` of today's room with that pool, looked up in the generated `byPool` (pools 1 to
+ *  the cores; a larger pool gets 1: `workers_pool_gt_cores`). A tree without the file: no env. */
+export function testWorkersEnv(root: string, pool: number): Record<string, string> {
+  let byPool: Record<string, number>;
+  try { byPool = (JSON.parse(readFileSync(join(root, NODE_BUDGET_GEN), "utf8")) as { byPool: Record<string, number> }).byPool; } catch { return {}; }
+  return { VITEST_MAX_WORKERS: String(byPool[String(pool)] ?? 1) };
+}
 /** Does a failed check re-run alone? Lean `Fw.Console.LandPool.rerunAlone` (`console.landRetry`); `loadFailure` is the fact that
  *  the output shows a timeout. Without fwcore: no (the failure stands). */
 export const rerunAlone = (passed: boolean, loadFailure: boolean): boolean =>
@@ -636,9 +652,9 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
   const logFile = join(mainDir, ".fw-console", "land-logs", `${(o.task ?? branch).replace(/[^A-Za-z0-9._-]/g, "_")}-${sha.slice(0, 7)}.log`);
   let logStarted = false;
   // async (not spawnSync) so SIGINT/SIGTERM handlers of the land run while a check is running
-  const runCheck = (cwd: string, argv: string[]) => new Promise<{ status: number | null; stdout: string; stderr: string; error?: Error }>((resolve) => {
+  const runCheck = (cwd: string, argv: string[], pool = 1) => new Promise<{ status: number | null; stdout: string; stderr: string; error?: Error }>((resolve) => {
     // own process group: pnpm/sh and the tools below them stop together when this run is interrupted or exits (reap-auto-stop teardown)
-    const c = spawn(argv[0]!, argv.slice(1), { cwd, env: { ...LOAD_TOLERANT_ENV, ...process.env, ...o.env }, detached: true });
+    const c = spawn(argv[0]!, argv.slice(1), { cwd, env: { ...LOAD_TOLERANT_ENV, ...process.env, ...testWorkersEnv(cwd, pool), ...o.env }, detached: true });
     let stdout = "", stderr = "";
     c.stdout.on("data", (d) => { stdout += d; }); c.stderr.on("data", (d) => { stderr += d; });
     const kill = () => { try { process.kill(-c.pid!, "SIGTERM"); } catch { c.kill("SIGTERM"); } };
@@ -712,7 +728,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
           if (started.has(i) || !deps[i]!.every((d) => results[d])) continue;
           started.add(i); running++;
           const argv = list[i]!;
-          void span("fw land", argv.join(" "), () => runCheck(cwd, argv), (r) => r.status).then((p) => { // timing-spans
+          void span("fw land", argv.join(" "), () => runCheck(cwd, argv, limit), (r) => r.status).then((p) => { // timing-spans
             results[i] = { status: p.status, out: `${p.stdout}${p.stderr}${p.error ? String(p.error) : ""}` };
             running--; pump();
           });

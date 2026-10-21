@@ -11,15 +11,15 @@ import { startTimeline } from './timeline.mjs';
 import { markTimes, markTime, reduceSteps, zones, COUNT_TYPES } from './reduce.mjs';
 import { summarizeFrames } from './device-runs.mjs';
 
-const BANNER_JS = (text, big) => `(() => {
+export const BANNER_JS = (text, big) => `(() => {
   let b = document.getElementById('__wkbanner');
   if (!b) { b = document.createElement('div'); b.id = '__wkbanner'; document.body.appendChild(b); }
   b.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:2147483647;background:#c00;color:#fff;font:700 ${big ? 26 : 18}px/1.3 -apple-system,sans-serif;padding:16px;text-align:center;pointer-events:none';
   b.textContent = ${JSON.stringify(text)};
   return 1;
 })()`;
-const BANNER_OFF_JS = `(() => { const b = document.getElementById('__wkbanner'); if (b) b.remove(); return 1; })()`;
-const SCHEME_JS = `matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'`;
+export const BANNER_OFF_JS = `(() => { const b = document.getElementById('__wkbanner'); if (b) b.remove(); return 1; })()`;
+export const SCHEME_JS = `matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'`;
 
 const RECORD_JS = (seconds, mark) => `(async () => {
   const maxY = document.documentElement.scrollHeight - innerHeight;

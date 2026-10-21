@@ -10,6 +10,7 @@ import { z } from "zod";
 import type { Store } from "../store.ts";
 import { readLedger } from "../preview/compose.ts";
 import { previewInfo } from "./preview.ts";
+import { feedbackInfo } from "./feedback.ts";
 
 /** The review material of a flag: what exists and where it can be fetched. Facts from `Fw.Preset.Gen.lookDecisions`, through Lean `console.review`. */
 export interface Material {
@@ -122,6 +123,7 @@ export function mountReviews(app: Hono, store: Store, root: string, opts: Review
     const ledger = readLedger(root).findings;
     const links = readLinks(root);
     const pv = await previewInfo(store);
+    const fb = await feedbackInfo(store);
     return c.json({
       ok: true, open: r.open, options: r.options,
       items: r.items.map((i) => {
@@ -133,6 +135,7 @@ export function mountReviews(app: Hono, store: Store, root: string, opts: Review
           strips: i.strips ?? [],
           link: links[i.flag] ?? null,
           preview: pv[i.flag] ?? null,
+          feedback: fb[i.flag] ?? { flag: i.flag, open: 0, comments: [] },
         };
       }),
     });
