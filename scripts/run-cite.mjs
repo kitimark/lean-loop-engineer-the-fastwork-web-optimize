@@ -16,17 +16,15 @@ export const PATTERNS = ["trajectory-chromium", "trajectory-playwright-webkit", 
 export const NO_ARTIFACT = "no trajectory, count, gate or webkit-sim artifact: expired, not finished, or not a gate run";
 export const NOT_FOUND = "run not found";
 
-const RUN_ID = /\b\d{10,12}\b/g;
 const NOTE_CITE = /\b(\d{10,12})\s+([A-Za-z][A-Za-z0-9.]*:[A-Za-z0-9_@-]+)/g;
 
-/** Citations of the ledger rows that name a flag: every run id in the row's evidence, cited for that flag. */
-export function ledgerCites(ledger) {
-  const out = [];
-  for (const row of ledger.findings ?? []) {
-    if (typeof row.flag !== "string" || typeof row.evidence !== "string") continue;
-    for (const run of new Set(row.evidence.match(RUN_ID) ?? [])) out.push({ run, flag: row.flag, source: `ledger:${row.id ?? row.n}` });
-  }
-  return out;
+/** The ledger rows Lean reads: `id` (else `n`), `flag` when a string, and `evidence` when a string. */
+export function ledgerRows(ledger) {
+  return (ledger.findings ?? []).filter((row) => typeof row.evidence === "string").map((row) => ({
+    id: String(row.id ?? row.n),
+    ...(typeof row.flag === "string" ? { flag: row.flag } : {}),
+    evidence: row.evidence,
+  }));
 }
 
 /** Citations written `<run id> <part:variant>` in a note or handoff. */
@@ -66,7 +64,7 @@ export function armsOf(name, dir) {
 
 /** `gh run download` of the arm-bearing artifacts into `dir`: `{ok}` or `{status, stderr}`. */
 export function ghDownload(run, dir) {
-  const r = spawnSync("gh", ["run", "download", run, ...PATTERNS.flatMap((p) => ["-p", p]), "-D", dir], { encoding: "utf8" });
+  const r = spawnSync("gh", ["run", "download", run, ...PATTERNS.flatMap((p) => ["-p", p]), "-D", dir], { cwd: top, encoding: "utf8" });
   return r.status === 0 ? { ok: true } : { ok: false, status: r.status ?? r.signal, stderr: r.stderr ?? "" };
 }
 
@@ -113,11 +111,12 @@ export function gatherFacts(runs, cacheFile, { download = ghDownload, refresh = 
 }
 
 /** The fwcore request of `gate.runCite`. */
-export function request(facts, cites) {
+export function request(facts, cites, rows = []) {
   return {
     op: "gate.runCite",
     runs: facts.map((f) => (f.arms ? { run: f.run, arms: f.arms.map((a) => a.search) } : { run: f.run, missing: f.missing })),
     cites: cites.map(({ run, flag }) => ({ run, flag })),
+    rows,
   };
 }
 
@@ -133,10 +132,11 @@ export function coreCall(bin) {
   };
 }
 
-/** The verdict line of one citation. */
-export function lineOf(cite, v) {
+/** The line of one verdict; a role prints as the evidence marker that set it, and an empty row flag (a row with no `flag`) not at all. */
+export function lineOf(v, source) {
   const tail = v.verdict === "mismatch" ? `carried: ${v.carried.length ? v.carried.join(", ") : "(no flag)"}` : v.verdict === "unknown" ? v.why : "";
-  return `${v.verdict.padEnd(8)} ${cite.run} ${cite.flag}  [${cite.source}]${tail ? `  ${tail}` : ""}`;
+  const mark = v.role === "aa" ? " (A/A)" : v.role === "sibling" ? ` (${v.sibling})` : "";
+  return `${v.verdict.padEnd(8)} ${v.run}${mark}${v.flag ? ` ${v.flag}` : ""}  [${source}]${tail ? `  ${tail}` : ""}`;
 }
 
 /** Exit 0: no mismatch; 1: a mismatch; 2: usage or a failure. */
@@ -154,21 +154,20 @@ export function cli(argv, { core, cacheFile = defaultCache(), download = ghDownl
     else { console.error(`run-cite: unknown argument ${a}`); return 2; }
   }
   if (!ledger && !notes.length) ledger = join(top, "research/findings/ledger.json");
-  const cites = [
-    ...(ledger ? ledgerCites(readJson(ledger)) : []),
-    ...notes.flatMap((n) => noteCites(readFileSync(n, "utf8"), n)),
-  ];
-  const runs = [...new Set(cites.map((c) => c.run))];
+  const rows = ledger ? ledgerRows(readJson(ledger)) : [];
+  const cites = notes.flatMap((n) => noteCites(readFileSync(n, "utf8"), n));
+  const runs = [...new Set(core(request([], cites, rows)).verdicts.map((v) => v.run))];
   const { facts, fetched } = gatherFacts(runs, cacheFile, { download, refresh });
-  const { verdicts } = core(request(facts, cites));
-  const rows = cites.map((c, i) => ({ ...c, ...verdicts[i] }));
-  if (json) log(JSON.stringify(rows));
+  const { verdicts, unflagged } = core(request(facts, cites, rows));
+  const out = verdicts.map((v, i) => ({ ...v, source: i < cites.length ? cites[i].source : `ledger:${v.row}` }));
+  if (json) log(JSON.stringify({ verdicts: out, unflagged }));
   else {
-    for (const [i, c] of cites.entries()) log(lineOf(c, verdicts[i]));
-    const n = (k) => rows.filter((r) => r.verdict === k).length;
-    log(`run-cite: ${cites.length} citations of ${runs.length} runs (${fetched} downloaded): match ${n("match")}, mismatch ${n("mismatch")}, unknown ${n("unknown")}`);
+    for (const v of out) log(lineOf(v, v.source));
+    for (const u of unflagged) log(`unflagged ${u.row}: ${u.runs.length} unmarked run ids not checked (the row has no flag)`);
+    const n = (k) => out.filter((r) => r.verdict === k).length;
+    log(`run-cite: ${out.length} citations of ${runs.length} runs (${fetched} downloaded): match ${n("match")}, mismatch ${n("mismatch")}, unknown ${n("unknown")}; unflagged rows ${unflagged.length}`);
   }
-  return rows.some((r) => r.verdict === "mismatch") ? 1 : 0;
+  return out.some((r) => r.verdict === "mismatch") ? 1 : 0;
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

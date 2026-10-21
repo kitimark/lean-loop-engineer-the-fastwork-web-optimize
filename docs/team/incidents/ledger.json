@@ -3520,9 +3520,9 @@
    "cause": "CONFIRMED (code read; reviewer reproduced with a list-only probe that selected the live console pid and its fwcore): lean/Fw/Ops/Reap.lean branch A selected any console-api with ppid 1 whose cwd is not a live checkout of the repo passed as top, with no condition that the process belongs to this repo. Relative to a temp repo the real console is in no live checkout, so it and its fwcore (descendant branch) were selected. While reap only listed, this was harmless; once it stopped, any stop run with another top (the test, or e2e-land.sh running fw land on a mktemp repo) kills the real console. The lead's spec asked for real process-tree tests without requiring the executor to see only the test's own processes.",
    "evidence": [
     {
-     "kind": "file",
-     "ref": ".fw-console/console.log",
-     "note": "fwcore incident exit signal=SIGTERM at 1792556147846 ms (04:15:47Z); local file, not in git"
+     "kind": "proc",
+     "ref": "4444, 4480",
+     "note": "the live console-api and its fwcore, TERMed at 04:15:47Z by the round-1 reap-stop test (the local console log recorded fwcore exit signal=SIGTERM; that log is not in git)"
     },
     {
      "kind": "file",
