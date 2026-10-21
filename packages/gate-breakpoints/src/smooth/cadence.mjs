@@ -21,14 +21,27 @@ import { eventsOf, summariseTrace } from './trace.mjs';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (...a) => process.stderr.write(`${a.join(' ')}\n`);
 
-/** Installed before the page's own scripts: a rAF loop that records callback times while `on`. */
+/**
+ * Installed before the page's own scripts: a rAF loop that records callback times and the scroll position while `on`, and the
+ * long animation frames the browser reports (duration, blocking time, scripts), so a bad frame can be placed and attributed
+ * afterwards. It only observes; descriptive, never in the verdict.
+ */
 export function installRecorder() {
-  const st = { on: false, ts: [] };
+  const st = { on: false, ts: [], ys: [], loaf: [], t0: 0 };
   window.__sm = st;
-  const tick = (t) => { if (st.on) st.ts.push(t); requestAnimationFrame(tick); };
+  const tick = (t) => { if (st.on) { st.ts.push(t); st.ys.push(Math.round(window.scrollY)); } requestAnimationFrame(tick); };
   requestAnimationFrame(tick);
-  st.start = () => { st.ts = []; st.on = true; };
-  st.stop = () => { st.on = false; return st.ts; };
+  try {
+    new PerformanceObserver((list) => {
+      for (const e of list.getEntries()) {
+        if (!st.on || e.startTime < st.t0) continue;
+        st.loaf.push({ at: Math.round(e.startTime), d: Math.round(e.duration), block: Math.round(e.blockingDuration || 0),
+          scripts: (e.scripts || []).slice(0, 4).map((x) => ({ src: String(x.sourceURL || '').split('/').slice(-2).join('/'), fn: x.sourceFunctionName || '', inv: x.invoker || '', d: Math.round(x.duration) })) });
+      }
+    }).observe({ type: 'long-animation-frame', buffered: false });
+  } catch { /* no long-animation-frame in this engine */ }
+  st.start = () => { st.ts = []; st.ys = []; st.loaf = []; st.t0 = performance.now(); st.on = true; };
+  st.stop = () => { st.on = false; return { ts: st.ts, ys: st.ys, loaf: st.loaf }; };
 }
 const INIT = `${PIN_SRC}\n(${installRecorder.toString()})();`;
 
@@ -71,9 +84,9 @@ async function oneWindow(engine, env, a, win, traced) {
       await s.wheel(cx, cy, -END_PUSH.dy);
       await sleep(END_PUSH.holdMs);
     }
-    const ts = await s.evaluate(() => window.__sm.stop());
+    const rec = await s.evaluate(() => window.__sm.stop());
     const trace = traced ? summariseTrace(eventsOf(await s.stopTrace())) : null;
-    return { ivs: intervalsOf(ts), arm, trace };
+    return { ivs: intervalsOf(rec.ts), ys: rec.ys.slice(1), loaf: rec.loaf, arm, trace };
   } finally { await s.close().catch(() => {}); }
 }
 
@@ -118,7 +131,7 @@ export async function runCadence({ widths, search = '', reps = 6, traceReps = 2,
               const r = await oneWindow(engine, e, a, win, traced);
               const row = { width, arm: a.id, window: win, rep: traced ? rep - reps : rep, config: r.arm.config, mode: r.arm.mode };
               if (traced) traces.push({ ...row, trace: r.trace, frames: r.ivs.length });
-              else runs.push({ ...row, ivs: r.ivs });
+              else runs.push({ ...row, ivs: r.ivs, ys: r.ys, loaf: r.loaf });
               if (runCheck([{ site: a.site, want: a.want, config: r.arm.config, mode: r.arm.mode }]) !== 'ok') {
                 refused = true;
                 log(`cadence ${width} ${a.id} ${win}: REFUSED config (${JSON.stringify(r.arm)})`);

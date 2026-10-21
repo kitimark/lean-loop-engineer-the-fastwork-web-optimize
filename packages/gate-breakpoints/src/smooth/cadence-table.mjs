@@ -1,5 +1,5 @@
 // Per-window, per-arm cadence tables from the downloaded cadence runs (task smoothness-probe, part B). Reads only.
-// Layout read: <runs>/<runId>/<artifact>/cadence-<width>.json (the file src/smooth/cli.mjs `run` writes).
+// Layout read: <runs>/<runId>/<artifact>/cadence-<width>.json (the file src/smooth/cli.mjs `run` writes); each file is one job, one sample.
 // Every decision (bad frame, rate, spread, verdict) is reduce.mjs, the TS twin of lean/Fw/Gate/Smooth.lean; this file only groups.
 import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -23,7 +23,14 @@ export function cellOf(runId, file, width, window) {
   const sp = spread(arms.base, arms.aa);
   const verdicts = Object.fromEntries(PAIRS.map(([a, b]) => [`${a}|${b}`, verdict(arms[a], arms[b], arms.base, arms.aa)]));
   const traces = (file.traces ?? []).filter((t) => t.width === width && t.window === window);
-  return { run: runId, width, window, search: file.search, hash: file.hash, baseHash: file.baseHash, version: file.version, spread: sp, arms: stat, verdicts, traces };
+  return { run: runId, width, window, search: file.search, hash: file.hash, baseHash: file.baseHash, version: file.version, spread: sp, arms: stat, verdicts, traces, hitches: hitchesOf(rows) };
+}
+
+/** A hitch is a gap of 60 ms or more. Per arm: where it fell (scroll position, frame index), how long, and the long animation frame the browser reported. Descriptive. */
+export const HITCH_TENTHS = 600;
+export function hitchesOf(rows) {
+  return Object.fromEntries(ARMS.map((a) => [a, rows.filter((r) => r.arm === a).flatMap((r) => r.ivs.flatMap((v, i) => (v >= HITCH_TENTHS
+    ? [{ rep: r.rep, i, ms: v / 10, y: r.ys?.[i] ?? null, loaf: (r.loaf ?? []).filter((l) => l.d >= 50).map((l) => ({ d: l.d, block: l.block, scripts: l.scripts })) }] : [])))]));
 }
 
 /** Every cell of every run under `dir`. Refused or empty files are listed in `skipped`. */
@@ -33,8 +40,10 @@ export function cellsOf(dir) {
   for (const id of readdirSync(dir).filter((n) => /^\d+$/.test(n)).sort()) {
     for (const f of walk(join(dir, id)).filter((p) => /cadence-\d+\.json$/.test(p))) {
       const file = JSON.parse(readFileSync(f, 'utf8'));
-      if (file.refused || file.runs.length === 0) { skipped.push({ run: id, file: f.slice(dir.length), why: file.refused ? 'refused' : 'empty' }); continue; }
-      for (const width of [...new Set(file.runs.map((r) => r.width))]) for (const window of ['hero', 'end']) cells.push(cellOf(id, file, width, window));
+      // One job is one sample: the label is the run id and the artifact of the job (`smoothness-<width>-<set>`).
+      const label = `${id}:${f.slice(join(dir, id).length + 1).split('/')[0]}`;
+      if (file.refused || file.runs.length === 0) { skipped.push({ run: label, why: file.refused ? 'refused' : 'empty' }); continue; }
+      for (const width of [...new Set(file.runs.map((r) => r.width))]) for (const window of ['hero', 'end']) cells.push(cellOf(label, file, width, window));
     }
   }
   return { cells, skipped };
@@ -76,6 +85,14 @@ export function markdown({ cells, skipped }, sum) {
   }
   out.push('### Across runs', '', '| width | window | first | second | runs | first smoother | second smoother | same | insufficient | median rate difference second-first (points) | median A/A spread (points) |', '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |');
   for (const e of sum) out.push(`| ${e.width} | ${e.window} | ${e.first} | ${e.second} | ${e.runs.join(', ')} | ${e.counts.first} | ${e.counts.second} | ${e.counts.same} | ${e.counts.insufficient} | ${pct(e.medianDiff)} | ${pct(e.medianSpread)} |`);
+  out.push('', '### Hitches (gaps of 60 ms or more, descriptive, never in the verdict)', '', '| run | width | window | arm | reps | hitches | median gap ms | median scroll y px | reps with a long animation frame |', '| --- | --- | --- | --- | --- | --- | --- | --- | --- |');
+  for (const c of cells) for (const a of ARMS) {
+    const h = c.hitches?.[a] ?? [];
+    if (h.length === 0) continue;
+    const ys = h.map((x) => x.y).filter((y) => y !== null);
+    const loafReps = new Set(h.filter((x) => x.loaf.length > 0).map((x) => x.rep)).size;
+    out.push(`| ${c.run} | ${c.width} | ${c.window} | ${a} | ${c.arms[a].reps} | ${h.length} | ${(quantile(h.map((x) => x.ms * 10), 50) / 10).toFixed(1)} | ${ys.length ? quantile(ys, 50) : '-'} | ${loafReps} |`);
+  }
   const traced = cells.filter((c) => c.traces.length > 0);
   if (traced.length > 0) {
     out.push('', '### Chromium frame trace (traced reps, reported apart, never in the verdict)', '', '| run | width | window | arm | traced reps | frames begun | frames drawn | dropped (reporter) | dropped (event) | presented | presented p95 ms |', '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |');

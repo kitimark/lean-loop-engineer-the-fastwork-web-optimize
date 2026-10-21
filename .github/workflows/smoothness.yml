@@ -11,7 +11,7 @@ name: smoothness
 # cadence would be the runner's, not Safari's, and the macOS leg needs a pool row (Fw.Ci.Pool.Caps) this task does not own.
 # Inputs of a ci/* push: the `[trajectory ...]` line of the head commit, parsed by the Lean-checked parser .github/scripts/trajectory-line.mjs
 # (preset or fw picks the candidate, widths the legs; empty widths = 390 and 1280; the engines key is ignored).
-# The artifact of a leg is `smoothness-<width>`; the table is built from downloaded runs: `node src/smooth/cli.mjs cadence`.
+# The artifact of a leg is `smoothness-<width>-<set>`; each of the three sets of a width is its own job on its own runner (an independent noise sample); the table is built from downloaded runs: `node src/smooth/cli.mjs cadence`.
 on:
   push:
     branches: ['ci/**']
@@ -115,7 +115,7 @@ jobs:
           set -euo pipefail
           node --test .github/scripts/gate-search.test.mjs  # the search decision equals Fw.Gate.Search
           search=$(node .github/scripts/gate-search.mjs --fw "$FW" --preset "$PRESET")
-          legs=$(jq -cn --arg w "${WIDTHS:-390,1280}" '{width: ($w | split(",") | map(tonumber))}')
+          legs=$(jq -cn --arg w "${WIDTHS:-390,1280}" '{width: ($w | split(",") | map(tonumber)), set: [1, 2, 3]}')
           echo "search=$search" >> "$GITHUB_OUTPUT"
           echo "legs=$legs" >> "$GITHUB_OUTPUT"
           echo "smoothness: search='$search' legs=$legs" | tee -a "$GITHUB_STEP_SUMMARY"
@@ -142,14 +142,14 @@ jobs:
           mode: finish
           label: site
 
-  # One job per width: all four arms, interleaved per repeat, in Chrome Headless Shell on the runner's normal vsync.
+  # One job per width and set (three sets per width, each on its own runner): all four arms, interleaved per repeat, in Chrome Headless Shell on the runner's normal vsync.
   cadence:
     needs: [site]
     concurrency:
       group: ci-lane:smoothness:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:cadence:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
-    name: cadence ${{ matrix.width }}
+    name: cadence ${{ matrix.width }} set ${{ matrix.set }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.site.outputs.legs) }}
@@ -178,7 +178,7 @@ jobs:
       - uses: ./.github/actions/telemetry
         with:
           mode: start
-          label: cadence-${{ matrix.width }}
+          label: cadence-${{ matrix.width }}-${{ matrix.set }}
       - name: Verify the snapshot against snapshot.lock.json
         run: node .github/scripts/verify-snapshot.mjs
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -225,7 +225,7 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
         with:
-          name: smoothness-${{ matrix.width }}
+          name: smoothness-${{ matrix.width }}-${{ matrix.set }}
           path: packages/gate-breakpoints/out/smoothness
           if-no-files-found: error
           retention-days: 30
@@ -233,4 +233,4 @@ jobs:
         if: ${{ (always()) && steps.stale.outcome == 'skipped' }}
         with:
           mode: finish
-          label: cadence-${{ matrix.width }}
+          label: cadence-${{ matrix.width }}-${{ matrix.set }}
