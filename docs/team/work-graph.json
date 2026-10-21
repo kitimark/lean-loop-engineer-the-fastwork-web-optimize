@@ -14097,7 +14097,8 @@
     "lean/Fw/Oracle/Golden.lean",
     "lean/Fw/Wire.lean",
     "apps/runner/src/oracle-score.ts"
-   ]
+   ],
+   "evidence": "caab315"
   },
   {
    "devices": [
@@ -14582,6 +14583,117 @@
     "scripts/sim-lock.sh",
     "docs/team/tools/slot.md",
     "docs/team/handoffs/sim-first-queue.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "platform-shrink-mq",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [],
+   "title": "End-of-page smoothness (gpu-same-look inventory rank 3, user goal 2026-10-22: hero-exit and end-of-page smoother on WebKit): on the phone band the CSS pins --platform-shrink, so the per-frame JS write changes nothing visible; skip it there under a flag, same pattern as the proved people.card:mq. Lean: the write is invisible on the phone band (theorem over the band's CSS rule, goldens); flag registered; MEASURED on CI webkit-sim (end-of-page window: Recalculate styles, Layout, frame interval p50/p95, base vs flag) with run ids. Inputs: the lead-scratch gpu-same-look notes (path given in the build prompt): inventory.md (E4) and plan in the gpu-same-look result.",
+   "writes": [
+    "apps/site/src/parts/platform/**",
+    "apps/site/src/flags/**",
+    "lean/Fw/Parts/PlatformShrink*.lean",
+    "lean/Fw/Parts/PlatformGolden.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/parts/platform-shrink*.jsonl",
+    "research/notes/2026/10-2x-platform-shrink-mq.md",
+    "docs/team/handoffs/platform-shrink-mq.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "path-pix-core",
+   "owner": "lean-prover",
+   "stream": "gate",
+   "deps": [],
+   "title": "Same-look pixel check core (user 2026-10-22: 'the gpu same-look could be provable by lean as well'; gpu-same-look plan (b)): Lean Fw.Gate.PathPix decides one cell (lane x env x pinned sample x declared moved box): two captures per arm identical else invalid; outside the masks byte-equal; inside a mask changed pixels and maxDelta at most the path-only control arm P (Q), byte-equal everywhere (E), else L (frame strips for the user). The Accelerated predicate (every keyframed property in CSSProperties.json's 7 always-accelerated, WebKit@862f17d) gates every GPU-port candidate. Theorems, sample matrix, goldens. Pixel noise is a measured hypothesis with run id, not proved. Inputs: the lead-scratch gpu-same-look notes (path given in the build prompt): measure.md and the pixel-proof research note when it lands.",
+   "writes": [
+    "lean/Fw/Gate/PathPix*.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/gate/path-pix.jsonl",
+    "docs/team/handoffs/path-pix-core.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "path-pix-lanes",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "path-pix-core"
+   ],
+   "title": "PathPix lanes: iOS Simulator verdict lane (pause + currentTime via the Inspector, simctl io screenshot PNG; under the sim slot locally, macos-26 on CI) and Linux Chromium begin-frame screenshot lane (secondary; software compositing, state it). First run is calibration on the original only (A/A plus the path-only arm P). One cell per decision, TS checked against path-pix goldens. Inputs: the lead-scratch gpu-same-look notes (path given in the build prompt): measure.md.",
+   "writes": [
+    "packages/measure-webkit/src/pathpix*.mjs",
+    "packages/measure-chromium/src/pathpix*.mjs",
+    "packages/measure-webkit/test/pathpix*.test.mjs",
+    ".github/workflows/path-pix.yml",
+    "research/notes/2026/10-2x-path-pix.md",
+    "docs/team/handoffs/path-pix-lanes.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "platform-fade-threaded",
+   "owner": "lean-prover",
+   "stream": "parts",
+   "deps": [
+    "path-pix-core"
+   ],
+   "title": "End-of-page (gpu-same-look rank 2): platform fade as one time-based Core Animation effect per push (opacity/filter only, Accelerated predicate), fade(ease) as a piecewise cubic-bezier, retarget = new effect from the current value; class E-s under float and phase premises, decided on pixels by PathPix. Measure end-of-page Recalculate styles, Layout, frame interval on CI webkit-sim vs base. Limit: full-section blur layer is tiled (>1280 px).",
+   "writes": [
+    "lean/Fw/Parts/PlatformFade*.lean",
+    "apps/site/src/parts/platform/**",
+    "apps/site/src/flags/**",
+    "packages/contracts/golden/parts/platform-fade*.jsonl",
+    "research/notes/2026/10-2x-platform-fade-threaded.md",
+    "docs/team/handoffs/platform-fade-threaded.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "hero-exit-threaded-pix",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "path-pix-lanes",
+    "hero-exit-threaded-port"
+   ],
+   "title": "PathPix cells for the threaded hero exit: (lane, scroll offset, consumer box); verdict E/Q/L per cell, frame strips for any L.",
+   "writes": [
+    "research/notes/2026/10-2x-hero-exit-threaded-pix.md",
+    "results/hero-exit-threaded-pix/**",
+    "docs/team/handoffs/hero-exit-threaded-pix.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "earn-bound-arm",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "title": "User review comment on nav:earn-no-transition (keep the animation, try GPU) -> earn-gpu research: before any same-look variant (candidate B: @property --earn-s + translates), measure a probe-only 'bound' arm (earn transitions always off) vs base with aa as noise floor, holdMs 1400, 3 complete jobs per WebKit leg (macOS + iOS Simulator), Lean across verdict. Build B only if bound beats A/A. Note at research/notes/2026/10-2x-earn-gpu.md from the lead-scratch earn-gpu note (path in the build prompt) with the checker's corrections applied.",
+   "writes": [
+    "packages/gate-breakpoints/src/smooth/**",
+    ".github/workflows/smoothness*.yml",
+    "research/notes/2026/10-2x-earn-gpu.md",
+    "results/earn-bound/**",
+    "docs/team/handoffs/earn-bound-arm.md"
    ]
   }
  ],

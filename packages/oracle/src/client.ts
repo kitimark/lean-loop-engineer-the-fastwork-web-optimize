@@ -24,6 +24,9 @@ export type Ask = {
   names?: string[];
   thresholds: Json | null;
   run?: number;
+  /** Sends and estimated input tokens already spent in this replay run (`fw oracle send`): the gate is
+   *  `oracle.preRun`, and `run` is ignored. */
+  replayRun?: { sent: number; spent: number };
 };
 
 export type Asked = {
@@ -32,6 +35,8 @@ export type Asked = {
   source: "replay" | "live" | "refused" | "nokey" | "failed";
   reply?: string;
   sent: boolean;
+  /** The body's estimated input tokens, when `oracle.preRun` let it go out. */
+  tokens?: number;
 };
 
 export function utcDay(d: Date): string {
@@ -49,10 +54,14 @@ export async function ask(d: Deps, a: Ask): Promise<Asked> {
   const entries = readLog(d.logPath);
   const prior = loggedReply(entries, key);
   const today = utcDay(d.now());
-  const pre = d.core({
-    op: "oracle.pre", name: a.question, names, state: a.state,
-    logged: prior !== undefined, today, days: entries.map((e) => e.day), ...(a.run !== undefined ? { run: a.run } : {}),
-  });
+  const days = entries.map((e) => e.day);
+  const pre = a.replayRun
+    ? d.core({ op: "oracle.preRun", name: a.question, names, state: a.state, logged: prior !== undefined, today, days, ...a.replayRun })
+    : d.core({
+      op: "oracle.pre", name: a.question, names, state: a.state,
+      logged: prior !== undefined, today, days, ...(a.run !== undefined ? { run: a.run } : {}),
+    });
+  const tokens = typeof pre.tokens === "number" ? { tokens: pre.tokens } : {};
   const decide = (o: { reply: string } | { failure: Json }) =>
     d.core({ op: "oracle.decide", name: a.question, ...(a.thresholds ? { thresholds: a.thresholds } : {}), ...o });
   if (pre.pre === "replay" && prior !== undefined) {
@@ -68,7 +77,7 @@ export async function ask(d: Deps, a: Ask): Promise<Asked> {
   const secret = d.readKey();
   if (!secret) {
     end?.(0);
-    return { decision: decide({ failure: { kind: "noKey" } }), key, source: "nokey", sent: false };
+    return { decision: decide({ failure: { kind: "noKey" } }), key, source: "nokey", sent: false, ...tokens };
   }
   const t0 = performance.now();
   let reply: string | undefined;
@@ -96,7 +105,7 @@ export async function ask(d: Deps, a: Ask): Promise<Asked> {
   });
   end?.(stored !== undefined ? 0 : 1);
   const outcome = stored !== undefined ? { reply: stored } : { failure: failure! };
-  return { decision: decide(outcome), key, source: stored !== undefined ? "live" : "failed", ...(stored !== undefined ? { reply: stored } : {}), sent: true };
+  return { decision: decide(outcome), key, source: stored !== undefined ? "live" : "failed", ...(stored !== undefined ? { reply: stored } : {}), sent: true, ...tokens };
 }
 
 export function decisionLine(dec: Json): string {
