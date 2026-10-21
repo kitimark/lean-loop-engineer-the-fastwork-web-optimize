@@ -259,8 +259,8 @@ theorem changes_spaced (p : Params) (c : Ctl) (ss : List Sample) :
 
 /-! ## Holders and leases -/
 
-/-- A queue ticket or a slot holder: the owning agent, a lease token, kind, time it entered (s), lease expiry (s) and the
-memory charged (MB). No process id. -/
+/-- A queue ticket or a slot holder: the owning agent, a lease token, kind, time it entered (s), lease expiry (s), the
+memory charged (MB) and the granted lease length (s). No process id. -/
 structure Entry where
   owner : String
   token : String
@@ -268,6 +268,7 @@ structure Entry where
   since : Nat
   till : Nat
   foot : Nat := 0
+  leaseS : Nat := 0
 deriving DecidableEq, Repr
 
 def live (now : Nat) (e : Entry) : Bool := decide (now < e.till)
@@ -275,26 +276,49 @@ def live (now : Nat) (e : Entry) : Bool := decide (now < e.till)
 /-- Drop entries whose lease expired. -/
 def prune (now : Nat) (es : List Entry) : List Entry := es.filter (live now)
 
+/-- The entries `prune` drops; the slot logs one `expire` event for each. -/
+def expired (now : Nat) (es : List Entry) : List Entry := es.filter (fun e => !live now e)
+
 def same (owner token : String) (e : Entry) : Bool := e.owner == owner && e.token == token
 
 /-- The lease end granted for a requested lease at `now`. -/
 def grantUntil (p : Params) (now lease : Nat) : Nat := now + min lease p.leaseMaxS
 
-/-- Renew the live entry of (owner, token); `none` when it has none (expired or never held). -/
-def renew (p : Params) (now : Nat) (owner token : String) (lease : Nat) (es : List Entry) : Option (List Entry) :=
+/-- The holder an admitted ticket becomes: lease `lease` capped at `leaseMaxS`, stored as its length. -/
+def grant (p : Params) (me : Entry) (now lease foot : Nat) : Entry :=
+  { me with since := now, till := grantUntil p now lease, foot := foot, leaseS := min lease p.leaseMaxS }
+
+/-- The lease length a renew sets: the requested one capped at `leaseMaxS`, else the entry's own. -/
+def lenOf (p : Params) (lease : Option Nat) (e : Entry) : Nat :=
+  match lease with
+  | some l => min l p.leaseMaxS
+  | none => e.leaseS
+
+/-- Renew the live entry of (owner, token) for `lenOf`; `none` when it has none (expired or never held). -/
+def renew (p : Params) (now : Nat) (owner token : String) (lease : Option Nat) (es : List Entry) : Option (List Entry) :=
   if es.any (fun e => same owner token e && live now e) then
-    some (es.map fun e => if same owner token e then { e with till := grantUntil p now lease } else e)
+    some (es.map fun e => if same owner token e then { e with till := now + lenOf p lease e, leaseS := lenOf p lease e } else e)
   else none
+
+/-- The lease length of a state entry written before `leaseS` was stored: its whole span. -/
+def leaseOr (stored : Option Nat) (since till : Nat) : Nat := stored.getD (till - since)
 
 def release (owner token : String) (es : List Entry) : List Entry := es.filter (fun e => !same owner token e)
 
-def holdA : Entry := { owner := "a", token := "t1", kind := .sim, since := 0, till := 100 }
+def holdA : Entry := { owner := "a", token := "t1", kind := .sim, since := 0, till := 100, leaseS := 100 }
 
 #guard prune 50 [holdA] == [holdA]
 #guard prune 100 [holdA] == []
-#guard (renew {} 50 "a" "t1" 600 [holdA]).map (·.map (·.till)) == some [650]
-#guard renew {} 50 "a" "t2" 600 [holdA] == none
-#guard renew {} 100 "a" "t1" 600 [holdA] == none
+#guard expired 50 [holdA] == []
+#guard expired 100 [holdA] == [holdA]
+#guard (renew {} 50 "a" "t1" (some 600) [holdA]).map (·.map fun e => (e.till, e.leaseS)) == some [(650, 600)]
+#guard (renew {} 50 "a" "t1" none [holdA]).map (·.map fun e => (e.till, e.leaseS)) == some [(150, 100)]
+#guard renew {} 50 "a" "t2" none [holdA] == none
+#guard renew {} 100 "a" "t1" (some 600) [holdA] == none
+#guard (grant {} holdA 10 99999 5).till == 3610
+#guard (grant {} holdA 10 1800 5).leaseS == 1800
+#guard leaseOr (some 30) 0 100 == 30
+#guard leaseOr none 40 100 == 60
 #guard release "a" "t1" [holdA] == []
 #guard release "b" "t1" [holdA] == [holdA]
 
@@ -311,28 +335,93 @@ theorem recovered_expired (now : Nat) (es : List Entry) (e : Entry) (he : e ∈ 
 /-- Liveness reads only the lease end and the clock. -/
 theorem live_iff (now : Nat) (e : Entry) : live now e = true ↔ now < e.till := by simp [live]
 
-theorem renew_other (p : Params) (now : Nat) (o t : String) (lease : Nat) (es es' : List Entry)
+/-- **Each pruned entry yields exactly one `expire` event**: an expired entry occurs in `expired` as often as in the
+list. -/
+theorem expire_emits (now : Nat) (es : List Entry) (e : Entry) (h : live now e = false) :
+    (expired now es).count e = es.count e := by
+  unfold expired
+  rw [List.count_filter]
+  simp [h]
+
+/-- A live entry yields no `expire` event. -/
+theorem expire_live_silent (now : Nat) (es : List Entry) (e : Entry) (h : live now e = true) :
+    (expired now es).count e = 0 := by
+  unfold expired
+  rw [List.count_eq_zero]
+  simp [h]
+
+/-- Every entry is either kept by `prune` or logged by `expired`, never both. -/
+theorem prune_expired_split (now : Nat) (es : List Entry) :
+    (prune now es).length + (expired now es).length = es.length := by
+  unfold prune expired
+  induction es with
+  | nil => rfl
+  | cons x xs ih => by_cases hx : live now x = true <;> simp_all <;> omega
+
+theorem grant_len (p : Params) (me : Entry) (now lease foot : Nat) :
+    (grant p me now lease foot).till = (grant p me now lease foot).since + (grant p me now lease foot).leaseS := rfl
+
+theorem renew_other (p : Params) (now : Nat) (o t : String) (lease : Option Nat) (es es' : List Entry)
     (h : renew p now o t lease es = some es') (e : Entry) (he : e ∈ es) (hs : same o t e = false) : e ∈ es' := by
   unfold renew at h
   split at h
   · cases h; exact List.mem_map.2 ⟨e, he, by simp [hs]⟩
   · cases h
 
-theorem renew_live (p : Params) (now : Nat) (o t : String) (lease : Nat) (es es' : List Entry)
-    (h : renew p now o t lease es = some es') (hl : 0 < lease) (hm : 0 < p.leaseMaxS) :
+/-- **Renew without a length keeps the granted one**: the renewed entry runs `leaseS` from now, and no entry's
+`leaseS` changes. -/
+theorem renew_keeps_len (p : Params) (now : Nat) (o t : String) (es es' : List Entry)
+    (h : renew p now o t none es = some es') :
+    es'.map (·.leaseS) = es.map (·.leaseS) ∧
+      ∀ e ∈ es, same o t e = true → { e with till := now + e.leaseS } ∈ es' := by
+  unfold renew at h
+  split at h
+  · cases h
+    refine ⟨?_, fun e he hs => List.mem_map.2 ⟨e, he, by simp [hs, lenOf]⟩⟩
+    rw [List.map_map]
+    apply List.map_congr_left
+    intro e _
+    by_cases hs : same o t e = true <;> simp [hs, lenOf]
+  · cases h
+
+/-- Renew with a length sets it: the renewed entry runs the requested length, capped at `leaseMaxS`, from now. -/
+theorem renew_sets_len (p : Params) (now : Nat) (o t : String) (l : Nat) (es es' : List Entry)
+    (h : renew p now o t (some l) es = some es') :
+    ∀ e ∈ es, same o t e = true → { e with till := grantUntil p now l, leaseS := min l p.leaseMaxS } ∈ es' := by
+  unfold renew at h
+  split at h
+  · cases h
+    exact fun e he hs => List.mem_map.2 ⟨e, he, by simp [hs, lenOf, grantUntil]⟩
+  · cases h
+
+/-- A holder granted `lease` and renewed without a length runs the same length again. -/
+theorem grant_renew_keeps (p : Params) (me : Entry) (t0 now lease foot : Nat) (es es' : List Entry)
+    (h : renew p now me.owner me.token none (es ++ [grant p me t0 lease foot]) = some es') :
+    { grant p me t0 lease foot with till := now + min lease p.leaseMaxS } ∈ es' :=
+  (renew_keeps_len p now me.owner me.token _ es' h).2 _ (by simp) (by simp [same, grant])
+
+theorem renew_live (p : Params) (now : Nat) (o t : String) (lease : Option Nat) (es es' : List Entry)
+    (h : renew p now o t lease es = some es') (hl : ∀ e ∈ es, same o t e = true → 0 < lenOf p lease e) :
     ∀ e ∈ es', same o t e = true → live now e = true := by
   unfold renew at h
   split at h
   · cases h
     intro e he hs
-    obtain ⟨x, _, rfl⟩ := List.mem_map.1 he
+    obtain ⟨x, hx0, rfl⟩ := List.mem_map.1 he
     by_cases hx : same o t x = true
-    · simp [hx, live, grantUntil]; omega
+    · have := hl x hx0 hx
+      simp [hx, live]; omega
     · simp [hx] at hs
   · cases h
 
+theorem leaseOr_stored (l since till : Nat) : leaseOr (some l) since till = l := rfl
+
+/-- An entry stored before `leaseS` existed gets back the span it was granted, so its renew keeps its end distance. -/
+theorem leaseOr_legacy (since till : Nat) (h : since ≤ till) : since + leaseOr none since till = till := by
+  simp [leaseOr]; omega
+
 /-- An expired or foreign lease cannot be renewed: the asker learns it lost the slot. -/
-theorem renew_none (p : Params) (now : Nat) (o t : String) (lease : Nat) (es : List Entry)
+theorem renew_none (p : Params) (now : Nat) (o t : String) (lease : Option Nat) (es : List Entry)
     (h : ∀ e ∈ es, same o t e = true → live now e = false) : renew p now o t lease es = none := by
   unfold renew
   have : es.any (fun e => same o t e && live now e) = false := by

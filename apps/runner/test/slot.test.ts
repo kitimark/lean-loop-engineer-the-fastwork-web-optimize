@@ -6,7 +6,8 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   DEFAULT_PARAMS, type CacheKey, type Ctl, type Entry, type Params, type Sample,
-  admitBuild, agentsSeen, cacheHit, heldOf, keyOf, leanThreads, prune, release, renew, signal, simAction, simBoot, simDue, simIdleNext,
+  admitBuild, agentsSeen, cacheHit, expired, grant, heldOf, keyOf, leanThreads, leaseOr, prune, release, renew, signal, simAction, simBoot,
+  simDue, simIdleNext,
   simQueued, step, stopAct, verdict, withLegacy,
 } from "../src/slot-core.ts";
 import {
@@ -32,7 +33,10 @@ function answer(r: Record<string, unknown> & { op: string }): Record<string, unk
       return verdict(p, r.n as number, r.sample as Sample, r.holders as Entry[], r.queue as Entry[], r.me as Entry, r.waited as number);
     case "adapt.threads": return { threads: leanThreads(p, r.cores as number, r.roomMB as number) };
     case "adapt.prune": return { entries: prune(r.now as number, es) };
-    case "adapt.renew": return { entries: renew(p, r.now as number, r.owner as string, r.token as string, r.lease as number, es) };
+    case "adapt.expired": return { entries: expired(r.now as number, es) };
+    case "adapt.renew": return { entries: renew(p, r.now as number, r.owner as string, r.token as string, r.lease as number | null, es) };
+    case "adapt.grant": return { entry: grant(p, r.me as Entry, r.now as number, r.lease as number, r.foot as number) };
+    case "adapt.leaseOr": return { leaseS: leaseOr(r.stored as number | null, r.since as number, r.till as number) };
     case "adapt.release": return { entries: release(r.owner as string, r.token as string, es) };
     case "adapt.simBoot": return { boot: simBoot(r.now as number, r.owner as string, r.token as string, r.holders as Entry[]) };
     case "adapt.simAction":
@@ -53,7 +57,7 @@ function answer(r: Record<string, unknown> & { op: string }): Record<string, unk
 
 describe("slot-core replays the Fw.Sup.Adapt golden vectors", () => {
   it(`${cases.length} cases, every op covered`, () => {
-    expect(new Set(cases.map((c) => c.request.op)).size).toBe(19);
+    expect(new Set(cases.map((c) => c.request.op)).size).toBe(22);
     for (const c of cases) expect(answer(c.request), c.name).toEqual(c.response);
   });
 });
@@ -100,6 +104,50 @@ describe("fw slot acquire, renew, release", () => {
     expect(state().holders).toHaveLength(1);
     expect(await slotCli(["release", "--token", token], d)).toBe(0);
     expect(state().holders).toEqual([]);
+  });
+
+  it("renew without --lease keeps the granted length; --lease sets it", async () => {
+    const { d, out, state } = deps();
+    expect(await slotCli(["acquire", "--kind", "sim", "--lease", "1800"], d)).toBe(0);
+    const token = out.join("").trim();
+    const t0 = Math.floor(Date.now() / 1000);
+    expect(await slotCli(["renew", "--token", token], d)).toBe(0);
+    const [h] = state().holders;
+    expect(h?.leaseS).toBe(1800);
+    expect(h?.till).toBeGreaterThanOrEqual(t0 + 1800);
+    expect(await slotCli(["renew", "--token", token, "--lease", "120"], d)).toBe(0);
+    expect(state().holders.map((x) => x.leaseS)).toEqual([120]);
+    expect(await slotCli(["renew", "--token", token], d)).toBe(0);
+    expect(state().holders.map((x) => x.leaseS)).toEqual([120]);
+  });
+
+  it("a state entry written before leaseS was stored renews for its whole span", async () => {
+    const { d, state } = deps();
+    const now = Math.floor(Date.now() / 1000);
+    mkdirSync(d.dir, { recursive: true });
+    const old = { owner: "wt-a", token: "tok", kind: "sim", since: now - 100, till: now + 1700, foot: 2800 };
+    writeFileSync(join(d.dir, "state.json"), JSON.stringify({ ctl: { n: 2, lastChange: 0, prev: null }, holders: [old], queue: [], simIdleSince: 0 }));
+    expect(await slotCli(["renew", "--token", "tok"], d)).toBe(0);
+    expect(state().holders.map((x) => x.leaseS)).toEqual([1800]);
+  });
+
+  it("each holder pruned for expiry logs one expire event in locks.jsonl", async () => {
+    const { d, state } = deps();
+    const now = Math.floor(Date.now() / 1000);
+    mkdirSync(d.dir, { recursive: true });
+    const gone = (token: string, kind: Entry["kind"]): Entry => ({ owner: "wt-x", token, kind, since: now - 70, till: now - 10, foot: 0, leaseS: 60 });
+    const keep: Entry = { owner: "wt-y", token: "k", kind: "test", since: now, till: now + 600, foot: 0, leaseS: 600 };
+    writeFileSync(join(d.dir, "state.json"), JSON.stringify({ ctl: { n: 4, lastChange: 0, prev: null }, holders: [gone("e1", "sim"), keep, gone("e2", "test")], queue: [], simIdleSince: 0 }));
+    expect(await slotCli(["status"], d)).toBe(0);
+    expect(await slotCli(["status"], d)).toBe(0);
+    expect(state().holders.map((h) => h.token)).toEqual(["k"]);
+    const evs = readFileSync(d.eventsFile ?? "", "utf8").trim().split("\n").map((l) => JSON.parse(l) as Record<string, unknown>);
+    const exp = evs.filter((e) => e.ev === "expire");
+    expect(exp.map((e) => [e.lock, e.kind, e.owner, e.token, e.leaseS, e.holdMs])).toEqual([["slot", "sim", "wt-x", "e1", 60, 60000], ["slot", "test", "wt-x", "e2", 60, 60000]]);
+    for (const e of exp) {
+      expect(e.lateMs as number).toBeGreaterThanOrEqual(10000);
+      expect([typeof e.ts, typeof e.pid, typeof e.start]).toEqual(["number", "number", "number"]);
+    }
   });
 
   it("a second sim slot waits while the first is live, and the ticket is withdrawn after --wait", async () => {
@@ -294,7 +342,7 @@ describe("fw slot admit --kind build", () => {
     const low = deps({ probe: () => ({ ...quiet(), freeMB: 3000 }) });
     expect(await slotCli(["admit", "--kind", "build"], low.d)).toBe(EXIT_REFUSED);
     const sim = deps();
-    withState(sim.d, (st) => { const t = Math.floor(Date.now() / 1000); st.queue.push({ owner: "o", token: "q", kind: "sim", since: t, till: t + 60, foot: 0 }); });
+    withState(sim.d, (st) => { const t = Math.floor(Date.now() / 1000); st.queue.push({ owner: "o", token: "q", kind: "sim", since: t, till: t + 60, foot: 0, leaseS: 60 }); });
     expect(await slotCli(["admit", "--kind", "build"], sim.d)).toBe(EXIT_REFUSED);
     expect(sim.err.join("")).toContain("a Simulator ticket is queued");
     await expect(slotCli(["admit", "--kind", "test"], ok.d)).rejects.toThrow(SlotUsage);
