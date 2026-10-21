@@ -13,6 +13,14 @@
         "original": "_app/immutable/nodes/2.DyWL8TcE.js:12414-12661 (section), 12434-12448 (shrink); assets/2.gBuqKVzi.css:5388-5560, 5602-6130, 6330-6405",
         "delta": "stage visuals restated at the artboard level; the logo glyph in the shield is a neutral stand-in; images are the original's public paths and are not in the repository"
       }
+    },
+    "mq": {
+      "kind": "optimized",
+      "tier": "T0",
+      "provenance": {
+        "lean": "Fw.Parts.PlatformShrinkOpt",
+        "limit": "phone band only: skips the --platform-shrink write while mq.c860 matches and writes the current value when the band is left; the saving may sit outside the felt end-of-page window (INFERRED)"
+      }
     }
   },
   "requires": {},

@@ -1,0 +1,93 @@
+{
+  "id": "platform-shrink-mq",
+  "proposal": "platform-shrink-mq",
+  "title": "Phone: skip the invisible platform shrink write (flag platform:mq), end of page, iOS Simulator",
+  "arms": [
+    { "name": "base", "search": "" },
+    { "name": "platform:mq", "search": "?fw=platform:mq" }
+  ],
+  "lanes": [
+    {
+      "name": "iOS Simulator 430x775, end of page window, two passes",
+      "rows": [
+        {
+          "metric": "RecalculateStyles in the window, pass 1",
+          "unit": "n",
+          "cells": [
+            { "arm": "base", "value": 94, "tag": { "kind": "measured", "run": "39680958629" } },
+            { "arm": "platform:mq", "value": 85, "tag": { "kind": "measured", "run": "39680964944" } }
+          ]
+        },
+        {
+          "metric": "RecalculateStyles in the window, pass 2",
+          "unit": "n",
+          "cells": [
+            { "arm": "base", "value": 70, "tag": { "kind": "measured", "run": "39680958629" } },
+            { "arm": "platform:mq", "value": 83, "tag": { "kind": "measured", "run": "39680964944" } }
+          ]
+        },
+        {
+          "metric": "Layout in the window, pass 1",
+          "unit": "n",
+          "cells": [
+            { "arm": "base", "value": 100, "tag": { "kind": "measured", "run": "39680958629" } },
+            { "arm": "platform:mq", "value": 87, "tag": { "kind": "measured", "run": "39680964944" } }
+          ]
+        },
+        {
+          "metric": "Layout in the window, pass 2",
+          "unit": "n",
+          "cells": [
+            { "arm": "base", "value": 56, "tag": { "kind": "measured", "run": "39680958629" } },
+            { "arm": "platform:mq", "value": 76, "tag": { "kind": "measured", "run": "39680964944" } }
+          ]
+        },
+        {
+          "metric": "Paint in the window, pass 1",
+          "unit": "n",
+          "cells": [
+            { "arm": "base", "value": 220, "tag": { "kind": "measured", "run": "39680958629" } },
+            { "arm": "platform:mq", "value": 203, "tag": { "kind": "measured", "run": "39680964944" } }
+          ]
+        },
+        {
+          "metric": "Paint in the window, pass 2",
+          "unit": "n",
+          "cells": [
+            { "arm": "base", "value": 168, "tag": { "kind": "measured", "run": "39680958629" } },
+            { "arm": "platform:mq", "value": 223, "tag": { "kind": "measured", "run": "39680964944" } }
+          ]
+        },
+        {
+          "metric": "RecalculateStyles over the whole scroll, pass 1",
+          "unit": "n",
+          "cells": [
+            { "arm": "base", "value": 681, "tag": { "kind": "measured", "run": "39680958629" } },
+            { "arm": "platform:mq", "value": 690, "tag": { "kind": "measured", "run": "39680964944" } }
+          ]
+        },
+        {
+          "metric": "RecalculateStyles over the whole scroll, pass 2",
+          "unit": "n",
+          "cells": [
+            { "arm": "base", "value": 648, "tag": { "kind": "measured", "run": "39680958629" } },
+            { "arm": "platform:mq", "value": 687, "tag": { "kind": "measured", "run": "39680964944" } }
+          ]
+        },
+        {
+          "metric": "section shrink writes per plain scroll (expected from the model: none)",
+          "unit": "n",
+          "cells": [
+            { "arm": "base", "value": 0, "tag": { "kind": "inferred", "why": "Lean unshrunk_run: the card bottom stays at or below 0.85 of the viewport height, so the computed value is 0 and the original writes nothing; the last section of the rewrite ends the page (App.tsx:68-83). A local debug probe saw no write on a 430 px page, not a CI result." } },
+            { "arm": "platform:mq", "value": 0, "tag": { "kind": "inferred", "why": "Lean gated_run: in the phone band the variant writes nothing" } }
+          ]
+        }
+      ],
+      "layers": []
+    }
+  ],
+  "recommendation": {
+    "word": "hold",
+    "why": "The flag is proved to look identical and to never write more, also when the page leaves the phone band. But on the rewrite page the card is the last section, so a plain scroll never moves its shrink off zero and the original has no write to skip. The two Simulator arms differ less than two passes of the base differ from each other, so no effect shows. Frame time percentiles are not available in this lane. Keep the flag registered, leave it out of the preset, and measure it again in the Simulator replay of the end of page, or after a section is added below the card."
+  }
+}
