@@ -461,9 +461,12 @@ const hasDriver = (s) => s.cls.includes(DRIVER);
 
 const redAlpha = (els) => (els.length === 1 && Array.isArray(els[0]) && els[0].length === 4 ? [els[0][0], els[0][3]] : null);
 
+/** Lean `idFresh`. */
+export const idFresh = (s) => s.since !== null && s.since <= START_LAG;
+
 /** Lean `idCheck`: true, false, or null (undecided). `conv` maps a stored reading to sRGB (identity in Lean). */
 export function idCheck(d, q, r, conv = (v) => v) {
-  if (q === null || !hasDriver(q) || hasDriver(r) || !inFlight(d, r)) return null;
+  if (q === null || !hasDriver(q) || hasDriver(r) || !inFlight(d, r) || !idFresh(r)) return null;
   const xa = redAlpha(r.els.map(conv));
   if (!has(q.m) || !has(r.m) || xa === null) return null;
   return CUT_M <= q.m && r.m <= CUT_M && redOk(q.m, xa[0]) && alphaOk(q.m, xa[1]);

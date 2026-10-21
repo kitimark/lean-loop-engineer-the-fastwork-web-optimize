@@ -3920,12 +3920,18 @@ def redAlpha : List Val → Option (Int × Int)
   | [.num [x, _, _, a]] => some (x, a)
   | _ => none
 
-/-- `r` after `q` in its pass, `q` with `is-morphing` and `r` without it and in flight: `q`'s morph value is at least
-`cutM`, `r`'s at most, and `r` reads the colour of `q`'s; `none` for any other pair or a missing part. -/
+/-- The sample was read at most `startLag` ms after the last class change of the nav. -/
+def idFresh (s : Samp) : Bool :=
+  match s.since with
+  | some x => decide (x ≤ startLag)
+  | none => false
+
+/-- `r` after `q` in its pass, `q` with `is-morphing` and `r` without it, in flight and fresh: `q`'s morph value is at
+least `cutM`, `r`'s at most, and `r` reads the colour of `q`'s; `none` for any other pair or a missing part. -/
 def idCheck (d : List String → Option Nat) (q : Option Samp) (r : Samp) : Option Bool :=
   match q with
   | some q =>
-    if hasDriver q && !hasDriver r && inFlight d r then
+    if hasDriver q && !hasDriver r && inFlight d r && idFresh r then
       match q.m, r.m, redAlpha r.els with
       | some mi, some mj, some (x, a) =>
         some (decide (cutM ≤ mi) && decide (mj ≤ cutM) && redOk mi x && alphaOk mi a)
@@ -3989,6 +3995,7 @@ def navBg : List String → Option Nat := durOf "nav" "background-color" 390
 #guard alphaOk 0 26500 && !alphaOk 0 26501 && alphaOk 0 25500 && !alphaOk 0 25499
 #guard redAlpha [.num [1, 2, 3, 4]] == some (1, 4) && redAlpha [.num [1, 2, 3]] == none && redAlpha [] == none
 #guard hasDriver (nbOn 20) && !hasDriver (nbOff 0 4 0 0)
+#guard idFresh (nbOff 0 200 0 0) && !idFresh (nbOff 0 201 0 0) && !idFresh (nb [] 0 none 0 0)
 #guard idCheck navBg (some (nbOn 20)) (nbOff 0 4 (fRed 20) (fAlpha 20)) == some true &&
   idCheck navBg (some (nbOn 20)) (nbOff 0 4 255000 (fAlpha 20)) == some false &&
   idCheck navBg (some (nbOn 9)) (nbOff 0 4 (fRed 9) (fAlpha 9)) == some false &&
@@ -3996,6 +4003,7 @@ def navBg : List String → Option Nat := durOf "nav" "background-color" 390
   idCheck navBg none (nbOff 0 4 (fRed 20) (fAlpha 20)) == none &&
   idCheck navBg (some (nbOff 0 4 0 0)) (nbOff 0 4 (fRed 20) (fAlpha 20)) == none &&
   idCheck navBg (some (nbOn 20)) (nbOff 0 4000 (fRed 20) (fAlpha 20)) == none &&
+  idCheck navBg (some (nbOn 1174)) (nbOff 0 694 253656 26113) == none &&
   idCheck navBg (some (nbOn 20)) ⟨some 0, some 4, [.str "x"], 0, [], 2, 0, none⟩ == none &&
   idCheck navBg (some (nbOn 20)) ⟨none, some 4, [.num [0, 0, 0, 0]], 0, [], 2, 0, none⟩ == none
 #guard withPrev [smr 0 1 [], smr 1 2 [], smr 0 3 []] == [(none, smr 0 1 []), (none, smr 1 2 []), (some (smr 0 1 []), smr 0 3 [])]
@@ -4119,26 +4127,36 @@ theorem alphaOk_iff (m a : Int) :
 
 /-- With every part found, `idCheck` is the cut on both morph values and half a level of `bgRed` and `bgAlpha`. -/
 theorem idCheck_css (d : List String → Option Nat) (q r : Samp) (mi mj x a : Int) (h0 : 0 ≤ mi)
-    (hq : hasDriver q = true) (hr : hasDriver r = false) (hf : inFlight d r = true)
+    (hq : hasDriver q = true) (hr : hasDriver r = false) (hf : inFlight d r = true) (hs : idFresh r = true)
     (hmi : q.m = some mi) (hmj : r.m = some mj) (hx : redAlpha r.els = some (x, a)) :
     idCheck d (some q) r = some (decide (cutM ≤ mi) && decide (mj ≤ cutM) &&
       closeStartOk ((x : Rat) / 1000) ((mi : Rat) / 10000) &&
       decide (255 * bgAlpha ((mi : Rat) / 10000) - 1 / 2 ≤ (a : Rat) / 1000 ∧
         (a : Rat) / 1000 ≤ 255 * bgAlpha ((mi : Rat) / 10000) + 1 / 2)) := by
-  simp [idCheck, hq, hr, hf, hmi, hmj, hx, ← redOk_iff mi x h0, ← alphaOk_iff mi a]
+  simp [idCheck, hq, hr, hf, hs, hmi, hmj, hx, ← redOk_iff mi x h0, ← alphaOk_iff mi a]
 
-/-- `idCheck` decides only the first sample without `is-morphing` after one with it, in flight. -/
+/-- `idCheck` decides only the first sample without `is-morphing` after one with it, in flight and fresh. -/
 theorem idCheck_some (d : List String → Option Nat) (q : Option Samp) (r : Samp) (c : Bool) (h : idCheck d q r = some c) :
-    ∃ q', q = some q' ∧ hasDriver q' = true ∧ hasDriver r = false ∧ inFlight d r = true := by
+    ∃ q', q = some q' ∧ hasDriver q' = true ∧ hasDriver r = false ∧ inFlight d r = true ∧ idFresh r = true := by
   unfold idCheck at h
   cases q with
   | none => simp at h
   | some q' =>
     refine ⟨q', rfl, ?_⟩
-    by_cases hc : (hasDriver q' && !hasDriver r && inFlight d r) = true
+    by_cases hc : (hasDriver q' && !hasDriver r && inFlight d r && idFresh r) = true
     · simp only [Bool.and_eq_true, Bool.not_eq_true'] at hc
-      exact ⟨hc.1.1, hc.1.2, hc.2⟩
+      exact ⟨hc.1.1.1, hc.1.1.2, hc.1.2, hc.2⟩
     · simp [hc] at h
+
+/-- A sample read more than `startLag` ms after the class change is not decided: it is `judgeUnit`'s. -/
+theorem idCheck_late (d : List String → Option Nat) (q : Option Samp) (r : Samp) (x : Nat) (hx : r.since = some x)
+    (hl : startLag < x) : idCheck d q r = none := by
+  cases h : idCheck d q r with
+  | none => rfl
+  | some c =>
+    obtain ⟨_, _, _, _, _, hs⟩ := idCheck_some d q r c h
+    simp [idFresh, hx] at hs
+    omega
 
 /-- Without a sample before it in its pass, `idCheck` does not decide. -/
 theorem idCheck_no_prev (d : List String → Option Nat) (r : Samp) : idCheck d none r = none := rfl
@@ -4146,7 +4164,7 @@ theorem idCheck_no_prev (d : List String → Option Nat) (r : Samp) : idCheck d 
 /-- `idCheck` reads no time stamp: a longer gap between the two samples changes nothing. -/
 theorem idCheck_t0 (d : List String → Option Nat) (q r : Samp) (a b : Option Nat) :
     idCheck d (some { q with t0 := a }) { r with t0 := b } = idCheck d (some q) r := by
-  simp [idCheck, hasDriver, inFlight]
+  simp [idCheck, hasDriver, inFlight, idFresh]
 
 /-- An undecided sample is `judgeUnit`'s. -/
 theorem idJudge_undecided (k : Kind) (d : List String → Option Nat) (seg : List Samp) (win : Option (List Samp))
@@ -4289,6 +4307,13 @@ theorem byMId_progress : (navAt idSeg (idRew (fRed 20 + 1000) (fAlpha 20))).look
 
 /-- Limit: half a level off the start passes. -/
 theorem byMId_half : (navAt idSeg (idRew (fRed 20 + 499) (fAlpha 20 - 499))).lookup 0 = some .pass := by decide +kernel
+
+/-- A rewrite whose first sample without the class is read after `startLag`. -/
+def lateReadRew : List Samp := [nbOn 3000, nbOn 40, nbOn 20, nbOff 0 300 255000 (fAlpha 20)]
+
+/-- Limit: a reading taken more than `startLag` ms after the removal is judged by `byM` alone. -/
+theorem byMId_read_late : (navAt idSeg lateReadRew).lookup 0 = (byM .push 2 .colour navBg idSeg lateReadRew).lookup 0 := by
+  decide +kernel
 
 end CloseIdentity
 
@@ -4848,7 +4873,9 @@ def casesId : List Case :=
     .idAt "both off" 390 (some (nbOff 0 4 0 0)) (nbOff 0 4 (fRed 20) (fAlpha 20)),
     .idAt "both on" 390 (some (nbOn 30)) (nbOn 20),
     .idAt "settled" 390 (some (nbOn 20)) (nbOff 0 900 (fRed 20) (fAlpha 20)),
-    .idAt "last in flight" 390 (some (nbOn 20)) (nbOff 0 899 (fRed 20) (fAlpha 20)),
+    .idAt "at the start lag" 390 (some (nbOn 20)) (nbOff 0 200 (fRed 20) (fAlpha 20)),
+    .idAt "after the start lag" 390 (some (nbOn 20)) (nbOff 0 201 (fRed 20) (fAlpha 20)),
+    .idAt "read late, near the end" 390 (some (nbOn 1174)) (nbOff 0 694 253656 26113),
     .idAt "no class change" 390 (some (nbOn 20)) (nb [] 0 none (fRed 20) (fAlpha 20)),
     .idAt "a string" 390 (some (nbOn 20)) ⟨some 0, some 4, [.str "x"], 0, [], 2, 0, none⟩,
     .idAt "three numbers" 390 (some (nbOn 20)) ⟨some 0, some 4, [.num [1, 2, 3]], 0, [], 2, 0, none⟩,
