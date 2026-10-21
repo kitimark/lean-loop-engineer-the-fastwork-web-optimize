@@ -1,6 +1,6 @@
 # hero-exit-threaded-port handoff
 
-State: branch `worktree-wf_c2c26e40-d7b-1`. Note: `research/notes/2026/10-22-hero-exit-threaded.md` (source decision per
+State: branch `worktree-wf_c2c26e40-d7b-1`. Note: `research/notes/2026/10-2x-hero-exit-threaded.md` (source decision per
 property, CONFIRMED at WebKit@862f17d with path:line).
 
 Built:
