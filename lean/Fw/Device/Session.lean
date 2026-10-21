@@ -629,4 +629,284 @@ theorem replay_ok_of_single {ts : List Touch} (w h : Nat) (hs : singleFinger ts 
     (replayStrokes ts) 0
   exact ⟨_, by simp [replay, hs], this⟩
 
+/-! ## The session plan -/
+
+/-- The page a pass is recorded on. -/
+inductive Arm where
+  | original | rewrite | v2 | look
+  deriving DecidableEq, Repr
+
+/-- The name written in the record. -/
+def Arm.code : Arm → String
+  | .original => "original" | .rewrite => "rewrite" | .v2 => "v2" | .look => "look"
+
+/-- What the banner calls the arm. -/
+def Arm.label : Arm → String
+  | .original => "the ORIGINAL page"
+  | .rewrite => "the faithful REWRITE"
+  | .v2 => "the REWRITE with the v2-proved flags"
+  | .look => "the REWRITE with the look-change flags"
+
+/-- Original, rewrite, rewrite with v2-proved, look-change, original again. -/
+def plan : List Arm := [.original, .rewrite, .v2, .look, .original]
+
+/-- Seconds of swiping per pass. -/
+def recSeconds : Nat := 90
+
+theorem plan_first : plan.head? = some .original := by decide
+
+theorem plan_last : plan.getLast? = some .original := by decide
+
+theorem plan_original_twice : plan.count .original = 2 := by decide
+
+theorem plan_covers (a : Arm) : a ∈ plan := by cases a <;> decide
+
+theorem plan_no_repeat : (plan.zip plan.tail).all (fun p => p.1 != p.2) = true := by decide
+
+theorem plan_fits_block : plan.length * recSeconds ≤ 900 := by decide
+
+/-- The banner text of step `k` (counted from 0). -/
+def stepText (k : Nat) (a : Arm) : String :=
+  s!"Step {k + 1} of {plan.length}: {a.label}. Swipe with your finger from the top of the page to the bottom and back at your normal reading speed for {recSeconds} s. When it feels laggy, tap the screen 3 times quickly."
+
+/-! ## One pass -/
+
+/-- A recorded pass in integer units: times in hundredths of a ms, positions in tenth px, part values per mille. -/
+structure Record where
+  w : Nat
+  h : Nat
+  maxY10 : Int
+  ts : List Int
+  ys : List Int
+  parts : List (String × List Int)
+  touches : List Touch
+
+/-- The reduction of one pass. -/
+structure Report where
+  total : Stat
+  zones : List (Zone × Stat)
+  taps : Nat
+  felt : List Felt
+  parts : List (String × Int × Nat)
+  replay : Option (List Stroke)
+
+/-- The reduction of a pass. -/
+def reducePass (r : Record) : Report :=
+  let fs := r.ts.zip r.ys
+  let rows := movingRows fs
+  let vh10 : Int := (r.h : Int) * 10
+  let tp := taps r.touches
+  { total := stat rows
+    zones := [Zone.hero, .finish, .rest].map fun z => (z, stat (inZone vh10 r.maxY10 z rows))
+    taps := tp.length
+    felt := (marksOf tp).map (feltOf vh10 r.maxY10 fs)
+    parts := r.parts.map fun (n, vs) => let sr := r.ys.zip vs; (n, maxStep sr, stalls sr)
+    replay := replay r.touches r.w r.h }
+
+theorem reducePass_zones_total (r : Record) :
+    ((reducePass r).zones.map fun p => p.2.n).foldl (· + ·) 0 = (reducePass r).total.n := by
+  have h := zone_counts_sum ((r.h : Int) * 10) r.maxY10 (movingRows (r.ts.zip r.ys))
+  simp only [reducePass, stat, List.map_cons, List.map_nil, List.foldl_cons, List.foldl_nil]
+  omega
+
+/-! ## The golden -/
+
+private def statJ (s : Stat) : Json :=
+  Json.mkObj [("n", s.n), ("over34", s.over34), ("over50", s.over50), ("per34", s.per34), ("per50", s.per50),
+    ("longest", s.longest), ("median", s.median)]
+
+private def pairsJ (l : List (Int × Int)) : Json := Json.arr (l.map fun p => toJson [p.1, p.2]).toArray
+
+private def touchJ (e : Touch) : Json := toJson [Json.num e.t, Json.str e.ph.code, Json.num e.x, Json.num e.y, Json.num e.n]
+
+private def strokeJ (st : Stroke) : Json := Json.mkObj [("f0", st.f0), ("path", pairsJ st.path)]
+
+private def feltJ (f : Felt) : Json :=
+  Json.mkObj [("t", f.t), ("y", f.y), ("zone", f.zone.name), ("stat", statJ f.stat)]
+
+private def reportJ (r : Report) : Json :=
+  Json.mkObj [("total", statJ r.total), ("zones", Json.mkObj (r.zones.map fun p => (p.1.name, statJ p.2))),
+    ("taps", r.taps), ("felt", Json.arr (r.felt.map feltJ).toArray),
+    ("parts", Json.mkObj (r.parts.map fun (n, m, s) => (n, Json.mkObj [("maxStep", m), ("stalls", s)])))]
+
+private def recordJ (r : Record) (arm : Arm) (pass : Nat) : Json :=
+  Json.mkObj [("schema", "fw.phone.record.int/1"), ("arm", arm.code), ("pass", pass), ("w", r.w), ("h", r.h),
+    ("maxY10", r.maxY10), ("t", toJson r.ts), ("y", toJson r.ys),
+    ("p", Json.mkObj (r.parts.map fun (n, vs) => (n, toJson vs))), ("touches", Json.arr (r.touches.map touchJ).toArray)]
+
+private def lcg (s : Nat) : Nat := (s * 1103515245 + 12345) % 2147483648
+
+private def lcgs : Nat → Nat → List Nat
+  | 0, _ => []
+  | n + 1, s => lcg s :: lcgs n (lcg s)
+
+private def cumsum : Int → List Int → List Int
+  | _, [] => []
+  | t, d :: ds => (t + d) :: cumsum (t + d) ds
+
+private def synthN : Nat := 480
+
+private def synthVh : Int := 932
+
+private def synthMaxY10 : Int := 30000
+
+private def synthSpecs : List (Nat × Int) := [(30, 0), (100, 6000), (170, 12000), (280, 18000), (360, 24000)]
+
+private def synthTaps : List (Nat × Int × Int) :=
+  [(240, 1000, 4000), (245, 2150, 4000), (251, 2180, 4000), (257, 2160, 4000), (445, 2000, 4200), (451, 2030, 4200),
+    (457, 2010, 4200)]
+
+private def synthDt (k : Nat) (r : Nat) : Int :=
+  if k = 50 then 6200 else if k = 51 then 5400 else if k = 130 then 4100 else if k = 200 then 5800
+  else if k = 210 then 4100 else if k = 395 then 9000 else if k = 400 then 3600
+  else 1617 + ((r / 65536 : Nat) % 101 : Nat)
+
+private def synthY (k : Nat) : Int :=
+  match (synthSpecs.filter fun s => s.1 < k).getLast? with
+  | some (ks, y0) => y0 + 100 * min 60 ((k : Int) - ks)
+  | none => 0
+
+private def clamp01 (v : Int) : Int := max 0 (min 1000 v)
+
+private def synthFrac (y : Int) : Int := y * 1000 / (synthVh * 10)
+
+private def synthHero (k : Nat) : Int := 1000 - clamp01 (synthFrac (synthY (if 110 ≤ k ∧ k ≤ 113 then 109 else k)))
+
+private def synthPeople (k : Nat) : Int := clamp01 ((synthFrac (synthY k) - 720) * 1000 / 280)
+
+private def synthFade (k : Nat) : Int := clamp01 ((synthY k - (synthMaxY10 - synthVh * 10)) * 1000 / (synthVh * 10))
+
+private def synthTouches (ts : List Int) : List Touch :=
+  let tm (k : Nat) : Int := ts.getD k 0 - 300
+  let stroke (s : Nat × Int) : List (Nat × Touch) :=
+    ⟨s.1, ⟨tm s.1, .start, 2150, 8800, 1⟩⟩ ::
+      ((List.range 60).map fun j => (s.1 + j + 1, ⟨tm (s.1 + j + 1), .move, 2150 + 10 * ((j + 1 : Nat) % 3 : Nat), 8800 - 100 * ((j + 1 : Nat) : Int), 1⟩)) ++
+      [(s.1 + 61, ⟨tm (s.1 + 61), .stop, 2150, 2800, 0⟩)]
+  let tap (s : Nat × Int × Int) : List (Nat × Touch) :=
+    [(s.1, ⟨tm s.1, .start, s.2.1, s.2.2, 1⟩), (s.1 + 2, ⟨tm (s.1 + 2), .stop, s.2.1, s.2.2, 0⟩)]
+  let all := synthSpecs.flatMap stroke ++ synthTaps.flatMap tap
+  (all.mergeSort fun a b => decide (a.1 ≤ b.1)).map (·.2)
+
+private def synthRecord (_ : Unit) : Record :=
+  let n := synthN
+  let dts := (List.range n).zip (lcgs n 42) |>.map fun (k, r) => synthDt k r
+  let ts := cumsum 100000 dts
+  { w := 430, h := 932, maxY10 := synthMaxY10, ts := ts, ys := (List.range n).map synthY
+    parts := [("hero", (List.range n).map synthHero), ("people", (List.range n).map synthPeople),
+      ("fade", (List.range n).map synthFade)]
+    touches := synthTouches ts }
+
+/-- Frame of a time on the grid of the first replayed stroke. -/
+private def markFrames (r : Record) : List Nat :=
+  let t0 := t0Of (replayStrokes r.touches)
+  (marksOf (taps r.touches)).map fun m => frameOf t0 m.t
+
+private def replayJ (r : Record) : Json :=
+  match (reducePass r).replay with
+  | some ss => Json.mkObj [("strokes", Json.arr (ss.map strokeJ).toArray), ("marks", toJson (markFrames r)),
+      ("ok", replayOk ((r.w : Int) * 10) ((r.h : Int) * 10) 2000 ss)]
+  | none => Json.null
+
+private def vh10c : Int := 9320
+
+private def maxc : Int := 30000
+
+private def zoneCases : List Int := [-5, 0, 18639, 18640, 18641, 20679, 20680, 29999, 30000]
+
+private def statCases : List (List (Int × Int)) :=
+  [[(0, 0), (1667, 0), (3334, 100), (5001, 200), (9001, 200), (10668, 300), (15668, 20000)],
+   [(0, 0), (100, 5)], [(0, 0)], [], [(0, 0), (1700, 10), (3400, 20), (6900, 30), (11900, 40), (13600, 50)]]
+
+private def verdictCases : List (List Int × List Int) :=
+  [([100, 110], [50]), ([100, 110], [50, 105]), ([100, 110], [100]), ([100, 200], [10]), ([100, 110], [200]),
+   ([100, 110], [125]), ([100, 110], [121]), ([100, 110], [119]), ([100], [10]), ([], [10]), ([100, 110], []),
+   ([100, 100], [99]), ([100, 100], [100]), ([100, 100], [101]), ([300, 100, 200], [0, 50])]
+
+private def partCases : List (List (Int × Int)) :=
+  [[(0, 0), (10, 100), (20, 100), (30, 100), (40, 300), (50, 1000), (60, 1000)], [(0, 500), (0, 500), (10, 500)],
+   [(0, 0), (10, 0), (20, 1000), (30, 1000)], [], [(5, 700)]]
+
+private def tp (t x y : Int) : Tap := ⟨t, x, y⟩
+
+private def markCases : List (List Tap) :=
+  [[tp 0 100 100, tp 30000 110 100, tp 60000 105 95], [tp 0 100 100, tp 60000 110 100, tp 70000 105 95, tp 80000 100 100],
+   [tp 0 100 100, tp 30000 110 100, tp 60000 600 95], [tp 0 100 100, tp 30000 110 100], [],
+   [tp 0 100 100, tp 30000 110 100, tp 60000 105 95, tp 90000 105 95, tp 100000 105 95, tp 110000 105 95],
+   [tp 0 100 100, tp 30000 110 100, tp 60000 105 95, tp 90000 105 95, tp 100000 105 95]]
+
+private def tc (t : Int) (ph : Phase) (x y : Int) (n : Nat := 1) : Touch := ⟨t, ph, x, y, n⟩
+
+private def streamCases : List (List Touch) :=
+  [[tc 0 .start 100 100, tc 10000 .stop 100 100],
+   [tc 0 .start 100 100, tc 40000 .stop 100 100],
+   [tc 0 .start 100 100, tc 10000 .move 100 300, tc 20000 .stop 100 300],
+   [tc 0 .move 100 100, tc 1 .stop 100 100],
+   [tc 0 .start 100 100, tc 10000 .cancel 100 100, tc 20000 .start 5 5, tc 30000 .stop 5 5],
+   [tc 0 .start 100 100, tc 10000 .start 7 7, tc 12000 .stop 7 7],
+   [tc 0 .start 100 100, tc 10000 .move 100 200],
+   [tc 0 .start 1000 8000, tc 10000 .move 1000 7000, tc 30000 .move 1000 6000, tc 50000 .move 1000 5000, tc 60000 .stop 1000 5000, tc 70000 .start 1000 8000, tc 71000 .stop 1000 7000],
+   [tc 0 .start 1000 8000, tc 10000 .move 1000 7000 2, tc 30000 .stop 1000 6000],
+   [tc 0 .start 5000 8000, tc 10000 .move 5000 12000, tc 20000 .stop 5000 12000]]
+
+private def loaderCases : List (Int × Int × Nat × List Stroke) :=
+  [(4300, 9320, 100, [⟨0, [(10, 10), (20, 20)]⟩, ⟨5, [(10, 10), (20, 20), (30, 30)]⟩]),
+   (4300, 9320, 100, []), (4300, 9320, 100, [⟨0, [(10, 10)]⟩]), (4300, 9320, 100, [⟨0, [(10, 10), (4301, 20)]⟩]),
+   (4300, 9320, 100, [⟨0, [(10, 10), (20, -1)]⟩]), (4300, 9320, 100, [⟨0, [(10, 10), (20, 20)]⟩, ⟨1, [(10, 10), (20, 20)]⟩]),
+   (4300, 9320, 100, [⟨0, [(10, 10), (20, 20)]⟩, ⟨2, [(10, 10), (20, 20)]⟩]),
+   (4300, 9320, 3, [⟨0, [(10, 10), (20, 20)]⟩, ⟨2, [(10, 10), (20, 20)]⟩]),
+   (4300, 9320, 4, [⟨0, [(10, 10), (20, 20)]⟩, ⟨2, [(10, 10), (20, 20)]⟩])]
+
+private def goldenLines (_ : Unit) : List String :=
+  [(Json.mkObj [("kind", "consts"), ("slow", slow), ("bad", bad), ("lookback", lookback), ("tapMs", (30000 : Int)),
+    ("tapTravel", (100 : Int)), ("gapMs", (50000 : Int)), ("nearPx", (400 : Int)), ("hz", (60 : Int)),
+    ("zoneViewports", (2 : Int)), ("recSeconds", recSeconds)]).compress] ++
+  (plan.zipIdx.map fun (a, k) =>
+    (Json.mkObj [("kind", "plan"), ("step", toJson (k + 1)), ("arm", a.code), ("seconds", recSeconds), ("text", stepText k a)]).compress) ++
+  (zoneCases.map fun (y : Int) =>
+    (Json.mkObj [("kind", "zone"), ("vh10", vh10c), ("maxY10", maxc), ("y", y), ("zone", (zoneOf vh10c maxc y).name)]).compress) ++
+  (statCases.map fun fs =>
+    let rows := movingRows fs
+    (Json.mkObj [("kind", "stat"), ("frames", pairsJ fs), ("vh10", vh10c), ("maxY10", maxc),
+      ("rows", pairsJ (rows.map fun r => (r.dt, r.y))), ("total", statJ (stat rows)),
+      ("zones", Json.mkObj ([Zone.hero, .finish, .rest].map fun z => (z.name, statJ (stat (inZone vh10c maxc z rows)))))]).compress) ++
+  (verdictCases.map fun (o, a) =>
+    (Json.mkObj [("kind", "verdict"), ("orig", toJson o), ("arm", toJson a), ("spread", spread o),
+      ("verdict", (verdict o a).name)]).compress) ++
+  (partCases.map fun sr =>
+    (Json.mkObj [("kind", "part"), ("series", pairsJ sr), ("maxStep", maxStep sr), ("stalls", stalls sr)]).compress) ++
+  (markCases.map fun l =>
+    (Json.mkObj [("kind", "marks"), ("taps", Json.arr (l.map fun t => toJson [t.t, t.x, t.y]).toArray),
+      ("marks", Json.arr ((marksOf l).map fun t => toJson [t.t, t.x, t.y]).toArray)]).compress) ++
+  (streamCases.map fun ts =>
+    (Json.mkObj [("kind", "stream"), ("touches", Json.arr (ts.map touchJ).toArray),
+      ("strokes", Json.arr ((strokes ts).map fun s => Json.arr (s.map touchJ).toArray).toArray),
+      ("isTap", toJson ((strokes ts).map isTap)), ("taps", Json.arr ((taps ts).map fun t => toJson [t.t, t.x, t.y]).toArray),
+      ("single", singleFinger ts),
+      ("replay", match replay ts 430 932 with
+        | some ss => Json.mkObj [("strokes", Json.arr (ss.map strokeJ).toArray), ("t0", t0Of (replayStrokes ts))]
+        | none => Json.null)]).compress) ++
+  (loaderCases.map fun (w, h, cap, ss) =>
+    (Json.mkObj [("kind", "loader"), ("w10", w), ("h10", h), ("cap", cap), ("strokes", Json.arr (ss.map strokeJ).toArray),
+      ("ok", replayOk w h cap ss)]).compress) ++
+  (let r := synthRecord ()
+   [(Json.mkObj [("kind", "session"), ("record", recordJ r .original 1), ("report", reportJ (reducePass r)),
+     ("replay", replayJ r)]).compress])
+
+/-- The bytes of `packages/contracts/golden/device/session.jsonl`. -/
+def goldenText (_ : Unit) : String := String.intercalate "\n" (goldenLines ()) ++ "\n"
+
+/-- Print the golden, or with `--check <file>` compare its bytes; exit 1 when they differ. -/
+def run (args : List String) : IO UInt32 := do
+  match args with
+  | "--check" :: path :: _ =>
+    let cur ← IO.FS.readBinFile path
+    if cur.data == (goldenText ()).toUTF8.data then
+      IO.eprintln s!"device-session golden: {path} is up to date ({(goldenLines ()).length} lines)"
+      return 0
+    IO.eprintln s!"device-session golden: {path} differs from the generated bytes"
+    return 1
+  | _ =>
+    IO.print (goldenText ())
+    return 0
+
 end Fw.Device.Session
