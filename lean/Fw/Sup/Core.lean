@@ -302,15 +302,16 @@ def goneRec (c : Cfg) (now : Nat) (rows : List Fw.Ops.Reap.Row) (x : Rsrc) : Rsr
   | some i => if x.adopted && x.phase.live && !alive rows i then exits c now x else x
   | none => x
 
-/-- Audit of a stopped resource that still names a group: KILL each member row of the sample, or forget the group
-when no member is left. -/
+/-- Audit of a stopped resource that still names a group: KILL each row of the sample in the group that started no
+earlier than the leader; forget the group when no such row is left or another process holds the leader's pid. -/
 def auditRec (rows : List Fw.Ops.Reap.Row) (x : Rsrc) : Rsrc × List Cmd :=
   match x.proc with
   | some i =>
     if x.phase.live then (x, [])
     else
-      let ms := rows.filter fun (r : Fw.Ops.Reap.Row) => r.pgid == i.pgid
-      if ms.isEmpty then ({ x with proc := none, adopted := false }, [])
+      let ms := rows.filter fun (r : Fw.Ops.Reap.Row) => r.pgid == i.pgid && decide (i.start ≤ r.start)
+      if ms.isEmpty || rows.any (fun (r : Fw.Ops.Reap.Row) => r.pid == i.pgid && r.start != i.start) then
+        ({ x with proc := none, adopted := false }, [])
       else (x, ms.map fun (r : Fw.Ops.Reap.Row) => .signal (.member r.pid r.start) .kill)
   | none => (x, [])
 
@@ -486,16 +487,27 @@ def tick (c : Cfg) (s : State) (now : Nat) (smp : Sample) : State × List Cmd :=
   let d := shedStage c b.1
   (d.1, a.2 ++ b.2 ++ d.2 ++ if d.1.draining && d.1.leases.isEmpty then [.exit] else [])
 
-/-- Restart adoption: a live record whose group leader is in the rows and not claimed by an earlier record is
-adopted; every other record forgets its group and a live one becomes absent. -/
-def adopt (rows : List Fw.Ops.Reap.Row) : List Ident → List Rsrc → List Rsrc
+/-- A start phase restarted at `t`; any other phase is kept. -/
+def Phase.restamp (t : Nat) : Phase → Phase
+  | .starting _ => .starting t
+  | p => p
+
+/-- Whether a phase is starting. -/
+def Phase.isStarting : Phase → Bool
+  | .starting _ => true
+  | _ => false
+
+/-- Restart adoption at `t`: a live record whose group leader is in the rows and not claimed by an earlier record is
+adopted, a starting one starting again at `t`; every other record forgets its group and a live one becomes absent. -/
+def adopt (rows : List Fw.Ops.Reap.Row) (t : Nat) : List Ident → List Rsrc → List Rsrc
   | _, [] => []
   | seen, x :: xs =>
     match x.proc with
     | some i =>
-      if x.phase.live && alive rows i && !seen.contains i then { x with adopted := true } :: adopt rows (i :: seen) xs
-      else clear x :: adopt rows seen xs
-    | none => clear x :: adopt rows seen xs
+      if x.phase.live && alive rows i && !seen.contains i then
+        { x with adopted := true, phase := x.phase.restamp t } :: adopt rows t (i :: seen) xs
+      else clear x :: adopt rows t seen xs
+    | none => clear x :: adopt rows t seen xs
 where
   /-- Forget the group; a live record becomes absent. -/
   clear (x : Rsrc) : Rsrc := { x with proc := none, adopted := false, phase := if x.phase.live then .absent else x.phase }
@@ -516,10 +528,11 @@ def validLease (c : Cfg) (rs : List Rsrc) (now : Nat) (l : Lease) : Bool :=
   && decide (l.renews ≤ c.renewCap) && (l.kind == .job || (readyId rs l.rid && l.cost == {}))
 
 /-- Recovery from any snapshot and a fresh ps sample: adopt or forget each group, keep the well-formed leases and
-revoke the rest, drop the queue, shed until the first tick, and stop every reap plan target that no record owns. -/
+revoke the rest, drop the queue, shed until the first tick, stop every reap plan target that no record owns, and
+probe every adopted starting record. -/
 def recover (c : Cfg) (now : Nat) (snap : State) (inp : Fw.Ops.Reap.Input) : State × List Cmd :=
   let t := max snap.now now
-  let rs := adopt inp.rows [] (nubRes snap.res)
+  let rs := adopt inp.rows t [] (nubRes snap.res)
   let ok := validLease c rs t
   let ls := nubLease (snap.leases.filter ok)
   let nx := ls.foldr (fun l n => max n (l.id + 1)) snap.next
@@ -527,7 +540,8 @@ def recover (c : Cfg) (now : Nat) (snap : State) (inp : Fw.Ops.Reap.Input) : Sta
   ({ res := rs, leases := ls, pending := [], tickets := [], obs := {}, shedding := true, draining := false,
      now := t, next := nx },
    (snap.leases.filter fun l => !ok l).map (fun l => .revoke l.owner l.id)
-   ++ ((Fw.Ops.Reap.plan inp).filter fun p => !owned p).map fun p => .signal (.reap p) .term)
+   ++ ((Fw.Ops.Reap.plan inp).filter fun p => !owned p).map (fun p => .signal (.reap p) .term)
+   ++ (rs.filter (·.phase.isStarting)).map fun x => .probe x.id)
 
 /-! ## The queue pump -/
 
@@ -720,6 +734,29 @@ open Ex in
   let inp : Fw.Ops.Reap.Input := ⟨[{ pid := 500, ppid := 1, pgid := 500, start := 7, cwd := none, kind := "x" }], [], [], [], [], []⟩
   let r := recover cfg 5 snap inp
   r.1.res.map (fun x => (x.phase, x.proc, x.adopted)) == [(.ready, some ⟨500, 7⟩, true), (.absent, none, false)]
+
+open Ex in
+-- An adopted starting record is probed and restamped; once it passes the probe it is not killed and records no crash.
+#guard
+  let snap : State := { res := [{ id := 1, kind := 1, cost := {}, phase := .starting 0, proc := some ⟨500, 7⟩ }] }
+  let rows : List Fw.Ops.Reap.Row := [{ pid := 500, ppid := 1, pgid := 500, start := 7, cwd := none, kind := "x" }]
+  let inp : Fw.Ops.Reap.Input := ⟨rows, [], [], [], [], []⟩
+  let a := run cfg {} [.restart 1 snap inp, .tick 15 { calm with rows := rows }]
+  let b := run cfg {} [.restart 1 snap inp, .ready 1, .tick 30 { calm with rows := rows }]
+  a.2.contains (.probe 1) && a.1.res.map (·.phase) == [.starting 1]
+  && !a.2.any (fun c => match c with | .signal _ .kill => true | _ => false)
+  && !b.2.any (fun c => match c with | .signal _ .kill => true | _ => false) && b.1.res.map (·.crashes) == [[]]
+
+-- The audit KILLs only rows of the group started no earlier than the leader, and forgets a group whose leader pid
+-- another process holds.
+#guard
+  let x : Rsrc := { id := 1, kind := 1, cost := {}, phase := .absent, proc := some ⟨500, 7⟩ }
+  let row := fun (pid st : Nat) => ({ pid := pid, ppid := 1, pgid := 500, start := st, cwd := none, kind := "x" } :
+    Fw.Ops.Reap.Row)
+  let r := step Ex.cfg { res := [x], now := 10 } (.tick 11 { Ex.calm with rows := [row 500 9999] })
+  r.2 == [] && r.1.res.map (·.proc) == [none]
+  && auditRec [row 501 3, row 502 8] x == (x, [.signal (.member 502 8) .kill])
+  && (auditRec [row 501 3] x).2 == []
 
 -- `least` finds the first index that passes, or the end.
 #guard least (· ≥ 3) 0 10 == 3 && least (fun _ => false) 0 4 == 4 && least (fun _ => true) 2 4 == 2

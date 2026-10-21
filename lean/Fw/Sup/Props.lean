@@ -937,19 +937,22 @@ theorem nubLease_sub : ∀ l : List Lease, (nubLease l).Sublist l
   | [] => List.Sublist.slnil
   | x :: xs => (List.filter_sublist.trans (nubLease_sub xs)).cons₂ x
 
-theorem adopt_ids (rows : List Fw.Ops.Reap.Row) : ∀ (seen : List Ident) (xs : List Rsrc),
-    (adopt rows seen xs).map (·.id) = xs.map (·.id)
+theorem restamp_live (t : Nat) (p : Phase) : (p.restamp t).live = p.live := by
+  cases p <;> rfl
+
+theorem adopt_ids (rows : List Fw.Ops.Reap.Row) (t : Nat) : ∀ (seen : List Ident) (xs : List Rsrc),
+    (adopt rows t seen xs).map (·.id) = xs.map (·.id)
   | _, [] => rfl
   | seen, x :: xs => by
     unfold adopt
     split
     · split
-      · exact congrArg (x.id :: ·) (adopt_ids rows _ xs)
-      · exact congrArg (x.id :: ·) (adopt_ids rows _ xs)
-    · exact congrArg (x.id :: ·) (adopt_ids rows _ xs)
+      · exact congrArg (x.id :: ·) (adopt_ids rows t _ xs)
+      · exact congrArg (x.id :: ·) (adopt_ids rows t _ xs)
+    · exact congrArg (x.id :: ·) (adopt_ids rows t _ xs)
 
-theorem adopt_procs (rows : List Fw.Ops.Reap.Row) : ∀ (seen : List Ident) (xs : List Rsrc),
-    ((adopt rows seen xs).filterMap (·.proc)).Nodup ∧ ∀ i ∈ (adopt rows seen xs).filterMap (·.proc), i ∉ seen
+theorem adopt_procs (rows : List Fw.Ops.Reap.Row) (t : Nat) : ∀ (seen : List Ident) (xs : List Rsrc),
+    ((adopt rows t seen xs).filterMap (·.proc)).Nodup ∧ ∀ i ∈ (adopt rows t seen xs).filterMap (·.proc), i ∉ seen
   | _, [] => ⟨List.nodup_nil, fun _ h => absurd h List.not_mem_nil⟩
   | seen, x :: xs => by
     unfold adopt
@@ -960,16 +963,16 @@ theorem adopt_procs (rows : List Fw.Ops.Reap.Row) : ∀ (seen : List Ident) (xs 
         have hs : i ∉ seen := by
           simp only [Bool.and_eq_true, Bool.not_eq_true'] at hc
           exact fun hm => by rw [List.contains_iff_mem.2 hm] at hc; exact Bool.noConfusion hc.2
-        obtain ⟨ih1, ih2⟩ := adopt_procs rows (i :: seen) xs
-        have e : (({ x with adopted := true } :: adopt rows (i :: seen) xs).filterMap (·.proc))
-            = i :: (adopt rows (i :: seen) xs).filterMap (·.proc) := by simp [hi]
+        obtain ⟨ih1, ih2⟩ := adopt_procs rows t (i :: seen) xs
+        have e : (({ x with adopted := true, phase := x.phase.restamp t } :: adopt rows t (i :: seen) xs).filterMap
+            (·.proc)) = i :: (adopt rows t (i :: seen) xs).filterMap (·.proc) := by simp [hi]
         rw [e]
         refine ⟨List.nodup_cons.2 ⟨fun hm => ih2 i hm List.mem_cons_self, ih1⟩, fun j hj => ?_⟩
         rcases List.mem_cons.1 hj with e | hj
         · rw [e]; exact hs
         · exact fun hm => ih2 j hj (List.mem_cons_of_mem _ hm)
-      · exact adopt_procs rows seen xs
-    · exact adopt_procs rows seen xs
+      · exact adopt_procs rows t seen xs
+    · exact adopt_procs rows t seen xs
 
 theorem foldr_max_lt (b : Nat) : ∀ (ls : List Lease), ∀ l ∈ ls, l.id < ls.foldr (fun l n => max n (l.id + 1)) b
   | [], _, h => absurd h List.not_mem_nil
@@ -979,11 +982,24 @@ theorem foldr_max_lt (b : Nat) : ∀ (ls : List Lease), ∀ l ∈ ls, l.id < ls.
     · rw [e]; exact Nat.lt_of_lt_of_le (Nat.lt_succ_self _) (Nat.le_max_right _ _)
     · exact Nat.lt_of_lt_of_le (foldr_max_lt b xs l h) (Nat.le_max_left _ _)
 
-/-- restart_inv: recovery from any snapshot gives a well-formed state. -/
-theorem restart_inv (c : Cfg) (now : Nat) (snap : State) (inp : Fw.Ops.Reap.Input) : Wf c (recover c now snap inp).1 := by
+theorem recover_cmd {c : Cfg} {now : Nat} {snap : State} {inp : Fw.Ops.Reap.Input} {x : Cmd}
+    (h : x ∈ (recover c now snap inp).2) :
+    (∃ l ∈ snap.leases, x = .revoke l.owner l.id) ∨ (∃ p ∈ Fw.Ops.Reap.plan inp, x = .signal (.reap p) .term)
+    ∨ ∃ rid, x = .probe rid := by
+  simp only [recover] at h
+  rcases List.mem_append.1 h with h | h
+  · rcases List.mem_append.1 h with h | h
+    · obtain ⟨l, hl, e⟩ := List.mem_map.1 h
+      exact Or.inl ⟨l, (List.mem_filter.1 hl).1, e.symm⟩
+    · obtain ⟨p, hp, e⟩ := List.mem_map.1 h
+      exact Or.inr (Or.inl ⟨p, (List.mem_filter.1 hp).1, e.symm⟩)
+  · obtain ⟨y, _, e⟩ := List.mem_map.1 h
+    exact Or.inr (Or.inr ⟨y.id, e.symm⟩)
+
+theorem recover_wf (c : Cfg) (now : Nat) (snap : State) (inp : Fw.Ops.Reap.Input) : Wf c (recover c now snap inp).1 := by
   unfold recover
   dsimp only
-  refine ⟨?_, (adopt_procs _ _ _).1, ?_, ?_, fun q hq => absurd hq List.not_mem_nil, ?_, ?_⟩
+  refine ⟨?_, (adopt_procs _ _ _ _).1, ?_, ?_, fun q hq => absurd hq List.not_mem_nil, ?_, ?_⟩
   · rw [adopt_ids]; exact nubRes_nodup _
   · simp only [State.ids, List.map_nil, List.append_nil]; exact nubLease_nodup _
   · intro n hn
@@ -1015,7 +1031,7 @@ theorem wf_pre {c : Cfg} {s : State} (e : Event) (h : Wf c s) : Wf c (pre c s e)
   | childExit i => exact wf_childExit i h
   | tick now smp => exact wf_tick now smp h
   | clientGone o => exact wf_gone o h
-  | restart now snap inp => exact restart_inv c now snap inp
+  | restart now snap inp => exact recover_wf c now snap inp
 
 theorem step_eq {c : Cfg} {s : State} {e : Event} (h : authed c e = true) :
     step c s e = ((pump c (pre c s e).1).1, (pre c s e).2 ++ (pump c (pre c s e).1).2) := by
@@ -1029,7 +1045,7 @@ theorem step_inv {c : Cfg} {s : State} (e : Event) (h : Inv c s) : Inv c (step c
 
 /-- The start state satisfies the invariant. -/
 theorem init_inv (c : Cfg) : Inv c (init c) :=
-  ⟨restart_inv c 0 _ _, fun _ hq => absurd hq List.not_mem_nil⟩
+  ⟨recover_wf c 0 _ _, fun _ hq => absurd hq List.not_mem_nil⟩
 
 /-- Every state a run reaches satisfies the invariant. -/
 theorem run_inv {c : Cfg} : ∀ (es : List Event) (s : State), Inv c s → Inv c (run c s es).1 := by
@@ -1227,12 +1243,7 @@ theorem pre_cmds {c : Cfg} {s : State} {e : Event} {x : Cmd} (h : x ∈ (pre c s
     rcases tick_cmds h with ⟨_, _, _, _, _, e⟩ | ⟨_, _, e⟩ | ⟨_, _, e⟩ | e <;> (rw [e]; exact Or.inl rfl)
   | clientGone o => cases h
   | restart now snap inp =>
-    simp only [pre, recover] at h
-    rcases List.mem_append.1 h with h | h
-    · obtain ⟨_, _, e⟩ := List.mem_map.1 h
-      rw [← e]; exact Or.inl rfl
-    · obtain ⟨_, _, e⟩ := List.mem_map.1 h
-      rw [← e]; exact Or.inl rfl
+    rcases recover_cmd h with ⟨_, _, e⟩ | ⟨_, _, e⟩ | ⟨_, e⟩ <;> (rw [e]; exact Or.inl rfl)
 
 /-! ## What the pump does to resources and which commands it sends -/
 
@@ -1489,7 +1500,8 @@ theorem spawned_sets {c : Cfg} {s : State} {rid : Nat} {i : Ident} (h : Inv c s)
   · rw [step_out ha, hpre]
     exact List.mem_append_left _ List.mem_cons_self
 
-theorem adopt_live (rows : List Fw.Ops.Reap.Row) : ∀ (seen : List Ident) (xs : List Rsrc), ∀ y ∈ adopt rows seen xs,
+theorem adopt_live (rows : List Fw.Ops.Reap.Row) (t : Nat) :
+    ∀ (seen : List Ident) (xs : List Rsrc), ∀ y ∈ adopt rows t seen xs,
     (y.phase.live = true ↔ ∃ i, y.proc = some i ∧ alive rows i = true)
   | _, [], _, h => absurd h List.not_mem_nil
   | seen, x :: xs, y, hy => by
@@ -1511,38 +1523,81 @@ theorem adopt_live (rows : List Fw.Ops.Reap.Row) : ∀ (seen : List Ident) (xs :
         rcases List.mem_cons.1 hy with e | hy
         · subst e
           simp only [Bool.and_eq_true] at hc
-          exact ⟨fun _ => ⟨i, hi, hc.1.2⟩, fun _ => hc.1.1⟩
-        · exact adopt_live rows _ xs y hy
+          exact ⟨fun _ => ⟨i, hi, hc.1.2⟩, fun _ => (restamp_live t _).trans hc.1.1⟩
+        · exact adopt_live rows t _ xs y hy
       · rcases List.mem_cons.1 hy with e | hy
         · exact hclear y e
-        · exact adopt_live rows _ xs y hy
+        · exact adopt_live rows t _ xs y hy
     · rcases List.mem_cons.1 hy with e | hy
       · exact hclear y e
-      · exact adopt_live rows _ xs y hy
+      · exact adopt_live rows t _ xs y hy
+
+theorem adopt_start (rows : List Fw.Ops.Reap.Row) (t : Nat) : ∀ (seen : List Ident) (xs : List Rsrc) (y : Rsrc) (u : Nat),
+    y ∈ adopt rows t seen xs → y.phase = .starting u → u = t
+  | _, [], _, _, h, _ => absurd h List.not_mem_nil
+  | seen, x :: xs, y, u, hy, hu => by
+    have hclear : (adopt.clear x).phase ≠ .starting u := by
+      simp only [adopt.clear]
+      split
+      · exact fun e => Phase.noConfusion e
+      · rename_i hn
+        intro e
+        rw [e] at hn
+        exact hn rfl
+    have hre : ∀ p : Phase, p.restamp t = .starting u → u = t := by
+      intro p hp
+      cases p <;> simp_all [Phase.restamp]
+    unfold adopt at hy
+    split at hy
+    · split at hy
+      · rcases List.mem_cons.1 hy with e | hy
+        · subst e; exact hre _ hu
+        · exact adopt_start rows t _ xs y u hy hu
+      · rcases List.mem_cons.1 hy with e | hy
+        · subst e; exact absurd hu hclear
+        · exact adopt_start rows t _ xs y u hy hu
+    · rcases List.mem_cons.1 hy with e | hy
+      · subst e; exact absurd hu hclear
+      · exact adopt_start rows t _ xs y u hy hu
 
 theorem step_restart (c : Cfg) (s : State) (now : Nat) (snap : State) (inp : Fw.Ops.Reap.Input) :
     step c s (.restart now snap inp) = recover c now snap inp := by
   rw [step_eq rfl]
   exact Prod.ext rfl (List.append_nil _)
 
+/-- restart_inv: a restart from any state and any snapshot reaches a state that satisfies the invariant. -/
+theorem restart_inv (c : Cfg) (s : State) (now : Nat) (snap : State) (inp : Fw.Ops.Reap.Input) :
+    Inv c (step c s (.restart now snap inp)).1 := by
+  rw [step_restart]
+  exact ⟨recover_wf c now snap inp, fun _ hq => absurd hq List.not_mem_nil⟩
+
 /-- recover_adopt_or_reap: after a restart a resource is live exactly when it keeps a group whose leader row is
-alive; each reap plan target that no record owns gets TERM; each snapshot lease that is not well formed is revoked. -/
+alive; each reap plan target that no record owns gets TERM; each snapshot lease that is not well formed is revoked;
+each starting resource starts at the restart time and is probed. -/
 theorem recover_adopt_or_reap (c : Cfg) (s : State) (now : Nat) (snap : State) (inp : Fw.Ops.Reap.Input) :
     (∀ y ∈ (step c s (.restart now snap inp)).1.res,
       y.phase.live = true ↔ ∃ i, y.proc = some i ∧ alive inp.rows i = true)
     ∧ (∀ p ∈ Fw.Ops.Reap.plan inp, (∀ y ∈ (step c s (.restart now snap inp)).1.res, y.proc.map (·.pgid) ≠ some p.pid) →
         .signal (.reap p) .term ∈ (step c s (.restart now snap inp)).2)
-    ∧ ∀ l ∈ snap.leases,
+    ∧ (∀ l ∈ snap.leases,
         validLease c (step c s (.restart now snap inp)).1.res (step c s (.restart now snap inp)).1.now l = false →
-        .revoke l.owner l.id ∈ (step c s (.restart now snap inp)).2 := by
+        .revoke l.owner l.id ∈ (step c s (.restart now snap inp)).2)
+    ∧ ∀ y ∈ (step c s (.restart now snap inp)).1.res, ∀ u, y.phase = .starting u →
+        u = (step c s (.restart now snap inp)).1.now ∧ .probe y.id ∈ (step c s (.restart now snap inp)).2 := by
   rw [step_restart]
-  refine ⟨fun y hy => adopt_live _ _ _ y hy, fun p hp ho => ?_, fun l hl hv => ?_⟩
+  refine ⟨fun y hy => adopt_live _ _ _ _ y hy, fun p hp ho => ?_, fun l hl hv => ?_, fun y hy u hu => ?_⟩
   · have hn : ((recover c now snap inp).1.res.any fun x => x.proc.map (·.pgid) == some p.pid) = false :=
       List.any_eq_false.2 fun y hy e => ho y hy (by simpa using e)
     simp only [recover] at hn ⊢
-    exact List.mem_append_right _ (List.mem_map.2 ⟨p, List.mem_filter.2 ⟨hp, by simp [hn]⟩, rfl⟩)
+    exact List.mem_append_left _ (List.mem_append_right _
+      (List.mem_map.2 ⟨p, List.mem_filter.2 ⟨hp, by simp [hn]⟩, rfl⟩))
   · simp only [recover] at hv ⊢
-    exact List.mem_append_left _ (List.mem_map.2 ⟨l, List.mem_filter.2 ⟨hl, by simp [hv]⟩, rfl⟩)
+    exact List.mem_append_left _ (List.mem_append_left _
+      (List.mem_map.2 ⟨l, List.mem_filter.2 ⟨hl, by simp [hv]⟩, rfl⟩))
+  · refine ⟨adopt_start _ _ _ _ y u hy hu, ?_⟩
+    simp only [recover] at hy ⊢
+    refine List.mem_append_right _ (List.mem_map.2 ⟨y, List.mem_filter.2 ⟨hy, ?_⟩, rfl⟩)
+    rw [hu]; rfl
 
 /-- client_gone_releases: a gone client holds no lease, has no queued request, and none of its queued requests gets a
 reply. -/
@@ -1950,9 +2005,7 @@ theorem pre_drain {c : Cfg} {s : State} {e : Event} {n : Nat} {l : Lease} (hd : 
   | childExit i => simp only [pre, childExit] at h; obtain ⟨_, _, _, e⟩ := cut_cmd h; cases e
   | tick now smp => rcases tick_cmds h with ⟨_, _, _, _, _, e⟩ | ⟨_, _, e⟩ | ⟨_, _, e⟩ | e <;> cases e
   | clientGone o => cases h
-  | restart now snap inp =>
-    simp only [pre, recover] at h
-    rcases List.mem_append.1 h with h | h <;> (obtain ⟨_, _, e⟩ := List.mem_map.1 h; cases e)
+  | restart now snap inp => rcases recover_cmd h with ⟨_, _, e⟩ | ⟨_, _, e⟩ | ⟨_, e⟩ <;> cases e
 
 theorem tick_exit {c : Cfg} {s : State} {now : Nat} {smp : Sample} (h : .exit ∈ (tick c s now smp).2) :
     (tick c s now smp).1.draining = true ∧ (tick c s now smp).1.leases = [] := by
@@ -2011,8 +2064,7 @@ theorem pre_exit {c : Cfg} {s : State} {e : Event} (h : Cmd.exit ∈ (pre c s e)
   | clientGone o => cases h
   | restart now snap inp =>
     exfalso
-    simp only [pre, recover] at h
-    rcases List.mem_append.1 h with h | h <;> (obtain ⟨_, _, e⟩ := List.mem_map.1 h; cases e)
+    rcases recover_cmd h with ⟨_, _, e⟩ | ⟨_, _, e⟩ | ⟨_, e⟩ <;> cases e
 
 /-- admit_fits: a step that grants a costed job lease leaves load plus external footprint within budget. -/
 theorem admit_fits {c : Cfg} {s : State} {e : Event} {n : Nat} {l : Lease} (h : Inv c s)
@@ -2293,7 +2345,8 @@ theorem pre_out {c : Cfg} {s : State} {e : Event} {x : Cmd} (h : x ∈ (pre c s 
         (∀ r ∈ s.res, r.proc ≠ some j) ∧ (pre c s e).1 = s))
     ∨ (∃ l ∈ s.leases, x = .revoke l.owner l.id)
     ∨ (∃ now snap inp, e = .restart now snap inp ∧
-        ((∃ l ∈ snap.leases, x = .revoke l.owner l.id) ∨ ∃ p ∈ Fw.Ops.Reap.plan inp, x = .signal (.reap p) .term)) := by
+        ((∃ l ∈ snap.leases, x = .revoke l.owner l.id) ∨ (∃ p ∈ Fw.Ops.Reap.plan inp, x = .signal (.reap p) .term)
+          ∨ ∃ rid, x = .probe rid)) := by
   cases e with
   | request t o a =>
     simp only [pre, request] at h
@@ -2335,18 +2388,12 @@ theorem pre_out {c : Cfg} {s : State} {e : Event} {x : Cmd} (h : x ∈ (pre c s 
   | tick now smp => exact Or.inr (Or.inl ⟨now, smp, rfl, h⟩)
   | clientGone o => cases h
   | restart now snap inp =>
-    refine Or.inr (Or.inr (Or.inr (Or.inr ⟨now, snap, inp, rfl, ?_⟩)))
-    simp only [pre, recover] at h
-    rcases List.mem_append.1 h with h | h
-    · obtain ⟨l, hl, e⟩ := List.mem_map.1 h
-      exact Or.inl ⟨l, (List.mem_filter.1 hl).1, e.symm⟩
-    · obtain ⟨p, hp, e⟩ := List.mem_map.1 h
-      exact Or.inr ⟨p, (List.mem_filter.1 hp).1, e.symm⟩
+    exact Or.inr (Or.inr (Or.inr (Or.inr ⟨now, snap, inp, rfl, recover_cmd h⟩)))
 
 theorem pre_nr {c : Cfg} {s : State} {e : Event} {i : Ident} {g : Sig} (hw : Wf c s)
     (h : Cmd.signal (.group i) g ∈ (pre c s e).2) : NR i (pre c s e).1.res := by
   rcases pre_out h with ⟨_, _, e'⟩ | ⟨now, smp, rfl, h⟩ | ⟨rid, _, rfl, e' | ⟨j, rfl, e', hno, hs⟩⟩ | ⟨_, _, e'⟩ |
-      ⟨now, snap, inp, rfl, ⟨_, _, e'⟩ | ⟨_, _, e'⟩⟩
+      ⟨now, snap, inp, rfl, ⟨_, _, e'⟩ | ⟨_, _, e'⟩ | ⟨_, ⟨⟩⟩⟩
   · cases e'
   · exact tick_nr hw h
   · cases e'
@@ -2392,8 +2439,8 @@ theorem stop_never_leased {c : Cfg} {s : State} {e : Event} {i : Ident} {g : Sig
   subst this
   exact hnr r' hr' hri hrd
 
-theorem adopt_proc (rows : List Fw.Ops.Reap.Row) : ∀ (seen : List Ident) (xs : List Rsrc) (y : Rsrc) (i : Ident),
-    y ∈ adopt rows seen xs → y.proc = some i → alive rows i = true
+theorem adopt_proc (rows : List Fw.Ops.Reap.Row) (t : Nat) : ∀ (seen : List Ident) (xs : List Rsrc) (y : Rsrc) (i : Ident),
+    y ∈ adopt rows t seen xs → y.proc = some i → alive rows i = true
   | _, [], _, _, h, _ => absurd h List.not_mem_nil
   | seen, x :: xs, y, i, hy, hi => by
     unfold adopt at hy
@@ -2407,13 +2454,13 @@ theorem adopt_proc (rows : List Fw.Ops.Reap.Row) : ∀ (seen : List Ident) (xs :
           have : j = i := Option.some.inj (hj.symm.trans hi)
           subst this
           exact hc.1.2
-        · exact adopt_proc rows _ xs y i hy hi
+        · exact adopt_proc rows t _ xs y i hy hi
       · rcases List.mem_cons.1 hy with e | hy
         · subst e; simp [adopt.clear] at hi
-        · exact adopt_proc rows _ xs y i hy hi
+        · exact adopt_proc rows t _ xs y i hy hi
     · rcases List.mem_cons.1 hy with e | hy
       · subst e; simp [adopt.clear] at hi
-      · exact adopt_proc rows _ xs y i hy hi
+      · exact adopt_proc rows t _ xs y i hy hi
 
 theorem ite_proc {p : Prop} [Decidable p] {a b : Rsrc} (ha : a.proc = b.proc) : (if p then a else b).proc = b.proc := by
   by_cases h : p
@@ -2488,7 +2535,7 @@ theorem pre_procs {c : Cfg} {s : State} {e : Event} {x : Rsrc} {i : Ident} (hx :
     · exact Or.inl rfl
   | tick now smp => exact Or.inl (tick_procs hx hi)
   | clientGone o => exact Or.inl ⟨x, hx, hi⟩
-  | restart now snap inp => exact Or.inr (Or.inr ⟨now, snap, inp, rfl, adopt_proc inp.rows [] _ x i hx hi⟩)
+  | restart now snap inp => exact Or.inr (Or.inr ⟨now, snap, inp, rfl, adopt_proc inp.rows _ [] _ x i hx hi⟩)
 
 /-- signal_identity: every signal goes to the group of a record of the state before the step, to a group reported by
 the same spawn event, to an adopted group whose leader row is in the same restart sample, to a member row of the same
@@ -2502,7 +2549,7 @@ theorem signal_identity {c : Cfg} {s : State} {e : Event} {t : Target} {g : Sig}
   obtain ⟨_, hx⟩ := step_mem hx
   rcases hx with hx | hx
   · rcases pre_out hx with ⟨_, _, e'⟩ | ⟨now, smp, rfl, hx⟩ | ⟨rid, _, rfl, e' | ⟨j, rfl, e', _, _⟩⟩ | ⟨_, _, e'⟩ |
-        ⟨now, snap, inp, rfl, ⟨_, _, e'⟩ | ⟨p, hp, e'⟩⟩
+        ⟨now, snap, inp, rfl, ⟨_, _, e'⟩ | ⟨p, hp, e'⟩ | ⟨_, ⟨⟩⟩⟩
     · cases e'
     · rcases tick_cmds hx with ⟨y, hy, i, _, hi, e'⟩ | ⟨r, hr, e'⟩ | ⟨_, _, e'⟩ | e'
       · simp only [Cmd.signal.injEq] at e'
@@ -2843,7 +2890,7 @@ theorem stop_only_idle {c : Cfg} {s : State} {e : Event} {i : Ident} (h : Inv c 
   obtain ⟨ha, hx⟩ := step_mem hx
   rcases hx with hx | hx
   · rcases pre_out hx with ⟨_, _, e'⟩ | ⟨now, smp, rfl, hx⟩ | ⟨rid, _, rfl, e' | ⟨j, rfl, e', _, _⟩⟩ | ⟨_, _, e'⟩ |
-        ⟨now, snap, inp, rfl, ⟨_, _, e'⟩ | ⟨p, hp, e'⟩⟩
+        ⟨now, snap, inp, rfl, ⟨_, _, e'⟩ | ⟨p, hp, e'⟩ | ⟨_, ⟨⟩⟩⟩
     · cases e'
     · exact Or.inl ⟨now, smp, rfl, tick_term h.1 hx⟩
     · cases e'
