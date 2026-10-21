@@ -1,6 +1,5 @@
-/-! Adaptive local work queue (task local-adaptive-queue): the AIMD concurrency controller, admission by per-kind memory
-footprint, holders identified by owner and a renewed lease, the Simulator kind and its priority, the lead's admission of
-a new builder, the stop rule and the review result cache. -/
+/-! Adaptive local work queue: AIMD concurrency, admission by memory footprint, leased holders, Simulator priority,
+builder admission, the stop rule and the result cache. -/
 namespace Fw.Sup.Adapt
 
 /-- A kind of heavy local work. -/

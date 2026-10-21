@@ -23,7 +23,6 @@ export const SLOT_USAGE = [
 
 export const EXIT_REFUSED = 75;
 
-/** `simIdleSince` is the field of the first slot version, still written for checkouts that read it. */
 export type State = { ctl: Ctl; holders: Entry[]; queue: Entry[]; simIdleSince: number; simIdle?: number | null; simCheckedAt?: number };
 export type Health = { time: number; live: number };
 export type GitFacts = { tree: string; clean: boolean; mainSha: string };

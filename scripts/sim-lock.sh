@@ -6,9 +6,8 @@
 # Lock events (task sup-baseline): one JSON line per acquire, release and stale recovery in <main>/.fw-console/locks.jsonl
 # (FW_LOCK_EVENTS_FILE overrides, FW_LOCK_EVENTS=off or CI disables). Fields: ts (ms; whole seconds where `date` has no %N), lock, ev, kind, pid, start (epoch s,
 # 0 unknown), waitMs on acquire (whole seconds: the poll loop sleeps 1 s), holdMs on release. No owner name, no paths, no arguments.
-# One Simulator for both locks (task sim-first-queue): after taking the directory, acquire asks `fw slot held --kind sim`
-# under the slot's state lock and gives the directory back while a slot sim holder is live; the slot in turn counts this
-# directory as a Simulator holder. A failing check refuses the lock. CI has no slot, so CI skips the check.
+# acquire gives the directory back while `fw slot held --kind sim` reports a live slot sim holder, and refuses when that
+# check fails; the slot counts this directory as a Simulator holder. CI has no slot and skips the check.
 set -eu
 here=$(cd "$(dirname "$0")" && pwd -P)
 main=$(cd "$(git rev-parse --git-common-dir)/.." && pwd -P)
