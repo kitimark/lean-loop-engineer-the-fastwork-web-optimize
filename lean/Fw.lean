@@ -164,6 +164,7 @@ import Fw.Console.Review  -- user-review-queue: pending look-change reviews as u
 import Fw.Console.ReviewPreview  -- review-preview-devices: Preview arms, URLs and the device class of a look-change review
 import Fw.Console.ReviewFeedback  -- review-feedback: feedback threads on the review cards
 import Fw.Console.ReviewFeedbackLaws  -- review-feedback: what the reducer guarantees about the threads
+import Fw.Obs.FeedbackAlert  -- review-feedback: the watch alert for open feedback
 import Fw.Console.LandPool -- land-pool-fair: fair-share floor under poolSize, wired into land.ts by console.landPool and console.landRetry
 import Fw.Land.RenderGuard  -- land-render-guard: refuse a land whose history writes a media file outside snapshot/ (console.landRenderGuard)
 import Fw.Ops.LedgerMerge  -- ledger-merge-driver: three-way id merge of the JSON ledgers (scripts/merge-ledger.mjs)
