@@ -21,6 +21,7 @@ import Fw.Ci.Wire
 import Fw.Ci.Telemetry
 import Fw.Faithful.Wire
 import Fw.Ops.CheckMap
+import Fw.Oracle.Wire
 import Fw.Ops.WatchDiff
 import Fw.Lint.Context
 import Fw.Ops.LakeGc
@@ -478,6 +479,7 @@ def ops : List String :=
   ++ Fw.Wire.Ci.ops -- ghb-lean: ci.budget.*
   ++ Fw.Wire.Ci.Telemetry.ops -- ci-telemetry: ci.telemetry
   ++ Fw.Wire.CheckMap.ops -- check-map-lean: ops.checkMap, ops.checkVerdict
+  ++ Fw.Wire.Oracle.ops -- jev-core: oracle.*
   ++ Fw.Wire.Lint.ops -- context-slop: lint.context
   ++ Fw.Wire.LakeGc.ops -- lean-bin-slim: ops.lakeGc
   ++ Fw.Wire.DiskGc.ops -- disk-auto-gc: ops.diskGc, ops.diskGcPath
@@ -528,6 +530,9 @@ def handleCore (req : Json) : Except String Reply := do
     | some r => r
     | none =>
     match Fw.Wire.CheckMap.handle other req with  -- check-map-lean
+    | some r => r
+    | none =>
+    match Fw.Wire.Oracle.handle other req with  -- jev-core: oracle.*
     | some r => r
     | none =>
     match Fw.Wire.Lint.handle other req with  -- context-slop: lint.context

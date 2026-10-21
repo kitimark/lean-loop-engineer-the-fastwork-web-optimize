@@ -124,6 +124,7 @@ import Fw.Guidance.Stability
 import Fw.Engine.Keys  -- model-checks: faithful run keys; a +search run never answers for the base
 import Fw.Engine.WebKitImage  -- image-audit: decode policy and the natural-pixels-times-repaints cost term
 import Fw.Ci.Wire  -- ghb-lean: Fw.Ci.Budget and the ci.budget.* ops
+import Fw.Oracle  -- jev-core: typed answers from an outside model, and the policy over them
 import Fw.Plan.Lint  -- pa-evidence-lint: plan.lint
 import Fw.Obs.Next  -- obs-next-lean: next action per agent (obs.next)
 import Fw.Obs.GhStatus -- gh-status: GitHub Actions degraded flag and incident naming
@@ -230,3 +231,4 @@ import Fw.Sup.Route  -- sup-route: routeOf per (stage, service, daemon present, 
 import Fw.Ci.Pool.Key  -- pool-key-outcome: request keys, provider-tagged artifact names, one terminal row per planned unit
 import Fw.Ci.Codemagic  -- codemagic-pilot: the 400-of-500 free-minutes ledger rule of the Codemagic pilot
 import Fw.Ci.Steps  -- macos-teardown-trim: the steps allowed after the measurement step of the five macOS jobs, the lint decision
+import Fw.Oracle.Labels  -- jev-datasets: label rules and the id-hash split of the Jev replay sets (standalone)
