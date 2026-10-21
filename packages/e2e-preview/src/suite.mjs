@@ -138,6 +138,11 @@ export async function leavePage(page, tracker) {
   return await tracker.idle();
 }
 
+/** The failure line for a landing page left with requests still open (leavePage returned false), else null. */
+export function openFailure(left, tracker) {
+  return left ? null : `GET (landing page) ${tracker.open.size} request(s) still open, cancelled by the next load`;
+}
+
 /** 0 unhandled rejections, 0 cancelled (or otherwise failed) same-origin requests, no module-load error on the console. */
 function noiseChecks(check, log, own, { requireResponses = true, documentHops = false } = {}) {
   const sameFailed = log.failed.filter((f) => f.own && !noise.test(f.line)).map((f) => f.line);
@@ -371,7 +376,9 @@ async function controlLoad(browser, rig, engine, arm, url, prepare, opts = {}) {
     const page = await ctx.newPage();
     const tracker = trackOpen(ctx);
     const target = await prepare(page, ctx);
-    if (target) await leavePage(page, tracker); // the grant landing page of the arm-only control: what it asked for has ended
+    // the grant landing page of the arm-only control: what it asked for has ended; a request still open is the landing page's failure, and is
+    // charged to the control (not dropped): the next load would cancel it
+    if (target) { const open = openFailure(await leavePage(page, tracker), tracker); if (open) failed.push(open); }
     // listen only from here: leaving the grant landing page mid-load would cancel its images and fonts (the browser's doing)
     page.on("pageerror", (e) => { if (!noise.test(String(e))) errors.push(String(e)); }); // the analytics beacon is no module error
     page.on("requestfailed", (r) => failed.push(`${r.method()} ${new URL(r.url()).pathname} ${r.failure()?.errorText ?? ""}`));

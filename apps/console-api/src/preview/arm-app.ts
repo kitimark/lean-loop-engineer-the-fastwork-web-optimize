@@ -33,7 +33,7 @@ const DROP = new Set(["connection", "keep-alive", "transfer-encoding", "set-cook
 // With `timeout` it closes an idle socket at min(timeout, hint - 1 s) (:641-663), before the server does.
 const agent = new http.Agent({ keepAlive: true, maxSockets: 64, timeout: 30_000 });
 
-const lastEnd = new WeakMap<object, number>(); // TEMP evidence: when a socket last finished a response
+const lastEnd = new WeakMap<object, number>(); // when a socket last finished a response: the idle time logged with an upstream error
 function upstream(port: number, pathq: string, method: string, headers: Record<string, string>): Promise<IncomingMessage> {
   return new Promise((resolve, reject) => {
     let idle: number | undefined, sock: object | undefined;
