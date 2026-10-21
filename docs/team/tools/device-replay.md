@@ -21,8 +21,25 @@ node src/device-replay-cli.mjs plan    --kinds recorded,cold --reps 3 --arms 2  
 FW_REPLAY_URL=<page> node src/device-replay-cli.mjs run --source source.json --kinds recorded --reps 3 --out run.json
 ```
 
-`run` starts `safaridriver` as its own child and stops it at the end; it never prints the page address. Keep `source.json`,
-recordings and `run.json` out of git (`.local/` or the scratchpad).
+`run` starts `safaridriver` as its own child (own process group; TERM, then KILL after a grace; stopped again on SIGTERM, SIGINT and exit)
+and stops it at the end; it never prints the page address. Keep `source.json`, recordings and `run.json` out of git (`.local/` or the
+scratchpad).
+
+Pieces and time limits: a profile is sent as one `/actions` call per swipe (`pieces`, Lean `Fw.Device.Replay.pieces`, golden kind
+`pieces`), then a `release`. Every WebDriver call has its own limit (`CALL_MS`; a piece gets `pieceTimeoutMs = 2 x duration + 10 s`, Lean
+`pieceTimeoutMs`). A call that does not answer ends the pass with the named error `replay-stall` ("replay of X stalled at piece N of M:
+CALL did not answer within T ms", fields profile, piece, pieces, call, timeoutMs; other calls: `wd-timeout`). The CLI prints
+`error [code]: message`, exits 3, and records a stalled pass in run.json as `matches:false, swipes:null, stalled:{...}` before it goes on.
+
+iOS Simulator (`--sim <udid>`): sets the capabilities `safari:useSimulator` and `safari:deviceUDID` and, before each fresh session, runs
+`prepareSimulator` (`simctl spawn defaults write com.apple.mobilesafari com.apple.TipKit.HideAllTips -bool true`, then `simctl terminate`
+of Safari so it reads it). Use an iOS 26.x Simulator: safaridriver found no session host on iOS 27.0 here. The profile must lie inside the
+Simulator page (390 x 699 CSS px on an iPhone 17e): a move outside the viewport fails the whole call ("move target out of bounds").
+Run it inside the sim slot (`pnpm -s fw slot acquire --kind sim`).
+
+Phone, named user step (before each phone session): open Safari on the phone once and dismiss the first-run tip (the TipKit popover
+over the page) by tapping its close button; the hang of the first pilot is attributed to it (INFERRED, see the research note). The
+Simulator suppression key is not verified effective, because the tip never appeared there.
 
 ## Pilot on the phone
 
@@ -53,4 +70,5 @@ finding about the engine, not a failure of the compiler. `dispatch late` is how 
 ## Limits
 
 Defaults are research values (position 1 px, time 17 ms, lift speed 10 %, start gap 50 ms, speed window 50 ms; Lean stores tenth px and
-hundredths of a ms); calibration needs phone replays. The Simulator has no touch path in the harness. WDA (path A) is not built.
+hundredths of a ms); calibration needs phone replays. The Simulator takes touches through the same W3C path as the phone, but it saw
+only 1 of 5 swipes (research note); it is a harness check, not a stand-in for the phone. WDA (path A) is not built.
