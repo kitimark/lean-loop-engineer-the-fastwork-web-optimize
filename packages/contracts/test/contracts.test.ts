@@ -97,3 +97,21 @@ describe("review.feedback text cap: the unit is Lean's (characters = code points
     expect(Command.safeParse(cmd("review.feedback", "a".repeat(2001))).success).toBe(false);
   });
 });
+
+describe("step topics", () => {
+  const post = { type: "step.post", key: "k1", actor: "lead", step: "s1", card: null, title: "t", kind: "action", options: null };
+  const topic = { type: "step.topic", key: "k2", actor: "lead", topic: "smoothness", title: "Smoothness", summary: "Hero exit first." };
+  it("a step may carry a topic id, null or none", () => {
+    expect(Command.safeParse({ ...post, topic: "smoothness" }).success).toBe(true);
+    expect(Command.safeParse({ ...post, topic: null }).success).toBe(true);
+    expect(Command.safeParse(post).success).toBe(true);
+    expect(Command.safeParse({ ...post, topic: "" }).success).toBe(false);
+  });
+  it("a topic definition needs a title of at most 120 characters and a summary of at most 2000", () => {
+    expect(Command.safeParse(topic).success).toBe(true);
+    expect(Command.safeParse({ ...topic, title: "a".repeat(120) }).success).toBe(true);
+    expect(Command.safeParse({ ...topic, title: "a".repeat(121) }).success).toBe(false);
+    expect(Command.safeParse({ ...topic, summary: "a".repeat(2001) }).success).toBe(false);
+    expect(Command.safeParse({ ...topic, summary: "" }).success).toBe(false);
+  });
+});

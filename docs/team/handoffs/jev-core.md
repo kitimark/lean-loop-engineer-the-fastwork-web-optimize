@@ -1,6 +1,6 @@
 # jev-core handoff
 
-State: branch `worktree-wf_4e920a86-fa6-1`, main merged; salvaged from jev-oracle r5 (`worktree-wf_0c9d3381-3c7-1`).
+State: branch `worktree-wf_4e920a86-fa6-1`, main merged.
 
 Verified:
 - `sh lean/scripts/check.sh` green; oracle golden 67 wire cases, 0 stale; key theorems use only propext,

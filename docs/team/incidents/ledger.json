@@ -3774,6 +3774,35 @@
    "leanReason": "Holder liveness is a pure decision over (lease expiry, now, holder agent live): theorem that a live holder with an unexpired lease is never recovered.",
    "empiricalCheck": "The lead released the stale lock after checking no Simulator process ran; sim.lockOrphan closed.",
    "hardening": "local-adaptive-queue"
+  },
+  {
+   "id": "inc-sicko-unknown-role",
+   "at": "2026-10-22T01:45+07:00",
+   "title": "comment-sicko could never be spawned: the role was added to .claude/agents but not to the spawn-guard roster",
+   "symptom": "The lead ran the no-comments skill; every comment-sicko spawn was refused by spawn-guard (unnamed, then unknownRole). No comment pass had run since the skill was added on 10-19.",
+   "cause": "CONFIRMED (lean/Fw/Ops/SpawnGuard.lean prodRoles and apps/runner/hooks/spawn-guard.mjs ROLES): the skills-reframe task added .claude/agents/comment-sicko.md and the no-comments skill but no roster row; nothing checks that every .claude/agents role is in the roster, and the skill was user-invoked only, so the refusal never surfaced.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "02cd5f37",
+     "note": "comment-sicko added to prodRoles, leadEditHelpers and the hook ROLES"
+    },
+    {
+     "kind": "commit",
+     "ref": "97345d1b",
+     "note": "skills-reframe added the agent and skill"
+    }
+   ],
+   "repro": "Spawn subagent_type comment-sicko from the lead before 02cd5f37.",
+   "fix": {
+    "task": "polish-in-flow"
+   },
+   "regression": "A test fails when a .claude/agents/*.md name is missing from Lean SpawnGuard.prodRoles.",
+   "mistakeClass": "c-late-check",
+   "leanVerdict": "partly",
+   "leanReason": "Roster membership of each agent file is a decidable check over a generated list of agent names; reading the agent files is I/O.",
+   "empiricalCheck": "After 02cd5f37 the three comment-sicko spawns were accepted.",
+   "hardening": "polish-in-flow"
   }
  ]
 }

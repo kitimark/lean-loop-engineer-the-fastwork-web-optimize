@@ -24,7 +24,7 @@ FW_REPLAY_URL=<page> node src/device-replay-cli.mjs run --source source.json --k
 `run` starts `safaridriver` as its own child and stops it at the end; it never prints the page address. Keep `source.json`,
 recordings and `run.json` out of git (`.local/` or the scratchpad).
 
-## Pilot on the phone (a booked session; the lead relays the user step `ask-replay-setup`)
+## Pilot on the phone
 
 Setup (user, once): `safaridriver --enable` on the Mac (asks for an admin password); on the iPhone Settings > Safari > Advanced >
 Remote Automation ON; phone connected and trusted. Then, from `packages/measure-webkit`, with rec-1:

@@ -134,7 +134,7 @@ latency, and cold load. The rest need a recorder change or a phone tool (plan se
 
 ## Check findings: applied or not
 
-All 16 are applied; 7 is applied in part (below). Where a fix was changed, this is why:
+
 - 4, 7, 8, 9: phone figures outside summary.md (zone medians, short-interval and pair counts, felt-window zero counts)
   are named by source without the value, per this note's scope. The figures themselves were MEASURED by the check.
 - 7: the theorem "every interval over 25 ms is a skipped slot" is false under absolute slot rounding. Frames at 8.5 ms
@@ -143,8 +143,8 @@ All 16 are applied; 7 is applied in part (below). Where a fix was changed, this 
 - 7 (miss rule): the > 25 ms raw-interval count is kept beside the skipped-slot count. It matches Chromium's 1.5-interval
   rule and `tickAt`, so the two counts can be compared. It undercounts long-then-short pairs (MEASURED by the check). The
   skipped-slot count is the primary miss count.
-- 8: the raw-record path is not written out because it contains a home-directory user name.
-- 6: the phone model is stated (it is committed in `device.mjs:22`); the draft's gap 6 becomes "display rate class
+
+- The display rate class
   not stored per record".
 
 ## Sources
