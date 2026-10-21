@@ -21,7 +21,7 @@ Implementing the cuts is a follow-up.
 - **Where the minutes go (MEASURED, tables jobs and classes).** GitHub macOS jobs used about **1,375 wall min/day**
   (1,427 billed min/day, rounding each job up to a minute). **Measure steps are 1,068.5 of them (77.6 %)**; the
   Simulator boot is 72.1 (5.2 %); setup, cache, runtime and proxy together are 59.8 (4.3 %); teardown is 45.6 (3.3 %);
-  upload, telemetry and post (steps only GitHub has) are 21.1 (1.5 %). **107.7 min/day (7.8 %) lie in no step**: the gap
+  upload, telemetry and post (dropped from matched time) are 21.1 (1.5 %). **107.7 min/day (7.8 %) lie in no step**: the gap
   between a job's wall time and its steps (runner start and the "Complete job" tail; INFERRED, not controllable from a workflow).
 - **One step is 38 % of everything (MEASURED, table steps).** `webkit-sim / sim / Determinism sessions`: 527.6 min/day,
   median 825 s, longest 3,894 s (65 min). Its tail above the median is 174.3 min/day.
@@ -59,7 +59,7 @@ Implementing the cuts is a follow-up.
   coverage and where a step class sits, not a provider comparison. The like-for-like comparison is in
   `research/notes/2026/10-2x-codemagic-pilot.md` and `docs/team/tools/circleci.md`.
 - **Step classes (Lean `classOf`).** Ordered rules over the step name (setup, cache, runtime, proxy, simBoot, measure,
-  upload, teardown, telemetry, post; about 20 `decide` theorems). `upload`, `telemetry` and `post` exist on GitHub only
+  upload, teardown, telemetry, post; about 20 `decide` theorems). `upload`, `telemetry` and `post` are dropped from matched time on every provider
   (`matched` is false), so `matched` job time is the wall time minus those three: the number to put beside a Codemagic
   or CircleCI job.
 - **Queue.** The time from the job becoming eligible (the run's creation, or the latest end of another job of the same
@@ -120,7 +120,7 @@ minimum of one (`Job.billedMin`).
 ### Step classes
 
 <!-- mt:begin classes -->
-| class | on every provider | GitHub s/job | Codemagic s/job | CircleCI s/job | GitHub min/day | GitHub share of wall |
+| class | in matched time | GitHub s/job | Codemagic s/job | CircleCI s/job | GitHub min/day | GitHub share of wall |
 | --- | --- | --- | --- | --- | --- | --- |
 | setup | yes | 11.9 | 47.5 | 9.4 | 28.8 | 2.0% |
 | cache | yes | 1.6 | 0.0 | 0.0 | 3.8 | 0.2% |
@@ -128,10 +128,10 @@ minimum of one (`Job.billedMin`).
 | proxy | yes | 6.1 | 62.3 | 0.0 | 14.7 | 1.0% |
 | simBoot | yes | 30.0 | 72.1 | 45.4 | 72.1 | 5.2% |
 | measure | yes | 444.5 | 680.3 | 418.7 | 1068.5 | 77.6% |
-| upload | GitHub only | 3.6 | 3.9 | 0.6 | 8.7 | 0.6% |
+| upload | no | 3.6 | 3.9 | 0.6 | 8.7 | 0.6% |
 | teardown | yes | 18.9 | 9.8 | 1.0 | 45.6 | 3.3% |
-| telemetry | GitHub only | 1.5 | 4.5 | 1.0 | 3.6 | 0.2% |
-| post | GitHub only | 3.6 | 0.7 | 0.0 | 8.8 | 0.6% |
+| telemetry | no | 1.5 | 4.5 | 1.0 | 3.6 | 0.2% |
+| post | no | 3.6 | 0.7 | 0.0 | 8.8 | 0.6% |
 | (gap: wall minus steps) | - | 44.8 | 0.3 | 0.6 | 107.7 | 7.8% |
 | (job wall) | - | 572.2 | 881.6 | 477.0 | 1375.3 | 100.0% |
 <!-- mt:end classes -->
@@ -198,7 +198,7 @@ take; `shiftSaving_no_codemagic`: no Codemagic build, no shift).
    window, counting only jobs that ran past the cap.
 3. **Teardown (up to 45.6 min/day, 3.3 %).** `Keep logs and host state` (18.3) and `Shut down and delete the Simulator`
    (16.7) are webkit-sim steps that `macos-teardown-trim` removed or cut to a copy (it landed on main at 2026-10-21
-   16:49 UTC). 75 of the 85 sampled webkit-sim `sim` jobs still ran the shutdown step, the last at 02:04 UTC, so the
+   16:49 UTC). 75 of the 85 sampled webkit-sim `sim` jobs still ran the shutdown step, the last at 02:57 UTC, so the
    window mostly predates the trim. At most about 11 min/day (45.6 - 35.0) remain in wktr, wktr-fixtures,
    engine-premises and gate-gaps: the follow-up `macos-teardown-followups` (INFERRED arithmetic from three table cells).
 4. **Codemagic shift (about 16.2 min/day, estimate on 3 builds).** The pilot's stop line is 400 of 500 free minutes per
@@ -227,12 +227,12 @@ other workflows (at most 11 min/day, already specified); (c) more Codemagic buil
    5 s apart, and an unsettled view is never cached; the failure line names the non-success jobs. Golden
    `packages/contracts/golden/ci-budget/wire.jsonl` (4 new cases); tests in `packages/gh-budget/test/wait.test.ts`.
 3. **`fw ci telemetry` had no number to put beside Codemagic or CircleCI (done).** Each job span now ends with a
-   `(matched: wall - upload, telemetry, post)` row from Lean `obs.macMatched`.
+   `(matched: wall - upload, telemetry, post)` row from Lean `obs.macMatched`. The spec premise (3 to 6 min of upload and post per GitHub job) did not hold: these classes average 8.7 s per job, so matched time is 9.3 against 9.5 wall min (MEASURED, tables classes and providers); the gap to Codemagic lies elsewhere.
 
 ## Reproduce
 
 ```
-pnpm -s fw ci telemetry macos-window --days 7 --sample 200 --out <file>      # collect (about 20 min, polite gh use)
+pnpm -s fw ci telemetry macos-window --days 7 --sample 200 --now 1792609115000 --codemagic-builds 6ad8e6398f5c599c0322496c,6ad8ebe10ecd1a24bfc69ad3,6ad8ed7a51dd5bf84c327572 --out <file>      # collect (about 20 min, polite gh use)
 cd lean && lake env lean --run scripts/MacTelemetryGolden.lean --report      # reduce the committed dataset
 cd lean && lake env lean --run scripts/MacTelemetryGolden.lean --check       # golden and report up to date
 ```

@@ -102,7 +102,7 @@ pnpm -s fw ci telemetry macos-window [--days 7] [--sample 200] [--out file] [--c
 ```
 
 lists the completed runs of the seven macOS workflows (run-level minutes, all runs), lets Lean pick at most `--sample`
-runs per stratum (`obs.macSample`), reads their jobs and steps, adds the Codemagic builds of the ledger and the CircleCI
+runs in total, spread evenly over the workflow and event strata (`obs.macSample`), reads their jobs and steps, adds the Codemagic builds named by `--codemagic-builds` and the CircleCI
 macOS jobs, and writes ids, names, conclusions and times as JSON lines. Lean reduces them (`obs.macReduce`; golden
 `packages/contracts/golden/obs/mactelemetry-window-input.jsonl`); the note is `research/notes/2026/10-2x-macos-telemetry.md`.
 

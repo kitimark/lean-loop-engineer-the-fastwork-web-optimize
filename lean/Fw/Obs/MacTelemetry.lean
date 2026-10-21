@@ -10,7 +10,7 @@ a window of rows into the tables of `research/notes/2026/10-2x-macos-telemetry.m
 
 What is decided here, each with its own theorem:
 - `classOf`: the class of a step name (ordered substring rules, first match wins, no match is measured work);
-- `matchedMs`: the job time that exists on every provider, wall minus the steps GitHub alone has (upload, telemetry, post);
+- `matchedMs`: the job time that exists on every provider, wall minus the steps dropped from matched time (upload, telemetry, post);
 - `billedMin`: rounded-up minutes (GitHub per job, Codemagic at least one minute, CircleCI with the m4pro.medium rate);
 - `eligibleMs`: when a job could first start (run created, or the latest end of a job of the same run that ended before it
   started), so `queueMs` is the wait for a slot and not the wait for `needs`;
@@ -115,8 +115,8 @@ def Cls.tag : Cls → String
 /-- All classes in table order. -/
 def Cls.all : List Cls := [.setup, .cache, .runtime, .proxy, .simBoot, .measure, .upload, .teardown, .telemetry, .post]
 
-/-- A class whose time exists on every provider; the others (upload, telemetry, post) are what GitHub's job frame adds
-(MEASURED, `research/notes/2026/10-2x-codemagic-pilot.md`: 3 to 6 min per job). -/
+/-- A class whose time exists on every provider; upload, telemetry and post are dropped from matched time (task spec said
+3 to 6 min per job; MEASURED here 8.7 s per GitHub job, `research/notes/2026/10-2x-macos-telemetry.md`). -/
 def Cls.matched : Cls → Bool
   | .upload => false
   | .telemetry => false
@@ -221,7 +221,7 @@ def Job.wallMs (j : Job) : Nat := j.endMs - j.startMs
 /-- Total time of the steps of one class. -/
 def Job.classMs (j : Job) (c : Cls) : Nat := ((j.steps.filter fun s => classOf s.name == c).map Step.durMs).sum
 
-/-- Time of the steps whose class is not on every provider. -/
+/-- Time of the steps whose class is dropped from matched time. -/
 def unmatchedMs (ss : List Step) : Nat := ((ss.filter fun s => !(classOf s.name).matched).map Step.durMs).sum
 
 /-- **Step-matched job time**: wall time minus the steps that only some providers have. -/
@@ -789,10 +789,10 @@ def Job.gapMs (j : Job) : Nat := j.wallMs - j.stepsMs
 def classTable (c : Ctx) : String :=
   let sec (p : Prov) (x : Job → Nat) := secStr (c.mean p x)
   let ghWall := c.wsum c.gh (·.wallMs)
-  mdTable ["class", "on every provider", "GitHub s/job", "Codemagic s/job", "CircleCI s/job", "GitHub min/day", "GitHub share of wall"]
+  mdTable ["class", "in matched time", "GitHub s/job", "Codemagic s/job", "CircleCI s/job", "GitHub min/day", "GitHub share of wall"]
     (Cls.all.map (fun cl =>
       let x := c.wsum c.gh (·.classMs cl)
-      [cl.tag, if cl.matched then "yes" else "GitHub only", sec .github (·.classMs cl), sec .codemagic (·.classMs cl),
+      [cl.tag, if cl.matched then "yes" else "no", sec .github (·.classMs cl), sec .codemagic (·.classMs cl),
        sec .circleci (·.classMs cl), c.dayMin x, pctStr x ghWall]) ++
      [["(gap: wall minus steps)", "-", sec .github (·.gapMs), sec .codemagic (·.gapMs), sec .circleci (·.gapMs),
        c.dayMin (c.wsum c.gh (·.gapMs)), pctStr (c.wsum c.gh (·.gapMs)) ghWall],

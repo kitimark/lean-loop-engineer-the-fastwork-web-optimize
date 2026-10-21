@@ -184,7 +184,7 @@ describe.skipIf(!haveCore)("the command, GitHub", () => {
   });
 
   // macos-telemetry fix 3: a (matched) row per job, computed by Lean (obs.macMatched), so a GitHub job compares with a
-  // Codemagic or CircleCI one: the upload, telemetry and post steps only GitHub has are taken out of the wall time.
+  // Codemagic or CircleCI one: the upload, telemetry and post steps matched time drops on every provider are taken out of the wall time.
   const span = (name: string, durMs: number) => ({ runId: "7", job: "sim", name, tool: "t", step: `sim/${name}`, kind: "k", durMs, code: "ok", n: 3, baseline: durMs, budgetMs: 999999 });
   const simSpans = [
     span("(queue)", 4000), span("Determinism sessions", 60_000), span("Run actions/upload-artifact@abc", 10_000),

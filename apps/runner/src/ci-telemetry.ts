@@ -190,7 +190,7 @@ export function judge(call: FwCall, all: TelRecord[]): TelReply {
 
 const sec = (ms: number) => (Math.round(ms / 100) / 10).toFixed(1);
 
-/** The step-matched time of a job: its wall time minus the upload, telemetry and post steps that only GitHub has (Lean
+/** The step-matched time of a job: its wall time minus the upload, telemetry and post steps that matched time drops on every provider (Lean
  *  `Fw.Obs.MacTelemetry.matchedMs`, op `obs.macMatched`). The spans carry durations only, so each step is placed at 0. */
 export function matchedOf(call: FwCall, wallMs: number, steps: { name: string; durMs: number }[]): { matchedMs: number; unmatchedMs: number } {
   const r = call({ op: "obs.macMatched", wallMs, steps: steps.map((s) => ({ name: s.name, startMs: 0, endMs: s.durMs })) }) as unknown as { matchedMs: number; unmatchedMs: number };
