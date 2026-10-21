@@ -1,7 +1,7 @@
 # mem-gate-bypass handoff
 
 State: round 3 (final design round) on branch `worktree-wf_f48889d4-126-2`; round 1 b49892f6, round 2 8d005700,
-round 3 merges main 5c188cca (merge fe80fd7f); the round-3 commit is named in the lead report. No code changed.
+round 3 commit bf412cb1, then main 5b99691f merged (1f7f36c7). No code changed.
 
 Read first: `research/notes/2026/10-21-mem-gate-bypass.md`, then `research/notes/2026/mem-gate-bypass/numbers.md`
 (every sample-derived number; rules in its header) and `reduce.mjs` (the generator).
