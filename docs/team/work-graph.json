@@ -12396,7 +12396,7 @@
    "deps": [
     "reap-auto-stop"
    ],
-   "title": "User 2026-10-21 ('did you check the swap', 'what about the detection, observation for this case'): swap reached 5.1/6.1 GB on 16 GB with 6 builders while sys.memCritical stayed silent (kernel pressure level stayed 1). Add fw watch signals with Lean constants and golden: sys.swapHigh (vm.swapusage used/total, swap-out rate, memory_pressure free %), proc.leftover (reap selection non-empty: kind, pids, footprint from top mem+cmprs, not rss), proc.heavy (a project tree or the sum of heavy local jobs over a memory budget); find why proc.long missed 5-11 h lake-serve trees under the lean-lsp MCP server and close it; memory/swap/builder-count/heavy-job trend per tick into the obs log shown in the console; a local lock limiting concurrent check.sh and lake builds by a Lean memory budget; why PropsLint (lean --run scripts/PropsLint.lean) needs 2.2 GB, cut it or run it once per check",
+   "title": "User 2026-10-21 ('did you check the swap', 'what about the detection, observation for this case'): swap reached 5.1/6.1 GB on 16 GB with 6 builders while sys.memCritical stayed silent (kernel pressure level stayed 1). Add fw watch signals with Lean constants and golden: sys.swapHigh (vm.swapusage used/total, swap-out rate, memory_pressure free %), proc.leftover (reap selection non-empty: kind, pids, footprint from top mem+cmprs, not rss), proc.heavy (a project tree or the sum of heavy local jobs over a memory budget); find why proc.long missed 5-11 h lake-serve trees under the lean-lsp MCP server and close it; memory/swap/builder-count/heavy-job trend per tick into the obs log shown in the console; a local lock limiting concurrent check.sh and lake builds by a Lean memory budget; why PropsLint (lean --run scripts/PropsLint.lean) needs 2.2 GB, cut it or run it once per check. User 2026-10-21 'can we improve these timing.slow': lean/check steps ran 2x their median at load 11-23 on 8 CPUs; add a contention-aware Timing verdict (contended samples leave the baseline, one sys.contended signal, no masking of a slow sample at normal load), the heavy-job lock with a measured cap, and one canonical fwcore builder (check.sh left no build record: svc.unknown)",
    "writes": [
     "lean/Fw/Obs/Signals.lean",
     "lean/Fw/Obs/Health.lean",
@@ -12410,7 +12410,10 @@
     "lean/scripts/PropsLint.lean",
     "scripts/heavy-lock.mjs",
     "docs/team/tools/fw-watch.md",
-    "docs/team/handoffs/local-mem-budget.md"
+    "docs/team/handoffs/local-mem-budget.md",
+    "lean/Fw/Obs/Timing.lean",
+    "scripts/fwcore-build.sh",
+    "packages/contracts/golden/obs/**"
    ]
   },
   {
