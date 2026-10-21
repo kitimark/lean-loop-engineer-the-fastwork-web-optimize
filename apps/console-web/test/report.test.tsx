@@ -34,7 +34,8 @@ describe("Reports section", () => {
     expect(tagWords(undefined)).toBe("no tag");
   });
   it("links the strips over https only", () => {
-    expect(panel(data([item()]))).toContain('data-testid="report-strips"');
+    expect(panel(data([item()]))).toContain('data-testid="report-no-strips"');
+    expect(panel(data([item({ report: { ...EXAMPLE, strips: "https://example.com/run" } })]))).toContain('data-testid="report-strips"');
     const bad = { ...EXAMPLE, strips: "javascript:alert(1)" };
     const html = panel(data([item({ report: bad })]));
     expect(html).not.toContain('data-testid="report-strips"');
