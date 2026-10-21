@@ -29,3 +29,8 @@ Unit: the verdict/diagnostic mark rule (Lean `Fw.Gate.Trajectory.Dispatch`) now 
 ## Accepted limits
 Old stored runs unchanged; `fw run` on a ref older than the input dispatches without the mark (the old workflow has no rule); the workflow-input path is
 proved by the node spawn test, not by a dispatch (agents cannot dispatch); one CI push run proves the push-line step (see report).
+
+## CI proof (one run, GitHub)
+Run 39606077971 (push, `ci/traj-dispatch-push-lane`, line `[trajectory widths=390,641 engines=chromium]` without the word): job `site`, step
+"Read the inputs" ran `trajectory-line.test.mjs` (9 pass, 0 fail) then failed with `trajectory-line: refused: widths 390,641 is a subset ... add the word diagnostic ...`
+before any build. The accept path and the dispatch input were not run on CI (a diagnostic run is a full probe; dispatch is lead-only): node spawn tests cover both.
