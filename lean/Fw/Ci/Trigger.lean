@@ -320,7 +320,7 @@ def cacheWriters : List (String × String × String) := [
   ("visual-diff.yml", "port-fonts", "ms-playwright"), ("visual-diff.yml", "port-fonts", "hs-zip"),
   ("visual-diff.yml", "shoot", "gate-apt"), ("visual-diff.yml", "shoot", "ms-playwright"),
   ("visual-diff.yml", "shoot", "hs-zip"),
-  ("wktr-fixtures.yml", "fixtures", "wktr-zip"), ("wktr.yml", "wktr", "wktr-zip")]
+  ("webkit-sim.yml", "sim", "iwdp"), ("wktr-fixtures.yml", "fixtures", "wktr-zip"), ("wktr.yml", "wktr", "wktr-zip")]
 
 /-- The workflows whose push trigger listed `main` before task `ci-main-triggers` (commit 473b49c1). -/
 def mainBefore : List String := ["breakpoint-gate.yml", "chromium-counts.yml", "difftest.yml", "gate-gaps.yml",
@@ -329,8 +329,12 @@ def mainBefore : List String := ["breakpoint-gate.yml", "chromium-counts.yml", "
 /-- The caches job `j` of workflow `f` saves. -/
 def savedBy (f j : String) : List String := (cacheWriters.filter fun w => w.1 == f && w.2.1 == j).map (·.2.2)
 
-/-- The caches a `main` push seeds: every cache that a job of a `mainBefore` workflow saved. -/
-def seededCaches : List String := ((cacheWriters.filter fun w => mainBefore.contains w.1).map (·.2.2)).eraseDups
+/-- The caches written by macOS jobs only, which a `main` push never runs (task `macos-teardown-trim`). -/
+def macosCaches : List String := ["iwdp"]
+
+/-- The caches a `main` push seeds: every cache that a job of a `mainBefore` workflow saved, except `macosCaches`. -/
+def seededCaches : List String :=
+  ((cacheWriters.filter fun w => mainBefore.contains w.1 && !macosCaches.contains w.2.2).map (·.2.2)).eraseDups
 
 /-- The (workflow, job) pairs a `main` push runs besides the workflow's `guard`: they save the caches main seeded
 before this task (`mainBefore`); `wktr-zip` is excluded. -/
@@ -366,7 +370,7 @@ theorem seeded_caches : seededCaches = ["gate-apt", "ms-playwright", "hs-zip", "
 
 /-- The caches no `main` push seeds: their writers never ran on `main`. -/
 theorem unseeded_caches :
-    (cacheWriters.map (·.2.2)).eraseDups.filter (fun c => !seededCaches.contains c) = ["wktr-zip", "mathlib"] := by decide
+    (cacheWriters.map (·.2.2)).eraseDups.filter (fun c => !seededCaches.contains c) = ["wktr-zip", "mathlib", "iwdp"] := by decide
 
 /-- A workflow lists `main` iff a seeder job is in it. -/
 theorem main_iff_seeder : ∀ w ∈ table, w.onMain = true ↔ w.file ∈ seeders.map Prod.fst := by decide
