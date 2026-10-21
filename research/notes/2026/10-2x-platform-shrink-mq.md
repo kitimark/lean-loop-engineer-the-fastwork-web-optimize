@@ -39,6 +39,14 @@ environment per event, and the media-change handler is an event, so a rotation o
 (premise: an event runs at every gate change; the HTML rendering update reports media-query changes before it runs
 animation-frame callbacks and style, so the write lands before the next paint; CONFIRMED by the spec text, not measured).
 
+## Premises of the proof
+- P1: the frame runs in the `mq.c860` change handler, so the gate it reads is the one in force at the next paint.
+- P2: the only author of the inline `--platform-shrink` is this writer; the initial inline value is the CSS `0`.
+- P3: a write is counted when the value differs from the last written one (a same-value inline write is a no-op in both
+  engines, see PeopleCardOpt premise P5). Browser cost of a write is MEASURED on CI, not modelled.
+- Original: snapshot `nodes/2.DyWL8TcE.js` pretty 12434-12448 (shrink callback), `assets/2.gBuqKVzi.css` pretty
+  5530-5531, 7830, 10985-11075 (the section variables and the band), restated in this repo's faithful part.
+
 ## Premise check (CONFIRMED)
 `--platform-shrink` is read at platform.module.css:8 (scale) and :31 (radius); the scale and radius variables only at :31
 and :32; the band at :303-315 pins them on the section and sets `border-radius: 0; transform: none` on the card. No other

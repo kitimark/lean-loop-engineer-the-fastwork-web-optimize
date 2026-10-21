@@ -3,43 +3,8 @@ import Fw.Site.BreakpointMatrix
 import Fw.Parts.PlatformSection
 import Fw.Parts.PeopleCardOpt
 /-!
-# platform, variant `mq`: skip the `--platform-shrink` write where the CSS already pins the card
-
-**The original** (this repo's `faithful` part, itself restated from the snapshot `nodes/2.DyWL8TcE.js` pretty
-12434-12448): the scroll callback reads the card's bottom edge and `innerHeight`, computes the shrink `s`
-(`PlatformSection.shrink`) and the class bit (`PlatformSection.shrinking`), writes `--platform-shrink` on the section
-when `s` differs from the last written value, and toggles `is-platform-shrinking`.
-
-**The CSS** (`platform.module.css`, restated from `assets/2.gBuqKVzi.css` pretty 5530-5531, 7830, 10985-11075): the
-section declares `--platform-shrink: 0`, `--platform-shrink-scale: calc(1 - 0.083333 * var(--platform-shrink, 0))` and
-`--platform-shrink-radius: 32px` (lines 7-9); `(width<=720px)` sets the radius to 24px (286-290); the `c860`
-band (303-315) sets scale 1 and radius 0px on the section and `border-radius: 0; transform: none` on the card. The
-card reads the shrink only at line 31 (`border-radius`) and 32 (`transform`, through the scale); the section reads it
-only at line 8. A grep over `apps/site/src` CONFIRMS no other reader (the test `shrink.test.ts` pins it).
-
-**The variant** `?fw=platform:mq`: while `c860` (the generated `mq.c860`) matches, the frame skips the write; the
-class bit is toggled as before. When `c860` stops matching (a resize or a rotation) the page's media-change handler
-runs the frame at once, so the current value is written before the next paint (the HTML rendering update evaluates
-media queries and reports changes before it runs animation-frame callbacks and styles, WHATWG HTML "update the
-rendering"; CONFIRMED text, not measured here).
-
-**What is proved.**
-* Vision, class E: in the band the card's look does not depend on the inline value (`look_gated`) and exactly there
-  (`look_const_iff`); after every event the original's and the variant's look are equal (`look_agree`), also when the
-  band changes between events, because the value a leaving event writes is the original's (`inl_ungated`); the class
-  sequences agree (`cls_agree`); so the visible scenes are equal (`platformShrink_visSame`).
-* Work: the variant's cumulative number of writes is at most the original's after every event (`writes_le`); a run
-  that stays in the band writes nothing (`gated_run`), strictly less whenever the original writes once
-  (`gated_run_lt`).
-
-**Premises.**
-* P1 (an event at every gate change): the frame runs in the media-change handler of `c860`, so the gate it reads is
-  the one in force when the look is next painted.
-* P2 (inline value is the only source): the only author of the inline `--platform-shrink` is this writer, and the
-  initial inline value is the CSS `0`.
-* P3 (counts): a write is counted when the value differs from the last written one (the DOM, too, ignores a same
-  value; see `PeopleCardOpt` premise P5). The browser-side cost of a write (restyle of the section subtree) is MEASURED
-  on CI, not modelled here.
+# platform:mq, skip the `--platform-shrink` write where the CSS pins the card (`platform.module.css` 7-9, 31-32, 303-315)
+Proof note and premises: `research/notes/2026/10-2x-platform-shrink-mq.md`.
 -/
 namespace Fw.Parts.PlatformShrinkOpt
 
