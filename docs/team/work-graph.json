@@ -13275,7 +13275,8 @@
     "lean/Fw.lean",
     "packages/contracts/golden/sup/route.jsonl",
     "docs/team/handoffs/sup-route.md"
-   ]
+   ],
+   "evidence": "4af29f1"
   },
   {
    "devices": [
@@ -13952,7 +13953,8 @@
     "docs/team/tools/codemagic.md",
     "research/notes/2026/10-2x-codemagic-pilot.md",
     "docs/team/handoffs/codemagic-pilot.md"
-   ]
+   ],
+   "evidence": "5ebb1b8"
   },
   {
    "devices": [
