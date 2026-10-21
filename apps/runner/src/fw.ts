@@ -24,8 +24,15 @@ const [group, ...rest] = process.argv.slice(2);
 const SUBS = new Set(["plan", "ci", "incidents", "step", "card", "task", "console", "review"]);
 let spanExtra: ReturnType<typeof waitSpanExtra> = {}; // ci-wait-lag: the phases of a `fw ci wait`, written on its span at exit
 if (group && group !== "watch" && group !== "timings") { const end = begin("fw", SUBS.has(group) && rest[0] && !rest[0].startsWith("-") ? `${group} ${rest[0]}` : group); process.once("exit", (c) => end(c, spanExtra)); }
+/** disk-auto-gc after a land: delete classes 1, 2, 6 that Lean selects in the main checkout, timed; lines to stderr so
+ *  the VERDICT lines stay the only stdout. */
+async function postLandGc(mainDir: string): Promise<void> {
+  const { diskGcTick } = await import("./disk-gc.ts");
+  const lines = span("fw land", "disk-gc (post-land)", () => diskGcTick(mainDir, ["lake", "landed", "console"], fwcoreCall(mainDir)));
+  for (const l of lines) console.error(l);
+}
 try {
-  const base = NO_API_GROUPS.includes(group ?? "") || (group === "plan" && rest[0] === "overlap") || (group === "review" && (rest[0] === "ready" || rest[0] === "verdict")) ? "" : apiBase(process.env); // these need no console-api (CI runs some of them)
+  const base = NO_API_GROUPS.includes(group ?? "") || group === "disk-gc" || (group === "plan" && rest[0] === "overlap") || (group === "review" && (rest[0] === "ready" || rest[0] === "verdict")) ? "" : apiBase(process.env); // these need no console-api (CI runs some of them)
   if (group === "timings") {
     console.log(rest.includes("--backfill") ? await backfill(rest, process.cwd()) : rest.includes("--lag") ? lagCli(rest, process.cwd()) : timingsView(rest, process.cwd()));
   } else if (group === "checks") {
@@ -55,6 +62,8 @@ try {
     process.exitCode = spawnSync(process.execPath, [script, ...rest.slice(1)], { cwd: process.cwd(), stdio: "inherit" }).status ?? 1;
   } else if (group === "ci" && rest[0] === "telemetry") {
     process.exitCode = await (await import("./ci-telemetry.ts")).telemetryCli(rest.slice(1), process.cwd()); // ci-telemetry: job artifacts of both CI providers
+  } else if (group === "ci" && rest[0] === "pool") {
+    process.exitCode = await (await import("./ci-pool.ts")).poolCli(rest.slice(1), process.cwd());
   } else if (group === "ci" && rest[0] === "state") {
     process.exitCode = await (await import("./ci.ts")).ciStateCli(rest.slice(1), process.cwd()); // review-flow-v2-followups: one run's state by id
   } else if (group === "ci") {
@@ -68,6 +77,9 @@ try {
     const { LakeGcUsage, lakeGcCli } = await import("./lake-gc.ts");
     const top = execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: process.cwd(), encoding: "utf8" }).trim();
     try { process.exitCode = lakeGcCli(rest, top, fwcoreCall(process.cwd())); } catch (e) { throw e instanceof LakeGcUsage ? new UsageError(e.message) : e; }
+  } else if (group === "disk-gc") { // disk-auto-gc: six classes decided by Fw.Ops.DiskGc; --delete removes exactly that list
+    const { DiskGcUsage, diskGcCli } = await import("./disk-gc.ts");
+    try { process.exitCode = diskGcCli(rest, process.cwd(), fwcoreCall(process.cwd())); } catch (e) { throw e instanceof DiskGcUsage ? new UsageError(e.message) : e; }
   } else if (group === "reap") { // orphan-guard, reap-auto-stop: --list names what Lean selects, --stop stops it (TERM, grace, KILL of unchanged survivors)
     const { ReapUsage, reapCli } = await import("./reap.ts");
     const top = execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: process.cwd(), encoding: "utf8" }).trim();
@@ -148,6 +160,7 @@ try {
           diff: (from) => execFileSync("git", ["diff", "--name-only", "--no-renames", from, "main"], { cwd: mainDir, encoding: "utf8" }).split("\n").filter(Boolean),
           rebuild: async () => (await span("fw land", "fwcore rebuild (queue)", async () => spawnSync("sh", ["scripts/fwcore-build.sh"], { cwd: mainDir, stdio: ["ignore", 2, 2] }).status ?? 1, (st) => st)) === 0 && fwcorePreflight(mainDir, "main") === null }); // exit 0 and the next preflight is not stale: the conclusion of Lean afterLand_rebuilt_fresh, weaker than rebuildOk
         for (const r of run.results) console.log(verdictLine(r.kind, r.task));
+        if (run.results.some((r) => r.kind === "done")) await postLandGc(mainDir); // disk-auto-gc: classes 1, 2, 6 after a land
         const own = run.results.find((r) => r.task === t);
         if (!own) console.log(verdictLine("queued", t)); // another runner (or --no-run) will land it
         process.exitCode = exitCode(own?.kind ?? "queued");
@@ -167,6 +180,7 @@ try {
         for (const l of res.lines) (res.ok && !l.startsWith("WARNING") ? console.log : console.error)(l);
         // one machine-readable line and a distinct exit code per kind (Lean Fw.Console.LandVerdict); scripts never grep prose
         const kind = res.kind ?? (res.ok ? "done" : "unknown");
+        if (kind === "done") { const { worktreeOf } = await import("./land.ts"); const m = worktreeOf(process.cwd(), "main"); if (m) await postLandGc(m); }
         console.log(verdictLine(kind, task ?? args[0]!));
         process.exitCode = exitCode(kind);
       }
@@ -186,7 +200,7 @@ try {
     if (body.ok) console.log(body.duplicate ? "duplicate (already applied)" : `ok seq ${body.seq}`);
     else { console.error(`refused: ${body.reason}`); process.exitCode = 2; }
   } else {
-    throw new UsageError(`usage: fw status | fw console start|stop|restart|status|logs | fw preview grant [<id>] | fw plan sync <file>|show|overlap [task] | fw watch [--json] [--interval s] [--until-alert] | fw next | fw engine-check --rows <jsonl> --run <dir> | fw ci state <run id> | fw land <branch> [--task id] [--allow glob] [--dry] | fw land --queue <branch> --task id | fw land --queue-status | fw incidents lint [ledger.json] | fw lake-gc [--list|--json|--delete] [--check] | fw reap --list|--stop | fw step post|start|answer|done|cancel ... | fw task handback|integrate|park|unpark ... | fw review reply|feedback|ready|verdict ... | fw send '<json>'\n${CARD_USAGE}`);
+    throw new UsageError(`usage: fw status | fw console start|stop|restart|status|logs | fw preview grant [<id>] | fw plan sync <file>|show|overlap [task] | fw watch [--json] [--interval s] [--until-alert] | fw next | fw engine-check --rows <jsonl> --run <dir> | fw ci state <run id> | fw land <branch> [--task id] [--allow glob] [--dry] | fw land --queue <branch> --task id | fw land --queue-status | fw incidents lint [ledger.json] | fw lake-gc [--list|--json|--delete] [--check] | fw reap --list|--stop | fw disk-gc [--list|--json|--delete] [--class c] | fw step post|start|answer|done|cancel ... | fw task handback|integrate|park|unpark ... | fw review reply|feedback|ready|verdict ... | fw send '<json>'\n${CARD_USAGE}`);
   }
 } catch (e) {
   console.error(e instanceof Error ? e.message : String(e));

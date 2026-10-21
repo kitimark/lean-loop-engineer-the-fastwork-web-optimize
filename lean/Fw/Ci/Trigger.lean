@@ -201,6 +201,11 @@ def table : List Wf := [
     "packages/contracts/golden/ops/rebuild.jsonl",
     ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", ".github/scripts/runner-info.sh",
     ".github/actions/telemetry/**", "scripts/ci-telemetry/**", own "lean.yml", ".node-version"], []⟩,
+  ⟨"linux-webkit-probe.yml", ["ci/linux-webkit-probe"], [
+    "packages/measure-webkit/src/linux/**", "packages/measure-webkit/test/linux-*.test.mjs", "packages/gate-breakpoints/package.json",
+    "snapshot/**", "snapshot.lock.json", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/verify-snapshot.mjs",
+    ".github/scripts/changed-inputs.mjs", ".node-version", ".github/actions/setup-pnpm/**", ".github/actions/telemetry/**",
+    "scripts/ci-telemetry/**", own "linux-webkit-probe.yml"], []⟩,
   ⟨"mutants.yml", ciAll, [
     "lean/Fw/Console.lean", "lean/Fw/Serve.lean", "lean/Fw/Ops/Meter.lean", "lean/Fw/Ops/PathCheck.lean",
     "lean/Fw/Ops/SpawnGuard.lean", "lean/Fw/Ops/Usage.lean", "lean/Fw/Ops/Wire.lean", "lean/Fw/Spec/DeviceQueue.lean",
@@ -282,7 +287,7 @@ def run (diff merged : List String) : List String :=
 #guard run ["packages/contracts/golden/gate/pixel.jsonl"] [] == ["land.yml", "visual-diff.yml"]
 #guard run ["docs/team/handoffs/x.md"] [] == []
 -- a change of the Node pin starts every lane that sets up Node (task node-pin)
-#guard run [".node-version"] [] == ["breakpoint-gate.yml", "chromium-counts.yml", "difftest.yml", "engine-premises.yml", "gate-gaps.yml", "land.yml", "lean-math.yml", "lean.yml", "mutants.yml", "premise-tests.yml", "preview-e2e.yml", "sim-speed.yml", "smoothness.yml", "snapshot-extract.yml", "trajectory-probe.yml", "visual-diff.yml", "webkit-sim.yml", "wktr-fixtures.yml", "wktr.yml"]
+#guard run [".node-version"] [] == ["breakpoint-gate.yml", "chromium-counts.yml", "difftest.yml", "engine-premises.yml", "gate-gaps.yml", "land.yml", "lean-math.yml", "lean.yml", "linux-webkit-probe.yml", "mutants.yml", "premise-tests.yml", "preview-e2e.yml", "sim-speed.yml", "smoothness.yml", "snapshot-extract.yml", "trajectory-probe.yml", "visual-diff.yml", "webkit-sim.yml", "wktr-fixtures.yml", "wktr.yml"]
 -- a merge of main changes lean/ and apps/site but starts nothing
 #guard run ["lean/Fw/Wire.lean", "apps/site/src/a.ts"] ["lean/Fw/Wire.lean", "apps/site/src/a.ts"] == []
 #guard run ["packages/measure-wktr/src/a.mjs", "lean/Fw/Wire.lean"] ["lean/Fw/Wire.lean"] == ["engine-premises.yml", "land.yml", "wktr-fixtures.yml", "wktr.yml"]
@@ -320,7 +325,7 @@ def cacheWriters : List (String × String × String) := [
   ("visual-diff.yml", "port-fonts", "ms-playwright"), ("visual-diff.yml", "port-fonts", "hs-zip"),
   ("visual-diff.yml", "shoot", "gate-apt"), ("visual-diff.yml", "shoot", "ms-playwright"),
   ("visual-diff.yml", "shoot", "hs-zip"),
-  ("wktr-fixtures.yml", "fixtures", "wktr-zip"), ("wktr.yml", "wktr", "wktr-zip")]
+  ("webkit-sim.yml", "sim", "iwdp"), ("wktr-fixtures.yml", "fixtures", "wktr-zip"), ("wktr.yml", "wktr", "wktr-zip")]
 
 /-- The workflows whose push trigger listed `main` before task `ci-main-triggers` (commit 473b49c1). -/
 def mainBefore : List String := ["breakpoint-gate.yml", "chromium-counts.yml", "difftest.yml", "gate-gaps.yml",
@@ -329,8 +334,12 @@ def mainBefore : List String := ["breakpoint-gate.yml", "chromium-counts.yml", "
 /-- The caches job `j` of workflow `f` saves. -/
 def savedBy (f j : String) : List String := (cacheWriters.filter fun w => w.1 == f && w.2.1 == j).map (·.2.2)
 
-/-- The caches a `main` push seeds: every cache that a job of a `mainBefore` workflow saved. -/
-def seededCaches : List String := ((cacheWriters.filter fun w => mainBefore.contains w.1).map (·.2.2)).eraseDups
+/-- The caches written by macOS jobs only, which a `main` push never runs (task `macos-teardown-trim`). -/
+def macosCaches : List String := ["iwdp"]
+
+/-- The caches a `main` push seeds: every cache that a job of a `mainBefore` workflow saved, except `macosCaches`. -/
+def seededCaches : List String :=
+  ((cacheWriters.filter fun w => mainBefore.contains w.1 && !macosCaches.contains w.2.2).map (·.2.2)).eraseDups
 
 /-- The (workflow, job) pairs a `main` push runs besides the workflow's `guard`: they save the caches main seeded
 before this task (`mainBefore`); `wktr-zip` is excluded. -/
@@ -366,7 +375,7 @@ theorem seeded_caches : seededCaches = ["gate-apt", "ms-playwright", "hs-zip", "
 
 /-- The caches no `main` push seeds: their writers never ran on `main`. -/
 theorem unseeded_caches :
-    (cacheWriters.map (·.2.2)).eraseDups.filter (fun c => !seededCaches.contains c) = ["wktr-zip", "mathlib"] := by decide
+    (cacheWriters.map (·.2.2)).eraseDups.filter (fun c => !seededCaches.contains c) = ["wktr-zip", "mathlib", "iwdp"] := by decide
 
 /-- A workflow lists `main` iff a seeder job is in it. -/
 theorem main_iff_seeder : ∀ w ∈ table, w.onMain = true ↔ w.file ∈ seeders.map Prod.fst := by decide
@@ -425,7 +434,7 @@ theorem branches_split : ∀ w ∈ table, w.branches = ciPart w.branches ++ (if 
 theorem ci_triggers : table.map (fun w => (w.file, ciPart w.branches)) = [
     ("breakpoint-gate.yml", ["ci/**"]), ("chromium-counts.yml", ["ci/**"]), ("difftest.yml", ["ci/**"]),
     ("engine-premises.yml", ["ci/**"]), ("gate-gaps.yml", ["ci/**"]), ("land.yml", ["ci/land-*"]), ("lean-math.yml", ["ci/**"]),
-    ("lean.yml", ["ci/**"]), ("mutants.yml", ["ci/**"]), ("premise-tests.yml", ["ci/**"]), ("preview-e2e.yml", ["ci/**"]), ("sim-speed.yml", ["ci/sim-speed"]),
+    ("lean.yml", ["ci/**"]), ("linux-webkit-probe.yml", ["ci/linux-webkit-probe"]), ("mutants.yml", ["ci/**"]), ("premise-tests.yml", ["ci/**"]), ("preview-e2e.yml", ["ci/**"]), ("sim-speed.yml", ["ci/sim-speed"]),
     ("smoothness.yml", ["ci/**"]), ("snapshot-extract.yml", ["ci/**"]), ("trajectory-probe.yml", ["ci/**"]), ("visual-diff.yml", ["ci/**"]), ("webkit-sim.yml", ["ci/**"]),
     ("wktr-fixtures.yml", ["ci/**"]), ("wktr.yml", ["ci/**"])] := by decide
 

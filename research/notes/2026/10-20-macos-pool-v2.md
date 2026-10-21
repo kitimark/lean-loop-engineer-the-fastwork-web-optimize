@@ -191,6 +191,8 @@ Theorems:
   the bound"); Linux lanes keep `Provider.route` unchanged.
 Phase 1 (allowlists empty, bitriseOn false) routes GitHub or wait; each later enablement is a constant edit.
 
+Other providers checked (2026-10-21): Azure Pipelines is not a provider (public-project free grant retired April 2026; free Macs are Intel with Xcode <= 26.6; Xcode 27 only in a paid pool; `10-21-azure-pipelines.md`). Codemagic (free personal plan: 500 Mac mini M2 minutes per month, 1 concurrent build, 120-min build limit, Xcode 27.x images) goes to a pilot, task codemagic-pilot; if it holds it takes the Bitrise slot of this route ahead of CircleCI, still off until the user approves.
+
 ## 6. If the user takes the GitHub Enterprise seat (macOS cap 50)
 
 Only constants change: ghMacCap 5 -> 50 and ghTotalCap 20 -> 500; goldens regenerate. Every theorem takes the caps as
