@@ -1,5 +1,10 @@
 name: trajectory-probe
 
+# The title of a dispatched run echoes its nonce (`trajectory-probe dispatch nonce=<n>`), so `fw run --trajectory` finds the run it
+# dispatched by identity (Lean Fw.Ci.Dispatch.pick; `fw ci wait --nonce` uses Dispatch.select), never as "the newest run". A push keeps its default title (the commit subject);
+# the inputs it ran with are in the step name `trajectory inputs: ...` of job `site` and in the artifact `trajectory-inputs`.
+run-name: ${{ github.event_name == 'workflow_dispatch' && format('trajectory-probe dispatch nonce={0}', inputs.nonce || 'none') || '' }}
+
 # The trajectory probe (task trajectory-probe): does the rewrite MOVE like the original along a scroll path? The breakpoint gate,
 # the counts and the goldens compare rest states and frame counts, so they missed three bugs of the motion itself (hero copy and
 # cards stale in WebKit under hero.exit:scoped; nav classes stale under morph.tween:waapi; is-on-dark never re-evaluated on the
@@ -15,9 +20,13 @@ name: trajectory-probe
 # decide: Chromium and macOS WebKit hero and morph, Linux WebKit hero only (its 150 ms frames cannot decide the morph pushes).
 # Apple witness (job probe-apple): the same lane on a free standard macos-26 runner with Playwright WebKit (the macOS build, the
 # closest engine CI has to Safari), the dispatched rewrite search vs the original on the hero and morph paths. It runs for every dispatch
-# (never a push) whose engines include playwright-webkit (Lean enginesOf: macOS WebKit runs with every WebKit), so each flag can get the
-# macOS morph cell v2-proved needs; max-parallel 2 (5 macOS slots are shared across lanes); its verdict is a separate artifact
+# whose engines include playwright-webkit (Lean enginesOf: macOS WebKit runs with every WebKit), so each flag can get the
+# macOS morph cell v2-proved needs; on a ci/* push it runs only when the commit line names a page recorder (`debug=`), because a recorder
+# row of macOS WebKit is the only thing a push has asked for there (YAML glue, not a Lean decision: the legs are Lean's `plan`,
+# the `if:` below only gates them); max-parallel 2 (5 macOS slots are shared across lanes); its verdict is a separate artifact
 # `trajectory-apple` and never part of the Linux verdicts.
+# Frames on macOS (task earn-look-review-webkit): a ci/* push whose head commit carries `[frames:<part:variant>]` also runs job probe-apple,
+# with its walk skipped and a frames step in its place (no second macOS job); merge-apple skips. Docs: docs/team/tools/trajectory-frames.md.
 on:
   # Every push creates a run and its guard job decides on these inputs (Lean Fw.Ci.Intent); `workflow_dispatch` runs it on demand
   # (pnpm -s fw run --trajectory ...). Why: docs/team/handoffs/ci-trigger-scope.md.
@@ -43,6 +52,11 @@ on:
       widths:
         description: >-
           Widths to walk, comma separated, from 390, 640, 641, 1280 without repeats. Empty = all four.
+        type: string
+        default: ''
+      nonce:
+        description: >-
+          Identity of this dispatch, echoed in the run title (8 to 32 characters of a-z0-9; `fw run --trajectory` sets it). Empty = a manual dispatch.
         type: string
         default: ''
 
@@ -105,6 +119,7 @@ jobs:
       apple_n: ${{ steps.p.outputs.apple_n }}
       search: ${{ steps.p.outputs.search }}
       widths: ${{ steps.p.outputs.widths }}
+      debug: ${{ steps.p.outputs.debug }}
     steps:
       - name: 'tip re-check'
         id: tip
@@ -131,13 +146,50 @@ jobs:
         with:
           mode: start
           label: site
-      - id: p
-        name: Plan the probe (engines, search, widths)
+      # The inputs of this run: a dispatch's own, or on a ci/* push the `[trajectory ...]` line of the head commit (Lean
+      # Fw.Ci.Trigger.pushProbe, twin .github/scripts/trajectory-line.mjs). A line that does not parse fails the job with its reason.
+      - id: in
+        name: Read the inputs (dispatch inputs or the commit line)
         env:
+          EVENT: ${{ github.event_name }}
+          HEAD_MSG: ${{ github.event.head_commit.message }}
           ENGINES: ${{ inputs.engines || 'both' }}
           FW: ${{ inputs.fw || '' }}
           PRESET: ${{ inputs.preset || '' }}
           WIDTHS: ${{ inputs.widths || '' }}
+        run: |
+          set -euo pipefail
+          node --test .github/scripts/trajectory-line.test.mjs  # the line parser equals Lean pushProbe
+          node .github/scripts/trajectory-line.mjs | tee -a "$GITHUB_OUTPUT"
+      - name: 'trajectory inputs: engines=${{ steps.in.outputs.engines }} fw=${{ steps.in.outputs.fw }} preset=${{ steps.in.outputs.preset }} widths=${{ steps.in.outputs.widths }} debug=${{ steps.in.outputs.debug }} (${{ steps.in.outputs.source }})'
+        env:
+          NONCE: ${{ inputs.nonce }}
+          IN_ENGINES: ${{ steps.in.outputs.engines }}
+          IN_FW: ${{ steps.in.outputs.fw }}
+          IN_PRESET: ${{ steps.in.outputs.preset }}
+          IN_WIDTHS: ${{ steps.in.outputs.widths }}
+          IN_DEBUG: ${{ steps.in.outputs.debug }}
+          IN_SOURCE: ${{ steps.in.outputs.source }}
+        run: |
+          set -euo pipefail
+          mkdir -p trajectory-inputs
+          jq -n --arg event "$GITHUB_EVENT_NAME" --arg sha "$GITHUB_SHA" --arg nonce "$NONCE" --arg engines "$IN_ENGINES" --arg fw "$IN_FW" --arg preset "$IN_PRESET" --arg widths "$IN_WIDTHS" --arg debug "$IN_DEBUG" --arg source "$IN_SOURCE" \
+            '{event:$event,sha:$sha,nonce:$nonce,engines:$engines,fw:$fw,preset:$preset,widths:$widths,debug:$debug,source:$source}' | tee trajectory-inputs/inputs.json
+          echo "inputs: engines=$IN_ENGINES fw=$IN_FW preset=$IN_PRESET widths=$IN_WIDTHS debug=$IN_DEBUG source=$IN_SOURCE sha=$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: trajectory-inputs
+          path: trajectory-inputs/inputs.json
+          if-no-files-found: error
+          retention-days: 3
+      - id: p
+        name: Plan the probe (engines, search, widths)
+        env:
+          ENGINES: ${{ steps.in.outputs.engines }}
+          FW: ${{ steps.in.outputs.fw }}
+          PRESET: ${{ steps.in.outputs.preset }}
+          WIDTHS: ${{ steps.in.outputs.widths }}
+          DEBUG: ${{ steps.in.outputs.debug }}
         run: |
           set -euo pipefail
           node --test .github/scripts/gate-search.test.mjs  # the search decision equals Fw.Gate.Search
@@ -159,6 +211,7 @@ jobs:
             echo "apple_n=$(echo "$plan" | jq '.apple.include | length')"
             echo "search=$search"
             echo "widths=$WIDTHS"
+            echo "debug=$DEBUG"
           } >> "$GITHUB_OUTPUT"
           echo "$engines search=$search widths=${WIDTHS:-all}"
           echo "$plan" | jq -c '.linux.include[], .apple.include[]'
@@ -256,10 +309,17 @@ jobs:
           # full = every property in every frame; lean = discrete props, m, logo rect and hero copy/cards during pushes (switch it
           # when the read-timing table shows reads dominate the frame; the setting is recorded in the artifact).
           READS: full
+          # The page recorder of the push commit line (`debug=`, Lean allowlist); empty = none, and then nothing in the page records.
+          FW_DEBUG: ${{ needs.site.outputs.debug }}
           # Rep count of the morph path (one empty tenth-bucket in a push is fail:coverage; more passes fill it).
           REPS: 5
         working-directory: packages/gate-breakpoints
         run: node src/trajectory/cli.mjs run --engine "$ENGINE" --widths "$WIDTHS" --search "$SEARCH" --paths "$PATHS" --reads "$READS" --reps "$REPS" --out out/trajectory
+      # The artifact's own name inside it: a download that matches ONE artifact puts the files in the target itself, without the
+      # artifact-name directory a download of several makes, and the merge job moves them back under their name from this file.
+      - name: Name the leg inside its artifact
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
+        run: echo "trajectory-leg-${{ matrix.engine }}-${{ matrix.leg }}" > packages/gate-breakpoints/out/trajectory/artifact-name.txt
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
         with:
@@ -390,6 +450,7 @@ jobs:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: trajectory-leg-${{ matrix.engine }}-*
+          merge-multiple: false
           path: legs
       - name: Join the legs and reduce
         env:
@@ -398,6 +459,14 @@ jobs:
         working-directory: packages/gate-breakpoints
         run: |
           set -euo pipefail
+          # Every leg lands in legs/<artifact name>/, also a run with ONE leg (one engine, one width): then the download put the
+          # files in legs/ itself (merge: no leg, runs 39519445950 and 39519469405), so move them under the name they carry.
+          legs="$GITHUB_WORKSPACE/legs"
+          if [ -f "$legs/artifact-name.txt" ]; then
+            n=$(cat "$legs/artifact-name.txt")
+            mkdir -p "$legs/$n"
+            find "$legs" -mindepth 1 -maxdepth 1 ! -name "$n" -exec mv {} "$legs/$n/" \;
+          fi
           dirs=$(find "$GITHUB_WORKSPACE/legs" -mindepth 1 -maxdepth 1 -type d -name "trajectory-leg-$ENGINE-*" | sort | paste -sd, -)
           echo "legs: $dirs"
           node src/trajectory/cli.mjs merge --in "$dirs" --engine "$ENGINE" --out out/trajectory
@@ -413,7 +482,7 @@ jobs:
   # the original, in the width legs of the plan (two). The Linux jobs above never wait for it and it never changes their verdicts.
   probe-apple:
     needs: [site]
-    if: ${{ github.event_name == 'workflow_dispatch' && needs.site.outputs.apple_n != '0' }}
+    if: ${{ (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[frames:')) || needs.site.outputs.debug != '') && needs.site.outputs.apple_n != '0' }}
     concurrency:
       group: ci-lane:trajectory-probe:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:probe-apple:${{ strategy.job-index }}
     runs-on: macos-26
@@ -465,28 +534,69 @@ jobs:
         timeout-minutes: 5
         run: node "$SMOKE" --engine "$ENGINE"
       - name: Walk the paths of this leg (all three arms, its widths) and reduce
+        if: ${{ !contains(github.event.head_commit.message, '[frames:') }}
         env:
           ENGINE: ${{ matrix.engine }}
           WIDTHS: ${{ matrix.widths }}
           PATHS: ${{ matrix.paths }}
           REPS: 5
+          FW_DEBUG: ${{ needs.site.outputs.debug }}
           SEARCH: ${{ needs.site.outputs.search }}
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
         working-directory: packages/gate-breakpoints
         run: node src/trajectory/cli.mjs run --engine "$ENGINE" --widths "$WIDTHS" --search "$SEARCH" --paths "$PATHS" --reads full --reps "$REPS" --out out/trajectory
+      - name: Name the leg inside its artifact
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' && !contains(github.event.head_commit.message, '[frames:') }}
+        run: echo "trajectory-leg-apple-${{ matrix.leg }}" > packages/gate-breakpoints/out/trajectory/artifact-name.txt
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' && !contains(github.event.head_commit.message, '[frames:') }}
         with:
           name: trajectory-leg-apple-${{ matrix.leg }}
           path: packages/gate-breakpoints/out/trajectory
+          if-no-files-found: error
+          retention-days: 30
+      # A push whose head commit carries `[frames:<part:variant>]` runs no walk here: this leg captures the nav band of the faithful
+      # rewrite and of that flag at its widths (src/trajectory/frames.mjs), by screenshots and by the screencast, and composes the
+      # strips. Review material for a person, no verdict; artifact frames-apple-<leg>.
+      - id: fs
+        name: The flag of the frames run (from the head commit message)
+        if: ${{ contains(github.event.head_commit.message, '[frames:') }}
+        env:
+          HEAD_MSG: ${{ github.event.head_commit.message }}
+        run: |
+          set -euo pipefail
+          fw=$(printf '%s' "$HEAD_MSG" | grep -oE '\[frames:[A-Za-z0-9.:,_@-]+\]' | head -1 | sed -E 's/^\[frames:(.*)\]$/\1/')
+          search=$(node .github/scripts/gate-search.mjs --fw "$fw" --preset '')
+          echo "search=$search" >> "$GITHUB_OUTPUT"
+          echo "frames search: $search"
+      - name: Capture the nav band through both pushes (screenshots, then the screencast), then compose the strips
+        if: ${{ contains(github.event.head_commit.message, '[frames:') }}
+        env:
+          ENGINE: ${{ matrix.engine }}
+          WIDTHS: ${{ matrix.widths }}
+          SEARCH: ${{ steps.fs.outputs.search }}
+          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
+          FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
+          RUN_ID: ${{ github.run_id }}
+        working-directory: packages/gate-breakpoints
+        run: |
+          set -euo pipefail
+          node src/trajectory/frames.mjs capture --engine "$ENGINE" --widths "$WIDTHS" --search "$SEARCH" --source screenshot --reps 3 --out out/frames/raw-screenshot
+          node src/trajectory/frames.mjs capture --engine "$ENGINE" --widths "$WIDTHS" --search "$SEARCH" --source screencast --reps 3 --out out/frames/raw-screencast
+          node src/trajectory/frames.mjs strips --in out/frames/raw-screenshot,out/frames/raw-screencast --out out/frames/strips --run "$RUN_ID"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' && contains(github.event.head_commit.message, '[frames:') }}
+        with:
+          name: frames-apple-${{ matrix.leg }}
+          path: packages/gate-breakpoints/out/frames
           if-no-files-found: error
           retention-days: 30
 
   # Joins the macOS legs into `trajectory-apple` (the artifact the recorder reads for the mac-webkit cells).
   merge-apple:
     needs: [site, probe-apple]
-    if: ${{ !cancelled() && needs.site.result == 'success' && needs.probe-apple.result != 'skipped' }}
+    if: ${{ !cancelled() && needs.site.result == 'success' && needs.probe-apple.result != 'skipped' && !contains(github.event.head_commit.message, '[frames:') }}
     concurrency:
       group: ci-lane:trajectory-probe:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:merge-apple:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
@@ -520,6 +630,7 @@ jobs:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: trajectory-leg-apple-*
+          merge-multiple: false
           path: legs
       - name: Join the legs and reduce
         env:
@@ -528,6 +639,14 @@ jobs:
         working-directory: packages/gate-breakpoints
         run: |
           set -euo pipefail
+          # Every leg lands in legs/<artifact name>/, also a run with ONE leg (one engine, one width): then the download put the
+          # files in legs/ itself (merge: no leg, runs 39519445950 and 39519469405), so move them under the name they carry.
+          legs="$GITHUB_WORKSPACE/legs"
+          if [ -f "$legs/artifact-name.txt" ]; then
+            n=$(cat "$legs/artifact-name.txt")
+            mkdir -p "$legs/$n"
+            find "$legs" -mindepth 1 -maxdepth 1 ! -name "$n" -exec mv {} "$legs/$n/" \;
+          fi
           dirs=$(find "$GITHUB_WORKSPACE/legs" -mindepth 1 -maxdepth 1 -type d -name "trajectory-leg-apple-*" | sort | paste -sd, -)
           echo "legs: $dirs"
           node src/trajectory/cli.mjs merge --in "$dirs" --engine "$ENGINE" --out out/trajectory

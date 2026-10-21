@@ -49,6 +49,7 @@ import Fw.Parts.HiddenPause
 import Fw.Parts.MorphMountOpt
 import Fw.Parts.MorphMountDormant
 import Fw.Parts.HeroExitOpt
+import Fw.Parts.HeroExitCloseStart
 import Fw.Parts.PainNotes
 import Fw.Parts.PainNotesGolden
 import Fw.Parts.PeopleDeck
@@ -64,11 +65,13 @@ import Fw.Measure.Classes
 import Fw.Measure.Quiet
 import Fw.Measure.Tolerance
 import Fw.Measure.WebKit
+import Fw.Measure.WebKitLag  -- webkit-lag-probe: scroll regions, paint attribution to parts, counter ranking
 import Fw.Measure.Retry
 import Fw.Measure.Viewport
 import Fw.Measure.SimPlan
 import Fw.Measure.SimBound
 import Fw.Measure.Compose
+import Fw.Measure.ImageArm  -- image-arm-v2: 1:1 reach of a drawn-size copy, the per-part decision, decoded saving
 import Fw.Measure.Wire
 import Fw.Ops.SpawnGuard
 import Fw.Ops.Wait
@@ -85,6 +88,7 @@ import Fw.Sched.Admit
 import Fw.Sched.ParMetrics
 import Fw.Sched.LakeSlot  -- lake-build-slots: slot pools and the thread bound of scripts/lake-slot.sh
 import Fw.Wire.Sched
+import Fw.Wire.SchedJson
 import Fw.Store.Layout
 import Fw.Store.Reduce
 import Fw.Wire.Store
@@ -111,6 +115,7 @@ import Fw.Guidance.Tasks
 import Fw.Guidance.Style
 import Fw.Guidance.Stability
 import Fw.Engine.Keys  -- model-checks: faithful run keys; a +search run never answers for the base
+import Fw.Engine.WebKitImage  -- image-audit: decode policy and the natural-pixels-times-repaints cost term
 import Fw.Ci.Wire  -- ghb-lean: Fw.Ci.Budget and the ci.budget.* ops
 import Fw.Plan.Lint  -- pa-evidence-lint: plan.lint
 import Fw.Obs.Next  -- obs-next-lean: next action per agent (obs.next)
@@ -120,6 +125,7 @@ import Fw.Obs.Stale  -- console-stale: a service whose inputs changed on main af
 import Fw.Obs.Signals -- obs-signals: agent state from transcript signals (obs.signals)
 import Fw.Obs.Fold  -- watch-incremental: transcript summaries as a fold, resume from saved state
 import Fw.Plan.Incident  -- incident-lint: plan.incidentLint
+import Fw.Plan.Overlap  -- spawn-write-overlap: plan.overlap
 import Fw.Plan.Workflow  -- workflow-claim: workflow runs as agent events
 import Fw.Obs.Timing  -- timing-lean: slow / structural verdicts over timing samples
 import Fw.Obs.Backoff  -- alert-rules-fix: wait or restart when an fwcore call misses its deadline
@@ -153,11 +159,13 @@ import Fw.Console.LandTier  -- land-lane: which checks run on the CI land lane (
 import Fw.Console.LandRemote  -- land-wait: provider-neutral remote land verdict (console.landRemote)
 import Fw.Console.ReconcileSched  -- console-reconcile-speed: reconcile request coalescing
 import Fw.Console.JournalFold  -- console-idle-cpu: journal cache, settled runs, safety tick
+import Fw.Console.Review  -- user-review-queue: pending look-change reviews as user steps
 import Fw.Console.LandPool -- land-pool-fair: fair-share floor under poolSize, wired into land.ts by console.landPool and console.landRetry
 import Fw.Land.RenderGuard  -- land-render-guard: refuse a land whose history writes a media file outside snapshot/ (console.landRenderGuard)
 import Fw.Ops.LedgerMerge  -- ledger-merge-driver: three-way id merge of the JSON ledgers (scripts/merge-ledger.mjs)
 import Fw.Ops.Cache  -- gate-speed-ci: cache soundness (cache_sound, key_complete)
 import Fw.Ops.LakeCache  -- site-build-cache: one Lake cache writer (cache_complete, rebuild_mono, table_complete)
+import Fw.Ops.Rebuild  -- fwcore-rebuild-fanout: the rebuild set of a stale Lake entry and its critical path
 import Fw.Site.GenRoute  -- site-build-cache: breakgen / sweepsgen split (split_agrees)
 import Fw.Site.Head
 import Fw.Gate.Schedule  -- gate-speed-ci: Graham bound and the gate job split
@@ -165,6 +173,9 @@ import Fw.Gate.Shard  -- gate-shard-balance: LPT shard plan over measured unit c
 import Fw.Gate.ShardObs  -- gate-shard-balance: observed jobs of a CI run, reduced to the cost table (ShardCosts)
 import Fw.Gate.Search  -- gate-preset-input: the search string of the gate rewrite arm from its fw and preset inputs
 import Fw.Gate.Trajectory  -- trajectory-probe: per-unit verdict of the rewrite against the original along a scroll path
+import Fw.Gate.Colour  -- kit-colour-space: every trajectory colour reading in sRGB x1000, the error budget the judge allows
+import Fw.Gate.RunPerm  -- scoped-gap-did: run-level permutation test of the close gap g, statistic and exact p
+import Fw.Gate.Frames  -- earn-look-review-webkit: when a frame strip is usable (>= 10 shots per arm)
 import Fw.Wire.ShardGolden  -- gate-shard-balance: golden/gate/shards.jsonl
 import Fw.Measure.WktrLayout  -- wktr-fixture-speed: lane layout, premise gate, fixture assertions
 import Fw.Measure.WktrVariance  -- wktr-serial-baseline: run-to-run variance of class kinds, findings, verdict

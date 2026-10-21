@@ -62,7 +62,7 @@ export function Explain({ row }: { row: CRow }) {
 }
 
 /** One part: its variants as a radio list (class badge, why-line) and the ledger rows that speak of the chosen variant. */
-export function PartCard({ part, chosen, rows, rules, onPick }: { part: CPart; chosen: string; rows: Record<string, CRow>; rules: Record<string, string>; onPick: (v: string) => void }) {
+export function PartCard({ part, chosen, rows, rules, onPick, reviewPending = [] }: { part: CPart; chosen: string; rows: Record<string, CRow>; rules: Record<string, string>; onPick: (v: string) => void; reviewPending?: string[] }) {
   const [open, setOpen] = useState(false);
   const cur = part.variants.find((v) => v.name === chosen) ?? part.variants[0]!;
   const cited = cur.rows.map((i) => rows[String(i)]).filter((r): r is CRow => !!r);
@@ -81,6 +81,7 @@ export function PartCard({ part, chosen, rows, rules, onPick }: { part: CPart; c
             <span className="flex flex-wrap items-center gap-2">
               <span className="font-mono">{v.name}</span>
               <Badge variant={BADGE[v.class] ?? "outline"}>{v.class}</Badge>
+              {reviewPending.includes(`${part.id}:${v.name}`) ? <Badge variant="secondary" data-testid="review-pending">look change, review pending</Badge> : null}
               {v.isDefault ? <span className="text-muted-foreground">default</span> : null}
             </span>
             <span className="min-w-0 break-words text-muted-foreground">{v.refusal ?? v.why}</span>
@@ -103,7 +104,7 @@ export function PartCard({ part, chosen, rows, rules, onPick }: { part: CPart; c
   );
 }
 
-export function ComposeView() {
+export function ComposeView({ reviewPending = [] }: { reviewPending?: string[] } = {}) {
   // `ans` is the reply and the query it answers. A reply of an older request is dropped, and the page treats a reply for another
   // query as stale (actions off) until the current one arrives.
   const [ans, setAns] = useState<{ d: CData; q: string } | null>(null);
@@ -149,16 +150,16 @@ export function ComposeView() {
 
   if (!ans) return <p className="text-muted-foreground">{msg ?? "Loading parts..."}</p>;
   return <ComposePanel d={ans.d} stale={!fresh} picks={picks} setPicks={setPicks} busy={busy} msg={msg} reasons={reasons}
-    opened={opened && opened.q === q ? opened.url : null} copied={copied} copyMsg={copyMsg} onOpen={(arm) => void open(arm)} onCopy={copy} />;
+    opened={opened && opened.q === q ? opened.url : null} copied={copied} copyMsg={copyMsg} reviewPending={reviewPending} onOpen={(arm) => void open(arm)} onCopy={copy} />;
 }
 
 export type PanelProps = {
   d: CData; stale?: boolean; picks: Picks; setPicks: (f: Picks | ((cur: Picks) => Picks)) => void; busy: boolean; msg: string | null; reasons: string[];
-  opened: string | null; copied: boolean; copyMsg?: string | null; onOpen: (arm: "r" | "compare") => void; onCopy?: () => void;
+  opened: string | null; copied: boolean; copyMsg?: string | null; onOpen: (arm: "r" | "compare") => void; onCopy?: () => void; reviewPending?: string[];
 };
 
 /** The page: presets, cards by region, and the bar with the generated search, the reasons and the Open actions. */
-export function ComposePanel({ d, stale = false, picks, setPicks, busy, msg, reasons, opened, copied, copyMsg = null, onOpen, onCopy }: PanelProps) {
+export function ComposePanel({ d, stale = false, picks, setPicks, busy, msg, reasons, opened, copied, copyMsg = null, onOpen, onCopy, reviewPending = [] }: PanelProps) {
   const dflt = (p: CPart) => p.variants.find((v) => v.isDefault)?.name ?? "faithful";
   const set = (p: CPart, v: string) => setPicks((cur) => { const n = { ...cur }; if (v === dflt(p)) delete n[p.id]; else n[p.id] = v; return n; });
   const preset = (c: CPreset) => setPicks(Object.fromEntries(c.picks.filter((x) => { const p = d.parts.find((y) => y.id === x.part); return p && dflt(p) !== x.variant; }).map((x) => [x.part, x.variant])));
@@ -181,7 +182,7 @@ export function ComposePanel({ d, stale = false, picks, setPicks, busy, msg, rea
         <section key={g.region} className="space-y-2" data-testid={`region-${g.region}`}>
           <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{g.region || "other"}</h3>
           <div className="grid gap-3 sm:grid-cols-2">
-            {g.parts.map((p) => <PartCard key={p.id} part={p} chosen={picks[p.id] ?? dflt(p)} rows={d.rows} rules={d.rules} onPick={(v) => set(p, v)} />)}
+            {g.parts.map((p) => <PartCard key={p.id} part={p} chosen={picks[p.id] ?? dflt(p)} rows={d.rows} rules={d.rules} reviewPending={reviewPending} onPick={(v) => set(p, v)} />)}
           </div>
         </section>
       ))}

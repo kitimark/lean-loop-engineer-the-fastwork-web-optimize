@@ -442,20 +442,23 @@ def judgeColour (core fw : List Samp) (r : Samp) : Verdict :=
   combine [matchOne .colour (core.map fun s => s.els.map Val.chan) (r.els.map Val.chan),
     judgeEls .colour (fw.map fun s => s.els.map Val.alpha) (r.els.map Val.alpha)]
 
-/-- **One rewrite sample.** `d` gives the property's transition per class set, `seg` is the original's whole path and
-`win` the window of `r`'s morph value or step (`none`: no counterpart).
+/-- Sample `o` is in the core of `r`'s transition read in `o`'s own pass. -/
+def isCoreIn (r o : Samp) : Bool := isCore { r with rep := o.rep } o
 
-A sample in flight is judged against `flightWindow`, a colour by `judgeColour`; with no original sample in that
-transition, against `win`. A sample at rest is judged against the settled readings `win` stands for (`settledRef`). -/
-def judgeUnit (k : Kind) (d : List String → Option Nat) (seg : List Samp) (win : Option (List Samp)) (r : Samp) :
-    Verdict :=
+/-- The `flightWindow` of `r`'s epoch read in every pass of `seg`, in order of the passes. -/
+def envelope (seg : List Samp) (r : Samp) : List Samp :=
+  (repsOf seg).flatMap fun q => flightWindow seg { r with rep := q }
+
+/-- One rewrite sample `r` against the original's samples `fw` of its transition, `core` marking their core, and against
+`win` at rest or when `fw` is empty. -/
+def judgeWith (k : Kind) (d : List String → Option Nat) (seg fw : List Samp) (core : Samp → Bool)
+    (win : Option (List Samp)) (r : Samp) : Verdict :=
   if inFlight d r then
-    let fw := flightWindow seg r
     if fw.isEmpty then
       match win with
       | none => .fail .coverage
       | some w => judgeEls k (w.map (·.els)) r.els
-    else if k == .colour then judgeColour (fw.filter (isCore r)) fw r
+    else if k == .colour then judgeColour (fw.filter core) fw r
     else judgeEls k (fw.map (·.els)) r.els
   else
     match win with
@@ -463,6 +466,31 @@ def judgeUnit (k : Kind) (d : List String → Option Nat) (seg : List Samp) (win
     | some w =>
       let ref := w.filterMap (settledRef d seg)
       if ref.isEmpty then .fail .coverage else judgeEls k (ref.map (·.els)) r.els
+
+/-- **One rewrite sample**: in flight against the `envelope` of its transition, at rest against the settled readings of
+`win`. -/
+def judgeUnit (k : Kind) (d : List String → Option Nat) (seg : List Samp) (win : Option (List Samp)) (r : Samp) :
+    Verdict :=
+  judgeWith k d seg (envelope seg r) (isCoreIn r) win r
+
+/-- One rewrite sample, in flight against the `flightWindow` of its own pass only. -/
+def judgeOwn (k : Kind) (d : List String → Option Nat) (seg : List Samp) (win : Option (List Samp)) (r : Samp) :
+    Verdict :=
+  judgeWith k d seg (flightWindow seg r) (isCore r) win r
+
+/-- The first sample of `r`'s epoch in the original's path `seg`. -/
+def startOf (seg : List Samp) (r : Samp) : Option Samp := seg.find? (inEpoch r)
+
+/-- Rewrite sample `r` is read within `startLag` of the first sample of its epoch in the original's pass. -/
+def atStart (seg : List Samp) (r : Samp) : Bool :=
+  match (startOf seg r).bind (·.since), r.since with
+  | some a, some b => decide (((a : Int) - b).natAbs ≤ startLag)
+  | _, _ => false
+
+/-- The rejected scope of the envelope: `judgeUnit` at the start of a transition, `judgeOwn` after it. -/
+def judgeScoped (k : Kind) (d : List String → Option Nat) (seg : List Samp) (win : Option (List Samp)) (r : Samp) :
+    Verdict :=
+  if atStart seg r then judgeUnit k d seg win r else judgeOwn k d seg win r
 
 #guard (rules.filter (applies · "nav" 1280 ["is-hero-pill"])).map (·.line) == [6, 41, 73, 78]
 #guard (rules.filter (applies · "nav" 390 ["is-hero-pill"])).map (·.line) == [6, 41, 73]
@@ -514,6 +542,35 @@ def judgeUnit (k : Kind) (d : List String → Option Nat) (seg : List Samp) (win
     ⟨none, some 5000, [.num [1]], 0, [], 0, 0⟩ == .fail .coverage &&
   judgeUnit .unit (fun _ => none) [] (some [⟨none, some 0, [.num [1]], 0, [], 0, 0⟩]) ⟨none, some 5000, [.num [1]], 0, [], 0, 0⟩ ==
     .pass
+#guard isCoreIn ⟨none, some 100, [], 0, [], 0, 1⟩ ⟨none, some 0, [], 1, [], 0, 1⟩ &&
+  !isCore ⟨none, some 100, [], 0, [], 0, 1⟩ ⟨none, some 0, [], 1, [], 0, 1⟩ &&
+  !isCoreIn ⟨none, some 100, [], 0, [], 0, 1⟩ ⟨none, some 0, [], 1, [], 0, 0⟩
+#guard (envelope [⟨none, some 900, [.num [0]], 0, [], 0, 0⟩, ⟨none, some 0, [.num [1]], 0, [], 0, 1⟩,
+    ⟨none, some 900, [.num [5]], 1, [], 0, 0⟩, ⟨none, some 0, [.num [6]], 1, [], 0, 1⟩]
+    ⟨none, some 100, [], 0, [], 0, 1⟩).map (·.els) == [[.num [0]], [.num [1]], [.num [5]], [.num [6]]]
+#guard judgeUnit .unit (fun _ => some 700) [⟨none, some 900, [.num [0]], 0, [], 0, 0⟩, ⟨none, some 0, [.num [1000]], 0, [], 0, 1⟩,
+    ⟨none, some 900, [.num [5000]], 1, [], 0, 0⟩, ⟨none, some 0, [.num [6000]], 1, [], 0, 1⟩] none
+    ⟨none, some 100, [.num [6000]], 0, [], 0, 1⟩ == .pass &&
+  judgeOwn .unit (fun _ => some 700) [⟨none, some 900, [.num [0]], 0, [], 0, 0⟩, ⟨none, some 0, [.num [1000]], 0, [], 0, 1⟩,
+    ⟨none, some 900, [.num [5000]], 1, [], 0, 0⟩, ⟨none, some 0, [.num [6000]], 1, [], 0, 1⟩] none
+    ⟨none, some 100, [.num [6000]], 0, [], 0, 1⟩ == .fail .apart &&
+  judgeUnit .unit (fun _ => some 700) [⟨none, some 900, [.num [0]], 0, [], 0, 0⟩, ⟨none, some 0, [.num [1000]], 0, [], 0, 1⟩,
+    ⟨none, some 900, [.num [5000]], 1, [], 0, 0⟩, ⟨none, some 0, [.num [6000]], 1, [], 0, 1⟩] none
+    ⟨none, some 100, [.num [9000]], 0, [], 0, 1⟩ == .fail .apart
+#guard judgeWith .unit (fun _ => some 700) [] [⟨none, some 0, [.num [1]], 0, [], 0, 0⟩] (fun _ => true) none
+    ⟨none, some 0, [.num [1]], 0, [], 0, 0⟩ == .pass &&
+  judgeWith .unit (fun _ => some 700) [] [] (fun _ => true) none ⟨none, some 0, [.num [1]], 0, [], 0, 0⟩ == .fail .coverage
+#guard startOf [⟨none, some 900, [], 0, [], 0, 0⟩, ⟨none, some 40, [], 0, [], 0, 1⟩, ⟨none, some 90, [], 0, [], 0, 1⟩]
+    ⟨none, some 300, [], 0, [], 0, 1⟩ == some ⟨none, some 40, [], 0, [], 0, 1⟩ &&
+  startOf [⟨none, some 40, [], 1, [], 0, 1⟩] ⟨none, some 300, [], 0, [], 0, 1⟩ == none
+#guard atStart [⟨none, some 40, [], 0, [], 0, 1⟩] ⟨none, some 240, [], 0, [], 0, 1⟩ &&
+  !atStart [⟨none, some 40, [], 0, [], 0, 1⟩] ⟨none, some 241, [], 0, [], 0, 1⟩ &&
+  !atStart [⟨none, some 40, [], 1, [], 0, 1⟩] ⟨none, some 40, [], 0, [], 0, 1⟩ &&
+  !atStart [⟨none, none, [], 0, [], 0, 1⟩] ⟨none, some 40, [], 0, [], 0, 1⟩
+#guard judgeScoped .unit (fun _ => some 700) [⟨none, some 0, [.num [1000]], 0, [], 0, 1⟩,
+    ⟨none, some 0, [.num [6000]], 1, [], 0, 1⟩] none ⟨none, some 100, [.num [6000]], 0, [], 0, 1⟩ == .pass &&
+  judgeScoped .unit (fun _ => some 700) [⟨none, some 0, [.num [1000]], 0, [], 0, 1⟩, ⟨none, some 300, [.num [1000]], 0, [], 0, 1⟩,
+    ⟨none, some 300, [.num [6000]], 1, [], 0, 1⟩] none ⟨none, some 300, [.num [6000]], 0, [], 0, 1⟩ == .fail .apart
 
 /-- The unit a morph value falls in: tenths of the morph, 0 to 10, and 11 for no morph value. -/
 def bucket (m : Option Int) : Nat :=
@@ -530,13 +587,49 @@ inductive Phase where
 /-- The buckets a push must have a rewrite sample in: 1 to 9, the interior of the tween. -/
 def needsSample (b : Nat) : Bool := decide (1 ≤ b) && decide (b ≤ 9)
 
-/-- The verdict of bucket `b`: the rewrite samples in it, each judged on its own (`judgeUnit`), combined.
+/-- The first sample of pass `q` in phase `p + 1` of `seg`. -/
+def headOf (seg : List Samp) (q p : Nat) : Option Samp := seg.find? fun o => o.rep == q && o.ph == p + 1
 
-A bucket of a push that needs a sample and has none is `fail coverage`; elsewhere an empty bucket is a skip. -/
+/-- The window of `r` in pass `q` of a push: the next hold's first row when `r` is settled, has that row's morph value
+and the push never sampled that value, else `windowOne`. -/
+def windowPass (d : List String → Option Nat) (seg orig : List Samp) (r : Samp) (q : Nat) : Option (List Samp) :=
+  match headOf seg q r.ph with
+  | some h =>
+    if r.m.isSome && !inFlight d r && h.m == r.m && !(passOf orig q).any (·.m == r.m) then some [h]
+    else windowOne (passOf orig q) r.m
+  | none => windowOne (passOf orig q) r.m
+
+/-- The window of rewrite sample `r` in phase `orig` of `seg`: per pass by `windowPass` in a push, `windowOf` in a hold. -/
+def windowAt (ph : Phase) (d : List String → Option Nat) (seg orig : List Samp) (r : Samp) : Option (List Samp) :=
+  if ph == .push then
+    match (repsOf orig).filterMap (windowPass d seg orig r) with
+    | [] => none
+    | ws => some ws.flatten
+  else windowOf orig r.m
+
+/-- The verdict of bucket `b`: the rewrite samples in it, each judged on its own against its `windowAt`, combined; an
+empty bucket is `fail coverage` in a push that needs a sample, else a skip. -/
 def bucketVerdict (ph : Phase) (k : Kind) (d : List String → Option Nat) (seg orig rew : List Samp) (b : Nat) : Verdict :=
   match rew.filter (fun r => bucket r.m == b) with
   | [] => if ph == .push && needsSample b then .fail .coverage else .skip .noSample
-  | rs => combine (rs.map fun r => judgeUnit k d seg (windowOf orig r.m) r)
+  | rs => combine (rs.map fun r => judgeUnit k d seg (windowAt ph d seg orig r) r)
+
+#guard headOf [⟨some 100, none, [], 0, [], 0, 0⟩, ⟨some 0, none, [.num [1]], 0, [], 1, 0⟩] 0 0 ==
+    some ⟨some 0, none, [.num [1]], 0, [], 1, 0⟩ &&
+  headOf [⟨some 100, none, [], 0, [], 0, 0⟩, ⟨some 0, none, [.num [1]], 0, [], 1, 0⟩] 1 0 == none
+#guard windowPass (fun _ => none) [⟨some 100, none, [], 0, [], 0, 0⟩, ⟨some 0, none, [.num [1]], 0, [], 1, 0⟩]
+    [⟨some 100, none, [], 0, [], 0, 0⟩] ⟨some 0, none, [], 0, [], 0, 0⟩ 0 == some [⟨some 0, none, [.num [1]], 0, [], 1, 0⟩] &&
+  windowPass (fun _ => some 700) [⟨some 100, none, [], 0, [], 0, 0⟩, ⟨some 0, none, [.num [1]], 0, [], 1, 0⟩]
+    [⟨some 100, none, [], 0, [], 0, 0⟩] ⟨some 0, some 0, [], 0, [], 0, 0⟩ 0 == some [⟨some 100, none, [], 0, [], 0, 0⟩] &&
+  windowPass (fun _ => none) [⟨some 0, none, [], 0, [], 0, 0⟩, ⟨some 0, none, [.num [1]], 0, [], 1, 0⟩]
+    [⟨some 0, none, [], 0, [], 0, 0⟩] ⟨some 0, none, [], 0, [], 0, 0⟩ 0 == some [⟨some 0, none, [], 0, [], 0, 0⟩] &&
+  windowPass (fun _ => none) [⟨some 100, none, [], 0, [], 0, 0⟩, ⟨some 50, none, [.num [1]], 0, [], 1, 0⟩]
+    [⟨some 100, none, [], 0, [], 0, 0⟩] ⟨some 0, none, [], 0, [], 0, 0⟩ 0 == some [⟨some 100, none, [], 0, [], 0, 0⟩]
+#guard windowAt .push (fun _ => none) [⟨some 100, none, [], 0, [], 0, 0⟩, ⟨some 0, none, [.num [1]], 0, [], 1, 0⟩]
+    [⟨some 100, none, [], 0, [], 0, 0⟩] ⟨some 0, none, [], 0, [], 0, 0⟩ == some [⟨some 0, none, [.num [1]], 0, [], 1, 0⟩] &&
+  windowAt .hold (fun _ => none) [⟨some 100, none, [], 0, [], 0, 0⟩, ⟨some 0, none, [.num [1]], 0, [], 1, 0⟩]
+    [⟨some 100, none, [], 0, [], 0, 0⟩] ⟨some 0, none, [], 0, [], 0, 0⟩ == some [⟨some 100, none, [], 0, [], 0, 0⟩] &&
+  windowAt .push (fun _ => none) [] [] ⟨some 0, none, [], 0, [], 0, 0⟩ == none
 
 /-- The verdicts of one (node, property) along phase `p` of the morph path, one per bucket 0 to 11. `oSeg` and `wSeg` are
 the two arms' whole paths, every phase in order, and `ph` says whether phase `p` is a push or a hold.
@@ -1185,6 +1278,192 @@ theorem judgeEls_self (k : Kind) (win : List (List Val)) (r : List Val) (hr : r 
     obtain ⟨w, hw, rfl⟩ := hv
     exact form_getD w r (hf w hw) i
 
+/-- The strings of a strings window are its readings. -/
+theorem strsOf_some_mem (w : List Val) (ss : List String) (h : strsOf w = some ss) (s : String) :
+    s ∈ ss ↔ Val.str s ∈ w := by
+  induction w generalizing ss with
+  | nil => simp [strsOf] at h; subst h; simp
+  | cons v rest ih =>
+    cases v with
+    | str t =>
+      cases hr : strsOf rest with
+      | none => simp [strsOf, hr] at h
+      | some ts =>
+        simp [strsOf, hr] at h; subst h; simp [ih ts hr]
+    | absent => simp [strsOf] at h
+    | num _ => simp [strsOf] at h
+
+/-- A window has no strings exactly when one reading is not a string. -/
+theorem strsOf_none_iff (w : List Val) : strsOf w = none ↔ ∃ v ∈ w, ∀ s, v ≠ .str s := by
+  induction w with
+  | nil => simp [strsOf]
+  | cons v rest ih =>
+    cases v with
+    | str t => simp [strsOf, ih]
+    | absent => simp [strsOf]
+    | num xs => simp [strsOf]
+
+/-- The numbers of a numbers window are its readings. -/
+theorem numsOf_some_mem (w : List Val) (ns : List (List Int)) (h : numsOf w = some ns) (xs : List Int) :
+    xs ∈ ns ↔ Val.num xs ∈ w := by
+  induction w generalizing ns with
+  | nil => simp [numsOf] at h; subst h; simp
+  | cons v rest ih =>
+    cases v with
+    | num ys =>
+      cases hr : numsOf rest with
+      | none => simp [numsOf, hr] at h
+      | some ts =>
+        simp [numsOf, hr] at h; subst h; simp [ih ts hr]
+    | absent => simp [numsOf] at h
+    | str _ => simp [numsOf] at h
+
+/-- A window has no numbers exactly when one reading is not numbers. -/
+theorem numsOf_none_iff (w : List Val) : numsOf w = none ↔ ∃ v ∈ w, ∀ xs, v ≠ .num xs := by
+  induction w with
+  | nil => simp [numsOf]
+  | cons v rest ih =>
+    cases v with
+    | num ys => simp [numsOf, ih]
+    | absent => simp [numsOf]
+    | str _ => simp [numsOf]
+
+/-- Lists with the same members have the same least member. -/
+theorem min?_congr (a b : List Int) (h : ∀ x, x ∈ a ↔ x ∈ b) : a.min? = b.min? := by
+  cases ha : a.min? with
+  | none =>
+    have : a = [] := List.min?_eq_none_iff.mp ha
+    subst this
+    have : b = [] := List.eq_nil_iff_forall_not_mem.mpr fun x hx => by simpa using (h x).2 hx
+    simp [this]
+  | some m =>
+    obtain ⟨h1, h2⟩ := List.min?_eq_some_iff.1 ha
+    exact (List.min?_eq_some_iff.2 ⟨(h m).1 h1, fun y hy => h2 y ((h y).2 hy)⟩).symm
+
+/-- Lists with the same members have the same greatest member. -/
+theorem max?_congr (a b : List Int) (h : ∀ x, x ∈ a ↔ x ∈ b) : a.max? = b.max? := by
+  cases ha : a.max? with
+  | none =>
+    have : a = [] := List.max?_eq_none_iff.mp ha
+    subst this
+    have : b = [] := List.eq_nil_iff_forall_not_mem.mpr fun x hx => by simpa using (h x).2 hx
+    simp [this]
+  | some m =>
+    obtain ⟨h1, h2⟩ := List.max?_eq_some_iff.1 ha
+    exact (List.max?_eq_some_iff.2 ⟨(h m).1 h1, fun y hy => h2 y ((h y).2 hy)⟩).symm
+
+/-- A band depends on the window's members only. -/
+theorem inBand_congr (t : Int) (a b : List (List Int)) (xs : List Int) (h : ∀ x, x ∈ a ↔ x ∈ b) :
+    inBand t a xs = inBand t b xs := by
+  unfold inBand
+  congr 1
+  funext j
+  have hc : ∀ x, x ∈ a.map (·.getD j 0) ↔ x ∈ b.map (·.getD j 0) := by
+    intro x; simp only [List.mem_map]; constructor
+    · rintro ⟨y, hy, rfl⟩; exact ⟨y, (h y).1 hy, rfl⟩
+    · rintro ⟨y, hy, rfl⟩; exact ⟨y, (h y).2 hy, rfl⟩
+  simp only [min?_congr _ _ hc, max?_congr _ _ hc]
+
+/-- `all` depends on the list's members only. -/
+theorem all_congr_mem {α} (a b : List α) (h : ∀ x, x ∈ a ↔ x ∈ b) (p : α → Bool) : a.all p = b.all p :=
+  Bool.eq_iff_iff.mpr (by simp only [List.all_eq_true, h])
+
+/-- `any` depends on the list's members only. -/
+theorem any_congr_mem {α} (a b : List α) (h : ∀ x, x ∈ a ↔ x ∈ b) (p : α → Bool) : a.any p = b.any p :=
+  Bool.eq_iff_iff.mpr (by simp only [List.any_eq_true, h])
+
+/-- Lists with the same members are both empty or both not. -/
+theorem isEmpty_congr_mem {α} (a b : List α) (h : ∀ x, x ∈ a ↔ x ∈ b) : a.isEmpty = b.isEmpty := by
+  cases a <;> cases b
+  · rfl
+  · rename_i y _; simpa using (h y).2 (List.mem_cons_self ..)
+  · rename_i y _; simpa using (h y).1 (List.mem_cons_self ..)
+  · rfl
+
+/-- One element's verdict depends on the window's members only. -/
+theorem judgeVal_congr (k : Kind) (a b : List Val) (r : Val) (h : ∀ x, x ∈ a ↔ x ∈ b) :
+    judgeVal k a r = judgeVal k b r := by
+  unfold judgeVal
+  rw [isEmpty_congr_mem a b h]
+  cases r with
+  | absent => rw [all_congr_mem a b h]
+  | str s =>
+    rw [any_congr_mem a b h]
+    cases ha : strsOf a <;> cases hb : strsOf b
+    · rfl
+    · obtain ⟨v, hv, hn⟩ := (strsOf_none_iff a).1 ha
+      have := (strsOf_none_iff b).2 ⟨v, (h v).1 hv, hn⟩
+      simp [this] at hb
+    · obtain ⟨v, hv, hn⟩ := (strsOf_none_iff b).1 hb
+      have := (strsOf_none_iff a).2 ⟨v, (h v).2 hv, hn⟩
+      simp [this] at ha
+    · rename_i ss ts
+      have : ss.contains s = ts.contains s := Bool.eq_iff_iff.mpr (by
+        simp only [List.contains_iff_mem, strsOf_some_mem a ss ha, strsOf_some_mem b ts hb, h])
+      simp only [this]
+  | num xs =>
+    rw [any_congr_mem a b h]
+    cases ha : numsOf a <;> cases hb : numsOf b
+    · rfl
+    · obtain ⟨v, hv, hn⟩ := (numsOf_none_iff a).1 ha
+      have := (numsOf_none_iff b).2 ⟨v, (h v).1 hv, hn⟩
+      simp [this] at hb
+    · obtain ⟨v, hv, hn⟩ := (numsOf_none_iff b).1 hb
+      have := (numsOf_none_iff a).2 ⟨v, (h v).2 hv, hn⟩
+      simp [this] at ha
+    · rename_i ss ts
+      have hm : ∀ x, x ∈ ss ↔ x ∈ ts := fun x => by
+        rw [numsOf_some_mem a ss ha, numsOf_some_mem b ts hb, h]
+      have hc : ss.contains xs = ts.contains xs := Bool.eq_iff_iff.mpr (by
+        simp only [List.contains_iff_mem, hm])
+      simp only [any_congr_mem ss ts hm, hc, inBand_congr _ ss ts xs hm]
+
+/-- A node's verdict depends on the window's members only. -/
+theorem judgeEls_congr (k : Kind) (a b : List (List Val)) (r : List Val) (h : ∀ x, x ∈ a ↔ x ∈ b) :
+    judgeEls k a r = judgeEls k b r := by
+  unfold judgeEls
+  rw [isEmpty_congr_mem a b h, any_congr_mem a b h]
+  congr 3
+  apply List.map_congr_left
+  intro i _
+  apply judgeVal_congr
+  intro x; simp only [List.mem_map]; constructor
+  · rintro ⟨y, hy, rfl⟩; exact ⟨y, (h y).1 hy, rfl⟩
+  · rintro ⟨y, hy, rfl⟩; exact ⟨y, (h y).2 hy, rfl⟩
+
+/-- Appending verdicts already in the list keeps the combined verdict. -/
+theorem combine_append_sub (vs ws : List Verdict) (h : ∀ w ∈ ws, w ∈ vs) : combine (vs ++ ws) = combine vs := by
+  unfold combine
+  rw [List.find?_append]
+  cases hf : vs.find? (fun v => match v with | .fail _ => true | _ => false) with
+  | some f => rfl
+  | none =>
+    have hw : ws.find? (fun v => match v with | .fail _ => true | _ => false) = none := by
+      rw [List.find?_eq_none] at hf ⊢
+      exact fun w hw => hf w (h w hw)
+    have : (vs ++ ws).any (· == .pass) = vs.any (· == .pass) :=
+      any_congr_mem _ _ (fun x => by simp only [List.mem_append]; exact ⟨fun h' => h'.elim id (h x), Or.inl⟩) _
+    simp only [Option.none_or, this]
+    split
+    · rename_i f hfw
+      rw [List.find?_eq_none] at hw
+      have := List.mem_of_find?_eq_some hfw
+      have := List.find?_some hfw
+      have := hw f (by assumption)
+      contradiction
+    · rfl
+
+/-- Appending readings already in the list keeps `matchOne`'s verdict. -/
+theorem matchOne_append_sub (k : Kind) (a b : List (List Val)) (r : List Val) (h : ∀ x ∈ b, x ∈ a) :
+    matchOne k (a ++ b) r = matchOne k a r := by
+  unfold matchOne
+  simp only [List.map_append]
+  have hs : ∀ w ∈ b.map (fun w => judgeEls k [w] r), w ∈ a.map (fun w => judgeEls k [w] r) := by
+    intro w hw; simp only [List.mem_map] at hw ⊢; obtain ⟨x, hx, rfl⟩ := hw; exact ⟨x, h x hx, rfl⟩
+  rw [combine_append_sub _ _ hs,
+    any_congr_mem _ (a.map fun w => judgeEls k [w] r) (fun x => by
+      simp only [List.mem_append]; exact ⟨fun h' => h'.elim id (hs x), Or.inl⟩)]
+
 /-- A sample in flight has a `since`. -/
 theorem inFlight_iff (d : List String → Option Nat) (s : Samp) :
     inFlight d s = true ↔ ∃ t x, d s.cls = some t ∧ s.since = some x ∧ x < t + startLag := by
@@ -1337,26 +1616,55 @@ theorem judgeColour_self (core fw : List Samp) (r : Samp) (hc : r ∈ core) (hw 
       obtain ⟨x, hx, rfl⟩ := he
       exact map_alpha_form _ _ (hf x hx)
 
-/-- **(a) One unit.** A rewrite sample that is a sample of the original, in its own window `w` of samples of the original,
-never fails, in flight or not, when every sample of the original shares its form. -/
-theorem judgeUnit_self (k : Kind) (d : List String → Option Nat) (seg w : List Samp) (r : Samp) (hr : r ∈ seg)
+/-- `r` moved to its own pass is `r`. -/
+theorem with_rep_self (r : Samp) : { r with rep := r.rep } = r := rfl
+
+/-- A sample of the envelope is a sample of the window of `r`'s transition in the sample's own pass, and back. -/
+theorem mem_envelope (seg : List Samp) (r x : Samp) :
+    x ∈ envelope seg r ↔ x ∈ flightWindow seg { r with rep := x.rep } := by
+  unfold envelope
+  simp only [List.mem_flatMap]
+  constructor
+  · rintro ⟨q, _, hx⟩
+    have hq := (flightWindow_sub seg _ x hx).2
+    simp only at hq
+    rw [hq]; exact hx
+  · intro hx
+    refine ⟨x.rep, ?_, hx⟩
+    have := (flightWindow_sub seg _ x hx).1
+    simp only [repsOf, List.mem_eraseDups, List.mem_map]
+    exact ⟨x, this, rfl⟩
+
+/-- The envelope holds only samples of the original. -/
+theorem envelope_sub (seg : List Samp) (r x : Samp) (h : x ∈ envelope seg r) : x ∈ seg :=
+  (flightWindow_sub seg _ x ((mem_envelope seg r x).1 h)).1
+
+/-- A sample of the original with a `since` is in the envelope of its own transition. -/
+theorem mem_envelope_self (seg : List Samp) (r : Samp) (hr : r ∈ seg) (hs : r.since.isSome) : r ∈ envelope seg r :=
+  (mem_envelope seg r r).2 (mem_flightWindow_self seg r hr hs)
+
+/-- On its own pass `isCoreIn` is `isCore`. -/
+theorem isCoreIn_own (r o : Samp) (h : o.rep = r.rep) : isCoreIn r o = isCore r o := by
+  unfold isCoreIn; rw [h]
+
+/-- **(a) One rewrite sample, for any transition window.** A sample of the original, in its own window `w` and, when in
+flight, in `fw` and its `core`, never fails when `fw`, `w` and the original share its form. -/
+theorem judgeWith_self (k : Kind) (d : List String → Option Nat) (seg fw : List Samp) (core : Samp → Bool)
+    (w : List Samp) (r : Samp) (hfw : inFlight d r = true → r ∈ fw ∧ core r = true) (hsub : ∀ x ∈ fw, x ∈ seg)
     (hrw : r ∈ w) (hw : ∀ x ∈ w, x ∈ seg) (hf : ∀ x ∈ seg, x.form = r.form) :
-    isFail (judgeUnit k d seg (some w) r) = false := by
-  unfold judgeUnit
+    isFail (judgeWith k d seg fw core (some w) r) = false := by
+  unfold judgeWith
   split
   · rename_i hfl
-    have hs : r.since.isSome := by
-      obtain ⟨_, x, _, hx, _⟩ := (inFlight_iff d r).1 hfl
-      simp [hx]
-    have hin := mem_flightWindow_self seg r hr hs
-    have hne : (flightWindow seg r).isEmpty = false := by
-      cases h : flightWindow seg r with
+    obtain ⟨hin, hc⟩ := hfw hfl
+    have hne : fw.isEmpty = false := by
+      cases h : fw with
       | nil => simp [h] at hin
       | cons _ _ => rfl
-    have hsub : ∀ x ∈ flightWindow seg r, x.form = r.form := fun x hx => hf x (flightWindow_sub seg r x hx).1
+    have hsub : ∀ x ∈ fw, x.form = r.form := fun x hx => hf x (hsub x hx)
     simp only [hne, Bool.false_eq_true, ↓reduceIte]
     split
-    · exact judgeColour_self _ _ r (List.mem_filter.mpr ⟨hin, isCore_self r hs⟩) hin hsub
+    · exact judgeColour_self _ _ r (List.mem_filter.mpr ⟨hin, hc⟩) hin hsub
     · apply judgeEls_self
       · exact List.mem_map.mpr ⟨r, hin, rfl⟩
       · intro e he
@@ -1381,6 +1689,107 @@ theorem judgeUnit_self (k : Kind) (d : List String → Option Nat) (seg w : List
       rcases settledRef_mem d seg y x hxy with h1 | h1
       · rw [h1]; exact hw y hy
       · exact h1.1
+
+/-- **(a) One unit.** A rewrite sample that is a sample of the original, in its own window `w` of samples of the original,
+never fails, in flight or not, when every sample of the original shares its form. -/
+theorem judgeUnit_self (k : Kind) (d : List String → Option Nat) (seg w : List Samp) (r : Samp) (hr : r ∈ seg)
+    (hrw : r ∈ w) (hw : ∀ x ∈ w, x ∈ seg) (hf : ∀ x ∈ seg, x.form = r.form) :
+    isFail (judgeUnit k d seg (some w) r) = false := by
+  apply judgeWith_self k d seg _ _ w r _ (envelope_sub seg r) hrw hw hf
+  intro hfl
+  have hs : r.since.isSome := by
+    obtain ⟨_, x, _, hx, _⟩ := (inFlight_iff d r).1 hfl
+    simp [hx]
+  exact ⟨mem_envelope_self seg r hr hs, by rw [isCoreIn_own r r rfl]; exact isCore_self r hs⟩
+
+/-- A list of copies of `L`, one per member of a non-empty `qs`, has the members of `L`. -/
+theorem mem_flatMap_const {α β} (qs : List α) (L : List β) (hq : qs ≠ []) (x : β) :
+    x ∈ qs.flatMap (fun _ => L) ↔ x ∈ L := by
+  cases qs with
+  | nil => exact absurd rfl hq
+  | cons q qs => simp only [List.mem_flatMap, List.mem_cons]; exact ⟨fun ⟨_, _, h⟩ => h, fun h => ⟨q, Or.inl rfl, h⟩⟩
+
+/-- **The old rule as the agreeing case.** When every pass's window of `r`'s transition reads, sample for sample, the
+readings and core of `r`'s own pass, the envelope judges `r` as its own pass does. -/
+theorem judgeUnit_agree (k : Kind) (d : List String → Option Nat) (seg : List Samp) (win : Option (List Samp)) (r : Samp)
+    (h : ∀ q ∈ repsOf seg, (flightWindow seg { r with rep := q }).map (fun o => (o.els, isCoreIn r o)) =
+      (flightWindow seg r).map (fun o => (o.els, isCoreIn r o))) :
+    judgeUnit k d seg win r = judgeOwn k d seg win r := by
+  let g : Samp → List Val × Bool := fun o => (o.els, isCoreIn r o)
+  have hA : (envelope seg r).map g = (repsOf seg).flatMap (fun _ => (flightWindow seg r).map g) := by
+    unfold envelope
+    rw [List.map_flatMap]
+    generalize repsOf seg = qs at h ⊢
+    induction qs with
+    | nil => rfl
+    | cons q qs ih =>
+      simp only [List.flatMap_cons]
+      rw [h q (List.mem_cons_self ..), ih (fun q' h' => h q' (List.mem_cons_of_mem _ h'))]
+  have hcore : ((flightWindow seg r).filter (isCore r)) = (flightWindow seg r).filter (isCoreIn r) :=
+    List.filter_congr fun o ho => (isCoreIn_own r o (flightWindow_sub seg r o ho).2).symm
+  have hview : ∀ (l : List Samp) (f : List Val → List Val),
+      (l.filter (isCoreIn r)).map (fun s => f s.els) = ((l.map g).filter (·.2)).map (fun p => f p.1) := by
+    intro l f
+    simp only [List.filter_map, List.map_map]
+    rfl
+  have hels : ∀ (l : List Samp) (f : List Val → List Val), l.map (fun s => f s.els) = (l.map g).map (fun p => f p.1) := by
+    intro l f; simp [g]
+  unfold judgeUnit judgeOwn judgeWith
+  by_cases hfl : inFlight d r
+  · simp only [hfl, ↓reduceIte]
+    by_cases hown : flightWindow seg r = []
+    · have he : envelope seg r = [] := by
+        have : (envelope seg r).map g = [] := by rw [hA, hown]; simp
+        simpa using this
+      simp [hown, he]
+    · obtain ⟨o, ho⟩ := List.exists_mem_of_ne_nil _ hown
+      have hq : repsOf seg ≠ [] := by
+        intro hq
+        have := (flightWindow_sub seg r o ho).1
+        have h2 : o.rep ∈ repsOf seg := by simp only [repsOf, List.mem_eraseDups, List.mem_map]; exact ⟨o, this, rfl⟩
+        simp [hq] at h2
+      have hmem : ∀ x, x ∈ (envelope seg r).map g ↔ x ∈ (flightWindow seg r).map g := by
+        intro x; rw [hA]; exact mem_flatMap_const _ _ hq x
+      have he : envelope seg r ≠ [] := by
+        intro he
+        have := (hmem (g o)).2 (List.mem_map_of_mem ho)
+        simp [he] at this
+      have he1 : (envelope seg r).isEmpty = false := by simpa using he
+      have he2 : (flightWindow seg r).isEmpty = false := by simpa using hown
+      have hmapf : ∀ f : List Val → List Val, ∀ x,
+          x ∈ (envelope seg r).map (fun s => f s.els) ↔ x ∈ (flightWindow seg r).map (fun s => f s.els) := by
+        intro f x
+        rw [hels, hels]
+        constructor
+        · intro hx; obtain ⟨p, hp, rfl⟩ := List.mem_map.1 hx; exact List.mem_map.2 ⟨p, (hmem p).1 hp, rfl⟩
+        · intro hx; obtain ⟨p, hp, rfl⟩ := List.mem_map.1 hx; exact List.mem_map.2 ⟨p, (hmem p).2 hp, rfl⟩
+      simp only [he1, he2, Bool.false_eq_true, ↓reduceIte]
+      split
+      · unfold judgeColour
+        have ha : judgeEls .colour ((envelope seg r).map fun s => s.els.map Val.alpha) (r.els.map Val.alpha) =
+            judgeEls .colour ((flightWindow seg r).map fun s => s.els.map Val.alpha) (r.els.map Val.alpha) :=
+          judgeEls_congr _ _ _ _ (hmapf _)
+        have hc : matchOne .colour (((envelope seg r).filter (isCoreIn r)).map fun s => s.els.map Val.chan)
+              (r.els.map Val.chan) =
+            matchOne .colour (((flightWindow seg r).filter (isCore r)).map fun s => s.els.map Val.chan)
+              (r.els.map Val.chan) := by
+          rw [hview, hcore, hview, hA]
+          obtain ⟨q0, qs, hqs⟩ : ∃ q0 qs, repsOf seg = q0 :: qs := by
+            cases hr : repsOf seg with
+            | nil => exact absurd hr hq
+            | cons q0 qs => exact ⟨q0, qs, rfl⟩
+          rw [hqs, List.flatMap_cons, List.filter_append, List.map_append]
+          apply matchOne_append_sub
+          intro x hx
+          obtain ⟨p, hp, rfl⟩ := List.mem_map.1 hx
+          obtain ⟨hp1, hp2⟩ := List.mem_filter.1 hp
+          obtain ⟨_, _, hp3⟩ := List.mem_flatMap.1 hp1
+          exact List.mem_map.2 ⟨p, List.mem_filter.2 ⟨hp3, hp2⟩, rfl⟩
+        rw [ha, hc]
+      · rw [show (envelope seg r).map (·.els) = (envelope seg r).map (fun s => id s.els) from rfl,
+          show (flightWindow seg r).map (·.els) = (flightWindow seg r).map (fun s => id s.els) from rfl]
+        exact judgeEls_congr _ _ _ _ (hmapf id)
+  · simp [hfl]
 
 /-- A step of a list with distinct steps is found at its own entry. -/
 theorem find_step (orig : List (String × Samp)) (hn : (orig.map (·.1)).Nodup) (s : String) (o : Samp)
@@ -1497,6 +1906,114 @@ theorem windowOf_self (orig : List Samp) (r : Samp) (hr : r ∈ orig) (hm : ∀ 
   | none => simp [hw] at h2
   | some w => exact ⟨w, rfl, by simpa [hw] using h2⟩
 
+/-- The next hold's first row of pass `q` is a sample of the path, of pass `q`, in phase `p + 1`. -/
+theorem headOf_mem (seg : List Samp) (q p : Nat) (h : Samp) (hh : headOf seg q p = some h) :
+    h ∈ seg ∧ h.rep = q ∧ h.ph = p + 1 := by
+  unfold headOf at hh
+  have h1 := List.mem_of_find?_eq_some hh
+  have h2 := List.find?_some hh
+  simp only [Bool.and_eq_true, beq_iff_eq] at h2
+  exact ⟨h1, h2.1, h2.2⟩
+
+/-- Branch head: a settled value the push of pass `q` never sampled that the next hold's first row has is judged
+against that row. -/
+theorem windowPass_head (d : List String → Option Nat) (seg orig : List Samp) (r : Samp) (q : Nat) (h : Samp) (hh : headOf seg q r.ph = some h)
+    (hm : r.m.isSome) (hd : inFlight d r = false) (he : h.m = r.m) (hn : (passOf orig q).any (·.m == r.m) = false) :
+    windowPass d seg orig r q = some [h] := by
+  simp [windowPass, hh, hm, hd, he, hn]
+
+/-- Branch sampled: a value the push of pass `q` sampled is aligned by `windowOne`. -/
+theorem windowPass_sampled (d : List String → Option Nat) (seg orig : List Samp) (r : Samp) (q : Nat) (hs : (passOf orig q).any (·.m == r.m) = true) :
+    windowPass d seg orig r q = windowOne (passOf orig q) r.m := by
+  unfold windowPass; split <;> simp [hs]
+
+/-- Branch other value: a value the next hold's first row does not have is aligned by `windowOne`. -/
+theorem windowPass_other (d : List String → Option Nat) (seg orig : List Samp) (r : Samp) (q : Nat) (h : Samp) (hh : headOf seg q r.ph = some h)
+    (he : h.m ≠ r.m) : windowPass d seg orig r q = windowOne (passOf orig q) r.m := by
+  simp [windowPass, hh, he]
+
+/-- Branch in flight: a value in flight is aligned by `windowOne`. -/
+theorem windowPass_in_flight (d : List String → Option Nat) (seg orig : List Samp) (r : Samp) (q : Nat) (hd : inFlight d r = true) :
+    windowPass d seg orig r q = windowOne (passOf orig q) r.m := by
+  unfold windowPass; split <;> simp [hd]
+
+/-- Branch no hold: with no next hold in pass `q`, the value is aligned by `windowOne`. -/
+theorem windowPass_no_head (d : List String → Option Nat) (seg orig : List Samp) (r : Samp) (q : Nat) (hh : headOf seg q r.ph = none) :
+    windowPass d seg orig r q = windowOne (passOf orig q) r.m := by
+  simp [windowPass, hh]
+
+/-- A hold keeps `windowOf`. -/
+theorem windowAt_hold (d : List String → Option Nat) (seg orig : List Samp) (r : Samp) : windowAt .hold d seg orig r = windowOf orig r.m := by
+  simp [windowAt]
+
+/-- **The old window as a case.** When no pass takes the head branch, a push's window is `windowOf`. -/
+theorem windowAt_old (ph : Phase) (d : List String → Option Nat) (seg orig : List Samp) (r : Samp)
+    (h : ∀ q ∈ repsOf orig, windowPass d seg orig r q = windowOne (passOf orig q) r.m) :
+    windowAt ph d seg orig r = windowOf orig r.m := by
+  unfold windowAt windowOf
+  have hf : (repsOf orig).filterMap (windowPass d seg orig r) =
+      (repsOf orig).filterMap (fun q => windowOne (passOf orig q) r.m) := by
+    generalize repsOf orig = qs at h ⊢
+    induction qs with
+    | nil => rfl
+    | cons q qs ih =>
+      simp only [List.filterMap_cons]
+      rw [h q (List.mem_cons_self ..), ih (fun q' h' => h q' (List.mem_cons_of_mem _ h'))]
+  cases ph <;> simp [hf]
+
+/-- A window holds only samples of the phase or of the path. -/
+theorem windowAt_sub (ph : Phase) (d : List String → Option Nat) (seg orig : List Samp) (r x : Samp) (h : x ∈ (windowAt ph d seg orig r).getD []) :
+    x ∈ orig ∨ x ∈ seg := by
+  unfold windowAt at h
+  cases ph with
+  | hold =>
+    left
+    have := windowOne_sub _ _ _ ((windowOf_pass_iff orig r.m x).mp (by simpa using h))
+    exact (List.mem_filter.mp this).1
+  | push =>
+    simp only [↓reduceIte, beq_self_eq_true] at h
+    split at h
+    · simp at h
+    · simp only [Option.getD_some, List.mem_flatten] at h
+      obtain ⟨w, hw, hxw⟩ := h
+      obtain ⟨q, _, hq⟩ := List.mem_filterMap.mp hw
+      unfold windowPass at hq
+      split at hq
+      · rename_i hd hhd
+        split at hq
+        · cases hq
+          right
+          exact (headOf_mem seg q r.ph hd hhd).1 |> fun h' => by simpa [List.mem_singleton.mp hxw] using h'
+        · left
+          have := windowOne_sub _ _ _ (by rw [hq]; exact hxw)
+          exact (List.mem_filter.mp this).1
+      · left
+        have := windowOne_sub _ _ _ (by rw [hq]; exact hxw)
+        exact (List.mem_filter.mp this).1
+
+/-- A sample of a phase whose samples all have a morph value has a window, and is in it. -/
+theorem windowAt_self (ph : Phase) (d : List String → Option Nat) (seg orig : List Samp) (r : Samp) (hr : r ∈ orig) (hm : ∀ s ∈ orig, s.m.isSome) :
+    ∃ w, windowAt ph d seg orig r = some w ∧ r ∈ w := by
+  cases ph with
+  | hold => rw [windowAt_hold]; exact windowOf_self orig r hr hm
+  | push =>
+    have hp : r ∈ passOf orig r.rep := by simp [passOf, hr]
+    have hs : (passOf orig r.rep).any (·.m == r.m) = true := List.any_eq_true.mpr ⟨r, hp, by simp⟩
+    have h1 := windowOne_self (passOf orig r.rep) r hp
+      (fun s hs' => hm s (by simp only [passOf, List.mem_filter] at hs'; exact hs'.1))
+    obtain ⟨w, hw, hrw⟩ : ∃ w, windowOne (passOf orig r.rep) r.m = some w ∧ r ∈ w := by
+      cases hw : windowOne (passOf orig r.rep) r.m with
+      | none => simp [hw] at h1
+      | some w => exact ⟨w, rfl, by simpa [hw] using h1⟩
+    have hq : r.rep ∈ repsOf orig := by simp only [repsOf, List.mem_eraseDups, List.mem_map]; exact ⟨r, hr, rfl⟩
+    have hin : w ∈ (repsOf orig).filterMap (windowPass d seg orig r) :=
+      List.mem_filterMap.mpr ⟨r.rep, hq, by rw [windowPass_sampled d seg orig r r.rep hs, hw]⟩
+    unfold windowAt
+    simp only [beq_self_eq_true, ↓reduceIte]
+    split
+    · rename_i hn; rw [hn] at hin; simp at hin
+    · exact ⟨_, rfl, List.mem_flatten.mpr ⟨w, hin, hrw⟩⟩
+
 /-- **(a) on the morph path.** An arm whose samples are the original's never fails a bucket it has a sample in, in flight
 or not, when every sample of the original has a morph value, the phase's samples are samples of the whole path, and the
 path's samples share a form. -/
@@ -1514,14 +2031,12 @@ theorem bucketVerdict_self (ph : Phase) (k : Kind) (d : List String → Option N
     simp only [List.mem_map] at hv
     obtain ⟨r, hr, rfl⟩ := hv
     have hro : r ∈ orig := by rw [← hfl] at hr; exact (List.mem_filter.mp hr).1
-    obtain ⟨w, hw, hrw⟩ := windowOf_self orig r hro hm
+    obtain ⟨w, hw, hrw⟩ := windowAt_self ph d seg orig r hro hm
     rw [hw]
     apply judgeUnit_self k d seg w r (ho r hro) hrw
     · intro x hx
-      have hx' : x ∈ (windowOf orig r.m).getD [] := by simp [hw, hx]
-      have := windowOne_sub _ _ _ ((windowOf_pass_iff orig r.m x).mp hx')
-      simp only [passOf, List.mem_filter] at this
-      exact ho x this.1
+      have hx' : x ∈ (windowAt ph d seg orig r).getD [] := by simp [hw, hx]
+      exact (windowAt_sub ph d seg orig r x hx').elim (ho x) id
     · intro x hx
       exact hf x hx r (ho r hro)
 
@@ -1573,35 +2088,35 @@ theorem durOf_values :
     durOf "actions" "gap" 1280 [] = some 680 ∧ durOf "actions" "gap" 1280 ["is-morphing"] = none ∧
     durOf "logo" "color" 1280 [] = some 240 ∧ durOf "nav" "border-radius" 1280 [] = none := by decide
 
-/-- Branch in flight, no original sample in the transition, no counterpart: `fail coverage`. -/
+/-- Branch in flight, no original sample in the transition in any pass, no counterpart: `fail coverage`. -/
 theorem judgeUnit_flight_uncovered (k : Kind) (d : List String → Option Nat) (seg : List Samp) (r : Samp)
-    (hfl : inFlight d r = true) (he : flightWindow seg r = []) : judgeUnit k d seg none r = .fail .coverage := by
-  simp [judgeUnit, hfl, he]
+    (hfl : inFlight d r = true) (he : envelope seg r = []) : judgeUnit k d seg none r = .fail .coverage := by
+  simp [judgeUnit, judgeWith, hfl, he]
 
-/-- Branch in flight, no original sample in the transition: the rewrite sample is judged against its window `w`. -/
+/-- Branch in flight, no original sample in the transition in any pass: the rewrite sample is judged against `w`. -/
 theorem judgeUnit_flight_fallback (k : Kind) (d : List String → Option Nat) (seg w : List Samp) (r : Samp)
-    (hfl : inFlight d r = true) (he : flightWindow seg r = []) :
+    (hfl : inFlight d r = true) (he : envelope seg r = []) :
     judgeUnit k d seg (some w) r = judgeEls k (w.map (·.els)) r.els := by
-  simp [judgeUnit, hfl, he]
+  simp [judgeUnit, judgeWith, hfl, he]
 
-/-- Branch in flight, a colour: the channels against the core, the alpha against the transition's window. -/
+/-- Branch in flight, a colour: the channels against the envelope's core, the alpha against the envelope. -/
 theorem judgeUnit_flight_colour (d : List String → Option Nat) (seg : List Samp) (win : Option (List Samp)) (r : Samp)
-    (hfl : inFlight d r = true) (hne : flightWindow seg r ≠ []) :
-    judgeUnit .colour d seg win r = judgeColour ((flightWindow seg r).filter (isCore r)) (flightWindow seg r) r := by
-  have : (flightWindow seg r).isEmpty = false := by cases h : flightWindow seg r <;> simp_all
-  simp [judgeUnit, hfl, this]
+    (hfl : inFlight d r = true) (hne : envelope seg r ≠ []) :
+    judgeUnit .colour d seg win r = judgeColour ((envelope seg r).filter (isCoreIn r)) (envelope seg r) r := by
+  have : (envelope seg r).isEmpty = false := by cases h : envelope seg r <;> simp_all
+  simp [judgeUnit, judgeWith, hfl, this]
 
-/-- Branch in flight, not a colour: the rewrite sample against the original's samples of the same transition. -/
+/-- Branch in flight, not a colour: the rewrite sample against the envelope of its transition. -/
 theorem judgeUnit_flight_els (k : Kind) (d : List String → Option Nat) (seg : List Samp) (win : Option (List Samp))
-    (r : Samp) (hk : k ≠ .colour) (hfl : inFlight d r = true) (hne : flightWindow seg r ≠ []) :
-    judgeUnit k d seg win r = judgeEls k ((flightWindow seg r).map (·.els)) r.els := by
-  have : (flightWindow seg r).isEmpty = false := by cases h : flightWindow seg r <;> simp_all
-  simp [judgeUnit, hfl, this, hk]
+    (r : Samp) (hk : k ≠ .colour) (hfl : inFlight d r = true) (hne : envelope seg r ≠ []) :
+    judgeUnit k d seg win r = judgeEls k ((envelope seg r).map (·.els)) r.els := by
+  have : (envelope seg r).isEmpty = false := by cases h : envelope seg r <;> simp_all
+  simp [judgeUnit, judgeWith, hfl, this, hk]
 
 /-- Branch at rest, no counterpart: `fail coverage`. -/
 theorem judgeUnit_settled_uncovered (k : Kind) (d : List String → Option Nat) (seg : List Samp) (r : Samp)
     (hfl : inFlight d r = false) : judgeUnit k d seg none r = .fail .coverage := by
-  simp [judgeUnit, hfl]
+  simp [judgeUnit, judgeWith, hfl]
 
 /-- **(b) A settled rewrite sample.** At rest, the rewrite sample is judged against the settled readings its window
 stands for, whatever the original's samples are; `fail coverage` when the original never settled there. Each of those
@@ -1611,8 +2126,17 @@ theorem judgeUnit_settled (k : Kind) (d : List String → Option Nat) (seg w : L
     judgeUnit k d seg (some w) r =
       if (w.filterMap (settledRef d seg)).isEmpty then .fail .coverage
       else judgeEls k ((w.filterMap (settledRef d seg)).map (·.els)) r.els := by
-  simp [judgeUnit, hfl]
+  simp [judgeUnit, judgeWith, hfl]
 
+/-- Branch at the start of the transition: `judgeScoped` is `judgeUnit`. -/
+theorem judgeScoped_start (k : Kind) (d : List String → Option Nat) (seg : List Samp) (win : Option (List Samp))
+    (r : Samp) (h : atStart seg r = true) : judgeScoped k d seg win r = judgeUnit k d seg win r := by
+  simp [judgeScoped, h]
+
+/-- Branch after the start of the transition: `judgeScoped` is `judgeOwn`. -/
+theorem judgeScoped_later (k : Kind) (d : List String → Option Nat) (seg : List Samp) (win : Option (List Samp))
+    (r : Samp) (h : atStart seg r = false) : judgeScoped k d seg win r = judgeOwn k d seg win r := by
+  simp [judgeScoped, h]
 /-- The transition of the nav's background at 1280 px, by class set. -/
 def bgDur : List String → Option Nat := durOf "nav" "background-color" 1280
 
@@ -1769,11 +2293,12 @@ theorem judgeEls_outside (k : Kind) (win : List (List Val)) (r : List Val) (i j 
       obtain ⟨w, hw, hwy⟩ := hy
       exact h w hw ys hwy
 
-/-- **(c) in flight**, not a colour: outside the band of the original's samples of the same transition fails. -/
+/-- **(c) in flight**, not a colour: beyond the samples of the transition in every pass of the original
+(`mem_envelope`) fails. -/
 theorem judgeUnit_flight_outside (k : Kind) (d : List String → Option Nat) (seg : List Samp) (win : Option (List Samp))
     (r : Samp) (i j : Nat) (xs : List Int) (hk : k ≠ .colour) (hfl : inFlight d r = true)
-    (hne : flightWindow seg r ≠ []) (hi : i < r.els.length) (hr : r.els.getD i .absent = .num xs) (hj : j < xs.length)
-    (ho : Outside (tol k) i j r.els.length xs.length (xs.getD j 0) ((flightWindow seg r).map (·.els))) :
+    (hne : envelope seg r ≠ []) (hi : i < r.els.length) (hr : r.els.getD i .absent = .num xs) (hj : j < xs.length)
+    (ho : Outside (tol k) i j r.els.length xs.length (xs.getD j 0) ((envelope seg r).map (·.els))) :
     isFail (judgeUnit k d seg win r) = true := by
   rw [judgeUnit_flight_els k d seg win r hk hfl hne]
   exact judgeEls_outside k _ r.els i j xs hi hr hj (by simpa using hne) ho
@@ -1795,27 +2320,28 @@ theorem getD_map_absent (f : Val → Val) (hf : f .absent = .absent) (l : List V
   simp only [List.getD_eq_getElem?_getD, List.getElem?_map]
   cases l[i]? <;> simp [hf]
 
-/-- **(c) for a colour in flight, a channel**: red, green or blue outside the band of every core sample fails. -/
+/-- **(c) for a colour in flight, a channel**: red, green or blue outside the band of every core sample of every
+pass fails. -/
 theorem judgeUnit_colour_chan_outside (d : List String → Option Nat) (seg : List Samp) (win : Option (List Samp))
-    (r : Samp) (i j : Nat) (xs : List Int) (hfl : inFlight d r = true) (hc : ∃ o ∈ flightWindow seg r, isCore r o)
+    (r : Samp) (i j : Nat) (xs : List Int) (hfl : inFlight d r = true) (hc : ∃ o ∈ envelope seg r, isCoreIn r o)
     (hi : i < r.els.length) (hr : r.els.getD i .absent = .num xs) (hj : j < 3) (hjx : j < xs.length)
     (ho : Outside (tol .colour) i j r.els.length xs.length (xs.getD j 0)
-      (((flightWindow seg r).filter (isCore r)).map (·.els))) :
+      (((envelope seg r).filter (isCoreIn r)).map (·.els))) :
     isFail (judgeUnit .colour d seg win r) = true := by
   obtain ⟨o0, ho0, hc0⟩ := hc
-  have hne : flightWindow seg r ≠ [] := by intro h; simp [h] at ho0
+  have hne : envelope seg r ≠ [] := by intro h; simp [h] at ho0
   rw [judgeUnit_flight_colour d seg win r hfl hne]
   unfold judgeColour
   apply combine_fail_of_mem
   refine ⟨_, List.mem_cons_self .., ?_⟩
   have htake : ∀ ys : List Int, (ys.take 3).getD j 0 = ys.getD j 0 := by
     intro ys; simp [List.getD_eq_getElem?_getD, hj]
-  have hall : ∀ w ∈ ((flightWindow seg r).filter (isCore r)).map fun s => s.els.map Val.chan,
+  have hall : ∀ w ∈ ((envelope seg r).filter (isCoreIn r)).map fun s => s.els.map Val.chan,
       isFail (judgeEls .colour [w] (r.els.map Val.chan)) = true := by
     intro w hw
     simp only [List.mem_map] at hw
     obtain ⟨s, hs, rfl⟩ := hw
-    have hs' : s.els ∈ ((flightWindow seg r).filter (isCore r)).map (·.els) := List.mem_map_of_mem hs
+    have hs' : s.els ∈ ((envelope seg r).filter (isCoreIn r)).map (·.els) := List.mem_map_of_mem hs
     obtain ⟨hlen, ys, hys, hyl⟩ := ho.1 _ hs'
     apply judgeEls_outside .colour _ _ i j (xs.take 3) (by simpa using hi)
       (by rw [getD_map_absent _ rfl, hr]; rfl) (by simp; omega) (by simp)
@@ -1835,7 +2361,7 @@ theorem judgeUnit_colour_chan_outside (d : List String → Option Nat) (seg : Li
         rw [htake]; exact h _ hs' ys hys
   unfold matchOne
   dsimp only
-  have hany : ((((flightWindow seg r).filter (isCore r)).map fun s => s.els.map Val.chan).map
+  have hany : ((((envelope seg r).filter (isCoreIn r)).map fun s => s.els.map Val.chan).map
       fun w => judgeEls .colour [w] (r.els.map Val.chan)).any (fun v => !isFail v) = false := by
     rw [List.any_eq_false]
     intro v hv
@@ -1845,14 +2371,14 @@ theorem judgeUnit_colour_chan_outside (d : List String → Option Nat) (seg : Li
     simp [this]
   simp only [hany, Bool.false_eq_true, ↓reduceIte]
   apply combine_fail_of_mem
-  have hcore : o0 ∈ (flightWindow seg r).filter (isCore r) := List.mem_filter.mpr ⟨ho0, hc0⟩
+  have hcore : o0 ∈ (envelope seg r).filter (isCoreIn r) := List.mem_filter.mpr ⟨ho0, hc0⟩
   exact ⟨_, List.mem_map_of_mem (List.mem_map_of_mem hcore), hall _ (List.mem_map_of_mem hcore)⟩
 
-/-- **(c) for a colour in flight, the alpha**: an alpha outside the band of the transition's window fails. -/
+/-- **(c) for a colour in flight, the alpha**: an alpha beyond the transition's samples in every pass fails. -/
 theorem judgeUnit_colour_alpha_outside (d : List String → Option Nat) (seg : List Samp) (win : Option (List Samp))
-    (r : Samp) (i : Nat) (xs : List Int) (hfl : inFlight d r = true) (hne : flightWindow seg r ≠ [])
+    (r : Samp) (i : Nat) (xs : List Int) (hfl : inFlight d r = true) (hne : envelope seg r ≠ [])
     (hi : i < r.els.length) (hr : r.els.getD i .absent = .num xs) (hx : 3 < xs.length)
-    (ho : Outside (tol .colour) i 3 r.els.length xs.length (xs.getD 3 0) ((flightWindow seg r).map (·.els))) :
+    (ho : Outside (tol .colour) i 3 r.els.length xs.length (xs.getD 3 0) ((envelope seg r).map (·.els))) :
     isFail (judgeUnit .colour d seg win r) = true := by
   rw [judgeUnit_flight_colour d seg win r hfl hne]
   unfold judgeColour
@@ -1884,6 +2410,120 @@ theorem judgeUnit_colour_alpha_outside (d : List String → Option Nat) (seg : L
       rw [getD_map_absent _ rfl, hys] at hz
       cases hz
       rw [hdrop]; exact h _ (List.mem_map_of_mem hs) ys hys
+
+/-- `Outside` a window is `Outside` every part of it. -/
+theorem Outside.sub {t : Int} {i j n len : Nat} {x : Int} {win win' : List (List Val)}
+    (h : Outside t i j n len x win) (hs : ∀ w ∈ win', w ∈ win) : Outside t i j n len x win' := by
+  refine ⟨fun w hw => h.1 w (hs w hw), ?_⟩
+  rcases h.2 with h2 | h2
+  · exact Or.inl fun w hw => h2 w (hs w hw)
+  · exact Or.inr fun w hw => h2 w (hs w hw)
+
+/-- `Outside` the readings of `seg` is `Outside` the readings of any samples of `seg`. -/
+theorem Outside.samps {t : Int} {i j n len : Nat} {x : Int} {seg : List Samp}
+    (h : Outside t i j n len x (seg.map (·.els))) (L : List Samp) (hL : ∀ s ∈ L, s ∈ seg) :
+    Outside t i j n len x (L.map (·.els)) :=
+  h.sub fun w hw => by
+    obtain ⟨s, hs, rfl⟩ := List.mem_map.mp hw
+    exact List.mem_map_of_mem (hL s hs)
+
+/-- A component `Outside` the window never passes; an empty window is a skip. -/
+theorem judgeEls_outside_not_pass (k : Kind) (win : List (List Val)) (r : List Val) (i j : Nat) (xs : List Int)
+    (hi : i < r.length) (hr : r.getD i .absent = .num xs) (hj : j < xs.length)
+    (ho : Outside (tol k) i j r.length xs.length (xs.getD j 0) win) : judgeEls k win r ≠ .pass := by
+  cases win with
+  | nil => simp [judgeEls]
+  | cons w ws =>
+    have := judgeEls_outside k (w :: ws) r i j xs hi hr hj (by simp) ho
+    intro h; rw [h] at this; simp [isFail] at this
+
+/-- A core sample of `r`'s pass is in the window of `r`'s transition. -/
+theorem mem_flightWindow_core (seg : List Samp) (r o : Samp) (ho : o ∈ seg) (hrep : o.rep = r.rep)
+    (hc : isCore r o = true) : o ∈ flightWindow seg r := by
+  have hp : o ∈ passOf seg r.rep := by simp [passOf, ho, hrep]
+  obtain ⟨i, hi, hpi⟩ := List.mem_iff_getElem.mp hp
+  have hcore : i ∈ (List.range (passOf seg r.rep).length).filter
+      (fun i => ((passOf seg r.rep)[i]?.map (isCore r)).getD false) := by
+    simp [hi, hpi, hc]
+  have hep : inEpoch r o = true := by simp only [isCore, Bool.and_eq_true] at hc; exact hc.1.1
+  unfold flightWindow
+  simp only
+  split
+  · rename_i he
+    exact absurd hcore (by rw [List.isEmpty_iff.mp he]; simp)
+  · simp only [List.mem_filterMap, List.mem_range]
+    refine ⟨i, hi, ?_⟩
+    simp only [List.getElem?_eq_getElem hi, hpi, Option.bind_some]
+    split
+    · rfl
+    · rename_i hn
+      refine absurd ?_ hn
+      rw [Bool.or_eq_true]; right
+      simp only [hep, Bool.true_and, Bool.and_eq_true, List.any_eq_true, decide_eq_true_eq]
+      exact ⟨⟨i, hcore, Nat.le_refl _⟩, ⟨i, hcore, Nat.le_succ _⟩⟩
+
+/-- A non-empty transition window has a core sample. -/
+theorem flightWindow_core (seg : List Samp) (r : Samp) (hne : flightWindow seg r ≠ []) :
+    ∃ o ∈ flightWindow seg r, isCore r o = true := by
+  unfold flightWindow at hne
+  simp only at hne
+  split at hne
+  · exact absurd rfl hne
+  · rename_i hce
+    obtain ⟨c, hcl, hcc⟩ : ∃ x, x < (passOf seg r.rep).length ∧
+        (Option.map (isCore r) (passOf seg r.rep)[x]?).getD false = true := by simpa using hce
+    rw [List.getElem?_eq_getElem hcl] at hcc
+    simp only [Option.map_some, Option.getD_some] at hcc
+    have hm := List.getElem_mem hcl
+    simp only [passOf, List.mem_filter, beq_iff_eq] at hm
+    exact ⟨_, mem_flightWindow_core seg r _ hm.1 hm.2 hcc, hcc⟩
+
+/-- A non-empty envelope has a core sample in its own pass. -/
+theorem envelope_core (seg : List Samp) (r : Samp) (hne : envelope seg r ≠ []) :
+    ∃ o ∈ envelope seg r, isCoreIn r o = true := by
+  obtain ⟨x, hx⟩ := List.exists_mem_of_ne_nil _ hne
+  have hx' := (mem_envelope seg r x).1 hx
+  obtain ⟨o, ho, hc⟩ := flightWindow_core seg _ (List.ne_nil_of_mem hx')
+  have hrep : o.rep = x.rep := (flightWindow_sub seg _ o ho).2
+  refine ⟨o, (mem_envelope seg r o).2 (by rw [hrep]; exact ho), ?_⟩
+  unfold isCoreIn; rw [hrep]; exact hc
+
+/-- **Soundness.** A component more than the tolerance beyond every reading of the original's whole path `seg` never
+passes, when the window `win` holds samples of `seg` (as `windowAt` does, `windowAt_sub`); for a colour, a channel or
+the alpha. -/
+theorem judgeUnit_sound (k : Kind) (d : List String → Option Nat) (seg : List Samp) (win : Option (List Samp))
+    (r : Samp) (i j : Nat) (xs : List Int) (hk : k = .colour → j ≤ 3) (hw : ∀ w, win = some w → ∀ x ∈ w, x ∈ seg)
+    (hi : i < r.els.length) (hr : r.els.getD i .absent = .num xs) (hj : j < xs.length)
+    (ho : Outside (tol k) i j r.els.length xs.length (xs.getD j 0) (seg.map (·.els))) :
+    judgeUnit k d seg win r ≠ .pass := by
+  have hnp : ∀ v, isFail v = true → v ≠ .pass := by intro v h e; subst e; simp [isFail] at h
+  cases hfl : inFlight d r
+  · cases win with
+    | none => rw [judgeUnit_settled_uncovered k d seg r hfl]; simp
+    | some w =>
+      by_cases he : w.filterMap (settledRef d seg) = []
+      · rw [judgeUnit_settled k d seg w r hfl]; simp [he]
+      · refine hnp _ (judgeUnit_settled_outside k d seg w r i j xs hfl he hi hr hj (ho.samps _ ?_))
+        intro s hs
+        obtain ⟨w0, hw0, he0⟩ := List.mem_filterMap.mp hs
+        rcases settledRef_mem d seg w0 s he0 with rfl | ⟨h, _⟩
+        · exact hw w rfl _ hw0
+        · exact h
+  · by_cases he : envelope seg r = []
+    · cases win with
+      | none => rw [judgeUnit_flight_uncovered k d seg r hfl he]; simp
+      | some w =>
+        rw [judgeUnit_flight_fallback k d seg w r hfl he]
+        exact judgeEls_outside_not_pass k _ r.els i j xs hi hr hj (ho.samps w (hw w rfl))
+    · by_cases hc : k = .colour
+      · subst hc
+        rcases Nat.lt_or_eq_of_le (hk rfl) with hj3 | hj3
+        · exact hnp _ (judgeUnit_colour_chan_outside d seg win r i j xs hfl (envelope_core seg r he) hi hr hj3 hj
+            (ho.samps _ fun s hs => envelope_sub seg r s (List.mem_filter.mp hs).1))
+        · subst hj3
+          exact hnp _ (judgeUnit_colour_alpha_outside d seg win r i xs hfl he hi hr hj
+            (ho.samps _ (envelope_sub seg r)))
+      · exact hnp _ (judgeUnit_flight_outside k d seg win r i j xs hc hfl he hi hr hj (ho.samps _ (envelope_sub seg r)))
 
 /-- The lane fails when one unit fails, and only then. -/
 theorem laneFails_iff (vs : List Verdict) : laneFails vs = true ↔ ∃ v ∈ vs, isFail v = true := by
@@ -2748,6 +3388,108 @@ def bgSeg : List Samp :=
     sc 0 0 [] none 300 1 [.num [1000, 0, 0, 50000]], sc 0 0 [] none 500 1 [.num [1000, 0, 0, 30000]],
     sc 0 0 [] none 5000 1 [.num [255000, 255000, 255000, 26000]]]
 
+/-- `bgSeg` and a second pass whose transition starts from another red, `[5000, 0, 0]`. -/
+def bgSeg2 : List Samp :=
+  bgSeg ++ [sc 1 0 [] none 5000 0 [.num [255000, 255000, 255000, 122400]], sc 1 0 [] none 100 1 [.num [5000, 0, 0, 90000]],
+    sc 1 0 [] none 300 1 [.num [5000, 0, 0, 50000]], sc 1 0 [] none 5000 1 [.num [255000, 255000, 255000, 26000]]]
+
+/-- **Every pass's start.** A rewrite in pass 0 that starts where the original's pass 1 started passes, and fails
+against pass 0 alone. -/
+theorem judgeUnit_other_start :
+    judgeUnit .colour (durFn bgDurOf) bgSeg2 none (sc 0 0 [] none 100 1 [.num [5000, 0, 0, 90000]]) = .pass ∧
+      judgeOwn .colour (durFn bgDurOf) bgSeg2 none (sc 0 0 [] none 100 1 [.num [5000, 0, 0, 90000]]) = .fail .apart := by
+  decide
+
+/-- **Pure colour over two passes.** Pure red in flight fails against the envelope of both passes. -/
+theorem judgeUnit_red_two_passes :
+    judgeUnit .colour (durFn bgDurOf) bgSeg2 none (sc 0 0 [] none 300 1 [.num [255000, 0, 0, 50000]]) = .fail .apart := by
+  decide
+
+/-- `boxRamp` read in passes 0 and 1. -/
+def boxRamp2 (rev : Bool) : List Samp := boxRamp rev [] ++ (boxRamp rev []).map fun s => { s with rep := 1 }
+
+/-- **The reversed curve over two passes fails in flight.** -/
+theorem byM_reversed_two_passes :
+    (byM .push 0 .geometry (durFn boxDur) (boxRamp2 false) (boxRamp2 true)).getD 2 (2, .pass) = (2, .fail .apart) := by
+  decide
+
+/-- `boxSeg` read in a hold, at morph value 0. -/
+def boxHold : List Samp := boxSeg.map fun s => { s with ph := 1, m := some 0 }
+
+/-- A rewrite sample of pass 1, a pass `boxHold` lacks, still at the start box 400 ms into the transition. -/
+def stuckHold : Samp := sc 1 1 [] (some 0) 400 0 [.num [0, 0, 400000, 64000]]
+
+/-- **Scope rejected: a stuck value.** Past the start `judgeScoped` falls back to the hold's pooled window and passes a
+box stuck at its start value; the envelope fails it. -/
+theorem judgeScoped_stuck_hold :
+    judgeScoped .geometry (durFn boxDur) boxHold (windowAt .hold (durFn boxDur) boxHold boxHold stuckHold) stuckHold =
+      .pass ∧
+    judgeUnit .geometry (durFn boxDur) boxHold (windowAt .hold (durFn boxDur) boxHold boxHold stuckHold) stuckHold =
+      .fail .apart := by
+  decide
+
+/-- A rewrite sample of pass 0 on the curve of `bgSeg2`'s pass 1, 500 ms into the transition. -/
+def otherCurve : Samp := sc 0 0 [] none 500 1 [.num [5000, 0, 0, 30000]]
+
+/-- **Scope rejected: start jitter.** A pass that keeps another pass's start red passes the envelope and fails
+`judgeScoped`, which judges it against its own pass past the start. -/
+theorem judgeScoped_other_curve :
+    judgeUnit .colour (durFn bgDurOf) bgSeg2 none otherCurve = .pass ∧
+      judgeScoped .colour (durFn bgDurOf) bgSeg2 none otherCurve = .fail .apart := by
+  decide
+
+/-- **The mutations fail under the envelope**: pure red and pure green in flight over two passes, the reversed curve at
+the start and late in the transition over two passes and in one, a stale class, a stuck value pooled over passes in a
+push and stuck in a hold. -/
+theorem judgeUnit_mutations :
+    judgeUnit .colour (durFn bgDurOf) bgSeg2 none (sc 0 0 [] none 300 1 [.num [255000, 0, 0, 50000]]) = .fail .apart ∧
+    judgeUnit .colour (durFn bgDurOf) bgSeg2 none (sc 0 0 [] none 300 1 [.num [0, 255000, 0, 50000]]) = .fail .apart ∧
+    (byM .push 0 .geometry (durFn boxDur) (boxRamp2 false) (boxRamp2 true)).getD 2 (2, .pass) = (2, .fail .apart) ∧
+    (byM .push 0 .geometry (durFn boxDur) (boxRamp2 false) (boxRamp2 true)).getD 7 (7, .pass) = (7, .fail .apart) ∧
+    (byM .push 0 .geometry rectDur (rectRamp false) (rectRamp true)).getD 2 (2, .pass) = (2, .fail .apart) ∧
+    (byM .push 0 .discrete atRest [sm 8000 [.str "off"], sm 8500 [.str "off"], sm 9000 [.str "off"], sm 9300 [.str "on"],
+        sm 9400 [.str "on"], sm 9500 [.str "on"], sm 9600 [.str "on"], sm 9700 [.str "on"], sm 9900 [.str "on"]]
+      [sm 9500 [.str "off"]]).getD 10 (10, .skip .noSample) = (10, .fail .differs) ∧
+    (byM .push 0 .discrete atRest (ramp 0 ++ ramp 1 ++ ramp 2) [smr 0 5000 [.num [0]]]).getD 5 (5, .pass) =
+      (5, .fail .differs) ∧
+    judgeUnit .geometry (durFn boxDur) boxHold (windowAt .hold (durFn boxDur) boxHold boxHold stuckHold) stuckHold =
+      .fail .apart :=
+  ⟨judgeUnit_red_two_passes, by decide, byM_reversed_two_passes, by decide, byM_reversed_in_flight, byM_stale_class,
+    byM_pooled_stuck, judgeScoped_stuck_hold.2⟩
+
+/-- A push of a class from 1.0 to `last`, reading `on` until the last sample, which reads `v`. -/
+def endPush (last : Int) (v : String) : List Samp :=
+  ((List.range 10).map fun (i : Nat) => sm (10000 - 1000 * i) [.str "on"]) ++ [sm last [.str v]]
+
+/-- The hold after `endPush`: two rows at 0 reading `off`. -/
+def endHold : List Samp := [⟨some 0, none, [.str "off"], 0, [], 1, 0⟩, ⟨some 0, none, [.str "off"], 0, [], 1, 0⟩]
+
+/-- **(b) A settled end of a push.** A rewrite reading `off` at 0, a value the original's push never sampled, passes
+against the hold's first row; reading `on` there fails. -/
+theorem byM_settled_push_end :
+    (byM .push 0 .discrete atRest (endPush 140 "on" ++ endHold) (endPush 0 "off" ++ endHold)).getD 0 (0, .skip .noSample) =
+      (0, .pass) ∧
+    (byM .push 0 .discrete atRest (endPush 140 "on" ++ endHold) (endPush 0 "on" ++ endHold)).getD 0 (0, .skip .noSample) =
+      (0, .fail .differs) := by
+  decide
+
+/-- A push that sampled 0 keeps its own window there. -/
+theorem byM_sampled_push_end :
+    (byM .push 0 .discrete atRest (endPush 0 "on" ++ endHold) (endPush 0 "off" ++ endHold)).getD 0 (0, .skip .noSample) =
+      (0, .fail .differs) := by
+  decide
+
+/-- `endPush` whose last sample, at 0, reads `v` 100 ms into its transition. -/
+def endPushIn (v : String) : List Samp := (endPush 140 "on").dropLast ++ [⟨some 0, some 100, [.str v], 0, [], 0, 0⟩]
+
+/-- A rewrite sample in flight at the end of a push keeps `windowOne`: reading `on` passes, reading `off` fails. -/
+theorem byM_in_flight_push_end :
+    (byM .push 0 .discrete (durFn bgDurOf) (endPush 140 "on" ++ endHold) (endPushIn "on" ++ endHold)).getD 0
+        (0, .skip .noSample) = (0, .pass) ∧
+    (byM .push 0 .discrete (durFn bgDurOf) (endPush 140 "on" ++ endHold) (endPushIn "off" ++ endHold)).getD 0
+        (0, .skip .noSample) = (0, .fail .differs) := by
+  decide
+
 /-- The golden cases of transitions in flight: the table, epochs, each branch of `judgeUnit`, the reversed curve, and the
 morph and step paths. -/
 def casesFlight : List Case :=
@@ -2765,9 +3507,10 @@ def casesFlight : List Case :=
   .unit "in flight, inside" .geometry boxDur boxSeg none (sc 0 0 [] none 300 0 [.num [0, 0, 560000, 64000]]),
   .unit "in flight, outside" .geometry boxDur boxSeg none (sc 0 0 [] none 300 0 [.num [0, 0, 760000, 64000]]),
   .unit "in flight, reversed value" .geometry boxDur boxSeg none (sc 0 0 [] none 100 0 [.num [0, 0, 750000, 64000]]),
-  .unit "in flight, other pass" .geometry boxDur boxSeg (some [sc 1 0 [] none 300 0 [.num [0, 0, 760000, 64000]]])
+  .unit "in flight, a pass the original lacks, beyond pass 0" .geometry boxDur boxSeg
+    (some [sc 1 0 [] none 300 0 [.num [0, 0, 760000, 64000]]])
     (sc 1 0 [] none 300 0 [.num [0, 0, 760000, 64000]]),
-  .unit "in flight, other pass, no counterpart" .geometry boxDur boxSeg none
+  .unit "in flight, a pass the original lacks, inside pass 0" .geometry boxDur boxSeg none
     (sc 1 0 [] none 300 0 [.num [0, 0, 550000, 64000]]),
   .unit "in flight, other phase" .geometry boxDur boxSeg (some [sc 0 2 [] none 300 0 [.num [0, 0, 760000, 64000]]])
     (sc 0 2 [] none 300 0 [.num [0, 0, 550000, 64000]]),
@@ -2811,8 +3554,25 @@ def casesFlight : List Case :=
   .path "step settled differs" .unit none [("a1", st 5000 [.num [255000]]), ("a2", st 5000 [.num [9000]])]
     [("a1", st 5000 [.num [255000]]), ("a2", st 5000 [.num [0]])]]
 
+/-- The golden cases of the envelope over passes and the settled end of a push. -/
+def casesClose : List Case := [
+  .unit "envelope, another pass's start" .colour bgDurOf bgSeg2 none (sc 0 0 [] none 100 1 [.num [5000, 0, 0, 90000]]),
+  .unit "envelope, pure red" .colour bgDurOf bgSeg2 none (sc 0 0 [] none 300 1 [.num [255000, 0, 0, 50000]]),
+  .unit "envelope, alpha beyond every pass" .colour bgDurOf bgSeg2 none
+    (sc 0 0 [] none 300 1 [.num [5000, 0, 0, 200000]]),
+  .unit "envelope, pure green" .colour bgDurOf bgSeg2 none (sc 0 0 [] none 300 1 [.num [0, 255000, 0, 50000]]),
+  .unit "envelope, another pass's curve past the start" .colour bgDurOf bgSeg2 none otherCurve,
+  .unit "envelope, stuck in a hold of a pass the original lacks" .geometry boxDur boxHold
+    (windowAt .hold (durFn boxDur) boxHold boxHold stuckHold) stuckHold,
+  .phase "reversed curve in flight, two passes" .push 0 .geometry boxDur (boxRamp2 false) (boxRamp2 true),
+  .phase "settled push end, hold head" .push 0 .discrete none (endPush 140 "on" ++ endHold) (endPush 0 "off" ++ endHold),
+  .phase "settled push end, stuck class" .push 0 .discrete none (endPush 140 "on" ++ endHold)
+    (endPush 0 "on" ++ endHold),
+  .phase "push sampled its end" .push 0 .discrete none (endPush 0 "on" ++ endHold) (endPush 0 "off" ++ endHold),
+  .phase "push end in flight" .push 0 .discrete bgDurOf (endPush 140 "on" ++ endHold) (endPushIn "off" ++ endHold)]
+
 /-- The golden cases: every branch above, per kind where the kind matters. -/
-def cases : List Case := casesJudge ++ casesRest ++ casesPlan ++ casesFlight
+def cases : List Case := casesJudge ++ casesRest ++ casesPlan ++ casesFlight ++ casesClose
 
 /-- A widths pick as JSON. -/
 def Widths.json : Widths → Json

@@ -1,5 +1,5 @@
 import { active, armed, dir, push, REST, taken, type St } from './logic';
-import { hasMarker, MARKER_THETAS, markerDelay, navKeyframes, pastS, platformKeyframes, settledProps, TIMING, toWaapi, type WaapiArm } from './waapi.logic';
+import { baseDelay, baseWindow, hasMarker, MARKER_THETAS, markerDelay, navKeyframes, pastS, platformKeyframes, settledProps, TIMING, toWaapi, type WaapiArm } from './waapi.logic';
 import type { TouchLike, WheelLike } from './driver';
 
 export interface AnimLike {
@@ -27,6 +27,8 @@ export interface WaapiEnv {
   settle(value: number, props: ReturnType<typeof settledProps>): void;
   /** Publish `data-fw-morph`: at a push, at a threshold crossing and at the end of a tween. */
   hint(value: number): void;
+  /** Write the nav's base `--morph` inline, under the animation: only at a close's push, in its base window and at its end. */
+  base(value: number): void;
   /** A target-less animation of `durationMs` from `startTime` (now if null); its finish event fires on the first frame at or after its end. */
   marker(durationMs: number, startTime: number | null): AnimLike;
   /** Run `cb` on every animation frame until the returned function is called. */
@@ -42,6 +44,9 @@ export interface WaapiEnv {
  * with `startTime = document.timeline.currentTime` read at the push (R5). `data-fw-morph` is written at the push, on
  * each threshold crossing and at the end (Lean `fixW`): one marker animation per threshold ahead finishes 1 ms before
  * the crossing, and from its frame on the value is written each frame until it is past the threshold (Lean `waapi_vis`).
+ * A close also resets the nav's base `--morph` to its goal at the push and, from `TAIL_WINDOW_MS` before its `activeCut`
+ * marker to its end, writes the value as the base each frame, so the width transition at the `is-morphing` flip starts
+ * from the original's base (Lean `baseW`, `tail_eq_of_base`).
  * A retarget cancels the old animations and markers and starts from the live value; reduced motion cancels and jumps.
  */
 export function createWaapiDriver(env: WaapiEnv, variant: WaapiArm = 'waapi') {
@@ -56,6 +61,8 @@ export function createWaapiDriver(env: WaapiEnv, variant: WaapiArm = 'waapi') {
   let stopPoll: (() => void) | null = null;
   let written: number | null = null;
   let flight = false;
+  let baseOn = false;
+  let baseWritten: number | null = null;
 
   const valueNow = (): number => {
     if (!flight) return st.value;
@@ -111,6 +118,11 @@ export function createWaapiDriver(env: WaapiEnv, variant: WaapiArm = 'waapi') {
     written = v;
     env.hint(v);
   };
+  const writeBase = (v: number) => {
+    if (v === baseWritten) return;
+    baseWritten = v;
+    env.base(v);
+  };
   const stopMarkers = () => {
     for (const m of markers) {
       m.onfinish = null;
@@ -118,14 +130,16 @@ export function createWaapiDriver(env: WaapiEnv, variant: WaapiArm = 'waapi') {
     }
     markers = [];
     polling = [];
+    baseOn = false;
     stopPoll?.();
     stopPoll = null;
   };
   const poll = () => {
     const v = valueNow();
     write(v);
+    if (baseOn) writeBase(v);
     polling = polling.filter((theta) => !pastS(st.from, st.to, theta, v));
-    if (polling.length === 0) {
+    if (polling.length === 0 && !baseOn) {
       stopPoll?.();
       stopPoll = null;
     }
@@ -137,6 +151,11 @@ export function createWaapiDriver(env: WaapiEnv, variant: WaapiArm = 'waapi') {
     polling.push(theta);
     stopPoll ??= env.everyFrame(poll);
   };
+  const onBase = () => {
+    baseOn = true;
+    writeBase(valueNow());
+    stopPoll ??= env.everyFrame(poll);
+  };
   const cancelAll = () => {
     for (const a of anims) {
       a.onfinish = null;
@@ -146,10 +165,12 @@ export function createWaapiDriver(env: WaapiEnv, variant: WaapiArm = 'waapi') {
     stopMarkers();
   };
   const settleFlight = () => {
+    const wasBase = baseOn;
     flight = false;
     stopMarkers();
     st = { ...st, value: st.to, pending: false };
     write(st.value);
+    if (wasBase) writeBase(st.value);
     if (!isActive()) arm();
   };
 
@@ -167,6 +188,7 @@ export function createWaapiDriver(env: WaapiEnv, variant: WaapiArm = 'waapi') {
     if (reduced) {
       flight = false;
       written = st.value;
+      baseWritten = st.value;
       env.settle(st.value, settledProps(st.value, variant));
       if (!isActive()) arm();
       return;
@@ -188,6 +210,12 @@ export function createWaapiDriver(env: WaapiEnv, variant: WaapiArm = 'waapi') {
       if (!hasMarker(st.from, st.to, theta)) continue;
       const m = env.marker(markerDelay(st.from, st.to, theta), t);
       m.onfinish = () => onMarker(theta);
+      markers.push(m);
+    }
+    if (baseWindow(st.from, st.to)) {
+      writeBase(st.to);
+      const m = env.marker(baseDelay(st.from, st.to), t);
+      m.onfinish = onBase;
       markers.push(m);
     }
   }

@@ -5,12 +5,13 @@
 // the object paths, the verdict) is Lean's (lean/Fw/Store); the only TS stand-in here is sha256 and file I/O.
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { ghCharged, realEnv, waitFor, type Env, type Target, type Waited } from "@fw/gh-budget";
+import { ghCharged, realEnv, titleFor, waitFor, type Env, type Target, type Waited } from "@fw/gh-budget";
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { GateReply, ManifestReply, PlanReply, ReduceReply, type PlanJob, type RunManifest } from "@fw/contracts";
 import { UsageError } from "./lib.ts";
 import { recordRunKind } from "./timing.ts";
+import { newNonce, parseRunRows, pickRun, titleOf } from "./run-pick.ts";
 
 export type RunArgs = {
   target: string; preset: string; fw: string[]; engines: string[]; profile?: string; runs?: number; dry: boolean;
@@ -243,6 +244,12 @@ export type RunDeps = {
   /** Remember the inputs of a run this command dispatched (the timing kind of its spans, timing.ts `recordRunKind`). */
   recordKind?: (runId: number, inputs: PlanJob["inputs"]) => void;
   capS?: number;
+  /** The text of a workflow file at a ref (`git show <ref>:.github/workflows/<file>`); absent = every ref declares the nonce input. */
+  refWorkflowText?: (ref: string, file: string) => string | undefined;
+  /** The nonce of a dispatch (`--trajectory`); a fresh random one when absent. */
+  nonce?: () => string;
+  /** Wait between two looks at the run list, seconds; real time when absent. */
+  sleep?: (seconds: number) => Promise<void>;
 };
 
 const epoch = (iso: string) => Math.floor(Date.parse(iso) / 1000);
@@ -264,14 +271,7 @@ export async function runMain(args: RunArgs, d: RunDeps): Promise<number> {
     if (j.cache === "hit") { d.log(`${j.engine}: cached at ${j.manifest}`); continue; }
     let runId = args.fromRun[j.engine];
     if (!runId) {
-      const before = await latestRun(d.gh, j.workflow, ref);
-      const at = d.now();
-      await d.gh(dispatchArgs(j, ref));
-      d.log(`${j.engine}: dispatched ${j.workflow} on ${ref}; waiting for the run`);
-      // the dispatched run is the newest run of that workflow on the ref created after the previous newest one
-      const name = before?.workflowName || d.workflowName?.(j.workflow);
-      const w = await waitDecided(d.wait, { kind: "branch", branch: ref, ...(name ? { workflow: name } : {}), sha, since: before ? epoch(before.createdAt) + 1 : at - 60 }, d.now, d.capS);
-      runId = decided(j.engine, w);
+      runId = decided(j.engine, await dispatchAndWait(d, j, ref, sha, j.engine));
       d.recordKind?.(Number(runId), j.inputs);
     } else {
       runId = decided(j.engine, await waitDecided(d.wait, { kind: "run", runId: Number(runId) }, d.now, d.capS));
@@ -285,6 +285,56 @@ export async function runMain(args: RunArgs, d: RunDeps): Promise<number> {
     d.log(`${j.engine}: run ${runId} filed, ${r.manifest.entries.length} artifacts (${r.objects} new, ${r.reused} already stored) -> ${relative(d.store, r.path)}`);
   }
   return 0;
+}
+
+/** Whether the `workflow_dispatch` of a workflow file declares the input `nonce` (the text of the file at the ref). `gh workflow run`
+ *  refuses an input the ref's file does not declare (HTTP 422), so a ref older than the nonce inputs must not be sent one. */
+export function declaresNonce(text: string): boolean {
+  const lines = text.split("\n");
+  const ind = (l: string) => l.length - l.trimStart().length;
+  const at = lines.findIndex((l) => /^\s*workflow_dispatch:\s*(#.*)?$/.test(l));
+  if (at < 0) return false;
+  const base = ind(lines[at] as string);
+  let inInputs = false;
+  let inputsIndent = -1;
+  for (const l of lines.slice(at + 1)) {
+    if (l.trim() === "" || l.trim().startsWith("#")) continue;
+    if (ind(l) <= base) return false;
+    if (!inInputs) { if (/^\s*inputs:\s*(#.*)?$/.test(l)) { inInputs = true; inputsIndent = ind(l); } continue; }
+    if (ind(l) <= inputsIndent) return false;
+    if (ind(l) === inputsIndent + 2 && /^\s*nonce:\s*(#.*)?$/.test(l)) return true;
+  }
+  return false;
+}
+
+/** Whether a dispatch of this workflow on this ref can carry a nonce: the ref's copy of the file declares the input. */
+function refDeclaresNonce(d: RunDeps, workflow: string, ref: string): boolean {
+  if (!d.refWorkflowText) return true;
+  const t = d.refWorkflowText(ref, workflow);
+  return t !== undefined && declaresNonce(t);
+}
+
+/** Dispatch a count or gate workflow with a fresh nonce and wait for the run that carries it. Identity, not recency: the
+ *  workflow's `run-name` echoes the nonce and the wait selects that dispatch (Lean `Fw.Ci.Dispatch.select`, `.dispatch`),
+ *  on any head sha; the caller checks the head sha of the run it got. When the ref's copy of the workflow file declares no
+ *  `nonce` input (a ref older than the nonce inputs), the dispatch goes without it and the run is the old pick (the newest run
+ *  of the workflow on the ref created after the dispatch): not identity, and the log says so. */
+async function dispatchAndWait(d: RunDeps, job: Pick<PlanJob, "workflow" | "inputs">, ref: string, sha: string, label: string): Promise<Waited> {
+  const stem = job.workflow.replace(/\.ya?ml$/, "");
+  if (!refDeclaresNonce(d, job.workflow, ref)) {
+    d.log(`${label}: ${ref} has no nonce input in ${job.workflow} (a ref older than the nonce inputs); dispatching without it and taking the newest run created after the dispatch (the old pick, not identity; rebase the ref to get identity)`);
+    const before = await latestRun(d.gh, job.workflow, ref);
+    const at = d.now();
+    await d.gh(dispatchArgs(job, ref));
+    d.log(`${label}: dispatched ${job.workflow} on ${ref}; waiting for the run`);
+    const name = before?.workflowName || d.workflowName?.(job.workflow);
+    return waitDecided(d.wait, { kind: "branch", branch: ref, ...(name ? { workflow: name } : {}), sha, since: before ? epoch(before.createdAt) + 1 : at - 60 }, d.now, d.capS);
+  }
+  const nonce = d.nonce?.() ?? newNonce();
+  await d.gh(dispatchArgs({ workflow: job.workflow, inputs: { ...job.inputs, nonce } }, ref));
+  d.log(`${label}: dispatched ${job.workflow} on ${ref} with nonce ${nonce} (run title "${titleFor(stem, nonce)}"); waiting for that run`);
+  const name = d.workflowName?.(job.workflow) ?? stem;
+  return waitDecided(d.wait, { kind: "branch", branch: ref, workflow: name, sha, since: d.now() - 60, want: { kind: "dispatch", workflow: stem, nonce } }, d.now, d.capS);
 }
 
 /** The sha a run is measured at: `--sha`, else the tip of `--ref` (when the caller can resolve it), else the checkout's. */
@@ -318,14 +368,16 @@ async function runGate(args: RunArgs, d: RunDeps, sha: string, lane: "gate" | "t
   if (job.blocked) { d.log(`refused: ${lane} (${job.blocked}) cannot express this request; add the input to the workflow first`); return 2; }
   const ref = args.ref ?? d.branch;
   let runId = args.fromRun[lane];
-  if (!runId) {
-    const before = await latestRun(d.gh, job.workflow, ref);
-    const at = d.now();
-    await d.gh(dispatchArgs({ workflow: job.workflow, inputs: job.inputs }, ref));
-    d.log(`${lane}: dispatched ${job.workflow} on ${ref}; waiting for the run`);
-    const name = before?.workflowName || d.workflowName?.(job.workflow);
-    const w = await waitDecided(d.wait, { kind: "branch", branch: ref, ...(name ? { workflow: name } : {}), sha, since: before ? epoch(before.createdAt) + 1 : at - 60 }, d.now, d.capS);
-    runId = decided(lane, w);
+  if (!runId && lane === "trajectory" && refDeclaresNonce(d, job.workflow, ref)) {
+    // identity, not recency: the dispatch carries a nonce, the run title echoes it (Lean Fw.Ci.Dispatch.pick)
+    const nonce = d.nonce?.() ?? newNonce();
+    await d.gh(dispatchArgs({ workflow: job.workflow, inputs: { ...job.inputs, nonce } }, ref));
+    d.log(`${lane}: dispatched ${job.workflow} on ${ref} with nonce ${nonce} (run title "${titleOf(nonce)}"); looking for the run`);
+    const picked = await findDispatched(d, job.workflow, ref, nonce);
+    d.log(`${lane}: the run with nonce ${nonce} is ${picked}`);
+    runId = decided(lane, await waitDecided(d.wait, { kind: "run", runId: Number(picked) }, d.now, d.capS));
+  } else if (!runId) {
+    runId = decided(lane, await dispatchAndWait(d, job, ref, sha, lane));
   } else {
     runId = decided(lane, await waitDecided(d.wait, { kind: "run", runId: Number(runId) }, d.now, d.capS));
   }
@@ -333,6 +385,24 @@ async function runGate(args: RunArgs, d: RunDeps, sha: string, lane: "gate" | "t
   if (head !== sha) throw new UsageError(`${lane}: run ${runId} measured ${head.slice(0, 7)}, not ${sha.slice(0, 7)}`);
   d.log(`${lane}: run ${runId} succeeded at ${sha.slice(0, 7)} (tables: gh run download ${runId})`);
   return 0;
+}
+
+const FIND_EVERY_S = 120; // CI polls are at least 120 s apart (shared GitHub token); a dispatch run appears within seconds
+const FIND_TRIES = 5;
+
+/** The id of the run a dispatch created, found by its nonce in the run title (Lean `Fw.Ci.Dispatch.pick`); an absent run is
+ *  looked for again every 120 s, an ambiguous one is an error (never a guess). */
+export async function findDispatched(d: Pick<RunDeps, "gh" | "sleep">, workflow: string, ref: string, nonce: string): Promise<string> {
+  const sleep = d.sleep ?? ((s: number) => new Promise<void>((res) => setTimeout(res, s * 1000)));
+  for (let i = 0; i < FIND_TRIES; i++) {
+    await sleep(FIND_EVERY_S);
+    const rows = parseRunRows(await d.gh(["run", "list", "--workflow", workflow, "--branch", ref, "--event", "workflow_dispatch", "--limit", "30", "--json", "databaseId,displayTitle,event"]));
+    const p = pickRun(nonce, rows);
+    if (p.kind === "found") return String(p.id);
+    if (p.kind === "ambiguous") throw new Error(`nonce ${nonce} matches several runs (${p.ids.join(", ")}); not guessing`);
+    if (p.kind === "badNonce") throw new Error(`nonce ${nonce} is not valid`);
+  }
+  throw new Error(`no run titled "${titleOf(nonce)}" on ${ref} after ${FIND_TRIES} looks; the dispatch may have failed (gh run list --workflow ${workflow} --event workflow_dispatch)`);
 }
 
 export type LatestRun = { id: string; createdAt: string; workflowName: string };
@@ -372,6 +442,7 @@ export async function runCli(argv: string[], cwd: string, env: Record<string, st
     now: genv ? genv.now : () => Math.floor(Date.now() / 1000),
     recordKind: (id, inputs) => { recordRunKind(id, inputs, cwd); },
     refSha: (r) => vcs("rev-parse", "--verify", "--quiet", `refs/remotes/origin/${r}^{commit}`) || vcs("rev-parse", "--verify", "--quiet", `refs/heads/${r}^{commit}`) || undefined,
+    refWorkflowText: (r, f) => { const o = spawnSync("git", ["show", `${vcs("rev-parse", "--verify", "--quiet", `refs/remotes/origin/${r}^{commit}`) || vcs("rev-parse", "--verify", "--quiet", `refs/heads/${r}^{commit}`) || r}:.github/workflows/${f}`], { cwd, encoding: "utf8" }); return o.status === 0 ? o.stdout : undefined; },
     workflowName: (f) => { try { return /^name:\s*["']?([^"'\n#]+?)["']?\s*(?:#.*)?$/m.exec(readFileSync(join(cwd, ".github", "workflows", f), "utf8"))?.[1]; } catch { return undefined; } },
     store: storeDir(consoleDir), sha: vcs("rev-parse", "HEAD"), branch: vcs("rev-parse", "--abbrev-ref", "HEAD"),
     tmp: join(consoleDir, "tmp"), log: (l) => console.log(l),

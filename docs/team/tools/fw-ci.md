@@ -18,7 +18,18 @@ is no default branch). With `--branch` and no run id: the latest run of the work
 
 ## Waiting for CI: `fw ci wait`, `fw ci budget`
 
-- `pnpm fw ci wait <runId>` or `pnpm fw ci wait --branch ci/<task> [--workflow <name>] [--sha S] [--since EPOCH] [--timeout S]`.
+- `pnpm fw ci wait <runId>` or `pnpm fw ci wait --branch ci/<task> [--workflow <name>] [--sha S] [--nonce N] [--since EPOCH] [--timeout S]`.
+  `--workflow` waits for the push run of `--sha` (event push); `--nonce N` waits for the dispatch of that workflow whose
+  run title carries N, on any head sha (Lean `Fw.Ci.Dispatch.select`, `dispatch_any_sha`). Only trajectory-probe,
+  breakpoint-gate, chromium-counts and webkit-sim echo a nonce (Lean `dispatchWorkflows`); `--nonce` for another workflow
+  is refused (Usage), wait on its run id instead. `fw run` (count lanes, `--gate`, `--trajectory`) dispatches with a fresh
+  nonce and waits by it, never for "the newest run". A push wait that times out while the workflow has only dispatch runs
+  of the commit prints a hint (Lean `dispatchOnly`).
+  Several runs with one nonce are an error (exit 2, Lean `selectOne` is `ambiguous`), never the newest. The poller reads runs created
+  at or after the waiter's `--since` (default: the commit's time): a dispatch created earlier is never read, so pass an earlier
+  `--since` for it. `fw run` sends `-f nonce` only when the ref's copy of the workflow file (`git show <ref>:.github/workflows/<file>`)
+  declares the input; a ref older than the nonce inputs gets the old pick (the newest run created after the dispatch) and the log says so.
+  `scripts/ci-paths.mjs` fails when a dispatch workflow's `name:` or `run-name:` differs from Lean `titleFor`.
   Blocks on the shared poller's local file (0 GitHub calls of its own, however many waiters), then makes one charged
   `gh run view <id> --json jobs` per finished decisive run (cached per run id) and lets fwcore decide (`ci.verdict`, Lean
   `Fw.Ci.Verdict.pass_iff`): a run passes only if its guard decided `run`, some other job ran, every job that ran

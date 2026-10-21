@@ -20,6 +20,7 @@
 {"error":"missing field landed","id":"s-2"}
 {"cp":9,"cycle":false,"id":"s-3"}
 {"id":"s-4","serial":8,"serialShare":{"den":"5","num":"4"}}
+{"id":"rc-1","unflagged":[{"row":"u","runs":["39466378530"]}],"verdicts":[{"carried":["morph.tween:waapi-scoped"],"flag":"morph.tween:waapi","run":"39457767229","verdict":"mismatch"},{"flag":"morph.tween:waapi","role":"aa","row":"w","run":"39466378530","verdict":"match"},{"flag":"morph.tween:waapi","role":"sibling","row":"w","run":"39457767229","sibling":"morph.tween:waapi-scoped","verdict":"match"}]}
 {"error":"unknown op nope","id":19}
 {"error":"missing field dir","id":null}
 {"error":"empty request","id":null}

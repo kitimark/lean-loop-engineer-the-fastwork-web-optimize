@@ -242,10 +242,105 @@ def decided (reg : List Reg) : List Flag :=
     ((reg.filter fun r => r.kind == .optimized && (linkOf linkTable r.flag).isNone).map (·.flag)).mergeSort
       (fun a b => a.key ≤ b.key)
 
-/-- **The user's decisions on look changes**: each look-change flag with the date and the words of the decision. A
-decision is recorded here only from the user's own message; a look change without a row is undecided. -/
-def lookDecisions : List (Flag × String × String) :=
-  [(⟨"nav", "earn-no-transition"⟩, "2026-10-21", "accepted, pending user visual review")]
+/-- The user's verdict on a look change. -/
+inductive LookVerdict | kept | rejected | accepted
+deriving DecidableEq, Repr
+
+/-- The word of a verdict (the first word of the ledger's decision text). -/
+def LookVerdict.word : LookVerdict → String
+  | .kept => "kept" | .rejected => "rejected" | .accepted => "accepted"
+
+/-- Whether the user's visual review of a look change is still to come. -/
+inductive LookReview | pending | done
+deriving DecidableEq, Repr
+
+/-- The word of a review state. -/
+def LookReview.word : LookReview → String
+  | .pending => "pending" | .done => "done"
+
+/-- Whether the review material of one engine exists. -/
+inductive Ready | ready | pending
+deriving DecidableEq, Repr
+
+/-- The word of a readiness. -/
+def Ready.word : Ready → String
+  | .ready => "ready" | .pending => "pending"
+
+/-- The review material of one engine: its readiness, and where it can be fetched (CI run, artifact, expiry) or which
+task will make it. -/
+structure EngineMat where
+  state : Ready
+  run : Option String := none
+  artifact : Option String := none
+  expires : Option String := none
+  task : Option String := none
+deriving DecidableEq, Repr
+
+/-- The review material of a look change, per engine. -/
+structure ReviewMaterial where
+  chromium : EngineMat
+  webkit : EngineMat
+deriving DecidableEq, Repr
+
+/-- **One decision of the user on a look change**: the flag, the date, the verdict, whether the visual review is still
+pending, and the review material. A decision is recorded here only from the user's own message; a look change without
+a row is undecided. -/
+structure LookDecision where
+  flag : Flag
+  date : String
+  decision : LookVerdict
+  review : LookReview
+  material : Option ReviewMaterial := none
+deriving DecidableEq, Repr
+
+/-- **The user's decisions on look changes** (the one canonical source; the ledger text is checked against it by
+`ledgerDisagreements`). -/
+def lookDecisions : List LookDecision :=
+  [{ flag := ⟨"nav", "earn-no-transition"⟩, date := "2026-10-21", decision := .kept, review := .pending,
+     material := some
+       { chromium := { state := .ready, run := some "39473950464", artifact := some "frames-chromium",
+                       expires := some "2026-11-19" }
+         webkit := { state := .ready, run := some "39530106935", artifact := some "frames-apple-390, frames-apple-1280",
+                     expires := some "2026-11-20" } } }]
+
+/-- The JSON of one engine's material (absent fields omitted). -/
+def EngineMat.json (m : EngineMat) : Json :=
+  Json.mkObj ([("state", .str m.state.word)] ++
+    (m.run.map (fun x => [("run", Json.str x)])).getD [] ++
+    (m.artifact.map (fun x => [("artifact", Json.str x)])).getD [] ++
+    (m.expires.map (fun x => [("expires", Json.str x)])).getD [] ++
+    (m.task.map (fun x => [("task", Json.str x)])).getD [])
+
+/-- The JSON of a decision: date, verdict, review state and material (`null` when none). -/
+def LookDecision.json (d : LookDecision) : Json :=
+  Json.mkObj [("date", .str d.date), ("decision", .str d.decision.word), ("review", .str d.review.word),
+    ("material", match d.material with
+      | some m => Json.mkObj [("chromium", m.chromium.json), ("webkit", m.webkit.json)]
+      | none => .null)]
+
+/-- **The ledger text agrees with the decision**: the ledger row of the flag has a `userDecision` with the same date,
+whose words start with the verdict word and say `deferred` exactly when the review is pending, and whose `review`
+text names the run, the artifact and the expiry of the chromium material. Returns the disagreements. -/
+def ledgerDisagreements (ledger : Json) (ds : List LookDecision) : List String :=
+  let rows := ((ledger.getObjVal? "findings").toOption.bind (·.getArr?.toOption)).getD #[]
+  ds.flatMap fun d =>
+    match rows.toList.find? (fun r => (r.getObjValAs? String "flag").toOption == some d.flag.key) with
+    | none => [s!"{d.flag.key}: no ledger row"]
+    | some r =>
+      match r.getObjVal? "userDecision" with
+      | .error _ => [s!"{d.flag.key}: the ledger row has no userDecision"]
+      | .ok u =>
+        let text := (u.getObjValAs? String "decision").toOption.getD ""
+        let rev := (u.getObjValAs? String "review").toOption.getD ""
+        let has (hay needle : String) : Bool := 1 < (hay.splitOn needle).length
+        (if (u.getObjValAs? String "date").toOption == some d.date then [] else [s!"{d.flag.key}: date differs"]) ++
+        (if d.decision.word.isPrefixOf text then [] else [s!"{d.flag.key}: decision text does not start with {d.decision.word}"]) ++
+        (if has text "deferred" == (d.review == .pending) then [] else [s!"{d.flag.key}: deferred does not match the review state"]) ++
+        (match d.material with
+          | none => []
+          | some m =>
+            [m.chromium.run, m.chromium.artifact, m.chromium.expires].filterMap fun o =>
+              o.bind fun x => if has rev x then none else some s!"{d.flag.key}: review text lacks {x}")
 
 /-- The look-change candidates: the registered flags of class `L`, sorted by key. -/
 def lookCandidates (reg : List Reg) : List Flag :=
@@ -270,7 +365,7 @@ theorem lookCandidates_not_mem {reg : List Reg} {ledger : List Row} {st : List S
 
 /-- The decision rows that name no look-change candidate (a stale row of `lookDecisions`). -/
 def staleDecisions (reg : List Reg) : List Flag :=
-  (lookDecisions.map (·.1)).filter fun f => !(lookCandidates reg).contains f
+  (lookDecisions.map (·.flag)).filter fun f => !(lookCandidates reg).contains f
 
 /-- One line of the look-change file: the flag, its kind and class, whether it is in the arm, and the user's decision
 (`null` when undecided). -/
@@ -278,8 +373,8 @@ def lookJson (reg : List Reg) (p : List Flag) (f : Flag) : Json :=
   let kind : Json := match reg.find? (·.flag == f) with
     | some r => .str (kindWord r.kind)
     | none => .null
-  let dec : Json := match lookDecisions.find? (·.1 == f) with
-    | some (_, d, w) => Json.mkObj [("date", .str d), ("decision", .str w)]
+  let dec : Json := match lookDecisions.find? (·.flag == f) with
+    | some d => d.json
     | none => .null
   Json.mkObj [("flag", .str f.key), ("kind", kind), ("visClass", .str (visClassWord .l)),
     ("member", .bool (p.contains f)), ("userDecision", dec)]
@@ -443,6 +538,8 @@ def run (args : List String) : IO Unit := do
   let reg ← readRegistry
   let st ← readStored
   let p ← IO.ofExcept (generate reg links ledger st)
+  let bad := ledgerDisagreements (← readJson ledgerPath) lookDecisions
+  unless bad.isEmpty do throw (IO.userError s!"the ledger text disagrees with Gen.lookDecisions: {bad}")
   unless (staleDecisions reg).isEmpty do
     throw (IO.userError s!"look decisions name no look-change candidate: {(staleDecisions reg).map (·.key)}")
   let outs := [(goldenPreset, presetText p), (sitePreset, presetText p),
@@ -586,7 +683,14 @@ private def earnReg : Reg :=
 #guard staleDecisions [] == [⟨"nav", "earn-no-transition"⟩]
 #guard staleDecisions [earnReg] == []
 #guard lookText [earnReg] [] ==
-  "{\"flag\":\"nav:earn-no-transition\",\"kind\":\"proposal\",\"member\":false,\"userDecision\":{\"date\":\"2026-10-21\",\"decision\":\"accepted, pending user visual review\"},\"visClass\":\"L\"}\n"
+  "{\"flag\":\"nav:earn-no-transition\",\"kind\":\"proposal\",\"member\":false,\"userDecision\":{\"date\":\"2026-10-21\",\"decision\":\"kept\",\"material\":{\"chromium\":{\"artifact\":\"frames-chromium\",\"expires\":\"2026-11-19\",\"run\":\"39473950464\",\"state\":\"ready\"},\"webkit\":{\"artifact\":\"frames-apple-390, frames-apple-1280\",\"expires\":\"2026-11-20\",\"run\":\"39530106935\",\"state\":\"ready\"}},\"review\":\"pending\"},\"visClass\":\"L\"}\n"
+#guard (ledgerDisagreements (Json.mkObj [("findings", .arr #[Json.mkObj [("flag", .str "nav:earn-no-transition"),
+  ("userDecision", Json.mkObj [("date", .str "2026-10-21"), ("decision", .str "kept 2026-10-21; visual review deferred"),
+    ("review", .str "CI run 39473950464 artifact frames-chromium (expires 2026-11-19)")])]])]) lookDecisions).isEmpty
+#guard (ledgerDisagreements (Json.mkObj [("findings", .arr #[Json.mkObj [("flag", .str "nav:earn-no-transition"),
+  ("userDecision", Json.mkObj [("date", .str "2026-10-21"), ("decision", .str "accepted"),
+    ("review", .str "x")])]])]) lookDecisions).length == 5
+#guard (ledgerDisagreements (Json.mkObj [("findings", .arr #[])]) lookDecisions).length == 1
 #guard ((lookJson [] [] ⟨"x", "y"⟩).getObjVal? "userDecision").toOption == some .null
 
 private def stEx : Stored :=

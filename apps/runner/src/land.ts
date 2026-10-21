@@ -192,7 +192,7 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     // ci-trigger-lean: test/ci-triggers.test.ts reads every workflow, the guard script and the lint
     ".github/workflows/**", ".github/scripts/changed-inputs.mjs", ".github/scripts/changed-inputs.test.mjs", "scripts/ci-paths.mjs", "scripts/ci-paths.test.mjs",
     // ci-own-trigger: the intent helper and its test (run by test/ci-triggers.test.ts; fw ci push spawns it)
-    "scripts/ci-push.mjs", "scripts/ci-push.test.mjs",
+    "scripts/ci-push.mjs", "scripts/ci-push.test.mjs", "scripts/hooks/**",
     // circleci-pilot: the glue, its fixtures and the pilot config (test/ci-triggers.test.ts runs scripts/circleci.test.mjs; fw ci circleci spawns the glue)
     "scripts/circleci.mjs", "scripts/circleci.test.mjs", "scripts/circleci-fixtures/**", ".circleci/**",
     // lake-build-slots: test/ci-triggers.test.ts runs the build-slot wrapper's tests (they also read golden/** above)
@@ -212,14 +212,19 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
   "packages/measure-wktr": ["packages/measure-chromium/src/fwcore.mjs", "packages/measure-webkit/src/page.mjs", "packages/measure-webkit/src/serve.mjs"],
   "packages/measure-chromium": ["lean/Fw/Store/Layout.lean", "lean/Fw/Faithful/Measured.lean", "packages/contracts/golden/measure/**", "packages/contracts/golden/faithful/**", "packages/contracts/golden/parts/stage-mode.jsonl", ".github/workflows/chromium-counts.yml", "results/baselines/chromium/**"],
   "packages/gate-breakpoints": ["lean/**", "packages/measure-webkit/src/device.mjs", "scripts/sim-lock.sh", "apps/site/src/breakpoints.gen.json", "apps/site/src/parts/**",
-    "packages/contracts/golden/gate/**"],
+    "packages/contracts/golden/gate/**",
+    // image-audit: the test compares the byte copy of arm.mjs that packages/measure-webkit keeps (visual-diff is a workspace
+    // dependency, so workspaceDeps already reads packages/visual-diff/**)
+    "packages/measure-webkit/src/images/arm.mjs", "apps/site/src/flags/images/drawn.json"],
   "packages/premise-tests": ["packages/gate-breakpoints/src/align-equiv.mjs"],
   // preview-e2e: the rig starts console-api's server files (imported by file URL) and the preview servers over the snapshot
   "packages/e2e-preview": ["apps/console-api/src/**", "apps/console-api/package.json", "packages/contracts/src/**", "packages/contracts/package.json", "packages/contracts/golden/console/**", "snapshot/site/**"],
   "packages/engine-check": ["packages/contracts/golden/measure/**"],
   "packages/difftest": ["apps/console-api/src/cap/cap.ts", "apps/runner/hooks/cap.mjs", "packages/measure-chromium/src/n0.mjs",
     "packages/measure-chromium/src/trace.mjs", "packages/measure-webkit/src/quietsteps.mjs", "packages/measure-webkit/src/reduce.mjs"],
-  "packages/measure-webkit": ["packages/contracts/golden/measure/**"],
+  "packages/measure-webkit": ["packages/contracts/golden/measure/**", "apps/site/src/flags/images/drawn.json",
+    // webkit-lag-probe: test/lag-findings.test.mjs reads the note whose Findings it checks against the generated block
+    "research/notes/2026/10-21-webkit-lag-probe.md"],
   "packages/snapshot-extract": ["packages/gate-breakpoints/src/**"],
   "packages/visual-diff": ["packages/gate-breakpoints/src/**", "apps/site/src/breakpoints.gen.json", "packages/contracts/golden/gate/**", "scripts/port/**", "packages/contracts/golden/port/**"],
 };
@@ -250,6 +255,15 @@ export type Digest = string | null;
 /** Lean `binMoved`, checked against the `landSpeed.select2` golden. */
 export const binMoved = (changed: string[], d0: Digest, d1: Digest): boolean =>
   changed.some((c) => inScope(FWCORE_BUILD_READS, c)) && (d0 === null || d1 === null || d0 !== d1);
+/** Lean `LandTier.buildFree`: the `lean/` paths no default Lake target reads (checked against the import closure by test/land-phase1.test.ts). */
+export const BUILD_FREE = ["lean/scripts/**", "lean/golden/**", "lean/README.md", "lean/land-filter.txt", "lean/land-legs.txt"];
+/** Lean `LandTier.binaryChange`, checked against the `land-phase1.jsonl` golden. */
+export const binaryChange = (changed: string[]): string[] => changed.filter((p) => !inScope(BUILD_FREE, p));
+/** Lean `LandTier.phase1Build`: does phase 1 build `fwcore` (a changed build input that is not build-free)? */
+export const phase1Build = (changed: string[]): boolean => binaryChange(changed).some((p) => inScope(FWCORE_BUILD_READS, p));
+/** Lean `LandTier.selectBin`: `selectTwoPhase` with the binary-moved test over the binary change. */
+export const selectBin = (ds: { id: string; reads: string[] }[], changed: string[], d0: Digest, d1: Digest) =>
+  selectChecks(ds, binMoved(binaryChange(changed), d0, d1) ? [...changed, FWCORE_BIN] : changed);
 /** Lean `selectTwoPhase`, checked against the `landSpeed.select2` golden. */
 export const selectTwoPhase = (ds: { id: string; reads: string[] }[], changed: string[], d0: Digest, d1: Digest) =>
   selectChecks(ds, binMoved(changed, d0, d1) ? [...changed, FWCORE_BIN] : changed);
@@ -295,9 +309,9 @@ export function candidateChecks(root: string): Check[] {
 
 /** The checks that cover the changed files, each with its declared input set. Digests main0 `d0` and merge tree `d1`
  *  default to unknown (every fwcore user follows a change to `FWCORE_BUILD_READS`). */
-export function checksWithReads(root: string, changed: string[], d0: Digest = null, d1: Digest = null): Check[] {
+export function checksWithReads(root: string, changed: string[], d0: Digest = null, d1: Digest = null, select: typeof selectTwoPhase = selectTwoPhase): Check[] {
   const all = candidateChecks(root);
-  const ids = new Set(selectTwoPhase(all, changed, d0, d1));
+  const ids = new Set(select(all, changed, d0, d1));
   return all.filter((c) => ids.has(c.id));
 }
 
@@ -537,7 +551,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     }
   }
   const sha = git(o.cwd, ["rev-parse", `refs/heads/${branch}`]);
-  const behind = !tryGit(o.cwd, ["merge-base", "--is-ancestor", main, branch]);
+  const behind = !tryGit(o.cwd, ["merge-base", "--is-ancestor", main, sha]);
   if (o.dry && behind) return fail(`${branch} does not contain ${main}: merge ${main} into it (git merge ${main}) and run the dry land again; a stale base can carry another task's diff into the scope check`, "stale", outcome({ fresh: false }));
   // no commit of its own (the tip is already in main): nothing to land. Lean `Outcome.first` (after `stale`): VERDICT empty, exit 0.
   if (o.dry && tryGit(o.cwd, ["merge-base", "--is-ancestor", sha, main])) {
@@ -570,7 +584,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       stream = row?.stream ?? stream;
     } catch { /* no work graph file: no writes */ }
   }
-  const changed = git(o.cwd, ["diff", "--name-only", `${main}...${branch}`]).split("\n").filter(Boolean);
+  const changed = git(o.cwd, ["diff", "--name-only", `${main}...${sha}`]).split("\n").filter(Boolean);
   const allow = o.allow ?? [];
   const sc = await o.http.post("/api/ops/land-scope", { writes, names: [o.task, task?.owner].filter(Boolean), allow, paths: changed, task: o.task ?? "", stream });
   if (sc.status !== 200) return fail(`scope check unavailable: ${sc.body.reason ?? sc.status}`);
@@ -629,14 +643,16 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     const d0 = storedDigest(mainDir, main0);
     let d1: Digest = d0;
     phase1Built = false;
-    if (changed.some((p) => inScope(FWCORE_BUILD_READS, p))) {
+    // Lean `LandTier.phase1Build`: no build when every changed build read is build-free (the binary is main0's: `skip_binMoved`);
+    // a local fwcore user then still builds in the local plan (`skip_keeps_local_build`)
+    if (phase1Build(changed)) {
       const r = await span("fw land", "fwcore build (phase 1)", () => runCheck(dir, ["sh", "scripts/fwcore-build.sh"]), (p) => p.status);
       phase1Built = r.status === 0; // a failed build leaves the slot binary stale, so the local plan builds again
       d1 = r.status === 0 && buildClean(dir) ? binDigest(dir) : null;
       lines.push(`fwcore digest: ${main} ${d0?.slice(0, 12) ?? "unknown"}, merge ${d1?.slice(0, 12) ?? "unknown"}: fwcore users ${binMoved(changed, d0, d1) ? "selected" : "skipped"}`);
     }
     if (d1) storeDigest(mainDir, c, d1);
-    return checksWithReads(dir, changed, d0, d1);
+    return checksWithReads(dir, changed, d0, d1, selectBin);
   };
   // Lean `Fw.Console.LandRemote`: the Lean local tier runs here, the remote tier on the land lane of the allowed providers (land-remote.ts)
   const tieredChecks = async (dir: string, main0: string, c: string, list: Check[]): Promise<string | null> => {

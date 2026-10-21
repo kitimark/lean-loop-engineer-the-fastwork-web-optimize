@@ -1,6 +1,7 @@
 import Lean.Data.Json
 import Fw.Console.LandSpeed
 import Fw.Ops.PathCheck
+import Fw.Gate.Trajectory
 /-!
 # Which workflows a push to `ci/*` starts (task `ci-trigger-lean`)
 
@@ -180,16 +181,20 @@ def table : List Wf := [
     "apps/**", "packages/**", "lean/**", "scripts/**", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml",
     "docs/team/work-graph.json", "docs/team/incidents/ledger.json", "research/findings/ledger.json",
     "results/baselines/chromium/**", ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**",
-    ".node-version", ".github/actions/setup-pnpm/**", ".github/actions/gate-engine/**", ".github/scripts/cache-key.mjs", own "land.yml"], []⟩,
+    ".node-version", ".github/actions/setup-pnpm/**", ".github/actions/gate-engine/**", ".github/scripts/cache-key.mjs", ".github/scripts/land-base.sh", own "land.yml"], []⟩,
   ⟨"lean.yml", ciMain, [
     "lean/**", "apps/site/src/breakpoints.gen.json", "apps/site/src/sweeps.gen.json", "apps/site/src/head.gen.json", "scripts/span.sh",
     "scripts/fwcore-build.sh", "scripts/lake-slot.sh", "scripts/lake-slot-lib.sh", "scripts/lake-slot.test.mjs", "packages/contracts/golden/sched/lake-slot.gen.sh",
-    "packages/contracts/golden/console/land-dry.jsonl", "packages/contracts/golden/gate/sweeps.jsonl", "packages/contracts/golden/gate/exit.jsonl", "packages/contracts/golden/gate/webkit-screen.jsonl", "packages/contracts/golden/gate/search.jsonl",
-    "packages/gate-breakpoints/src/scope.gen.json", "packages/contracts/golden/parts/contracts.gen.json",
+    "packages/contracts/golden/console/land-dry.jsonl", "packages/contracts/golden/gate/sweeps.jsonl", "packages/contracts/golden/gate/exit.jsonl", "packages/contracts/golden/gate/webkit-screen.jsonl", "packages/contracts/golden/measure/webkit-lag.jsonl", "packages/contracts/golden/gate/search.jsonl",
+    "packages/contracts/golden/gate/trajectory-colour.jsonl", "packages/gate-breakpoints/src/scope.gen.json", "packages/contracts/golden/parts/contracts.gen.json",
+    "packages/contracts/golden/gate/run-perm.jsonl", "packages/contracts/golden/gate/run-perm-cells.jsonl",
     "packages/contracts/golden/parts/stage.jsonl", "packages/contracts/golden/parts/stage-mode.jsonl",
     "packages/contracts/golden/parts/hero.exit.scoped.json", "packages/measure-chromium/scenarios.gen.json",
     "packages/contracts/golden/parts/morph.mount.dormant.jsonl", "packages/contracts/golden/parts/morph-mount-tap.jsonl",
     "packages/contracts/golden/parts/nav-earn.jsonl",
+    "packages/contracts/golden/gate/image-arm.jsonl",
+    "packages/contracts/golden/ops/rebuild-facts.jsonl",
+    "packages/contracts/golden/ops/rebuild.jsonl",
     ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", ".github/scripts/runner-info.sh",
     ".github/actions/telemetry/**", "scripts/ci-telemetry/**", own "lean.yml", ".node-version"], []⟩,
   ⟨"mutants.yml", ciAll, [
@@ -220,7 +225,8 @@ def table : List Wf := [
     "packages/gate-breakpoints/**", "apps/site/**", "@breakgen", "snapshot/**", "snapshot.lock.json",
     "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/gate-search.mjs", ".github/scripts/gate-search.test.mjs",
     ".github/scripts/gate-smoke.mjs", ".github/scripts/verify-snapshot.mjs", ".github/scripts/cache-key.mjs",
-    "packages/contracts/golden/gate/search.jsonl", "packages/contracts/golden/gate/trajectory.jsonl", "packages/contracts/golden/ops/cache.jsonl",
+    ".github/scripts/trajectory-line.mjs", ".github/scripts/trajectory-line.test.mjs", "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/gate/search.jsonl", "packages/contracts/golden/gate/trajectory.jsonl", "packages/contracts/golden/gate/trajectory-colour.jsonl", "packages/contracts/golden/ops/cache.jsonl",
     ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", ".node-version", ".github/actions/setup-pnpm/**",
     ".github/actions/gate-engine/**", ".github/actions/telemetry/**", "scripts/ci-telemetry/**", own "trajectory-probe.yml"], []⟩,
   ⟨"visual-diff.yml", ciAll, [
@@ -241,7 +247,7 @@ def table : List Wf := [
   ⟨"wktr.yml", ciAll, [
     "packages/measure-wktr/**", "packages/measure-chromium/src/classify.mjs", "packages/measure-chromium/src/fwcore.mjs",
     "@fwcore", "snapshot/**", "snapshot.lock.json", ".github/scripts/verify-snapshot.mjs", ".github/scripts/runner-info.sh",
-    ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", ".node-version", own "wktr.yml"], []⟩]
+    ".github/scripts/changed-inputs.mjs", ".github/scripts/changed-inputs.test.mjs", ".github/actions/setup-lean/**", ".node-version", own "wktr.yml"], []⟩]
 
 #guard (table.map (·.file)).eraseDups.length == table.length
 
@@ -884,6 +890,341 @@ def pinLines : List Json :=
     ("copies", .arr (cs.map fun (n, v) => Json.mkObj [("name", .str n), ("value", optStr v)]).toArray),
     ("problems", strs (copyProblems p cs))])
 
+/-! ## The probe line of a commit message (task `ci-push-probe-inputs`)
+
+A builder cannot dispatch a workflow (the sandbox refuses it, incident `m195`), but it can push to `ci/**`. A line of the
+head commit message that starts with `[trajectory` carries the inputs of the trajectory probe for that push:
+
+    [ci:trajectory-probe]
+    [trajectory fw=hero.exit:scoped,morph.tween:waapi widths=390,1280 engines=both]
+
+The lane is still asked for with its `[ci:trajectory-probe]` token (`Fw.Ci.Intent`); this section decides what the push
+runs *with*. Only a line that starts with the keyword counts, so a message that quotes the form in prose asks for nothing.
+Keys: `fw`, `preset` (exclusive with `fw`), `widths`, `engines`, `debug`; each at most once, each with a value from a closed
+character set. `debug` names a page recorder of the probe (`nav-transition`) and takes only a value of a closed list; no file
+of the repo can turn a recorder on, so nothing that lands on `main` does. A line that does not parse is refused with a reason (the plan step of the workflow fails with it); it is
+never ignored. Two such lines are refused too. -/
+
+/-- The inputs of one probe run (an empty string is "none"; `engines` defaults to `both`; `debug` is the page recorder
+the run switches on, `""` for none). -/
+structure ProbeIn where
+  engines : String
+  fw : String
+  preset : String
+  widths : String
+  debug : String
+deriving Repr, DecidableEq
+
+/-- The inputs of a run whose message names none: the dispatch defaults. -/
+def ProbeIn.default : ProbeIn := ⟨"both", "", "", "", ""⟩
+
+/-- What the message says about the probe inputs. -/
+inductive ProbeLine where
+  | absent
+  | inputs (p : ProbeIn)
+  | refused (why : String)
+deriving Repr, DecidableEq
+
+/-- What a push does with the probe. -/
+inductive PushProbe where
+  | notAsked
+  | needsLane
+  | run (p : ProbeIn)
+  | refused (why : String)
+deriving Repr, DecidableEq
+
+/-- Whitespace inside a line. -/
+def isWs (c : Char) : Bool := c == ' ' || c == '\t' || c == '\r'
+
+/-- A line without leading and trailing whitespace. -/
+def trimL (cs : List Char) : List Char := ((cs.dropWhile isWs).reverse.dropWhile isWs).reverse
+
+/-- Split at every `d`, empty parts kept. -/
+def splitOn (d : Char) : List Char → List (List Char)
+  | [] => [[]]
+  | c :: cs =>
+    match splitOn d cs with
+    | r :: rs => if c == d then [] :: r :: rs else (c :: r) :: rs
+    | [] => [[c]]
+
+/-- The keyword that opens the line. -/
+def lineKw : List Char := "[trajectory".toList
+
+/-- Does the line (trimmed, lowered) start with the keyword? -/
+def isCand (l : List Char) : Bool := lineKw.isPrefixOf ((trimL l).map Char.toLower)
+
+/-- The characters of a value: ASCII letters and digits and `. : , _ @ -`. -/
+def valueChar (c : Char) : Bool := c.isAlphanum || c == '.' || c == ':' || c == ',' || c == '_' || c == '@' || c == '-'
+
+/-- The keys of a line. -/
+def probeKeys : List String := ["fw", "preset", "widths", "engines", "debug"]
+
+/-- The engines input values. -/
+def probeEngines : List String := ["both", "chromium", "playwright-webkit"]
+
+/-- The page recorders a push may ask for (`apps/site/src/debug/`; the probe loads the rewrite arms with `fw-debug=<name>`). -/
+def probeDebugs : List String := ["nav-transition"]
+
+/-- Split `key=value` at the first `=`. -/
+def splitEq : List Char → Option (List Char × List Char)
+  | [] => none
+  | '=' :: cs => some ([], cs)
+  | c :: cs => (splitEq cs).map fun (k, v) => (c :: k, v)
+
+/-- Add one `key=value` token to the pairs read so far. -/
+def addTok (acc : List (String × String)) (t : List Char) : Except String (List (String × String)) :=
+  match splitEq t with
+  | none => .error s!"token '{String.ofList t}' has no '='"
+  | some (k, v) =>
+    let ks := String.ofList k
+    if !probeKeys.contains ks then .error s!"unknown key '{ks}' (keys: fw, preset, widths, engines, debug)"
+    else if acc.any (·.1 == ks) then .error s!"key '{ks}' given twice"
+    else if v.isEmpty then .error s!"key '{ks}' has no value"
+    else if !v.all valueChar then .error s!"the value of '{ks}' has a character outside A-Z a-z 0-9 . : , _ @ -"
+    else .ok (acc ++ [(ks, String.ofList v)])
+
+/-- All tokens of a line body, left to right. -/
+def addAll (toks : List (List Char)) : Except String (List (String × String)) :=
+  toks.foldl (fun r t => r.bind fun acc => addTok acc t) (.ok [])
+
+/-- The inputs from the pairs: defaults, the exclusivity of `fw` and `preset`, the engines allowlist, the widths allowlist
+and the recorder allowlist (`debug` is empty or one of `probeDebugs`). -/
+def build (kv : List (String × String)) : Except String ProbeIn :=
+  let g := fun (k d : String) => (kv.lookup k).getD d
+  let p : ProbeIn := ⟨g "engines" "both", g "fw" "", g "preset" "", g "widths" "", g "debug" ""⟩
+  if p.fw != "" && p.preset != "" then .error "fw and preset are exclusive"
+  else if !probeEngines.contains p.engines then .error "engines must be both, chromium or playwright-webkit"
+  else if decide (Fw.Gate.Trajectory.pickWidths p.widths = .refused) then
+    .error "widths must be a comma list of 390, 640, 641, 1280 without repeats"
+  else if p.debug != "" && !probeDebugs.contains p.debug then .error "debug must be nav-transition"
+  else .ok p
+
+/-- One candidate line parsed. -/
+def parseOne (l : List Char) : Except String ProbeIn :=
+  let t := trimL l
+  if t.getLast? != some ']' then .error "the line has no closing ']'"
+  else
+    let body := (t.drop lineKw.length).dropLast
+    if !(body.isEmpty || body.head? == some ' ' || body.head? == some '\t') then
+      .error "expected a space after [trajectory"
+    else
+      match addAll ((splitOn ' ' body).filter fun w => !w.isEmpty) with
+      | .error w => .error w
+      | .ok kv => build kv
+
+/-- The candidate lines of a message, in order. -/
+def candidates (m : String) : List (List Char) := (splitOn '\n' m.toList).filter isCand
+
+/-- The probe inputs a commit message carries. -/
+def parseLine (m : String) : ProbeLine :=
+  match candidates m with
+  | [] => .absent
+  | [l] => match parseOne l with
+    | .ok p => .inputs p
+    | .error w => .refused w
+  | _ => .refused "more than one [trajectory ...] line"
+
+/-- What a push to `ci/**` does with the probe. `lane` says its head commit asks for the lane (`[ci:trajectory-probe]`). -/
+def pushProbe (lane : Bool) (m : String) : PushProbe :=
+  match parseLine m with
+  | .refused w => .refused w
+  | .absent => if lane then .run ProbeIn.default else .notAsked
+  | .inputs p => if lane then .run p else .needsLane
+
+/-- Branch no line: the message carries no inputs. -/
+theorem parse_absent (m : String) (h : candidates m = []) : parseLine m = .absent := by
+  simp [parseLine, h]
+
+/-- Branch two or more lines: refused. -/
+theorem parse_many (m : String) (a b : List Char) (r : List (List Char)) (h : candidates m = a :: b :: r) :
+    parseLine m = .refused "more than one [trajectory ...] line" := by
+  simp [parseLine, h]
+
+/-- Branch one line that parses: its inputs. -/
+theorem parse_one_ok (m : String) (l : List Char) (p : ProbeIn) (h : candidates m = [l]) (hp : parseOne l = .ok p) :
+    parseLine m = .inputs p := by
+  simp [parseLine, h, hp]
+
+/-- Branch one line that does not parse: refused with the reason of the line. -/
+theorem parse_one_err (m : String) (l : List Char) (w : String) (h : candidates m = [l]) (hp : parseOne l = .error w) :
+    parseLine m = .refused w := by
+  simp [parseLine, h, hp]
+
+/-- **Every accepted input set is allowed.** `fw` and `preset` are never both set, the engines are one of the three
+values, the widths pass the Lean allowlist of the probe and the recorder is none or one of `probeDebugs`. -/
+theorem build_ok (kv : List (String × String)) (p : ProbeIn) (h : build kv = .ok p) :
+    (p.fw = "" ∨ p.preset = "") ∧ p.engines ∈ probeEngines ∧ Fw.Gate.Trajectory.pickWidths p.widths ≠ .refused ∧
+      (p.debug = "" ∨ p.debug ∈ probeDebugs) := by
+  unfold build at h
+  dsimp only at h
+  split at h
+  · simp at h
+  split at h
+  · simp at h
+  split at h
+  · simp at h
+  split at h
+  · simp at h
+  simp only [Except.ok.injEq] at h
+  subst h
+  rename_i h1 h2 h3 h4
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · simp only [Bool.and_eq_true, bne_iff_ne, ne_eq, not_and, Classical.not_not] at h1
+    by_cases hf : (kv.lookup "fw").getD "" = ""
+    · exact Or.inl hf
+    · exact Or.inr (h1 hf)
+  · simpa using h2
+  · simpa using h3
+  · simp only [Bool.and_eq_true, bne_iff_ne, ne_eq, Bool.not_eq_true', not_and] at h4
+    by_cases hd : (kv.lookup "debug").getD "" = ""
+    · exact Or.inl hd
+    · exact Or.inr (by simpa using h4 hd)
+
+/-- Branch no `debug` key: the run switches no recorder on. -/
+theorem build_debug_none (kv : List (String × String)) (p : ProbeIn) (h : build kv = .ok p)
+    (hk : kv.lookup "debug" = none) : p.debug = "" := by
+  unfold build at h
+  dsimp only at h
+  split at h
+  · simp at h
+  split at h
+  · simp at h
+  split at h
+  · simp at h
+  split at h
+  · simp at h
+  simp only [Except.ok.injEq] at h
+  subst h
+  simp [hk]
+
+/-- Branch a `debug` key that is accepted: the run switches exactly that recorder on (`build_ok`: it is listed). -/
+theorem build_debug_some (kv : List (String × String)) (d : String) (hk : kv.lookup "debug" = some d) (p : ProbeIn) (h : build kv = .ok p) : p.debug = d := by
+  unfold build at h
+  dsimp only at h
+  split at h
+  · simp at h
+  split at h
+  · simp at h
+  split at h
+  · simp at h
+  split at h
+  · simp at h
+  simp only [Except.ok.injEq] at h
+  subst h
+  simp [hk]
+
+/-- Branch a `debug` key with a value outside `probeDebugs`: the line is refused (never ignored, never run). -/
+theorem build_debug_unknown (kv : List (String × String)) (d : String) (hk : kv.lookup "debug" = some d)
+    (hne : d ≠ "") (hd : d ∉ probeDebugs) : ∃ w, build kv = .error w := by
+  unfold build
+  dsimp only
+  simp only [hk, Option.getD_some]
+  split
+  · exact ⟨_, rfl⟩
+  split
+  · exact ⟨_, rfl⟩
+  split
+  · exact ⟨_, rfl⟩
+  have hc : (d != "" && !probeDebugs.contains d) = true := by simpa [hne] using hd
+  simp only [hc, ↓reduceIte]
+  exact ⟨_, rfl⟩
+
+/-- Branch refused line: a push never runs the probe past a refused line, whether or not it asked for the lane. -/
+theorem push_refused (lane : Bool) (m : String) (w : String) (h : parseLine m = .refused w) :
+    pushProbe lane m = .refused w := by
+  simp [pushProbe, h]
+
+/-- Branch no line, lane asked: the probe runs with the defaults. -/
+theorem push_default (m : String) (h : parseLine m = .absent) : pushProbe true m = .run ProbeIn.default := by
+  simp [pushProbe, h]
+
+/-- Branch no line, lane not asked: nothing is asked. -/
+theorem push_not_asked (m : String) (h : parseLine m = .absent) : pushProbe false m = .notAsked := by
+  simp [pushProbe, h]
+
+/-- Branch a line, lane asked: the probe runs with exactly the inputs of the line. -/
+theorem push_line (m : String) (p : ProbeIn) (h : parseLine m = .inputs p) : pushProbe true m = .run p := by
+  simp [pushProbe, h]
+
+/-- Branch a line, lane not asked: the push says it needs the lane token (the inputs would otherwise be ignored). -/
+theorem push_needs_lane (m : String) (p : ProbeIn) (h : parseLine m = .inputs p) : pushProbe false m = .needsLane := by
+  simp [pushProbe, h]
+
+/-- **A push runs the probe only when it asked for the lane.** -/
+theorem push_run_asked (lane : Bool) (m : String) (p : ProbeIn) (h : pushProbe lane m = .run p) : lane = true := by
+  unfold pushProbe at h
+  cases hp : parseLine m <;> cases lane <;> simp_all
+
+/-- **The inputs of a run are the line's, parsed once.** A run with a line in the message uses exactly that line's inputs. -/
+theorem push_run_is_parse (lane : Bool) (m : String) (p : ProbeIn) (h : pushProbe lane m = .run p) :
+    parseLine m = .inputs p ∨ (parseLine m = .absent ∧ p = ProbeIn.default) := by
+  unfold pushProbe at h
+  cases hp : parseLine m <;> cases lane <;> simp_all
+
+/-! The probe golden: messages with their lane flag and the decision. -/
+
+/-- Messages the golden decides. -/
+def probeMsgs : List String := [
+  "ci: measure\n\n[ci:trajectory-probe]",
+  "ci: measure\n\n[ci:trajectory-probe]\n[trajectory fw=hero.exit:scoped widths=390,1280 engines=both]",
+  "[trajectory preset=v2-proved]",
+  "[trajectory fw=morph.tween:waapi,hero.exit:scoped]\n",
+  "[Trajectory FW=morph.tween:waapi]",
+  "[TRAJECTORY fw=a.b:c engines=chromium]",
+  "[trajectory]",
+  "  [trajectory   widths=641  engines=playwright-webkit  ]  ",
+  "[trajectory widths=390]\r\nbody",
+  "text that quotes [trajectory fw=a.b:c] in the middle",
+  "ci: x\n\n    [trajectory fw=a.b:c]",
+  "[trajectory fw=a.b:c",
+  "[trajectory fw=a.b:c] trailing",
+  "[trajectoryfw=a.b:c]",
+  "[trajectory fw]",
+  "[trajectory fw=]",
+  "[trajectory colour=red]",
+  "[trajectory fw=a.b:c fw=d.e:f]",
+  "[trajectory fw=a.b:c preset=v2-proved]",
+  "[trajectory engines=firefox]",
+  "[trajectory widths=800]",
+  "[trajectory widths=390,390]",
+  "[trajectory widths=390,]",
+  "[trajectory fw=a.b:c;rm]",
+  "[trajectory fw=$(x)]",
+  "[trajectory fw=a b]",
+  "[trajectory fw=a.b:c]\n[trajectory widths=390]",
+  "[trajectory fw=a.b:c]\n[trajectory fw=a.b:c]",
+  "[trajectory fw=a.b:c]\nsome prose\n[trajectory widths=bad]",
+  "[trajectory fw=morph.tween:waapi widths=1280 engines=playwright-webkit debug=nav-transition]",
+  "[trajectory debug=nav-transition]",
+  "[trajectory fw=morph.tween:waapi debug=nav-transition debug=nav-transition]",
+  "[trajectory debug=other]",
+  "[trajectory debug=Nav-Transition]",
+  "[trajectory debug=nav-transition,nav-transition]",
+  "[trajectory debug=]"]
+
+/-- The JSON of a decision. -/
+def pushProbeJson : PushProbe → Json
+  | .notAsked => Json.mkObj [("kind", "notAsked")]
+  | .needsLane => Json.mkObj [("kind", "needsLane")]
+  | .run p => Json.mkObj [("kind", "run"), ("engines", .str p.engines), ("fw", .str p.fw), ("preset", .str p.preset),
+      ("widths", .str p.widths), ("debug", .str p.debug)]
+  | .refused w => Json.mkObj [("kind", "refused"), ("why", .str w)]
+
+/-- One probe golden line. -/
+def probeLine (lane : Bool) (m : String) : Json :=
+  Json.mkObj [("kind", "probe"), ("msg", .str m), ("lane", .bool lane), ("result", pushProbeJson (pushProbe lane m))]
+
+/-- All probe golden lines: each message with the lane asked and not asked. -/
+def probeLines (_ : Unit := ()) : List Json := probeMsgs.flatMap fun m => [probeLine true m, probeLine false m]
+
+example : pushProbe true "[trajectory fw=a.b:c widths=390]" = .run ⟨"both", "a.b:c", "", "390", ""⟩ := by decide
+example : pushProbe true "[trajectory debug=nav-transition]" = .run { ProbeIn.default with debug := "nav-transition" } := by decide
+example : pushProbe true "[trajectory debug=other]" = .refused "debug must be nav-transition" := by decide
+example : pushProbe true "x [trajectory fw=a.b:c]" = .run ProbeIn.default := by decide
+example : pushProbe false "[trajectory fw=a.b:c]" = .needsLane := by decide
+example : pushProbe true "[trajectory fw=a preset=b]" = .refused "fw and preset are exclusive" := by decide
+example : pushProbe true "[trajectory fw=a.b:c" = .refused "the line has no closing ']'" := by decide
+
 /-- The replay cases: each is (name, diff, the paths that already equal `main`); the workflows it starts under the
 sample cones are added by `caseLine`. -/
 def cases : List (String × List String × List String) := [
@@ -924,7 +1265,7 @@ def ifCheckLine (t : String) : Json :=
 /-- The text of the golden file: one JSON object per line for the table, the cases, the `if:` forms and the `if:`
 checks. -/
 def goldenText (_ : Unit := ()) : String :=
-  String.join ((tableLine :: cases.map caseLine ++ ifOrigs.map ifFormLine ++ ifTexts.map ifCheckLine ++ pinLines).map
+  String.join ((tableLine :: cases.map caseLine ++ ifOrigs.map ifFormLine ++ ifTexts.map ifCheckLine ++ pinLines ++ probeLines ()).map
     fun j => j.compress ++ "\n")
 
 /-- Compare (or write) the golden file; returns the number of stale files. -/

@@ -5,3 +5,4 @@ export { pollOnce, type Poll } from "./poller.ts";
 export { waitFor, waitKind, critIndex, sentinelId, type Target, type Waited, type WaitOpts, type WaitPhases } from "./wait.ts";
 export { readStatus, readJson, paths, type Row, type Status } from "./state.ts";
 export { type RunFacts } from "./wait.ts";
+export { DISPATCH_WORKFLOWS, titleFor, validNonce, type Want } from "./want.ts";

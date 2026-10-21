@@ -424,10 +424,10 @@ def Lane.file : Lane → String
 `scripts/LaneInputs.lean --check` (a stage of `lean/scripts/check.sh`) parses the three files and fails when a list differs.
 -/
 def Lane.inputs : Lane → List String
-  | .chromiumCounts => ["profile", "runs", "target", "preset", "fw", "only", "image_run"]
-  | .webkitSim => ["vms", "sessions", "fresh_boot", "experiment", "arms", "reps", "target", "preset", "fw", "fault"]
-  | .breakpointGate => ["engines", "runs", "free", "times", "fw", "preset", "parts"]
-  | .trajectory => ["engines", "fw", "preset", "widths"]
+  | .chromiumCounts => ["profile", "runs", "target", "preset", "fw", "only", "image_run", "nonce"]
+  | .webkitSim => ["vms", "sessions", "fresh_boot", "experiment", "arms", "reps", "lag", "target", "preset", "fw", "fault", "nonce"]
+  | .breakpointGate => ["engines", "runs", "free", "times", "fw", "preset", "parts", "nonce"]
+  | .trajectory => ["engines", "fw", "preset", "widths", "nonce"]
 
 /-- The lane that measures an engine's counts. -/
 def Lane.ofEngine : Engine → Lane
@@ -767,7 +767,8 @@ theorem gate_keys_declared (g : GateRequest) : ∀ p ∈ gateDispatchInputs g, p
 /-! ## The trajectory probe lane
 
 `trajectory-probe.yml` takes the gate's three inputs (the engines, the rewrite's preset and flags) and the list of
-widths; the other inputs have no default to change. The request is a gate request and a widths string (empty = all
+widths; the other inputs have no default to change. It also declares `nonce`, the identity of a dispatch (set by `fw run`,
+`Fw.Ci.Dispatch`), which no request carries. The request is a gate request and a widths string (empty = all
 four; the allowlist is `Fw.Gate.Trajectory.pickWidths`, checked in `Fw.Wire.Store`).
 -/
 
