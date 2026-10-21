@@ -8,8 +8,8 @@
 import { sleep } from './sim.mjs';
 import { flattenRecords } from './reduce.mjs';
 
-/** Start recording on a connected tab. `stop()` returns the raw rows (reduce.mjs schema `fw.webkit.records/1`). */
-export async function startTimeline(c, { instruments = ['Timeline'], depth = 1, autoCapture = null } = {}) {
+/** Start recording on a connected tab (`stopMs`: how long `stop()` waits for the reply, default the scaled 15 s). `stop()` returns the raw rows (reduce.mjs schema `fw.webkit.records/1`). */
+export async function startTimeline(c, { instruments = ['Timeline'], depth = 1, autoCapture = null, stopMs } = {}) {
   const protocolRecords = [];
   let stopped = false;
   const off = c.on((m) => {
@@ -25,7 +25,7 @@ export async function startTimeline(c, { instruments = ['Timeline'], depth = 1, 
     /** the top-level protocol records received so far, in arrival order (live view for step-locking) */
     top: protocolRecords,
     async stop() {
-      await c.send('Timeline.stop');
+      await c.send('Timeline.stop', {}, stopMs ? { timeoutMs: stopMs } : undefined);
       for (let i = 0; i < 100 && !stopped; i++) await sleep(50);
       await sleep(200); // late eventRecorded messages
       off();

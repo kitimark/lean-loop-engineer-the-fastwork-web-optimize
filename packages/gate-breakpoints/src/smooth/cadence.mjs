@@ -15,6 +15,7 @@ import { PIN_SRC, waitReady } from '../page.mjs';
 import { startServer, snapshotRoot, siteDist, rewriteFor } from '../serve.mjs';
 import { envFor } from '../trajectory/registry.mjs';
 import { runCheck } from '../trajectory/reduce.mjs';
+import { HERO_BURST, END_PUSH, orderFor } from './schedule.mjs';
 import { launchCadence } from './launch.mjs';
 import { eventsOf, summariseTrace } from './trace.mjs';
 
@@ -45,9 +46,7 @@ export function installRecorder() {
 }
 const INIT = `${PIN_SRC}\n(${installRecorder.toString()})();`;
 
-/** The scroll scripts, data only. */
-export const HERO_BURST = { count: 60, dy: 42, everyMs: 16, tailMs: 600 };
-export const END_PUSH = { dy: 120, holdMs: 1000 };
+export { HERO_BURST, END_PUSH, orderFor };
 
 /** Tenths of ms between neighbouring rAF timestamps (ms, fractional). */
 export const intervalsOf = (ts) => ts.slice(1).map((t, i) => Math.round((t - ts[i]) * 10));
@@ -89,9 +88,6 @@ async function oneWindow(engine, env, a, win, traced) {
     return { ivs: intervalsOf(rec.ts), ys: rec.ys.slice(1), loaf: rec.loaf, arm, trace };
   } finally { await s.close().catch(() => {}); }
 }
-
-/** The arms in the order of one rep: a rotation of the list by the rep number. */
-export const orderFor = (arms, rep) => arms.map((_, i) => arms[(i + rep) % arms.length]);
 
 /**
  * Run the cadence lane for the widths in `widths`. `search` is the candidate's (`?preset=...` or `?fw=...`). Returns
