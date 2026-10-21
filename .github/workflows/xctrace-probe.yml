@@ -6,7 +6,8 @@ name: xctrace-probe
 #   (2) WebKit's kdebug trace points and os_signposts (wtf/SystemTracing.h) through the System Trace template and the os_signpost instrument,
 #   (3) XCTHitchMetric (XCTest, iOS 26.0 and later) in an XCUITest that swipes Safari.
 # Each VM scripts the same scroll of the two zones (the first and the last screen of the original page) and records it once per arm and
-# pass; two passes per VM and two VMs give the A/A. Code: packages/measure-webkit/src/xctrace/. Nothing here is phone time: the VM has no
+# pass; two VMs give the A/A. Run 6 (the last of the budget) keeps only the three host recordings: the Simulator-device recordings and XCTHitchMetric were
+# answered by runs 39653044145, 39674462007 and 39683465909 (note). Code: packages/measure-webkit/src/xctrace/. Nothing here is phone time: the VM has no
 # real GPU, so what the render side shows is the VM's (the note says what that can and cannot stand in for).
 on:
   push:
@@ -17,10 +18,6 @@ on:
         description: Passes per arm and VM
         type: string
         default: '1'
-      hitchmetric:
-        description: Run the XCTHitchMetric job step
-        type: boolean
-        default: true
 
 permissions:
   contents: read
@@ -66,7 +63,7 @@ jobs:
     concurrency:
       group: ci-lane:xctrace-probe:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:probe:${{ strategy.job-index }}
     runs-on: xcode-27
-    timeout-minutes: 75
+    timeout-minutes: 60
     name: probe vm ${{ matrix.vm }}
     strategy:
       fail-fast: false
@@ -168,7 +165,7 @@ jobs:
         id: host-signposts-host
         continue-on-error: true
         if: ${{ !cancelled() && steps.stale.outcome == 'skipped' }}
-        timeout-minutes: 7
+        timeout-minutes: 10
         env:
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           PASSES: ${{ inputs.passes || '1' }}
@@ -178,7 +175,7 @@ jobs:
         run: |
           set -u
           mkdir -p out
-          node src/xctrace/cli.mjs run --arms signposts-host --passes "$PASSES" --out out/host-signposts-host 2> >(tee out/host-signposts-host.log >&2)
+          node src/xctrace/cli.mjs run --arms signposts-host --passes "$PASSES" --limit 40 --reps 1 --stop-wait 360 --keep-traces --out out/host-signposts-host 2> >(tee out/host-signposts-host.log >&2)
           echo "run exit $?"
           node src/xctrace/cli.mjs reduce --dir out/host-signposts-host --json out/host-signposts-host-counts.json || true
           exit 0
@@ -196,7 +193,7 @@ jobs:
         id: host-hitches-host
         continue-on-error: true
         if: ${{ !cancelled() && steps.stale.outcome == 'skipped' }}
-        timeout-minutes: 7
+        timeout-minutes: 10
         env:
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           PASSES: ${{ inputs.passes || '1' }}
@@ -206,7 +203,7 @@ jobs:
         run: |
           set -u
           mkdir -p out
-          node src/xctrace/cli.mjs run --arms hitches-host --passes "$PASSES" --out out/host-hitches-host 2> >(tee out/host-hitches-host.log >&2)
+          node src/xctrace/cli.mjs run --arms hitches-host --natural --passes "$PASSES" --limit 40 --reps 1 --stop-wait 360 --keep-traces --out out/host-hitches-host 2> >(tee out/host-hitches-host.log >&2)
           echo "run exit $?"
           node src/xctrace/cli.mjs reduce --dir out/host-hitches-host --json out/host-hitches-host-counts.json || true
           exit 0
@@ -224,7 +221,7 @@ jobs:
         id: host-systrace-host
         continue-on-error: true
         if: ${{ !cancelled() && steps.stale.outcome == 'skipped' }}
-        timeout-minutes: 7
+        timeout-minutes: 10
         env:
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           PASSES: ${{ inputs.passes || '1' }}
@@ -234,7 +231,7 @@ jobs:
         run: |
           set -u
           mkdir -p out
-          node src/xctrace/cli.mjs run --arms systrace-host --passes "$PASSES" --out out/host-systrace-host 2> >(tee out/host-systrace-host.log >&2)
+          node src/xctrace/cli.mjs run --arms systrace-host --natural --passes "$PASSES" --limit 40 --reps 1 --stop-wait 360 --keep-traces --out out/host-systrace-host 2> >(tee out/host-systrace-host.log >&2)
           echo "run exit $?"
           node src/xctrace/cli.mjs reduce --dir out/host-systrace-host --json out/host-systrace-host-counts.json || true
           exit 0
@@ -244,86 +241,6 @@ jobs:
           name: xctrace-host-systrace-host-${{ matrix.vm }}
           path: |
             packages/measure-webkit/out/host-systrace-host*
-            !packages/measure-webkit/out/**/*.trace
-          if-no-files-found: warn
-          retention-days: 30
-
-      - name: 'Stage 4: XCTHitchMetric (an XCUITest swipes Safari on the served page)'
-        id: hitch
-        continue-on-error: true
-        if: ${{ !cancelled() && steps.stale.outcome == 'skipped' && (github.event_name != 'workflow_dispatch' || inputs.hitchmetric) }}
-        timeout-minutes: 25
-        env:
-          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
-          FW_WK_STALL_MS: '3600000'
-        shell: bash
-        run: |
-          set -uo pipefail
-          out="$GITHUB_WORKSPACE/packages/measure-webkit/out/hitchmetric"
-          mkdir -p "$out"
-          udid=$(cat "$RUNNER_TEMP/fw-sim-udid.txt")
-          brew install xcodegen > "$out/brew-xcodegen.log" 2>&1 || { echo "xcodegen install failed"; tail -5 "$out/brew-xcodegen.log"; exit 0; }
-          proj="$GITHUB_WORKSPACE/packages/measure-webkit/src/xctrace/hitchmetric"
-          (cd "$proj" && xcodegen generate) > "$out/xcodegen.log" 2>&1 || { echo "xcodegen failed"; tail -5 "$out/xcodegen.log"; exit 0; }
-          # the page: the snapshot served read-only on a fixed port, in its own session (perl setsid; macOS has no setsid command)
-          perl -MPOSIX -e 'setsid; exec @ARGV' node "$GITHUB_WORKSPACE/packages/measure-webkit/src/xctrace/cli.mjs" serve --port 8731 > "$out/serve.log" 2>&1 &
-          spid=$!
-          trap 'kill -TERM -- "-$spid" 2>/dev/null || kill -TERM "$spid" 2>/dev/null || true' EXIT
-          sleep 3
-          xcrun simctl openurl "$udid" http://127.0.0.1:8731/ || true
-          sleep 20
-          rm -rf "$out/hitch.xcresult"
-          set +e
-          # own deadline (the step timeout kills the whole step and has wedged the VM before): xcodebuild gets TERM after 17 minutes
-          xcodebuild test -project "$proj/HitchProbe.xcodeproj" -scheme HitchProbe -destination "id=$udid" \
-            -derivedDataPath "$RUNNER_TEMP/dd" -resultBundlePath "$out/hitch.xcresult" CODE_SIGNING_ALLOWED=NO > "$out/xcodebuild.log" 2>&1 &
-          xpid=$!
-          ( sleep 1020; kill -TERM "$xpid" 2>/dev/null ) &
-          wpid=$!
-          wait "$xpid"
-          echo "xcodebuild exit $?" | tee "$out/xcodebuild.exit"
-          kill "$wpid" 2>/dev/null
-          tail -40 "$out/xcodebuild.log"
-          xcrun xcresulttool get test-results summary --path "$out/hitch.xcresult" > "$out/summary.json" 2>&1 || true
-          xcrun xcresulttool get test-results tests --path "$out/hitch.xcresult" > "$out/tests.json" 2>&1 || true
-          xcrun xcresulttool get test-results metrics --path "$out/hitch.xcresult" > "$out/metrics.json" 2>&1 || true
-          ls -l "$out"
-          exit 0
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
-        with:
-          name: xctrace-hitchmetric-${{ matrix.vm }}
-          path: |
-            packages/measure-webkit/out/hitchmetric
-            !packages/measure-webkit/out/hitchmetric/hitch.xcresult/Data
-          if-no-files-found: warn
-          retention-days: 30
-
-      - name: 'Stage 5: recordings that target the Simulator device (Animation Hitches, os_signpost, System Trace)'
-        id: sim
-        continue-on-error: true
-        if: ${{ !cancelled() && steps.stale.outcome == 'skipped' }}
-        timeout-minutes: 14
-        env:
-          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
-          PASSES: ${{ inputs.passes || '1' }}
-          FW_WK_TIMEOUT_SCALE: '8'
-          FW_WK_ATTEMPTS: '3'
-        working-directory: packages/measure-webkit
-        run: |
-          set -u
-          mkdir -p out
-          node src/xctrace/cli.mjs run --arms hitches,signposts,systrace --passes "$PASSES" --out out/sim 2> >(tee out/sim.log >&2)
-          echo "run exit $?"
-          node src/xctrace/cli.mjs reduce --dir out/sim --json out/sim-counts.json || true
-          ls -l out/sim | head -40
-          exit 0
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
-        with:
-          name: xctrace-sim-${{ matrix.vm }}
-          path: |
-            packages/measure-webkit/out/sim*
             !packages/measure-webkit/out/**/*.trace
           if-no-files-found: warn
           retention-days: 30

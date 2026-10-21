@@ -44,8 +44,9 @@ export async function startRecording(arm, { udid, out, sudo = false, startMs = 6
   const group = (sig) => killGroup(child.pid, sig, sudo);
   return {
     started, startedAt: Date.now(), get output() { return text; }, get exited() { return exited; },
-    async stop() {
-      if (!exited) group('SIGINT');
+    async stop({ natural = false } = {}) {
+      // natural: no SIGINT; the recorder ends at its own --time-limit (round 2: a SIGINT left "Stopping recording..." for 90 s on the host)
+      if (!exited && !natural) group('SIGINT');
       // a recorder that never said it was recording gets 5 s after SIGINT, not the full stop time
       const r = await Promise.race([done, sleep(started ? stopMs : 5000).then(() => null)]);
       if (!r) { group('SIGKILL'); await Promise.race([done, sleep(5000)]); return { ...(exited ?? {}), killed: true }; }

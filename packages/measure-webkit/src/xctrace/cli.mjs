@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// node src/xctrace/cli.mjs run [--arms a,b] [--passes 2] [--reps 4] [--step 25] [--frames 2] [--sudo auto|yes|no] [--out dir] [--keep-traces]
+// node src/xctrace/cli.mjs run [--arms a,b] [--passes 2] [--reps 4] [--step 25] [--frames 2] [--sudo auto|yes|no] [--limit s] [--stop-wait s] [--natural] [--out dir] [--keep-traces]
 //   one Simulator session: Safari loads the page once; for each arm and pass one `xctrace record` of the scripted two-zone scroll,
 //   `xctrace export` of the wanted tables, and <out>/<arm>-p<n>.json with the sweep windows and what xctrace said.
 // node src/xctrace/cli.mjs serve [--port 8731]   the snapshot, read-only, until SIGTERM (the XCTHitchMetric job)
@@ -23,8 +23,9 @@ const { values: v } = parseArgs({
   options: {
     arms: { type: 'string', default: ARMS.map((a) => a.id).join(',') }, passes: { type: 'string', default: '2' }, reps: { type: 'string', default: '4' },
     step: { type: 'string', default: '25' }, frames: { type: 'string', default: '2' }, sudo: { type: 'string', default: 'auto' },
-    out: { type: 'string', default: 'out/xctrace' }, 'keep-traces': { type: 'boolean', default: false },
+    out: { type: 'string', default: 'out/xctrace' }, 'keep-traces': { type: 'boolean', default: false }, natural: { type: 'boolean', default: false },
     site: { type: 'string' }, search: { type: 'string', default: '' }, settle: { type: 'string', default: '6000' },
+    limit: { type: 'string', default: '90' }, 'stop-wait': { type: 'string', default: '90' },
     dir: { type: 'string' }, json: { type: 'string' }, port: { type: 'string', default: '8731' },
   },
   allowNegative: true,
@@ -39,8 +40,8 @@ async function onePass(ctx, arm, pass, info, outDir) {
   let sudo = v.sudo === 'yes';
   let r = null;
   for (let attempt = 0; attempt < 2; attempt++) {
-    rmSync(trace, { recursive: true, force: true });
-    r = await startRecording(arm, { udid: ctx.udid, out: trace, sudo, log });
+    try { rmSync(trace, { recursive: true, force: true }); } catch { /* a trace left by a sudo recording belongs to root */ }
+    r = await startRecording(arm, { udid: ctx.udid, out: trace, sudo, log, limitS: Number(v.limit), stopMs: Number(v['stop-wait']) * 1000 });
     if (r.started || v.sudo !== 'auto' || sudo) break;
     rec.notes.push(`without sudo: ${r.exited ? `exited ${r.exited.code ?? r.exited.sig}` : 'no start line'}: ${r.output.trim().split('\n').slice(-3).join(' | ')}`);
     await r.stop();
@@ -54,7 +55,7 @@ async function onePass(ctx, arm, pass, info, outDir) {
     try { rec.windows = await scrollZones(ctx.c, info, { step: Number(v.step), frames: Number(v.frames), reps: Number(v.reps) }); } catch (e) { rec.notes.push(`scroll: ${e.message}`); }
     await sleep(1500);
   }
-  const stopped = await r.stop();
+  const stopped = await r.stop({ natural: v.natural });
   rec.stopped = stopped;
   rec.xctraceOutput = r.output.slice(-4000);
   if (r.started) {
@@ -63,7 +64,7 @@ async function onePass(ctx, arm, pass, info, outDir) {
     rec.tables = ex.tables;
   }
   writeFileSync(join(outDir, `${name}.json`), JSON.stringify(rec, null, 1) + '\n');
-  if (!v['keep-traces']) rmSync(trace, { recursive: true, force: true });
+  if (!v['keep-traces']) { try { rmSync(trace, { recursive: true, force: true }); } catch (e) { rec.notes.push(`trace not removed: ${e.code}`); } }
   log(`${name}: started ${rec.started}, ${rec.windows ? rec.windows.length : 0} sweeps, ${rec.tables?.length ?? 0} tables`);
   return rec;
 }
