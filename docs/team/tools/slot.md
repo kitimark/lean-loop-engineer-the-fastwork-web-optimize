@@ -20,7 +20,7 @@ jobs it admits rises and falls with the machine's load and memory.
 | `fw slot release --token t` | frees your slot | 0 |
 | `fw slot status [--json]` | current limit, sample, holders, queue | 0 |
 | `fw slot sim [--apply]` | the Simulator check now; `--apply` shuts down every booted device when it says shutdown | 0 |
-| `fw slot held --kind <k>` | whether a live slot of kind `k` exists (used by `scripts/sim-lock.sh`) | 0 held, 1 free |
+| `fw slot held --kind <k>` | whether a live slot of kind `k` exists (used by `scripts/sim-lock.sh`) | 0 held, 3 free, other: check failed |
 | `fw slot admit --kind build [--agents n]` | may the lead start one more builder or reviewer; prints `VERDICT admit build` or `VERDICT wait build`, the reason on stderr | 0 admit, 75 wait |
 
 Kinds: `check`, `test`, `land`, `sim`, `other`. `--owner o` (default `FW_SLOT_OWNER`, else the worktree's

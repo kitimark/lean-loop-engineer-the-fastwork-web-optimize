@@ -13,9 +13,9 @@ here=$(cd "$(dirname "$0")" && pwd -P)
 main=$(cd "$(git rev-parse --git-common-dir)/.." && pwd -P)
 lock="$main/.local/locks/sim"
 alive() { kill -0 "$1" 2>/dev/null; }
-# slot_sim: exit 0 when a slot sim holder is live, 1 when none, anything else when the check failed.
+# slot_sim: exit 0 when a slot sim holder is live, 3 when none, anything else when the check failed.
 slot_sim() {
-  [ -z "${CI:-}" ] || return 1
+  [ -z "${CI:-}" ] || return 3
   FW_LOCK_EVENTS=off node "$here/../apps/runner/src/fw.ts" slot held --kind sim >/dev/null 2>&1
 }
 now_ms() {
@@ -48,7 +48,7 @@ acquire)
     if mkdir "$lock" 2>/dev/null; then
       echo "$owner" > "$lock/owner"; echo "$PPID" > "$lock/pid"
       rc=0; slot_sim || rc=$?
-      if [ "$rc" -ne 1 ]; then
+      if [ "$rc" -ne 3 ]; then
         rm -rf "$lock"
         if [ "$rc" -ne 0 ]; then echo "sim-lock: fw slot held --kind sim failed (exit $rc); lock refused" >&2; exit 1; fi
         if [ "$t" -ge "$wait" ]; then echo "sim-lock: held by a Simulator slot of fw slot (see pnpm -s fw slot status)" >&2; exit 1; fi

@@ -504,7 +504,7 @@ export async function slotCli(argv: string[], deps: Deps): Promise<number> {
       const k = kindArg(args);
       const held = withState(d, (st) => heldOf(nowS(), st.holders, k));
       d.out(`slot ${k}: ${held ? "held" : "free"}\n`);
-      return held ? 0 : 1;
+      return held ? 0 : 3;
     }
     case "admit": {
       if (flag(args, "--kind") !== "build") throw new SlotUsage(`admit takes --kind build\n${SLOT_USAGE}`);

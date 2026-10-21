@@ -254,10 +254,10 @@ describe("the old sim-lock and the slot", () => {
 
   it("fw slot held reports a live holder of a kind by exit code", async () => {
     const { d } = deps();
-    expect(await slotCli(["held", "--kind", "sim"], d)).toBe(1);
+    expect(await slotCli(["held", "--kind", "sim"], d)).toBe(3);
     expect(await slotCli(["acquire", "--kind", "sim", "--lease", "900"], d)).toBe(0);
     expect(await slotCli(["held", "--kind", "sim"], d)).toBe(0);
-    expect(await slotCli(["held", "--kind", "test"], d)).toBe(1);
+    expect(await slotCli(["held", "--kind", "test"], d)).toBe(3);
   });
 
   it("sim-lock.sh refuses while a slot sim holder is live and takes the lock once it is gone", async () => {
