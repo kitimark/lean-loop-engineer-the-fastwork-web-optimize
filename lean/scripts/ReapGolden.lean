@@ -1,7 +1,8 @@
 import Fw.Ops.Golden
 
-/-! Write (or with `--check`, verify) `packages/contracts/golden/ops/lspreap.jsonl`: `ops.lspReap` (Fw.Ops.Reap) cases.
-Consumer: `apps/runner/src/reap.ts`, replayed by `apps/runner/test/reap.test.ts`. Run from `lean/`:
+/-! Write (or with `--check`, verify) `packages/contracts/golden/ops/lspreap.jsonl`: `ops.lspReap` (Fw.Ops.Reap) cases,
+`reap.jsonl` (the stop plan) and `reap-idle.jsonl` (branch D and the CPU baselines).
+Consumer: `apps/runner/src/reap.ts`, replayed by `apps/runner/test/reap.test.ts` and `reap-idle.test.ts`. Run from `lean/`:
 `lake env lean --run scripts/ReapGolden.lean [--check]`. -/
 
 open Lean Fw.Wire.Ops.Golden
@@ -191,6 +192,86 @@ def stopCases : List (String × String × Json) := [
   ("ops.reapVerify", "verify: a reused pid is not a survivor",
     stopReq [tgt 800 9 false] [row 800 1 800 50 none "tool"])]
 
+/-- A row of the worktree `wt` (`none`: the main checkout) with cwd inode 30, start 9 and a CPU time (centiseconds). -/
+def ir (pid ppid pgid : Nat) (kind : String) (cpu : Option Nat) (wt : Option String := some "w") : Json :=
+  match rowW pid ppid pgid 9 (some 30) kind wt with
+  | .obj kvs => .obj ((kvs.insert "cpu" (match cpu with | some c => toJson c | none => .null)).insert "inRepo" (.bool true))
+  | j => j
+
+/-- A lean-lsp-mcp process with cwd inode 1 and the worktree its cwd lies in. -/
+def mcpW (pid : Nat) (wt : Option String) : Json :=
+  Json.mkObj [("pid", toJson pid), ("cwd", toJson 1), ("wt", match wt with | some w => .str w | none => .null)]
+
+/-- A baseline of the identity (pid, start 9). -/
+def bse (pid since cpu : Nat) (start : Nat := 9) : Json :=
+  Json.mkObj [("pid", toJson pid), ("start", toJson start), ("since", toJson since), ("cpu", toJson cpu)]
+
+/-- An idle-stack request: the live inodes (1 and 30 by default), live worktree `w`, the baselines, the locks `(id, holder)`
+and `now`. -/
+def idleReq (rows mcps bases : List Json) (locks : List (String × Option Nat) := []) (now : Nat := 5000)
+    (protect : List Nat := []) (live : List Nat := [1, 30]) : Json :=
+  match reqW rows live mcps [] ["w"] with
+  | .obj kvs => .obj ((((kvs.insert "bases" (.arr bases.toArray)).insert "now" (toJson now)).insert "protect"
+      (toJson protect)).insert "locks" (.arr (locks.map fun (id, h) => Json.mkObj [("id", .str id),
+        ("holder", match h with | some p => toJson p | none => .null)]).toArray))
+  | j => j
+
+/-- An MCP stack of lean-lsp-mcp 400: `lake serve` 500, `lean --server` 501 (both group 500), workers 502 and 503 (own
+groups), CPU 10, 600, 900, 100. -/
+def stack (wt : Option String := some "w") (cpu502 : Option Nat := some 900) : List Json :=
+  [ir 500 400 500 "lspServe" (some 10) wt, ir 501 500 500 "tool" (some 600) wt, ir 502 501 502 "tool" cpu502 wt,
+    ir 503 501 503 "tool" (some 100) wt]
+
+/-- The baselines of `stack`, set at second 1000 with the same CPU times. -/
+def stackBases : List Json := [bse 500 1000 10, bse 501 1000 600, bse 502 1000 900, bse 503 1000 100]
+
+/-- The cases of branch D and of the baselines, `(op, name, request)`. -/
+def idleCases : List (String × String × Json) := [
+  ("ops.lspReap", "D: every process of an idle lean-lsp-mcp stack in a worktree with no live session is selected",
+    idleReq (stack) [mcpW 400 none] stackBases),
+  ("ops.reapPlan", "D plan: lake serve and lean --server are one group signal, each worker its own group",
+    idleReq (stack) [mcpW 400 none] stackBases),
+  ("ops.lspReap", "D: a worktree locked by a holder pid in the table (a live session) keeps the stack",
+    idleReq (stack ++ [ir 300 1 300 "other" none none]) [mcpW 400 none] stackBases [("w", some 300)]),
+  ("ops.lspReap", "D: a lock whose holder pid is gone (a dead session) does not keep the stack",
+    idleReq (stack) [mcpW 400 none] stackBases [("w", some 300)]),
+  ("ops.lspReap", "D: a lock whose reason names no pid keeps the stack",
+    idleReq (stack) [mcpW 400 none] stackBases [("w", none)]),
+  ("ops.lspReap", "D: a lock on another worktree does not keep the stack",
+    idleReq (stack ++ [ir 300 1 300 "other" none none]) [mcpW 400 none] stackBases [("v", some 300)]),
+  ("ops.lspReap", "D: a lean-lsp-mcp started in the worktree (its session works there) keeps the stack",
+    idleReq (stack) [mcpW 400 (some "w")] stackBases),
+  ("ops.lspReap", "D: a worker that used more than cpuTolCs since its baseline keeps the whole stack",
+    idleReq (stack (cpu502 := some 1201)) [mcpW 400 none] stackBases),
+  ("ops.lspReap", "D: a worker that used exactly cpuTolCs since its baseline is still quiet",
+    idleReq (stack (cpu502 := some 1200)) [mcpW 400 none] stackBases),
+  ("ops.lspReap", "D: a baseline younger than idleSec keeps the stack",
+    idleReq (stack) [mcpW 400 none] stackBases (now := 2199)),
+  ("ops.lspReap", "D: a stack seen for the first time (no baseline) is kept",
+    idleReq (stack) [mcpW 400 none] []),
+  ("ops.lspReap", "D: a row of the stack with an unread CPU time keeps the stack",
+    idleReq (stack (cpu502 := none)) [mcpW 400 none] stackBases),
+  ("ops.lspReap", "D: a stack in the main checkout (no worktree id) is kept",
+    idleReq (stack (wt := none)) [mcpW 400 none] stackBases),
+  ("ops.lspReap", "D: a serena-lean server (lean --server below a serena process) is kept, idle or not",
+    idleReq [ir 600 1 600 "serena" (some 5) none, ir 601 600 601 "tool" (some 5)] [mcpW 400 none]
+      [bse 600 1000 5, bse 601 1000 5]),
+  ("ops.lspReap", "D: a lean-lsp-mcp stack below a serena process is kept",
+    idleReq (ir 399 1 399 "serena" (some 5) none :: stack) [mcpW 400 none] stackBases),
+  ("ops.lspReap", "D: a lake serve whose parent is no lean-lsp-mcp (an editor's) is kept",
+    idleReq (stack) [] stackBases),
+  ("ops.lspReap", "D: a protected pid (the stopper's chain) is kept, the rest of the stack is selected",
+    idleReq (stack) [mcpW 400 none] stackBases (protect := [502])),
+  ("ops.lspReap", "D: a stack in a removed worktree (cwd inode not live) is selected by A and B, not by D",
+    idleReq (stack (wt := some "gone")) [mcpW 400 none] stackBases (live := [1])),
+  ("ops.reapPlan", "D plan: an unselected shell in the lake serve group makes it a signal by pid",
+    idleReq (stack ++ [ir 504 500 500 "other" (some 0)]) [mcpW 400 none] (stackBases ++ [bse 504 1000 0])),
+  ("ops.reapIdle", "baselines: a quiet row keeps its own, a busy row and an unseen row get one at now, other rows none",
+    idleReq (stack (cpu502 := some 1201) ++ [ir 700 1 700 "tool" (some 5)]) [mcpW 400 none]
+      [bse 500 1000 10, bse 501 1000 600, bse 502 1000 900]),
+  ("ops.reapIdle", "baselines: a reused pid (another start) gets a new baseline",
+    idleReq (stack) [mcpW 400 none] [bse 500 1000 10 (start := 8), bse 501 1000 600, bse 502 1000 900, bse 503 1000 100])]
+
 /-- The golden text of `lspreap.jsonl`. -/
 def text : String :=
   String.join (reapCases.map fun (name, r) =>
@@ -202,11 +283,17 @@ def stopText : String :=
   String.join (stopCases.map fun (op, name, r) =>
     (Json.mkObj [("name", .str name), ("request", withOp op r), ("response", respond op r)]).compress ++ "\n")
 
+/-- The golden text of `reap-idle.jsonl`. -/
+def idleText : String :=
+  String.join (idleCases.map fun (op, name, r) =>
+    (Json.mkObj [("name", .str name), ("request", withOp op r), ("response", respond op r)]).compress ++ "\n")
+
 /-- Write the golden files, or with `--check` exit 1 when one differs from the Lean output. -/
 def main (args : List String) : IO UInt32 := do
   let dir : System.FilePath := ".." / "packages" / "contracts" / "golden" / "ops"
   let files : List (String × String × Nat) :=
-    [("lspreap.jsonl", text, reapCases.length), ("reap.jsonl", stopText, stopCases.length)]
+    [("lspreap.jsonl", text, reapCases.length), ("reap.jsonl", stopText, stopCases.length),
+      ("reap-idle.jsonl", idleText, idleCases.length)]
   if args.contains "--check" then
     let mut bad := false
     for (f, t, n) in files do

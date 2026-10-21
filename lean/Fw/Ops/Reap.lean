@@ -12,19 +12,24 @@ worktree of this repo. C: it is a tool inside this repo whose cwd is in no live 
 B. Every branch refuses a row shielded off: the recorded console (`.fw-console/api.json`), everything below it, the stopper's
 own process and its ancestors, pid <= 1. B and C also refuse a lean-lsp-mcp process, and every branch a row with an
 unreadable cwd or a cwd inode of a live checkout.
+D (task `lsp-reap`): a process of a lean-lsp-mcp server stack (a `lake serve` whose parent is a lean-lsp-mcp process, and
+the rows below it) whose cwd is in a worktree of this repo that has no live session (no lock held by a present pid, no
+lean-lsp-mcp started there), when every row of the stack used at most `cpuTolCs` of CPU since a baseline at least `idleSec`
+old. D is the one branch that takes a live checkout. No branch takes a row with a serena process in its chain.
 The stop plan: read, check the identity again, TERM, wait the grace, read again, KILL the survivors whose (pid, start) is
 unchanged, verify. A group is signalled only when every row of that group is selected, and every signal passes `guardOk`
 against an explicit scope of pids.
 -/
 namespace Fw.Ops.Reap
 
-/-- The kinds a selection carries: a `lake serve` of lean-lsp-mcp, a console-api, a tool of a removed worktree (branch B)
-and a tool below a selected ancestor (branch C). -/
+/-- The kinds a selection carries: a `lake serve` of lean-lsp-mcp, a console-api, a tool of a removed worktree (branch B),
+a tool below a selected ancestor (branch C) and a process of an idle lean-lsp-mcp server stack (branch D). -/
 inductive Kind where
   | lspServe
   | console
   | removed
   | descendant
+  | mcpIdle
 deriving Repr, DecidableEq
 
 /-- The kind named by the glue's argv classification for branch A. -/
@@ -39,6 +44,7 @@ def Kind.name : Kind → String
   | .console => "console"
   | .removed => "removed"
   | .descendant => "descendant"
+  | .mcpIdle => "mcpIdle"
 
 /-- The argv kinds that branches B and C may select: a tool process (lean, lake, fwcore, node, vitest, a playwright browser)
 or a `lake serve` (also when its parent is gone). A tool is never selected by its name, only through its cwd (B) or an
@@ -65,6 +71,29 @@ structure Mcp where
   cwd : Option Nat
 deriving Repr
 
+/-- The CPU time one process (pid, start) used so far, in centiseconds. -/
+structure Use where
+  pid : Nat
+  start : Nat
+  cpu : Nat
+deriving Repr
+
+/-- The CPU baseline of one process: its identity (pid, start), the second the baseline was set and the CPU time then
+(centiseconds). -/
+structure Base where
+  pid : Nat
+  start : Nat
+  since : Nat
+  cpu : Nat
+deriving Repr, DecidableEq
+
+/-- A worktree lock: the worktree id and the pid its reason names (`claude agent <id> (pid P start ...)`), `none` when the
+reason names no pid. -/
+structure Lock where
+  id : String
+  holder : Option Nat
+deriving Repr
+
 /-- The inputs: the rows (the whole process table), the inodes of the live checkouts' directories (this repo's worktree
 list, nested Lean projects included), the lean-lsp-mcp processes, the recorded console `keep` as (pid, start second of its
 record), the ids of the live worktrees and the pids the stopper itself must keep (its own process and ancestors). -/
@@ -76,6 +105,19 @@ structure Input where
   liveIds : List String := []
   protect : List Nat := []
 deriving Repr
+
+/-- The inputs of every branch, D included: those of A, B and C, the current second `now`, the CPU time each read row used,
+the CPU baselines of the previous run, the worktree locks and `mcpWt`, the worktree id each lean-lsp-mcp process (by pid)
+was started in (no entry: elsewhere, the main checkout included). -/
+structure InputD extends Input where
+  now : Nat := 0
+  uses : List Use := []
+  bases : List Base := []
+  locks : List Lock := []
+  mcpWt : List (Nat × String) := []
+deriving Repr
+
+instance : Coe InputD Input := ⟨InputD.toInput⟩
 
 /-- A selected row: its identity (pid and start), its kind and whether the group may be signalled. -/
 structure Sel where
@@ -272,7 +314,8 @@ theorem selected_named_and_dead {i : Input} {s : Sel} (h : s ∈ reap i) :
   obtain ⟨⟨c, hc, hl⟩, -, -, hk, -⟩ := any_some hp
   exact ⟨r, hr, hk, hpid, c, hc, by simpa using hl⟩
 
-/-- Row safety 1: a row whose cwd inode is a live checkout's (nested projects included) is not picked by any branch. -/
+/-- Row safety 1: a row whose cwd inode is a live checkout's (nested projects included) is not picked by A, B or C (D picks
+only an idle MCP stack, `never_live_mcp_parent`). -/
 theorem live_row {i : Input} {r : Row} {c : Nat} (hc : r.cwd = some c) (hl : c ∈ i.live) : pickAny i r = none := by
   cases hp : pickAny i r with
   | none => rfl
@@ -447,7 +490,8 @@ theorem group_iff {i : Input} {s : Sel} (h : s ∈ reap i) :
   rw [hg]
   simp
 
-/-- A process whose cwd inode is a live checkout's is never selected (corollary of `live_row`, with unique pids). -/
+/-- A process whose cwd inode is a live checkout's is never selected by A, B or C (corollary of `live_row`, with unique
+pids). -/
 theorem live_never_selected {i : Input} {r : Row} (hr : r ∈ i.rows) {c : Nat} (hc : r.cwd = some c) (hl : c ∈ i.live)
     (hu : ∀ r' ∈ i.rows, r'.pid = r.pid → r' = r) : ∀ s ∈ reap i, s.pid ≠ r.pid := by
   intro s hs hpid
@@ -546,6 +590,7 @@ def Kind.reason : Kind → String
   | .console => "orphan console-api, cwd in a removed worktree of this repo"
   | .removed => "tool whose cwd is in a removed worktree"
   | .descendant => "tool below a selected process"
+  | .mcpIdle => "lean-lsp-mcp server stack idle (CPU quiet) in a worktree with no live agent"
 
 /-! ## The stop plan -/
 
@@ -804,6 +849,371 @@ theorem term_group_inside {planned : List Target} {fresh : List Row} {t : Target
   kill_group_inside h hg
 
 
+/-! ## Branch D: an idle lean-lsp-mcp server stack in a worktree with no live session -/
+
+/-- The quiet window: a baseline must be at least this many seconds old before its stack counts as idle. -/
+def idleSec : Nat := 1200
+
+/-- The CPU a quiet row may use since its baseline, in centiseconds. -/
+def cpuTolCs : Nat := 300
+
+/-- A `lake serve` whose parent is a lean-lsp-mcp process: the root of an MCP server stack. -/
+def mcpRoot (i : InputD) (R : Row) : Bool := R.kind == "lspServe" && i.mcps.any fun m => m.pid == R.ppid
+
+/-- The root of the MCP stack a row is in: the nearest row of its chain (the row itself included) that is an MCP root. -/
+def rootOf (i : InputD) (r : Row) : Option Row := (r :: chain i i.rows.length r).find? (mcpRoot i)
+
+/-- The row `x` is `R` or lies below it. -/
+def below (i : InputD) (R x : Row) : Bool := (x :: chain i i.rows.length x).any fun a => a.pid == R.pid
+
+/-- The baseline of the row's identity (pid and start). -/
+def baseOf (i : InputD) (r : Row) : Option Base := i.bases.find? fun b => b.pid == r.pid && b.start == r.start
+
+/-- The CPU time read for the row's identity (pid and start), `none` when unread. -/
+def cpuOf (i : InputD) (r : Row) : Option Nat :=
+  (i.uses.find? fun u => u.pid == r.pid && u.start == r.start).map (·.cpu)
+
+/-- The row used at most `cpuTolCs` of CPU since a baseline set at least `idleSec` ago; an unread CPU time or no baseline is
+not quiet. -/
+def quiet (i : InputD) (r : Row) : Bool :=
+  match cpuOf i r, baseOf i r with
+  | some c, some b => decide (c ≤ b.cpu + cpuTolCs) && decide (b.since + idleSec ≤ i.now)
+  | _, _ => false
+
+/-- Every row of the stack rooted at `R` is quiet. -/
+def stackIdle (i : InputD) (R : Row) : Bool := (i.rows.filter (below i R)).all (quiet i)
+
+/-- A lock is live when its holder pid is in the process table, or when its reason names no pid. -/
+def lockLive (i : InputD) (l : Lock) : Bool :=
+  match l.holder with
+  | none => true
+  | some p => i.rows.any fun r => r.pid == p
+
+/-- A live session works in the worktree `id`: a live lock holds it, or a lean-lsp-mcp process was started there. -/
+def sessionLive (i : InputD) (id : String) : Bool :=
+  i.locks.any (fun l => l.id == id && lockLive i l) || i.mcpWt.any (fun m => m.2 == id)
+
+/-- Branch D: a tool (or the `lake serve` root) of an idle MCP stack whose root shares its worktree, which has no live
+session. -/
+def pickD (i : InputD) (r : Row) : Option Kind :=
+  match r.cwd, r.wt, rootOf i r with
+  | some _, some id, some R =>
+    if isTool r.kind && r.inRepo && R.wt == some id && !sessionLive i id && stackIdle i R && !isMcp i r &&
+        decide (1 < r.pid) && shielded i r
+    then some .mcpIdle else none
+  | _, _, _ => none
+
+/-- No row of the chain (the row itself included) is a serena process. -/
+def serenaFree (i : InputD) (r : Row) : Bool := (r :: chain i i.rows.length r).all fun a => a.kind != "serena"
+
+/-- The kind a row is selected as by A, B or C, else by D; never for a row with a serena process in its chain. -/
+def pickAll (i : InputD) (r : Row) : Option Kind :=
+  if serenaFree i r then
+    match pickAny i r with
+    | some k => some k
+    | none => pickD i r
+  else none
+
+/-- The rows to stop by every branch, with a group flag that is set only for a group leader. -/
+def reapAll (i : InputD) : List Sel :=
+  i.rows.filterMap fun r => (pickAll i r).map fun k => ⟨r.pid, r.start, k, r.pgid == r.pid⟩
+
+/-- The TERM targets of every branch: one per selected row. -/
+def planAll (i : InputD) : List Target :=
+  (reapAll i).map fun s => ⟨s.pid, s.start, groupSafe i (reapAll i) s⟩
+
+/-- The baselines for the next run, one per row of an MCP stack with a read CPU time: the old baseline while the row stays
+within `cpuTolCs` of it, else a new one at `now`. -/
+def rebase (i : InputD) : List Base :=
+  i.rows.filterMap fun r =>
+    if (rootOf i r).isSome then
+      (cpuOf i r).map fun c =>
+        match baseOf i r with
+        | some b => if c ≤ b.cpu + cpuTolCs then b else ⟨r.pid, r.start, i.now, c⟩
+        | none => ⟨r.pid, r.start, i.now, c⟩
+    else none
+
+theorem rootOf_some {i : InputD} {r R : Row} (h : rootOf i r = some R) :
+    R ∈ r :: chain i i.rows.length r ∧ mcpRoot i R = true :=
+  ⟨List.mem_of_find?_eq_some h, List.find?_some h⟩
+
+theorem pickD_some {i : InputD} {r : Row} {k : Kind} (h : pickD i r = some k) :
+    k = .mcpIdle ∧ (∃ c, r.cwd = some c) ∧ ∃ id R, r.wt = some id ∧ rootOf i r = some R ∧ R.wt = some id ∧
+      isTool r.kind = true ∧ r.inRepo = true ∧ sessionLive i id = false ∧ stackIdle i R = true ∧ isMcp i r = false ∧
+      1 < r.pid ∧ shielded i r = true := by
+  unfold pickD at h
+  split at h
+  · rename_i c id R hc hw hR
+    split at h
+    · rename_i hb
+      cases h
+      simp only [Bool.and_eq_true, Bool.not_eq_true', decide_eq_true_eq, beq_iff_eq] at hb
+      exact ⟨rfl, ⟨c, hc⟩, id, R, hw, hR, hb.1.1.1.1.1.2, hb.1.1.1.1.1.1.1, hb.1.1.1.1.1.1.2, hb.1.1.1.1.2,
+        hb.1.1.1.2, hb.1.1.2, hb.1.2, hb.2⟩
+    · cases h
+  · cases h
+
+/-- Quiet, spelled out: a read CPU time, a baseline of the same identity, at most `cpuTolCs` used since it, and the baseline
+at least `idleSec` old. -/
+theorem quiet_iff {i : InputD} {r : Row} :
+    quiet i r = true ↔ ∃ c b, cpuOf i r = some c ∧ baseOf i r = some b ∧ c ≤ b.cpu + cpuTolCs ∧ b.since + idleSec ≤ i.now := by
+  unfold quiet
+  cases hc : cpuOf i r with
+  | none => simp
+  | some c =>
+    cases hb : baseOf i r with
+    | none => simp
+    | some b => simp
+
+/-- A row picked by D is quiet: every row of its stack is, and the row lies in its own stack. -/
+theorem idle_row {i : InputD} {r : Row} {k : Kind} (hr : r ∈ i.rows) (h : pickD i r = some k) : quiet i r = true := by
+  obtain ⟨-, -, id, R, -, hR, -, -, -, -, hs, -⟩ := pickD_some h
+  have hm := (rootOf_some hR).1
+  have hb : below i R r = true := by
+    unfold below
+    rw [List.any_eq_true]
+    exact ⟨R, hm, by simp⟩
+  unfold stackIdle at hs
+  rw [List.all_eq_true] at hs
+  exact hs r (List.mem_filter.2 ⟨hr, hb⟩)
+
+/-- A worker whose worktree has a live session (a live lock, or a lean-lsp-mcp started there) is not picked by D. -/
+theorem live_session_row {i : InputD} {r : Row} {id : String} (hw : r.wt = some id) (hs : sessionLive i id = true) :
+    pickD i r = none := by
+  cases hq : pickD i r with
+  | none => rfl
+  | some k =>
+    obtain ⟨-, -, id', -, hw', -, -, -, -, hs', -⟩ := pickD_some hq
+    rw [hw] at hw'
+    cases hw'
+    rw [hs] at hs'
+    cases hs'
+
+/-- A row outside every worktree (the main checkout, a land worktree, another directory) is not picked by D. -/
+theorem main_row {i : InputD} {r : Row} (hw : r.wt = none) : pickD i r = none := by
+  unfold pickD
+  rw [hw]
+  split <;> simp_all
+
+/-- A row of a stack with a row that is not quiet (CPU used, a young or missing baseline, an unread CPU time) is not picked
+by D. -/
+theorem busy_stack_row {i : InputD} {r R : Row} (hR : rootOf i r = some R) (hs : stackIdle i R = false) :
+    pickD i r = none := by
+  cases hq : pickD i r with
+  | none => rfl
+  | some k =>
+    obtain ⟨-, -, -, R', -, hR', -, -, -, -, hs', -⟩ := pickD_some hq
+    rw [hR] at hR'
+    cases hR'
+    rw [hs] at hs'
+    cases hs'
+
+/-- A row with no MCP root in its chain (a serena-lean server, a `lake serve` of an editor) is not picked by D. -/
+theorem no_root_row {i : InputD} {r : Row} (h : rootOf i r = none) : pickD i r = none := by
+  unfold pickD
+  rw [h]
+  split <;> simp_all
+
+/-- Branch A, B and C never name the kind of D. -/
+theorem pickAny_ne_idle {i : Input} {r : Row} : pickAny i r ≠ some .mcpIdle := by
+  intro h
+  unfold pickAny pickAB at h
+  cases hp : pick i r with
+  | some k =>
+    rw [hp] at h
+    obtain ⟨hk, -⟩ := pick_some hp
+    simp only [Option.some.injEq] at h
+    subst h
+    simp [kindOf] at hk
+    split at hk <;> simp_all
+  | none =>
+    rw [hp] at h
+    cases hb : pickB i r with
+    | some k =>
+      rw [hb] at h
+      obtain ⟨hk, -⟩ := pickB_some hb
+      simp only [Option.some.injEq] at h
+      rw [h] at hk
+      cases hk
+    | none =>
+      rw [hb] at h
+      obtain ⟨hk, -⟩ := pickC_some h
+      cases hk
+
+/-- A row with a serena process in its chain (itself included) is never picked, by any branch. -/
+theorem serena_row {i : InputD} {r a : Row} (ha : a ∈ r :: chain i i.rows.length r) (hk : a.kind = "serena") :
+    pickAll i r = none := by
+  have : serenaFree i r = false := by
+    unfold serenaFree
+    cases h : (r :: chain i i.rows.length r).all (fun a => a.kind != "serena") with
+    | false => rfl
+    | true =>
+      have := (List.all_eq_true.1 h) a ha
+      simp [hk] at this
+  unfold pickAll
+  rw [this]
+  rfl
+
+/-- A selection of A, B or C keeps its kind and all the guarantees of `pickAny`; any other selection is D's. -/
+theorem all_some {i : InputD} {r : Row} {k : Kind} (h : pickAll i r = some k) :
+    (k ≠ .mcpIdle ∧ pickAny i r = some k) ∨ (k = .mcpIdle ∧ pickAny i r = none ∧ pickD i r = some .mcpIdle) := by
+  unfold pickAll at h
+  split at h
+  · cases hp : pickAny i r with
+    | some k' =>
+      rw [hp] at h
+      cases h
+      exact Or.inl ⟨fun he => pickAny_ne_idle (he ▸ hp), rfl⟩
+    | none =>
+      rw [hp] at h
+      obtain ⟨hk, -⟩ := pickD_some h
+      subst hk
+      exact Or.inr ⟨rfl, rfl, h⟩
+  · cases h
+
+/-- What every selection of every branch has in common: a readable cwd, pid > 1 and a shielded chain (not the recorded
+console nor below it, not a protected pid). -/
+theorem all_safe {i : InputD} {r : Row} {k : Kind} (h : pickAll i r = some k) :
+    (∃ c, r.cwd = some c) ∧ 1 < r.pid ∧ shielded i r = true ∧ r.inRepo = true := by
+  rcases all_some h with ⟨-, hp⟩ | ⟨-, -, hd⟩
+  · obtain ⟨⟨c, hc, -⟩, h1, -, -, -, hin, -, hs⟩ := any_some hp
+    exact ⟨⟨c, hc⟩, h1, hs, hin⟩
+  · obtain ⟨-, hc, -, -, -, -, -, -, hin, -, -, -, h1, hs⟩ := pickD_some hd
+    exact ⟨hc, h1, hs, hin⟩
+
+theorem reapAll_mem {i : InputD} {s : Sel} (h : s ∈ reapAll i) :
+    ∃ r ∈ i.rows, pickAll i r = some s.kind ∧ r.pid = s.pid ∧ r.start = s.start ∧ s.group = (r.pgid == r.pid) := by
+  unfold reapAll at h
+  rw [List.mem_filterMap] at h
+  obtain ⟨r, hr, hs⟩ := h
+  cases hp : pickAll i r with
+  | none => simp [hp] at hs
+  | some k =>
+    simp [hp] at hs
+    subst hs
+    exact ⟨r, hr, hp, rfl, rfl, rfl⟩
+
+/-- Neither init nor pid 0 is ever selected, by any branch. -/
+theorem all_not_init {i : InputD} {s : Sel} (h : s ∈ reapAll i) : 1 < s.pid := by
+  obtain ⟨r, -, hp, hpid, -⟩ := reapAll_mem h
+  obtain ⟨-, h1, -⟩ := all_safe hp
+  omega
+
+/-- The recorded console and its descendants, and the stopper's own chain, are never selected, by any branch. -/
+theorem all_shielded {i : InputD} {s : Sel} (h : s ∈ reapAll i) :
+    ∃ r ∈ i.rows, r.pid = s.pid ∧ shielded i r = true := by
+  obtain ⟨r, hr, hp, hpid, -⟩ := reapAll_mem h
+  exact ⟨r, hr, hpid, (all_safe hp).2.2.1⟩
+
+/-- A selection of D is a quiet tool of an MCP stack whose root shares its worktree `id`; no lean-lsp-mcp process (its MCP
+parent included) was started in that worktree and no live lock holds it: a worker whose MCP parent belongs to a live session
+there is never selected. -/
+theorem never_live_mcp_parent {i : InputD} {s : Sel} (h : s ∈ reapAll i) (hk : s.kind = .mcpIdle) :
+    ∃ r ∈ i.rows, r.pid = s.pid ∧ quiet i r = true ∧ ∃ id, r.wt = some id ∧
+      (∃ R ∈ r :: chain i i.rows.length r, mcpRoot i R = true ∧ R.wt = some id) ∧
+      (∀ m ∈ i.mcpWt, m.2 ≠ id) ∧ ∀ l ∈ i.locks, l.id = id → lockLive i l = false := by
+  obtain ⟨r, hr, hp, hpid, -⟩ := reapAll_mem h
+  rw [hk] at hp
+  rcases all_some hp with ⟨hne, -⟩ | ⟨-, -, hd⟩
+  · exact absurd rfl hne
+  · obtain ⟨-, -, id, R, hw, hR, hRw, -, -, hs, -⟩ := pickD_some hd
+    refine ⟨r, hr, hpid, idle_row hr hd, id, hw, ⟨R, (rootOf_some hR).1, (rootOf_some hR).2, hRw⟩, ?_, ?_⟩
+    · intro m hm hmw
+      have : sessionLive i id = true := by
+        unfold sessionLive
+        simp only [Bool.or_eq_true, List.any_eq_true]
+        exact Or.inr ⟨m, hm, by simp [hmw]⟩
+      rw [this] at hs
+      cases hs
+    · intro l hl hid
+      cases hll : lockLive i l with
+      | false => rfl
+      | true =>
+        have : sessionLive i id = true := by
+          unfold sessionLive
+          simp only [Bool.or_eq_true, List.any_eq_true, Bool.and_eq_true, beq_iff_eq]
+          exact Or.inl ⟨l, hl, hid, hll⟩
+        rw [this] at hs
+        cases hs
+
+/-- Without a lean-lsp-mcp process nothing is selected as an idle MCP stack. -/
+theorem no_mcp_no_idle {i : InputD} (hm : i.mcps = []) : ∀ s ∈ reapAll i, s.kind ≠ .mcpIdle := by
+  intro s hs hk
+  obtain ⟨r, -, -, -, -, -, ⟨R, -, hR, -⟩, -⟩ := never_live_mcp_parent hs hk
+  simp [mcpRoot, hm] at hR
+
+/-- Every TERM target of every branch is a selected identity. -/
+theorem planAll_sel {i : InputD} {t : Target} (h : t ∈ planAll i) :
+    ∃ s ∈ reapAll i, s.pid = t.pid ∧ s.start = t.start := by
+  unfold planAll at h
+  rw [List.mem_map] at h
+  obtain ⟨s, hs, rfl⟩ := h
+  exact ⟨s, hs, rfl, rfl⟩
+
+/-- A TERM group signal of every branch reaches only selected rows. -/
+theorem planAll_group_inside {i : InputD} {t : Target} (h : t ∈ planAll i) (hg : t.group = true) :
+    ∀ r ∈ i.rows, r.pgid = t.pid → ∃ s ∈ reapAll i, s.pid = r.pid ∧ s.start = r.start := by
+  unfold planAll at h
+  rw [List.mem_map] at h
+  obtain ⟨s, hs, rfl⟩ := h
+  intro r hr hpg
+  simp only [groupSafe, Bool.and_eq_true, List.all_eq_true] at hg
+  have := hg.2 r hr
+  simp only [Bool.or_eq_true, bne_iff_ne, ne_eq, inSel, List.any_eq_true, Bool.and_eq_true, beq_iff_eq] at this
+  rcases this with h1 | ⟨s', hs', h2, h3⟩
+  · exact absurd hpg h1
+  · exact ⟨s', hs', h2, h3⟩
+
+/-- A quiet row keeps its baseline, so its quiet window keeps growing. -/
+theorem rebase_quiet {i : InputD} {r : Row} {c : Nat} {b : Base} (hr : r ∈ i.rows) (hR : (rootOf i r).isSome = true)
+    (hc : cpuOf i r = some c) (hb : baseOf i r = some b) (hq : c ≤ b.cpu + cpuTolCs) : b ∈ rebase i := by
+  unfold rebase
+  rw [List.mem_filterMap]
+  exact ⟨r, hr, by simp [hR, hc, hb, hq]⟩
+
+/-- A row that used more than `cpuTolCs` since its baseline gets a new baseline at `now`: its quiet window starts again. -/
+theorem rebase_busy {i : InputD} {r : Row} {c : Nat} {b : Base} (hr : r ∈ i.rows) (hR : (rootOf i r).isSome = true)
+    (hc : cpuOf i r = some c) (hb : baseOf i r = some b) (hq : b.cpu + cpuTolCs < c) :
+    (⟨r.pid, r.start, i.now, c⟩ : Base) ∈ rebase i := by
+  unfold rebase
+  rw [List.mem_filterMap]
+  exact ⟨r, hr, by simp [hR, hc, hb, Nat.not_le.2 hq]⟩
+
+/-- A row that used more than `cpuTolCs` since its baseline is not quiet. -/
+theorem busy_not_quiet {i : InputD} {r : Row} {c : Nat} {b : Base} (hc : cpuOf i r = some c) (hb : baseOf i r = some b)
+    (hq : b.cpu + cpuTolCs < c) : quiet i r = false := by
+  unfold quiet
+  rw [hc, hb]
+  simp [Nat.not_le.2 hq]
+
+private def gR (pid ppid pgid : Nat) (kind : String) (wt : String := "w") : Row :=
+  { pid, ppid, pgid, start := 9, cwd := some 30, kind, wt := some wt, inRepo := true }
+
+private def gIn : InputD :=
+  { rows := [gR 500 400 500 "lspServe", gR 501 500 500 "tool", gR 502 501 502 "tool"],
+    live := [1, 30], mcps := [⟨400, some 1⟩], keep := [], liveIds := ["w"], now := 5000,
+    uses := [⟨500, 9, 10⟩, ⟨501, 9, 600⟩, ⟨502, 9, 900⟩],
+    bases := [⟨500, 9, 1000, 10⟩, ⟨501, 9, 1000, 590⟩, ⟨502, 9, 1000, 700⟩] }
+
+#guard (reapAll gIn).map (·.pid) == [500, 501, 502]
+#guard (planAll gIn).map (·.group) == [true, false, true]
+#guard (reapAll { gIn with locks := [⟨"w", some 400⟩], rows := gIn.rows ++ [gR 400 1 400 "other" "x"] }).isEmpty
+#guard (reapAll { gIn with locks := [⟨"w", some 77⟩] }).length == 3
+#guard (reapAll { gIn with locks := [⟨"w", none⟩] }).isEmpty
+#guard (reapAll { gIn with mcpWt := [(400, "w")] }).isEmpty
+#guard (reapAll { gIn with mcpWt := [(400, "v")] }).length == 3
+#guard (reapAll { gIn with now := 2000 }).isEmpty
+#guard (reapAll { gIn with bases := [⟨500, 9, 1000, 10⟩, ⟨501, 9, 1000, 590⟩, ⟨502, 9, 1000, 500⟩] }).isEmpty
+#guard (reapAll { gIn with uses := [⟨500, 9, 10⟩, ⟨501, 9, 600⟩] }).isEmpty
+#guard (reapAll { gIn with rows := gIn.rows.map fun r => { r with wt := none } }).isEmpty
+#guard (reapAll { gIn with rows := gIn.rows.map fun r => if r.pid == 500 then { r with kind := "serena" } else r }).isEmpty
+#guard quiet { gIn with uses := [⟨501, 9, 890⟩] } (gR 501 500 500 "tool") &&
+  !quiet { gIn with uses := [⟨501, 9, 891⟩] } (gR 501 500 500 "tool")
+#guard rebase { gIn with uses := [⟨500, 9, 10⟩, ⟨501, 9, 600⟩, ⟨502, 9, 1001⟩] } ==
+  [⟨500, 9, 1000, 10⟩, ⟨501, 9, 1000, 590⟩, ⟨502, 9, 5000, 1001⟩]
+#guard rebase { gIn with bases := [] } == [⟨500, 9, 5000, 10⟩, ⟨501, 9, 5000, 600⟩, ⟨502, 9, 5000, 900⟩]
+#guard sessionLive { gIn with locks := [⟨"w", some 500⟩] } "w" && !sessionLive gIn "w"
+
 end Fw.Ops.Reap
 
 namespace Fw.Wire.Reap
@@ -813,15 +1223,35 @@ open Lean Fw.Ops.Reap Fw.Wire.Ops
 def rowOf (j : Json) : Except String Row := do
   pure ⟨← nat j "pid", ← nat j "ppid", ← nat j "pgid", ← nat j "start", ← optN j "cwd", ← str j "kind", ← optS j "wt", ← boolD j "inRepo" false⟩
 
+/-- The CPU time of a JSON row (`cpu`?, centiseconds or null), `none` when unread. -/
+def useOf (j : Json) : Except String (Option Use) := do
+  match ← optN j "cpu" with
+  | some c => pure (some ⟨← nat j "pid", ← nat j "start", c⟩)
+  | none => pure none
+
+/-- A baseline from JSON: `pid`, `start`, `since`, `cpu`. -/
+def baseOfJson (j : Json) : Except String Base := do
+  pure ⟨← nat j "pid", ← nat j "start", ← nat j "since", ← nat j "cpu"⟩
+
+/-- A baseline as JSON. -/
+def baseJson (b : Base) : Json :=
+  Json.mkObj [("pid", toJson b.pid), ("start", toJson b.start), ("since", toJson b.since), ("cpu", toJson b.cpu)]
+
 /-- The input of the selection ops from JSON. -/
-def inputOf (req : Json) : Except String Input := do
-  let rows ← (← arr req "rows").toList.mapM rowOf
+def inputOf (req : Json) : Except String InputD := do
+  let rowsJ := (← arr req "rows").toList
+  let rows ← rowsJ.mapM rowOf
+  let uses := (← rowsJ.mapM useOf).filterMap id
   let live ← (← arr req "live").toList.mapM (asNat "live")
-  let mcps ← (← arrD req "mcps").mapM fun j => do pure (Mcp.mk (← nat j "pid") (← optN j "cwd"))
+  let mcpsJ ← arrD req "mcps"
+  let mcps ← mcpsJ.mapM fun j => do pure (Mcp.mk (← nat j "pid") (← optN j "cwd"))
+  let mcpWt ← mcpsJ.filterMapM fun j => do pure ((← optS j "wt").map ((← nat j "pid"), ·))
   let keep ← (← arrD req "keep").mapM fun j => do pure ((← nat j "pid"), (← nat j "at"))
   let liveIds ← (← arrD req "liveIds").mapM (asStr "liveIds")
   let protect ← (← arrD req "protect").mapM (asNat "protect")
-  pure ⟨rows, live, mcps, keep, liveIds, protect⟩
+  let bases ← (← arrD req "bases").mapM baseOfJson
+  let locks ← (← arrD req "locks").mapM fun j => do pure (Lock.mk (← str j "id") (← optN j "holder"))
+  pure { rows, live, mcps, keep, liveIds, protect, now := ← natD req "now" 0, uses, bases, locks, mcpWt }
 
 /-- A selected row as JSON. -/
 def selJson (s : Sel) : Json :=
@@ -836,20 +1266,27 @@ def targetJson (t : Target) : Json :=
 def targetOf (j : Json) : Except String Target := do
   pure ⟨← nat j "pid", ← nat j "start", ← boolD j "group" false⟩
 
-/-- `ops.lspReap`: `rows` [row], `live` [inode], `mcps`? [{pid, cwd?}], `keep`? [{pid, at}], `liveIds`? [id], `protect`? [pid] → `selected`
-[{pid, start, kind, group, reason}], `count`. -/
+/-- `ops.lspReap`: `rows` [row with `cpu`? (centiseconds)], `live` [inode], `mcps`? [{pid, cwd?, wt?}], `keep`? [{pid, at}], `liveIds`? [id], `protect`?
+[pid], `now`? (second), `bases`? [{pid, start, since, cpu}], `locks`? [{id, holder?}] → `selected` [{pid, start, kind, group,
+reason}] of every branch, `count`. -/
 def opLspReap (req : Json) : Except String Reply := do
-  let sel := reap (← inputOf req)
+  let sel := reapAll (← inputOf req)
   pure [("count", toJson sel.length), ("selected", .arr (sel.toArray.map selJson))]
 
 /-- `ops.reapPlan`: the request of `ops.lspReap` → `count`, `selected`, `targets` [{pid, start, group}] (the TERM
 targets), `graceMs`, `killWaitMs`, `script` [stage name]. -/
 def opReapPlan (req : Json) : Except String Reply := do
   let i ← inputOf req
-  let sel := reap i
+  let sel := reapAll i
   pure [("count", toJson sel.length), ("selected", .arr (sel.toArray.map selJson)),
-    ("targets", .arr ((plan i).toArray.map targetJson)), ("graceMs", toJson graceMs), ("killWaitMs", toJson killWaitMs),
+    ("targets", .arr ((planAll i).toArray.map targetJson)), ("graceMs", toJson graceMs), ("killWaitMs", toJson killWaitMs),
     ("script", .arr (script.toArray.map fun s => .str s.name))]
+
+/-- `ops.reapIdle`: the request of `ops.lspReap` → `bases` [{pid, start, since, cpu}] (the baselines to store for the next
+run), `idleSec`, `cpuTolCs`. -/
+def opReapIdle (req : Json) : Except String Reply := do
+  let i ← inputOf req
+  pure [("bases", .arr ((rebase i).toArray.map baseJson)), ("idleSec", toJson idleSec), ("cpuTolCs", toJson cpuTolCs)]
 
 /-- `ops.reapKill`: `planned` [{pid, start, group}], `rows` [row] (the fresh read) → `kill` [{pid, start, group}]. -/
 def opReapKill (req : Json) : Except String Reply := do
@@ -878,7 +1315,8 @@ def opReapGuard (req : Json) : Except String Reply := do
   pure [("allowed", .bool (guardOk scope rows t))]
 
 /-- The ops of this module. -/
-def ops : List String := ["ops.lspReap", "ops.reapPlan", "ops.reapKill", "ops.reapVerify", "ops.reapTerm", "ops.reapGuard"]
+def ops : List String :=
+  ["ops.lspReap", "ops.reapPlan", "ops.reapKill", "ops.reapVerify", "ops.reapTerm", "ops.reapGuard", "ops.reapIdle"]
 
 /-- Dispatch (`none` when the op is not one of this module's). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -889,6 +1327,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "ops.reapVerify" => some (opReapVerify req)
   | "ops.reapTerm" => some (opReapTerm req)
   | "ops.reapGuard" => some (opReapGuard req)
+  | "ops.reapIdle" => some (opReapIdle req)
   | _ => none
 
 #guard ops.all fun o => (handle o (Json.mkObj [("rows", .arr #[]), ("live", .arr #[]), ("planned", .arr #[]), ("scope", .arr #[]), ("target", Json.mkObj [("pid", toJson 2), ("start", toJson 0)])])).isSome
