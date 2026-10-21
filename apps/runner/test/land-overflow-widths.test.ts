@@ -71,11 +71,11 @@ describe("the width table is the width of every workflow file", () => {
     for (const w of workflows) derived.set(w.name, width(w, sizeOf(w)));
     expect(derived.size).toBe(workflows.length);
     if (process.env.PRINT_WIDTHS) writeFileSync(process.env.PRINT_WIDTHS, workflows.map((w) => `${w.name} ${derived.get(w.name)} ${widest(w, sizeOf(w)).jobs.join(" ")}`).join("\n"));
-  }, 120_000);
+  });
   it("every dynamic bound names a job that has a dynamic matrix", () => {
     const real = new Set(workflows.flatMap((w) => w.jobs.filter((j) => j.size === "dynamic").map((j) => `${w.name}/${j.name}`)));
     expect([...Object.keys(DYN)].filter((k) => !real.has(k))).toEqual([]);
-  }, 120_000);
+  });
   it("no row of the table is below the width derived from its workflow", () => {
     for (const w of workflows) expect(table.get(w.name), `${w.file}: Lean widths row (derived ${derived.get(w.name)})`).toBeGreaterThanOrEqual(derived.get(w.name)!);
   });

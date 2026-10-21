@@ -225,8 +225,10 @@ land_suites() {  # <leg>
 land_engine() {  # <leg>: the preview browser suite, only when the suites step said the selection holds it
   leg=$1
   [ "$(cat "$fw/land-engine" 2>/dev/null)" = true ] || { echo "no browser suite in this selection"; return 0; }
-  FW_CI_ENGINE=$leg engine_libs
-  FW_CI_ENGINE=$leg engine_browser
+  # Each in a subshell: engine_libs does `cd packages/gate-breakpoints`, and the cd must not outlive it (the suite below runs from the root;
+  # the first live run of this step failed with exit 2 on `cd packages/e2e-preview`).
+  (FW_CI_ENGINE=$leg; export FW_CI_ENGINE; engine_libs)
+  (FW_CI_ENGINE=$leg; export FW_CI_ENGINE; engine_browser)
   # shellcheck disable=SC1091
   . "$fw/env.sh"
   (cd packages/e2e-preview && node src/run.mjs --engine "$leg" --out out)

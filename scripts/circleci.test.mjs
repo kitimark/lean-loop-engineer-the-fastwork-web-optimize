@@ -712,6 +712,19 @@ test('land lane: landLane reads the record a land job writes and nothing else', 
   assert.equal(landLane(f), null);
 });
 
+test('land lane: the engine leg runs engine_libs and engine_browser in subshells, so their cd does not move the browser suite', () => {
+  // engine_libs does `cd packages/gate-breakpoints`; called in the shell of land_engine it moved the suite's cwd and the first live run
+  // of an engine leg died with exit 2 on `cd packages/e2e-preview` (the premise jobs call them as separate steps, where it does not matter).
+  const job = readFileSync(join(ROOT, '.circleci', 'job.sh'), 'utf8');
+  const body = /^land_engine\(\) \{[\s\S]*?^\}/m.exec(job)?.[0];
+  assert.ok(body, 'land_engine found');
+  for (const fn of ['engine_libs', 'engine_browser']) {
+    const calls = body.split('\n').filter((l) => new RegExp(`\\b${fn}\\b`).test(l) && !l.trimStart().startsWith('#'));
+    assert.equal(calls.length, 1, `${fn} is called once`);
+    assert.match(calls[0], new RegExp(`^\\s*\\(.*\\b${fn}\\)\\s*$`), `${fn} runs in a subshell`);
+  }
+});
+
 test('land lane: the pinned elan in job.sh is the pin of the setup-lean action, every leg has its workflow', () => {
   const job = readFileSync(join(ROOT, '.circleci', 'job.sh'), 'utf8');
   const action = readFileSync(join(ROOT, '.github', 'actions', 'setup-lean', 'action.yml'), 'utf8');
