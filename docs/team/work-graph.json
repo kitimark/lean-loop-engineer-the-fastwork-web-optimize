@@ -14595,7 +14595,7 @@
    "owner": "part-builder",
    "stream": "parts",
    "deps": [],
-   "title": "End-of-page smoothness (gpu-same-look inventory rank 3, user goal 2026-10-22: hero-exit and end-of-page smoother on WebKit): on the phone band the CSS pins --platform-shrink, so the per-frame JS write changes nothing visible; skip it there under a flag, same pattern as the proved people.card:mq. Lean: the write is invisible on the phone band (theorem over the band's CSS rule, goldens); flag registered; MEASURED on CI webkit-sim (end-of-page window: Recalculate styles, Layout, frame interval p50/p95, base vs flag) with run ids. Inputs: the lead-scratch gpu-same-look notes (path given in the build prompt): inventory.md (E4) and plan in the gpu-same-look result.",
+   "title": "End-of-page smoothness (gpu-same-look inventory rank 3, user goal 2026-10-22: hero-exit and end-of-page smoother on WebKit): on the phone band the CSS pins --platform-shrink, so the per-frame JS write changes nothing visible; skip it there under a flag, same pattern as the proved people.card:mq. Lean: the write is invisible on the phone band (theorem over the band's CSS rule, goldens); flag registered; MEASURED on CI webkit-sim (end-of-page window: Recalculate styles, Layout, frame interval p50/p95, base vs flag) with run ids. Inputs: the lead-scratch gpu-same-look notes (path given in the build prompt): inventory.md (E4) and plan in the gpu-same-look result. User 2026-10-22 approved this proposal to run (GPU Part Proposals page); finish with a report for the Reviews tab (results/<task>/report.json; posted via review-reports once landed).",
    "writes": [
     "apps/site/src/parts/platform/**",
     "apps/site/src/flags/**",
@@ -14655,7 +14655,7 @@
    "deps": [
     "path-pix-core"
    ],
-   "title": "End-of-page (gpu-same-look rank 2): platform fade as one time-based Core Animation effect per push (opacity/filter only, Accelerated predicate), fade(ease) as a piecewise cubic-bezier, retarget = new effect from the current value; class E-s under float and phase premises, decided on pixels by PathPix. Measure end-of-page Recalculate styles, Layout, frame interval on CI webkit-sim vs base. Limit: full-section blur layer is tiled (>1280 px).",
+   "title": "End-of-page (gpu-same-look rank 2): platform fade as one time-based Core Animation effect per push (opacity/filter only, Accelerated predicate), fade(ease) as a piecewise cubic-bezier, retarget = new effect from the current value; class E-s under float and phase premises, decided on pixels by PathPix. Measure end-of-page Recalculate styles, Layout, frame interval on CI webkit-sim vs base. Limit: full-section blur layer is tiled (>1280 px). User 2026-10-22 approved this proposal to run (GPU Part Proposals page); finish with a report for the Reviews tab (results/<task>/report.json; posted via review-reports once landed).",
    "writes": [
     "lean/Fw/Parts/PlatformFade*.lean",
     "apps/site/src/parts/platform/**",
@@ -14691,7 +14691,7 @@
    "owner": "measure-engineer",
    "stream": "measure",
    "deps": [],
-   "title": "User review comment on nav:earn-no-transition (keep the animation, try GPU) -> earn-gpu research: before any same-look variant (candidate B: @property --earn-s + translates), measure a probe-only 'bound' arm (earn transitions always off) vs base with aa as noise floor, holdMs 1400, 3 complete jobs per WebKit leg (macOS + iOS Simulator), Lean across verdict. Build B only if bound beats A/A. Note at research/notes/2026/10-2x-earn-gpu.md from the lead-scratch earn-gpu note (path in the build prompt) with the checker's corrections applied.",
+   "title": "User review comment on nav:earn-no-transition (keep the animation, try GPU) -> earn-gpu research: before any same-look variant (candidate B: @property --earn-s + translates), measure a probe-only 'bound' arm (earn transitions always off) vs base with aa as noise floor, holdMs 1400, 3 complete jobs per WebKit leg (macOS + iOS Simulator), Lean across verdict. Build B only if bound beats A/A. Note at research/notes/2026/10-2x-earn-gpu.md from the lead-scratch earn-gpu note (path in the build prompt) with the checker's corrections applied. User 2026-10-22 approved this proposal to run (GPU Part Proposals page); finish with a report for the Reviews tab (results/<task>/report.json; posted via review-reports once landed).",
    "writes": [
     "packages/gate-breakpoints/src/smooth/**",
     ".github/workflows/smoothness*.yml",
@@ -15146,6 +15146,48 @@
     "apps/site/src/parts/hero.exit/snap*.css",
     "packages/contracts/golden/parts/hero-exit-snap*.jsonl",
     "docs/team/handoffs/snap-hero-proposal.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ca-blur-fit",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "deps": [
+    "path-pix-lanes"
+   ],
+   "title": "User 2026-10-22 (Layer Composer Q5 note): 'Actually, after we experiment we can do reverse engineer and do lean prove, find math equation that fit to the result'. Core Animation's blur kernel is closed source, so today WebKit compositor blur is measured only (Q). Reverse-engineer it from measurements: on the iOS Simulator verdict lane (sim slot) render known patterns (impulse line, step edge, checker) under CSS filter: blur(r) on the compositor path for r over the page's real radii and DPR 2/3, capture lossless PNG, extract the line/edge spread function per r; fit candidate kernels (Gaussian with sigma = a*r + b, iterated box n=2..4, downsample-blur-upsample) by least squares with held-out radii; choose by residual. Lean: the chosen kernel as a Rat table generated per r (no Mathlib), theorem bounding |conv model - conv mainThreadBox3| <= 1/2 ||k1-k2||_1 (pixel-proof L7) plus the measured fit residual as a named premise with run id, giving a per-layer blur bound in color levels. Report via review-reports with the fit plots' data; classification stays Q unless the user decides otherwise (their rule: measured-only within-1 is Q).",
+   "writes": [
+    "lean/Fw/Gate/BlurFit*.lean",
+    "lean/Fw.lean",
+    "packages/measure-webkit/src/blur-fit*.mjs",
+    "packages/measure-webkit/test/blur-fit*.test.mjs",
+    "packages/contracts/golden/gate/blur-fit*.jsonl",
+    "research/notes/2026/10-2x-ca-blur-fit.md",
+    "results/ca-blur-fit/**",
+    "docs/team/handoffs/ca-blur-fit.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "accent-draw-one",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [],
+   "title": "User 2026-10-22 approved the 'go' and 'measure first' GPU proposals (GPU Part Proposals page): accent draw-one. During the hero accent draw, only the visible copy (frame0) runs the stroke-dashoffset draw; the two copies that are opacity 0 for the whole draw window (accent.module.css:76-83) get no animation while transparent. Lean first: theorem in Fw.Parts.HeroAccentOpt from HiddenPause.hidden_pause_eq (HiddenPause.lean:81), premise the copies are opacity 0 across the draw window, goldens; class E. Register flag hero.accent:draw-one; one WebKit count run on CI (webkit-sim: SVG path layouts per draw frame, Layout, frame interval p50/p90/p99 vs base) with run ids; post the report to the Reviews tab (review-reports) when it has landed, else write results/accent-draw-one/report.json for the lead to post.",
+   "writes": [
+    "apps/site/src/parts/hero.accent/**",
+    "apps/site/src/flags/**",
+    "lean/Fw/Parts/HeroAccentOpt.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/parts/hero.accent*.jsonl",
+    "research/notes/2026/10-2x-accent-draw-one.md",
+    "results/accent-draw-one/**",
+    "docs/team/handoffs/accent-draw-one.md"
    ]
   }
  ],
