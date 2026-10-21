@@ -55,15 +55,19 @@
    "desk-rm-1280",
    "desk-rm-1511",
    "desk-rm-1512",
+   "touch-319",
    "touch-861",
    "touch-960",
    "touch-961",
    "touch-1200",
    "touch-1201",
+   "touch-rm-600",
+   "touch-rm-860",
    "touch-rm-861",
    "touch-rm-1000",
    "touch-rm-1001",
    "touch-rm-1200",
+   "touch-rm-1201",
    "phone-landscape-reduce",
    "dw-arm-isolate-1001-screen500",
    "dw-arm-isolate-1001-screen501",
@@ -769,7 +773,8 @@
     "(width<=860px), (device-width<=500px), (hover: none) and (pointer: coarse) and (width<=1200px)"],
    "extra": [],
    "dismissed": [],
-   "conditions": {"rewrite": ["mq.rm-nopref"], "orig": ["mq.rm-nopref", "mq.w-ge-861", "mq.w-le-1000", "mq.c860"]}},
+   "conditions": {"rewrite": ["mq.rm-nopref"], "orig": ["mq.rm-nopref", "mq.w-ge-861", "mq.w-le-1000", "mq.c860"]},
+   "added": []},
   "platform.stageBg":
   {"sweeps": ["desktop-1512-320-1512", "phone-rotation", "touch-1024-1201", "pain-1440-600-1440"],
    "probes":
@@ -797,7 +802,8 @@
     "(width<=860px), (device-width<=500px), (hover: none) and (pointer: coarse) and (width<=1200px)"],
    "extra": [],
    "dismissed": [],
-   "conditions": {"rewrite": ["mq.c860"], "orig": ["mq.rm-reduce", "mq.w-le-640", "mq.w-le-960", "mq.c860"]}},
+   "conditions": {"rewrite": ["mq.c860"], "orig": ["mq.rm-reduce", "mq.w-le-640", "mq.w-le-960", "mq.c860"]},
+   "added": []},
   "platform.marquee":
   {"sweeps": [],
    "probes": ["desk-319", "desk-rm-319"],
@@ -806,7 +812,8 @@
    "key": ["(prefers-reduced-motion: reduce)"],
    "extra": [],
    "dismissed": [],
-   "conditions": {"rewrite": ["mq.rm-reduce"], "orig": ["mq.rm-reduce"]}},
+   "conditions": {"rewrite": ["mq.rm-reduce"], "orig": ["mq.rm-reduce"]},
+   "added": []},
   "platform.glint":
   {"sweeps": [],
    "probes": ["desk-319", "desk-rm-319"],
@@ -815,7 +822,8 @@
    "key": ["(prefers-reduced-motion: reduce)"],
    "extra": [],
    "dismissed": [],
-   "conditions": {"rewrite": ["mq.rm-reduce"], "orig": ["mq.rm-reduce"]}},
+   "conditions": {"rewrite": ["mq.rm-reduce"], "orig": ["mq.rm-reduce"]},
+   "added": []},
   "platform.entries":
   {"sweeps": [],
    "probes": ["desk-319", "desk-rm-319"],
@@ -824,7 +832,8 @@
    "key": ["(prefers-reduced-motion: reduce)"],
    "extra": [],
    "dismissed": [],
-   "conditions": {"rewrite": ["mq.rm-reduce"], "orig": ["mq.rm-reduce"]}},
+   "conditions": {"rewrite": ["mq.rm-reduce"], "orig": ["mq.rm-reduce"]},
+   "added": []},
   "platform":
   {"sweeps": ["desktop-1512-320-1512", "phone-rotation", "touch-1024-1201", "pain-1440-600-1440"],
    "probes":
@@ -917,7 +926,8 @@
      "mq.w-le-1000",
      "mq.w-ge-1001",
      "mq.w-le-1100",
-     "mq.c860"]}},
+     "mq.c860"]},
+   "added": []},
   "people.o":
   {"sweeps": ["desktop-1512-320-1512", "phone-rotation", "pain-1440-600-1440"],
    "probes": ["desk-319", "desk-860", "desk-861", "desk-rm-319", "desk-rm-400", "desk-rm-861"],
@@ -932,7 +942,8 @@
     {"why":
      "IntersectionObserver at threshold 0.35 on the heading: a scroll position, not a width edge; the gate loads at the top",
      "id": "js.people-o-reveal-io"}],
-   "conditions": {"rewrite": ["mq.rm-reduce", "mq.w-le-860"], "orig": ["mq.rm-reduce", "mq.w-le-860"]}},
+   "conditions": {"rewrite": ["mq.rm-reduce", "mq.w-le-860"], "orig": ["mq.rm-reduce", "mq.w-le-860"]},
+   "added": []},
   "people.deck":
   {"sweeps": ["desktop-1512-320-1512", "phone-rotation", "touch-1024-1201", "pain-1440-600-1440"],
    "probes":
@@ -1001,7 +1012,8 @@
      "mq.w-ge-861-nopref",
      "mq.w-le-1200",
      "mq.c860",
-     "mq.c1030"]}},
+     "mq.c1030"]},
+   "added": []},
   "people.carousel":
   {"sweeps": ["desktop-1512-320-1512", "phone-rotation", "pain-1440-600-1440"],
    "probes": ["desk-461", "desk-462", "desk-860", "desk-861", "desk-rm-319", "desk-rm-462", "desk-rm-861"],
@@ -1011,7 +1023,8 @@
    "extra": [],
    "dismissed": [],
    "conditions":
-   {"rewrite": ["mq.rm-reduce", "mq.w-le-461", "mq.w-le-860"], "orig": ["mq.rm-reduce", "mq.w-le-461", "mq.w-le-860"]}},
+   {"rewrite": ["mq.rm-reduce", "mq.w-le-461", "mq.w-le-860"], "orig": ["mq.rm-reduce", "mq.w-le-461", "mq.w-le-860"]},
+   "added": []},
   "people.card":
   {"sweeps": ["desktop-1512-320-1512", "phone-rotation", "touch-1024-1201", "pain-1440-600-1440"],
    "probes":
@@ -1050,7 +1063,8 @@
      "id": "js.future-shrink-band"}],
    "conditions":
    {"rewrite": ["mq.rm-reduce", "mq.w-le-640", "mq.w-le-860", "mq.c860"],
-    "orig": ["mq.rm-reduce", "mq.w-le-640", "mq.w-le-860", "mq.c860"]}},
+    "orig": ["mq.rm-reduce", "mq.w-le-640", "mq.w-le-860", "mq.c860"]},
+   "added": []},
   "pain.notes":
   {"sweeps": ["desktop-1512-320-1512", "phone-rotation", "touch-1024-1201", "pain-1440-600-1440"],
    "probes":
@@ -1092,7 +1106,8 @@
      "picks the placement of an ADDED note (jittered below a canvas width of 1100 px, scored from it; Fw.Parts.Pain.scored_iff). The tick needs the board visible and the gate loads at the top, so no note is ever added in a gated state; the rule is covered by Lean theorems and golden vectors. The edge 1099/1100 is not a matrix pair",
      "id": "js.pain-container-1100"}],
    "conditions":
-   {"rewrite": ["mq.rm-reduce", "mq.w-le-860", "mq.c860"], "orig": ["mq.rm-reduce", "mq.w-le-860", "mq.c860"]}},
+   {"rewrite": ["mq.rm-reduce", "mq.w-le-860", "mq.c860"], "orig": ["mq.rm-reduce", "mq.w-le-860", "mq.c860"]},
+   "added": []},
   "pain":
   {"sweeps": ["desktop-1512-320-1512", "phone-rotation", "pain-1440-600-1440"],
    "probes": ["desk-860", "desk-861", "desk-rm-319", "desk-rm-861"],
@@ -1101,7 +1116,8 @@
    "key": ["(prefers-reduced-motion: reduce)", "(prefers-reduced-motion: no-preference)", "(width<=860px)"],
    "extra": [],
    "dismissed": [],
-   "conditions": {"rewrite": ["mq.rm-nopref", "mq.w-le-860"], "orig": ["mq.rm-reduce", "mq.rm-nopref", "mq.w-le-860"]}},
+   "conditions": {"rewrite": ["mq.rm-nopref", "mq.w-le-860"], "orig": ["mq.rm-reduce", "mq.rm-nopref", "mq.w-le-860"]},
+   "added": []},
   "overlays.signup":
   {"sweeps": ["desktop-1512-320-1512", "phone-rotation", "pain-1440-600-1440"],
    "probes":
@@ -1128,7 +1144,8 @@
     {"why":
      "width min(360px, 100vw - 48px) and max-height 85vh: the knee 408 carries the width edge, the height is a viewport fraction",
      "id": "js.waitlist-dialog-size"}],
-   "conditions": {"rewrite": ["mq.rm-reduce", "mq.w-le-600"], "orig": ["mq.rm-reduce", "mq.w-le-600", "mq.w-le-860"]}},
+   "conditions": {"rewrite": ["mq.rm-reduce", "mq.w-le-600"], "orig": ["mq.rm-reduce", "mq.w-le-600", "mq.w-le-860"]},
+   "added": []},
   "overlays.drawer":
   {"sweeps": ["desktop-1512-320-1512", "phone-rotation", "pain-1440-600-1440"],
    "probes": ["desk-640", "desk-641", "desk-860", "desk-861", "desk-rm-319", "desk-rm-641", "desk-rm-861"],
@@ -1145,7 +1162,8 @@
      "id": "css.hover-ungated"}],
    "conditions":
    {"rewrite": ["mq.rm-reduce", "mq.w-le-860", "mq.w-le-640"],
-    "orig": ["mq.rm-reduce", "mq.rm-nopref", "mq.w-le-640", "mq.w-le-860"]}},
+    "orig": ["mq.rm-reduce", "mq.rm-nopref", "mq.w-le-640", "mq.w-le-860"]},
+   "added": []},
   "nav.langMenu":
   {"sweeps": ["desktop-1512-320-1512", "phone-rotation", "pain-1440-600-1440"],
    "probes": ["desk-640", "desk-641", "desk-rm-319", "desk-rm-641"],
@@ -1154,7 +1172,8 @@
    "key": ["(prefers-reduced-motion: reduce)", "(width<=640px)"],
    "extra": [],
    "dismissed": [],
-   "conditions": {"rewrite": ["mq.rm-reduce", "mq.w-le-640"], "orig": ["mq.rm-reduce", "mq.w-le-640"]}},
+   "conditions": {"rewrite": ["mq.rm-reduce", "mq.w-le-640"], "orig": ["mq.rm-reduce", "mq.w-le-640"]},
+   "added": []},
   "nav.hitTest":
   {"sweeps": [],
    "probes": ["desk-319"],
@@ -1165,7 +1184,8 @@
    "dismissed":
    [{"why": "elementFromPoint at a scroll position, not a media condition: no edge; the gate loads at the top",
      "id": "js.nav-on-dark"}],
-   "conditions": {"rewrite": [], "orig": []}},
+   "conditions": {"rewrite": [], "orig": []},
+   "added": []},
   "nav":
   {"sweeps": ["desktop-1512-320-1512", "phone-rotation", "touch-1024-1201", "pain-1440-600-1440"],
    "probes":
@@ -1204,7 +1224,8 @@
      "id": "js.nav-on-dark"}],
    "conditions":
    {"rewrite": ["mq.rm-reduce", "mq.rm-nopref", "mq.w-le-600", "mq.w-gt-600", "mq.w-le-640", "mq.w-gt-640"],
-    "orig": ["mq.rm-reduce", "mq.rm-nopref", "mq.w-le-600", "mq.w-gt-600", "mq.w-le-640", "mq.w-gt-640", "mq.c860"]}},
+    "orig": ["mq.rm-reduce", "mq.rm-nopref", "mq.w-le-600", "mq.w-gt-600", "mq.w-le-640", "mq.w-gt-640", "mq.c860"]},
+   "added": []},
   "morph.tween":
   {"sweeps": ["desktop-1512-320-1512", "phone-rotation", "touch-1024-1201", "pain-1440-600-1440"],
    "probes":
@@ -1215,8 +1236,12 @@
     "desk-rm-319",
     "desk-rm-641",
     "desk-rm-861",
+    "touch-319",
     "touch-1200",
     "touch-1201",
+    "touch-rm-600",
+    "touch-rm-860",
+    "touch-rm-1201",
     "dw-arm-isolate-1001-screen500",
     "dw-arm-isolate-1001-screen501"],
    "owners": ["morph.tween"],
@@ -1224,13 +1249,17 @@
    "key":
    ["(prefers-reduced-motion: reduce)",
     "(width<=640px)",
-    "(width<=860px), (device-width<=500px), (hover: none) and (pointer: coarse) and (width<=1200px)"],
+    "(width<=860px), (device-width<=500px), (hover: none) and (pointer: coarse) and (width<=1200px)",
+    "(hover: none)"],
    "extra": [],
    "dismissed":
    [{"why":
      "platform rect height and bottom against the visual viewport at a scroll position, armed by wheel and touch: not a media condition and no edge; the rewrite page has no platform section and the gate loads at the top",
      "id": "js.morph-arm"}],
-   "conditions": {"rewrite": ["mq.rm-reduce"], "orig": ["mq.rm-reduce", "mq.w-le-640", "mq.c860"]}},
+   "conditions": {"rewrite": ["mq.rm-reduce", "mq.hover-none"], "orig": ["mq.rm-reduce", "mq.w-le-640", "mq.c860"]},
+   "added":
+   [{"why": "the scroll-lock arm reads it once at mount; where it matches the arm installs no lock (engage_touch)",
+     "id": "mq.hover-none"}]},
   "morph.panel":
   {"sweeps": ["desktop-1512-320-1512", "phone-rotation", "touch-1024-1201", "pain-1440-600-1440"],
    "probes":
@@ -1268,7 +1297,8 @@
    "dismissed": [],
    "conditions":
    {"rewrite": ["mq.w-le-1000", "mq.w-le-720", "mq.rm-reduce", "mq.w-le-640", "mq.w-le-600"],
-    "orig": ["mq.rm-reduce", "mq.w-le-600", "mq.w-le-640", "mq.w-le-720", "mq.w-le-1000", "mq.c860"]}},
+    "orig": ["mq.rm-reduce", "mq.w-le-600", "mq.w-le-640", "mq.w-le-720", "mq.w-le-1000", "mq.c860"]},
+   "added": []},
   "morph.mount":
   {"sweeps": [],
    "probes": ["desk-319"],
@@ -1280,7 +1310,8 @@
    [{"why":
      "platform rect against the visual viewport height at a scroll position, not a width edge; the part restates no CSS and the gate loads at the top",
      "id": "js.morph-arm"}],
-   "conditions": {"rewrite": [], "orig": []}},
+   "conditions": {"rewrite": [], "orig": []},
+   "added": []},
   "morph.countdown":
   {"sweeps": ["desktop-1512-320-1512", "touch-1024-1201", "pain-1440-600-1440"],
    "probes":
@@ -1305,7 +1336,8 @@
      "id": "js.countdown-cell"}],
    "conditions":
    {"rewrite": ["mq.rm-reduce", "mq.w-le-400", "mq.c1000-nodw"],
-    "orig": ["mq.rm-reduce", "mq.w-le-400", "mq.c1000-nodw"]}},
+    "orig": ["mq.rm-reduce", "mq.w-le-400", "mq.c1000-nodw"]},
+   "added": []},
   "morph.columns":
   {"sweeps": ["desktop-1512-320-1512", "phone-rotation", "pain-1440-600-1440"],
    "probes": ["desk-640", "desk-641", "desk-rm-319", "desk-rm-641"],
@@ -1314,7 +1346,8 @@
    "key": ["(prefers-reduced-motion: reduce)", "(width<=640px)"],
    "extra": [],
    "dismissed": [],
-   "conditions": {"rewrite": ["mq.rm-reduce", "mq.w-le-640"], "orig": ["mq.rm-reduce", "mq.w-le-640"]}},
+   "conditions": {"rewrite": ["mq.rm-reduce", "mq.w-le-640"], "orig": ["mq.rm-reduce", "mq.w-le-640"]},
+   "added": []},
   "hero.orbit":
   {"sweeps": ["desktop-1512-320-1512", "phone-rotation", "pain-1440-600-1440"],
    "probes":
@@ -1345,7 +1378,8 @@
      "id": "js.hero-splash-stage-1280"}],
    "conditions":
    {"rewrite": ["mq.rm-reduce", "mq.w-le-600", "mq.w-601-1279", "mq.w-601-1511"],
-    "orig": ["mq.rm-reduce", "mq.w-le-600", "mq.w-601-1279", "mq.w-601-1511"]}},
+    "orig": ["mq.rm-reduce", "mq.w-le-600", "mq.w-601-1279", "mq.w-601-1511"]},
+   "added": []},
   "hero.exit":
   {"sweeps": ["desktop-1512-320-1512", "phone-rotation", "pain-1440-600-1440"],
    "probes": ["desk-600", "desk-601", "desk-rm-319", "desk-rm-601"],
@@ -1354,7 +1388,8 @@
    "key": ["(prefers-reduced-motion: reduce)", "(width<=600px)"],
    "extra": [],
    "dismissed": [],
-   "conditions": {"rewrite": ["mq.rm-reduce", "mq.w-le-600"], "orig": ["mq.rm-reduce", "mq.w-le-600"]}},
+   "conditions": {"rewrite": ["mq.rm-reduce", "mq.w-le-600"], "orig": ["mq.rm-reduce", "mq.w-le-600"]},
+   "added": []},
   "hero.deck":
   {"sweeps": ["desktop-1512-320-1512", "phone-rotation", "pain-1440-600-1440"],
    "probes":
@@ -1385,7 +1420,8 @@
      "id": "js.hero-splash-stage-1280"}],
    "conditions":
    {"rewrite": ["mq.w-le-600", "mq.rm-reduce"],
-    "orig": ["mq.rm-reduce", "mq.w-le-600", "mq.w-601-1279", "mq.w-601-1511"]}},
+    "orig": ["mq.rm-reduce", "mq.w-le-600", "mq.w-601-1279", "mq.w-601-1511"]},
+   "added": []},
   "hero.cue":
   {"sweeps": ["desktop-1512-320-1512", "phone-rotation", "pain-1440-600-1440"],
    "probes": ["desk-600", "desk-601", "desk-rm-319", "desk-rm-601"],
@@ -1395,7 +1431,8 @@
    "extra": [],
    "dismissed": [],
    "conditions":
-   {"rewrite": ["mq.w-gt-600", "mq.w-le-600", "mq.rm-reduce"], "orig": ["mq.rm-reduce", "mq.w-le-600", "mq.w-gt-600"]}},
+   {"rewrite": ["mq.w-gt-600", "mq.w-le-600", "mq.rm-reduce"], "orig": ["mq.rm-reduce", "mq.w-le-600", "mq.w-gt-600"]},
+   "added": []},
   "hero.countdown":
   {"sweeps": ["desktop-1512-320-1512", "touch-1024-1201", "pain-1440-600-1440"],
    "probes":
@@ -1420,7 +1457,8 @@
      "id": "js.countdown-cell"}],
    "conditions":
    {"rewrite": ["mq.rm-reduce", "mq.w-le-400", "mq.c1000-nodw"],
-    "orig": ["mq.rm-reduce", "mq.w-le-400", "mq.c1000-nodw"]}},
+    "orig": ["mq.rm-reduce", "mq.w-le-400", "mq.c1000-nodw"]},
+   "added": []},
   "hero.accent":
   {"sweeps": ["desktop-1512-320-1512", "phone-rotation", "pain-1440-600-1440"],
    "probes": ["desk-600", "desk-601", "desk-rm-319", "desk-rm-601"],
@@ -1429,7 +1467,8 @@
    "key": ["(prefers-reduced-motion: reduce)", "(width<=600px)"],
    "extra": [],
    "dismissed": [],
-   "conditions": {"rewrite": ["mq.rm-reduce"], "orig": ["mq.rm-reduce", "mq.w-le-600"]}},
+   "conditions": {"rewrite": ["mq.rm-reduce"], "orig": ["mq.rm-reduce", "mq.w-le-600"]},
+   "added": []},
   "hero":
   {"sweeps": ["desktop-1512-320-1512", "phone-rotation", "pain-1440-600-1440"],
    "probes":
@@ -1457,7 +1496,8 @@
     "(width<=1500px)"],
    "extra": [],
    "dismissed": [{"why": "plain :hover rules; the gate never hovers an element", "id": "css.hover-ungated"}],
-   "conditions": {"rewrite": ["mq.w-le-600", "mq.rm-reduce"], "orig": ["mq.rm-reduce", "mq.w-le-600"]}},
+   "conditions": {"rewrite": ["mq.w-le-600", "mq.rm-reduce"], "orig": ["mq.rm-reduce", "mq.w-le-600"]},
+   "added": []},
   "engine.scroll":
   {"sweeps": [],
    "probes": ["desk-319", "desk-320", "desk-rm-319", "desk-rm-320"],
@@ -1473,7 +1513,8 @@
      "id": "html.viewport-meta"},
     {"why": "link preload on pointer events: network only, no visual effect", "id": "js.preload-hover"},
     {"why": "user agent, not a media feature; no visual effect", "id": "js.firefox-ua"}],
-   "conditions": {"rewrite": [], "orig": ["mq.rm-reduce"]}},
+   "conditions": {"rewrite": [], "orig": ["mq.rm-reduce"]},
+   "added": []},
   "engine.scene":
   {"sweeps": [],
    "probes": ["desk-319"],
@@ -1485,7 +1526,8 @@
    [{"why":
      "scene active when its rect is within [-innerHeight, 2 x innerHeight] (IntersectionObserver, rootMargin 100%): viewport height at a scroll position, not a width edge; the gate loads at the top",
      "id": "js.scene-activation"}],
-   "conditions": {"rewrite": [], "orig": []}},
+   "conditions": {"rewrite": [], "orig": []},
+   "added": []},
   "commission.typing":
   {"sweeps": ["desktop-1512-320-1512", "phone-rotation", "touch-1024-1201", "pain-1440-600-1440"],
    "probes":
@@ -1532,7 +1574,8 @@
      "id": "js.commission-visual-scale"}],
    "conditions":
    {"rewrite": ["mq.rm-reduce", "mq.c1000"],
-    "orig": ["mq.rm-reduce", "mq.w-le-640", "mq.w-641-1000", "mq.w-ge-1001-nopref", "mq.c860", "mq.c1000"]}},
+    "orig": ["mq.rm-reduce", "mq.w-le-640", "mq.w-641-1000", "mq.w-ge-1001-nopref", "mq.c860", "mq.c1000"]},
+   "added": []},
   "commission":
   {"sweeps": ["desktop-1512-320-1512", "phone-rotation", "touch-1024-1201", "pain-1440-600-1440"],
    "probes":
@@ -1569,7 +1612,8 @@
      "id": "js.commission-bands"}],
    "conditions":
    {"rewrite": ["mq.rm-reduce", "mq.w-le-640", "mq.w-641-1000", "mq.w-ge-1001-nopref", "mq.c1000"],
-    "orig": ["mq.rm-reduce", "mq.w-le-640", "mq.w-641-1000", "mq.w-ge-1001-nopref", "mq.c860", "mq.c1000"]}}},
+    "orig": ["mq.rm-reduce", "mq.w-le-640", "mq.w-641-1000", "mq.w-ge-1001-nopref", "mq.c860", "mq.c1000"]},
+   "added": []}},
  "matrixProbes": 124,
  "hypothesis":
  "H: on a fixed engine port, a part's verdict at a fresh load depends only on its key (the truth vector of the part's key queries), and at a sweep stop only on the key history so far with repeats collapsed; it is never unreachable except by the port's proved reason (Fw.Gate.envReason). H fails if the part reads a condition outside its key, if the rewrite's media text differs from Lean's, or if a continuous value differs between the arms at some widths of one key class only. The full matrix (no --parts) stays the gate of record.",

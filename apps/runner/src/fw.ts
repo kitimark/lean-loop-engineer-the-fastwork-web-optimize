@@ -25,7 +25,7 @@ const SUBS = new Set(["plan", "ci", "incidents", "step", "card", "task", "consol
 let spanExtra: ReturnType<typeof waitSpanExtra> = {}; // ci-wait-lag: the phases of a `fw ci wait`, written on its span at exit
 if (group && group !== "watch" && group !== "timings") { const end = begin("fw", SUBS.has(group) && rest[0] && !rest[0].startsWith("-") ? `${group} ${rest[0]}` : group); process.once("exit", (c) => end(c, spanExtra)); }
 try {
-  const base = NO_API_GROUPS.includes(group ?? "") ? "" : apiBase(process.env); // these need no console-api (CI runs some of them)
+  const base = NO_API_GROUPS.includes(group ?? "") || (group === "plan" && rest[0] === "overlap") ? "" : apiBase(process.env); // these need no console-api (CI runs some of them)
   if (group === "timings") {
     console.log(rest.includes("--backfill") ? await backfill(rest, process.cwd()) : rest.includes("--lag") ? lagCli(rest, process.cwd()) : timingsView(rest, process.cwd()));
   } else if (group === "checks") {
@@ -96,9 +96,11 @@ try {
       console.log(`plan sync: ${cmds.length} commands, ${n((r) => r.ok && !r.duplicate)} applied, ${n((r) => r.ok && !!r.duplicate)} unchanged, ${n((r) => !r.ok)} refused`);
       for (const r of rs) if (!r.ok) console.error(`refused: ${r.reason}`);
       if (!body.ok) { if (!rs.length) console.error(`refused: ${body.reason}`); process.exitCode = 2; }
+    } else if (rest[0] === "overlap") {
+      process.exitCode = await (await import("./plan-overlap.ts")).overlapCli(rest.slice(1), process.cwd()); // spawn-write-overlap
     } else if (rest[0] === "lint") {
       process.exitCode = await lintCli(rest.slice(1), process.cwd());
-    } else throw new UsageError("usage: fw plan sync <work-graph.json> | fw plan show | fw plan lint <work-graph.json>");
+    } else throw new UsageError("usage: fw plan sync <work-graph.json> | fw plan show | fw plan lint <work-graph.json> | fw plan overlap [<task>] [--running a,b] [--override <reason>]");
   } else if (group === "land") {
     const LAND_USAGE = "usage: fw land <branch> [--task <task-id>] [--allow <glob>]... [--dry]\n       fw land --queue <branch> --task <task-id> [--allow <glob>]... [--no-run]\n       fw land --queue-status";
     const flags = new Set(["--queue", "--queue-status", "--no-run", "--dry"]);
@@ -177,7 +179,7 @@ try {
     if (body.ok) console.log(body.duplicate ? "duplicate (already applied)" : `ok seq ${body.seq}`);
     else { console.error(`refused: ${body.reason}`); process.exitCode = 2; }
   } else {
-    throw new UsageError(`usage: fw status | fw console start|stop|restart|status|logs | fw preview grant [<id>] | fw plan sync <file>|show | fw watch [--json] [--interval s] [--until-alert] | fw next | fw engine-check --rows <jsonl> --run <dir> | fw land <branch> [--task id] [--allow glob] [--dry] | fw land --queue <branch> --task id | fw land --queue-status | fw incidents lint [ledger.json] | fw lake-gc [--list|--json|--delete] [--check] | fw reap --list | fw step post|start|answer|done|cancel ... | fw task handback|integrate|park|unpark ... | fw send '<json>'\n${CARD_USAGE}`);
+    throw new UsageError(`usage: fw status | fw console start|stop|restart|status|logs | fw preview grant [<id>] | fw plan sync <file>|show|overlap [task] | fw watch [--json] [--interval s] [--until-alert] | fw next | fw engine-check --rows <jsonl> --run <dir> | fw land <branch> [--task id] [--allow glob] [--dry] | fw land --queue <branch> --task id | fw land --queue-status | fw incidents lint [ledger.json] | fw lake-gc [--list|--json|--delete] [--check] | fw reap --list | fw step post|start|answer|done|cancel ... | fw task handback|integrate|park|unpark ... | fw send '<json>'\n${CARD_USAGE}`);
   }
 } catch (e) {
   console.error(e instanceof Error ? e.message : String(e));
