@@ -13688,6 +13688,50 @@
     "docs/team/handoffs/review-flow-v2.md"
    ],
    "evidence": "31ce88a"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "disk-auto-gc",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "title": "User 2026-10-21: 'i think it could automate to clean up used files. can we make it more automatically ?' Today cleanup is manual: on 10-21 the lead freed ~53 GiB by hand (lake-gc 38 GiB, 220 stale scratchpad dirs 21 GiB, 3 unused fw-* Simulator devices on iOS 26.5 11 GiB, one landed worktree 1.3 GiB; disk 52 -> 105 GiB free; breakdown in the storage-check note). Build one Lean-decided collector, Fw.Ops.DiskGc (extends Fw.Ops.LakeGc, golden packages/contracts/golden/ops/diskgc.jsonl), over a CLOSED allowlist of classes, each decided on its own: (1) lake-gc unreferenced artifacts (existing rule); (2) a worktree under .claude/worktrees whose branch is an ancestor of main and that no running task or queued land names (git worktree remove, branch kept); (3) node_modules and lean/.lake of an unlanded worktree idle > idleH (default 24 h; branch and sources untouched); (4) session scratchpad top-level dirs with no file newer than 8 h, not cited by a committed file (git grep scratchpad/<dir>), no open file (lsof), not fable-*; (5) Simulator devices named fw-* that no workflow or package names (today only fw-iphone-27 is named), shut down, sim lock free; (6) .fw-console tmp and land-logs past keepDays. Identity over inference: every candidate is a resolved absolute path under one of the allowed roots (repo, its worktrees root, the session scratchpad root, ~/.elan lake cache, CoreSimulator Devices by UDID), owned by the user, never .local/, never a git-tracked file, never a branch. Theorems: deletes_subset_allowlist, never_tracked, never_live (open file or running task), class decisions independent. CLI `fw disk-gc --list|--json|--delete` printing per class count and bytes, df before/after; triggers: post-land routine, sys.diskLow alert mitigation in fw watch, and a daily fw-sup timer once sup-wire lands; each run writes one console event (classes, bytes, before/after). Shell rm targets use ${VAR:?} guards (the rm safety check refuses unguarded variable targets). Docs docs/team/tools/disk-gc.md.",
+   "writes": [
+    "lean/Fw/Ops/DiskGc.lean",
+    "lean/Fw/Ops/LakeGc.lean",
+    "lean/Fw.lean",
+    "lean/Fw/Wire/Ops.lean",
+    "packages/contracts/golden/ops/diskgc.jsonl",
+    "apps/runner/src/disk-gc.ts",
+    "apps/runner/src/lake-gc.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/disk-gc.test.ts",
+    "apps/runner/src/watch-collect.ts",
+    "docs/team/tools/disk-gc.md",
+    "docs/team/tools/disk-cleanup.md",
+    "docs/team/handoffs/disk-auto-gc.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gh-cache-scope",
+   "owner": "measure-engineer",
+   "stream": "ops",
+   "deps": [],
+   "title": "Storage check 2026-10-21: GitHub Actions caches are 11.14 GB against the 10 GB per-repo limit (gh cache list): 18 lake-ARM64 caches 10.8 GB; 15 caches on ci/* refs hold 8.46 GiB, 10 of them on one-shot ci/land-* branches (5.81 GiB) that nothing will restore (a run restores only its own branch or the default branch, docs.github.com dependency caching), so they evict the main caches that lands and pushes need. Fix: only main saves the lake cache (actions/cache/restore on every non-main ref; find which workflows save on ci/* and make them restore-only), and add a `fw ci cache-gc` step (gh cache delete for caches on ci/* refs not accessed for 6 h; never gh api) run by the post-land routine. Measure: cache total and main-cache hit on the next 3 lands.",
+   "writes": [
+    ".github/workflows/**",
+    ".github/actions/**",
+    "apps/runner/src/ci-cache-gc.ts",
+    "apps/runner/test/ci-cache-gc.test.ts",
+    "apps/runner/src/fw.ts",
+    "docs/team/tools/ci-cache.md",
+    "docs/team/handoffs/gh-cache-scope.md"
+   ]
   }
  ],
  "deadline": {
