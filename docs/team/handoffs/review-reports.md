@@ -17,3 +17,4 @@ Open:
 - The lead posts the first real report; each experiment task posts its own.
 
 Read first: docs/team/tools/review.md (Reports), lean/Fw/Console/Report.lean (theorems).
+- Round 2: comments are per report id (Reports.tsx), example arms are original-snapshot and rewrite (search empty), no strips in the example, recommendation text carries no numbers. Follow-ups left: tab badge, reload on board seq, answer/feedback atomicity, reason wording, 3-4 arm layout.
