@@ -4,16 +4,17 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { ARM_GOLDEN } from '../src/images/armgen.mjs';
-import { decoded, exactCopy, exactFile, exactSaving, fitCopy, fitFile, imgOf, integral, needW, partDecision, reachWhy, saving, snapSize } from '../src/images/armplan.mjs';
+import { agreeCopy, decoded, disputedCopy, exactCopy, exactFile, exactSaving, fitCopy, fitFile, imgOf, integral, needW, partDecision, partDecisionWithCopies, reachWhy, saving, snapSize } from '../src/images/armplan.mjs';
 
 const lines = readFileSync(ARM_GOLDEN, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
 const of = (kind) => lines.filter((l) => l.kind === kind);
 
 test('the golden file has every kind of case', () => {
-  for (const k of ['snap', 'reach', 'file', 'part', 'saving']) assert.ok(of(k).length > 0, k);
+  for (const k of ['snap', 'reach', 'file', 'part', 'partc', 'reps', 'saving']) assert.ok(of(k).length > 0, k);
   assert.ok(of('reach').some((l) => l.why === 'ok') && of('part').some((l) => l.decision === 'admissible'));
   for (const w of ['notImg', 'cropped', 'scaled', 'fractional', 'noSaving']) assert.ok(of('reach').some((l) => l.why === w), `reason ${w}`);
   for (const d of ['admissible', 'lookChange', 'shippedFails', 'undecided']) assert.ok(of('part').some((l) => l.decision === d), `decision ${d}`);
+  for (const d of ['admissible', 'lookChange', 'shippedFails', 'undecided', 'noCopy']) assert.ok(of('partc').some((l) => l.decision === d), `decision with copies ${d}`);
 });
 
 test('snapping: size and integral flag', () => {
@@ -42,6 +43,17 @@ test('files drawn by several elements: the agreed exact copy, the covering fit c
 
 test('the decision of a part from its cells', () => {
   for (const l of of('part')) assert.equal(partDecision(l.cells.map(([base, drawn]) => ({ base, drawn }))), l.decision, l.name);
+});
+
+test('the decision of a part over cells with and without copies (noCopy, an error cell among the cells)', () => {
+  for (const l of of('partc')) assert.equal(partDecisionWithCopies(l.cells.map(([copy, base, drawn]) => ({ copy, base, drawn }))), l.decision, l.name);
+});
+
+test('one file planned in several reps: the agreed copy and the dispute', () => {
+  for (const l of of('reps')) {
+    assert.deepEqual(agreeCopy(l.plans), l.agreed, l.name);
+    assert.equal(disputedCopy(l.plans), l.disputed, l.name);
+  }
 });
 
 test('decoded bytes and the saving', () => {

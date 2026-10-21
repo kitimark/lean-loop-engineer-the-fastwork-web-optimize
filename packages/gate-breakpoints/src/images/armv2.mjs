@@ -103,12 +103,13 @@ export function magickCmd() {
   throw new Error('ImageMagick not found (magick or convert); the CI job installs it');
 }
 
-/** Resize `src` to exactly w x h (Lanczos, same format; JPEG quality 95, 4:4:4, no metadata stripped) into `dst`. */
-export function buildCopy(src, dst, w, h, format) {
+/** The ImageMagick arguments of a copy: the decoded source resized to exactly w x h with Lanczos and written as lossless PNG (32 bit), so a copy differs from its source by that one resample and carries no lossy encode. */
+export const copyArgs = (src, dst, w, h) => [src, '-filter', 'Lanczos', '-resize', `${w}x${h}!`, `PNG32:${dst}`];
+
+/** Build the copy of `src` at w x h into `dst` (the bytes are PNG whatever the extension: a browser decodes an image by its content). Returns the byte size. */
+export function buildCopy(src, dst, w, h) {
   mkdirSync(dirname(dst), { recursive: true });
-  const args = [src, '-filter', 'Lanczos', '-resize', `${w}x${h}!`];
-  if (format === 'jpeg') args.push('-quality', '95', '-sampling-factor', '4:4:4');
-  execFileSync(magickCmd(), [...args, dst], { stdio: ['ignore', 'ignore', 'pipe'] });
+  execFileSync(magickCmd(), copyArgs(src, dst, w, h), { stdio: ['ignore', 'ignore', 'pipe'] });
   return statSync(dst).size;
 }
 
@@ -180,7 +181,7 @@ export async function runProbes({ engine, ids, out, tag = 'run', deadlineMs = In
       for (const f of todo) {
         const [w, h] = f[policy];
         const dst = join(tree, f.path.replace(/^\//, ''));
-        (f.copyBytes ??= {})[policy] = buildCopy(join(dist, f.path.replace(/^\//, '')), dst, w, h, f.format);
+        (f.copyBytes ??= {})[policy] = buildCopy(join(dist, f.path.replace(/^\//, '')), dst, w, h);
         touched.push(f.path);
       }
       span(`build ${p.id} ${policy}`, s);

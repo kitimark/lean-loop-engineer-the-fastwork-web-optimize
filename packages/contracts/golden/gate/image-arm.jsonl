@@ -69,6 +69,22 @@
 {"cells":[["pass","invalid"],["pass","nc"]],"decision":"undecided","kind":"part","name":"invalid and nc"}
 {"cells":[["pass","fail"],["pass","unsettled"]],"decision":"lookChange","kind":"part","name":"fail and unsettled"}
 {"cells":[["pass","pass"]],"decision":"admissible","kind":"part","name":"one cell passes"}
+{"agreed":null,"disputed":false,"kind":"reps","name":"no reps","plans":[]}
+{"agreed":[60,60],"disputed":false,"kind":"reps","name":"every rep plans the same copy","plans":[[60,60],[60,60],[60,60]]}
+{"agreed":null,"disputed":false,"kind":"reps","name":"no rep plans a copy","plans":[null,null,null]}
+{"agreed":null,"disputed":true,"kind":"reps","name":"one rep plans none","plans":[[60,60],null,[60,60]]}
+{"agreed":null,"disputed":true,"kind":"reps","name":"two sizes","plans":[[60,60],[61,60]]}
+{"agreed":[90,90],"disputed":false,"kind":"reps","name":"one rep alone","plans":[[90,90]]}
+{"cells":[],"decision":"noCopy","kind":"partc","name":"no cells"}
+{"cells":[[false,"pass","pass"],[false,"unsettled","unsettled"]],"decision":"noCopy","kind":"partc","name":"no cell has a copy"}
+{"cells":[[false,"pass","fail"],[true,"pass","pass"]],"decision":"admissible","kind":"partc","name":"a cell without a copy that fails is ignored"}
+{"cells":[[true,"pass","pass"],[false,"unsettled","unsettled"],[true,"pass","pass"]],"decision":"admissible","kind":"partc","name":"copies all pass"}
+{"cells":[[true,"pass","pass"],[true,"pass","fail"]],"decision":"lookChange","kind":"partc","name":"a copy fails where the baseline passes"}
+{"cells":[[true,"fail","fail"],[true,"pass","pass"]],"decision":"shippedFails","kind":"partc","name":"a copy fails where the baseline fails"}
+{"cells":[[true,"pass","unsettled"],[true,"pass","pass"]],"decision":"undecided","kind":"partc","name":"a copy is unsettled"}
+{"cells":[[true,"error","error"],[true,"pass","pass"]],"decision":"undecided","kind":"partc","name":"an error cell among passes"}
+{"cells":[[true,"error","error"]],"decision":"undecided","kind":"partc","name":"an error cell alone"}
+{"cells":[[true,"error","error"],[true,"pass","fail"]],"decision":"lookChange","kind":"partc","name":"an error cell and a fail"}
 {"copy":[60,60],"decoded":160000,"kind":"saving","nat":[200,200],"saving":145600}
 {"copy":[640,866],"decoded":5796000,"kind":"saving","nat":[1035,1400],"saving":3579040}
 {"copy":[400,400],"decoded":640000,"kind":"saving","nat":[400,400],"saving":0}

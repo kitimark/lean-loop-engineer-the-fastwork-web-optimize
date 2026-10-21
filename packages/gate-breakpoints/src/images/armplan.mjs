@@ -56,6 +56,15 @@ export function fitFile(dpr, is) {
   return i.natW > 0 && n > 0 && n < i.natW ? [n, aspectH(i.natW, i.natH, n)] : null;
 }
 
+/** The copy [w, h] a file is planned with in every rep (`plans`: one [w, h] or null per rep), else null (twin of Lean `agreeCopy`). */
+export function agreeCopy(plans) {
+  if (plans.length === 0 || plans[0] === null) return null;
+  return plans.every((p) => same(p, plans[0])) ? plans[0] : null;
+}
+
+/** The reps disagree about a file: some planned a copy and they did not all plan the same one (twin of Lean `disputedCopy`). */
+export const disputedCopy = (plans) => plans.some((p) => p !== null) && agreeCopy(plans) === null;
+
 export const decoded = (w, h) => 4 * w * h;
 export const saving = (nw, nh, cw, ch) => Math.max(0, decoded(nw, nh) - decoded(cw, ch));
 
@@ -75,6 +84,15 @@ export function partDecision(cells) {
   if (cells.some((c) => c.drawn === FAIL)) return 'shippedFails';
   if (cells.length === 0 || cells.some((c) => c.drawn !== PASS)) return 'undecided';
   return 'admissible';
+}
+
+/**
+ * The decision of a part from its cells [{ copy, base, drawn }] (twin of Lean `partDecisionWithCopies`): `noCopy` when no cell has a
+ * copy, else `partDecision` of the cells that have one. An error cell (copies unknown) has `copy: true`.
+ */
+export function partDecisionWithCopies(cells) {
+  const copied = cells.filter((c) => c.copy);
+  return copied.length === 0 ? 'noCopy' : partDecision(copied);
 }
 
 // ---- glue: audit reading -> Lean Img -------------------------------------------------------------------------------------------

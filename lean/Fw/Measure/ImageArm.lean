@@ -10,14 +10,18 @@ tool that made it and then again by the browser, so the page differs from the or
 re-plans the arm on two questions, both pure.
 
 **Q1, is a copy drawn 1:1 reachable?** A draw whose destination rectangle is a whole number of device pixels, at the copy's own
-pixel size, resamples nothing: the browser's second stage vanishes and the page differs from the original only by the copy tool's
-one stage. Engine facts (CONFIRMED, source read): Chromium snaps the destination rectangle of an `<img>` to device pixels
-(`third_party/blink/renderer/core/paint/image_painter.cc:210,224,228-235@f842f52`) and hands the picture to Skia, whose shader
-turns a bilinear sample into a nearest one when the matrix is an integer translation (`src/shaders/SkImageShader.cpp:472-483@95ee33d7`,
-Skia as pinned by Chromium's `DEPS`); WebKit snaps with `snapRectToDevicePixels`
-(`Source/WebCore/rendering/RenderImage.cpp:569,693,774-808@862f17d`) and its Skia port draws through the same shader rule
-(`Source/WebCore/platform/graphics/skia/GraphicsContextSkia.cpp:188-201,229-295@862f17d`); Apple WebKit hands the draw to CoreGraphics
-(closed source: "1:1 draws nothing" is INFERRED there). The snapped size of a rectangle depends on where it sits
+pixel size, resamples nothing: the browser's second stage vanishes and the page differs from the original only by the copy
+tool's one stage (the exact copies are lossless PNG, so the stage is one Lanczos resize and no encode). Engine facts. CONFIRMED (source read):
+Skia turns a bilinear sample into a nearest one when the matrix is an integer translate (`tweak_sampling`,
+`src/shaders/SkImageShader.cpp:473-484`, called at `:522`, Skia 95ee33d7 = `skia_revision` at `DEPS:340` of chromium@f842f52; the
+CPU raster path); Chromium snaps the destination rectangle of an `<img>` to device pixels and draws it with that rectangle
+(`third_party/blink/renderer/core/paint/image_painter.cc:210,224-235@f842f52`); WebKit snaps with `snapRectToDevicePixels`
+(`Source/WebCore/rendering/RenderImage.cpp:569,693,774-808@862f17d`), and its Skia port, the Linux Playwright WebKit, draws
+with `kLinear` for Default quality (`Source/WebCore/platform/graphics/skia/GraphicsContextSkia.cpp:188-201,291,295@862f17d`)
+into the same shader rule. `ImageQualityController.cpp:172-176@862f17d` only picks the quality for an unscaled context at DPR 1
+and plays no part for a copy at DPR 2 or 3. INFERRED (not read): that the float matrix of a WebKit draw at DPR 2 or 3 is an
+exact integer translate, the GPU raster path, and Apple's CoreGraphics (closed source). The CI cells are the evidence for those.
+The snapped size of a rectangle depends on where it sits
 (`snapSize_position_dependent`), except when its size is a whole number of device pixels (`snapSize_shift`): that is the only
 size a single copy can match wherever the image is. So a copy is reachable only for an `<img>` (`Why.notImg`) that fills its box
 (`Why.cropped`), under no scale (`Why.scaled`), of whole device-pixel size (`Why.fractional`), and smaller than the file
@@ -29,7 +33,8 @@ visual-diff verdict (`Fw.Gate.Pixel.Verdict`, PL tolerance) of the part with the
 copies (`drawn`). `partDecision` is `admissible` only when there is a cell and every cell passes
 (`partDecision_admissible_iff`); a failing cell can never be pooled away (`append_fail_not_admissible`). A fail where the
 baseline passed is a look change (`lookChange`), which the lead puts in the user's review queue; a fail where the baseline did not
-pass is `shippedFails`; any other missing pass (unsettled, invalid, nc, an error cell) is `undecided`.
+pass is `shippedFails`; any other missing pass (unsettled, invalid, nc, an error cell) is `undecided`. A part none of whose
+cells has a copy is `noCopy` (`partDecisionWithCopies`); an error cell counts as one that has a copy.
 
 The TS twin is `packages/gate-breakpoints/src/images/armplan.mjs`, checked against `goldenText`
 (`packages/contracts/golden/gate/image-arm.jsonl`). Sizes are milli-CSS-pixels, DPR a whole number, so no float enters a decision.
@@ -291,6 +296,72 @@ def exactSaving (dpr : Nat) (i : Img) (rest : List Img) : Nat :=
 /-- The decoded bytes of a part: the sum over its files. -/
 def partSaving (dpr : Nat) (files : List (Img × List Img)) : Nat := (files.map (fun f => exactSaving dpr f.1 f.2)).sum
 
+/-! ## One file, several reps -/
+
+/-- The copy of a file planned in each rep (one `Option` per rep): the size every rep planned, else none. -/
+def agreeCopy : List (Option (Nat × Nat)) → Option (Nat × Nat)
+  | [] => none
+  | c :: rest => if c.isSome && rest.all (· == c) then c else none
+
+/-- The reps disagree about a file: some planned a copy and they did not all plan the same one. -/
+def disputedCopy (cs : List (Option (Nat × Nat))) : Bool := cs.any Option.isSome && (agreeCopy cs).isNone
+
+/-- Every rep planned this copy. -/
+theorem agreeCopy_some_iff (cs : List (Option (Nat × Nat))) (c : Nat × Nat) :
+    agreeCopy cs = some c ↔ cs ≠ [] ∧ ∀ d ∈ cs, d = some c := by
+  cases cs with
+  | nil => simp [agreeCopy]
+  | cons x rest =>
+    simp only [agreeCopy]
+    by_cases h : (x.isSome && rest.all (· == x)) = true
+    · simp only [h, ↓reduceIte]
+      have hx : x.isSome = true := (Bool.and_eq_true_iff.1 h).1
+      have hr : rest.all (· == x) = true := (Bool.and_eq_true_iff.1 h).2
+      obtain ⟨y, rfl⟩ := Option.isSome_iff_exists.1 hx
+      have hr' : ∀ d ∈ rest, d = some y := by
+        intro d hd
+        have := List.all_eq_true.1 hr d hd
+        simpa using this
+      constructor
+      · intro e
+        have : y = c := Option.some.inj e
+        subst this
+        refine ⟨by simp, ?_⟩
+        intro d hd
+        rcases List.mem_cons.1 hd with rfl | hd
+        · rfl
+        · exact hr' d hd
+      · rintro ⟨_, hall⟩
+        have := hall (some y) (by simp)
+        exact this
+    · simp only [h]
+      constructor
+      · intro e; exact absurd e (by simp)
+      · rintro ⟨_, hall⟩
+        exfalso
+        apply h
+        have hx : x = some c := hall x (by simp)
+        subst hx
+        simp only [Option.isSome_some, Bool.true_and, List.all_eq_true, beq_iff_eq]
+        intro d hd
+        exact hall d (List.mem_cons_of_mem _ hd)
+
+/-- A file is disputed exactly when some rep planned a copy and no single copy is planned by every rep. -/
+theorem disputedCopy_iff (cs : List (Option (Nat × Nat))) :
+    disputedCopy cs = true ↔ (∃ d ∈ cs, d.isSome = true) ∧ ¬ ∃ c, agreeCopy cs = some c := by
+  unfold disputedCopy
+  simp only [Bool.and_eq_true, List.any_eq_true, Option.isNone_iff_eq_none]
+  constructor
+  · rintro ⟨h1, h2⟩
+    refine ⟨h1, fun ⟨c, hc⟩ => ?_⟩
+    rw [h2] at hc
+    exact absurd hc (by simp)
+  · rintro ⟨h1, h2⟩
+    refine ⟨h1, ?_⟩
+    cases e : agreeCopy cs with
+    | none => rfl
+    | some c => exact absurd ⟨c, e⟩ h2
+
 /-! ## The decision of a part -/
 
 /-- One cell: the verdict of the part with the original files (`base`) and with its copies (`drawn`); `none` is an error cell
@@ -306,6 +377,7 @@ inductive Decision where
   | lookChange   -- a cell passes with the original files and fails with the copies: the copies change the look
   | shippedFails -- a cell fails with the copies, and none of the failing cells passed with the original files
   | undecided    -- no cell fails, but not every cell passes (unsettled, invalid, nc, an error cell), or there is no cell
+  | noCopy       -- no cell has a copy (`partDecisionWithCopies` only): nothing was drawn differently, so nothing is decided
 deriving DecidableEq, Repr
 
 /-- The copies change the look in this cell. -/
@@ -315,7 +387,7 @@ def Cell.regresses (c : Cell) : Bool := c.drawn == some .fail && c.base == some 
 def decisionOf (regress fails notPass : Bool) : Decision :=
   if regress then .lookChange else if fails then .shippedFails else if notPass then .undecided else .admissible
 
-/-- The decision of a part from its cells, each cell on its own (no pooled count or ratio). -/
+/-- The decision of a part from its cells, each cell on its own (no pooled count or ratio); never `noCopy`. -/
 def partDecision (cs : List Cell) : Decision :=
   decisionOf (cs.any Cell.regresses) (cs.any (fun c => c.drawn == some .fail)) (cs.isEmpty || cs.any (fun c => c.drawn != some .pass))
 
@@ -404,6 +476,156 @@ theorem lookChange_needs_baseline_pass (cs : List Cell) (h : partDecision cs = .
   obtain ⟨c, hc, h1, h2⟩ := (partDecision_lookChange_iff cs).1 h
   exact ⟨c, hc, h2, h1⟩
 
+/-- `partDecision` never says `noCopy`: that word belongs to `partDecisionWithCopies`. -/
+theorem partDecision_ne_noCopy (cs : List Cell) : partDecision cs ≠ .noCopy := by
+  unfold partDecision decisionOf
+  repeat' split
+  all_goals decide
+
+/-- An error cell (the run gave no verdict with the copies) keeps a part from being admissible. -/
+theorem error_cell_not_admissible (cs : List Cell) (h : ∃ c ∈ cs, c.drawn = none) : partDecision cs ≠ .admissible := by
+  intro ha
+  obtain ⟨c, hc, he⟩ := h
+  have := admissible_all_pass cs ha c hc
+  rw [he] at this
+  exact absurd this (by decide)
+
+/-- A part with an error cell and no failing cell is undecided: a missing verdict is neither a pass nor a fail. -/
+theorem error_cell_undecided (cs : List Cell) (h : ∃ c ∈ cs, c.drawn = none) (hf : ¬ ∃ c ∈ cs, c.drawn = some .fail) :
+    partDecision cs = .undecided := by
+  rw [partDecision_undecided_iff]
+  obtain ⟨c, hc, he⟩ := h
+  exact ⟨hf, Or.inr ⟨c, hc, by rw [he]; decide⟩⟩
+
+/-! ## Parts with and without copies -/
+
+/-- A cell with the fact whether the run built a copy for any file of the part in it. An error cell, whose copies are unknown,
+counts as one that has copies. -/
+structure CopyCell where
+  copy : Bool
+  cell : Cell
+deriving DecidableEq, Repr
+
+/-- The cells that have a copy, as plain cells. -/
+def copied (cs : List CopyCell) : List Cell := (cs.filter CopyCell.copy).map CopyCell.cell
+
+/-- The decision of a part over its cells: `noCopy` when no cell has a copy, else the decision of the cells that have one
+(a cell without a copy draws the original file and decides nothing). -/
+def partDecisionWithCopies (cs : List CopyCell) : Decision :=
+  if cs.any CopyCell.copy then partDecision (copied cs) else .noCopy
+
+theorem mem_copied {cs : List CopyCell} {x : Cell} : x ∈ copied cs ↔ ∃ c ∈ cs, c.copy = true ∧ c.cell = x := by
+  simp [copied, List.mem_filter, List.mem_map, and_assoc]
+
+theorem any_copy_iff (cs : List CopyCell) : cs.any CopyCell.copy = true ↔ ∃ c ∈ cs, c.copy = true := by
+  simp [List.any_eq_true]
+
+/-- With a copy somewhere, the decision is the plain decision of the cells that have one. -/
+theorem withCopies_of_copy (cs : List CopyCell) (h : ∃ c ∈ cs, c.copy = true) :
+    partDecisionWithCopies cs = partDecision (copied cs) := by
+  have h' : cs.any CopyCell.copy = true := (any_copy_iff cs).2 h
+  simp [partDecisionWithCopies, h']
+
+/-- With no copy anywhere, the decision is `noCopy`. -/
+theorem withCopies_of_none (cs : List CopyCell) (h : ¬ ∃ c ∈ cs, c.copy = true) : partDecisionWithCopies cs = .noCopy := by
+  have h' : ¬ cs.any CopyCell.copy = true := fun e => h ((any_copy_iff cs).1 e)
+  simp [partDecisionWithCopies, h']
+
+/-- `noCopy`: no cell has a copy (an empty list too). -/
+theorem withCopies_noCopy_iff (cs : List CopyCell) : partDecisionWithCopies cs = .noCopy ↔ ¬ ∃ c ∈ cs, c.copy = true := by
+  by_cases h : ∃ c ∈ cs, c.copy = true
+  · rw [withCopies_of_copy cs h]
+    exact ⟨fun hd => absurd hd (partDecision_ne_noCopy _), fun hn => absurd h hn⟩
+  · exact ⟨fun _ => h, fun _ => withCopies_of_none cs h⟩
+
+/-- `lookChange`: a cell with a copy fails where the baseline passed. -/
+theorem withCopies_lookChange_iff (cs : List CopyCell) :
+    partDecisionWithCopies cs = .lookChange ↔ ∃ c ∈ cs, c.copy = true ∧ c.cell.drawn = some .fail ∧ c.cell.base = some .pass := by
+  by_cases h : ∃ c ∈ cs, c.copy = true
+  · rw [withCopies_of_copy cs h, partDecision_lookChange_iff]
+    constructor
+    · rintro ⟨x, hx, h1, h2⟩
+      obtain ⟨c, hc, hcp, rfl⟩ := mem_copied.1 hx
+      exact ⟨c, hc, hcp, h1, h2⟩
+    · rintro ⟨c, hc, hcp, h1, h2⟩
+      exact ⟨c.cell, mem_copied.2 ⟨c, hc, hcp, rfl⟩, h1, h2⟩
+  · rw [withCopies_of_none cs h]
+    exact ⟨fun hd => absurd hd (by decide), fun ⟨c, hc, hcp, _⟩ => absurd ⟨c, hc, hcp⟩ h⟩
+
+/-- `shippedFails`: a cell with a copy fails, and none of the failing cells with a copy passed with the original files. -/
+theorem withCopies_shippedFails_iff (cs : List CopyCell) :
+    partDecisionWithCopies cs = .shippedFails ↔
+      (∃ c ∈ cs, c.copy = true ∧ c.cell.drawn = some .fail) ∧
+        ¬ ∃ c ∈ cs, c.copy = true ∧ c.cell.drawn = some .fail ∧ c.cell.base = some .pass := by
+  by_cases h : ∃ c ∈ cs, c.copy = true
+  · rw [withCopies_of_copy cs h, partDecision_shippedFails_iff]
+    constructor
+    · rintro ⟨⟨x, hx, h1⟩, hn⟩
+      obtain ⟨c, hc, hcp, rfl⟩ := mem_copied.1 hx
+      exact ⟨⟨c, hc, hcp, h1⟩, fun ⟨d, hd, hdp, h2, h3⟩ => hn ⟨d.cell, mem_copied.2 ⟨d, hd, hdp, rfl⟩, h2, h3⟩⟩
+    · rintro ⟨⟨c, hc, hcp, h1⟩, hn⟩
+      refine ⟨⟨c.cell, mem_copied.2 ⟨c, hc, hcp, rfl⟩, h1⟩, fun ⟨x, hx, h2, h3⟩ => ?_⟩
+      obtain ⟨d, hd, hdp, rfl⟩ := mem_copied.1 hx
+      exact hn ⟨d, hd, hdp, h2, h3⟩
+  · rw [withCopies_of_none cs h]
+    exact ⟨fun hd => absurd hd (by decide), fun ⟨⟨c, hc, hcp, _⟩, _⟩ => absurd ⟨c, hc, hcp⟩ h⟩
+
+/-- `undecided`: some cell has a copy, none of those fails, and one is not a pass (an error cell is not a pass). -/
+theorem withCopies_undecided_iff (cs : List CopyCell) :
+    partDecisionWithCopies cs = .undecided ↔
+      (∃ c ∈ cs, c.copy = true) ∧ (¬ ∃ c ∈ cs, c.copy = true ∧ c.cell.drawn = some .fail) ∧
+        ∃ c ∈ cs, c.copy = true ∧ c.cell.drawn ≠ some .pass := by
+  by_cases h : ∃ c ∈ cs, c.copy = true
+  · rw [withCopies_of_copy cs h, partDecision_undecided_iff]
+    obtain ⟨c0, hc0, hcp0⟩ := h
+    constructor
+    · rintro ⟨hn, hc | hc⟩
+      · exfalso
+        have : c0.cell ∈ copied cs := mem_copied.2 ⟨c0, hc0, hcp0, rfl⟩
+        rw [hc] at this
+        exact absurd this (by simp)
+      · obtain ⟨x, hx, h1⟩ := hc
+        obtain ⟨c, hc1, hc2, rfl⟩ := mem_copied.1 hx
+        exact ⟨⟨c0, hc0, hcp0⟩, fun ⟨d, hd, hdp, h2⟩ => hn ⟨d.cell, mem_copied.2 ⟨d, hd, hdp, rfl⟩, h2⟩, c, hc1, hc2, h1⟩
+    · rintro ⟨_, hn, c, hc1, hc2, h1⟩
+      refine ⟨fun ⟨x, hx, h2⟩ => ?_, Or.inr ⟨c.cell, mem_copied.2 ⟨c, hc1, hc2, rfl⟩, h1⟩⟩
+      obtain ⟨d, hd, hdp, rfl⟩ := mem_copied.1 hx
+      exact hn ⟨d, hd, hdp, h2⟩
+  · rw [withCopies_of_none cs h]
+    exact ⟨fun hd => absurd hd (by decide), fun ⟨hex, _⟩ => absurd hex h⟩
+
+/-- `admissible`: some cell has a copy and every cell with a copy passes. -/
+theorem withCopies_admissible_iff (cs : List CopyCell) :
+    partDecisionWithCopies cs = .admissible ↔
+      (∃ c ∈ cs, c.copy = true) ∧ ∀ c ∈ cs, c.copy = true → c.cell.drawn = some .pass := by
+  by_cases h : ∃ c ∈ cs, c.copy = true
+  · rw [withCopies_of_copy cs h, partDecision_admissible_iff]
+    obtain ⟨c0, hc0, hcp0⟩ := h
+    constructor
+    · rintro ⟨_, hp⟩
+      exact ⟨⟨c0, hc0, hcp0⟩, fun c hc hcp => hp c.cell (mem_copied.2 ⟨c, hc, hcp, rfl⟩)⟩
+    · rintro ⟨_, hp⟩
+      refine ⟨fun e => ?_, fun x hx => ?_⟩
+      · have : c0.cell ∈ copied cs := mem_copied.2 ⟨c0, hc0, hcp0, rfl⟩
+        rw [e] at this
+        exact absurd this (by simp)
+      · obtain ⟨c, hc, hcp, rfl⟩ := mem_copied.1 hx
+        exact hp c hc hcp
+  · rw [withCopies_of_none cs h]
+    exact ⟨fun hd => absurd hd (by decide), fun ⟨hex, _⟩ => absurd hex h⟩
+
+/-- An error cell with a copy (the cell is `⟨none, none⟩`, copies unknown, so `copy = true`) keeps a part from being admissible
+and from being `noCopy`. -/
+theorem withCopies_error_cell (cs : List CopyCell) (c : CopyCell) (hc : c ∈ cs) (hcp : c.copy = true) (he : c.cell.drawn = none) :
+    partDecisionWithCopies cs ≠ .admissible ∧ partDecisionWithCopies cs ≠ .noCopy := by
+  constructor
+  · intro ha
+    have := ((withCopies_admissible_iff cs).1 ha).2 c hc hcp
+    rw [he] at this
+    exact absurd this (by decide)
+  · intro hn
+    exact (withCopies_noCopy_iff cs).1 hn ⟨c, hc, hcp⟩
+
 /-! ## Golden vectors -/
 
 /-- The verdict word of a cell side. -/
@@ -421,6 +643,7 @@ def decisionWord : Decision → String
   | .lookChange => "lookChange"
   | .shippedFails => "shippedFails"
   | .undecided => "undecided"
+  | .noCopy => "noCopy"
 
 /-- The reason word. -/
 def whyWord : Why → String
@@ -438,6 +661,9 @@ def pairJson : Option (Nat × Nat) → Json
   | some (a, b) => Json.arr #[toJson a, toJson b]
 
 def cellJson (c : Cell) : Json := Json.arr #[toJson (verdictWord c.base), toJson (verdictWord c.drawn)]
+
+/-- A cell with its copy flag: `[copy, base, drawn]`. -/
+def copyCellJson (c : CopyCell) : Json := Json.arr #[toJson c.copy, toJson (verdictWord c.cell.base), toJson (verdictWord c.cell.drawn)]
 
 /-- A plain `<img>` of `w` by `h` CSS pixels (milli) cut from a `nw` by `nh` file. -/
 def img (nw nh w h : Nat) : Img := { kind := .img, natW := nw, natH := nh, w := w, h := h, plain := true, scaleMin := 1000, scaleMax := 1000 }
@@ -476,6 +702,32 @@ def cellCases : List (String × List Cell) :=
     ("fail and unsettled", [⟨p, f⟩, ⟨p, u⟩]),
     ("one cell passes", [⟨p, p⟩]) ]
 
+/-- Per-rep plans of one file the agreement rule is pinned on. -/
+def repCases : List (String × List (Option (Nat × Nat))) :=
+  [ ("no reps", []),
+    ("every rep plans the same copy", [some (60, 60), some (60, 60), some (60, 60)]),
+    ("no rep plans a copy", [none, none, none]),
+    ("one rep plans none", [some (60, 60), none, some (60, 60)]),
+    ("two sizes", [some (60, 60), some (61, 60)]),
+    ("one rep alone", [some (90, 90)]) ]
+
+/-- Cell lists with copy flags the decision over parts with and without copies is pinned on. An error cell (a failed probe) has
+unknown copies and so counts as one that has copies. -/
+def copyCases : List (String × List CopyCell) :=
+  let p : Option Verdict := some .pass
+  let f : Option Verdict := some .fail
+  let u : Option Verdict := some .unsettled
+  [ ("no cells", []),
+    ("no cell has a copy", [⟨false, ⟨p, p⟩⟩, ⟨false, ⟨u, u⟩⟩]),
+    ("a cell without a copy that fails is ignored", [⟨false, ⟨p, f⟩⟩, ⟨true, ⟨p, p⟩⟩]),
+    ("copies all pass", [⟨true, ⟨p, p⟩⟩, ⟨false, ⟨u, u⟩⟩, ⟨true, ⟨p, p⟩⟩]),
+    ("a copy fails where the baseline passes", [⟨true, ⟨p, p⟩⟩, ⟨true, ⟨p, f⟩⟩]),
+    ("a copy fails where the baseline fails", [⟨true, ⟨f, f⟩⟩, ⟨true, ⟨p, p⟩⟩]),
+    ("a copy is unsettled", [⟨true, ⟨p, u⟩⟩, ⟨true, ⟨p, p⟩⟩]),
+    ("an error cell among passes", [⟨true, ⟨none, none⟩⟩, ⟨true, ⟨p, p⟩⟩]),
+    ("an error cell alone", [⟨true, ⟨none, none⟩⟩]),
+    ("an error cell and a fail", [⟨true, ⟨none, none⟩⟩, ⟨true, ⟨p, f⟩⟩]) ]
+
 /-- File groups the one-file rules are pinned on: (name, first element, the others). -/
 def fileCases : List (String × Img × List Img) :=
   [ ("one avatar", img 200 200 30000 30000, []),
@@ -505,6 +757,12 @@ def goldenLines (_ : Unit := ()) : List String :=
   ++ cellCases.map (fun (n, cs) =>
     (Json.mkObj [("kind", "part"), ("name", toJson n), ("cells", Json.arr (cs.map cellJson).toArray),
       ("decision", toJson (decisionWord (partDecision cs)))]).compress)
+  ++ repCases.map (fun (n, cs) =>
+    (Json.mkObj [("kind", "reps"), ("name", toJson n), ("plans", Json.arr (cs.map pairJson).toArray),
+      ("agreed", pairJson (agreeCopy cs)), ("disputed", toJson (disputedCopy cs))]).compress)
+  ++ copyCases.map (fun (n, cs) =>
+    (Json.mkObj [("kind", "partc"), ("name", toJson n), ("cells", Json.arr (cs.map copyCellJson).toArray),
+      ("decision", toJson (decisionWord (partDecisionWithCopies cs)))]).compress)
   ++ savingCases.map (fun (nw, nh, cw, ch) =>
     (Json.mkObj [("kind", "saving"), ("nat", Json.arr #[toJson nw, toJson nh]), ("copy", Json.arr #[toJson cw, toJson ch]),
       ("decoded", toJson (decoded nw nh)), ("saving", toJson (saving nw nh cw ch))]).compress)
@@ -535,5 +793,8 @@ def run (args : List String) : IO UInt32 := do
 #guard partDecision [⟨some .pass, some .pass⟩] == .admissible
 #guard partDecision [⟨some .pass, some .fail⟩] == .lookChange
 #guard partDecision [] == .undecided
+#guard partDecisionWithCopies [] == .noCopy
+#guard partDecisionWithCopies [⟨false, ⟨some .pass, some .fail⟩⟩] == .noCopy
+#guard partDecisionWithCopies [⟨true, ⟨none, none⟩⟩, ⟨false, ⟨some .pass, some .pass⟩⟩] == .undecided
 
 end Fw.Measure.ImageArm

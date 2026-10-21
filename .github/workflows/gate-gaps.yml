@@ -254,7 +254,7 @@ jobs:
   # nothing measured here is frame time or phone time.
   images-audit:
     needs: [site]
-    if: ${{ contains(github.event.head_commit.message, '[images') || (github.event_name == 'workflow_dispatch' && inputs.images) }}
+    if: ${{ contains(github.event.head_commit.message, '[images]') || contains(github.event.head_commit.message, '[images-only]') || (github.event_name == 'workflow_dispatch' && inputs.images) }}
     concurrency:
       group: ci-lane:gate-gaps:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:images-audit:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
@@ -375,7 +375,7 @@ jobs:
           test -x "$chrome"
           echo "CHROME_PATH=$chrome" >> "$GITHUB_ENV"
           "$chrome" --version
-      - name: ImageMagick (builds the copies; Lanczos resize, JPEG and PNG)
+      - name: 'ImageMagick (builds the copies; Lanczos resize, written as lossless PNG)'
         run: |
           set -euo pipefail
           if ! command -v magick >/dev/null 2>&1 && ! command -v convert >/dev/null 2>&1; then sudo apt-get update -qq && sudo apt-get install -y -qq imagemagick; fi
@@ -392,7 +392,7 @@ jobs:
           name: images-arm-${{ matrix.engine }}-${{ matrix.rep }}-s${{ matrix.shard }}
           path: packages/gate-breakpoints/out/images-arm/arm-*.json
           if-no-files-found: ignore
-          retention-days: 14
+          retention-days: 30
       # the diff images of the exact policy only (a few cells); the fit control's are not kept (about 100 MB per job)
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -440,7 +440,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p out
-          node src/images/cli.mjs arm decide --in "$RUNNER_TEMP/arm" --out out/images-decide.md | tail -n 60
+          node src/images/cli.mjs arm decide --in "$RUNNER_TEMP/arm" --out out/images-decide.md --run-id "$GITHUB_RUN_ID" --sha "$GITHUB_SHA" | tail -n 60
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: images-decide
