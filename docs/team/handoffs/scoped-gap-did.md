@@ -17,7 +17,7 @@ Writes outside the task's graph writes: `lean/Fw.lean` (import line, allowed), `
 `lean/scripts/check.sh` (one golden job), `lean/Fw/Ci/Trigger.lean` (two reads in the lean.yml row) and
 `packages/contracts/golden/ci/triggers.jsonl` (regenerated with `lake test -- --write-ci-trigger-golden`).
 
-Ledger row text (row `hero.exit.scoped.inline`, keys `next` and `missingWhy`; lead edits, not me)
+Ledger row text (row `hero.exit.scoped.inline`, keys `next`, `evidence` and `missingWhy`; lead edits, not me)
 - `next`, replace "Pending B (...)" with: "B (task scoped-gap-did) closed: not shown at 5 vs 5. Run-level permutation of 5 scoped and
   5 A/A fresh mac-webkit runs at 82b10b3b (39514533027, 39514585897, 39514619612, 39515982760, 39516056860 scoped;
   39514655614, 39514696773, 39514734504, 39516021307, 39516092834 A/A): p 0.492 (124 of 252), mean ln g difference

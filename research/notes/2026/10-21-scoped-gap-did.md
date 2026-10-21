@@ -67,6 +67,8 @@ Every file has `reps` 5, widths 390, 640, 641, 1280 and arms `orig` (no config),
 
 ## Result
 
+Correction to the identification paragraph (descriptive, not part of the statistic; the pre-registered text stays as committed): the `base` arm carries no search but has config hash = `baseHash` (ede2c764); only `orig` has no config.
+
 **Decision: not shown at 5 vs 5.** `p = 124/252 = 0.492` (one-sided, scoped > faithful). The perf regression is not
 confirmed; the test could only have seen a rise of the run-level mean of ln g of about **0.31** (g about 37 % longer) or
 more. Computed in Lean (`Fw.Gate.RunPerm`, golden `run-perm.jsonl` lines `real-run` and `real`), MEASURED.
