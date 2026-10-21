@@ -15,6 +15,7 @@ import { sleep } from '../sim.mjs';
 import { censusAt } from '../census.mjs';
 import { markTimes, markTime, reduceSteps } from '../reduce.mjs';
 import { regionOf } from './reduce.mjs';
+import { costPasses } from './costprobe.mjs';
 
 /** Frames of the morph run: idle, after the push down, after the push up. A tween lasts 680 ms, so 60 frames cover it at >= 11.4 ms per frame. */
 export const MORPH_FRAMES = Object.freeze({ idle: 10, open: 60, close: 60 });
@@ -156,7 +157,7 @@ export async function morphRun(c, { clock, settleMs }) {
  * after its retries ends the session; the completed runs are kept and the reason goes to `failed` (CI lost r2 and v3 of
  * the first dispatch whole to such a stall, 2026-10-21).
  */
-export async function lagSession(ctx, { passes, clock, settleMs, step, framesPerStep, log }) {
+export async function lagSession(ctx, { passes, clock, settleMs, step, framesPerStep, log, cost = true }) {
   const geometry = await geometryPass(ctx, { clock, settleMs, step, log });
   const out = [], failed = [];
   let targetLost = false;
@@ -176,7 +177,14 @@ export async function lagSession(ctx, { passes, clock, settleMs, step, framesPer
     } catch (e) { targetLost = e instanceof TargetLostError; out.push({ scroll }); failed.push(`pass ${i + 1} morph: ${e.message}`); log(`  ${failed.at(-1)}`); break; }
     const m = morph.reduced.total;
     log(`pass ${i + 1}/${passes} morph: taken ${JSON.stringify(morph.taken)}, scrollTo ${morph.scrollTo}, style ${m.RecalculateStyles} layout ${m.Layout} paint ${m.Paint} composite ${m.Composite}`);
-    out.push({ scroll, morph });
+    let costs = null;
+    if (cost) {
+      try {
+        costs = await costPasses((name, fn) => retrying(ctx, `cost ${name}`, log, () => fn(ctx.c, { clock, settleMs, step, framesPerStep })), log);
+      } catch (e) { targetLost = e instanceof TargetLostError; failed.push(`pass ${i + 1} cost: ${e.message}`); log(`  ${failed.at(-1)}`); out.push({ scroll, morph }); break; }
+      log(`pass ${i + 1}/${passes} cost: ${['scroll', 'morph', 'layersScroll', 'layersMorph'].map((k) => `${k} ${costs[k] ? 'ok' : 'failed'}`).join(', ')}`);
+    }
+    out.push({ scroll, morph, ...(costs ? { cost: costs } : {}) });
   }
   return { schema: 'fw.webkit.lag/1', step, framesPerStep, geometry, passes: out, failed, ...(targetLost ? { targetLost } : {}) };
 }
