@@ -450,6 +450,7 @@ export function summaryV2Md(s) {
     '- "Animating" keeps a frame when the scroll position or a recorded part (hero, people, fade) changed. The morph tween under scroll lock is not a recorded part; its frames are only in "every interval".',
     '- A drag is a stroke that is not a tap, with one finger. Touch latency counts drags that started on a still page and scrolled it before the finger lifted. The finger offset counts the drags in "page moved before lift".',
     '- The expected interval is the pass median at the 1 ms rAF rounding, so a 16 / 17 ms alternation adds no hitch time.',
+    '- Slots are counted from the first frame. When the 60 Hz updates move to the other 120 Hz phase, frames sit near a slot edge and the 1 ms rAF rounding pushes them across it, so an interval of 17 to 25 ms can count as a skipped slot next to one that advanced no slot (mechanism INFERRED; counts MEASURED). Skips with an interval of 25 ms or less: original 94 of 952 and 256 of 951, rewrite 187 of 480, look 139 of 358. The verdicts above are the same under a per-interval rule, round(interval / 16.67 ms) > 1.',
     '',
   ].join('\n');
 }
