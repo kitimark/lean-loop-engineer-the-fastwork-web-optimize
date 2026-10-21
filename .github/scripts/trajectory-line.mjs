@@ -77,8 +77,26 @@ export function pushProbe(lane, msg) {
   return lane ? { kind: 'run', ...l.p } : { kind: 'needsLane' };
 }
 
+/** Lean `hasFrames`: the frames token `[frames:` in the message, ASCII case ignored. */
+export const hasFrames = (msg) => lowerAscii(msg).includes('[frames:');
+
+/** Lean `recorderOf`: the recorder the probe line asks for, '' for none, a refused line or no line. */
+export const recorderOf = (msg) => {
+  const r = pushProbe(true, msg);
+  return r.kind === 'run' ? r.debug : '';
+};
+
+/** Lean `appleRuns`: does the macOS leg run (ev is `workflow_dispatch` or `push`; appleN the macOS legs of the plan). */
+export const appleRuns = (ev, msg, appleN) =>
+  appleN !== 0 && (ev !== 'push' || hasFrames(msg) || recorderOf(msg) !== '');
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   const e = process.env;
+  if (process.argv[2] === 'apple') {
+    // The plan step asks whether the macOS leg runs; the answer is the `apple_run` output.
+    process.stdout.write(`apple_run=${appleRuns(e.EVENT ?? '', e.HEAD_MSG ?? '', Number(e.APPLE_N ?? '0'))}\n`);
+    process.exit(0);
+  }
   if ((e.EVENT ?? '') !== 'push') {
     // A dispatch carries its inputs itself; they pass through unchanged.
     const p = { engines: e.ENGINES || 'both', fw: e.FW ?? '', preset: e.PRESET ?? '', widths: e.WIDTHS ?? '', debug: '', source: 'dispatch' };

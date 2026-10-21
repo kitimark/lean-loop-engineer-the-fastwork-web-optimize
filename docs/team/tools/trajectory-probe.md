@@ -104,7 +104,7 @@ is read at rest. The setting is in the artifact header.
 
 ## Apple witness
 
-Job `probe-apple` (every dispatch; on a `ci/*` push only when the commit line has a `debug=` key) runs the same lane with Playwright WebKit on a free standard
+Job `probe-apple` (every dispatch; on a `ci/*` push only when the commit has the `[frames:` token or its probe line a `debug=` key; Lean decides it, `Fw.Ci.Trigger.appleRuns`, and the workflow reads the plan step output `apple_run`) runs the same lane with Playwright WebKit on a free standard
 `macos-26` runner: hero and morph paths, the dispatched search against the original, two width legs with `max-parallel: 2` (5
 macOS slots are shared by all lanes). It runs for every dispatch whose engines include `playwright-webkit`: a flag enters
 `v2-proved` only with a macOS morph pass, so the witness is no longer limited to `hero.exit` searches. Its verdict is

@@ -212,7 +212,7 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
   "packages/measure-wktr": ["packages/measure-chromium/src/fwcore.mjs", "packages/measure-webkit/src/page.mjs", "packages/measure-webkit/src/serve.mjs"],
   "packages/measure-chromium": ["lean/Fw/Store/Layout.lean", "lean/Fw/Faithful/Measured.lean", "packages/contracts/golden/measure/**", "packages/contracts/golden/faithful/**", "packages/contracts/golden/parts/stage-mode.jsonl", ".github/workflows/chromium-counts.yml", "results/baselines/chromium/**"],
   "packages/gate-breakpoints": ["lean/**", "packages/measure-webkit/src/device.mjs", "scripts/sim-lock.sh", "apps/site/src/breakpoints.gen.json", "apps/site/src/parts/**",
-    "packages/contracts/golden/gate/**",
+    "packages/contracts/golden/gate/**", "packages/contracts/golden/parts/**",
     // image-audit: the test compares the byte copy of arm.mjs that packages/measure-webkit keeps (visual-diff is a workspace
     // dependency, so workspaceDeps already reads packages/visual-diff/**)
     "packages/measure-webkit/src/images/arm.mjs", "apps/site/src/flags/images/drawn.json"],

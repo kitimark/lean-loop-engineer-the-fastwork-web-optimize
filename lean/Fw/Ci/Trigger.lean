@@ -1164,6 +1164,92 @@ theorem push_run_is_parse (lane : Bool) (m : String) (p : ProbeIn) (h : pushProb
   unfold pushProbe at h
   cases hp : parseLine m <;> cases lane <;> simp_all
 
+/-! ## The macOS leg on a push (task `waapi-tail-webkit-p2`)
+
+`probe-apple` costs a shared macOS slot. A dispatch runs it when the plan has a macOS leg; a `ci/*` push runs it only when
+its commit asks for what only macOS WebKit gives: a frames run (`[frames:` token) or a page recorder (the `debug=` key
+of the probe line). The workflow reads the answer from the `apple_run` output of the plan step. -/
+
+/-- The events the probe workflow starts under. -/
+inductive ProbeEv where
+  | dispatch
+  | ciPush
+deriving Repr, DecidableEq
+
+/-- Does the message carry the frames token `[frames:` (ASCII case ignored, as the `contains` of the workflow expressions does)? -/
+def hasFrames (m : String) : Bool :=
+  let l := m.toList.map Char.toLower
+  (List.range (l.length + 1)).any fun i => "[frames:".toList.isPrefixOf (l.drop i)
+
+/-- The page recorder the probe line of the message asks for (`""` for none, a refused line or no line). -/
+def recorderOf (m : String) : String :=
+  match pushProbe true m with
+  | .run p => p.debug
+  | _ => ""
+
+/-- Does the macOS leg run? `appleN` is the number of macOS legs of the plan. -/
+def appleRuns (ev : ProbeEv) (m : String) (appleN : Nat) : Bool :=
+  appleN != 0 && (match ev with
+    | .dispatch => true
+    | .ciPush => hasFrames m || recorderOf m != "")
+
+/-- Branch no macOS leg in the plan: nothing runs, whatever the event or message. -/
+theorem apple_no_leg (ev : ProbeEv) (m : String) : appleRuns ev m 0 = false := by
+  simp [appleRuns]
+
+/-- Branch dispatch: the macOS leg runs whenever the plan has one. -/
+theorem apple_dispatch (m : String) (n : Nat) (hn : n ≠ 0) : appleRuns .dispatch m n = true := by
+  simp [appleRuns, hn]
+
+/-- Branch push with the frames token: the macOS leg runs. -/
+theorem apple_push_frames (m : String) (n : Nat) (hn : n ≠ 0) (hf : hasFrames m = true) :
+    appleRuns .ciPush m n = true := by
+  simp [appleRuns, hn, hf]
+
+/-- Branch push whose probe line names a recorder: the macOS leg runs. -/
+theorem apple_push_debug (m : String) (n : Nat) (hn : n ≠ 0) (hd : recorderOf m ≠ "") :
+    appleRuns .ciPush m n = true := by
+  simp [appleRuns, hn, hd]
+
+/-- Branch push with neither the frames token nor a recorder: the macOS leg does not run. -/
+theorem apple_push_plain (m : String) (n : Nat) (hf : hasFrames m = false) (hd : recorderOf m = "") :
+    appleRuns .ciPush m n = false := by
+  simp [appleRuns, hf, hd]
+
+/-- **A push runs the macOS leg only on request.** Each run of a push has the frames token or a recorder in the message. -/
+theorem apple_push_asked (m : String) (n : Nat) (h : appleRuns .ciPush m n = true) :
+    hasFrames m = true ∨ recorderOf m ≠ "" := by
+  simp only [appleRuns, Bool.and_eq_true, Bool.or_eq_true, bne_iff_ne, ne_eq] at h
+  exact h.2
+
+/-- Messages the macOS golden decides. -/
+def appleMsgs : List String := [
+  "ci: measure\n\n[ci:trajectory-probe]",
+  "[ci:trajectory-probe]\n[trajectory fw=morph.tween:waapi widths=1280 engines=playwright-webkit debug=nav-transition]",
+  "[trajectory debug=nav-transition]",
+  "[trajectory debug=other]",
+  "[trajectory fw=a.b:c widths=1280]",
+  "[trajectory fw=a.b:c debug=nav-transition debug=nav-transition]",
+  "ci: look\n\n[frames:morph.tween:waapi]",
+  "ci: look\n\n[Frames:morph.tween:waapi]\n[trajectory debug=nav-transition]",
+  "[frames",
+  "frames: x"]
+
+/-- One macOS golden line: an event, a message, the number of macOS legs and the decision. -/
+def appleLine (ev : ProbeEv) (m : String) (n : Nat) : Json :=
+  Json.mkObj [("kind", "apple"), ("event", .str (match ev with | .dispatch => "workflow_dispatch" | .ciPush => "push")),
+    ("msg", .str m), ("appleN", .num n), ("run", .bool (appleRuns ev m n))]
+
+/-- All macOS golden lines: each message under both events with two legs and with none. -/
+def appleLines (_ : Unit := ()) : List Json :=
+  appleMsgs.flatMap fun m => [ProbeEv.dispatch, .ciPush].flatMap fun ev => [2, 0].map fun n => appleLine ev m n
+
+example : appleRuns .ciPush "[trajectory debug=nav-transition]" 2 = true := by decide
+example : appleRuns .ciPush "[trajectory debug=other]" 2 = false := by decide
+example : appleRuns .ciPush "[ci:trajectory-probe]" 2 = false := by decide
+example : appleRuns .ciPush "x [FRAMES:a.b:c]" 2 = true := by decide
+example : appleRuns .dispatch "" 2 = true := by decide
+
 /-! The probe golden: messages with their lane flag and the decision. -/
 
 /-- Messages the golden decides. -/
@@ -1268,7 +1354,7 @@ def ifCheckLine (t : String) : Json :=
 /-- The text of the golden file: one JSON object per line for the table, the cases, the `if:` forms and the `if:`
 checks. -/
 def goldenText (_ : Unit := ()) : String :=
-  String.join ((tableLine :: cases.map caseLine ++ ifOrigs.map ifFormLine ++ ifTexts.map ifCheckLine ++ pinLines ++ probeLines ()).map
+  String.join ((tableLine :: cases.map caseLine ++ ifOrigs.map ifFormLine ++ ifTexts.map ifCheckLine ++ pinLines ++ probeLines () ++ appleLines ()).map
     fun j => j.compress ++ "\n")
 
 /-- Compare (or write) the golden file; returns the number of stale files. -/
