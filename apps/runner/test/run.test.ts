@@ -237,7 +237,7 @@ describe("fw run --trajectory finds its run by nonce", () => {
     // a skipped push run is the newest, then the other parallel dispatch, then ours
     const gh: Gh = async (a) => { calls.push(a); if (a[1] === "list") return JSON.stringify([{ databaseId: 900, displayTitle: "ci: x", event: "push" }, row(899, "zzzz9999"), row(898, "abcd1234")]); if (a[1] === "view") return JSON.stringify({ headSha: SHA }); return ""; };
     expect(await runMain(args(), deps(gh, logs, "abcd1234", waited))).toBe(0);
-    expect(calls.find((c) => c[0] === "workflow")).toEqual(["workflow", "run", "trajectory-probe.yml", "--ref", "ci/t", "-f", "engines=chromium", "-f", "fw=", "-f", "preset=", "-f", "widths=390", "-f", "nonce=abcd1234"]);
+    expect(calls.find((c) => c[0] === "workflow")).toEqual(["workflow", "run", "trajectory-probe.yml", "--ref", "ci/t", "-f", "engines=chromium", "-f", "fw=", "-f", "preset=", "-f", "widths=390", "-f", "diagnostic=true", "-f", "nonce=abcd1234"]);
     expect(calls.find((c) => c[1] === "list")).toContain("workflow_dispatch");
     expect(waited).toEqual([{ kind: "run", runId: 898 }]);
     expect(logs.join("\n")).toMatch(/the run with nonce abcd1234 is 898/);
@@ -287,6 +287,13 @@ describe("fw run on a ref whose workflow file has no nonce input", () => {
     expect(r.calls.find((c) => c[0] === "workflow")).toEqual(["workflow", "run", "trajectory-probe.yml", "--ref", "ci/old", "-f", "engines=chromium", "-f", "fw=", "-f", "preset=", "-f", "widths=390"]);
     expect(r.waited.at(-1)).not.toHaveProperty("want");
     expect(r.logs).toMatch(/has no nonce input in trajectory-probe\.yml.*old pick, not identity/);
+    expect(r.logs).toMatch(/ci\/old has no diagnostic input in trajectory-probe\.yml/);
+  });
+  it("a ref whose file declares the diagnostic input is sent it with the nonce", async () => {
+    const r = await run(NEW + "      diagnostic:\n        type: boolean\n");
+    expect(r.code).toBe(0);
+    expect(r.calls.find((c) => c[0] === "workflow")).toEqual(["workflow", "run", "trajectory-probe.yml", "--ref", "ci/old", "-f", "engines=chromium", "-f", "fw=", "-f", "preset=", "-f", "widths=390", "-f", "diagnostic=true", "-f", "nonce=abcd1234"]);
+    expect(r.logs).not.toMatch(/no diagnostic input/);
   });
   it("a file that cannot be read at the ref is treated as having no nonce input", async () => {
     const r = await run(undefined);

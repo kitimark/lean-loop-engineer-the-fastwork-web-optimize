@@ -28,7 +28,7 @@
 {"decision":"refused","in":[],"kind":"list","legs":null,"mark":"verdict","why":"emptyWidths","widths":null}
 {"decision":"refused","in":[500],"kind":"list","legs":null,"mark":"verdict","why":"badInput","widths":null}
 {"decision":"refused","in":[390,500],"kind":"list","legs":null,"mark":"verdict","why":"badInput","widths":null}
-{"decision":"refused","in":[390,390],"kind":"list","legs":null,"mark":"verdict","why":"scopedVerdict","widths":null}
+{"decision":"refused","in":[390,390],"kind":"list","legs":null,"mark":"verdict","why":"badInput","widths":null}
 {"decision":"accepted","in":[390,640,641,1280],"kind":"list","legs":{"chromium":[[390],[640],[641],[1280]],"linux-webkit":[[390],[640],[641],[1280]],"mac-webkit":[[390,641],[640,1280]]},"mark":"verdict","why":null,"widths":[390,640,641,1280]}
 {"decision":"refused","in":[1280],"kind":"list","legs":null,"mark":"verdict","why":"scopedVerdict","widths":null}
 {"decision":"refused","in":[641],"kind":"list","legs":null,"mark":"verdict","why":"scopedVerdict","widths":null}
@@ -75,7 +75,7 @@
 {"decision":"refused","in":[],"kind":"list","legs":null,"mark":"diagnostic","why":"emptyWidths","widths":null}
 {"decision":"refused","in":[500],"kind":"list","legs":null,"mark":"diagnostic","why":"badInput","widths":null}
 {"decision":"refused","in":[390,500],"kind":"list","legs":null,"mark":"diagnostic","why":"badInput","widths":null}
-{"decision":"accepted","in":[390,390],"kind":"list","legs":{"chromium":[[390]],"linux-webkit":[[390]],"mac-webkit":[[390]]},"mark":"diagnostic","why":null,"widths":[390,390]}
+{"decision":"refused","in":[390,390],"kind":"list","legs":null,"mark":"diagnostic","why":"badInput","widths":null}
 {"decision":"accepted","in":[390,640,641,1280],"kind":"list","legs":{"chromium":[[390],[640],[641],[1280]],"linux-webkit":[[390],[640],[641],[1280]],"mac-webkit":[[390,641],[640,1280]]},"mark":"diagnostic","why":null,"widths":[390,640,641,1280]}
 {"decision":"accepted","in":[1280],"kind":"list","legs":{"chromium":[[1280]],"linux-webkit":[[1280]],"mac-webkit":[[1280]]},"mark":"diagnostic","why":null,"widths":[1280]}
 {"decision":"accepted","in":[641],"kind":"list","legs":{"chromium":[[641]],"linux-webkit":[[641]],"mac-webkit":[[641]]},"mark":"diagnostic","why":null,"widths":[641]}
