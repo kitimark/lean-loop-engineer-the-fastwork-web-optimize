@@ -25,8 +25,13 @@ match wins:
 | 5 | `s₀ = lean`, `e = lean`, under `lean/scripts/` | `leanScript` | `lake env lean <file>` |
 | 6 | `s₀ = lean`, `e = lean` otherwise | `leanModule` | `lake build` |
 | 7 | under `scripts/hooks/` and `e = ""` | `shell` | `sh -n` |
-| 8 | by extension (`byExt`) | see `byExt` | `checkOf` |
-| 9 | `e = ""`, by basename (`byName`) | `prose` / `text` | exempt |
+| 8 | `s = docs/team/work-graph.json` | `workGraph` | schema check (`graphCheck`) |
+| 9 | `s = research/findings/ledger.json` | `findingsLedger` | preset `--check` (`presetCheck`) |
+
+| 10 | by extension (`byExt`) | see `byExt` | `checkOf` |
+| 11 | `e = ""`, by basename (`byName`) | `prose` / `text` | exempt |
+
+The preset check also runs when any other input of `Fw.Preset.Gen` is among the paths (`presetInput`), whatever its own kind.
 
 Proved: `checkOf_exempt_iff` (exactly the five exempt kinds have no check), `precommit_covers` (every path with a code
 extension outside the snapshot and the research sketches has a non-exempt check), `tracked_mapped` (every
@@ -38,20 +43,21 @@ open Fw.Ops.PathCheck (segs)
 
 /-- A file kind.
 
-The eighteen kinds a tracked file can have.
+The twenty kinds a tracked file can have.
 -/
 inductive Kind
   | jsMod | ts | tsDecl | tsx | leanModule | leanScript | lakeConfig | json | jsonl | yaml | shell | python | swift
+  | workGraph | findingsLedger
   | snapshot | sketch | asset | prose | text
 deriving DecidableEq, Repr
 
 /-- A static check. `exempt`: no check (the kind is not code our tools parse or run).
 
-The eleven static checks, plus `exempt` for files with none.
+The thirteen static checks, plus `exempt` for files with none.
 -/
 inductive Check
   | lakeBuild | leanElab | nodeCheck | tsStrip | tscProject | jsonParse | jsonlParse | yamlParse | shParse | pyParse
-  | swiftParse | exempt
+  | swiftParse | graphCheck | presetCheck | exempt
 deriving DecidableEq, Repr
 
 /-- The check of a kind.
@@ -62,6 +68,7 @@ def checkOf : Kind → Check
   | .jsMod => .nodeCheck | .ts => .tsStrip | .tsDecl => .tscProject | .tsx => .tscProject | .leanModule => .lakeBuild
   | .leanScript => .leanElab | .lakeConfig => .lakeBuild | .json => .jsonParse | .jsonl => .jsonlParse
   | .yaml => .yamlParse | .shell => .shParse | .python => .pyParse | .swift => .swiftParse
+  | .workGraph => .graphCheck | .findingsLedger => .presetCheck
   | .snapshot => .exempt | .sketch => .exempt | .asset => .exempt | .prose => .exempt | .text => .exempt
 
 /-- The kinds without a static check. -/
@@ -117,6 +124,8 @@ def classifyKey (s : List String) (e : String) : Option Kind :=
   else if s.head? == some "lean" && e == "lean" then
     (if s.take 2 == ["lean", "scripts"] then some .leanScript else some .leanModule)
   else if s.take 2 == ["scripts", "hooks"] && e == "" then some .shell
+  else if s == ["docs", "team", "work-graph.json"] then some .workGraph
+  else if s == ["research", "findings", "ledger.json"] then some .findingsLedger
   else match byExt e with
     | some k => some k
     | none => if e == "" then byName (s.getLast?.getD "") else none
@@ -167,7 +176,7 @@ deriving DecidableEq, Repr
 /-- The checks that run, in plan order (`lakeBuild` before `leanElab`, which elaborates against the built modules). -/
 def order : List Check :=
   [.lakeBuild, .leanElab, .nodeCheck, .tsStrip, .tscProject, .jsonParse, .jsonlParse, .yamlParse, .shParse, .pyParse,
-    .swiftParse]
+    .swiftParse, .graphCheck, .presetCheck]
 
 /-- A path relative to `lean/` (its segments without the first, joined by `/`). -/
 def rel (p : String) : String := "/".intercalate ((segs p).drop 1)
@@ -180,6 +189,21 @@ def pkgOf (p : String) : String := "/".intercalate ((segs p).take 2)
 Ruby parses every file named on its command line as YAML.
 -/
 def yamlProg : String := "ARGV.each { |f| YAML.parse_file(f) }"
+
+/-- Whether a path is an input of the preset generator `Fw.Preset.Gen.run`: the findings ledger, a file of
+`packages/contracts/golden/preset/`, the site preset, a `part.json` of `apps/site/src/parts/<part>/`, or the generator.
+
+A path is an input exactly when it is one of the five listed places.
+-/
+def presetInputKey (s : List String) : Bool :=
+  s == ["research", "findings", "ledger.json"]
+    || (s.take 4 == ["packages", "contracts", "golden", "preset"] && s.length == 5)
+    || s == ["apps", "site", "src", "registry", "presets", "v2-proved.json"]
+    || (s.take 4 == ["apps", "site", "src", "parts"] && s.length == 6 && s.getLast? == some "part.json")
+    || s == ["lean", "Fw", "Preset", "Gen.lean"]
+
+/-- `presetInputKey` of a path's segments. -/
+def presetInput (p : String) : Bool := presetInputKey (segs p)
 
 /-- The Python parse program (stdlib `ast`; writes no `__pycache__`).
 
@@ -207,7 +231,17 @@ def cmdsFor (c : Check) (fs : List String) : List Cmd :=
   | .jsonlParse => [⟨c, ".", ["node", "scripts/checkmap.mjs", "file", "jsonl"] ++ fs, fs⟩]
   | .yamlParse => [⟨c, ".", ["ruby", "-ryaml", "-e", yamlProg] ++ fs, fs⟩]
   | .pyParse => [⟨c, ".", ["python3", "-c", pyProg] ++ fs, fs⟩]
+  | .graphCheck => [⟨c, ".", ["node", "scripts/checkmap.mjs", "file", "graph"] ++ fs, fs⟩]
+  | .presetCheck => [⟨c, ".", ["node", "scripts/checkmap.mjs", "file", "preset"], fs⟩]
   | .exempt => []
+
+/-- The files of a check among the paths: those whose check it is, except that the preset check takes every
+`presetInput`.
+
+The preset check is triggered by any generator input, every other check by the files of its kind.
+-/
+def checkFiles (c : Check) (paths : List String) : List String :=
+  if c == .presetCheck then paths.filter (fun p => presetInput p || checkOfPath p == some .presetCheck) else paths.filter (checkOfPath · == some c)
 
 /-- The plan for the paths `P`: for each check in `order`, the commands over the paths of that check (in their
 order); a check with no path gets no command.
@@ -216,7 +250,7 @@ Each check runs once over exactly the given paths that need it, in a fixed order
 -/
 def plan (paths : List String) : List Cmd :=
   order.flatMap fun c =>
-    let fs := paths.filter (checkOfPath · == some c)
+    let fs := checkFiles c paths
     if fs.isEmpty then [] else cmdsFor c fs
 
 /-- The unmapped paths: those with no kind, in their order. -/
@@ -279,6 +313,10 @@ theorem precommit_covers (s : List String) (e : String) (hs : s ≠ []) (he : e 
   · exact ⟨_, rfl, by simp [checkOf]⟩
   split
   · split <;> exact ⟨_, rfl, by simp [checkOf]⟩
+  split
+  · exact ⟨_, rfl, by simp [checkOf]⟩
+  split
+  · exact ⟨_, rfl, by simp [checkOf]⟩
   split
   · exact ⟨_, rfl, by simp [checkOf]⟩
   obtain ⟨k, hk, hc⟩ := byExt_code e he
@@ -504,29 +542,121 @@ No checked file is skipped: the plan always runs its check on it.
 theorem plan_covers (paths : List String) (p : String) (hp : p ∈ paths) (c : Check) (hc : checkOfPath p = some c) :
     ∃ m ∈ plan paths, m.check = c ∧ p ∈ m.files := by
   have hne : c ≠ .exempt := by rintro rfl; exact checkOfPath_ne_exempt p hc
-  have hf : p ∈ paths.filter (checkOfPath · == some c) := List.mem_filter.mpr ⟨hp, by simp [hc]⟩
+  have hf : p ∈ checkFiles c paths := by
+    unfold checkFiles
+    split
+    · rename_i h
+      have : c = .presetCheck := by simpa using h
+      subst this
+      exact List.mem_filter.mpr ⟨hp, by simp [hc]⟩
+    · exact List.mem_filter.mpr ⟨hp, by simp [hc]⟩
   obtain ⟨m, hm, h1, h2⟩ := cmdsFor_covers c _ p hne hf
   refine ⟨m, List.mem_flatMap.mpr ⟨c, mem_order c hne, ?_⟩, h1, h2⟩
-  have : (paths.filter (checkOfPath · == some c)).isEmpty = false := by
-    cases h : paths.filter (checkOfPath · == some c) with
+  have : (checkFiles c paths).isEmpty = false := by
+    cases h : checkFiles c paths with
     | nil => rw [h] at hf; cases hf
     | cons _ _ => rfl
   simp only [this, Bool.false_eq_true, ite_false]
   exact hm
 
-/-- The plan is sound: every file a command checks is a given path whose check is the command's.
+/-- The plan is sound: every file a command checks is a given path, and either its check is the command's or the
+command is the preset check and the file is a generator input.
 
-The plan never checks a file it was not given, and never with a check other than the file's own.
+The plan never checks a file it was not given, and never with a check other than the file's own, except that the
+preset check also takes the generator's other inputs.
 -/
 theorem plan_sound (paths : List String) (m : Cmd) (hm : m ∈ plan paths) (f : String) (hf : f ∈ m.files) :
-    f ∈ paths ∧ checkOfPath f = some m.check := by
+    f ∈ paths ∧ (checkOfPath f = some m.check ∨ (m.check = .presetCheck ∧ presetInput f = true)) := by
   obtain ⟨c, _, hc⟩ := List.mem_flatMap.mp hm
   dsimp only at hc
   split at hc
   · cases hc
   · obtain ⟨h1, h2⟩ := cmdsFor_sound c _ m hc
-    have := List.mem_filter.mp (h2 f hf)
-    exact ⟨this.1, by rw [h1]; simpa using this.2⟩
+    have hmem := h2 f hf
+    unfold checkFiles at hmem
+    split at hmem
+    · rename_i h
+      have : c = .presetCheck := by simpa using h
+      have := List.mem_filter.mp hmem
+      have hc : c = .presetCheck := by simpa using h
+      have hor := this.2
+      simp only [Bool.or_eq_true, beq_iff_eq] at hor
+      rcases hor with hi | hi
+      · exact ⟨this.1, Or.inr ⟨by rw [h1]; exact hc, hi⟩⟩
+      · exact ⟨this.1, Or.inl (by rw [h1, hc]; exact hi)⟩
+    · have := List.mem_filter.mp hmem
+      exact ⟨this.1, Or.inl (by rw [h1]; simpa using this.2)⟩
+
+/-- The work graph is routed to the schema check, not to a plain JSON parse.
+
+A commit that stages `docs/team/work-graph.json` runs the graph schema check.
+-/
+theorem workGraph_routed : (classifyKey ["docs", "team", "work-graph.json"] "json").map checkOf = some .graphCheck := by
+  decide +kernel
+
+/-- The findings ledger is routed to the preset check, so a ledger change that leaves `golden/preset/*` stale is refused.
+
+A commit that stages `research/findings/ledger.json` runs `Fw.Preset.Gen.run --check` from `lean/`.
+-/
+theorem findingsLedger_routed :
+    (classifyKey ["research", "findings", "ledger.json"] "json").map checkOf = some .presetCheck := by
+  decide +kernel
+
+/-- The incident ledger beside it keeps the plain JSON parse (the routing is by exact path).
+
+Only the findings ledger runs the preset check.
+-/
+theorem incidentLedger_plain :
+    (classifyKey ["docs", "team", "incidents", "ledger.json"] "json").map checkOf = some .jsonParse := by
+  decide +kernel
+
+/-- The preset check is `checkmap file preset` over the files it was given.
+
+Its one command is the runner's preset mode (which judges the index tree when staged) over exactly the given files.
+-/
+theorem presetCheck_cmd (fs : List String) :
+    cmdsFor .presetCheck fs = [⟨.presetCheck, ".", ["node", "scripts/checkmap.mjs", "file", "preset"], fs⟩] := rfl
+
+/-- The ledger is a generator input (branch 1).
+
+Staging the findings ledger runs the preset check. -/
+theorem presetInput_ledger : presetInputKey ["research", "findings", "ledger.json"] = true := by decide +kernel
+
+/-- A golden preset file is a generator input (branch 2).
+
+Staging a file of `packages/contracts/golden/preset/` runs the preset check. -/
+theorem presetInput_golden : presetInputKey ["packages", "contracts", "golden", "preset", "v2-proved.decisions.jsonl"] = true := by
+  decide +kernel
+
+/-- The site preset is a generator input (branch 3).
+
+Staging `apps/site/src/registry/presets/v2-proved.json` runs the preset check. -/
+theorem presetInput_site : presetInputKey ["apps", "site", "src", "registry", "presets", "v2-proved.json"] = true := by decide +kernel
+
+/-- A part's `part.json` is a generator input (branch 4).
+
+Staging `apps/site/src/parts/<part>/part.json` runs the preset check. -/
+theorem presetInput_part : presetInputKey ["apps", "site", "src", "parts", "hero", "part.json"] = true := by decide +kernel
+
+/-- The generator itself is a generator input (branch 5).
+
+Staging `lean/Fw/Preset/Gen.lean` runs the preset check. -/
+theorem presetInput_gen : presetInputKey ["lean", "Fw", "Preset", "Gen.lean"] = true := by decide +kernel
+
+/-- Other preset-named files are not inputs (the incident ledger, another preset, a part's other files).
+
+The trigger is exact, not a prefix guess. -/
+theorem presetInput_not :
+    presetInputKey ["docs", "team", "incidents", "ledger.json"] = false ∧ presetInputKey ["apps", "site", "src", "registry", "presets", "original.json"] = false
+    ∧ presetInputKey ["apps", "site", "src", "parts", "hero", "index.tsx"] = false ∧ presetInputKey ["packages", "contracts", "golden", "ops", "checkmap.jsonl"] = false := by
+  decide +kernel
+
+/-- The graph check covers the graph files it was given.
+
+Its one command is `checkmap file graph` over exactly the given files.
+-/
+theorem graphCheck_cmd (fs : List String) :
+    cmdsFor .graphCheck fs = [⟨.graphCheck, ".", ["node", "scripts/checkmap.mjs", "file", "graph"] ++ fs, fs⟩] := rfl
 
 /-- The verdict, unfolded.
 
@@ -568,6 +698,18 @@ theorem runOk_iff (strict : Bool) (u : Nat) (codes : List Nat) :
 #guard classify "scripts/hooks/pre-commit" == some .shell && classify "scripts/wt-prep.sh" == some .shell
 #guard classify "apps/site/src/a.tsx" == some .tsx && classify "apps/runner/src/fw.ts" == some .ts
 #guard classify "LICENSE" == some .prose && classify "packages/measure-chromium/Dockerfile" == some .text
+#guard classify "docs/team/work-graph.json" == some .workGraph && checkOfPath "docs/team/work-graph.json" == some .graphCheck
+#guard classify "research/findings/ledger.json" == some .findingsLedger && checkOfPath "research/findings/ledger.json" == some .presetCheck
+#guard classify "docs/team/incidents/ledger.json" == some .json
+#guard (plan ["docs/team/work-graph.json", "a.json"]).map (·.argv) ==
+  [["node", "scripts/checkmap.mjs", "file", "json", "a.json"], ["node", "scripts/checkmap.mjs", "file", "graph", "docs/team/work-graph.json"]]
+#guard (plan ["research/findings/ledger.json"]).map (·.argv) == [["node", "scripts/checkmap.mjs", "file", "preset"]]
+#guard (plan ["research/findings/ledger.json", "packages/contracts/golden/preset/v2-proved.json"]).map (·.check) == [.jsonParse, .presetCheck]
+#guard (plan ["apps/site/src/parts/hero/part.json"]).map (·.check) == [.jsonParse, .presetCheck]
+#guard (plan ["lean/Fw/Preset/Gen.lean"]).map (·.check) == [.lakeBuild, .presetCheck]
+#guard (plan ["apps/site/src/registry/presets/v2-proved.json", "packages/contracts/golden/preset/v2-proved.decisions.jsonl"]).map (·.check) ==
+  [.jsonParse, .jsonlParse, .presetCheck]
+#guard (plan ["apps/site/src/registry/presets/original.json"]).map (·.check) == [.jsonParse]
 #guard classify "x.unknownext" == none && classify "" == none && classify "Makefile" == none
 #guard checkOfPath "docs/plan/PLAN.md" == none && checkOfPath "a.json" == some .jsonParse
 #guard checkOfPath "x.unknownext" == none
@@ -594,6 +736,7 @@ open Lean Fw.Ops.CheckMap Fw.Wire.Ops
 def kindName : Kind → String
   | .jsMod => "jsMod" | .ts => "ts" | .tsDecl => "tsDecl" | .tsx => "tsx" | .leanModule => "leanModule" | .leanScript => "leanScript"
   | .lakeConfig => "lakeConfig" | .json => "json" | .jsonl => "jsonl" | .yaml => "yaml" | .shell => "shell"
+  | .workGraph => "workGraph" | .findingsLedger => "findingsLedger"
   | .python => "python" | .swift => "swift" | .snapshot => "snapshot" | .sketch => "sketch" | .asset => "asset"
   | .prose => "prose" | .text => "text"
 
@@ -601,7 +744,7 @@ def kindName : Kind → String
 def checkName : Check → String
   | .lakeBuild => "lakeBuild" | .leanElab => "leanElab" | .nodeCheck => "nodeCheck" | .tsStrip => "tsStrip"
   | .tscProject => "tscProject" | .jsonParse => "jsonParse" | .jsonlParse => "jsonlParse" | .yamlParse => "yamlParse"
-  | .shParse => "shParse" | .pyParse => "pyParse" | .swiftParse => "swiftParse" | .exempt => "exempt"
+  | .shParse => "shParse" | .pyParse => "pyParse" | .swiftParse => "swiftParse" | .graphCheck => "graphCheck" | .presetCheck => "presetCheck" | .exempt => "exempt"
 
 /-- A string list as JSON. -/
 def strs (xs : List String) : Json := .arr (xs.toArray.map .str)

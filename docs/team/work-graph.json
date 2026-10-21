@@ -12002,7 +12002,8 @@
     "apps/runner/src/plan-check.ts",
     "apps/runner/test/plan-check.test.ts",
     "docs/team/handoffs/graph-check-lean.md"
-   ]
+   ],
+   "evidence": "fb459b9"
   },
   {
    "devices": [

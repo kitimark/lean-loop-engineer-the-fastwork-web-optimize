@@ -5,7 +5,7 @@
 // unmapped file fail. Needs lean/.lake/build/bin/fwcore (cd lean && lake build) or FW_CORE_BIN.
 //   node scripts/test-checkmap.mjs
 import { spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -79,6 +79,65 @@ r = spawnSync("node", ["scripts/checkmap.mjs", "--paths", "broken.mjs"], { cwd: 
 expect("without fwcore the checks are skipped with a warning (exit 0)", r.status === 0 && /skipped/.test(r.stderr));
 r = spawnSync("node", ["scripts/checkmap.mjs", "--strict", "--paths", "broken.mjs"], { cwd: dir, encoding: "utf8", env: { ...env, FW_CORE_BIN: join(dir, "nope") } });
 expect("... and fail with --strict", r.status === 1);
+
+// (3) the preset check judges the index, runs when any input is staged
+if (!existsSync(join(repo, "lean/.lake/build/lib/lean/Fw/Preset/Gen.olean"))) { console.error("test-checkmap: lean/.lake/build lacks Fw.Preset.Gen (cd lean && lake build)"); bad++; }
+const pdir = mkdtempSync(join(tmpdir(), "checkmap-preset-test-"));
+const pgit = (...a) => spawnSync("git", a, { cwd: pdir, encoding: "utf8", env });
+pgit("init", "-q");
+pgit("config", "user.name", "test");
+pgit("config", "user.email", ["test", "example.invalid"].join(String.fromCharCode(64)));
+mkdirSync(join(pdir, "scripts"), { recursive: true });
+copyFileSync(join(here, "checkmap.mjs"), join(pdir, "scripts/checkmap.mjs"));
+for (const f of ["research/findings/ledger.json", "apps/site/src/registry/presets/v2-proved.json"]) {
+  mkdirSync(dirname(join(pdir, f)), { recursive: true });
+  copyFileSync(join(repo, f), join(pdir, f));
+}
+cpSync(join(repo, "packages/contracts/golden/preset"), join(pdir, "packages/contracts/golden/preset"), { recursive: true });
+for (const d of readdirSync(join(repo, "apps/site/src/parts"))) {
+  const src = join(repo, "apps/site/src/parts", d, "part.json");
+  if (!existsSync(src)) continue;
+  mkdirSync(join(pdir, "apps/site/src/parts", d), { recursive: true });
+  copyFileSync(src, join(pdir, "apps/site/src/parts", d, "part.json"));
+}
+mkdirSync(join(pdir, "lean"));  // untracked: links to the built lean/ (the working-tree mode runs there)
+for (const e of readdirSync(join(repo, "lean"))) symlinkSync(join(repo, "lean", e), join(pdir, "lean", e));
+pgit("add", "--", "research", "apps", "packages", "scripts");
+pgit("commit", "-q", "--no-verify", "-m", "base");
+const pcheck = (...a) => spawnSync("node", ["scripts/checkmap.mjs", "--verbose", ...a], { cwd: pdir, encoding: "utf8", env });
+const timing = (r) => (/presetCheck[^\n]*\((\d+) ms\)/.exec(r.stderr) ?? [])[1];
+const ledger = join(pdir, "research/findings/ledger.json");
+const goodLedger = readFileSync(ledger, "utf8");
+const badLedger = '{"findings": "stale"}\n';
+writeFileSync(ledger, badLedger);
+pgit("add", "--", "research/findings/ledger.json");
+writeFileSync(ledger, goodLedger);  // the working tree is fixed, the index is stale
+let pr = pcheck("--staged");
+expect(`preset: stale staged ledger + fixed working tree is refused (${timing(pr)} ms)`, pr.status === 1 && /FAIL presetCheck/.test(pr.stderr));
+writeFileSync(ledger, goodLedger + "\n");  // a changed but valid ledger (same rows)
+pgit("add", "--", "research/findings/ledger.json");  // now the index is fixed
+writeFileSync(ledger, badLedger);  // the working tree is stale
+pr = pcheck("--staged");
+expect(`preset: fixed staged ledger + stale working tree passes (${timing(pr)} ms)`, pr.status === 0 && /ok presetCheck/.test(pr.stderr));
+pr = pcheck("--paths", "research/findings/ledger.json");
+expect("preset: without --staged the working tree is judged (stale refused)", pr.status === 1 && /FAIL presetCheck/.test(pr.stderr));
+writeFileSync(ledger, goodLedger);
+pgit("add", "--", "research/findings/ledger.json");  // back to the committed bytes: nothing staged
+const gold = join(pdir, "packages/contracts/golden/preset/v2-proved.json");
+const goodGold = readFileSync(gold, "utf8");
+writeFileSync(gold, '{"name":"v2-proved","extends":"original","fw":{}}\n');
+pgit("add", "--", "packages/contracts/golden/preset/v2-proved.json");
+writeFileSync(gold, goodGold);
+pr = pcheck("--staged");
+expect("preset: a staged stale golden preset file alone runs the check and is refused", pr.status === 1 && /FAIL presetCheck/.test(pr.stderr));
+pgit("add", "--", "packages/contracts/golden/preset/v2-proved.json");
+const part = readdirSync(join(pdir, "apps/site/src/parts"))[0];
+const partJson = join(pdir, "apps/site/src/parts", part, "part.json");
+writeFileSync(partJson, readFileSync(partJson, "utf8").replace("{", '{"zz":1,'));
+pgit("add", "--", `apps/site/src/parts/${part}/part.json`);
+pr = pcheck("--staged");
+expect("preset: a staged part.json alone runs the check", /(ok|FAIL) presetCheck/.test(pr.stderr));
+rmSync(pdir, { recursive: true, force: true });
 
 rmSync(dir, { recursive: true, force: true });
 console.log(bad ? `test-checkmap: ${bad} FAILED` : "test-checkmap: all passed");
