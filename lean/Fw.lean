@@ -67,6 +67,7 @@ import Fw.Measure.Classes
 import Fw.Measure.Quiet
 import Fw.Measure.Tolerance
 import Fw.Measure.WebKit
+import Fw.Measure.WkCost  -- webkit-cost-counters: skipped slots, Paint against Composite, new layers, paints after a morph
 import Fw.Measure.WebKitLag  -- webkit-lag-probe: scroll regions, paint attribution to parts, counter ranking
 import Fw.Device.Session  -- device-lag-recorder: phone-session zones, frame intervals, felt marks, comparison, replay export
 import Fw.Measure.Retry
