@@ -12158,7 +12158,8 @@
     "apps/runner/test/plan-overlap*.test.ts",
     "docs/team/tools/plan-overlap.md",
     "docs/team/handoffs/spawn-write-overlap.md"
-   ]
+   ],
+   "evidence": "c48ae1d"
   },
   {
    "devices": [
