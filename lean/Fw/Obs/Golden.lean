@@ -294,6 +294,13 @@ def typed : List Typed := [
            agents := [{ ag "done" 30 with stoppedAt := some (ago 30) }],
            system := { okSys with
              procs := [{ pid := 70, name := "sleep", startedAt := ago 20, pids := [71], agent := some "done" }] } } },
+  { name := "review.feedback: a user comment opens an alert for its flag (open count and the newest text in the detail)",
+    o := { now := t0, system := { okSys with feedback := [.post "nav:a" "fb-1" "look at the font" 100] } } },
+  { name := "review.feedback: the lead's reply to the only open comment closes the alert",
+    o := { now := t0, system := { okSys with feedback := [.post "nav:a" "fb-1" "look at the font" 100, .reply "nav:a" "fb-1" "done" 110] } } },
+  { name := "review.feedback: one alert per flag with two open comments; the answered flag has none; a refused reply changes nothing",
+    o := { now := t0, system := { okSys with feedback := [.post "nav:a" "fb-1" "one" 100, .post "hero:b" "fb-2" "x" 101,
+             .post "nav:a" "fb-3" "two" 102, .reply "hero:b" "fb-2" "ok" 103, .reply "nav:a" "fb-9" "nope" 104] } } },
   { name := "loadMax 150: load floor 149 is fine", o := { now := t0, system := { okSys with loadFloor := 149 } } },
   { name := "loadMax 150: load floor 150 is load.high", o := { now := t0, system := { okSys with loadFloor := 150 } } },
   { name := "contendedLoad 8: load floor 8 is not sys.contended", o := { now := t0, system := { okSys with loadFloor := 8 } } },

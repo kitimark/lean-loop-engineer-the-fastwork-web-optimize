@@ -289,6 +289,8 @@ def bodyOfJson (j : Json) : Except String Body := do
   | "run.start" => pure (.runStart (← str j "run") (← str j "card") (← runKindOf (← str j "kind")))
   | "run.finish" => pure (.runFinish (← str j "run") (← bool j "ok"))
   | "review.previewed" => pure (.reviewPreviewed (← str j "flag") (← str j "device"))
+  | "review.feedback" => pure (.reviewFeedback (← str j "flag") (← str j "id") (← str j "text"))
+  | "review.feedback.reply" => pure (.reviewFeedbackReply (← str j "flag") (← str j "to") (← str j "text"))
   | t => throw s!"unknown event type {t}"
 
 /-- Decode an event (`seq` and unknown fields are ignored). -/

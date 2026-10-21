@@ -220,5 +220,21 @@
     "key": "task.unpark:a:2",
     "actor": "user",
     "task": "a"
+  },
+  {
+    "type": "review.feedback",
+    "key": "review-feedback-fb-1",
+    "actor": "user",
+    "flag": "nav:earn-no-transition",
+    "id": "fb-1",
+    "text": "Look at the font weight too."
+  },
+  {
+    "type": "review.feedback.reply",
+    "key": "review-feedback-reply:fb-1",
+    "actor": "lead",
+    "flag": "nav:earn-no-transition",
+    "to": "fb-1",
+    "text": "Done: see the note on the card."
   }
 ]
