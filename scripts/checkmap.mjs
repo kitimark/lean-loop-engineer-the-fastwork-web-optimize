@@ -43,12 +43,12 @@ export function askCore(bin, op, req) {
 
 /** The staged deletions (Lean decides which of them matter: ops.checkMap `deleted`). */
 function listDeleted(top, args) {
-  return args.includes("--staged") ? z(git(top, ["diff", "--cached", "--name-only", "-z", "--diff-filter=D"])) : [];
+  return args.includes("--staged") ? z(git(top, ["diff", "--cached", "--no-renames", "--name-only", "-z", "--diff-filter=D"])) : [];
 }
 
 /** The changed paths of a mode. */
 function listPaths(top, args) {
-  if (args.includes("--staged")) return z(git(top, ["diff", "--cached", "--name-only", "-z", "--diff-filter=ACMR"]));
+  if (args.includes("--staged")) return z(git(top, ["diff", "--cached", "--no-renames", "--name-only", "-z", "--diff-filter=ACMR"]));
   if (args.includes("--all") || args.includes("--tracked")) return z(git(top, ["ls-files", "-z"]));
   const i = args.indexOf("--paths");
   if (i >= 0) return args.slice(i + 1).filter((a) => !a.startsWith("--"));
@@ -76,8 +76,12 @@ function main(args) {
   const strict = args.includes("--strict");
   const top = git(process.cwd(), ["rev-parse", "--show-toplevel"]).trim();
   const bin = process.env.FW_CORE_BIN ?? join(top, "lean/.lake/build/bin/fwcore");
-  const paths = listPaths(top, args).filter((p) => existsSync(join(top, p)));
-  const m = askCore(bin, "ops.checkMap", { paths, deleted: listDeleted(top, args) });
+  const listed = listPaths(top, args);
+  const staged = args.includes("--staged");
+  // --staged judges the index: a staged path gone from the working tree is sent as a deletion (Lean keeps the generator inputs).
+  const paths = listed.filter((p) => existsSync(join(top, p)));
+  const gone = staged ? listed.filter((p) => !existsSync(join(top, p))) : [];
+  const m = askCore(bin, "ops.checkMap", { paths, deleted: [...listDeleted(top, args), ...gone] });
   if (!m) {
     console.error(`checkmap: ${bin} is missing or does not know ops.checkMap (cd lean && lake build); checks ${strict ? "FAILED (--strict)" : "skipped"}`);
     return strict ? 1 : 0;

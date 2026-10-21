@@ -638,6 +638,28 @@ theorem presetInput_deleted_planned (paths deleted : List String) (p : String) (
   simp only [this, Bool.false_eq_true, ite_false]
   exact hm
 
+/-- A staged add or change of a generator input runs the preset check, also with staged deletions.
+
+Whatever `deleted` holds, an input in `paths` is in the preset command of `planStaged`.
+-/
+theorem presetInput_planStaged (paths deleted : List String) (p : String) (hp : p ∈ paths) (hi : presetInput p = true) :
+    ∃ m ∈ planStaged paths deleted, m.check = .presetCheck ∧ p ∈ m.files := by
+  have hf : p ∈ checkFiles .presetCheck paths ++ (if (Check.presetCheck == .presetCheck) = true then deleted.filter presetInput else []) := by
+    have h0 : p ∈ checkFiles .presetCheck paths := by
+      unfold checkFiles
+      simp only [beq_self_eq_true, ite_true]
+      exact List.mem_filter.mpr ⟨hp, by simp [hi]⟩
+    exact List.mem_append_left _ h0
+  obtain ⟨m, hm, h1, h2⟩ := cmdsFor_covers .presetCheck _ p (by decide) hf
+  refine ⟨m, List.mem_flatMap.mpr ⟨.presetCheck, mem_order .presetCheck (by decide), ?_⟩, h1, h2⟩
+  have : (checkFiles .presetCheck paths ++ (if (Check.presetCheck == .presetCheck) = true then deleted.filter presetInput else [])).isEmpty = false := by
+    cases h : (checkFiles .presetCheck paths ++ (if (Check.presetCheck == .presetCheck) = true then deleted.filter presetInput else [])) with
+    | nil => rw [h] at hf; cases hf
+    | cons _ _ => rfl
+  simp only [beq_self_eq_true, ite_true] at this ⊢
+  simp only [this, Bool.false_eq_true, ite_false]
+  exact hm
+
 /-- A staged deletion of a file that is not a generator input changes nothing.
 
 An unrelated deletion leaves the plan as it was.

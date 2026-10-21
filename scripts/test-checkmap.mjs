@@ -151,6 +151,25 @@ delCase("the ledger", "research/findings/ledger.json");
 delCase("a golden preset file", "packages/contracts/golden/preset/v2-proved.json");
 delCase("a part.json", `apps/site/src/parts/${part}/part.json`);
 delCase("the site preset", "apps/site/src/registry/presets/v2-proved.json");
+// renames: git detects them, the old path must still count as a deletion
+const renCase = (name, rel, to) => {
+  pgit("mv", rel, to);
+  const d = pcheck("--staged");
+  expect(`preset: staged rename of ${name} away runs the check`, /(ok|FAIL) presetCheck/.test(d.stderr));
+  pgit("reset", "-q");
+  pgit("checkout", "--", ".");
+  rmSync(join(pdir, to), { force: true });
+};
+renCase("the ledger", "research/findings/ledger.json", "research/findings/ledger-old.json");
+renCase("a golden preset file", "packages/contracts/golden/preset/v2-proved.json", "packages/contracts/golden/preset/v2-proved-old.json");
+// a staged change to an input that is then deleted from the working tree still runs the check
+writeFileSync(ledger, badLedger);
+pgit("add", "--", "research/findings/ledger.json");
+rmSync(ledger);
+pr = pcheck("--staged");
+expect("preset: staged ledger change deleted from the working tree still runs the check", /(ok|FAIL) presetCheck/.test(pr.stderr));
+pgit("reset", "-q");
+pgit("checkout", "--", ".");
 pgit("rm", "-q", "--cached", "--", "scripts/checkmap.mjs");  // an unrelated deletion runs nothing
 expect("preset: a staged deletion of a non-input runs no preset check", !/presetCheck/.test(pcheck("--staged").stderr));
 pgit("reset", "-q", "--", "scripts/checkmap.mjs");
