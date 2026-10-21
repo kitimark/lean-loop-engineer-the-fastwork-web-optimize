@@ -622,12 +622,13 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
   let logStarted = false;
   // async (not spawnSync) so SIGINT/SIGTERM handlers of the land run while a check is running
   const runCheck = (cwd: string, argv: string[]) => new Promise<{ status: number | null; stdout: string; stderr: string; error?: Error }>((resolve) => {
-    const c = spawn(argv[0]!, argv.slice(1), { cwd, env: { ...LOAD_TOLERANT_ENV, ...process.env, ...o.env } });
+    // own process group: pnpm/sh and the tools below them stop together when this run is interrupted or exits (reap-auto-stop teardown)
+    const c = spawn(argv[0]!, argv.slice(1), { cwd, env: { ...LOAD_TOLERANT_ENV, ...process.env, ...o.env }, detached: true });
     let stdout = "", stderr = "";
     c.stdout.on("data", (d) => { stdout += d; }); c.stderr.on("data", (d) => { stderr += d; });
-    const kill = () => { c.kill("SIGTERM"); };
-    process.once("SIGTERM", kill); process.once("SIGINT", kill);
-    const done = (status: number | null, error?: Error) => { process.off("SIGTERM", kill); process.off("SIGINT", kill); resolve({ status, stdout, stderr, error }); };
+    const kill = () => { try { process.kill(-c.pid!, "SIGTERM"); } catch { c.kill("SIGTERM"); } };
+    process.once("SIGTERM", kill); process.once("SIGINT", kill); process.once("exit", kill);
+    const done = (status: number | null, error?: Error) => { process.off("SIGTERM", kill); process.off("SIGINT", kill); process.off("exit", kill); resolve({ status, stdout, stderr, error }); };
     c.on("error", (e) => done(null, e));
     c.on("close", (code) => done(code));
   });
