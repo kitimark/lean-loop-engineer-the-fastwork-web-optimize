@@ -1,30 +1,28 @@
-# node-worker-budget (lean-prover)
+# node-worker-budget (lean-prover, round 2)
 
-State: branch worktree-wf_f48889d4-126-1; see `git log main..HEAD`. check.sh green; runner land-inputs, node-budget,
-console-api, site and ci-paths tests green.
+State: branch worktree-wf_f48889d4-126-1, main merged; see `git log main..HEAD`. check.sh exit 0 (node-budget golden check green).
 
 What it does:
-- `lean/Fw/Sched/NodeBudget.lean`: `workers r = max 1 (min (cores / pool) (freeMiB / (pool * workerMiB)))`; `today` room
-  8 cores, 1024 MiB test budget (chosen, not measured), 115 MiB per worker (upper end of the MEASURED 95-115 MiB p50), pool 4: 2.
-- Theorems: `workers_pos`, `workers_floor`, `workers_fit`, `workers_pool_gt_cores`, `pool_within_room` (replicate sums over the
-  pool within cores and free memory, given pool <= cores and pool * workerMiB <= freeMiB), `monotone` (cores, memory),
-  `antitone_demand` (pool, workerMiB), `today_workers`, `today_pool_sum` (= 8).
-- `lean/scripts/NodeBudgetGolden.lean [--check]` writes `packages/contracts/golden/sched/node-budget.gen.json` (room, workers,
-  byPool 1..8) and `node-budget.jsonl` (360 rows); check.sh job "node-budget golden check".
-- Readers: the three vitest configs (`maxWorkers`), root package.json `test` (`--test-concurrency=${VITEST_MAX_WORKERS:-gen}`),
-  `fw land` (`testWorkersEnv(cwd, pool)` sets `VITEST_MAX_WORKERS` per check from byPool; test `apps/runner/test/node-budget.test.ts`).
+- `lean/Fw/Sched/NodeBudget.lean`: `workers r = max 1 (fit r)`, `fit r = min (cores - reserveCores) (min (cores / pool) (freeMiB / (pool * workerMiB)))`.
+- Room `today`: cores 8; reserveCores 1 (old default of vitest and node --test, `availableParallelism - 1`, CONFIRMED Node docs);
+  freeMiB 2048 = `Fw.Sched.Heavy.Params.reserveMB` (cited rule, INFERRED: that reserve is chosen, not measured; follow-up sup-baseline);
+  workerMiB 136 (MEASURED in the graph task: (1486 - 808) / 5 MiB, rounded up); pool 4: 2 workers. byPool 1..8: 7,4,2,2,1,1,1,1.
+- Memory binds at no pool of today's room (`#guard`): cores and the reserve set the values, not the 2048 MiB.
+- Theorems: earlier ones kept (`workers_pos`, `workers_floor`, `workers_fit`, `workers_pool_gt_cores`, `pool_within_room`, `monotone`,
+  `antitone_demand`, `today_workers` = 2, `today_pool_sum` = 8; monotone/antitone now also hold reserveCores fixed); new
+  `workers_le_reserve`, `workers_le_old_default` (reserve 1, cores >= 2: workers <= cores - 1), `today_le_old_default` (every pool), `today_alone` = 7.
+- `lean/scripts/NodeBudgetGolden.lean [--check]` writes `packages/contracts/golden/sched/node-budget.gen.json` and `node-budget.jsonl` (720 rows).
 
-Deviations from the graph writes:
-- The gen file lives in `packages/contracts/golden/sched/` (precedent lake-slot.gen.sh), not `packages/contracts/src/`: check.sh
-  reads it and `golden/**` is already in `checkShReads`; `src/` would need a LandSpeed.lean + proof + golden change.
-- Extra write `apps/runner/test/node-budget.test.ts` (replays the golden through `testWorkersEnv`).
+Readers per check fw land runs:
+- vitest (apps/runner, apps/console-api, apps/site, apps/console-web, packages/contracts): `VITEST_MAX_WORKERS` from `testWorkersEnv(cwd, pool)`
+  in `runCheck` (land.ts); runner, console-api and site configs also set `maxWorkers` from the gen file outside fw land.
+- node --test (apps/site, packages/{difftest,e2e-preview,engine-check,gate-breakpoints,gh-budget,measure-chromium,measure-webkit,
+  measure-wktr,premise-tests,snapshot-extract,visual-diff}): `--test-concurrency=${VITEST_MAX_WORKERS:-<gen workers>}` in the test script.
+- Every package check declares the gen file as a read (land.ts candidateChecks). `apps/runner/test/node-budget.test.ts` checks every
+  node --test script fw land runs carries the flag with a path to the gen file.
+- Root `package.json` `test` is back to main: its single-file node --test gains nothing from the flag, and fw land never runs it.
 
-Open:
-- Package-level `node --test` scripts (12 packages/*/package.json and apps/site) do not read the budget yet: node rejects
-  `--test-concurrency` in NODE_OPTIONS (MEASURED, node 24.22.0), so each script needs the argv; outside this task's writes.
-- vitest 5.0.5 has no `minWorkers` option (grep of dist finds none); only `maxWorkers` is set.
-- Live room from the daemon ledger: follow-up sup-tests.
-- reap-stop / reap-safety tests fail in this sandbox (`gather` returns null: lsof/ps of other processes); untouched by this task.
+Debug run, not a result (gate-breakpoints, 25 files, load 17-18, ps sample every 0.1 s): pnpm test with VITEST_MAX_WORKERS=2: at most
+2 node --test children, 21.5 s; plain `node --test` without the flag: 7 children, 12.9 s.
 
-Debug run, not a result (console-api vitest, once each, load 15-21, /usr/bin/time -l + 0.5 s ps tree-RSS sampler):
-cap 2: 65.9 s wall, 75.0 CPU-s, peak tree RSS 733 MiB; 7 workers: 26.9 s, 74.6 CPU-s, 1524 MiB. time -l maxrss 205 MiB both.
+Open: live room from the daemon ledger (sup-tests); memory footprint of tests beside a heavy job (sup-baseline). Suites may run slower.
