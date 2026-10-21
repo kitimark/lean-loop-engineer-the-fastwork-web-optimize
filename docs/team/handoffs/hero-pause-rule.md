@@ -17,14 +17,14 @@
 - MEASURED: census 39548856639 (will-change reason 91 to 6), gate 39549161028 pass on both engines.
 - Trajectory, Chromium 390 morph: flag runs 39548822269 RED, 39553952680 RED, 39556935431 CLEAN (42 open@1 both);
   no-flag control 39557718020 CLEAN. Flag arm never samples open@1 (0/15 reps), default rewrite 9/25, original 0/20:
-  a flag effect on first-frame timing (matches the original), so the flag stays out of v2-proved on this evidence.
+  a first-frame timing difference (MEASURED; attribution to the flag INFERRED; the flag arm matches the original), so the flag stays out of v2-proved on this evidence.
 
 ## Open
 - Probe follow-up: open@1 coverage against the original's first frame; timing mechanism not determined.
 - kCopy INFERRED (`hero_paused_hidden_copy`); census y 5267 n = 1; `deferRendering` not ported; Safari frame time
   INFERRED, no device run.
 - Accepted writes outside the graph list: `lean/Fw/Parts/Bridge.lean`, `lean/Fw/Parts/FootprintData.lean`,
-  `lean/Fw/Parts/FootprintRows.lean`, `footprint.gen.json`, `footprint-diff.gen.json` (hero reads the hero.exit rect).
+  `lean/Fw/Parts/FootprintRows.lean`, `footprint.gen.json`, `footprint-diff.gen.json`, `lean/Fw/Ci/Trigger.lean`, `packages/contracts/golden/ci/triggers.jsonl`, `lean/scripts/check.sh`, `lean/Fw.lean` (hero reads the hero.exit rect).
 
 ## Read first
 - `research/notes/2026/10-20-hero-pause-rule.md` (Limits, CI), `results/hero-pause-rule/summary.json`

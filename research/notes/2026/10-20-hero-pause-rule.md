@@ -165,14 +165,12 @@ search `?fw=morph.mount:shift`, configHash 3bf7fec1fdffb72d), not the plain fait
   control). 39548822269 also ran 1280 and WebKit: playwright-webkit CLEAN, 2000 of 2000 units (path hero); Chromium 1280
   candidate had an open@1 sample in 5/5 reps. No run has a hero unit failing.
 - Verdict: the control is clean, so the open@1 coverage red is not the probe's row E sampling event at this sha
-  (row E of `research/notes/2026/10-21-faithful-hero-baseline.md` needs the no-flag arm to show it). It is a flag effect
-  on the open push's first frame (MEASURED): the first nonzero `m` of a rep is either about 0.066 or about 0.2. The
+  (row E of `research/notes/2026/10-21-faithful-hero-baseline.md` needs the no-flag arm to show it). The first-frame timing difference is MEASURED (0/15 vs 9/25 reps); attributing it to the flag is INFERRED (Fisher p about 0.0075 with reps treated as independent; mechanism not determined). The first nonzero `m` of a rep is either about 0.066 or about 0.2. The
   default rewrite lands at 0.066 in 9 of 25 reps over the four runs; the flag arm never does (0 of 15) and the original
   never does (0 of 20). A one-sided Fisher test on 0/15 against 9/25 gives p about 0.0075 (INFERRED: reps of different
   runs treated as independent). The candidate's first-frame timing equals the original's; the coverage rule fails it
   because it judges the rewrite against its own bucket grid, not against the original's. 39556935431 is CLEAN only
-  because its faithful arm also missed. No content unit differs (the nav logo close@0 unit failed once, in 39548822269,
-  and passed in the other three).
+  because its faithful arm also missed. No content unit differs in 3 of 4 runs; in 39548822269 the nav logo color close@0 unit failed (fail:apart, new) in one rep and passed in 39553952680, 39556935431 and 39557718020.
 - Mechanism of the timing change: not determined. CONFIRMED only that the rule and the IO touch only the hero track
   subtree (`hero.module.css:42-45`, `index.tsx:38-39`); the frame-pacing effect of removing about 85 layers is INFERRED.
 - Per the lead's rule (control clean, flag arm red in 2 of 3 runs), this is a flag effect and the flag does not enter
