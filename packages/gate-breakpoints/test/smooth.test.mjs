@@ -9,6 +9,7 @@ import * as S from '../src/smooth/reduce.mjs';
 import { pageSink, slowOf, summariseTrace } from '../src/smooth/trace.mjs';
 import { cellOf, hitchesOf, summary } from '../src/smooth/cadence-table.mjs';
 import { intervalsOf, orderFor } from '../src/smooth/cadence.mjs';
+import { byArm, differences, markdown } from '../src/smooth/table.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const golden = readFileSync(resolve(here, '../../contracts/golden/gate/smooth.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
@@ -172,4 +173,26 @@ test('cadence table: a cell takes its verdicts from the Lean-twin verdict over t
   assert.equal(sum.find((e) => e.first === 'orig' && e.second === 'base').counts.second, 1);
   const few = cellOf('2', { runs: runs.filter((r) => r.rep < 3), traces: [] }, 390, 'end');
   assert.equal(few.verdicts['orig|base'], 'insufficient');
+});
+
+// Two runs of two arms; the original never moves hero.stage, the rewrite moves it in one run of two; hero.copy has 1 defect in orig runs
+// (both) and 4 then 5 in base runs.
+const rec = (run, arm, nodes) => ({ run, engine: 'chromium', width: 390, arm, ideal: 'line', window: 'hero', judgedNodes: Object.keys(nodes).length, flaggedNodes: 0, defectsPerPush: 0, tailPerPush: 0, nodes });
+const nd = (stalls, jumps, tail, peakRatio = 1000) => ({ judged: 5, flagged: 0, stalls, jumps, reversals: 0, tail, tailT: 0, peakRatio });
+
+test('table: byArm keeps a median and a range per node with the run ids; differences lists what is outside the original range', () => {
+  const rows = byArm([
+    rec('1', 'orig', { 'hero.copy': nd(1, 0, 0) }), rec('2', 'orig', { 'hero.copy': nd(1, 0, 0) }),
+    rec('1', 'base', { 'hero.copy': nd(2, 2, 0), 'hero.stage': nd(0, 0, 0, 1099) }), rec('2', 'base', { 'hero.copy': nd(3, 2, 0) }),
+  ]);
+  const base = rows.find((r) => r.arm === 'base');
+  assert.deepEqual(base.nodes['hero.copy'].runs, ['1', '2']);
+  assert.equal(base.nodes['hero.copy'].defects, 4); // median of [4, 5] by nearest rank is the lower
+  assert.deepEqual(base.nodes['hero.copy'].defectsRange, [4, 5]);
+  assert.equal(base.nodes['hero.stage'].moved, 1);
+  assert.equal(base.nodes['hero.stage'].ofRuns, 2);
+  assert.equal(base.nodes['hero.copy'].part, 'hero');
+  const d = differences(rows, 'orig', (a) => a === 'base');
+  assert.deepEqual(d.map((x) => [x.node, x.measure, x.dir]).sort(), [['hero.copy', 'defects', 'higher'], ['hero.stage', 'moved', 'arm moving']]);
+  assert.match(markdown(rows), /hero\.stage \| hero\.exit \| orig \| 0 \/ 2/);
 });
