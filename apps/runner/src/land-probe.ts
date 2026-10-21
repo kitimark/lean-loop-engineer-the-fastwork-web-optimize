@@ -1,6 +1,6 @@
 // A land of the current commit through the real overflow path, without the merge queue (task land-lane-circleci). It is the live proof
 // of the overflow: the same plan, adapters and group wait a land uses, started by hand on a probe branch. Run from the repo root:
-//   FW_LAND_FORCE_FULL=1 node apps/runner/src/land-probe.ts [--task probe] [--base <rev>]
+//   FW_LAND_FORCE_FULL=1 node apps/runner/src/land-probe.ts [--task probe] [--rev <sha>]
 // With FW_LAND_FORCE_FULL=1 GitHub counts as full (a test flag), so every leg goes to CircleCI and its verdict is what lands (or refuses).
 // Without it the plan is whatever the real slot count says. The probe pushes `ci/land-<task>-<sha7>` (plain `git push origin <branch>`,
 // never main), waits at 120 s or slower, and prints the verdict, the branch and the pipeline and run ids. It runs no local tier.
@@ -19,10 +19,10 @@ const argv = process.argv.slice(2);
 const task = argv[argv.indexOf("--task") + 1] ?? "probe";
 const log = (l: string) => process.stderr.write(`${l}\n`);
 
-const mergeSha = git(["rev-parse", "HEAD"]);
-// the revision the checks are selected against: the first parent of HEAD (as a land does), or `--base <rev>` (e.g. main, to select what a land of this whole branch would)
-const baseArg = argv.indexOf("--base");
-const base = baseArg >= 0 ? git(["rev-parse", argv[baseArg + 1] ?? ""]) : git(["rev-parse", `${mergeSha}^1`]);
+const revArg = argv.indexOf("--rev");
+// the commit under test: HEAD, or `--rev <sha>` (e.g. a merge commit whose first parent is main, as a land's merge is, so the legs select what a land selects)
+const mergeSha = git(["rev-parse", revArg >= 0 ? (argv[revArg + 1] ?? "") : "HEAD"]);
+const base = git(["rev-parse", `${mergeSha}^1`]);
 const call = fwcoreCall(root);
 // The digest a leg of the lane prints: the `LANE digest=` line of `fw checks` for the same base (land.yml reads the same line).
 const listing = execFileSync("pnpm", ["-s", "fw", "checks", "--affected", "--base", base, "--tier", "remote", "--list"], { cwd: root, encoding: "utf8" });
