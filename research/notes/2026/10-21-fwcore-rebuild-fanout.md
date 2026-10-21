@@ -20,9 +20,12 @@ the built modules weighted by their CI times (`Fw.Ops.Rebuild.critical`).
 | 39517374255 | scoped-close-start-cause | 55 to 60 s | 05d10bb7 (4494ed9c) | 6 | 47 | no | 55 s |
 | 39505889802 | land-phase1-slow | 33 to 34 s | ca3085ca (a145b9c9) | 5 | 36 | no | 32 s |
 | 39481093650 | exit-scoped-inline | 230 to 245 s | 6fa0cd5b (3aa12c09) | 19 | 65 | 176 s | 223 s |
+| 39542326806 | probe, control (no split) | 208 to 218 s | 9707e387 (5f856c49) | 1 | 39 | 173 s | 214 s |
+| 39542291992 | probe, split | 41 to 45 s | 1be8291f (7237be53) | 1 | 38 | no | 41 s |
 
 `changed` is the number of modules of the fwcore closure whose source differs between the restored entry's main commit
-and the land's change commit. The full rows, with Lake's import graph of each tree, are in
+and the land's change commit. The two probe rows restored an entry saved by `lean.yml` on their own branch (last
+section), so their `changed` is the probe edit only. The full rows, with Lake's import graph of each tree, are in
 `packages/contracts/golden/ops/rebuild-facts.jsonl`; the Lean output is `rebuild.jsonl` next to it.
 
 ## Mechanism
@@ -38,8 +41,8 @@ and the land's change commit. The full rows, with Lake's import graph of each tr
    re-pays the whole diff since the entry was saved, not only its own change. MEASURED: 3 consecutive lands restored
    2657fd21 and each rebuilt `Fw.Wire.Obs` although none of their own diffs touched its cone.
 4. The rebuild set is the import cone of `Main` intersected with the importers of the changed modules. `Fw.Ops.Rebuild`
-   computes it on Lake's own graph (`lake query --json +M:imports`), and it equals the built set of all 8 lands.
-   MEASURED (`rebuild golden check` in `lean/scripts/check.sh` fails on a difference).
+   computes it on Lake's own graph (`lake query --json +M:imports`), and it equals the built set of all 8 lands and
+   both probe runs. MEASURED (`rebuild golden check` in `lean/scripts/check.sh` fails on a difference).
 5. The fan-out root of the fwcore closure is `Fw` (`Fw.lean`, 208 direct imports): `FwTest/Lease`, `FwTest/Golden` and
    `FwTest/Serve` import `Fw`, `FwTestMain` imports them, and `Main` imports `FwTestMain`. The closure is 308 of the
    project's modules.
@@ -64,9 +67,28 @@ and the land's change commit. The full rows, with Lake's import graph of each tr
 `Fw.Wire.SchedJson` holds the six helpers (`optS`, `strsD`, `ok_bind`, `mapM_rt`, `arrD_arr`, `strsD_rt`) and imports
 only `Fw.Ops.Wire`. `Fw.Wire.Obs` imports it instead of `Fw.Wire.Sched`. On the 8 sampled lands the Lean model puts
 `Fw.Wire.Obs` out of every rebuild set, and the critical path of the 4 slow lands falls from 215 to 229 s to 41 to
-65 s (golden field `split`). INFERRED until the CI probe below.
+65 s (golden field `split`). The CI probe below MEASURED it on one pair of land runs.
 
-CI probe: PENDING.
+## CI probe (MEASURED, one pair of land runs, free arm runners)
+
+Both branches got the same edit in `Fw.Store.Layout` (one added theorem), in the cone of `Fw.Wire.Sched`, as in the
+3 slow lands. Each branch was first pushed without the edit, so `lean.yml` saved an entry of that tree in the branch's
+cache scope; the land run of the edit then restored that entry (`actions/cache` searches the branch scope before the
+default branch). The control branch differs from the split branch only in `Fw.Wire.Obs` importing `Fw.Wire.Sched`.
+
+| branch | seed run (entry saved) | land run | restored | built | `fwcore build` per leg | run wall |
+|---|---|---|---|---|---|---|
+| `ci/land-fanout-ctl` | 39541703711 | 39542326806 | 9707e387 | 39, `Fw.Wire.Obs` 173 s | 208 to 218 s | 493 s |
+| `ci/land-fanout-split` | 39541692940 | 39542291992 | 1be8291f | 38, no `Fw.Wire.Obs` | 41 to 45 s | 305 s |
+
+The Lean model matches both: the computed rebuild set equals the modules CI built in each run (golden rows
+`probe-*`, `match: true`), and its `split` field for the control row (38 modules, critical path 40.5 s) predicts the
+measured split run (38 modules, critical path 41.2 s). The step falls by 167 to 173 s per leg and the run by 188 s.
+
+Accepted limits: one pair of runs; one kind of edit (a module in the `Fw.Wire.Sched` cone). An edit outside that cone
+never rebuilt `Fw.Wire.Obs` and gains nothing. The first land after the split restores a `main` entry saved before it,
+so it rebuilds `Fw.Wire.Obs` once (its imports changed); lands after the next `lean/`-changing `main` push gain.
+The probe branches stay on origin as evidence; their edit commits are not for `main`.
 
 ## Follow-ups
 
