@@ -49,13 +49,33 @@ export function laneBind(view: GhRunView): { sha: string; digest: string } | nul
   return null;
 }
 
-/** fwcore `console.landLaneState` (Lean `Fw.Console.LandRemote.laneState`): the state of a lane run from the `fw ci wait` exit code (0 pass,
- *  1 fail, 3 the slice ran out with the run still going, 4 not run, else gh unavailable; exit 3 is `running` only when the output says
- *  `timed out after`) and the run's own status and conclusion. A run that completed with conclusion failure is `fail` whatever the exit
- *  code was: the waiter can say 2, 3 or 4 about a failed run (a refused or failed gh call for its jobs, a skipped guard). */
+/** fwcore `console.landLaneState` (Lean `Fw.Console.LandRemote.laneState`): the state of a lane run from the run's own record first and the
+ *  `fw ci wait` result second. Record: a completed failure or an unknown conclusion is `fail`; a status that is not `completed` is `running`
+ *  whatever the waiter said (a crashed waiter exits 1); a completed success is decided by its per-job conclusions (`legResults`).
+ *  Waiter (no record decides): 0 pass, 1 fail only when its output had a `-> fail` line (else a wait error, `unavailable`), 3 `running`
+ *  only when the output says `timed out after`, 4 not run, else `unavailable`. */
 export function laneStateOf(call: FwCall, code: number, out = "", view: GhRunView | null = null): RunState {
-  const state = (call({ op: "console.landLaneState", exit: code, timedOut: /timed out after/.test(out), status: view?.status ?? "", conclusion: view?.conclusion ?? "" }) as { state: RunState }).state;
-  return state === "pass" && !legsPass(call, view) ? "fail" : state;
+  return (call({ op: "console.landLaneState", exit: code, timedOut: /timed out after/.test(out), saidFail: SAID_FAIL.test(out), status: view?.status ?? "", conclusion: view?.conclusion ?? "", jobs: legResults(view) }) as { state: RunState }).state;
+}
+/** The waiter prints `run <id> <workflow> <conclusion> -> fail (<reason>)` for a run it judged failed (packages/gh-budget wait.ts `verdictOf`). */
+export const SAID_FAIL = /-> fail\b/;
+
+/** The per-job conclusions of a run record as bools (job concluded `success`), the guard left out; `null` when some job has no
+ *  conclusion string (the poller's cached facts), which says nothing. Lean decides what they mean (`laneState`, `LandLegs.legsOk`). */
+export function legResults(view: GhRunView | null): boolean[] | null {
+  const legs = (view?.jobs ?? []).filter((j) => j.name !== "guard");
+  return legs.every((j) => typeof j.conclusion === "string") ? legs.map((j) => j.conclusion === "success") : null;
+}
+
+/** The facts a refusal names: the run id, each failed leg (job) and the check ids that leg runs (Lean `console.landLeg`, `LandLegs.pickFor`). */
+export function failureDetail(call: FwCall, id: string | undefined, view: GhRunView | null, checks: string[]): string {
+  const bad = (view?.jobs ?? []).filter((j) => j.name !== "guard" && typeof j.conclusion === "string" && j.conclusion !== "success" && j.conclusion !== "skipped");
+  const legs = bad.map((j) => {
+    const leg = /^land \((.+)\)$/.exec(j.name)?.[1];
+    const ids = leg ? (call({ op: "console.landLeg", leg, ids: checks }) as { ids: string[] }).ids : [];
+    return `${leg ?? j.name} ${j.conclusion}${ids.length ? ` [checks ${ids.join(" ")}]` : ""}`;
+  });
+  return `run ${id ?? "?"}${legs.length ? `, failed legs: ${legs.join("; ")}` : view ? ", no failed leg in the run record" : ", run record not read"}`;
 }
 
 /** Does the run pass the verdict over the land lane's parallel legs? Lean decides (`Fw.Console.LandLegs.legsVeto`, op `console.landLegsVeto`);
@@ -98,8 +118,8 @@ export type Handle = { provider: Provider; branch: string; marker: string; /** C
 /** The legs of the land lane (lean/land-legs.txt) and the split of them between the providers (fwcore `ci.overflow`). */
 export type LegSplit = { all: string[]; gh: string[]; cc: string[] };
 /** `legs` is absent for a land that runs wholly on GitHub (the marker and the matrix are then what they always were). */
-export type StartCtx = { task: string; mergeSha: string; want: Want; legs?: LegSplit; /** the legs of a CircleCI group that could not start, re-dispatched on a second GitHub run: its own branch, so the first run's tip check holds */ again?: boolean };
-export type Polled = { run: LaneRun; times?: { startMs: number; queueMs: number; laneMs: number } | null; /** why the land run record was not read (the waiter outcome stands) */ note?: string };
+export type StartCtx = { task: string; mergeSha: string; want: Want; legs?: LegSplit; /** the remote check ids of this land (names the checks of a failed leg) */ checks?: string[]; /** the legs of a CircleCI group that could not start, re-dispatched on a second GitHub run: its own branch, so the first run's tip check holds */ again?: boolean };
+export type Polled = { run: LaneRun; times?: { startMs: number; queueMs: number; laneMs: number } | null; /** why the land run record was not read (the waiter outcome stands) */ note?: string; /** a failed run's id, failed legs and their check ids (the refusal line) */ detail?: string };
 export interface Adapter {
   provider: Provider;
   /** Push the merge commit and start the lane; throws when the provider cannot be reached. */
@@ -188,8 +208,9 @@ export function githubAdapter(d: GithubDeps, push: Pusher = makePusher(d)): Adap
       const going = w.code === 3 && /timed out after/.test(w.out);
       let view: GhRunView | null = null;
       let note: string | undefined;
+      let id: string | undefined;
       if (!going) {
-        let id = /\brun (\d+)\b/.exec(w.out)?.[1];
+        id = /\brun (\d+)\b/.exec(w.out)?.[1];
         // Cached facts first (no budget): a completed failed record, or a record whose jobs show the bind, is enough.
         const hit = d.cache?.(h, id) ?? null;
         if (hit && (hit.conclusion === "failure" || (!partial && laneBind(hit)))) view = hit;
@@ -212,7 +233,15 @@ export function githubAdapter(d: GithubDeps, push: Pusher = makePusher(d)): Adap
       }
       let state = laneStateOf(d.call, w.code, w.out, view);
       if (partial && state === "pass" && !legsCovered(view, c.legs!.gh)) { state = "fail"; note = `${note ? `${note}; ` : ""}the run has no job for every leg given to GitHub (${c.legs!.gh.join(",")})`; }
-      return { run: normalizeGithub(state, view, norm), times: view ? runTimes(view) : null, ...(note ? { note } : {}) };
+      let detail: string | undefined;
+      if (state === "fail") {
+        let dv = view;
+        if (id && legResults(view) === null) { // a cached record has no per-job conclusions: one view names the failed legs (a failure is rare)
+          try { const v = JSON.parse(await d.gh(["run", "view", id, "--json", RUN_VIEW_FIELDS], { deadline: Math.ceil((d.now?.() ?? Date.now()) / 1000 + sliceS), ...(signal ? { signal } : {}) })) as GhRunView; if (v.workflowName === LANE_ID) dv = v; } catch { /* the detail is best effort */ }
+        }
+        detail = failureDetail(d.call, id, dv, c.checks ?? []);
+      }
+      return { run: normalizeGithub(state, view, norm), times: view ? runTimes(view) : null, ...(note ? { note } : {}), ...(detail ? { detail } : {}) };
     },
   };
 }
@@ -267,7 +296,7 @@ export function circleciAdapter(d: CircleDeps): Adapter {
       const code = await d.wait(id, sliceS, signal);
       const going = code === 3;
       // exit 3 is `running` only when the slice ran out (Lean laneState reads the output text for that)
-      const state = signal?.aborted ? laneStateOf(d.call, 3, "timed out after abort") : laneStateOf(d.call, code, going ? "timed out after" : "");
+      const state = signal?.aborted ? laneStateOf(d.call, 3, "timed out after abort") : laneStateOf(d.call, code, going ? "timed out after" : code === 1 ? "-> fail (the pipeline failed)" : "");
       if (going || signal?.aborted || state === "unavailable" || state === "cancelled") return { run: mk(state) };
       let f: CircleFetch | null = null, note: string | undefined;
       try { f = await d.fetch(id); } catch (e) { note = `pipeline ${id} record not read (${e instanceof Error ? e.message : String(e)})`; }
@@ -296,7 +325,7 @@ export type AwaitInput = {
   sliceS?: number;
   waitsLeft?: number;
 };
-export type AwaitOutcome = { verdict: RemoteVerdict; runs: LaneRun[]; /** providers whose lane could not be started (no run exists there) */ startFailed: Provider[] };
+export type AwaitOutcome = { verdict: RemoteVerdict; runs: LaneRun[]; /** providers whose lane could not be started (no run exists there) */ startFailed: Provider[]; /** per provider whose run failed: run id, failed legs, check ids */ details: string[] };
 
 /** Sleep `ms` (nothing when <= 0); ends early when the signal aborts. A run that came back `running` sooner than its slice must not be polled at once. */
 const sleepOut = (ms: number, signal: AbortSignal): Promise<void> => ms <= 0 ? Promise.resolve() : new Promise((res) => {
@@ -314,6 +343,7 @@ export async function awaitRemote(i: AwaitInput): Promise<AwaitOutcome> {
   const runs = new Map<string, LaneRun>();
   const attempted = new Set<Provider>();
   const startFailed: Provider[] = [];
+  const details = new Map<Provider, string>();
   const handles = new Map<Provider, Handle>();
   const ac = new AbortController();
   let localOk: boolean | null = null;
@@ -362,6 +392,8 @@ export async function awaitRemote(i: AwaitInput): Promise<AwaitOutcome> {
         if (p.run.state === "running" && !ac.signal.aborted) await sleepOut(slice * 1000 - (now() - t1), ac.signal);
         runs.set(r.provider, p.run);
         if (p.note) i.log(`remote: ${r.provider}: ${p.note}`);
+        if (p.detail) details.set(r.provider, `${r.provider}: ${p.detail}`);
+        else details.delete(r.provider);
         if (p.times && p.run.state !== "running") {
           i.span("remote queue", p.times.startMs, p.times.queueMs, 0);
           i.span("remote lane", p.times.startMs + p.times.queueMs, p.times.laneMs, p.run.state === "pass" ? 0 : 1);
@@ -375,7 +407,7 @@ export async function awaitRemote(i: AwaitInput): Promise<AwaitOutcome> {
     if (now() >= deadline) for (const [p, r] of runs) if (r.state === "queued" || r.state === "running") runs.set(p, { ...r, state: "timeout" });
   }
   const ok = await i.local;
-  return { verdict: decide(ok), runs: [...runs.values()], startFailed };
+  return { verdict: decide(ok), runs: [...runs.values()], startFailed, details: [...details.values()] };
 }
 
 /** The overflow of one land: the legs of the lane and how the providers share them. `plan` is fwcore `ci.overflow` over the facts of this moment
@@ -415,7 +447,7 @@ export async function awaitGroups(i: Omit<AwaitInput, "allow" | "ctx"> & { ctx: 
   const judged = [...outs.filter((o) => !(o.provider === "circleci" && second)).map((o) => o.out), ...(second ? [second] : [])];
   const kind = (i.call({ op: "ci.overflowCombine", kinds: judged.map((o) => o.verdict.kind) }) as { kind: string | null }).kind;
   const chosen = judged.find((o) => o.verdict.kind === kind) ?? judged[0]!;
-  return { verdict: chosen.verdict, runs: [...outs.flatMap((o) => o.out.runs), ...(second ? second.runs : [])], startFailed: outs.flatMap((o) => o.out.startFailed) };
+  return { verdict: chosen.verdict, runs: [...outs.flatMap((o) => o.out.runs), ...(second ? second.runs : [])], startFailed: outs.flatMap((o) => o.out.startFailed), details: [...outs.flatMap((o) => o.out.details), ...(second ? second.details : [])] };
 }
 
 /** `pnpm -s fw ci wait` as a child process: no CPU while it waits; the signal kills it. */
@@ -476,7 +508,7 @@ export async function runTiered(p: TierPlan): Promise<{ bad: string | null; kind
   const plan = p.overflow ? await p.overflow.plan().catch((e: unknown) => { p.log(`remote: overflow plan not made (${e instanceof Error ? e.message : String(e)}); every leg on GitHub`); return null; }) : null;
   if (plan) p.log(`remote: overflow ${plan.reason}: GitHub ${plan.gh.join(",") || "none"}, CircleCI ${plan.cc.join(",") || "none"}${plan.note ? ` (${plan.note})` : ""}`);
   const base = { call: p.call, adapters: p.adapters, local: localP.then((r) => r.bad === null), log: p.log, span: p.span, waitsLeft: p.waitsLeft, sliceS: p.sliceS, deadlineS: p.deadlineS };
-  const ctx: StartCtx = { task: p.task, mergeSha: p.mergeSha, want };
+  const ctx: StartCtx = { task: p.task, mergeSha: p.mergeSha, want, checks: split.remote };
   const out = plan && plan.cc.length > 0
     ? await awaitGroups({ ...base, ctx, split: { all: p.overflow!.legs, gh: plan.gh, cc: plan.cc } })
     : await awaitRemote({ ...base, allow: p.allow, ctx });
@@ -492,6 +524,7 @@ export async function runTiered(p: TierPlan): Promise<{ bad: string | null; kind
   }
   const states = out.runs.map((r) => `${r.provider}:${r.state}`).join(" ") || "no run";
   const lane = v.reason === "remote-lane-failed" ? "the land lane failed" : `the land lane is undecided (${v.reason})`;
-  const remoteBad = `remote tier: ${lane} for ${p.mergeSha.slice(0, 7)} (${states}); see the run on branch ${landBranch(p.task, p.mergeSha)}`;
+  const named = out.details.length ? ` [${out.details.join(" | ")}]` : "";
+  const remoteBad = `remote tier: ${lane} for ${p.mergeSha.slice(0, 7)} (${states})${named}; see the run on branch ${landBranch(p.task, p.mergeSha)}`;
   return { bad: local.bad ? `${local.bad}\n\n${remoteBad}` : remoteBad, kind: local.bad ? local.kind : "checks" };
 }

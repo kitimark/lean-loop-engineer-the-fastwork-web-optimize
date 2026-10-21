@@ -31,6 +31,15 @@ force push), waits with `fw ci wait` (no CPU: one sleeping child per slice) and 
   conclusion `failure`, whatever the exit code; the waiter's exit decides only for runs without such a record. Theorems
   `verdict_completed_failure_refuses`, `verdict_no_local_after_failure`; golden per waiter exit 0..5 in `land-remote.jsonl`. A bound
   fail is never followed by `remote: running the remote tier on this Mac instead`.
+- **A running or green lane is never refused as failed (task land-wait-final; incidents run 39576215019 on 2026-10-20 and run 39612772041 on
+  2026-10-21).** Cause (CONFIRMED by timestamps: land log ended 14:09:23Z, run concluded success 14:09:07Z): the waiter child exited 1 without a
+  verdict (a crash), and `waitState 1` was `fail`. Lean `laneState` now reads the run's own record first: completed failure or an unknown
+  conclusion -> `fail`; status not `completed` -> `running` whatever the exit (in progress, wait error); completed success -> the per-job
+  conclusions decide (`legsOk`), also after exit 1; no record -> the waiter, where exit 1 is `fail` only with a `-> fail` line in its output
+  (else `unavailable`, a wait error, polled again). A run that outlives `deadlineS` is `timeout`, verdict `remote-timeout-run-locally`, never
+  `remote-lane-failed` (theorem `verdict_timeout_not_fail`). Theorems `laneState_completed_failure`, `_completed_unknown`, `_in_progress`,
+  `_all_success`, `_one_failure`, `_wait_error`; goldens in `land-remote.jsonl`. A refusal line names the run id, the failed legs and the check ids of
+  each: `remote tier: the land lane failed for <sha7> (github:fail) [github: run <id>, failed legs: suites-a failure [checks ...]]`.
 - Every remote line (`remote: ...`, including `remote: verdict <kind> reason=<reason>` and the fallback line) goes to the land log
   file `.fw-console/land-logs/<task>-<sha7>.log` and to stderr as they happen, whether or not the land passes; they are not repeated in the result lines `fw land` prints at the end.
 - `fw ci wait` exit 3 means a run still going only when its output says `timed out after`; a stopped poller or a refused gh call

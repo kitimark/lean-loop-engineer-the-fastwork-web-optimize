@@ -69,7 +69,7 @@ imports it, so it decodes the card fields it needs itself).
 | `console.landLegsVeto` | `results` [bool, one per non-guard job] or `null` (no per-job conclusions) | `veto` (`Fw.Console.LandLegs.legsVeto`: a `success` run with a leg that did not pass is refused; `null` or no leg says nothing) |
 | `console.landLane` | `exitOk`, `coreUser`, `skipped` (skipped plus todo tests the summary reports; `null` when no summary was recognised), `check`? (the check id; a summaryless id counts `skipped` as 0) | `verdict` (`pass`/`fail`/`skipped`/`unknown`), `ok` (`Fw.Console.LandTier.laneVerdict`), `skipped` (`effectiveSkipped`, the count used) |
 | `console.landRemote` | `localOk`, `needed`, `allow` [`github`/`circleci`, preference order], `want` {sha, laneId, laneDigest}, `waitsLeft`, `runs` [{provider, sha, laneId, laneDigest, state (`queued`/`running`/`pass`/`fail`/`cancelled`/`timeout`/`unavailable`)}] | `kind` (`accept`/`refuse`/`wait`/`try`/`local`), `reason` (the word on the VERDICT line), `ok`, `provider` (the one to try, else null) (`Fw.Console.LandRemote.verdict`) |
-| `console.landLaneState` | `exit` (`fw ci wait` exit code), `timedOut`? (its output said `timed out after`), `status`? and `conclusion`? (the run's own, from `gh run view`; empty when no view) | `state` (`Fw.Console.LandRemote.laneState`: a completed run with conclusion failure is `fail` whatever the exit; else the waiter's outcome) |
+| `console.landLaneState` | `exit` (`fw ci wait` exit code), `timedOut`? (its output said `timed out after`), `status`? and `conclusion`? (the run's own, from `gh run view`; empty when no view), `saidFail`? (default true: the waiter's output had a `-> fail` line; exit 1 without it is a wait error), `jobs`? [bool, one per non-guard job: conclusion success] or `null` | `state` (`Fw.Console.LandRemote.laneState`: a completed failure or unknown conclusion is `fail` whatever the exit; a run not finished is `running`; a completed success is decided by its jobs; else the waiter's outcome) |
 | `console.landDigest` | `ids` [remote check ids] | `digest` (`Fw.Console.LandRemote.laneDigest`, tier remote) |
 | `console.landRenderGuard` | `tokens` [the NUL-separated fields of the `main..tip` name-status log of the pinned branch tip, `Fw.Land.RenderGuard.parse`] | `refuse`, `hits` [{commit, path, media}] (`Fw.Land.RenderGuard.guard`) |
 | `console.previewCache` | `path` (the request path, no query), `manifest`? [names] (the rewrite build's `.vite/manifest.json` `file`/`css`/`assets` entries, each as `/<name>`) | `kind` (`hashed`/`html`/`other`), `cacheControl`, `immutable`, `compress` (`Fw.Console.PreviewCache.kind`, `cacheControl`, `compressible`) |
@@ -315,7 +315,11 @@ open Fw.Console.LandRemote in
 def opLandLaneState (req : Json) : Except String Reply := do
   let c ← natD req "exit" 2
   let t ← match opt req "timedOut" with | none | some .null => pure false | some _ => asBool "timedOut" (← field req "timedOut")
-  pure [("state", .str (laneState c t (← strD req "status" "") (← strD req "conclusion" "")).name)]
+  let said ← match opt req "saidFail" with | none | some .null => pure true | some _ => asBool "saidFail" (← field req "saidFail")
+  let jobs ← match opt req "jobs" with
+    | none | some .null => pure none
+    | some _ => some <$> (← arrD req "jobs").mapM (asBool "jobs")
+  pure [("state", .str (laneState c t (← strD req "status" "") (← strD req "conclusion" "") said jobs).name)]
 
 open Fw.Console.LandRemote in
 /-- `console.landDigest`: the lane digest of the remote tier over these check ids (`Fw.Console.LandRemote.laneDigest`). -/
