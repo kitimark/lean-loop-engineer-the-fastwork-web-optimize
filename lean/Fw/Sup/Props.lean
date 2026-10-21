@@ -2537,14 +2537,117 @@ theorem pre_procs {c : Cfg} {s : State} {e : Event} {x : Rsrc} {i : Ident} (hx :
   | clientGone o => exact Or.inl ⟨x, hx, hi⟩
   | restart now snap inp => exact Or.inr (Or.inr ⟨now, snap, inp, rfl, adopt_proc inp.rows _ [] _ x i hx hi⟩)
 
+theorem auditRec_member {rows : List Fw.Ops.Reap.Row} {y : Rsrc} {x : Cmd} (h : x ∈ (auditRec rows y).2) :
+    ∃ i, y.proc = some i ∧ y.phase.live = false ∧ (auditRec rows y).1 = y ∧
+      ∃ r ∈ rows, r.pgid = i.pgid ∧ i.start ≤ r.start ∧ x = .signal (.member r.pid r.start) .kill := by
+  cases hp : y.proc with
+  | none => simp [auditRec, hp] at h
+  | some i =>
+    cases hl : y.phase.live
+    · simp only [auditRec, hp, hl] at h ⊢
+      cases hn : ((rows.filter fun (r : Fw.Ops.Reap.Row) => r.pgid == i.pgid && decide (i.start ≤ r.start)).isEmpty
+          || rows.any (fun (r : Fw.Ops.Reap.Row) => r.pid == i.pgid && r.start != i.start))
+      · simp only [hn] at h ⊢
+        obtain ⟨r, hr, e⟩ := List.mem_map.1 h
+        have hf := List.mem_filter.1 hr
+        simp only [Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq] at hf
+        refine ⟨i, rfl, trivial, ?_, r, hf.1, hf.2.1, hf.2.2, e.symm⟩
+        rfl
+      · simp [hn] at h
+    · simp [auditRec, hp, hl] at h
+
+theorem moved_dead {now : Nat} {x y : Rsrc} {i : Ident} (h : Moved now x y) (hp : x.proc = some i)
+    (hl : x.phase.live = false) : y.proc = some i ∧ y.phase.live = false := by
+  refine ⟨(key_proc h.1).trans hp, ?_⟩
+  rcases h.2 with e | ⟨_, n, _⟩ | ⟨a, _⟩
+  · rw [e]; exact hl
+  · rw [hp] at n; cases n
+  · rw [a] at hl; cases hl
+
+theorem tickRec_member {c : Cfg} {ls : List Lease} {now : Nat} {smp : Sample} {y : Rsrc} {p st : Nat} {g : Sig}
+    (h : Cmd.signal (.member p st) g ∈ (tickRec c ls now smp y).2) :
+    ∃ i, y.proc = some i ∧ (tickRec c ls now smp y).1.proc = some i ∧ (tickRec c ls now smp y).1.phase.live = false ∧
+      ∃ r ∈ smp.rows, r.pgid = i.pgid ∧ i.start ≤ r.start ∧ p = r.pid ∧ st = r.start := by
+  simp only [tickRec] at h ⊢
+  generalize hx0 : ({ y with foot := footOf smp y.proc, lastUse := _ } : Rsrc) = x0 at h ⊢
+  have h0 : Same y x0 := by rw [← hx0]; exact Same.refl y
+  have h1 := h0.trans ((ageRec_same c now x0).trans (goneRec_same c now smp.rows _))
+  rcases List.mem_append.1 h with h | h
+  · obtain ⟨_, _, e⟩ := ageRec_sig h
+    cases e
+  · obtain ⟨i, hi, hl, he, r, hr, hg, hs, e⟩ := auditRec_member h
+    simp only [Cmd.signal.injEq, Target.member.injEq] at e
+    refine ⟨i, h1.2.2.2.symm.trans hi, ?_, ?_, r, hr, hg, hs, e.1.1, e.1.2⟩
+    · rw [he]; exact hi
+    · rw [he]; exact hl
+
+theorem observe_member {c : Cfg} {s : State} {now : Nat} {smp : Sample} {p st : Nat} {g : Sig}
+    (h : Cmd.signal (.member p st) g ∈ (observe c s now smp).2) :
+    ∃ x ∈ s.res, ∃ i, x.proc = some i ∧ (∃ z ∈ (observe c s now smp).1.res, z.proc = some i ∧ z.phase.live = false) ∧
+      ∃ r ∈ smp.rows, r.pgid = i.pgid ∧ i.start ≤ r.start ∧ p = r.pid ∧ st = r.start := by
+  have hres := observe_res c s now smp
+  unfold observe at h
+  dsimp only at h
+  rcases List.mem_append.1 h with h | h
+  · obtain ⟨y, hy, hm⟩ := List.mem_flatMap.1 h
+    obtain ⟨i, hi, hzi, hzl, r, hr, hg, hs, e1, e2⟩ := tickRec_member hm
+    refine ⟨y, hy, i, hi, ⟨_, ?_, hzi, hzl⟩, r, hr, hg, hs, e1, e2⟩
+    rw [hres]
+    exact List.mem_map_of_mem hy
+  · obtain ⟨_, _, _, e⟩ := cut_cmd h
+    cases e
+
+theorem stopAll_moved {s : State} {xs : List Rsrc} {z : Rsrc} (hz : z ∈ s.res) :
+    (stopRec s.now (xs.map (·.id)) z).1 ∈ (stopAll s xs).1.res ∧ Moved s.now z (stopRec s.now (xs.map (·.id)) z).1 :=
+  ⟨List.mem_map_of_mem hz, stopRec_moved _ _ z⟩
+
+theorem tick_member {c : Cfg} {s : State} {now : Nat} {smp : Sample} {p st : Nat} {g : Sig}
+    (h : Cmd.signal (.member p st) g ∈ (tick c s now smp).2) :
+    ∃ x ∈ s.res, ∃ i, x.proc = some i ∧ (∃ z ∈ (tick c s now smp).1.res, z.proc = some i ∧ z.phase.live = false) ∧
+      ∃ r ∈ smp.rows, r.pgid = i.pgid ∧ i.start ≤ r.start ∧ p = r.pid ∧ st = r.start := by
+  unfold tick at h ⊢
+  dsimp only at h ⊢
+  generalize hb : idleStage c (observe c s now smp).1 = b at h ⊢
+  generalize hd : shedStage c b.1 = d at h ⊢
+  have hdead : ∀ z ∈ (observe c s now smp).1.res, ∀ i, z.proc = some i → z.phase.live = false →
+      ∃ z' ∈ d.1.res, z'.proc = some i ∧ z'.phase.live = false := by
+    intro z hz i hi hl
+    have h1 := stopAll_moved (xs := idle c (observe c s now smp).1) hz
+    rw [show stopAll _ (idle c _) = b from hb] at h1
+    obtain ⟨hi1, hl1⟩ := moved_dead h1.2 hi hl
+    rcases shedStage_eq c b.1 with e | e <;> rw [e] at hd <;> subst hd
+    · have h2 := stopAll_moved (xs := shedPick c b.1) h1.1
+      obtain ⟨hi2, hl2⟩ := moved_dead h2.2 hi1 hl1
+      exact ⟨_, h2.1, hi2, hl2⟩
+    · exact ⟨_, h1.1, hi1, hl1⟩
+  rcases List.mem_append.1 h with h | h
+  · rcases List.mem_append.1 h with h | h
+    · rcases List.mem_append.1 h with h | h
+      · obtain ⟨x, hx, i, hi, ⟨z, hz, hzi, hzl⟩, rest⟩ := observe_member h
+        exact ⟨x, hx, i, hi, hdead z hz i hzi hzl, rest⟩
+      · rw [← hb] at h
+        obtain ⟨_, _, _, _, _, _, e⟩ := stopAll_sig h
+        cases e
+    · rw [← hd] at h
+      rcases shedStage_eq c b.1 with e | e <;> rw [e] at h
+      · obtain ⟨_, _, _, _, _, _, e⟩ := stopAll_sig h
+        cases e
+      · cases h
+  · split at h
+    · cases List.mem_singleton.1 h
+    · cases h
+
 /-- signal_identity: every signal goes to the group of a record of the state before the step, to a group reported by
-the same spawn event, to an adopted group whose leader row is in the same restart sample, to a member row of the same
-tick sample, or to a reap plan target of the same restart. -/
+the same spawn event, to an adopted group whose leader row is in the same restart sample, to a row of the same tick
+sample in the group of a record that is not live after the step and started no earlier than the group's leader, or to
+a reap plan target of the same restart. -/
 theorem signal_identity {c : Cfg} {s : State} {e : Event} {t : Target} {g : Sig} (h : Inv c s)
     (hx : Cmd.signal t g ∈ (step c s e).2) :
     (∃ i, t = .group i ∧ ((∃ y ∈ s.res, y.proc = some i) ∨ (∃ rid, e = .spawned rid (some i)) ∨
       (∃ now snap inp, e = .restart now snap inp ∧ alive inp.rows i = true)))
-    ∨ (∃ now smp, e = .tick now smp ∧ ∃ r ∈ smp.rows, t = .member r.pid r.start)
+    ∨ (∃ now smp, e = .tick now smp ∧ ∃ r ∈ smp.rows, t = .member r.pid r.start ∧ ∃ i, r.pgid = i.pgid ∧
+        i.start ≤ r.start ∧ (∃ x ∈ s.res, x.proc = some i) ∧
+        ∃ y ∈ (step c s e).1.res, y.proc = some i ∧ y.phase.live = false)
     ∨ (∃ now snap inp, e = .restart now snap inp ∧ ∃ p ∈ Fw.Ops.Reap.plan inp, t = .reap p) := by
   obtain ⟨_, hx⟩ := step_mem hx
   rcases hx with hx | hx
@@ -2555,7 +2658,13 @@ theorem signal_identity {c : Cfg} {s : State} {e : Event} {t : Target} {g : Sig}
       · simp only [Cmd.signal.injEq] at e'
         exact Or.inl ⟨i, e'.1, Or.inl ⟨y, hy, hi⟩⟩
       · simp only [Cmd.signal.injEq] at e'
-        exact Or.inr (Or.inl ⟨now, smp, rfl, r, hr, e'.1⟩)
+        obtain ⟨rfl, _⟩ := e'
+        obtain ⟨x, hx', i, hi, ⟨z, hz, hzi, hzl⟩, r', hr', hg, hs, e1, e2⟩ := tick_member hx
+        obtain ⟨⟨F, hF, hFm⟩, _⟩ := pump_pm (wf_pre (.tick now smp) h.1)
+        obtain ⟨hi', hl'⟩ := moved_dead (hFm z hz) hzi hzl
+        refine Or.inr (Or.inl ⟨now, smp, rfl, r', hr', by rw [e1, e2], i, hg, hs, ⟨x, hx', hi⟩, F z, ?_, hi', hl'⟩)
+        rw [step_st rfl, hF]
+        exact List.mem_map_of_mem hz
       · cases e'
       · cases e'
     · cases e'
@@ -3443,12 +3552,35 @@ example : ∀ r ∈ (step Ex.cfg (Ex.after Ex.freed).1 (.tick 20 Ex.calm)).1.res
 
 example : ∃ y ∈ (Ex.after Ex.freed).1.res, y.proc = some ⟨500, 7⟩ := by
   rcases signal_identity (t := .group ⟨500, 7⟩) (g := .term) (e := .tick 20 Ex.calm) (ex_inv Ex.freed) (by decide) with
-    ⟨i, e, h | ⟨_, h⟩ | ⟨_, _, _, h, _⟩⟩ | ⟨_, _, _, _, _, e⟩ | ⟨_, _, _, h, _⟩
+    ⟨i, e, h | ⟨_, h⟩ | ⟨_, _, _, h, _⟩⟩ | ⟨_, _, _, _, _, e, _⟩ | ⟨_, _, _, h, _⟩
   · injection e with e; subst e; exact h
   · cases h
   · cases h
   · cases e
   · cases h
+
+/-- Group `⟨500, 7⟩` has crashed; a member row 501 started at second 8 is left in the next sample. -/
+abbrev Ex.orphan : Sample :=
+  { Ex.calm with rows := [{ pid := 501, ppid := 1, pgid := 500, start := 8, cwd := none, kind := "x" }] }
+
+example : ∃ y ∈ (step Ex.cfg (Ex.after (Ex.held ++ [.childExit ⟨500, 7⟩])).1 (.tick 5 Ex.orphan)).1.res,
+    y.proc = some ⟨500, 7⟩ ∧ y.phase.live = false := by
+  rcases signal_identity (t := .member 501 8) (g := .kill) (e := .tick 5 Ex.orphan)
+    (ex_inv (Ex.held ++ [.childExit ⟨500, 7⟩])) (by decide) with
+    ⟨_, e, _⟩ | ⟨_, _, e, r, hr, et, i, hg, hs, _, h⟩ | ⟨_, _, _, e, _⟩
+  · cases e
+  · cases e
+    have hr' : r = { pid := 501, ppid := 1, pgid := 500, start := 8, cwd := none, kind := "x" } := by
+      simpa [Ex.orphan, Ex.calm] using hr
+    subst hr'
+    have hi : i = ⟨500, 7⟩ := by
+      obtain ⟨y, hy, hyi, _⟩ := h
+      have : ∀ y ∈ (step Ex.cfg (Ex.after (Ex.held ++ [.childExit ⟨500, 7⟩])).1 (.tick 5 Ex.orphan)).1.res,
+          ∀ j, y.proc = some j → j.pgid = 500 → j = ⟨500, 7⟩ := by decide
+      exact (this y hy i hyi hg.symm)
+    subst hi
+    exact h
+  · cases e
 
 example : Cmd.signal (.group ⟨500, 7⟩) .kill ∈
     (step Ex.cfg (Ex.after (Ex.freed ++ [.tick 20 Ex.calm])).1 (.tick 30 Ex.calm)).2 := by
