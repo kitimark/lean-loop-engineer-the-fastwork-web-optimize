@@ -19,7 +19,7 @@ export function exportProfile(rec, { id, dpr = BASE.viewport.dpr, about }) {
   const endFrame = ss[ss.length - 1].f0 + ss[ss.length - 1].path.length;
   const profile = {
     id,
-    about: about ?? `Replay of one recorded finger gesture (${ss.length} strokes, ${endFrame} frames at ${BASE.hz} Hz): the touch positions of a person's pass, one event per virtual frame, over the first ${endFrame} frames after a short rest; taps (felt marks) are not replayed. Triple-tap marks fall at the frames listed in input.feltFrames. Open loop: the scroll the page makes is the page's own response to the gesture.`,
+    about: about ?? `Replay of one recorded finger gesture (${ss.length} strokes, ${endFrame} frames at ${BASE.hz} Hz): the touch positions of a person's pass, one event per virtual frame, over the first ${endFrame} frames after a short rest; taps (felt marks) are not replayed. Triple-tap marks fall at the frames listed in input.feltFrames. Open loop: the finger path is replayed exactly; the scroll after each lift-off is Chromium's own fling, not iOS momentum, so the positions at input.feltFrames are not the phone's (compare zones, not frames).`,
     hz: BASE.hz,
     viewport: { width: rec.w, height: rec.h, dpr, mobile: true, touch: true },
     pinnedDate: BASE.pinnedDate, timezone: BASE.timezone, locale: BASE.locale, seed: BASE.seed,

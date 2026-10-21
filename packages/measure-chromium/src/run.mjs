@@ -279,7 +279,7 @@ if (inputMode === 'scrollTo' || inputMode === 'page') {
   // "replay" (a person's recorded gesture, input.strokes): the touch events come from the file frame by frame, open loop.
   const script = replayStrokes ? replayEvents(replayStrokes) : [];
   for (const seg of profile.segments) {
-    if (seg.until === 'script') { for (let f = 0; f < script.length; f++) await runFrame(() => ({ phase: 'replay', touch: script[f] ?? null })); continue; }
+    if (seg.until === 'script') { for (let f = 0; f < script.length; f++) await runFrame(() => ({ phase: 'replay', touch: script[f] ?? null })); if (script.length > 0 && yMax < 1) throw new Error('replayed gesture did not scroll the page'); continue; }
     if (seg.until !== 'end') { for (let i = 0; i < seg.frames; i++) await runFrame(() => ({ phase: seg.name, touch: null })); continue; }
     for (let guard = 0; !finished; guard++) {
       let stop = false;

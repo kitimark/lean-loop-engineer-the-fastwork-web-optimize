@@ -11,20 +11,30 @@ Code: `packages/measure-webkit/src/device-record.mjs` (page recorder, banner flo
 ## What a pass records (`fw.phone.record/1`, page units)
 
 - Per native `requestAnimationFrame`: timestamp (ms), `scrollY` (px) and three part values (per mille, read from the inline custom
-  properties the page writes): hero exit `--exit-opacity`, people reveal `--future-shrink`, end-of-page morph `--morph-fade`.
+  properties the page writes): hero exit `--exit-opacity`, people card shrink `--future-shrink`, end-of-page morph `--morph-fade`.
 - Every touch event: time, phase (`s` start, `m` move, `e` end, `c` cancel), x, y, fingers down. Listeners are passive and never call
   `preventDefault`, so the page behaves as without them.
-- A triple tap anywhere is a felt-lag mark. It is not a special event: Lean finds it afterwards (three taps, each at most 300 ms
+- A triple tap on an empty area is a felt-lag mark. It is not a special event: Lean finds it afterwards (three taps, each at most 300 ms
   long and 10 px travel at most, 0.5 s apart at most, within 40 px of each other).
 - No device name, address or id is in a record. The file holds raw timestamps, so it stays local (`.local/phone/<date>/`, gitignored).
 
 Not recorded: the Timeline. `swipe --timeline` (unchanged) is the counts arm; the recorder takes the frame-interval arm because the
 Timeline costs time on the page.
 
-Known effects: (1) a touch on a moving page stops its native fling, so the person's taps change the scroll they mark; tell the
-person to tap and carry on. (2) The recorder's own rAF callback and three inline style reads run every frame (inline reads do not
-flush layout); it runs before the page's callbacks of that frame, so a part value is the one written in the frame before. Both arms
-and both original passes carry the same effect, so the comparison is unaffected.
+Known effects:
+1. A touch on a moving page stops its native fling, so the person's taps change the scroll they mark; tell the person to tap and
+   carry on.
+2. The recorder's own rAF callback and three inline style reads run every frame (inline reads do not flush layout). It runs before
+   the page's callbacks of that frame, so the value read in frame i+1 is the one the page wrote in frame i from the position of frame
+   i. Lean `partSeries` pairs each value with that earlier position, and the stall rule compares those pairs (the old pairing of a
+   value with the position read beside it counted a false stall at every scroll start). All arms and both original passes carry the
+   same probe effect, so the comparison is unaffected.
+3. The mark must not change the page. The step text says "tap 3 times quickly on an empty area (not on text, a link or a button)". A
+   tap on a link navigates away and loses the pass: a passive `pagehide` listener writes `page navigated (a tap hit a link)`, and the
+   poll names the same failure when the recorder's page is gone, so the step fails with that reason instead of a timeout. Three taps
+   on text can start a text selection, and a double tap can zoom (the viewport does not forbid it): the visual viewport `scale` is
+   read every frame, the record carries `zoom {frames, min, max}` for the frames at a scale other than 1, and the CLI prints
+   `zoomFrames` and logs a warning. Repeat a step with zoom frames or a navigation.
 
 ## Reductions (Lean `Fw.Device.Session`)
 
@@ -37,33 +47,41 @@ pass is `unresolved`). This is why the plan has two original passes.
 
 ## Session steps (the lead relays these one at a time; each is a short instruction to the user)
 
-Before: the phone is plugged in and unlocked, Light appearance, auto-lock off, no other pass in the last 5 minutes (block <= 15 min,
-cool >= 5; the five passes take about 9 minutes). `sh scripts/sim-lock.sh` is not involved. Output files go to
+Before: check what the arms load (`node src/device-cli.mjs plan --search '?fw=<look flags>'` prints the plan and, on stderr, each
+dropped arm). The v2-proved preset is resolved at record time; when it resolves to no flags (on main it is `{"fw":{}}`) the v2 arm
+loads the same page as the rewrite and Lean's `dedupArms` drops it, so the session has four steps (original, rewrite, look-change,
+original) and the user never spends a pass on a duplicate. The same holds for a look-change list equal to v2's or empty. Lean proves
+that the first arm is kept, no two kept arms load the same page, and every dropped arm has a kept twin. Every `plan` and `record`
+command takes the same `--search` (the look-change flags the lead chose) so that all of them compute the same plan.
+
+The phone is plugged in and unlocked, Light appearance, auto-lock off, no other pass in the last 5 minutes (block <= 15 min,
+cool >= 5; each pass is 90 s plus a 6 s countdown: about 9 minutes for five, 7 for four). `sh scripts/sim-lock.sh` is not involved. Output files go to
 `.local/phone/<date>/rec-<k>.json`. Run from `packages/measure-webkit` with Node 24; the rewrite is built (`apps/site/dist/aot`).
 
-`node src/device-cli.mjs plan` prints the five banner texts. The banner is drawn on the phone's page; the lead tells the user the same
-words in the console.
+The banner is drawn on the phone's page; the lead tells the user the same words in the console. Steps below are for the full plan of
+five; with the v2 arm dropped, steps 4 and 5 become 3 and 4 and every "of 5" reads "of 4" (the texts come from `plan`).
 
-| step | arm | command | what the user is told |
+| step | arm | command (all with `--search '?fw=<look flags>'`) | what the user is told |
 |---|---|---|---|
-| 1 | original | `node src/device-cli.mjs record --step 1 --target original --out ../../.local/phone/<date>/rec-1.json` | "Step 1 of 5, the original page: swipe top to bottom and back at normal reading speed for 90 s; when it feels laggy, tap 3 times quickly." |
+| 1 | original | `node src/device-cli.mjs record --step 1 --target original --out ../../.local/phone/<date>/rec-1.json` | "Step 1 of 5, the original page: swipe top to bottom and back at normal reading speed for 90 s; when it feels laggy, tap 3 times quickly on an empty area (not on text, a link or a button)." |
 | 2 | rewrite | `... record --step 2 --target rewrite --site ../../apps/site/dist/aot --out .../rec-2.json` | same, "the faithful rewrite" |
-| 3 | rewrite + v2-proved flags | `... record --step 3 --target rewrite --site ../../apps/site/dist/aot --out .../rec-3.json` (search `?preset=v2-proved` is the default of step 3) | same, "the rewrite with the v2-proved flags" |
-| 4 | rewrite + look-change flags | `... record --step 4 --target rewrite --site ../../apps/site/dist/aot --search '?fw=<part:variant,...>' --out .../rec-4.json` | same, "the rewrite with the look-change flags"; the lead picks the flags from `packages/contracts/golden/preset/look-change.candidates.jsonl` before the session and puts them in the report |
+| 3 | rewrite + v2-proved flags (only if the preset is non-empty) | `... record --step 3 --target rewrite --site ../../apps/site/dist/aot --out .../rec-3.json` | same, "the rewrite with the v2-proved flags" |
+| 4 | rewrite + look-change flags | `... record --step 4 --target rewrite --site ../../apps/site/dist/aot --out .../rec-4.json`; the lead picks the flags from `packages/contracts/golden/preset/look-change.candidates.jsonl` before the session and puts them in the report | same, "the rewrite with the look-change flags" |
 | 5 | original again | `... record --step 5 --target original --out .../rec-5.json` | same, "the original page, again" |
 
 Each command first shows a 6 s countdown banner with the step text, then removes the banner and records 90 s, then shows "DONE". The
 lead sends the next step only after the previous command printed its one-line summary (frames, taps, felt marks). A step whose
-arm and `--target` disagree, or step 4 without `--search`, is refused before the phone is touched. If a pass lost frames (summary
+arm and `--target` disagree, or any command without `--search`, is refused before the phone is touched. If a pass lost frames (summary
 `frames` far under 5400), repeat that step alone.
 
 ## After the session (no phone)
 
 - `node src/device-cli.mjs reduce --in rec-1.json,rec-2.json,rec-3.json,rec-4.json,rec-5.json` prints the comparison per zone.
-- `node src/device-cli.mjs package --kind session --in <the five> --date <date> --out ../../results/phone/<date>` writes
+- `node src/device-cli.mjs package --kind session --in <all the passes> --date <date> --out ../../results/phone/<date>` writes
   `summary.json` and `summary.md`: reports, comparison and felt marks with position, zone and counts only. No time stamps, no
   per-frame data, no touch points, no device. Commit only that directory.
-- Replay the user's exact gesture in CI: `node src/device-cli.mjs profile --in rec-1.json --id user-<date> --out
+- Replay the user's finger path in CI (exact positions and timing of the touches; the scroll after each lift-off is Chromium's own
+  fling, not iOS momentum, so the replay positions at `feltFrames` are not the phone's: compare zones, not frames): `node src/device-cli.mjs profile --in rec-1.json --id user-<date> --out
   ../measure-chromium/profiles/user-<date>.json` (one profile per pass; taps are dropped, the swipes are replayed one event per
   virtual frame; `input.feltFrames` lists the frames of the marks). Commit it, push `ci/<name>`, then
   `pnpm -s fw run --engines chromium --target both --profile user-<date> --runs 3 --ref ci/<name>`.

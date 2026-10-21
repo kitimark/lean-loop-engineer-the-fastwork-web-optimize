@@ -1,6 +1,6 @@
 {
   "id": "user-fixture",
-  "about": "Replay of one recorded finger gesture (5 strokes, 408 frames at 60 Hz): the touch positions of a person's pass, one event per virtual frame, over the first 408 frames after a short rest; taps (felt marks) are not replayed. Triple-tap marks fall at the frames listed in input.feltFrames. Open loop: the scroll the page makes is the page's own response to the gesture.",
+  "about": "Replay of one recorded finger gesture (5 strokes, 408 frames at 60 Hz): the touch positions of a person's pass, one event per virtual frame, over the first 408 frames after a short rest; taps (felt marks) are not replayed. Triple-tap marks fall at the frames listed in input.feltFrames. Open loop: the finger path is replayed exactly; the scroll after each lift-off is Chromium's own fling, not iOS momentum, so the positions at input.feltFrames are not the phone's (compare zones, not frames).",
   "hz": 60,
   "viewport": {
     "width": 430,

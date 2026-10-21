@@ -3,8 +3,8 @@
 //   node src/device-cli.mjs ping
 //   node src/device-cli.mjs counts  --target original|rewrite [--site <dist/aot>] [--search '?...'] [--passes 3] [--out file]
 //   node src/device-cli.mjs swipe  --target original|rewrite [--site ..] [--seconds 100] [--timeline] [--wait-light s] [--out file]  (a person swipes)
-//   node src/device-cli.mjs plan                                        (the A/B/A steps and their banner texts)
-//   node src/device-cli.mjs record --step k --target original|rewrite [--site ..] [--search ..] --out rec-k.json  (a person swipes; arm from the plan)
+//   node src/device-cli.mjs plan --search '?fw=part:variant,...'       (the A/B/A steps and banner texts; an arm that loads the same page as an earlier one is dropped)
+//   node src/device-cli.mjs record --step k --target original|rewrite [--site ..] --search '?fw=..' --out rec-k.json  (a person swipes; arm from the plan; --search is the look-change arm's flags)
 //   node src/device-cli.mjs reduce --in rec-1.json,rec-2.json,...      (Lean reductions + comparison; no phone)
 //   node src/device-cli.mjs profile --in rec-k.json --id user-<name> --out ../measure-chromium/profiles/user-<name>.json
 //   node src/device-cli.mjs package --kind session --in rec-1.json,... --date YYYY-MM-DD --out results/phone/<date>
@@ -20,7 +20,8 @@ import { simPasses, phonePasses, compareArms, compareMarkdown, stripCounts, pool
 import { summarizeFrames } from './device-runs.mjs';
 import { phoneSwipe } from './device-swipe.mjs';
 import { phoneRecord, stepOf } from './device-record.mjs';
-import { PLAN, CONST, reducePass, compareZones, normalize } from './device-session.mjs';
+import { CONST, reducePass, compareZones, normalize } from './device-session.mjs';
+import { sessionPlan, armSearch } from './device-arms.mjs';
 import { readRecord, writeProfile, writePackage } from './device-profile.mjs';
 
 const argv = process.argv.slice(2).filter((a) => a !== '--');
@@ -68,20 +69,22 @@ async function main() {
       break;
     }
     case 'plan': {
-      for (const s of PLAN) console.log(`${s.step}. [${s.arm}] ${s.text}`);
+      const sp = sessionPlan(v.search);
+      for (const s of sp.plan) console.log(`${s.step}. [${s.arm}] ${s.text}`);
+      for (const d of sp.dropped) console.error(`dropped arm ${d.arm}: it loads the same page as ${d.sameAs} (flags [${d.flags}]); no pass is spent on it`);
       break;
     }
     case 'record': {
-      const step = stepOf(Number(v.step));
-      const pass = PLAN.filter((s) => s.arm === step.arm && s.step <= step.step).length;
+      const sp = sessionPlan(v.search);
+      const step = stepOf(Number(v.step), sp.plan);
+      const pass = sp.plan.filter((s) => s.arm === step.arm && s.step <= step.step).length;
       if ((step.arm === 'original') !== (v.target === 'original')) throw new Error(`step ${step.step} is arm ${step.arm}: --target must be ${step.arm === 'original' ? 'original' : 'rewrite'}`);
-      if (step.arm === 'look' && !v.search) throw new Error('the look-change arm needs --search ?fw=part:variant,... (chosen by the lead)');
-      const search = v.search || (step.arm === 'v2' ? '?preset=v2-proved' : '');
+      const search = step.arm === 'original' ? '' : armSearch(step.arm, v.search);
       const opts = { site: v.target === 'rewrite' ? { dir: v.site, search } : null, log };
       const r = await withPhone((ctx) => phoneRecord(ctx, { arm: step.arm, pass, seconds: step.seconds, text: step.text, waitLightS: Number(v['wait-light']), loadFresh, clock: v.clock, settleMs: Number(v.settle), log: ctx.log }), opts);
       save(r);
       const sum = reducePass(normalize(r));
-      console.log(JSON.stringify({ arm: r.arm, pass: r.pass, frames: r.frames.t.length, maxY: r.maxY, taps: sum.taps, felt: sum.felt.length, total: sum.total }));
+      console.log(JSON.stringify({ arm: r.arm, pass: r.pass, frames: r.frames.t.length, maxY: r.maxY, taps: sum.taps, felt: sum.felt.length, zoomFrames: r.zoom?.frames ?? 0, total: sum.total }));
       break;
     }
     case 'reduce': {

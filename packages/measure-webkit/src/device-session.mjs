@@ -8,8 +8,29 @@ const GOLDEN = readFileSync(new URL('../../contracts/golden/device/session.jsonl
   .split('\n').filter(Boolean).map((l) => JSON.parse(l));
 /** The constants Lean owns, read from the generated golden. */
 export const CONST = Object.freeze(GOLDEN.find((l) => l.kind === 'consts'));
-/** The session plan: one entry per step, in order, with the banner text Lean wrote. */
-export const PLAN = Object.freeze(GOLDEN.filter((l) => l.kind === 'plan').map(({ step, arm, seconds, text }) => Object.freeze({ step, arm, seconds, text })));
+const PLANS = new Map();
+for (const { set, step, arm, seconds, text } of GOLDEN.filter((l) => l.kind === 'plan')) {
+  if (!PLANS.has(set)) PLANS.set(set, []);
+  PLANS.get(set).push(Object.freeze({ step, arm, seconds, text }));
+}
+/** The session plan for the rewrite arms that stay (`['rewrite','v2']`, ...): one entry per step, with the banner text Lean wrote. */
+export function planFor(kept) {
+  const p = PLANS.get(kept.join('+'));
+  if (!p) throw new Error(`no plan for the arms [${kept}] (Lean writes plans for ${[...PLANS.keys()].join(' | ')})`);
+  return Object.freeze(p);
+}
+/** The longest plan (all three rewrite arms). */
+export const PLAN = planFor(['rewrite', 'v2', 'look']);
+
+/** Lean `sameFlags`: two flag lists name the same page when each entry of one is in the other. */
+export const sameFlags = (a, b) => a.every((x) => b.includes(x)) && b.every((x) => a.includes(x));
+
+/** Lean `dedupArms`: the arms of [[arm, flags]] that stay; an arm whose flags equal those of an earlier kept arm is dropped. */
+export function dedupArms(xs) {
+  const seen = [], out = [];
+  for (const [arm, flags] of xs) if (!seen.some((s) => sameFlags(flags, s))) { seen.push(flags); out.push(arm); }
+  return out;
+}
 export const ZONES = Object.freeze(['hero', 'finish', 'rest']);
 
 export const zoneOf = (vh10, maxY10, y) => (y < 2 * vh10 ? 'hero' : maxY10 - y < vh10 ? 'finish' : 'rest');
@@ -46,7 +67,13 @@ export function verdict(orig, arm) {
   return 'same';
 }
 
-/** Frame pairs in which the page moved but the part's value stayed mid-transition. */
+/**
+ * Lean `partSeries`: each value paired with the scroll position it was computed from. The recorder's rAF callback runs before the
+ * page's in a frame, so the value read in frame i+1 is the one the page wrote in frame i from ys[i].
+ */
+export const partSeries = (ys, vs) => ys.slice(0, Math.max(0, vs.length - 1)).map((y, i) => [y, vs[i + 1]]);
+
+/** Frame pairs in which the page moved but the part's value stayed mid-transition (pairs from `partSeries`). */
 export function stalls(series) {
   let n = 0;
   for (let i = 1; i < series.length; i++) {
@@ -164,7 +191,7 @@ export function reducePass(r) {
     zones: Object.fromEntries(ZONES.map((z) => [z, stat(inZone(vh10, r.maxY10, z, rows))])),
     taps: tp.length,
     felt: marksOf(tp).map((m) => feltOf(vh10, r.maxY10, frames, m)),
-    parts: Object.fromEntries(Object.entries(r.p).map(([n, vs]) => { const sr = r.y.map((y, i) => [y, vs[i]]); return [n, { maxStep: maxStep(sr), stalls: stalls(sr) }]; })),
+    parts: Object.fromEntries(Object.entries(r.p).map(([n, vs]) => [n, { maxStep: maxStep(r.y.map((y, i) => [y, vs[i]])), stalls: stalls(partSeries(r.y, vs)) }])),
   };
 }
 

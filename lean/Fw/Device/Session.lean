@@ -326,6 +326,30 @@ theorem maxStep_const (v : Int) : ∀ l : List Int, maxStep (l.map fun y => (y, 
     simp [maxStep, stepAbs, maxOf0] at ih ⊢
     omega
 
+/-- The part series of a pass: each value paired with the scroll position it was computed from.
+The recorder's `requestAnimationFrame` callback runs before the page's in a frame, so the value it reads in frame `i + 1` is the one
+the page wrote in frame `i` from the position `ys[i]`. Pairing `ys[i]` with `vs[i + 1]` therefore compares what the page did with
+the value it made. -/
+def partSeries (ys vs : List Int) : List (Int × Int) := ys.zip (vs.drop 1)
+
+/-- A value that is a function `f` of the position one frame earlier gives pairs (position, f position): each value is paired with its source. -/
+theorem partSeries_lag (f : Int → Int) (x : Int) (ys : List Int) :
+    partSeries ys (x :: ys.map f) = ys.map fun y => (y, f y) := by
+  induction ys with
+  | nil => simp [partSeries]
+  | cons y rest ih => simp [partSeries] at ih ⊢; exact ih
+
+/-- A pair of the lagged series is a stall exactly when the page moved, the function gave the same value for both positions, and that value is mid-transition. -/
+theorem stallAt_fn (f : Int → Int) (y y' : Int) :
+    stallAt (y, f y) (y', f y') = true ↔ y ≠ y' ∧ f y = f y' ∧ 0 < f y ∧ f y < 1000 := by
+  simp [stallAt, and_assoc]
+
+/-- Pairing a value with the position of its own frame (the old rule) counts a stall where nothing stalled: the page stood at 100 for
+two frames, then moved to 200 and 300, and the value is 500, 500, 600 from those positions (read one frame late). -/
+theorem partSeries_no_false_stall :
+    stalls (partSeries [100, 100, 200, 300] [0, 500, 500, 600]) = 0 ∧ stalls ([100, 100, 200, 300].zip [0, 500, 500, 600]) = 1 := by
+  decide
+
 /-! ## Touches, taps and felt marks -/
 
 /-- A touch event: start, move, stop or cancel. -/
@@ -650,8 +674,11 @@ def Arm.label : Arm → String
   | .v2 => "the REWRITE with the v2-proved flags"
   | .look => "the REWRITE with the look-change flags"
 
-/-- Original, rewrite, rewrite with v2-proved, look-change, original again. -/
-def plan : List Arm := [.original, .rewrite, .v2, .look, .original]
+/-- The original, the given rewrite arms in order, the original again (A/B/A: the first and last pass are the same page). -/
+def planOf (mid : List Arm) : List Arm := .original :: (mid ++ [.original])
+
+/-- The longest plan: original, rewrite, rewrite with v2-proved, look-change, original again. -/
+def plan : List Arm := planOf [.rewrite, .v2, .look]
 
 /-- Seconds of swiping per pass. -/
 def recSeconds : Nat := 90
@@ -668,9 +695,140 @@ theorem plan_no_repeat : (plan.zip plan.tail).all (fun p => p.1 != p.2) = true :
 
 theorem plan_fits_block : plan.length * recSeconds ≤ 900 := by decide
 
-/-- The banner text of step `k` (counted from 0). -/
-def stepText (k : Nat) (a : Arm) : String :=
-  s!"Step {k + 1} of {plan.length}: {a.label}. Swipe with your finger from the top of the page to the bottom and back at your normal reading speed for {recSeconds} s. When it feels laggy, tap the screen 3 times quickly."
+/-! ## Arms that load the same page are one arm
+
+A rewrite arm is named by the flags it resolves to (`part:variant` entries, in any order, defaults removed). When the preset of the
+v2 arm resolves to no flags it is the faithful rewrite again; a pass of it would be a duplicate, so the plan drops it. -/
+
+/-- Two flag sets are the same page: each entry of one is in the other. -/
+def sameFlags (a b : List String) : Bool := a.all (fun x => decide (x ∈ b)) && b.all (fun x => decide (x ∈ a))
+
+theorem sameFlags_comm (a b : List String) : sameFlags a b = sameFlags b a := by
+  simp only [sameFlags]
+  exact Bool.and_comm _ _
+
+theorem sameFlags_refl (a : List String) : sameFlags a a = true := by
+  simp [sameFlags]
+
+/-- Keep an arm unless an arm kept before it (or in `seen`) loads the same page. -/
+def dedupAux : List (List String) → List (Arm × List String) → List (Arm × List String)
+  | _, [] => []
+  | seen, x :: rest =>
+    if seen.any (sameFlags x.2) then dedupAux seen rest else x :: dedupAux (x.2 :: seen) rest
+
+/-- The arms of a list of (arm, resolved flags) that stay, in order. -/
+def dedupArms (xs : List (Arm × List String)) : List Arm := (dedupAux [] xs).map (·.1)
+
+theorem dedupAux_sub : ∀ (seen : List (List String)) (xs : List (Arm × List String)) {x}, x ∈ dedupAux seen xs → x ∈ xs
+  | _, [], _, h => by simp [dedupAux] at h
+  | seen, y :: rest, x, h => by
+    unfold dedupAux at h
+    split at h
+    · exact List.mem_cons_of_mem _ (dedupAux_sub seen rest h)
+    · rcases List.mem_cons.mp h with rfl | h
+      · exact List.mem_cons_self
+      · exact List.mem_cons_of_mem _ (dedupAux_sub _ rest h)
+
+/-- A kept arm loads a page none of the earlier ones loads. -/
+theorem dedupAux_fresh : ∀ (seen : List (List String)) (xs : List (Arm × List String)) {x},
+    x ∈ dedupAux seen xs → seen.any (sameFlags x.2) = false
+  | _, [], _, h => by simp [dedupAux] at h
+  | seen, y :: rest, x, h => by
+    unfold dedupAux at h
+    split at h
+    · exact dedupAux_fresh seen rest h
+    · rcases List.mem_cons.mp h with rfl | h
+      · simp_all
+      · have := dedupAux_fresh _ rest h
+        simp only [List.any_cons, Bool.or_eq_false_iff] at this
+        exact this.2
+
+/-- No two kept arms load the same page. -/
+theorem dedupAux_pairwise : ∀ (seen : List (List String)) (xs : List (Arm × List String)),
+    (dedupAux seen xs).Pairwise (fun p q => sameFlags p.2 q.2 = false)
+  | _, [] => by simp [dedupAux]
+  | seen, y :: rest => by
+    unfold dedupAux
+    split
+    · exact dedupAux_pairwise seen rest
+    · refine List.Pairwise.cons ?_ (dedupAux_pairwise _ rest)
+      intro q hq
+      have := dedupAux_fresh _ rest hq
+      simp only [List.any_cons, Bool.or_eq_false_iff] at this
+      rw [sameFlags_comm]; exact this.1
+
+/-- Nothing is lost: every input arm loads a page that a kept arm (or an arm already in `seen`) loads. -/
+theorem dedupAux_covered : ∀ (seen : List (List String)) (xs : List (Arm × List String)) {x}, x ∈ xs →
+    (∃ s ∈ seen, sameFlags x.2 s = true) ∨ ∃ y ∈ dedupAux seen xs, sameFlags x.2 y.2 = true
+  | _, [], _, h => by simp at h
+  | seen, y :: rest, x, h => by
+    unfold dedupAux
+    split
+    · rename_i hs
+      rcases List.mem_cons.mp h with rfl | h
+      · left
+        obtain ⟨s, hs', hss⟩ := List.any_eq_true.mp hs
+        exact ⟨s, hs', hss⟩
+      · exact dedupAux_covered seen rest h
+    · rcases List.mem_cons.mp h with rfl | h
+      · right; exact ⟨x, List.mem_cons_self, sameFlags_refl _⟩
+      · rcases dedupAux_covered (y.2 :: seen) rest h with ⟨s, hs, hss⟩ | ⟨z, hz, hzz⟩
+        · rcases List.mem_cons.mp hs with rfl | hs
+          · right; exact ⟨y, List.mem_cons_self, hss⟩
+          · left; exact ⟨s, hs, hss⟩
+        · right; exact ⟨z, List.mem_cons_of_mem _ hz, hzz⟩
+
+/-- The first arm is always kept. -/
+theorem dedupArms_head (a : Arm) (f : List String) (rest : List (Arm × List String)) :
+    (dedupArms ((a, f) :: rest)).head? = some a := by
+  simp [dedupArms, dedupAux]
+
+theorem dedupArms_length_le (xs : List (Arm × List String)) : (dedupArms xs).length ≤ xs.length := by
+  have : ∀ (seen : List (List String)) (xs : List (Arm × List String)), (dedupAux seen xs).length ≤ xs.length := by
+    intro seen xs
+    induction xs generalizing seen with
+    | nil => simp [dedupAux]
+    | cons y rest ih =>
+      unfold dedupAux
+      split
+      · exact Nat.le_succ_of_le (ih seen)
+      · simp only [List.length_cons]; exact Nat.succ_le_succ (ih _)
+  simpa [dedupArms] using this [] xs
+
+/-- Arms with pairwise different flags all stay: the v2 arm is dropped only when it is a duplicate. -/
+theorem dedupArms_distinct (a b c : List String) (hab : sameFlags a b = false) (hac : sameFlags a c = false)
+    (hbc : sameFlags b c = false) :
+    dedupArms [(.rewrite, a), (.v2, b), (.look, c)] = [.rewrite, .v2, .look] := by
+  have hba : sameFlags b a = false := by rw [sameFlags_comm]; exact hab
+  have hca : sameFlags c a = false := by rw [sameFlags_comm]; exact hac
+  have hcb : sameFlags c b = false := by rw [sameFlags_comm]; exact hbc
+  simp [dedupArms, dedupAux, hba, hca, hcb]
+
+/-- The v2 arm with no flags is the rewrite again and is dropped. -/
+theorem dedupArms_v2_empty (c : List String) :
+    (dedupArms [(.rewrite, []), (.v2, []), (.look, c)]).head? = some .rewrite ∧
+    Arm.v2 ∉ dedupArms [(.rewrite, []), (.v2, []), (.look, c)] := by
+  constructor
+  · exact dedupArms_head _ _ _
+  · by_cases h : sameFlags c [] = true <;> simp [dedupArms, dedupAux, sameFlags, List.all] at * <;> simp_all
+
+/-- The plans the dedup can produce from the three rewrite arms. -/
+def planSets : List (List Arm) := [[.rewrite], [.rewrite, .v2], [.rewrite, .look], [.rewrite, .v2, .look]]
+
+theorem dedup_std (a b c : List String) : dedupArms [(.rewrite, a), (.v2, b), (.look, c)] ∈ planSets := by
+  simp only [dedupArms, dedupAux, List.any_nil, List.any_cons, Bool.or_false, Bool.false_eq_true, ite_false]
+  split <;> split <;> simp_all [planSets]
+
+/-- A session plan the user can run: A/B/A, no adjacent repeat, original exactly twice, within the 15-minute block. -/
+def planOk (p : List Arm) : Bool :=
+  p.head? == some .original && p.getLast? == some .original && p.count .original == 2 &&
+    (p.zip p.tail).all (fun q => q.1 != q.2) && decide (p.length * recSeconds ≤ 900)
+
+theorem planOk_sets : ∀ mid ∈ planSets, planOk (planOf mid) = true := by decide
+
+/-- The banner text of step `k` (counted from 0) of a plan of `n` steps. -/
+def stepText (n k : Nat) (a : Arm) : String :=
+  s!"Step {k + 1} of {n}: {a.label}. Swipe with your finger from the top of the page to the bottom and back at your normal reading speed for {recSeconds} s. When it feels laggy, tap 3 times quickly on an empty area (not on text, a link or a button)."
 
 /-! ## One pass -/
 
@@ -703,7 +861,7 @@ def reducePass (r : Record) : Report :=
     zones := [Zone.hero, .finish, .rest].map fun z => (z, stat (inZone vh10 r.maxY10 z rows))
     taps := tp.length
     felt := (marksOf tp).map (feltOf vh10 r.maxY10 fs)
-    parts := r.parts.map fun (n, vs) => let sr := r.ys.zip vs; (n, maxStep sr, stalls sr)
+    parts := r.parts.map fun (n, vs) => (n, maxStep (r.ys.zip vs), stalls (partSeries r.ys vs))
     replay := replay r.touches r.w r.h }
 
 theorem reducePass_zones_total (r : Record) :
@@ -773,11 +931,12 @@ private def clamp01 (v : Int) : Int := max 0 (min 1000 v)
 
 private def synthFrac (y : Int) : Int := y * 1000 / (synthVh * 10)
 
-private def synthHero (k : Nat) : Int := 1000 - clamp01 (synthFrac (synthY (if 110 ≤ k ∧ k ≤ 113 then 109 else k)))
+/-- Frame `k` shows the value the page wrote in frame `k - 1` (the recorder's callback runs first), so each part is a function of `synthY (k - 1)`. -/
+private def synthHero (k : Nat) : Int := 1000 - clamp01 (synthFrac (synthY (if 110 ≤ k - 1 ∧ k - 1 ≤ 113 then 109 else k - 1)))
 
-private def synthPeople (k : Nat) : Int := clamp01 ((synthFrac (synthY k) - 720) * 1000 / 280)
+private def synthPeople (k : Nat) : Int := clamp01 ((synthFrac (synthY (k - 1)) - 720) * 1000 / 280)
 
-private def synthFade (k : Nat) : Int := clamp01 ((synthY k - (synthMaxY10 - synthVh * 10)) * 1000 / (synthVh * 10))
+private def synthFade (k : Nat) : Int := clamp01 ((synthY (k - 1) - (synthMaxY10 - synthVh * 10)) * 1000 / (synthVh * 10))
 
 private def synthTouches (ts : List Int) : List Touch :=
   let tm (k : Nat) : Int := ts.getD k 0 - 300
@@ -829,6 +988,20 @@ private def partCases : List (List (Int × Int)) :=
   [[(0, 0), (10, 100), (20, 100), (30, 100), (40, 300), (50, 1000), (60, 1000)], [(0, 500), (0, 500), (10, 500)],
    [(0, 0), (10, 0), (20, 1000), (30, 1000)], [], [(5, 700)]]
 
+/-- (positions, values): a value read in frame `i + 1` came from the position of frame `i`. -/
+private def seriesCases : List (List Int × List Int) :=
+  [([100, 100, 200, 300], [0, 500, 500, 600]), ([100, 200, 300, 400], [0, 500, 500, 500]), ([0, 0, 0], [500, 500, 500]),
+   ([100, 200], [0, 1000]), ([], []), ([5], [700]), ([10, 20, 30], [0, 0, 0])]
+
+private def dedupCases : List (List (Arm × List String)) :=
+  [[(.rewrite, []), (.v2, []), (.look, ["engine.scroll:lean"])],
+   [(.rewrite, []), (.v2, ["hero.exit:css"]), (.look, ["hero.exit:css"])],
+   [(.rewrite, []), (.v2, ["hero.exit:css", "people.card:css"]), (.look, ["people.card:css", "hero.exit:css"])],
+   [(.rewrite, []), (.v2, ["hero.exit:css"]), (.look, ["people.card:css"])],
+   [(.rewrite, []), (.v2, []), (.look, [])],
+   [(.rewrite, []), (.v2, ["hero.exit:css"]), (.look, [])],
+   [(.rewrite, []), (.v2, ["hero.exit:css"]), (.look, ["hero.exit:css", "people.card:css"])]]
+
 private def tp (t x y : Int) : Tap := ⟨t, x, y⟩
 
 private def markCases : List (List Tap) :=
@@ -863,8 +1036,14 @@ private def goldenLines (_ : Unit) : List String :=
   [(Json.mkObj [("kind", "consts"), ("slow", slow), ("bad", bad), ("lookback", lookback), ("tapMs", (30000 : Int)),
     ("tapTravel", (100 : Int)), ("gapMs", (50000 : Int)), ("nearPx", (400 : Int)), ("hz", (60 : Int)),
     ("zoneViewports", (2 : Int)), ("recSeconds", recSeconds), ("maxReplayFrames", replayCap)]).compress] ++
-  (plan.zipIdx.map fun (a, k) =>
-    (Json.mkObj [("kind", "plan"), ("step", toJson (k + 1)), ("arm", a.code), ("seconds", recSeconds), ("text", stepText k a)]).compress) ++
+  (planSets.flatMap fun mid =>
+    let p := planOf mid
+    p.zipIdx.map fun (a, k) =>
+      (Json.mkObj [("kind", "plan"), ("set", String.intercalate "+" (mid.map Arm.code)), ("step", toJson (k + 1)), ("arm", a.code),
+        ("seconds", recSeconds), ("text", stepText p.length k a)]).compress) ++
+  (dedupCases.map fun xs =>
+    (Json.mkObj [("kind", "dedup"), ("arms", Json.arr (xs.map fun (a, f) => Json.arr #[a.code, toJson f]).toArray),
+      ("kept", toJson ((dedupArms xs).map Arm.code))]).compress) ++
   (zoneCases.map fun (y : Int) =>
     (Json.mkObj [("kind", "zone"), ("vh10", vh10c), ("maxY10", maxc), ("y", y), ("zone", (zoneOf vh10c maxc y).name)]).compress) ++
   (statCases.map fun fs =>
@@ -877,6 +1056,9 @@ private def goldenLines (_ : Unit) : List String :=
       ("verdict", (verdict o a).name)]).compress) ++
   (partCases.map fun sr =>
     (Json.mkObj [("kind", "part"), ("series", pairsJ sr), ("maxStep", maxStep sr), ("stalls", stalls sr)]).compress) ++
+  (seriesCases.map fun (ys, vs) =>
+    (Json.mkObj [("kind", "series"), ("ys", toJson ys), ("vs", toJson vs), ("series", pairsJ (partSeries ys vs)),
+      ("maxStep", maxStep (ys.zip vs)), ("stalls", stalls (partSeries ys vs))]).compress) ++
   (markCases.map fun l =>
     (Json.mkObj [("kind", "marks"), ("taps", Json.arr (l.map fun t => toJson [t.t, t.x, t.y]).toArray),
       ("marks", Json.arr ((marksOf l).map fun t => toJson [t.t, t.x, t.y]).toArray)]).compress) ++

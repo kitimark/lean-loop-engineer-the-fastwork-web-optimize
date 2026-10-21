@@ -4,13 +4,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { spawnSync } from 'node:child_process';
-import { readFileSync, readdirSync, mkdtempSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, readdirSync, mkdtempSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as S from '../src/device-session.mjs';
 import { exportProfile, packageSession, sessionMarkdown, readRecord, writeProfile, writePackage } from '../src/device-profile.mjs';
-import { RECORD_JS, PART_PROPS, stepOf } from '../src/device-record.mjs';
+import { RECORD_JS, PART_PROPS, POLL_JS, stepOf } from '../src/device-record.mjs';
+import { resolveFlags, sessionPlan } from '../src/device-arms.mjs';
 import { parseProfile, replayOk as loaderOk } from '../../measure-chromium/src/profile.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -21,7 +22,7 @@ const [session] = of('session');
 const pairs = (p) => p.map((q) => [q[0], q[1]]);
 
 test('every golden kind has lines', () => {
-  for (const k of ['consts', 'plan', 'zone', 'stat', 'verdict', 'part', 'marks', 'stream', 'loader', 'session']) assert.ok(of(k).length > 0, k);
+  for (const k of ['consts', 'plan', 'dedup', 'series', 'zone', 'stat', 'verdict', 'part', 'marks', 'stream', 'loader', 'session']) assert.ok(of(k).length > 0, k);
 });
 
 test('zones', () => {
@@ -51,6 +52,22 @@ test('animated part: largest step and stalls', () => {
   }
 });
 
+test('part series: each value paired with the position it was computed from', () => {
+  for (const g of of('series')) {
+    assert.deepEqual(S.partSeries(g.ys, g.vs), g.series, JSON.stringify(g));
+    assert.equal(S.stalls(S.partSeries(g.ys, g.vs)), g.stalls, JSON.stringify(g));
+    assert.equal(S.maxStep(g.ys.map((y, i) => [y, g.vs[i]])), g.maxStep, JSON.stringify(g));
+  }
+  // the lagged page: standing at 100, then moving; values 500, 500, 600 read one frame late. No stall happened.
+  assert.equal(S.stalls(S.partSeries([100, 100, 200, 300], [0, 500, 500, 600])), 0);
+  assert.equal(S.stalls([100, 100, 200, 300].map((y, i) => [y, [0, 500, 500, 600][i]])), 1, 'the unshifted pairing counts a false stall');
+});
+
+test('arms that load the same page are one arm (Lean dedupArms)', () => {
+  for (const g of of('dedup')) assert.deepEqual(S.dedupArms(g.arms), g.kept, JSON.stringify(g.arms));
+  assert.deepEqual(S.dedupArms([['rewrite', []], ['v2', []], ['look', ['a:b']]]), ['rewrite', 'look']);
+});
+
 test('felt marks from taps', () => {
   for (const g of of('marks')) assert.deepEqual(S.marksOf(g.taps), g.marks, JSON.stringify(g.taps));
 });
@@ -76,12 +93,20 @@ test('the loader check agrees with Lean replayOk', () => {
   assert.equal(S.CONST.maxReplayFrames, 12000);
 });
 
-test('plan: original, rewrite, v2, look, original; the text is Lean\'s', () => {
+test('plan: original, the rewrite arms that stay, original; the text is Lean\'s', () => {
   assert.deepEqual(S.PLAN.map((p) => p.arm), ['original', 'rewrite', 'v2', 'look', 'original']);
-  assert.equal(S.PLAN.length * S.CONST.recSeconds <= 900, true);
-  for (const p of S.PLAN) { assert.match(p.text, new RegExp(`^Step ${p.step} of ${S.PLAN.length}: `)); assert.match(p.text, /tap the screen 3 times/); }
-  assert.equal(stepOf(2).arm, 'rewrite');
-  assert.throws(() => stepOf(9));
+  for (const kept of [['rewrite'], ['rewrite', 'v2'], ['rewrite', 'look'], ['rewrite', 'v2', 'look']]) {
+    const plan = S.planFor(kept);
+    assert.deepEqual(plan.map((p) => p.arm), ['original', ...kept, 'original']);
+    assert.equal(plan.length * S.CONST.recSeconds <= 900, true);
+    for (const p of plan) {
+      assert.match(p.text, new RegExp(`^Step ${p.step} of ${plan.length}: `));
+      assert.match(p.text, /tap 3 times quickly on an empty area \(not on text, a link or a button\)/);
+    }
+  }
+  assert.throws(() => S.planFor(['v2']));
+  assert.equal(stepOf(2, S.PLAN).arm, 'rewrite');
+  assert.throws(() => stepOf(9, S.PLAN));
 });
 
 test('fixture session: record -> reduction agrees with Lean', () => {
@@ -181,7 +206,8 @@ test('page recorder: frames, parts and touches; listeners passive; no preventDef
         return { isConnected: true, style: { getPropertyValue: (n) => (n === prop ? props[prop] : '') } };
       },
     },
-    addEventListener: (k, f, o) => { listeners.set(k, f); opts.push(o); },
+    visualViewport: { scale: 1 },
+    addEventListener: (k, f, o) => { listeners.set(k, f); opts.push([k, o]); },
     removeEventListener: (k) => { listeners.delete(k); },
     requestAnimationFrame: (f) => { queue.push(f); },
   };
@@ -191,6 +217,8 @@ test('page recorder: frames, parts and touches; listeners passive; no preventDef
   for (let k = 0; k < 20 && queue.length > 0; k++) {
     const f = queue.shift();
     now += 16.67; sandbox.scrollY += 12.34; props['--exit-opacity'] = String(Math.max(0, 1 - k / 10));
+    if (k === 3) sandbox.visualViewport.scale = 1.4;
+    if (k === 5) sandbox.visualViewport.scale = 1;
     if (k === 2) listeners.get('touchstart')(ev('touchstart', 215.55, 700, 1));
     if (k === 3) listeners.get('touchmove')(ev('touchmove', 215.55, 690, 1));
     if (k === 4) listeners.get('touchend')(ev('touchend', 215.55, 690, 0));
@@ -208,10 +236,61 @@ test('page recorder: frames, parts and touches; listeners passive; no preventDef
   assert.deepEqual(rec.touches.map((t) => t[4]), [1, 1, 0]);
   assert.ok(Math.abs(rec.touches[0][2] - 215.55) < 0.1 && rec.touches[1][3] === 690);
   assert.equal(rec.touches[0][0], rec.frames.t[2], 'touch and frame stamps share one clock');
-  assert.ok(opts.length === 4 && opts.every((o) => o.passive === true && o.capture === true));
+  assert.ok(opts.length === 5 && opts.every(([, o]) => o.passive === true && o.capture === true));
+  assert.ok(opts.some(([k]) => k === 'pagehide'), 'a passive pagehide listener names a navigation');
+  assert.equal(rec.zoom.frames, 2, 'frames at a visual viewport scale other than 1 are counted');
+  assert.equal(rec.zoom.max, 1.4);
   assert.equal(prevented, 0);
   assert.equal(listeners.size, 0, 'listeners are removed at the end');
   assert.doesNotThrow(() => S.reducePass(S.normalize({ ...rec, arm: 'original', pass: 1 })));
+});
+
+test('page recorder: pagehide names the navigation; the poll names a page that is gone', () => {
+  const hidden = {};
+  const sb = { performance: { now: () => 0, timeOrigin: 1.7e12 }, scrollY: 0, innerWidth: 430, innerHeight: 932, devicePixelRatio: 3,
+    document: { documentElement: { scrollHeight: 3932 }, querySelector: () => null }, addEventListener: (k, f) => { hidden[k] = f; },
+    removeEventListener() {}, requestAnimationFrame() {}, __wkRec: undefined };
+  sb.globalThis = sb;
+  vm.createContext(sb);
+  vm.runInContext(RECORD_JS(0.1), sb);
+  hidden.pagehide();
+  assert.match(JSON.parse(sb.__wkRec).err, /page navigated/);
+  // a fresh page (no liveness flag) answers the poll with the same named failure; a live one with null
+  assert.match(JSON.parse(vm.runInContext(POLL_JS, vm.createContext({ window: {} }))).err, /page navigated \(a tap hit a link\)/);
+  assert.equal(vm.runInContext(POLL_JS, vm.createContext({ window: { __wkRecOn: true } })), null);
+});
+
+// ---- which pages the session visits: the preset is resolved at record time
+
+test('device-arms: v2-proved on main has no flags, so its arm is dropped; a distinct look arm stays', () => {
+  assert.deepEqual(resolveFlags(''), []);
+  assert.deepEqual(resolveFlags('?preset=v2-proved'), resolveFlags('?preset=original'));
+  const look = '?fw=hero.exit:scoped';
+  assert.deepEqual(resolveFlags(look), ['hero.exit:scoped']);
+  assert.deepEqual(resolveFlags('?fw=hero.exit:faithful'), [], 'a default variant is no flag');
+  assert.throws(() => resolveFlags('?fw=hero.exit:nope'), /no variant/);
+  assert.throws(() => resolveFlags('?preset=nope'), /unknown preset/);
+  const sp = sessionPlan(look);
+  if (resolveFlags('?preset=v2-proved').length === 0) {
+    assert.deepEqual(sp.kept, ['rewrite', 'look']);
+    assert.deepEqual(sp.plan.map((p) => p.arm), ['original', 'rewrite', 'look', 'original']);
+    assert.deepEqual(sp.dropped.map((d) => [d.arm, d.sameAs]), [['v2', 'rewrite']]);
+  }
+  assert.deepEqual(sessionPlan('?fw=hero.exit:faithful').kept, ['rewrite'], 'a look arm without flags is the rewrite again');
+  assert.throws(() => sessionPlan(''), /needs --search/);
+});
+
+test('device-arms: a non-empty preset keeps the v2 arm, in any flag order', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'fw-arms-'));
+  const w = (rel, o) => { const f = join(dir, rel); mkdirSync(dirname(f), { recursive: true }); writeFileSync(f, JSON.stringify(o)); };
+  w('registry/presets/base.json', { name: 'base', fw: {} });
+  w('registry/presets/v2-proved.json', { name: 'v2-proved', extends: 'base', fw: { 'a.x': 'fast', 'b.y': 'fast' } });
+  w('parts/a.x/part.json', { id: 'a.x', impls: ['mui'], variants: { faithful: {}, fast: {} } });
+  w('parts/b.y/part.json', { id: 'b.y', impls: ['mui'], variants: { faithful: {}, fast: {} } });
+  const root = { presets: `${dir}/registry/presets/`, parts: `${dir}/parts/` };
+  assert.deepEqual(resolveFlags('?preset=v2-proved', root), ['a.x:fast', 'b.y:fast']);
+  assert.deepEqual(sessionPlan('?fw=b.y:fast,a.x:fast', root).kept, ['rewrite', 'v2'], 'the look arm equal to v2 (any order) is dropped');
+  assert.deepEqual(sessionPlan('?fw=a.x:fast', root).kept, ['rewrite', 'v2', 'look']);
 });
 
 // ---- the command line, without a phone: plan, reduce, profile, package, and the refusals that come before any phone contact
@@ -223,7 +302,9 @@ test('device-cli: plan, reduce, profile and package run on saved records', () =>
   const f1 = join(dir, 'a.json'), f2 = join(dir, 'b.json');
   writeFileSync(f1, JSON.stringify(S.denormalize(session.record)));
   writeFileSync(f2, JSON.stringify(S.denormalize(withDt(session.record, 'rewrite', 1, 1667))));
-  assert.equal(run('plan').stdout.trim().split('\n').length, 5);
+  const pl = run('plan', '--search', '?fw=hero.exit:scoped');
+  assert.equal(pl.status, 0, pl.stderr);
+  assert.equal(pl.stdout.trim().split('\n').length, S.planFor(S.dedupArms(['rewrite', 'v2', 'look'].map((a) => [a, resolveFlags(a === 'v2' ? '?preset=v2-proved' : a === 'look' ? '?fw=hero.exit:scoped' : '')]))).length);
   const red = run('reduce', '--in', `${f1},${f2}`);
   assert.equal(red.status, 0, red.stderr);
   assert.equal(JSON.parse(red.stdout).passes, 2);
@@ -234,6 +315,7 @@ test('device-cli: plan, reduce, profile and package run on saved records', () =>
   assert.equal(pk.status, 0, pk.stderr);
   assert.deepEqual(readdirSync(join(dir, 'res')).sort(), ['summary.json', 'summary.md']);
   // a step whose arm does not match the target, and the look arm without a flag list, are refused before the phone is touched
-  assert.match(run('record', '--step', '1', '--target', 'rewrite', '--site', '/x').stderr, /--target must be original/);
+  assert.match(run('record', '--step', '1', '--target', 'rewrite', '--site', '/x', '--search', '?fw=hero.exit:scoped').stderr, /--target must be original/);
   assert.match(run('record', '--step', '4', '--target', 'rewrite', '--site', '/x').stderr, /needs --search/);
+  assert.match(run('record', '--step', '9', '--target', 'rewrite', '--site', '/x', '--search', '?fw=hero.exit:scoped').stderr, /no step 9/);
 });
