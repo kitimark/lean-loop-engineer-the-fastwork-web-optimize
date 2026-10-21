@@ -19,7 +19,7 @@ scrollY, not compensable (`WebAutomationSession.cpp:2424-2425`); (2) native scro
 `recorderSeconds` adds one second per piece.
 Verified: tests above; Simulator runs (local debug, iOS 26.5): 2 on the site (1 of 5 swipes), 3 passes on `/ok` (5 of 5), 1 stall.
 Open
-- Lead: add `packages/measure-webkit/src/device-replay.mjs` to the task writes in `docs/team/work-graph.json` (I edited it; the file is outside the list).
+- Writes: `device-replay.mjs` is in the task writes since graph r208 (main 7d114d58); dry land green at that main.
 - Phone session (lead books): dismiss the Safari first-run tip first; run `run --kinds recorded`; a stall ends as `replay-stall`.
 - Lag compensation (Lean change, subtract summed lag from the next lead-in pause); wedge mechanism UNKNOWN; XCUITest/idb driver idea.
 - `HideAllTips` suppression unverified; CI reproduction (3 jobs) not done; iOS 27.0 Simulators have no safaridriver session host.
