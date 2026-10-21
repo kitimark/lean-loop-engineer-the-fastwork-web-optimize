@@ -69,6 +69,7 @@ import Fw.Measure.Tolerance
 import Fw.Measure.WebKit
 import Fw.Measure.WebKitLag  -- webkit-lag-probe: scroll regions, paint attribution to parts, counter ranking
 import Fw.Device.Session  -- device-lag-recorder: phone-session zones, frame intervals, felt marks, comparison, replay export
+import Fw.Measure.WebKitProfile  -- smoothness-webkit-cadence: WebKit Timeline records on the page clock, binned to zones, per-frame render work
 import Fw.Measure.Retry
 import Fw.Measure.Viewport
 import Fw.Measure.SimPlan
