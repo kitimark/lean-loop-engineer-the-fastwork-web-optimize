@@ -10,7 +10,7 @@ import { selectCore } from "../src/core/index.ts";
 import { Store } from "../src/store.ts";
 import { OwnerAuth } from "../src/preview/owner.ts";
 import { LoginGuard } from "../src/preview/login.ts";
-import { mountReviewInfo, readExcerpt, type ExcerptSpec } from "../src/review/info.ts";
+import { readExcerpt, type ExcerptSpec } from "../src/review/info.ts";
 
 const ROOT = join(import.meta.dirname, "../../..");
 const FLAG = "nav:earn-no-transition";
@@ -23,8 +23,7 @@ async function rig(root = ROOT) {
   const dir = join(mkdtempSync(join(tmpdir(), "fw-info-")), ".fw-console");
   const store = await Store.open(dir, selectCore(), () => 1_700_000_000_000);
   stores.push(store);
-  const app = createApp(store);
-  mountReviewInfo(app, store, root);
+  const app = createApp(store, undefined, undefined, undefined, undefined, undefined, undefined, root);
   return { app, store };
 }
 async function info(): Promise<any> {
@@ -180,8 +179,7 @@ describe("GET /api/reviews/:flag/info", () => {
     const store = await Store.open(dir, selectCore());
     stores.push(store);
     const owner = new OwnerAuth(); owner.setPorts(4000, 4001); owner.setLanHosts(["198.51.100.9:4000"]);
-    const app = createApp(store, undefined, undefined, undefined, owner, undefined, { login: new LoginGuard(store.core, "fake-pass-for-tests-only"), lan: true });
-    mountReviewInfo(app, store, ROOT);
+    const app = createApp(store, undefined, undefined, undefined, owner, undefined, { login: new LoginGuard(store.core, "fake-pass-for-tests-only"), lan: true }, ROOT);
     const r = await app.request(url(FLAG), { headers: { host: "198.51.100.9:4000" } }, LAN);
     expect(r.status).toBe(401);
   });

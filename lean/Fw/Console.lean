@@ -135,13 +135,15 @@ inductive Body where
   | stepCancel      (step : String)
   | runStart        (run card : String) (kind : RunKind)
   | runFinish       (run : String) (ok : Bool)
+  | reviewPreviewed (flag device : String)
   | plan            (c : Fw.Plan.Cmd)
 deriving Repr, DecidableEq
 
-/-- The 15 card/step/run event types and the 7 plan command types (the `type` field on the wire). -/
+/-- The 16 card/step/run/review event types and the 7 plan command types (the `type` field on the wire). -/
 inductive EvType where
   | cardOpen | cardApprove | cardBuild | cardScreen | cardReview | cardSwipe | cardLandRequest
   | cardLanded | stepPost | stepStart | stepAnswer | stepDone | stepCancel | runStart | runFinish
+  | reviewPreviewed
   | plan (t : Fw.Plan.CmdType)
 deriving Repr, DecidableEq
 
@@ -152,7 +154,7 @@ def EvType.name : EvType → String
   | .cardLandRequest => "card.land_request" | .cardLanded => "card.landed"
   | .stepPost => "step.post" | .stepStart => "step.start" | .stepAnswer => "step.answer"
   | .stepDone => "step.done" | .stepCancel => "step.cancel" | .runStart => "run.start"
-  | .runFinish => "run.finish" | .plan t => t.name
+  | .runFinish => "run.finish" | .reviewPreviewed => "review.previewed" | .plan t => t.name
 
 /-- The type of a body. -/
 def Body.type : Body → EvType
@@ -161,7 +163,7 @@ def Body.type : Body → EvType
   | .cardLandRequest .. => .cardLandRequest | .cardLanded .. => .cardLanded
   | .stepPost .. => .stepPost | .stepStart .. => .stepStart | .stepAnswer .. => .stepAnswer
   | .stepDone .. => .stepDone | .stepCancel .. => .stepCancel | .runStart .. => .runStart
-  | .runFinish .. => .runFinish | .plan c => .plan c.type
+  | .runFinish .. => .runFinish | .reviewPreviewed .. => .reviewPreviewed | .plan c => .plan c.type
 
 /-- An event: an idempotency key, the stamp time (ms, by console-api), the actor and the body. -/
 structure Event where
@@ -202,6 +204,7 @@ def mayList : EvType → List Actor
   | .stepCancel => [.script, .user, .lead]
   | .runStart => [.script, .owner, .lead]
   | .runFinish => [.script]
+  | .reviewPreviewed => [.user]
   | .plan .define | .plan .drop | .plan .milestone => [.lead, .user, .script]
   | .plan .claim => [.hook, .script, .lead]
   | .plan .done => [.git, .lead, .user]
@@ -313,6 +316,16 @@ theorem user_step_done_needs_start (st : Step) (id : String) (n : Option String)
     (hw : st.status = .waiting) (hu : st.audience = .user) : stepRefusal st a (.stepDone id n) ≠ none := by
   simp [stepRefusal, hw, hu]
 
+/-- The device words a `review.previewed` event may carry (`Fw.Console.ReviewPreview.Device.word`). -/
+def previewDevices : List String := ["desktop", "phone"]
+
+/-- Why a `review.previewed` event is refused (`none` = acceptable): the device must be one of `previewDevices` and the flag a
+key `part:variant`. Whether the review is open is decided before the event is made (`Fw.Console.ReviewPreview.record`). -/
+def reviewPreviewedRefusal (flag device : String) : Option String :=
+  if !previewDevices.contains device then some "device must be desktop or phone"
+  else if !flag.contains ':' then some "flag must be a key part:variant"
+  else none
+
 /-- Why an event is refused in state `σ` (`none` = accepted). First match wins; "the step", "the
 run" and "the card" are the first ones in their list with that id.
 
@@ -338,6 +351,7 @@ def check (s : State) (e : Event) : Option String :=
     match s.runs.find? (·.id == r) with
     | none => some "no such run"
     | some run => if run.status = .running then none else some "run already finished"
+  | .reviewPreviewed flag device => reviewPreviewedRefusal flag device
   | .plan c => Fw.Plan.check s.plan c
   | b => match cardOf b with
     | none => none
@@ -495,6 +509,28 @@ theorem only_user_answers {s : State} {e : Event}
     rcases hb with ⟨id, a, hb⟩ | ⟨id, hb⟩ <;>
       (rw [hb]; cases h : e.actor <;> simp_all [may, mayList, Body.type])
   exact reject_keeps (unauthorized_rejected this)
+
+/-- Only the user records a preview: a `review.previewed` event from any other actor changes nothing. -/
+theorem previewed_only_user {s : State} {e : Event} {f d : String}
+    (hb : e.body = .reviewPreviewed f d) (ha : e.actor ≠ .user) : apply s e = s := by
+  have : may e.actor e.body.type = false := by
+    rw [hb]; cases h : e.actor <;> simp_all [may, mayList, Body.type]
+  exact reject_keeps (unauthorized_rejected this)
+
+/-- A device word outside `previewDevices` is refused. -/
+theorem previewed_refuses_device (s : State) (e : Event) (f d : String) (hb : e.body = .reviewPreviewed f d)
+    (ha : e.actor = .user) (hd : d ∉ previewDevices) : check s e = some "device must be desktop or phone" := by
+  simp [check, hb, ha, may, mayList, Body.type, reviewPreviewedRefusal, hd]
+
+/-- A well-formed `review.previewed` event from the user is accepted. -/
+theorem previewed_accepted (s : State) (e : Event) (f d : String) (hb : e.body = .reviewPreviewed f d)
+    (ha : e.actor = .user) (hd : d ∈ previewDevices) (hf : f.contains ':' = true) : check s e = none := by
+  simp [check, hb, ha, may, mayList, Body.type, reviewPreviewedRefusal, hd, hf]
+
+/-- An accepted `review.previewed` event changes no card, step, run or plan: the log is its only record. -/
+theorem previewed_accept_state (s : State) (e : Event) (f d : String) (hb : e.body = .reviewPreviewed f d) :
+    accept s e = s := by
+  simp [accept, hb, cardOf]
 
 /-- A git `card.landed` fact for a known card that has not landed is never refused. -/
 theorem landed_fact_accepted {s : State} {e : Event} {id sha : String} {c : Card}

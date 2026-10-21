@@ -988,11 +988,39 @@ def reviewCases (_ : Unit := ()) : List (String × Json) :=
    ("a decision word that is unknown is refused", rv "[{\"flag\":\"nav:a\",\"date\":\"d\",\"decision\":\"yes\",\"review\":\"pending\"}]" "[]"),
    ("without looks the rows are Fw.Preset.Gen.lookDecisions", Json.mkObj [("steps", lit "[]")])]
 
+/-- A `console.reviewPreview` request: the decision rows, the board steps, the accepted preview events and an optional click. -/
+def rpv (looks steps events : String) (ask : String := "null") : Json :=
+  Json.mkObj [("looks", lit looks), ("steps", lit steps), ("events", lit events), ("ask", lit ask)]
+
+/-- The `console.reviewPreview` cases. -/
+def reviewPreviewCases (_ : Unit := ()) : List (String × Json) :=
+  let pend := "[{\"flag\":\"nav:earn-no-transition\",\"date\":\"2026-10-21\",\"decision\":\"kept\",\"review\":\"pending\"}]"
+  let st (id : String) (ans : String) (o : String) := s!"\{\"id\":\"{id}\",\"answer\":{ans},\"open\":{o}}"
+  let open_ := s!"[{st "review-nav:earn-no-transition" "null" "true"}]"
+  let done := s!"[{st "review-nav:earn-no-transition" "\"keep\"" "false"}]"
+  let ev (d : String) := s!"\{\"flag\":\"nav:earn-no-transition\",\"device\":\"{d}\"}"
+  let ask (v : String) (w : Nat) := s!"\{\"flag\":\"nav:earn-no-transition\",\"view\":\"{v}\",\"width\":{w}}"
+  [("nothing previewed: both devices are missing, with an ask line each", rpv pend open_ "[]"),
+   ("previewed on the desktop only: the phone is missing", rpv pend open_ s!"[{ev "desktop"}]"),
+   ("previewed on both: nothing missing, no ask line", rpv pend open_ s!"[{ev "phone"},{ev "desktop"}]"),
+   ("an event of another flag counts for nothing", rpv pend open_ "[{\"flag\":\"nav:other\",\"device\":\"phone\"}]"),
+   ("flag view from a phone-wide viewport: ?fw=<flag>, rewrite arm, phone", rpv pend open_ "[]" (ask "flag" 390)),
+   ("flag view at the breakpoint (600): still a phone", rpv pend open_ "[]" (ask "flag" 600)),
+   ("flag view one px above the breakpoint (601): desktop", rpv pend open_ "[]" (ask "flag" 601)),
+   ("faithful view: no search, rewrite arm", rpv pend open_ "[]" (ask "faithful" 1280)),
+   ("compare view: the flag search on the compare page", rpv pend open_ "[]" (ask "compare" 1280)),
+   ("a decided review gets no preview", rpv pend done "[]" (ask "flag" 390)),
+   ("no step on the board: the item is open, the click is planned", rpv pend "[]" "[]" (ask "flag" 390)),
+   ("a flag without a pending decision gets no preview", rpv pend open_ "[]" "{\"flag\":\"nav:other\",\"view\":\"flag\",\"width\":390}"),
+   ("an unknown view is refused", rpv pend open_ "[]" (ask "original" 390)),
+   ("a bad flag key is refused", rpv pend open_ "[]" "{\"flag\":\"nocolon\",\"view\":\"flag\",\"width\":390}")]
+
 /-- Golden files whose name is not their op: (directory under `packages/contracts/golden`, file stem, op, cases). -/
 def named (_ : Unit := ()) : List (String × String × String × List (String × Json)) := [
   ("ops", "lean-first", "ops.leanFirst", leanFirstCases),
   ("land", "render-guard", "console.landRenderGuard", renderGuardCases),
-  ("console", "review", "console.review", reviewCases)]
+  ("console", "review", "console.review", reviewCases),
+  ("console", "reviewPreview", "console.reviewPreview", reviewPreviewCases)]
 
 /-- The request with its `op` field set. -/
 def withOp (op : String) : Json → Json
