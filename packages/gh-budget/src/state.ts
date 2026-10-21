@@ -61,7 +61,9 @@ export type Row = { status: string; conclusion: string | null; databaseId: numbe
   /** GitHub's own time of the last change of the run (lag instrumentation: `fw ci wait` phases); absent in files written before it was listed. */
   updatedAt?: string;
   /** The attempt of the run (`gh run rerun` makes attempt 2 of the same id); absent in files written before it was listed. */
-  attempt?: number };
+  attempt?: number;
+  /** The trigger of the run (`push`, `workflow_dispatch`, ...) and its title (a dispatch's `run-name` carries its nonce); absent in files written before they were listed. */
+  event?: string; displayTitle?: string };
 /** The runs-status file: the last list the poller read. `stopped` is set when fwcore said stop. */
 export type Status = { at: number; tickAt?: number; createdSince?: number | null; rows: Row[]; stopped?: string; stoppedAt?: number };
 

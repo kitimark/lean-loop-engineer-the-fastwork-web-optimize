@@ -72,7 +72,9 @@ test("each part's conditions are its media.ts ids and its owners' inventory cond
     assert.deepEqual(u.conditions.orig, used.filter((id) => id.startsWith('mq.')), `${pid}: orig = owners' mq.* conditions`);
     const accounted = [...u.conditions.orig, ...u.extra.map((x) => x.id), ...u.dismissed.map((x) => x.id)];
     assert.deepEqual([...accounted].sort(), [...used].sort(), `${pid}: every inventory condition kept, extra or dismissed`);
-    for (const id of u.conditions.rewrite) assert.ok(u.conditions.orig.includes(id), `${pid}: ${id} in orig`);
+    const added = u.added.map((x) => x.id);
+    assert.deepEqual(added, u.conditions.rewrite.filter((id) => !u.conditions.orig.includes(id)), `${pid}: added = rewrite ids outside orig`);
+    for (const x of u.added) assert.ok(x.why.length > 0, `${pid}: ${x.id} has a reason`);
     const conts = inv.continuous.filter((c) => (c.parts ?? []).some((x) => owners.has(x)));
     // a knee of a viewport-width value is the inventory's px; a knee of a container value (axis container-width) is stated
     // in the inventory in the container's px, and the part states it in viewport px where the layout puts the container there

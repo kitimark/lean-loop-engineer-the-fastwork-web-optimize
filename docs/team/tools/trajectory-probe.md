@@ -21,6 +21,34 @@ unchanged. Each holds `raw-<engine>.json` (all
 readings plus what each arm's page reported), `units-<engine>.json` and `summary-<engine>.md`. Re-reduce raw files offline:
 `node src/trajectory/cli.mjs summary --out <dir>`. A local run is a debug run, never a result.
 
+## Run it from a push, and find a dispatch's run (tasks ci-push-probe-inputs, fw-run-dispatch-pick)
+
+Agents cannot dispatch a workflow (sandbox, incident m195), but they can push. A `ci/*` push whose head commit asks for the lane
+runs the probe with the inputs of one message line:
+
+    [ci:trajectory-probe]
+    [trajectory fw=hero.exit:scoped,morph.tween:waapi widths=390,1280 engines=both]
+
+- Keys `fw` (flag set) or `preset` (exclusive with `fw`), `widths`, `engines`; each at most once; values from `A-Za-z0-9.:,_@-`; no
+  line = the dispatch defaults. Only a line that starts with `[trajectory` counts (prose that quotes it asks for nothing). A line that
+  does not parse, or a second line, fails the `site` job with the reason (Lean `Fw.Ci.Trigger.pushProbe`, golden `probe` lines of
+  `packages/contracts/golden/ci/triggers.jsonl`, node twin `.github/scripts/trajectory-line.mjs`). A line without `[ci:trajectory-probe]`
+  does not start the lane (Lean says `needsLane`). `pnpm fw ci push` reports `needsLane` and a refused line before the push (`probeNotes` in
+  `scripts/ci-push.mjs`, the twin of Lean `pushProbe`; a refused line stops the push, exit 2). Accepted limit: a plain `git push origin ci/<x>`
+  (the allowed form) reports nothing, so a `[trajectory]` line without the lane token is ignored silently on that route.
+- `pnpm fw ci wait --branch ci/<x> --workflow trajectory-probe` waits for the push run of the commit (`--sha`, event `push`); with `--nonce <n>` for
+  the dispatch whose run-name carries the nonce (Lean `Fw.Ci.Dispatch.select`, golden `select` lines of `golden/ci/dispatch.jsonl`, TS twin
+  `packages/gh-budget/src/want.ts`). Never the newest run. Accepted limit: `--gate` and the count lanes of `fw run` keep the newest-run rule.
+- A run with one leg (one engine, one width) merges: each leg file `artifact-name.txt` names its artifact; the merge job moves a single download under
+  `legs/<artifact name>/`, so the join sees one directory per leg in every case.
+- The run records its inputs: step name `trajectory inputs: engines=.. fw=.. preset=.. widths=.. (commit-line|defaults|dispatch)` of job
+  `site` (`gh run view <id> --json jobs`) and artifact `trajectory-inputs` (`inputs.json`: event, sha, nonce, inputs, source).
+- `fw run --trajectory` sends a fresh `nonce` input; the workflow's `run-name` is `trajectory-probe dispatch nonce=<n>`; the command lists
+  `workflow_dispatch` runs of the ref and takes the one whose title is exactly that (Lean `Fw.Ci.Dispatch.pick`, golden
+  `packages/contracts/golden/ci/dispatch.jsonl`, TS stand-in `apps/runner/src/run-pick.ts`). None yet: it looks again every 120 s
+  (5 looks); two: it stops. It never takes "the newest run on the ref" (that was a skipped push run, and the same run for two parallel
+  dispatches). The same fix for `--gate` and the count lanes needs a `nonce` input in their workflows (follow-up).
+
 ## The three checks that make a run count
 
 1. **Arm identity (refuses the run).** Each arm records its resolved config hash and `fwMode`. Lean `armCheck` allows only:
@@ -98,20 +126,30 @@ The judge (Lean `judgeUnit`, TS twin `judgeUnit` in `reduce.mjs`) decides each u
   as at rest; rules 6 and 167 still run transitions driven by `--morph` (nav transform/opacity, earn
   max-width/opacity/padding), which are judged strictly against the m-window.
 - `inFlight d s`: the sample's own class set selects a transition `t` and `since < t + startLag`, `startLag` = 200 ms.
-- A rewrite sample in flight is judged against the original's samples of the same transition only: the same rep, phase
-  and epoch (a run of samples with no class change), within 200 ms of its `since` (`isCore`), plus the epoch's sample
-  before them and one after. A colour must match one core reading on r, g, b (rgb readings only; see Limits for WebKit
-  in flight) and the band on alpha. No core sample: the
-  m-window as before.
+- A rewrite sample in flight is judged against the envelope of the original's samples of the same transition (Lean
+  `envelope`): in every pass of the original, the samples of the same phase and epoch (a run of samples with no class
+  change) within 200 ms of its `since` (`isCoreIn`), plus that epoch's sample before them and one after, joined over
+  the passes. A colour must match one core reading of some pass on r, g, b (rgb readings only; see Limits for WebKit in
+  flight) and the band on alpha. No core sample in any pass: the m-window.
 - A rewrite sample at rest is judged against the original's settled end value: the window sample if at rest, else the
   last sample of its epoch if that one is at rest, else coverage.
+- A rewrite sample at rest at the end of a push, at a morph value a pass of the original never sampled in that push, is
+  judged in that pass against the pass's first row of the next hold when that row has the same morph value (Lean
+  `windowPass`, `windowAt`); otherwise the pass gives its `windowOne`.
 
 Proved: an arm whose samples are the original's never fails (`judgeUnit_self`, `byM_self`, `byStep_self`); a rewrite
 sample at rest is judged only against settled values, whatever the original's state (`judgeUnit_settled`, golden: pure
 red and pure green at rest fail, `byStep_settled_red_green`); a reading with one component outside every reading of the
 window fails, for any number of components (`judgeEls_outside`, `judgeUnit_flight_outside`, `judgeUnit_settled_outside`,
-colours `judgeUnit_colour_chan_outside`, `judgeUnit_colour_alpha_outside`); a reversed rect curve in flight fails
-(`byM_reversed_in_flight`). Each branch of `judgeUnit` has its own theorem (`judgeUnit_flight_*`, `judgeUnit_settled_*`).
+colours `judgeUnit_colour_chan_outside`, `judgeUnit_colour_alpha_outside`; in flight "every reading" is every reading
+of every pass's window); a reversed rect curve in flight fails (`byM_reversed_in_flight`, over two passes
+`byM_reversed_two_passes`), pure red over two passes fails (`judgeUnit_red_two_passes`). When every pass of the original
+gives the same window as the sample's own pass, the judge is the one-pass rule `judgeOwn` (`judgeUnit_agree`); when no
+pass takes the hold-row branch the window is the old `windowOf` (`windowAt_old`). A start that only another pass had
+passes and fails against the own pass alone (`judgeUnit_other_start`). Each branch of `judgeUnit` and `windowPass` has
+its own theorem (`judgeUnit_flight_*`, `judgeUnit_settled_*`, `windowPass_head`, `windowPass_sampled`,
+`windowPass_other`, `windowPass_in_flight`, `windowPass_no_head`); golden `settled push end, hold head`, `settled push
+end, stuck class`, `push sampled its end`, `push end in flight`.
 
 In flight, MEASURED over all arms and the 10 properties with a CSS transition (morph phases; approach steps):
 
@@ -131,7 +169,17 @@ Limits of the in-flight rule, for that fraction of samples:
   `reversed curve in flight`).
 - `since` sees only nav class changes; a transition started by something else is read as at rest.
 - `startLag` = 200 ms is a measured bound on the 140 ms overrun, not a proved one.
-- No core sample in the original: the unit falls back to the m-window of the original's samples.
+- No core sample in any pass of the original: the unit falls back to the m-window of the original's samples. A pass
+  with no core sample does not fall back on its own: when another pass has one, the envelope decides (kept by
+  `judgeScoped_stuck_hold`, section Envelope scope).
+- Same-phase core: a hold sample's core holds no reading of its epoch taken in the push before the hold.
+- Envelope band: geometry, unit and alpha are judged against the band of every pass's readings, so a value between two
+  passes' readings passes though no pass read it; r, g, b must match one core reading of one pass.
+- A start outside every pass: a rewrite whose transition starts from a value no pass of the original started from (a
+  skipped frame, an interrupted earlier transition) still fails; the envelope widens only by what the original's own
+  passes read.
+- Hold row at a push end: the pass's next hold's first row stands for the settled end only when the push never sampled
+  that morph value; a sample in flight there keeps `windowOne`.
 - Colour space (task kit-colour-space): the kit reads every colour (`rgb`, `rgba`, `hsl`, `color(srgb ..)`, `oklab`, `oklch`,
   `lab`, `lch`; engines print a mid-transition colour as `oklab(..)`/`color(srgb ..)`) as sRGB `[r, g, b, α]` × 1000 on the
   0 to 255 scale, so `judgeUnit_colour_chan_outside` judges real channels. Lean `Fw.Gate.Colour` states the error budget
@@ -237,6 +285,137 @@ empty. The 39453181962 mac morph fail: `nav.background-color` content `new` at 6
 not the colour space. MEASURED: candidate rep 4 starts at alpha 0.296, outside the original's start range across reps
 0.261 to 0.281; whether a flag causes it is unknown (INFERRED timing), so it stays pending until a flag-alone run. Its 641 a8/a11 and 1280 a7 units are the
 colour-space case. The 39455284967 mac morph colour units (641 a7, a11) are colour space at one width and do not decide it.
+
+### Transition start and settled push end (task trajectory-close-start)
+
+Re-reduced (MEASURED, no new dispatch) with `reduce.mjs` before and after this task over every `raw-<engine>.json` of
+runs 39466179818 (`?fw=hero.exit:scoped`), 39472217441 (`?fw=hero.exit:faithful`, the A/A), 39453181962 and 39453764374
+(`?preset=` of 8 flags), 39449092483 (`?fw=morph.tween:waapi`) and 39457767229 (`?fw=morph.tween:waapi-scoped`); old
+colour tuples converted by `colourFromV1` in both columns. Hero: no unit changed in any artifact. Morph, content `new`
+groups (`-` none); coverage `new` groups are the same before and after in every cell:
+
+| run | engine | width | before | after |
+|---|---|---|---|---|
+| 39466179818 | mac-webkit | 390 | bg close-hold@0; earn.max-width close@0 | bg close@0,close-hold@0; earn.max-width close@0 |
+| 39466179818 | mac-webkit | 640 | bg close-hold@0 | bg close-hold@0 |
+| 39466179818 | mac-webkit | 641 | bg a7 | bg a7 |
+| 39466179818 | mac-webkit | 1280 | nav.rect, nav.transform.shift close@0 | - |
+| 39466179818 | chromium | all 4 | - | - |
+| 39472217441 | mac-webkit | 390 | bg close-hold@0; earn.opacity, earn.max-width close@0 | bg close@0,close-hold@0 |
+| 39472217441 | mac-webkit | 640 | bg close@0 | - |
+| 39472217441 | mac-webkit | 1280 | earn.max-width close@0 | - |
+| 39472217441 | chromium | 640 | earn.max-width close@0 | - |
+| 39453181962 | mac-webkit | 640 | bg close-hold@0 | bg close-hold@0 |
+| 39453181962 | mac-webkit | 641 | earn.max-width close@0 | - |
+| 39453181962 | mac-webkit | 1280 | nav.rect, bg close-hold@0, nav.transform.shift, actions.gap close@0 | nav.rect, bg close@0,close-hold@0, nav.transform.shift, actions.gap close@0 |
+| 39453181962 | chromium | 1280 | - | earn.max-width close@0 |
+| 39453764374 | linux-webkit | 390 | nav.rect close@0; bg close@0,close-hold@0; earn.opacity open@10,close@0; earn.max-width close@0,close-hold@0 | bg close@0; earn.opacity open@10 |
+| 39453764374 | linux-webkit | 1280 | - | nav.rect close@0; nav.transform.shift close@0,close-hold@0; actions.gap close@0 |
+| 39449092483 | chromium | 640 | bg close@0; earn.max-width close@0 | earn.max-width close@0 |
+| 39449092483 | chromium | 641 | bg close@0; earn.max-width close@0 | - |
+| 39449092483 | linux-webkit | 390 | earn.opacity, earn.max-width open@10 | nav.rect, actions.gap close@0; earn.opacity open@10; earn.max-width open@10,close@0 |
+| 39449092483 | linux-webkit | 640 | nav.cls.is-morphing, logo.position, logo.transform-origin, earn.opacity, earn.max-width, panel.attr.data-start-selling-scene close@0 | actions.gap, earn.opacity, earn.max-width close@0 |
+| 39449092483 | linux-webkit | 641 | bg a3; earn.max-width close-hold@0 | bg a3 |
+| 39449092483 | linux-webkit | 1280 | earn.opacity, earn.max-width open-hold@10,close@10 | nav.rect, nav.transform.shift close@0; earn.opacity, earn.max-width open-hold@10,close@10 |
+| 39457767229 | chromium | 390 | bg close@0; earn.max-width close@0 | bg close@0 |
+| 39457767229 | chromium | 640 | bg close@0; earn.max-width close@0 | earn.max-width close@0 |
+| 39457767229 | chromium | 1280 | - | earn.max-width close@0 |
+| 39457767229 | linux-webkit | 390 | 12 groups close@0 (nav, logo, earn, panel) | bg, logo.color, earn.opacity, earn.max-width close@0 |
+| 39457767229 | linux-webkit | 640 | bg, earn.opacity, earn.max-width close@0 | nav.backdrop-filter.num, earn.filter.num close@0 |
+| 39457767229 | linux-webkit | 641 | bg close-hold@0; earn.opacity close@0; earn.max-width open@10,close@0 | - |
+| 39457767229 | linux-webkit | 1280 | nav.rect, bg close@2; nav.transform.shift close-hold@0 | nav.rect, bg close@2 |
+
+`bg` = `nav.background-color`. A morph cell not listed has the same content `new` groups before and after. Lean outcome lines
+(`Fw.Preset.Gen.storedOf` and `outcome` over the re-reduced units, nothing stored), before → after:
+
+| run | mac-webkit morph | chromium morph | linux-webkit morph |
+|---|---|---|---|
+| 39466179818 | fail → fail | pass → pass | - |
+| 39472217441 | fail → no verdict: coverage | pass → pass | - |
+| 39453181962 | fail → fail | pass → pass | - |
+| 39453764374 | - | pass → pass | no verdict: coverage → no verdict: coverage |
+| 39449092483 | - | fail → fail | no verdict: coverage → no verdict: coverage |
+| 39457767229 | - | fail → fail | no verdict: coverage → no verdict: coverage |
+
+Every hero outcome is `pass` before and after. `hero.exit:scoped` (39466179818) still fails on macOS WebKit morph:
+`nav.background-color` is content `new` at 390, 640 and 641. MEASURED at 390 close@0: the candidate's rep 0 reads
+`[226.5, 227.1, 228.5]` 29 ms into the close, while every pass of the original starts the close between 249.3 and
+252.3, so the envelope cannot pass it (Limits: a start outside every pass). Some units moved from `both` to `new`: the
+base arm now passes them while the candidate still fails (39466179818 mac 390 bg close@0, 39453181962 Chromium 1280
+earn.max-width close@0). Linux WebKit `ok` to `both` units (39453764374 390 close-hold@0): the sample's own pass has no
+core sample, another pass has one, and the reading is outside it (Limits: a pass does not fall back on its own).
+
+Scope (accepted limit, lead sign-off 2026-10-21): the envelope judges every in-flight sample of a transition epoch, not
+only its start, and a pass with no core sample of its own no longer falls back on its own m-window. This is stricter
+than the old rule in some cells: new failures on Linux WebKit 1280 (39453764374), Linux WebKit 390 and 1280
+(39449092483) and Chromium 1280 earn.max-width close@0 (39457767229). A rewrite pass with no counterpart in the
+original is now judged against the envelope of the original's passes; the old 'no counterpart' coverage fail is gone
+(golden cases 'in flight, other pass' pass to fail:apart, 'in flight, other pass, no counterpart' fail:coverage to
+pass; renamed in the next section). The scope is decided, and every changed cell explained, in the next section.
+
+### Envelope scope (task trajectory-envelope-scope)
+
+Decision: the envelope keeps its scope (every in-flight sample of the epoch, no own-pass fallback while another pass
+has a core sample). The rejected alternative is Lean `judgeScoped`: the envelope only while `atStart` (the sample is
+within `startLag` of the first sample of its epoch in the original's own pass), else `judgeOwn` with its m-window
+fallback (`judgeScoped_start`, `judgeScoped_later`). Against the threat model:
+
+- `judgeScoped_stuck_hold`: a box stuck at its start value 400 ms into a hold transition, in a pass the original lacks,
+  passes `judgeScoped` (the hold's m-window pools every sample of the hold) and fails the envelope. A pooled stuck
+  value must fail, so the fallback cannot come back.
+- `judgeScoped_other_curve`: a pass that keeps another pass's start red 500 ms into the transition passes the envelope
+  and fails `judgeScoped`. Start jitter need not fail, also after the start.
+- `judgeUnit_sound`: a component more than the tolerance beyond every reading of the original's whole path never
+  passes, in every branch (in flight, the fallback, at rest; a colour's channel or alpha), when the window holds samples
+  of the path (`windowAt_sub`).
+- `judgeUnit_mutations`: pure red and pure green over two passes, the reversed curve at buckets 2 and 7 over two passes
+  and in one, the stale class, the stuck value pooled over passes, and the stuck hold above all fail.
+
+Re-reduced (MEASURED, the six runs above, 16 artifacts, scratch downloads): the shipped reducer changes no unit against
+main. Content failures summed over the 16 artifacts (morph; `new` = candidate content `new`):
+
+| rule | faithful arm fails | candidate fails | candidate `new` |
+|---|---|---|---|
+| before close-start (own pass, old windows) | 441 | 476 | 71 |
+| main = this task (envelope) | 386 | 405 | 52 |
+| `judgeScoped` | 406 | 421 | 52 |
+| envelope, core of any phase (follow-up) | 381 | 392 | 46 |
+
+`judgeScoped` re-fails 20 faithful-arm units and changes which candidate units are new (5 cleared, 5 added, net 0 over the 16 artifacts). Of the 117 units close-start changed, 29
+come from `windowAt` and 88 from the envelope; 18 end `new`. 58 of the 88 clear a failure in one arm or both (to `ok`
+or `cleared`): the reading lies inside another pass's transition. One fails the faithful arm (39457767229 Linux WebKit
+1280 actions.gap close@0, `ok` to `cleared`): its pass 1 reads 0.04 px 163 ms into the close; the original's pass 1 read
+that epoch only in the hold, so it has no same-phase core and only pass 0 (1.35 px at 170 ms) judges the sample. In 13 of the 14 envelope `both` to `new` units the
+candidate's `fail:apart` stays (the 14th, 39457767229 Linux WebKit 1280 nav.rect close-hold@0, is below) and the faithful arm's failing samples lie inside the envelope (2 more come from
+`windowAt`: 39457767229 Linux WebKit 640 nav.backdrop-filter.num and earn.filter.num close@0). Chromium 39457767229
+1280 earn.max-width close@0: the faithful arm's passes start the close at 12.87, 11.23 and 9.98 px (the own-pass rule
+failed passes 1 and 2, start jitter); the candidate's pass 0 reads 7.36 px 6 ms in, beyond every pass. The Linux WebKit
+close@0 units of 39453764374 and 39449092483 (nav.rect, nav.transform.shift, actions.gap, earn.max-width) are the same
+kind of `both` to `new`.
+
+`close-hold@0` cells are in-flight samples judged by the envelope, not by `windowOf`/`settledRef`:
+
+- 39453764374 Linux WebKit 390 (7 groups `ok`/`new` to `both`), 1280 nav.transform.shift (`cleared` to `new`) and
+  39449092483 Linux WebKit 640 earn.max-width (`cleared` to `both`): the sample's own pass has no core sample of its
+  epoch, so the old rule fell back to the hold's m-window, which pools the start and the settled end. Other passes'
+  readings of the epoch at that time may be in the push (phase 2), and the core is same-phase, so the envelope holds
+  few samples. At 1280 the candidate reads -492.07 px 210 ms in, settled, where the original's pass 2 still reads
+  -596.72 at 119 ms and -495.34 at 537 ms.
+- 39466179818 macOS WebKit 640 nav.background-color (`new` in both): the candidate's pass 3 reads 251.3 491 ms in;
+  every same-phase core reading within 200 ms is 253.66 or more (tolerance 2). Pass 0 read 252.6 at 310 ms in the push;
+  a core of any phase passes it.
+- 39472217441 macOS WebKit 390 nav.background-color (A/A, `new` in both): the candidate's pass 4 reads
+  `[242.0, 242.3, 243.0]` 412 ms in; every reading of the original within 200 ms, any phase, is 249.97 or more. The pass
+  lags beyond the slack; every rule above fails it.
+- 39449092483 Linux WebKit 1280 earn.max-width (`unmeasured` to `both`), 39457767229 Linux WebKit 641 nav.bg (`new`)
+  and 1280 nav.rect (`both` to `new`): the candidate's first failure in the bucket went from `apart` to `coverage`,
+  a sample with no counterpart that failed before too; the earlier sample now passes the envelope.
+- 39453764374 Linux WebKit 1280 nav.background-color close-hold@0: unmeasured to both: the faithful arm's in-flight sample now has an envelope and fails apart instead of coverage.
+
+Limit and follow-up: `isCore` keeps the sample's phase, so readings of the same epoch taken in the push before a hold
+are no core for a hold sample (row 4 of the table, MEASURED, not adopted here).
+
+Limit: judgeUnit_sound bounds a reading against the range of the whole original path (every phase, epoch and class set) and needs every reading in it to have the same shape (n elements, numeric); one absent or string reading makes it vacuous for that path.
 
 ## Admission
 

@@ -22,15 +22,18 @@ export interface FakeMarker extends AnimLike {
 }
 
 /** Test doubles for the `waapi` driver: fake elements whose `animate` records its calls, a settable timeline, listeners,
- * markers and frame callbacks; `frameAt(T)` runs one frame at timeline time `T` (finish events, then frame callbacks). */
+ * markers and frame callbacks; `frameAt(T)` runs one frame at timeline time `T` (finish events, then frame callbacks);
+ * `bases` logs the base `--morph` writes with their timeline time, `scriptFrames` counts the frames that ran script. */
 export function waapiRun(over: Partial<{ reduced: boolean; arm: WaapiArm }> = {}) {
   const calls: Call[] = [];
   const listeners = new Map<string, Fn>();
   const settled: { value: number; props: unknown }[] = [];
   const hints: number[] = [];
+  const bases: { t: number | null; value: number }[] = [];
   let timeline: number | null = 1234.5;
   let clockSubscribes = 0;
   let scriptRuns = 0;
+  let scriptFrames = 0;
   const markers: FakeMarker[] = [];
   const frameCbs = new Set<() => void>();
   const mk = (target: 'nav' | 'platform') => ({
@@ -55,6 +58,7 @@ export function waapiRun(over: Partial<{ reduced: boolean; arm: WaapiArm }> = {}
     removeListener: (t) => void listeners.delete(t),
     settle: (value, props) => void settled.push({ value, props }),
     hint: (v) => void hints.push(v),
+    base: (value) => void bases.push({ t: timeline, value }),
     marker: (duration, startTime) => {
       const m: FakeMarker = { startTime, onfinish: null, cancelled: false, duration, fired: false, cancel() { m.cancelled = true; }, effect: null };
       markers.push(m);
@@ -74,14 +78,16 @@ export function waapiRun(over: Partial<{ reduced: boolean; arm: WaapiArm }> = {}
     return prevented;
   };
   return {
-    d, calls, settled, hints, listeners, wheel,
+    d, calls, settled, hints, bases, listeners, wheel,
     setTimeline: (t: number | null) => (timeline = t),
     clockSubscribes: () => clockSubscribes,
     finish: () => calls.filter((c) => !c.anim.cancelled).forEach((c) => c.anim.onfinish?.()),
     markers,
     scriptRuns: () => scriptRuns,
+    scriptFrames: () => scriptFrames,
     frameAt: (T: number) => {
       timeline = T;
+      const runsBefore = scriptRuns;
       const live = calls.filter((c) => !c.anim.cancelled);
       for (const c of live) c.anim.progress = ease({ x: (T - (c.anim.startTime ?? T)) / DURATION_MS });
       const done = live.filter((c) => !c.anim.fired && T >= (c.anim.startTime ?? T) + DURATION_MS);
@@ -91,6 +97,7 @@ export function waapiRun(over: Partial<{ reduced: boolean; arm: WaapiArm }> = {}
       for (const c of done) if (c.anim.onfinish) (scriptRuns++, c.anim.onfinish());
       for (const m of due) if (m.onfinish) (scriptRuns++, m.onfinish());
       for (const cb of [...frameCbs]) (scriptRuns++, cb());
+      if (scriptRuns > runsBefore) scriptFrames++;
     },
   };
 }

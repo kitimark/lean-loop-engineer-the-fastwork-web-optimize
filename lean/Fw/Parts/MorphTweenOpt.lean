@@ -31,9 +31,11 @@ MT3 (`waapi_eq_tween`): with linear interpolation (R3), the exact curve (MT1) an
 rAF clock plus one constant `c` (R5; the start time is read from `document.timeline.currentTime`), the WAAPI value at
 every frame equals `MorphTween.tween` in `ℚ`, over every push sequence. MT4 (`flags_same_frame`): the four
 flags, as discrete keyframes at the eased-progress offset, flip on the same frame as the original's strict
-`>` tests, except at an exact tie `p = c` (R3b: the engines flip at `p ≥ c`). Visual (`waapi_vis`): the scene, the readers of the written `data-fw-morph` included, is
-`VisSame E` for every env. MT-W (`waapi_work_le`): per tween frame the variant drops the script stage and keeps
-every other stage, in both engine tables (a custom property animates on the main thread in both). MT-R
+`>` tests, except at an exact tie `p = c` (R3b: the engines flip at `p ≥ c`). Visual (`waapi_vis`): the frame's
+view (value, target, flags) and the readers of the written `data-fw-morph` are `VisSame E` for every env; CSS
+transitions started by the `is-morphing` flip are outside the view (their start is the base style of the frame before;
+section WidthTail). MT-W (`waapi_work_le`): per tween frame the variant drops the script stage and keeps every other
+stage, in both engine tables (a custom property animates on the main thread in both). MT-R
 (`registrations_see`, `morph_scope_eq`): `--morph` and `--morph-fade` are registered inherited, so every reader below
 the nav (the hosted panel included) sees the animated value and the style invalidation scope on the nav equals the
 original's. On the platform section the waapi arm restyles the subtree's dependent elements on frames where the
@@ -1195,10 +1197,11 @@ def markerRows (_ : Unit) : List String :=
 /-- Frames every 17 ms from the `a`-th to the `b`-th. -/
 def ticks17 (a b : Nat) : List Ev := (List.range (b + 1 - a)).map fun i => .tick (17 * ((a + i : Nat) : Rat))
 
-/-- The replayed histories: an opening push, and an opening push reversed at 300 ms. -/
+/-- The replayed histories: an opening push, one reversed at 300 ms, and one closed after it ends. -/
 def attrCases : List (String × List Ev) :=
   [("open", .push 1 false 0 :: ticks17 1 42),
-    ("reverse", (.push 1 false 0 :: ticks17 1 17) ++ .push 0 false 300 :: ticks17 18 64)]
+    ("reverse", (.push 1 false 0 :: ticks17 1 17) ++ .push 0 false 300 :: ticks17 18 64),
+    ("close", (.push 1 false 0 :: ticks17 1 42) ++ .push 0 false 720 :: ticks17 43 84)]
 
 /-- The premises of the golden replay: WebKit's form, offset 0. -/
 def attrP : WaapiPremises := premisesWk 0
@@ -1236,7 +1239,10 @@ def attrJsonl (_ : Unit) : String :=
 #guard markerThetas == [1 / 1000, 1 / 5, 2 / 5, 11 / 20, 23 / 25, 7 / 20]
 #guard (markerRows ()).length == 108
 
-/-- **The visual theorem (class E-s).** With sound marker delays, the variant's scene, readers of the attribute included, equals the original's on every admissible frame; it holds for both arms, which share `fixW` and `attrReaders`. -/
+/-- **The visual theorem (class E-s).** With sound marker delays, every scene built from the frame's view and the
+attribute's readers equals the original's on every admissible frame, for both arms (shared `fixW`, `attrReaders`).
+A transition started by the `is-morphing` flip is not such a scene: it starts from the previous frame's base
+(WidthTail). -/
 theorem waapi_vis (P : WaapiPremises) (dl : Rat → Rat → Rat → Rat) (hd : DlSound dl)
     (vp : Fw.Site.Breakpoints.Env → Rect) (c : Fw.Site.Breakpoints.Env → Hist → AttrCtx)
     (S : Fw.Site.Breakpoints.Env → View → AttrScene → Scene) :
@@ -2063,5 +2069,754 @@ theorem waapi_work_leE (as : List Chromium.CrAnim) (a : WebKit.WkAnim) (cs : Lis
   exact waapi_work_le as a cs k hk hne hcu hcs hc
 
 end EndPass
+
+/-! ## MT-L: the scroll lock (`morph.tween:scroll-lock`)
+Sources and engine paths: `research/notes/2026/10-21-morph-scroll-lock.md`. -/
+
+/-- Whether the root's scrollbar is an overlay one: `innerWidth - documentElement.clientWidth ≤ 0`. -/
+def overlayOf (innerW clientW : Int) : Bool := decide (innerW - clientW ≤ 0)
+
+/-- Whether the arm holds the root at `overflow: hidden`: overlay scrollbars and a running morph. -/
+def lockOn (overlay active : Bool) : Bool := overlay && active
+
+/-- The root style write after a step that leaves the morph `active`, from lock state `l`. -/
+def lockWrite (overlay l active : Bool) : Option Bool :=
+  if lockOn overlay active = l then none else some (lockOn overlay active)
+
+/-- The arm's state: the tween and the lock. -/
+structure LSt where
+  /-- the tween -/
+  s : St
+  /-- whether the root is at `overflow: hidden` -/
+  locked : Bool
+deriving Repr, DecidableEq
+
+/-- One event of the arm: the original's tween step, then the lock follows the activity. -/
+def stepL (overlay : Bool) (x : LSt) (e : Ev) : LSt :=
+  let s := stepO x.s e
+  ⟨s, lockOn overlay s.isActive⟩
+
+/-- The arm after the events `es` from rest. -/
+def runL (overlay : Bool) (es : List Ev) : LSt := es.foldl (stepL overlay) ⟨rest, false⟩
+
+/-- The lock writes of each event of `es` from `x`. -/
+def writesL (overlay : Bool) : LSt → List Ev → List (Option Bool)
+  | _, [] => []
+  | x, e :: es =>
+    let y := stepL overlay x e
+    lockWrite overlay x.locked y.s.isActive :: writesL overlay y es
+
+theorem foldl_stepL_s (ov : Bool) (es : List Ev) (x : LSt) : (es.foldl (stepL ov) x).s = es.foldl stepO x.s := by
+  induction es generalizing x with
+  | nil => rfl
+  | cons e es ih => simp only [List.foldl, ih, stepL]
+
+/-- The arm's tween is the original's after every history. -/
+theorem runL_s (ov : Bool) (es : List Ev) : (runL ov es).s = runO rest es := foldl_stepL_s ov es _
+
+theorem foldl_stepL_locked (ov : Bool) (es : List Ev) (x : LSt) (h : x.locked = lockOn ov x.s.isActive) :
+    (es.foldl (stepL ov) x).locked = lockOn ov (es.foldl (stepL ov) x).s.isActive := by
+  induction es generalizing x with
+  | nil => exact h
+  | cons e es ih => exact ih _ rfl
+
+/-- The root is locked iff the scrollbars are overlay ones and the morph runs. -/
+theorem runL_locked (ov : Bool) (es : List Ev) : (runL ov es).locked = lockOn ov (runO rest es).isActive := by
+  have h : (0 : Rat) < activeCut := by
+    rw [activeCut, Rat.div_def, Rat.one_mul]; exact Rat.inv_pos.2 (by decide)
+  rw [← runL_s]
+  exact foldl_stepL_locked ov es _ (by
+    cases ov <;> simp [lockOn, St.isActive, active, rest, Rat.not_lt.2 (Rat.le_of_lt h)])
+
+/-- With classic scrollbars the arm never writes the root. -/
+theorem classic_writes (x : LSt) (es : List Ev) (hx : x.locked = false) : ∀ w ∈ writesL false x es, w = none := by
+  induction es generalizing x with
+  | nil => simp [writesL]
+  | cons e es ih =>
+    intro w hw
+    simp only [writesL, List.mem_cons] at hw
+    rcases hw with rfl | hw
+    · simp [lockWrite, lockOn, hx]
+    · exact ih _ (by simp [stepL, lockOn]) w hw
+
+/-- A write always flips the lock. -/
+theorem write_flips (ov l a b : Bool) (h : lockWrite ov l a = some b) : b = !l := by
+  unfold lockWrite at h; split at h <;> simp_all; cases l <;> simp_all
+
+/-- A step writes iff it changes whether the root should be locked. -/
+theorem write_iff (ov l a : Bool) : (lockWrite ov l a).isSome = true ↔ lockOn ov a ≠ l := by
+  unfold lockWrite; split <;> simp_all
+
+#guard overlayOf 1280 1280 && !overlayOf 1280 1265 && overlayOf 390 393
+#guard lockOn true true && !lockOn false true && !lockOn true false
+#guard lockWrite true false true == some true && lockWrite true true false == some false && lockWrite false false true == none
+#guard (runL true [.push 1 false 0]).locked && !(runL false [.push 1 false 0]).locked
+#guard writesL true ⟨rest, false⟩ [.push 1 true 0, .push 0 true 10] == [some true, some false]
+
+/-! ### One read of the scrollbar kind per activation -/
+
+/-- Whether a step reads the scrollbar kind: the step that takes the morph from inactive (`was`) to active (`now`). -/
+def readsAt (was now : Bool) : Bool := !was && now
+
+/-- The driver's state: the tween, the lock and the scrollbar kind it read last (`false` before the first read). -/
+structure RSt where
+  /-- the tween -/
+  s : St
+  /-- whether the root is at `overflow: hidden` -/
+  locked : Bool
+  /-- the stored result of the last read -/
+  ov : Bool
+deriving Repr, DecidableEq
+
+/-- One driver event on a root of scrollbar kind `env`: read `env` at the activating step, lock from the stored value. -/
+def stepR (env : Bool) (x : RSt) (e : Ev) : RSt :=
+  let s := stepO x.s e
+  let ov := if readsAt x.s.isActive s.isActive then env else x.ov
+  ⟨s, lockOn ov s.isActive, ov⟩
+
+/-- The driver after the events `es` from rest. -/
+def runR (env : Bool) (es : List Ev) : RSt := es.foldl (stepR env) ⟨rest, false, false⟩
+
+/-- Per event of `es` from `x`, whether the driver reads the scrollbar kind. -/
+def readsR (env : Bool) : RSt → List Ev → List Bool
+  | _, [] => []
+  | x, e :: es =>
+    let y := stepR env x e
+    readsAt x.s.isActive y.s.isActive :: readsR env y es
+
+theorem foldl_stepR (env : Bool) (es : List Ev) (x : RSt) (hl : x.locked = lockOn env x.s.isActive)
+    (ho : x.s.isActive = true → x.ov = env) :
+    (es.foldl (stepR env) x).s = es.foldl stepO x.s ∧
+      (es.foldl (stepR env) x).locked = lockOn env (es.foldl (stepR env) x).s.isActive ∧
+      ((es.foldl (stepR env) x).s.isActive = true → (es.foldl (stepR env) x).ov = env) := by
+  induction es generalizing x with
+  | nil => exact ⟨rfl, hl, ho⟩
+  | cons e es ih =>
+    have hs : ((stepO x.s e).isActive = true → (if readsAt x.s.isActive (stepO x.s e).isActive then env else x.ov) = env) := by
+      intro ha
+      cases hx : x.s.isActive
+      · simp [readsAt, ha]
+      · simp [readsAt, ho hx]
+    refine ih (stepR env x e) ?_ hs
+    show lockOn (if readsAt x.s.isActive (stepO x.s e).isActive then env else x.ov) (stepO x.s e).isActive =
+      lockOn env (stepO x.s e).isActive
+    by_cases ha : (stepO x.s e).isActive = true
+    · rw [hs ha]
+    · simp [lockOn, ha]
+
+/-- **MT-L, one read.** After every history the driver holds the tween and the lock of `runL`. -/
+theorem runR_eq (env : Bool) (es : List Ev) :
+    (runR env es).s = (runL env es).s ∧ (runR env es).locked = (runL env es).locked := by
+  have h : (0 : Rat) < activeCut := by
+    rw [activeCut, Rat.div_def, Rat.one_mul]; exact Rat.inv_pos.2 (by decide)
+  have hr : rest.isActive = false := by simp [St.isActive, active, rest, Rat.not_lt.2 (Rat.le_of_lt h)]
+  obtain ⟨h1, h2, -⟩ := foldl_stepR env es ⟨rest, false, false⟩ (by simp [lockOn, hr]) (by simp [hr])
+  refine ⟨by rw [runR, h1, runL_s]; rfl, ?_⟩
+  rw [runR, h2, runL_locked, h1]; rfl
+
+/-- A step reads at most once, and only when the morph becomes active. -/
+theorem reads_iff (was now : Bool) : readsAt was now = true ↔ was = false ∧ now = true := by
+  cases was <;> cases now <;> simp [readsAt]
+
+/-! ### Where the lock engages -/
+
+/-- Whether the arm installs the lock: only when the primary input can hover. -/
+def lockAllowed (hoverNone : Bool) : Bool := !hoverNone
+
+/-- Whether the lock engages: the input can hover and the root's scrollbar is an overlay one. -/
+def engage (hoverNone overlay : Bool) : Bool := lockAllowed hoverNone && overlay
+
+/-- On a touch-only input the lock never engages. -/
+theorem engage_touch (overlay : Bool) : engage true overlay = false := by
+  cases overlay <;> rfl
+
+/-- On a classic scrollbar the lock never engages. -/
+theorem engage_classic (hoverNone : Bool) : engage hoverNone false = false := by
+  cases hoverNone <;> rfl
+
+/-- With hover and an overlay scrollbar the lock engages. -/
+theorem engage_on : engage false true = true := rfl
+
+/-- `(hover: none)` as the arm reads it at mount: an unreadable query (`none`) counts as matching. -/
+def hoverNoneOf (read : Option Bool) : Bool := read.getD true
+
+/-- When `(hover: none)` cannot be read the lock never engages. -/
+theorem engage_unread (overlay : Bool) : engage (hoverNoneOf none) overlay = false := engage_touch overlay
+
+/-- When `(hover: none)` matches the lock never engages. -/
+theorem engage_read_touch (overlay : Bool) : engage (hoverNoneOf (some true)) overlay = false := engage_touch overlay
+
+/-- Where the lock does not engage, the arm never writes the root: it is the original. -/
+theorem engage_off_writes (hoverNone overlay : Bool) (h : engage hoverNone overlay = false) (es : List Ev) :
+    ∀ w ∈ writesL (engage hoverNone overlay) ⟨rest, false⟩ es, w = none := by
+  rw [h]; exact classic_writes _ es rfl
+
+#guard engage false true && !engage true true && !engage false false && !engage true false
+#guard engage (hoverNoneOf (some false)) true && !engage (hoverNoneOf none) true &&
+  !engage (hoverNoneOf (some true)) true
+
+/-! ### The root scroller during a span -/
+
+/-- One frame of a span: the delta of a gesture in flight on the async scroller, and whether the engine drops it on a
+root that is not user-scrollable (`ScrollTree::ScrollBy`, `property_tree.cc:2471-2480`@f842f52;
+`ScrollingTreeScrollingNode::canHandleWheelEvent`, `ScrollingTreeScrollingNode.cpp:233-236`@862f17d). -/
+structure Gest where
+  /-- the delta the scroller would apply -/
+  delta : Int
+  /-- whether a root at `overflow: hidden` drops it -/
+  gated : Bool
+deriving Repr, DecidableEq
+
+/-- The delta applied in frame `i`; the lock reaches the async scroller at frame `k` and drops a gated delta from then. -/
+def applied (lock : Bool) (k i : Nat) (g : Gest) : Int := if lock && decide (k ≤ i) && g.gated then 0 else g.delta
+
+/-- From frame `i` at position `y`, pinned at `p`: per frame the position shown, the position after `pin()`, and whether
+`pin()` called `scrollTo`. -/
+def span (lock : Bool) (k : Nat) (p : Int) : Nat → Int → List Gest → List (Int × Int × Bool)
+  | _, _, [] => []
+  | i, y, g :: gs =>
+    let z := y + applied lock k i g
+    let y' := if z = p then z else p
+    (z, y', decide (z ≠ p)) :: span lock k p (i + 1) y' gs
+
+/-- The `scrollTo` calls of a span. -/
+def forced (r : List (Int × Int × Bool)) : Nat := r.countP (·.2.2)
+
+/-- The position the main thread sees after `pin()` is `p` on every frame, locked or not. -/
+theorem span_seen (lock : Bool) (k : Nat) (p : Int) (i : Nat) (y : Int) (gs : List Gest) :
+    (span lock k p i y gs).map (·.2.1) = List.replicate gs.length p := by
+  induction gs generalizing i y with
+  | nil => rfl
+  | cons g gs ih =>
+    simp only [span, List.map_cons, ih, List.length_cons, List.replicate_succ, List.cons.injEq, and_true]
+    split <;> simp_all
+
+/-- **MT-L, the pinned value.** Both arms see the same position, `p`, after every frame. -/
+theorem seen_eq (k : Nat) (p : Int) (i : Nat) (y : Int) (gs : List Gest) :
+    (span true k p i y gs).map (·.2.1) = (span false k p i y gs).map (·.2.1) := by
+  rw [span_seen, span_seen]
+
+theorem span_tail (lock : Bool) (k : Nat) (p : Int) (i : Nat) (y : Int) (g : Gest) (gs : List Gest) :
+    span lock k p i y (g :: gs) = (y + applied lock k i g, p, decide (y + applied lock k i g ≠ p)) ::
+      span lock k p (i + 1) p gs := by
+  simp only [span]
+  split <;> simp_all
+
+/-- **MT-L, forced scrolls.** From the pinned position the lock calls `scrollTo` at most as often as the original. -/
+theorem forced_le (k : Nat) (p : Int) (i : Nat) (gs : List Gest) :
+    forced (span true k p i p gs) ≤ forced (span false k p i p gs) := by
+  induction gs generalizing i with
+  | nil => simp [span, forced]
+  | cons g gs ih =>
+    rw [span_tail, span_tail]
+    simp only [forced, List.countP_cons] at ih ⊢
+    have := ih (i + 1)
+    have ha : applied true k i g = 0 ∨ applied true k i g = applied false k i g := by
+      unfold applied; split <;> simp
+    rcases ha with ha | ha <;> by_cases h2 : p + applied false k i g = p <;> simp [ha, h2] <;> omega
+
+/-- **MT-L, strictly fewer.** Once the lock is committed, one gated nonzero delta saves a `scrollTo`. -/
+theorem forced_lt (k : Nat) (p : Int) (i : Nat) (gs : List Gest) (hk : k ≤ i)
+    (h : ∃ g ∈ gs, g.gated = true ∧ g.delta ≠ 0) :
+    forced (span true k p i p gs) < forced (span false k p i p gs) := by
+  induction gs generalizing i with
+  | nil => simp at h
+  | cons g gs ih =>
+    rw [span_tail, span_tail]
+    simp only [forced, List.countP_cons] at ih ⊢
+    have hle := forced_le k p (i + 1) gs
+    simp only [forced] at hle
+    obtain ⟨g0, hg0, hgt, hd⟩ := h
+    rcases List.mem_cons.1 hg0 with rfl | hg
+    · have h1 : applied true k i g0 = 0 := by simp [applied, hk, hgt]
+      have h2 : applied false k i g0 = g0.delta := by simp [applied]
+      have h3 : p + g0.delta ≠ p := by omega
+      simp [h1, h2, h3]
+      omega
+    · have := ih (i + 1) (by omega) ⟨g0, hg, hgt, hd⟩
+      have ha : applied true k i g = 0 ∨ applied true k i g = applied false k i g := by
+        unfold applied; split <;> simp
+      rcases ha with ha | ha <;> by_cases h2 : p + applied false k i g = p <;> simp [ha, h2] <;> omega
+
+/-- **MT-L, ungated input (the iPhone pan in flight).** If the engine gates no delta, the lock changes nothing. -/
+theorem ungated_eq (k : Nat) (p : Int) (i : Nat) (y : Int) (gs : List Gest) (h : ∀ g ∈ gs, g.gated = false) :
+    span true k p i y gs = span false k p i y gs := by
+  induction gs generalizing i y with
+  | nil => rfl
+  | cons g gs ih =>
+    have hg := h g (by simp)
+    simp only [span, applied, hg, Bool.and_false, Bool.false_eq_true, ite_false]
+    rw [ih _ _ fun g' hg' => h g' (by simp [hg'])]
+
+/-- **MT-L, no gesture (the probe's single prevented wheel).** Without deltas both arms show `p` and never scroll. -/
+theorem still_eq (lock : Bool) (k : Nat) (p : Int) (i : Nat) (gs : List Gest) (h : ∀ g ∈ gs, g.delta = 0) :
+    span lock k p i p gs = List.replicate gs.length (p, p, false) := by
+  induction gs generalizing i with
+  | nil => rfl
+  | cons g gs ih =>
+    have hg := h g (by simp)
+    rw [span_tail, ih _ fun g' hg' => h g' (by simp [hg'])]
+    have : applied lock k i g = 0 := by unfold applied; split <;> simp [hg]
+    simp [this, List.replicate_succ]
+
+/-- Under a committed lock a gated frame shows `p`: no jump for the pin to undo. -/
+theorem shown_lock (k : Nat) (p : Int) (i : Nat) (gs : List Gest) (hk : k ≤ i) (h : ∀ g ∈ gs, g.gated = true) :
+    ∀ r ∈ span true k p i p gs, r.1 = p ∧ r.2.2 = false := by
+  induction gs generalizing i with
+  | nil => simp [span]
+  | cons g gs ih =>
+    rw [span_tail]
+    intro r hr
+    rcases List.mem_cons.1 hr with rfl | hr
+    · simp [applied, hk, h g (by simp)]
+    · exact ih (i + 1) (by omega) (fun g' hg' => h g' (by simp [hg'])) r hr
+
+/-- Without a gesture both arms call `scrollTo` equally often (never). -/
+theorem forced_still (k : Nat) (p : Int) (gs : List Gest) (h : ∀ g ∈ gs, g.delta = 0) :
+    forced (span true k p 0 p gs) = forced (span false k p 0 p gs) := by
+  rw [still_eq true k p 0 gs h, still_eq false k p 0 gs h]
+
+/-- With ungated input (iPhone) both arms call `scrollTo` equally often. -/
+theorem forced_ungated (k : Nat) (p : Int) (gs : List Gest) (h : ∀ g ∈ gs, g.gated = false) :
+    forced (span true k p 0 p gs) = forced (span false k p 0 p gs) := by
+  rw [ungated_eq k p 0 p gs h]
+
+/-- The root style writes of the history `es` from rest: the lock and each release. -/
+def rootWrites (ov : Bool) (es : List Ev) : Nat := (writesL ov ⟨rest, false⟩ es).countP Option.isSome
+
+/-- Root style passes of one morph: the lock and the release. -/
+def stylePasses (lock : Bool) : Nat := if lock then 2 else 0
+
+/-- **MT-L, style passes.** Per morph the engaged arm adds exactly two root style passes; it never saves one. -/
+theorem style_passes : stylePasses true = stylePasses false + 2 := rfl
+
+/-- On a classic scrollbar the arm writes the root in no history. -/
+theorem rootWrites_classic (es : List Ev) : rootWrites false es = 0 := by
+  rw [rootWrites, List.countP_eq_zero]
+  intro w hw
+  simp [classic_writes _ es rfl w hw]
+
+#guard forced (span true 1 1200 0 1200 [⟨12, true⟩, ⟨10, true⟩, ⟨8, true⟩]) == 1
+#guard forced (span false 1 1200 0 1200 [⟨12, true⟩, ⟨10, true⟩, ⟨8, true⟩]) == 3
+#guard span true 1 1200 0 1200 [⟨12, false⟩, ⟨10, false⟩] == span false 1 1200 0 1200 [⟨12, false⟩, ⟨10, false⟩]
+
+/-! ### The layout gutter -/
+
+/-- The width the root's vertical scrollbar takes from the layout viewport, `w` the classic scrollbar's thickness
+(`LocalFrameView::scrollbarGutterWidth`, `LocalFrameView.cpp:7322-7333`@862f17d;
+`LayoutBox::HasScrollbarGutters`, `layout_box.cc:1474-1494`@f842f52). -/
+def gutter (classic hidden stable : Bool) (w : Nat) : Nat := if classic && (!hidden || stable) then w else 0
+
+/-- **MT-L, no layout shift.** The arm locks only on overlay scrollbars, so its gutter is the original's. -/
+theorem gutter_same (hn c a : Bool) (w : Nat) : gutter c (lockOn (engage hn (!c)) a) false w = gutter c false false w := by
+  cases hn <;> cases c <;> cases a <;> rfl
+
+/-- A lock on a classic scrollbar without `scrollbar-gutter: stable` gives the scrollbar's width to the layout. -/
+theorem gutter_shift (w : Nat) (hw : 0 < w) : gutter true true false w ≠ gutter true false false w := by
+  simp [gutter]; omega
+
+/-- With `scrollbar-gutter: stable` a lock on a classic scrollbar keeps the width. -/
+theorem gutter_stable (w : Nat) : gutter true true true w = gutter true false false w := rfl
+
+#guard gutter true false false 15 == 15 && gutter true true false 15 == 0 && gutter false false false 15 == 0
+
+/-- **MT-L, visual.** For every environment, history and span frame, the arm's scene from the tween, the position the
+main thread sees and the gutter equals the original's. -/
+theorem lock_vis (vp : Fw.Site.Breakpoints.Env → Rect) (cl : Fw.Site.Breakpoints.Env → Bool) (w k : Nat) (p : Int)
+    (S : Fw.Site.Breakpoints.Env → St → Int → Nat → Scene) :
+    VisSame E vp
+      (fun env (h : List Ev × List Gest × Nat) =>
+        S env (runO rest h.1) (((span false k p 0 p h.2.1).map (·.2.1)).getD h.2.2 p) (gutter (cl env) false false w))
+      (fun env h => S env (runL (engage (decide (env.hover = .none)) (!cl env)) h.1).s
+        (((span (engage (decide (env.hover = .none)) (!cl env)) k p 0 p h.2.1).map (·.2.1)).getD h.2.2 p)
+        (gutter (cl env) (runL (engage (decide (env.hover = .none)) (!cl env)) h.1).locked false w)) :=
+  visSame_of_eq vp fun env h => by
+    rw [runL_s, runL_locked, gutter_same, span_seen, span_seen]
+
+/-! ### Golden rows (`morph-tween-scroll-lock.jsonl`) -/
+
+/-- The replayed histories of the lock, each with the scrollbar kind. -/
+def lockCases : List (String × Bool × List Ev) :=
+  [("open-close", true, [.push 1 false 0, .tick 17, .tick 340, .tick 680, .tick 697, .push 0 false 1000, .tick 1017,
+      .tick 1700, .tick 1717]),
+    ("open-close-classic", false, [.push 1 false 0, .tick 17, .tick 340, .tick 680, .push 0 false 1000, .tick 1017,
+      .tick 1700]),
+    ("reduced", true, [.push 1 true 0, .push 0 true 50]),
+    ("retarget", true, [.push 1 false 0, .tick 100, .push 0 false 150, .tick 300, .tick 830, .tick 847])]
+
+/-- An event as JSON fields. -/
+def evFields : Ev → List (String × Lean.Json)
+  | .push g rm n => [("ev", .str "push"), ("goal", ratJ g), ("reduced", .bool rm), ("t", ratJ n)]
+  | .tick R => [("ev", .str "tick"), ("t", ratJ R)]
+
+/-- A write as JSON: `null`, `true` (lock) or `false` (release). -/
+def writeJ : Option Bool → Lean.Json
+  | none => .null
+  | some b => .bool b
+
+/-- The rows of one lock case: per event the activity, the lock, the write and the read. -/
+def lockRows (c : String) (ov : Bool) (es : List Ev) : List String :=
+  ((List.range es.length).zip (es.zip ((writesL ov ⟨rest, false⟩ es).zip (readsR ov ⟨rest, false, false⟩ es)))).map
+    fun (i, e, w, r) =>
+    let x := runL ov (es.take (i + 1))
+    (Lean.Json.mkObj ([("kind", .str "lock"), ("case", .str c), ("overlay", .bool ov), ("i", .num (i : Int)),
+      ("active", .bool x.s.isActive), ("locked", .bool x.locked), ("write", writeJ w), ("read", .bool r)] ++
+      evFields e)).compress
+
+/-- The replayed spans, each with its commit frame `k`, pinned position and gestures. -/
+def spanCases : List (String × Nat × Int × List Gest) :=
+  [("still", 1, 1200, List.replicate 4 ⟨0, true⟩),
+    ("trackpad-in-flight", 1, 1200, [⟨12, true⟩, ⟨10, true⟩, ⟨8, true⟩, ⟨5, true⟩, ⟨2, true⟩]),
+    ("ios-pan-in-flight", 1, 1200, [⟨12, false⟩, ⟨10, false⟩, ⟨8, false⟩, ⟨5, false⟩, ⟨2, false⟩]),
+    ("mixed", 1, 1200, [⟨6, true⟩, ⟨0, true⟩, ⟨-4, true⟩, ⟨3, false⟩])]
+
+/-- The rows of one span for arm `lock`: per frame the delta, the position shown and seen, and the `scrollTo`. -/
+def spanRows (c : String) (k : Nat) (p : Int) (gs : List Gest) (lock : Bool) : List String :=
+  ((List.range gs.length).zip (gs.zip (span lock k p 0 p gs))).map fun (i, g, z, y, f) =>
+    (Lean.Json.mkObj [("kind", .str "span"), ("case", .str c), ("lock", .bool lock), ("k", .num (k : Int)),
+      ("p", .num p), ("i", .num (i : Int)), ("delta", .num g.delta), ("gated", .bool g.gated), ("shown", .num z),
+      ("seen", .num y), ("scrollTo", .bool f)]).compress
+
+/-- The scrollbar-kind rows: inner and client width and the decision. -/
+def overlayRows : List String :=
+  ([(1280, 1280), (1280, 1265), (390, 390), (390, 393), (641, 626)] : List (Int × Int)).map fun (a, b) =>
+    (Lean.Json.mkObj [("kind", .str "overlay"), ("innerWidth", .num a), ("clientWidth", .num b),
+      ("overlay", .bool (overlayOf a b))]).compress
+
+/-- The engagement rows: the `(hover: none)` read (`null`: unreadable), scrollbar kind, `lockAllowed`, `engage`. -/
+def engageRows : List String :=
+  ([some false, some true, none] : List (Option Bool)).flatMap fun r => [false, true].map fun ov =>
+    (Lean.Json.mkObj [("kind", .str "engage"), ("hoverNone", r.elim .null .bool), ("overlay", .bool ov),
+      ("allowed", .bool (lockAllowed (hoverNoneOf r))), ("engage", .bool (engage (hoverNoneOf r) ov))]).compress
+
+/-- The contents of `packages/contracts/golden/parts/morph-tween-scroll-lock.jsonl`. -/
+def lockJsonl : String :=
+  String.join (overlayRows.map (· ++ "\n")) ++ String.join (engageRows.map (· ++ "\n")) ++
+    String.join (lockCases.flatMap fun (c, ov, es) => (lockRows c ov es).map (· ++ "\n")) ++
+    String.join (spanCases.flatMap fun (c, k, p, gs) => ([true, false].flatMap (spanRows c k p gs)).map (· ++ "\n"))
+
+#guard lockCases.all fun (_, ov, es) => (runL ov es).s == runO rest es
+
+#guard lockCases.all fun (_, ov, es) =>
+  (es.zip (readsR ov ⟨rest, false, false⟩ es)).all fun (e, r) => match e with | .tick _ => !r | .push .. => true
+
+#guard (lockCases.map fun (_, ov, es) => ((readsR ov ⟨rest, false, false⟩ es).countP id, rootWrites ov es)) ==
+  [(1, 2), (1, 0), (1, 2), (1, 2)]
+
+#guard lockJsonl == include_str "../../../packages/contracts/golden/parts/morph-tween-scroll-lock.jsonl"
+
+/-! ## The nav width tail after a close (`waapi-nav-width-tail`) -/
+
+section WidthTail
+
+/-- The original's morph value `T` ms into a close from 1 to 0. -/
+def closeAt (T : Rat) : Rat := 1 - ease (T / duration)
+
+/-- Where a close crosses `activeCut`, so `is-morphing` turns off (JS 12947): `(1 - 612/680)^3 = 1/1000`. -/
+def crossMs : Rat := 612
+
+theorem closeAt_cross : closeAt crossMs = activeCut := by
+  have h : min 1 (max 0 ((612 : Rat) / 680)) = 612 / 680 := by grind
+  unfold closeAt ease clamp01 crossMs duration activeCut; rw [h]; grind
+
+theorem cube_lt (a b : Rat) (hb : 0 ≤ b) (h : b < a) : b * b * b < a * a * a := by
+  have ha : 0 < a := by grind
+  have h1 : 0 < a - b := by grind
+  have h2 : 0 < a * a := Rat.mul_pos ha ha
+  have h3 : 0 ≤ a * b := Rat.mul_nonneg (by grind) hb
+  have h4 : 0 ≤ b * b := Rat.mul_nonneg hb hb
+  have h5 : 0 < (a - b) * (a * a + a * b + b * b) := Rat.mul_pos h1 (by grind)
+  grind
+
+theorem closeAt_eq (T : Rat) (h0 : 0 ≤ T) (h1 : T ≤ duration) :
+    closeAt T = (1 - T / duration) * (1 - T / duration) * (1 - T / duration) := by
+  have hd : T / duration = T * (1 / 680) := div_dur T
+  have hc : clamp01 (T / duration) = T / duration := by unfold clamp01 duration at *; grind
+  unfold closeAt ease; rw [hc]; grind
+
+theorem closeAt_strict (T T' : Rat) (h0 : 0 ≤ T) (h : T < T') (h1 : T' ≤ duration) : closeAt T' < closeAt T := by
+  rw [closeAt_eq T h0 (by grind), closeAt_eq T' (by grind) h1]
+  have hd : ∀ e : Rat, e / duration = e * (1 / 680) := div_dur
+  apply cube_lt
+  · rw [hd]; unfold duration at h1; grind
+  · rw [hd, hd]; grind
+
+theorem closeAt_inj (T T' : Rat) (h0 : 0 ≤ T) (h1 : T ≤ duration) (h0' : 0 ≤ T') (h1' : T' ≤ duration)
+    (h : closeAt T = closeAt T') : T = T' := by
+  rcases (show T < T' ∨ T = T' ∨ T' < T by grind) with hl | he | hg
+  · have := closeAt_strict T T' h0 hl h1'; grind
+  · exact he
+  · have := closeAt_strict T' T h0' hg h1; grind
+
+theorem closeAt_after (R : Rat) (h : crossMs ≤ R) : closeAt R ≤ activeCut := by
+  rw [← closeAt_cross]
+  unfold closeAt
+  have := ease_mono (crossMs / duration) (R / duration) (by
+    rw [div_dur, div_dur]; exact Rat.mul_le_mul_of_nonneg_right h (by grind))
+  grind
+
+/-- `is-morphing` is on exactly before `crossMs` on a close. -/
+theorem morphing_iff (T : Rat) (h0 : 0 ≤ T) : activeCut < closeAt T ↔ T < crossMs := by
+  constructor
+  · intro h
+    rcases (show T < crossMs ∨ T = crossMs ∨ crossMs < T by grind) with hl | he | hg
+    · exact hl
+    · rw [he, closeAt_cross] at h; grind
+    · have := closeAt_after T (by grind); grind
+  · intro h
+    have := closeAt_strict T crossMs h0 h (by unfold crossMs duration; decide)
+    rw [closeAt_cross] at this; exact this
+
+/-- The jump of the nav width when a `width` transition starts, from the base value `before` to `after`.
+The engines start it from the before-change style, the base style of the previous style change event without script
+animations (Chromium `css_animations.cc:3214-3215,3242-3293`@f842f52; WebKit `Styleable.cpp:604-617`@862f17d and
+`StyleTreeResolver.cpp:894-898`@862f17d), to the after-change base style (`Styleable.cpp:624-632`@862f17d). -/
+def tailPx (v : Nav.Vp) (hp : Bool) (before after : Rat) : Rat := Nav.navWidth v hp before - Nav.navWidth v hp after
+
+theorem tailPx_eq (v : Nav.Vp) (hp : Bool) (b a : Rat) : tailPx v hp b a = (Nav.panelW v - Nav.pillW v) * (b - a) := by
+  unfold tailPx Nav.navWidth; grind
+
+/-- **The original's tail.** It writes `--morph` inline every frame, so its width transition starts at `prev`. -/
+theorem tail_orig_pos (v : Nav.Vp) (hp : Bool) (prev R : Rat) (hD : Nav.pillW v < Nav.panelW v) (h0 : 0 ≤ prev)
+    (hl : prev < crossMs) (hR : crossMs ≤ R) : 0 < tailPx v hp (closeAt prev) (closeAt R) := by
+  rw [tailPx_eq]
+  have h1 := (morphing_iff prev h0).mpr hl
+  have h2 := closeAt_after R hR
+  exact Rat.mul_pos (by grind) (by grind)
+
+/-- **No base change, no tail.** An unchanged base value starts no width jump. The driver writes no base on an open
+(`waapi.driver.test.ts`, test "a close writes the base --morph ...; an open writes none"). -/
+theorem tail_zero_of_base_still (v : Nav.Vp) (hp : Bool) (before after : Rat) (h : before = after) :
+    tailPx v hp before after = 0 := by
+  subst h; unfold tailPx; grind
+
+/-- **Not a function of the frame.** The original's flip-frame width depends on the frame before (outside
+`waapi_vis`). -/
+theorem tail_not_view (v : Nav.Vp) (hp : Bool) (hD : Nav.pillW v < Nav.panelW v) :
+    tailPx v hp (closeAt 500) (closeAt crossMs) ≠ tailPx v hp (closeAt 600) (closeAt crossMs) := by
+  rw [tailPx_eq, tailPx_eq]
+  intro h
+  have hs := closeAt_strict 500 600 (by decide) (by decide) (by unfold duration; decide)
+  have hpos : 0 < Nav.panelW v - Nav.pillW v := by grind
+  have := Rat.mul_lt_mul_of_pos_left (show closeAt 600 - closeAt crossMs < closeAt 500 - closeAt crossMs by grind) hpos
+  grind
+
+/-! ### The base window -/
+
+/-- How long before its `activeCut` marker a close starts writing the base `--morph`, in ms (`TAIL_WINDOW_MS`). -/
+def tailWindow : Rat := 100
+
+/-- A push from `f` to `t` opens a base window iff it closes and gets the `activeCut` marker (`baseWindow`). -/
+def baseB (f t : Rat) : Bool := decide (t < f) && markerB f t activeCut
+
+/-- The base window's delay in ms: `G` before the `activeCut` marker's, at least 0 (`baseDelay`). -/
+def baseDelay (dl : Rat → Rat → Rat → Rat) (G f t : Rat) : Rat := max 0 (dl f t activeCut - G)
+
+/-- The window writes the base `--morph` on frame `T`: from its delay until the animation ends. The writes after the
+flip keep the original's per-frame width retargets (WebKit `Styleable.cpp:705-756`@862f17d; Chromium
+`css_animations.cc:2703-2716,2861-2882`@f842f52). -/
+def baseW (dl : Rat → Rat → Rat → Rat) (G : Rat) (w : VSt) (T : Rat) : Bool :=
+  match w.anim with
+  | none => false
+  | some a => baseB a.f a.t && decide (a.st + baseDelay dl G a.f a.t ≤ T) && decide (T < a.st + duration)
+
+/-- **The window covers the frame before the flip.** With sound delays, a frame at most `G` before a frame `R` at which
+the close has reached `activeCut` is in the window. A sufficient hit condition; `hit_iff_mP` is the exact one. -/
+theorem base_hits (P : WaapiPremises) (dl : Rat → Rat → Rat → Rat) (hd : DlSound dl) (G : Rat) (w : VSt) (a : Anim)
+    (hw : w.anim = some a) (hb : baseB a.f a.t = true) (T R : Rat) (hR : reach a.f a.t activeCut (valA P a R))
+    (hst : a.st < R) (h0 : a.st ≤ T) (hT : R - G ≤ T) (hend : T < a.st + duration) : baseW dl G w T = true := by
+  have hdl := hd a.f a.t activeCut (R - a.st) (by grind) (by rw [← valA_path]; exact hR)
+  have hm : max 0 (dl a.f a.t activeCut - G) ≤ T - a.st := by
+    rw [Rat.max_def]; split <;> grind
+  unfold baseW baseDelay
+  simp only [hw, hb, Bool.true_and, Bool.and_eq_true, decide_eq_true_eq]
+  exact ⟨by grind, hend⟩
+
+/-- **On a hit the tail is the original's.** The last link of the hit chain: `hit_iff_mP` or `base_hits`, then the
+driver test "a close writes the base --morph ..." (base written = frame value), then this equality of the frame values
+(`waapi_frame_eq`). -/
+theorem tail_eq_of_base (P : WaapiPremises) (v : Nav.Vp) (hp : Bool) (es es' : List Ev) (T R l l' : Rat)
+    (h : monoB l (es ++ [.tick T]) = true) (h' : monoB l' (es' ++ [.tick R]) = true) :
+    tailPx v hp (valV P (runV P initV es) (P.tl T)) (valV P (runV P initV es') (P.tl R)) =
+      tailPx v hp (runO rest (es ++ [.tick T])).value (runO rest (es' ++ [.tick R])).value := by
+  rw [waapi_frame_eq P es T l h, waapi_frame_eq P es' R l' h']
+
+/-- **A miss stays below the cut.** If the window opens after the flip, the base is the push's reset `0`, so the jump
+is to the flip frame's value `m ≤ activeCut`: at most `(panelW - pillW) · activeCut` and reversed. -/
+theorem tail_miss_le (v : Nav.Vp) (hp : Bool) (m : Rat) (hD : Nav.pillW v ≤ Nav.panelW v) (h0 : 0 ≤ m)
+    (h1 : m ≤ activeCut) :
+    -((Nav.panelW v - Nav.pillW v) * activeCut) ≤ tailPx v hp 0 m ∧ tailPx v hp 0 m ≤ 0 := by
+  rw [tailPx_eq]
+  have hD' : 0 ≤ Nav.panelW v - Nav.pillW v := by grind
+  have := Rat.mul_le_mul_of_nonneg_left h1 hD'
+  have := Rat.mul_nonneg hD' h0
+  constructor <;> grind
+
+/-- **The exact hit rule.** On a close from `1`, frame `T` of the animation is in the window iff the original's value
+there is at most its value at the window's delay. -/
+theorem hit_iff_mP (dl : Rat → Rat → Rat → Rat) (G : Rat) (w : VSt) (a : Anim) (hw : w.anim = some a) (hf : a.f = 1)
+    (ht : a.t = 0) (hb : baseB 1 0 = true) (hbd : baseDelay dl G 1 0 ≤ duration) (T : Rat) (h0 : a.st ≤ T)
+    (hend : T < a.st + duration) :
+    baseW dl G w T = true ↔ closeAt (T - a.st) ≤ closeAt (baseDelay dl G 1 0) := by
+  have hbd0 : 0 ≤ baseDelay dl G 1 0 := by unfold baseDelay; rw [Rat.max_def]; split <;> grind
+  unfold baseW
+  simp only [hw, hf, ht, hb, Bool.true_and, Bool.and_eq_true, decide_eq_true_eq]
+  constructor
+  · intro ⟨h1, _⟩
+    rcases (show baseDelay dl G 1 0 < T - a.st ∨ baseDelay dl G 1 0 = T - a.st by grind) with hl | he
+    · exact Rat.le_of_lt (closeAt_strict _ _ hbd0 hl (by unfold duration at *; grind))
+    · rw [he]; exact Rat.le_refl
+  · intro h
+    refine ⟨?_, hend⟩
+    rcases (show T - a.st < baseDelay dl G 1 0 ∨ baseDelay dl G 1 0 ≤ T - a.st by grind) with hl | hg
+    · have := closeAt_strict _ _ (by grind) hl hbd; grind
+    · grind
+
+/-- **A miss costs at least the window's edge.** If the frame before the flip is before the window, the original's
+tail exceeds the waapi arm's (from the reset base `0` to any `c ≥ 0`) by at least
+`(panelW - pillW) · (closeAt baseDelay - activeCut)`. -/
+theorem miss_look_ge (v : Nav.Vp) (hp : Bool) (dl : Rat → Rat → Rat → Rat) (G st P R c : Rat)
+    (hD : Nav.pillW v ≤ Nav.panelW v) (hbd : baseDelay dl G 1 0 ≤ duration) (h0 : st ≤ P)
+    (hP : P < st + baseDelay dl G 1 0) (hR : st + crossMs ≤ R) (hc : 0 ≤ c) :
+    (Nav.panelW v - Nav.pillW v) * (closeAt (baseDelay dl G 1 0) - activeCut) ≤
+      tailPx v hp (closeAt (P - st)) (closeAt (R - st)) - tailPx v hp 0 c := by
+  rw [tailPx_eq, tailPx_eq]
+  have h1 := closeAt_strict (P - st) (baseDelay dl G 1 0) (by grind) (by grind) hbd
+  have h2 := closeAt_after (R - st) (by grind)
+  have hD' : 0 ≤ Nav.panelW v - Nav.pillW v := by grind
+  have := Rat.mul_le_mul_of_nonneg_left
+    (show closeAt (baseDelay dl G 1 0) - activeCut ≤ closeAt (P - st) - closeAt (R - st) - (0 - c) by grind) hD'
+  grind
+
+/-- The look-difference floor of a miss at viewport `v`: `(panelW - pillW) · (closeAt baseDelay - activeCut)`. -/
+def missFloor (v : Nav.Vp) : Rat :=
+  (Nav.panelW v - Nav.pillW v) * (closeAt (baseDelay (dlLo delayDepth) tailWindow 1 0) - activeCut)
+
+#guard baseDelay (dlLo delayDepth) tailWindow 1 0 ≤ duration
+#guard let c := closeAt (baseDelay (dlLo delayDepth) tailWindow 1 0); 1507 / 100000 < c && c < 1509 / 100000
+#guard 360 / 100 < missFloor ⟨1280, 800⟩ && missFloor ⟨1280, 800⟩ < 361 / 100
+#guard 11 / 100 < missFloor ⟨390, 844⟩ && missFloor ⟨390, 844⟩ < 12 / 100
+
+/-! ### Cost: script frames of the window against the saving -/
+
+/-- Frame counts of a replay: frames, script frames of the original, of the fixed driver, and with the base window. -/
+structure Cost where
+  frames : Nat
+  orig : Nat
+  fix : Nat
+  tail : Nat
+deriving Repr, DecidableEq
+
+/-- One event of the count; the finish handler runs once, on the first frame at or after the end (`d` records it). -/
+def costStep (dl : Rat → Rat → Rat → Rat) (G : Rat) : St × VSt × Bool × Cost → Ev → St × VSt × Bool × Cost
+  | (s, w, d, c), .push g rm n =>
+    (stepO s (.push g rm n), stepV attrP w (.push g rm n), d && decide (w.target = g ∧ w.aim = g), c)
+  | (s, w, d, c), .tick R =>
+    let T := attrP.tl R
+    let fin := finishW w T && !d
+    let fx := fin || pollW dl w T
+    (stepO s (.tick R), stepV attrP w (.tick R), d || fin,
+      ⟨c.frames + 1, c.orig + (if s.pending then 1 else 0), c.fix + (if fx then 1 else 0),
+        c.tail + (if fx || baseW dl G w T then 1 else 0)⟩)
+
+/-- The driver's marker delay: 1 ms before the golden delay, at least 0 (`markerDelay`). -/
+def dlTs (f t θ : Rat) : Rat := if reach f t θ f then 0 else max 0 (dlLo delayDepth f t θ - 1)
+
+theorem dlTs_sound : DlSound dlTs := by
+  intro f t θ e he hr
+  have := dlLo_sound delayDepth f t θ e he hr
+  unfold dlTs
+  split
+  · grind
+  · rw [Rat.max_def]; split <;> grind
+
+/-- The counts of the events `es` from the original `s` and the variant `w`, window `G`, the driver's delays. -/
+def cost (G : Rat) (s : St) (w : VSt) (es : List Ev) : Cost :=
+  (es.foldl (costStep dlTs G) (s, w, false, ⟨0, 0, 0, 0⟩)).2.2.2
+
+/-- Both at rest at `1`, an open long finished. -/
+def atOne : St × VSt :=
+  let es := [Ev.push 1 false (-1000), .tick 0]
+  (runO rest es, runV attrP initV es)
+
+/-- A close from `1` pushed at `0`, frames every `g` ms until the first at or after the end. -/
+def closeEvs (g : Rat) : List Ev :=
+  .push 0 false 0 :: (List.range ((duration / g).ceil.toNat)).map fun k => .tick (g * ((k + 1 : Nat) : Rat))
+
+/-- The counts of a close at frame gap `g` with window `G`. -/
+def closeCost (G g : Rat) : Cost := cost G atOne.1 atOne.2 (closeEvs g)
+
+/-- The two outcomes for the tail: modelled in the driver, or a look change. -/
+inductive TailArm where
+  | model
+  | lookChange
+deriving DecidableEq, Repr
+
+/-- Model the tail iff the window's extra script frames stay below the frames the fixed driver saves. Lexicographic: the
+look difference of `lookChange` is positive on every grid (`tail_orig_pos`), so it outranks script frames while a saving
+remains. -/
+def tailArm (c : Cost) : TailArm := if c.tail - c.fix < c.orig - c.fix then .model else .lookChange
+
+theorem tailArm_model (c : Cost) (h : c.tail - c.fix < c.orig - c.fix) : tailArm c = .model := by
+  unfold tailArm; simp [h]
+
+theorem tailArm_look (c : Cost) (h : c.orig - c.fix ≤ c.tail - c.fix) : tailArm c = .lookChange := by
+  unfold tailArm; simp; omega
+
+/-- The display frame gaps the decision is made at: 60 Hz and 120 Hz. -/
+def displayGaps : List Rat := [50 / 3, 25 / 3]
+
+/-- The decision: model the tail iff it is cheaper than the saving at every display frame gap. -/
+def tailDecision (G : Rat) : TailArm :=
+  if displayGaps.all fun g => tailArm (closeCost G g) == .model then .model else .lookChange
+
+/-- The frame gaps of the cost rows: 60 Hz, 120 Hz, and CI flip-frame gaps (Chromium about 22 ms, macOS WebKit 45 to
+100 ms). The 300 ms row stands for the Linux WebKit flip gaps of 417-562 ms in runs 39412301221, 39457063232 and
+39457767229 (an older probe); no probe walks the morph there now (`walks_linux_webkit`), so it is not decisive. -/
+def costGaps : List Rat := [50 / 3, 25 / 3, 22, 45, 100, 300]
+
+/-- The arm's wire name. -/
+def TailArm.name : TailArm → String
+  | .model => "model"
+  | .lookChange => "lookChange"
+
+/-- One cost row's counts. -/
+def costFields (c : Cost) : List (String × Lean.Json) :=
+  [("frames", .num c.frames), ("orig", .num c.orig), ("fix", .num c.fix), ("tail", .num c.tail)]
+
+/-- The contents of `packages/contracts/golden/parts/morph-tween-waapi.tail.jsonl`: the window, its delay per push,
+script frames per replayed case, and the cost of a close per frame gap. -/
+def tailJsonl (_ : Unit) : String :=
+  let rows := [Lean.Json.mkObj [("kind", .str "tailWindow"), ("ms", ratJ tailWindow)]] ++
+    markerFroms.flatMap (fun f => [0, 1].map fun t => Lean.Json.mkObj [("kind", .str "baseWindow"), ("from", ratJ f),
+      ("to", ratJ t), ("window", .bool (baseB f t)),
+      ("delay", if baseB f t then ratJ (baseDelay (dlLo delayDepth) tailWindow f t) else .null)]) ++
+    attrCases.map (fun (n, es) => Lean.Json.mkObj ([("kind", .str "scriptFrames"), ("case", .str n)] ++
+      costFields (cost tailWindow rest initV es))) ++
+    costGaps.map fun g => let c := closeCost tailWindow g
+      Lean.Json.mkObj ([("kind", .str "closeCost"), ("gap", ratJ g)] ++ costFields c ++
+        [("arm", .str (tailArm c).name)])
+  String.join (rows.map fun r => r.compress ++ "\n")
+
+#guard tailDecision tailWindow == .model
+#guard closeCost tailWindow (50 / 3) == ⟨41, 41, 8, 17⟩ && closeCost tailWindow (25 / 3) == ⟨82, 82, 8, 27⟩
+#guard closeCost tailWindow 22 == ⟨31, 31, 7, 13⟩ && tailArm (closeCost tailWindow 22) == .model
+#guard closeCost tailWindow 45 == ⟨16, 16, 7, 10⟩ && tailArm (closeCost tailWindow 45) == .model
+#guard closeCost tailWindow 100 == ⟨7, 7, 4, 5⟩ && tailArm (closeCost tailWindow 100) == .model
+#guard closeCost tailWindow 300 == ⟨3, 3, 2, 3⟩ && tailArm (closeCost tailWindow 300) == .lookChange
+#guard baseB 1 0 && baseB (1 / 2) 0 && !baseB 0 1 && !baseB (1 / 2000) 0 && !baseB 1 1
+#guard baseDelay (dlLo delayDepth) tailWindow 1 0 < 512 && 511 < baseDelay (dlLo delayDepth) tailWindow 1 0
+#guard let c : VSt := ⟨0, 0, some ⟨1, 0, 0⟩, 0, 1⟩
+  baseW dlTs tailWindow c 600 && !baseW dlTs tailWindow c 500 && !baseW dlTs tailWindow c 680
+#guard !baseW dlTs tailWindow ⟨1, 1, some ⟨0, 1, 0⟩, 0, 0⟩ 600 && !baseW dlTs tailWindow ⟨0, 0, none, 0, 0⟩ 600
+#guard tailJsonl () == include_str "../../../packages/contracts/golden/parts/morph-tween-waapi.tail.jsonl"
+#guard closeAt crossMs == activeCut && closeAt 0 == 1 && closeAt 680 == 0 && closeAt 900 == 0
+#guard let t := tailPx ⟨1280, 800⟩ false (closeAt (crossMs - 50 / 3)) 0; 49 / 100 < t && t < 1 / 2
+#guard let t := tailPx ⟨1440, 900⟩ false (closeAt (crossMs - 50 / 3)) 0; 79 / 100 < t && t < 4 / 5
+#guard let t := tailPx ⟨390, 844⟩ false (closeAt (crossMs - 50 / 3)) 0; 0 < t && t < 1 / 50
+#guard let t := tailPx ⟨1280, 800⟩ false (closeAt (crossMs - 173)) 0; 11 < t && t < 12
+#guard let t := tailPx ⟨1280, 800⟩ false (closeAt (crossMs - 411)) 0; 89 < t && t < 90
+
+end WidthTail
 
 end Fw.Parts.MorphTweenOpt

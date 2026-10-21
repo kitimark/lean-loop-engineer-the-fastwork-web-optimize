@@ -11,6 +11,7 @@ import { dirname, join, relative } from "node:path";
 import { GateReply, ManifestReply, PlanReply, ReduceReply, type PlanJob, type RunManifest } from "@fw/contracts";
 import { UsageError } from "./lib.ts";
 import { recordRunKind } from "./timing.ts";
+import { newNonce, parseRunRows, pickRun, titleOf } from "./run-pick.ts";
 
 export type RunArgs = {
   target: string; preset: string; fw: string[]; engines: string[]; profile?: string; runs?: number; dry: boolean;
@@ -243,6 +244,10 @@ export type RunDeps = {
   /** Remember the inputs of a run this command dispatched (the timing kind of its spans, timing.ts `recordRunKind`). */
   recordKind?: (runId: number, inputs: PlanJob["inputs"]) => void;
   capS?: number;
+  /** The nonce of a dispatch (`--trajectory`); a fresh random one when absent. */
+  nonce?: () => string;
+  /** Wait between two looks at the run list, seconds; real time when absent. */
+  sleep?: (seconds: number) => Promise<void>;
 };
 
 const epoch = (iso: string) => Math.floor(Date.parse(iso) / 1000);
@@ -318,7 +323,15 @@ async function runGate(args: RunArgs, d: RunDeps, sha: string, lane: "gate" | "t
   if (job.blocked) { d.log(`refused: ${lane} (${job.blocked}) cannot express this request; add the input to the workflow first`); return 2; }
   const ref = args.ref ?? d.branch;
   let runId = args.fromRun[lane];
-  if (!runId) {
+  if (!runId && lane === "trajectory") {
+    // identity, not recency: the dispatch carries a nonce, the run title echoes it (Lean Fw.Ci.Dispatch.pick)
+    const nonce = d.nonce?.() ?? newNonce();
+    await d.gh(dispatchArgs({ workflow: job.workflow, inputs: { ...job.inputs, nonce } }, ref));
+    d.log(`${lane}: dispatched ${job.workflow} on ${ref} with nonce ${nonce} (run title "${titleOf(nonce)}"); looking for the run`);
+    const picked = await findDispatched(d, job.workflow, ref, nonce);
+    d.log(`${lane}: the run with nonce ${nonce} is ${picked}`);
+    runId = decided(lane, await waitDecided(d.wait, { kind: "run", runId: Number(picked) }, d.now, d.capS));
+  } else if (!runId) {
     const before = await latestRun(d.gh, job.workflow, ref);
     const at = d.now();
     await d.gh(dispatchArgs({ workflow: job.workflow, inputs: job.inputs }, ref));
@@ -333,6 +346,24 @@ async function runGate(args: RunArgs, d: RunDeps, sha: string, lane: "gate" | "t
   if (head !== sha) throw new UsageError(`${lane}: run ${runId} measured ${head.slice(0, 7)}, not ${sha.slice(0, 7)}`);
   d.log(`${lane}: run ${runId} succeeded at ${sha.slice(0, 7)} (tables: gh run download ${runId})`);
   return 0;
+}
+
+const FIND_EVERY_S = 120; // CI polls are at least 120 s apart (shared GitHub token); a dispatch run appears within seconds
+const FIND_TRIES = 5;
+
+/** The id of the run a dispatch created, found by its nonce in the run title (Lean `Fw.Ci.Dispatch.pick`); an absent run is
+ *  looked for again every 120 s, an ambiguous one is an error (never a guess). */
+export async function findDispatched(d: Pick<RunDeps, "gh" | "sleep">, workflow: string, ref: string, nonce: string): Promise<string> {
+  const sleep = d.sleep ?? ((s: number) => new Promise<void>((res) => setTimeout(res, s * 1000)));
+  for (let i = 0; i < FIND_TRIES; i++) {
+    await sleep(FIND_EVERY_S);
+    const rows = parseRunRows(await d.gh(["run", "list", "--workflow", workflow, "--branch", ref, "--event", "workflow_dispatch", "--limit", "30", "--json", "databaseId,displayTitle,event"]));
+    const p = pickRun(nonce, rows);
+    if (p.kind === "found") return String(p.id);
+    if (p.kind === "ambiguous") throw new Error(`nonce ${nonce} matches several runs (${p.ids.join(", ")}); not guessing`);
+    if (p.kind === "badNonce") throw new Error(`nonce ${nonce} is not valid`);
+  }
+  throw new Error(`no run titled "${titleOf(nonce)}" on ${ref} after ${FIND_TRIES} looks; the dispatch may have failed (gh run list --workflow ${workflow} --event workflow_dispatch)`);
 }
 
 export type LatestRun = { id: string; createdAt: string; workflowName: string };

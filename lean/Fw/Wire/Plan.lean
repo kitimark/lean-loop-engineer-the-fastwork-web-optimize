@@ -1,6 +1,7 @@
 import Fw.Wire
 import Fw.Plan.Core
 import Fw.Plan.Incident
+import Fw.Plan.Overlap
 /-!
 # JSON for the plan commands and the board plan
 
@@ -44,6 +45,7 @@ The stateless op `plan.incidentLint` (task `incident-lint`, `Fw.Plan.Incident`),
 | op | request | reply |
 |---|---|---|
 | `plan.incidentLint` | `incidents` [ledger records as in the file], `tasks` [{id, evidence?, agent?}] (work graph rows with board state), `commits`? [refs that are commits on main], `files`? [refs that exist], `classes`? [class ids of research/mistakes/ledger.json] | `ok`, `errors`, `warnings`, `incidents` [{id, status, findings [{code, severity, detail}]}] |
+| `plan.overlap` | `rows` [{id, writes}] (work graph), `running` [task ids], `candidate`? [task id], `override`? [reason] (task `spawn-write-overlap`, `Fw.Plan.Overlap`) | `verdict` (`clear`, `refused`, `overridden`, `unknown`), `conflicts` [{a, b, ga, gb}], `unknown` [ids] |
 -/
 namespace Fw.Wire.Plan
 open Lean Fw.Wire Fw.Plan
@@ -213,13 +215,27 @@ def opIncidentLint (req : Json) : Except String Reply := do
           ("findings", .arr (r.findings.toArray.map fun f => Json.mkObj [
             ("code", .str f.code.name), ("severity", .str f.code.severity), ("detail", .str f.detail)]))]))]
 
+open Fw.Plan.Overlap in
+/-- `plan.overlap`: `Fw.Plan.Overlap.verdict` and `conflicts` over the graph rows and the running task ids. -/
+def opOverlap (req : Json) : Except String Reply := do
+  let rows ← (← arr req "rows").toList.mapM fun r => do
+    pure ({ id := ← str r "id", writes := ← strsD r "writes" } : Row)
+  let running ← strsD req "running"
+  let cand ← optStr req "candidate"
+  let ov ← optStr req "override"
+  pure [("verdict", .str (verdict rows running cand ov).name),
+        ("conflicts", .arr ((conflicts rows running cand).toArray.map fun c => Json.mkObj [
+          ("a", .str c.a), ("b", .str c.b), ("ga", .str c.ga), ("gb", .str c.gb)])),
+        ("unknown", strsJson (unknownIds rows running cand))]
+
 /-- The stateless ops of this module. -/
-def ops : List String := ["plan.incidentLint"]
+def ops : List String := ["plan.incidentLint", "plan.overlap"]
 
 /-- Dispatch one of these ops (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
   match op with
   | "plan.incidentLint" => some (opIncidentLint req)
+  | "plan.overlap" => some (opOverlap req)
   | _ => none
 
 end Fw.Wire.Plan

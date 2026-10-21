@@ -11597,7 +11597,8 @@
     "research/notes/2026/10-2*-morph-scroll-lock.md",
     "research/findings/ledger.json",
     "docs/team/handoffs/morph-scroll-lock.md"
-   ]
+   ],
+   "evidence": "36cdf1b"
   },
   {
    "devices": [
@@ -11715,14 +11716,15 @@
    "deps": [
     "waapi-threshold-attr"
    ],
-   "title": "waapi r2 check #2: morph.tween:waapi skips the original's post-flip nav width ease (Linux WebKit 1280 close@0 nav.rect/nav.transform.shift apart, orig/base 20-55 px from final at the first settled frame, 39457063232/39457767229, also pre-fix 39412301221; 0.5-3 px on Chromium and macOS). Decide in Lean: model the tail in the driver, or classify as a look change (ask the user)",
+   "title": "Split after round 3 (3rd refusal): the Chromium half landed (base-write window restores the nav width tail, 5/5 hits within 0.008 px at 1280, run 39504209400); the macOS WebKit cells moved to waapi-tail-webkit. waapi r2 check #2: morph.tween:waapi skips the original's post-flip nav width ease. Linux WebKit's 20-55 px (1280 close@0) was runner frame jank: flip gaps 417-562 ms in 39412301221 (waapi, pre-fix), 39457063232 (faithful) and 39457767229 (cand morph.tween:waapi-scoped) on an older probe that walked the morph; display grids give <= 0.5 px at 60 Hz at 1280, 0.3-3 px at CI Chromium/macOS gaps. Decide in Lean: model the tail in the driver, or classify as a look change",
    "writes": [
     "lean/Fw/Parts/MorphTweenOpt.lean",
     "apps/site/src/parts/morph.tween/**",
     "packages/contracts/golden/parts/morph-tween*.jsonl",
     "research/findings/ledger.json",
     "docs/team/handoffs/waapi-nav-width-tail.md"
-   ]
+   ],
+   "evidence": "94ff7f5"
   },
   {
    "devices": [
@@ -11741,7 +11743,8 @@
     "packages/contracts/golden/console/console.compose.jsonl",
     "docs/team/tools/compose.md",
     "docs/team/handoffs/ledger-flag-field.md"
-   ]
+   ],
+   "evidence": "330bd3b"
   },
   {
    "devices": [
@@ -11847,7 +11850,8 @@
     "packages/contracts/golden/console/console.compose.jsonl",
     "docs/team/tools/compose.md",
     "docs/team/handoffs/compose-superseded-rows.md"
-   ]
+   ],
+   "evidence": "69fabee"
   },
   {
    "devices": [
@@ -11904,7 +11908,8 @@
     "packages/contracts/golden/console/**",
     "docs/team/tools/land.md",
     "docs/team/handoffs/land-phase1-slow.md"
-   ]
+   ],
+   "evidence": "a5f5f19"
   },
   {
    "devices": [
@@ -11941,7 +11946,8 @@
     "packages/contracts/golden/gate/trajectory.jsonl",
     "docs/team/tools/trajectory-probe.md",
     "docs/team/handoffs/trajectory-close-start.md"
-   ]
+   ],
+   "evidence": "257cc48"
   },
   {
    "devices": [
@@ -12048,7 +12054,7 @@
    "owner": "lean-prover",
    "stream": "gate",
    "deps": [],
-   "title": "Mistake 2026-10-21 (waapi-nav-width-tail r1): run 39457767229 was cited as morph.tween:waapi evidence in a graph title, a builder note and a ledger draft, but every arm of it carried ?fw=hero.exit:faithful. Identity over inference: a check that maps a cited CI run id to the flags its trajectory/count artifacts actually carried (read from the artifact's search per arm, cached under .cache) and refuses a note, handoff or ledger row that cites a run for a flag it did not carry; Lean decides the match, TS only downloads",
+   "title": "Mistake 2026-10-21 (waapi-nav-width-tail r1): run 39457767229 was cited as morph.tween:waapi evidence in a graph title, a builder note and a ledger draft, but its cand arm carried ?fw=morph.tween:waapi-scoped (a reviewer then claimed hero.exit:faithful, also wrong: both from prose). Identity over inference: a check that maps a cited CI run id to the flags its trajectory/count artifacts actually carried (read from the artifact's search per arm, cached under .cache) and refuses a note, handoff or ledger row that cites a run for a flag it did not carry; Lean decides the match, TS only downloads",
    "writes": [
     "lean/Fw/Gate/RunCite.lean",
     "packages/contracts/golden/gate/run-cite*.jsonl",
@@ -12056,6 +12062,204 @@
     "scripts/run-cite*.test.mjs",
     "docs/team/tools/run-cite.md",
     "docs/team/handoffs/run-cite-check.md"
+   ],
+   "evidence": "3fcbc8f"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "trajectory-envelope-scope",
+   "owner": "lean-prover",
+   "stream": "gate",
+   "deps": [
+    "trajectory-close-start"
+   ],
+   "title": "trajectory-close-start review: the envelope judges every in-flight sample of an epoch (not only its start) and dropped the own-pass m-window fallback, adding failures in cells the design did not target (39453764374 Linux WebKit 1280, 39449092483 Linux WebKit 390/1280, 39457767229 Chromium 1280 earn.max-width close@0). Decide in Lean whether to restrict the envelope to samples within startLag of the epoch's first sample (and restore the fallback elsewhere) or keep it; prove soundness either way; re-reduce the six stored runs and explain every changed cell (incl. the close-hold@0 cells judged by windowOf/settledRef)",
+   "writes": [
+    "lean/Fw/Gate/Trajectory.lean",
+    "packages/gate-breakpoints/src/trajectory/reduce.mjs",
+    "packages/gate-breakpoints/test/trajectory.test.mjs",
+    "packages/contracts/golden/gate/trajectory.jsonl",
+    "docs/team/tools/trajectory-probe.md",
+    "docs/team/handoffs/trajectory-envelope-scope.md"
+   ],
+   "evidence": "99367f3"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "scoped-close-start-cause",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "trajectory-close-start"
+   ],
+   "title": "hero.exit:scoped admission blocker after trajectory-close-start: on macOS WebKit morph the candidate's close starts nav.background-color at [226.5, 227.1, 228.5] (29 ms into the close at 390) while every original pass starts at 249.3-252.3 (39466179818; also 640, 641). Find the mechanism (does the scoped exit change when is-morphing is removed relative to the interrupted earlier background transition? cite WebKit source and the site part), MEASURE with a fresh flag-alone run plus A/A on mac-webkit morph (>= 3 reps, run ids), and decide: a fix in the part that keeps the same look, or a Lean-proved timing-only difference, or a look change for the user's console review",
+   "writes": [
+    "research/notes/2026/10-2*-scoped-close-start-cause.md",
+    "docs/team/handoffs/scoped-close-start-cause.md",
+    "apps/site/src/parts/hero.exit/**",
+    "lean/Fw/Parts/HeroExit*.lean"
+   ],
+   "evidence": "9662420"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "waapi-tail-drop",
+   "owner": "lean-prover",
+   "stream": "proposals",
+   "deps": [
+    "waapi-nav-width-tail"
+   ],
+   "title": "Follow-up of waapi-nav-width-tail (option b for the user's class-L review): a proposal flag that drops the base-write window, saving about 9 script frames plus the original's post-close width-transition layout frames (INFERRED ~41 at 60 Hz: count them on CI with Chromium layout counts first); look difference <= 0.5 px at 60 Hz at 1280; goes to the user's console review queue, never v2-proved",
+   "writes": [
+    "lean/Fw/Parts/MorphTweenOpt.lean",
+    "apps/site/src/parts/morph.tween/**",
+    "packages/contracts/golden/parts/morph-tween*.jsonl",
+    "research/notes/2026/10-2*-waapi-tail-drop.md",
+    "docs/team/handoffs/waapi-tail-drop.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "waapi-tail-webkit",
+   "owner": "measure-engineer",
+   "stream": "parts",
+   "deps": [
+    "waapi-nav-width-tail"
+   ],
+   "title": "Split from waapi-nav-width-tail r3: on macOS WebKit the waapi arm starts no nav width transition at the is-morphing flip, with or without the base-write window (runs 39504209400, 39471466367: cand tail 0.00-0.17 px vs pred 0.65-1.67 px at 1280; 390 fails no-regression on 2 of 4 hits). Find the mechanism with a CI debug run that logs transitionrun/transitionstart on the nav and the timing of the class flip (MutationObserver, apps/site/src/parts/nav/index.tsx:126) against the base write; state a Lean premise for WebKit's before-change style when the class flip and the base write fall in different style updates (cite Styleable.cpp/StyleTreeResolver.cpp @862f17d); decide the WebKit cell on its own: fix that keeps the tail, or drop the window on WebKit (it costs 9 script frames per close and restores nothing there). Hit threshold from the golden baseWindow.delay, not hand-typed",
+   "writes": [
+    "lean/Fw/Parts/MorphTweenOpt.lean",
+    "apps/site/src/parts/morph.tween/**",
+    "packages/contracts/golden/parts/morph-tween*.jsonl",
+    "research/notes/2026/10-2*-waapi-tail-webkit.md",
+    "docs/team/handoffs/waapi-tail-webkit.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "spawn-write-overlap",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "Mistake 2026-10-21: the lead ran waapi-nav-width-tail and morph-scroll-lock at once although both write lean/Fw/Parts/MorphTweenOpt.lean and apps/site/src/parts/morph.tween/** (CLAUDE.md: two teammates never edit one file at once). A Lean-decided check (Fw.Plan) that refuses starting a task whose graph writes intersect a running task's writes (glob intersection), listing the pair; fw exposes it for the lead before a spawn; override only with a named reason recorded in the event log",
+   "writes": [
+    "lean/Fw/Plan/Overlap.lean",
+    "packages/contracts/golden/plan/overlap*.jsonl",
+    "apps/runner/src/plan-overlap*.ts",
+    "apps/runner/test/plan-overlap*.test.ts",
+    "docs/team/tools/plan-overlap.md",
+    "docs/team/handoffs/spawn-write-overlap.md"
+   ],
+   "evidence": "c48ae1d"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-push-probe-inputs",
+   "owner": "console-builder",
+   "stream": "ci",
+   "deps": [],
+   "title": "Mistake 2026-10-21 (waapi r2, scoped-close-start-cause r1): units that must measure the builder's NEW code on CI cannot get a lead dispatch before launch, and agents' sandbox refuses workflow dispatch (inc m195), so two review rounds were refused for missing runs. Let a ci/* push run the trajectory probe with inputs read from its commit message (e.g. [trajectory fw=part:variant widths=390,1280 engines=both]); Lean Fw.Ci.Trigger decides and parses (golden); the run records the inputs it used; update the build-review preamble line 16 to point builders at it",
+   "writes": [
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    ".github/workflows/trajectory-probe.yml",
+    "scripts/ci-paths*.mjs",
+    ".claude/workflows/build-review.js",
+    "docs/team/tools/trajectory-probe.md",
+    "docs/team/handoffs/ci-push-probe-inputs.md"
+   ],
+   "evidence": "8882868"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "fw-run-dispatch-pick",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "Tool bug (morph-scroll-lock r2): fw run --trajectory took the skipped push run 39505172794 as its dispatch run and exited; the real dispatches were 39505188144 and 39505203727. Identify the dispatched run by identity (workflow_dispatch event, the inputs echoed in the run name or a dispatch nonce), never by 'newest run on the ref'; Lean decides the match from the run list (golden)",
+   "writes": [
+    "apps/runner/src/run*.ts",
+    "apps/runner/test/run*.test.ts",
+    "lean/Fw/Ci/Dispatch*.lean",
+    "packages/contracts/golden/ci/dispatch*.jsonl",
+    ".github/workflows/trajectory-probe.yml",
+    "docs/team/handoffs/fw-run-dispatch-pick.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "scoped-gap-did",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "scoped-close-start-cause"
+   ],
+   "title": "Follow-up B of scoped-close-start-cause (Fable + check, 2026-10-21): does hero.exit:scoped lengthen the class-removal gap g on macOS WebKit morph? Pre-registered run-level test: statistic per run = mean over the 4 widths of [mean log g cand - mean log g orig+base]; exact permutation of arm labels over runs (scoped vs faithful A/A), one-sided; only the 10 fresh runs the lead dispatched on ci/scoped-close-start-cause at ONE headSha (5 scoped, 5 A/A; arms identified by search and hash, never order); cells = closegap.mjs closeCells. p < 0.05 -> perf regression CONFIRMED (open a part-fix task that profiles the class-removal frame); else 'not shown at 5 vs 5' with the minimum detectable effect in log g computed from the run-level SD, recorded in the ledger; no more runs (optional stopping). Statistic in Lean (golden), TS only parses",
+   "writes": [
+    "lean/Fw/Gate/RunPerm.lean",
+    "packages/contracts/golden/gate/run-perm*.jsonl",
+    "packages/gate-breakpoints/src/trajectory/closegap*.mjs",
+    "packages/gate-breakpoints/test/closegap*.test.mjs",
+    "research/notes/2026/10-2*-scoped-gap-did.md",
+    "docs/team/handoffs/scoped-gap-did.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "earn-close-start-rule",
+   "owner": "lean-prover",
+   "stream": "gate",
+   "deps": [
+    "scoped-close-start-cause"
+   ],
+   "title": "Follow-up C of scoped-close-start-cause: what actually fails hero.exit:scoped on mac morph are earn.opacity and earn.max-width close@0 'new' at 390 and 641 (fresh 39508414669); they are running transitions sampled at a later wall time, not before-change identities (390 cand rep 1: opacity 0 -> .636, max-width 160.6 -> 922.4 px across the gap). Derive their close-start rule in Lean: compare at matched time since the transition's trigger (earn opacity 320/200 ms, delay 120; max-width 680 ms; reduce.mjs:108-109 and the Lean transition table), soundness and mutation theorems (reversed, stale, changed curve fail), TS twin golden-checked, re-reduce the 4 stored/fresh runs",
+   "writes": [
+    "lean/Fw/Gate/Trajectory.lean",
+    "packages/gate-breakpoints/src/trajectory/reduce.mjs",
+    "packages/gate-breakpoints/test/trajectory.test.mjs",
+    "packages/contracts/golden/gate/trajectory.jsonl",
+    "docs/team/tools/trajectory-probe.md",
+    "docs/team/handoffs/earn-close-start-rule.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "close-start-identity-rule",
+   "owner": "lean-prover",
+   "stream": "gate",
+   "deps": [
+    "scoped-gap-did",
+    "earn-close-start-rule"
+   ],
+   "title": "Follow-up A of scoped-close-start-cause (only after B says 'not shown' and C lands): judge the first in-flight sample after a class removal by the identity |reading - f(m_i)| <= 0.5 (f = bgRed/bgAlpha restated from the CSS in Lean; m_i = the SAME arm and rep's last sample with the class), plus identity checks against Fw.Parts.Nav.morphingCut: m_i > cut at the last sample with the class and m_j <= cut at the first without (an early class removal must fail). Accepted limits: depends on the probe reading sample j at progress 0; m rounding 1e-4; admits any gap regression below B's minimum detectable effect",
+   "writes": [
+    "lean/Fw/Gate/Trajectory.lean",
+    "lean/Fw/Parts/HeroExitCloseStart.lean",
+    "packages/gate-breakpoints/src/trajectory/reduce.mjs",
+    "packages/gate-breakpoints/test/trajectory.test.mjs",
+    "packages/contracts/golden/gate/trajectory.jsonl",
+    "docs/team/tools/trajectory-probe.md",
+    "docs/team/handoffs/close-start-identity-rule.md"
    ]
   }
  ],

@@ -18,7 +18,9 @@ is no default branch). With `--branch` and no run id: the latest run of the work
 
 ## Waiting for CI: `fw ci wait`, `fw ci budget`
 
-- `pnpm fw ci wait <runId>` or `pnpm fw ci wait --branch ci/<task> [--workflow <name>] [--sha S] [--since EPOCH] [--timeout S]`.
+- `pnpm fw ci wait <runId>` or `pnpm fw ci wait --branch ci/<task> [--workflow <name>] [--sha S] [--nonce N] [--since EPOCH] [--timeout S]`.
+  `--workflow` waits for the push run of `--sha` (event push); `--nonce N` waits for the trajectory-probe dispatch whose
+  run title carries N. For any other dispatch, wait on its run id.
   Blocks on the shared poller's local file (0 GitHub calls of its own, however many waiters), then makes one charged
   `gh run view <id> --json jobs` per finished decisive run (cached per run id) and lets fwcore decide (`ci.verdict`, Lean
   `Fw.Ci.Verdict.pass_iff`): a run passes only if its guard decided `run`, some other job ran, every job that ran
