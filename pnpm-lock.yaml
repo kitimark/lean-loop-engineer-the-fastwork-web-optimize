@@ -112,6 +112,9 @@ importers:
       '@fw/gh-budget':
         specifier: workspace:*
         version: link:../../packages/gh-budget
+      '@fw/oracle':
+        specifier: workspace:*
+        version: link:../../packages/oracle
       zod:
         specifier: ^4.6.7
         version: 4.6.7
@@ -247,6 +250,15 @@ importers:
   packages/measure-webkit: {}
 
   packages/measure-wktr: {}
+
+  packages/oracle:
+    devDependencies:
+      '@types/node':
+        specifier: ^26.6.5
+        version: 26.6.5
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
 
   packages/premise-tests:
     dependencies:

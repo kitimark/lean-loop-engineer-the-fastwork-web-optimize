@@ -14040,7 +14040,8 @@
     "apps/runner/src/fw.ts",
     "docs/team/tools/oracle.md",
     "docs/team/handoffs/jev-core.md"
-   ]
+   ],
+   "evidence": "d09a9a7"
   },
   {
    "devices": [
