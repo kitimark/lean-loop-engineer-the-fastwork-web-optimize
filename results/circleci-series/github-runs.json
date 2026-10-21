@@ -1,0 +1,508 @@
+{
+  "schema": "fw.circleci-series-github/1",
+  "workflow": "premise-tests",
+  "runner": "ubuntu-24.04-arm",
+  "selection": "newest 20 successful runs (any branch, any event) in which both engine jobs ran",
+  "runs": [
+    {
+      "runId": 39480939125,
+      "event": "push",
+      "branch": "main",
+      "createdAt": "2026-10-20T19:08:52Z",
+      "conclusion": "success",
+      "wallMs": 81000,
+      "jobs": {
+        "engine (chromium)": {
+          "conclusion": "success",
+          "durMs": 37000,
+          "queueMs": 21000
+        },
+        "engine (playwright-webkit)": {
+          "conclusion": "success",
+          "durMs": 60000,
+          "queueMs": 21000
+        },
+        "verdict": {
+          "conclusion": "skipped",
+          "durMs": -1000,
+          "queueMs": 82000
+        }
+      }
+    },
+    {
+      "runId": 39459866288,
+      "event": "push",
+      "branch": "main",
+      "createdAt": "2026-10-20T16:42:55Z",
+      "conclusion": "success",
+      "wallMs": 73000,
+      "jobs": {
+        "engine (chromium)": {
+          "conclusion": "success",
+          "durMs": 44000,
+          "queueMs": 17000
+        },
+        "engine (playwright-webkit)": {
+          "conclusion": "success",
+          "durMs": 56000,
+          "queueMs": 17000
+        },
+        "verdict": {
+          "conclusion": "skipped",
+          "durMs": 0,
+          "queueMs": 73000
+        }
+      }
+    },
+    {
+      "runId": 39371846784,
+      "event": "push",
+      "branch": "main",
+      "createdAt": "2026-10-20T04:52:13Z",
+      "conclusion": "success",
+      "wallMs": 70000,
+      "jobs": {
+        "engine (chromium)": {
+          "conclusion": "success",
+          "durMs": 54000,
+          "queueMs": 16000
+        },
+        "engine (playwright-webkit)": {
+          "conclusion": "success",
+          "durMs": 55000,
+          "queueMs": 15000
+        },
+        "verdict": {
+          "conclusion": "skipped",
+          "durMs": 0,
+          "queueMs": 70000
+        }
+      }
+    },
+    {
+      "runId": 39367226533,
+      "event": "push",
+      "branch": "main",
+      "createdAt": "2026-10-20T04:00:08Z",
+      "conclusion": "success",
+      "wallMs": 91000,
+      "jobs": {
+        "engine (chromium)": {
+          "conclusion": "success",
+          "durMs": 44000,
+          "queueMs": 17000
+        },
+        "engine (playwright-webkit)": {
+          "conclusion": "success",
+          "durMs": 74000,
+          "queueMs": 17000
+        },
+        "verdict": {
+          "conclusion": "skipped",
+          "durMs": -1000,
+          "queueMs": 92000
+        }
+      }
+    },
+    {
+      "runId": 39357895585,
+      "event": "push",
+      "branch": "main",
+      "createdAt": "2026-10-20T02:15:08Z",
+      "conclusion": "success",
+      "wallMs": 1349000,
+      "jobs": {
+        "engine (playwright-webkit)": {
+          "conclusion": "success",
+          "durMs": 65000,
+          "queueMs": 1284000
+        },
+        "engine (chromium)": {
+          "conclusion": "success",
+          "durMs": 42000,
+          "queueMs": 1238000
+        },
+        "verdict": {
+          "conclusion": "skipped",
+          "durMs": 0,
+          "queueMs": 1349000
+        }
+      }
+    },
+    {
+      "runId": 39357755482,
+      "event": "push",
+      "branch": "ci/cmr-margin-rect-rule",
+      "createdAt": "2026-10-20T02:13:34Z",
+      "conclusion": "success",
+      "wallMs": 393000,
+      "jobs": {
+        "engine (chromium)": {
+          "conclusion": "success",
+          "durMs": 49000,
+          "queueMs": 33000
+        },
+        "engine (playwright-webkit)": {
+          "conclusion": "success",
+          "durMs": 105000,
+          "queueMs": 39000
+        },
+        "verdict": {
+          "conclusion": "success",
+          "durMs": 13000,
+          "queueMs": 380000
+        }
+      }
+    },
+    {
+      "runId": 39356343092,
+      "event": "push",
+      "branch": "main",
+      "createdAt": "2026-10-20T01:58:13Z",
+      "conclusion": "success",
+      "wallMs": 82000,
+      "jobs": {
+        "engine (playwright-webkit)": {
+          "conclusion": "success",
+          "durMs": 61000,
+          "queueMs": 20000
+        },
+        "engine (chromium)": {
+          "conclusion": "success",
+          "durMs": 36000,
+          "queueMs": 20000
+        },
+        "verdict": {
+          "conclusion": "skipped",
+          "durMs": 0,
+          "queueMs": 82000
+        }
+      }
+    },
+    {
+      "runId": 39354637553,
+      "event": "push",
+      "branch": "ci/cmr-margin-typed-om-b",
+      "createdAt": "2026-10-20T01:39:23Z",
+      "conclusion": "success",
+      "wallMs": 97000,
+      "jobs": {
+        "engine (playwright-webkit)": {
+          "conclusion": "success",
+          "durMs": 66000,
+          "queueMs": 16000
+        },
+        "engine (chromium)": {
+          "conclusion": "success",
+          "durMs": 45000,
+          "queueMs": 16000
+        },
+        "verdict": {
+          "conclusion": "success",
+          "durMs": 10000,
+          "queueMs": 87000
+        }
+      }
+    },
+    {
+      "runId": 39354607925,
+      "event": "push",
+      "branch": "ci/cmr-margin-typed-om",
+      "createdAt": "2026-10-20T01:39:03Z",
+      "conclusion": "success",
+      "wallMs": 119000,
+      "jobs": {
+        "engine (chromium)": {
+          "conclusion": "success",
+          "durMs": 44000,
+          "queueMs": 15000
+        },
+        "engine (playwright-webkit)": {
+          "conclusion": "success",
+          "durMs": 83000,
+          "queueMs": 15000
+        },
+        "verdict": {
+          "conclusion": "success",
+          "durMs": 17000,
+          "queueMs": 102000
+        }
+      }
+    },
+    {
+      "runId": 39352076255,
+      "event": "workflow_dispatch",
+      "branch": "main",
+      "createdAt": "2026-10-20T01:11:53Z",
+      "conclusion": "success",
+      "wallMs": 85000,
+      "jobs": {
+        "engine (playwright-webkit)": {
+          "conclusion": "success",
+          "durMs": 53000,
+          "queueMs": 17000
+        },
+        "engine (chromium)": {
+          "conclusion": "success",
+          "durMs": 36000,
+          "queueMs": 17000
+        },
+        "verdict": {
+          "conclusion": "success",
+          "durMs": 11000,
+          "queueMs": 74000
+        }
+      }
+    },
+    {
+      "runId": 39341894481,
+      "event": "push",
+      "branch": "main",
+      "createdAt": "2026-10-19T23:29:36Z",
+      "conclusion": "success",
+      "wallMs": 100000,
+      "jobs": {
+        "engine (chromium)": {
+          "conclusion": "success",
+          "durMs": 48000,
+          "queueMs": 19000
+        },
+        "engine (playwright-webkit)": {
+          "conclusion": "success",
+          "durMs": 81000,
+          "queueMs": 19000
+        },
+        "verdict": {
+          "conclusion": "skipped",
+          "durMs": 0,
+          "queueMs": 100000
+        }
+      }
+    },
+    {
+      "runId": 39335658790,
+      "event": "push",
+      "branch": "main",
+      "createdAt": "2026-10-19T22:32:22Z",
+      "conclusion": "success",
+      "wallMs": 761000,
+      "jobs": {
+        "engine (chromium)": {
+          "conclusion": "success",
+          "durMs": 46000,
+          "queueMs": 683000
+        },
+        "engine (playwright-webkit)": {
+          "conclusion": "success",
+          "durMs": 77000,
+          "queueMs": 684000
+        },
+        "verdict": {
+          "conclusion": "skipped",
+          "durMs": 0,
+          "queueMs": 761000
+        }
+      }
+    },
+    {
+      "runId": 39330060785,
+      "event": "push",
+      "branch": "main",
+      "createdAt": "2026-10-19T21:46:06Z",
+      "conclusion": "success",
+      "wallMs": 74000,
+      "jobs": {
+        "engine (chromium)": {
+          "conclusion": "success",
+          "durMs": 41000,
+          "queueMs": 16000
+        },
+        "engine (playwright-webkit)": {
+          "conclusion": "success",
+          "durMs": 59000,
+          "queueMs": 15000
+        },
+        "verdict": {
+          "conclusion": "skipped",
+          "durMs": -1000,
+          "queueMs": 75000
+        }
+      }
+    },
+    {
+      "runId": 39324688269,
+      "event": "workflow_dispatch",
+      "branch": "ci/ci-telemetry",
+      "createdAt": "2026-10-19T21:05:19Z",
+      "conclusion": "success",
+      "wallMs": 85000,
+      "jobs": {
+        "engine (chromium)": {
+          "conclusion": "success",
+          "durMs": 46000,
+          "queueMs": 18000
+        },
+        "engine (playwright-webkit)": {
+          "conclusion": "success",
+          "durMs": 52000,
+          "queueMs": 18000
+        },
+        "verdict": {
+          "conclusion": "success",
+          "durMs": 11000,
+          "queueMs": 74000
+        }
+      }
+    },
+    {
+      "runId": 39318599357,
+      "event": "workflow_dispatch",
+      "branch": "ci/ci-telemetry",
+      "createdAt": "2026-10-19T20:21:16Z",
+      "conclusion": "success",
+      "wallMs": 111000,
+      "jobs": {
+        "engine (chromium)": {
+          "conclusion": "success",
+          "durMs": 50000,
+          "queueMs": 19000
+        },
+        "engine (playwright-webkit)": {
+          "conclusion": "success",
+          "durMs": 63000,
+          "queueMs": 19000
+        },
+        "verdict": {
+          "conclusion": "success",
+          "durMs": 12000,
+          "queueMs": 99000
+        }
+      }
+    },
+    {
+      "runId": 39315828784,
+      "event": "workflow_dispatch",
+      "branch": "ci/circleci-pilot",
+      "createdAt": "2026-10-19T20:01:32Z",
+      "conclusion": "success",
+      "wallMs": 680000,
+      "jobs": {
+        "engine (playwright-webkit)": {
+          "conclusion": "success",
+          "durMs": 55000,
+          "queueMs": 111000
+        },
+        "engine (chromium)": {
+          "conclusion": "success",
+          "durMs": 39000,
+          "queueMs": 135000
+        },
+        "verdict": {
+          "conclusion": "success",
+          "durMs": 11000,
+          "queueMs": 669000
+        }
+      }
+    },
+    {
+      "runId": 39314697927,
+      "event": "workflow_dispatch",
+      "branch": "ci/ci-telemetry",
+      "createdAt": "2026-10-19T19:53:18Z",
+      "conclusion": "success",
+      "wallMs": 405000,
+      "jobs": {
+        "engine (playwright-webkit)": {
+          "conclusion": "success",
+          "durMs": 66000,
+          "queueMs": 102000
+        },
+        "engine (chromium)": {
+          "conclusion": "success",
+          "durMs": 50000,
+          "queueMs": 274000
+        },
+        "verdict": {
+          "conclusion": "success",
+          "durMs": 13000,
+          "queueMs": 392000
+        }
+      }
+    },
+    {
+      "runId": 39274344412,
+      "event": "push",
+      "branch": "main",
+      "createdAt": "2026-10-19T15:02:04Z",
+      "conclusion": "success",
+      "wallMs": 66000,
+      "jobs": {
+        "engine (playwright-webkit)": {
+          "conclusion": "success",
+          "durMs": 48000,
+          "queueMs": 17000
+        },
+        "engine (chromium)": {
+          "conclusion": "success",
+          "durMs": 41000,
+          "queueMs": 18000
+        },
+        "verdict": {
+          "conclusion": "skipped",
+          "durMs": 0,
+          "queueMs": 66000
+        }
+      }
+    },
+    {
+      "runId": 39130812096,
+      "event": "push",
+      "branch": "ci/faithful-checks",
+      "createdAt": "2026-10-18T13:16:19Z",
+      "conclusion": "success",
+      "wallMs": 118000,
+      "jobs": {
+        "engine (chromium)": {
+          "conclusion": "success",
+          "durMs": 54000,
+          "queueMs": 22000
+        },
+        "engine (playwright-webkit)": {
+          "conclusion": "success",
+          "durMs": 63000,
+          "queueMs": 18000
+        },
+        "verdict": {
+          "conclusion": "success",
+          "durMs": 14000,
+          "queueMs": 104000
+        }
+      }
+    },
+    {
+      "runId": 39114796796,
+      "event": "push",
+      "branch": "ci/gate-shard-balance-r2",
+      "createdAt": "2026-10-18T09:18:12Z",
+      "conclusion": "success",
+      "wallMs": 106000,
+      "jobs": {
+        "engine (playwright-webkit)": {
+          "conclusion": "success",
+          "durMs": 52000,
+          "queueMs": 18000
+        },
+        "engine (chromium)": {
+          "conclusion": "success",
+          "durMs": 51000,
+          "queueMs": 18000
+        },
+        "verdict": {
+          "conclusion": "success",
+          "durMs": 11000,
+          "queueMs": 95000
+        }
+      }
+    }
+  ]
+}

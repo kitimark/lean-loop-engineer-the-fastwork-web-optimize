@@ -182,6 +182,9 @@ def table : List Wf := [
     "docs/team/work-graph.json", "docs/team/incidents/ledger.json", "research/findings/ledger.json",
     "results/baselines/chromium/**", ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**",
     ".node-version", ".github/actions/setup-pnpm/**", ".github/actions/gate-engine/**", ".github/scripts/cache-key.mjs", ".github/scripts/land-base.sh", own "land.yml"], []⟩,
+  ⟨"lean-math.yml", ciAll, [
+    "lean-math/**", "lean/Fw/Parts/Bezier.lean", "lean/lakefile.toml", "lean/lean-toolchain",
+    ".github/scripts/changed-inputs.mjs", ".node-version", own "lean-math.yml"], []⟩,
   ⟨"lean.yml", ciMain, [
     "lean/**", "apps/site/src/breakpoints.gen.json", "apps/site/src/sweeps.gen.json", "apps/site/src/head.gen.json", "scripts/span.sh",
     "scripts/fwcore-build.sh", "scripts/fwcore-record-rule.sh", "scripts/fwcore-build.test.mjs", "apps/console-api/src/core/build-base.ts", "scripts/lake-slot.sh", "scripts/lake-slot-lib.sh", "scripts/heavy-lock.mjs", "scripts/heavy-lock.test.mjs", "scripts/lake-slot.test.mjs", "packages/contracts/golden/sched/lake-slot.gen.sh",
@@ -191,7 +194,7 @@ def table : List Wf := [
     "packages/contracts/golden/parts/stage.jsonl", "packages/contracts/golden/parts/stage-mode.jsonl",
     "packages/contracts/golden/parts/hero.exit.scoped.json", "packages/measure-chromium/scenarios.gen.json",
     "packages/contracts/golden/parts/morph.mount.dormant.jsonl", "packages/contracts/golden/parts/morph-mount-tap.jsonl",
-    "packages/contracts/golden/parts/nav-earn.jsonl",
+    "packages/contracts/golden/parts/nav-earn.jsonl", "packages/contracts/golden/parts/hero-scene-pause.jsonl",
     "packages/contracts/golden/gate/image-arm.jsonl",
     "packages/contracts/golden/ops/rebuild-facts.jsonl",
     "packages/contracts/golden/ops/rebuild.jsonl",
@@ -270,7 +273,7 @@ def run (diff merged : List String) : List String :=
 #guard run ["packages/contracts/golden/gate/pixel.jsonl"] [] == ["land.yml", "visual-diff.yml"]
 #guard run ["docs/team/handoffs/x.md"] [] == []
 -- a change of the Node pin starts every lane that sets up Node (task node-pin)
-#guard run [".node-version"] [] == ["breakpoint-gate.yml", "chromium-counts.yml", "difftest.yml", "engine-premises.yml", "gate-gaps.yml", "land.yml", "lean.yml", "mutants.yml", "premise-tests.yml", "preview-e2e.yml", "sim-speed.yml", "snapshot-extract.yml", "trajectory-probe.yml", "visual-diff.yml", "webkit-sim.yml", "wktr-fixtures.yml", "wktr.yml"]
+#guard run [".node-version"] [] == ["breakpoint-gate.yml", "chromium-counts.yml", "difftest.yml", "engine-premises.yml", "gate-gaps.yml", "land.yml", "lean-math.yml", "lean.yml", "mutants.yml", "premise-tests.yml", "preview-e2e.yml", "sim-speed.yml", "snapshot-extract.yml", "trajectory-probe.yml", "visual-diff.yml", "webkit-sim.yml", "wktr-fixtures.yml", "wktr.yml"]
 -- a merge of main changes lean/ and apps/site but starts nothing
 #guard run ["lean/Fw/Wire.lean", "apps/site/src/a.ts"] ["lean/Fw/Wire.lean", "apps/site/src/a.ts"] == []
 #guard run ["packages/measure-wktr/src/a.mjs", "lean/Fw/Wire.lean"] ["lean/Fw/Wire.lean"] == ["engine-premises.yml", "land.yml", "wktr-fixtures.yml", "wktr.yml"]
@@ -289,7 +292,7 @@ excluded. A run restores caches of its own branch and of the default branch only
 def cacheWriters : List (String × String × String) := [
   ("breakpoint-gate.yml", "gate", "gate-apt"), ("breakpoint-gate.yml", "gate", "ms-playwright"),
   ("breakpoint-gate.yml", "gate", "hs-zip"), ("engine-premises.yml", "webkit", "wktr-zip"),
-  ("land.yml", "land", "gate-apt"), ("land.yml", "land", "ms-playwright"), ("land.yml", "land", "hs-zip"),
+  ("land.yml", "land", "gate-apt"), ("land.yml", "land", "ms-playwright"), ("land.yml", "land", "hs-zip"), ("lean-math.yml", "math", "mathlib"),
   ("lean.yml", "lean", ".lake-cache"), ("premise-tests.yml", "engine", "gate-apt"),
   ("premise-tests.yml", "engine", "ms-playwright"), ("premise-tests.yml", "engine", "hs-zip"),
   ("preview-e2e.yml", "engine", "gate-apt"), ("preview-e2e.yml", "engine", "ms-playwright"),
@@ -351,9 +354,9 @@ theorem seeders_save : ∀ s ∈ seeders, savedBy s.1 s.2 ≠ [] := by decide
 /-- The seeded caches: the Lake artifacts and the three gate-engine downloads. -/
 theorem seeded_caches : seededCaches = ["gate-apt", "ms-playwright", "hs-zip", ".lake-cache"] := by decide
 
-/-- The one cache no `main` push seeds: its writers never ran on `main`. -/
+/-- The caches no `main` push seeds: their writers never ran on `main`. -/
 theorem unseeded_caches :
-    (cacheWriters.map (·.2.2)).eraseDups.filter (fun c => !seededCaches.contains c) = ["wktr-zip"] := by decide
+    (cacheWriters.map (·.2.2)).eraseDups.filter (fun c => !seededCaches.contains c) = ["wktr-zip", "mathlib"] := by decide
 
 /-- A workflow lists `main` iff a seeder job is in it. -/
 theorem main_iff_seeder : ∀ w ∈ table, w.onMain = true ↔ w.file ∈ seeders.map Prod.fst := by decide
@@ -411,7 +414,7 @@ theorem branches_split : ∀ w ∈ table, w.branches = ciPart w.branches ++ (if 
 /-- The `ci/**` triggers, unchanged by task `ci-main-triggers`. -/
 theorem ci_triggers : table.map (fun w => (w.file, ciPart w.branches)) = [
     ("breakpoint-gate.yml", ["ci/**"]), ("chromium-counts.yml", ["ci/**"]), ("difftest.yml", ["ci/**"]),
-    ("engine-premises.yml", ["ci/**"]), ("gate-gaps.yml", ["ci/**"]), ("land.yml", ["ci/land-*"]),
+    ("engine-premises.yml", ["ci/**"]), ("gate-gaps.yml", ["ci/**"]), ("land.yml", ["ci/land-*"]), ("lean-math.yml", ["ci/**"]),
     ("lean.yml", ["ci/**"]), ("mutants.yml", ["ci/**"]), ("premise-tests.yml", ["ci/**"]), ("preview-e2e.yml", ["ci/**"]), ("sim-speed.yml", ["ci/sim-speed"]),
     ("snapshot-extract.yml", ["ci/**"]), ("trajectory-probe.yml", ["ci/**"]), ("visual-diff.yml", ["ci/**"]), ("webkit-sim.yml", ["ci/**"]),
     ("wktr-fixtures.yml", ["ci/**"]), ("wktr.yml", ["ci/**"])] := by decide

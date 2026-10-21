@@ -9713,7 +9713,8 @@
     "packages/contracts/golden/preset/**",
     "refs/upstream/sources.lock.yaml",
     ".github/workflows/lean.yml"
-   ]
+   ],
+   "evidence": "5f2d88f"
   },
   {
    "devices": [
@@ -12504,7 +12505,8 @@
     "scripts/circleci*.test.mjs",
     "research/notes/2026/10-2*-circleci-series.md",
     "docs/team/handoffs/circleci-series-r2.md"
-   ]
+   ],
+   "evidence": "ce6fc68"
   },
   {
    "devices": [
@@ -12648,6 +12650,93 @@
     "packages/contracts/golden/gate/trajectory.jsonl",
     "docs/team/tools/trajectory-probe.md",
     "docs/team/handoffs/earn-close-settle-rule.md"
+   ],
+   "evidence": "7089912"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "mathlib-poc",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "deps": [],
+   "title": "PoC (user 2026-10-21: does Mathlib make our proofs more correct?). A: in core Lean, prove the x-monotonicity and root bracket that the Bezier.lean header claims (bx_mono plus bracket). B: a separate lean-math/ FwMath package pinned to the Mathlib tag for v4.35.0, with minimal imports, proving existence, uniqueness and an error bound for the real root that the Float solver approximates. Measure the cost (cold build, cache size, CI minutes) and write research/notes/2026/10-21-mathlib-poc.md: what B proves that A cannot, and whether the main lean/ package should ever import it. Fable advice (stay Mathlib-free) is the baseline.",
+   "writes": [
+    "lean/Fw/Parts/Bezier.lean",
+    "lean-math/**",
+    ".github/workflows/lean-math.yml",
+    "research/notes/2026/10-21-mathlib-poc.md",
+    "docs/team/handoffs/mathlib-poc.md"
+   ],
+   "evidence": "9eb64cf"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "bezier-header-claims",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "deps": [
+    "mathlib-poc"
+   ],
+   "title": "Every claim in the lean/Fw/Parts/Bezier.lean header (\"exact to 2^-40\", \"x monotone\") either names the theorem that proves it or is removed. Starts from what mathlib-poc part A proved; the Float-to-real error bound stays an accepted limit unless the PoC's part B is adopted.",
+   "writes": [
+    "lean/Fw/Parts/Bezier.lean",
+    "docs/team/handoffs/bezier-header-claims.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "hero-probe-original",
+   "owner": "measure-engineer",
+   "stream": "gate",
+   "deps": [],
+   "title": "trajectory-probe judges the first frame (open@1) of each arm against the ORIGINAL (the look reference, PLAN.md:421), not only against the faithful arm. Case: hero:scene-pause Chromium open@1 flag 0/15, no-flag 9/25, original 0/20 (control 39557718020): the flag matches the original, so the faithful arm is the outlier. The verdict rule is Lean (Fw.Gate.Trajectory) with goldens; one CI run of the trajectory lane cites the new verdict for hero:scene-pause; then the ledger row hero.scenePause can move from partly-proved.",
+   "writes": [
+    "lean/Fw/Gate/Trajectory.lean",
+    "lean/scripts/TrajectoryGolden.lean",
+    "packages/contracts/golden/gate/trajectory*.jsonl",
+    "packages/gate-breakpoints/src/trajectory/reduce.mjs",
+    "packages/gate-breakpoints/src/trajectory/run.mjs",
+    "packages/gate-breakpoints/test/trajectory*.test.mjs",
+    "docs/team/handoffs/hero-probe-original.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "reap-followups",
+   "owner": "console-builder",
+   "stream": "console",
+   "deps": [],
+   "title": "reap-auto-stop review follow-ups: the console shows reap.stopped events (what was stopped, signal, grace), and apps/runner/src/checks.ts starts its child commands in their own process group so reap can stop the group.",
+   "writes": [
+    "apps/runner/src/checks.ts",
+    "apps/runner/test/checks-pgroup.test.ts",
+    "apps/console-web/src/ReapEvents.tsx",
+    "apps/console-web/test/reap-events.test.tsx",
+    "docs/team/handoffs/reap-followups.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "review-followups",
+   "owner": "console-builder",
+   "stream": "console",
+   "deps": [],
+   "title": "review-strips-console and review-preview-devices follow-ups: a cap-door test proving review.previewed cannot pass the public command door; the preview flag search matches exact flags (split on the separator, no substring match); review records scoped to the review round.",
+   "writes": [
+    "apps/console-api/src/review/preview.ts",
+    "apps/console-api/test/review-preview-door.test.ts",
+    "lean/Fw/Console/Review.lean",
+    "docs/team/handoffs/review-followups.md"
    ]
   }
  ],

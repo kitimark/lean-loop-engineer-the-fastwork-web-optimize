@@ -161,7 +161,7 @@ export function premiseDigest(dir) {
   return lines.length ? createHash('sha256').update(`${lines.sort().join('\n')}\n`).digest('hex') : null;
 }
 
-const ms = (iso) => { const t = Date.parse(iso ?? ''); return Number.isFinite(t) ? t : null; };
+export const ms = (iso) => { const t = Date.parse(iso ?? ''); return Number.isFinite(t) ? t : null; };
 const span = (job, step, startMs, durMs, commit = '') => ({ tool: `circleci/${job}`, step, startMs, durMs: Math.max(0, durMs), exit: 0, commit, load: 0, host: 'ci' });
 
 // --------------------------------------------------------------------------------------------------------- in-job timings
@@ -360,6 +360,72 @@ export async function readCacheSave(ctx, { slug, jobNumber }) {
   return parseCacheSave(parts.map((x) => x.message ?? '').join(''));
 }
 
+// ----------------------------------------------------------------------------------------------------------------- key check
+
+/** The name CircleCI gives the clone step of a job. */
+export const CHECKOUT_STEP = 'Checkout code';
+
+/** Lean `usableKeyKind`: a checkout-key kind the clone can use. */
+export const usableKeyKind = (kind) => kind === 'deploy-key' || kind === 'github-user-key';
+
+/** Lean `checkoutOfStatus`: true (clone worked), false (clone failed), null (the status says nothing). */
+export const checkoutOfStatus = (status) => (status === 'success' ? true : status === 'failed' ? false : null);
+
+/** Lean `keyVerdict`: a readable key list decides (`keys` = usable keys, null when unreadable); an unreadable one falls back to the newest clone result. */
+export function keyVerdict({ keys, checkout }) {
+  if (keys != null) return keys > 0 ? 'ok' : 'missing';
+  return checkout === true ? 'ok' : checkout === false ? 'missing' : 'unknown';
+}
+
+/** Lean `keyProceed`: a pipeline may start only on `ok`. */
+export const keyProceed = (i) => keyVerdict(i) === 'ok';
+
+/** Glue: the usable keys of GET /project/{slug}/checkout-key, or null when the list answers 403 (the token may not read it). Any other error is thrown. */
+export async function readKeyList(ctx, { slug }) {
+  try {
+    return (await listAll(ctx, `${API}/project/${slug}/checkout-key`)).filter((k) => usableKeyKind(k.type)).length;
+  } catch (e) {
+    if (/HTTP 403/.test(e.message)) return null;
+    throw e;
+  }
+}
+
+/** Glue: the clone result of the newest pipeline whose `Checkout code` step finished (read-only: pipeline list, workflows, jobs, job steps).
+ *  Looks at the newest `maxPipelines` pipelines of the project, any branch; null when none holds a finished clone. */
+export async function readCloneResult(ctx, { slug, maxPipelines = 5 }) {
+  const page = await call(ctx, 'GET', `${API}/project/${slug}/pipeline`);
+  for (const p of (page.items ?? []).slice(0, maxPipelines)) {
+    for (const wf of await listAll(ctx, urls.workflows(p.id))) {
+      for (const j of await listAll(ctx, urls.jobs(wf.id))) {
+        if (j.job_number == null) continue;
+        let d;
+        try { d = await call(ctx, 'GET', urls.jobSteps(slug, j.job_number)); } catch (e) { if (/HTTP 404/.test(e.message)) continue; throw e; }
+        for (const a of (d.steps ?? []).flatMap((st) => st.actions ?? [])) {
+          const c = a.name === CHECKOUT_STEP ? checkoutOfStatus(a.status) : null;
+          if (c != null) return c;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+/** The read-only key check: only GETs, so a missing key costs no credits. The clone result is read only when the key list is unreadable
+ *  (Lean `key_list_beats_clone`: a readable list ignores it). Returns { verdict, proceed, keys, checkout }. */
+export async function keyCheck(ctx, { slug }) {
+  const keys = await readKeyList(ctx, { slug });
+  const checkout = keys == null ? await readCloneResult(ctx, { slug }) : null;
+  return { verdict: keyVerdict({ keys, checkout }), proceed: keyProceed({ keys, checkout }), keys, checkout };
+}
+
+/** Exit code of a key check: 0 ok, 6 missing, 7 unknown. */
+export const keyExit = (verdict) => (verdict === 'ok' ? 0 : verdict === 'missing' ? 6 : 7);
+
+/** One line saying what to do about a key verdict that is not ok. */
+export const keyAdvice = (r) => (r.verdict === 'missing'
+  ? `no usable checkout key (${r.keys == null ? 'the key list is unreadable and the newest clone failed' : 'the key list holds none'}): add a deploy key or user key in Project Settings, SSH Keys; no pipeline was started`
+  : 'cannot tell whether a checkout key exists (the key list answers 403 and no pipeline has finished a clone yet): no pipeline was started');
+
 // ----------------------------------------------------------------------------------------------------------- storage ledger
 
 /** The pilot's storage ledger (.local/circleci-ledger.json): { pipelines: { <id>: { artifacts, cache, workspace } } } in bytes. */
@@ -439,7 +505,8 @@ export async function fetchPipeline(ctx, { slug, pipelineId, out }) {
   const cacheSaves = [];
   for (const wf of await listAll(ctx, urls.workflows(pipelineId))) {
     for (const j of await listAll(ctx, urls.jobs(wf.id))) {
-      if (j.job_number == null || !TERMINAL.has(j.status)) continue;
+      // A job that never ran (`not_run`, e.g. the verdict job after a failed engine job) has no detail: GET /project/{slug}/job/{n} answers 404 (pipeline 261).
+      if (j.job_number == null || !TERMINAL.has(j.status) || j.status === 'not_run') continue;
       const d = await call(ctx, 'GET', urls.job(slug, j.job_number));
       const dir = join(out, j.name);
       mkdirSync(dir, { recursive: true });
@@ -566,6 +633,7 @@ const USAGE = [
   '  wait (--pipeline ID | --branch ci/<name> [--since EPOCH]) [--timeout S] [--interval S>=120] [--out DIR]',
   '  fetch --pipeline ID --out DIR      compare --github gh-run.json --circleci DIR/run.json [--json]',
   '  route --lane L --platform linux-arm|macos --class C --est-ms N --credits-left N [--allow a,b] [--gh-degraded]',
+  '  key-check       read-only: is there a usable checkout key (exit 0 ok, 6 missing, 7 unknown); no pipeline is started',
   '  digest DIR      dry-run [--lane L] [--branch ci/x]',
 ].join('\n');
 
@@ -608,12 +676,21 @@ export async function main(argv, { root = ROOT, env = process.env, ctx: ctx0 = {
     const cfg = loadConfig(root, env);
     const need = (what) => { if (!cfg[what]) throw new Usage(`${what === 'slug' ? 'project slug' : 'pipeline definition id'} not set: FW_CIRCLECI_${what === 'slug' ? 'SLUG' : 'DEFINITION_ID'} or .local/circleci.json (docs/team/tools/circleci.md, step 5)`); return cfg[what]; };
     const ctx = { golden, fetchFn: fetch, getToken: keychainToken, sleep: sleepReal, now: Date.now, log, ledgerPath: join(root, '.local', 'circleci-ledger.json'), ...ctx0 };
+    if (sub === 'key-check') {
+      flags(rest, {});
+      const r = await keyCheck(ctx, { slug: need('slug') });
+      log(`circleci: key check ${r.verdict} (Lean Fw.Ci.Provider.keyVerdict; keys ${r.keys ?? 'unreadable'}, newest clone ${r.checkout ?? 'unseen'})`);
+      if (!r.proceed) log(keyAdvice(r));
+      return keyExit(r.verdict);
+    }
     if (sub === 'trigger') {
       const o = flags(rest, { lane: 'v', branch: 'v', class: 'v', xcode: 'v', dry: 'bool' });
       if (!LANES.includes(o.lane) || !/^ci\/[A-Za-z0-9._/-]+$/.test(o.branch ?? '')) throw new Usage(USAGE);
       if (o.class && !CLASSES.includes(o.class)) throw new Usage(`--class must be one of ${CLASSES.join(', ')} (no paid class)`);
       const req = triggerRequest({ slug: o.dry ? (cfg.slug || '<project-slug>') : need('slug'), definitionId: o.dry ? (cfg.definitionId || '<definition-id>') : need('definitionId'), branch: o.branch, lane: o.lane, cls: o.class, xcode: o.xcode });
       if (o.dry) { log(`${req.method} ${req.url}`); log(JSON.stringify({ headers: req.headers, body: req.body }, null, 2)); return 0; }
+      const k = await keyCheck(ctx, { slug: cfg.slug });
+      if (!k.proceed) { log(keyAdvice(k)); return keyExit(k.verdict); }
       const r = await call(ctx, req.method, req.url, req.body);
       log(`circleci: pipeline ${r.id} (number ${r.number}, ${r.state}) for ${o.branch}, lane ${o.lane}; wait with: pnpm fw ci wait --provider circleci --pipeline ${r.id}`);
       return 0;
