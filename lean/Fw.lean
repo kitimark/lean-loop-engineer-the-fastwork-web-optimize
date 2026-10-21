@@ -222,6 +222,7 @@ import Fw.Port.Fonts  -- port-fonts-check: check 5, fonts per leaf and loaded fa
 import Fw.Parts.NavOofRoot  -- nav-oof-root-finding: no boundary scopes the relayout of a dirty fixed box whose containing block is the view (negative finding)
 import Fw.Ci.Pool  -- pool-caps: per-lane macOS job time caps from measured p90 walls
 import Fw.Sup.Props  -- sup-model: supervisor daemon state machine, invariant and lease, queue, stop and reply theorems
+import Fw.Wire.Sup  -- sup-wire: versioned JSON of every Sup event, command and snapshot, round-trip theorems
 import Fw.Sup.Route  -- sup-route: routeOf per (stage, service, daemon present, binary-hash match), fallback to today's path
 import Fw.Ci.Pool.Key  -- pool-key-outcome: request keys, provider-tagged artifact names, one terminal row per planned unit
 import Fw.Ci.Codemagic  -- codemagic-pilot: the 400-of-500 free-minutes ledger rule of the Codemagic pilot

@@ -13258,7 +13258,8 @@
     "lean/scripts/check.sh",
     "packages/contracts/golden/sup/**",
     "docs/team/handoffs/sup-wire.md"
-   ]
+   ],
+   "evidence": "5440e67"
   },
   {
    "devices": [
@@ -14352,6 +14353,30 @@
     "packages/measure-webkit/test/pinfight-*.test.mjs",
     "research/notes/2026/10-2x-pin-fight.md",
     "docs/team/handoffs/pin-fight-measure.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "step-threads",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "User 2026-10-22: 'i'd like to ask you improve the your steps each topic, i'd like to make it that i can ask for more clarify and you ask answer me in the console. i think i catch up on this session the message is quite a lot and hard to catch up.' Build in console-api/console-web and the fw CLI: (1) topics: `fw step post --topic <id>` and `fw step topic --id <id> --title <t> --summary <text>`; the Your steps card groups open steps by topic (e.g. smoothness, measurement, ci-macos, jev, daemon, phone), each topic with the lead's current one-paragraph summary and its last update time, so the user catches up per topic instead of the chat; (2) threads: every step and every topic has a comment thread; the user writes a question in the console; fw watch raises an alert (step.question) that wakes the lead's watch stream; the lead answers with `fw step reply --id <step|topic> --to <comment id> --text <text>`, which closes the alert; `fw step questions [--all]` lists open ones (reuse the review-card feedback mechanism: ReviewFeedback.tsx, review.ts reply/feedback, its watch alert and its Lean open/close decision, generalised to any card). Lean first for the alert open/close decision and the topic grouping order, with goldens. The single-writer rule of console-api holds.",
+   "writes": [
+    "apps/console-api/src/**",
+    "apps/console-api/test/**",
+    "apps/console-web/src/**",
+    "apps/runner/src/fw.ts",
+    "apps/runner/src/step*.ts",
+    "apps/runner/src/review.ts",
+    "apps/runner/src/watch-collect.ts",
+    "apps/runner/test/step*.test.ts",
+    "lean/Fw/Console/Steps*.lean",
+    "packages/contracts/golden/console/steps*.jsonl",
+    "docs/team/tools/console-steps.md",
+    "docs/team/handoffs/step-threads.md"
    ]
   }
  ],
