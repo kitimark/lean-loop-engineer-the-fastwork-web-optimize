@@ -302,7 +302,7 @@ def identCases : List (String × String × String) :=
   [ (scopedSearch, "a", "b"), (scopedSearch, "a", "a"), (faithfulSearch, "a", "a"), (faithfulSearch, "a", "b"), ("", "a", "a") ]
 
 /-- The golden lines without the real runs. -/
-def caseLines : List String :=
+def caseLines (_ : Unit := ()) : List String :=
   identCases.map (fun (s, h, b) => (Json.mkObj [("kind", "ident"), ("search", s), ("hash", h), ("baseHash", b),
     ("arm", match identify s h b with | some a => Json.str (armName a) | none => Json.null)]).compress) ++
   statCases.map (fun (n, cs) => (Json.mkObj [("kind", "stat"), ("name", n),
@@ -318,7 +318,7 @@ def caseLines : List String :=
 def goldenText (cells : String) : Except String String := do
   let rows ← (cells.splitOn "\n").filter (· ≠ "") |>.mapM parseRow
   let real ← realLines rows
-  pure (String.intercalate "" ((caseLines ++ real).map (· ++ "\n")))
+  pure (String.intercalate "" ((caseLines () ++ real).map (· ++ "\n")))
 
 /-- Print the golden text, or with `--check <file>` verify it. `--cells <file>` names the cells file. -/
 def run (args : List String) : IO UInt32 := do
