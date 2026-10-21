@@ -119,3 +119,4 @@ Heavy entry points queue themselves, so a compound line or a reviewer re-run can
 - Tests: `node --test scripts/slot-self.test.mjs` (plan table, nested start, bare call goes through the slot).
 - Not covered (follow-up, needs a PreToolUse hook the user approves): one-off `lake build <target>`,
   `lake env lean --run/--stdin`, `npx vitest`.
+- A `fw slot acquire --kind sim` holder does not get `FW_SLOT_HELD` in its shell: export `FW_SLOT_HELD=1` before running a self-routing script (check.sh, a package `test`), or it queues behind its own slot.

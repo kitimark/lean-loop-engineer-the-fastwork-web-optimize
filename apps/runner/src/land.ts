@@ -325,7 +325,7 @@ export function candidateChecks(root: string): Check[] {
       try {
         const pkg = JSON.parse(readFileSync(join(root, p, "package.json"), "utf8"));
         if (pkg.scripts?.test) out.push({ id: p, argv: ["pnpm", "--filter", `./${p}`, "test"],
-          reads: [`${p}/**`, NODE_BUDGET_GEN, ...workspaceDeps(root, pkg).map((d) => `${d}/**`), ...(PACKAGE_EXTRA_READS[p] ?? []), ...(FWCORE_USERS.includes(p) ? [FWCORE_BIN] : [])] });
+          reads: [`${p}/**`, NODE_BUDGET_GEN, "scripts/slot-self.mjs", ...workspaceDeps(root, pkg).map((d) => `${d}/**`), ...(PACKAGE_EXTRA_READS[p] ?? []), ...(FWCORE_USERS.includes(p) ? [FWCORE_BIN] : [])] });
       } catch { /* no package.json: nothing to run */ }
     }
   }
