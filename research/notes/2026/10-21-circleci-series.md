@@ -16,7 +16,7 @@ pilot: `10-20-circleci-pilot.md`; the blocked first attempt (pipelines 261, 262)
 40 pipelines, all `success`, started one at a time through the API trigger on `ci/circleci-series` (commit e0bd7d6b, one commit for
 all), 2026-10-21 05:49 to 07:55 UTC, medium and large alternating. Medium: pipelines 264, 266, ..., 302 (20). Large: 265, 267, ...,
 303 (20). Rows: `results/circleci-series/rows/`; reduction: `results/circleci-series/summary.json`. The stop rules (1 h job cap, 10 min
-queue, 1 GB-month storage) never fired. Seconds; p50 / p95 / max are nearest rank (ceil(pct n / 100)-th smallest; at n = 20 the
+queue, 1 GB-month storage) never fired. Credits had no Lean stop rule: the bound was the 40-run row cap `MAX_RUNS` in `scripts/circleci-series.mjs` (TS), and the series spent 643 credits under it. Seconds; p50 / p95 / max are nearest rank (ceil(pct n / 100)-th smallest; at n = 20 the
 p95 is the 19th value, so one outlier is the max, not the p95; TS stand-in for p95, p50 is the Lean rule).
 
 | Job | GitHub n=20 dur | `arm.medium.gen2` n=20 dur | `arm.large.gen2` n=20 dur |
@@ -69,7 +69,7 @@ own measure stays open: land lane wall and queue under a busy GitHub pool and wi
 ## The key check (Lean + glue + test)
 
 The first attempt spent two pipelines on a missing checkout key. `scripts/circleci.mjs key-check` (exit 0 ok, 6 missing, 7
-unknown) is read-only and now runs before every `trigger` and before the series:
+unknown) is read-only and now runs before every CLI `trigger` and once before the series (not before each of the series' own 40 POSTs):
 
 - Lean `Fw.Ci.Provider.keyVerdict`: a readable key list decides (a usable key, `deploy-key` or `github-user-key`, means ok; none
   means missing); an unreadable list (HTTP 403, which this token gets) falls back to the newest finished `Checkout code` step of

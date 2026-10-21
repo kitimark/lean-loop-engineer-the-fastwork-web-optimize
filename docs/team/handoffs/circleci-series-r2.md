@@ -18,5 +18,5 @@ that is land-lane-circleci's measure. One outlier (pipeline 300, chromium 178.8 
 
 Conventions: a fresh worktree needs `pnpm install --offline --frozen-lockfile` before `git push` (pre-push hook). The CircleCI slug is in an
 API error message: never paste errors into files. `.local/circleci.json` was copied into this worktree (gitignored).
-Writes outside the graph writes: none. Rerun: `node scripts/circleci-series.mjs run --branch ci/circleci-series --runs 20 --out <dir> --scratch <dir>`
+Writes outside the graph writes (needed by the task): lean/Fw/Ci/Provider.lean, lean/scripts/ProviderGolden.lean, packages/contracts/golden/ci/provider.jsonl, scripts/circleci-series.mjs, results/circleci-series/**, docs/team/handoffs/circleci-series.md. Follow-up: export runSeries and test that a missing/unknown key makes zero POSTs. Rerun: `node scripts/circleci-series.mjs run --branch ci/circleci-series --runs 20 --out <dir> --scratch <dir>`
 (refuses past 40 rows, so use a fresh `--out`), then `insights`, `github`, `summary`.
