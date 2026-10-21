@@ -12981,7 +12981,8 @@
    "writes": [
     "research/notes/2026/10-21-mem-gate-bypass.md",
     "docs/team/handoffs/mem-gate-bypass.md"
-   ]
+   ],
+   "evidence": "87b9710"
   },
   {
    "devices": [
