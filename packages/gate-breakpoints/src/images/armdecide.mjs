@@ -215,7 +215,7 @@ function coverageMd(cells, matrix, tag) {
   const all = [...new Set(matrix.map((p) => pair(p.width, p.dpr)))];
   const gaps = all.filter((x) => !probed.has(x));
   const byDpr = (xs) => [1, 2, 3].map((d) => `DPR ${d}: ${xs.filter((x) => x.endsWith(`@${d}`)).map((x) => x.split('@')[0]).join(' ') || '-'}`).join('; ');
-  return [`### Coverage${tag}`, '', `Probed width x DPR pairs: ${probed.size} of ${all.length} in the gate matrix (${matrix.length} probes). Every verdict below holds at the probed pairs only.`, '',
+  return [`### Coverage${tag}`, '', `Probed width x DPR pairs: ${probed.size} of ${all.length} in the gate matrix (${matrix.length} probes). Every verdict below holds at the 22 probe ids of arm-probes.json only; other gate probes at a probed pair (reduced motion, hover/pointer crosses, other heights) are not probed.`, '',
     `- probed: ${byDpr([...probed].sort((a, b) => parseFloat(a) - parseFloat(b)))}`, `- not probed: ${byDpr(gaps.sort((a, b) => parseFloat(a) - parseFloat(b)))}`, ''];
 }
 
