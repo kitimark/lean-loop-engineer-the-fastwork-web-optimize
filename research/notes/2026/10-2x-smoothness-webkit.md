@@ -414,7 +414,7 @@ End-of-page morph (zone `finish`, window `end`):
 
 - iOS leg, hero zone, original: 6 windows with a frame in the zone out of 14 kept, at most 3 per job, so its per-job verdict is `insufficient`. The frame
   count itself (1 to 7 frames per window) is the finding; a verdict needs a run that puts 5 frames per job in the zone, or a window that starts earlier.
-- The iOS leg of run 39624728525 stopped in rep 3: the inspector died and relaunching Safari failed with a simulator in state Shutdown (29 of 40 windows kept; the
+- The iOS leg of run 39624728525 stopped in its fourth rep: the inspector died and relaunching Safari failed with a simulator in state Shutdown (29 of 40 windows kept; the
   windows read are kept, the leg exits 0). Two of three iOS jobs are complete.
 - `RenderingFrame` is absent on both legs (Playwright WebKit 27.2, iOS 27.0), so frame start and end come from the animation-frame records.
 - The runs do not rank against the phone: `ci-device-accuracy` compares them with the device recorder.
