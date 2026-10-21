@@ -1610,4 +1610,230 @@ theorem nested_no_wait {c : Cfg} {s : State} {o p : Nat} {a : Ask} (h : Inv c s)
     have := h.1.below q.id (List.mem_append_right _ (List.mem_map_of_mem hq'))
     exact Nat.ne_of_lt this
 
+/-! ## Pump decisions -/
+
+/-- Load plus external footprint within budget in every dimension. -/
+def Fits (c : Cfg) (s : State) : Prop := ∀ d, used s d + s.obs.ext.get d ≤ c.budget.get d
+
+/-- Some command admits load: a job grant or a spawn. -/
+def Adm (cs : List Cmd) : Prop :=
+  ∃ x ∈ cs, (∃ n l, x = .reply n (.granted l) ∧ l.kind = .job) ∨ ∃ rid k, x = .spawn rid k
+
+/-- A command allowed while shedding: a reply that grants nothing, or TERM to a group. -/
+def ShedOk (x : Cmd) : Prop := (∃ n r, x = .reply n r ∧ ∀ l, r ≠ .granted l) ∨ ∃ i, x = .signal (.group i) .term
+
+theorem adm_append {a b : List Cmd} (h : Adm (a ++ b)) : Adm a ∨ Adm b := by
+  obtain ⟨x, hx, hp⟩ := h
+  rcases List.mem_append.1 hx with hx | hx
+  · exact Or.inl ⟨x, hx, hp⟩
+  · exact Or.inr ⟨x, hx, hp⟩
+
+theorem not_adm {cs : List Cmd} (h : ∀ x ∈ cs, ShedOk x) : ¬ Adm cs := by
+  rintro ⟨x, hx, ⟨n, l, e, _⟩ | ⟨rid, k, e⟩⟩ <;> rcases h x hx with ⟨n', r, e', hr⟩ | ⟨i, e'⟩ <;> rw [e] at e'
+  · simp only [Cmd.reply.injEq] at e'; exact hr l e'.2.symm
+  · cases e'
+  · cases e'
+  · cases e'
+
+theorem fitsB_le {c : Cfg} {s : State} {add : Res → Nat} (h : fitsB c s add = true) (d : Res) :
+    used s d + add d + s.obs.ext.get d ≤ c.budget.get d := by
+  have := List.all_eq_true.1 h d (Res.mem_all d)
+  simpa using this
+
+theorem resLoad_cons (y : Rsrc) (ys : List Rsrc) (d : Res) :
+    resLoad (y :: ys) d = (if y.phase.live then charge y d else 0) + resLoad ys d := by
+  unfold resLoad
+  cases h : y.phase.live <;> simp [List.filter_cons, h]
+
+theorem resLoad_map_eq (f : Rsrc → Rsrc) (d : Res) : ∀ l : List Rsrc,
+    (∀ x ∈ l, (f x).phase.live = x.phase.live ∧ charge (f x) d = charge x d) → resLoad (l.map f) d = resLoad l d
+  | [], _ => rfl
+  | x :: xs, h => by
+    rw [List.map_cons, resLoad_cons, resLoad_cons, (h x List.mem_cons_self).1, (h x List.mem_cons_self).2,
+      resLoad_map_eq f d xs fun y hy => h y (List.mem_cons_of_mem _ hy)]
+
+theorem resLoad_map_one (f : Rsrc → Rsrc) (r : Rsrc) (d : Res) : ∀ l : List Rsrc, (l.map (·.id)).Nodup → r ∈ l →
+    (∀ x ∈ l, x.id ≠ r.id → f x = x) → charge (f r) d ≤ charge r d → resLoad (l.map f) d ≤ resLoad l d + charge r d
+  | [], _, h, _, _ => absurd h List.not_mem_nil
+  | x :: xs, hn, hr, hf, hc => by
+    rw [List.map_cons, List.nodup_cons] at hn
+    rw [List.map_cons, resLoad_cons, resLoad_cons]
+    rcases List.mem_cons.1 hr with e | hr'
+    · have hfix : xs.map f = xs := by
+        refine (List.map_congr_left fun y hy => hf y (List.mem_cons_of_mem _ hy) fun e' => ?_).trans (List.map_id xs)
+        have hm : y.id ∈ xs.map (·.id) := List.mem_map_of_mem hy
+        rw [e', e] at hm
+        exact hn.1 hm
+      rw [hfix, ← e]
+      have : (if (f r).phase.live then charge (f r) d else 0) ≤ charge r d := by
+        split
+        · exact hc
+        · exact Nat.zero_le _
+      omega
+    · have hx : x.id ≠ r.id := fun e => by
+        have hm : r.id ∈ xs.map (·.id) := List.mem_map_of_mem hr'
+        rw [← e] at hm
+        exact hn.1 hm
+      rw [hf x List.mem_cons_self hx]
+      have := resLoad_map_one f r d xs hn.2 hr' (fun y hy => hf y (List.mem_cons_of_mem _ hy)) hc
+      omega
+
+theorem used_grant (a : Acc) (q : Req) (d : Res) :
+    used (grant a q).st d = used a.st d + (if q.kind == .svc then ({} : Vec) else q.cost).get d := by
+  simp only [grant, used, leaseLoad, List.map_append, List.sum_append, List.map_cons, List.map_nil, List.sum_cons,
+    List.sum_nil, leaseOf]
+  have e : resLoad (a.st.res.map fun x =>
+      if (q.kind == .svc && x.id == q.rid) = true then { x with lastUse := a.st.now } else x) d = resLoad a.st.res d :=
+    resLoad_map_eq _ d _ fun x _ => by split <;> exact ⟨rfl, rfl⟩
+  rw [e]
+  omega
+
+theorem stopRec_live (now : Nat) (ids : List Nat) (x : Rsrc) (d : Res) :
+    (stopRec now ids x).1.phase.live = x.phase.live ∧ charge (stopRec now ids x).1 d = charge x d := by
+  unfold stopRec; split
+  · split
+    · rename_i hc
+      simp only [Bool.and_eq_true, beq_iff_eq] at hc
+      exact ⟨by rw [hc.1]; rfl, rfl⟩
+    · exact ⟨rfl, rfl⟩
+  · exact ⟨rfl, rfl⟩
+
+theorem used_stop (s : State) (xs : List Rsrc) (d : Res) : used (stopAll s xs).1 d = used s d := by
+  simp only [stopAll, mapRes, used]
+  rw [resLoad_map_eq _ d _ fun x _ => stopRec_live _ _ x d]
+
+theorem used_start {a : Acc} {q : Req} {r : Rsrc} (hn : (a.st.res.map (·.id)).Nodup) (hr : r ∈ a.st.res) (d : Res) :
+    used (start a q r).st d ≤ used a.st d + charge r d := by
+  simp only [start, keepQ, used]
+  have := resLoad_map_one (fun x => if x.id == r.id then { x with phase := .starting a.st.now, foot := {} } else x) r d
+    a.st.res hn hr (fun x _ hx => by simp [hx]) (by simp [charge, vec_zero]; exact Nat.le_max_left _ _)
+  omega
+
+theorem fits_of {c : Cfg} {st st' : State} {add : Res → Nat} (h : fitsB c st add = true)
+    (hu : ∀ d, used st' d ≤ used st d + add d) (ho : st'.obs = st.obs) : Fits c st' := fun d => by
+  have := fitsB_le h d
+  have := hu d
+  rw [ho]
+  omega
+
+/-- The pump decision invariant against the start state `s0`. -/
+structure PD (c : Cfg) (s0 : State) (a : Acc) : Prop where
+  spawn : ∀ rid k, .spawn rid k ∈ a.out → ∃ x ∈ s0.res, x.id = rid ∧ x.phase = .absent ∧ x.proc = none ∧
+    (recent c s0.now x.crashes).length < c.maxRestarts
+  shed : s0.shedding = true → ∀ x ∈ a.out, ShedOk x
+  drain : s0.draining = true → ∀ x ∈ a.out, ∃ n w, x = .reply n (.refused w)
+  fits : Adm a.out → Fits c a.st
+
+theorem pd_step {c : Cfg} {s0 : State} {a a' : Acc} (cs : List Cmd) (h : PD c s0 a) (ho : a'.out = a.out ++ cs)
+    (hsp : ∀ rid k, .spawn rid k ∈ cs → ∃ x ∈ s0.res, x.id = rid ∧ x.phase = .absent ∧ x.proc = none ∧
+      (recent c s0.now x.crashes).length < c.maxRestarts)
+    (hsh : s0.shedding = true → ∀ x ∈ cs, ShedOk x)
+    (hdr : s0.draining = true → ∀ x ∈ cs, ∃ n w, x = .reply n (.refused w))
+    (hf : (Adm a.out → Fits c a.st) → Adm a'.out → Fits c a'.st) : PD c s0 a' := by
+  refine ⟨fun rid k hm => ?_, fun hs x hx => ?_, fun hd x hx => ?_, hf h.fits⟩
+  · rw [ho] at hm
+    rcases List.mem_append.1 hm with hm | hm
+    · exact h.spawn rid k hm
+    · exact hsp rid k hm
+  · rw [ho] at hx
+    rcases List.mem_append.1 hx with hx | hx
+    · exact h.shed hs x hx
+    · exact hsh hs x hx
+  · rw [ho] at hx
+    rcases List.mem_append.1 hx with hx | hx
+    · exact h.drain hd x hx
+    · exact hdr hd x hx
+
+theorem fits_keep {c : Cfg} {a a' : Acc} {cs : List Cmd} (ho : a'.out = a.out ++ cs) (hq : ∀ x ∈ cs, ShedOk x)
+    (hu : ∀ d, used a'.st d = used a.st d) (hob : a'.st.obs = a.st.obs) :
+    (Adm a.out → Fits c a.st) → Adm a'.out → Fits c a'.st := fun hf hA d => by
+  rw [ho] at hA
+  rcases adm_append hA with hA | hA
+  · have := hf hA d; rw [hu d, hob]; exact this
+  · exact absurd hA (not_adm hq)
+
+theorem refused_ok (n : Nat) (w : Why) : ShedOk (.reply n (.refused w)) := Or.inl ⟨n, _, rfl, fun _ e => Reply.noConfusion e⟩
+
+theorem pd_refuse {c : Cfg} {s0 : State} {a a' : Acc} (n : Nat) (w : Why) (h : PD c s0 a)
+    (ho : a'.out = a.out ++ [.reply n (.refused w)]) (hu : ∀ d, used a'.st d = used a.st d) (hob : a'.st.obs = a.st.obs) :
+    PD c s0 a' :=
+  pd_step _ h ho (fun _ _ hm => by cases List.mem_singleton.1 hm) (fun _ x hx => List.mem_singleton.1 hx ▸ refused_ok n w)
+    (fun _ x hx => ⟨n, w, List.mem_singleton.1 hx⟩)
+    (fits_keep ho (fun x hx => List.mem_singleton.1 hx ▸ refused_ok n w) hu hob)
+
+theorem pd_keepQ {c : Cfg} {s0 : State} {a : Acc} {q : Req} (b : Bool) (h : PD c s0 a) : PD c s0 (keepQ a q b) :=
+  pd_step [] h (List.append_nil _).symm (fun _ _ hm => absurd hm List.not_mem_nil) (fun _ _ hx => absurd hx List.not_mem_nil)
+    (fun _ _ hx => absurd hx List.not_mem_nil) (fits_keep (List.append_nil _).symm (fun _ hx => absurd hx List.not_mem_nil)
+      (fun _ => rfl) rfl)
+
+theorem key_crashes {x y : Rsrc} (h : key y = key x) : y.crashes = x.crashes := congrArg (·.2.2.2.2.2) h
+
+theorem pumpOne_pd {c : Cfg} {s0 : State} {a : Acc} {q : Req} {rest : List Req} (hw : Wf c s0)
+    (hj : PJ c s0 a (q :: rest)) (hm : PM s0 a) (h : PD c s0 a) : PD c s0 (pumpOne c a q) := by
+  have hn : a.st.now = s0.now := hj.now
+  have hsh : a.st.shedding = s0.shedding := hj.shedding
+  have hdr : a.st.draining = s0.draining := hj.draining
+  refine pumpOne_cases c a q (PD c s0) (fun w _ => pd_refuse q.id w h rfl (fun _ => rfl) rfl)
+    (fun _ hd hs hc => ?_) (fun _ hd add _ => ?_) (fun _ _ _ => pd_keepQ false h)
+    (fun _ _ _ _ _ why _ _ => pd_refuse q.id why h rfl (fun _ => rfl) rfl)
+    (fun _ hd hs _ _ r hr hp hpr hcr hfit => ?_)
+  · refine pd_step _ h rfl (fun _ _ hm => by cases List.mem_singleton.1 hm) (fun e => ?_) (fun e => ?_) ?_
+    · rw [← hsh, hs] at e; cases e
+    · rw [← hdr, hd] at e; cases e
+    · intro hf hA d
+      rw [used_grant]
+      rcases hc with ⟨hk, _, hfit⟩ | ⟨hk, _⟩
+      · have := fitsB_le hfit d
+        simp only [hk]
+        show used a.st d + q.cost.get d + a.st.obs.ext.get d ≤ c.budget.get d
+        exact this
+      · rcases adm_append hA with hA | ⟨x, hx, ⟨n, l, e, hl⟩ | ⟨_, _, e⟩⟩
+        · have := hf hA d
+          have e2 : (if (q.kind == LKind.svc) = true then ({} : Vec) else q.cost).get d = 0 := by
+            simp [hk, vec_zero]
+          rw [e2]
+          show used a.st d + 0 + a.st.obs.ext.get d ≤ c.budget.get d
+          omega
+        · rw [List.mem_singleton.1 hx] at e
+          simp only [Cmd.reply.injEq, Reply.granted.injEq] at e
+          rw [← e.2] at hl
+          simp [leaseOf, hk] at hl
+        · rw [List.mem_singleton.1 hx] at e; cases e
+  · unfold block
+    split
+    · exact pd_keepQ true h
+    · refine pd_keepQ true (pd_step _ h rfl (fun _ _ hm => ?_) (fun _ x hx => ?_) (fun e => ?_)
+        (fits_keep rfl (fun x hx => ?_) (fun d => used_stop _ _ d) rfl))
+      · obtain ⟨_, _, _, _, _, _, e⟩ := stopAll_sig hm; cases e
+      · obtain ⟨_, _, i, _, _, _, e⟩ := stopAll_sig hx; exact Or.inr ⟨i, e⟩
+      · rw [← hdr, hd] at e; cases e
+      · obtain ⟨_, _, i, _, _, _, e⟩ := stopAll_sig hx; exact Or.inr ⟨i, e⟩
+  · obtain ⟨hmem, _⟩ := find_mem hr
+    have hnd : (a.st.res.map (·.id)).Nodup := by rw [rids_of_key hj.key]; exact hw.rids
+    refine pd_step _ h rfl (fun rid k hm' => ?_) (fun e => ?_) (fun e => ?_)
+      fun _ _ => fits_of hfit (fun d => used_start hnd hmem d) rfl
+    · obtain ⟨⟨F, hF, hFm⟩, _⟩ := hm
+      simp only [List.mem_singleton, Cmd.spawn.injEq] at hm'
+      rw [hF] at hmem
+      obtain ⟨x, hx, e⟩ := List.mem_map.1 hmem
+      have hmv := hFm x hx
+      rw [e] at hmv
+      have hpx : x.phase = .absent := by
+        rcases hmv.2 with e1 | ⟨_, _, e1⟩ | ⟨_, e1⟩
+        · rw [← e1, hp]
+        · rw [hp] at e1; cases e1
+        · rw [hp] at e1; cases e1
+      refine ⟨x, hx, by rw [← key_id hmv.1, hm'.1], hpx, by rw [← key_proc hmv.1, hpr], ?_⟩
+      rw [← key_crashes hmv.1, ← hn]; exact hcr
+    · rw [← hsh, hs] at e; cases e
+    · rw [← hdr, hd] at e; cases e
+
+theorem pump_pd {c : Cfg} {s0 : State} (hw : Wf c s0) : PD c s0 (pumpAcc c s0) := by
+  have := pump_ind hw (fun a => PM s0 a ∧ PD c s0 a)
+    ⟨⟨⟨id, (List.map_id _).symm, fun x _ => Moved.refl _ x⟩, fun _ hx => absurd hx List.not_mem_nil⟩,
+      ⟨fun _ _ hm => absurd hm List.not_mem_nil, fun _ _ hx => absurd hx List.not_mem_nil,
+        fun _ _ hx => absurd hx List.not_mem_nil, fun ⟨_, hx, _⟩ => absurd hx List.not_mem_nil⟩⟩
+    fun _ _ _ hj h => ⟨pumpOne_pm hw hj h.1, pumpOne_pd hw hj h.1 h.2⟩
+  exact this.2
+
 end Fw.Sup
