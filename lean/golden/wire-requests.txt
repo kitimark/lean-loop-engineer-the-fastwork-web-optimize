@@ -20,6 +20,7 @@
 {"id":"s-2","op":"ops.admit","budget":{"cores":4},"event":{"type":"finish","id":"a"}}
 {"id":"s-3","op":"metrics.cp","n":3,"w":[2,3,4],"edges":[[0,1],[1,2],[0,2]]}
 {"id":"s-4","op":"metrics.serialShare","a":0,"b":10,"agents":[[[0,6]],[[4,10]]]}
+{"id":"rc-1","op":"gate.runCite","runs":[{"run":"39466378530","arms":["","",""]},{"run":"39457767229","arms":["","","?fw=morph.tween:waapi-scoped"]}],"cites":[{"run":"39457767229","flag":"morph.tween:waapi"}],"rows":[{"id":"w","flag":"morph.tween:waapi","evidence":"39466378530 (A/A), 39457767229 (morph.tween:waapi-scoped)"},{"id":"u","evidence":"39466378530"}]}
 {"id":19,"op":"nope"}
 {"op":"verdict"}
 

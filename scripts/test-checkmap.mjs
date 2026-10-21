@@ -137,7 +137,62 @@ writeFileSync(partJson, readFileSync(partJson, "utf8").replace("{", '{"zz":1,'))
 pgit("add", "--", `apps/site/src/parts/${part}/part.json`);
 pr = pcheck("--staged");
 expect("preset: a staged part.json alone runs the check", /(ok|FAIL) presetCheck/.test(pr.stderr));
+pgit("reset", "-q");
+pgit("checkout", "--", ".");
+// deletions: a staged delete of any generator input runs the check (the tree without the file is judged)
+const delCase = (name, rel) => {
+  pgit("rm", "-q", "--", rel);
+  const d = pcheck("--staged");
+  expect(`preset: staged deletion of ${name} runs the check`, /(ok|FAIL) presetCheck/.test(d.stderr));
+  pgit("reset", "-q", "--", rel);
+  pgit("checkout", "--", rel);
+};
+delCase("the ledger", "research/findings/ledger.json");
+delCase("a golden preset file", "packages/contracts/golden/preset/v2-proved.json");
+delCase("a part.json", `apps/site/src/parts/${part}/part.json`);
+delCase("the site preset", "apps/site/src/registry/presets/v2-proved.json");
+// renames: git detects them, the old path must still count as a deletion
+const renCase = (name, rel, to) => {
+  pgit("mv", rel, to);
+  const d = pcheck("--staged");
+  expect(`preset: staged rename of ${name} away runs the check`, /(ok|FAIL) presetCheck/.test(d.stderr));
+  pgit("reset", "-q");
+  pgit("checkout", "--", ".");
+  rmSync(join(pdir, to), { force: true });
+};
+renCase("the ledger", "research/findings/ledger.json", "research/findings/ledger-old.json");
+renCase("a golden preset file", "packages/contracts/golden/preset/v2-proved.json", "packages/contracts/golden/preset/v2-proved-old.json");
+// a staged change to an input that is then deleted from the working tree still runs the check
+writeFileSync(ledger, badLedger);
+pgit("add", "--", "research/findings/ledger.json");
+rmSync(ledger);
+pr = pcheck("--staged");
+expect("preset: staged ledger change deleted from the working tree still runs the check", /(ok|FAIL) presetCheck/.test(pr.stderr));
+pgit("reset", "-q");
+pgit("checkout", "--", ".");
+pgit("rm", "-q", "--cached", "--", "scripts/checkmap.mjs");  // an unrelated deletion runs nothing
+expect("preset: a staged deletion of a non-input runs no preset check", !/presetCheck/.test(pcheck("--staged").stderr));
+pgit("reset", "-q", "--", "scripts/checkmap.mjs");
 rmSync(pdir, { recursive: true, force: true });
+
+// (4) every Lean module Fw.Preset.Gen imports (transitively) is a generator input in Lean
+{
+  const seen = new Set();
+  const walk = (mod) => {
+    if (seen.has(mod) || !mod.startsWith("Fw.")) return;
+    seen.add(mod);
+    for (const l of readFileSync(join(repo, "lean", mod.replaceAll(".", "/") + ".lean"), "utf8").split("\n")) {
+      const m = /^import\s+(\S+)/.exec(l);
+      if (m) walk(m[1]);
+    }
+  };
+  walk("Fw.Preset.Gen");
+  const files = [...seen].map((m) => `lean/${m.replaceAll(".", "/")}.lean`);
+  const got = askCore(bin, "ops.checkMap", { paths: files })?.cmds.find((c) => c.check === "presetCheck")?.files ?? [];
+  expect(`preset: all ${files.length} modules of Gen's import closure are inputs (${files.join(", ")})`, files.every((f) => got.includes(f)));
+  const del = askCore(bin, "ops.checkMap", { paths: [], deleted: ["apps/site/src/parts/hero/part.json", "x.mjs"] });
+  expect("preset: ops.checkMap deleted: a deleted part.json plans the preset check and nothing else", del?.cmds.length === 1 && del.cmds[0].check === "presetCheck");
+}
 
 rmSync(dir, { recursive: true, force: true });
 console.log(bad ? `test-checkmap: ${bad} FAILED` : "test-checkmap: all passed");

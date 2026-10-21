@@ -12237,7 +12237,7 @@
    "deps": [
     "scoped-close-start-cause"
    ],
-   "title": "Follow-up C of scoped-close-start-cause: what actually fails hero.exit:scoped on mac morph are earn.opacity and earn.max-width close@0 'new' at 390 and 641 (fresh 39508414669); they are running transitions sampled at a later wall time, not before-change identities (390 cand rep 1: opacity 0 -> .636, max-width 160.6 -> 922.4 px across the gap). Derive their close-start rule in Lean: compare at matched time since the transition's trigger (earn opacity 320/200 ms, delay 120; max-width 680 ms; reduce.mjs:108-109 and the Lean transition table), soundness and mutation theorems (reversed, stale, changed curve fail), TS twin golden-checked, re-reduce the 4 stored/fresh runs",
+   "title": "CLOSED AS A FINDING 2026-10-21 (premise refuted on real data, nothing landed; ledger hero.exit.scoped.inline next): every m change below 2000 restarts the earn transition in flight, so trigger readings differ between arms the current gate passes; an identity start fails the base arm. Re-planned as earn-close-chain-rule. Original: Follow-up C of scoped-close-start-cause: what actually fails hero.exit:scoped on mac morph are earn.opacity and earn.max-width close@0 'new' at 390 and 641 (fresh 39508414669); they are running transitions sampled at a later wall time, not before-change identities (390 cand rep 1: opacity 0 -> .636, max-width 160.6 -> 922.4 px across the gap). Derive their close-start rule in Lean: compare at matched time since the transition's trigger (earn opacity 320/200 ms, delay 120; max-width 680 ms; reduce.mjs:108-109 and the Lean transition table), soundness and mutation theorems (reversed, stale, changed curve fail), TS twin golden-checked, re-reduce the 4 stored/fresh runs",
    "writes": [
     "lean/Fw/Gate/Trajectory.lean",
     "packages/gate-breakpoints/src/trajectory/reduce.mjs",
@@ -12245,7 +12245,8 @@
     "packages/contracts/golden/gate/trajectory.jsonl",
     "docs/team/tools/trajectory-probe.md",
     "docs/team/handoffs/earn-close-start-rule.md"
-   ]
+   ],
+   "evidence": "bbf53a80"
   },
   {
    "devices": [
@@ -12256,7 +12257,7 @@
    "stream": "gate",
    "deps": [
     "scoped-gap-did",
-    "earn-close-start-rule"
+    "earn-close-chain-rule"
    ],
    "title": "Follow-up A of scoped-close-start-cause (only after B says 'not shown' and C lands): judge the first in-flight sample after a class removal by the identity |reading - f(m_i)| <= 0.5 (f = bgRed/bgAlpha restated from the CSS in Lean; m_i = the SAME arm and rep's last sample with the class), plus identity checks against Fw.Parts.Nav.morphingCut: m_i > cut at the last sample with the class and m_j <= cut at the first without (an early class removal must fail). Accepted limits: depends on the probe reading sample j at progress 0; m rounding 1e-4; admits any gap regression below B's minimum detectable effect",
    "writes": [
@@ -12288,7 +12289,8 @@
     "package.json",
     "docs/team/tools/run-cite.md",
     "docs/team/handoffs/run-cite-roles.md"
-   ]
+   ],
+   "evidence": "6665e04"
   },
   {
    "devices": [
@@ -12331,7 +12333,8 @@
     "scripts/checkmap*",
     "scripts/test-checkmap.mjs",
     "docs/team/handoffs/checkmap-preset-inputs.md"
-   ]
+   ],
+   "evidence": "1f56c9c"
   },
   {
    "devices": [
@@ -12353,7 +12356,8 @@
     "lean/Main.lean",
     "lean/lakefile.toml",
     "docs/team/handoffs/fwcore-rebuild-fanout.md"
-   ]
+   ],
+   "evidence": "7132a36"
   },
   {
    "devices": [
@@ -12494,6 +12498,26 @@
     "scripts/circleci*.test.mjs",
     "research/notes/2026/10-2*-circleci-series.md",
     "docs/team/handoffs/circleci-series-r2.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "earn-close-chain-rule",
+   "owner": "lean-prover",
+   "stream": "gate",
+   "deps": [
+    "earn-close-start-rule"
+   ],
+   "title": "Re-plan of earn-close-start-rule (closed as a finding): judge earn.opacity and earn.max-width at close@0 by anchoring only the FIRST trigger of the close (both arms read fully collapsed there) at the original's reading, and each later trigger on the CSS curve from the previous trigger's reading (the retarget chain: every m change below 2000 restarts the transition). Required: a judge-level drift mutation theorem (a rewrite +tol-1 off the original at each successive trigger yet within band per link) stating whether it passes, and if it passes, a cumulative bound (|rewrite - original| <= tol at every trigger, not only per link); the stale-start, reversed, linear and duration mutations from round 2 kept; golden; TS twin; re-reduce runs 39466179818, 39472217441, 39508414669, 39508421419 (scratch TS of the candidate gave 172/128/253/44 mac new, no earn close@0 cell failing). Round-2 builder branch worktree-wf_c8917a6a-e58-1 (6971b07d) and its scratch (ecs2/src-chain, ecs2/rered.mjs) are the starting point",
+   "writes": [
+    "lean/Fw/Gate/Trajectory.lean",
+    "packages/gate-breakpoints/src/trajectory/reduce.mjs",
+    "packages/gate-breakpoints/test/trajectory.test.mjs",
+    "packages/contracts/golden/gate/trajectory.jsonl",
+    "docs/team/tools/trajectory-probe.md",
+    "docs/team/handoffs/earn-close-chain-rule.md"
    ]
   }
  ],
