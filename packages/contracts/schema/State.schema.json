@@ -235,6 +235,18 @@
           "body": {
             "type": "string",
             "maxLength": 2000
+          },
+          "topic": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [

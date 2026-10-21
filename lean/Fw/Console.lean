@@ -1,5 +1,6 @@
 import Fw.Plan.Core
 import Fw.Console.ReviewFeedback
+import Fw.Console.Steps
 /-!
 # Console reducer
 
@@ -107,6 +108,7 @@ structure Step where
   lastAt   : Nat
   audience : Audience := .user
   body     : String := ""
+  topic    : Option String := none
 deriving Repr, DecidableEq
 
 /-- A run (screen, gate, run or device job) on a card. -/
@@ -130,6 +132,7 @@ inductive Body where
   | cardLanded      (card sha : String)
   | stepPost        (step : String) (card : Option String) (title : String) (kind : StepKind)
                     (options : Option (List String)) (audience : Audience := .user) (body : String := "")
+                    (topic : Option String := none)
   | stepStart       (step : String)
   | stepAnswer      (step answer : String)
   | stepDone        (step : String) (note : Option String := none)
@@ -139,14 +142,15 @@ inductive Body where
   | reviewPreviewed (flag device : String)
   | reviewFeedback  (flag id text : String)
   | reviewFeedbackReply (flag to text : String)
+  | stepTopic       (topic title summary : String)
   | plan            (c : Fw.Plan.Cmd)
 deriving Repr, DecidableEq
 
-/-- The 18 card/step/run/review event types and the 7 plan command types (the `type` field on the wire). -/
+/-- The 19 card/step/run/review/topic event types and the 7 plan command types (the `type` field on the wire). -/
 inductive EvType where
   | cardOpen | cardApprove | cardBuild | cardScreen | cardReview | cardSwipe | cardLandRequest
   | cardLanded | stepPost | stepStart | stepAnswer | stepDone | stepCancel | runStart | runFinish
-  | reviewPreviewed | reviewFeedback | reviewFeedbackReply
+  | reviewPreviewed | reviewFeedback | reviewFeedbackReply | stepTopic
   | plan (t : Fw.Plan.CmdType)
 deriving Repr, DecidableEq
 
@@ -158,7 +162,7 @@ def EvType.name : EvType → String
   | .stepPost => "step.post" | .stepStart => "step.start" | .stepAnswer => "step.answer"
   | .stepDone => "step.done" | .stepCancel => "step.cancel" | .runStart => "run.start"
   | .runFinish => "run.finish" | .reviewPreviewed => "review.previewed"
-  | .reviewFeedback => "review.feedback" | .reviewFeedbackReply => "review.feedback.reply" | .plan t => t.name
+  | .reviewFeedback => "review.feedback" | .reviewFeedbackReply => "review.feedback.reply" | .stepTopic => "step.topic" | .plan t => t.name
 
 /-- The type of a body. -/
 def Body.type : Body → EvType
@@ -168,7 +172,7 @@ def Body.type : Body → EvType
   | .stepPost .. => .stepPost | .stepStart .. => .stepStart | .stepAnswer .. => .stepAnswer
   | .stepDone .. => .stepDone | .stepCancel .. => .stepCancel | .runStart .. => .runStart
   | .runFinish .. => .runFinish | .reviewPreviewed .. => .reviewPreviewed
-  | .reviewFeedback .. => .reviewFeedback | .reviewFeedbackReply .. => .reviewFeedbackReply | .plan c => .plan c.type
+  | .reviewFeedback .. => .reviewFeedback | .reviewFeedbackReply .. => .reviewFeedbackReply | .stepTopic .. => .stepTopic | .plan c => .plan c.type
 
 /-- An event: an idempotency key, the stamp time (ms, by console-api), the actor and the body. -/
 structure Event where
@@ -213,6 +217,7 @@ def mayList : EvType → List Actor
   | .reviewPreviewed => [.user]
   | .reviewFeedback => [.user]
   | .reviewFeedbackReply => [.lead]
+  | .stepTopic => [.lead, .script]
   | .plan .define | .plan .drop | .plan .milestone => [.lead, .user, .script]
   | .plan .claim => [.hook, .script, .lead]
   | .plan .done => [.git, .lead, .user]
@@ -352,7 +357,7 @@ def check (s : State) (e : Event) : Option String :=
   if !may e.actor e.body.type then some s!"actor {e.actor.name} may not cause {e.body.type.name}" else
   match e.body with
   | .cardOpen id _ _ => if s.cards.any (·.id == id) then some "card exists" else none
-  | .stepPost id card _ kind opts _ _ =>
+  | .stepPost id card _ kind opts _ _ _ =>
     if s.steps.any (·.id == id) then some "step exists"
     else if (match card with | some c => !(s.cards.any (·.id == c)) | none => false) then some "no such card"
     else if kind = .choice && (opts.getD []).length < 2 then some "choice step needs at least 2 options"
@@ -371,6 +376,7 @@ def check (s : State) (e : Event) : Option String :=
   | .reviewPreviewed flag device => reviewPreviewedRefusal flag device
   | .reviewFeedback flag id text => ReviewFeedback.postRefusal s.fb flag id text
   | .reviewFeedbackReply flag to text => ReviewFeedback.replyRefusal s.fb flag to text
+  | .stepTopic topic title summary => Steps.topicRefusal topic title summary
   | .plan c => Fw.Plan.check s.plan c
   | b => match cardOf b with
     | none => none
@@ -386,8 +392,8 @@ def accept (s : State) (e : Event) : State :=
   match e.body with
   | .cardOpen id owner dev =>
     { s with cards := s.cards ++ [{ id, owner, needsDevice := dev, lastAt := t }] }
-  | .stepPost id card title kind opts audience body =>
-    { s with steps := s.steps ++ [{ id, card, title, kind, options := opts, postedAt := t, lastAt := t, audience, body }] }
+  | .stepPost id card title kind opts audience body topic =>
+    { s with steps := s.steps ++ [{ id, card, title, kind, options := opts, postedAt := t, lastAt := t, audience, body, topic }] }
   | .stepStart id => { s with steps := mapSteps t id (fun x => { x with status := .started }) s.steps }
   | .stepAnswer id a =>
     { s with steps := mapSteps t id (fun x => { x with status := .answered, answer := some a }) s.steps }

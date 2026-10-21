@@ -14394,7 +14394,8 @@
     "packages/contracts/golden/console/steps*.jsonl",
     "docs/team/tools/console-steps.md",
     "docs/team/handoffs/step-threads.md"
-   ]
+   ],
+   "evidence": "8c0b4e8"
   },
   {
    "devices": [

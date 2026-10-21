@@ -1,5 +1,6 @@
 import Fw.Obs.Stale
 import Fw.Obs.FeedbackAlert
+import Fw.Console.Steps
 import Fw.Obs.GhStatus
 import Fw.Obs.Timing
 /-!
@@ -410,14 +411,14 @@ theorem stalled_facts (p : Params) (t : Nat) (A : List Agent) (a : Agent) (h : s
 /-- The alert codes, listed in the order of their wire names. -/
 inductive Code where
   | ctxHigh | ctxWarn | errStreak | gone | stalled | toolHang | toolSlow
-  | ciFailed | ciFinished | ciSlow | dockerOrphan | procLong | reviewFeedback | simLockLong | simLockOrphan | svcStale | svcSweepError | svcUnknown | sysContended | diskLow | ghDegraded | loadHigh
+  | ciFailed | ciFinished | ciSlow | dockerOrphan | procLong | reviewFeedback | simLockLong | simLockOrphan | stepQuestion | svcStale | svcSweepError | svcUnknown | sysContended | diskLow | ghDegraded | loadHigh
   | memCritical | overCap | permissionWait | worktreesMany
 deriving DecidableEq, Repr
 
 /-- Every code, in rank order. -/
 def Code.all : List Code :=
   [.ctxHigh, .ctxWarn, .errStreak, .gone, .stalled, .toolHang, .toolSlow,
-   .ciFailed, .ciFinished, .ciSlow, .dockerOrphan, .procLong, .reviewFeedback, .simLockLong, .simLockOrphan, .svcStale, .svcSweepError, .svcUnknown, .sysContended, .diskLow, .ghDegraded, .loadHigh,
+   .ciFailed, .ciFinished, .ciSlow, .dockerOrphan, .procLong, .reviewFeedback, .simLockLong, .simLockOrphan, .stepQuestion, .svcStale, .svcSweepError, .svcUnknown, .sysContended, .diskLow, .ghDegraded, .loadHigh,
    .memCritical, .overCap, .permissionWait, .worktreesMany]
 
 /-- The wire name of a code. -/
@@ -426,7 +427,7 @@ def Code.name : Code → String
   | .gone => "agent.gone" | .stalled => "agent.stalled" | .toolHang => "agent.toolHang"
   | .toolSlow => "agent.toolSlow" | .ciFailed => "ci.failed" | .ciFinished => "ci.finished" | .ciSlow => "ci.slow"
   | .dockerOrphan => "docker.orphan" | .procLong => "proc.long" | .reviewFeedback => "review.feedback" | .simLockLong => "sim.lockLong"
-  | .simLockOrphan => "sim.lockOrphan" | .svcStale => "svc.stale" | .svcSweepError => "svc.sweepError" | .svcUnknown => "svc.unknown" | .sysContended => "sys.contended" | .diskLow => "sys.diskLow" | .ghDegraded => "sys.ghDegraded" | .loadHigh => "sys.loadHigh"
+  | .simLockOrphan => "sim.lockOrphan" | .stepQuestion => "step.question" | .svcStale => "svc.stale" | .svcSweepError => "svc.sweepError" | .svcUnknown => "svc.unknown" | .sysContended => "sys.contended" | .diskLow => "sys.diskLow" | .ghDegraded => "sys.ghDegraded" | .loadHigh => "sys.loadHigh"
   | .memCritical => "sys.memCritical" | .overCap => "team.overCap" | .permissionWait => "team.permissionWait"
   | .worktreesMany => "worktrees.many"
 
@@ -434,9 +435,9 @@ def Code.name : Code → String
 def Code.rank : Code → Nat
   | .ctxHigh => 0 | .ctxWarn => 1 | .errStreak => 2 | .gone => 3 | .stalled => 4 | .toolHang => 5 | .toolSlow => 6
   | .ciFailed => 7 | .ciFinished => 8 | .ciSlow => 9 | .dockerOrphan => 10 | .procLong => 11 | .reviewFeedback => 12
-  | .simLockLong => 13 | .simLockOrphan => 14 | .svcStale => 15 | .svcSweepError => 16 | .svcUnknown => 17 | .sysContended => 18
-  | .diskLow => 19 | .ghDegraded => 20 | .loadHigh => 21
-  | .memCritical => 22 | .overCap => 23 | .permissionWait => 24 | .worktreesMany => 25
+  | .simLockLong => 13 | .simLockOrphan => 14 | .stepQuestion => 15 | .svcStale => 16 | .svcSweepError => 17 | .svcUnknown => 18
+  | .sysContended => 19 | .diskLow => 20 | .ghDegraded => 21 | .loadHigh => 22
+  | .memCritical => 23 | .overCap => 24 | .permissionWait => 25 | .worktreesMany => 26
 
 /-- Whether a code is about one agent (`agent.*`). -/
 def Code.isAgent (c : Code) : Bool := c.rank < 7
@@ -1128,10 +1129,15 @@ theorem procAlert_code (o : Obs) (q : Proc) : (procAlert o q).code = .procLong :
 def sProc (p : Params) (o : Obs) : List Alert :=
   (o.system.procs.filter (procLongB p o)).map (procAlert o)
 
-/-- `review.feedback`: one alert per flag with an open feedback comment (subject the flag, detail the open count and the newest
-text's start); the decision is `Fw.Obs.FeedbackAlert.alerts`. -/
+/-- `review.feedback`: one alert per review flag with an open feedback comment (subject the flag, detail the open count and the newest
+text's start); the decision is `Fw.Console.Steps.reviewAlerts`. -/
 def sFeedback (o : Obs) : List Alert :=
-  (Fw.Obs.FeedbackAlert.alerts o.system.feedback).map fun fd => ⟨.reviewFeedback, fd.1, fd.2, false⟩
+  (Fw.Console.Steps.reviewAlerts o.system.feedback).map fun fd => ⟨.reviewFeedback, fd.1, fd.2, false⟩
+
+/-- `step.question`: one alert per step or topic subject with an open question (subject `step:<id>` or `topic:<id>`, detail the open
+count and the newest text's start); the decision is `Fw.Console.Steps.questionAlerts`. -/
+def sQuestion (o : Obs) : List Alert :=
+  (Fw.Console.Steps.questionAlerts o.system.feedback).map fun fd => ⟨.stepQuestion, fd.1, fd.2, false⟩
 
 /-- The `svc.stale` alert of a stale service: subject its name, detail the changed input paths (measured values). -/
 def staleAlert (s : Svc) : Alert :=
@@ -1176,7 +1182,7 @@ def sPerm (o : Obs) : List Alert :=
 /-- The team and system alerts: the pieces in code order. -/
 def sysAlerts (p : Params) (o : Obs) : List Alert :=
   sCiFailed o ++ sCiFin p o ++ sCiSlow p o ++ sDocker p o ++ sProc p o ++ sFeedback o ++ sLockLong p o ++ sOrphan p o ++
-    sStale o ++ sSweep o ++ sUnknown o ++ sContended o ++ sDisk p o ++ sGh o ++ sLoad p o ++ sMem o ++ sOver p o ++ sPerm o ++ sWt p o
+    sQuestion o ++ sStale o ++ sSweep o ++ sUnknown o ++ sContended o ++ sDisk p o ++ sGh o ++ sLoad p o ++ sMem o ++ sOver p o ++ sPerm o ++ sWt p o
 
 /-- Every raised alert, unsorted: each agent's alerts, then the team and system alerts. -/
 def raw (p : Params) (o : Obs) : List Alert := o.agents.flatMap (agentAll p o) ++ sysAlerts p o
@@ -1296,6 +1302,7 @@ def sysPiece (p : Params) (o : Obs) : Code → List Alert
   | .reviewFeedback => sFeedback o
   | .simLockLong => sLockLong p o
   | .simLockOrphan => sOrphan p o
+  | .stepQuestion => sQuestion o
   | .svcStale => sStale o
   | .svcSweepError => sSweep o
   | .svcUnknown => sUnknown o
@@ -1315,7 +1322,7 @@ theorem sysAlerts_eq (p : Params) (o : Obs) : sysAlerts p o = Code.all.flatMap (
 
 /-- Every alert of a piece carries the piece's code. -/
 theorem piece_code (p : Params) (o : Obs) (c : Code) (x : Alert) (h : x ∈ sysPiece p o c) : x.code = c := by
-  cases c <;> simp only [sysPiece, sCiFailed, sCiFin, sCiSlow, sDocker, sProc, sFeedback, sLockLong, sOrphan, sStale, sSweep, sUnknown, sDisk, sGh, sLoad,
+  cases c <;> simp only [sysPiece, sCiFailed, sCiFin, sCiSlow, sDocker, sProc, sFeedback, sLockLong, sOrphan, sQuestion, sStale, sSweep, sUnknown, sDisk, sGh, sLoad,
     sMem, sOver, sPerm, sWt, sContended, List.not_mem_nil] at h
   all_goals first
     | (obtain ⟨s, _, e⟩ := List.mem_filterMap.1 h
@@ -1396,12 +1403,13 @@ theorem sys_code_iff (p : Params) (o : Obs) (c : Code) (hc : c.isAgent = false) 
     have e := piece_code p o c y hy
     refine ⟨y, (mem_alerts p o y).2 (List.mem_append.2 (.inr ((mem_sys p o y).2 (by rw [e]; exact hy)))), e⟩
 
-/-- **`review.feedback` in the report**: the report has a `review.feedback` alert for a flag exactly when the thread of the feedback
-events has an open comment on it. -/
+/-- **`review.feedback` in the report**: the report has a `review.feedback` alert for a flag exactly when the flag is a review flag (not a
+step or topic subject) with an open comment in the thread of the feedback events. -/
 theorem feedback_iff (p : Params) (o : Obs) (f : String) :
     (∃ x ∈ (health p o).alerts, x.code = .reviewFeedback ∧ x.subject = f) ↔
-      Fw.Console.ReviewFeedback.openOf (Fw.Console.ReviewFeedback.thread o.system.feedback) f ≠ [] := by
-  rw [← Fw.Obs.FeedbackAlert.mem_flags]
+      Fw.Console.Steps.isStepSubject f = false ∧
+        Fw.Console.ReviewFeedback.openOf (Fw.Console.ReviewFeedback.thread o.system.feedback) f ≠ [] := by
+  rw [← Fw.Console.Steps.mem_reviewFlags]
   constructor
   · rintro ⟨x, hx, hc, hs⟩
     have h := (mem_sys p o x).1 (mem_sys_of_notAgent p o x hx (by rw [hc]; rfl))
@@ -1419,24 +1427,71 @@ theorem feedback_iff (p : Params) (o : Obs) (f : String) :
       exact List.mem_map.2 ⟨fd, hfd, rfl⟩
     exact ⟨_, (mem_alerts p o _).2 (List.mem_append.2 (.inr ((mem_sys p o _).2 hy))), rfl, e⟩
 
-/-- **A user comment opens the alert** (its own branch): when the reducer accepts a post, the report after it has the `review.feedback`
-alert of that flag. -/
+/-- **`step.question` in the report**: the report has a `step.question` alert for a subject exactly when the subject is a step or topic
+subject with an open comment in the thread of the feedback events. -/
+theorem question_iff (p : Params) (o : Obs) (f : String) :
+    (∃ x ∈ (health p o).alerts, x.code = .stepQuestion ∧ x.subject = f) ↔
+      Fw.Console.Steps.isStepSubject f = true ∧
+        Fw.Console.ReviewFeedback.openOf (Fw.Console.ReviewFeedback.thread o.system.feedback) f ≠ [] := by
+  rw [← Fw.Console.Steps.mem_questionSubjects]
+  constructor
+  · rintro ⟨x, hx, hc, hs⟩
+    have h := (mem_sys p o x).1 (mem_sys_of_notAgent p o x hx (by rw [hc]; rfl))
+    rw [hc] at h
+    simp only [sysPiece, sQuestion, List.mem_map] at h
+    obtain ⟨fd, hfd, e⟩ := h
+    rw [← e] at hs
+    simp only at hs
+    rw [← hs]
+    exact List.mem_map.2 ⟨fd, hfd, rfl⟩
+  · intro h
+    obtain ⟨fd, hfd, e⟩ := List.mem_map.1 h
+    have hy : (⟨.stepQuestion, fd.1, fd.2, false⟩ : Alert) ∈ sysPiece p o .stepQuestion := by
+      simp only [sysPiece, sQuestion]
+      exact List.mem_map.2 ⟨fd, hfd, rfl⟩
+    exact ⟨_, (mem_alerts p o _).2 (List.mem_append.2 (.inr ((mem_sys p o _).2 hy))), rfl, e⟩
+
+/-- **A user comment on a review flag opens the alert** (its own branch): when the reducer accepts a post on a review flag, the report
+after it has the `review.feedback` alert of that flag. -/
 theorem feedback_post_opens (p : Params) (o : Obs) (f i t : String) (ts : Nat)
+    (hf : Fw.Console.Steps.isStepSubject f = false)
     (h : Fw.Console.ReviewFeedback.postRefusal (Fw.Console.ReviewFeedback.thread o.system.feedback) f i t = none) :
     ∃ x ∈ (health p { o with system := { o.system with feedback := o.system.feedback ++ [.post f i t ts] } }).alerts,
       x.code = .reviewFeedback ∧ x.subject = f := by
-  rw [feedback_iff, ← Fw.Obs.FeedbackAlert.mem_flags]
-  exact Fw.Obs.FeedbackAlert.post_opens _ f i t ts h
+  rw [feedback_iff]
+  exact ⟨hf, (Fw.Obs.FeedbackAlert.mem_flags _ f).mp (Fw.Obs.FeedbackAlert.post_opens _ f i t ts h)⟩
 
-/-- **The lead's reply closes the alert** (its own branch): when the reducer accepts a reply to the flag's only open comment, the report
-after it has no `review.feedback` alert for that flag. -/
+/-- **The lead's reply closes the alert** (its own branch): when the reducer accepts a reply to the review flag's only open comment, the
+report after it has no `review.feedback` alert for that flag. -/
 theorem feedback_reply_closes (p : Params) (o : Obs) (f to t : String) (ts : Nat)
     (h : Fw.Console.ReviewFeedback.replyRefusal (Fw.Console.ReviewFeedback.thread o.system.feedback) f to t = none)
     (honly : ∀ y ∈ Fw.Console.ReviewFeedback.thread o.system.feedback, y.flag = f → y.isOpen = true → y.id = to) :
     ¬ ∃ x ∈ (health p { o with system := { o.system with feedback := o.system.feedback ++ [.reply f to t ts] } }).alerts,
       x.code = .reviewFeedback ∧ x.subject = f := by
-  rw [feedback_iff, ← Fw.Obs.FeedbackAlert.mem_flags]
-  exact Fw.Obs.FeedbackAlert.reply_closes _ f to t ts h honly
+  rw [feedback_iff]
+  rintro ⟨_, hne⟩
+  exact Fw.Obs.FeedbackAlert.reply_closes _ f to t ts h honly ((Fw.Obs.FeedbackAlert.mem_flags _ f).mpr hne)
+
+/-- **A user question opens the alert** (its own branch): when the reducer accepts a post on a step or topic subject, the report after it
+has the `step.question` alert of that subject. -/
+theorem question_post_opens (p : Params) (o : Obs) (f i t : String) (ts : Nat)
+    (hf : Fw.Console.Steps.isStepSubject f = true)
+    (h : Fw.Console.ReviewFeedback.postRefusal (Fw.Console.ReviewFeedback.thread o.system.feedback) f i t = none) :
+    ∃ x ∈ (health p { o with system := { o.system with feedback := o.system.feedback ++ [.post f i t ts] } }).alerts,
+      x.code = .stepQuestion ∧ x.subject = f := by
+  rw [question_iff]
+  exact ⟨hf, (Fw.Obs.FeedbackAlert.mem_flags _ f).mp (Fw.Obs.FeedbackAlert.post_opens _ f i t ts h)⟩
+
+/-- **The lead's reply closes the question alert** (its own branch): when the reducer accepts a reply to the subject's only open comment,
+the report after it has no `step.question` alert for that subject. -/
+theorem question_reply_closes (p : Params) (o : Obs) (f to t : String) (ts : Nat)
+    (h : Fw.Console.ReviewFeedback.replyRefusal (Fw.Console.ReviewFeedback.thread o.system.feedback) f to t = none)
+    (honly : ∀ y ∈ Fw.Console.ReviewFeedback.thread o.system.feedback, y.flag = f → y.isOpen = true → y.id = to) :
+    ¬ ∃ x ∈ (health p { o with system := { o.system with feedback := o.system.feedback ++ [.reply f to t ts] } }).alerts,
+      x.code = .stepQuestion ∧ x.subject = f := by
+  rw [question_iff]
+  rintro ⟨_, hne⟩
+  exact Fw.Obs.FeedbackAlert.reply_closes _ f to t ts h honly ((Fw.Obs.FeedbackAlert.mem_flags _ f).mpr hne)
 
 /-- `when` is not empty exactly when its condition holds. -/
 theorem when_ne_nil (b : Bool) (x : Alert) : when b x ≠ [] ↔ b = true := by
@@ -1858,6 +1913,7 @@ theorem sysPiece_mono (p q : Params) (o : Obs) (hpq : Looser p q) (c : Code) (x 
   · exact h
   · exact h
   · exact h
+  · exact h
   · exact when_sub _ (fun hb => by simp only [decide_eq_true_eq] at hb ⊢; omega) x h
   · exact h
   · exact when_sub _ (fun hb => by simp only [decide_eq_true_eq] at hb ⊢; omega) x h
@@ -1915,7 +1971,7 @@ theorem sysAlerts_perm (p : Params) (o : Obs) (l : List Agent) (hl : l.Perm o.ag
     simp only [procLongB, hw]
   have ha : procAlert { o with agents := l } = procAlert o := rfl
   have hc : ciSlowAlert { o with agents := l } = ciSlowAlert o := rfl
-  simp only [sysAlerts, sCiFailed, sCiFin, sCiSlow, sDocker, sProc, sFeedback, sLockLong, sOrphan, sStale, sSweep, sUnknown, sDisk, sGh, sLoad, sMem, sOver,
+  simp only [sysAlerts, sCiFailed, sCiFin, sCiSlow, sDocker, sProc, sFeedback, sLockLong, sOrphan, sQuestion, sStale, sSweep, sUnknown, sDisk, sGh, sLoad, sMem, sOver,
     sPerm, sWt, sContended, contendedNow, hn, hk, hh, ho, hd, hq, ha, hc]
 
 /-- The report's alerts, system codes and counts do not depend on the order of the agents (the rows follow it). -/
