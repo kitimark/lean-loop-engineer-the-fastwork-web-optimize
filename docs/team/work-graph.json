@@ -14321,7 +14321,8 @@
     "packages/contracts/golden/device/stillruns*.jsonl",
     "research/notes/2026/10-2x-toolbar-throttle.md",
     "docs/team/handoffs/toolbar-throttle-probe.md"
-   ]
+   ],
+   "evidence": "31b755b"
   },
   {
    "devices": [
