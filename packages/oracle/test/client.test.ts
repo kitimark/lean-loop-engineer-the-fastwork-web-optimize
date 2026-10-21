@@ -1,7 +1,7 @@
 // The client's I/O order against a scripted fwcore: the key is read only after `oracle.pre` answers send, the bytes
 // sent are the `bodyText` Lean returned, the log is keyed by its sha256, and every key, HTTP or timeout problem
-// reaches `oracle.decide` as a failure. A fake fetch serves the Lean-generated fixture replies
-// (packages/contracts/golden/oracle/fixtures.jsonl). No network, no keychain.
+// reaches `oracle.decide` as a failure. The replies through the real fwcore are tested in apps/runner/test/oracle.test.ts.
+// No network, no keychain.
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -11,9 +11,7 @@ import { ask, ENDPOINT, readLog, sha256, type Deps, type Json } from "../src/ind
 
 const FAKE_KEY = "tsk_test_0123456789abcdef";
 const BODY = '{"model":"jev-1.13.0","question":"ci-triage"}';
-const fixtures = readFileSync(join(import.meta.dirname, "..", "..", "contracts", "golden", "oracle", "fixtures.jsonl"), "utf8")
-  .trim().split("\n").map((l) => JSON.parse(l) as { name: string; reply: string });
-const reply = fixtures.find((f) => f.name === "confident-real")!.reply;
+const reply = '{"model":"jev-1.13.0","answers":{"ci-triage":{"type":"choice","choice":"real","probabilities":{"real":0.97}}}}';
 
 /** One step the client took, in order. */
 type Ev = { kind: "core"; op: string; req: Json } | { kind: "key" } | { kind: "fetch"; url: string; body: string; auth: string };
@@ -116,12 +114,4 @@ test("a reply that echoes the key is stored and decided on scrubbed", async () =
   const r = await ask(d, a0);
   assert.ok(!String(r.reply).includes(FAKE_KEY));
   assert.ok(!readFileSync(d.logPath, "utf8").includes(FAKE_KEY));
-});
-
-test("every fixture reply is sent through and stored as served", async () => {
-  for (const f of fixtures) {
-    const { d } = world(SEND, { respond: async () => new Response(f.reply) });
-    const r = await ask(d, a0);
-    assert.equal(r.reply, f.reply, f.name);
-  }
 });
