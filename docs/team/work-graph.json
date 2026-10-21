@@ -13438,7 +13438,8 @@
     "research/notes/2026/10-21-macos-minutes.md",
     "research/notes/2026/macos-minutes/**",
     "docs/team/handoffs/macos-minutes-note.md"
-   ]
+   ],
+   "evidence": "41a3271"
   },
   {
    "devices": [
@@ -13515,6 +13516,31 @@
     "lean/Fw/Ci/Pool/Replay.lean",
     "packages/contracts/golden/ci/pool-replay.jsonl",
     "docs/team/handoffs/pool-raw-cache.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "mac-safari-measure",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "sup-baseline",
+    "sup-wire",
+    "sup-route",
+    "smoothness-webkit-cadence"
+   ],
+   "title": "User 2026-10-21: 'my idea, i might use my macos for doing measurement of webkit safari. but we need to optimize the our process resource using first.' A local lane (CLAUDE.md 'Measure on CI' exception (c), reason: real Apple GPU and display, which CI VMs lack) that measures WebKit in Safari on this Mac: per-zone computation events (same zones and arms as smoothness-webkit-cadence, arms by dedupArms) plus frame cadence. Runs only under an exclusive fw-sup MEASURE lease: the daemon drains our own heavy jobs and idle services first (drain_quiet), records the machine's quiet state (load, free memory, swap, compressor from sup-baseline's sampler) before and after each pass, and refuses the run when the quiet check fails (Lean rule + theorem + golden). Compare with CI (smoothness-webkit-cadence) and the phone (device-lag-recorder) in ci-device-accuracy's terms. No self-hosted GitHub runner (public repo: fork code could run on this Mac). Starts only after the resource tasks land.",
+   "writes": [
+    "lean/Fw/Sup/Measure.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/sup/measure.jsonl",
+    "packages/measure-webkit/src/safari-local*.mjs",
+    "packages/measure-webkit/test/safari-local*.test.mjs",
+    "research/notes/2026/10-2x-mac-safari-measure.md",
+    "results/mac-safari/**",
+    "docs/team/handoffs/mac-safari-measure.md"
    ]
   }
  ],
