@@ -122,6 +122,7 @@ import Fw.Obs.Stale  -- console-stale: a service whose inputs changed on main af
 import Fw.Obs.Signals -- obs-signals: agent state from transcript signals (obs.signals)
 import Fw.Obs.Fold  -- watch-incremental: transcript summaries as a fold, resume from saved state
 import Fw.Plan.Incident  -- incident-lint: plan.incidentLint
+import Fw.Plan.Overlap  -- spawn-write-overlap: plan.overlap
 import Fw.Plan.Workflow  -- workflow-claim: workflow runs as agent events
 import Fw.Obs.Timing  -- timing-lean: slow / structural verdicts over timing samples
 import Fw.Obs.Backoff  -- alert-rules-fix: wait or restart when an fwcore call misses its deadline
