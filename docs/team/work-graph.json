@@ -14073,6 +14073,104 @@
     "results/jev/**",
     "docs/team/handoffs/jev-replay.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "device-stats-v2",
+   "owner": "lean-prover",
+   "stream": "measure",
+   "deps": [],
+   "title": "User goal 2026-10-22 ('find the real webkit lag measurement'). research/notes/2026/10-22-lag-coverage.md (committed 02bac431): Safari renders the page at 60 Hz on the 120 Hz phone, one missed update (33.3 ms) is under the > 34 ms line and never counted, and the felt-mark window (ends at the third tap, moving frames only) misses the felt moment (5/10, 10/22, 5/31 marks had zero counted frames). Re-reduce in Lean Fw.Device.Session with golden vectors: first-tap anchor with a 3 s lookback; all-frame and animating-frame stats; skipped-slot count (primary miss count; slot = round((t - t0) / 16.67 ms)), > 25 ms count beside it, hitch ms/s (Apple bands, per zone, expected interval from the session median), p95, longest 30 fps run; touch-to-first-moving-frame and finger-to-scroll offset from the raw touch stream; per-traversal split (first pass vs later). Theorems: over50 <= over34 <= miss25; an interval over 2 slots implies a skipped slot (the converse fails: keep the counterexample as a golden). Then re-reduce the four 2026-10-21 passes (raw records are local only: read them from .local/phone/2026-10-21/ if present, else the lead scratch path given in the prompt; never commit raw records, timestamps or device ids) and write results/phone/2026-10-21/summary-v2.{json,md} (zone counts, felt marks with the new window, per arm) with the same privacy rules as summary.md.",
+   "writes": [
+    "lean/Fw/Device/Session.lean",
+    "lean/Fw/Device/Stats*.lean",
+    "lean/scripts/DeviceSessionGolden.lean",
+    "packages/contracts/golden/device/session.jsonl",
+    "packages/measure-webkit/src/device-session.mjs",
+    "packages/measure-webkit/test/device-session*.test.mjs",
+    "results/phone/2026-10-21/summary-v2.json",
+    "results/phone/2026-10-21/summary-v2.md",
+    "docs/team/handoffs/device-stats-v2.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "webkit-cost-counters",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "title": "User goal 2026-10-22 ('try to measure on ci or local'). research note 10-22-webkit-render-cost (lead, landing) and 10-22-lag-coverage: the end-of-page cost lands in the GPU process (a layer whose bounds change every frame gets a new IOSurface and a full repaint; one commit in flight, so page frames come in whole display ticks) and in the UI process (about 80 new layers become UIViews at morph start); Web Inspector files raster under Composite. Add per-frame counters to the WebKit Simulator lane (webkit-lag-probe, landed a3c4fd41) for the hero-exit and end-of-page zones, original vs rewrite vs flags: rAF delta histogram with skipped-slot and > 25 ms counts; Composite vs Paint time per frame; new layers per commit and layer bounds changes per frame (layer tree dumps through Internals or the Inspector LayerTree domain); Paint records in the 500 ms after the morph ends (ImageQualityController redraw); and, if reachable, IOSurface allocations or the UI-process slowFrame signpost through xctrace on the Simulator (probe; else name the gap). Lean first: the counted predicates and the reduction (per zone, per arm) in Lean with goldens before the TS reducer. GitHub macOS runners only; one debug run locally allowed.",
+   "writes": [
+    "lean/Fw/Measure/WkCost*.lean",
+    "lean/scripts/WkCostGolden.lean",
+    "packages/contracts/golden/measure/wkcost*.jsonl",
+    "packages/measure-webkit/src/lag/**",
+    "packages/measure-webkit/test/lag-*.test.mjs",
+    ".github/workflows/webkit-lag-probe.yml",
+    "research/notes/2026/10-2x-webkit-cost-counters.md",
+    "docs/team/handoffs/webkit-cost-counters.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "xctrace-ci-probe",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "title": "User goal 2026-10-22: render-side WebKit lag on CI. Probe on one free GitHub macOS runner whether xctrace can record the iOS Simulator's Safari/WKWebView with (a) the Animation Hitches template (commit vs render hitches) and (b) WebKit kdebug signposts (RenderingUpdate, CommitLayerTree, AsyncImageDecode, SystemTracing.h) during a scripted scroll of the hero-exit and end-of-page zones; export with xctrace export and reduce to per-zone counts. Report what works on a VM (no real GPU) with run ids; MEASURED A/A on two runs. If it works, a reducer with Lean goldens; if not, the reason with source/docs citations as a negative finding. GitHub only.",
+   "writes": [
+    ".github/workflows/xctrace-probe.yml",
+    "packages/measure-webkit/src/xctrace/**",
+    "packages/measure-webkit/test/xctrace-*.test.mjs",
+    "research/notes/2026/10-2x-xctrace-ci.md",
+    "docs/team/handoffs/xctrace-ci-probe.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "phone-hitches-xctrace",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "device-replay"
+   ],
+   "title": "From research/notes/2026/10-22-lag-coverage.md: Instruments Animation Hitches on the phone is the only planned way to see render-server and commit hitches (blur, backdrop, raster) that rAF cannot. Build the session steps: xctrace record --template 'Animation Hitches' --device <id> --attach Safari (or all processes) for one replayed pass per arm (device-replay profiles), export, reduce per zone (hitch ms/s, commit vs render) in Lean with goldens; one debug run of 5 min or less first. User-only steps (Developer Mode, the booked session) go through the lead; device ids never committed.",
+   "writes": [
+    "packages/measure-webkit/src/hitches/**",
+    "packages/measure-webkit/test/hitches-*.test.mjs",
+    "lean/Fw/Device/Hitches*.lean",
+    "packages/contracts/golden/device/hitches*.jsonl",
+    "docs/team/tools/phone-hitches.md",
+    "docs/team/handoffs/phone-hitches-xctrace.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "smooth-miss-counts",
+   "owner": "lean-prover",
+   "stream": "measure",
+   "deps": [
+    "smoothness-webkit-cadence"
+   ],
+   "title": "From research/notes/2026/10-22-lag-coverage.md: add the skipped-slot count (primary) and the > 25 ms count to Fw.Gate.Smooth beside badTenths 340, for both the Chromium cadence lane and the WebKit cadence leg; push the WebKit morph through a real wheel/scroll path instead of the synthetic WheelEvent (lag/probe.mjs:67); read Chromium's jank and smoothness histograms where the real-time run allows. Goldens and theorems as in device-stats-v2 (over50 <= over34 <= miss25; over-2-slots implies skip).",
+   "writes": [
+    "lean/Fw/Gate/Smooth*.lean",
+    "packages/contracts/golden/gate/smooth*.jsonl",
+    "packages/measure-chromium/src/smooth/**",
+    "packages/measure-webkit/src/smooth/**",
+    "packages/measure-webkit/src/lag/probe.mjs",
+    "docs/team/handoffs/smooth-miss-counts.md"
+   ]
   }
  ],
  "deadline": {
