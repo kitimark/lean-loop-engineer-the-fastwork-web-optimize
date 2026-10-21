@@ -60,9 +60,11 @@ paused hero box whose frame scrolled at most `kMax` since the observer's callbac
     moves at most 5 cells of 52 px; the copy's and the cue's blur and translate stay below it,
     `copy_outset_dominates`).
 - `kMax = vh - m`. After the splash only the copy column animates (cards have `animation: none` at `data-done`, deck
-  cards always), so a stale frame needs only `kCopy = vh - 260` (`kCopy_ge`: at least 170 px).
+  cards always), so a stale frame would need only `kCopy = vh - 260`. INFERRED: Lean defines `kCopy` and proves
+  `kCopy_ge` (at least 170 px), but no theorem applies `stale_hidden` to the copy family with a shift up to `kCopy`, and
+  the premise "after the splash only the copy column animates" is read from the CSS, not modelled.
 
-| probes | vh | m (px) | kMax (px) | kCopy (px) |
+| probes | vh | m (px) | kMax (px) | kCopy (px, INFERRED) |
 |---|---|---|---|---|
 | 932x430 phone landscape | 430 | 412.8 | 17.2 | 170 |
 | 1024x768 | 768 | 477.0 | 291.0 | 508 |
@@ -106,21 +108,23 @@ stacking context (`atomic_leaf`, CSS 2.1 Appendix E step 8).
 
 ## Limits
 
-- Look change against the faithful arm, **marked for the user's visual review** (also in part.json `limit`): while
-  paused every hero CSS animation stops and resumes on return at the original's time, not the faithful arm's. The
-  list: cue scrollFloat (2.2 s loop), accent idle0 to idle2 (0.6 s loops), accent strokeIn and strokeOut, cue
-  copyIn at 600 px and below, and until the splash ends (1.82 s after load) the copy and cue copyFromRing and the
-  card ringAppear and cardFromRing. A page that loads already paused (scroll restoration, anchor, back navigation)
-  holds these at their start until the user scrolls back. The countdown has no CSS animation; its faces only lose
-  `will-change`. Against the original the look is the same (`visSame_original`).
-- No same-look claim beyond these bounds:
-  - a stale frame that scrolled more than `kMax` (during the splash) or `kCopy` (after it) since the last callback;
-    at 932x430 that is 17.2 px and 170 px;
+- Look class E against the original, the PLAN's look reference: the flag restores the original's own paused-scene
+  rule, so both pause on the same test and every animation has the same local time (`visSame_original`). The flag is
+  registered `optimized`, tier T0, `visClass` E; it is not a look change.
+- It differs from the faithful arm, which lacks the original's pause rule: while paused every hero CSS animation stops
+  and resumes on return at the original's time, not the faithful arm's. The list: cue scrollFloat (2.2 s loop), accent
+  idle0 to idle2 (0.6 s loops), accent strokeIn and strokeOut, cue copyIn at 600 px and below, and until the splash
+  ends (1.82 s after load) the copy and cue copyFromRing and the card ringAppear and cardFromRing. A page that loads
+  already paused (scroll restoration, anchor, back navigation) holds these at their start until the user scrolls back,
+  as the original does. The countdown has no CSS animation; its faces only lose `will-change`.
+- No-claim zones (the same list as part.json `limit` and summary.json `lean.limits`):
+  - a paused box is hidden within `kMax` during the splash (proved, `hero_paused_hidden`) and after the splash within
+    `kCopy` (170 px at 932x430, INFERRED); a stale frame that scrolled further has no claim;
   - a copy column laid out taller than the stage: text layout is not modelled, the proof assumes the column fits;
-  - `svh` below `vh` (Safari with its toolbars): the proof sets the stage to `heroHeightPx vh`;
-  - `hero.countdown:strip`: a strip reaches up to 11 cells above its digit, outside `copyOutset`.
+  - `svh` below `vh` (Safari with its toolbars): the proof assumes svh = vh and sets the stage to `heroHeightPx vh`;
+  - `hero.countdown:strip` is not covered: a strip reaches up to 11 cells above its digit, outside `copyOutset`.
 - Not ported: the original's `deferRendering` (`content-visibility`) on the hero. Follow-up.
-- Safari frame time INFERRED; no iPhone run.
+- Safari frame time INFERRED, no device run.
 - Bridge: the hero now reads the hero.exit rect. Edges hero to hero.orbit, morph.mount to hero, people.deck to hero;
   318 chain pairs (was 322); `lean/Fw/Parts/Bridge.lean`, `FootprintRows.lean`, `FootprintData.lean` and the
   footprint goldens regenerated (outside the task's graph writes, accepted).
@@ -142,7 +146,7 @@ search `?fw=morph.mount:shift`, configHash 3bf7fec1fdffb72d), not the plain fait
   reason count is 91 at y 3000 and 4500 in the baseline and 6 with the flag, in both passes (MEASURED). Lean predicts
   85 (`hero_paused_drop`). The rest of the gap to the original (about 9-18 layers) has other reasons (animation,
   overlap, composited descendants).
-- y 5267 has n = 1. In pass 1 the document was 6006 px tall at the first read (max y 5231) and 6042 px in the same
+- y 5267 has n = 1 (run 39548856639). In pass 1 the document was 6006 px tall at the first read (max y 5231) and 6042 px in the same
   pass's scroll phase; pass 2 read 6042 from the start, with the same configHash (MEASURED). The 36 px arrived after
   the first read of the cold load (INFERRED: a late font or image size); the census was not re-run.
 - Breakpoint gate, run 39549161028: pass on chromium and on playwright-webkit. Every cell is pass, NC, or UNREACHABLE
