@@ -2126,4 +2126,406 @@ theorem drain_exit {c : Cfg} {s : State} {e : Event} (h : Inv c s) (hx : Cmd.exi
     exact ⟨hd, rfl⟩
   · rcases (pump_pm hw).2 _ hx with ⟨_, _, e'⟩ | ⟨_, _, e', _, _⟩ | ⟨_, _, _, _, _, e'⟩ <;> cases e'
 
+/-! ## Signals -/
+
+theorem crash_not_ready (c : Cfg) (now : Nat) (f : Bool) (x : Rsrc) : (crash c now f x).phase ≠ .ready := by
+  unfold crash
+  dsimp only
+  split
+  · intro h; cases h
+  · split <;> (intro h; cases h)
+
+theorem ageRec_ready {c : Cfg} {now : Nat} {x : Rsrc} (h : (ageRec c now x).1.phase = .ready) : x.phase = .ready := by
+  unfold ageRec at h
+  split at h <;> (try split at h) <;> first | exact h | exact absurd h (crash_not_ready _ _ _ _) | cases h
+
+theorem goneRec_ready {c : Cfg} {now : Nat} {rows : List Fw.Ops.Reap.Row} {x : Rsrc}
+    (h : (goneRec c now rows x).phase = .ready) : x.phase = .ready := by
+  unfold goneRec at h
+  split at h
+  · split at h
+    · unfold exits at h
+      split at h <;> first | exact h | exact absurd h (crash_not_ready _ _ _ _) | cases h
+    · exact h
+  · exact h
+
+theorem auditRec_phase (rows : List Fw.Ops.Reap.Row) (x : Rsrc) : (auditRec rows x).1.phase = x.phase := by
+  unfold auditRec
+  split
+  · split
+    · rfl
+    · dsimp only
+      split <;> rfl
+  · rfl
+
+theorem tickRec_ready {c : Cfg} {ls : List Lease} {now : Nat} {smp : Sample} {x : Rsrc}
+    (h : (tickRec c ls now smp x).1.phase = .ready) : x.phase = .ready := by
+  simp only [tickRec] at h
+  rw [auditRec_phase] at h
+  have h2 := ageRec_ready (goneRec_ready h)
+  exact h2
+
+theorem ageRec_nr {c : Cfg} {now : Nat} {y : Rsrc} {x : Cmd} (h : x ∈ (ageRec c now y).2) :
+    (ageRec c now y).1.phase ≠ .ready := by
+  unfold ageRec at h ⊢
+  cases hp : y.phase with
+  | absent => simp [hp] at h
+  | ready => simp [hp] at h
+  | starting t =>
+    simp only [hp] at h ⊢
+    split at h
+    · rw [if_pos (by assumption)]; exact crash_not_ready _ _ _ _
+    · cases h
+  | stopping t g =>
+    cases g with
+    | term =>
+      simp only [hp] at h ⊢
+      split at h
+      · rw [if_pos (by assumption)]; intro e; cases e
+      · cases h
+    | kill => simp [hp] at h
+  | failed u w => simp [hp] at h
+
+theorem tickRec_grp {c : Cfg} {ls : List Lease} {now : Nat} {smp : Sample} {x : Rsrc} {i : Ident} {g : Sig}
+    (h : Cmd.signal (.group i) g ∈ (tickRec c ls now smp x).2) :
+    x.proc = some i ∧ (tickRec c ls now smp x).1.phase ≠ .ready := by
+  simp only [tickRec] at h ⊢
+  rcases List.mem_append.1 h with h | h
+  · obtain ⟨j, hj, e⟩ := ageRec_sig h
+    simp only [Cmd.signal.injEq, Target.group.injEq] at e
+    refine ⟨by rw [e.1]; exact hj, ?_⟩
+    rw [auditRec_phase]
+    intro e2
+    exact ageRec_nr h (goneRec_ready e2)
+  · obtain ⟨r, _, e⟩ := auditRec_sig h
+    cases e
+
+/-- No record with group `i` is ready. -/
+def NR (i : Ident) (rs : List Rsrc) : Prop := ∀ r ∈ rs, r.proc = some i → r.phase ≠ .ready
+
+theorem nr_map {i : Ident} {rs : List Rsrc} {f : Rsrc → Rsrc} (h : NR i rs)
+    (hr : ∀ x ∈ rs, (f x).phase = .ready → x.phase = .ready) (hp : ∀ x ∈ rs, (f x).proc = some i → x.proc = some i) :
+    NR i (rs.map f) := by
+  intro r hr' hi
+  obtain ⟨x, hx, rfl⟩ := List.mem_map.1 hr'
+  exact fun e => h x hx (hp x hx hi) (hr x hx e)
+
+theorem nr_stop {i : Ident} {s : State} {xs : List Rsrc} (h : NR i s.res) : NR i (stopAll s xs).1.res := by
+  show NR i (s.res.map fun x => (stopRec s.now (xs.map (·.id)) x).1)
+  exact nr_map h (fun x _ e => stopRec_ready _ _ x e) (fun x _ e => by rw [← (stopRec_same _ _ x).2.2.2]; exact e)
+
+theorem nr_stop_sig {i : Ident} {g : Sig} {s : State} {xs : List Rsrc} (hn : (s.res.filterMap (·.proc)).Nodup)
+    (hx : Cmd.signal (.group i) g ∈ (stopAll s xs).2) : NR i (stopAll s xs).1.res := by
+  obtain ⟨y, hy, j, hj, hm, hp, e⟩ := stopAll_sig hx
+  simp only [Cmd.signal.injEq, Target.group.injEq] at e
+  show NR i (s.res.map fun x => (stopRec s.now (xs.map (·.id)) x).1)
+  intro r hr hi
+  obtain ⟨x, hx', rfl⟩ := List.mem_map.1 hr
+  have hxp : x.proc = some i := by rw [← (stopRec_same _ _ x).2.2.2]; exact hi
+  have hxy : x = y := eq_of_nodup_filterMap (·.proc) s.res hn x hx' y hy i hxp (by show y.proc = some i; rw [hj, e.1])
+  rw [hxy, stopRec_stops hj hm hp]
+  intro e2; cases e2
+
+theorem observe_nr {c : Cfg} {s : State} {now : Nat} {smp : Sample} {i : Ident} {g : Sig} (hw : Wf c s)
+    (h : Cmd.signal (.group i) g ∈ (observe c s now smp).2) : NR i (observe c s now smp).1.res := by
+  unfold observe at h
+  dsimp only at h
+  rcases List.mem_append.1 h with h | h
+  · obtain ⟨x, hx, hm⟩ := List.mem_flatMap.1 h
+    obtain ⟨hxi, hnr⟩ := tickRec_grp hm
+    rw [observe_res]
+    intro r hr hi
+    obtain ⟨y, hy, rfl⟩ := List.mem_map.1 hr
+    have hyi : y.proc = some i := by
+      rcases (tickRec_same c s.leases _ smp y).2 with e | e
+      · rw [← e]; exact hi
+      · rw [e] at hi; cases hi
+    have : y = x := eq_of_nodup_filterMap (·.proc) s.res hw.procs y hy x hx i hyi hxi
+    subst this
+    exact hnr
+  · obtain ⟨_, _, _, e⟩ := cut_cmd h
+    cases e
+
+theorem tick_nr {c : Cfg} {s : State} {now : Nat} {smp : Sample} {i : Ident} {g : Sig} (hw : Wf c s)
+    (h : Cmd.signal (.group i) g ∈ (tick c s now smp).2) : NR i (tick c s now smp).1.res := by
+  have h1 := wf_observe now smp hw
+  have h2 := wf_stopAll _ h1 fun _ hx => idle_cands hx
+  have hD : ∀ st, NR i st.res → NR i (shedStage c st).1.res := fun st hst => by
+    rcases shedStage_eq c st with e | e <;> rw [e]
+    · exact nr_stop hst
+    · exact hst
+  show NR i (shedStage c (idleStage c (observe c s now smp).1).1).1.res
+  unfold tick at h
+  dsimp only at h
+  rcases List.mem_append.1 h with h | h
+  · rcases List.mem_append.1 h with h | h
+    · rcases List.mem_append.1 h with h | h
+      · exact hD _ (nr_stop (observe_nr hw h))
+      · exact hD _ (nr_stop_sig h1.procs h)
+    · rcases shedStage_eq c (idleStage c (observe c s now smp).1).1 with e | e <;> rw [e] at h ⊢
+      · exact nr_stop_sig h2.procs h
+      · cases h
+  · split at h <;> simp at h
+
+theorem pump_nr {c : Cfg} {s0 : State} {i : Ident} (hw : Wf c s0) (h : NR i s0.res) : NR i (pumpAcc c s0).st.res := by
+  obtain ⟨⟨F, hF, hFm⟩, _⟩ := pump_pm hw
+  rw [hF]
+  refine nr_map h (fun x hx e => ?_) (fun x hx e => by rw [← key_proc (hFm x hx).1]; exact e)
+  rcases (hFm x hx).2 with e' | ⟨_, _, e'⟩ | ⟨hr, _⟩
+  · rw [← e']; exact e
+  · rw [e'] at e; cases e
+  · exact hr
+
+theorem request_res (c : Cfg) (s : State) (o : Nat) (a : Ask) : (request c s o a).1.res = s.res := by
+  unfold request
+  dsimp only
+  split
+  · split
+    · split <;> rfl
+    · rfl
+  · rfl
+
+/-- The commands of the stage before the pump, by event. -/
+theorem pre_out {c : Cfg} {s : State} {e : Event} {x : Cmd} (h : x ∈ (pre c s e).2) :
+    (∃ n r, x = .reply n r)
+    ∨ (∃ now smp, e = .tick now smp ∧ x ∈ (tick c s now smp).2)
+    ∨ (∃ rid i, e = .spawned rid i ∧ (x = .probe rid ∨ ∃ j, i = some j ∧ x = .signal (.group j) .kill ∧
+        (∀ r ∈ s.res, r.proc ≠ some j) ∧ (pre c s e).1 = s))
+    ∨ (∃ l ∈ s.leases, x = .revoke l.owner l.id)
+    ∨ (∃ now snap inp, e = .restart now snap inp ∧
+        ((∃ l ∈ snap.leases, x = .revoke l.owner l.id) ∨ ∃ p ∈ Fw.Ops.Reap.plan inp, x = .signal (.reap p) .term)) := by
+  cases e with
+  | request t o a =>
+    simp only [pre, request] at h
+    split at h
+    · split at h
+      · split at h <;> exact Or.inl ⟨_, _, List.mem_singleton.1 h⟩
+      · exact Or.inl ⟨_, _, List.mem_singleton.1 h⟩
+    · cases h
+  | release t o lid =>
+    simp only [pre, release] at h
+    split at h <;> exact Or.inl ⟨_, _, List.mem_singleton.1 h⟩
+  | renew t o lid =>
+    simp only [pre, renew] at h
+    split at h
+    · split at h <;> exact Or.inl ⟨_, _, List.mem_singleton.1 h⟩
+    · exact Or.inl ⟨_, _, List.mem_singleton.1 h⟩
+  | op t o => exact Or.inl ⟨_, _, List.mem_singleton.1 h⟩
+  | drain t o => exact Or.inl ⟨_, _, List.mem_singleton.1 h⟩
+  | spawned rid i =>
+    cases i with
+    | none => simp [pre, spawned] at h
+    | some j =>
+      refine Or.inr (Or.inr (Or.inl ⟨rid, some j, rfl, ?_⟩))
+      simp only [pre] at h ⊢
+      simp only [spawned] at h ⊢
+      split at h
+      · cases h
+      · rename_i ha
+        split at h
+        · exact Or.inl (List.mem_singleton.1 h)
+        · rename_i hb
+          refine Or.inr ⟨j, rfl, List.mem_singleton.1 h, fun r hr e => ha (List.any_eq_true.2 ⟨r, hr, by simp [e]⟩), ?_⟩
+          rw [if_neg ha, if_neg hb]
+  | ready rid => cases h
+  | childExit i =>
+    simp only [pre, childExit] at h
+    obtain ⟨l, hl, _, e⟩ := cut_cmd h
+    exact Or.inr (Or.inr (Or.inr (Or.inl ⟨l, hl, e⟩)))
+  | tick now smp => exact Or.inr (Or.inl ⟨now, smp, rfl, h⟩)
+  | clientGone o => cases h
+  | restart now snap inp =>
+    refine Or.inr (Or.inr (Or.inr (Or.inr ⟨now, snap, inp, rfl, ?_⟩)))
+    simp only [pre, recover] at h
+    rcases List.mem_append.1 h with h | h
+    · obtain ⟨l, hl, e⟩ := List.mem_map.1 h
+      exact Or.inl ⟨l, (List.mem_filter.1 hl).1, e.symm⟩
+    · obtain ⟨p, hp, e⟩ := List.mem_map.1 h
+      exact Or.inr ⟨p, (List.mem_filter.1 hp).1, e.symm⟩
+
+theorem pre_nr {c : Cfg} {s : State} {e : Event} {i : Ident} {g : Sig} (hw : Wf c s)
+    (h : Cmd.signal (.group i) g ∈ (pre c s e).2) : NR i (pre c s e).1.res := by
+  rcases pre_out h with ⟨_, _, e'⟩ | ⟨now, smp, rfl, h⟩ | ⟨rid, _, rfl, e' | ⟨j, rfl, e', hno, hs⟩⟩ | ⟨_, _, e'⟩ |
+      ⟨now, snap, inp, rfl, ⟨_, _, e'⟩ | ⟨_, _, e'⟩⟩
+  · cases e'
+  · exact tick_nr hw h
+  · cases e'
+  · simp only [Cmd.signal.injEq, Target.group.injEq] at e'
+    rw [hs, e'.1]
+    intro r hr hri
+    exact absurd hri (hno r hr)
+  · cases e'
+  · cases e'
+  · cases e'
+
+theorem step_nr {c : Cfg} {s : State} {e : Event} {i : Ident} {g : Sig} (h : Inv c s)
+    (hx : Cmd.signal (.group i) g ∈ (step c s e).2) : NR i (step c s e).1.res := by
+  obtain ⟨ha, hx⟩ := step_mem hx
+  have hw := wf_pre e h.1
+  rw [step_st ha]
+  rcases hx with hx | hx
+  · exact pump_nr hw (pre_nr h.1 hx)
+  · rcases (pump_pm hw).2 _ hx with ⟨_, _, e'⟩ | ⟨_, _, e', _, _⟩ | ⟨y, hy, j, hj, hph, e'⟩
+    · cases e'
+    · cases e'
+    · simp only [Cmd.signal.injEq, Target.group.injEq] at e'
+      have hw' := pj_wf hw (pump_pj hw)
+      intro r hr hri
+      have : r = y := eq_of_nodup_filterMap (·.proc) _ hw'.procs r hr y hy i hri (by show y.proc = some i; rw [hj, e'.1])
+      subst this
+      rw [hph]
+      intro e2; cases e2
+
+/-- stop_never_leased: after a step that signals a group, no service lease names a resource with that group. -/
+theorem stop_never_leased {c : Cfg} {s : State} {e : Event} {i : Ident} {g : Sig} (h : Inv c s)
+    (hx : Cmd.signal (.group i) g ∈ (step c s e).2) :
+    ∀ r ∈ (step c s e).1.res, r.proc = some i → leasesOn (step c s e).1 r.id = [] := by
+  have hnr := step_nr h hx
+  have hi := step_inv e h
+  intro r hr hri
+  apply List.eq_nil_iff_forall_not_mem.2
+  intro l hl
+  obtain ⟨hl1, hl2⟩ := List.mem_filter.1 hl
+  simp only [Bool.and_eq_true, beq_iff_eq] at hl2
+  obtain ⟨r', hr', hid, hrd⟩ := (hi.1.svc l hl1 hl2.1).2
+  have : r' = r := eq_of_nodup_map (·.id) _ hi.1.rids r' r hr' hr (hid.trans hl2.2)
+  subst this
+  exact hnr r' hr' hri hrd
+
+theorem adopt_proc (rows : List Fw.Ops.Reap.Row) : ∀ (seen : List Ident) (xs : List Rsrc) (y : Rsrc) (i : Ident),
+    y ∈ adopt rows seen xs → y.proc = some i → alive rows i = true
+  | _, [], _, _, h, _ => absurd h List.not_mem_nil
+  | seen, x :: xs, y, i, hy, hi => by
+    unfold adopt at hy
+    split at hy
+    · rename_i j hj
+      split at hy
+      · rename_i hc
+        rcases List.mem_cons.1 hy with e | hy
+        · subst e
+          simp only [Bool.and_eq_true] at hc
+          have : j = i := Option.some.inj (hj.symm.trans hi)
+          subst this
+          exact hc.1.2
+        · exact adopt_proc rows _ xs y i hy hi
+      · rcases List.mem_cons.1 hy with e | hy
+        · subst e; simp [adopt.clear] at hi
+        · exact adopt_proc rows _ xs y i hy hi
+    · rcases List.mem_cons.1 hy with e | hy
+      · subst e; simp [adopt.clear] at hi
+      · exact adopt_proc rows _ xs y i hy hi
+
+theorem ite_proc {p : Prop} [Decidable p] {a b : Rsrc} (ha : a.proc = b.proc) : (if p then a else b).proc = b.proc := by
+  by_cases h : p
+  · rw [if_pos h]; exact ha
+  · rw [if_neg h]
+
+theorem procs_map {l : List Rsrc} {f : Rsrc → Rsrc} {x : Rsrc} {i : Ident} (hx : x ∈ l.map f) (hi : x.proc = some i)
+    (hf : ∀ y ∈ l, (f y).proc = y.proc ∨ (f y).proc = none) : ∃ y ∈ l, y.proc = some i := by
+  obtain ⟨y, hy, rfl⟩ := List.mem_map.1 hx
+  rcases hf y hy with e | e
+  · exact ⟨y, hy, by rw [← e]; exact hi⟩
+  · rw [e] at hi; cases hi
+
+theorem tick_procs {c : Cfg} {s : State} {now : Nat} {smp : Sample} {y : Rsrc} {i : Ident}
+    (hy : y ∈ (tick c s now smp).1.res) (hp : y.proc = some i) : ∃ x ∈ s.res, x.proc = some i := by
+  have hy' : y ∈ (shedStage c (idleStage c (observe c s now smp).1).1).1.res := hy
+  rcases shedStage_eq c (idleStage c (observe c s now smp).1).1 with e | e <;> rw [e] at hy'
+  · obtain ⟨z, hz, hz'⟩ := stop_procs hy' hp
+    obtain ⟨w, hw, hw'⟩ := stop_procs hz hz'
+    exact observe_procs hw hw'
+  · obtain ⟨w, hw, hw'⟩ := stop_procs hy' hp
+    exact observe_procs hw hw'
+
+theorem pre_procs {c : Cfg} {s : State} {e : Event} {x : Rsrc} {i : Ident} (hx : x ∈ (pre c s e).1.res)
+    (hi : x.proc = some i) :
+    (∃ y ∈ s.res, y.proc = some i) ∨ (∃ rid, e = .spawned rid (some i)) ∨
+    (∃ now snap inp, e = .restart now snap inp ∧ alive inp.rows i = true) := by
+  cases e with
+  | request t o a => exact Or.inl ⟨x, by rw [← request_res c s o a]; exact hx, hi⟩
+  | release t o lid =>
+    simp only [pre] at hx
+    unfold release at hx
+    dsimp only at hx
+    split at hx
+    · exact Or.inl (procs_map hx hi fun y _ => Or.inl (ite_proc rfl))
+    · exact Or.inl ⟨x, hx, hi⟩
+  | renew t o lid =>
+    simp only [pre] at hx
+    unfold renew at hx
+    dsimp only at hx
+    split at hx
+    · split at hx <;> exact Or.inl ⟨x, hx, hi⟩
+    · exact Or.inl ⟨x, hx, hi⟩
+  | op t o => exact Or.inl ⟨x, hx, hi⟩
+  | drain t o => exact Or.inl ⟨x, hx, hi⟩
+  | spawned rid i' =>
+    cases i' with
+    | none =>
+      simp only [pre, spawned] at hx
+      exact Or.inl (procs_map hx hi fun y _ => Or.inl (ite_proc rfl))
+    | some j =>
+      simp only [pre, spawned] at hx
+      split at hx
+      · exact Or.inl ⟨x, hx, hi⟩
+      · split at hx
+        · obtain ⟨y, hy, rfl⟩ := List.mem_map.1 hx
+          by_cases hid : (y.id == rid) = true
+          · rw [if_pos hid] at hi
+            have : j = i := Option.some.inj hi
+            exact Or.inr (Or.inl ⟨rid, by rw [this]⟩)
+          · rw [if_neg hid] at hi
+            exact Or.inl ⟨y, hy, hi⟩
+        · exact Or.inl ⟨x, hx, hi⟩
+  | ready rid =>
+    simp only [pre, readyEv] at hx
+    exact Or.inl (procs_map hx hi fun y _ => Or.inl (ite_proc rfl))
+  | childExit j =>
+    simp only [pre, childExit, cut] at hx
+    refine Or.inl (procs_map hx hi fun y _ => ?_)
+    split
+    · exact Or.inl (exits_same c s.now y).2.2.2
+    · exact Or.inl rfl
+  | tick now smp => exact Or.inl (tick_procs hx hi)
+  | clientGone o => exact Or.inl ⟨x, hx, hi⟩
+  | restart now snap inp => exact Or.inr (Or.inr ⟨now, snap, inp, rfl, adopt_proc inp.rows [] _ x i hx hi⟩)
+
+/-- signal_identity: every signal goes to the group of a record of the state before the step, to a group reported by
+the same spawn event, to an adopted group whose leader row is in the same restart sample, to a member row of the same
+tick sample, or to a reap plan target of the same restart. -/
+theorem signal_identity {c : Cfg} {s : State} {e : Event} {t : Target} {g : Sig} (h : Inv c s)
+    (hx : Cmd.signal t g ∈ (step c s e).2) :
+    (∃ i, t = .group i ∧ ((∃ y ∈ s.res, y.proc = some i) ∨ (∃ rid, e = .spawned rid (some i)) ∨
+      (∃ now snap inp, e = .restart now snap inp ∧ alive inp.rows i = true)))
+    ∨ (∃ now smp, e = .tick now smp ∧ ∃ r ∈ smp.rows, t = .member r.pid r.start)
+    ∨ (∃ now snap inp, e = .restart now snap inp ∧ ∃ p ∈ Fw.Ops.Reap.plan inp, t = .reap p) := by
+  obtain ⟨_, hx⟩ := step_mem hx
+  rcases hx with hx | hx
+  · rcases pre_out hx with ⟨_, _, e'⟩ | ⟨now, smp, rfl, hx⟩ | ⟨rid, _, rfl, e' | ⟨j, rfl, e', _, _⟩⟩ | ⟨_, _, e'⟩ |
+        ⟨now, snap, inp, rfl, ⟨_, _, e'⟩ | ⟨p, hp, e'⟩⟩
+    · cases e'
+    · rcases tick_cmds hx with ⟨y, hy, i, _, hi, e'⟩ | ⟨r, hr, e'⟩ | ⟨_, _, e'⟩ | e'
+      · simp only [Cmd.signal.injEq] at e'
+        exact Or.inl ⟨i, e'.1, Or.inl ⟨y, hy, hi⟩⟩
+      · simp only [Cmd.signal.injEq] at e'
+        exact Or.inr (Or.inl ⟨now, smp, rfl, r, hr, e'.1⟩)
+      · cases e'
+      · cases e'
+    · cases e'
+    · simp only [Cmd.signal.injEq] at e'
+      exact Or.inl ⟨j, e'.1, Or.inr (Or.inl ⟨rid, rfl⟩)⟩
+    · cases e'
+    · cases e'
+    · simp only [Cmd.signal.injEq] at e'
+      exact Or.inr (Or.inr ⟨now, snap, inp, rfl, p, hp, e'.1⟩)
+  · obtain ⟨⟨F, hF, hFm⟩, hS⟩ := pump_pm (wf_pre e h.1)
+    rcases hS _ hx with ⟨_, _, e'⟩ | ⟨_, _, e', _, _⟩ | ⟨y, hy, j, hj, _, e'⟩
+    · cases e'
+    · cases e'
+    · simp only [Cmd.signal.injEq] at e'
+      rw [hF] at hy
+      obtain ⟨z, hz, rfl⟩ := List.mem_map.1 hy
+      rw [key_proc (hFm z hz).1] at hj
+      exact Or.inl ⟨j, e'.1, pre_procs hz hj⟩
+
 end Fw.Sup
