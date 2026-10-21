@@ -92,15 +92,69 @@
   }
  },
  "trajectory": {
-  "run": 39548822269,
-  "playwright-webkit": "CLEAN, 2000 of 2000 units pass (path hero, 5 reps)",
-  "chromium": "RED, 43 new units against the faithful arm: 42 coverage at width 390 path morph in one rep (open@1), all nav nodes; 1 content: nav logo color close@0=apart in one rep. No hero unit fails. INFERRED unrelated: the nav is outside the hero-exit subtree the rule touches",
-  "rerun": {
-   "run": 39553952680,
-   "sha": "1f437e7516d60a411f281bde7c0ba236fd470071",
-   "inputs": "engines=chromium fw=hero:scene-pause widths=390",
-   "chromium": "RED, 42 of 3604 units, all coverage at open@1 on path morph (nav, logo, earn, panel, actions), 1 of 62 reps each; no content unit, no hero unit; follow-up task"
-  }
+  "engine": "chromium",
+  "width": 390,
+  "path": "morph",
+  "step": "open@1 (bucket 1 of the open push)",
+  "runs": [
+   {
+    "run": 39548822269,
+    "sha": "26b881fa",
+    "search": "?fw=hero:scene-pause",
+    "lane": "RED",
+    "open1Coverage": "42 new",
+    "repsWithOpen1Sample": {
+     "original": "0/5",
+     "faithful": "2/5",
+     "candidate": "0/5"
+    },
+    "navLogoColorClose0": "fail:apart (new), the 1 content unit"
+   },
+   {
+    "run": 39553952680,
+    "sha": "1f437e75",
+    "search": "?fw=hero:scene-pause",
+    "lane": "RED",
+    "open1Coverage": "42 new",
+    "repsWithOpen1Sample": {
+     "original": "0/5",
+     "faithful": "1/5",
+     "candidate": "0/5"
+    },
+    "navLogoColorClose0": "pass"
+   },
+   {
+    "run": 39556935431,
+    "sha": "4e378931",
+    "search": "?fw=hero:scene-pause",
+    "lane": "CLEAN",
+    "open1Coverage": "42 both",
+    "repsWithOpen1Sample": {
+     "original": "0/5",
+     "faithful": "0/5",
+     "candidate": "0/5"
+    },
+    "navLogoColorClose0": "pass"
+   },
+   {
+    "run": 39557718020,
+    "sha": "2e463b39",
+    "search": "default (control, no flag)",
+    "lane": "CLEAN",
+    "open1Coverage": "0",
+    "repsWithOpen1Sample": {
+     "original": "0/5",
+     "faithful": "3/5",
+     "candidate": "3/5"
+    },
+    "navLogoColorClose0": "pass"
+   }
+  ],
+  "status": "MEASURED (counts, from each run's units-chromium.json and raw-chromium.json; inputs read back from artifact trajectory-inputs)",
+  "otherCells": "39548822269: playwright-webkit CLEAN 2000/2000 (path hero); Chromium 1280 candidate open@1 sample in 5/5 reps; no hero unit fails in any run",
+  "verdict": "flag effect on the open push's first frame, not row-E sampling: the control is clean; the first nonzero m of a rep is about 0.066 or about 0.2; the default rewrite lands at 0.066 in 9 of 25 reps, the flag arm in 0 of 15, the original in 0 of 20 (MEASURED). One-sided Fisher p about 0.0075 (INFERRED: reps of different runs treated as independent). The flag arm's timing equals the original's; no content unit differs. Per the lead's rule the flag does not enter v2-proved on this evidence; not fixed here",
+  "mechanism": "not determined. CONFIRMED: the rule and the IO touch only the hero track subtree (hero.module.css:42-45, index.tsx:38-39). INFERRED: frame-pacing effect of removing about 85 layers",
+  "followUp": "probe: judge open@1 coverage against the original's own first frame (the original has no bucket-1 sample at 390 in 20 of 20 reps)"
  },
  "lean": {
   "module": "lean/Fw/Parts/HeroScenePause.lean",

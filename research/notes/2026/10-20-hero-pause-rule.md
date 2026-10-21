@@ -29,7 +29,7 @@ at every scroll position. `hero:scene-pause` ports the rule to the hero track (`
   y 3000 / 4500 / 5267 paused.
 - Stale frames, generic: `stale_off`, `stale_hidden`, `paused_frame_same` (a box that moved at most k since the
   last callback and overflows the track by at most m, with k + m <= vh, does not meet the viewport). Against the
-  original: `visSame_original` (via `faithful_eq_original`).
+  original, class E: `visSame_original` (via `faithful_eq_original`).
 - Clocks: `phase_gap` (faithful local time = variant local time + total paused time), `faithful_eq_of_active` (no
   pause, same clock), `cue_phase_differs` (the 2.2 s cue loop shows another phase after a pause than the faithful
   arm). The variant's phase equals the original's, since the original pauses the same way.
@@ -146,14 +146,35 @@ search `?fw=morph.mount:shift`, configHash 3bf7fec1fdffb72d), not the plain fait
   reason count is 91 at y 3000 and 4500 in the baseline and 6 with the flag, in both passes (MEASURED). Lean predicts
   85 (`hero_paused_drop`). The rest of the gap to the original (about 9-18 layers) has other reasons (animation,
   overlap, composited descendants).
-- y 5267 has n = 1 (run 39548856639). In pass 1 the document was 6006 px tall at the first read (max y 5231) and 6042 px in the same
-  pass's scroll phase; pass 2 read 6042 from the start, with the same configHash (MEASURED). The 36 px arrived after
-  the first read of the cold load (INFERRED: a late font or image size); the census was not re-run.
+- y 5267 has n = 1 (run 39548856639). In pass 1 the document was 6006 px tall at the first read (max y 5231)
+  and 6042 px in the same pass's scroll phase; pass 2 read 6042 from the start, with the same configHash (MEASURED).
+  The 36 px arrived after the first read of the cold load (INFERRED: a late font or image size); the census was not
+  re-run.
 - Breakpoint gate, run 39549161028: pass on chromium and on playwright-webkit. Every cell is pass, NC, or UNREACHABLE
   under the Lean reach rule.
-- Trajectory probe, run 39548822269: playwright-webkit CLEAN, 2000 of 2000 units (path hero). Chromium RED in one rep
-  at width 390, path morph: 42 coverage units on nav nodes (open@1) and 1 content unit (nav logo color, close@0); no
-  hero unit.
-- Re-run, run 39553952680 (sha 1f437e75, inputs `engines=chromium fw=hero:scene-pause widths=390`): chromium RED,
-  42 of 3604 units, all coverage on the morph path at open@1 (nav, logo, earn, panel, actions), 1 of 62 reps each;
-  no content unit and no hero unit. The red is the nav morph's open trajectory, not the hero; follow-up task.
+- Trajectory probe, Chromium, width 390, path morph (MEASURED; open@1 is bucket 1 of the open push, m in [0.05, 0.15)):
+
+| run | sha | rewrite search | lane | open@1 coverage units | reps with an open@1 sample: original / faithful / candidate | nav logo color close@0 |
+|---|---|---|---|---|---|---|
+| 39548822269 | 26b881fa | `?fw=hero:scene-pause` | RED | 42 new | 0/5, 2/5, 0/5 | fail in one rep (the 1 content unit) |
+| 39553952680 | 1f437e75 | `?fw=hero:scene-pause` | RED | 42 new | 0/5, 1/5, 0/5 | pass |
+| 39556935431 | 4e378931 | `?fw=hero:scene-pause` | CLEAN | 42 both (faithful arm 0/5 too) | 0/5, 0/5, 0/5 | pass |
+| 39557718020 (control) | 2e463b39 | default (no flag) | CLEAN | 0 | 0/5, 3/5, 3/5 | pass |
+
+  Inputs read back from artifact `trajectory-inputs` of each run (engines=chromium, widths=390; fw empty for the
+  control). 39548822269 also ran 1280 and WebKit: playwright-webkit CLEAN, 2000 of 2000 units (path hero); Chromium 1280
+  candidate had an open@1 sample in 5/5 reps. No run has a hero unit failing.
+- Verdict: the control is clean, so the open@1 coverage red is not the probe's row E sampling event at this sha
+  (row E of `research/notes/2026/10-21-faithful-hero-baseline.md` needs the no-flag arm to show it). It is a flag effect
+  on the open push's first frame (MEASURED): the first nonzero `m` of a rep is either about 0.066 or about 0.2. The
+  default rewrite lands at 0.066 in 9 of 25 reps over the four runs; the flag arm never does (0 of 15) and the original
+  never does (0 of 20). A one-sided Fisher test on 0/15 against 9/25 gives p about 0.0075 (INFERRED: reps of different
+  runs treated as independent). The candidate's first-frame timing equals the original's; the coverage rule fails it
+  because it judges the rewrite against its own bucket grid, not against the original's. 39556935431 is CLEAN only
+  because its faithful arm also missed. No content unit differs (the nav logo close@0 unit failed once, in 39548822269,
+  and passed in the other three).
+- Mechanism of the timing change: not determined. CONFIRMED only that the rule and the IO touch only the hero track
+  subtree (`hero.module.css:42-45`, `index.tsx:38-39`); the frame-pacing effect of removing about 85 layers is INFERRED.
+- Per the lead's rule (control clean, flag arm red in 2 of 3 runs), this is a flag effect and the flag does not enter
+  `v2-proved` on this evidence. Not fixed here; the open@1 coverage rule against the original's own first frame is a
+  probe follow-up.
