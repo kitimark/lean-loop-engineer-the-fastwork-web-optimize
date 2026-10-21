@@ -2,6 +2,9 @@ import Lean.Data.Json
 import Fw.Parts.PlatformScene
 import Fw.Parts.HiddenPause
 import Fw.Parts.HeroCountdownOpt
+import Fw.Parts.HeroDeck
+import Fw.Parts.HeroExit
+import Fw.Site.BreakpointMatrix
 /-!
 # hero scene pause (`hero:scene-pause`): the original's paused-scene rule on the hero track
 -/
@@ -168,6 +171,32 @@ theorem establishes_wc_irrelevant (wc : Bool) : establishes true wc = establishe
 
 #guard establishes true false && establishes false true && !establishes false false
 
+/-- Whether a box paints as one unit: a stacking context, or a positioned box none of whose descendants is positioned
+or stacks (CSS 2.1 Appendix E, step 8). -/
+def atomic (positioned establishes hasPosDesc : Bool) : Bool := establishes || (positioned && !hasPosDesc)
+
+theorem atomic_leaf (wc : Bool) : atomic true wc false = atomic true false false := by cases wc <;> rfl
+
+/-- A family of the hero's `will-change` boxes at `≤ 600` px: how many, whether its CSS always gives it a transform,
+whether it is a positioned leaf. -/
+structure WcFamily where
+  name : String
+  count : Nat
+  transform : Bool
+  leaf : Bool
+deriving Repr, DecidableEq
+
+/-- The copy (`translate`, hero.module.css:207), the deck cards (`rotate`, deck.module.css:25) and the countdown faces
+(absolute, text only, no transform before the driver's first write). -/
+def heroWcFamilies : List WcFamily := [⟨"copy", 1, true, false⟩, ⟨"deck card", 4, true, false⟩, ⟨"face", 80, false, true⟩]
+
+theorem hero_wc_paint_same : ∀ fam ∈ heroWcFamilies, ∀ wc : Bool,
+    (fam.transform = true ∧ establishes true wc = establishes true false) ∨
+      (fam.leaf = true ∧ atomic true wc false = atomic true false false) := by
+  decide +kernel
+
+#guard (heroWcFamilies.map (·.count)).sum == 85
+
 /-! ## 5. Layers -/
 
 /-- A hero box with `will-change` in the faithful arm; `other` holds when a reason other than `will-change` composites
@@ -213,14 +242,16 @@ theorem layers_unowned (h : Host) (ho : owns h true = false) (p : Bool) (bs : Li
   have e : ∀ q, layer h q = fun b => b.other := fun q => funext fun b => by cases q <;> simp [layer, ho, hf]
   simp only [layers, e]
 
-/-- The hero's `will-change` boxes that keep no other reason: 80 countdown faces (8 digits), 4 deck cards (≤ 600 px),
-the copy after the splash. -/
-def heroWcOnly : List WcBox := List.replicate 85 ⟨false⟩
+/-- A modelled count, `heroWcFamilies` at `≤ 600` px, matched to the MEASURED will-change reason count 91 → 6 (webkit-sim
+39548856639, y 3000 and 4500); the cue keeps its layers, as a paused animation still has the animation reason
+(`RenderLayerCompositor.cpp:3842-3867@862f17d`). -/
+def heroWcOnly : List WcBox := List.replicate (heroWcFamilies.map (·.count)).sum ⟨false⟩
 
 theorem hero_paused_drop (h : Host) (ho : owns h true = true) :
     layers h false heroWcOnly = 85 ∧ layers h true heroWcOnly = 0 := by
   have := layers_paused h ho heroWcOnly
-  refine ⟨by simpa [heroWcOnly] using this.1, by rw [this.2]; decide⟩
+  have hl : heroWcOnly.length = 85 := by decide +kernel
+  exact ⟨this.1.trans hl, by rw [this.2]; decide +kernel⟩
 
 theorem wk_normal_owns : owns (.webkit .normal) true = true := by decide
 
@@ -230,7 +261,167 @@ theorem wk_normal_owns : owns (.webkit .normal) true = true := by decide
 #guard layers .chromium true [⟨true⟩, ⟨false⟩] == 1
 #guard layer .chromium false ⟨false⟩ && !layer .chromium true ⟨false⟩ && layer .chromium true ⟨true⟩
 
-/-! ## 6. Golden `packages/contracts/golden/parts/hero-scene-pause.jsonl` -/
+/-! ## 6. Every paused hero box is off-screen -/
+
+open Fw.Site.Breakpoints (Probe matrix Motion)
+open Fw.Parts.HeroOrbit (Piece pieces canvasH restRadius peakBlur scatterY radius phase phase_t_mem ease3 ease3_mem ease5)
+open Fw.Parts.HeroDeck (Slot slots)
+
+/-- An upper bound of the ink outset of `filter: blur(σ)`, `σ ≥ 0`: `3/2` of a box kernel of
+`max 2 ⌊σ · 3√(2π)/4 + 1/2⌋` px (WebKit `Source/WebCore/platform/graphics/filters/FEGaussianBlur.cpp:97-108,132-137@862f17d`,
+Chromium `third_party/blink/renderer/platform/graphics/filters/fe_gaussian_blur.cc:38-54,61-70@f842f52`). -/
+def blurOutset (σ : Rat) : Rat := 3 * σ + 3
+
+theorem radius_le (e : Rat) : radius e ≤ restRadius := by
+  have h := phase_t_mem e
+  unfold radius
+  cases hq : phase e with
+  | mk p t =>
+    rw [hq] at h
+    simp only at h
+    have hu0 : 0 ≤ 1 - t := by grind
+    have hu1 : 1 - t ≤ 1 := by grind
+    have a2 : 0 ≤ (1 - t) * (1 - t) := Rat.mul_nonneg hu0 hu0
+    have a3 : 0 ≤ (1 - t) * (1 - t) * (1 - t) := Rat.mul_nonneg a2 hu0
+    have a4 : 0 ≤ (1 - t) * (1 - t) * (1 - t) * (1 - t) := Rat.mul_nonneg a3 hu0
+    have b4 : (1 - t) * (1 - t) * (1 - t) * (1 - t) ≤ 1 := by
+      have b2 : (1 - t) * (1 - t) ≤ 1 := by have := Rat.mul_le_mul_of_nonneg_left hu1 hu0; grind
+      have b3 : (1 - t) * (1 - t) * (1 - t) ≤ 1 := by have := Rat.mul_le_mul_of_nonneg_left hu1 a2; grind
+      have := Rat.mul_le_mul_of_nonneg_left hu1 a3; grind
+    have b5 : (1 - t) * (1 - t) * (1 - t) * (1 - t) * (1 - t) ≤ 1 := by
+      have := Rat.mul_le_mul_of_nonneg_left hu1 a4; grind
+    have e0 : 0 ≤ ease5 t := by unfold ease5; grind
+    have e1 : ease3 t ≤ 1 := (ease3_mem t h.1 h.2).2
+    cases p <;> simp only [restRadius, Fw.Parts.HeroOrbit.pulledRadius] <;> grind
+
+/-- The vertical reach of one hero box family in stage coordinates (the sticky stage's top is 0): at exit scatter
+`s ∈ [0, 1]` its transformed ink lies in `[lo + s * loS, hi + s * hiS]`. -/
+structure Reach where
+  lo : Rat
+  loS : Rat
+  hi : Rat
+  hiS : Rat
+deriving Repr, DecidableEq
+
+/-- The copy column's ink outset: a countdown face moves at most 5 cells of `40px × 1.3`; the copy's and the cue's blur
+and translate stay within it (`copy_outset_dominates`). -/
+def copyOutset : Rat := 5 * (40 * 13 / 10)
+
+theorem copy_outset_dominates : blurOutset 34 + 12 ≤ copyOutset ∧ blurOutset 34 + 10 + 8 ≤ copyOutset := by
+  decide +kernel
+
+/-- The copy column and the cue, laid out inside the stage of height `H`. -/
+def copyReach (H : Rat) : Reach := ⟨-copyOutset, 0, H + copyOutset, 0⟩
+
+/-- An orbit card: centre between its ring slot and its resting centre on a `canvasH` canvas centred on the stage, ink
+within half its width plus height of the centre, plus the motion blur, the shadow and `s · scatterY` vh. -/
+def orbitReach (H vh : Rat) (p : Piece) : Reach :=
+  let c0 := H / 2 - canvasH / 2
+  let rest := p.top + p.height / 2
+  let ext := (p.width + p.height) / 2
+  let sy := scatterY p.left p.top * vh / 100
+  ⟨c0 + min rest (canvasH / 2 - restRadius) - ext - blurOutset peakBlur - 2, min 0 sy,
+   c0 + max rest (canvasH / 2 + restRadius) + ext + blurOutset peakBlur + 6, max 0 sy⟩
+
+/-- A deck card: top at `topPct` of the stage, ink within half its width plus height of its centre, plus the shadow and
+`s · sy` vh. -/
+def deckReach (H vh : Rat) (sl : Slot) : Reach :=
+  let c := sl.topPct / 100 * H + sl.height / 2
+  let ext := (sl.width + sl.height) / 2
+  ⟨c - ext - 2, min 0 (sl.sy * vh / 100), c + ext + 6, max 0 (sl.sy * vh / 100)⟩
+
+/-- The hero's box families: the copy column, then the deck cards at `≤ 600` px or the orbit cards above. -/
+def reaches (le600 : Bool) (H vh : Rat) : List Reach :=
+  copyReach H :: if le600 then slots.map (deckReach H vh) else pieces.map (orbitReach H vh)
+
+/-- How far a family reaches beyond the stage `[0, H]` at any scatter in `[0, 1]`. -/
+def Reach.over (H : Rat) (r : Reach) : Rat := max 0 (max (-(r.lo + r.loS)) (r.hi + r.hiS - H))
+
+/-- The hero's overflow `m`: the largest reach of a family beyond the stage. -/
+def overflow (le600 : Bool) (H vh : Rat) : Rat := (reaches le600 H vh).foldr (fun r m => max (r.over H) m) 0
+
+/-- A probe's viewport height. -/
+def vhOf (p : Probe) : Rat := (p.env.height.num : Rat) / p.env.height.den
+
+/-- A probe is in the `≤ 600` px band. -/
+def le600Of (p : Probe) : Bool := decide ((p.env.width.num : Rat) / p.env.width.den ≤ 600)
+
+/-- The sticky stage height at a probe (`svh = vh`). -/
+def stageOf (p : Probe) : Rat := Fw.Parts.HeroExit.heroHeightPx (vhOf p) (le600Of p)
+
+/-- The hero's overflow at a probe. -/
+def overflowOf (p : Probe) : Rat := overflow (le600Of p) (stageOf p) (vhOf p)
+
+/-- The largest scroll between two observer callbacks that keeps a stale paused frame off-screen: `vh - m`. -/
+def kMax (p : Probe) : Rat := vhOf p - overflowOf p
+
+/-- The same bound for the copy column alone, the only family that animates after the splash: `vh - copyOutset`. -/
+def kCopy (p : Probe) : Rat := vhOf p - (copyReach (stageOf p)).over (stageOf p)
+
+#guard overflow true 775 775 = 13111723 / 40000
+#guard overflow false 680 430 = 2064 / 5
+#guard overflow false 900 900 = 2266 / 5
+#guard (matrix.filter (·.tag == "no-preference")).map kMax = [86 / 5]
+#guard (matrix.filter (·.tag == "no-preference")).map kCopy = [170]
+
+theorem stage_fits : ∀ p ∈ matrix, stageOf p ≤ 2 * vhOf p := by decide +kernel
+
+theorem kMax_pos : ∀ p ∈ matrix, 0 < kMax p := by decide +kernel
+
+theorem kCopy_ge : ∀ p ∈ matrix, 170 ≤ kCopy p := by decide +kernel
+
+theorem reaches_signs (l : Bool) (H vh : Rat) : ∀ r ∈ reaches l H vh, r.loS ≤ 0 ∧ 0 ≤ r.hiS := by
+  intro r hr
+  simp only [reaches, List.mem_cons] at hr
+  rcases hr with rfl | hr
+  · exact ⟨Std.le_refl _, Std.le_refl _⟩
+  · cases l <;> simp only [Bool.false_eq_true, ite_false, ite_true, List.mem_map] at hr <;>
+      obtain ⟨x, -, rfl⟩ := hr <;> constructor <;> simp only [orbitReach, deckReach] <;> grind
+
+theorem over_le (H : Rat) (rs : List Reach) : ∀ r ∈ rs, r.over H ≤ rs.foldr (fun r m => max (r.over H) m) 0 := by
+  induction rs with
+  | nil => simp
+  | cons x xs ih =>
+    intro r hr
+    simp only [List.mem_cons, List.foldr_cons] at hr ⊢
+    rcases hr with rfl | hr
+    · grind
+    · have := ih r hr; grind
+
+theorem reach_within (H s : Rat) (r : Reach) (hs : 0 ≤ s ∧ s ≤ 1) (hr : r.loS ≤ 0 ∧ 0 ≤ r.hiS) :
+    -(r.over H) ≤ r.lo + s * r.loS ∧ r.hi + s * r.hiS ≤ H + r.over H := by
+  have h1 := Rat.mul_nonneg (show 0 ≤ 1 - s by grind) (show 0 ≤ -r.loS by grind)
+  have h2 := Rat.mul_nonneg (show 0 ≤ 1 - s by grind) hr.2
+  unfold Reach.over
+  constructor <;> grind
+
+/-- A box the hero CSS places on a stage whose top is at `y0`: its transformed ink lies in some family's reach. -/
+def Placed (rs : List Reach) (y0 : Rat) (b : BoxVis) : Prop :=
+  ∃ r ∈ rs, ∃ s : Rat, (0 ≤ s ∧ s ≤ 1) ∧ withinV (b.xf.bbox b.ink) (y0 + (r.lo + s * r.loS)) (y0 + (r.hi + s * r.hiS))
+
+/-- At every probe of the breakpoint matrix, a paused hero box whose frame scrolled at most `kMax` since the observer's
+callback does not meet the viewport. -/
+theorem hero_paused_hidden {A : Type} (p : Probe) (vw top bottom y0 d : Rat) (f : A → BoxVis)
+    (hn : near top bottom (vhOf p) = false) (hst : top + d ≤ y0 ∧ y0 + stageOf p ≤ bottom + d)
+    (hd : -kMax p ≤ d ∧ d ≤ kMax p) (hb : ∀ a, Placed (reaches (le600Of p) (stageOf p) (vhOf p)) y0 (f a)) :
+    Hidden (viewport vw (vhOf p)) f := by
+  refine stale_hidden vw (vhOf p) top bottom d (kMax p) (overflowOf p) f hn hd
+    (by unfold kMax; grind) (fun a => ?_)
+  obtain ⟨r, hr, s, hs, h1, h2⟩ := hb a
+  have hw := reach_within (stageOf p) s r hs (reaches_signs _ _ _ r hr)
+  have ho := over_le (stageOf p) _ r hr
+  unfold overflowOf overflow
+  exact ⟨by grind, by grind⟩
+
+/-- Without a stale frame every paused hero box is off-screen at every probe. -/
+theorem hero_paused_hidden_fresh {A : Type} (p : Probe) (hp : p ∈ matrix) (vw top bottom y0 : Rat) (f : A → BoxVis)
+    (hn : near top bottom (vhOf p) = false) (hst : top ≤ y0 ∧ y0 + stageOf p ≤ bottom)
+    (hb : ∀ a, Placed (reaches (le600Of p) (stageOf p) (vhOf p)) y0 (f a)) :
+    Hidden (viewport vw (vhOf p)) f := by
+  have hk := kMax_pos p hp
+  exact hero_paused_hidden p vw top bottom y0 0 f hn (by grind) (by grind) hb
+
+/-! ## 7. Golden `packages/contracts/golden/parts/hero-scene-pause.jsonl` -/
 
 def jn (n : Int) : Json := .num ⟨n, 0⟩
 
