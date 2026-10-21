@@ -45,9 +45,11 @@ is another workload and is not counted. Linear p90 of 9.1, 9.2, 10.9, 11.3 is 11
 def probeSource : String :=
   "runs 39453181962 and 39455284967 (task trajectory-probe-speed): probe-apple width legs, successes only, linear p90 rounded up to 0.1 min"
 
-/-- Where the `smoothness-webkit-*` p90 values were measured (task `smoothness-webkit-cadence`). -/
+/-- Where the `smoothness-webkit-*` p90 values were measured (task `smoothness-webkit-cadence`): the one job per leg of runs 39612238445,
+39617081415 and 39624728525, successes only. The mac jobs took 9.43, 10.40 and 11.22 min, linear p90 11.056, rounded up to 11.1 min; the
+sim jobs 29.12, 34.05 and 34.15 min, linear p90 34.13, rounded up to 34.2 min. -/
 def smoothSource : String :=
-  "task smoothness-webkit-cadence: the lane's own CI runs, wall of the job, successes only (thin until 10 successes)"
+  "runs 39612238445, 39617081415 and 39624728525 (task smoothness-webkit-cadence): one webkit-mac and one webkit-sim job each, wall of the job, successes only, linear p90 rounded up to 0.1 min (thin until 10 successes)"
 
 /-- The capped macOS jobs, one per lane. -/
 def rows : List Row :=
@@ -57,8 +59,8 @@ def rows : List Row :=
    ⟨"engine-premises", "engine-premises.yml", "webkit", 15, 56⟩,
    ⟨"gate-gaps", "gate-gaps.yml", "collect-macos", 3, 198⟩,
    ⟨"trajectory-probe", "trajectory-probe.yml", "probe-apple", 4, 112⟩,
-   ⟨"smoothness-webkit-mac", "smoothness.yml", "webkit-mac", 1, 200⟩,
-   ⟨"smoothness-webkit-sim", "smoothness.yml", "webkit-sim", 1, 500⟩]
+   ⟨"smoothness-webkit-mac", "smoothness.yml", "webkit-mac", 3, 111⟩,
+   ⟨"smoothness-webkit-sim", "smoothness.yml", "webkit-sim", 3, 342⟩]
 
 /-- The workflows whose macOS jobs carry no cap here, each with the task that owns their timeout. -/
 def excluded : List (String × String) :=
@@ -79,7 +81,7 @@ theorem thin_lanes : (rows.filter (·.thin)).map (·.lane) = ["gate-gaps", "traj
 
 theorem caps_eq : rows.map (fun r => (r.lane, r.cap)) =
     [("wktr", 16), ("wktr-fixtures", 21), ("sim-speed", 17), ("engine-premises", 8), ("gate-gaps", 26),
-      ("trajectory-probe", 15), ("smoothness-webkit-mac", 26), ("smoothness-webkit-sim", 65)] := by decide
+      ("trajectory-probe", 15), ("smoothness-webkit-mac", 15), ("smoothness-webkit-sim", 45)] := by decide
 
 /-- The p90 values (tenths of a minute) of the golden's `vector` rows. -/
 def vectors : List Nat := [0, 1, 56, 76, 77, 112, 119, 124, 161, 198, 289, 300, 1000]

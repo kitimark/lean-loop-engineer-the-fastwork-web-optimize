@@ -4,6 +4,8 @@ import Fw.Gate.Smooth
 /-!
 # WebKit computation events per zone (`packages/measure-webkit/src/profile/reduce.mjs`)
 Timeline records of one scroll window, put on the page clock, binned by the scroll position of the frame they fall in, tallied per zone.
+Every time reported is the measure of a union of intervals clipped to the window, so it cannot exceed the window span (`profile_work_le_span`,
+`profile_cells_le_span`); `Composite` records are asynchronous (commit to completion), so they are a count and carry no time.
 -/
 namespace Fw.Measure.WebKitProfile
 open Lean Fw.Device.Session
@@ -20,10 +22,14 @@ def kinds : List String :=
   ["RecalculateStyles", "Layout", "Paint", "Composite", "FunctionCall", "EvaluateScript", "TimerFire", "FireAnimationFrame",
     "EventDispatch", "ObserverCallback", "RenderingFrame"]
 
-/-- The four kinds whose time is the render work of a frame. -/
-def isRender (k : String) : Bool := k == "RecalculateStyles" || k == "Layout" || k == "Paint" || k == "Composite"
+/-- The three kinds whose time is the render work of a frame. `Composite` is left out: its records run from the commit to the end of
+compositing, overlap one another, and sum to more than the window (82.7 s of 78 records in one 1.6 s hero window). -/
+def isWork (k : String) : Bool := k == "RecalculateStyles" || k == "Layout" || k == "Paint"
 
-/-- One Timeline record: its type, start (hundredths of ms, Timeline clock), duration (hundredths of ms) and whether a render record encloses it. -/
+/-- `Composite` is a count: its duration is not work time, so the cell of that kind carries no time. -/
+def isTimed (k : String) : Bool := k != "Composite"
+
+/-- One Timeline record: its type, start (hundredths of ms, Timeline clock), duration (hundredths of ms) and whether a work record encloses it. -/
 structure Rec where
   kind : String
   t : Int
@@ -31,8 +37,8 @@ structure Rec where
   nested : Bool
 deriving Repr, BEq
 
-/-- A record is nested when one of its ancestors' types is a render kind. -/
-def nestedOf (ancestors : List String) : Bool := ancestors.any isRender
+/-- A record is nested when one of its ancestors' types is a work kind. -/
+def nestedOf (ancestors : List String) : Bool := ancestors.any isWork
 
 /-! ## The clock offset -/
 
@@ -154,26 +160,134 @@ theorem zoneFrames_sum (vh10 maxY10 : Int) (ws : List (Int × Int)) :
     unfold zoneFrames at ih ⊢
     cases hw : inWins ws f.1 <;> cases h : Fw.Device.Session.zoneOf vh10 maxY10 f.2 <;> simp [hw, h] <;> omega
 
-/-- How many records of a kind, and their summed duration (hundredths of ms). -/
-def cell (k : String) (rs : List Rec) : Nat × Nat :=
-  let ks := rs.filter fun r => r.kind == k
-  (ks.length, (ks.map (·.dur)).sum)
+/-- The length of a window (hundredths of ms). -/
+def winLen (w : Int × Int) : Nat := (w.2 - w.1).toNat
 
-/-- The render work of records: summed duration of the render kinds that no render record encloses. -/
-def renderWork (rs : List Rec) : Nat := ((rs.filter fun r => isRender r.kind && !r.nested).map (·.dur)).sum
+/-- The span of the windows: the sum of their lengths (hundredths of ms). -/
+def span (ws : List (Int × Int)) : Nat := (ws.map winLen).sum
+
+/-- One step of the sweep over intervals in start order: the state is the end of what is covered and the covered length so far. -/
+def sweepStep (st : Int × Int) (iv : Int × Int) : Int × Int :=
+  if max iv.1 st.1 < iv.2 then (iv.2, st.2 + (iv.2 - max iv.1 st.1)) else st
+
+/-- The sweep leaves the covered end at or below `hi`, and the covered length grows no faster than the covered end. -/
+theorem sweep_invariant (hi : Int) :
+    ∀ (ivs : List (Int × Int)) (st : Int × Int), (∀ iv ∈ ivs, iv.2 ≤ hi) → st.1 ≤ hi →
+      (ivs.foldl sweepStep st).1 ≤ hi ∧ (ivs.foldl sweepStep st).2 - (ivs.foldl sweepStep st).1 ≤ st.2 - st.1
+  | [], st, _, h => by simp [h]
+  | iv :: ivs, st, hall, h => by
+    have hiv : iv.2 ≤ hi := hall iv (by simp)
+    have hrest : ∀ x ∈ ivs, x.2 ≤ hi := fun x hx => hall x (by simp [hx])
+    rw [List.foldl_cons]
+    by_cases hc : max iv.1 st.1 < iv.2
+    · have hs : sweepStep st iv = (iv.2, st.2 + (iv.2 - max iv.1 st.1)) := by simp [sweepStep, hc]
+      rw [hs]
+      have := sweep_invariant hi ivs (iv.2, st.2 + (iv.2 - max iv.1 st.1)) hrest hiv
+      simp only at this
+      refine ⟨this.1, ?_⟩
+      have h2 := this.2
+      omega
+    · have hs : sweepStep st iv = st := by simp [sweepStep, hc]
+      rw [hs]
+      exact sweep_invariant hi ivs st hrest h
+
+/-- The measure of the union of intervals: sweep them in start order from `lo`, adding the part of each not yet covered. -/
+def unionLen (lo : Int) (ivs : List (Int × Int)) : Int :=
+  ((ivs.mergeSort fun a b => decide (a.1 ≤ b.1)).foldl sweepStep (lo, 0)).2
+
+/-- The union of intervals that end at or before `hi` is at most `hi - lo` long, whatever their order. -/
+theorem unionLen_le (lo hi : Int) (ivs : List (Int × Int)) (hlo : lo ≤ hi) (h : ∀ iv ∈ ivs, iv.2 ≤ hi) :
+    unionLen lo ivs ≤ hi - lo := by
+  have hs : ∀ iv ∈ ivs.mergeSort (fun a b => decide (a.1 ≤ b.1)), iv.2 ≤ hi := fun iv hiv => h iv (List.mem_mergeSort.1 hiv)
+  have := sweep_invariant hi _ (lo, 0) hs hlo
+  unfold unionLen
+  simp only at this ⊢
+  omega
+
+/-- No interval, nothing covered. -/
+theorem unionLen_nil (lo : Int) : unionLen lo [] = 0 := by simp [unionLen]
+
+/-- The records of window `w` as intervals on the page clock: those that start in it, ended at the window's end. -/
+def clipped (off : Int) (w : Int × Int) (rs : List Rec) : List (Int × Int) :=
+  (rs.filter fun r => decide (w.1 ≤ r.t - off ∧ r.t - off < w.2)).map fun r => (r.t - off, min (r.t - off + r.dur) w.2)
+
+/-- The time covered by the records of one window (hundredths of ms). -/
+def coveredIn (off : Int) (w : Int × Int) (rs : List Rec) : Nat := (unionLen w.1 (clipped off w rs)).toNat
+
+/-- The time covered by the records over the windows (hundredths of ms). -/
+def covered (off : Int) (ws : List (Int × Int)) (rs : List Rec) : Nat := (ws.map fun w => coveredIn off w rs).sum
+
+/-- The time covered in a window is at most the window's length. -/
+theorem coveredIn_le (off : Int) (w : Int × Int) (rs : List Rec) : coveredIn off w rs ≤ winLen w := by
+  unfold coveredIn winLen
+  by_cases hlo : w.1 ≤ w.2
+  · have := unionLen_le w.1 w.2 (clipped off w rs) hlo (by
+      intro iv hiv
+      simp only [clipped, List.mem_map, List.mem_filter] at hiv
+      obtain ⟨r, _, rfl⟩ := hiv
+      exact Int.min_le_right _ _)
+    omega
+  · have : clipped off w rs = [] := by
+      simp only [clipped, List.map_eq_nil_iff, List.filter_eq_nil_iff]
+      intro r _
+      simp
+      omega
+    rw [this, unionLen_nil]
+    simp
+
+/-- A pointwise bound on a list bounds the sums of the mapped lists. -/
+theorem sum_map_le {α : Type} (f g : α → Nat) : ∀ l : List α, (∀ a ∈ l, f a ≤ g a) → (l.map f).sum ≤ (l.map g).sum
+  | [], _ => by simp
+  | a :: l, h => by
+    have h1 := h a (by simp)
+    have h2 := sum_map_le f g l (fun x hx => h x (by simp [hx]))
+    simp only [List.map_cons, List.sum_cons]
+    omega
+
+/-- The time covered over the windows never exceeds their span. -/
+theorem covered_le_span (off : Int) (ws : List (Int × Int)) (rs : List Rec) : covered off ws rs ≤ span ws :=
+  sum_map_le _ _ ws fun w _ => coveredIn_le off w rs
+
+/-- How many records of a kind and, for the timed kinds, the time they cover: the measure of the union of their intervals in the windows
+(hundredths of ms). `Composite` has a count and no time. -/
+def cell (k : String) (off : Int) (ws : List (Int × Int)) (rs : List Rec) : Nat × Nat :=
+  let ks := rs.filter fun r => r.kind == k
+  (ks.length, if isTimed k then covered off ws ks else 0)
+
+/-- Every cell's time is at most the span of the windows. -/
+theorem cell_time_le_span (k : String) (off : Int) (ws : List (Int × Int)) (rs : List Rec) : (cell k off ws rs).2 ≤ span ws := by
+  unfold cell
+  split
+  · exact covered_le_span off ws _
+  · exact Nat.zero_le _
+
+/-- A `Composite` cell carries no time. -/
+theorem cell_composite_time (off : Int) (ws : List (Int × Int)) (rs : List Rec) : (cell "Composite" off ws rs).2 = 0 := by
+  simp [cell, isTimed]
+
+/-- The render work of records: the time covered by the top-level work records (`RecalculateStyles`, `Layout`, `Paint` that no work
+record encloses), a union clipped to the windows. -/
+def renderWork (off : Int) (ws : List (Int × Int)) (rs : List Rec) : Nat :=
+  covered off ws (rs.filter fun r => isWork r.kind && !r.nested)
+
+/-- The render work never exceeds the span of the windows: it is time, bounded by the clock. -/
+theorem renderWork_le_span (off : Int) (ws : List (Int × Int)) (rs : List Rec) : renderWork off ws rs ≤ span ws :=
+  covered_le_span off ws _
 
 /-- A nested record adds nothing to the render work. -/
-theorem renderWork_nested (r : Rec) (rs : List Rec) (h : r.nested = true) : renderWork (r :: rs) = renderWork rs := by
+theorem renderWork_nested (off : Int) (ws : List (Int × Int)) (r : Rec) (rs : List Rec) (h : r.nested = true) :
+    renderWork off ws (r :: rs) = renderWork off ws rs := by
   simp [renderWork, h]
 
 /-- A record of another kind adds nothing to the render work. -/
-theorem renderWork_other (r : Rec) (rs : List Rec) (h : isRender r.kind = false) : renderWork (r :: rs) = renderWork rs := by
+theorem renderWork_other (off : Int) (ws : List (Int × Int)) (r : Rec) (rs : List Rec) (h : isWork r.kind = false) :
+    renderWork off ws (r :: rs) = renderWork off ws rs := by
   simp [renderWork, h]
 
-/-- A top-level render record adds its duration. -/
-theorem renderWork_top (r : Rec) (rs : List Rec) (h : isRender r.kind = true) (hn : r.nested = false) :
-    renderWork (r :: rs) = r.dur + renderWork rs := by
-  simp [renderWork, h, hn]
+/-- A `Composite` record adds nothing to the render work, however long it runs. -/
+theorem renderWork_composite (off : Int) (ws : List (Int × Int)) (r : Rec) (rs : List Rec) (h : r.kind = "Composite") :
+    renderWork off ws (r :: rs) = renderWork off ws rs :=
+  renderWork_other off ws r rs (by simp [isWork, h])
 
 /-- Render work per frame in microseconds (hundredths of ms times 10, over the frames), 0 for a zone with no frame. -/
 def perFrameUs (work frames : Nat) : Nat := if frames = 0 then 0 else 10 * work / frames
@@ -188,19 +302,33 @@ theorem perFrameUs_le (work frames : Nat) : perFrameUs work frames ≤ 10 * work
   · omega
   · exact Nat.div_le_self _ _
 
-/-- One zone of one window: its frames, the cells in `kinds` order, render work and render work per frame. -/
+/-- One zone of one window: its frames, the cells in `kinds` order, render work, render work per frame and the span of the windows. -/
 structure Prof where
   frames : Nat
   cells : List (String × Nat × Nat)
   work : Nat
   perFrame : Nat
+  span : Nat
 deriving Repr, BEq
 
 /-- The profile of zone `z` in the windows (page clock, half-open) from the records and the animation frames. -/
 def profile (vh10 maxY10 : Int) (frames : List (Int × Int)) (off : Int) (ws : List (Int × Int)) (z : DZone) (rs : List Rec) : Prof :=
   let zr := zoneRecs vh10 maxY10 frames off ws z rs
   let n := (zoneFrames vh10 maxY10 ws z frames).length
-  ⟨n, kinds.map fun k => (k, cell k zr), renderWork zr, perFrameUs (renderWork zr) n⟩
+  ⟨n, kinds.map fun k => (k, cell k off ws zr), renderWork off ws zr, perFrameUs (renderWork off ws zr) n, span ws⟩
+
+/-- The render work of a zone is at most the span of the windows. -/
+theorem profile_work_le_span (vh10 maxY10 : Int) (frames : List (Int × Int)) (off : Int) (ws : List (Int × Int)) (z : DZone) (rs : List Rec) :
+    (profile vh10 maxY10 frames off ws z rs).work ≤ (profile vh10 maxY10 frames off ws z rs).span :=
+  renderWork_le_span off ws _
+
+/-- Every time in the cells of a zone is at most the span of the windows. -/
+theorem profile_cells_le_span (vh10 maxY10 : Int) (frames : List (Int × Int)) (off : Int) (ws : List (Int × Int)) (z : DZone) (rs : List Rec) :
+    ∀ c ∈ (profile vh10 maxY10 frames off ws z rs).cells, c.2.2 ≤ (profile vh10 maxY10 frames off ws z rs).span := by
+  intro c hc
+  simp only [profile, List.mem_map] at hc
+  obtain ⟨k, _, rfl⟩ := hc
+  exact cell_time_le_span k off ws _
 
 /-- The cells of a profile are in `kinds` order, one per kind. -/
 theorem profile_cells_kinds (vh10 maxY10 : Int) (frames : List (Int × Int)) (off : Int) (ws : List (Int × Int)) (z : DZone) (rs : List Rec) :
@@ -257,7 +385,7 @@ theorem armsOf_same_dropped (a : List String) :
 private def recJ (r : Rec) : Json := toJson [toJson r.kind, toJson r.t, toJson r.dur, toJson r.nested]
 
 private def profJ (p : Prof) : Json :=
-  Json.mkObj [("frames", p.frames), ("work", p.work), ("perFrame", p.perFrame),
+  Json.mkObj [("frames", p.frames), ("work", p.work), ("perFrame", p.perFrame), ("span", p.span),
     ("cells", Json.arr (p.cells.map fun c => toJson [toJson c.1, toJson c.2.1, toJson c.2.2]).toArray)]
 
 private def framesJ (fs : List (Int × Int)) : Json := Json.arr (fs.map fun f => toJson [f.1, f.2]).toArray
@@ -269,7 +397,9 @@ private def synthRecs : List Rec :=
   [⟨"RecalculateStyles", 1010, 80, false⟩, ⟨"Layout", 1015, 40, true⟩, ⟨"Paint", 1170, 60, false⟩,
    ⟨"Composite", 1330, 30, false⟩, ⟨"FunctionCall", 1335, 20, false⟩, ⟨"FireAnimationFrame", 1490, 10, false⟩,
    ⟨"Layout", 1650, 120, false⟩, ⟨"Layout", 1990, 90, false⟩, ⟨"Paint", 2130, 70, false⟩, ⟨"Paint", 2290, 500, false⟩,
-   ⟨"Composite", 990, 25, false⟩, ⟨"TimerFire", 2200, 15, false⟩]
+   ⟨"Composite", 990, 25, false⟩, ⟨"TimerFire", 2200, 15, false⟩,
+   ⟨"Layout", 1180, 100, false⟩, ⟨"Paint", 1170, 60, false⟩, ⟨"Composite", 1200, 5000, false⟩, ⟨"Layout", 1450, 200, false⟩,
+   ⟨"FunctionCall", 1340, 30, false⟩, ⟨"FunctionCall", 1350, 40, false⟩]
 
 private def synthWins : List (Int × Int) := [(1000, 1500), (1700, 2200)]
 
@@ -300,7 +430,7 @@ private def armCases : List (List (DArm × List String)) :=
 
 /-- The lines of `packages/contracts/golden/measure/webkit-profile.jsonl`. -/
 def goldenLines (_ : Unit) : List String :=
-  [(Json.mkObj [("kind", "kinds"), ("kinds", toJson kinds), ("render", toJson (kinds.filter isRender)), ("driftTol", driftTol)]).compress] ++
+  [(Json.mkObj [("kind", "kinds"), ("kinds", toJson kinds), ("work", toJson (kinds.filter isWork)), ("timed", toJson (kinds.filter isTimed)), ("driftTol", driftTol)]).compress] ++
   (["RecalculateStyles", "Layout", "FunctionCall"].map fun k =>
     (Json.mkObj [("kind", "nested"), ("ancestors", toJson [k]), ("nested", nestedOf [k])]).compress) ++
   [(Json.mkObj [("kind", "nested"), ("ancestors", toJson (["FireAnimationFrame", "FunctionCall"] : List String)),
@@ -335,8 +465,12 @@ def run (args : List String) : IO UInt32 := do
     IO.print (goldenText ())
     return 0
 
+#guard unionLen 0 [(5, 15), (0, 10), (20, 25), (21, 22)] == 20
+#guard unionLen 0 [(0, 10), (0, 10)] == 10
+#guard unionLen 0 [] == 0
 #guard driftOk 1800 2300 == true
 #guard driftOk 1800 2301 == false
 #guard (profile 8440 21000 synthFrames 100 synthWins .hero (synthRecs.map fun r => { r with t := r.t + 100 })).frames == 5
 
 end Fw.Measure.WebKitProfile
+

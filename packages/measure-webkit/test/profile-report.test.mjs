@@ -5,8 +5,9 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { KINDS } from '../src/profile/reduce.mjs';
-import { jobCell, jobVerdicts, acrossJobs, legSummary, headlineTable, verdictTable, fillBlocks, loadRuns, reportMain, minutesTable, minutesOf } from '../src/profile/report.mjs';
+import { KINDS, profileWindow } from '../src/profile/reduce.mjs';
+import { writeRaws } from '../src/profile/raw.mjs';
+import { jobCell, jobVerdicts, acrossJobs, legSummary, headlineTable, verdictTable, ratioTable, fillBlocks, loadRuns, rereduce, reportMain, minutesTable, minutesOf } from '../src/profile/report.mjs';
 
 const zero = () => KINDS.map((k) => [k, 0, 0]);
 const prof = (frames, perFrame, layout) => ({ frames, work: perFrame * frames / 10, perFrame, cells: zero().map((c) => (c[0] === 'Layout' ? ['Layout', layout, layout * 10] : c)) });
@@ -95,4 +96,35 @@ test('minutesOf reads the WebKit jobs of gh run view; minutesTable gives the med
   assert.match(t, /\| longest success \| mac \|  \|  \| 10\.5 \|/);
   assert.match(t, /\| all jobs billed \| sim \|  \| n=1 \|  \| 15 \|/);
   assert.equal(minutesTable([]), 'no job minutes were recorded');
+});
+
+test('loadRuns re-reduces the event windows from <leg>.raw.json.gz, so the tables follow the reducer, not the leg\'s own profiles', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'wkraw-'));
+  mkdirSync(join(dir, '5', 'smoothness-webkit-mac-1'), { recursive: true });
+  const recs = [
+    { type: 'TimeStamp', startTime: 10, endTime: 10, data: { message: 'wk:a' } },
+    { type: 'Layout', startTime: 10.01, endTime: 10.011 },
+    { type: 'Composite', startTime: 10.012, endTime: 10.9 },
+    { type: 'TimeStamp', startTime: 10.02, endTime: 10.02, data: { message: 'wk:b' } },
+  ];
+  const page = { frames: [[100000, 0], [101000, 500]], vh10: 8440, maxY10: 21000, w0: 100000, w1: 102000, marks: { a: 100000, b: 102000 } };
+  const w = profileWindow(page, recs);
+  const stale = { arm: 'orig', window: 'hero', rep: 0, mode: 'events', ok: true, ivs: [160], hitches: 0, profiles: { hero: { frames: 2, work: 999999, perFrame: 1, span: 1, cells: [] } } };
+  const res = { leg: 'mac', engine: 'x', arms: ['orig'], plan: { kept: ['orig'], dropped: [], flags: {} }, rows: [stale], raws: [{ arm: 'orig', window: 'hero', rep: 0, raw: w.raw }], wallSeconds: 1 };
+  writeFileSync(join(dir, '5', 'smoothness-webkit-mac-1', 'mac.json'), JSON.stringify(writeRaws(join(dir, '5', 'smoothness-webkit-mac-1'), 'mac', res)));
+  const got = loadRuns(dir).files[0];
+  assert.equal(got.label, '5:smoothness-webkit-mac-1');
+  assert.deepEqual(got.file.rows[0].profiles, w.profiles);
+  assert.ok(got.file.rows[0].profiles.hero.work <= got.file.rows[0].profiles.hero.span);
+  assert.equal(got.file.rows[0].profiles.hero.cells.find((c) => c[0] === 'Composite')[2], 0);
+  const f = { rows: [stale] };
+  rereduce(f, []);
+  assert.equal(f.rows[0].profiles.hero.work, 999999);
+});
+
+test('ratioTable: computed from the pooled medians, orig over base and base over its A/A copy', () => {
+  const jobs = ['1:a', '2:a', '3:a'].map((label) => ({ label, leg: 'mac', file: fileOf({ orig: 400, base: 100, aa: 100 }) }));
+  const leg = legSummary(jobs, () => ({}));
+  assert.match(ratioTable(leg), /\| render work us \/ frame \| 402 \| 102 \| 102 \| 3\.9 \| 1\.0 \|/);
+  assert.match(ratioTable(leg), /\| Composite n \| 0 \| 0 \| 0 \| - \| - \|/);
 });

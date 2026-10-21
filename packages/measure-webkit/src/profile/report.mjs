@@ -1,10 +1,13 @@
 // Tables of the smoothness-webkit-cadence lane from the downloaded leg files (mac.json, sim.json). Reads only; groups and prints.
 // Every decision is a twin of Lean: the per-zone profile and its verdict (reduce.mjs, WebKitProfile.lean), the cadence hitch rule and
 // the agreement over jobs (gate-breakpoints smooth/reduce.mjs, Gate/Smooth.lean), the determinism class (fwcore `classify`).
-// Layout read: <runs>/<runId>/<artifact>/{mac,sim}.json; one file is one CI job, one sample.
-import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+// Layout read: <runs>/<runId>/<artifact>/{mac,sim}.json; one file is one CI job, one sample. When `<leg>.raw.json.gz` lies beside it, the
+// profile of every event window is re-reduced from that raw input with the current reducer (reduce.mjs `profileFromRaw`), so the tables
+// follow the Lean reduction, not the profiles the leg wrote.
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { KINDS, ZONES, medianNat, zoneVerdict } from './reduce.mjs';
+import { KINDS, ZONES, medianNat, zoneVerdict, profileFromRaw } from './reduce.mjs';
+import { readRaws } from './raw.mjs';
 import { across, agreeNeeded, hitchVerdict, armRate, repOf, quantile } from '../../../gate-breakpoints/src/smooth/reduce.mjs';
 
 /** The pairs judged, each against the A/A pair (base, aa): [first arm, second arm]. `first` = the first arm does less. */
@@ -15,6 +18,17 @@ const ALL_ARMS = ['orig', 'base', 'aa', 'look', 'v2'];
 const walk = (d) => readdirSync(d).flatMap((n) => { const p = join(d, n); return statSync(p).isDirectory() ? walk(p) : [p]; });
 const med = (l) => (l.length ? medianNat(l) : null);
 
+/** Replace the profile fields of each event row by the reduction of its raw window (matched by arm, window, rep). */
+export function rereduce(file, windows) {
+  const raw = new Map(windows.map((w) => [`${w.arm}|${w.window}|${w.rep}`, w.raw]));
+  for (const r of file.rows) {
+    const w = raw.get(`${r.arm}|${r.window}|${r.rep}`);
+    if (r.mode !== 'events' || !w) continue;
+    const pw = profileFromRaw(w);
+    Object.assign(r, { ok: pw.ok, reason: pw.reason ?? null, off: pw.off ?? null, offA: pw.offA ?? null, offB: pw.offB ?? null, profiles: pw.profiles });
+  }
+}
+
 /** The leg files under `dir`: [{ label, leg, file }]; an unreadable or refused file is listed in `skipped`. */
 export function loadRuns(dir) {
   const files = [];
@@ -22,6 +36,8 @@ export function loadRuns(dir) {
   for (const id of readdirSync(dir).filter((n) => /^\d+$/.test(n)).sort()) {
     for (const f of walk(join(dir, id)).filter((p) => /\/(mac|sim)\.json$/.test(p))) {
       const file = JSON.parse(readFileSync(f, 'utf8'));
+      const rawFile = f.replace(/\.json$/, '.raw.json.gz');
+      if (existsSync(rawFile)) rereduce(file, readRaws(rawFile).windows);
       const label = `${id}:${f.slice(join(dir, id).length + 1).split('/')[0]}`;
       if (file.refused || !file.rows?.length) { skipped.push({ run: label, why: file.refused ? 'refused' : 'empty' }); continue; }
       files.push({ label, leg: file.leg, file });
@@ -44,7 +60,7 @@ const cellOfKind = (p, k) => p.cells.find((c) => c[0] === k) ?? [k, 0, 0];
 export function jobCell(file, arm, zone) {
   const ps = zoneReps(file, arm, zone);
   const kinds = Object.fromEntries(KINDS.map((k) => [k, { n: med(ps.map((p) => cellOfKind(p, k)[1])), dur: med(ps.map((p) => cellOfKind(p, k)[2])) }]));
-  return { reps: ps.length, frames: med(ps.map((p) => p.frames)), perFrame: med(ps.map((p) => p.perFrame)), perFrameAll: ps.map((p) => p.perFrame), work: med(ps.map((p) => p.work)), kinds };
+  return { reps: ps.length, frames: med(ps.map((p) => p.frames)), perFrame: med(ps.map((p) => p.perFrame)), perFrameAll: ps.map((p) => p.perFrame), work: med(ps.map((p) => p.work)), span: med(ps.map((p) => p.span)), kinds };
 }
 
 /** Lean `zoneVerdict` for one job and zone, on the per-window render work per frame, against the A/A pair (base, aa). */
@@ -117,23 +133,54 @@ export function headlineTable(leg) {
   const out = [];
   for (const z of ZONES) {
     out.push(`**${z}**\n`);
-    out.push(head(['arm', 'jobs', 'windows', 'frames', 'render us/frame (median, range)', ...KEY_KINDS.map((k) => `${k} n`)]));
+    out.push(head(['arm', 'jobs', 'windows', 'frames', 'render work ms / window (median)', 'render work us/frame (median, range)', ...KEY_KINDS.map((k) => `${k} n`)]));
     for (const a of leg.arms) {
       const cs = leg.zones[z].cells[a];
-      out.push(row([a, cs.filter((c) => c.reps > 0).length, cs.reduce((s, c) => s + c.reps, 0), fmt(pooled(cs, (c) => c.frames)), `${fmt(pooled(cs, (c) => c.perFrame))} (${range(cs)})`, ...KEY_KINDS.map((k) => fmt(pooled(cs, (c) => c.kinds[k].n)))]));
+      out.push(row([a, cs.filter((c) => c.reps > 0).length, cs.reduce((s, c) => s + c.reps, 0), fmt(pooled(cs, (c) => c.frames)), ms2(pooled(cs, (c) => c.work)), `${fmt(pooled(cs, (c) => c.perFrame))} (${range(cs)})`, ...KEY_KINDS.map((k) => fmt(pooled(cs, (c) => c.kinds[k].n)))]));
     }
     out.push('');
   }
   return out.join('\n');
 }
 
-/** Per-kind table (count and summed ms) of a leg, per zone. */
+/** Per-kind table (count and covered ms) of a leg, per zone. `Composite` is a count only. */
 export function kindTable(leg) {
   const out = [];
   for (const z of ZONES) {
-    out.push(`**${z}** (median count / median summed ms per window)\n`);
+    out.push(`**${z}** (median count / median covered ms per window; covered = union of the kind's intervals in the window, never above the window span; Composite is a count)\n`);
     out.push(head(['kind', ...leg.arms]));
-    for (const k of KINDS) out.push(row([k, ...leg.arms.map((a) => { const cs = leg.zones[z].cells[a]; return `${fmt(pooled(cs, (c) => c.kinds[k].n))} / ${ms2(pooled(cs, (c) => c.kinds[k].dur))}`; })]));
+    for (const k of KINDS) out.push(row([k, ...leg.arms.map((a) => { const cs = leg.zones[z].cells[a]; return `${fmt(pooled(cs, (c) => c.kinds[k].n))} / ${k === 'Composite' ? 'count only' : ms2(pooled(cs, (c) => c.kinds[k].dur))}`; })]));
+    out.push('');
+  }
+  return out.join('\n');
+}
+
+const ratio = (a, b) => (a == null || b == null || b === 0 ? '-' : (a / b).toFixed(1));
+
+/**
+ * Ratios between arms of the same pooled medians the tables show, computed here and never rounded by hand: per zone, the render work,
+ * the counts and covered times of the key kinds, for each arm, then original over rewrite (`orig/base`) and rewrite over its A/A copy
+ * (`base/aa`, the noise floor). Composite is a count.
+ */
+export function ratioTable(leg) {
+  const out = [];
+  for (const z of ZONES) {
+    const c = (a) => leg.zones[z].cells[a];
+    if (!leg.arms.includes('orig') || !leg.arms.includes('base')) continue;
+    out.push(`**${z}**\n`);
+    out.push(head(['metric', ...leg.arms, 'orig / base', 'base / aa']));
+    const metrics = [
+      ['frames in zone', (x) => x.frames, fmt],
+      ['render work ms / window', (x) => x.work, ms2],
+      ['render work us / frame', (x) => x.perFrame, fmt],
+      ...['RecalculateStyles', 'Layout', 'Paint'].flatMap((k) => [[`${k} n`, (x) => x.kinds[k].n, fmt], [`${k} ms`, (x) => x.kinds[k].dur, ms2]]),
+      ['Composite n', (x) => x.kinds.Composite.n, fmt],
+      ...['FunctionCall', 'FireAnimationFrame'].flatMap((k) => [[`${k} n`, (x) => x.kinds[k].n, fmt], [`${k} ms`, (x) => x.kinds[k].dur, ms2]]),
+    ];
+    for (const [name, f, show] of metrics) {
+      const v = Object.fromEntries(leg.arms.map((a) => [a, pooled(c(a), f)]));
+      out.push(row([name, ...leg.arms.map((a) => show(v[a])), ratio(v.orig, v.base), ratio(v.base, v.aa)]));
+    }
     out.push('');
   }
   return out.join('\n');
@@ -214,6 +261,7 @@ export function blocksOf(summary, jobs, minutes) {
     const s = summary[leg];
     if (!s) continue;
     b[`${leg}-headline`] = headlineTable(s);
+    b[`${leg}-ratios`] = ratioTable(s);
     b[`${leg}-verdict`] = verdictTable(s);
     b[`${leg}-class`] = classTable(s);
     b[`${leg}-kinds`] = kindTable(s);

@@ -17,7 +17,8 @@ if (cmd === 'sim') {
   const out = flag('--out') ?? 'out/smoothness-webkit';
   const res = await runSimCadence({ siteDir: resolve(site), lookSearch: search, reps: Number(flag('--reps') ?? 6), settleMs: Number(flag('--settle') ?? 2500) });
   mkdirSync(out, { recursive: true });
-  writeFileSync(join(out, 'sim.json'), `${JSON.stringify(res)}\n`);
+  const { writeRaws } = await import('./raw.mjs');
+  writeFileSync(join(out, 'sim.json'), `${JSON.stringify(writeRaws(out, 'sim', res))}\n`);
   console.log(`webkit sim: ${res.rows.length} windows, refused=${res.refused}, incomplete=${res.incomplete ?? 'no'}, ${res.wallSeconds} s, ${res.runtime}`);
   // a refused arm identity fails the job; an incomplete session keeps its windows read so far (the report counts them) unless none was kept
   if (res.refused || (res.incomplete && !res.rows.some((r) => r.ok))) process.exit(1);

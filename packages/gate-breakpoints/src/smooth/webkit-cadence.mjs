@@ -130,6 +130,7 @@ export async function runWebkitCadence({ width = 390, lookSearch, reps = 6, cade
   const e = envFor(width);
   const browser = await webkit.launch();
   const rows = [];
+  const raws = [];
   let refused = false;
   const started = Date.now();
   try {
@@ -146,6 +147,7 @@ export async function runWebkitCadence({ width = 390, lookSearch, reps = 6, cade
           const row = { ...base, frames: r.rec.ts.length, hitches: hitches(ivs), ivs };
           if (events) {
             const pw = profileWindow(pageOf(r.rec, toHundredths), r.records);
+            raws.push({ arm: a.id, window: win, rep, raw: pw.raw });
             Object.assign(row, { ok: pw.ok, reason: pw.reason ?? null, off: pw.off ?? null, offA: pw.offA ?? null, offB: pw.offB ?? null, profiles: pw.profiles, records: r.records.length });
           }
           rows.push(row);
@@ -161,7 +163,7 @@ export async function runWebkitCadence({ width = 390, lookSearch, reps = 6, cade
     return {
       leg: 'mac', engine: 'playwright-webkit', version: browser.version(), width, search: lookSearch, baseHash, reps, cadenceReps,
       plan: { kept: plan.kept, dropped: plan.dropped, flags: plan.flags }, arms: arms.map((a) => a.id),
-      hero: HERO_BURST, end: END_PUSH, refused, wallSeconds: Math.round((Date.now() - started) / 1000), rows,
+      hero: HERO_BURST, end: END_PUSH, refused, wallSeconds: Math.round((Date.now() - started) / 1000), rows, raws,
     };
   } finally {
     await browser.close().catch(() => {});

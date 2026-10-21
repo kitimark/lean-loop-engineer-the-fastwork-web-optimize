@@ -221,8 +221,8 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     // image-audit: the test compares the byte copy of arm.mjs that packages/measure-webkit keeps (visual-diff is a workspace
     // dependency, so workspaceDeps already reads packages/visual-diff/**)
     "packages/measure-webkit/src/images/arm.mjs", "apps/site/src/flags/images/drawn.json",
-    // smoothness-webkit-cadence: src/smooth/webkit-cadence.mjs imports the WebKit profile recorder, its Lean twin and the arm plan
-    "packages/measure-webkit/src/profile/recorder.mjs", "packages/measure-webkit/src/profile/reduce.mjs", "packages/measure-webkit/src/device-arms.mjs"],
+    // smoothness-webkit-cadence: src/smooth/webkit-cadence.mjs imports the WebKit profile recorder, its Lean twin, the raw-window writer and the arm plan
+    "packages/measure-webkit/src/profile/recorder.mjs", "packages/measure-webkit/src/profile/reduce.mjs", "packages/measure-webkit/src/profile/raw.mjs", "packages/measure-webkit/src/device-arms.mjs"],
   "packages/premise-tests": ["packages/gate-breakpoints/src/align-equiv.mjs"],
   // preview-e2e: the rig starts console-api's server files (imported by file URL) and the preview servers over the snapshot
   "packages/e2e-preview": ["apps/console-api/src/**", "apps/console-api/package.json", "packages/contracts/src/**", "packages/contracts/package.json", "packages/contracts/golden/console/**", "snapshot/site/**"],

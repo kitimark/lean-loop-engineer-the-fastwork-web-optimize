@@ -39,6 +39,7 @@ export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 
   const device = findDevice();
   const started = Date.now();
   const rows = [];
+  const raws = [];
   let refused = false;
   let error = null;
   let ua = '';
@@ -63,6 +64,7 @@ export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 
     const rec = await ctx.c.runAsync(win === 'hero' ? heroJs(HERO_BURST) : endJs(END_PUSH), { pollMs: 250 });
     await tl.stop();
     const pw = profileWindow(pageOf(rec, toHundredths), tl.top);
+    raws.push({ arm: a.id, window: win, rep, raw: pw.raw });
     return { row: { ...row, frames: rec.ts.length, hitches: hitches(intervalsOf(rec.ts)), ivs: intervalsOf(rec.ts), ok: pw.ok, reason: pw.reason ?? null, off: pw.off ?? null, offA: pw.offA ?? null, offB: pw.offB ?? null, profiles: pw.profiles, records: tl.top.length } };
   };
 
@@ -98,6 +100,6 @@ export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 
   return {
     leg: 'sim', engine: 'mobile-safari', runtime: device.runtime, device: device.name, ua, width: 430, search: lookSearch, reps, cadenceReps: 0,
     plan: { kept: plan.kept, dropped: plan.dropped, flags: plan.flags }, arms: arms.map((a) => a.id),
-    hero: HERO_BURST, end: END_PUSH, refused, incomplete: error, wallSeconds: Math.round((Date.now() - started) / 1000), rows,
+    hero: HERO_BURST, end: END_PUSH, refused, incomplete: error, wallSeconds: Math.round((Date.now() - started) / 1000), rows, raws,
   };
 }

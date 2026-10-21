@@ -12,7 +12,7 @@ name: smoothness
 # `cadence` job is then skipped): `webkit-mac` (Playwright WebKit on macos-26, a real wheel) and `webkit-sim` (Mobile Safari in the iOS
 # Simulator on xcode-27, scripted scroll). Each runs every arm in one job and records the WebKit Timeline per frame and zone
 # (lean/Fw/Measure/WebKitProfile.lean, twin packages/measure-webkit/src/profile/reduce.mjs); both have a cap row in Fw.Ci.Pool.Caps.
-# Tables: `node packages/measure-webkit/src/profile/cli.mjs report` over the downloaded artifacts smoothness-webkit-mac / -sim.
+# Tables: `node packages/measure-webkit/src/profile/cli.mjs report` over the downloaded artifacts smoothness-webkit-mac-N / -sim-N (N = the matrix job, 1 to 3).
 # Inputs of a ci/* push: the `[trajectory ...]` line of the head commit, parsed by the Lean-checked parser .github/scripts/trajectory-line.mjs
 # (preset or fw picks the candidate, widths the legs; empty widths = 390 and 1280; the engines key is ignored).
 # The artifact of a leg is `smoothness-<width>-<set>`; each of the three sets of a width is its own job on its own runner (an independent noise sample); the table is built from downloaded runs: `node src/smooth/cli.mjs cadence`.
@@ -248,18 +248,21 @@ jobs:
           label: cadence-${{ matrix.width }}-${{ matrix.set }}
 
   # Leg 1 of smoothness-webkit-cadence: Playwright WebKit on a macOS runner, one browser for all arms (orig, base, aa, look, v2 when its
-  # flags differ), a real wheel, the WebKit Timeline per frame and zone. One job; the repeats are the sample, not more jobs.
+  # flags differ), a real wheel, the WebKit Timeline per frame and zone. Three jobs in a row (matrix `job`, max-parallel 1): the class counts and the
+  # agreement over jobs need three separate jobs; each job writes its raw windows (`mac.raw.json.gz`) beside the leg file.
   webkit-mac:
     needs: [site]
     if: ${{ contains(github.event.head_commit.message, '[webkit-cadence]') }}
     concurrency:
       group: ci-lane:smoothness:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:webkit-mac:${{ strategy.job-index }}
     runs-on: macos-26
-    timeout-minutes: 26
-    name: webkit mac (playwright-webkit, macos-26)
+    timeout-minutes: 15
+    name: webkit mac (playwright-webkit, macos-26) job ${{ matrix.job }}
     strategy:
       max-parallel: 1
       fail-fast: false
+      matrix:
+        job: [1, 2, 3]
     steps:
       - name: 'tip re-check'
         id: tip
@@ -308,7 +311,7 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
         with:
-          name: smoothness-webkit-mac
+          name: smoothness-webkit-mac-${{ matrix.job }}
           path: packages/gate-breakpoints/out/smoothness-webkit
           if-no-files-found: error
           retention-days: 30
@@ -321,11 +324,13 @@ jobs:
     concurrency:
       group: ci-lane:smoothness:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:webkit-sim:${{ strategy.job-index }}
     runs-on: xcode-27
-    timeout-minutes: 65
-    name: webkit sim (mobile safari, xcode-27)
+    timeout-minutes: 45
+    name: webkit sim (mobile safari, xcode-27) job ${{ matrix.job }}
     strategy:
       max-parallel: 1
       fail-fast: false
+      matrix:
+        job: [1, 2, 3]
     env:
       FW_IOS_VERSION: '27.0'
       FW_IOS_BUILD: 24A434
@@ -418,7 +423,7 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
         with:
-          name: smoothness-webkit-sim
+          name: smoothness-webkit-sim-${{ matrix.job }}
           path: ${{ runner.temp }}/result
           if-no-files-found: error
           retention-days: 30

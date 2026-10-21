@@ -44,7 +44,8 @@ if (cmd === 'continuity') {
   const out = flag('--out') ?? 'out/smoothness-webkit';
   const res = await runWebkitCadence({ width: Number(flag('--width') ?? 390), lookSearch: flag('--search'), reps: Number(flag('--reps') ?? 6), cadenceReps: Number(flag('--cadence-reps') ?? 5) });
   mkdirSync(out, { recursive: true });
-  writeFileSync(join(out, 'mac.json'), `${JSON.stringify(res)}\n`);
+  const { writeRaws } = await import('../../../measure-webkit/src/profile/raw.mjs');
+  writeFileSync(join(out, 'mac.json'), `${JSON.stringify(writeRaws(out, 'mac', res))}\n`);
   console.log(`webkit mac: ${res.rows.length} windows, refused=${res.refused}, ${res.wallSeconds} s`);
   if (res.refused) process.exit(1);
 } else if (cmd === 'cadence') {

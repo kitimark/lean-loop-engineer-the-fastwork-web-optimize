@@ -10,15 +10,18 @@ const GOLDEN = readFileSync(new URL('../../../contracts/golden/measure/webkit-pr
 const KINDS_ROW = GOLDEN.find((l) => l.kind === 'kinds');
 /** The Timeline record types that are counted, in output order (Lean `kinds`, read from the golden). */
 export const KINDS = Object.freeze(KINDS_ROW.kinds);
-/** The kinds whose time is a frame's render work. */
-export const RENDER = Object.freeze(KINDS_ROW.render);
+/** The kinds whose time is a frame's render work (Lean `isWork`; `Composite` is a count, not work). */
+export const WORK = Object.freeze(KINDS_ROW.work);
+/** The kinds whose cell carries a time (Lean `isTimed`). */
+export const TIMED = Object.freeze(KINDS_ROW.timed);
 /** Largest disagreement between the start and end clock offsets of a window (Lean `driftTol`). */
 export const DRIFT_TOL = KINDS_ROW.driftTol;
 export const ZONES = Object.freeze(['hero', 'finish', 'rest']);
 
-export const isRender = (k) => RENDER.includes(k);
-/** Lean `nestedOf`: a record is nested when an ancestor's type is a render kind. */
-export const nestedOf = (ancestors) => ancestors.some(isRender);
+export const isWork = (k) => WORK.includes(k);
+export const isTimed = (k) => TIMED.includes(k);
+/** Lean `nestedOf`: a record is nested when an ancestor's type is a work kind. */
+export const nestedOf = (ancestors) => ancestors.some(isWork);
 /** Lean `driftOk`. */
 export const driftOk = (a, b) => Math.abs(a - b) <= DRIFT_TOL;
 /** Lean `meanOffset` (integer division rounds down). */
@@ -48,24 +51,49 @@ export const zoneRecs = (vh10, maxY10, frames, off, ws, z, rs) =>
 /** Lean `zoneFrames`. */
 export const zoneFrames = (vh10, maxY10, ws, z, fs) => fs.filter((f) => inWins(ws, f[0]) && zoneOf(vh10, maxY10, f[1]) === z);
 
-/** Lean `cell`: [count, summed duration] of a kind. */
-export function cell(k, rs) {
+/** Lean `winLen`. */
+export const winLen = (w) => Math.max(0, w[1] - w[0]);
+
+/** Lean `span`: the sum of the window lengths. */
+export const span = (ws) => ws.reduce((s, w) => s + winLen(w), 0);
+
+/** Lean `sweepStep`: the state is [end of what is covered, covered length]. */
+export const sweepStep = (st, iv) => {
+  const s = Math.max(iv[0], st[0]);
+  return s < iv[1] ? [iv[1], st[1] + (iv[1] - s)] : st;
+};
+
+/** Lean `unionLen`: the measure of the union of the intervals, swept in start order from `lo`. */
+export const unionLen = (lo, ivs) => [...ivs].sort((a, b) => a[0] - b[0]).reduce(sweepStep, [lo, 0])[1];
+
+/** Lean `clipped`: the records of window `w` that start in it, as intervals on the page clock ended at the window's end. */
+export const clipped = (off, w, rs) =>
+  rs.filter((r) => w[0] <= r.t - off && r.t - off < w[1]).map((r) => [r.t - off, Math.min(r.t - off + r.dur, w[1])]);
+
+/** Lean `coveredIn`. */
+export const coveredIn = (off, w, rs) => Math.max(0, unionLen(w[0], clipped(off, w, rs)));
+
+/** Lean `covered`: the time the records cover over the windows (never above `span`, Lean `covered_le_span`). */
+export const covered = (off, ws, rs) => ws.reduce((s, w) => s + coveredIn(off, w, rs), 0);
+
+/** Lean `cell`: [count, covered time] of a kind; `Composite` has a count and no time. */
+export function cell(k, off, ws, rs) {
   const ks = rs.filter((r) => r.kind === k);
-  return [ks.length, ks.reduce((s, r) => s + r.dur, 0)];
+  return [ks.length, isTimed(k) ? covered(off, ws, ks) : 0];
 }
 
-/** Lean `renderWork`: summed duration of the render kinds that no render record encloses. */
-export const renderWork = (rs) => rs.filter((r) => isRender(r.kind) && !r.nested).reduce((s, r) => s + r.dur, 0);
+/** Lean `renderWork`: the time covered by the top-level work records, clipped to the windows. */
+export const renderWork = (off, ws, rs) => covered(off, ws, rs.filter((r) => isWork(r.kind) && !r.nested));
 
 /** Lean `perFrameUs`. */
 export const perFrameUs = (work, frames) => (frames === 0 ? 0 : Math.floor((10 * work) / frames));
 
-/** Lean `profile`: `{ frames, cells: [[kind, n, dur]], work, perFrame }` of zone `z`. */
+/** Lean `profile`: `{ frames, cells: [[kind, n, covered time]], work, perFrame, span }` of zone `z`. */
 export function profile(vh10, maxY10, frames, off, ws, z, rs) {
   const zr = zoneRecs(vh10, maxY10, frames, off, ws, z, rs);
   const n = zoneFrames(vh10, maxY10, ws, z, frames).length;
-  const w = renderWork(zr);
-  return { frames: n, cells: KINDS.map((k) => [k, ...cell(k, zr)]), work: w, perFrame: perFrameUs(w, n) };
+  const w = renderWork(off, ws, zr);
+  return { frames: n, cells: KINDS.map((k) => [k, ...cell(k, off, ws, zr)]), work: w, perFrame: perFrameUs(w, n), span: span(ws) };
 }
 
 /** Lean `medianNat`. */
@@ -113,20 +141,37 @@ export function markTimes(records) {
 }
 
 /**
- * One window from one page: the clock offset from the start and end marks, whether the drift is within tolerance, and the profile of
- * each zone. `page` is `{ frames: [[tHundredths, yTenthPx]], vh10, maxY10, w0, w1, marks: {a, b} }` on the page clock;
- * `records` are the raw Timeline records. A window whose offsets drift apart is refused (`profiles: null`).
+ * The raw input of one window, as kept in the artifact: the page (frames, viewport, window, marks), the Timeline times of the two
+ * marks and the counted records `[kind index in KINDS, t, dur, nested 0|1]` (hundredths of ms, Timeline clock). Re-reducing it with
+ * `profileFromRaw` gives the window's profile again, so the reduction can change without a new run.
  */
-export function profileWindow(page, records) {
+export function rawOf(page, records) {
   const tl = markTimes(records);
-  if (!tl.has('wk:a') || !tl.has('wk:b')) return { ok: false, reason: 'marks-missing', profiles: null };
-  const offA = offsetOf(tl.get('wk:a'), page.marks.a);
-  const offB = offsetOf(tl.get('wk:b'), page.marks.b);
+  const recs = flattenTimeline(records).filter((r) => KINDS.includes(r.kind)).map((r) => [KINDS.indexOf(r.kind), r.t, r.dur, r.nested ? 1 : 0]);
+  return { page, tl: { a: tl.get('wk:a') ?? null, b: tl.get('wk:b') ?? null }, recs };
+}
+
+/**
+ * One window from its raw input: the clock offset from the start and end marks, whether the drift is within tolerance, and the
+ * profile of each zone. `raw.page` is `{ frames: [[tHundredths, yTenthPx]], vh10, maxY10, w0, w1, marks: {a, b} }` on the page clock.
+ * A window whose offsets drift apart is refused (`profiles: null`).
+ */
+export function profileFromRaw(raw) {
+  const { page, tl } = raw;
+  if (tl.a == null || tl.b == null) return { ok: false, reason: 'marks-missing', profiles: null };
+  const offA = offsetOf(tl.a, page.marks.a);
+  const offB = offsetOf(tl.b, page.marks.b);
   if (!driftOk(offA, offB)) return { ok: false, reason: 'drift', offA, offB, profiles: null };
   const off = meanOffset(offA, offB);
-  const recs = flattenTimeline(records);
+  const recs = raw.recs.map(([k, t, dur, nested]) => ({ kind: KINDS[k], t, dur, nested: nested === 1 }));
   const ws = [[page.w0, page.w1]];
   const profiles = {};
   for (const z of ZONES) profiles[z] = profile(page.vh10, page.maxY10, page.frames, off, ws, z, recs);
   return { ok: true, off, offA, offB, profiles };
+}
+
+/** One window from one page and its raw Timeline records: `profileFromRaw (rawOf ...)`, with the raw input returned beside it. */
+export function profileWindow(page, records) {
+  const raw = rawOf(page, records);
+  return { ...profileFromRaw(raw), raw };
 }
