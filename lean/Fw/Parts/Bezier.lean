@@ -1,5 +1,7 @@
-/-! CSS `cubic-bezier` curves over `Rat`; for `0 < t < 1`, `ease` is `y` at the midpoint of the 40-step bisection bracket of `x(s) = t` (`bisect_eq_mid`).
-`bracket_cut` holds for every such `t`, `ease_err` (within `3 / 2^41`) only at a rational root; the real root: `FwMath.Bezier.ease_exact` (lean-math). -/
+/-! CSS `cubic-bezier` curves over `Rat`; for `0 < t < 1`, `ease` is `y` at `bisect` (definition), the midpoint of the 40-step
+bisection bracket of `x(s) = t` (`bisect_eq_mid`). `bracket_cut` holds for every such `t` when `0 ≤ x_1, x_2 ≤ 1`. With all
+control values in `[0,1]`, core `ease_err` gives `3 / 2^41` at a rational root `s ∈ [0,1]` of `x(s) = t`; at the real
+root: `FwMath.Bezier.ease_err` (`3 / 2^41`) and `ease_exact` (unique root, `1 / 2^40`, `3 / 2^40`), both in lean-math. -/
 namespace Fw.Parts.Bezier
 
 /-- A cubic Bezier timing function with control points `(x_1, y_1)` and `(x_2, y_2)`. -/
