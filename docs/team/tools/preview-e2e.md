@@ -25,7 +25,9 @@ the keychain, the owner link or the owner passphrase.
   noise checks (0 rejections, 0 cancelled or failed same-origin requests; the page-level hops of the entry are allowed, a
   redirected module or asset is not). Targets `entry-r` and `entry-o` open `<preview port>/preview/<id>/r|o/?only=hero&flags=a`
   (the Builds.tsx link shape), require the hop to land on the arm origin with the search kept, and run all target checks
-  including `entry-modules-evaluated-once`.
+  including `entry-modules-evaluated-once`. Target `entry-review-flag` opens the flag arm of a review card's Preview button
+  (`/preview/<id>/r/?fw=nav:earn-no-transition`, review-preview-devices) the same way, on every host including the plain-HTTP
+  phone host, and requires the flag query on the arm origin.
 - LAN lane: the one load on the LAN address (`<engine>/lan/o/*`) also runs the noise checks.
 - `start()` once: the tap adds a counter to SvelteKit's client `start()` (`__fwStarts`); the check requires exactly 1.
 - Client-side navigation (`client-nav-r`, `client-nav-o`): click the home link, then a dynamic `import()` of a route node;

@@ -11,6 +11,9 @@ export const VIEWPORT = { width: 390, height: 844 };
 /** The one same-origin request that may fail: Cloudflare's analytics beacon posts here and the preview servers have no such route. */
 export const ACCEPTED_FAILURES = ["/cdn-cgi/rum"];
 
+/** The search of a review card's flag button (Lean `Fw.Console.ReviewPreview.searchOf`): `?fw=` and the flag key, colon included. */
+export const REVIEW_SEARCH = "?fw=nav:earn-no-transition";
+
 /** `arm`: the arm whose grant link opens the page; `frames`: the pages whose facts are read (`arm` = which arm origin they live on). */
 export const PATHS = [
   { id: "r", arm: "r", frames: [{ name: "r", arm: "r", kind: "fixture" }] },
@@ -19,14 +22,18 @@ export const PATHS = [
   // the entry path as the Builds page links it (`/preview/<id>/r|o/<search>` on the preview port): a page-level hop to the arm origin
   { id: "entry-r", arm: "r", entry: "r", frames: [{ name: "r", arm: "r", kind: "fixture" }] },
   { id: "entry-o", arm: "o", entry: "o", frames: [{ name: "o", arm: "o", kind: "original" }] },
+  // the Preview button of a look-change review card (review-preview-devices): the flag arm, `?fw=<flag key>`, through the same entry path
+  { id: "entry-review-flag", arm: "r", entry: "r", search: REVIEW_SEARCH, frames: [{ name: "r", arm: "r", kind: "fixture" }] },
 ];
 
 /** A search string like the ones Lean `console.builds` gives a row (`?only=<part>`); the arms ignore it, the hop must keep it. */
 export const ENTRY_SEARCH = "?only=hero&flags=a";
+/** The search an entry target opens. */
+export const searchOf = (target) => target.search ?? ENTRY_SEARCH;
 
 /** Where a target's document is: an arm's own origin, or the preview port's side-by-side page. */
 export const documentUrl = (host, target) => (target.id === "compare" ? `${host.origin}/preview/${PREVIEW_ID}/compare`
-  : target.entry ? `${host.origin}/preview/${PREVIEW_ID}/${target.entry}/${ENTRY_SEARCH}` : `${host.arm[target.arm]}/`);
+  : target.entry ? `${host.origin}/preview/${PREVIEW_ID}/${target.entry}/${searchOf(target)}` : `${host.arm[target.arm]}/`);
 
 /** Fonts the page must have loaded: [family substring ...] per kind of page. */
 const FONTS = { original: ["Google Sans", "Playpen Sans"], fixture: ["Fixture Playpen"] };
@@ -150,7 +157,7 @@ async function runTarget(browser, rig, engine, host, target, opts) {
     resetLog(log); // rig.seen keeps the grant load: the arm requests of both loads are read below
 
     const doc = await page.goto(documentUrl(host, target), { waitUntil: "load" });
-    if (target.entry) check("entry-landed-on-arm-origin-with-search", page.url() === `${host.arm[target.arm]}/${ENTRY_SEARCH}`, page.url());
+    if (target.entry) check("entry-landed-on-arm-origin-with-search", page.url() === `${host.arm[target.arm]}/${searchOf(target)}`, page.url());
     check("document-200", doc && doc.status() === 200 && /text\/html/.test(doc.headers()["content-type"] ?? ""), `${doc?.status()} ${doc?.headers()["content-type"]}`);
     for (const f of target.frames) {
       const fr = target.id === "compare" ? await frameOn(page, host.arm[f.arm]) : page.mainFrame();
