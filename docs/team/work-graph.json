@@ -12062,7 +12062,8 @@
     "scripts/run-cite*.test.mjs",
     "docs/team/tools/run-cite.md",
     "docs/team/handoffs/run-cite-check.md"
-   ]
+   ],
+   "evidence": "3fcbc8f"
   },
   {
    "devices": [
@@ -12178,7 +12179,8 @@
     ".claude/workflows/build-review.js",
     "docs/team/tools/trajectory-probe.md",
     "docs/team/handoffs/ci-push-probe-inputs.md"
-   ]
+   ],
+   "evidence": "8882868"
   },
   {
    "devices": [
