@@ -1,5 +1,5 @@
-/-! CSS `cubic-bezier` timing curves over `Rat`; `ease` solves `x(s) = t` by 40 bisection steps on `[0,1]`.
-Exactness: `bx_strictMono`, `bracket_cut`, `ease_err`; the real-root form is `FwMath.Bezier` in `lean-math/`. -/
+/-! CSS `cubic-bezier` curves over `Rat`; for `0 < t < 1`, `ease` is `y` at the midpoint of the 40-step bisection bracket of `x(s) = t` (`bisect_eq_mid`).
+`bracket_cut` holds for every such `t`, `ease_err` (within `3 / 2^41`) only at a rational root; the real root: `FwMath.Bezier.ease_exact` (lean-math). -/
 namespace Fw.Parts.Bezier
 
 /-- A cubic Bezier timing function with control points `(x_1, y_1)` and `(x_2, y_2)`. -/
@@ -36,23 +36,22 @@ def bisect (c : Bez) (t : Rat) : Nat → Rat → Rat → Rat
 /-- Number of bisection steps. How fine the solve is. -/
 def steps : Nat := 40
 
-/-- The eased fraction for a time fraction `t`: the curve's value at the parameter that `N = 40` bisection steps for
-`x(s) = t` on `[0, 1]` reach (an approximation of the exact inverse, not the exact `s`). -/
+/-- The eased fraction for a time fraction `t`: 0 for `t ≤ 0`, 1 for `1 ≤ t`, else `y` at the `steps`-step `bisect` result. -/
 def ease (c : Bez) (t : Rat) : Rat :=
   if t ≤ 0 then 0 else if 1 ≤ t then 1 else by' c (bisect c t steps 0 1)
 
-/-- The curve starts at 0. -/
+/-- The eased fraction at `t = 0` is 0. -/
 theorem ease_zero (c : Bez) : ease c 0 = 0 := by simp [ease]
 
-/-- The curve ends at 1. -/
+/-- The eased fraction at `t = 1` is 1. -/
 theorem ease_one (c : Bez) : ease c 1 = 1 := by
   have h : ¬ ((1 : Rat) ≤ 0) := by decide
   simp [ease, h]
 
-/-- Below the start the curve holds 0. -/
+/-- For `t ≤ 0` the eased fraction is 0. -/
 theorem ease_nonpos (c : Bez) (t : Rat) (h : t ≤ 0) : ease c t = 0 := by simp [ease, h]
 
-/-- After the end the curve holds 1. -/
+/-- For `1 ≤ t` the eased fraction is 1. -/
 theorem ease_ge_one (c : Bez) (t : Rat) (h : 1 ≤ t) : ease c t = 1 := by
   unfold ease; split <;> grind
 
@@ -62,9 +61,7 @@ theorem coord_zero (a b : Rat) : coord a b 0 = 0 := by unfold coord; grind
 /-- The coordinate polynomial ends at 1. -/
 theorem coord_one (a b : Rat) : coord a b 1 = 1 := by unfold coord; grind
 
-/-- A coordinate with control values in `[0,1]` stays in `[0,1]` for `s ∈ [0,1]`.
-
-(Bernstein weights are non-negative and sum to 1.) -/
+/-- A coordinate with control values in `[0,1]` stays in `[0,1]` for `s ∈ [0,1]`. -/
 theorem coord_mem (a b s : Rat) (ha0 : 0 ≤ a) (ha1 : a ≤ 1) (hb0 : 0 ≤ b) (hb1 : b ≤ 1)
     (hs0 : 0 ≤ s) (hs1 : s ≤ 1) : 0 ≤ coord a b s ∧ coord a b s ≤ 1 := by
   unfold coord
@@ -84,7 +81,7 @@ theorem coord_mem (a b s : Rat) (ha0 : 0 ≤ a) (ha1 : a ≤ 1) (hb0 : 0 ≤ b) 
   · grind
   · grind
 
-/-- Bisection keeps the answer inside the start interval. -/
+/-- For `lo ≤ hi` the `bisect` result lies in `[lo, hi]`. -/
 theorem bisect_mem (c : Bez) (t : Rat) (n : Nat) :
     ∀ lo hi : Rat, lo ≤ hi → lo ≤ bisect c t n lo hi ∧ bisect c t n lo hi ≤ hi := by
   induction n with
@@ -105,16 +102,16 @@ def slope (a b u v : Rat) : Rat :=
 theorem coord_sub (a b u v : Rat) : coord a b v - coord a b u = (v - u) * slope a b u v := by
   unfold coord slope; grind
 
-/-- `slope` at control values `(0, 0)`. -/
+/-- `slope` at control values `(0, 0)` (`slope_mix`). -/
 def q00 (u v : Rat) : Rat := u * u + u * v + v * v
 
-/-- `slope` at control values `(1, 0)`. -/
+/-- `slope` at control values `(1, 0)` (`slope_mix`). -/
 def q10 (u v : Rat) : Rat := 3 * ((u + v - 1) * (u + v - 1)) + (v - u) * (v - u)
 
-/-- `slope` at control values `(0, 1)`. -/
+/-- `slope` at control values `(0, 1)` (`slope_mix`). -/
 def q01 (u v : Rat) : Rat := 2 * (u * (1 - u)) + 2 * (v * (1 - v)) + u * (1 - v) + v * (1 - u)
 
-/-- `slope` at control values `(1, 1)`. -/
+/-- `slope` at control values `(1, 1)` (`slope_mix`). -/
 def q11 (u v : Rat) : Rat := (1 - u) * (1 - u) + (1 - u) * (1 - v) + (1 - v) * (1 - v)
 
 /-- `slope` is affine in each control value, so it is the bilinear mix of its four corner values. -/
@@ -146,7 +143,7 @@ theorem mix_nonneg {x y w : Rat} (hx : 0 ≤ x) (hy : 0 ≤ y) (h0 : 0 ≤ w) (h
   have := Rat.mul_nonneg h0 hy
   grind
 
-/-- The four corner values are positive between two distinct points of `[0,1]`. -/
+/-- The four corner values are positive at `u < v` in `[0,1]`. -/
 theorem corners_pos {u v : Rat} (hu : 0 ≤ u) (huv : u < v) (hv : v ≤ 1) :
     0 < q00 u v ∧ 0 < q10 u v ∧ 0 < q01 u v ∧ 0 < q11 u v := by
   have vp : 0 < v := by grind
@@ -187,7 +184,7 @@ theorem corners_mem {u v : Rat} (hu0 : 0 ≤ u) (hu1 : u ≤ 1) (hv0 : 0 ≤ v) 
   unfold q00 q10 q01 q11
   grind
 
-/-- `slope` is positive between two distinct points of `[0,1]` when both control values are in `[0,1]`. -/
+/-- `slope` is positive at `u < v` in `[0,1]` when both control values are in `[0,1]`. -/
 theorem slope_pos {a b u v : Rat} (ha0 : 0 ≤ a) (ha1 : a ≤ 1) (hb0 : 0 ≤ b) (hb1 : b ≤ 1)
     (hu : 0 ≤ u) (huv : u < v) (hv : v ≤ 1) : 0 < slope a b u v := by
   have ⟨c00, c10, c01, c11⟩ := corners_pos hu huv hv
@@ -213,7 +210,7 @@ theorem coord_strictMono {a b u v : Rat} (ha0 : 0 ≤ a) (ha1 : a ≤ 1) (hb0 : 
   have := Rat.mul_pos (show 0 < v - u by grind) (slope_pos ha0 ha1 hb0 hb1 hu huv hv)
   grind
 
-/-- A coordinate with control values in `[0,1]` rises by at most 3 times the step on `[0,1]`. -/
+/-- For control values in `[0,1]` and `u ≤ v` in `[0,1]`, the coordinate rises from `u` to `v` by between 0 and `3 * (v - u)`. -/
 theorem coord_lipschitz {a b u v : Rat} (ha0 : 0 ≤ a) (ha1 : a ≤ 1) (hb0 : 0 ≤ b) (hb1 : b ≤ 1)
     (hu : 0 ≤ u) (huv : u ≤ v) (hv : v ≤ 1) :
     0 ≤ coord a b v - coord a b u ∧ coord a b v - coord a b u ≤ 3 * (v - u) := by
@@ -235,7 +232,7 @@ theorem bx_mono (c : Bez) (h1 : 0 ≤ c.x1) (h2 : c.x1 ≤ 1) (h3 : 0 ≤ c.x2) 
   have := (coord_lipschitz h1 h2 h3 h4 hu huv hv).1
   unfold bx; grind
 
-/-- The interval `(lo, hi)` that `n` bisection steps for `x(s) = t` end on. `bisect` returns its midpoint. -/
+/-- The interval `(lo, hi)` that `n` bisection steps for `x(s) = t` end on; `bisect` returns its midpoint (`bisect_eq_mid`). -/
 def bracket (c : Bez) (t : Rat) : Nat → Rat → Rat → Rat × Rat
   | 0, lo, hi => (lo, hi)
   | n + 1, lo, hi =>
@@ -254,7 +251,7 @@ theorem bisect_eq_mid (c : Bez) (t : Rat) (n : Nat) :
     · exact ih _ _
     · exact ih _ _
 
-/-- After `n` steps the bracket lies in `[lo, hi]`, has width `(hi - lo) / 2^n`, `x < t` at its left end, `t ≤ x` at its right end. -/
+/-- For `lo ≤ hi` and `x(lo) < t ≤ x(hi)`, the bracket after `n` steps lies in `[lo, hi]`, has width `(hi - lo) / 2^n`, `x < t` at its left end, `t ≤ x` at its right end. -/
 theorem bracket_inv (c : Bez) (t : Rat) (n : Nat) :
     ∀ lo hi : Rat, lo ≤ hi → bx c lo < t → t ≤ bx c hi →
       lo ≤ (bracket c t n lo hi).1 ∧ (bracket c t n lo hi).1 ≤ (bracket c t n lo hi).2 ∧
@@ -269,7 +266,7 @@ theorem bracket_inv (c : Bez) (t : Rat) (n : Nat) :
     · have := ih ((lo + hi) / 2) hi (by grind) (by assumption) hh; grind
     · have := ih lo ((lo + hi) / 2) (by grind) hl (by grind); grind
 
-/-- For `0 < t < 1` the bracket of the solve on `[0,1]` has width `1 / 2^n`, `x < t` at its left end, `t ≤ x` at its right end. -/
+/-- For `0 < t < 1` the bracket on `[0,1]` lies in `[0,1]`, has width `1 / 2^n`, `x < t` at its left end, `t ≤ x` at its right end. -/
 theorem bracket_unit (c : Bez) (t : Rat) (n : Nat) (ht0 : 0 < t) (ht1 : t < 1) :
     0 ≤ (bracket c t n 0 1).1 ∧ (bracket c t n 0 1).1 ≤ (bracket c t n 0 1).2 ∧ (bracket c t n 0 1).2 ≤ 1 ∧
       ((bracket c t n 0 1).2 - (bracket c t n 0 1).1) * 2 ^ n = 1 ∧
@@ -292,7 +289,7 @@ theorem bracket_cut (c : Bez) (t : Rat) (n : Nat) (ht0 : 0 < t) (ht1 : t < 1)
     have := bx_strictMono c h1 h2 h3 h4 (by grind) hs hs1
     grind
 
-/-- At a rational solution `s` of `x(s) = t` the midpoint is within `1 / 2^(n+1)` of `s`, its value within `3 / 2^(n+1)`. -/
+/-- For `0 < t < 1`, control values in `[0,1]` and a rational solution `s ∈ [0,1]` of `x(s) = t`, `bisect` is within `1 / 2^(n+1)` of `s` and `y` there within `3 / 2^(n+1)` of `y(s)`. -/
 theorem bisect_value_err (c : Bez) (t : Rat) (n : Nat) (ht0 : 0 < t) (ht1 : t < 1)
     (hx1 : 0 ≤ c.x1) (hx2 : c.x1 ≤ 1) (hx3 : 0 ≤ c.x2) (hx4 : c.x2 ≤ 1)
     (hy1 : 0 ≤ c.y1) (hy2 : c.y1 ≤ 1) (hy3 : 0 ≤ c.y2) (hy4 : c.y2 ≤ 1)
@@ -327,9 +324,7 @@ theorem bisect_value_err (c : Bez) (t : Rat) (n : Nat) (ht0 : 0 < t) (ht1 : t < 
   simp only [Rat.pow_succ]
   grind
 
-/-- The eased fraction stays in `[0,1]` for control values in `[0,1]`.
-
-The animation never overshoots (true of both curves used: `ease-in-out` and `--ease-standard`). -/
+/-- The eased fraction stays in `[0,1]` when `0 ≤ y_1, y_2 ≤ 1`. -/
 theorem ease_mem (c : Bez) (t : Rat) (h1 : 0 ≤ c.y1) (h2 : c.y1 ≤ 1) (h3 : 0 ≤ c.y2) (h4 : c.y2 ≤ 1) :
     0 ≤ ease c t ∧ ease c t ≤ 1 := by
   unfold ease
@@ -340,7 +335,7 @@ theorem ease_mem (c : Bez) (t : Rat) (h1 : 0 ≤ c.y1) (h2 : c.y1 ≤ 1) (h3 : 0
     · have hb := bisect_mem c t steps 0 1 (by grind)
       exact coord_mem _ _ _ h1 h2 h3 h4 hb.1 hb.2
 
-/-- For `0 < t < 1` and control values in `[0,1]`, `ease` is within `3 / 2^41` of `y(s)` at every rational solution `s`. -/
+/-- For `0 < t < 1` and control values in `[0,1]`, `ease` is within `3 / 2^41` of `y(s)` at every rational solution `s ∈ [0,1]` of `x(s) = t`. -/
 theorem ease_err (c : Bez) (t : Rat) (ht0 : 0 < t) (ht1 : t < 1)
     (hx1 : 0 ≤ c.x1) (hx2 : c.x1 ≤ 1) (hx3 : 0 ≤ c.x2) (hx4 : c.x2 ≤ 1)
     (hy1 : 0 ≤ c.y1) (hy2 : c.y1 ≤ 1) (hy3 : 0 ≤ c.y2) (hy4 : c.y2 ≤ 1)
