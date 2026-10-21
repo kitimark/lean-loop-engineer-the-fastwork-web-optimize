@@ -276,7 +276,7 @@ describe("the old sim-lock and the slot", () => {
     expect(await slotCli(["release", "--token", out.join("").trim()], d)).toBe(0);
     expect(sh("acquire", "a").status).toBe(0);
     expect(sh("release").status).toBe(0);
-  }, 30000);
+  });
 });
 
 describe("fw slot admit --kind build", () => {
