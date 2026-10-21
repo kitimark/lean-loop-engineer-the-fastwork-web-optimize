@@ -22,7 +22,12 @@ import { Grants } from "./grants.ts";
 import type { ReturnStore } from "./return.ts";
 
 const DROP = new Set(["connection", "keep-alive", "transfer-encoding", "set-cookie", "upgrade", "proxy-authenticate"]);
-const agent = new http.Agent({ keepAlive: true, maxSockets: 64 });
+// The preview server (serve-child.ts) closes an idle connection after 65 s + 1 s. Node's client Agent reads that hint
+// (`Keep-Alive: timeout=65`) only when it has a `timeout` of its own (_http_agent.js keepSocketAlive: `serverHintTimeout <
+// agentTimeout` with agentTimeout 0 never holds), so without `timeout` it keeps an idle socket until the server's FIN arrives
+// and can send a request into the connection the server is just closing: ECONNRESET, a 502. A client-side idle limit well
+// below the server's closes an idle socket first, so a reused socket is never one the server may be closing.
+const agent = new http.Agent({ keepAlive: true, maxSockets: 64, timeout: 30_000 });
 
 const lastEnd = new WeakMap<object, number>(); // TEMP evidence: when a socket last finished a response
 function upstream(port: number, pathq: string, method: string, headers: Record<string, string>): Promise<IncomingMessage> {
