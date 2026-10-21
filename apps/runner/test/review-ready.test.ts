@@ -87,7 +87,7 @@ describe("plan.reviewReady / plan.reviewVerdict golden (packages/contracts/golde
     const v = (n: string) => stored().find((l) => l.name.startsWith(n))!.response;
     expect(v("verdict: only follow-ups")).toMatchObject({ verdict: "accept", recheck: false });
     expect(v("verdict: a blocker refuses")).toMatchObject({ verdict: "refuse", blockers: 1 });
-    expect(v("verdict: fix-before-land refuses")).toMatchObject({ verdict: "refuse", recheck: true });
+    expect(v("verdict: fix-before-land refuses")).toMatchObject({ verdict: "refuse", recheck: false, fixes: 1 });
     expect(v("verdict: fix-before-land accepts")).toMatchObject({ verdict: "accept", recheck: true, fixes: 1 });
     expect(v("verdict: a blocker refuses after")).toMatchObject({ verdict: "refuse", recheck: false });
     expect(v("verdict: an unknown word")).toMatchObject({ verdict: "refuse", blockers: 1 });
@@ -177,5 +177,9 @@ describe("fw review ready|verdict CLI", () => {
     expect(a.code).toBe(0);
     expect(a.lines.at(-1)).toBe("VERDICT review-verdict t accept");
     expect(a.lines.join("\n")).toContain("checker re-checks");
+    // a refuse never prints the hint (the recheck bit follows the verdict used, here the interim strictVerdict)
+    const r = await run(["verdict", "--findings", f(["fix-before-land"]), "--task", "t"]);
+    expect(r.code).toBe(1);
+    expect(r.lines.join("\n")).not.toContain("lead applies");
   });
 });
