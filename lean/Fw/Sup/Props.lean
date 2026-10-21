@@ -1378,6 +1378,68 @@ theorem pump_pm {c : Cfg} {s0 : State} (hw : Wf c s0) : PM s0 (pumpAcc c s0) :=
   pump_ind hw (PM s0) ⟨⟨id, (List.map_id _).symm, fun x _ => Moved.refl _ x⟩, fun _ hx => absurd hx List.not_mem_nil⟩
     fun _ _ _ hj h => pumpOne_pm hw hj h
 
+theorem pumpOne_mono {c : Cfg} {a : Acc} {q : Req} {x : Cmd} (h : x ∈ a.out) : x ∈ (pumpOne c a q).out := by
+  refine pumpOne_cases c a q (fun a' => x ∈ a'.out) (fun _ _ => List.mem_append_left _ h)
+    (fun _ _ _ _ => List.mem_append_left _ h) (fun _ _ add _ => ?_) (fun _ _ _ => h)
+    (fun _ _ _ _ _ _ _ _ => List.mem_append_left _ h) (fun _ _ _ _ _ _ _ _ _ _ _ => List.mem_append_left _ h)
+  unfold block
+  split
+  · exact h
+  · exact List.mem_append_left _ h
+
+theorem fold_mono {c : Cfg} {x : Cmd} : ∀ (B : List Req) (a : Acc), x ∈ a.out → x ∈ (B.foldl (pumpOne c) a).out
+  | [], _, h => h
+  | _ :: B, _, h => fold_mono B _ (pumpOne_mono h)
+
+theorem fold_pj {c : Cfg} {s0 : State} (hw : Wf c s0) :
+    ∀ (A rest : List Req) (a : Acc), PJ c s0 a (A ++ rest) → PM s0 a →
+      PJ c s0 (A.foldl (pumpOne c) a) rest ∧ PM s0 (A.foldl (pumpOne c) a)
+  | [], _, _, hj, hm => ⟨hj, hm⟩
+  | _ :: A, rest, _, hj, hm => fold_pj hw A rest _ (pumpOne_pj hw hj) (pumpOne_pm hw hj hm)
+
+/-- The pump refuses every queued service request whose resource is failed before the pump. -/
+theorem pump_refuses_failed {c : Cfg} {s0 : State} (hw : Wf c s0) {q : Req} (hq : q ∈ s0.pending)
+    (hk : q.kind = .svc) {x : Rsrc} (hx : x ∈ s0.res) (hid : x.id = q.rid) {u : Nat} {w : Why}
+    (hf : x.phase = .failed u w) : ∃ why, Cmd.reply q.id (.refused why) ∈ (pumpAcc c s0).out := by
+  obtain ⟨A, B, hp⟩ := List.append_of_mem hq
+  have e1 : pumpAcc c s0 = B.foldl (pumpOne c) (pumpOne c (A.foldl (pumpOne c) (acc0 s0)) q) := by
+    unfold pumpAcc; rw [hp, List.foldl_append]; rfl
+  rw [e1]
+  generalize ha : A.foldl (pumpOne c) (acc0 s0) = a
+  have hpm : PJ c s0 a (q :: B) ∧ PM s0 a := by
+    rw [← ha]
+    refine fold_pj hw A (q :: B) _ ?_ ⟨⟨id, (List.map_id _).symm, fun x _ => Moved.refl _ x⟩,
+      fun _ hx => absurd hx List.not_mem_nil⟩
+    rw [← hp]; exact pj_init hw
+  obtain ⟨hj, ⟨F, hF, hFm⟩, _⟩ := hpm
+  have hy : F x ∈ a.st.res := by rw [hF]; exact List.mem_map_of_mem hx
+  have hyid : (F x).id = q.rid := (key_id (hFm x hx).1).trans hid
+  have hyf : (F x).phase = .failed u w := by
+    rcases (hFm x hx).2 with e | ⟨e, _⟩ | ⟨e, _⟩
+    · rw [e]; exact hf
+    · rw [hf] at e; cases e
+    · rw [hf] at e; cases e
+  have hnd : (a.st.res.map (·.id)).Nodup := by rw [rids_of_key hj.key]; exact hw.rids
+  have hfd : find a.st q.rid = some (F x) := by
+    cases hr : find a.st q.rid with
+    | none =>
+      unfold find at hr
+      have := List.find?_eq_none.1 hr (F x) hy
+      simp [hyid] at this
+    | some r =>
+      obtain ⟨hm, hri⟩ := find_mem hr
+      rw [eq_of_nodup_map (·.id) _ hnd r (F x) hm hy (hri.trans hyid.symm)]
+  suffices ∃ why, Cmd.reply q.id (.refused why) ∈ (pumpOne c a q).out by
+    obtain ⟨why, h⟩ := this
+    exact ⟨why, fold_mono B _ h⟩
+  unfold pumpOne
+  simp only [hk, hfd, hyf]
+  split
+  · exact ⟨_, List.mem_append_right _ (List.mem_singleton.2 rfl)⟩
+  · split
+    · exact ⟨_, List.mem_append_right _ (List.mem_singleton.2 rfl)⟩
+    · exact ⟨w, List.mem_append_right _ (List.mem_singleton.2 rfl)⟩
+
 /-! ## Step decomposition -/
 
 theorem step_mem {c : Cfg} {s : State} {e : Event} {x : Cmd} (h : x ∈ (step c s e).2) :
@@ -2847,18 +2909,17 @@ theorem stop_escalates {c : Cfg} {s : State} {now : Nat} {smp : Sample} {x : Rsr
     Cmd.signal (.group i) .kill ∈ (step c s (.tick now smp)).2 :=
   tickRec_out hx (tickRec_term hp hi (Nat.le_trans ht (Nat.le_max_right _ _)))
 
-/-- start_bounded: a start older than `startMax` at the tick time fails the record and KILLs its group. -/
+/-- start_bounded: a start older than `startMax` at the tick time fails the record, KILLs its group, and refuses every
+queued service request on it whose owner is in the sample. -/
 theorem start_bounded {c : Cfg} {s : State} {now : Nat} {smp : Sample} {x : Rsrc} {t : Nat} (h : Inv c s)
     (hx : x ∈ s.res) (hp : x.phase = .starting t) (ht : t + c.startMax ≤ now) :
     (∃ y ∈ (step c s (.tick now smp)).1.res, y.id = x.id ∧ ∃ u w, y.phase = .failed u w) ∧
-    ∀ i, x.proc = some i → Cmd.signal (.group i) .kill ∈ (step c s (.tick now smp)).2 := by
+    (∀ i, x.proc = some i → Cmd.signal (.group i) .kill ∈ (step c s (.tick now smp)).2) ∧
+    ∀ q ∈ s.pending, q.kind = .svc → q.rid = x.id → q.owner ∈ smp.clients →
+      ∃ why, Cmd.reply q.id (.refused why) ∈ (step c s (.tick now smp)).2 := by
   have ht' : t + c.startMax ≤ max s.now now := Nat.le_trans ht (Nat.le_max_right _ _)
   obtain ⟨⟨u, w, hf⟩, hk⟩ := tickRec_start (ls := s.leases) (smp := smp) hp ht'
-  refine ⟨?_, fun i hi => tickRec_out hx (hk i hi)⟩
   have hw := wf_pre (.tick now smp) h.1
-  rw [step_st (e := .tick now smp) rfl]
-  obtain ⟨⟨F, hF, hFm⟩, _⟩ := pump_pm hw
-  rw [hF]
   have d0 := (tickRec_same c s.leases (max s.now now) smp x).1
   have h1 : (tickRec c s.leases (max s.now now) smp x).1 ∈ (observe c s now smp).1.res := by
     rw [observe_res]; exact List.mem_map_of_mem hx
@@ -2869,6 +2930,20 @@ theorem start_bounded {c : Cfg} {s : State} {now : Nat} {smp : Sample} {x : Rsrc
     rcases shedStage_eq c (idleStage c (observe c s now smp).1).1 with e | e <;> rw [e]
     · exact stop_keep_failed hb hf
     · exact hb
+  have h3 : ∀ q ∈ s.pending, q.kind = .svc → q.rid = x.id → q.owner ∈ smp.clients →
+      ∃ why, Cmd.reply q.id (.refused why) ∈ (step c s (.tick now smp)).2 := by
+    intro q hq hqk hqr hqo
+    have hq' : q ∈ (pre c s (.tick now smp)).1.pending := by
+      show q ∈ (tick c s now smp).1.pending
+      rw [tick_st]
+      unfold observe
+      exact List.mem_filter.2 ⟨hq, List.contains_iff_mem.2 hqo⟩
+    obtain ⟨why, hr⟩ := pump_refuses_failed hw hq' hqk h2 (d0.trans hqr.symm) hf
+    exact ⟨why, by rw [step_out (e := .tick now smp) rfl]; exact List.mem_append_right _ hr⟩
+  refine ⟨?_, fun i hi => tickRec_out hx (hk i hi), h3⟩
+  rw [step_st (e := .tick now smp) rfl]
+  obtain ⟨⟨F, hF, hFm⟩, _⟩ := pump_pm hw
+  rw [hF]
   refine ⟨F y0, List.mem_map_of_mem h2, ?_, u, w, ?_⟩
   · rw [key_id (hFm y0 h2).1, d0]
   · rcases (hFm y0 h2).2 with e | ⟨e, _⟩ | ⟨e, _⟩
@@ -4064,6 +4139,15 @@ example : ∃ y ∈ (step Ex.cfg (Ex.after [.tick 1 Ex.calm, .request 42 1 Ex.si
   obtain ⟨y, hy, e, h⟩ := (start_bounded (now := 25) (smp := Ex.calm) (ex_inv _) hx hp (by decide)).1
   exact ⟨y, hy, e.trans hid, h⟩
 
+example : ∃ why, Cmd.reply 0 (.refused why) ∈
+    (step Ex.cfg (Ex.after [.tick 1 Ex.calm, .request 42 1 Ex.sim]).1 (.tick 25 Ex.calm)).2 := by
+  obtain ⟨x, hx, hp, hid⟩ : ∃ x ∈ (Ex.after [.tick 1 Ex.calm, .request 42 1 Ex.sim]).1.res,
+      x.phase = .starting 1 ∧ x.id = 1 := by decide
+  obtain ⟨q, hq, hk, hr, ho, hn⟩ : ∃ q ∈ (Ex.after [.tick 1 Ex.calm, .request 42 1 Ex.sim]).1.pending,
+      q.kind = .svc ∧ q.rid = 1 ∧ q.owner ∈ Ex.calm.clients ∧ q.id = 0 := by decide
+  rw [← hn]
+  exact (start_bounded (now := 25) (ex_inv _) hx hp (by decide)).2.2 q hq hk (hr.trans hid.symm) ho
+
 example : Cmd.signal (.group ⟨500, 7⟩) .term ∈ (step Ex.cfg (Ex.after Ex.freed).1 (.tick 20 Ex.calm)).2 := by
   obtain ⟨x, hx, hp, hi, hpin, ha, hl, hg⟩ : ∃ x ∈ (Ex.after Ex.freed).1.res, x.phase = .ready ∧
       x.proc = some ⟨500, 7⟩ ∧ Ex.cfg.pinned x.kind = false ∧ x.adopted = false ∧
@@ -4105,19 +4189,6 @@ example : 1 ∈ [(⟨1, 2, .job, 0, { ram := 3500 }, 60, 1, 1, 31⟩ : Req)].map
     (l := ⟨1, 2, .job, 0, { ram := 3500 }, 1, 61, 0⟩) (by decide) rfl
 
 /-! ## Fairness -/
-
-theorem pumpOne_mono {c : Cfg} {a : Acc} {q : Req} {x : Cmd} (h : x ∈ a.out) : x ∈ (pumpOne c a q).out := by
-  refine pumpOne_cases c a q (fun a' => x ∈ a'.out) (fun _ _ => List.mem_append_left _ h)
-    (fun _ _ _ _ => List.mem_append_left _ h) (fun _ _ add _ => ?_) (fun _ _ _ => h)
-    (fun _ _ _ _ _ _ _ _ => List.mem_append_left _ h) (fun _ _ _ _ _ _ _ _ _ _ _ => List.mem_append_left _ h)
-  unfold block
-  split
-  · exact h
-  · exact List.mem_append_left _ h
-
-theorem fold_mono {c : Cfg} {x : Cmd} : ∀ (B : List Req) (a : Acc), x ∈ a.out → x ∈ (B.foldl (pumpOne c) a).out
-  | [], _, h => h
-  | _ :: B, _, h => fold_mono B _ (pumpOne_mono h)
 
 theorem block_emits {c : Cfg} {a : Acc} {q : Req} {add : Res → Nat} (hb : a.blk = false)
     (hr : fitsFree c a.st add (byRank c a.st) = true) {y : Rsrc} (hy : y ∈ prefixFor c a.st add) {i : Ident}
