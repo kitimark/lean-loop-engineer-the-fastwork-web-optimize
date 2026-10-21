@@ -1,3 +1,4 @@
+import Lean.Data.Json
 import Std.Data.TreeMap.Raw.Lemmas
 import Fw.Sup.Core
 
@@ -611,5 +612,131 @@ theorem decode_version {j : Json} {m : Msg} (h : decode j = some m) : (fld j "v"
     by_cases hv : v = version
     · rw [hv]
     · simp [e, hv] at h
+
+/-! ## Golden vectors -/
+
+namespace Golden
+open Fw.Sup
+
+/-- The golden file, relative to `lean/`. -/
+def path : System.FilePath := "../packages/contracts/golden/sup/wire.jsonl"
+
+def line (name : String) (ok : Bool) (wire : Json) : String :=
+  (Json.mkObj [("name", .str name), ("ok", .bool ok), ("wire", wire)]).compress ++ "\n"
+
+def good (name : String) (m : Msg) : String := line name true (encode m)
+
+def bad (name : String) (wire : Json) : String := line name false wire
+
+def row (pid : Nat) : Row :=
+  { pid, ppid := 500, pgid := 500, start := 7, cwd := some 90, kind := "lspServe", wt := some "wf_1", inRepo := true }
+
+def smp (pid : Nat) : Sample :=
+  { pressure := 2, ext := { ram := 1200 }, foot := [(⟨pid - 1, 7⟩, { cores := 3, ram := 410 })], clients := [1, 2],
+    rows := [row pid, { row (pid + 1) with cwd := none, kind := "tool", wt := none, inRepo := false }] }
+
+def lease (owner : Nat) : Lease :=
+  { id := 4, owner, kind := .job, rid := 0, cost := { ram := 5000 }, granted := 1, deadline := 61 }
+
+def phases : List Phase :=
+  [.absent, .starting 3, .ready, .stopping 20 .term, .stopping 25 .kill, .failed 40 .startFailed]
+
+def snap (pid : Nat) : State :=
+  { res := phases.zipIdx.map fun (p, i) =>
+      { id := i, kind := i % 3, cost := { ram := 100 * i }, phase := p,
+        proc := if i % 2 == 0 then some ⟨pid + 99 + i, 9⟩ else none, adopted := i == 2, foot := { ram := 90 * i },
+        lastUse := i, crashes := List.range i },
+    leases := [lease 1, { lease 1 with id := 5, kind := .svc, rid := 2, renews := 2 }],
+    pending := [{ id := 6, owner := 3, kind := .job, rid := 0, cost := { cores := 20 }, hold := 60, age := 2, born := 3,
+                  deadline := 33 }],
+    tickets := [⟨3, 0, 2⟩], obs := smp pid, shedding := true, draining := false, now := 9, next := 7 }
+
+def input (pid : Nat) : Input :=
+  { rows := [row pid], live := [90], mcps := [⟨pid - 2, some 90⟩, ⟨pid - 3, none⟩], keep := [(700, 12)],
+    liveIds := ["wf_1"], protect := [1] }
+
+def events (tok : Nat) : List (String × Event) :=
+  [("request job", .request tok 1 Ex.big),
+   ("request svc", .request tok 2 { kind := .svc, rid := 1, cost := { cores := 10, ram := 300 }, wait := 30, hold := 60 }),
+   ("request nested", .request tok 3 { Ex.big with parent := some 0 }), ("release", .release tok 1 0),
+   ("renew", .renew tok 1 0), ("op", .op tok 1), ("drain", .drain tok 1), ("spawned", .spawned 1 (some ⟨500, 7⟩)),
+   ("spawn failed", .spawned 1 none), ("ready", .ready 1), ("child exit", .childExit ⟨500, 7⟩),
+   ("tick calm", .tick 1 Ex.calm), ("tick sample", .tick 2 (smp 501)), ("client gone", .clientGone 3),
+   ("restart", .restart 100 (snap 501) (input 501))]
+
+def replies (owner : Nat) : List (String × Reply) :=
+  [("granted", .granted (lease owner)), ("released", .released), ("renewed", .renewed 121), ("op", .op),
+   ("draining", .draining)] ++ whys.map fun w => (s!"refused {whyName w}", .refused w)
+
+def targets (pid : Nat) : List (String × Target) :=
+  [("group", .group ⟨pid, 7⟩), ("member", .member (pid + 1) 7), ("reap", .reap ⟨pid + 2, 8, true⟩)]
+
+def cmds (owner : Nat) : List (String × Cmd) :=
+  [("spawn", .spawn 1 1), ("probe", .probe 1), ("revoke", .revoke owner 4), ("exit", .exit)]
+  ++ ((targets 500).flatMap fun (n, t) => [Sig.term, .kill].map fun g => (s!"signal {n} {sigName g}", .signal t g))
+  ++ (replies owner).map fun (n, r) => (s!"reply {n}", .reply 0 r)
+
+def trace (tok : Nat) : List Event :=
+  [.tick 1 Ex.calm, .request tok 1 Ex.sim, .spawned 1 (some ⟨500, 7⟩), .ready 1, .release tok 1 0, .tick 20 Ex.calm,
+   .tick 30 Ex.calm, .request tok 2 Ex.big, .request tok 3 Ex.big, .tick 92 Ex.calm]
+
+def withV (v : Json) : Json := Json.mkObj [("v", v), ("t", .str "cmd"), ("body", cmdJson .exit)]
+
+def refusedAs (why : String) : Json :=
+  Json.mkObj [("v", num version), ("t", .str "cmd"), ("body", Json.mkObj [("t", .str "reply"), ("req", num 0),
+    ("reply", Json.mkObj [("t", .str "refused"), ("why", .str why)])])]
+
+def rejected (tok : Nat) : List String :=
+  [bad "version 0" (encodeAt 0 (.cmd .exit)), bad "version 2" (encodeAt (version + 1) (.cmd .exit)),
+   bad "version missing" (Json.mkObj [("t", .str "cmd"), ("body", cmdJson .exit)]),
+   bad "version as string" (withV (.str "1")), bad "version negative" (withV (.num ⟨-1, 0⟩)),
+   bad "version fraction" (withV (.num ⟨15, 1⟩)),
+   bad "unknown message tag" (Json.mkObj [("v", num version), ("t", .str "note"), ("body", .null)]),
+   bad "unknown why" (refusedAs "tooBig"),
+   bad "event field missing" (Json.mkObj [("v", num version), ("t", .str "event"),
+     ("body", Json.mkObj [("t", .str "release"), ("tok", num tok), ("owner", num 1)])])]
+
+/-- The golden text for token `tok` (`Ex.cfg` takes 42); a parameter, so no case is a start-time constant of fwcore. -/
+def text (tok : Nat) : String :=
+  let r := Ex.after (trace tok)
+  String.join <|
+    (events tok).map (fun (n, e) => good s!"event {n}" (.event e))
+    ++ (cmds 1).map (fun (n, c) => good s!"cmd {n}" (.cmd c))
+    ++ [good "snapshot init" (.snapshot (init Ex.cfg)), good "snapshot phases" (.snapshot (snap 501))]
+    ++ (trace tok).zipIdx.map (fun (e, i) => good s!"trace event {i}" (.event e))
+    ++ r.2.zipIdx.map (fun (c, i) => good s!"trace cmd {i}" (.cmd c))
+    ++ [good "trace snapshot" (.snapshot r.1)]
+    ++ rejected tok
+
+/-- One golden line read back: an `ok` line decodes and re-encodes to its `wire`, any other is refused. -/
+def replay (l : String) : Except String Unit := do
+  let j ← Json.parse l
+  let name ← j.getObjValAs? String "name"
+  let ok ← j.getObjValAs? Bool "ok"
+  let wire ← j.getObjVal? "wire"
+  match decode wire, ok with
+  | some m, true => if encode m == wire then pure () else throw s!"{name}: re-encoding differs"
+  | none, false => pure ()
+  | some _, false => throw s!"{name}: decoded, expected a refusal"
+  | none, true => throw s!"{name}: refused, expected a message"
+
+/-- Write `path`, or with `--check` throw when it differs from `text 42` or a line fails `replay`. -/
+def gen (args : List String) : IO Unit := do
+  let want := text Ex.cfg.token
+  if args.contains "--check" then
+    let disk ← IO.FS.readFile path
+    if disk != want then throw (IO.userError s!"sup wire: {path} is stale; regenerate with Fw.Wire.Sup.Golden.gen []")
+    let lines := (disk.splitOn "\n").filter (· ≠ "")
+    for l in lines do
+      if let .error e := replay l then throw (IO.userError s!"sup wire: replay failed: {e}")
+    IO.println s!"sup wire: {path} equals the Lean output, {lines.length} lines replayed through Json.parse"
+  else
+    IO.FS.createDirAll "../packages/contracts/golden/sup"
+    IO.FS.writeFile path want
+
+#guard (replay (line "x" true (encode (.cmd .exit)))).isOk && (replay (bad "y" (encodeAt 2 (.cmd .exit)))).isOk
+#guard !(replay (line "z" true (encodeAt 2 (.cmd .exit)))).isOk && !(replay (bad "w" (encode (.cmd .exit)))).isOk
+
+end Golden
 
 end Fw.Wire.Sup

@@ -13,8 +13,9 @@ Done
   `simp [xOf, xJson, fld_mkObj, List.lookup, <part lemmas>]`, list-free records close by `rfl`.
 - Golden `packages/contracts/golden/sup/wire.jsonl` (68 lines `{name, ok, wire}`: every event, every command incl.
   each Target × Sig and each Reply/Why, 3 snapshots, an `Ex.after` trace, 9 refused lines) from
-  `lean/scripts/SupWireGolden.lean`; `--check` compares bytes and replays every line through `Json.parse`, `decode`
-  and `encode`. Registered in `lean/scripts/check.sh` ("sup wire golden check").
+  `Fw.Wire.Sup.Golden.gen` (cases take the token as a parameter, so fwcore builds no start-time constant); `--check`
+  compares bytes and replays every line through `Json.parse`, `decode` and `encode`. Registered in
+  `lean/scripts/check.sh`; regenerate by piping `#eval Fw.Wire.Sup.Golden.gen []` to `lake env lean --stdin`.
 
 Conventions
 - Field names follow `ops.lspReap` for Reap rows, mcps, keep `{pid, at}` and targets.
@@ -26,4 +27,4 @@ Open (follow-ups, outside the unit)
 - `Cfg` is not on the wire (it holds functions); the daemon reads it from its own config.
 - Golden replay of `run_eq_fold` against a real fwcore op (sup-model open item).
 
-Read first: `lean/Fw/Wire/Sup.lean` section "Round trips", then `lean/scripts/SupWireGolden.lean`.
+Read first: `lean/Fw/Wire/Sup.lean` section "Round trips", then its section `Golden`.
