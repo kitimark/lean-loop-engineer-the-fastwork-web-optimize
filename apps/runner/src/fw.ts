@@ -32,7 +32,7 @@ async function postLandGc(mainDir: string): Promise<void> {
   for (const l of lines) console.error(l);
 }
 try {
-  const base = NO_API_GROUPS.includes(group ?? "") || group === "disk-gc" || group === "oracle" || group === "slot" || (group === "plan" && rest[0] === "overlap") || (group === "review" && (rest[0] === "ready" || rest[0] === "verdict")) ? "" : apiBase(process.env);
+  const base = NO_API_GROUPS.includes(group ?? "") || group === "disk-gc" || group === "oracle" || group === "slot" || group === "polish" || (group === "plan" && rest[0] === "overlap") || (group === "review" && (rest[0] === "ready" || rest[0] === "verdict")) ? "" : apiBase(process.env);
   if (group === "timings") {
     console.log(rest.includes("--backfill") ? await backfill(rest, process.cwd()) : rest.includes("--lag") ? lagCli(rest, process.cwd()) : timingsView(rest, process.cwd()));
   } else if (group === "checks") {
@@ -88,6 +88,8 @@ try {
   } else if (group === "slot") { // local-adaptive-queue: one queue for heavy local work (Fw.Sup.Adapt)
     const { SlotUsage, realDeps, slotCli } = await import("./slot.ts");
     try { process.exitCode = await slotCli(rest, realDeps(process.cwd())); } catch (e) { throw e instanceof SlotUsage ? new UsageError(e.message) : e; }
+  } else if (group === "polish") { // polish-in-flow: classes, scopes and cut verdicts from Fw.Plan.Polish
+    process.exitCode = await (await import("./polish.ts")).polishCli(rest, process.cwd());
   } else if (group === "watch") {
     process.exitCode = await watchMain(rest, process.cwd());
   } else if (group === "next") {
@@ -207,7 +209,7 @@ try {
     if (body.ok) console.log(body.duplicate ? "duplicate (already applied)" : `ok seq ${body.seq}`);
     else { console.error(`refused: ${body.reason}`); process.exitCode = 2; }
   } else {
-    throw new UsageError(`usage: fw status | fw console start|stop|restart|status|logs | fw preview grant [<id>] | fw plan sync <file>|show|overlap [task] | fw watch [--json] [--interval s] [--until-alert] | fw next | fw engine-check --rows <jsonl> --run <dir> | fw ci state <run id> | fw land <branch> [--task id] [--allow glob] [--dry] | fw land --queue <branch> --task id | fw land --queue-status | fw incidents lint [ledger.json] | fw lake-gc [--list|--json|--delete] [--check] | fw reap --list|--stop | fw disk-gc [--list|--json|--delete] [--class c] | fw step post|start|answer|done|cancel|topic|reply|questions ... | fw task handback|integrate|park|unpark ... | fw review reply|feedback|ready|verdict ... | fw send '<json>'\n${CARD_USAGE}`);
+    throw new UsageError(`usage: fw status | fw console start|stop|restart|status|logs | fw preview grant [<id>] | fw plan sync <file>|show|overlap [task] | fw watch [--json] [--interval s] [--until-alert] | fw next | fw engine-check --rows <jsonl> --run <dir> | fw ci state <run id> | fw land <branch> [--task id] [--allow glob] [--dry] | fw land --queue <branch> --task id | fw land --queue-status | fw incidents lint [ledger.json] | fw lake-gc [--list|--json|--delete] [--check] | fw reap --list|--stop | fw disk-gc [--list|--json|--delete] [--class c] | fw step post|start|answer|done|cancel|topic|reply|questions ... | fw task handback|integrate|park|unpark ... | fw review reply|feedback|ready|verdict ... | fw polish plan|cuts|commit|--staged ... | fw send '<json>'\n${CARD_USAGE}`);
   }
 } catch (e) {
   console.error(e instanceof Error ? e.message : String(e));
