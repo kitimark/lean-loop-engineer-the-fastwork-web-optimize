@@ -68,6 +68,7 @@ import Fw.Measure.Quiet
 import Fw.Measure.Tolerance
 import Fw.Measure.WebKit
 import Fw.Measure.WebKitLag  -- webkit-lag-probe: scroll regions, paint attribution to parts, counter ranking
+import Fw.Device.Session  -- device-lag-recorder: phone-session zones, frame intervals, felt marks, comparison, replay export
 import Fw.Measure.Retry
 import Fw.Measure.Viewport
 import Fw.Measure.SimPlan
@@ -180,9 +181,11 @@ import Fw.Gate.Shard  -- gate-shard-balance: LPT shard plan over measured unit c
 import Fw.Gate.ShardObs  -- gate-shard-balance: observed jobs of a CI run, reduced to the cost table (ShardCosts)
 import Fw.Gate.Search  -- gate-preset-input: the search string of the gate rewrite arm from its fw and preset inputs
 import Fw.Gate.Trajectory  -- trajectory-probe: per-unit verdict of the rewrite against the original along a scroll path
+import Fw.Gate.Trajectory.Dispatch  -- trajectory dispatch scope: verdict runs walk all four widths, diagnostic runs any nonempty subset
 import Fw.Gate.Colour  -- kit-colour-space: every trajectory colour reading in sRGB x1000, the error budget the judge allows
 import Fw.Gate.RunPerm  -- scoped-gap-did: run-level permutation test of the close gap g, statistic and exact p
 import Fw.Gate.Frames  -- earn-look-review-webkit: when a frame strip is usable (>= 10 shots per arm)
+import Fw.Gate.Smooth  -- smoothness-probe: motion continuity along a push (stalls, jumps, tail) and the bad-frame cadence verdict
 import Fw.Wire.ShardGolden  -- gate-shard-balance: golden/gate/shards.jsonl
 import Fw.Measure.WktrLayout  -- wktr-fixture-speed: lane layout, premise gate, fixture assertions
 import Fw.Measure.WktrVariance  -- wktr-serial-baseline: run-to-run variance of class kinds, findings, verdict

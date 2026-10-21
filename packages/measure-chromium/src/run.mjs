@@ -11,11 +11,12 @@ import { traceToFrameCounts, TRACE_CATEGORIES } from './trace.mjs';
 import { accepts, gateSize, scrollRead, viewportGate } from './stage-mode.mjs';
 import { overflowExpr, formatOverflow } from './overflow.mjs';
 import { n0Windows, n0FrameCounts, byKind, N0_KEYS } from './n0.mjs';
+import { parseProfile, replayEvents } from './profile.mjs';
 
 const N0_ON = !process.env.FW_NO_N0; // FW_NO_N0=1: no N0 census in the page (harness-neutrality control)
 
 const args = Object.fromEntries(process.argv.slice(2).map((a) => { const s = a.replace(/^--/, ''); const i = s.indexOf('='); return i < 0 ? [s, true] : [s.slice(0, i), s.slice(i + 1)]; }));
-const profile = JSON.parse(readFileSync(`/profiles/${args.profile ?? 'swipe-v1'}.json`, 'utf8'));
+const { profile, strokes: replayStrokes } = parseProfile(JSON.parse(readFileSync(`/profiles/${args.profile ?? 'swipe-v1'}.json`, 'utf8')));
 const OUT = args.out ?? '/out';
 const DEBUG = !!process.env.FW_DEBUG;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -49,7 +50,7 @@ const CHROME_ARGS = [
   // touch-race: blink's MainThreadEventQueue::DispatchRafAlignedInput (platform/widget/input/main_thread_event_queue.cc:741-770@f842f52) holds an async touchmove back
   // while the rAF-aligned queue holds exactly 1 event and frame_time < last_async_touch_move_timestamp_ + 200 ms. Whether the queue holds 1 or 2 events depends on whether
   // touch n+1 reached the renderer before BeginMainFrame n+1 (a thread race), so the touchmove lands in frame n or n+1. Interval 0 never holds (switch: blink/common/switches.cc).
-  ...((profile.input?.mode === 'touch' && process.env.FW_TOUCH_THROTTLE !== 'default') ? ['--async-touch-move-throttle-time-ms=0'] : []),
+  ...(((profile.input?.mode === 'touch' || profile.input?.mode === 'replay') && process.env.FW_TOUCH_THROTTLE !== 'default') ? ['--async-touch-move-throttle-time-ms=0'] : []),
   '--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE localhost, EXCLUDE 127.0.0.1',
   '--font-render-hinting=none', '--force-color-profile=srgb', '--hide-scrollbars', '--mute-audio',
   '--disable-background-networking', '--disable-breakpad', '--no-first-run', '--lang=en-US', ...(process.env.FW_CHROME_EXTRA ? process.env.FW_CHROME_EXTRA.split(' ') : []), 'about:blank',
@@ -208,7 +209,7 @@ async function sendTouch(t, vtMs) {
   const timestamp = (EPOCH_MS + vtMs) / 1000;
   const p = t.type === 'wheel'
     ? c.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: profile.input.x, y: t.y, deltaX: 0, deltaY: profile.input.dyPerFrame, timestamp })
-    : c.send('Input.dispatchTouchEvent', { type: t.type, touchPoints: t.type === 'touchEnd' ? [] : [{ x: profile.input.x, y: t.y, id: 0, radiusX: 1, radiusY: 1, force: 1 }], timestamp });
+    : c.send('Input.dispatchTouchEvent', { type: t.type, touchPoints: t.type === 'touchEnd' ? [] : [{ x: t.x ?? profile.input.x, y: t.y, id: 0, radiusX: 1, radiusY: 1, force: 1 }], timestamp });
   touch.unacked++; touch.sent++;
   const sentAt = touch.frames;
   if (DEBUG) console.error('touch send', t.type, t.y, 'frame', sentAt);
@@ -275,7 +276,10 @@ if (inputMode === 'scrollTo' || inputMode === 'page') {
     last = frames[frames.length - 1];
     n++; vt += dt;
   };
+  // "replay" (a person's recorded gesture, input.strokes): the touch events come from the file frame by frame, open loop.
+  const script = replayStrokes ? replayEvents(replayStrokes) : [];
   for (const seg of profile.segments) {
+    if (seg.until === 'script') { for (let f = 0; f < script.length; f++) await runFrame(() => ({ phase: 'replay', touch: script[f] ?? null })); if (script.length > 0 && yMax < 1) throw new Error('replayed gesture did not scroll the page'); continue; }
     if (seg.until !== 'end') { for (let i = 0; i < seg.frames; i++) await runFrame(() => ({ phase: seg.name, touch: null })); continue; }
     for (let guard = 0; !finished; guard++) {
       let stop = false;
