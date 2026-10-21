@@ -49,18 +49,24 @@ export function step(p: Params, c: Ctl, s: Sample): Ctl {
 
 export const init = (p: Params): Ctl => ({ n: clamp(p, 2), lastChange: 0, prev: null });
 
-/** A queue ticket or a slot holder; no process id. */
-export type Entry = { owner: string; token: string; kind: Kind; since: number; till: number; foot: number };
+/** A queue ticket or a slot holder; no process id. `leaseS` is the granted lease length (s). */
+export type Entry = { owner: string; token: string; kind: Kind; since: number; till: number; foot: number; leaseS: number };
 
 export const live = (now: number, e: Entry): boolean => now < e.till;
 export const prune = (now: number, es: Entry[]): Entry[] => es.filter((e) => live(now, e));
+export const expired = (now: number, es: Entry[]): Entry[] => es.filter((e) => !live(now, e));
 export const same = (owner: string, token: string, e: Entry): boolean => e.owner === owner && e.token === token;
 export const grantUntil = (p: Params, now: number, lease: number): number => now + Math.min(lease, p.leaseMaxS);
+export const grant = (p: Params, me: Entry, now: number, lease: number, foot: number): Entry =>
+  ({ ...me, since: now, till: grantUntil(p, now, lease), foot, leaseS: Math.min(lease, p.leaseMaxS) });
+export const lenOf = (p: Params, lease: number | null, e: Entry): number => (lease === null ? e.leaseS : Math.min(lease, p.leaseMaxS));
 
-export function renew(p: Params, now: number, owner: string, token: string, lease: number, es: Entry[]): Entry[] | null {
+export function renew(p: Params, now: number, owner: string, token: string, lease: number | null, es: Entry[]): Entry[] | null {
   if (!es.some((e) => same(owner, token, e) && live(now, e))) return null;
-  return es.map((e) => (same(owner, token, e) ? { ...e, till: grantUntil(p, now, lease) } : e));
+  return es.map((e) => (same(owner, token, e) ? { ...e, till: now + lenOf(p, lease, e), leaseS: lenOf(p, lease, e) } : e));
 }
+
+export const leaseOr = (stored: number | null, since: number, till: number): number => stored ?? Math.max(0, till - since);
 
 export const release = (owner: string, token: string, es: Entry[]): Entry[] => es.filter((e) => !same(owner, token, e));
 
@@ -131,7 +137,7 @@ export function verdict(p: Params, n: number, s: Sample, hs: Entry[], q: Entry[]
   return { verdict: "admit", threads: threadsFor(p, s, hs), footMB: needMB };
 }
 
-export const legacyEntry = (now: number): Entry => ({ owner: "sim-lock", token: "sim-lock", kind: "sim", since: 0, till: now + 1, foot: 0 });
+export const legacyEntry = (now: number): Entry => ({ owner: "sim-lock", token: "sim-lock", kind: "sim", since: 0, till: now + 1, foot: 0, leaseS: 0 });
 export const withLegacy = (now: number, legacy: boolean, hs: Entry[]): Entry[] => (legacy ? [...hs, legacyEntry(now)] : hs);
 
 export const simBoot = (now: number, owner: string, token: string, hs: Entry[]): boolean =>

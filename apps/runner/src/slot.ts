@@ -7,8 +7,8 @@ import os from "node:os";
 import { basename, dirname, join } from "node:path";
 import {
   DEFAULT_PARAMS, type BuildVerdict, type CacheKey, type Ctl, type Entry, type Kind, type Params, type Sample, type Verdict,
-  admitBuild, agentsSeen, cacheHit, cacheable, heldOf, init, keyOf, kindOf, prune, release, renew, signal, simAction, simBoot,
-  simDue, simHeld, simIdleNext, simQueued, step, stopAct, verdict, withLegacy,
+  admitBuild, agentsSeen, cacheHit, cacheable, expired, grant, heldOf, init, keyOf, kindOf, leaseOr, prune, release, renew, signal,
+  simAction, simBoot, simDue, simHeld, simIdleNext, simQueued, step, stopAct, verdict, withLegacy,
 } from "./slot-core.ts";
 
 export class SlotUsage extends Error {}
@@ -203,8 +203,12 @@ export function recoverStale(lock: string, seen: Owner): void {
   try { renameSync(aside, lock); } catch { rmSync(aside, { recursive: true, force: true }); }
 }
 
+const withLease = (e: Omit<Entry, "leaseS"> & { leaseS?: number }): Entry => ({ ...e, leaseS: leaseOr(e.leaseS ?? null, e.since, e.till) });
+
 function readState(d: Deps): State {
-  try { return JSON.parse(readFileSync(join(d.dir, "state.json"), "utf8")) as State; } catch { return { ctl: init(d.params), holders: [], queue: [], simIdleSince: 0 }; }
+  let st: State;
+  try { st = JSON.parse(readFileSync(join(d.dir, "state.json"), "utf8")) as State; } catch { return { ctl: init(d.params), holders: [], queue: [], simIdleSince: 0 }; }
+  return { ...st, holders: st.holders.map(withLease), queue: st.queue.map(withLease) };
 }
 
 /** Run `f` on the state with the lock held, then write it back atomically. */
@@ -224,16 +228,20 @@ export function withState<T>(d: Deps, f: (st: State) => T): T {
   }
 }
 
-/** One controller step on `s`, then drop expired holders and tickets; a dropped Simulator holder starts the idle clock. */
+/** One controller step on `s`, then drop expired holders and tickets. Each dropped holder logs one `expire` event; a
+dropped Simulator holder starts the idle clock. */
 function tick(d: Deps, st: State, s: Sample): void {
   st.ctl = step(d.params, st.ctl, s);
-  const kept = prune(s.time, st.holders);
-  if (st.holders.some((h) => h.kind === "sim" && !kept.includes(h))) st.simIdleSince = s.time;
-  st.holders = kept;
+  const gone = expired(s.time, st.holders);
+  if (gone.some((h) => h.kind === "sim")) st.simIdleSince = s.time;
+  for (const h of gone) {
+    event(d, "expire", h.kind, { owner: h.owner, token: h.token, leaseS: h.leaseS, holdMs: (h.till - h.since) * 1000, lateMs: (s.time - h.till) * 1000 });
+  }
+  st.holders = prune(s.time, st.holders);
   st.queue = prune(s.time, st.queue);
 }
 
-function event(d: Deps, ev: string, kind: Kind, extra: Record<string, number>): void {
+function event(d: Deps, ev: string, kind: Kind, extra: Record<string, number | string>): void {
   if (d.eventsFile === null) return;
   try {
     mkdirSync(dirname(d.eventsFile), { recursive: true });
@@ -271,21 +279,21 @@ export type Grant = { token: string; owner: string; kind: Kind; till: number; ve
 export async function acquire(d: Deps, kind: Kind, leaseS: number, waitS: number | null): Promise<Grant> {
   const token = randomUUID().slice(0, 12);
   const t0 = nowS();
-  withState(d, (st) => { st.queue.push({ owner: d.owner, token, kind, since: t0, till: t0 + d.params.leaseS, foot: 0 }); });
+  withState(d, (st) => { st.queue.push({ owner: d.owner, token, kind, since: t0, till: t0 + d.params.leaseS, foot: 0, leaseS: d.params.leaseS }); });
   let last = "";
   for (;;) {
     const s = d.probe();
     const g = withState(d, (st): Grant => {
       tick(d, st, s);
       let me = st.queue.find((e) => e.token === token);
-      if (me === undefined) { me = { owner: d.owner, token, kind, since: t0, till: 0, foot: 0 }; st.queue.push(me); }
+      if (me === undefined) { me = { owner: d.owner, token, kind, since: t0, till: 0, foot: 0, leaseS: d.params.leaseS }; st.queue.push(me); }
       me.till = s.time + d.params.leaseS;
       const hs = withLegacy(s.time, legacyLive(d.legacySimLock), st.holders);
       const v = verdict(d.params, st.ctl.n, s, hs, st.queue, me, Math.max(0, s.time - t0));
       if (v.verdict !== "wait") st.queue = st.queue.filter((e) => e.token !== token);
-      const till = s.time + Math.min(leaseS, d.params.leaseMaxS);
-      if (v.verdict === "admit") st.holders.push({ owner: d.owner, token, kind, since: s.time, till, foot: v.footMB });
-      return { token, owner: d.owner, kind, till, verdict: v };
+      const held = grant(d.params, me, s.time, leaseS, v.verdict === "admit" ? v.footMB : 0);
+      if (v.verdict === "admit") st.holders.push(held);
+      return { token, owner: d.owner, kind, till: held.till, verdict: v };
     });
     const line = describe(g.verdict);
     if (line !== last) { d.err(`slot ${kind}: ${line}\n`); last = line; }
@@ -300,7 +308,8 @@ export async function acquire(d: Deps, kind: Kind, leaseS: number, waitS: number
   }
 }
 
-export function renewToken(d: Deps, token: string, leaseS: number): boolean {
+/** Renew this owner's live slot; `leaseS` null keeps the granted length. */
+export function renewToken(d: Deps, token: string, leaseS: number | null): boolean {
   const now = nowS();
   return withState(d, (st) => {
     const r = renew(d.params, now, d.owner, token, leaseS, st.holders);
@@ -389,7 +398,7 @@ export async function run(d: Deps, kind: Kind, argv: string[], cache: boolean): 
   if (g.verdict.verdict !== "admit") return EXIT_REFUSED;
   const threads = String(g.verdict.threads);
   const env = { ...d.env, FW_SLOT_HELD: "1", FW_SLOT_TOKEN: g.token, FW_SLOT_OWNER: d.owner, ...(kind === "check" ? { LAKE_SLOT_CORES: threads, LEAN_NUM_THREADS: threads } : {}) };
-  const timer = setInterval(() => { renewToken(d, g.token, d.params.leaseS); }, Math.max(1, Math.floor(d.params.leaseS / 3)) * 1000);
+  const timer = setInterval(() => { renewToken(d, g.token, null); }, Math.max(1, Math.floor(d.params.leaseS / 3)) * 1000);
   try {
     const r = await exec(d, argv, env, key !== null);
     if (key !== null && r.whole && cacheable(r.exit)) {
@@ -484,7 +493,7 @@ export async function slotCli(argv: string[], deps: Deps): Promise<number> {
     case "renew": {
       const t = flag(args, "--token");
       if (t === null) throw new SlotUsage(SLOT_USAGE);
-      const ok = renewToken(d, t, num(args, "--lease") ?? d.params.leaseS);
+      const ok = renewToken(d, t, num(args, "--lease"));
       if (!ok) d.err("slot: no live lease for this owner and token (expired or released)\n");
       return ok ? 0 : 1;
     }
