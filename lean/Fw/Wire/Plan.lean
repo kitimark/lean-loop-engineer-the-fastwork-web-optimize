@@ -47,7 +47,7 @@ The stateless op `plan.incidentLint` (task `incident-lint`, `Fw.Plan.Incident`),
 |---|---|---|
 | `plan.incidentLint` | `incidents` [ledger records as in the file], `tasks` [{id, evidence?, agent?}] (work graph rows with board state), `commits`? [refs that are commits on main], `files`? [refs that exist], `classes`? [class ids of research/mistakes/ledger.json] | `ok`, `errors`, `warnings`, `incidents` [{id, status, findings [{code, severity, detail}]}] |
 | `plan.reviewReady` | `items` [{id, status, evidence}], `runs` [{id, state}] (missing = `[]`), `task` (the task id, missing = blank), `dry` (the `VERDICT` line of `fw land --dry`, missing = blank) (task `review-flow-v2`, `Fw.Plan.ReviewReady`) | `ready` (`review`, `dispatch`, `wait`, `returnToBuilder`) |
-| `plan.reviewVerdict` | `severities` [word] (`blocker`, `fix-before-land`, `follow-up`; any other word is a blocker), `audited`? [bool: the medium-only audit is done] | `verdict` (`accept`, `refuse`), `recheck` [bool: an accept that carries a `fix-before-land` finding needs the checker], `blockers`, `fixes` [counts] |
+| `plan.reviewVerdict` | `severities` [word] (`blocker`, `fix-before-land`, `follow-up`; any other word is a blocker), `audited`? [bool: the medium-only audit is done] | `verdict` (`accept`, `refuse`), `recheck` [bool: the verdict used is accept and a `fix-before-land` finding is present, so the checker re-checks], `blockers`, `fixes` [counts] |
 | `plan.overlap` | `rows` [{id, writes}] (work graph), `running` [task ids], `candidate`? [task id], `override`? [reason] (task `spawn-write-overlap`, `Fw.Plan.Overlap`) | `verdict` (`clear`, `refused`, `overridden`, `unknown`), `conflicts` [{a, b, ga, gb}], `unknown` [ids] |
 -/
 namespace Fw.Wire.Plan
@@ -248,7 +248,7 @@ def opReviewVerdict (req : Json) : Except String Reply := do
   let fs := (← strsD req "severities").map Sev.ofString
   let audited ← boolD req "audited"
   let v := if audited then verdictOf fs else strictVerdict fs
-  pure [("verdict", .str v.name), ("recheck", .bool (recheck fs)),
+  pure [("verdict", .str v.name), ("recheck", .bool (recheck v fs)),
         ("blockers", toJson (fs.filter (· == .blocker)).length),
         ("fixes", toJson (fs.filter (· == .fixBeforeLand)).length)]
 
