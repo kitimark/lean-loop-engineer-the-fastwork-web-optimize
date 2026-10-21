@@ -13648,6 +13648,27 @@
     "apps/runner/test/watch-collect*.test.ts",
     "docs/team/handoffs/sim-lock-orphan-identity.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "review-flow-v2-followups",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "review-flow-v2"
+   ],
+   "title": "Follow-ups of review-flow-v2 (landed 1cca4214; r2 review): (1) the gate agent reads each run state itself with fw ci by run id (identity), never the builder's state field; (2) build-review.js gate regex built from the escaped task id and matched on the last line only; (3) plan.reviewVerdict computes recheck from the verdict actually used (strictVerdict until the audit), with a golden row, so a refuse never prints the 'lead applies them' hint; (4) the module doc says coverage of the pinned unit is the reviewer's check; (5) handoff names its commits. The medium-only audit of the 32 refusals stays its own item (lead decides when to run it).",
+   "writes": [
+    ".claude/workflows/build-review.js",
+    "lean/Fw/Plan/ReviewReady.lean",
+    "lean/Fw/Wire/Plan.lean",
+    "packages/contracts/golden/plan/review-ready.jsonl",
+    "apps/runner/src/review-ready.ts",
+    "apps/runner/test/review-ready.test.ts",
+    "docs/team/handoffs/review-flow-v2.md"
+   ]
   }
  ],
  "deadline": {
