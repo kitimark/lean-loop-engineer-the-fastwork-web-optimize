@@ -46,8 +46,8 @@ export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 
   /** One window on one arm from a fresh load: the finished row, or `{refused: row}` when the page is not the arm asked for. */
   const readWindow = async (ctx, a, win, rep) => {
     ctx.setArm(a.id);
-    // the page reads its configuration from location.search and the reload keeps the tab's URL: put the arm's query on it first
-    await ctx.c.evaluate(`history.replaceState(null, '', ${JSON.stringify('/' + a.search)}); location.search`);
+    // the page reads its configuration from location.search and the reload keeps the tab's URL and scroll position: put the arm's query on the URL and go to the top first
+    await ctx.c.evaluate(`history.replaceState(null, '', ${JSON.stringify('/' + a.search)}); scrollTo({ top: 0, behavior: 'instant' }); location.search`);
     await loadFresh(ctx.c, { clock: 'pinned', settleMs });
     const info = await pageInfo(ctx.c);
     ua = info.ua;
