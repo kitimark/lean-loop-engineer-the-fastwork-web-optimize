@@ -1,6 +1,7 @@
 import Lean.Data.Json
 import Fw.Gate.State
 import Fw.Gate.PageRoot
+import Fw.Gate.RunCite
 import Fw.Measure.Wire
 import Fw.Ops.Wire
 /-!
@@ -18,6 +19,7 @@ every status and verdict comes from `Fw.Gate`. Numbers are read as exact decimal
 | `gate.reach` | `port`, `envs` [requested] | `reasons` [reason or `null`] (`Fw.Gate.reqReason`) |
 | `gate.styleEq` | `pairs` [[a, b]] (string, or `null` = absent) | `eq` [bool] |
 | `gate.cell` | `statuses` [status] | `verdict` |
+| `gate.runCite` | `runs` [{`run`, `arms` [search] or `missing`}], `cites` [{`run`, `flag`}] | `verdicts` [{`run`, `flag`, `verdict`, `carried`?, `why`?}] (`Fw.Gate.RunCite`) |
 
 State: `{requested {width, height, deviceWidth, dpr, hover, pointer, reducedMotion, colorScheme},
 orig Arm, rewrite Arm, expect? [[k, v]], expectNeutral? [[k, v]]}`. Arm: `{viewport {innerHeight,
@@ -389,7 +391,7 @@ def opReach (req : Json) : Except String Reply := do
   pure [("reasons", .arr out.toArray)]
 
 /-- The ops of this module. -/
-def ops : List String := ["gate.state", "gate.stale", "gate.tally", "gate.styleEq", "gate.cell", "gate.reach"]
+def ops : List String := ["gate.state", "gate.stale", "gate.tally", "gate.styleEq", "gate.cell", "gate.reach", "gate.runCite"]
 
 /-- Dispatch a gate op (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -400,6 +402,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "gate.styleEq" => some (opStyleEq req)
   | "gate.cell" => some (opCell req)
   | "gate.reach" => some (opReach req)
+  | "gate.runCite" => some (Fw.Gate.RunCite.reply req)
   | _ => none
 
 /-! ## Examples -/
@@ -429,6 +432,8 @@ private def run (s : String) : String :=
   "{\"width\":600.5,\"height\":900,\"deviceWidth\":600.5,\"dpr\":1.25,\"hover\":\"hover\",\"pointer\":\"fine\",\"reducedMotion\":\"no-preference\",\"colorScheme\":\"light\"}]}") ==
   "{\"reasons\":[\"width-dpr\"]}"
 #guard run "{\"op\":\"gate.reach\",\"port\":\"gecko\",\"envs\":[]}" == "unknown port gecko"
+#guard run "{\"op\":\"gate.runCite\",\"runs\":[{\"run\":\"1\",\"missing\":\"x\"}],\"cites\":[{\"run\":\"1\",\"flag\":\"a:b\"}]}" ==
+  "{\"verdicts\":[{\"flag\":\"a:b\",\"run\":\"1\",\"verdict\":\"unknown\",\"why\":\"x\"}]}"
 #guard run "{\"op\":\"gate.state\",\"anchors\":{\"style\":{\"skipPrefixes\":[],\"skipSets\":{}},\"parts\":{}},\"parts\":[\"x\"],\"states\":[]}" ==
   "unknown part x"
 
