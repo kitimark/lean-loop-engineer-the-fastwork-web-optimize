@@ -1,7 +1,6 @@
 # webkit-sim-target-lost (measure-engineer)
 
 State: branch worktree-wf_48387798-d71-1, Lean + TS done, `sh lean/scripts/check.sh` green (exit 0), measure-webkit tests 186/186.
-
 What it does (unit: one session)
 - Lean `Fw.Measure.SimBound` (lean/Fw/Measure/SimBound.lean, "Page target lost"): `targetAction relaunched elapsedMs found` gives
   connect | wait | relaunch | failSession. Bound 480 s (`targetWaitMs`), one relaunch, then 90 s (`targetAfterMs` = tabMs +
@@ -19,7 +18,6 @@ What it does (unit: one session)
   virtual clock: loses the target, hung poll dropped at the bound, one relaunch, session failure, guard sharing).
 
 Verified: check.sh, measure-webkit tests, scripts/ci-paths.test.mjs, apps/runner land-inputs test (see report for dry verdict).
-
 Open / follow-ups
 - No CI proof run: fault injection needs a new `lose-target` fault option and commit token in .github/workflows/webkit-sim.yml
   (`fault` input is a fixed choice, FW_WK_FAULT line ~378); that file belongs to macos-teardown-trim. Then add `lose-target` to
