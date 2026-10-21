@@ -105,6 +105,7 @@ function counterTable(wins, bases, fR, fC) {
   const rows = COLUMNS.map((name, j) => ({
     name, perFrame: sum(w.map((r) => r[j])) / (fR * (w.length || 1)), baseFrame: sum(b.map((r) => r[j])) / (fC * (b.length || 1)),
     ratio: colRatio(fR, fC, w, b, j), perPass: wins.map((x, i) => colRatio(fR, fC, x, bases[i], j)).filter((x) => x !== null),
+    absPass: wins.filter((x) => x.length).map((x) => frac(colSum(x, j), fR * x.length)),
     rank: ranked.findIndex(([n]) => n === name) + 1 || null,
   }));
   return { rows, unranked, rowsInWindow: w.length, rowsInBaseline: b.length, passes: wins.length };
@@ -251,15 +252,15 @@ const asFrac = (xs) => xs.map((x) => frac(Math.round(x * PX2), PX2));
 /** The ranked table of one region, both arms side by side, ordered by the first arm's rank. */
 function regionTable(label, tabs, names, unit) {
   const [o, f] = tabs;
-  const L = [`| counter | ${unit} ${names[0]} / ${names[1] ?? '-'} | baseline ${names[0]} / ${names[1] ?? '-'} | ratio ${names[0]} (per-pass range) | rank | ratio ${names[1] ?? '-'} (per-pass range) | rank | difference |`, '|---|---|---|---|---|---|---|---|'];
+  const L = [`| counter | ${unit} ${names[0]} / ${names[1] ?? '-'} | baseline ${names[0]} / ${names[1] ?? '-'} | ratio ${names[0]} (per-pass range) | rank | ratio ${names[1] ?? '-'} (per-pass range) | rank | difference of the ratio | difference of the ${unit} value |`, '|---|---|---|---|---|---|---|---|---|'];
   const order = [...o.rows].sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99) || COLUMNS.indexOf(a.name) - COLUMNS.indexOf(b.name));
   for (const r of order) {
     const q = f?.rows.find((x) => x.name === r.name);
     const cell = (x) => (x?.ratio ? `${fmt(num(x.ratio))} (${rng(x.perPass)})` : 'no baseline');
     const low = !r.name.endsWith('Us') && r.name !== 'paintArea' && r.ratio && r.baseFrame < 0.5 ? ' (*)' : '';
-    L.push(`| ${nameOf(r.name)}${low} | ${fmt(r.perFrame)} / ${q ? fmt(q.perFrame) : '-'} | ${fmt(r.baseFrame)} / ${q ? fmt(q.baseFrame) : '-'} | ${cell(r)} | ${r.rank ?? '-'} | ${q ? cell(q) : '-'} | ${q?.rank ?? '-'} | ${q && r.perPass.length && q.perPass.length ? DIFF[diffOf(r.perPass, q.perPass)] : '-'} |`);
+    L.push(`| ${nameOf(r.name)}${low} | ${fmt(r.perFrame)} / ${q ? fmt(q.perFrame) : '-'} | ${fmt(r.baseFrame)} / ${q ? fmt(q.baseFrame) : '-'} | ${cell(r)} | ${r.rank ?? '-'} | ${q ? cell(q) : '-'} | ${q?.rank ?? '-'} | ${q && r.perPass.length && q.perPass.length ? DIFF[diffOf(r.perPass, q.perPass)] : '-'} | ${q && r.absPass.length && q.absPass.length ? DIFF[diffOf(r.absPass, q.absPass)] : '-'} |`);
   }
-  L.push('', '(*) the baseline is below 0.5 events per frame: one event more or less moves the ratio by a factor of 2 or more, so its rank is unstable. Duration columns (us) are Simulator-host microseconds summed over the records of the type; records nest (a Layout inside a FunctionCall), so durations are not additive across types.');
+  L.push('', 'The ratio compares a window with the same arm\'s calm baseline, so an arm difference of the ratio can come from the baseline; the last column decides on the per-pass value itself. (*) the baseline is below 0.5 events per frame: one event more or less moves the ratio by a factor of 2 or more, so its rank is unstable. Duration columns (us) are Simulator-host microseconds summed over the records of the type; records nest (a Layout inside a FunctionCall), so durations are not additive across types.');
   return L.join('\n');
 }
 
