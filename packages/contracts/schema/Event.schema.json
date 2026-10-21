@@ -1709,6 +1709,62 @@
         "task"
       ],
       "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "ts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "type": {
+          "type": "string",
+          "const": "review.previewed"
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "actor": {
+          "type": "string",
+          "enum": [
+            "user",
+            "lead",
+            "owner",
+            "reviewer",
+            "script",
+            "git",
+            "hook"
+          ]
+        },
+        "flag": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "device": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        }
+      },
+      "required": [
+        "seq",
+        "ts",
+        "type",
+        "key",
+        "actor",
+        "flag",
+        "device"
+      ],
+      "additionalProperties": false
     }
   ]
 }
