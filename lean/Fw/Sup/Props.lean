@@ -17,7 +17,7 @@ theorem filterMap_sub {α β : Type} (f g : α → Option β) :
     · rw [List.filterMap_cons, List.filterMap_cons, e]
       cases f x with
       | none => exact ih
-      | some b => exact ih.cons₂ b
+      | some b => exact ih.cons_cons b
     · rw [List.filterMap_cons, List.filterMap_cons, e]
       cases f x with
       | none => exact ih
@@ -51,7 +51,7 @@ theorem eq_of_nodup_map {α β : Type} (f : α → β) (l : List α) (hn : (l.ma
   have e : l.filterMap (fun x => some (f x)) = l.map f := by
     induction l with
     | nil => rfl
-    | cons x xs ih => simp [List.filterMap_cons, ih]
+    | cons x xs ih => simp
   exact eq_of_nodup_filterMap (fun x => some (f x)) l (by rw [e]; exact hn) a ha b hb (f a) rfl (by rw [he])
 
 theorem count_one {α : Type} [DecidableEq α] (a : α) : ∀ l : List α, l.Nodup → a ∈ l → l.count a = 1
@@ -331,7 +331,7 @@ theorem wf_renew {c : Cfg} {s : State} (o lid : Nat) (h : Wf c s) : Wf c (renew 
         exact Nat.lt_succ_of_lt (h.below n hn')
       · intro l' hl'
         obtain ⟨l0, hl0, rfl⟩ := List.mem_map.1 hl'
-        simp only [g]
+        dsimp only
         split
         · rename_i he
           have : l0 = l := eq_of_nodup_map (·.id) _ hlids l0 l hl0 hm (by simp only [beq_iff_eq] at he; rw [he, hlid])
@@ -344,10 +344,10 @@ theorem wf_renew {c : Cfg} {s : State} (o lid : Nat) (h : Wf c s) : Wf c (renew 
         · exact h.live l0 hl0
       · intro l' hl' hk
         obtain ⟨l0, hl0, rfl⟩ := List.mem_map.1 hl'
-        simp only [g] at hk ⊢
+        dsimp only at hk ⊢
         by_cases he : (l0.id == lid) = true
-        · simp only [he, if_true] at hk ⊢; exact h.svc l0 hl0 hk
-        · simp only [he, if_false] at hk ⊢; exact h.svc l0 hl0 hk
+        · simp only [he, ite_true] at hk ⊢; exact h.svc l0 hl0 hk
+        · simp only [he] at hk ⊢; exact h.svc l0 hl0 hk
     · exact wf_next h
   · exact wf_next h
 
@@ -635,7 +635,7 @@ theorem grantIds_sub : ∀ cs : List Cmd, (∀ n l, Cmd.reply n (.granted l) ∈
       | granted l =>
         have e := h n l List.mem_cons_self
         simp only [grantsIn, replyIds, List.filterMap_cons, List.map_cons] at ih ⊢
-        rw [e]; exact ih.cons₂ n
+        rw [e]; exact ih.cons_cons n
       | _ => simp only [grantsIn, replyIds, List.filterMap_cons] at ih ⊢; exact ih.cons n
     | _ => simpa only [grantsIn, replyIds, List.filterMap_cons] using ih
 
@@ -935,7 +935,7 @@ theorem nubLease_nodup : ∀ l : List Lease, ((nubLease l).map (·.id)).Nodup
 
 theorem nubLease_sub : ∀ l : List Lease, (nubLease l).Sublist l
   | [] => List.Sublist.slnil
-  | x :: xs => (List.filter_sublist.trans (nubLease_sub xs)).cons₂ x
+  | x :: xs => (List.filter_sublist.trans (nubLease_sub xs)).cons_cons x
 
 theorem restamp_live (t : Nat) (p : Phase) : (p.restamp t).live = p.live := by
   cases p <;> rfl
@@ -1336,7 +1336,7 @@ theorem stopRec_moved (now : Nat) (ids : List Nat) (x : Rsrc) : Moved now x (sto
 theorem stopRec_stops {now : Nat} {ids : List Nat} {y : Rsrc} {i : Ident} (hi : y.proc = some i) (hm : y.id ∈ ids)
     (hp : y.phase = .ready) : (stopRec now ids y).1.phase = .stopping now .term := by
   unfold stopRec; split
-  · rw [if_pos (by simp [hp, hm])]
+  · rw [ite_eq_left (by simp [hp, hm])]
   · rename_i hj; rw [hi] at hj; cases hj
 
 theorem pm_stop {c : Cfg} {s0 : State} {a : Acc} {rest : List Req} (xs : List Rsrc) (hj : PJ c s0 a rest)
@@ -1523,7 +1523,7 @@ theorem pre_spawned {c : Cfg} {s : State} {rid : Nat} {i : Ident}
       ({ s with res := s.res.map fun x => if x.id == rid then { x with proc := some i, adopted := false } else x },
        [.probe rid]) := by
   simp only [pre, spawned]
-  rw [if_neg, if_pos]
+  rw [ite_eq_right, ite_eq_left]
   · obtain ⟨x, hx, h1, h2, t, h3⟩ := hw
     exact List.any_eq_true.2 ⟨x, hx, by simp [h1, h2, h3]⟩
   · intro ha
@@ -1550,7 +1550,7 @@ theorem spawned_sets {c : Cfg} {s : State} {rid : Nat} {i : Ident} (h : Inv c s)
     obtain ⟨z, hz, rfl⟩ := List.mem_map.1 hx
     by_cases e : z.id = rid
     · simp [e]
-    · simp only [e, beq_iff_eq, if_false]
+    · simp only [e, beq_iff_eq, ite_false]
       exact ⟨fun h' => absurd h' (hf z hz), fun h' => h'.elim⟩
   · obtain ⟨x, hx, h1, _⟩ := hw
     have hx' : (if x.id == rid then { x with proc := some i, adopted := false } else x) ∈ (pre c s (.spawned rid (some i))).1.res := by
@@ -1760,7 +1760,7 @@ theorem fitsB_le {c : Cfg} {s : State} {add : Res → Nat} (h : fitsB c s add = 
 theorem resLoad_cons (y : Rsrc) (ys : List Rsrc) (d : Res) :
     resLoad (y :: ys) d = (if y.phase.live then charge y d else 0) + resLoad ys d := by
   unfold resLoad
-  cases h : y.phase.live <;> simp [List.filter_cons, h]
+  cases h : y.phase.live <;> simp [h]
 
 theorem resLoad_map_eq (f : Rsrc → Rsrc) (d : Res) : ∀ l : List Rsrc,
     (∀ x ∈ l, (f x).phase.live = x.phase.live ∧ charge (f x) d = charge x d) → resLoad (l.map f) d = resLoad l d
@@ -1974,7 +1974,7 @@ theorem shedStage_st (c : Cfg) (s : State) : (shedStage c s).1 = { s with res :=
   unfold shedStage; split <;> rfl
 
 theorem shedStage_on {c : Cfg} {s : State} (hs : s.shedding = true) : shedStage c s = stopAll s (shedPick c s) := by
-  unfold shedStage; rw [if_pos hs]
+  unfold shedStage; rw [ite_eq_left hs]
 
 theorem tick_st (c : Cfg) (s : State) (now : Nat) (smp : Sample) :
     (tick c s now smp).1 = { (observe c s now smp).1 with res := (tick c s now smp).1.res } := by
@@ -2173,7 +2173,7 @@ theorem restart_bounded {c : Cfg} {s : State} {e : Event} {rid k : Nat} (h : Inv
 theorem crash_cap (c : Cfg) (now : Nat) (f : Bool) (x : Rsrc) (h : c.maxRestarts ≤ (crash c now f x).crashes.length) :
     (crash c now f x).phase = .failed (now + c.window) .restartCap := by
   simp only [crash] at h ⊢
-  rw [if_pos h]
+  rw [ite_eq_left h]
 
 theorem least_spec (p : Nat → Bool) : ∀ (n i : Nat),
     (p (least p i n) = true ∨ least p i n = i + n) ∧ i ≤ least p i n ∧ ∀ k, i ≤ k → k < least p i n → p k = false
@@ -2428,14 +2428,14 @@ theorem ageRec_nr {c : Cfg} {now : Nat} {y : Rsrc} {x : Cmd} (h : x ∈ (ageRec 
   | starting t =>
     simp only [hp] at h ⊢
     split at h
-    · rw [if_pos (by assumption)]; exact crash_not_ready _ _ _ _
+    · rw [ite_eq_left (by assumption)]; exact crash_not_ready _ _ _ _
     · cases h
   | stopping t g =>
     cases g with
     | term =>
       simp only [hp] at h ⊢
       split at h
-      · rw [if_pos (by assumption)]; intro e; cases e
+      · rw [ite_eq_left (by assumption)]; intro e; cases e
       · cases h
     | kill => simp [hp] at h
   | failed u w => simp [hp] at h
@@ -2581,7 +2581,7 @@ theorem pre_out {c : Cfg} {s : State} {e : Event} {x : Cmd} (h : x ∈ (pre c s 
         · exact Or.inl (List.mem_singleton.1 h)
         · rename_i hb
           refine Or.inr ⟨j, rfl, List.mem_singleton.1 h, fun r hr e => ha (List.any_eq_true.2 ⟨r, hr, by simp [e]⟩), ?_⟩
-          rw [if_neg ha, if_neg hb]
+          rw [ite_eq_right ha, ite_eq_right hb]
   | ready rid => cases h
   | childExit i =>
     simp only [pre, childExit] at h
@@ -2650,8 +2650,8 @@ theorem adopt_proc (rows : List Fw.Ops.Reap.Row) (t : Nat) : ∀ (seen : List Id
 
 theorem ite_proc {p : Prop} [Decidable p] {a b : Rsrc} (ha : a.proc = b.proc) : (if p then a else b).proc = b.proc := by
   by_cases h : p
-  · rw [if_pos h]; exact ha
-  · rw [if_neg h]
+  · rw [ite_eq_left h]; exact ha
+  · rw [ite_eq_right h]
 
 theorem procs_map {l : List Rsrc} {f : Rsrc → Rsrc} {x : Rsrc} {i : Ident} (hx : x ∈ l.map f) (hi : x.proc = some i)
     (hf : ∀ y ∈ l, (f y).proc = y.proc ∨ (f y).proc = none) : ∃ y ∈ l, y.proc = some i := by
@@ -2704,10 +2704,10 @@ theorem pre_procs {c : Cfg} {s : State} {e : Event} {x : Rsrc} {i : Ident} (hx :
       · split at hx
         · obtain ⟨y, hy, rfl⟩ := List.mem_map.1 hx
           by_cases hid : (y.id == rid) = true
-          · rw [if_pos hid] at hi
+          · rw [ite_eq_left hid] at hi
             have : j = i := Option.some.inj hi
             exact Or.inr (Or.inl ⟨rid, by rw [this]⟩)
-          · rw [if_neg hid] at hi
+          · rw [ite_eq_right hid] at hi
             exact Or.inl ⟨y, hy, hi⟩
         · exact Or.inl ⟨x, hx, hi⟩
   | ready rid =>
@@ -2895,13 +2895,13 @@ theorem ageRec_term {c : Cfg} {now t : Nat} {z : Rsrc} (hp : z.phase = .stopping
     (ageRec c now z).2 = killG z.proc := by
   unfold ageRec
   simp only [hp]
-  rw [if_pos ht]
+  rw [ite_eq_left ht]
 
 theorem ageRec_start {c : Cfg} {now t : Nat} {z : Rsrc} (hp : z.phase = .starting t) (ht : t + c.startMax ≤ now) :
     ageRec c now z = (crash c now true z, killG z.proc) := by
   unfold ageRec
   simp only [hp]
-  rw [if_pos ht]
+  rw [ite_eq_left ht]
 
 theorem crash_failed (c : Cfg) (now : Nat) (x : Rsrc) : ∃ u w, (crash c now true x).phase = .failed u w := by
   unfold crash
@@ -2921,7 +2921,7 @@ theorem stopRec_failed {now : Nat} {ids : List Nat} {y : Rsrc} {u : Nat} {w : Wh
     (stopRec now ids y).1 = y := by
   unfold stopRec
   split
-  · rw [if_neg (by simp [hp])]
+  · rw [ite_eq_right (by simp [hp])]
   · rfl
 
 theorem stop_keep_failed {s : State} {xs : List Rsrc} {y : Rsrc} {u : Nat} {w : Why} (hy : y ∈ s.res)
@@ -3890,7 +3890,7 @@ theorem run_ro {c : Cfg} : ∀ (es : List Event) (a : State × List Cmd), Inv c 
     RO (es.foldl (fun a e => let r := step c a.1 e; (r.1, a.2 ++ r.2)) a).1
       (es.foldl (fun a e => let r := step c a.1 e; (r.1, a.2 ++ r.2)) a).2
   | [], _, _, ho, _ => ho
-  | e :: es, a, h, ho, hr =>
+  | e :: es, _, h, ho, hr =>
     run_ro es _ (step_inv e h) (step_ro h (hr e List.mem_cons_self) ho) fun e' he => hr e' (List.mem_cons_of_mem _ he)
 
 /-- reply_once: along a run without a restart, from any state satisfying the invariant, no request id gets two
@@ -4204,7 +4204,7 @@ example : ∃ x ∈ (Ex.after (Ex.held ++ [.childExit ⟨500, 7⟩])).1.res, ∃
     kill_member_unleased (ex_inv (Ex.held ++ [.childExit ⟨500, 7⟩])) (e := .tick 5 Ex.orphan) (g := .kill)
       (p := 501) (st := 8) (by decide)
   cases e
-  simp only [Ex.orphan, List.mem_singleton] at hr
+  simp only [List.mem_singleton] at hr
   subst hr
   exact ⟨x, hx, i, hi, hg.symm⟩
 
@@ -4345,7 +4345,7 @@ theorem aged_granted_by {c : Cfg} {s : State} {e : Event} {q : Req} {rest : List
   have hd' : ¬ q.deadline ≤ (acc0 (pre c s e).1).st.now := Nat.not_le_of_lt hd
   have hg : pumpOne c (acc0 (pre c s e).1) q = grant (acc0 (pre c s e).1) q := by
     unfold pumpOne
-    simp only [hd', if_false]
+    simp only [hd', ite_false]
     have h1 : (acc0 (pre c s e).1).st.draining = false := hdr
     have h2 : (acc0 (pre c s e).1).st.shedding = false := hs
     have h3 : fitsB c (acc0 (pre c s e).1).st q.cost.get = true := hf
