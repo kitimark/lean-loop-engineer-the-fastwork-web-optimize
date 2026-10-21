@@ -14068,7 +14068,7 @@
     "local"
    ],
    "id": "jev-replay",
-   "owner": "researcher",
+   "owner": "lean-prover",
    "stream": "tooling",
    "deps": [
     "jev-core",
@@ -14078,7 +14078,20 @@
    "writes": [
     "research/notes/2026/10-2x-jev-replay.md",
     "results/jev/**",
-    "docs/team/handoffs/jev-replay.md"
+    "docs/team/handoffs/jev-replay.md",
+    "lean/Fw/Oracle/Questions.lean",
+    "lean/Fw/Oracle/Send.lean",
+    "lean/Fw/Oracle/Replay*.lean",
+    "lean/Fw/Oracle.lean",
+    "lean/scripts/Oracle*Golden.lean",
+    "packages/contracts/golden/oracle/**",
+    "packages/oracle/src/**",
+    "packages/oracle/test/**",
+    "apps/runner/src/oracle*.ts",
+    "apps/runner/test/oracle*.test.ts",
+    "scripts/jev-score*.mjs",
+    "scripts/jev-score*.test.mjs",
+    "docs/team/tools/oracle.md"
    ]
   },
   {
