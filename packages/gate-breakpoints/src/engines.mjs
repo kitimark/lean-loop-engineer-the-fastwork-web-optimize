@@ -1,5 +1,5 @@
 // Engine adapters. Both expose the same small surface:
-//   engine.open(env, { origin, path, init, frozen }) -> session { evaluate(fn, arg), resize(env), mouse(x, y), wheel(x, y, dy), shot(clip), close(),
+//   engine.open(env, { origin, path, init, frozen }) -> session { evaluate(fn, arg), resize(env), mouse(x, y), wheel(x, y, dy), shot(clip), screencast(onFrame, size), close(),
 //     and when `frozen`: advance(ms), holdTo(abs), clockMs() }
 // `env` = { width, height, deviceWidth, deviceHeight, dpr, hover, pointer, reducedMotion, colorScheme }.
 //
@@ -139,6 +139,12 @@ export async function launchChromium({ chromePath = process.env.CHROME_PATH ?? C
         async wheel(x, y, dy) { await page.mouse.move(x, y); await page.mouse.wheel(0, dy); },
         // frames lane: a PNG of the page region `clip` (CSS px), animations left running
         shot(clip) { return page.screenshot({ clip, animations: 'allow', caret: 'initial', scale: 'css' }); },
+        // frames lane: every frame the engine composites as a JPEG of the whole viewport scaled to `size`, with its wall-clock swap
+        // time (ms since the epoch); returns the stop function. playwright-core 1.64.1 Screencast.
+        async screencast(onFrame, size) {
+          await page.screencast.start({ onFrame, size, quality: 90 });
+          return () => page.screencast.stop();
+        },
         ...(clock ? { advance: clock.advance, holdTo: clock.holdTo, clockMs: clock.clockMs } : {}),
         async close() { await context.close(); },
       };
@@ -188,6 +194,12 @@ export async function launchWebkit() {
         async wheel(x, y, dy) { await page.mouse.move(x, y); await page.mouse.wheel(0, dy); },
         // frames lane: a PNG of the page region `clip` (CSS px), animations left running
         shot(clip) { return page.screenshot({ clip, animations: 'allow', caret: 'initial', scale: 'css' }); },
+        // frames lane: every frame the engine composites as a JPEG of the whole viewport scaled to `size`, with its wall-clock swap
+        // time (ms since the epoch); returns the stop function. playwright-core 1.64.1 Screencast.
+        async screencast(onFrame, size) {
+          await page.screencast.start({ onFrame, size, quality: 90 });
+          return () => page.screencast.stop();
+        },
         ...(clock ? { advance: clock.advance, holdTo: clock.holdTo, clockMs: clock.clockMs } : {}),
         async close() { await context.close(); },
       };
