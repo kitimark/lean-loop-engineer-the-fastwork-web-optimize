@@ -228,6 +228,8 @@ import Fw.Ci.Pool  -- pool-caps: per-lane macOS job time caps from measured p90 
 import Fw.Sup.Props  -- sup-model: supervisor daemon state machine, invariant and lease, queue, stop and reply theorems
 import Fw.Wire.Sup  -- sup-wire: versioned JSON of every Sup event, command and snapshot, round-trip theorems
 import Fw.Sup.Route  -- sup-route: routeOf per (stage, service, daemon present, binary-hash match), fallback to today's path
+import Fw.Sup.Adapt  -- local-adaptive-queue: AIMD controller, admission by footprint, owner+lease holders, Simulator kind, stop rule, review cache
+import Fw.Sup.AdaptGolden  -- local-adaptive-queue: golden/sup/adapt.jsonl
 import Fw.Ci.Pool.Key  -- pool-key-outcome: request keys, provider-tagged artifact names, one terminal row per planned unit
 import Fw.Ci.Codemagic  -- codemagic-pilot: the 400-of-500 free-minutes ledger rule of the Codemagic pilot
 import Fw.Ci.Steps  -- macos-teardown-trim: the steps allowed after the measurement step of the five macOS jobs, the lint decision
