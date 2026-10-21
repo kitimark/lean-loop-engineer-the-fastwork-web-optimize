@@ -14,11 +14,7 @@ export interface HeroExitProps {
   children?: ReactNode;
 }
 
-/**
- * hero.exit: the sticky hero in a 200vh track; `--exit-opacity` is written on the stage per scroll frame (the exit
- * driver). The stage carries `data-splash` (`prep` on the server, then `run` and `done`, owned by hero.orbit) so the
- * copy and the cue can follow the ring splash.
- */
+/** hero.exit: the sticky hero in a 200vh track whose stage carries `--exit-opacity` and `data-splash`. */
 export function HeroExit({ variant, children }: HeroExitProps) {
   const trackRef = useRef<HTMLElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
@@ -37,10 +33,11 @@ export function HeroExit({ variant, children }: HeroExitProps) {
     const start = () => mountExit({ driver, engine: getScrollEngine(), clock: getClock(), readVh: () => window.innerHeight });
     const sentinel = sentinelRef.current;
     if (variant === THREADED && sentinel) {
-      // threaded: the original's callback runs until the entrance is settled, then the CSS animations take over
+      const cue = hero.querySelector<HTMLElement>('[data-fw="hero-cue"]');
       const handoff = createHandoff({
         stage: hero,
         track,
+        entranceFinished: () => cue === null || cue.getAnimations().every((a) => a.playState === 'finished'),
         supported: typeof CSS !== 'undefined' && CSS.supports('animation-timeline', 'view()'),
         reduced: () => reduce?.matches ?? false,
         startDriver: start,
@@ -58,11 +55,15 @@ export function HeroExit({ variant, children }: HeroExitProps) {
       });
       const mo = new MutationObserver(handoff.sync);
       mo.observe(hero, { attributes: true, attributeFilter: ['data-splash'] });
+      hero.addEventListener('animationend', handoff.sync);
+      hero.addEventListener('animationcancel', handoff.sync);
       const onResize = () => handoff.resize();
       window.addEventListener('resize', onResize);
       reduce?.addEventListener('change', handoff.sync);
       return () => {
         mo.disconnect();
+        hero.removeEventListener('animationend', handoff.sync);
+        hero.removeEventListener('animationcancel', handoff.sync);
         window.removeEventListener('resize', onResize);
         reduce?.removeEventListener('change', handoff.sync);
         handoff.stop();

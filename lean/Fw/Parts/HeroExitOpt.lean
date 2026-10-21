@@ -1388,80 +1388,62 @@ end Scoped
 
 section Threaded
 
-/-- The hero stage's `data-splash` value (set by `hero.orbit`): `prep` and `run` while the ring splash plays, `done`
-once the entrance is settled.
-
-The state of the entrance the variant waits for. -/
+/-- The hero stage's `data-splash` value (set by `hero.orbit`). -/
 inductive Splash where
   | prep
   | run
   | done
 deriving Repr, DecidableEq
 
-/-- **The hand-over rule.** The scroll-driven animations replace the per-frame callback only when the entrance is
-settled (`consumer_eq_s` is stated for a settled entrance), the browser knows `animation-timeline`, and motion is not
-reduced (reduced motion keeps the original's rest frame).
+/-- Whether the hero stage runs on its CSS animations (true) or on the original's callback (false); `fin` is that the
+entrance animations have finished (the phone cue's `copyIn` can still run at `data-splash = done`). -/
+def live (s : Splash) (fin supported reduced : Bool) : Bool := decide (s = .done) && fin && supported && !reduced
 
-Whether the stage runs on its CSS animations (true) or on the original's callback (false). -/
-def live (s : Splash) (supported reduced : Bool) : Bool := decide (s = .done) && supported && !reduced
-
-/-- Live exactly when all three conditions hold.
-
-The rule has no other way to be true. -/
-theorem live_iff (s : Splash) (supported reduced : Bool) :
-    live s supported reduced = true ↔ s = .done ∧ supported = true ∧ reduced = false := by
+/-- Live exactly when all four conditions hold. -/
+theorem live_iff (s : Splash) (fin supported reduced : Bool) :
+    live s fin supported reduced = true ↔ s = .done ∧ fin = true ∧ supported = true ∧ reduced = false := by
   unfold live
-  cases supported <;> cases reduced <;> simp
+  cases fin <;> cases supported <;> cases reduced <;> simp
 
-/-- While the splash plays (`prep` or `run`) the callback keeps the page, whatever else holds.
-
-An unsettled entrance never hands over. -/
-theorem live_splash (s : Splash) (hs : s ≠ .done) (supported reduced : Bool) : live s supported reduced = false := by
+/-- While the splash plays the callback keeps the page. -/
+theorem live_splash (s : Splash) (hs : s ≠ .done) (fin supported reduced : Bool) :
+    live s fin supported reduced = false := by
   unfold live
   simp [hs]
 
-/-- Without `animation-timeline` the callback keeps the page.
-
-A browser that cannot run the timeline never hands over. -/
-theorem live_unsupported (s : Splash) (reduced : Bool) : live s false reduced = false := by
+/-- While an entrance animation still runs (splash `done`) the callback keeps the page. -/
+theorem live_unfinished (supported reduced : Bool) : live .done false supported reduced = false := by
   unfold live
   simp
 
-/-- Under reduced motion the callback keeps the page.
-
-Reduced motion never hands over. -/
-theorem live_reduced (s : Splash) (supported : Bool) : live s supported true = false := by
+/-- Without `animation-timeline` the callback keeps the page. -/
+theorem live_unsupported (s : Splash) (fin reduced : Bool) : live s fin false reduced = false := by
   unfold live
   simp
 
-/-- The one live case.
-
-Settled, supported and not reduced: the animations run. -/
-theorem live_done : live .done true false = true := by
+/-- Under reduced motion the callback keeps the page. -/
+theorem live_reduced (s : Splash) (fin supported : Bool) : live s fin supported true = false := by
   unfold live
   simp
 
-/-- The settled consumers of one width band, named by the golden: the copy's entrance amount is 1 and a card's entrance
-state is 1 with scatter offset 1 (the card's `to` keyframe is `var(--scatter-*)` times that), so each value is a number
-of the exit opacity alone.
+/-- The one live case: settled, finished, supported, not reduced. -/
+theorem live_done : live .done true true false = true := by
+  unfold live
+  simp
 
-What the CSS animates, per band `ℓ`. -/
+/-- The settled consumers the CSS animates in band `l`, named as in the golden. -/
 def settled (l : Bool) : List (String × Consumer) :=
   [("copyOpacity", .copyOpacity 1), ("copyTranslateY", .copyTranslateY 1 l), ("copyBlur", .copyBlur 1 l),
    ("cueBlur", .cueBlur), ("cueTranslateY", .cueTranslateY l), ("cardOpacity", .cardOpacity),
    ("cardTranslate", .cardTranslate 1 0 1)]
 
-/-- The keyframe endpoints of every settled consumer, both bands: `0%` is the rest value, `100%` the exited one.
-
-These are the numbers `threaded.module.css` restates (px for lengths, bare for opacity and the card's scatter share). -/
+/-- The keyframe endpoints (rest, exited) of every settled consumer in the wide band, as `threaded.module.css` restates them. -/
 theorem keyframe_table_wide :
     (settled false).map (fun p => (p.2.val 1, p.2.val 0)) =
       [(1, 0), (0, -10), (0, 18), (0, 18), (0, 0), (1, 13 / 20), (0, 1)] := by
   decide +kernel
 
-/-- The phone band: no copy blur (`filter: none`), the copy and the cue slide by 8 and 10 px.
-
-The same table at `(width<=600px)`. -/
+/-- The same endpoints in the phone band. -/
 theorem keyframe_table_narrow :
     (settled true).map (fun p => (p.2.val 1, p.2.val 0)) =
       [(1, 0), (0, -8), (0, 0), (0, 18), (0, -10), (1, 13 / 20), (0, 1)] := by
@@ -1506,14 +1488,14 @@ def threadedLines (_ : Unit := ()) : List String :=
   (threadedGeoms.flatMap fun (T, h, v) => (threadedOffsets T h v).map fun y =>
     gLine "sentinelAbove" [("T", gInt T), ("h", gInt h), ("v", gInt v), ("y", gInt y)]
       (.bool (sentinelAbove T h v y))) ++
-  ([Splash.prep, .run, .done].flatMap fun s => [false, true].flatMap fun sup => [false, true].map fun red =>
+  ([Splash.prep, .run, .done].flatMap fun s => [false, true].flatMap fun fin => [false, true].flatMap fun sup =>
+    [false, true].map fun red =>
     gLine "live" [("splash", .str (match s with | .prep => "prep" | .run => "run" | .done => "done")),
-      ("supported", .bool sup), ("reduced", .bool red)] (.bool (live s sup red)))
+      ("entranceFinished", .bool fin), ("supported", .bool sup), ("reduced", .bool red)] (.bool (live s fin sup red)))
 
 /-- The golden text. -/
 def threadedText (_ : Unit := ()) : String := String.join ((threadedLines ()).map (· ++ "\n"))
 
--- Every sampled `anim` line carries equal animated and original values (`consumer_eq_s`, evaluated on the samples).
 #guard (([false, true].flatMap fun l => threadedGeoms.flatMap fun (T, h, v) => (threadedOffsets T h v).flatMap fun y =>
   (settled l).map fun (_, k) =>
     k.anim (timelineProgress T (exitRange h v) y) == k.val (exitOpacityAt T h v y)).all id)

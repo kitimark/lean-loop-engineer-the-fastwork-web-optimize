@@ -1,14 +1,10 @@
-/* Variant `threaded` (Lean `Fw.Parts.HeroExitOpt`, section Threaded). Each exit consumer runs its own scroll-driven CSS
-   animation on the track's view timeline, so the browser can run it off the page's scroll callback. The endpoints are
-   the Lean `keyframes` rows (golden hero-exit.threaded.jsonl; threaded.test.ts reads this file against them). A rule
-   applies only while the track carries `data-exit-live` (set by the hand-over, which also needs `data-splash='done'`),
-   so the entrance keeps the original's animations until the entrance is settled. Reduced motion attaches nothing. */
+/* Variant `threaded`: scroll-driven CSS animations on the track's view timeline (Lean `Fw.Parts.HeroExitOpt` section Threaded). */
 @layer parts {
   .sentinel {
     visibility: hidden;
     pointer-events: none;
     width: 1px;
-    height: 1px;
+    height: 0;
     display: block;
     position: absolute;
     left: 0;
@@ -16,6 +12,11 @@
 
   [data-fw='hero-exit'][data-exit-live] {
     view-timeline: --hero-exit block;
+  }
+
+  [data-fw='hero-exit'][data-fw-variant='threaded'] [data-orbit-id] {
+    --fw-entrance-names: fwEntranceRingAppear, fwEntranceCardFromRing;
+    animation-name: var(--fw-entrance-names);
   }
 
   @media (prefers-reduced-motion: no-preference) {
@@ -43,10 +44,6 @@
         animation-fill-mode: both;
         animation-timeline: --hero-exit;
         animation-range: contain;
-      }
-      /* the settled orbit keeps its entrance end state itself, because the animation list below replaces the entrance's */
-      [data-exit-live] [data-splash='done'] [data-orbit-id] {
-        --entered: 1;
       }
     }
 
@@ -77,8 +74,18 @@
       }
     }
 
-    /* Cards in both bands: the band that hides them is read too, and a hidden element runs no animation. */
-    [data-exit-live] [data-splash='done'] :is([data-orbit-id], [data-fw='hero-deck'] > article) {
+    [data-exit-live] [data-splash='done'] [data-orbit-id] {
+      animation-name: var(--fw-entrance-names), exitCardFade, exitCardMove;
+      animation-duration: 0.12s, 1.7s, auto, auto;
+      animation-delay: 0s, var(--orbit-enter-delay), 0s, 0s;
+      animation-iteration-count: 1;
+      animation-direction: normal;
+      animation-timing-function: ease-out, cubic-bezier(0.2, 0.9, 0.2, 1), linear, linear;
+      animation-fill-mode: backwards, both, both, both;
+      animation-timeline: auto, auto, --hero-exit, --hero-exit;
+      animation-range: normal, normal, contain, contain;
+    }
+    [data-exit-live] [data-splash='done'] [data-fw='hero-deck'] > article {
       animation-name: exitCardFade, exitCardMove;
       animation-duration: auto;
       animation-delay: 0s;
@@ -139,7 +146,6 @@
       filter: blur(18px);
     }
   }
-  /* Lean `cardTranslate` for the card's own entrance state: `(1 - entered) * enter` at rest, plus the scatter vector at the end */
   @keyframes exitCardMove {
     from {
       translate: calc((1 - var(--entered)) * var(--orbit-enter-x)) calc((1 - var(--entered)) * var(--orbit-enter-y));
@@ -147,6 +153,23 @@
     to {
       translate: calc((1 - var(--entered)) * var(--orbit-enter-x) + var(--scatter-x))
         calc((1 - var(--entered)) * var(--orbit-enter-y) + var(--scatter-y));
+    }
+  }
+  @keyframes :global(fwEntranceRingAppear) {
+    0% {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes :global(fwEntranceCardFromRing) {
+    0%,
+    68% {
+      --entered: 0;
+    }
+    to {
+      --entered: 1;
     }
   }
 }

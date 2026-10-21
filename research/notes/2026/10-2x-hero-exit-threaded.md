@@ -18,9 +18,14 @@ topics: [hero.exit, webkit, scroll-driven, threaded-animations, ios-toolbar, lag
   per consumer a linear two-keyframe animation (`fill: both`). Endpoints are the Lean `keyframes` rows; the animated
   value equals the original's `calc()` value at every sampled offset (golden `hero-exit.threaded.jsonl`, `anim` rows,
   Lean `consumer_eq_s` under RG11).
-- **Hand-over, not replacement.** The original's callback keeps running until `data-splash` is `done` in a browser that
-  knows `animation-timeline` and without reduced motion (Lean `live`, one theorem per branch). Before that the entrance
+- **Hand-over, not replacement.** The original's callback keeps running until `data-splash` is `done`, the entrance
+  animations have finished (the phone cue's `copyIn` still runs at `done`; input `entranceFinished`, read from the
+  stage's `getAnimations()` and re-read on `animationend`), in a browser that knows `animation-timeline` and without
+  reduced motion (Lean `live`, one theorem per branch, golden `live` rows with `entranceFinished`). Before that the entrance
   animations own `opacity`, `translate` and `--entered`, which a scroll animation on the same properties would hide.
+- **Stable card entrance.** The orbit cards list the shared, unhashed `fwEntranceRingAppear` and `fwEntranceCardFromRing`
+  in every state (through `--fw-entrance-names`, because CSS modules hash `animation-name`), so the hand-back of a
+  bfcache restore appends and removes only the exit animations and the entrance never restarts.
 - **`pointer-events`** is flipped by an IntersectionObserver on a 1 px sentinel at 19/20 of the exit range (Lean
   `sentinelTop`, `sentinel_iff_pointerOff`); it is not a per-frame write.
 
@@ -43,6 +48,9 @@ depends on them. A custom property in a keyframe would break this (not accelerat
 
 ## Fallback and accepted limits
 
+- `ENABLE(THREADED_ANIMATIONS)` is 1 only on Cocoa (`PlatformEnableCocoa.h:904-905`) and 0 elsewhere
+  (`PlatformEnable.h:566-567`), so the Linux WebKit probe runs these animations on the main thread.
+
 - Safari before 26.4: the animations run on the main thread (given by the task; INFERRED from the same source that
   they then set the bypass flag and get per-frame updates). A browser without `animation-timeline` keeps the original's
   callback for good (`CSS.supports('animation-timeline', 'view()')` is read once).
@@ -64,6 +72,8 @@ is not rendered in that width band:
 | Chromium 156 | 25 content, 42 coverage | content: `hero.orbit.card` opacity and translate at 390, `hero.deck.card` opacity at 640 and 641; coverage: one `open@1` sample at 641 morph (sampling noise, nav only) |
 | WebKit 27.2 (Linux) | 40 content, 0 coverage | the same cards (and `hero.deck.card` opacity at 1280) |
 
+Verified in the raw legs (390 and 640): each red unit is a node whose rect is empty in all three arms (original, base,
+candidate), i.e. `display: none`; the original arm changes only the computed value of the inherited variable on the unrendered box.
 Every visible node of the hero path (stage, copy, cue, the visible orbit or deck cards) passes at all widths on both
 engines. The first run (a8afffef) failed the same way plus the stage `count` rows: the sentinel was a `div`, which the
 anchor `[data-fw="hero-exit"] > div` also matched; it is a `span` now.

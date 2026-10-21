@@ -39,7 +39,7 @@ describe('hero.exit:threaded against the Lean golden', () => {
     expect(of('anim').length).toBeGreaterThan(500);
     expect(of('sentinelTop').length).toBe(4);
     expect(of('sentinelAbove').length).toBeGreaterThan(40);
-    expect(of('live').length).toBe(12);
+    expect(of('live').length).toBe(24);
   });
 
   it('keyframe endpoints equal the Lean values', () => {
@@ -76,7 +76,7 @@ describe('hero.exit:threaded against the Lean golden', () => {
 
   it('the hand-over rule (one theorem per branch in Lean)', () => {
     for (const r of of('live')) {
-      expect(threadedLive(r.in.splash as Splash, r.in.supported as boolean, r.in.reduced as boolean)).toBe(r.out);
+      expect(threadedLive(r.in.splash as Splash, r.in.entranceFinished as boolean, r.in.supported as boolean, r.in.reduced as boolean)).toBe(r.out);
     }
   });
 
@@ -157,20 +157,36 @@ describe('threaded.module.css restates the Lean endpoints and conditions', () =>
   });
 
   it('every animation rule reads the track timeline over the contain range, linear, filled both ways', () => {
-    const rules = [...css.matchAll(/animation-name:[^}]*\}/g)].map((m) => m[0]);
-    expect(rules.length).toBe(5);
+    const rules = [...css.matchAll(/animation-name:[^}]*\}/g)].map((m) => m[0]).filter((r) => r.includes('animation-timeline'));
+    expect(rules.length).toBe(6);
     for (const r of rules) {
-      expect(r).toContain('animation-timeline: --hero-exit;');
-      expect(r).toContain('animation-range: contain;');
-      expect(r).toContain('animation-timing-function: linear;');
-      expect(r).toContain('animation-fill-mode: both;');
+      expect(r).toMatch(/animation-timeline: (auto, auto, )?--hero-exit(, --hero-exit)?;/);
+      expect(r).toMatch(/animation-range: (normal, normal, )?contain(, contain)?;/);
+      expect(r).toMatch(/animation-timing-function: (ease-out, cubic-bezier\(0\.2, 0\.9, 0\.2, 1\), )?linear(, linear)?;/);
+      expect(r).toMatch(/animation-fill-mode: (backwards, both, )?both(, both)?;/);
     }
     expect(css).toContain('view-timeline: --hero-exit block;');
+  });
+
+  it('the sentinel has no height, so the observer cuts pointer events exactly at the golden offset', () => {
+    expect(css).toMatch(/\.sentinel \{[^}]*height: 0;/);
+  });
+
+  it('the orbit card entrance animation names are the same in and out of the live rule', () => {
+    const rule = (sel: string) => css.slice(css.indexOf(sel), css.indexOf('}', css.indexOf(sel)));
+    const base = rule("[data-fw='hero-exit'][data-fw-variant='threaded'] [data-orbit-id] {");
+    const live = rule("[data-exit-live] [data-splash='done'] [data-orbit-id] {");
+    expect(base).toContain('--fw-entrance-names: fwEntranceRingAppear, fwEntranceCardFromRing;');
+    expect(base).toContain('animation-name: var(--fw-entrance-names);');
+    expect(live).toContain('animation-name: var(--fw-entrance-names), exitCardFade, exitCardMove;');
+    expect(/animation-duration: ([^;]*);/.exec(live)![1]!.split(', ').slice(0, 2)).toEqual(['0.12s', '1.7s']);
+    expect(css).toContain('@keyframes :global(fwEntranceRingAppear)');
+    expect(css).toContain('@keyframes :global(fwEntranceCardFromRing)');
   });
 });
 
 describe('hand-over controller', () => {
-  function make(splash: Splash, opts: { supported?: boolean; reduced?: boolean } = {}) {
+  function make(splash: Splash, opts: { supported?: boolean; reduced?: boolean; finished?: boolean } = {}) {
     const log: string[] = [];
     const stage = {
       attrs: { 'data-splash': splash as string },
@@ -196,6 +212,7 @@ describe('hand-over controller', () => {
       },
     };
     let reduced = opts.reduced ?? false;
+    let finished = opts.finished ?? true;
     let report: (none: boolean) => void = () => {};
     let drivers = 0;
     let running = 0;
@@ -203,6 +220,7 @@ describe('hand-over controller', () => {
       stage,
       track,
       supported: opts.supported ?? true,
+      entranceFinished: () => finished,
       reduced: () => reduced,
       startDriver: () => {
         drivers++;
@@ -229,6 +247,9 @@ describe('hand-over controller', () => {
       report: (n: boolean) => report(n),
       setReduced: (r: boolean) => {
         reduced = r;
+      },
+      setFinished: (f: boolean) => {
+        finished = f;
       },
     };
   }
@@ -265,6 +286,24 @@ describe('hand-over controller', () => {
     expect(a.drivers()).toBe(2);
     expect(a.stage.style.pointerEvents).toBe('');
     expect(a.log).toContain('unwatch');
+  });
+
+  it('keeps the callback at splash done while an entrance animation still runs, and hands over when it ends', () => {
+    const a = make('done', { finished: false });
+    expect(a.h.isLive()).toBe(false);
+    expect(a.running()).toBe(1);
+    expect(a.track.attrs.has(LIVE_ATTR)).toBe(false);
+    a.setFinished(true);
+    a.h.sync();
+    expect(a.h.isLive()).toBe(true);
+    expect(a.running()).toBe(0);
+  });
+
+  it('stays live when the live animations themselves make the entrance read as unfinished', () => {
+    const a = make('done');
+    a.setFinished(false);
+    a.h.sync();
+    expect(a.h.isLive()).toBe(true);
   });
 
   it('never hands over without animation-timeline support or under reduced motion', () => {
