@@ -90,6 +90,16 @@ def cexFrames : List Frame := [⟨0, 0, []⟩, ⟨850, 10, []⟩, ⟨3400, 20, [
 
 theorem miss_without_skip : ∃ v ∈ ivs cexFrames, miss < v.dt ∧ skip v = false := by decide
 
+#guard slotOf 0 833 = 0
+#guard slotOf 0 834 = 1
+#guard slotOf 0 3400 = 2
+#guard (ivs cexFrames).map (·.dk) = [1, 1]
+#guard (ivs cexFrames).map skip = [false, false]
+#guard (ivs [⟨0, 0, []⟩, ⟨3400, 0, []⟩]).map skip = [true]
+#guard twoSlots ⟨1, 0, 3400, 2, 0, false, false⟩ && !twoSlots ⟨1, 0, 3333, 2, 0, false, false⟩
+#guard (ivs [⟨0, 0, []⟩, ⟨1667, 0, []⟩, ⟨1667, 10, []⟩, ⟨1700, 10, [5]⟩]).map (fun v => (v.moving, v.animating)) =
+  [(false, false), (true, true), (false, true)]
+
 /-- A frame in which the page moved is a frame in which something changed. -/
 theorem ivsAux_moving_animating (t0 : Int) : ∀ (i : Nat) (fs : List Frame) (v : Iv), v ∈ ivsAux t0 i fs → v.moving = true → v.animating = true
   | _, [], _, h, _ => by simp [ivsAux] at h
@@ -172,6 +182,11 @@ theorem bandOf_critical {h : Int} (h1 : 2500 < h) (h2 : h ≤ 5000) : bandOf h =
 theorem bandOf_urgent {h : Int} (h1 : 5000 < h) : bandOf h = .urgent := by
   simp [bandOf, show ¬ h ≤ 1000 by omega, show ¬ h ≤ 2500 by omega, show ¬ h ≤ 5000 by omega]
 
+#guard over miss ⟨1, 0, 2550, 1, 0, false, false⟩ && !over miss ⟨1, 0, 2500, 1, 0, false, false⟩
+#guard hitch 1667 (ivs [⟨0, 0, []⟩, ⟨1667, 0, []⟩, ⟨5000, 0, []⟩, ⟨6667, 0, []⟩]) = 24988
+#guard hitch 1667 [] = 0
+#guard [1000, 1001, 2500, 2501, 5000, 5001].map bandOf = [.good, .warning, .warning, .critical, .critical, .urgent]
+
 /-- The values in ascending order. -/
 def sortI (l : List Int) : List Int := l.mergeSort fun a b => decide (a ≤ b)
 
@@ -209,6 +224,9 @@ theorem p95_mem {l : List Int} (h : l ≠ []) : p95L l ∈ l := by
 
 theorem p95_le_longest {l : List Int} (h : l ≠ []) : p95L l ≤ maxOf0 l := le_maxOf0 (p95_mem h)
 
+#guard medianL [3, 1, 2] = 2 && medianL [] = 0
+#guard p95L ((List.range 20).map fun k : Nat => (k : Int) + 1) = 19 && p95L [5] = 5 && p95L [] = 0
+
 /-- The longest run of skipped slots in consecutive frames, given the index of the last skip, the current run and the best. -/
 def runGo : Int → Nat → Nat → List Iv → Nat
   | _, _, best, [] => best
@@ -241,6 +259,8 @@ theorem run30_le_skips (vs : List Iv) : run30 vs ≤ cnt skip vs := by
   have := runGo_le (-2) 0 0 vs
   simp only [run30] at *
   omega
+
+#guard run30 (ivs [⟨0, 0, []⟩, ⟨3400, 0, []⟩, ⟨6800, 0, []⟩, ⟨8467, 0, []⟩, ⟨11867, 0, []⟩]) = 2
 
 /-! ## The stats of a set of intervals -/
 
@@ -322,6 +342,11 @@ def zoneName : Option Zone → String
 def firstEnd (vh10 maxY10 : Int) (fs : List Frame) : Nat :=
   (fs.findIdx? fun f => zoneOf vh10 maxY10 f.y == .finish).getD fs.length
 
+#guard Sel.animating.keep ⟨1, 0, 1667, 1, 0, false, true⟩ && !Sel.moving.keep ⟨1, 0, 1667, 1, 0, false, true⟩
+#guard zoneSel 100 1000 (some .finish) ⟨1, 0, 1667, 1, 950, false, false⟩ && !zoneSel 100 1000 (some .hero) ⟨1, 0, 1667, 1, 950, false, false⟩
+#guard firstEnd 100 1000 [⟨0, 0, []⟩, ⟨1667, 500, []⟩, ⟨3333, 950, []⟩] = 2
+#guard firstEnd 100 1000 [⟨0, 0, []⟩, ⟨1667, 500, []⟩] = 2
+
 /-! ## Felt marks -/
 
 /-- A felt mark's lookback: 3 s in hundredths of a ms. -/
@@ -369,6 +394,9 @@ theorem marksW_map : ∀ l : List (Int × Tap), (marksW l).map (·.2) = marksOf 
     · simpa using h2
 termination_by l => l.length
 
+#guard marksW (tapsW [⟨0, .start, 0, 0, 1⟩, ⟨1000, .stop, 0, 0, 0⟩, ⟨20000, .start, 0, 0, 1⟩, ⟨21000, .stop, 0, 0, 0⟩,
+  ⟨40000, .start, 0, 0, 1⟩, ⟨41000, .stop, 0, 0, 0⟩]) = [(0, ⟨41000, 0, 0⟩)]
+
 /-- The intervals ending in the 3 s before the first tap of a mark. -/
 def feltWindow (anchor : Int) (vs : List Iv) : List Iv :=
   vs.filter fun v => decide (anchor - lookback3 ≤ v.t ∧ v.t ≤ anchor)
@@ -376,6 +404,9 @@ def feltWindow (anchor : Int) (vs : List Iv) : List Iv :=
 theorem mem_feltWindow {anchor : Int} {vs : List Iv} {v : Iv} :
     v ∈ feltWindow anchor vs ↔ v ∈ vs ∧ anchor - lookback3 ≤ v.t ∧ v.t ≤ anchor := by
   simp [feltWindow]
+
+#guard (feltWindow 400000 (ivs [⟨0, 0, []⟩, ⟨99999, 0, []⟩, ⟨100000, 0, []⟩, ⟨400000, 0, []⟩, ⟨400001, 0, []⟩])).map (·.t) =
+  [100000, 400000]
 
 /-- A felt mark of the second reduction: position and zone at the first tap, every interval and the animating ones of its window, and whether the first window counted no frame. -/
 structure FeltV2 where
@@ -447,6 +478,15 @@ def offsetMax (maxY10 : Int) (fs : List (Int × Int)) (s : List Touch) : Option 
 theorem offset_zero_of_follow (r f : Int × Int) (s : List Touch) (h : f.2 - r.2 = fingerY s r.1 - fingerY s f.1) :
     ((f.2 - r.2) - (fingerY s r.1 - fingerY s f.1)).natAbs = 0 := by
   rw [h]; simp
+
+#guard drags [⟨0, .start, 0, 1000, 1⟩, ⟨1000, .stop, 0, 1000, 0⟩] = []
+#guard (drags [⟨0, .start, 0, 1000, 1⟩, ⟨1000, .move, 0, 500, 1⟩, ⟨2000, .stop, 0, 0, 0⟩]).length = 1
+#guard startLatency [(0, 0), (1000, 0), (2000, 0), (3000, 50)] [⟨1500, .start, 0, 0, 1⟩, ⟨4000, .stop, 0, 0, 0⟩] = some 1500
+#guard startLatency [(0, 10), (1000, 0), (2000, 0), (3000, 50)] [⟨1200, .start, 0, 0, 1⟩, ⟨4000, .stop, 0, 0, 0⟩] = none
+#guard offsetMax 1000 [(0, 0), (1000, 0), (2000, 100), (3000, 200)]
+  [⟨500, .start, 0, 1000, 1⟩, ⟨1500, .move, 0, 900, 1⟩, ⟨2500, .move, 0, 800, 1⟩, ⟨3500, .stop, 0, 700, 0⟩] = some 0
+#guard offsetMax 1000 [(0, 0), (1000, 0), (2000, 100), (3000, 250)]
+  [⟨500, .start, 0, 1000, 1⟩, ⟨1500, .move, 0, 900, 1⟩, ⟨2500, .move, 0, 800, 1⟩, ⟨3500, .stop, 0, 700, 0⟩] = some 50
 
 /-! ## The pass report -/
 
