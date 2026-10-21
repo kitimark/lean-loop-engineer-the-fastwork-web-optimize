@@ -15147,6 +15147,28 @@
     "packages/contracts/golden/parts/hero-exit-snap*.jsonl",
     "docs/team/handoffs/snap-hero-proposal.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ca-blur-fit",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "deps": [
+    "path-pix-lanes"
+   ],
+   "title": "User 2026-10-22 (Layer Composer Q5 note): 'Actually, after we experiment we can do reverse engineer and do lean prove, find math equation that fit to the result'. Core Animation's blur kernel is closed source, so today WebKit compositor blur is measured only (Q). Reverse-engineer it from measurements: on the iOS Simulator verdict lane (sim slot) render known patterns (impulse line, step edge, checker) under CSS filter: blur(r) on the compositor path for r over the page's real radii and DPR 2/3, capture lossless PNG, extract the line/edge spread function per r; fit candidate kernels (Gaussian with sigma = a*r + b, iterated box n=2..4, downsample-blur-upsample) by least squares with held-out radii; choose by residual. Lean: the chosen kernel as a Rat table generated per r (no Mathlib), theorem bounding |conv model - conv mainThreadBox3| <= 1/2 ||k1-k2||_1 (pixel-proof L7) plus the measured fit residual as a named premise with run id, giving a per-layer blur bound in color levels. Report via review-reports with the fit plots' data; classification stays Q unless the user decides otherwise (their rule: measured-only within-1 is Q).",
+   "writes": [
+    "lean/Fw/Gate/BlurFit*.lean",
+    "lean/Fw.lean",
+    "packages/measure-webkit/src/blur-fit*.mjs",
+    "packages/measure-webkit/test/blur-fit*.test.mjs",
+    "packages/contracts/golden/gate/blur-fit*.jsonl",
+    "research/notes/2026/10-2x-ca-blur-fit.md",
+    "results/ca-blur-fit/**",
+    "docs/team/handoffs/ca-blur-fit.md"
+   ]
   }
  ],
  "deadline": {
