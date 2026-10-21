@@ -2528,4 +2528,182 @@ theorem signal_identity {c : Cfg} {s : State} {e : Event} {t : Target} {g : Sig}
       rw [key_proc (hFm z hz).1] at hj
       exact Or.inl ⟨j, e'.1, pre_procs hz hj⟩
 
+/-! ## Timeouts and idle stops -/
+
+theorem tick_out_observe {c : Cfg} {s : State} {now : Nat} {smp : Sample} {x : Cmd} (h : x ∈ (observe c s now smp).2) :
+    x ∈ (step c s (.tick now smp)).2 := by
+  rw [step_out (e := .tick now smp) rfl]
+  refine List.mem_append_left _ ?_
+  show x ∈ (tick c s now smp).2
+  unfold tick
+  dsimp only
+  exact List.mem_append_left _ (List.mem_append_left _ (List.mem_append_left _ h))
+
+theorem tickRec_out {c : Cfg} {s : State} {now : Nat} {smp : Sample} {x : Rsrc} {y : Cmd} (hx : x ∈ s.res)
+    (h : y ∈ (tickRec c s.leases (max s.now now) smp x).2) : y ∈ (step c s (.tick now smp)).2 := by
+  apply tick_out_observe
+  unfold observe mapRes
+  dsimp only
+  exact List.mem_append_left _ (List.mem_flatMap.2 ⟨x, hx, h⟩)
+
+theorem observe_lease {c : Cfg} {s : State} {now : Nat} {smp : Sample} {l : Lease}
+    (h : l ∈ (observe c s now smp).1.leases) : l ∈ s.leases := (List.mem_filter.1 h).1
+
+theorem ageRec_term {c : Cfg} {now t : Nat} {z : Rsrc} (hp : z.phase = .stopping t .term) (ht : t + c.killAfter ≤ now) :
+    (ageRec c now z).2 = killG z.proc := by
+  unfold ageRec
+  simp only [hp]
+  rw [if_pos ht]
+
+theorem ageRec_start {c : Cfg} {now t : Nat} {z : Rsrc} (hp : z.phase = .starting t) (ht : t + c.startMax ≤ now) :
+    ageRec c now z = (crash c now true z, killG z.proc) := by
+  unfold ageRec
+  simp only [hp]
+  rw [if_pos ht]
+
+theorem crash_failed (c : Cfg) (now : Nat) (x : Rsrc) : ∃ u w, (crash c now true x).phase = .failed u w := by
+  unfold crash
+  dsimp only
+  split
+  · exact ⟨_, _, rfl⟩
+  · exact ⟨_, _, rfl⟩
+
+theorem goneRec_failed {c : Cfg} {now : Nat} {rows : List Fw.Ops.Reap.Row} {z : Rsrc} {u : Nat} {w : Why}
+    (hp : z.phase = .failed u w) : goneRec c now rows z = z := by
+  unfold goneRec
+  split
+  · simp [hp, Phase.live]
+  · rfl
+
+theorem stopRec_failed {now : Nat} {ids : List Nat} {y : Rsrc} {u : Nat} {w : Why} (hp : y.phase = .failed u w) :
+    (stopRec now ids y).1 = y := by
+  unfold stopRec
+  split
+  · rw [if_neg (by simp [hp])]
+  · rfl
+
+theorem stop_keep_failed {s : State} {xs : List Rsrc} {y : Rsrc} {u : Nat} {w : Why} (hy : y ∈ s.res)
+    (hp : y.phase = .failed u w) : y ∈ (stopAll s xs).1.res :=
+  List.mem_map.2 ⟨y, hy, stopRec_failed hp⟩
+
+theorem tickRec_term {c : Cfg} {ls : List Lease} {now : Nat} {smp : Sample} {x : Rsrc} {t : Nat} {i : Ident}
+    (hp : x.phase = .stopping t .term) (hi : x.proc = some i) (ht : t + c.killAfter ≤ now) :
+    Cmd.signal (.group i) .kill ∈ (tickRec c ls now smp x).2 := by
+  simp only [tickRec]
+  generalize hx0 : ({ x with foot := footOf smp x.proc, lastUse := _ } : Rsrc) = x0
+  have p0 : x0.phase = .stopping t .term := by rw [← hx0]; exact hp
+  have i0 : x0.proc = some i := by rw [← hx0]; exact hi
+  refine List.mem_append_left _ ?_
+  rw [ageRec_term p0 ht, i0]
+  exact List.mem_singleton_self _
+
+theorem tickRec_start {c : Cfg} {ls : List Lease} {now : Nat} {smp : Sample} {x : Rsrc} {t : Nat}
+    (hp : x.phase = .starting t) (ht : t + c.startMax ≤ now) :
+    (∃ u w, (tickRec c ls now smp x).1.phase = .failed u w) ∧
+    ∀ i, x.proc = some i → Cmd.signal (.group i) .kill ∈ (tickRec c ls now smp x).2 := by
+  simp only [tickRec]
+  generalize hx0 : ({ x with foot := footOf smp x.proc, lastUse := _ } : Rsrc) = x0
+  have p0 : x0.phase = .starting t := by rw [← hx0]; exact hp
+  have pr0 : x0.proc = x.proc := by rw [← hx0]
+  rw [ageRec_start p0 ht]
+  obtain ⟨u, w, hf⟩ := crash_failed c now x0
+  rw [goneRec_failed hf, auditRec_phase]
+  refine ⟨⟨u, w, hf⟩, fun i hi => List.mem_append_left _ ?_⟩
+  rw [pr0, hi]
+  exact List.mem_singleton_self _
+
+theorem tickRec_keep {c : Cfg} {ls : List Lease} {now : Nat} {smp : Sample} {x : Rsrc} {i : Ident}
+    (hp : x.phase = .ready) (hi : x.proc = some i) (ha : x.adopted = false ∨ alive smp.rows i = true)
+    (hl : ∀ l ∈ ls, l.kind = .svc → l.rid ≠ x.id) :
+    (tickRec c ls now smp x).1.phase = .ready ∧ (tickRec c ls now smp x).1.proc = some i ∧
+    (tickRec c ls now smp x).1.kind = x.kind ∧ (tickRec c ls now smp x).1.id = x.id ∧
+    (tickRec c ls now smp x).1.lastUse = x.lastUse := by
+  have hn : (ls.any fun l => l.kind == .svc && l.rid == x.id) = false := by
+    cases e : ls.any fun l => l.kind == .svc && l.rid == x.id
+    · rfl
+    · obtain ⟨l, hl', e2⟩ := List.any_eq_true.1 e
+      simp only [Bool.and_eq_true, beq_iff_eq] at e2
+      exact absurd e2.2 (hl l hl' e2.1)
+  simp only [tickRec]
+  generalize hx0 : ({ x with foot := footOf smp x.proc, lastUse := _ } : Rsrc) = x0
+  have p0 : x0.phase = .ready := by rw [← hx0]; exact hp
+  have i0 : x0.proc = some i := by rw [← hx0]; exact hi
+  have a0 : x0.adopted = false ∨ alive smp.rows i = true := by rw [← hx0]; exact ha
+  have u0 : x0.lastUse = x.lastUse := by rw [← hx0]; dsimp only; rw [hn]; rfl
+  have k0 : x0.kind = x.kind ∧ x0.id = x.id := by rw [← hx0]; exact ⟨rfl, rfl⟩
+  have e1 : (ageRec c now x0).1 = x0 := by unfold ageRec; simp only [p0]
+  have e2 : goneRec c now smp.rows x0 = x0 := by
+    unfold goneRec
+    rw [i0]
+    rcases a0 with a | a <;> simp [a, p0, Phase.live]
+  have e3 : auditRec smp.rows x0 = (x0, []) := by
+    unfold auditRec
+    rw [i0]
+    simp [p0, Phase.live]
+  rw [e1, e2, e3]
+  exact ⟨p0, i0, k0.1, k0.2, u0⟩
+
+/-- stop_escalates: a TERM older than `killAfter` at the tick time is escalated to a KILL of the group. -/
+theorem stop_escalates {c : Cfg} {s : State} {now : Nat} {smp : Sample} {x : Rsrc} {t : Nat} {i : Ident}
+    (hx : x ∈ s.res) (hp : x.phase = .stopping t .term) (hi : x.proc = some i) (ht : t + c.killAfter ≤ now) :
+    Cmd.signal (.group i) .kill ∈ (step c s (.tick now smp)).2 :=
+  tickRec_out hx (tickRec_term hp hi (Nat.le_trans ht (Nat.le_max_right _ _)))
+
+/-- start_bounded: a start older than `startMax` at the tick time fails the record and KILLs its group. -/
+theorem start_bounded {c : Cfg} {s : State} {now : Nat} {smp : Sample} {x : Rsrc} {t : Nat} (h : Inv c s)
+    (hx : x ∈ s.res) (hp : x.phase = .starting t) (ht : t + c.startMax ≤ now) :
+    (∃ y ∈ (step c s (.tick now smp)).1.res, y.id = x.id ∧ ∃ u w, y.phase = .failed u w) ∧
+    ∀ i, x.proc = some i → Cmd.signal (.group i) .kill ∈ (step c s (.tick now smp)).2 := by
+  have ht' : t + c.startMax ≤ max s.now now := Nat.le_trans ht (Nat.le_max_right _ _)
+  obtain ⟨⟨u, w, hf⟩, hk⟩ := tickRec_start (ls := s.leases) (smp := smp) hp ht'
+  refine ⟨?_, fun i hi => tickRec_out hx (hk i hi)⟩
+  have hw := wf_pre (.tick now smp) h.1
+  rw [step_st (e := .tick now smp) rfl]
+  obtain ⟨⟨F, hF, hFm⟩, _⟩ := pump_pm hw
+  rw [hF]
+  have d0 := (tickRec_same c s.leases (max s.now now) smp x).1
+  have h1 : (tickRec c s.leases (max s.now now) smp x).1 ∈ (observe c s now smp).1.res := by
+    rw [observe_res]; exact List.mem_map_of_mem hx
+  generalize (tickRec c s.leases (max s.now now) smp x).1 = y0 at h1 hf d0
+  have h2 : y0 ∈ (tick c s now smp).1.res := by
+    show y0 ∈ (shedStage c (idleStage c (observe c s now smp).1).1).1.res
+    have hb : y0 ∈ (idleStage c (observe c s now smp).1).1.res := stop_keep_failed h1 hf
+    rcases shedStage_eq c (idleStage c (observe c s now smp).1).1 with e | e <;> rw [e]
+    · exact stop_keep_failed hb hf
+    · exact hb
+  refine ⟨F y0, List.mem_map_of_mem h2, ?_, u, w, ?_⟩
+  · rw [key_id (hFm y0 h2).1, d0]
+  · rcases (hFm y0 h2).2 with e | ⟨e, _⟩ | ⟨e, _⟩
+    · rw [e]; exact hf
+    · rw [hf] at e; cases e
+    · rw [hf] at e; cases e
+
+/-- idle_stopped: a ready, unpinned, unleased resource with a live group, unused for its kind's grace at the tick time,
+gets a TERM to its group on that tick. -/
+theorem idle_stopped {c : Cfg} {s : State} {now : Nat} {smp : Sample} {x : Rsrc} {i : Ident} (hx : x ∈ s.res)
+    (hp : x.phase = .ready) (hi : x.proc = some i) (hpin : c.pinned x.kind = false)
+    (ha : x.adopted = false ∨ alive smp.rows i = true) (hl : ∀ l ∈ s.leases, l.kind = .svc → l.rid ≠ x.id)
+    (hg : x.lastUse + c.grace x.kind ≤ now) :
+    Cmd.signal (.group i) .term ∈ (step c s (.tick now smp)).2 := by
+  obtain ⟨p1, i1, k1, d1, u1⟩ := tickRec_keep (c := c) (now := max s.now now) (smp := smp) hp hi ha hl
+  have hy : (tickRec c s.leases (max s.now now) smp x).1 ∈ (observe c s now smp).1.res := by
+    rw [observe_res]; exact List.mem_map_of_mem hx
+  generalize (tickRec c s.leases (max s.now now) smp x).1 = y at p1 i1 k1 d1 u1 hy
+  have hn : leasesOn (observe c s now smp).1 y.id = [] := List.eq_nil_iff_forall_not_mem.2 fun l hl' => by
+    obtain ⟨hl1, hl2⟩ := List.mem_filter.1 hl'
+    simp only [Bool.and_eq_true, beq_iff_eq] at hl2
+    exact hl l (observe_lease hl1) hl2.1 (hl2.2.trans d1)
+  have hc : y ∈ idle c (observe c s now smp).1 := by
+    refine List.mem_filter.2 ⟨List.mem_filter.2 ⟨hy, ?_⟩, ?_⟩
+    · simp [p1, i1, k1, hpin, hn]
+    · show decide (y.lastUse + c.grace y.kind ≤ max s.now now) = true
+      rw [u1, k1]
+      exact decide_eq_true (Nat.le_trans hg (Nat.le_max_right _ _))
+  rw [step_out (e := .tick now smp) rfl]
+  refine List.mem_append_left _ ?_
+  show _ ∈ (tick c s now smp).2
+  unfold tick
+  dsimp only
+  exact List.mem_append_left _ (List.mem_append_left _ (List.mem_append_right _ (stopAll_emits hy hc p1 i1)))
+
 end Fw.Sup
