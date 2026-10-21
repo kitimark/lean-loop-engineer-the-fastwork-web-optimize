@@ -14017,7 +14017,8 @@
     "packages/measure-webkit/test/replay-*.test.mjs",
     "research/notes/2026/10-2x-device-replay.md",
     "docs/team/handoffs/device-replay.md"
-   ]
+   ],
+   "evidence": "eee8c18"
   },
   {
    "devices": [
