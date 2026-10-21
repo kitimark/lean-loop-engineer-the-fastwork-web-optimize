@@ -1,0 +1,7476 @@
+{
+ "skipped": [],
+ "jobs": [
+  "39612238445:smoothness-webkit-mac",
+  "39612238445:smoothness-webkit-sim",
+  "39617081415:smoothness-webkit-mac",
+  "39617081415:smoothness-webkit-sim",
+  "39624728525:smoothness-webkit-mac",
+  "39624728525:smoothness-webkit-sim"
+ ],
+ "summary": {
+  "mac": {
+   "arms": [
+    "orig",
+    "base",
+    "aa",
+    "look"
+   ],
+   "zones": {
+    "hero": {
+     "cells": {
+      "orig": [
+       {
+        "job": "39612238445:smoothness-webkit-mac",
+        "reps": 6,
+        "frames": 76,
+        "perFrame": 729645,
+        "perFrameAll": [
+         700633,
+         843552,
+         841446,
+         729645,
+         708612,
+         727270
+        ],
+        "work": 5810620,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 201,
+          "dur": 37952
+         },
+         "Layout": {
+          "n": 145,
+          "dur": 196132
+         },
+         "Paint": {
+          "n": 451,
+          "dur": 8978
+         },
+         "Composite": {
+          "n": 76,
+          "dur": 5534376
+         },
+         "FunctionCall": {
+          "n": 435,
+          "dur": 191348
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 29,
+          "dur": 1204
+         },
+         "FireAnimationFrame": {
+          "n": 304,
+          "dur": 182615
+         },
+         "EventDispatch": {
+          "n": 76,
+          "dur": 693
+         },
+         "ObserverCallback": {
+          "n": 31,
+          "dur": 7536
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39617081415:smoothness-webkit-mac",
+        "reps": 6,
+        "frames": 80,
+        "perFrame": 826691,
+        "perFrameAll": [
+         1068968,
+         625977,
+         721909,
+         776655,
+         826691,
+         947770
+        ],
+        "work": 7109550,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 218,
+          "dur": 44373
+         },
+         "Layout": {
+          "n": 163,
+          "dur": 316421
+         },
+         "Paint": {
+          "n": 451,
+          "dur": 10503
+         },
+         "Composite": {
+          "n": 80,
+          "dur": 6764564
+         },
+         "FunctionCall": {
+          "n": 478,
+          "dur": 254640
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 45,
+          "dur": 2209
+         },
+         "FireAnimationFrame": {
+          "n": 310,
+          "dur": 246169
+         },
+         "EventDispatch": {
+          "n": 89,
+          "dur": 800
+         },
+         "ObserverCallback": {
+          "n": 36,
+          "dur": 13174
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39624728525:smoothness-webkit-mac",
+        "reps": 6,
+        "frames": 75,
+        "perFrame": 814926,
+        "perFrameAll": [
+         1107032,
+         684417,
+         1021446,
+         699016,
+         586461,
+         814926
+        ],
+        "work": 5867474,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 213,
+          "dur": 47002
+         },
+         "Layout": {
+          "n": 161,
+          "dur": 245659
+         },
+         "Paint": {
+          "n": 437,
+          "dur": 10783
+         },
+         "Composite": {
+          "n": 75,
+          "dur": 5561774
+         },
+         "FunctionCall": {
+          "n": 447,
+          "dur": 221816
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 35,
+          "dur": 1874
+         },
+         "FireAnimationFrame": {
+          "n": 306,
+          "dur": 209071
+         },
+         "EventDispatch": {
+          "n": 72,
+          "dur": 704
+         },
+         "ObserverCallback": {
+          "n": 33,
+          "dur": 11332
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       }
+      ],
+      "base": [
+       {
+        "job": "39612238445:smoothness-webkit-mac",
+        "reps": 6,
+        "frames": 74,
+        "perFrame": 237815,
+        "perFrameAll": [
+         151881,
+         237815,
+         270064,
+         263348,
+         164891,
+         194159
+        ],
+        "work": 1759834,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 210,
+          "dur": 37239
+         },
+         "Layout": {
+          "n": 148,
+          "dur": 9810
+         },
+         "Paint": {
+          "n": 427,
+          "dur": 11744
+         },
+         "Composite": {
+          "n": 74,
+          "dur": 1700808
+         },
+         "FunctionCall": {
+          "n": 696,
+          "dur": 43622
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 8,
+          "dur": 291
+         },
+         "FireAnimationFrame": {
+          "n": 299,
+          "dur": 38830
+         },
+         "EventDispatch": {
+          "n": 479,
+          "dur": 5121
+         },
+         "ObserverCallback": {
+          "n": 12,
+          "dur": 612
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39617081415:smoothness-webkit-mac",
+        "reps": 6,
+        "frames": 82,
+        "perFrame": 257951,
+        "perFrameAll": [
+         209945,
+         209595,
+         276112,
+         250345,
+         262549,
+         257951
+        ],
+        "work": 2115201,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 220,
+          "dur": 50106
+         },
+         "Layout": {
+          "n": 157,
+          "dur": 13430
+         },
+         "Paint": {
+          "n": 449,
+          "dur": 16599
+         },
+         "Composite": {
+          "n": 82,
+          "dur": 2036302
+         },
+         "FunctionCall": {
+          "n": 812,
+          "dur": 56539
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 12,
+          "dur": 566
+         },
+         "FireAnimationFrame": {
+          "n": 310,
+          "dur": 49766
+         },
+         "EventDispatch": {
+          "n": 590,
+          "dur": 6680
+         },
+         "ObserverCallback": {
+          "n": 12,
+          "dur": 1259
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39624728525:smoothness-webkit-mac",
+        "reps": 6,
+        "frames": 85,
+        "perFrame": 217868,
+        "perFrameAll": [
+         155040,
+         448718,
+         182732,
+         273477,
+         217868,
+         179447
+        ],
+        "work": 1546869,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 219,
+          "dur": 46255
+         },
+         "Layout": {
+          "n": 160,
+          "dur": 11480
+         },
+         "Paint": {
+          "n": 473,
+          "dur": 12873
+         },
+         "Composite": {
+          "n": 85,
+          "dur": 1483969
+         },
+         "FunctionCall": {
+          "n": 746,
+          "dur": 54380
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 8,
+          "dur": 369
+         },
+         "FireAnimationFrame": {
+          "n": 308,
+          "dur": 48614
+         },
+         "EventDispatch": {
+          "n": 509,
+          "dur": 5990
+         },
+         "ObserverCallback": {
+          "n": 12,
+          "dur": 810
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       }
+      ],
+      "aa": [
+       {
+        "job": "39612238445:smoothness-webkit-mac",
+        "reps": 6,
+        "frames": 68,
+        "perFrame": 183179,
+        "perFrameAll": [
+         206468,
+         122168,
+         120151,
+         246516,
+         183179,
+         131989
+        ],
+        "work": 1300572,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 201,
+          "dur": 31004
+         },
+         "Layout": {
+          "n": 139,
+          "dur": 8587
+         },
+         "Paint": {
+          "n": 393,
+          "dur": 10373
+         },
+         "Composite": {
+          "n": 68,
+          "dur": 1251214
+         },
+         "FunctionCall": {
+          "n": 665,
+          "dur": 36004
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 8,
+          "dur": 244
+         },
+         "FireAnimationFrame": {
+          "n": 287,
+          "dur": 31221
+         },
+         "EventDispatch": {
+          "n": 459,
+          "dur": 4111
+         },
+         "ObserverCallback": {
+          "n": 12,
+          "dur": 617
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39617081415:smoothness-webkit-mac",
+        "reps": 6,
+        "frames": 86,
+        "perFrame": 285304,
+        "perFrameAll": [
+         285304,
+         206053,
+         344292,
+         125115,
+         487064,
+         261139
+        ],
+        "work": 2453621,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 222,
+          "dur": 47455
+         },
+         "Layout": {
+          "n": 165,
+          "dur": 12510
+         },
+         "Paint": {
+          "n": 475,
+          "dur": 17443
+         },
+         "Composite": {
+          "n": 86,
+          "dur": 2369593
+         },
+         "FunctionCall": {
+          "n": 779,
+          "dur": 57330
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 12,
+          "dur": 385
+         },
+         "FireAnimationFrame": {
+          "n": 313,
+          "dur": 50765
+         },
+         "EventDispatch": {
+          "n": 550,
+          "dur": 5644
+         },
+         "ObserverCallback": {
+          "n": 12,
+          "dur": 980
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39624728525:smoothness-webkit-mac",
+        "reps": 6,
+        "frames": 80,
+        "perFrame": 271786,
+        "perFrameAll": [
+         252523,
+         209374,
+         199154,
+         313757,
+         285336,
+         271786
+        ],
+        "work": 2282689,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 217,
+          "dur": 45946
+         },
+         "Layout": {
+          "n": 161,
+          "dur": 11490
+         },
+         "Paint": {
+          "n": 468,
+          "dur": 14489
+         },
+         "Composite": {
+          "n": 80,
+          "dur": 2213294
+         },
+         "FunctionCall": {
+          "n": 752,
+          "dur": 49369
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 10,
+          "dur": 350
+         },
+         "FireAnimationFrame": {
+          "n": 308,
+          "dur": 44259
+         },
+         "EventDispatch": {
+          "n": 532,
+          "dur": 5306
+         },
+         "ObserverCallback": {
+          "n": 12,
+          "dur": 801
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       }
+      ],
+      "look": [
+       {
+        "job": "39612238445:smoothness-webkit-mac",
+        "reps": 6,
+        "frames": 70,
+        "perFrame": 224644,
+        "perFrameAll": [
+         224644,
+         135887,
+         234021,
+         239028,
+         127327,
+         69405
+        ],
+        "work": 1527583,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 200,
+          "dur": 34619
+         },
+         "Layout": {
+          "n": 143,
+          "dur": 8175
+         },
+         "Paint": {
+          "n": 397,
+          "dur": 9705
+         },
+         "Composite": {
+          "n": 70,
+          "dur": 1475650
+         },
+         "FunctionCall": {
+          "n": 687,
+          "dur": 41050
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 8,
+          "dur": 252
+         },
+         "FireAnimationFrame": {
+          "n": 291,
+          "dur": 36480
+         },
+         "EventDispatch": {
+          "n": 477,
+          "dur": 4422
+         },
+         "ObserverCallback": {
+          "n": 12,
+          "dur": 581
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39617081415:smoothness-webkit-mac",
+        "reps": 6,
+        "frames": 80,
+        "perFrame": 255779,
+        "perFrameAll": [
+         272227,
+         245914,
+         255779,
+         247711,
+         253761,
+         454162
+        ],
+        "work": 2148551,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 211,
+          "dur": 45460
+         },
+         "Layout": {
+          "n": 153,
+          "dur": 10782
+         },
+         "Paint": {
+          "n": 438,
+          "dur": 14192
+         },
+         "Composite": {
+          "n": 80,
+          "dur": 2071637
+         },
+         "FunctionCall": {
+          "n": 724,
+          "dur": 55760
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 8,
+          "dur": 338
+         },
+         "FireAnimationFrame": {
+          "n": 302,
+          "dur": 50179
+         },
+         "EventDispatch": {
+          "n": 505,
+          "dur": 5317
+         },
+         "ObserverCallback": {
+          "n": 12,
+          "dur": 913
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39624728525:smoothness-webkit-mac",
+        "reps": 6,
+        "frames": 76,
+        "perFrame": 270724,
+        "perFrameAll": [
+         247066,
+         300233,
+         310780,
+         267691,
+         270724,
+         207972
+        ],
+        "work": 2057509,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 208,
+          "dur": 44688
+         },
+         "Layout": {
+          "n": 153,
+          "dur": 11062
+         },
+         "Paint": {
+          "n": 434,
+          "dur": 12570
+         },
+         "Composite": {
+          "n": 76,
+          "dur": 1991516
+         },
+         "FunctionCall": {
+          "n": 723,
+          "dur": 49565
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 8,
+          "dur": 404
+         },
+         "FireAnimationFrame": {
+          "n": 299,
+          "dur": 43260
+         },
+         "EventDispatch": {
+          "n": 501,
+          "dur": 6336
+         },
+         "ObserverCallback": {
+          "n": 12,
+          "dur": 760
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       }
+      ]
+     },
+     "verdicts": {
+      "orig|base": {
+       "jobs": 3,
+       "first": 0,
+       "second": 3,
+       "same": 0,
+       "insufficient": 0,
+       "verdict": "second"
+      },
+      "base|look": {
+       "jobs": 3,
+       "first": 0,
+       "second": 0,
+       "same": 3,
+       "insufficient": 0,
+       "verdict": "same"
+      },
+      "orig|look": {
+       "jobs": 3,
+       "first": 0,
+       "second": 3,
+       "same": 0,
+       "insufficient": 0,
+       "verdict": "second"
+      }
+     },
+     "perJob": [
+      {
+       "job": "39612238445:smoothness-webkit-mac",
+       "orig|base": "second",
+       "base|look": "same",
+       "orig|look": "second"
+      },
+      {
+       "job": "39617081415:smoothness-webkit-mac",
+       "orig|base": "second",
+       "base|look": "same",
+       "orig|look": "second"
+      },
+      {
+       "job": "39624728525:smoothness-webkit-mac",
+       "orig|base": "second",
+       "base|look": "same",
+       "orig|look": "second"
+      }
+     ],
+     "classes": {
+      "orig": {
+       "Composite": {
+        "class": "stable",
+        "k": 1,
+        "t": 5
+       },
+       "EvaluateScript": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "EventDispatch": {
+        "class": "stable",
+        "k": 1,
+        "t": 17
+       },
+       "FireAnimationFrame": {
+        "class": "stable",
+        "k": 1,
+        "t": 6
+       },
+       "FunctionCall": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 43
+       },
+       "Layout": {
+        "class": "stable",
+        "k": 1,
+        "t": 18
+       },
+       "ObserverCallback": {
+        "class": "stable",
+        "k": 1,
+        "t": 5
+       },
+       "Paint": {
+        "class": "stable",
+        "k": 1,
+        "t": 14
+       },
+       "RecalculateStyles": {
+        "class": "stable",
+        "k": 1,
+        "t": 17
+       },
+       "RenderingFrame": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "TimerFire": {
+        "class": "stable",
+        "k": 1,
+        "t": 16
+       }
+      },
+      "base": {
+       "Composite": {
+        "class": "stable",
+        "k": 1,
+        "t": 11
+       },
+       "EvaluateScript": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "EventDispatch": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 111
+       },
+       "FireAnimationFrame": {
+        "class": "stable",
+        "k": 1,
+        "t": 11
+       },
+       "FunctionCall": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 116
+       },
+       "Layout": {
+        "class": "stable",
+        "k": 1,
+        "t": 12
+       },
+       "ObserverCallback": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "Paint": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 46
+       },
+       "RecalculateStyles": {
+        "class": "stable",
+        "k": 1,
+        "t": 10
+       },
+       "RenderingFrame": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "TimerFire": {
+        "class": "stable",
+        "k": 1,
+        "t": 4
+       }
+      },
+      "aa": {
+       "Composite": {
+        "class": "stable",
+        "k": 1,
+        "t": 18
+       },
+       "EvaluateScript": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "EventDispatch": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 91
+       },
+       "FireAnimationFrame": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 26
+       },
+       "FunctionCall": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 114
+       },
+       "Layout": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 26
+       },
+       "ObserverCallback": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "Paint": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 82
+       },
+       "RecalculateStyles": {
+        "class": "stable",
+        "k": 1,
+        "t": 21
+       },
+       "RenderingFrame": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "TimerFire": {
+        "class": "stable",
+        "k": 1,
+        "t": 4
+       }
+      },
+      "look": {
+       "Composite": {
+        "class": "stable",
+        "k": 1,
+        "t": 10
+       },
+       "EvaluateScript": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "EventDispatch": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 28
+       },
+       "FireAnimationFrame": {
+        "class": "stable",
+        "k": 1,
+        "t": 11
+       },
+       "FunctionCall": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 37
+       },
+       "Layout": {
+        "class": "stable",
+        "k": 1,
+        "t": 10
+       },
+       "ObserverCallback": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "Paint": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 41
+       },
+       "RecalculateStyles": {
+        "class": "stable",
+        "k": 1,
+        "t": 11
+       },
+       "RenderingFrame": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "TimerFire": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       }
+      }
+     }
+    },
+    "finish": {
+     "cells": {
+      "orig": [
+       {
+        "job": "39612238445:smoothness-webkit-mac",
+        "reps": 6,
+        "frames": 53,
+        "perFrame": 72621,
+        "perFrameAll": [
+         77401,
+         43480,
+         146431,
+         72621,
+         36333,
+         36982
+        ],
+        "work": 317345,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 146,
+          "dur": 40589
+         },
+         "Layout": {
+          "n": 124,
+          "dur": 59678
+         },
+         "Paint": {
+          "n": 2413,
+          "dur": 13051
+         },
+         "Composite": {
+          "n": 53,
+          "dur": 198984
+         },
+         "FunctionCall": {
+          "n": 104,
+          "dur": 72406
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 5,
+          "dur": 25
+         },
+         "FireAnimationFrame": {
+          "n": 92,
+          "dur": 72401
+         },
+         "EventDispatch": {
+          "n": 4,
+          "dur": 77
+         },
+         "ObserverCallback": {
+          "n": 6,
+          "dur": 12
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39617081415:smoothness-webkit-mac",
+        "reps": 6,
+        "frames": 45,
+        "perFrame": 107577,
+        "perFrameAll": [
+         107577,
+         90178,
+         144817,
+         78825,
+         148317,
+         41931
+        ],
+        "work": 405803,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 122,
+          "dur": 41986
+         },
+         "Layout": {
+          "n": 110,
+          "dur": 76448
+         },
+         "Paint": {
+          "n": 1745,
+          "dur": 12300
+         },
+         "Composite": {
+          "n": 45,
+          "dur": 277562
+         },
+         "FunctionCall": {
+          "n": 92,
+          "dur": 89030
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 5,
+          "dur": 20
+         },
+         "FireAnimationFrame": {
+          "n": 79,
+          "dur": 88986
+         },
+         "EventDispatch": {
+          "n": 4,
+          "dur": 94
+         },
+         "ObserverCallback": {
+          "n": 6,
+          "dur": 20
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39624728525:smoothness-webkit-mac",
+        "reps": 6,
+        "frames": 45,
+        "perFrame": 52749,
+        "perFrameAll": [
+         36398,
+         52749,
+         65265,
+         124255,
+         47637,
+         46300
+        ],
+        "work": 210998,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 128,
+          "dur": 44680
+         },
+         "Layout": {
+          "n": 111,
+          "dur": 81062
+         },
+         "Paint": {
+          "n": 1684,
+          "dur": 12402
+         },
+         "Composite": {
+          "n": 45,
+          "dur": 79410
+         },
+         "FunctionCall": {
+          "n": 92,
+          "dur": 93166
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 5,
+          "dur": 26
+         },
+         "FireAnimationFrame": {
+          "n": 80,
+          "dur": 93179
+         },
+         "EventDispatch": {
+          "n": 4,
+          "dur": 66
+         },
+         "ObserverCallback": {
+          "n": 5,
+          "dur": 12
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       }
+      ],
+      "base": [
+       {
+        "job": "39612238445:smoothness-webkit-mac",
+        "reps": 6,
+        "frames": 55,
+        "perFrame": 128039,
+        "perFrameAll": [
+         90373,
+         94381,
+         128039,
+         155611,
+         32916,
+         229473
+        ],
+        "work": 653003,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 140,
+          "dur": 38866
+         },
+         "Layout": {
+          "n": 121,
+          "dur": 6739
+         },
+         "Paint": {
+          "n": 2217,
+          "dur": 12663
+         },
+         "Composite": {
+          "n": 55,
+          "dur": 594378
+         },
+         "FunctionCall": {
+          "n": 358,
+          "dur": 15277
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 4,
+          "dur": 36
+         },
+         "FireAnimationFrame": {
+          "n": 83,
+          "dur": 14509
+         },
+         "EventDispatch": {
+          "n": 208,
+          "dur": 737
+         },
+         "ObserverCallback": {
+          "n": 52,
+          "dur": 268
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39617081415:smoothness-webkit-mac",
+        "reps": 6,
+        "frames": 45,
+        "perFrame": 96654,
+        "perFrameAll": [
+         57399,
+         64081,
+         123562,
+         171042,
+         96654,
+         59783
+        ],
+        "work": 386616,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 116,
+          "dur": 39727
+         },
+         "Layout": {
+          "n": 102,
+          "dur": 6695
+         },
+         "Paint": {
+          "n": 1709,
+          "dur": 10992
+         },
+         "Composite": {
+          "n": 45,
+          "dur": 330146
+         },
+         "FunctionCall": {
+          "n": 295,
+          "dur": 15769
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 4,
+          "dur": 43
+         },
+         "FireAnimationFrame": {
+          "n": 67,
+          "dur": 15103
+         },
+         "EventDispatch": {
+          "n": 186,
+          "dur": 831
+         },
+         "ObserverCallback": {
+          "n": 42,
+          "dur": 255
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39624728525:smoothness-webkit-mac",
+        "reps": 6,
+        "frames": 48,
+        "perFrame": 125674,
+        "perFrameAll": [
+         108699,
+         220876,
+         125674,
+         180180,
+         122091,
+         92108
+        ],
+        "work": 615806,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 122,
+          "dur": 41778
+         },
+         "Layout": {
+          "n": 102,
+          "dur": 7046
+         },
+         "Paint": {
+          "n": 1913,
+          "dur": 12545
+         },
+         "Composite": {
+          "n": 48,
+          "dur": 553299
+         },
+         "FunctionCall": {
+          "n": 312,
+          "dur": 16296
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 4,
+          "dur": 36
+         },
+         "FireAnimationFrame": {
+          "n": 74,
+          "dur": 15424
+         },
+         "EventDispatch": {
+          "n": 188,
+          "dur": 877
+         },
+         "ObserverCallback": {
+          "n": 48,
+          "dur": 236
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       }
+      ],
+      "aa": [
+       {
+        "job": "39612238445:smoothness-webkit-mac",
+        "reps": 6,
+        "frames": 61,
+        "perFrame": 100742,
+        "perFrameAll": [
+         95660,
+         100742,
+         104791,
+         78820,
+         128215,
+         61966
+        ],
+        "work": 533933,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 153,
+          "dur": 37570
+         },
+         "Layout": {
+          "n": 128,
+          "dur": 6841
+         },
+         "Paint": {
+          "n": 2140,
+          "dur": 12809
+         },
+         "Composite": {
+          "n": 61,
+          "dur": 476003
+         },
+         "FunctionCall": {
+          "n": 344,
+          "dur": 14954
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 4,
+          "dur": 50
+         },
+         "FireAnimationFrame": {
+          "n": 92,
+          "dur": 14291
+         },
+         "EventDispatch": {
+          "n": 204,
+          "dur": 803
+         },
+         "ObserverCallback": {
+          "n": 58,
+          "dur": 269
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39617081415:smoothness-webkit-mac",
+        "reps": 6,
+        "frames": 47,
+        "perFrame": 92555,
+        "perFrameAll": [
+         36412,
+         131787,
+         92555,
+         77128,
+         122238,
+         91102
+        ],
+        "work": 444267,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 122,
+          "dur": 38289
+         },
+         "Layout": {
+          "n": 104,
+          "dur": 6593
+         },
+         "Paint": {
+          "n": 1838,
+          "dur": 12423
+         },
+         "Composite": {
+          "n": 47,
+          "dur": 386450
+         },
+         "FunctionCall": {
+          "n": 319,
+          "dur": 15324
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 4,
+          "dur": 53
+         },
+         "FireAnimationFrame": {
+          "n": 73,
+          "dur": 14550
+         },
+         "EventDispatch": {
+          "n": 190,
+          "dur": 749
+         },
+         "ObserverCallback": {
+          "n": 48,
+          "dur": 296
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39624728525:smoothness-webkit-mac",
+        "reps": 6,
+        "frames": 50,
+        "perFrame": 122776,
+        "perFrameAll": [
+         86911,
+         122776,
+         151296,
+         206491,
+         100238,
+         121074
+        ],
+        "work": 690127,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 125,
+          "dur": 42354
+         },
+         "Layout": {
+          "n": 107,
+          "dur": 6710
+         },
+         "Paint": {
+          "n": 1836,
+          "dur": 13312
+         },
+         "Composite": {
+          "n": 50,
+          "dur": 625580
+         },
+         "FunctionCall": {
+          "n": 312,
+          "dur": 17115
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 4,
+          "dur": 38
+         },
+         "FireAnimationFrame": {
+          "n": 76,
+          "dur": 16060
+         },
+         "EventDispatch": {
+          "n": 190,
+          "dur": 916
+         },
+         "ObserverCallback": {
+          "n": 46,
+          "dur": 330
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       }
+      ],
+      "look": [
+       {
+        "job": "39612238445:smoothness-webkit-mac",
+        "reps": 6,
+        "frames": 63,
+        "perFrame": 145799,
+        "perFrameAll": [
+         100635,
+         148511,
+         143616,
+         156539,
+         60912,
+         145799
+        ],
+        "work": 814005,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 162,
+          "dur": 40294
+         },
+         "Layout": {
+          "n": 121,
+          "dur": 6577
+         },
+         "Paint": {
+          "n": 2494,
+          "dur": 12796
+         },
+         "Composite": {
+          "n": 63,
+          "dur": 752175
+         },
+         "FunctionCall": {
+          "n": 302,
+          "dur": 15427
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 4,
+          "dur": 36
+         },
+         "FireAnimationFrame": {
+          "n": 96,
+          "dur": 14635
+         },
+         "EventDispatch": {
+          "n": 126,
+          "dur": 634
+         },
+         "ObserverCallback": {
+          "n": 62,
+          "dur": 290
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39617081415:smoothness-webkit-mac",
+        "reps": 6,
+        "frames": 50,
+        "perFrame": 160448,
+        "perFrameAll": [
+         52744,
+         160448,
+         170181,
+         153458,
+         164034,
+         89790
+        ],
+        "work": 782640,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 124,
+          "dur": 39280
+         },
+         "Layout": {
+          "n": 93,
+          "dur": 6442
+         },
+         "Paint": {
+          "n": 1767,
+          "dur": 12411
+         },
+         "Composite": {
+          "n": 50,
+          "dur": 728132
+         },
+         "FunctionCall": {
+          "n": 253,
+          "dur": 15555
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 4,
+          "dur": 40
+         },
+         "FireAnimationFrame": {
+          "n": 74,
+          "dur": 14606
+         },
+         "EventDispatch": {
+          "n": 124,
+          "dur": 667
+         },
+         "ObserverCallback": {
+          "n": 46,
+          "dur": 458
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39624728525:smoothness-webkit-mac",
+        "reps": 6,
+        "frames": 51,
+        "perFrame": 125398,
+        "perFrameAll": [
+         106459,
+         97431,
+         128133,
+         125398,
+         119601,
+         159144
+        ],
+        "work": 633887,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 134,
+          "dur": 40782
+         },
+         "Layout": {
+          "n": 99,
+          "dur": 6834
+         },
+         "Paint": {
+          "n": 1928,
+          "dur": 12799
+         },
+         "Composite": {
+          "n": 51,
+          "dur": 576165
+         },
+         "FunctionCall": {
+          "n": 238,
+          "dur": 16003
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 4,
+          "dur": 36
+         },
+         "FireAnimationFrame": {
+          "n": 79,
+          "dur": 15275
+         },
+         "EventDispatch": {
+          "n": 120,
+          "dur": 648
+         },
+         "ObserverCallback": {
+          "n": 50,
+          "dur": 307
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       }
+      ]
+     },
+     "verdicts": {
+      "orig|base": {
+       "jobs": 3,
+       "first": 0,
+       "second": 0,
+       "same": 3,
+       "insufficient": 0,
+       "verdict": "same"
+      },
+      "base|look": {
+       "jobs": 3,
+       "first": 0,
+       "second": 0,
+       "same": 3,
+       "insufficient": 0,
+       "verdict": "same"
+      },
+      "orig|look": {
+       "jobs": 3,
+       "first": 0,
+       "second": 0,
+       "same": 3,
+       "insufficient": 0,
+       "verdict": "same"
+      }
+     },
+     "perJob": [
+      {
+       "job": "39612238445:smoothness-webkit-mac",
+       "orig|base": "same",
+       "base|look": "same",
+       "orig|look": "same"
+      },
+      {
+       "job": "39617081415:smoothness-webkit-mac",
+       "orig|base": "same",
+       "base|look": "same",
+       "orig|look": "same"
+      },
+      {
+       "job": "39624728525:smoothness-webkit-mac",
+       "orig|base": "same",
+       "base|look": "same",
+       "orig|look": "same"
+      }
+     ],
+     "classes": {
+      "orig": {
+       "Composite": {
+        "class": "stable",
+        "k": 1,
+        "t": 8
+       },
+       "EvaluateScript": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "EventDispatch": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "FireAnimationFrame": {
+        "class": "stable",
+        "k": 1,
+        "t": 13
+       },
+       "FunctionCall": {
+        "class": "stable",
+        "k": 1,
+        "t": 12
+       },
+       "Layout": {
+        "class": "stable",
+        "k": 1,
+        "t": 14
+       },
+       "ObserverCallback": {
+        "class": "stable",
+        "k": 1,
+        "t": 1
+       },
+       "Paint": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 729
+       },
+       "RecalculateStyles": {
+        "class": "stable",
+        "k": 1,
+        "t": 24
+       },
+       "RenderingFrame": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "TimerFire": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       }
+      },
+      "base": {
+       "Composite": {
+        "class": "stable",
+        "k": 1,
+        "t": 10
+       },
+       "EvaluateScript": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "EventDispatch": {
+        "class": "stable",
+        "k": 1,
+        "t": 22
+       },
+       "FireAnimationFrame": {
+        "class": "stable",
+        "k": 1,
+        "t": 16
+       },
+       "FunctionCall": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 63
+       },
+       "Layout": {
+        "class": "stable",
+        "k": 1,
+        "t": 19
+       },
+       "ObserverCallback": {
+        "class": "stable",
+        "k": 1,
+        "t": 10
+       },
+       "Paint": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 508
+       },
+       "RecalculateStyles": {
+        "class": "stable",
+        "k": 1,
+        "t": 24
+       },
+       "RenderingFrame": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "TimerFire": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       }
+      },
+      "aa": {
+       "Composite": {
+        "class": "stable",
+        "k": 1,
+        "t": 14
+       },
+       "EvaluateScript": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "EventDispatch": {
+        "class": "stable",
+        "k": 1,
+        "t": 14
+       },
+       "FireAnimationFrame": {
+        "class": "stable",
+        "k": 1,
+        "t": 19
+       },
+       "FunctionCall": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 32
+       },
+       "Layout": {
+        "class": "stable",
+        "k": 1,
+        "t": 24
+       },
+       "ObserverCallback": {
+        "class": "stable",
+        "k": 1,
+        "t": 12
+       },
+       "Paint": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 304
+       },
+       "RecalculateStyles": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 31
+       },
+       "RenderingFrame": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "TimerFire": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       }
+      },
+      "look": {
+       "Composite": {
+        "class": "stable",
+        "k": 1,
+        "t": 13
+       },
+       "EvaluateScript": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "EventDispatch": {
+        "class": "stable",
+        "k": 1,
+        "t": 6
+       },
+       "FireAnimationFrame": {
+        "class": "stable",
+        "k": 1,
+        "t": 22
+       },
+       "FunctionCall": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 64
+       },
+       "Layout": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 28
+       },
+       "ObserverCallback": {
+        "class": "stable",
+        "k": 1,
+        "t": 16
+       },
+       "Paint": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 727
+       },
+       "RecalculateStyles": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 38
+       },
+       "RenderingFrame": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "TimerFire": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       }
+      }
+     }
+    },
+    "rest": {
+     "cells": {
+      "orig": [
+       {
+        "job": "39612238445:smoothness-webkit-mac",
+        "reps": 6,
+        "frames": 66,
+        "perFrame": 139380,
+        "perFrameAll": [
+         306276,
+         125868,
+         139380,
+         154048,
+         111921,
+         67295
+        ],
+        "work": 918839,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 132,
+          "dur": 25189
+         },
+         "Layout": {
+          "n": 118,
+          "dur": 150324
+         },
+         "Paint": {
+          "n": 177,
+          "dur": 2016
+         },
+         "Composite": {
+          "n": 66,
+          "dur": 741881
+         },
+         "FunctionCall": {
+          "n": 295,
+          "dur": 151751
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 19,
+          "dur": 696
+         },
+         "FireAnimationFrame": {
+          "n": 209,
+          "dur": 150708
+         },
+         "EventDispatch": {
+          "n": 77,
+          "dur": 510
+         },
+         "ObserverCallback": {
+          "n": 13,
+          "dur": 152
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39617081415:smoothness-webkit-mac",
+        "reps": 6,
+        "frames": 66,
+        "perFrame": 166742,
+        "perFrameAll": [
+         208311,
+         158497,
+         192165,
+         139194,
+         166742,
+         123925
+        ],
+        "work": 1083823,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 127,
+          "dur": 29796
+         },
+         "Layout": {
+          "n": 114,
+          "dur": 201739
+         },
+         "Paint": {
+          "n": 170,
+          "dur": 2161
+         },
+         "Composite": {
+          "n": 66,
+          "dur": 870818
+         },
+         "FunctionCall": {
+          "n": 299,
+          "dur": 190785
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 23,
+          "dur": 897
+         },
+         "FireAnimationFrame": {
+          "n": 210,
+          "dur": 189613
+         },
+         "EventDispatch": {
+          "n": 73,
+          "dur": 470
+         },
+         "ObserverCallback": {
+          "n": 14,
+          "dur": 157
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39624728525:smoothness-webkit-mac",
+        "reps": 6,
+        "frames": 72,
+        "perFrame": 181270,
+        "perFrameAll": [
+         181270,
+         185145,
+         166775,
+         106879,
+         186165,
+         115272
+        ],
+        "work": 1232637,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 137,
+          "dur": 29809
+         },
+         "Layout": {
+          "n": 123,
+          "dur": 191509
+         },
+         "Paint": {
+          "n": 180,
+          "dur": 2167
+         },
+         "Composite": {
+          "n": 72,
+          "dur": 1012121
+         },
+         "FunctionCall": {
+          "n": 289,
+          "dur": 185934
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 18,
+          "dur": 763
+         },
+         "FireAnimationFrame": {
+          "n": 214,
+          "dur": 184659
+         },
+         "EventDispatch": {
+          "n": 66,
+          "dur": 530
+         },
+         "ObserverCallback": {
+          "n": 14,
+          "dur": 150
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       }
+      ],
+      "base": [
+       {
+        "job": "39612238445:smoothness-webkit-mac",
+        "reps": 6,
+        "frames": 67,
+        "perFrame": 66531,
+        "perFrameAll": [
+         113526,
+         46144,
+         52948,
+         87387,
+         66531,
+         17746
+        ],
+        "work": 479029,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 131,
+          "dur": 23260
+         },
+         "Layout": {
+          "n": 116,
+          "dur": 4850
+         },
+         "Paint": {
+          "n": 193,
+          "dur": 2561
+         },
+         "Composite": {
+          "n": 67,
+          "dur": 436488
+         },
+         "FunctionCall": {
+          "n": 367,
+          "dur": 29712
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 4,
+          "dur": 50
+         },
+         "FireAnimationFrame": {
+          "n": 176,
+          "dur": 28454
+         },
+         "EventDispatch": {
+          "n": 233,
+          "dur": 1492
+         },
+         "ObserverCallback": {
+          "n": 6,
+          "dur": 115
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39617081415:smoothness-webkit-mac",
+        "reps": 6,
+        "frames": 69,
+        "perFrame": 57954,
+        "perFrameAll": [
+         16231,
+         58638,
+         57954,
+         46915,
+         68677,
+         54412
+        ],
+        "work": 404603,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 117,
+          "dur": 20804
+         },
+         "Layout": {
+          "n": 96,
+          "dur": 4718
+         },
+         "Paint": {
+          "n": 123,
+          "dur": 2638
+         },
+         "Composite": {
+          "n": 69,
+          "dur": 371313
+         },
+         "FunctionCall": {
+          "n": 376,
+          "dur": 27501
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 5,
+          "dur": 121
+         },
+         "FireAnimationFrame": {
+          "n": 180,
+          "dur": 26103
+         },
+         "EventDispatch": {
+          "n": 251,
+          "dur": 1802
+         },
+         "ObserverCallback": {
+          "n": 6,
+          "dur": 115
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39624728525:smoothness-webkit-mac",
+        "reps": 6,
+        "frames": 67,
+        "perFrame": 58579,
+        "perFrameAll": [
+         73994,
+         47928,
+         57826,
+         37355,
+         75494,
+         58579
+        ],
+        "work": 392485,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 135,
+          "dur": 21927
+         },
+         "Layout": {
+          "n": 119,
+          "dur": 5361
+         },
+         "Paint": {
+          "n": 173,
+          "dur": 2648
+         },
+         "Composite": {
+          "n": 67,
+          "dur": 361749
+         },
+         "FunctionCall": {
+          "n": 374,
+          "dur": 29182
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 5,
+          "dur": 59
+         },
+         "FireAnimationFrame": {
+          "n": 178,
+          "dur": 27725
+         },
+         "EventDispatch": {
+          "n": 247,
+          "dur": 1678
+         },
+         "ObserverCallback": {
+          "n": 6,
+          "dur": 116
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       }
+      ],
+      "aa": [
+       {
+        "job": "39612238445:smoothness-webkit-mac",
+        "reps": 6,
+        "frames": 66,
+        "perFrame": 36099,
+        "perFrameAll": [
+         55852,
+         34820,
+         36099,
+         60453,
+         15180,
+         15353
+        ],
+        "work": 229812,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 136,
+          "dur": 18618
+         },
+         "Layout": {
+          "n": 122,
+          "dur": 4793
+         },
+         "Paint": {
+          "n": 228,
+          "dur": 2599
+         },
+         "Composite": {
+          "n": 66,
+          "dur": 203494
+         },
+         "FunctionCall": {
+          "n": 387,
+          "dur": 26171
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 4,
+          "dur": 53
+         },
+         "FireAnimationFrame": {
+          "n": 174,
+          "dur": 24941
+         },
+         "EventDispatch": {
+          "n": 260,
+          "dur": 1561
+         },
+         "ObserverCallback": {
+          "n": 6,
+          "dur": 86
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39617081415:smoothness-webkit-mac",
+        "reps": 6,
+        "frames": 71,
+        "perFrame": 74474,
+        "perFrameAll": [
+         34146,
+         74474,
+         43562,
+         91104,
+         94198,
+         40628
+        ],
+        "work": 484084,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 123,
+          "dur": 24389
+         },
+         "Layout": {
+          "n": 99,
+          "dur": 5205
+         },
+         "Paint": {
+          "n": 126,
+          "dur": 2394
+         },
+         "Composite": {
+          "n": 71,
+          "dur": 453442
+         },
+         "FunctionCall": {
+          "n": 378,
+          "dur": 30997
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 5,
+          "dur": 150
+         },
+         "FireAnimationFrame": {
+          "n": 183,
+          "dur": 29132
+         },
+         "EventDispatch": {
+          "n": 237,
+          "dur": 1955
+         },
+         "ObserverCallback": {
+          "n": 6,
+          "dur": 158
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39624728525:smoothness-webkit-mac",
+        "reps": 6,
+        "frames": 73,
+        "perFrame": 71182,
+        "perFrameAll": [
+         56294,
+         71182,
+         84897,
+         34295,
+         81381,
+         29452
+        ],
+        "work": 533872,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 124,
+          "dur": 25459
+         },
+         "Layout": {
+          "n": 107,
+          "dur": 4621
+         },
+         "Paint": {
+          "n": 144,
+          "dur": 2299
+         },
+         "Composite": {
+          "n": 73,
+          "dur": 496723
+         },
+         "FunctionCall": {
+          "n": 398,
+          "dur": 31467
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 5,
+          "dur": 86
+         },
+         "FireAnimationFrame": {
+          "n": 187,
+          "dur": 29925
+         },
+         "EventDispatch": {
+          "n": 256,
+          "dur": 1749
+         },
+         "ObserverCallback": {
+          "n": 6,
+          "dur": 128
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       }
+      ],
+      "look": [
+       {
+        "job": "39612238445:smoothness-webkit-mac",
+        "reps": 6,
+        "frames": 65,
+        "perFrame": 62460,
+        "perFrameAll": [
+         69382,
+         62460,
+         73565,
+         47386,
+         33979,
+         19129
+        ],
+        "work": 405991,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 135,
+          "dur": 19097
+         },
+         "Layout": {
+          "n": 119,
+          "dur": 4976
+         },
+         "Paint": {
+          "n": 236,
+          "dur": 2500
+         },
+         "Composite": {
+          "n": 65,
+          "dur": 379667
+         },
+         "FunctionCall": {
+          "n": 374,
+          "dur": 26183
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 4,
+          "dur": 51
+         },
+         "FireAnimationFrame": {
+          "n": 174,
+          "dur": 24837
+         },
+         "EventDispatch": {
+          "n": 244,
+          "dur": 1596
+         },
+         "ObserverCallback": {
+          "n": 6,
+          "dur": 86
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39617081415:smoothness-webkit-mac",
+        "reps": 6,
+        "frames": 70,
+        "perFrame": 75297,
+        "perFrameAll": [
+         75297,
+         83735,
+         69883,
+         54573,
+         57073,
+         93935
+        ],
+        "work": 534610,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 135,
+          "dur": 23983
+         },
+         "Layout": {
+          "n": 117,
+          "dur": 5409
+         },
+         "Paint": {
+          "n": 184,
+          "dur": 2839
+         },
+         "Composite": {
+          "n": 70,
+          "dur": 501900
+         },
+         "FunctionCall": {
+          "n": 399,
+          "dur": 30421
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 6,
+          "dur": 125
+         },
+         "FireAnimationFrame": {
+          "n": 183,
+          "dur": 28941
+         },
+         "EventDispatch": {
+          "n": 258,
+          "dur": 1792
+         },
+         "ObserverCallback": {
+          "n": 6,
+          "dur": 130
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39624728525:smoothness-webkit-mac",
+        "reps": 6,
+        "frames": 70,
+        "perFrame": 75378,
+        "perFrameAll": [
+         92581,
+         73482,
+         85134,
+         75378,
+         18365,
+         61414
+        ],
+        "work": 527647,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 132,
+          "dur": 24392
+         },
+         "Layout": {
+          "n": 109,
+          "dur": 5697
+         },
+         "Paint": {
+          "n": 153,
+          "dur": 2600
+         },
+         "Composite": {
+          "n": 70,
+          "dur": 495342
+         },
+         "FunctionCall": {
+          "n": 378,
+          "dur": 30895
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 5,
+          "dur": 85
+         },
+         "FireAnimationFrame": {
+          "n": 183,
+          "dur": 29449
+         },
+         "EventDispatch": {
+          "n": 234,
+          "dur": 1683
+         },
+         "ObserverCallback": {
+          "n": 6,
+          "dur": 116
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       }
+      ]
+     },
+     "verdicts": {
+      "orig|base": {
+       "jobs": 3,
+       "first": 0,
+       "second": 2,
+       "same": 1,
+       "insufficient": 0,
+       "verdict": "second"
+      },
+      "base|look": {
+       "jobs": 3,
+       "first": 0,
+       "second": 0,
+       "same": 3,
+       "insufficient": 0,
+       "verdict": "same"
+      },
+      "orig|look": {
+       "jobs": 3,
+       "first": 0,
+       "second": 2,
+       "same": 1,
+       "insufficient": 0,
+       "verdict": "second"
+      }
+     },
+     "perJob": [
+      {
+       "job": "39612238445:smoothness-webkit-mac",
+       "orig|base": "same",
+       "base|look": "same",
+       "orig|look": "same"
+      },
+      {
+       "job": "39617081415:smoothness-webkit-mac",
+       "orig|base": "second",
+       "base|look": "same",
+       "orig|look": "second"
+      },
+      {
+       "job": "39624728525:smoothness-webkit-mac",
+       "orig|base": "second",
+       "base|look": "same",
+       "orig|look": "second"
+      }
+     ],
+     "classes": {
+      "orig": {
+       "Composite": {
+        "class": "stable",
+        "k": 1,
+        "t": 6
+       },
+       "EvaluateScript": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "EventDispatch": {
+        "class": "stable",
+        "k": 1,
+        "t": 11
+       },
+       "FireAnimationFrame": {
+        "class": "stable",
+        "k": 1,
+        "t": 5
+       },
+       "FunctionCall": {
+        "class": "stable",
+        "k": 1,
+        "t": 10
+       },
+       "Layout": {
+        "class": "stable",
+        "k": 1,
+        "t": 9
+       },
+       "ObserverCallback": {
+        "class": "stable",
+        "k": 1,
+        "t": 1
+       },
+       "Paint": {
+        "class": "stable",
+        "k": 1,
+        "t": 10
+       },
+       "RecalculateStyles": {
+        "class": "stable",
+        "k": 1,
+        "t": 10
+       },
+       "RenderingFrame": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "TimerFire": {
+        "class": "stable",
+        "k": 1,
+        "t": 5
+       }
+      },
+      "base": {
+       "Composite": {
+        "class": "stable",
+        "k": 1,
+        "t": 2
+       },
+       "EvaluateScript": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "EventDispatch": {
+        "class": "stable",
+        "k": 1,
+        "t": 18
+       },
+       "FireAnimationFrame": {
+        "class": "stable",
+        "k": 1,
+        "t": 4
+       },
+       "FunctionCall": {
+        "class": "stable",
+        "k": 1,
+        "t": 9
+       },
+       "Layout": {
+        "class": "stable",
+        "k": 1,
+        "t": 23
+       },
+       "ObserverCallback": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "Paint": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 70
+       },
+       "RecalculateStyles": {
+        "class": "stable",
+        "k": 1,
+        "t": 18
+       },
+       "RenderingFrame": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "TimerFire": {
+        "class": "stable",
+        "k": 1,
+        "t": 1
+       }
+      },
+      "aa": {
+       "Composite": {
+        "class": "stable",
+        "k": 1,
+        "t": 7
+       },
+       "EvaluateScript": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "EventDispatch": {
+        "class": "stable",
+        "k": 1,
+        "t": 23
+       },
+       "FireAnimationFrame": {
+        "class": "stable",
+        "k": 1,
+        "t": 13
+       },
+       "FunctionCall": {
+        "class": "stable",
+        "k": 1,
+        "t": 20
+       },
+       "Layout": {
+        "class": "stable",
+        "k": 1,
+        "t": 23
+       },
+       "ObserverCallback": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "Paint": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 102
+       },
+       "RecalculateStyles": {
+        "class": "stable",
+        "k": 1,
+        "t": 13
+       },
+       "RenderingFrame": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "TimerFire": {
+        "class": "stable",
+        "k": 1,
+        "t": 1
+       }
+      },
+      "look": {
+       "Composite": {
+        "class": "stable",
+        "k": 1,
+        "t": 5
+       },
+       "EvaluateScript": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "EventDispatch": {
+        "class": "stable",
+        "k": 1,
+        "t": 24
+       },
+       "FireAnimationFrame": {
+        "class": "stable",
+        "k": 1,
+        "t": 9
+       },
+       "FunctionCall": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 25
+       },
+       "Layout": {
+        "class": "stable",
+        "k": 1,
+        "t": 10
+       },
+       "ObserverCallback": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "Paint": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 83
+       },
+       "RecalculateStyles": {
+        "class": "stable",
+        "k": 1,
+        "t": 3
+       },
+       "RenderingFrame": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "TimerFire": {
+        "class": "stable",
+        "k": 1,
+        "t": 2
+       }
+      }
+     }
+    }
+   },
+   "cadence": {
+    "hero|events": {
+     "jobs": [
+      {
+       "job": "39612238445:smoothness-webkit-mac",
+       "arms": {
+        "orig": {
+         "reps": 6,
+         "hitches": [
+          43,
+          28,
+          50,
+          30,
+          31,
+          20
+         ],
+         "rate": 4975,
+         "p50": 340,
+         "p95": 1160,
+         "max": 5400
+        },
+        "base": {
+         "reps": 6,
+         "hitches": [
+          4,
+          5,
+          6,
+          4,
+          8,
+          7
+         ],
+         "rate": 1025,
+         "p50": 170,
+         "p95": 550,
+         "max": 1210
+        },
+        "aa": {
+         "reps": 6,
+         "hitches": [
+          3,
+          4,
+          4,
+          5,
+          8,
+          7
+         ],
+         "rate": 756,
+         "p50": 170,
+         "p95": 470,
+         "max": 1490
+        },
+        "look": {
+         "reps": 6,
+         "hitches": [
+          4,
+          5,
+          5,
+          6,
+          7,
+          6
+         ],
+         "rate": 847,
+         "p50": 170,
+         "p95": 460,
+         "max": 1690
+        }
+       },
+       "verdicts": {
+        "orig|base": "second",
+        "base|look": "same",
+        "orig|look": "second"
+       }
+      },
+      {
+       "job": "39617081415:smoothness-webkit-mac",
+       "arms": {
+        "orig": {
+         "reps": 6,
+         "hitches": [
+          61,
+          46,
+          55,
+          49,
+          48,
+          58
+         ],
+         "rate": 4977,
+         "p50": 260,
+         "p95": 1590,
+         "max": 5750
+        },
+        "base": {
+         "reps": 6,
+         "hitches": [
+          13,
+          7,
+          7,
+          12,
+          11,
+          13
+         ],
+         "rate": 1361,
+         "p50": 170,
+         "p95": 710,
+         "max": 2050
+        },
+        "aa": {
+         "reps": 6,
+         "hitches": [
+          7,
+          6,
+          5,
+          5,
+          11,
+          11
+         ],
+         "rate": 1383,
+         "p50": 170,
+         "p95": 610,
+         "max": 1980
+        },
+        "look": {
+         "reps": 6,
+         "hitches": [
+          5,
+          4,
+          6,
+          4,
+          6,
+          13
+         ],
+         "rate": 987,
+         "p50": 170,
+         "p95": 570,
+         "max": 1800
+        }
+       },
+       "verdicts": {
+        "orig|base": "second",
+        "base|look": "same",
+        "orig|look": "second"
+       }
+      },
+      {
+       "job": "39624728525:smoothness-webkit-mac",
+       "arms": {
+        "orig": {
+         "reps": 6,
+         "hitches": [
+          48,
+          45,
+          65,
+          36,
+          57,
+          44
+         ],
+         "rate": 4782,
+         "p50": 240,
+         "p95": 1410,
+         "max": 5360
+        },
+        "base": {
+         "reps": 6,
+         "hitches": [
+          3,
+          10,
+          5,
+          5,
+          6,
+          6
+         ],
+         "rate": 825,
+         "p50": 170,
+         "p95": 510,
+         "max": 1470
+        },
+        "aa": {
+         "reps": 6,
+         "hitches": [
+          7,
+          7,
+          5,
+          11,
+          11,
+          9
+         ],
+         "rate": 1244,
+         "p50": 170,
+         "p95": 660,
+         "max": 1880
+        },
+        "look": {
+         "reps": 6,
+         "hitches": [
+          10,
+          4,
+          6,
+          3,
+          8,
+          6
+         ],
+         "rate": 1220,
+         "p50": 170,
+         "p95": 560,
+         "max": 1700
+        }
+       },
+       "verdicts": {
+        "orig|base": "second",
+        "base|look": "same",
+        "orig|look": "second"
+       }
+      }
+     ],
+     "verdicts": {
+      "orig|base": {
+       "jobs": 3,
+       "first": 0,
+       "second": 3,
+       "same": 0,
+       "insufficient": 0,
+       "verdict": "second"
+      },
+      "base|look": {
+       "jobs": 3,
+       "first": 0,
+       "second": 0,
+       "same": 3,
+       "insufficient": 0,
+       "verdict": "same"
+      },
+      "orig|look": {
+       "jobs": 3,
+       "first": 0,
+       "second": 3,
+       "same": 0,
+       "insufficient": 0,
+       "verdict": "second"
+      }
+     }
+    },
+    "hero|cadence": {
+     "jobs": [
+      {
+       "job": "39612238445:smoothness-webkit-mac",
+       "arms": {
+        "orig": {
+         "reps": 5,
+         "hitches": [
+          27,
+          18,
+          23,
+          15,
+          18
+         ],
+         "rate": 3559,
+         "p50": 200,
+         "p95": 890,
+         "max": 1540
+        },
+        "base": {
+         "reps": 5,
+         "hitches": [
+          6,
+          2,
+          4,
+          5,
+          3
+         ],
+         "rate": 676,
+         "p50": 170,
+         "p95": 490,
+         "max": 1450
+        },
+        "aa": {
+         "reps": 5,
+         "hitches": [
+          6,
+          7,
+          2,
+          6,
+          9
+         ],
+         "rate": 935,
+         "p50": 170,
+         "p95": 620,
+         "max": 1600
+        },
+        "look": {
+         "reps": 5,
+         "hitches": [
+          9,
+          7,
+          2,
+          2,
+          4
+         ],
+         "rate": 683,
+         "p50": 170,
+         "p95": 460,
+         "max": 1330
+        }
+       },
+       "verdicts": {
+        "orig|base": "second",
+        "base|look": "same",
+        "orig|look": "second"
+       }
+      },
+      {
+       "job": "39617081415:smoothness-webkit-mac",
+       "arms": {
+        "orig": {
+         "reps": 5,
+         "hitches": [
+          47,
+          60,
+          41,
+          77,
+          39
+         ],
+         "rate": 5105,
+         "p50": 380,
+         "p95": 1640,
+         "max": 2860
+        },
+        "base": {
+         "reps": 5,
+         "hitches": [
+          14,
+          17,
+          13,
+          10,
+          6
+         ],
+         "rate": 1184,
+         "p50": 170,
+         "p95": 710,
+         "max": 1860
+        },
+        "aa": {
+         "reps": 5,
+         "hitches": [
+          13,
+          11,
+          14,
+          6,
+          14
+         ],
+         "rate": 1322,
+         "p50": 170,
+         "p95": 740,
+         "max": 2260
+        },
+        "look": {
+         "reps": 5,
+         "hitches": [
+          15,
+          5,
+          15,
+          11,
+          8
+         ],
+         "rate": 1274,
+         "p50": 170,
+         "p95": 700,
+         "max": 1890
+        }
+       },
+       "verdicts": {
+        "orig|base": "second",
+        "base|look": "same",
+        "orig|look": "second"
+       }
+      },
+      {
+       "job": "39624728525:smoothness-webkit-mac",
+       "arms": {
+        "orig": {
+         "reps": 5,
+         "hitches": [
+          31,
+          46,
+          51,
+          34,
+          22
+         ],
+         "rate": 4921,
+         "p50": 340,
+         "p95": 1280,
+         "max": 2340
+        },
+        "base": {
+         "reps": 5,
+         "hitches": [
+          8,
+          8,
+          10,
+          4,
+          2
+         ],
+         "rate": 979,
+         "p50": 170,
+         "p95": 600,
+         "max": 1360
+        },
+        "aa": {
+         "reps": 5,
+         "hitches": [
+          12,
+          4,
+          7,
+          10,
+          3
+         ],
+         "rate": 1048,
+         "p50": 170,
+         "p95": 640,
+         "max": 1720
+        },
+        "look": {
+         "reps": 5,
+         "hitches": [
+          7,
+          10,
+          9,
+          5,
+          4
+         ],
+         "rate": 965,
+         "p50": 170,
+         "p95": 650,
+         "max": 1690
+        }
+       },
+       "verdicts": {
+        "orig|base": "second",
+        "base|look": "same",
+        "orig|look": "second"
+       }
+      }
+     ],
+     "verdicts": {
+      "orig|base": {
+       "jobs": 3,
+       "first": 0,
+       "second": 3,
+       "same": 0,
+       "insufficient": 0,
+       "verdict": "second"
+      },
+      "base|look": {
+       "jobs": 3,
+       "first": 0,
+       "second": 0,
+       "same": 3,
+       "insufficient": 0,
+       "verdict": "same"
+      },
+      "orig|look": {
+       "jobs": 3,
+       "first": 0,
+       "second": 3,
+       "same": 0,
+       "insufficient": 0,
+       "verdict": "second"
+      }
+     }
+    },
+    "end|events": {
+     "jobs": [
+      {
+       "job": "39612238445:smoothness-webkit-mac",
+       "arms": {
+        "orig": {
+         "reps": 6,
+         "hitches": [
+          19,
+          10,
+          18,
+          12,
+          2,
+          4
+         ],
+         "rate": 4689,
+         "p50": 330,
+         "p95": 940,
+         "max": 1600
+        },
+        "base": {
+         "reps": 6,
+         "hitches": [
+          12,
+          11,
+          10,
+          11,
+          4,
+          8
+         ],
+         "rate": 3843,
+         "p50": 250,
+         "p95": 900,
+         "max": 1540
+        },
+        "aa": {
+         "reps": 6,
+         "hitches": [
+          7,
+          8,
+          12,
+          8,
+          12,
+          9
+         ],
+         "rate": 3867,
+         "p50": 250,
+         "p95": 980,
+         "max": 1790
+        },
+        "look": {
+         "reps": 6,
+         "hitches": [
+          6,
+          7,
+          10,
+          9,
+          4,
+          6
+         ],
+         "rate": 3704,
+         "p50": 270,
+         "p95": 930,
+         "max": 1770
+        }
+       },
+       "verdicts": {
+        "orig|base": "same",
+        "base|look": "same",
+        "orig|look": "same"
+       }
+      },
+      {
+       "job": "39617081415:smoothness-webkit-mac",
+       "arms": {
+        "orig": {
+         "reps": 6,
+         "hitches": [
+          20,
+          13,
+          15,
+          18,
+          18,
+          14
+         ],
+         "rate": 6326,
+         "p50": 510,
+         "p95": 1390,
+         "max": 2220
+        },
+        "base": {
+         "reps": 6,
+         "hitches": [
+          10,
+          14,
+          15,
+          12,
+          14,
+          11
+         ],
+         "rate": 5173,
+         "p50": 370,
+         "p95": 1210,
+         "max": 2900
+        },
+        "aa": {
+         "reps": 6,
+         "hitches": [
+          12,
+          14,
+          10,
+          16,
+          13,
+          14
+         ],
+         "rate": 5150,
+         "p50": 370,
+         "p95": 1070,
+         "max": 1770
+        },
+        "look": {
+         "reps": 6,
+         "hitches": [
+          11,
+          11,
+          10,
+          10,
+          11,
+          13
+         ],
+         "rate": 4911,
+         "p50": 340,
+         "p95": 1130,
+         "max": 1480
+        }
+       },
+       "verdicts": {
+        "orig|base": "same",
+        "base|look": "same",
+        "orig|look": "same"
+       }
+      },
+      {
+       "job": "39624728525:smoothness-webkit-mac",
+       "arms": {
+        "orig": {
+         "reps": 6,
+         "hitches": [
+          10,
+          21,
+          17,
+          19,
+          16,
+          14
+         ],
+         "rate": 6076,
+         "p50": 490,
+         "p95": 1060,
+         "max": 1870
+        },
+        "base": {
+         "reps": 6,
+         "hitches": [
+          14,
+          14,
+          9,
+          14,
+          13,
+          8
+         ],
+         "rate": 4849,
+         "p50": 330,
+         "p95": 1160,
+         "max": 1990
+        },
+        "aa": {
+         "reps": 6,
+         "hitches": [
+          10,
+          13,
+          15,
+          15,
+          13,
+          9
+         ],
+         "rate": 4773,
+         "p50": 320,
+         "p95": 1040,
+         "max": 1930
+        },
+        "look": {
+         "reps": 6,
+         "hitches": [
+          16,
+          10,
+          13,
+          11,
+          8,
+          13
+         ],
+         "rate": 4785,
+         "p50": 320,
+         "p95": 1120,
+         "max": 1970
+        }
+       },
+       "verdicts": {
+        "orig|base": "same",
+        "base|look": "same",
+        "orig|look": "same"
+       }
+      }
+     ],
+     "verdicts": {
+      "orig|base": {
+       "jobs": 3,
+       "first": 0,
+       "second": 0,
+       "same": 3,
+       "insufficient": 0,
+       "verdict": "same"
+      },
+      "base|look": {
+       "jobs": 3,
+       "first": 0,
+       "second": 0,
+       "same": 3,
+       "insufficient": 0,
+       "verdict": "same"
+      },
+      "orig|look": {
+       "jobs": 3,
+       "first": 0,
+       "second": 0,
+       "same": 3,
+       "insufficient": 0,
+       "verdict": "same"
+      }
+     }
+    },
+    "end|cadence": {
+     "jobs": [
+      {
+       "job": "39612238445:smoothness-webkit-mac",
+       "arms": {
+        "orig": {
+         "reps": 5,
+         "hitches": [
+          3,
+          1,
+          2,
+          2,
+          0
+         ],
+         "rate": 2997,
+         "p50": 250,
+         "p95": 510,
+         "max": 770
+        },
+        "base": {
+         "reps": 5,
+         "hitches": [
+          7,
+          3,
+          1,
+          1,
+          2
+         ],
+         "rate": 2160,
+         "p50": 210,
+         "p95": 560,
+         "max": 860
+        },
+        "aa": {
+         "reps": 5,
+         "hitches": [
+          7,
+          6,
+          1,
+          1,
+          4
+         ],
+         "rate": 2286,
+         "p50": 210,
+         "p95": 620,
+         "max": 1300
+        },
+        "look": {
+         "reps": 5,
+         "hitches": [
+          4,
+          11,
+          3,
+          1,
+          2
+         ],
+         "rate": 2125,
+         "p50": 190,
+         "p95": 610,
+         "max": 1020
+        }
+       },
+       "verdicts": {
+        "orig|base": "same",
+        "base|look": "same",
+        "orig|look": "same"
+       }
+      },
+      {
+       "job": "39617081415:smoothness-webkit-mac",
+       "arms": {
+        "orig": {
+         "reps": 5,
+         "hitches": [
+          14,
+          22,
+          7,
+          23,
+          20
+         ],
+         "rate": 6804,
+         "p50": 530,
+         "p95": 1270,
+         "max": 2600
+        },
+        "base": {
+         "reps": 5,
+         "hitches": [
+          9,
+          15,
+          11,
+          2,
+          11
+         ],
+         "rate": 3985,
+         "p50": 250,
+         "p95": 1020,
+         "max": 2200
+        },
+        "aa": {
+         "reps": 5,
+         "hitches": [
+          14,
+          15,
+          11,
+          12,
+          17
+         ],
+         "rate": 6158,
+         "p50": 480,
+         "p95": 1400,
+         "max": 4510
+        },
+        "look": {
+         "reps": 5,
+         "hitches": [
+          14,
+          12,
+          14,
+          13,
+          14
+         ],
+         "rate": 5549,
+         "p50": 410,
+         "p95": 1210,
+         "max": 3450
+        }
+       },
+       "verdicts": {
+        "orig|base": "same",
+        "base|look": "same",
+        "orig|look": "same"
+       }
+      },
+      {
+       "job": "39624728525:smoothness-webkit-mac",
+       "arms": {
+        "orig": {
+         "reps": 5,
+         "hitches": [
+          10,
+          13,
+          17,
+          17,
+          2
+         ],
+         "rate": 4813,
+         "p50": 330,
+         "p95": 990,
+         "max": 1590
+        },
+        "base": {
+         "reps": 5,
+         "hitches": [
+          14,
+          11,
+          7,
+          6,
+          8
+         ],
+         "rate": 3561,
+         "p50": 250,
+         "p95": 880,
+         "max": 1360
+        },
+        "aa": {
+         "reps": 5,
+         "hitches": [
+          12,
+          9,
+          9,
+          9,
+          8
+         ],
+         "rate": 3588,
+         "p50": 250,
+         "p95": 790,
+         "max": 1190
+        },
+        "look": {
+         "reps": 5,
+         "hitches": [
+          8,
+          16,
+          4,
+          7,
+          3
+         ],
+         "rate": 3698,
+         "p50": 240,
+         "p95": 920,
+         "max": 1400
+        }
+       },
+       "verdicts": {
+        "orig|base": "same",
+        "base|look": "same",
+        "orig|look": "same"
+       }
+      }
+     ],
+     "verdicts": {
+      "orig|base": {
+       "jobs": 3,
+       "first": 0,
+       "second": 0,
+       "same": 3,
+       "insufficient": 0,
+       "verdict": "same"
+      },
+      "base|look": {
+       "jobs": 3,
+       "first": 0,
+       "second": 0,
+       "same": 3,
+       "insufficient": 0,
+       "verdict": "same"
+      },
+      "orig|look": {
+       "jobs": 3,
+       "first": 0,
+       "second": 0,
+       "same": 3,
+       "insufficient": 0,
+       "verdict": "same"
+      }
+     }
+    }
+   }
+  },
+  "sim": {
+   "arms": [
+    "orig",
+    "base",
+    "aa",
+    "look"
+   ],
+   "zones": {
+    "hero": {
+     "cells": {
+      "orig": [
+       {
+        "job": "39612238445:smoothness-webkit-sim",
+        "reps": 3,
+        "frames": 3,
+        "perFrame": 1125180,
+        "perFrameAll": [
+         1125180,
+         1363673,
+         989380
+        ],
+        "work": 337554,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 9,
+          "dur": 1188
+         },
+         "Layout": {
+          "n": 70,
+          "dur": 169111
+         },
+         "Paint": {
+          "n": 45,
+          "dur": 298
+         },
+         "Composite": {
+          "n": 3,
+          "dur": 166957
+         },
+         "FunctionCall": {
+          "n": 19,
+          "dur": 158950
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 5,
+          "dur": 150134
+         },
+         "FireAnimationFrame": {
+          "n": 11,
+          "dur": 4027
+         },
+         "EventDispatch": {
+          "n": 2,
+          "dur": 21
+         },
+         "ObserverCallback": {
+          "n": 3,
+          "dur": 65
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39617081415:smoothness-webkit-sim",
+        "reps": 1,
+        "frames": 2,
+        "perFrame": 2602515,
+        "perFrameAll": [
+         2602515
+        ],
+        "work": 520503,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 9,
+          "dur": 7210
+         },
+         "Layout": {
+          "n": 66,
+          "dur": 253481
+         },
+         "Paint": {
+          "n": 45,
+          "dur": 220
+         },
+         "Composite": {
+          "n": 2,
+          "dur": 259592
+         },
+         "FunctionCall": {
+          "n": 14,
+          "dur": 237382
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 4,
+          "dur": 234921
+         },
+         "FireAnimationFrame": {
+          "n": 7,
+          "dur": 2443
+         },
+         "EventDispatch": {
+          "n": 2,
+          "dur": 26
+         },
+         "ObserverCallback": {
+          "n": 2,
+          "dur": 225
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39624728525:smoothness-webkit-sim",
+        "reps": 2,
+        "frames": 2,
+        "perFrame": 2846850,
+        "perFrameAll": [
+         1279905,
+         2846850
+        ],
+        "work": 569370,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 8,
+          "dur": 2108
+         },
+         "Layout": {
+          "n": 67,
+          "dur": 276576
+         },
+         "Paint": {
+          "n": 43,
+          "dur": 398
+         },
+         "Composite": {
+          "n": 2,
+          "dur": 290288
+         },
+         "FunctionCall": {
+          "n": 16,
+          "dur": 264500
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 6,
+          "dur": 258963
+         },
+         "FireAnimationFrame": {
+          "n": 7,
+          "dur": 5523
+         },
+         "EventDispatch": {
+          "n": 3,
+          "dur": 24
+         },
+         "ObserverCallback": {
+          "n": 2,
+          "dur": 72
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       }
+      ],
+      "base": [
+       {
+        "job": "39612238445:smoothness-webkit-sim",
+        "reps": 5,
+        "frames": 8,
+        "perFrame": 134215,
+        "perFrameAll": [
+         203945,
+         71748,
+         42012,
+         149812,
+         134215
+        ],
+        "work": 93951,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 38,
+          "dur": 8195
+         },
+         "Layout": {
+          "n": 84,
+          "dur": 5536
+         },
+         "Paint": {
+          "n": 115,
+          "dur": 8132
+         },
+         "Composite": {
+          "n": 8,
+          "dur": 70934
+         },
+         "FunctionCall": {
+          "n": 185,
+          "dur": 25036
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 48,
+          "dur": 13701
+         },
+         "FireAnimationFrame": {
+          "n": 46,
+          "dur": 10364
+         },
+         "EventDispatch": {
+          "n": 117,
+          "dur": 849
+         },
+         "ObserverCallback": {
+          "n": 8,
+          "dur": 225
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39617081415:smoothness-webkit-sim",
+        "reps": 5,
+        "frames": 8,
+        "perFrame": 120551,
+        "perFrameAll": [
+         156071,
+         109012,
+         104142,
+         120551,
+         134521
+        ],
+        "work": 87210,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 36,
+          "dur": 9472
+         },
+         "Layout": {
+          "n": 85,
+          "dur": 6113
+         },
+         "Paint": {
+          "n": 111,
+          "dur": 3739
+         },
+         "Composite": {
+          "n": 8,
+          "dur": 69446
+         },
+         "FunctionCall": {
+          "n": 181,
+          "dur": 26212
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 55,
+          "dur": 14855
+         },
+         "FireAnimationFrame": {
+          "n": 37,
+          "dur": 10202
+         },
+         "EventDispatch": {
+          "n": 112,
+          "dur": 974
+         },
+         "ObserverCallback": {
+          "n": 7,
+          "dur": 362
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39624728525:smoothness-webkit-sim",
+        "reps": 4,
+        "frames": 11,
+        "perFrame": 89142,
+        "perFrameAll": [
+         69677,
+         74606,
+         89142,
+         165230
+        ],
+        "work": 98057,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 43,
+          "dur": 7387
+         },
+         "Layout": {
+          "n": 84,
+          "dur": 4288
+         },
+         "Paint": {
+          "n": 97,
+          "dur": 7015
+         },
+         "Composite": {
+          "n": 11,
+          "dur": 81119
+         },
+         "FunctionCall": {
+          "n": 196,
+          "dur": 20990
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 52,
+          "dur": 11854
+         },
+         "FireAnimationFrame": {
+          "n": 49,
+          "dur": 8695
+         },
+         "EventDispatch": {
+          "n": 117,
+          "dur": 621
+         },
+         "ObserverCallback": {
+          "n": 7,
+          "dur": 345
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       }
+      ],
+      "aa": [
+       {
+        "job": "39612238445:smoothness-webkit-sim",
+        "reps": 5,
+        "frames": 8,
+        "perFrame": 111765,
+        "perFrameAll": [
+         521063,
+         71247,
+         54495,
+         135610,
+         111765
+        ],
+        "work": 89412,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 33,
+          "dur": 7675
+         },
+         "Layout": {
+          "n": 83,
+          "dur": 4912
+         },
+         "Paint": {
+          "n": 107,
+          "dur": 6483
+         },
+         "Composite": {
+          "n": 8,
+          "dur": 65300
+         },
+         "FunctionCall": {
+          "n": 156,
+          "dur": 21769
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 50,
+          "dur": 11619
+         },
+         "FireAnimationFrame": {
+          "n": 37,
+          "dur": 10853
+         },
+         "EventDispatch": {
+          "n": 92,
+          "dur": 720
+         },
+         "ObserverCallback": {
+          "n": 7,
+          "dur": 198
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39617081415:smoothness-webkit-sim",
+        "reps": 5,
+        "frames": 8,
+        "perFrame": 108092,
+        "perFrameAll": [
+         109302,
+         104802,
+         108092,
+         119492,
+         99047
+        ],
+        "work": 79238,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 32,
+          "dur": 7550
+         },
+         "Layout": {
+          "n": 76,
+          "dur": 4437
+         },
+         "Paint": {
+          "n": 110,
+          "dur": 2916
+         },
+         "Composite": {
+          "n": 8,
+          "dur": 63059
+         },
+         "FunctionCall": {
+          "n": 160,
+          "dur": 21586
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 49,
+          "dur": 11593
+         },
+         "FireAnimationFrame": {
+          "n": 37,
+          "dur": 9124
+         },
+         "EventDispatch": {
+          "n": 91,
+          "dur": 580
+         },
+         "ObserverCallback": {
+          "n": 7,
+          "dur": 153
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39624728525:smoothness-webkit-sim",
+        "reps": 3,
+        "frames": 8,
+        "perFrame": 103738,
+        "perFrameAll": [
+         99343,
+         103738,
+         165451
+        ],
+        "work": 93365,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 34,
+          "dur": 5964
+         },
+         "Layout": {
+          "n": 81,
+          "dur": 4219
+         },
+         "Paint": {
+          "n": 111,
+          "dur": 5686
+         },
+         "Composite": {
+          "n": 8,
+          "dur": 79530
+         },
+         "FunctionCall": {
+          "n": 164,
+          "dur": 20572
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 42,
+          "dur": 11178
+         },
+         "FireAnimationFrame": {
+          "n": 37,
+          "dur": 7883
+         },
+         "EventDispatch": {
+          "n": 97,
+          "dur": 606
+         },
+         "ObserverCallback": {
+          "n": 6,
+          "dur": 368
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       }
+      ],
+      "look": [
+       {
+        "job": "39612238445:smoothness-webkit-sim",
+        "reps": 5,
+        "frames": 9,
+        "perFrame": 90860,
+        "perFrameAll": [
+         189982,
+         90860,
+         106377,
+         39006,
+         85786
+        ],
+        "work": 81774,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 34,
+          "dur": 7971
+         },
+         "Layout": {
+          "n": 84,
+          "dur": 4582
+         },
+         "Paint": {
+          "n": 106,
+          "dur": 8741
+         },
+         "Composite": {
+          "n": 9,
+          "dur": 62095
+         },
+         "FunctionCall": {
+          "n": 174,
+          "dur": 22919
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 47,
+          "dur": 13981
+         },
+         "FireAnimationFrame": {
+          "n": 42,
+          "dur": 9556
+         },
+         "EventDispatch": {
+          "n": 99,
+          "dur": 687
+         },
+         "ObserverCallback": {
+          "n": 7,
+          "dur": 288
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39617081415:smoothness-webkit-sim",
+        "reps": 5,
+        "frames": 8,
+        "perFrame": 134344,
+        "perFrameAll": [
+         134344,
+         181895,
+         106678,
+         105877,
+         138374
+        ],
+        "work": 96862,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 36,
+          "dur": 8354
+         },
+         "Layout": {
+          "n": 83,
+          "dur": 5845
+         },
+         "Paint": {
+          "n": 142,
+          "dur": 4955
+         },
+         "Composite": {
+          "n": 8,
+          "dur": 79118
+         },
+         "FunctionCall": {
+          "n": 169,
+          "dur": 24750
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 56,
+          "dur": 14239
+         },
+         "FireAnimationFrame": {
+          "n": 37,
+          "dur": 9390
+         },
+         "EventDispatch": {
+          "n": 97,
+          "dur": 740
+         },
+         "ObserverCallback": {
+          "n": 8,
+          "dur": 407
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39624728525:smoothness-webkit-sim",
+        "reps": 4,
+        "frames": 8,
+        "perFrame": 131484,
+        "perFrameAll": [
+         60030,
+         111311,
+         277816,
+         131484
+        ],
+        "work": 89049,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 32,
+          "dur": 8796
+         },
+         "Layout": {
+          "n": 86,
+          "dur": 6181
+         },
+         "Paint": {
+          "n": 86,
+          "dur": 4253
+         },
+         "Composite": {
+          "n": 8,
+          "dur": 72497
+         },
+         "FunctionCall": {
+          "n": 181,
+          "dur": 28218
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 53,
+          "dur": 17221
+         },
+         "FireAnimationFrame": {
+          "n": 37,
+          "dur": 10659
+         },
+         "EventDispatch": {
+          "n": 111,
+          "dur": 789
+         },
+         "ObserverCallback": {
+          "n": 6,
+          "dur": 398
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       }
+      ]
+     },
+     "verdicts": {
+      "orig|base": {
+       "jobs": 3,
+       "first": 0,
+       "second": 0,
+       "same": 0,
+       "insufficient": 3,
+       "verdict": "same"
+      },
+      "base|look": {
+       "jobs": 3,
+       "first": 0,
+       "second": 0,
+       "same": 2,
+       "insufficient": 1,
+       "verdict": "same"
+      },
+      "orig|look": {
+       "jobs": 3,
+       "first": 0,
+       "second": 0,
+       "same": 0,
+       "insufficient": 3,
+       "verdict": "same"
+      }
+     },
+     "perJob": [
+      {
+       "job": "39612238445:smoothness-webkit-sim",
+       "orig|base": "insufficient",
+       "base|look": "same",
+       "orig|look": "insufficient"
+      },
+      {
+       "job": "39617081415:smoothness-webkit-sim",
+       "orig|base": "insufficient",
+       "base|look": "same",
+       "orig|look": "insufficient"
+      },
+      {
+       "job": "39624728525:smoothness-webkit-sim",
+       "orig|base": "insufficient",
+       "base|look": "insufficient",
+       "orig|look": "insufficient"
+      }
+     ],
+     "classes": {
+      "orig": {
+       "Composite": {
+        "class": "stable",
+        "k": 1,
+        "t": 1
+       },
+       "EvaluateScript": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "EventDispatch": {
+        "class": "stable",
+        "k": 1,
+        "t": 1
+       },
+       "FireAnimationFrame": {
+        "class": "stable",
+        "k": 1,
+        "t": 4
+       },
+       "FunctionCall": {
+        "class": "stable",
+        "k": 1,
+        "t": 5
+       },
+       "Layout": {
+        "class": "stable",
+        "k": 1,
+        "t": 4
+       },
+       "ObserverCallback": {
+        "class": "stable",
+        "k": 1,
+        "t": 1
+       },
+       "Paint": {
+        "class": "stable",
+        "k": 1,
+        "t": 2
+       },
+       "RecalculateStyles": {
+        "class": "stable",
+        "k": 1,
+        "t": 1
+       },
+       "RenderingFrame": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "TimerFire": {
+        "class": "stable",
+        "k": 1,
+        "t": 2
+       }
+      },
+      "base": {
+       "Composite": {
+        "class": "stable",
+        "k": 1,
+        "t": 3
+       },
+       "EvaluateScript": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "EventDispatch": {
+        "class": "stable",
+        "k": 1,
+        "t": 5
+       },
+       "FireAnimationFrame": {
+        "class": "stable",
+        "k": 1,
+        "t": 12
+       },
+       "FunctionCall": {
+        "class": "stable",
+        "k": 1,
+        "t": 15
+       },
+       "Layout": {
+        "class": "stable",
+        "k": 1,
+        "t": 1
+       },
+       "ObserverCallback": {
+        "class": "stable",
+        "k": 1,
+        "t": 1
+       },
+       "Paint": {
+        "class": "stable",
+        "k": 1,
+        "t": 18
+       },
+       "RecalculateStyles": {
+        "class": "stable",
+        "k": 1,
+        "t": 7
+       },
+       "RenderingFrame": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "TimerFire": {
+        "class": "stable",
+        "k": 1,
+        "t": 7
+       }
+      },
+      "aa": {
+       "Composite": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "EvaluateScript": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "EventDispatch": {
+        "class": "stable",
+        "k": 1,
+        "t": 6
+       },
+       "FireAnimationFrame": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "FunctionCall": {
+        "class": "stable",
+        "k": 1,
+        "t": 8
+       },
+       "Layout": {
+        "class": "stable",
+        "k": 1,
+        "t": 7
+       },
+       "ObserverCallback": {
+        "class": "stable",
+        "k": 1,
+        "t": 1
+       },
+       "Paint": {
+        "class": "stable",
+        "k": 1,
+        "t": 4
+       },
+       "RecalculateStyles": {
+        "class": "stable",
+        "k": 1,
+        "t": 2
+       },
+       "RenderingFrame": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "TimerFire": {
+        "class": "stable",
+        "k": 1,
+        "t": 8
+       }
+      },
+      "look": {
+       "Composite": {
+        "class": "stable",
+        "k": 1,
+        "t": 1
+       },
+       "EvaluateScript": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "EventDispatch": {
+        "class": "stable",
+        "k": 1,
+        "t": 14
+       },
+       "FireAnimationFrame": {
+        "class": "stable",
+        "k": 1,
+        "t": 5
+       },
+       "FunctionCall": {
+        "class": "stable",
+        "k": 1,
+        "t": 12
+       },
+       "Layout": {
+        "class": "stable",
+        "k": 1,
+        "t": 3
+       },
+       "ObserverCallback": {
+        "class": "stable",
+        "k": 1,
+        "t": 2
+       },
+       "Paint": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 56
+       },
+       "RecalculateStyles": {
+        "class": "stable",
+        "k": 1,
+        "t": 4
+       },
+       "RenderingFrame": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "TimerFire": {
+        "class": "stable",
+        "k": 1,
+        "t": 9
+       }
+      }
+     }
+    },
+    "finish": {
+     "cells": {
+      "orig": [
+       {
+        "job": "39612238445:smoothness-webkit-sim",
+        "reps": 5,
+        "frames": 8,
+        "perFrame": 224647,
+        "perFrameAll": [
+         357350,
+         192900,
+         113906,
+         389234,
+         224647
+        ],
+        "work": 178675,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 32,
+          "dur": 12119
+         },
+         "Layout": {
+          "n": 36,
+          "dur": 50367
+         },
+         "Paint": {
+          "n": 539,
+          "dur": 3827
+         },
+         "Composite": {
+          "n": 8,
+          "dur": 121402
+         },
+         "FunctionCall": {
+          "n": 31,
+          "dur": 55283
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 6,
+          "dur": 197
+         },
+         "FireAnimationFrame": {
+          "n": 23,
+          "dur": 54918
+         },
+         "EventDispatch": {
+          "n": 4,
+          "dur": 112
+         },
+         "ObserverCallback": {
+          "n": 0,
+          "dur": 0
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39617081415:smoothness-webkit-sim",
+        "reps": 5,
+        "frames": 6,
+        "perFrame": 314985,
+        "perFrameAll": [
+         489115,
+         302520,
+         299381,
+         314985,
+         375376
+        ],
+        "work": 187688,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 23,
+          "dur": 13505
+         },
+         "Layout": {
+          "n": 27,
+          "dur": 49951
+         },
+         "Paint": {
+          "n": 415,
+          "dur": 4139
+         },
+         "Composite": {
+          "n": 6,
+          "dur": 119558
+         },
+         "FunctionCall": {
+          "n": 25,
+          "dur": 53941
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 6,
+          "dur": 302
+         },
+         "FireAnimationFrame": {
+          "n": 17,
+          "dur": 53575
+         },
+         "EventDispatch": {
+          "n": 4,
+          "dur": 171
+         },
+         "ObserverCallback": {
+          "n": 0,
+          "dur": 0
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39624728525:smoothness-webkit-sim",
+        "reps": 4,
+        "frames": 6,
+        "perFrame": 293618,
+        "perFrameAll": [
+         293618,
+         387046,
+         283571,
+         288030
+        ],
+        "work": 176171,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 25,
+          "dur": 12912
+         },
+         "Layout": {
+          "n": 28,
+          "dur": 47311
+         },
+         "Paint": {
+          "n": 420,
+          "dur": 3753
+         },
+         "Composite": {
+          "n": 6,
+          "dur": 126370
+         },
+         "FunctionCall": {
+          "n": 26,
+          "dur": 50083
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 6,
+          "dur": 626
+         },
+         "FireAnimationFrame": {
+          "n": 18,
+          "dur": 49902
+         },
+         "EventDispatch": {
+          "n": 4,
+          "dur": 761
+         },
+         "ObserverCallback": {
+          "n": 0,
+          "dur": 0
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       }
+      ],
+      "base": [
+       {
+        "job": "39612238445:smoothness-webkit-sim",
+        "reps": 5,
+        "frames": 7,
+        "perFrame": 239544,
+        "perFrameAll": [
+         540520,
+         230082,
+         156115,
+         447145,
+         239544
+        ],
+        "work": 167681,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 23,
+          "dur": 13595
+         },
+         "Layout": {
+          "n": 24,
+          "dur": 4024
+         },
+         "Paint": {
+          "n": 517,
+          "dur": 3744
+         },
+         "Composite": {
+          "n": 7,
+          "dur": 143801
+         },
+         "FunctionCall": {
+          "n": 96,
+          "dur": 3704
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 6,
+          "dur": 262
+         },
+         "FireAnimationFrame": {
+          "n": 14,
+          "dur": 2480
+         },
+         "EventDispatch": {
+          "n": 86,
+          "dur": 675
+         },
+         "ObserverCallback": {
+          "n": 12,
+          "dur": 188
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39617081415:smoothness-webkit-sim",
+        "reps": 5,
+        "frames": 6,
+        "perFrame": 273250,
+        "perFrameAll": [
+         204932,
+         273250,
+         170707,
+         287391,
+         372926
+        ],
+        "work": 170707,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 24,
+          "dur": 14539
+         },
+         "Layout": {
+          "n": 25,
+          "dur": 3340
+         },
+         "Paint": {
+          "n": 421,
+          "dur": 4124
+         },
+         "Composite": {
+          "n": 6,
+          "dur": 147103
+         },
+         "FunctionCall": {
+          "n": 131,
+          "dur": 4010
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 6,
+          "dur": 299
+         },
+         "FireAnimationFrame": {
+          "n": 15,
+          "dur": 2942
+         },
+         "EventDispatch": {
+          "n": 104,
+          "dur": 617
+         },
+         "ObserverCallback": {
+          "n": 10,
+          "dur": 182
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39624728525:smoothness-webkit-sim",
+        "reps": 3,
+        "frames": 5,
+        "perFrame": 356212,
+        "perFrameAll": [
+         356212,
+         193715,
+         389055
+        ],
+        "work": 174344,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 16,
+          "dur": 9160
+         },
+         "Layout": {
+          "n": 16,
+          "dur": 1807
+         },
+         "Paint": {
+          "n": 394,
+          "dur": 2684
+         },
+         "Composite": {
+          "n": 5,
+          "dur": 160493
+         },
+         "FunctionCall": {
+          "n": 90,
+          "dur": 4030
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 6,
+          "dur": 604
+         },
+         "FireAnimationFrame": {
+          "n": 10,
+          "dur": 2447
+         },
+         "EventDispatch": {
+          "n": 64,
+          "dur": 630
+         },
+         "ObserverCallback": {
+          "n": 10,
+          "dur": 122
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       }
+      ],
+      "aa": [
+       {
+        "job": "39612238445:smoothness-webkit-sim",
+        "reps": 5,
+        "frames": 7,
+        "perFrame": 247211,
+        "perFrameAll": [
+         247211,
+         243851,
+         160008,
+         309601,
+         304400
+        ],
+        "work": 173048,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 23,
+          "dur": 13822
+         },
+         "Layout": {
+          "n": 24,
+          "dur": 2315
+         },
+         "Paint": {
+          "n": 500,
+          "dur": 3835
+         },
+         "Composite": {
+          "n": 7,
+          "dur": 153651
+         },
+         "FunctionCall": {
+          "n": 123,
+          "dur": 4017
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 6,
+          "dur": 284
+         },
+         "FireAnimationFrame": {
+          "n": 18,
+          "dur": 2509
+         },
+         "EventDispatch": {
+          "n": 97,
+          "dur": 633
+         },
+         "ObserverCallback": {
+          "n": 12,
+          "dur": 143
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39617081415:smoothness-webkit-sim",
+        "reps": 5,
+        "frames": 7,
+        "perFrame": 237862,
+        "perFrameAll": [
+         296911,
+         234980,
+         237862,
+         205635,
+         243782
+        ],
+        "work": 166504,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 24,
+          "dur": 12350
+         },
+         "Layout": {
+          "n": 25,
+          "dur": 2353
+         },
+         "Paint": {
+          "n": 509,
+          "dur": 3713
+         },
+         "Composite": {
+          "n": 7,
+          "dur": 146736
+         },
+         "FunctionCall": {
+          "n": 142,
+          "dur": 4558
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 6,
+          "dur": 328
+         },
+         "FireAnimationFrame": {
+          "n": 17,
+          "dur": 3052
+         },
+         "EventDispatch": {
+          "n": 125,
+          "dur": 643
+         },
+         "ObserverCallback": {
+          "n": 14,
+          "dur": 151
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39624728525:smoothness-webkit-sim",
+        "reps": 3,
+        "frames": 7,
+        "perFrame": 237861,
+        "perFrameAll": [
+         112781,
+         300326,
+         237861
+        ],
+        "work": 169172,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 23,
+          "dur": 17607
+         },
+         "Layout": {
+          "n": 25,
+          "dur": 4553
+         },
+         "Paint": {
+          "n": 422,
+          "dur": 4100
+         },
+         "Composite": {
+          "n": 7,
+          "dur": 152607
+         },
+         "FunctionCall": {
+          "n": 140,
+          "dur": 7783
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 5,
+          "dur": 1437
+         },
+         "FireAnimationFrame": {
+          "n": 13,
+          "dur": 4233
+         },
+         "EventDispatch": {
+          "n": 115,
+          "dur": 2140
+         },
+         "ObserverCallback": {
+          "n": 12,
+          "dur": 664
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       }
+      ],
+      "look": [
+       {
+        "job": "39612238445:smoothness-webkit-sim",
+        "reps": 5,
+        "frames": 7,
+        "perFrame": 235245,
+        "perFrameAll": [
+         235245,
+         379888,
+         104610,
+         205253,
+         327054
+        ],
+        "work": 164203,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 24,
+          "dur": 11998
+         },
+         "Layout": {
+          "n": 23,
+          "dur": 2045
+         },
+         "Paint": {
+          "n": 518,
+          "dur": 3327
+         },
+         "Composite": {
+          "n": 7,
+          "dur": 145250
+         },
+         "FunctionCall": {
+          "n": 77,
+          "dur": 3419
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 6,
+          "dur": 220
+         },
+         "FireAnimationFrame": {
+          "n": 13,
+          "dur": 2401
+         },
+         "EventDispatch": {
+          "n": 50,
+          "dur": 343
+         },
+         "ObserverCallback": {
+          "n": 12,
+          "dur": 141
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39617081415:smoothness-webkit-sim",
+        "reps": 5,
+        "frames": 8,
+        "perFrame": 199567,
+        "perFrameAll": [
+         199567,
+         171596,
+         206946,
+         201757,
+         151293
+        ],
+        "work": 165557,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 25,
+          "dur": 11076
+         },
+         "Layout": {
+          "n": 25,
+          "dur": 2256
+         },
+         "Paint": {
+          "n": 516,
+          "dur": 3911
+         },
+         "Composite": {
+          "n": 8,
+          "dur": 144163
+         },
+         "FunctionCall": {
+          "n": 110,
+          "dur": 4216
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 6,
+          "dur": 303
+         },
+         "FireAnimationFrame": {
+          "n": 15,
+          "dur": 3358
+         },
+         "EventDispatch": {
+          "n": 86,
+          "dur": 532
+         },
+         "ObserverCallback": {
+          "n": 14,
+          "dur": 173
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39624728525:smoothness-webkit-sim",
+        "reps": 4,
+        "frames": 7,
+        "perFrame": 377264,
+        "perFrameAll": [
+         95642,
+         377264,
+         439767,
+         242184
+        ],
+        "work": 175907,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 25,
+          "dur": 11280
+         },
+         "Layout": {
+          "n": 25,
+          "dur": 2012
+         },
+         "Paint": {
+          "n": 483,
+          "dur": 3807
+         },
+         "Composite": {
+          "n": 7,
+          "dur": 163247
+         },
+         "FunctionCall": {
+          "n": 134,
+          "dur": 4660
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 6,
+          "dur": 497
+         },
+         "FireAnimationFrame": {
+          "n": 15,
+          "dur": 3210
+         },
+         "EventDispatch": {
+          "n": 80,
+          "dur": 999
+         },
+         "ObserverCallback": {
+          "n": 12,
+          "dur": 193
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       }
+      ]
+     },
+     "verdicts": {
+      "orig|base": {
+       "jobs": 3,
+       "first": 0,
+       "second": 0,
+       "same": 2,
+       "insufficient": 1,
+       "verdict": "same"
+      },
+      "base|look": {
+       "jobs": 3,
+       "first": 0,
+       "second": 0,
+       "same": 2,
+       "insufficient": 1,
+       "verdict": "same"
+      },
+      "orig|look": {
+       "jobs": 3,
+       "first": 0,
+       "second": 1,
+       "same": 1,
+       "insufficient": 1,
+       "verdict": "same"
+      }
+     },
+     "perJob": [
+      {
+       "job": "39612238445:smoothness-webkit-sim",
+       "orig|base": "same",
+       "base|look": "same",
+       "orig|look": "same"
+      },
+      {
+       "job": "39617081415:smoothness-webkit-sim",
+       "orig|base": "same",
+       "base|look": "same",
+       "orig|look": "second"
+      },
+      {
+       "job": "39624728525:smoothness-webkit-sim",
+       "orig|base": "insufficient",
+       "base|look": "insufficient",
+       "orig|look": "insufficient"
+      }
+     ],
+     "classes": {
+      "orig": {
+       "Composite": {
+        "class": "stable",
+        "k": 1,
+        "t": 2
+       },
+       "EvaluateScript": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "EventDispatch": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "FireAnimationFrame": {
+        "class": "stable",
+        "k": 1,
+        "t": 6
+       },
+       "FunctionCall": {
+        "class": "stable",
+        "k": 1,
+        "t": 6
+       },
+       "Layout": {
+        "class": "stable",
+        "k": 1,
+        "t": 9
+       },
+       "ObserverCallback": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "Paint": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 124
+       },
+       "RecalculateStyles": {
+        "class": "stable",
+        "k": 1,
+        "t": 9
+       },
+       "RenderingFrame": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "TimerFire": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       }
+      },
+      "base": {
+       "Composite": {
+        "class": "stable",
+        "k": 1,
+        "t": 2
+       },
+       "EvaluateScript": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "EventDispatch": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 40
+       },
+       "FireAnimationFrame": {
+        "class": "stable",
+        "k": 1,
+        "t": 5
+       },
+       "FunctionCall": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 41
+       },
+       "Layout": {
+        "class": "stable",
+        "k": 1,
+        "t": 9
+       },
+       "ObserverCallback": {
+        "class": "stable",
+        "k": 1,
+        "t": 2
+       },
+       "Paint": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 123
+       },
+       "RecalculateStyles": {
+        "class": "stable",
+        "k": 1,
+        "t": 8
+       },
+       "RenderingFrame": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "TimerFire": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       }
+      },
+      "aa": {
+       "Composite": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "EvaluateScript": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "EventDispatch": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 28
+       },
+       "FireAnimationFrame": {
+        "class": "stable",
+        "k": 1,
+        "t": 5
+       },
+       "FunctionCall": {
+        "class": "stable",
+        "k": 1,
+        "t": 19
+       },
+       "Layout": {
+        "class": "stable",
+        "k": 1,
+        "t": 1
+       },
+       "ObserverCallback": {
+        "class": "stable",
+        "k": 1,
+        "t": 2
+       },
+       "Paint": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 87
+       },
+       "RecalculateStyles": {
+        "class": "stable",
+        "k": 1,
+        "t": 1
+       },
+       "RenderingFrame": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "TimerFire": {
+        "class": "stable",
+        "k": 1,
+        "t": 1
+       }
+      },
+      "look": {
+       "Composite": {
+        "class": "stable",
+        "k": 1,
+        "t": 1
+       },
+       "EvaluateScript": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "EventDispatch": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 36
+       },
+       "FireAnimationFrame": {
+        "class": "stable",
+        "k": 1,
+        "t": 2
+       },
+       "FunctionCall": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 57
+       },
+       "Layout": {
+        "class": "stable",
+        "k": 1,
+        "t": 2
+       },
+       "ObserverCallback": {
+        "class": "stable",
+        "k": 1,
+        "t": 2
+       },
+       "Paint": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 35
+       },
+       "RecalculateStyles": {
+        "class": "stable",
+        "k": 1,
+        "t": 1
+       },
+       "RenderingFrame": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "TimerFire": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       }
+      }
+     }
+    },
+    "rest": {
+     "cells": {
+      "orig": [
+       {
+        "job": "39612238445:smoothness-webkit-sim",
+        "reps": 5,
+        "frames": 2,
+        "perFrame": 336925,
+        "perFrameAll": [
+         336925,
+         311715,
+         162885,
+         1566260,
+         1649285
+        ],
+        "work": 67385,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 21,
+          "dur": 13471
+         },
+         "Layout": {
+          "n": 30,
+          "dur": 34726
+         },
+         "Paint": {
+          "n": 49,
+          "dur": 1224
+         },
+         "Composite": {
+          "n": 2,
+          "dur": 22042
+         },
+         "FunctionCall": {
+          "n": 36,
+          "dur": 27837
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 2,
+          "dur": 7231
+         },
+         "FireAnimationFrame": {
+          "n": 16,
+          "dur": 15579
+         },
+         "EventDispatch": {
+          "n": 1,
+          "dur": 13
+         },
+         "ObserverCallback": {
+          "n": 12,
+          "dur": 8696
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39617081415:smoothness-webkit-sim",
+        "reps": 5,
+        "frames": 2,
+        "perFrame": 1574795,
+        "perFrameAll": [
+         3490060,
+         679060,
+         1169503,
+         1574795,
+         1736170
+        ],
+        "work": 347234,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 22,
+          "dur": 19768
+         },
+         "Layout": {
+          "n": 79,
+          "dur": 291874
+         },
+         "Paint": {
+          "n": 45,
+          "dur": 1340
+         },
+         "Composite": {
+          "n": 2,
+          "dur": 26603
+         },
+         "FunctionCall": {
+          "n": 38,
+          "dur": 282770
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 5,
+          "dur": 245688
+         },
+         "FireAnimationFrame": {
+          "n": 16,
+          "dur": 17557
+         },
+         "EventDispatch": {
+          "n": 1,
+          "dur": 36
+         },
+         "ObserverCallback": {
+          "n": 12,
+          "dur": 12086
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39624728525:smoothness-webkit-sim",
+        "reps": 3,
+        "frames": 2,
+        "perFrame": 1338760,
+        "perFrameAll": [
+         225020,
+         1610845,
+         1338760
+        ],
+        "work": 267752,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 21,
+          "dur": 13338
+         },
+         "Layout": {
+          "n": 79,
+          "dur": 221983
+         },
+         "Paint": {
+          "n": 49,
+          "dur": 2204
+         },
+         "Composite": {
+          "n": 2,
+          "dur": 26188
+         },
+         "FunctionCall": {
+          "n": 36,
+          "dur": 225501
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 3,
+          "dur": 193084
+         },
+         "FireAnimationFrame": {
+          "n": 16,
+          "dur": 21098
+         },
+         "EventDispatch": {
+          "n": 1,
+          "dur": 8
+         },
+         "ObserverCallback": {
+          "n": 12,
+          "dur": 8741
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       }
+      ],
+      "base": [
+       {
+        "job": "39612238445:smoothness-webkit-sim",
+        "reps": 5,
+        "frames": 4,
+        "perFrame": 121980,
+        "perFrameAll": [
+         121980,
+         191387,
+         38305,
+         206820,
+         38160
+        ],
+        "work": 57241,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 33,
+          "dur": 11857
+         },
+         "Layout": {
+          "n": 42,
+          "dur": 4584
+         },
+         "Paint": {
+          "n": 94,
+          "dur": 1418
+         },
+         "Composite": {
+          "n": 4,
+          "dur": 36830
+         },
+         "FunctionCall": {
+          "n": 116,
+          "dur": 10576
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 7,
+          "dur": 602
+         },
+         "FireAnimationFrame": {
+          "n": 29,
+          "dur": 6065
+         },
+         "EventDispatch": {
+          "n": 85,
+          "dur": 2008
+         },
+         "ObserverCallback": {
+          "n": 8,
+          "dur": 359
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39617081415:smoothness-webkit-sim",
+        "reps": 5,
+        "frames": 3,
+        "perFrame": 215423,
+        "perFrameAll": [
+         369590,
+         215423,
+         171030,
+         240805,
+         115765
+        ],
+        "work": 64627,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 28,
+          "dur": 9278
+         },
+         "Layout": {
+          "n": 33,
+          "dur": 4002
+         },
+         "Paint": {
+          "n": 79,
+          "dur": 2172
+         },
+         "Composite": {
+          "n": 3,
+          "dur": 51096
+         },
+         "FunctionCall": {
+          "n": 103,
+          "dur": 6468
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 4,
+          "dur": 353
+         },
+         "FireAnimationFrame": {
+          "n": 24,
+          "dur": 3547
+         },
+         "EventDispatch": {
+          "n": 89,
+          "dur": 2613
+         },
+         "ObserverCallback": {
+          "n": 9,
+          "dur": 608
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39624728525:smoothness-webkit-sim",
+        "reps": 4,
+        "frames": 10,
+        "perFrame": 115835,
+        "perFrameAll": [
+         61255,
+         29940,
+         115835,
+         162270
+        ],
+        "work": 61255,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 41,
+          "dur": 13598
+         },
+         "Layout": {
+          "n": 51,
+          "dur": 6225
+         },
+         "Paint": {
+          "n": 152,
+          "dur": 2853
+         },
+         "Composite": {
+          "n": 10,
+          "dur": 45830
+         },
+         "FunctionCall": {
+          "n": 168,
+          "dur": 12788
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 10,
+          "dur": 1699
+         },
+         "FireAnimationFrame": {
+          "n": 43,
+          "dur": 6506
+         },
+         "EventDispatch": {
+          "n": 135,
+          "dur": 3473
+         },
+         "ObserverCallback": {
+          "n": 8,
+          "dur": 958
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       }
+      ],
+      "aa": [
+       {
+        "job": "39612238445:smoothness-webkit-sim",
+        "reps": 4,
+        "frames": 7,
+        "perFrame": 136850,
+        "perFrameAll": [
+         23920,
+         102618,
+         294026,
+         136850
+        ],
+        "work": 71833,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 35,
+          "dur": 12778
+         },
+         "Layout": {
+          "n": 49,
+          "dur": 5495
+         },
+         "Paint": {
+          "n": 120,
+          "dur": 3020
+         },
+         "Composite": {
+          "n": 7,
+          "dur": 55804
+         },
+         "FunctionCall": {
+          "n": 171,
+          "dur": 10573
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 9,
+          "dur": 1374
+         },
+         "FireAnimationFrame": {
+          "n": 34,
+          "dur": 7481
+         },
+         "EventDispatch": {
+          "n": 139,
+          "dur": 2061
+         },
+         "ObserverCallback": {
+          "n": 8,
+          "dur": 548
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39617081415:smoothness-webkit-sim",
+        "reps": 5,
+        "frames": 5,
+        "perFrame": 168446,
+        "perFrameAll": [
+         168446,
+         87067,
+         50178,
+         190990,
+         255940
+        ],
+        "work": 65232,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 35,
+          "dur": 8415
+         },
+         "Layout": {
+          "n": 43,
+          "dur": 4304
+         },
+         "Paint": {
+          "n": 75,
+          "dur": 2811
+         },
+         "Composite": {
+          "n": 5,
+          "dur": 46011
+         },
+         "FunctionCall": {
+          "n": 176,
+          "dur": 9918
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 11,
+          "dur": 1964
+         },
+         "FireAnimationFrame": {
+          "n": 34,
+          "dur": 4879
+         },
+         "EventDispatch": {
+          "n": 150,
+          "dur": 2712
+         },
+         "ObserverCallback": {
+          "n": 9,
+          "dur": 383
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39624728525:smoothness-webkit-sim",
+        "reps": 3,
+        "frames": 8,
+        "perFrame": 103832,
+        "perFrameAll": [
+         103832,
+         29154,
+         200703
+        ],
+        "work": 60211,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 40,
+          "dur": 9699
+         },
+         "Layout": {
+          "n": 58,
+          "dur": 3912
+         },
+         "Paint": {
+          "n": 113,
+          "dur": 4006
+         },
+         "Composite": {
+          "n": 8,
+          "dur": 42329
+         },
+         "FunctionCall": {
+          "n": 170,
+          "dur": 9227
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 13,
+          "dur": 1979
+         },
+         "FireAnimationFrame": {
+          "n": 39,
+          "dur": 4747
+         },
+         "EventDispatch": {
+          "n": 129,
+          "dur": 2156
+         },
+         "ObserverCallback": {
+          "n": 9,
+          "dur": 548
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       }
+      ],
+      "look": [
+       {
+        "job": "39612238445:smoothness-webkit-sim",
+        "reps": 5,
+        "frames": 15,
+        "perFrame": 40656,
+        "perFrameAll": [
+         313276,
+         108832,
+         31978,
+         34809,
+         40656
+        ],
+        "work": 69618,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 51,
+          "dur": 13939
+         },
+         "Layout": {
+          "n": 56,
+          "dur": 5741
+         },
+         "Paint": {
+          "n": 109,
+          "dur": 1877
+         },
+         "Composite": {
+          "n": 15,
+          "dur": 47589
+         },
+         "FunctionCall": {
+          "n": 166,
+          "dur": 11657
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 8,
+          "dur": 1799
+         },
+         "FireAnimationFrame": {
+          "n": 53,
+          "dur": 8296
+         },
+         "EventDispatch": {
+          "n": 120,
+          "dur": 2618
+         },
+         "ObserverCallback": {
+          "n": 9,
+          "dur": 583
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39617081415:smoothness-webkit-sim",
+        "reps": 5,
+        "frames": 3,
+        "perFrame": 125412,
+        "perFrameAll": [
+         89423,
+         212370,
+         106470,
+         125412,
+         189743
+        ],
+        "work": 56923,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 25,
+          "dur": 8581
+         },
+         "Layout": {
+          "n": 27,
+          "dur": 4415
+         },
+         "Paint": {
+          "n": 68,
+          "dur": 2262
+         },
+         "Composite": {
+          "n": 3,
+          "dur": 42754
+         },
+         "FunctionCall": {
+          "n": 139,
+          "dur": 9552
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 3,
+          "dur": 473
+         },
+         "FireAnimationFrame": {
+          "n": 24,
+          "dur": 5080
+         },
+         "EventDispatch": {
+          "n": 116,
+          "dur": 3802
+         },
+         "ObserverCallback": {
+          "n": 8,
+          "dur": 457
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       },
+       {
+        "job": "39624728525:smoothness-webkit-sim",
+        "reps": 4,
+        "frames": 8,
+        "perFrame": 208843,
+        "perFrameAll": [
+         29574,
+         74320,
+         774450,
+         208843
+        ],
+        "work": 65063,
+        "kinds": {
+         "RecalculateStyles": {
+          "n": 38,
+          "dur": 17618
+         },
+         "Layout": {
+          "n": 39,
+          "dur": 5786
+         },
+         "Paint": {
+          "n": 99,
+          "dur": 3304
+         },
+         "Composite": {
+          "n": 8,
+          "dur": 42940
+         },
+         "FunctionCall": {
+          "n": 138,
+          "dur": 14991
+         },
+         "EvaluateScript": {
+          "n": 0,
+          "dur": 0
+         },
+         "TimerFire": {
+          "n": 5,
+          "dur": 1620
+         },
+         "FireAnimationFrame": {
+          "n": 39,
+          "dur": 6050
+         },
+         "EventDispatch": {
+          "n": 100,
+          "dur": 2755
+         },
+         "ObserverCallback": {
+          "n": 6,
+          "dur": 576
+         },
+         "RenderingFrame": {
+          "n": 0,
+          "dur": 0
+         }
+        }
+       }
+      ]
+     },
+     "verdicts": {
+      "orig|base": {
+       "jobs": 3,
+       "first": 0,
+       "second": 1,
+       "same": 0,
+       "insufficient": 2,
+       "verdict": "same"
+      },
+      "base|look": {
+       "jobs": 3,
+       "first": 0,
+       "second": 0,
+       "same": 1,
+       "insufficient": 2,
+       "verdict": "same"
+      },
+      "orig|look": {
+       "jobs": 3,
+       "first": 0,
+       "second": 1,
+       "same": 0,
+       "insufficient": 2,
+       "verdict": "same"
+      }
+     },
+     "perJob": [
+      {
+       "job": "39612238445:smoothness-webkit-sim",
+       "orig|base": "insufficient",
+       "base|look": "insufficient",
+       "orig|look": "insufficient"
+      },
+      {
+       "job": "39617081415:smoothness-webkit-sim",
+       "orig|base": "second",
+       "base|look": "same",
+       "orig|look": "second"
+      },
+      {
+       "job": "39624728525:smoothness-webkit-sim",
+       "orig|base": "insufficient",
+       "base|look": "insufficient",
+       "orig|look": "insufficient"
+      }
+     ],
+     "classes": {
+      "orig": {
+       "Composite": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "EvaluateScript": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "EventDispatch": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "FireAnimationFrame": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "FunctionCall": {
+        "class": "stable",
+        "k": 1,
+        "t": 2
+       },
+       "Layout": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 49
+       },
+       "ObserverCallback": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "Paint": {
+        "class": "stable",
+        "k": 1,
+        "t": 4
+       },
+       "RecalculateStyles": {
+        "class": "stable",
+        "k": 1,
+        "t": 1
+       },
+       "RenderingFrame": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "TimerFire": {
+        "class": "stable",
+        "k": 1,
+        "t": 3
+       }
+      },
+      "base": {
+       "Composite": {
+        "class": "stable",
+        "k": 1,
+        "t": 7
+       },
+       "EvaluateScript": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "EventDispatch": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 50
+       },
+       "FireAnimationFrame": {
+        "class": "stable",
+        "k": 1,
+        "t": 19
+       },
+       "FunctionCall": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 65
+       },
+       "Layout": {
+        "class": "stable",
+        "k": 1,
+        "t": 18
+       },
+       "ObserverCallback": {
+        "class": "stable",
+        "k": 1,
+        "t": 1
+       },
+       "Paint": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 73
+       },
+       "RecalculateStyles": {
+        "class": "stable",
+        "k": 1,
+        "t": 13
+       },
+       "RenderingFrame": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "TimerFire": {
+        "class": "stable",
+        "k": 1,
+        "t": 6
+       }
+      },
+      "aa": {
+       "Composite": {
+        "class": "stable",
+        "k": 1,
+        "t": 3
+       },
+       "EvaluateScript": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "EventDispatch": {
+        "class": "stable",
+        "k": 1,
+        "t": 21
+       },
+       "FireAnimationFrame": {
+        "class": "stable",
+        "k": 1,
+        "t": 5
+       },
+       "FunctionCall": {
+        "class": "stable",
+        "k": 1,
+        "t": 6
+       },
+       "Layout": {
+        "class": "stable",
+        "k": 1,
+        "t": 15
+       },
+       "ObserverCallback": {
+        "class": "stable",
+        "k": 1,
+        "t": 1
+       },
+       "Paint": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 45
+       },
+       "RecalculateStyles": {
+        "class": "stable",
+        "k": 1,
+        "t": 5
+       },
+       "RenderingFrame": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "TimerFire": {
+        "class": "stable",
+        "k": 1,
+        "t": 4
+       }
+      },
+      "look": {
+       "Composite": {
+        "class": "stable",
+        "k": 1,
+        "t": 12
+       },
+       "EvaluateScript": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "EventDispatch": {
+        "class": "stable",
+        "k": 1,
+        "t": 20
+       },
+       "FireAnimationFrame": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 29
+       },
+       "FunctionCall": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 28
+       },
+       "Layout": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 29
+       },
+       "ObserverCallback": {
+        "class": "stable",
+        "k": 1,
+        "t": 3
+       },
+       "Paint": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 41
+       },
+       "RecalculateStyles": {
+        "class": "quarantined",
+        "k": 1,
+        "t": 26
+       },
+       "RenderingFrame": {
+        "class": "deterministic",
+        "k": 0,
+        "t": 0
+       },
+       "TimerFire": {
+        "class": "stable",
+        "k": 1,
+        "t": 5
+       }
+      }
+     }
+    }
+   },
+   "cadence": {
+    "hero|events": {
+     "jobs": [
+      {
+       "job": "39612238445:smoothness-webkit-sim",
+       "arms": {
+        "orig": {
+         "reps": 5,
+         "hitches": [
+          4,
+          4,
+          5,
+          1,
+          1
+         ],
+         "rate": 10000,
+         "p50": 1510,
+         "p95": 19180,
+         "max": 19180
+        },
+        "base": {
+         "reps": 5,
+         "hitches": [
+          5,
+          6,
+          8,
+          5,
+          8
+         ],
+         "rate": 4588,
+         "p50": 260,
+         "p95": 3320,
+         "max": 4590
+        },
+        "aa": {
+         "reps": 5,
+         "hitches": [
+          2,
+          7,
+          9,
+          6,
+          7
+         ],
+         "rate": 5000,
+         "p50": 340,
+         "p95": 2900,
+         "max": 3820
+        },
+        "look": {
+         "reps": 5,
+         "hitches": [
+          5,
+          7,
+          7,
+          9,
+          7
+         ],
+         "rate": 4205,
+         "p50": 270,
+         "p95": 2590,
+         "max": 3950
+        }
+       },
+       "verdicts": {
+        "orig|base": "same",
+        "base|look": "same",
+        "orig|look": "same"
+       }
+      },
+      {
+       "job": "39617081415:smoothness-webkit-sim",
+       "arms": {
+        "orig": {
+         "reps": 5,
+         "hitches": [
+          0,
+          2,
+          2,
+          1,
+          1
+         ],
+         "rate": 10000,
+         "p50": 3350,
+         "p95": 24470,
+         "max": 24470
+        },
+        "base": {
+         "reps": 5,
+         "hitches": [
+          3,
+          6,
+          7,
+          5,
+          8
+         ],
+         "rate": 8163,
+         "p50": 1340,
+         "p95": 4030,
+         "max": 6280
+        },
+        "aa": {
+         "reps": 5,
+         "hitches": [
+          7,
+          6,
+          8,
+          6,
+          5
+         ],
+         "rate": 6562,
+         "p50": 580,
+         "p95": 3410,
+         "max": 3720
+        },
+        "look": {
+         "reps": 5,
+         "hitches": [
+          7,
+          5,
+          8,
+          8,
+          7
+         ],
+         "rate": 8301,
+         "p50": 1190,
+         "p95": 3620,
+         "max": 5570
+        }
+       },
+       "verdicts": {
+        "orig|base": "first",
+        "base|look": "same",
+        "orig|look": "first"
+       }
+      },
+      {
+       "job": "39624728525:smoothness-webkit-sim",
+       "arms": {
+        "orig": {
+         "reps": 4,
+         "hitches": [
+          4,
+          1,
+          1,
+          1
+         ],
+         "rate": 10000,
+         "p50": 3650,
+         "p95": 27000,
+         "max": 27000
+        },
+        "base": {
+         "reps": 4,
+         "hitches": [
+          8,
+          7,
+          7,
+          6
+         ],
+         "rate": 4545,
+         "p50": 290,
+         "p95": 2960,
+         "max": 3670
+        },
+        "aa": {
+         "reps": 3,
+         "hitches": [
+          7,
+          7,
+          5
+         ],
+         "rate": 4897,
+         "p50": 330,
+         "p95": 3240,
+         "max": 4300
+        },
+        "look": {
+         "reps": 4,
+         "hitches": [
+          9,
+          7,
+          3,
+          5
+         ],
+         "rate": 5333,
+         "p50": 380,
+         "p95": 2910,
+         "max": 6870
+        }
+       },
+       "verdicts": {
+        "orig|base": "insufficient",
+        "base|look": "insufficient",
+        "orig|look": "insufficient"
+       }
+      }
+     ],
+     "verdicts": {
+      "orig|base": {
+       "jobs": 3,
+       "first": 1,
+       "second": 0,
+       "same": 1,
+       "insufficient": 1,
+       "verdict": "same"
+      },
+      "base|look": {
+       "jobs": 3,
+       "first": 0,
+       "second": 0,
+       "same": 2,
+       "insufficient": 1,
+       "verdict": "same"
+      },
+      "orig|look": {
+       "jobs": 3,
+       "first": 1,
+       "second": 0,
+       "same": 1,
+       "insufficient": 1,
+       "verdict": "same"
+      }
+     }
+    },
+    "end|events": {
+     "jobs": [
+      {
+       "job": "39612238445:smoothness-webkit-sim",
+       "arms": {
+        "orig": {
+         "reps": 5,
+         "hitches": [
+          4,
+          8,
+          10,
+          4,
+          7
+         ],
+         "rate": 10000,
+         "p50": 2460,
+         "p95": 5750,
+         "max": 6050
+        },
+        "base": {
+         "reps": 5,
+         "hitches": [
+          3,
+          6,
+          9,
+          3,
+          6
+         ],
+         "rate": 10000,
+         "p50": 3020,
+         "p95": 6050,
+         "max": 7630
+        },
+        "aa": {
+         "reps": 5,
+         "hitches": [
+          6,
+          6,
+          8,
+          5,
+          5
+         ],
+         "rate": 10000,
+         "p50": 3280,
+         "p95": 5370,
+         "max": 5420
+        },
+        "look": {
+         "reps": 5,
+         "hitches": [
+          6,
+          5,
+          11,
+          7,
+          4
+         ],
+         "rate": 9722,
+         "p50": 2440,
+         "p95": 5190,
+         "max": 5300
+        }
+       },
+       "verdicts": {
+        "orig|base": "same",
+        "base|look": "same",
+        "orig|look": "same"
+       }
+      },
+      {
+       "job": "39617081415:smoothness-webkit-sim",
+       "arms": {
+        "orig": {
+         "reps": 5,
+         "hitches": [
+          3,
+          5,
+          5,
+          5,
+          4
+         ],
+         "rate": 10000,
+         "p50": 3990,
+         "p95": 6400,
+         "max": 6640
+        },
+        "base": {
+         "reps": 5,
+         "hitches": [
+          7,
+          5,
+          9,
+          5,
+          4
+         ],
+         "rate": 10000,
+         "p50": 3270,
+         "p95": 4890,
+         "max": 5870
+        },
+        "aa": {
+         "reps": 5,
+         "hitches": [
+          5,
+          6,
+          6,
+          7,
+          6
+         ],
+         "rate": 10000,
+         "p50": 3290,
+         "p95": 4380,
+         "max": 5260
+        },
+        "look": {
+         "reps": 5,
+         "hitches": [
+          7,
+          9,
+          7,
+          7,
+          9
+         ],
+         "rate": 10000,
+         "p50": 2570,
+         "p95": 4040,
+         "max": 4330
+        }
+       },
+       "verdicts": {
+        "orig|base": "same",
+        "base|look": "same",
+        "orig|look": "first"
+       }
+      },
+      {
+       "job": "39624728525:smoothness-webkit-sim",
+       "arms": {
+        "orig": {
+         "reps": 4,
+         "hitches": [
+          5,
+          4,
+          5,
+          5
+         ],
+         "rate": 10000,
+         "p50": 3540,
+         "p95": 5660,
+         "max": 5660
+        },
+        "base": {
+         "reps": 3,
+         "hitches": [
+          4,
+          8,
+          3
+         ],
+         "rate": 10000,
+         "p50": 3160,
+         "p95": 6340,
+         "max": 6340
+        },
+        "aa": {
+         "reps": 3,
+         "hitches": [
+          10,
+          5,
+          6
+         ],
+         "rate": 8800,
+         "p50": 2020,
+         "p95": 5020,
+         "max": 5980
+        },
+        "look": {
+         "reps": 4,
+         "hitches": [
+          9,
+          4,
+          3,
+          6
+         ],
+         "rate": 9310,
+         "p50": 2100,
+         "p95": 4990,
+         "max": 5350
+        }
+       },
+       "verdicts": {
+        "orig|base": "insufficient",
+        "base|look": "insufficient",
+        "orig|look": "insufficient"
+       }
+      }
+     ],
+     "verdicts": {
+      "orig|base": {
+       "jobs": 3,
+       "first": 0,
+       "second": 0,
+       "same": 2,
+       "insufficient": 1,
+       "verdict": "same"
+      },
+      "base|look": {
+       "jobs": 3,
+       "first": 0,
+       "second": 0,
+       "same": 2,
+       "insufficient": 1,
+       "verdict": "same"
+      },
+      "orig|look": {
+       "jobs": 3,
+       "first": 1,
+       "second": 0,
+       "same": 1,
+       "insufficient": 1,
+       "verdict": "same"
+      }
+     }
+    }
+   }
+  }
+ }
+}
