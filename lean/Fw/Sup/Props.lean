@@ -3001,4 +3001,145 @@ theorem expired_revoked {c : Cfg} {s : State} {now : Nat} {smp : Sample} {l : Le
       exact (List.nodup_append.1 hids).2.2 l.id (List.mem_map_of_mem hl) q.id (List.mem_map_of_mem hq')
         (by rw [← e, hid, hqid])
 
+/-! ## Replies -/
+
+/-- The reply facts of the stage before the pump against the state `s` it starts from. -/
+def PR (s st : State) (cs : List Cmd) : Prop :=
+  (replyIds cs).Nodup ∧ s.next ≤ st.next ∧ (∀ q ∈ st.pending, q ∈ s.pending ∨ q.id = s.next) ∧
+    ∀ n ∈ replyIds cs, n = s.next ∧ s.next < st.next ∧ ∀ q ∈ st.pending, q.id ≠ n
+
+theorem pr_one {c : Cfg} {s st : State} {r : Reply} (h : Wf c s) (hp : st.pending = s.pending)
+    (hn : st.next = s.next + 1) : PR s st [.reply s.next r] := by
+  refine ⟨List.nodup_cons.2 ⟨List.not_mem_nil, List.nodup_nil⟩, by omega, fun q hq => Or.inl (hp ▸ hq), fun n hm => ?_⟩
+  have e : n = s.next := List.mem_singleton.1 hm
+  refine ⟨e, by omega, fun q hq hqn => ?_⟩
+  rw [hp] at hq
+  have := h.below q.id (List.mem_append_right _ (List.mem_map_of_mem hq))
+  omega
+
+theorem pr_none {s st : State} {cs : List Cmd} (hc : replyIds cs = []) (hn : s.next ≤ st.next)
+    (hp : ∀ q ∈ st.pending, q ∈ s.pending ∨ q.id = s.next) : PR s st cs := by
+  refine ⟨by rw [hc]; exact List.nodup_nil, hn, hp, fun n hm => ?_⟩
+  rw [hc] at hm; cases hm
+
+theorem quiet_nil {cs : List Cmd} (h : ∀ x ∈ cs, quiet x = true) : replyIds cs = [] :=
+  (noReply_nil cs fun x hx n r e => by have := h x hx; rw [e] at this; cases this).1
+
+theorem tick_pend {c : Cfg} {s : State} {now : Nat} {smp : Sample} {q : Req} (h : q ∈ (tick c s now smp).1.pending) :
+    q ∈ s.pending := by
+  unfold tick at h
+  dsimp only at h
+  unfold shedStage at h
+  split at h <;> exact (List.mem_filter.1 h).1
+
+theorem tick_next {c : Cfg} {s : State} {now : Nat} {smp : Sample} : (tick c s now smp).1.next = s.next := by
+  unfold tick
+  dsimp only
+  unfold shedStage
+  split <;> rfl
+
+theorem pre_pr {c : Cfg} {s : State} {e : Event} (h : Wf c s) (hr : ∀ now snap inp, e ≠ .restart now snap inp) :
+    PR s (pre c s e).1 (pre c s e).2 := by
+  cases e with
+  | request t o a =>
+    simp only [pre, request]
+    split
+    · split
+      · split
+        · exact pr_one h rfl rfl
+        · exact pr_one h rfl rfl
+      · exact pr_one h rfl rfl
+    · refine pr_none rfl (Nat.le_succ _) fun q hq => ?_
+      rcases List.mem_cons.1 ((insertReq_perm _ s.pending).mem_iff.1 hq) with rfl | hq
+      · exact Or.inr rfl
+      · exact Or.inl hq
+  | release t o l =>
+    simp only [pre, release]
+    split <;> exact pr_one h rfl rfl
+  | renew t o l =>
+    simp only [pre, renew]
+    split
+    · split <;> exact pr_one h rfl rfl
+    · exact pr_one h rfl rfl
+  | op t o => exact pr_one h rfl rfl
+  | drain t o => exact pr_one h rfl rfl
+  | spawned rid i =>
+    simp only [pre]
+    unfold spawned
+    split
+    · exact pr_none rfl (Nat.le_refl _) fun q hq => Or.inl hq
+    · split
+      · exact pr_none rfl (Nat.le_refl _) fun q hq => Or.inl hq
+      · split
+        · exact pr_none rfl (Nat.le_refl _) fun q hq => Or.inl hq
+        · exact pr_none rfl (Nat.le_refl _) fun q hq => Or.inl hq
+  | ready rid => exact pr_none rfl (Nat.le_refl _) fun q hq => Or.inl hq
+  | childExit i =>
+    refine pr_none (quiet_nil fun x hx => ?_) (Nat.le_refl _) fun q hq => Or.inl hq
+    obtain ⟨_, _, _, e⟩ := cut_cmd hx
+    rw [e]; rfl
+  | tick now smp =>
+    exact pr_none (quiet_nil fun _ hx => tick_quiet hx) (Nat.le_of_eq tick_next.symm) fun q hq => Or.inl (tick_pend hq)
+  | clientGone o => exact pr_none rfl (Nat.le_refl _) fun q hq => Or.inl (List.mem_filter.1 hq).1
+  | restart now snap inp => exact absurd rfl (hr now snap inp)
+
+/-- The reply facts of a run: no request id is answered twice, every answered id is below `next`, and no queued
+request has an answered id. -/
+def RO (s : State) (out : List Cmd) : Prop :=
+  (replyIds out).Nodup ∧ ∀ n ∈ replyIds out, n < s.next ∧ ∀ q ∈ s.pending, q.id ≠ n
+
+theorem step_ro {c : Cfg} {s : State} {e : Event} {out : List Cmd} (h : Inv c s)
+    (hr : ∀ now snap inp, e ≠ .restart now snap inp) (ho : RO s out) : RO (step c s e).1 (out ++ (step c s e).2) := by
+  cases ha : authed c e
+  · simp only [step, ha]; simpa using ho
+  rw [step_st ha, step_out ha]
+  have hw := wf_pre e h.1
+  have hj := pump_pj hw
+  obtain ⟨pn, pnx, pq, pr⟩ := pre_pr (e := e) h.1 hr
+  have hperm : (replyIds (pumpAcc c (pre c s e).1).out ++ (pumpAcc c (pre c s e).1).st.pending.map (·.id)).Perm
+      ((pre c s e).1.pending.map (·.id)) := by simpa using hj.perm
+  have hnd := hperm.nodup_iff.2 (pending_ids_nodup hw)
+  have hA : ∀ m ∈ replyIds (pumpAcc c (pre c s e).1).out, ∃ q ∈ (pre c s e).1.pending, q.id = m := fun m hm =>
+    List.mem_map.1 (hperm.subset (List.mem_append_left _ hm))
+  have hs2 : (pumpAcc c (pre c s e).1).st.pending.Sublist (pre c s e).1.pending := by simpa using hj.sub
+  have hsub : ∀ q ∈ (pumpAcc c (pre c s e).1).st.pending, q ∈ (pre c s e).1.pending := fun q hq => hs2.subset hq
+  have hR : ∀ n ∈ replyIds out, ∀ q ∈ (pre c s e).1.pending, q.id ≠ n := fun n hn q hq hqn => by
+    rcases pq q hq with hq | hq
+    · exact (ho.2 n hn).2 q hq hqn
+    · have := (ho.2 n hn).1; omega
+  unfold RO
+  rw [replyIds_append, replyIds_append, ← List.append_assoc]
+  refine ⟨List.nodup_append.2 ⟨List.nodup_append.2 ⟨ho.1, pn, fun a ha b hb => ?_⟩, (List.nodup_append.1 hnd).1,
+    fun a ha b hb => ?_⟩, fun n hn => ?_⟩
+  · have := (ho.2 a ha).1; have := (pr b hb).1; omega
+  · obtain ⟨q, hq, rfl⟩ := hA b hb
+    rcases List.mem_append.1 ha with ha | ha
+    · exact fun e' => hR a ha q hq e'.symm
+    · exact fun e' => (pr a ha).2.2 q hq e'.symm
+  · rw [hj.next]
+    rcases List.mem_append.1 hn with hn | hn
+    · rcases List.mem_append.1 hn with hn | hn
+      · exact ⟨by have := (ho.2 n hn).1; omega, fun q hq => hR n hn q (hsub q hq)⟩
+      · exact ⟨(pr n hn).1 ▸ (pr n hn).2.1, fun q hq => (pr n hn).2.2 q (hsub q hq)⟩
+    · obtain ⟨q0, hq0, rfl⟩ := hA n hn
+      refine ⟨hw.below _ (List.mem_append_right _ (List.mem_map_of_mem hq0)), fun q hq e' => ?_⟩
+      exact (List.nodup_append.1 hnd).2.2 _ hn _ (List.mem_map_of_mem hq) e'.symm
+
+theorem run_ro {c : Cfg} : ∀ (es : List Event) (a : State × List Cmd), Inv c a.1 → RO a.1 a.2 →
+    (∀ e ∈ es, ∀ now snap inp, e ≠ .restart now snap inp) →
+    RO (es.foldl (fun a e => let r := step c a.1 e; (r.1, a.2 ++ r.2)) a).1
+      (es.foldl (fun a e => let r := step c a.1 e; (r.1, a.2 ++ r.2)) a).2
+  | [], _, _, ho, _ => ho
+  | e :: es, a, h, ho, hr =>
+    run_ro es _ (step_inv e h) (step_ro h (hr e List.mem_cons_self) ho) fun e' he => hr e' (List.mem_cons_of_mem _ he)
+
+/-- reply_once: along a run without a restart, from any state satisfying the invariant, no request id gets two
+replies. A restart drops every client connection, so ids of an earlier life have no one to answer. -/
+theorem reply_once {c : Cfg} {s : State} {es : List Event} (h : Inv c s)
+    (hr : ∀ e ∈ es, ∀ now snap inp, e ≠ .restart now snap inp) : (replyIds (run c s es).2).Nodup :=
+  (run_ro es (s, []) h ⟨List.nodup_nil, fun _ hn => absurd hn List.not_mem_nil⟩ hr).1
+
+example : (replyIds (Ex.after [.tick 1 Ex.calm, .request 42 1 Ex.big, .request 42 2 Ex.big, .tick 62 Ex.calm]).2).Nodup :=
+  reply_once (init_inv Ex.cfg) fun e he now snap inp h => by subst h; simp at he
+
 end Fw.Sup
