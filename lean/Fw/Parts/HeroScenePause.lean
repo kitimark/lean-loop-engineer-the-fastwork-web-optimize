@@ -186,7 +186,7 @@ structure WcFamily where
   leaf : Bool
 deriving Repr, DecidableEq
 
-/-- The copy (`translate`, hero.module.css:207), the deck cards (`rotate`, deck.module.css:25) and the countdown faces
+/-- The copy (`translate`, hero.module.css:208), the deck cards (`rotate`, deck.module.css:25) and the countdown faces
 (absolute, text only, no transform before the driver's first write). -/
 def heroWcFamilies : List WcFamily := [⟨"copy", 1, true, false⟩, ⟨"deck card", 4, true, false⟩, ⟨"face", 80, false, true⟩]
 
