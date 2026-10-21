@@ -14,7 +14,8 @@ import { UsageError } from "./lib.ts";
 import { chargedGh, fwcoreCall, type FwCall, type Gh } from "./run.ts";
 
 export const TELEMETRY_USAGE = "usage: fw ci telemetry <github|circleci> <run id | pipeline id> [--store <dir>] [--slug gh/<owner>/<repo>]\n" +
-  "  downloads the telemetry artifacts of the run, adds queue time, appends to the local store, prints the step table and the slow verdicts.";
+  "  downloads the telemetry artifacts of the run, adds queue time, appends to the local store, prints the step table and the slow verdicts.\n" +
+  "       fw ci telemetry macos-window [--days 7] [--sample 200] [--out <file>] [--cache <dir>] [--now <ms>] [--codemagic-builds id,id] [--no-circleci] [--no-codemagic]";
 
 export type Provider = "github" | "circleci";
 export type TelArgs = { provider: Provider; id: string; store?: string; slug?: string };
@@ -189,11 +190,28 @@ export function judge(call: FwCall, all: TelRecord[]): TelReply {
 
 const sec = (ms: number) => (Math.round(ms / 100) / 10).toFixed(1);
 
-/** The table of the spans of the given runs, then the slow verdicts. */
-export function tableLines(reply: TelReply, runIds: Set<string>): string[] {
+/** The step-matched time of a job: its wall time minus the upload, telemetry and post steps that matched time drops on every provider (Lean
+ *  `Fw.Obs.MacTelemetry.matchedMs`, op `obs.macMatched`). The spans carry durations only, so each step is placed at 0. */
+export function matchedOf(call: FwCall, wallMs: number, steps: { name: string; durMs: number }[]): { matchedMs: number; unmatchedMs: number } {
+  const r = call({ op: "obs.macMatched", wallMs, steps: steps.map((s) => ({ name: s.name, startMs: 0, endMs: s.durMs })) }) as unknown as { matchedMs: number; unmatchedMs: number };
+  return { matchedMs: r.matchedMs, unmatchedMs: r.unmatchedMs };
+}
+
+/** The table of the spans of the given runs, then the slow verdicts. With `call`, each job ends with a `(matched)` row: the
+ *  job time that exists on every provider, to compare a GitHub job with a Codemagic or CircleCI one. */
+export function tableLines(reply: TelReply, runIds: Set<string>, call?: FwCall): string[] {
   const rows = reply.spans.filter((s) => runIds.has(s.runId));
   const lines = [`${"job".padEnd(26)} ${"step".padEnd(44)} ${"s".padStart(8)} ${"base s".padStart(8)} ${"n".padStart(3)}  verdict`];
-  for (const s of rows) lines.push(`${s.job.slice(0, 26).padEnd(26)} ${s.name.slice(0, 44).padEnd(44)} ${sec(s.durMs).padStart(8)} ${(s.n > 0 ? sec(s.baseline) : "-").padStart(8)} ${String(s.n).padStart(3)}  ${s.code}`);
+  const row = (job: string, name: string, s: number, base: string, n: string, code: string) =>
+    `${job.slice(0, 26).padEnd(26)} ${name.slice(0, 44).padEnd(44)} ${sec(s).padStart(8)} ${base.padStart(8)} ${n.padStart(3)}  ${code}`;
+  for (const s of rows) {
+    lines.push(row(s.job, s.name, s.durMs, s.n > 0 ? sec(s.baseline) : "-", String(s.n), s.code));
+    if (call && s.name === "(job)") {
+      const steps = rows.filter((x) => x.runId === s.runId && x.job === s.job && x.name !== "(job)" && x.name !== "(queue)");
+      const m = matchedOf(call, s.durMs, steps);
+      lines.push(row(s.job, "(matched: wall - upload, telemetry, post)", m.matchedMs, "-", "-", "matched"));
+    }
+  }
   const slow = reply.slow.filter((s) => runIds.has(s.runId));
   lines.push(slow.length === 0 ? "slow: none" : `slow: ${slow.length}`);
   for (const s of slow) lines.push(`  SLOW ${s.subject}: ${sec(s.durMs)} s against baseline ${sec(s.baseline)} s over ${s.n} runs`);
@@ -226,7 +244,7 @@ export async function telemetryMain(args: TelArgs, d: TelDeps): Promise<number> 
   const runs = new Set(fresh.map((r) => r.ident.runId));
   const noQueue = fresh.filter((r) => r.times.createdMs == null).length;
   d.log(`${args.provider} ${args.id}: ${fresh.length} job records stored (${all.length} in the store)${noQueue > 0 ? `, ${noQueue} without queue time` : ""}`);
-  for (const l of tableLines(reply, runs)) d.log(l);
+  for (const l of tableLines(reply, runs, d.call)) d.log(l);
   return 0;
 }
 
@@ -238,6 +256,7 @@ const originSlug = (cwd: string): string => {
 };
 
 export async function telemetryCli(argv: string[], cwd: string, env: Record<string, string | undefined> = process.env): Promise<number> {
+  if (argv[0] === "macos-window") return (await import("./ci-telemetry-mac.ts")).macWindowCli(argv.slice(1), cwd);
   const args = parseTelArgs(argv);
   const common = spawnSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd, encoding: "utf8" }).stdout.trim();
   const consoleDir = env.FW_CONSOLE_DIR ?? join(dirname(common), ".fw-console");

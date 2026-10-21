@@ -14246,7 +14246,8 @@
     "apps/runner/test/ci.test.ts",
     "research/notes/2026/10-2x-macos-telemetry.md",
     "docs/team/handoffs/macos-telemetry.md"
-   ]
+   ],
+   "evidence": "16c3904"
   },
   {
    "devices": [
@@ -14695,6 +14696,50 @@
     "research/notes/2026/10-2x-earn-gpu.md",
     "results/earn-bound/**",
     "docs/team/handoffs/earn-bound-arm.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "review-reports",
+   "owner": "console-builder",
+   "stream": "console",
+   "deps": [],
+   "title": "User 2026-10-22: 'the all proposals, do to experiemental, measurement and probe the report me on review section'. The console Reviews tab today holds only pending look-change flags (Fw.Console.Review). Add experiment reports there: Lean Fw.Console.Report decides a report item (proposal id, arms with their ?fw= search, per-lane metrics: fps p50/p90/p99 and frame-time distribution, Layout/Recalc, render-work share, layer count; per-layer pixel verdict E/Q/L when PathPix exists; frame-strip artifacts; every number tagged MEASURED with run id or INFERRED, else refused; recommendation) and the answer set (approve, hold, reject, plus a comment that reaches the lead as review.feedback on topic report:<id>). `fw review report post --file <report.json>` (agents and lead) validates through fwcore and appends the event; reports live in results/<task>/report.json (no personal data). Web: a Reports section in the Reviews tab with the arms side by side, metric table, strips link, answer buttons with confirm, phone 390 px. Goldens; console-api and web tests; docs/team/tools/review.md.",
+   "writes": [
+    "lean/Fw/Console/Report*.lean",
+    "lean/Fw/Wire/**",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/console/report*.jsonl",
+    "apps/console-api/src/review/**",
+    "apps/console-api/test/report*.test.ts",
+    "apps/console-web/src/Reviews.tsx",
+    "apps/console-web/src/Report*.tsx",
+    "apps/console-web/test/report*.test.tsx",
+    "apps/runner/src/review*.ts",
+    "apps/runner/test/review*.test.ts",
+    "docs/team/tools/review.md",
+    "docs/team/handoffs/review-reports.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "earn-reject-apply",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "deps": [],
+   "title": "User rejected look-change flag nav:earn-no-transition in the Reviews tab (step review-nav:earn-no-transition answer reject, 2026-10-22, event seq 20042; the user wants the faithful earn animation kept and a GPU same-look route tried instead, task earn-bound-arm). Apply it per docs/team/tools/review.md 'After a decision': Fw.Preset.Gen.lookDecisions row -> decision rejected, review done; the ledger userDecision text to match (Gen.ledgerDisagreements); regenerate the preset and review goldens; the flag stays registered (probe arms use it) but is never a preset member; the Reviews item leaves the queue.",
+   "writes": [
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Preset/**",
+    "packages/contracts/golden/preset/**",
+    "packages/contracts/golden/console/review.jsonl",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/earn-reject-apply.md"
    ]
   }
  ],
