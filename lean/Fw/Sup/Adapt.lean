@@ -45,18 +45,90 @@ structure Params where
   buildMB : Nat := 2100
   agentsMax : Nat := 8
   agentsAgeS : Nat := 900
+  swapPct : Nat := 75
+  comprMBPerMinMax : Nat := 1500
+  rateMinS : Nat := 5
+  rateMaxS : Nat := 600
 deriving DecidableEq, Repr
 
-/-- One probe sample: time (s), 1-min load times 100, free memory, RAM, compressor and swap used (MB), online cores. -/
+/-- One memory reading in MB: free, speculative and purgeable pages, file-backed pages and the kernel's file-cache
+minimum, swap used and total, the kernel pressure level (1 normal, 2 warning, 4 critical) and the memory compressed per
+minute since the previous reading. -/
+structure Mem where
+  freeMB : Nat
+  specMB : Nat := 0
+  purgMB : Nat := 0
+  fileMB : Nat := 0
+  fileMinMB : Nat := 0
+  swapUsedMB : Nat := 0
+  swapTotalMB : Nat := 0
+  press : Nat := 1
+  comprMBPerMin : Nat := 0
+deriving DecidableEq, Repr
+
+/-- Memory a new job can take before the kernel compresses or swaps another process: free, speculative and purgeable
+pages, and the file cache above the kernel's minimum. Inactive anonymous pages are not counted. -/
+def availMB (m : Mem) : Nat := m.freeMB + m.specMB + m.purgMB + (m.fileMB - m.fileMinMB)
+
+/-- Swap is at least `swapPct` percent full. A machine with no swap file is never full. -/
+def swapFull (p : Params) (m : Mem) : Bool := decide (0 < m.swapTotalMB ∧ p.swapPct * m.swapTotalMB ≤ 100 * m.swapUsedMB)
+
+/-- The kernel compresses at least `comprMBPerMinMax` MB a minute. -/
+def thrash (p : Params) (m : Mem) : Bool := decide (p.comprMBPerMinMax ≤ m.comprMBPerMin)
+
+/-- Memory is short: little available, a pressure level other than normal, swap nearly full, or heavy compression. -/
+def memLow (p : Params) (m : Mem) : Bool :=
+  decide (availMB m < p.floorMB) || decide (m.press ≠ 1) || swapFull p m || thrash p m
+
+#guard availMB { freeMB := 217, specMB := 120, purgMB := 87, fileMB := 4986, fileMinMB := 3656 } == 1754
+#guard availMB { freeMB := 100, fileMB := 2000, fileMinMB := 3000 } == 100
+#guard memLow {} { freeMB := 1023 }
+#guard !memLow {} { freeMB := 1024 }
+#guard memLow {} { freeMB := 9000, press := 2 }
+#guard memLow {} { freeMB := 9000, press := 0 }
+#guard memLow {} { freeMB := 9000, swapUsedMB := 3072, swapTotalMB := 4096 }
+#guard !memLow {} { freeMB := 9000, swapUsedMB := 3071, swapTotalMB := 4096 }
+#guard !memLow {} { freeMB := 9000, swapUsedMB := 3071, swapTotalMB := 0 }
+#guard memLow {} { freeMB := 9000, comprMBPerMin := 1500 }
+#guard !memLow {} { freeMB := 9000, comprMBPerMin := 1499 }
+
+/-- A compression-counter mark: its time (s), the counter (pages) and the rate it gave (MB a minute). -/
+structure VmMark where
+  time : Nat
+  count : Nat
+  rate : Nat
+deriving DecidableEq, Repr
+
+/-- The next mark from a counter reading of `count` pages of `pageB` bytes at `now`. Within `rateMinS` of the last mark
+the mark and its rate stay; up to `rateMaxS` the rate is the counter's growth per minute since the mark; with no mark, an
+older one or a counter that went back (a reboot), the rate is 0. -/
+def vmNext (p : Params) (prev : Option VmMark) (now count pageB : Nat) : VmMark :=
+  match prev with
+  | some m =>
+    if now < m.time + p.rateMinS then m
+    else if now ≤ m.time + p.rateMaxS ∧ m.count ≤ count then
+      { time := now, count := count, rate := (count - m.count) * pageB * 60 / ((now - m.time) * 1048576) }
+    else { time := now, count := count, rate := 0 }
+  | none => { time := now, count := count, rate := 0 }
+
+#guard vmNext {} none 100 5 16384 == { time := 100, count := 5, rate := 0 }
+#guard vmNext {} (some ⟨100, 1701467470, 0⟩) 111 1701529764 16384 == ⟨111, 1701529764, 5309⟩
+#guard vmNext {} (some ⟨100, 10, 7⟩) 104 99999 16384 == ⟨100, 10, 7⟩
+#guard vmNext {} (some ⟨100, 10, 7⟩) 701 99999 16384 == ⟨701, 99999, 0⟩
+#guard vmNext {} (some ⟨100, 500, 7⟩) 160 10 16384 == ⟨160, 10, 0⟩
+
+/-- One probe sample: time (s), 1-min load times 100, the memory reading, RAM and compressor-resident memory (MB), online
+cores. -/
 structure Sample where
   time : Nat
   loadCenti : Nat
-  freeMB : Nat
+  mem : Mem
   ramMB : Nat
   compressorMB : Nat
-  swapUsedMB : Nat
   cores : Nat
 deriving DecidableEq, Repr
+
+def Sample.avail (s : Sample) : Nat := availMB s.mem
 
 /-! ## Controller -/
 
@@ -76,21 +148,19 @@ def Signal.name : Signal → String
 
 def loadHigh (p : Params) (s : Sample) : Bool := decide (p.highCenti ≤ s.loadCenti)
 
-def memLow (p : Params) (s : Sample) : Bool := decide (s.freeMB < p.floorMB)
-
 def cmprsHigh (p : Params) (s : Sample) : Bool := decide (0 < s.ramMB ∧ p.cmprsPct * s.ramMB ≤ 100 * s.compressorMB)
 
 /-- Swap grew by at least `swapRiseMBPerMin` per minute since the previous reading; the swap ratio is not read. -/
 def swapRising (p : Params) (prev : Option (Nat × Nat)) (s : Sample) : Bool :=
   match prev with
   | none => false
-  | some (t, mb) => decide (t < s.time ∧ p.swapRiseMBPerMin * (s.time - t) ≤ 60 * (s.swapUsedMB - mb))
+  | some (t, mb) => decide (t < s.time ∧ p.swapRiseMBPerMin * (s.time - t) ≤ 60 * (s.mem.swapUsedMB - mb))
 
 def overloaded (p : Params) (prev : Option (Nat × Nat)) (s : Sample) : Bool :=
-  loadHigh p s || memLow p s || cmprsHigh p s || swapRising p prev s
+  loadHigh p s || memLow p s.mem || cmprsHigh p s || swapRising p prev s
 
 def roomy (p : Params) (s : Sample) : Bool :=
-  decide (s.loadCenti < p.targetCenti ∧ p.floorMB + p.headroomMB ≤ s.freeMB)
+  decide (s.loadCenti < p.targetCenti ∧ p.floorMB + p.headroomMB ≤ s.avail)
 
 def signal (p : Params) (prev : Option (Nat × Nat)) (s : Sample) : Signal :=
   if overloaded p prev s then .overload else if roomy p s then .under else .hold
@@ -111,20 +181,26 @@ def nextN (p : Params) (c : Ctl) (s : Sample) : Nat := clamp p (target c.n (sign
 /-- One controller step on a sample: AIMD target, clamped, applied only once the hysteresis window has passed. -/
 def step (p : Params) (c : Ctl) (s : Sample) : Ctl :=
   if windowOpen p c s.time && nextN p c s != c.n then
-    { n := nextN p c s, lastChange := s.time, prev := some (s.time, s.swapUsedMB) }
-  else { c with prev := some (s.time, s.swapUsedMB) }
+    { n := nextN p c s, lastChange := s.time, prev := some (s.time, s.mem.swapUsedMB) }
+  else { c with prev := some (s.time, s.mem.swapUsedMB) }
 
 def inRange (p : Params) (n : Nat) : Prop := p.nMin ≤ n ∧ n ≤ p.nMax
 
 def init (p : Params) : Ctl := { n := clamp p 2, lastChange := 0 }
 
 def okSample : Sample :=
-  { time := 1000, loadCenti := 400, freeMB := 6000, ramMB := 16384, compressorMB := 2000, swapUsedMB := 5000, cores := 8 }
+  { time := 1000, loadCenti := 400, mem := { freeMB := 6000, swapUsedMB := 5000, swapTotalMB := 8192 }, ramMB := 16384,
+    compressorMB := 2000, cores := 8 }
+
+def Sample.withMem (s : Sample) (m : Mem) : Sample := { s with mem := m }
+
+/-- `s` with `mb` free and every other memory reading unchanged. -/
+def Sample.withFree (s : Sample) (mb : Nat) : Sample := s.withMem { s.mem with freeMB := mb }
 
 #guard (step {} { n := 2, lastChange := 0 } okSample).n == 3
 #guard (step {} { n := 2, lastChange := 990 } okSample).n == 2
 #guard (step {} { n := 4, lastChange := 0 } { okSample with loadCenti := 2000 }).n == 2
-#guard (step {} { n := 1, lastChange := 0 } { okSample with freeMB := 500 }).n == 1
+#guard (step {} { n := 1, lastChange := 0 } (okSample.withFree 500)).n == 1
 #guard (step {} { n := 3, lastChange := 0, prev := some (995, 4900) } okSample).n == 1
 #guard (step {} { n := 3, lastChange := 0, prev := some (995, 5000) } okSample).n == 4
 #guard signal {} none { okSample with loadCenti := 1000 } == .hold
@@ -186,7 +262,7 @@ theorem signal_overload (p : Params) (prev : Option (Nat × Nat)) (s : Sample) (
 theorem overload_of_load (p : Params) (prev : Option (Nat × Nat)) (s : Sample) (h : loadHigh p s = true) :
     signal p prev s = .overload := signal_overload p prev s (by simp [overloaded, h])
 
-theorem overload_of_mem (p : Params) (prev : Option (Nat × Nat)) (s : Sample) (h : memLow p s = true) :
+theorem overload_of_mem (p : Params) (prev : Option (Nat × Nat)) (s : Sample) (h : memLow p s.mem = true) :
     signal p prev s = .overload := signal_overload p prev s (by simp [overloaded, h])
 
 theorem overload_of_cmprs (p : Params) (prev : Option (Nat × Nat)) (s : Sample) (h : cmprsHigh p s = true) :
@@ -220,10 +296,10 @@ theorem step_no_rise_on_overload (p : Params) (c : Ctl) (s : Sample) (hc : inRan
 
 /-- A swap reading that did not grow never trips, whatever the swap ratio (the dynamic-swap recalibration). -/
 theorem swap_static_never_trips (p : Params) (t mb : Nat) (s : Sample) (hp : 0 < p.swapRiseMBPerMin)
-    (h : s.swapUsedMB ≤ mb) : swapRising p (some (t, mb)) s = false := by
+    (h : s.mem.swapUsedMB ≤ mb) : swapRising p (some (t, mb)) s = false := by
   simp only [swapRising, decide_eq_false_iff_not, not_and, Nat.not_le]
   intro ht
-  have : s.swapUsedMB - mb = 0 := by omega
+  have : s.mem.swapUsedMB - mb = 0 := by omega
   rw [this]; exact Nat.mul_pos hp (by omega)
 
 /-- Times at which N changed along a run of samples. -/
@@ -450,11 +526,11 @@ def foot (p : Params) (threads : Nat) : Kind → Nat
   | .sim => p.simMB
   | .other => p.otherMB
 
-/-- Memory of holders admitted within the last `warmS` seconds, not yet visible in the free-memory reading. -/
+/-- Memory of holders admitted within the last `warmS` seconds, not yet visible in the available-memory reading. -/
 def charged (p : Params) (now : Nat) (hs : List Entry) : Nat :=
   ((prune now hs).filter (fun h => decide (now < h.since + p.warmS))).foldr (fun h a => h.foot + a) 0
 
-def room (p : Params) (s : Sample) (hs : List Entry) : Nat := s.freeMB - p.floorMB - charged p s.time hs
+def room (p : Params) (s : Sample) (hs : List Entry) : Nat := s.avail - p.floorMB - charged p s.time hs
 
 def threadsFor (p : Params) (s : Sample) (hs : List Entry) : Nat := leanThreads p s.cores (room p s hs)
 
@@ -467,6 +543,7 @@ inductive Why where
   | simBusy
   | drain (others : Nat)
   | memory (needMB roomMB : Nat)
+  | memLow (availMB : Nat)
   | simFirst
 deriving DecidableEq, Repr
 
@@ -510,10 +587,11 @@ def yieldsToSim (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : En
     ((simHeld s.time hs && decide (0 < others s.time hs)) ||
       (simPending s.time hs q &&
         (decide (0 < others s.time hs) || decide (n < (prune s.time hs).length + 2) ||
-          decide (s.freeMB < need p s hs me.kind + p.floorMB + charged p s.time hs + p.simMB))))
+          decide (s.avail < need p s hs me.kind + p.floorMB + charged p s.time hs + p.simMB))))
 
 /-- The decision for ticket `me` in queue `q` (FIFO order) under concurrency `n`, holders `hs` and sample `s`. A
-Simulator ticket never waits as `older`, and waits while more than one holder of another kind runs. -/
+Simulator ticket never waits as `older`, and waits while more than one holder of another kind runs. Any ticket waits as
+`memLow` while memory is short, and as `memory` while its footprint does not fit available memory above the floor. -/
 def verdict (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (waited : Nat) : Verdict :=
   let running := (prune s.time hs).length
   if 0 < aheadSame q me then waitOr p waited (.queued (aheadSame q me))
@@ -521,7 +599,8 @@ def verdict (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry)
   else if n ≤ running then waitOr p waited (.full running n)
   else if me.kind == .sim && simHeld s.time hs then waitOr p waited .simBusy
   else if me.kind == .sim && decide (1 < others s.time hs) then waitOr p waited (.drain (others s.time hs))
-  else if s.freeMB < need p s hs me.kind + p.floorMB + charged p s.time hs then
+  else if memLow p s.mem then waitOr p waited (.memLow s.avail)
+  else if s.avail < need p s hs me.kind + p.floorMB + charged p s.time hs then
     waitOr p waited (.memory (need p s hs me.kind) (room p s hs))
   else if yieldsToSim p n s hs q me then waitOr p waited .simFirst
   else .admit (threadsFor p s hs) (need p s hs me.kind)
@@ -539,12 +618,17 @@ def simH : Entry := { tk "c" "9" .sim 0 with till := 2000 }
 #guard verdict {} 4 okSample [simH, { tk "d" "8" .test 0 with till := 2000 }] [tk "a" "1" .check 990] (tk "a" "1" .check 990) 0 == .wait .simFirst
 #guard verdict {} 4 okSample [] [tk "s" "5" .sim 600, tk "a" "1" .check 990] (tk "a" "1" .check 990) 0 == .wait .older
 #guard verdict {} 4 okSample [] [tk "a" "1" .check 990, tk "s" "5" .sim 995] (tk "a" "1" .check 990) 0 == .wait .simFirst
-#guard verdict {} 4 { okSample with freeMB := 12000 } [] [tk "a" "1" .check 990, tk "s" "5" .sim 995] (tk "a" "1" .check 990) 0 == .admit 8 5600
-#guard verdict {} 1 { okSample with freeMB := 12000 } [] [tk "a" "1" .check 990, tk "s" "5" .sim 995] (tk "a" "1" .check 990) 0 == .wait .simFirst
+#guard verdict {} 4 (okSample.withFree 12000) [] [tk "a" "1" .check 990, tk "s" "5" .sim 995] (tk "a" "1" .check 990) 0 == .admit 8 5600
+#guard verdict {} 1 (okSample.withFree 12000) [] [tk "a" "1" .check 990, tk "s" "5" .sim 995] (tk "a" "1" .check 990) 0 == .wait .simFirst
 #guard verdict {} 4 okSample [{ tk "d" "8" .test 0 with till := 2000 }, { tk "e" "7" .land 0 with till := 2000 }]
   [tk "s" "5" .sim 990] (tk "s" "5" .sim 990) 0 == .wait (.drain 2)
-#guard verdict {} 3 { okSample with freeMB := 3000 } [] [tk "a" "1" .sim 990] (tk "a" "1" .sim 990) 0 == .wait (.memory 2800 1976)
-#guard verdict {} 3 { okSample with freeMB := 3000 } [] [tk "a" "1" .sim 990] (tk "a" "1" .sim 990) 1800 == .timeout (.memory 2800 1976)
+#guard verdict {} 3 (okSample.withFree 3000) [] [tk "a" "1" .sim 990] (tk "a" "1" .sim 990) 0 == .wait (.memory 2800 1976)
+#guard verdict {} 3 (okSample.withFree 3000) [] [tk "a" "1" .sim 990] (tk "a" "1" .sim 990) 1800 == .timeout (.memory 2800 1976)
+#guard verdict {} 2 { okSample with mem := { okSample.mem with press := 2 } } [] [tk "a" "1" .check 990] (tk "a" "1" .check 990) 0
+  == .wait (.memLow 6000)
+#guard verdict {} 2 { okSample with mem := { okSample.mem with comprMBPerMin := 5309 } } [] [tk "a" "1" .sim 990]
+  (tk "a" "1" .sim 990) 0 == .wait (.memLow 6000)
+#guard verdict {} 2 (okSample.withFree 1755) [] [tk "a" "1" .check 990] (tk "a" "1" .check 990) 0 == .admit 1 700
 
 theorem waitOr_ne_admit (p : Params) (w : Nat) (y : Why) (t f : Nat) : ¬ waitOr p w y = .admit t f := by
   unfold waitOr; split <;> simp
@@ -553,7 +637,7 @@ theorem verdict_admit (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (m
     (h : verdict p n s hs q me w = .admit t f) :
     aheadSame q me = 0 ∧ (me.kind != .sim && starved p s.time hs q me) = false ∧ (prune s.time hs).length < n ∧
       (me.kind == .sim && simHeld s.time hs) = false ∧ (me.kind == .sim && decide (1 < others s.time hs)) = false ∧
-      need p s hs me.kind + p.floorMB + charged p s.time hs ≤ s.freeMB ∧ yieldsToSim p n s hs q me = false ∧
+      need p s hs me.kind + p.floorMB + charged p s.time hs ≤ s.avail ∧ yieldsToSim p n s hs q me = false ∧
       t = threadsFor p s hs ∧ f = need p s hs me.kind := by
   unfold verdict at h
   simp only at h
@@ -571,15 +655,50 @@ theorem verdict_admit (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (m
   · exact absurd h (waitOr_ne_admit _ _ _ _ _)
   split at h
   · exact absurd h (waitOr_ne_admit _ _ _ _ _)
-  rename_i h1 h2 h3 h4 h5 h6 h7
+  split at h
+  · exact absurd h (waitOr_ne_admit _ _ _ _ _)
+  rename_i h1 h2 h3 h4 h5 _ h6 h7
   cases h
   exact ⟨by omega, by simpa using h2, by omega, by simpa using h4, by simpa using h5, by omega, by simpa using h7, rfl, rfl⟩
 
-/-- **Never admits a job whose footprint exceeds free memory minus the floor** (and the memory of warming holders). -/
-theorem verdict_admit_fits (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w t f : Nat)
-    (h : verdict p n s hs q me w = .admit t f) : f + p.floorMB + charged p s.time hs ≤ s.freeMB := by
+/-- **Never admits a job whose footprint exceeds available memory minus the floor** (and the memory of warming
+holders). -/
+theorem admit_fits (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w t f : Nat)
+    (h : verdict p n s hs q me w = .admit t f) : f + p.floorMB + charged p s.time hs ≤ s.avail := by
   have := verdict_admit p n s hs q me w t f h
   rw [this.2.2.2.2.2.2.2.2]; exact this.2.2.2.2.2.1
+
+theorem verdict_admit_memLow (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w t f : Nat)
+    (h : verdict p n s hs q me w = .admit t f) : memLow p s.mem = false := by
+  unfold verdict at h
+  simp only at h
+  split at h
+  · exact absurd h (waitOr_ne_admit _ _ _ _ _)
+  split at h
+  · exact absurd h (waitOr_ne_admit _ _ _ _ _)
+  split at h
+  · exact absurd h (waitOr_ne_admit _ _ _ _ _)
+  split at h
+  · exact absurd h (waitOr_ne_admit _ _ _ _ _)
+  split at h
+  · exact absurd h (waitOr_ne_admit _ _ _ _ _)
+  split at h
+  · exact absurd h (waitOr_ne_admit _ _ _ _ _)
+  split at h
+  · exact absurd h (waitOr_ne_admit _ _ _ _ _)
+  split at h
+  · exact absurd h (waitOr_ne_admit _ _ _ _ _)
+  rename_i _ _ _ _ _ hm _ _
+  simpa using hm
+
+/-- **Never admits under memory stress**: an admitted job saw the normal pressure level, swap below `swapPct`, compression
+below `comprMBPerMinMax` and at least the floor available. -/
+theorem admit_calm (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w t f : Nat)
+    (h : verdict p n s hs q me w = .admit t f) :
+    s.mem.press = 1 ∧ swapFull p s.mem = false ∧ thrash p s.mem = false ∧ p.floorMB ≤ s.avail := by
+  have hm := verdict_admit_memLow p n s hs q me w t f h
+  simp only [memLow, Bool.or_eq_false_iff, decide_eq_false_iff_not, Nat.not_lt, Decidable.not_not] at hm
+  exact ⟨hm.1.1.2, hm.1.2, hm.2, hm.1.1.1⟩
 
 /-- An admit keeps the live holders below N. -/
 theorem verdict_admit_under_n (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w t f : Nat)
@@ -607,7 +726,7 @@ theorem yieldsToSim_false (p : Params) (n : Nat) (s : Sample) (hs q : List Entry
     (h : yieldsToSim p n s hs q me = false) :
     (simHeld s.time hs = true → others s.time hs = 0) ∧
       (simPending s.time hs q = true → others s.time hs = 0 ∧ (prune s.time hs).length + 2 ≤ n ∧
-        need p s hs me.kind + p.floorMB + charged p s.time hs + p.simMB ≤ s.freeMB) := by
+        need p s hs me.kind + p.floorMB + charged p s.time hs + p.simMB ≤ s.avail) := by
   have hk' : (me.kind != .sim) = true := by simpa using hk
   simp only [yieldsToSim, hk', Bool.true_and, Bool.or_eq_false_iff, Bool.and_eq_false_iff, decide_eq_false_iff_not] at h
   obtain ⟨h1, h2⟩ := h
@@ -629,7 +748,7 @@ theorem verdict_admit_beside_sim (p : Params) (n : Nat) (s : Sample) (hs q : Lis
 leaves one slot free and leaves the Simulator footprint above the floor. -/
 theorem verdict_admit_reserves_sim (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w t f : Nat)
     (h : verdict p n s hs q me w = .admit t f) (hk : me.kind ≠ .sim) (hp : simPending s.time hs q = true) :
-    others s.time hs = 0 ∧ (prune s.time hs).length + 2 ≤ n ∧ f + p.simMB + p.floorMB + charged p s.time hs ≤ s.freeMB := by
+    others s.time hs = 0 ∧ (prune s.time hs).length + 2 ≤ n ∧ f + p.simMB + p.floorMB + charged p s.time hs ≤ s.avail := by
   have ha := verdict_admit p n s hs q me w t f h
   have := (yieldsToSim_false p n s hs q me hk ha.2.2.2.2.2.2.1).2 hp
   rw [ha.2.2.2.2.2.2.2.2]
@@ -639,13 +758,13 @@ theorem verdict_admit_reserves_sim (p : Params) (n : Nat) (s : Sample) (hs q : L
 theorem verdict_head_admitted (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w : Nat)
     (h1 : aheadSame q me = 0) (h2 : (me.kind != .sim && starved p s.time hs q me) = false)
     (h3 : (prune s.time hs).length < n) (h4 : (me.kind == .sim && simHeld s.time hs) = false)
-    (h5 : (me.kind == .sim && decide (1 < others s.time hs)) = false)
-    (h6 : need p s hs me.kind + p.floorMB + charged p s.time hs ≤ s.freeMB) (h7 : yieldsToSim p n s hs q me = false) :
+    (h5 : (me.kind == .sim && decide (1 < others s.time hs)) = false) (hm : memLow p s.mem = false)
+    (h6 : need p s hs me.kind + p.floorMB + charged p s.time hs ≤ s.avail) (h7 : yieldsToSim p n s hs q me = false) :
     verdict p n s hs q me w = .admit (threadsFor p s hs) (need p s hs me.kind) := by
   unfold verdict
   have h3' : ¬ n ≤ (prune s.time hs).length := by omega
-  have h6' : ¬ s.freeMB < need p s hs me.kind + p.floorMB + charged p s.time hs := by omega
-  simp [h1, h2, h3', h4, h5, h6', h7]
+  have h6' : ¬ s.avail < need p s hs me.kind + p.floorMB + charged p s.time hs := by omega
+  simp [h1, h2, h3', h4, h5, hm, h6', h7]
 
 theorem starved_iff (p : Params) (now : Nat) (hs q : List Entry) (me : Entry) :
     starved p now hs q me = true ↔ ∃ e ∈ before q me, e.kind ≠ me.kind ∧ e.since + p.ageS ≤ now ∧
@@ -681,6 +800,8 @@ theorem verdict_older (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (m
   · have := waitOr_ne_older p w .simBusy (by simp); rcases h with h | h <;> simp_all
   split at h
   · have := waitOr_ne_older p w (.drain (others s.time hs)) (by simp); rcases h with h | h <;> simp_all
+  split at h
+  · have := waitOr_ne_older p w (.memLow s.avail) (by simp); rcases h with h | h <;> simp_all
   split at h
   · have := waitOr_ne_older p w (.memory (need p s hs me.kind) (room p s hs)) (by simp); rcases h with h | h <;> simp_all
   split at h
@@ -734,7 +855,7 @@ theorem leanThreads_pos (p : Params) (c r : Nat) : 1 ≤ leanThreads p c r := by
 theorem leanThreads_le_cores (p : Params) (c r : Nat) (hc : 1 ≤ c) : leanThreads p c r ≤ c := by
   unfold leanThreads; omega
 
-/-- **Lean workers sized from free memory**: when one worker fits the room, all of them fit it. -/
+/-- **Lean workers sized from available memory**: when one worker fits the room, all of them fit it. -/
 theorem leanThreads_fit (p : Params) (c r : Nat) (hr : p.leanProcMB ≤ r) :
     leanThreads p c r * p.leanProcMB ≤ r := by
   unfold leanThreads
@@ -744,6 +865,114 @@ theorem leanThreads_fit (p : Params) (c r : Nat) (hr : p.leanProcMB ≤ r) :
   have hm : max 1 (min c (r / p.leanProcMB)) ≤ r / p.leanProcMB := by omega
   calc max 1 (min c (r / p.leanProcMB)) * p.leanProcMB ≤ r / p.leanProcMB * p.leanProcMB := Nat.mul_le_mul_right _ hm
     _ ≤ r := Nat.div_mul_le_self r p.leanProcMB
+
+/-- **An admitted check's Lean workers fit available memory** above the floor and the warming holders. -/
+theorem threads_fit (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w t f : Nat)
+    (h : verdict p n s hs q me w = .admit t f) (hk : me.kind = .check) :
+    t * p.leanProcMB ≤ s.avail - p.floorMB - charged p s.time hs := by
+  have ha := verdict_admit p n s hs q me w t f h
+  have hfit := admit_fits p n s hs q me w t f h
+  have hf : f = t * p.leanProcMB := by rw [ha.2.2.2.2.2.2.2.2, ha.2.2.2.2.2.2.2.1, hk]; rfl
+  omega
+
+/-! ## Monotonicity in memory -/
+
+/-- `m'` is no better for admission than `m`: no more available memory, a pressure level no lower (from normal up), no
+less swap used of the same total, and no less compression. -/
+def Worse (m m' : Mem) : Prop :=
+  availMB m' ≤ availMB m ∧ 1 ≤ m.press ∧ m.press ≤ m'.press ∧ m.swapUsedMB ≤ m'.swapUsedMB ∧
+    m'.swapTotalMB = m.swapTotalMB ∧ m.comprMBPerMin ≤ m'.comprMBPerMin
+
+theorem memLow_antitone (p : Params) (m m' : Mem) (hw : Worse m m') (h : memLow p m' = false) : memLow p m = false := by
+  obtain ⟨ha, hp1, hp, hsw, ht, hc⟩ := hw
+  simp only [memLow, swapFull, thrash, Bool.or_eq_false_iff, decide_eq_false_iff_not, not_and, Nat.not_le, Nat.not_lt,
+    Decidable.not_not] at h ⊢
+  rw [ht] at h
+  obtain ⟨⟨⟨h1, h2⟩, h3⟩, h4⟩ := h
+  refine ⟨⟨⟨by omega, by omega⟩, fun hT => ?_⟩, by omega⟩
+  have := h3 hT
+  have : 100 * m.swapUsedMB ≤ 100 * m'.swapUsedMB := Nat.mul_le_mul_left 100 hsw
+  omega
+
+/-- Workers chosen for room `r'` that fit with `e` to spare still fit with room `r ≥ r'`, when `e` is 0 or at least one
+worker. -/
+theorem threads_fit_mono (L c r r' e : Nat) (he : e = 0 ∨ L ≤ e) (hr : r' ≤ r)
+    (h : max 1 (min c (r' / L)) * L + e ≤ r') : max 1 (min c (r / L)) * L + e ≤ r := by
+  rcases Nat.eq_zero_or_pos L with hL | hL
+  · subst hL; simp at h ⊢; omega
+  have ha1 := Nat.div_mul_le_self r' L
+  have ha2 := Nat.lt_div_mul_add (a := r') hL
+  have hb1 := Nat.div_mul_le_self r L
+  have hab : r' / L ≤ r / L := Nat.div_le_div_right hr
+  generalize r' / L = a at *
+  generalize r / L = b at *
+  have hpos : ∀ x, L ≤ max 1 x * L := fun x => Nat.le_mul_of_pos_left L (by omega)
+  have hl1 := hpos (min c a)
+  by_cases hca : c ≤ a
+  · have hb : max 1 (min c b) = max 1 (min c a) := by omega
+    rw [hb]; omega
+  rcases he with he | he
+  · subst he
+    by_cases hb0 : b = 0
+    · subst hb0
+      have : max 1 (min c 0) * L ≤ max 1 (min c a) * L := Nat.mul_le_mul_right L (by omega)
+      omega
+    · have : max 1 (min c b) * L ≤ b * L := Nat.mul_le_mul_right L (by omega)
+      omega
+  · by_cases ha0 : a = 0
+    · subst ha0; omega
+    · have : max 1 (min c a) = a := by omega
+      rw [this] at h; omega
+
+theorem need_fit_mono (p : Params) (s s' : Sample) (hs : List Entry) (k : Kind) (e : Nat) (he : e = 0 ∨ p.leanProcMB ≤ e)
+    (ht : s'.time = s.time) (hc : s'.cores = s.cores) (ha : s'.avail ≤ s.avail)
+    (h : need p s' hs k + p.floorMB + charged p s'.time hs + e ≤ s'.avail) :
+    need p s hs k + p.floorMB + charged p s.time hs + e ≤ s.avail := by
+  rw [ht] at h
+  cases k
+  case check =>
+    simp only [need, foot, threadsFor, room, leanThreads, hc, ht] at h ⊢
+    have := threads_fit_mono p.leanProcMB s.cores (s.avail - p.floorMB - charged p s.time hs)
+      (s'.avail - p.floorMB - charged p s.time hs) e he (by omega) (by omega)
+    omega
+  all_goals simp only [need, foot] at h ⊢; omega
+
+theorem yieldsToSim_antitone (p : Params) (n : Nat) (s s' : Sample) (hs q : List Entry) (me : Entry)
+    (hp : p.leanProcMB ≤ p.simMB) (ht : s'.time = s.time) (hc : s'.cores = s.cores) (ha : s'.avail ≤ s.avail)
+    (h : yieldsToSim p n s' hs q me = false) : yieldsToSim p n s hs q me = false := by
+  by_cases hk : me.kind = .sim
+  · simp [yieldsToSim, hk]
+  have hk' : (me.kind != .sim) = true := by simpa using hk
+  have hn : ¬ s'.avail < need p s' hs me.kind + p.floorMB + charged p s'.time hs + p.simMB →
+      ¬ s.avail < need p s hs me.kind + p.floorMB + charged p s.time hs + p.simMB := fun h2 => by
+    have := need_fit_mono p s s' hs me.kind p.simMB (.inr hp) ht hc ha (by omega)
+    omega
+  rw [ht] at hn
+  simp only [yieldsToSim, hk', ht, Bool.true_and, Bool.or_eq_false_iff, Bool.and_eq_false_iff, decide_eq_false_iff_not] at h ⊢
+  obtain ⟨h1, h2⟩ := h
+  refine ⟨h1, ?_⟩
+  rcases h2 with h2 | h2
+  · exact .inl h2
+  · exact .inr ⟨h2.1, hn h2.2⟩
+
+/-- **Less memory never turns a wait into an admit**: when a ticket is admitted on a sample, it is admitted on the same
+sample with a memory reading no worse. -/
+theorem verdict_antitone (p : Params) (hp : p.leanProcMB ≤ p.simMB) (n : Nat) (s : Sample) (m' : Mem)
+    (hs q : List Entry) (me : Entry) (w t f : Nat) (hw : Worse s.mem m')
+    (h : verdict p n { s with mem := m' } hs q me w = .admit t f) :
+    verdict p n s hs q me w = .admit (threadsFor p s hs) (need p s hs me.kind) := by
+  have ha := verdict_admit p n _ hs q me w t f h
+  have hav : ({ s with mem := m' } : Sample).avail ≤ s.avail := hw.1
+  apply verdict_head_admitted
+  · exact ha.1
+  · exact ha.2.1
+  · exact ha.2.2.1
+  · exact ha.2.2.2.1
+  · exact ha.2.2.2.2.1
+  · exact memLow_antitone p s.mem m' hw (verdict_admit_memLow p n _ hs q me w t f h)
+  · have := need_fit_mono p s { s with mem := m' } hs me.kind 0 (.inl rfl) rfl rfl hav (by have := ha.2.2.2.2.2.1; omega)
+    omega
+  · exact yieldsToSim_antitone p n s { s with mem := m' } hs q me hp rfl rfl hav ha.2.2.2.2.2.2.1
 
 /-! ## Simulator priority over the admitted state -/
 
@@ -822,6 +1051,7 @@ theorem sim_not_starved (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) 
   · rw [prune_append_live _ _ _ hx, List.length_append]; simp; omega
   · simp [he, simHeld_append _ _ _ hx, hk', hns, hk]
   · simp [he, others_append _ _ _ hx, hk', hk, ho]
+  · exact verdict_admit_memLow p n s hs q me w t f h
   · rw [he, hneed]; omega
   · simp [yieldsToSim, he]
 
@@ -968,7 +1198,7 @@ inductive BuildWhy where
   | simWaits
   | agentsUnknown
   | agents (live max : Nat)
-  | memory (freeMB needMB : Nat)
+  | memory (availMB needMB : Nat)
 deriving DecidableEq, Repr
 
 inductive BuildVerdict where
@@ -986,14 +1216,14 @@ def agentsSeen (p : Params) (now : Nat) : Option (Nat × Nat) → Option Nat
   | some (t0, n) => if now ≤ t0 + p.agentsAgeS then some n else none
 
 /-- Whether the lead may start one more builder or reviewer: no Simulator ticket waits, the live-agent count is known
-and below `agentsMax`, and free memory covers the floor plus `buildMB`. -/
-def admitBuild (p : Params) (simWaits : Bool) (freeMB : Nat) (agents : Option Nat) : BuildVerdict :=
+and below `agentsMax`, and available memory (`availMB`) covers the floor plus `buildMB`. -/
+def admitBuild (p : Params) (simWaits : Bool) (availMB : Nat) (agents : Option Nat) : BuildVerdict :=
   if simWaits then .wait .simWaits
   else match agents with
     | none => .wait .agentsUnknown
     | some a =>
       if p.agentsMax ≤ a then .wait (.agents a p.agentsMax)
-      else if freeMB < p.floorMB + p.buildMB then .wait (.memory freeMB (p.floorMB + p.buildMB))
+      else if availMB < p.floorMB + p.buildMB then .wait (.memory availMB (p.floorMB + p.buildMB))
       else .admit
 
 #guard admitBuild {} false 9000 (some 5) == .admit
@@ -1023,7 +1253,7 @@ theorem admitBuild_memory (p : Params) (m a : Nat) (ha : a < p.agentsMax) (h : m
   simp [admitBuild, this, h]
 
 /-- **Builder admission**: admitted exactly when no Simulator ticket waits, the live-agent count is known and below
-`agentsMax`, and free memory covers the floor plus `buildMB`. -/
+`agentsMax`, and available memory covers the floor plus `buildMB`. -/
 theorem admitBuild_iff (p : Params) (sw : Bool) (m : Nat) (a : Option Nat) :
     admitBuild p sw m a = .admit ↔ sw = false ∧ ∃ k, a = some k ∧ k < p.agentsMax ∧ p.floorMB + p.buildMB ≤ m := by
   cases sw

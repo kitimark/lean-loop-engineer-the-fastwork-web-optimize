@@ -14,12 +14,22 @@ def paramsJson (p : Params) : Json :=
     ("simMB", toJson p.simMB), ("otherMB", toJson p.otherMB), ("warmS", toJson p.warmS), ("ageS", toJson p.ageS),
     ("maxWaitS", toJson p.maxWaitS), ("leaseS", toJson p.leaseS), ("leaseMaxS", toJson p.leaseMaxS),
     ("simIdleS", toJson p.simIdleS), ("graceMs", toJson p.graceMs), ("simPollS", toJson p.simPollS),
-    ("buildMB", toJson p.buildMB), ("agentsMax", toJson p.agentsMax), ("agentsAgeS", toJson p.agentsAgeS)]
+    ("buildMB", toJson p.buildMB), ("agentsMax", toJson p.agentsMax), ("agentsAgeS", toJson p.agentsAgeS),
+    ("swapPct", toJson p.swapPct), ("comprMBPerMinMax", toJson p.comprMBPerMinMax), ("rateMinS", toJson p.rateMinS),
+    ("rateMaxS", toJson p.rateMaxS)]
+
+def memJson (m : Mem) : Json :=
+  Json.mkObj [("freeMB", toJson m.freeMB), ("specMB", toJson m.specMB), ("purgMB", toJson m.purgMB),
+    ("fileMB", toJson m.fileMB), ("fileMinMB", toJson m.fileMinMB), ("swapUsedMB", toJson m.swapUsedMB),
+    ("swapTotalMB", toJson m.swapTotalMB), ("press", toJson m.press), ("comprMBPerMin", toJson m.comprMBPerMin)]
 
 def sampleJson (s : Sample) : Json :=
-  Json.mkObj [("time", toJson s.time), ("loadCenti", toJson s.loadCenti), ("freeMB", toJson s.freeMB),
-    ("ramMB", toJson s.ramMB), ("compressorMB", toJson s.compressorMB), ("swapUsedMB", toJson s.swapUsedMB),
-    ("cores", toJson s.cores)]
+  Json.mkObj [("time", toJson s.time), ("loadCenti", toJson s.loadCenti), ("mem", memJson s.mem),
+    ("ramMB", toJson s.ramMB), ("compressorMB", toJson s.compressorMB), ("cores", toJson s.cores)]
+
+def markJson : Option VmMark → Json
+  | none => .null
+  | some m => Json.mkObj [("time", toJson m.time), ("count", toJson m.count), ("rate", toJson m.rate)]
 
 def prevJson : Option (Nat × Nat) → Json
   | none => .null
@@ -45,6 +55,7 @@ def whyFields : Why → List (String × Json)
   | .simBusy => [("why", "simBusy")]
   | .drain o => [("why", "drain"), ("others", toJson o)]
   | .memory n r => [("why", "memory"), ("needMB", toJson n), ("roomMB", toJson r)]
+  | .memLow a => [("why", "memLow"), ("availMB", toJson a)]
   | .simFirst => [("why", "simFirst")]
 
 def verdictJson : Verdict → Json
@@ -67,6 +78,14 @@ def tightJson : Json := Json.mkObj [("holdS", toJson tight.holdS), ("nMax", toJs
 
 def busySample : Sample := { okSample with loadCenti := 3550 }
 
+/-- The first sample of the lead's overload probe (MEASURED 03:18:44): vm_stat and sysctl in MB, compression from the
+next sample 11 s later. -/
+def busyWindow : Sample :=
+  let m : Mem :=
+    { freeMB := 217, specMB := 120, purgMB := 87, fileMB := 4986, fileMinMB := 3656, swapUsedMB := 3046,
+      swapTotalMB := 4096, press := 1, comprMBPerMin := 5309 }
+  { okSample with loadCenti := 6176, compressorMB := 3003, mem := m }
+
 def stepCases : List (String × Bool × Ctl × Sample) :=
   [ ("quiet sample after the window: +1", false, { n := 2, lastChange := 0 }, okSample),
     ("quiet sample inside the window: unchanged", false, { n := 2, lastChange := 990 }, okSample),
@@ -76,9 +95,9 @@ def stepCases : List (String × Bool × Ctl × Sample) :=
       { okSample with loadCenti := 1599 }),
     ("load at target: hold", false, { n := 3, lastChange := 0 }, { okSample with loadCenti := 800 }),
     ("busy hour with the Simulator up (load 35.5): halve", false, { n := 4, lastChange := 0 }, busySample),
-    ("free memory below the floor: halve, clamped to nMin", false, { n := 1, lastChange := 0 }, { okSample with freeMB := 1023 }),
-    ("free memory at the floor but no headroom: hold", false, { n := 2, lastChange := 0 }, { okSample with freeMB := 2000 }),
-    ("free memory exactly floor + headroom: +1", false, { n := 2, lastChange := 0 }, { okSample with freeMB := 3072 }),
+    ("free memory below the floor: halve, clamped to nMin", false, { n := 1, lastChange := 0 }, (okSample.withFree 1023)),
+    ("free memory at the floor but no headroom: hold", false, { n := 2, lastChange := 0 }, (okSample.withFree 2000)),
+    ("free memory exactly floor + headroom: +1", false, { n := 2, lastChange := 0 }, (okSample.withFree 3072)),
     ("compressor at 40 percent of RAM: halve", false, { n := 4, lastChange := 0 }, { okSample with compressorMB := 6554 }),
     ("compressor just below 40 percent: +1", false, { n := 2, lastChange := 0 }, { okSample with compressorMB := 6553 }),
     ("swap rising 100 MB in 5 s: halve", false, { n := 3, lastChange := 0, prev := some (995, 4900) }, okSample),
@@ -86,11 +105,19 @@ def stepCases : List (String × Bool × Ctl × Sample) :=
     ("swap static at 61 percent of dynamic swap: +1 (ratio not read)", false, { n := 3, lastChange := 0, prev := some (995, 5000) },
       okSample),
     ("swap shrinking: +1", false, { n := 3, lastChange := 0, prev := some (995, 6000) }, okSample),
-    ("no previous reading: swap not read", false, { n := 3, lastChange := 0 }, { okSample with swapUsedMB := 9000 }),
+    ("no previous reading: swap not read", false, { n := 3, lastChange := 0 },
+      { okSample with mem := { okSample.mem with swapUsedMB := 6000 } }),
     ("at nMax: stays", false, { n := 4, lastChange := 0 }, okSample),
     ("above nMax (old state): clamped down", false, { n := 9, lastChange := 0 }, okSample),
     ("below nMin (old state): clamped up on hold", false, { n := 0, lastChange := 0 }, { okSample with loadCenti := 1000 }),
-    ("no window, nMax 6: +1 at once", true, { n := 5, lastChange := 999 }, okSample) ]
+    ("no window, nMax 6: +1 at once", true, { n := 5, lastChange := 999 }, okSample),
+    ("pressure level warning: halve", false, { n := 4, lastChange := 0 }, okSample.withMem { okSample.mem with press := 2 }),
+    ("swap 75 percent full: halve", false, { n := 4, lastChange := 0 },
+      okSample.withMem { okSample.mem with swapUsedMB := 6144 }),
+    ("compressing 1500 MB a minute: halve", false, { n := 4, lastChange := 0 },
+      okSample.withMem { okSample.mem with comprMBPerMin := 1500 }),
+    ("file cache above its minimum counts as headroom: +1", false, { n := 2, lastChange := 0 },
+      okSample.withMem { okSample.mem with freeMB := 300, fileMB := 5000, fileMinMB := 2228 }) ]
 
 def stepLines : List String :=
   stepCases.map fun (nm, t, c, s) =>
@@ -105,20 +132,20 @@ def liveH (o t : String) (k : Kind) (since foot : Nat) : Entry :=
 def verdictCases : List (String × Nat × Sample × List Entry × List Entry × Entry × Nat) :=
   let me := tk "a" "1" .check 990
   [ ("idle machine, check: threads from free memory", 2, okSample, [], [me], me, 0),
-    ("check with little room: one Lean worker", 2, { okSample with freeMB := 1800 }, [], [me], me, 0),
-    ("check, one worker does not fit: memory", 2, { okSample with freeMB := 1700 }, [], [me], me, 0),
-    ("check, room for exactly one worker", 2, { okSample with freeMB := 1724 }, [], [me], me, 0),
-    ("16 GB free on 8 cores: threads capped at the cores", 2, { okSample with freeMB := 16000 }, [], [me], me, 0),
+    ("check with little room: one Lean worker", 2, (okSample.withFree 1800), [], [me], me, 0),
+    ("check, one worker does not fit: memory", 2, (okSample.withFree 1700), [], [me], me, 0),
+    ("check, room for exactly one worker", 2, (okSample.withFree 1724), [], [me], me, 0),
+    ("16 GB free on 8 cores: threads capped at the cores", 2, (okSample.withFree 16000), [], [me], me, 0),
     ("same kind ahead: queued", 2, okSample, [], [tk "b" "2" .check 980, me], me, 0),
     ("two of the same kind ahead: queued 2", 2, okSample, [], [tk "b" "2" .check 980, tk "c" "3" .check 985, me], me, 0),
     ("other kind ahead, young: no wait for it", 2, okSample, [], [tk "b" "2" .test 980, me], me, 0),
     ("other kind ahead, waited ageS: older", 2, okSample, [], [tk "b" "2" .test 700, me], me, 0),
     ("other kind ahead, one second short of ageS", 2, okSample, [], [tk "b" "2" .test 701, me], me, 0),
-    ("old sim ticket blocked by a sim holder: check is not held back", 4, { okSample with freeMB := 12000, loadCenti := 300 },
+    ("old sim ticket blocked by a sim holder: check is not held back", 4, { okSample.withFree 12000 with loadCenti := 300 },
       [liveH "x" "9" .sim 0 2800], [tk "s" "5" .sim 600, me], me, 0),
-    ("old sim ticket blocked by a sim holder: the sim ticket waits simBusy", 4, { okSample with freeMB := 12000, loadCenti := 300 },
+    ("old sim ticket blocked by a sim holder: the sim ticket waits simBusy", 4, { okSample.withFree 12000 with loadCenti := 300 },
       [liveH "x" "9" .sim 0 2800], [tk "s" "5" .sim 600, me], tk "s" "5" .sim 600, 0),
-    ("old sim ticket, Simulator free: older", 4, { okSample with freeMB := 12000, loadCenti := 300 }, [],
+    ("old sim ticket, Simulator free: older", 4, { okSample.withFree 12000 with loadCenti := 300 }, [],
       [tk "s" "5" .sim 600, me], me, 0),
     ("holders at N: full", 1, okSample, [liveH "x" "9" .test 0 0], [me], me, 0),
     ("expired holder does not count", 1, okSample, [{ liveH "x" "9" .test 0 0 with till := 1000 }], [me], me, 0),
@@ -127,44 +154,54 @@ def verdictCases : List (String × Nat × Sample × List Entry × List Entry × 
       [tk "a" "1" .sim 990], tk "a" "1" .sim 990, 0),
     ("sim asked, expired sim holder: admit", 3, okSample, [{ liveH "x" "9" .sim 0 2800 with till := 999 }],
       [tk "a" "1" .sim 990], tk "a" "1" .sim 990, 0),
-    ("sim needs 2800 MB plus the floor", 3, { okSample with freeMB := 3823 }, [], [tk "a" "1" .sim 990], tk "a" "1" .sim 990, 0),
-    ("sim exactly fits", 3, { okSample with freeMB := 3824 }, [], [tk "a" "1" .sim 990], tk "a" "1" .sim 990, 0),
-    ("test beside a warming check holder is charged", 3, { okSample with freeMB := 6000 }, [liveH "x" "9" .check 980 4200],
+    ("sim needs 2800 MB plus the floor", 3, (okSample.withFree 3823), [], [tk "a" "1" .sim 990], tk "a" "1" .sim 990, 0),
+    ("sim exactly fits", 3, (okSample.withFree 3824), [], [tk "a" "1" .sim 990], tk "a" "1" .sim 990, 0),
+    ("test beside a warming check holder is charged", 3, (okSample.withFree 6000), [liveH "x" "9" .check 980 4200],
       [tk "a" "1" .test 990], tk "a" "1" .test 990, 0),
-    ("test beside a warm (old) check holder is not charged", 3, { okSample with freeMB := 6000 }, [liveH "x" "9" .check 900 4200],
+    ("test beside a warm (old) check holder is not charged", 3, (okSample.withFree 6000), [liveH "x" "9" .check 900 4200],
       [tk "a" "1" .test 990], tk "a" "1" .test 990, 0),
-    ("land needs 1500 MB", 3, { okSample with freeMB := 2523 }, [], [tk "a" "1" .land 990], tk "a" "1" .land 990, 0),
-    ("other needs 1000 MB", 3, { okSample with freeMB := 2024 }, [], [tk "a" "1" .other 990], tk "a" "1" .other 990, 0),
+    ("land needs 1500 MB", 3, (okSample.withFree 2523), [], [tk "a" "1" .land 990], tk "a" "1" .land 990, 0),
+    ("other needs 1000 MB", 3, (okSample.withFree 2024), [], [tk "a" "1" .other 990], tk "a" "1" .other 990, 0),
     ("waited just below the limit: wait", 1, okSample, [liveH "x" "9" .test 0 0], [me], me, 1799),
     ("waited the limit: timeout, never run", 1, okSample, [liveH "x" "9" .test 0 0], [me], me, 1800),
     ("waited the limit but admissible: admit", 2, okSample, [], [me], me, 9999),
     ("ticket missing from the queue: every same-kind ticket is ahead", 2, okSample, [], [tk "b" "2" .check 980], me, 0),
     ("sim pending: a check that leaves less than the sim footprint waits simFirst", 4, okSample, [],
       [me, tk "s" "5" .sim 995], me, 0),
-    ("sim pending: a check that leaves the sim footprint is admitted", 4, { okSample with freeMB := 12000 }, [],
+    ("sim pending: a check that leaves the sim footprint is admitted", 4, (okSample.withFree 12000), [],
       [me, tk "s" "5" .sim 995], me, 0),
-    ("sim pending: the check leaves no slot for it (N 1): simFirst", 1, { okSample with freeMB := 12000 }, [],
+    ("sim pending: the check leaves no slot for it (N 1): simFirst", 1, (okSample.withFree 12000), [],
       [me, tk "s" "5" .sim 995], me, 0),
-    ("sim pending: N 2 leaves one slot for it: admit", 2, { okSample with freeMB := 12000 }, [],
+    ("sim pending: N 2 leaves one slot for it: admit", 2, (okSample.withFree 12000), [],
       [me, tk "s" "5" .sim 995], me, 0),
-    ("sim pending: another job already runs: simFirst", 4, { okSample with freeMB := 12000 }, [liveH "x" "9" .test 0 0],
+    ("sim pending: another job already runs: simFirst", 4, (okSample.withFree 12000), [liveH "x" "9" .test 0 0],
       [me, tk "s" "5" .sim 995], me, 0),
-    ("sim pending, plain memory short: memory first", 4, { okSample with freeMB := 1700 }, [], [me, tk "s" "5" .sim 995], me, 0),
-    ("sim held: a second job beside it waits simFirst", 4, { okSample with freeMB := 12000 },
+    ("sim pending, plain memory short: memory first", 4, (okSample.withFree 1700), [], [me, tk "s" "5" .sim 995], me, 0),
+    ("pressure level warning: memLow", 2, okSample.withMem { okSample.mem with press := 2 }, [], [me], me, 0),
+    ("swap 75 percent full: memLow", 2, okSample.withMem { okSample.mem with swapUsedMB := 6144 }, [], [me], me, 0),
+    ("swap just under 75 percent: admit", 2, okSample.withMem { okSample.mem with swapUsedMB := 6143 }, [], [me], me, 0),
+    ("compressing 1500 MB a minute: memLow", 2, okSample.withMem { okSample.mem with comprMBPerMin := 1500 }, [], [me], me, 0),
+    ("available just under the floor: memLow", 2, okSample.withFree 1023, [], [me], me, 0),
+    ("a sim ticket under pressure waits memLow", 3, okSample.withMem { okSample.mem with press := 4 }, [],
+      [tk "a" "1" .sim 990], tk "a" "1" .sim 990, 0),
+    ("busy window (MEASURED, 03:18:44): memLow on compression, not 8 workers", 2, busyWindow, [], [me], me, 0),
+    ("busy window without compression: one Lean worker", 2, busyWindow.withMem { busyWindow.mem with comprMBPerMin := 0 },
+      [], [me], me, 0),
+    ("sim held: a second job beside it waits simFirst", 4, (okSample.withFree 12000),
       [liveH "x" "9" .sim 0 2800, liveH "y" "8" .test 0 0], [me], me, 0),
-    ("sim held, nothing else runs: one check beside it", 4, { okSample with freeMB := 12000 }, [liveH "x" "9" .sim 0 2800],
+    ("sim held, nothing else runs: one check beside it", 4, (okSample.withFree 12000), [liveH "x" "9" .sim 0 2800],
       [me], me, 0),
-    ("sim ticket, two other jobs run: drain", 4, { okSample with freeMB := 12000 },
+    ("sim ticket, two other jobs run: drain", 4, (okSample.withFree 12000),
       [liveH "x" "9" .test 0 0, liveH "y" "8" .land 0 0], [tk "s" "5" .sim 990], tk "s" "5" .sim 990, 0),
-    ("sim ticket, one other job runs: admit", 4, { okSample with freeMB := 12000 }, [liveH "x" "9" .test 0 0],
+    ("sim ticket, one other job runs: admit", 4, (okSample.withFree 12000), [liveH "x" "9" .test 0 0],
       [tk "s" "5" .sim 990], tk "s" "5" .sim 990, 0),
-    ("sim ticket behind an old test ticket: never older", 4, { okSample with freeMB := 12000 }, [],
+    ("sim ticket behind an old test ticket: never older", 4, (okSample.withFree 12000), [],
       [tk "b" "2" .test 600, tk "s" "5" .sim 990], tk "s" "5" .sim 990, 0),
-    ("old sim lock held: a sim ticket waits simBusy", 4, { okSample with freeMB := 12000 }, withLegacy 1000 true [],
+    ("old sim lock held: a sim ticket waits simBusy", 4, (okSample.withFree 12000), withLegacy 1000 true [],
       [tk "s" "5" .sim 990], tk "s" "5" .sim 990, 0),
-    ("old sim lock held, nothing else runs: one check beside it", 4, { okSample with freeMB := 12000 }, withLegacy 1000 true [],
+    ("old sim lock held, nothing else runs: one check beside it", 4, (okSample.withFree 12000), withLegacy 1000 true [],
       [me], me, 0),
-    ("old sim lock held, a test runs: the check waits simFirst", 4, { okSample with freeMB := 12000 },
+    ("old sim lock held, a test runs: the check waits simFirst", 4, (okSample.withFree 12000),
       withLegacy 1000 true [liveH "y" "8" .test 0 0], [me], me, 0) ]
 
 def verdictLines (p : Params := {}) : List String :=
@@ -178,6 +215,34 @@ def threadsLines : List String :=
   threadsCases.map fun (c, r) =>
     line s!"threads cores={c} roomMB={r}" "adapt.threads" [("cores", toJson c), ("roomMB", toJson r)]
       (Json.mkObj [("threads", toJson (leanThreads {} c r))])
+
+/-- An idle reading on the same Mac (MEASURED 2026-10-22, vm_stat and sysctl in MB). -/
+def idleMem : Mem :=
+  { freeMB := 723, specMB := 40, purgMB := 10, fileMB := 6223, fileMinMB := 4545, swapUsedMB := 3466, swapTotalMB := 5120 }
+
+def memLines : List String :=
+  let av := fun (nm : String) (m : Mem) =>
+    line nm "adapt.memLow" [("mem", memJson m)]
+      (Json.mkObj [("availMB", toJson (availMB m)), ("swapFull", .bool (swapFull {} m)), ("thrash", .bool (thrash {} m)),
+        ("memLow", .bool (memLow {} m))])
+  let vn := fun (nm : String) (prev : Option VmMark) (now count pageB : Nat) =>
+    line nm "adapt.vmNext" [("prev", markJson prev), ("now", toJson now), ("count", toJson count), ("pageB", toJson pageB)]
+      (Json.mkObj [("mark", markJson (some (vmNext {} prev now count pageB)))])
+  [ av "busy window: 1754 MB available, thrashing" busyWindow.mem,
+    av "file cache under its minimum adds nothing" { freeMB := 100, fileMB := 2000, fileMinMB := 3000 },
+    av "idle: free, speculative, purgeable and file cache above its minimum" idleMem,
+    av "no swap file: never full" { freeMB := 4000, swapUsedMB := 10, swapTotalMB := 0 },
+    av "swap exactly 75 percent full" { freeMB := 4000, swapUsedMB := 3072, swapTotalMB := 4096 },
+    av "pressure critical" { freeMB := 4000, press := 4 },
+    av "pressure unread (0) counts as not normal" { freeMB := 4000, press := 0 },
+    av "available exactly the floor" { freeMB := 1000, specMB := 24 },
+    vn "first reading: rate 0" none 100 5 16384,
+    vn "11 s later: growth per minute" (some ⟨100, 1701467470, 0⟩) 111 1701529764 16384,
+    vn "4 s later: mark and rate kept" (some ⟨100, 10, 7⟩) 104 99999 16384,
+    vn "exactly rateMinS later: new rate" (some ⟨100, 10, 7⟩) 105 74 16384,
+    vn "older than rateMaxS: rate 0" (some ⟨100, 10, 7⟩) 701 99999 16384,
+    vn "exactly rateMaxS later: new rate" (some ⟨100, 10, 7⟩) 700 6410 16384,
+    vn "counter went back (reboot): rate 0" (some ⟨100, 500, 7⟩) 160 10 16384 ]
 
 def holdB : Entry := { owner := "b", token := "t2", kind := .test, since := 0, till := 60, leaseS := 60 }
 
@@ -246,7 +311,7 @@ def buildWhyFields : BuildWhy → List (String × Json)
   | .simWaits => [("why", "simWaits")]
   | .agentsUnknown => [("why", "agentsUnknown")]
   | .agents l m => [("why", "agents"), ("live", toJson l), ("max", toJson m)]
-  | .memory f n => [("why", "memory"), ("freeMB", toJson f), ("needMB", toJson n)]
+  | .memory f n => [("why", "memory"), ("availMB", toJson f), ("needMB", toJson n)]
 
 def buildVerdictJson : BuildVerdict → Json
   | .admit => Json.mkObj [("verdict", "admit")]
@@ -254,7 +319,7 @@ def buildVerdictJson : BuildVerdict → Json
 
 def buildLines : List String :=
   let ad := fun (nm : String) (sw : Bool) (m : Nat) (a : Option Nat) =>
-    line nm "adapt.admitBuild" [("simWaits", .bool sw), ("freeMB", toJson m), ("agents", optJson a)]
+    line nm "adapt.admitBuild" [("simWaits", .bool sw), ("availMB", toJson m), ("agents", optJson a)]
       (buildVerdictJson (admitBuild {} sw m a))
   let seen := fun (nm : String) (now : Nat) (r : Option (Nat × Nat)) =>
     line nm "adapt.agentsSeen" [("now", toJson now), ("reading", match r with
@@ -314,8 +379,8 @@ def cacheLines : List String :=
 
 set_option compiler.extract_closed false in
 def goldenLines (_ : Unit := ()) : List String :=
-  [line "default parameters" "adapt.params" [] (paramsJson {})] ++ stepLines ++ verdictLines ++ threadsLines ++ leaseLines ++
-    simLines ++ buildLines ++ holdLines ++ stopLines ++ cacheLines
+  [line "default parameters" "adapt.params" [] (paramsJson {})] ++ stepLines ++ verdictLines ++ threadsLines ++ memLines ++
+    leaseLines ++ simLines ++ buildLines ++ holdLines ++ stopLines ++ cacheLines
 
 def genPath : System.FilePath := "../packages/contracts/golden/sup/adapt.jsonl"
 
