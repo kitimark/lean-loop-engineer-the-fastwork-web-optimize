@@ -12685,7 +12685,8 @@
    "writes": [
     "lean/Fw/Parts/Bezier.lean",
     "docs/team/handoffs/bezier-header-claims.md"
-   ]
+   ],
+   "evidence": "22e888f"
   },
   {
    "devices": [
@@ -12737,6 +12738,27 @@
     "apps/console-api/test/review-preview-door.test.ts",
     "lean/Fw/Console/Review.lean",
     "docs/team/handoffs/review-followups.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-evidence-order-test",
+   "owner": "console-builder",
+   "stream": "ops",
+   "deps": [
+    "local-mem-budget"
+   ],
+   "title": "Split from local-mem-budget (fix round refused for a missing test only; the code change was confirmed correct). A runner test proves the fallback land writes the task evidence BEFORE its checks: fixture commits docs/team/work-graph.json on main with the task's evidence null; land(branch, {prelock: false, task, checks: [[sh, -c, git diff --cached --name-only | grep -qx docs/team/work-graph.json]]}) succeeds and main's work-graph.json carries the evidence; temporarily moving the writeEvidence block back below the abort check makes it fail (state it). Also: golden vectors with scripts/fwcore-record-rule.sh for landQueue.afterLand and landSpeed binMoved, and apps/runner/test/land-queue.test.ts:96 calls coreSource instead of its own copy.",
+   "writes": [
+    "apps/runner/test/land-evidence-order.test.ts",
+    "apps/runner/test/land-queue.test.ts",
+    "lean/Fw/Console/LandQueue.lean",
+    "lean/Fw/Console/LandSpeed.lean",
+    "packages/contracts/golden/console/land-queue.jsonl",
+    "packages/contracts/golden/console/land-speed.jsonl",
+    "docs/team/handoffs/land-evidence-order-test.md"
    ]
   }
  ],
