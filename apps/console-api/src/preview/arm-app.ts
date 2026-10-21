@@ -27,7 +27,7 @@ const agent = new http.Agent({ keepAlive: true, maxSockets: 64 });
 function upstream(port: number, pathq: string, method: string, headers: Record<string, string>): Promise<IncomingMessage> {
   return new Promise((resolve, reject) => {
     const r = http.request({ host: "127.0.0.1", port, path: pathq, method, agent, headers }, resolve);
-    r.on("error", reject);
+    r.on("error", (e) => reject(Object.assign(e, { fwReused: r.reusedSocket })));
     r.end();
   });
 }
@@ -85,7 +85,11 @@ export function createArmApp(core: Core, owner: OwnerAuth, pm: PreviewManager, o
       const status = up.statusCode ?? 502;
       if (c.req.method === "HEAD" || status === 304) { up.resume(); return new Response(null, { status, headers }); }
       return new Response(Readable.toWeb(up) as unknown as ReadableStream, { status, headers });
-    } catch { return c.json({ ok: false, reason: "preview server not reachable" }, 502); }
+    } catch (e) {
+      const x = e as NodeJS.ErrnoException & { fwReused?: boolean };
+      console.error(`preview-502 ${JSON.stringify({ code: x.code, syscall: x.syscall, msg: x.message, reused: x.fwReused, path: pathq })}`);
+      return c.json({ ok: false, reason: "preview server not reachable" }, 502);
+    }
   });
   return app;
 }
