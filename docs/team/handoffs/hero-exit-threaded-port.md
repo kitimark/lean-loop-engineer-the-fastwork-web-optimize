@@ -8,7 +8,7 @@ Built:
   a view timeline on the track (`contain`, linear, `fill: both`); per consumer an opacity/transform/blur animation, only
   accelerated properties.
 - Hand-over (Lean `live s fin supported reduced`): the original callback runs until `data-splash` is `done`, the entrance
-  has finished (`fin`: the stage's `getAnimations()` all finished, re-read on `animationend`; the phone cue's `copyIn`
+  has finished (`fin`: the cue's `getAnimations()` all finished, re-read on `animationend`; the phone cue's `copyIn`
   still runs at `done`), the browser has `animation-timeline` and motion is not reduced. Once live, `fin` is not re-read until a mutation batch saw the splash leave `done`.
 - The live rules name only the exit animations; the entrance is the original's (the hand-back cancels the exit animations
   at the prep forced layout and, at <=600, through the record-based hand-back: `attributeOldValue`, Lean `liveNext`). The sentinel has height 0 (pointer cut-off exactly at Lean `sentinelAbove`).

@@ -20,7 +20,7 @@ topics: [hero.exit, webkit, scroll-driven, threaded-animations, ios-toolbar, lag
   Lean `consumer_eq_s` under RG11).
 - **Hand-over, not replacement.** The original's callback keeps running until `data-splash` is `done`, the entrance
   animations have finished (the phone cue's `copyIn` still runs at `done`; input `entranceFinished`, read from the
-  stage's `getAnimations()` and re-read on `animationend`), in a browser that knows `animation-timeline` and without
+  cue's `getAnimations()` and re-read on `animationend`), in a browser that knows `animation-timeline` and without
   reduced motion (Lean `live`, one theorem per branch, golden `live` rows with `entranceFinished`). Before that the entrance
   animations own `opacity`, `translate` and `--entered`, which a scroll animation on the same properties would hide.
 - **The entrance is the original's.** The live rules name only the exit animations. A reset in the original goes done, prep
@@ -31,6 +31,8 @@ topics: [hero.exit, webkit, scroll-driven, threaded-animations, ios-toolbar, lag
   splash leave `done` drops the latch (Lean `liveNext`, `liveNext_left`), so the cue's `copyIn` plays again as in the original.
   Lean `entrance_same` (INFERRED for the engine side, PROVED for the name lists): per node, band and path (load, restore),
   the variant's animation names minus the exit names equal the original's at every style pass, with the same restarts.
+  The name lists are the entrance animations that still run; a finished `copyIn` is left out because the live cue rule
+  restates its forwards fill (`--copy-in: 1`).
 - **`pointer-events`** is flipped by an IntersectionObserver on a zero-height sentinel at 19/20 of the exit range (Lean
   `sentinelTop`, `sentinel_iff_pointerOff`); it is not a per-frame write.
 

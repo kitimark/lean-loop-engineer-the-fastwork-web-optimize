@@ -1475,7 +1475,7 @@ def ExitNode.label : ExitNode → String
   | .copy => "copy"
   | .cue => "cue"
 
-/-- The running entrance animations of the original at splash `s` (`ended`: the cue's `copyIn` has finished). -/
+/-- The original's entrance animations that still run at splash `s`; a finished `copyIn` is left out because the live cue rule restates its forwards fill (`--copy-in: 1`). -/
 def origNames (n : ExitNode) (le600 : Bool) (s : Splash) (ended : Bool) : List String :=
   match n with
   | .orbit => if s = .run then ["ringAppear", "cardFromRing"] else []
