@@ -2706,4 +2706,151 @@ theorem idle_stopped {c : Cfg} {s : State} {now : Nat} {smp : Sample} {x : Rsrc}
   dsimp only
   exact List.mem_append_left _ (List.mem_append_left _ (List.mem_append_right _ (stopAll_emits hy hc p1 i1)))
 
+/-! ## Which resources are stopped -/
+
+theorem cands_unpinned {c : Cfg} {s : State} {y : Rsrc} (h : y ∈ cands c s) : c.pinned y.kind = false := by
+  have h2 := (List.mem_filter.1 h).2
+  simp only [Bool.and_eq_true, beq_iff_eq] at h2
+  simpa using h2.1.2
+
+theorem term_inj {i j : Ident} (e : Cmd.signal (.group i) .term = Cmd.signal (.group j) .term) : i = j := by
+  injection e with e1
+  injection e1
+
+theorem stop_pick {st : State} {xs : List Rsrc} {i : Ident} (hn : (st.res.map (·.id)).Nodup)
+    (hs : ∀ z ∈ xs, z ∈ st.res) (hx : Cmd.signal (.group i) .term ∈ (stopAll st xs).2) : ∃ z ∈ xs, z.proc = some i := by
+  obtain ⟨y, hy, j, hj, hmid, _, e⟩ := stopAll_sig hx
+  obtain ⟨z, hz, hzid⟩ := List.mem_map.1 hmid
+  have : z = y := eq_of_nodup_map (·.id) _ hn z y (hs z hz) hy hzid
+  subst this
+  exact ⟨z, hz, by rw [hj, term_inj e]⟩
+
+/-- The TERMs of the pump: each one stops a stop candidate of the state the pump starts from, for a blocked request
+that stays queued. -/
+def PT (c : Cfg) (s0 : State) (a : Acc) : Prop :=
+  ∀ i, Cmd.signal (.group i) .term ∈ a.out → (∃ q ∈ a.st.pending, q ∈ s0.pending) ∧
+    ∃ y ∈ s0.res, y.proc = some i ∧ y.phase = .ready ∧ c.pinned y.kind = false ∧
+      ∀ l ∈ s0.leases, l.kind = .svc → l.rid ≠ y.id
+
+theorem pt_mono {c : Cfg} {s0 : State} {a a' : Acc} (cs : List Cmd) (h : PT c s0 a)
+    (hp : ∀ p ∈ a.st.pending, p ∈ a'.st.pending) (ho : a'.out = a.out ++ cs)
+    (hc : ∀ i, Cmd.signal (.group i) .term ∉ cs) : PT c s0 a' := by
+  intro i hi
+  rw [ho] at hi
+  rcases List.mem_append.1 hi with hi | hi
+  · obtain ⟨⟨q, hq, hq0⟩, rest⟩ := h i hi
+    exact ⟨⟨q, hp q hq, hq0⟩, rest⟩
+  · exact absurd hi (hc i)
+
+theorem evict_victim {c : Cfg} {s0 : State} {a : Acc} {rest : List Req} (hw : Wf c s0) (hj : PJ c s0 a rest)
+    (hm : PM s0 a) {add : Res → Nat} {i : Ident}
+    (hx : Cmd.signal (.group i) .term ∈ (stopAll a.st (evictPick c a.st add)).2) :
+    ∃ y ∈ s0.res, y.proc = some i ∧ y.phase = .ready ∧ c.pinned y.kind = false ∧
+      ∀ l ∈ s0.leases, l.kind = .svc → l.rid ≠ y.id := by
+  have hnd : (a.st.res.map (·.id)).Nodup := by rw [rids_of_key hj.key]; exact hw.rids
+  obtain ⟨z, hz, hzi⟩ := stop_pick hnd (fun z hz => (cands_ready (evictPick_cands hz)).1) hx
+  have hzc := evictPick_cands hz
+  obtain ⟨hzr, hzp⟩ := cands_ready hzc
+  obtain ⟨⟨F, hF, hFm⟩, _⟩ := hm
+  rw [hF] at hzr
+  obtain ⟨x, hx0, rfl⟩ := List.mem_map.1 hzr
+  have hk := (hFm x hx0).1
+  refine ⟨x, hx0, by rw [← key_proc hk]; exact hzi, ?_, by rw [← key_kind hk]; exact cands_unpinned hzc,
+    fun l hl hs => ?_⟩
+  · rcases (hFm x hx0).2 with e | ⟨_, _, e⟩ | ⟨e, _⟩
+    · rw [← e]; exact hzp
+    · rw [hzp] at e; cases e
+    · exact e
+  · rw [← key_id hk]
+    exact cands_unleased hzc (by rw [hj.leases]; exact List.mem_append_left _ hl) hs
+
+theorem pumpOne_pt {c : Cfg} {s0 : State} {a : Acc} {q : Req} {rest : List Req} (hw : Wf c s0)
+    (hj : PJ c s0 a (q :: rest)) (hm : PM s0 a) (h : PT c s0 a) : PT c s0 (pumpOne c a q) := by
+  have hq0 : q ∈ s0.pending := hj.sub.subset (List.mem_append_right _ List.mem_cons_self)
+  have hkeep : ∀ (a' : Acc) b, (∀ p ∈ a.st.pending, p ∈ a'.st.pending) → a'.out = a.out → PT c s0 a' →
+      PT c s0 (keepQ a' q b) := fun a' b hp ho h' =>
+    pt_mono [] h' (fun p hp' => List.mem_append_left _ hp') (List.append_nil _).symm (fun _ hx => by cases hx)
+  have hp0 : ∀ p ∈ a.st.pending, p ∈ a.st.pending := fun _ hp => hp
+  refine pumpOne_cases c a q (PT c s0) (fun w _ => pt_mono _ h hp0 rfl (by simp))
+    (fun _ _ _ _ => pt_mono _ h hp0 rfl (by simp)) (fun _ _ add _ => ?_)
+    (fun _ _ _ => hkeep a false hp0 rfl h)
+    (fun _ _ _ _ _ _ _ _ => pt_mono _ h hp0 rfl (by simp))
+    (fun _ _ _ _ _ r _ _ _ _ _ => ?_)
+  · unfold block
+    split
+    · exact hkeep a true hp0 rfl h
+    · intro i hi
+      have hi' : Cmd.signal (.group i) .term ∈ a.out ++ (stopAll a.st (evictPick c a.st add)).2 := hi
+      rcases List.mem_append.1 hi' with hi' | hi'
+      · obtain ⟨⟨p, hp, hp0'⟩, rest'⟩ := h i hi'
+        exact ⟨⟨p, List.mem_append_left _ hp, hp0'⟩, rest'⟩
+      · exact ⟨⟨q, List.mem_append_right _ (List.mem_singleton_self q), hq0⟩, evict_victim hw hj hm hi'⟩
+  · unfold start
+    exact pt_mono [_] h (fun p hp => List.mem_append_left _ hp) rfl (by simp)
+
+theorem pump_pt {c : Cfg} {s0 : State} (hw : Wf c s0) : PT c s0 (pumpAcc c s0) := by
+  have := pump_ind hw (fun a => PM s0 a ∧ PT c s0 a)
+    ⟨⟨⟨id, (List.map_id _).symm, fun x _ => Moved.refl _ x⟩, fun _ hx => absurd hx List.not_mem_nil⟩,
+      fun _ hx => absurd hx List.not_mem_nil⟩
+    fun _ _ _ hj h => ⟨pumpOne_pm hw hj h.1, pumpOne_pt hw hj h.1 h.2⟩
+  exact this.2
+
+/-- evict_for_pending: every TERM the pump sends stops a ready, unpinned resource without a service lease, for a
+blocked request that stays queued after the step. -/
+theorem evict_for_pending {c : Cfg} {s : State} {e : Event} {i : Ident} (h : Inv c s) (ha : authed c e = true)
+    (hx : Cmd.signal (.group i) .term ∈ (pumpAcc c (pre c s e).1).out) :
+    (∃ q ∈ (step c s e).1.pending, q ∈ (pre c s e).1.pending) ∧
+    ∃ y ∈ (pre c s e).1.res, y.proc = some i ∧ y.phase = .ready ∧ c.pinned y.kind = false ∧
+      ∀ l ∈ (pre c s e).1.leases, l.kind = .svc → l.rid ≠ y.id := by
+  rw [step_st ha]
+  exact pump_pt (wf_pre e h.1) i hx
+
+theorem tick_term {c : Cfg} {s : State} {now : Nat} {smp : Sample} {i : Ident} (hw : Wf c s)
+    (h : Cmd.signal (.group i) .term ∈ (tick c s now smp).2) :
+    ∃ y, y.proc = some i ∧ (y ∈ idle c (observe c s now smp).1 ∨
+      ((idleStage c (observe c s now smp).1).1.shedding = true ∧ y ∈ shedPick c (idleStage c (observe c s now smp).1).1)) := by
+  have h1 := wf_observe now smp hw
+  have h2 := wf_stopAll _ h1 fun _ hx => idle_cands hx
+  unfold tick at h
+  dsimp only at h
+  rcases List.mem_append.1 h with h | h
+  · rcases List.mem_append.1 h with h | h
+    · rcases List.mem_append.1 h with h | h
+      · rcases observe_cmds h with ⟨_, _, _, _, e⟩ | ⟨_, _, e⟩ | ⟨_, _, e⟩
+        · injection e with _ e2; cases e2
+        · injection e with e1; cases e1
+        · cases e
+      · obtain ⟨z, hz, hzi⟩ := stop_pick h1.rids (fun z hz => (cands_ready (idle_cands hz)).1) h
+        exact ⟨z, hzi, Or.inl hz⟩
+    · unfold shedStage at h
+      split at h
+      · rename_i hs
+        obtain ⟨z, hz, hzi⟩ := stop_pick h2.rids (fun z hz => (cands_ready (shedPick_cands hz)).1) h
+        exact ⟨z, hzi, Or.inr ⟨hs, hz⟩⟩
+      · cases h
+  · split at h <;> simp at h
+
+/-- stop_only_idle: every TERM to a group stops an idle candidate on a tick, a shed candidate while shedding, or a
+ready, unpinned resource without a service lease evicted for a request that stays queued. -/
+theorem stop_only_idle {c : Cfg} {s : State} {e : Event} {i : Ident} (h : Inv c s)
+    (hx : Cmd.signal (.group i) .term ∈ (step c s e).2) :
+    (∃ now smp, e = .tick now smp ∧ ∃ y, y.proc = some i ∧ (y ∈ idle c (observe c s now smp).1 ∨
+      ((idleStage c (observe c s now smp).1).1.shedding = true ∧
+        y ∈ shedPick c (idleStage c (observe c s now smp).1).1)))
+    ∨ ((∃ q ∈ (step c s e).1.pending, q ∈ (pre c s e).1.pending) ∧
+      ∃ y ∈ (pre c s e).1.res, y.proc = some i ∧ y.phase = .ready ∧ c.pinned y.kind = false ∧
+        ∀ l ∈ (pre c s e).1.leases, l.kind = .svc → l.rid ≠ y.id) := by
+  obtain ⟨ha, hx⟩ := step_mem hx
+  rcases hx with hx | hx
+  · rcases pre_out hx with ⟨_, _, e'⟩ | ⟨now, smp, rfl, hx⟩ | ⟨rid, _, rfl, e' | ⟨j, rfl, e', _, _⟩⟩ | ⟨_, _, e'⟩ |
+        ⟨now, snap, inp, rfl, ⟨_, _, e'⟩ | ⟨p, hp, e'⟩⟩
+    · cases e'
+    · exact Or.inl ⟨now, smp, rfl, tick_term h.1 hx⟩
+    · cases e'
+    · injection e' with _ e2; cases e2
+    · cases e'
+    · cases e'
+    · injection e' with e1; cases e1
+  · exact Or.inr (evict_for_pending h ha hx)
+
 end Fw.Sup
