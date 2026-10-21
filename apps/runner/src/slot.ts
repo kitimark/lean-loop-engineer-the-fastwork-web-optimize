@@ -107,7 +107,7 @@ export function realDeps(cwd: string, env: Record<string, string | undefined> = 
   const events = env.FW_LOCK_EVENTS === "off" ? null : env.FW_LOCK_EVENTS_FILE ?? (env.CI ? null : join(con, "locks.jsonl"));
   return {
     dir: env.FW_SLOT_DIR ?? join(con, "slot"),
-    cacheDir: join(con, "review-cache"),
+    cacheDir: join(con, "review-cache", "slot"),
     eventsFile: events,
     legacySimLock: join(main, ".local", "locks", "sim"),
     owner: env.FW_SLOT_OWNER ?? basename(top),

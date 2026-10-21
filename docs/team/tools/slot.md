@@ -54,7 +54,7 @@ t=$(pnpm -s fw slot acquire --kind sim --lease 1800)   # then: fw slot renew --t
 - **Result cache.** With `--cache` on a clean tree, the key is the kind, the exact argv, the HEAD tree hash and, for
   `land`, the `main` commit. A passing run is recorded when the tree is still clean and unchanged afterwards. The next
   run with the same key replays its stdout, stderr and exit code. Failures, dirty trees and a moved `main` (for land)
-  run afresh (`cacheHit_same`, `cacheHit_dirty`). Records live in `<main>/.fw-console/review-cache/`.
+  run afresh (`cacheHit_same`, `cacheHit_dirty`). Records live in `<main>/.fw-console/review-cache/slot/`.
 
 ## Files and switches
 
