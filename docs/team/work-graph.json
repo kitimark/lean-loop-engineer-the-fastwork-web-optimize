@@ -13499,7 +13499,8 @@
     "apps/runner/src/run-pick.ts",
     "apps/runner/test/**",
     "docs/team/handoffs/traj-dispatch-scope.md"
-   ]
+   ],
+   "evidence": "6a2a107"
   },
   {
    "devices": [
