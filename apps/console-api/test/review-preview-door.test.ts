@@ -1,6 +1,6 @@
 // review-followups: (1) review.previewed cannot pass the public command door (guard: the real-door assertions; the mutant case checks `admits` only); (2) the preview search names a
 // flag by a whole entry (Lean console.reviewPreview, golden packages/contracts/golden/console/reviewPreview.jsonl); (3) previews are
-// scoped to the review round (Lean Fw.Console.Review.inRound).
+// scoped to the review round (Lean Fw.Console.ReviewPreview.roundEventsOf, placed by the round tag of the event key).
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -95,7 +95,7 @@ describe("the preview search names a flag by a whole entry (Lean searchHasFlag)"
   });
 });
 
-describe("previews are scoped to the review round (Lean Fw.Console.Review.inRound)", () => {
+describe("previews are scoped to the review round (Lean Fw.Console.ReviewPreview.roundEventsOf, placed by the round tag of the event key)", () => {
   it("a new round (step posted again after the last was closed without a verdict) does not inherit the old previews", async () => {
     const { app, store } = await rig();
     await ensureReviewSteps(store);
@@ -114,6 +114,23 @@ describe("previews are scoped to the review round (Lean Fw.Console.Review.inRoun
     expect(await card(app)).toMatchObject({ desktop: true, phone: false });
     const keys = (await store.readEvents()).filter((e) => (e as { type: string }).type === "review.previewed").map((e) => (e as { key: string }).key);
     expect(keys).toEqual([`review-previewed-${FLAG}-desktop`, `review-previewed-${FLAG}-desktop#1`]);
+  });
+  it("the reviewer's window: a click in the unposted window, then the post, then the same click again: card desktop, exactly one event", async () => {
+    const { app, store } = await rig();
+    await ensureReviewSteps(store);
+    await store.submit({ type: "step.start", key: "start-w", actor: "user", step: `review-${FLAG}` } as never);
+    const closed = await store.submit({ type: "step.done", key: "close-w", actor: "user", step: `review-${FLAG}` } as never);
+    expect(closed, JSON.stringify(closed)).toMatchObject({ ok: true });
+    // round 2 is not posted yet: the click is recorded under the key of the step ensureReviewSteps will post (#1)
+    const first = await (await post(app, { view: "flag", width: 1280, done: true })).json() as any;
+    expect(first).toMatchObject({ ok: true, recorded: true });
+    await ensureReviewSteps(store);
+    expect(await card(app)).toMatchObject({ open: true, desktop: true, phone: false });
+    await post(app, { view: "flag", width: 1280, done: true });
+    expect(await card(app)).toMatchObject({ desktop: true });
+    const evs = (await store.readEvents()).filter((e) => (e as { type: string }).type === "review.previewed");
+    expect(evs).toHaveLength(1);
+    expect((evs[0] as unknown as { key: string }).key).toBe(`review-previewed-${FLAG}-desktop#1`);
   });
   it("existing events stay readable: a preview recorded in the first round still counts there", async () => {
     const { app, store } = await rig();

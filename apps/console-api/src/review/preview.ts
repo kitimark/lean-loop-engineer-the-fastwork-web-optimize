@@ -13,18 +13,16 @@ interface Plan { ok: boolean; reason?: string; view?: string; search?: string; a
   event?: { type: string; flag: string; device: string }; carries?: boolean }
 interface Reply { items: (PreviewInfo & { flag: string })[]; plan: Plan | null }
 
-/** The accepted preview events of the log in the shape Lean reads ({flag, device, seq}), and the log positions of the review steps'
- *  postings ({step, seq}): Lean places each event in a review round by position (Fw.Console.Review.inRound). The log is the only record. */
-async function seen(store: Store): Promise<{ events: { flag: string; device: string; seq: number }[]; posts: { step: string; seq: number }[] }> {
-  const events: { flag: string; device: string; seq: number }[] = [];
-  const posts: { step: string; seq: number }[] = [];
+/** The accepted preview events of the log in the shape Lean reads ({flag, device, key}). Lean places each event in a review round by
+ *  the round tag of its key (Fw.Console.ReviewPreview.roundOfKey), never by log position. The log is the only record. */
+async function seen(store: Store): Promise<{ events: { flag: string; device: string; key?: string }[] }> {
+  const events: { flag: string; device: string; key?: string }[] = [];
   for (const e of await store.readEvents()) {
-    const x = e as unknown as { type?: string; flag?: unknown; device?: unknown; step?: unknown; seq?: unknown };
-    const seq = typeof x.seq === "number" ? x.seq : 0;
-    if (x.type === "review.previewed" && typeof x.flag === "string" && typeof x.device === "string") events.push({ flag: x.flag, device: x.device, seq });
-    else if (x.type === "step.post" && typeof x.step === "string" && x.step.startsWith("review-")) posts.push({ step: x.step, seq });
+    const x = e as unknown as { type?: string; flag?: unknown; device?: unknown; key?: unknown };
+    if (x.type === "review.previewed" && typeof x.flag === "string" && typeof x.device === "string")
+      events.push({ flag: x.flag, device: x.device, ...(typeof x.key === "string" ? { key: x.key } : {}) });
   }
-  return { events, posts };
+  return { events };
 }
 
 async function ask(store: Store, click?: { flag: string; view: string; width: number }): Promise<Reply> {

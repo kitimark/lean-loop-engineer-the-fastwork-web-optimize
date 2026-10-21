@@ -14,6 +14,22 @@ Built
    step's `step.post`. No event rewrite; old events are read by position. The event key carries the round (`...-desktop#1`, `roundTag`) so a round-2 click is no
    duplicate of round 1's. preview.ts hands Lean `events` {flag, device, seq} and `posts` {step, seq}.
 
+Round 3 (final design round, part 3): identity reader. SUPERSEDES the seq-based round scoping (item 3 and Round 2 "Unposted window") below.
+- The reader places a `review.previewed` event by the round tag parsed from its KEY, never by seq or posting order. Lean `Fw.Console.ReviewPreview`: `keyPrefix`,
+  `roundOfKey` (+ `roundOfKey_eventKey`, `roundOfKey_roundTag`: the parser inverts the builder), `roundEventsOf tag evs` (+ `mem_roundEventsOf`). T1 `shown_iff_named`,
+  `named_round_shows`; T2 `other_rounds_show_nothing`, `keyed_elsewhere_hidden` (unposted window and races: the key is fixed at record time); T3 `record_key_shown`
+  (the key `record` gives is shown in the open step's round, so a repeat click is a duplicate of a shown event); `untagged_first_round_only`, `roundOfKey_untagged`.
+  The posting-seq code (`Post`, `inRound`, old `roundEventsOf`) is deleted from Review.lean. Round identity is the tag STRING ("" first round, "#k"), so no number parsing.
+- Wire: events {flag, device, key?}; no posts/seq (an old caller's posts is ignored). preview.ts passes each event's key.
+- Goldens regenerated from Lean (`lake env lean --run scripts/OpsGolden.lean`): unposted-window click (key #1) shows in round 2; an event keyed for round 1 shows nothing
+  there; an untagged event shows only in round 1.
+- Test: door test "the reviewer's window" ends with desktop true and one event keyed `...-desktop#1`. Mutation: with the previous seq-based Lean and preview.ts
+  restored, that test failed; restored.
+- check.sh exit 0; console-api 734, console-web 80, ci-paths 54, land-inputs 55 pass.
+- Accepted limits: L1 untagged events (no key, or a key without its flag-device prefix) belong to round 1 only. L2 the wire carries key; absent = round 1.
+  L3 the recorder's tag for an unposted round is `freshId` via `stepOf`; that ensureReviewSteps posts that same id is cited (Review.lean stepOf, freshId), not proved
+  here; the window test exercises it. L4 no UI redesign, no log rewrite, parts (1) and (2) unchanged.
+
 Round 2 (fixes of the r1 review)
 - Unposted window: `roundEventsOf` replaces `roundStart`. A step not posted yet while the flag's family has a posting has NO events (theorem
   `unposted_inherits_nothing`; `roundEventsOf_posted`, `unposted_no_family` for the other branches). `record` needs an open step, so none can belong to it.

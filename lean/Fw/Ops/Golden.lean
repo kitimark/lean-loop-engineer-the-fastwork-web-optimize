@@ -1000,22 +1000,20 @@ def reviewPreviewCases (_ : Unit := ()) : List (String × Json) :=
   let done := s!"[{st "review-nav:earn-no-transition" "\"keep\"" "false"}]"
   let ev (d : String) := s!"\{\"flag\":\"nav:earn-no-transition\",\"device\":\"{d}\"}"
   let ask (v : String) (w : Nat) := s!"\{\"flag\":\"nav:earn-no-transition\",\"view\":\"{v}\",\"width\":{w}}"
-  let evAt (d : String) (n : Nat) := s!"[\{\"flag\":\"nav:earn-no-transition\",\"device\":\"{d}\",\"seq\":{n}}]"
+  let kev (d : String) (tag : String) := s!"[\{\"flag\":\"nav:earn-no-transition\",\"device\":\"{d}\",\"key\":\"review-previewed-nav:earn-no-transition-{d}{tag}\"}]"
   let round2 := s!"[{st "review-nav:earn-no-transition" "null" "false"},{st "review-nav:earn-no-transition#1" "null" "true"}]"
   let closed1 := s!"[{st "review-nav:earn-no-transition" "null" "false"}]"
-  let post (id : String) (n : Nat) := s!"\{\"step\":\"{id}\",\"seq\":{n}}"
-  let posts1 := [("posts", lit s!"[{post "review-nav:earn-no-transition" 5}]")]
-  let posts2 := [("posts", lit s!"[{post "review-nav:earn-no-transition" 5},{post "review-nav:earn-no-transition#1" 9}]")]
   let names (search flag : String) := [("names", Json.mkObj [("search", .str search), ("flag", .str flag)])]
   [("nothing previewed: both devices are missing, with an ask line each", rpv pend open_ "[]"),
-   ("round 2 (step #1 posted at 9): a preview at 6 in round 1 is not inherited", rpv pend round2 (evAt "desktop" 6) "null" posts2),
-   ("round 2 click: the event key carries the round (#1), so it is no duplicate of round 1's", rpv pend round2 "[]" (ask "flag" 390) posts2),
-   ("round 2: a preview at 10 after the new step counts", rpv pend round2 (evAt "desktop" 10) "null" posts2),
-   ("round 1 only (step posted at 5): a preview at 6 counts", rpv pend open_ (evAt "desktop" 6) "null" posts1),
-   ("round 1: a preview at 5, the posting itself, counts for nothing", rpv pend open_ (evAt "desktop" 5) "null" posts1),
-   ("round 2 not posted yet: the old round's later event does not count (no inheritance in the unposted window)", rpv pend closed1 (evAt "phone" 6) "null" posts1),
-   ("posts given, an old event without seq (position 0) is before the round", rpv pend open_ s!"[{ev "desktop"}]" "null" posts1),
-   ("without posts every event counts, seq or not", rpv pend round2 (evAt "desktop" 6)),
+   ("round 2 (step #1 open): a preview keyed for round 1 is not inherited", rpv pend round2 (kev "desktop" "")),
+   ("round 2 click: the event key carries the round (#1), so it is no duplicate of round 1's", rpv pend round2 "[]" (ask "flag" 390)),
+   ("round 2: a preview keyed #1 counts", rpv pend round2 (kev "desktop" "#1")),
+   ("round 1 only (step open): a preview keyed for round 1 counts", rpv pend open_ (kev "desktop" "")),
+   ("round 1: a preview keyed for round 2 (#1) is not shown", rpv pend open_ (kev "desktop" "#1")),
+   ("round 2 not posted yet: the old round's event (keyed round 1) shows nothing", rpv pend closed1 (kev "phone" "")),
+   ("round 2 not posted yet: a click recorded in the unposted window (key #1) shows in round 2", rpv pend closed1 (kev "phone" "#1")),
+   ("an untagged old event (no key) shows in round 1", rpv pend open_ s!"[{ev "desktop"}]"),
+   ("an untagged old event (no key) is not shown in round 2", rpv pend round2 s!"[{ev "desktop"}]"),
    ("the search names the flag by a whole entry", rpv pend open_ "[]" "null" (names "?fw=nav:earn-no-transition" "nav:earn-no-transition")),
    ("nav:earn is not named by a search for nav:earn-no-transition", rpv pend open_ "[]" "null" (names "?fw=nav:earn-no-transition" "nav:earn")),
    ("nav:earn-no-transition is not named by a search for nav:earn", rpv pend open_ "[]" "null" (names "?fw=nav:earn" "nav:earn-no-transition")),
