@@ -2686,6 +2686,35 @@
    "lesson": "A write that is skipped only where the original never writes saves nothing; check that the original does the work in the measured window before porting a skip.",
    "next": "Hold: keep the flag registered, out of the preset; re-measure in the Simulator replay of the end of page, or if a section is added below the card.",
    "evidence": "CI runs 39680952848, 39680958629, 39680964944, 39685930205; research/notes/2026/10-2x-platform-shrink-mq.md; results/platform-shrink-mq/report.json"
+  },
+  {
+   "id": "accent.draw-one",
+   "n": 43,
+   "part": "hero.accent",
+   "candidate": "hero.accent:draw-one: in the draw window run the stroke-dashoffset animation on the visible copy (frame0) only; the two copies at opacity 0 (accent.module.css:76-83) get no animation",
+   "status": "proved",
+   "flag": "hero.accent:draw-one",
+   "flags": [
+    "hero.accent:draw-one"
+   ],
+   "chromium": "unknown",
+   "webkit": "unknown",
+   "visual": "E (drawOne_visSame: visible scenes equal at every instant and width; drawTmpl_hidden: the premise, copies 1 and 2 have opacity 0 for the whole window)",
+   "mechanism": "PENDING measurement.",
+   "leanFor": [
+    "Fw.Parts.HeroAccentOpt.drawOne_visSame",
+    "Fw.Parts.HeroAccentOpt.draw_one_eq",
+    "Fw.Parts.HeroAccentOpt.drawOne_still_iff",
+    "Fw.Parts.HeroAccentOpt.animatedCount_values",
+    "Fw.Parts.HiddenPause.hidden_pause_eq"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [],
+   "premises": [],
+   "v1Evidence": "",
+   "lesson": "",
+   "next": "",
+   "evidence": ""
   }
  ],
  "notes": [

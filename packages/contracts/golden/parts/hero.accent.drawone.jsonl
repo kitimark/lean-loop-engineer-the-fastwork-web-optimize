@@ -1,0 +1,16 @@
+{"alpha":null,"animated":false,"copy":0,"phase":"idle","variant":"faithful"}
+{"alpha":null,"animated":false,"copy":1,"phase":"idle","variant":"faithful"}
+{"alpha":null,"animated":false,"copy":2,"phase":"idle","variant":"faithful"}
+{"alpha":1,"animated":true,"copy":0,"phase":"drawing","variant":"faithful"}
+{"alpha":0,"animated":true,"copy":1,"phase":"drawing","variant":"faithful"}
+{"alpha":0,"animated":true,"copy":2,"phase":"drawing","variant":"faithful"}
+{"alpha":null,"animated":false,"copy":0,"phase":"idle","variant":"draw-one"}
+{"alpha":null,"animated":false,"copy":1,"phase":"idle","variant":"draw-one"}
+{"alpha":null,"animated":false,"copy":2,"phase":"idle","variant":"draw-one"}
+{"alpha":1,"animated":true,"copy":0,"phase":"drawing","variant":"draw-one"}
+{"alpha":0,"animated":false,"copy":1,"phase":"drawing","variant":"draw-one"}
+{"alpha":0,"animated":false,"copy":2,"phase":"drawing","variant":"draw-one"}
+{"count":0,"phase":"idle","variant":"faithful"}
+{"count":3,"phase":"drawing","variant":"faithful"}
+{"count":0,"phase":"idle","variant":"draw-one"}
+{"count":1,"phase":"drawing","variant":"draw-one"}
