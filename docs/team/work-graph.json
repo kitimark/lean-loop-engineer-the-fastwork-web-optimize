@@ -13759,7 +13759,8 @@
     "packages/contracts/golden/sup/**",
     "docs/team/daemon/design.md",
     "docs/team/handoffs/sup-fairness.md"
-   ]
+   ],
+   "evidence": "6fe9c9f"
   },
   {
    "devices": [
@@ -13900,7 +13901,7 @@
    "owner": "console-builder",
    "stream": "tooling",
    "deps": [],
-   "title": "Incident inc-gate-last-line: build-review parsed the gate agent's free text for the VERDICT line, and a trailing 'Log:' line sent two ready builds back. Give the gate a structured result: the gate agent returns fw review ready's exit code (0 review, 21 wait, 22 dispatch, 23 returnToBuilder) as a schema field and the script decides from the code; keep the VERDICT text only as display. Also `fw ci state` accepts CircleCI pipeline ids (UUIDs) so the gate can read CircleCI run states (it printed usage for them on circleci-lean-cache).",
+   "title": "Incident inc-gate-last-line, re-scoped by the lead 2026-10-22 from data: in 17 build-review runs since the gate agent was added (10-21 20:17) it said review 16 times and gave no line once, caught 0 not-ready builds (builders already run fw review ready and fix returnToBuilder before handing back), and cost 2 false send-backs plus 1 stalled run. Remove the gate agent from .claude/workflows/build-review.js: the reviewer's first step runs fw review ready on the builder report (reading run states itself with fw ci state), returns its exit code (0 review, 21 wait, 22 dispatch, 23 returnToBuilder) as a schema field, and stops without reviewing when the code is not 0; the script routes on that field, no text parse. Also `fw ci state` accepts CircleCI pipeline ids and returns the gh conclusion for completed runs instead of unknown (macos-teardown-trim review finding 5).",
    "writes": [
     ".claude/workflows/build-review.js",
     "apps/runner/src/review*.ts",
@@ -13950,6 +13951,67 @@
     "docs/team/tools/codemagic.md",
     "research/notes/2026/10-2x-codemagic-pilot.md",
     "docs/team/handoffs/codemagic-pilot.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "sup-fairness-inv",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "sup-fairness"
+   ],
+   "title": "Follow-ups of sup-fairness (review 2026-10-22): (1) head_job_granted_by takes four start-state hypotheses (hages: pending sorted by age, hage: q.age <= now, hdr: not draining, hstop: every stopping resource unpinned and begun by now) that no reachable-state invariant gives; add a run-from-init invariant and a corollary taking only Inv plus it. (2) A job whose cost exceeds the budget minus pinned resources can never fit, now blocks every svc grant on unpinned kinds and re-enters at the head after each deadline (kept ticket), so svc requests wait without end and unpinned resources are evicted repeatedly: refuse it on arrival (new Why .tooBig when it does not fit an empty pinned-only state) and prove a tooBig refusal leaves no ticket.",
+   "writes": [
+    "lean/Fw/Sup/Core.lean",
+    "lean/Fw/Sup/Props.lean",
+    "lean/Fw/Sup/**",
+    "packages/contracts/golden/sup/**",
+    "docs/team/daemon/design.md",
+    "docs/team/handoffs/sup-fairness-inv.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "macos-teardown-followups",
+   "owner": "measure-engineer",
+   "stream": "ci",
+   "deps": [],
+   "title": "Follow-ups of macos-teardown-trim (landed 82e24c9f; findings in the lead scratch teardown-r1-findings): (1) measure the iwdp cache hit rate over a week of webkit-sim runs; drop the cache when the net saving is <= 0 (a ci/* branch cache is never seeded from main, so first runs miss and pay +21 s); (2) allow a bounded timeout-minutes on the failure-only hostState step in Fw.Ci.Steps (uptime/ps can wedge before the upload); (3) ci-steps-lint covers files with no rows (sim-speed.yml probe and trajectory-probe.yml probe-apple are never linted); (4) trim the other 4 macOS workflows with the same Lean step allowlist. GitHub only.",
+   "writes": [
+    ".github/workflows/**",
+    "lean/Fw/Ci/Steps.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/scripts/StepsGolden.lean",
+    "packages/contracts/golden/ci/**",
+    "scripts/ci-steps-lint.mjs",
+    "scripts/ci-steps-lint.test.mjs",
+    "docs/team/handoffs/macos-teardown-followups.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "device-replay",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "title": "User 2026-10-21: replay the user's recorded finger path identically on the real iPhone for every arm, plus worst-case profiles. Research (lead scratch device-replay/answer.md, checked: 7 fixes to apply, momentum INFERRED, iOS 27.0.1/Xcode 27.1 compatibility UNKNOWN): safaridriver W3C touch actions, every step <= 16 ms (one recorded sample per touch event, px rounded); WebDriverAgent only as fallback. Build: (1) Lean Fw.Device.Replay (beside Fw.Device.Session): replayMatches decided per stroke (stroke count, samples within 1 px, events within 17 ms of source relative to stroke start, lift-off speed within 10%, stroke starts within 50 ms; limits are calibration inputs) with golden vectors; (2) the replay driver (phone profile -> W3C actions; profiles: recorded median pass, fast-fling, zone-loop over hero exit and end-of-page, cold load), arm order rotated, N repeats; (3) the same profiles on CI (WebKit Simulator, Chromium 6x CPU throttle as proxy). Pilot: rec-1 (original, single finger, 34 strokes) replayed 3 times; it works if all 3 pass replayMatches and the replay spread is below the rec-1 vs rec-4 gap. User-only: safaridriver --enable and iPhone Remote Automation (console step ask-replay-setup), and the booked phone session.",
+   "writes": [
+    "lean/Fw/Device/Replay*.lean",
+    "lean/scripts/DeviceReplayGolden.lean",
+    "packages/contracts/golden/device/replay*.jsonl",
+    "packages/measure-webkit/src/device-replay*.mjs",
+    "docs/team/tools/device-replay.md",
+    "packages/measure-webkit/src/replay/**",
+    "packages/measure-webkit/test/replay-*.test.mjs",
+    "research/notes/2026/10-2x-device-replay.md",
+    "docs/team/handoffs/device-replay.md"
    ]
   }
  ],
