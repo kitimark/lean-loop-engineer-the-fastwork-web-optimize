@@ -1,0 +1,42 @@
+{
+ "task": "hero-pause-rule",
+ "flag": "hero:scene-pause",
+ "sha": "26b881fafb2b77fd50a34dd9218d889078f06af9",
+ "status": "MEASURED",
+ "census": {
+  "lane": "webkit-sim, iOS Simulator 430x775 DPR 3, arm rewrite, 2 fresh-load passes, pinned clock",
+  "run": 39548856639,
+  "search": "?fw=hero:scene-pause",
+  "configHash": "3cab45fdb721e6b0",
+  "baselineRun": 39309416016,
+  "originalRun": 39318078000,
+  "layerCount": {
+   "y0": { "flag": [122, 112] },
+   "y1500": { "flag": [128, 112] },
+   "y3000": { "flag": [58, 51], "baseline": "136-145", "original": "42-47" },
+   "y4500": { "flag": [65, 56], "baseline": "136-145", "original": "42-47" },
+   "yMax": { "flag": [45, 39], "flagY": [5231, 5267], "baseline": "124-128", "original": "30" }
+  },
+  "willChangeReason": {
+   "y0": [92, 92],
+   "y1500": [93, 93],
+   "y3000": [6, 6],
+   "y4500": [6, 6],
+   "yMax": [5, 5]
+  },
+  "lean": "hero_paused_drop: the 85 hero boxes whose only reason is will-change leave the layer tree while paused (WebKit Normal)"
+ },
+ "gate": {
+  "workflow": "breakpoint-gate",
+  "run": 39549161028,
+  "engines": {
+   "chromium": "pass (every cell pass or NC)",
+   "playwright-webkit": "pass (every cell pass, NC or UNREACHABLE by the Lean reach rule)"
+  }
+ },
+ "trajectory": {
+  "run": 39548822269,
+  "playwright-webkit": "CLEAN, 2000 of 2000 units pass (path hero, 5 reps)",
+  "chromium": "RED, 43 new units against the faithful arm: 42 coverage at width 390 path morph in one rep (open@1), all nav nodes; 1 content: nav logo color close@0=apart in one rep. No hero unit fails. INFERRED unrelated: the nav is outside the hero-exit subtree the rule touches"
+ }
+}
