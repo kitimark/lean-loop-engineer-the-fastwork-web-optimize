@@ -1,22 +1,14 @@
 import Fw.Wire.ReviewFeedback
 import Fw.Console
 import Fw.Console.Steps
-/-!
-# JSON for the grouped steps (`console.stepTopics`)
-
-| op | request | reply |
-|---|---|---|
-| `console.stepTopics` | `events` [{type, ...}] of the log (`step.topic` {topic, title, summary, ts}; `review.feedback` and its reply as in `console.reviewFeedback`; other types ignored), `steps` [{id, topic?, status, audience, lastAt}] of the board | `groups` [{topic (null = the rest), title, summary, updatedAt, steps [id], openQuestions, activity, thread}] in `Fw.Console.Steps.view` order, `threads` [{flag, open, comments}] of the step and topic subjects |
--/
+/-! JSON for the grouped steps: op `console.stepTopics`. -/
 namespace Fw.Wire.Steps
 open Lean Fw.Wire.Ops Fw.Console.Steps Fw.Console.ReviewFeedback
 
-/-- A step status word is open exactly when the reducer's `StepStatus.isOpen` says so. -/
 def openWord (w : String) : Bool := w == "waiting" || w == "started"
 
 #guard [Fw.Console.StepStatus.waiting, .started, .answered, .done, .cancelled].all fun s => openWord s.name == s.isOpen
 
-/-- Read one `step.topic` event of the log (`none` for any other type). -/
 def topicEvOf (j : Json) : Except String (Option TopicEv) := do
   match ← str j "type" with
   | "step.topic" => pure (some ⟨← str j "topic", ← str j "title", ← str j "summary", ← nat j "ts"⟩)
@@ -30,7 +22,6 @@ def itemOf (j : Json) : Except String (Option Item) := do
     pure (some ⟨← str j "id", ← optS j "topic", ← natD j "lastAt" 0⟩)
   else pure none
 
-/-- One group as JSON. -/
 def groupJson (fs : List Fb) (g : Group) : Json :=
   Json.mkObj [("topic", ostr g.topic), ("title", .str g.title), ("summary", .str g.summary),
     ("updatedAt", match g.updatedAt with | some n => toJson n | none => Json.null),
