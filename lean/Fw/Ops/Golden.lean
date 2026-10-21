@@ -1033,9 +1033,36 @@ def reviewPreviewCases (_ : Unit := ()) : List (String × Json) :=
    ("an unknown view is refused", rpv pend open_ "[]" (ask "original" 390)),
    ("a bad flag key is refused", rpv pend open_ "[]" "{\"flag\":\"nocolon\",\"view\":\"flag\",\"width\":390}")]
 
+/-- A `console.reviewFeedback` request: the feedback events of the log and an optional flag. -/
+def rfb (events : String) (flag : Option String := none) : Json :=
+  Json.mkObj ([("events", lit events)] ++ (match flag with | some f => [("flag", Json.str f)] | none => []))
+
+/-- The `console.reviewFeedback` cases. -/
+def reviewFeedbackCases (_ : Unit := ()) : List (String × Json) :=
+  let p (f i t : String) (ts : Nat) := s!"\{\"type\":\"review.feedback\",\"flag\":\"{f}\",\"id\":\"{i}\",\"text\":\"{t}\",\"ts\":{ts}}"
+  let r (f to t : String) (ts : Nat) := s!"\{\"type\":\"review.feedback.reply\",\"flag\":\"{f}\",\"to\":\"{to}\",\"text\":\"{t}\",\"ts\":{ts}}"
+  let a := "nav:earn-no-transition"
+  let b := "hero:cta-pulse"
+  [("no events: no threads", rfb "[]"),
+   ("one comment is open", rfb s!"[{p a "fb-1" "look at the font" 100}]"),
+   ("a reply answers exactly the comment it names", rfb s!"[{p a "fb-1" "one" 100},{p a "fb-2" "two" 110},{r a "fb-1" "done" 120}]"),
+   ("a repeated id changes nothing", rfb s!"[{p a "fb-1" "one" 100},{p a "fb-1" "again" 110}]"),
+   ("a reply to an unknown id is ignored", rfb s!"[{p a "fb-1" "one" 100},{r a "fb-9" "x" 110}]"),
+   ("a reply on the wrong flag is ignored", rfb s!"[{p a "fb-1" "one" 100},{r b "fb-1" "x" 110}]"),
+   ("a second reply to an answered comment is ignored", rfb s!"[{p a "fb-1" "one" 100},{r a "fb-1" "first" 110},{r a "fb-1" "second" 120}]"),
+   ("a blank text is ignored", rfb s!"[{p a "fb-1" "  " 100}]"),
+   ("events of other types are ignored", rfb "[{\"type\":\"step.start\",\"step\":\"x\"}]"),
+   ("two flags are two threads, in the order of the first comment", rfb s!"[{p b "fb-1" "hero" 100},{p a "fb-2" "nav" 110}]"),
+   ("with a flag only that thread", rfb s!"[{p b "fb-1" "hero" 100},{p a "fb-2" "nav" 110}]" (some a)),
+   ("a flag with no comment gets an empty thread", rfb "[]" (some a)),
+   -- the cap counts characters (code points), not UTF-16 units: 2000 astral characters are 4000 units and are accepted, 2001 are refused
+   ("a text of 2000 astral characters (the cap) is accepted", rfb s!"[{p a "fb-1" (String.ofList (List.replicate 2000 '😀')) 100}]"),
+   ("a text of 2001 astral characters (one over the cap) is ignored", rfb s!"[{p a "fb-1" (String.ofList (List.replicate 2001 '😀')) 100}]")]
+
 /-- Golden files whose name is not their op: (directory under `packages/contracts/golden`, file stem, op, cases). -/
 def named (_ : Unit := ()) : List (String × String × String × List (String × Json)) := [
   ("ops", "lean-first", "ops.leanFirst", leanFirstCases),
+  ("console", "reviewFeedback", "console.reviewFeedback", reviewFeedbackCases),
   ("land", "render-guard", "console.landRenderGuard", renderGuardCases),
   ("console", "review", "console.review", reviewCases),
   ("console", "reviewPreview", "console.reviewPreview", reviewPreviewCases)]
