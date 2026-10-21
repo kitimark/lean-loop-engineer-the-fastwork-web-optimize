@@ -11,9 +11,9 @@ MEASURED (CI run cited), INFERRED. Source cites are `file:line@862f17d` (WebKit,
 | Lean predicates and per-zone reductions | `lean/Fw/Measure/WkCost.lean` (core only, no `sorry`) | CONFIRMED (`sh lean/scripts/check.sh` green) |
 | Golden (54 lines) | `packages/contracts/golden/measure/wkcost.jsonl`, written by `lean/scripts/WkCostGolden.lean`, `--check` in `check.sh` | CONFIRMED |
 | TS twin of the reductions | `packages/measure-webkit/src/lag/cost.mjs`, replayed against the golden in `test/lag-cost.test.mjs` (9 tests) | CONFIRMED |
-| Probe passes (I/O only) | `src/lag/costprobe.mjs`: `scrollCost`, `morphCost`, `scrollLayers`, `morphLayers`, run by `lagSession` (`--cost on|off|only`) | MEASURED |
+| Probe passes (I/O only) | `src/lag/costprobe.mjs`: `scrollCost`, `morphCost`, `scrollLayers`, `morphLayers`, run by `lagSession` only with `--cost on` (default `off`: a plain lag run has no cost passes; `only` skips the lag passes) | MEASURED |
 | Per-zone table | `src/lag/costreport.mjs`, `cli.mjs cost-report --original a,b --rewrite c,d [--preset e]`, 4 tests | CONFIRMED on synthetic data, MEASURED on CI data |
-| CI trigger | `.github/workflows/webkit-sim.yml`: commit tokens `[lag]` (both arms), `[lag:rewrite]`, `[lag:v2-proved]`, 3 VMs each | MEASURED |
+| CI trigger | None landed. The runs in section 2 used commit tokens in `webkit-sim.yml` (`[lag]`, `[lag:rewrite]`, `[lag:v2-proved]`, 3 VMs each; history commit a987bf65, dropped before landing because a commit-token rule would be decision logic in YAML outside the Lean grammar `Fw.Ci.Trigger`). To rerun, dispatch `webkit-sim` with inputs `lag`, `target`, `preset`, `vms`; the lag step in `webkit-sim.yml` calls `lag/cli.mjs run` without `--cost`, so the counters need the one flag `--cost on` there (a `cost` dispatch input is a follow-up) | MEASURED (runs), INFERRED (rerun path) |
 
 Lean theorems (all in `Fw.Measure.WkCost`): `nOver_anti`, `over_chain` (over 50 ms <= over 34 ms <= over 25 ms),
 `slot_gap_of_long` (an interval of 33.334 ms or more spans 2 display slots), `nOver_le_nSkip` (an interval over 33.333 ms is a
@@ -25,6 +25,8 @@ The skipped-slot formula (`slotOf d = (6 d + 50000) / 100000`, offsets anchored 
 task `device-stats-v2` defines in `Fw.Device.Session`; the two are not yet unified.
 
 ## 2. CI runs (one workflow run per arm, 3 VMs each; a failed VM was repeated in a new run)
+
+Measured SHAs: original and rewrite at 666228d (run 39647881249), 96740e8 and 1d40101 (the other runs). `apps/site` is identical between these commits (`git diff` empty). The landing tip merges in `hero.exit:threaded`, a new variant that is not the default, so the measured default rewrite matches the landing tip's default.
 
 | Run | Branch, token | Arm | Jobs with cost data | Not usable |
 |---|---|---|---|---|
@@ -47,7 +49,7 @@ less stable is OPEN. The Lean step bound for `determinism` (35 min) is close for
 |---|---|---|
 | rAF interval histogram (7 bins), skipped display slots, over 25 and 50 ms | Works in every zone and arm. The VM is slow: in the stepped scroll 44 to 100 of 100 frames skip a slot, so the counter nearly saturates. | Hero exit only: skipped slots 72-88 per 100 frames (rewrite) against 97 (original), and intervals over 100 ms 16-39 percent against 48-94 percent; the preset arm (same code as rewrite) gives 72-81 and 16-42, so the result replicates. The other zones overlap. |
 | Paint against Composite per frame (Timeline) | Works. Composite is 16 to 655 ms per frame and Paint 0.7 to 30 ms; Composite exceeds Paint in 83 to 100 percent of frames in every zone. The Inspector files GPU raster and buffer waits under Composite (`RenderLayerBacking.cpp:4164,4198`, `RemoteLayerTreeDrawingArea.mm:357,445-448`@862f17d, CONFIRMED), so the Simulator frame is raster-bound (INFERRED, software raster). | No, all zones overlap. It attributes cost; it does not rank the arms here. |
-| New layers per layer-tree read | Works. Hero exit: original 4.3 to 4.8 new layer ids per read, rewrite 1.0 to 1.5, preset 1.0 to 1.3. | Yes, hero exit (lower, replicated by the preset arm). Other zones overlap. What creates the layers is not identified here. |
+| New layers per read (not per commit) | Works. Hero exit: original 4.3 to 4.8 new layer ids per read, rewrite 1.0 to 1.5, preset 1.0 to 1.3. | Yes, hero exit (lower, replicated by the preset arm). Other zones overlap. What creates the layers is not identified here. |
 | Layer bounds changes (resized) | Works. Hero exit 72 to 119 per 100 reads in all arms. | No. |
 | Paint records after a morph ends | Works but weak: the morph zones hold only 1 to 4 frames or reads per pass (the tween is 680 ms and a frame takes 150 ms or more on the VM). One pass (rewrite, run 39665776192, r2, pass 1) has 523 paint records after the push and none in the 500 ms after either tween end. | No, all ranges overlap. Do not use alone. |
 
@@ -190,6 +192,13 @@ Arms: original (6/6 passes with the cost counters), rewrite (7/8 passes with the
   are never from the same frame. Per-zone ranges are compared, not per-frame pairs.
 - IOSurface creation and `slowFrame` need `xctrace`; they are the task `xctrace-ci-probe`, not attempted here. Without them the
   counters above show where frames are late and which layers are new, not what the GPU process allocated.
+
+- A read is not a commit: `scrollLayers` reads once after each awaited rAF, `morphLayers` once per `LayerTree.layerTreeDidChange`;
+  several commits or none may fall between reads. A layer is a composited RenderLayer (`InspectorLayerTreeAgent.cpp:159,384-389@862f17d`);
+  its backing can hold several GraphicsLayers/UIViews, so the counts are lower bounds of UIView creation.
+- The morph end is `push + tweenUs` (Lean `morphEnd`), not an observed end; when rAF stalls (run 39665776192 r2 pass 1: a 1.39 s
+  gap), the tween ends late and the early/late windows miss the redraw.
+- The cost passes are off by default (`--cost on` turns them on); the jobs with them took 16 to 30 min against the 35 min step bound.
 
 ## 6. TS stand-ins (no Lean golden behind them)
 

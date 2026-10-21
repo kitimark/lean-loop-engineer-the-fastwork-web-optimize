@@ -190,12 +190,10 @@ jobs:
       - id: m
         env:
           FWCORE: ${{ runner.temp }}/bin/fwcore
-          # a ci/* push carries no inputs: its commit token asks for the lag probe, `[lag]` (original and rewrite, 3 VMs each) or
-          # `[lag:v2-proved]` (the rewrite at that preset, 3 VMs) or `[lag:rewrite]` (the default rewrite only, 3 VMs); a dispatch uses its inputs
-          VMS: ${{ inputs.vms || (contains(github.event.head_commit.message, '[lag') && '3') || '1' }}
+          VMS: ${{ inputs.vms || '1' }}
           SESSIONS: ${{ inputs.sessions || '1' }}
-          TARGET: ${{ inputs.target || (contains(github.event.head_commit.message, '[lag:v2-proved]') && 'rewrite') || (contains(github.event.head_commit.message, '[lag:rewrite]') && 'rewrite') || (contains(github.event.head_commit.message, '[lag]') && 'both') || 'original' }}
-          PRESET: ${{ inputs.preset || (contains(github.event.head_commit.message, '[lag:v2-proved]') && 'v2-proved') || 'original' }}
+          TARGET: ${{ inputs.target || 'original' }}
+          PRESET: ${{ inputs.preset || 'original' }}
           FW: ${{ inputs.fw || '' }}
           EXPERIMENT: ${{ inputs.experiment || 'determinism' }}
           SHA: ${{ github.sha }}
@@ -404,7 +402,7 @@ jobs:
           SEARCH: ${{ matrix.search }}
           SITE_DIR: ${{ runner.temp }}/site
           EXPERIMENT: ${{ inputs.experiment || 'determinism' }}
-          LAG: ${{ (inputs.lag || contains(github.event.head_commit.message, '[lag')) && 'yes' || 'no' }}
+          LAG: ${{ inputs.lag && 'yes' || 'no' }}
           ARMS: ${{ inputs.arms || '0,1,3' }}
           REPS: ${{ inputs.reps || '3' }}
           # The runner (3 vCPU) boots the Simulator and Safari several times slower than a Mac: every wait in
@@ -482,7 +480,7 @@ jobs:
   # are listed as unpaired). Needs node and fwcore only, so it runs on Linux.
   merge:
     needs: [plan, sim, fwcore]
-    if: ${{ needs.plan.outputs.original == 'true' && (inputs.experiment || 'determinism') == 'determinism' && !(inputs.lag || contains(github.event.head_commit.message, '[lag')) }}
+    if: ${{ needs.plan.outputs.original == 'true' && (inputs.experiment || 'determinism') == 'determinism' && !inputs.lag }}
     concurrency:
       group: ci-lane:webkit-sim:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:merge:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
@@ -553,7 +551,7 @@ jobs:
   # pass i of the other. Only meaningful for target both. Linux: it needs node and fwcore only.
   align:
     needs: [plan, sim, fwcore]
-    if: ${{ needs.plan.outputs.both == 'true' && needs.sim.result == 'success' && !(inputs.lag || contains(github.event.head_commit.message, '[lag')) }}
+    if: ${{ needs.plan.outputs.both == 'true' && needs.sim.result == 'success' && !inputs.lag }}
     concurrency:
       group: ci-lane:webkit-sim:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:align:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
@@ -629,7 +627,7 @@ jobs:
   lag-report:
     needs: [guard, plan, sim]
     # !cancelled(): a session whose lag JSON was written but whose later step failed (Keep logs and host state) still counts; the CLI takes the partial sessions.
-    if: ${{ !cancelled() && needs.guard.outputs.run == 'true' && needs.plan.result == 'success' && (inputs.lag || contains(github.event.head_commit.message, '[lag')) && needs.plan.outputs.both == 'true' && needs.sim.result != 'cancelled' }}
+    if: ${{ !cancelled() && needs.guard.outputs.run == 'true' && needs.plan.result == 'success' && inputs.lag && needs.plan.outputs.both == 'true' && needs.sim.result != 'cancelled' }}
     concurrency:
       group: ci-lane:webkit-sim:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:lag-report:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm

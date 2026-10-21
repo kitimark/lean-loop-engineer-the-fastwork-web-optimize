@@ -22,7 +22,7 @@ const { values: v } = parseArgs({
     site: { type: 'string' }, search: { type: 'string', default: '' }, out: { type: 'string' }, keep: { type: 'boolean', default: true },
     passes: { type: 'string', default: '2' }, step: { type: 'string', default: '50' }, frames: { type: 'string', default: '2' },
     settle: { type: 'string', default: '6000' }, clock: { type: 'string', default: 'pinned' }, vendors: { type: 'string', default: 'off' },
-    cost: { type: 'string', default: 'on' }, original: { type: 'string' }, rewrite: { type: 'string' }, preset: { type: 'string' }, faithful: { type: 'string' }, json: { type: 'string' }, note: { type: 'string' },
+    cost: { type: 'string', default: 'off' }, original: { type: 'string' }, rewrite: { type: 'string' }, preset: { type: 'string' }, faithful: { type: 'string' }, json: { type: 'string' }, note: { type: 'string' },
   },
   allowNegative: true,
 });
