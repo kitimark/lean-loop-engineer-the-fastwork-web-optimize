@@ -1,4 +1,4 @@
-// review-followups: (1) review.previewed cannot pass the public command door, with a mutation check; (2) the preview search names a
+// review-followups: (1) review.previewed cannot pass the public command door (guard: the real-door assertions; the mutant case checks `admits` only); (2) the preview search names a
 // flag by a whole entry (Lean console.reviewPreview, golden packages/contracts/golden/console/reviewPreview.jsonl); (3) previews are
 // scoped to the review round (Lean Fw.Console.Review.inRound).
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
@@ -59,8 +59,9 @@ describe("the public command door refuses review.previewed", () => {
     expect(r.status).toBe(200);
     expect(await count(store)).toBe(1);
   });
-  it("mutation check: a door that admits review.previewed is caught by this test's check", () => {
-    // the real door admits none; the mutant (the internal commands moved into the public list) admits it, so `admits` would flag it
+  it("sanity check of `admits`: it flags a union that contains review.previewed", () => {
+    // The guard is the three real-door assertions above (POST 400 and count 0, stamp false, admits(PublicCommand) false).
+    // This case only checks that `admits` is able to say true, on a hand-built union; it proves nothing about the real door.
     expect(admits(PublicCommand, "user")).toBe(false);
     const internal = Command.options.filter((o) => o.shape.type.value === "review.previewed");
     expect(internal).toHaveLength(1);
@@ -104,6 +105,8 @@ describe("previews are scoped to the review round (Lean Fw.Console.Review.inRoun
     await store.submit({ type: "step.start", key: "start-r1", actor: "user", step: `review-${FLAG}` } as never);
     const closed = await store.submit({ type: "step.done", key: "close-r1", actor: "user", step: `review-${FLAG}` } as never);
     expect(closed, JSON.stringify(closed)).toMatchObject({ ok: true });
+    // the window before ensureReviewSteps re-posts: the new round is unposted and inherits nothing (Lean unposted_inherits_nothing)
+    expect(await card(app)).toMatchObject({ desktop: false, phone: false });
     await ensureReviewSteps(store);
     expect(await card(app)).toMatchObject({ open: true, desktop: false, phone: false, missing: ["desktop", "phone"] });
     // a preview in the new round counts, and its key is not the duplicate of round 1's

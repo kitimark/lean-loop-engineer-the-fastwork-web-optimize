@@ -1013,7 +1013,7 @@ def reviewPreviewCases (_ : Unit := ()) : List (String × Json) :=
    ("round 2: a preview at 10 after the new step counts", rpv pend round2 (evAt "desktop" 10) "null" posts2),
    ("round 1 only (step posted at 5): a preview at 6 counts", rpv pend open_ (evAt "desktop" 6) "null" posts1),
    ("round 1: a preview at 5, the posting itself, counts for nothing", rpv pend open_ (evAt "desktop" 5) "null" posts1),
-   ("round 2 not posted yet: the start is the last posting of the family, so a later event counts until the step is posted (accepted limit)", rpv pend closed1 (evAt "phone" 6) "null" posts1),
+   ("round 2 not posted yet: the old round's later event does not count (no inheritance in the unposted window)", rpv pend closed1 (evAt "phone" 6) "null" posts1),
    ("posts given, an old event without seq (position 0) is before the round", rpv pend open_ s!"[{ev "desktop"}]" "null" posts1),
    ("without posts every event counts, seq or not", rpv pend round2 (evAt "desktop" 6)),
    ("the search names the flag by a whole entry", rpv pend open_ "[]" "null" (names "?fw=nav:earn-no-transition" "nav:earn-no-transition")),

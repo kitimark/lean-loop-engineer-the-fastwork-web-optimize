@@ -350,14 +350,6 @@ deriving DecidableEq, Repr
 /-- The postings of the review steps of one flag. -/
 def familyPosts (posts : List Post) (f : Flag) : List Post := posts.filter fun p => inFamily f p.step
 
-/-- Where a round starts: the log position of its step's posting. A step not posted yet starts after the latest posting of the
-flag's family (a new round to come: the old round's events are before it). `none`: the flag has no posted step, nothing is
-older, every event counts. -/
-def roundStart (posts : List Post) (f : Flag) (step : String) : Option Nat :=
-  match posts.find? (·.step == step) with
-  | some p => some p.seq
-  | none => ((familyPosts posts f).map (·.seq)).max?
-
 /-- The events of a round: those after the round's start (each paired with its log position), without the position. -/
 def inRound {α : Type} (start : Option Nat) (evs : List (α × Nat)) : List α :=
   match start with
@@ -388,31 +380,46 @@ theorem inRound_mono {α : Type} (s t : Nat) (h : s ≤ t) (evs : List (α × Na
   obtain ⟨e, he, h1, h2⟩ := hx
   exact ⟨e, he, h1, Nat.lt_of_le_of_lt h h2⟩
 
-/-- A posted step starts its round at its own posting. -/
-theorem roundStart_posted (posts : List Post) (f : Flag) (step : String) (p : Post)
-    (h : posts.find? (·.step == step) = some p) : roundStart posts f step = some p.seq := by
-  simp [roundStart, h]
+/-- The events of a round, by the round's step. A posted step counts the events after its posting. A step not posted yet while the
+flag's family has a posting is a new round whose step is still to be posted: no event can belong to it (`record` needs an open
+step), so it has none, however late the step is posted. Only a flag with no posting at all counts every event. -/
+def roundEventsOf {α : Type} (posts : List Post) (f : Flag) (step : String) (evs : List (α × Nat)) : List α :=
+  match posts.find? (·.step == step) with
+  | some p => inRound (some p.seq) evs
+  | none => if (familyPosts posts f).isEmpty then inRound none evs else []
 
-/-- **A step to be posted starts after every posting of its flag.** Whatever the family's earlier rounds did is before it. -/
-theorem roundStart_unposted (posts : List Post) (f : Flag) (step : String)
-    (h : posts.find? (·.step == step) = none) (q : Post) (hq : q ∈ familyPosts posts f) :
-    ∃ s, roundStart posts f step = some s ∧ q.seq ≤ s := by
-  have hm : q.seq ∈ (familyPosts posts f).map (·.seq) := List.mem_map_of_mem hq
-  simp only [roundStart, h]
-  cases hmx : ((familyPosts posts f).map (·.seq)).max? with
-  | none => simp [List.max?_eq_none_iff] at hmx; simp [hmx] at hm
-  | some m => exact ⟨m, rfl, (List.max?_le_iff hmx).1 (Nat.le_refl m) q.seq hm⟩
+/-- A posted step counts the events after its posting. -/
+theorem roundEventsOf_posted {α : Type} (posts : List Post) (f : Flag) (step : String) (p : Post)
+    (h : posts.find? (·.step == step) = some p) (evs : List (α × Nat)) :
+    roundEventsOf posts f step evs = inRound (some p.seq) evs := by
+  simp [roundEventsOf, h]
+
+/-- **An unposted step inherits nothing.** While the step of a new round is not posted, the round has no events, whatever
+the old round did after its own posting. -/
+theorem unposted_inherits_nothing {α : Type} (posts : List Post) (f : Flag) (step : String)
+    (h : posts.find? (·.step == step) = none) (hf : familyPosts posts f ≠ []) (evs : List (α × Nat)) :
+    roundEventsOf posts f step evs = [] := by
+  have : (familyPosts posts f).isEmpty = false := by
+    cases hl : familyPosts posts f with
+    | nil => exact absurd hl hf
+    | cons _ _ => rfl
+  simp [roundEventsOf, h, this]
+
+/-- A flag with no posting at all counts every event (old logs without postings stay readable). -/
+theorem unposted_no_family {α : Type} (posts : List Post) (f : Flag) (step : String)
+    (h : posts.find? (·.step == step) = none) (hf : familyPosts posts f = []) (evs : List (α × Nat)) :
+    roundEventsOf posts f step evs = evs.map (·.1) := by
+  simp [roundEventsOf, h, hf, inRound_none]
 
 /-- **A verdict is per round.** A new step is posted only while no verdict is recorded, so a new round starts undecided. -/
 theorem needsPost_no_verdict (rs : List Rec) (f : Flag) (h : needsPost rs f = true) : recorded rs f = none := by
   simp only [needsPost, Bool.and_eq_true, Option.isNone_iff_eq_none] at h
   exact h.1
 
-#guard roundStart [⟨"review-nav:e", 5⟩] ⟨"nav", "e"⟩ "review-nav:e" == some 5
-#guard roundStart [⟨"review-nav:e", 5⟩] ⟨"nav", "e"⟩ "review-nav:e#1" == some 5
-#guard roundStart [⟨"review-nav:e", 5⟩, ⟨"review-nav:e#1", 9⟩] ⟨"nav", "e"⟩ "review-nav:e#1" == some 9
-#guard roundStart [⟨"review-nav:x", 5⟩] ⟨"nav", "e"⟩ "review-nav:e" == none
-#guard roundStart [] ⟨"nav", "e"⟩ "review-nav:e" == none
+#guard roundEventsOf [⟨"review-nav:e", 5⟩] ⟨"nav", "e"⟩ "review-nav:e" [("a", 6)] == ["a"]
+#guard roundEventsOf [⟨"review-nav:e", 5⟩] ⟨"nav", "e"⟩ "review-nav:e#1" [("a", 6)] == ([] : List String)
+#guard roundEventsOf [⟨"review-nav:x", 5⟩] ⟨"nav", "e"⟩ "review-nav:e" [("a", 6)] == ["a"]
+#guard roundEventsOf [] ⟨"nav", "e"⟩ "review-nav:e" [("a", 6)] == ["a"]
 #guard inRound (some 5) [("a", 3), ("b", 5), ("c", 6)] == ["c"]
 #guard inRound (some 9) [("a", 3), ("b", 5), ("c", 6)] == ([] : List String)
 #guard inRound none [("a", 3)] == ["a"]

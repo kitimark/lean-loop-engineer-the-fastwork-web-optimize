@@ -9,7 +9,7 @@ import Fw.Console.ReviewPreview
 | `console.reviewPreview` | the rows and steps of `console.review` (`looks`?, `steps`), `events` [{flag, device, seq?}] (the accepted `review.previewed` events, any order), `posts`? [{step, seq}] (the log positions of the `step.post` events), `ask`? {flag, view (flag, faithful, compare), width}, `names`? {search, flag} | `items` [{flag, open, desktop, phone, missing [device words], asks [lines]}], `plan` (null without `ask`; else {ok, view, search, arm (r, compare), slot, device, key, event, carries} or {ok false, reason}), `names` (null without `names`; else whether the search names the flag by a whole entry) |
 
 With `posts`, an item counts only the events after the posting of its review step (`Fw.Console.Review.inRound`): a new round starts with
-no previews. Without `posts` every event counts. An event without `seq` is at position 0.
+no previews, also while its step is not posted yet (`unposted_inherits_nothing`). Without `posts` every event counts. An event without `seq` is at position 0.
 
 The plan is made only for an open look-change review. `event` is the typed command the console records when the preview opens
 (`review.previewed`), with `key` as its idempotency key.
@@ -33,7 +33,7 @@ def postsOf (req : Json) : Except String (Option (List Fw.Console.Review.Post)) 
 def roundEvents (posts : Option (List Fw.Console.Review.Post)) (evs : List (Seen × Nat)) (i : Fw.Console.Review.Item) : List Seen :=
   match posts with
   | none => evs.map (·.1)
-  | some ps => Fw.Console.Review.inRound (Fw.Console.Review.roundStart ps i.flag i.step) evs
+  | some ps => Fw.Console.Review.roundEventsOf ps i.flag i.step evs
 
 /-- The wire word of an arm: the rewrite arm is `r`. -/
 def armWord : Fw.Console.BuildsOpen.Arm → String
