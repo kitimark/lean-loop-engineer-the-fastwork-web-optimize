@@ -48,11 +48,15 @@ const blockExternal = (log) => async (route) => {
   await route.abort("blockedbyclient");
 };
 
-/** Everything the checks read from a loaded frame, in one evaluate. */
-async function frameFacts(frame) {
-  return await frame.evaluate(async () => {
+/** Everything the checks read from a loaded frame, in one evaluate. `want`: font families the page is expected to load by itself; a face
+ *  loads when text that uses it is first laid out, which on a cold first load of WebKit can come after `fonts.ready` resolved, so
+ *  the read waits (at most 5 s) until each wanted family has a loaded face. The check still fails when one never loads. */
+async function frameFacts(frame, want = []) {
+  return await frame.evaluate(async (want) => {
     await document.fonts.ready;
-    const fonts = [...document.fonts].filter((f) => f.status === "loaded").map((f) => f.family.replace(/["']/g, ""));
+    const loaded = () => [...document.fonts].filter((f) => f.status === "loaded").map((f) => f.family.replace(/["']/g, ""));
+    for (let t = 0; t < 50 && !want.every((n) => loaded().some((x) => x.includes(n))); t++) await new Promise((r) => setTimeout(r, 100));
+    const fonts = loaded();
     const imgs = [...document.images];
     return {
       title: document.title,
@@ -66,7 +70,7 @@ async function frameFacts(frame) {
       hydratedAttr: document.documentElement.getAttribute("data-hydrated"),
       bodyText: (document.body?.innerText ?? "").length,
     };
-  });
+  }, want);
 }
 
 /** Scroll the page to the bottom in steps so lazy images load, then let the network go quiet. */
@@ -136,6 +140,11 @@ export function trackOpen(context) {
 export async function leavePage(page, tracker) {
   await page.goto("about:blank");
   return await tracker.idle();
+}
+
+/** The failure line for a landing page left with requests still open (leavePage returned false), else null. */
+export function openFailure(left, tracker) {
+  return left ? null : `GET (landing page) ${tracker.open.size} request(s) still open, cancelled by the next load`;
 }
 
 /** 0 unhandled rejections, 0 cancelled (or otherwise failed) same-origin requests, no module-load error on the console. */
@@ -230,7 +239,7 @@ async function runTarget(browser, rig, engine, host, target, opts) {
     for (const f of target.frames) {
       const fr = target.id === "compare" ? await frameOn(page, host.arm[f.arm]) : page.mainFrame();
       if (!fr) continue;
-      const facts = await frameFacts(fr);
+      const facts = await frameFacts(fr, FONTS[f.kind]);
       const tag = target.id === "compare" ? `${f.name}-frame/` : "";
       check(`${tag}fonts-loaded`, FONTS[f.kind].every((n) => facts.fonts.some((x) => x.includes(n))), `loaded: ${facts.fonts.join(", ") || "none"}`);
       check(`${tag}images-0-broken`, facts.images > 0 && facts.broken.length === 0, `${facts.images} images, ${facts.broken.length} broken ${facts.broken.slice(0, 2).join(" ")}`);
@@ -371,7 +380,9 @@ async function controlLoad(browser, rig, engine, arm, url, prepare, opts = {}) {
     const page = await ctx.newPage();
     const tracker = trackOpen(ctx);
     const target = await prepare(page, ctx);
-    if (target) await leavePage(page, tracker); // the grant landing page of the arm-only control: what it asked for has ended
+    // the grant landing page of the arm-only control: what it asked for has ended; a request still open is the landing page's failure, and is
+    // charged to the control (not dropped): the next load would cancel it
+    if (target) { const open = openFailure(await leavePage(page, tracker), tracker); if (open) failed.push(open); }
     // listen only from here: leaving the grant landing page mid-load would cancel its images and fonts (the browser's doing)
     page.on("pageerror", (e) => { if (!noise.test(String(e))) errors.push(String(e)); }); // the analytics beacon is no module error
     page.on("requestfailed", (r) => failed.push(`${r.method()} ${new URL(r.url()).pathname} ${r.failure()?.errorText ?? ""}`));
