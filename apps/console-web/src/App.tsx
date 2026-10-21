@@ -9,6 +9,8 @@ import { HealthView } from "./Health";
 import { BuildsView } from "./Builds";
 import { ComposeView } from "./Compose";
 import { ReviewsView, ReviewsTabLabel, openFlags, useReviews } from "./Reviews";
+import type { FeedbackThread } from "./ReviewFeedback";
+import { QuestionBox, TopicGroup, useStepTopics, type StepTopics } from "./StepThreads";
 import { age, clickError, randomId, sendAsUser, useBoard, useNow } from "@/lib/api";
 
 /** The tab and note a login landing asks for (`/?tab=builds&note=stopped`); anything else is the console tab. */
@@ -27,6 +29,7 @@ export function App() {
   const landed = landingOf(typeof window === "undefined" ? "" : window.location.search);
   const [tab, setTab] = useState<"console" | "plan" | "builds" | "compose" | "reviews" | "health">(landed.tab);
   const reviews = useReviews(board?.seq);
+  const topics = useStepTopics(board?.seq);
   const [note] = useState(landed.note);
 
   // every click is a typed command that the reducer may refuse; the reason is shown, never hidden
@@ -54,7 +57,7 @@ export function App() {
       {!board ? <p className="text-muted-foreground">Waiting for console-api...</p> : (
         tab === "plan" ? <PlanView board={board} /> : tab === "builds" ? <BuildsView /> : tab === "compose" ? <ComposeView reviewPending={openFlags(reviews.data)} /> : tab === "reviews" ? <ReviewsView data={reviews.data} reload={reviews.reload} /> : tab === "health" ? <HealthView now={now} /> : (
           <>
-            <Steps board={board} act={act} now={now} />
+            <Steps board={board} act={act} now={now} topics={topics.data} reloadTopics={() => void topics.reload()} />
             <StatusBoard board={board} now={now} />
           </>
         )
@@ -66,18 +69,28 @@ export function App() {
 type Act = (cmd: Record<string, unknown>) => Promise<void>;
 
 /** Your steps are the open steps whose audience (decided in Lean, `Fw.Console.Alert.audienceOf`) is the owner; the open
- *  steps for the lead are listed apart and carry no buttons. Closed steps show the note a script closed them with. */
-export function Steps({ board, act, now }: { board: Board; act: Act; now: number }) {
+ *  steps for the lead are listed apart and carry no buttons. Closed steps show the note a script closed them with.
+ *  With `topics` (Lean `console.stepTopics`) the owner's steps are grouped by topic in Lean's order, each group with the lead's
+ *  summary, and every step and topic has a Questions thread; without it the steps are one flat list. */
+export function Steps({ board, act, now, topics = null, reloadTopics }: { board: Board; act: Act; now: number; topics?: StepTopics | null; reloadTopics?: () => void }) {
   const open = board.steps.filter((s) => s.status === "waiting" || s.status === "started");
   const mine = open.filter((s) => s.audience === "user");
   const leads = open.filter((s) => s.audience === "lead");
   const closed = board.steps.filter((s) => !open.includes(s)).slice(-5).reverse();
+  const byId = new Map(mine.map((s) => [s.id, s]));
+  const thread = (id: string) => topics?.threads.find((t) => t.flag === `step:${id}`) ?? null;
+  const row = (id: string) => {
+    const s = byId.get(id);
+    return s ? <StepRow key={s.id} step={s} act={act} now={now} ask={topics ? { thread: thread(s.id), onChanged: reloadTopics } : undefined} /> : null;
+  };
   return (
     <Card>
       <CardHeader><CardTitle>Your steps ({mine.length})</CardTitle></CardHeader>
       <CardContent className="space-y-3">
         {mine.length === 0 && <p className="text-sm text-muted-foreground">Nothing needs you.</p>}
-        {mine.map((s) => <StepRow key={s.id} step={s} act={act} now={now} />)}
+        {topics ? topics.groups.filter((g) => g.steps.some((id) => byId.has(id)) || g.topic !== null).map((g) => (
+          <TopicGroup key={g.topic ?? "other"} group={g} renderStep={row} onChanged={reloadTopics} />))
+          : mine.map((s) => <StepRow key={s.id} step={s} act={act} now={now} />)}
         {leads.length > 0 && (
           <details data-testid="lead-work">
             <summary className="cursor-pointer text-sm text-muted-foreground">For the lead ({leads.length}); no action from you</summary>
@@ -110,7 +123,7 @@ function StepBody({ body }: { body: string }) {
   );
 }
 
-function StepRow({ step, act, now, readOnly = false }: { step: Step; act: Act; now: number; readOnly?: boolean }) {
+function StepRow({ step, act, now, readOnly = false, ask }: { step: Step; act: Act; now: number; readOnly?: boolean; ask?: { thread: FeedbackThread | null; onChanged?: () => void } }) {
   const [text, setText] = useState("");
   const isAction = step.kind === "action";
   // A review step is decided only in Your reviews (with its confirm step): no Start, Done or answer button here.
@@ -140,6 +153,7 @@ function StepRow({ step, act, now, readOnly = false }: { step: Step; act: Act; n
       )}
       {!readOnly && step.status === "started" && step.kind !== "action" && (
         <Button size="sm" variant="ghost" onClick={() => act({ type: "step.done", step: step.id })}>Done</Button>)}
+      {ask ? <QuestionBox kind="step" id={step.id} thread={ask.thread} onChanged={ask.onChanged} /> : null}
     </div>
   );
 }
