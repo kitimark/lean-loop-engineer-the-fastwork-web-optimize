@@ -12331,7 +12331,8 @@
     "scripts/checkmap*",
     "scripts/test-checkmap.mjs",
     "docs/team/handoffs/checkmap-preset-inputs.md"
-   ]
+   ],
+   "evidence": "4612bbc"
   },
   {
    "devices": [
