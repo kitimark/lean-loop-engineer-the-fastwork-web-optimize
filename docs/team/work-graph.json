@@ -12898,7 +12898,8 @@
    "writes": [
     "lean/Fw/Wire/Obs.lean",
     "docs/team/handoffs/wire-obs-proof-split.md"
-   ]
+   ],
+   "evidence": "e78fc6b"
   },
   {
    "devices": [
