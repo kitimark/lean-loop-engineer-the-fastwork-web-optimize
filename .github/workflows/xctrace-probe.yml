@@ -190,33 +190,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
-      - name: 'Stage 2: recordings of the whole host (Animation Hitches, os_signpost, System Trace)'
-        id: host
-        continue-on-error: true
-        timeout-minutes: 14
-        env:
-          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
-          PASSES: ${{ inputs.passes || '1' }}
-          FW_WK_TIMEOUT_SCALE: '8'
-          FW_WK_ATTEMPTS: '3'
-        working-directory: packages/measure-webkit
-        run: |
-          set -u
-          mkdir -p out
-          node src/xctrace/cli.mjs run --arms hitches-host,signposts-host,systrace-host --passes "$PASSES" --out out/host 2> >(tee out/host.log >&2)
-          echo "run exit $?"
-          node src/xctrace/cli.mjs reduce --dir out/host --json out/host-counts.json || true
-          ls -l out/host | head -40
-          exit 0
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
-        with:
-          name: xctrace-host-${{ matrix.vm }}
-          path: packages/measure-webkit/out/host*
-          if-no-files-found: warn
-          retention-days: 30
-
-      - name: 'Stage 3: XCTHitchMetric (an XCUITest swipes Safari on the served page)'
+      - name: 'Stage 2: XCTHitchMetric (an XCUITest swipes Safari on the served page)'
         id: hitch
         continue-on-error: true
         if: ${{ !cancelled() && steps.stale.outcome == 'skipped' && (github.event_name != 'workflow_dispatch' || inputs.hitchmetric) }}
@@ -257,6 +231,81 @@ jobs:
           path: |
             packages/measure-webkit/out/hitchmetric
             !packages/measure-webkit/out/hitchmetric/hitch.xcresult/Data
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: 'Stage 3: host recording signposts-host (its own step: a hung recorder costs only this arm)'
+        id: host-signposts-host
+        continue-on-error: true
+        timeout-minutes: 7
+        env:
+          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
+          PASSES: ${{ inputs.passes || '1' }}
+          FW_WK_TIMEOUT_SCALE: '8'
+          FW_WK_ATTEMPTS: '3'
+        working-directory: packages/measure-webkit
+        run: |
+          set -u
+          mkdir -p out
+          node src/xctrace/cli.mjs run --arms signposts-host --passes "$PASSES" --out out/host-signposts-host 2> >(tee out/host-signposts-host.log >&2)
+          echo "run exit $?"
+          node src/xctrace/cli.mjs reduce --dir out/host-signposts-host --json out/host-signposts-host-counts.json || true
+          exit 0
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
+        with:
+          name: xctrace-host-signposts-host-${{ matrix.vm }}
+          path: packages/measure-webkit/out/host-signposts-host*
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: 'Stage 4: host recording hitches-host (its own step: a hung recorder costs only this arm)'
+        id: host-hitches-host
+        continue-on-error: true
+        timeout-minutes: 7
+        env:
+          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
+          PASSES: ${{ inputs.passes || '1' }}
+          FW_WK_TIMEOUT_SCALE: '8'
+          FW_WK_ATTEMPTS: '3'
+        working-directory: packages/measure-webkit
+        run: |
+          set -u
+          mkdir -p out
+          node src/xctrace/cli.mjs run --arms hitches-host --passes "$PASSES" --out out/host-hitches-host 2> >(tee out/host-hitches-host.log >&2)
+          echo "run exit $?"
+          node src/xctrace/cli.mjs reduce --dir out/host-hitches-host --json out/host-hitches-host-counts.json || true
+          exit 0
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
+        with:
+          name: xctrace-host-hitches-host-${{ matrix.vm }}
+          path: packages/measure-webkit/out/host-hitches-host*
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: 'Stage 5: host recording systrace-host (its own step: a hung recorder costs only this arm)'
+        id: host-systrace-host
+        continue-on-error: true
+        timeout-minutes: 7
+        env:
+          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
+          PASSES: ${{ inputs.passes || '1' }}
+          FW_WK_TIMEOUT_SCALE: '8'
+          FW_WK_ATTEMPTS: '3'
+        working-directory: packages/measure-webkit
+        run: |
+          set -u
+          mkdir -p out
+          node src/xctrace/cli.mjs run --arms systrace-host --passes "$PASSES" --out out/host-systrace-host 2> >(tee out/host-systrace-host.log >&2)
+          echo "run exit $?"
+          node src/xctrace/cli.mjs reduce --dir out/host-systrace-host --json out/host-systrace-host-counts.json || true
+          exit 0
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
+        with:
+          name: xctrace-host-systrace-host-${{ matrix.vm }}
+          path: packages/measure-webkit/out/host-systrace-host*
           if-no-files-found: warn
           retention-days: 30
 
