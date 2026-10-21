@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as R from '../src/device-replay.mjs';
-import { wdClient, replayPass, runSession, doubleWd, checkRecord, startRecorderJs, recorderSeconds } from '../src/device-replay-wd.mjs';
+import { wdClient, replayPass, runSession, doubleWd, checkRecord, startRecorderJs, recorderSeconds, WdTimeout, ReplayStall, CALL_MS, startSafaridriver, prepareSimulator } from '../src/device-replay-wd.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const lines = readFileSync(join(here, '../../contracts/golden/device/replay.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
@@ -22,8 +22,7 @@ test('a pass on the double: the compiled actions reach the page as the source sw
   assert.equal(r.rep.length, profile.swipes.length);
   assert.ok(r.perSwipe.every((c) => c.swipe));
   assert.equal(cap.payload.actions[0].parameters.pointerType, 'touch');
-  assert.deepEqual(cap.payload, R.w3c(R.compile(profile)));
-  assert.ok(cap.payload.actions[0].actions.every((a) => a.type !== 'pause' && a.type !== 'pointerMove' ? true : a.duration <= 16));
+  assert.ok(cap.payloads.every((p) => p.actions[0].actions.every((a) => a.type !== 'pause' && a.type !== 'pointerMove' ? true : a.duration <= 16)));
 });
 
 test('a replay that lost an event is refused, naming the conjunct', async () => {
@@ -117,4 +116,71 @@ test('command line: compile and plan on synthetic files', () => {
   assert.deepEqual(p.stdout.trim().split('\n'), ['recorded rep 0 arms 0,1', 'recorded rep 1 arms 1,0', 'cold rep 0 arms 0,1', 'cold rep 1 arms 1,0']);
   const bad = spawnSync('node', [cli, 'nope'], { encoding: 'utf8' });
   assert.equal(bad.status, 2);
+});
+
+test('a pass is sent piece by piece, the pieces joined are the compiled actions', async () => {
+  const cap = {};
+  const r = await replayPass({ wd: doubleWd(cap), caps: {}, url: 'http://x.invalid/', profile, sleep: noSleep, settleMs: 0, pollMs: 0 });
+  assert.equal(r.matches, true);
+  assert.equal(cap.payloads.length, R.pieces(profile).length);
+  assert.ok(cap.payloads.length > 1);
+  assert.deepEqual(cap.payloads.flatMap((p) => p.actions[0].actions), R.w3c(R.compile(profile)).actions[0].actions);
+});
+
+test('a call that does not answer is the named error wd-timeout; a stalled piece is replay-stall naming the piece, and the session is quit', async () => {
+  const srv = http.createServer((req) => { if (!(req.url.endsWith('/actions') && req.method === 'POST')) req.resume(); });
+  await new Promise((ok) => srv.listen(0, '127.0.0.1', ok));
+  try {
+    const wd = wdClient(`http://127.0.0.1:${srv.address().port}`);
+    await assert.rejects(() => wd.perform('S1', R.w3c(R.compile(profile)), 120), (e) => e instanceof WdTimeout && e.code === 'wd-timeout' && e.timeoutMs === 120 && e.call === 'POST /session/_/actions');
+  } finally { srv.closeAllConnections(); await new Promise((ok) => srv.close(ok)); }
+  const quit = [];
+  const wd = doubleWd();
+  wd.perform = async () => { throw new WdTimeout('POST /session/_/actions', 5000); };
+  wd.quit = async (sid) => { quit.push(sid); return null; };
+  await assert.rejects(() => replayPass({ wd, caps: {}, url: 'http://x.invalid/', profile, sleep: noSleep, settleMs: 0, pollMs: 0 }),
+    (e) => e instanceof ReplayStall && e.code === 'replay-stall' && e.piece === 0 && e.pieces === R.pieces(profile).length && /stalled at piece 1 of/.test(e.message));
+  assert.equal(quit.length, 1);
+  const wd2 = doubleWd();
+  wd2.release = async () => { throw new WdTimeout('DELETE /session/_/actions', 15000); };
+  const r = await runSession({ wd: wd2, caps: {}, arms: [{ name: 'a', url: 'a' }], base: profile, kinds: ['recorded'], reps: 1, gen: { n: 1, gap: 1, reps: 1, zone }, settleMs: 0, pollMs: 0, sleep: noSleep });
+  assert.equal(r.passes.length, 1);
+  assert.deepEqual([r.passes[0].matches, r.passes[0].swipes, r.passes[0].stalled.piece, r.passes[0].stalled.call], [false, null, 0, 'DELETE /session/_/actions']);
+});
+
+test('a time limit comes with every call of the client', () => {
+  assert.deepEqual(Object.keys(CALL_MS).sort(), ['execute', 'quit', 'release', 'session', 'status', 'url']);
+  assert.ok(Object.values(CALL_MS).every((n) => n > 0));
+});
+
+test('safaridriver is a process group of its own, stopped with SIGTERM to the group, then SIGKILL after the grace', async () => {
+  const calls = [];
+  const handlers = {};
+  const fake = { pid: 4242, on(ev, f) { handlers[ev] = f; return this; } };
+  const spawnImpl = (bin, args, opts) => { calls.push([bin, args, opts]); return fake; };
+  const kill = (pid, sig) => { calls.push(['kill', pid, sig]); };
+  const srv = http.createServer((q, s) => { s.writeHead(200, { 'content-type': 'application/json' }).end('{"value":{"ready":true}}'); });
+  await new Promise((ok) => srv.listen(0, '127.0.0.1', ok));
+  try {
+    const drv = await startSafaridriver(srv.address().port, { spawnImpl, kill, graceMs: 30 });
+    assert.equal(drv.pid, 4242);
+    assert.deepEqual(calls[0][2], { stdio: 'ignore', detached: true });
+    drv.stop();
+    assert.deepEqual(calls[1], ['kill', -4242, 'SIGTERM']);
+    await new Promise((ok) => setTimeout(ok, 80));
+    assert.deepEqual(calls[2], ['kill', -4242, 'SIGKILL']);
+    const before = process.listenerCount('SIGTERM');
+    handlers.exit(0, null);
+    assert.ok(process.listenerCount('SIGTERM') < before);
+  } finally { await new Promise((ok) => srv.close(ok)); }
+});
+
+test('simulator preparation: tips off for Safari, then Safari ended, failures logged not thrown', async () => {
+  const ran = [];
+  const logs = [];
+  const out = await prepareSimulator('UDID-1', { run: async (cmd, args) => { ran.push([cmd, ...args]); return args[1] === 'terminate' ? { err: new Error('not running\nmore') } : {}; }, log: (s) => logs.push(s) });
+  assert.deepEqual(out, ran);
+  assert.deepEqual(ran[0], ['xcrun', 'simctl', 'spawn', 'UDID-1', 'defaults', 'write', 'com.apple.mobilesafari', 'com.apple.TipKit.HideAllTips', '-bool', 'true']);
+  assert.deepEqual(ran[1], ['xcrun', 'simctl', 'terminate', 'UDID-1', 'com.apple.mobilesafari']);
+  assert.deepEqual(logs, ['simctl terminate: not running']);
 });
