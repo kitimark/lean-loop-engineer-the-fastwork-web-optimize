@@ -11647,7 +11647,8 @@
     "research/findings/ledger.json",
     "docs/team/tools/trajectory-frames.md",
     "docs/team/handoffs/earn-look-review-webkit.md"
-   ]
+   ],
+   "evidence": "2a7cb37"
   },
   {
    "devices": [
@@ -12519,6 +12520,61 @@
     "packages/contracts/golden/gate/trajectory.jsonl",
     "docs/team/tools/trajectory-probe.md",
     "docs/team/handoffs/earn-close-chain-rule.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "lan-click-silent",
+   "owner": "console-builder",
+   "stream": "console",
+   "deps": [],
+   "title": "Console clicks on the plain-http LAN page did nothing: the click key used crypto.randomUUID (secure contexts only), the throw was swallowed. Fix: keys from getRandomValues, clickError shows 'Not sent', test/lan-click.test.ts (no-randomUUID click, error line, secure-context API scan; mutation-checked)",
+   "writes": [
+    "apps/console-web/src/lib/api.ts",
+    "apps/console-web/src/App.tsx",
+    "apps/console-web/test/lan-click.test.ts"
+   ],
+   "evidence": "f58b727b"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "review-strips-console",
+   "owner": "console-builder",
+   "stream": "console",
+   "deps": [],
+   "title": "Reviews tab shows the look-change frame strips (per engine x width x push: note, diff, scrollable strip) from CI artifacts through an allowlisted owner-gated cache; strip state and allowlist decided in Lean (user request 2026-10-21)",
+   "writes": [
+    "lean/Fw/Console/ReviewStrips.lean",
+    "lean/Fw/Console/Review.lean",
+    "apps/console-api/src/review.ts",
+    "apps/console-api/test/review.test.ts",
+    "apps/console-web/src/Reviews.tsx",
+    "apps/console-web/test/review.test.tsx",
+    "docs/team/handoffs/review-strips-console.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "console-web-ci",
+   "owner": "console-builder",
+   "stream": "ci",
+   "deps": [
+    "lan-click-silent"
+   ],
+   "title": "The land lane runs the console-web tests: no CI runs apps/console-web vitest today (the remote checks are check.sh, console-api, runner and 5 packages), so test/lan-click.test.ts and the other console-web tests guard only local runs. Add apps/console-web to the land lane checks the Lean way (Fw.Ci.Trigger / ci-paths input rows, regenerated goldens), and prove a console-web change selects that check",
+   "writes": [
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "scripts/ci-paths.mjs",
+    "scripts/ci-paths.test.mjs",
+    ".github/workflows/land.yml",
+    "docs/team/handoffs/console-web-ci.md"
    ]
   }
  ],

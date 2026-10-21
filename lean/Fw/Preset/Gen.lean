@@ -300,7 +300,8 @@ def lookDecisions : List LookDecision :=
      material := some
        { chromium := { state := .ready, run := some "39473950464", artifact := some "frames-chromium",
                        expires := some "2026-11-19" }
-         webkit := { state := .pending, task := some "earn-look-review-webkit" } } }]
+         webkit := { state := .ready, run := some "39530106935", artifact := some "frames-apple-390, frames-apple-1280",
+                     expires := some "2026-11-20" } } }]
 
 /-- The JSON of one engine's material (absent fields omitted). -/
 def EngineMat.json (m : EngineMat) : Json :=
@@ -682,7 +683,7 @@ private def earnReg : Reg :=
 #guard staleDecisions [] == [⟨"nav", "earn-no-transition"⟩]
 #guard staleDecisions [earnReg] == []
 #guard lookText [earnReg] [] ==
-  "{\"flag\":\"nav:earn-no-transition\",\"kind\":\"proposal\",\"member\":false,\"userDecision\":{\"date\":\"2026-10-21\",\"decision\":\"kept\",\"material\":{\"chromium\":{\"artifact\":\"frames-chromium\",\"expires\":\"2026-11-19\",\"run\":\"39473950464\",\"state\":\"ready\"},\"webkit\":{\"state\":\"pending\",\"task\":\"earn-look-review-webkit\"}},\"review\":\"pending\"},\"visClass\":\"L\"}\n"
+  "{\"flag\":\"nav:earn-no-transition\",\"kind\":\"proposal\",\"member\":false,\"userDecision\":{\"date\":\"2026-10-21\",\"decision\":\"kept\",\"material\":{\"chromium\":{\"artifact\":\"frames-chromium\",\"expires\":\"2026-11-19\",\"run\":\"39473950464\",\"state\":\"ready\"},\"webkit\":{\"artifact\":\"frames-apple-390, frames-apple-1280\",\"expires\":\"2026-11-20\",\"run\":\"39530106935\",\"state\":\"ready\"}},\"review\":\"pending\"},\"visClass\":\"L\"}\n"
 #guard (ledgerDisagreements (Json.mkObj [("findings", .arr #[Json.mkObj [("flag", .str "nav:earn-no-transition"),
   ("userDecision", Json.mkObj [("date", .str "2026-10-21"), ("decision", .str "kept 2026-10-21; visual review deferred"),
     ("review", .str "CI run 39473950464 artifact frames-chromium (expires 2026-11-19)")])]])]) lookDecisions).isEmpty
