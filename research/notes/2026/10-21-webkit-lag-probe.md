@@ -29,6 +29,7 @@ columns (`us`) are Simulator-host microseconds and are never phone time.
 - **MEASURED** on CI, `webkit-sim.yml` dispatch with `lag=true`, `target=both`, `vms=3`, branch `ci/webkit-lag-probe`.
   - Run 39511908073 ran commit `18893825`: 3 jobs per arm (`v1..v3` original, `r1..r3` rewrite), each 1 geometry load, then 2 x (stepped scroll + morph run). 6 scroll passes and 6 morph passes per arm.
   - Run 39503100190: cross-check, `v1 v2 r1 r3` finished. The first-ranked counter and first part agree with run 39511908073 in A and B scroll; the morph close direction flips between the runs in the arm totals, which is why the arm totals are not claimed.
+- **Rare baseline.** A count counter (the 12 `COUNT_TYPES` plus RequestAnimationFrame, TimerInstall, TimerRemove) whose baseline has fewer than `rareMin` events in at least one pass of an arm is marked (*) in that arm, in every table and in the idle lines. The rule reads per-pass baseline event sums only, so the same calm baseline is flagged alike in scroll and morph. Its ratio and rank are unstable; Lean `ratioVerdict` returns `rareBaseline` and no difference of the ratio is stated. Durations and paint area are never flagged.
 - **Reproduce offline.** The `lag-report` job was skipped in both runs (a sim job failed in `Keep logs and host state`, after its lag JSON was written). The six lag JSONs of run 39511908073 are its artifacts `webkit-sim-v1..v3`, `webkit-sim-r1..r3`; `gh run download 39511908073` and the command below rebuild the block between the markers. Input sha256: `v1` 04dd3dae6ad5473699f09b624844e560ef6cf4ba680e059021b8c653b501e884, `v2` c56bf91ed1840c1f0cac9b1fb231e229eb71115350083d73458f542de5130e88, `v3` 8abf693adfe2d416663d61b1335cd2c86283c3c52d1404f8f5e27baf90cc2a70, `r1` 17f20cd7ae41a2a1f86f98dc8d75e7704f481460135f432e4193406976e027d5, `r2` bed0d18ab2957680e0701ffae72fdf4461e96d26cc0108fe9ef2529c9e0c5e4f, `r3` fbf79df28706c32402777de8bdfcba545d953a3585e69b367b7d4815a4ab1c8a.
 
 ```
@@ -85,7 +86,7 @@ Counters with no calm baseline (not ranked): original RenderingFrame; faithful R
 
 Paint area by part (css px^2 per pass; coarse part names, leaf parts below). The two arms have different part tables (the original a selector table, the rewrite its data-fw elements): a part in one table only is not compared, and the share of a part in both tables can move to a part of the other, so read neighbouring parts together.
 
-| part | original px^2 per pass (range) | share | faithful px^2 per pass (range) | share | difference |
+| part | original px^2 per pass (range) | share original | faithful px^2 per pass (range) | share faithful | difference |
 |---|---|---|---|---|---|
 | people | 7,974,049 (6,534,124-9,757,028) | 42% | 1,820,929 (1,203,311-2,654,609) | 12% | faithful lower |
 | (none) | 6,651,632 (5,057,744-7,791,667) | 35% | 4,544,363 (3,816,250-6,087,592) | 30% | no difference shown (ranges overlap) |
@@ -150,7 +151,7 @@ Counters with no calm baseline (not ranked): original RenderingFrame; faithful R
 
 Paint area by part (css px^2 per pass; coarse part names, leaf parts below). The two arms have different part tables (the original a selector table, the rewrite its data-fw elements): a part in one table only is not compared, and the share of a part in both tables can move to a part of the other, so read neighbouring parts together.
 
-| part | original px^2 per pass (range) | share | faithful px^2 per pass (range) | share | difference |
+| part | original px^2 per pass (range) | share original | faithful px^2 per pass (range) | share faithful | difference |
 |---|---|---|---|---|---|
 | platform | 3,577,209 (2,980,758-4,096,217) | 90% | 3,792,127 (3,261,423-4,141,854) | 90% | no difference shown (ranges overlap) |
 | nav | 410,575 (368,477-487,687) | 10% | 6,072 (4,758-12,642) | 0% | faithful lower |
@@ -220,7 +221,7 @@ Against the idle page tail (the 10 frames before the push, nothing moving) inste
 
 Paint area by part (css px^2 per pass; the two arms have different part tables, see Region A):
 
-| part | original px^2 per pass (range) | share | faithful px^2 per pass (range) | share | difference |
+| part | original px^2 per pass (range) | share original | faithful px^2 per pass (range) | share faithful | difference |
 |---|---|---|---|---|---|
 | nav | 5,357,347 (3,862,949-6,733,345) | 93% | 2,928,639 (328,906-3,848,040) | 65% | faithful lower |
 | morph | not in this arm | - | 1,171,611 (11,345-2,427,418) | 26% | not compared (part absent in one arm) |
@@ -290,7 +291,7 @@ Against the idle page tail (the 10 frames before the push, nothing moving) inste
 
 Paint area by part (css px^2 per pass; the two arms have different part tables, see Region A):
 
-| part | original px^2 per pass (range) | share | faithful px^2 per pass (range) | share | difference |
+| part | original px^2 per pass (range) | share original | faithful px^2 per pass (range) | share faithful | difference |
 |---|---|---|---|---|---|
 | platform | 6,024,118 (4,964,994-6,825,589) | 84% | 4,991,129 (3,356,906-6,489,423) | 83% | no difference shown (ranges overlap) |
 | nav | 1,181,922 (727,517-1,590,443) | 16% | 135,119 (31,864-271,402) | 2% | faithful lower |
@@ -390,17 +391,132 @@ Compositing reasons at the last state (layers per session, range):
 
 ## Findings
 
-Each cites rows of the generated block. "Overlap" means no difference is claimed.
+Each Finding states values of the generated block and nothing else. The comment under a Finding lists one anchor per number or flag: `value | table | row | arm | column`, the cell of the block that holds it. `packages/measure-webkit/test/lag-findings.test.mjs` checks that each anchored cell holds its value, that every number of the prose is anchored once, and that the only exceptions are INFERRED sums and quotes of the first round, listed per token in that test. "Overlap" means no difference is claimed.
 
-1. **MEASURED. Paint time (us) is the highest-ranked counter of a non-rare baseline in A, in both arms.** Original rank 2, faithful rank 2, behind a timer counter whose calm baseline is below 0.5 per frame (flagged `*`, unstable). The two arms' ranges overlap. Paint count ranks 9 (original) and 3 (faithful), also overlapping.
-2. **MEASURED. Paint area is not the first counter.** In A it ranks 10 and 14 and in B scroll 18 and 18 (its B value is below its calm value). The round 1 headline came from the unit, not from the page.
-3. **MEASURED, with a table caveat. In A the arms agree on where the paint area goes once the part tables are read together.** The original's `#people` box covers the area that the rewrite splits into people and pain; the people row alone is lower in the rewrite (separated), but people plus pain carry about the same share in both arms (INFERRED from the shares in the block), so this is a difference of the tables, not of the paint. Hero and nav overlap. About a third of the area has no owner (`(none)`: the clip is not half inside any part box), in both arms.
-4. **MEASURED (Simulator host us). The original's Layout and FunctionCall time is above the rewrite's in A.** The per-step values separate for Layout (us) and FunctionCall (us) ("faithful lower" in the value column). The calm baselines also differ a lot (block, baseline column), which the block does not decide. Durations nest (Layout inside FunctionCall), so they are not summed across types, and they are host time, not phone time.
-5. **MEASURED. In B scroll the platform section carries about 90 percent of the paint area in both arms** (overlap). The nav row is 10 percent in the original and near 0 in the rewrite, where the morph panel box carries about the same share: again the tables, not the paint. No B scroll counter is high against calm: Paint count and InvalidateLayout are about 1.1-1.4 in both arms and overlap.
-6. **MEASURED. In the morph the arm totals are not separated, and the part split moves between tables.** In the open push the original's nav owns most of the paint area; the rewrite's nav plus morph panel owns about the same (INFERRED from the shares). The per-pass totals of paint area and Paint overlap between the arms, and the cross-check run flips the close direction, so "the rewrite paints less" (round 1: about 0.8x) is **not shown** at 3 jobs per arm.
-7. **MEASURED. Idle repaint.** In the 10 idle frames before any push both arms repaint the same four small rects every frame (two thin bars, two button-sized boxes), about 3.6 Paint records and 8.5k px^2 per frame, owned by the platform section. The morph ratios against this baseline are large (paint area x9 to x14) only because the baseline is tiny; against the scroll calm baseline the morph is below calm in area. What animates there is not identified (follow-up 1).
-8. **MEASURED. Layer census.** At the end of the page the original has 30 layers and 89 MB of backing; the faithful rewrite has 124-128 layers and 98 MB, and both of these separate. At y 2634 the gap is 51 against 141-145 layers. Filter or backdrop layers: 3-5, overlap. At the last state `willChange` is 6 against 90 layers and `stacking` 1 against 87-90 (per-session ranges in the reasons table). INFERRED: the rewrite keeps many more promoted layers at the end of the page; a link to lag is not shown by this note.
-9. **Smallest effect.** A later candidate counts as different from this baseline for a counter only when its per-pass range lies wholly outside the baseline arm's per-pass range for that counter (the same `verdict`), with at least 3 jobs and 6 passes. Anything inside the spread seen here (A paint time 2.26-3.81 in the original) cannot be told from noise at this size. Judge a candidate against rank 2 (Paint us) and the people part in A, and the nav and platform parts in B.
+1. **MEASURED. In A, Paint time (us) is rank 2 in both arms, behind a flagged timer counter.** Rank 1 is TimerRemove in the original and rank 1 is TimerInstall in the faithful arm, each flagged (*) with a rare baseline, so neither gets a ratio verdict. The Paint (us) ratios are 3.00 (original) and 2.50 (faithful), and the ranges overlap. Paint count ranks 9 (original) and 3 (faithful), at ratios 1.64 and 1.86, also overlapping.
+<!-- anchors
+2 | Region A (scroll) / counter | Paint (us) | both | rank
+1 | Region A (scroll) / counter | TimerRemove | original | rank
+1 | Region A (scroll) / counter | TimerInstall | faithful | rank
+(*) | Region A (scroll) / counter | TimerRemove | original | ratio
+(*) | Region A (scroll) / counter | TimerInstall | faithful | ratio
+not stated | Region A (scroll) / counter | TimerRemove | original | difference of the ratio
+not stated | Region A (scroll) / counter | TimerInstall | original | difference of the ratio
+3.00 | Region A (scroll) / counter | Paint (us) | original | ratio
+2.50 | Region A (scroll) / counter | Paint (us) | faithful | ratio
+no difference shown | Region A (scroll) / counter | Paint (us) | original | difference of the ratio
+9 | Region A (scroll) / counter | Paint | original | rank
+3 | Region A (scroll) / counter | Paint | faithful | rank
+1.64 | Region A (scroll) / counter | Paint | original | ratio
+1.86 | Region A (scroll) / counter | Paint | faithful | ratio
+no difference shown | Region A (scroll) / counter | Paint | original | difference of the ratio
+-->
+
+2. **MEASURED. Paint area is not the first counter.** Its rank is 10 (original) and 14 (faithful) in A and 18 in both arms in B scroll, where its ratio is 0.27 and 0.35, below its calm value. The first-round headline came from the unit, not from the page.
+<!-- anchors
+10 | Region A (scroll) / counter | paintArea (px^2) | original | rank
+14 | Region A (scroll) / counter | paintArea (px^2) | faithful | rank
+18 | Region B (scroll) / counter | paintArea (px^2) | both | rank
+0.27 | Region B (scroll) / counter | paintArea (px^2) | original | ratio
+0.35 | Region B (scroll) / counter | paintArea (px^2) | faithful | ratio
+-->
+
+3. **MEASURED, with a table caveat. In A the arms agree on where the paint area goes once the part tables are read together.** The original's people part carries 42 percent of the area; the rewrite splits it into people (12 percent) and pain (31 percent), about 43 percent together (INFERRED sum of the two shares), and the people row alone is lower in the rewrite (separated). That is a difference of the tables, not of the paint. Hero is 19 percent and 24 percent (overlap). The parts with no owner, `(none)`, carry 35 percent (original) and 30 percent (faithful): the clip is not half inside any part box.
+<!-- anchors
+42 | Region A (scroll) / part | people | original | share
+12 | Region A (scroll) / part | people | faithful | share
+31 | Region A (scroll) / part | pain | faithful | share
+faithful lower | Region A (scroll) / part | people | original | difference
+19 | Region A (scroll) / part | hero | original | share
+24 | Region A (scroll) / part | hero | faithful | share
+no difference shown | Region A (scroll) / part | hero | original | difference
+35 | Region A (scroll) / part | (none) | original | share
+30 | Region A (scroll) / part | (none) | faithful | share
+-->
+
+4. **MEASURED (Simulator host us). The original's Layout and FunctionCall time is above the rewrite's in A.** Layout (us) per step is 179,323 (original) against 6,472 (faithful) and FunctionCall (us) is 152,789 against 26,438, and both the value column and the ratio column say "faithful lower". The calm baselines also differ a lot (Layout (us) 77,164 against 4,108), which the block does not decide. Durations nest (Layout inside FunctionCall), so they are not summed across types, and they are host time, not phone time.
+<!-- anchors
+179323 | Region A (scroll) / counter | Layout (us) | original | per step
+6472 | Region A (scroll) / counter | Layout (us) | faithful | per step
+152789 | Region A (scroll) / counter | FunctionCall (us) | original | per step
+26438 | Region A (scroll) / counter | FunctionCall (us) | faithful | per step
+faithful lower | Region A (scroll) / counter | Layout (us) | original | difference of the per step value
+faithful lower | Region A (scroll) / counter | FunctionCall (us) | original | difference of the per step value
+faithful lower | Region A (scroll) / counter | Layout (us) | original | difference of the ratio
+faithful lower | Region A (scroll) / counter | FunctionCall (us) | original | difference of the ratio
+77164 | Region A (scroll) / counter | Layout (us) | original | baseline
+4108 | Region A (scroll) / counter | Layout (us) | faithful | baseline
+-->
+
+5. **MEASURED. In B scroll the platform section carries 90 percent of the paint area in both arms** (overlap). The nav row is 10 percent in the original and 0 percent in the rewrite, where the morph panel box carries 9 percent: again the tables, not the paint. Besides the flagged TimerRemove (*) of the original, the top ratios in B scroll are Paint (us) at 1.88 (original) and 3.59 (faithful) and Composite (us) at 1.85 and 1.94, with overlapping ranges; the Paint and InvalidateLayout ratios are 1.12-1.41.
+<!-- anchors
+90 | Region B (scroll) / part | platform | both | share
+no difference shown | Region B (scroll) / part | platform | original | difference
+10 | Region B (scroll) / part | nav | original | share
+0 | Region B (scroll) / part | nav | faithful | share
+9 | Region B (scroll) / part | morph | faithful | share
+(*) | Region B (scroll) / counter | TimerRemove | original | ratio
+1.88 | Region B (scroll) / counter | Paint (us) | original | ratio
+3.59 | Region B (scroll) / counter | Paint (us) | faithful | ratio
+no difference shown | Region B (scroll) / counter | Paint (us) | original | difference of the ratio
+1.85 | Region B (scroll) / counter | Composite (us) | original | ratio
+1.94 | Region B (scroll) / counter | Composite (us) | faithful | ratio
+no difference shown | Region B (scroll) / counter | Composite (us) | original | difference of the ratio
+1.12 | Region B (scroll) / counter | InvalidateLayout | original | ratio
+1.41 | Region B (scroll) / counter | Paint | faithful | ratio
+-->
+
+6. **MEASURED. In the morph the arm totals are not separated, and the part split moves between tables.** In the open push the original's nav owns 93 percent of the paint area; the rewrite's nav (65 percent) plus morph panel (26 percent) own about 91 percent (INFERRED sum of the two shares). The per-frame Paint and paint area overlap between the arms in the open and in the close push, and the cross-check run (see Measured) flips the close direction, so "the rewrite paints less" (the first round: about 0.8x) is **not shown** at three jobs per arm.
+<!-- anchors
+93 | Region B morph, open push / part | nav | original | share
+65 | Region B morph, open push / part | nav | faithful | share
+26 | Region B morph, open push / part | morph | faithful | share
+no difference shown | Region B morph, open push / counter | Paint | original | difference of the per frame value
+no difference shown | Region B morph, open push / counter | paintArea (px^2) | original | difference of the per frame value
+no difference shown | Region B morph, close push / counter | Paint | original | difference of the per frame value
+no difference shown | Region B morph, close push / counter | paintArea (px^2) | original | difference of the per frame value
+-->
+
+7. **MEASURED. Idle repaint.** In the idle frames before any push both arms repaint the same four small rects every frame, 3.60 Paint records and 8,555 px^2 of paint area per frame, owned by the platform section (100 percent in the original, 96 percent in the rewrite). The morph paint area ratios against this idle baseline are x8.74 to x14.0 only because the baseline is tiny; against the scroll calm baseline the morph paint area ratios are 0.21-0.27, below calm. What animates there is not identified (the first follow-up).
+<!-- anchors
+3.60 | Idle page tail | Paint per frame | both | -
+8555 | Idle page tail | paint area per frame | both | -
+100 | Idle page tail | platform | original | -
+96 | Idle page tail | platform | faithful | -
+8.74 | Region B morph, open push | paintArea (px^2) | faithful | -
+14.0 | Region B morph, close push | paintArea (px^2) | original | -
+0.21 | Region B morph, open push / counter | paintArea (px^2) | faithful | ratio
+0.27 | Region B morph, close push / counter | paintArea (px^2) | original | ratio
+-->
+
+8. **MEASURED. Layer census.** At the end of the page the original has 30 layers and 89.3 MB of backing; the faithful rewrite has 124-128 layers and 97.9 MB, and both of these separate. At y 2,634 the gap is 51 against 141-145 layers. Filter or backdrop layers there are 4 in the original and 4-5 in the rewrite (overlap). At the last state the `willChange` reason is 6 against 90 layers and `stacking` 1 against 87-90. INFERRED: the rewrite keeps many more promoted layers at the end of the page; a link to lag is not shown by this note.
+<!-- anchors
+30 | Layer census / state | 4 | original | layers
+89.3 | Layer census / state | 4 | original | backing MB
+124 | Layer census / state | 4 | faithful | layers
+128 | Layer census / state | 4 | faithful | layers
+97.9 | Layer census / state | 4 | faithful | backing MB
+2634 | Layer census / state | 3 | original | y
+51 | Layer census / state | 3 | original | layers
+141 | Layer census / state | 3 | faithful | layers
+145 | Layer census / state | 3 | faithful | layers
+4 | Layer census / state | 3 | original | filter or backdrop layers
+4 | Layer census / state | 3 | faithful | filter or backdrop layers
+5 | Layer census / state | 3 | faithful | filter or backdrop layers
+6 | Layer census / reason | willChange | original | cell
+90 | Layer census / reason | willChange | faithful | cell
+1 | Layer census / reason | stacking | original | cell
+87 | Layer census / reason | stacking | faithful | cell
+90 | Layer census / reason | stacking | faithful | cell
+-->
+
+9. **Smallest effect (the rule later candidates are judged by).** A candidate counts as different from this baseline for a counter only when Lean `verdict` returns lower or higher on the per-pass ratios of the candidate against the baseline arm's: every pass of one arm on one side of every pass of the other (`verdict_lower`, `verdict_higher`); otherwise `verdict_overlap` and no difference is claimed. A cell flagged (*) in either arm gets `rareBaseline` from `ratioVerdict` (`ratioVerdict_rare_orig`, `ratioVerdict_rare_faith`) and no ratio verdict; its per-pass value is still judged by `verdict`. Use at least the job and pass count of this block. Anything inside the spread seen here (the A paint time ratio of the original, 2.26-3.81) cannot be told from noise at this size. Judge a candidate against Paint (us) at rank 2 and the people part in A, and the nav and platform parts in B.
+<!-- anchors
+2.26 | Region A (scroll) / counter | Paint (us) | original | ratio
+3.81 | Region A (scroll) / counter | Paint (us) | original | ratio
+2 | Region A (scroll) / counter | Paint (us) | original | rank
+(*) | Region A (scroll) / counter | TimerRemove | original | ratio
+-->
 
 ## Filters and the calm baseline
 
@@ -446,8 +562,9 @@ The filter averages are over scanned geometry steps. The probe now records `scan
   - regions through zones: `zoneOf_ge_iff`, `zoneOf_eq_zero_iff`, `regionOf_a`, `_b`, `_calm`, `_other`, `regionOf_a_iff_zone`, `regionOf_b_iff_zone`.
   - ranking: `ratio_scale`, `rankWindows_scaleCol` (rescaling one column leaves the ranking unchanged), `excess_scale` and `excess_flips` (why raw excess is not used), `rankWindows_length`, `rankDescQ` sorted and permutation.
   - arm verdict, one theorem per branch: `verdict_lower`, `verdict_higher`, `verdict_overlap`, `verdict_empty_left`, `verdict_empty_right`, `verdict_self`, `verdict_swap_lower`, `sepBelow_antisymm`.
+  - rare baselines (`rareMin` 10 events, per arm, per cell, over the per-pass baseline sums of a count counter): `rareBase_of_lt`, `rareBase_false_of_ge`, `rareBase_nil`, `flagged_of_rare`, `flagged_of_not_rare`, `flagged_of_not_mem`, `flagged_duration`, and one theorem per branch of `ratioVerdict`: `ratioVerdict_rare_orig`, `ratioVerdict_rare_faith`, `ratioVerdict_calm`, `verdict_ne_rareBaseline`.
   - top steps and owner: `topK_length_le`, `topK_mem`, `topK_sorted`, `topK_head_max`, `topPart_nil`, `rankDesc_head_max`.
-- Golden `packages/contracts/golden/measure/webkit-lag.jsonl` (50 lines, generated by `lean/scripts/WebkitLagGolden.lean`, checked in `lean/scripts/check.sh`); the TS twin `src/lag/reduce.mjs` is checked against it in `test/lag-reduce.test.mjs`, comparing fractions by cross-multiplication.
+- Golden `packages/contracts/golden/measure/webkit-lag.jsonl` (61 lines, generated by `lean/scripts/WebkitLagGolden.lean`, checked in `lean/scripts/check.sh`); the TS twin `src/lag/reduce.mjs` reads `rareMin` and `countColumns` from its `rareConst` row and is checked against it in `test/lag-reduce.test.mjs`, comparing fractions by cross-multiplication. `test/lag-findings.test.mjs` checks that each number of the Findings is the value of an anchored cell of the block.
 - **TS stand-ins (no Lean golden):** the in-page JS (`SAMPLE_SRC`, `MORPH_JS`), `clipRect`/`clipsPerStep` (unit and coordinate shift), the nearest-y join in `scrollSteps`, the step duration sums, `partTable`/`leafTable`, the Markdown, the note filler `note.mjs`, and the retry/partial-run handling in `probe.mjs`. They are covered by `test/lag-report.test.mjs` on synthetic runs only.
 
 ## Follow-ups (not in this task)

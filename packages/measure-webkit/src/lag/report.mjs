@@ -272,7 +272,7 @@ const partsMd = (parts, k = 6) => parts.slice(0, k).map((p) => `${p.name} ${fmt(
 
 /** Per-part table of both arms with the per-pass range and the verdict. */
 function partsCompare(a, b, names) {
-  const L = [`| part | ${names[0]} px^2 per pass (range) | share | ${names[1] ?? '-'} px^2 per pass (range) | share | difference |`, '|---|---|---|---|---|---|'];
+  const L = [`| part | ${names[0]} px^2 per pass (range) | share ${names[0]} | ${names[1] ?? '-'} px^2 per pass (range) | share ${names[1] ?? '-'} | difference |`, '|---|---|---|---|---|---|'];
   const am = new Map(a.parts.map((p) => [p.name, p]));
   const bm = new Map((b?.parts ?? []).map((p) => [p.name, p]));
   const union = [...new Set([...am.keys(), ...bm.keys()])].sort((x, y) => Math.max(am.get(y)?.mean ?? 0, bm.get(y)?.mean ?? 0) - Math.max(am.get(x)?.mean ?? 0, bm.get(x)?.mean ?? 0));
