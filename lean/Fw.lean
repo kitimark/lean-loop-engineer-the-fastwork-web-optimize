@@ -176,6 +176,7 @@ import Fw.Console.JournalFold  -- console-idle-cpu: journal cache, settled runs,
 import Fw.Console.Review  -- user-review-queue: pending look-change reviews as user steps
 import Fw.Console.ReviewPreview  -- review-preview-devices: Preview arms, URLs and the device class of a look-change review
 import Fw.Console.ReviewFeedback  -- review-feedback: feedback threads on the review cards
+import Fw.Console.Report  -- review-reports: experiment reports in the Reviews tab (tagged numbers, approve/hold/reject)
 import Fw.Console.ReviewFeedbackLaws  -- review-feedback: what the reducer guarantees about the threads
 import Fw.Console.Steps
 import Fw.Obs.FeedbackAlert  -- review-feedback: the watch alert for open feedback
