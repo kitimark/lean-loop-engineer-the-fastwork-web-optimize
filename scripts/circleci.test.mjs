@@ -9,7 +9,7 @@ import { tmpdir, userInfo } from 'node:os';
 import { delimiter, dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { cachePipelineBytes, cacheSavedBytes, classOfApi, parseCacheSave, readCacheSave, savesCacheJob, API, MIN_POLL_S, ROOT, call, callBytes, comparePairs, compare, credits, digestJob, dryRun, fetchPipeline, fixtureFetch, githubDigests, githubRuns, isPilotPipeline, jobOfGithub, listAll, loadFixture, loadGolden, main, ofCircleStatus, ofGithubConclusion, parseLoose, premiseDigest, premisesArtifact, readLedger, redact, renderComparison, route, stops, storageMilli, timingsDoc, triggerRequest, urls, waitPipeline, waitStep } from './circleci.mjs';
+import { CHECKOUT_STEP, checkoutOfStatus, keyAdvice, keyCheck, keyExit, keyProceed, keyVerdict, readCloneResult, readKeyList, usableKeyKind, cachePipelineBytes, cacheSavedBytes, classOfApi, parseCacheSave, readCacheSave, savesCacheJob, API, MIN_POLL_S, ROOT, call, callBytes, comparePairs, compare, credits, digestJob, dryRun, fetchPipeline, fixtureFetch, githubDigests, githubRuns, isPilotPipeline, jobOfGithub, listAll, loadFixture, loadGolden, main, ofCircleStatus, ofGithubConclusion, parseLoose, premiseDigest, premisesArtifact, readLedger, redact, renderComparison, route, stops, storageMilli, timingsDoc, triggerRequest, urls, waitPipeline, waitStep } from './circleci.mjs';
 
 const g = loadGolden();
 const here = dirname(fileURLToPath(import.meta.url));
@@ -17,8 +17,19 @@ const rowsOf = (op) => g.byOp[op] ?? [];
 const toRun = (r) => ({ ...r, class: r.class });
 
 test('the golden has every op the glue replays, and no more', () => {
-  assert.deepEqual([...new Set(g.rows.map((r) => r.op))].sort(), ['cachePipeline', 'cacheSaved', 'circleStatus', 'classOfApi', 'compare', 'constants', 'credits', 'ghJob', 'githubConclusion', 'jobMap', 'rates', 'route', 'stop', 'storage', 'wait']);
+  assert.deepEqual([...new Set(g.rows.map((r) => r.op))].sort(), ['cachePipeline', 'cacheSaved', 'checkoutStatus', 'circleStatus', 'classOfApi', 'compare', 'constants', 'credits', 'ghJob', 'githubConclusion', 'jobMap', 'keyCheck', 'keyKind', 'rates', 'route', 'stop', 'storage', 'wait']);
   assert.ok(g.rows.length >= 140);
+});
+
+test('key check: every golden row (Lean keyVerdict, keyProceed), and the kind and clone-status maps', () => {
+  assert.equal(rowsOf('keyCheck').length, 7);
+  for (const r of rowsOf('keyCheck')) {
+    const i = { keys: r.request.keys, checkout: r.request.checkout };
+    assert.equal(keyVerdict(i), r.response.verdict, r.name);
+    assert.equal(keyProceed(i), r.response.proceed, r.name);
+  }
+  for (const r of rowsOf('keyKind')) assert.equal(usableKeyKind(r.request.kind), r.response.usable, r.name);
+  for (const r of rowsOf('checkoutStatus')) assert.equal(checkoutOfStatus(r.request.status), r.response.clone, r.name);
 });
 
 test('credits: every golden row', () => {
@@ -592,4 +603,83 @@ test('config: the engine jobs save the pnpm cache once, after the gate; the verd
   assert.equal(new Set(keys).size, 1, 'one key for restore and save');
   assert.match(keys[0], /pnpm-store-v2-/);
   assert.match(engine, /~\/\.fw-cache/);
+});
+
+// ------------------------------------------------------------------------------------------------------------------ key check
+
+/** A fake CircleCI: `routes` maps "METHOD path" to a body or { status, body }; every call is recorded; an unknown path is 404. */
+function fakeApi(routes) {
+  const calls = [];
+  const fetchFn = async (url, init = {}) => {
+    const u = String(url);
+    const path = u.startsWith(API) ? u.slice(API.length) : u.replace('https://circleci.com', '');
+    calls.push(`${init.method ?? 'GET'} ${path}`);
+    const hit = routes[`${init.method ?? 'GET'} ${path}`];
+    const status = hit === undefined ? 404 : hit.status ?? 200;
+    const body = hit === undefined ? { message: 'not found' } : hit.body ?? hit;
+    return { status, ok: status < 400, headers: { get: () => null }, text: async () => JSON.stringify(body) };
+  };
+  return { calls, ctx: { fetchFn, getToken: () => 't', sleep: async () => {} } };
+}
+
+const cloneRoutes = (status) => ({
+  'GET /project/s/pipeline': { items: [{ id: 'p1' }] },
+  'GET /pipeline/p1/workflow': { items: [{ id: 'w1' }] },
+  'GET /workflow/w1/job': { items: [{ job_number: 7, name: 'engine-chromium' }, { name: 'verdict' }] },
+  'GET /api/v1.1/project/s/7': { steps: [{ actions: [{ name: 'Spin up environment', status: 'success' }, { name: CHECKOUT_STEP, status }] }] },
+});
+
+test('key check: a readable list decides, counts only usable kinds, and reads nothing else', async () => {
+  const keys = (items) => fakeApi({ 'GET /project/s/checkout-key': { items } });
+  let a = keys([{ type: 'deploy-key' }]);
+  assert.deepEqual(await keyCheck(a.ctx, { slug: 's' }), { verdict: 'ok', proceed: true, keys: 1, checkout: null });
+  assert.deepEqual(a.calls, ['GET /project/s/checkout-key']);
+  a = keys([{ type: 'github-oauth-key' }]);
+  assert.equal((await keyCheck(a.ctx, { slug: 's' })).verdict, 'missing');
+  a = keys([]);
+  const r = await keyCheck(a.ctx, { slug: 's' });
+  assert.deepEqual([r.verdict, r.proceed, a.calls.length], ['missing', false, 1]);
+});
+
+test('key check: a 403 key list falls back to the newest finished clone; only GETs are sent', async () => {
+  const run = async (status) => {
+    const a = fakeApi({ 'GET /project/s/checkout-key': { status: 403, body: { message: 'Permission denied' } }, ...cloneRoutes(status) });
+    return { r: await keyCheck(a.ctx, { slug: 's' }), calls: a.calls };
+  };
+  let { r, calls } = await run('success');
+  assert.deepEqual([r.verdict, r.proceed, r.keys, r.checkout], ['ok', true, null, true]);
+  assert.ok(calls.every((c) => c.startsWith('GET ')));
+  ({ r } = await run('failed'));
+  assert.deepEqual([r.verdict, r.proceed, r.checkout], ['missing', false, false]);
+  ({ r } = await run('running'));
+  assert.deepEqual([r.verdict, r.proceed, r.checkout], ['unknown', false, null]);
+});
+
+test('key check: an unreadable list and a project with no pipeline is unknown; any other API error is thrown, not a verdict', async () => {
+  const a = fakeApi({ 'GET /project/s/checkout-key': { status: 403, body: {} }, 'GET /project/s/pipeline': { items: [] } });
+  assert.equal((await keyCheck(a.ctx, { slug: 's' })).verdict, 'unknown');
+  const b = fakeApi({ 'GET /project/s/checkout-key': { status: 500, body: {} } });
+  await assert.rejects(readKeyList(b.ctx, { slug: 's' }), /HTTP 500/);
+});
+
+test('key check: the exit codes and the advice name no pipeline start', () => {
+  assert.deepEqual(['ok', 'missing', 'unknown'].map(keyExit), [0, 6, 7]);
+  assert.match(keyAdvice({ verdict: 'missing', keys: 0 }), /no pipeline was started/);
+  assert.match(keyAdvice({ verdict: 'unknown', keys: null }), /no pipeline was started/);
+});
+
+test('cli: key-check and trigger stop before the POST when the key is missing, and trigger posts when it is there', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'fwroot-'));
+  const env = { FW_CIRCLECI_SLUG: 's', FW_CIRCLECI_DEFINITION_ID: 'd' };
+  const logs = [];
+  const post = { 'POST /project/s/pipeline/run': { id: 'new', number: 9, state: 'created' } };
+  let a = fakeApi({ 'GET /project/s/checkout-key': { items: [] }, ...post });
+  assert.equal(await main(['trigger', '--lane', 'premise-tests', '--branch', 'ci/x'], { root, env, ctx: a.ctx, log: (l) => logs.push(l) }), 6);
+  assert.ok(!a.calls.some((c) => c.startsWith('POST')));
+  assert.match(logs.join('\n'), /no pipeline was started/);
+  a = fakeApi({ 'GET /project/s/checkout-key': { items: [{ type: 'deploy-key' }] }, ...post });
+  assert.equal(await main(['key-check'], { root, env, ctx: a.ctx, log: (l) => logs.push(l) }), 0);
+  assert.ok(!a.calls.some((c) => c.startsWith('POST')));
+  assert.equal(await main(['trigger', '--lane', 'premise-tests', '--branch', 'ci/x'], { root, env, ctx: a.ctx, log: (l) => logs.push(l) }), 0);
+  assert.ok(a.calls.includes('POST /project/s/pipeline/run'));
 });

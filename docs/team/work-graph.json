@@ -12505,7 +12505,8 @@
     "scripts/circleci*.test.mjs",
     "research/notes/2026/10-2*-circleci-series.md",
     "docs/team/handoffs/circleci-series-r2.md"
-   ]
+   ],
+   "evidence": "ce6fc68"
   },
   {
    "devices": [
@@ -12649,7 +12650,8 @@
     "packages/contracts/golden/gate/trajectory.jsonl",
     "docs/team/tools/trajectory-probe.md",
     "docs/team/handoffs/earn-close-settle-rule.md"
-   ]
+   ],
+   "evidence": "7089912"
   },
   {
    "devices": [
