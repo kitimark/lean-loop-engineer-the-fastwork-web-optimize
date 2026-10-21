@@ -9,7 +9,7 @@ import { HealthView } from "./Health";
 import { BuildsView } from "./Builds";
 import { ComposeView } from "./Compose";
 import { ReviewsView, ReviewsTabLabel, openFlags, useReviews } from "./Reviews";
-import { age, randomId, sendAsUser, useBoard, useNow } from "@/lib/api";
+import { age, clickError, randomId, sendAsUser, useBoard, useNow } from "@/lib/api";
 
 /** The tab and note a login landing asks for (`/?tab=builds&note=stopped`); anything else is the console tab. */
 export function landingOf(search: string): { tab: "console" | "builds" | "compose" | "reviews"; note: string | null } {
@@ -31,10 +31,7 @@ export function App() {
 
   // every click is a typed command that the reducer may refuse; the reason is shown, never hidden
   const act = async (cmd: Record<string, unknown>) => {
-    try {
-      const r = await sendAsUser(cmd);
-      setError(r.ok ? null : `Refused: ${r.reason}`);
-    } catch (e) { setError(`Not sent: ${(e as Error).message}`); }
+    setError(await clickError(() => sendAsUser(cmd)));
   };
 
   return (
