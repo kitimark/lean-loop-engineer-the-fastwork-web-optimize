@@ -567,6 +567,9 @@ def endFrame : List Stroke → Nat
   | [st] => st.f0 + st.path.length
   | _ :: r => endFrame r
 
+/-- The loader refuses a replay longer than 200 s at 60 Hz, whatever its file says. -/
+def replayCap : Nat := 12000
+
 /-- What the CI profile loader accepts of a replay: every stroke ok, in order, ending within `cap` frames. -/
 def replayOk (w10 h10 : Int) (cap : Nat) (ss : List Stroke) : Bool :=
   !ss.isEmpty && ss.all (strokeOk w10 h10) && ordered 0 ss && decide (endFrame ss ≤ cap)
@@ -859,7 +862,7 @@ private def loaderCases : List (Int × Int × Nat × List Stroke) :=
 private def goldenLines (_ : Unit) : List String :=
   [(Json.mkObj [("kind", "consts"), ("slow", slow), ("bad", bad), ("lookback", lookback), ("tapMs", (30000 : Int)),
     ("tapTravel", (100 : Int)), ("gapMs", (50000 : Int)), ("nearPx", (400 : Int)), ("hz", (60 : Int)),
-    ("zoneViewports", (2 : Int)), ("recSeconds", recSeconds)]).compress] ++
+    ("zoneViewports", (2 : Int)), ("recSeconds", recSeconds), ("maxReplayFrames", replayCap)]).compress] ++
   (plan.zipIdx.map fun (a, k) =>
     (Json.mkObj [("kind", "plan"), ("step", toJson (k + 1)), ("arm", a.code), ("seconds", recSeconds), ("text", stepText k a)]).compress) ++
   (zoneCases.map fun (y : Int) =>

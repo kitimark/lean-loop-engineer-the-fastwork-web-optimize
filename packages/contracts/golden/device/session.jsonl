@@ -1,4 +1,4 @@
-{"bad":5000,"gapMs":50000,"hz":60,"kind":"consts","lookback":150000,"nearPx":400,"recSeconds":90,"slow":3400,"tapMs":30000,"tapTravel":100,"zoneViewports":2}
+{"bad":5000,"gapMs":50000,"hz":60,"kind":"consts","lookback":150000,"maxReplayFrames":12000,"nearPx":400,"recSeconds":90,"slow":3400,"tapMs":30000,"tapTravel":100,"zoneViewports":2}
 {"arm":"original","kind":"plan","seconds":90,"step":1,"text":"Step 1 of 5: the ORIGINAL page. Swipe with your finger from the top of the page to the bottom and back at your normal reading speed for 90 s. When it feels laggy, tap the screen 3 times quickly."}
 {"arm":"rewrite","kind":"plan","seconds":90,"step":2,"text":"Step 2 of 5: the faithful REWRITE. Swipe with your finger from the top of the page to the bottom and back at your normal reading speed for 90 s. When it feels laggy, tap the screen 3 times quickly."}
 {"arm":"v2","kind":"plan","seconds":90,"step":3,"text":"Step 3 of 5: the REWRITE with the v2-proved flags. Swipe with your finger from the top of the page to the bottom and back at your normal reading speed for 90 s. When it feels laggy, tap the screen 3 times quickly."}
