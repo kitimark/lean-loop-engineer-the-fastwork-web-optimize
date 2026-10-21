@@ -137,7 +137,11 @@ def attemptCases : List (String × String × Json) := [
   ("attempt current: attempt 2 meets the floor 2", "ci.attempt", lit "{\"floor\":2,\"row\":2}"),
   ("attempt current: no attempt under floor 0", "ci.attempt", lit "{\"floor\":0}"),
   ("attempt fresh: a finished row read 30 s ago is shared", "ci.attempt", lit "{\"read\":100,\"now\":130}"),
-  ("attempt fresh: read 31 s ago, the run is read again", "ci.attempt", lit "{\"read\":100,\"now\":131}")]
+  ("attempt fresh: read 31 s ago, the run is read again", "ci.attempt", lit "{\"read\":100,\"now\":131}"),
+  ("attempt jobsSettled: every job has a conclusion", "ci.attempt", lit "{\"open\":0,\"ago\":0}"),
+  ("attempt jobsSettled: one job still open right after the finish, read again", "ci.attempt", lit "{\"open\":1,\"ago\":4}"),
+  ("attempt jobsSettled: one job open 300 s after the finish, still lag", "ci.attempt", lit "{\"open\":1,\"ago\":300}"),
+  ("attempt jobsSettled: one job open 301 s after the finish, a fact", "ci.attempt", lit "{\"open\":1,\"ago\":301}")]
 
 /-! ## Replay fixtures (format: `FwTest.CiBudget`) -/
 

@@ -427,6 +427,7 @@ def run (root : System.FilePath) (write : Bool) : IO Nat := do
     IO.FS.writeFile p fileText
     IO.FS.writeFile (root / backoffPath) backoffText
     IO.FS.writeFile (root / Fw.Obs.Fold.goldenPath) Fw.Obs.Fold.goldenText
+    IO.FS.writeFile (root / Fw.Wire.Obs.Push.goldenPath) Fw.Wire.Obs.Push.goldenText
   else
     let cur ← try IO.FS.readFile p catch _ => pure ""
     if cur != fileText then
@@ -439,6 +440,10 @@ def run (root : System.FilePath) (write : Bool) : IO Nat := do
     let curF ← try IO.FS.readFile (root / Fw.Obs.Fold.goldenPath) catch _ => pure ""
     if curF != Fw.Obs.Fold.goldenText then
       IO.println s!"obs golden: {root / Fw.Obs.Fold.goldenPath} is stale (regenerate: cd lean && lake env lean --run scripts/ObsGolden.lean)"
+      bad := bad + 1
+    let curP ← try IO.FS.readFile (root / Fw.Wire.Obs.Push.goldenPath) catch _ => pure ""
+    if curP != Fw.Wire.Obs.Push.goldenText then
+      IO.println s!"obs golden: {root / Fw.Wire.Obs.Push.goldenPath} is stale (regenerate: cd lean && lake env lean --run scripts/ObsGolden.lean)"
       bad := bad + 1
   for g in gaps do
     IO.println s!"obs golden: no case covers {g}"
