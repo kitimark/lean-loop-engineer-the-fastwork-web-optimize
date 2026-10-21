@@ -14423,7 +14423,8 @@
     ".claude/workflows/build-review.js",
     "docs/team/tools/slot.md",
     "docs/team/handoffs/local-adaptive-queue.md"
-   ]
+   ],
+   "evidence": "594f914"
   },
   {
    "devices": [
@@ -14555,6 +14556,32 @@
     "research/notes/2026/10-2x-device-replay.md",
     "docs/team/tools/device-replay.md",
     "docs/team/handoffs/replay-ios-fix.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "sim-first-queue",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "deps": [
+    "local-adaptive-queue"
+   ],
+   "title": "User 2026-10-22: 'i think we could try to measure it on simulator first. and we'll test on real device later then. so, we could optimize the queue for make it more resource to do testing. you need to improve this first'. Context 02:49: load 181 (5-min), 64 MB free, swap 3.9 of 5 GB, an iPhone 17e Simulator booted with no sim slot held (fw slot sim only manages fw-* devices), about 9 lead workflows live. Make Simulator measurement get its resources first, decided in Lean (Fw.Sup.Adapt), goldens, TS replays them: (1) sim priority: a queued sim ticket reserves its footprint; no new check/test/land/other ticket is admitted while it would leave less than the sim footprint plus the floor, and while a sim slot is held other kinds run at most 1 at a time (theorems: a waiting sim ticket is never starved by later non-sim tickets; held sim implies at most one other holder); (2) any booted Simulator device with no live sim slot (and no old .local/locks/sim lock) counts: fw slot sim --apply shuts down every booted device after the idle window, not only fw-*; the slot runs the sim action itself on acquire, release and each poll (fw watch untouched); (3) a lead-side admission verdict `fw slot admit --kind build` (Lean: admit a new builder or review only when no sim ticket waits, free memory and the live-agent count are under bounds from the local load report) with a VERDICT line and exit code, documented for the lead to run before each Workflow launch; (4) scripts/sim-lock.sh callers move to fw slot (acquire --kind sim) or the old lock maps onto a sim slot, so one gate decides; (5) MEASURED on this Mac: one Simulator replay pass under the slot with other work queued, the admit verdicts and load/free memory before and during.",
+   "writes": [
+    "lean/Fw/Sup/Adapt.lean",
+    "lean/Fw/Sup/AdaptGolden.lean",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/sup/adapt.jsonl",
+    "apps/runner/src/slot-core.ts",
+    "apps/runner/src/slot.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/slot.test.ts",
+    "scripts/sim-lock.sh",
+    "docs/team/tools/slot.md",
+    "docs/team/handoffs/sim-first-queue.md"
    ]
   }
  ],

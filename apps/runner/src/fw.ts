@@ -32,7 +32,7 @@ async function postLandGc(mainDir: string): Promise<void> {
   for (const l of lines) console.error(l);
 }
 try {
-  const base = NO_API_GROUPS.includes(group ?? "") || group === "disk-gc" || group === "oracle" || (group === "plan" && rest[0] === "overlap") || (group === "review" && (rest[0] === "ready" || rest[0] === "verdict")) ? "" : apiBase(process.env);
+  const base = NO_API_GROUPS.includes(group ?? "") || group === "disk-gc" || group === "oracle" || group === "slot" || (group === "plan" && rest[0] === "overlap") || (group === "review" && (rest[0] === "ready" || rest[0] === "verdict")) ? "" : apiBase(process.env);
   if (group === "timings") {
     console.log(rest.includes("--backfill") ? await backfill(rest, process.cwd()) : rest.includes("--lag") ? lagCli(rest, process.cwd()) : timingsView(rest, process.cwd()));
   } else if (group === "checks") {
@@ -85,6 +85,9 @@ try {
     const { ReapUsage, reapCli } = await import("./reap.ts");
     const top = execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: process.cwd(), encoding: "utf8" }).trim();
     try { process.exitCode = reapCli(rest, top, fwcoreCall(process.cwd())); } catch (e) { throw e instanceof ReapUsage ? new UsageError(e.message) : e; }
+  } else if (group === "slot") { // local-adaptive-queue: one queue for heavy local work (Fw.Sup.Adapt)
+    const { SlotUsage, realDeps, slotCli } = await import("./slot.ts");
+    try { process.exitCode = await slotCli(rest, realDeps(process.cwd())); } catch (e) { throw e instanceof SlotUsage ? new UsageError(e.message) : e; }
   } else if (group === "watch") {
     process.exitCode = await watchMain(rest, process.cwd());
   } else if (group === "next") {
