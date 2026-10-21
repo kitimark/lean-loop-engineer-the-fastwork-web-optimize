@@ -160,6 +160,91 @@ theorem send_caps (bud : Budget) (q : Question) (names : List String) (st : Stat
 #guard pre defaultBudget ciTriage [] [] false "d" [] (some 60) == .refuse .overBudget
 #guard pre defaultBudget ciTriage [] [] false "d" [] (some 59) == .send (bodyText ciTriage [])
 
+/-! ## The replay run (`fw oracle send`) -/
+
+/-- **The spend guard of one `fw oracle send` run**: at most `maxRequests` sends and at most `maxInputTokens`
+estimated input tokens (`estTokens`), on top of the daily cap. -/
+structure RunBudget where
+  maxRequests : Nat := 60
+  maxInputTokens : Nat := 400000
+deriving Repr, DecidableEq
+
+/-- The default run guard: 60 sends and 400 000 estimated input tokens. -/
+def defaultRunBudget : RunBudget := {}
+
+/-- The input tokens a body is counted as before it is sent: its UTF-8 bytes. This is an upper bound when every
+token covers at least one byte (byte-level BPE tokenizers); the API's own count (`usage.input_tokens`) is recorded
+after the call. -/
+def estTokens (body : String) : Nat := bytes body
+
+/-- **Room in the run**: fewer than `maxRequests` sends so far, and the estimated tokens so far plus this body's stay
+within `maxInputTokens`. -/
+def runOk (rb : RunBudget) (sent spent : Nat) (body : String) : Bool :=
+  decide (sent < rb.maxRequests) && decide (spent + estTokens body ≤ rb.maxInputTokens)
+
+/-- **The send gate of a replay run**: `pre` (replay, declared fields, redaction, size, daily cap), and a send only
+when the run has room for it (`runOk`); a send without room is refused as over budget. `sent` and `spent` count the
+sends of this run and their estimated input tokens. -/
+def preRun (bud : Budget) (rb : RunBudget) (q : Question) (names : List String) (st : State) (logged : Bool)
+    (today : String) (days : List String) (sent spent : Nat) : Pre :=
+  match pre bud q names st logged today days none with
+  | .send body => if runOk rb sent spent body then .send body else .refuse .overBudget
+  | p => p
+
+/-- **A replay-run send certifies everything `pre` does**, and the run's room: fewer than `maxRequests` sends before
+it and its estimated tokens within `maxInputTokens`. -/
+theorem preRun_send (bud : Budget) (rb : RunBudget) (q : Question) (names : List String) (st : State)
+    (logged : Bool) (today : String) (days : List String) (sent spent : Nat) (body : String)
+    (h : preRun bud rb q names st logged today days sent spent = .send body) :
+    pre bud q names st logged today days none = .send body ∧ sent < rb.maxRequests ∧
+      spent + estTokens body ≤ rb.maxInputTokens := by
+  unfold preRun at h
+  split at h
+  · rename_i b hb
+    by_cases hr : runOk rb sent spent b = true
+    · simp only [hr, ite_true, Pre.send.injEq] at h
+      subst h
+      simp only [runOk, Bool.and_eq_true, decide_eq_true_eq] at hr
+      exact ⟨hb, hr.1, hr.2⟩
+    · simp [hr] at h
+  · rename_i p hp
+    exact absurd h (by intro e; exact hp body e)
+
+/-- **The body a replay run sends is the one Lean builds** from the redacted state. -/
+theorem preRun_body (bud : Budget) (rb : RunBudget) (q : Question) (names : List String) (st : State)
+    (logged : Bool) (today : String) (days : List String) (sent spent : Nat) (body : String)
+    (h : preRun bud rb q names st logged today days sent spent = .send body) :
+    body = bodyText q (redactState names st) :=
+  body_from_lean bud q names st logged today days none body (preRun_send bud rb q names st logged today days sent
+    spent body h).1
+
+/-- **A full run sends nothing more**: with `maxRequests` sends made, every row is replayed or refused. -/
+theorem preRun_requests_full (bud : Budget) (rb : RunBudget) (q : Question) (names : List String) (st : State)
+    (logged : Bool) (today : String) (days : List String) (spent : Nat) (body : String) :
+    preRun bud rb q names st logged today days rb.maxRequests spent ≠ .send body := by
+  intro h
+  exact Nat.lt_irrefl _ (preRun_send bud rb q names st logged today days _ spent body h).2.1
+
+/-- **A body over the token room is refused**: when the estimate would pass `maxInputTokens`, the row is not sent. -/
+theorem preRun_tokens_over (bud : Budget) (rb : RunBudget) (q : Question) (names : List String) (st : State)
+    (logged : Bool) (today : String) (days : List String) (sent spent : Nat) (body : String)
+    (ho : rb.maxInputTokens < spent + estTokens body) :
+    preRun bud rb q names st logged today days sent spent ≠ .send body := by
+  intro h
+  exact Nat.lt_irrefl _ (Nat.lt_of_lt_of_le ho (preRun_send bud rb q names st logged today days sent spent body h).2.2)
+
+/-- **A logged row replays in a replay run**, whatever the run has spent. -/
+theorem preRun_logged (bud : Budget) (rb : RunBudget) (q : Question) (names : List String) (st : State)
+    (today : String) (days : List String) (sent spent : Nat) :
+    preRun bud rb q names st true today days sent spent = .replay := rfl
+
+#guard preRun defaultBudget defaultRunBudget ciTriage [] [] false "d" [] 59 0 == .send (bodyText ciTriage [])
+#guard preRun defaultBudget defaultRunBudget ciTriage [] [] false "d" [] 60 0 == .refuse .overBudget
+#guard preRun defaultBudget defaultRunBudget ciTriage [] [] false "d" [] 0 400000 == .refuse .overBudget
+#guard preRun defaultBudget defaultRunBudget ciTriage [] [("note", ["a"])] false "d" [] 0 0 == .refuse .undeclared
+#guard preRun { dailyCap := 1 } defaultRunBudget ciTriage [] [] false "d" ["d"] 0 0 == .refuse .overBudget
+#guard preRun defaultBudget defaultRunBudget ciTriage [] [] true "d" [] 60 400000 == .replay
+
 /-! ## The calibration run -/
 
 /-- The ids of the labeled entries of a replay file, in file order. An entry is `(id, labeled)`; an id may be of any

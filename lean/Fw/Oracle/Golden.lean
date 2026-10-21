@@ -61,11 +61,12 @@ def pickNotMaxFlake : String := sampleReply "real" "0.97" "0.01" "0.01" "0.01"
 /-- Round-1 reviewer reply 2: picks `real` while `unknown` has 0.97. -/
 def pickNotMaxUnknown : String := sampleReply "real" "0.01" "0.01" "0.01" "0.97"
 
-/-- The id of row `n` in the holdout part (`held`) or the choose part: `r<n>`, with a `y` appended when that puts it in
-the wanted part (`y` has an odd code point, so it flips `heldOut`). -/
+/-- The id of row `n` in the holdout part (`held`) or the choose part: the first of `r<n>`, `r<n>-1`, `r<n>-2`, ...
+that `heldOut` puts in the wanted part (distinct rows get distinct ids). -/
 def idIn (held : Bool) (n : Nat) : String :=
   let b := s!"r{n}"
-  if heldOut b == held then b else b ++ "y"
+  let cands := b :: (List.range 64).map fun k => s!"{b}-{k + 1}"
+  (cands.find? (heldOut · == held)).getD b
 
 /-- The rows of `(count, reply, label)` groups in one part, numbered from `n0`: `(id, reply, label)`. -/
 def rowsIn (held : Bool) (n0 : Nat) (gs : List (Nat × String × String)) : List (String × String × String) :=

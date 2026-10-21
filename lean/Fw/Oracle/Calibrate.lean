@@ -1,4 +1,5 @@
 import Fw.Oracle.Core
+import Fw.Oracle.Labels
 /-!
 # Fw.Oracle.Calibrate: a threshold per option, computed from that option's labeled replay rows
 
@@ -15,8 +16,9 @@ it was calibrated on, every advice `o` the table gives has precision at least `q
 the rows it advises as `o` (`per_option_sound`). An option with fewer than `max 1 k` labeled rows, or one the model
 never answers, gets no threshold (`calibrate_none_of_sparse`, `never_answered_none`).
 
-Held-out certification: the replay rows are split by id (`heldOut`: the code points of the id sum to an odd number),
-so no author chooses which rows test a threshold. `certify` (the table `oracle.calibrate` returns) chooses each
+Held-out certification: the replay rows are split by id with the replay sets' own split (`heldOut` is
+`Labels.heldOut`: FNV-1a 32 of the id's UTF-8 bytes is 0 mod 4; `certify_split`), so no author chooses which rows test
+a threshold, and a row held out in its dataset is held out here. `certify` (the table `oracle.calibrate` returns) chooses each
 option's threshold on the choose part and keeps it only when the same value passes `holdOk` on the holdout part:
 `okOpt` there, and the Wilson score lower bound (`wilsonOk`, one-sided, `z = 1.645`) of that option's held-out
 precision is at least `q`. Any advice under the certified table has at least `max 1 k` hits and point precision at
@@ -417,12 +419,13 @@ theorem wilsonOk_sound (z q : Rat) (h n : Nat) (hz : 0 < z) (hn : h ≤ n) (hw :
 
 /-! ## Held-out certification -/
 
-/-- The sum of the code points of a row id. -/
-def idSum (i : String) : Nat := (i.toList.map Char.toNat).sum
+/-- **The split by id** is the one split of the replay sets (`Labels.heldOut`: FNV-1a 32 of the id's UTF-8 bytes is
+0 mod 4); every other row is in the choose part. The replay file names no split, so no author picks which rows test a
+threshold. -/
+def heldOut (i : String) : Bool := Labels.heldOut i
 
-/-- **The split by id**: a row is held out exactly when the code points of its id sum to an odd number; every other
-row is in the choose part. The replay file names no split, so no author picks which rows test a threshold. -/
-def heldOut (i : String) : Bool := idSum i % 2 == 1
+/-- **Calibration splits as the datasets do**: its held-out test is `Labels.heldOut`. -/
+theorem heldOut_canonical : heldOut = Labels.heldOut := rfl
 
 /-- A labeled replay row with its id. -/
 abbrev IdRow := String × Row
@@ -432,6 +435,17 @@ def choosePart (rs : List IdRow) : List Row := (rs.filter fun p => !heldOut p.1)
 
 /-- The holdout part: the rows whose id is held out, in order. -/
 def holdPart (rs : List IdRow) : List Row := (rs.filter fun p => heldOut p.1).map (·.2)
+
+/-- **The holdout part is the datasets' held-out part** (`Labels.heldOutRows`), in order. -/
+theorem holdPart_canonical (rs : List IdRow) : holdPart rs = (Labels.heldOutRows Prod.fst rs).map (·.2) := by
+  simp only [holdPart, Labels.heldOutRows, heldOut_canonical]
+  rfl
+
+/-- **The choose part is the datasets' calibration part** (`Labels.calibrationRows`), in order. -/
+theorem choosePart_canonical (rs : List IdRow) :
+    choosePart rs = (Labels.calibrationRows Prod.fst rs).map (·.2) := by
+  simp only [choosePart, Labels.calibrationRows, Labels.calibration, heldOut_canonical]
+  rfl
 
 /-- The hits on `o` are among the rows advised as `o`. -/
 theorem hitsAs_le_advisedAs (s : Spec) (τ : Rat) (rows : List Row) (o : Advice) :
@@ -458,6 +472,15 @@ def certOpt (s : Spec) (q : Rat) (k : Nat) (rs : List IdRow) (o : Advice) : Opti
 certified threshold when it has one. -/
 def certify (s : Spec) (q : Rat) (k : Nat) (rs : List IdRow) : Thresholds :=
   s.advisable.filterMap fun o => (certOpt s q k rs o).map (o, ·)
+
+/-- **Certification uses the one canonical split**: thresholds are chosen on the datasets' calibration rows and kept
+only when they pass the holdout test on the datasets' held-out rows (`Labels.calibrationRows`,
+`Labels.heldOutRows`). -/
+theorem certify_split (s : Spec) (q : Rat) (k : Nat) (rs : List IdRow) :
+    certify s q k rs = s.advisable.filterMap fun o =>
+      ((calibrateOpt s q k ((Labels.calibrationRows Prod.fst rs).map (·.2)) o).filter
+        (holdOk s q k ((Labels.heldOutRows Prod.fst rs).map (·.2)) o)).map (o, ·) := by
+  simp only [certify, certOpt, choosePart_canonical, holdPart_canonical]
 
 /-- The certified table's entry for `o` is `o`'s certified threshold (none for an option the question cannot advise). -/
 theorem certify_lookup (s : Spec) (q : Rat) (k : Nat) (rs : List IdRow) (o : Advice) :
@@ -538,7 +561,7 @@ theorem certify_none_of_sparse_holdout (s : Spec) (q : Rat) (k : Nat) (rs : List
     have := hitsAs_le s τ (holdPart rs) o
     omega
 
-#guard heldOut "a" && !heldOut "b" && !heldOut "m001" && heldOut "m002"
+#guard heldOut "a" && !heldOut "b" && !heldOut "m001" && heldOut "m004"
 private def idRows (l : List (String × Row)) : List IdRow := l
 /-- `n` copies of row `r` whose ids (`p` and a number) all fall in the holdout part (`held`) or all in the choose part. -/
 private def part (held : Bool) (p : String) (n : Nat) (r : Row) : List IdRow :=
