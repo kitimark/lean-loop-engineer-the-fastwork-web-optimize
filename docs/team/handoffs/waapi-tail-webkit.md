@@ -1,7 +1,6 @@
 # waapi-tail-webkit handoff (phase 1 of 2, round 2: source, instrument, one mac WebKit run)
 
-State: branch worktree-wf_79c0837e-67c-1, pushed as ci/waapi-tail-webkit. Round 1 d85cf355; round 2 code 6cfc27ed; run: see the last line.
-No classification and no measurement claim (phase 2). Read first: research/notes/2026/10-21-waapi-tail-webkit.md.
+State: branch worktree-wf_79c0837e-67c-1, pushed as ci/waapi-tail-webkit. Round 1 d85cf355; round 2 code 6cfc27ed; run 39527354981 (push 47ec2d5a, apple leg + Linux leg ran). No classification, no measurement claim (phase 2). Read first: research/notes/2026/10-21-waapi-tail-webkit.md.
 
 Round 2 (each review finding):
 1. Recorder rows: one MutationObserver, attributeOldValue, one row per MutationRecord in record order (nav-transition.ts `apply`).
@@ -25,3 +24,7 @@ probe-apple `if:`.
 Verified at 6cfc27ed: site test 5548 pass (4 skipped before this task), site typecheck, gate-breakpoints 441, runner 1677, ci-paths 52,
 trajectory-line tests 4, part-footprint --check, lean/scripts/check.sh green.
 Open: phase 2 classifies the rows (C1/C2/C-probe/C0/C3/C4) over >= 3 runs on separate jobs; the `read` rows decide C-probe per rep.
+Run 39527354981 (macos-26 WebKit, width 1280, 5 reps, debug=nav-transition, dropped 0): recorder rows exist for all 10 reps (counts only).
+ base role rows/rep 722,740,820,766,645 (cls 2 each; base rows 25,23,33,26,24; data 25,23,33,26,24; read 70-97; raf 458-576).
+ cand role rows/rep 636,615,629,675,763 (cls 2 each; base rows 6,6,6,8,6; data 15,16,15,18,15; read 77-94; raf 459-589).
+ Raw: apple/raw-playwright-webkit.json runs[].morph.debugReps[]. Only 1 of 2 runs used; no classification.
