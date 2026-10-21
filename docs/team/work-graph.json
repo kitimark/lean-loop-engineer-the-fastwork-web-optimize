@@ -14060,7 +14060,8 @@
     "scripts/jev-datasets.test.mjs",
     "research/notes/2026/10-2x-jev-datasets.md",
     "docs/team/handoffs/jev-datasets.md"
-   ]
+   ],
+   "evidence": "b105aa9"
   },
   {
    "devices": [
@@ -14380,6 +14381,55 @@
     "packages/contracts/golden/console/steps*.jsonl",
     "docs/team/tools/console-steps.md",
     "docs/team/handoffs/step-threads.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "local-adaptive-queue",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "title": "User 2026-10-22: 'i think we might have the queue to manange the local load by probe the resource and automatic adjustable the concurrency size.' (context: load average 27-46 on 8 CPUs with about 11 workflow agents; investigation report in the lead scratch local-load/report.md). One local work queue for heavy agent work (lake builds and check.sh, vitest/tsc runs, Simulator debug runs, trial lands): every heavy step acquires a slot from the queue (generalising the lake-slot and heavy locks in .fw-console/locks.jsonl); a probe samples load average, free memory, swap and compressor pressure every few seconds (the fw-sup baseline sampler's readers); a Lean controller (Fw.Sup.Adapt) sets the admitted concurrency N from the samples: additive increase while load < target and memory free above a floor, multiplicative decrease on overload, with hysteresis and min/max bounds. Theorems: N stays within [min, max]; never admits a job whose expected footprint exceeds free memory minus the floor (per kind, footprints from sup-baseline-tables); no oscillation faster than the hysteresis window; FIFO progress per kind (reuse sup-fairness head_job_granted_by). Wire it into the fw CLI (`fw slot run --kind <k> -- <cmd>`) and the build-review preamble (builders wrap check.sh, package tests and dry lands in it); console shows N, queue length and waits. Stage this as the first live part of fw-sup (no daemon process needed: a file-lock queue like lake-slot). Holder liveness (lead 2026-10-22, sim.lockOrphan on toolbar-throttle-probe): scripts/sim-lock.sh stores $PPID, the shell of one Bash tool call, so a lock an agent takes in one call and uses in later calls reads as stale at once and the next acquirer may take the Simulator while it is still in use; the queue identifies a holder by the owning agent (owner name plus a lease the holder renews), with a Lean theorem that a live holder is never recovered as stale. From the load investigation (lead scratch local-load/report.md, MEASURED: load median 35.5 with the Simulator up vs 6.4 down; memory runs out before CPU): the Simulator kind is the first-class queue member: boot it only under its slot and shut it down after an idle limit; lake slot threads sized from free memory, not cores (pool full 4 runs 12 threads on 8 cores, about 0.7 GB per lean process); recalibrate the swapPct verdict (busy in 543 of 558 samples, so it gates nothing) before the controller reads it; the build-review reviewer skips its repeat of tests and dry land when the tree hash is unchanged (.fw-console/review-cache), same check set and verdict.",
+   "writes": [
+    "lean/Fw/Sup/Adapt*.lean",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/sup/adapt*.jsonl",
+    "apps/runner/src/slot*.ts",
+    "apps/runner/src/lock*.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/slot*.test.ts",
+    "apps/runner/src/watch-collect.ts",
+    "apps/console-web/src/**",
+    ".claude/workflows/build-review.js",
+    "docs/team/tools/slot.md",
+    "docs/team/handoffs/local-adaptive-queue.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-offload-checks",
+   "owner": "console-builder",
+   "stream": "ci",
+   "deps": [
+    "local-adaptive-queue"
+   ],
+   "title": "User 2026-10-22: 'can we custom the our ci and run the pipeline that specific the agent needed for local concurrency is hit the limit we can delegate some of work to ci instead.' A GitHub workflow agent-checks.yml that runs exactly the checks a builder runs locally for a given task and branch (sh lean/scripts/check.sh with the lake cache, the touched packages' test scripts incl. typecheck, scripts/ci-paths.test.mjs, the apps/runner land-inputs test, fw land --dry) and returns one structured result artifact (per check: pass/fail, duration, first error lines). A Lean router decision per heavy step (Fw.Sup.Offload): run locally when local-adaptive-queue has a slot or its expected wait is under the CI path's expected time (push + queue p50 + run), else offload to CI (GitHub Linux free runners first, then CircleCI Arm per ci-overflow-github-first); theorems: never offload a step that needs this Mac (Simulator, phone, .local data), offload only when the local wait exceeds the CI estimate, result counts the same from either place (same digest). `fw slot run` uses it transparently: an offloaded step pushes ci/check-<task>-<sha>, waits with fw ci wait and prints the same output shape. Trigger design is free (user 2026-10-22: 'you can revise the github pipeline for trigger from your need. it might not following on branch push for every cases'): choose per need between workflow_dispatch with inputs (task, ref, checks) on a pushed ci/check-* ref whose push itself starts nothing, push with path/branch filters, or repository_dispatch; the choice and every changed trigger are rows in Lean Fw.Ci.Trigger with the triggers golden regenerated, and a dispatch is sent only by the offload router through gh workflow run (never gh api). Measure: local load and builder wall time before/after on one busy hour. Premise check first (local-load report: CI wait median 448 s vs check.sh 39 s and the runner suite 176 s locally): the router is expected to offload only under overload; if on a busy hour it never chooses CI, close the task as a finding instead of shipping the workflow.",
+   "writes": [
+    ".github/workflows/agent-checks.yml",
+    "lean/Fw/Sup/Offload*.lean",
+    "packages/contracts/golden/sup/offload*.jsonl",
+    "apps/runner/src/offload*.ts",
+    "apps/runner/src/slot*.ts",
+    "apps/runner/test/offload*.test.ts",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "docs/team/tools/offload.md",
+    "docs/team/handoffs/ci-offload-checks.md"
    ]
   }
  ],
