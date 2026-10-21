@@ -93,3 +93,8 @@ the variant removes. Open for the lead: the gate should not compare nodes that a
   series of `Fw.Device.Session` cannot see it. The check is that `scrollY` still runs inside the exit range (still runs
   of 5 to 6 frames are the toolbar throttle) together with a `getComputedStyle` sample of one consumer (the copy's
   `opacity`) per frame. No lane records that pair yet; it is dispatch for the lead.
+
+Round 2: run 39660528157 (push of 8eacef89, `fw=hero.exit:threaded engines=both`, verdict run). RED on both engines, only on nodes whose rect is empty in
+all three arms (`hero.orbit.card` at 390, `hero.deck.card` at 640 and 641, counted in the raw legs); Chromium also reports the nav `open@1` coverage sample at 640.
+The candidate arm now waits about 1.3 s like the others. The probe has no sample before that ready wait, so the phone entrance window is
+covered by Lean `live` (`entranceFinished`) and the unit tests, not by this run (follow-up: an early sample in the harness).
