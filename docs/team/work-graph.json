@@ -14300,7 +14300,8 @@
     "packages/contracts/golden/parts/hero-exit*.jsonl",
     "research/notes/2026/10-2x-hero-exit-threaded.md",
     "docs/team/handoffs/hero-exit-threaded-port.md"
-   ]
+   ],
+   "evidence": "10d9d45"
   },
   {
    "devices": [
