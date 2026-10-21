@@ -10,12 +10,9 @@ matches no live checkout, and its parent fits the kind (a lean-lsp-mcp of this r
 B: it is a tool (lean, lake, fwcore, node, vitest, a playwright browser, or a `lake serve` also when orphaned) in a non-live
 worktree of this repo. C: it is a tool inside this repo whose cwd is in no live checkout, with an ancestor selected by A or
 B. Every branch refuses a row shielded off: the recorded console (`.fw-console/api.json`), everything below it, the stopper's
-own process and its ancestors, pid <= 1. B and C also refuse a lean-lsp-mcp process, and every branch a row with an
-unreadable cwd or a cwd inode of a live checkout.
-D (task `lsp-reap`): a process of a lean-lsp-mcp server stack (a `lake serve` whose parent is a lean-lsp-mcp process, and
-the rows below it) whose cwd is in a worktree of this repo that has no live session (no lock held by a present pid, no
-lean-lsp-mcp started there), when every row of the stack used at most `cpuTolCs` of CPU since a baseline at least `idleSec`
-old. D is the one branch that takes a live checkout. No branch takes a row with a serena process in its chain.
+own process and its ancestors, pid <= 1. B and C also refuse a lean-lsp-mcp process, every branch a row with an unreadable
+cwd, and A, B and C a cwd inode of a live checkout. D: a CPU-quiet lean-lsp-mcp server stack in a worktree with no live
+session. No branch takes a row with a serena process in its chain.
 The stop plan: read, check the identity again, TERM, wait the grace, read again, KILL the survivors whose (pid, start) is
 unchanged, verify. A group is signalled only when every row of that group is selected, and every signal passes `guardOk`
 against an explicit scope of pids.

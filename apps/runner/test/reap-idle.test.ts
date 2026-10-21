@@ -1,6 +1,3 @@
-// Branch D of fw reap (task lsp-reap): the golden replay of ops.reapIdle and the D cases, the parsers that read its facts
-// (CPU time, worktree locks), the serena classification and the --list rows with MB. Stubbed facts only: no process is
-// started and no signal is sent.
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -60,8 +57,7 @@ describe("branch D facts", () => {
   });
 });
 
-// The stack of the goldens: lean-lsp-mcp 400 (cwd in the main checkout), lake serve 500, lean --server 501, worker 502.
-const stack = (cpu502: number): Facts => ({
+const mcpStack = (cpu502: number): Facts => ({
   rows: [
     { pid: 400, ppid: 1, pgid: 400, start: 9, cwd: 1, kind: "other", cpu: 50 },
     { pid: 500, ppid: 400, pgid: 500, start: 9, cwd: 30, kind: "lspServe", wt: "w", inRepo: true, cpu: 10 },
@@ -77,7 +73,7 @@ describe("fw reap --list with an idle lean-lsp-mcp stack", () => {
   const io: Io = { signal: () => { throw new Error("no signal in a test"); }, sleep: () => {}, table: () => null, rss: (pids) => new Map(pids.map((p) => [p, 102_400])) };
   it("lists every process of the stack with its reason and MB, and a total", () => {
     const out: string[] = [];
-    expect(reapCli(["--list"], root, call, (s) => out.push(s), () => stack(900), io)).toBe(0);
+    expect(reapCli(["--list"], root, call, (s) => out.push(s), () => mcpStack(900), io)).toBe(0);
     expect(out).toEqual([
       "500 group mcpIdle: lean-lsp-mcp server stack idle (CPU quiet) in a worktree with no live agent (100.0 MB)",
       "501 pid mcpIdle: lean-lsp-mcp server stack idle (CPU quiet) in a worktree with no live agent (100.0 MB)",
@@ -86,10 +82,10 @@ describe("fw reap --list with an idle lean-lsp-mcp stack", () => {
     ]);
   });
   it("a busy worker, a live lock or a lean-lsp-mcp started in the worktree keeps the stack", () => {
-    expect(select(stack(1001), call)).toEqual([]);
-    expect(select({ ...stack(900), locks: [{ id: "w", holder: 400 }] }, call)).toEqual([]);
-    expect(select({ ...stack(900), mcps: [{ pid: 400, cwd: 1, wt: "w" }] }, call)).toEqual([]);
-    expect(select({ ...stack(900), rows: stack(900).rows.map((r) => (r.pid === 400 ? { ...r, kind: "serena" } : r)) }, call)).toEqual([]);
+    expect(select(mcpStack(1001), call)).toEqual([]);
+    expect(select({ ...mcpStack(900), locks: [{ id: "w", holder: 400 }] }, call)).toEqual([]);
+    expect(select({ ...mcpStack(900), mcps: [{ pid: 400, cwd: 1, wt: "w" }] }, call)).toEqual([]);
+    expect(select({ ...mcpStack(900), rows: mcpStack(900).rows.map((r) => (r.pid === 400 ? { ...r, kind: "serena" } : r)) }, call)).toEqual([]);
   });
   it("other kinds print without MB and no total line", () => {
     const s = [{ pid: 7, start: 1, kind: "removed", group: true, reason: "r" }];
@@ -99,12 +95,12 @@ describe("fw reap --list with an idle lean-lsp-mcp stack", () => {
   it("stores Lean's baselines in the idle file; a stop with nothing selected sends no signal", () => {
     const d = mkdtempSync(join(tmpdir(), "reap-idle-"));
     const f = join(d, "reap-idle.json");
-    select({ ...stack(1001), idleFile: f }, call);
+    select({ ...mcpStack(1001), idleFile: f }, call);
     expect(loadBases(f)).toEqual([
       { pid: 500, start: 9, since: 1000, cpu: 10 }, { pid: 501, start: 9, since: 1000, cpu: 600 }, { pid: 502, start: 9, since: 5000, cpu: 1001 },
     ]);
     const quiet: Io = { ...io, table: () => null };
-    expect(stopSelected(root, call, quiet, () => ({ ...stack(1001), idleFile: f }))).not.toBeNull();
+    expect(stopSelected(root, call, quiet, () => ({ ...mcpStack(1001), idleFile: f }))).not.toBeNull();
     rmSync(d, { recursive: true, force: true });
   });
 });
