@@ -5082,4 +5082,490 @@ theorem pre_pf {c : Cfg} {q : Req} {tm n0 k : Nat} {s : State} (e : Event) (h : 
   | clientGone o => exact gone_pf o h hA
   | restart now snap inp => exact absurd hA id
 
+/-- The fields of a resource that the budget and the stop rules read. -/
+def view (x : Rsrc) : Nat × Nat × Phase × Vec × Vec × Option Ident := (x.id, x.kind, x.phase, x.cost, x.foot, x.proc)
+
+theorem sum_view (f : Rsrc → Nat) (p : Rsrc → Bool) (hf : ∀ x y, view x = view y → f x = f y ∧ p x = p y) :
+    ∀ xs ys : List Rsrc, xs.map view = ys.map view → ((xs.filter p).map f).sum = ((ys.filter p).map f).sum
+  | [], [], _ => rfl
+  | [], _ :: _, h => by cases h
+  | _ :: _, [], h => by cases h
+  | x :: xs, y :: ys, h => by
+    simp only [List.map_cons, List.cons.injEq] at h
+    have ih := sum_view f p hf xs ys h.2
+    obtain ⟨e1, e2⟩ := hf x y h.1
+    simp only [List.filter_cons, e2]
+    split
+    · simp only [List.map_cons, List.sum_cons, e1, ih]
+    · exact ih
+
+theorem view_eq {x y : Rsrc} (h : view x = view y) :
+    x.id = y.id ∧ x.kind = y.kind ∧ x.phase = y.phase ∧ x.cost = y.cost ∧ x.foot = y.foot ∧ x.proc = y.proc := by
+  simp only [view, Prod.mk.injEq] at h
+  exact h
+
+theorem fitsFree_view {c : Cfg} {s1 s2 : State} (add : Res → Nat) (hr : s1.res.map view = s2.res.map view)
+    (ho : s1.obs = s2.obs) :
+    fitsFree c { s1 with leases := [] } add (stoppable c s1) = fitsFree c { s2 with leases := [] } add (stoppable c s2) := by
+  have hc : ∀ d, ∀ x y, view x = view y → charge x d = charge y d := fun d x y h => by
+    obtain ⟨_, _, _, e4, e5, _⟩ := view_eq h
+    simp only [charge, e4, e5]
+  have h1 : ∀ d, resLoad s1.res d = resLoad s2.res d := fun d => sum_view _ _ (fun x y h =>
+    ⟨hc d x y h, by rw [(view_eq h).2.2.1]⟩) _ _ hr
+  have h2 : ∀ d, stopLoad s1 d = stopLoad s2 d := fun d => sum_view _ _ (fun x y h =>
+    ⟨hc d x y h, by rw [(view_eq h).2.2.1]⟩) _ _ hr
+  have h3 : ∀ d, ((stoppable c s1).map (charge · d)).sum = ((stoppable c s2).map (charge · d)).sum := fun d =>
+    sum_view _ _ (fun x y h => ⟨hc d x y h, by
+      obtain ⟨_, e2, e3, _, _, e6⟩ := view_eq h
+      rw [e2, e3, e6]⟩) _ _ hr
+  simp only [fitsFree, used, leaseLoad]
+  have h2' : ∀ d, stopLoad { s1 with leases := [] } d = stopLoad { s2 with leases := [] } d := h2
+  simp only [h1, h2', h3]
+  simp only [ho]
+  rfl
+
+/-- A pump step behind a blocked request: resources keep their view, the mark stays, requests are only appended, and
+the clock, sample and shedding flag stay. -/
+def BlkStep (a a' : Acc) : Prop :=
+  (∃ g : Rsrc → Rsrc, a'.st.res = a.st.res.map g ∧ ∀ x, view (g x) = view x) ∧ a'.blk = true ∧
+  (∃ X, a'.st.pending = a.st.pending ++ X) ∧ a'.st.now = a.st.now ∧ a'.st.obs = a.st.obs ∧
+  a'.st.shedding = a.st.shedding ∧ a'.st.draining = a.st.draining
+
+theorem BlkStep.trans {a b d : Acc} (h1 : BlkStep a b) (h2 : BlkStep b d) : BlkStep a d := by
+  obtain ⟨⟨g1, r1, v1⟩, _, ⟨X1, p1⟩, n1, o1, s1, d1⟩ := h1
+  obtain ⟨⟨g2, r2, v2⟩, b2, ⟨X2, p2⟩, n2, o2, s2, d2⟩ := h2
+  exact ⟨⟨g2 ∘ g1, by rw [r2, r1, List.map_map], fun x => (v2 (g1 x)).trans (v1 x)⟩, b2,
+    ⟨X1 ++ X2, by rw [p2, p1, List.append_assoc]⟩, n2.trans n1, o2.trans o1, s2.trans s1, d2.trans d1⟩
+
+theorem blkStep_of {a a' : Acc} (hb : a'.blk = true) (hr : a'.st.res = a.st.res)
+    (hp : ∃ X, a'.st.pending = a.st.pending ++ X) (hn : a'.st.now = a.st.now) (ho : a'.st.obs = a.st.obs)
+    (hs : a'.st.shedding = a.st.shedding) (hd : a'.st.draining = a.st.draining) : BlkStep a a' :=
+  ⟨⟨id, by rw [hr, List.map_id], fun _ => rfl⟩, hb, hp, hn, ho, hs, hd⟩
+
+theorem pumpOne_blk {c : Cfg} {a : Acc} {q : Req} (hb : a.blk = true) : BlkStep a (pumpOne c a q) := by
+  refine pumpOne_cases c a q (BlkStep a)
+    (fun _ _ => blkStep_of hb rfl ⟨[], (List.append_nil _).symm⟩ rfl rfl rfl rfl)
+    (fun _ _ _ _ _ => ⟨⟨_, rfl, fun x => ite_field view _ x _ rfl⟩, hb, ⟨[], (List.append_nil _).symm⟩, rfl, rfl, rfl,
+      rfl⟩)
+    (fun _ _ _ _ => ?_)
+    (fun _ _ _ => blkStep_of (by simp [keepQ, hb]) rfl ⟨[q], rfl⟩ rfl rfl rfl rfl)
+    (fun _ _ => blkStep_of hb rfl ⟨[], (List.append_nil _).symm⟩ rfl rfl rfl rfl)
+    (fun _ _ _ hb' _ _ _ _ _ _ _ => absurd (hb.symm.trans hb') (by decide))
+  unfold block
+  rw [hb]
+  exact blkStep_of (by simp [keepQ, hb]) rfl ⟨[q], rfl⟩ rfl rfl rfl rfl
+
+theorem fold_blk {c : Cfg} : ∀ (B : List Req) (a : Acc), a.blk = true → BlkStep a (B.foldl (pumpOne c) a)
+  | [], _, hb => blkStep_of hb rfl ⟨[], (List.append_nil _).symm⟩ rfl rfl rfl rfl
+  | q :: B, _, hb => (pumpOne_blk hb).trans (fold_blk B _ (pumpOne_blk (c := c) (q := q) hb).2.1)
+
+theorem pump_first {c : Cfg} {P : State} {q : Req} (hk : q.kind = .job) (hd : P.now < q.deadline)
+    (hdr : P.draining = false) (hsh : P.shedding = false) :
+    pumpOne c (acc0 P) q = grant (acc0 P) q ∨
+      (fitsB c P q.cost.get = false ∧ pumpOne c (acc0 P) q = block c (acc0 P) q q.cost.get) := by
+  unfold pumpOne
+  dsimp only
+  split
+  · rename_i h; exact absurd h (Nat.not_le.2 hd)
+  split
+  · rename_i h; simp [acc0, hdr] at h
+  split
+  · split
+    · exact Or.inl rfl
+    · rename_i h
+      refine Or.inr ⟨?_, rfl⟩
+      have e : fitsB c (acc0 P).st q.cost.get = fitsB c P q.cost.get := rfl
+      rw [e] at h
+      simpa [acc0, hsh] using h
+  · rename_i h; rw [hk] at h; cases h
+
+theorem insRank_perm (c : Cfg) (x : Rsrc) : ∀ l : List Rsrc, (insRank c x l).Perm (x :: l)
+  | [] => List.Perm.refl _
+  | y :: ys => by
+    unfold insRank
+    split
+    · exact List.Perm.refl _
+    · exact ((insRank_perm c x ys).cons y).trans (List.Perm.swap x y ys)
+
+theorem byRank_perm (c : Cfg) (s : State) : (byRank c s).Perm (cands c s) := by
+  unfold byRank
+  induction cands c s with
+  | nil => exact List.Perm.refl _
+  | cons x l ih => exact (insRank_perm c x _).trans (ih.cons x)
+
+theorem countP_lt {α : Type} (p r : α → Bool) : ∀ l : List α, (∀ y ∈ l, r y = true → p y = true) →
+    (∃ x ∈ l, p x = true ∧ r x = false) → l.countP r < l.countP p
+  | [], _, ⟨_, hx, _⟩ => absurd hx List.not_mem_nil
+  | a :: l, hle, ⟨x, hx, hpx, hrx⟩ => by
+    have hm : l.countP r ≤ l.countP p := List.countP_mono_left fun y hy => hle y (List.mem_cons_of_mem a hy)
+    simp only [List.countP_cons]
+    rcases List.mem_cons.1 hx with e | hx
+    · subst e
+      rw [hpx, hrx]
+      simp only [↓reduceIte, Bool.false_eq_true]
+      omega
+    · have ih := countP_lt p r l (fun y hy => hle y (List.mem_cons_of_mem a hy)) ⟨x, hx, hpx, hrx⟩
+      have ha := hle a List.mem_cons_self
+      cases hp : p a <;> cases hr : r a <;> simp_all <;> omega
+
+theorem mu_le {c : Cfg} {tm : Nat} {s s' : State} (h : TrS c tm s s') : mu c s' ≤ mu c s := by
+  obtain ⟨F, hF, hFt⟩ := h
+  unfold mu
+  rw [hF, List.countP_map]
+  refine List.countP_mono_left fun x hx hp => ?_
+  simp only [Function.comp_apply, Bool.and_eq_true, Bool.not_eq_true'] at hp ⊢
+  obtain ⟨_, hk, hl, _⟩ := hFt x hx
+  exact ⟨hl hp.1, by rw [← hk]; exact hp.2⟩
+
+theorem mu_lt {c : Cfg} {tm : Nat} {s s' : State} {F : Rsrc → Rsrc} (hF : s'.res = s.res.map F)
+    (hFt : ∀ x ∈ s.res, Tr c tm s.now s'.now x (F x)) {x : Rsrc} (hx : x ∈ s.res) (hl : x.phase.live = true)
+    (hp : c.pinned x.kind = false) (hFx : (F x).phase.live = false) : mu c s' < mu c s := by
+  unfold mu
+  rw [hF, List.countP_map]
+  refine countP_lt _ _ _ (fun y hy hq => ?_) ⟨x, hx, by simp [hl, hp], by simp [hFx]⟩
+  simp only [Function.comp_apply, Bool.and_eq_true, Bool.not_eq_true'] at hq ⊢
+  obtain ⟨_, hk, hl', _⟩ := hFt y hy
+  exact ⟨hl' hq.1, by rw [← hk]; exact hq.2⟩
+
+theorem trS_view {c : Cfg} {tm : Nat} {s s' : State} (g : Rsrc → Rsrc) (hr : s'.res = s.res.map g)
+    (hv : ∀ x, view (g x) = view x) (hn : s'.now = s.now) : TrS c tm s s' :=
+  trS_eq g hr hn fun x _ => ⟨(view_eq (hv x)).1, (view_eq (hv x)).2.1, Or.inl (view_eq (hv x)).2.2.1⟩
+
+theorem pump_ticket_age {c : Cfg} {s0 : State} (hw : Wf c s0) :
+    ∀ k ∈ (pumpAcc c s0).st.tickets, k ∈ s0.tickets ∨ ∃ q ∈ s0.pending, k.age = q.age := by
+  refine pump_ind hw (fun a => ∀ k ∈ a.st.tickets, k ∈ s0.tickets ∨ ∃ q ∈ s0.pending, k.age = q.age)
+    (fun k hk => Or.inl hk) ?_
+  intro a q rest hj ha
+  have hq : q ∈ s0.pending := hj.sub.subset (List.mem_append_right _ List.mem_cons_self)
+  refine pumpOne_cases c a q (fun a' => ∀ k ∈ a'.st.tickets, k ∈ s0.tickets ∨ ∃ q ∈ s0.pending, k.age = q.age)
+    (fun _ _ => ha) (fun _ _ _ _ _ => ha) (fun _ _ _ _ => ?_) (fun _ _ _ => ha)
+    (fun _ _ => ?_) (fun _ _ _ _ _ _ _ _ _ _ _ => ha)
+  · unfold block
+    split
+    · exact ha
+    · exact ha
+  · intro k hk
+    rcases List.mem_append.1 hk with hk | hk
+    · exact ha k hk
+    · rw [List.mem_singleton.1 hk]
+      exact Or.inr ⟨q, hq, rfl⟩
+
+
+theorem cands_proc {c : Cfg} {s : State} {y : Rsrc} (h : y ∈ cands c s) : y.proc.isSome = true := by
+  have h2 := (List.mem_filter.1 h).2
+  simp only [Bool.and_eq_true] at h2
+  exact h2.1.1.2
+
+theorem fitsFree_perm {c : Cfg} {s : State} {add : Res → Nat} {xs ys : List Rsrc} (h : xs.Perm ys) :
+    fitsFree c s add xs = fitsFree c s add ys := by
+  unfold fitsFree
+  congr 1
+  funext d
+  rw [(h.map (fun x => charge x d)).sum_nat]
+
+theorem leaseLoad_zero : ∀ (ls : List Lease), (∀ l ∈ ls, l.cost = {}) → ∀ d, leaseLoad ls d = 0
+  | [], _, _ => rfl
+  | l :: ls, h, d => by
+    have ih := leaseLoad_zero ls (fun x hx => h x (List.mem_cons_of_mem l hx)) d
+    simp only [leaseLoad, List.map_cons, List.sum_cons] at ih ⊢
+    rw [ih, h l List.mem_cons_self]
+    cases d <;> rfl
+
+theorem leasesOn_nil {c : Cfg} {s : State} (hw : Wf c s) (hl : ∀ l ∈ s.leases, Shaped c s l) {x : Rsrc}
+    (hx : x ∈ s.res) (hp : c.pinned x.kind = false) : leasesOn s x.id = [] := by
+  unfold leasesOn
+  refine List.filter_eq_nil_iff.2 fun l hl' hc => ?_
+  simp only [Bool.and_eq_true, beq_iff_eq] at hc
+  rcases (hl l hl').2 with hj | ⟨r, hr, hid, hpin⟩
+  · rw [hj] at hc; cases hc.1
+  · have e : r = x := eq_of_nodup_map (·.id) _ hw.rids r x hr hx (hid.trans hc.2)
+    rw [e, hp] at hpin; cases hpin
+
+theorem cands_eq {c : Cfg} {s : State} (hw : Wf c s) (hl : ∀ l ∈ s.leases, Shaped c s l) :
+    cands c s = stoppable c s := by
+  unfold cands stoppable
+  refine List.filter_congr fun x hx => ?_
+  cases hp : c.pinned x.kind
+  · rw [leasesOn_nil hw hl hx hp]; simp
+  · simp
+
+/-- The potential of the wait: the old leases may still hold, or a stopping resource is due early enough that one
+round per live unpinned resource still ends before the bound. -/
+def Pot (c : Cfg) (tm n0 k : Nat) (s : State) : Prop :=
+  s.now < n0 + span c ∨ ∃ x ∈ s.res, x.phase.isStop = true ∧
+    due c tm s.now x.phase + mu c s * (c.killAfter + 2 * tm) < n0 + span c + (k + 1) * (c.killAfter + 2 * tm)
+
+theorem pot_now {c : Cfg} {q : Req} {tm n0 k : Nat} {s : State} (h : HJ c q tm n0 k s) (hp : Pot c tm n0 k s) :
+    s.now < n0 + span c + k * (c.killAfter + 2 * tm) := by
+  rcases hp with hp | ⟨x, hx, hs, hlt⟩
+  · omega
+  · have hm : 0 < mu c s := List.countP_pos_iff.2 ⟨x, hx, by simp [isStop_live hs, (h.stops x hx hs).1]⟩
+    have h1 : c.killAfter + 2 * tm ≤ mu c s * (c.killAfter + 2 * tm) := Nat.le_mul_of_pos_left _ hm
+    have h2 : (k + 1) * (c.killAfter + 2 * tm) = k * (c.killAfter + 2 * tm) + (c.killAfter + 2 * tm) :=
+      Nat.succ_mul _ _
+    have h3 := le_due c tm s.now x.phase
+    omega
+
+theorem fresh {c : Cfg} {q : Req} {P S' : State} {G : Rsrc → Rsrc} (hw : Wf c P) (hl : ∀ l ∈ P.leases, Shaped c P l)
+    (hf : fitsB c P q.cost.get = false)
+    (hr : S'.res = (stopAll P (evictPick c P q.cost.get)).1.res.map G) (hv : ∀ x, view (G x) = view x)
+    (ho : S'.obs = P.obs) (hroom : fitsFree c { S' with leases := [] } q.cost.get (stoppable c S') = true) :
+    ∃ y ∈ S'.res, y.phase.isStop = true := by
+  refine Classical.byContradiction fun hns => ?_
+  have hns' : ∀ y ∈ S'.res, y.phase.isStop = false := fun y hy => by
+    cases h : y.phase.isStop
+    · rfl
+    · exact absurd ⟨y, hy, h⟩ hns
+  have hxs : evictPick c P q.cost.get = [] := by
+    cases hx : evictPick c P q.cost.get with
+    | nil => rfl
+    | cons x0 t =>
+      exfalso
+      have hc := evictPick_cands (hx ▸ List.mem_cons_self : x0 ∈ evictPick c P q.cost.get)
+      obtain ⟨hx0, hrd⟩ := cands_ready hc
+      obtain ⟨i, hi⟩ := Option.isSome_iff_exists.1 (cands_proc hc)
+      have hst := stopRec_stops (now := P.now) (ids := (x0 :: t).map (·.id)) hi List.mem_cons_self hrd
+      have hm : G (stopRec P.now ((x0 :: t).map (·.id)) x0).1 ∈ S'.res := by
+        rw [hr]
+        show _ ∈ (P.res.map fun x => (stopRec P.now ((evictPick c P q.cost.get).map (·.id)) x).1).map G
+        rw [hx]
+        exact List.mem_map_of_mem (List.mem_map_of_mem hx0)
+      have := hns' _ hm
+      rw [(view_eq (hv _)).2.2.1, hst] at this
+      cases this
+  have hE : (stopAll P (evictPick c P q.cost.get)).1.res = P.res := by
+    show P.res.map (fun x => (stopRec P.now ((evictPick c P q.cost.get).map (·.id)) x).1) = P.res
+    rw [hxs]
+    exact (List.map_congr_left fun x _ => stopRec_keep P.now [] x rfl).trans (List.map_id _)
+  have hview : S'.res.map view = P.res.map view := by
+    rw [hr, hE, List.map_map]
+    exact List.map_congr_left fun x _ => hv x
+  have hroomP := (fitsFree_view q.cost.get hview ho).symm.trans hroom
+  have hz := leaseLoad_zero P.leases fun l hl' => (hl l hl').1
+  have hP : fitsFree c P q.cost.get (stoppable c P) = true := by
+    rw [← hroomP]
+    simp only [fitsFree, used, hz]
+    rfl
+  have hbr : fitsFree c P q.cost.get (byRank c P) = true := by
+    rw [fitsFree_perm (byRank_perm c P), cands_eq hw hl]; exact hP
+  have hpre : prefixFor c P q.cost.get = [] := by
+    rw [← hxs]; unfold evictPick; rw [hbr]; rfl
+  have h0 : fitsFree c P q.cost.get [] = true := by
+    rcases (prefixFor_spec c P q.cost.get).2.1 with h | h
+    · rw [hpre] at h; exact h
+    · rw [hpre] at h; rw [h]; exact hbr
+  have hnsP : ∀ x ∈ P.res, x.phase.isStop = false := fun x hx => by
+    obtain ⟨y, hy, e⟩ := List.mem_map.1 (hview ▸ List.mem_map_of_mem hx : view x ∈ S'.res.map view)
+    rw [← (view_eq e).2.2.1]; exact hns' y hy
+  have hz2 : ∀ d, stopLoad P d = 0 := fun d => by
+    unfold stopLoad
+    rw [List.filter_eq_nil_iff.2 fun x hx h => by
+      have e : x.phase.isStop = true := h
+      rw [hnsP x hx] at e; cases e]
+    rfl
+  have e : fitsB c P q.cost.get = fitsFree c P q.cost.get [] := by
+    simp only [fitsFree, fitsB, hz2, List.map_nil, List.sum_nil, Nat.add_zero]
+  rw [e, h0] at hf
+  cases hf
+
+theorem pump_blocked {c : Cfg} {P : State} {q : Req} {rest : List Req} (hrest : P.pending = q :: rest)
+    (hk : q.kind = .job) (hd : P.now < q.deadline) (hdr : P.draining = false) (hsh : P.shedding = false)
+    (hno : ∀ l, Cmd.reply q.id (.granted l) ∉ (pumpAcc c P).out) :
+    fitsB c P q.cost.get = false ∧ ∃ G : Rsrc → Rsrc,
+      (pumpAcc c P).st.res = (stopAll P (evictPick c P q.cost.get)).1.res.map G ∧ (∀ x, view (G x) = view x) ∧
+      ∃ X, (pumpAcc c P).st.pending = q :: X := by
+  have hacc : pumpAcc c P = rest.foldl (pumpOne c) (pumpOne c (acc0 P) q) := by
+    unfold pumpAcc; rw [hrest]; rfl
+  rcases pump_first (c := c) hk hd hdr hsh with hg | ⟨hf, hb⟩
+  · exfalso
+    refine hno (leaseOf q P.now (if q.kind == .svc then {} else q.cost)) ?_
+    rw [hacc]
+    refine fold_mono rest _ ?_
+    rw [hg]
+    exact List.mem_append_right _ (List.mem_singleton.2 rfl)
+  · refine ⟨hf, ?_⟩
+    have hB := fold_blk (c := c) rest (pumpOne c (acc0 P) q) (by rw [hb]; rfl)
+    rw [← hacc] at hB
+    obtain ⟨⟨G, hG, hv⟩, _, ⟨X, hX⟩, _⟩ := hB
+    refine ⟨G, ?_, hv, X, ?_⟩
+    · rw [hG, hb]; rfl
+    · rw [hX, hb]; rfl
+
+theorem hj_step {c : Cfg} {q : Req} {tm n0 k : Nat} {s : State} {e : Event} (h : HJ c q tm n0 k s)
+    (hp : Pot c tm n0 k s) (hk : q.kind = .job) (hA : Along q tm s e) (hdl : n0 + bound c tm k < q.deadline)
+    (hroom : Room c q (step c s e).1) (hno : ∀ l, Cmd.reply q.id (.granted l) ∉ (step c s e).2) :
+    HJ c q tm n0 k (step c s e).1 ∧ Pot c tm n0 k (step c s e).1 := by
+  cases ha : authed c e
+  · have e1 : step c s e = (s, []) := by simp [step, ha]
+    rw [e1]; exact ⟨h, hp⟩
+  have pf := pre_pf e h hA
+  have hw := wf_pre e h.inv.1
+  have hinv := step_inv e h.inv
+  have hsr : ∀ B n l, (pre c s e).1.pending = q :: B → q ∈ (step c s e).1.pending → q.kind = .job →
+      Cmd.reply n (.granted l) ∈ (step c s e).2 →
+      l.cost = {} ∧ (l.kind = .job ∨ ∃ r, find (step c s e).1 l.rid = some r ∧ c.pinned r.kind = true) :=
+    fun _ _ _ => svc_respects_blocked h.inv
+  obtain ⟨rest, hrest⟩ := pf.head
+  have hS := step_eq (s := s) ha
+  rw [pump_eq] at hS
+  rw [hS] at hroom hno hinv hsr ⊢
+  generalize (pre c s e).1 = P at pf hw hrest hroom hno hinv hsr ⊢
+  dsimp only at hroom hno hinv hsr ⊢
+  have hj := pump_pj (c := c) hw
+  have hsh : P.shedding = false := by rw [← hj.shedding]; exact hroom.1
+  have hd : P.now < q.deadline := by
+    have := pot_now h hp; have := pf.now2; unfold bound at hdl; omega
+  obtain ⟨hf, G, hG, hv, X, hX⟩ :=
+    pump_blocked hrest hk hd pf.draining hsh fun l hl => hno l (List.mem_append_right _ hl)
+  have hn' : (pumpAcc c P).st.now = P.now := hj.now
+  have htr2 : TrS c tm P (stopAll P (evictPick c P q.cost.get)).1 :=
+    stop_tr c tm P _ hw.rids fun _ hx => evictPick_cands hx
+  have htr3 : TrS c tm (stopAll P (evictPick c P q.cost.get)).1 (pumpAcc c P).st := trS_view G hG hv hn'
+  have htrP : TrS c tm P (pumpAcc c P).st := htr2.trans htr3 hn'
+  have htr : TrS c tm s (pumpAcc c P).st := pf.tr.trans htrP hn'
+  have hqS : q ∈ (pumpAcc c P).st.pending := by rw [hX]; exact List.mem_cons_self
+  have hnn : s.now ≤ (pumpAcc c P).st.now := by rw [hn']; exact pf.now1
+  have hnt : (pumpAcc c P).st.now ≤ s.now + tm := by rw [hn']; exact pf.now2
+  have hmu : mu c (pumpAcc c P).st ≤ k := Nat.le_trans (mu_le htr) h.mu
+  obtain ⟨F, hF, hFt⟩ := htr
+  have hstops : ∀ y ∈ (pumpAcc c P).st.res, y.phase.isStop = true → c.pinned y.kind = false ∧
+      due c tm (pumpAcc c P).st.now y.phase ≤ (pumpAcc c P).st.now + c.killAfter + tm ∧
+      due c tm (pumpAcc c P).st.now y.phase ≤ s.now + (c.killAfter + 2 * tm) := by
+    intro y hy hys
+    rw [hF] at hy
+    obtain ⟨x, hx, rfl⟩ := List.mem_map.1 hy
+    have hT := (hFt x hx).2.2.2.2 hys
+    cases hxs : x.phase.isStop
+    · obtain ⟨h1, h2⟩ := hT.2 hxs
+      exact ⟨h2, h1, by omega⟩
+    · obtain ⟨h1, h2⟩ := h.stops x hx hxs
+      have h3 := hT.1 hxs
+      exact ⟨by rw [(hFt x hx).2.1]; exact h1, by omega, by omega⟩
+  refine ⟨⟨hinv, ⟨X, hX⟩, fun p hp' => pf.ages p (hj.sub.subset (by simpa using hp')), fun t ht => ?_,
+    Nat.le_trans h.age hnn, Nat.le_trans h.start hnn, hj.draining.trans pf.draining,
+    fun y hy hys => ⟨(hstops y hy hys).1, (hstops y hy hys).2.1⟩, fun l hl => ?_, hmu⟩, ?_⟩
+  · rcases pump_ticket_age hw t ht with ht | ⟨p, hp', e⟩
+    · exact pf.tickets t ht
+    · rw [e]; exact pf.ages p hp'
+  · rw [hj.leases] at hl
+    rcases List.mem_append.1 hl with hl | hl
+    · rcases pf.leases l hl with hs | ⟨hg, hlt⟩
+      · exact Or.inl (shaped_tr htrP hs)
+      · exact Or.inr ⟨hg, by rw [hn']; exact hlt⟩
+    · obtain ⟨n, hn⟩ := mem_grantsIn hl
+      obtain ⟨hc, hr⟩ := hsr _ _ _ hrest hqS hk (List.mem_append_right _ hn)
+      refine Or.inl ⟨hc, ?_⟩
+      rcases hr with hr | ⟨r, hfr, hpin⟩
+      · exact Or.inl hr
+      · obtain ⟨hm, hid⟩ := find_mem hfr
+        exact Or.inr ⟨r, hm, hid, hpin⟩
+  · by_cases hlt : (pumpAcc c P).st.now < n0 + span c
+    · exact Or.inl hlt
+    · right
+      have hlP : ∀ l ∈ P.leases, Shaped c P l := fun l hl =>
+        (pf.leases l hl).resolve_right fun ⟨_, h2⟩ => hlt (by rw [hn']; exact h2)
+      obtain ⟨y, hy, hys⟩ := fresh hw hlP hf hG hv hj.obs hroom.2
+      have hR : (k + 1) * (c.killAfter + 2 * tm) = k * (c.killAfter + 2 * tm) + (c.killAfter + 2 * tm) :=
+        Nat.succ_mul _ _
+      rcases hp with hp0 | ⟨x, hx, hxs, hxlt⟩
+      · refine ⟨y, hy, hys, ?_⟩
+        have h1 := (hstops y hy hys).2.2
+        have h2 : mu c (pumpAcc c P).st * (c.killAfter + 2 * tm) ≤ k * (c.killAfter + 2 * tm) :=
+          Nat.mul_le_mul_right _ hmu
+        omega
+      · have hxsF := (hFt x hx).2.2.2.1 hxs
+        cases hFx : (F x).phase.live
+        · have hlt' := mu_lt hF hFt hx (isStop_live hxs) (h.stops x hx hxs).1 hFx
+          refine ⟨y, hy, hys, ?_⟩
+          have h1 := (hstops y hy hys).2.2
+          have h2 := le_due c tm s.now x.phase
+          have h3 : (mu c (pumpAcc c P).st + 1) * (c.killAfter + 2 * tm) ≤ mu c s * (c.killAfter + 2 * tm) :=
+            Nat.mul_le_mul_right _ hlt'
+          have h4 : (mu c (pumpAcc c P).st + 1) * (c.killAfter + 2 * tm) =
+            mu c (pumpAcc c P).st * (c.killAfter + 2 * tm) + (c.killAfter + 2 * tm) := Nat.succ_mul _ _
+          omega
+        · have hFs := hxsF.1 hFx
+          refine ⟨F x, by rw [hF]; exact List.mem_map_of_mem hx, hFs, ?_⟩
+          have h1 := ((hFt x hx).2.2.2.2 hFs).1 hxs
+          have h2 : mu c (pumpAcc c P).st * (c.killAfter + 2 * tm) ≤ mu c s * (c.killAfter + 2 * tm) :=
+            Nat.mul_le_mul_right _ (mu_le ⟨F, hF, hFt⟩)
+          omega
+
+theorem run_acc (c : Cfg) : ∀ (es : List Event) (s : State) (xs : List Cmd),
+    es.foldl (fun a e => let r := step c a.1 e; (r.1, a.2 ++ r.2)) (s, xs) = ((run c s es).1, xs ++ (run c s es).2)
+  | [], _, _ => by simp [run]
+  | e :: es, s, xs => by
+    have h1 := run_acc c es (step c s e).1 (xs ++ (step c s e).2)
+    have h2 := run_acc c es (step c s e).1 ([] ++ (step c s e).2)
+    rw [show run c s (e :: es) = ((run c (step c s e).1 es).1, ([] ++ (step c s e).2) ++ (run c (step c s e).1 es).2)
+      from h2]
+    refine h1.trans ?_
+    simp [List.append_assoc]
+
+theorem run_cons (c : Cfg) (s : State) (e : Event) (es : List Event) :
+    run c s (e :: es) = ((run c (step c s e).1 es).1, (step c s e).2 ++ (run c (step c s e).1 es).2) := by
+  have h2 := run_acc c es (step c s e).1 ([] ++ (step c s e).2)
+  rw [List.nil_append] at h2
+  exact h2
+
+theorem hj_run {c : Cfg} {q : Req} {tm n0 k : Nat} (hk : q.kind = .job) (hdl : n0 + bound c tm k < q.deadline) :
+    ∀ (es : List Event) (s : State), HJ c q tm n0 k s → Pot c tm n0 k s →
+    (∀ i (hi : i < es.length), Along q tm (run c s (es.take i)).1 es[i]) →
+    (∀ i ≤ es.length, Room c q (run c s (es.take i)).1) →
+    (∀ l, Cmd.reply q.id (.granted l) ∉ (run c s es).2) → HJ c q tm n0 k (run c s es).1 ∧ Pot c tm n0 k (run c s es).1
+  | [], _, h, hp, _, _, _ => ⟨h, hp⟩
+  | e :: es, s, h, hp, hA, hR, hno => by
+    rw [run_cons] at hno ⊢
+    obtain ⟨h', hp'⟩ := hj_step h hp hk (hA 0 (Nat.succ_pos _)) hdl (hR 1 (by simp))
+      fun l hl => hno l (List.mem_append_left _ hl)
+    refine hj_run hk hdl es _ h' hp' (fun i hi => ?_) (fun i hi => ?_) fun l hl => hno l (List.mem_append_right _ hl)
+    · have := hA (i + 1) (by simp; omega)
+      simpa only [List.take_succ_cons, run_cons, List.getElem_cons_succ] using this
+    · have := hR (i + 1) (by simp; omega)
+      simpa only [List.take_succ_cons, run_cons] using this
+
+theorem span_pos (c : Cfg) : 0 < span c :=
+  Nat.mul_pos (Nat.lt_of_lt_of_le Nat.zero_lt_one (Nat.le_max_left _ _)) (by omega)
+
+theorem mu_unpinned (c : Cfg) (s : State) : mu c s ≤ unpinned c s := by
+  unfold mu unpinned
+  rw [← List.countP_eq_length_filter]
+  exact List.countP_mono_left fun x _ hx => by
+    simp only [Bool.and_eq_true] at hx
+    exact hx.2
+
+/-- head_job_granted_by: a job at the head of the queue, with no older queued request or ticket, is granted by
+`s.now + bound` when along the way it is never drained, restarted or dropped, every tick comes within `tm` and finds
+no KILL outstanding, nothing is shed and it fits once leases, stopping and stoppable resources are gone. -/
+theorem head_job_granted_by {c : Cfg} {q : Req} {tm : Nat} {s : State} {rest : List Req} (es : List Event)
+    (h : Inv c s) (hpend : s.pending = q :: rest) (hk : q.kind = .job) (hages : ∀ p ∈ rest, q.age ≤ p.age)
+    (htk : ∀ t ∈ s.tickets, q.age ≤ t.age) (hage : q.age ≤ s.now) (hdr : s.draining = false)
+    (hstop : ∀ x ∈ s.res, ∀ t g, x.phase = .stopping t g → t ≤ s.now ∧ c.pinned x.kind = false)
+    (hA : ∀ i (hi : i < es.length), Along q tm (run c s (es.take i)).1 es[i])
+    (hR : ∀ i ≤ es.length, Room c q (run c s (es.take i)).1)
+    (hdl : s.now + bound c tm (unpinned c s) < q.deadline)
+    (hend : s.now + bound c tm (unpinned c s) ≤ (run c s es).1.now) :
+    ∃ l, Cmd.reply q.id (.granted l) ∈ (run c s es).2 := by
+  refine Classical.byContradiction fun hno => ?_
+  have hj : HJ c q tm s.now (unpinned c s) s := by
+    refine ⟨h, ⟨rest, hpend⟩, fun p hp => ?_, htk, hage, Nat.le_refl _, hdr, fun x hx hs => ?_,
+      fun l hl => Or.inr ⟨(h.1.live l hl).2.1, Nat.lt_add_of_pos_right (span_pos c)⟩, mu_unpinned c s⟩
+    · rw [hpend] at hp
+      rcases List.mem_cons.1 hp with e | hp
+      · rw [e]; exact Nat.le_refl _
+      · exact hages p hp
+    · cases hph : x.phase with
+      | stopping t g =>
+        obtain ⟨ht, hpin⟩ := hstop x hx t g hph
+        refine ⟨hpin, ?_⟩
+        cases g with
+        | term => simp only [due]; omega
+        | kill => simp only [due]; omega
+      | _ => rw [hph] at hs; cases hs
+  obtain ⟨hjN, hpN⟩ := hj_run hk hdl es s hj (Or.inl (Nat.lt_add_of_pos_right (span_pos c))) hA hR
+    fun l hl => hno ⟨l, hl⟩
+  have := pot_now hjN hpN
+  unfold bound at hend
+  omega
+
 end Fw.Sup
