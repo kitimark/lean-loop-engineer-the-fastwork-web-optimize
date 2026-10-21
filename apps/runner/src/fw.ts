@@ -55,6 +55,8 @@ try {
     process.exitCode = spawnSync(process.execPath, [script, ...rest.slice(1)], { cwd: process.cwd(), stdio: "inherit" }).status ?? 1;
   } else if (group === "ci" && rest[0] === "telemetry") {
     process.exitCode = await (await import("./ci-telemetry.ts")).telemetryCli(rest.slice(1), process.cwd()); // ci-telemetry: job artifacts of both CI providers
+  } else if (group === "ci" && rest[0] === "pool") {
+    process.exitCode = await (await import("./ci-pool.ts")).poolCli(rest.slice(1), process.cwd());
   } else if (group === "ci" && rest[0] === "state") {
     process.exitCode = await (await import("./ci.ts")).ciStateCli(rest.slice(1), process.cwd()); // review-flow-v2-followups: one run's state by id
   } else if (group === "ci") {
