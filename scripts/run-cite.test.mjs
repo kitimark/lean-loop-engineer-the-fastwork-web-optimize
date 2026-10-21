@@ -1,12 +1,12 @@
-// node --test scripts/run-cite.test.mjs (task run-cite-check)
+// node --test scripts/run-cite.test.mjs (tasks run-cite-check, run-cite-roles)
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  armsOf, cli, coreCall, fetchFacts, gatherFacts, ledgerCites, loadCache, NO_ARTIFACT, NOT_FOUND, noteCites, request, top,
+  armsOf, cli, coreCall, fetchFacts, gatherFacts, ghDownload, ledgerRows, loadCache, NO_ARTIFACT, NOT_FOUND, noteCites, request, top,
 } from "./run-cite.mjs";
 
 const bin = process.env.FW_CORE_BIN ?? join(top, "lean/.lake/build/bin/fwcore");
@@ -62,14 +62,18 @@ test("armsOf reads the search of every arm from each artifact kind", () => scrat
   assert.deepEqual(s("site-dist"), []);
 }));
 
-test("citations: every run id of a flag row's evidence; explicit '<run> <flag>' pairs in a note", () => {
+test("ledger rows: id (else n), a string flag and a string evidence; explicit '<run> <flag>' pairs in a note", () => {
   const ledger = { findings: [
-    { id: "r1", flag: "a:b", evidence: "runs 39457767229 and 39462241403 (A/A 39466378530); again 39457767229" },
-    { id: "r2", evidence: "run 39000000000" },
+    { id: "r1", flag: "a:b", evidence: "runs 39457767229 (A/A)", status: "x" },
+    { n: 7, evidence: "run 39000000000" },
     { id: "r3", flag: "c:d" },
+    { id: "r4", flag: 3, evidence: "e" },
   ] };
-  assert.deepEqual(ledgerCites(ledger).map((c) => `${c.run} ${c.flag} ${c.source}`),
-    ["39457767229 a:b ledger:r1", "39462241403 a:b ledger:r1", "39466378530 a:b ledger:r1"]);
+  assert.deepEqual(ledgerRows(ledger), [
+    { id: "r1", flag: "a:b", evidence: "runs 39457767229 (A/A)" },
+    { id: "7", evidence: "run 39000000000" },
+    { id: "r4", evidence: "e" },
+  ]);
   assert.deepEqual(noteCites("see 39457767229 morph.tween:waapi. Also 39457767229 morph.tween:waapi and 39462241403 hero.exit:faithful@plain, run 1 a:b", "n.md"),
     [{ run: "39457767229", flag: "morph.tween:waapi", source: "n.md" }, { run: "39462241403", flag: "hero.exit:faithful@plain", source: "n.md" }]);
 });
@@ -105,11 +109,51 @@ test("cli: the incident citation is a mismatch with the flag the run carried (ex
   assert.match(lines[0], /^mismatch 39457767229 morph\.tween:waapi .*carried: morph\.tween:waapi-scoped$/);
   writeFileSync(note, "evidence: 39457767229 morph.tween:waapi-scoped\n");
   assert.equal(cli(["--note", note, "--json"], { ...opts, download: () => assert.fail("cached run downloaded again") }), 0);
-  assert.equal(JSON.parse(lines.at(-1))[0].verdict, "match");
+  assert.equal(JSON.parse(lines.at(-1)).verdicts[0].verdict, "match");
   assert.equal(cli(["--bogus"], opts), 2);
 }));
 
-test("request: arms go as their searches, a missing run as its reason", () => {
+const SEARCH = { "39466378530": "", "39457767229": "?fw=morph.tween:waapi-scoped", "39449092483": "?fw=morph.tween:waapi" };
+
+test("cli on a ledger: A/A and sibling markers are judged by their own rule, a row without a flag is reported", () => scratch((d) => {
+  const ledger = join(d, "ledger.json");
+  writeFileSync(ledger, JSON.stringify({ findings: [
+    { id: "w", flag: "morph.tween:waapi", evidence: "39466378530 (A/A); waapi 39449092483; scoped 39457767229 (morph.tween:waapi-scoped)" },
+    { id: "inline", flags: ["hero.exit:scoped"], evidence: "runs 39449092483, 39457767229" },
+  ] }));
+  const fetched = [];
+  const lines = [];
+  const opts = { core: coreCall(bin), cacheFile: join(d, "runs.json"), log: (l) => lines.push(l),
+    download: (run, dir) => { fetched.push(run); return trajectoryRun(SEARCH[run])(run, dir); } };
+  assert.equal(cli(["--ledger", ledger], opts), 0);
+  assert.deepEqual(fetched, ["39466378530", "39449092483", "39457767229"]);
+  assert.deepEqual(lines, [
+    "match    39466378530 (A/A) morph.tween:waapi  [ledger:w]",
+    "match    39449092483 morph.tween:waapi  [ledger:w]",
+    "match    39457767229 (morph.tween:waapi-scoped) morph.tween:waapi  [ledger:w]",
+    "unflagged inline: 2 run ids not checked (the row has no flag)",
+    "run-cite: 3 citations of 3 runs (3 downloaded): match 3, mismatch 0, unknown 0; unflagged rows 1",
+  ]);
+  writeFileSync(ledger, JSON.stringify({ findings: [{ id: "w", flag: "morph.tween:waapi", evidence: "39457767229 (A/A)" }] }));
+  assert.equal(cli(["--ledger", ledger], opts), 1);
+  assert.equal(lines.at(-2), "mismatch 39457767229 (A/A) morph.tween:waapi  [ledger:w]  carried: morph.tween:waapi-scoped");
+}));
+
+test("ghDownload runs gh with its working directory at the repo top", () => scratch((d) => {
+  const bin = join(d, "bin");
+  mkdirSync(bin);
+  writeFileSync(join(bin, "gh"), `#!/bin/sh\npwd -P > "${join(d, "cwd")}"\n`, { mode: 0o755 });
+  const path = process.env.PATH;
+  process.env.PATH = `${bin}:${path}`;
+  try {
+    assert.deepEqual(ghDownload("1", d), { ok: true });
+  } finally {
+    process.env.PATH = path;
+  }
+  assert.equal(readFileSync(join(d, "cwd"), "utf8").trim(), realpathSync(top));
+}));
+
+test("request: arms go as their searches, a missing run as its reason, rows as given", () => {
   assert.deepEqual(request([{ run: "1", arms: [{ artifact: "a", file: "f", search: "?fw=a:b" }] }, { run: "2", missing: "m" }], [{ run: "1", flag: "a:b", source: "s" }]),
-    { op: "gate.runCite", runs: [{ run: "1", arms: ["?fw=a:b"] }, { run: "2", missing: "m" }], cites: [{ run: "1", flag: "a:b" }] });
+    { op: "gate.runCite", runs: [{ run: "1", arms: ["?fw=a:b"] }, { run: "2", missing: "m" }], cites: [{ run: "1", flag: "a:b" }], rows: [] });
 });
