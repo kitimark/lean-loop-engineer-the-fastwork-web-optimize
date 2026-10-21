@@ -14479,7 +14479,8 @@
     "docs/team/handoffs/polish-in-flow.md",
     "apps/runner/test/spawn-guard*.test.ts",
     "lean/Fw/Ops/SpawnGuard.lean"
-   ]
+   ],
+   "evidence": "f121568"
   },
   {
    "devices": [
