@@ -28,8 +28,6 @@ Every threshold is strict `>` except the load.
   running > `ciSlowMin` has completed since then: its conclusion and duration, once.
 - `review.feedback`: one per flag with an open comment on its review card (the user's `review.feedback` events not yet answered by
   a `review.feedback.reply`), detail `N open; newest: <first 120 characters>`. Closes when the lead replies (`docs/team/tools/review-feedback.md`).
-- `step.question`: one per step or topic subject (`step:<id>`, `topic:<id>`) with an open question, same detail; closes when the lead
-  replies (`fw step reply`; `docs/team/tools/console-steps.md`). `review.feedback` is for the other flags only.
 - `proc.long`: a process tree this Claude session started through its Bash tool, alive > `procMaxMin` (20) min, unless it
   is declared or its owner is live. Declared = its root program is on the checked-in allowlist `keepProgs`
   (`caffeinate`), or the tree holds this `fw watch` process, console-api (`services`) or a pid in `keep.json` (`keep`).

@@ -197,7 +197,7 @@ try {
     // `fw send '<json command>'` is the escape hatch for run.* commands
     const cmd = group === "step" && rest[0] === "topic" ? (await import("./step-threads.ts")).topicCommand(rest.slice(1), process.env)
       : group === "step" && rest[0] === "reply" ? await (await import("./step-threads.ts")).replyCommand(rest.slice(1), process.env, base)
-      : group === "step" ? stepCommand(rest, process.env)
+      : group === "step" ? (await import("./step-threads.ts")).stepWithTopic(rest, process.env)
       : group === "card" ? cardCommand(rest, process.env)
       : group === "task" ? taskCommand(rest, process.env, Date.now(), (b) => gitFullRef(b))
       : group === "review" ? (await import("./review.ts")).reviewCommand(rest, process.env)

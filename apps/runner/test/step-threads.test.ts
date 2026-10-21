@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 import { UsageError, stepCommand } from "../src/lib.ts";
-import { renderQuestions, replyCommand, subjectOf, topicCommand, type Thread } from "../src/step-threads.ts";
+import { renderQuestions, replyCommand, stepWithTopic, subjectOf, topicCommand, type Thread } from "../src/step-threads.ts";
 import { collectFeedback } from "../src/watch-collect.ts";
 import { check, coreCaller } from "../src/watch.ts";
 import { pathsFor } from "../src/watch-collect.ts";
@@ -27,8 +27,9 @@ describe("fw step topic and fw step post --topic", () => {
     expect(() => topicCommand(["--id", "a", "--summary", "S"], {})).toThrow(UsageError);
   });
   it("step post carries --topic when given and nothing when not", () => {
-    expect(stepCommand(["post", "s1", "--title", "x", "--topic", "smooth"], {})).toMatchObject({ type: "step.post", topic: "smooth" });
-    expect("topic" in stepCommand(["post", "s1", "--title", "x"], {})).toBe(false);
+    expect(stepWithTopic(["post", "s1", "--title", "x", "--topic", "smooth"], {})).toMatchObject({ type: "step.post", step: "s1", title: "x", topic: "smooth" });
+    expect("topic" in stepWithTopic(["post", "s1", "--title", "x"], {})).toBe(false);
+    expect(stepWithTopic(["start", "s1"], {})).toEqual(stepCommand(["start", "s1"], {}));
   });
 });
 

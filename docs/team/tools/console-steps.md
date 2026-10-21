@@ -14,7 +14,7 @@ Texts are plain text, never HTML. It works on a phone and on the plain-http LAN 
 | Alert `step.question <step:id\|topic:id>`: one per subject with an open question, closed by the reply (`question_iff`, `question_post_opens`, `question_reply_closes`) | `lean/Fw/Obs/Health.lean`, `lean/Fw/Console/Steps.lean`; golden `packages/contracts/golden/obs/health.jsonl` | Lean (`fwcore obs.health`) |
 | Threads | the review feedback machinery (`review.feedback`, `review.feedback.reply`) with the subject `step:<id>` or `topic:<id>` in `flag` | Lean (reducer, `console.reviewFeedback`) |
 | Routes `GET /api/steps/topics`, `POST /api/steps/<step\|topic>/<id>/question {text, cid?}` | `apps/console-api/src/steps/threads.ts` | glue (hands the log and the board to Lean, submits the user's event) |
-| CLI | `apps/runner/src/step-threads.ts`, `lib.ts` (`--topic`), `fw.ts` | glue (argument mapping, printing) |
+| CLI | `apps/runner/src/step-threads.ts`, `fw.ts` (`post --topic`) | glue (argument mapping, printing) |
 | Card | `apps/console-web/src/StepThreads.tsx`, `App.tsx`, `ReviewFeedback.tsx` (`words`) | rendering only |
 
 ## Commands

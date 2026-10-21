@@ -21,7 +21,7 @@ Read first: `docs/team/tools/console-steps.md`, then `lean/Fw/Console/Steps.lean
 - Files outside the task's graph writes that this task touched: `lean/Fw/Console.lean`, `Fw/Serve.lean`, `Fw/Wire.lean`, `Fw/Wire/Console.lean`,
   `Fw/Wire/Steps.lean`, `Fw/Obs/Health.lean`, `Fw/Obs/Golden.lean`, `Fw/Ops/Golden.lean`, `Fw.lean`, `lean/FwTest/Mutants/Console.lean`,
   `lean/golden/*` (none changed in the end except the obs golden), `packages/contracts/src/index.ts`, `schema/*`, `fixtures`, `test`,
-  `apps/runner/src/lib.ts` (`--topic`), `apps/console-web/test/step-threads.test.tsx`, `docs/team/tools/watch-rules.md`.
+  `apps/console-web/test/step-threads.test.tsx`.
 
 ## Conventions
 Never hand-edit generated files: `lake env lean --run scripts/OpsGolden.lean` / `ObsGolden.lean` / `BoardGolden.lean`, `pnpm gen` in `packages/contracts`.

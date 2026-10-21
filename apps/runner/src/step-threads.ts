@@ -2,7 +2,7 @@
 // lists the open questions. Only argument mapping and printing: Lean (`Fw.Console.Steps`, through the reducer) decides who may
 // define a topic, which `to` is open and how long a text may be. The commands go through the capability door; the lists are read-only.
 import { Actor, Command } from "@fw/contracts";
-import { UsageError, parseFlags } from "./lib.ts";
+import { UsageError, parseFlags, stepCommand } from "./lib.ts";
 
 export const STEP_THREADS_USAGE = "usage: fw step topic --id <topic> --title <text> --summary <text>   (the lead's current summary of a topic)\n" +
   "       fw step post <step> --title <text> --topic <topic> ...   (group a step under a topic)\n" +
@@ -21,6 +21,14 @@ export function topicCommand(argv: string[], env: Record<string, string | undefi
   const summary = need(flags.summary, "--summary <text>");
   return Command.parse({ type: "step.topic", key: flags.key ?? `step-topic:${topic}:${Date.now().toString(36)}`,
     actor: Actor.parse(flags.as ?? env.FW_ACTOR ?? "lead"), topic, title: need(flags.title, "--title <text>"), summary });
+}
+
+/** `fw step <verb> ... [--topic t]`: the step command of `stepCommand`; a `post` also carries the topic when `--topic` is given. */
+export function stepWithTopic(argv: string[], env: Record<string, string | undefined>): Command {
+  const { flags } = parseFlags(argv.slice(1));
+  const rest = argv[0] === "post" && flags.topic !== undefined ? argv.filter((a, i, all) => a !== "--topic" && all[i - 1] !== "--topic") : argv;
+  const cmd = stepCommand(rest, env);
+  return cmd.type === "step.post" && flags.topic !== undefined ? Command.parse({ ...cmd, topic: flags.topic }) : cmd;
 }
 
 export interface Thread { flag: string; open: number; comments: { id: string; text: string; at: number; status: string; reply: { text: string; at: number } | null }[] }
