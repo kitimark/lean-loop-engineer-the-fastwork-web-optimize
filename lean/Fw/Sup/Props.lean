@@ -2298,6 +2298,88 @@ theorem drain_exit {c : Cfg} {s : State} {e : Event} (h : Inv c s) (hx : Cmd.exi
     exact ⟨hd, rfl⟩
   · rcases (pump_pm hw).2 _ hx with ⟨_, _, e'⟩ | ⟨_, _, e', _, _⟩ | ⟨_, _, _, _, _, e'⟩ <;> cases e'
 
+theorem pump_tickets {c : Cfg} {s0 : State} (hw : Wf c s0) :
+    ∀ k ∈ (pumpAcc c s0).st.tickets, k ∈ s0.tickets ∨ ∃ q ∈ s0.pending, k.owner = q.owner := by
+  refine pump_ind hw (fun a => ∀ k ∈ a.st.tickets, k ∈ s0.tickets ∨ ∃ q ∈ s0.pending, k.owner = q.owner)
+    (fun k hk => Or.inl hk) ?_
+  intro a q rest hj ha
+  have hq : q ∈ s0.pending := hj.sub.subset (List.mem_append_right _ List.mem_cons_self)
+  refine pumpOne_cases c a q (fun a' => ∀ k ∈ a'.st.tickets, k ∈ s0.tickets ∨ ∃ q ∈ s0.pending, k.owner = q.owner)
+    (fun _ _ => ha) (fun _ _ _ _ => ha) (fun _ _ _ _ => ?_) (fun _ _ _ => ha)
+    (fun _ _ _ _ _ _ _ _ => ?_) (fun _ _ _ _ _ _ _ _ _ _ _ => ha)
+  · unfold block
+    split
+    · exact ha
+    · exact ha
+  · intro k hk
+    rcases List.mem_append.1 hk with hk | hk
+    · exact ha k hk
+    · rw [List.mem_singleton.1 hk]
+      exact Or.inr ⟨q, hq, rfl⟩
+
+/-- client_missing_releases: a tick whose sample lacks a client leaves it no lease, no queued request and no ticket,
+and none of its queued requests gets a reply. -/
+theorem client_missing_releases {c : Cfg} {s : State} {now : Nat} {smp : Sample} {o : Nat} (h : Inv c s)
+    (ho : o ∉ smp.clients) :
+    (∀ l ∈ (step c s (.tick now smp)).1.leases, l.owner ≠ o)
+    ∧ (∀ q ∈ (step c s (.tick now smp)).1.pending, q.owner ≠ o)
+    ∧ (∀ k ∈ (step c s (.tick now smp)).1.tickets, k.owner ≠ o)
+    ∧ ∀ q ∈ s.pending, q.owner = o → ∀ r, .reply q.id r ∉ (step c s (.tick now smp)).2 := by
+  have ha : authed c (.tick now smp) = true := rfl
+  have hw := wf_pre (.tick now smp) h.1
+  have hj := pump_pj hw
+  have e0 := tick_st c s now smp
+  have gone : ∀ p, smp.clients.contains p = true → p ≠ o := fun p hp e => ho (e ▸ List.contains_iff_mem.1 hp)
+  have hpend : ∀ q ∈ (pre c s (.tick now smp)).1.pending, q ∈ s.pending ∧ q.owner ≠ o := fun q hq => by
+    have hq' : q ∈ (tick c s now smp).1.pending := hq
+    rw [e0] at hq'
+    unfold observe at hq'
+    have := List.mem_filter.1 hq'
+    exact ⟨this.1, gone _ this.2⟩
+  have hls : ∀ l ∈ (pre c s (.tick now smp)).1.leases, l.owner ≠ o := fun l hl => by
+    have hl' : l ∈ (tick c s now smp).1.leases := hl
+    rw [e0] at hl'
+    unfold observe cut at hl'
+    have := (List.mem_filter.1 hl').2
+    simp only [Bool.and_eq_true] at this
+    exact gone _ this.1.2
+  have hts : ∀ k ∈ (pre c s (.tick now smp)).1.tickets, k.owner ≠ o := fun k hk => by
+    have hk' : k ∈ (tick c s now smp).1.tickets := hk
+    rw [e0] at hk'
+    unfold observe at hk'
+    exact gone _ (List.mem_filter.1 hk').2
+  refine ⟨fun l hl => ?_, fun q hq => ?_, fun k hk => ?_, fun q hq hqo r hr => ?_⟩
+  · rw [step_st ha, hj.leases] at hl
+    rcases List.mem_append.1 hl with hl | hl
+    · exact hls l hl
+    · obtain ⟨x, hx, hl'⟩ := List.mem_filterMap.1 hl
+      cases x with
+      | reply n r' =>
+        cases r' with
+        | granted l' =>
+          cases hl'
+          obtain ⟨_, _, q', hq', _, e, _⟩ := hj.gid n l hx
+          rw [← e]; exact (hpend q' hq').2
+        | _ => cases hl'
+      | _ => cases hl'
+  · rw [step_st ha] at hq
+    exact (hpend q (hj.sub.subset (List.mem_append_left _ hq))).2
+  · rw [step_st ha] at hk
+    rcases pump_tickets hw k hk with hk | ⟨q, hq, e⟩
+    · exact hts k hk
+    · rw [e]; exact (hpend q hq).2
+  · obtain ⟨_, hr⟩ := step_mem hr
+    rcases hr with hr | hr
+    · have := tick_quiet (s := s) (now := now) (smp := smp) hr
+      cases this
+    · have hm : q.id ∈ replyIds (pumpAcc c (pre c s (.tick now smp)).1).out := List.mem_filterMap.2 ⟨_, hr, rfl⟩
+      have := hj.perm.subset (List.mem_append_left _ hm)
+      obtain ⟨q', hq', e⟩ := List.mem_map.1 this
+      have h2 := hpend q' hq'
+      have := eq_of_nodup_map (·.id) _ (pending_ids_nodup h.1) q' q h2.1 hq e
+      rw [this] at h2
+      exact h2.2 hqo
+
 /-! ## Signals -/
 
 theorem crash_not_ready (c : Cfg) (now : Nat) (f : Bool) (x : Rsrc) : (crash c now f x).phase ≠ .ready := by
@@ -4187,6 +4269,16 @@ example : 1 ∈ [(⟨1, 2, .job, 0, { ram := 3500 }, 60, 1, 1, 31⟩ : Req)].map
   fifo_no_overtake (e := .release 42 1 0) (ex_inv Ex.queued) (B := [])
     (q := ⟨2, 3, .job, 0, { ram := 6000 }, 60, 1, 1, 31⟩) (by decide) (by decide) rfl
     (l := ⟨1, 2, .job, 0, { ram := 3500 }, 1, 61, 0⟩) (by decide) rfl
+
+example : ∀ q ∈ (step Ex.cfg (Ex.after Ex.queued).1 (.tick 2 { Ex.calm with clients := [1, 2] })).1.pending,
+    q.owner ≠ 3 :=
+  (client_missing_releases (ex_inv _) (by decide)).2.1
+
+example : Cmd.probe 1 ∈
+    (step Ex.cfg (Ex.after [.tick 1 Ex.calm, .request 42 1 Ex.sim]).1 (.spawned 1 (some ⟨500, 7⟩))).2 := by
+  obtain ⟨x, hx, hid, hp, hs⟩ : ∃ x ∈ (Ex.after [.tick 1 Ex.calm, .request 42 1 Ex.sim]).1.res,
+      x.id = 1 ∧ x.proc = none ∧ x.phase = .starting 1 := by decide
+  exact (spawned_sets (ex_inv _) ⟨x, hx, hid, hp, 1, hs⟩ (by decide)).2.2
 
 /-! ## Fairness -/
 
