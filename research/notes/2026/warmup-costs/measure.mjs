@@ -210,8 +210,24 @@ async function vitest(n) {
       const vitestDurationMs = dm ? Math.round(Number(dm[1]) * (dm[2] === "ms" ? 1 : 1000)) : -1;
       samples.push({ n: i + 1, at: stamp(), wallMs: wall, vitestDurationMs, status: r.status, ...m });
     }
+    // starts as seen from inside a vitest worker: a temporary test file (removed after) times 12 consecutive fwcoreCall requests
+    const probeFile = join(cwd, "test", "zz-warmup-probe.test.ts"), probeOut = join(dirname(countFile), "probe.json");
+    writeFileSync(probeFile, `import { writeFileSync } from "node:fs";\nimport { it } from "vitest";\nimport { fwcoreCall } from "../src/run.ts";\n` +
+      `it("times fwcore starts", () => { const core = fwcoreCall(process.cwd()); const ms: number[] = [];\n` +
+      `  for (let i = 0; i < 12; i++) { const t = performance.now(); core({ op: "console.landTier", ids: ["x"], built: false }); ms.push(Math.round((performance.now() - t) * 10) / 10); }\n` +
+      `  writeFileSync(process.env.FW_PROBE_OUT!, JSON.stringify(ms)); });\n`);
+    const inTest = [];
+    try {
+      for (let i = 0; i < n; i++) {
+        await waitNoLand();
+        const m = machine();
+        const r = sh("pnpm", ["exec", "vitest", "run", "test/zz-warmup-probe.test.ts"], { cwd, env: { ...process.env, FW_PROBE_OUT: probeOut } });
+        if (r.status === 0 && existsSync(probeOut)) inTest.push({ n: i + 1, at: stamp(), startsMs: JSON.parse(readFileSync(probeOut, "utf8")), ...m });
+      }
+    } finally { rmSync(probeFile, { force: true }); }
     save("vitest", { command: "cd apps/runner && pnpm exec vitest run test/checks.test.ts  (wall of the process; one extra run with FW_CORE_BIN set to a counting wrapper gives the number of fwcore starts)",
-      file: "apps/runner/test/checks.test.ts", fwcoreStarts: starts, testsPassed: tests, samples });
+      file: "apps/runner/test/checks.test.ts", fwcoreStarts: starts, testsPassed: tests, samples, inTest,
+      inTestCommand: "a temporary apps/runner/test/zz-warmup-probe.test.ts (removed after the run) calls fwcoreCall 12 times in a row and times each call with performance.now, run as pnpm exec vitest run test/zz-warmup-probe.test.ts" });
   } finally { rmSync(dirname(countFile), { recursive: true, force: true }); }
 }
 

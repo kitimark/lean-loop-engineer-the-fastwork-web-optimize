@@ -37,7 +37,8 @@ if (K_.sim) {
   out.push(tab(["run", "create ms", "first boot ready ms", "shutdown ms", "reboot ready ms", "shutdown ms (2nd)", "delete ms", "sim tree footprint MB (1st / 2nd boot)", "load1 / free MB / avail MB"],
     S.samples.map((s) => [s.n, s.createMs, s.firstBootReadyMs, s.shutdownMs, s.rebootReadyMs, s.shutdown2Ms, s.deleteMs, `${s.firstBootFootprintMB} / ${s.rebootFootprintMB}`, loadFree(s)])));
   const rb = S.samples.map((s) => s.rebootReadyMs), sd = [...S.samples.map((s) => s.shutdownMs), ...S.samples.map((s) => s.shutdown2Ms)];
-  cold.sim = { label: "Simulator (reboot ready + shutdown)", ms: Math.max(...rb) + Math.max(...sd), basis: `max reboot-to-ready + max shutdown of ${S.samples.length} runs`, footMB: Math.max(...S.samples.map((s) => Math.max(s.firstBootFootprintMB, s.rebootFootprintMB))) };
+  cold.sim = { label: "Simulator (reboot to ready)", worstMs: Math.max(...S.samples.map((s) => s.firstBootReadyMs)), ms: Math.max(...rb), stopMs: Math.max(...sd),
+    basis: `max reboot-to-ready of ${S.samples.length} runs; worst = max first boot of a new device; stop (shutdown) max ${sec(Math.max(...sd))} s`, footMB: Math.max(...S.samples.map((s) => Math.max(s.firstBootFootprintMB, s.rebootFootprintMB))) };
 }
 if (K_.fwcore) {
   const F = K_.fwcore, t = F.spawnSamples.map((s) => s.ms);
@@ -50,6 +51,13 @@ if (K_.vitest) {
   const V = K_.vitest;
   out.push(`\n### fwcore starts inside a test run\n\nCommand: \`${V.command}\`. Measured ${day(V.samples[0].at)}. The file runs ${V.testsPassed} tests and starts fwcore ${V.fwcoreStarts} times (counting wrapper, separate untimed run).\n`);
   out.push(tab(["run", "process wall ms", "vitest duration ms", "exit", "load1 / free MB / avail MB"], V.samples.map((s) => [s.n, s.wallMs, s.vitestDurationMs, s.status, loadFree(s)])));
+  if (V.inTest?.length) {
+    const all = V.inTest.flatMap((x) => x.startsMs), first = V.inTest.map((x) => x.startsMs[0]);
+    out.push(`\nStarts seen from inside a vitest worker (\`${V.inTestCommand}\`):\n`);
+    out.push(tab(["run", "first start ms", "median of 12 ms", "max ms", "load1 / free MB / avail MB"], V.inTest.map((x) => [x.n, x.startsMs[0], q(x.startsMs, 50), Math.max(...x.startsMs), loadFree(x)])));
+    cold.vitest = { ms: Math.max(...all), median: q(all, 50), first: Math.max(...first) };
+    out.push(`\nStarts x in-test median (${q(all, 50)} ms) = ${Math.round(V.fwcoreStarts * q(all, 50))} ms of the ${V.fwcoreStarts} starts, against a process wall of ${q(V.samples.map((s) => s.wallMs), 50)} ms (median of ${V.samples.length}).`);
+  }
 }
 if (K_.lakehist) {
   const H = K_.lakehist, f = H.series, qs = (x) => [x.n, sec(x.p50), sec(x.p90), sec(x.p99), sec(x.max)];
@@ -62,17 +70,30 @@ if (K_.lakehist) {
 }
 
 // ---- summary and grace ----
+// typical = what the kind costs to restart in the normal case; worst = the slowest restart seen (a first boot, a stale-olean rebuild).
+const sec1 = (ms) => sec(ms);
 const sum = [], grace = [];
-for (const k of ["lsp", "sim", "fwcore", "lakehist"]) {
-  const c = cold[k]; if (!c) continue;
-  const g = Math.min(GMAX_S, Math.max(GMIN_S, Math.round((K * c.ms) / 1000)));
-  sum.push([c.label, sec(c.ms), c.basis, c.footMB ?? "-"]);
-  grace.push([c.label, sec(c.ms), `${K} x ${sec(c.ms)} = ${(K * c.ms / 1000).toFixed(0)}`, g]);
-}
+const add = (label, typical, worst, basis, foot) => {
+  const g = Math.min(GMAX_S, Math.max(GMIN_S, Math.round((K * typical) / 1000)));
+  sum.push([label, sec1(typical), sec1(worst), basis, foot ?? "-"]);
+  grace.push([label, sec1(typical), `${K} x ${sec1(typical)} = ${((K * typical) / 1000).toFixed(0)}`, g]);
+};
+if (cold.lsp) add("lake serve (spawn to file done)", cold.lsp.ms, cold.lsp.ms + (cold.lakehist?.ms ?? 0), cold.lsp.basis + "; worst adds the rebuild p99 (stale oleans)", cold.lsp.footMB);
+if (cold.sim) add("Simulator (reboot to ready)", cold.sim.ms, cold.sim.worstMs, cold.sim.basis, cold.sim.footMB);
+if (cold.fwcore) add("fwcore start (one request)", cold.fwcore.ms, Math.max(cold.fwcore.ms, cold.vitest?.ms ?? 0), cold.fwcore.basis, cold.fwcore.footMB);
 const head = [`## Tables (generated from results.json by render.mjs; do not edit)\n`,
-  `### Cold-start cost per kind\n`, tab(["kind", "cold cost s", "basis", "footprint MB"], sum), `\n### Proposed idle grace per kind (rule: grace = clamp(${K} x cold, ${GMIN_S} s, ${GMAX_S} s))\n`,
-  tab(["kind", "cold cost s", "k x cold s", "grace s"], grace), "\n"];
-const body = [...head, ...out].join("\n");
+  `### Cold-start cost per kind\n`, tab(["kind", "typical cold cost s", "worst cold cost s", "basis", "footprint MB"], sum),
+  ...(cold.lakehist ? [`\nLongest lake build (no idle process, so no grace; it bounds the worst case above): ${cold.lakehist.basis}, ${sec1(cold.lakehist.ms)} s.`] : []),
+  `\n### Proposed idle grace per kind (rule: grace = clamp(${K} x typical cold cost, ${GMIN_S} s, ${GMAX_S} s))\n`,
+  tab(["kind", "typical cold cost s", "k x cold s", "grace s"], grace), "\n"];
+const med = (v) => q(v, 50);
+const heads = [];
+if (K_.lsp) { const L = K_.lsp.samples; heads.push(`- **lake serve** (${L.length} fresh servers): first diagnostics median ${med(L.map((s) => s.firstDiagMs))} ms, file done median ${med(L.map((s) => s.fileDoneMs))} ms, max ${Math.max(...L.map((s) => s.fileDoneMs))} ms; tree footprint ${Math.max(...L.map((s) => s.footprintMB))} MB.`); }
+if (K_.sim) { const S = K_.sim.samples; heads.push(`- **Simulator** (${S.length} fresh devices): first boot to ready median ${sec(med(S.map((s) => s.firstBootReadyMs)))} s, reboot to ready median ${sec(med(S.map((s) => s.rebootReadyMs)))} s, shutdown median ${sec(med([...S.map((s) => s.shutdownMs), ...S.map((s) => s.shutdown2Ms)]))} s; tree footprint ${Math.max(...S.map((s) => Math.max(s.firstBootFootprintMB, s.rebootFootprintMB)))} MB at most.`); }
+if (K_.fwcore) { const F = K_.fwcore; heads.push(`- **fwcore start**: spawn to reply median ${med(F.spawnSamples.map((s) => s.ms))} ms (${F.spawnSamples.length} runs), \`time -l\` real median ${med(F.rssSamples.map((s) => s.realMs))} ms, peak footprint ${Math.max(...F.rssSamples.map((s) => s.peakFootprintMB))} MB, binary ${F.binaryMB} MB.`); }
+if (cold.vitest) heads.push(`- **fwcore in a test run**: median ${cold.vitest.median} ms per start inside a vitest worker; \`checks.test.ts\` starts it ${K_.vitest.fwcoreStarts} times.`);
+if (K_.lakehist) { const f = K_.lakehist.series; heads.push(`- **lake build** (local history, ${day(K_.lakehist.from)} to ${day(K_.lakehist.to)}): rebuild p50 ${sec(f.exit0_real_ge2s.p50)} s, p90 ${sec(f.exit0_real_ge2s.p90)} s, p99 ${sec(f.exit0_real_ge2s.p99)} s, max ${sec(f.exit0_real_ge2s.max)} s (n ${f.exit0_real_ge2s.n}).`); }
+const body = [...head.slice(0, 1), "### Headline numbers\n", ...heads, "", ...head.slice(1), ...out].join("\n");
 
 const BEGIN = "<!-- GENERATED:tables -->", END = "<!-- /GENERATED:tables -->";
 const txt = readFileSync(note, "utf8");

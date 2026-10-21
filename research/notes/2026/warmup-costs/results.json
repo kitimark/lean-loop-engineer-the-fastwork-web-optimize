@@ -1,0 +1,518 @@
+{
+  "schema": 1,
+  "kinds": {
+    "lakehist": {
+      "command": "node measure.mjs lakehist: nearest-rank quantiles of .fw-console/timings.jsonl rows tool=lean/check host=local step='lake build' (scripts/fwcore-build.sh: lake build + strip + build record, one per lean/check.sh); bench rows tool=lake-slot/bench",
+      "from": "2026-10-17T21:25:23.897Z",
+      "to": "2026-10-21T12:49:50.509Z",
+      "rows": 114808,
+      "unit": "ms per build",
+      "series": {
+        "all": {
+          "n": 1185,
+          "p50": 793,
+          "p90": 21240,
+          "p99": 92675,
+          "max": 303330
+        },
+        "exit0": {
+          "n": 1170,
+          "p50": 783,
+          "p90": 20648,
+          "p99": 90230,
+          "max": 303330
+        },
+        "exit0_load_lt10": {
+          "n": 300,
+          "p50": 572,
+          "p90": 12620,
+          "p99": 44990,
+          "max": 116319
+        },
+        "exit0_load_ge10": {
+          "n": 870,
+          "p50": 890,
+          "p90": 24307,
+          "p99": 108727,
+          "max": 303330
+        },
+        "exit0_noop_lt2s": {
+          "n": 786,
+          "p50": 584,
+          "p90": 1042,
+          "p99": 1648,
+          "max": 1954
+        },
+        "exit0_real_ge2s": {
+          "n": 384,
+          "p50": 13922,
+          "p90": 45142,
+          "p99": 190923,
+          "max": 303330
+        },
+        "bench_solo_build_plain": {
+          "n": 6,
+          "p50": 5202,
+          "p90": 10344,
+          "p99": 10344,
+          "max": 10344
+        },
+        "bench_clean_fwcore_build_plain": {
+          "n": 5,
+          "p50": 144642,
+          "p90": 178013,
+          "p99": 178013,
+          "max": 178013
+        }
+      },
+      "at": "2026-10-21T12:55:33.147Z",
+      "load1": 73.79,
+      "freeMB": 163,
+      "availMB": 3306,
+      "swapUsedMB": 5659
+    },
+    "fwcore": {
+      "command": "node: spawnSync(lean/.lake/build/bin/fwcore, [], {input: one console.landTier request line, env LEAN_ABORT_ON_PANIC=1}) as fwcoreCall in apps/runner/src/run.ts; rss series: /usr/bin/time -l fwcore < the same line",
+      "binaryMB": 78,
+      "spawnSamples": [
+        {
+          "n": 1,
+          "at": "2026-10-21T12:55:35.622Z",
+          "ms": 71.7,
+          "status": 0,
+          "load1": 69.48,
+          "freeMB": 407,
+          "availMB": 3420,
+          "swapUsedMB": 5659
+        },
+        {
+          "n": 2,
+          "at": "2026-10-21T12:55:37.005Z",
+          "ms": 142.9,
+          "status": 0,
+          "load1": 69.48,
+          "freeMB": 379,
+          "availMB": 3394,
+          "swapUsedMB": 5659
+        },
+        {
+          "n": 3,
+          "at": "2026-10-21T12:55:38.332Z",
+          "ms": 70.2,
+          "status": 0,
+          "load1": 69.48,
+          "freeMB": 313,
+          "availMB": 3383,
+          "swapUsedMB": 5659
+        },
+        {
+          "n": 4,
+          "at": "2026-10-21T12:55:39.345Z",
+          "ms": 83.2,
+          "status": 0,
+          "load1": 65.28,
+          "freeMB": 484,
+          "availMB": 3499,
+          "swapUsedMB": 5659
+        },
+        {
+          "n": 5,
+          "at": "2026-10-21T12:55:40.548Z",
+          "ms": 72.2,
+          "status": 0,
+          "load1": 65.28,
+          "freeMB": 470,
+          "availMB": 3468,
+          "swapUsedMB": 5659
+        }
+      ],
+      "rssSamples": [
+        {
+          "n": 1,
+          "at": "2026-10-21T12:55:40.718Z",
+          "realMs": 60,
+          "maxRssMB": 46,
+          "peakFootprintMB": 11,
+          "load1": 65.28,
+          "freeMB": 447,
+          "availMB": 3488,
+          "swapUsedMB": 5659
+        },
+        {
+          "n": 2,
+          "at": "2026-10-21T12:55:40.829Z",
+          "realMs": 70,
+          "maxRssMB": 46,
+          "peakFootprintMB": 11,
+          "load1": 65.28,
+          "freeMB": 415,
+          "availMB": 3521,
+          "swapUsedMB": 5659
+        },
+        {
+          "n": 3,
+          "at": "2026-10-21T12:55:40.900Z",
+          "realMs": 50,
+          "maxRssMB": 46,
+          "peakFootprintMB": 11,
+          "load1": 65.28,
+          "freeMB": 423,
+          "availMB": 3521,
+          "swapUsedMB": 5659
+        },
+        {
+          "n": 4,
+          "at": "2026-10-21T12:55:40.996Z",
+          "realMs": 60,
+          "maxRssMB": 46,
+          "peakFootprintMB": 11,
+          "load1": 65.28,
+          "freeMB": 403,
+          "availMB": 3506,
+          "swapUsedMB": 5659
+        },
+        {
+          "n": 5,
+          "at": "2026-10-21T12:55:41.079Z",
+          "realMs": 60,
+          "maxRssMB": 46,
+          "peakFootprintMB": 11,
+          "load1": 65.28,
+          "freeMB": 412,
+          "availMB": 3518,
+          "swapUsedMB": 5659
+        }
+      ]
+    },
+    "lsp": {
+      "command": "cd lean && lake serve  (LSP client: initialize, initialized, didOpen Fw/Store/Ci.lean, 454 lines; a fresh server per sample, process group TERMed after)",
+      "unit": "ms from spawn",
+      "file": "Fw/Store/Ci.lean",
+      "lines": 454,
+      "samples": [
+        {
+          "n": 1,
+          "at": "2026-10-21T12:55:45.832Z",
+          "ok": true,
+          "initializeMs": 268,
+          "firstDiagMs": 572,
+          "fileDoneMs": 3013,
+          "diagMessages": 15,
+          "footprintMB": 224,
+          "ended": "term",
+          "load1": 65.28,
+          "freeMB": 378,
+          "availMB": 3479,
+          "swapUsedMB": 5659
+        },
+        {
+          "n": 2,
+          "at": "2026-10-21T12:55:54.610Z",
+          "ok": true,
+          "initializeMs": 190,
+          "firstDiagMs": 540,
+          "fileDoneMs": 4790,
+          "diagMessages": 15,
+          "footprintMB": 225,
+          "ended": "term",
+          "load1": 58.75,
+          "freeMB": 397,
+          "availMB": 3570,
+          "swapUsedMB": 5659
+        },
+        {
+          "n": 3,
+          "at": "2026-10-21T12:56:00.373Z",
+          "ok": true,
+          "initializeMs": 228,
+          "firstDiagMs": 534,
+          "fileDoneMs": 2349,
+          "diagMessages": 15,
+          "footprintMB": 230,
+          "ended": "term",
+          "load1": 56.29,
+          "freeMB": 663,
+          "availMB": 3631,
+          "swapUsedMB": 5659
+        },
+        {
+          "n": 4,
+          "at": "2026-10-21T12:56:07.514Z",
+          "ok": true,
+          "initializeMs": 206,
+          "firstDiagMs": 581,
+          "fileDoneMs": 2584,
+          "diagMessages": 15,
+          "footprintMB": 230,
+          "ended": "term",
+          "load1": 51.56,
+          "freeMB": 346,
+          "availMB": 3531,
+          "swapUsedMB": 5659
+        },
+        {
+          "n": 5,
+          "at": "2026-10-21T12:56:12.698Z",
+          "ok": true,
+          "initializeMs": 186,
+          "firstDiagMs": 473,
+          "fileDoneMs": 1881,
+          "diagMessages": 15,
+          "footprintMB": 234,
+          "ended": "term",
+          "load1": 49.43,
+          "freeMB": 283,
+          "availMB": 3537,
+          "swapUsedMB": 5659
+        }
+      ]
+    },
+    "vitest": {
+      "command": "cd apps/runner && pnpm exec vitest run test/checks.test.ts  (wall of the process; one extra run with FW_CORE_BIN set to a counting wrapper gives the number of fwcore starts)",
+      "file": "apps/runner/test/checks.test.ts",
+      "fwcoreStarts": 74,
+      "testsPassed": 55,
+      "samples": [
+        {
+          "n": 1,
+          "at": "2026-10-21T13:05:43.996Z",
+          "wallMs": 4741,
+          "vitestDurationMs": 3960,
+          "status": 0,
+          "load1": 21.7,
+          "freeMB": 241,
+          "availMB": 3326,
+          "swapUsedMB": 5491
+        },
+        {
+          "n": 2,
+          "at": "2026-10-21T13:05:50.486Z",
+          "wallMs": 5786,
+          "vitestDurationMs": 4770,
+          "status": 0,
+          "load1": 22.53,
+          "freeMB": 296,
+          "availMB": 3285,
+          "swapUsedMB": 5491
+        },
+        {
+          "n": 3,
+          "at": "2026-10-21T13:05:56.270Z",
+          "wallMs": 5103,
+          "vitestDurationMs": 4410,
+          "status": 0,
+          "load1": 21.76,
+          "freeMB": 458,
+          "availMB": 3116,
+          "swapUsedMB": 5491
+        }
+      ],
+      "inTest": [
+        {
+          "n": 1,
+          "at": "2026-10-21T13:05:59.076Z",
+          "startsMs": [
+            75.4,
+            49.9,
+            61,
+            57.5,
+            52.7,
+            52.2,
+            60.6,
+            48.5,
+            46.3,
+            49.1,
+            52,
+            57.4
+          ],
+          "load1": 21.06,
+          "freeMB": 539,
+          "availMB": 3549,
+          "swapUsedMB": 5491
+        },
+        {
+          "n": 2,
+          "at": "2026-10-21T13:06:01.468Z",
+          "startsMs": [
+            49.1,
+            52.3,
+            50.7,
+            48.5,
+            53.3,
+            74.6,
+            57,
+            52.5,
+            54.9,
+            54.8,
+            45.3,
+            43.2
+          ],
+          "load1": 22.18,
+          "freeMB": 458,
+          "availMB": 3704,
+          "swapUsedMB": 5491
+        },
+        {
+          "n": 3,
+          "at": "2026-10-21T13:06:03.550Z",
+          "startsMs": [
+            47.9,
+            44.9,
+            44,
+            43.9,
+            50.2,
+            44.2,
+            52.7,
+            50.9,
+            71.9,
+            80.2,
+            57.3,
+            49.7
+          ],
+          "load1": 22.18,
+          "freeMB": 285,
+          "availMB": 3659,
+          "swapUsedMB": 5491
+        }
+      ],
+      "inTestCommand": "a temporary apps/runner/test/zz-warmup-probe.test.ts (removed after the run) calls fwcoreCall 12 times in a row and times each call with performance.now, run as pnpm exec vitest run test/zz-warmup-probe.test.ts"
+    },
+    "sim": {
+      "command": "xcrun simctl create <fresh name> \"iPhone 15 Pro Max\" <iOS 27.0 24A434>; simctl boot <udid>; simctl bootstatus <udid>; simctl shutdown <udid>; boot+bootstatus again; shutdown; delete  (scripts/sim-lock.sh held; own device only)",
+      "runtime": "iOS 27.0 (24A434)",
+      "device": "iPhone 15 Pro Max",
+      "leftoverDevices": 0,
+      "samples": [
+        {
+          "n": 1,
+          "at": "2026-10-21T12:56:40.983Z",
+          "udid": "(deleted)",
+          "createMs": 501,
+          "load1": 39.02,
+          "freeMB": 521,
+          "availMB": 3981,
+          "swapUsedMB": 5595,
+          "firstBootCmdMs": 1742,
+          "firstBootReadyMs": 48598,
+          "firstBootStatus": [
+            0,
+            0
+          ],
+          "firstBootFootprintMB": 1168,
+          "afterFirstBoot": {
+            "load1": 224.13,
+            "freeMB": 197,
+            "availMB": 3482,
+            "swapUsedMB": 5595
+          },
+          "shutdownMs": 4879,
+          "shutdownStatus": 0,
+          "rebootCmdMs": 910,
+          "rebootReadyMs": 14775,
+          "rebootStatus": [
+            0,
+            0
+          ],
+          "rebootMachine": {
+            "load1": 210.99,
+            "freeMB": 1425,
+            "availMB": 4432,
+            "swapUsedMB": 5595
+          },
+          "rebootFootprintMB": 806,
+          "shutdown2Ms": 4233,
+          "deleteMs": 260,
+          "deleteStatus": 0
+        },
+        {
+          "n": 2,
+          "at": "2026-10-21T12:58:22.167Z",
+          "udid": "(deleted)",
+          "createMs": 310,
+          "load1": 214.58,
+          "freeMB": 948,
+          "availMB": 4341,
+          "swapUsedMB": 5587,
+          "firstBootCmdMs": 644,
+          "firstBootReadyMs": 42213,
+          "firstBootStatus": [
+            0,
+            0
+          ],
+          "firstBootFootprintMB": 1448,
+          "afterFirstBoot": {
+            "load1": 295.9,
+            "freeMB": 205,
+            "availMB": 3565,
+            "swapUsedMB": 5587
+          },
+          "shutdownMs": 4338,
+          "shutdownStatus": 0,
+          "rebootCmdMs": 974,
+          "rebootReadyMs": 13345,
+          "rebootStatus": [
+            0,
+            0
+          ],
+          "rebootMachine": {
+            "load1": 329.14,
+            "freeMB": 1178,
+            "availMB": 4389,
+            "swapUsedMB": 5587
+          },
+          "rebootFootprintMB": 734,
+          "shutdown2Ms": 4492,
+          "deleteMs": 324,
+          "deleteStatus": 0
+        },
+        {
+          "n": 3,
+          "at": "2026-10-21T13:00:23.418Z",
+          "udid": "(deleted)",
+          "createMs": 459,
+          "load1": 183.58,
+          "freeMB": 675,
+          "availMB": 4223,
+          "swapUsedMB": 5571,
+          "firstBootCmdMs": 900,
+          "firstBootReadyMs": 46116,
+          "firstBootStatus": [
+            0,
+            0
+          ],
+          "firstBootFootprintMB": 1147,
+          "afterFirstBoot": {
+            "load1": 232.65,
+            "freeMB": 137,
+            "availMB": 3130,
+            "swapUsedMB": 5571
+          },
+          "shutdownMs": 8486,
+          "shutdownStatus": 0,
+          "rebootCmdMs": 1094,
+          "rebootReadyMs": 12894,
+          "rebootStatus": [
+            0,
+            0
+          ],
+          "rebootMachine": {
+            "load1": 290.46,
+            "freeMB": 971,
+            "availMB": 4016,
+            "swapUsedMB": 5571
+          },
+          "rebootFootprintMB": 732,
+          "shutdown2Ms": 4265,
+          "deleteMs": 211,
+          "deleteStatus": 0
+        }
+      ]
+    }
+  },
+  "tool": {
+    "lake": "Lake version 5.0.0-src+eb6cafb (Lean version 4.35.0)",
+    "node": "v24.22.0",
+    "ncpu": 8,
+    "os": "27.0.1"
+  }
+}
