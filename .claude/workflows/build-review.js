@@ -1,7 +1,7 @@
 export const meta = {
   name: 'build-review',
-  description: 'Build each task (own worktree or a named one), then adversarial review per task, with the fixed team preamble',
-  whenToUse: 'Every build task the lead starts: args = { tasks: [{ id, role, prompt, lean?, worktree?, unit?, limits?, findings? }], voice? }',
+  description: 'Build one task (own worktree or a named one), then its adversarial review, with the fixed team preamble',
+  whenToUse: 'Every build task the lead starts, one run per task so each finishes (and lands) on its own: args = { task: { id, role, prompt, lean?, worktree?, unit?, limits?, findings? }, voice? }',
   phases: [{ title: 'Build' }, { title: 'Review' }],
 }
 
@@ -32,9 +32,12 @@ const GATE = { type: 'object', properties: { line: { type: 'string' } }, require
 // accept comes from the last line of `fw review verdict` (Lean strictVerdict until the medium-only audit; then verdictOf: accept iff no blocker).
 const VERDICT = { type: 'object', properties: { accept: { type: 'boolean' }, verdictLine: { type: 'string' }, findings: { type: 'array', items: { type: 'object', properties: { severity: { type: 'string', enum: ['blocker', 'fix-before-land', 'follow-up'] }, where: { type: 'string' }, what: { type: 'string' } }, required: ['severity', 'where', 'what'] } } }, required: ['accept', 'findings'] }
 
-const tasks = (args && args.tasks) || []
+// One task per run: the lead is notified when a run ends, so a bundled run holds an accepted task until its slowest
+// neighbour finishes (user feedback 2026-10-21).
+const tasks = args && args.task ? [args.task] : (args && args.tasks) || []
 const voice = (args && args.voice) || ''
-if (!tasks.length) throw new Error('build-review: args.tasks is empty')
+if (tasks.length !== 1) throw new Error(`build-review: one task per run (got ${tasks.length}); start one run per task`)
+const t = tasks[0]
 
 const scope = (t) => [
   t.unit ? `Pinned unit of decision: ${t.unit}. Items below it are follow-ups.` : '',
@@ -42,24 +45,18 @@ const scope = (t) => [
   t.findings ? `Prior review findings (read every one; apply each exact fix or say why not): ${t.findings}` : '',
 ].filter(Boolean).join('\n')
 
-return await pipeline(tasks,
-  (t) => agent(`Task ${t.id}.${t.worktree ? ` Work only in ${t.worktree}.` : ''}\n${t.prompt}\n${scope(t)}\n\n${voice}\n\n${PREAMBLE}`,
-    { label: `build:${t.id}`, phase: 'Build', agentType: t.role, schema: BUILD, ...(t.worktree ? {} : { isolation: 'worktree' }) }),
-  async (b, t) => {
-    if (!b) return { task: t.id, build: null }
-    // Evidence gate (task review-flow-v2): fwcore decides (`fw review ready`, Lean Fw.Plan.ReviewReady). Only the answer `review` spends an
-    // Opus review; dispatch, wait and returnToBuilder return the build to the lead with the gate lines. The builder's own `gate` line is not trusted.
-    const report = JSON.stringify({ items: b.items || [], runs: b.runs || [], dry: b.dry || '' })
-    const g = await agent(`Run this command once from any checkout that has a built fwcore and return its last VERDICT line as line (and any "item ..." lines above it as detail): pnpm -s fw review ready --report - --task ${t.id} <<'REPORT'\n${report}\nREPORT\nThe exit code (0 review, 21 wait, 22 dispatch, 23 returnToBuilder) goes with the line; do not interpret it.`,
-      { label: `gate:${t.id}`, phase: 'Review', agentType: 'runner', schema: GATE })
-    const m = g && /^VERDICT review-ready \S+ (review|wait|dispatch|returnToBuilder)$/m.exec(g.line || '')
-    const ready = m ? m[1] : 'returnToBuilder'
-    if (ready !== 'review') return { task: t.id, build: b, gate: ready, gateLine: g ? g.line : null, adv: null }
-    const reviews = [
-      () => agent(`Adversarial review of task ${t.id}: branch ${b.branch} at ${b.commit} (read-only). Builder: ${b.summary}\nTask: ${t.prompt}\n${scope(t)}\nBuilder items: ${JSON.stringify(b.items || [])}\nBuilder dry-land line: ${b.dry}. Gate line: ${g.line}. Re-check both yourself before you trust them (pnpm -s fw land ${b.branch} --task ${t.id} --dry; pnpm -s fw review ready).\nRun the tests yourself. Grade each finding: blocker (the unit is wrong, unproved or undelivered), fix-before-land (exact text the lead can apply), follow-up (outside the pinned unit or an accepted limit). Write the findings as JSON to a scratch file and run pnpm -s fw review verdict --findings <file> --task ${t.id}; return its last line as verdictLine and accept = whether it says accept.`,
-        { label: `adv:${t.id}`, phase: 'Review', agentType: 'reviewer', schema: VERDICT }),
-    ]
-    const [adv] = await parallel(reviews)
-    return { task: t.id, build: b, gate: ready, adv }
-  },
-)
+const b = await agent(`Task ${t.id}.${t.worktree ? ` Work only in ${t.worktree}.` : ''}\n${t.prompt}\n${scope(t)}\n\n${voice}\n\n${PREAMBLE}`,
+  { label: `build:${t.id}`, phase: 'Build', agentType: t.role, schema: BUILD, ...(t.worktree ? {} : { isolation: 'worktree' }) })
+if (!b) return [{ task: t.id, build: null }]
+// Evidence gate (task review-flow-v2): fwcore decides (`fw review ready`, Lean Fw.Plan.ReviewReady). Only the answer `review` spends an
+// Opus review; dispatch, wait and returnToBuilder return the build to the lead with the gate lines. The builder's own `gate` line is not trusted.
+// Run states come from the builder's report; the reviewer re-checks them. (Follow-up: the gate agent reads each run state with `fw ci` by run id.)
+const report = JSON.stringify({ items: b.items || [], runs: b.runs || [], dry: b.dry || '' })
+const g = await agent(`Run this command once in the main checkout (the parent of the path `git rev-parse --path-format=absolute --git-common-dir` prints; fwcore is built there) with PATH="$HOME/.nvm/versions/node/v24.22.0/bin:$PATH", logging to your scratchpad file gate-${t.id}.log (agents/runner.md). Return its last VERDICT line as line (and any "item ..." or "fwcore:" lines above it as detail): pnpm -s fw review ready --report - --task ${t.id} <<'REPORT'\n${report}\nREPORT\nThe exit code (0 review, 21 wait, 22 dispatch, 23 returnToBuilder) goes with the line; do not interpret it.`,
+  { label: `gate:${t.id}`, phase: 'Review', agentType: 'runner', schema: GATE })
+const m = g && /^VERDICT review-ready \S+ (review|wait|dispatch|returnToBuilder)$/m.exec(g.line || '')
+const ready = m ? m[1] : 'returnToBuilder'
+if (ready !== 'review') return [{ task: t.id, build: b, gate: ready, gateLine: g ? g.line : null, adv: null }]
+const adv = await agent(`Adversarial review of task ${t.id}: branch ${b.branch} at ${b.commit} (read-only). Builder: ${b.summary}\nTask: ${t.prompt}\n${scope(t)}\nBuilder items: ${JSON.stringify(b.items || [])}\nBuilder dry-land line: ${b.dry}. Gate line: ${g.line}. Re-check both yourself, and the run states the builder reports, before you trust them (pnpm -s fw land ${b.branch} --task ${t.id} --dry; pnpm -s fw review ready; pnpm -s fw ci list).\nRun the tests yourself. Grade each finding: blocker (the unit is wrong, unproved or undelivered), fix-before-land (exact text the lead can apply), follow-up (outside the pinned unit or an accepted limit). Write the findings as JSON to a scratch file and run pnpm -s fw review verdict --findings <file> --task ${t.id}; return its last line as verdictLine and accept = whether it says accept.`,
+  { label: `adv:${t.id}`, phase: 'Review', agentType: 'reviewer', schema: VERDICT })
+return [{ task: t.id, build: b, gate: ready, adv }]
