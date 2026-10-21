@@ -1,42 +1,28 @@
-// Twin of lean/Fw/Device/Replay.lean and ReplayProfiles.lean (TS stand-in until these run as fwcore); test/replay-twin.test.mjs checks
-// every function against golden/device/replay.jsonl. Integer units as in device-session.mjs: times in hundredths of a ms, positions
-// in tenth px. A swipe is {start, lift, s: [[t, x, y], ...]} (t since the swipe's first event, start since the pass's first swipe),
-// a profile {id, w, h, load, swipes}. Nothing is decided here that Lean does not decide.
 import { replayStrokes, t0Of, singleFinger, zoneOf, yAt } from './device-session.mjs';
 
-/** The longest tick of a compiled action, ms (Lean `tickMax`). */
 export const TICK_MAX = 16;
-/** The default limits of the replay check (Lean `Lim`); the pilot calibrates them. */
 export const LIM = Object.freeze({ pos: 10, time: 1700, speedPct: 10, startGap: 5000, window: 5000 });
 
 const fdiv = (a, b) => Math.floor(a / b);
-/** Tenth px to whole px, half up (Lean `px`). */
 export const px = (v) => fdiv(v + 5, 10);
-/** Hundredths of a ms to ms, half up (Lean `ms`). */
 export const ms = (t) => fdiv(t + 50, 100);
 
-/* ---- profile ---- */
 
-/** The swipe of one stroke of [t, ph, x, y, n] touches (Lean `swipeOf`). */
 export function swipeOf(t0, s) {
   if (s.length === 0) return null;
   const a = s[0], z = s[s.length - 1];
   return { start: a[0] - t0, lift: z[0] - a[0], s: s.filter((e) => e[1] !== 'e').map((e) => [e[0] - a[0], e[2], e[3]]) };
 }
 
-/** The swipes of a touch stream: its strokes that are not taps (Lean `swipesOf`). */
 export function swipesOf(touches) {
   const ss = replayStrokes(touches);
   const t0 = t0Of(ss);
   return ss.map((s) => swipeOf(t0, s)).filter((s) => s !== null);
 }
 
-/** The profile of a recorded pass in integer form, null when a second finger was ever down (Lean `ofTouches`). */
 export const ofTouches = (id, touches, w, h) => (singleFinger(touches) ? { id, w, h, load: 'warm', swipes: swipesOf(touches) } : null);
 
-/* ---- the W3C action compiler ---- */
 
-/** A span of ms as pieces of at most TICK_MAX (Lean `chunks`). */
 export function chunks(n) {
   const out = [];
   let r = n;
@@ -67,7 +53,6 @@ function swipeActs(pts, fin) {
 const swipePts = (s) => s.s.map(([t, x, y]) => ({ m: ms(s.start + t), x: px(x), y: px(y) }));
 const swipeEnd = (s) => ms(s.start + s.lift);
 
-/** The actions of a profile (Lean `compile`): ['m',x,y,ms] ['d'] ['u'] ['p',ms], every duration 0..16. */
 export function compile(p) {
   const ss = p.swipes.filter((s) => s.s.length > 0);
   if (ss.length === 0) return [];
@@ -81,7 +66,6 @@ export function compile(p) {
   return out;
 }
 
-/** The W3C Perform Actions payload of compiled actions: one touch pointer source (Lean `w3c`). */
 export function w3c(acts) {
   const one = (a) => {
     switch (a[0]) {
@@ -94,7 +78,6 @@ export function w3c(acts) {
   return { actions: [{ type: 'pointer', id: 'finger', parameters: { pointerType: 'touch' }, actions: acts.map(one) }] };
 }
 
-/** Total ms the actions take. */
 export const actsMs = (acts) => acts.reduce((t, a) => t + (a[0] === 'm' ? a[3] : a[0] === 'p' ? a[1] : 0), 0);
 
 /**
@@ -116,7 +99,6 @@ export function simulateEvents(acts) {
   return out;
 }
 
-/* ---- the replay check ---- */
 
 const same = (e, prev) => px(e[1]) === prev[0] && px(e[2]) === prev[1];
 function keep(prev, es) {
@@ -126,17 +108,14 @@ function keep(prev, es) {
 }
 const lastPos = (s) => (s.s.length === 0 ? [0, 0] : [s.s[s.s.length - 1][1], s.s[s.s.length - 1][2]]);
 
-/** The events a swipe of the source should make the page see (Lean `expected`): [t, x, y]. */
 export function expected(s) {
   if (s.s.length === 0) return [];
   const [f, ...r] = s.s;
   return [f, ...keep([px(f[1]), px(f[2])], r), [s.lift, ...lastPos(s)]];
 }
 
-/** The events a recorded replay swipe made the page see (Lean `seen`): [t, x, y]. */
 export const seen = (s) => (s.s.length === 0 ? [] : [...s.s, [s.lift, ...lastPos(s)]]);
 
-/** The lift-off velocity (dx, dy, dt) of events over the last `window` (Lean `liftVel`). */
 export function liftVel(window, evs) {
   if (evs.length === 0) return [0, 0, 1];
   const z = evs[evs.length - 1];
@@ -157,50 +136,39 @@ function speedOk(lim, a, b) {
 }
 const startOk = (lim, a, b) => Math.abs(b.start - a.start) <= lim.startGap;
 
-/** The five conjuncts of one swipe and their conjunction (Lean `swipeMatches`). */
 export function conjuncts(lim, a, b) {
   const c = { eventsOk: eventsOk(a, b), posOk: posOk(lim, a, b), timeOk: timeOk(lim, a, b), speedOk: speedOk(lim, a, b), startOk: startOk(lim, a, b) };
   return { ...c, swipe: c.eventsOk && c.posOk && c.timeOk && c.speedOk && c.startOk };
 }
 
-/** A replay pass matches its source: same number of swipes, each swipe on its own (Lean `replayMatches`). */
 export const replayMatches = (lim, src, rep) => src.length === rep.length && zip(src, rep).every(([a, b]) => conjuncts(lim, a, b).swipe);
 
-/* ---- worst-case profiles ---- */
 
-/** Squared lift-off speed (Lean `speed2`). */
 export function speed2(s) {
   const [dx, dy, dt] = liftVel(5000, expected(s)).map(BigInt);
   return Number(((dx * dx + dy * dy) * 1000000n) / (dt * dt));
 }
-/** Whether the finger ends higher than it started (Lean `scrollsDown`). */
 export const scrollsDown = (s) => s.s.length > 0 && s.s[s.s.length - 1][2] < s.s[0][2];
-/** The fastest swipe that scrolls down, the first of equals; null when none (Lean `fastest`). */
 export function fastest(swipes) {
   let best = null;
   for (const s of swipes.filter(scrollsDown)) if (best === null || speed2(best) < speed2(s)) best = s;
   return best;
 }
 
-/** The swipes in order, each starting `g` after the one before has lifted (Lean `layout`). */
 export function layout(g, swipes) {
   let at = 0;
   return swipes.map((s) => { const o = { ...s, start: at }; at += s.lift + g; return o; });
 }
 
-/** The fastest down-scroll fling repeated `n` times (Lean `fastFling`), null when the pass has none. */
 export function fastFling(p, n, g) {
   const f = fastest(p.swipes);
   return f === null ? null : { ...p, id: `${p.id}-fast-fling`, load: 'warm', swipes: layout(g, Array.from({ length: n }, () => f)) };
 }
 
-/** A swipe with the finger moving the other way (Lean `mirror`). */
 export const mirror = (h10, s) => ({ ...s, s: s.s.map(([t, x, y]) => [t, x, h10 - y]) });
 
-/** The swipes that start in zone `z` (Lean `segment`); `frames` are [t, y] record frames, `t0` the first swipe's record time. */
 export const segment = (z, vh10, maxY10, frames, t0, swipes) => swipes.filter((s) => zoneOf(vh10, maxY10, yAt(frames, t0 + s.start)) === z);
 
-/** Scroll through the swipes that start in `z` and back, `reps` times (Lean `zoneLoop`), null when none start there. */
 export function zoneLoop(p, z, maxY10, frames, t0, reps, g) {
   const h10 = p.h * 10;
   const seg = segment(z, h10, maxY10, frames, t0, p.swipes);
@@ -209,23 +177,18 @@ export function zoneLoop(p, z, maxY10, frames, t0, reps, g) {
   return { ...p, id: `${p.id}-zone-${z}`, load: 'warm', swipes: layout(g, Array.from({ length: reps }, () => one).flat()) };
 }
 
-/** The same swipes, page loaded fresh with empty caches (Lean `cold`). */
 export const cold = (p) => ({ ...p, id: `${p.id}-cold`, load: 'cold' });
 
-/** Arm positions rotated left by `r` (Lean `rotation`). */
 export function rotation(n, r) {
   const k = r % n;
   const a = Array.from({ length: n }, (_, i) => i);
   return [...a.slice(k), ...a.slice(0, k)];
 }
 
-/** The profile kinds of a session (Lean `Kind.code`). */
 export const KINDS = Object.freeze(['recorded', 'fast-fling', 'zone-hero', 'zone-finish', 'cold']);
 
-/** Every kind, `reps` repeats each, the arm order rotated per repeat (Lean `schedule`). */
 export const schedule = (kinds, reps, n) => kinds.flatMap((kind) => Array.from({ length: reps }, (_, rep) => ({ kind, rep, order: rotation(n, rep) })));
 
-/** The profile of kind `kind` from a source {profile, zone: {maxY10, frames, t0}}; null when the recording has no swipe for it. */
 export function makeProfile(source, kind, { n, gap, reps }) {
   const { profile, zone } = source;
   switch (kind) {
@@ -238,15 +201,9 @@ export function makeProfile(source, kind, { n, gap, reps }) {
   }
 }
 
-/* ---- adapters (glue) ---- */
 
-/** The integer touches of a page record in page units (ms, px), as device-session.mjs `normalize` does. */
 export const touchesOf = (rec) => rec.touches.map(([t, ph, x, y, n]) => [Math.round(t * 100), ph, Math.round(x * 10), Math.round(y * 10), n]);
 
-/**
- * A replay profile of a committed CI profile (packages/measure-chromium/profiles/*.json, mode replay): one touch event per virtual
- * frame at `hz`. Glue; the swipes it makes are then checked by the same Lean-proved functions.
- */
 export function fromCiProfile(cp) {
   const dtc = 100000 / cp.hz;
   const strokes = cp.input.strokes;
