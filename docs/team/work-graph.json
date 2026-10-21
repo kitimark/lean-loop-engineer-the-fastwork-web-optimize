@@ -14423,7 +14423,8 @@
     ".claude/workflows/build-review.js",
     "docs/team/tools/slot.md",
     "docs/team/handoffs/local-adaptive-queue.md"
-   ]
+   ],
+   "evidence": "594f914"
   },
   {
    "devices": [
