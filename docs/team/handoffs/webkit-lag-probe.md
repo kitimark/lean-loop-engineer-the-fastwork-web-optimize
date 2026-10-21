@@ -4,7 +4,7 @@ Branch `worktree-wf_4ab15aff-5d3-1`, CI branch `ci/webkit-lag-probe` (last push 
 Read first: `research/notes/2026/10-21-webkit-lag-probe.md` (Findings with anchors, generated block, follow-ups).
 
 ## State
-- State commit: see `git log -1 -- docs/team/handoffs/webkit-lag-probe.md`. Run 39511908073 ran `18893825`; the report code was applied offline to its six artifacts.
+- State commit: 189cb3b0 (code and block), 47ae3fb2 (Findings, handoff). Run 39511908073 ran `18893825`; the report code was applied offline to its six artifacts.
 - Lean `lean/Fw/Measure/WebKitLag.lean`: `rareMin` 10, `countColumns` allowlist, `rareBase`, `flagged`, `ratioVerdict`
   (one theorem per branch), `Verdict.rareBaseline`; golden `webkit-lag.jsonl` 61 lines; `reduce.mjs` reads the constants from it.
 - The flag drives every table and the idle lines; the footnote is generated from `rareMin`. Findings 1-9 carry anchors;
