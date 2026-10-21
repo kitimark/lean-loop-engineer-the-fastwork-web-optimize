@@ -2,12 +2,13 @@
 // file is I/O glue: the probe, the state file under a short mkdir lock, the child process group, and the result cache.
 import { type ChildProcess, spawn, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, readFileSync, readSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import { basename, dirname, join } from "node:path";
 import {
-  DEFAULT_PARAMS, type CacheKey, type Ctl, type Entry, type Kind, type Params, type Sample, type Verdict,
-  cacheHit, cacheable, init, keyOf, kindOf, prune, release, renew, signal, simAction, simBoot, step, stopAct, verdict,
+  DEFAULT_PARAMS, type BuildVerdict, type CacheKey, type Ctl, type Entry, type Kind, type Params, type Sample, type Verdict,
+  admitBuild, agentsSeen, cacheHit, cacheable, heldOf, init, keyOf, kindOf, prune, release, renew, signal, simAction, simBoot,
+  simDue, simHeld, simIdleNext, simQueued, step, stopAct, verdict, withLegacy,
 } from "./slot-core.ts";
 
 export class SlotUsage extends Error {}
@@ -16,12 +17,15 @@ export const SLOT_USAGE = [
   "usage: fw slot run --kind <k> [--cache] [--owner o] -- <command> [args...]   (waits for a slot, runs, releases; exit 75 when refused)",
   "       fw slot acquire --kind <k> [--lease s] [--wait s] [--owner o] [--json]  (holds a slot across tool calls; prints the token)",
   "       fw slot renew --token t [--lease s] [--owner o] | fw slot release --token t [--owner o]",
-  "       fw slot status [--json] | fw slot sim [--apply]   (kinds: check test land sim other)",
+  "       fw slot status [--json] | fw slot sim [--apply] | fw slot held --kind <k>   (kinds: check test land sim other)",
+  "       fw slot admit --kind build [--agents n]   (may the lead start one more builder; VERDICT line, exit 0 admit, 75 wait)",
 ].join("\n");
 
 export const EXIT_REFUSED = 75;
 
-export type State = { ctl: Ctl; holders: Entry[]; queue: Entry[]; simIdleSince: number };
+/** `simIdleSince` is the field of the first slot version, still written for checkouts that read it. */
+export type State = { ctl: Ctl; holders: Entry[]; queue: Entry[]; simIdleSince: number; simIdle?: number | null; simCheckedAt?: number };
+export type Health = { time: number; live: number };
 export type GitFacts = { tree: string; clean: boolean; mainSha: string };
 export type SimDevice = { udid: string; name: string };
 
@@ -38,6 +42,7 @@ export type Deps = {
   probe: () => Sample;
   git: () => GitFacts;
   simctl: { booted: () => SimDevice[]; shutdown: (udid: string) => void };
+  health: () => Health | null;
   out: (s: string) => void;
   err: (s: string) => void;
 };
@@ -92,11 +97,42 @@ export function gitFacts(cwd: string): GitFacts {
   return { tree: gitIn(cwd, ["rev-parse", "HEAD^{tree}"]), clean: st.status === 0 && st.stdout.trim() === "", mainSha: gitIn(cwd, ["rev-parse", "refs/heads/main"]) };
 }
 
-function bootedFw(): SimDevice[] {
+function bootedAll(): SimDevice[] {
   const r = spawnSync("xcrun", ["simctl", "list", "devices", "booted", "-j"], { encoding: "utf8" });
   if (r.status !== 0) return [];
   const j = JSON.parse(r.stdout) as { devices: Record<string, { udid: string; name: string; state: string }[]> };
-  return Object.values(j.devices).flat().filter((d) => d.state === "Booted" && d.name.startsWith("fw-")).map(({ udid, name }) => ({ udid, name }));
+  return Object.values(j.devices).flat().filter((d) => d.state === "Booted").map(({ udid, name }) => ({ udid, name }));
+}
+
+/** The last line of the console health log (it grows past 100 MB, so only its tail is read): its time in seconds and the
+agents neither done nor gone. */
+export function lastHealth(file: string): Health | null {
+  let fd: number;
+  try { fd = openSync(file, "r"); } catch { return null; }
+  try {
+    const size = fstatSync(fd).size;
+    const len = Math.min(size, 1 << 20);
+    const buf = Buffer.alloc(len);
+    readSync(fd, buf, 0, len, size - len);
+    const line = buf.toString("utf8").trimEnd().split("\n").at(-1) ?? "";
+    const j = JSON.parse(line) as { at?: number; output?: { counts?: Record<string, number> } };
+    const c = j.output?.counts;
+    if (typeof j.at !== "number" || c === undefined) return null;
+    const all = Object.values(c).reduce((a, n) => a + n, 0);
+    return { time: Math.floor(j.at / 1000), live: Math.max(0, all - (c.done ?? 0) - (c.gone ?? 0)) };
+  } catch {
+    return null;
+  } finally {
+    closeSync(fd);
+  }
+}
+
+/** The old `scripts/sim-lock.sh` lock is held while its directory exists and its pid, once written, is alive. */
+export function legacyLive(dir: string): boolean {
+  if (!existsSync(dir)) return false;
+  let pid = "";
+  try { pid = readFileSync(join(dir, "pid"), "utf8").trim(); } catch { return true; }
+  return pid === "" || !/^\d+$/.test(pid) || alive(Number(pid));
 }
 
 /** Production dependencies for the checkout at `cwd`. */
@@ -116,7 +152,8 @@ export function realDeps(cwd: string, env: Record<string, string | undefined> = 
     pollMs: 2000,
     probe,
     git: () => gitFacts(cwd),
-    simctl: { booted: bootedFw, shutdown: (u) => { spawnSync("xcrun", ["simctl", "shutdown", u], { stdio: "ignore" }); } },
+    simctl: { booted: bootedAll, shutdown: (u) => { spawnSync("xcrun", ["simctl", "shutdown", u], { stdio: "ignore" }); } },
+    health: () => lastHealth(join(con, "health.jsonl")),
     out: (s) => process.stdout.write(s),
     err: (s) => process.stderr.write(s),
   };
@@ -211,9 +248,21 @@ export function describe(v: Verdict): string {
     default: {
       const why = v.why === "queued" ? `${v.ahead} of the same kind ahead` : v.why === "older" ? "an older ticket of another kind goes first"
         : v.why === "full" ? `${v.running} running, limit ${v.limit}` : v.why === "simBusy" ? "the Simulator slot is held"
+        : v.why === "drain" ? `${v.others} other holders finish before the Simulator starts`
+        : v.why === "simFirst" ? "a Simulator ticket goes first"
         : `needs ${v.needMB} MB, ${v.roomMB} MB free above the floor`;
       return `${v.verdict === "timeout" ? "refused" : "waiting"}: ${why}`;
     }
+  }
+}
+
+export function describeBuild(v: BuildVerdict): string {
+  if (v.verdict === "admit") return "admit";
+  switch (v.why) {
+    case "simWaits": return "wait: a Simulator ticket is queued";
+    case "agentsUnknown": return "wait: no recent health reading (pass --agents n)";
+    case "agents": return `wait: ${v.live} live agents, limit ${v.max}`;
+    case "memory": return `wait: ${v.freeMB} MB free, needs ${v.needMB} MB`;
   }
 }
 
@@ -232,7 +281,8 @@ export async function acquire(d: Deps, kind: Kind, leaseS: number, waitS: number
       let me = st.queue.find((e) => e.token === token);
       if (me === undefined) { me = { owner: d.owner, token, kind, since: t0, till: 0, foot: 0 }; st.queue.push(me); }
       me.till = s.time + d.params.leaseS;
-      const v = verdict(d.params, st.ctl.n, s, st.holders, st.queue, me, Math.max(0, s.time - t0));
+      const hs = withLegacy(s.time, legacyLive(d.legacySimLock), st.holders);
+      const v = verdict(d.params, st.ctl.n, s, hs, st.queue, me, Math.max(0, s.time - t0));
       if (v.verdict !== "wait") st.queue = st.queue.filter((e) => e.token !== token);
       const till = s.time + Math.min(leaseS, d.params.leaseMaxS);
       if (v.verdict === "admit") st.holders.push({ owner: d.owner, token, kind, since: s.time, till, foot: v.footMB });
@@ -240,6 +290,7 @@ export async function acquire(d: Deps, kind: Kind, leaseS: number, waitS: number
     });
     const line = describe(g.verdict);
     if (line !== last) { d.err(`slot ${kind}: ${line}\n`); last = line; }
+    for (const l of simCheck(d, s.time, true, false)) d.err(`${l}\n`);
     if (g.verdict.verdict === "admit") { event(d, "acquire", kind, { waitMs: (s.time - t0) * 1000 }); return g; }
     if (g.verdict.verdict === "timeout" || (waitS !== null && s.time - t0 >= waitS)) {
       withState(d, (st) => { st.queue = st.queue.filter((e) => e.token !== token); });
@@ -260,7 +311,7 @@ export function renewToken(d: Deps, token: string, leaseS: number): boolean {
 }
 
 export function releaseToken(d: Deps, token: string): boolean {
-  return withState(d, (st) => {
+  const ok = withState(d, (st) => {
     const gone = st.holders.filter((h) => h.owner === d.owner && h.token === token);
     if (gone.some((h) => h.kind === "sim")) st.simIdleSince = nowS();
     st.holders = release(d.owner, token, st.holders);
@@ -268,6 +319,8 @@ export function releaseToken(d: Deps, token: string): boolean {
     for (const h of gone) event(d, "release", h.kind, { holdMs: (nowS() - h.since) * 1000 });
     return gone.length > 0;
   });
+  for (const l of simCheck(d, nowS(), true, false)) d.err(`${l}\n`);
+  return ok;
 }
 
 // ---- result cache ----
@@ -356,14 +409,28 @@ export async function run(d: Deps, kind: Kind, argv: string[], cache: boolean): 
 
 // ---- status and the Simulator ----
 
-export function simTick(d: Deps, apply: boolean): string[] {
-  const s = d.probe();
-  const st = withState(d, (x) => { tick(d, x, s); return x; });
+/** Look at every booted Simulator device when `simDue` (or `force`): advance the idle clock (`simIdleNext`) and, with
+`apply`, shut the devices down when `simAction` says so. The decision and the shutdown run under the state lock, so no
+Simulator slot is admitted between them. */
+export function simCheck(d: Deps, now: number, apply: boolean, force: boolean): string[] {
+  const due = withState(d, (st) => {
+    if (!force && !simDue(d.params, now, st.simCheckedAt ?? 0)) return false;
+    st.simCheckedAt = now;
+    return true;
+  });
+  if (!due) return [];
   const booted = d.simctl.booted();
-  const act = simAction(d.params, s.time, st.holders, booted.length > 0, existsSync(d.legacySimLock), st.simIdleSince);
-  const lines = [`sim: ${booted.length} booted fw-* device(s), action ${act}`];
-  if (apply && act === "shutdown") for (const b of booted) { d.simctl.shutdown(b.udid); lines.push(`sim: shut down ${b.name}`); }
-  return lines;
+  return withState(d, (st) => {
+    const legacy = legacyLive(d.legacySimLock);
+    st.simIdle = simIdleNext(now, legacy || simHeld(now, st.holders), booted.length > 0, st.simIdle ?? null);
+    const act = simAction(d.params, now, st.holders, booted.length > 0, legacy, st.simIdle);
+    const lines = [`sim: ${booted.length} booted device(s), action ${act}`];
+    if (apply && act === "shutdown") {
+      for (const b of booted) { d.simctl.shutdown(b.udid); lines.push(`sim: shut down ${b.name}`); }
+      st.simIdle = null;
+    }
+    return force || act === "shutdown" ? lines : [];
+  });
 }
 
 function status(d: Deps, json: boolean): string[] {
@@ -385,10 +452,10 @@ function flag(args: string[], name: string): string | null {
   return v;
 }
 
-function num(args: string[], name: string): number | null {
+function num(args: string[], name: string, unit = "whole seconds"): number | null {
   const v = flag(args, name);
   if (v === null) return null;
-  if (!/^\d+$/.test(v)) throw new SlotUsage(`${name} takes whole seconds\n${SLOT_USAGE}`);
+  if (!/^\d+$/.test(v)) throw new SlotUsage(`${name} takes ${unit}\n${SLOT_USAGE}`);
   return Number(v);
 }
 
@@ -432,8 +499,24 @@ export async function slotCli(argv: string[], deps: Deps): Promise<number> {
       for (const l of status(d, args.includes("--json"))) d.out(`${l}\n`);
       return 0;
     case "sim":
-      for (const l of simTick(d, args.includes("--apply"))) d.out(`${l}\n`);
+      for (const l of simCheck(d, nowS(), args.includes("--apply"), true)) d.out(`${l}\n`);
       return 0;
+    case "held": {
+      const k = kindArg(args);
+      const held = withState(d, (st) => heldOf(nowS(), st.holders, k));
+      d.out(`slot ${k}: ${held ? "held" : "free"}\n`);
+      return held ? 0 : 1;
+    }
+    case "admit": {
+      if (flag(args, "--kind") !== "build") throw new SlotUsage(`admit takes --kind build\n${SLOT_USAGE}`);
+      const s = d.probe();
+      const given = num(args, "--agents", "a whole number");
+      const agents = given ?? agentsSeen(d.params, s.time, d.health());
+      const v = admitBuild(d.params, simQueued(s.time, readState(d).queue), s.freeMB, agents);
+      d.err(`slot admit build: ${describeBuild(v)} (load ${(s.loadCenti / 100).toFixed(2)}, free ${s.freeMB} MB, agents ${agents ?? "unknown"})\n`);
+      d.out(`VERDICT ${v.verdict} build\n`);
+      return v.verdict === "admit" ? 0 : EXIT_REFUSED;
+    }
     default:
       throw new SlotUsage(SLOT_USAGE);
   }
