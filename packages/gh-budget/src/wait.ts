@@ -18,13 +18,17 @@ import { ghCharged } from "./charged.ts";
 import { lockAsync, tryLock, type Lock } from "./lock.ts";
 import { pollOnce, LIST_FIELDS } from "./poller.ts";
 import { killOk, markerText } from "./waiters.ts";
+import { wanted, type Want } from "./want.ts";
 import { locked, paths, readJson, readStatus, stepEvent, stepUnlocked, writeAtomic, type Row, type Status } from "./state.ts";
 
 export type Target =
   | { kind: "run"; runId: number }
   /** `since`: epoch second of the commit being waited for (runs created before it are not ours). `msg`: the commit's
    *  message (null or absent: unknown); without `workflow` it selects the lanes mode (every requested lane on this sha). */
-  | { kind: "branch"; branch: string; workflow?: string; sha: string; since: number; msg?: string | null };
+  | { kind: "branch"; branch: string; workflow?: string; sha: string; since: number; msg?: string | null;
+      /** With `workflow`: the identity of the run waited for (Lean Fw.Ci.Dispatch.select): a push of `sha`, or a dispatch's nonce.
+       *  Absent: the newest run of the workflow for the commit (legacy; `fw run`'s count and gate dispatches still use it). */
+      want?: Want };
 
 /** 0 pass, 1 fail, 2 a gh error, 3 timeout / budget stop, 4 not run (every decisive run's guard skipped). */
 export type Waited = { code: 0 | 1 | 2 | 3 | 4; lines: string[] };
@@ -98,7 +102,8 @@ export function relevant(rows: Row[], t: Target): Row[] {
   if (t.kind === "run") return rows.filter((r) => r.databaseId === t.runId);
   const mine = lanesMode(t)
     ? rows.filter((r) => r.headBranch === t.branch && r.headSha.startsWith(t.sha))
-    : rows.filter((r) => r.headBranch === t.branch && r.headSha.startsWith(t.sha) && (t.workflow === undefined || r.workflowName === t.workflow) && epoch(r.createdAt) >= t.since);
+    : rows.filter((r) => r.headBranch === t.branch && r.headSha.startsWith(t.sha) && (t.workflow === undefined || r.workflowName === t.workflow) && epoch(r.createdAt) >= t.since
+        && (t.want === undefined || wanted(t.want, { id: r.databaseId, event: r.event ?? "", title: r.displayTitle ?? "", sha: r.headSha })));
   const newest = new Map<string, Row>();
   for (const r of mine) { const k = r.workflowName; if (!newest.has(k) || r.databaseId > newest.get(k)!.databaseId) newest.set(k, r); }
   return [...newest.values()];
