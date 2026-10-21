@@ -15,6 +15,8 @@ Built:
 - Lean: section Threaded of `lean/Fw/Parts/HeroExitOpt.lean`; generator `lean/scripts/ExitThreadedGolden.lean`; golden
   `packages/contracts/golden/parts/hero-exit.threaded.jsonl` (`live`, `liveNext`, `exitNames` and `entrance` rows; `entrance_same` proves variant minus exit names = original per node, band, path); `threaded.test.ts` checks the TS twin and the CSS.
 
+Probe on the merged head: run 39669915362 (RED only on empty-rect nodes, cand waitedMs 20.34 s at all widths; see the note).
+
 Verified: site tests, typecheck, `lean/scripts/check.sh`, `fw land --dry` with the allow list in the task.
 
 Writes outside the graph writes: `lean/scripts/check.sh`, `lean/scripts/ExitThreadedGolden.lean`, `lean/Fw/Ci/Trigger.lean`,

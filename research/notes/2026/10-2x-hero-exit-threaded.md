@@ -107,6 +107,6 @@ Round 3: run 39669915362 (push of 1cd1d7bf, `fw=hero.exit:threaded engines=both`
 Chromium 25 and WebKit 40 content units are new, all on `hero.orbit.card` at 390 and `hero.deck.card` at 640, 641 and 1280; the rect of those nodes is
 empty in every sample of every arm (counted in the raw legs: orbit cards 0 of 1260 non-empty at 390, deck cards 0 of 504 non-empty at 640 and wider, 504 of 504 at
 390 for the deck on the other side), so they are the accepted empty-rect class. Every visible node passes at the golden offsets on both engines (Chromium 14349
-units ok, 0 coverage failures; WebKit 3960 ok). The 42 Chromium coverage units of round 2 are cleared. The candidate arm waits `waitedMs` 20.34 s at every width on both
+units ok, 0 coverage failures; WebKit 3960 ok). 42 Chromium units fail only in the faithful arm. The candidate arm waits `waitedMs` 20.34 s at every width on both
 engines (390, 640, 641, 1280: 20337-20347 Chromium, 20335-20347 WebKit); the original 1.33 s at 390 and 2.60 s at 640 and wider (Chromium), the base 4.40 s. The entrance and
 the restore are not sampled; they rest on Lean `entrance_same` and the unit tests.
