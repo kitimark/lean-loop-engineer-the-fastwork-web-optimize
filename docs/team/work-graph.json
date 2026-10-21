@@ -8147,7 +8147,8 @@
     "apps/runner/src/fw.ts",
     "docs/team/tools/land.md",
     "research/notes/2026/10-21-land-lane-circleci.md"
-   ]
+   ],
+   "evidence": "a3dcbd6"
   },
   {
    "devices": [
@@ -11106,7 +11107,7 @@
    "deps": [
     "pool-key-outcome"
    ],
-   "title": "User 2026-10-20 chose 'caps + fallback route first' for the macOS lanes (research/notes/2026/10-20-macos-pool.md, 10-20-macos-pool-v2.md; lane merging waits until the 5-slot limit is hit again). Serialised with console-idle-cpu and lake-build-slots through the land queue (shared lean/Fw.lean, lean/scripts/check.sh). Lean fallback route for macOS requests when the GitHub limit is reached, with the design-v2 check fixes: GitHub only when not degraded and (a slot is free or the expected wait is known and under ghWaitMaxS; unknown wait never routes to GitHub); else CircleCI m4pro for allowlisted short lanes within credits charged at cap+setup; Bitrise only when bitriseOn (off until the user's public-app test); Linux playwright-webkit only for lanes declared WPE-tolerant (gate-gaps excluded until split); else wait as a durable record with waitMaxS then notRun, tip re-check gives stale. Single dispatcher (the plan job), dispatch_nodup per (key, attempt), no re-route after a GitHub dispatch. Fallback-local target type (Provider.lean untouched). Theorems: never_exceeds_quota, routed_once, wait_resolves, result identity (provider+engine), poolKey never pools Apple with WPE, non-WPE-tolerant lanes never route to Linux. Constants tagged with sources; Enterprise seat = ghMacCap 5 -> 50, ghTotalCap 20 -> 500 only. fwcore op + `fw ci pool route` CLI printing the decision; wiring into dispatch is task ci-route",
+   "title": "User 2026-10-20 chose 'caps + fallback route first' for the macOS lanes (research/notes/2026/10-20-macos-pool.md, 10-20-macos-pool-v2.md; lane merging waits until the 5-slot limit is hit again). Serialised with console-idle-cpu and lake-build-slots through the land queue (shared lean/Fw.lean, lean/scripts/check.sh). Lean fallback route for macOS requests when the GitHub limit is reached, with the design-v2 check fixes: GitHub only when not degraded and (a slot is free or the expected wait is known and under ghWaitMaxS; unknown wait never routes to GitHub); else CircleCI m4pro for allowlisted short lanes within credits charged at cap+setup; Bitrise only when bitriseOn (off until the user's public-app test); Linux playwright-webkit only for lanes declared WPE-tolerant (gate-gaps excluded until split); else wait as a durable record with waitMaxS then notRun, tip re-check gives stale. Single dispatcher (the plan job), dispatch_nodup per (key, attempt), no re-route after a GitHub dispatch. Fallback-local target type (Provider.lean untouched). Theorems: never_exceeds_quota, routed_once, wait_resolves, result identity (provider+engine), poolKey never pools Apple with WPE, non-WPE-tolerant lanes never route to Linux. Constants tagged with sources; Enterprise seat = ghMacCap 5 -> 50, ghTotalCap 20 -> 500 only. fwcore op + `fw ci pool route` CLI printing the decision; wiring into dispatch is task ci-route Input from macos-minutes (2026-10-21, check-adjusted): keep charging credits at cap+setup (never_exceeds_quota); a failed m4pro run cost 2,756 credits, so do not charge at p90; instead enforce an m4pro job timeout from m4pro's own cap and charge that. Also resolve the measured peak of 6 concurrent macOS jobs (2.3 min) against ghMacCap 5 before any admission rule rests on 5. Series admission (one dispatch series holding many slots) folds in here or ci-route, not a new task.",
    "writes": [
     "lean/Fw/Ci/Pool/**",
     "lean/scripts/PoolFallbackGolden.lean",
@@ -12981,7 +12982,8 @@
    "writes": [
     "research/notes/2026/10-21-mem-gate-bypass.md",
     "docs/team/handoffs/mem-gate-bypass.md"
-   ]
+   ],
+   "evidence": "87b9710"
   },
   {
    "devices": [
@@ -13004,7 +13006,8 @@
     "packages/contracts/golden/obs/**",
     "research/notes/2026/10-2x-sup-baseline.md",
     "docs/team/handoffs/sup-baseline.md"
-   ]
+   ],
+   "evidence": "6f1d28f"
   },
   {
    "devices": [
@@ -13025,7 +13028,8 @@
     "apps/runner/test/land-remote*.test.ts",
     "docs/team/tools/land.md",
     "docs/team/handoffs/land-wait-final.md"
-   ]
+   ],
+   "evidence": "a34e2e2"
   },
   {
    "devices": [
@@ -13040,7 +13044,8 @@
     "packages/e2e-preview/**",
     "research/notes/2026/10-21-webkit-cancelled-flake.md",
     "docs/team/handoffs/webkit-cancelled-flake.md"
-   ]
+   ],
+   "evidence": "09327b8"
   },
   {
    "devices": [
@@ -13167,7 +13172,8 @@
     "apps/runner/test/review-ready.test.ts",
     "docs/team/tools/prompt-rules.md",
     "docs/team/handoffs/review-flow-v2.md"
-   ]
+   ],
+   "evidence": "42398a2"
   },
   {
    "devices": [
@@ -13212,7 +13218,8 @@
    "writes": [
     "research/notes/2026/10-21-warmup-costs.md",
     "docs/team/handoffs/sup-warmup.md"
-   ]
+   ],
+   "evidence": "e831d7a"
   },
   {
    "devices": [
@@ -13228,7 +13235,8 @@
     "lean/Fw/Sup/Props.lean",
     "lean/Fw.lean",
     "docs/team/handoffs/sup-model.md"
-   ]
+   ],
+   "evidence": "3151035"
   },
   {
    "devices": [
@@ -13327,7 +13335,7 @@
    "deps": [
     "smoothness-probe"
    ],
-   "title": "User 2026-10-21: 'the laggy it happend on WebKit, so Chromium engine do optimize quite good. except if we run chromium on x6 throttling we will found laggy on chromium engine.' The felt lag is WebKit, and smoothness-probe B measured Chromium only. Add a real-time WebKit cadence leg on the macOS Playwright WebKit lane (rAF intervals plus Web Inspector rendering-frame durations where the lane exposes them) for both windows (hero -> people; end of page), arms original, faithful rewrite, ?preset=v2-proved and the look-change flags, >= 5 reps per arm plus A/A, the same Lean Fw.Gate.Smooth verdicts (hitch count per rep, across rule). First add its measured-p90 row to Fw.Ci.Pool.Caps (job time cap from a debug run) so the job runs under the 5-slot macOS rules; max-parallel 1. Also fill the missing macOS WebKit hero ORIGINAL continuity rows from a trajectory-probe run with the orig arm. Free runners only; MEASURED with run ids. Widened (user 2026-10-21 'can we measure the webkit on ci ?'): two WebKit legs, (1) macOS Playwright WebKit and (2) the iOS Simulator lane (webkit-sim: Mobile Safari) with in-page rAF cadence (no Inspector support needed) plus Inspector RenderingFrame records where the CI image still runs iOS 26.5 (0 on iOS 27.0, meas-webkit handoff). Arms by RESOLVED flags, never by preset name (v2-proved was empty at every smoothness-probe SHA): original, faithful rewrite, the look-change flags, and each candidate flag set the lead names; drop an arm whose resolved config equals another arm's (A/A copy). Results ranked against the user's iPhone recording (device-lag-recorder) when it exists. User 2026-10-21 ('my perspective i think we can use ci for analyze the computation process (event)'): the MAIN output is the per-zone computation profile per arm: WebKit Timeline events (RecalculateStyles, Layout, Paint, Composite, FunctionCall/EvaluateScript, RenderingFrame where present) per frame, aligned to scroll position and binned into the device recorder's zones (Fw.Device.Session), counts and durations; cadence is a secondary signal.",
+   "title": "User 2026-10-21: 'the laggy it happend on WebKit, so Chromium engine do optimize quite good. except if we run chromium on x6 throttling we will found laggy on chromium engine.' The felt lag is WebKit, and smoothness-probe B measured Chromium only. Add a real-time WebKit cadence leg on the macOS Playwright WebKit lane (rAF intervals plus Web Inspector rendering-frame durations where the lane exposes them) for both windows (hero -> people; end of page), arms original, faithful rewrite, ?preset=v2-proved and the look-change flags, >= 5 reps per arm plus A/A, the same Lean Fw.Gate.Smooth verdicts (hitch count per rep, across rule). First add its measured-p90 row to Fw.Ci.Pool.Caps (job time cap from a debug run) so the job runs under the 5-slot macOS rules; max-parallel 1. Also fill the missing macOS WebKit hero ORIGINAL continuity rows from a trajectory-probe run with the orig arm. Free runners only; MEASURED with run ids. Widened (user 2026-10-21 'can we measure the webkit on ci ?'): two WebKit legs, (1) macOS Playwright WebKit and (2) the iOS Simulator lane (webkit-sim: Mobile Safari) with in-page rAF cadence (no Inspector support needed) plus Inspector RenderingFrame records where the CI image still runs iOS 26.5 (0 on iOS 27.0, meas-webkit handoff). Arms by RESOLVED flags, never by preset name (v2-proved was empty at every smoothness-probe SHA): original, faithful rewrite, the look-change flags, and each candidate flag set the lead names; drop an arm whose resolved config equals another arm's (A/A copy). Results ranked against the user's iPhone recording (device-lag-recorder) when it exists. User 2026-10-21 ('my perspective i think we can use ci for analyze the computation process (event)'): the MAIN output is the per-zone computation profile per arm: WebKit Timeline events (RecalculateStyles, Layout, Paint, Composite, FunctionCall/EvaluateScript, RenderingFrame where present) per frame, aligned to scroll position and binned into the device recorder's zones (Fw.Device.Session), counts and durations; cadence is a secondary signal. User 2026-10-21 ('i think we can try on the github actions for prevent the macos circle ci consumption'): GitHub Actions only, no CircleCI dispatch; report macOS job-minutes per leg.",
    "writes": [
     "lean/Fw/Ci/Pool/Caps.lean",
     "packages/contracts/golden/ci/**",
@@ -13422,6 +13430,307 @@
     "packages/measure-webkit/test/device-accuracy.test.mjs",
     "research/notes/2026/10-2x-ci-device-accuracy.md",
     "docs/team/handoffs/ci-device-accuracy.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "macos-minutes-note",
+   "owner": "researcher",
+   "stream": "research",
+   "deps": [],
+   "title": "User 2026-10-21 ('do we have any tasks that consider about this optimization ?'): write research/notes/2026/10-21-macos-minutes.md from the lead's investigation (scratch report.md + its adversarial check.json; the check's corrections are binding: dispatch share 914 of 1,118 job-min (82%); 31 of 33 apple dispatch runs walked all four widths; the window's ~1,095/day is an upper bound because most traffic came from finished tasks; webkit-sim lost-minute split: 55 min pre-failfast hang (fixed), 30.8 deliberate fault runs, 57.3 page-target-lost waits, 42 Keep-logs timeouts after good sessions; dropped changes: cell fold for existing lanes, series admission). Tables generated from the measure JSON with the generator committed; MEASURED/INFERRED tags; run ids. No CircleCI spend (GitHub only, user 2026-10-21).",
+   "writes": [
+    "research/notes/2026/10-21-macos-minutes.md",
+    "research/notes/2026/macos-minutes/**",
+    "docs/team/handoffs/macos-minutes-note.md"
+   ],
+   "evidence": "41a3271"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "macos-teardown-trim",
+   "owner": "measure-engineer",
+   "stream": "ci",
+   "deps": [],
+   "title": "macos-minutes rank 4 (check: keep). On macOS jobs whose VM is discarded (webkit-sim.yml:422), skip Simulator shutdown/delete, collect host state only on failure() but keep the cp that feeds the upload unconditional (webkit-sim.yml:417), cache ios_webkit_debug_proxy. Also removes the Keep-logs 3-min timeouts that failed 3 good webkit-sim cells (42 job-min). Lean: an allowlist of steps allowed after the measurement step, lint generated from it. Saving ~15-25 job-min/day. GitHub only. Unit: one workflow.",
+   "writes": [
+    ".github/workflows/webkit-sim.yml",
+    ".github/workflows/wktr.yml",
+    ".github/workflows/wktr-fixtures.yml",
+    ".github/workflows/engine-premises.yml",
+    ".github/workflows/gate-gaps.yml",
+    "lean/Fw/Ci/Steps.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/ci/steps.jsonl",
+    "scripts/ci-steps-lint.mjs",
+    "scripts/ci-steps-lint.test.mjs",
+    "docs/team/handoffs/macos-teardown-trim.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "webkit-sim-target-lost",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "title": "macos-minutes rank 2 (check-adjusted): 57.3 job-min were lag-probe sessions where the inspector lost the page target while the proxy and socket stayed up ('Runtime.evaluate timed out after 120000 ms', then a Safari-tab wait of 876 s against its 480 s bound; jobs 118915144635, 118917087975). Failfast does not see this class. Bound the page-target-lost wait at 480 s and relaunch once, as a new class in Fw.Measure.SimBound with a theorem and golden. Do not skip sibling cells (they succeeded). Saving ~20-30 job-min/day. GitHub only. Unit: one session.",
+   "writes": [
+    "lean/Fw/Measure/SimBound.lean",
+    "packages/contracts/golden/measure/sim-bound.jsonl",
+    "packages/measure-webkit/src/**",
+    "packages/measure-webkit/test/**",
+    ".github/workflows/webkit-sim.yml",
+    "docs/team/handoffs/webkit-sim-target-lost.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "traj-dispatch-scope",
+   "owner": "measure-engineer",
+   "stream": "gate",
+   "deps": [],
+   "title": "macos-minutes rank 1 (check-adjusted): fw run --trajectory --widths already exists (run.ts:54,355; Trajectory.lean pickWidths/legs). Add the policy: verdict/stored runs walk all four widths (outcome_widths, Trajectory.lean:2961); only runs marked diagnostic may pass a nonempty width subset; one slot only when widths fall within {390,641} or {640,1280} (legTable :2905-2906). Lean rule + theorem + golden checked by run.ts. Saving up to ~115 job-min/day on diagnostic series, 0 on verdict runs. GitHub only. Unit: one dispatch.",
+   "writes": [
+    "lean/Fw/Gate/Trajectory/Dispatch.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/gate/trajectory-dispatch.jsonl",
+    "apps/runner/src/run.ts",
+    "apps/runner/src/run-pick.ts",
+    "apps/runner/test/**",
+    "docs/team/handoffs/traj-dispatch-scope.md"
+   ],
+   "evidence": "6a2a107"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "pool-raw-cache",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "pool-key-outcome"
+   ],
+   "title": "PARKED (macos-minutes rank 7): replay cached raw artifacts for push runs with an identical input key (replay_sound, dispatch_never_replays, replay_only_green). Start only after push macOS job-min > 100/day for 3 days; ~0 at 2026-10-21 traffic.",
+   "writes": [
+    "lean/Fw/Ci/Pool/Replay.lean",
+    "packages/contracts/golden/ci/pool-replay.jsonl",
+    "docs/team/handoffs/pool-raw-cache.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "mac-safari-measure",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "sup-baseline",
+    "sup-wire",
+    "sup-route",
+    "smoothness-webkit-cadence"
+   ],
+   "title": "User 2026-10-21: 'my idea, i might use my macos for doing measurement of webkit safari. but we need to optimize the our process resource using first.' A local lane (CLAUDE.md 'Measure on CI' exception (c), reason: real Apple GPU and display, which CI VMs lack) that measures WebKit in Safari on this Mac: per-zone computation events (same zones and arms as smoothness-webkit-cadence, arms by dedupArms) plus frame cadence. Runs only under an exclusive fw-sup MEASURE lease: the daemon drains our own heavy jobs and idle services first (drain_quiet), records the machine's quiet state (load, free memory, swap, compressor from sup-baseline's sampler) before and after each pass, and refuses the run when the quiet check fails (Lean rule + theorem + golden). Compare with CI (smoothness-webkit-cadence) and the phone (device-lag-recorder) in ci-device-accuracy's terms. No self-hosted GitHub runner (public repo: fork code could run on this Mac). Starts only after the resource tasks land.",
+   "writes": [
+    "lean/Fw/Sup/Measure.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/sup/measure.jsonl",
+    "packages/measure-webkit/src/safari-local*.mjs",
+    "packages/measure-webkit/test/safari-local*.test.mjs",
+    "research/notes/2026/10-2x-mac-safari-measure.md",
+    "results/mac-safari/**",
+    "docs/team/handoffs/mac-safari-measure.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "traj-dispatch-push-lane",
+   "owner": "measure-engineer",
+   "stream": "gate",
+   "deps": [
+    "traj-dispatch-scope"
+   ],
+   "title": "Follow-ups of traj-dispatch-scope (review 2026-10-21): apply the verdict/diagnostic mark rule (Fw.Gate.Trajectory.Dispatch) to the push-message lane (Lean pushProbe, .github/scripts/trajectory-line.mjs: a [trajectory ... widths=...] subset needs a diagnostic key) and to the trajectory-probe workflow widths input; add ws.Nodup to dispatch's accept condition (dispatch_accepted_iff then matches dispatchIn); docs/team/tools/trajectory-probe.md:15 usage gets --diagnostic plus one sentence (verdict runs walk all four widths); list run-pick.ts's twin in the TS stand-in register. GitHub only.",
+   "writes": [
+    "lean/Fw/Gate/Trajectory/Dispatch.lean",
+    "lean/Fw/Gate/Trajectory.lean",
+    "packages/contracts/golden/gate/trajectory-dispatch.jsonl",
+    ".github/scripts/trajectory-line.mjs",
+    ".github/scripts/trajectory-line.test.mjs",
+    ".github/workflows/trajectory-probe.yml",
+    "docs/team/tools/trajectory-probe.md",
+    "docs/team/tools/ts-stand-ins.md",
+    "docs/team/handoffs/traj-dispatch-push-lane.md",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Store/Layout.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "apps/runner/src/run.ts",
+    "apps/runner/src/run-pick.ts",
+    "apps/runner/test/run.test.ts",
+    "apps/runner/test/run-dispatch.test.ts",
+    "scripts/ci-push.test.mjs",
+    ".github/workflows/smoothness.yml",
+    ".claude/workflows/build-review.js",
+    "docs/team/tools/trajectory-frames.md",
+    "docs/team/tools/smoothness-probe.md"
+   ],
+   "evidence": "f923d4a"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "macos-minutes-note-fixes",
+   "owner": "researcher",
+   "stream": "research",
+   "deps": [
+    "macos-minutes-note"
+   ],
+   "title": "Low follow-ups of macos-minutes-note (review 2026-10-21): one sentence that the Keep-logs class-d minutes (~8/day) count in both rank 2 and rank 4, so the firm total overlaps; cite legTable/legs (Trajectory.lean:2820-2826) for the one-slot rule, plan_webkit_apple only for the all-widths case; tables.mjs --check requires each block to end at a blank line or file end; handoff names its commits.",
+   "writes": [
+    "research/notes/2026/10-21-macos-minutes.md",
+    "research/notes/2026/macos-minutes/tables.mjs",
+    "docs/team/handoffs/macos-minutes-note.md"
+   ],
+   "evidence": "632cfcf"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "linux-webkit-events",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "smoothness-webkit-cadence"
+   ],
+   "title": "User 2026-10-21 asked whether WebKit rendering was measured on Playwright WebKit on Linux. Known: Linux WebKit is the WPE port (TextureMapper, software frames of 150 ms or more; research/notes/2026/10-17-ci-measurement-feasibility.md:100-112), so its cadence, paint and composite counts are not Safari's. Question: are its WebCore computation events (RecalculateStyles, Layout, script) per zone and arm close enough to macOS WebKit's (smoothness-webkit-cadence) to move the event analysis to free Linux runners and save macOS minutes? Run the same arms and zones on ubuntu-24.04-arm Playwright WebKit, then a Lean agreement rule per zone (rank agreement plus a ratio band, A/A spread as the floor; theorem + golden) against the macOS leg. Verdict per event kind: style/layout move to Linux or stay on macOS; paint/composite stay on macOS by construction. GitHub only.",
+   "writes": [
+    "lean/Fw/Measure/LinuxAgree.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/measure/linux-agree.jsonl",
+    "packages/measure-webkit/src/linux-events*.mjs",
+    "packages/measure-webkit/test/linux-events*.test.mjs",
+    ".github/workflows/smoothness.yml",
+    "research/notes/2026/10-2x-linux-webkit-events.md",
+    "results/linux-webkit-events/**",
+    "docs/team/handoffs/linux-webkit-events.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "preview-502-flake",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "From webkit-cancelled-flake (landed bd7a7669): a second flake, HTTP 502 'preview server not reachable' from apps/console-api/src/preview/arm-app.ts:88, in 3-5 of 1000 loads on old and new code alike (run 39600742129, load #92, shows as 'Load request cancelled' on webkit/loopback/compare/cancelled-same-origin-0). Cause INFERRED: a reused keep-alive socket. First log the upstream error code, reproduce with the e2e-preview --repeat/--provoke flags on a ci/preview-502-flake branch (GitHub only), fix the cause (no retry), 10 green 1000-load repeats. Also: suite.mjs controlLoad must not drop leavePage's result (a still-open landing request goes to failed), and docs/team/tools/preview-e2e.md documents --only/--repeat/--trace/--provoke and updates lines 79-80; the webkit-cancelled-flake note gets its rate (2 in 2400 natural loads), the out/webkit.json count source and the list of the 18 land runs read.",
+   "writes": [
+    "apps/console-api/src/preview/**",
+    "apps/console-api/test/preview*.test.ts",
+    "packages/e2e-preview/src/**",
+    "packages/e2e-preview/test/**",
+    "docs/team/tools/preview-e2e.md",
+    "research/notes/2026/10-21-webkit-cancelled-flake.md",
+    "research/notes/2026/10-2x-preview-502-flake.md",
+    "docs/team/handoffs/preview-502-flake.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "sim-lock-orphan-identity",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "title": "fw watch alert sim.lockOrphan misfired 2026-10-21 20:00: the sim lock was held by sup-warmup's live measurement (pid 82302, node measure.mjs sim) but the rule's branch 'holder names no agent' (lean/Fw/Obs/Golden.lean:170, Health.lean lockOrphan_iff) fired because workflow agents are not team members. Identity over inference: decide orphan from the holder's (pid, start time) liveness recorded at acquire, not from the owner name; sim-lock.sh records the start time; theorem: a live holder is never an orphan; goldens. Also alert on a booted fw-* Simulator with the lock free for longer than the idle grace (an idle fw-iphone-27 stayed booted ~22 h on 2026-10-21), as an interim until fw-sup's idle_stopped runs.",
+   "writes": [
+    "lean/Fw/Obs/Health.lean",
+    "lean/Fw/Obs/Golden.lean",
+    "packages/contracts/golden/obs/**",
+    "scripts/sim-lock.sh",
+    "apps/runner/src/watch-collect.ts",
+    "apps/runner/test/watch-collect*.test.ts",
+    "docs/team/handoffs/sim-lock-orphan-identity.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "review-flow-v2-followups",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "review-flow-v2"
+   ],
+   "title": "Follow-ups of review-flow-v2 (landed 1cca4214; r2 review): (1) the gate agent reads each run state itself with fw ci by run id (identity), never the builder's state field; (2) build-review.js gate regex built from the escaped task id and matched on the last line only; (3) plan.reviewVerdict computes recheck from the verdict actually used (strictVerdict until the audit), with a golden row, so a refuse never prints the 'lead applies them' hint; (4) the module doc says coverage of the pinned unit is the reviewer's check; (5) handoff names its commits. The medium-only audit of the 32 refusals stays its own item (lead decides when to run it).",
+   "writes": [
+    ".claude/workflows/build-review.js",
+    "lean/Fw/Plan/ReviewReady.lean",
+    "lean/Fw/Wire/Plan.lean",
+    "packages/contracts/golden/plan/review-ready.jsonl",
+    "apps/runner/src/review-ready.ts",
+    "apps/runner/test/review-ready.test.ts",
+    "docs/team/handoffs/review-flow-v2.md"
+   ],
+   "evidence": "31ce88a"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "disk-auto-gc",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "title": "User 2026-10-21: 'i think it could automate to clean up used files. can we make it more automatically ?' Today cleanup is manual: on 10-21 the lead freed ~53 GiB by hand (lake-gc 38 GiB, 220 stale scratchpad dirs 21 GiB, 3 unused fw-* Simulator devices on iOS 26.5 11 GiB, one landed worktree 1.3 GiB; disk 52 -> 105 GiB free; breakdown in the storage-check note). Build one Lean-decided collector, Fw.Ops.DiskGc (extends Fw.Ops.LakeGc, golden packages/contracts/golden/ops/diskgc.jsonl), over a CLOSED allowlist of classes, each decided on its own: (1) lake-gc unreferenced artifacts (existing rule); (2) a worktree under .claude/worktrees whose branch is an ancestor of main and that no running task or queued land names (git worktree remove, branch kept); (3) node_modules and lean/.lake of an unlanded worktree idle > idleH (default 24 h; branch and sources untouched); (4) session scratchpad top-level dirs with no file newer than 8 h, not cited by a committed file (git grep scratchpad/<dir>), no open file (lsof), not fable-*; (5) Simulator devices named fw-* that no workflow or package names (today only fw-iphone-27 is named), shut down, sim lock free; (6) .fw-console tmp and land-logs past keepDays. Identity over inference: every candidate is a resolved absolute path under one of the allowed roots (repo, its worktrees root, the session scratchpad root, ~/.elan lake cache, CoreSimulator Devices by UDID), owned by the user, never .local/, never a git-tracked file, never a branch. Theorems: deletes_subset_allowlist, never_tracked, never_live (open file or running task), class decisions independent. CLI `fw disk-gc --list|--json|--delete` printing per class count and bytes, df before/after; triggers: post-land routine, sys.diskLow alert mitigation in fw watch, and a daily fw-sup timer once sup-wire lands; each run writes one console event (classes, bytes, before/after). Shell rm targets use ${VAR:?} guards (the rm safety check refuses unguarded variable targets). Docs docs/team/tools/disk-gc.md.",
+   "writes": [
+    "lean/Fw/Ops/DiskGc.lean",
+    "lean/Fw/Ops/LakeGc.lean",
+    "lean/Fw.lean",
+    "lean/Fw/Wire/Ops.lean",
+    "packages/contracts/golden/ops/diskgc.jsonl",
+    "apps/runner/src/disk-gc.ts",
+    "apps/runner/src/lake-gc.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/disk-gc.test.ts",
+    "apps/runner/src/watch-collect.ts",
+    "docs/team/tools/disk-gc.md",
+    "docs/team/tools/disk-cleanup.md",
+    "docs/team/handoffs/disk-auto-gc.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gh-cache-scope",
+   "owner": "measure-engineer",
+   "stream": "ops",
+   "deps": [],
+   "title": "Storage check 2026-10-21: GitHub Actions caches are 11.14 GB against the 10 GB per-repo limit (gh cache list): 18 lake-ARM64 caches 10.8 GB; 15 caches on ci/* refs hold 8.46 GiB, 10 of them on one-shot ci/land-* branches (5.81 GiB) that nothing will restore (a run restores only its own branch or the default branch, docs.github.com dependency caching), so they evict the main caches that lands and pushes need. Fix: only main saves the lake cache (actions/cache/restore on every non-main ref; find which workflows save on ci/* and make them restore-only), and add a `fw ci cache-gc` step (gh cache delete for caches on ci/* refs not accessed for 6 h; never gh api) run by the post-land routine. Measure: cache total and main-cache hit on the next 3 lands.",
+   "writes": [
+    ".github/workflows/**",
+    ".github/actions/**",
+    "apps/runner/src/ci-cache-gc.ts",
+    "apps/runner/test/ci-cache-gc.test.ts",
+    "apps/runner/src/fw.ts",
+    "docs/team/tools/ci-cache.md",
+    "docs/team/handoffs/gh-cache-scope.md"
    ]
   }
  ],

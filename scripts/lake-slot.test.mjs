@@ -23,7 +23,7 @@ const probe = 'echo "$LAKE_SLOT ${LEAN_NUM_THREADS-unset}"';
 
 const scratch = () => {
   const d = mkdtempSync(join(tmpdir(), "lake-slot-test-"));
-  const { LEAN_NUM_THREADS: _, LAKE_SLOT: __, FW_TIMINGS_FILE: ___, ...rest } = process.env;
+  const { LEAN_NUM_THREADS: _, LAKE_SLOT: __, FW_TIMINGS_FILE: ___, FW_LOCK_EVENTS: ____, FW_LOCK_EVENTS_FILE: _____, CI: ______, ...rest } = process.env;
   return { d, env: { ...rest, LAKE_SLOT_DIR: join(d, "slots"), FW_TIMINGS_FILE: join(d, "timings.jsonl"), LAKE_SLOT_CORES: "8" } };
 };
 const run = (env, cmd) => spawnSync("sh", [wrapper, "sh", "-c", cmd], { env, encoding: "utf8" });
@@ -118,7 +118,7 @@ test("without LAKE_SLOT_DIR the slot files live under the git common dir, from t
     git(main, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "x");
     git(main, "worktree", "add", "-q", join(d, "wt"));
     lay(main); lay(join(d, "wt"));
-    const { LAKE_SLOT_DIR: _, LAKE_SLOT: __, ...env } = process.env;
+    const { LAKE_SLOT_DIR: _, LAKE_SLOT: __, FW_LOCK_EVENTS: ___, FW_LOCK_EVENTS_FILE: ____, CI: _____, ...env } = process.env;
     for (const r of [main, join(d, "wt")]) {
       const p = spawnSync("sh", [join(r, "scripts/lake-slot.sh"), "sh", "-c", probe], { cwd: d, env, encoding: "utf8" });
       assert.equal(p.status, 0, p.stderr);
@@ -276,4 +276,51 @@ test("check.sh runs its parallel stage through the gate of one held slot", () =>
   assert.match(check, /^lake_slot_hold \.\.\nlake_slot_gate "\$tmp\/gate"\nspan lean\/check "parallel group" run_group\nlake_slot_release$/m);
   assert.match(check, /^  lake_slot_run span lean\/check "\$@" > "\$tmp\/\$n\.out" 2>&1$/m);
   assert.doesNotMatch(check, /\) > "\$tmp\/\$n\.out" 2>&1 &/);
+});
+
+const events = (f) => readFileSync(f, "utf8").trim().split("\n").map((l) => JSON.parse(l));
+
+test("lock events (task sup-baseline): the exec form logs the acquire only, keeps its pid and exit status, and no paths or arguments", () => {
+  const { d, env } = scratch();
+  try {
+    const f = join(d, "locks.jsonl");
+    const e = { ...env, FW_LOCK_EVENTS_FILE: f };
+    assert.equal(run(e, "exit 3").status, 3);
+    assert.equal(run(e, "exit 75").status, 75);
+    const pid = Number(run(e, "echo $$").stdout.trim());
+    const ev = events(f);
+    assert.deepEqual(ev.map((x) => [x.lock, x.ev, x.kind, x.slot, x.exec]), [["lake-slot", "acquire", "build", 0, 1], ["lake-slot", "acquire", "build", 0, 1], ["lake-slot", "acquire", "build", 0, 1]]);
+    for (const x of ev) assert.ok(Number.isInteger(x.ts) && x.ts > 0 && Number.isInteger(x.pid) && x.pid > 0 && Number.isInteger(x.start) && x.start >= 0 && x.waitMs >= 0);
+    assert.equal(ev[2].pid, pid, "the command is the logged shell itself (exec), so signalling that pid stops the build");
+    assert.doesNotMatch(readFileSync(f, "utf8"), /exit|sh -c|\/tmp|\/var/);
+  } finally { rmSync(d, { recursive: true, force: true }); }
+});
+
+test("lock events: FW_LOCK_EVENTS=off writes nothing, a nested call logs nothing of its own", () => {
+  const { d, env } = scratch();
+  try {
+    const f = join(d, "locks.jsonl");
+    assert.equal(run({ ...env, FW_LOCK_EVENTS_FILE: f, FW_LOCK_EVENTS: "off" }, probe).status, 0);
+    assert.equal(existsSync(f), false);
+    const r = spawnSync("sh", [wrapper, "sh", wrapper, "sh", "-c", probe], { env: { ...env, FW_LOCK_EVENTS_FILE: f }, encoding: "utf8" });
+    assert.equal(r.stdout.trim(), "0 unset");
+    assert.deepEqual(events(f).map((x) => x.ev), ["acquire"]);
+  } finally { rmSync(d, { recursive: true, force: true }); }
+});
+
+test("lock events: the scratch env drops the caller's FW_LOCK_EVENTS, FW_LOCK_EVENTS_FILE and CI", () => {
+  const { d, env } = scratch();
+  try {
+    for (const k of ["FW_LOCK_EVENTS", "FW_LOCK_EVENTS_FILE", "CI"]) assert.equal(k in env, false, k);
+  } finally { rmSync(d, { recursive: true, force: true }); }
+});
+
+test("lock events: a held group slot logs acquire and release (group) from the sourced library", () => {
+  const { d, env } = scratch();
+  try {
+    const f = join(d, "locks.jsonl");
+    const r = spawnSync("sh", ["-c", `set -eu; . "$1"; lake_slot_hold "$2"; lake_slot_release; echo done`, "_", lib, top], { env: { ...env, FW_LOCK_EVENTS_FILE: f }, encoding: "utf8" });
+    assert.equal(r.status, 0, r.stderr);
+    assert.deepEqual(events(f).map((x) => [x.ev, x.kind]), [["acquire", "group"], ["release", "group"]]);
+  } finally { rmSync(d, { recursive: true, force: true }); }
 });
