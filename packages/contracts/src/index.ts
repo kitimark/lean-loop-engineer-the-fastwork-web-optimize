@@ -170,7 +170,6 @@ export const Step = z.object({
   lastAt: z.number().int().nonnegative(),
   audience: Audience,
   body: z.string().max(2000),
-  /** the topic id the step is grouped under; the key is absent when it has none */
   topic: Id.nullable().optional(),
 });
 export type Step = z.infer<typeof Step>;

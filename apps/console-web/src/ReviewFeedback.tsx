@@ -52,11 +52,8 @@ export function FeedbackThreadView({ thread }: { thread: FeedbackThread | null |
   );
 }
 
-/** What differs between the Feedback section of a review card and the Questions section of a step or topic: the post route and the words. */
 export type FeedbackWords = { url?: string; heading?: string; aria?: string; placeholder?: string; testid?: string };
 
-/** The Feedback section of a review card: a box to write a comment for more research, and the thread below. With `words` it is the
- *  Questions section of a step or topic (step-threads): the same box, thread and send, another route and other words. */
 export function ReviewFeedback({ flag, thread, onChanged, words = {} }: { flag: string; thread?: FeedbackThread | null; onChanged?: () => void; words?: FeedbackWords }) {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);

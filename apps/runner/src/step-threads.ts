@@ -1,6 +1,3 @@
-// `fw step topic|reply|questions ...` (step-threads): the lead defines a topic, answers a user's question on a step or topic, and
-// lists the open questions. Only argument mapping and printing: Lean (`Fw.Console.Steps`, through the reducer) decides who may
-// define a topic, which `to` is open and how long a text may be. The commands go through the capability door; the lists are read-only.
 import { Actor, Command } from "@fw/contracts";
 import { UsageError, parseFlags, stepCommand } from "./lib.ts";
 
@@ -14,7 +11,6 @@ const need = (v: string | undefined, what: string): string => {
   return v;
 };
 
-/** `fw step topic --id t --title T --summary S` -> the `step.topic` command (key from the id and the time, so each run is a new definition; pass --key for a retry-safe send). */
 export function topicCommand(argv: string[], env: Record<string, string | undefined>): Command {
   const { flags } = parseFlags(argv);
   const topic = need(flags.id, "--id <topic>");
@@ -23,7 +19,6 @@ export function topicCommand(argv: string[], env: Record<string, string | undefi
     actor: Actor.parse(flags.as ?? env.FW_ACTOR ?? "lead"), topic, title: need(flags.title, "--title <text>"), summary });
 }
 
-/** `fw step <verb> ... [--topic t]`: the step command of `stepCommand`; a `post` also carries the topic when `--topic` is given. */
 export function stepWithTopic(argv: string[], env: Record<string, string | undefined>): Command {
   const { flags } = parseFlags(argv.slice(1));
   const rest = argv[0] === "post" && flags.topic !== undefined ? argv.filter((a, i, all) => a !== "--topic" && all[i - 1] !== "--topic") : argv;
@@ -37,7 +32,6 @@ export function stepWithTopic(argv: string[], env: Record<string, string | undef
 
 export interface Thread { flag: string; open: number; comments: { id: string; text: string; at: number; status: string; reply: { text: string; at: number } | null }[] }
 
-/** The thread (its flag `step:<id>` or `topic:<id>`) that holds comment `to` on subject `id`; `kind` narrows it when both exist. */
 export function subjectOf(threads: Thread[], id: string, to: string, kind?: string): string {
   const flags = (kind ? [kind] : ["step", "topic"]).map((k) => `${k}:${id}`);
   const hit = threads.filter((t) => flags.includes(t.flag) && t.comments.some((c) => c.id === to));
@@ -46,7 +40,6 @@ export function subjectOf(threads: Thread[], id: string, to: string, kind?: stri
   throw new UsageError(`no question ${to} on ${kind ? `${kind} ` : "a step or topic "}${id}`);
 }
 
-/** `fw step reply --id x --to c --text t`: the `review.feedback.reply` command on the subject that holds comment `c`. */
 export async function replyCommand(argv: string[], env: Record<string, string | undefined>, base: string): Promise<Command> {
   const { flags } = parseFlags(argv);
   const id = need(flags.id, "--id <step|topic>");
@@ -65,7 +58,6 @@ async function fetchThreads(base: string): Promise<{ threads: Thread[] }> {
   return { threads: body.threads ?? [] };
 }
 
-/** The text `fw step questions` prints: one block per question; the answered ones only with `all`. */
 export function renderQuestions(threads: Thread[], all: boolean): string {
   const out: string[] = [];
   for (const t of threads) {
@@ -78,7 +70,6 @@ export function renderQuestions(threads: Thread[], all: boolean): string {
   return out.length ? out.join("\n") : "no open questions";
 }
 
-/** `fw step questions [--all]`: GET the threads from console-api and print them. */
 export async function questionsCli(argv: string[], base: string): Promise<string> {
   return renderQuestions((await fetchThreads(base)).threads, argv.includes("--all"));
 }

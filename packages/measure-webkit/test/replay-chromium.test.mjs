@@ -1,4 +1,3 @@
-// The Chromium replay lane's pure parts: the CDP touch messages, the timed dispatch, the lateness statistics, the table.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { touchMessage, dispatchAt, lateStats, sleepUntil, table } from '../src/replay/chromium-replay.mjs';

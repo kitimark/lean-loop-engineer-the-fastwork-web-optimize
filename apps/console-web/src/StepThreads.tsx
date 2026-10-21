@@ -3,22 +3,19 @@ import { Badge } from "@/components/ui/badge";
 import { apiFetch } from "@/lib/auth";
 import { ReviewFeedback, type FeedbackThread } from "./ReviewFeedback";
 
-// Rendering and the send only (step-threads). Which steps group under which topic, the order of the groups, each thread and who may
-// write are Lean (`Fw.Console.Steps`; console-api `GET /api/steps/topics`, `POST /api/steps/<step|topic>/<id>/question`).
 export type StepGroup = {
   topic: string | null; title: string; summary: string; updatedAt: number | null;
   steps: string[]; openQuestions: number; activity: number; thread: FeedbackThread | null;
 };
 export type StepTopics = { groups: StepGroup[]; threads: FeedbackThread[] };
 
-/** The groups and threads of console-api; reloaded when the log moves (`seq`). Null until the first answer. */
 export function useStepTopics(seq: number | undefined): { data: StepTopics | null; reload: () => Promise<void> } {
   const [data, setData] = useState<StepTopics | null>(null);
   const reload = useCallback(async () => {
     try {
       const r = await apiFetch("/api/steps/topics");
       if (r.ok) setData((await r.json()) as StepTopics);
-    } catch { /* the card keeps its last groups */ }
+    } catch { }
   }, []);
   useEffect(() => { void reload(); }, [reload, seq]);
   return { data, reload };
@@ -26,14 +23,12 @@ export function useStepTopics(seq: number | undefined): { data: StepTopics | nul
 
 const when = (ms: number): string => new Date(ms).toISOString().replace("T", " ").slice(0, 16);
 
-/** The words and route of the Questions section of one subject. */
 export const questionWords = (kind: "step" | "topic", id: string) => ({
   url: `/api/steps/${kind}/${encodeURIComponent(id)}/question`, heading: "Questions", aria: "Your question for the lead",
   placeholder: kind === "topic" ? "What do you want explained about this topic?" : "What do you want explained about this step?",
   testid: "step-questions",
 });
 
-/** A collapsed Questions section: the thread of the subject and a box to ask more. Open when a question waits for an answer. */
 export function QuestionBox({ kind, id, thread, onChanged }: { kind: "step" | "topic"; id: string; thread?: FeedbackThread | null; onChanged?: () => void }) {
   const n = thread?.comments.length ?? 0;
   const open = thread?.open ?? 0;
@@ -47,8 +42,6 @@ export function QuestionBox({ kind, id, thread, onChanged }: { kind: "step" | "t
   );
 }
 
-/** One group of the Your steps card: the topic title, the lead's summary and its time, then the steps, then the topic's questions.
- *  `renderStep` draws a step by id; the group order and membership are Lean's. */
 export function TopicGroup({ group, renderStep, onChanged }: { group: StepGroup; renderStep: (id: string) => ReactNode; onChanged?: () => void }) {
   return (
     <section className="min-w-0 space-y-2 rounded border p-2" data-testid="topic-group" aria-label={group.title}>

@@ -1,5 +1,3 @@
-// The replay driver on synthetic fixtures: a WebDriver double (a phone whose page sees the events WebKit's touch source makes), a mock
-// HTTP WebDriver for the client, and the command line. No phone, no browser.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
@@ -31,7 +29,7 @@ test('a pass on the double: the compiled actions reach the page as the source sw
 test('a replay that lost an event is refused, naming the conjunct', async () => {
   const wd = doubleWd();
   const perform = wd.perform;
-  wd.perform = async (sid, payload) => { // the phone drops the last touchmove of the first swipe
+  wd.perform = async (sid, payload) => {
     const acts = payload.actions[0].actions;
     let i = acts.findIndex((a) => a.type === 'pointerUp');
     while (acts[i].type !== 'pointerMove') i--;

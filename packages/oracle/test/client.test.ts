@@ -1,7 +1,3 @@
-// The client's I/O order against a scripted fwcore: the key is read only after `oracle.pre` answers send, the bytes
-// sent are the `bodyText` Lean returned, the log is keyed by its sha256, and every key, HTTP or timeout problem
-// reaches `oracle.decide` as a failure. The replies through the real fwcore are tested in apps/runner/test/oracle.test.ts.
-// No network, no keychain.
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -13,10 +9,8 @@ const FAKE_KEY = "tsk_test_0123456789abcdef";
 const BODY = '{"model":"jev-1.13.0","question":"ci-triage"}';
 const reply = '{"model":"jev-1.13.0","answers":{"ci-triage":{"type":"choice","choice":"real","probabilities":{"real":0.97}}}}';
 
-/** One step the client took, in order. */
 type Ev = { kind: "core"; op: string; req: Json } | { kind: "key" } | { kind: "fetch"; url: string; body: string; auth: string };
 
-/** A scripted fwcore whose `oracle.pre` answers `pre`, a key reader and a fetch, all recording into one event list. */
 function world(pre: Json, opts: { key?: string | null; respond?: () => Promise<Response> } = {}): { d: Deps; ev: Ev[] } {
   const ev: Ev[] = [];
   const core = (req: Json): Json => {

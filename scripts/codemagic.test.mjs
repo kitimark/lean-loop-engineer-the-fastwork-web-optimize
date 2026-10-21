@@ -1,6 +1,3 @@
-// scripts/codemagic.test.mjs: the Codemagic glue against the Lean golden (packages/contracts/golden/ci/codemagic.jsonl, Lean
-// Fw.Ci.Codemagic) and a fake fetch. Run: node --test scripts/codemagic.test.mjs
-// No network, no Keychain: the API is a fake and the token is a fake string.
 import { strict as assert } from 'node:assert';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
@@ -15,7 +12,6 @@ const here = dirname(fileURLToPath(import.meta.url));
 const g = loadGolden();
 const TOKEN = 'cm-fake-token-0123456789';
 const APP = 'appid000000000000000000a';
-// every test root carries a codemagic.yaml: the trigger cap is its max_build_duration
 const tmp = (cap = 40) => { const d = mkdtempSync(join(tmpdir(), 'cm-test-')); writeFileSync(join(d, 'codemagic.yaml'), `workflows:\n  webkit-sim:\n    max_build_duration: ${cap}\n`); return d; };
 const res = (status, body = {}, headers = {}) => ({ status, ok: status >= 200 && status < 300, headers: { get: (k) => headers[k.toLowerCase()] ?? null }, text: async () => (typeof body === 'string' ? body : JSON.stringify(body)),
   arrayBuffer: async () => new TextEncoder().encode(typeof body === 'string' ? body : JSON.stringify(body)).buffer });
@@ -41,7 +37,6 @@ test('trigger rule: every golden row (Lean usedIn, refusals, mayTrigger)', () =>
     assert.deepEqual(refusals(g.constants, r.month, r.rows, r.cap), r.refusals, r.name);
     assert.equal(mayTrigger(g.constants, r.month, r.rows, r.cap), r.mayTrigger, r.name);
   }
-  // the theorem in words: used + cap over 400 never triggers, whatever the rows
   for (let used = 0; used <= 420; used += 7) for (const cap of [1, 20, 40]) {
     const rows = [{ id: 'x', month: '2026-10', minutes: used }];
     if (used + cap > 400) assert.equal(mayTrigger(g.constants, '2026-10', rows, cap), false, `${used}+${cap}`);
@@ -103,7 +98,7 @@ const finished = { build: { _id: 'b1', status: 'finished', index: 7, instanceTyp
 test('normBuild reads the camelCase and the v3 snake_case shape; buildMinutes is Lean billedMin of the run', () => {
   const b = normBuild(finished);
   assert.deepEqual([b.id, b.status, b.steps.length, b.steps[1].durMs, b.artifacts[0].bytes], ['b1', 'finished', 2, 180000, 12]);
-  assert.equal(buildMinutes(b), 31); // 30 min 30 s rounds up
+  assert.equal(buildMinutes(b), 31);
   const v3 = normBuild({ id: 'b2', status: 'failed', created_at: '2026-10-21T10:00:00Z', started_at: '2026-10-21T10:00:30Z', finished_at: '2026-10-21T10:00:40Z', actions: [{ name: 's', status: 'failed', started_at: '2026-10-21T10:00:31Z', finished_at: '2026-10-21T10:00:33Z' }], artifacts: [{ name: 'f', short_lived_download_url: 'https://x.example/f', size_in_bytes: 3 }] });
   assert.deepEqual([v3.id, buildMinutes(v3), v3.steps[0].durMs, v3.artifacts[0].url], ['b2', 1, 2000, 'https://x.example/f']);
   assert.equal(buildMinutes(normBuild({ build: { status: 'building', startedAt: '2026-10-21T10:00:30Z' } })), null);
