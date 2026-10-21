@@ -3,14 +3,18 @@ import Fw.Ops.Wire
 
 /-!
 # Which leftover processes `fw reap` names and how they are stopped (tasks `orphan-guard`, `reap-auto-stop`)
-A row is selected by one of three branches. A: it is of a named kind (`lspServe`, `console`), its cwd inode matches no live
-checkout of this repo, its parent fits the kind (a lean-lsp-mcp of this repo for `lake serve`, init for a console) and it is
-not the console recorded in main's `.fw-console`. B: it is of the `tool` kind (lean, lake, fwcore, node, vitest, a
-playwright browser) and its cwd path lies in a worktree of this repo that is no longer live. C: it is of the `tool` kind
-and an ancestor is selected by A or B. B and C never take a recorded console, a row below one, a lean-lsp-mcp process,
-a row with an unreadable cwd or a cwd inode of a live checkout, or pid <= 1.
-The stop plan: read, TERM the selection, wait the grace, read again, KILL the survivors whose (pid, start) is unchanged,
-verify. A group is signalled only when every row of that group is selected.
+Every branch selects a row only if its cwd lies inside THIS repo, which the glue decides by device and inode (never by a path
+string): `inRepo` (an ancestor of the cwd path is the repo root) and `wt` (the directory below this repo's `.claude/worktrees`).
+A: it is of a named kind (`lspServe`, `console`), its cwd is in a non-live worktree of this repo (`goneWt`) and its inode
+matches no live checkout, and its parent fits the kind (a lean-lsp-mcp of this repo for `lake serve`, init for a console).
+B: it is a tool (lean, lake, fwcore, node, vitest, a playwright browser, or a `lake serve` also when orphaned) in a non-live
+worktree of this repo. C: it is a tool inside this repo whose cwd is in no live checkout, with an ancestor selected by A or
+B. Every branch refuses a row shielded off: the recorded console (`.fw-console/api.json`), everything below it, the stopper's
+own process and its ancestors, pid <= 1. B and C also refuse a lean-lsp-mcp process, and every branch a row with an
+unreadable cwd or a cwd inode of a live checkout.
+The stop plan: read, check the identity again, TERM, wait the grace, read again, KILL the survivors whose (pid, start) is
+unchanged, verify. A group is signalled only when every row of that group is selected, and every signal passes `guardOk`
+against an explicit scope of pids.
 -/
 namespace Fw.Ops.Reap
 
@@ -36,12 +40,14 @@ def Kind.name : Kind → String
   | .removed => "removed"
   | .descendant => "descendant"
 
-/-- The argv kind of a tool process (lean, lake, fwcore, node, vitest, a playwright browser): never selected by its name,
-only through branch B or C. -/
-def isTool (k : String) : Bool := k == "tool"
+/-- The argv kinds that branches B and C may select: a tool process (lean, lake, fwcore, node, vitest, a playwright browser)
+or a `lake serve` (also when its parent is gone). A tool is never selected by its name, only through its cwd (B) or an
+ancestor (C). -/
+def isTool (k : String) : Bool := k == "tool" || k == "lspServe"
 
 /-- One process-table row: pid, parent pid, process group, start time, cwd inode (`none`: unreadable), argv kind, and `wt`,
-the id of the `.claude/worktrees/<id>` of this repo that the cwd path lies in (`none`: elsewhere). -/
+the id of the `.claude/worktrees/<id>` of this repo that the cwd path lies in (`none`: elsewhere), and `inRepo`, whether
+the cwd path lies anywhere inside this repo (an ancestor with the device and inode of the repo root). -/
 structure Row where
   pid : Nat
   ppid : Nat
@@ -50,6 +56,7 @@ structure Row where
   cwd : Option Nat
   kind : String
   wt : Option String := none
+  inRepo : Bool := false
 deriving Repr
 
 /-- A lean-lsp-mcp process: pid and cwd inode (`none`: unreadable). -/
@@ -89,13 +96,6 @@ def parentOk (i : Input) : Kind → Row → Bool
   | .console, r => r.ppid == 1
   | _, _ => false
 
-/-- Branch A: the kind a row is selected as, or `none`. -/
-def pick (i : Input) (r : Row) : Option Kind :=
-  match kindOf r.kind, r.cwd with
-  | some k, some c =>
-    if !i.live.contains c && parentOk i k r && decide (1 < r.pid) && !kept i r then some k else none
-  | _, _ => none
-
 /-- A lean-lsp-mcp process (never stopped by B or C). -/
 def isMcp (i : Input) (r : Row) : Bool := i.mcps.any fun m => m.pid == r.pid
 
@@ -108,17 +108,27 @@ def chain (i : Input) : Nat → Row → List Row
     | some p => if p.pid == r.pid then [] else p :: chain i n p
 
 /-- No row of the chain (the row itself included) is the recorded console, and the row is not a protected pid (the stopper's own
-process or ancestor). -/
+process or ancestor). Every branch asks for it: the live console and everything below it is never selectable. -/
 def shielded (i : Input) (r : Row) : Bool :=
   (r :: chain i i.rows.length r).all (fun a => !kept i a) && !i.protect.contains r.pid
 
-/-- The cwd path of the row lies in a worktree id of this repo that is not live. -/
+/-- The cwd of the row lies inside a non-live `.claude/worktrees/<id>` of THIS repo. The glue sets `wt` only for a cwd path
+that has an ancestor with the device and inode of this repo's `.claude/worktrees` directory, whose parent has the inode of
+the repo root (never by comparing a path string). Every branch asks for it, so a process of another repo is never selected. -/
 def goneWt (i : Input) (r : Row) : Bool :=
-  match r.wt with
-  | some id => !i.liveIds.contains id
-  | none => false
+  r.inRepo &&
+    match r.wt with
+    | some id => !i.liveIds.contains id
+    | none => false
 
-/-- Branch B: a tool whose cwd is in a removed worktree. -/
+/-- Branch A: the kind a row is selected as, or `none`. -/
+def pick (i : Input) (r : Row) : Option Kind :=
+  match kindOf r.kind, r.cwd with
+  | some k, some c =>
+    if !i.live.contains c && goneWt i r && parentOk i k r && decide (1 < r.pid) && shielded i r then some k else none
+  | _, _ => none
+
+/-- Branch B: a tool (or a `lake serve`, also an orphan) whose cwd is in a removed worktree of this repo. -/
 def pickB (i : Input) (r : Row) : Option Kind :=
   match r.cwd with
   | some c =>
@@ -132,11 +142,12 @@ def pickAB (i : Input) (r : Row) : Option Kind :=
   | some k => some k
   | none => pickB i r
 
-/-- Branch C: a tool whose cwd is in no live checkout and with an ancestor selected by A or B (a dead owner). -/
+/-- Branch C: a tool whose cwd lies inside this repo (a removed worktree, or a deleted directory below the repo root) and
+with an ancestor selected by A or B (a dead owner). -/
 def pickC (i : Input) (r : Row) : Option Kind :=
   match r.cwd with
   | some c =>
-    if isTool r.kind && !i.live.contains c && !isMcp i r && decide (1 < r.pid) && shielded i r &&
+    if isTool r.kind && !i.live.contains c && r.inRepo && !isMcp i r && decide (1 < r.pid) && shielded i r &&
         (chain i i.rows.length r).any (fun a => (pickAB i a).isSome)
     then some .descendant else none
   | none => none
@@ -151,9 +162,14 @@ def pickAny (i : Input) (r : Row) : Option Kind :=
 def reap (i : Input) : List Sel :=
   i.rows.filterMap fun r => (pickAny i r).map fun k => ⟨r.pid, r.start, k, r.pgid == r.pid⟩
 
+theorem goneWt_inRepo {i : Input} {r : Row} (h : goneWt i r = true) : r.inRepo = true := by
+  unfold goneWt at h
+  simp only [Bool.and_eq_true] at h
+  exact h.1
+
 theorem pick_some {i : Input} {r : Row} {k : Kind} (h : pick i r = some k) :
-    kindOf r.kind = some k ∧ (∃ c, r.cwd = some c ∧ i.live.contains c = false) ∧ parentOk i k r = true ∧ 1 < r.pid ∧
-      kept i r = false := by
+    kindOf r.kind = some k ∧ (∃ c, r.cwd = some c ∧ i.live.contains c = false) ∧ goneWt i r = true ∧
+      parentOk i k r = true ∧ 1 < r.pid ∧ shielded i r = true := by
   unfold pick at h
   split at h
   · rename_i k' c hk hc
@@ -161,7 +177,7 @@ theorem pick_some {i : Input} {r : Row} {k : Kind} (h : pick i r = some k) :
     · rename_i hb
       cases h
       simp only [Bool.and_eq_true, Bool.not_eq_true', decide_eq_true_eq] at hb
-      exact ⟨hk, ⟨c, hc, hb.1.1.1⟩, hb.1.1.2, hb.1.2, hb.2⟩
+      exact ⟨hk, ⟨c, hc, hb.1.1.1.1⟩, hb.1.1.1.2, hb.1.1.2, hb.1.2, hb.2⟩
     · cases h
   · cases h
 
@@ -190,8 +206,8 @@ theorem pickB_some {i : Input} {r : Row} {k : Kind} (h : pickB i r = some k) :
   · cases h
 
 theorem pickC_some {i : Input} {r : Row} {k : Kind} (h : pickC i r = some k) :
-    k = .descendant ∧ isTool r.kind = true ∧ (∃ c, r.cwd = some c ∧ i.live.contains c = false) ∧ isMcp i r = false ∧
-      1 < r.pid ∧ shielded i r = true ∧ ∃ a ∈ chain i i.rows.length r, (pickAB i a).isSome = true := by
+    k = .descendant ∧ isTool r.kind = true ∧ (∃ c, r.cwd = some c ∧ i.live.contains c = false) ∧ r.inRepo = true ∧
+      isMcp i r = false ∧ 1 < r.pid ∧ shielded i r = true ∧ ∃ a ∈ chain i i.rows.length r, (pickAB i a).isSome = true := by
   unfold pickC at h
   split at h
   · rename_i c hc
@@ -199,23 +215,25 @@ theorem pickC_some {i : Input} {r : Row} {k : Kind} (h : pickC i r = some k) :
     · rename_i hb
       cases h
       simp only [Bool.and_eq_true, Bool.not_eq_true', decide_eq_true_eq, List.any_eq_true] at hb
-      exact ⟨rfl, hb.1.1.1.1.1, ⟨c, hc, hb.1.1.1.1.2⟩, hb.1.1.1.2, hb.1.1.2, hb.1.2, hb.2⟩
+      exact ⟨rfl, hb.1.1.1.1.1.1, ⟨c, hc, hb.1.1.1.1.1.2⟩, hb.1.1.1.1.2, hb.1.1.1.2, hb.1.1.2, hb.1.2, hb.2⟩
     · cases h
   · cases h
 
 /-- What every selection has in common, whichever branch: a readable cwd inode that no live checkout has, pid > 1, not the
-recorded console, and a kind that is named (A) or the `tool` kind (B, C). -/
+recorded console, a kind that is named (A) or a tool (B, C), a cwd in a removed worktree of this repo and a shielded chain
+(the last three after the branch-A fact: inside this repo, removed worktree unless a descendant, shielded). -/
 theorem any_some {i : Input} {r : Row} {k : Kind} (h : pickAny i r = some k) :
     (∃ c, r.cwd = some c ∧ i.live.contains c = false) ∧ 1 < r.pid ∧ kept i r = false ∧
-      (kindOf r.kind = some k ∨ isTool r.kind = true) ∧ (k = .lspServe ∨ k = .console → pick i r = some k) := by
+      (kindOf r.kind = some k ∨ isTool r.kind = true) ∧ (k = .lspServe ∨ k = .console → pick i r = some k) ∧
+      r.inRepo = true ∧ (k ≠ .descendant → goneWt i r = true) ∧ shielded i r = true := by
   unfold pickAny pickAB at h
   cases hp : pick i r with
   | some k' =>
     rw [hp] at h
     simp only [Option.some.injEq] at h
     subst h
-    obtain ⟨hk, hc, -, h1, hke⟩ := pick_some hp
-    exact ⟨hc, h1, hke, Or.inl hk, fun _ => rfl⟩
+    obtain ⟨hk, hc, hg, -, h1, hs⟩ := pick_some hp
+    exact ⟨hc, h1, shielded_kept hs, Or.inl hk, fun _ => rfl, goneWt_inRepo hg, fun _ => hg, hs⟩
   | none =>
     rw [hp] at h
     cases hb : pickB i r with
@@ -223,14 +241,16 @@ theorem any_some {i : Input} {r : Row} {k : Kind} (h : pickAny i r = some k) :
       rw [hb] at h
       simp only [Option.some.injEq] at h
       subst h
-      obtain ⟨hk, ht, hc, -, -, h1, hs⟩ := pickB_some hb
+      obtain ⟨hk, ht, hc, hg, -, h1, hs⟩ := pickB_some hb
       subst hk
-      exact ⟨hc, h1, shielded_kept hs, Or.inr ht, fun h' => by rcases h' with h' | h' <;> cases h'⟩
+      exact ⟨hc, h1, shielded_kept hs, Or.inr ht, (fun h' => by rcases h' with h' | h' <;> cases h'), goneWt_inRepo hg,
+        fun _ => hg, hs⟩
     | none =>
       rw [hb] at h
-      obtain ⟨hk, ht, hc, -, h1, hs, -⟩ := pickC_some h
+      obtain ⟨hk, ht, hc, hg, -, h1, hs, -⟩ := pickC_some h
       subst hk
-      exact ⟨hc, h1, shielded_kept hs, Or.inr ht, fun h' => by rcases h' with h' | h' <;> cases h'⟩
+      exact ⟨hc, h1, shielded_kept hs, Or.inr ht, (fun h' => by rcases h' with h' | h' <;> cases h'), hg,
+        fun hne => absurd rfl hne, hs⟩
 
 theorem reap_mem {i : Input} {s : Sel} (h : s ∈ reap i) :
     ∃ r ∈ i.rows, pickAny i r = some s.kind ∧ r.pid = s.pid ∧ r.start = s.start ∧ s.group = (r.pgid == r.pid) := by
@@ -327,42 +347,24 @@ theorem mcp_row {i : Input} {r : Row} (hm : isMcp i r = true) (hk : kindOf r.kin
         cases hm'
       | none =>
         rw [hb] at hq
-        obtain ⟨-, -, -, hm', -⟩ := pickC_some hq
+        obtain ⟨-, -, -, -, hm', -⟩ := pickC_some hq
         rw [hm] at hm'
         cases hm'
 
-/-- A tool that is not shielded (the recorded console in its chain, or a protected pid) is not picked by any branch. -/
-theorem unshielded_row {i : Input} {r : Row} (ht : isTool r.kind = true) (hs : shielded i r = false) :
-    pickAny i r = none := by
+/-- A row that is not shielded (the recorded console in its chain, or a protected pid) is not picked by any branch. -/
+theorem unshielded_row {i : Input} {r : Row} (hs : shielded i r = false) : pickAny i r = none := by
   cases hq : pickAny i r with
   | none => rfl
   | some kd =>
-    unfold pickAny pickAB at hq
-    cases hp : pick i r with
-    | some k' =>
-      obtain ⟨hk', -⟩ := pick_some hp
-      unfold kindOf at hk'
-      simp [isTool] at ht
-      rw [ht] at hk'
-      cases hk'
-    | none =>
-      rw [hp] at hq
-      cases hb : pickB i r with
-      | some k' =>
-        obtain ⟨-, -, -, -, -, -, hs'⟩ := pickB_some hb
-        rw [hs] at hs'
-        cases hs'
-      | none =>
-        rw [hb] at hq
-        obtain ⟨-, -, -, -, -, hs', -⟩ := pickC_some hq
-        rw [hs] at hs'
-        cases hs'
+    obtain ⟨-, -, -, -, -, -, -, hs'⟩ := any_some hq
+    rw [hs] at hs'
+    cases hs'
 
 /-- Row safety 7: the recorded console or any of its descendants (its own fwcore) is not picked as a tool: when a row of
 its chain is the recorded console, B and C refuse it. -/
-theorem kept_ancestor_row {i : Input} {r a : Row} (ht : isTool r.kind = true)
+theorem kept_ancestor_row {i : Input} {r a : Row}
     (ha : a ∈ r :: chain i i.rows.length r) (hk : kept i a = true) : pickAny i r = none := by
-  apply unshielded_row ht
+  apply unshielded_row
   unfold shielded
   cases hsh : (r :: chain i i.rows.length r).all (fun a => !kept i a) with
   | false => rfl
@@ -371,9 +373,9 @@ theorem kept_ancestor_row {i : Input} {r a : Row} (ht : isTool r.kind = true)
     simp [hk] at this
 
 /-- Row safety 8: a protected pid (the stopper's own process or an ancestor of it) is not picked as a tool. -/
-theorem protect_row {i : Input} {r : Row} (ht : isTool r.kind = true) (hp : r.pid ∈ i.protect) :
+theorem protect_row {i : Input} {r : Row} (hp : r.pid ∈ i.protect) :
     pickAny i r = none := by
-  apply unshielded_row ht
+  apply unshielded_row
   unfold shielded
   simp [hp]
 
@@ -388,7 +390,7 @@ theorem removed_branch {i : Input} {s : Sel} (h : s ∈ reap i) (hk : s.kind = .
     rw [hq] at hp
     have := pick_some hq
     have e : k' = .removed := by simpa using hp
-    obtain ⟨-, -, hpa, -⟩ := this
+    obtain ⟨-, -, -, hpa, -⟩ := this
     subst e
     simp [parentOk] at hpa
   | none =>
@@ -401,7 +403,7 @@ theorem removed_branch {i : Input} {s : Sel} (h : s ∈ reap i) (hk : s.kind = .
       | none => simp [hw] at hg
       | some id =>
         simp [hw] at hg
-        exact ⟨r, hr, hpid, ht, id, hw, hg⟩
+        exact ⟨r, hr, hpid, ht, id, hw, hg.2⟩
     | none =>
       rw [hb] at hp
       obtain ⟨hk', -⟩ := pickC_some hp
@@ -409,7 +411,8 @@ theorem removed_branch {i : Input} {s : Sel} (h : s ∈ reap i) (hk : s.kind = .
 
 /-- Branch C: a row picked as `descendant` has a tool kind and an ancestor selected by A or B (a dead owner). -/
 theorem descendant_branch {i : Input} {s : Sel} (h : s ∈ reap i) (hk : s.kind = .descendant) :
-    ∃ r ∈ i.rows, r.pid = s.pid ∧ isTool r.kind = true ∧ ∃ a ∈ chain i i.rows.length r, (pickAB i a).isSome = true := by
+    ∃ r ∈ i.rows, r.pid = s.pid ∧ isTool r.kind = true ∧ (∃ a ∈ chain i i.rows.length r, (pickAB i a).isSome = true) ∧
+      r.inRepo = true := by
   obtain ⟨r, hr, hp, hpid, -, -⟩ := reap_mem h
   rw [hk] at hp
   unfold pickAny at hp
@@ -422,7 +425,7 @@ theorem descendant_branch {i : Input} {s : Sel} (h : s ∈ reap i) (hk : s.kind 
     cases hp' : pick i r with
     | some k'' =>
       rw [hp'] at hq
-      obtain ⟨-, -, hpa, -⟩ := pick_some hp'
+      obtain ⟨-, -, -, hpa, -⟩ := pick_some hp'
       simp only [Option.some.injEq] at hq
       subst hq
       simp [parentOk] at hpa
@@ -432,8 +435,8 @@ theorem descendant_branch {i : Input} {s : Sel} (h : s ∈ reap i) (hk : s.kind 
       cases hk'
   | none =>
     rw [hq] at hp
-    obtain ⟨-, ht, -, -, -, -, ha⟩ := pickC_some hp
-    exact ⟨r, hr, hpid, ht, ha⟩
+    obtain ⟨-, ht, -, hg, -, -, -, ha⟩ := pickC_some hp
+    exact ⟨r, hr, hpid, ht, ha, hg⟩
 
 /-- Per row, without a uniqueness hypothesis: a selection is exactly a picked row, and its group flag is set exactly
 when that row is its own group leader (`pgid = pid`). -/
@@ -465,8 +468,8 @@ theorem lsp_parent {i : Input} {s : Sel} (h : s ∈ reap i) (hk : s.kind = .lspS
     ∃ r ∈ i.rows, r.pid = s.pid ∧ ∃ m ∈ i.mcps, m.pid = r.ppid ∧ ∃ c, m.cwd = some c ∧ c ∈ i.live := by
   obtain ⟨r, hr, hp, hpid, -, -⟩ := reap_mem h
   rw [hk] at hp
-  obtain ⟨-, -, -, -, hA⟩ := any_some hp
-  obtain ⟨-, -, hpa, -⟩ := pick_some (hA (Or.inl rfl))
+  obtain ⟨-, -, -, -, hA, -⟩ := any_some hp
+  obtain ⟨-, -, -, hpa, -⟩ := pick_some (hA (Or.inl rfl))
   simp only [parentOk, List.any_eq_true, Bool.and_eq_true, beq_iff_eq] at hpa
   obtain ⟨m, hm, hmp, hc⟩ := hpa
   rcases hmc : m.cwd with _ | c
@@ -479,8 +482,8 @@ theorem console_orphan {i : Input} {s : Sel} (h : s ∈ reap i) (hk : s.kind = .
     ∃ r ∈ i.rows, r.pid = s.pid ∧ r.ppid = 1 := by
   obtain ⟨r, hr, hp, hpid, -, -⟩ := reap_mem h
   rw [hk] at hp
-  obtain ⟨-, -, -, -, hA⟩ := any_some hp
-  obtain ⟨-, -, hpa, -⟩ := pick_some (hA (Or.inr rfl))
+  obtain ⟨-, -, -, -, hA, -⟩ := any_some hp
+  obtain ⟨-, -, -, hpa, -⟩ := pick_some (hA (Or.inr rfl))
   exact ⟨r, hr, hpid, by simpa [parentOk] using hpa⟩
 
 /-- Neither init nor pid 0 is ever selected. -/
@@ -494,8 +497,8 @@ theorem no_mcp_no_lsp {i : Input} (hm : i.mcps = []) : ∀ s ∈ reap i, s.kind 
   intro s hs hk
   obtain ⟨r, -, hp, -, -, -⟩ := reap_mem hs
   rw [hk] at hp
-  obtain ⟨-, -, -, -, hA⟩ := any_some hp
-  obtain ⟨-, -, hpa, -⟩ := pick_some (hA (Or.inl rfl))
+  obtain ⟨-, -, -, -, hA, -⟩ := any_some hp
+  obtain ⟨-, -, -, hpa, -⟩ := pick_some (hA (Or.inl rfl))
   simp [parentOk, hm] at hpa
 
 /-- A `lake serve` row whose parent is no lean-lsp-mcp with a cwd in a live checkout (another repo's server) is not
@@ -505,7 +508,7 @@ theorem foreign_mcp {i : Input} {r : Row} (hk : kindOf r.kind = some .lspServe)
   cases hq : pick i r with
   | none => rfl
   | some kd =>
-    obtain ⟨hk', -, hpa, -⟩ := pick_some hq
+    obtain ⟨hk', -, -, hpa, -⟩ := pick_some hq
     rw [hk] at hk'
     cases hk'
     simp only [parentOk, List.any_eq_true, Bool.and_eq_true, beq_iff_eq] at hpa
@@ -518,16 +521,24 @@ theorem foreign_mcp {i : Input} {r : Row} (hk : kindOf r.kind = some .lspServe)
 /-- More recorded consoles never add a branch-A selection. -/
 theorem antitone_keep {i : Input} {extra : List (Nat × Nat)} {r : Row} {k : Kind}
     (h : pick { i with keep := i.keep ++ extra } r = some k) : pick i r = some k := by
-  obtain ⟨hk, ⟨c, hc, hl⟩, hpa, h1, hke⟩ := pick_some h
-  have hke' : kept i r = false := by
-    unfold kept at hke ⊢
-    simp only [List.any_append, Bool.or_eq_false_iff] at hke
-    exact hke.1
+  obtain ⟨hk, ⟨c, hc, hl⟩, hg, hpa, h1, hs⟩ := pick_some h
+  have hch : ∀ n r', chain { i with keep := i.keep ++ extra } n r' = chain i n r' := by
+    intro n
+    induction n with
+    | zero => intro r'; rfl
+    | succ n ih => intro r'; simp [chain, ih]
+  have hs' : shielded i r = true := by
+    unfold shielded at hs ⊢
+    simp only [hch, Bool.and_eq_true, List.all_eq_true] at hs ⊢
+    refine ⟨fun a ha => ?_, hs.2⟩
+    have := hs.1 a ha
+    simp only [kept, List.any_append, Bool.not_eq_true', Bool.or_eq_false_iff] at this ⊢
+    simpa using this.1
   unfold pick
   rw [hk, hc]
   simp only [parentOk] at hpa ⊢
-  simp [hpa, h1, hke']
-  simpa using hl
+  simp [hpa, h1, hs']
+  exact ⟨by simpa using hl, hg⟩
 
 /-- The reason printed for a kind. -/
 def Kind.reason : Kind → String
@@ -694,14 +705,113 @@ theorem kill_after_term_and_grace :
 /-- The grace is positive. -/
 theorem grace_positive : 0 < graceMs := by decide
 
+/-- The cwd of a `goneWt` row names a worktree id of this repo that is not live. -/
+theorem goneWt_some {i : Input} {r : Row} (h : goneWt i r = true) : ∃ id, r.wt = some id ∧ id ∉ i.liveIds := by
+  unfold goneWt at h
+  cases hw : r.wt with
+  | none => simp [hw] at h
+  | some id =>
+    simp [hw] at h
+    exact ⟨id, rfl, h.2⟩
+
+/-- Repo identity, every branch: a selected row has a cwd path inside this repo (an ancestor with the device and inode of
+the repo root); A and B rows lie in a non-live worktree of it (`console_in_removed_wt`, `lsp_in_removed_wt`,
+`removed_branch`), C rows below an owner that does. -/
+theorem in_repo {i : Input} {s : Sel} (h : s ∈ reap i) : ∃ r ∈ i.rows, r.pid = s.pid ∧ r.inRepo = true := by
+  obtain ⟨r, hr, hp, hpid, -, -⟩ := reap_mem h
+  obtain ⟨-, -, -, -, -, hi, -⟩ := any_some hp
+  exact ⟨r, hr, hpid, hi⟩
+
+/-- Repo identity, branch A (console): a console is selected only when its cwd is inside a non-live worktree of this repo
+(never because it is merely an orphan whose cwd is outside the live checkouts, as the console of another repo is). -/
+theorem console_in_removed_wt {i : Input} {s : Sel} (h : s ∈ reap i) (hk : s.kind = .console) :
+    ∃ r ∈ i.rows, r.pid = s.pid ∧ r.ppid = 1 ∧ ∃ id, r.wt = some id ∧ id ∉ i.liveIds := by
+  obtain ⟨r, hr, hp, hpid, -, -⟩ := reap_mem h
+  rw [hk] at hp
+  obtain ⟨-, -, -, -, hA, -, hg, -⟩ := any_some hp
+  obtain ⟨-, -, -, hpa, -⟩ := pick_some (hA (Or.inr rfl))
+  obtain ⟨id, hw, hn⟩ := goneWt_some (hg (by simp))
+  exact ⟨r, hr, hpid, by simpa [parentOk] using hpa, id, hw, hn⟩
+
+/-- Repo identity, branch A (lake serve): a `lake serve` picked by A lies in a non-live worktree of this repo. -/
+theorem lsp_in_removed_wt {i : Input} {s : Sel} (h : s ∈ reap i) (hk : s.kind = .lspServe) :
+    ∃ r ∈ i.rows, r.pid = s.pid ∧ ∃ id, r.wt = some id ∧ id ∉ i.liveIds := by
+  obtain ⟨r, hr, hp, hpid, -, -⟩ := reap_mem h
+  rw [hk] at hp
+  obtain ⟨-, -, -, -, -, -, hg, -⟩ := any_some hp
+  obtain ⟨id, hw, hn⟩ := goneWt_some (hg (by simp))
+  exact ⟨r, hr, hpid, id, hw, hn⟩
+
+/-- The live console never selected: a row that is the recorded console, or has it among its ancestors, is never in the
+selection, for any `keep` list and any branch (unique pids). -/
+theorem live_console_never_selected {i : Input} {r a : Row} (hr : r ∈ i.rows)
+    (ha : a ∈ r :: chain i i.rows.length r) (hk : kept i a = true) (hu : ∀ r' ∈ i.rows, r'.pid = r.pid → r' = r) :
+    ∀ s ∈ reap i, s.pid ≠ r.pid := by
+  intro s hs hpid
+  obtain ⟨r', hr', hp, hpid', -, -⟩ := reap_mem hs
+  have := hu r' hr' (hpid'.trans hpid)
+  subst this
+  rw [kept_ancestor_row ha hk] at hp
+  cases hp
+
+/-- A chain of a recorded console: the descendants of the recorded console are shielded off, so a console of the repo and its
+fwcore are never selected whatever `top` was. -/
+theorem recorded_console_shields {i : Input} {r : Row} {k : Nat × Nat} (hk : k ∈ i.keep) (hp : k.1 = r.pid)
+    (h1 : r.start ≤ k.2) (h2 : k.2 ≤ r.start + 60) : shielded i r = false := by
+  unfold shielded
+  have : kept i r = true := by
+    unfold kept
+    rw [List.any_eq_true]
+    exact ⟨k, hk, by simp [hp, h1, h2]⟩
+  simp [this]
+
+/-! ## The signal scope -/
+
+/-- A signal to `t` is allowed: the pid is above init and in `scope`, and a group signal only when every row of that process
+group (in the table just read) is in `scope`. The executor asks this before every `kill(2)`. -/
+def guardOk (scope : List Nat) (rows : List Row) (t : Target) : Bool :=
+  decide (1 < t.pid) && scope.contains t.pid && (!t.group || rows.all fun r => r.pgid != t.pid || scope.contains r.pid)
+
+/-- No signal outside the scope: an allowed signal is for a pid in the scope above init, and an allowed group signal reaches
+only rows in the scope. -/
+theorem guard_scope {scope : List Nat} {rows : List Row} {t : Target} (h : guardOk scope rows t = true) :
+    1 < t.pid ∧ t.pid ∈ scope ∧ (t.group = true → ∀ r ∈ rows, r.pgid = t.pid → r.pid ∈ scope) := by
+  unfold guardOk at h
+  simp only [Bool.and_eq_true, decide_eq_true_eq, List.contains_iff_mem, Bool.or_eq_true, Bool.not_eq_true',
+    List.all_eq_true, bne_iff_ne, ne_eq] at h
+  obtain ⟨⟨h1, h2⟩, h3⟩ := h
+  refine ⟨h1, h2, fun hg r hr hpg => ?_⟩
+  rcases h3 with h3 | h3
+  · rw [hg] at h3
+    cases h3
+  · rcases h3 r hr with h4 | h4
+    · exact absurd hpg h4
+    · exact h4
+
+/-- The TERM targets after the fresh read right before TERM: the planned identities still present with an unchanged start,
+a group staying a group only while every row now in it is planned (the same filter as the KILL step). -/
+def termPlan (planned : List Target) (fresh : List Row) : List Target := killPlan planned fresh
+
+/-- Every TERM target is a planned identity and is present with the same (pid, start) in the read right before TERM: a pid
+whose start changed since the gather (reuse) is never TERMed. -/
+theorem term_present {planned : List Target} {fresh : List Row} {t : Target} (h : t ∈ termPlan planned fresh) :
+    (∃ p ∈ planned, p.pid = t.pid ∧ p.start = t.start) ∧ ∃ r ∈ fresh, r.pid = t.pid ∧ r.start = t.start :=
+  kill_present h
+
+/-- The TERM group signal reaches only planned identities of the pre-TERM read. -/
+theorem term_group_inside {planned : List Target} {fresh : List Row} {t : Target} (h : t ∈ termPlan planned fresh)
+    (hg : t.group = true) : ∀ r ∈ fresh, r.pgid = t.pid → ∃ p ∈ planned, p.pid = r.pid ∧ p.start = r.start :=
+  kill_group_inside h hg
+
+
 end Fw.Ops.Reap
 
 namespace Fw.Wire.Reap
 open Lean Fw.Ops.Reap Fw.Wire.Ops
 
-/-- One row from JSON: `pid`, `ppid`, `pgid`, `start`, `cwd`? (inode or null), `kind`, `wt`? (worktree id or null). -/
+/-- One row from JSON: `pid`, `ppid`, `pgid`, `start`, `cwd`? (inode or null), `kind`, `wt`? (worktree id or null), `inRepo`? (bool). -/
 def rowOf (j : Json) : Except String Row := do
-  pure ⟨← nat j "pid", ← nat j "ppid", ← nat j "pgid", ← nat j "start", ← optN j "cwd", ← str j "kind", ← optS j "wt"⟩
+  pure ⟨← nat j "pid", ← nat j "ppid", ← nat j "pgid", ← nat j "start", ← optN j "cwd", ← str j "kind", ← optS j "wt", ← boolD j "inRepo" false⟩
 
 /-- The input of the selection ops from JSON. -/
 def inputOf (req : Json) : Except String Input := do
@@ -754,8 +864,21 @@ def opReapVerify (req : Json) : Except String Reply := do
   let l := left planned fresh
   pure [("left", .arr (l.toArray.map targetJson)), ("gone", toJson (planned.length - l.length))]
 
+/-- `ops.reapTerm`: `planned`, `rows` (the read right before TERM) → `term` [{pid, start, group}]. -/
+def opReapTerm (req : Json) : Except String Reply := do
+  let planned ← (← arr req "planned").toList.mapM targetOf
+  let fresh ← (← arr req "rows").toList.mapM rowOf
+  pure [("term", .arr ((termPlan planned fresh).toArray.map targetJson))]
+
+/-- `ops.reapGuard`: `scope` [pid], `rows` (the table just read), `target` {pid, start, group} → `allowed`. -/
+def opReapGuard (req : Json) : Except String Reply := do
+  let scope ← (← arr req "scope").toList.mapM (asNat "scope")
+  let rows ← (← arr req "rows").toList.mapM rowOf
+  let t ← targetOf (← field req "target")
+  pure [("allowed", .bool (guardOk scope rows t))]
+
 /-- The ops of this module. -/
-def ops : List String := ["ops.lspReap", "ops.reapPlan", "ops.reapKill", "ops.reapVerify"]
+def ops : List String := ["ops.lspReap", "ops.reapPlan", "ops.reapKill", "ops.reapVerify", "ops.reapTerm", "ops.reapGuard"]
 
 /-- Dispatch (`none` when the op is not one of this module's). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -764,8 +887,10 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "ops.reapPlan" => some (opReapPlan req)
   | "ops.reapKill" => some (opReapKill req)
   | "ops.reapVerify" => some (opReapVerify req)
+  | "ops.reapTerm" => some (opReapTerm req)
+  | "ops.reapGuard" => some (opReapGuard req)
   | _ => none
 
-#guard ops.all fun o => (handle o (Json.mkObj [("rows", .arr #[]), ("live", .arr #[]), ("planned", .arr #[])])).isSome
+#guard ops.all fun o => (handle o (Json.mkObj [("rows", .arr #[]), ("live", .arr #[]), ("planned", .arr #[]), ("scope", .arr #[]), ("target", Json.mkObj [("pid", toJson 2), ("start", toJson 0)])])).isSome
 
 end Fw.Wire.Reap

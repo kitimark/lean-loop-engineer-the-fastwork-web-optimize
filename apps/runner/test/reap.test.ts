@@ -2,9 +2,9 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { classify, COULD_NOT_LIST, reapTick, renderStop, stopSelected, type Io, insideLive, isMcp, parseLsof, parsePs, wtIdOf, reapCli, reapLines, ReapUsage, recordedConsoles, type Facts } from "../src/reap.ts";
+import { classify, COULD_NOT_LIST, reapTick, renderStop, stopSelected, type Io, insideLive, isMcp, parseLsof, parsePs, membership, repoIdOf, wtIdOf, reapCli, reapLines, ReapUsage, recordedConsoles, type Facts } from "../src/reap.ts";
 import { fwcoreCall } from "../src/run.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
@@ -14,6 +14,19 @@ const cases = readFileSync(join(root, "packages", "contracts", "golden", "ops", 
 describe("ops.lspReap golden vectors replay through fwcore", () => {
   const call = fwcoreCall(root);
   for (const c of cases) it(c.name, () => { expect(call(c.request)).toEqual(c.response); });
+});
+
+// reap.jsonl: the selection of branches B and C, the stop plan, the pre-TERM check, the scope guard, KILL and verify
+const stopCases = readFileSync(join(root, "packages", "contracts", "golden", "ops", "reap.jsonl"), "utf8").trim().split("\n")
+  .map((l) => JSON.parse(l) as { name: string; request: Record<string, unknown>; response: unknown });
+
+describe("reap.jsonl golden vectors replay through fwcore", () => {
+  const call = fwcoreCall(root);
+  it("has the cases of every op the executor calls", () => {
+    const ops = new Set(stopCases.map((c) => c.request.op));
+    for (const op of ["ops.lspReap", "ops.reapPlan", "ops.reapTerm", "ops.reapGuard", "ops.reapKill", "ops.reapVerify"]) expect(ops.has(op)).toBe(true);
+  });
+  for (const c of stopCases) it(c.name, () => { expect(call(c.request)).toEqual(c.response); });
 });
 
 describe("gathering glue", () => {
@@ -34,9 +47,6 @@ describe("gathering glue", () => {
   it("parses a stat column, drops zombies and finds worktree ids", () => {
     const ps = parsePs("  12   1  12 Ss   Tue Oct 20 02:59:44 2026 /bin/node a\n  13   1  13 Z    Tue Oct 20 02:59:44 2026 (node)\n  14   1  14 S+   Tue Oct 20 02:59:44 2026 x\n");
     expect(ps.map((p) => p.pid)).toEqual([12, 14]);
-    expect(wtIdOf("/m/.claude/worktrees/a1/lean/x", "/m")).toBe("a1");
-    expect(wtIdOf("/m/.claude/worktrees/", "/m")).toBeNull();
-    expect(wtIdOf("/m/lean", "/m")).toBeNull();
   });
   it("parses ps and lsof", () => {
     const ps = parsePs("  12   1  12 Tue Oct 20 02:59:44 2026 /bin/node a b\nnot a row\n");
@@ -47,7 +57,7 @@ describe("gathering glue", () => {
 });
 
 describe("fw reap --list and the land report", () => {
-  const facts: Facts = { rows: [{ pid: 500, ppid: 400, pgid: 500, start: 9, cwd: 11, kind: "lspServe" }], live: [1], mcps: [{ pid: 400, cwd: 1 }], keep: [] };
+  const facts: Facts = { rows: [{ pid: 500, ppid: 400, pgid: 500, start: 9, cwd: 11, kind: "lspServe", wt: "gone", inRepo: true }], live: [1], mcps: [{ pid: 400, cwd: 1 }], keep: [] };
   const call = fwcoreCall(root);
   it("prints Lean's list and signals nothing", () => {
     const out: string[] = [];
@@ -62,13 +72,34 @@ describe("fw reap --list and the land report", () => {
     expect(reapLines(root, call, () => { throw new Error("x"); })).toEqual([COULD_NOT_LIST]);
   });
   it("a recorded console with a dead cwd and parent 1 is not listed", () => {
-    const f: Facts = { rows: [{ pid: 600, ppid: 1, pgid: 600, start: 100, cwd: 12, kind: "console" }], live: [1], mcps: [], keep: [{ pid: 600, at: 101 }] };
+    const f: Facts = { rows: [{ pid: 600, ppid: 1, pgid: 600, start: 100, cwd: 12, kind: "console", wt: "gone", inRepo: true }], live: [1], mcps: [], keep: [{ pid: 600, at: 101 }] };
     expect(reapLines(root, call, () => f)).toEqual([]);
     expect(reapLines(root, call, () => ({ ...f, keep: [] }))[1]).toContain("600 group console");
   });
   it("another repo's lean-lsp-mcp does not make its lake serve a leftover", () => {
     const f: Facts = { rows: [{ pid: 500, ppid: 400, pgid: 500, start: 9, cwd: 11, kind: "lspServe" }], live: [1], mcps: [{ pid: 400, cwd: 77 }], keep: [] };
     expect(reapLines(root, call, () => f)).toEqual([]);
+  });
+});
+
+describe("repo identity by inode", () => {
+  const d = realpathSync(mkdtempSync(join(tmpdir(), "reap-id-")));
+  mkdirSync(join(d, "m", ".claude", "worktrees", "live1", "lean"), { recursive: true });
+  mkdirSync(join(d, "other", ".claude", "worktrees", "live1"), { recursive: true });
+  const id = repoIdOf(join(d, "m"))!;
+  it("a path below this repo's worktrees directory gives its id, a path of another repo gives none", () => {
+    expect(membership(join(d, "m", ".claude", "worktrees", "live1", "lean"), id)).toEqual({ inRepo: true, wt: "live1" });
+    expect(wtIdOf(join(d, "m", ".claude", "worktrees", "gone1", "deleted", "dir"), id)).toBe("gone1"); // the removed directory no longer exists
+    expect(membership(join(d, "m", "lean"), id)).toEqual({ inRepo: true, wt: null });
+    expect(membership(join(d, "other", ".claude", "worktrees", "live1"), id)).toEqual({ inRepo: false, wt: null });
+    expect(membership(join(d, "other", ".claude", "worktrees", "gone1"), id)).toEqual({ inRepo: false, wt: null });
+    expect(membership(join(d, "m", ".claude", "worktrees"), id)).toEqual({ inRepo: true, wt: null });
+  });
+  it("a path string that names this repo but reaches another directory is not this repo (identity, not strings)", () => {
+    symlinkSync(join(d, "other"), join(d, "alias"));
+    expect(membership(join(d, "alias", ".claude", "worktrees", "live1"), id)).toEqual({ inRepo: false, wt: null });
+    expect(repoIdOf(join(d, "nothing"))).toBeNull();
+    rmSync(d, { recursive: true, force: true });
   });
 });
 
@@ -94,7 +125,7 @@ describe("live checkout identity and the recorded console", () => {
 
 describe("reap-auto-stop glue with a stubbed process table", () => {
   const call = fwcoreCall(root);
-  const facts: Facts = { rows: [{ pid: 800, ppid: 1, pgid: 800, start: 9, cwd: 20, kind: "tool", wt: "gone" }], live: [1], mcps: [], keep: [], liveIds: ["live"] };
+  const facts: Facts = { rows: [{ pid: 800, ppid: 1, pgid: 800, start: 9, cwd: 20, kind: "tool", wt: "gone", inRepo: true }], live: [1], mcps: [], keep: [], liveIds: ["live"] };
   const stub = (alive: (sent: string[]) => boolean) => {
     const sent: string[] = [];
     const io: Io = {

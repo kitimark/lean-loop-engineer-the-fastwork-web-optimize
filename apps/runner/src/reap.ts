@@ -4,13 +4,14 @@
 // every decision (who, group or pid, who survives the grace, who is KILLed) is Lean's.
 import { spawnSync } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, readlinkSync, statSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { consoleDirOf } from "./lib.ts";
 import { fwcoreCall } from "./run.ts";
 
 export const REAP_USAGE = "usage: fw reap --list   (prints the processes Lean selects: pid, group flag, kind, reason; signals none)\n       fw reap --stop   (TERM the selected, wait the grace, KILL the unchanged survivors, verify; prints what stopped)";
 
-export type ReapRow = { pid: number; ppid: number; pgid: number; start: number; cwd: number | null; kind: string; wt?: string | null };
+export type ReapRow = { pid: number; ppid: number; pgid: number; start: number; cwd: number | null; kind: string; wt?: string | null; inRepo?: boolean };
 export type Selected = { pid: number; start: number; kind: string; group: boolean; reason: string };
 export type Target = { pid: number; start: number; group: boolean };
 export type Call = (req: Record<string, unknown>) => Record<string, unknown>;
@@ -104,19 +105,46 @@ export function insideLive(c: Cwd, dirs: string[]): boolean {
   try { return statSync(c.path).ino === c.ino; } catch { return false; }
 }
 
-/** The worktree id `.claude/worktrees/<id>` of `base` that `path` lies in, or `null`. */
-export function wtIdOf(path: string, base: string): string | null {
-  const pre = join(base, ".claude", "worktrees") + "/";
-  if (!path.startsWith(pre)) return null;
-  const id = path.slice(pre.length).split("/")[0];
-  return id ? id : null;
+/** A directory's identity: device and inode. */
+export type Ident = { dev: number; ino: number };
+/** This repo, by identity: its root directory and its `.claude/worktrees` directory (`null` when it does not exist). */
+export type RepoId = { root: Ident; wts: Ident | null };
+
+const identOf = (p: string): Ident | null => { try { const st = statSync(p); return { dev: st.dev, ino: st.ino }; } catch { return null; } };
+const sameIdent = (a: Ident, b: Ident) => a.dev === b.dev && a.ino === b.ino;
+
+/** The identity of the repo whose main checkout is `base`; `null` when the root cannot be read. */
+export function repoIdOf(base: string): RepoId | null {
+  const root = identOf(base);
+  return root === null ? null : { root, wts: identOf(join(base, ".claude", "worktrees")) };
 }
+
+/** Whether a cwd path lies inside THIS repo, decided by identity and never by comparing path strings: some ancestor of the
+ *  path (an ancestor that no longer exists is skipped) is the repo root by (dev, inode); `wt` is the name of the directory
+ *  right below the ancestor that is this repo's `.claude/worktrees` directory by (dev, inode). A path of another repo, even
+ *  one at a path this repo once had, matches neither. */
+export function membership(path: string, id: RepoId): { inRepo: boolean; wt: string | null } {
+  let cur = path, child: string | null = null, wt: string | null = null;
+  for (let n = 0; n < 4096; n++) {
+    const here = identOf(cur);
+    if (here !== null && id.wts !== null && sameIdent(here, id.wts)) wt = child;
+    if (here !== null && sameIdent(here, id.root)) return { inRepo: true, wt };
+    const up = dirname(cur);
+    if (up === cur) break;
+    child = basename(cur);
+    cur = up;
+  }
+  return { inRepo: false, wt: null };
+}
+
+/** The worktree id `.claude/worktrees/<id>` that `path` lies in, by identity, or `null`. */
+export const wtIdOf = (path: string, id: RepoId): string | null => membership(path, id).wt;
 
 /** The ids of the worktrees under `base/.claude/worktrees` that are live: registered with git, or present on disk with a
  *  `.git` entry (a checkout being made or not yet pruned counts as live: the conservative side). */
-export function liveWtIds(base: string, dirs: string[]): string[] {
+export function liveWtIds(base: string, dirs: string[], repo: RepoId): string[] {
   const ids = new Set<string>();
-  for (const d of dirs) { const id = wtIdOf(d + "/", base); if (id) ids.add(id); }
+  for (const d of dirs) { const id = wtIdOf(d, repo); if (id) ids.add(id); }
   const root = join(base, ".claude", "worktrees");
   try {
     for (const e of readdirSync(root)) if (existsSync(join(root, e, ".git"))) ids.add(e);
@@ -124,11 +152,17 @@ export function liveWtIds(base: string, dirs: string[]): string[] {
   return [...ids];
 }
 
+/** The console directory of the checkout this code runs from: the real console is recorded there whatever `top` is, so a stop
+ *  run against another repo still protects it. `null` when git cannot say. */
+export function selfConsoleDir(): string | null {
+  try { return consoleDirOf({}, dirname(fileURLToPath(import.meta.url))); } catch { return null; }
+}
+
 /** The recorded consoles: pid and the second `startedAt` of api.json in the main checkout's `.fw-console` and in
  *  `FW_CONSOLE_DIR` when set. A missing or broken file records none. */
 export function recordedConsoles(top: string, env: Record<string, string | undefined> = process.env): { pid: number; at: number }[] {
   const out: { pid: number; at: number }[] = [];
-  const dirs = [consoleDirOf({}, top), ...(env.FW_CONSOLE_DIR ? [env.FW_CONSOLE_DIR] : [])];
+  const dirs = [consoleDirOf({}, top), selfConsoleDir(), ...(env.FW_CONSOLE_DIR ? [env.FW_CONSOLE_DIR] : [])].filter((d): d is string => d !== null);
   for (const d of dirs) {
     try {
       const j = JSON.parse(readFileSync(join(d, "api.json"), "utf8")) as { pid?: unknown; startedAt?: unknown };
@@ -173,19 +207,24 @@ export function gather(top: string): Facts | null {
   const dirs = liveDirs(top);
   if (t === null || dirs === null || dirs.length === 0) return null;
   const base = dirs[0]!;
+  const repo = repoIdOf(base);
+  if (repo === null) return null;
   const cand = t.rows.filter((r) => r.kind !== "other");
   const mcpPs = t.ps.filter((p) => isMcp(p.args));
   const cwd = readCwds([...cand, ...mcpPs].map((p) => p.pid));
   if (cwd === null) return null;
   const live = new Set(liveRoots(dirs));
-  const liveIds = liveWtIds(base, dirs);
+  const liveIds = liveWtIds(base, dirs, repo);
+  const where = new Map<number, { inRepo: boolean; wt: string | null }>();
+  for (const [pid, c] of cwd) where.set(pid, membership(c.path, repo));
   // a directory under <main>/.claude/worktrees/<id> is inside a live checkout only when <id> is live (the main checkout contains them all)
-  const isLive = (c: Cwd) => { const id = wtIdOf(c.path, base); return (id === null || liveIds.includes(id)) && insideLive(c, dirs); };
-  for (const c of cwd.values()) if (isLive(c)) live.add(c.ino);
+  const isLive = (pid: number, c: Cwd) => { const id = where.get(pid)?.wt ?? null; return (id === null || liveIds.includes(id)) && insideLive(c, dirs); };
+  for (const [pid, c] of cwd) if (isLive(pid, c)) live.add(c.ino);
   return {
     rows: t.rows.map((r) => {
       const c = cwd.get(r.pid);
-      return r.kind === "other" ? r : { ...r, cwd: c?.ino ?? null, wt: c ? wtIdOf(c.path, base) : null };
+      const m = where.get(r.pid);
+      return r.kind === "other" ? r : { ...r, cwd: c?.ino ?? null, wt: m?.wt ?? null, inRepo: m?.inRepo ?? false };
     }),
     live: [...live],
     mcps: mcpPs.map((p) => ({ pid: p.pid, cwd: cwd.get(p.pid)?.ino ?? null })),
@@ -254,23 +293,39 @@ export const realIo: Io = {
 
 export type StopResult = {
   selected: Selected[]; termed: Target[]; killed: Target[]; left: Target[]; freedKb: number;
+  /** signals the scope guard refused (a pid outside the scope, pid <= 1, or a group with a member outside the scope) */
+  refused: Target[];
   /** per kind: the pids that are gone and their RSS (KiB) */
   byKind: { kind: string; pids: number[]; freedKb: number }[];
 };
 
-const EMPTY: StopResult = { selected: [], termed: [], killed: [], left: [], freedKb: 0, byKind: [] };
+const EMPTY: StopResult = { selected: [], termed: [], killed: [], left: [], freedKb: 0, refused: [], byKind: [] };
 
-/** Stop what Lean selects, following its script: read (done by `gatherFn`), TERM the plan, wait the grace (leaving early once
- *  Lean's verify finds none left), read again, KILL Lean's survivors of unchanged (pid, start), wait, verify. `null` when the
- *  facts cannot be read. */
-export function stopSelected(top: string, call: Call, io: Io = realIo, gatherFn: (top: string) => Facts | null = gather): StopResult | null {
+/** Stop what Lean selects, following its script: read (done by `gatherFn`), read again and let Lean re-check each identity
+ *  (`ops.reapTerm`), TERM, wait the grace (leaving early once Lean's verify finds none left), read again, KILL Lean's survivors
+ *  of unchanged (pid, start), wait, verify. Every signal first passes Lean's `ops.reapGuard` against `scope`, the pids this run
+ *  may signal: production passes none and the scope is the pids Lean selected; a test passes only the pids it started. A
+ *  signal outside the scope is refused and listed in `refused`. `null` when the facts cannot be read. */
+export function stopSelected(top: string, call: Call, io: Io = realIo, gatherFn: (top: string) => Facts | null = gather,
+  scope?: number[]): StopResult | null {
   const f = gatherFn(top);
   if (f === null) return null;
   const plan = call(request("ops.reapPlan", f)) as { selected: Selected[]; targets: Target[]; graceMs: number; killWaitMs: number };
   if (plan.targets.length === 0) return { ...EMPTY };
   const planned = plan.targets;
-  const rss0 = io.rss(planned.map((t) => t.pid));
-  for (const t of planned) io.signal(t, "SIGTERM");
+  const allowed = scope ?? plan.selected.map((s) => s.pid);
+  const refused: Target[] = [];
+  const send = (t: Target, sig: "SIGTERM" | "SIGKILL", table: ReapRow[]): boolean => {
+    const ok = (call({ op: "ops.reapGuard", scope: allowed, rows: table, target: t }) as { allowed: boolean }).allowed;
+    if (!ok) { refused.push(t); return false; }
+    io.signal(t, sig);
+    return true;
+  };
+  const pre = io.table();
+  if (pre === null) return null;
+  const toTerm = (call({ op: "ops.reapTerm", planned, rows: pre }) as { term: Target[] }).term;
+  const rss0 = io.rss(toTerm.map((t) => t.pid));
+  const termed = toTerm.filter((t) => send(t, "SIGTERM", pre));
   const left = (): Target[] | null => {
     const rows = io.table();
     return rows === null ? null : (call({ op: "ops.reapVerify", planned, rows }) as { left: Target[] }).left;
@@ -282,8 +337,8 @@ export function stopSelected(top: string, call: Call, io: Io = realIo, gatherFn:
   const fresh = io.table();
   let killed: Target[] = [];
   if (fresh !== null) {
-    killed = (call({ op: "ops.reapKill", planned, rows: fresh }) as { kill: Target[] }).kill;
-    for (const t of killed) io.signal(t, "SIGKILL");
+    const toKill = (call({ op: "ops.reapKill", planned, rows: fresh }) as { kill: Target[] }).kill;
+    killed = toKill.filter((t) => send(t, "SIGKILL", fresh));
     for (let waited = 0; killed.length > 0 && waited < plan.killWaitMs; waited += 100) {
       io.sleep(100);
       if (left()?.length === 0) break;
@@ -300,7 +355,7 @@ export function stopSelected(top: string, call: Call, io: Io = realIo, gatherFn:
     byKind.set(k, e);
   }
   const freedKb = [...byKind.values()].reduce((a, e) => a + e.freedKb, 0);
-  return { selected: plan.selected, termed: planned, killed, left: still, freedKb, byKind: [...byKind].map(([kind, e]) => ({ kind, ...e })) };
+  return { selected: plan.selected, termed, killed, left: still, freedKb, refused, byKind: [...byKind].map(([kind, e]) => ({ kind, ...e })) };
 }
 
 /** Append one `reap.stopped` record per kind to `.fw-console/reap.jsonl` of the console directory (a derived-fact log like
@@ -318,14 +373,16 @@ export function recordStopped(top: string, r: StopResult, now: number = Date.now
 export function renderStop(r: StopResult): string[] {
   const out = r.byKind.map((k) => `stopped ${k.kind}: ${k.pids.length} process(es) [${k.pids.join(",")}], freed ${(k.freedKb / 1024).toFixed(1)} MiB RSS`);
   if (r.killed.length) out.push(`killed after the grace: ${r.killed.map((t) => t.pid).join(",")}`);
+  if (r.refused.length) out.push(`signal refused (outside the scope): ${r.refused.map((t) => t.pid).join(",")}`);
   if (r.left.length) out.push(`still running after KILL: ${r.left.map((t) => t.pid).join(",")}`);
   return out;
 }
 
 /** The lines the land report adds after a worktree removal: stop the leftovers gracefully and say what happened. Never throws. */
-export function reapStopLines(top: string, call: Call = fwcoreCall(top), io: Io = realIo, gatherFn: (top: string) => Facts | null = gather): string[] {
+export function reapStopLines(top: string, call: Call = fwcoreCall(top), io: Io = realIo, gatherFn: (top: string) => Facts | null = gather,
+  scope?: number[]): string[] {
   try {
-    const r = stopSelected(top, call, io, gatherFn);
+    const r = stopSelected(top, call, io, gatherFn, scope);
     if (r === null) return [COULD_NOT_LIST];
     recordStopped(top, r);
     return r.selected.length === 0 ? [] : [`leftover processes stopped: ${r.byKind.reduce((a, k) => a + k.pids.length, 0)} of ${r.selected.length}`, ...renderStop(r).map((l) => `  ${l}`)];
@@ -337,10 +394,10 @@ export function reapStopLines(top: string, call: Call = fwcoreCall(top), io: Io 
 /** `fw reap --list` or `--stop`: print Lean's list, or stop it and print the result; exit 0 (1: facts unreadable, 2: a
  *  selected process survived KILL). */
 export function reapCli(argv: string[], top: string, call: Call, print: (s: string) => void = console.log,
-  gatherFn: (top: string) => Facts | null = gather, io: Io = realIo): number {
+  gatherFn: (top: string) => Facts | null = gather, io: Io = realIo, scope?: number[]): number {
   if (argv.length !== 1 || (argv[0] !== "--list" && argv[0] !== "--stop")) throw new ReapUsage(REAP_USAGE);
   if (argv[0] === "--stop") {
-    const r = stopSelected(top, call, io, gatherFn);
+    const r = stopSelected(top, call, io, gatherFn, scope);
     if (r === null) { print("reap: could not read the process table or the worktree list"); return 1; }
     recordStopped(top, r);
     if (r.selected.length === 0) { print("reap: nothing leftover"); return 0; }
@@ -359,10 +416,10 @@ export function reapCli(argv: string[], top: string, call: Call, print: (s: stri
 /** One watch tick: stop what Lean selects and return the lines to print (`REAP stopped <kind> ...`), recording each kind in
  *  `reap.jsonl`. `FW_WATCH_REAP=0` turns it off. Never throws: a failed read or stop is a quiet tick. */
 export function reapTick(top: string, env: Record<string, string | undefined> = process.env, io: Io = realIo,
-  gatherFn: (top: string) => Facts | null = gather, call: () => Call = () => fwcoreCall(top)): string[] {
+  gatherFn: (top: string) => Facts | null = gather, call: () => Call = () => fwcoreCall(top), scope?: number[]): string[] {
   if (env.FW_WATCH_REAP === "0") return [];
   try {
-    const r = stopSelected(top, call(), io, gatherFn);
+    const r = stopSelected(top, call(), io, gatherFn, scope);
     if (r === null || r.byKind.length === 0) return [];
     recordStopped(top, r, Date.now(), env);
     return r.byKind.map((k) => `REAP stopped ${k.kind} ${k.pids.length} process(es) [${k.pids.join(",")}] freed ${(k.freedKb / 1024).toFixed(1)} MiB${r.left.length ? `; still running: ${r.left.map((t) => t.pid).join(",")}` : ""}`);
