@@ -115,7 +115,7 @@ GitHub Actions runs every leg of the land lane unless it has no free job slot fo
 - **Limits.** Linux legs only; no hedge; macOS lanes are follow-ups (tasks ci-route, pool-fallback). Credits count only pipelines this
   Mac fetched (rolling 30 days). An aborted CircleCI pipeline is not cancelled. If one provider's group says local, the whole remote tier
   runs here. `ghPrev` (the last Actions flag) is not tracked yet.
-- **Proof by hand.** `FW_LAND_FORCE_FULL=1 node apps/runner/src/land-probe.ts` lands HEAD through this path on a probe branch (no merge).
+- **Proof by hand.** `FW_LAND_FORCE_FULL=1 node apps/runner/src/land-probe.ts [--rev <sha>]` lands HEAD (or `--rev`, e.g. a commit made with `git commit-tree HEAD^{tree} -p main -p HEAD`, so the legs select what a land selects and run the browser suite) through this path on a probe branch (no merge).
 - TS stand-ins: the status-to-active filter in `readSlots`, `markerMessage`, `legsCovered`, the sha and digest uniformity in `normalizeCircle`
   (tests in `land-overflow.test.ts`; the rule itself is replayed from the Lean golden).
 
