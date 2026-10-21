@@ -46,6 +46,10 @@ try {
     // circleci-pilot: the second reader of `fw ci wait` and the pilot commands (scripts/circleci.mjs; the decisions are Lean Fw.Ci.Provider)
     const script = new URL("../../../scripts/circleci.mjs", import.meta.url).pathname;
     process.exitCode = spawnSync(process.execPath, [script, ...(rest[0] === "circleci" ? rest.slice(1) : rest)], { cwd: process.cwd(), stdio: "inherit" }).status ?? 1;
+  } else if (group === "ci" && rest[0] === "codemagic") {
+    // codemagic-pilot: the Codemagic adapter (scripts/codemagic.mjs; the minutes rule is Lean Fw.Ci.Codemagic)
+    const script = new URL("../../../scripts/codemagic.mjs", import.meta.url).pathname;
+    process.exitCode = spawnSync(process.execPath, [script, ...rest.slice(1)], { cwd: process.cwd(), stdio: "inherit" }).status ?? 1;
   } else if (group === "ci" && (rest[0] === "wait" || rest[0] === "budget")) {
     const seen: string[] = []; const log = console.log;
     if (rest[0] === "wait") console.log = (...a: unknown[]) => { seen.push(String(a[0])); log(...a); }; // timing-spans: run ids that finished

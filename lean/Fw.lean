@@ -223,3 +223,4 @@ import Fw.Parts.NavOofRoot  -- nav-oof-root-finding: no boundary scopes the rela
 import Fw.Ci.Pool  -- pool-caps: per-lane macOS job time caps from measured p90 walls
 import Fw.Sup.Props  -- sup-model: supervisor daemon state machine, invariant and lease, queue, stop and reply theorems
 import Fw.Ci.Pool.Key  -- pool-key-outcome: request keys, provider-tagged artifact names, one terminal row per planned unit
+import Fw.Ci.Codemagic  -- codemagic-pilot: the 400-of-500 free-minutes ledger rule of the Codemagic pilot
