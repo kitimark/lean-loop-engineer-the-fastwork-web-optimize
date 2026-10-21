@@ -1,7 +1,7 @@
 #!/bin/sh
 # Inner-loop check (improvement E4/Q5): the cheap lean/ gates in the order they fail fastest, with per-step seconds.
 #   1. check-partial.sh   grep gates (no partial ops in the glue, no escape hatches)
-#   2. lake build         incremental: only the changed modules (proofs and #guard run here)
+#   2. fwcore build       scripts/fwcore-build.sh = lake build, incremental: only the changed modules (proofs and #guard run here)
 #   3. lake test          golden round trips (0.3 s when up to date)
 #   4. fwcore golden diff the real binary on golden/wire-requests.txt (LEAN_ABORT_ON_PANIC=1)
 #   5. axiom check        no sorryAx and only the standard axioms (scripts/axiom-check.sh)
@@ -30,7 +30,7 @@ golden() {
   LEAN_ABORT_ON_PANIC=1 .lake/build/bin/fwcore < golden/wire-requests.txt | diff - golden/wire-replies.txt
 }
 step check-partial scripts/check-partial.sh
-step build lake build
+step build sh ../scripts/fwcore-build.sh  # the one fwcore builder: lake build, strip, the build record (no svc.unknown)
 step test lake test
 step golden golden
 step axioms sh scripts/axiom-check.sh

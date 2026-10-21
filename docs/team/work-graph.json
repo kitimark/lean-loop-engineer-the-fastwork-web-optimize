@@ -12415,7 +12415,8 @@
     "lean/Fw/Obs/Timing.lean",
     "scripts/fwcore-build.sh",
     "packages/contracts/golden/obs/**"
-   ]
+   ],
+   "evidence": "48eaaad"
   },
   {
    "devices": [
@@ -12844,6 +12845,42 @@
     "packages/measure-chromium/profiles/user-*.json",
     "docs/team/tools/device-lag-recorder.md",
     "docs/team/handoffs/device-lag-recorder.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "close-start-later-samples",
+   "owner": "lean-prover",
+   "stream": "gate",
+   "deps": [
+    "close-start-identity-rule"
+   ],
+   "title": "Follow-up of close-start-identity-rule (accepted; admission still blocked): in hero.exit:scoped close@0 passes where the class dropped at m(q) 133-282 (sample gaps), samples read 60-226 ms after the identity sample move away from bgRed m(q) while byM compares them with the original near the cut (macOS WebKit 39466179818 390/640 px; Chromium 39448209903 1280 px). Judge those later in-flight samples against the transition FROM bgRed m(q) (nav background curve and duration restated from the CSS), never more lenient than byM elsewhere (theorem), and KEEP A GAP CHECK: a gap regression above B's minimum detectable effect (0.31 ln g) must still be refused in a named cell (idCheck_t0 makes the decided sample blind to the gap). Re-reduce the 5 cited runs listing every changed cell; then say whether admit-hero-exit-scoped can run.",
+   "writes": [
+    "lean/Fw/Gate/Trajectory.lean",
+    "packages/contracts/golden/gate/trajectory.jsonl",
+    "packages/gate-breakpoints/src/trajectory/reduce.mjs",
+    "packages/gate-breakpoints/test/trajectory.test.mjs",
+    "docs/team/tools/trajectory-probe.md",
+    "docs/team/handoffs/close-start-later-samples.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "wire-obs-proof-split",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "deps": [
+    "local-mem-budget"
+   ],
+   "title": "Fw.Wire.Obs takes about 4.4 min to build since local-mem-budget (systemOf_systemJson at 4M heartbeats, elaborating for minutes); every CI land leg whose change touches its import cone pays it (timing.slow on land/*/fwcore build, 2026-10-21). Split the round-trip proof (per-field lemmas outside the big obtain, or nested structures each with its own round-trip lemma) so the module builds in under 30 s, no maxHeartbeats raise; measure the module build time before and after on CI (fwcore build span of one land leg).",
+   "writes": [
+    "lean/Fw/Wire/Obs.lean",
+    "docs/team/handoffs/wire-obs-proof-split.md"
    ]
   }
  ],

@@ -101,6 +101,9 @@ jobs:
       - name: scripts/lake-slot.sh tests (the Linux flock branch)
         run: node --test scripts/lake-slot.test.mjs
 
+      - name: scripts/heavy-lock.mjs and scripts/fwcore-build.sh tests (the TS stand-ins against the Lean goldens, the build record)
+        run: node --test scripts/heavy-lock.test.mjs scripts/fwcore-build.test.mjs
+
       - name: lean/scripts/check.sh
         env:
           # check.sh's own spans (scripts/span.sh) land in the telemetry record as steps (task ci-telemetry)
