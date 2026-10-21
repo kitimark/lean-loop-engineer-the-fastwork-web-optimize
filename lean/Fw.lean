@@ -49,6 +49,7 @@ import Fw.Parts.HiddenPause
 import Fw.Parts.MorphMountOpt
 import Fw.Parts.MorphMountDormant
 import Fw.Parts.HeroExitOpt
+import Fw.Parts.HeroExitCloseStart
 import Fw.Parts.PainNotes
 import Fw.Parts.PainNotesGolden
 import Fw.Parts.PeopleDeck
