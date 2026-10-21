@@ -1836,4 +1836,294 @@ theorem pump_pd {c : Cfg} {s0 : State} (hw : Wf c s0) : PD c s0 (pumpAcc c s0) :
     fun _ _ _ hj h => ⟨pumpOne_pm hw hj h.1, pumpOne_pd hw hj h.1 h.2⟩
   exact this.2
 
+/-! ## Admission, shedding and draining -/
+
+/-- A command that admits nothing: no grant and no spawn. -/
+def NoAdm (x : Cmd) : Prop := (∀ n l, x ≠ .reply n (.granted l)) ∧ ∀ rid k, x ≠ .spawn rid k
+
+theorem shedOk_noAdm {x : Cmd} (h : ShedOk x) : NoAdm x := by
+  rcases h with ⟨n, r, rfl, hr⟩ | ⟨i, rfl⟩
+  · exact ⟨fun _ l e => (by simp only [Cmd.reply.injEq] at e; exact hr l e.2), fun _ _ e => by cases e⟩
+  · exact ⟨fun _ _ e => (by cases e), fun _ _ e => by cases e⟩
+
+theorem tick_quiet {c : Cfg} {s : State} {now : Nat} {smp : Sample} {x : Cmd} (h : x ∈ (tick c s now smp).2) :
+    quiet x = true := by
+  rcases tick_cmds h with ⟨_, _, _, _, _, e⟩ | ⟨_, _, e⟩ | ⟨_, _, e⟩ | e <;> (rw [e]; rfl)
+
+theorem quiet_noAdm {x : Cmd} (h : quiet x = true) : NoAdm x :=
+  ⟨fun _ _ e => (by subst e; simp [quiet] at h), fun _ _ e => by subst e; simp [quiet] at h⟩
+
+theorem shedStage_st (c : Cfg) (s : State) : (shedStage c s).1 = { s with res := (shedStage c s).1.res } := by
+  unfold shedStage; split <;> rfl
+
+theorem shedStage_on {c : Cfg} {s : State} (hs : s.shedding = true) : shedStage c s = stopAll s (shedPick c s) := by
+  unfold shedStage; rw [if_pos hs]
+
+theorem tick_st (c : Cfg) (s : State) (now : Nat) (smp : Sample) :
+    (tick c s now smp).1 = { (observe c s now smp).1 with res := (tick c s now smp).1.res } := by
+  show (shedStage c (idleStage c (observe c s now smp).1).1).1 = _
+  rw [shedStage_st]
+  rfl
+
+theorem observe_shed {c : Cfg} {s : State} {now : Nat} {smp : Sample}
+    (ho : c.warn ≤ smp.pressure ∨ ∃ d, c.budget.get d < used (observe c s now smp).1 d + smp.ext.get d) :
+    (observe c s now smp).1.shedding = true := by
+  show shedOn c _ = true
+  unfold shedOn
+  rcases ho with ho | ⟨d, hd⟩
+  · simp only [Bool.or_eq_true, decide_eq_true_eq]
+    exact Or.inl (Or.inl ho)
+  · have hf : fitsB c (observe c s now smp).1 (fun _ => 0) = false := by
+      cases hf : fitsB c (observe c s now smp).1 (fun _ => 0)
+      · rfl
+      · have := fitsB_le hf d
+        have ho : (observe c s now smp).1.obs = smp := rfl
+        rw [ho] at this
+        omega
+    have hn : (!fitsB c (observe c s now smp).1 (fun _ => 0)) = true := by rw [hf]; rfl
+    simp only [Bool.or_eq_true]
+    exact Or.inl (Or.inr hn)
+
+theorem stopAll_emits {s : State} {xs : List Rsrc} {y : Rsrc} {i : Ident} (hy : y ∈ s.res) (hx : y ∈ xs)
+    (hp : y.phase = .ready) (hi : y.proc = some i) : Cmd.signal (.group i) .term ∈ (stopAll s xs).2 := by
+  unfold stopAll mapRes
+  refine List.mem_flatMap.2 ⟨y, hy, ?_⟩
+  have hm : y.id ∈ xs.map (·.id) := List.mem_map_of_mem hx
+  simp [stopRec, hi, hp, hm]
+
+theorem cands_ready {c : Cfg} {s : State} {y : Rsrc} (h : y ∈ cands c s) : y ∈ s.res ∧ y.phase = .ready := by
+  have := List.mem_filter.1 h
+  refine ⟨this.1, ?_⟩
+  have h2 := this.2
+  simp only [Bool.and_eq_true, beq_iff_eq] at h2
+  exact h2.1.1.1
+
+theorem step_pd {c : Cfg} {s : State} {e : Event} (h : Inv c s) : PD c (pre c s e).1 (pumpAcc c (pre c s e).1) :=
+  pump_pd (wf_pre e h.1)
+
+theorem grantsIn_nil : ∀ cs : List Cmd, (∀ x ∈ cs, ∃ n w, x = .reply n (.refused w)) → grantsIn cs = []
+  | [], _ => rfl
+  | x :: xs, h => by
+    obtain ⟨n, w, rfl⟩ := h x List.mem_cons_self
+    simp only [grantsIn, List.filterMap_cons]
+    exact grantsIn_nil xs fun y hy => h y (List.mem_cons_of_mem _ hy)
+
+theorem request_draining (c : Cfg) (s : State) (o : Nat) (a : Ask) : (request c s o a).1.draining = s.draining := by
+  unfold request
+  dsimp only
+  split
+  · split
+    · split <;> rfl
+    · rfl
+  · rfl
+
+theorem pre_drain {c : Cfg} {s : State} {e : Event} {n : Nat} {l : Lease} (hd : (pre c s e).1.draining = true)
+    (h : .reply n (.granted l) ∈ (pre c s e).2) : False := by
+  cases e with
+  | request t o a =>
+    have hd' : s.draining = true := by rw [← request_draining c s o a]; exact hd
+    simp only [pre, request] at h
+    split at h
+    · split at h
+      · split at h
+        · simp at h
+        · rename_i hn; exact hn hd'
+      · simp at h
+    · cases h
+  | release t o lid => simp only [pre, release] at h; split at h <;> simp at h
+  | renew t o lid =>
+    simp only [pre, renew] at h
+    split at h
+    · split at h <;> simp at h
+    · simp at h
+  | op t o => simp [pre] at h
+  | drain t o => simp [pre] at h
+  | spawned rid i =>
+    simp only [pre] at h
+    unfold spawned at h
+    split at h
+    · cases h
+    · split at h
+      · cases h
+      · split at h <;> simp at h
+  | ready rid => cases h
+  | childExit i => simp only [pre, childExit] at h; obtain ⟨_, _, _, e⟩ := cut_cmd h; cases e
+  | tick now smp => rcases tick_cmds h with ⟨_, _, _, _, _, e⟩ | ⟨_, _, e⟩ | ⟨_, _, e⟩ | e <;> cases e
+  | clientGone o => cases h
+  | restart now snap inp =>
+    simp only [pre, recover] at h
+    rcases List.mem_append.1 h with h | h <;> (obtain ⟨_, _, e⟩ := List.mem_map.1 h; cases e)
+
+theorem tick_exit {c : Cfg} {s : State} {now : Nat} {smp : Sample} (h : .exit ∈ (tick c s now smp).2) :
+    (tick c s now smp).1.draining = true ∧ (tick c s now smp).1.leases = [] := by
+  unfold tick at h ⊢
+  dsimp only at h ⊢
+  generalize hb : idleStage c (observe c s now smp).1 = b at h ⊢
+  generalize hd : shedStage c b.1 = d at h ⊢
+  rcases List.mem_append.1 h with h | h
+  · exfalso
+    rcases List.mem_append.1 h with h | h
+    · rcases List.mem_append.1 h with h | h
+      · rcases observe_cmds h with ⟨_, _, _, _, e⟩ | ⟨_, _, e⟩ | ⟨_, _, e⟩ <;> cases e
+      · rw [← hb] at h; obtain ⟨_, _, _, _, _, _, e⟩ := stopAll_sig h; cases e
+    · rw [← hd] at h
+      rcases shedStage_eq c b.1 with e | e <;> rw [e] at h
+      · obtain ⟨_, _, _, _, _, _, e⟩ := stopAll_sig h; cases e
+      · cases h
+  · split at h
+    · rename_i hc
+      simp only [Bool.and_eq_true, List.isEmpty_iff] at hc
+      exact hc
+    · cases h
+
+theorem pre_exit {c : Cfg} {s : State} {e : Event} (h : Cmd.exit ∈ (pre c s e).2) :
+    (pre c s e).1.draining = true ∧ (pre c s e).1.leases = [] := by
+  cases e with
+  | request t o a =>
+    exfalso
+    simp only [pre, request] at h
+    split at h
+    · split at h
+      · split at h <;> simp at h
+      · simp at h
+    · cases h
+  | release t o lid => exfalso; simp only [pre, release] at h; split at h <;> simp at h
+  | renew t o lid =>
+    exfalso
+    simp only [pre, renew] at h
+    split at h
+    · split at h <;> simp at h
+    · simp at h
+  | op t o => simp [pre] at h
+  | drain t o => simp [pre] at h
+  | spawned rid i =>
+    exfalso
+    simp only [pre] at h
+    unfold spawned at h
+    split at h
+    · cases h
+    · split at h
+      · cases h
+      · split at h <;> simp at h
+  | ready rid => cases h
+  | childExit i => exfalso; simp only [pre, childExit] at h; obtain ⟨_, _, _, e⟩ := cut_cmd h; cases e
+  | tick now smp => exact tick_exit h
+  | clientGone o => cases h
+  | restart now snap inp =>
+    exfalso
+    simp only [pre, recover] at h
+    rcases List.mem_append.1 h with h | h <;> (obtain ⟨_, _, e⟩ := List.mem_map.1 h; cases e)
+
+/-- admit_fits: a step that grants a costed job lease leaves load plus external footprint within budget. -/
+theorem admit_fits {c : Cfg} {s : State} {e : Event} {n : Nat} {l : Lease} (h : Inv c s)
+    (hm : .reply n (.granted l) ∈ (step c s e).2) (hk : l.kind = .job) (hc : l.cost ≠ {}) : Fits c (step c s e).1 := by
+  obtain ⟨ha, hm⟩ := step_mem hm
+  rw [step_st ha]
+  rcases hm with hm | hm
+  · rcases pre_cmds hm with hq | ⟨r, e', hr⟩
+    · simp [quiet] at hq
+    · simp only [Cmd.reply.injEq] at e'
+      exact absurd (hr l e'.2.symm).2 hc
+  · exact (step_pd h).fits ⟨_, hm, Or.inl ⟨n, l, rfl, hk⟩⟩
+
+/-- spawn_fits: a step that spawns leaves load plus external footprint within budget. -/
+theorem spawn_fits {c : Cfg} {s : State} {e : Event} {rid k : Nat} (h : Inv c s) (hm : .spawn rid k ∈ (step c s e).2) :
+    Fits c (step c s e).1 := by
+  obtain ⟨ha, hm⟩ := step_mem hm
+  rw [step_st ha]
+  rcases hm with hm | hm
+  · exact (no_spawn_pre hm).elim
+  · exact (step_pd h).fits ⟨_, hm, Or.inr ⟨rid, k, rfl⟩⟩
+
+/-- restart_bounded (spawn): a spawned resource has fewer than `maxRestarts` crashes within the window. -/
+theorem restart_bounded {c : Cfg} {s : State} {e : Event} {rid k : Nat} (h : Inv c s)
+    (hm : .spawn rid k ∈ (step c s e).2) :
+    ∃ r ∈ (step c s e).1.res, r.id = rid ∧ r.phase = .starting (step c s e).1.now ∧
+      (recent c (step c s e).1.now r.crashes).length < c.maxRestarts := by
+  obtain ⟨y, hy, hid, _, hph, _⟩ := spawned_recorded h hm
+  obtain ⟨ha, hm'⟩ := step_mem hm
+  have hw := wf_pre e h.1
+  rcases hm' with hm' | hm'
+  · exact (no_spawn_pre hm').elim
+  obtain ⟨x, hx, hxid, _, _, hrc⟩ := (pump_pd hw).spawn rid k hm'
+  have hj := pump_pj hw
+  have hy' : y ∈ (pumpAcc c (pre c s e).1).st.res := by rw [← step_st ha]; exact hy
+  have hk : key y ∈ (pre c s e).1.res.map key := by rw [← hj.key]; exact List.mem_map_of_mem hy'
+  obtain ⟨x', hx', hkx⟩ := List.mem_map.1 hk
+  have e1 : x' = x := eq_of_nodup_map (·.id) _ hw.rids x' x hx' hx ((key_id hkx).trans (hid.trans hxid.symm))
+  refine ⟨y, hy, hid, hph, ?_⟩
+  rw [step_st ha, hj.now, key_crashes hkx.symm, e1]
+  exact hrc
+
+/-- restart_bounded (cap): a crash that reaches the cap fails the resource with `restartCap` until the window ends. -/
+theorem crash_cap (c : Cfg) (now : Nat) (f : Bool) (x : Rsrc) (h : c.maxRestarts ≤ (crash c now f x).crashes.length) :
+    (crash c now f x).phase = .failed (now + c.window) .restartCap := by
+  simp only [crash] at h ⊢
+  rw [if_pos h]
+
+/-- overrun_sheds: a tick that sees pressure at warn or load plus external footprint over budget sheds, admits nothing,
+and sends TERM to the group of every resource the shed pick names. -/
+theorem overrun_sheds {c : Cfg} {s : State} {now : Nat} {smp : Sample} (h : Inv c s)
+    (ho : c.warn ≤ smp.pressure ∨ ∃ d, c.budget.get d < used (observe c s now smp).1 d + smp.ext.get d) :
+    (step c s (.tick now smp)).1.shedding = true ∧ (∀ x ∈ (step c s (.tick now smp)).2, NoAdm x) ∧
+    ∀ y ∈ shedPick c (idleStage c (observe c s now smp).1).1, ∀ i, y.proc = some i →
+      Cmd.signal (.group i) .term ∈ (step c s (.tick now smp)).2 := by
+  have hs : (observe c s now smp).1.shedding = true := observe_shed ho
+  have hp : (pre c s (.tick now smp)).1.shedding = true := (congrArg State.shedding (tick_st c s now smp)).trans hs
+  have hw := wf_pre (.tick now smp) h.1
+  refine ⟨by rw [step_st (e := .tick now smp) rfl, (pump_pj hw).shedding]; exact hp, fun x hx => ?_, fun y hy i hi => ?_⟩
+  · rw [step_out (e := .tick now smp) rfl] at hx
+    rcases List.mem_append.1 hx with hx | hx
+    · exact quiet_noAdm (tick_quiet hx)
+    · exact shedOk_noAdm ((pump_pd hw).shed hp x hx)
+  · have hB : (idleStage c (observe c s now smp).1).1.shedding = true := hs
+    obtain ⟨hr, hrd⟩ := cands_ready (shedPick_cands hy)
+    rw [step_out (e := .tick now smp) rfl]
+    refine List.mem_append_left _ (List.mem_append_left _ (List.mem_append_right _ ?_))
+    show _ ∈ (shedStage c (idleStage c (observe c s now smp).1).1).2
+    rw [shedStage_on hB]
+    exact stopAll_emits hr hy hrd hi
+
+/-- starvation_limit: while the new state sheds, the step spawns nothing and grants only nested job joins of cost zero,
+so queued requests wait until shedding ends. -/
+theorem starvation_limit {c : Cfg} {s : State} {e : Event} {x : Cmd} (h : Inv c s)
+    (hs : (step c s e).1.shedding = true) (hx : x ∈ (step c s e).2) :
+    (∀ rid k, x ≠ .spawn rid k) ∧ ∀ n l, x = .reply n (.granted l) → n = s.next ∧ l.kind = .job ∧ l.cost = {} := by
+  obtain ⟨ha, hx⟩ := step_mem hx
+  have hw := wf_pre e h.1
+  rw [step_st ha, (pump_pj hw).shedding] at hs
+  rcases hx with hx | hx
+  · refine ⟨fun rid k e' => (by subst e'; exact no_spawn_pre hx), fun n l e' => ?_⟩
+    rcases pre_cmds hx with hq | ⟨r, e2, hr⟩
+    · rw [e'] at hq; simp [quiet] at hq
+    · rw [e'] at e2
+      simp only [Cmd.reply.injEq] at e2
+      exact ⟨e2.1, hr l e2.2.symm⟩
+  · have := shedOk_noAdm ((pump_pd hw).shed hs x hx)
+    exact ⟨this.2, fun n l e' => absurd e' (this.1 n l)⟩
+
+/-- drain_quiet: a step whose new state drains spawns nothing and grants nothing. -/
+theorem drain_quiet {c : Cfg} {s : State} {e : Event} {x : Cmd} (h : Inv c s) (hd : (step c s e).1.draining = true)
+    (hx : x ∈ (step c s e).2) : NoAdm x := by
+  obtain ⟨ha, hx⟩ := step_mem hx
+  have hw := wf_pre e h.1
+  rw [step_st ha, (pump_pj hw).draining] at hd
+  rcases hx with hx | hx
+  · exact ⟨fun n l e' => (by subst e'; exact pre_drain hd hx), fun rid k e' => by subst e'; exact no_spawn_pre hx⟩
+  · obtain ⟨n, w, e'⟩ := (pump_pd hw).drain hd x hx
+    subst e'
+    exact shedOk_noAdm (refused_ok n w)
+
+/-- drain_quiet (exit): the exit command leaves a draining state with no lease. -/
+theorem drain_exit {c : Cfg} {s : State} {e : Event} (h : Inv c s) (hx : Cmd.exit ∈ (step c s e).2) :
+    (step c s e).1.draining = true ∧ (step c s e).1.leases = [] := by
+  obtain ⟨ha, hx⟩ := step_mem hx
+  have hw := wf_pre e h.1
+  have hj := pump_pj hw
+  rcases hx with hx | hx
+  · obtain ⟨hd, hl⟩ := pre_exit hx
+    rw [step_st ha, hj.draining, hj.leases, hl, grantsIn_nil _ ((pump_pd hw).drain hd)]
+    exact ⟨hd, rfl⟩
+  · rcases (pump_pm hw).2 _ hx with ⟨_, _, e'⟩ | ⟨_, _, e', _, _⟩ | ⟨_, _, _, _, _, e'⟩ <;> cases e'
+
 end Fw.Sup
