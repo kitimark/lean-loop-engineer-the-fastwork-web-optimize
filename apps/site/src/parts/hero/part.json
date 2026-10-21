@@ -6,7 +6,8 @@
   "impls": ["plain"],
   "muiStates": [],
   "variants": {
-    "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "original": "index.html (hero markup and inline styles 57-58); assets/2.gBuqKVzi.css:1513-1517,1725-1900,1984-1999,2031-2060,2128-2160" } }
+    "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "original": "index.html (hero markup and inline styles 57-58); assets/2.gBuqKVzi.css:1513-1517,1725-1900,1984-1999,2031-2060,2128-2160" } },
+    "scene-pause": { "kind": "optimized", "tier": "T0", "provenance": { "lean": "Fw.Parts.HeroScenePause", "original": "nodes/2.DyWL8TcE.js byte 152358 (hero-track scene registration); assets/2.gBuqKVzi.css scene-paused rule", "limit": "after a pause the loops resume at the original's phase, not the faithful arm's; one stale frame when the scroll between two observer callbacks exceeds one viewport" } }
   },
   "requires": {},
   "conflicts": {}

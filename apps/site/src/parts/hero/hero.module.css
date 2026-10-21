@@ -39,6 +39,11 @@
     --copy-in: 1;
     animation: none;
   }
+  :global([data-fw-hero-scene='paused']),
+  :global([data-fw-hero-scene='paused']) :where(*) {
+    will-change: auto !important;
+    animation-play-state: paused !important;
+  }
   .copyMain {
     flex-direction: column;
     align-items: center;

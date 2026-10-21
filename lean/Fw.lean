@@ -46,6 +46,7 @@ import Fw.Parts.PeopleGolden
 import Fw.Parts.PlatformGolden
 import Fw.Parts.MorphTweenOpt
 import Fw.Parts.HiddenPause
+import Fw.Parts.HeroScenePause
 import Fw.Parts.MorphMountOpt
 import Fw.Parts.MorphMountDormant
 import Fw.Parts.HeroExitOpt
