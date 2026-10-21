@@ -31,7 +31,7 @@ match wins:
 | 10 | by extension (`byExt`) | see `byExt` | `checkOf` |
 | 11 | `e = ""`, by basename (`byName`) | `prose` / `text` | exempt |
 
-The preset check also runs when any other input of `Fw.Preset.Gen` is among the paths (`presetInput`), whatever its own kind.
+The preset check also runs when any other input of `Fw.Preset.Gen` is among the paths (`presetInput`), whatever its own kind, including the Lean modules it imports; a staged deletion of an input (`deleted`, `planStaged`) runs it too.
 
 Proved: `checkOf_exempt_iff` (exactly the five exempt kinds have no check), `precommit_covers` (every path with a code
 extension outside the snapshot and the research sketches has a non-exempt check), `tracked_mapped` (every
@@ -191,9 +191,10 @@ Ruby parses every file named on its command line as YAML.
 def yamlProg : String := "ARGV.each { |f| YAML.parse_file(f) }"
 
 /-- Whether a path is an input of the preset generator `Fw.Preset.Gen.run`: the findings ledger, a file of
-`packages/contracts/golden/preset/`, the site preset, a `part.json` of `apps/site/src/parts/<part>/`, or the generator.
+`packages/contracts/golden/preset/`, the site preset, a `part.json` of `apps/site/src/parts/<part>/`, the generator, or a
+Lean module the generator imports (`Fw.Preset.V2Proved`, which imports `Fw.Gate.Trajectory`).
 
-A path is an input exactly when it is one of the five listed places.
+A path is an input exactly when it is one of the seven listed places.
 -/
 def presetInputKey (s : List String) : Bool :=
   s == ["research", "findings", "ledger.json"]
@@ -201,6 +202,8 @@ def presetInputKey (s : List String) : Bool :=
     || s == ["apps", "site", "src", "registry", "presets", "v2-proved.json"]
     || (s.take 4 == ["apps", "site", "src", "parts"] && s.length == 6 && s.getLast? == some "part.json")
     || s == ["lean", "Fw", "Preset", "Gen.lean"]
+    || s == ["lean", "Fw", "Preset", "V2Proved.lean"]
+    || s == ["lean", "Fw", "Gate", "Trajectory.lean"]
 
 /-- `presetInputKey` of a path's segments. -/
 def presetInput (p : String) : Bool := presetInputKey (segs p)
@@ -251,6 +254,16 @@ Each check runs once over exactly the given paths that need it, in a fixed order
 def plan (paths : List String) : List Cmd :=
   order.flatMap fun c =>
     let fs := checkFiles c paths
+    if fs.isEmpty then [] else cmdsFor c fs
+
+/-- The plan of a staged commit: the plan of the staged paths `P` that still exist, where the preset check also takes the
+staged deletions `D` that were generator inputs.
+
+A deleted file has no check of its own (nothing to parse), but the preset check must still judge the tree without it.
+-/
+def planStaged (paths deleted : List String) : List Cmd :=
+  order.flatMap fun c =>
+    let fs := checkFiles c paths ++ (if c == .presetCheck then deleted.filter presetInput else [])
     if fs.isEmpty then [] else cmdsFor c fs
 
 /-- The unmapped paths: those with no kind, in their order. -/
@@ -587,6 +600,53 @@ theorem plan_sound (paths : List String) (m : Cmd) (hm : m ∈ plan paths) (f : 
     · have := List.mem_filter.mp hmem
       exact ⟨this.1, Or.inl (by rw [h1]; simpa using this.2)⟩
 
+/-- Every generator input among the paths runs the preset check on it.
+
+A staged add or change of any input of `Fw.Preset.Gen` runs `Fw.Preset.Gen.run --check`.
+-/
+theorem presetInput_planned (paths : List String) (p : String) (hp : p ∈ paths) (hi : presetInput p = true) :
+    ∃ m ∈ plan paths, m.check = .presetCheck ∧ p ∈ m.files := by
+  have hf : p ∈ checkFiles .presetCheck paths := by
+    unfold checkFiles
+    simp only [beq_self_eq_true, ite_true]
+    exact List.mem_filter.mpr ⟨hp, by simp [hi]⟩
+  obtain ⟨m, hm, h1, h2⟩ := cmdsFor_covers .presetCheck _ p (by decide) hf
+  refine ⟨m, List.mem_flatMap.mpr ⟨.presetCheck, mem_order .presetCheck (by decide), ?_⟩, h1, h2⟩
+  have : (checkFiles .presetCheck paths).isEmpty = false := by
+    cases h : checkFiles .presetCheck paths with
+    | nil => rw [h] at hf; cases hf
+    | cons _ _ => rfl
+  simp only [this, Bool.false_eq_true, ite_false]
+  exact hm
+
+/-- A staged deletion of a generator input runs the preset check.
+
+Deleting `part.json`, a golden preset file, the ledger or a generator module cannot slip past the check.
+-/
+theorem presetInput_deleted_planned (paths deleted : List String) (p : String) (hp : p ∈ deleted) (hi : presetInput p = true) :
+    ∃ m ∈ planStaged paths deleted, m.check = .presetCheck ∧ p ∈ m.files := by
+  have hf : p ∈ checkFiles .presetCheck paths ++ (if (Check.presetCheck == .presetCheck) = true then deleted.filter presetInput else []) := by
+    simp only [beq_self_eq_true, ite_true]
+    exact List.mem_append_right _ (List.mem_filter.mpr ⟨hp, hi⟩)
+  obtain ⟨m, hm, h1, h2⟩ := cmdsFor_covers .presetCheck _ p (by decide) hf
+  refine ⟨m, List.mem_flatMap.mpr ⟨.presetCheck, mem_order .presetCheck (by decide), ?_⟩, h1, h2⟩
+  have : (checkFiles .presetCheck paths ++ (if (Check.presetCheck == .presetCheck) = true then deleted.filter presetInput else [])).isEmpty = false := by
+    cases h : (checkFiles .presetCheck paths ++ (if (Check.presetCheck == .presetCheck) = true then deleted.filter presetInput else [])) with
+    | nil => rw [h] at hf; cases hf
+    | cons _ _ => rfl
+  simp only [beq_self_eq_true, ite_true] at this ⊢
+  simp only [this, Bool.false_eq_true, ite_false]
+  exact hm
+
+/-- A staged deletion of a file that is not a generator input changes nothing.
+
+An unrelated deletion leaves the plan as it was.
+-/
+theorem planStaged_not_input (paths deleted : List String) (h : ∀ p ∈ deleted, presetInput p = false) :
+    planStaged paths deleted = plan paths := by
+  have : deleted.filter presetInput = [] := List.filter_eq_nil_iff.mpr (by simpa using h)
+  simp [planStaged, plan, this]
+
 /-- The work graph is routed to the schema check, not to a plain JSON parse.
 
 A commit that stages `docs/team/work-graph.json` runs the graph schema check.
@@ -643,12 +703,23 @@ theorem presetInput_part : presetInputKey ["apps", "site", "src", "parts", "hero
 Staging `lean/Fw/Preset/Gen.lean` runs the preset check. -/
 theorem presetInput_gen : presetInputKey ["lean", "Fw", "Preset", "Gen.lean"] = true := by decide +kernel
 
+/-- A Lean module the generator imports is a generator input (branch 6).
+
+Staging `lean/Fw/Preset/V2Proved.lean` runs the preset check. -/
+theorem presetInput_v2proved : presetInputKey ["lean", "Fw", "Preset", "V2Proved.lean"] = true := by decide +kernel
+
+/-- The module `Fw.Preset.V2Proved` imports is a generator input (branch 7).
+
+Staging `lean/Fw/Gate/Trajectory.lean` runs the preset check. -/
+theorem presetInput_trajectory : presetInputKey ["lean", "Fw", "Gate", "Trajectory.lean"] = true := by decide +kernel
+
 /-- Other preset-named files are not inputs (the incident ledger, another preset, a part's other files).
 
 The trigger is exact, not a prefix guess. -/
 theorem presetInput_not :
     presetInputKey ["docs", "team", "incidents", "ledger.json"] = false ∧ presetInputKey ["apps", "site", "src", "registry", "presets", "original.json"] = false
-    ∧ presetInputKey ["apps", "site", "src", "parts", "hero", "index.tsx"] = false ∧ presetInputKey ["packages", "contracts", "golden", "ops", "checkmap.jsonl"] = false := by
+    ∧ presetInputKey ["apps", "site", "src", "parts", "hero", "index.tsx"] = false ∧ presetInputKey ["packages", "contracts", "golden", "ops", "checkmap.jsonl"] = false
+    ∧ presetInputKey ["lean", "Fw", "Preset", "Other.lean"] = false := by
   decide +kernel
 
 /-- The graph check covers the graph files it was given.
@@ -749,16 +820,19 @@ def checkName : Check → String
 /-- A string list as JSON. -/
 def strs (xs : List String) : Json := .arr (xs.toArray.map .str)
 
-/-- `ops.checkMap`: `paths` → `cmds` [{check, cwd, argv, files}], `files` [{path, kind, check}] (kind and check null
+/-- `ops.checkMap`: `paths`, `deleted`? (staged deletions) → `cmds` [{check, cwd, argv, files}], `files` [{path, kind, check}] (kind and check null
 when unmapped), `unmapped`. -/
 def opCheckMap (req : Json) : Except String Reply := do
   let paths ← (← arr req "paths").toList.mapM (asStr "paths")
+  let deleted ← match req.getObjValD "deleted" with
+    | .null => pure []
+    | _ => (← arr req "deleted").toList.mapM (asStr "deleted")
   let cmd (m : Cmd) : Json := Json.mkObj [("check", .str (checkName m.check)), ("cwd", .str m.cwd),
     ("argv", strs m.argv), ("files", strs m.files)]
   let file (p : String) : Json := match classify p with
     | some k => Json.mkObj [("path", .str p), ("kind", .str (kindName k)), ("check", .str (checkName (checkOf k)))]
     | none => Json.mkObj [("path", .str p), ("kind", .null), ("check", .null)]
-  pure [("cmds", .arr ((plan paths).toArray.map cmd)), ("files", .arr (paths.toArray.map file)),
+  pure [("cmds", .arr ((planStaged paths deleted).toArray.map cmd)), ("files", .arr (paths.toArray.map file)),
     ("unmapped", strs (unmapped paths))]
 
 /-- `ops.checkVerdict`: `codes` (exit codes, in plan order), `strict`? (default false), `unmapped`? (count, default 0)

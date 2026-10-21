@@ -5,6 +5,7 @@
 // This file only lists paths, asks Lean, runs the argv it gets and reports.
 //
 //   node scripts/checkmap.mjs --staged        the staged files (scripts/hooks/pre-commit)
+//                                             --staged also sends the staged deletions; a deleted generator input runs the preset check.
 //   node scripts/checkmap.mjs [--base <ref>]  files changed against <ref> (default: merge-base with main), committed,
 //                                             staged, unstaged or untracked (scripts/check.sh)
 //   node scripts/checkmap.mjs --all           every tracked file
@@ -40,6 +41,11 @@ export function askCore(bin, op, req) {
   } catch { return null; }
 }
 
+/** The staged deletions (Lean decides which of them matter: ops.checkMap `deleted`). */
+function listDeleted(top, args) {
+  return args.includes("--staged") ? z(git(top, ["diff", "--cached", "--name-only", "-z", "--diff-filter=D"])) : [];
+}
+
 /** The changed paths of a mode. */
 function listPaths(top, args) {
   if (args.includes("--staged")) return z(git(top, ["diff", "--cached", "--name-only", "-z", "--diff-filter=ACMR"]));
@@ -71,7 +77,7 @@ function main(args) {
   const top = git(process.cwd(), ["rev-parse", "--show-toplevel"]).trim();
   const bin = process.env.FW_CORE_BIN ?? join(top, "lean/.lake/build/bin/fwcore");
   const paths = listPaths(top, args).filter((p) => existsSync(join(top, p)));
-  const m = askCore(bin, "ops.checkMap", { paths });
+  const m = askCore(bin, "ops.checkMap", { paths, deleted: listDeleted(top, args) });
   if (!m) {
     console.error(`checkmap: ${bin} is missing or does not know ops.checkMap (cd lean && lake build); checks ${strict ? "FAILED (--strict)" : "skipped"}`);
     return strict ? 1 : 0;
