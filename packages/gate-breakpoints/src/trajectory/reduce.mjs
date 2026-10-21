@@ -2,9 +2,9 @@
 // packages/contracts/golden/gate/trajectory.jsonl (test/trajectory.test.mjs). Every function below mirrors a Lean definition of the
 // same name; `reduceRun` (the loop over nodes, properties and steps) is the only part Lean does not hold (a listed TS stand-in).
 //
-// A reading (Val) is null (absent), an array of integers (a number x 1000) or a string. A sample is { m, since, els, rep, cls, ph }:
+// A reading (Val) is null (absent), an array of integers (a number x 1000) or a string. A sample is { m, since, els, rep, cls, ph, t0 }:
 // `since` is the ms since the last nav class change (null: none happened), `cls` the nav classes that are on, `ph` the index of
-// the phase it was read in; `annotate` adds `ord`.
+// the phase it was read in, `t0` the ms its reads started at, rounded (null: not recorded); `annotate` adds `ord`.
 
 export const TOL = { discrete: 0, geometry: 1000, unit: 10, colour: 2000 };
 export const ALLOWED_WIDTHS = [390, 640, 641, 1280];
@@ -327,6 +327,151 @@ export const readsDominate = (readP50, gapP50) => gapP50 > 0 && gapP50 <= 2 * re
 
 // ---- reading the raw output of run.mjs (TS stand-in: the loops; the decisions are the functions above) ------------------
 
+// The close-start rule (Lean section `CloseStart`). Rationals are [num, den] BigInt pairs, den > 0, in lowest terms, so
+// that every comparison is the exact one Lean makes.
+
+const gcd = (a, b) => { a = a < 0n ? -a : a; b = b < 0n ? -b : b; while (b) [a, b] = [b, a % b]; return a; };
+const Q = (n, d = 1n) => { if (d < 0n) { n = -n; d = -d; } const g = gcd(n, d) || 1n; return [n / g, d / g]; };
+const qa = ([a, b], [c, d]) => Q(a * d + c * b, b * d);
+const qs = ([a, b], [c, d]) => Q(a * d - c * b, b * d);
+const qm = ([a, b], [c, d]) => Q(a * c, b * d);
+const qd = ([a, b], [c, d]) => Q(a * d, b * c);
+const qlt = ([a, b], [c, d]) => a * d < c * b;
+const qle = ([a, b], [c, d]) => a * d <= c * b;
+const qi = (x) => Q(BigInt(x));
+const ONE = qi(1), ZERO = qi(0), HALF = Q(1n, 2n), THREE = qi(3);
+
+/** Lean `earnCurve`: `cubic-bezier(0.33, 0, 0.2, 1)`. */
+export const EARN_CURVE = [Q(33n, 100n), ZERO, Q(1n, 5n), ONE];
+
+/** Lean `Bezier.steps`. */
+export const BEZ_STEPS = 40;
+
+/** Lean `Bezier.coord`. */
+const coord = (a, b, s) => {
+  const u = qs(ONE, s);
+  return qa(qa(qm(qm(qm(qm(THREE, u), u), s), a), qm(qm(qm(qm(THREE, u), s), s), b)), qm(qm(s, s), s));
+};
+
+/** Lean `Bezier.ease` of `c` at time fraction `t`. */
+export function ease(c, t) {
+  if (qle(t, ZERO)) return ZERO;
+  if (qle(ONE, t)) return ONE;
+  let lo = ZERO, hi = ONE;
+  for (let k = 0; k < BEZ_STEPS; k++) {
+    const m = qm(qa(lo, hi), HALF);
+    if (qlt(coord(c[0], c[2], m), t)) lo = m; else hi = m;
+  }
+  return coord(c[1], c[3], qm(qa(lo, hi), HALF));
+}
+
+/** Lean `startOn`. */
+export const startOn = (node, prop) => node === 'earn' && (prop === 'opacity' || prop === 'max-width');
+
+/** Lean `startTr`: [duration, delay] or null. */
+export function startTr(node, prop, width, cls) {
+  const css = cssOf(node, prop);
+  const t = transitionsOf(node, width, cls).find(([p]) => css.includes(p));
+  return t === undefined ? null : [t[1], t[2] ?? 0];
+}
+
+/** Lean `startFor`. */
+export const startFor = (node, prop, width) => (startOn(node, prop) ? (cls) => startTr(node, prop, width, cls) : null);
+
+/** Lean `closePh`. */
+export const CLOSE_PH = 2;
+
+/** Lean `startJitter`. */
+export const START_JITTER = 80;
+
+/** Lean `Nav.darkCut` x 10000: the morph value at which the earn button is fully collapsed. */
+export const DARK_CUT = 2000;
+
+const clampCut = (m) => Math.min(DARK_CUT, Math.max(0, m));
+
+/** Lean `collapse`, as a rational. */
+const collapse = (m) => Q(BigInt(clampCut(m)), BigInt(DARK_CUT));
+
+/** Lean `along`, as a rational; `s` and `t` rationals, `x` an integer. */
+export const along = (dur, delay, s, t, x) => qa(s, qm(qs(t, s), ease(EARN_CURVE, qd(qs(qi(x), qi(delay)), qi(dur)))));
+
+/** Lean `onCurve`; `s` and `t` rationals. */
+export function onCurve(kind, dur, delay, s, t, tau, r) {
+  const a = along(dur, delay, s, t, tau - START_JITTER), b = along(dur, delay, s, t, tau + START_JITTER);
+  const tol = qi(TOL[kind]), x = qi(r);
+  return qle(qs(qlt(b, a) ? b : a, tol), x) && qle(x, qa(qlt(a, b) ? b : a, tol));
+}
+
+/** Lean `oneNum`. */
+const oneNum = (els) => (els.length === 1 && Array.isArray(els[0]) && els[0].length === 1 ? els[0][0] : null);
+
+/** Lean `retargets`. */
+const retargets = (a, b) => a.m !== null && a.m !== undefined && b.m !== null && b.m !== undefined
+  && clampCut(a.m) !== clampCut(b.m);
+
+/** Lean `triggerOf`. */
+export function triggerOf(ps) {
+  let q = null;
+  for (let j = 1; j < ps.length; j++) if (retargets(ps[j - 1], ps[j])) q = ps[j];
+  return q;
+}
+
+const passOf = (seg, q) => seg.filter((s) => (s.rep ?? 0) === q);
+
+/** Lean `settledOf`. */
+export function settledOf(seg, r) {
+  const e = passOf(seg, r.rep ?? 0).filter((s) => s.ph === r.ph + 1);
+  return e.length === 0 ? null : oneNum(e[e.length - 1].els);
+}
+
+const has = (x) => x !== null && x !== undefined;
+
+/** Lean `origTrigger`. */
+export function origTrigger(seg, r, q) {
+  const ps = passOf(seg, r.rep ?? 0).filter((s) => s.ph === r.ph);
+  const cq = has(q.m) ? clampCut(q.m) : null;
+  let o = null;
+  for (let j = 1; j < ps.length; j++) if (retargets(ps[j - 1], ps[j]) && clampCut(ps[j].m) === cq) o = ps[j];
+  return o;
+}
+
+/** Lean `origStart`. */
+const origStart = (seg, r, q) => { const o = origTrigger(seg, r, q); return o === null ? null : oneNum(o.els); };
+
+/** Lean `startNear`. */
+const startNear = (kind, s, w) => s - TOL[kind] <= w && w <= s + TOL[kind];
+
+/** Lean `startCheck`: true, false, or null (undecided). */
+export function startCheck(kind, tr, seg, prior, r) {
+  const q = triggerOf(prior);
+  if (q === null || !has(q.m)) return null;
+  const t = tr(q.cls), s = origStart(seg, r, q), w = oneNum(q.els), x = oneNum(r.els), full = settledOf(seg, r);
+  if (t === null || s === null || w === null || x === null || full === null || !has(q.t0) || !has(r.t0) || t[0] === 0) return null;
+  if (!startNear(kind, s, w)) return false;
+  return onCurve(kind, t[0], t[1], qi(s), qm(qi(full), qs(ONE, collapse(q.m))), r.t0 - q.t0, x);
+}
+
+/** Lean `judgeStart`. */
+export function judgeStart(kind, d, tr, seg, win, prior, r) {
+  const c = startCheck(kind, tr, seg, prior, r);
+  return c === true ? pass : c === false ? fail('apart') : judgeUnit(kind, d, seg, win, r);
+}
+
+/** Lean `startBucket`. */
+export function startBucket(kind, d, tr, seg, orig, rew) {
+  const rs = rew.map((r, i) => [passOf(rew.slice(0, i), r.rep ?? 0), r]).filter(([, r]) => bucket(r.m) === 0);
+  if (rs.length === 0) return skip('noSample');
+  return combine(rs.map(([ps, r]) => judgeStart(kind, d, tr, seg, windowAt('push', d, seg, orig, r), ps, r)));
+}
+
+/** Lean `byMStart`: `byM`, with bucket 0 of the close by `startBucket` when `tr` is given. */
+export function byMStart(ph, p, kind, d, tr, oSeg, wSeg) {
+  const v = byM(ph, p, kind, d, oSeg, wSeg);
+  if (tr === null || ph !== 'push' || p !== CLOSE_PH) return v;
+  const seg = annotate(oSeg), orig = seg.filter((o) => o.ph === p), rew = annotate(wSeg).filter((r) => r.ph === p);
+  return v.map(([b, x]) => (b === 0 ? [b, startBucket(kind, d, tr, seg, orig, rew)] : [b, x]));
+}
+
 /** The phases of the end-of-page path and whether the wheel moves the morph in them (Lean `Phase`). */
 export const PHASES = [['open', 'push'], ['open-hold', 'hold'], ['close', 'push'], ['close-hold', 'hold']];
 
@@ -343,6 +488,7 @@ const sampleOf = (row, ni, pi, withM, ph, navCls) => ({
   rep: row.rep ?? 0,
   cls: clsOf(row, navCls),
   ph,
+  t0: typeof row.t0 === 'number' ? Math.round(row.t0) : null,
 });
 
 /**
@@ -380,7 +526,8 @@ export function reduceWidth({ width, orig, rewrite, registries }) {
       for (const n of registries.morph) {
         n.props.forEach((p, pi) => {
           if (lean && !isLeanProp(p)) return;
-          const verdicts = byM(ph, k, p.kind, durFor(n.id, p.id), pathOf(orig, n.id, pi), pathOf(rewrite, n.id, pi));
+          const verdicts = byMStart(ph, k, p.kind, durFor(n.id, p.id), startFor(n.id, p.id, width), pathOf(orig, n.id, pi),
+            pathOf(rewrite, n.id, pi));
           push('morph', phase, n.id, p.id, p.kind, verdicts.map(([b, v]) => [`${phase}@${b}`, v]));
         });
       }
