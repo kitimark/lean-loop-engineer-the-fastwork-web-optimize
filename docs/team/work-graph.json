@@ -13006,7 +13006,8 @@
     "packages/contracts/golden/obs/**",
     "research/notes/2026/10-2x-sup-baseline.md",
     "docs/team/handoffs/sup-baseline.md"
-   ]
+   ],
+   "evidence": "45a6c8a"
   },
   {
    "devices": [

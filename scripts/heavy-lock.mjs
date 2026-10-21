@@ -12,8 +12,12 @@
 // (lean/Fw/Sched/Heavy.lean, proved there). scripts/heavy-lock.test.mjs replays
 // packages/contracts/golden/sched/heavy.jsonl against them; replace by `fwcore` when it serves
 // `sched.heavy`. The rest (files, ps, memory_pressure, sysctl) is I/O glue and holds no decision logic.
+//
+// Lock events (task sup-baseline): acquire, release and refuse lines in <main checkout>/.fw-console/locks.jsonl
+// (FW_LOCK_EVENTS_FILE overrides; FW_LOCK_EVENTS=off or CI disables). Fields: ts (ms), lock, ev, kind, pid, start
+// (epoch s), waitMs or holdMs. No paths, no arguments.
 import { execFileSync, spawn } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, watch, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, watch, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -62,7 +66,34 @@ export function describe(w) {
   }
 }
 
+/** Lock event line (task sup-baseline): ts in ms, no paths or arguments; `kind` is kept only when it is a short plain word. */
+export function lockEvent(ev, { ts, kind, pid, start, waitMs, holdMs }) {
+  const k = /^[A-Za-z0-9_.-]{1,32}$/.test(kind ?? '') ? kind : 'heavy';
+  return { ts, lock: 'heavy', ev, kind: k, pid, start, ...(waitMs === undefined ? {} : { waitMs }), ...(holdMs === undefined ? {} : { holdMs }) };
+}
+
 // ---- I/O glue ----
+
+/** The events file: FW_LOCK_EVENTS_FILE, else <main checkout>/.fw-console/locks.jsonl; null when off (FW_LOCK_EVENTS=off, or CI without a file). */
+function eventsFile() {
+  if (process.env.FW_LOCK_EVENTS === 'off') return null;
+  if (process.env.FW_LOCK_EVENTS_FILE) return process.env.FW_LOCK_EVENTS_FILE;
+  if (process.env.CI) return null;
+  try {
+    const common = execFileSync('git', ['rev-parse', '--git-common-dir'], { encoding: 'utf8' }).trim();
+    return path.join(path.dirname(path.resolve(common)), '.fw-console', 'locks.jsonl');
+  } catch {
+    return null;
+  }
+}
+
+function emit(file, ev, fields) {
+  if (!file) return;
+  try {
+    mkdirSync(path.dirname(file), { recursive: true });
+    appendFileSync(file, `${JSON.stringify(lockEvent(ev, fields))}\n`);
+  } catch { /* events never fail a job */ }
+}
 
 function startOf(pid) {
   try {
@@ -145,6 +176,7 @@ async function acquire(kind) {
     ...(process.env.FW_HEAVY_CAP ? { capMax: Number(process.env.FW_HEAVY_CAP) } : {}),
     ...(process.env.FW_HEAVY_MAX_WAIT_S ? { maxWaitS: Number(process.env.FW_HEAVY_MAX_WAIT_S) } : {}),
   };
+  const events = eventsFile();
   const t0 = Date.now();
   let lastSaid = '';
   let lastAt = 0;
@@ -160,10 +192,16 @@ async function acquire(kind) {
       putAtomic(root, hd, `${me.pid}.json`, me);
       rmSync(ticket, { force: true });
       if (waited >= 1) console.error(`heavy-lock: admitted after ${waited} s`);
-      return () => rmSync(path.join(hd, `${me.pid}.json`), { force: true });
+      const at = Date.now();
+      emit(events, 'acquire', { ts: at, kind, pid: me.pid, start, waitMs: at - t0 });
+      return () => {
+        rmSync(path.join(hd, `${me.pid}.json`), { force: true });
+        emit(events, 'release', { ts: Date.now(), kind, pid: me.pid, start, holdMs: Date.now() - at });
+      };
     }
     if (d.verdict === 'timeout') {
       rmSync(ticket, { force: true });
+      emit(events, 'refuse', { ts: Date.now(), kind, pid: me.pid, start, waitMs: Date.now() - t0 });
       throw new Error(`waited ${waited} s (limit ${params.maxWaitS} s), ${describe(d)}; not running the job (set FW_HEAVY_LOCK=off to skip the lock)`);
     }
     const say = describe(d);
