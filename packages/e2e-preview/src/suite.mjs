@@ -110,6 +110,34 @@ function observe(page, log, own) {
 const newLog = () => ({ external: [], responses: [], requests: [], pageErrors: [], consoleErrors: [], failed: [], navs: [] });
 const resetLog = (log) => { for (const k of Object.keys(log)) log[k].length = 0; };
 
+/** The requests a context has started and not yet seen end (finished or failed), and a wait for that set to empty. */
+export function trackOpen(context) {
+  const open = new Set();
+  let wake = null;
+  const end = (r) => { open.delete(r); if (open.size === 0) wake?.(); };
+  context.on("request", (r) => { open.add(r); });
+  context.on("requestfinished", end);
+  context.on("requestfailed", end);
+  return {
+    open,
+    /** Resolves true once no request is open, false when `ms` passed first (a request that never ends). */
+    idle: (ms = 5000) => (open.size === 0 ? Promise.resolve(true) : new Promise((res) => {
+      const timer = setTimeout(() => { wake = null; res(false); }, ms);
+      wake = () => { clearTimeout(timer); wake = null; res(true); };
+    })),
+  };
+}
+
+/** Leave a loaded page for a blank document and wait until every request the page asked for has ended. A hydrated page keeps
+ *  asking for things on its own (lazy images that come into range as it settles, timers): one asked just before the next
+ *  navigation is cancelled by the browser when that navigation starts (WebKit `DocumentLoader::stopLoading` cancels the loaders of
+ *  the document being left), and the failure arrives while the next load is being observed. The request belongs to the page that
+ *  asked for it; ending it here, before the log is reset, keeps it out of the next load's checks. Returns whether all ended. */
+export async function leavePage(page, tracker) {
+  await page.goto("about:blank");
+  return await tracker.idle();
+}
+
 /** 0 unhandled rejections, 0 cancelled (or otherwise failed) same-origin requests, no module-load error on the console. */
 function noiseChecks(check, log, own, { requireResponses = true, documentHops = false } = {}) {
   const sameFailed = log.failed.filter((f) => f.own && !noise.test(f.line)).map((f) => f.line);
@@ -144,6 +172,7 @@ async function runTarget(browser, rig, engine, host, target, opts) {
     if (opts.route !== false) await ctx.route((u) => !own.has(u.origin), blockExternal(log));
     if (tr) await ctx.addInitScript(PAGE_TRACE);
     page = await ctx.newPage();
+    const tracker = trackOpen(ctx);
     tr?.wire(page);
     observe(page, log, own);
 
@@ -162,6 +191,9 @@ async function runTarget(browser, rig, engine, host, target, opts) {
     // the real entry path, first half: the grant link and its landing page (the hop to the arm origin included) show no
     // rejection, no cancelled request and no failed one
     noiseChecks((id, ok, d) => check(`landing/${id}`, ok, d), log, own, { documentHops: true });
+    // the landing page is left through a blank document: what it asked for has ended before the next load is observed (leavePage)
+    const left = await leavePage(page, tracker);
+    check("landing-page-requests-ended", left, left ? "none open" : `${tracker.open.size} still open`);
     resetLog(log); // rig.seen keeps the grant load: the arm requests of both loads are read below
 
     tr?.mark("goto-document");
@@ -335,7 +367,9 @@ async function controlLoad(browser, rig, engine, arm, url, prepare, opts = {}) {
     // like runTarget: the page may not reach the real internet; every control URL is on loopback
     if (opts.route !== false) await ctx.route((u) => u.hostname !== "127.0.0.1", blockExternal({ external: [] }));
     const page = await ctx.newPage();
+    const tracker = trackOpen(ctx);
     const target = await prepare(page, ctx);
+    if (target) await leavePage(page, tracker); // the grant landing page of the arm-only control: what it asked for has ended
     // listen only from here: leaving the grant landing page mid-load would cancel its images and fonts (the browser's doing)
     page.on("pageerror", (e) => { if (!noise.test(String(e))) errors.push(String(e)); }); // the analytics beacon is no module error
     page.on("requestfailed", (r) => failed.push(`${r.method()} ${new URL(r.url()).pathname} ${r.failure()?.errorText ?? ""}`));
