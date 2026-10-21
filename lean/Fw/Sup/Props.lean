@@ -3456,4 +3456,78 @@ example : 1 ∈ [(⟨1, 2, .job, 0, { ram := 3500 }, 60, 1, 1, 31⟩ : Req)].map
     (q := ⟨2, 3, .job, 0, { ram := 6000 }, 60, 1, 1, 31⟩) (by decide) (by decide) rfl
     (l := ⟨1, 2, .job, 0, { ram := 3500 }, 1, 61, 0⟩) (by decide) rfl
 
+/-! ## Fairness -/
+
+theorem pumpOne_mono {c : Cfg} {a : Acc} {q : Req} {x : Cmd} (h : x ∈ a.out) : x ∈ (pumpOne c a q).out := by
+  refine pumpOne_cases c a q (fun a' => x ∈ a'.out) (fun _ _ => List.mem_append_left _ h)
+    (fun _ _ _ _ => List.mem_append_left _ h) (fun _ _ add _ => ?_) (fun _ _ _ => h)
+    (fun _ _ _ _ _ _ _ _ => List.mem_append_left _ h) (fun _ _ _ _ _ _ _ _ _ _ _ => List.mem_append_left _ h)
+  unfold block
+  split
+  · exact h
+  · exact List.mem_append_left _ h
+
+theorem fold_mono {c : Cfg} {x : Cmd} : ∀ (B : List Req) (a : Acc), x ∈ a.out → x ∈ (B.foldl (pumpOne c) a).out
+  | [], _, h => h
+  | _ :: B, _, h => fold_mono B _ (pumpOne_mono h)
+
+/-- aged_granted_by: the request at the head of the queue, a job before its deadline, is granted in the step when
+nothing drains or sheds and it fits next to the load and the external footprint. -/
+theorem aged_granted_by {c : Cfg} {s : State} {e : Event} {q : Req} {rest : List Req} (ha : authed c e = true)
+    (hq : (pre c s e).1.pending = q :: rest) (hk : q.kind = .job) (hd : (pre c s e).1.now < q.deadline)
+    (hdr : (pre c s e).1.draining = false) (hs : (pre c s e).1.shedding = false)
+    (hf : fitsB c (pre c s e).1 q.cost.get = true) :
+    Cmd.reply q.id (.granted (leaseOf q (pre c s e).1.now q.cost)) ∈ (step c s e).2 := by
+  rw [step_out ha]
+  refine List.mem_append_right _ ?_
+  have e1 : pumpAcc c (pre c s e).1 = rest.foldl (pumpOne c) (pumpOne c (acc0 (pre c s e).1) q) := by
+    unfold pumpAcc; rw [hq]; rfl
+  rw [e1]
+  refine fold_mono rest _ ?_
+  have hd' : ¬ q.deadline ≤ (acc0 (pre c s e).1).st.now := Nat.not_le_of_lt hd
+  have hg : pumpOne c (acc0 (pre c s e).1) q = grant (acc0 (pre c s e).1) q := by
+    unfold pumpOne
+    simp only [hd', if_false]
+    have h1 : (acc0 (pre c s e).1).st.draining = false := hdr
+    have h2 : (acc0 (pre c s e).1).st.shedding = false := hs
+    have h3 : fitsB c (acc0 (pre c s e).1).st q.cost.get = true := hf
+    simp only [h1, h2, h3, hk]
+    rfl
+  rw [hg]
+  show _ ∈ (acc0 (pre c s e).1).out ++ [_]
+  simp [hk]
+  exact Or.inr rfl
+
+/-- lease_span: a lease ends at most `hmax · (1 + renewCap)` after its grant. -/
+theorem lease_span {c : Cfg} {s : State} {l : Lease} (h : Inv c s) (hl : l ∈ s.leases) :
+    l.deadline ≤ l.granted + span c := by
+  obtain ⟨_, _, h3, h4⟩ := h.1.live l hl
+  have hm : (l.renews + 1) * hmax c ≤ (c.renewCap + 1) * hmax c := Nat.mul_le_mul_right _ (Nat.succ_le_succ h4)
+  have he : span c = (c.renewCap + 1) * hmax c := by unfold span; rw [Nat.mul_comm, Nat.add_comm 1]
+  exact Nat.le_trans h3 (he ▸ Nat.add_le_add_left hm _)
+
+/-- ticket_age: a request from an owner holding a ticket for the resource is queued with the ticket's age, so a
+refusal for cause keeps its place in the queue order. -/
+theorem ticket_age {c : Cfg} {s : State} {e : Event} {o : Nat} {a : Ask} {t : Ticket} (he : e = .request c.token o a)
+    (hp : a.parent = none) (ht : s.tickets.find? (fun t => t.owner == o && t.rid == a.rid) = some t) :
+    ∃ q ∈ (pre c s e).1.pending, q.id = s.next ∧ q.age = min t.age s.now := by
+  subst he
+  simp only [pre, request, hp]
+  refine ⟨_, (insertReq_perm _ _).mem_iff.2 List.mem_cons_self, rfl, ?_⟩
+  simp [ht]
+
+example : Cmd.reply 1 (.granted (leaseOf ⟨1, 2, .job, 0, { ram := 3500 }, 60, 1, 1, 31⟩ 1 { ram := 3500 })) ∈
+    (step Ex.cfg (Ex.after Ex.queued).1 (.release 42 1 0)).2 :=
+  aged_granted_by (c := Ex.cfg) (s := (Ex.after Ex.queued).1) (e := .release 42 1 0)
+    (q := ⟨1, 2, .job, 0, { ram := 3500 }, 60, 1, 1, 31⟩) (rest := [⟨2, 3, .job, 0, { ram := 6000 }, 60, 1, 1, 31⟩]) rfl
+    (by decide) rfl (by decide) (by decide) (by decide) (by decide)
+
+example : (⟨0, 1, .svc, 1, {}, 1, 61, 0⟩ : Lease).deadline ≤ 1 + span Ex.cfg := lease_span (ex_inv Ex.held) (by decide)
+
+example : ∃ q ∈ (pre Ex.cfg (Ex.after [.tick 1 Ex.calm, .request 42 1 Ex.sim, .tick 25 Ex.calm]).1
+    (.request 42 1 Ex.sim)).1.pending, q.age = 1 := by
+  obtain ⟨q, hq, _, ha⟩ := ticket_age (c := Ex.cfg) (s := (Ex.after [.tick 1 Ex.calm, .request 42 1 Ex.sim, .tick 25 Ex.calm]).1)
+    (e := .request 42 1 Ex.sim) (o := 1) (a := Ex.sim) (t := ⟨1, 1, 1⟩) rfl rfl (by decide)
+  exact ⟨q, hq, by rw [ha]; decide⟩
+
 end Fw.Sup
