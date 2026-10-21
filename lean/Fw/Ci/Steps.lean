@@ -1,5 +1,5 @@
 /-!
-# Steps after the measurement step of the five macOS jobs (task `macos-teardown-trim`)
+# Steps after the measurement step of the macOS jobs (task `macos-teardown-trim`)
 The allowlist per job, the lint decision `checkJob` and the theorem that a result upload runs on success.
 -/
 namespace Fw.Ci.Steps
@@ -69,9 +69,11 @@ def up (c : Cond) : Post := ⟨uploadLabel, .upload, c⟩
 /-- The telemetry finish step. -/
 def tel : Post := ⟨"./.github/actions/telemetry", .telemetry, .always⟩
 
-/-- The allowlist: the five macOS jobs. -/
+/-- The allowlist: the macOS jobs. -/
 def rows : List Row := [
   ⟨"webkit-sim.yml", "sim", "Determinism sessions",
+    [⟨"Keep logs", .collect, .notCancelled⟩, ⟨"Host state on failure", .hostState, .failure⟩, up .notCancelled, tel]⟩,
+  ⟨"toolbar-throttle.yml", "sim", "Touch probe (three arms, rotated per round)",
     [⟨"Keep logs", .collect, .notCancelled⟩, ⟨"Host state on failure", .hostState, .failure⟩, up .notCancelled, tel]⟩,
   ⟨"wktr.yml", "wktr", "WKTR, fresh process per pass, per variant",
     [⟨"Delete the Simulator device", .teardown, .always⟩, up .always]⟩,
