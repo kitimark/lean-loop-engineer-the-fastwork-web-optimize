@@ -54,7 +54,7 @@ export function mergeRaws(raws) {
   if (raws.length === 0) throw new Error('merge: no leg');
   const [first] = raws;
   for (const r of raws) {
-    for (const k of ['engine', 'search', 'hash', 'baseHash', 'reads', 'reps', 'version']) {
+    for (const k of ['engine', 'search', 'hash', 'baseHash', 'reads', 'reps', 'version', 'debug']) {
       if (JSON.stringify(r[k]) !== JSON.stringify(first[k])) throw new Error(`merge: legs disagree on ${k}`);
     }
     if (JSON.stringify(r.paths) !== JSON.stringify(first.paths)) throw new Error('merge: legs disagree on paths');
