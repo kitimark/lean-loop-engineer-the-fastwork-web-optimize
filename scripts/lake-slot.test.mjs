@@ -277,3 +277,44 @@ test("check.sh runs its parallel stage through the gate of one held slot", () =>
   assert.match(check, /^  lake_slot_run span lean\/check "\$@" > "\$tmp\/\$n\.out" 2>&1$/m);
   assert.doesNotMatch(check, /\) > "\$tmp\/\$n\.out" 2>&1 &/);
 });
+
+const events = (f) => readFileSync(f, "utf8").trim().split("\n").map((l) => JSON.parse(l));
+
+test("lock events (task sup-baseline): acquire and release lines, the exit status kept, no paths or arguments", () => {
+  const { d, env } = scratch();
+  try {
+    const f = join(d, "locks.jsonl");
+    const e = { ...env, FW_LOCK_EVENTS_FILE: f };
+    assert.equal(run(e, "exit 3").status, 3);
+    assert.equal(run(e, "exit 75").status, 75);
+    const ev = events(f);
+    assert.deepEqual(ev.map((x) => [x.lock, x.ev, x.kind, x.slot]), [["lake-slot", "acquire", "build", 0], ["lake-slot", "release", "build", 0], ["lake-slot", "acquire", "build", 0], ["lake-slot", "release", "build", 0]]);
+    for (const x of ev) {
+      assert.ok(Number.isInteger(x.ts) && x.ts > 0 && Number.isInteger(x.pid) && x.pid > 0 && Number.isInteger(x.start) && x.start >= 0);
+      assert.ok(x.ev === "acquire" ? x.waitMs >= 0 : x.holdMs >= 0);
+    }
+    assert.doesNotMatch(readFileSync(f, "utf8"), /exit|sh -c|\/tmp|\/var/);
+  } finally { rmSync(d, { recursive: true, force: true }); }
+});
+
+test("lock events: FW_LOCK_EVENTS=off writes nothing, a nested call logs nothing of its own", () => {
+  const { d, env } = scratch();
+  try {
+    const f = join(d, "locks.jsonl");
+    assert.equal(run({ ...env, FW_LOCK_EVENTS_FILE: f, FW_LOCK_EVENTS: "off" }, probe).status, 0);
+    assert.equal(existsSync(f), false);
+    const r = spawnSync("sh", [wrapper, "sh", wrapper, "sh", "-c", probe], { env: { ...env, FW_LOCK_EVENTS_FILE: f }, encoding: "utf8" });
+    assert.equal(r.stdout.trim(), "0 unset");
+    assert.deepEqual(events(f).map((x) => x.ev), ["acquire", "release"]);
+  } finally { rmSync(d, { recursive: true, force: true }); }
+});
+
+test("lock events: a held group slot logs acquire and release (group) from the sourced library", () => {
+  const { d, env } = scratch();
+  try {
+    const f = join(d, "locks.jsonl");
+    const r = spawnSync("sh", ["-c", `set -eu; . "$1"; lake_slot_hold "$2"; lake_slot_release; echo done`, "_", lib, top], { env: { ...env, FW_LOCK_EVENTS_FILE: f }, encoding: "utf8" });
+    assert.equal(r.status, 0, r.stderr);
+    assert.deepEqual(events(f).map((x) => [x.ev, x.kind]), [["acquire", "group"], ["release", "group"]]);
+  } finally { rmSync(d, { recursive: true, force: true }); }
+});

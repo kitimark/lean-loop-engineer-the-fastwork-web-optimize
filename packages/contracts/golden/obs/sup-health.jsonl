@@ -1,0 +1,55 @@
+{"name":"kinds","request":{"op":"sup.kinds"},"response":{"heavy":["lean","chromium","simulator","webkit"],"kinds":["lean","fwcore","node","pnpm","chromium","simulator","webkit","other"]}}
+{"name":"listed name lean","request":{"comm":"/opt/tool/bin/lean","op":"sup.classify"},"response":{"kind":"lean"}}
+{"name":"listed name lake","request":{"comm":"/opt/tool/bin/lake","op":"sup.classify"},"response":{"kind":"lean"}}
+{"name":"listed name fwcore","request":{"comm":"/opt/tool/bin/fwcore","op":"sup.classify"},"response":{"kind":"fwcore"}}
+{"name":"listed name fwtest","request":{"comm":"/opt/tool/bin/fwtest","op":"sup.classify"},"response":{"kind":"fwcore"}}
+{"name":"listed name node","request":{"comm":"/opt/tool/bin/node","op":"sup.classify"},"response":{"kind":"node"}}
+{"name":"listed name pnpm","request":{"comm":"/opt/tool/bin/pnpm","op":"sup.classify"},"response":{"kind":"pnpm"}}
+{"name":"listed name Chromium","request":{"comm":"/opt/tool/bin/Chromium","op":"sup.classify"},"response":{"kind":"chromium"}}
+{"name":"listed name Chromium Helper","request":{"comm":"/opt/tool/bin/Chromium Helper","op":"sup.classify"},"response":{"kind":"chromium"}}
+{"name":"listed name Chromium Helper (Renderer)","request":{"comm":"/opt/tool/bin/Chromium Helper (Renderer)","op":"sup.classify"},"response":{"kind":"chromium"}}
+{"name":"listed name Chromium Helper (GPU)","request":{"comm":"/opt/tool/bin/Chromium Helper (GPU)","op":"sup.classify"},"response":{"kind":"chromium"}}
+{"name":"listed name chrome-headless-shell","request":{"comm":"/opt/tool/bin/chrome-headless-shell","op":"sup.classify"},"response":{"kind":"chromium"}}
+{"name":"listed name headless_shell","request":{"comm":"/opt/tool/bin/headless_shell","op":"sup.classify"},"response":{"kind":"chromium"}}
+{"name":"listed name chrome_crashpad_handler","request":{"comm":"/opt/tool/bin/chrome_crashpad_handler","op":"sup.classify"},"response":{"kind":"chromium"}}
+{"name":"listed name launchd_sim","request":{"comm":"/opt/tool/bin/launchd_sim","op":"sup.classify"},"response":{"kind":"simulator"}}
+{"name":"listed name Simulator","request":{"comm":"/opt/tool/bin/Simulator","op":"sup.classify"},"response":{"kind":"simulator"}}
+{"name":"listed name simctl","request":{"comm":"/opt/tool/bin/simctl","op":"sup.classify"},"response":{"kind":"simulator"}}
+{"name":"listed name SpringBoard","request":{"comm":"/opt/tool/bin/SpringBoard","op":"sup.classify"},"response":{"kind":"simulator"}}
+{"name":"listed name backboardd","request":{"comm":"/opt/tool/bin/backboardd","op":"sup.classify"},"response":{"kind":"simulator"}}
+{"name":"listed name MobileSafari","request":{"comm":"/opt/tool/bin/MobileSafari","op":"sup.classify"},"response":{"kind":"simulator"}}
+{"name":"listed name com.apple.CoreSimulator.CoreSimulatorService","request":{"comm":"/opt/tool/bin/com.apple.CoreSimulator.CoreSimulatorService","op":"sup.classify"},"response":{"kind":"simulator"}}
+{"name":"listed name Safari","request":{"comm":"/opt/tool/bin/Safari","op":"sup.classify"},"response":{"kind":"webkit"}}
+{"name":"listed name com.apple.WebKit.WebContent","request":{"comm":"/opt/tool/bin/com.apple.WebKit.WebContent","op":"sup.classify"},"response":{"kind":"webkit"}}
+{"name":"listed name com.apple.WebKit.Networking","request":{"comm":"/opt/tool/bin/com.apple.WebKit.Networking","op":"sup.classify"},"response":{"kind":"webkit"}}
+{"name":"listed name com.apple.WebKit.GPU","request":{"comm":"/opt/tool/bin/com.apple.WebKit.GPU","op":"sup.classify"},"response":{"kind":"webkit"}}
+{"name":"node with a long versioned path","request":{"comm":"/Users/x/.nvm/versions/node/v24.22.0/bin/node","op":"sup.classify"},"response":{"kind":"node"}}
+{"name":"a name with spaces inside an app path","request":{"comm":"/Applications/Chromium.app/Contents/Frameworks/Chromium Helper (Renderer).app/Contents/MacOS/Chromium Helper (Renderer)","op":"sup.classify"},"response":{"kind":"chromium"}}
+{"name":"a retitled process keeps its first word","request":{"comm":"node server.js","op":"sup.classify"},"response":{"kind":"node"}}
+{"name":"a retitled process, other first word","request":{"comm":"npm exec thing","op":"sup.classify"},"response":{"kind":"other"}}
+{"name":"a directory named like a kind does not count","request":{"comm":"/Users/x/node/not-node","op":"sup.classify"},"response":{"kind":"other"}}
+{"name":"an unlisted tool is other","request":{"comm":"/usr/bin/top","op":"sup.classify"},"response":{"kind":"other"}}
+{"name":"a bare listed name","request":{"comm":"lake","op":"sup.classify"},"response":{"kind":"lean"}}
+{"name":"case matters","request":{"comm":"/usr/bin/Node","op":"sup.classify"},"response":{"kind":"other"}}
+{"name":"the empty command","request":{"comm":"","op":"sup.classify"},"response":{"kind":"other"}}
+{"name":"an idle machine is quiet","request":{"obs":{"compressorMB":0,"freePct":100,"loadCenti":0,"procs":[],"ramMB":0,"swapTotalMB":0,"swapUsedMB":0},"op":"sup.verdict","params":{"cmprsPct":50,"freePct":15,"quietCenti":200,"swapPct":90}},"response":{"verdict":"quiet"}}
+{"name":"light kinds do not make it busy","request":{"obs":{"compressorMB":0,"freePct":100,"loadCenti":0,"procs":["node","pnpm","fwcore","other"],"ramMB":0,"swapTotalMB":0,"swapUsedMB":0},"op":"sup.verdict","params":{"cmprsPct":50,"freePct":15,"quietCenti":200,"swapPct":90}},"response":{"verdict":"quiet"}}
+{"name":"a lean process makes it busy","request":{"obs":{"compressorMB":0,"freePct":100,"loadCenti":0,"procs":["lean"],"ramMB":0,"swapTotalMB":0,"swapUsedMB":0},"op":"sup.verdict","params":{"cmprsPct":50,"freePct":15,"quietCenti":200,"swapPct":90}},"response":{"verdict":"busy"}}
+{"name":"a chromium process makes it busy","request":{"obs":{"compressorMB":0,"freePct":100,"loadCenti":0,"procs":["chromium"],"ramMB":0,"swapTotalMB":0,"swapUsedMB":0},"op":"sup.verdict","params":{"cmprsPct":50,"freePct":15,"quietCenti":200,"swapPct":90}},"response":{"verdict":"busy"}}
+{"name":"a simulator process makes it busy","request":{"obs":{"compressorMB":0,"freePct":100,"loadCenti":0,"procs":["simulator"],"ramMB":0,"swapTotalMB":0,"swapUsedMB":0},"op":"sup.verdict","params":{"cmprsPct":50,"freePct":15,"quietCenti":200,"swapPct":90}},"response":{"verdict":"busy"}}
+{"name":"a webkit process makes it busy","request":{"obs":{"compressorMB":0,"freePct":100,"loadCenti":0,"procs":["webkit"],"ramMB":0,"swapTotalMB":0,"swapUsedMB":0},"op":"sup.verdict","params":{"cmprsPct":50,"freePct":15,"quietCenti":200,"swapPct":90}},"response":{"verdict":"busy"}}
+{"name":"load 2.00 is busy","request":{"obs":{"compressorMB":0,"freePct":100,"loadCenti":200,"procs":[],"ramMB":0,"swapTotalMB":0,"swapUsedMB":0},"op":"sup.verdict","params":{"cmprsPct":50,"freePct":15,"quietCenti":200,"swapPct":90}},"response":{"verdict":"busy"}}
+{"name":"load 1.99 is quiet","request":{"obs":{"compressorMB":0,"freePct":100,"loadCenti":199,"procs":[],"ramMB":0,"swapTotalMB":0,"swapUsedMB":0},"op":"sup.verdict","params":{"cmprsPct":50,"freePct":15,"quietCenti":200,"swapPct":90}},"response":{"verdict":"quiet"}}
+{"name":"swap at 90 percent is pressured","request":{"obs":{"compressorMB":0,"freePct":100,"loadCenti":0,"procs":[],"ramMB":0,"swapTotalMB":1000,"swapUsedMB":900},"op":"sup.verdict","params":{"cmprsPct":50,"freePct":15,"quietCenti":200,"swapPct":90}},"response":{"verdict":"pressured"}}
+{"name":"swap at 89.9 percent is quiet","request":{"obs":{"compressorMB":0,"freePct":100,"loadCenti":0,"procs":[],"ramMB":0,"swapTotalMB":1000,"swapUsedMB":899},"op":"sup.verdict","params":{"cmprsPct":50,"freePct":15,"quietCenti":200,"swapPct":90}},"response":{"verdict":"quiet"}}
+{"name":"no swap total never trips the swap branch","request":{"obs":{"compressorMB":0,"freePct":100,"loadCenti":0,"procs":[],"ramMB":0,"swapTotalMB":0,"swapUsedMB":900},"op":"sup.verdict","params":{"cmprsPct":50,"freePct":15,"quietCenti":200,"swapPct":90}},"response":{"verdict":"quiet"}}
+{"name":"compressor at half of RAM is pressured","request":{"obs":{"compressorMB":50,"freePct":100,"loadCenti":0,"procs":[],"ramMB":100,"swapTotalMB":0,"swapUsedMB":0},"op":"sup.verdict","params":{"cmprsPct":50,"freePct":15,"quietCenti":200,"swapPct":90}},"response":{"verdict":"pressured"}}
+{"name":"compressor just below half is quiet","request":{"obs":{"compressorMB":49,"freePct":100,"loadCenti":0,"procs":[],"ramMB":100,"swapTotalMB":0,"swapUsedMB":0},"op":"sup.verdict","params":{"cmprsPct":50,"freePct":15,"quietCenti":200,"swapPct":90}},"response":{"verdict":"quiet"}}
+{"name":"no RAM size never trips the compressor branch","request":{"obs":{"compressorMB":50,"freePct":100,"loadCenti":0,"procs":[],"ramMB":0,"swapTotalMB":0,"swapUsedMB":0},"op":"sup.verdict","params":{"cmprsPct":50,"freePct":15,"quietCenti":200,"swapPct":90}},"response":{"verdict":"quiet"}}
+{"name":"free memory at 15 percent is pressured","request":{"obs":{"compressorMB":0,"freePct":15,"loadCenti":0,"procs":[],"ramMB":0,"swapTotalMB":0,"swapUsedMB":0},"op":"sup.verdict","params":{"cmprsPct":50,"freePct":15,"quietCenti":200,"swapPct":90}},"response":{"verdict":"pressured"}}
+{"name":"free memory at 16 percent is quiet","request":{"obs":{"compressorMB":0,"freePct":16,"loadCenti":0,"procs":[],"ramMB":0,"swapTotalMB":0,"swapUsedMB":0},"op":"sup.verdict","params":{"cmprsPct":50,"freePct":15,"quietCenti":200,"swapPct":90}},"response":{"verdict":"quiet"}}
+{"name":"pressure wins over a heavy process","request":{"obs":{"compressorMB":0,"freePct":10,"loadCenti":0,"procs":["lean"],"ramMB":0,"swapTotalMB":0,"swapUsedMB":0},"op":"sup.verdict","params":{"cmprsPct":50,"freePct":15,"quietCenti":200,"swapPct":90}},"response":{"verdict":"pressured"}}
+{"name":"pressure wins over load","request":{"obs":{"compressorMB":0,"freePct":100,"loadCenti":4000,"procs":[],"ramMB":0,"swapTotalMB":100,"swapUsedMB":95},"op":"sup.verdict","params":{"cmprsPct":50,"freePct":15,"quietCenti":200,"swapPct":90}},"response":{"verdict":"pressured"}}
+{"name":"a looser swap limit lets 90 percent pass","request":{"obs":{"compressorMB":0,"freePct":100,"loadCenti":0,"procs":[],"ramMB":0,"swapTotalMB":1000,"swapUsedMB":900},"op":"sup.verdict","params":{"cmprsPct":50,"freePct":15,"quietCenti":200,"swapPct":95}},"response":{"verdict":"quiet"}}
+{"name":"a stricter load limit makes load 1.00 busy","request":{"obs":{"compressorMB":0,"freePct":100,"loadCenti":100,"procs":[],"ramMB":0,"swapTotalMB":0,"swapUsedMB":0},"op":"sup.verdict","params":{"cmprsPct":50,"freePct":15,"quietCenti":100,"swapPct":90}},"response":{"verdict":"busy"}}
+{"name":"a stricter free limit trips at 30 percent","request":{"obs":{"compressorMB":0,"freePct":30,"loadCenti":0,"procs":[],"ramMB":0,"swapTotalMB":0,"swapUsedMB":0},"op":"sup.verdict","params":{"cmprsPct":50,"freePct":30,"quietCenti":200,"swapPct":90}},"response":{"verdict":"pressured"}}

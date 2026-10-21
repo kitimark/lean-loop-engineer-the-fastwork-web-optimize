@@ -1,12 +1,34 @@
 #!/bin/sh
 # sim-lock.sh: exclusive lock for the iOS Simulator. SHELL STAND-IN for Fw.Lease. [parallel-plan Q3]
 # usage: sim-lock.sh acquire <owner> [--wait N] | release | status
-# Lock dir: <main checkout>/.local/locks/sim (shared by all worktrees); files: owner, pid.
+# Lock dir: <main checkout>/.local/locks/sim (shared by all worktrees); files: owner, pid, at (acquire ms), start (owner start, epoch s).
 # pid is the parent process ($PPID) of this script, so the lock lives as long as the caller.
+# Lock events (task sup-baseline): one JSON line per acquire, release and stale recovery in <main>/.fw-console/locks.jsonl
+# (FW_LOCK_EVENTS_FILE overrides, FW_LOCK_EVENTS=off or CI disables). Fields: ts (ms), lock, ev, kind, pid, start (epoch s,
+# 0 unknown), waitMs on acquire, holdMs on release. No owner name, no paths, no arguments.
 set -eu
 main=$(cd "$(git rev-parse --git-common-dir)/.." && pwd -P)
 lock="$main/.local/locks/sim"
 alive() { kill -0 "$1" 2>/dev/null; }
+now_ms() {
+  ms=$(date +%s%N 2>/dev/null) || ms=
+  case "$ms" in *N|"") ms=$(( $(date +%s) * 1000 )) ;; *) ms=$((ms / 1000000)) ;; esac
+  echo "$ms"
+}
+start_of() {
+  st=$(LC_ALL=C TZ=UTC ps -o lstart= -p "$1" 2>/dev/null) || st=
+  if [ -n "$st" ]; then LC_ALL=C TZ=UTC date -j -f '%a %b %e %T %Y' "$st" +%s 2>/dev/null || echo 0; else echo 0; fi
+}
+evfile=${FW_LOCK_EVENTS_FILE:-}
+if [ -z "$evfile" ] && [ -z "${CI:-}" ]; then evfile="$main/.fw-console/locks.jsonl"; fi
+if [ "${FW_LOCK_EVENTS:-on}" = off ]; then evfile=; fi
+# ev <ev> <pid> <start> <ms field> <ms value>
+ev() {
+  [ -n "$evfile" ] || return 0
+  { mkdir -p "${evfile%/*}"
+    printf '{"ts":%s,"lock":"sim","ev":"%s","kind":"sim","pid":%s,"start":%s,"%s":%s}\n' "$(now_ms)" "$1" "$2" "$3" "$4" "$5" >> "$evfile"
+  } 2>/dev/null || :
+}
 cmd=${1:-status}
 case "$cmd" in
 acquire)
@@ -17,11 +39,19 @@ acquire)
   while :; do
     if mkdir "$lock" 2>/dev/null; then
       echo "$owner" > "$lock/owner"; echo "$PPID" > "$lock/pid"
+      if [ -n "$evfile" ]; then
+        s=$(start_of "$PPID"); now_ms > "$lock/at"; echo "$s" > "$lock/start"
+        ev acquire "$PPID" "$s" waitMs $((t * 1000))
+      fi
       echo "sim-lock: acquired by $owner (pid $PPID)"; exit 0
     fi
     opid=$(cat "$lock/pid" 2>/dev/null || true)
     if [ -n "$opid" ] && ! alive "$opid"; then
       echo "sim-lock: stale lock (owner $(cat "$lock/owner" 2>/dev/null || echo ?), pid $opid dead) recovered" >&2
+      if [ -n "$evfile" ]; then
+        at=$(cat "$lock/at" 2>/dev/null || true)
+        [ -z "$at" ] || ev release "$opid" "$(cat "$lock/start" 2>/dev/null || echo 0)" holdMs $(( $(now_ms) - at ))
+      fi
       rm -rf "$lock"; continue
     fi
     if [ "$t" -ge "$wait" ]; then
@@ -29,7 +59,12 @@ acquire)
     fi
     sleep 1; t=$((t+1))
   done ;;
-release) rm -rf "$lock"; echo "sim-lock: released" ;;
+release)
+  if [ -n "$evfile" ] && [ -d "$lock" ]; then
+    at=$(cat "$lock/at" 2>/dev/null || true)
+    [ -z "$at" ] || ev release "$(cat "$lock/pid" 2>/dev/null || echo 0)" "$(cat "$lock/start" 2>/dev/null || echo 0)" holdMs $(( $(now_ms) - at ))
+  fi
+  rm -rf "$lock"; echo "sim-lock: released" ;;
 status)
   if [ -d "$lock" ]; then
     opid=$(cat "$lock/pid" 2>/dev/null || true)

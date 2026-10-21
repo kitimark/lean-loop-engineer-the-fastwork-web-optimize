@@ -2154,4 +2154,230 @@ def ci0 : CiRun := { workflow := "ci", branch := "main", status := "completed", 
   == [⟨.worktreesMany, "worktrees", "1", true⟩, ⟨.ctxHigh, "a", "x", false⟩, ⟨.ctxHigh, "b", "x", false⟩,
     ⟨.diskLow, "disk", "1", false⟩]
 
+/-! The resource baseline (task sup-baseline): the process kind of a `ps` command and the verdict `quiet`, `busy` or `pressured` of one sample. -/
+namespace Res
+
+/-- The process kinds the 20 s sampler counts. -/
+inductive ProcKind where
+  | lean | fwcore | node | pnpm | chromium | simulator | webkit | other
+deriving DecidableEq, Repr
+
+/-- Every kind, in the order the sampler lists them. -/
+def ProcKind.all : List ProcKind := [.lean, .fwcore, .node, .pnpm, .chromium, .simulator, .webkit, .other]
+
+/-- The wire name of a kind. -/
+def ProcKind.name : ProcKind → String
+  | .lean => "lean" | .fwcore => "fwcore" | .node => "node" | .pnpm => "pnpm"
+  | .chromium => "chromium" | .simulator => "simulator" | .webkit => "webkit" | .other => "other"
+
+/-- A kind whose presence rules out a quiet machine. -/
+def ProcKind.heavy : ProcKind → Bool
+  | .lean | .chromium | .simulator | .webkit => true
+  | .fwcore | .node | .pnpm | .other => false
+
+/-- The allowlist: executable basename to kind. Every unlisted name is `other`. -/
+def kindTable : List (String × ProcKind) := [
+  ("lean", .lean), ("lake", .lean),
+  ("fwcore", .fwcore), ("fwtest", .fwcore),
+  ("node", .node), ("pnpm", .pnpm),
+  ("Chromium", .chromium), ("Chromium Helper", .chromium), ("Chromium Helper (Renderer)", .chromium),
+  ("Chromium Helper (GPU)", .chromium), ("chrome-headless-shell", .chromium), ("headless_shell", .chromium),
+  ("chrome_crashpad_handler", .chromium),
+  ("launchd_sim", .simulator), ("Simulator", .simulator), ("simctl", .simulator), ("SpringBoard", .simulator),
+  ("backboardd", .simulator), ("MobileSafari", .simulator), ("com.apple.CoreSimulator.CoreSimulatorService", .simulator),
+  ("Safari", .webkit), ("com.apple.WebKit.WebContent", .webkit), ("com.apple.WebKit.Networking", .webkit),
+  ("com.apple.WebKit.GPU", .webkit)]
+
+/-- The program name of a `ps` command: the part after the last `/`, else the first word of a retitled process. -/
+def argv0Base (comm : String) : String :=
+  if comm.contains '/' then (comm.splitOn "/").getLastD comm else (comm.splitOn " ").headD comm
+
+/-- The kind of a `ps` command, by its program name only (no argument is read). -/
+def classify (comm : String) : ProcKind := (kindTable.lookup (argv0Base comm)).getD .other
+
+/-- The listed names are distinct, so each has one kind. -/
+theorem kindTable_nodup : (kindTable.map Prod.fst).Nodup := by decide
+
+theorem lookup_of_mem : ∀ (l : List (String × ProcKind)), (l.map Prod.fst).Nodup →
+    ∀ a k, (a, k) ∈ l → l.lookup a = some k
+  | [], _, _, _, h => by simp at h
+  | (b, v) :: t, hn, a, k, h => by
+    rw [List.map_cons, List.nodup_cons] at hn
+    rcases List.mem_cons.mp h with h | h
+    · obtain ⟨rfl, rfl⟩ := Prod.mk.inj h
+      simp [List.lookup]
+    · have hne : a ≠ b := fun e => hn.1 (List.mem_map.mpr ⟨(a, k), h, e⟩)
+      simp only [List.lookup, beq_false_of_ne hne]
+      exact lookup_of_mem t hn.2 a k h
+
+/-- A name on the allowlist gets its listed kind. -/
+theorem classify_listed (comm : String) (k : ProcKind) (h : (argv0Base comm, k) ∈ kindTable) : classify comm = k := by
+  simp [classify, lookup_of_mem kindTable kindTable_nodup _ _ h]
+
+/-- A name off the allowlist is `other`. -/
+theorem classify_unlisted (comm : String) (h : kindTable.lookup (argv0Base comm) = none) : classify comm = .other := by
+  simp [classify, h]
+
+/-- The thresholds: pressured at swap use, compressor size or free memory (percent); busy at load (hundredths). -/
+structure Params where
+  swapPct : Nat := 90
+  cmprsPct : Nat := 50
+  freePct : Nat := 15
+  quietCenti : Nat := 200
+
+/-- One sample: the kind of each running process, 1-min load times 100, swap, compressor and RAM in MB, free memory in percent. -/
+structure Obs where
+  procs : List ProcKind := []
+  loadCenti : Nat := 0
+  swapUsedMB : Nat := 0
+  swapTotalMB : Nat := 0
+  compressorMB : Nat := 0
+  ramMB : Nat := 0
+  freePct : Nat := 100
+
+/-- The three verdicts, in order of pressure. -/
+inductive Verdict where
+  | quiet | busy | pressured
+deriving DecidableEq, Repr
+
+/-- The pressure rank of a verdict. -/
+def Verdict.rank : Verdict → Nat
+  | .quiet => 0 | .busy => 1 | .pressured => 2
+
+/-- Swap use at or above `swapPct` percent of the swap total (as `Fw.Sched.Heavy.swapHigh`). -/
+def swapHigh (p : Params) (o : Obs) : Bool := decide (0 < o.swapTotalMB ∧ p.swapPct * o.swapTotalMB ≤ 100 * o.swapUsedMB)
+
+/-- Compressor at or above `cmprsPct` percent of RAM. -/
+def cmprsHigh (p : Params) (o : Obs) : Bool := decide (0 < o.ramMB ∧ p.cmprsPct * o.ramMB ≤ 100 * o.compressorMB)
+
+/-- Free memory at or below `freePct` percent. -/
+def freeLow (p : Params) (o : Obs) : Bool := decide (o.freePct ≤ p.freePct)
+
+/-- Some process of a heavy kind runs. -/
+def heavyRunning (o : Obs) : Bool := o.procs.any ProcKind.heavy
+
+/-- The 1-min load is at or above `quietCenti` hundredths. -/
+def loadBusy (p : Params) (o : Obs) : Bool := decide (p.quietCenti ≤ o.loadCenti)
+
+/-- Memory pressure: swap, compressor or free memory. -/
+def pressuredB (p : Params) (o : Obs) : Bool := swapHigh p o || cmprsHigh p o || freeLow p o
+
+/-- **The verdict of a sample**: `pressured` on memory, else `busy` on a heavy process or load, else `quiet`. -/
+def verdict (p : Params) (o : Obs) : Verdict :=
+  if pressuredB p o then .pressured else if heavyRunning o || loadBusy p o then .busy else .quiet
+
+/-- Pressured exactly when swap, compressor or free memory trips. -/
+theorem pressured_iff (p : Params) (o : Obs) :
+    verdict p o = .pressured ↔ swapHigh p o = true ∨ cmprsHigh p o = true ∨ freeLow p o = true := by
+  cases hh : heavyRunning o <;> cases hl : loadBusy p o <;> cases hs : swapHigh p o <;> cases hc : cmprsHigh p o <;>
+    cases hf : freeLow p o <;> simp [verdict, pressuredB, hh, hl, hs, hc, hf]
+
+theorem pressured_of_swap (p : Params) (o : Obs) (h : swapHigh p o = true) : verdict p o = .pressured :=
+  (pressured_iff p o).2 (Or.inl h)
+
+theorem pressured_of_cmprs (p : Params) (o : Obs) (h : cmprsHigh p o = true) : verdict p o = .pressured :=
+  (pressured_iff p o).2 (Or.inr (Or.inl h))
+
+theorem pressured_of_free (p : Params) (o : Obs) (h : freeLow p o = true) : verdict p o = .pressured :=
+  (pressured_iff p o).2 (Or.inr (Or.inr h))
+
+/-- Busy exactly when memory is fine and a heavy process runs or the load is high. -/
+theorem busy_iff (p : Params) (o : Obs) :
+    verdict p o = .busy ↔ pressuredB p o = false ∧ (heavyRunning o = true ∨ loadBusy p o = true) := by
+  cases hh : heavyRunning o <;> cases hl : loadBusy p o <;> cases hp : pressuredB p o <;> simp [verdict, hh, hl, hp]
+
+theorem busy_of_heavy (p : Params) (o : Obs) (hp : pressuredB p o = false) (h : heavyRunning o = true) :
+    verdict p o = .busy :=
+  (busy_iff p o).2 ⟨hp, Or.inl h⟩
+
+theorem busy_of_load (p : Params) (o : Obs) (hp : pressuredB p o = false) (h : loadBusy p o = true) :
+    verdict p o = .busy :=
+  (busy_iff p o).2 ⟨hp, Or.inr h⟩
+
+/-- Quiet exactly when memory is fine, no heavy process runs and the load is low. -/
+theorem quiet_iff (p : Params) (o : Obs) :
+    verdict p o = .quiet ↔ pressuredB p o = false ∧ heavyRunning o = false ∧ loadBusy p o = false := by
+  cases hh : heavyRunning o <;> cases hl : loadBusy p o <;> cases hp : pressuredB p o <;> simp [verdict, hh, hl, hp]
+
+/-- **A quiet sample has no process of a heavy kind.** -/
+theorem quiet_no_heavy (p : Params) (o : Obs) (h : verdict p o = .quiet) : ∀ k ∈ o.procs, k.heavy = false := by
+  intro k hk
+  have := ((quiet_iff p o).1 h).2.1
+  simp only [heavyRunning, List.any_eq_false] at this
+  simpa using this k hk
+
+/-- A quiet sample has a load below `quietCenti`. -/
+theorem quiet_low_load (p : Params) (o : Obs) (h : verdict p o = .quiet) : o.loadCenti < p.quietCenti := by
+  have := ((quiet_iff p o).1 h).2.2
+  simp only [loadBusy, decide_eq_false_iff_not, Nat.not_le] at this
+  exact this
+
+/-- `o'` is at least as pressed as `o`: more processes, load, swap and compressor, less free memory, same totals. -/
+structure Obs.Le (o o' : Obs) : Prop where
+  procs : ∀ k ∈ o.procs, k ∈ o'.procs
+  load : o.loadCenti ≤ o'.loadCenti
+  swap : o.swapUsedMB ≤ o'.swapUsedMB
+  swapTotal : o.swapTotalMB = o'.swapTotalMB
+  cmprs : o.compressorMB ≤ o'.compressorMB
+  ram : o.ramMB = o'.ramMB
+  free : o'.freePct ≤ o.freePct
+
+/-- The verdict never lowers as pressure grows. -/
+theorem verdict_rank_mono (p : Params) (o o' : Obs) (h : Obs.Le o o') : (verdict p o).rank ≤ (verdict p o').rank := by
+  have hs : swapHigh p o = true → swapHigh p o' = true := by
+    simp only [swapHigh, decide_eq_true_eq]
+    rw [← h.swapTotal]
+    intro ⟨a, b⟩
+    exact ⟨a, Nat.le_trans b (Nat.mul_le_mul_left 100 h.swap)⟩
+  have hc : cmprsHigh p o = true → cmprsHigh p o' = true := by
+    simp only [cmprsHigh, decide_eq_true_eq]
+    rw [← h.ram]
+    intro ⟨a, b⟩
+    exact ⟨a, Nat.le_trans b (Nat.mul_le_mul_left 100 h.cmprs)⟩
+  have hf : freeLow p o = true → freeLow p o' = true := by
+    simp only [freeLow, decide_eq_true_eq]
+    exact fun a => Nat.le_trans h.free a
+  have hh : heavyRunning o = true → heavyRunning o' = true := by
+    simp only [heavyRunning, List.any_eq_true]
+    exact fun ⟨k, hk, hv⟩ => ⟨k, h.procs k hk, hv⟩
+  have hl : loadBusy p o = true → loadBusy p o' = true := by
+    simp only [loadBusy, decide_eq_true_eq]
+    exact fun a => Nat.le_trans a h.load
+  have hP : pressuredB p o = true → pressuredB p o' = true := by
+    simp only [pressuredB, Bool.or_eq_true]
+    rintro ((a | a) | a)
+    · exact Or.inl (Or.inl (hs a))
+    · exact Or.inl (Or.inr (hc a))
+    · exact Or.inr (hf a)
+  have hB : (heavyRunning o || loadBusy p o) = true → (heavyRunning o' || loadBusy p o') = true := by
+    simp only [Bool.or_eq_true]
+    exact fun b => b.elim (fun x => Or.inl (hh x)) (fun x => Or.inr (hl x))
+  unfold verdict
+  cases e1 : pressuredB p o <;> cases e2 : pressuredB p o' <;> cases e3 : (heavyRunning o || loadBusy p o) <;>
+    cases e4 : (heavyRunning o' || loadBusy p o') <;> simp_all [Verdict.rank]
+
+#guard classify "/Users/x/.nvm/versions/node/v24.22.0/bin/node" == .node
+#guard classify "/Users/x/lean/.lake/build/bin/fwcore" == .fwcore
+#guard classify "/Applications/Safari.app/Contents/MacOS/Safari" == .webkit
+#guard classify "/Applications/Chromium.app/Contents/Frameworks/Chromium Helper (Renderer).app/Contents/MacOS/Chromium Helper (Renderer)" == .chromium
+#guard classify "node server.js" == .node
+#guard classify "/usr/bin/top" == .other
+#guard classify "/Users/x/node/not-node" == .other
+#guard classify "" == .other
+#guard verdict {} {} == .quiet
+#guard verdict {} { procs := [.node, .other] } == .quiet
+#guard verdict {} { procs := [.lean] } == .busy
+#guard verdict {} { loadCenti := 200 } == .busy
+#guard verdict {} { loadCenti := 199 } == .quiet
+#guard verdict {} { swapUsedMB := 900, swapTotalMB := 1000 } == .pressured
+#guard verdict {} { swapUsedMB := 899, swapTotalMB := 1000 } == .quiet
+#guard verdict {} { swapUsedMB := 900 } == .quiet
+#guard verdict {} { compressorMB := 50, ramMB := 100 } == .pressured
+#guard verdict {} { compressorMB := 49, ramMB := 100 } == .quiet
+#guard verdict {} { freePct := 15 } == .pressured
+#guard verdict {} { freePct := 16 } == .quiet
+#guard verdict {} { procs := [.lean], freePct := 10 } == .pressured
+
+end Res
+
 end Fw.Obs.Health
