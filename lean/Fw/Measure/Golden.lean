@@ -165,6 +165,11 @@ def inspectorRelaunchReq (relaunchOk : Bool) : Json :=
   Json.mkObj [("relaunched", .bool true), ("fails", toJson (0 : Nat)), ("socket", .bool true), ("proxy", .bool true),
     ("page", .bool true), ("relaunchOk", .bool relaunchOk)]
 
+/-- A `measure.targetLost` request; `relaunchOk` names the outcome of the relaunch when given. -/
+def targetReq (relaunched : Bool) (elapsedMs : Nat) (found : Bool) (relaunchOk : Option Bool := none) : Json :=
+  Json.mkObj ([("relaunched", .bool relaunched), ("elapsedMs", toJson elapsedMs), ("found", .bool found)]
+    ++ (relaunchOk.map fun b => [("relaunchOk", Json.bool b)]).getD [])
+
 /-- A one-frame zone record of a `measure.compose` run. -/
 def czone (id : String) (i : Nat) (sums : List (String × Int)) : Json :=
   Json.mkObj [("id", .str id), ("frames", toJson (1 : Nat)), ("scrolledPx", toJson (0 : Int)),
@@ -508,7 +513,18 @@ def cases (_ : Unit := ()) : List (String × List (String × Json)) := [
     ("healthy after the relaunch: proceed", inspectorReq true 1 true true true),
     ("the relaunch worked: go on", inspectorRelaunchReq true),
     ("the relaunch failed: give up", inspectorRelaunchReq false)]),
-  ("measure.simBounds", [("the time constants of the dead-inspector path", Json.mkObj [])]),
+  ("measure.simBounds", [("the time constants of the dead-inspector and lost-target paths", Json.mkObj [])]),
+  ("measure.targetLost", [
+    ("a found target connects", targetReq false 12000 true),
+    ("a found target connects after the relaunch", targetReq true 80000 true),
+    ("no target at the start: wait", targetReq false 0 false),
+    ("no target one ms inside the bound: wait, the poll may take 1 ms", targetReq false 479999 false),
+    ("no target at 480 s: relaunch", targetReq false 480000 false),
+    ("no target at 876 s (the lost runs): relaunch", targetReq false 876000 false),
+    ("no target after the relaunch, inside its bound: wait", targetReq true 89999 false),
+    ("no target after the relaunch at 90 s: fail the session", targetReq true 90000 false),
+    ("a working relaunch goes back to the wait", targetReq false 480000 false (some true)),
+    ("a failed relaunch fails the session", targetReq false 480000 false (some false))]),
   ("measure.compose",
     let comb := carm [("a", "x"), ("b", "y")] 5 4 9 2
     let sa := carm [("a", "x"), ("b", "faithful")] 7 9 6 3

@@ -50,7 +50,8 @@ tolerances are read as exact decimals (`JsonNumber` = mantissa · 10^(−exponen
 | `measure.viewport` | `profile`, `observed` ({w, h} naturals, CSS px) | `faithful` (`Fw.Measure.Viewport.viewportFaithful`: the page reports exactly the profile viewport), `widthDiffers`, `heightDiffers` |
 | `measure.simPlan` | `target` (`original`, `rewrite`, `both`), `vms`, `sessions` (decimal strings), `preset`, `fw` (`part:variant,...`, may be empty), `experiment` (`determinism`, `quiet`), `sha` (40 hex) | `problems` (empty = accepted), `search` (the query the rewrite is served with), `matrix` [{vm, arm, idx, sha, bp, search}] (empty when refused), `original`, `rewrite`, `both` (whether the matrix has those arms), `stepTimeoutMin`, `jobTimeoutMin`, `stallMs` (`Fw.Measure.SimBound`) |
 | `measure.inspector` | `relaunched` (bool: Safari was already relaunched), `fails` (naturals: failed probes in a row before this one), `socket`, `proxy`, `page` (bools: what this probe saw) | `ok` (the probe found all three), `fails` (the count after it), `dead`, `action` (`proceed`, `relaunch`, `giveUp`), `exitCode`, and `afterRelaunch` (`proceed` for a working relaunch, `giveUp` for a failed one) when the request has the optional `relaunchOk` (bool: whether the relaunch worked) |
-| `measure.simBounds` | (none) | the time constants of the dead-inspector path in ms (`tickMs`, `probeMs`, `failLimit`, `detectMs`, `terminateMs`, `launchMs`, `socketMs`, `proxyMs`, `tabMs`, `askMs`, `connectMs`, `stopMs`, `lsofMs`, `proxyStartMs`, `repairMs`, `relaunchMs`, `exitMs`, `stallMs`, `deadEndMs`) and `deadExit`, `setupMin`, `tailMin` (`Fw.Measure.SimBound`) |
+| `measure.simBounds` | (none) | the time constants of the dead-inspector and lost-target paths in ms (`targetWaitMs`, `targetAfterMs`, `targetEndMs`, and `tickMs`, `probeMs`, `failLimit`, `detectMs`, `terminateMs`, `launchMs`, `socketMs`, `proxyMs`, `tabMs`, `askMs`, `connectMs`, `stopMs`, `lsofMs`, `proxyStartMs`, `repairMs`, `relaunchMs`, `exitMs`, `stallMs`, `deadEndMs`) and `deadExit`, `targetLostExit`, `setupMin`, `tailMin` (`Fw.Measure.SimBound`) |
+| `measure.targetLost` | `relaunched` (bool: Safari was already relaunched for a lost page target), `elapsedMs` (naturals: ms into the wait), `found` (bool: a page target answers), optional `relaunchOk` (bool: whether the relaunch worked) | `action` (`connect`, `wait`, `relaunch`, `failSession`), `limitMs` (the wait bound of the stretch), `capMs` (the longest a poll may take), `exitCode`, and `afterRelaunch` (`wait` or `failSession`) when the request has `relaunchOk` (`Fw.Measure.SimBound`) |
 | `measure.snapshotCounts` | `snapshot` (`args.snapshot` of `LayerTreeHostImpl:snapshot`; a non-object is empty) | `counts` {census.\*, raster.\*} |
 -/
 namespace Fw.Wire.Measure
@@ -772,6 +773,19 @@ def opInspector (req : Json) : Except String Reply := do
   pure ([("ok", .bool p.ok), ("fails", toJson n), ("dead", .bool (Fw.Measure.SimBound.dead p.socket n)),
         ("action", .str (Fw.Measure.SimBound.act rl p.socket n).name), ("exitCode", toJson Fw.Measure.SimBound.deadExit)] ++ after)
 
+open Fw.Measure.SimBound in
+/-- `measure.targetLost`: one poll of the page-target wait → the action (rule: `Fw.Measure.SimBound`). -/
+def opTargetLost (req : Json) : Except String Reply := do
+  let rl ← bool req "relaunched"
+  let e ← nat req "elapsedMs"
+  let found ← bool req "found"
+  let after ← match opt req "relaunchOk" with
+    | none => pure []
+    | some (.bool b) => pure [("afterRelaunch", .str (targetAfterRelaunch b).name)]
+    | some _ => throw "field relaunchOk: expected a boolean"
+  pure ([("action", .str (targetAction rl e found).name), ("limitMs", toJson (targetLimit rl)),
+        ("capMs", toJson (targetCapMs rl e)), ("exitCode", toJson targetLostExit)] ++ after)
+
 /-- `measure.simBounds`: the time constants the session follows (`Fw.Measure.SimBound`). -/
 def opSimBounds (_req : Json) : Except String Reply :=
   open Fw.Measure.SimBound in
@@ -780,7 +794,8 @@ def opSimBounds (_req : Json) : Except String Reply :=
         ("proxyMs", toJson proxyMs), ("tabMs", toJson tabMs), ("askMs", toJson askMs), ("connectMs", toJson connectMs),
         ("stopMs", toJson stopMs), ("lsofMs", toJson lsofMs), ("proxyStartMs", toJson proxyStartMs), ("repairMs", toJson repairMs),
         ("relaunchMs", toJson relaunchMs), ("exitMs", toJson exitMs), ("stallMs", toJson stallMs), ("deadEndMs", toJson deadEndMs),
-        ("deadExit", toJson deadExit), ("setupMin", toJson setupMin), ("tailMin", toJson tailMin)]
+        ("deadExit", toJson deadExit), ("targetWaitMs", toJson targetWaitMs), ("targetAfterMs", toJson targetAfterMs),
+        ("targetEndMs", toJson targetEndMs), ("targetLostExit", toJson targetLostExit), ("setupMin", toJson setupMin), ("tailMin", toJson tailMin)]
 
 /-! ## F6 composition check (Fw.Measure.Compose) -/
 
@@ -855,7 +870,7 @@ def ops : List String :=
   ["measure.zoneSums", "measure.classify", "measure.noMoreWork", "measure.webkit.tally",
    "measure.webkit.reduceSteps", "measure.webkit.zones", "measure.webkit.align", "measure.webkit.pairRows", "measure.symDiff", "measure.summarize",
    "measure.selfCheck", "measure.snapshotCounts", "measure.freeze", "measure.splits", "measure.n0Windows",
-   "measure.spkq", "measure.arms", "measure.zoneBaseline", "measure.quietSteps", "measure.engineCheck", "measure.retry", "measure.retryPlan", "measure.simPlan", "measure.inspector", "measure.simBounds", "measure.compose"]
+   "measure.spkq", "measure.arms", "measure.zoneBaseline", "measure.quietSteps", "measure.engineCheck", "measure.retry", "measure.retryPlan", "measure.simPlan", "measure.inspector", "measure.simBounds", "measure.targetLost", "measure.compose"]
 
 /-- Dispatch a `measure.*` op (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -885,6 +900,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "measure.simPlan" => some (opSimPlan req)
   | "measure.inspector" => some (opInspector req)
   | "measure.simBounds" => some (opSimBounds req)
+  | "measure.targetLost" => some (opTargetLost req)
   | "measure.engineCheck" => some (Fw.Wire.Measure.EngineCheck.op req)
   | "measure.compose" => some (opCompose req)
   | _ => none
