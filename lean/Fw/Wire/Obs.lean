@@ -5,7 +5,7 @@ import Fw.Obs.Health
 import Fw.Obs.Next
 import Fw.Obs.Timing
 import Fw.Ops.Wire
-import Fw.Wire.Sched
+import Fw.Wire.SchedJson
 /-!
 # JSON codecs and the op `obs.health` (team health of one observation snapshot)
 

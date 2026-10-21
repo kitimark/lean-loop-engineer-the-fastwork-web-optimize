@@ -3,14 +3,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { Target } from "@fw/gh-budget";
-import { dispatchArgs, fwcoreCall, keyDigest, parseRunArgs, planRun, runMain, sha256, type FwCall, type Gh } from "../src/run.ts";
+import { declaresNonce, dispatchArgs, fwcoreCall, keyDigest, parseRunArgs, planRun, runMain, sha256, type FwCall, type Gh } from "../src/run.ts";
 import { UsageError } from "../src/lib.ts";
 import { titleOf } from "../src/run-pick.ts";
 
 const SHA = "0123456789abcdef0123456789abcdef01234567";
 /** The waiting side of RunDeps: a stub that decides every wait at once as run 55 (the shared poller is tested in packages/gh-budget). */
 const waits: Target[] = [];
-const base = () => ({ now: () => 1_800_000_000, wait: async (t: Target) => { waits.push(t); return { code: 0 as const, lines: ["run 55 chromium-counts success"] }; } });
+const base = () => ({ nonce: () => "n0nce1234", now: () => 1_800_000_000, wait: async (t: Target) => { waits.push(t); return { code: 0 as const, lines: ["run 55 chromium-counts success"] }; } });
 
 describe("parseRunArgs", () => {
   it("reads flags, commas and repeats", () => {
@@ -62,7 +62,7 @@ describe.skipIf(!hasCore)("planRun and runMain against fwcore", () => {
     const calls: string[][] = [];
     const gh: Gh = async (a) => { calls.push(a); if (a[0] === "run" && a[1] === "list") return "[]"; throw new Error("stop after the dispatch"); };
     await expect(runMain(parseRunArgs(["--engines", "webkit", "--target", "rewrite", "--preset", "strip-demo", "--fw", "hero.countdown:strip", "--ref", "ci/wk"]), { ...base(), call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: (l) => logs.push(l) })).rejects.toThrow(/stop after/);
-    expect(calls.find((c) => c[0] === "workflow")).toEqual(["workflow", "run", "webkit-sim.yml", "--ref", "ci/wk", "-f", "fw=hero.countdown:strip", "-f", "preset=strip-demo", "-f", "target=rewrite"]);
+    expect(calls.find((c) => c[0] === "workflow")).toEqual(["workflow", "run", "webkit-sim.yml", "--ref", "ci/wk", "-f", "fw=hero.countdown:strip", "-f", "preset=strip-demo", "-f", "target=rewrite", "-f", "nonce=n0nce1234"]);
   });
 
   it("--ref measures a base ref at its own commit: the run is awaited and checked at the ref's sha, not the checkout's", async () => {
@@ -126,7 +126,9 @@ describe.skipIf(!hasCore)("planRun and runMain against fwcore", () => {
     // the run is found and awaited by the shared poller (one branch wait), not by gh polling or `gh run watch`
     expect(waits.at(-1)).toMatchObject({ kind: "branch", branch: "ci/t", sha: SHA });
     expect(calls.some((c) => c[1] === "watch")).toBe(false);
-    expect(calls.map((c) => c.slice(0, 2).join(" "))).toEqual(["run list", "workflow run", "run view", "run download"]);
+    expect(calls.map((c) => c.slice(0, 2).join(" "))).toEqual(["workflow run", "run view", "run download"]);
+    // the run is selected by the dispatch's nonce (Lean Fw.Ci.Dispatch.select), not as the newest run
+    expect(waits.at(-1)).toMatchObject({ want: { kind: "dispatch", workflow: "chromium-counts", nonce: "n0nce1234" } });
     const planned = planRun(call, args, SHA, store);
     const key = planned.reply.jobs[0]!.key as [string, string][];
     expect(existsSync(join(store, "runs", keyDigest(key), "manifest.json"))).toBe(true);
@@ -179,7 +181,8 @@ describe("breakpoint-gate lane", () => {
       const calls: string[][] = [];
       const gh: Gh = async (a) => { calls.push(a); if (a[0] === "run" && a[1] === "list") return "[]"; if (a[0] === "run" && a[1] === "view") return JSON.stringify({ headSha: SHA }); return ""; };
       expect(await runMain(parseRunArgs(["--gate", "--engines", "chromium", "--preset", "v2-proved", "--ref", "ci/g"]), { ...base(), call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: (l) => logs.push(l) })).toBe(0);
-      expect(calls.find((c) => c[0] === "workflow")).toEqual(["workflow", "run", "breakpoint-gate.yml", "--ref", "ci/g", "-f", "engines=chromium", "-f", "fw=", "-f", "preset=v2-proved"]);
+      expect(calls.find((c) => c[0] === "workflow")).toEqual(["workflow", "run", "breakpoint-gate.yml", "--ref", "ci/g", "-f", "engines=chromium", "-f", "fw=", "-f", "preset=v2-proved", "-f", "nonce=n0nce1234"]);
+      expect(waits.at(-1)).toMatchObject({ workflow: "breakpoint-gate", want: { kind: "dispatch", workflow: "breakpoint-gate", nonce: "n0nce1234" } });
       expect(logs.join("\n")).toMatch(/gate: run 55 succeeded/);
     });
   });
@@ -250,6 +253,48 @@ describe("fw run --trajectory finds its run by nonce", () => {
   it("two runs with the nonce are refused, not guessed", async () => {
     const gh: Gh = async (a) => (a[1] === "list" ? JSON.stringify([row(3, "abcd1234"), row(2, "abcd1234")]) : "");
     await expect(runMain(args(), deps(gh, [], "abcd1234"))).rejects.toThrow(/matches several runs \(3, 2\)/);
+  });
+});
+
+// A ref whose copy of the workflow file declares no `nonce` input cannot be sent one (`gh workflow run` answers 422): the dispatch
+// goes without it and the run is the old pick; the log says so. A stub fwcore answers the plan, so nothing here is skipped.
+describe("fw run on a ref whose workflow file has no nonce input", () => {
+  const OLD = "name: trajectory-probe\non:\n  workflow_dispatch:\n    inputs:\n      engines:\n        type: string\n      widths:\n        type: string\n";
+  const NEW = OLD + "      nonce:\n        type: string\n";
+  it("declaresNonce reads the workflow_dispatch inputs only", () => {
+    expect(declaresNonce(NEW)).toBe(true);
+    expect(declaresNonce(OLD)).toBe(false);
+    expect(declaresNonce("on:\n  push:\n    paths: [a]\n")).toBe(false);
+    // a `nonce:` key elsewhere (an env or a step input) is not an input of the dispatch
+    expect(declaresNonce(OLD + "env:\n  nonce: x\njobs:\n  a:\n    steps:\n      - with:\n          nonce: y\n")).toBe(false);
+    expect(declaresNonce("on:\n  workflow_dispatch:\n    inputs:\n      # nonce:\n      other:\n        type: string\n")).toBe(false);
+  });
+  const call: FwCall = () => ({ fw: [], job: { blocked: null, inputs: { engines: "chromium", fw: "", preset: "", widths: "390" }, workflow: "trajectory-probe.yml" }, problems: [] });
+  const mk = () => mkdtempSync(join(tmpdir(), "fw-run-"));
+  const run = async (text: string | undefined) => {
+    const calls: string[][] = [];
+    const waited: Target[] = [];
+    const logs: string[] = [];
+    const gh: Gh = async (a) => { calls.push(a); if (a[1] === "list") return a.includes("--event") ? JSON.stringify([{ databaseId: 7, displayTitle: titleOf("abcd1234"), event: "workflow_dispatch" }]) : "[]"; if (a[1] === "view") return JSON.stringify({ headSha: SHA }); return ""; };
+    const code = await runMain(parseRunArgs(["--trajectory", "--engines", "chromium", "--widths", "390", "--ref", "ci/old"]), { now: () => 1_800_000_000,
+      wait: async (t: Target) => { waited.push(t); return { code: 0 as const, lines: ["run 7 trajectory-probe success"] }; },
+      call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: (l) => logs.push(l), nonce: () => "abcd1234", sleep: async () => {}, refWorkflowText: () => text });
+    return { code, calls, waited, logs: logs.join("\n") };
+  };
+  it("an old ref: no nonce input is sent, the run is the old pick, and the log says so", async () => {
+    const r = await run(OLD);
+    expect(r.code).toBe(0);
+    expect(r.calls.find((c) => c[0] === "workflow")).toEqual(["workflow", "run", "trajectory-probe.yml", "--ref", "ci/old", "-f", "engines=chromium", "-f", "fw=", "-f", "preset=", "-f", "widths=390"]);
+    expect(r.waited.at(-1)).not.toHaveProperty("want");
+    expect(r.logs).toMatch(/has no nonce input in trajectory-probe\.yml.*old pick, not identity/);
+  });
+  it("a file that cannot be read at the ref is treated as having no nonce input", async () => {
+    const r = await run(undefined);
+    expect(r.calls.find((c) => c[0] === "workflow")).not.toContain("nonce=abcd1234");
+  });
+  it("a ref with the input keeps the identity path", async () => {
+    const r = await run(NEW);
+    expect(r.calls.find((c) => c[0] === "workflow")).toContain("nonce=abcd1234");
   });
 });
 

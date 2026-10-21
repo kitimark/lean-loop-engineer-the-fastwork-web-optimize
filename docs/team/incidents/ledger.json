@@ -3520,9 +3520,9 @@
    "cause": "CONFIRMED (code read; reviewer reproduced with a list-only probe that selected the live console pid and its fwcore): lean/Fw/Ops/Reap.lean branch A selected any console-api with ppid 1 whose cwd is not a live checkout of the repo passed as top, with no condition that the process belongs to this repo. Relative to a temp repo the real console is in no live checkout, so it and its fwcore (descendant branch) were selected. While reap only listed, this was harmless; once it stopped, any stop run with another top (the test, or e2e-land.sh running fw land on a mktemp repo) kills the real console. The lead's spec asked for real process-tree tests without requiring the executor to see only the test's own processes.",
    "evidence": [
     {
-     "kind": "file",
-     "ref": ".fw-console/console.log",
-     "note": "fwcore incident exit signal=SIGTERM at 1792556147846 ms (04:15:47Z); local file, not in git"
+     "kind": "proc",
+     "ref": "4444, 4480",
+     "note": "the live console-api and its fwcore, TERMed at 04:15:47Z by the round-1 reap-stop test (the local console log recorded fwcore exit signal=SIGTERM; that log is not in git)"
     },
     {
      "kind": "file",
@@ -3544,6 +3544,35 @@
    "leanVerdict": "provable",
    "leanReason": "Whether a row can be selected given the repo identity and the protected console pids is a pure function of the gathered table; 'no selected row lies outside this repo's removed worktrees' and 'no protected pid is selected' are statements over that function.",
    "hardening": "reap-auto-stop"
+  },
+  {
+   "id": "inc-lan-click-silent",
+   "at": "2026-10-21T12:30+07:00",
+   "title": "Console clicks on the LAN page did nothing: the click key needed a secure-context API and the error was swallowed",
+   "symptom": "The user pressed Start on the step ask-circleci-deploy-key and nothing happened; the step stayed waiting and no step.start reached console-api (no event, no refusal in the log).",
+   "cause": "CONFIRMED (code read): sendAsUser built the command key with crypto.randomUUID, which browsers expose only in secure contexts (https, localhost). The LAN console is plain http, so every click there threw a TypeError before fetch, and App.act did not catch it, so no error line was shown. copyText already guarded the clipboard with isSecureContext; the key path had no such guard and no test ran without randomUUID.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "f58b727b",
+     "note": "keys from getRandomValues, clickError, test/lan-click.test.ts"
+    },
+    {
+     "kind": "file",
+     "ref": "apps/console-web/test/lan-click.test.ts",
+     "note": "fails on the old randomUUID key (mutation check), passes on the fix"
+    }
+   ],
+   "repro": "Open the console from another device at its LAN address (plain http) and press any step button: before ca1ca9ef nothing is sent.",
+   "fix": {
+    "task": "lan-click-silent"
+   },
+   "regression": "test/lan-click.test.ts: a click with no crypto.randomUUID sends step.start with a fresh key; a send that throws shows Not sent; a source scan allows secure-context-only APIs only on a line that checks isSecureContext.",
+   "mistakeClass": "c-env-assume",
+   "leanVerdict": "no",
+   "leanReason": "Which browser APIs exist depends on the page origin at run time, outside any pure function; a test of the page code without the API and a source scan are the guard.",
+   "hardening": "lan-click-silent",
+   "empiricalCheck": "apps/console-web/test/lan-click.test.ts (local vitest only: no CI runs console-web tests yet; task console-web-ci)"
   }
  ]
 }
