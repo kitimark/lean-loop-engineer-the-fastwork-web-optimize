@@ -40,9 +40,9 @@ t=$(pnpm -s fw slot acquire --kind sim --lease 1800)   # then: fw slot renew --t
 - **Admission.** A ticket waits while one of its kind is ahead (FIFO per kind). It also waits while a ticket of
   another kind has waited 300 s ahead of it and can run itself, while `n` slots are held, or while a Simulator slot is
   held and it asks for one. A Simulator ticket stuck behind a held Simulator slot never holds back other kinds
-  (`verdict_not_older_of_sim_blocked`). Otherwise it waits until the job's footprint fits above the 1 GB floor. Footprints: check is 700 MB per
-  Lean worker, test 1600, land 1500, sim 2800, other 1000. Holders admitted in the last 60 s are charged, since free
-  memory does not show them yet. After 1800 s the verdict is timeout, and the job never runs (exit 75).
+  (`verdict_not_older_of_sim_blocked`). Otherwise it waits until the job's footprint fits above the 1 GB floor.
+  Footprints: check is 700 MB per Lean worker, test 1600, land 1500, sim 2800, other 1000. Holders admitted in the
+  last 60 s are charged, since free memory does not show them yet. After 1800 s the verdict is timeout, and the job never runs (exit 75).
 - **Lean workers.** A check gets as many Lean workers as fit the free room, at least 1 and at most the online cores.
   `run` exports them as `LEAN_NUM_THREADS` and `LAKE_SLOT_CORES`.
 - **Holders.** A holder is an owner, a token and a lease, never a process id. A live lease is never recovered as stale
