@@ -11,20 +11,77 @@
   "baselineRun": 39309416016,
   "originalRun": 39318078000,
   "layerCount": {
-   "y0": { "flag": [122, 112] },
-   "y1500": { "flag": [128, 112] },
-   "y3000": { "flag": [58, 51], "baseline": "136-145", "original": "42-47" },
-   "y4500": { "flag": [65, 56], "baseline": "136-145", "original": "42-47" },
-   "yMax": { "flag": [45, 39], "flagY": [5231, 5267], "baseline": "124-128", "original": "30" }
+   "y0": {
+    "flag": [
+     122,
+     112
+    ]
+   },
+   "y1500": {
+    "flag": [
+     128,
+     112
+    ]
+   },
+   "y3000": {
+    "flag": [
+     58,
+     51
+    ],
+    "baseline": "136-145",
+    "original": "42-47"
+   },
+   "y4500": {
+    "flag": [
+     65,
+     56
+    ],
+    "baseline": "136-145",
+    "original": "42-47"
+   },
+   "yMax": {
+    "flag": [
+     45,
+     39
+    ],
+    "flagY": [
+     5231,
+     5267
+    ],
+    "baseline": "124-128",
+    "original": "30"
+   }
   },
   "willChangeReason": {
-   "y0": [92, 92],
-   "y1500": [93, 93],
-   "y3000": [6, 6],
-   "y4500": [6, 6],
-   "yMax": [5, 5]
+   "y0": [
+    92,
+    92
+   ],
+   "y1500": [
+    93,
+    93
+   ],
+   "y3000": [
+    6,
+    6
+   ],
+   "y4500": [
+    6,
+    6
+   ],
+   "yMax": [
+    5,
+    5
+   ],
+   "baseline": {
+    "y3000": 91,
+    "y4500": 91
+   }
   },
-  "lean": "hero_paused_drop: the 85 hero boxes whose only reason is will-change leave the layer tree while paused (WebKit Normal)"
+  "lean": "hero_paused_drop: the 85 hero boxes whose only reason is will-change leave the layer tree while paused (WebKit Normal)",
+  "baselineLabel": "morph.mount:shift arm (task baseline, search ?fw=morph.mount:shift, configHash 3bf7fec1fdffb72d), not the plain faithful rewrite",
+  "attribution": "by reason: will-change reason count 91 at y3000 and y4500 in the baseline, 6 with the flag, both passes (MEASURED); Lean predicts 85 (hero_paused_drop)",
+  "yMaxNote": "y 5267 has n = 1: pass 1 read docH 6006 (max y 5231) at its first read and 6042 in its scroll phase; pass 2 read 6042 from the start, same configHash (MEASURED); late font or image size INFERRED; not re-run"
  },
  "gate": {
   "workflow": "breakpoint-gate",
@@ -37,6 +94,29 @@
  "trajectory": {
   "run": 39548822269,
   "playwright-webkit": "CLEAN, 2000 of 2000 units pass (path hero, 5 reps)",
-  "chromium": "RED, 43 new units against the faithful arm: 42 coverage at width 390 path morph in one rep (open@1), all nav nodes; 1 content: nav logo color close@0=apart in one rep. No hero unit fails. INFERRED unrelated: the nav is outside the hero-exit subtree the rule touches"
- }
+  "chromium": "RED, 43 new units against the faithful arm: 42 coverage at width 390 path morph in one rep (open@1), all nav nodes; 1 content: nav logo color close@0=apart in one rep. No hero unit fails. INFERRED unrelated: the nav is outside the hero-exit subtree the rule touches",
+  "rerun": {
+   "run": 39553952680,
+   "sha": "1f437e7516d60a411f281bde7c0ba236fd470071",
+   "inputs": "engines=chromium fw=hero:scene-pause widths=390",
+   "chromium": "RED, 42 of 3604 units, all coverage at open@1 on path morph (nav, logo, earn, panel, actions), 1 of 62 reps each; no content unit, no hero unit; follow-up task"
+  }
+ },
+ "lean": {
+  "module": "lean/Fw/Parts/HeroScenePause.lean",
+  "theorems": [
+   "heroScene_eq_original",
+   "paused_frame_same",
+   "visSame_original",
+   "hero_paused_drop",
+   "hero_wc_paint_same",
+   "stage_fits",
+   "kMax_pos",
+   "kCopy_ge",
+   "hero_paused_hidden",
+   "hero_paused_hidden_fresh"
+  ],
+  "limits": "no same-look claim for a stale frame beyond kMax (splash) or kCopy (after), 17.2 px and 170 px at 932x430; copy column assumed inside the stage; svh = vh; countdown strip variant not covered"
+ },
+ "lookChange": "every hero CSS animation (cue scrollFloat, accent idle0-2, strokeIn/strokeOut, cue copyIn at <= 600 px, copyFromRing, ringAppear, cardFromRing until the splash ends) holds while paused and resumes at the original's phase, not the faithful arm's; marked for the user's visual review"
 }

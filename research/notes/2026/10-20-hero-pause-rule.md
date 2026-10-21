@@ -24,23 +24,73 @@ at every scroll position. `hero:scene-pause` ports the rule to the hero track (`
 ## Lean (`lean/Fw/Parts/HeroScenePause.lean`)
 
 - Rule identical to the original: `heroScene_eq_original : heroScene = sceneOf` (rfl; `sceneOf` in
-  `Fw.Parts.PlatformScene` is the original's `lE` test with `cE`'s two values). Branches: `near_false_iff`, `paused_of_above`, `paused_of_below`,
-  `active_of_near`, `paused_iff`. `#guard`s at vh 775: y 2325 active, y 2326 paused, y 3000 / 4500 / 5267 paused.
-- Visible output unchanged while paused: `stale_off` (a paused box that moved at most k since the last callback, with
-  k + m ≤ vh, does not meet the viewport), `stale_hidden`, `paused_frame_same`. Against the original:
-  `visSame_original` (via `faithful_eq_original`).
+  `Fw.Parts.PlatformScene` is the original's `lE` test with `cE`'s two values). Branches: `near_false_iff`,
+  `paused_of_above`, `paused_of_below`, `active_of_near`, `paused_iff`. `#guard`s at vh 775: y 2325 active, y 2326 paused, y 3000 / 4500 / 5267 paused.
+- Stale frames, generic: `stale_off`, `stale_hidden`, `paused_frame_same` (a box that moved at most k since the
+  last callback and overflows the track by at most m, with k + m <= vh, does not meet the viewport). Against the
+  original: `visSame_original` (via `faithful_eq_original`).
 - Clocks: `phase_gap` (faithful local time = variant local time + total paused time), `faithful_eq_of_active` (no
   pause, same clock), `cue_phase_differs` (the 2.2 s cue loop shows another phase after a pause than the faithful
   arm). The variant's phase equals the original's, since the original pauses the same way.
-- Stacking: `establishes hasTransform wc = hasTransform || wc` and `establishes_wc_irrelevant`: on a box with a
-  transform, dropping `will-change` changes no stacking context, so no paint order changes.
-- Layers: `layers_le` (paused never adds a layer, on any host), `layers_paused` (owning host: only boxes with another
-  reason keep a layer), `layers_unowned`, `hero_paused_drop` (85 will-change-only boxes, 80 faces + 4 deck cards +
-  copy: 85 → 0 on an owning host), `wk_normal_owns` (WebKit Normal owns `will-change` layers).
-- Golden: `packages/contracts/golden/parts/hero-scene-pause.jsonl` (vh 667 / 775 / 844 / 900 x 8 cases, plus the
-  constants). The site's `heroSceneOf`, the CSS rule values and the observer's `rootMargin` are checked against it
-  (`apps/site/src/parts/hero/scene.golden.test.ts`).
+- Layers: `layers_le` (paused never adds a layer, on any host), `layers_paused`, `layers_unowned`, `hero_paused_drop`
+  (85 will-change-only boxes, 85 to 0 on an owning host), `wk_normal_owns`. The 85 is a modelled count
+  (`heroWcFamilies`: 80 countdown faces, 4 deck cards, the copy, at <= 600 px) matched to the MEASURED will-change
+  reason count 91 to 6 (run 39548856639, y 3000 and 4500, a drop of 85). The cue keeps its layers: a paused animation
+  still has the animation reason (`RenderLayerCompositor.cpp:3842-3867@862f17d`).
+- Golden: `packages/contracts/golden/parts/hero-scene-pause.jsonl`, checked by `scene.golden.test.ts`.
 - Axioms: `propext`, `Classical.choice`, `Quot.sound`.
+
+## The hero's boxes while paused (Lean section 6)
+
+`hero_paused_hidden`: at every probe of `Fw.Site.Breakpoints.matrix` (the 124 loads of `breakpoints.gen.json`), a
+paused hero box whose frame scrolled at most `kMax` since the observer's callback does not meet the viewport.
+`hero_paused_hidden_fresh` is the case without a stale frame, and `kMax_pos` proves `kMax > 0` at all 124 probes.
+
+- Track and stage: the track is 200vh (reduced motion: the stage's height), the sticky stage is `heroHeightPx`
+  (100svh, min 680 px above 600 px). `stage_fits` proves stage <= 2vh at every probe, so the stage stays in the track.
+- Overflow `m` is the largest reach of a box family beyond the stage, at any exit scatter in [0, 1]:
+  - orbit cards (above 600 px): the 779 px canvas is centred on the stage. A card's centre lies between its ring slot
+    (radius at most 248 px, `radius_le`) and its resting centre. Its ink is within half its width plus height of the
+    centre at any rotation and scale <= 1, plus the motion blur outset (`blurOutset`, 3 sigma + 3, from both
+    engines' kernel code), the 0 2px 4px shadow and the exit scatter `scatterY` vh.
+  - deck cards (600 px and below): top at 69.25 % or 83.33 % of the stage, half width plus height, shadow, scatter
+    -12 vh or 22 vh.
+  - copy column (title, accent, countdown, text, buttons, cue): inside the stage plus `copyOutset` 260 px (a face
+    moves at most 5 cells of 52 px; the copy's and the cue's blur and translate stay below it,
+    `copy_outset_dominates`).
+- `kMax = vh - m`. After the splash only the copy column animates (cards have `animation: none` at `data-done`, deck
+  cards always), so a stale frame needs only `kCopy = vh - 260` (`kCopy_ge`: at least 170 px).
+
+| probes | vh | m (px) | kMax (px) | kCopy (px) |
+|---|---|---|---|---|
+| 932x430 phone landscape | 430 | 412.8 | 17.2 | 170 |
+| 1024x768 | 768 | 477.0 | 291.0 | 508 |
+| 1440x822 / 823 | 822 | 467.2 | 354.8 | 562 |
+| above 600 px at 900 / 901 | 900 | 453.2 | 446.8 | 640 |
+| 430x775 | 775 | 327.8 | 447.2 | 515 |
+| 430x815 | 815 | 329.9 | 485.1 | 555 |
+| 600 px and below at 900 | 900 | 334.5 | 565.5 | 640 |
+| 430x932 | 932 | 336.2 | 595.8 | 672 |
+
+Stacking and paint order (`hero_wc_paint_same`): dropping `will-change` changes no paint order for the 85 boxes. The
+copy (`translate`, hero.module.css:208) and the deck cards (`rotate`, deck.module.css:25) always have a transform
+(`establishes_wc_irrelevant`). The 80 faces have no transform until the countdown driver's first write
+(driver.ts:67); they are absolute boxes with only text inside, so they paint as one unit with or without a
+stacking context (`atomic_leaf`, CSS 2.1 Appendix E step 8).
+
+## Every CSS animation in the hero subtree (CONFIRMED, CSS read)
+
+| part | animation | selector | kind | neutralised by the splash end |
+|---|---|---|---|---|
+| hero | copyFromRing 0.7 s after 1.14 s | `.copy`, above 600 px | one-shot | yes: `[data-splash=done] .copy` sets `animation: none` (hero.module.css:38-41) |
+| hero.orbit | ringAppear 0.12 s, cardFromRing 1.7 s | `.card` | one-shot | yes: `[data-orbit][data-done] .card` (card.module.css:160-168), set with `data-splash=done` (orbit driver.ts:69-70) |
+| hero.cue | copyFromRing 0.7 s after 1.14 s | `.cue`, above 600 px | one-shot | yes: `[data-splash=done] .cue` (cue.module.css:89-94) |
+| hero.cue | copyIn 0.7 s after 0.2 s | `.cue`, 600 px and below | one-shot | no: the done rule is above 600 px only |
+| hero.cue | scrollFloat 2.2 s | `.float` | loop | no |
+| hero.accent | strokeIn, strokeOut 0.9 s | `.drawingIn .path`, `.drawingOut .path` | one-shot per JS state | no |
+| hero.accent | idle0, idle1, idle2 0.6 s step-end | `.idle .frameN` | loop | no (`steps` variant: none) |
+| hero.deck | none | `.deck > article` (deck.module.css:26) | - | - |
+| hero.countdown, hero.exit | none (the countdown moves by driver transforms) | - | - | - |
 
 ## Engine source (CONFIRMED)
 
@@ -55,34 +105,50 @@ at every scroll position. `hero:scene-pause` ports the rule to the hero track (`
 
 ## Limits
 
-- Stale frame: the observer reports once per callback. A scroll larger than vh - m between two callbacks can show
-  one frame with the stale state. The original has the same bound (same observer, same margin).
-- Look change against the faithful arm only: after a pause the hero's loops (cue `scrollFloat` 2.2 s, accent idle
-  0.6 s) resume at the original's phase, not the faithful arm's. **Marked for the user's visual review.**
+- Look change against the faithful arm, **marked for the user's visual review** (also in part.json `limit`): while
+  paused every hero CSS animation stops and resumes on return at the original's time, not the faithful arm's. The
+  list: cue scrollFloat (2.2 s loop), accent idle0 to idle2 (0.6 s loops), accent strokeIn and strokeOut, cue
+  copyIn at 600 px and below, and until the splash ends (1.82 s after load) the copy and cue copyFromRing and the
+  card ringAppear and cardFromRing. A page that loads already paused (scroll restoration, anchor, back navigation)
+  holds these at their start until the user scrolls back. The countdown has no CSS animation; its faces only lose
+  `will-change`. Against the original the look is the same (`visSame_original`).
+- No same-look claim beyond these bounds:
+  - a stale frame that scrolled more than `kMax` (during the splash) or `kCopy` (after it) since the last callback;
+    at 932x430 that is 17.2 px and 170 px;
+  - a copy column laid out taller than the stage: text layout is not modelled, the proof assumes the column fits;
+  - `svh` below `vh` (Safari with its toolbars): the proof sets the stage to `heroHeightPx vh`;
+  - `hero.countdown:strip`: a strip reaches up to 11 cells above its digit, outside `copyOutset`.
 - Not ported: the original's `deferRendering` (`content-visibility`) on the hero. Follow-up.
-- Safari lag effect INFERRED; no iPhone run.
-- Bridge: the hero now reads the hero.exit rect. Edges hero → hero.orbit, morph.mount → hero, people.deck → hero;
-  318 chain pairs (was 322); `lean/Fw/Parts/Bridge.lean` regenerated.
+- Safari frame time INFERRED; no iPhone run.
+- Bridge: the hero now reads the hero.exit rect. Edges hero to hero.orbit, morph.mount to hero, people.deck to hero;
+  318 chain pairs (was 322); `lean/Fw/Parts/Bridge.lean`, `FootprintRows.lean`, `FootprintData.lean` and the
+  footprint goldens regenerated (outside the task's graph writes, accepted).
 
 ## CI (MEASURED)
 
-WebKit census, webkit-sim run 39548856639 (sha 26b881fa, `?fw=hero:scene-pause`, iOS Simulator 430x775 DPR 3, 2
-fresh-load passes). Baseline and original are the earlier runs 39309416016 and 39318078000.
+WebKit census, webkit-sim run 39548856639 (sha 26b881fa, `?fw=hero:scene-pause`, configHash 3cab45fdb721e6b0, iOS
+Simulator 430x775 DPR 3, 2 fresh-load passes). Baseline: run 39309416016, the `morph.mount:shift` arm (task baseline,
+search `?fw=morph.mount:shift`, configHash 3bf7fec1fdffb72d), not the plain faithful rewrite. Original: run 39318078000.
 
-| y | flag (pass 1 / 2) | faithful rewrite | original | will-change layers (flag) |
+| y | flag (pass 1 / 2) | morph.mount:shift arm | original | will-change reason (flag) |
 |---|---|---|---|---|
 | 0 | 122 / 112 | - | - | 92 / 92 |
 | 3000 | 58 / 51 | 136-145 | 42-47 | 6 / 6 |
 | 4500 | 65 / 56 | 136-145 | 42-47 | 6 / 6 |
 | max (5231 / 5267) | 45 / 39 | 124-128 | 30 | 5 / 5 |
 
-- Off-screen the count drops by about 80-87 layers. Lean predicts 85 (`hero_paused_drop`). The remaining gap to the
-  original (about 9-18 layers) comes from reasons other than `will-change` (animation, overlap, composited
-  descendants). At y 0 the hero is active and still has its 92 will-change layers, as in the faithful arm.
+- Attribution: the two arms differ in config, so the drop is attributed by reason, not by total. The will-change
+  reason count is 91 at y 3000 and 4500 in the baseline and 6 with the flag, in both passes (MEASURED). Lean predicts
+  85 (`hero_paused_drop`). The rest of the gap to the original (about 9-18 layers) has other reasons (animation,
+  overlap, composited descendants).
+- y 5267 has n = 1. In pass 1 the document was 6006 px tall at the first read (max y 5231) and 6042 px in the same
+  pass's scroll phase; pass 2 read 6042 from the start, with the same configHash (MEASURED). The 36 px arrived after
+  the first read of the cold load (INFERRED: a late font or image size); the census was not re-run.
 - Breakpoint gate, run 39549161028: pass on chromium and on playwright-webkit. Every cell is pass, NC, or UNREACHABLE
   under the Lean reach rule.
-- Trajectory probe, run 39548822269:
-  - playwright-webkit is CLEAN: 2000 of 2000 units pass (path hero).
-  - chromium is RED with 43 new units, all in one rep at width 390, path morph, and none on a hero node. 42 are coverage
-    on nav nodes (open@1). One is content: nav logo color, close@0, apart.
-  - INFERRED unrelated, because the nav is outside the hero-exit subtree that the rule touches.
+- Trajectory probe, run 39548822269: playwright-webkit CLEAN, 2000 of 2000 units (path hero). Chromium RED in one rep
+  at width 390, path morph: 42 coverage units on nav nodes (open@1) and 1 content unit (nav logo color, close@0); no
+  hero unit.
+- Re-run, run 39553952680 (sha 1f437e75, inputs `engines=chromium fw=hero:scene-pause widths=390`): chromium RED,
+  42 of 3604 units, all coverage on the morph path at open@1 (nav, logo, earn, panel, actions), 1 of 62 reps each;
+  no content unit and no hero unit. The red is the nav morph's open trajectory, not the hero; follow-up task.
