@@ -25,7 +25,8 @@ at every scroll position. `hero:scene-pause` ports the rule to the hero track (`
 
 - Rule identical to the original: `heroScene_eq_original : heroScene = sceneOf` (rfl; `sceneOf` in
   `Fw.Parts.PlatformScene` is the original's `lE` test with `cE`'s two values). Branches: `near_false_iff`,
-  `paused_of_above`, `paused_of_below`, `active_of_near`, `paused_iff`. `#guard`s at vh 775: y 2325 active, y 2326 paused, y 3000 / 4500 / 5267 paused.
+  `paused_of_above`, `paused_of_below`, `active_of_near`, `paused_iff`. `#guard`s at vh 775: y 2325 active, y 2326 paused,
+  y 3000 / 4500 / 5267 paused.
 - Stale frames, generic: `stale_off`, `stale_hidden`, `paused_frame_same` (a box that moved at most k since the
   last callback and overflows the track by at most m, with k + m <= vh, does not meet the viewport). Against the
   original: `visSame_original` (via `faithful_eq_original`).
