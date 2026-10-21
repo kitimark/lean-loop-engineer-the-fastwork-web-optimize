@@ -124,6 +124,13 @@
     "ok": true
   },
   {
+    "type": "review.previewed",
+    "key": "review-previewed-nav:earn-no-transition-phone",
+    "actor": "user",
+    "flag": "nav:earn-no-transition",
+    "device": "phone"
+  },
+  {
     "type": "task.define",
     "key": "d:a",
     "actor": "lead",

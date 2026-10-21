@@ -9713,7 +9713,8 @@
     "packages/contracts/golden/preset/**",
     "refs/upstream/sources.lock.yaml",
     ".github/workflows/lean.yml"
-   ]
+   ],
+   "evidence": "5f2d88f"
   },
   {
    "devices": [
@@ -12258,7 +12259,7 @@
    "stream": "gate",
    "deps": [
     "scoped-gap-did",
-    "earn-close-chain-rule"
+    "earn-close-settle-rule"
    ],
    "title": "Follow-up A of scoped-close-start-cause (only after B says 'not shown' and C lands): judge the first in-flight sample after a class removal by the identity |reading - f(m_i)| <= 0.5 (f = bgRed/bgAlpha restated from the CSS in Lean; m_i = the SAME arm and rep's last sample with the class), plus identity checks against Fw.Parts.Nav.morphingCut: m_i > cut at the last sample with the class and m_j <= cut at the first without (an early class removal must fail). Accepted limits: depends on the probe reading sample j at progress 0; m rounding 1e-4; admits any gap regression below B's minimum detectable effect",
    "writes": [
@@ -12383,7 +12384,8 @@
     ".claude/workflows/build-review.js",
     "docs/team/tools/reap.md",
     "docs/team/handoffs/reap-auto-stop.md"
-   ]
+   ],
+   "evidence": "d97943a"
   },
   {
    "devices": [
@@ -12395,7 +12397,7 @@
    "deps": [
     "reap-auto-stop"
    ],
-   "title": "User 2026-10-21 ('did you check the swap', 'what about the detection, observation for this case'): swap reached 5.1/6.1 GB on 16 GB with 6 builders while sys.memCritical stayed silent (kernel pressure level stayed 1). Add fw watch signals with Lean constants and golden: sys.swapHigh (vm.swapusage used/total, swap-out rate, memory_pressure free %), proc.leftover (reap selection non-empty: kind, pids, footprint from top mem+cmprs, not rss), proc.heavy (a project tree or the sum of heavy local jobs over a memory budget); find why proc.long missed 5-11 h lake-serve trees under the lean-lsp MCP server and close it; memory/swap/builder-count/heavy-job trend per tick into the obs log shown in the console; a local lock limiting concurrent check.sh and lake builds by a Lean memory budget; why PropsLint (lean --run scripts/PropsLint.lean) needs 2.2 GB, cut it or run it once per check",
+   "title": "User 2026-10-21 ('did you check the swap', 'what about the detection, observation for this case'): swap reached 5.1/6.1 GB on 16 GB with 6 builders while sys.memCritical stayed silent (kernel pressure level stayed 1). Add fw watch signals with Lean constants and golden: sys.swapHigh (vm.swapusage used/total, swap-out rate, memory_pressure free %), proc.leftover (reap selection non-empty: kind, pids, footprint from top mem+cmprs, not rss), proc.heavy (a project tree or the sum of heavy local jobs over a memory budget); find why proc.long missed 5-11 h lake-serve trees under the lean-lsp MCP server and close it; memory/swap/builder-count/heavy-job trend per tick into the obs log shown in the console; a local lock limiting concurrent check.sh and lake builds by a Lean memory budget; why PropsLint (lean --run scripts/PropsLint.lean) needs 2.2 GB, cut it or run it once per check. User 2026-10-21 'can we improve these timing.slow': lean/check steps ran 2x their median at load 11-23 on 8 CPUs; add a contention-aware Timing verdict (contended samples leave the baseline, one sys.contended signal, no masking of a slow sample at normal load), the heavy-job lock with a measured cap, and one canonical fwcore builder (check.sh left no build record: svc.unknown)",
    "writes": [
     "lean/Fw/Obs/Signals.lean",
     "lean/Fw/Obs/Health.lean",
@@ -12409,7 +12411,10 @@
     "lean/scripts/PropsLint.lean",
     "scripts/heavy-lock.mjs",
     "docs/team/tools/fw-watch.md",
-    "docs/team/handoffs/local-mem-budget.md"
+    "docs/team/handoffs/local-mem-budget.md",
+    "lean/Fw/Obs/Timing.lean",
+    "scripts/fwcore-build.sh",
+    "packages/contracts/golden/obs/**"
    ]
   },
   {
@@ -12512,7 +12517,7 @@
    "deps": [
     "earn-close-start-rule"
    ],
-   "title": "Re-plan of earn-close-start-rule (closed as a finding): judge earn.opacity and earn.max-width at close@0 by anchoring only the FIRST trigger of the close (both arms read fully collapsed there) at the original's reading, and each later trigger on the CSS curve from the previous trigger's reading (the retarget chain: every m change below 2000 restarts the transition). Required: a judge-level drift mutation theorem (a rewrite +tol-1 off the original at each successive trigger yet within band per link) stating whether it passes, and if it passes, a cumulative bound (|rewrite - original| <= tol at every trigger, not only per link); the stale-start, reversed, linear and duration mutations from round 2 kept; golden; TS twin; re-reduce runs 39466179818, 39472217441, 39508414669, 39508421419 (scratch TS of the candidate gave 172/128/253/44 mac new, no earn close@0 cell failing). Round-2 builder branch worktree-wf_c8917a6a-e58-1 (6971b07d) and its scratch (ecs2/src-chain, ecs2/rered.mjs) are the starting point",
+   "title": "CLOSED AS A FINDING 2026-10-21 (nothing landed; ledger hero.exit.scoped.inline next): earn close@0 in-flight readings are frame phase; the original differs from its own reps by up to 115.8 px at triggers 2+, so no same-index judge against the original admits the faithful arm and refuses drift (the chain judge passed a moving +9/+18/+27 drift). Re-planned as earn-close-settle-rule. Original: Re-plan of earn-close-start-rule (closed as a finding): judge earn.opacity and earn.max-width at close@0 by anchoring only the FIRST trigger of the close (both arms read fully collapsed there) at the original's reading, and each later trigger on the CSS curve from the previous trigger's reading (the retarget chain: every m change below 2000 restarts the transition). Required: a judge-level drift mutation theorem (a rewrite +tol-1 off the original at each successive trigger yet within band per link) stating whether it passes, and if it passes, a cumulative bound (|rewrite - original| <= tol at every trigger, not only per link); the stale-start, reversed, linear and duration mutations from round 2 kept; golden; TS twin; re-reduce runs 39466179818, 39472217441, 39508414669, 39508421419 (scratch TS of the candidate gave 172/128/253/44 mac new, no earn close@0 cell failing). Round-2 builder branch worktree-wf_c8917a6a-e58-1 (6971b07d) and its scratch (ecs2/src-chain, ecs2/rered.mjs) are the starting point",
    "writes": [
     "lean/Fw/Gate/Trajectory.lean",
     "packages/gate-breakpoints/src/trajectory/reduce.mjs",
@@ -12520,7 +12525,8 @@
     "packages/contracts/golden/gate/trajectory.jsonl",
     "docs/team/tools/trajectory-probe.md",
     "docs/team/handoffs/earn-close-chain-rule.md"
-   ]
+   ],
+   "evidence": "f7080e0c"
   },
   {
    "devices": [
@@ -12555,7 +12561,8 @@
     "apps/console-web/src/Reviews.tsx",
     "apps/console-web/test/review.test.tsx",
     "docs/team/handoffs/review-strips-console.md"
-   ]
+   ],
+   "evidence": "65f6982"
   },
   {
    "devices": [
@@ -12567,14 +12574,166 @@
    "deps": [
     "lan-click-silent"
    ],
-   "title": "The land lane runs the console-web tests: no CI runs apps/console-web vitest today (the remote checks are check.sh, console-api, runner and 5 packages), so test/lan-click.test.ts and the other console-web tests guard only local runs. Add apps/console-web to the land lane checks the Lean way (Fw.Ci.Trigger / ci-paths input rows, regenerated goldens), and prove a console-web change selects that check",
+   "title": "The land lane runs the console-web AND apps/site unit tests: no CI runs either (the remote checks are check.sh, console-api, runner and 5 packages). Two misses on 2026-10-21: test/lan-click.test.ts guards only local runs (inc-lan-click-silent), and apps/site nav/look-change.test.ts went red on main at 66458a10 (a preset golden it reads changed) and every land passed (inc-site-test-unrun). Add both suites to the land lane checks the Lean way (Fw.Ci.Trigger / ci-paths input rows: their sources AND the goldens they read, e.g. packages/contracts/golden/preset/**), regenerate goldens, and prove a change to each input selects its check",
    "writes": [
     "lean/Fw/Ci/Trigger.lean",
     "packages/contracts/golden/ci/triggers.jsonl",
     "scripts/ci-paths.mjs",
     "scripts/ci-paths.test.mjs",
     ".github/workflows/land.yml",
-    "docs/team/handoffs/console-web-ci.md"
+    "docs/team/handoffs/console-web-ci.md",
+    "apps/site/package.json"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "review-preview-devices",
+   "owner": "console-builder",
+   "stream": "console",
+   "deps": [
+    "review-strips-console"
+   ],
+   "title": "User 2026-10-21: a Preview button on each look-change review card: the live site at main with the flag, the faithful arm and a side-by-side view, owner-only, links built from the page host so they work on the phone over the LAN; a Lean-decided device class (phone or desktop by the reported viewport width) recorded per preview (review.previewed) and shown on the card until both devices are seen; e2e-preview phone-host target; the gain and explain panels moved to review-info (user 2026-10-21), this task leaves a marked slot",
+   "writes": [
+    "lean/Fw/Console/Review.lean",
+    "lean/Fw/Console/ReviewPreview.lean",
+    "apps/console-api/src/review/routes.ts",
+    "apps/console-api/test/review-preview.test.ts",
+    "apps/console-web/src/Reviews.tsx",
+    "apps/console-web/test/review.test.tsx",
+    "packages/e2e-preview/**",
+    "docs/team/handoffs/review-preview-devices.md"
+   ],
+   "evidence": "9743c78"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "review-info",
+   "owner": "console-builder",
+   "stream": "console",
+   "deps": [
+    "review-strips-console"
+   ],
+   "title": "User 2026-10-21: an information panel per look-change review card: 'What you get if you keep it' (status-labelled gain table from one Lean source, checked against its golden), 'What changed in the code' (CSS/JS excerpts read from named ranges, anchor-checked), 'Why it is less work, and the math' (mechanism with engine source, KaTeX math written from named Lean theorems, math-reviewer check). New files only; the lead mounts it in the card slot left by review-preview-devices",
+   "writes": [
+    "apps/console-web/src/ReviewInfo.tsx",
+    "apps/console-web/test/review-info.test.tsx",
+    "apps/console-api/src/review/info.ts",
+    "apps/console-api/test/review-info.test.ts",
+    "lean/Fw/Console/ReviewInfo.lean",
+    "apps/console-web/package.json",
+    "pnpm-lock.yaml",
+    "docs/team/handoffs/review-info.md"
+   ],
+   "evidence": "5a6528a"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "earn-close-settle-rule",
+   "owner": "lean-prover",
+   "stream": "gate",
+   "deps": [
+    "earn-close-chain-rule"
+   ],
+   "title": "FINAL DESIGN ROUND (re-plan of earn-close-chain-rule; advice scratch fable-earn-close-chain-rule.md plus its check). Unit of decision: one sample of earn.opacity / earn.max-width in close@0 (push phase 2, bucket 0) or close-hold. (1) Anchor: the sample at the arm's first trigger reads the original's first-trigger reading within tol (existing excess/origFirst lemmas from branch worktree-wf_27d7c8bb-7e0-1; drop linkExcess/linksExcess/chainCost). (2) close@0 between the first trigger and settle time gets a RANGE check only, [anchor - tol, full + tol]; say so in doc and ledger: 0 of 6140 close@0 samples fall at settle time (MEASURED). (3) Settle: an EXTRA conjunct on close-hold samples (byM hold stays in force; theorem byMSettle v = pass -> byM v = pass): every sample at >= delay + dur + startJitter after the rep's last trigger (opacity 520 ms, max-width 760 ms from startTr) reads full within tol, full := Fw.Parts.Nav.earnMaxW v false 0 and Nav expand at heroPill false (cite Nav.lean:266-269 and the snapshot lines), never the arm's hold; a rep with no settle-time sample keeps its byM verdict. Mutation theorems, each naming the cell (phase, bucket) that refuses it: stale, reversed, target (full*0.9), duration/delay with the smallest refused increase stated as a theorem under its sampling assumption (smaller = accepted limit); wrong collapse cut: a refusing mutation theorem with a realistic timeline (cut 0.25, steps 30-40 ms) or an accepted limit naming which byM buckets judge it; the negative theorem: the drift pair passes and a cited O/O pair from 39508421419 differs by more than tol. Golden, TS twin, re-reduce the 4 runs (39466179818, 39472217441, 39508414669, 39508421419), every changed cell listed; 'cells clear' stays INFERRED until re-reduced. Accepted limits: (i) shorter duration or another curve with the same endpoints passes at close@0; (ii) a rep with no settle sample keeps byM only; (iii) drift inside the range passes (the finding); (iv) startJitter 80 ms; (v) tol 0.01 / 1 px; (vi) any close@0 in-flight reading inside [anchor - tol, full + tol] passes. A refusal splits (anchor-only lands; settle becomes its own task)",
+   "writes": [
+    "lean/Fw/Gate/Trajectory.lean",
+    "packages/gate-breakpoints/src/trajectory/reduce.mjs",
+    "packages/gate-breakpoints/test/trajectory.test.mjs",
+    "packages/contracts/golden/gate/trajectory.jsonl",
+    "docs/team/tools/trajectory-probe.md",
+    "docs/team/handoffs/earn-close-settle-rule.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "mathlib-poc",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "deps": [],
+   "title": "PoC (user 2026-10-21: does Mathlib make our proofs more correct?). A: in core Lean, prove the x-monotonicity and root bracket that the Bezier.lean header claims (bx_mono plus bracket). B: a separate lean-math/ FwMath package pinned to the Mathlib tag for v4.35.0, with minimal imports, proving existence, uniqueness and an error bound for the real root that the Float solver approximates. Measure the cost (cold build, cache size, CI minutes) and write research/notes/2026/10-21-mathlib-poc.md: what B proves that A cannot, and whether the main lean/ package should ever import it. Fable advice (stay Mathlib-free) is the baseline.",
+   "writes": [
+    "lean/Fw/Parts/Bezier.lean",
+    "lean-math/**",
+    ".github/workflows/lean-math.yml",
+    "research/notes/2026/10-21-mathlib-poc.md",
+    "docs/team/handoffs/mathlib-poc.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "bezier-header-claims",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "deps": [
+    "mathlib-poc"
+   ],
+   "title": "Every claim in the lean/Fw/Parts/Bezier.lean header (\"exact to 2^-40\", \"x monotone\") either names the theorem that proves it or is removed. Starts from what mathlib-poc part A proved; the Float-to-real error bound stays an accepted limit unless the PoC's part B is adopted.",
+   "writes": [
+    "lean/Fw/Parts/Bezier.lean",
+    "docs/team/handoffs/bezier-header-claims.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "hero-probe-original",
+   "owner": "measure-engineer",
+   "stream": "gate",
+   "deps": [],
+   "title": "trajectory-probe judges the first frame (open@1) of each arm against the ORIGINAL (the look reference, PLAN.md:421), not only against the faithful arm. Case: hero:scene-pause Chromium open@1 flag 0/15, no-flag 9/25, original 0/20 (control 39557718020): the flag matches the original, so the faithful arm is the outlier. The verdict rule is Lean (Fw.Gate.Trajectory) with goldens; one CI run of the trajectory lane cites the new verdict for hero:scene-pause; then the ledger row hero.scenePause can move from partly-proved.",
+   "writes": [
+    "lean/Fw/Gate/Trajectory.lean",
+    "lean/scripts/TrajectoryGolden.lean",
+    "packages/contracts/golden/gate/trajectory*.jsonl",
+    "packages/gate-breakpoints/src/trajectory/reduce.mjs",
+    "packages/gate-breakpoints/src/trajectory/run.mjs",
+    "packages/gate-breakpoints/test/trajectory*.test.mjs",
+    "docs/team/handoffs/hero-probe-original.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "reap-followups",
+   "owner": "console-builder",
+   "stream": "console",
+   "deps": [],
+   "title": "reap-auto-stop review follow-ups: the console shows reap.stopped events (what was stopped, signal, grace), and apps/runner/src/checks.ts starts its child commands in their own process group so reap can stop the group.",
+   "writes": [
+    "apps/runner/src/checks.ts",
+    "apps/runner/test/checks-pgroup.test.ts",
+    "apps/console-web/src/ReapEvents.tsx",
+    "apps/console-web/test/reap-events.test.tsx",
+    "docs/team/handoffs/reap-followups.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "review-followups",
+   "owner": "console-builder",
+   "stream": "console",
+   "deps": [],
+   "title": "review-strips-console and review-preview-devices follow-ups: a cap-door test proving review.previewed cannot pass the public command door; the preview flag search matches exact flags (split on the separator, no substring match); review records scoped to the review round.",
+   "writes": [
+    "apps/console-api/src/review/preview.ts",
+    "apps/console-api/test/review-preview-door.test.ts",
+    "lean/Fw/Console/Review.lean",
+    "docs/team/handoffs/review-followups.md"
    ]
   }
  ],

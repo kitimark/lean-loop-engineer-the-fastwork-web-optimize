@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { PartCard, type CPart } from "../src/Compose";
-import { ReviewCard, ReviewsPanel, ReviewsTabLabel, openFlags, type ReviewItem, type ReviewsData } from "../src/Reviews";
+import { StripCard, stripUrl, ReviewCard, ReviewsPanel, ReviewsTabLabel, openFlags, type ReviewItem, type ReviewsData } from "../src/Reviews";
 import { landingOf } from "../src/App";
 
 const FLAG = "nav:earn-no-transition";
@@ -95,5 +95,42 @@ describe("nav badge and Compose", () => {
   });
   it("the reviews tab can be a landing", () => {
     expect(landingOf("?tab=reviews").tab).toBe("reviews");
+  });
+});
+
+describe("frame strips in the review card", () => {
+  const redo = "[ci:trajectory-probe] [frames:nav:earn-no-transition]";
+  const ready = { engine: "chromium", state: "ready" as const, width: 390, push: "close" as const, file: "chromium-390-close.png", run: "1", artifact: "a", expires: "2026-11-19",
+    note: "Look at the dark Join waitlist pill.", diff: "about 0.4 s earlier" };
+  it("a ready strip shows tag, push name, diff, note, the legend and a scroll box for the image", () => {
+    const html = renderToStaticMarkup(<StripCard flag={FLAG} s={ready} />);
+    for (const w of ["Chromium · Phone 390", "Button comes back", "about 0.4 s earlier", "Look at the dark Join waitlist pill.",
+      "Top row original, bottom row flag; frame number and ms under each shot", "compare the ms labels, not the column positions", 'data-testid="strip-scroll"', "overflow-x-auto", "max-w-full"]) expect(html).toContain(w);
+  });
+  it("an empty note reads no note yet; the desktop tag and the open push name", () => {
+    const html = renderToStaticMarkup(<StripCard flag={FLAG} s={{ ...ready, engine: "webkit", width: 1280, push: "open", note: "", diff: "" }} />);
+    expect(html).toContain("WebKit · Desktop 1280");
+    expect(html).toContain("Button leaves");
+    expect(html).toContain("no note yet");
+    expect(html).not.toContain('data-testid="strip-diff"');
+  });
+  it("an expired strip says which dispatch re-makes it and has no image box; a missing one is one plain line", () => {
+    const ex = renderToStaticMarkup(<StripCard flag={FLAG} s={{ ...ready, state: "expired", redo }} />);
+    expect(ex).toContain("expired on 2026-11-19");
+    expect(ex).toContain(redo);
+    expect(ex).not.toContain("strip-scroll");
+    const miss = renderToStaticMarkup(<StripCard flag={FLAG} s={{ engine: "webkit", state: "missing", redo }} />);
+    expect(miss).toContain("WebKit strips: none made");
+    expect(miss).toContain(redo);
+  });
+  it("the card lists its strips with the external link kept as a fallback; the image address is encoded", () => {
+    const html = renderToStaticMarkup(<ReviewCard item={item({ strips: [ready, { ...ready, file: "chromium-1280-close.png", width: 1280 }], link: "https://example.test/r" })}
+      confirming={null} busy={false} error={null} onAsk={noop} onConfirm={noop} onCancel={noop} />);
+    expect(html).toContain('data-testid="strips"');
+    expect(html.match(/data-testid="strip"/g)).toHaveLength(2);
+    expect(html).toContain("Fallback:");
+    expect(html).toContain('href="https://example.test/r"');
+    expect(html.indexOf('data-testid="strips"')).toBeLessThan(html.indexOf(">Keep<"));
+    expect(stripUrl(FLAG, "a b.png")).toBe("/api/reviews/nav%3Aearn-no-transition/strips/a%20b.png");
   });
 });
