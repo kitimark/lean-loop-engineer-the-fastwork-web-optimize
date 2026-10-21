@@ -128,6 +128,7 @@ function blocks(rows) {
 /**
  * Where two arms differ in one block: per node and per measure (defects, late tail steps), the arm's median is outside the other arm's
  * run-to-run range (min-max of per-run medians). A cell with a node that moved in one arm and not in the other is listed as `moved`.
+ * The window totals (all nodes of the window summed per push) are compared the same way under the node name `(window total)`.
  * A TS stand-in (descriptive: it picks cells to read, it does not decide anything).
  */
 export function differences(rows, armA, armsB) {
@@ -136,6 +137,11 @@ export function differences(rows, armA, armsB) {
     const a = rs.find((r) => r.arm === armA);
     if (!a) continue;
     for (const r of rs.filter((x) => armsB(x.arm))) {
+      const win = (m, v, ref, dir) => out.push({ block: k, node: '(window total)', measure: m, ref, arm: r.arm, val: `${v}`, dir, refRuns: a.runIds, armRuns: r.runIds });
+      for (const [m, rf] of [['defectsPerPush', 'defectsRange'], ['tailPerPush', 'tailRange'], ['flaggedNodes', 'flaggedNodesRange']]) {
+        if (r[m] < a[rf][0] || r[m] > a[rf][1]) win(m, r[m], rg(a[m], a[rf]), r[m] > a[rf][1] ? 'higher' : 'lower');
+      }
+      if (r.judgedNodes !== a.judgedNodes) win('nodes moving', r.judgedNodes, `${a.judgedNodes}`, r.judgedNodes > a.judgedNodes ? 'higher' : 'lower');
       for (const id of new Set([...Object.keys(a.nodes), ...Object.keys(r.nodes)])) {
         const na = a.nodes[id];
         const nb = r.nodes[id];

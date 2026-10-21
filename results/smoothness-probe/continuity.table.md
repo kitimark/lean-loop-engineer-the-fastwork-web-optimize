@@ -4,8 +4,13 @@ Runs are cited by code; the index is at the end. Per node (property): the median
 
 | engine, width, window, ideal | property | measure | orig (range) | base | direction | orig runs | base runs |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| chromium 1280px, hero, ideal line | (window total) | defectsPerPush | 0 | 12 | higher | 29 runs (see Runs per arm) | 29 runs (see Runs per arm) |
+| chromium 390px, end-close, ideal ref | (window total) | defectsPerPush | 20 (17-25) | 29 | higher | 33 runs (see Runs per arm) | 33 runs (see Runs per arm) |
+| chromium 390px, end-open, ideal ref | (window total) | defectsPerPush | 0 (0-9) | 16 | higher | 33 runs (see Runs per arm) | 33 runs (see Runs per arm) |
 | chromium 390px, end-open, ideal ref | logo | defects | 0 (0-4) | 5 | higher | 33 runs (see Runs per arm) | 33 runs (see Runs per arm) |
 | chromium 390px, end-open, ideal ref | panel | defects | 0 (0-1) | 5 | higher | 33 runs (see Runs per arm) | 33 runs (see Runs per arm) |
+| chromium 390px, hero, ideal line | (window total) | flaggedNodes | 6 | 8 | higher | 33 runs (see Runs per arm) | 33 runs (see Runs per arm) |
+| chromium 390px, hero, ideal line | (window total) | nodes moving | 7 | 9 | higher | 33 runs (see Runs per arm) | 33 runs (see Runs per arm) |
 | chromium 390px, hero, ideal line | hero.stage | moved | not moving | 16/33 runs | arm moving | 33 runs (see Runs per arm) | 33 runs (see Runs per arm) |
 | chromium 390px, hero, ideal line | hero.deck | moved | not moving | 16/33 runs | arm moving | 33 runs (see Runs per arm) | 33 runs (see Runs per arm) |
 
@@ -16,15 +21,20 @@ Runs are cited by code; the index is at the end. Per node (property): the median
 | chromium 1280px, end-close, ideal line | earn | tail | 16 (14-18) | cand:?preset=v2-proved | 13 | lower | R4,R7 |
 | chromium 1280px, end-close, ideal line | panel | defects | 6 (5-7) | cand:hero:scene-pause | 8 | higher | R42 |
 | chromium 1280px, end-close, ideal line | earn | tail | 16 (14-18) | cand:morph.tween:scroll-lock | 13 | lower | R21,R22,R25 |
+| chromium 1280px, end-close, ideal line | (window total) | tailPerPush | 47 (39-98) | cand:morph.tween:waapi | 29 | lower | R2,R5,R19,R24,R39 |
 | chromium 1280px, end-close, ideal line | nav | tail | 15 (13-17) | cand:morph.tween:waapi | 1 | lower | R2,R5,R19,R24,R39 |
+| chromium 1280px, end-close, ideal line | (window total) | tailPerPush | 47 (39-98) | cand:morph.tween:waapi-scoped | 24 | lower | R10,R12 |
 | chromium 1280px, end-close, ideal line | nav | defects | 10 (8-11) | cand:morph.tween:waapi-scoped | 7 | lower | R10,R12 |
 | chromium 1280px, end-close, ideal line | nav | tail | 15 (13-17) | cand:morph.tween:waapi-scoped | 1 | lower | R10,R12 |
 | chromium 1280px, end-close, ideal line | actions | tail | 13 (12-16) | cand:morph.tween:waapi-scoped | 9 | lower | R10,R12 |
+| chromium 1280px, end-close, ideal line | (window total) | defectsPerPush | 49 (43-101) | cand:nav:earn-no-transition | 37 | lower | R13,R15 |
 | chromium 1280px, end-close, ideal line | earn | defects | 20 (18-22) | cand:nav:earn-no-transition | 11 | lower | R13,R15 |
 | chromium 1280px, end-close, ideal line | earn | tail | 16 (14-18) | cand:nav:earn-no-transition | 13 | lower | R13,R15 |
 | chromium 1280px, end-close, ideal ref | earn | tail | 16 (14-18) | cand:?preset=v2-proved | 13 | lower | R4,R7 |
 | chromium 1280px, end-close, ideal ref | earn | tail | 16 (14-18) | cand:morph.tween:scroll-lock | 13 | lower | R21,R22,R25 |
+| chromium 1280px, end-close, ideal ref | (window total) | tailPerPush | 46 (38-97) | cand:morph.tween:waapi | 31 | lower | R2,R5,R19,R24,R39 |
 | chromium 1280px, end-close, ideal ref | nav | tail | 15 (13-17) | cand:morph.tween:waapi | 3 | lower | R2,R5,R19,R24,R39 |
+| chromium 1280px, end-close, ideal ref | (window total) | tailPerPush | 46 (38-97) | cand:morph.tween:waapi-scoped | 23 | lower | R10,R12 |
 | chromium 1280px, end-close, ideal ref | nav | defects | 1 (0-3) | cand:morph.tween:waapi-scoped | 4 | higher | R10,R12 |
 | chromium 1280px, end-close, ideal ref | nav | tail | 15 (13-17) | cand:morph.tween:waapi-scoped | 1 | lower | R10,R12 |
 | chromium 1280px, end-close, ideal ref | actions | tail | 13 (12-16) | cand:morph.tween:waapi-scoped | 9 | lower | R10,R12 |
@@ -32,9 +42,13 @@ Runs are cited by code; the index is at the end. Per node (property): the median
 | chromium 1280px, end-open, ideal line | nav | defects | 11 (10-13) | cand:morph.tween:waapi | 9 | lower | R2,R5,R19,R24,R39 |
 | chromium 1280px, end-open, ideal line | nav | defects | 11 (10-13) | cand:morph.tween:waapi-scoped | 9 | lower | R10,R12 |
 | chromium 1280px, end-open, ideal line | panel | defects | 10 (8-11) | cand:morph.tween:waapi-scoped | 7 | lower | R10,R12 |
+| chromium 1280px, end-open, ideal line | (window total) | tailPerPush | 5 (2-10) | cand:nav:earn-no-transition | 0 | lower | R13,R15 |
 | chromium 1280px, end-open, ideal line | earn | tail | 3 (2-4) | cand:nav:earn-no-transition | 0 | lower | R13,R15 |
+| chromium 1280px, end-open, ideal ref | (window total) | defectsPerPush | 2 (0-7) | cand:nav:earn-no-transition | 18 | higher | R13,R15 |
+| chromium 1280px, end-open, ideal ref | (window total) | tailPerPush | 5 (2-10) | cand:nav:earn-no-transition | 0 | lower | R13,R15 |
 | chromium 1280px, end-open, ideal ref | earn | defects | 1 (0-5) | cand:nav:earn-no-transition | 16 | higher | R13,R15 |
 | chromium 1280px, end-open, ideal ref | earn | tail | 3 (2-4) | cand:nav:earn-no-transition | 0 | lower | R13,R15 |
+| chromium 1280px, hero, ideal line | (window total) | flaggedNodes | 6 (6-12) | cand:?preset=v2-proved | 4 | lower | R4,R7 |
 | chromium 1280px, hero, ideal line | hero.copy | defects | 2 (1-2) | cand:?preset=v2-proved | 0 | lower | R4,R7 |
 | chromium 1280px, hero, ideal line | hero.cue | defects | 2 (1-2) | cand:?preset=v2-proved | 0 | lower | R4,R7 |
 | chromium 1280px, hero, ideal line | hero.orbit.card | defects | 2 | cand:?preset=v2-proved | 0 | lower | R4,R7 |
@@ -45,21 +59,28 @@ Runs are cited by code; the index is at the end. Per node (property): the median
 | chromium 1280px, hero, ideal ref | hero.cue | defects | 3 (0-3) | cand:?preset=v2-proved | 4 | higher | R4,R7 |
 | chromium 1280px, hero, ideal ref | hero.orbit.card | defects | 3 (0-3) | cand:?preset=v2-proved | 4 | higher | R4,R7 |
 | chromium 1280px, hero, ideal ref | hero.deck.card | defects | 3 (0-3) | cand:?preset=v2-proved | 4 | higher | R4,R7 |
+| chromium 390px, end-close, ideal line | (window total) | defectsPerPush | 98 (92-198) | cand:morph.tween:waapi | 89 | lower | R2,R5,R19,R24,R39 |
+| chromium 390px, end-close, ideal line | (window total) | tailPerPush | 57 (56-115) | cand:morph.tween:waapi | 34 | lower | R2,R5,R19,R24,R39 |
 | chromium 390px, end-close, ideal line | nav | tail | 19 (19-20) | cand:morph.tween:waapi | 1 | lower | R2,R5,R19,R24,R39 |
 | chromium 390px, end-close, ideal line | actions | defects | 19 (18-21) | cand:morph.tween:waapi | 17 | lower | R2,R5,R19,R24,R39 |
 | chromium 390px, end-close, ideal line | actions | tail | 16 (16-17) | cand:morph.tween:waapi | 12 | lower | R2,R5,R19,R24,R39 |
 | chromium 390px, end-close, ideal line | earn | defects | 32 (31-35) | cand:morph.tween:waapi | 30 | lower | R2,R5,R19,R24,R39 |
+| chromium 390px, end-close, ideal line | (window total) | defectsPerPush | 98 (92-198) | cand:morph.tween:waapi-scoped | 86 | lower | R10,R12 |
+| chromium 390px, end-close, ideal line | (window total) | tailPerPush | 57 (56-115) | cand:morph.tween:waapi-scoped | 34 | lower | R10,R12 |
 | chromium 390px, end-close, ideal line | nav | tail | 19 (19-20) | cand:morph.tween:waapi-scoped | 1 | lower | R10,R12 |
 | chromium 390px, end-close, ideal line | logo | defects | 29 (24-33) | cand:morph.tween:waapi-scoped | 23 | lower | R10,R12 |
 | chromium 390px, end-close, ideal line | actions | defects | 19 (18-21) | cand:morph.tween:waapi-scoped | 17 | lower | R10,R12 |
 | chromium 390px, end-close, ideal line | actions | tail | 16 (16-17) | cand:morph.tween:waapi-scoped | 12 | lower | R10,R12 |
+| chromium 390px, end-close, ideal line | (window total) | defectsPerPush | 98 (92-198) | cand:nav:earn-no-transition | 80 | lower | R13,R15 |
 | chromium 390px, end-close, ideal line | earn | defects | 32 (31-35) | cand:nav:earn-no-transition | 18 | lower | R13,R15 |
+| chromium 390px, end-close, ideal ref | (window total) | tailPerPush | 56 (55-114) | cand:morph.tween:waapi | 38 | lower | R2,R5,R19,R24,R39 |
 | chromium 390px, end-close, ideal ref | nav | defects | 0 | cand:morph.tween:waapi | 5 | higher | R2,R5,R19,R24,R39 |
 | chromium 390px, end-close, ideal ref | nav | tail | 19 (19-20) | cand:morph.tween:waapi | 4 | lower | R2,R5,R19,R24,R39 |
 | chromium 390px, end-close, ideal ref | actions | tail | 16 (16-17) | cand:morph.tween:waapi | 12 | lower | R2,R5,R19,R24,R39 |
 | chromium 390px, end-close, ideal ref | earn | defects | 17 (17-18) | cand:morph.tween:waapi | 20 | higher | R2,R5,R19,R24,R39 |
 | chromium 390px, end-close, ideal ref | panel | defects | 0 | cand:morph.tween:waapi | 3 | higher | R2,R5,R19,R24,R39 |
 | chromium 390px, end-close, ideal ref | panel | tail | 0 | cand:morph.tween:waapi | 1 | higher | R2,R5,R19,R24,R39 |
+| chromium 390px, end-close, ideal ref | (window total) | tailPerPush | 56 (55-114) | cand:morph.tween:waapi-scoped | 37 | lower | R10,R12 |
 | chromium 390px, end-close, ideal ref | nav | defects | 0 | cand:morph.tween:waapi-scoped | 5 | higher | R10,R12 |
 | chromium 390px, end-close, ideal ref | nav | tail | 19 (19-20) | cand:morph.tween:waapi-scoped | 4 | lower | R10,R12 |
 | chromium 390px, end-close, ideal ref | actions | tail | 16 (16-17) | cand:morph.tween:waapi-scoped | 12 | lower | R10,R12 |
@@ -67,11 +88,19 @@ Runs are cited by code; the index is at the end. Per node (property): the median
 | chromium 390px, end-close, ideal ref | panel | defects | 0 | cand:morph.tween:waapi-scoped | 4 | higher | R10,R12 |
 | chromium 390px, end-close, ideal ref | panel | tail | 0 | cand:morph.tween:waapi-scoped | 1 | higher | R10,R12 |
 | chromium 390px, end-close, ideal ref | earn | defects | 17 (17-18) | cand:nav:earn-no-transition | 20 | higher | R13,R15 |
+| chromium 390px, end-open, ideal line | (window total) | defectsPerPush | 118 (113-243) | cand:morph.tween:waapi | 112 | lower | R2,R5,R19,R24,R39 |
+| chromium 390px, end-open, ideal line | (window total) | defectsPerPush | 118 (113-243) | cand:morph.tween:waapi-scoped | 112 | lower | R10,R12 |
 | chromium 390px, end-open, ideal line | logo | defects | 28 (26-31) | cand:morph.tween:waapi-scoped | 25 | lower | R10,R12 |
+| chromium 390px, end-open, ideal line | (window total) | defectsPerPush | 118 (113-243) | cand:nav:earn-no-transition | 112 | lower | R13,R15 |
+| chromium 390px, end-open, ideal line | (window total) | tailPerPush | 9 (6-19) | cand:nav:earn-no-transition | 2 | lower | R13,R15 |
 | chromium 390px, end-open, ideal line | earn | defects | 31 (29-31) | cand:nav:earn-no-transition | 27 | lower | R13,R15 |
 | chromium 390px, end-open, ideal line | earn | tail | 7 (4-8) | cand:nav:earn-no-transition | 0 | lower | R13,R15 |
+| chromium 390px, end-open, ideal ref | (window total) | flaggedNodes | 5 (4-10) | cand:morph.tween:waapi | 3 | lower | R2,R5,R19,R24,R39 |
 | chromium 390px, end-open, ideal ref | panel | defects | 5 (1-5) | cand:morph.tween:waapi | 0 | lower | R2,R5,R19,R24,R39 |
+| chromium 390px, end-open, ideal ref | (window total) | flaggedNodes | 5 (4-10) | cand:morph.tween:waapi-scoped | 3 | lower | R10,R12 |
 | chromium 390px, end-open, ideal ref | panel | defects | 5 (1-5) | cand:morph.tween:waapi-scoped | 0 | lower | R10,R12 |
+| chromium 390px, end-open, ideal ref | (window total) | defectsPerPush | 16 (5-40) | cand:nav:earn-no-transition | 42 | higher | R13,R15 |
+| chromium 390px, end-open, ideal ref | (window total) | tailPerPush | 9 (6-19) | cand:nav:earn-no-transition | 2 | lower | R13,R15 |
 | chromium 390px, end-open, ideal ref | earn | defects | 1 (0-3) | cand:nav:earn-no-transition | 26 | higher | R13,R15 |
 | chromium 390px, end-open, ideal ref | earn | tail | 7 (4-8) | cand:nav:earn-no-transition | 0 | lower | R13,R15 |
 | chromium 390px, hero, ideal line | hero.copy | defects | 3 (2-3) | cand:?preset=v2-proved | 0 | lower | R4,R7 |
@@ -80,10 +109,14 @@ Runs are cited by code; the index is at the end. Per node (property): the median
 | chromium 390px, hero, ideal line | hero.cue | defects | 3 (2-3) | cand:?preset=v2-proved | 0 | lower | R4,R7 |
 | chromium 390px, hero, ideal line | hero.orbit.card | defects | 3 (2-3) | cand:?preset=v2-proved | 0 | lower | R4,R7 |
 | chromium 390px, hero, ideal line | hero.deck.card | defects | 3 (2-3) | cand:?preset=v2-proved | 0 | lower | R4,R7 |
+| chromium 390px, hero, ideal line | (window total) | nodes moving | 9 | cand:hero:scene-pause | 7 | lower | R42,R43,R44 |
 | chromium 390px, hero, ideal line | hero.stage | moved | 16/33 runs | cand:hero:scene-pause | not moving | arm not moving | R42,R43,R44 |
 | chromium 390px, hero, ideal line | hero.deck | moved | 16/33 runs | cand:hero:scene-pause | not moving | arm not moving | R42,R43,R44 |
+| chromium 390px, hero, ideal line | (window total) | nodes moving | 9 | cand:hero.exit:faithful | 7 | lower | R6,R8,R9,R20,R28 |
+| chromium 390px, hero, ideal line | (window total) | nodes moving | 9 | cand:morph.tween:scroll-lock | 7 | lower | R21,R22,R25 |
 | chromium 390px, hero, ideal line | hero.stage | moved | 16/33 runs | cand:morph.tween:scroll-lock | not moving | arm not moving | R21,R22,R25 |
 | chromium 390px, hero, ideal line | hero.deck | moved | 16/33 runs | cand:morph.tween:scroll-lock | not moving | arm not moving | R21,R22,R25 |
+| chromium 390px, hero, ideal line | (window total) | nodes moving | 9 | cand:morph.tween:waapi | 7 | lower | R2,R5,R19,R24,R39 |
 | chromium 390px, hero, ideal ref | hero.copy | defects | 0 (0-3) | cand:?preset=v2-proved | 4 | higher | R4,R7 |
 | chromium 390px, hero, ideal ref | hero.cta | defects | 0 (0-3) | cand:?preset=v2-proved | 4 | higher | R4,R7 |
 | chromium 390px, hero, ideal ref | hero.countdown.unit | defects | 0 (0-3) | cand:?preset=v2-proved | 4 | higher | R4,R7 |
@@ -92,6 +125,9 @@ Runs are cited by code; the index is at the end. Per node (property): the median
 | chromium 390px, hero, ideal ref | hero.deck.card | defects | 0 (0-3) | cand:?preset=v2-proved | 4 | higher | R4,R7 |
 | macos-webkit 1280px, end-close, ideal line | nav | tail | 12 (6-20) | cand:morph.tween:waapi | 0 | lower | R19,R24 |
 | macos-webkit 1280px, end-close, ideal ref | nav | tail | 12 (6-20) | cand:morph.tween:waapi | 1 | lower | R19,R24 |
+| macos-webkit 1280px, end-open, ideal line | (window total) | flaggedNodes | 5 (5-9) | cand:?preset=v2-proved | 4 | lower | R4,R7 |
+| macos-webkit 1280px, hero, ideal line | (window total) | defectsPerPush | 12 | cand:?preset=v2-proved | 0 | lower | R4,R7 |
+| macos-webkit 1280px, hero, ideal line | (window total) | flaggedNodes | 6 | cand:?preset=v2-proved | 4 | lower | R4,R7 |
 | macos-webkit 1280px, hero, ideal line | hero.copy | defects | 2 | cand:?preset=v2-proved | 0 | lower | R4,R7 |
 | macos-webkit 1280px, hero, ideal line | hero.cta | defects | 2 | cand:?preset=v2-proved | 0 | lower | R4,R7 |
 | macos-webkit 1280px, hero, ideal line | hero.countdown.unit | defects | 2 | cand:?preset=v2-proved | 0 | lower | R4,R7 |
@@ -104,6 +140,7 @@ Runs are cited by code; the index is at the end. Per node (property): the median
 | macos-webkit 390px, end-open, ideal line | logo | defects | 10 (7-15) | cand:morph.tween:scroll-lock | 6 | lower | R21,R22,R25 |
 | macos-webkit 390px, end-open, ideal line | actions | defects | 10 (7-15) | cand:morph.tween:scroll-lock | 6 | lower | R21,R22,R25 |
 | macos-webkit 390px, end-open, ideal line | panel | defects | 8 (5-11) | cand:morph.tween:scroll-lock | 4 | lower | R21,R22,R25 |
+| macos-webkit 390px, hero, ideal line | (window total) | defectsPerPush | 12 | cand:?preset=v2-proved | 0 | lower | R4,R7 |
 | macos-webkit 390px, hero, ideal line | hero.copy | defects | 2 | cand:?preset=v2-proved | 0 | lower | R4,R7 |
 | macos-webkit 390px, hero, ideal line | hero.cta | defects | 2 | cand:?preset=v2-proved | 0 | lower | R4,R7 |
 | macos-webkit 390px, hero, ideal line | hero.countdown.unit | defects | 2 | cand:?preset=v2-proved | 0 | lower | R4,R7 |
