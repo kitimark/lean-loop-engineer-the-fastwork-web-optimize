@@ -39,7 +39,7 @@ backed before this task. A proves it in core Lean over `Rat`; B proves it with M
 | time to write | about 20 min | about 15 min after setup |
 | local check | 1.84 s, 496 MB RSS (`lake env lean`) | 17.9 s build from a cleared `.lake/build`, 1.9 GB RSS |
 | setup | none | `lake update` 204 s; olean download 52 s (98 MB of archives, unpacked 1.41 GB, 1435 oleans of 8624 Mathlib files) |
-| CI | runs in lean.yml as today | separate lane `lean-math.yml`: math job 78 s cold (fetch 43 s, build 7 s); warm: see CI |
+| CI | runs in lean.yml as today | separate lane `lean-math.yml`: job `math` 78 s cold, 63 s warm (lean.yml job `lean` 104 s on the same push) |
 
 All times and sizes MEASURED on this Mac (one debug build) or on GitHub Actions (run ids below).
 The import set is `Mathlib.Topology.Algebra.Ring.Real` only (`#min_imports`). A wider first set cost 1421 files
@@ -47,7 +47,12 @@ against 1416, so pruning imports barely changes the download. MEASURED.
 
 ## CI
 
-- Cold run 39563777430 (cache miss): guard 8 s, job `math` 78 s, of which fetch 43 s (dependency clones plus 1416 olean archives) and `lake build` 7 s; it saved the `mathlib` cache. MEASURED.
+- Cold run 39563777430 (cache miss): guard 8 s, job `math` 78 s, of which fetch 43 s (dependency clones plus 1416
+  olean archives) and `lake build` 7 s; it saved the `mathlib` cache. MEASURED.
+- Warm run 39564041178 (cache hit, 1416 archives restored in 1 s): job `math` 63 s, of which fetch 35 s and
+  `lake build` 8 s. MEASURED. The fetch is now mostly the git clones of the 8 dependencies. Caching
+  `lean-math/.lake/packages` would shorten it, at about 1.4 GB per cache entry. INFERRED (from the step times).
+- The lean lane on the cold push (run 39563777420) passed; its job `lean` took 104 s. MEASURED.
 
 ## Recommendation (advice, not a decision)
 

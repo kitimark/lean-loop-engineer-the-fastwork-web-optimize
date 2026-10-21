@@ -10,7 +10,8 @@ Verified:
   headline `ease_exact`. Local `lake build` 17.9 s.
 - `#print axioms` shows only propext, Classical.choice and Quot.sound for both headlines.
 - `node --test scripts/ci-paths.test.mjs` 54/54; `apps/runner test/land-inputs.test.ts` 55/55.
-- CI lane `lean-math.yml`: see the run ids in research/notes/2026/10-21-mathlib-poc.md.
+- CI lane `lean-math.yml` passed: cold run 39563777430 (job 78 s), warm run 39564041178 (job 63 s). The lean lane
+  passed too (run 39563777420).
 
 Conventions:
 - `lean-math/` is a separate Lake package (Mathlib v4.35.0 plus `fwcore` by path `../lean`). `lean/` never requires
@@ -26,5 +27,4 @@ Open:
 - The lead decides whether to keep lean-math/ (the note recommends: optional lane, core stays Mathlib-free).
 - The new Bezier theorems still need math review.
 - Follow-up: state A generically over ordered fields so that B reuses it without casts.
-
 Read first: research/notes/2026/10-21-mathlib-poc.md, then lean-math/FwMath/Bezier.lean.
