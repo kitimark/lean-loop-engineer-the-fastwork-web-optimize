@@ -11093,7 +11093,8 @@
     "packages/contracts/golden/ci/pool-key.jsonl",
     "docs/team/handoffs/pool-key-outcome.md",
     "lean/Fw.lean"
-   ]
+   ],
+   "evidence": "eb3558b"
   },
   {
    "devices": [
