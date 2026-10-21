@@ -191,4 +191,13 @@ def card (dev : Bool := false) (head : Option String := some "s1") (sc rv dv : O
 #guard stale 10 20 0 { card with lastAt := 10 } && !stale 10 19 0 { card with lastAt := 10 }
 #guard !stale 10 20 1 { card with lastAt := 10 } && stale 0 5 0 { card with lastAt := 9 }
 
+-- review.previewed: wire name, actors, device and flag refusals
+#guard EvType.reviewPreviewed.name == "review.previewed"
+#guard [Actor.user, .lead, .owner, .reviewer, .script, .git, .hook].filter (may · EvType.reviewPreviewed) == [.user]
+#guard out opened (ev "x" 5 .user (.reviewPreviewed "nav:a" "phone")) == yes
+#guard out opened (ev "x" 5 .user (.reviewPreviewed "nav:a" "desktop")) == yes
+#guard out opened (ev "x" 5 .lead (.reviewPreviewed "nav:a" "phone")) != yes
+#guard out opened (ev "x" 5 .user (.reviewPreviewed "nav:a" "tablet")) == no "device must be desktop or phone"
+#guard out opened (ev "x" 5 .user (.reviewPreviewed "nocolon" "phone")) == no "flag must be a key part:variant"
+
 end FwTest.Mutants.Console
