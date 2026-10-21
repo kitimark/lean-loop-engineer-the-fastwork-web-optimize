@@ -12589,7 +12589,7 @@
    "deps": [
     "review-strips-console"
    ],
-   "title": "User 2026-10-21: a Preview button on each look-change review card: the live site at main with the flag, the faithful arm and a side-by-side view, owner-only, links built from the page host so they work on the phone over the LAN; a Lean-decided device class (phone or desktop by the reported viewport width) recorded per preview (review.previewed) and shown on the card until both devices are seen; e2e-preview phone-host target",
+   "title": "User 2026-10-21: a Preview button on each look-change review card: the live site at main with the flag, the faithful arm and a side-by-side view, owner-only, links built from the page host so they work on the phone over the LAN; a Lean-decided device class (phone or desktop by the reported viewport width) recorded per preview (review.previewed) and shown on the card until both devices are seen; e2e-preview phone-host target; the gain and explain panels moved to review-info (user 2026-10-21), this task leaves a marked slot",
    "writes": [
     "lean/Fw/Console/Review.lean",
     "lean/Fw/Console/ReviewPreview.lean",
@@ -12599,6 +12599,28 @@
     "apps/console-web/test/review.test.tsx",
     "packages/e2e-preview/**",
     "docs/team/handoffs/review-preview-devices.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "review-info",
+   "owner": "console-builder",
+   "stream": "console",
+   "deps": [
+    "review-strips-console"
+   ],
+   "title": "User 2026-10-21: an information panel per look-change review card: 'What you get if you keep it' (status-labelled gain table from one Lean source, checked against its golden), 'What changed in the code' (CSS/JS excerpts read from named ranges, anchor-checked), 'Why it is less work, and the math' (mechanism with engine source, KaTeX math written from named Lean theorems, math-reviewer check). New files only; the lead mounts it in the card slot left by review-preview-devices",
+   "writes": [
+    "apps/console-web/src/ReviewInfo.tsx",
+    "apps/console-web/test/review-info.test.tsx",
+    "apps/console-api/src/review/info.ts",
+    "apps/console-api/test/review-info.test.ts",
+    "lean/Fw/Console/ReviewInfo.lean",
+    "apps/console-web/package.json",
+    "pnpm-lock.yaml",
+    "docs/team/handoffs/review-info.md"
    ]
   }
  ],
