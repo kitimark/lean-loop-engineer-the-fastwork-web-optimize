@@ -1,7 +1,7 @@
 export const meta = {
   name: 'build-review',
-  description: 'Build each task (own worktree or a named one), then adversarial review per task, with the fixed team preamble',
-  whenToUse: 'Every build task the lead starts: args = { tasks: [{ id, role, prompt, lean?, worktree?, unit?, limits?, findings? }], voice? }',
+  description: 'Build one task (own worktree or a named one), then its adversarial review, with the fixed team preamble',
+  whenToUse: 'Every build task the lead starts, one run per task so each finishes (and lands) on its own: args = { task: { id, role, prompt, lean?, worktree?, unit?, limits?, findings? }, voice? }',
   phases: [{ title: 'Build' }, { title: 'Review' }],
 }
 
@@ -22,9 +22,12 @@ const PREAMBLE = `Fixed preamble (lead template, research/notes/2026/10-19-autom
 const BUILD = { type: 'object', properties: { branch: { type: 'string' }, commit: { type: 'string' }, summary: { type: 'string' }, files: { type: 'array', items: { type: 'string' } }, open: { type: 'array', items: { type: 'string' } } }, required: ['branch', 'commit', 'summary', 'files'] }
 const VERDICT = { type: 'object', properties: { accept: { type: 'boolean' }, findings: { type: 'array', items: { type: 'object', properties: { severity: { type: 'string' }, where: { type: 'string' }, what: { type: 'string' } }, required: ['severity', 'where', 'what'] } } }, required: ['accept', 'findings'] }
 
-const tasks = (args && args.tasks) || []
+// One task per run: the lead is notified when a run ends, so a bundled run holds an accepted task until its slowest
+// neighbour finishes (user feedback 2026-10-21).
+const tasks = args && args.task ? [args.task] : (args && args.tasks) || []
 const voice = (args && args.voice) || ''
-if (!tasks.length) throw new Error('build-review: args.tasks is empty')
+if (tasks.length !== 1) throw new Error(`build-review: one task per run (got ${tasks.length}); start one run per task`)
+const t = tasks[0]
 
 const scope = (t) => [
   t.unit ? `Pinned unit of decision: ${t.unit}. Items below it are follow-ups.` : '',
@@ -32,16 +35,9 @@ const scope = (t) => [
   t.findings ? `Prior review findings (read every one; apply each exact fix or say why not): ${t.findings}` : '',
 ].filter(Boolean).join('\n')
 
-return await pipeline(tasks,
-  (t) => agent(`Task ${t.id}.${t.worktree ? ` Work only in ${t.worktree}.` : ''}\n${t.prompt}\n${scope(t)}\n\n${voice}\n\n${PREAMBLE}`,
-    { label: `build:${t.id}`, phase: 'Build', agentType: t.role, schema: BUILD, ...(t.worktree ? {} : { isolation: 'worktree' }) }),
-  async (b, t) => {
-    if (!b) return { task: t.id, build: null }
-    const reviews = [
-      () => agent(`Adversarial review of task ${t.id}: branch ${b.branch} at ${b.commit} (read-only). Builder: ${b.summary}\nTask: ${t.prompt}\n${scope(t)}\nRun the tests yourself. Return accept + findings.`,
-        { label: `adv:${t.id}`, phase: 'Review', agentType: 'reviewer', schema: VERDICT }),
-    ]
-    const [adv] = await parallel(reviews)
-    return { task: t.id, build: b, adv }
-  },
-)
+const b = await agent(`Task ${t.id}.${t.worktree ? ` Work only in ${t.worktree}.` : ''}\n${t.prompt}\n${scope(t)}\n\n${voice}\n\n${PREAMBLE}`,
+  { label: `build:${t.id}`, phase: 'Build', agentType: t.role, schema: BUILD, ...(t.worktree ? {} : { isolation: 'worktree' }) })
+if (!b) return [{ task: t.id, build: null }]
+const adv = await agent(`Adversarial review of task ${t.id}: branch ${b.branch} at ${b.commit} (read-only). Builder: ${b.summary}\nTask: ${t.prompt}\n${scope(t)}\nRun the tests yourself. Return accept + findings.`,
+  { label: `adv:${t.id}`, phase: 'Review', agentType: 'reviewer', schema: VERDICT })
+return [{ task: t.id, build: b, adv }]
