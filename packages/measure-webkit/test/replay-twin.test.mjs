@@ -1,4 +1,3 @@
-// The TS twin of Fw.Device.Replay / ReplayProfiles against the Lean golden (golden/device/replay.jsonl), on synthetic touch streams only.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

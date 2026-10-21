@@ -1,10 +1,7 @@
 #!/usr/bin/env node
-// The Chromium replay lane (CI workflow device-replay.yml). From the repository root:
 //   node packages/measure-webkit/src/replay/cli.mjs run --profile packages/measure-chromium/profiles/user-fixture.json \
 //        [--kinds recorded,fast-fling,cold] [--reps 2] [--throttle 6] [--out out/device-replay]
 //   node packages/measure-webkit/src/replay/cli.mjs table --in out/device-replay/run.json     (markdown for the step summary)
-// Each pass is one finger path replayed into the original page (snapshot/site) with native requestAnimationFrame under CPU
-// throttling. The result is the replay check per swipe and the frame-interval counts of the recorder; it is not a class count.
 import { parseArgs } from 'node:util';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { resolve, join } from 'node:path';

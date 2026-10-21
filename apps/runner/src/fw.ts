@@ -32,7 +32,7 @@ async function postLandGc(mainDir: string): Promise<void> {
   for (const l of lines) console.error(l);
 }
 try {
-  const base = NO_API_GROUPS.includes(group ?? "") || group === "disk-gc" || group === "oracle" || group === "slot" || (group === "plan" && rest[0] === "overlap") || (group === "review" && (rest[0] === "ready" || rest[0] === "verdict")) ? "" : apiBase(process.env); // these need no console-api (CI runs some of them)
+  const base = NO_API_GROUPS.includes(group ?? "") || group === "disk-gc" || group === "oracle" || group === "slot" || (group === "plan" && rest[0] === "overlap") || (group === "review" && (rest[0] === "ready" || rest[0] === "verdict")) ? "" : apiBase(process.env);
   if (group === "timings") {
     console.log(rest.includes("--backfill") ? await backfill(rest, process.cwd()) : rest.includes("--lag") ? lagCli(rest, process.cwd()) : timingsView(rest, process.cwd()));
   } else if (group === "checks") {
@@ -69,8 +69,7 @@ try {
   } else if (group === "ci") {
     process.exitCode = await ciCli(rest, process.cwd());
   } else if (group === "oracle") {
-    process.exitCode = await (await import("./oracle.ts")).oracleCli(rest, process.cwd()); // jev-core: advice from Jev, decided in Lean
-  } else if (group === "incidents") {
+    process.exitCode = await (await import("./oracle.ts")).oracleCli(rest, process.cwd());  } else if (group === "incidents") {
     process.exitCode = await (await import("./incidents.ts")).incidentsCli(rest, process.cwd()); // incident-lint: board optional
   } else if (group === "premises") { process.exitCode = await (await import("./premises.ts")).premisesCli(rest, process.cwd()); // Lean premises vs browser tests
   } else if (group === "coverage") {
@@ -195,8 +194,7 @@ try {
   } else if (group === "review" && rest[0] === "feedback") {
     console.log(await (await import("./review.ts")).feedbackCli(rest.slice(1), base)); // review-feedback: read-only, the open comments
   } else if (group === "step" && rest[0] === "questions") {
-    console.log(await (await import("./step-threads.ts")).questionsCli(rest.slice(1), base)); // step-threads: read-only, the open questions
-  } else if (group === "step" || group === "card" || group === "task" || group === "send" || group === "review") {
+    console.log(await (await import("./step-threads.ts")).questionsCli(rest.slice(1), base));  } else if (group === "step" || group === "card" || group === "task" || group === "send" || group === "review") {
     // `fw send '<json command>'` is the escape hatch for run.* commands
     const cmd = group === "step" && rest[0] === "topic" ? (await import("./step-threads.ts")).topicCommand(rest.slice(1), process.env)
       : group === "step" && rest[0] === "reply" ? await (await import("./step-threads.ts")).replyCommand(rest.slice(1), process.env, base)

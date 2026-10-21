@@ -1,7 +1,5 @@
-/-!
-# Label rules and the held-out split of the Jev replay sets (task `jev-datasets`)
-Standalone: imports no other Fw module. Goldens: `lean/scripts/OracleLabelsGolden.lean`.
--/
+/-! # Label rules and the held-out split of the Jev replay sets (task `jev-datasets`)
+Standalone: imports no other Fw module. -/
 namespace Fw.Oracle.Labels
 
 /-- FNV-1a 32-bit offset basis. -/
@@ -23,27 +21,21 @@ def heldOut (id : String) : Bool := fnv1a id % splitMod == 0
 /-- The row id is in the calibration side. -/
 def calibration (id : String) : Bool := !heldOut id
 
-/-- The held-out rows of a list, by the id `key` gives. -/
 def heldOutRows {α : Type} (key : α → String) (rows : List α) : List α := rows.filter (heldOut ∘ key)
 
-/-- The calibration rows of a list, by the id `key` gives. -/
 def calibrationRows {α : Type} (key : α → String) (rows : List α) : List α := rows.filter (calibration ∘ key)
 
-/-- Every id is on exactly one side. -/
 theorem split_exclusive (id : String) : heldOut id = !calibration id := by
   simp [calibration]
 
-/-- A row's side depends on its own id only, not on the other rows. -/
 theorem mem_heldOutRows {α : Type} (key : α → String) (rows : List α) (r : α) :
     r ∈ heldOutRows key rows ↔ r ∈ rows ∧ heldOut (key r) = true := by
   simp [heldOutRows]
 
-/-- A row's side depends on its own id only, not on the other rows. -/
 theorem mem_calibrationRows {α : Type} (key : α → String) (rows : List α) (r : α) :
     r ∈ calibrationRows key rows ↔ r ∈ rows ∧ heldOut (key r) = false := by
   simp [calibrationRows, calibration]
 
-/-- No row is on both sides. -/
 theorem split_disjoint {α : Type} (key : α → String) (rows : List α) (r : α) :
     r ∈ heldOutRows key rows → r ∉ calibrationRows key rows := by
   intro h h'
@@ -53,7 +45,6 @@ theorem split_disjoint {α : Type} (key : α → String) (rows : List α) (r : �
   have := h'.2
   simp_all
 
-/-- The two sides together are the whole list. -/
 theorem split_complete {α : Type} (key : α → String) (rows : List α) :
     (heldOutRows key rows).length + (calibrationRows key rows).length = rows.length := by
   induction rows with
@@ -71,13 +62,11 @@ def mistakeClasses : List String :=
 /-- D1 label: the ledger class when it is a known class, else none. -/
 def d1Label (cls : String) : Option String := if mistakeClasses.contains cls then some cls else none
 
-/-- A known class is its own label. -/
 theorem d1Label_known (c : String) (h : mistakeClasses.contains c = true) : d1Label c = some c := by
   unfold d1Label
   rw [h]
   simp
 
-/-- An unknown class has no label. -/
 theorem d1Label_unknown (c : String) (h : mistakeClasses.contains c = false) : d1Label c = none := by
   unfold d1Label
   rw [h]
@@ -96,7 +85,6 @@ inductive Tier where
   | legacy
   deriving DecidableEq, Repr
 
-/-- Legacy and current severity words and the grade each maps to; `medium`, `moderate`, `info` and the rest have none. -/
 def wordTable : List (String × Grade) :=
   [("blocker", .blocker), ("blocking", .blocker), ("critical", .blocker), ("high", .blocker),
    ("fix-before-land", .fixBeforeLand), ("major", .fixBeforeLand),
@@ -116,7 +104,6 @@ def lowerTrim (s : String) : List Char :=
   let l := s.toList.map Char.toLower
   ((l.dropWhile Char.isWhitespace).reverse.dropWhile Char.isWhitespace).reverse
 
-/-- The leading run of letters and hyphens. -/
 def headWord (l : List Char) : List Char := l.takeWhile (fun c => c.isAlpha || c == '-')
 
 /-- The grade of a bare word. -/
@@ -131,41 +118,31 @@ def severity (s : String) : Option (Grade × Tier) :=
 /-- The grade is inside the pinned unit. -/
 def inUnit (g : Grade) : Bool := g != .followUp
 
-/-- Inside the unit means not a follow-up. -/
 theorem inUnit_iff (g : Grade) : inUnit g = true ↔ g ≠ .followUp := by
   simp [inUnit]
 
-/-- An explicit follow-up tag makes the grade follow-up, whatever the leading word. -/
 theorem severity_follow_tag (s : String) (h : hasInfix followTag.toList (lowerTrim s) = true) :
     (severity s).map (·.1) = some .followUp := by
   simp [severity, h]
 
-/-- Without the tag, the leading word decides the grade. -/
 theorem severity_word (s : String) (h : hasInfix followTag.toList (lowerTrim s) = false) :
     (severity s).map (·.1) = wordGrade (headWord (lowerTrim s)) := by
   simp [severity, h, Option.map_map, Function.comp_def]
 
-/-- A word outside the table and without the tag has no label. -/
 theorem severity_none (s : String) (h : hasInfix followTag.toList (lowerTrim s) = false)
     (hw : wordGrade (headWord (lowerTrim s)) = none) : severity s = none := by
   simp [severity, h, hw]
 
-/-- `blocker` is the exact-tier blocker. -/
 theorem severity_blocker : severity "blocker" = some (.blocker, .exact) := by decide
 
-/-- `fix-before-land` is the exact-tier fix-before-land. -/
 theorem severity_fix_before_land : severity "fix-before-land" = some (.fixBeforeLand, .exact) := by decide
 
-/-- `follow-up` is the exact-tier follow-up. -/
 theorem severity_follow_up : severity "follow-up" = some (.followUp, .exact) := by decide
 
-/-- `high` is a legacy blocker. -/
 theorem severity_high : severity "High" = some (.blocker, .legacy) := by decide
 
-/-- `major` is a legacy fix-before-land. -/
 theorem severity_major : severity "major (blocking)" = some (.fixBeforeLand, .legacy) := by decide
 
-/-- `medium` has no label: it sat in 44 accepted and 208 refused reviews. -/
 theorem severity_medium : severity "medium" = none := by decide
 
 /-- A later grade replacing the reviewer's: another grade, or the finding dismissed. -/
@@ -180,13 +157,10 @@ def applyRegrade (orig : Option Grade) : Option Regrade → Option Grade
   | some (.grade g) => some g
   | some .dismissed => none
 
-/-- No regrade keeps the reviewer's grade. -/
 theorem applyRegrade_none (o : Option Grade) : applyRegrade o none = o := rfl
 
-/-- A regrade to a grade replaces the reviewer's grade. -/
 theorem applyRegrade_grade (o : Option Grade) (g : Grade) : applyRegrade o (some (.grade g)) = some g := rfl
 
-/-- A dismissed finding has no label. -/
 theorem applyRegrade_dismissed (o : Option Grade) : applyRegrade o (some .dismissed) = none := rfl
 
 /-- Phrases of a Fable classification line that dismiss the reviewer's finding. -/
@@ -206,17 +180,14 @@ def fableRegrade (line : String) : Option Regrade :=
   else if hasPhrase lowValuePhrases line then some (.grade .followUp)
   else none
 
-/-- A dismissal phrase decides, even when a demotion phrase is also present. -/
 theorem fableRegrade_dismiss (line : String) (h : hasPhrase dismissPhrases line = true) :
     fableRegrade line = some .dismissed := by
   simp [fableRegrade, h]
 
-/-- A demotion phrase decides when no dismissal phrase is present. -/
 theorem fableRegrade_demote (line : String) (h : hasPhrase dismissPhrases line = false)
     (h' : hasPhrase lowValuePhrases line = true) : fableRegrade line = some (.grade .followUp) := by
   simp [fableRegrade, h, h']
 
-/-- A line with neither kind of phrase gives no regrade. -/
 theorem fableRegrade_none (line : String) (h : hasPhrase dismissPhrases line = false)
     (h' : hasPhrase lowValuePhrases line = false) : fableRegrade line = none := by
   simp [fableRegrade, h, h']
@@ -224,7 +195,6 @@ theorem fableRegrade_none (line : String) (h : hasPhrase dismissPhrases line = f
 /-- Classification lines apply to a round's findings by position, only when their number equals the findings'. -/
 def regradeApplies (nFindings nParsed : Nat) : Bool := 0 < nParsed && nFindings == nParsed
 
-/-- A different count never applies. -/
 theorem regradeApplies_count (a b : Nat) (h : a ≠ b) : regradeApplies a b = false := by
   simp [regradeApplies, h]
 
@@ -258,8 +228,7 @@ def codePhrases : List String :=
    "error ts", "unknown identifier", "type mismatch", "unsolved goals", "premises: failed", "trajectory-line: refused",
    "verdict fail", "verdict refuse", "verdict stale", "not ok "]
 
-/-- D3 label: infra when only an environment phrase shows; then, if the success list reaches back, flake when the
-same workflow passed at the same sha, ours when only a code phrase shows and nothing passed; else none. -/
+/-- D3 label: infra when only an environment phrase shows. -/
 def ciCause (f : CiFacts) : Option Cause :=
   if !f.failure || !f.logKnown then none
   else if f.infraSig && !f.codeSig then some .infra
@@ -268,20 +237,16 @@ def ciCause (f : CiFacts) : Option Cause :=
   else if f.codeSig && !f.infraSig then some .ours
   else none
 
-/-- A run that did not fail has no cause. -/
 theorem ciCause_not_failure (f : CiFacts) (h : f.failure = false) : ciCause f = none := by
   simp [ciCause, h]
 
-/-- A run whose log was not read has no cause. -/
 theorem ciCause_no_log (f : CiFacts) (h : f.logKnown = false) : ciCause f = none := by
   simp [ciCause, h]
 
-/-- An environment phrase alone makes infra, even when the same sha later passed. -/
 theorem ciCause_infra (f : CiFacts) (hf : f.failure = true) (hl : f.logKnown = true) (hi : f.infraSig = true)
     (hc : f.codeSig = false) : ciCause f = some .infra := by
   simp [ciCause, hf, hl, hi, hc]
 
-/-- Without the success list covering the failure, only infra is decided. -/
 theorem ciCause_uncovered (f : CiFacts) (h : f.covered = false) : ciCause f = none ∨ ciCause f = some .infra := by
   unfold ciCause
   by_cases h1 : (!f.failure || !f.logKnown) = true
@@ -290,12 +255,10 @@ theorem ciCause_uncovered (f : CiFacts) (h : f.covered = false) : ciCause f = no
     · simp [h1, h2]
     · simp [h1, h2, h]
 
-/-- A pass at the same sha, with the log not an environment fault alone, makes flake. -/
 theorem ciCause_flake (f : CiFacts) (hf : f.failure = true) (hl : f.logKnown = true) (hcov : f.covered = true)
     (hp : f.passedSameSha = true) (hn : (f.infraSig && !f.codeSig) = false) : ciCause f = some .flake := by
   simp [ciCause, hf, hl, hcov, hp, hn]
 
-/-- A code phrase alone, no environment phrase, and no pass at the sha makes ours. -/
 theorem ciCause_ours (f : CiFacts) (hf : f.failure = true) (hl : f.logKnown = true) (hcov : f.covered = true)
     (hp : f.passedSameSha = false) (hc : f.codeSig = true) (hi : f.infraSig = false) :
     ciCause f = some .ours := by
@@ -337,27 +300,20 @@ def alertTriage (a : Audience) (e : End) (restartText : Bool) : Option Triage :=
     | .scriptCancelled => if restartText then some .mitigate else none
     | .open => none
 
-/-- A user audience is always an ask. -/
 theorem alertTriage_user (e : End) (r : Bool) : alertTriage .user e r = some .askUser := rfl
 
-/-- A lead audience is always a mitigation. -/
 theorem alertTriage_lead (e : End) (r : Bool) : alertTriage .lead e r = some .mitigate := rfl
 
-/-- Without an audience, a step the user acted on is an ask. -/
 theorem alertTriage_unset_user (r : Bool) : alertTriage .unset .userActed r = some .askUser := rfl
 
-/-- Without an audience, a step the lead cancelled is ignored. -/
 theorem alertTriage_unset_lead (r : Bool) : alertTriage .unset .leadCancelled r = some .ignore := rfl
 
-/-- Without an audience, an auto-resolved step was mitigated by a fix. -/
 theorem alertTriage_unset_auto (r : Bool) : alertTriage .unset .autoResolved r = some .mitigate := rfl
 
-/-- Without an audience, a script-cancelled step is a mitigation only when its text says the lead restarts. -/
 theorem alertTriage_unset_script (r : Bool) :
     alertTriage .unset .scriptCancelled r = if r then some .mitigate else none := by
   cases r <;> rfl
 
-/-- An open step with no audience has no label. -/
 theorem alertTriage_unset_open (r : Bool) : alertTriage .unset .open r = none := rfl
 
 end Fw.Oracle.Labels

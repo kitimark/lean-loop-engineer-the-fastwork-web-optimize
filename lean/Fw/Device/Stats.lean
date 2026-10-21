@@ -1,8 +1,5 @@
 import Fw.Device.Session
-/-!
-# Miss counts, hitch time and touch latency of a phone pass
-The second reduction of a recorded pass, twinned by `reduceV2` in `packages/measure-webkit/src/device-session.mjs`.
--/
+/-! Miss counts, hitch time and touch latency of a phone pass. -/
 namespace Fw.Device.Stats
 open Lean Fw.Device.Session
 
@@ -16,7 +13,6 @@ theorem miss_lt_slow : miss < slow := by decide
 /-- The 60 Hz slot of time `t` counted from `t0`, rounded half up. -/
 def slotOf (t0 t : Int) : Int := ((t - t0) * 6 + 5000) / 10000
 
-/-- An interval longer than two 60 Hz slots advances the slot count by 2 or more. -/
 theorem slot_skip_of_over_two_slots (t0 a b : Int) (h : 200000 < (b - a) * 60) : 1 < slotOf t0 b - slotOf t0 a := by
   unfold slotOf
   omega
@@ -28,7 +24,7 @@ structure Frame where
   p : List Int
   deriving Repr, DecidableEq
 
-/-- A frame interval: index and time of the frame that ends it, length, slots advanced, position, page moved, anything changed. -/
+/-- A frame interval: index and time of the frame that ends it. -/
 structure Iv where
   i : Nat
   t : Int
@@ -39,7 +35,6 @@ structure Iv where
   animating : Bool
   deriving Repr, DecidableEq
 
-/-- The intervals of the frames from index `i`, slots counted from `t0`. -/
 def ivsAux (t0 : Int) : Nat → List Frame → List Iv
   | i, a :: b :: rest =>
     ⟨i + 1, b.t, b.t - a.t, slotOf t0 b.t - slotOf t0 a.t, b.y, b.y != a.y, b.y != a.y || b.p != a.p⟩ :: ivsAux t0 (i + 1) (b :: rest)
@@ -66,7 +61,6 @@ theorem ivs_length (fs : List Frame) : (ivs fs).length = fs.length - 1 := by
 /-- A skipped slot: the interval advanced the slot count by more than 1. -/
 def skip (v : Iv) : Bool := decide (1 < v.dk)
 
-/-- The interval is longer than two 60 Hz slots. -/
 def twoSlots (v : Iv) : Bool := decide (200000 < v.dt * 60)
 
 theorem ivsAux_twoSlots (t0 : Int) : ∀ (i : Nat) (fs : List Frame) (v : Iv), v ∈ ivsAux t0 i fs → twoSlots v = true → skip v = true
@@ -79,13 +73,11 @@ theorem ivsAux_twoSlots (t0 : Int) : ∀ (i : Nat) (fs : List Frame) (v : Iv), v
       exact slot_skip_of_over_two_slots t0 a.t b.t h2
     · exact ivsAux_twoSlots t0 (i + 1) (b :: rest) v h h2
 
-/-- Every interval of a pass longer than two slots is a skipped slot. -/
 theorem ivs_twoSlots_skip {fs : List Frame} {v : Iv} (h : v ∈ ivs fs) (h2 : twoSlots v = true) : skip v = true := by
   cases fs with
   | nil => simp [ivs] at h
   | cons f rest => exact ivsAux_twoSlots _ _ _ v h h2
 
-/-- Frames at 0, 8.5 and 34 ms sit in slots 0, 1 and 2: the 25.5 ms interval is over 25 ms and skips no slot. -/
 def cexFrames : List Frame := [⟨0, 0, []⟩, ⟨850, 10, []⟩, ⟨3400, 20, []⟩]
 
 theorem miss_without_skip : ∃ v ∈ ivs cexFrames, miss < v.dt ∧ skip v = false := by decide
@@ -100,7 +92,6 @@ theorem miss_without_skip : ∃ v ∈ ivs cexFrames, miss < v.dt ∧ skip v = fa
 #guard (ivs [⟨0, 0, []⟩, ⟨1667, 0, []⟩, ⟨1667, 10, []⟩, ⟨1700, 10, [5]⟩]).map (fun v => (v.moving, v.animating)) =
   [(false, false), (true, true), (false, true)]
 
-/-- A frame in which the page moved is a frame in which something changed. -/
 theorem ivsAux_moving_animating (t0 : Int) : ∀ (i : Nat) (fs : List Frame) (v : Iv), v ∈ ivsAux t0 i fs → v.moving = true → v.animating = true
   | _, [], _, h, _ => by simp [ivsAux] at h
   | _, [_], _, h, _ => by simp [ivsAux] at h
@@ -124,12 +115,10 @@ theorem cnt_over_mono {a b : Int} (h : a ≤ b) (vs : List Iv) : cnt (over b) vs
   simp only [over, decide_eq_true_eq] at hv ⊢
   omega
 
-/-- Every interval over 50 ms is over 34 ms, and every interval over 34 ms is over 25 ms. -/
 theorem over50_le_over34_le_miss25 (vs : List Iv) :
     cnt (over bad) vs ≤ cnt (over slow) vs ∧ cnt (over slow) vs ≤ cnt (over miss) vs :=
   ⟨cnt_over_mono (by decide) vs, cnt_over_mono (by decide) vs⟩
 
-/-- In any set of intervals of a pass, the count over two slots is at most the skipped-slot count. -/
 theorem twoSlots_le_skips {fs : List Frame} {vs : List Iv} (h : ∀ v ∈ vs, v ∈ ivs fs) : cnt twoSlots vs ≤ cnt skip vs :=
   List.countP_mono_left fun v hv h2 => ivs_twoSlots_skip (h v hv) h2
 
@@ -227,7 +216,6 @@ theorem p95_le_longest {l : List Int} (h : l ≠ []) : p95L l ≤ maxOf0 l := le
 #guard medianL [3, 1, 2] = 2 && medianL [] = 0
 #guard p95L ((List.range 20).map fun k : Nat => (k : Int) + 1) = 19 && p95L [5] = 5 && p95L [] = 0
 
-/-- The longest run of skipped slots in consecutive frames, given the index of the last skip, the current run and the best. -/
 def runGo : Int → Nat → Nat → List Iv → Nat
   | _, _, best, [] => best
   | last, cur, best, v :: vs =>
@@ -264,7 +252,6 @@ theorem run30_le_skips (vs : List Iv) : run30 vs ≤ cnt skip vs := by
 
 /-! ## The stats of a set of intervals -/
 
-/-- Miss counts, hitch time and spread of a set of intervals. -/
 structure Stat2 where
   n : Nat
   skips : Nat
@@ -326,19 +313,15 @@ def Sel.keep : Sel → Iv → Bool
   | .animating, v => v.animating
   | .moving, v => v.moving
 
-/-- The intervals of a zone, `none` for the whole pass. -/
 def zoneSel (vh10 maxY10 : Int) : Option Zone → Iv → Bool
   | none, _ => true
   | some z, v => zoneOf vh10 maxY10 v.y == z
 
-/-- The zone keys of the output. -/
 def zoneKeys : List (Option Zone) := [none, some .hero, some .finish, some .rest]
 
-/-- The name written in the output. -/
 def zoneName : Option Zone → String
   | none => "whole" | some z => z.name
 
-/-- The index of the first frame at the end of the page, the last index when no frame reaches it. -/
 def firstEnd (vh10 maxY10 : Int) (fs : List Frame) : Nat :=
   (fs.findIdx? fun f => zoneOf vh10 maxY10 f.y == .finish).getD fs.length
 
@@ -349,7 +332,6 @@ def firstEnd (vh10 maxY10 : Int) (fs : List Frame) : Nat :=
 
 /-! ## Felt marks -/
 
-/-- A felt mark's lookback: 3 s in hundredths of a ms. -/
 def lookback3 : Int := 300000
 
 /-- The taps of a stream with the start time of each. -/
@@ -380,7 +362,6 @@ def marksW : List (Int × Tap) → List (Int × Tap)
   | _ => []
 termination_by l => l.length
 
-/-- The marks of `marksW` are the marks of `marksOf`. -/
 theorem marksW_map : ∀ l : List (Int × Tap), (marksW l).map (·.2) = marksOf (l.map (·.2))
   | [] => by simp [marksW, marksOf]
   | [_] => by simp [marksW, marksOf]
@@ -408,7 +389,6 @@ theorem mem_feltWindow {anchor : Int} {vs : List Iv} {v : Iv} :
 #guard (feltWindow 400000 (ivs [⟨0, 0, []⟩, ⟨99999, 0, []⟩, ⟨100000, 0, []⟩, ⟨400000, 0, []⟩, ⟨400001, 0, []⟩])).map (·.t) =
   [100000, 400000]
 
-/-- A felt mark of the second reduction: position and zone at the first tap, every interval and the animating ones of its window, and whether the first window counted no frame. -/
 structure FeltV2 where
   y : Int
   zone : Zone
@@ -429,7 +409,7 @@ def feltV2 (vh10 maxY10 e : Int) (fs : List (Int × Int)) (vs : List Iv) (m : In
 def drags (ts : List Touch) : List (List Touch) :=
   (strokes ts).filter fun s => !isTap s && s.all fun e => decide (e.n ≤ 1)
 
-/-- From touch start to the first frame in which the page moved, for a stroke that started on a still page and scrolled it before the finger lifted. -/
+/-- From touch start to the first frame in which the page moved. -/
 def startLatency (fs : List (Int × Int)) (s : List Touch) : Option Int :=
   match s.head?, s.getLast? with
   | some a, some z =>
@@ -461,7 +441,7 @@ def fingerY (s : List Touch) (t : Int) : Int :=
   | some e => e.y
   | none => (s.head?.map (·.y)).getD 0
 
-/-- The largest gap (tenth px) between the page's travel and the finger's travel in a stroke, counted from the first frame the page moved, frames at the page ends left out. -/
+/-- The largest gap (tenth px) between the page's travel and the finger's travel in a stroke. -/
 def offsetMax (maxY10 : Int) (fs : List (Int × Int)) (s : List Touch) : Option Nat :=
   match s.head?, s.getLast? with
   | some a, some z =>
@@ -474,7 +454,6 @@ def offsetMax (maxY10 : Int) (fs : List (Int × Int)) (s : List Touch) : Option 
     | none => none
   | _, _ => none
 
-/-- A page that follows the finger exactly has no offset. -/
 theorem offset_zero_of_follow (r f : Int × Int) (s : List Touch) (h : f.2 - r.2 = fingerY s r.1 - fingerY s f.1) :
     ((f.2 - r.2) - (fingerY s r.1 - fingerY s f.1)).natAbs = 0 := by
   rw [h]; simp
@@ -490,7 +469,6 @@ theorem offset_zero_of_follow (r f : Int × Int) (s : List Touch) (h : f.2 - r.2
 
 /-! ## The pass report -/
 
-/-- The second reduction of one pass. -/
 structure ReportV2 where
   expected : Int
   sets : List (Sel × List (Option Zone × Stat2))
@@ -516,7 +494,6 @@ def reduceV2 (r : Record) : ReportV2 :=
     starts := (drags r.touches).filterMap (startLatency fs)
     offsets := (drags r.touches).filterMap (offsetMax r.maxY10 fs) }
 
-/-- The second reduction keeps one felt mark per mark of the first. -/
 theorem reduceV2_felt_length (r : Record) : (reduceV2 r).felt.length = (reducePass r).felt.length := by
   have := congrArg List.length (marksW_map (tapsW r.touches))
   simp only [List.length_map, tapsW_map] at this
@@ -541,7 +518,6 @@ private def feltV2J (f : FeltV2) : Json :=
 
 private def selsJ (l : List (Sel × Stat2)) : Json := Json.mkObj (l.map fun (s, st) => (s.name, stat2J st))
 
-/-- The report in the shape the TS twin writes. -/
 def reportV2J (r : ReportV2) : Json :=
   Json.mkObj [("expected", r.expected),
     ("sets", Json.mkObj (r.sets.map fun (s, zs) => (s.name, Json.mkObj (zs.map fun (z, st) => (zoneName z, stat2J st))))),
@@ -567,7 +543,6 @@ private def statCases : List (Int × List Int) :=
   [(1700, []), (1700, [1700]), (1700, [1700, 1600, 1700, 3300, 3400, 3500, 5000, 5100, 1700]), (1600, [2550, 800, 1700, 21500]),
    (0, [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000, 2100])]
 
-/-- Intervals with given lengths, slot steps from their lengths, consecutive indices. -/
 private def ivsOfDts (dts : List Int) : List Iv :=
   ivs ((dts.foldl (fun (acc : List Int) d => acc ++ [acc.getLastD 0 + d]) [0]).map fun t => fr t t)
 

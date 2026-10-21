@@ -87,8 +87,7 @@ export function createApp(store: Store, webDist?: string, reconciler?: Reconcile
   mountReviewPreview(app, store, () => owner.previewPort); // the Preview button of a look-change card: Lean console.reviewPreview plans it, the user's review.previewed records it
   mountReviewInfo(app, store, reviewRoot); // the card's information panel: Lean console.reviewInfo (gains, code excerpts read from the checkout, mechanism, math)
   mountReviewFeedback(app, store); // the Feedback section of a review card: the user's comments, the lead's replies (Lean console.reviewFeedback, reducer-decided)
-  mountStepThreads(app, store); // topics of the Your steps card and the question threads on steps and topics (Lean console.stepTopics, reducer-decided)
-  if (reconciler) mountReconcile(app, store, reconciler);
+  mountStepThreads(app, store);  if (reconciler) mountReconcile(app, store, reconciler);
   const { drain, caps } = mountAgentRoutes(app, store); // capability-gated agent door + spool drain
   if (previews) mountPreview(app, store, caps, previews, owner, gate?.grants ? { grants: gate.grants, lan: gate.lan } : undefined); // task detail panel + owner-only preview (task-preview)
   app.get("/api/board", async (c) => c.json(await store.board()));

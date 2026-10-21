@@ -1,19 +1,10 @@
 #!/usr/bin/env node
-// codemagic (task codemagic-pilot): the glue between this repo and the Codemagic pilot (codemagic.yaml; docs/team/tools/codemagic.md).
-// The one decision that costs something, whether a build may start, is the Lean module lean/Fw/Ci/Codemagic.lean, replayed from its
-// golden packages/contracts/golden/ci/codemagic.jsonl (scripts/codemagic.test.mjs replays every row through the functions below:
-// billedMin, monthOf, refusals/mayTrigger, exitOf). This file is request building, parsing, polling, file writing and printing.
-//
 //   node scripts/codemagic.mjs check                          read-only: the token works and the app id is one of the account's apps (GET /apps)
 //   node scripts/codemagic.mjs trigger --branch ci/<name> [--workflow webkit-sim] [--dry]   (cap = codemagic.yaml max_build_duration)
 //   node scripts/codemagic.mjs wait --build ID [--timeout S] [--interval S>=120] [--out DIR]
 //   node scripts/codemagic.mjs fetch --build ID --out DIR     build.json, steps.json, artifacts/, ledger row with the minutes the build billed
 //   node scripts/codemagic.mjs compare --github DIR --codemagic DIR [--json]   (each DIR holds v1-session-1.md, the class table)
 //   node scripts/codemagic.mjs ledger | digest FILE.md | dry-run
-//
-// The token is read from the macOS Keychain (service fw-codemagic-token) inside each request: never printed, never in an argument
-// list, never in a file, sent only to api.codemagic.io (a redirect to another host is followed without it). Exit codes of wait (Lean
-// `exitOf`): 0 finished, 1 failed or timeout, 3 the wait ran out, 4 canceled or skipped; trigger: 5 the Lean minutes rule refused; 64 usage.
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -31,33 +22,25 @@ export const WORKFLOW = 'webkit-sim';
 
 export class Usage extends Error {}
 
-// ---------------------------------------------------------------------------------------------------------------- golden
 
-/** The golden rows by kind: { constants, billed: [...], month: [...], trigger: [...], status: [...] }. */
 export function loadGolden(path = GOLDEN) {
   const by = {};
   for (const l of readFileSync(path, 'utf8').split('\n').filter(Boolean)) { const r = JSON.parse(l); (by[r.kind] ??= []).push(r); }
   return { ...by, constants: by.constants[0] };
 }
 
-// --------------------------------------------------------------------- the Lean decisions (checked against the golden rows)
 
-/** Lean `billedMin`: whole minutes rounded up, at least one. */
 export const billedMin = (durMs) => Math.max(1, Math.floor((durMs + 59999) / 60000));
 
-/** The `YYYY-MM` (UTC) of a Unix time in ms. Lean `monthOf` made the golden vectors; this is the Date reading of the same thing. */
 export const monthOf = (ms) => new Date(ms).toISOString().slice(0, 7);
 
-/** Lean `usedIn`: minutes the rows of `month` used. */
 export const usedIn = (month, rows) => rows.reduce((n, r) => n + (r.month === month ? r.minutes : 0), 0);
 
-/** Lean `refusals`: every reason to refuse, in the order minutes, builds, cap. */
 export function refusals(c, month, rows, cap) {
   return [...(c.stopAt < usedIn(month, rows) + cap ? ['minutes'] : []), ...(c.maxBuilds <= rows.length ? ['builds'] : []), ...(c.maxCapMin < cap ? ['cap'] : [])];
 }
 export const mayTrigger = (c, month, rows, cap) => refusals(c, month, rows, cap).length === 0;
 
-/** Lean `exitOf`: the wait's exit code at a build status, or null while the build goes on. */
 export function exitOf(status) {
   if (status === 'finished') return 0;
   if (status === 'failed' || status === 'timeout') return 1;
@@ -65,14 +48,12 @@ export function exitOf(status) {
   return null;
 }
 
-// ------------------------------------------------------------------------------------------------------------------ HTTP
 
-/** Read the token from the Keychain; the argument list holds the service name only. Throws a hint, never the token. */
 export function keychainToken() {
   try {
     const t = execFileSync('security', ['find-generic-password', '-s', KEYCHAIN_SERVICE, '-w'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
     if (t) return t;
-  } catch { /* fall through */ }
+  } catch {}
   throw new Usage(`token missing: no Codemagic token in the Keychain (service ${KEYCHAIN_SERVICE}); see docs/team/tools/codemagic.md, step 3`);
 }
 
@@ -80,9 +61,6 @@ export const redact = (text, token) => (token ? String(text).split(token).join('
 const isApi = (url) => new URL(url).hostname === API_HOST;
 const shown = (url) => { const u = new URL(url); return `${u.host}${u.pathname}`; };
 
-/** The one request path of every call: the token goes to api.codemagic.io only (a redirect is followed by hand, and without the token
- *  when it leaves that host: fetch would forward a custom header); a 429 waits Retry-After seconds, at most `retries` times; an
- *  error message holds neither the token nor a query. */
 export async function request({ fetchFn = fetch, getToken = keychainToken, sleep = (s) => new Promise((r) => setTimeout(r, s * 1000)), retries = 3 }, method, url, { body, accept = 'application/json' } = {}) {
   for (let attempt = 0, hops = 0; ;) {
     const token = isApi(url) ? getToken() : '';
@@ -110,21 +88,18 @@ export async function call(ctx, method, url, body) {
   return text ? JSON.parse(text) : {};
 }
 
-// -------------------------------------------------------------------------------------------------------------- requests
 
 export function loadConfig(root = ROOT, env = process.env) {
   let f = {};
-  try { f = JSON.parse(readFileSync(join(root, '.local', 'codemagic.json'), 'utf8')); } catch { /* none */ }
+  try { f = JSON.parse(readFileSync(join(root, '.local', 'codemagic.json'), 'utf8')); } catch {}
   return { appId: env.FW_CODEMAGIC_APP_ID || f.appId || '' };
 }
 
-/** POST /builds for a branch; the token is left out. */
 export const triggerRequest = ({ appId, workflowId = WORKFLOW, branch }) => ({ method: 'POST', url: `${API}/builds`,
   headers: { 'x-auth-token': '<redacted>', Accept: 'application/json', 'Content-Type': 'application/json' }, body: { appId, workflowId, branch } });
 
 export const urls = { build: (id) => `${API}/builds/${encodeURIComponent(id)}`, apps: `${API}/apps` };
 
-// --------------------------------------------------------------------------------------------------------------- ledger
 
 const emptyLedger = () => ({ builds: {} });
 export function readLedger(path) {
@@ -134,15 +109,12 @@ export function writeLedger(path, ledger) {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, `${JSON.stringify(ledger, null, 2)}\n`);
 }
-/** The Lean `Row`s of a ledger file. A build not yet fetched is a pending row at its cap, so it counts in full. */
 export const ledgerRows = (ledger) => Object.entries(ledger.builds ?? {}).map(([id, b]) => ({ id, month: b.month, minutes: b.minutes }));
 
-// --------------------------------------------------------------------------------------------------------- build reading
 
 const pick = (o, ...keys) => { for (const k of keys) if (o?.[k] !== undefined && o[k] !== null) return o[k]; return undefined; };
 const ms = (iso) => { const t = Date.parse(iso ?? ''); return Number.isFinite(t) ? t : null; };
 
-/** One build from either API shape (`{build: {...}}` camelCase, or the v3 object in snake_case). */
 export function normBuild(res) {
   const b = res?.build ?? res ?? {};
   const actions = pick(b, 'buildActions', 'actions') ?? [];
@@ -154,7 +126,6 @@ export function normBuild(res) {
     artifacts: arts.map((a) => ({ name: String(a.name ?? ''), url: pick(a, 'url', 'short_lived_download_url') ?? null, bytes: pick(a, 'size', 'size_in_bytes') ?? null })) };
 }
 
-/** Minutes a finished build billed: Lean `billedMin` of its start-to-finish time (creation when it has no start), or the API's own figure when larger. */
 export function buildMinutes(b) {
   const from = b.startedAt ?? b.createdAt;
   if (from == null || b.finishedAt == null) return null;
@@ -162,7 +133,6 @@ export function buildMinutes(b) {
   return Number.isFinite(Number(b.reportedMinutes)) ? Math.max(mine, Math.ceil(Number(b.reportedMinutes))) : mine;
 }
 
-/** Poll until the Lean `exitOf` has an answer or `timeoutS` passes (exit 3). Never polls faster than MIN_POLL_S. */
 export async function waitBuild(ctx, { buildId, timeoutS = 3600, intervalS = MIN_POLL_S }) {
   let waited = 0;
   for (;;) {
@@ -178,7 +148,6 @@ export async function waitBuild(ctx, { buildId, timeoutS = 3600, intervalS = MIN
 
 const safeName = (n) => n.replace(/[^A-Za-z0-9._-]+/g, '_').slice(0, 80) || 'file';
 
-/** Write build.json (normalised, no commit or author fields), steps.json, the artifacts and the step logs the API names; record the ledger row. */
 export async function fetchBuild(ctx, { buildId, out }) {
   const b = normBuild(await call(ctx, 'GET', urls.build(buildId)));
   mkdirSync(join(out, 'artifacts'), { recursive: true });
@@ -204,9 +173,7 @@ export async function fetchBuild(ctx, { buildId, out }) {
   return doc;
 }
 
-// ------------------------------------------------------------------------------------------------------------- the class tables
 
-/** The class rows of a determinism table (`v1-session-1.md`): { 'family|count type|level': class }. */
 export function classRows(md) {
   const rows = {};
   for (const line of md.split('\n')) {
@@ -217,7 +184,6 @@ export function classRows(md) {
   return rows;
 }
 
-/** Row counts per class, and a digest over the sorted `key=class` lines. */
 export function classDigest(md) {
   const rows = classRows(md), counts = {};
   for (const v of Object.values(rows)) counts[v] = (counts[v] ?? 0) + 1;
@@ -225,7 +191,6 @@ export function classDigest(md) {
   return { rows: Object.keys(rows).length, counts, digest };
 }
 
-/** Compare two tables: rows both have with another class are `differ`; rows only one has are `only`. */
 export function compareTables(ghMd, cmMd) {
   const a = classRows(ghMd), b = classRows(cmMd);
   const differ = Object.keys(a).filter((k) => k in b && a[k] !== b[k]).map((k) => ({ key: k, github: a[k], codemagic: b[k] }));
@@ -234,7 +199,6 @@ export function compareTables(ghMd, cmMd) {
     comparable: Object.keys(a).length > 0 && Object.keys(b).length > 0, equal: differ.length === 0 && onlyGithub.length === 0 && onlyCodemagic.length === 0 };
 }
 
-// ------------------------------------------------------------------------------------------------------------------- CLI
 
 function flags(argv, spec) {
   const o = {};
@@ -255,7 +219,6 @@ const USAGE = [
   '  compare --github DIR --codemagic DIR [--json]    ledger    digest FILE.md    dry-run',
 ].join('\n');
 
-/** The build cap the Lean rule adds: codemagic.yaml max_build_duration, the limit Codemagic enforces. */
 export function yamlCap(root) {
   const cap = Number(/^\s*max_build_duration:\s*(\d+)\s*$/m.exec(readFileSync(join(root, 'codemagic.yaml'), 'utf8'))?.[1]);
   if (!Number.isInteger(cap) || cap < 1) throw new Error('codemagic.yaml: no max_build_duration');
@@ -263,7 +226,6 @@ export function yamlCap(root) {
 }
 const onlyWorkflow = (w) => { if (w !== undefined && w !== WORKFLOW) throw new Usage(`--workflow must be ${WORKFLOW} (codemagic.yaml has one workflow)`); return WORKFLOW; };
 
-/** The trigger decision for now: the ledger, the month, the Lean refusals. */
 export function triggerDecision(g, ledgerPath, cap, now) {
   const month = monthOf(now), rows = ledgerRows(readLedger(ledgerPath));
   return { month, used: usedIn(month, rows), builds: rows.length, cap, refusals: refusals(g.constants, month, rows, cap) };
@@ -319,10 +281,9 @@ export async function main(argv, { root = ROOT, env = process.env, ctx: ctx0 = {
       if (d.refusals.length) { log(`STOP (Lean Fw.Ci.Codemagic.refusals): ${d.refusals.join(', ')}; ${d.used} of ${g.constants.freeMinutes} minutes used in ${d.month} (line ${g.constants.stopAt}), ${d.builds} pilot build(s) (max ${g.constants.maxBuilds}), cap ${cap}`); return 5; }
       const req = triggerRequest({ appId: needApp(), workflowId, branch: o.branch });
       const ledger = readLedger(ctx.ledgerPath), tmpId = `pending-${ctx.now()}`;
-      ledger.builds[tmpId] = { month: d.month, minutes: cap, pending: true, at: ctx.now() }; // counts in full from before the request is sent
+      ledger.builds[tmpId] = { month: d.month, minutes: cap, pending: true, at: ctx.now() };
       writeLedger(ctx.ledgerPath, ledger);
       let r;
-      // only a 4xx answer proves no build started; a network error or timeout may follow an accepted build, so its row stays
       try { r = await call(ctx, req.method, req.url, req.body); } catch (e) { if (e.status >= 400 && e.status < 500) { delete ledger.builds[tmpId]; writeLedger(ctx.ledgerPath, ledger); } throw e; }
       const id = r.buildId ?? r.build?._id ?? r.id;
       if (!id) throw new Error('trigger answered without a build id');

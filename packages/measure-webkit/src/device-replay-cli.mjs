@@ -1,13 +1,10 @@
 #!/usr/bin/env node
-// Replaying a recorded finger path on the phone (docs/team/tools/device-replay.md). Run from this package:
 //   node src/device-replay-cli.mjs source   --in rec-1.json --id user-x --out source.json     (profile + zone data of a recording; local only)
 //   node src/device-replay-cli.mjs make     --source source.json --kind recorded|fast-fling|zone-hero|zone-finish|cold [--n 5] [--gap 300] [--reps 3] --out profile.json
 //   node src/device-replay-cli.mjs compile  --profile profile.json [--out actions.json]       (W3C payload, tick statistics; no phone)
 //   node src/device-replay-cli.mjs check    --profile profile.json --in replay-record.json    (replayMatches, conjuncts per swipe)
 //   node src/device-replay-cli.mjs plan     --kinds recorded,fast-fling --reps 3 --arms 2     (the passes and the arm order of each)
 //   node src/device-replay-cli.mjs run      --source source.json [--kinds recorded] [--reps 3] [--arms original=ENV,..] --out run.json  (the phone; needs the setup step)
-// `run` takes the page address from FW_REPLAY_URL (one arm) or FW_REPLAY_URLS (name=url,name=url) and never prints it. It starts
-// `safaridriver` on --port as its own child and stops it at the end; --base uses a driver that is already up (tests).
 // The source file holds a person's finger path: keep it out of git (.local/ or the scratchpad).
 import { parseArgs } from 'node:util';
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';

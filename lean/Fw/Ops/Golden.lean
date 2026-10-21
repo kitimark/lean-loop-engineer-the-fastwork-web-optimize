@@ -1059,10 +1059,8 @@ def reviewFeedbackCases (_ : Unit := ()) : List (String × Json) :=
    ("a text of 2000 astral characters (the cap) is accepted", rfb s!"[{p a "fb-1" (String.ofList (List.replicate 2000 '😀')) 100}]"),
    ("a text of 2001 astral characters (one over the cap) is ignored", rfb s!"[{p a "fb-1" (String.ofList (List.replicate 2001 '😀')) 100}]")]
 
-/-- A `console.stepTopics` request: the events of the log and the board's steps. -/
 def stp (events steps : String) : Json := Json.mkObj [("events", lit events), ("steps", lit steps)]
 
-/-- The `console.stepTopics` cases. -/
 def stepTopicsCases (_ : Unit := ()) : List (String × Json) :=
   let tp (id title sum : String) (ts : Nat) := s!"\{\"type\":\"step.topic\",\"topic\":\"{id}\",\"title\":\"{title}\",\"summary\":\"{sum}\",\"ts\":{ts}}"
   let q (f i t : String) (ts : Nat) := s!"\{\"type\":\"review.feedback\",\"flag\":\"{f}\",\"id\":\"{i}\",\"text\":\"{t}\",\"ts\":{ts}}"

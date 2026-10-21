@@ -1,16 +1,3 @@
-// `fw oracle`: typed answers from an outside model (TypeSafe Jev) for decisions we cannot script, used only as
-// advice. Every decision is fwcore's (`oracle.*`, lean/Fw/Oracle): declared fields, redaction, request body, send
-// gate and caps, validation, policy, calibration, whether a threshold table may be written. This file is I/O: files,
-// the keychain (through packages/oracle, read only after Lean's `oracle.pre` says send), printing.
-//   fw oracle ask <question> --state <state.json> [--thresholds <table.json>] [--json]
-//       advice on one state, or escalate with a reason; no table means uncalibrated (always escalate)
-//   fw oracle calibrate <question> --replay <rows.jsonl> [--limit n] [--resume] [--out <table.json>]
-//       calls over every labeled row (ids from Lean's oracle.plan; logged answers replay; run cap 60); Lean chooses
-//       the per-option thresholds on the choose part and keeps those whose held-out Wilson lower bound reaches the
-//       target; written to --out only when every labeled id has an answer (Lean's mayWrite), else exit 2. --resume
-//       first checks that the rows missing from the answer log fit in the run cap (exit 2 if not)
-//   fw oracle eval <question> --replay <rows.jsonl> --thresholds <table.json>
-//       holdout part: accuracy and coverage at the stored thresholds (MEASURED)
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { userInfo } from "node:os";
@@ -24,33 +11,27 @@ export const ORACLE_USAGE = "usage: fw oracle ask <question> --state <state.json
   "fw oracle calibrate <question> --replay <rows.jsonl> [--limit n] [--resume] [--out <table.json>] | " +
   "fw oracle eval <question> --replay <rows.jsonl> --thresholds <table.json>";
 
-/** The answer log: FW_ORACLE_LOG, else FW_CONSOLE_DIR, else the main checkout's .fw-console (gitignored). */
 export function logPathFor(cwd: string, env: NodeJS.ProcessEnv = process.env): string {
   if (env.FW_ORACLE_LOG) return env.FW_ORACLE_LOG;
   const common = execFileSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd }).toString().trim();
   return join(env.FW_CONSOLE_DIR ?? join(dirname(common), ".fw-console"), "oracle.jsonl");
 }
 
-/** Words to redact besides the fixed rules: the git user name (and its words), the git user e-mail and the login
- *  name. Never printed. fwcore matches them in any letter case. */
 export function redactNames(cwd: string): string[] {
   const cfg = (k: string) => spawnSync("git", ["config", k], { cwd, encoding: "utf8" }).stdout?.trim() ?? "";
   const git = cfg("user.name");
   const email = cfg("user.email");
   let login = "";
-  try { login = userInfo().username; } catch { /* none */ }
+  try { login = userInfo().username; } catch { }
   return [...new Set([git, ...git.split(/\s+/), email, login].filter((w) => w.length >= 3))];
 }
 
-/** The threshold table of a question in a table file (question to {thresholds, ...}), or null when the file or the
- *  question is absent. */
 export function thresholdsOf(file: string | undefined, question: string): Json | null {
   if (file === undefined || !existsSync(file)) return null;
   const t = (JSON.parse(readFileSync(file, "utf8")) as Record<string, { thresholds?: Json | null } | null>)[question];
   return t?.thresholds ?? null;
 }
 
-/** The real dependencies of the client. */
 export function realDeps(cwd: string, core: FwCall = fwcoreCall(cwd)): Deps {
   return {
     core, fetch: globalThis.fetch, readKey: keychainKey, logPath: logPathFor(cwd), now: () => new Date(),
@@ -58,21 +39,15 @@ export function realDeps(cwd: string, core: FwCall = fwcoreCall(cwd)): Deps {
   };
 }
 
-/** Testable seams of the CLI: relative paths resolve against `cwd`. */
 export type Io = { deps: Deps; cwd: string; names: string[]; out: (s: string) => void };
 
-/** A replay row (`<rows>.jsonl`). A row whose `label` is null is left out; Lean (`oracle.plan`, `heldOut`) puts each
- *  labeled row in the choose or the holdout part by its id (a `split` key is refused). The state is sent as stored;
- *  Lean redacts it again before building the body. */
 export type ReplayRow = { state: Record<string, string | string[]>; label: string | null; runId?: number; id?: string };
 
-/** The value after flag `k`, if any. */
 const flag = (args: string[], k: string): string | undefined => {
   const i = args.indexOf(k);
   return i >= 0 ? args[i + 1] : undefined;
 };
 
-/** Every row of a replay file, in file order, or the reason it cannot be read. */
 export function replayFile(file: string): ReplayRow[] | string {
   if (!existsSync(file)) return `no replay file ${file}`;
   return readFileSync(file, "utf8").split("\n").filter((l) => l.trim()).map((l) => JSON.parse(l) as ReplayRow);
@@ -90,8 +65,6 @@ async function askCli(io: Io, args: string[]): Promise<number> {
   return 0;
 }
 
-/** Ask every row (no thresholds: only the replies matter); stops on a missing key. `answers` has one entry per row
- *  that got a reply text (logged or live), with the id Lean gave it. */
 async function replies(io: Io, q: string, rows: ReplayRow[], ids: string[]):
     Promise<{ answers: { id: string; reply: string }[]; summary: string } | "nokey"> {
   const answers: { id: string; reply: string }[] = [];
@@ -107,7 +80,6 @@ async function replies(io: Io, q: string, rows: ReplayRow[], ids: string[]):
   return { answers, summary: Object.entries(counts).map(([k, v]) => `${k} ${v}`).join(", ") };
 }
 
-/** Whether each row's request is already in the answer log (it replays and costs no call). */
 function loggedRows(io: Io, q: string, rows: ReplayRow[]): boolean[] {
   const entries = readLog(io.deps.logPath);
   return rows.map((r) => {
@@ -116,14 +88,11 @@ function loggedRows(io: Io, q: string, rows: ReplayRow[]): boolean[] {
   });
 }
 
-/** The labeled rows as Lean's `oracle.plan` picks them (ids and file positions; one part when `part` is given), at
- *  most `limit`. */
 function planOf(io: Io, all: ReplayRow[], part?: "holdout", limit?: number): { ids: string[]; rows: ReplayRow[] } {
   const plan = io.deps.core({ op: "oracle.plan", rows: all, ...(part ? { part } : {}), ...(limit !== undefined ? { limit } : {}) });
   return { ids: plan.ids as string[], rows: (plan.indices as number[]).map((i) => all[i]!) };
 }
 
-/** One part's counts from `oracle.calibrate` (Lean's Stats). */
 type Stats = { rows: number; covered: number; hits: number };
 
 const NOKEY = "no key in the keychain (service typesafe-api); nothing sent";
@@ -147,8 +116,6 @@ async function calibrate(io: Io, args: string[]): Promise<number> {
   }
   const got = await replies(io, q, rows, ids);
   if (got === "nokey") { io.out(`oracle calibrate: ${NOKEY}`); return 2; }
-  // Lean splits the same file by id, chooses on one part, certifies on the other, and decides whether the table may
-  // be stored: every labeled id has an answer (Fw.Oracle.certify, Fw.Oracle.mayWrite)
   const c = io.deps.core({ op: "oracle.calibrate", name: q, replay: all, answers: got.answers });
   const ch = c.choose as Stats, ho = c.holdout as Stats;
   const line = `oracle calibrate ${q}: thresholds ${JSON.stringify(c.thresholds ?? null)}, choose covered ${ch.covered} ` +
@@ -171,8 +138,6 @@ async function calibrate(io: Io, args: string[]): Promise<number> {
   return 0;
 }
 
-/** Holdout accuracy (hits / covered) and coverage (covered / rows) at the stored thresholds, MEASURED; writes
- *  nothing. */
 async function evaluate(io: Io, args: string[]): Promise<number> {
   const q = args[0], rf = flag(args, "--replay"), tf = flag(args, "--thresholds");
   if (!q || q.startsWith("-") || !rf || !tf) { io.out(ORACLE_USAGE); return 64; }
@@ -192,7 +157,6 @@ async function evaluate(io: Io, args: string[]): Promise<number> {
   return 0;
 }
 
-/** `fw oracle ...`. */
 export async function oracleCli(args: string[], cwd: string, io?: Io): Promise<number> {
   const [sub, ...rest] = args;
   let real: Io | undefined = io;

@@ -1,11 +1,5 @@
 import Lean.Data.Json
-/-!
-# The Codemagic pilot minutes ledger (task `codemagic-pilot`)
-
-The free personal plan gives 500 Mac mini M2 minutes per calendar month. The pilot stops at 400, so a wrong estimate of the
-minutes a build bills (or a month boundary that is off by a day) still leaves 100 minutes. A trigger is allowed only when the
-minutes already used this month plus the longest the new build may run (`max_build_duration`) stay within 400.
--/
+/-! The Codemagic pilot minutes ledger: 500 free Mac mini M2 minutes per calendar month. -/
 namespace Fw.Ci.Codemagic
 
 open Lean (Json)
@@ -16,7 +10,7 @@ def freeMinutes : Nat := 500
 /-- The pilot trigger stops when `used + cap` would pass this many minutes of the month. -/
 def stopAt : Nat := 400
 
-/-- The longest `max_build_duration` the pilot allows, in minutes (the one cell, one session of two passes, took 33 min on GitHub). -/
+/-- The longest `max_build_duration` the pilot allows. -/
 def maxCapMin : Nat := 40
 
 /-- At most this many pilot builds ever (the task's accepted limit). -/
@@ -31,7 +25,6 @@ theorem billed_pos (d : Nat) : 1 ≤ billedMin d := by unfold billedMin; omega
 
 theorem billed_mono {d e : Nat} (h : d ≤ e) : billedMin d ≤ billedMin e := by unfold billedMin; omega
 
-/-- A build that stays within its `max_build_duration` of `c ≥ 1` minutes bills at most `c` minutes. -/
 theorem billed_le_cap {d c : Nat} (hc : 1 ≤ c) (h : d ≤ 60000 * c) : billedMin d ≤ c := by unfold billedMin; omega
 
 /-- One recorded pilot build: its id, the calendar month (`YYYY-MM`, UTC) it started in, and the minutes it billed. -/
@@ -53,9 +46,9 @@ theorem usedIn_append (m : String) (a b : List Row) : usedIn m (a ++ b) = usedIn
 
 /-- Why a trigger is refused, in this order. -/
 inductive Refusal where
-  | minutes  -- `used + cap` passes the stop line
-  | builds   -- the pilot already ran its builds
-  | cap      -- the build's own cap passes `maxCapMin`
+  | minutes
+  | builds
+  | cap
 deriving DecidableEq, Repr
 
 def Refusal.name : Refusal → String
@@ -70,52 +63,42 @@ def refusals (month : String) (rows : List Row) (cap : Nat) : List Refusal :=
 /-- The adapter triggers only when nothing refuses. -/
 def mayTrigger (month : String) (rows : List Row) (cap : Nat) : Bool := (refusals month rows cap).isEmpty
 
-/-- The stop rule: used + cap over the line, no trigger. -/
 theorem no_trigger_over (month : String) (rows : List Row) (cap : Nat) (h : stopAt < usedIn month rows + cap) :
     mayTrigger month rows cap = false := by
   simp [mayTrigger, refusals, h]
 
-/-- The build count: the pilot's builds are used up, no trigger. -/
 theorem no_trigger_builds (month : String) (rows : List Row) (cap : Nat) (h : maxBuilds ≤ rows.length) :
     mayTrigger month rows cap = false := by
   simp [mayTrigger, refusals, h]
 
-/-- The build cap: a cap above `maxCapMin`, no trigger. -/
 theorem no_trigger_cap (month : String) (rows : List Row) (cap : Nat) (h : maxCapMin < cap) :
     mayTrigger month rows cap = false := by
   simp [mayTrigger, refusals, h]
 
-/-- A trigger is allowed exactly when all three conditions hold. -/
 theorem trigger_iff (month : String) (rows : List Row) (cap : Nat) :
     mayTrigger month rows cap = true ↔ usedIn month rows + cap ≤ stopAt ∧ rows.length < maxBuilds ∧ cap ≤ maxCapMin := by
   simp only [mayTrigger, refusals]
   by_cases h1 : stopAt < usedIn month rows + cap <;> by_cases h2 : maxBuilds ≤ rows.length <;>
     by_cases h3 : maxCapMin < cap <;> simp [h1, h2, h3] <;> omega
 
-/-- An allowed trigger never reaches the end of the free plan. -/
 theorem trigger_within_plan {month : String} {rows : List Row} {cap : Nat} (h : mayTrigger month rows cap = true) :
     usedIn month rows + cap ≤ freeMinutes := by
   have := ((trigger_iff month rows cap).1 h).1
   unfold stopAt at this; unfold freeMinutes; omega
 
-/-- The ledger invariant: after an allowed trigger, the build's row (it billed at most its cap) keeps the month within the stop line. -/
 theorem ledger_invariant {month : String} {rows : List Row} {cap : Nat} (h : mayTrigger month rows cap = true)
     (r : Row) (hm : r.month = month) (hr : r.minutes ≤ cap) : usedIn month (rows ++ [r]) ≤ stopAt := by
   have := ((trigger_iff month rows cap).1 h).1
   rw [usedIn_append]; simp [usedIn, hm]; omega
 
-/-- A row of another month does not count toward this month. -/
 theorem other_month_free {month : String} (rows : List Row) (r : Row) (hm : r.month ≠ month) :
     usedIn month (rows ++ [r]) = usedIn month rows := by
   rw [usedIn_append]; simp [usedIn, hm]
 
-/-- The pilot's three builds at the largest cap fit under the stop line. -/
 theorem pilot_fits : maxBuilds * maxCapMin ≤ stopAt := by decide
 
-/-- The margin left under the plan after the stop line. -/
 theorem margin : freeMinutes - stopAt = 100 := by decide
 
-/-- A month in which no row was recorded starts at zero used minutes. -/
 theorem fresh_month (month : String) (rows : List Row) (h : ∀ r ∈ rows, r.month ≠ month) : usedIn month rows = 0 := by
   induction rows with
   | nil => rfl
@@ -124,10 +107,8 @@ theorem fresh_month (month : String) (rows : List Row) (h : ∀ r ∈ rows, r.mo
     have := ih (fun x hx => h x (by simp [hx]))
     simp [usedIn, hr, this]
 
--- ------------------------------------------------------------------------------------------------ calendar month
 
-/-- The `YYYY-MM` (UTC) of a Unix time in milliseconds: the civil-from-days algorithm (Hinnant), on `Nat` because the pilot's
-times are after 1970. -/
+/-- The `YYYY-MM` (UTC) of a Unix time in milliseconds. -/
 def monthOf (ms : Nat) : String :=
   let z := ms / 86400000 + 719468
   let era := z / 146097
@@ -146,10 +127,8 @@ def monthOf (ms : Nat) : String :=
 #guard monthOf 1798761599999 == "2026-12"
 #guard monthOf 1798761600000 == "2027-01"
 
--- ---------------------------------------------------------------------------------------------------------- status
 
-/-- The exit code of a wait at a build status, or `none` while the build goes on: finished 0, failed or timeout 1,
-canceled or skipped 4 (the Codemagic API v3 `BuildStatus` values). -/
+/-- The exit code of a wait at a build status. -/
 def exitOf : String → Option Nat
   | "finished" => some 0
   | "failed" => some 1
@@ -168,11 +147,9 @@ theorem only_finished_passes : ∀ s ∈ statuses, exitOf s = some 0 → s = "fi
 theorem running_has_no_exit : ∀ s ∈ ["initializing", "queued", "preparing", "fetching", "testing", "building", "publishing", "finishing"],
     exitOf s = none := by decide
 
--- ------------------------------------------------------------------------------------------------------------ golden
 
 private def row (id month : String) (m : Nat) : Row := ⟨id, month, m⟩
 
-/-- Ledger cases of the golden: (name, month, rows, cap). -/
 def triggerCases : List (String × String × List Row × Nat) :=
   [("fresh", "2026-10", [], 40),
    ("two builds, 80 used", "2026-10", [row "a" "2026-10" 38, row "b" "2026-10" 42], 40),

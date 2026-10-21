@@ -558,8 +558,7 @@ def keepQ (a : Acc) (q : Req) (b : Bool) : Acc :=
 /-- Answer a request and drop it. -/
 def answer (a : Acc) (q : Req) (r : Reply) : Acc := { a with out := a.out ++ [.reply q.id r] }
 
-/-- Refuse a request for cause (its deadline passed, its resource failed); its owner keeps a ticket with the request's
-age. -/
+/-- Refuse a request for cause. -/
 def refuseT (a : Acc) (q : Req) (why : Why) : Acc :=
   { a with st := { a.st with tickets := a.st.tickets ++ [⟨q.owner, q.rid, q.age⟩] },
            out := a.out ++ [.reply q.id (.refused why)] }
@@ -590,11 +589,7 @@ def start (a : Acc) (q : Req) (r : Rsrc) : Acc :=
                            if x.id == r.id then { x with phase := .starting a.st.now, foot := {} } else x },
                  out := a.out ++ [.spawn r.id r.kind] } q false
 
-/-- One queued request, in queue order: refused at its deadline (a ticket keeps its age) or when draining; a job is
-granted when nothing is shed, nothing ahead is blocked and it fits; a service request is granted on a ready resource
-unless something is shed or, for an unpinned kind, a request ahead is blocked; it is refused on a failed or unknown
-resource (a ticket keeps its age on a failed one), and starts an absent resource under the job rule and the restart
-cap. -/
+/-- One queued request, in queue order. -/
 def pumpOne (c : Cfg) (a : Acc) (q : Req) : Acc :=
   let st := a.st
   if q.deadline ≤ st.now then refuseT a q .deadline

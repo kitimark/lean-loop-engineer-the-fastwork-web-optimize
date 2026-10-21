@@ -1,9 +1,4 @@
 #!/usr/bin/env node
-// jev-datasets: labelled replay sets D1..D4 for the Jev trial, built from our own history. No Jev call, no write outside
-// the output directory (default .cache/jev/, gitignored). Label rules and the id-hash split are Lean (Fw.Oracle.Labels);
-// this file replays them from packages/contracts/golden/oracle/labels.jsonl and is checked against that golden by
-// scripts/jev-datasets.test.mjs. TS stand-ins (no Lean source): the redaction below, the parsing of journals, run lists,
-// logs and events, and the Fable classification-line finder.
 // Usage: node scripts/jev-datasets.mjs [--sets d1,d2,d3,d4] [--out <dir>] [--logs-max 150] [--journals <workflows dir>]
 //        [--events <events.jsonl>] [--ledger <ledger.json>] [--runs-dir <dir with runs-failure.json, runs-success.json>]
 //        [--logs-dir <log cache>] [--no-gh: no gh call, cached logs only]
@@ -16,12 +11,10 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 const here = path.dirname(fileURLToPath(import.meta.url))
 export const GOLDEN = path.join(here, '..', 'packages', 'contracts', 'golden', 'oracle', 'labels.jsonl')
 
-// ---------------------------------------------------------------- Lean rules replayed from the golden
 
 const lowerAscii = (s) => s.replace(/[A-Z]/g, (c) => c.toLowerCase())
 const trimWs = (s) => s.replace(/^[ \t\r\n]+|[ \t\r\n]+$/g, '')
 
-/** The label rules, built from the golden rows (the constants come from Lean, the functions replay Fw.Oracle.Labels). */
 export function makeRules(rows) {
   const one = (k) => {
     const r = rows.find((x) => x.kind === k)
@@ -45,7 +38,6 @@ export function makeRules(rows) {
   const heldOut = (id) => fnv1a(id) % split.mod === 0
   const lowerTrim = (s) => trimWs(lowerAscii(s))
   const wordGrade = (w) => (words.table.find((p) => p[0] === w) ?? [null, null])[1]
-  /** [grade, tier] or null */
   const severity = (s) => {
     const l = lowerTrim(s)
     const g = l.includes(words.followTag) ? 'follow-up' : wordGrade(/^[A-Za-z-]*/.exec(l)[0])
@@ -81,7 +73,6 @@ export function makeRules(rows) {
 
 export const loadRules = (golden = GOLDEN) => makeRules(readFileSync(golden, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)))
 
-// ---------------------------------------------------------------- redaction (TS stand-in)
 
 const RULES = [
   [/\/private\/tmp\/claude-\d+\/[^\s"'`)\]]*/g, '<scratch>'],
@@ -100,24 +91,22 @@ const RULES = [
 
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
-/** Names of this machine's user, read at run time and never written: the login and the words of git's user.name and email. */
 export function localNames() {
   const out = new Set()
   const add = (w) => { if (w && w.length >= 3) out.add(w) }
-  try { add(os.userInfo().username) } catch { /* no passwd entry */ }
+  try { add(os.userInfo().username) } catch {}
   for (const k of ['user.name', 'user.email']) {
     try {
       const v = execFileSync('git', ['config', k], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
       const w = k === 'user.email' ? v.split('@')[0] : v
       for (const x of w.split(/[^A-Za-z0-9]+/)) add(x)
-    } catch { /* unset */ }
+    } catch {}
   }
   return [...out]
 }
 
 const nameRe = (names) => (names.length ? new RegExp(`(?<![A-Za-z0-9])(?:${names.map(esc).join('|')})(?![A-Za-z0-9])`, 'gi') : null)
 
-/** The text with home paths, emails, ids, addresses, tokens and the given user names replaced by placeholders. */
 export function redact(text, names = []) {
   let t = String(text ?? '')
   for (const [re, to] of RULES) t = t.replace(re, to)
@@ -125,7 +114,6 @@ export function redact(text, names = []) {
   return nr ? t.replace(nr, '<user>') : t
 }
 
-/** What still looks personal after redaction: empty for a clean text. */
 export function leaks(text, names = []) {
   const found = []
   const probe = [
@@ -144,14 +132,12 @@ export function leaks(text, names = []) {
 
 const cap = (s, n) => (s.length > n ? `${s.slice(0, n)} [truncated]` : s)
 
-/** One text cell: redacted and capped; null when something personal survives (the row is then withheld). */
 function cell(text, max, names) {
   if (text === null || text === undefined) return { v: null, ok: true }
   const v = cap(redact(text, names), max)
   return { v, ok: leaks(v, names).length === 0 }
 }
 
-/** Redact the string fields of a row; withheld = some cell still leaks. */
 function cleanRow(fields, names) {
   const out = {}
   let ok = true
@@ -163,11 +149,9 @@ function cleanRow(fields, names) {
   return { out, ok }
 }
 
-// ---------------------------------------------------------------- row assembly
 
 const addSplit = (rules, row) => ({ ...row, split: rules.heldOut(row.id) ? 'heldOut' : 'calibration' })
 
-/** D1 rows: incident mistake class. */
 export function buildD1(rules, ledger, names = []) {
   const rows = []
   let withheld = 0
@@ -179,7 +163,6 @@ export function buildD1(rules, ledger, names = []) {
   return { rows, withheld }
 }
 
-/** Fable classification lines: item marker plus a classification word. */
 const ITEM = /^\s*(?:[-*]\s+|\|\s*)?(?:\d+[.)]|[A-Za-z]{1,3}\d+(?:-\d+)?\b|\d+\s*\|)/
 const CLASSWORD = /\breal\b|reviewer error|rule noise/i
 export const fableClassLines = (advice) => String(advice ?? '').split('\n').filter((l) => ITEM.test(l) && CLASSWORD.test(l))
@@ -212,7 +195,6 @@ const section = (prompt, head, stop) => {
 
 const birth = (f) => { const s = statSync(f); return s.birthtimeMs || s.mtimeMs }
 
-/** Every journal under the workflows directory: { wf, born, labels, results }. */
 export function readJournals(dir) {
   const out = []
   if (!existsSync(dir)) return out
@@ -233,7 +215,6 @@ export function readJournals(dir) {
   return out
 }
 
-/** D2 rows: review finding severity and in-unit, from adv:<task> results; Fable regrades by position. */
 export function buildD2(rules, journals, names = []) {
   const reviews = []
   for (const jr of journals) {
@@ -241,7 +222,7 @@ export function buildD2(rules, journals, names = []) {
       const label = jr.labels[r.agentId] ?? ''
       if (!label.startsWith('adv:') || !r.result || typeof r.result !== 'object') continue
       let prompt = ''
-      try { prompt = JSON.parse(readFirstLine(path.join(jr.dir, `agent-${r.agentId}.jsonl`))).message.content } catch { /* transcript gone */ }
+      try { prompt = JSON.parse(readFirstLine(path.join(jr.dir, `agent-${r.agentId}.jsonl`))).message.content } catch {}
       if (typeof prompt !== 'string') prompt = JSON.stringify(prompt)
       reviews.push({ task: label.slice(4), wf: jr.wf, born: jr.born, accept: r.result.accept, findings: r.result.findings ?? [], prompt })
     }
@@ -250,7 +231,7 @@ export function buildD2(rules, journals, names = []) {
   for (const rv of reviews) byTask.set(rv.task, [...(byTask.get(rv.task) ?? []), rv])
   for (const list of byTask.values()) list.sort((a, b) => a.born - b.born).forEach((rv, i) => { rv.round = i + 1 })
 
-  const regrades = new Map() // `${wf}|${task}|${i}` -> { regrade, source }
+  const regrades = new Map()
   const fableStats = { advices: 0, applied: 0, skipped: 0, regrades: 0 }
   for (const jr of journals) {
     for (const r of jr.results) {
@@ -299,13 +280,11 @@ export function buildD2(rules, journals, names = []) {
   return { rows, withheld, fableStats, reviews: reviews.length }
 }
 
-/** The text of a failed-job log reduced to what shows the cause: no timestamp or step prefix, the last lines only. */
 export function logTail(raw, lines = 40) {
   const keep = String(raw ?? '').split('\n').map((l) => l.replace(/^[^\t]*\t[^\t]*\t/, '').replace(/^\d{4}-\d\d-\d\dT[\d:.]+Z\s?/, ''))
   return keep.filter((l) => l.trim()).slice(-lines).join('\n')
 }
 
-/** D3 rows: CI failure cause from run lists and (a bounded sample of) failed-job log tails. */
 export function buildD3(rules, failures, successes, logs, { successLimit = 1000, names = [] } = {}) {
   const passed = new Set(successes.map((s) => `${s.workflowName}|${s.headSha}`))
   const oldest = successes.length ? Math.min(...successes.map((s) => Date.parse(s.createdAt))) : Infinity
@@ -332,7 +311,6 @@ export function buildD3(rules, failures, successes, logs, { successLimit = 1000,
   return { rows, withheld }
 }
 
-/** D4 rows: console alert steps, labelled by who the step was for and how it ended. */
 export function buildD4(rules, events, names = []) {
   const rows = []
   let withheld = 0
@@ -353,7 +331,6 @@ export function buildD4(rules, events, names = []) {
   return { rows, withheld }
 }
 
-/** Counts per label, labelled and held-out sizes. */
 export function summarize(rows) {
   const labels = {}
   let labelled = 0
@@ -368,11 +345,9 @@ export function summarize(rows) {
   return { rows: rows.length, labelled, heldOut, heldOutLabelled, labels: Object.fromEntries(Object.entries(labels).sort()) }
 }
 
-// ---------------------------------------------------------------- I/O glue (gh, files)
 
 const gh = (args, timeout = 120000) => execFileSync('gh', args, { encoding: 'utf8', maxBuffer: 1 << 28, timeout })
 
-/** Failed-job log tails for a bounded sample of failures (id-hash order), cached under the output directory; stops at the first rate-limit error. */
 const realLogs = (rulesObj, failures, max, cacheDir, allowFetch) => {
   mkdirSync(cacheDir, { recursive: true })
   const sample = [...failures].sort((a, b) => rulesObj.fnv1a(String(a.databaseId)) - rulesObj.fnv1a(String(b.databaseId))).slice(0, max)

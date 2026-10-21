@@ -1,79 +1,50 @@
 import Fw.Wire
 import Fw.Ops.Golden
 import Fw.Oracle.Wire
-/-!
-# Golden vectors and fixture replies of the oracle ops (`oracle.*`)
-
-Files under `packages/contracts/golden/oracle/`, generated from Lean, never by hand:
-- `wire.jsonl`: one line per case, `{"name", "request", "response"}` (`request` carries its `op`; `response` is what
-  `fwcore` replies, without the `id`);
-- `fixtures.jsonl`: fixture replies in the vendor's response shape, `{"name", "reply", "label", "decide"}`, where
-  `reply` is the response body text, `label` the true class, and `decide` the `oracle.decide` reply with threshold
-  1/2 for every option. The TypeScript client tests serve these from a fake `fetch`, so no test needs the network
-  or a key.
-
-`lake env lean --run scripts/OracleGolden.lean --check` (a job of `scripts/check.sh`) checks both files; without
-`--check` it rewrites them. The labeled replay sets are data written by the TypeScript side, not by this module.
--/
+/-! Golden vectors and fixture replies of the `oracle.*` ops, generated from Lean. -/
 namespace Fw.Wire.Oracle.Golden
 open Lean
 open Fw.Wire.Ops.Golden (lit withOp respond)
 open Fw.Oracle
 open Fw.Wire.Oracle (sampleReply)
 
-/-- A request field holding a reply text. -/
 def replyField (text : String) : String := (Json.str text).compress
 
-/-- A confident `real` reply. -/
 def confReal : String := sampleReply "real" "0.01" "0.01" "0.97" "0.01"
 
-/-- An unsure `flake` reply. -/
 def unsureFlake : String := sampleReply "flake" "0.4" "0.3" "0.2" "0.1"
 
-/-- A confident no-match reply. -/
 def confUnknown : String := sampleReply "unknown" "0.01" "0.01" "0.01" "0.97"
 
-/-- A reply with a probability missing. -/
 def missingProb : String :=
   "{\"model\":\"jev-1.13.0\",\"answers\":{\"ci-triage\":{\"type\":\"choice\",\"choice\":\"real\"," ++
   "\"probabilities\":{\"flake\":0.5,\"real\":0.5}}},\"usage\":{\"input_tokens\":1,\"output_tokens\":1}}"
 
-/-- A reply from another model version. -/
 def otherModel : String :=
   "{\"model\":\"jev-1.14.0\",\"answers\":{\"ci-triage\":{\"type\":\"choice\",\"choice\":\"real\"," ++
   "\"probabilities\":{\"flake\":0,\"infra\":0,\"real\":1,\"unknown\":0}}},\"usage\":{}}"
 
-/-- A reply whose probabilities sum to 1.2. -/
 def badSum : String := sampleReply "real" "0.1" "0.1" "0.9" "0.1"
 
-/-- A reply that picks an option the question does not have. -/
 def foreignPick : String := sampleReply "billing" "0.25" "0.25" "0.25" "0.25"
 
-/-- A confident `flake` reply. -/
 def confFlake : String := sampleReply "flake" "0.97" "0.01" "0.01" "0.01"
 
-/-- A confident `infra` reply. -/
 def confInfra : String := sampleReply "infra" "0.01" "0.97" "0.01" "0.01"
 
-/-- Round-1 reviewer reply 1: picks `real` while `flake` has 0.97. -/
 def pickNotMaxFlake : String := sampleReply "real" "0.97" "0.01" "0.01" "0.01"
 
-/-- Round-1 reviewer reply 2: picks `real` while `unknown` has 0.97. -/
 def pickNotMaxUnknown : String := sampleReply "real" "0.01" "0.01" "0.01" "0.97"
 
-/-- The id of row `n` in the holdout part (`held`) or the choose part: `r<n>`, with a `y` appended when that puts it in
-the wanted part (`y` has an odd code point, so it flips `heldOut`). -/
+/-- The id of row `n` in the holdout part. -/
 def idIn (held : Bool) (n : Nat) : String :=
   let b := s!"r{n}"
   if heldOut b == held then b else b ++ "y"
 
-/-- The rows of `(count, reply, label)` groups in one part, numbered from `n0`: `(id, reply, label)`. -/
 def rowsIn (held : Bool) (n0 : Nat) (gs : List (Nat × String × String)) : List (String × String × String) :=
   let rs := gs.flatMap fun (n, reply, label) => List.replicate n (reply, label)
   ((List.range rs.length).zip rs).map fun (k, r, l) => (idIn held (n0 + k), r, l)
 
-/-- A replay set as request fields: groups `cs` in the choose part, then groups `hs` in the holdout part, every row
-answered by its reply, then `extra` more rows labeled `real` with no answer (alternating parts). -/
 def setIn (cs hs : List (Nat × String × String)) (extra : Nat := 0) : String :=
   let c := rowsIn false 0 cs
   let h := rowsIn true c.length hs
@@ -83,37 +54,28 @@ def setIn (cs hs : List (Nat × String × String)) (extra : Nat := 0) : String :
   let answers := (c ++ h).map fun (i, r, _) => s!"\{\"id\":\"{i}\",\"reply\":{replyField r}}"
   s!"\"replay\":[{",".intercalate replay}],\"answers\":[{",".intercalate answers}]"
 
-/-- The same groups in both parts. -/
 def setJ (gs : List (Nat × String × String)) (extra : Nat := 0) : String := setIn gs gs extra
 
 #guard (rowsIn true 0 [(4, "x", "l")]).all fun (i, _, _) => heldOut i
 #guard (rowsIn false 0 [(4, "x", "l")]).all fun (i, _, _) => !heldOut i
 
-/-- A balanced CI-triage set: 5 confident correct rows per advisable option and 2 unsure wrong rows. -/
 def balancedG : List (Nat × String × String) := [(5, confFlake, "flake"), (5, confInfra, "infra"), (5, confReal, "real"),
   (2, unsureFlake, "real")]
 
-/-- A balanced holdout part: 25 confident correct rows per advisable option (the fewest the Wilson bound at 9/10
-accepts) and 2 unsure wrong rows. -/
 def balancedH : List (Nat × String × String) := [(25, confFlake, "flake"), (25, confInfra, "infra"),
   (25, confReal, "real"), (2, unsureFlake, "real")]
 
 /-- The balanced set: `balancedG` in the choose part, `balancedH` in the holdout part. -/
 def balanced : String := setIn balancedG balancedH
 
-/-- The round-1 counterexample: 27 confident `real` rows labeled `real`, 1 labeled `flake`, none `infra` (both
-parts). -/
 def lopsided : String := setJ [(27, confReal, "real"), (1, confReal, "flake")]
 
-/-- A holdout evaluation set: 3 confident hits, 1 confident miss, 1 unsure row, 1 malformed reply in the holdout part,
-and 2 confident misses in the choose part (not counted). -/
+/-- A holdout evaluation set: 3 confident hits. -/
 def heldout : String := setIn [(2, confReal, "flake")] [(3, confReal, "real"), (1, confFlake, "infra"),
   (1, unsureFlake, "flake"), (1, "<html>", "real")]
 
-/-- Holdout groups that contradict the balanced set: every confident answer is wrong. -/
 def contradictG : List (Nat × String × String) := [(5, confFlake, "real"), (5, confInfra, "real"), (5, confReal, "flake")]
 
-/-- A threshold table with `τ` for every CI-triage option. -/
 def allAt (num den : String) : String :=
   let r := s!"\{\"num\":\"{num}\",\"den\":\"{den}\"}"
   s!"\"thresholds\":\{\"flake\":{r},\"infra\":{r},\"real\":{r}}"
@@ -121,31 +83,20 @@ def allAt (num den : String) : String :=
 /-- The threshold table with 1/2 for every option. -/
 def half : String := allAt "1" "2"
 
-/-- The day list of `n` calls on day `d`. -/
 def daysJ (d : String) (n : Nat) : String := (toJson (List.replicate n d)).compress
 
-/-- The reviewer's round-2 probe: 5 `flake`, 5 `infra`, 90 `real` rows, every reply a confident `real` (both
-parts). -/
 def constantReal : String := setJ [(5, confReal, "flake"), (5, confReal, "infra"), (90, confReal, "real")]
 
-/-- The reviewer's round-3 and round-5 probe: `flake` is advised 16 times with 5 right (5 rows labeled `flake`, 11
-labeled `real`); 5 `infra` and 90 `real` rows are answered right. -/
 def round3G : List (Nat × String × String) := [(5, confFlake, "flake"), (11, confFlake, "real"),
   (5, confInfra, "infra"), (90, confReal, "real")]
 
-/-- The probe in both parts. -/
 def round3 : String := setJ round3G
 
-/-- The probe in the holdout part behind a choose part on which every option is right: the choice of thresholds
-passes, so only the holdout test can refuse `flake`. -/
 def round5 : String := setIn balancedG round3G
 
-/-- `flake` advised 16 times on the holdout part with 15 right (point precision 15/16, above 9/10) next to 25 right
-rows of `infra` and of `real`. -/
 def nearMiss : String := setIn balancedG [(15, confFlake, "flake"), (1, confFlake, "real"),
   (25, confInfra, "infra"), (25, confReal, "real")]
 
-/-- A plan request over labeled rows `r0`, `r1`, ... with the given logged flags. -/
 def planJ (logged : List Bool) : String :=
   let rows := (List.range logged.length).map fun i => s!"\{\"id\":\"r{i}\",\"label\":\"real\"}"
   s!"\{\"rows\":[{",".intercalate rows}],\"logged\":{(toJson logged).compress}}"
@@ -301,7 +252,6 @@ def wireText : String :=
   String.join (cases.map fun (name, op, req) =>
     (Json.mkObj [("name", .str name), ("request", withOp op req), ("response", respond op req)]).compress ++ "\n")
 
-/-- The text of `fixtures.jsonl`. -/
 def fixturesText : String :=
   String.join (fixtures.map fun (name, reply, label) =>
     let req := lit s!"\{\"name\":\"ci-triage\",{half},\"reply\":{replyField reply}}"

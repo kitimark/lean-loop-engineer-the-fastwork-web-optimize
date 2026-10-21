@@ -228,13 +228,10 @@ export function denormalize(r) {
   };
 }
 
-/** The second reduction's constants (Lean `Fw.Device.Stats`), read from the generated golden. */
 export const CONST2 = Object.freeze(GOLDEN.find((l) => l.kind === 'v2.consts'));
 
-/** Lean `slotOf`: the 60 Hz slot of `t` counted from `t0`, rounded half up. */
 export const slotOf = (t0, t) => Math.floor(((t - t0) * CONST2.slotNum + CONST2.slotHalf) / CONST2.slotDen);
 
-/** Lean `framesOf`: [t, y, parts] per frame of an integer record. */
 export function framesOf(r) {
   const parts = Object.values(r.p ?? {});
   const n = Math.min(r.t.length, r.y.length);
@@ -243,7 +240,6 @@ export function framesOf(r) {
 
 const sameList = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
 
-/** Lean `ivs`: one interval per frame after the first, [i, t, dt, dk, y, moving, animating]. */
 export function ivs(frames) {
   if (frames.length === 0) return [];
   const t0 = frames[0][0];
@@ -264,7 +260,6 @@ const sortI = (l) => [...l].sort((a, b) => a - b);
 export const medianL = (l) => sortI(l)[Math.floor(l.length / 2)] ?? 0;
 export const p95L = (l) => sortI(l)[Math.max(0, Math.floor((95 * l.length + 99) / 100) - 1)] ?? 0;
 
-/** Lean `run30`: the longest run of skipped slots in consecutive frames. */
 export function run30(vs) {
   let last = -2, cur = 0, best = 0;
   for (const v of vs) {
@@ -276,7 +271,6 @@ export function run30(vs) {
   return best;
 }
 
-/** Lean `stat2`: miss counts, hitch time and spread of a set of intervals against the expected interval `e`. */
 export function stat2(e, vs) {
   const n = vs.length, dts = vs.map((v) => v[I.dt]);
   const count = (p) => vs.filter(p).length;
@@ -294,10 +288,8 @@ export function stat2(e, vs) {
 
 export const expected = (vs) => medianL(vs.map((v) => v[I.dt]));
 
-/** Lean `tapsW`: [start time, tap] of every tap. */
 export const tapsW = (touches) => strokes(touches).flatMap((s) => { const tp = tapOf(s); return tp ? [[s[0][0], tp]] : []; });
 
-/** Lean `marksW`: [first-tap start, third tap] of every felt mark, scanning from the left. */
 export function marksW(tp) {
   const out = [];
   let i = 0;
@@ -309,7 +301,6 @@ export function marksW(tp) {
 
 export const feltWindow = (anchor, vs) => vs.filter((v) => anchor - CONST2.lookback <= v[I.t] && v[I.t] <= anchor);
 
-/** Lean `feltV2`: position and zone at the first tap, the window's stats, whether the first window counted no frame. */
 export function feltV2(vh10, maxY10, e, frames, vs, [anchor, tap]) {
   const y = yAt(frames, anchor), w = feltWindow(anchor, vs);
   return { y, zone: zoneOf(vh10, maxY10, y), all: stat2(e, w), animating: stat2(e, w.filter((v) => v[I.animating])), oldEmpty: feltOf(vh10, maxY10, frames, tap).stat.n === 0 };
@@ -317,7 +308,6 @@ export function feltV2(vh10, maxY10, e, frames, vs, [anchor, tap]) {
 
 export const drags = (touches) => strokes(touches).filter((s) => !isTap(s) && s.every((e) => e[4] <= 1));
 
-/** Lean `startLatency`: touch start to the first moving frame, for a stroke that started on a still page; null otherwise. */
 export function startLatency(frames, s) {
   const a = s[0], z = s[s.length - 1];
   const before = frames.filter((f) => f[0] <= a[0]);
@@ -333,7 +323,6 @@ export function fingerY(s, t) {
   return before.length > 0 ? before[before.length - 1][3] : (s[0]?.[3] ?? 0);
 }
 
-/** Lean `offsetMax`: the largest gap between the page's and the finger's travel in a stroke, from the first frame the page moved. */
 export function offsetMax(maxY10, frames, s) {
   const a = s[0], z = s[s.length - 1];
   const y0 = yAt(frames, a[0]);
@@ -347,7 +336,6 @@ export function offsetMax(maxY10, frames, s) {
 const SELS = Object.freeze({ all: () => true, animating: (v) => v[I.animating], moving: (v) => v[I.moving] });
 const ZONE_KEYS = Object.freeze(['whole', ...ZONES]);
 
-/** Lean `reduceV2`: the second reduction of an integer record. */
 export function reduceV2(r) {
   const frs = framesOf(r), vs = ivs(frs), e = expected(vs), vh10 = r.h * 10;
   const frames = frs.map((f) => [f[0], f[1]]);
@@ -370,11 +358,6 @@ const spreadOf = (l) => ({ n: l.length, median: medianL(l), p95: p95L(l), max: m
 const FELT_KEYS = Object.freeze(['n', 'skips', 'over25', 'over34', 'over50', 'perSkip', 'hitch', 'band']);
 const pick = (o, ks) => Object.fromEntries(ks.map((k) => [k, o[k]]));
 
-/**
- * The committed form of the second reduction of a session: per pass the zone stats and the touch spreads, per arm the felt
- * marks with a miss in their window, and Lean's verdict per zone on the skipped-slot rate and the hitch ratio. No times,
- * positions or touch values. `passes` is [{arm, pass, record}] with integer records.
- */
 export function summarizeV2(date, passes) {
   const out = passes.map(({ arm, pass, record }) => {
     const rep = reduceV2(record);
@@ -408,7 +391,6 @@ export function summarizeV2(date, passes) {
 const ms = (v) => (v / 100).toFixed(1);
 const pc = (v) => (v / 100).toFixed(2);
 
-/** The markdown table view of `summarizeV2`. */
 export function summaryV2Md(s) {
   const row = (cells) => `| ${cells.join(' | ')} |`;
   const head = (cells) => [row(cells), row(cells.map(() => '---'))];

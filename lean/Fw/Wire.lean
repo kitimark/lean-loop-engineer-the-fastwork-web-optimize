@@ -232,7 +232,6 @@ def audienceField (j : Json) (id : String) : Except String Audience :=
 def bodyField (j : Json) : Except String String := do
   pure ((← optStr j "body").getD "")
 
-/-- Decode the optional `topic` field (missing or null = no topic; an empty id is an error). -/
 def topicField (j : Json) : Except String (Option String) := do
   match ← optStr j "topic" with
   | some "" => throw "field topic: empty topic id"
@@ -486,7 +485,7 @@ def ops : List String :=
   ++ Fw.Wire.Ci.ops -- ghb-lean: ci.budget.*
   ++ Fw.Wire.Ci.Telemetry.ops -- ci-telemetry: ci.telemetry
   ++ Fw.Wire.CheckMap.ops -- check-map-lean: ops.checkMap, ops.checkVerdict
-  ++ Fw.Wire.Oracle.ops -- jev-core: oracle.*
+  ++ Fw.Wire.Oracle.ops
   ++ Fw.Wire.Lint.ops -- context-slop: lint.context
   ++ Fw.Wire.LakeGc.ops -- lean-bin-slim: ops.lakeGc
   ++ Fw.Wire.DiskGc.ops -- disk-auto-gc: ops.diskGc, ops.diskGcPath
@@ -539,7 +538,7 @@ def handleCore (req : Json) : Except String Reply := do
     match Fw.Wire.CheckMap.handle other req with  -- check-map-lean
     | some r => r
     | none =>
-    match Fw.Wire.Oracle.handle other req with  -- jev-core: oracle.*
+    match Fw.Wire.Oracle.handle other req with
     | some r => r
     | none =>
     match Fw.Wire.Lint.handle other req with  -- context-slop: lint.context
