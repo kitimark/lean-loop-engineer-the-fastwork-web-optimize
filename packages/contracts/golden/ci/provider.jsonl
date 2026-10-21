@@ -138,3 +138,22 @@
 {"name":"a Linux lane on a macOS class: GitHub","op":"route","request":{"allow":["premise-tests"],"class":"m4pro.medium","creditsLeft":30000,"estMs":600000,"ghDegraded":true,"lane":"premise-tests","platform":"linux-arm"},"response":{"provider":"github"}}
 {"name":"a macOS lane on an Arm class: GitHub","op":"route","request":{"allow":["webkit-sim"],"class":"arm.medium.gen2","creditsLeft":400000,"estMs":600000,"ghDegraded":true,"lane":"webkit-sim","platform":"macos"},"response":{"provider":"github"}}
 {"name":"a class outside the price list: GitHub","op":"route","request":{"allow":["premise-tests"],"class":"arm.small","creditsLeft":400000,"estMs":600000,"ghDegraded":false,"lane":"premise-tests","platform":"linux-arm"},"response":{"provider":"github"}}
+{"name":"a listed key: ok","op":"keyCheck","request":{"checkout":null,"keys":1},"response":{"proceed":true,"verdict":"ok"}}
+{"name":"two listed keys: ok","op":"keyCheck","request":{"checkout":false,"keys":2},"response":{"proceed":true,"verdict":"ok"}}
+{"name":"an empty key list: missing","op":"keyCheck","request":{"checkout":null,"keys":0},"response":{"proceed":false,"verdict":"missing"}}
+{"name":"an empty key list beats a clone that worked","op":"keyCheck","request":{"checkout":true,"keys":0},"response":{"proceed":false,"verdict":"missing"}}
+{"name":"an unreadable list, last clone worked: ok","op":"keyCheck","request":{"checkout":true,"keys":null},"response":{"proceed":true,"verdict":"ok"}}
+{"name":"an unreadable list, last clone failed: missing","op":"keyCheck","request":{"checkout":false,"keys":null},"response":{"proceed":false,"verdict":"missing"}}
+{"name":"an unreadable list, no clone seen: unknown","op":"keyCheck","request":{"checkout":null,"keys":null},"response":{"proceed":false,"verdict":"unknown"}}
+{"name":"deploy-key","op":"keyKind","request":{"kind":"deploy-key"},"response":{"usable":true}}
+{"name":"github-user-key","op":"keyKind","request":{"kind":"github-user-key"},"response":{"usable":true}}
+{"name":"github-oauth-key","op":"keyKind","request":{"kind":"github-oauth-key"},"response":{"usable":false}}
+{"name":"","op":"keyKind","request":{"kind":""},"response":{"usable":false}}
+{"name":"Deploy-Key","op":"keyKind","request":{"kind":"Deploy-Key"},"response":{"usable":false}}
+{"name":"success","op":"checkoutStatus","request":{"status":"success"},"response":{"clone":true}}
+{"name":"failed","op":"checkoutStatus","request":{"status":"failed"},"response":{"clone":false}}
+{"name":"running","op":"checkoutStatus","request":{"status":"running"},"response":{"clone":null}}
+{"name":"not_run","op":"checkoutStatus","request":{"status":"not_run"},"response":{"clone":null}}
+{"name":"canceled","op":"checkoutStatus","request":{"status":"canceled"},"response":{"clone":null}}
+{"name":"infrastructure_fail","op":"checkoutStatus","request":{"status":"infrastructure_fail"},"response":{"clone":null}}
+{"name":"","op":"checkoutStatus","request":{"status":""},"response":{"clone":null}}

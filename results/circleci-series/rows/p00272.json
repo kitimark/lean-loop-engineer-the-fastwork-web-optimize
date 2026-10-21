@@ -1,0 +1,45 @@
+{
+  "number": 272,
+  "class": "arm.medium.gen2",
+  "sha": "e0bd7d6b675ad0c62179c60d49624fab591e559d",
+  "status": "success",
+  "workflowWallMs": 132610,
+  "pipelineCreatedMs": 1792563090603,
+  "jobs": [
+    {
+      "job": "engine-playwright-webkit",
+      "conclusion": "pass",
+      "class": "arm.medium.gen2",
+      "queueMs": 36044,
+      "durMs": 53394,
+      "credits": 6
+    },
+    {
+      "job": "engine-chromium",
+      "conclusion": "pass",
+      "class": "arm.medium.gen2",
+      "queueMs": 30925,
+      "durMs": 36668,
+      "credits": 4
+    },
+    {
+      "job": "verdict",
+      "conclusion": "pass",
+      "class": "arm.medium.gen2",
+      "queueMs": 32322,
+      "durMs": 9335,
+      "credits": 1
+    }
+  ],
+  "jobCredits": 11,
+  "billedCredits": 11,
+  "series": {
+    "index": 5,
+    "waitExit": 0,
+    "startedAtMs": 1792563089909
+  },
+  "insights": {
+    "durationS": 133,
+    "status": "success"
+  }
+}
