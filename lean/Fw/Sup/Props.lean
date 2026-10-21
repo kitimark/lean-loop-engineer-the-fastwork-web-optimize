@@ -5568,4 +5568,79 @@ theorem head_job_granted_by {c : Cfg} {q : Req} {tm : Nat} {s : State} {rest : L
   unfold bound at hend
   omega
 
+/-- Whether an event meets `Along`, with the KILL check made on the phases. -/
+def alongB (q : Req) (tm : Nat) (s : State) : Event → Bool
+  | .drain _ _ => false
+  | .restart _ _ _ => false
+  | .clientGone o => o != q.owner
+  | .tick now smp => smp.clients.contains q.owner && decide (now ≤ s.now + tm) &&
+      s.res.all fun x => match x.phase with
+        | .stopping _ .kill => false
+        | _ => true
+  | _ => true
+
+theorem along_of {q : Req} {tm : Nat} {s : State} {e : Event} (h : alongB q tm s e = true) : Along q tm s e := by
+  cases e with
+  | drain => cases h
+  | restart => cases h
+  | clientGone o => simpa [alongB, Along] using h
+  | tick now smp =>
+    simp only [alongB, Bool.and_eq_true, List.all_eq_true, decide_eq_true_eq, List.contains_iff_mem] at h
+    refine ⟨h.1.1, h.1.2, fun x hx t e => ?_⟩
+    have := h.2 x hx
+    rw [e] at this
+    cases this
+  | _ => trivial
+
+instance (c : Cfg) (q : Req) (s : State) : Decidable (Room c q s) :=
+  inferInstanceAs (Decidable (_ = false ∧ _ = true))
+
+/-- `Ex.cfg` with requests that may wait 400 s. -/
+abbrev Ex.patient : Cfg := { Ex.cfg with maxWait := 400 }
+
+/-- Ticks every 5 s from `a`, `n` of them. -/
+abbrev Ex.ticks (a n : Nat) : List Event := (List.range n).map fun i => .tick (a + 5 * i) Ex.calm
+
+/-- The Simulator leased to owner 1 until 61, then a 5500 MB job of owner 2 queued at 1 behind it. -/
+abbrev Ex.blocked : List Event :=
+  [.tick 1 Ex.calm, .request 42 1 Ex.sim, .spawned 1 (some ⟨500, 7⟩), .ready 1,
+   .request 42 2 { Ex.big with cost := { ram := 5500 }, wait := 400 }]
+
+/-- The Simulator lease renewed to 116 and 171, ticks every 5 s, the KILL at 176 answered by the exit, ticks to
+201. -/
+abbrev Ex.renewed : List Event :=
+  Ex.ticks 6 11 ++ [.renew 42 1 0] ++ Ex.ticks 61 11 ++ [.renew 42 1 0] ++ Ex.ticks 116 13 ++
+    [.childExit ⟨500, 7⟩] ++ Ex.ticks 181 5
+
+/-- The queued job of `Ex.blocked`. -/
+abbrev Ex.head : Req := ⟨1, 2, .job, 0, { ram := 5500 }, 60, 1, 1, 401⟩
+
+#guard Phase.isStop (.stopping 3 .term) && !Phase.isStop .ready
+#guard (stoppable Ex.patient (init Ex.patient)).map (·.id) == []
+#guard (stoppable Ex.patient (run Ex.patient (init Ex.patient) Ex.held).1).map (·.id) == [1]
+#guard unpinned Ex.patient (init Ex.patient) == 1
+#guard bound Ex.patient 5 1 == 200
+#guard due Ex.cfg 5 10 (.stopping 8 .term) == 18 && due Ex.cfg 5 10 (.stopping 8 .kill) == 10
+#guard mu Ex.patient (run Ex.patient (init Ex.patient) Ex.held).1 == 1
+#guard alongB Ex.head 5 (init Ex.patient) (.tick 5 Ex.calm) && !alongB Ex.head 5 (init Ex.patient) (.tick 6 Ex.calm)
+#guard !alongB Ex.head 5 (init Ex.patient) (.clientGone 2) && alongB Ex.head 5 (init Ex.patient) (.clientGone 1)
+
+example : Room Ex.patient Ex.head (run Ex.patient (init Ex.patient) Ex.blocked).1 := by decide
+
+example : ∃ l, Cmd.reply Ex.head.id (.granted l) ∈
+    (run Ex.patient (run Ex.patient (init Ex.patient) Ex.blocked).1 Ex.renewed).2 := by
+  have hA : ∀ i (hi : i < Ex.renewed.length),
+      alongB Ex.head 5 (run Ex.patient (run Ex.patient (init Ex.patient) Ex.blocked).1 (Ex.renewed.take i)).1
+        Ex.renewed[i] = true := by decide
+  have hR : ∀ i ≤ Ex.renewed.length,
+      Room Ex.patient Ex.head (run Ex.patient (run Ex.patient (init Ex.patient) Ex.blocked).1 (Ex.renewed.take i)).1 := by
+    decide
+  have hS : ∀ x ∈ (run Ex.patient (init Ex.patient) Ex.blocked).1.res, x.phase.isStop = false := by decide
+  refine head_job_granted_by (tm := 5) (rest := []) Ex.renewed (run_inv _ _ (init_inv _)) (by decide) rfl
+    (by decide) (by decide) (by decide) (by decide) (fun x hx t g hp => ?_) (fun i hi => along_of (hA i hi)) hR
+    (by decide) (by decide)
+  have := hS x hx
+  rw [hp] at this
+  cases this
+
 end Fw.Sup
