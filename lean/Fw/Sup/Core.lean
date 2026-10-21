@@ -551,14 +551,15 @@ structure Acc where
   out : List Cmd
   blk : Bool
 
-/-- Keep a request queued; `b` marks it blocked on budget. -/
+/-- Keep a request queued; `b` marks it blocked on budget, and a request kept behind a blocked one leaves the mark set. -/
 def keepQ (a : Acc) (q : Req) (b : Bool) : Acc :=
   { a with st := { a.st with pending := a.st.pending ++ [q] }, blk := a.blk || b }
 
 /-- Answer a request and drop it. -/
 def answer (a : Acc) (q : Req) (r : Reply) : Acc := { a with out := a.out ++ [.reply q.id r] }
 
-/-- Refuse a request for cause; its owner keeps a ticket with the request's age. -/
+/-- Refuse a request for cause (its deadline passed, its resource failed); its owner keeps a ticket with the request's
+age. -/
 def refuseT (a : Acc) (q : Req) (why : Why) : Acc :=
   { a with st := { a.st with tickets := a.st.tickets ++ [⟨q.owner, q.rid, q.age⟩] },
            out := a.out ++ [.reply q.id (.refused why)] }
@@ -589,12 +590,14 @@ def start (a : Acc) (q : Req) (r : Rsrc) : Acc :=
                            if x.id == r.id then { x with phase := .starting a.st.now, foot := {} } else x },
                  out := a.out ++ [.spawn r.id r.kind] } q false
 
-/-- One queued request, in queue order: refused at its deadline or when draining; a job is granted when nothing is
-shed, nothing ahead is blocked and it fits; a service request is granted on a ready resource, refused on a failed or
-unknown one (a ticket keeps its age), and starts an absent resource under the job rule and the restart cap. -/
+/-- One queued request, in queue order: refused at its deadline (a ticket keeps its age) or when draining; a job is
+granted when nothing is shed, nothing ahead is blocked and it fits; a service request is granted on a ready resource
+unless something is shed or, for an unpinned kind, a request ahead is blocked; it is refused on a failed or unknown
+resource (a ticket keeps its age on a failed one), and starts an absent resource under the job rule and the restart
+cap. -/
 def pumpOne (c : Cfg) (a : Acc) (q : Req) : Acc :=
   let st := a.st
-  if q.deadline ≤ st.now then answer a q (.refused .deadline)
+  if q.deadline ≤ st.now then refuseT a q .deadline
   else if st.draining then answer a q (.refused .draining)
   else match q.kind with
     | .job =>
@@ -604,7 +607,7 @@ def pumpOne (c : Cfg) (a : Acc) (q : Req) : Acc :=
       | none => answer a q (.refused .unknown)
       | some r =>
         match r.phase with
-        | .ready => if st.shedding then keepQ a q false else grant a q
+        | .ready => if st.shedding || (a.blk && !c.pinned r.kind) then keepQ a q false else grant a q
         | .failed _ why => refuseT a q why
         | .absent =>
           if r.proc.isNone && !st.shedding && !a.blk && decide ((recent c st.now r.crashes).length < c.maxRestarts)
