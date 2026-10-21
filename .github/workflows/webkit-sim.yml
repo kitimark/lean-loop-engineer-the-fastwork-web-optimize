@@ -45,8 +45,8 @@ on:
       cost:
         description: lag only. The WebKit cost-counter passes (Fw.Measure.WkCost) next to the lag passes. off = lag passes only, on = both, only = cost passes only. Passed as --cost to lag/cli.mjs run; the dispatch input is the only selector
         type: choice
-        options: [off, on, only]
-        default: off
+        options: ['off', 'on', only]
+        default: 'off'
       target:
         description: Which page to measure. original = the read-only snapshot; rewrite = the default prerendered build of apps/site (own VM jobs r1..); both = the two arms, then the step-aligned comparison (align job)
         type: choice
