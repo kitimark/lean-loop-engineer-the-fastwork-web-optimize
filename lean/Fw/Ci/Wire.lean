@@ -26,7 +26,7 @@ and passes it to the next call.
 | `ci.budget.limits` | (nothing) | `limits` |
 | `ci.verdict` | `runs` [Facts] | `runs` [{`verdict`, `code`, `reason`}], `verdict`, `code` (`Fw.Ci.Verdict.combine`) |
 | `ci.verdict` | `msg` (null: unknown), `lanes` {name: Facts or null} | `lanes` [{`name`, `verdict`, `code`, `reason`}], `verdict`, `code` (`Fw.Ci.Verdict.waitVerdict`) |
-| `ci.attempt` | `recorded`?, `live`? (a cached fact against the live run) or `row`?, `view` (jobs view against a listed row) or `floor`, `row`? (row against the newest attempt seen) or `read`, `now` (a finished row's age) | `reuse` / `settled` / `current` / `fresh` (bool; `Fw.Ci.Attempt`) |
+| `ci.attempt` | `recorded`?, `live`? (a cached fact against the live run) or `row`?, `view` (jobs view against a listed row) or `floor`, `row`? (row against the newest attempt seen) or `read`, `now` (a finished row's age) or `open`, `ago` (jobs without a conclusion, seconds since the finish) | `reuse` / `settled` / `current` / `fresh` / `jobsSettled` (bool; `Fw.Ci.Attempt`) |
 | `ci.required` | `msg` (null: unknown) | `lanes` [name] (`Fw.Ci.Intent.wanted`, table order); unknown: `lanes` null, `verdict`, `code`, `reason` |
 | `ci.overflow` | `legs` [name], `ghActive` [workflow name] or null, `ghActions`, `ghPrev`?, `ccArm`, `ccReadAt` (ms or null), `now` (ms), `spent`, `storage`, `keys` (n or null), `checkout` (bool or null), `forceFull`? | `gh` [leg], `cc` [leg], `reason`, `ghFree`, `ghDegraded`, `ccReady` (`Fw.Ci.Overflow`) |
 | `ci.overflowCombine` | `kinds` [verdict kind] | `kind` (the deciding kind, null for none; `Fw.Ci.Overflow.pickKind`) |
@@ -349,14 +349,16 @@ def opRequired (req : Json) : Except String Reply := do
 
 /-- `ci.attempt`: which attempt of a run a recorded fact answers for (`Fw.Ci.Attempt`). Request `{recorded?, live?}`:
 reply `{reuse}`; request `{view, row?}`: reply `{settled}`; request `{floor, row?}`: reply `{current}`; request `{read, now}` (seconds): reply `{fresh}`. An attempt is a
-natural number, absent or `null` when unknown. The cases are tried in this order: `view` gives settled, `read` gives
+natural number, absent or `null` when unknown. The cases are tried in this order: `open` (open jobs, with `ago` seconds since the finish) gives jobsSettled, `view` gives settled, `read` gives
 fresh, `floor` gives current, otherwise reuse. -/
 def opAttempt (req : Json) : Except String Reply := do
   let n? (k : String) : Except String (Option Nat) := do
     match opt req k with
     | none | some .null => pure none
     | some _ => pure (some (← nat req k))
-  if (opt req "view").isSome then
+  if (opt req "open").isSome then
+    pure [("jobsSettled", .bool (Fw.Ci.Attempt.jobsSettled (← nat req "open") (← nat req "ago")))]
+  else if (opt req "view").isSome then
     pure [("settled", .bool (Fw.Ci.Attempt.settled (← n? "row") (← nat req "view")))]
   else if (opt req "read").isSome then
     pure [("fresh", .bool (Fw.Ci.Attempt.fresh (← nat req "read") (← nat req "now")))]
