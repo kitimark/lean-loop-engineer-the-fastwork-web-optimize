@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { apiFetch } from "@/lib/auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,13 @@ import { Button } from "@/components/ui/button";
 // Rendering only. Which reviews are pending, open or decided is Lean `console.review` (console-api `GET /api/reviews`); Keep and Reject
 // post the decision, which Lean accepts or refuses. The page link comes from the owner's private `.local/reviews.json`.
 export type Strips = { state: "ready" | "pending"; run?: string; artifact?: string; expires?: string; task?: string };
+/** A strip as Lean `console.review` returns it; its state (ready, expired, missing) is decided there. */
+export type StripItem = {
+  engine: string; state: "ready" | "expired" | "missing"; width?: number; push?: "open" | "close"; file?: string;
+  run?: string; artifact?: string; expires?: string; note?: string; diff?: string; redo?: string;
+};
 export type ReviewItem = {
+  strips?: StripItem[];
   flag: string; step: string; state: "open" | "keep" | "reject"; date: string; words: string; audience: string;
   changed: { id: string | null; candidate: string; visual: string | null; chromium: string | null; webkit: string | null } | null;
   material: { chromium: Strips; webkit: Strips } | null;
@@ -49,6 +55,76 @@ function Material({ label, s }: { label: string; s: Strips }) {
   );
 }
 
+const PUSH: Record<string, string> = { open: "Button leaves", close: "Button comes back" };
+const ENGINE: Record<string, string> = { chromium: "Chromium", webkit: "WebKit" };
+
+/** The address of a strip image (the file name is one Lean listed; the route checks it again). */
+export function stripUrl(flag: string, file: string): string { return `/api/reviews/${encodeURIComponent(flag)}/strips/${encodeURIComponent(file)}`; }
+
+/** The image of a strip. It is fetched with the owner token (an <img> cannot send one) when it nears the screen. */
+function StripImage({ flag, s }: { flag: string; s: StripItem }) {
+  const box = useRef<HTMLDivElement>(null);
+  const [src, setSrc] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [near, setNear] = useState(typeof IntersectionObserver === "undefined");
+  useEffect(() => {
+    const el = box.current;
+    if (near || !el) return;
+    const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) setNear(true); }, { rootMargin: "300px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [near]);
+  useEffect(() => {
+    if (!near || !s.file) return;
+    let url: string | null = null; let dead = false;
+    apiFetch(stripUrl(flag, s.file)).then(async (r) => {
+      if (!r.ok) { const j = (await r.json().catch(() => null)) as { reason?: string } | null; throw new Error(j?.reason ?? `status ${r.status}`); }
+      url = URL.createObjectURL(await r.blob());
+      if (dead) URL.revokeObjectURL(url); else setSrc(url);
+    }).catch((e: Error) => { if (!dead) setErr(e.message); });
+    return () => { dead = true; if (url) URL.revokeObjectURL(url); };
+  }, [near, flag, s.file]);
+  const zoom = s.width === 390 ? 1.6 : 2.2;
+  return (
+    <div ref={box} className="max-w-full overflow-x-auto rounded border bg-white" tabIndex={0} role="group" aria-label={`frame strip ${s.width} ${s.push}`} data-testid="strip-scroll">
+      {src ? <img src={src} alt={`${PUSH[s.push ?? ""] ?? ""}, ${s.width} px: original row above the flag row`} className="block h-auto max-w-none" style={{ width: `${zoom * 100}%` }} />
+        : <p className="p-3 text-xs text-muted-foreground">{err ? `The strip could not be loaded: ${err}` : "Loading the strip..."}</p>}
+    </div>
+  );
+}
+
+/** One strip: width tag, push, time difference, note, legend and the scrollable image; a plain line for a missing or expired one. */
+export function StripCard({ flag, s }: { flag: string; s: StripItem }) {
+  const engine = ENGINE[s.engine] ?? s.engine;
+  if (s.state === "missing") {
+    return <p className="text-xs" data-testid="strip-missing">{engine} strips: none made for this change yet. To make them, push a ci/* commit with the two message lines <code className="font-mono">{s.redo}</code>.</p>;
+  }
+  const tag = `${s.width === 390 ? "Phone" : "Desktop"} ${s.width}`;
+  const head = (
+    <header className="flex flex-wrap items-center gap-x-3 gap-y-1">
+      <Badge variant="secondary">{engine} · {tag}</Badge>
+      <h4 className="text-sm font-semibold">{PUSH[s.push ?? ""] ?? s.push}</h4>
+      {s.diff ? <span className="ml-auto text-sm font-semibold" data-testid="strip-diff">{s.diff}</span> : null}
+    </header>
+  );
+  if (s.state === "expired") {
+    return (
+      <section className="min-w-0 space-y-1 rounded border p-2" data-testid="strip-expired">
+        {head}
+        <p className="break-words text-xs">This strip expired on {s.expires} (the CI artifact is gone). To re-make it, push a ci/* commit with the two message lines <code className="font-mono">{s.redo}</code>.</p>
+      </section>
+    );
+  }
+  return (
+    <section className="min-w-0 space-y-2 rounded border p-2" data-testid="strip">
+      {head}
+      <p className="break-words text-sm" data-testid="strip-note">{s.note ? s.note : <span className="text-muted-foreground">no note yet</span>}</p>
+      <p className="text-xs text-muted-foreground">Top row original, bottom row flag; frame number and ms under each shot. Scroll the strip sideways.</p>
+      <StripImage flag={flag} s={s} />
+    </section>
+  );
+}
+
 const DONE: Record<Verdict, string> = { keep: "You kept it.", reject: "You rejected it." };
 
 /** One review: what changed, the review material, and Keep / Reject with an in-page confirm step. */
@@ -78,8 +154,14 @@ export function ReviewCard({ item, confirming, busy, error, onAsk, onConfirm, on
           <Material label="WebKit" s={item.material.webkit} />
         </ul>
       ) : null}
+      {(item.strips ?? []).length > 0 ? (
+        <div className="min-w-0 space-y-2" data-testid="strips">
+          <h4 className="text-sm font-medium">Frame strips</h4>
+          {(item.strips ?? []).map((s, k) => <StripCard key={`${s.engine}-${s.width ?? k}-${s.push ?? ""}`} flag={item.flag} s={s} />)}
+        </div>
+      ) : null}
       {item.link
-        ? <p className="text-sm"><a className="underline" href={item.link} target="_blank" rel="noreferrer" data-testid="review-link">Open the review page</a></p>
+        ? <p className="text-sm"><span className="text-xs text-muted-foreground">Fallback: </span><a className="underline" href={item.link} target="_blank" rel="noreferrer" data-testid="review-link">Open the review page</a></p>
         : <p className="text-xs text-muted-foreground" data-testid="no-link">No review link on this machine; fetch the artifact named above from its CI run.</p>}
       {decided ? (
         <p className="text-sm font-medium" role="status" data-testid="decision">{DONE[item.state as Verdict]}</p>
