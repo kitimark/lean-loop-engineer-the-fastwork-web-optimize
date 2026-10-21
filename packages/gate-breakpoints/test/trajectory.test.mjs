@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { isDeepStrictEqual } from 'node:util';
 import { fileURLToPath } from 'node:url';
-import { along, annotate, armCheck, BEZ_STEPS, byM, byMStart, byStep, bucket, CLOSE_PH, DARK_CUT, durOf, EARN_CURVE, onCurve, START_JITTER, startFor, startOn, startTr, judgeEls, judgeOwn, judgeUnit, pickWidths, quantile, readsDominate, reduceRaw, reduceWidth, rel, RULES, runCheck, START_LAG, verdictLines, window as windowOf, windowAt } from '../src/trajectory/reduce.mjs';
+import { along, annotate, armCheck, BEZ_STEPS, byM, byMStart, byStep, bucket, chainCost, CLOSE_PH, DARK_CUT, hull, durOf, EARN_CURVE, onCurve, START_JITTER, startCheck, startFor, startOn, startTr, judgeEls, judgeOwn, judgeUnit, pickWidths, quantile, readsDominate, reduceRaw, reduceWidth, rel, RULES, runCheck, START_LAG, verdictLines, window as windowOf, windowAt } from '../src/trajectory/reduce.mjs';
 import { mergeRaws, planOf } from '../src/trajectory/plan.mjs';
 import { HERO_NODES, MORPH_NODES, PAGE_PROPS, HERO_STEPS, WIDTHS, MOTION_PROPS } from '../src/trajectory/registry.mjs';
 
@@ -117,7 +117,7 @@ function rulesOfCss(css) {
 }
 
 test('the golden file holds every operation', () => {
-  assert.deepEqual([...new Set(golden.map((g) => g.op))].sort(), ['els', 'window', 'bucket', 'byM', 'byStep', 'unit', 'rule', 'dur', 'annotate', 'widths', 'rel', 'arm', 'run', 'quantile', 'dominate', 'plan', 'byMStart', 'start', 'along', 'onCurve', 'curve'].sort());
+  assert.deepEqual([...new Set(golden.map((g) => g.op))].sort(), ['els', 'window', 'bucket', 'byM', 'byStep', 'unit', 'rule', 'dur', 'annotate', 'widths', 'rel', 'arm', 'run', 'quantile', 'dominate', 'plan', 'byMStart', 'start', 'along', 'onCurve', 'hull', 'chainCost', 'curve'].sort());
   assert.ok(golden.length >= 200);
   assert.ok(golden.some((g) => g.op === 'byM' && [...g.oSeg, ...g.wSeg].some((x) => x.rep > 0)), 'golden has rows with rep > 0');
 });
@@ -191,7 +191,13 @@ for (const g of golden) {
       assert.deepEqual(g.trs.map((_, k) => startTr(g.node, g.prop, g.width, g.classes.filter((_, i) => (k >> i) & 1))), g.trs);
     } else if (g.op === 'along') assert.deepEqual(qJson(along(g.dur, g.delay, qInt(g.s), qInt(g.t), g.x)), g.v);
     else if (g.op === 'onCurve') assert.equal(onCurve(g.kind, g.dur, g.delay, qInt(g.s), qInt(g.t), g.tau, g.r), g.on);
-    else if (g.op === 'curve') {
+    else if (g.op === 'hull') {
+      assert.deepEqual(hull(g.dur, g.delay, qInt(g.s), qInt(g.tp), qInt(g.tq), g.tau).map(qJson), [g.lo, g.hi]);
+    } else if (g.op === 'chainCost') {
+      const tr = (cls) => startTr(g.node, g.prop, g.width, cls), c = chainCost(tr, g.oSeg, g.prior, g.r);
+      assert.deepEqual(c === null ? null : qJson(c), g.cost);
+      assert.equal(startCheck(g.kind, tr, g.oSeg, g.prior, g.r), g.check);
+    } else if (g.op === 'curve') {
       assert.deepEqual(EARN_CURVE.map(qJson), g.bez);
       assert.equal(START_JITTER, g.jitter);
       assert.equal(CLOSE_PH, g.close);

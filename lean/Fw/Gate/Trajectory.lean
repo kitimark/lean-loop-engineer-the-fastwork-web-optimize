@@ -4011,6 +4011,8 @@ inductive Case where
   | startTrs (node prop : String) (width : Nat)
   | alongAt (dur delay : Nat) (s t x : Int)
   | onCurveAt (name : String) (k : Kind) (dur delay : Nat) (s t tau r : Int)
+  | hullAt (dur delay : Nat) (s tp tq tau : Int)
+  | costAt (name : String) (k : Kind) (node prop : String) (width : Nat) (oSeg prior : List Samp) (r : Samp)
   | curve
 
 /-- The golden cases of the window judgement (`judgeEls` per kind and per branch). Two constants, not one, so that each stays
@@ -4399,8 +4401,18 @@ def casesStart : List Case :=
     .start "trigger at 1999" .push 2 .unit "earn" "opacity" 390 (opMid 1999 0) (opMid 1999 0),
     .start "trigger at 2000, no change of collapse" .push 2 .unit "earn" "opacity" 390 (opMid 2000 331)
       (opMid 2000 662),
-    .start "no original trigger of the same collapse" .push 2 .unit "earn" "opacity" 390 (opMid 1000 331)
-      (opMid 1500 165)]
+    .start "trigger at 1500 against an original trigger at 1000" .push 2 .unit "earn" "opacity" 390 (opMid 1000 331)
+      (opMid 1500 165),
+    .hullAt 320 120 0 1000 1000 300, .hullAt 320 120 0 1000 0 300, .hullAt 680 0 0 152000 76000 340,
+    .start "drift self" .push 2 .unit "earn" "opacity" 390 driftOrig driftOrig,
+    .start "drift" .push 2 .unit "earn" "opacity" 390 driftOrig driftRew,
+    .costAt "drift, first trigger" .unit "earn" "opacity" 390 driftOrig [ec 6540 0 0] (ec 400 100 9),
+    .costAt "drift, second trigger" .unit "earn" "opacity" 390 driftOrig [ec 6540 0 0, ec 400 100 9] (ec 300 130 18),
+    .costAt "drift, third trigger" .unit "earn" "opacity" 390 driftOrig [ec 6540 0 0, ec 400 100 9, ec 300 130 18]
+      (ec 0 160 27),
+    .costAt "no trigger yet" .unit "earn" "opacity" 390 driftOrig [] (ec 6540 0 0),
+    .costAt "stale start" .unit "earn" "opacity" 390 earnSeg [ec 6540 0 0] (ec 0 100 600),
+    .costAt "after a stale start" .unit "earn" "opacity" 390 earnSeg [ec 6540 0 0, ec 0 100 600] (ec 0 400 940)]
 
 /-- The golden cases: every branch above, per kind where the kind matters. -/
 def cases : List Case := casesJudge ++ casesRest ++ casesPlan ++ casesFlight ++ casesClose ++ casesStart
@@ -4501,6 +4513,17 @@ def Case.line : Case → Json
   | .onCurveAt n k d l s t tau r =>
     Json.mkObj [("op", "onCurve"), ("name", n), ("kind", k.name), ("dur", toJson d), ("delay", toJson l),
       ("s", toJson s), ("t", toJson t), ("tau", toJson tau), ("r", toJson r), ("on", Json.bool (onCurve k d l s t tau r))]
+  | .hullAt d l s tp tq tau =>
+    let h := hull d l s tp tq tau
+    Json.mkObj [("op", "hull"), ("name", s!"{d} {l} {s} {tp} {tq} {tau}"), ("dur", toJson d), ("delay", toJson l),
+      ("s", toJson s), ("tp", toJson tp), ("tq", toJson tq), ("tau", toJson tau), ("lo", ratJson h.1),
+      ("hi", ratJson h.2)]
+  | .costAt n k node prop w o prior r =>
+    Json.mkObj [("op", "chainCost"), ("name", n), ("kind", k.name), ("node", node), ("prop", prop),
+      ("width", toJson w), ("oSeg", Json.arr (o.map Samp.json).toArray),
+      ("prior", Json.arr (prior.map Samp.json).toArray), ("r", r.json),
+      ("cost", match chainCost (startTr node prop w) o prior r with | none => Json.null | some c => ratJson c),
+      ("check", match startCheck k (startTr node prop w) o prior r with | none => Json.null | some b => Json.bool b)]
   | .curve =>
     Json.mkObj [("op", "curve"), ("name", "earn"), ("jitter", toJson startJitter), ("close", toJson closePh),
       ("steps", toJson Fw.Parts.Bezier.steps), ("darkCut", ratJson (Fw.Parts.Nav.darkCut * 10000)),

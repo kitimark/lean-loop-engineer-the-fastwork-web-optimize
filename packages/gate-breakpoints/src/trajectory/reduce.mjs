@@ -409,11 +409,11 @@ const oneNum = (els) => (els.length === 1 && Array.isArray(els[0]) && els[0].len
 const retargets = (a, b) => a.m !== null && a.m !== undefined && b.m !== null && b.m !== undefined
   && clampCut(a.m) !== clampCut(b.m);
 
-/** Lean `triggerOf`. */
-export function triggerOf(ps) {
-  let q = null;
-  for (let j = 1; j < ps.length; j++) if (retargets(ps[j - 1], ps[j])) q = ps[j];
-  return q;
+/** Lean `triggersOf`. */
+export function triggersOf(ps) {
+  const out = [];
+  for (let j = 1; j < ps.length; j++) if (retargets(ps[j - 1], ps[j])) out.push(ps[j]);
+  return out;
 }
 
 const passOf = (seg, q) => seg.filter((s) => (s.rep ?? 0) === q);
@@ -426,29 +426,67 @@ export function settledOf(seg, r) {
 
 const has = (x) => x !== null && x !== undefined;
 
-/** Lean `origTrigger`. */
-export function origTrigger(seg, r, q) {
-  const ps = passOf(seg, r.rep ?? 0).filter((s) => s.ph === r.ph);
-  const cq = has(q.m) ? clampCut(q.m) : null;
-  let o = null;
-  for (let j = 1; j < ps.length; j++) if (retargets(ps[j - 1], ps[j]) && clampCut(ps[j].m) === cq) o = ps[j];
-  return o;
+/** Lean `origFirst`. */
+export const origFirst = (seg, r) => triggersOf(passOf(seg, r.rep ?? 0).filter((s) => s.ph === r.ph))[0] ?? null;
+
+/** Lean `excess`; `lo` and `hi` rationals, `w` an integer. */
+export function excess(lo, hi, w) {
+  const x = qi(w);
+  return qlt(x, lo) ? qs(lo, x) : qlt(hi, x) ? qs(x, hi) : ZERO;
 }
 
-/** Lean `origStart`. */
-const origStart = (seg, r, q) => { const o = origTrigger(seg, r, q); return o === null ? null : oneNum(o.els); };
+/** Lean `target`, as a rational. */
+export const target = (full, m) => qm(qi(full), qs(ONE, collapse(m)));
 
-/** Lean `startNear`. */
-const startNear = (kind, s, w) => s - TOL[kind] <= w && w <= s + TOL[kind];
+const qmin = (a, b) => (qle(a, b) ? a : b);
+const qmax = (a, b) => (qle(a, b) ? b : a);
+
+/** Lean `hull`: [lo, hi] rationals; `s`, `tp` and `tq` rationals, `tau` an integer. */
+export function hull(dur, delay, s, tp, tq, tau) {
+  const a = along(dur, delay, s, tp, tau - START_JITTER), b = along(dur, delay, s, tp, tau + START_JITTER);
+  const c = along(dur, delay, s, tq, tau - START_JITTER), d = along(dur, delay, s, tq, tau + START_JITTER);
+  return [qmin(qmin(a, b), qmin(c, d)), qmax(qmax(a, b), qmax(c, d))];
+}
+
+/** Lean `linkExcess`: a rational, or null (undecided). */
+export function linkExcess(tr, full, p, q) {
+  if (!has(p.m) || !has(q.m)) return null;
+  const t = tr(p.cls), s = oneNum(p.els), w = oneNum(q.els);
+  if (t === null || s === null || w === null || !has(p.t0) || !has(q.t0) || t[0] === 0) return null;
+  const [lo, hi] = hull(t[0], t[1], qi(s), target(full, p.m), target(full, q.m), q.t0 - p.t0);
+  return excess(lo, hi, w);
+}
+
+/** Lean `linksExcess`: a rational, or null when a link is undecided. */
+export function linksExcess(tr, full, ps) {
+  let c = ZERO;
+  for (let j = 1; j < ps.length; j++) {
+    const e = linkExcess(tr, full, ps[j - 1], ps[j]);
+    if (e === null) return null;
+    c = qa(c, e);
+  }
+  return c;
+}
+
+/** Lean `chainOf`. */
+export function chainOf(prior, r) {
+  const ts = triggersOf([...prior, r]);
+  return prior.length > 0 && retargets(prior[prior.length - 1], r) ? ts : [...ts, r];
+}
+
+/** Lean `chainCost`: a rational, or null (undecided). */
+export function chainCost(tr, seg, prior, r) {
+  const q = triggersOf([...prior, r])[0] ?? null, o = origFirst(seg, r), full = settledOf(seg, r);
+  if (q === null || o === null || full === null) return null;
+  const s = oneNum(o.els), w = oneNum(q.els), c = linksExcess(tr, full, chainOf(prior, r));
+  if (s === null || w === null || c === null) return null;
+  return qa(excess(qi(s), qi(s), w), c);
+}
 
 /** Lean `startCheck`: true, false, or null (undecided). */
 export function startCheck(kind, tr, seg, prior, r) {
-  const q = triggerOf(prior);
-  if (q === null || !has(q.m)) return null;
-  const t = tr(q.cls), s = origStart(seg, r, q), w = oneNum(q.els), x = oneNum(r.els), full = settledOf(seg, r);
-  if (t === null || s === null || w === null || x === null || full === null || !has(q.t0) || !has(r.t0) || t[0] === 0) return null;
-  if (!startNear(kind, s, w)) return false;
-  return onCurve(kind, t[0], t[1], qi(s), qm(qi(full), qs(ONE, collapse(q.m))), r.t0 - q.t0, x);
+  const c = chainCost(tr, seg, prior, r);
+  return c === null ? null : qle(c, qi(TOL[kind]));
 }
 
 /** Lean `judgeStart`. */
