@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { loadIntent } from '../.github/scripts/changed-inputs.mjs';
-import { asksExactly, lanesFor, parseArgs, pushOk, requestMessage } from './ci-push.mjs';
+import { asksExactly, lanesFor, parseArgs, probeNotes, pushOk, requestMessage } from './ci-push.mjs';
 
 const root = join(dirname(new URL(import.meta.url).pathname), '..');
 const golden = loadIntent(root).lanes;
@@ -103,4 +103,17 @@ test('pushOk equals the Lean push vectors (every preview of at most 3 lanes, wit
     assert.equal(pushOk(part, plan), ok, JSON.stringify([part, ps]));
   }
   assert.equal(parseArgs(['--branch', 'ci/x', '--lanes', 'wktr', '--partial']).partial, true);
+});
+
+test('probeNotes: a [trajectory] line without the lane token is reported, a refused line stops the push', () => {
+  const g = loadIntent(root).lanes;
+  const line = '[trajectory fw=hero.exit:scoped widths=390,1280 engines=both]';
+  assert.deepEqual(probeNotes(g, `ci: m\n\n${line}`, `ci: m\n\n${line}`).refuse, false);
+  assert.match(probeNotes(g, `ci: m\n\n${line}`, `ci: m\n\n${line}`).notes[0], /not \[ci:trajectory-probe\]/);
+  assert.deepEqual(probeNotes(g, `ci: m\n\n[ci:trajectory-probe]\n${line}`, 'x').notes, []);
+  assert.deepEqual(probeNotes(g, 'ci: m\n\n[ci:trajectory-probe]', 'x').notes, []);
+  const bad = probeNotes(g, 'ci: m\n\n[ci:trajectory-probe]\n[trajectory fw=a:b preset=x]', 'x');
+  assert.equal(bad.refuse, true);
+  assert.match(bad.notes[0], /refused/);
+  assert.match(probeNotes(g, 'ci: request [ci:trajectory-probe]', `[ci:trajectory-probe]\n${line}`).notes[0], /request commit/);
 });

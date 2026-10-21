@@ -33,7 +33,14 @@ runs the probe with the inputs of one message line:
   line = the dispatch defaults. Only a line that starts with `[trajectory` counts (prose that quotes it asks for nothing). A line that
   does not parse, or a second line, fails the `site` job with the reason (Lean `Fw.Ci.Trigger.pushProbe`, golden `probe` lines of
   `packages/contracts/golden/ci/triggers.jsonl`, node twin `.github/scripts/trajectory-line.mjs`). A line without `[ci:trajectory-probe]`
-  does not start the lane (Lean says `needsLane`; nothing reports it yet, a follow-up for `fw ci push`).
+  does not start the lane (Lean says `needsLane`). `pnpm fw ci push` reports `needsLane` and a refused line before the push (`probeNotes` in
+  `scripts/ci-push.mjs`, the twin of Lean `pushProbe`; a refused line stops the push, exit 2). Accepted limit: a plain `git push origin ci/<x>`
+  (the allowed form) reports nothing, so a `[trajectory]` line without the lane token is ignored silently on that route.
+- `pnpm fw ci wait --branch ci/<x> --workflow trajectory-probe` waits for the push run of the commit (`--sha`, event `push`); with `--nonce <n>` for
+  the dispatch whose run-name carries the nonce (Lean `Fw.Ci.Dispatch.select`, golden `select` lines of `golden/ci/dispatch.jsonl`, TS twin
+  `packages/gh-budget/src/want.ts`). Never the newest run. Accepted limit: `--gate` and the count lanes of `fw run` keep the newest-run rule.
+- A run with one leg (one engine, one width) merges: each leg file `artifact-name.txt` names its artifact; the merge job moves a single download under
+  `legs/<artifact name>/`, so the join sees one directory per leg in every case.
 - The run records its inputs: step name `trajectory inputs: engines=.. fw=.. preset=.. widths=.. (commit-line|defaults|dispatch)` of job
   `site` (`gh run view <id> --json jobs`) and artifact `trajectory-inputs` (`inputs.json`: event, sha, nonce, inputs, source).
 - `fw run --trajectory` sends a fresh `nonce` input; the workflow's `run-name` is `trajectory-probe dispatch nonce=<n>`; the command lists

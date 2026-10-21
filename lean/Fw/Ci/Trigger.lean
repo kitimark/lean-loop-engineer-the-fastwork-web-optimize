@@ -181,7 +181,7 @@ def table : List Wf := [
     "apps/**", "packages/**", "lean/**", "scripts/**", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml",
     "docs/team/work-graph.json", "docs/team/incidents/ledger.json", "research/findings/ledger.json",
     "results/baselines/chromium/**", ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**",
-    ".node-version", ".github/actions/setup-pnpm/**", ".github/actions/gate-engine/**", ".github/scripts/cache-key.mjs", own "land.yml"], []⟩,
+    ".node-version", ".github/actions/setup-pnpm/**", ".github/actions/gate-engine/**", ".github/scripts/cache-key.mjs", ".github/scripts/land-base.sh", own "land.yml"], []⟩,
   ⟨"lean.yml", ciMain, [
     "lean/**", "apps/site/src/breakpoints.gen.json", "apps/site/src/sweeps.gen.json", "apps/site/src/head.gen.json", "scripts/span.sh",
     "scripts/fwcore-build.sh", "scripts/lake-slot.sh", "scripts/lake-slot-lib.sh", "scripts/lake-slot.test.mjs", "packages/contracts/golden/sched/lake-slot.gen.sh",
@@ -221,6 +221,7 @@ def table : List Wf := [
     "packages/gate-breakpoints/**", "apps/site/**", "@breakgen", "snapshot/**", "snapshot.lock.json",
     "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/gate-search.mjs", ".github/scripts/gate-search.test.mjs",
     ".github/scripts/gate-smoke.mjs", ".github/scripts/verify-snapshot.mjs", ".github/scripts/cache-key.mjs",
+    ".github/scripts/trajectory-line.mjs", ".github/scripts/trajectory-line.test.mjs", "packages/contracts/golden/ci/triggers.jsonl",
     "packages/contracts/golden/gate/search.jsonl", "packages/contracts/golden/gate/trajectory.jsonl", "packages/contracts/golden/gate/trajectory-colour.jsonl", "packages/contracts/golden/ops/cache.jsonl",
     ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", ".node-version", ".github/actions/setup-pnpm/**",
     ".github/actions/gate-engine/**", ".github/actions/telemetry/**", "scripts/ci-telemetry/**", own "trajectory-probe.yml"], []⟩,
@@ -242,7 +243,7 @@ def table : List Wf := [
   ⟨"wktr.yml", ciAll, [
     "packages/measure-wktr/**", "packages/measure-chromium/src/classify.mjs", "packages/measure-chromium/src/fwcore.mjs",
     "@fwcore", "snapshot/**", "snapshot.lock.json", ".github/scripts/verify-snapshot.mjs", ".github/scripts/runner-info.sh",
-    ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", ".node-version", own "wktr.yml"], []⟩]
+    ".github/scripts/changed-inputs.mjs", ".github/scripts/changed-inputs.test.mjs", ".github/actions/setup-lean/**", ".node-version", own "wktr.yml"], []⟩]
 
 #guard (table.map (·.file)).eraseDups.length == table.length
 
