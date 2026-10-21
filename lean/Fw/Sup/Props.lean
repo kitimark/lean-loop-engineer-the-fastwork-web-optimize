@@ -5534,9 +5534,10 @@ theorem mu_unpinned (c : Cfg) (s : State) : mu c s ≤ unpinned c s := by
     simp only [Bool.and_eq_true] at hx
     exact hx.2
 
-/-- head_job_granted_by: a job at the head of the queue, with no older queued request or ticket, is granted by
-`s.now + bound` when along the way it is never drained, restarted or dropped, every tick comes within `tm` and finds
-no KILL outstanding, nothing is shed and it fits once leases, stopping and stoppable resources are gone. -/
+/-- head_job_granted_by: a job at the head of the queue, with no older queued request or ticket, in a state not
+draining whose stopping resources are unpinned and began by `s.now`, is granted by `s.now + bound` when along the
+way it is never drained, restarted or dropped, every tick comes within `tm` and finds no KILL outstanding, nothing
+is shed and it fits once leases, stopping and stoppable resources are gone. -/
 theorem head_job_granted_by {c : Cfg} {q : Req} {tm : Nat} {s : State} {rest : List Req} (es : List Event)
     (h : Inv c s) (hpend : s.pending = q :: rest) (hk : q.kind = .job) (hages : ∀ p ∈ rest, q.age ≤ p.age)
     (htk : ∀ t ∈ s.tickets, q.age ≤ t.age) (hage : q.age ≤ s.now) (hdr : s.draining = false)

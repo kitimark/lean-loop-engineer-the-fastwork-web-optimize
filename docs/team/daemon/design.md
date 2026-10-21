@@ -125,7 +125,8 @@ Fw.Sup.step : Cfg → State → Event → State × List Cmd
   failed (until)`; `Ident = (pid, startSec)` as in `Fw.Ops.Reap`.
 - `leases : List Lease`, `Lease = {id, owner : Ident (client process), res, deadline, renews}`.
 - `pending : List Req` (FIFO with aging, `Fw.DeviceQueue` aging reused via `Fw.Sched.Admit`),
-  `Req = {reqId, owner, kind, key, cost, deadline}`.
+  `Req = {reqId, owner, kind, key, cost, deadline}`. A re-request after any refusal for cause, deadline included,
+  keeps the original age (`ticket_age`, `deadline_keeps_ticket`).
 - `obs : Sample` from the last tick: pressure level (1/2/4, sysctl
   `kern.memorystatus_vm_pressure_level`, CONFIRMED watch-collect.ts:529,725), footprint per owned
   ident, footprint of observed unowned processes, live client idents, load.
@@ -159,9 +160,9 @@ ps RSS, because ps shows 0 MB for a compressed 320 MB lean server (MEASURED A).
 | `stop_only_idle` | the same command → `now − r.lastUse ≥ grace r.kind ∨ shedding s ∨ s.draining`; with `grace` a `Cfg` table priced by cold-start cost (Simulator long, lake serve medium, vitest server short) |
 | `grant_ready` | `reply q (granted l) ∈ out → (find s' l.res).phase = ready ∧ l ∈ s'.leases` |
 | `reply_once` | over any trace: each `reqId` gets at most one `reply` across all outputs |
-| `reply_by_deadline` | over any trace: if a `tick now` with `now ≥ q.deadline` follows request q, q has a reply by that tick; `q.deadline ≤ q.at + maxWait`. So every request is answered exactly once, within `maxWait` plus one tick period (tick period is a shell fact, axiom S4). |
-| `fifo_no_overtake` | a grant to q' while an older q of the same pool that fits is pending only happens under the `Admit` backfill rule (q' does not compete with q); reuses `aged_not_overtaken` |
-| `aged_granted_by` (fairness) | restated from `Fw.Sched.Admit.aged_admitted_by` (Admit.lean:1277): along traces where every lease ends by `holdMax` (enforced: `expired_revoked`) and renews are capped, an aged request that can fit leaves the queue within `(1 + Ψ)·holdMax`. Accepted limit: leaving the queue may be `refused` (child failed to start, deadline passed), not `granted`; the model cannot promise a child becomes ready. |
+| `reply_by_deadline` | over any trace: if a `tick now` with `now ≥ q.deadline` follows request q, q has a reply by that tick; `q.deadline ≤ q.at + maxWait`. So every request is answered exactly once, within `maxWait` plus one tick period (tick period is a shell fact, axiom S4). A deadline refusal leaves the owner a ticket with q's age (`deadline_keeps_ticket`). |
+| `fifo_no_overtake` | when a job q stays queued after a step, every grant of that step answers a request ahead of q, or has cost zero and is a nested job join or a share of a pinned-kind resource; `svc_respects_blocked` is its head-of-queue case, so a blocked head job holds back every svc grant on an unpinned resource |
+| `head_job_granted_by` (fairness) | same proof scheme as `Fw.Sched.Admit.aged_admitted_by` (Admit.lean:1277), which cannot be instantiated (Admit has a fixed B, no eviction and no leases): a job at the head of the queue with no older ticket is granted by `s.now + span + tickMax + K·(killAfter + 2·tickMax)`, K the unpinned resources, along traces with no drain, restart or owner loss, ticks at most `tickMax` apart that find no KILL outstanding, no shedding, and room for the job once leases, stopping and stoppable resources are gone. Phase 1: every lease ends by `s.now + span` and no new costly one lands (`svc_respects_blocked`); phase 2: each eviction round (TERM, KILL, exit) takes at most `killAfter + 2·tickMax` and stops a fresh resource. Accepted limits: head job only; a request at position k and svc progress are follow-ups. The single-step `aged_granted_by` grants the head job when it fits. |
 | `expired_revoked` | a tick with `now ≥ l.deadline` removes l and emits exactly one `revoke l.owner l` |
 | `exit_releases` (crash) | `childExit id` for r → `leasesOn s' r = []`, one `revoke` per prior lease, r ∈ `failed` or `absent` |
 | `restart_bounded` | for every r and window `W = cfg.restartWindow`, spawns of r within W ≤ `cfg.maxRestarts` (OTP intensity, default 1 per 5 s per B Table 3); after that r is `failed until` and requests for it are refused |
