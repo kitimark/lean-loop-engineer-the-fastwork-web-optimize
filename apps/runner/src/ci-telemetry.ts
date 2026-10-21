@@ -15,7 +15,7 @@ import { chargedGh, fwcoreCall, type FwCall, type Gh } from "./run.ts";
 
 export const TELEMETRY_USAGE = "usage: fw ci telemetry <github|circleci> <run id | pipeline id> [--store <dir>] [--slug gh/<owner>/<repo>]\n" +
   "  downloads the telemetry artifacts of the run, adds queue time, appends to the local store, prints the step table and the slow verdicts.\n" +
-  "       fw ci telemetry macos-window [--days 7] [--sample 200] [--out <file>] [--no-circleci] [--no-codemagic]  (the 7-day macOS dataset)";
+  "       fw ci telemetry macos-window [--days 7] [--sample 200] [--out <file>] [--cache <dir>] [--now <ms>] [--no-circleci] [--no-codemagic]";
 
 export type Provider = "github" | "circleci";
 export type TelArgs = { provider: Provider; id: string; store?: string; slug?: string };

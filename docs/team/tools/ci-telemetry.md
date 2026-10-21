@@ -92,7 +92,19 @@ jobs to each job's artifacts, and per job `queued_at` / `started_at`. The token 
 Keychain item `fw-circleci-token`, read inside the request, sent as the `Circle-Token` header, never printed or put
 into an error. Replies are parsed leniently (raw control characters inside strings are escaped). The store keeps one
 record per (provider, run, job); the same run collected again replaces its record. Then one `ci.telemetry` call judges
-every stored record against the ones before it and the table of the new run is printed, with `SLOW` lines.
+every stored record against the ones before it and the table of the new run is printed, with `SLOW` lines. Each job
+span ends with a `(matched)` row: the job time that exists on every provider (Lean `obs.macMatched`).
+
+The macOS window (task `macos-telemetry`):
+
+```
+pnpm -s fw ci telemetry macos-window [--days 7] [--sample 200] [--out file] [--cache dir] [--now ms] [--no-circleci] [--no-codemagic]
+```
+
+lists the completed runs of the seven macOS workflows (run-level minutes, all runs), lets Lean pick at most `--sample`
+runs per stratum (`obs.macSample`), reads their jobs and steps, adds the Codemagic builds of the ledger and the CircleCI
+macOS jobs, and writes ids, names, conclusions and times as JSON lines. Lean reduces them (`obs.macReduce`; golden
+`packages/contracts/golden/obs/mactelemetry-window-input.jsonl`); the note is `research/notes/2026/10-2x-macos-telemetry.md`.
 
 ## CircleCI: the config lines for the pilot (not applied here)
 

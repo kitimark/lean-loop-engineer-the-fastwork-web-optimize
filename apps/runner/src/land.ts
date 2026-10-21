@@ -196,6 +196,8 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     "scripts/ci-push.mjs", "scripts/ci-push.test.mjs", "scripts/hooks/**",
     // circleci-pilot: the glue, its fixtures and the pilot config (test/ci-triggers.test.ts runs scripts/circleci.test.mjs; fw ci circleci spawns the glue)
     "scripts/circleci.mjs", "scripts/circleci.test.mjs", "scripts/circleci-fixtures/**", ".circleci/**",
+    // macos-telemetry: test/ci-telemetry-mac.test.ts checks that the note embeds the tables Lean renders from the committed dataset
+    "research/notes/2026/10-2x-macos-telemetry.md",
     // lake-build-slots: test/ci-triggers.test.ts runs the build-slot wrapper's tests (they also read golden/** above)
     "scripts/lake-slot.sh", "scripts/lake-slot-lib.sh", "scripts/lake-slot.test.mjs",
     // sup-baseline: test/watch-collect-sup.test.ts runs scripts/sim-lock.sh in a scratch repo to check its lock events

@@ -7,7 +7,7 @@
 // Dataset lines (one JSON object per line, `kind` first): `window` {fromMs,toMs,minRunMs,cap,days}, `run` (every completed run of
 // the seven macOS workflows, run-level minutes) and `job` (the jobs of the sampled runs, plus the Codemagic builds and the CircleCI
 // macOS jobs). Only ids, names, conclusions and times: no commits, authors, branches or URLs.
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { spawnSync } from "node:child_process";
@@ -15,7 +15,7 @@ import { realEnv } from "@fw/gh-budget";
 import { UsageError } from "./lib.ts";
 import { chargedGh, fwcoreCall, type FwCall, type Gh } from "./run.ts";
 
-export const MAC_USAGE = "usage: fw ci telemetry macos-window [--days 7] [--sample 200] [--out <file>] [--no-circleci] [--no-codemagic]";
+export const MAC_USAGE = "usage: fw ci telemetry macos-window [--days 7] [--sample 200] [--out <file>] [--cache <dir>] [--now <epoch ms>] [--no-circleci] [--no-codemagic]";
 
 /** The workflows that hold macOS jobs (Lean `Fw.Obs.MacTelemetry.macJobs`). */
 export const MAC_WORKFLOWS = ["trajectory-probe", "webkit-sim", "wktr", "wktr-fixtures", "engine-premises", "gate-gaps", "sim-speed"];
@@ -23,7 +23,7 @@ export const MAC_WORKFLOWS = ["trajectory-probe", "webkit-sim", "wktr", "wktr-fi
 export const MIN_RUN_MS = 120000;
 const DAY_MS = 86400000;
 
-export type MacArgs = { days: number; sample: number; out?: string; circleci: boolean; codemagic: boolean };
+export type MacArgs = { days: number; sample: number; out?: string; cache?: string; now?: number; circleci: boolean; codemagic: boolean };
 
 export function parseMacArgs(argv: string[]): MacArgs {
   const a: MacArgs = { days: 7, sample: 200, circleci: true, codemagic: true };
@@ -37,6 +37,8 @@ export function parseMacArgs(argv: string[]): MacArgs {
     if (f === "--days") a.days = num(f, argv[++i]);
     else if (f === "--sample") a.sample = num(f, argv[++i]);
     else if (f === "--out") { const v = argv[++i]; if (!v) throw new UsageError(`--out needs a file\n${MAC_USAGE}`); a.out = v; }
+    else if (f === "--cache") { const v = argv[++i]; if (!v) throw new UsageError(`--cache needs a directory\n${MAC_USAGE}`); a.cache = v; }
+    else if (f === "--now") a.now = num(f, argv[++i]);
     else if (f === "--no-circleci") a.circleci = false;
     else if (f === "--no-codemagic") a.codemagic = false;
     else throw new UsageError(`unknown argument ${f}\n${MAC_USAGE}`);
@@ -156,7 +158,30 @@ export type MacDeps = {
   /** extra provider rows, or none when the provider is off or has nothing */
   codemagic?: (fromMs: number) => Promise<JobRow[]>;
   circleci?: (fromMs: number) => Promise<JobRow[]>;
+  /** raw gh replies kept by key, so a collection that stopped half way resumes without asking GitHub again */
+  cache?: { read: (key: string) => string | undefined; write: (key: string, text: string) => void };
+  /** the pause before a gh call is made again, in seconds */
+  pause?: (s: number) => Promise<void>;
 };
+
+const GH_TRIES = 3;
+
+/** One gh read, from the cache when it holds it. A server error (HTTP 5xx) is asked again after 10 s, then 20 s; any other failure
+ *  (a rate limit, a 403) is not retried. */
+async function ghText(d: MacDeps, key: string, args: string[]): Promise<string> {
+  const hit = d.cache?.read(key);
+  if (hit !== undefined) return hit;
+  for (let n = 1; ; n++) {
+    try {
+      const text = await d.gh(args);
+      d.cache?.write(key, text);
+      return text;
+    } catch (e) {
+      if (n >= GH_TRIES || !/HTTP 5\d\d/.test(String((e as Error).message))) throw e;
+      await (d.pause ?? sleepS)(10 * n);
+    }
+  }
+}
 
 /** Run lists of the seven workflows, the sample (Lean `obs.macSample`), the jobs of the sampled runs, then the provider rows. */
 export async function collectMac(a: MacArgs, d: MacDeps): Promise<string[]> {
@@ -164,7 +189,7 @@ export async function collectMac(a: MacArgs, d: MacDeps): Promise<string[]> {
   const since = new Date(fromMs).toISOString().slice(0, 10);
   const runs: RunRow[] = [];
   for (const wf of MAC_WORKFLOWS) {
-    const list = JSON.parse(await d.gh(["run", "list", "--workflow", wf, "--created", `>=${since}`, "--limit", "1000", "--json", "databaseId,createdAt,startedAt,updatedAt,status,conclusion,event"])) as GhRun[];
+    const list = JSON.parse(await ghText(d, `list-${wf}-${since}`, ["run", "list", "--workflow", wf, "--created", `>=${since}`, "--limit", "1000", "--json", "databaseId,createdAt,startedAt,updatedAt,status,conclusion,event"])) as GhRun[];
     if (list.length >= 1000) d.log(`warning: ${wf} returned 1000 runs, the list may be cut`);
     const rows = runRows(wf, list, fromMs);
     d.log(`${wf}: ${rows.length} completed runs since ${since}`);
@@ -174,14 +199,19 @@ export async function collectMac(a: MacArgs, d: MacDeps): Promise<string[]> {
   for (const s of sample.strata) d.log(`stratum ${s.key}: ${s.picked} of ${s.candidates} runs read`);
   const byId = new Map(runs.map((r) => [r.id, r]));
   const macOf = (wf: string, names: string[]): boolean[] => (d.call({ op: "obs.macIs", rows: names.map((name) => ({ wf, name })) }) as unknown as { mac: boolean[] }).mac;
-  const jobs: JobRow[] = [];
+  const jobs: JobRow[] = [], unread: string[] = [];
   for (const id of sample.ids) {
     const run = byId.get(id);
     if (!run) continue;
-    const v = JSON.parse(await d.gh(["run", "view", id, "--json", "jobs"])) as { jobs: GhViewJob[] };
-    jobs.push(...jobRows(run, v.jobs ?? [], macOf));
+    try {
+      const v = JSON.parse(await ghText(d, `view-${id}`, ["run", "view", id, "--json", "jobs"])) as { jobs: GhViewJob[] };
+      jobs.push(...jobRows(run, v.jobs ?? [], macOf));
+    } catch (e) {
+      if (!/HTTP 5\d\d/.test(String((e as Error).message))) throw e;
+      unread.push(id);
+    }
   }
-  d.log(`github: ${jobs.length} jobs of ${sample.ids.length} sampled runs`);
+  d.log(`github: ${jobs.length} jobs of ${sample.ids.length - unread.length} sampled runs${unread.length > 0 ? `; ${unread.length} run(s) not read after ${GH_TRIES} server errors (their minutes stay in the run rows only): ${unread.join(" ")}` : ""}`);
   if (d.codemagic) jobs.push(...(await d.codemagic(fromMs)));
   if (d.circleci) jobs.push(...(await d.circleci(fromMs)));
   const lines = [JSON.stringify({ kind: "window", fromMs, toMs, minRunMs: MIN_RUN_MS, cap: a.sample, days: a.days })];
@@ -229,13 +259,21 @@ export async function realCircleci(root: string, log: (l: string) => void): Prom
   return (fromMs) => circleRows(io, fromMs);
 }
 
+/** A directory of raw gh replies, one file per key (the keys are `list-<workflow>-<date>` and `view-<run id>`). */
+export function dirCache(dir: string): NonNullable<MacDeps["cache"]> {
+  return {
+    read: (key) => { const f = join(dir, `${key}.json`); return existsSync(f) ? readFileSync(f, "utf8") : undefined; },
+    write: (key, text) => { mkdirSync(dir, { recursive: true }); writeFileSync(join(dir, `${key}.json`), text); },
+  };
+}
+
 export async function macWindowCli(argv: string[], cwd: string): Promise<number> {
   const a = parseMacArgs(argv);
   const common = spawnSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd, encoding: "utf8" }).stdout.trim();
   const root = dirname(common);
   const log = (l: string) => console.log(l);
   const lines = await collectMac(a, {
-    call: fwcoreCall(cwd), gh: chargedGh(realEnv(cwd)), now: Date.now(), log,
+    call: fwcoreCall(cwd), gh: chargedGh(realEnv(cwd)), now: a.now ?? Date.now(), log, cache: a.cache ? dirCache(a.cache) : undefined,
     codemagic: a.codemagic ? await realCodemagic(root, log) : undefined,
     circleci: a.circleci ? await realCircleci(root, log) : undefined,
   });

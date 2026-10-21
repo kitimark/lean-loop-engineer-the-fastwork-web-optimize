@@ -1,7 +1,7 @@
 // `fw ci telemetry macos-window` (apps/runner/src/ci-telemetry-mac.ts): the collector of the 7-day macOS dataset. The sample, the
 // macOS-job test and every table are fwcore; this test checks the I/O glue (time conversion, list and view calls, the three providers)
 // with a fake gh and fake provider replies, and that the dataset it writes reduces through the real `obs.macReduce`.
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -19,8 +19,8 @@ const iso = (ms: number) => new Date(ms).toISOString();
 describe("arguments and times", () => {
   it("has defaults and reads the flags", () => {
     expect(parseMacArgs([])).toEqual({ days: 7, sample: 200, circleci: true, codemagic: true });
-    expect(parseMacArgs(["--days", "3", "--sample", "50", "--out", "x.jsonl", "--no-circleci", "--no-codemagic"]))
-      .toEqual({ days: 3, sample: 50, out: "x.jsonl", circleci: false, codemagic: false });
+    expect(parseMacArgs(["--days", "3", "--sample", "50", "--out", "x.jsonl", "--cache", "c", "--now", "5", "--no-circleci", "--no-codemagic"]))
+      .toEqual({ days: 3, sample: 50, out: "x.jsonl", cache: "c", now: 5, circleci: false, codemagic: false });
   });
   it("refuses a bad number, a missing file and an unknown flag", () => {
     expect(() => parseMacArgs(["--days", "0"])).toThrow(/positive whole number/);
@@ -147,6 +147,30 @@ describe.skipIf(!haveCore)("collectMac through fwcore", () => {
     for (const bad of ["branch", "headBranch", "author", "email", "url", "sha", "title", "displayTitle", "actor"]) expect(keys.has(bad)).toBe(false);
     expect(said.some((l) => /stratum/.test(l))).toBe(true);
   });
+  it("asks again after a server error, skips a run that keeps failing, stops on a rate limit, and reads a cache before asking", async () => {
+    const calls: string[] = [], said: string[] = [], pauses: number[] = [];
+    const base = fakeGh([]);
+    const flaky = (fail: (id: string, n: number) => string | null): Gh => async (a, o) => {
+      calls.push(a.join(" "));
+      if (a[1] === "view") { const n = calls.filter((c) => c === a.join(" ")).length; const err = fail(a[2]!, n); if (err) throw new Error(`gh run view failed: ${err}`); }
+      return base(a, o);
+    };
+    const run = (gh: Gh, cache?: Map<string, string>) => collectMac(args, { call: fwcoreCall(root), gh, now: NOW, log: (l) => said.push(l), pause: async (s) => { pauses.push(s); },
+      ...(cache ? { cache: { read: (k: string) => cache.get(k), write: (k: string, t: string) => { cache.set(k, t); } } } : {}) });
+    const ok = await run(flaky((_id, n) => (n < 3 ? "HTTP 502: Server Error" : null)));
+    expect(pauses).toEqual([10, 20]);
+    expect(ok.filter((l) => l.includes('"kind":"job"'))).toHaveLength(2);
+    const bad = await run(flaky(() => "HTTP 502: Server Error"));
+    expect(bad.filter((l) => l.includes('"kind":"job"'))).toHaveLength(0);
+    expect(said.some((l) => /1 run\(s\) not read after 3 server errors.*101/.test(l))).toBe(true);
+    await expect(run(flaky(() => "HTTP 403: rate limit"))).rejects.toThrow(/403/);
+    const cache = new Map<string, string>();
+    await run(base, cache);
+    expect([...cache.keys()].sort()).toContain("view-101");
+    calls.length = 0;
+    await run(flaky(() => "HTTP 500: would fail if asked"), cache);
+    expect(calls).toEqual([]);
+  });
   it("the dataset reduces through obs.macReduce into tables that name the Codemagic row", async () => {
     const lines = await collectMac(args, { call: fwcoreCall(root), gh: fakeGh([]), now: NOW, log: () => {},
       codemagic: async () => [codemagicRow({ id: "cm1", status: "finished", instanceType: "mac_mini_m2", createdAt: T1, startedAt: T1 + 1000, finishedAt: T1 + 301000, steps: [{ name: "Preparing build machine", durMs: 40000 }] })!] });
@@ -157,5 +181,32 @@ describe.skipIf(!haveCore)("collectMac through fwcore", () => {
     expect(reply.md).toContain("<!-- mt:begin providers -->");
     expect(reply.tables.providers).toMatch(/codemagic/i);
     expect(reply.tables.providers).toMatch(/github/i);
+  });
+});
+
+// The committed dataset (written once by `fw ci telemetry macos-window`) and the note that embeds its tables.
+const datasetFile = join(root, "packages/contracts/golden/obs/mactelemetry-window-input.jsonl");
+const noteFile = join(root, "research/notes/2026/10-2x-macos-telemetry.md");
+describe.skipIf(!haveCore || !existsSync(datasetFile))("the committed dataset and the note", () => {
+  const load = () => readFileSync(datasetFile, "utf8").trim().split("\n").map((l) => JSON.parse(l) as Record<string, unknown> & { kind: string });
+  const winOf = (rows: ReturnType<typeof load>) => rows.find((r) => r.kind === "window")!;
+  const reply = () => { const rows = load(), win = winOf(rows); return fwcoreCall(root)({ op: "obs.macReduce", fromMs: win.fromMs, toMs: win.toMs, minRunMs: win.minRunMs, cap: win.cap,
+    runs: rows.filter((r) => r.kind === "run"), jobs: rows.filter((r) => r.kind === "job") }) as unknown as { md: string; tables: Record<string, string> }; };
+
+  it("holds ids, names, conclusions and times only", () => {
+    const rows = load(); const keys = new Set(rows.flatMap((r) => Object.keys(r)));
+    for (const bad of ["branch", "headBranch", "author", "email", "url", "sha", "headSha", "title", "displayTitle", "actor", "slug"]) expect(keys.has(bad)).toBe(false);
+    expect(JSON.stringify(load())).not.toMatch(/https?:|\/Users\/|@[a-z0-9.-]+\.(com|io|org)/);
+  });
+  it("is cut to the sample bound for job detail while the run rows cover every run", () => {
+    const rows = load(), win = winOf(rows); const runs = rows.filter((r) => r.kind === "run").length, jobRuns = new Set(rows.filter((r) => r.kind === "job" && r.prov === "github").map((r) => r.run)).size;
+    expect(jobRuns).toBeLessThanOrEqual(Number(win.cap));
+    expect(runs).toBeGreaterThan(jobRuns);
+  });
+  it.skipIf(!existsSync(noteFile))("every table block that Lean renders from it stands verbatim in the note", () => {
+    const note = readFileSync(noteFile, "utf8");
+    const blocks = reply().md.split(/\n\n(?=<!-- mt:begin )/);
+    expect(blocks.length).toBeGreaterThanOrEqual(6);
+    for (const b of blocks) expect(note, b.split("\n")[0]).toContain(b);
   });
 });
