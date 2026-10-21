@@ -14536,6 +14536,26 @@
     "research/notes/2026/10-2x-jev-replay.md",
     "docs/team/handoffs/oracle-eps.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "replay-ios-fix",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "title": "Phone pilot of device-replay (2026-10-22) hung: safaridriver created the iOS Safari session (orange bar), the client sent one POST /actions with 5667 pointer actions (86.2 s), and nothing moved on the phone for 11 min (user confirmed) until the lead stopped it; no error and no timeout (device-replay-wd.mjs:62). Before any new phone session: (1) read WebKit@862f17d for how iOS automation runs W3C pointer actions (WebAutomationSession interaction sequences, simulated touch, _WKTouchEventGenerator, pointerType touch support and limits on iOS) and cite file:line; (2) send the path in pieces (one swipe per actions call, or the size the source allows) with a per-call timeout derived from the piece duration, failing with a named error; (3) prove it on the iOS Simulator first (safaridriver with the simulator capability, own sim slot), MEASURED: dispatch lag per piece and replayMatches per pass; (4) a Lean statement for the piece split (pieces concatenate to the compiled path; each piece's duration bound). Only then the lead books a phone session (incident inc-phone-pilot-untested).",
+   "writes": [
+    "packages/measure-webkit/src/device-replay-wd.mjs",
+    "packages/measure-webkit/src/device-replay-cli.mjs",
+    "packages/measure-webkit/test/replay-*.test.mjs",
+    "lean/Fw/Device/Replay*.lean",
+    "packages/contracts/golden/device/replay*.jsonl",
+    "research/notes/2026/10-2x-device-replay.md",
+    "docs/team/tools/device-replay.md",
+    "docs/team/handoffs/replay-ios-fix.md"
+   ]
   }
  ],
  "deadline": {

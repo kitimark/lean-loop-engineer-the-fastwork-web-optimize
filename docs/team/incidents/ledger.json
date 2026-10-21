@@ -3803,6 +3803,30 @@
    "leanReason": "Roster membership of each agent file is a decidable check over a generated list of agent names; reading the agent files is I/O.",
    "empiricalCheck": "After 02cd5f37 the three comment-sicko spawns were accepted.",
    "hardening": "polish-in-flow"
+  },
+  {
+   "id": "inc-phone-pilot-untested",
+   "at": "2026-10-22T02:30+07:00",
+   "title": "The lead booked the user for a phone replay session with a replay path never run against iOS safaridriver",
+   "symptom": "The user set up the phone (two rounds of settings), then the first replay hung for 11 minutes with nothing moving; the session ended with no data.",
+   "cause": "CONFIRMED (device-replay-wd.mjs:62, run log): the replay client had been tested only against a synthetic WebDriver and the Chromium CDP lane; one POST /actions with 5667 touch actions and no timeout went to iOS Safari for the first time on the phone. The lead skipped an iOS Simulator dry run that could have shown the hang without the user.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "b31571e9",
+     "note": "device-replay landed with the phone pilot as an open item"
+    }
+   ],
+   "repro": "Run device-replay-cli run against iOS Safari with a recorded profile of thousands of pointer actions.",
+   "fix": {
+    "task": "replay-ios-fix"
+   },
+   "regression": "A phone session is booked only after the same command passed on the iOS Simulator (named run in the step).",
+   "mistakeClass": "c-env-assume",
+   "leanVerdict": "partly",
+   "leanReason": "The booking rule (no phone step without a passing Simulator run of the same command) is a decidable precondition over recorded runs; the hang itself is platform behavior.",
+   "empiricalCheck": "User: Safari open with the orange bar, nothing moving; the lead stopped the run.",
+   "hardening": "replay-ios-fix"
   }
  ]
 }
