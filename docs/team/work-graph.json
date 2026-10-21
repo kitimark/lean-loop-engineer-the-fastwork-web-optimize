@@ -11983,7 +11983,8 @@
     "packages/measure-webkit/src/images/**",
     "research/notes/2026/10-2*-image-arm-v2.md",
     "docs/team/handoffs/image-arm-v2.md"
-   ]
+   ],
+   "evidence": "9da2ac1"
   },
   {
    "devices": [
