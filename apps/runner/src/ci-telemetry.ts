@@ -14,7 +14,8 @@ import { UsageError } from "./lib.ts";
 import { chargedGh, fwcoreCall, type FwCall, type Gh } from "./run.ts";
 
 export const TELEMETRY_USAGE = "usage: fw ci telemetry <github|circleci> <run id | pipeline id> [--store <dir>] [--slug gh/<owner>/<repo>]\n" +
-  "  downloads the telemetry artifacts of the run, adds queue time, appends to the local store, prints the step table and the slow verdicts.";
+  "  downloads the telemetry artifacts of the run, adds queue time, appends to the local store, prints the step table and the slow verdicts.\n" +
+  "       fw ci telemetry macos-window [--days 7] [--sample 200] [--out <file>] [--no-circleci] [--no-codemagic]  (the 7-day macOS dataset)";
 
 export type Provider = "github" | "circleci";
 export type TelArgs = { provider: Provider; id: string; store?: string; slug?: string };
@@ -255,6 +256,7 @@ const originSlug = (cwd: string): string => {
 };
 
 export async function telemetryCli(argv: string[], cwd: string, env: Record<string, string | undefined> = process.env): Promise<number> {
+  if (argv[0] === "macos-window") return (await import("./ci-telemetry-mac.ts")).macWindowCli(argv.slice(1), cwd);
   const args = parseTelArgs(argv);
   const common = spawnSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd, encoding: "utf8" }).stdout.trim();
   const consoleDir = env.FW_CONSOLE_DIR ?? join(dirname(common), ".fw-console");
