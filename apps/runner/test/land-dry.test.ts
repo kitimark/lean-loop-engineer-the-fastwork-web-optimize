@@ -45,6 +45,20 @@ const text = (r: { lines: string[] }) => r.lines.join("\n");
 const reads = (argv: string[], selected = true) => ({ dryReads: { argv, selected } });
 
 describe("fw land --dry", () => {
+  it("a selected local test that fails refuses with its name; one that passes or is not selected does not (task land-tier-compose-test)", async () => {
+    const { fx, wt, opts } = await setup();
+    fx.commit(wt, "src/a.ts");
+    const t = (cmd: string, reads = ["src/**"]) => ({ dryLocal: [{ id: "console-api:compose", reads, argv: ["sh", "-c", cmd] }] });
+    const bad = await land(BR, { ...opts, dry: true, ...reads(["true"]), dryLints: [], ...t("echo FAIL test/compose.test.ts; exit 1") });
+    expect(bad.ok).toBe(false);
+    expect(bad.kind).toBe("lint");
+    expect(text(bad)).toContain("test/compose.test.ts");
+    const ok = await land(BR, { ...opts, dry: true, ...reads(["true"]), dryLints: [], ...t("exit 0") });
+    expect(ok.kind).toBe("dry");
+    expect(text(ok)).toContain("dry: local tests ok (console-api:compose)");
+    const idle = await land(BR, { ...opts, dry: true, ...reads(["true"]), dryLints: [], ...t("exit 1", ["docs/**"]) });
+    expect(idle.kind).toBe("dry");
+  });
   it("passes on a clean branch and leaves main, the lock and the queue untouched; the real land then passes", async () => {
     const { fx, wt, opts, snap } = await setup();
     fx.commit(wt, "src/a.ts");
