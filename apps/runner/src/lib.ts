@@ -39,7 +39,7 @@ export function stepCommand(argv: string[], env: Record<string, string | undefin
       const kind = StepKind.parse(flags.kind ?? "action");
       return Command.parse({ type: "step.post", key: key ?? `step.post:${step}`, actor, step,
         card: flags.card ?? null, title: need(flags.title, "--title <text>"), kind,
-        options: flags.options ? flags.options.split(",") : null });
+        options: flags.options ? flags.options.split(",") : null, ...(flags.topic ? { topic: flags.topic } : {}) });
     }
     case "start": case "done": case "cancel": {
       const step = need(pos[0], "<step id>");
