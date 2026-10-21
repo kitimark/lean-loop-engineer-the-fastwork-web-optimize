@@ -112,8 +112,8 @@ export const fwcoreStale = (recorded: string | null, same: boolean, moved: boole
 
 // ---- The queue's fwcore rebuild between two entries (Lean `Fw.Console.LandQueue.afterLand`, `stopKind`; task land-queue-fwcore-rebuild) ----
 // Checked against the golden op `landQueue.afterLand` (test/land-queue.test.ts).
-/** Lean `coreSource`: a path fwcore is built from (TS `FWCORE_BUILD_READS`: `lean/**`, the build script). */
-export const coreSource = (p: string): boolean => p.startsWith("lean/") || p === "scripts/fwcore-build.sh";
+/** Lean `coreSource`: a path fwcore is built from (TS `FWCORE_BUILD_READS`: `lean/**`, the build script and its record rule). */
+export const coreSource = (p: string): boolean => p.startsWith("lean/") || p === "scripts/fwcore-build.sh" || p === "scripts/fwcore-record-rule.sh";
 /** Lean `touchesCore`. */
 export const touchesCore = (paths: string[]): boolean => paths.some(coreSource);
 /** Lean `needsRebuild`: only a finished land whose merged diff touched a core path. */

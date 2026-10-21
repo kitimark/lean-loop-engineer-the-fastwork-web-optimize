@@ -166,7 +166,7 @@ theorem ease_err (c : Bez) (hx1 : 0 ≤ c.x1) (hx2 : c.x1 ≤ 1) (hx3 : 0 ≤ c.
     _ ≤ 3 * (1 / 2 ^ (steps + 1)) := by gcongr
     _ = 3 / 2 ^ (steps + 1) := by ring
 
-/-- The header claim of `Fw.Parts.Bezier`: for `0 < t < 1` and control values in `[0,1]`, the solution `s*` of
+/-- The real-root claim the `Fw.Parts.Bezier` header cites: for `0 < t < 1` and control values in `[0,1]`, the solution `s*` of
 `x(s) = t` in `[0,1]` exists and is unique, `|bisect - s*| ≤ 2^-40` and `|ease - y(s*)| ≤ 3 · 2^-40`. -/
 theorem ease_exact (c : Bez) (hx1 : 0 ≤ c.x1) (hx2 : c.x1 ≤ 1) (hx3 : 0 ≤ c.x2) (hx4 : c.x2 ≤ 1)
     (hy1 : 0 ≤ c.y1) (hy2 : c.y1 ≤ 1) (hy3 : 0 ≤ c.y2) (hy4 : c.y2 ≤ 1) (t : ℚ) (ht0 : 0 < t) (ht1 : t < 1) :

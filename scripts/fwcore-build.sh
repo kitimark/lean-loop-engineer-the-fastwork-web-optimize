@@ -1,15 +1,18 @@
 #!/bin/sh
 # The one way to build the fwcore binary (task console-stale; lean/scripts/check.sh and `fw land` build through it).
-# After a successful build on a clean tree it writes the build record next to the binary:
-#   lean/.lake/build/bin/fwcore.commit  =  "<sha of HEAD read before the build> <sha256 of the built binary>"
+# After a successful build whose files equal the index it writes the build record next to the binary:
+#   lean/.lake/build/bin/fwcore.commit  =  "tree <tree id of the index read before the build> <sha256 of the built binary>"
 # console-api (at each child spawn) and `fw watch` accept a record only when the sha256 of the binary now on disk equals
-# the recorded one (Fw.Obs.chooseBase). Nothing is inferred from file times or the reflog: no record, a record of
-# another binary, or a dirty/mid-merge build leaves the core unknown, which the watcher reports as svc.unknown.
+# the recorded one, and take the newest commit of `main` that has the recorded tree as the base (Fw.Obs.chooseBaseTree).
+# Nothing is inferred from file times or the reflog: no record, a record of another binary, a dirty build, or a tree no
+# commit of `main` has (yet) leaves the core unknown, which the watcher reports as svc.unknown.
 #
-# - HEAD is read BEFORE `lake build`: if `main` moves during the build, the record names the commit built from.
-# - The record is written only after a successful build, only on a tree that is clean before and after the build
-#   (tracked changes, untracked files under lean/) and has no merge, rebase or cherry-pick in progress, and only when
-#   HEAD did not move. Otherwise the old record is removed; the build itself still runs.
+# - The record names the built TREE (`git write-tree`), not HEAD: `fw land` builds the merged tree before the commit that
+#   lands it exists, and that commit has the same tree. A merge, rebase or cherry-pick in progress is no input.
+# - The rule (Fw.Obs.recordTree, scripts/fwcore-record-rule.sh): record the tree only when the working files equalled the
+#   index before and after the build (tracked changes, untracked files under lean/) and the tree did not change.
+#   The old record is NOT removed before the build: a build that changes nothing keeps a record that still matches, and a
+#   relink makes the old record mismatch (unknown) until this script writes the new one.
 # - After the build the binary is stripped of its symbol table (task lean-bin-slim: 104 -> 75 MB on macOS). `strip -o`
 #   writes a new file and `mv` replaces the hard link, so the Lake cache artifact keeps its bytes and Lake still finds
 #   the target up to date; the record hashes the stripped binary. No `strip` on PATH, or a failed strip, keeps the
@@ -24,17 +27,14 @@ set -eu
 root=$(cd "$(dirname "$0")/.." && pwd)
 cd "$root"
 bin=lean/.lake/build/bin/fwcore
-rm -f "$bin.commit"
-c=$(git rev-parse HEAD)
-gitdir=$(git rev-parse --git-dir)
-reason=""
-state_check() {
-  if ! git diff --quiet HEAD -- . || [ -n "$(git ls-files --others --exclude-standard -- lean)" ]; then reason="dirty tree"; fi
-  for m in MERGE_HEAD REBASE_HEAD CHERRY_PICK_HEAD rebase-merge rebase-apply; do
-    if [ -e "$gitdir/$m" ]; then reason="mid-merge or mid-rebase ($m)"; fi
-  done
+. "$root/scripts/fwcore-record-rule.sh"
+# the facts of Fw.Obs.BuildFacts: the tree id of the index (empty: unmerged paths) and whether the files equal it
+tree_now() { git write-tree 2>/dev/null || true; }
+clean_now() {
+  if git diff --quiet -- . && [ -z "$(git ls-files --others --exclude-standard -- lean)" ]; then echo 1; else echo 0; fi
 }
-state_check
+before=$(tree_now)
+clean_before=$(clean_now)
 sha256_of() { if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | cut -d' ' -f1; else shasum -a 256 "$1" | cut -d' ' -f1; fi; }
 . "$root/scripts/lake-slot-lib.sh"
 (cd lean && lake_slot "$root" lake build)
@@ -47,14 +47,13 @@ else
   rm -f "$bin.strip" "$bin.stripped"
   echo "fwcore built; not stripped (no strip on PATH or strip failed)" >&2
 fi
-if [ -z "$reason" ]; then
-  state_check
-  [ "$(git rev-parse HEAD)" = "$c" ] || reason="HEAD moved during the build"
-fi
-if [ -n "$reason" ]; then
-  echo "fwcore built; no build record written ($reason): the binary's commit is unknown to the watcher" >&2
+after=$(tree_now)
+clean_after=$(clean_now)
+t=$(record_rule "$before" "$after" "$clean_before" "$clean_after")
+if [ -z "$t" ]; then
+  echo "fwcore built; no build record written (the files did not equal one tree: dirty, or the index moved during the build); an older record still names this binary only if it was not relinked" >&2
   exit 0
 fi
 h=$(sha256_of "$bin")
-echo "$c $h" > "$bin.commit"
-echo "fwcore built from $c (recorded, sha256 $(echo "$h" | cut -c1-12))"
+echo "tree $t $h" > "$bin.commit.tmp" && mv -f "$bin.commit.tmp" "$bin.commit"
+echo "fwcore built from tree $t (recorded, sha256 $(echo "$h" | cut -c1-12))"
