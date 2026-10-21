@@ -41,6 +41,17 @@
 {"faith":[[1,1]],"kind":"verdict","orig":[],"verdict":"overlap"}
 {"faith":[],"kind":"verdict","orig":[[1,1]],"verdict":"overlap"}
 {"faith":[[2,1],[3,1]],"kind":"verdict","orig":[[1,1],[2,1]],"verdict":"overlap"}
+{"countColumns":["RecalculateStyles","Layout","Paint","Composite","RenderingFrame","FireAnimationFrame","TimerFire","ObserverCallback","EventDispatch","FunctionCall","ScheduleStyleRecalculation","InvalidateLayout","RequestAnimationFrame","TimerInstall","TimerRemove"],"kind":"rareConst","rareMin":10}
+{"ctx":"scroll","faith":[[4,1],[6,1]],"faithSums":[3,9],"kind":"rareCell","name":"TimerInstall","orig":[[1,1],[3,2]],"origSums":[40,52],"rareF":true,"rareO":false,"verdict":"rareBaseline"}
+{"ctx":"morph","faith":[[4,1],[6,1]],"faithSums":[3,9],"kind":"rareCell","name":"TimerInstall","orig":[[1,1],[3,2]],"origSums":[40,52],"rareF":true,"rareO":false,"verdict":"rareBaseline"}
+{"ctx":"scroll","faith":[[4,1],[6,1]],"faithSums":[10,25],"kind":"rareCell","name":"Layout","orig":[[1,1],[3,2]],"origSums":[10,10],"rareF":false,"rareO":false,"verdict":"higher"}
+{"ctx":"scroll","faith":[[4,1],[6,1]],"faithSums":[10,25],"kind":"rareCell","name":"Layout","orig":[[1,1],[3,2]],"origSums":[9,10],"rareF":false,"rareO":true,"verdict":"rareBaseline"}
+{"ctx":"morph","faith":[[1,1],[5,4]],"faithSums":[30,40],"kind":"rareCell","name":"Layout","orig":[[2,1],[3,1]],"origSums":[30,40],"rareF":false,"rareO":false,"verdict":"lower"}
+{"ctx":"idle","faith":[[4,1],[6,1]],"faithSums":[38,36],"kind":"rareCell","name":"Paint","orig":[[1,1],[3,2]],"origSums":[36,35],"rareF":false,"rareO":false,"verdict":"higher"}
+{"ctx":"idle","faith":[[4,1],[6,1]],"faithSums":[36,38],"kind":"rareCell","name":"Paint","orig":[[1,1],[3,2]],"origSums":[4,12],"rareF":false,"rareO":true,"verdict":"rareBaseline"}
+{"ctx":"scroll","faith":[[4,1],[6,1]],"faithSums":[2,3],"kind":"rareCell","name":"PaintUs","orig":[[1,1],[3,2]],"origSums":[0,1],"rareF":false,"rareO":false,"verdict":"higher"}
+{"ctx":"scroll","faith":[[1,1]],"faithSums":[0],"kind":"rareCell","name":"paintArea","orig":[[1,1]],"origSums":[0],"rareF":false,"rareO":false,"verdict":"overlap"}
+{"ctx":"scroll","faith":[],"faithSums":[],"kind":"rareCell","name":"Layout","orig":[],"origSums":[],"rareF":false,"rareO":false,"verdict":"overlap"}
 {"items":[[0,5],[50,9],[100,9],[150,1],[200,7]],"k":3,"kind":"topK","top":[[50,9],[100,9],[200,7]]}
 {"items":[[10,4]],"k":2,"kind":"topK","top":[[10,4]]}
 {"items":[[10,4]],"k":0,"kind":"topK","top":[]}

@@ -1,7 +1,16 @@
 // Twin of lean/Fw/Measure/WebKitLag.lean; test/lag-reduce.test.mjs checks it against golden/measure/webkit-lag.jsonl.
 // Rects are [x0, y0, x1, y1] in integer units (the probe passes quarter CSS px).
+import { readFileSync } from 'node:fs';
 
 export const Q = 4;
+
+/** The constants Lean owns (Fw.Measure.WebKitLag.rareMin, countColumns), read from the generated golden, not typed here. */
+const CONST = readFileSync(new URL('../../../contracts/golden/measure/webkit-lag.jsonl', import.meta.url), 'utf8')
+  .split('\n').filter(Boolean).map((l) => JSON.parse(l)).find((l) => l.kind === 'rareConst');
+/** Fewer baseline events than this in one pass make the baseline of that arm and counter rare (Lean `rareMin`). */
+export const RARE_MIN = CONST.rareMin;
+/** The columns the rare-baseline rule applies to: an allowlist of event counts, never a duration or an area (Lean `countColumns`). */
+export const COUNT_COLUMNS = Object.freeze(CONST.countColumns);
 
 export const area = ([x0, y0, x1, y1]) => Math.max(0, x1 - x0) * Math.max(0, y1 - y0);
 export const inter = (a, b) => [Math.max(a[0], b[0]), Math.max(a[1], b[1]), Math.min(a[2], b[2]), Math.min(a[3], b[3])];
@@ -102,6 +111,15 @@ export function verdict(orig, faith) {
   if (sepBelow(orig, faith)) return 'higher';
   return 'overlap';
 }
+
+/** The baseline of an arm is rare when one of its passes has fewer than `RARE_MIN` events of the counter (Lean: rareBase). */
+export const rareBase = (passSums) => passSums.some((x) => x < RARE_MIN);
+
+/** The rare-baseline flag of one cell: `name` is a count column and `rareBase` of its per-pass baseline sums (Lean: flagged). */
+export const flagged = (name, passSums) => COUNT_COLUMNS.includes(name) && rareBase(passSums);
+
+/** The verdict on a ratio: none when either arm's baseline is rare, else the range verdict (Lean: ratioVerdict). */
+export const ratioVerdict = (rareO, rareF, orig, faith) => (rareO || rareF ? 'rareBaseline' : verdict(orig, faith));
 
 /** The `k` items with the largest value, [y, value] pairs, highest first, equal values in input order. */
 export const topK = (k, items) =>

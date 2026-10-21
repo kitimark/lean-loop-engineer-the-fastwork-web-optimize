@@ -6,7 +6,7 @@ import { COUNT_TYPES, bucketBySteps } from '../reduce.mjs';
 import { MORPH_FRAMES, scanSteps } from './probe.mjs';
 import {
   Q, regionOf, regionLedger, stepArea, topPart, rollup, rankWindows, colRatio, colSum, frac, fracLt, verdict, topK,
-  filterTotals, byKey,
+  filterTotals, byKey, RARE_MIN, flagged, ratioVerdict,
 } from './reduce.mjs';
 
 /** Timeline record types counted besides COUNT_TYPES (present in the raw records, not in the lane's columns). */
@@ -102,12 +102,16 @@ const regionRows = (it, region) => it.rows.filter((_, i) => regionOf(it.vh, it.m
 function counterTable(wins, bases, fR, fC) {
   const w = wins.flat(), b = bases.flat();
   const { ranked, unranked } = rankWindows(fR, fC, w, b, COLUMNS);
-  const rows = COLUMNS.map((name, j) => ({
-    name, perFrame: sum(w.map((r) => r[j])) / (fR * (w.length || 1)), baseFrame: sum(b.map((r) => r[j])) / (fC * (b.length || 1)),
-    ratio: colRatio(fR, fC, w, b, j), perPass: wins.map((x, i) => colRatio(fR, fC, x, bases[i], j)).filter((x) => x !== null),
-    absPass: wins.filter((x) => x.length).map((x) => frac(colSum(x, j), fR * x.length)),
-    rank: ranked.findIndex(([n]) => n === name) + 1 || null,
-  }));
+  const rows = COLUMNS.map((name, j) => {
+    const basePass = bases.map((x) => colSum(x, j));
+    return {
+      name, perFrame: sum(w.map((r) => r[j])) / (fR * (w.length || 1)), baseFrame: sum(b.map((r) => r[j])) / (fC * (b.length || 1)),
+      ratio: colRatio(fR, fC, w, b, j), perPass: wins.map((x, i) => colRatio(fR, fC, x, bases[i], j)).filter((x) => x !== null),
+      absPass: wins.filter((x) => x.length).map((x) => frac(colSum(x, j), fR * x.length)),
+      rank: ranked.findIndex(([n]) => n === name) + 1 || null,
+      basePass, rare: flagged(name, basePass),
+    };
+  });
   return { rows, unranked, rowsInWindow: w.length, rowsInBaseline: b.length, passes: wins.length };
 }
 
@@ -245,22 +249,22 @@ const fmt = (x, d) => {
 const span = (lo, hi) => (lo === hi ? lo : `${lo}-${hi}`);
 const rng = (qs, d) => { const r = rangeOf(qs); return r ? span(fmt(num(r[0]), d), fmt(num(r[1]), d)) : '-'; };
 const rngN = (xs, d) => (xs.length ? span(fmt(Math.min(...xs), d), fmt(Math.max(...xs), d)) : '-');
-const DIFF = { lower: 'faithful lower', higher: 'faithful higher', overlap: 'no difference shown (ranges overlap)' };
+const DIFF = { lower: 'faithful lower', higher: 'faithful higher', overlap: 'no difference shown (ranges overlap)', rareBaseline: 'not stated (rare baseline)' };
+const RARE_MARK = ' (*)';
 const nameOf = (c) => (c.endsWith('Us') ? `${c.slice(0, -2)} (us)` : c === 'paintArea' ? 'paintArea (px^2)' : c);
 const asFrac = (xs) => xs.map((x) => frac(Math.round(x * PX2), PX2));
 
 /** The ranked table of one region, both arms side by side, ordered by the first arm's rank. */
 function regionTable(label, tabs, names, unit) {
   const [o, f] = tabs;
-  const L = [`| counter | ${unit} ${names[0]} / ${names[1] ?? '-'} | baseline ${names[0]} / ${names[1] ?? '-'} | ratio ${names[0]} (per-pass range) | rank | ratio ${names[1] ?? '-'} (per-pass range) | rank | difference of the ratio | difference of the ${unit} value |`, '|---|---|---|---|---|---|---|---|---|'];
+  const L = [`| counter | ${unit} ${names[0]} / ${names[1] ?? '-'} | baseline ${names[0]} / ${names[1] ?? '-'} | ratio ${names[0]} (per-pass range) | rank ${names[0]} | ratio ${names[1] ?? '-'} (per-pass range) | rank ${names[1] ?? '-'} | difference of the ratio | difference of the ${unit} value |`, '|---|---|---|---|---|---|---|---|---|'];
   const order = [...o.rows].sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99) || COLUMNS.indexOf(a.name) - COLUMNS.indexOf(b.name));
   for (const r of order) {
     const q = f?.rows.find((x) => x.name === r.name);
-    const cell = (x) => (x?.ratio ? `${fmt(num(x.ratio))} (${rng(x.perPass)})` : 'no baseline');
-    const low = !r.name.endsWith('Us') && r.name !== 'paintArea' && r.ratio && r.baseFrame < 0.5 ? ' (*)' : '';
-    L.push(`| ${nameOf(r.name)}${low} | ${fmt(r.perFrame)} / ${q ? fmt(q.perFrame) : '-'} | ${fmt(r.baseFrame)} / ${q ? fmt(q.baseFrame) : '-'} | ${cell(r)} | ${r.rank ?? '-'} | ${q ? cell(q) : '-'} | ${q?.rank ?? '-'} | ${q && r.perPass.length && q.perPass.length ? DIFF[diffOf(r.perPass, q.perPass)] : '-'} | ${q && r.absPass.length && q.absPass.length ? DIFF[diffOf(r.absPass, q.absPass)] : '-'} |`);
+    const cell = (x) => (x?.ratio ? `${fmt(num(x.ratio))} (${rng(x.perPass)})${x.rare ? RARE_MARK : ''}` : 'no baseline');
+    L.push(`| ${nameOf(r.name)} | ${fmt(r.perFrame)} / ${q ? fmt(q.perFrame) : '-'} | ${fmt(r.baseFrame)} / ${q ? fmt(q.baseFrame) : '-'} | ${cell(r)} | ${r.rank ?? '-'} | ${q ? cell(q) : '-'} | ${q?.rank ?? '-'} | ${q && r.perPass.length && q.perPass.length ? DIFF[ratioVerdict(r.rare, q.rare, r.perPass, q.perPass)] : '-'} | ${q && r.absPass.length && q.absPass.length ? DIFF[diffOf(r.absPass, q.absPass)] : '-'} |`);
   }
-  L.push('', 'The ratio compares a window with the same arm\'s calm baseline, so an arm difference of the ratio can come from the baseline; the last column decides on the per-pass value itself. (*) the baseline is below 0.5 events per frame: one event more or less moves the ratio by a factor of 2 or more, so its rank is unstable. Duration columns (us) are Simulator-host microseconds summed over the records of the type; records nest (a Layout inside a FunctionCall), so durations are not additive across types.');
+  L.push('', `The ratio compares a window with the same arm's calm baseline, so an arm difference of the ratio can come from the baseline; the last column decides on the per-pass value itself. (*) the baseline of that arm has fewer than ${RARE_MIN} events of the counter in at least one pass (Lean rareBase, event counts only), so its ratio and rank are unstable and no difference of the ratio is stated for the row. Duration columns (us) are Simulator-host microseconds summed over the records of the type; records nest (a Layout inside a FunctionCall), so durations are not additive across types.`);
   return L.join('\n');
 }
 
@@ -273,12 +277,14 @@ function partsCompare(a, b, names) {
   const bm = new Map((b?.parts ?? []).map((p) => [p.name, p]));
   const union = [...new Set([...am.keys(), ...bm.keys()])].sort((x, y) => Math.max(am.get(y)?.mean ?? 0, bm.get(y)?.mean ?? 0) - Math.max(am.get(x)?.mean ?? 0, bm.get(x)?.mean ?? 0));
   const cell = (q) => (q ? `${fmt(q.mean, 0)} (${rngN(q.perPass, 0)})` : 'not in this arm');
-  for (const name of union.slice(0, 10)) {
+  const SHOWN = 10;
+  for (const name of union.slice(0, SHOWN)) {
     const p = am.get(name);
     const q = bm.get(name);
     const both = p && q && sum(p.perPass) > 0 && sum(q.perPass) > 0;
-    L.push(`| ${name} | ${cell(p)} | ${p ? `${fmt(100 * p.share, 0)}%` : '-'} | ${cell(q)} | ${q ? `${fmt(100 * q.share, 0)}%` : '-'} | ${both ? DIFF[diffOf(asFrac(p.perPass), asFrac(q.perPass))] : 'not compared (part absent in one arm)'} |`);
+    L.push(`| ${name} | ${cell(p)} | ${p ? `${fmt(100 * p.share, 0)}%` : '-'} | ${cell(q)} | ${q ? `${fmt(100 * q.share, 0)}%` : '-'} | ${both ? DIFF[diffOf(asFrac(p.perPass), asFrac(q.perPass))] : p && q ? 'not compared (zero in one arm)' : 'not compared (part absent in one arm)'} |`);
   }
+  if (union.length > SHOWN) L.push('', `${union.length - SHOWN} more parts not shown`);
   return L.join('\n');
 }
 
@@ -326,10 +332,10 @@ export function reportMd(arms) {
       `Per-frame values. The calm baseline is the calm scroll steps of the same pass divided by ${fps} frames per step. The nav box differs from the idle tail in ${names.map((n, i) => `${fmt(an[i].morph.phases[ph].activeFrames, 0)} (${n})`).join(', ')} of the frames.`, '',
       regionTable('morph', an.map((a) => a.morph.phases[ph].table), names, 'per frame'), '',
       `Counters with no calm baseline (not ranked): ${names.map((n, i) => `${n} ${an[i].morph.phases[ph].table.unranked.map(nameOf).join(', ') || 'none'}`).join('; ')}.`, '',
-      `Against the idle page tail (the 10 frames before the push, nothing moving) instead; ratio, rank 1-3:`, '',
+      `Against the idle page tail (the 10 frames before the push, nothing moving) instead; ratio, rank 1-3; (*) as above, the idle baseline of that arm has fewer than ${RARE_MIN} events of the counter in at least one pass:`, '',
       ...names.map((n, i) => {
         const t = an[i].morph.phases[ph].tableIdle;
-        return `- ${n}: ${t.rows.filter((r) => r.rank && r.rank <= 3).sort((x, y) => x.rank - y.rank).map((r) => `${nameOf(r.name)} x${fmt(num(r.ratio))} (${rng(r.perPass)})`).join(', ')}; no idle baseline: ${t.unranked.map(nameOf).join(', ') || 'none'}`;
+        return `- ${n}: ${t.rows.filter((r) => r.rank && r.rank <= 3).sort((x, y) => x.rank - y.rank).map((r) => `${nameOf(r.name)} x${fmt(num(r.ratio))} (${rng(r.perPass)})${r.rare ? RARE_MARK : ''}`).join(', ')}; no idle baseline: ${t.unranked.map(nameOf).join(', ') || 'none'}`;
       }), '',
       `Paint area by part (css px^2 per pass; the two arms have different part tables, see Region A):`, '', partsCompare(o.morph.phases[ph], f?.morph.phases[ph], names), '',
       ...names.map((n, i) => `- ${n}, leaf parts: ${partsMd(an[i].morph.phases[ph].leaves, 8)}`), '');

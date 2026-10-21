@@ -4,14 +4,14 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { owner, regionOf, zoneOf, regionLedger, stepArea, stepCount, topPart, rollup, rankRegion, rankWindows, verdict, topK, filterTotals, excess } from '../src/lag/reduce.mjs';
+import { owner, regionOf, zoneOf, regionLedger, stepArea, stepCount, topPart, rollup, rankRegion, rankWindows, verdict, topK, filterTotals, excess, RARE_MIN, COUNT_COLUMNS, rareBase, flagged, ratioVerdict } from '../src/lag/reduce.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const lines = readFileSync(join(here, '../../contracts/golden/measure/webkit-lag.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
 const of = (kind) => lines.filter((l) => l.kind === kind);
 
 test('every golden kind has lines', () => {
-  for (const k of ['owner', 'region', 'ledger', 'rank', 'rankWindows', 'rankScaled', 'verdict', 'topK', 'filter']) assert.ok(of(k).length > 0, k);
+  for (const k of ['owner', 'region', 'ledger', 'rank', 'rankWindows', 'rankScaled', 'verdict', 'rareConst', 'rareCell', 'topK', 'filter']) assert.ok(of(k).length > 0, k);
 });
 
 test('owner: the smallest covering box', () => {
@@ -64,6 +64,38 @@ test('raw excess does flip with the unit (why the probe ranks by ratio)', () => 
 
 test('arm verdict from per-pass ranges', () => {
   for (const g of of('verdict')) assert.equal(verdict(g.orig, g.faith), g.verdict, JSON.stringify([g.orig, g.faith]));
+});
+
+test('the rare-baseline constants are the Lean ones', () => {
+  const [c] = of('rareConst');
+  assert.equal(RARE_MIN, c.rareMin);
+  assert.deepEqual([...COUNT_COLUMNS], c.countColumns);
+});
+
+test('rare baseline: the flag and the ratio verdict per cell, the same in every table', () => {
+  for (const g of of('rareCell')) {
+    const rareO = flagged(g.name, g.origSums), rareF = flagged(g.name, g.faithSums);
+    assert.equal(rareO, g.rareO, `${g.ctx} ${g.name} original`);
+    assert.equal(rareF, g.rareF, `${g.ctx} ${g.name} faithful`);
+    assert.equal(ratioVerdict(rareO, rareF, g.orig, g.faith), g.verdict, `${g.ctx} ${g.name}`);
+    assert.equal(g.verdict === 'rareBaseline', rareO || rareF);
+    assert.equal(rareBase(g.origSums) && COUNT_COLUMNS.includes(g.name), rareO);
+  }
+  const byCell = new Map();
+  for (const g of of('rareCell')) {
+    const key = JSON.stringify([g.name, g.origSums, g.faithSums]);
+    byCell.set(key, [...(byCell.get(key) ?? []), [g.ctx, g.rareO, g.rareF]]);
+  }
+  assert.ok([...byCell.values()].some((v) => new Set(v.map((x) => x[0])).size > 1), 'a cell appears in two tables');
+  for (const v of byCell.values()) assert.equal(new Set(v.map((x) => `${x[1]}${x[2]}`)).size, 1);
+});
+
+test('the golden has a faithful-only rare cell, the boundary, a duration and the 10-frame idle baseline', () => {
+  const rows = of('rareCell');
+  assert.ok(rows.some((g) => g.rareF && !g.rareO && g.verdict === 'rareBaseline'));
+  assert.ok(rows.some((g) => g.origSums.every((x) => x === RARE_MIN) && !g.rareO));
+  assert.ok(rows.some((g) => g.name.endsWith('Us') && !g.rareO && !g.rareF));
+  assert.ok(rows.some((g) => g.ctx === 'idle'));
 });
 
 test('top steps of a region', () => {

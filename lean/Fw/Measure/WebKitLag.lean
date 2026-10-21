@@ -544,11 +544,12 @@ inductive Verdict where
   | lower     -- every faithful pass is below every original pass
   | higher    -- every faithful pass is above every original pass
   | overlap   -- the ranges overlap, or an arm has no pass: no difference is shown
+  | rareBaseline -- a baseline is too sparse: no ratio verdict is issued
   deriving DecidableEq, Repr
 
 /-- The word written in the output. -/
 def Verdict.name : Verdict → String
-  | .lower => "lower" | .higher => "higher" | .overlap => "overlap"
+  | .lower => "lower" | .higher => "higher" | .overlap => "overlap" | .rareBaseline => "rareBaseline"
 
 /-- The verdict from the per-pass values of the original arm and of the faithful arm. An arm difference is stated only when
 the ranges are separated. -/
@@ -619,6 +620,84 @@ theorem verdict_swap_lower {o f : List Rat} (h : verdict o f = .lower) : verdict
       have hf : f ≠ [] := by intro h0; simp [h0] at e1'
       exact verdict_higher hf ho hs
     · split at h <;> simp at h
+
+/-! ## Rare baselines: a ratio over a handful of events is not decided -/
+
+/-- A baseline with fewer events than this in one pass is rare. -/
+def rareMin : Int := 10
+
+/-- The allowlist of columns the rare rule applies to: the lane's `COUNT_TYPES` and its three extra event counts. -/
+def countColumns : List String :=
+  ["RecalculateStyles", "Layout", "Paint", "Composite", "RenderingFrame", "FireAnimationFrame", "TimerFire",
+   "ObserverCallback", "EventDispatch", "FunctionCall", "ScheduleStyleRecalculation", "InvalidateLayout",
+   "RequestAnimationFrame", "TimerInstall", "TimerRemove"]
+
+/-- The baseline of one arm is rare when one of its passes has fewer than `rareMin` events (`passSums`: events per pass). -/
+def rareBase (passSums : List Int) : Bool := passSums.any fun s => decide (s < rareMin)
+
+/-- The flag of one cell: a counted column whose per-pass baseline sums are rare. The same in every table. -/
+def flagged (name : String) (passSums : List Int) : Bool := countColumns.contains name && rareBase passSums
+
+/-- **Rare, by one pass.** A pass below `rareMin` makes the baseline rare. -/
+theorem rareBase_of_lt {s : Int} {l : List Int} (hm : s ∈ l) (h : s < rareMin) : rareBase l = true := by
+  simp only [rareBase, List.any_eq_true, decide_eq_true_eq]
+  exact ⟨s, hm, h⟩
+
+/-- **Not rare.** Every pass at or above `rareMin` is not rare. -/
+theorem rareBase_false_of_ge {l : List Int} (h : ∀ s ∈ l, rareMin ≤ s) : rareBase l = false := by
+  cases hb : rareBase l
+  · rfl
+  · exfalso
+    simp only [rareBase, List.any_eq_true, decide_eq_true_eq] at hb
+    obtain ⟨s, hs, hlt⟩ := hb
+    exact Int.not_le.mpr hlt (h s hs)
+
+/-- No pass, no rare baseline. -/
+theorem rareBase_nil : rareBase [] = false := rfl
+
+/-- **Allowlist.** A column outside `countColumns` is never flagged. -/
+theorem flagged_of_not_mem {name : String} (h : name ∉ countColumns) (l : List Int) : flagged name l = false := by
+  simp [flagged, h]
+
+/-- **Counted and rare.** A counted column with a rare baseline is flagged. -/
+theorem flagged_of_rare {name : String} (h : name ∈ countColumns) {l : List Int} (hr : rareBase l = true) :
+    flagged name l = true := by
+  simp [flagged, h, hr]
+
+/-- **Counted and not rare.** A counted column with a baseline that is not rare is not flagged. -/
+theorem flagged_of_not_rare {name : String} {l : List Int} (hr : rareBase l = false) : flagged name l = false := by
+  simp [flagged, hr]
+
+/-- Durations and the paint area are not in the allowlist. -/
+theorem flagged_duration (l : List Int) :
+    ["RecalculateStylesUs", "LayoutUs", "PaintUs", "CompositeUs", "FunctionCallUs", "paintArea"].all
+      (fun n => flagged n l == false) = true := by
+  simp [flagged, countColumns]
+
+/-- The verdict on the ratio of one counter: none when either arm’s baseline is rare, else `verdict`. -/
+def ratioVerdict (rareO rareF : Bool) (orig faith : List Rat) : Verdict :=
+  if rareO || rareF then .rareBaseline else verdict orig faith
+
+/-- **Original rare.** A rare original baseline gives `rareBaseline`, whatever the ranges. -/
+theorem ratioVerdict_rare_orig (rareF : Bool) (o f : List Rat) : ratioVerdict true rareF o f = .rareBaseline := by
+  simp [ratioVerdict]
+
+/-- **Faithful rare.** A rare faithful baseline gives `rareBaseline`, whatever the ranges. -/
+theorem ratioVerdict_rare_faith (rareO : Bool) (o f : List Rat) : ratioVerdict rareO true o f = .rareBaseline := by
+  simp [ratioVerdict]
+
+/-- **Both calm.** With no rare baseline the ratio verdict is `verdict`. -/
+theorem ratioVerdict_calm (o f : List Rat) : ratioVerdict false false o f = verdict o f := by
+  simp [ratioVerdict]
+
+/-- The range verdict never says `rareBaseline`; only `ratioVerdict` does. -/
+theorem verdict_ne_rareBaseline (o f : List Rat) : verdict o f ≠ .rareBaseline := by
+  unfold verdict
+  split
+  · simp
+  · split
+    · simp
+    · split <;> simp
 
 /-! ## Top steps of a region -/
 
@@ -736,6 +815,19 @@ private def verdictCases : List (List Rat × List Rat) :=
   [([Q 3 2, Q 5 3, Q 7 4], [Q 1 1, Q 5 4, Q 4 3]), ([Q 1 1, Q 5 4], [Q 3 2, Q 5 3]), ([Q 1 1, Q 3 2], [Q 5 4, Q 5 3]),
    ([Q 3 2], [Q 3 2]), ([], [Q 1 1]), ([Q 1 1], []), ([Q 1 1, Q 2 1], [Q 2 1, Q 3 1])]
 
+/-- (table, counter, original per-pass baseline sums, faithful per-pass baseline sums, original ratios, faithful ratios). -/
+private def rareCases : List (String × String × List Int × List Int × List Rat × List Rat) :=
+  [("scroll", "TimerInstall", [40, 52], [3, 9], [Q 1 1, Q 3 2], [Q 4 1, Q 6 1]),
+   ("morph", "TimerInstall", [40, 52], [3, 9], [Q 1 1, Q 3 2], [Q 4 1, Q 6 1]),
+   ("scroll", "Layout", [10, 10], [10, 25], [Q 1 1, Q 3 2], [Q 4 1, Q 6 1]),
+   ("scroll", "Layout", [9, 10], [10, 25], [Q 1 1, Q 3 2], [Q 4 1, Q 6 1]),
+   ("morph", "Layout", [30, 40], [30, 40], [Q 2 1, Q 3 1], [Q 1 1, Q 5 4]),
+   ("idle", "Paint", [36, 35], [38, 36], [Q 1 1, Q 3 2], [Q 4 1, Q 6 1]),
+   ("idle", "Paint", [4, 12], [36, 38], [Q 1 1, Q 3 2], [Q 4 1, Q 6 1]),
+   ("scroll", "PaintUs", [0, 1], [2, 3], [Q 1 1, Q 3 2], [Q 4 1, Q 6 1]),
+   ("scroll", "paintArea", [0], [0], [Q 1 1], [Q 1 1]),
+   ("scroll", "Layout", [], [], [], [])]
+
 private def topCases : List (Nat × List (Int × Int)) :=
   [(3, [(0, 5), (50, 9), (100, 9), (150, 1), (200, 7)]), (2, [(10, 4)]), (0, [(10, 4)]), (4, [])]
 
@@ -773,6 +865,12 @@ private def goldenLines (_ : Unit) : List String :=
   (verdictCases.map fun (o, f) =>
     (Json.mkObj [("kind", "verdict"), ("orig", Json.arr (o.map qj).toArray), ("faith", Json.arr (f.map qj).toArray),
       ("verdict", (verdict o f).name)]).compress) ++
+  [(Json.mkObj [("kind", "rareConst"), ("rareMin", rareMin), ("countColumns", toJson countColumns)]).compress] ++
+  (rareCases.map fun (ctx, name, so, sf, ro, rf) =>
+    (Json.mkObj [("kind", "rareCell"), ("ctx", ctx), ("name", name), ("origSums", toJson so), ("faithSums", toJson sf),
+      ("orig", Json.arr (ro.map qj).toArray), ("faith", Json.arr (rf.map qj).toArray),
+      ("rareO", flagged name so), ("rareF", flagged name sf),
+      ("verdict", (ratioVerdict (flagged name so) (flagged name sf) ro rf).name)]).compress) ++
   (topCases.map fun (k, items) =>
     (Json.mkObj [("kind", "topK"), ("k", k), ("items", toJson (items.map fun p => [p.1, p.2])),
       ("top", toJson ((topK k items).map fun p => [p.1, p.2]))]).compress) ++

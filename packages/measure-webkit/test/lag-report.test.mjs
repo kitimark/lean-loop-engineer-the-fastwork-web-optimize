@@ -24,13 +24,15 @@ function run(n, paints, extra = () => 0) {
 
 const boxes = [{ name: 'hero-deck', rect: [0, 0, 400, 400] }, { name: 'hero', rect: [0, 0, 400, 1600] }, { name: 'platform', rect: [0, 2000, 400, 4000] }];
 
-/** `layoutA` Layout rows per step in region A (the first three steps), so two sessions can differ. */
-function session(layoutA = 4) {
-  const ys = [0, 50, 100, 150, 300, 500, 800, 900, 1000];
+/** The scroll positions of `nCalm` calm steps (vh 100, maxY 1000: calm is 200 to 800) between region A and region B. */
+const positions = (nCalm) => [0, 50, 100, ...Array.from({ length: nCalm }, (_, i) => 250 + 10 * i), 900, 1000];
+
+/** `layoutA` Layout rows per step in region A (the first three steps), so two sessions can differ; `idleLayouts` idle frames carry a Layout. */
+function session(layoutA = 4, ys = [0, 50, 100, 150, 300, 500, 800, 900, 1000], idleLayouts = 0) {
   const r = run(ys.length, (k) => (k < 3 ? [quad(0, ys[k], 90, ys[k] + 90)] : [quad(0, 500 + ys[k], 10, 520 + ys[k])]), (k) => (k < 3 ? layoutA : 1));
   const scroll = { info, ys, marks: r.marks, endTime: r.endTime, records: r.rows, reduced: reduceSteps(r.rows, r.marks, r.endTime) };
   const n = MORPH_FRAMES.idle + MORPH_FRAMES.open + MORPH_FRAMES.close;
-  const m = run(n, (k) => (k >= MORPH_FRAMES.idle ? [quad(0, 500, 12, 515)] : []), (k) => (k >= MORPH_FRAMES.idle ? 3 : 0));
+  const m = run(n, (k) => (k >= MORPH_FRAMES.idle ? [quad(0, 500, 12, 515)] : []), (k) => (k >= MORPH_FRAMES.idle ? 3 : k < idleLayouts ? 1 : 0));
   const morph = { info, marks: m.marks, endTime: m.endTime, records: m.rows, reduced: reduceSteps(m.rows, m.marks, m.endTime), taken: [true, true], scrollTo: 7, before: { morph: '0' }, after: { morph: '0' }, platform: null };
   const geometry = {
     info, ys, census: [{ scrollY: 0, layerCount: 3, memoryBytes: 1e6, filterLayers: [] }],
@@ -107,6 +109,58 @@ test('a part that only the second arm has is still in the parts table', () => {
   b.scroll.A.parts.push({ name: 'pain', perPass: [5, 7], mean: 6e9, share: 0.1 });
   const row = reportMd([['x', a], ['y', b]]).split('\n').find((l) => l.startsWith('| pain |'));
   assert.ok(row?.includes('not in this arm') && row.endsWith('| not compared (part absent in one arm) |'), row);
+});
+
+const rowOf = (md, name) => md.split('\n').find((l) => l.startsWith(`| ${name} | `));
+
+test('the rare flag is decided per arm: a rare faithful baseline alone is flagged and has no ratio verdict', () => {
+  const o = analyzeArm([session(4, positions(20))]), f = analyzeArm([session(4, positions(8))]);
+  const layout = (a) => a.scroll.A.table.rows.find((r) => r.name === 'Layout');
+  assert.deepEqual(layout(o).basePass, [20, 20]);
+  assert.deepEqual(layout(f).basePass, [8, 8]);
+  assert.equal(layout(o).rare, false);
+  assert.equal(layout(f).rare, true);
+  const cells = rowOf(reportMd([['original', o], ['faithful', f]]), 'Layout').split(' | ');
+  assert.ok(!cells[3].includes('(*)') && cells[5].includes('(*)'), cells.join(' | '));
+  assert.equal(cells[7], 'not stated (rare baseline)');
+  const calm = rowOf(reportMd([['original', o], ['faithful', analyzeArm([session(4, positions(20))])]]), 'Layout').split(' | ');
+  assert.ok(!calm[3].includes('(*)') && !calm[5].includes('(*)') && calm[7] === 'no difference shown (ranges overlap)', calm.join(' | '));
+});
+
+test('the same calm baseline is flagged alike in the scroll and the morph tables', () => {
+  for (const nCalm of [8, 20]) {
+    const a = analyzeArm([session(4, positions(nCalm))]);
+    const at = (t) => t.rows.find((r) => r.name === 'Layout');
+    const scrollA = at(a.scroll.A.table), scrollB = at(a.scroll.B.table);
+    for (const ph of ['open', 'close']) {
+      assert.deepEqual(at(a.morph.phases[ph].table).basePass, scrollA.basePass);
+      assert.equal(at(a.morph.phases[ph].table).rare, scrollA.rare);
+    }
+    assert.equal(scrollB.rare, scrollA.rare);
+    assert.equal(scrollA.rare, nCalm === 8);
+  }
+});
+
+test('durations and the paint area are never flagged, and the 10-frame idle baseline is flagged by the same rule', () => {
+  const a = analyzeArm([session(4, positions(8), 5)]);
+  const row = (t, n) => t.rows.find((r) => r.name === n);
+  for (const n of ['LayoutUs', 'PaintUs', 'paintArea']) assert.equal(row(a.scroll.A.table, n).rare, false, n);
+  const idle = row(a.morph.phases.open.tableIdle, 'Layout');
+  assert.deepEqual(idle.basePass, [5, 5]);
+  assert.equal(idle.rare, true);
+  const md = reportMd([['x', a]]);
+  assert.match(md, /- x: Layout x[\d.]+ \([\d.-]+\) \(\*\)/);
+  assert.ok(md.includes('has fewer than 10 events'), 'the footnote is generated from rareMin');
+});
+
+test('a part that is zero in one arm says so, and parts beyond the table say how many', () => {
+  const a = analyzeArm([session()]), b = analyzeArm([session()]);
+  b.scroll.A.parts.push({ name: 'pain', perPass: [0, 0], mean: 0, share: 0 });
+  a.scroll.A.parts.push({ name: 'pain', perPass: [3, 4], mean: 3.5, share: 0.1 });
+  for (let i = 0; i < 11; i++) a.scroll.A.parts.push({ name: `extra${i}`, perPass: [1, 1], mean: 1, share: 0 });
+  const md = reportMd([['x', a], ['y', b]]);
+  assert.ok(rowOf(md, 'pain')?.endsWith('| not compared (zero in one arm) |'), rowOf(md, 'pain'));
+  assert.match(md, /\n3 more parts not shown\n/);
 });
 
 test('the markdown has a section per region and a layer census', () => {
