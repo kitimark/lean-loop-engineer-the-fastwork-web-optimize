@@ -247,7 +247,7 @@ def cases : List (String × String) := [
   ("incident 2026-10-21: run 39457767229 carried morph.tween:waapi-scoped, cited for morph.tween:waapi",
     req "{\"run\":\"39457767229\",\"arms\":[\"\",\"\",\"?fw=morph.tween:waapi-scoped\"]}"
       "{\"run\":\"39457767229\",\"flag\":\"morph.tween:waapi\"},{\"run\":\"39457767229\",\"flag\":\"morph.tween:waapi-scoped\"}"),
-  ("an A/A run carried only the faithful variant: a flag citation is a mismatch",
+  ("a run that carried another flag: a citation for a flag it did not carry is a mismatch",
     req "{\"run\":\"1\",\"arms\":[\"\",\"\",\"?fw=hero.exit:faithful\"]}"
       "{\"run\":\"1\",\"flag\":\"morph.tween:waapi\"},{\"run\":\"1\",\"flag\":\"hero.exit:faithful\"}"),
   ("a run with no query on any arm carried nothing",

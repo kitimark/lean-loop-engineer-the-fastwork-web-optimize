@@ -25,7 +25,6 @@ Ledger run (2026-10-21, research/findings/ledger.json): 22 citations of 14 runs,
 Open items
 - Evidence has no role syntax for A/A or sibling-flag runs, so those citations count as mismatches. Follow-up: a
   role marker (such as `A/A 394...`) that the ledger reader skips, or per-run flags in the ledger schema.
-- The node test is not in any package test script; CI runs it only if a workflow adds it.
-- Writes outside the graph: lean/Fw/Wire/Gate.lean, lean/scripts/RunCiteGolden.lean, lean/scripts/check.sh.
+- The node test runs by hand only (no package script or CI). Writes outside the graph: lean/Fw/Wire/Gate.lean, lean/scripts/RunCiteGolden.lean, lean/scripts/check.sh.
 
 Read first: docs/team/tools/run-cite.md, then lean/Fw/Gate/RunCite.lean `verdict`.
