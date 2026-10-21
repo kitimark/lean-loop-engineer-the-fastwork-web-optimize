@@ -1,5 +1,6 @@
 /-! Adaptive local work queue (task local-adaptive-queue): the AIMD concurrency controller, admission by per-kind memory
-footprint, holders identified by owner and a renewed lease, the Simulator kind, the stop rule and the review result cache. -/
+footprint, holders identified by owner and a renewed lease, the Simulator kind and its priority, the lead's admission of
+a new builder, the stop rule and the review result cache. -/
 namespace Fw.Sup.Adapt
 
 /-- A kind of heavy local work. -/
@@ -17,7 +18,8 @@ def Kind.ofName? (s : String) : Option Kind := Kind.all.find? (·.name == s)
 #guard Kind.all.all fun k => Kind.ofName? k.name == some k
 #guard Kind.ofName? "lake" == none
 
-/-- Controller, footprint, lease and Simulator parameters (initial values, revised from the sampler tables). -/
+/-- Controller, footprint, lease, Simulator and builder-admission parameters (initial values, revised from the sampler
+tables). -/
 structure Params where
   nMin : Nat := 1
   nMax : Nat := 4
@@ -40,6 +42,10 @@ structure Params where
   leaseMaxS : Nat := 3600
   simIdleS : Nat := 600
   graceMs : Nat := 5000
+  simPollS : Nat := 30
+  buildMB : Nat := 2100
+  agentsMax : Nat := 8
+  agentsAgeS : Nat := 900
 deriving DecidableEq, Repr
 
 /-- One probe sample: time (s), 1-min load times 100, free memory, RAM, compressor and swap used (MB), online cores. -/
@@ -371,7 +377,9 @@ inductive Why where
   | older
   | full (running limit : Nat)
   | simBusy
+  | drain (others : Nat)
   | memory (needMB roomMB : Nat)
+  | simFirst
 deriving DecidableEq, Repr
 
 inductive Verdict where
@@ -390,31 +398,63 @@ def aheadSame (q : List Entry) (me : Entry) : Nat := ((before q me).filter (fun 
 
 def simHeld (now : Nat) (hs : List Entry) : Bool := (prune now hs).any (fun h => h.kind == .sim)
 
+/-- Whether a live holder of kind `k` exists. -/
+def heldOf (now : Nat) (hs : List Entry) (k : Kind) : Bool := (prune now hs).any (fun h => h.kind == k)
+
+theorem heldOf_sim (now : Nat) (hs : List Entry) : heldOf now hs .sim = simHeld now hs := rfl
+
+/-- Live holders of a kind other than `sim`. -/
+def others (now : Nat) (hs : List Entry) : Nat := ((prune now hs).filter (fun h => h.kind != .sim)).length
+
+/-- A Simulator ticket is queued while no Simulator slot is held. -/
+def simPending (now : Nat) (hs q : List Entry) : Bool := q.any (fun e => e.kind == .sim) && !simHeld now hs
+
 /-- A ticket of another kind ahead of `me` has waited `ageS` seconds and can itself run (not a Simulator ticket while
 the Simulator is held): kinds then share one FIFO order. -/
 def starved (p : Params) (now : Nat) (hs q : List Entry) (me : Entry) : Bool :=
   (before q me).any (fun e => e.kind != me.kind && decide (e.since + p.ageS ≤ now) && !(e.kind == .sim && simHeld now hs))
 
-/-- The decision for ticket `me` in queue `q` (FIFO order) under concurrency `n`, holders `hs` and sample `s`. -/
+/-- A ticket of another kind steps aside for the Simulator. While a Simulator slot is held, it waits for every other
+holder to finish. While a Simulator ticket is pending, it also waits unless one slot and the Simulator footprint above
+the floor stay free after it starts. -/
+def yieldsToSim (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) : Bool :=
+  me.kind != .sim &&
+    ((simHeld s.time hs && decide (0 < others s.time hs)) ||
+      (simPending s.time hs q &&
+        (decide (0 < others s.time hs) || decide (n < (prune s.time hs).length + 2) ||
+          decide (s.freeMB < need p s hs me.kind + p.floorMB + charged p s.time hs + p.simMB))))
+
+/-- The decision for ticket `me` in queue `q` (FIFO order) under concurrency `n`, holders `hs` and sample `s`. A
+Simulator ticket never waits as `older`, and waits while more than one holder of another kind runs. -/
 def verdict (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (waited : Nat) : Verdict :=
   let running := (prune s.time hs).length
   if 0 < aheadSame q me then waitOr p waited (.queued (aheadSame q me))
-  else if starved p s.time hs q me then waitOr p waited .older
+  else if me.kind != .sim && starved p s.time hs q me then waitOr p waited .older
   else if n ≤ running then waitOr p waited (.full running n)
   else if me.kind == .sim && simHeld s.time hs then waitOr p waited .simBusy
+  else if me.kind == .sim && decide (1 < others s.time hs) then waitOr p waited (.drain (others s.time hs))
   else if s.freeMB < need p s hs me.kind + p.floorMB + charged p s.time hs then
     waitOr p waited (.memory (need p s hs me.kind) (room p s hs))
+  else if yieldsToSim p n s hs q me then waitOr p waited .simFirst
   else .admit (threadsFor p s hs) (need p s hs me.kind)
 
 def tk (o t : String) (k : Kind) (t0 : Nat) : Entry := { owner := o, token := t, kind := k, since := t0, till := t0 + 60 }
 
+def simH : Entry := { tk "c" "9" .sim 0 with till := 2000 }
+
 #guard verdict {} 2 okSample [] [tk "a" "1" .check 990] (tk "a" "1" .check 990) 0 == .admit 7 4900
 #guard verdict {} 2 okSample [] [tk "a" "1" .test 990, tk "b" "2" .test 991] (tk "b" "2" .test 991) 0 == .wait (.queued 1)
-#guard verdict {} 2 okSample [] [tk "a" "1" .test 600, tk "b" "2" .sim 991] (tk "b" "2" .sim 991) 0 == .wait .older
+#guard verdict {} 2 okSample [] [tk "a" "1" .test 600, tk "b" "2" .sim 991] (tk "b" "2" .sim 991) 0 == .admit 7 2800
 #guard verdict {} 1 okSample [{ tk "c" "9" .test 0 with till := 2000 }] [tk "a" "1" .test 990] (tk "a" "1" .test 990) 0 == .wait (.full 1 1)
-#guard verdict {} 3 okSample [{ tk "c" "9" .sim 0 with till := 2000 }] [tk "a" "1" .sim 990] (tk "a" "1" .sim 990) 0 == .wait .simBusy
-#guard verdict {} 4 okSample [{ tk "c" "9" .sim 0 with till := 2000 }] [tk "s" "5" .sim 600, tk "a" "1" .check 990] (tk "a" "1" .check 990) 0 == .admit 7 4900
+#guard verdict {} 3 okSample [simH] [tk "a" "1" .sim 990] (tk "a" "1" .sim 990) 0 == .wait .simBusy
+#guard verdict {} 4 okSample [simH] [tk "s" "5" .sim 600, tk "a" "1" .check 990] (tk "a" "1" .check 990) 0 == .admit 7 4900
+#guard verdict {} 4 okSample [simH, { tk "d" "8" .test 0 with till := 2000 }] [tk "a" "1" .check 990] (tk "a" "1" .check 990) 0 == .wait .simFirst
 #guard verdict {} 4 okSample [] [tk "s" "5" .sim 600, tk "a" "1" .check 990] (tk "a" "1" .check 990) 0 == .wait .older
+#guard verdict {} 4 okSample [] [tk "a" "1" .check 990, tk "s" "5" .sim 995] (tk "a" "1" .check 990) 0 == .wait .simFirst
+#guard verdict {} 4 { okSample with freeMB := 12000 } [] [tk "a" "1" .check 990, tk "s" "5" .sim 995] (tk "a" "1" .check 990) 0 == .admit 8 5600
+#guard verdict {} 1 { okSample with freeMB := 12000 } [] [tk "a" "1" .check 990, tk "s" "5" .sim 995] (tk "a" "1" .check 990) 0 == .wait .simFirst
+#guard verdict {} 4 okSample [{ tk "d" "8" .test 0 with till := 2000 }, { tk "e" "7" .land 0 with till := 2000 }]
+  [tk "s" "5" .sim 990] (tk "s" "5" .sim 990) 0 == .wait (.drain 2)
 #guard verdict {} 3 { okSample with freeMB := 3000 } [] [tk "a" "1" .sim 990] (tk "a" "1" .sim 990) 0 == .wait (.memory 2800 1976)
 #guard verdict {} 3 { okSample with freeMB := 3000 } [] [tk "a" "1" .sim 990] (tk "a" "1" .sim 990) 1800 == .timeout (.memory 2800 1976)
 
@@ -423,9 +463,10 @@ theorem waitOr_ne_admit (p : Params) (w : Nat) (y : Why) (t f : Nat) : ¬ waitOr
 
 theorem verdict_admit (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w t f : Nat)
     (h : verdict p n s hs q me w = .admit t f) :
-    aheadSame q me = 0 ∧ starved p s.time hs q me = false ∧ (prune s.time hs).length < n ∧
-      (me.kind == .sim && simHeld s.time hs) = false ∧
-      need p s hs me.kind + p.floorMB + charged p s.time hs ≤ s.freeMB ∧ t = threadsFor p s hs ∧ f = need p s hs me.kind := by
+    aheadSame q me = 0 ∧ (me.kind != .sim && starved p s.time hs q me) = false ∧ (prune s.time hs).length < n ∧
+      (me.kind == .sim && simHeld s.time hs) = false ∧ (me.kind == .sim && decide (1 < others s.time hs)) = false ∧
+      need p s hs me.kind + p.floorMB + charged p s.time hs ≤ s.freeMB ∧ yieldsToSim p n s hs q me = false ∧
+      t = threadsFor p s hs ∧ f = need p s hs me.kind := by
   unfold verdict at h
   simp only at h
   split at h
@@ -438,15 +479,19 @@ theorem verdict_admit (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (m
   · exact absurd h (waitOr_ne_admit _ _ _ _ _)
   split at h
   · exact absurd h (waitOr_ne_admit _ _ _ _ _)
-  rename_i h1 h2 h3 h4 h5
+  split at h
+  · exact absurd h (waitOr_ne_admit _ _ _ _ _)
+  split at h
+  · exact absurd h (waitOr_ne_admit _ _ _ _ _)
+  rename_i h1 h2 h3 h4 h5 h6 h7
   cases h
-  refine ⟨by omega, by simpa using h2, by omega, by simpa using h4, by omega, rfl, rfl⟩
+  exact ⟨by omega, by simpa using h2, by omega, by simpa using h4, by simpa using h5, by omega, by simpa using h7, rfl, rfl⟩
 
 /-- **Never admits a job whose footprint exceeds free memory minus the floor** (and the memory of warming holders). -/
 theorem verdict_admit_fits (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w t f : Nat)
     (h : verdict p n s hs q me w = .admit t f) : f + p.floorMB + charged p s.time hs ≤ s.freeMB := by
   have := verdict_admit p n s hs q me w t f h
-  rw [this.2.2.2.2.2.2]; exact this.2.2.2.2.1
+  rw [this.2.2.2.2.2.2.2.2]; exact this.2.2.2.2.2.1
 
 /-- An admit keeps the live holders below N. -/
 theorem verdict_admit_under_n (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w t f : Nat)
@@ -464,17 +509,55 @@ theorem verdict_admit_sim_exclusive (p : Params) (n : Nat) (s : Sample) (hs q : 
   have := (verdict_admit p n s hs q me w t f h).2.2.2.1
   simpa [hk] using this
 
-/-- Progress: the head of its kind, with no starved ticket ahead, below N, the Simulator free if it asks for it, and
-memory for its footprint, is admitted. -/
+/-- A Simulator ticket is admitted only while at most one holder of another kind runs. -/
+theorem verdict_admit_sim_drained (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w t f : Nat)
+    (h : verdict p n s hs q me w = .admit t f) (hk : me.kind = .sim) : others s.time hs ≤ 1 := by
+  have := (verdict_admit p n s hs q me w t f h).2.2.2.2.1
+  simp [hk] at this; omega
+
+theorem yieldsToSim_false (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (hk : me.kind ≠ .sim)
+    (h : yieldsToSim p n s hs q me = false) :
+    (simHeld s.time hs = true → others s.time hs = 0) ∧
+      (simPending s.time hs q = true → others s.time hs = 0 ∧ (prune s.time hs).length + 2 ≤ n ∧
+        need p s hs me.kind + p.floorMB + charged p s.time hs + p.simMB ≤ s.freeMB) := by
+  have hk' : (me.kind != .sim) = true := by simpa using hk
+  simp only [yieldsToSim, hk', Bool.true_and, Bool.or_eq_false_iff, Bool.and_eq_false_iff, decide_eq_false_iff_not] at h
+  obtain ⟨h1, h2⟩ := h
+  refine ⟨fun hh => ?_, fun hp => ?_⟩
+  · rcases h1 with h1 | h1
+    · simp [hh] at h1
+    · omega
+  · rcases h2 with h2 | h2
+    · simp [hp] at h2
+    · omega
+
+/-- While a Simulator slot is held, a job of another kind is admitted only when no other such job runs. -/
+theorem verdict_admit_beside_sim (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w t f : Nat)
+    (h : verdict p n s hs q me w = .admit t f) (hk : me.kind ≠ .sim) (hh : simHeld s.time hs = true) :
+    others s.time hs = 0 :=
+  (yieldsToSim_false p n s hs q me hk (verdict_admit p n s hs q me w t f h).2.2.2.2.2.2.1).1 hh
+
+/-- **A pending Simulator ticket reserves its slot and footprint**: a job of another kind admitted meanwhile runs alone,
+leaves one slot free and leaves the Simulator footprint above the floor. -/
+theorem verdict_admit_reserves_sim (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w t f : Nat)
+    (h : verdict p n s hs q me w = .admit t f) (hk : me.kind ≠ .sim) (hp : simPending s.time hs q = true) :
+    others s.time hs = 0 ∧ (prune s.time hs).length + 2 ≤ n ∧ f + p.simMB + p.floorMB + charged p s.time hs ≤ s.freeMB := by
+  have ha := verdict_admit p n s hs q me w t f h
+  have := (yieldsToSim_false p n s hs q me hk ha.2.2.2.2.2.2.1).2 hp
+  rw [ha.2.2.2.2.2.2.2.2]
+  exact ⟨this.1, this.2.1, by omega⟩
+
+/-- Progress: the head of its kind passing every check is admitted. -/
 theorem verdict_head_admitted (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w : Nat)
-    (h1 : aheadSame q me = 0) (h2 : starved p s.time hs q me = false) (h3 : (prune s.time hs).length < n)
-    (h4 : (me.kind == .sim && simHeld s.time hs) = false)
-    (h5 : need p s hs me.kind + p.floorMB + charged p s.time hs ≤ s.freeMB) :
+    (h1 : aheadSame q me = 0) (h2 : (me.kind != .sim && starved p s.time hs q me) = false)
+    (h3 : (prune s.time hs).length < n) (h4 : (me.kind == .sim && simHeld s.time hs) = false)
+    (h5 : (me.kind == .sim && decide (1 < others s.time hs)) = false)
+    (h6 : need p s hs me.kind + p.floorMB + charged p s.time hs ≤ s.freeMB) (h7 : yieldsToSim p n s hs q me = false) :
     verdict p n s hs q me w = .admit (threadsFor p s hs) (need p s hs me.kind) := by
   unfold verdict
   have h3' : ¬ n ≤ (prune s.time hs).length := by omega
-  have h5' : ¬ s.freeMB < need p s hs me.kind + p.floorMB + charged p s.time hs := by omega
-  simp [h1, h2, h3', h4, h5']
+  have h6' : ¬ s.freeMB < need p s hs me.kind + p.floorMB + charged p s.time hs := by omega
+  simp [h1, h2, h3', h4, h5, h6', h7]
 
 theorem starved_iff (p : Params) (now : Nat) (hs q : List Entry) (me : Entry) :
     starved p now hs q me = true ↔ ∃ e ∈ before q me, e.kind ≠ me.kind ∧ e.since + p.ageS ≤ now ∧
@@ -494,6 +577,33 @@ theorem waitOr_ne_older (p : Params) (w : Nat) (y : Why) (hy : y ≠ .older) :
     waitOr p w y ≠ .wait .older ∧ waitOr p w y ≠ .timeout .older := by
   unfold waitOr; split <;> simp [hy]
 
+/-- The verdict is `older` (wait or timeout) only when the ticket is not a Simulator ticket and is starved. -/
+theorem verdict_older (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w : Nat)
+    (h : verdict p n s hs q me w = .wait .older ∨ verdict p n s hs q me w = .timeout .older) :
+    me.kind ≠ .sim ∧ starved p s.time hs q me = true := by
+  unfold verdict at h
+  simp only at h
+  split at h
+  · have := waitOr_ne_older p w (.queued (aheadSame q me)) (by simp); rcases h with h | h <;> simp_all
+  split at h
+  · rename_i h2; simp only [Bool.and_eq_true, bne_iff_ne, ne_eq] at h2; exact h2
+  split at h
+  · have := waitOr_ne_older p w (.full (prune s.time hs).length n) (by simp); rcases h with h | h <;> simp_all
+  split at h
+  · have := waitOr_ne_older p w .simBusy (by simp); rcases h with h | h <;> simp_all
+  split at h
+  · have := waitOr_ne_older p w (.drain (others s.time hs)) (by simp); rcases h with h | h <;> simp_all
+  split at h
+  · have := waitOr_ne_older p w (.memory (need p s hs me.kind) (room p s hs)) (by simp); rcases h with h | h <;> simp_all
+  split at h
+  · have := waitOr_ne_older p w .simFirst (by simp); rcases h with h | h <;> simp_all
+  · rcases h with h | h <;> cases h
+
+/-- **Simulator first**: a Simulator ticket never waits or times out as `older`. -/
+theorem verdict_sim_never_older (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w : Nat)
+    (hk : me.kind = .sim) : verdict p n s hs q me w ≠ .wait .older ∧ verdict p n s hs q me w ≠ .timeout .older :=
+  ⟨fun h => (verdict_older p n s hs q me w (.inl h)).1 hk, fun h => (verdict_older p n s hs q me w (.inr h)).1 hk⟩
+
 /-- **No cross-kind stall**: while the Simulator is held, a ticket whose other-kind tickets ahead are all Simulator
 tickets never waits or times out as `older`. -/
 theorem verdict_not_older_of_sim_blocked (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w : Nat)
@@ -504,19 +614,9 @@ theorem verdict_not_older_of_sim_blocked (p : Params) (n : Nat) (s : Sample) (hs
     · rfl
     · obtain ⟨e, he, hk, _, hn⟩ := (starved_iff p s.time hs q me).1 h
       simp [hn (hq e he hk)] at hb
-  unfold verdict
-  simp only [hst]
-  split
-  · exact waitOr_ne_older _ _ _ (by simp)
-  split
-  · simp_all
-  split
-  · exact waitOr_ne_older _ _ _ (by simp)
-  split
-  · exact waitOr_ne_older _ _ _ (by simp)
-  split
-  · exact waitOr_ne_older _ _ _ (by simp)
-  simp
+  refine ⟨fun h => ?_, fun h => ?_⟩
+  · simp [(verdict_older p n s hs q me w (.inl h)).2] at hst
+  · simp [(verdict_older p n s hs q me w (.inr h)).2] at hst
 
 theorem before_append_of_ne (pre post : List Entry) (a me : Entry) (hpre : ∀ e ∈ pre, e.token ≠ me.token)
     (ha : a.token ≠ me.token) : a ∈ before (pre ++ a :: post) me := by
@@ -557,6 +657,121 @@ theorem leanThreads_fit (p : Params) (c r : Nat) (hr : p.leanProcMB ≤ r) :
   calc max 1 (min c (r / p.leanProcMB)) * p.leanProcMB ≤ r / p.leanProcMB * p.leanProcMB := Nat.mul_le_mul_right _ hm
     _ ≤ r := Nat.div_mul_le_self r p.leanProcMB
 
+/-! ## Simulator priority over the admitted state -/
+
+/-- The holder an admitted ticket becomes: admitted at `now`, leased until `till`, charged `f`. -/
+def holderOf (me : Entry) (now till f : Nat) : Entry := { me with since := now, till := till, foot := f }
+
+theorem prune_append_live (now : Nat) (hs : List Entry) (x : Entry) (hx : now < x.till) :
+    prune now (hs ++ [x]) = prune now hs ++ [x] := by
+  simp [prune, List.filter_append, live, hx]
+
+theorem simHeld_append (now : Nat) (hs : List Entry) (x : Entry) (hx : now < x.till) :
+    simHeld now (hs ++ [x]) = (simHeld now hs || x.kind == .sim) := by
+  simp [simHeld, prune_append_live now hs x hx, List.any_append]
+
+theorem others_append (now : Nat) (hs : List Entry) (x : Entry) (hx : now < x.till) :
+    others now (hs ++ [x]) = others now hs + (if x.kind = .sim then 0 else 1) := by
+  unfold others
+  rw [prune_append_live now hs x hx, List.filter_append, List.length_append]
+  by_cases hk : x.kind = .sim <;> simp [hk]
+
+theorem charged_append_le (p : Params) (now : Nat) (hs : List Entry) (x : Entry) :
+    charged p now (hs ++ [x]) ≤ charged p now hs + x.foot := by
+  unfold charged prune
+  rw [List.filter_append, List.filter_append, List.foldr_append]
+  generalize ((hs.filter (live now)).filter (fun h => decide (now < h.since + p.warmS))) = l
+  have key : ∀ (l : List Entry) (b : Nat), l.foldr (fun h a => h.foot + a) b = l.foldr (fun h a => h.foot + a) 0 + b := by
+    intro l b
+    induction l with
+    | nil => simp
+    | cons y ys ih => simp only [List.foldr_cons, ih]; omega
+  rw [key l]
+  have : (List.filter (fun h => decide (now < h.since + p.warmS)) (List.filter (live now) [x])).foldr
+      (fun h a => h.foot + a) 0 ≤ x.foot := by
+    by_cases h1 : live now x = true <;> by_cases h2 : now < x.since + p.warmS <;> simp [h1, h2]
+  omega
+
+/-- Held Simulator implies at most one live holder of another kind. -/
+def simInv (now : Nat) (hs : List Entry) : Prop := simHeld now hs = true → others now hs ≤ 1
+
+/-- **Held Simulator, at most one other holder**: every admission leaves the holders satisfying `simInv`. -/
+theorem admit_keeps_simInv (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w t f till : Nat)
+    (h : verdict p n s hs q me w = .admit t f) (ht : s.time < till) :
+    simInv s.time (hs ++ [holderOf me s.time till f]) := by
+  intro hh
+  have hx : s.time < (holderOf me s.time till f).till := ht
+  have hk' : (holderOf me s.time till f).kind = me.kind := rfl
+  rw [others_append _ _ _ hx, hk']
+  rw [simHeld_append _ _ _ hx, hk'] at hh
+  by_cases hk : me.kind = .sim
+  · simp only [hk, ite_true]
+    have := verdict_admit_sim_drained p n s hs q me w t f h hk
+    omega
+  · simp only [hk, ite_false]
+    have hs' : simHeld s.time hs = true := by simpa [hk] using hh
+    have := verdict_admit_beside_sim p n s hs q me w t f h hk hs'
+    omega
+
+/-- **A waiting Simulator ticket is never starved by tickets of other kinds**: after any such ticket is admitted while a
+Simulator ticket is pending, the head Simulator ticket is admitted on the same sample. -/
+theorem sim_not_starved (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w t f till : Nat)
+    (h : verdict p n s hs q me w = .admit t f) (hk : me.kind ≠ .sim) (hp : simPending s.time hs q = true)
+    (ht : s.time < till) (q' : List Entry) (e : Entry) (he : e.kind = .sim) (h1 : aheadSame q' e = 0) (w' : Nat) :
+    verdict p n s (hs ++ [holderOf me s.time till f]) q' e w' =
+      .admit (threadsFor p s (hs ++ [holderOf me s.time till f])) p.simMB := by
+  have hx : s.time < (holderOf me s.time till f).till := ht
+  have hk' : (holderOf me s.time till f).kind = me.kind := rfl
+  obtain ⟨ho, hn, hm⟩ := verdict_admit_reserves_sim p n s hs q me w t f h hk hp
+  have hns : simHeld s.time hs = false := by simp [simPending] at hp; exact hp.2
+  have hc := charged_append_le p s.time hs (holderOf me s.time till f)
+  have hfoot : (holderOf me s.time till f).foot = f := rfl
+  have hneed : ∀ l, need p s l .sim = p.simMB := fun _ => rfl
+  rw [← hneed (hs ++ [holderOf me s.time till f]), ← he]
+  apply verdict_head_admitted
+  · exact h1
+  · simp [he]
+  · rw [prune_append_live _ _ _ hx, List.length_append]; simp; omega
+  · simp [he, simHeld_append _ _ _ hx, hk', hns, hk]
+  · simp [he, others_append _ _ _ hx, hk', hk, ho]
+  · rw [he, hneed]; omega
+  · simp [yieldsToSim, he]
+
+/-! ## The old Simulator lock -/
+
+/-- The old `scripts/sim-lock.sh` lock, read as a live Simulator holder. -/
+def legacyEntry (now : Nat) : Entry :=
+  { owner := "sim-lock", token := "sim-lock", kind := .sim, since := 0, till := now + 1 }
+
+/-- The holders the verdict sees: the slot's own, plus the old lock while it is held. -/
+def withLegacy (now : Nat) (legacy : Bool) (hs : List Entry) : List Entry :=
+  if legacy then hs ++ [legacyEntry now] else hs
+
+theorem simHeld_withLegacy (now : Nat) (hs : List Entry) : simHeld now (withLegacy now true hs) = true := by
+  simp only [withLegacy, ite_true]
+  rw [simHeld_append now hs (legacyEntry now) (by simp [legacyEntry])]
+  simp [legacyEntry]
+
+theorem others_withLegacy (now : Nat) (l : Bool) (hs : List Entry) : others now (withLegacy now l hs) = others now hs := by
+  cases l
+  · rfl
+  · simp only [withLegacy, ite_true]
+    rw [others_append now hs (legacyEntry now) (by simp [legacyEntry])]
+    simp [legacyEntry]
+
+/-- **One gate for the old lock**: while it is held, no Simulator slot is admitted. -/
+theorem verdict_legacy_blocks_sim (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w t f : Nat)
+    (hk : me.kind = .sim) : verdict p n s (withLegacy s.time true hs) q me w ≠ .admit t f := by
+  intro h
+  have := verdict_admit_sim_exclusive p n s _ q me w t f h hk
+  rw [simHeld_withLegacy] at this; cases this
+
+/-- While the old lock is held, a job of another kind is admitted only when no other such job runs. -/
+theorem verdict_legacy_one_other (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w t f : Nat)
+    (hk : me.kind ≠ .sim) (h : verdict p n s (withLegacy s.time true hs) q me w = .admit t f) : others s.time hs = 0 := by
+  rw [← others_withLegacy s.time true hs]
+  exact verdict_admit_beside_sim p n s _ q me w t f h hk (simHeld_withLegacy s.time hs)
+
 /-! ## Simulator kind -/
 
 /-- Booting the Simulator is allowed only to the owner of a live Simulator slot. -/
@@ -570,55 +785,175 @@ deriving DecidableEq, Repr
 def SimAct.name : SimAct → String
   | .none => "none" | .keep => "keep" | .shutdown => "shutdown"
 
-/-- What to do with our booted Simulator: keep it while a live slot or the old sim lock holds it, shut it down once it
-has been idle `simIdleS` seconds since `idleSince`. -/
-def simAction (p : Params) (now : Nat) (hs : List Entry) (booted legacyHeld : Bool) (idleSince : Nat) : SimAct :=
+/-- The idle clock of the Simulator: it starts at the first sighting of a booted device with neither a live Simulator slot
+nor the old lock, keeps that start while the device stays so, and clears otherwise. -/
+def simIdleNext (now : Nat) (held booted : Bool) (prev : Option Nat) : Option Nat :=
+  if booted && !held then some (prev.getD now) else none
+
+/-- What to do with the booted Simulator devices (any device, not only ours): keep them while a live slot or the old sim
+lock holds the Simulator, shut them down once the idle clock has run `simIdleS` seconds. -/
+def simAction (p : Params) (now : Nat) (hs : List Entry) (booted legacyHeld : Bool) (idleSince : Option Nat) : SimAct :=
   if !booted then .none
   else if legacyHeld || simHeld now hs then .keep
-  else if idleSince + p.simIdleS ≤ now then .shutdown
-  else .keep
+  else match idleSince with
+    | none => .keep
+    | some i => if i + p.simIdleS ≤ now then .shutdown else .keep
+
+/-- Whether the slot looks at the Simulator devices again: `simPollS` seconds after its last look. -/
+def simDue (p : Params) (now last : Nat) : Bool := decide (last + p.simPollS ≤ now)
 
 #guard simBoot 50 "a" "t1" [holdA]
 #guard !simBoot 50 "b" "t1" [holdA]
 #guard !simBoot 100 "a" "t1" [holdA]
-#guard simAction {} 50 [holdA] true false 0 == .keep
-#guard simAction {} 700 [holdA] true false 0 == .shutdown
-#guard simAction {} 700 [holdA] true true 0 == .keep
-#guard simAction {} 500 [] true false 0 == .keep
-#guard simAction {} 700 [] false false 0 == .none
+#guard simAction {} 50 [holdA] true false (some 0) == .keep
+#guard simAction {} 700 [holdA] true false (some 0) == .shutdown
+#guard simAction {} 700 [holdA] true true (some 0) == .keep
+#guard simAction {} 500 [] true false (some 0) == .keep
+#guard simAction {} 700 [] false false (some 0) == .none
+#guard simAction {} 9000 [] true false none == .keep
+#guard simIdleNext 700 false true none == some 700
+#guard simIdleNext 900 false true (some 700) == some 700
+#guard simIdleNext 900 true true (some 700) == none
+#guard simIdleNext 900 false false (some 700) == none
+#guard simDue {} 130 100 && !simDue {} 129 100
 
 theorem simBoot_iff (now : Nat) (o t : String) (hs : List Entry) :
     simBoot now o t hs = true ↔ ∃ h ∈ hs, h.kind = .sim ∧ same o t h = true ∧ now < h.till := by
   simp [simBoot, live, and_assoc]
 
 /-- A live Simulator slot keeps the Simulator up. -/
-theorem sim_keep_under_holder (p : Params) (now : Nat) (hs : List Entry) (l : Bool) (i : Nat) (h : simHeld now hs = true) :
-    simAction p now hs true l i = .keep := by
+theorem sim_keep_under_holder (p : Params) (now : Nat) (hs : List Entry) (l : Bool) (i : Option Nat)
+    (h : simHeld now hs = true) : simAction p now hs true l i = .keep := by
   simp [simAction, h]
 
-theorem sim_keep_under_legacy (p : Params) (now : Nat) (hs : List Entry) (i : Nat) :
+theorem sim_keep_under_legacy (p : Params) (now : Nat) (hs : List Entry) (i : Option Nat) :
     simAction p now hs true true i = .keep := by
   simp [simAction]
 
 /-- **Shut down after the idle limit**: booted, no live slot, no old lock, idle `simIdleS` seconds. -/
 theorem sim_shutdown_idle (p : Params) (now : Nat) (hs : List Entry) (i : Nat) (h : simHeld now hs = false)
-    (hi : i + p.simIdleS ≤ now) : simAction p now hs true false i = .shutdown := by
+    (hi : i + p.simIdleS ≤ now) : simAction p now hs true false (some i) = .shutdown := by
   simp [simAction, h, hi]
 
 theorem sim_keep_within_idle (p : Params) (now : Nat) (hs : List Entry) (l : Bool) (i : Nat) (hi : now < i + p.simIdleS) :
-    simAction p now hs true l i = .keep := by
+    simAction p now hs true l (some i) = .keep := by
   have : ¬ i + p.simIdleS ≤ now := by omega
   cases l <;> cases simHeld now hs <;> simp [simAction, this]
 
-theorem sim_shutdown_only_unheld (p : Params) (now : Nat) (hs : List Entry) (b l : Bool) (i : Nat)
-    (h : simAction p now hs b l i = .shutdown) : b = true ∧ l = false ∧ simHeld now hs = false ∧ i + p.simIdleS ≤ now := by
+/-- With no idle clock running, the Simulator is kept. -/
+theorem sim_keep_no_clock (p : Params) (now : Nat) (hs : List Entry) (l : Bool) :
+    simAction p now hs true l none = .keep := by
+  cases l <;> cases simHeld now hs <;> simp [simAction]
+
+theorem sim_shutdown_only_unheld (p : Params) (now : Nat) (hs : List Entry) (b l : Bool) (i : Option Nat)
+    (h : simAction p now hs b l i = .shutdown) :
+    b = true ∧ l = false ∧ simHeld now hs = false ∧ ∃ t, i = some t ∧ t + p.simIdleS ≤ now := by
   unfold simAction at h
   cases b <;> cases l <;> cases hh : simHeld now hs <;> simp [hh] at h
-  exact ⟨rfl, rfl, rfl, h⟩
+  cases i with
+  | none => simp at h
+  | some t =>
+    simp only at h
+    split at h
+    · exact ⟨rfl, rfl, rfl, t, rfl, by assumption⟩
+    · cases h
 
-theorem sim_none_unbooted (p : Params) (now : Nat) (hs : List Entry) (l : Bool) (i : Nat) :
+theorem sim_none_unbooted (p : Params) (now : Nat) (hs : List Entry) (l : Bool) (i : Option Nat) :
     simAction p now hs false l i = .none := by
   simp [simAction]
+
+theorem simIdleNext_cleared (now : Nat) (b : Bool) (prev : Option Nat) : simIdleNext now true b prev = none := by
+  simp [simIdleNext]
+
+theorem simIdleNext_kept (now i : Nat) : simIdleNext now false true (some i) = some i := by
+  simp [simIdleNext]
+
+/-- **No shutdown at the first sighting**: a device first seen booted and unheld is kept, so it gets the whole idle window. -/
+theorem sim_first_sighting_keeps (p : Params) (now : Nat) (hs : List Entry) (h : 0 < p.simIdleS) :
+    simAction p now hs true false (simIdleNext now false true none) = .keep := by
+  simp only [simIdleNext, Bool.not_false, Bool.and_self, ite_true, Option.getD_none]
+  exact sim_keep_within_idle p now hs false now (by omega)
+
+/-! ## Admitting a new builder (lead side) -/
+
+inductive BuildWhy where
+  | simWaits
+  | agentsUnknown
+  | agents (live max : Nat)
+  | memory (freeMB needMB : Nat)
+deriving DecidableEq, Repr
+
+inductive BuildVerdict where
+  | admit
+  | wait (why : BuildWhy)
+deriving DecidableEq, Repr
+
+/-- A Simulator ticket is queued (with a live ticket lease). -/
+def simQueued (now : Nat) (q : List Entry) : Bool := (prune now q).any (fun e => e.kind == .sim)
+
+/-- The live-agent count of the last health reading `(time, count)`, `none` when there is none or it is older than
+`agentsAgeS` seconds. -/
+def agentsSeen (p : Params) (now : Nat) : Option (Nat × Nat) → Option Nat
+  | none => none
+  | some (t0, n) => if now ≤ t0 + p.agentsAgeS then some n else none
+
+/-- Whether the lead may start one more builder or reviewer: no Simulator ticket waits, the live-agent count is known
+and below `agentsMax`, and free memory covers the floor plus `buildMB`. -/
+def admitBuild (p : Params) (simWaits : Bool) (freeMB : Nat) (agents : Option Nat) : BuildVerdict :=
+  if simWaits then .wait .simWaits
+  else match agents with
+    | none => .wait .agentsUnknown
+    | some a =>
+      if p.agentsMax ≤ a then .wait (.agents a p.agentsMax)
+      else if freeMB < p.floorMB + p.buildMB then .wait (.memory freeMB (p.floorMB + p.buildMB))
+      else .admit
+
+#guard admitBuild {} false 9000 (some 5) == .admit
+#guard admitBuild {} true 9000 (some 5) == .wait .simWaits
+#guard admitBuild {} false 9000 none == .wait .agentsUnknown
+#guard admitBuild {} false 9000 (some 8) == .wait (.agents 8 8)
+#guard admitBuild {} false 3123 (some 7) == .wait (.memory 3123 3124)
+#guard admitBuild {} false 3124 (some 7) == .admit
+#guard agentsSeen {} 1900 (some (1000, 6)) == some 6
+#guard agentsSeen {} 1901 (some (1000, 6)) == none
+#guard agentsSeen {} 1901 none == none
+#guard !simQueued 100 [{ tk "s" "5" .sim 0 with till := 100 }] && simQueued 99 [{ tk "s" "5" .sim 0 with till := 100 }]
+
+theorem admitBuild_sim (p : Params) (m : Nat) (a : Option Nat) : admitBuild p true m a = .wait .simWaits := by
+  simp [admitBuild]
+
+theorem admitBuild_unknown (p : Params) (m : Nat) : admitBuild p false m none = .wait .agentsUnknown := by
+  simp [admitBuild]
+
+theorem admitBuild_agents (p : Params) (m a : Nat) (h : p.agentsMax ≤ a) :
+    admitBuild p false m (some a) = .wait (.agents a p.agentsMax) := by
+  simp [admitBuild, h]
+
+theorem admitBuild_memory (p : Params) (m a : Nat) (ha : a < p.agentsMax) (h : m < p.floorMB + p.buildMB) :
+    admitBuild p false m (some a) = .wait (.memory m (p.floorMB + p.buildMB)) := by
+  have : ¬ p.agentsMax ≤ a := by omega
+  simp [admitBuild, this, h]
+
+/-- **Builder admission**: admitted exactly when no Simulator ticket waits, the live-agent count is known and below
+`agentsMax`, and free memory covers the floor plus `buildMB`. -/
+theorem admitBuild_iff (p : Params) (sw : Bool) (m : Nat) (a : Option Nat) :
+    admitBuild p sw m a = .admit ↔ sw = false ∧ ∃ k, a = some k ∧ k < p.agentsMax ∧ p.floorMB + p.buildMB ≤ m := by
+  cases sw
+  · cases a with
+    | none => simp [admitBuild]
+    | some k =>
+      by_cases h1 : p.agentsMax ≤ k
+      · simp [admitBuild, h1]; omega
+      · by_cases h2 : m < p.floorMB + p.buildMB
+        · simp [admitBuild, h1, h2]
+        · simp [admitBuild, h1, h2]; omega
+  · simp [admitBuild]
+
+/-- A stale health reading never admits a builder. -/
+theorem agentsSeen_stale (p : Params) (now t0 n : Nat) (h : t0 + p.agentsAgeS < now) :
+    agentsSeen p now (some (t0, n)) = none := by
+  have : ¬ now ≤ t0 + p.agentsAgeS := by omega
+  simp [agentsSeen, this]
 
 /-! ## Stopping the wrapped command -/
 
