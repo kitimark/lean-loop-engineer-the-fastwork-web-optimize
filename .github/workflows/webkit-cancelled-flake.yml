@@ -48,8 +48,8 @@ jobs:
           engine: playwright-webkit
       - name: 'repeat: ${{ inputs.only || ''compare'' }} x ${{ inputs.repeat || ''20'' }}'
         env:
-          REPEAT: ${{ inputs.repeat || (contains(github.event.head_commit.message, '[provoke]') && '3' || '20') }}
-          ONLY: ${{ inputs.only || 'r,o,compare,entry-r,entry-o,entry-review-flag' }}
+          REPEAT: ${{ inputs.repeat || (contains(github.event.head_commit.message, '[long]') && '100' || contains(github.event.head_commit.message, '[provoke]') && '3' || '20') }}
+          ONLY: ${{ inputs.only || (contains(github.event.head_commit.message, '[long]') && 'compare' || 'r,o,compare,entry-r,entry-o,entry-review-flag') }}
           EXTRA: ${{ inputs.extra || (contains(github.event.head_commit.message, '[provoke]') && '--provoke 30' || '') }}
         run: |
           echo "image: $ImageOS $ImageVersion; node $(node -v); $(uname -m); cpus $(nproc)"
