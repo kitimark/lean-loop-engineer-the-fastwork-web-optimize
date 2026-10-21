@@ -19,8 +19,8 @@ const iso = (ms: number) => new Date(ms).toISOString();
 describe("arguments and times", () => {
   it("has defaults and reads the flags", () => {
     expect(parseMacArgs([])).toEqual({ days: 7, sample: 200, circleci: true, codemagic: true });
-    expect(parseMacArgs(["--days", "3", "--sample", "50", "--out", "x.jsonl", "--cache", "c", "--now", "5", "--no-circleci", "--no-codemagic"]))
-      .toEqual({ days: 3, sample: 50, out: "x.jsonl", cache: "c", now: 5, circleci: false, codemagic: false });
+    expect(parseMacArgs(["--days", "3", "--sample", "50", "--out", "x.jsonl", "--cache", "c", "--now", "5", "--codemagic-builds", "ab12,cd34", "--no-circleci", "--no-codemagic"]))
+      .toEqual({ days: 3, sample: 50, out: "x.jsonl", cache: "c", now: 5, builds: ["ab12", "cd34"], circleci: false, codemagic: false });
   });
   it("refuses a bad number, a missing file and an unknown flag", () => {
     expect(() => parseMacArgs(["--days", "0"])).toThrow(/positive whole number/);

@@ -15,7 +15,7 @@ import { realEnv } from "@fw/gh-budget";
 import { UsageError } from "./lib.ts";
 import { chargedGh, fwcoreCall, type FwCall, type Gh } from "./run.ts";
 
-export const MAC_USAGE = "usage: fw ci telemetry macos-window [--days 7] [--sample 200] [--out <file>] [--cache <dir>] [--now <epoch ms>] [--no-circleci] [--no-codemagic]";
+export const MAC_USAGE = "usage: fw ci telemetry macos-window [--days 7] [--sample 200] [--out <file>] [--cache <dir>] [--now <epoch ms>] [--codemagic-builds id,id] [--no-circleci] [--no-codemagic]";
 
 /** The workflows that hold macOS jobs (Lean `Fw.Obs.MacTelemetry.macJobs`). */
 export const MAC_WORKFLOWS = ["trajectory-probe", "webkit-sim", "wktr", "wktr-fixtures", "engine-premises", "gate-gaps", "sim-speed"];
@@ -23,7 +23,7 @@ export const MAC_WORKFLOWS = ["trajectory-probe", "webkit-sim", "wktr", "wktr-fi
 export const MIN_RUN_MS = 120000;
 const DAY_MS = 86400000;
 
-export type MacArgs = { days: number; sample: number; out?: string; cache?: string; now?: number; circleci: boolean; codemagic: boolean };
+export type MacArgs = { days: number; sample: number; out?: string; cache?: string; now?: number; builds?: string[]; circleci: boolean; codemagic: boolean };
 
 export function parseMacArgs(argv: string[]): MacArgs {
   const a: MacArgs = { days: 7, sample: 200, circleci: true, codemagic: true };
@@ -39,6 +39,7 @@ export function parseMacArgs(argv: string[]): MacArgs {
     else if (f === "--out") { const v = argv[++i]; if (!v) throw new UsageError(`--out needs a file\n${MAC_USAGE}`); a.out = v; }
     else if (f === "--cache") { const v = argv[++i]; if (!v) throw new UsageError(`--cache needs a directory\n${MAC_USAGE}`); a.cache = v; }
     else if (f === "--now") a.now = num(f, argv[++i]);
+    else if (f === "--codemagic-builds") { const v = argv[++i]; if (!v || !/^[0-9a-f,]+$/i.test(v)) throw new UsageError(`--codemagic-builds needs build ids separated by commas\n${MAC_USAGE}`); a.builds = v.split(",").filter(Boolean); }
     else if (f === "--no-circleci") a.circleci = false;
     else if (f === "--no-codemagic") a.codemagic = false;
     else throw new UsageError(`unknown argument ${f}\n${MAC_USAGE}`);
@@ -226,14 +227,14 @@ const load = async (root: string, file: string): Promise<any> => import(pathToFi
 
 const sleepS = (s: number) => new Promise<void>((r) => setTimeout(r, s * 1000));
 
-/** Codemagic builds of the ledger (`.local/codemagic-ledger.json`) created since the window start. A build that cannot be read is logged and left out. */
-export async function realCodemagic(root: string, log: (l: string) => void): Promise<(fromMs: number) => Promise<JobRow[]>> {
+/** Codemagic builds of the ledger (`.local/codemagic-ledger.json`) and the ids given with `--codemagic-builds`, created since the window start. A build that cannot be read is logged and left out. */
+export async function realCodemagic(root: string, log: (l: string) => void, extra: string[] = []): Promise<(fromMs: number) => Promise<JobRow[]>> {
   const m = await load(root, "codemagic.mjs");
   const ctx = { fetchFn: fetch, getToken: m.keychainToken, sleep: sleepS, log: () => {} };
   return async (fromMs) => {
     const ledger = m.readLedger(join(root, ".local", "codemagic-ledger.json")) as { builds?: Record<string, unknown> };
     const out: JobRow[] = [];
-    for (const id of Object.keys(ledger.builds ?? {})) {
+    for (const id of new Set([...Object.keys(ledger.builds ?? {}), ...extra])) {
       try {
         const b = m.normBuild(await m.call(ctx, "GET", m.urls.build(id))) as CmBuild;
         const row = codemagicRow(b);
@@ -274,7 +275,7 @@ export async function macWindowCli(argv: string[], cwd: string): Promise<number>
   const log = (l: string) => console.log(l);
   const lines = await collectMac(a, {
     call: fwcoreCall(cwd), gh: chargedGh(realEnv(cwd)), now: a.now ?? Date.now(), log, cache: a.cache ? dirCache(a.cache) : undefined,
-    codemagic: a.codemagic ? await realCodemagic(root, log) : undefined,
+    codemagic: a.codemagic ? await realCodemagic(root, log, a.builds) : undefined,
     circleci: a.circleci ? await realCircleci(root, log) : undefined,
   });
   const out = a.out ?? join(cwd, "packages", "contracts", "golden", "obs", "mactelemetry-window-input.jsonl");

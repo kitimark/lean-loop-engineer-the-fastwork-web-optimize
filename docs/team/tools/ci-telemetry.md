@@ -98,7 +98,7 @@ span ends with a `(matched)` row: the job time that exists on every provider (Le
 The macOS window (task `macos-telemetry`):
 
 ```
-pnpm -s fw ci telemetry macos-window [--days 7] [--sample 200] [--out file] [--cache dir] [--now ms] [--no-circleci] [--no-codemagic]
+pnpm -s fw ci telemetry macos-window [--days 7] [--sample 200] [--out file] [--cache dir] [--now ms] [--codemagic-builds id,id] [--no-circleci] [--no-codemagic]
 ```
 
 lists the completed runs of the seven macOS workflows (run-level minutes, all runs), lets Lean pick at most `--sample`
