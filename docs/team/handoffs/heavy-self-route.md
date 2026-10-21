@@ -7,6 +7,5 @@ Writes outside the graph list: land.ts, node-budget.test.ts, Trigger.lean, LandS
 - Package `test` scripts are now `node <rel>/scripts/slot-self.mjs test -- pnpm run test:run`; old body lives in `test:run`. Root `lean:build` routes as kind check (`lean:build:run`). `lean/scripts/check.sh` re-execs through the helper before its heavy-lock line.
 - Declared reads: Trigger.lean row (+ triggers.jsonl), LandSpeed.lean checkShReads (+ land-speed.jsonl), land.ts CHECK_SH_READS. node-budget test reads `test:run`.
 - build-review.js builder prompt: bare forms replaced by "each heavy command routes itself, one per tool call".
-- docs/team/tools/slot.md: new "Self-routing" section.
-Open: one-off `lake build <t>`, `lake env lean --run`, `npx vitest` not covered (PreToolUse hook, needs user approval). Anything else reading a package `scripts.test` string must read `test:run`.
+Open: one-off `lake build <t>`, `lake env lean --run`, `npx vitest` not covered (needs a user-approved PreToolUse hook). Anything else reading a package `scripts.test` string must read `test:run`.
 Read first: scripts/slot-self.mjs, docs/team/tools/slot.md Self-routing.
