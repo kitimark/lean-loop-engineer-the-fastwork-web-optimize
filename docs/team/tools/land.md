@@ -31,10 +31,19 @@ force push), waits with `fw ci wait` (no CPU: one sleeping child per slice) and 
   conclusion `failure`, whatever the exit code; the waiter's exit decides only for runs without such a record. Theorems
   `verdict_completed_failure_refuses`, `verdict_no_local_after_failure`; golden per waiter exit 0..5 in `land-remote.jsonl`. A bound
   fail is never followed by `remote: running the remote tier on this Mac instead`.
+- **A running or green lane is never refused as failed (task land-wait-final; incidents run 39576215019 on 2026-10-20 and run 39612772041 on
+  2026-10-21).** Cause (INFERRED: neither waiter output was recovered; the timestamps fit, land log ended 14:09:23Z, run concluded success 14:09:07Z): the
+  waiter child exited 1 without a verdict (a crash), and `waitState 1` was `fail`. Lean `laneState` now reads the run's own record first: completed failure or an unknown
+  conclusion -> `fail`; status not `completed` -> `running` whatever the exit (in progress, wait error); completed success -> the per-job
+  conclusions decide (`legsOk`), also after exit 1; no record -> the waiter, where exit 1 is `fail` only with a `-> fail` line in its output
+  (else `running`: exit 1 without the line, exit 2 and exit 3 are wait errors, polled again until the deadline; theorems `laneState_wait_error_running`, `verdict_wait_error_waits`). A non-pass waiter on a cached record without job conclusions reads the full `gh run view` (the production cache hit never decides alone). A run that outlives `deadlineS` is `timeout`, verdict `remote-timeout-run-locally`, never
+  `remote-lane-failed` (theorem `verdict_timeout_not_fail`). Theorems `laneState_completed_failure`, `_completed_unknown`, `_in_progress`,
+  `_all_success`, `_one_failure`, `_wait_error`; goldens in `land-remote.jsonl`. A refusal line names the run id, the failed legs and the check ids of
+  each: `remote tier: the land lane failed for <sha7> (github:fail) [github: run <id>, failed legs: suites-a failure [checks ...]]`.
 - Every remote line (`remote: ...`, including `remote: verdict <kind> reason=<reason>` and the fallback line) goes to the land log
   file `.fw-console/land-logs/<task>-<sha7>.log` and to stderr as they happen, whether or not the land passes; they are not repeated in the result lines `fw land` prints at the end.
 - `fw ci wait` exit 3 means a run still going only when its output says `timed out after`; a stopped poller or a refused gh call
-  is `unavailable` (no retry on a refusal). After any exit but a plain timeout the adapter reads the land workflow's own run (`--workflow land`; a view whose `workflowName` is not the lane is dropped, so another workflow's run on the commit never decides): first the waiter's cached facts (gh-budget runs-status file, `meta/<id>.jobs.json`; no budget), then at most a list and a view, bounded by the slice deadline and the abort signal. Accepted limit: if the budget refuses those calls and no cached record exists, the waiter's outcome stands (fallback to the local tier), logged as `land run record not read (<reason>)`. A `running` poll that returns before its slice is slept out, so waiting costs no CPU.
+  is a wait error, `running` (polled again, no retry storm: the slice sleep applies). After any exit but a plain timeout the adapter reads the land workflow's own run (`--workflow land`; a view whose `workflowName` is not the lane is dropped, so another workflow's run on the commit never decides): first the waiter's cached facts (gh-budget runs-status file, `meta/<id>.jobs.json`; no budget), then at most a list and a view, bounded by the slice deadline and the abort signal. Accepted limit: if the budget refuses those calls and no cached record exists, a waiter exit 1 without `-> fail`, exit 2 or exit 3 stays `running` and is polled once per slice until `deadlineS` marks it `timeout` (verdict `remote-timeout-run-locally`); other exits are `unavailable`; logged as `land run record not read (<reason>)`. A `running` poll that returns before its slice is slept out, so waiting costs no CPU.
 - Before the push, `scripts/scrub.mjs --range origin/main <C>` scans the lines the push adds (home paths, Claude session/project paths and encoded home paths such as `-Users-<name>-`, the run-time account name, LAN IPs, emails, ...);
   a hit makes the provider `unavailable` with `personal-data scan refused ...` and the remote tier runs here. If `origin/main` is
   missing the scan fails the same way (closed). The waiter runs in its own process group; an abort stops the whole group.
@@ -42,7 +51,7 @@ force push), waits with `fw ci wait` (no CPU: one sleeping child per slice) and 
   and the failed run refuses (`remote-lane-failed`).
 - A failing local tier ends the wait and refuses. Spans: `remote push`, `remote queue`, `remote lane`, `local tier`.
 - `remote: false` (option) and an injected `checks` run everything here. The fallback protocol (locked) stays all-local.
-- Providers: GitHub is complete; the CircleCI adapter is a stub (`unavailable`), a follow-up after circleci-pilot lands.
+- Providers: GitHub first; CircleCI takes the legs GitHub has no free job slot for (section "The land overflows to CircleCI").
 TS stand-ins: `normalizeGithub` (the state is Lean's `laneState`), `awaitRemote`, `runTiered` (glue around the Lean verdict; tests in `land-remote.test.ts`).
 
 TS stand-in, marked for Lean replacement: `prelockAction` (no fwcore op yet); checked against the `landSpeed.prelock` golden.
@@ -78,6 +87,47 @@ then does only its part, so the wall time of the lane is the slowest leg:
   Measurements: `docs/team/handoffs/land-legs-followups.md`.
 - Cost: one runner per leg (free runners; four per land, the engine legs idle after setup when no browser suite is selected). Numbers and
   the phases that remain: `research/notes/2026/10-20-land-lane-speed.md`. Not changed: the local tier already starts with the push.
+
+## The land overflows to CircleCI (task land-lane-circleci)
+
+GitHub Actions runs every leg of the land lane unless it has no free job slot for them; the legs it cannot take run on CircleCI.
+- **Rule (Lean `Fw.Ci.Overflow`, fwcore ops `ci.overflow`, `ci.overflowCombine`, `ci.overflowSettle`, golden `packages/contracts/golden/ci/overflow.jsonl`).** Slots
+  are 20 (`ghCap`) minus the widths of the workflow runs now queued or running (`widths`: one row per `.github/workflows` name, an unlisted
+  name counts 4; a finished job still counts, the safe side). A row is the most jobs one run of that workflow holds at once, derived from the
+  workflow file (the heaviest set of jobs no two of which are ancestor and descendant, each job at most its matrix size, its `max-parallel` and
+  5 on macOS; a `fromJSON` matrix at the largest its planner allows) by `apps/runner/test/land-overflow-widths.test.ts`, which fails when a
+  matrix, a job or a workflow grows past its row, and when a row is not the derived value. The first legs that fit stay on GitHub, in matrix order; the rest go to CircleCI
+  only if CircleCI is usable (status fresh and healthy, a checkout key, credits and storage under the reserve). Theorems: `github_first`
+  (no overflow while GitHub has room), `overflow_only_when_full`, `never_both` (a leg is on one provider), `verdict_same` (one bound pass is
+  judged alike on either provider). A degraded Actions status moves every leg (`github-degraded`). `reason` says which branch decided.
+- **Facts (`apps/runner/src/land-overflow.ts`).** The slot count is one `gh run list --limit 100` (never `gh api`), cached in the gh-budget
+  directory for 120 s, no retry on a refusal (unreadable means GitHub first). It is up to 120 s old, reads **this repository only** and sees only
+  **the newest 100 runs**, so a run of another repository of the account and an older run still going are not counted: the slot count can
+  under-count (named limits; the account-wide use of the 20 job slots is not visible to it). The CircleCI facts are read only when the first answer moves a leg: the console's
+  `/api/ci-status`, the key check and the credit and storage ledger of `scripts/circleci.mjs`. The test flag `FW_LAND_FORCE_FULL=1` marks GitHub full.
+- **One marker, two lanes.** Both providers use the same `ci/land-<task>-<sha7>` branch and marker commit (pushed once, `makePusher`). A
+  land with legs on both says which GitHub gets in the marker message (`[legs:a,b]`); `land.yml`'s guard turns that into a matrix `exclude`.
+  A land with no leg on GitHub leaves out `[ci:land]`, so GitHub starts nothing. The GitHub adapter passes a partial land only if the run has
+  a job `land (<leg>)` for each leg it was given (`legsCovered`).
+- **CircleCI.** The land job restores a Lake cache (key `lake-v1-arm64-<toolchain+manifest hash>-<Lean source hash>`, prefix fallback) and saves it
+  only when the key changed (`job.sh lake-gate` halts before `save_cache` otherwise); a warm leg takes 48-215 s against 420-576 s cold (MEASURED,
+  `research/notes/2026/10-2x-circleci-lean-cache.md`; one save is about 292 MiB, 307 thousandths of a GB-month at the 30-day ledger bound). `.circleci/config.yml` has one workflow per leg (parameter `legs`, `lane == land`, branch `ci/*`); `.circleci/job.sh` runs the
+  same `fw checks --affected --tier remote --leg` entry and writes `lane.json` (`{leg, sha, digest, engine, rc}`). The adapter triggers
+  through `scripts/circleci.mjs` (token from the Keychain, never printed), waits at 120 s or slower, reads `vcs.revision` and the
+  artifacts, and binds a pass only to a sha and digest every leg printed (`normalizeCircle`). Groups are waited for on their own and
+  combined by fwcore (`awaitGroups`: refuse, else local, else a wait or try, else accept (Lean `pickKind`)).
+- **A CircleCI start that fails** (no adapter, the key check, the branch push or the trigger throws, so no pipeline exists) re-dispatches its
+  legs on GitHub, on the branch `ci/land-<task>-<sha7>-again`, never on the local tier (Lean `Overflow.settle`, op `ci.overflowSettle`,
+  theorem `failed_start_covered_once`: every leg is run exactly once, none twice, none dropped; test: `awaitGroups` in
+  `land-overflow.test.ts`). The failed group's verdict is dropped, so the local tier runs the remote checks only if GitHub cannot be started
+  either. Before this fix a trigger failure after the plan ran the whole remote tier locally. A pipeline that started and then failed is a
+  refusal, not a second run.
+- **Limits.** Linux legs only; no hedge; macOS lanes are follow-ups (tasks ci-route, pool-fallback). Credits count only pipelines this
+  Mac fetched (rolling 30 days). An aborted CircleCI pipeline is not cancelled. If one provider's group says local, the whole remote tier
+  runs here. `ghPrev` (the last Actions flag) is not tracked yet.
+- **Proof by hand.** `FW_LAND_FORCE_FULL=1 node apps/runner/src/land-probe.ts [--rev <sha>]` lands HEAD (or `--rev`, e.g. a commit made with `git commit-tree HEAD^{tree} -p main -p HEAD`, so the legs select what a land selects and run the browser suite) through this path on a probe branch (no merge).
+- TS stand-ins: the status-to-active filter in `readSlots`, `markerMessage`, `legsCovered`, the sha and digest uniformity in `normalizeCircle`
+  (tests in `land-overflow.test.ts`; the rule itself is replayed from the Lean golden).
 
 ## `--dry` and verdict lines
 

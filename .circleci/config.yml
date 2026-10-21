@@ -12,8 +12,7 @@ version: 2.1
 # Every job writes the result files of its GitHub twin (artifacts) plus timings.json: per-step spans in the
 # .fw-console/timings.jsonl format ({tool, step, startMs, durMs, exit, commit, load, host}) wrapped with the job, class and
 # commit. The queue span (created to started) is added by scripts/circleci.mjs from the API, not by the job.
-# No Lake cache is saved: this pilot builds no Lean. The only cache is the pnpm store of the premise jobs (about 10 MiB archived),
-# keyed by pnpm-lock.yaml. It is saved only when the key is new: CircleCI cannot condition save_cache and sets no "restored" flag,
+# The premise jobs build no Lean: their cache is the pnpm store (about 10 MiB archived), keyed by pnpm-lock.yaml; the land job has a Lake cache (below). It is saved only when the key is new: CircleCI cannot condition save_cache and sets no "restored" flag,
 # so cache-probe / cache-gate (.circleci/job.sh) halt the job (`circleci-agent step halt`) before save_cache when the restored
 # store already belongs to this lockfile. The key is v2 because a v1 cache is immutable and carries no marker. The ledger reads the real saves from the job steps (scripts/circleci.mjs).
 #
@@ -22,7 +21,11 @@ version: 2.1
 
 parameters:
   lane:
-    description: Which lane to run, empty for none. premise-tests or webkit-sim.
+    description: Which lane to run, empty for none. premise-tests, webkit-sim or land.
+    type: string
+    default: ""
+  legs:
+    description: The land legs to run when lane is land, comma separated (check-sh, suites-a, suites-b, chromium, playwright-webkit; the names of lean/land-legs.txt).
     type: string
     default: ""
   resource_class:
@@ -58,6 +61,7 @@ commands:
           when: always
           command: sh .circleci/job.sh finish
       - store_artifacts:
+          when: always
           path: /tmp/fw/artifacts
 
 jobs:
@@ -197,6 +201,82 @@ jobs:
           command: sh .circleci/job.sh sim-delete
       - finish
 
+  # The land lane (task land-lane-circleci): one leg of .github/workflows/land.yml, same entry (`pnpm fw checks --affected --tier remote
+  # --leg <leg>`), same lane digest. Linux Arm, the same class as the premise jobs.
+  # The Lake cache (task circleci-lean-cache): the legs took 450-579 s on CircleCI against 63-127 s on GitHub, INFERRED from the cold
+  # Lean build. The key is built like .github/actions/setup-lean: toolchain + Lake manifest + Lean sources (job.sh lake-key writes the
+  # two hash strings that `checksum` reads), the restore key is the toolchain + manifest prefix. Every leg restores; a leg saves only
+  # when the exact key was not restored (lake-probe / lake-gate, the pnpm-cache trick: CircleCI has no "restored" flag and no
+  # condition on save_cache), so one entry is stored per key and the storage stop rule (1 GB-month) counts one upload. The first
+  # writer of a key wins (CircleCI caches are immutable), whichever leg that is. Bump `lake-v1` in both keys to force a fresh entry.
+  land:
+    parameters:
+      leg:
+        type: enum
+        enum: [check-sh, suites-a, suites-b, chromium, playwright-webkit]
+      rc:
+        type: enum
+        enum: [arm.medium.gen2, arm.large.gen2, arm.medium, arm.large]
+    machine:
+      image: ubuntu-2404:current
+    resource_class: << parameters.rc >>
+    environment:
+      FW_CI_JOB: land-<< parameters.leg >>
+      FW_CI_CLASS: << parameters.rc >>
+      # Same pinned browser as .github/workflows/land.yml.
+      HS_VERSION: 156.0.8078.4
+      HS_SHA256: 81ab9d4d3c301dc5fdfb6c541b9e6632b16fc819a6a854460f40a76fe2b2c476
+    steps:
+      - mark
+      - checkout
+      - since:
+          step: checkout
+      - run:
+          name: Lake cache key (hash strings)
+          command: sh .circleci/job.sh lake-key
+      - mark
+      - restore_cache:
+          keys:
+            - lake-v1-arm64-{{ checksum "/tmp/fw/lake-tm.key" }}-{{ checksum "/tmp/fw/lake-src.key" }}
+            - lake-v1-arm64-{{ checksum "/tmp/fw/lake-tm.key" }}-
+      - since:
+          step: lake cache restore
+      - run:
+          name: Lake cache current for this key?
+          command: sh .circleci/job.sh lake-probe
+      - run:
+          name: toolchain (node 24, pnpm)
+          command: sh .circleci/job.sh toolchain
+      - run:
+          name: Lean toolchain (pinned elan)
+          command: sh .circleci/job.sh land-lean
+      - run:
+          name: main ref and commit identity
+          command: sh .circleci/job.sh land-setup
+      - run:
+          name: deps install (package filter from Lean)
+          command: sh .circleci/job.sh install "$(cat lean/land-filter.txt)"
+      - run:
+          name: fwcore build
+          command: sh .circleci/job.sh land-fwcore
+          no_output_timeout: 30m
+      - run:
+          name: suites (the remote tier of the Lean-selected checks)
+          command: sh .circleci/job.sh land-suites << parameters.leg >>
+          no_output_timeout: 30m
+      - run:
+          name: browser suite
+          command: sh .circleci/job.sh land-engine << parameters.leg >>
+          no_output_timeout: 30m
+      - finish
+      - run:
+          name: Lake cache gate (halts the job here when the exact key was restored)
+          command: sh .circleci/job.sh lake-gate
+      - save_cache:
+          key: lake-v1-arm64-{{ checksum "/tmp/fw/lake-tm.key" }}-{{ checksum "/tmp/fw/lake-src.key" }}
+          paths:
+            - ~/.fw-lake
+
 workflows:
   premise-tests:
     when: pipeline.parameters.lane == "premise-tests" and pipeline.git.branch starts-with "ci/"
@@ -218,3 +298,63 @@ workflows:
     jobs:
       - webkit-sim:
           xcode: << pipeline.parameters.xcode >>
+
+  land-check-sh:
+    when:
+      and:
+        - equal: [land, << pipeline.parameters.lane >>]
+        - matches: {pattern: "^(.*,)?check-sh(,.*)?$", value: << pipeline.parameters.legs >>}
+        - matches: {pattern: "^ci/.*", value: << pipeline.git.branch >> }
+    jobs:
+      - land:
+          name: land-check-sh
+          leg: check-sh
+          rc: << pipeline.parameters.resource_class >>
+
+  land-suites-a:
+    when:
+      and:
+        - equal: [land, << pipeline.parameters.lane >>]
+        - matches: {pattern: "^(.*,)?suites-a(,.*)?$", value: << pipeline.parameters.legs >>}
+        - matches: {pattern: "^ci/.*", value: << pipeline.git.branch >> }
+    jobs:
+      - land:
+          name: land-suites-a
+          leg: suites-a
+          rc: << pipeline.parameters.resource_class >>
+
+  land-suites-b:
+    when:
+      and:
+        - equal: [land, << pipeline.parameters.lane >>]
+        - matches: {pattern: "^(.*,)?suites-b(,.*)?$", value: << pipeline.parameters.legs >>}
+        - matches: {pattern: "^ci/.*", value: << pipeline.git.branch >> }
+    jobs:
+      - land:
+          name: land-suites-b
+          leg: suites-b
+          rc: << pipeline.parameters.resource_class >>
+
+  land-chromium:
+    when:
+      and:
+        - equal: [land, << pipeline.parameters.lane >>]
+        - matches: {pattern: "^(.*,)?chromium(,.*)?$", value: << pipeline.parameters.legs >>}
+        - matches: {pattern: "^ci/.*", value: << pipeline.git.branch >> }
+    jobs:
+      - land:
+          name: land-chromium
+          leg: chromium
+          rc: << pipeline.parameters.resource_class >>
+
+  land-playwright-webkit:
+    when:
+      and:
+        - equal: [land, << pipeline.parameters.lane >>]
+        - matches: {pattern: "^(.*,)?playwright-webkit(,.*)?$", value: << pipeline.parameters.legs >>}
+        - matches: {pattern: "^ci/.*", value: << pipeline.git.branch >> }
+    jobs:
+      - land:
+          name: land-playwright-webkit
+          leg: playwright-webkit
+          rc: << pipeline.parameters.resource_class >>

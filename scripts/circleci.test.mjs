@@ -9,7 +9,7 @@ import { tmpdir, userInfo } from 'node:os';
 import { delimiter, dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { CHECKOUT_STEP, checkoutOfStatus, keyAdvice, keyCheck, keyExit, keyProceed, keyVerdict, readCloneResult, readKeyList, usableKeyKind, cachePipelineBytes, cacheSavedBytes, classOfApi, parseCacheSave, readCacheSave, savesCacheJob, API, MIN_POLL_S, ROOT, call, callBytes, comparePairs, compare, credits, digestJob, dryRun, fetchPipeline, fixtureFetch, githubDigests, githubRuns, isPilotPipeline, jobOfGithub, listAll, loadFixture, loadGolden, main, ofCircleStatus, ofGithubConclusion, parseLoose, premiseDigest, premisesArtifact, readLedger, redact, renderComparison, route, stops, storageMilli, timingsDoc, triggerRequest, urls, waitPipeline, waitStep } from './circleci.mjs';
+import { creditsSoFar, landLane, landLegs, CHECKOUT_STEP, checkoutOfStatus, keyAdvice, keyCheck, keyExit, keyProceed, keyVerdict, readCloneResult, readKeyList, usableKeyKind, cachePipelineBytes, cacheSavedBytes, classOfApi, parseCacheSave, readCacheSave, savesCacheJob, API, MIN_POLL_S, ROOT, call, callBytes, comparePairs, compare, credits, digestJob, dryRun, fetchPipeline, fixtureFetch, githubDigests, githubRuns, isPilotPipeline, jobOfGithub, listAll, loadFixture, loadGolden, main, ofCircleStatus, ofGithubConclusion, parseLoose, premiseDigest, premisesArtifact, readLedger, redact, renderComparison, route, stops, storageMilli, timingsDoc, triggerRequest, urls, waitPipeline, waitStep } from './circleci.mjs';
 
 const g = loadGolden();
 const here = dirname(fileURLToPath(import.meta.url));
@@ -101,7 +101,9 @@ test('every CircleCI job of the job map is a job of the config, and every workfl
   const whens = [...cfg.matchAll(/^    when: (.*)$/gm)].map((x) => x[1]);
   assert.equal(whens.length, 2);
   for (const w of whens) { assert.match(w, /pipeline\.git\.branch starts-with "ci\/"/); assert.match(w, /pipeline\.parameters\.lane == "/); }
-  assert.ok(!/save_cache[\s\S]*lake/i.test(cfg), 'no Lake cache');
+  // the Lake cache is the land job's alone (test 'land lane: the Lake cache ...'); the pilot jobs keep the pnpm store only
+  const pilot = cfg.slice(cfg.indexOf('\njobs:'), cfg.indexOf('\n  land:')).replace(/^ *#.*$/gm, '');
+  assert.ok(!/save_cache[\s\S]*lake/i.test(pilot), 'no Lake cache in the pilot jobs');
 });
 
 test('job.sh and node-install.sh parse; job.sh handles every step the config calls', () => {
@@ -497,6 +499,10 @@ test('jobMap: savesCache per row, and savesCacheJob (Lean) is false for a job ou
   for (const r of g.jobMap) assert.equal(savesCacheJob(g, r.circleci), r.savesCache, r.circleci);
   assert.deepEqual(g.jobMap.filter((r) => r.savesCache).map((r) => r.circleci), ['engine-chromium', 'engine-playwright-webkit']);
   assert.equal(savesCacheJob(g, 'probe'), false);
+  // the other branch of Lean savesCacheJob: a land job (Lean landJobs, equal to the legs by Overflow.landJobs_eq_legs)
+  assert.deepEqual(g.landJobs, landLegs().map((l) => `land-${l}`));
+  for (const j of g.landJobs) assert.equal(savesCacheJob(g, j), true, j);
+  assert.equal(savesCacheJob(g, 'land-nope'), false);
 });
 
 const saveText = (name, n) => loadFixture(name).api.files[`https://action-output.example/${name}/job-${n}/saving-cache`].map((x) => x.message).join('');
@@ -560,7 +566,7 @@ function jobStep(step, { marker, dir }) {
   writeFileSync(join(bin, 'circleci-agent'), `#!/bin/sh\necho "$@" >> "${join(dir, 'agent.log')}"\n`);
   chmodSync(join(bin, 'circleci-agent'), 0o755);
   if (marker !== undefined) writeFileSync(join(home, '.fw-cache', 'lock-sha256'), `${marker}\n`);
-  const env = { PATH: `${bin}${delimiter}${dirname(process.execPath)}${delimiter}/usr/bin${delimiter}/bin`, HOME: home, FW_JOB_DIR: fwDir };
+  const env = { PATH: `${bin}${delimiter}${dirname(process.execPath)}${delimiter}/usr/bin${delimiter}/bin${delimiter}/sbin`, HOME: home, FW_JOB_DIR: fwDir };
   return execFileSync('sh', [join(ROOT, '.circleci', 'job.sh'), step], { env, encoding: 'utf8' });
 }
 
@@ -682,4 +688,191 @@ test('cli: key-check and trigger stop before the POST when the key is missing, a
   assert.ok(!a.calls.some((c) => c.startsWith('POST')));
   assert.equal(await main(['trigger', '--lane', 'premise-tests', '--branch', 'ci/x'], { root, env, ctx: a.ctx, log: (l) => logs.push(l) }), 0);
   assert.ok(a.calls.includes('POST /project/s/pipeline/run'));
+});
+
+test('land lane: the trigger request carries the legs and the class, --legs is checked against lean/land-legs.txt', async () => {
+  const r = triggerRequest({ slug: 's', definitionId: 'd', branch: 'ci/land-x', lane: 'land', cls: 'arm.medium.gen2', legs: ['check-sh', 'chromium'] });
+  assert.deepEqual(r.body.parameters, { lane: 'land', resource_class: 'arm.medium.gen2', legs: 'check-sh,chromium' });
+  assert.deepEqual(triggerRequest({ slug: 's', definitionId: 'd', branch: 'ci/x', lane: 'premise-tests', legs: ['chromium'] }).body.parameters, { lane: 'premise-tests' });
+  assert.deepEqual(landLegs(), ['check-sh', 'suites-a', 'suites-b', 'chromium', 'playwright-webkit']);
+  const root = mkdtempSync(join(tmpdir(), 'fwroot-'));
+  const logs = [];
+  const run = (a) => main(a, { root, env: {}, log: (l) => logs.push(l) });
+  assert.equal(await run(['trigger', '--lane', 'land', '--branch', 'ci/x', '--dry']), 64, 'a land trigger needs legs');
+  assert.equal(await run(['trigger', '--lane', 'land', '--branch', 'ci/x', '--legs', 'nope', '--dry']), 64);
+  assert.equal(await run(['trigger', '--lane', 'premise-tests', '--branch', 'ci/x', '--legs', 'chromium', '--dry']), 64);
+  assert.equal(await run(['trigger', '--lane', 'land', '--branch', 'ci/x', '--legs', 'check-sh,chromium', '--dry']), 0);
+  assert.match(logs.join('\n'), /"legs": "check-sh,chromium"/);
+});
+
+test('land lane: landLane reads the record a land job writes and nothing else', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'fwlane-'));
+  const f = join(dir, 'lane.json');
+  assert.equal(landLane(null), null);
+  assert.equal(landLane(f), null);
+  writeFileSync(f, '{"leg":"suites-a","sha":"abc","digest":"d1","engine":"false","rc":0}\n');
+  assert.deepEqual(landLane(f), { leg: 'suites-a', sha: 'abc', digest: 'd1', engine: 'false', rc: 0 });
+  writeFileSync(f, '{"leg":"suites-a"}');
+  assert.equal(landLane(f), null);
+  writeFileSync(f, 'not json');
+  assert.equal(landLane(f), null);
+});
+
+test('land lane: the engine leg runs engine_libs and engine_browser in subshells, so their cd does not move the browser suite', () => {
+  // engine_libs does `cd packages/gate-breakpoints`; called in the shell of land_engine it moved the suite's cwd and the first live run
+  // of an engine leg died with exit 2 on `cd packages/e2e-preview` (the premise jobs call them as separate steps, where it does not matter).
+  const job = readFileSync(join(ROOT, '.circleci', 'job.sh'), 'utf8');
+  const body = /^land_engine\(\) \{[\s\S]*?^\}/m.exec(job)?.[0];
+  assert.ok(body, 'land_engine found');
+  for (const fn of ['engine_libs', 'engine_browser']) {
+    const calls = body.split('\n').filter((l) => new RegExp(`\\b${fn}\\b`).test(l) && !l.trimStart().startsWith('#'));
+    assert.equal(calls.length, 1, `${fn} is called once`);
+    assert.match(calls[0], new RegExp(`^\\s*\\(.*\\b${fn}\\)\\s*$`), `${fn} runs in a subshell`);
+  }
+});
+
+test('land lane: the pinned elan in job.sh is the pin of the setup-lean action, every leg has its workflow', () => {
+  const job = readFileSync(join(ROOT, '.circleci', 'job.sh'), 'utf8');
+  const action = readFileSync(join(ROOT, '.github', 'actions', 'setup-lean', 'action.yml'), 'utf8');
+  for (const k of ['ELAN_VERSION', 'ELAN_SHA256']) {
+    const a = new RegExp(`${k}[=:] ?(\\S+)`).exec(action)?.[1], b = new RegExp(`^${k}=(\\S+)`, 'm').exec(job)?.[1];
+    assert.ok(a && a === b, `${k}: setup-lean ${a}, job.sh ${b}`);
+  }
+  const cfg = readFileSync(join(ROOT, '.circleci', 'config.yml'), 'utf8');
+  for (const leg of landLegs()) {
+    assert.ok(cfg.includes(`name: land-${leg}`) && cfg.includes(`leg: ${leg}`), `config.yml has a workflow for ${leg}`);
+  }
+  assert.equal(cfg.split('pattern: "^ci/.*"').length - 1, landLegs().length, 'each land workflow is guarded on ci/ branches');
+  assert.match(cfg, /enum: \[check-sh, suites-a, suites-b, chromium, playwright-webkit\]/);
+});
+
+test('land lane: fetchPipeline puts the lane record of each land job into run.json', async () => {
+  const sha = 'a'.repeat(40);
+  const api = {
+    'GET /pipeline/p1': { vcs: { revision: sha } },
+    'GET /pipeline/p1/workflow': { items: [{ id: 'w1' }] },
+    'GET /workflow/w1/job': { items: [{ name: 'land-suites-a', job_number: 7, status: 'success' }] },
+    'GET /project/s/job/7': { name: 'land-suites-a', status: 'success', started_at: '2026-10-21T10:00:00Z', stopped_at: '2026-10-21T10:10:00Z', queued_at: '2026-10-21T09:59:00Z', duration: 600000, executor: { resource_class: 'arm-medium-gen2' } },
+    'GET /project/s/7/artifacts': { items: [{ path: 'tmp/fw/artifacts/lane.json', url: 'https://x.test/lane.json' }] },
+    // a land job has a save step (Lean savesCacheJob), so its steps are read; this one halted before it (the exact Lake key was restored)
+    'GET https://circleci.com/api/v1.1/project/s/7': { steps: [{ actions: [{ name: 'Checkout code', status: 'success' }] }] },
+  };
+  const body = `{"leg":"suites-a","sha":"${sha}","digest":"dd","engine":"false","rc":0}\n`;
+  const ctx = { golden: loadGolden(), getToken: () => 't', sleep: async () => {}, now: () => 0, log: () => {}, fetchFn: async (url) => {
+    if (String(url).startsWith('https://x.test/')) return new Response(body, { status: 200 });
+    const key = `GET ${String(url).replace(API, '').split('?')[0]}`;
+    if (!(key in api)) return new Response('{}', { status: 404 });
+    return new Response(JSON.stringify(api[key]), { status: 200, headers: { 'content-type': 'application/json' } });
+  } };
+  const out = mkdtempSync(join(tmpdir(), 'fwland-'));
+  const doc = await fetchPipeline(ctx, { slug: 's', pipelineId: 'p1', out });
+  assert.deepEqual(doc.storage.cacheSaves, [{ job: 'land-suites-a', number: 7, kind: 'absent' }]);
+  assert.equal(doc.storage.cache, 0);
+  assert.deepEqual(doc.lanes, [{ job: 'land-suites-a', conclusion: 'pass', leg: 'suites-a', sha, digest: 'dd', engine: 'false', rc: 0 }]);
+});
+
+test('creditsSoFar: a fetch writes its credits and time into the ledger, and the sum is a rolling 30 days', async () => {
+  const fx = loadFixture('premise-tests');
+  const dir = mkdtempSync(join(tmpdir(), 'fwcred-'));
+  const ledgerPath = join(dir, 'ledger.json');
+  const now = Date.UTC(2026, 9, 21);
+  const { ctx } = ctxOf(fx, { ledgerPath, now: () => now });
+  await fetchPipeline(ctx, { slug: fx.slug, pipelineId: fx.pipelineId, out: join(dir, 'o') });
+  const b = readLedger(ledgerPath).pipelines[fx.pipelineId];
+  assert.equal(b.at, now);
+  assert.ok(b.credits >= 0);
+  assert.equal(creditsSoFar({ ledgerPath }, now), b.credits);
+  assert.equal(creditsSoFar({ ledgerPath }, now + 29 * 86400000), b.credits);
+  assert.equal(creditsSoFar({ ledgerPath }, now + 31 * 86400000), 0, 'older than 30 days: out of the month');
+  assert.equal(creditsSoFar({}, now), 0, 'no ledger path: nothing counted');
+  writeFileSync(ledgerPath, JSON.stringify({ pipelines: { old: { artifacts: 1, cache: 0, workspace: 0 } } }));
+  assert.equal(creditsSoFar({ ledgerPath }, now), 0, 'a pipeline fetched before credits were kept counts 0');
+});
+
+test('wait: a workflow whose job list answers 404 is "no jobs yet" (seen right after a trigger); another error still stops the wait', async () => {
+  const fx = loadFixture('premise-tests');
+  const base = fixtureFetch(fx.api);
+  const jobPath = `/workflow/${wfIdOf(fx)}/job`;
+  const failing = (status) => async (u, i) => (String(u).startsWith(`${API}${jobPath}`) ? { status, ok: false, headers: { get: () => null }, text: async () => '{"message":"x"}' } : base(u, i));
+  const w = await waitPipeline(ctxOf(fx, { fetchFn: failing(404) }).ctx, { slug: fx.slug, pipelineId: fx.pipelineId });
+  assert.equal(w.code, 0);
+  assert.deepEqual(w.jobs, []);
+  await assert.rejects(waitPipeline(ctxOf(fx, { fetchFn: failing(500) }).ctx, { slug: fx.slug, pipelineId: fx.pipelineId }), /HTTP 500/);
+});
+
+// ------------------------------------------------------------------------------ the Lake cache of the land job (circleci-lean-cache)
+
+const landJob = () => {
+  const cfg = readFileSync(join(ROOT, '.circleci', 'config.yml'), 'utf8');
+  return cfg.slice(cfg.indexOf('\n  land:'), cfg.indexOf('\nworkflows:'));
+};
+
+test('land lane: the Lake cache is restored in every leg before the build and saved once, after the gate', () => {
+  const land = landJob();
+  assert.equal((land.match(/- save_cache:/g) ?? []).length, 1);
+  assert.equal((land.match(/- restore_cache:/g) ?? []).length, 1);
+  const at = (s) => land.indexOf(s);
+  assert.ok(at('job.sh lake-key') < at('- restore_cache:') && at('- restore_cache:') < at('job.sh lake-probe') && at('job.sh lake-probe') < at('job.sh land-fwcore'), 'key, restore, probe, then the build');
+  assert.ok(at('- finish') < at('job.sh lake-gate') && at('job.sh lake-gate') < at('- save_cache:'), 'the gate comes after finish and before the save');
+  // one key for restore and save: toolchain + manifest, then the sources; the second restore key is the toolchain + manifest prefix
+  const keys = [...land.matchAll(/lake-v\d+-arm64-\{\{ checksum "\/tmp\/fw\/lake-tm\.key" \}\}-(\{\{ checksum "\/tmp\/fw\/lake-src\.key" \}\})?/g)].map((m) => m[0]);
+  assert.equal(keys.length, 3);
+  assert.equal(keys[0], keys[2], 'restore (exact) and save use the same key');
+  assert.ok(keys[1].length < keys[0].length && keys[0].startsWith(keys[1]), 'the fallback is a prefix of the exact key');
+  assert.match(land, /~\/\.fw-lake/);
+  // job.sh: the cached directory, the Lake variable and the marker are one place
+  const job = readFileSync(join(ROOT, '.circleci', 'job.sh'), 'utf8');
+  assert.match(job, /^lake_dir=\$HOME\/\.fw-lake$/m);
+  assert.match(job, /^export LAKE_CACHE_DIR=\$lake_dir\/cache$/m);
+});
+
+test('land lane: the Lake key hashes the files setup-lean hashes (toolchain, manifest, lakefile, lean/*.lean, Fw, FwTest)', () => {
+  const action = readFileSync(join(ROOT, '.github', 'actions', 'setup-lean', 'action.yml'), 'utf8');
+  const hashed = [...action.matchAll(/hashFiles\(([^)]*)\)/g)].map((m) => m[1].split(',').map((x) => x.trim().replace(/'/g, '')).join(' '));
+  assert.deepEqual([...new Set(hashed)], ['lean/lean-toolchain lean/lake-manifest.json', 'lean/lakefile.toml lean/*.lean lean/Fw/** lean/FwTest/**']);
+  const job = readFileSync(join(ROOT, '.circleci', 'job.sh'), 'utf8');
+  const body = /^lake_key\(\) \{[\s\S]*?^\}/m.exec(job)?.[0];
+  assert.ok(body);
+  for (const f of ['lean/lean-toolchain', 'lean/lake-manifest.json', 'lean/lakefile.toml', 'lean/*.lean', 'lean/Fw', 'lean/FwTest']) assert.ok(body.includes(f), f);
+});
+
+test('land lane: lake-key writes the hash strings of the key', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'fwlake-'));
+  const read = (n) => readFileSync(join(dir, 'fw', n), 'utf8').trim();
+  const out = jobStep('lake-key', { dir });
+  assert.match(out, /lake key: toolchain\+manifest [0-9a-f]{8}, sources [0-9a-f]{8}/);
+  assert.match(read('lake-tm.key'), /^[0-9a-f]{64}$/);
+  assert.match(read('lake-src.key'), /^[0-9a-f]{64}$/);
+  assert.equal(read('lake-full.key'), `${read('lake-tm.key')}-${read('lake-src.key')}`);
+  const tm = createHash('sha256').update(readFileSync(join(ROOT, 'lean', 'lean-toolchain'))).update(readFileSync(join(ROOT, 'lean', 'lake-manifest.json'))).digest('hex');
+  assert.equal(read('lake-tm.key'), tm, 'toolchain then manifest, as `cat | sha256sum`');
+});
+
+test('lake cache gate: the exact key restored halts the job before save_cache; an older entry or none writes the marker for the save', () => {
+  const lakeMarker = (dir) => join(dir, 'home', '.fw-lake', 'key');
+  const full = (dir) => readFileSync(join(dir, 'fw', 'lake-full.key'), 'utf8').trim();
+  const withMarker = (dir, text) => { mkdirSync(join(dir, 'home', '.fw-lake'), { recursive: true }); writeFileSync(lakeMarker(dir), `${text}\n`); };
+  const fresh = () => { const d = mkdtempSync(join(tmpdir(), 'fwlake-')); jobStep('lake-key', { dir: d }); return d; };
+  // 1. the exact key was restored: halt, marker untouched
+  let dir = fresh();
+  withMarker(dir, full(dir));
+  assert.match(jobStep('lake-probe', { dir }), /exact key was restored/);
+  assert.ok(existsSync(join(dir, 'fw', 'lake-current')));
+  jobStep('lake-gate', { dir });
+  assert.match(readFileSync(join(dir, 'agent.log'), 'utf8'), /step halt/);
+  assert.equal(readFileSync(lakeMarker(dir), 'utf8').trim(), full(dir));
+  // 2. an older entry (a marker of another key) was restored: no halt, the marker becomes the current key
+  dir = fresh();
+  withMarker(dir, 'f'.repeat(64));
+  assert.match(jobStep('lake-probe', { dir }), /older entry/);
+  assert.ok(!existsSync(join(dir, 'fw', 'lake-current')));
+  jobStep('lake-gate', { dir });
+  assert.ok(!existsSync(join(dir, 'agent.log')), 'no halt');
+  assert.equal(readFileSync(lakeMarker(dir), 'utf8').trim(), full(dir));
+  // 3. nothing restored: the marker is written for the save, no halt
+  dir = fresh();
+  assert.match(jobStep('lake-probe', { dir }), /nothing restored/);
+  jobStep('lake-gate', { dir });
+  assert.ok(!existsSync(join(dir, 'agent.log')));
+  assert.equal(readFileSync(lakeMarker(dir), 'utf8').trim(), full(dir));
 });

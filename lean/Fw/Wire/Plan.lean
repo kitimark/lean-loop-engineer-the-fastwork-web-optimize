@@ -2,6 +2,7 @@ import Fw.Wire
 import Fw.Plan.Core
 import Fw.Plan.Incident
 import Fw.Plan.Overlap
+import Fw.Plan.ReviewReady
 /-!
 # JSON for the plan commands and the board plan
 
@@ -45,6 +46,8 @@ The stateless op `plan.incidentLint` (task `incident-lint`, `Fw.Plan.Incident`),
 | op | request | reply |
 |---|---|---|
 | `plan.incidentLint` | `incidents` [ledger records as in the file], `tasks` [{id, evidence?, agent?}] (work graph rows with board state), `commits`? [refs that are commits on main], `files`? [refs that exist], `classes`? [class ids of research/mistakes/ledger.json] | `ok`, `errors`, `warnings`, `incidents` [{id, status, findings [{code, severity, detail}]}] |
+| `plan.reviewReady` | `items` [{id, status, evidence}], `runs` [{id, state}] (missing = `[]`), `task` (the task id, missing = blank), `dry` (the `VERDICT` line of `fw land --dry`, missing = blank) (task `review-flow-v2`, `Fw.Plan.ReviewReady`) | `ready` (`review`, `dispatch`, `wait`, `returnToBuilder`) |
+| `plan.reviewVerdict` | `severities` [word] (`blocker`, `fix-before-land`, `follow-up`; any other word is a blocker), `audited`? [bool: the medium-only audit is done] | `verdict` (`accept`, `refuse`), `recheck` [bool: the verdict used is accept and a `fix-before-land` finding is present, so the checker re-checks], `blockers`, `fixes` [counts] |
 | `plan.overlap` | `rows` [{id, writes}] (work graph), `running` [task ids], `candidate`? [task id], `override`? [reason] (task `spawn-write-overlap`, `Fw.Plan.Overlap`) | `verdict` (`clear`, `refused`, `overridden`, `unknown`), `conflicts` [{a, b, ga, gb}], `unknown` [ids] |
 -/
 namespace Fw.Wire.Plan
@@ -228,14 +231,37 @@ def opOverlap (req : Json) : Except String Reply := do
           ("a", .str c.a), ("b", .str c.b), ("ga", .str c.ga), ("gb", .str c.gb)])),
         ("unknown", strsJson (unknownIds rows running cand))]
 
+open Fw.Plan.ReviewReady in
+/-- `plan.reviewReady`: `Fw.Plan.ReviewReady.reviewReady` over the report items, the run states and the dry line. -/
+def opReviewReady (req : Json) : Except String Reply := do
+  let items ← (← arr req "items").toList.mapM fun r => do
+    pure ({ id := ← str r "id", status := ← str r "status", evidence := ← str r "evidence" } : Item)
+  let runs ← ((← match opt req "runs" with | none => pure #[] | some v => asArr "runs" v)).toList.mapM fun r => do
+    pure ({ id := ← str r "id", state := ← str r "state" } : Run)
+  let dry := (← optStr req "dry").getD ""
+  let task := (← optStr req "task").getD ""
+  pure [("ready", .str (reviewReady task items runs dry).name)]
+
+open Fw.Plan.ReviewReady in
+/-- `plan.reviewVerdict`: `verdictOf` (audited) or `strictVerdict` (the interim rule) over the severity words. -/
+def opReviewVerdict (req : Json) : Except String Reply := do
+  let fs := (← strsD req "severities").map Sev.ofString
+  let audited ← boolD req "audited"
+  let v := if audited then verdictOf fs else strictVerdict fs
+  pure [("verdict", .str v.name), ("recheck", .bool (recheck v fs)),
+        ("blockers", toJson (fs.filter (· == .blocker)).length),
+        ("fixes", toJson (fs.filter (· == .fixBeforeLand)).length)]
+
 /-- The stateless ops of this module. -/
-def ops : List String := ["plan.incidentLint", "plan.overlap"]
+def ops : List String := ["plan.incidentLint", "plan.overlap", "plan.reviewReady", "plan.reviewVerdict"]
 
 /-- Dispatch one of these ops (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
   match op with
   | "plan.incidentLint" => some (opIncidentLint req)
   | "plan.overlap" => some (opOverlap req)
+  | "plan.reviewReady" => some (opReviewReady req)
+  | "plan.reviewVerdict" => some (opReviewVerdict req)
   | _ => none
 
 end Fw.Wire.Plan

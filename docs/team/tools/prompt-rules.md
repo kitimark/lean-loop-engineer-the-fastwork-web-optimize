@@ -19,6 +19,8 @@ Add a line from the list below only when the task changes it.
 | R3 | Lean first: decide and prove in Lean, then generate or golden-check the code; no `sorry`, `native_decide`, `implemented_by`, `unsafe`; `#print axioms` standard only. |
 | R4 | Comments and docstrings per `.claude/agents/comment-sicko.md`; `#guard` for each decision function. |
 | R5 | Hand back only after merging `main` and `pnpm fw land <branch> --task <id> --dry` ends with `VERDICT dry <id>` (`docs/team/tools/land.md`). |
+| R5b | Report `items` [{id, status, evidence}], one per deliverable and per prior finding (status `done` `pending` `dispatch` `followUp` `undelivered`; evidence a `path:line` or `run:<id>`), the `dry` line, and the line of `pnpm -s fw review ready --report <json> --task <id>` (Lean `Fw.Plan.ReviewReady.reviewReady`). Answers: `review` (reviewed), `wait`, `dispatch`, `returnToBuilder` (the build goes back to the lead, no review). |
+| R5c | A review grades each finding `blocker`, `fix-before-land` or `follow-up` and gets its verdict from `pnpm -s fw review verdict --findings <json>` (Lean `verdictOf`: accept iff no blocker; interim `strictVerdict` also refuses on `fix-before-land` until the medium-only refusals are audited). `fix-before-land` text the lead applies gets a checker re-check before land. |
 | R6 | Write the handoff `docs/team/handoffs/<name>.md`, at most 30 lines (`.claude/skills/no-slop/SKILL.md`). |
 | R7 | Report at most 300 characters plus paths. |
 

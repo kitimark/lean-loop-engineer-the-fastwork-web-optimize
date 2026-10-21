@@ -6,7 +6,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { DEFAULT_PARAMS, decide, prune } from './heavy-lock.mjs';
+import { DEFAULT_PARAMS, decide, lockEvent, prune } from './heavy-lock.mjs';
 
 const golden = readFileSync(new URL('../packages/contracts/golden/sched/heavy.jsonl', import.meta.url), 'utf8')
   .split('\n')
@@ -66,5 +66,44 @@ test('after the wait limit the job is refused with exit 75 and the reason, not r
     assert.match(r.stderr, /heavy-lock: waited \d+ s \(limit 0 s\), .* not running the job/);
     assert.equal(existsSync(marker), false);
     assert.deepEqual(readdirSync(path.join(d, '.git/fw-heavy/queue')), []);
+  } finally { rmSync(d, { recursive: true, force: true }); }
+});
+
+// ---- lock events (task sup-baseline) ----
+
+const events = (d) => readFileSync(path.join(d, '.fw-console/locks.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+
+test('lockEvent keeps a plain kind, replaces any other, and omits absent durations', () => {
+  const base = { ts: 5, pid: 7, start: 9 };
+  assert.deepEqual(lockEvent('acquire', { ...base, kind: 'lean-check', waitMs: 12 }), { ts: 5, lock: 'heavy', ev: 'acquire', kind: 'lean-check', pid: 7, start: 9, waitMs: 12 });
+  assert.equal(lockEvent('release', { ...base, kind: '/Users/x/y', holdMs: 3 }).kind, 'heavy');
+  assert.equal(lockEvent('release', { ...base, kind: 'a b', holdMs: 3 }).kind, 'heavy');
+  assert.equal('waitMs' in lockEvent('release', { ...base, kind: 'k', holdMs: 3 }), false);
+});
+
+test('a job logs acquire and release in <main>/.fw-console/locks.jsonl with the job pid, no paths or arguments', () => {
+  const d = scratch();
+  try {
+    const r = run(d, ['sh', '-c', 'exit 3'], { CI: '', FW_LOCK_EVENTS: '', FW_LOCK_EVENTS_FILE: '' });
+    assert.equal(r.status, 3);
+    const ev = events(d);
+    assert.deepEqual(ev.map((x) => [x.lock, x.ev, x.kind]), [['heavy', 'acquire', 'heavy'], ['heavy', 'release', 'heavy']]);
+    assert.ok(ev[0].waitMs >= 0 && ev[1].holdMs >= 0 && ev[0].pid === ev[1].pid && ev[0].start > 0);
+    assert.doesNotMatch(readFileSync(path.join(d, '.fw-console/locks.jsonl'), 'utf8'), /sh -c|exit 3|fwheavy/);
+  } finally { rmSync(d, { recursive: true, force: true }); }
+});
+
+test('a refused job logs refuse, and FW_LOCK_EVENTS=off or CI logs nothing', () => {
+  const d = scratch();
+  try {
+    const hd = path.join(d, '.git/fw-heavy/holders');
+    mkdirSync(hd, { recursive: true });
+    for (const pid of [process.pid, process.ppid]) writeFileSync(path.join(hd, `${pid}.json`), JSON.stringify({ pid, start: startOf(pid), kind: 'test' }));
+    const off = { FW_HEAVY_MAX_WAIT_S: '0', FW_HEAVY_CAP: '2', CI: '', FW_LOCK_EVENTS: '', FW_LOCK_EVENTS_FILE: '' };
+    assert.equal(run(d, ['true'], { ...off, FW_LOCK_EVENTS: 'off' }).status, 75);
+    assert.equal(run(d, ['true'], { ...off, CI: '1' }).status, 75);
+    assert.equal(existsSync(path.join(d, '.fw-console/locks.jsonl')), false);
+    assert.equal(run(d, ['true'], off).status, 75);
+    assert.deepEqual(events(d).map((x) => x.ev), ['refuse']);
   } finally { rmSync(d, { recursive: true, force: true }); }
 });

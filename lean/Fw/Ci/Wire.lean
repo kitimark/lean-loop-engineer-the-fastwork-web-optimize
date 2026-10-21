@@ -3,6 +3,8 @@ import Fw.Ci.Budget
 import Fw.Ci.Verdict
 import Fw.Ci.Attempt
 import Fw.Ci.Intent
+import Fw.Ci.Overflow
+import Fw.Ci.Pool.FallbackWire
 import Fw.Ops.Wire
 /-!
 # JSON codecs and the ops `ci.budget.*` (the GitHub request budget of the CI poller)
@@ -26,6 +28,10 @@ and passes it to the next call.
 | `ci.verdict` | `msg` (null: unknown), `lanes` {name: Facts or null} | `lanes` [{`name`, `verdict`, `code`, `reason`}], `verdict`, `code` (`Fw.Ci.Verdict.waitVerdict`) |
 | `ci.attempt` | `recorded`?, `live`? (a cached fact against the live run) or `row`?, `view` (jobs view against a listed row) or `floor`, `row`? (row against the newest attempt seen) or `read`, `now` (a finished row's age) | `reuse` / `settled` / `current` / `fresh` (bool; `Fw.Ci.Attempt`) |
 | `ci.required` | `msg` (null: unknown) | `lanes` [name] (`Fw.Ci.Intent.wanted`, table order); unknown: `lanes` null, `verdict`, `code`, `reason` |
+| `ci.overflow` | `legs` [name], `ghActive` [workflow name] or null, `ghActions`, `ghPrev`?, `ccArm`, `ccReadAt` (ms or null), `now` (ms), `spent`, `storage`, `keys` (n or null), `checkout` (bool or null), `forceFull`? | `gh` [leg], `cc` [leg], `reason`, `ghFree`, `ghDegraded`, `ccReady` (`Fw.Ci.Overflow`) |
+| `ci.overflowCombine` | `kinds` [verdict kind] | `kind` (the deciding kind, null for none; `Fw.Ci.Overflow.pickKind`) |
+| `ci.overflowSettle` | `gh` [leg], `cc` [leg], `ccStarted` (bool) | `gh`, `cc`, `again` [leg]: a CircleCI group that could not start hands its legs to a second GitHub run (`again`; `Fw.Ci.Overflow.settle`) |
+| `ci.poolRoute`, `ci.poolConsts` | see `Fw.Wire.CiPool` | the macOS fallback route (`Fw.Ci.Pool.Fallback`) |
 
 Facts: `{guard, steps:[{name, conclusion}], jobs:[conclusion], heavySteps:[{name, conclusion}]}` (`heavySteps`: the
 steps of every non-guard job, read for the tip re-check's `stale:` step).
@@ -44,7 +50,7 @@ the list was cut: `pagesRead * 100 <= count`). A stored watch may carry an old `
 -/
 namespace Fw.Wire.Ci
 open Lean
-open Fw.Wire.Ops (Reply field opt asStr asNat asBool asArr str nat arr natD boolD arrD ostr optN)
+open Fw.Wire.Ops (Reply field opt asStr asNat asBool asArr str nat arr natD boolD arrD ostr optN optB)
 open Fw.Ci.Budget
 
 /-- A natural number as JSON. -/
@@ -359,10 +365,53 @@ def opAttempt (req : Json) : Except String Reply := do
   else
     pure [("reuse", .bool (Fw.Ci.Attempt.reuse (← n? "recorded") (← n? "live")))]
 
+/-- A leg by its name. -/
+def legOf (k : String) : Except String Fw.Console.LandLegs.Leg :=
+  match Fw.Console.LandLegs.Leg.ofName? k with
+  | some l => pure l
+  | none => throw s!"field legs: unknown leg {k}"
+
+/-- The facts of `ci.overflow` (a missing `ghActive`, `ccReadAt`, `keys`, `checkout` is unknown). -/
+def overflowFacts (req : Json) : Except String Fw.Ci.Overflow.Facts := do
+  let names (j : Json) (k : String) : Except String (List String) := do
+    let a ← asArr k j
+    a.toList.mapM (asStr k)
+  let legs ← (← names (← field req "legs") "legs").mapM legOf
+  let active ← match opt req "ghActive" with
+    | none => pure none
+    | some j => pure (some (← names j "ghActive"))
+  pure { legs, ghActive := active, ghActions := ← str req "ghActions", ghPrev := ← boolD req "ghPrev" false,
+         ccArm := ← str req "ccArm", ccReadAt := ← optN req "ccReadAt", now := ← nat req "now", spent := ← nat req "spent",
+         storage := ← nat req "storage", keys := ← optN req "keys", checkout := ← optB req "checkout",
+         forceFull := ← boolD req "forceFull" false }
+
+/-- `ci.overflow`: which land legs run on GitHub and which on CircleCI (`Fw.Ci.Overflow`). -/
+def opOverflow (req : Json) : Except String Reply := do
+  let f ← overflowFacts req
+  let nm (l : List Fw.Console.LandLegs.Leg) : Json := .arr (l.map fun x => Json.str x.name).toArray
+  pure [("gh", nm (Fw.Ci.Overflow.ghLegs f)), ("cc", nm (Fw.Ci.Overflow.ccLegs f)),
+    ("reason", .str (Fw.Ci.Overflow.reason f)), ("ghFree", jn (Fw.Ci.Overflow.ghFree f)),
+    ("ghDegraded", .bool (Fw.Ci.Overflow.ghDegraded f)),
+    ("ccReady", .bool (Fw.Ci.Overflow.ccReady f (Fw.Ci.Overflow.overflowSet f).length))]
+
+/-- `ci.overflowCombine`: the verdict kind that decides when each provider's legs have a verdict. -/
+def opOverflowCombine (req : Json) : Except String Reply := do
+  let ks ← (← arr req "kinds").toList.mapM (asStr "kinds")
+  pure [("kind", match Fw.Ci.Overflow.pickKind ks with | some k => .str k | none => .null)]
+
+/-- `ci.overflowSettle`: where the legs run after the CircleCI group tried to start (`Fw.Ci.Overflow.settle`). -/
+def opOverflowSettle (req : Json) : Except String Reply := do
+  let legsOf (k : String) : Except String (List Fw.Console.LandLegs.Leg) := do
+    (← (← arr req k).toList.mapM (asStr k)).mapM legOf
+  let st := Fw.Ci.Overflow.settle (← legsOf "gh") (← legsOf "cc") (← boolD req "ccStarted" true)
+  let nm (l : List Fw.Console.LandLegs.Leg) : Json := .arr (l.map fun x => Json.str x.name).toArray
+  pure [("gh", nm st.gh), ("cc", nm st.cc), ("again", nm st.again)]
+
 /-- The ops of this module. -/
 def ops : List String :=
   ["ci.budget.reserve", "ci.budget.next", "ci.budget.observe", "ci.budget.step", "ci.budget.status", "ci.budget.limits",
-    "ci.verdict", "ci.required", "ci.attempt"]
+    "ci.verdict", "ci.required", "ci.attempt", "ci.overflow", "ci.overflowCombine", "ci.overflowSettle"] ++
+    Fw.Wire.CiPool.ops
 
 /-- Dispatch a `ci.budget.*` op (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -376,7 +425,10 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "ci.verdict" => some (opVerdict req)
   | "ci.required" => some (opRequired req)
   | "ci.attempt" => some (opAttempt req)
-  | _ => none
+  | "ci.overflow" => some (opOverflow req)
+  | "ci.overflowCombine" => some (opOverflowCombine req)
+  | "ci.overflowSettle" => some (opOverflowSettle req)
+  | _ => Fw.Wire.CiPool.handle op req
 
 /-! ## Examples -/
 

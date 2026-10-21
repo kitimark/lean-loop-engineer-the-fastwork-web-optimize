@@ -65,8 +65,11 @@ describe("normalize a GitHub land run, then ask fwcore", () => {
     expect(run.state).toBe("cancelled");
     expect(verdictOf([run])).toMatchObject({ kind: "local", reason: "remote-cancelled-run-locally" });
   });
-  it("unavailable (gh error, exit 2): run locally when no provider is left", () => {
-    const run = norm(2, null, ctx);
+  it("exit 2 (a wait error) is running: wait until the deadline (land-wait-final)", () => {
+    expect(norm(2, null, ctx).state).toBe("running");
+  });
+  it("unavailable (gh unavailable, exit 5): run locally when no provider is left", () => {
+    const run = norm(5, null, ctx);
     expect(run.state).toBe("unavailable");
     expect(verdictOf([run])).toMatchObject({ kind: "local" });
   });
@@ -122,10 +125,11 @@ describe("the recorded passing lane run (ci/land-probe-e5b7f17, run 39319745028)
 });
 
 describe("fw ci wait exit 3 and the empty binding (review round 1)", () => {
-  it("exit 3 is running only with `timed out after`; a stopped poller or a refused gh call is unavailable", () => {
+  it("exit 3 is running with or without `timed out after` (a stopped poller or a refused gh call is a wait error, polled again until the deadline)", () => {
     expect(laneStateOf(call, 3, "ci wait: timed out after 540s")).toBe("running");
-    expect(laneStateOf(call, 3, "ci wait: poller stopped")).toBe("unavailable");
-    expect(laneStateOf(call, 3)).toBe("unavailable");
+    expect(laneStateOf(call, 3, "ci wait: poller stopped")).toBe("running");
+    expect(laneStateOf(call, 3)).toBe("running");
+    expect(laneStateOf(call, 5)).toBe("unavailable");
   });
   it("a poll that comes back running at once is slept out: polls stay near deadline/slice", async () => {
     let polls = 0;
@@ -215,8 +219,9 @@ describe("awaitRemote with fake providers", () => {
     expect(started).toEqual(["github"]);
     expect(o.verdict.kind).toBe("local");
   });
-  it("the CircleCI stub is unavailable, so the land falls back", async () => {
-    const o = await awaitRemote(base({ circleci: circleciAdapter(() => false) }, ["circleci"]));
+  it("a CircleCI trigger that is refused is unavailable, so the land falls back", async () => {
+    const refused = circleciAdapter({ call, push: async () => ({ branch: "ci/b", marker: MARKER }), trigger: async () => { throw new Error("key check: missing"); }, wait: async () => 3, fetch: async () => { throw new Error("unused"); } });
+    const o = await awaitRemote({ ...base({ circleci: refused }, ["circleci"]), ctx: { task: "t", mergeSha: SHA, want, legs: { all: ["a"], gh: [], cc: ["a"] } } });
     expect(o.verdict.kind).toBe("local");
   });
   it("a start that throws is unavailable", async () => {
@@ -317,10 +322,10 @@ describe("a completed bound failed lane run always refuses, whatever `fw ci wait
     await a.poll({ provider: "github", branch: "b", marker: MARKER }, { task: "t", mergeSha: SHA, want }, 5, new AbortController().signal);
     expect(seen[0]).toMatchObject({ deadline: expect.any(Number), signal: expect.anything() });
   });
-  it("budget refused and no cached record: the waiter outcome stands and the reason is logged", async () => {
+  it("budget refused and no cached record: the wait error keeps waiting (running) and the reason is logged", async () => {
     const a = githubAdapter({ call, git: () => MARKER, wait: async () => ({ code: 3, out: "wait: no gh call for the jobs of run 123: refused" }), gh: async () => { throw new Error("gh run view not made: the request budget says stop"); } });
     const p = await a.poll({ provider: "github", branch: "b", marker: MARKER }, { task: "t", mergeSha: SHA, want }, 5);
-    expect(p.run.state).toBe("unavailable");
+    expect(p.run.state).toBe("running");
     expect(p.note).toMatch(/land run record not read/);
   });
   // Incident run 39338755874 (INFERRED exit 4: the guard job logged both `decision: run` and `decision: skip`, the land job exited 1 at

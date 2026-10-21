@@ -67,6 +67,19 @@ export function createGuard({ probe, relaunch, repair = null, log = () => {}, on
     return busy;
   }
 
+  /**
+   * Relaunch Safari for a lost page target. The guard's one relaunch is shared with the dead-inspector rule: it rejects when
+   * Safari was relaunched already. A relaunch the guard started meanwhile counts as this one.
+   */
+  async function relaunchTab() {
+    if (dead) throw dead;
+    if (relaunched) throw new Error('Safari was relaunched already');
+    if (busy) { await busy.catch(() => {}); if (dead) throw dead; if (relaunched) return; }
+    relaunched = true; fails = 0;
+    busy = within(relaunchMs, 'the relaunch', relaunch()).finally(() => { busy = null; });
+    return busy;
+  }
+
   /** Probe on every tick of the stall watchdog's period; a tick that finds a probe still running is skipped. */
   function start() {
     timer = setInterval(() => { if (!busy && !dead) check('tick').catch(() => {}); }, tickMs);
@@ -74,5 +87,5 @@ export function createGuard({ probe, relaunch, repair = null, log = () => {}, on
   }
   function stop() { if (timer) clearInterval(timer); timer = null; }
 
-  return { check, start, stop, get relaunched() { return relaunched; }, get fails() { return fails; }, get dead() { return dead; } };
+  return { check, relaunchTab, start, stop, get relaunched() { return relaunched; }, get fails() { return fails; }, get dead() { return dead; } };
 }

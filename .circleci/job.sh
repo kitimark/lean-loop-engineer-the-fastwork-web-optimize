@@ -5,6 +5,8 @@
 #   sh .circleci/job.sh <step> [args]
 #   steps: since <name> | toolchain | install <filters> | browser | test | verdict | cache-probe | cache-gate
 #          sim-prepare | sim-boot | sim-run | sim-delete | finish
+#          land-lean | land-setup | land-fwcore | land-suites <leg> | land-engine <leg>   (the land lane, task land-lane-circleci)
+#          lake-key | lake-probe | lake-gate   (the Lake cache of the land job, task circleci-lean-cache)
 # Env (set by the job): FW_CI_JOB, FW_CI_CLASS, FW_CI_ENGINE (engine jobs), HS_VERSION and HS_SHA256 (chromium).
 set -eu
 cd "$(dirname "$0")/.."
@@ -12,7 +14,7 @@ fw=${FW_JOB_DIR:-/tmp/fw}
 mkdir -p "$fw/artifacts" "$fw/ws"
 export FW_TIMINGS_FILE=$fw/spans.jsonl
 export RUNNER_TEMP=$fw
-export PATH="$HOME/.fw-node/bin:$PATH"
+export PATH="$HOME/.fw-node/bin:$HOME/.elan/bin:$PATH"
 . scripts/span.sh
 tool="circleci/${FW_CI_JOB:-unknown}"
 self=$PWD/.circleci/job.sh
@@ -168,6 +170,120 @@ finish() {  # timings.json beside the result files; the spans are kept even when
   fi
 }
 
+# ---- the land lane (task land-lane-circleci): the twin of .github/workflows/land.yml, one job per leg ----------------------------
+# Same entry as GitHub: `pnpm fw checks --affected --base <base> --tier remote --leg <leg>`, then, in an engine leg whose selection holds
+# the preview browser suite, that suite on the leg's engine. The job writes lane.json ({leg, sha, digest, engine, rc}): the sha of the
+# change under test and the `LANE digest=` line, the same two facts the GitHub twin prints in its `lane: sha=.. digest=..` step name.
+# The pins below equal the ones of .github/actions/setup-lean (scripts/circleci.test.mjs checks it).
+ELAN_VERSION=v4.2.4
+ELAN_SHA256=05febd124d84ebf994b2e7479922a5650b1e950c17ae3bd1ddd776b65bb72bf9
+
+land_lean() {  # elan from the pinned release (sha256 checked), then the toolchain named in lean/lean-toolchain
+  test "$(uname -m)" = aarch64
+  dir=$fw/elan-dl
+  mkdir -p "$dir"
+  curl -fsSL --retry 5 --retry-all-errors -o "$dir/elan.tgz" \
+    "https://github.com/leanprover/elan/releases/download/${ELAN_VERSION}/elan-aarch64-unknown-linux-gnu.tar.gz"
+  echo "${ELAN_SHA256}  $dir/elan.tgz" | sha256sum -c -
+  tar -xzf "$dir/elan.tgz" -C "$dir"
+  "$dir/elan-init" -y --no-modify-path --default-toolchain none
+  tc=$(cat lean/lean-toolchain)
+  ok=0
+  for i in 1 2 3 4 5; do
+    if elan toolchain install "$tc"; then ok=1; break; fi
+    echo "elan toolchain install failed (attempt $i)"; sleep $((i * 5))
+  done
+  test "$ok" = 1
+  (cd lean && lean --version && lake --version)
+}
+
+land_setup() {  # main is the pushed commit's first parent (.github/scripts/land-base.sh); the commit identity the temp repos of the tests need
+  git branch -f main "$(sh .github/scripts/land-base.sh main)"
+  git config --global user.name land-lane
+  git config --global user.email land-lane
+}
+
+# The Lake cache of the land job (task circleci-lean-cache), keyed like .github/actions/setup-lean: the exact key is toolchain +
+# Lake manifest + the Lean sources, the restore key is the toolchain + manifest prefix. CircleCI `checksum` hashes one file, so
+# lake-key writes the hash strings that the config's key template reads. Nothing else is decided here: whether to save is the
+# marker below, the same trick as the pnpm cache (cache_probe / cache_gate): ~/.fw-lake/key holds the exact key the saved cache
+# belongs to; a restore of the exact key leaves a marker equal to the current key and the job halts before save_cache. The cache
+# is the Lake artifact cache (LAKE_CACHE_DIR, enableArtifactCache in lean/lakefile.toml), on the same file system as lean/.lake so
+# Lake can hard-link the artifacts back.
+lake_dir=$HOME/.fw-lake
+export LAKE_CACHE_DIR=$lake_dir/cache
+lake_marker=$lake_dir/key
+
+lake_key() {  # the hash strings of the cache key; tm = toolchain + manifest, src = the Lean sources (the file list setup-lean hashes)
+  tm=$(cat lean/lean-toolchain lean/lake-manifest.json | sha256sum | cut -d' ' -f1)
+  src=$({ ls lean/lakefile.toml lean/*.lean; git ls-files lean/Fw lean/FwTest; } | sort -u | xargs sha256sum | sha256sum | cut -d' ' -f1)
+  # a pipe in $(...) hides a failed sha256sum (sh has no pipefail): an empty or short string would be a key shared by every tree
+  for h in "$tm" "$src"; do test "${#h}" -eq 64 || { echo "lake key: not a sha256 hex string: '$h'" >&2; return 1; }; done
+  printf '%s\n' "$tm" > "$fw/lake-tm.key"
+  printf '%s\n' "$src" > "$fw/lake-src.key"
+  printf '%s-%s\n' "$tm" "$src" > "$fw/lake-full.key"
+  mkdir -p "$LAKE_CACHE_DIR"
+  echo "lake key: toolchain+manifest $(echo "$tm" | cut -c1-8), sources $(echo "$src" | cut -c1-8)"
+}
+
+lake_probe() {  # right after restore_cache: does the restored marker name this exact key?
+  rm -f "$fw/lake-current"
+  mkdir -p "$LAKE_CACHE_DIR"
+  if [ -f "$lake_marker" ] && [ "$(cat "$lake_marker")" = "$(cat "$fw/lake-full.key")" ]; then
+    : > "$fw/lake-current"
+    echo "lake cache: the exact key was restored; no save at the end"
+  elif [ -f "$lake_marker" ]; then
+    echo "lake cache: an older entry (same toolchain and manifest) was restored; the job saves the new key at the end"
+  else
+    echo "lake cache: nothing restored; the job saves one at the end"
+  fi
+}
+
+lake_gate() {  # last step before save_cache: halt when the exact key was restored, else write the marker for the save
+  if [ -f "$fw/lake-current" ]; then
+    echo "lake cache: current, halting before save_cache"
+    circleci-agent step halt
+  else
+    mkdir -p "$lake_dir"
+    cp "$fw/lake-full.key" "$lake_marker"
+    echo "lake cache: marker written, save_cache follows; $(du -sk "$lake_dir" | cut -f1) KiB on disk"
+  fi
+}
+
+land_fwcore() { (cd lean && lake build fwcore); }
+
+land_suites() {  # <leg>
+  leg=$1
+  base=$(sh .github/scripts/land-base.sh base)
+  sha=$(sh .github/scripts/land-base.sh rev)
+  set +e
+  pnpm fw checks --affected --base "$base" --tier remote --leg "$leg" > "$fw/land.log" 2>&1
+  rc=$?
+  set -e
+  cat "$fw/land.log"
+  digest=$(sed -n 's/^LANE digest=//p' "$fw/land.log" | head -n1)
+  engine=$(sed -n 's/^LANE leg=.* engine=\([a-z]*\) .*/\1/p' "$fw/land.log" | head -n1)
+  mkdir -p "$fw/artifacts"
+  printf '{"leg":"%s","sha":"%s","digest":"%s","engine":"%s","rc":%s}\n' "$leg" "$sha" "$digest" "$engine" "$rc" > "$fw/artifacts/lane.json"
+  echo "$engine" > "$fw/land-engine"
+  grep -E '^(VERDICT|TIMING|checks:|LANE)' "$fw/land.log" > "$fw/artifacts/land-summary.txt" || true
+  return "$rc"
+}
+
+land_engine() {  # <leg>: the preview browser suite, only when the suites step said the selection holds it
+  leg=$1
+  [ "$(cat "$fw/land-engine" 2>/dev/null)" = true ] || { echo "no browser suite in this selection"; return 0; }
+  # Each in a subshell: engine_libs does `cd packages/gate-breakpoints`, and the cd must not outlive it (the suite below runs from the root;
+  # the first live run of this step failed with exit 2 on `cd packages/e2e-preview`).
+  (FW_CI_ENGINE=$leg; export FW_CI_ENGINE; engine_libs)
+  (FW_CI_ENGINE=$leg; export FW_CI_ENGINE; engine_browser)
+  # shellcheck disable=SC1091
+  . "$fw/env.sh"
+  (cd packages/e2e-preview && node src/run.mjs --engine "$leg" --out out)
+  mkdir -p "$fw/artifacts/land-preview-e2e-$leg"
+  cp packages/e2e-preview/out/*.json "$fw/artifacts/land-preview-e2e-$leg/" 2>/dev/null || true
+}
+
 cmd=${1:?usage: job.sh <step> [args]}
 shift
 case "$cmd" in
@@ -182,6 +298,14 @@ case "$cmd" in
   sim-boot) T "simulator boot" sim_boot ;;
   sim-run) T "determinism session" sim_run ;;
   sim-delete) T "simulator delete" sim_delete ;;
+  land-lean) T "lean toolchain" land_lean ;;
+  land-setup) T "main ref and identity" land_setup ;;
+  land-fwcore) T "fwcore build" land_fwcore ;;
+  land-suites) T "suites" land_suites "$1" ;;
+  land-engine) T "browser suite" land_engine "$1" ;;
+  lake-key) T "lake key" lake_key ;;
+  lake-probe) lake_probe ;;
+  lake-gate) lake_gate ;;
   cache-probe) cache_probe ;;
   cache-gate) cache_gate ;;
   finish) finish ;;

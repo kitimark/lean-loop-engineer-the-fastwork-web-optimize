@@ -130,6 +130,7 @@ import Fw.Obs.Signals -- obs-signals: agent state from transcript signals (obs.s
 import Fw.Obs.Fold  -- watch-incremental: transcript summaries as a fold, resume from saved state
 import Fw.Plan.Incident  -- incident-lint: plan.incidentLint
 import Fw.Plan.Overlap  -- spawn-write-overlap: plan.overlap
+import Fw.Plan.ReviewReady  -- review-flow-v2: plan.reviewReady, plan.reviewVerdict
 import Fw.Plan.Workflow  -- workflow-claim: workflow runs as agent events
 import Fw.Obs.Timing  -- timing-lean: slow / structural verdicts over timing samples
 import Fw.Obs.Backoff  -- alert-rules-fix: wait or restart when an fwcore call misses its deadline
@@ -140,6 +141,7 @@ import Fw.Ci.Attempt  -- ci-wait-lag: a cached fact answers for a run only at th
 import Fw.Ci.Lag  -- ci-wait-lag: the partition of a wait's lag into phases
 import Fw.Ci.Cancel  -- ci-own-trigger: no concurrency group is shared on ci/**, so nothing cancels a ci/** run
 import Fw.Ci.Provider  -- circleci-pilot: pair verdict, credits, stop rule and routing rule of the CircleCI pilot
+import Fw.Ci.Overflow  -- land-lane-circleci: which land legs overflow from GitHub Actions to CircleCI
 import Fw.Ci.Telemetry  -- ci-telemetry: the CI job telemetry record and its slow verdicts (ci.telemetry)
 import Fw.Gate.Exit  -- gate-exit-verdict: the summary exit code from the merged engine verdicts
 import Fw.Gate.WebkitScreen  -- gate-green-baseline: the device width of a Playwright WebKit live resize
@@ -219,4 +221,6 @@ import Fw.Port.Svg  -- port-completeness-gate: check 4, svg skeleton
 import Fw.Port.Fonts  -- port-fonts-check: check 5, fonts per leaf and loaded faces
 import Fw.Parts.NavOofRoot  -- nav-oof-root-finding: no boundary scopes the relayout of a dirty fixed box whose containing block is the view (negative finding)
 import Fw.Ci.Pool  -- pool-caps: per-lane macOS job time caps from measured p90 walls
+import Fw.Sup.Props  -- sup-model: supervisor daemon state machine, invariant and lease, queue, stop and reply theorems
 import Fw.Ci.Pool.Key  -- pool-key-outcome: request keys, provider-tagged artifact names, one terminal row per planned unit
+import Fw.Ci.Steps  -- macos-teardown-trim: the steps allowed after the measurement step of the five macOS jobs, the lint decision

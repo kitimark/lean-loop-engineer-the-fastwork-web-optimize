@@ -1,0 +1,145 @@
+name: linux-webkit-probe
+
+# Research probe (task linux-webkit-probe; note research/notes/2026/10-2x-linux-webkit.md): why does Playwright's headless WebKit
+# (the WPE build) draw about 150 ms frames on a free Linux arm runner, does its translation layer matter, and can the Web Inspector
+# Timeline be read from it? One job per VM runs a matrix of frame-cause arms one after the other (blank page, a page that repaints
+# every frame, our original page; widths 390 and 1280; dpr 1 and 3; WEBKIT_SKIA_MSAA_SAMPLE_COUNT=0, WEBKIT_SKIA_ENABLE_CPU_RENDERING=1,
+# LP_NUM_THREADS=1, WEBKIT_SHOW_FPS=1), each arm twice (A/A): rAF interval distribution in the idle and in the 10 settled wheel
+# steps, and Timeline record counts per step read through Playwright's own page session. Code: packages/measure-webkit/src/linux/.
+# Nothing here is phone time: the VM has no GPU, so the frames are software GL (the note says what that can and cannot stand in for).
+# Two VMs per run (max-parallel 2) give an A/A across machines as well as within one. The tables are generated from the artifacts
+# (`node packages/measure-webkit/src/linux/cli.mjs table`); the step summary shows the same tables for this run.
+on:
+  push:
+    branches: [ci/linux-webkit-probe]
+  workflow_dispatch:
+    inputs:
+      arms:
+        description: Comma separated arm ids (empty = all 20; `node packages/measure-webkit/src/linux/cli.mjs arms` lists them)
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  # Guard (Lean Fw.Ci.Intent + Fw.Ci.Trigger, scripts/ci-paths.mjs). On a ci/* push it, and so every job, is skipped unless
+  # the head commit asks for this lane (`[ci:<lane>]`; the default lane lean always); then it runs the workflow only if
+  # the commit is the branch tip, is not on main yet, and (lean: always) some file that differs from main on the whole
+  # branch is an input. A main push starts no run; dispatches always run. Fails open.
+  # Every other job re-checks the tip first (`stale:` fails it) and has its own group, never cancelled on ci/*.
+  guard:
+    if: ${{ github.event_name != 'push' || !startsWith(github.ref, 'refs/heads/ci/') || contains(github.event.head_commit.message, '[ci:linux-webkit-probe]') }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.g.outputs.run }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - id: g
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          BEFORE: ${{ github.event.before }}
+          GUARD_TOKEN: ${{ github.token }}
+        run: node .github/scripts/changed-inputs.mjs --workflow .github/workflows/linux-webkit-probe.yml
+      - name: 'decision: run'
+        if: steps.g.outputs.run == 'true'
+        run: 'true'
+      - name: 'decision: skip: ${{ steps.g.outputs.reason }}'
+        if: steps.g.outputs.run != 'true'
+        run: 'true'
+
+  probe:
+    needs: [guard]
+    if: ${{ needs.guard.outputs.run == 'true' }}
+    concurrency:
+      group: ci-lane:linux-webkit-probe:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:probe:${{ strategy.job-index }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 50
+    name: probe vm ${{ matrix.vm }}
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        vm: [1, 2]
+    steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      # playwright-core comes from the gate package (this package has no Playwright dependency of its own; the probe resolves it there).
+      - uses: ./.github/actions/setup-pnpm
+        with:
+          filter: '@fw/gate-breakpoints'
+      - uses: ./.github/actions/telemetry
+        with:
+          mode: start
+          label: probe-${{ matrix.vm }}
+      - name: Verify the snapshot against snapshot.lock.json
+        run: node .github/scripts/verify-snapshot.mjs
+      - name: Tests of the probe code
+        run: node --test packages/measure-webkit/test/linux-reduce.test.mjs packages/measure-webkit/test/linux-arms.test.mjs packages/measure-webkit/test/linux-table.test.mjs
+      - name: Playwright WebKit with its system libraries (no cache, so the install is part of what the job does)
+        working-directory: packages/gate-breakpoints
+        run: pnpm exec playwright-core install --with-deps webkit
+      - name: Machine facts (CPU, memory, GL and Wayland packages)
+        run: |
+          mkdir -p out/linux-webkit
+          {
+            echo "## uname"; uname -a
+            echo "## nproc"; nproc
+            echo "## lscpu"; lscpu | head -20
+            echo "## memory"; free -m
+            echo "## packages"; dpkg -l | grep -E 'libegl|libgl1|libgles|libgbm|mesa|wayland|llvm' | awk '{print $2, $3}'
+          } > out/linux-webkit/machine-vm${{ matrix.vm }}.txt 2>&1 || true
+          sed -n 1,12p out/linux-webkit/machine-vm${{ matrix.vm }}.txt
+      - name: Probe (every arm twice, A then B)
+        timeout-minutes: 40
+        env:
+          ARMS: ${{ inputs.arms }}
+        run: |
+          set -euo pipefail
+          node packages/measure-webkit/src/linux/cli.mjs run --out out/linux-webkit --vm "${{ matrix.vm }}" --arms "$ARMS" 2>&1 | tee out/linux-webkit/log-vm${{ matrix.vm }}.txt
+      - name: Tables of this VM (the step summary; the artifact is the record)
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/tbl"
+          cp out/linux-webkit/vm${{ matrix.vm }}.json "$RUNNER_TEMP/tbl/"
+          printf '<!-- generated:linux-webkit-tables begin -->\n<!-- generated:linux-webkit-tables end -->\n' > "$RUNNER_TEMP/note.md"
+          node packages/measure-webkit/src/linux/cli.mjs table --runs "$RUNNER_TEMP/tbl" --note "$RUNNER_TEMP/note.md"
+          cat "$RUNNER_TEMP/note.md" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
+        with:
+          name: linux-webkit-vm${{ matrix.vm }}
+          path: out/linux-webkit
+          if-no-files-found: error
+          retention-days: 30
+      - uses: ./.github/actions/telemetry
+        if: ${{ (always()) && steps.stale.outcome == 'skipped' }}
+        with:
+          mode: finish
+          label: probe-${{ matrix.vm }}

@@ -143,8 +143,12 @@ def jobMap : List JobRow := [
   ⟨"premise-tests", .exact "verdict", "verdict", false, false⟩,
   ⟨"webkit-sim", .matrix "sim (original," "v1", "webkit-sim", false, false⟩]
 
-/-- The CircleCI job has a `save_cache` step. A job outside the job map has none. -/
-def savesCacheJob (job : String) : Bool := jobMap.any fun r => r.circleci == job && r.savesCache
+/-- The CircleCI jobs of the land lane, one per leg of `lean/land-legs.txt` (`.circleci/config.yml`, `land-<leg>`); each has a
+`save_cache` step for the Lake cache (task `circleci-lean-cache`). `Fw.Ci.Overflow.landJobs_eq_legs` proves the list equals the legs. -/
+def landJobs : List String := ["land-check-sh", "land-suites-a", "land-suites-b", "land-chromium", "land-playwright-webkit"]
+
+/-- The CircleCI job has a `save_cache` step: a pilot job whose row says so, or a land job. A job outside both has none. -/
+def savesCacheJob (job : String) : Bool := (jobMap.any fun r => r.circleci == job && r.savesCache) || landJobs.contains job
 
 /-- The pilot job a GitHub job name belongs to. -/
 def jobOfGithub (name : String) : Option JobRow := jobMap.find? (ghMatches ·.gh name)
@@ -498,6 +502,19 @@ theorem savesCacheJob_verdict : savesCacheJob "verdict" = false := by decide
 theorem savesCacheJob_sim : savesCacheJob "webkit-sim" = false := by decide
 
 theorem savesCacheJob_unknown : savesCacheJob "probe" = false := by decide
+
+theorem savesCacheJob_land_check_sh : savesCacheJob "land-check-sh" = true := by decide
+
+theorem savesCacheJob_land_suites_a : savesCacheJob "land-suites-a" = true := by decide
+
+theorem savesCacheJob_land_suites_b : savesCacheJob "land-suites-b" = true := by decide
+
+theorem savesCacheJob_land_chromium : savesCacheJob "land-chromium" = true := by decide
+
+theorem savesCacheJob_land_playwright_webkit : savesCacheJob "land-playwright-webkit" = true := by decide
+
+/-- The two branches of `savesCacheJob` do not overlap: no land job is a pilot job of the map, so a land job is counted by the land branch alone. -/
+theorem landJobs_not_in_jobMap : ∀ j ∈ landJobs, ∀ r ∈ jobMap, r.circleci ≠ j := by decide
 
 theorem cacheSavedBytes_absent : cacheSavedBytes .absent = 0 := rfl
 
