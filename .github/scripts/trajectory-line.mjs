@@ -115,7 +115,7 @@ function parseOne(lane, line) {
 }
 
 /** Lean `parseLine`: { kind: 'absent' } | { kind: 'inputs', p } | { kind: 'refused', why }, the line read in `lane`. */
-export function parseLine(lane, msg) {
+export function parseLineIn(lane, msg) {
   const cands = msg.split('\n').filter(isCand);
   if (cands.length === 0) return { kind: 'absent' };
   if (cands.length > 1) return { kind: 'refused', why: 'more than one [trajectory ...] line' };
@@ -130,16 +130,22 @@ export const hasFrames = (msg) => lowerAscii(msg).includes('[frames:');
 export const effLane = (wf, msg) => (wf === 'trajectory' && hasFrames(msg) ? 'frames' : wf);
 
 /** Lean `pushProbe`: the golden `result` shape. `wf` is the workflow's lane, `lane` whether the commit asks for the lane token. */
-export function pushProbe(wf, lane, msg) {
-  const l = parseLine(effLane(wf, msg), msg);
+export function pushProbeIn(wf, lane, msg) {
+  const l = parseLineIn(effLane(wf, msg), msg);
   if (l.kind === 'refused') return { kind: 'refused', why: l.why };
   if (l.kind === 'absent') return lane ? { kind: 'run', ...DEFAULT } : { kind: 'notAsked' };
   return lane ? { kind: 'run', ...l.p } : { kind: 'needsLane' };
 }
 
+/** Lean `pushProbe .trajectory`: the trajectory-probe workflow's reading of a push (the mark rule applies; a `[frames:` message is exempt). */
+export const pushProbe = (lane, msg) => pushProbeIn('trajectory', lane, msg);
+
+/** Lean `parseLine (effLane .trajectory msg) msg`: the line as the trajectory workflow reads it. */
+export const parseLine = (msg) => parseLineIn(effLane('trajectory', msg), msg);
+
 /** Lean `recorderOf`: the recorder the probe line asks for, '' for none, a refused line or no line. */
 export const recorderOf = (msg) => {
-  const r = pushProbe('trajectory', true, msg);
+  const r = pushProbeIn('trajectory', true, msg);
   return r.kind === 'run' ? r.debug : '';
 };
 
@@ -172,12 +178,12 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   } else {
     // A push that reached this job asked for the lane (the guard `if:` is the Intent decision), so lane = true.
     const msg = e.HEAD_MSG ?? '';
-    const r = pushProbe(wf, true, msg);
+    const r = pushProbeIn(wf, true, msg);
     if (r.kind === 'refused') {
       console.error(`trajectory-line: refused: ${r.why}`);
       process.exit(1);
     }
-    const source = parseLine(effLane(wf, msg), msg).kind === 'inputs' ? 'commit-line' : 'defaults';
+    const source = parseLineIn(effLane(wf, msg), msg).kind === 'inputs' ? 'commit-line' : 'defaults';
     process.stdout.write(['engines', 'fw', 'preset', 'widths', 'debug', 'diagnostic'].map((k) => `${k}=${r[k]}\n`).join('') + `source=${source}\n`);
   }
 }

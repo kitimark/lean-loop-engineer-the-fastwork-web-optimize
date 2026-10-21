@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { appleRuns, dispatch, dispatchIn, effLane, pushProbe, whyText } from './trajectory-line.mjs';
+import { appleRuns, dispatch, dispatchIn, effLane, parseLine, pushProbe, pushProbeIn, whyText } from './trajectory-line.mjs';
 
 const lines = readFileSync(new URL('../../packages/contracts/golden/ci/triggers.jsonl', import.meta.url), 'utf8')
   .trim().split('\n').map((l) => JSON.parse(l)).filter((l) => l.kind === 'probe');
@@ -32,7 +32,7 @@ test('the golden has probe cases of every decision', () => {
 });
 
 test('pushProbe equals Lean on every golden line', () => {
-  for (const l of lines) assert.deepEqual(pushProbe(l.wf, l.lane, l.msg), l.result, `${JSON.stringify(l.msg)} wf=${l.wf} lane=${l.lane}`);
+  for (const l of lines) assert.deepEqual(pushProbeIn(l.wf, l.lane, l.msg), l.result, `${JSON.stringify(l.msg)} wf=${l.wf} lane=${l.lane}`);
 });
 
 test('the workflow carries the debug key from the commit line to the probe steps and to the mac leg, and no repo file requests a recorder', () => {
@@ -46,10 +46,10 @@ test('the workflow carries the debug key from the commit line to the probe steps
 });
 
 test('the line of the phase 1 run asks for the nav recorder and nothing else changes', () => {
-  const r = pushProbe('trajectory', true, '[ci:trajectory-probe]\n[trajectory fw=morph.tween:waapi widths=1280 engines=playwright-webkit debug=nav-transition diagnostic]');
+  const r = pushProbeIn('trajectory', true, '[ci:trajectory-probe]\n[trajectory fw=morph.tween:waapi widths=1280 engines=playwright-webkit debug=nav-transition diagnostic]');
   assert.deepEqual(r, { kind: 'run', engines: 'playwright-webkit', fw: 'morph.tween:waapi', preset: '', widths: '1280', debug: 'nav-transition', diagnostic: true });
-  assert.equal(pushProbe('trajectory', true, '[trajectory debug=other]').kind, 'refused');
-  assert.equal(pushProbe('trajectory', true, '[ci:trajectory-probe]').debug, '');
+  assert.equal(pushProbeIn('trajectory', true, '[trajectory debug=other]').kind, 'refused');
+  assert.equal(pushProbeIn('trajectory', true, '[ci:trajectory-probe]').debug, '');
 });
 
 test('dispatchIn (the twin of Lean Dispatch.dispatchIn) equals the Lean golden for both marks on every widths input', () => {
@@ -71,7 +71,7 @@ test('dispatchIn (the twin of Lean Dispatch.dispatchIn) equals the Lean golden f
 });
 
 test('the push line: a width subset needs the diagnostic word, all four widths do not, and the refusal text is the Dispatch text', () => {
-  const lane = (l) => pushProbe('trajectory', true, `[trajectory ${l}]`);
+  const lane = (l) => pushProbeIn('trajectory', true, `[trajectory ${l}]`);
   const hint = '; add the word diagnostic to the line for a run read by hand';
   assert.deepEqual(lane('widths=390,641'), { kind: 'refused', why: whyText('scopedVerdict', '390,641') + hint });
   assert.match(lane('widths=390,641').why, /walks all four widths \(390,640,641,1280\).*add the word diagnostic/);
@@ -115,13 +115,13 @@ test('the workflow declares the boolean diagnostic input and checks the rule in 
 });
 
 test('the mark rule binds the trajectory lane only: smoothness keeps 390,1280, a frames message is exempt', () => {
-  const sm = (l) => pushProbe('smoothness', true, `[ci:smoothness]\n[trajectory ${l}]`);
+  const sm = (l) => pushProbeIn('smoothness', true, `[ci:smoothness]\n[trajectory ${l}]`);
   assert.deepEqual(sm('preset=v2-proved widths=390,1280'), { kind: 'run', engines: 'both', fw: '', preset: 'v2-proved', widths: '390,1280', debug: '', diagnostic: false });
   assert.equal(sm('widths=390').kind, 'run');
   assert.equal(sm('widths=800').why, whyText('badInput', '800'));
   assert.equal(sm('widths=390,1280 diagnostic').why, "token 'diagnostic' has no '='");
   assert.equal(sm('diagnostic=true').why, "unknown key 'diagnostic' (keys: fw, preset, widths, engines, debug)");
-  const tr = (l) => pushProbe('trajectory', true, `[ci:trajectory-probe]\n[trajectory ${l}]`);
+  const tr = (l) => pushProbeIn('trajectory', true, `[ci:trajectory-probe]\n[trajectory ${l}]`);
   assert.equal(tr('widths=390,1280').kind, 'refused');
   // the line documented in docs/team/tools/trajectory-frames.md parses, in the trajectory workflow (frames exempt) and in the frames lane
   const doc = readFileSync(new URL('../../docs/team/tools/trajectory-frames.md', import.meta.url), 'utf8');
@@ -129,8 +129,8 @@ test('the mark rule binds the trajectory lane only: smoothness keeps 390,1280, a
   assert.ok(m, 'the documented frames push line is in trajectory-frames.md');
   const msg = `${m[1]}\n${m[2]}`;
   const want = { kind: 'run', engines: 'playwright-webkit', fw: '', preset: '', widths: '390,1280', debug: '', diagnostic: false };
-  assert.deepEqual(pushProbe('trajectory', true, msg), want);
-  assert.deepEqual(pushProbe('frames', true, msg), want);
+  assert.deepEqual(pushProbeIn('trajectory', true, msg), want);
+  assert.deepEqual(pushProbeIn('frames', true, msg), want);
   const r = spawnSync(process.execPath, [new URL('./trajectory-line.mjs', import.meta.url).pathname], { env: { PATH: process.env.PATH, EVENT: 'push', LANE: 'trajectory', HEAD_MSG: msg }, encoding: 'utf8' });
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /widths=390,1280\n/);
@@ -157,4 +157,12 @@ test('each workflow passes its lane to the line script', () => {
   const tp = readFileSync(new URL('../workflows/trajectory-probe.yml', import.meta.url), 'utf8');
   assert.match(sm, /\n +LANE: smoothness /);
   assert.match(tp, /\n +LANE: trajectory /);
+});
+
+test('pushProbe and parseLine (what scripts/ci-push.mjs imports) are the trajectory lane of pushProbeIn', () => {
+  for (const l of lines.filter((x) => x.wf === 'trajectory')) {
+    assert.deepEqual(pushProbe(l.lane, l.msg), l.result, JSON.stringify(l.msg));
+    const pl = parseLine(l.msg);
+    assert.equal(pl.kind === 'refused', l.result.kind === 'refused', JSON.stringify(l.msg));
+  }
 });
