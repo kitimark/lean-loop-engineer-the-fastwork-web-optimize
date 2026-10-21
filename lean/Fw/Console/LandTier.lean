@@ -113,7 +113,7 @@ theorem browser_runs_remote_pick (ids : List String) : browserRuns (pick .onCi i
 def fwcoreUsers : List String :=
   ["apps/console-api", "apps/runner", "packages/difftest", "packages/e2e-preview", "packages/engine-check",
    "packages/gate-breakpoints", "packages/gh-budget", "packages/measure-chromium", "packages/measure-webkit",
-   "packages/measure-wktr"]
+   "packages/measure-wktr", "console-api:compose"]
 
 /-- Does the check run the `fwcore` binary? -/
 def isCoreUser (id : String) : Bool := fwcoreUsers.contains id
@@ -419,6 +419,71 @@ def phase1Text (_ : Unit) : String := String.join ((phase1Cases ()).map fun c =>
 /-- The phase-1 golden file, relative to `lean/`. -/
 def phase1Path : System.FilePath := "../packages/contracts/golden/console/land-phase1.jsonl"
 
+/-! ### Local tests: one test file with its own read set -/
+
+def composeId : String := "console-api:compose"
+
+def composeReads : List String :=
+  ["apps/site/src/parts/*/part.json", "apps/site/src/registry/**", "research/findings/ledger.json", "apps/console-api/src/**",
+   "apps/console-api/test/compose.test.ts", "packages/contracts/golden/console/console.compose.jsonl", Fw.Console.LandSpeed.fwcoreBin]
+
+def localTests : List Fw.Console.LandSpeed.Decl := [⟨composeId, composeReads⟩]
+
+def selectLocal (changed : List String) : List String := Fw.Console.LandSpeed.selectChecks localTests changed
+
+theorem selects_reader (ds : List Fw.Console.LandSpeed.Decl) (changed : List String) (d : Fw.Console.LandSpeed.Decl)
+    (hd : d ∈ ds) (x : String) (hx : x ∈ changed) (hin : Fw.Ops.PathCheck.inScope (Fw.Ops.PathCheck.parseScope d.reads) x = true) :
+    d.id ∈ Fw.Console.LandSpeed.selectChecks ds changed :=
+  (Fw.Console.LandSpeed.mem_selectChecks ds changed d.id).2
+    ⟨d, hd, Fw.Console.LandSpeed.selected_of_mem d.reads changed x hx hin, rfl⟩
+
+theorem selects_only_reader (ds : List Fw.Console.LandSpeed.Decl) (changed : List String) (i : String)
+    (h : i ∈ Fw.Console.LandSpeed.selectChecks ds changed) :
+    ∃ d ∈ ds, d.id = i ∧ ∃ x ∈ changed, Fw.Ops.PathCheck.inScope (Fw.Ops.PathCheck.parseScope d.reads) x = true := by
+  obtain ⟨d, hd, hs, hi⟩ := (Fw.Console.LandSpeed.mem_selectChecks ds changed i).1 h
+  simp only [Fw.Console.LandSpeed.selected, List.any_eq_true] at hs
+  obtain ⟨x, hx, hin⟩ := hs
+  exact ⟨d, hd, hi, x, hx, hin⟩
+
+theorem compose_reader_selected (changed : List String) (x : String) (hx : x ∈ changed)
+    (hin : Fw.Ops.PathCheck.inScope (Fw.Ops.PathCheck.parseScope composeReads) x = true) : composeId ∈ selectLocal changed :=
+  selects_reader localTests changed ⟨composeId, composeReads⟩ (by simp [localTests]) x hx hin
+
+theorem compose_local : tier composeId = .onMac := by decide
+
+theorem compose_core_user : isCoreUser composeId = true := by decide
+
+#guard selectLocal ["apps/site/src/parts/morph.columns/part.json"] == [composeId]
+#guard selectLocal ["apps/site/src/parts/nav/part.json", "docs/x.md"] == [composeId]
+#guard selectLocal ["research/findings/ledger.json"] == [composeId]
+#guard selectLocal ["apps/console-api/src/preview/compose.ts"] == [composeId]
+#guard selectLocal ["apps/site/src/parts/nav/index.ts"] == []
+#guard selectLocal ["docs/team/tools/land.md"] == []
+#guard selectLocal [] == []
+
+def localLine (name : String) (changed : List String) : Json :=
+  Json.mkObj [("name", .str name),
+    ("request", Json.mkObj [("changed", strs changed), ("tests", .arr (localTests.map fun d =>
+      Json.mkObj [("id", .str d.id), ("reads", strs d.reads)]).toArray)]),
+    ("response", Json.mkObj [("select", strs (selectLocal changed))])]
+
+def localCases (_ : Unit) : List Json :=
+  [localLine "part.json selects compose" ["apps/site/src/parts/morph.columns/part.json"],
+   localLine "part.json among others selects compose" ["docs/team/handoffs/x.md", "apps/site/src/parts/nav/part.json"],
+   localLine "findings ledger selects compose" ["research/findings/ledger.json"],
+   localLine "preset selects compose" ["apps/site/src/registry/presets/original.json"],
+   localLine "compose source selects compose" ["apps/console-api/src/preview/compose.ts"],
+   localLine "compose test selects compose" ["apps/console-api/test/compose.test.ts"],
+   localLine "binary moved selects compose" [Fw.Console.LandSpeed.fwcoreBin],
+   localLine "part source file does not" ["apps/site/src/parts/nav/index.ts"],
+   localLine "docs do not" ["docs/team/tools/land.md"],
+   localLine "other findings file does not" ["research/findings/other.json"],
+   localLine "nothing changed" []]
+
+def localText (_ : Unit) : String := String.join ((localCases ()).map fun c => c.compress ++ "\n")
+
+def localPath : System.FilePath := "../packages/contracts/golden/console/land-tier-local.jsonl"
+
 /-- The golden file text. -/
 def goldenText : String := String.join ((cases ++ laneCases).map fun c => c.compress ++ "\n")
 
@@ -458,10 +523,11 @@ def writeGolden : IO Unit := do
   IO.FS.writeFile goldenPath goldenText
   IO.FS.writeFile filterPath filterText
   IO.FS.writeFile phase1Path (phase1Text ())
+  IO.FS.writeFile localPath (localText ())
 
 /-- Are the golden file and the filter file the Lean output? -/
 def checkGolden : IO Bool := do
   return (← IO.FS.readFile goldenPath) == goldenText && (← IO.FS.readFile filterPath) == filterText
-    && (← IO.FS.readFile phase1Path) == phase1Text ()
+    && (← IO.FS.readFile phase1Path) == phase1Text () && (← IO.FS.readFile localPath) == localText ()
 
 end Fw.Console.LandTier

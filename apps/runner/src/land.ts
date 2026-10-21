@@ -88,6 +88,7 @@ export type LandOptions = {
   /** the dry land's reads test: its argv and whether the change selects it; default: the land-inputs test, selected when the change
    *  selects the reads-scan check (`LandSpeed.scan_selected`; tests inject both) */
   dryReads?: { argv: string[]; selected?: boolean };
+  dryLocal?: Check[];
   /** the dry land's fast lints (argv list, run in the merge-tree worktree); default: `dryLintArgv` (ci-paths --check, and the math-view
    *  lint when the change touches `lean/`) */
   dryLints?: string[][];
@@ -263,7 +264,7 @@ function workspaceDeps(root: string, pkg: any): string[] {
  *  packages that have a `test` script (sorted). Which of them a change selects is `selectChecks` (Lean `landSpeed.select`). */
 /** Packages whose tests run the `fwcore` binary. Found by the scan in test/land-inputs.test.ts. Each declares `FWCORE_BIN`;
  *  which of them a Lean change selects is `selectTwoPhase` (the binary digest). */
-export const FWCORE_USERS = ["apps/console-api", "apps/runner", "packages/difftest", "packages/e2e-preview", "packages/engine-check", "packages/gate-breakpoints", "packages/gh-budget", "packages/measure-chromium", "packages/measure-webkit", "packages/measure-wktr"];
+export const FWCORE_USERS = ["apps/console-api", "apps/runner", "packages/difftest", "packages/e2e-preview", "packages/engine-check", "packages/gate-breakpoints", "packages/gh-budget", "packages/measure-chromium", "packages/measure-webkit", "packages/measure-wktr", "console-api:compose"];
 /** Lean `fwcoreBin`: the stripped binary as a declared read. */
 export const FWCORE_BIN = "lean/.lake/build/bin/fwcore";
 /** Lean `fwcoreBuildReads`. */
@@ -305,6 +306,12 @@ export const READS_SCAN_ARGV = ["pnpm", "--filter", "./apps/runner", "exec", "vi
 export const withScan = (cs: Check[]): Check[] =>
   [...cs, { id: READS_SCAN_ID, argv: READS_SCAN_ARGV, reads: cs.flatMap((c) => c.reads.filter((g) => !g.startsWith("!"))) }];
 
+export const COMPOSE_READS = ["apps/site/src/parts/*/part.json", "apps/site/src/registry/**", "research/findings/ledger.json", "apps/console-api/src/**",
+  "apps/console-api/test/compose.test.ts", "packages/contracts/golden/console/console.compose.jsonl", "lean/.lake/build/bin/fwcore"];
+export const LOCAL_TESTS: Check[] = [
+  { id: "console-api:compose", argv: ["pnpm", "--filter", "./apps/console-api", "exec", "vitest", "run", "test/compose.test.ts"], reads: COMPOSE_READS },
+];
+
 export function candidateChecks(root: string): Check[] {
   const out: Check[] = [
     { id: "install", argv: ["pnpm", "install", "--frozen-lockfile"], reads: INSTALL_READS },
@@ -322,7 +329,7 @@ export function candidateChecks(root: string): Check[] {
       } catch { /* no package.json: nothing to run */ }
     }
   }
-  return withScan(out);
+  return withScan([...out, ...LOCAL_TESTS]);
 }
 
 /** The checks that cover the changed files, each with its declared input set. Digests main0 `d0` and merge tree `d1`
@@ -824,6 +831,15 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
           lints = bad === null; detail = bad ?? "";
         }
       } else lines.push("dry: lints skipped (reads refused first)");
+      if (reads && lints) {
+        const local = (o.dryLocal ?? LOCAL_TESTS).filter((t) => selectChecks([t], changed).length > 0);
+        if (local.length) {
+          const argv = [...(!o.dryLocal && (phase1Build(changed) || !existsSync(join(slot.dir, FWCORE_BIN))) ? [["sh", "scripts/fwcore-build.sh"]] : []), ...local.map((t) => t.argv)];
+          const bad = await runChecks(slot.dir, argv);
+          lints = bad === null; detail = bad ?? "";
+          if (lints) lines.push(`dry: local tests ok (${local.map((t) => t.id).join(", ")})`);
+        }
+      }
       const oc = outcome({ reads, lints });
       if (outcomeKind(oc) !== "dry") return fail(detail || `dry land refused: ${outcomeKind(oc)}`, "unknown", oc);
       lines.push(`dry ok at ${main} ${main0.slice(0, 7)}: the land's scope, merge, reads and fast lints pass unless ${main} moves`);
