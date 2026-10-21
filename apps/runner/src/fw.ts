@@ -25,7 +25,7 @@ const SUBS = new Set(["plan", "ci", "incidents", "step", "card", "task", "consol
 let spanExtra: ReturnType<typeof waitSpanExtra> = {}; // ci-wait-lag: the phases of a `fw ci wait`, written on its span at exit
 if (group && group !== "watch" && group !== "timings") { const end = begin("fw", SUBS.has(group) && rest[0] && !rest[0].startsWith("-") ? `${group} ${rest[0]}` : group); process.once("exit", (c) => end(c, spanExtra)); }
 try {
-  const base = NO_API_GROUPS.includes(group ?? "") || (group === "plan" && rest[0] === "overlap") ? "" : apiBase(process.env); // these need no console-api (CI runs some of them)
+  const base = NO_API_GROUPS.includes(group ?? "") || (group === "plan" && rest[0] === "overlap") || (group === "review" && (rest[0] === "ready" || rest[0] === "verdict")) ? "" : apiBase(process.env); // these need no console-api (CI runs some of them)
   if (group === "timings") {
     console.log(rest.includes("--backfill") ? await backfill(rest, process.cwd()) : rest.includes("--lag") ? lagCli(rest, process.cwd()) : timingsView(rest, process.cwd()));
   } else if (group === "checks") {
@@ -169,6 +169,8 @@ try {
         process.exitCode = exitCode(kind);
       }
     }
+  } else if (group === "review" && (rest[0] === "ready" || rest[0] === "verdict")) {
+    process.exitCode = await (await import("./review-ready.ts")).readyCli(rest, process.cwd()); // review-flow-v2: the Lean gates
   } else if (group === "review" && rest[0] === "feedback") {
     console.log(await (await import("./review.ts")).feedbackCli(rest.slice(1), base)); // review-feedback: read-only, the open comments
   } else if (group === "step" || group === "card" || group === "task" || group === "send" || group === "review") {
@@ -182,7 +184,7 @@ try {
     if (body.ok) console.log(body.duplicate ? "duplicate (already applied)" : `ok seq ${body.seq}`);
     else { console.error(`refused: ${body.reason}`); process.exitCode = 2; }
   } else {
-    throw new UsageError(`usage: fw status | fw console start|stop|restart|status|logs | fw preview grant [<id>] | fw plan sync <file>|show|overlap [task] | fw watch [--json] [--interval s] [--until-alert] | fw next | fw engine-check --rows <jsonl> --run <dir> | fw land <branch> [--task id] [--allow glob] [--dry] | fw land --queue <branch> --task id | fw land --queue-status | fw incidents lint [ledger.json] | fw lake-gc [--list|--json|--delete] [--check] | fw reap --list|--stop | fw step post|start|answer|done|cancel ... | fw task handback|integrate|park|unpark ... | fw review reply|feedback ... | fw send '<json>'\n${CARD_USAGE}`);
+    throw new UsageError(`usage: fw status | fw console start|stop|restart|status|logs | fw preview grant [<id>] | fw plan sync <file>|show|overlap [task] | fw watch [--json] [--interval s] [--until-alert] | fw next | fw engine-check --rows <jsonl> --run <dir> | fw land <branch> [--task id] [--allow glob] [--dry] | fw land --queue <branch> --task id | fw land --queue-status | fw incidents lint [ledger.json] | fw lake-gc [--list|--json|--delete] [--check] | fw reap --list|--stop | fw step post|start|answer|done|cancel ... | fw task handback|integrate|park|unpark ... | fw review reply|feedback|ready|verdict ... | fw send '<json>'\n${CARD_USAGE}`);
   }
 } catch (e) {
   console.error(e instanceof Error ? e.message : String(e));

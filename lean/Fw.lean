@@ -130,6 +130,7 @@ import Fw.Obs.Signals -- obs-signals: agent state from transcript signals (obs.s
 import Fw.Obs.Fold  -- watch-incremental: transcript summaries as a fold, resume from saved state
 import Fw.Plan.Incident  -- incident-lint: plan.incidentLint
 import Fw.Plan.Overlap  -- spawn-write-overlap: plan.overlap
+import Fw.Plan.ReviewReady  -- review-flow-v2: plan.reviewReady, plan.reviewVerdict
 import Fw.Plan.Workflow  -- workflow-claim: workflow runs as agent events
 import Fw.Obs.Timing  -- timing-lean: slow / structural verdicts over timing samples
 import Fw.Obs.Backoff  -- alert-rules-fix: wait or restart when an fwcore call misses its deadline
@@ -181,6 +182,7 @@ import Fw.Gate.Shard  -- gate-shard-balance: LPT shard plan over measured unit c
 import Fw.Gate.ShardObs  -- gate-shard-balance: observed jobs of a CI run, reduced to the cost table (ShardCosts)
 import Fw.Gate.Search  -- gate-preset-input: the search string of the gate rewrite arm from its fw and preset inputs
 import Fw.Gate.Trajectory  -- trajectory-probe: per-unit verdict of the rewrite against the original along a scroll path
+import Fw.Gate.Trajectory.Dispatch  -- trajectory dispatch scope: verdict runs walk all four widths, diagnostic runs any nonempty subset
 import Fw.Gate.Colour  -- kit-colour-space: every trajectory colour reading in sRGB x1000, the error budget the judge allows
 import Fw.Gate.RunPerm  -- scoped-gap-did: run-level permutation test of the close gap g, statistic and exact p
 import Fw.Gate.Frames  -- earn-look-review-webkit: when a frame strip is usable (>= 10 shots per arm)
