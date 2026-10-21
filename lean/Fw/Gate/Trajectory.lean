@@ -3161,16 +3161,26 @@ open Fw.Parts
 /-- The timing curve of every earn transition, `cubic-bezier(0.33, 0, 0.2, 1)` (`nav.module.css` rule 167). -/
 def earnCurve : Bezier.Bez := ⟨33 / 100, 0, 1 / 5, 1⟩
 
-/-- The (node, property) units the close-start rule judges. -/
+/-- The (node, property) units the close rule judges. -/
 def startOn (node prop : String) : Bool := node == "earn" && (prop == "opacity" || prop == "max-width")
 
 /-- The (duration, delay) in ms of the transition that moves a probe property under a class set, `driver` included. -/
 def startTr (node prop : String) (width : Nat) (cls : List String) : Option (Nat × Nat) :=
   ((transitionsOf node width cls).find? fun (p, _, _) => (cssOf node prop).contains p).map fun (_, d, l) => (d, l)
 
-/-- The close-start rule of a (node, property) at a width: `startTr` for the units of `startOn`, else none. -/
-def startFor (node prop : String) (width : Nat) : Option (List String → Option (Nat × Nat)) :=
-  if startOn node prop then some (startTr node prop width) else none
+/-- The earn button's value at rest past the hero, times 1000: opacity `Nav.expand false`, max-width `Nav.earnMaxW` at
+morph value 0 (`Nav.lean` 266-269). -/
+def fullOf (prop : String) (width : Nat) : Rat :=
+  if prop == "opacity" then Nav.expand false * 1000 else Nav.earnMaxW ⟨width, 0⟩ false 0 * 1000
+
+/-- The close rule of an earn unit at one width: the transition under a class set, and the value at rest. -/
+structure EarnRule where
+  tr : List String → Option (Nat × Nat)
+  full : Rat
+
+/-- The close rule of a (node, property) at a width: for the units of `startOn`, `startTr` and `fullOf`; else none. -/
+def startFor (node prop : String) (width : Nat) : Option EarnRule :=
+  if startOn node prop then some ⟨startTr node prop width, fullOf prop width⟩ else none
 
 /-- The index of the close in the morph path (`PHASES` in `reduce.mjs`). -/
 def closePh : Nat := 2
@@ -3184,11 +3194,6 @@ def collapse (m : Int) : Rat := Nav.earnOut ((m : Rat) / 10000)
 /-- The value `x` ms after its trigger of an earn transition from `s` to `t`. -/
 def along (dur delay : Nat) (s t : Rat) (x : Int) : Rat :=
   s + (t - s) * Bezier.ease earnCurve (((x : Rat) - delay) / dur)
-
-/-- Reading `r` lies within `tol k` of the transition's values from `tau - startJitter` to `tau + startJitter` ms. -/
-def onCurve (k : Kind) (dur delay : Nat) (s t : Rat) (tau r : Int) : Bool :=
-  decide (min (along dur delay s t (tau - startJitter)) (along dur delay s t (tau + startJitter)) - tol k ≤ r) &&
-    decide ((r : Rat) ≤ max (along dur delay s t (tau - startJitter)) (along dur delay s t (tau + startJitter)) + tol k)
 
 /-- The number of a reading of one element with one number. -/
 def oneNum : List Val → Option Int
@@ -3205,10 +3210,6 @@ def retargets (a b : Samp) : Bool :=
 def triggersOf (ps : List Samp) : List Samp :=
   ((ps.zip ps.tail).filter fun (a, b) => retargets a b).map (·.2)
 
-/-- The original's settled reading after `r`: its last sample of `r`'s pass in the phase after `r`'s. -/
-def settledOf (seg : List Samp) (r : Samp) : Option Int :=
-  (((passOf seg r.rep).filter (·.ph == r.ph + 1)).getLast?).bind fun e => oneNum e.els
-
 /-- The original's first trigger in the pass and phase of `r`. -/
 def origFirst (seg : List Samp) (r : Samp) : Option Samp :=
   (triggersOf ((passOf seg r.rep).filter (·.ph == r.ph))).head?
@@ -3217,94 +3218,92 @@ def origFirst (seg : List Samp) (r : Samp) : Option Samp :=
 def excess (lo hi : Rat) (w : Int) : Rat :=
   if (w : Rat) < lo then lo - w else if hi < w then w - hi else 0
 
-/-- The earn value the collapse at morph value `m` aims at, `full` the settled value. -/
-def target (full m : Int) : Rat := full * (1 - collapse m)
-
-/-- The range of the transitions from `s` towards `tp` and `tq` at `tau - startJitter` and `tau + startJitter` ms. -/
-def hull (dur delay : Nat) (s tp tq : Rat) (tau : Int) : Rat × Rat :=
-  let a := along dur delay s tp (tau - startJitter)
-  let b := along dur delay s tp (tau + startJitter)
-  let c := along dur delay s tq (tau - startJitter)
-  let d := along dur delay s tq (tau + startJitter)
-  (min (min a b) (min c d), max (max a b) (max c d))
-
-/-- How far `q`'s reading lies outside the `hull` from `p`'s reading towards both morph targets; `none`: undecided. -/
-def linkExcess (tr : List String → Option (Nat × Nat)) (full : Int) (p q : Samp) : Option Rat :=
-  match p.m, q.m, tr p.cls, oneNum p.els, oneNum q.els, p.t0, q.t0 with
-  | some mp, some mq, some (dur, delay), some s, some w, some a, some b =>
-    if dur = 0 then none
-    else
-      let h := hull dur delay s (target full mp) (target full mq) ((b : Int) - a)
-      some (excess h.1 h.2 w)
-  | _, _, _, _, _, _, _ => none
-
-/-- The sum of `linkExcess` over neighbouring points of a chain; `none` when a link is undecided. -/
-def linksExcess (tr : List String → Option (Nat × Nat)) (full : Int) : List Samp → Option Rat
-  | p :: q :: rest =>
-    match linkExcess tr full p q, linksExcess tr full (q :: rest) with
-    | some e, some c => some (e + c)
-    | _, _ => none
-  | _ => some 0
-
-/-- The chain of `r` after its pass's earlier samples `prior`: the triggers up to `r`, then `r` when it is no trigger. -/
-def chainOf (prior : List Samp) (r : Samp) : List Samp :=
-  if prior.getLast?.any (retargets · r) then triggersOf (prior ++ [r]) else triggersOf (prior ++ [r]) ++ [r]
-
-/-- The cost of `r`'s chain: how far its first trigger reads from the original's first trigger, plus `linksExcess`. -/
-def chainCost (tr : List String → Option (Nat × Nat)) (seg prior : List Samp) (r : Samp) : Option Rat :=
-  match triggersOf (prior ++ [r]), origFirst seg r, settledOf seg r with
-  | q :: _, some o, some full =>
-    match oneNum o.els, oneNum q.els, linksExcess tr full (chainOf prior r) with
-    | some s, some w, some c => some (excess s s w + c)
+/-- Rewrite sample `r` of the close's bucket 0 after the earlier samples `prior` of its pass. Anchor: the reading `w` at
+the pass's first trigger lies within `tol k` of `s`, the reading at the original's first trigger. Range: `r`'s reading
+lies in `[s - tol k, full + tol k]`. `none`: no trigger up to `r`, no original trigger, or a reading that is not one
+number. -/
+def startCheck (k : Kind) (full : Rat) (seg prior : List Samp) (r : Samp) : Option Bool :=
+  match (triggersOf (prior ++ [r])).head?, origFirst seg r with
+  | some q, some o =>
+    match oneNum o.els, oneNum q.els, oneNum r.els with
+    | some s, some w, some x => some (decide (excess s s w ≤ tol k) && decide (excess s full x ≤ tol k))
     | _, _, _ => none
-  | _, _, _ => none
+  | _, _ => none
 
-/-- Sample `r` after `prior` passes when its `chainCost` is at most `tol k`; `none`: undecided. -/
-def startCheck (k : Kind) (tr : List String → Option (Nat × Nat)) (seg prior : List Samp) (r : Samp) : Option Bool :=
-  (chainCost tr seg prior r).map fun c => decide (c ≤ (tol k : Rat))
-
-/-- One rewrite sample under the close-start rule: `startCheck` when it decides, else `judgeUnit`. -/
-def judgeStart (k : Kind) (d : List String → Option Nat) (tr : List String → Option (Nat × Nat)) (seg : List Samp)
-    (win : Option (List Samp)) (prior : List Samp) (r : Samp) : Verdict :=
-  match startCheck k tr seg prior r with
+/-- One rewrite sample of the close's bucket 0: `startCheck` when it decides, else `judgeUnit`. -/
+def judgeStart (k : Kind) (d : List String → Option Nat) (full : Rat) (seg : List Samp) (win : Option (List Samp))
+    (prior : List Samp) (r : Samp) : Verdict :=
+  match startCheck k full seg prior r with
   | some true => .pass
   | some false => .fail .apart
   | none => judgeUnit k d seg win r
 
 /-- Bucket 0 of a push, each rewrite sample by `judgeStart` with its pass's earlier samples of the phase. -/
-def startBucket (k : Kind) (d : List String → Option Nat) (tr : List String → Option (Nat × Nat))
-    (seg orig rew : List Samp) : Verdict :=
+def startBucket (k : Kind) (d : List String → Option Nat) (full : Rat) (seg orig rew : List Samp) : Verdict :=
   match (rew.mapIdx fun i r => (passOf (rew.take i) r.rep, r)).filter (fun x => bucket x.2.m == 0) with
   | [] => .skip .noSample
-  | rs => combine (rs.map fun (ps, r) => judgeStart k d tr seg (windowAt .push d seg orig r) ps r)
+  | rs => combine (rs.map fun (ps, r) => judgeStart k d full seg (windowAt .push d seg orig r) ps r)
 
-/-- `byM`, with bucket 0 of the close by `startBucket` when the rule `tr` is given. -/
-def byMStart (ph : Phase) (p : Nat) (k : Kind) (d : List String → Option Nat)
-    (tr : Option (List String → Option (Nat × Nat))) (oSeg wSeg : List Samp) : List (Nat × Verdict) :=
-  match tr with
-  | some f =>
+/-- The samples of `r`'s pass in the close and the close-hold, in order. -/
+def closeOf (seg : List Samp) (r : Samp) : List Samp :=
+  (passOf seg r.rep).filter fun s => s.ph == closePh || s.ph == closePh + 1
+
+/-- The ms after a trigger from which its transition `(dur, delay)` has ended, with `startJitter` to spare. -/
+def settleAt (dur delay : Nat) : Nat := dur + delay + startJitter
+
+/-- Rewrite sample `r` of the close-hold, `seg` the rewrite's path: read `settleAt` or more ms after the last trigger of
+its pass's close and close-hold, it lies within `tol k` of `e.full`. `none`: read earlier, or a part missing. -/
+def settleCheck (k : Kind) (e : EarnRule) (seg : List Samp) (r : Samp) : Option Bool :=
+  match (triggersOf (closeOf seg r)).getLast? with
+  | some q =>
+    match e.tr q.cls, q.t0, r.t0, oneNum r.els with
+    | some (dur, delay), some a, some b, some x =>
+      if (settleAt dur delay : Int) ≤ (b : Int) - a then some (decide (excess e.full e.full x ≤ tol k)) else none
+    | _, _, _, _ => none
+  | none => none
+
+/-- A bucket's `byM` verdict `v` with the settle checks `cs` of its samples: `fail apart` when `v` passes and a check
+refuses, else `v`. -/
+def settleAnd (v : Verdict) (cs : List (Option Bool)) : Verdict :=
+  if v == .pass && cs.contains (some false) then .fail .apart else v
+
+/-- Bucket `x` of phase `p` with `settleAnd` over the settle checks of the rewrite samples `ws` in it. -/
+def settleBucket (k : Kind) (e : EarnRule) (ws : List Samp) (p : Nat) (x : Nat × Verdict) : Nat × Verdict :=
+  (x.1, settleAnd x.2 (((ws.filter (·.ph == p)).filter fun r => bucket r.m == x.1).map (settleCheck k e ws)))
+
+/-- `byM`, with the rule `e` of an earn unit: bucket 0 of the close by `startBucket`, each bucket of the close-hold by
+`settleBucket`. -/
+def byMStart (ph : Phase) (p : Nat) (k : Kind) (d : List String → Option Nat) (e : Option EarnRule)
+    (oSeg wSeg : List Samp) : List (Nat × Verdict) :=
+  match e with
+  | some e =>
     if ph == .push && p == closePh then
       let seg := annotate oSeg
       (byM ph p k d oSeg wSeg).map fun (b, v) =>
-        if b == 0 then (b, startBucket k d f seg (seg.filter (·.ph == p)) ((annotate wSeg).filter (·.ph == p)))
+        if b == 0 then (b, startBucket k d e.full seg (seg.filter (·.ph == p)) ((annotate wSeg).filter (·.ph == p)))
         else (b, v)
+    else if ph == .hold && p == closePh + 1 then
+      (byM ph p k d oSeg wSeg).map (settleBucket k e (annotate wSeg) p)
     else byM ph p k d oSeg wSeg
   | none => byM ph p k d oSeg wSeg
 
 #guard startOn "earn" "opacity" && startOn "earn" "max-width" && !startOn "earn" "padding-inline" &&
   !startOn "nav" "opacity"
 #guard startTr "earn" "opacity" 390 [] == some (320, 120) && startTr "earn" "opacity" 390 ["is-hero-pill"] == some (200, 0) &&
-  startTr "earn" "max-width" 1280 ["is-morphing"] == some (680, 0) && startTr "nav" "rect" 1280 ["is-morphing"] == some (320, 0) && startTr "earn" "gap" 390 [] == none
-#guard (startFor "earn" "opacity" 390).isSome && (startFor "nav" "opacity" 390).isNone
+  startTr "earn" "max-width" 1280 ["is-morphing"] == some (680, 0) && startTr "nav" "rect" 1280 ["is-morphing"] == some (320, 0) &&
+  startTr "earn" "gap" 390 [] == none
+#guard fullOf "opacity" 390 == 1000 && fullOf "max-width" 390 == 152000 && fullOf "max-width" 640 == 152000 &&
+  fullOf "max-width" 641 == 176000 && fullOf "max-width" 1280 == 176000
+#guard (startFor "earn" "opacity" 390).map (·.full) == some 1000 && (startFor "nav" "opacity" 390).isNone
 #guard collapse 0 == 0 && collapse 1000 == 1 / 2 && collapse 2000 == 1 && collapse 9000 == 1
 #guard oneNum [.num [5]] == some 5 && oneNum [.num [5, 6]] == none && oneNum [] == none && oneNum [.str "a"] == none
 #guard along 320 120 0 1000 100 == 0 && along 320 120 0 1000 440 == 1000 && along 680 0 1000 0 680 == 0
-#guard onCurve .unit 320 120 0 1000 300 852 && !onCurve .unit 320 120 0 1000 300 147 &&
-  onCurve .unit 320 120 0 1000 0 (-10) && !onCurve .unit 320 120 0 1000 0 (-11) &&
-  onCurve .unit 320 120 0 1000 1000 1010 && !onCurve .unit 320 120 0 1000 1000 1011
 
 /-- An earn close sample of pass 0 at morph value `m` reading `x`, its reads started at `t` ms. -/
 def ec (m : Int) (t : Nat) (x : Int) : Samp := ⟨some m, none, [.num [x]], 0, [], 2, 0, some t⟩
+
+/-- An earn close-hold sample of pass 0 reading `x`, its reads started at `t` ms. -/
+def eh (t : Nat) (x : Int) : Samp := ⟨some 0, none, [.num [x]], 0, [], 3, 0, some t⟩
 
 #guard retargets (ec 3000 0 0) (ec 2500 0 0) == false && retargets (ec 2500 0 0) (ec 1500 0 0) &&
   retargets (ec 0 0 0) (s0 []) == false
@@ -3313,18 +3312,273 @@ def ec (m : Int) (t : Nat) (x : Int) : Samp := ⟨some m, none, [.num [x]], 0, [
 #guard origFirst [ec 6540 0 0, ec 1230 100 4, ec 0 200 5] (ec 0 0 0) == some (ec 1230 100 4) &&
   origFirst [ec 6540 0 0, ec 3000 100 4] (ec 0 0 0) == none
 #guard excess 0 10 5 == 0 && excess 0 10 (-3) == 3 && excess 0 10 14 == 4 && excess 7 7 7 == 0 && excess 7 7 16 == 9
-#guard target 1000 0 == 1000 && target 1000 1000 == 500 && target 1000 2500 == 0
-#guard hull 320 120 0 1000 1000 0 == (0, 0) && hull 320 120 9 1000 0 30 == (9, 9) &&
-  hull 680 0 0 152000 152000 0 == (0, along 680 0 0 152000 80)
-#guard linkExcess (startTr "earn" "opacity" 390) 1000 (ec 400 100 9) (ec 300 130 18) == some 9 &&
-  linkExcess (startTr "earn" "opacity" 390) 1000 (ec 400 100 9) (ec 300 130 9) == some 0 &&
-  linkExcess (startTr "earn" "opacity" 390) 1000 (ec 400 100 9) (s0 []) == none
-#guard chainOf [ec 6540 0 0, ec 400 100 0] (ec 300 130 0) == [ec 400 100 0, ec 300 130 0] &&
-  chainOf [ec 6540 0 0, ec 400 100 0] (ec 400 130 0) == [ec 400 100 0, ec 400 130 0] &&
-  chainOf [ec 6540 0 0] (ec 6540 30 0) == [ec 6540 30 0]
-#guard settledOf [ec 0 0 1, ⟨some 0, none, [.num [7]], 0, [], 3, 0, some 9⟩, ⟨some 0, none, [.num [8]], 0, [], 3, 0, some 9⟩] (ec 0 0 0) ==
-  some 8 && settledOf [ec 0 0 1] (ec 0 0 0) == none
+#guard settleAt 320 120 == 520 && settleAt 680 0 == 760
+#guard closeOf [ec 6540 0 0, eh 900 1000, ⟨some 0, none, [], 0, [], 4, 0, none⟩, ⟨some 0, none, [], 1, [], 3, 0, none⟩]
+    (eh 0 0) == [ec 6540 0 0, eh 900 1000]
 
+/-- The earn opacity rule at 390 px. -/
+def eo : EarnRule := ⟨startTr "earn" "opacity" 390, 1000⟩
+
+#guard startCheck .unit 1000 [ec 6540 0 0, ec 0 100 0] [ec 6540 0 0, ec 0 100 0] (ec 0 400 852) == some true &&
+  startCheck .unit 1000 [ec 6540 0 0, ec 0 100 0] [ec 6540 0 0] (ec 0 100 11) == some false &&
+  startCheck .unit 1000 [ec 6540 0 0, ec 0 100 0] [ec 6540 0 0, ec 0 100 0] (ec 0 400 1011) == some false &&
+  startCheck .unit 1000 [ec 6540 0 0, ec 0 100 600] [ec 6540 0 0, ec 0 100 600] (ec 0 400 591) == some true &&
+  startCheck .unit 1000 [ec 6540 0 0, ec 0 100 600] [ec 6540 0 0, ec 0 100 600] (ec 0 400 589) == some false &&
+  startCheck .unit 1000 [ec 6540 0 0, ec 0 100 0] [ec 6540 0 0] (ec 6540 50 0) == none &&
+  startCheck .unit 1000 [] [ec 6540 0 0, ec 0 100 0] (ec 0 400 852) == none
+#guard settleCheck .unit eo [ec 6540 0 0, ec 0 100 0, eh 620 990] (eh 620 990) == some true &&
+  settleCheck .unit eo [ec 6540 0 0, ec 0 100 0, eh 620 989] (eh 620 989) == some false &&
+  settleCheck .unit eo [ec 6540 0 0, ec 0 100 0, eh 619 900] (eh 619 900) == none &&
+  settleCheck .unit eo [ec 6540 0 0, ec 0 100 0, ec 1000 200 0, ec 0 300 0, eh 700 900] (eh 700 900) == none &&
+  settleCheck .unit eo [ec 6540 0 0, ec 0 100 0, ec 1000 200 0, ec 0 300 0, eh 820 900] (eh 820 900) == some false &&
+  settleCheck .unit eo [ec 0 0 0, eh 900 900] (eh 900 900) == none
+#guard settleAnd .pass [some true, none] == .pass && settleAnd .pass [some true, some false] == .fail .apart &&
+  settleAnd (.fail .count) [some false] == .fail .count && settleAnd (.skip .noSample) [] == .skip .noSample
+
+/-- `excess` is never negative. -/
+theorem excess_nonneg (lo hi : Rat) (w : Int) : 0 ≤ excess lo hi w := by
+  unfold excess
+  split
+  · grind
+  · split <;> grind
+
+/-- For `lo ≤ hi` and `0 ≤ t`, `excess` is at most `t` exactly when `w` lies in `[lo - t, hi + t]`. -/
+theorem excess_le_iff (lo hi t : Rat) (w : Int) (hl : lo ≤ hi) (ht : 0 ≤ t) :
+    excess lo hi w ≤ t ↔ lo - t ≤ w ∧ (w : Rat) ≤ hi + t := by
+  unfold excess
+  split
+  · grind
+  · split <;> grind
+
+/-- A reading inside `[lo, hi]` has no excess. -/
+theorem excess_zero (lo hi : Rat) (w : Int) (h1 : lo ≤ w) (h2 : (w : Rat) ≤ hi) : excess lo hi w = 0 := by
+  unfold excess
+  split
+  · grind
+  · split <;> grind
+
+/-- Branch opacity of `startOn`. -/
+theorem startOn_opacity : startOn "earn" "opacity" = true := by decide
+
+/-- Branch max-width of `startOn`. -/
+theorem startOn_maxWidth : startOn "earn" "max-width" = true := by decide
+
+/-- Off `startOn` the rule is off. -/
+theorem startFor_off (node prop : String) (width : Nat) (h : startOn node prop = false) :
+    startFor node prop width = none := by
+  simp [startFor, h]
+
+/-- The earn opacity at rest is 1. -/
+theorem fullOf_opacity (width : Nat) : fullOf "opacity" width = 1000 := by
+  simp [fullOf, Nav.expand]
+
+/-- The earn max-width at rest on a phone is 9.5rem, 152 px. -/
+theorem fullOf_phone (width : Nat) (h : width ≤ 640) : fullOf "max-width" width = 152000 := by
+  have hp : Nav.phone (width : Rat) = true := by simp [Nav.phone]; exact_mod_cast h
+  simp [fullOf, Nav.earnMaxW, Nav.earnLayout, Nav.earnOut, Nav.expand, hp, MorphTween.clamp01]
+  decide +kernel
+
+/-- The earn max-width at rest above a phone is 11rem, 176 px. -/
+theorem fullOf_wide (width : Nat) (h : 640 < width) : fullOf "max-width" width = 176000 := by
+  have hp : Nav.phone (width : Rat) = false := by
+    have : ¬ (width : Rat) ≤ 640 := by exact_mod_cast Nat.not_le.mpr h
+    simpa [Nav.phone] using this
+  simp [fullOf, Nav.earnMaxW, Nav.earnLayout, Nav.earnOut, Nav.expand, hp, MorphTween.clamp01]
+  decide +kernel
+
+/-- With every part found, `startCheck` is the anchor and the range. -/
+theorem startCheck_found (k : Kind) (full : Rat) (seg prior : List Samp) (r q o : Samp) (s w x : Int)
+    (hq : (triggersOf (prior ++ [r])).head? = some q) (ho : origFirst seg r = some o) (hs : oneNum o.els = some s)
+    (hw : oneNum q.els = some w) (hx : oneNum r.els = some x) :
+    startCheck k full seg prior r = some (decide (excess s s w ≤ tol k) && decide (excess s full x ≤ tol k)) := by
+  simp [startCheck, hq, ho, hs, hw, hx]
+
+/-- Branch no trigger: before its pass's first trigger a sample is undecided. -/
+theorem startCheck_no_trigger (k : Kind) (full : Rat) (seg prior : List Samp) (r : Samp)
+    (hq : (triggersOf (prior ++ [r])).head? = none) : startCheck k full seg prior r = none := by
+  simp [startCheck, hq]
+
+/-- Branch no original trigger: a pass whose original never retargets is undecided. -/
+theorem startCheck_no_orig (k : Kind) (full : Rat) (seg prior : List Samp) (r : Samp) (ho : origFirst seg r = none) :
+    startCheck k full seg prior r = none := by
+  unfold startCheck
+  split <;> simp_all
+
+/-- Branch no reading: a reading that is not one number leaves a sample undecided. -/
+theorem startCheck_no_reading (k : Kind) (full : Rat) (seg prior : List Samp) (r q o : Samp)
+    (hq : (triggersOf (prior ++ [r])).head? = some q) (ho : origFirst seg r = some o)
+    (h : oneNum o.els = none ∨ oneNum q.els = none ∨ oneNum r.els = none) : startCheck k full seg prior r = none := by
+  rcases h with h | h | h <;> simp only [startCheck, hq, ho, h] <;> split <;> simp_all
+
+/-- With every part found and `s ≤ full`, a sample passes exactly when the trigger reads within `tol k` of `s` and the
+sample reads in `[s - tol k, full + tol k]`. -/
+theorem startCheck_pass_iff (k : Kind) (full : Rat) (seg prior : List Samp) (r q o : Samp) (s w x : Int)
+    (hq : (triggersOf (prior ++ [r])).head? = some q) (ho : origFirst seg r = some o) (hs : oneNum o.els = some s)
+    (hw : oneNum q.els = some w) (hx : oneNum r.els = some x) (hsf : (s : Rat) ≤ full) :
+    startCheck k full seg prior r = some true ↔
+      (s - tol k ≤ w ∧ w ≤ s + tol k) ∧ ((s : Rat) - tol k ≤ x ∧ (x : Rat) ≤ full + tol k) := by
+  have ht : (0 : Rat) ≤ tol k := by exact_mod_cast tol_nonneg k
+  rw [startCheck_found k full seg prior r q o s w x hq ho hs hw hx]
+  simp only [Option.some.injEq, Bool.and_eq_true, decide_eq_true_eq]
+  rw [excess_le_iff _ _ _ _ (Rat.le_refl) ht, excess_le_iff _ _ _ _ hsf ht]
+  constructor
+  · intro ⟨⟨a, b⟩, c⟩
+    exact ⟨⟨by exact_mod_cast a, by exact_mod_cast b⟩, c⟩
+  · intro ⟨⟨a, b⟩, c⟩
+    have a' : ((s - tol k : Int) : Rat) ≤ w := by exact_mod_cast a
+    have b' : (w : Rat) ≤ ((s + tol k : Int) : Rat) := by exact_mod_cast b
+    push_cast at a' b'
+    exact ⟨⟨a', b'⟩, c⟩
+
+/-- Branch on: a sample the check passes passes. -/
+theorem judgeStart_on (k : Kind) (d : List String → Option Nat) (full : Rat) (seg : List Samp)
+    (win : Option (List Samp)) (prior : List Samp) (r : Samp) (h : startCheck k full seg prior r = some true) :
+    judgeStart k d full seg win prior r = .pass := by
+  simp [judgeStart, h]
+
+/-- Branch off: a sample the check refuses is `fail apart`, whatever the window says. -/
+theorem judgeStart_off (k : Kind) (d : List String → Option Nat) (full : Rat) (seg : List Samp)
+    (win : Option (List Samp)) (prior : List Samp) (r : Samp) (h : startCheck k full seg prior r = some false) :
+    judgeStart k d full seg win prior r = .fail .apart := by
+  simp [judgeStart, h]
+
+/-- Branch undecided: the current judge decides a sample the check does not. -/
+theorem judgeStart_undecided (k : Kind) (d : List String → Option Nat) (full : Rat) (seg : List Samp)
+    (win : Option (List Samp)) (prior : List Samp) (r : Samp) (h : startCheck k full seg prior r = none) :
+    judgeStart k d full seg win prior r = judgeUnit k d seg win r := by
+  simp [judgeStart, h]
+
+/-- With every part found and read `settleAt` or more ms after the last trigger, `settleCheck` compares with `e.full`. -/
+theorem settleCheck_found (k : Kind) (e : EarnRule) (seg : List Samp) (r q : Samp) (dur delay a b : Nat) (x : Int)
+    (hq : (triggersOf (closeOf seg r)).getLast? = some q) (htr : e.tr q.cls = some (dur, delay))
+    (ha : q.t0 = some a) (hb : r.t0 = some b) (hx : oneNum r.els = some x)
+    (hl : (settleAt dur delay : Int) ≤ (b : Int) - a) :
+    settleCheck k e seg r = some (decide (excess e.full e.full x ≤ tol k)) := by
+  simp [settleCheck, hq, htr, ha, hb, hx, hl]
+
+/-- Branch early: a sample read before `settleAt` ms after the last trigger is undecided. -/
+theorem settleCheck_early (k : Kind) (e : EarnRule) (seg : List Samp) (r q : Samp) (dur delay a b : Nat) (x : Int)
+    (hq : (triggersOf (closeOf seg r)).getLast? = some q) (htr : e.tr q.cls = some (dur, delay))
+    (ha : q.t0 = some a) (hb : r.t0 = some b) (hx : oneNum r.els = some x)
+    (hl : (b : Int) - a < settleAt dur delay) : settleCheck k e seg r = none := by
+  have : ¬ ((settleAt dur delay : Int) ≤ (b : Int) - a) := by omega
+  simp [settleCheck, hq, htr, ha, hb, hx, this]
+
+/-- Branch no trigger: a pass whose close never retargets is undecided. -/
+theorem settleCheck_no_trigger (k : Kind) (e : EarnRule) (seg : List Samp) (r : Samp)
+    (hq : (triggersOf (closeOf seg r)).getLast? = none) : settleCheck k e seg r = none := by
+  simp [settleCheck, hq]
+
+/-- Branch missing part: no transition, no read time or a reading that is not one number leaves a sample undecided. -/
+theorem settleCheck_no_part (k : Kind) (e : EarnRule) (seg : List Samp) (r q : Samp)
+    (hq : (triggersOf (closeOf seg r)).getLast? = some q)
+    (h : e.tr q.cls = none ∨ q.t0 = none ∨ r.t0 = none ∨ oneNum r.els = none) : settleCheck k e seg r = none := by
+  rcases h with h | h | h | h <;> simp only [settleCheck, hq, h] <;> split <;> simp_all
+
+/-- With every part found and read late enough, a sample passes exactly when it reads within `tol k` of `e.full`. -/
+theorem settleCheck_pass_iff (k : Kind) (e : EarnRule) (seg : List Samp) (r q : Samp) (dur delay a b : Nat) (x : Int)
+    (hq : (triggersOf (closeOf seg r)).getLast? = some q) (htr : e.tr q.cls = some (dur, delay))
+    (ha : q.t0 = some a) (hb : r.t0 = some b) (hx : oneNum r.els = some x)
+    (hl : (settleAt dur delay : Int) ≤ (b : Int) - a) :
+    settleCheck k e seg r = some true ↔ e.full - tol k ≤ x ∧ (x : Rat) ≤ e.full + tol k := by
+  rw [settleCheck_found k e seg r q dur delay a b x hq htr ha hb hx hl]
+  simp only [Option.some.injEq, decide_eq_true_eq]
+  exact excess_le_iff _ _ _ _ (Rat.le_refl) (by exact_mod_cast tol_nonneg k)
+
+/-- Branch keep: with no refusing check a bucket keeps its verdict. -/
+theorem settleAnd_keep (v : Verdict) (cs : List (Option Bool)) (h : some false ∉ cs) : settleAnd v cs = v := by
+  simp [settleAnd, h]
+
+/-- Branch refuse: a passing bucket with a refusing check is `fail apart`. -/
+theorem settleAnd_refuse (cs : List (Option Bool)) (h : some false ∈ cs) : settleAnd .pass cs = .fail .apart := by
+  simp [settleAnd]
+  exact h
+
+/-- Branch not pass: a bucket that does not pass keeps its verdict. -/
+theorem settleAnd_other (v : Verdict) (cs : List (Option Bool)) (h : v ≠ .pass) : settleAnd v cs = v := by
+  have hb : (v == .pass) = false := by simpa using h
+  simp [settleAnd, hb]
+
+/-- `settleAnd` passes only what passed. -/
+theorem settleAnd_pass (v : Verdict) (cs : List (Option Bool)) (h : settleAnd v cs = .pass) : v = .pass := by
+  by_cases hv : v = .pass
+  · exact hv
+  · rw [settleAnd_other v cs hv] at h; exact h
+
+/-- A bucket list under `settleBucket` passes a bucket only where the list did. -/
+theorem lookup_settleBucket (k : Kind) (e : EarnRule) (ws : List Samp) (p : Nat) (l : List (Nat × Verdict)) (b : Nat)
+    (h : (l.map (settleBucket k e ws p)).lookup b = some .pass) : l.lookup b = some .pass := by
+  induction l with
+  | nil => simp at h
+  | cons x xs ih =>
+    obtain ⟨c, v⟩ := x
+    simp only [List.map_cons, settleBucket, List.lookup_cons] at h ⊢
+    cases hb : b == c
+    · simp only [hb] at h ⊢; exact ih h
+    · simp only [hb, Option.some.injEq] at h ⊢; exact settleAnd_pass _ _ h
+
+/-- A bucket list under `settleBucket` with no refusing check is the list. -/
+theorem map_settleBucket (k : Kind) (e : EarnRule) (ws : List Samp) (p : Nat) (l : List (Nat × Verdict))
+    (h : ∀ r, settleCheck k e ws r ≠ some false) : l.map (settleBucket k e ws p) = l := by
+  induction l with
+  | nil => rfl
+  | cons x xs ih =>
+    obtain ⟨c, v⟩ := x
+    have hk : some false ∉ ((ws.filter (·.ph == p)).filter fun r => bucket r.m == c).map (settleCheck k e ws) := by
+      simp only [List.mem_map, not_exists, not_and]
+      intro r _ hr
+      exact h r hr
+    simp only [List.map_cons, settleBucket, settleAnd_keep v _ hk, ih]
+
+/-- Settle only refuses: a close-hold bucket `byMStart` passes, `byM` passes. -/
+theorem byMSettle (k : Kind) (d : List String → Option Nat) (e : EarnRule) (oSeg wSeg : List Samp) (b : Nat)
+    (h : (byMStart .hold (closePh + 1) k d (some e) oSeg wSeg).lookup b = some .pass) :
+    (byM .hold (closePh + 1) k d oSeg wSeg).lookup b = some .pass := by
+  have h1 : (Phase.hold == Phase.push && closePh + 1 == closePh) = false := by decide
+  have h2 : (Phase.hold == Phase.hold && closePh + 1 == closePh + 1) = true := by decide
+  simp only [byMStart, h1, h2] at h
+  exact lookup_settleBucket k e _ _ _ b h
+
+/-- A close-hold with no refusing settle check, among them a pass with no sample read late enough, is `byM`. -/
+theorem byMSettle_keep (k : Kind) (d : List String → Option Nat) (e : EarnRule) (oSeg wSeg : List Samp)
+    (h : ∀ r, settleCheck k e (annotate wSeg) r ≠ some false) :
+    byMStart .hold (closePh + 1) k d (some e) oSeg wSeg = byM .hold (closePh + 1) k d oSeg wSeg := by
+  have h1 : (Phase.hold == Phase.push && closePh + 1 == closePh) = false := by decide
+  have h2 : (Phase.hold == Phase.hold && closePh + 1 == closePh + 1) = true := by decide
+  simp only [byMStart, h1, h2]
+  exact map_settleBucket k e _ _ _ h
+
+/-- Without the rule `byMStart` is `byM`. -/
+theorem byMStart_none (ph : Phase) (p : Nat) (k : Kind) (d : List String → Option Nat) (oSeg wSeg : List Samp) :
+    byMStart ph p k d none oSeg wSeg = byM ph p k d oSeg wSeg := rfl
+
+/-- Outside the close's push and the close-hold the rule changes nothing. -/
+theorem byMStart_other (ph : Phase) (p : Nat) (k : Kind) (d : List String → Option Nat) (e : Option EarnRule)
+    (oSeg wSeg : List Samp) (h1 : (ph == .push && p == closePh) = false)
+    (h2 : (ph == .hold && p == closePh + 1) = false) :
+    byMStart ph p k d e oSeg wSeg = byM ph p k d oSeg wSeg := by
+  cases e <;> simp [byMStart, h1, h2]
+
+/-- In the close's push the rule changes no bucket but 0. -/
+theorem byMStart_keeps (k : Kind) (d : List String → Option Nat) (e : Option EarnRule) (oSeg wSeg : List Samp) :
+    (byMStart .push closePh k d e oSeg wSeg).filter (·.1 != 0) = (byM .push closePh k d oSeg wSeg).filter (·.1 != 0) := by
+  cases e with
+  | none => rfl
+  | some f =>
+    simp only [byMStart]
+    generalize byM .push closePh k d oSeg wSeg = v
+    induction v with
+    | nil => rfl
+    | cons x xs ih =>
+      obtain ⟨b, w⟩ := x
+      by_cases hb : b = 0 <;> simp_all
+
+/-- Under the rule, bucket 0 of the close's push is `startBucket` over the close's samples of both arms. -/
+theorem byMStart_bucket0 (k : Kind) (d : List String → Option Nat) (e : EarnRule) (oSeg wSeg : List Samp) :
+    (byMStart .push closePh k d (some e) oSeg wSeg).lookup 0 =
+      some (startBucket k d e.full (annotate oSeg) ((annotate oSeg).filter (·.ph == closePh))
+        ((annotate wSeg).filter (·.ph == closePh))) := by
+  simp [byMStart, byM, List.range_succ_eq_map]
 
 /-- Bisection is monotone in its target. -/
 theorem bisect_le_bisect (c : Bezier.Bez) (t u : Rat) (h : t ≤ u) (n : Nat) :
@@ -3375,493 +3629,196 @@ theorem inv_nonneg_of_pos (d : Rat) (hd : 0 < d) : 0 ≤ d⁻¹ := by
   have h2 := Rat.mul_inv_cancel d (by grind)
   grind
 
-/-- The eased fraction of an earn transition rises with the time since its trigger. -/
-theorem ease_along_le (dur delay : Nat) (hd : 0 < dur) (x y : Int) (h : x ≤ y) :
-    Bezier.ease earnCurve (((x : Rat) - delay) / dur) ≤ Bezier.ease earnCurve (((y : Rat) - delay) / dur) := by
-  apply ease_earn_le
+/-- `a / c ≤ a / b` for `0 ≤ a` and `0 < b ≤ c`. -/
+theorem div_le_div_left (a b c : Rat) (ha : 0 ≤ a) (hb : 0 < b) (hbc : b ≤ c) : a / c ≤ a / b := by
+  have hc : 0 < c := by grind
+  have ib := Rat.mul_inv_cancel b (by grind)
+  have ic := Rat.mul_inv_cancel c (by grind)
+  have key : c⁻¹ ≤ b⁻¹ := by
+    have h1 := Rat.mul_le_mul_of_nonneg_left hbc
+      (Rat.mul_nonneg (inv_nonneg_of_pos b hb) (inv_nonneg_of_pos c hc))
+    have e1 : b⁻¹ * c⁻¹ * b = c⁻¹ * (b * b⁻¹) := by rw [Rat.mul_comm b⁻¹ c⁻¹, Rat.mul_assoc, Rat.mul_comm b⁻¹ b]
+    have e2 : b⁻¹ * c⁻¹ * c = b⁻¹ * (c * c⁻¹) := by rw [Rat.mul_assoc, Rat.mul_comm c⁻¹ c]
+    rw [e1, e2, ib, ic, Rat.mul_one, Rat.mul_one] at h1
+    exact h1
   rw [Rat.div_def, Rat.div_def]
-  have hxy : (x : Rat) ≤ y := by exact_mod_cast h
-  exact Rat.mul_le_mul_of_nonneg_right (by grind) (inv_nonneg_of_pos _ (by exact_mod_cast hd))
+  exact Rat.mul_le_mul_of_nonneg_left key ha
 
-/-- A rising transition's value rises with time. -/
-theorem along_le (dur delay : Nat) (hd : 0 < dur) (s t : Rat) (hst : s ≤ t) (x y : Int) (h : x ≤ y) :
-    along dur delay s t x ≤ along dur delay s t y := by
+/-- After its delay, a rise from 0 is lower on a longer transition. -/
+theorem along_dur_le (b c delay : Nat) (hb : 0 < b) (hbc : b ≤ c) (full : Rat) (hf : 0 ≤ full) (x : Int)
+    (hx : (delay : Int) ≤ x) : along c delay 0 full x ≤ along b delay 0 full x := by
   unfold along
-  have := Rat.mul_le_mul_of_nonneg_left (ease_along_le dur delay hd x y h) (by grind : (0 : Rat) ≤ t - s)
+  have hx' : (delay : Rat) ≤ x := by exact_mod_cast hx
+  have h1 := ease_earn_le _ _ (div_le_div_left ((x : Rat) - delay) b c (by grind) (by exact_mod_cast hb)
+    (by exact_mod_cast hbc))
+  have := Rat.mul_le_mul_of_nonneg_left h1 (by grind : (0 : Rat) ≤ full - 0)
   grind
 
-/-- A falling transition's value falls with time. -/
-theorem along_ge (dur delay : Nat) (hd : 0 < dur) (s t : Rat) (hst : t ≤ s) (x y : Int) (h : x ≤ y) :
-    along dur delay s t y ≤ along dur delay s t x := by
+/-- A rise from 0 is lower with a longer delay. -/
+theorem along_delay_le (dur a b : Nat) (hd : 0 < dur) (hab : a ≤ b) (full : Rat) (hf : 0 ≤ full) (x : Int) :
+    along dur b 0 full x ≤ along dur a 0 full x := by
   unfold along
-  have := Rat.mul_le_mul_of_nonneg_left (ease_along_le dur delay hd x y h) (by grind : (0 : Rat) ≤ s - t)
+  have hab' : (a : Rat) ≤ b := by exact_mod_cast hab
+  have h1 : ((x : Rat) - b) / dur ≤ ((x : Rat) - a) / dur := by
+    rw [Rat.div_def, Rat.div_def]
+    exact Rat.mul_le_mul_of_nonneg_right (by grind) (inv_nonneg_of_pos _ (by exact_mod_cast hd))
+  have := Rat.mul_le_mul_of_nonneg_left (ease_earn_le _ _ h1) (by grind : (0 : Rat) ≤ full - 0)
   grind
 
-/-- A reading within `tol k` of the transition at a time within `startJitter` of `tau` is on the curve. -/
-theorem onCurve_sound (k : Kind) (dur delay : Nat) (hd : 0 < dur) (s t : Rat) (tau u r : Int)
-    (hlo : tau - startJitter ≤ u) (hhi : u ≤ tau + startJitter)
-    (hr1 : along dur delay s t u - tol k ≤ r) (hr2 : (r : Rat) ≤ along dur delay s t u + tol k) :
-    onCurve k dur delay s t tau r = true := by
-  simp only [onCurve, Bool.and_eq_true, decide_eq_true_eq]
-  rcases Rat.le_total (a := s) (b := t) with hst | hst
-  · have h1 := along_le dur delay hd s t hst _ _ hlo
-    have h2 := along_le dur delay hd s t hst _ _ hhi
-    constructor <;> grind
-  · have h1 := along_ge dur delay hd s t hst _ _ hlo
-    have h2 := along_ge dur delay hd s t hst _ _ hhi
-    constructor <;> grind
-
-/-- Branch low: a reading below the band is off the curve. -/
-theorem onCurve_below (k : Kind) (dur delay : Nat) (s t : Rat) (tau r : Int)
-    (h : (r : Rat) < min (along dur delay s t (tau - startJitter)) (along dur delay s t (tau + startJitter)) - tol k) :
-    onCurve k dur delay s t tau r = false := by
-  simp only [onCurve, Bool.and_eq_false_iff, decide_eq_false_iff_not]
-  left; grind
-
-/-- Branch high: a reading above the band is off the curve. -/
-theorem onCurve_above (k : Kind) (dur delay : Nat) (s t : Rat) (tau r : Int)
-    (h : max (along dur delay s t (tau - startJitter)) (along dur delay s t (tau + startJitter)) + tol k < r) :
-    onCurve k dur delay s t tau r = false := by
-  simp only [onCurve, Bool.and_eq_false_iff, decide_eq_false_iff_not]
-  right; grind
-
-/-- `excess` is never negative. -/
-theorem excess_nonneg (lo hi : Rat) (w : Int) : 0 ≤ excess lo hi w := by
-  unfold excess
-  split
-  · grind
-  · split <;> grind
-
-/-- For `lo ≤ hi` and `0 ≤ t`, `excess` is at most `t` exactly when `w` lies in `[lo - t, hi + t]`. -/
-theorem excess_le_iff (lo hi t : Rat) (w : Int) (hl : lo ≤ hi) (ht : 0 ≤ t) :
-    excess lo hi w ≤ t ↔ lo - t ≤ w ∧ (w : Rat) ≤ hi + t := by
-  unfold excess
-  split
-  · grind
-  · split <;> grind
-
-/-- With every part found, a link's excess is `excess` against its `hull`. -/
-theorem linkExcess_found (tr : List String → Option (Nat × Nat)) (full : Int) (p q : Samp) (mp mq : Int)
-    (dur delay : Nat) (s w : Int) (a b : Nat) (hp : p.m = some mp) (hq : q.m = some mq)
-    (htr : tr p.cls = some (dur, delay)) (hd : 0 < dur) (hs : oneNum p.els = some s) (hw : oneNum q.els = some w)
-    (ha : p.t0 = some a) (hb : q.t0 = some b) :
-    linkExcess tr full p q =
-      some (excess (hull dur delay s (target full mp) (target full mq) ((b : Int) - a)).1
-        (hull dur delay s (target full mp) (target full mq) ((b : Int) - a)).2 w) := by
-  simp [linkExcess, hp, hq, htr, hs, hw, ha, hb, Nat.pos_iff_ne_zero.mp hd]
-
-/-- Branch zero duration: a link on a transition of 0 ms does not decide. -/
-theorem linkExcess_zero (tr : List String → Option (Nat × Nat)) (full : Int) (p q : Samp) (delay : Nat)
-    (htr : tr p.cls = some (0, delay)) : linkExcess tr full p q = none := by
-  simp only [linkExcess]
-  split <;> simp_all
-
-/-- Branch no morph value at the link's start: the link does not decide. -/
-theorem linkExcess_no_start_morph (tr : List String → Option (Nat × Nat)) (full : Int) (p q : Samp)
-    (h : p.m = none) : linkExcess tr full p q = none := by
-  simp only [linkExcess]
-  split <;> simp_all
-
-/-- Branch no morph value at the link's end: the link does not decide. -/
-theorem linkExcess_no_morph (tr : List String → Option (Nat × Nat)) (full : Int) (p q : Samp)
-    (h : q.m = none) : linkExcess tr full p q = none := by
-  simp only [linkExcess]
-  split <;> simp_all
-
-/-- Branch no transition of the property under the start's classes: the link does not decide. -/
-theorem linkExcess_no_transition (tr : List String → Option (Nat × Nat)) (full : Int) (p q : Samp)
-    (h : tr p.cls = none) : linkExcess tr full p q = none := by
-  simp only [linkExcess]
-  split <;> simp_all
-
-/-- Branch no number read at the link's start: the link does not decide. -/
-theorem linkExcess_no_start_reading (tr : List String → Option (Nat × Nat)) (full : Int) (p q : Samp)
-    (h : oneNum p.els = none) : linkExcess tr full p q = none := by
-  simp only [linkExcess]
-  split <;> simp_all
-
-/-- Branch no number read at the link's end: the link does not decide. -/
-theorem linkExcess_no_reading (tr : List String → Option (Nat × Nat)) (full : Int) (p q : Samp)
-    (h : oneNum q.els = none) : linkExcess tr full p q = none := by
-  simp only [linkExcess]
-  split <;> simp_all
-
-/-- Branch no read time at the link's start: the link does not decide. -/
-theorem linkExcess_no_start_time (tr : List String → Option (Nat × Nat)) (full : Int) (p q : Samp)
-    (h : p.t0 = none) : linkExcess tr full p q = none := by
-  simp only [linkExcess]
-  split <;> simp_all
-
-/-- Branch no read time at the link's end: the link does not decide. -/
-theorem linkExcess_no_time (tr : List String → Option (Nat × Nat)) (full : Int) (p q : Samp)
-    (h : q.t0 = none) : linkExcess tr full p q = none := by
-  simp only [linkExcess]
-  split <;> simp_all
-
-/-- A link's excess is never negative. -/
-theorem linkExcess_nonneg (tr : List String → Option (Nat × Nat)) (full : Int) (p q : Samp) (e : Rat)
-    (h : linkExcess tr full p q = some e) : 0 ≤ e := by
-  unfold linkExcess at h
-  split at h
-  · split at h
-    · simp at h
-    · simp only [Option.some.injEq] at h
-      rw [← h]
-      exact excess_nonneg _ _ _
-  · simp at h
-
-/-- Branch short: a chain of fewer than two points has no link. -/
-theorem linksExcess_short (tr : List String → Option (Nat × Nat)) (full : Int) (ps : List Samp) (h : ps.length < 2) :
-    linksExcess tr full ps = some 0 := by
-  match ps, h with
-  | [], _ => rfl
-  | [_], _ => rfl
-
-/-- Branch link: a chain's sum is its first link's excess plus the rest's sum. -/
-theorem linksExcess_cons (tr : List String → Option (Nat × Nat)) (full : Int) (p q : Samp) (rest : List Samp)
-    (e c : Rat) (he : linkExcess tr full p q = some e) (hc : linksExcess tr full (q :: rest) = some c) :
-    linksExcess tr full (p :: q :: rest) = some (e + c) := by
-  simp [linksExcess, he, hc]
-
-/-- Branch first link undecided: the chain does not decide. -/
-theorem linksExcess_link_none (tr : List String → Option (Nat × Nat)) (full : Int) (p q : Samp) (rest : List Samp)
-    (h : linkExcess tr full p q = none) : linksExcess tr full (p :: q :: rest) = none := by
-  simp [linksExcess, h]
-
-/-- Branch rest undecided: the chain does not decide. -/
-theorem linksExcess_rest_none (tr : List String → Option (Nat × Nat)) (full : Int) (p q : Samp) (rest : List Samp)
-    (h : linksExcess tr full (q :: rest) = none) : linksExcess tr full (p :: q :: rest) = none := by
-  simp only [linksExcess, h]
-  split <;> simp_all
-
-/-- A chain's sum is never negative, and no link's excess exceeds it. -/
-theorem linksExcess_nonneg (tr : List String → Option (Nat × Nat)) (full : Int) :
-    ∀ (ps : List Samp) (c : Rat), linksExcess tr full ps = some c → 0 ≤ c
-  | [], c, h => by simp [linksExcess] at h; grind
-  | [_], c, h => by simp [linksExcess] at h; grind
-  | p :: q :: rest, c, h => by
-    unfold linksExcess at h
-    split at h
-    · rename_i e c' he hc
-      simp only [Option.some.injEq] at h
-      have := linkExcess_nonneg tr full p q e he
-      have := linksExcess_nonneg tr full (q :: rest) c' hc
+/-- A reading of `q` rounded half up, as `kit.mjs` rounds, lies within `t` of `full ≥ q` exactly when
+`full - t - 1/2 ≤ q`. -/
+theorem rounded_iff (full t : Int) (ht : 0 ≤ t) (q : Rat) (hq : q ≤ full) :
+    excess full full (q + 1 / 2).floor ≤ t ↔ ((full - t : Int) : Rat) - 1 / 2 ≤ q := by
+  rw [excess_le_iff _ _ _ _ (Rat.le_refl) (by exact_mod_cast ht)]
+  have hup : (q + 1 / 2).floor ≤ full := by
+    have : (q + 1 / 2).floor < full + 1 := by
+      rw [Rat.floor_lt_iff]; push_cast; grind
+    omega
+  constructor
+  · intro ⟨h1, _⟩
+    have : full - t ≤ (q + 1 / 2).floor := by
+      have : ((full - t : Int) : Rat) ≤ (q + 1 / 2).floor := by push_cast; exact h1
+      exact_mod_cast this
+    rw [Rat.le_floor_iff] at this
+    grind
+  · intro h
+    have : full - t ≤ (q + 1 / 2).floor := by rw [Rat.le_floor_iff]; grind
+    constructor
+    · have : ((full - t : Int) : Rat) ≤ (q + 1 / 2).floor := by exact_mod_cast this
+      push_cast at this; exact this
+    · have : ((q + 1 / 2).floor : Rat) ≤ full := by exact_mod_cast hup
+      have : (0 : Rat) ≤ t := by exact_mod_cast ht
       grind
-    · simp at h
 
-/-- Every link of a chain has an excess of at most the chain's sum. -/
-theorem linksExcess_link_le (tr : List String → Option (Nat × Nat)) (full : Int) :
-    ∀ (ps : List Samp) (c : Rat), linksExcess tr full ps = some c →
-      ∀ p q e, (p, q) ∈ ps.zip ps.tail → linkExcess tr full p q = some e → e ≤ c
-  | [], _, _, _, _, _, hm, _ => by simp at hm
-  | [_], _, _, _, _, _, hm, _ => by simp at hm
-  | a :: b :: rest, c, h, p, q, e, hm, hl => by
-    unfold linksExcess at h
-    split at h
-    · rename_i e' c' he hc
-      simp only [Option.some.injEq] at h
-      have hn := linkExcess_nonneg tr full a b e' he
-      have hr := linksExcess_nonneg tr full (b :: rest) c' hc
-      simp only [List.tail_cons, List.zip_cons_cons, List.mem_cons, Prod.mk.injEq] at hm
-      rcases hm with ⟨rfl, rfl⟩ | hm
-      · rw [he] at hl; simp only [Option.some.injEq] at hl; grind
-      · have := linksExcess_link_le tr full (b :: rest) c' hc p q e (by simpa using hm) hl
-        grind
-    · simp at h
+/-- The settle reading of a rise from 0 to `full`, read `x` ms after its trigger on transition `(dur, delay)`, rounded
+half up as `kit.mjs` rounds (`q`, line 43). -/
+def readRise (dur delay : Nat) (full : Int) (x : Int) : Int := (along dur delay 0 full x + 1 / 2).floor
 
-/-- With every part found, the cost is the first trigger's distance from the original's plus `linksExcess`. -/
-theorem chainCost_found (tr : List String → Option (Nat × Nat)) (seg prior : List Samp) (r q o : Samp)
-    (ts : List Samp) (full s w : Int) (c : Rat) (hq : triggersOf (prior ++ [r]) = q :: ts)
-    (ho : origFirst seg r = some o) (hf : settledOf seg r = some full) (hs : oneNum o.els = some s)
-    (hw : oneNum q.els = some w) (hc : linksExcess tr full (chainOf prior r) = some c) :
-    chainCost tr seg prior r = some (excess s s w + c) := by
-  simp [chainCost, hq, ho, hf, hs, hw, hc]
-
-/-- Branch no trigger: without a change of the collapse up to `r` in its pass, the cost is undecided. -/
-theorem chainCost_no_trigger (tr : List String → Option (Nat × Nat)) (seg prior : List Samp) (r : Samp)
-    (h : triggersOf (prior ++ [r]) = []) : chainCost tr seg prior r = none := by
-  simp [chainCost, h]
-
-/-- Branch no original trigger in the pass and phase: the cost is undecided. -/
-theorem chainCost_no_orig (tr : List String → Option (Nat × Nat)) (seg prior : List Samp) (r : Samp)
-    (h : origFirst seg r = none) : chainCost tr seg prior r = none := by
-  simp only [chainCost, h]
-  split <;> simp_all
-
-/-- Branch no settled reading of the original: the cost is undecided. -/
-theorem chainCost_no_settled (tr : List String → Option (Nat × Nat)) (seg prior : List Samp) (r : Samp)
-    (h : settledOf seg r = none) : chainCost tr seg prior r = none := by
-  simp only [chainCost, h]
-  split <;> simp_all
-
-/-- Branch no number read at the original's first trigger: the cost is undecided. -/
-theorem chainCost_no_orig_reading (tr : List String → Option (Nat × Nat)) (seg prior : List Samp) (r o : Samp)
-    (ho : origFirst seg r = some o) (h : oneNum o.els = none) : chainCost tr seg prior r = none := by
-  simp only [chainCost, ho]
-  split <;> simp_all
-
-/-- Branch no number read at the rewrite's first trigger: the cost is undecided. -/
-theorem chainCost_no_trigger_reading (tr : List String → Option (Nat × Nat)) (seg prior : List Samp) (r q : Samp)
-    (ts : List Samp) (hq : triggersOf (prior ++ [r]) = q :: ts) (h : oneNum q.els = none) :
-    chainCost tr seg prior r = none := by
-  simp only [chainCost, hq]
-  split
-  · split <;> simp_all
-  · rfl
-
-/-- Branch a link undecided: the cost is undecided. -/
-theorem chainCost_link_none (tr : List String → Option (Nat × Nat)) (seg prior : List Samp) (r : Samp) (full : Int)
-    (hf : settledOf seg r = some full) (h : linksExcess tr full (chainOf prior r) = none) :
-    chainCost tr seg prior r = none := by
-  simp only [chainCost, hf]
-  split
-  · split <;> simp_all
-  · rfl
-
-/-- Branch pass: a cost of at most `tol k` passes. -/
-theorem startCheck_pass (k : Kind) (tr : List String → Option (Nat × Nat)) (seg prior : List Samp) (r : Samp) (c : Rat)
-    (h : chainCost tr seg prior r = some c) (hc : c ≤ tol k) : startCheck k tr seg prior r = some true := by
-  simp [startCheck, h, hc]
-
-/-- Branch fail: a cost above `tol k` fails. -/
-theorem startCheck_fail (k : Kind) (tr : List String → Option (Nat × Nat)) (seg prior : List Samp) (r : Samp) (c : Rat)
-    (h : chainCost tr seg prior r = some c) (hc : (tol k : Rat) < c) : startCheck k tr seg prior r = some false := by
-  simp only [startCheck, h, Option.map_some, Option.some.injEq, decide_eq_false_iff_not]
-  grind
-
-/-- Branch undecided: an undecided cost leaves the check undecided. -/
-theorem startCheck_none (k : Kind) (tr : List String → Option (Nat × Nat)) (seg prior : List Samp) (r : Samp)
-    (h : chainCost tr seg prior r = none) : startCheck k tr seg prior r = none := by
-  simp [startCheck, h]
-
-/-- A pass bounds anchor plus links by `tol k`, the first trigger to within `tol k` of the original's, and each link. -/
-theorem startCheck_budget (k : Kind) (tr : List String → Option (Nat × Nat)) (seg prior : List Samp) (r q o : Samp)
-    (ts : List Samp) (full s w : Int) (c : Rat) (h : startCheck k tr seg prior r = some true)
-    (hq : triggersOf (prior ++ [r]) = q :: ts) (ho : origFirst seg r = some o) (hf : settledOf seg r = some full)
-    (hs : oneNum o.els = some s) (hw : oneNum q.els = some w) (hc : linksExcess tr full (chainOf prior r) = some c) :
-    excess s s w + c ≤ tol k ∧ s - tol k ≤ w ∧ w ≤ s + tol k ∧
-      ∀ p p' e, (p, p') ∈ (chainOf prior r).zip (chainOf prior r).tail → linkExcess tr full p p' = some e → e ≤ tol k := by
-  rw [startCheck, chainCost_found tr seg prior r q o ts full s w c hq ho hf hs hw hc] at h
-  simp only [Option.map_some, Option.some.injEq, decide_eq_true_eq] at h
-  have hn := linksExcess_nonneg tr full _ c hc
-  have ha := excess_nonneg (s : Rat) s w
-  have hb : excess s s w ≤ tol k := by grind
-  have hi := (excess_le_iff s s (tol k) w (by grind) (by grind)).mp hb
-  refine ⟨h, ?_, ?_, fun p p' e hm hl => ?_⟩
-  · have := hi.1; exact_mod_cast this
-  · have := hi.2; exact_mod_cast this
-  · have := linksExcess_link_le tr full _ c hc p p' e hm hl
+/-- With the reference duration `dur0` ending by `x`, a reading on duration `dur ≥ dur0` lies within `t` of `full`
+exactly when `dur < b`, given the two boundary values. -/
+theorem settle_dur_iff (dur0 b delay : Nat) (full t x : Int) (h0 : 0 < dur0) (hf : 0 ≤ full) (ht : 0 ≤ t)
+    (hx : (delay : Int) ≤ x) (hfull : along dur0 delay 0 full x = full)
+    (hpass : ((full - t : Int) : Rat) - 1 / 2 ≤ along (b - 1) delay 0 full x)
+    (hfail : along b delay 0 full x < ((full - t : Int) : Rat) - 1 / 2) (hb : dur0 < b) (dur : Nat) (hd : dur0 ≤ dur) :
+    excess full full (readRise dur delay full x) ≤ t ↔ dur < b := by
+  have hf' : (0 : Rat) ≤ full := by exact_mod_cast hf
+  have hle := along_dur_le dur0 dur delay h0 hd full hf' x hx
+  rw [readRise, rounded_iff full t ht _ (by grind)]
+  constructor
+  · intro h
+    apply Classical.byContradiction
+    intro hn
+    have := along_dur_le b dur delay (by omega) (by omega) full hf' x hx
+    grind
+  · intro h
+    have := along_dur_le dur (b - 1) delay (by omega) (by omega) full hf' x hx
     grind
 
-/-- Branch opacity of `startOn`. -/
-theorem startOn_opacity : startOn "earn" "opacity" = true := by decide
+/-- With the reference delay `l0` ending by `x`, a reading on delay `l ≥ l0` lies within `t` of `full` exactly when
+`l < b`, given the two boundary values. -/
+theorem settle_delay_iff (dur l0 b : Nat) (full t x : Int) (hd : 0 < dur) (hf : 0 ≤ full) (ht : 0 ≤ t)
+    (hfull : along dur l0 0 full x = full)
+    (hpass : ((full - t : Int) : Rat) - 1 / 2 ≤ along dur (b - 1) 0 full x)
+    (hfail : along dur b 0 full x < ((full - t : Int) : Rat) - 1 / 2) (hb : l0 < b) (l : Nat) (hl : l0 ≤ l) :
+    excess full full (readRise dur l full x) ≤ t ↔ l < b := by
+  have hf' : (0 : Rat) ≤ full := by exact_mod_cast hf
+  have hle := along_delay_le dur l0 l hd hl full hf' x
+  rw [readRise, rounded_iff full t ht _ (by grind)]
+  constructor
+  · intro h
+    apply Classical.byContradiction
+    intro hn
+    have := along_delay_le dur b l hd (by omega) full hf' x
+    grind
+  · intro h
+    have := along_delay_le dur l (b - 1) hd (by omega) full hf' x
+    grind
 
-/-- Branch max-width of `startOn`. -/
-theorem startOn_maxWidth : startOn "earn" "max-width" = true := by decide
+/-- Mutation duration, opacity: read exactly `settleAt` after its trigger, a rise on duration `dur ≥ 320` instead of 320
+passes the close-hold settle check exactly when `dur < 463`; the smallest refused increase is 143 ms. -/
+theorem settle_opacity_duration (dur : Nat) (h : 320 ≤ dur) :
+    excess 1000 1000 (readRise dur 120 1000 (settleAt 320 120)) ≤ tol .unit ↔ dur < 463 :=
+  settle_dur_iff 320 463 120 1000 10 520 (by decide) (by decide) (by decide) (by decide) (by decide +kernel)
+    (by decide +kernel) (by decide +kernel) (by decide) dur h
 
-/-- Off `startOn` the rule is off. -/
-theorem startFor_off (node prop : String) (width : Nat) (h : startOn node prop = false) :
-    startFor node prop width = none := by
-  simp [startFor, h]
+/-- Mutation delay, opacity: a delay `l ≥ 120` passes the settle check exactly when `l < 244`; the smallest refused
+increase is 124 ms. -/
+theorem settle_opacity_delay (l : Nat) (h : 120 ≤ l) :
+    excess 1000 1000 (readRise 320 l 1000 (settleAt 320 120)) ≤ tol .unit ↔ l < 244 :=
+  settle_delay_iff 320 120 244 1000 10 520 (by decide) (by decide) (by decide) (by decide +kernel)
+    (by decide +kernel) (by decide +kernel) (by decide) l h
 
-/-- Branch on: a sample the check passes passes. -/
-theorem judgeStart_on (k : Kind) (d : List String → Option Nat) (tr : List String → Option (Nat × Nat))
-    (seg : List Samp) (win : Option (List Samp)) (prior : List Samp) (r : Samp)
-    (h : startCheck k tr seg prior r = some true) : judgeStart k d tr seg win prior r = .pass := by
-  simp [judgeStart, h]
+/-- Mutation duration, max-width above a phone (176 px): a duration `dur ≥ 680` passes exactly when `dur < 846`; the
+smallest refused increase is 166 ms. -/
+theorem settle_wide_duration (dur : Nat) (h : 680 ≤ dur) :
+    excess 176000 176000 (readRise dur 0 176000 (settleAt 680 0)) ≤ tol .geometry ↔ dur < 846 :=
+  settle_dur_iff 680 846 0 176000 1000 760 (by decide) (by decide) (by decide) (by decide) (by decide +kernel)
+    (by decide +kernel) (by decide +kernel) (by decide) dur h
 
-/-- Branch off: a sample the check refuses is `fail apart`, whatever the window says. -/
-theorem judgeStart_off (k : Kind) (d : List String → Option Nat) (tr : List String → Option (Nat × Nat))
-    (seg : List Samp) (win : Option (List Samp)) (prior : List Samp) (r : Samp)
-    (h : startCheck k tr seg prior r = some false) : judgeStart k d tr seg win prior r = .fail .apart := by
-  simp [judgeStart, h]
+/-- Mutation delay, max-width above a phone: a delay `l` passes exactly when `l < 149`. -/
+theorem settle_wide_delay (l : Nat) :
+    excess 176000 176000 (readRise 680 l 176000 (settleAt 680 0)) ≤ tol .geometry ↔ l < 149 :=
+  settle_delay_iff 680 0 149 176000 1000 760 (by decide) (by decide) (by decide) (by decide +kernel)
+    (by decide +kernel) (by decide +kernel) (by decide) l (Nat.zero_le l)
 
-/-- Branch undecided: the current judge decides a sample the check does not. -/
-theorem judgeStart_undecided (k : Kind) (d : List String → Option Nat) (tr : List String → Option (Nat × Nat))
-    (seg : List Samp) (win : Option (List Samp)) (prior : List Samp) (r : Samp)
-    (h : startCheck k tr seg prior r = none) : judgeStart k d tr seg win prior r = judgeUnit k d seg win r := by
-  simp [judgeStart, h]
+/-- Mutation duration, max-width on a phone (152 px): a duration `dur ≥ 680` passes exactly when `dur < 853`. -/
+theorem settle_phone_duration (dur : Nat) (h : 680 ≤ dur) :
+    excess 152000 152000 (readRise dur 0 152000 (settleAt 680 0)) ≤ tol .geometry ↔ dur < 853 :=
+  settle_dur_iff 680 853 0 152000 1000 760 (by decide) (by decide) (by decide) (by decide) (by decide +kernel)
+    (by decide +kernel) (by decide +kernel) (by decide) dur h
 
-/-- The `hull` holds the value of either transition at every time within `startJitter` of `tau`. -/
-theorem hull_mem (dur delay : Nat) (hd : 0 < dur) (s tp tq t : Rat) (tau u : Int) (ht : t = tp ∨ t = tq)
-    (hlo : tau - startJitter ≤ u) (hhi : u ≤ tau + startJitter) :
-    (hull dur delay s tp tq tau).1 ≤ along dur delay s t u ∧ along dur delay s t u ≤ (hull dur delay s tp tq tau).2 := by
-  simp only [hull]
-  rcases Rat.le_total (a := s) (b := t) with hst | hst
-  · have h1 := along_le dur delay hd s t hst _ _ hlo
-    have h2 := along_le dur delay hd s t hst _ _ hhi
-    rcases ht with rfl | rfl <;> constructor <;> grind
-  · have h1 := along_ge dur delay hd s t hst _ _ hlo
-    have h2 := along_ge dur delay hd s t hst _ _ hhi
-    rcases ht with rfl | rfl <;> constructor <;> grind
+/-- Mutation delay, max-width on a phone: a delay `l` passes exactly when `l < 154`. -/
+theorem settle_phone_delay (l : Nat) :
+    excess 152000 152000 (readRise 680 l 152000 (settleAt 680 0)) ≤ tol .geometry ↔ l < 154 :=
+  settle_delay_iff 680 0 154 152000 1000 760 (by decide) (by decide) (by decide) (by decide +kernel)
+    (by decide +kernel) (by decide +kernel) (by decide) l (Nat.zero_le l)
 
-/-- A reading inside `[lo, hi]` has no excess. -/
-theorem excess_zero (lo hi : Rat) (w : Int) (h1 : lo ≤ w) (h2 : (w : Rat) ≤ hi) : excess lo hi w = 0 := by
-  unfold excess
-  split
-  · grind
-  · split <;> grind
-
-/-- A link read on either transition within `startJitter` of the read-time difference costs 0. -/
-theorem linkExcess_on (tr : List String → Option (Nat × Nat)) (full : Int) (p q : Samp) (mp mq : Int)
-    (dur delay : Nat) (s w : Int) (a b : Nat) (u : Int) (t : Rat) (hp : p.m = some mp) (hq : q.m = some mq)
-    (htr : tr p.cls = some (dur, delay)) (hd : 0 < dur) (hs : oneNum p.els = some s) (hw : oneNum q.els = some w)
-    (ha : p.t0 = some a) (hb : q.t0 = some b) (ht : t = target full mp ∨ t = target full mq)
-    (hlo : (b : Int) - a - startJitter ≤ u) (hhi : u ≤ (b : Int) - a + startJitter) (hon : (w : Rat) = along dur delay s t u) :
-    linkExcess tr full p q = some 0 := by
-  rw [linkExcess_found tr full p q mp mq dur delay s w a b hp hq htr hd hs hw ha hb]
-  have := hull_mem dur delay hd s (target full mp) (target full mq) t ((b : Int) - a) u ht hlo hhi
-  rw [excess_zero _ _ _ (by rw [hon]; exact this.1) (by rw [hon]; exact this.2)]
-
-/-- A sample whose chain costs at most `tol k` passes. -/
-theorem judgeStart_sound (k : Kind) (d : List String → Option Nat) (tr : List String → Option (Nat × Nat))
-    (seg : List Samp) (win : Option (List Samp)) (prior : List Samp) (r : Samp) (c : Rat)
-    (h : chainCost tr seg prior r = some c) (hc : c ≤ tol k) : judgeStart k d tr seg win prior r = .pass :=
-  judgeStart_on k d tr seg win prior r (startCheck_pass k tr seg prior r c h hc)
-
-/-- Mutation reversed: an opacity that runs from 1 to 0 instead of 0 to 1, read 300 ms after the trigger, fails. -/
-theorem onCurve_reversed (x : Int) (h2 : (x : Rat) ≤ along 320 120 1000 0 300 + 10) :
-    onCurve .unit 320 120 0 1000 300 x = false := by
-  apply onCurve_below
-  have k1 : along 320 120 1000 0 300 + 10 < along 320 120 0 1000 (300 - startJitter) - 10 := by decide +kernel
-  have k2 : along 320 120 0 1000 (300 - startJitter) ≤ along 320 120 0 1000 (300 + startJitter) := by decide +kernel
-  simp only [tol]
-  grind
-
-/-- Mutation curve: a max-width that runs linearly fails halfway through its 680 ms. -/
-theorem onCurve_linear (x : Int) (h2 : (x : Rat) ≤ 76000 + 1000) :
-    onCurve .geometry 680 0 0 152000 340 x = false := by
-  apply onCurve_below
-  have k1 : (76000 : Rat) + 1000 < along 680 0 0 152000 (340 - startJitter) - 1000 := by decide +kernel
-  have k2 : along 680 0 0 152000 (340 - startJitter) ≤ along 680 0 0 152000 (340 + startJitter) := by decide +kernel
-  simp only [tol]
-  grind
-
-/-- Mutation duration: an opacity on the 200 ms transition of `is-hero-pill` fails against the 320 ms one 150 ms in. -/
-theorem onCurve_duration (x : Int) (h1 : along 200 0 0 1000 150 - 10 ≤ x) :
-    onCurve .unit 320 120 0 1000 150 x = false := by
-  apply onCurve_above
-  have k1 : along 320 120 0 1000 (150 + startJitter) + 10 < along 200 0 0 1000 150 - 10 := by decide +kernel
-  have k2 : along 320 120 0 1000 (150 - startJitter) ≤ along 320 120 0 1000 (150 + startJitter) := by decide +kernel
-  simp only [tol]
-  grind
-
-/-- Without the rule `byMStart` is `byM`. -/
-theorem byMStart_none (ph : Phase) (p : Nat) (k : Kind) (d : List String → Option Nat) (oSeg wSeg : List Samp) :
-    byMStart ph p k d none oSeg wSeg = byM ph p k d oSeg wSeg := rfl
-
-/-- Outside the close's push the rule changes nothing. -/
-theorem byMStart_other (ph : Phase) (p : Nat) (k : Kind) (d : List String → Option Nat)
-    (tr : Option (List String → Option (Nat × Nat))) (oSeg wSeg : List Samp) (h : (ph == .push && p == closePh) = false) :
-    byMStart ph p k d tr oSeg wSeg = byM ph p k d oSeg wSeg := by
-  cases tr <;> simp [byMStart, h]
-
-/-- The rule changes no bucket but 0. -/
-theorem byMStart_keeps (ph : Phase) (p : Nat) (k : Kind) (d : List String → Option Nat)
-    (tr : Option (List String → Option (Nat × Nat))) (oSeg wSeg : List Samp) :
-    (byMStart ph p k d tr oSeg wSeg).filter (·.1 != 0) = (byM ph p k d oSeg wSeg).filter (·.1 != 0) := by
-  cases tr with
-  | none => rfl
-  | some f =>
-    simp only [byMStart]
-    split
-    · generalize byM ph p k d oSeg wSeg = v
-      induction v with
-      | nil => rfl
-      | cons x xs ih =>
-        obtain ⟨b, w⟩ := x
-        by_cases hb : b = 0 <;> simp_all
-    · rfl
-
-/-- Under the rule, bucket 0 of the close's push is `startBucket` over the close's samples of both arms. -/
-theorem byMStart_bucket0 (k : Kind) (d : List String → Option Nat) (f : List String → Option (Nat × Nat))
-    (oSeg wSeg : List Samp) :
-    (byMStart .push closePh k d (some f) oSeg wSeg).lookup 0 =
-      some (startBucket k d f (annotate oSeg) ((annotate oSeg).filter (·.ph == closePh))
-        ((annotate wSeg).filter (·.ph == closePh))) := by
-  simp [byMStart, byM, List.range_succ_eq_map]
-
-/-- An earn hold sample of pass 0 reading `x`, its reads started at `t` ms. -/
-def eh (t : Nat) (x : Int) : Samp := ⟨some 0, none, [.num [x]], 0, [], 3, 0, some t⟩
-
-/-- An original earn opacity close at 390 px: collapsed, the trigger at 100 ms, 852 at 400 ms, settled at 1000. -/
+/-- An original earn opacity close at 390 px: collapsed, the trigger at 100 ms, 852 at 400 ms, at rest at 900. -/
 def earnSeg : List Samp := [ec 6540 0 0, ec 0 100 0, ec 0 400 852, eh 900 1000]
 
-#guard startCheck .unit (startTr "earn" "opacity" 390) earnSeg [ec 6540 0 0, ec 0 100 0] (ec 0 400 852) == some true &&
-  startCheck .unit (startTr "earn" "opacity" 390) earnSeg [ec 6540 0 0, ec 0 100 0] (ec 0 400 147) == some false &&
-  startCheck .unit (startTr "earn" "opacity" 390) earnSeg [ec 6540 0 0] (ec 0 400 852) == some false &&
-  startCheck .unit (startTr "earn" "opacity" 390) earnSeg [ec 6540 0 0] (ec 0 400 5) == some true &&
-  startCheck .unit (startTr "earn" "opacity" 390) earnSeg [ec 6540 0 0] (ec 6540 50 0) == none &&
-  startCheck .unit (startTr "earn" "opacity" 390) [] [ec 6540 0 0, ec 0 100 0] (ec 0 400 852) == none
-#guard judgeStart .unit (durOf "earn" "opacity" 390) (startTr "earn" "opacity" 390) earnSeg none
-    [ec 6540 0 0, ec 0 100 0] (ec 0 400 852) == .pass &&
-  judgeStart .unit (durOf "earn" "opacity" 390) (startTr "earn" "opacity" 390) earnSeg none
-    [ec 6540 0 0, ec 0 100 0] (ec 0 400 147) == .fail .apart &&
-  judgeStart .unit (durOf "earn" "opacity" 390) (startTr "earn" "opacity" 390) earnSeg none [ec 6540 0 0] (ec 6540 50 0) ==
-    judgeUnit .unit (durOf "earn" "opacity" 390) earnSeg none (ec 6540 50 0)
-#guard startBucket .unit (durOf "earn" "opacity" 390) (startTr "earn" "opacity" 390) earnSeg earnSeg [ec 6540 0 0] ==
-    .skip .noSample &&
-  startBucket .unit (durOf "earn" "opacity" 390) (startTr "earn" "opacity" 390) (annotate earnSeg)
-    ((annotate earnSeg).filter (·.ph == 2)) ((annotate [ec 6540 0 0, ec 0 100 0, ec 0 400 147]).filter (·.ph == 2)) ==
-    .fail .apart
-#guard (byMStart .push 2 .unit (durOf "earn" "opacity" 390) (startFor "earn" "opacity" 390) earnSeg
-    [ec 6540 0 0, ec 0 100 0, ec 0 480 979, eh 900 1000]).lookup 0 == some .pass &&
-  (byM .push 2 .unit (durOf "earn" "opacity" 390) earnSeg [ec 6540 0 0, ec 0 100 0, ec 0 480 979, eh 900 1000]).lookup 0 ==
-    some (.fail .apart) &&
-  (byMStart .push 2 .unit (durOf "earn" "opacity" 390) (startFor "earn" "opacity" 390) earnSeg
-    [ec 6540 0 0, ec 0 100 0, ec 0 400 147, eh 900 1000]).lookup 0 == some (.fail .apart) &&
-  (byM .push 2 .unit (durOf "earn" "opacity" 390) earnSeg [ec 6540 0 0, ec 0 100 0, ec 0 400 147, eh 900 1000]).lookup 0 ==
-    some .pass &&
-  byMStart .push 2 .unit (durOf "earn" "opacity" 390) (startFor "nav" "opacity" 390) earnSeg
-    [ec 6540 0 0, ec 0 100 0, ec 0 400 147, eh 900 1000] ==
-    byM .push 2 .unit (durOf "earn" "opacity" 390) earnSeg [ec 6540 0 0, ec 0 100 0, ec 0 400 147, eh 900 1000]
+/-- `earnSeg` with a close-hold sample read in flight, 895 at 420 ms. -/
+def holdSeg : List Samp := [ec 6540 0 0, ec 0 100 0, ec 0 400 852, eh 420 895, eh 900 1000]
 
-/-- An earn sample of pass 0 in phase `ph` under classes `cls` at morph value `m` reading `x`, read at `t` ms. -/
-def ecl (ph : Nat) (cls : List String) (m : Int) (t : Nat) (x : Int) : Samp := ⟨some m, none, [.num [x]], 0, cls, ph, 0, some t⟩
-
-/-- An original earn max-width close at 1280 px while morphing: the trigger at 0 ms, 120271 at 340 ms, settled at 152000. -/
-def mwOrig : List Samp :=
-  [ecl 2 [driver] 6540 0 0, ecl 2 [driver] 0 0 0, ecl 2 [driver] 0 340 120271, ecl 3 [] 0 900 152000]
-
-/-- An original earn opacity close at 390 px in `is-hero-pill`: the 200 ms transition, 960 at 150 ms, settled at 1000. -/
-def pillOrig : List Samp :=
-  [ecl 2 ["is-hero-pill"] 6540 0 0, ecl 2 ["is-hero-pill"] 0 0 0, ecl 2 ["is-hero-pill"] 0 150 960,
-    ecl 3 ["is-hero-pill"] 0 900 1000]
-
-/-- `earnSeg` rewritten with a stale start: its trigger reads 600 and it follows the curve from there. -/
+/-- `earnSeg` rewritten with a stale start: its trigger reads 600. -/
 def staleRew : List Samp := [ec 6540 0 0, ec 0 100 600, ec 0 400 940, eh 900 1000]
 
 /-- `earnSeg` rewritten reversed: from 1000 at the trigger towards 0. -/
 def reversedRew : List Samp := [ec 6540 0 1000, ec 0 100 1000, ec 0 400 148, eh 900 0]
 
-/-- `mwOrig` rewritten linear: 76000 at 340 ms. -/
-def linearRew : List Samp :=
-  [ecl 2 [driver] 6540 0 0, ecl 2 [driver] 0 0 0, ecl 2 [driver] 0 340 76000, ecl 3 [] 0 900 152000]
+/-- `earnSeg` rewritten to stay collapsed. -/
+def collapsedRew : List Samp := [ec 6540 0 0, ec 0 100 0, ec 0 400 0, eh 900 0]
 
-/-- `pillOrig` rewritten on the 320 ms transition: 300 at 150 ms. -/
-def slowRew : List Samp :=
-  [ecl 2 ["is-hero-pill"] 6540 0 0, ecl 2 ["is-hero-pill"] 0 0 0, ecl 2 ["is-hero-pill"] 0 150 300,
-    ecl 3 ["is-hero-pill"] 0 900 1000]
+/-- `holdSeg` rewritten towards 0.9 of the value at rest: in flight like the original, at rest at 900. -/
+def targetRew : List Samp := [ec 6540 0 0, ec 0 100 0, ec 0 400 767, eh 420 895, eh 900 900]
 
-/-- Mutation stale start: a rewrite whose transition starts at 600 instead of the original's 0 fails bucket 0. -/
-theorem byMStart_stale :
-    (byMStart .push 2 .unit (durOf "earn" "opacity" 390) (startFor "earn" "opacity" 390) earnSeg staleRew).lookup 0 ≠ some .pass := by
-  decide +kernel
+/-- `earnSeg` rewritten on a 463 ms opacity transition, read `settleAt 320 120` ms after its trigger. -/
+def slowRew : List Samp := [ec 6540 0 0, ec 0 100 0, ec 0 400 (readRise 463 120 1000 300), eh 620 (readRise 463 120 1000 520)]
 
-/-- Mutation reversed: an opacity that runs from 1 to 0 instead of 0 to 1 fails bucket 0. -/
+/-- The verdicts of the earn opacity at 390 px in phase `p` of `ph`, `o` against `w`. -/
+def earnAt (ph : Phase) (p : Nat) (o w : List Samp) : List (Nat × Verdict) :=
+  byMStart ph p .unit (durOf "earn" "opacity" 390) (startFor "earn" "opacity" 390) o w
+
+/-- Mutation stale start, refused at close@0 (push of phase 2, bucket 0) by the anchor. -/
+theorem byMStart_stale : (earnAt .push 2 earnSeg staleRew).lookup 0 = some (.fail .apart) := by decide +kernel
+
+/-- Mutation reversed, refused at close@0 by the anchor and at close-hold@0 (hold of phase 3, bucket 0) by settle. -/
 theorem byMStart_reversed :
-    (byMStart .push 2 .unit (durOf "earn" "opacity" 390) (startFor "earn" "opacity" 390) earnSeg reversedRew).lookup 0 ≠ some .pass := by
-  decide +kernel
+    (earnAt .push 2 earnSeg reversedRew).lookup 0 = some (.fail .apart) ∧
+      (earnAt .hold 3 earnSeg reversedRew).lookup 0 = some (.fail .apart) := by decide +kernel
 
-/-- Mutation curve: a max-width that runs linearly fails bucket 0 halfway through its 680 ms. -/
-theorem byMStart_linear :
-    (byMStart .push 2 .geometry (durOf "earn" "max-width" 1280) (startFor "earn" "max-width" 1280) mwOrig linearRew).lookup 0 ≠
-      some .pass := by
-  decide +kernel
+/-- Mutation stays collapsed: inside the range at close@0, refused at close-hold@0 by settle. -/
+theorem byMStart_collapsed :
+    (earnAt .push 2 earnSeg collapsedRew).lookup 0 = some .pass ∧
+      (earnAt .hold 3 earnSeg collapsedRew).lookup 0 = some (.fail .apart) := by decide +kernel
 
-/-- Mutation duration: an `is-hero-pill` opacity on the 320 ms transition instead of the 200 ms one fails bucket 0. -/
+/-- Mutation target 0.9: `byM` passes close-hold@0 against the original's in-flight 895, settle refuses it. -/
+theorem byMStart_target :
+    (byM .hold 3 .unit (durOf "earn" "opacity" 390) holdSeg targetRew).lookup 0 = some .pass ∧
+      (earnAt .hold 3 holdSeg targetRew).lookup 0 = some (.fail .apart) := by decide +kernel
+
+/-- Mutation duration at judge level: the 463 ms rise reads 989 at settle time, refused at close-hold@0. -/
 theorem byMStart_duration :
-    (byMStart .push 2 .unit (durOf "earn" "opacity" 390) (startFor "earn" "opacity" 390) pillOrig slowRew).lookup 0 ≠ some .pass := by
+    readRise 463 120 1000 520 = 989 ∧ (earnAt .hold 3 earnSeg slowRew).lookup 0 = some (.fail .apart) := by
   decide +kernel
 
 /-- An earn opacity close at 390 px with three triggers 30 ms apart inside the 120 ms delay, each reading 0. -/
@@ -3870,38 +3827,59 @@ def driftOrig : List Samp := [ec 6540 0 0, ec 400 100 0, ec 300 130 0, ec 0 160 
 /-- `driftOrig` rewritten to drift: each trigger reads `tol .unit - 1` = 9 more than the one before. -/
 def driftRew : List Samp := [ec 6540 0 0, ec 400 100 9, ec 300 130 18, ec 0 160 27, eh 900 1000]
 
-/-- Mutation drift, per link: the anchor and each link of `driftRew` cost 9, within `tol .unit`. -/
-theorem drift_links :
-    linkExcess (startTr "earn" "opacity" 390) 1000 (ec 400 100 9) (ec 300 130 18) = some 9 ∧
-      linkExcess (startTr "earn" "opacity" 390) 1000 (ec 300 130 18) (ec 0 160 27) = some 9 ∧
-      excess 0 0 9 = 9 ∧ (9 : Rat) ≤ tol .unit := by
-  decide +kernel
+/-- An earn opacity close whose triggers fall while it moves. -/
+def movingOrig : List Samp := [ec 6540 0 0, ec 400 100 0, ec 300 300 252, ec 0 500 700, eh 900 1000]
 
-/-- Mutation drift, cumulative: the first trigger passes, the second costs 9 + 9 = 18 and fails. -/
-theorem drift_second :
-    startCheck .unit (startTr "earn" "opacity" 390) driftOrig [ec 6540 0 0] (ec 400 100 9) = some true ∧
-      chainCost (startTr "earn" "opacity" 390) driftOrig [ec 6540 0 0, ec 400 100 9] (ec 300 130 18) = some 18 ∧
-      startCheck .unit (startTr "earn" "opacity" 390) driftOrig [ec 6540 0 0, ec 400 100 9] (ec 300 130 18) =
-        some false := by
-  decide +kernel
+/-- `movingOrig` rewritten 9, 18 and 27 above it at its triggers. -/
+def movingRew : List Samp := [ec 6540 0 0, ec 400 100 9, ec 300 300 270, ec 0 500 727, eh 900 1000]
 
-/-- Mutation drift at judge level: bucket 0 of `driftRew` against `driftOrig` is `fail apart`. -/
+/-- Limit drift: a drift inside the range passes close@0 and close-hold@0, at rest and in flight. -/
 theorem byMStart_drift :
-    (byMStart .push 2 .unit (durOf "earn" "opacity" 390) (startFor "earn" "opacity" 390) driftOrig driftRew).lookup 0 =
-      some (.fail .apart) := by
-  decide +kernel
+    (earnAt .push 2 driftOrig driftRew).lookup 0 = some .pass ∧ (earnAt .hold 3 driftOrig driftRew).lookup 0 = some .pass ∧
+      (earnAt .push 2 movingOrig movingRew).lookup 0 = some .pass ∧
+      (earnAt .hold 3 movingOrig movingRew).lookup 0 = some .pass := by decide +kernel
 
-#guard (byMStart .push 2 .unit (durOf "earn" "opacity" 390) (startFor "earn" "opacity" 390) driftOrig driftOrig).lookup 0 ==
-    some .pass
+/-- An earn sample of pass 0 in phase `ph` under classes `cls` at morph value `m` reading `x`, read at `t` ms. -/
+def ecl (ph : Nat) (cls : List String) (m : Int) (t : Nat) (x : Int) : Samp := ⟨some m, none, [.num [x]], 0, cls, ph, 0, some t⟩
 
-#guard (byMStart .push 2 .unit (durOf "earn" "opacity" 390) (startFor "earn" "opacity" 390) earnSeg staleRew).lookup 0 ==
-    some (.fail .apart) &&
-  (byMStart .push 2 .geometry (durOf "earn" "max-width" 1280) (startFor "earn" "max-width" 1280) mwOrig mwOrig).lookup 0 ==
-    some .pass &&
-  (byMStart .push 2 .unit (durOf "earn" "opacity" 390) (startFor "earn" "opacity" 390) pillOrig pillOrig).lookup 0 ==
-    some .pass
+/-- An original earn max-width close at 390 px while morphing: the trigger at 0 ms, 120271 at 340 ms, at rest 152000. -/
+def mwOrig : List Samp :=
+  [ecl 2 [driver] 6540 0 0, ecl 2 [driver] 0 0 0, ecl 2 [driver] 0 340 120271, ecl 3 [] 0 900 152000]
+
+/-- `mwOrig` rewritten linear: 76000 at 340 ms. -/
+def linearRew : List Samp :=
+  [ecl 2 [driver] 6540 0 0, ecl 2 [driver] 0 0 0, ecl 2 [driver] 0 340 76000, ecl 3 [] 0 900 152000]
+
+/-- An original earn opacity close at 390 px in `is-hero-pill`: the 200 ms transition, 960 at 150 ms, at rest 1000. -/
+def pillOrig : List Samp :=
+  [ecl 2 ["is-hero-pill"] 6540 0 0, ecl 2 ["is-hero-pill"] 0 0 0, ecl 2 ["is-hero-pill"] 0 150 960,
+    ecl 3 ["is-hero-pill"] 0 900 1000]
+
+/-- `pillOrig` rewritten on the 320 ms transition: 300 at 150 ms. -/
+def pillSlowRew : List Samp :=
+  [ecl 2 ["is-hero-pill"] 6540 0 0, ecl 2 ["is-hero-pill"] 0 0 0, ecl 2 ["is-hero-pill"] 0 150 300,
+    ecl 3 ["is-hero-pill"] 0 900 1000]
+
+/-- Limit curve: another curve or a duration that ends by settle time passes close@0. -/
+theorem byMStart_curve :
+    (byMStart .push 2 .geometry (durOf "earn" "max-width" 390) (startFor "earn" "max-width" 390) mwOrig linearRew).lookup 0 =
+      some .pass ∧ (earnAt .push 2 pillOrig pillSlowRew).lookup 0 = some .pass := by decide +kernel
+
+/-- Original against original, run 39508421419 (apple, 641 px, close of passes 0 and 3): the earn opacity at each
+trigger. -/
+def ooOpacity : List Int × List Int := ([0, 0, 0, 0, 0, 0], [0, 0, 67, 73])
+
+/-- Original against original, run 39508421419 (apple, 641 px, close of passes 1 and 3): the earn max-width at each
+trigger. -/
+def ooMaxWidth : List Int × List Int := ([0, 475, 1414, 2285, 5490, 6686, 27033, 30068], [0, 5319, 45377, 69491])
+
+#guard ooOpacity.1.head? == ooOpacity.2.head? &&
+  ((ooOpacity.1.zip ooOpacity.2).map fun (a, b) => (a - b).natAbs) == [0, 0, 67, 73] && 73 > tol .unit
+#guard ooMaxWidth.1.head? == ooMaxWidth.2.head? &&
+  ((ooMaxWidth.1.zip ooMaxWidth.2).map fun (a, b) => (a - b).natAbs) == [0, 4844, 43963, 67206] && 67206 > tol .geometry
 
 end CloseStart
+
 
 -- Golden ------------------------------------------------------------------------------------------------------------
 
@@ -4001,10 +3979,8 @@ inductive Case where
   | planOf (name : String) (engines widths : String)
   | start (name : String) (ph : Phase) (p : Nat) (k : Kind) (node prop : String) (width : Nat) (oSeg wSeg : List Samp)
   | startTrs (node prop : String) (width : Nat)
-  | alongAt (dur delay : Nat) (s t x : Int)
-  | onCurveAt (name : String) (k : Kind) (dur delay : Nat) (s t tau r : Int)
-  | hullAt (dur delay : Nat) (s tp tq tau : Int)
-  | costAt (name : String) (k : Kind) (node prop : String) (width : Nat) (oSeg prior : List Samp) (r : Samp)
+  | checkAt (name : String) (k : Kind) (full : Int) (oSeg prior : List Samp) (r : Samp)
+  | settleOn (name : String) (k : Kind) (node prop : String) (width : Nat) (wSeg : List Samp) (r : Samp)
   | curve
 
 /-- The golden cases of the window judgement (`judgeEls` per kind and per branch). Two constants, not one, so that each stays
@@ -4345,9 +4321,9 @@ def opSeg : List Samp :=
 def opRew (t : Nat) (x : Int) : List Samp :=
   opSeg.take 8 ++ [es 1 2 [] 0 t x, es 1 3 [] 0 900 1000]
 
-/-- An earn max-width close at 1280 px while morphing, settling at 152000 from a trigger at 0 ms, read `x` at 340 ms. -/
+/-- An earn max-width close at 1280 px while morphing, settling at 176000 from a trigger at 0 ms, read `x` at 340 ms. -/
 def mwSeg (x : Int) : List Samp :=
-  [es 0 2 [driver] 6540 0 0, es 0 2 [driver] 0 0 0, es 0 2 [driver] 0 340 x, es 0 3 [] 0 900 152000]
+  [es 0 2 [driver] 6540 0 0, es 0 2 [driver] 0 0 0, es 0 2 [driver] 0 340 x, es 0 3 [] 0 900 176000]
 
 /-- A one-pass earn opacity close with classes `cls` and its trigger at morph value `m`, read `x` at `t` ms. -/
 def opOne (cls : List String) (m : Int) (t : Nat) (x : Int) : List Samp :=
@@ -4357,54 +4333,80 @@ def opOne (cls : List String) (m : Int) (t : Nat) (x : Int) : List Samp :=
 def opMid (m : Int) (x : Int) : List Samp :=
   [es 0 2 [] 6540 0 0, es 0 2 [] m 50 0, es 0 2 [] 300 300 x, es 0 3 [] 300 900 1000]
 
-/-- The golden cases of the close-start rule. -/
+/-- The (property, width) pairs whose value at rest the golden lists: both sides of the phone cut. -/
+def fullRows : List (String × Nat) :=
+  [("opacity", 390), ("opacity", 1280), ("max-width", 390), ("max-width", 640), ("max-width", 641), ("max-width", 1280)]
+
+/-- The golden cases of the close rule. -/
 def casesStart : List Case :=
   [.curve, .startTrs "earn" "opacity" 390, .startTrs "earn" "max-width" 1280, .startTrs "earn" "max-width" 390,
-    .startTrs "nav" "opacity" 390, .alongAt 320 120 0 1000 300, .alongAt 320 120 0 1000 (-50),
-    .alongAt 320 120 0 1000 900, .alongAt 680 0 0 152000 340, .alongAt 680 0 152000 0 100, .alongAt 200 0 600 1000 150,
-    .onCurveAt "on" .unit 320 120 0 1000 300 852, .onCurveAt "reversed" .unit 320 120 0 1000 300 147,
-    .onCurveAt "band low edge" .unit 320 120 0 1000 0 (-10), .onCurveAt "band below" .unit 320 120 0 1000 0 (-11),
-    .onCurveAt "falling" .geometry 680 0 152000 0 100 137795, .onCurveAt "linear" .geometry 680 0 0 152000 340 76000,
+    .startTrs "nav" "opacity" 390,
     .start "self" .push 2 .unit "earn" "opacity" 390 opSeg opSeg,
-    .start "on the curve" .push 2 .unit "earn" "opacity" 390 opSeg (opRew 400 852),
-    .start "on the curve, read late" .push 2 .unit "earn" "opacity" 390 opSeg (opRew 480 979),
-    .start "reversed" .push 2 .unit "earn" "opacity" 390 opSeg (opRew 400 147),
-    .start "stale start" .push 2 .unit "earn" "opacity" 390 opSeg (opRew 250 613),
-    .start "other duration" .push 2 .unit "earn" "opacity" 390 opSeg (opRew 250 960),
+    .start "in flight" .push 2 .unit "earn" "opacity" 390 opSeg (opRew 400 852),
+    .start "in flight, read late" .push 2 .unit "earn" "opacity" 390 opSeg (opRew 480 979),
+    .start "in flight, low" .push 2 .unit "earn" "opacity" 390 opSeg (opRew 400 147),
+    .start "below the anchor" .push 2 .unit "earn" "opacity" 390 opSeg (opRew 400 (-11)),
+    .start "above the value at rest" .push 2 .unit "earn" "opacity" 390 opSeg (opRew 400 1011),
     .start "no trigger" .push 2 .unit "earn" "opacity" 390 opSeg (opSeg.take 6 ++ [es 1 2 [] 0 400 147]),
     .start "a fifth collapsed" .push 2 .unit "earn" "opacity" 390 (opOne [] 400 300 682) (opOne [] 400 300 682),
     .start "pill" .push 2 .unit "earn" "opacity" 390 (opOne ["is-hero-pill"] 0 150 960)
       (opOne ["is-hero-pill"] 0 150 960),
-    .start "pill, the 320 ms curve" .push 2 .unit "earn" "opacity" 390 (opOne ["is-hero-pill"] 0 150 960)
-      (opOne ["is-hero-pill"] 0 150 300),
     .start "max-width self" .push 2 .geometry "earn" "max-width" 1280 (mwSeg 120271) (mwSeg 120271),
-    .start "max-width linear" .push 2 .geometry "earn" "max-width" 1280 (mwSeg 120271) (mwSeg 76000),
     .start "not an earn unit" .push 2 .unit "nav" "opacity" 390 opSeg (opRew 400 147),
     .start "another phase" .push 3 .unit "earn" "opacity" 390 opSeg (opRew 400 147),
-    .start "a hold" .hold 2 .unit "earn" "opacity" 390 opSeg (opRew 400 147),
-    .start "stale start, the trigger reads 600" .push 2 .unit "earn" "opacity" 390 earnSeg staleRew,
-    .start "reversed from the trigger on" .push 2 .unit "earn" "opacity" 390 earnSeg reversedRew,
-    .start "max-width linear, one pass" .push 2 .geometry "earn" "max-width" 1280 mwOrig linearRew,
-    .start "pill on the 320 ms transition, one pass" .push 2 .unit "earn" "opacity" 390 pillOrig slowRew,
-    .start "trigger at 1000, half collapsed" .push 2 .unit "earn" "opacity" 390 (opMid 1000 331) (opMid 1000 331),
-    .start "trigger at 1000, read on the curve to 1000" .push 2 .unit "earn" "opacity" 390 (opMid 1000 331)
-      (opMid 1000 662),
-    .start "trigger at 1500" .push 2 .unit "earn" "opacity" 390 (opMid 1500 165) (opMid 1500 165),
-    .start "trigger at 1999" .push 2 .unit "earn" "opacity" 390 (opMid 1999 0) (opMid 1999 0),
+    .start "a hold of the close's phase" .hold 2 .unit "earn" "opacity" 390 opSeg (opRew 400 147),
+    .start "stale start" .push 2 .unit "earn" "opacity" 390 earnSeg staleRew,
+    .start "reversed" .push 2 .unit "earn" "opacity" 390 earnSeg reversedRew,
+    .start "stays collapsed" .push 2 .unit "earn" "opacity" 390 earnSeg collapsedRew,
+    .start "max-width linear" .push 2 .geometry "earn" "max-width" 390 mwOrig linearRew,
+    .start "pill on the 320 ms transition" .push 2 .unit "earn" "opacity" 390 pillOrig pillSlowRew,
+    .start "trigger at 1000" .push 2 .unit "earn" "opacity" 390 (opMid 1000 331) (opMid 1000 662),
     .start "trigger at 2000, no change of collapse" .push 2 .unit "earn" "opacity" 390 (opMid 2000 331)
       (opMid 2000 662),
-    .start "trigger at 1500 against an original trigger at 1000" .push 2 .unit "earn" "opacity" 390 (opMid 1000 331)
-      (opMid 1500 165),
-    .hullAt 320 120 0 1000 1000 300, .hullAt 320 120 0 1000 0 300, .hullAt 680 0 0 152000 76000 340,
-    .start "drift self" .push 2 .unit "earn" "opacity" 390 driftOrig driftOrig,
     .start "drift" .push 2 .unit "earn" "opacity" 390 driftOrig driftRew,
-    .costAt "drift, first trigger" .unit "earn" "opacity" 390 driftOrig [ec 6540 0 0] (ec 400 100 9),
-    .costAt "drift, second trigger" .unit "earn" "opacity" 390 driftOrig [ec 6540 0 0, ec 400 100 9] (ec 300 130 18),
-    .costAt "drift, third trigger" .unit "earn" "opacity" 390 driftOrig [ec 6540 0 0, ec 400 100 9, ec 300 130 18]
-      (ec 0 160 27),
-    .costAt "no trigger yet" .unit "earn" "opacity" 390 driftOrig [] (ec 6540 0 0),
-    .costAt "stale start" .unit "earn" "opacity" 390 earnSeg [ec 6540 0 0] (ec 0 100 600),
-    .costAt "after a stale start" .unit "earn" "opacity" 390 earnSeg [ec 6540 0 0, ec 0 100 600] (ec 0 400 940)]
+    .start "moving drift" .push 2 .unit "earn" "opacity" 390 movingOrig movingRew,
+    .start "settle self" .hold 3 .unit "earn" "opacity" 390 opSeg opSeg,
+    .start "settle, at rest early" .hold 3 .unit "earn" "opacity" 390 opSeg (opSeg.take 9 ++ [es 1 3 [] 0 400 1000]),
+    .start "settle reversed" .hold 3 .unit "earn" "opacity" 390 earnSeg reversedRew,
+    .start "settle stays collapsed" .hold 3 .unit "earn" "opacity" 390 earnSeg collapsedRew,
+    .start "settle towards 0.9" .hold 3 .unit "earn" "opacity" 390 holdSeg targetRew,
+    .start "settle on a 463 ms transition" .hold 3 .unit "earn" "opacity" 390 earnSeg slowRew,
+    .start "settle drift" .hold 3 .unit "earn" "opacity" 390 driftOrig driftRew,
+    .start "max-width settle self" .hold 3 .geometry "earn" "max-width" 1280 (mwSeg 120271) (mwSeg 120271),
+    .start "max-width settle at 152 px above a phone" .hold 3 .geometry "earn" "max-width" 1280 (mwSeg 120271)
+      ((mwSeg 120271).take 3 ++ [es 0 3 [] 0 900 152000]),
+    .start "settle, not an earn unit" .hold 3 .unit "nav" "opacity" 390 earnSeg reversedRew,
+    .start "settle, a push of the close-hold" .push 3 .unit "earn" "opacity" 390 earnSeg reversedRew,
+    .checkAt "anchor" .unit 1000 earnSeg [ec 6540 0 0] (ec 0 100 0),
+    .checkAt "anchor off" .unit 1000 earnSeg [ec 6540 0 0] (ec 0 100 11),
+    .checkAt "range" .unit 1000 earnSeg [ec 6540 0 0, ec 0 100 0] (ec 0 400 852),
+    .checkAt "range top" .unit 1000 earnSeg [ec 6540 0 0, ec 0 100 0] (ec 0 400 1010),
+    .checkAt "above the range" .unit 1000 earnSeg [ec 6540 0 0, ec 0 100 0] (ec 0 400 1011),
+    .checkAt "range bottom, anchor 600" .unit 1000 [ec 6540 0 0, ec 0 100 600] [ec 6540 0 0, ec 0 100 600] (ec 0 400 590),
+    .checkAt "below the range" .unit 1000 [ec 6540 0 0, ec 0 100 600] [ec 6540 0 0, ec 0 100 600] (ec 0 400 589),
+    .checkAt "no trigger yet" .unit 1000 earnSeg [] (ec 6540 0 0),
+    .checkAt "no original trigger" .unit 1000 [] [ec 6540 0 0] (ec 0 100 0),
+    .checkAt "a reading of two numbers" .unit 1000 earnSeg [ec 6540 0 0] ⟨some 0, none, [.num [0, 1]], 0, [], 2, 0, some 100⟩,
+    .settleOn "at rest" .unit "earn" "opacity" 390 [ec 6540 0 0, ec 0 100 0, eh 620 990] (eh 620 990),
+    .settleOn "off" .unit "earn" "opacity" 390 [ec 6540 0 0, ec 0 100 0, eh 620 989] (eh 620 989),
+    .settleOn "early" .unit "earn" "opacity" 390 [ec 6540 0 0, ec 0 100 0, eh 619 900] (eh 619 900),
+    .settleOn "early after the last trigger" .unit "earn" "opacity" 390
+      [ec 6540 0 0, ec 0 100 0, ec 1000 200 0, ec 0 300 0, eh 700 900] (eh 700 900),
+    .settleOn "late after the last trigger" .unit "earn" "opacity" 390
+      [ec 6540 0 0, ec 0 100 0, ec 1000 200 0, ec 0 300 0, eh 820 900] (eh 820 900),
+    .settleOn "no trigger" .unit "earn" "opacity" 390 [ec 0 0 0, eh 900 900] (eh 900 900),
+    .settleOn "no read time" .unit "earn" "opacity" 390 [ec 6540 0 0, ec 0 100 0, ⟨some 0, none, [.num [0]], 0, [], 3, 0, none⟩]
+      ⟨some 0, none, [.num [0]], 0, [], 3, 0, none⟩,
+    .settleOn "pill" .unit "earn" "opacity" 390
+      [ecl 2 ["is-hero-pill"] 6540 0 0, ecl 2 ["is-hero-pill"] 0 0 0, ecl 3 ["is-hero-pill"] 0 280 989]
+      (ecl 3 ["is-hero-pill"] 0 280 989),
+    .settleOn "max-width at 1280" .geometry "earn" "max-width" 1280
+      [ecl 2 [driver] 6540 0 0, ecl 2 [driver] 0 0 0, ecl 3 [] 0 760 175000] (ecl 3 [] 0 760 175000),
+    .settleOn "max-width at 1280, 152 px" .geometry "earn" "max-width" 1280
+      [ecl 2 [driver] 6540 0 0, ecl 2 [driver] 0 0 0, ecl 3 [] 0 760 152000] (ecl 3 [] 0 760 152000),
+    .settleOn "max-width at 390" .geometry "earn" "max-width" 390
+      [ecl 2 [driver] 6540 0 0, ecl 2 [driver] 0 0 0, ecl 3 [] 0 760 152000] (ecl 3 [] 0 760 152000),
+    .settleOn "not an earn unit" .unit "nav" "opacity" 390 [ec 6540 0 0, ec 0 100 0, eh 620 0] (eh 620 0)]
 
 /-- The golden cases: every branch above, per kind where the kind matters. -/
 def cases : List Case := casesJudge ++ casesRest ++ casesPlan ++ casesFlight ++ casesClose ++ casesStart
@@ -4499,27 +4501,20 @@ def Case.line : Case → Json
       ("trs", Json.arr ((List.range 64).map fun k => match startTr node prop w (maskCls k) with
         | none => Json.null
         | some (d, l) => Json.arr #[toJson d, toJson l]).toArray)]
-  | .alongAt d l s t x =>
-    Json.mkObj [("op", "along"), ("name", s!"{d} {l} {s} {t} {x}"), ("dur", toJson d), ("delay", toJson l),
-      ("s", toJson s), ("t", toJson t), ("x", toJson x), ("v", ratJson (along d l s t x))]
-  | .onCurveAt n k d l s t tau r =>
-    Json.mkObj [("op", "onCurve"), ("name", n), ("kind", k.name), ("dur", toJson d), ("delay", toJson l),
-      ("s", toJson s), ("t", toJson t), ("tau", toJson tau), ("r", toJson r), ("on", Json.bool (onCurve k d l s t tau r))]
-  | .hullAt d l s tp tq tau =>
-    let h := hull d l s tp tq tau
-    Json.mkObj [("op", "hull"), ("name", s!"{d} {l} {s} {tp} {tq} {tau}"), ("dur", toJson d), ("delay", toJson l),
-      ("s", toJson s), ("tp", toJson tp), ("tq", toJson tq), ("tau", toJson tau), ("lo", ratJson h.1),
-      ("hi", ratJson h.2)]
-  | .costAt n k node prop w o prior r =>
-    Json.mkObj [("op", "chainCost"), ("name", n), ("kind", k.name), ("node", node), ("prop", prop),
-      ("width", toJson w), ("oSeg", Json.arr (o.map Samp.json).toArray),
-      ("prior", Json.arr (prior.map Samp.json).toArray), ("r", r.json),
-      ("cost", match chainCost (startTr node prop w) o prior r with | none => Json.null | some c => ratJson c),
-      ("check", match startCheck k (startTr node prop w) o prior r with | none => Json.null | some b => Json.bool b)]
+  | .checkAt n k full o prior r =>
+    Json.mkObj [("op", "startCheck"), ("name", n), ("kind", k.name), ("full", toJson full),
+      ("oSeg", Json.arr (o.map Samp.json).toArray), ("prior", Json.arr (prior.map Samp.json).toArray), ("r", r.json),
+      ("check", match startCheck k full o prior r with | none => Json.null | some b => Json.bool b)]
+  | .settleOn n k node prop w seg r =>
+    Json.mkObj [("op", "settleCheck"), ("name", n), ("kind", k.name), ("node", node), ("prop", prop),
+      ("width", toJson w), ("seg", Json.arr (seg.map Samp.json).toArray), ("r", r.json),
+      ("check", match startFor node prop w with
+        | none => Json.null
+        | some e => match settleCheck k e seg r with | none => Json.null | some b => Json.bool b)]
   | .curve =>
     Json.mkObj [("op", "curve"), ("name", "earn"), ("jitter", toJson startJitter), ("close", toJson closePh),
-      ("steps", toJson Fw.Parts.Bezier.steps), ("darkCut", ratJson (Fw.Parts.Nav.darkCut * 10000)),
-      ("bez", Json.arr #[ratJson earnCurve.x1, ratJson earnCurve.y1, ratJson earnCurve.x2, ratJson earnCurve.y2])]
+      ("darkCut", ratJson (Fw.Parts.Nav.darkCut * 10000)),
+      ("full", Json.arr (fullRows.map fun (p, w) => Json.arr #[Json.str p, toJson w, ratJson (fullOf p w)]).toArray)]
 
 /-- Where the golden lives, relative to `lean/`. -/
 def goldenPath : System.FilePath := "../packages/contracts/golden/gate/trajectory.jsonl"
