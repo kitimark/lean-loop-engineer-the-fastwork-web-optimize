@@ -1,9 +1,9 @@
-# waapi-tail-webkit: why the waapi arm starts no nav width transition on WebKit (phase 1: source and instrument)
+# waapi-tail-webkit: why the waapi arm starts no nav width transition on WebKit (phase 1: source and instrument; phase 2: the rows and the verdict)
 
 Follow-up of `10-21-waapi-nav-width-tail.md`. On macOS WebKit 1280 the waapi arm starts no `width` transition at the
 flip of `is-morphing`, where the original does. Phase 1 reads the WebKit source, names the candidate mechanisms with the
-observation each one predicts, and adds a recorder that tells them apart. **It makes no measurement claim.** Phase 2 is
-one CI run of the recorder and the verdict from its rows.
+observation each one predicts, and adds a recorder that tells them apart. Phase 1 made no measurement claim. Phase 2
+(`waapi-tail-webkit-p2`, last section) classifies the rows of three macOS WebKit runs and decides the base window.
 
 ## What is already measured (from the earlier note, MEASURED)
 
@@ -38,21 +38,26 @@ different style updates, or the base is the same at the flip's update, before ma
 `write(v)` publishes `data-fw-morph` (the hint); `writeBase(v)` sets the inline `--morph` on the nav; the nav's own
 MutationObserver (`nav/index.tsx`, on `data-fw-morph`) flips `is-morphing` in a microtask after the write. The class flip is
 therefore never in the task of its cause as a script statement, but it IS before any rendering update. The flip can come from
-three paths; the rows each produces (records are delivered in the order queued; the class record queued by the nav's observer
+four paths; the rows each produces (records are delivered in the order queued; the class record queued by the nav's observer
 comes after the records already waiting for the recorder):
 
 | Path | Code | Rows (one `t` = one recorder callback) |
 |---|---|---|
-| A: poll, a rAF callback of `everyFrame` | `poll`: `write(v)`, then `if (baseOn) writeBase(v)` (waapi.driver.ts:139-147) | `data`, `base`, `cls` at one `t`; no flush between them |
-| M: marker finish, an animation finish event ("update animations and send events") | `onMarker`: `write(v)` only (:148-153) | `data`, `cls` at one `t`; the `base` row, if any, comes later at another `t` from `onBase` or a `poll` |
-| P: the push (wheel task) | `push_`: `write(st.from)`, and `writeBase(st.to)` when `baseWindow` (:206-217) | `data` (if the value changed), `base`; the flip, if the data write is what crosses, follows as `cls` |
+| A: poll, a rAF callback of `everyFrame` | `poll`: `write(v)`, then `if (baseOn) writeBase(v)` (waapi.driver.ts:137-146) | `data`, `base`, `cls` at one `t`; no flush between them |
+| M: marker finish, an animation finish event ("update animations and send events") | `onMarker`: `write(v)` only, then starts the poll (:147-153) | `data`, `cls` at one `t`; the `base` row, if any, comes later from `onBase` or a `poll` |
+| P: the push (wheel task) | `push_` (:177-221): `write(st.from)` at :205, and `writeBase(st.to)` at :216 inside `if (baseWindow(...))` (:215-220) | `data` (if the value changed), `base`; the flip, if the data write is what crosses, follows as `cls` |
+| S: the settle, `first.onfinish` (:206-208) calls `settleFlight` (:167-175) | `write(st.value)`, then `writeBase(st.value)` if `baseOn` was on (:172-173), in the finish event of the first animation | `data`, `base`, `cls` at one `t`, from an animation finish event, not from a rAF callback |
 
 `baseWindow` is true only for a closing push (`to < from`, waapi.logic.ts:173), so `base` rows are expected in the close phase
 only; path P writes the final base `st.to` at the push, `onBase` and `poll` then follow the animation from `baseDelay` on.
 
-Which path carried a flip is read from the rows at its `cls`: `[data, base, cls]` at one `t` is A (or P with the flip in the
-same task); `[data, cls]` with `base` only later is M. On M the base is written in a different callback than the flip, by
-construction of the driver; on A they share a callback.
+Which path carried a flip is read from the rows at its `cls`: `[data, base, cls]` at one `t` is A or S (the rows do not separate them;
+they differ in the event that ran the callback); `[data, cls]` with `base` only later is M. On M the base is
+written in a different callback than the flip, by construction of the driver; on A and S they share one.
+
+Reading rows (corrected in phase 2): a `raf` row whose frame timestamp `ts` is at or before the flip's own `t` (within 2 ms)
+is the flip's own frame, not a boundary. Only a `size` row, a `read` row, or a `raf` row with a later `ts` proves another
+style update or rendering update between two writes. Phase 1's rule "a raf row between means C1 or C2" was wrong for that case.
 
 ## Candidate mechanisms and what each predicts (INFERRED, to be told apart by the rows)
 
@@ -62,11 +67,11 @@ rendering update (a `raf` or `size` row of the next frame). Rows with one `t` co
 
 | Id | Mechanism | Predicts in the rows |
 |---|---|---|
-| C1 | Flip and base write fall in different style updates through a frame boundary; at the flip's update before == after width | `cls`, then `base` at a later `t`, a `raf` or `size` row between, NO `read` row between; no `tr` at the flip. Path M produces this by construction |
-| C2 | The base is already applied at the flip's update (written, and rendered, earlier) | `base`, then `cls` at a later `t` with a `raf` or `size` row between and no `read` row between; no `tr` |
-| C-probe | The probe's own sampler read forces a style flush between the two writes and splits the update | a `read` row between `base` and `cls` (either order); no `tr`. The same candidate without a `read` row between is C1 or C2 |
-| C3 | A transition starts and is cancelled in the same or next update | `transitionrun`/`transitionstart`, then `transitioncancel` within a frame |
-| C4 | A per-frame base write cancels and restarts the running transition (step 4) | a train of cancel/run pairs, one per frame; width not exactly the pill width at the next sample (contradicted by the measured 984.000 unless no transition runs) |
+| C1 | Flip and base write fall in different style updates through a frame boundary; at the flip's update before == after width | `cls`, then `base` at a later `t`, a `size` row or a `raf` row of a later frame between, NO `read` row between; no `tr` at the flip. Path M produces this by construction |
+| C2 | The base is already applied at the flip's update (written, and rendered, earlier) | `base`, then `cls` at a later `t` with a `size` row or a `raf` row of a later frame between and no `read` row between; no `tr` |
+| C-probe | The probe's own sampler read forces a style flush between the two writes and splits the update | a `read` row between `base` and `cls` (either order); no `tr`. The same candidate without a `read` row between is C1 or C2. Read the corrected rule above for what "between" needs |
+| C3 | A transition starts and is cancelled in the same or next update, by nothing the page wrote | `transitionrun`/`transitionstart`, then a width `transitioncancel` with no write one frame before it |
+| C4 | A per-frame base write cancels and restarts the running transition (step 4) | two or more width `transitioncancel` rows, each one frame after a write (WebKit dispatches transition events in the frame after the style update) |
 | C0 | No split: `data`, `base`, `cls` at one `t` (path A) with no `read` row among them, and no `tr` | the split theory is refuted for that rep; the cause is elsewhere (for example before == after for another reason) |
 
 C-probe is now decidable in the run itself: a `read` row between the two writes shows the probe's flush there, and its
@@ -129,9 +134,11 @@ search. Round 2 removes the file. The request is a key of the push commit line,
 refused). `trajectory-probe.yml` takes it as the site job output `debug` and sets `FW_DEBUG` for the probe steps. Nothing
 that lands on `main` can ask for a recorder; a dispatch has no `debug` input.
 
-The mac leg does not run on a push by default: `probe-apple` was `workflow_dispatch` only. It now also runs on a push whose
-commit line carries a `debug=` key (and `apple_n != 0`); a push without the key is unchanged. That gate is YAML, not Lean,
-and is listed as a stand-in in the handoff.
+The mac leg does not run on a push by default. Whether it runs is decided in Lean (phase 2): `Fw.Ci.Trigger.appleRuns`
+(`ProbeEv`, `hasFrames`, `recorderOf`; theorems `apple_no_leg`, `apple_dispatch`, `apple_push_frames`, `apple_push_debug`,
+`apple_push_plain`, `apple_push_asked`; 40 `kind:"apple"` rows in `triggers.jsonl`; node twin `appleRuns` in
+`.github/scripts/trajectory-line.mjs`, mode `apple`). `trajectory-probe.yml` runs the twin in the plan step and reads its
+`apple_run` output in `probe-apple.if`; the YAML holds no rule. Runs 2 and 3 below ran the mac leg through that output.
 
 ## Hit threshold
 
@@ -139,9 +146,94 @@ Phase 2 takes the window length from the golden `baseWindow.delay` (`morph-tween
 `window: true`, `delay` 454556045/1048576, about 433.5; the driver reads it in `waapi.logic.ts`), not from a number
 chosen here. Which reps are hits stays the earlier note's rule (`hit_iff_mP` in `Fw.Parts.MorphTweenOpt`, WidthTail).
 
-## Phase 2 (one run, then the verdict)
+## Phase 2: the rows of three runs, the class of each rep, the verdict (MEASURED)
 
-Phase 2 reads the artifact of the phase 1 run (or a re-run): per hit rep, the rows around the `cls` row: the order of
-`data`/`base`/`cls`, the `t` they share, any `tr` rows, and the `read`, `size` and `raf` rows between. It classifies them
-against C1 to C4, C-probe and C0 (the table above is the key) and counts classes over at least 3 runs on separate jobs
-before any claim. Phase 1 shows only that rows exist for each rep.
+**Runs** (push-triggered, commit lines `[ci:trajectory-probe]` and `[trajectory fw=morph.tween:waapi widths=1280
+engines=playwright-webkit debug=nav-transition]`, mac leg `probe apple (playwright-webkit, macos-26) 1280`, separate jobs;
+the inputs artifact of each shows engines, fw, widths and debug as pushed):
+
+| Run | Commit | Note |
+|---|---|---|
+| 39571243779 | 8ae4a8f9 | run 1 |
+| 39572308204 | b9afdb74 | run 2; first run with the mac leg decided by `apple_run` |
+| 39573516482 | 6529fbb4 | run 3 |
+| 39527354981 | 47ec2d5a | phase 1 run, an extra data point (same recorder, before the Lean rule) |
+
+Each run has 5 reps of the role `base` (inline writes, no animation; the control) and 5 of the role `cand` (the waapi arm with
+the window); the original has no recorder. The unit is the first close flip
+(`cls` with `on: false`) of a rep. The classifier is `Fw.Parts.MorphTweenWebkit` (Lean; `splitRep`, `transRep`, `classRep`,
+`holdRep`, `verdict`); its node twin `classifyRep`, `holdRep`, `windowVerdict` in `debug.mjs` equals the Lean golden
+`morph-tween-webkit-rows.jsonl` (14 rep cases: 4 real excerpts and 10 synthetic, one per class and edge; 8 verdict cases) in
+`test/webkit-rows.test.mjs`, and gives the same class and hold on the full raw files as the Lean run on them.
+
+**Rule fix.** A `raf` row at or before the flip's own time is the flip's frame, not a boundary (see the paths section).
+
+### Classes per rep (class / hold; reps 0..4)
+
+| Run | Arm | Reps |
+|---|---|---|
+| 39571243779 | base | c0/held c0/held c0/held c4/held c4/held |
+| 39571243779 | cand | c4/jumped c0/jumped c4/jumped c0/jumped c0/jumped |
+| 39572308204 | base | c4/held c0/held c4/held c0/held c4/held |
+| 39572308204 | cand | c0/jumped c4/jumped c0/jumped c0/jumped c0/jumped |
+| 39573516482 | base | c0/held c4/held c0/held c0/held c0/held |
+| 39573516482 | cand | c0/jumped c0/jumped c0/jumped c0/jumped c0/jumped |
+| 39527354981 | base | c4/held c0/held c0/held c4/held c4/held |
+| 39527354981 | cand | c0/jumped c4/jumped c4/jumped c0/jumped c0/jumped |
+
+Counts over the three runs (15 reps per arm): split class **c0 in 30 of 30**; no c1, c2, c3, C-probe, noFlip or noBase. Cand: c0 12,
+c4 3, jumped 15. Base: c0 9, c4 6, held 15. The phase 1 run agrees (c0 in 10 of 10, cand jumped 5, base held 5).
+
+**Reading of one rep.** In 14 of 15 cand reps the rows at the flip are `data` and `cls` at one `t` (path M: the marker finish
+writes the data only); in 1 (39572308204 rep 3) `data`, `cls` and `base` share one `t` (path A or S). In the 14, then a `raf` row of the same frame (it may also come after the next row) and the `base` row with the identical value 0 to 1 ms
+later (the poll's rAF callback of that frame). No `read` and no `size` row lies between them. In the base arm `base`, `data` and `cls`
+sit at one `t`. A width `transitionrun`/`transitionstart` appears 21 to 135 ms after the flip in both arms. The difference is
+the first `size` row after the flip: the base arm keeps its width (15 of 15, next == prev), the cand arm drops to within 0.21 px of
+rest (0.00 to 0.21 px above rest) from 0.33 to 2.4 px above rest.
+
+### What the classes decide
+
+| Candidate | Decision | Why |
+|---|---|---|
+| C1, C2 (writes in different style updates) | refuted for these reps (0 of 30), INFERRED | `base` follows `cls` by 0 to 1 ms with the frame ts at or before the flip, under WebKit's update-the-rendering order; "no row between" alone does not prove one style update, since `raf` and `size` rows are not a complete frame list |
+| **C-probe** | **ruled out** | the probe's reads occur only between frames, never between the writes (no `read` row between in 30 of 30); the probe does not split the update, so no run without reads is needed |
+| C3 (a transition cancelled by nothing) | 0 of 30 | no width cancel without a write one frame before it |
+| C4 (a train of cancels by writes) | present in 9 of 30 reps, in both arms | two or more width cancels, each a frame after a write; it does not separate the arms (cand: 3 of 15 c4 and 15 of 15 jumped; base: 6 of 15 and 15 of 15 held), so it does not explain the jump |
+| C0 (no split) | class of 21 of 30 reps; the split is c0 in all 30 | the split theory is refuted: `data`, `cls` and `base` reach one style update. The cause of the missing tail is elsewhere |
+
+Mechanism left (INFERRED, to be tested in a follow-up, not decided here): the before-change style of the transition comes from
+the rendered style, and the width in it already follows the animated `--morph`, so before is close to after at the flip's update;
+Styleable.cpp:606-618 and StyleTreeResolver.cpp:825 are the lines.
+
+### Verdict on the base window (decided in Lean)
+
+`Fw.Parts.MorphTweenWebkit.verdict runs holds`: no claim under 3 runs; keep iff some hit rep held; drop iff some rep jumped and
+none held (theorems `verdict_needMore`, `verdict_keep`, `verdict_drop`, `verdict_unseen`, `drop_no_held`). The hold of a rep is
+`holdRep`: unseen when the width before is within 0.08 px of rest, held when the first width after keeps at least half of the
+excess over rest, else jumped (`holdOf_flat`, `holdOf_held`, `holdOf_jumped`). Evidence: runs 39571243779, 39572308204 and
+39573516482 hold 15 jumped cand reps and no held rep, so `drop_on_measured : verdict 3 (replicate 15 jumped) = .drop`.
+
+**Decision: drop the base-write window on macOS WebKit at 1280.** With the window on, no rep restores the old width (0 of 15; 0 of
+20 with the phase 1 run), so the window gives no width on WebKit and costs about 9 script frames per close at 60 Hz
+(`closeCost`, earlier note). Limits: one engine (Playwright WebKit on macos-26) and one width (1280); a run with the window
+off was not made, so "drop" means the window does nothing visible, not that the transition then starts. The code change (gate the
+window on the engine, or remove it) is not in this task; it is the follow-up `waapi-tail-drop`. Chromium keeps its own verdict
+from the earlier note.
+
+### TS stand-ins
+
+The node twin of the classifier is checked against the Lean golden (not a stand-in). Stand-ins: the recorder itself and the
+probe plumbing (`apps/site/src/debug/nav-transition.ts`, `debug.mjs` `debugFor`, `readDebug`), the page-side row capture, and
+the JSON-to-row normaliser `normalizeRow` (its rounding is the Lean `scaled`, tested on a sample, not proved).
+
+### Follow-ups
+
+- `waapi-tail-drop`: gate or remove the window on WebKit, then a Chromium and WebKit class count of the result.
+- Why the cand width at the first size row after the flip is W(m(R)): read the before-change style source (Styleable.cpp:606-618)
+  against the rows; a run with the window off would show whether the transition then starts.
+- Frames: WebKit logs `size` rows in frames that have no `raf` row, so a `raf` row is not a complete frame list.
+
+## Review notes (lead, 2026-10-21)
+
+- The Lean verdict `drop_on_measured` takes a hand-typed input (`verdict 3 (List.replicate 15 Hold.jumped)`); the holds come from the node twin `classifyRaw` over the raw files of the four runs, which the reviewer re-ran and matched. No committed script feeds the raw rows to Lean.
+- Every cand rep counts as a hit rep: the poll's base row is at the flip in each one, so the base window was on; no code filters reps by `baseWindow.delay`.

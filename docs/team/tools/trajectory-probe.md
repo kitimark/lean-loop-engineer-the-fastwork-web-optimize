@@ -104,7 +104,7 @@ is read at rest. The setting is in the artifact header.
 
 ## Apple witness
 
-Job `probe-apple` (every dispatch; on a `ci/*` push only when the commit line has a `debug=` key) runs the same lane with Playwright WebKit on a free standard
+Job `probe-apple` (every dispatch; on a `ci/*` push only when the commit has the `[frames:` token or its probe line a `debug=` key; Lean decides it, `Fw.Ci.Trigger.appleRuns`, and the workflow reads the plan step output `apple_run`) runs the same lane with Playwright WebKit on a free standard
 `macos-26` runner: hero and morph paths, the dispatched search against the original, two width legs with `max-parallel: 2` (5
 macOS slots are shared by all lanes). It runs for every dispatch whose engines include `playwright-webkit`: a flag enters
 `v2-proved` only with a macOS morph pass, so the witness is no longer limited to `hero.exit` searches. Its verdict is
@@ -516,6 +516,85 @@ earn close@0 unit on macOS WebKit (candidate / base / rel); no close-hold unit c
 
 Limit: the anchor needs the original's first trigger to read like the rewrite's; a pass whose first trigger falls
 mid-transition in one arm only is judged `fail apart`. Admission of the scoped arm is task close-start-identity-rule.
+
+### Close start by identity (task close-start-identity-rule)
+
+Mechanism (CONFIRMED from source, MEASURED in the five runs below): the nav background is
+`color-mix(in srgb, #ffffff1a (1 - m), #131922 m)` of `--morph` m (snapshot `site-pretty/_app/immutable/assets/2.gBuqKVzi.css` 11336-11340, ported in
+`apps/site/src/parts/nav/nav.module.css` 22-26; Lean `bgRed`, `bgAlpha` in `lean/Fw/Parts/HeroExitCloseStart.lean`).
+`is-morphing` is on while m > `Nav.morphingCut` = 1/1000 (`Nav.lean` 35, `logic.ts` 10 and 63). When the class goes, the
+background transition starts from the colour of the last morph value with the class, so the first sample without it reads
+that colour, and the original need not have read the same start (its pass removes the class at another m).
+
+Rule (Lean section `CloseIdentity`: `idCheck`, `idJudge`, `byMId`, `byMRule`; TS twin of the same names in `reduce.mjs`),
+only nav `background-color` (`idOn`), every phase. For a rewrite sample `r` and `q`, the last sample of the same arm and
+pass before it (`withPrev`): when `q` has `is-morphing`, `r` has not, `r` is in flight and read at most `startLag` = 200 ms
+after the class change (`idFresh`), then with m stored times 10000 (`kit.mjs` 228):
+
+- `cutM` = 10 ≤ m(q) and m(r) ≤ 10 (`cutM_eq`, `roundM_above`, `roundM_below`: `Nav.morphingCut` through the probe's rounding);
+- red within 0.5 of `bgRed m(q)` and alpha within 0.5 of `255 bgAlpha m(q)`, 0-255 scale (`redOk_iff`, `alphaOk_iff`,
+  cross-multiplied with `mixFrom` = (255, 26) and `mixTo` = (19, 255), the CSS's red and alpha);
+- all hold: pass; one fails: `fail apart`. Every other sample is `judgeUnit`'s, and a bucket combines its samples as before.
+
+Proved: `idCheck_css` (the check is the cut and half a level of `bgRed`, `bgAlpha`), `idCheck_some` (it decides only that
+first fresh in-flight sample), `idCheck_no_prev`, `idCheck_late`, `idJudge_undecided`, `byMId_keep` (no decided sample:
+`byM`), `idBucket_fail_undecided` (never more lenient than `byM` on the samples it does not decide: a sample `byM` fails
+there keeps the bucket failing), `idBucket_refuse`, `byMRule_off`, `byMRule_on`. Mutations, each refused in cell
+close@0 at 390 px (`navAt`, `(…).lookup 0 = some (.fail .apart)`):
+
+| mutation | theorem | refused by |
+|---|---|---|
+| early removal: class off at m 0.03 | `byMId_early` | cut on m(r) |
+| late removal: class still on at m 0 | `byMId_late` | cut on m(q) |
+| stale reading: the target colour at once | `byMId_stale_target` | red |
+| stale reading: the colour of an earlier frame (m 0.004 for 0.002) | `byMId_stale_frame` | red |
+| wrong f: red not premultiplied | `byMId_wrong_f` | red |
+| wrong f: alpha at 1 | `byMId_wrong_alpha` | alpha |
+| one level along the transition | `byMId_progress` | red |
+
+The faithful sample passes (`byMId_self`). `main`'s judge passes the faithful sample and the one-level mutation and fails
+the others (scratch evaluation, colour tolerance 2 levels).
+
+Accepted limits:
+
+- (i) The rule assumes the probe reads `r` at transition progress 0. MEASURED over every arm of the five runs: the rule
+  decides 421 samples (macOS WebKit 120, Chromium 228, Linux WebKit 73) and passes all of them; red is at most 446
+  thousandths of a level from `bgRed m(q)`, alpha 11; they are read at most 57, 14 and 195 ms after the change. A sample
+  read later than `startLag` is `byM`'s (`idCheck_late`, `byMId_read_late`): 22 Linux WebKit samples, among them two read
+  694 and 721 ms after the change (39448209903) that read the end colour and would be refused without the bound.
+- (ii) Half a level passes (`byMId_half`); green and blue are not checked: the stored old-kit oklab tuples convert back with
+  up to 0.64 level error (`colourFromV1`, TS glue, `kit.mjs` 28), and green and blue are 315 and 502 thousandths off at
+  that sample (MEASURED, red 446).
+- (iii) Rounding: m 1/1000 and 1049/1000000 both store 10 (`roundM_tie`), so a removal up to 0.000049 early passes.
+- (iv) The decided sample passes any gap between `q` and `r` (`idCheck_t0`). Larger gap regressions (above B's minimum
+  detectable effect, 0.31 ln g, p 0.492) are caught only by `byM` on later samples of the pass, which is unproved; the
+  follow-up rule for those later samples must keep a gap check.
+- TS stand-in: `colourFromV1` (old-kit oklab to sRGB, `reduce.mjs`) runs inside `idCheck` in production; Lean has no
+  conversion and the golden calls `idCheck` without it.
+- (v) Admission retry of hero.exit scoped is a separate task (admit-hero-exit-scoped).
+
+Re-reduced (MEASURED, raw artifacts reduced by main's reducer and by this rule). Every unit that changes (candidate / base /
+rel), all Linux WebKit nav `background-color`. No candidate or base verdict goes from pass to fail; one relative verdict goes
+from both to new (39452631146 390 close@0), so Linux WebKit `new` rises 58 -> 59:
+
+| run | width | step | main | after |
+|---|---|---|---|---|
+| 39448209903 | 640 | close@0 | fail apart / fail apart / both | pass / pass / ok |
+| 39448209903 | 641 | close@0 | fail apart / pass / new | pass / pass / ok |
+| 39452631146 | 390 | close@0 | fail apart / fail apart / both | fail apart / pass / new |
+| 39452631146 | 640 | close-hold@0 | fail apart / fail apart / both | pass / pass / ok |
+| 39456741492 | 390 | close@0 | fail apart / fail apart / both | pass / fail apart / cleared |
+| 39456741492 | 640 | close-hold@0 | pass / fail apart / cleared | pass / pass / ok |
+
+`new` counts, main to after: Linux WebKit 52 to 51 (39448209903), 58 to 59 (39452631146), 171 (39456741492); macOS WebKit
+and Chromium keep theirs (172 and 128 macOS WebKit in 39466179818 and A/A 39472217441).
+
+Finding: admission of hero.exit scoped cannot proceed on this rule. The identity check passes every first sample in the
+target cells (macOS WebKit close@0 at 390 and 640 px in 39466179818, 390 px in the A/A 39472217441), but the later
+in-flight samples of one pass per cell still fail `byM`: passes whose class went at m(q) 133 to 282 (sample gaps), read 60
+to 226 ms after the change, move from `bgRed m(q)` while the original's envelope moves from near the cut. Chromium
+39448209903 1280 px close@0 fails the same way (m(q) 106). Judging those samples needs the transition from `bgRed m(q)`
+(curve and duration of the nav background), a follow-up rule.
 
 ## Admission
 

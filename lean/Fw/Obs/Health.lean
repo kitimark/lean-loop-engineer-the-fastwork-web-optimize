@@ -1,4 +1,5 @@
 import Fw.Obs.Stale
+import Fw.Obs.FeedbackAlert
 import Fw.Obs.GhStatus
 import Fw.Obs.Timing
 /-!
@@ -249,6 +250,7 @@ structure System where
   alivePids   : Option (List Nat) := none
   gh          : Gh := {}
   load        : LoadInfo := {}
+  feedback    : List Fw.Console.ReviewFeedback.Ev := []
 deriving DecidableEq, Repr
 
 /-- One observation: the time it was taken (ms), the agents, the lead session's facts, the system facts, the time of
@@ -408,14 +410,14 @@ theorem stalled_facts (p : Params) (t : Nat) (A : List Agent) (a : Agent) (h : s
 /-- The alert codes, listed in the order of their wire names. -/
 inductive Code where
   | ctxHigh | ctxWarn | errStreak | gone | stalled | toolHang | toolSlow
-  | ciFailed | ciFinished | ciSlow | dockerOrphan | procLong | simLockLong | simLockOrphan | svcStale | svcSweepError | svcUnknown | sysContended | diskLow | ghDegraded | loadHigh
+  | ciFailed | ciFinished | ciSlow | dockerOrphan | procLong | reviewFeedback | simLockLong | simLockOrphan | svcStale | svcSweepError | svcUnknown | sysContended | diskLow | ghDegraded | loadHigh
   | memCritical | overCap | permissionWait | worktreesMany
 deriving DecidableEq, Repr
 
 /-- Every code, in rank order. -/
 def Code.all : List Code :=
   [.ctxHigh, .ctxWarn, .errStreak, .gone, .stalled, .toolHang, .toolSlow,
-   .ciFailed, .ciFinished, .ciSlow, .dockerOrphan, .procLong, .simLockLong, .simLockOrphan, .svcStale, .svcSweepError, .svcUnknown, .sysContended, .diskLow, .ghDegraded, .loadHigh,
+   .ciFailed, .ciFinished, .ciSlow, .dockerOrphan, .procLong, .reviewFeedback, .simLockLong, .simLockOrphan, .svcStale, .svcSweepError, .svcUnknown, .sysContended, .diskLow, .ghDegraded, .loadHigh,
    .memCritical, .overCap, .permissionWait, .worktreesMany]
 
 /-- The wire name of a code. -/
@@ -423,7 +425,7 @@ def Code.name : Code → String
   | .ctxHigh => "agent.ctxHigh" | .ctxWarn => "agent.ctxWarn" | .errStreak => "agent.errStreak"
   | .gone => "agent.gone" | .stalled => "agent.stalled" | .toolHang => "agent.toolHang"
   | .toolSlow => "agent.toolSlow" | .ciFailed => "ci.failed" | .ciFinished => "ci.finished" | .ciSlow => "ci.slow"
-  | .dockerOrphan => "docker.orphan" | .procLong => "proc.long" | .simLockLong => "sim.lockLong"
+  | .dockerOrphan => "docker.orphan" | .procLong => "proc.long" | .reviewFeedback => "review.feedback" | .simLockLong => "sim.lockLong"
   | .simLockOrphan => "sim.lockOrphan" | .svcStale => "svc.stale" | .svcSweepError => "svc.sweepError" | .svcUnknown => "svc.unknown" | .sysContended => "sys.contended" | .diskLow => "sys.diskLow" | .ghDegraded => "sys.ghDegraded" | .loadHigh => "sys.loadHigh"
   | .memCritical => "sys.memCritical" | .overCap => "team.overCap" | .permissionWait => "team.permissionWait"
   | .worktreesMany => "worktrees.many"
@@ -431,9 +433,10 @@ def Code.name : Code → String
 /-- The rank of a code (its position in `Code.all`). -/
 def Code.rank : Code → Nat
   | .ctxHigh => 0 | .ctxWarn => 1 | .errStreak => 2 | .gone => 3 | .stalled => 4 | .toolHang => 5 | .toolSlow => 6
-  | .ciFailed => 7 | .ciFinished => 8 | .ciSlow => 9 | .dockerOrphan => 10 | .procLong => 11 | .simLockLong => 12
-  | .simLockOrphan => 13 | .svcStale => 14 | .svcSweepError => 15 | .svcUnknown => 16 | .sysContended => 17 | .diskLow => 18 | .ghDegraded => 19 | .loadHigh => 20
-  | .memCritical => 21 | .overCap => 22 | .permissionWait => 23 | .worktreesMany => 24
+  | .ciFailed => 7 | .ciFinished => 8 | .ciSlow => 9 | .dockerOrphan => 10 | .procLong => 11 | .reviewFeedback => 12
+  | .simLockLong => 13 | .simLockOrphan => 14 | .svcStale => 15 | .svcSweepError => 16 | .svcUnknown => 17 | .sysContended => 18
+  | .diskLow => 19 | .ghDegraded => 20 | .loadHigh => 21
+  | .memCritical => 22 | .overCap => 23 | .permissionWait => 24 | .worktreesMany => 25
 
 /-- Whether a code is about one agent (`agent.*`). -/
 def Code.isAgent (c : Code) : Bool := c.rank < 7
@@ -1125,6 +1128,11 @@ theorem procAlert_code (o : Obs) (q : Proc) : (procAlert o q).code = .procLong :
 def sProc (p : Params) (o : Obs) : List Alert :=
   (o.system.procs.filter (procLongB p o)).map (procAlert o)
 
+/-- `review.feedback`: one alert per flag with an open feedback comment (subject the flag, detail the open count and the newest
+text's start); the decision is `Fw.Obs.FeedbackAlert.alerts`. -/
+def sFeedback (o : Obs) : List Alert :=
+  (Fw.Obs.FeedbackAlert.alerts o.system.feedback).map fun fd => ⟨.reviewFeedback, fd.1, fd.2, false⟩
+
 /-- The `svc.stale` alert of a stale service: subject its name, detail the changed input paths (measured values). -/
 def staleAlert (s : Svc) : Alert :=
   ⟨.svcStale, s.name, "changed on main since its commit: " ++ ", ".intercalate s.changed, false⟩
@@ -1167,7 +1175,7 @@ def sPerm (o : Obs) : List Alert :=
 
 /-- The team and system alerts: the pieces in code order. -/
 def sysAlerts (p : Params) (o : Obs) : List Alert :=
-  sCiFailed o ++ sCiFin p o ++ sCiSlow p o ++ sDocker p o ++ sProc p o ++ sLockLong p o ++ sOrphan p o ++
+  sCiFailed o ++ sCiFin p o ++ sCiSlow p o ++ sDocker p o ++ sProc p o ++ sFeedback o ++ sLockLong p o ++ sOrphan p o ++
     sStale o ++ sSweep o ++ sUnknown o ++ sContended o ++ sDisk p o ++ sGh o ++ sLoad p o ++ sMem o ++ sOver p o ++ sPerm o ++ sWt p o
 
 /-- Every raised alert, unsorted: each agent's alerts, then the team and system alerts. -/
@@ -1285,6 +1293,7 @@ def sysPiece (p : Params) (o : Obs) : Code → List Alert
   | .ciSlow => sCiSlow p o
   | .dockerOrphan => sDocker p o
   | .procLong => sProc p o
+  | .reviewFeedback => sFeedback o
   | .simLockLong => sLockLong p o
   | .simLockOrphan => sOrphan p o
   | .svcStale => sStale o
@@ -1306,7 +1315,7 @@ theorem sysAlerts_eq (p : Params) (o : Obs) : sysAlerts p o = Code.all.flatMap (
 
 /-- Every alert of a piece carries the piece's code. -/
 theorem piece_code (p : Params) (o : Obs) (c : Code) (x : Alert) (h : x ∈ sysPiece p o c) : x.code = c := by
-  cases c <;> simp only [sysPiece, sCiFailed, sCiFin, sCiSlow, sDocker, sProc, sLockLong, sOrphan, sStale, sSweep, sUnknown, sDisk, sGh, sLoad,
+  cases c <;> simp only [sysPiece, sCiFailed, sCiFin, sCiSlow, sDocker, sProc, sFeedback, sLockLong, sOrphan, sStale, sSweep, sUnknown, sDisk, sGh, sLoad,
     sMem, sOver, sPerm, sWt, sContended, List.not_mem_nil] at h
   all_goals first
     | (obtain ⟨s, _, e⟩ := List.mem_filterMap.1 h
@@ -1386,6 +1395,48 @@ theorem sys_code_iff (p : Params) (o : Obs) (c : Code) (hc : c.isAgent = false) 
     obtain ⟨y, hy⟩ := List.exists_mem_of_ne_nil _ h
     have e := piece_code p o c y hy
     refine ⟨y, (mem_alerts p o y).2 (List.mem_append.2 (.inr ((mem_sys p o y).2 (by rw [e]; exact hy)))), e⟩
+
+/-- **`review.feedback` in the report**: the report has a `review.feedback` alert for a flag exactly when the thread of the feedback
+events has an open comment on it. -/
+theorem feedback_iff (p : Params) (o : Obs) (f : String) :
+    (∃ x ∈ (health p o).alerts, x.code = .reviewFeedback ∧ x.subject = f) ↔
+      Fw.Console.ReviewFeedback.openOf (Fw.Console.ReviewFeedback.thread o.system.feedback) f ≠ [] := by
+  rw [← Fw.Obs.FeedbackAlert.mem_flags]
+  constructor
+  · rintro ⟨x, hx, hc, hs⟩
+    have h := (mem_sys p o x).1 (mem_sys_of_notAgent p o x hx (by rw [hc]; rfl))
+    rw [hc] at h
+    simp only [sysPiece, sFeedback, List.mem_map] at h
+    obtain ⟨fd, hfd, e⟩ := h
+    rw [← e] at hs
+    simp only at hs
+    rw [← hs]
+    exact List.mem_map.2 ⟨fd, hfd, rfl⟩
+  · intro h
+    obtain ⟨fd, hfd, e⟩ := List.mem_map.1 h
+    have hy : (⟨.reviewFeedback, fd.1, fd.2, false⟩ : Alert) ∈ sysPiece p o .reviewFeedback := by
+      simp only [sysPiece, sFeedback]
+      exact List.mem_map.2 ⟨fd, hfd, rfl⟩
+    exact ⟨_, (mem_alerts p o _).2 (List.mem_append.2 (.inr ((mem_sys p o _).2 hy))), rfl, e⟩
+
+/-- **A user comment opens the alert** (its own branch): when the reducer accepts a post, the report after it has the `review.feedback`
+alert of that flag. -/
+theorem feedback_post_opens (p : Params) (o : Obs) (f i t : String) (ts : Nat)
+    (h : Fw.Console.ReviewFeedback.postRefusal (Fw.Console.ReviewFeedback.thread o.system.feedback) f i t = none) :
+    ∃ x ∈ (health p { o with system := { o.system with feedback := o.system.feedback ++ [.post f i t ts] } }).alerts,
+      x.code = .reviewFeedback ∧ x.subject = f := by
+  rw [feedback_iff, ← Fw.Obs.FeedbackAlert.mem_flags]
+  exact Fw.Obs.FeedbackAlert.post_opens _ f i t ts h
+
+/-- **The lead's reply closes the alert** (its own branch): when the reducer accepts a reply to the flag's only open comment, the report
+after it has no `review.feedback` alert for that flag. -/
+theorem feedback_reply_closes (p : Params) (o : Obs) (f to t : String) (ts : Nat)
+    (h : Fw.Console.ReviewFeedback.replyRefusal (Fw.Console.ReviewFeedback.thread o.system.feedback) f to t = none)
+    (honly : ∀ y ∈ Fw.Console.ReviewFeedback.thread o.system.feedback, y.flag = f → y.isOpen = true → y.id = to) :
+    ¬ ∃ x ∈ (health p { o with system := { o.system with feedback := o.system.feedback ++ [.reply f to t ts] } }).alerts,
+      x.code = .reviewFeedback ∧ x.subject = f := by
+  rw [feedback_iff, ← Fw.Obs.FeedbackAlert.mem_flags]
+  exact Fw.Obs.FeedbackAlert.reply_closes _ f to t ts h honly
 
 /-- `when` is not empty exactly when its condition holds. -/
 theorem when_ne_nil (b : Bool) (x : Alert) : when b x ≠ [] ↔ b = true := by
@@ -1795,6 +1846,7 @@ theorem sysPiece_mono (p q : Params) (o : Obs) (hpq : Looser p q) (c : Code) (x 
     rw [hw] at hr
     simp only [Bool.and_eq_true, decide_eq_true_eq] at hr ⊢
     exact ⟨hr.1, Nat.lt_of_le_of_lt (Nat.mul_le_mul_right _ hpq.procMax) hr.2⟩
+  · exact h
   · refine when_sub _ (fun hb => ?_) x h
     cases hs : o.system.simLock.since with
     | none => simp [hs] at hb
@@ -1863,7 +1915,7 @@ theorem sysAlerts_perm (p : Params) (o : Obs) (l : List Agent) (hl : l.Perm o.ag
     simp only [procLongB, hw]
   have ha : procAlert { o with agents := l } = procAlert o := rfl
   have hc : ciSlowAlert { o with agents := l } = ciSlowAlert o := rfl
-  simp only [sysAlerts, sCiFailed, sCiFin, sCiSlow, sDocker, sProc, sLockLong, sOrphan, sStale, sSweep, sUnknown, sDisk, sGh, sLoad, sMem, sOver,
+  simp only [sysAlerts, sCiFailed, sCiFin, sCiSlow, sDocker, sProc, sFeedback, sLockLong, sOrphan, sStale, sSweep, sUnknown, sDisk, sGh, sLoad, sMem, sOver,
     sPerm, sWt, sContended, contendedNow, hn, hk, hh, ho, hd, hq, ha, hc]
 
 /-- The report's alerts, system codes and counts do not depend on the order of the agents (the rows follow it). -/

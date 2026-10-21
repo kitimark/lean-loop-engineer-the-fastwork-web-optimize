@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ReviewPreview, type PreviewState } from "./ReviewPreview";
 import { ReviewInfo, useReviewInfo } from "./ReviewInfo";
+import { ReviewFeedback, type FeedbackThread } from "./ReviewFeedback";
 
 // Rendering only. Which reviews are pending, open or decided is Lean `console.review` (console-api `GET /api/reviews`); Keep and Reject
 // post the decision, which Lean accepts or refuses. The page link comes from the owner's private `.local/reviews.json`.
@@ -21,6 +22,8 @@ export type ReviewItem = {
   link: string | null;
   /** which devices the owner previewed on and what is still asked (Lean `console.reviewPreview`) */
   preview?: PreviewState | null;
+  /** the comments on this flag and the lead's replies (Lean `console.reviewFeedback`) */
+  feedback?: FeedbackThread | null;
 };
 export type ReviewsData = { ok: boolean; open: number; options: string[]; items: ReviewItem[] };
 export type Verdict = "keep" | "reject";
@@ -171,6 +174,7 @@ export function ReviewCard({ item, confirming, busy, error, onAsk, onConfirm, on
       ) : null}
       <ReviewPreview flag={item.flag} preview={item.state === "open" ? item.preview : null} {...(onPreviewed ? { onChanged: onPreviewed } : {})} />
       <InfoSlot flag={item.flag} />
+      <ReviewFeedback flag={item.flag} thread={item.feedback} {...(onPreviewed ? { onChanged: onPreviewed } : {})} />
       {item.link
         ? <p className="text-sm"><span className="text-xs text-muted-foreground">Fallback: </span><a className="underline" href={item.link} target="_blank" rel="noreferrer" data-testid="review-link">Open the review page</a></p>
         : <p className="text-xs text-muted-foreground" data-testid="no-link">No review link on this machine; fetch the artifact named above from its CI run.</p>}

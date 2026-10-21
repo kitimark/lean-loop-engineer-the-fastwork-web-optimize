@@ -242,13 +242,14 @@ structure Srv where
   steps : Tbl Step
   runs  : Tbl Run
   plan  : Fw.Plan.State
+  fb    : List Fw.Console.ReviewFeedback.Fb
 
 /-- The console state a server state stands for. -/
 def Srv.st (v : Srv) : State :=
-  ⟨v.seen, v.cards.rows.toList, v.steps.rows.toList, v.runs.rows.toList, Fw.Plan.unrev v.plan⟩
+  ⟨v.seen, v.cards.rows.toList, v.steps.rows.toList, v.runs.rows.toList, Fw.Plan.unrev v.plan, v.fb⟩
 
 /-- The initial server state. -/
-def init : Srv := ⟨[], {}, .empty, .empty, .empty, {}⟩
+def init : Srv := ⟨[], {}, .empty, .empty, .empty, {}, []⟩
 
 /-- The indexes agree with the rows: the key set is the seen list, every table is exact for its id, and the plan holds its
 invariant (unique task ids, acyclic graph), which the fast cycle test of `fcheck` relies on.
@@ -283,6 +284,8 @@ def fcheck (v : Srv) (e : Event) : Option String :=
     | none => some "no such run"
     | some run => if run.status = .running then none else some "run already finished"
   | .reviewPreviewed flag device => reviewPreviewedRefusal flag device
+  | .reviewFeedback flag id text => ReviewFeedback.postRefusal v.fb flag id text
+  | .reviewFeedbackReply flag to text => ReviewFeedback.replyRefusal v.fb flag to text
   | .plan c => Fw.Plan.checkFast v.plan c
   | b => match cardOf b with
     | none => none
@@ -300,32 +303,34 @@ def runFin (ok : Bool) (x : Run) : Run := { x with status := if ok then .passed 
 def faccept (v : Srv) (e : Event) : Srv :=
   let t := e.ts
   match v with
-  | ⟨seen, keys, cards, steps, runs, plan⟩ =>
+  | ⟨seen, keys, cards, steps, runs, plan, fb⟩ =>
   match e.body with
   | .cardOpen id owner dev =>
-    ⟨seen, keys, cards.push Card.id { id, owner, needsDevice := dev, lastAt := t }, steps, runs, plan⟩
+    ⟨seen, keys, cards.push Card.id { id, owner, needsDevice := dev, lastAt := t }, steps, runs, plan, fb⟩
   | .stepPost id card title kind opts audience body =>
-    ⟨seen, keys, cards, steps.push Step.id { id, card, title, kind, options := opts, postedAt := t, lastAt := t, audience, body }, runs, plan⟩
-  | .stepStart id => ⟨seen, keys, cards, steps.modify id (stepUpd t fun x => { x with status := .started }), runs, plan⟩
+    ⟨seen, keys, cards, steps.push Step.id { id, card, title, kind, options := opts, postedAt := t, lastAt := t, audience, body }, runs, plan, fb⟩
+  | .stepStart id => ⟨seen, keys, cards, steps.modify id (stepUpd t fun x => { x with status := .started }), runs, plan, fb⟩
   | .stepAnswer id a =>
-    ⟨seen, keys, cards, steps.modify id (stepUpd t fun x => { x with status := .answered, answer := some a }), runs, plan⟩
+    ⟨seen, keys, cards, steps.modify id (stepUpd t fun x => { x with status := .answered, answer := some a }), runs, plan, fb⟩
   | .stepDone id note =>
-    ⟨seen, keys, cards, steps.modify id (stepUpd t fun x => { x with status := .done, answer := note.orElse fun _ => x.answer }), runs, plan⟩
-  | .stepCancel id => ⟨seen, keys, cards, steps.modify id (stepUpd t fun x => { x with status := .cancelled }), runs, plan⟩
+    ⟨seen, keys, cards, steps.modify id (stepUpd t fun x => { x with status := .done, answer := note.orElse fun _ => x.answer }), runs, plan, fb⟩
+  | .stepCancel id => ⟨seen, keys, cards, steps.modify id (stepUpd t fun x => { x with status := .cancelled }), runs, plan, fb⟩
   | .runStart r card kind =>
-    ⟨seen, keys, cards.modify card (touch t), steps, runs.push Run.id { id := r, card, kind, startedAt := t }, plan⟩
+    ⟨seen, keys, cards.modify card (touch t), steps, runs.push Run.id { id := r, card, kind, startedAt := t }, plan, fb⟩
   | .runFinish r ok =>
     match runs.get? r with
-    | some run => ⟨seen, keys, cards.modify run.card (touch t), steps, runs.modify r (runFin ok), plan⟩
-    | none => ⟨seen, keys, cards, steps, runs, plan⟩
-  | .plan c => ⟨seen, keys, cards, steps, runs, Fw.Plan.execR plan c⟩
+    | some run => ⟨seen, keys, cards.modify run.card (touch t), steps, runs.modify r (runFin ok), plan, fb⟩
+    | none => ⟨seen, keys, cards, steps, runs, plan, fb⟩
+  | .reviewFeedback flag id text => ⟨seen, keys, cards, steps, runs, plan, ReviewFeedback.post fb flag id text t⟩
+  | .reviewFeedbackReply flag to text => ⟨seen, keys, cards, steps, runs, plan, ReviewFeedback.answer fb flag to text t⟩
+  | .plan c => ⟨seen, keys, cards, steps, runs, Fw.Plan.execR plan c, fb⟩
   | b => match cardOf b with
-    | some id => ⟨seen, keys, cards.modify id (cardStep t b), steps, runs, plan⟩
-    | none => ⟨seen, keys, cards, steps, runs, plan⟩
+    | some id => ⟨seen, keys, cards.modify id (cardStep t b), steps, runs, plan, fb⟩
+    | none => ⟨seen, keys, cards, steps, runs, plan, fb⟩
 
 /-- `faccept` leaves the seen list and the key set alone. -/
 theorem faccept_seen (v : Srv) (e : Event) : (faccept v e).seen = v.seen ∧ (faccept v e).keys = v.keys := by
-  obtain ⟨seen, keys, cards, steps, runs, plan⟩ := v
+  obtain ⟨seen, keys, cards, steps, runs, plan, fb⟩ := v
   cases e with
   | mk key ts actor body =>
     cases body <;> simp only [faccept] <;> (try split) <;> simp
@@ -339,8 +344,8 @@ def fstep (v : Srv) (e : Event) : Srv × Outcome :=
     | some w => (v, .refused w)
     | none =>
       match faccept v e with
-      | ⟨seen, keys, cards, steps, runs, plan⟩ =>
-        (⟨e.key :: seen, keys.insert e.key, cards, steps, runs, plan⟩, .accepted false)
+      | ⟨seen, keys, cards, steps, runs, plan, fb⟩ =>
+        (⟨e.key :: seen, keys.insert e.key, cards, steps, runs, plan, fb⟩, .accepted false)
 
 /-- The server state after one event. -/
 def fapply (v : Srv) (e : Event) : Srv := (fstep v e).1
@@ -429,6 +434,8 @@ theorem faccept_indexed {v : Srv} (h : Indexed v) (e : Event) (hn : fcheck v e =
       · cases hn
       · exact ⟨hk, hc, hs, hr, (Fw.Plan.inv_unrev (Fw.Plan.execR v.plan c)).mp (by rw [Fw.Plan.unrev_execR]; exact Fw.Plan.exec_inv ((Fw.Plan.inv_unrev _).mpr hp) (by rw [Fw.Plan.check_unrev, ← Fw.Plan.checkFast_eq hp.2 c]; exact hn))⟩
     | reviewPreviewed f d => exact ⟨hk, hc, hs, hr, hp⟩
+    | reviewFeedback f i t => exact ⟨hk, hc, hs, hr, hp⟩
+    | reviewFeedbackReply f to t => exact ⟨hk, hc, hs, hr, hp⟩
     | _ => exact ⟨hk, mc _ _ (cardStep_id _ _), hs, hr, hp⟩
 
 /-- On an indexed server, `fstep` gives exactly the console state and the outcome of `step`. -/
@@ -952,6 +959,8 @@ def eventJson (e : Event) : Json :=
     | .runStart r c k => [("run", .str r), ("card", .str c), ("kind", .str (runKindName k))]
     | .runFinish r ok => [("run", .str r), ("ok", .bool ok)]
     | .reviewPreviewed f d => [("flag", .str f), ("device", .str d)]
+    | .reviewFeedback f i t => [("flag", .str f), ("id", .str i), ("text", .str t)]
+    | .reviewFeedbackReply f to t => [("flag", .str f), ("to", .str to), ("text", .str t)]
     | .plan c => Fw.Wire.Plan.cmdFields c
   Json.mkObj ([("key", .str e.key), ("ts", toJson e.ts), ("type", .str e.body.type.name),
     ("actor", .str e.actor.name)] ++ b)

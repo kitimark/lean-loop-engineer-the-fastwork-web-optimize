@@ -4,11 +4,11 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
 import {
-  carryCritical, collectAgents, collectCritical, collectSystem, countBuilders, countHeavy, exe, findTranscripts, keepNames, ownProcs, parseStartRows, parseTaskIds, readKeep, parseCi, parseEtime, parsePs, sessionProcs, parseDocker, parseMemLevel, parseSpool, parseWorktreeCount, pathsFor,
+  carryCritical, collectAgents, collectCritical, collectFeedback, collectSystem, countBuilders, countHeavy, exe, findTranscripts, keepNames, ownProcs, parseStartRows, parseTaskIds, readKeep, parseCi, parseEtime, parsePs, sessionProcs, parseDocker, parseMemLevel, parseSpool, parseWorktreeCount, pathsFor,
   summarizeLead, summarizeSpool, summarizeTranscript, type Runner, type SystemSnap,
 } from "../src/watch-collect.ts";
 import {
-  alertKey, appendLog, coreCaller, declareKeep, diffAlerts, keepDecider, newAlerts, parseWatchArgs, readLastLog, renderTable, streamLines,
+  alertKey, appendLog, check, coreCaller, declareKeep, diffAlerts, keepDecider, newAlerts, parseWatchArgs, readLastLog, renderTable, streamLines,
   type AlertKey, type Health,
 } from "../src/watch.ts";
 
@@ -417,5 +417,41 @@ describe("render", () => {
     expect(out).toContain("parked 0");
     expect(out).toContain("(0 failed) stale");
     expect(out).toContain("gone 0 done 10");
+  });
+});
+
+describe("review.feedback alert (Lean Fw.Obs.FeedbackAlert, wired in Fw.Obs.Health)", () => {
+  const FLAG = "nav:earn-no-transition";
+  const post = (id: string, text: string, ts: number, flag = FLAG) => line({ seq: ts, ts, type: "review.feedback", key: `k-${id}`, actor: "user", flag, id, text });
+  const reply = (to: string, text: string, ts: number, flag = FLAG) => line({ seq: ts, ts, type: "review.feedback.reply", key: `r-${to}`, actor: "lead", flag, to, text });
+  const dirWith = (lines: string[]) => { const d = tmp(); writeFileSync(join(d, "events.jsonl"), lines.join("\n") + "\n"); return pathsFor("/x/r", { FW_CONSOLE_DIR: d } as never); };
+  const snap = (feedback: unknown[]) => ({
+    now: 1_000_000, params: {}, agents: [], lead: { lastToolAt: null, noteAt: null },
+    system: { load1: 0, memPressure: "normal", diskFreeGB: 100, simLock: { holder: null, since: null }, docker: [], worktrees: 1, consolePids: [], ci: [], stale: [], feedback },
+  }) as never;
+
+  it("collectFeedback reads only the two feedback event types, in log order, in the wire shape", () => {
+    const p = dirWith([line({ seq: 1, ts: 1, type: "step.start", step: "x" }), post("fb-1", "one", 100), "{torn", reply("fb-1", "done", 110),
+      line({ seq: 5, ts: 5, type: "review.feedback", flag: 3, id: "x", text: "bad flag" })]);
+    expect(collectFeedback(p)).toEqual([
+      { kind: "post", flag: FLAG, ref: "fb-1", text: "one", ts: 100 }, { kind: "reply", flag: FLAG, ref: "fb-1", text: "done", ts: 110 }]);
+    expect(collectFeedback(pathsFor("/x/r", { FW_CONSOLE_DIR: "/nonexistent-fw" } as never))).toEqual([]);
+  });
+  it("collectSystem carries the feedback events of the log", async () => {
+    const p = dirWith([post("fb-1", "one", 100)]);
+    const s = await collectSystem(p, null, 2000, async () => "");
+    expect(s.feedback).toEqual([{ kind: "post", flag: FLAG, ref: "fb-1", text: "one", ts: 100 }]);
+  });
+  it.skipIf(!have)("a posted comment opens the alert in fwcore's report and the lead's reply closes it", async () => {
+    const open = collectFeedback(dirWith([post("fb-1", "look at the font", 100)]));
+    const h1 = await check(snap(open), core);
+    expect(h1.alerts.filter((a) => a.code === "review.feedback")).toEqual([
+      { code: "review.feedback", subject: FLAG, detail: "1 open; newest: look at the font", critical: false }]);
+    const closed = collectFeedback(dirWith([post("fb-1", "look at the font", 100), reply("fb-1", "done", 110)]));
+    const h2 = await check(snap(closed), core);
+    expect(h2.alerts.filter((a) => a.code === "review.feedback")).toEqual([]);
+    // a second open comment on another flag is its own alert
+    const two = collectFeedback(dirWith([post("fb-1", "a", 100), post("fb-2", "b", 101, "hero:cta-pulse"), reply("fb-1", "ok", 102)]));
+    expect((await check(snap(two), core)).alerts.filter((a) => a.code === "review.feedback").map((a) => a.subject)).toEqual(["hero:cta-pulse"]);
   });
 });
