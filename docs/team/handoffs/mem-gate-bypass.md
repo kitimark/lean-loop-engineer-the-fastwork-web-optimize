@@ -1,20 +1,23 @@
 # mem-gate-bypass handoff
 
-State: research done, note committed on branch `worktree-wf_f48889d4-126-2` (base bea13736). No code changed.
+State: round 2 research done on branch `worktree-wf_f48889d4-126-2`; round 1 was b49892f6, round 2 merges main
+2edd65b1 (merge 1186e05e) and rewrites the note; the round-2 commit is the branch tip (`git log -1`). No code changed.
 
-Read first: `research/notes/2026/10-21-mem-gate-bypass.md` (entry-point table, burst mechanism, lease kind, interim fix).
+Read first: `research/notes/2026/10-21-mem-gate-bypass.md` (22-row entry-point table with the sweep commands, burst
+tables from samples, memory-gate section, lease kind, I1/I1-L/I2, round-1 findings answered with line numbers).
 
 Verified:
-- Gate coverage per Lean entry point, CONFIRMED file:line at bea13736 (only check.sh takes the heavy lock).
-- Bursts are single check.sh runs admitted at n=0 (Heavy.lean:80) at width 8, beside ungated Lean work (sampler i=27, 34, 38).
-- RSS overstates per-job footprint 2.4-6.9x; one `/usr/bin/time -l` run each for HeavyGolden, InitCostLint import, `lean -o`.
-- heavy-lock.mjs:80-84 memory gate reads memory_pressure available %, not vm_stat free; only the swap gate bites.
-- Run counts today from `.fw-console/timings.jsonl` and transcript Bash calls (lower bound).
+- Gate coverage per entry point, CONFIRMED file:line at 2edd65b1, incl. pre-commit:13 -> checkmap.mjs:70,132 ->
+  CheckMap.lean:225-226, `pnpm test` (package.json:9-10), site breakgen, gate-breakpoints generators, mutants, math-pending.
+- Three bursts (i=27, 34, 38; 4.4-5.4 GiB Lean RSS), each one check.sh; i=23 is a land-wt/0 fwcore-build (1701 MiB).
+- Per-burst VM counters; free 58-1809 MB, median 118; swap 71.8-73.5%; RSS/footprint 2.4-6.4x.
+- Memory gate at the bursts unknown (INFERRED): threshold 43% free, readings 48/40/43%.
 
 Open:
-- Implement I1 (holder registry for fwcore-build.sh, land axiom lint, lake-slot.sh) and I2 (`Fw.Sched.Heavy.width`, footprint cost replacing jobMB 5000), Lean first.
-- User edits: settings.json allowlist from bare `lake *` to `sh scripts/lake-slot.sh`; disable lean-lsp-mcp `lean_build`.
-- sup-baseline: log footprint (top or proc_pid_rusage) and heavy acquire/release; record memorystatus_level at bursts.
-- Footprint not measured for the axiom `--stdin` check and `lake test`.
+- Implement I1 + I1-L (`land` kind admitted at once, counts for others) and I2 width, Lean first.
+- User edits: settings.json allowlist to `sh scripts/lake-slot.sh`; disable lean-lsp-mcp `lean_build`.
+- sup-baseline: log footprint, memory_pressure free %, swap-outs, heavy acquire/wait/release spans.
+- Swap gate reads swap in use (high all day, swap-outs flat): a swap-out-rate gate is a follow-up.
 
-Conventions: peaks are MEASURED footprint, RSS only as a ceiling; the sampler and design scratch are uncommitted, cited by name.
+Conventions: sample source is scratch `node-resources/samples.jsonl` (uncommitted, 46 samples 17:01-17:16); analysis
+scripts `mem-gate-bypass/r2*.py` in the session scratchpad. Peaks: footprint is the real cost, RSS only a ceiling.
