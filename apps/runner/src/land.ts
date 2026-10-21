@@ -196,6 +196,8 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     "scripts/ci-push.mjs", "scripts/ci-push.test.mjs", "scripts/hooks/**",
     // circleci-pilot: the glue, its fixtures and the pilot config (test/ci-triggers.test.ts runs scripts/circleci.test.mjs; fw ci circleci spawns the glue)
     "scripts/circleci.mjs", "scripts/circleci.test.mjs", "scripts/circleci-fixtures/**", ".circleci/**",
+    // codemagic-pilot: the adapter, its tests and the one-workflow config (fw ci codemagic spawns the adapter; scripts/codemagic.test.mjs reads codemagic.yaml and the golden)
+    "scripts/codemagic.mjs", "scripts/codemagic.test.mjs", "codemagic.yaml",
     // lake-build-slots: test/ci-triggers.test.ts runs the build-slot wrapper's tests (they also read golden/** above)
     "scripts/lake-slot.sh", "scripts/lake-slot-lib.sh", "scripts/lake-slot.test.mjs",
     // sup-baseline: test/watch-collect-sup.test.ts runs scripts/sim-lock.sh in a scratch repo to check its lock events
