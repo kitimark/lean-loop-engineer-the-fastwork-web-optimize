@@ -20,8 +20,10 @@ export function checkGraph(text: string): string[] {
   const seen = new Set<string>();
   for (const [i, t] of g.tasks.entries()) {
     if (typeof t !== "object" || t === null || Array.isArray(t)) { out.push(`<graph>: tasks[${i}]: not an object`); continue; }
-    if (seen.has(String(t.id))) out.push(`${String(t.id)}: id: duplicate task id`);
-    seen.add(String(t.id));
+    if (typeof t.id === "string") {  // an id-less or non-string id is the schema's finding below, not a duplicate
+      if (seen.has(t.id)) out.push(`${t.id}: id: duplicate task id`);
+      seen.add(t.id);
+    }
     const deps = Array.isArray(t.deps) ? t.deps.filter((d) => d !== t.id) : [];
     try { syncCommands({ milestones: [], tasks: [...new Set(deps)].map(stub).concat({ ...t, deps }) }); } catch (e) { why(String(t.id), e); }
   }

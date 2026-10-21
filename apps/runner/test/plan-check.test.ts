@@ -44,6 +44,13 @@ describe("work-graph schema check (pre-commit checkmap)", () => {
     const text = JSON.stringify({ milestones: [], tasks: [task("a"), 7, null, ["x"]] });
     expect(checkGraph(text)).toEqual(["<graph>: tasks[1]: not an object", "<graph>: tasks[2]: not an object", "<graph>: tasks[3]: not an object"]);
   });
+  it("does not call id-less tasks duplicates", () => {
+    const { id: _a, ...noId1 } = task("x");
+    const { id: _b, ...noId2 } = task("y");
+    const r = checkGraph(JSON.stringify({ milestones: [], tasks: [noId1, noId2, { ...noId1, id: 5 }, { ...noId2, id: 5 }] }));
+    expect(r.length).toBeGreaterThan(0);
+    expect(r.some((l) => l.includes("duplicate task id"))).toBe(false);
+  });
   it("--staged judges the index blob, not the working tree", () => {
     const dir = mkdtempSync(join(tmpdir(), "graph-staged-"));
     dirs.push(dir);

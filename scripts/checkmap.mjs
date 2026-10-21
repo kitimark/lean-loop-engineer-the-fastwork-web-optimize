@@ -11,11 +11,15 @@
 //   node scripts/checkmap.mjs --tracked       every tracked file is mapped to a kind (no command runs)
 //   node scripts/checkmap.mjs --paths a b ..  these paths
 //   --strict: a missing tool (exit 127) or a missing fwcore fails instead of being skipped.
-//   node scripts/checkmap.mjs file <json|jsonl|ts|graph|tsc> <args..>   our own checks (argv emitted by Lean); with
-//                                             --staged the commands read each file's index blob (`:path`), not the tree
+//   node scripts/checkmap.mjs file <json|jsonl|ts|graph|preset|tsc> <args..>   our own checks (argv emitted by Lean).
+//                                             With --staged, modes json, jsonl, ts and graph read each file's index blob
+//                                             (`:path`), and mode preset exports the index inputs of Fw.Preset.Gen into a
+//                                             temp tree and runs its --check there. Mode tsc and the tools Lean names
+//                                             directly (node --check, sh -n, lake, ruby, python3, swiftc) read the working tree.
 // Exit 0 when the run passes (Lean runOk), 1 otherwise.
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -95,11 +99,42 @@ function source(top, f) {
   return git(top, ["show", `:${f}`]);
 }
 
+/** The preset generator's inputs among the tracked files (the same places as `presetInput` in lean/Fw/Ops/CheckMap.lean). */
+const PRESET_INPUTS = ["research/findings/ledger.json", "packages/contracts/golden/preset", "apps/site/src/registry/presets/v2-proved.json", "apps/site/src/parts"];
+
+/** `Fw.Preset.Gen.run --check` over the working tree, or with FW_CHECKMAP_STAGED over the index: the generator's inputs
+ * are exported from the index into a temp tree whose `lean/` links to this checkout's built `lean/` (the generator reads
+ * `../<input>` from `lean/`). The generator code itself is the built one. */
+function presetMode(top) {
+  const staged = process.env.FW_CHECKMAP_STAGED === "1";
+  const script = 'import Fw.Preset.Gen\n#eval Fw.Preset.Gen.run ["--check"]\n';
+  let root = top;
+  let tmp = null;
+  if (staged) {
+    tmp = mkdtempSync(join(tmpdir(), "checkmap-preset-"));
+    root = tmp;
+    const files = z(git(top, ["ls-files", "-z", "--", ...PRESET_INPUTS])).filter((f) => !f.startsWith("apps/site/src/parts/") || f.endsWith("/part.json"));
+    for (let i = 0; i < files.length; i += 200) git(top, ["checkout-index", `--prefix=${tmp}/`, "--", ...files.slice(i, i + 200)]);
+    mkdirSync(join(tmp, "lean"));
+    for (const e of readdirSync(join(top, "lean"))) symlinkSync(join(top, "lean", e), join(tmp, "lean", e));
+  }
+  try {
+    const r = spawnSync("lake", ["env", "lean", "--stdin"], { cwd: join(root, "lean"), input: script, encoding: "utf8", maxBuffer: 64 << 20 });
+    if (r.error?.code === "ENOENT") { console.error("lake missing"); return 127; }
+    const out = `${r.stdout ?? ""}${r.stderr ?? ""}`.trimEnd();
+    if (r.status !== 0) console.error(out.replaceAll(tmp ?? "\0", "<index>"));
+    return r.status === 0 ? 0 : 1;
+  } finally {
+    if (tmp) rmSync(tmp, { recursive: true, force: true });
+  }
+}
+
 /** `file <mode>`: our own parse checks. Exit 0 parsed, 1 a file does not parse, 127 the tool is missing. */
 async function fileMode([mode, ...files]) {
   const top = git(process.cwd(), ["rev-parse", "--show-toplevel"]).trim();
   let bad = 0;
   const fail = (f, e) => { bad++; console.error(`${f}: ${String(e?.message ?? e).split("\n")[0]}`); };
+  if (mode === "preset") return presetMode(top);
   if (mode === "tsc") {
     const tsc = join(top, files[0], "node_modules/.bin/tsc");
     if (!existsSync(tsc)) { console.error(`${tsc} missing (pnpm install)`); return 127; }
