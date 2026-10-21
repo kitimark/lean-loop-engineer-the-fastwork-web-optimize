@@ -12795,6 +12795,32 @@
     "docs/team/tools/review-feedback.md",
     "docs/team/handoffs/review-feedback.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "smoothness-probe",
+   "owner": "measure-engineer",
+   "stream": "gate",
+   "deps": [],
+   "title": "User 2026-10-21: 'lag ... might not just the animation computation. it may include the transition smooth. did you measure how transition are smooth from original and optimization before?' Answer was no: CI counts use deterministic frames (BeginFrameControl), the trajectory probe checks values, and PLAN class SM had no licensed model; only phone session 1b measured the ORIGINAL's rAF jank (first 2500 px). Build two smoothness measures for the two user windows (hero -> people transition; end of page), original vs faithful rewrite vs each flag in v2-proved and the look-change class: (A) MOTION CONTINUITY from existing trajectory-probe artifacts (no new CI needed): per animated property, frame-to-frame step sizes along the push; metrics defined in Lean (new module Fw.Gate.Smooth: e.g. largest step relative to the curve's ideal step, stall count where the computed value moves but the shown value does not, jump count, a monotonicity check), with theorems on what each metric detects (a restarting transition, a held value, a skipped frame) and goldens; TS reducer twin. (B) FRAME CADENCE: a real-time lane (Chromium without BeginFrameControl, presentation timestamps / dropped-frame events from the trace; WebKit via Web Inspector rendering-frame durations on the macOS Playwright WebKit lane), scrolled through each window with a fixed scripted profile, >= 5 reps per arm plus A/A to bound runner noise; verdict rule in Lean (an arm is smoother only if its bad-frame rate beats the other's by more than the A/A spread). Free runners only. Report tables per window, engine, arm; MEASURED with run ids. Does not change any gate; the lead and the user decide afterwards whether smoothness becomes evidence or a gate (PLAN class SM).",
+   "writes": [
+    "lean/Fw/Gate/Smooth.lean",
+    "lean/scripts/SmoothGolden.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/gate/smooth.jsonl",
+    "packages/gate-breakpoints/src/smooth/**",
+    "packages/gate-breakpoints/test/smooth.test.mjs",
+    ".github/workflows/smoothness.yml",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/ci/intent.jsonl",
+    "research/notes/2026/10-2*-smoothness-probe.md",
+    "results/smoothness-probe/**",
+    "docs/team/tools/smoothness-probe.md",
+    "docs/team/handoffs/smoothness-probe.md"
+   ]
   }
  ],
  "deadline": {
