@@ -1,6 +1,6 @@
 # review-info handoff
 
-State (round 2): panel for `nav:earn-no-transition`, committed on branch `worktree-wf_dab73f82-af9-2`. Lean check.sh green, console-api (711) and console-web (74) tests green, web build ok.
+State (round 2): panel for `nav:earn-no-transition`, committed on branch `worktree-wf_dab73f82-af9-2`. Lean check.sh green, console-api (713) and console-web (75) tests green, web build ok.
 
 ## Parts
 - Lean `lean/Fw/Console/ReviewInfo.lean`: gain table (model rows computed from `NavEarnOpt.countFor`; measured rows from the research note table), `shownOf noise before after` rule: gain on the cautious bound `gainLow` (lowest before - highest after), loss on `lossHigh` (highest before - lowest after), overlapping ranges show `overlap` (theorems `gain_beats_noise`, `worse_beats_noise`, `overlap_no_difference`, `in_noise_hidden`, `unknown_no_delta`), excerpt ranges with anchors, mechanism, engine sources, formulas. `lean/Fw/Wire/ReviewInfo.lean` is op `console.reviewInfo` {flag}.

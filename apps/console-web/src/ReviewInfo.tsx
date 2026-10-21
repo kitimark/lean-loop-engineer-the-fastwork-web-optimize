@@ -110,7 +110,7 @@ export function ReviewInfo({ flag, data }: { flag: string; data: InfoData | null
         <h3 className="text-sm font-medium">What you get if you keep it</h3>
         <p className="text-sm" data-testid="info-summary">{data.summary}</p>
         <GainTable gains={data.gains} />
-        <p className="text-xs">A gain is the lowest faithful count minus the highest flag count; a loss (N more) is the highest faithful count minus the lowest flag count; ranges that share a count show no difference. A delta inside the A/A noise of the same metric (MEASURED from the two A/A runs of each row) is not shown. The 640 and 641 close pushes are left out (the research note lists only their open rows). MEASURED rows are CI runs; MODELLED rows are Lean counts, checked against their golden; UNKNOWN rows say why.</p>
+        <p className="text-xs">A gain is the lowest faithful count minus the highest flag count; a loss (N more) is the highest faithful count minus the lowest flag count; ranges that share a count show no difference. A delta inside the A/A noise of the same metric (MEASURED from the two A/A runs of each row) is not shown. The 640 and 641 close pushes are left out (their close-push opacity loss is in the summary line) (the research note lists only their open rows). MEASURED rows are CI runs; MODELLED rows are Lean counts, checked against their golden; UNKNOWN rows say why.</p>
       </section>
       <section className="space-y-2" data-testid="info-code">
         <h3 className="text-sm font-medium">What changed in the code</h3>
