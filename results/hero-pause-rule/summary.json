@@ -1,0 +1,183 @@
+{
+ "task": "hero-pause-rule",
+ "flag": "hero:scene-pause",
+ "sha": "26b881fafb2b77fd50a34dd9218d889078f06af9",
+ "status": "MEASURED",
+ "census": {
+  "lane": "webkit-sim, iOS Simulator 430x775 DPR 3, arm rewrite, 2 fresh-load passes, pinned clock",
+  "run": 39548856639,
+  "search": "?fw=hero:scene-pause",
+  "configHash": "3cab45fdb721e6b0",
+  "baselineRun": 39309416016,
+  "originalRun": 39318078000,
+  "layerCount": {
+   "y0": {
+    "flag": [
+     122,
+     112
+    ]
+   },
+   "y1500": {
+    "flag": [
+     128,
+     112
+    ]
+   },
+   "y3000": {
+    "flag": [
+     58,
+     51
+    ],
+    "baseline": "136-145",
+    "original": "42-47"
+   },
+   "y4500": {
+    "flag": [
+     65,
+     56
+    ],
+    "baseline": "136-145",
+    "original": "42-47"
+   },
+   "yMax": {
+    "flag": [
+     45,
+     39
+    ],
+    "flagY": [
+     5231,
+     5267
+    ],
+    "baseline": "124-128",
+    "original": "30"
+   }
+  },
+  "willChangeReason": {
+   "y0": [
+    92,
+    92
+   ],
+   "y1500": [
+    93,
+    93
+   ],
+   "y3000": [
+    6,
+    6
+   ],
+   "y4500": [
+    6,
+    6
+   ],
+   "yMax": [
+    5,
+    5
+   ],
+   "baseline": {
+    "y3000": 91,
+    "y4500": 91
+   }
+  },
+  "lean": "hero_paused_drop: the 85 hero boxes whose only reason is will-change leave the layer tree while paused (WebKit Normal)",
+  "baselineLabel": "morph.mount:shift arm (task baseline, search ?fw=morph.mount:shift, configHash 3bf7fec1fdffb72d), not the plain faithful rewrite",
+  "attribution": "by reason: will-change reason count 91 at y3000 and y4500 in the baseline, 6 with the flag, both passes (MEASURED); Lean predicts 85 (hero_paused_drop)",
+  "yMaxNote": "y 5267 has n = 1 (run 39548856639): pass 1 read docH 6006 (max y 5231) at its first read and 6042 in its scroll phase; pass 2 read 6042 from the start, same configHash (MEASURED); late font or image size INFERRED; not re-run"
+ },
+ "gate": {
+  "workflow": "breakpoint-gate",
+  "run": 39549161028,
+  "engines": {
+   "chromium": "pass (every cell pass or NC)",
+   "playwright-webkit": "pass (every cell pass, NC or UNREACHABLE by the Lean reach rule)"
+  }
+ },
+ "trajectory": {
+  "engine": "chromium",
+  "width": 390,
+  "path": "morph",
+  "step": "open@1 (bucket 1 of the open push)",
+  "runs": [
+   {
+    "run": 39548822269,
+    "sha": "26b881fa",
+    "search": "?fw=hero:scene-pause",
+    "lane": "RED",
+    "open1Coverage": "42 new",
+    "repsWithOpen1Sample": {
+     "original": "0/5",
+     "faithful": "2/5",
+     "candidate": "0/5"
+    },
+    "navLogoColorClose0": "fail:apart (new), the 1 content unit"
+   },
+   {
+    "run": 39553952680,
+    "sha": "1f437e75",
+    "search": "?fw=hero:scene-pause",
+    "lane": "RED",
+    "open1Coverage": "42 new",
+    "repsWithOpen1Sample": {
+     "original": "0/5",
+     "faithful": "1/5",
+     "candidate": "0/5"
+    },
+    "navLogoColorClose0": "pass"
+   },
+   {
+    "run": 39556935431,
+    "sha": "4e378931",
+    "search": "?fw=hero:scene-pause",
+    "lane": "CLEAN",
+    "open1Coverage": "42 both",
+    "repsWithOpen1Sample": {
+     "original": "0/5",
+     "faithful": "0/5",
+     "candidate": "0/5"
+    },
+    "navLogoColorClose0": "pass"
+   },
+   {
+    "run": 39557718020,
+    "sha": "2e463b39",
+    "search": "default (control, no flag)",
+    "lane": "CLEAN",
+    "open1Coverage": "0",
+    "repsWithOpen1Sample": {
+     "original": "0/5",
+     "faithful": "3/5",
+     "candidate": "3/5"
+    },
+    "navLogoColorClose0": "pass"
+   }
+  ],
+  "status": "MEASURED (counts, from each run's units-chromium.json and raw-chromium.json; inputs read back from artifact trajectory-inputs)",
+  "otherCells": "39548822269: playwright-webkit CLEAN 2000/2000 (path hero); Chromium 1280 candidate open@1 sample in 5/5 reps; no hero unit fails in any run",
+  "verdict": "not row-E sampling: the control is clean; the first nonzero m of a rep is about 0.066 or about 0.2; the default rewrite lands at 0.066 in 9 of 25 reps, the flag arm in 0 of 15, the original in 0 of 20. The first-frame timing difference is MEASURED (0/15 vs 9/25 reps); attributing it to the flag is INFERRED (Fisher p about 0.0075 with reps treated as independent; mechanism not determined). The flag arm's timing equals the original's; No content unit differs in 3 of 4 runs; in 39548822269 the nav logo color close@0 unit failed (fail:apart, new) in one rep and passed in 39553952680, 39556935431 and 39557718020. Per the lead's rule the flag does not enter v2-proved on this evidence; not fixed here",
+  "mechanism": "not determined. CONFIRMED: the rule and the IO touch only the hero track subtree (hero.module.css:42-45, index.tsx:38-39). INFERRED: frame-pacing effect of removing about 85 layers",
+  "followUp": "probe: judge open@1 coverage against the original's own first frame (the original has no bucket-1 sample at 390 in 20 of 20 reps)"
+ },
+ "lean": {
+  "module": "lean/Fw/Parts/HeroScenePause.lean",
+  "theorems": [
+   "heroScene_eq_original",
+   "paused_frame_same",
+   "visSame_original",
+   "hero_paused_drop",
+   "hero_wc_paint_same",
+   "stage_fits",
+   "kMax_pos",
+   "kCopy_ge",
+   "hero_paused_hidden",
+   "hero_paused_hidden_fresh"
+  ],
+  "limits": "same look as the original (visSame_original, class E); differs from the faithful arm, which lacks the original's pause rule. No-claim zones: a paused box is hidden within kMax during the splash (proved, hero_paused_hidden) and after the splash within kCopy (170 px at 932x430, INFERRED: no theorem applies stale_hidden up to kCopy), not beyond; copy column assumed inside the stage; svh assumed = vh; hero.countdown:strip not covered"
+ },
+ "lookChange": "none against the original (visSame_original, class E; registered optimized, T0, visClass E). Against the faithful arm, which lacks the original's pause rule: every hero CSS animation (cue scrollFloat, accent idle0-2, strokeIn/strokeOut, cue copyIn at <= 600 px, copyFromRing, ringAppear, cardFromRing until the splash ends) holds while paused and resumes at the original's phase",
+ "safariFrameTime": "INFERRED, no device run",
+ "registration": {
+  "part": "apps/site/src/parts/hero/part.json",
+  "kind": "optimized",
+  "tier": "T0",
+  "visClass": "E"
+ }
+}
