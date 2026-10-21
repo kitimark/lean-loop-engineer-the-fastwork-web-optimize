@@ -1,11 +1,12 @@
 import Fw.Ops.Wire
 import Fw.Console.Review
+import Fw.Console.ReviewStrips
 /-!
 # JSON for the review queue (`console.review`)
 
 | op | request | reply |
 |---|---|---|
-| `console.review` | `looks`? [{flag, date, decision (kept, rejected, accepted), review (pending, done), material?}] (default `Fw.Preset.Gen.lookDecisions`), `steps` [{id, answer?, open}] (the board steps; `open` is waiting or started), `answer`? {flag, word} | `items` [{flag, step, date, words, material, state (open, keep, reject), post, title, body, audience}], `open`, `options`, `answer` (null, or {ok, reason?, step?, word?}) (`Fw.Console.Review`) |
+| `console.review` | `looks`? [{flag, date, decision (kept, rejected, accepted), review (pending, done), material?}] (default `Fw.Preset.Gen.lookDecisions`), `steps` [{id, answer?, open}] (the board steps; `open` is waiting or started), `answer`? {flag, word}, `today`? (`YYYY-MM-DD`), `serve`? {flag, file} | `items` [{flag, step, date, words, material, state (open, keep, reject), post, title, body, audience}], `open`, `options`, `answer` (null, or {ok, reason?, step?, word?}) (`Fw.Console.Review`). With `today`, each item also has `strips` [{engine, state (ready, expired, missing), width?, push?, file?, run?, artifact?, expires?, note?, diff?, redo?}] and the reply has `serve` (null, or {ok, reason?, run?, artifact?, path?}: the allowlist, `Fw.Console.ReviewStrips.serve`) |
 -/
 namespace Fw.Wire.Review
 open Lean Fw.Wire.Ops Fw.Console.Review
@@ -72,6 +73,18 @@ def itemJson (rs : List Rec) (i : Item) : Json :=
     ("post", .bool (needsPost rs i.flag)), ("title", .str (title i.flag)),
     ("body", .str (body i)), ("audience", .str audience.name)]
 
+/-- A strip as JSON. The run and expiry are those of the material (`Fw.Console.ReviewStrips.Strip`); a missing strip has none. -/
+def stripJson (f : Fw.Preset.Flag) (o : Fw.Console.ReviewStrips.Out) : Json :=
+  let base := [("engine", Json.str o.engine), ("state", .str o.state.word)]
+  let redo := [("redo", Json.str (Fw.Console.ReviewStrips.redo f))]
+  match o.row, o.strip with
+  | none, _ => Json.mkObj (base ++ redo)
+  | some r, none => Json.mkObj (base ++ [("width", toJson r.width), ("push", .str r.push.word), ("file", .str r.file)] ++ redo)
+  | some r, some s => Json.mkObj (base ++ [("width", toJson r.width),
+      ("push", .str r.push.word), ("file", .str r.file), ("run", .str s.run), ("artifact", .str r.artifact),
+      ("expires", .str s.expires), ("note", .str r.note), ("diff", .str r.diff)] ++
+      (if o.state == .expired then redo else []))
+
 /-- `console.review` (`Fw.Console.Review.items`, `accept`). -/
 def opReview (req : Json) : Except String Reply := do
   let ds ← rows req
@@ -85,9 +98,27 @@ def opReview (req : Json) : Except String Reply := do
         | .ok v => Json.mkObj [("ok", .bool true), ("step", .str (((openStep rs f).map (·.id)).getD (stepId f))),
             ("word", .str v.word)]
         | .error e => Json.mkObj [("ok", .bool false), ("reason", .str e)]))
-  pure [("items", .arr ((items ds rs).map (itemJson rs)).toArray),
+  let today? := (match opt req "today" with | some (.str t) => some t | _ => none)
+  let its := items ds rs
+  let withStrips (i : Item) : Json :=
+    match itemJson rs i, today? with
+    | .obj kvs, some t => .obj (kvs.insert "strips" (.arr ((Fw.Console.ReviewStrips.stripsOf t i.flag i.material).map (stripJson i.flag)).toArray))
+    | j, _ => j
+  let srv ← (match opt req "serve", today? with
+    | some s, some t => do
+      let fk ← str s "flag"
+      let file ← str s "file"
+      pure (match flagOf fk with
+      | .error _ => Json.mkObj [("ok", .bool false), ("reason", .str "not a flag")]
+      | .ok f => match its.find? (·.flag == f) with
+        | none => Json.mkObj [("ok", .bool false), ("reason", .str "no pending review for this flag")]
+        | some i => match Fw.Console.ReviewStrips.serve t f i.material file with
+          | none => Json.mkObj [("ok", .bool false), ("reason", .str "not a servable strip of this review")]
+          | some st => Json.mkObj [("ok", .bool true), ("run", .str st.run), ("artifact", .str st.row.artifact), ("path", .str st.row.path)])
+    | _, _ => pure Json.null)
+  pure ([("items", .arr (its.map withStrips).toArray),
     ("open", toJson (openItems ds rs).length),
     ("options", .arr #[.str Verdict.keep.word, .str Verdict.reject.word]),
-    ("answer", ans)]
+    ("answer", ans)] ++ (if today?.isSome then [("serve", srv)] else []))
 
 end Fw.Wire.Review

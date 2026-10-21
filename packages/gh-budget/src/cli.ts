@@ -1,5 +1,5 @@
 // `fw ci wait` and `fw ci budget` (also runnable as `node packages/gh-budget/src/cli.ts wait ...`).
-import { validNonce } from "./want.ts";
+import { DISPATCH_WORKFLOWS, validNonce } from "./want.ts";
 import { spawnSync } from "node:child_process";
 import { appendFileSync, mkdirSync } from "node:fs";
 import { cleanups, waitFor, type Target, type WaitPhases } from "./wait.ts";
@@ -20,6 +20,8 @@ export const WAIT_USAGE = [
   "  is read from git only: a commit not in the local object store is an unknown request (exit 4; fetch it first).",
   "  --branch with --workflow: the run of that workflow that is the push of --sha (event push, head sha), or with --nonce the",
   "  dispatch whose run-name carries the nonce (Lean Fw.Ci.Dispatch.select); never merely the newest.",
+  "  --nonce only for a workflow whose run-name echoes it (trajectory-probe, breakpoint-gate, chromium-counts, webkit-sim), on any head sha.",
+  "  Several runs with one nonce are an error (exit 2). Runs created before --since (default: the commit time) are never read.",
   "usage: fw ci budget [--json] [--resume] [--probe]   (0 requests; --probe makes 1 charged `gh run list --limit 1`)",
 ].join("\n");
 
@@ -62,7 +64,8 @@ export function parseWait(argv: string[], cwd: string): { target: Target; timeou
   if (!Number.isFinite(at) || at <= 0) throw new Usage(`cannot read the commit time of ${s} (pass --since <epoch>)\n${WAIT_USAGE}`);
   if (nonce !== undefined && !workflow) throw new Usage(`--nonce needs --workflow\n${WAIT_USAGE}`);
   if (nonce !== undefined && !validNonce(nonce)) throw new Usage(`--nonce must be 8 to 32 characters of a-z0-9\n${WAIT_USAGE}`);
-  if (workflow) return { target: { kind: "branch", branch: b, workflow, sha: s, since: at, want: nonce !== undefined ? { kind: "dispatch", nonce } : { kind: "push", sha: s } }, timeoutS };
+  if (nonce !== undefined && !DISPATCH_WORKFLOWS.includes(workflow!)) throw new Usage(`--nonce: no run-name of workflow ${workflow} carries a nonce (only ${DISPATCH_WORKFLOWS.join(", ")}); drop --nonce to wait for the push run\n${WAIT_USAGE}`);
+  if (workflow) return { target: { kind: "branch", branch: b, workflow, sha: s, since: at, want: nonce !== undefined ? { kind: "dispatch", workflow, nonce } : { kind: "push", sha: s } }, timeoutS };
   return { target: { kind: "branch", branch: b, sha: s, since: at, msg: messageOf(cwd, s) }, timeoutS };
 }
 

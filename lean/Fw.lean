@@ -89,6 +89,7 @@ import Fw.Sched.Admit
 import Fw.Sched.ParMetrics
 import Fw.Sched.LakeSlot  -- lake-build-slots: slot pools and the thread bound of scripts/lake-slot.sh
 import Fw.Wire.Sched
+import Fw.Wire.SchedJson
 import Fw.Store.Layout
 import Fw.Store.Reduce
 import Fw.Wire.Store
@@ -165,6 +166,7 @@ import Fw.Land.RenderGuard  -- land-render-guard: refuse a land whose history wr
 import Fw.Ops.LedgerMerge  -- ledger-merge-driver: three-way id merge of the JSON ledgers (scripts/merge-ledger.mjs)
 import Fw.Ops.Cache  -- gate-speed-ci: cache soundness (cache_sound, key_complete)
 import Fw.Ops.LakeCache  -- site-build-cache: one Lake cache writer (cache_complete, rebuild_mono, table_complete)
+import Fw.Ops.Rebuild  -- fwcore-rebuild-fanout: the rebuild set of a stale Lake entry and its critical path
 import Fw.Site.GenRoute  -- site-build-cache: breakgen / sweepsgen split (split_agrees)
 import Fw.Site.Head
 import Fw.Gate.Schedule  -- gate-speed-ci: Graham bound and the gate job split
@@ -174,6 +176,7 @@ import Fw.Gate.Search  -- gate-preset-input: the search string of the gate rewri
 import Fw.Gate.Trajectory  -- trajectory-probe: per-unit verdict of the rewrite against the original along a scroll path
 import Fw.Gate.Colour  -- kit-colour-space: every trajectory colour reading in sRGB x1000, the error budget the judge allows
 import Fw.Gate.RunPerm  -- scoped-gap-did: run-level permutation test of the close gap g, statistic and exact p
+import Fw.Gate.Frames  -- earn-look-review-webkit: when a frame strip is usable (>= 10 shots per arm)
 import Fw.Wire.ShardGolden  -- gate-shard-balance: golden/gate/shards.jsonl
 import Fw.Measure.WktrLayout  -- wktr-fixture-speed: lane layout, premise gate, fixture assertions
 import Fw.Measure.WktrVariance  -- wktr-serial-baseline: run-to-run variance of class kinds, findings, verdict

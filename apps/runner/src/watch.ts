@@ -7,6 +7,7 @@ import { dirname, join, resolve } from "node:path";
 import { UsageError } from "./lib.ts";
 import { collectFacts, formatNext, nextAlerts, slowAlerts, slowNextLines, type NextReply } from "./next.ts";
 import { ghFlagged } from "./watch-gh.ts";
+import { reapTick } from "./reap.ts";
 import {
   collectSnapshot, exe, parseStartRows, pathsFor, PS_START, readKeep, readSamples, writeKeep, type AgentSnap, type KeepDecide, type KeepEntry, type Paths,
   type Prev, type Snapshot, type StartRow,
@@ -318,6 +319,7 @@ export async function watchMain(args: string[], cwd: string, print?: (s: string)
     }
     prev = h.alerts.map((a) => ({ code: a.code, subject: a.subject }));
     prevSnap = { at: snap.now, system: snap.system, critical: snap.critical, ghDegraded: ghFlagged(h) };
+    if (o.intervalS !== null) for (const l of reapTick(main)) if (!o.json) say(l); // reap-auto-stop: each tick stops the processes Lean selects
     if (o.intervalS === null) return 0;
     await new Promise((r) => setTimeout(r, o.intervalS! * 1000));
   }
@@ -354,6 +356,7 @@ async function streamMain(o: WatchOpts, paths: Paths, main: string, call: CoreCa
       const d = await diffAlerts(call, open, h.alerts);
       for (const line of streamLines(d)) say(line);
       open = d.next;
+      for (const l of reapTick(main)) say(l); // reap-auto-stop: `REAP stopped ...` lines are the only non-OPEN/CLOSE lines
       prevSnap = { at: snap.now, system: snap.system, critical: snap.critical, ghDegraded: ghFlagged(h) };
       await new Promise((r) => setTimeout(r, o.intervalS! * 1000));
     }
