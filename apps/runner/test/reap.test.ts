@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { classify, COULD_NOT_LIST, insideLive, isMcp, parseLsof, parsePs, reapCli, reapLines, ReapUsage, recordedConsoles, type Facts } from "../src/reap.ts";
+import { classify, COULD_NOT_LIST, insideLive, isMcp, parseLsof, parsePs, wtIdOf, reapCli, reapLines, ReapUsage, recordedConsoles, type Facts } from "../src/reap.ts";
 import { fwcoreCall } from "../src/run.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
@@ -20,13 +20,23 @@ describe("gathering glue", () => {
   it("classifies argv", () => {
     expect(classify("/opt/lake serve --")).toBe("lspServe");
     expect(classify("/x/bin/node /r/apps/console-api/src/main.ts")).toBe("console");
-    expect(classify("/x/bin/node /r/apps/site/main.ts")).toBe("other");
-    expect(classify("/x/lake build")).toBe("other");
+    expect(classify("/x/bin/node /r/apps/site/main.ts")).toBe("tool"); // a tool: selected only through a removed worktree or a dead ancestor
+    expect(classify("/x/bin/lean --server")).toBe("tool");
+    expect(classify("/x/pnpm test")).toBe("other");
+    expect(classify("/h/ms-playwright/chromium-1/Chromium --headless")).toBe("tool");
+    expect(classify("/x/lake build")).toBe("tool");
   });
   it("finds the mcp processes", () => {
     expect(isMcp("/x/uv tool uvx --from lean-lsp-mcp==0.31.0 lean-lsp-mcp --lean-project-path lean")).toBe(true);
     expect(isMcp("/x/python /c/bin/lean-lsp-mcp --lean-project-path lean")).toBe(true);
     expect(isMcp("grep lean-lsp-mcpx")).toBe(false);
+  });
+  it("parses a stat column, drops zombies and finds worktree ids", () => {
+    const ps = parsePs("  12   1  12 Ss   Tue Oct 20 02:59:44 2026 /bin/node a\n  13   1  13 Z    Tue Oct 20 02:59:44 2026 (node)\n  14   1  14 S+   Tue Oct 20 02:59:44 2026 x\n");
+    expect(ps.map((p) => p.pid)).toEqual([12, 14]);
+    expect(wtIdOf("/m/.claude/worktrees/a1/lean/x", "/m")).toBe("a1");
+    expect(wtIdOf("/m/.claude/worktrees/", "/m")).toBeNull();
+    expect(wtIdOf("/m/lean", "/m")).toBeNull();
   });
   it("parses ps and lsof", () => {
     const ps = parsePs("  12   1  12 Tue Oct 20 02:59:44 2026 /bin/node a b\nnot a row\n");
@@ -43,7 +53,7 @@ describe("fw reap --list and the land report", () => {
     const out: string[] = [];
     expect(reapCli(["--list"], root, call, (s) => out.push(s), () => facts)).toBe(0);
     expect(out).toEqual(["500 group lspServe: lake serve of lean-lsp-mcp, cwd in no live checkout"]);
-    expect(() => reapCli(["--stop"], root, call)).toThrow(ReapUsage);
+    expect(() => reapCli(["--bogus"], root, call)).toThrow(ReapUsage);
   });
   it("the land report names the same rows, and nothing when none", () => {
     expect(reapLines(root, call, () => facts)[1]).toContain("500 group lspServe");
