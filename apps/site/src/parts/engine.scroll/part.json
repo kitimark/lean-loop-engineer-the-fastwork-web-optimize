@@ -7,7 +7,8 @@
   "muiStates": [],
   "variants": {
     "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:2667-2782" } },
-    "batched": { "kind": "optimized", "tier": "T0" }
+    "batched": { "kind": "optimized", "tier": "T0" },
+    "throttle-lift": { "kind": "ablation", "diagnostic": true, "provenance": { "webkit": "UIProcess/ios/WKWebViewIOS.mm:3256-3268@862f17d" } }
   },
   "requires": {},
   "conflicts": {}

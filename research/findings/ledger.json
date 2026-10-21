@@ -2622,6 +2622,37 @@
    "next": "Probe follow-up: judge open@1 coverage against the original first frame; then retry v2-proved membership. Follow-ups: hero_paused_hidden_copy (kCopy), deferRendering port, a lag-probe Safari run.",
    "evidence": "WebKit census 39548856639, breakpoint gate 39549161028, trajectory 39548822269, 39553952680, 39556935431, control 39557718020 (A/A); research/notes/2026/10-20-hero-pause-rule.md; branch worktree-wf_27d7c8bb-7e0-2",
    "userDecision": null
+  },
+  {
+   "id": "engine.scroll.throttleLift",
+   "n": 41,
+   "part": "engine.scroll",
+   "candidate": "engine.scroll:throttle-lift (diagnostic, never in a preset): remove the cause of Safari's 100 ms scroll-event throttle at the hero exit to test whether the throttle produces the still runs felt as lag",
+   "status": "partly-proved",
+   "flag": "engine.scroll:throttle-lift",
+   "flags": [
+    "engine.scroll:throttle-lift"
+   ],
+   "chromium": "n/a",
+   "webkit": "win",
+   "visual": "n/a (diagnostic ablation; not a shipped variant)",
+   "mechanism": "MEASURED (toolbar-throttle-probe, iOS 27 Simulator on CI, real touches through XCUITest, run 39667548341): still runs of 5-6 frames at the hero exit fall from 163 in 10,104 exit frames (16.1 per 1000) in the default rewrite to 0 in 9,740 with the flag; the original site has 53 in 5,290 (10 per 1000). Lifted in 3 of 3 jobs. Source: WKWebViewIOS.mm:3256-3268@862f17d.",
+   "leanFor": [
+    "Fw.Device.StillRuns.throttleK_60hz",
+    "Fw.Device.StillRuns.throttleK_mem_band"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "Phone pass not done: the Simulator toolbar may differ from the phone (INFERRED)",
+    "Runs 39659502492 and 39652336316 failed and are not pooled"
+   ],
+   "premises": [
+    "A 100 ms scroll throttle produces 5 or 6 still frames at 60 Hz (theorem throttleK_mem_band)"
+   ],
+   "v1Evidence": "",
+   "lesson": "A felt lag can be a platform throttle, not page work; count still runs before optimizing page cost.",
+   "next": "Phone pass in the user session with and without ?fw=engine.scroll:throttle-lift; then decide whether a shippable variant can avoid the throttle.",
+   "evidence": "CI run 39667548341; research/notes/2026/10-2x-toolbar-throttle.md"
   }
  ],
  "notes": [
