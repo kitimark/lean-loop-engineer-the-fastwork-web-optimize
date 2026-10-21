@@ -1,6 +1,7 @@
 import Lean.Data.Json
 import Fw.Parts.Bezier
 import Fw.Parts.Nav
+import Fw.Parts.HeroExitCloseStart
 /-!
 # Trajectory probe: does the rewrite move like the original along a scroll path?
 
@@ -3880,6 +3881,444 @@ def ooMaxWidth : List Int × List Int := ([0, 475, 1414, 2285, 5490, 6686, 27033
 
 end CloseStart
 
+section CloseIdentity
+open Fw.Parts HeroExitCloseStart
+
+/-- The unit the close-start identity decides: the nav's background colour. -/
+def idOn (node prop : String) : Bool := node == "nav" && prop == "background-color"
+
+/-- `Nav.morphingCut` in the probe's units of the morph value (times 10000). -/
+def cutM : Int := 10
+
+/-- A morph value as the probe stores it: times 10000, rounded half up. -/
+def roundM (v : Rat) : Int := (v * 10000 + 1 / 2).floor
+
+/-- Red and alpha (0 to 255) of the colour the nav background mixes from at morph value 0 (`#ffffff1a`; snapshot site-pretty
+`2.gBuqKVzi.css` 11336-11340, ported `nav.module.css` 22-26). -/
+def mixFrom : Int × Int := (255, 26)
+
+/-- Red and alpha (0 to 255) of the colour the nav background mixes to at morph value 1 (`#131922`; snapshot site-pretty
+`2.gBuqKVzi.css` 11336-11340, ported `nav.module.css` 22-26). -/
+def mixTo : Int × Int := (19, 255)
+
+/-- `2550000 * bgAlpha (m / 10000)` (`idDen_eq`). -/
+def idDen (m : Int) : Int := mixFrom.2 * (10000 - m) + mixTo.2 * m
+
+/-- `1000 * bgRed (m / 10000) * idDen m` (`idNum_eq`). -/
+def idNum (m : Int) : Int := 1000 * (mixFrom.1 * mixFrom.2 * (10000 - m) + mixTo.1 * mixTo.2 * m)
+
+/-- Red reading `x` (times 1000) within half a level of `bgRed (m / 10000)` (`redOk_iff`). -/
+def redOk (m x : Int) : Bool :=
+  decide (idNum m - 500 * idDen m ≤ x * idDen m) && decide (x * idDen m ≤ idNum m + 500 * idDen m)
+
+/-- Alpha reading `a` (times 1000) within half a level of `255 * bgAlpha (m / 10000)` (`alphaOk_iff`). -/
+def alphaOk (m a : Int) : Bool := decide (idDen m - 5000 ≤ 10 * a) && decide (10 * a ≤ idDen m + 5000)
+
+/-- The sample was read with the nav's `is-morphing` class on. -/
+def hasDriver (s : Samp) : Bool := s.cls.contains driver
+
+/-- Red and alpha of a reading of one colour. -/
+def redAlpha : List Val → Option (Int × Int)
+  | [.num [x, _, _, a]] => some (x, a)
+  | _ => none
+
+/-- The sample was read at most `startLag` ms after the last class change of the nav. -/
+def idFresh (s : Samp) : Bool :=
+  match s.since with
+  | some x => decide (x ≤ startLag)
+  | none => false
+
+/-- `r` after `q` in its pass, `q` with `is-morphing` and `r` without it, in flight and fresh: `q`'s morph value is at
+least `cutM`, `r`'s at most, and `r` reads the colour of `q`'s; `none` for any other pair or a missing part. -/
+def idCheck (d : List String → Option Nat) (q : Option Samp) (r : Samp) : Option Bool :=
+  match q with
+  | some q =>
+    if hasDriver q && !hasDriver r && inFlight d r && idFresh r then
+      match q.m, r.m, redAlpha r.els with
+      | some mi, some mj, some (x, a) =>
+        some (decide (cutM ≤ mi) && decide (mj ≤ cutM) && redOk mi x && alphaOk mi a)
+      | _, _, _ => none
+    else none
+  | none => none
+
+/-- One rewrite sample after `q`: `idCheck` when it decides, else `judgeUnit`. -/
+def idJudge (k : Kind) (d : List String → Option Nat) (seg : List Samp) (win : Option (List Samp))
+    (q : Option Samp) (r : Samp) : Verdict :=
+  match idCheck d q r with
+  | some true => .pass
+  | some false => .fail .apart
+  | none => judgeUnit k d seg win r
+
+/-- Each sample with the sample before it in its pass. -/
+def withPrev (ws : List Samp) : List (Option Samp × Samp) :=
+  ws.mapIdx fun i r => ((passOf (ws.take i) r.rep).getLast?, r)
+
+/-- `bucketVerdict` of bucket `b` of phase `p`, each sample of the rewrite's annotated path `ws` by `idJudge`. -/
+def idBucket (ph : Phase) (k : Kind) (d : List String → Option Nat) (seg orig ws : List Samp) (p b : Nat) : Verdict :=
+  match (withPrev ws).filter (fun x => x.2.ph == p && bucket x.2.m == b) with
+  | [] => if ph == .push && needsSample b then .fail .coverage else .skip .noSample
+  | rs => combine (rs.map fun x => idJudge k d seg (windowAt ph d seg orig x.2) x.1 x.2)
+
+/-- `byM` with each bucket by `idBucket`. -/
+def byMId (ph : Phase) (p : Nat) (k : Kind) (d : List String → Option Nat) (oSeg wSeg : List Samp) :
+    List (Nat × Verdict) :=
+  let seg := annotate oSeg
+  (List.range 12).map fun b => (b, idBucket ph k d seg (seg.filter (·.ph == p)) (annotate wSeg) p b)
+
+/-- The judge of a morph unit: `byMId` when `id`, else `byMStart`. -/
+def byMRule (ph : Phase) (p : Nat) (k : Kind) (d : List String → Option Nat) (e : Option EarnRule) (id : Bool)
+    (oSeg wSeg : List Samp) : List (Nat × Verdict) :=
+  if id then byMId ph p k d oSeg wSeg else byMStart ph p k d e oSeg wSeg
+
+/-- A nav background sample of pass 0 in the close. -/
+def nb (cls : List String) (m : Int) (since : Option Nat) (x a : Int) : Samp :=
+  ⟨some m, since, [.num [x, 0, 0, a]], 0, cls, 2, 0, none⟩
+
+/-- Red of morph value `m` times 1000, rounded down. -/
+def fRed (m : Int) : Int := idNum m / idDen m
+
+/-- Alpha of morph value `m` times 1000, rounded down. -/
+def fAlpha (m : Int) : Int := idDen m / 10
+
+/-- A sample with `is-morphing` at `m`, reading the colour of `m`. -/
+def nbOn (m : Int) : Samp := nb [driver] m (some 0) (fRed m) (fAlpha m)
+
+/-- A sample without `is-morphing` at `m`, `since` ms after the class change. -/
+def nbOff (m : Int) (since : Nat) (x a : Int) : Samp := nb [] m (some since) x a
+
+/-- Nav background width 390 transitions. -/
+def navBg : List String → Option Nat := durOf "nav" "background-color" 390
+
+#guard idOn "nav" "background-color" && !idOn "nav" "opacity" && !idOn "earn" "background-color"
+#guard roundM (1 / 1000) == 10 && roundM (1049 / 1000000) == 10 && roundM (1050 / 1000000) == 11 && roundM 0 == 0
+#guard idDen 0 == 260000 && idNum 0 == 255000 * 260000 && fRed 0 == 255000 && fAlpha 0 == 26000 &&
+  fRed 10000 == 19000 && fAlpha 10000 == 255000
+#guard redOk 0 255500 && !redOk 0 255501 && redOk 0 254500 && !redOk 0 254499 && redOk 20 (fRed 20) && !redOk 20 255000
+#guard alphaOk 0 26500 && !alphaOk 0 26501 && alphaOk 0 25500 && !alphaOk 0 25499
+#guard redAlpha [.num [1, 2, 3, 4]] == some (1, 4) && redAlpha [.num [1, 2, 3]] == none && redAlpha [] == none
+#guard hasDriver (nbOn 20) && !hasDriver (nbOff 0 4 0 0)
+#guard idFresh (nbOff 0 200 0 0) && !idFresh (nbOff 0 201 0 0) && !idFresh (nb [] 0 none 0 0)
+#guard idCheck navBg (some (nbOn 20)) (nbOff 0 4 (fRed 20) (fAlpha 20)) == some true &&
+  idCheck navBg (some (nbOn 20)) (nbOff 0 4 255000 (fAlpha 20)) == some false &&
+  idCheck navBg (some (nbOn 9)) (nbOff 0 4 (fRed 9) (fAlpha 9)) == some false &&
+  idCheck navBg (some (nbOn 600)) (nbOff 300 4 (fRed 600) (fAlpha 600)) == some false &&
+  idCheck navBg none (nbOff 0 4 (fRed 20) (fAlpha 20)) == none &&
+  idCheck navBg (some (nbOff 0 4 0 0)) (nbOff 0 4 (fRed 20) (fAlpha 20)) == none &&
+  idCheck navBg (some (nbOn 20)) (nbOff 0 4000 (fRed 20) (fAlpha 20)) == none &&
+  idCheck navBg (some (nbOn 1174)) (nbOff 0 694 253656 26113) == none &&
+  idCheck navBg (some (nbOn 20)) ⟨some 0, some 4, [.str "x"], 0, [], 2, 0, none⟩ == none &&
+  idCheck navBg (some (nbOn 20)) ⟨none, some 4, [.num [0, 0, 0, 0]], 0, [], 2, 0, none⟩ == none
+#guard withPrev [smr 0 1 [], smr 1 2 [], smr 0 3 []] == [(none, smr 0 1 []), (none, smr 1 2 []), (some (smr 0 1 []), smr 0 3 [])]
+#guard idJudge .colour navBg [] none (some (nbOn 20)) (nbOff 0 4 (fRed 20) (fAlpha 20)) == .pass &&
+  idJudge .colour navBg [] none (some (nbOn 20)) (nbOff 0 4 255000 (fAlpha 20)) == .fail .apart &&
+  idJudge .colour navBg [] none none (nbOff 0 4 255000 (fAlpha 20)) == .fail .coverage
+#guard (byMRule .push 2 .colour navBg none true [nbOn 20] [nbOn 20]).lookup 0 == some .pass &&
+  byMRule .push 2 .unit (durOf "earn" "opacity" 390) (startFor "earn" "opacity" 390) false earnSeg staleRew ==
+    byMStart .push 2 .unit (durOf "earn" "opacity" 390) (startFor "earn" "opacity" 390) earnSeg staleRew
+
+/-- The cut in the probe's units is `Nav.morphingCut`. -/
+theorem cutM_eq : (cutM : Rat) = Nav.morphingCut * 10000 := by
+  unfold cutM Nav.morphingCut
+  decide +kernel
+
+/-- A morph value above the cut (the class is on) is stored as at least `cutM`. -/
+theorem roundM_above (v : Rat) (h : Nav.morphingCut < v) : cutM ≤ roundM v := by
+  unfold roundM cutM
+  unfold Nav.morphingCut at h
+  have h1 : ((10 : Int) : Rat) ≤ v * 10000 + 1 / 2 := by push_cast; grind
+  have := Rat.floor_monotone h1
+  rw [Rat.floor_intCast] at this
+  exact this
+
+/-- A morph value at or below the cut (the class is off) is stored as at most `cutM`. -/
+theorem roundM_below (v : Rat) (h : v ≤ Nav.morphingCut) : roundM v ≤ cutM := by
+  unfold roundM cutM
+  unfold Nav.morphingCut at h
+  have h1 : v * 10000 + 1 / 2 ≤ 21 / 2 := by grind
+  have := Rat.floor_monotone h1
+  have e : (21 / 2 : Rat).floor = 10 := by decide +kernel
+  rw [e] at this
+  exact this
+
+/-- Limit: the cut itself (class off) and a value above it (class on) are both stored as `cutM`. -/
+theorem roundM_tie : roundM Nav.morphingCut = cutM ∧ Nav.morphingCut < 1049 / 1000000 ∧ roundM (1049 / 1000000) = cutM := by
+  unfold roundM cutM Nav.morphingCut
+  decide +kernel
+
+/-- `idDen` is `bgAlpha` restated. -/
+theorem idDen_eq (m : Int) : bgAlpha ((m : Rat) / 10000) * 2550000 = (idDen m : Rat) := by
+  unfold bgAlpha idDen mixFrom mixTo
+  push_cast
+  grind
+
+/-- `idNum` is `bgRed` restated. -/
+theorem idNum_eq (m : Int) (h : 0 ≤ m) : bgRed ((m : Rat) / 10000) * (idDen m : Rat) * 1000 = (idNum m : Rat) := by
+  have h0 : (0 : Rat) ≤ (m : Rat) / 10000 := by
+    have : (0 : Rat) ≤ m := Rat.intCast_nonneg.mpr h
+    grind
+  have e := bgRed_mul _ h0
+  have n : (idNum m : Rat) = 1000 * (6630 * (10000 - (m : Rat)) + 4845 * m) := by
+    unfold idNum mixFrom mixTo
+    push_cast
+    grind
+  rw [← idDen_eq m, n]
+  grind
+
+/-- `P - D/2 ≤ x D` over 1000 is `R - 1/2 ≤ x/1000` when `R D 1000 = P`. -/
+theorem id_lo_iff (R : Rat) (P D x : Int) (hd : 0 < D) (e : R * D * 1000 = P) :
+    (P - 500 * D ≤ x * D) ↔ R - 1 / 2 ≤ (x : Rat) / 1000 := by
+  have hd' : (0 : Rat) < (D : Rat) := Rat.intCast_pos.mpr hd
+  rw [← Rat.intCast_le_intCast]
+  push_cast
+  rw [← e]
+  constructor
+  · intro k
+    refine Classical.byContradiction fun hc => ?_
+    have hc' : (x : Rat) / 1000 < R - 1 / 2 := by grind
+    have := Rat.mul_lt_mul_of_pos_right hc' hd'
+    grind
+  · intro k
+    have := Rat.mul_le_mul_of_nonneg_right k (Rat.le_of_lt hd')
+    grind
+
+/-- `x D ≤ P + D/2` over 1000 is `x/1000 ≤ R + 1/2` when `R D 1000 = P`. -/
+theorem id_hi_iff (R : Rat) (P D x : Int) (hd : 0 < D) (e : R * D * 1000 = P) :
+    (x * D ≤ P + 500 * D) ↔ (x : Rat) / 1000 ≤ R + 1 / 2 := by
+  have hd' : (0 : Rat) < (D : Rat) := Rat.intCast_pos.mpr hd
+  rw [← Rat.intCast_le_intCast]
+  push_cast
+  rw [← e]
+  constructor
+  · intro k
+    refine Classical.byContradiction fun hc => ?_
+    have hc' : R + 1 / 2 < (x : Rat) / 1000 := by grind
+    have := Rat.mul_lt_mul_of_pos_right hc' hd'
+    grind
+  · intro k
+    have := Rat.mul_le_mul_of_nonneg_right k (Rat.le_of_lt hd')
+    grind
+
+/-- `redOk` is `closeStartOk` (half a red level of `bgRed`) on the probe's units. -/
+theorem redOk_iff (m x : Int) (h : 0 ≤ m) : redOk m x = closeStartOk ((x : Rat) / 1000) ((m : Rat) / 10000) := by
+  have hd : 0 < idDen m := by unfold idDen mixFrom mixTo; simp only; omega
+  have e := idNum_eq m h
+  unfold redOk closeStartOk
+  rw [Bool.decide_and]
+  congr 1
+  · exact decide_eq_decide.mpr (id_lo_iff _ _ _ x hd e)
+  · exact decide_eq_decide.mpr (id_hi_iff _ _ _ x hd e)
+
+/-- `alphaOk` is half a level of `255 * bgAlpha` on the probe's units. -/
+theorem alphaOk_iff (m a : Int) :
+    alphaOk m a = decide (255 * bgAlpha ((m : Rat) / 10000) - 1 / 2 ≤ (a : Rat) / 1000 ∧
+      (a : Rat) / 1000 ≤ 255 * bgAlpha ((m : Rat) / 10000) + 1 / 2) := by
+  have e := idDen_eq m
+  unfold alphaOk
+  rw [Bool.decide_and]
+  congr 1
+  · apply decide_eq_decide.mpr
+    rw [← Rat.intCast_le_intCast]
+    push_cast
+    rw [← e]
+    grind
+  · apply decide_eq_decide.mpr
+    rw [← Rat.intCast_le_intCast]
+    push_cast
+    rw [← e]
+    grind
+
+/-- With every part found, `idCheck` is the cut on both morph values and half a level of `bgRed` and `bgAlpha`. -/
+theorem idCheck_css (d : List String → Option Nat) (q r : Samp) (mi mj x a : Int) (h0 : 0 ≤ mi)
+    (hq : hasDriver q = true) (hr : hasDriver r = false) (hf : inFlight d r = true) (hs : idFresh r = true)
+    (hmi : q.m = some mi) (hmj : r.m = some mj) (hx : redAlpha r.els = some (x, a)) :
+    idCheck d (some q) r = some (decide (cutM ≤ mi) && decide (mj ≤ cutM) &&
+      closeStartOk ((x : Rat) / 1000) ((mi : Rat) / 10000) &&
+      decide (255 * bgAlpha ((mi : Rat) / 10000) - 1 / 2 ≤ (a : Rat) / 1000 ∧
+        (a : Rat) / 1000 ≤ 255 * bgAlpha ((mi : Rat) / 10000) + 1 / 2)) := by
+  simp [idCheck, hq, hr, hf, hs, hmi, hmj, hx, ← redOk_iff mi x h0, ← alphaOk_iff mi a]
+
+/-- `idCheck` decides only the first sample without `is-morphing` after one with it, in flight and fresh. -/
+theorem idCheck_some (d : List String → Option Nat) (q : Option Samp) (r : Samp) (c : Bool) (h : idCheck d q r = some c) :
+    ∃ q', q = some q' ∧ hasDriver q' = true ∧ hasDriver r = false ∧ inFlight d r = true ∧ idFresh r = true := by
+  unfold idCheck at h
+  cases q with
+  | none => simp at h
+  | some q' =>
+    refine ⟨q', rfl, ?_⟩
+    by_cases hc : (hasDriver q' && !hasDriver r && inFlight d r && idFresh r) = true
+    · simp only [Bool.and_eq_true, Bool.not_eq_true'] at hc
+      exact ⟨hc.1.1.1, hc.1.1.2, hc.1.2, hc.2⟩
+    · simp [hc] at h
+
+/-- A sample read more than `startLag` ms after the class change is not decided: it is `judgeUnit`'s. -/
+theorem idCheck_late (d : List String → Option Nat) (q : Option Samp) (r : Samp) (x : Nat) (hx : r.since = some x)
+    (hl : startLag < x) : idCheck d q r = none := by
+  cases h : idCheck d q r with
+  | none => rfl
+  | some c =>
+    obtain ⟨_, _, _, _, _, hs⟩ := idCheck_some d q r c h
+    simp [idFresh, hx] at hs
+    omega
+
+/-- Without a sample before it in its pass, `idCheck` does not decide. -/
+theorem idCheck_no_prev (d : List String → Option Nat) (r : Samp) : idCheck d none r = none := rfl
+
+/-- `idCheck` reads no time stamp: a longer gap between the two samples changes nothing. -/
+theorem idCheck_t0 (d : List String → Option Nat) (q r : Samp) (a b : Option Nat) :
+    idCheck d (some { q with t0 := a }) { r with t0 := b } = idCheck d (some q) r := by
+  simp [idCheck, hasDriver, inFlight, idFresh]
+
+/-- An undecided sample is `judgeUnit`'s. -/
+theorem idJudge_undecided (k : Kind) (d : List String → Option Nat) (seg : List Samp) (win : Option (List Samp))
+    (q : Option Samp) (r : Samp) (h : idCheck d q r = none) : idJudge k d seg win q r = judgeUnit k d seg win r := by
+  simp [idJudge, h]
+
+/-- The samples of `withPrev ws` are `ws`. -/
+theorem withPrev_snd (ws : List Samp) : (withPrev ws).map (·.2) = ws := by
+  unfold withPrev
+  apply List.ext_getElem
+  · simp
+  · intro i h1 h2
+    simp
+
+/-- A verdict list with a failure combines to a failure. -/
+theorem combine_has_fail (vs : List Verdict) (v : Verdict) (hv : v ∈ vs) (hf : isFail v = true) :
+    isFail (combine vs) = true := by
+  unfold combine
+  cases hfind : vs.find? (fun v => match v with | .fail _ => true | _ => false) with
+  | some f =>
+    have := List.find?_some hfind
+    cases f <;> simp_all [isFail]
+  | none =>
+    rw [List.find?_eq_none] at hfind
+    have := hfind v hv
+    cases v <;> simp_all [isFail]
+
+/-- The rewrite samples of bucket `b` of phase `p`, as `bucketVerdict` takes them. -/
+theorem idBucket_samples (ws : List Samp) (p b : Nat) :
+    ((withPrev ws).filter (fun x => x.2.ph == p && bucket x.2.m == b)).map (·.2) =
+      (ws.filter (·.ph == p)).filter (fun r => bucket r.m == b) := by
+  rw [List.filter_filter]
+  conv => rhs; rw [← withPrev_snd ws]
+  rw [List.filter_map]
+  congr 1
+  apply List.filter_congr
+  intro x _
+  simp [Bool.and_comm]
+
+/-- With no sample decided, `idBucket` is `bucketVerdict`. -/
+theorem idBucket_keep (ph : Phase) (k : Kind) (d : List String → Option Nat) (seg orig ws : List Samp) (p b : Nat)
+    (h : ∀ x ∈ withPrev ws, idCheck d x.1 x.2 = none) :
+    idBucket ph k d seg orig ws p b = bucketVerdict ph k d seg orig (ws.filter (·.ph == p)) b := by
+  unfold idBucket bucketVerdict
+  rw [← idBucket_samples]
+  have hm : ∀ x ∈ (withPrev ws).filter (fun x => x.2.ph == p && bucket x.2.m == b),
+      idJudge k d seg (windowAt ph d seg orig x.2) x.1 x.2 = judgeUnit k d seg (windowAt ph d seg orig x.2) x.2 :=
+    fun x hx => idJudge_undecided k d seg _ x.1 x.2 (h x (List.mem_filter.mp hx).1)
+  generalize (withPrev ws).filter (fun x => x.2.ph == p && bucket x.2.m == b) = rs at hm ⊢
+  cases rs with
+  | nil => rfl
+  | cons y ys =>
+    simp only [List.map_cons, List.map_map]
+    rw [hm y List.mem_cons_self, List.map_congr_left (fun x hx => hm x (List.mem_cons_of_mem _ hx))]
+    rfl
+
+/-- With no sample decided, `byMId` is `byM`. -/
+theorem byMId_keep (ph : Phase) (p : Nat) (k : Kind) (d : List String → Option Nat) (oSeg wSeg : List Samp)
+    (h : ∀ x ∈ withPrev (annotate wSeg), idCheck d x.1 x.2 = none) : byMId ph p k d oSeg wSeg = byM ph p k d oSeg wSeg := by
+  simp only [byMId, byM, idBucket_keep _ _ _ _ _ _ _ _ h]
+
+/-- A sample `idJudge` fails fails its bucket. -/
+theorem idBucket_fail (ph : Phase) (k : Kind) (d : List String → Option Nat) (seg orig ws : List Samp) (p b : Nat)
+    (x : Option Samp × Samp) (hx : x ∈ withPrev ws) (hp : x.2.ph = p) (hb : bucket x.2.m = b)
+    (hf : isFail (idJudge k d seg (windowAt ph d seg orig x.2) x.1 x.2) = true) :
+    isFail (idBucket ph k d seg orig ws p b) = true := by
+  have hm : x ∈ (withPrev ws).filter (fun x => x.2.ph == p && bucket x.2.m == b) := by
+    rw [List.mem_filter]
+    exact ⟨hx, by simp [hp, hb]⟩
+  unfold idBucket
+  generalize (withPrev ws).filter (fun x => x.2.ph == p && bucket x.2.m == b) = rs at hm ⊢
+  cases rs with
+  | nil => simp at hm
+  | cons y ys => exact combine_has_fail _ _ (List.mem_map_of_mem hm) hf
+
+/-- Never more lenient on what it does not decide: an undecided sample `judgeUnit` fails fails its bucket. -/
+theorem idBucket_fail_undecided (ph : Phase) (k : Kind) (d : List String → Option Nat) (seg orig ws : List Samp)
+    (p b : Nat) (x : Option Samp × Samp) (hx : x ∈ withPrev ws) (hp : x.2.ph = p) (hb : bucket x.2.m = b)
+    (hn : idCheck d x.1 x.2 = none) (hf : isFail (judgeUnit k d seg (windowAt ph d seg orig x.2) x.2) = true) :
+    isFail (idBucket ph k d seg orig ws p b) = true :=
+  idBucket_fail ph k d seg orig ws p b x hx hp hb (by rw [idJudge_undecided _ _ _ _ _ _ hn]; exact hf)
+
+/-- A sample `idCheck` refuses fails its bucket. -/
+theorem idBucket_refuse (ph : Phase) (k : Kind) (d : List String → Option Nat) (seg orig ws : List Samp)
+    (p b : Nat) (x : Option Samp × Samp) (hx : x ∈ withPrev ws) (hp : x.2.ph = p) (hb : bucket x.2.m = b)
+    (hn : idCheck d x.1 x.2 = some false) : isFail (idBucket ph k d seg orig ws p b) = true :=
+  idBucket_fail ph k d seg orig ws p b x hx hp hb (by simp [idJudge, hn, isFail])
+
+/-- Off the nav background `byMRule` is `byMStart`. -/
+theorem byMRule_off (ph : Phase) (p : Nat) (k : Kind) (d : List String → Option Nat) (e : Option EarnRule)
+    (oSeg wSeg : List Samp) : byMRule ph p k d e false oSeg wSeg = byMStart ph p k d e oSeg wSeg := rfl
+
+/-- On the nav background `byMRule` is `byMId`. -/
+theorem byMRule_on (ph : Phase) (p : Nat) (k : Kind) (d : List String → Option Nat) (e : Option EarnRule)
+    (oSeg wSeg : List Samp) : byMRule ph p k d e true oSeg wSeg = byMId ph p k d oSeg wSeg := rfl
+
+/-- A close at 390 px: `is-morphing` down to 0.002, removed at 0, then the transition to the target in flight. -/
+def idSeg : List Samp := [nbOn 3000, nbOn 40, nbOn 20, nbOff 0 4 (fRed 20) (fAlpha 20), nbOff 0 300 252000 (fAlpha 20)]
+
+/-- The rewrite of `idSeg` with the sample after the removal reading `x` and `a`. -/
+def idRew (x a : Int) : List Samp := [nbOn 3000, nbOn 40, nbOn 20, nbOff 0 4 x a, nbOff 0 300 252000 (fAlpha 20)]
+
+/-- Mutation early removal: the class goes at 0.03, above the cut. -/
+def earlyRew : List Samp :=
+  [nbOn 3000, nbOn 600, nbOff 300 4 (fRed 600) (fAlpha 600), nbOff 0 300 252000 (fAlpha 20)]
+
+/-- Mutation late removal: the class stays on at 0, below the cut. -/
+def lateRew : List Samp :=
+  [nbOn 3000, nbOn 40, nbOn 0, nbOff 0 4 (fRed 0) (fAlpha 0), nbOff 0 300 252000 (fAlpha 20)]
+
+/-- The verdicts of the nav background at 390 px in the close, `o` against `w`. -/
+def navAt (o w : List Samp) : List (Nat × Verdict) := byMRule .push 2 .colour navBg none true o w
+
+/-- The original passes against itself at close@0. -/
+theorem byMId_self : (navAt idSeg idSeg).lookup 0 = some .pass := by decide +kernel
+
+/-- Mutation early removal, refused at close@0 (`mj ≤ cutM`). -/
+theorem byMId_early : (navAt idSeg earlyRew).lookup 0 = some (.fail .apart) := by decide +kernel
+
+/-- Mutation late removal, refused at close@0 (`cutM ≤ mi`). -/
+theorem byMId_late : (navAt idSeg lateRew).lookup 0 = some (.fail .apart) := by decide +kernel
+
+/-- Mutation stale reading, the target (red 255), refused at close@0. -/
+theorem byMId_stale_target : (navAt idSeg (idRew 255000 (fAlpha 20))).lookup 0 = some (.fail .apart) := by decide +kernel
+
+/-- Mutation stale reading, the frame before the last (0.004), refused at close@0. -/
+theorem byMId_stale_frame : (navAt idSeg (idRew (fRed 40) (fAlpha 40))).lookup 0 = some (.fail .apart) := by
+  decide +kernel
+
+/-- Mutation wrong f, the mix without premultiplied alpha (red `255 - 236 m`), refused at close@0. -/
+theorem byMId_wrong_f : (navAt idSeg (idRew (255000 - 236 * 20 / 10) (fAlpha 20))).lookup 0 = some (.fail .apart) := by
+  decide +kernel
+
+/-- Mutation wrong alpha (the target's), refused at close@0. -/
+theorem byMId_wrong_alpha : (navAt idSeg (idRew (fRed 20) 255000)).lookup 0 = some (.fail .apart) := by decide +kernel
+
+/-- Limit: the reading must be the transition's start; one red level along it is refused. -/
+theorem byMId_progress : (navAt idSeg (idRew (fRed 20 + 1000) (fAlpha 20))).lookup 0 = some (.fail .apart) := by
+  decide +kernel
+
+/-- Limit: half a level off the start passes. -/
+theorem byMId_half : (navAt idSeg (idRew (fRed 20 + 499) (fAlpha 20 - 499))).lookup 0 = some .pass := by decide +kernel
+
+/-- A rewrite whose first sample without the class is read after `startLag`. -/
+def lateReadRew : List Samp := [nbOn 3000, nbOn 40, nbOn 20, nbOff 0 300 255000 (fAlpha 20)]
+
+/-- Limit: a reading taken more than `startLag` ms after the removal is judged by `byM` alone. -/
+theorem byMId_read_late : (navAt idSeg lateReadRew).lookup 0 = (byM .push 2 .colour navBg idSeg lateReadRew).lookup 0 := by
+  decide +kernel
+
+end CloseIdentity
+
 
 -- Golden ------------------------------------------------------------------------------------------------------------
 
@@ -3982,6 +4421,9 @@ inductive Case where
   | checkAt (name : String) (k : Kind) (full : Int) (oSeg prior : List Samp) (r : Samp)
   | settleOn (name : String) (k : Kind) (node prop : String) (width : Nat) (wSeg : List Samp) (r : Samp)
   | curve
+  | idRule (name : String) (ph : Phase) (p : Nat) (k : Kind) (node prop : String) (width : Nat) (oSeg wSeg : List Samp)
+  | idAt (name : String) (width : Nat) (q : Option Samp) (r : Samp)
+  | idConst
 
 /-- The golden cases of the window judgement (`judgeEls` per kind and per branch). Two constants, not one, so that each stays
 under the start-cost bound (`Fw.Lint.InitCost.bound`). -/
@@ -4408,8 +4850,49 @@ def casesStart : List Case :=
       [ecl 2 [driver] 6540 0 0, ecl 2 [driver] 0 0 0, ecl 3 [] 0 760 152000] (ecl 3 [] 0 760 152000),
     .settleOn "not an earn unit" .unit "nav" "opacity" 390 [ec 6540 0 0, ec 0 100 0, eh 620 0] (eh 620 0)]
 
+/-- The golden cases of the close-start identity. -/
+def casesId : List Case :=
+  [.idConst,
+    .idRule "self" .push 2 .colour "nav" "background-color" 390 idSeg idSeg,
+    .idRule "early removal" .push 2 .colour "nav" "background-color" 390 idSeg earlyRew,
+    .idRule "late removal" .push 2 .colour "nav" "background-color" 390 idSeg lateRew,
+    .idRule "stale target" .push 2 .colour "nav" "background-color" 390 idSeg (idRew 255000 (fAlpha 20)),
+    .idRule "stale frame" .push 2 .colour "nav" "background-color" 390 idSeg (idRew (fRed 40) (fAlpha 40)),
+    .idRule "wrong f" .push 2 .colour "nav" "background-color" 390 idSeg (idRew (255000 - 236 * 20 / 10) (fAlpha 20)),
+    .idRule "wrong alpha" .push 2 .colour "nav" "background-color" 390 idSeg (idRew (fRed 20) 255000),
+    .idRule "one level along" .push 2 .colour "nav" "background-color" 390 idSeg (idRew (fRed 20 + 1000) (fAlpha 20)),
+    .idRule "half a level off" .push 2 .colour "nav" "background-color" 390 idSeg (idRew (fRed 20 + 499) (fAlpha 20 - 499)),
+    .idRule "close-hold" .hold 3 .colour "nav" "background-color" 390 idSeg earlyRew,
+    .idRule "two passes" .push 2 .colour "nav" "background-color" 1280 (idSeg ++ idSeg.map ({ · with rep := 1 }))
+      (idSeg ++ (idRew 255000 (fAlpha 20)).map ({ · with rep := 1 })),
+    .idRule "not the nav background" .push 2 .unit "earn" "opacity" 390 earnSeg staleRew,
+    .idAt "faithful" 390 (some (nbOn 20)) (nbOff 0 4 (fRed 20) (fAlpha 20)),
+    .idAt "target" 390 (some (nbOn 20)) (nbOff 0 4 255000 (fAlpha 20)),
+    .idAt "class on at 9" 390 (some (nbOn 9)) (nbOff 0 4 (fRed 9) (fAlpha 9)),
+    .idAt "class on at the cut" 390 (some (nbOn 10)) (nbOff 10 4 (fRed 10) (fAlpha 10)),
+    .idAt "class off above the cut" 390 (some (nbOn 600)) (nbOff 11 4 (fRed 600) (fAlpha 600)),
+    .idAt "no sample before" 390 none (nbOff 0 4 (fRed 20) (fAlpha 20)),
+    .idAt "both off" 390 (some (nbOff 0 4 0 0)) (nbOff 0 4 (fRed 20) (fAlpha 20)),
+    .idAt "both on" 390 (some (nbOn 30)) (nbOn 20),
+    .idAt "settled" 390 (some (nbOn 20)) (nbOff 0 900 (fRed 20) (fAlpha 20)),
+    .idAt "at the start lag" 390 (some (nbOn 20)) (nbOff 0 200 (fRed 20) (fAlpha 20)),
+    .idAt "after the start lag" 390 (some (nbOn 20)) (nbOff 0 201 (fRed 20) (fAlpha 20)),
+    .idAt "read late, near the end" 390 (some (nbOn 1174)) (nbOff 0 694 253656 26113),
+    .idAt "no class change" 390 (some (nbOn 20)) (nb [] 0 none (fRed 20) (fAlpha 20)),
+    .idAt "a string" 390 (some (nbOn 20)) ⟨some 0, some 4, [.str "x"], 0, [], 2, 0, none⟩,
+    .idAt "three numbers" 390 (some (nbOn 20)) ⟨some 0, some 4, [.num [1, 2, 3]], 0, [], 2, 0, none⟩,
+    .idAt "no morph value" 390 (some (nbOn 20)) ⟨none, some 4, [.num [fRed 20, 0, 0, fAlpha 20]], 0, [], 2, 0, none⟩,
+    .idAt "no morph value before" 390 (some ⟨none, some 0, [], 0, [driver], 2, 0, none⟩) (nbOff 0 4 (fRed 20) (fAlpha 20))]
+
+/-- Golden `(m, red, alpha)` rows of `redOk` and `alphaOk`, on both sides of each bound. -/
+def idRows : List (Int × Int × Int) :=
+  [(0, 255500, 26500), (0, 255501, 26501), (0, 254500, 25500), (0, 254499, 25499), (20, fRed 20, fAlpha 20),
+    (20, fRed 20 - 499, fAlpha 20 + 500), (20, fRed 20 - 500, fAlpha 20 + 501), (20, fRed 20 + 500, fAlpha 20 - 500),
+    (20, fRed 20 + 501, fAlpha 20 - 501), (138, 226520, 29760), (138, 227010, 29760), (138, 226030, 29760),
+    (10000, 19500, 255500), (10000, 19501, 255501), (10000, 18500, 254500), (10000, 18499, 254499)]
+
 /-- The golden cases: every branch above, per kind where the kind matters. -/
-def cases : List Case := casesJudge ++ casesRest ++ casesPlan ++ casesFlight ++ casesClose ++ casesStart
+def cases : List Case := casesJudge ++ casesRest ++ casesPlan ++ casesFlight ++ casesClose ++ casesStart ++ casesId
 
 /-- A widths pick as JSON. -/
 def Widths.json : Widths → Json
@@ -4516,6 +4999,22 @@ def Case.line : Case → Json
       ("darkCut", ratJson (Fw.Parts.Nav.darkCut * 10000)),
       ("bez", Json.arr #[ratJson earnCurve.x1, ratJson earnCurve.y1, ratJson earnCurve.x2, ratJson earnCurve.y2]),
       ("full", Json.arr (fullRows.map fun (p, w) => Json.arr #[Json.str p, toJson w, ratJson (fullOf p w)]).toArray)]
+  | .idRule n ph p k node prop w o s =>
+    Json.mkObj [("op", "byMRule"), ("name", n), ("phase", ph.name), ("p", toJson p), ("kind", k.name),
+      ("node", node), ("prop", prop), ("width", toJson w), ("id", Json.bool (idOn node prop)),
+      ("oSeg", Json.arr (o.map Samp.json).toArray), ("wSeg", Json.arr (s.map Samp.json).toArray),
+      ("verdicts", Json.arr ((byMRule ph p k (durOf node prop w) (startFor node prop w) (idOn node prop) o s).map
+        fun (_, v) => Json.str v.name).toArray)]
+  | .idAt n w q r =>
+    Json.mkObj [("op", "idCheck"), ("name", n), ("width", toJson w),
+      ("q", match q with | none => Json.null | some q => q.json), ("r", r.json),
+      ("check", match idCheck (durOf "nav" "background-color" w) q r with | none => Json.null | some b => Json.bool b)]
+  | .idConst =>
+    Json.mkObj [("op", "identity"), ("name", "nav background"), ("cut", toJson cutM),
+      ("cutRat", ratJson (Fw.Parts.Nav.morphingCut * 10000)),
+      ("from", Json.arr #[toJson mixFrom.1, toJson mixFrom.2]), ("to", Json.arr #[toJson mixTo.1, toJson mixTo.2]),
+      ("rows", Json.arr (idRows.map fun (m, x, a) =>
+        Json.arr #[toJson m, toJson x, toJson a, Json.bool (redOk m x), Json.bool (alphaOk m a)]).toArray)]
 
 /-- Where the golden lives, relative to `lean/`. -/
 def goldenPath : System.FilePath := "../packages/contracts/golden/gate/trajectory.jsonl"

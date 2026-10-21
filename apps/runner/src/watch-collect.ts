@@ -48,6 +48,8 @@ export interface LeadSnap { lastToolAt: number | null; noteAt: number | null }
  *  name (executable basename only, never arguments), start time, every descendant pid, and the id of the agent whose
  *  Bash call started it (absent or null: the lead session, or not known) */
 export interface Proc { pid: number; name: string; startedAt: number; pids: number[]; agent?: string | null }
+/** A feedback event as the `fwcore obs.health` wire reads it (Lean `Fw.Wire.Obs.fbEvOf`): `ref` is the comment id of a post, or the id a reply answers. */
+export interface FeedbackEv { kind: "post" | "reply"; flag: string; ref: string; text: string; ts: number }
 export interface SystemSnap {
   load1: number; memPressure: "normal" | "warn" | "critical"; diskFreeGB: number;
   simLock: { holder: string | null; since: number | null };
@@ -70,6 +72,9 @@ export interface SystemSnap {
   svcs?: Svc[];
   /** every pid of the process table read this time (absent when `ps` failed: no agent is judged by it); Lean `deadSession` */
   alivePids?: number[];
+  /** the accepted `review.feedback` and `review.feedback.reply` events of the log, oldest first (`collectFeedback`); fwcore folds them into
+   *  threads and raises `review.feedback` for a flag with an open comment (Lean `Fw.Obs.FeedbackAlert`) */
+  feedback?: FeedbackEv[];
   /** GitHub Actions, Pages and Webhooks states and the open incidents (watch-gh.ts); fwcore raises sys.ghDegraded */
   gh?: GhSnap;
   /** collectors that failed this time and whose value was carried forward from the previous check
@@ -763,9 +768,28 @@ export async function collectSystem(p: Paths, prev: Prev | null = null, now = Da
     load1: Math.round(loadavg()[0]! * 100) / 100, loadFloor: Math.floor(loadavg()[0]!),
     load: { builders: countBuilders(rows), heavyJobs: countHeavy(p.root, parseStartRows(text(psStart))), prevContended: prev?.contended === true }, memPressure: parseMemLevel(text(mem)),
     diskFreeGB: disk, simLock: collectSimLock(p.root), docker, worktrees: parseWorktreeCount(text(wt)),
-    consolePids, ci: ciRuns, procs, services: [process.pid, ...consolePids], keep, svcs, stale,
+    consolePids, ci: ciRuns, procs, services: [process.pid, ...consolePids], keep, svcs, stale, feedback: collectFeedback(p),
     ...(ps === null || rows.length === 0 ? {} : { alivePids: rows.map((r) => r.pid) }),
   };
+}
+
+/** The feedback events of the console log (`<consoleDir>/events.jsonl`, written only by console-api), oldest first, in the wire shape.
+ *  Only I/O: the log may hold events the reducer refused to act on; fwcore's fold (the reducer's rule) decides which count. An unreadable
+ *  log gives no events. */
+export function collectFeedback(p: Paths): FeedbackEv[] {
+  let raw: string;
+  try { raw = readFileSync(join(p.consoleDir, "events.jsonl"), "utf8"); } catch { return []; }
+  const out: FeedbackEv[] = [];
+  for (const line of raw.split("\n")) {
+    if (!line.includes('"review.feedback')) continue;
+    let e: Record<string, unknown>;
+    try { e = JSON.parse(line); } catch { continue; }
+    const post = e.type === "review.feedback", reply = e.type === "review.feedback.reply";
+    const ref = post ? e.id : e.to;
+    if (!(post || reply) || typeof e.flag !== "string" || typeof ref !== "string" || typeof e.text !== "string" || !Number.isInteger(e.ts) || (e.ts as number) < 0) continue;
+    out.push({ kind: post ? "post" : "reply", flag: e.flag, ref, text: e.text, ts: e.ts as number });
+  }
+  return out;
 }
 
 /** The critical path from console-api (GET /api/plan): `string[]`; `null` when the call failed; `[]` when
