@@ -113,7 +113,7 @@ theorem browser_runs_remote_pick (ids : List String) : browserRuns (pick .onCi i
 def fwcoreUsers : List String :=
   ["apps/console-api", "apps/runner", "packages/difftest", "packages/e2e-preview", "packages/engine-check",
    "packages/gate-breakpoints", "packages/gh-budget", "packages/measure-chromium", "packages/measure-webkit",
-   "packages/measure-wktr"]
+   "packages/measure-wktr", "console-api:compose"]
 
 /-- Does the check run the `fwcore` binary? -/
 def isCoreUser (id : String) : Bool := fwcoreUsers.contains id
@@ -419,6 +419,90 @@ def phase1Text (_ : Unit) : String := String.join ((phase1Cases ()).map fun c =>
 /-- The phase-1 golden file, relative to `lean/`. -/
 def phase1Path : System.FilePath := "../packages/contracts/golden/console/land-phase1.jsonl"
 
+/-! ### Local tests: one test file with its own read set
+
+The suites in `remoteIds` run only on the land lane, so a test inside one of them is invisible to the local tier. A local test
+is one test file run on this Mac with a declared read set; the change selects it iff a changed path is in that set. A test with
+undeclared reads stays on the lane. Incident 2026-10-22 (land runs 39674287486, 39685526491, 39688115785): `compose.test.ts` fails when a
+`part.json` registers a variant that has no row in the findings ledger, and no local check read those files. -/
+
+/-- The id of the local compose test (`apps/console-api/test/compose.test.ts`); it is not a workspace package, so `tier` gives `onMac`. -/
+def composeId : String := "console-api:compose"
+
+/-- What the compose test reads: every `part.json`, the presets and registry it resolves, the findings ledger, its source and golden, and the `fwcore` binary. -/
+def composeReads : List String :=
+  ["apps/site/src/parts/*/part.json", "apps/site/src/registry/**", "research/findings/ledger.json", "apps/console-api/src/**",
+   "apps/console-api/test/compose.test.ts", "packages/contracts/golden/console/console.compose.jsonl", Fw.Console.LandSpeed.fwcoreBin]
+
+/-- The local tests, each with its declared read set. -/
+def localTests : List Fw.Console.LandSpeed.Decl := [⟨composeId, composeReads⟩]
+
+/-- The ids of the local tests a change selects: the `LandSpeed` selection over the declared read sets. -/
+def selectLocal (changed : List String) : List String := Fw.Console.LandSpeed.selectChecks localTests changed
+
+/-- **A changed path that a test reads selects it.** For any declared test, one changed path in its read set puts its id in the selection. -/
+theorem selects_reader (ds : List Fw.Console.LandSpeed.Decl) (changed : List String) (d : Fw.Console.LandSpeed.Decl)
+    (hd : d ∈ ds) (x : String) (hx : x ∈ changed) (hin : Fw.Ops.PathCheck.inScope (Fw.Ops.PathCheck.parseScope d.reads) x = true) :
+    d.id ∈ Fw.Console.LandSpeed.selectChecks ds changed :=
+  (Fw.Console.LandSpeed.mem_selectChecks ds changed d.id).2
+    ⟨d, hd, Fw.Console.LandSpeed.selected_of_mem d.reads changed x hx hin, rfl⟩
+
+/-- A test is selected only by a changed path in its read set (nothing else selects it). -/
+theorem selects_only_reader (ds : List Fw.Console.LandSpeed.Decl) (changed : List String) (i : String)
+    (h : i ∈ Fw.Console.LandSpeed.selectChecks ds changed) :
+    ∃ d ∈ ds, d.id = i ∧ ∃ x ∈ changed, Fw.Ops.PathCheck.inScope (Fw.Ops.PathCheck.parseScope d.reads) x = true := by
+  obtain ⟨d, hd, hs, hi⟩ := (Fw.Console.LandSpeed.mem_selectChecks ds changed i).1 h
+  simp only [Fw.Console.LandSpeed.selected, List.any_eq_true] at hs
+  obtain ⟨x, hx, hin⟩ := hs
+  exact ⟨d, hd, hi, x, hx, hin⟩
+
+/-- A changed path in the compose read set (a `part.json`, the findings ledger, the registry) selects the compose test. The concrete paths
+are the `#guard` lines and the golden `land-tier-local.jsonl` below (glob matching on literal strings does not reduce in the kernel). -/
+theorem compose_reader_selected (changed : List String) (x : String) (hx : x ∈ changed)
+    (hin : Fw.Ops.PathCheck.inScope (Fw.Ops.PathCheck.parseScope composeReads) x = true) : composeId ∈ selectLocal changed :=
+  selects_reader localTests changed ⟨composeId, composeReads⟩ (by simp [localTests]) x hx hin
+
+/-- The compose test is a local test: its id is off the remote allowlist. -/
+theorem compose_local : tier composeId = .onMac := by decide
+
+/-- The compose test runs the binary, so a plan builds it before. -/
+theorem compose_core_user : isCoreUser composeId = true := by decide
+
+#guard selectLocal ["apps/site/src/parts/morph.columns/part.json"] == [composeId]
+#guard selectLocal ["apps/site/src/parts/nav/part.json", "docs/x.md"] == [composeId]
+#guard selectLocal ["research/findings/ledger.json"] == [composeId]
+#guard selectLocal ["apps/console-api/src/preview/compose.ts"] == [composeId]
+#guard selectLocal ["apps/site/src/parts/nav/index.ts"] == []
+#guard selectLocal ["docs/team/tools/land.md"] == []
+#guard selectLocal [] == []
+
+/-- One local-selection golden line. -/
+def localLine (name : String) (changed : List String) : Json :=
+  Json.mkObj [("name", .str name),
+    ("request", Json.mkObj [("changed", strs changed), ("tests", .arr (localTests.map fun d =>
+      Json.mkObj [("id", .str d.id), ("reads", strs d.reads)]).toArray)]),
+    ("response", Json.mkObj [("select", strs (selectLocal changed))])]
+
+/-- The local-selection cases: each read of the compose test selects it, an unrelated and an empty change do not. -/
+def localCases (_ : Unit) : List Json :=
+  [localLine "part.json selects compose" ["apps/site/src/parts/morph.columns/part.json"],
+   localLine "part.json among others selects compose" ["docs/team/handoffs/x.md", "apps/site/src/parts/nav/part.json"],
+   localLine "findings ledger selects compose" ["research/findings/ledger.json"],
+   localLine "preset selects compose" ["apps/site/src/registry/presets/original.json"],
+   localLine "compose source selects compose" ["apps/console-api/src/preview/compose.ts"],
+   localLine "compose test selects compose" ["apps/console-api/test/compose.test.ts"],
+   localLine "binary moved selects compose" [Fw.Console.LandSpeed.fwcoreBin],
+   localLine "part source file does not" ["apps/site/src/parts/nav/index.ts"],
+   localLine "docs do not" ["docs/team/tools/land.md"],
+   localLine "other findings file does not" ["research/findings/other.json"],
+   localLine "nothing changed" []]
+
+/-- The golden text of the local-selection cases. -/
+def localText (_ : Unit) : String := String.join ((localCases ()).map fun c => c.compress ++ "\n")
+
+/-- The local-selection golden file, relative to `lean/`. -/
+def localPath : System.FilePath := "../packages/contracts/golden/console/land-tier-local.jsonl"
+
 /-- The golden file text. -/
 def goldenText : String := String.join ((cases ++ laneCases).map fun c => c.compress ++ "\n")
 
@@ -458,10 +542,11 @@ def writeGolden : IO Unit := do
   IO.FS.writeFile goldenPath goldenText
   IO.FS.writeFile filterPath filterText
   IO.FS.writeFile phase1Path (phase1Text ())
+  IO.FS.writeFile localPath (localText ())
 
 /-- Are the golden file and the filter file the Lean output? -/
 def checkGolden : IO Bool := do
   return (← IO.FS.readFile goldenPath) == goldenText && (← IO.FS.readFile filterPath) == filterText
-    && (← IO.FS.readFile phase1Path) == phase1Text ()
+    && (← IO.FS.readFile phase1Path) == phase1Text () && (← IO.FS.readFile localPath) == localText ()
 
 end Fw.Console.LandTier

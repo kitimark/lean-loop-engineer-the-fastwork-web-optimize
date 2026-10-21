@@ -12,7 +12,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { binMoved, candidateChecks, CHECK_SH_READS, FWCORE_BIN, FWCORE_USERS, checksFor, selectTwoPhase, checksWithReads, inScope, inputKey, READS_SCAN_ARGV, READS_SCAN_ID, selectChecks, withScan, type Check } from "../src/land.ts";
+import { LOCAL_TESTS, binMoved, candidateChecks, CHECK_SH_READS, FWCORE_BIN, FWCORE_USERS, checksFor, selectTwoPhase, checksWithReads, inScope, inputKey, READS_SCAN_ARGV, READS_SCAN_ID, selectChecks, withScan, type Check } from "../src/land.ts";
 
 const root = join(dirname(new URL(import.meta.url).pathname), "../../..");
 
@@ -214,7 +214,7 @@ describe("premise land.readsOnly: no read outside the declared inputs (static)",
     const users = candidateChecks(root).filter((c) => /^(apps|packages)\//.test(c.id) && walk(join(root, c.id), /\.(ts|tsx|mjs|js)$/)
       .some((f) => /\.lake|["'/]fwcore["']|FWCORE|bin\/fwcore/.test(readFileSync(f, "utf8")))).map((c) => c.id);
     // measure-wktr runs the binary through measure-chromium/src/fwcore.mjs (a declared extra read), not by itself
-    expect([...users, "packages/measure-wktr"].sort()).toEqual([...FWCORE_USERS].sort());
+    expect([...users, "packages/measure-wktr", ...LOCAL_TESTS.map((t) => t.id)].sort()).toEqual([...FWCORE_USERS].sort());
     for (const c of candidateChecks(root)) expect(inScope(c.reads, FWCORE_BIN), c.id).toBe(FWCORE_USERS.includes(c.id) || c.id === "check.sh" || c.id === READS_SCAN_ID);
     // a Lean change with an unknown or a moved digest selects check.sh and every fwcore user
     expect(checksWithReads(root, ["lean/Fw/A.lean"]).map((c) => c.id).sort()).toEqual(["check.sh", READS_SCAN_ID, ...FWCORE_USERS].sort());
@@ -292,7 +292,7 @@ describe("premise land.readsOnly: the key over the declared inputs (dynamic)", (
   it("the fixture holds install, check.sh and three package tests; a workspace dependency is declared", () => {
     const fx = fixture();
     try {
-      expect(fx.checks.map((c) => c.id)).toEqual(["install", "check.sh", "apps/runner", "packages/contracts", "packages/lone", READS_SCAN_ID]);
+      expect(fx.checks.map((c) => c.id)).toEqual(["install", "check.sh", "apps/runner", "packages/contracts", "packages/lone", ...LOCAL_TESTS.map((t) => t.id), READS_SCAN_ID]);
       expect(fx.checks.find((c) => c.id === "apps/runner")!.reads).toContain("packages/contracts/**");
     } finally { fx.done(); }
   });
