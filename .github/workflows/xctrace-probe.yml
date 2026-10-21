@@ -13,14 +13,10 @@ on:
     branches: [ci/xctrace-ci-probe]
   workflow_dispatch:
     inputs:
-      arms:
-        description: Comma separated arms of the xctrace recording (empty = all; `node packages/measure-webkit/src/xctrace/cli.mjs run` lists them in its error text)
-        type: string
-        default: ''
       passes:
         description: Passes per arm and VM
         type: string
-        default: '2'
+        default: '1'
       hitchmetric:
         description: Run the XCTHitchMetric job step
         type: boolean
@@ -130,8 +126,8 @@ jobs:
       - name: Tool and runner facts
         shell: bash
         run: |
-          mkdir -p "$RUNNER_TEMP/result"
-          sh .github/scripts/runner-info.sh "$RUNNER_TEMP/result/runner.json" || true
+          mkdir -p "$RUNNER_TEMP/facts"
+          sh .github/scripts/runner-info.sh "$RUNNER_TEMP/facts/runner.json" || true
           {
             echo "## sw_vers"; sw_vers
             echo "## xcodebuild"; xcodebuild -version
@@ -146,8 +142,18 @@ jobs:
             echo "## DevToolsSecurity"; DevToolsSecurity -status 2>&1 || true
             echo "## csrutil"; csrutil status 2>&1 || true
             echo "## kdebug"; sysctl kern.kdebug 2>&1 | head -5 || true
-          } > "$RUNNER_TEMP/result/tools-${{ matrix.vm }}.txt" 2>&1
-          sed -n 1,40p "$RUNNER_TEMP/result/tools-${{ matrix.vm }}.txt"
+          } > "$RUNNER_TEMP/facts/tools-${{ matrix.vm }}.txt" 2>&1
+          sed -n 1,40p "$RUNNER_TEMP/facts/tools-${{ matrix.vm }}.txt"
+
+      # Run 1 lost both VMs inside one long recording step, with no log and no artifact. So each stage below is its own step with its own
+      # timeout, never fails the job, and is followed by its own upload: whatever finished before a lost VM is kept.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
+        with:
+          name: xctrace-facts-${{ matrix.vm }}
+          path: ${{ runner.temp }}/facts
+          if-no-files-found: warn
+          retention-days: 30
 
       # Boot once and keep it booted; bootDevice() is idempotent.
       - name: Boot the Simulator (kept booted for the whole job)
@@ -158,34 +164,63 @@ jobs:
           xcrun simctl boot "$udid"
           xcrun simctl bootstatus "$udid" -b
 
-      - name: Recordings (every arm, every pass; a bad arm is a result, not a failure)
-        timeout-minutes: 40
+      - name: 'Stage 1: recordings that target the Simulator device (Animation Hitches, os_signpost, System Trace)'
+        id: sim
+        continue-on-error: true
+        timeout-minutes: 14
         env:
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
-          ARMS: ${{ inputs.arms }}
-          PASSES: ${{ inputs.passes || '2' }}
+          PASSES: ${{ inputs.passes || '1' }}
           FW_WK_TIMEOUT_SCALE: '8'
           FW_WK_ATTEMPTS: '3'
         working-directory: packages/measure-webkit
         run: |
-          set -euo pipefail
+          set -u
           mkdir -p out
-          arms=()
-          if [ -n "$ARMS" ]; then arms=(--arms "$ARMS"); fi
-          node src/xctrace/cli.mjs run --passes "$PASSES" --out out/xctrace ${arms[@]+"${arms[@]}"} 2> >(tee out/xctrace.log >&2)
-          ls -l out/xctrace | head -60
+          node src/xctrace/cli.mjs run --arms hitches,signposts,systrace --passes "$PASSES" --out out/sim 2> >(tee out/sim.log >&2)
+          echo "run exit $?"
+          node src/xctrace/cli.mjs reduce --dir out/sim --json out/sim-counts.json || true
+          ls -l out/sim | head -40
+          exit 0
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
+        with:
+          name: xctrace-sim-${{ matrix.vm }}
+          path: packages/measure-webkit/out/sim*
+          if-no-files-found: warn
+          retention-days: 30
 
-      - name: Per-zone counts of the recordings (the reducer on the exports)
-        if: ${{ !cancelled() && steps.stale.outcome == 'skipped' }}
+      - name: 'Stage 2: recordings of the whole host (Animation Hitches, os_signpost, System Trace)'
+        id: host
+        continue-on-error: true
+        timeout-minutes: 14
+        env:
+          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
+          PASSES: ${{ inputs.passes || '1' }}
+          FW_WK_TIMEOUT_SCALE: '8'
+          FW_WK_ATTEMPTS: '3'
         working-directory: packages/measure-webkit
         run: |
-          set -euo pipefail
-          node src/xctrace/cli.mjs reduce --dir out/xctrace --json out/xctrace-counts.json
-          head -c 3000 out/xctrace-counts.json
+          set -u
+          mkdir -p out
+          node src/xctrace/cli.mjs run --arms hitches-host,signposts-host,systrace-host --passes "$PASSES" --out out/host 2> >(tee out/host.log >&2)
+          echo "run exit $?"
+          node src/xctrace/cli.mjs reduce --dir out/host --json out/host-counts.json || true
+          ls -l out/host | head -40
+          exit 0
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
+        with:
+          name: xctrace-host-${{ matrix.vm }}
+          path: packages/measure-webkit/out/host*
+          if-no-files-found: warn
+          retention-days: 30
 
-      - name: XCTHitchMetric (an XCUITest swipes Safari on the served page)
+      - name: 'Stage 3: XCTHitchMetric (an XCUITest swipes Safari on the served page)'
+        id: hitch
+        continue-on-error: true
         if: ${{ !cancelled() && steps.stale.outcome == 'skipped' && (github.event_name != 'workflow_dispatch' || inputs.hitchmetric) }}
-        timeout-minutes: 25
+        timeout-minutes: 20
         env:
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
         shell: bash
@@ -215,26 +250,16 @@ jobs:
           xcrun xcresulttool get test-results metrics --path "$out/hitch.xcresult" > "$out/metrics.json" 2>&1 || true
           ls -l "$out"
           exit 0
-
-      # Steps after the measurement steps: collect, upload, telemetry. The VM is discarded after the job.
-      - name: Keep logs
-        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
-        working-directory: packages/measure-webkit
-        env:
-          VM: ${{ matrix.vm }}
-        run: |
-          mkdir -p "$RUNNER_TEMP/result"
-          cp -R out "$RUNNER_TEMP/result/out-$VM" 2>/dev/null || true
-          find "$RUNNER_TEMP/result" -name '*.trace' -prune -exec rm -rf {} + 2>/dev/null || true
-          du -sh "$RUNNER_TEMP/result" || true
-
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
         with:
-          name: xctrace-probe-${{ matrix.vm }}
-          path: ${{ runner.temp }}/result
-          if-no-files-found: error
+          name: xctrace-hitchmetric-${{ matrix.vm }}
+          path: |
+            packages/measure-webkit/out/hitchmetric
+            !packages/measure-webkit/out/hitchmetric/hitch.xcresult/Data
+          if-no-files-found: warn
           retention-days: 30
+
       - uses: ./.github/actions/telemetry
         if: ${{ (always()) && steps.stale.outcome == 'skipped' }}
         with:

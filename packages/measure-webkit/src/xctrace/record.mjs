@@ -7,8 +7,13 @@ import { sleep } from '../sim.mjs';
 import { recordArgs, WANTED_SCHEMA } from './arms.mjs';
 
 // every recorder this process started: killed (whole process group) when the process ends, so no xctrace outlives the harness
-const LIVE = new Set();
-process.on('exit', () => { for (const pid of LIVE) { try { process.kill(-pid, 'SIGKILL'); } catch { /* gone */ } } });
+const LIVE = new Map();
+/** Signal a recorder's process group. A group started under `sudo` belongs to root, so it is signalled through `sudo -n kill`. */
+function killGroup(pid, sig, sudo) {
+  try { process.kill(-pid, sig); return; } catch { /* gone, or root's */ }
+  if (sudo) spawnSync('sudo', ['-n', 'kill', `-${sig.replace('SIG', '')}`, '--', `-${pid}`], { timeout: 5000 });
+}
+process.on('exit', () => { for (const [pid, sudo] of LIVE) killGroup(pid, 'SIGKILL', sudo); });
 
 const START_RE = /Ctrl-C|recording started|tracing started|Recording\.\.\./i;
 
@@ -30,13 +35,13 @@ export async function startRecording(arm, { udid, out, sudo = false, startMs = 6
   const feed = (b) => { text += b.toString(); };
   child.stdout.on('data', feed);
   child.stderr.on('data', feed);
-  LIVE.add(child.pid);
+  LIVE.set(child.pid, sudo);
   const done = new Promise((res) => child.on('close', (code, sig) => { exited = { code, sig }; LIVE.delete(child.pid); res(exited); }));
   const t0 = Date.now();
   while (!exited && !START_RE.test(text) && Date.now() - t0 < startMs) await sleep(250);
   const started = !exited && START_RE.test(text);
   log(`  xctrace ${arm.id}${sudo ? ' (sudo)' : ''}: ${started ? 'recording' : exited ? `exited early (${exited.code ?? exited.sig})` : 'no start line'} after ${Date.now() - t0} ms`);
-  const group = (sig) => { try { process.kill(-child.pid, sig); } catch { /* gone */ } };
+  const group = (sig) => killGroup(child.pid, sig, sudo);
   return {
     started, startedAt: Date.now(), get output() { return text; }, get exited() { return exited; },
     async stop() {
