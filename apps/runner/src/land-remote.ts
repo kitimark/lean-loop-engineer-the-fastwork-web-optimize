@@ -98,7 +98,7 @@ export type Handle = { provider: Provider; branch: string; marker: string; /** C
 /** The legs of the land lane (lean/land-legs.txt) and the split of them between the providers (fwcore `ci.overflow`). */
 export type LegSplit = { all: string[]; gh: string[]; cc: string[] };
 /** `legs` is absent for a land that runs wholly on GitHub (the marker and the matrix are then what they always were). */
-export type StartCtx = { task: string; mergeSha: string; want: Want; legs?: LegSplit };
+export type StartCtx = { task: string; mergeSha: string; want: Want; legs?: LegSplit; /** the legs of a CircleCI group that could not start, re-dispatched on a second GitHub run: its own branch, so the first run's tip check holds */ again?: boolean };
 export type Polled = { run: LaneRun; times?: { startMs: number; queueMs: number; laneMs: number } | null; /** why the land run record was not read (the waiter outcome stands) */ note?: string };
 export interface Adapter {
   provider: Provider;
@@ -134,7 +134,7 @@ export function cachedLaneView(dir: string, h: Handle, id?: string): GhRunView |
 }
 
 /** The branch a merge commit is pushed to: unique per commit, so a re-land never needs a force push. */
-export const landBranch = (task: string, mergeSha: string): string => `ci/land-${task.replace(/[^A-Za-z0-9._-]/g, "_")}-${mergeSha.slice(0, 7)}`;
+export const landBranch = (task: string, mergeSha: string, again = false): string => `ci/land-${task.replace(/[^A-Za-z0-9._-]/g, "_")}-${mergeSha.slice(0, 7)}${again ? "-again" : ""}`;
 
 /** The message of the marker commit. `[ci:land]` starts the GitHub land lane, so a land whose legs all run on CircleCI leaves it out
  *  (GitHub then starts nothing); a land that gives GitHub only some legs says which in `[legs:a,b]`, which the guard of land.yml reads. */
@@ -153,7 +153,7 @@ export function makePusher(d: Pick<GithubDeps, "git" | "scan">): Pusher {
   const memo = new Map<string, Promise<{ branch: string; marker: string }>>();
   return (c) => {
     const msg = markerMessage(c);
-    const key = `${c.mergeSha}\n${msg}`;
+    const key = `${c.mergeSha}\n${c.again ? "again" : "first"}\n${msg}`;
     let p = memo.get(key);
     if (!p) {
       p = (async () => {
@@ -161,7 +161,7 @@ export function makePusher(d: Pick<GithubDeps, "git" | "scan">): Pusher {
         if (hit) throw new Error(`personal-data scan refused the push of ${c.mergeSha.slice(0, 7)}: ${hit}`);
         const tree = d.git(["rev-parse", `${c.mergeSha}^{tree}`]);
         const marker = d.git(["commit-tree", tree, "-p", c.mergeSha, "-m", msg]);
-        const branch = landBranch(c.task, c.mergeSha);
+        const branch = landBranch(c.task, c.mergeSha, c.again);
         d.git(["branch", "-f", branch, marker]);
         d.git(["push", "origin", branch]);
         return { branch, marker };
@@ -296,7 +296,7 @@ export type AwaitInput = {
   sliceS?: number;
   waitsLeft?: number;
 };
-export type AwaitOutcome = { verdict: RemoteVerdict; runs: LaneRun[] };
+export type AwaitOutcome = { verdict: RemoteVerdict; runs: LaneRun[]; /** providers whose lane could not be started (no run exists there) */ startFailed: Provider[] };
 
 /** Sleep `ms` (nothing when <= 0); ends early when the signal aborts. A run that came back `running` sooner than its slice must not be polled at once. */
 const sleepOut = (ms: number, signal: AbortSignal): Promise<void> => ms <= 0 ? Promise.resolve() : new Promise((res) => {
@@ -313,6 +313,7 @@ export async function awaitRemote(i: AwaitInput): Promise<AwaitOutcome> {
   const slice = i.sliceS ?? 540;
   const runs = new Map<string, LaneRun>();
   const attempted = new Set<Provider>();
+  const startFailed: Provider[] = [];
   const handles = new Map<Provider, Handle>();
   const ac = new AbortController();
   let localOk: boolean | null = null;
@@ -342,6 +343,7 @@ export async function awaitRemote(i: AwaitInput): Promise<AwaitOutcome> {
         i.log(`remote: ${p}: pushed ${handles.get(p)!.branch}; lane queued`);
       } catch (e) {
         i.span("remote push", t0, now() - t0, 1);
+        startFailed.push(p);
         runs.set(p, mk(p, "unavailable"));
         i.log(`remote: ${p}: unavailable: ${e instanceof Error ? e.message : String(e)}`);
       }
@@ -373,7 +375,7 @@ export async function awaitRemote(i: AwaitInput): Promise<AwaitOutcome> {
     if (now() >= deadline) for (const [p, r] of runs) if (r.state === "queued" || r.state === "running") runs.set(p, { ...r, state: "timeout" });
   }
   const ok = await i.local;
-  return { verdict: decide(ok), runs: [...runs.values()] };
+  return { verdict: decide(ok), runs: [...runs.values()], startFailed };
 }
 
 /** The overflow of one land: the legs of the lane and how the providers share them. `plan` is fwcore `ci.overflow` over the facts of this moment
@@ -382,14 +384,38 @@ export type OverflowPlan = { legs: string[]; plan: () => Promise<{ gh: string[];
 
 /** Wait for the legs of each provider as a group of its own (`allow` is that provider alone, so a group never borrows the other
  *  provider's run) and combine the group verdicts with fwcore `ci.overflowCombine` (Lean `Overflow.pickKind`: a refusal first, then
- *  local, then the first group that is not an accept, else accept). The verdict returned is the one of the first group of that kind. */
+ *  local, then the first group that is not an accept, else accept). The verdict returned is the one of the first group of that kind.
+ *
+ *  A CircleCI group whose start fails (no adapter, the key check, the push or the trigger throws: no pipeline exists) is replaced by a
+ *  second GitHub run of its legs, started the moment the start failed and waited for as a group of its own, on the branch `-again`
+ *  (Lean `Overflow.settle`, op `ci.overflowSettle`, theorem `failed_start_covered_once`). The failed group's verdict is dropped, so the
+ *  local tier runs the remote checks only if GitHub cannot be reached either. A pipeline that started and later failed is not replaced. */
 export async function awaitGroups(i: Omit<AwaitInput, "allow" | "ctx"> & { ctx: StartCtx; split: LegSplit }): Promise<AwaitOutcome> {
-  const groups = ([["github", i.split.gh], ["circleci", i.split.cc]] as [Provider, string[]][]).filter(([, l]) => l.length > 0);
   const ctx: StartCtx = { ...i.ctx, legs: i.split };
-  const outs = await Promise.all(groups.map(([provider]) => awaitRemote({ ...i, allow: [provider], ctx })));
-  const kind = (i.call({ op: "ci.overflowCombine", kinds: outs.map((o) => o.verdict.kind) }) as { kind: string | null }).kind;
-  const chosen = outs.find((o) => o.verdict.kind === kind) ?? outs[0]!;
-  return { verdict: chosen.verdict, runs: outs.flatMap((o) => o.runs) };
+  let again: Promise<AwaitOutcome> | null = null;
+  const cc = i.adapters.circleci;
+  const onFail = () => {
+    if (again) return;
+    const st = i.call({ op: "ci.overflowSettle", gh: i.split.gh, cc: i.split.cc, ccStarted: false }) as { again: string[] };
+    if (st.again.length === 0) return;
+    i.log(`remote: CircleCI could not start; its legs ${st.again.join(",")} run on GitHub`);
+    again = awaitRemote({ ...i, allow: ["github"], ctx: { ...i.ctx, legs: { all: i.split.all, gh: st.again, cc: [] }, again: true } });
+    again.catch(() => {}); // awaited below; a rejection before that is not an unhandled one
+  };
+  const adapters: AwaitInput["adapters"] = { ...i.adapters };
+  adapters.circleci = {
+    provider: "circleci",
+    start: async (c) => { try { if (!cc) throw new Error("no adapter for circleci"); return await cc.start(c); } catch (e) { onFail(); throw e; } },
+    poll: (h, c, sliceS, signal) => cc!.poll(h, c, sliceS, signal),
+  };
+  const groups = ([["github", i.split.gh], ["circleci", i.split.cc]] as [Provider, string[]][]).filter(([, l]) => l.length > 0);
+  const outs = await Promise.all(groups.map(async ([provider]) => ({ provider, out: await awaitRemote({ ...i, adapters, allow: [provider], ctx }) })));
+  const second = again ? await (again as Promise<AwaitOutcome>) : null;
+  // the failed CircleCI group has no run to judge: the re-dispatched GitHub group stands in for it
+  const judged = [...outs.filter((o) => !(o.provider === "circleci" && second)).map((o) => o.out), ...(second ? [second] : [])];
+  const kind = (i.call({ op: "ci.overflowCombine", kinds: judged.map((o) => o.verdict.kind) }) as { kind: string | null }).kind;
+  const chosen = judged.find((o) => o.verdict.kind === kind) ?? judged[0]!;
+  return { verdict: chosen.verdict, runs: [...outs.flatMap((o) => o.out.runs), ...(second ? second.runs : [])], startFailed: outs.flatMap((o) => o.out.startFailed) };
 }
 
 /** `pnpm -s fw ci wait` as a child process: no CPU while it waits; the signal kills it. */

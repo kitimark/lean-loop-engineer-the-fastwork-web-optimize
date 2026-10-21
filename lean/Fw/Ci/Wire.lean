@@ -29,6 +29,7 @@ and passes it to the next call.
 | `ci.required` | `msg` (null: unknown) | `lanes` [name] (`Fw.Ci.Intent.wanted`, table order); unknown: `lanes` null, `verdict`, `code`, `reason` |
 | `ci.overflow` | `legs` [name], `ghActive` [workflow name] or null, `ghActions`, `ghPrev`?, `ccArm`, `ccReadAt` (ms or null), `now` (ms), `spent`, `storage`, `keys` (n or null), `checkout` (bool or null), `forceFull`? | `gh` [leg], `cc` [leg], `reason`, `ghFree`, `ghDegraded`, `ccReady` (`Fw.Ci.Overflow`) |
 | `ci.overflowCombine` | `kinds` [verdict kind] | `kind` (the deciding kind, null for none; `Fw.Ci.Overflow.pickKind`) |
+| `ci.overflowSettle` | `gh` [leg], `cc` [leg], `ccStarted` (bool) | `gh`, `cc`, `again` [leg]: a CircleCI group that could not start hands its legs to a second GitHub run (`again`; `Fw.Ci.Overflow.settle`) |
 
 Facts: `{guard, steps:[{name, conclusion}], jobs:[conclusion], heavySteps:[{name, conclusion}]}` (`heavySteps`: the
 steps of every non-guard job, read for the tip re-check's `stale:` step).
@@ -396,10 +397,18 @@ def opOverflowCombine (req : Json) : Except String Reply := do
   let ks ← (← arr req "kinds").toList.mapM (asStr "kinds")
   pure [("kind", match Fw.Ci.Overflow.pickKind ks with | some k => .str k | none => .null)]
 
+/-- `ci.overflowSettle`: where the legs run after the CircleCI group tried to start (`Fw.Ci.Overflow.settle`). -/
+def opOverflowSettle (req : Json) : Except String Reply := do
+  let legsOf (k : String) : Except String (List Fw.Console.LandLegs.Leg) := do
+    (← (← arr req k).toList.mapM (asStr k)).mapM legOf
+  let st := Fw.Ci.Overflow.settle (← legsOf "gh") (← legsOf "cc") (← boolD req "ccStarted" true)
+  let nm (l : List Fw.Console.LandLegs.Leg) : Json := .arr (l.map fun x => Json.str x.name).toArray
+  pure [("gh", nm st.gh), ("cc", nm st.cc), ("again", nm st.again)]
+
 /-- The ops of this module. -/
 def ops : List String :=
   ["ci.budget.reserve", "ci.budget.next", "ci.budget.observe", "ci.budget.step", "ci.budget.status", "ci.budget.limits",
-    "ci.verdict", "ci.required", "ci.attempt", "ci.overflow", "ci.overflowCombine"]
+    "ci.verdict", "ci.required", "ci.attempt", "ci.overflow", "ci.overflowCombine", "ci.overflowSettle"]
 
 /-- Dispatch a `ci.budget.*` op (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -415,6 +424,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "ci.attempt" => some (opAttempt req)
   | "ci.overflow" => some (opOverflow req)
   | "ci.overflowCombine" => some (opOverflowCombine req)
+  | "ci.overflowSettle" => some (opOverflowSettle req)
   | _ => none
 
 /-! ## Examples -/

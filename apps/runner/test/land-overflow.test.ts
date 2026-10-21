@@ -1,6 +1,6 @@
 // land-lane-circleci: GitHub first, CircleCI for the legs GitHub has no slot for. The rule is Lean Fw.Ci.Overflow (golden
 // packages/contracts/golden/ci/overflow.jsonl, replayed here through fwcore); the rest is glue, checked with fake providers.
-import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -19,8 +19,8 @@ const want: Want = { sha: SHA, laneId: "land", laneDigest: DIGEST };
 
 describe("the Lean golden, replayed through fwcore", () => {
   const lines = readFileSync(join(root, "packages/contracts/golden/ci/overflow.jsonl"), "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l) as { op: string; name: string; request: Record<string, unknown>; response: Record<string, unknown> });
-  it("has rows for both ops", () => {
-    expect(new Set(lines.map((l) => l.op))).toEqual(new Set(["ci.overflow", "ci.overflowCombine"]));
+  it("has rows for all three ops", () => {
+    expect(new Set(lines.map((l) => l.op))).toEqual(new Set(["ci.overflow", "ci.overflowCombine", "ci.overflowSettle"]));
   });
   for (const l of lines) {
     it(`${l.op}: ${l.name}`, () => {
@@ -35,21 +35,7 @@ describe("the Lean golden, replayed through fwcore", () => {
   });
 });
 
-describe("the width table covers every workflow", () => {
-  const lean = readFileSync(join(root, "lean/Fw/Ci/Overflow.lean"), "utf8");
-  const block = /def widths[\s\S]*?\]\n/.exec(lean)![0];
-  const rows = new Map([...block.matchAll(/\("([a-z0-9-]+)", (\d+)\)/g)].map((m) => [m[1]!, Number(m[2])]));
-  const names = readdirSync(join(root, ".github/workflows")).filter((f) => f.endsWith(".yml")).map((f) => /^name:\s*(\S+)/m.exec(readFileSync(join(root, ".github/workflows", f), "utf8"))![1]!);
-  it("every workflow name has a row, and every row names a workflow", () => {
-    expect([...rows.keys()].sort()).toEqual([...names].sort());
-  });
-  it("fwcore counts one run of a workflow as its row says", () => {
-    for (const n of names) {
-      const r = call({ op: "ci.overflow", legs: LEGS, ghActive: [n], ghActions: "operational", ghPrev: false, ccArm: "unknown", ccReadAt: null, now: 1, spent: 0, storage: 0, keys: null, checkout: null, forceFull: false }) as { ghFree: number };
-      expect(r.ghFree, n).toBe(Math.max(0, 20 - rows.get(n)!));
-    }
-  });
-});
+// the width table is checked against the workflow files in land-overflow-widths.test.ts
 
 describe("the legs of land.yml are the legs of the overflow", () => {
   it("the workflow matrix lists exactly lean/land-legs.txt", () => {
@@ -81,7 +67,7 @@ describe("planOverflow", () => {
     expect(p!.note).toMatch(/forced full/);
   });
   it("a partly full GitHub keeps the first legs", async () => {
-    const p = await planOverflow(baseDeps({ slots: async () => ({ active: ["visual-diff", "snapshot-extract", "trajectory-probe"], ageS: 90 }) }));
+    const p = await planOverflow(baseDeps({ slots: async () => ({ active: ["engine-premises", "land", "wktr-fixtures"], ageS: 90 }) }));
     expect(p).toMatchObject({ gh: LEGS.slice(0, 3), cc: LEGS.slice(3), reason: "github-full" });
     expect(p!.note).toMatch(/90 s old/);
   });
@@ -167,6 +153,18 @@ describe("the marker commit both providers share", () => {
     expect(x).toEqual(y);
     expect(calls.filter((a) => a[0] === "push").length).toBe(1);
     expect(calls.find((a) => a[0] === "commit-tree")!.slice(-1)[0]).toMatch(/\[legs:check-sh\]/);
+  });
+  it("the re-run of a failed CircleCI start pushes its own branch and names its legs", async () => {
+    const calls: string[][] = [];
+    const git = (a: string[]) => { calls.push(a); return a[0] === "commit-tree" ? "c".repeat(40) : "tree"; };
+    const push = makePusher({ git });
+    const first = ctx(split(["check-sh"], LEGS.slice(1)));
+    const again: StartCtx = { ...first, legs: { all: LEGS, gh: LEGS.slice(1), cc: [] }, again: true };
+    const [x, y] = await Promise.all([push(first), push(again)]);
+    expect(x.branch).not.toBe(y.branch);
+    expect(y.branch).toMatch(/-again$/);
+    expect(calls.filter((a) => a[0] === "push").length).toBe(2);
+    expect(calls.filter((a) => a[0] === "commit-tree").map((a) => a.slice(-1)[0]).some((m) => /\[legs:suites-a/.test(m!))).toBe(true);
   });
   it("a refused scan fails both", async () => {
     const push = makePusher({ git: () => "x", scan: () => "an email" });
@@ -262,10 +260,51 @@ describe("awaitGroups: each provider's legs are waited for on their own, fwcore 
     const o = await awaitGroups(groupIn({ github: fakeProvider("github", ["pass"]), circleci: fakeProvider("circleci", ["fail"]) }, gh3, cc2));
     expect(o.verdict).toMatchObject({ kind: "refuse", reason: "remote-lane-failed" });
   });
-  it("a group that is unavailable: the land runs the remote tier on this Mac", async () => {
-    const dead: Adapter = { provider: "circleci", async start() { throw new Error("no key"); }, async poll() { throw new Error("unused"); } };
-    const o = await awaitGroups(groupIn({ github: fakeProvider("github", ["pass"]), circleci: dead }, gh3, cc2));
+  it("a GitHub group that is unavailable: the land runs the remote tier on this Mac", async () => {
+    const dead: Adapter = { provider: "github", async start() { throw new Error("no gh"); }, async poll() { throw new Error("unused"); } };
+    const o = await awaitGroups(groupIn({ github: dead, circleci: fakeProvider("circleci", ["pass"]) }, gh3, cc2));
     expect(o.verdict.kind).toBe("local");
+  });
+  describe("a CircleCI start that failed is run again on GitHub (Lean Overflow.settle, failed_start_covered_once)", () => {
+    const deadCc: Adapter = { provider: "circleci", async start() { throw new Error("no key"); }, async poll() { throw new Error("unused"); } };
+    it("the legs of CircleCI start on GitHub on the again branch, the local tier is not used, the verdict is GitHub's", async () => {
+      const started: StartCtx[] = [];
+      const o = await awaitGroups(groupIn({ github: fakeProvider("github", ["pass"], started), circleci: deadCc }, gh3, cc2));
+      expect(o.verdict.kind).toBe("accept");
+      expect(started.map((c) => [c.legs!.gh, c.legs!.cc, c.again ?? false])).toEqual([[gh3, cc2, false], [cc2, [], true]]);
+      expect(o.startFailed).toEqual(["circleci"]);
+    });
+    it("every leg on CircleCI and none can start: all the legs run on GitHub", async () => {
+      const started: StartCtx[] = [];
+      const o = await awaitGroups(groupIn({ github: fakeProvider("github", ["pass"], started), circleci: deadCc }, [], LEGS));
+      expect(o.verdict.kind).toBe("accept");
+      expect(started.map((c) => [c.legs!.gh, c.again ?? false])).toEqual([[LEGS, true]]);
+    });
+    it("a missing adapter, a failing trigger and a failing key check are the same", async () => {
+      for (const circleci of [undefined, circleciAdapter(circleDeps({ trigger: async () => { throw new Error("trigger 500"); } })), circleciAdapter(circleDeps({ push: async () => { throw new Error("key check"); } }))]) {
+        const started: StartCtx[] = [];
+        const o = await awaitGroups(groupIn({ github: fakeProvider("github", ["pass"], started), ...(circleci ? { circleci } : {}) }, gh3, cc2));
+        expect(o.verdict.kind).toBe("accept");
+        expect(started.map((c) => c.again ?? false)).toEqual([false, true]);
+      }
+    });
+    it("the re-run cannot start either: the local tier runs the remote checks", async () => {
+      let n = 0;
+      const gh: Adapter = { provider: "github", async start() { if (n++ > 0) throw new Error("gh down"); return { provider: "github", branch: "b", marker: MARKER }; }, async poll() { return { run: { provider: "github", sha: SHA, laneId: "land", laneDigest: DIGEST, state: "pass" } }; } };
+      expect((await awaitGroups(groupIn({ github: gh, circleci: deadCc }, gh3, cc2))).verdict.kind).toBe("local");
+    });
+    it("the re-run fails: refuse", async () => {
+      let n = 0;
+      const gh: Adapter = { provider: "github", async start() { n++; return { provider: "github", branch: "b", marker: MARKER }; }, async poll() { return { run: { provider: "github", sha: SHA, laneId: "land", laneDigest: DIGEST, state: n > 1 ? "fail" : "pass" } }; } };
+      expect((await awaitGroups(groupIn({ github: gh, circleci: deadCc }, gh3, cc2))).verdict).toMatchObject({ kind: "refuse", reason: "remote-lane-failed" });
+    });
+    it("a CircleCI pipeline that started and then failed is a refusal, not a second run", async () => {
+      const started: StartCtx[] = [];
+      const o = await awaitGroups(groupIn({ github: fakeProvider("github", ["pass"], started), circleci: fakeProvider("circleci", ["fail"]) }, gh3, cc2));
+      expect(o.verdict).toMatchObject({ kind: "refuse" });
+      expect(started.length).toBe(1);
+      expect(o.startFailed).toEqual([]);
+    });
   });
   it("a CircleCI group alone with a pass bound to the wrong sha does not accept", async () => {
     const o = await awaitGroups(groupIn({ circleci: fakeProvider("circleci", ["pass"], [], "c".repeat(40)) }, [], LEGS));

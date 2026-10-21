@@ -1,12 +1,13 @@
 // The facts of the land overflow and the real CircleCI dependencies (task land-lane-circleci). The rule is Lean `Fw.Ci.Overflow`
-// (fwcore ops `ci.overflow`, `ci.overflowCombine`; golden packages/contracts/golden/ci/overflow.jsonl): GitHub Actions first, CircleCI
+// (fwcore ops `ci.overflow`, `ci.overflowCombine`, `ci.overflowSettle`; golden packages/contracts/golden/ci/overflow.jsonl): GitHub Actions first, CircleCI
 // for the legs GitHub has no free job slot for. This file reads facts (gh, the status pages, the CircleCI API through
 // scripts/circleci.mjs, a ledger file) and hands them to fwcore; it decides nothing, except that it asks for the CircleCI facts only
 // when fwcore's first answer names legs to move (the CircleCI facts do not change which legs those are: Lean `overflow_only_when_full`).
 //
 // Freshness of what is read (the limits the decision lives with):
 //  - the GitHub slot count is one `gh run list --limit 100` call, cached on disk for SLOT_TTL_S (120 s, the gh poll floor), so it is up to
-//    that old, and it sees only the newest 100 runs (an older run still going is not counted: an under-count);
+//    that old, and it sees this repository only and its newest 100 runs (a run of another repository of the account, or an older run still
+//    going, is not counted: an under-count; the widths of the runs it does see are derived from the workflow files and tested);
 //  - the CircleCI status is the console's `/api/ci-status` (at most 120 s old by its own poll, and stale after 6 min: Lean `usable`);
 //  - credits and storage are read from the ledger of pipelines this Mac fetched.
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";

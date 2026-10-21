@@ -35,12 +35,32 @@ def creditReserve : Nat := 80000
 
 /-! ## Slots GitHub is using -/
 
-/-- Jobs a workflow of this name runs at once at its widest `needs` level (CONFIRMED from the files of `.github/workflows` on the
-commit that added this table; `apps/runner/test/land-overflow.test.ts` fails when a workflow has no row). -/
+/-- Jobs a run of the workflow of this name can hold at once, at most (CONFIRMED by reading `.github/workflows`, derived and checked by
+`apps/runner/test/land-overflow-widths.test.ts`, which fails when a row is not exactly the derived value).
+
+The derivation: the heaviest set of jobs no two of which are ancestor and descendant in `needs`; a job counts its matrix size, at most
+its `max-parallel`, and at most 5 on a macOS runner (https://docs.github.com/en/actions/reference/limits). A matrix from `fromJSON` counts
+the maximum its inputs allow (over-count is safe, under-count is not). The set behind each row:
+- breakpoint-gate 10: `gate` (breakpoint-gate.yml:226; `gate-jobs.mjs` plans at most 10 over the inputs of :171-:174)
+- chromium-counts 20: `counts` (chromium-counts.yml:380; 2 targets x 10 runs, :145)
+- difftest 2: `fixed`, `rotating` (difftest.yml:99,158)
+- engine-premises 7: `chromium` 6 (engine-premises.yml:174, :110) and `webkit` 1 (:243)
+- gate-gaps 29: `collect-linux` 2 (gate-gaps.yml:122), `collect-macos` 1 (:185), `images-audit` 8 (:264), `images-pages` 18 (:336)
+- land 5: `land` (land.yml:95)
+- lean-math 1, lean 1: one job after the guard
+- mutants 24: `shard` (mutants.yml:126; shards 1 to 24, :110)
+- premise-tests 2: `engine` (premise-tests.yml:66); preview-e2e 2: `engine` (preview-e2e.yml:65)
+- sim-speed 5: `probe` (sim-speed.yml:121; any number of arms, so the 5 macOS slots bound it)
+- snapshot-extract 7: `tests` 1 (snapshot-extract.yml:96) and `extract` 6 (:137)
+- trajectory-probe 12: `probe` 8 (trajectory-probe.yml:259; `plan.mjs`), `frames` 2 (:356), `probe-apple` 2 (:496)
+- visual-diff 39: `shoot` 32 (visual-diff.yml:274; 2 engines x 16 shards), `port` 1, `port-fonts` 2, `navscroll` 2, `people-layout` 2
+- webkit-sim 3: `merge`, `align`, `lag-report` after `sim` (webkit-sim.yml:446,517,592; `sim` is 2, max-parallel :274)
+- wktr-fixtures 5: `fixtures` 4 (wktr-fixtures.yml:129; jobs 1 to 4, :110) and `fwcore` 1; wktr 2: `plan` and `fwcore` (wktr.yml)
+A row can exceed the 20 slots (visual-diff 39): the free count then saturates at 0, which is the safe side. -/
 def widths : List (String × Nat) := [
-  ("breakpoint-gate", 1), ("chromium-counts", 3), ("difftest", 2), ("engine-premises", 2), ("gate-gaps", 29), ("land", 5),
-  ("lean-math", 1), ("lean", 1), ("mutants", 1), ("premise-tests", 2), ("preview-e2e", 2), ("sim-speed", 1),
-  ("snapshot-extract", 6), ("trajectory-probe", 4), ("visual-diff", 7), ("webkit-sim", 3), ("wktr-fixtures", 2), ("wktr", 2)]
+  ("breakpoint-gate", 10), ("chromium-counts", 20), ("difftest", 2), ("engine-premises", 7), ("gate-gaps", 29), ("land", 5),
+  ("lean-math", 1), ("lean", 1), ("mutants", 24), ("premise-tests", 2), ("preview-e2e", 2), ("sim-speed", 5),
+  ("snapshot-extract", 7), ("trajectory-probe", 12), ("visual-diff", 39), ("webkit-sim", 3), ("wktr-fixtures", 5), ("wktr", 2)]
 
 /-- Width of a workflow no row names: four jobs, so an unlisted workflow over-counts rather than under-counts. -/
 def defaultWidth : Nat := 4
@@ -48,8 +68,11 @@ def defaultWidth : Nat := 4
 /-- Width of one workflow. -/
 def width (name : String) : Nat := ((widths.find? (·.1 == name)).map (·.2)).getD defaultWidth
 
-/-- Slots held by the active (queued or running) workflow runs: the sum of their widths. A run that has finished some of its jobs
-still counts in full, so the count is never below the real one (the safe side: it moves a leg to CircleCI sooner, never later). -/
+/-- Slots held by the active (queued or running) workflow runs: the sum of their widths. A run that has finished some of its jobs still
+counts in full. Each listed run counts at least its real job count while its row is at least the derived width of its workflow (the
+test of `widths`). The sum can still be below the real use: the list is the newest 100 runs of this repository only (`gh run list --limit
+100`), so a run older than those and a run of another repository of the account are not in it, and it is up to 120 s old (named limits,
+`research/notes/2026/10-21-land-lane-circleci.md`). -/
 def used (active : List String) : Nat := (active.map width).sum
 
 /-! ## What the decision reads -/
@@ -304,5 +327,55 @@ theorem pickKind_accept_iff (ks : List String) : pickKind ks = some "accept" ↔
           constructor
           · intro _; exact ⟨he, fun k hk => by simpa using hn k hk⟩
           · intro _; rfl
+
+/-! ### A CircleCI start that failed -/
+
+/-- Where the legs run once the CircleCI group has tried to start. -/
+structure Settled where
+  /-- legs of the GitHub run the plan gave GitHub -/
+  gh : List Leg
+  /-- legs on CircleCI -/
+  cc : List Leg
+  /-- legs re-dispatched on a second GitHub run -/
+  again : List Leg
+deriving DecidableEq, Repr
+
+/-- The plan gave `gh` to GitHub and `cc` to CircleCI. If CircleCI could not start (the key check, the trigger or the push failed, so no
+pipeline exists), its legs run on a second GitHub run: CircleCI keeps none and the local tier is not used. A pipeline that started is
+left as planned. -/
+def settle (gh cc : List Leg) (ccStarted : Bool) : Settled :=
+  if ccStarted || cc.isEmpty then ⟨gh, cc, []⟩ else ⟨gh, [], cc⟩
+
+/-- A CircleCI group that started, or had no leg, changes nothing. -/
+theorem settle_started (gh cc : List Leg) (ccStarted : Bool) (h : ccStarted = true ∨ cc = []) : settle gh cc ccStarted = ⟨gh, cc, []⟩ := by
+  unfold settle
+  rcases h with h | h <;> simp [h]
+
+/-- A failed start with legs on CircleCI: CircleCI keeps none and GitHub's second run takes all of them. -/
+theorem settle_failed (gh cc : List Leg) (hc : cc ≠ []) : settle gh cc false = ⟨gh, [], cc⟩ := by
+  unfold settle
+  simp [List.isEmpty_iff, hc]
+
+/-- Whatever the start did, the legs are the same legs: the three lists together are a permutation of `gh ++ cc`. -/
+theorem settle_perm (gh cc : List Leg) (st : Bool) :
+    ((settle gh cc st).gh ++ (settle gh cc st).again ++ (settle gh cc st).cc).Perm (gh ++ cc) := by
+  unfold settle
+  split
+  · simp
+  · simp
+
+/-- `failed_start_covered_once`: after a failed CircleCI start every leg of the plan runs on GitHub, on exactly one of its two runs, and on
+CircleCI on none (for distinct legs). -/
+theorem failed_start_covered_once (gh cc : List Leg) (nd : (gh ++ cc).Nodup) (hc : cc ≠ []) :
+    (∀ l ∈ gh ++ cc, ((settle gh cc false).gh ++ (settle gh cc false).again).count l = 1 ∧ l ∉ (settle gh cc false).cc) := by
+  intro l hl
+  rw [settle_failed gh cc hc]
+  simp only [List.not_mem_nil, not_false_eq_true, and_true]
+  exact nd.count_of_mem hl
+
+/-- A leg is never run twice, whatever the start did: the three lists are duplicate free for distinct legs. -/
+theorem settle_nodup (gh cc : List Leg) (st : Bool) (nd : (gh ++ cc).Nodup) :
+    ((settle gh cc st).gh ++ (settle gh cc st).again ++ (settle gh cc st).cc).Nodup :=
+  (settle_perm gh cc st).nodup_iff.2 nd
 
 end Fw.Ci.Overflow

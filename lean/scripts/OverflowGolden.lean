@@ -2,7 +2,7 @@ import Lean.Data.Json
 import Fw.Ci.Wire
 
 /-! Write (or with `--check`, verify) `packages/contracts/golden/ci/overflow.jsonl`: one line per case,
-`{"op", "name", "request", "response"}`, the reply of the ops `ci.overflow` and `ci.overflowCombine` (`Fw.Wire.Ci`, rule in
+`{"op", "name", "request", "response"}`, the reply of the ops `ci.overflow`, `ci.overflowCombine` and `ci.overflowSettle` (`Fw.Wire.Ci`, rule in
 `Fw.Ci.Overflow`). Consumer: `apps/runner/test/land-overflow.test.ts`, which reads the same ops from fwcore and compares.
 Run from `lean/`: `lake env lean --run scripts/OverflowGolden.lean [--check]`. -/
 
@@ -23,14 +23,17 @@ def names (l : List String) : Json := .arr (l.map Json.str).toArray
 def overflowCases : List (String × Json) := [
   ("calm: every leg stays on GitHub", mk []),
   ("a full GitHub (gate-gaps runs 29 jobs): every leg goes to CircleCI", mk [("ghActive", names ["gate-gaps"])]),
-  ("17 slots used, 3 free: three legs stay, two overflow", mk [("ghActive", names ["visual-diff", "snapshot-extract", "trajectory-probe"])]),
+  ("17 slots used, 3 free: three legs stay, two overflow", mk [("ghActive", names ["engine-premises", "land", "wktr-fixtures"])]),
   ("the slot count is unknown: GitHub first", mk [("ghActive", .null), ("ccArm", "degraded")]),
   ("a workflow with no width row counts four", mk [("ghActive", names ["no-such-workflow"])]),
   ("four unlisted workflows count 16: 4 free, four legs stay", mk [("ghActive", names ["no-such-workflow", "no-such-workflow", "no-such-workflow", "no-such-workflow"])]),
   ("the land workflow alone (5 slots): all legs stay", mk [("ghActive", names ["land"])]),
-  ("twenty slots used: none free", mk [("ghActive", names ["visual-diff", "snapshot-extract", "trajectory-probe", "wktr", "lean"])]),
-  ("nineteen used, one free: one leg stays", mk [("ghActive", names ["visual-diff", "snapshot-extract", "trajectory-probe", "wktr"])]),
-  ("more runs than slots (26): none free", mk [("ghActive", names ["visual-diff", "snapshot-extract", "trajectory-probe", "wktr", "wktr", "land"])]),
+  ("twenty slots used: none free", mk [("ghActive", names ["engine-premises", "snapshot-extract", "sim-speed", "lean"])]),
+  ("nineteen used, one free: one leg stays", mk [("ghActive", names ["engine-premises", "snapshot-extract", "sim-speed"])]),
+  ("more runs than slots (26): none free", mk [("ghActive", names ["breakpoint-gate", "engine-premises", "snapshot-extract", "wktr"])]),
+  ("one chromium-counts run (up to 2 x 10 matrix jobs) fills GitHub", mk [("ghActive", names ["chromium-counts"])]),
+  ("one visual-diff run (up to 2 x 16 shards) fills GitHub", mk [("ghActive", names ["visual-diff"])]),
+  ("one breakpoint-gate run (10 jobs): 10 free, all legs stay", mk [("ghActive", names ["breakpoint-gate"])]),
   ("the test flag marks GitHub full", mk [("forceFull", true)]),
   ("Actions degraded: every leg to CircleCI", mk [("ghActions", "partial_outage")]),
   ("Actions status unreadable, last decision degraded", mk [("ghActions", "unknown"), ("ghPrev", true)]),
@@ -64,6 +67,14 @@ def combineCases : List (String × List String) := [
   ("try and accept", ["try", "accept"]),
   ("wait and try", ["wait", "try"])]
 
+/-- The settle cases: `gh` and `cc` as the plan gave them, and whether CircleCI started. -/
+def settleCases : List (String × List String × List String × Bool) := [
+  ("CircleCI started: nothing changes", ["check-sh", "suites-a", "suites-b"], ["chromium", "playwright-webkit"], true),
+  ("CircleCI failed to start: its legs re-dispatch on GitHub", ["check-sh", "suites-a", "suites-b"], ["chromium", "playwright-webkit"], false),
+  ("CircleCI failed to start and GitHub had no leg: all legs re-dispatch", [], ["check-sh", "suites-a", "suites-b", "chromium", "playwright-webkit"], false),
+  ("no leg on CircleCI: nothing to re-dispatch", ["check-sh", "suites-a", "suites-b", "chromium", "playwright-webkit"], [], false),
+  ("a start that did not fail leaves a CircleCI-only plan alone", [], ["check-sh", "suites-a", "suites-b", "chromium", "playwright-webkit"], true)]
+
 def line (op name : String) (request response : Json) : String :=
   (Json.mkObj [("op", .str op), ("name", .str name), ("request", request), ("response", response)]).compress ++ "\n"
 
@@ -78,6 +89,9 @@ def text : String :=
     ++ String.join (combineCases.map fun (n, ks) =>
       let r := Json.mkObj [("kinds", names ks)]
       line "ci.overflowCombine" n r (reply "ci.overflowCombine" r))
+    ++ String.join (settleCases.map fun (n, gh, cc, st) =>
+      let r := Json.mkObj [("gh", names gh), ("cc", names cc), ("ccStarted", .bool st)]
+      line "ci.overflowSettle" n r (reply "ci.overflowSettle" r))
 
 def main (args : List String) : IO UInt32 := do
   let p : System.FilePath := ".." / "packages" / "contracts" / "golden" / "ci" / "overflow.jsonl"
