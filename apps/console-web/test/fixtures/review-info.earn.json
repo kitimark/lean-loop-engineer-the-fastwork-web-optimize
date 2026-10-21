@@ -72,8 +72,8 @@
    "id": "lags",
    "kind": "theorem",
    "line": 107,
-   "says": "Faithful arm, from rest: at the frame the computed value changes, the old value is still shown.",
-   "tex": "\\mathrm{live}(\\mathrm{run}_k)=\\mathrm{false}\\ \\wedge\\ g_{k+1}\\neq g_k\\ \\Rightarrow\\ \\mathrm{shown}_{k+1}=g_k"
+   "says": "Faithful arm F (on_k = true for every k), from rest: at the frame the computed value changes, the old value is still shown. One frame only; the longer hold is witnessed by #guards (mechanism step 4).",
+   "tex": "0\\le\\delta,\\ 0<d,\\ \\mathrm{live}(\\mathrm{run}^{F}_k)=\\mathrm{false},\\ g_{k+1}\\neq g_k\\ \\Rightarrow\\ \\mathrm{shown}^{F}_{k+1}=g_k"
   },
   {
    "decl": "shown_settled",
@@ -82,7 +82,7 @@
    "kind": "theorem",
    "line": 145,
    "says": "Once the computed value has been still for the delay plus the duration, every arm shows it.",
-   "tex": "\\big(\\forall i\\in(j,j{+}n]:\\ g_i=g_j\\big)\\wedge t_j+\\delta+d\\le t_{j+n}\\ \\Rightarrow\\ \\mathrm{shown}_{j+n}=g_{j+n}"
+   "tex": "t\\ \\text{monotone},\\ 0<d,\\ \\big(\\forall i\\in(j,j{+}n]:\\ g_i=g_j\\big),\\ t_j+\\delta+d\\le t_{j+n}\\ \\Rightarrow\\ \\mathrm{shown}_{j+n}=g_{j+n}"
   },
   {
    "decl": "visSame_settled",
@@ -117,7 +117,7 @@
    "id": "saving",
    "kind": "guard",
    "line": 371,
-   "says": "The saving is never negative (work_le); the model gives these counts at 1440 and 390 for 91 frames.",
+   "says": "The saving is never negative (work_le). The numbers are the fn=work lines of packages/contracts/golden/parts/nav-earn.jsonl (1440 and 390, 91 frames); the #guards at NavEarnOpt.lean:371-373 witness 43-3, 29-3 and the close max-width count only.",
    "tex": "s=\\mathrm{work}_{\\mathrm{faithful}}-\\mathrm{work}_{\\mathrm{flag}}\\ \\ge 0:\\quad 43-3=40,\\ \\ 29-3=26\\ (\\text{open}),\\ \\ 65-65=0,\\ \\ 51-51=0\\ (\\text{close})"
   },
   {
@@ -313,7 +313,7 @@
    ],
    "engine": "chromium",
    "metric": "earn max-width changes",
-   "noise": 2,
+   "noise": 4,
    "push": "open",
    "shown": {
     "kind": "gain",
@@ -377,7 +377,7 @@
    ],
    "engine": "chromium",
    "metric": "earn max-width changes",
-   "noise": 2,
+   "noise": 4,
    "push": "open",
    "shown": {
     "kind": "gain",
@@ -441,12 +441,11 @@
    ],
    "engine": "chromium",
    "metric": "earn max-width changes",
-   "noise": 2,
+   "noise": 4,
    "push": "close",
    "shown": {
-    "kind": "worse",
-    "n": 3,
-    "text": "3 more"
+    "kind": "overlap",
+    "text": "no difference shown (ranges overlap)"
    },
    "status": {
     "aa": [
@@ -477,8 +476,8 @@
    "push": "close",
    "shown": {
     "kind": "worse",
-    "n": 14,
-    "text": "14 more"
+    "n": 13,
+    "text": "13 more"
    },
    "status": {
     "aa": [
@@ -505,11 +504,11 @@
    ],
    "engine": "chromium",
    "metric": "earn max-width changes",
-   "noise": 2,
+   "noise": 4,
    "push": "close",
    "shown": {
-    "kind": "inNoise",
-    "text": "not shown (inside A/A noise)"
+    "kind": "overlap",
+    "text": "no difference shown (ranges overlap)"
    },
    "status": {
     "aa": [
@@ -540,8 +539,8 @@
    "push": "close",
    "shown": {
     "kind": "worse",
-    "n": 4,
-    "text": "4 more"
+    "n": 3,
+    "text": "3 more"
    },
    "status": {
     "aa": [
@@ -556,6 +555,134 @@
    },
    "unit": "frames whose value differs from the previous (3 reps)",
    "viewport": "1280"
+  },
+  {
+   "after": [
+    4,
+    4
+   ],
+   "before": [
+    29,
+    30
+   ],
+   "engine": "chromium",
+   "metric": "earn max-width changes",
+   "noise": 4,
+   "push": "open",
+   "shown": {
+    "kind": "gain",
+    "n": 25,
+    "text": "25 fewer"
+   },
+   "status": {
+    "aa": [
+     "39464294630",
+     "39464322751"
+    ],
+    "kind": "measured",
+    "runs": [
+     "39463486725",
+     "39464309993"
+    ]
+   },
+   "unit": "frames whose value differs from the previous (3 reps)",
+   "viewport": "640"
+  },
+  {
+   "after": [
+    4,
+    4
+   ],
+   "before": [
+    11,
+    12
+   ],
+   "engine": "chromium",
+   "metric": "earn opacity changes",
+   "noise": 2,
+   "push": "open",
+   "shown": {
+    "kind": "gain",
+    "n": 7,
+    "text": "7 fewer"
+   },
+   "status": {
+    "aa": [
+     "39464294630",
+     "39464322751"
+    ],
+    "kind": "measured",
+    "runs": [
+     "39463486725",
+     "39464309993"
+    ]
+   },
+   "unit": "frames whose value differs from the previous (3 reps)",
+   "viewport": "640"
+  },
+  {
+   "after": [
+    1,
+    2
+   ],
+   "before": [
+    29,
+    30
+   ],
+   "engine": "chromium",
+   "metric": "earn max-width changes",
+   "noise": 4,
+   "push": "open",
+   "shown": {
+    "kind": "gain",
+    "n": 27,
+    "text": "27 fewer"
+   },
+   "status": {
+    "aa": [
+     "39464294630",
+     "39464322751"
+    ],
+    "kind": "measured",
+    "runs": [
+     "39463486725",
+     "39464309993"
+    ]
+   },
+   "unit": "frames whose value differs from the previous (3 reps)",
+   "viewport": "641"
+  },
+  {
+   "after": [
+    1,
+    2
+   ],
+   "before": [
+    11,
+    12
+   ],
+   "engine": "chromium",
+   "metric": "earn opacity changes",
+   "noise": 2,
+   "push": "open",
+   "shown": {
+    "kind": "gain",
+    "n": 9,
+    "text": "9 fewer"
+   },
+   "status": {
+    "aa": [
+     "39464294630",
+     "39464322751"
+    ],
+    "kind": "measured",
+    "runs": [
+     "39463486725",
+     "39464309993"
+    ]
+   },
+   "unit": "frames whose value differs from the previous (3 reps)",
+   "viewport": "641"
   },
   {
    "after": null,
@@ -594,14 +721,16 @@
    "viewport": "390 and 1280"
   }
  ],
- "id": null,
+ "id": 1,
  "mechanism": [
   "Each frame --morph changes, so the computed max-width, padding-inline and opacity of the earn button change (nav.module.css:173-175).",
   "The same rule lists transitions: 680 ms for max-width and padding-inline, 320 ms after a 120 ms delay for opacity (nav.module.css:179-182).",
   "In both engines a changed computed value while a transition runs cancels it and starts a new one from the value shown now, with the full duration and delay. So every frame restarts a 680 ms transition and the 120 ms delay.",
-  "The curve starts flat and each restart begins at its start, so the shown value creeps while the computed value moves; the opacity does not move at all until the computed value stops changing (Lean faithful_lags).",
+  "The curve starts flat and each restart begins at its start, so the shown value creeps while the computed value moves. At the frame the computed value first changes from rest, the old value is still shown (Lean faithful_lags, one frame). Over a whole close push the faithful opacity stays at 0 until the morph stops: #guard witnesses NavEarnOpt.lean:376 (frame 37, faithful 0) and :391 (opacity value changes 20 against 40).",
   "The flag sets is-earn-still while the nav morphs, which turns the transitions off. An unlisted property shows its computed value, so the button follows --morph directly (Lean shown_off).",
-  "On the open push the computed values reach their end at frame 3 (--earn-out saturates at m = 0.2), so the flag restyles the button on 3 frames instead of 43. On the close push the transitions return at m <= 0.001 (frame 37), so the last steps still run as transitions and the work count is the same."
+  "On the open push the computed values reach their end at frame 3 (--earn-out saturates at m = 0.2), so the flag restyles the button on 3 frames instead of 43. On the close push the transitions return at m <= 0.001 (frame 37), so the last steps still run as transitions and the work count is the same.",
+  "A row that says 'N more' counts value changes, not restyle work. On the close push the faithful opacity is held at 0 by the restarting 120 ms delay, so it changes on fewer frames, yet the faithful arm still restyles the button on every frame (work 51 against 51); the flag arm's opacity follows the morph and so changes value more often.",
+  "A delta uses the cautious bound of its direction: a gain is the lowest faithful count minus the highest flag count, a loss is the highest faithful count minus the lowest flag count; ranges that share a count show no difference. A delta inside the A/A noise of the same metric is not shown. The 640 and 641 close rows are left out: the research note's value-change table has only their open rows."
  ],
  "ok": true,
  "sources": [
@@ -626,5 +755,5 @@
    "status": "CONFIRMED"
   }
  ],
- "summary": "Open push: the earn button restyles 40 fewer frames for max-width and 26 fewer for opacity (modelled, Chromium measured the same direction); close push: no saving (0); WebKit: unknown."
+ "summary": "Open push: the earn button restyles 40 fewer frames for max-width and 26 fewer for opacity (modelled, Chromium measured the same direction); close push: no saving (0, modelled); Chromium measured the opacity changing value on more frames on the close push (by at least 13 at 390 and 3 at 1280), because the faithful opacity is held at 0 by the restarting delay, not because of more restyle work; WebKit: unknown."
 }

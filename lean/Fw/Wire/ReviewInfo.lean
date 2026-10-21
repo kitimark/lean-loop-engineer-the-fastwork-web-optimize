@@ -5,7 +5,7 @@ import Fw.Console.ReviewInfo
 
 | op | request | reply |
 |---|---|---|
-| `console.reviewInfo` | `flag` (`part:variant`) | `ok`; with `ok` false only `reason` (no table is written for the flag). Otherwise `flag`, `summary`, `gains` [{metric, engine, push, viewport, before?, after? ([low, high]), noise, unit, status {kind (measured, modelled, unknown), runs?, aa?, theorem?, golden?, why?}, shown {kind (gain, noSaving, inNoise, worse, unknown), n?, text}}], `excerpts` [{id, side, file, first, last, anchor, note}], `mechanism` [text], `sources` [{claim, status, cite}], `formulas` [{id, tex, says, decl, file, line, kind}] (`Fw.Console.ReviewInfo`) |
+| `console.reviewInfo` | `flag` (`part:variant`) | `ok`; with `ok` false only `reason` (no table is written for the flag). Otherwise `flag`, `summary`, `gains` [{metric, engine, push, viewport, before?, after? ([low, high]), noise, unit, status {kind (measured, modelled, unknown), runs?, aa?, theorem?, golden?, why?}, shown {kind (gain, noSaving, inNoise, overlap, worse, unknown), n?, text}}], `excerpts` [{id, side, file, first, last, anchor, note}], `mechanism` [text], `sources` [{claim, status, cite}], `formulas` [{id, tex, says, decl, file, line, kind}] (`Fw.Console.ReviewInfo`) |
 -/
 namespace Fw.Wire.ReviewInfo
 open Lean Fw.Wire.Ops Fw.Console.ReviewInfo
@@ -26,6 +26,7 @@ def shownJson : Shown → Json
   | .gain n => Json.mkObj [("kind", "gain"), ("n", toJson n), ("text", s!"{n} fewer")]
   | .noSaving => Json.mkObj [("kind", "noSaving"), ("text", "no saving")]
   | .inNoise => Json.mkObj [("kind", "inNoise"), ("text", "not shown (inside A/A noise)")]
+  | .overlap => Json.mkObj [("kind", "overlap"), ("text", "no difference shown (ranges overlap)")]
   | .worse n => Json.mkObj [("kind", "worse"), ("n", toJson n), ("text", s!"{n} more")]
   | .unknown => Json.mkObj [("kind", "unknown"), ("text", "unknown")]
 
@@ -33,7 +34,7 @@ def shownJson : Shown → Json
 def gainJson (g : Gain) : Json :=
   Json.mkObj [("metric", g.metric), ("engine", g.engine), ("push", g.push), ("viewport", g.viewport),
     ("before", rangeJson g.before), ("after", rangeJson g.after), ("noise", toJson g.noise), ("unit", g.unit),
-    ("status", statusJson g.status), ("shown", shownJson (shownOf g.noise g.delta))]
+    ("status", statusJson g.status), ("shown", shownJson g.shown)]
 
 /-- An excerpt as JSON. -/
 def excerptJson (e : Excerpt) : Json :=

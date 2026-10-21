@@ -36,6 +36,10 @@ describe("ReviewInfo", () => {
     expect(h).toContain("not shown (inside A/A noise)");
     expect(h).toContain(">40 fewer<");
   });
+  it("an overlap row prints that no difference is shown", () => {
+    const h = html(small([gain({ engine: "chromium", status: { kind: "measured", runs: ["1"], aa: ["2"] }, before: [38, 40], after: [40, 41], noise: 4, shown: { kind: "overlap", text: "no difference shown (ranges overlap)" } })]));
+    expect(h).toContain("no difference shown (ranges overlap)");
+  });
   it("a code excerpt prints file:line and numbered lines; a moved anchor prints why it is not shown", () => {
     const h = html(small([gain()], [
       { id: "css-flag", side: "flag", file: "a/nav.css", first: 201, last: 203, anchor: "transition: none", note: "Flag only.", ok: true, lines: [{ n: 201, text: ".x {" }, { n: 202, text: "  transition: none;" }] },
@@ -67,10 +71,10 @@ describe("ReviewInfo with the Lean reply", () => {
     ...reply,
     excerpts: reply.excerpts.map((e: any) => ({ ...e, ok: true, lines: [{ n: e.first, text: e.anchor }] })),
   });
-  it("renders all 16 gain rows and every formula with KaTeX (throwOnError)", () => {
+  it("renders all 20 gain rows and every formula with KaTeX (throwOnError)", () => {
     const d = withLines();
     const h = html(d);
-    expect(h.match(/data-testid="gain-row"/g)).toHaveLength(16);
+    expect(h.match(/data-testid="gain-row"/g)).toHaveLength(20);
     for (const f of reply.formulas) {
       expect(() => mathHtml(f.tex), f.id).not.toThrow();
       expect(h).toContain(`data-testid="formula-${f.id}"`);
@@ -81,7 +85,7 @@ describe("ReviewInfo with the Lean reply", () => {
   it("no row shows a number without a status, and WebKit rows are UNKNOWN", () => {
     const h = html(withLines());
     const rows = h.split('data-testid="gain-row"').slice(1);
-    expect(rows).toHaveLength(16);
+    expect(rows).toHaveLength(20);
     for (const r of rows) expect(/MEASURED|MODELLED|UNKNOWN/.test(r)).toBe(true);
     const wk = rows.filter((r) => r.includes(">webkit<"));
     expect(wk).toHaveLength(2);

@@ -206,6 +206,17 @@ within 2):
 | 390 | close | 12 / 25-26 | 38-40 / 40-41 | 386 ms / 386 ms |
 | 1280 | close | 9-10 / 13 | 23-25 / 21-24 | 370-374 ms / 362-377 ms |
 
+A/A value-change noise (MEASURED; Chromium, runs 39464294630 and 39464322751 downloaded and read, no new measurement). Same
+metric as the table above (frames whose reading differs from the previous one, 3 reps), counted on the `base` and `cand`
+arms of an A/A run, which are the same code. For each width, push and property the cautious delta of each direction is taken
+as in the panel (gain: lowest base minus highest cand; loss: highest base minus lowest cand); the noise is the largest
+magnitude over the 16 rows of both runs:
+
+| property | A/A base ranges (examples) | A/A cand ranges (examples) | largest cautious delta, either sign | noise used |
+|---|---|---|---|---|
+| opacity | 390 open 17-18, 1280 close 8-9 | 390 open 18-19, 1280 close 8-10 | 2 (641 open run 2 loss -2; 390 open run 1 gain -2) | 2 |
+| max-width | 1280 close 23-23 / 24-27 | 1280 close 19-23 / 23-24 | 4 (1280 close, both runs, loss -4) | 4 |
+
 - Open push: the arm settles within 43-81 ms, the faithful arm keeps changing to 330-357 ms
   (1280 rep 0: the arm reaches max-width 0 at frame 8, the faithful arm at frame 24). This matches the model's 3 vs 43
   frames.

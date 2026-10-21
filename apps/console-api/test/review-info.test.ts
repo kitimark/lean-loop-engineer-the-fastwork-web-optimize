@@ -41,7 +41,7 @@ describe("GET /api/reviews/:flag/info", () => {
     const j = await info();
     expect(j.ok).toBe(true);
     expect(j.flag).toBe(FLAG);
-    expect(j.gains).toHaveLength(16);
+    expect(j.gains).toHaveLength(20);
     expect(j.excerpts).toHaveLength(5);
     expect(j.mechanism.length).toBeGreaterThan(4);
     expect(j.sources).toHaveLength(4);
@@ -91,7 +91,7 @@ describe("GET /api/reviews/:flag/info", () => {
     const note = readFileSync(join(ROOT, "research/notes/2026/10-20-earn-transition-retarget.md"), "utf8");
     const table = note.split("\n").filter((l) => /^\| (390|640|641|1280) \| (open|close) \|/.test(l)).map((l) => l.split("|").map((c) => c.trim()));
     const rows = j.gains.filter((g: any) => g.status.kind === "measured");
-    expect(rows).toHaveLength(8);
+    expect(rows).toHaveLength(12);
     for (const g of rows) {
       const t = table.find((c) => c[1] === g.viewport && c[2] === g.push);
       expect(t, `${g.viewport} ${g.push}`).toBeTruthy();
@@ -106,17 +106,32 @@ describe("GET /api/reviews/:flag/info", () => {
     expect(rows[0].status.aa).toEqual(["39464294630", "39464322751"]);
   });
 
-  it("open gains beat the noise, close ones are not shown as gains, a delta inside the noise says so", async () => {
+  it("open gains beat the noise; a loss uses the highest faithful and lowest flag count; overlapping ranges say so", async () => {
     const j = await info();
     const m = j.gains.filter((g: any) => g.status.kind === "measured");
     expect(m.filter((g: any) => g.push === "open").every((g: any) => g.shown.kind === "gain")).toBe(true);
     expect(m.filter((g: any) => g.push === "close").every((g: any) => g.shown.kind !== "gain")).toBe(true);
-    const inside = m.find((g: any) => g.shown.kind === "inNoise");
-    expect(inside.shown.text).toBe("not shown (inside A/A noise)");
+    const at = (metric: string, vp: string, push: string) => m.find((g: any) => g.metric.includes(metric) && g.viewport === vp && g.push === push);
+    expect(at("max-width", "390", "close").shown).toEqual({ kind: "overlap", text: "no difference shown (ranges overlap)" });
+    expect(at("opacity", "390", "close").shown).toEqual({ kind: "worse", n: 13, text: "13 more" });
+    expect(at("opacity", "1280", "close").shown).toEqual({ kind: "worse", n: 3, text: "3 more" });
     for (const g of m) {
-      const d = g.before[0] - g.after[1];
-      if (g.shown.kind === "gain") expect(d).toBeGreaterThan(g.noise);
-      if (g.shown.kind === "inNoise") expect(Math.abs(d)).toBeLessThanOrEqual(g.noise);
+      const gain = g.before[0] - g.after[1], loss = g.before[1] - g.after[0], shared = g.after[0] <= g.before[1] && g.before[0] <= g.after[1];
+      if (g.shown.kind === "gain") expect(gain).toBeGreaterThan(g.noise);
+      if (g.shown.kind === "worse") expect(loss).toBeLessThan(-g.noise);
+      if (g.shown.kind === "overlap") expect(shared).toBe(true);
+      if (shared) expect(["overlap", "noSaving"]).toContain(g.shown.kind);
+    }
+  });
+
+  it("the noise of a measured row is the A/A value-change noise of the note", async () => {
+    const j = await info();
+    const note = readFileSync(join(ROOT, "research/notes/2026/10-20-earn-transition-retarget.md"), "utf8");
+    const aa = note.split("\n").filter((l) => /^\| (opacity|max-width) \|/.test(l)).map((l) => l.split("|").map((c) => c.trim()));
+    expect(aa).toHaveLength(2);
+    for (const g of j.gains.filter((x: any) => x.status.kind === "measured")) {
+      const row = aa.find((c) => c[1] === (g.metric.includes("opacity") ? "opacity" : "max-width"))!;
+      expect(g.noise).toBe(Number(row[5]));
     }
   });
 
