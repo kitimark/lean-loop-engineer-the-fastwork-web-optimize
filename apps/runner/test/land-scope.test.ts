@@ -9,7 +9,7 @@ import { selectCore } from "../../console-api/src/core/index.ts";
 import { Reconciler } from "../../console-api/src/reconcile/reconciler.ts";
 import { Store } from "../../console-api/src/store.ts";
 import { makeRepo } from "../../console-api/test/reconcile-fixture.ts";
-import { checksFor, land, READS_SCAN_ARGV, type Http } from "../src/land.ts";
+import { checksFor, land, LOCAL_TESTS, READS_SCAN_ARGV, type Http } from "../src/land.ts";
 
 let stores: Store[] = [];
 afterEach(() => { stores.forEach((s) => s.close()); stores = []; });

@@ -3827,6 +3827,40 @@
    "leanReason": "The booking rule (no phone step without a passing Simulator run of the same command) is a decidable precondition over recorded runs; the hang itself is platform behavior.",
    "empiricalCheck": "User: Safari open with the orange bar, nothing moving; the lead stopped the run.",
    "hardening": "replay-ios-fix"
+  },
+  {
+   "id": "inc-local-tier-misses-compose",
+   "at": "2026-10-22T20:00+07:00",
+   "title": "Three lands refused at CI suites-b by apps/console-api/test/compose.test.ts: a new flag variant without a findings ledger row",
+   "symptom": "Lands of hero-exit-threaded-port (run 39674287486), toolbar-throttle-probe (run 39685526491) and platform-shrink-mq (run 39688115785) each failed at suites-b with 'rows attach by their flags, and no variant says the proof is incomplete' (expected [variant] to equal []). The builder's dry land passed each time.",
+   "cause": "CONFIRMED (apps/runner/src/land.ts candidateChecks, lean/Fw/Console/LandTier.lean remoteIds, lean/Fw/Console/Compose.lean classBy unrated): compose.test.ts is inside apps/console-api, a remote-tier suite, and no local check declared the part.json files or research/findings/ledger.json as reads, so the local tier and the dry land never ran it; a branch that registered a variant in a part.json without a ledger row classes it unrated.",
+   "evidence": [
+    {
+     "kind": "ci",
+     "ref": "39674287486",
+     "note": "hero-exit-threaded-port land, suites-b"
+    },
+    {
+     "kind": "ci",
+     "ref": "39685526491",
+     "note": "toolbar-throttle-probe land, suites-b"
+    },
+    {
+     "kind": "ci",
+     "ref": "39688115785",
+     "note": "platform-shrink-mq land, suites-b"
+    }
+   ],
+   "repro": "On a branch add a variant to an apps/site/src/parts/*/part.json with no research/findings/ledger.json row and run fw land --dry: before the fix it passes, the CI tier fails.",
+   "fix": {
+    "task": "land-tier-compose-test"
+   },
+   "regression": "apps/runner/test/land-tier.test.ts: a changed part.json or the ledger selects console-api:compose (golden land-tier-local.jsonl); the dry land runs the selected local tests.",
+   "mistakeClass": "c-late-check",
+   "leanVerdict": "provable",
+   "leanReason": "Selection of a test from its declared read set is Fw.Console.LandTier.selects_reader; the read set is declared by hand (a generated one is a follow-up).",
+   "empiricalCheck": "fw land --dry of a branch with an unrated variant fails with test/compose.test.ts in the output.",
+   "hardening": "land-tier-compose-test"
   }
  ]
 }
