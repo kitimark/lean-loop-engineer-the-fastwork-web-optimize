@@ -8,6 +8,8 @@ import { UsageError } from "./lib.ts";
 import { collectFacts, formatNext, nextAlerts, slowAlerts, slowNextLines, type NextReply } from "./next.ts";
 import { contendedFlagged, ghFlagged } from "./watch-gh.ts";
 import { reapTick } from "./reap.ts";
+import { CLASSES, diskGcTick } from "./disk-gc.ts";
+import { fwcoreCall } from "./run.ts";
 import {
   collectSnapshot, exe, parseStartRows, pathsFor, PS_START, readKeep, readSamples, writeKeep, type AgentSnap, type KeepDecide, type KeepEntry, type Paths,
   type Prev, type Snapshot, type StartRow,
@@ -317,13 +319,18 @@ export async function watchMain(args: string[], cwd: string, print?: (s: string)
       if (!o.json) say(`NEW ALERT: ${fresh.map((a) => `${a.code} ${a.subject}`).join("; ")}`);
       return 3;
     }
+    const prev0 = prev;
     prev = h.alerts.map((a) => ({ code: a.code, subject: a.subject }));
     prevSnap = { at: snap.now, system: snap.system, critical: snap.critical, ghDegraded: ghFlagged(h), contended: contendedFlagged(h) };
     if (o.intervalS !== null) for (const l of reapTick(main)) if (!o.json) say(l); // reap-auto-stop: each tick stops the processes Lean selects
+    if (o.intervalS !== null && (await newAlerts(call, prev0, h)).some((a) => a.code === DISK_LOW)) for (const l of diskGcTick(main, [...CLASSES], fwcoreCall(main))) if (!o.json) say(l);
     if (o.intervalS === null) return 0;
     await new Promise((r) => setTimeout(r, o.intervalS! * 1000));
   }
 }
+
+/** The alert code whose opening runs every disk-gc class. */
+export const DISK_LOW = "sys.diskLow";
 
 /** One collection pass: snapshot, fwcore health, NEXT and slow alerts, one log line. */
 async function pass(paths: Paths, main: string, prevSnap: Prev | null, call: CoreCall, decide: KeepDecide) {
@@ -356,7 +363,8 @@ async function streamMain(o: WatchOpts, paths: Paths, main: string, call: CoreCa
       const d = await diffAlerts(call, open, h.alerts);
       for (const line of streamLines(d)) say(line);
       open = d.next;
-      for (const l of reapTick(main)) say(l); // reap-auto-stop: `REAP stopped ...` lines are the only non-OPEN/CLOSE lines
+      for (const l of reapTick(main)) say(l); // reap-auto-stop: `REAP stopped ...` and `DISKGC ...` lines are the only non-OPEN/CLOSE lines
+      if (d.opened.some((a) => a.code === DISK_LOW)) for (const l of diskGcTick(main, [...CLASSES], fwcoreCall(main))) say(l); // disk-auto-gc
       prevSnap = { at: snap.now, system: snap.system, critical: snap.critical, ghDegraded: ghFlagged(h), contended: contendedFlagged(h) };
       await new Promise((r) => setTimeout(r, o.intervalS! * 1000));
     }
