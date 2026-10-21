@@ -33,6 +33,14 @@ describe("fw step topic and fw step post --topic", () => {
   });
 });
 
+describe("fw step usage", () => {
+  it("the step usage error names the thread commands", () => {
+    let msg = "";
+    try { stepWithTopic([], {}); } catch (e) { msg = (e as Error).message; }
+    expect(msg).toContain("fw step topic");
+  });
+});
+
 describe("fw step reply (the lead answers a question)", () => {
   const threads = [t("step:a", ["fb-1"]), t("topic:smooth", ["fb-2"]), t("step:smooth", ["fb-3"]), t("topic:smooth2", ["fb-3"])];
   it("finds the subject that holds the comment", () => {

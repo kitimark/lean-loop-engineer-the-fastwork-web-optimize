@@ -73,6 +73,14 @@ describe("a question box", () => {
   });
 });
 
+describe("a closed step keeps its thread", () => {
+  it("an answered step whose thread has a reply shows that reply", () => {
+    const out = html([step("z", { status: "answered", answer: "yes" } as Partial<Step>)], { groups: [], threads: [thread("step:z", 0)] });
+    expect(out).toContain("answered: title z (yes)");
+    expect(out).toContain("because");
+  });
+});
+
 describe("the send of a question", () => {
   const stub = (reply: unknown) => {
     const calls: { url: string; init: RequestInit }[] = [];

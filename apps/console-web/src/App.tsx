@@ -100,7 +100,7 @@ export function Steps({ board, act, now, topics = null, reloadTopics }: { board:
         <PostForm act={act} />
         {closed.length > 0 && (
           <ul className="border-t pt-2 text-sm text-muted-foreground">
-            {closed.map((s) => <li key={s.id}>{s.status}: {s.title}{s.answer ? ` (${s.answer})` : ""}</li>)}
+            {closed.map((s) => <li key={s.id}>{s.status}: {s.title}{s.answer ? ` (${s.answer})` : ""}{thread(s.id) ? <QuestionBox kind="step" id={s.id} thread={thread(s.id)} onChanged={reloadTopics} /> : null}</li>)}
           </ul>
         )}
       </CardContent>

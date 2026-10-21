@@ -14,7 +14,7 @@ const need = (v: string | undefined, what: string): string => {
   return v;
 };
 
-/** `fw step topic --id t --title T --summary S` -> the `step.topic` command (key from the id and summary, so a retry is a duplicate). */
+/** `fw step topic --id t --title T --summary S` -> the `step.topic` command (key from the id and the time, so each run is a new definition; pass --key for a retry-safe send). */
 export function topicCommand(argv: string[], env: Record<string, string | undefined>): Command {
   const { flags } = parseFlags(argv);
   const topic = need(flags.id, "--id <topic>");
@@ -27,7 +27,11 @@ export function topicCommand(argv: string[], env: Record<string, string | undefi
 export function stepWithTopic(argv: string[], env: Record<string, string | undefined>): Command {
   const { flags } = parseFlags(argv.slice(1));
   const rest = argv[0] === "post" && flags.topic !== undefined ? argv.filter((a, i, all) => a !== "--topic" && all[i - 1] !== "--topic") : argv;
-  const cmd = stepCommand(rest, env);
+  let cmd: Command;
+  try { cmd = stepCommand(rest, env); } catch (e) {
+    if (e instanceof UsageError && e.message.startsWith("usage:")) throw new UsageError(`${e.message}\n${STEP_THREADS_USAGE}`);
+    throw e;
+  }
   return cmd.type === "step.post" && flags.topic !== undefined ? Command.parse({ ...cmd, topic: flags.topic }) : cmd;
 }
 
