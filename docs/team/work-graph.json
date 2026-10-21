@@ -8122,7 +8122,7 @@
    "id": "land-lane-circleci",
    "owner": "measure-engineer",
    "stream": "ops",
-   "title": "CircleCI land job running the same fw checks --tier remote entry as land.yml and emitting laneDigest; the CircleCI adapter in land-remote.ts (pipeline/run with definition id, sha from GET /pipeline/{id}); live proof on one ci/land-* probe. User 2026-10-21: use CircleCI for the Linux/Arm jobs to raise concurrency (30 per Arm class on top of GitHub's 20). Routing is overflow, decided in Lean (Fw.Ci.Provider route): a Linux land leg goes to CircleCI when GitHub's running+queued jobs for this repo leave no free slot or GitHub is degraded, and CircleCI is healthy (circleci-status) with credits and storage under the stop rules; the leg's verdict counts the same from either provider (laneDigest equal on a paired run). Measure: land lane wall time and queue wait with and without overflow under a busy GitHub pool",
+   "title": "CircleCI land job running the same fw checks --tier remote entry as land.yml and emitting laneDigest; the CircleCI adapter in land-remote.ts (pipeline/run with definition id, sha from GET /pipeline/{id}); live proof on one ci/land-* probe. User 2026-10-21: use CircleCI for the Linux/Arm jobs to raise concurrency (30 per Arm class on top of GitHub's 20). Routing is overflow, decided in Lean (Fw.Ci.Provider route): a Linux land leg goes to CircleCI when GitHub's running+queued jobs for this repo leave no free slot or GitHub is degraded, and CircleCI is healthy (circleci-status) with credits and storage under the stop rules; the leg's verdict counts the same from either provider (laneDigest equal on a paired run). Measure: land lane wall time and queue wait with and without overflow under a busy GitHub pool User 2026-10-21 (approved the chain): 'github action ci as first priority. if at that time it hit limit concurrency. it could delegate to circle ci for more concurrency.'",
    "deps": [
     "land-wait",
     "circleci-pilot",
@@ -8136,7 +8136,17 @@
     "apps/runner/test/land-remote*.test.ts",
     "scripts/circleci.mjs",
     "scripts/circleci.test.mjs",
-    "docs/team/handoffs/land-lane-circleci.md"
+    "docs/team/handoffs/land-lane-circleci.md",
+    "lean/Fw/Ci/Provider.lean",
+    "lean/Fw/Ci/Overflow.lean",
+    "lean/Fw.lean",
+    "lean/scripts/ProviderGolden.lean",
+    "packages/contracts/golden/ci/provider.jsonl",
+    "packages/contracts/golden/ci/overflow.jsonl",
+    "lean/scripts/check.sh",
+    "apps/runner/src/fw.ts",
+    "docs/team/tools/land.md",
+    "research/notes/2026/10-21-land-lane-circleci.md"
    ]
   },
   {
@@ -9215,7 +9225,8 @@
     "research/notes/2026/10-20-circleci-series.md",
     "results/circleci-series/**",
     "docs/team/handoffs/circleci-series.md"
-   ]
+   ],
+   "evidence": "ce6fc68"
   },
   {
    "devices": [
@@ -11080,7 +11091,8 @@
     "lean/scripts/PoolKeyGolden.lean",
     "lean/scripts/check.sh",
     "packages/contracts/golden/ci/pool-key.jsonl",
-    "docs/team/handoffs/pool-key-outcome.md"
+    "docs/team/handoffs/pool-key-outcome.md",
+    "lean/Fw.lean"
    ]
   },
   {
