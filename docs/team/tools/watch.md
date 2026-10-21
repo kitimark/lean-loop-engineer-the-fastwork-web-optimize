@@ -44,3 +44,7 @@ Actions: `killOrphan pid`, `land branch task`, `routeIntegrator branch`, `waitCi
 `respawnFromHandoff`, `nudgeHandoff`, `claimTask task agent`, `investigate reason`. Nothing to do prints nothing
 (`fw next` prints `NEXT: none`). Without a built `fwcore` that knows `obs.next`, `fw watch` prints no NEXT lines and
 `fw next` says so. When `land` and `respawnFromHandoff` are proposed: `watch-rules.md`.
+
+## Console push (user events as they happen)
+
+`fw watch --stream` also tails `.fw-console/events.jsonl` (watch on the directory plus a 1 s safety poll, a read from the last offset; a partial line waits for its newline; a rotated or shrunk file is read again from 0). Each new event is classified by fwcore `obs.push` (`lean/Fw/Obs/Push.lean`, golden `packages/contracts/golden/obs/push.jsonl`): lead-facing means actor `user` and type `review.feedback`, `step.answer`, `step.done` or `step.cancel`. Hook and script events and the user's `step.start` / `review.previewed` print nothing. One line per event: `USER <type> <flag or step> <text, 160 characters>`, within about 2 s of the append (measured p50 82 ms, p95 170 ms over 20 appends, `apps/runner/test/watch-push-latency.test.ts`). The OPEN/CLOSE tick lines are unchanged, so one Monitor on the stream replaces the `tail -F | grep user` workaround. Starts at the end of the log (events before the stream started are not replayed). Accepted limits: local Mac, the log stays single-writer, no phone notification.

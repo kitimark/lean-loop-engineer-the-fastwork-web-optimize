@@ -140,6 +140,26 @@
    "file": "apps/site/test/port-fonts.test.mjs",
    "text": "timeout: 120000",
    "reason": "hang catcher, not a speed assertion: launches a real browser for two probes (runs only with FW_PORT_FONTS_ENGINE set, on CI); fails the test if the browser never answers"
+  },
+  {
+   "file": "apps/runner/test/watch-push-latency.test.ts",
+   "text": "for (let i = 0; i < 20; i++)",
+   "reason": "sample count of the 20-append latency measurement the task asks for, not a time bound"
+  },
+  {
+   "file": "apps/runner/test/watch-push-latency.test.ts",
+   "text": "Date.now() - t0 < 3000",
+   "reason": "hang catcher above the 2 s spec deadline"
+  },
+  {
+   "file": "apps/runner/test/watch-push-latency.test.ts",
+   "text": "}, 120000)",
+   "reason": "hang catcher, not a speed assertion"
+  },
+  {
+   "file": "apps/runner/test/watch-push.test.ts",
+   "text": "expect(ms).toBeLessThan(2000)",
+   "reason": "the spec deadline itself (console-push: a line within about 2 s)"
   }
  ]
 }
