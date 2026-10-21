@@ -50,9 +50,14 @@ on:
         default: ''
       widths:
         description: >-
-          Widths to walk, comma separated, from 390, 640, 641, 1280 without repeats. Empty = all four.
+          Widths to walk, comma separated, from 390, 640, 641, 1280 without repeats. Empty = all four. A subset needs diagnostic = true.
         type: string
         default: ''
+      diagnostic:
+        description: >-
+          Mark the run diagnostic (read by hand, never stored or judged): only then may widths be a subset. A verdict run (the default) walks all four widths.
+        type: boolean
+        default: false
       nonce:
         description: >-
           Identity of this dispatch, echoed in the run title (8 to 32 characters of a-z0-9; `fw run --trajectory` sets it). Empty = a manual dispatch.
@@ -153,15 +158,19 @@ jobs:
         env:
           EVENT: ${{ github.event_name }}
           HEAD_MSG: ${{ github.event.head_commit.message }}
+          LANE: trajectory  # Lean ProbeLane: the mark rule binds this lane; a [frames: message is exempt (Lean effLane)
           ENGINES: ${{ inputs.engines || 'both' }}
           FW: ${{ inputs.fw || '' }}
           PRESET: ${{ inputs.preset || '' }}
           WIDTHS: ${{ inputs.widths || '' }}
+          DIAGNOSTIC: ${{ inputs.diagnostic && 'true' || 'false' }}
         run: |
           set -euo pipefail
-          node --test .github/scripts/trajectory-line.test.mjs  # the line parser equals Lean pushProbe
+          # The mark rule (Lean Fw.Gate.Trajectory.Dispatch) on a dispatch's widths and diagnostic inputs, or on a push line's widths and diagnostic word, runs
+          # here, the first step that reads the inputs: a width subset without diagnostic fails the run before the build, with the Dispatch refusal text.
+          node --test .github/scripts/trajectory-line.test.mjs  # the line parser equals Lean pushProbe, the mark rule equals Lean Dispatch
           node .github/scripts/trajectory-line.mjs | tee -a "$GITHUB_OUTPUT"
-      - name: 'trajectory inputs: engines=${{ steps.in.outputs.engines }} fw=${{ steps.in.outputs.fw }} preset=${{ steps.in.outputs.preset }} widths=${{ steps.in.outputs.widths }} debug=${{ steps.in.outputs.debug }} (${{ steps.in.outputs.source }})'
+      - name: 'trajectory inputs: engines=${{ steps.in.outputs.engines }} fw=${{ steps.in.outputs.fw }} preset=${{ steps.in.outputs.preset }} widths=${{ steps.in.outputs.widths }} debug=${{ steps.in.outputs.debug }} diagnostic=${{ steps.in.outputs.diagnostic }} (${{ steps.in.outputs.source }})'
         env:
           NONCE: ${{ inputs.nonce }}
           IN_ENGINES: ${{ steps.in.outputs.engines }}
@@ -169,13 +178,14 @@ jobs:
           IN_PRESET: ${{ steps.in.outputs.preset }}
           IN_WIDTHS: ${{ steps.in.outputs.widths }}
           IN_DEBUG: ${{ steps.in.outputs.debug }}
+          IN_DIAGNOSTIC: ${{ steps.in.outputs.diagnostic }}
           IN_SOURCE: ${{ steps.in.outputs.source }}
         run: |
           set -euo pipefail
           mkdir -p trajectory-inputs
-          jq -n --arg event "$GITHUB_EVENT_NAME" --arg sha "$GITHUB_SHA" --arg nonce "$NONCE" --arg engines "$IN_ENGINES" --arg fw "$IN_FW" --arg preset "$IN_PRESET" --arg widths "$IN_WIDTHS" --arg debug "$IN_DEBUG" --arg source "$IN_SOURCE" \
-            '{event:$event,sha:$sha,nonce:$nonce,engines:$engines,fw:$fw,preset:$preset,widths:$widths,debug:$debug,source:$source}' | tee trajectory-inputs/inputs.json
-          echo "inputs: engines=$IN_ENGINES fw=$IN_FW preset=$IN_PRESET widths=$IN_WIDTHS debug=$IN_DEBUG source=$IN_SOURCE sha=$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+          jq -n --arg event "$GITHUB_EVENT_NAME" --arg sha "$GITHUB_SHA" --arg nonce "$NONCE" --arg engines "$IN_ENGINES" --arg fw "$IN_FW" --arg preset "$IN_PRESET" --arg widths "$IN_WIDTHS" --arg debug "$IN_DEBUG" --arg diagnostic "$IN_DIAGNOSTIC" --arg source "$IN_SOURCE" \
+            '{event:$event,sha:$sha,nonce:$nonce,engines:$engines,fw:$fw,preset:$preset,widths:$widths,debug:$debug,diagnostic:($diagnostic == "true"),source:$source}' | tee trajectory-inputs/inputs.json
+          echo "inputs: engines=$IN_ENGINES fw=$IN_FW preset=$IN_PRESET widths=$IN_WIDTHS debug=$IN_DEBUG diagnostic=$IN_DIAGNOSTIC source=$IN_SOURCE sha=$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: trajectory-inputs
