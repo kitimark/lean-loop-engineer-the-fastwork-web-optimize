@@ -7,7 +7,7 @@ One cell of the `webkit-sim` lane (`sim (original, 430, 1, <sha>, v1)`: Simulato
 | Piece | File |
 |---|---|
 | The workflow: one `webkit-sim` workflow, `mac_mini_m2`, Xcode 27.0, `max_build_duration: 40`, no `triggering` block (a push starts nothing) | `codemagic.yaml` (repo root) |
-| Trigger, wait, fetch, compare, ledger, check, dry run | `scripts/codemagic.mjs` (`pnpm fw ci codemagic <sub>`) |
+| Trigger, wait, fetch, compare, ledger, check, dry run | `scripts/codemagic.mjs` (`node scripts/codemagic.mjs <sub>`) |
 | The minutes rule, the billed-minutes rounding, the month key, the wait exit codes | `lean/Fw/Ci/Codemagic.lean`, golden `packages/contracts/golden/ci/codemagic.jsonl` (regenerate: `cd lean && lake env lean --run scripts/CodemagicGolden.lean`) |
 | Tests, fake fetch, no network, no Keychain | `scripts/codemagic.test.mjs` (`node --test scripts/codemagic.test.mjs`) |
 
@@ -17,15 +17,15 @@ One cell of the `webkit-sim` lane (`sim (original, 430, 1, <sha>, v1)`: Simulato
 2. Copy the application id (the part after `app_id=` in the builds URL).
 3. Make a personal API token (Account settings, API token) and keep it in the Keychain without putting it on a command line: `security add-generic-password -s fw-codemagic-token -a fw -w` (it prompts for the token). Nothing else reads or stores it; it is sent only to `api.codemagic.io`.
 4. Give the app id to the adapter: the environment variable `FW_CODEMAGIC_APP_ID`, or the gitignored file `.local/codemagic.json` `{"appId": "<id>"}`. The id is not secret, but it stays out of committed files.
-5. Check with `pnpm fw ci codemagic check` (one read-only call, `GET /apps`: the token works and the id is one of your apps; no minutes are spent).
+5. Check with `node scripts/codemagic.mjs check` (one read-only call, `GET /apps`: the token works and the id is one of your apps; no minutes are spent).
 
 ## Commands
 
-- Preview, no network and no token: `pnpm fw ci codemagic dry-run` (or `trigger --dry`) prints the request with the token `<redacted>`, the app id masked, and the Lean decision for the ledger as it stands.
-- Run: push the branch (`git branch -f ci/<task> HEAD`, then `git push origin ci/<task>`; the build reads the branch tip), then `pnpm fw ci codemagic trigger --branch ci/<task>`. It prints the build id.
-- Wait: `pnpm fw ci codemagic wait --build ID --out DIR` polls every 120 s at most (never faster), exits 0 finished, 1 failed or timeout, 3 the wait ran out, 4 canceled or skipped, and fetches `build.json` (status, per-step seconds, minutes billed), `artifacts/` and the step logs the API names.
-- Compare: `pnpm fw ci codemagic compare --github DIR --codemagic DIR` reads `v1-session-1.md` (the class table) from both directories (the GitHub one from `gh run download <run> -n webkit-sim-v1`); exit 0 same classes in every row, 1 some rows differ, 2 not comparable.
-- `pnpm fw ci codemagic ledger` prints the minutes used this month.
+- Preview, no network and no token: `node scripts/codemagic.mjs dry-run` (or `trigger --dry`) prints the request with the token `<redacted>`, the app id masked, and the Lean decision for the ledger as it stands.
+- Run: push the branch (`git branch -f ci/<task> HEAD`, then `git push origin ci/<task>`; the build reads the branch tip), then `node scripts/codemagic.mjs trigger --branch ci/<task>`. It prints the build id.
+- Wait: `node scripts/codemagic.mjs wait --build ID --out DIR` polls every 120 s at most (never faster), exits 0 finished, 1 failed or timeout, 3 the wait ran out, 4 canceled or skipped, and fetches `build.json` (status, per-step seconds, minutes billed), `artifacts/` and the step logs the API names.
+- Compare: `node scripts/codemagic.mjs compare --github DIR --codemagic DIR` reads `v1-session-1.md` (the class table) from both directories (the GitHub one from `gh run download <run> -n webkit-sim-v1`); exit 0 same classes in every row, 1 some rows differ, 2 not comparable.
+- `node scripts/codemagic.mjs ledger` prints the minutes used this month.
 
 ## Rules the code applies (Lean `Fw.Ci.Codemagic`, replayed from the golden)
 

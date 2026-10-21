@@ -4,12 +4,12 @@
 // golden packages/contracts/golden/ci/codemagic.jsonl (scripts/codemagic.test.mjs replays every row through the functions below:
 // billedMin, monthOf, refusals/mayTrigger, exitOf). This file is request building, parsing, polling, file writing and printing.
 //
-//   fw ci codemagic check                          read-only: the token works and the app id is one of the account's apps (GET /apps)
-//   fw ci codemagic trigger --branch ci/<name> [--workflow webkit-sim] [--cap MIN] [--dry]
-//   fw ci codemagic wait --build ID [--timeout S] [--interval S>=120] [--out DIR]
-//   fw ci codemagic fetch --build ID --out DIR     build.json, steps.json, artifacts/, ledger row with the minutes the build billed
-//   fw ci codemagic compare --github DIR --codemagic DIR [--json]   (each DIR holds v1-session-1.md, the class table)
-//   fw ci codemagic ledger | digest FILE.md | dry-run
+//   node scripts/codemagic.mjs check                          read-only: the token works and the app id is one of the account's apps (GET /apps)
+//   node scripts/codemagic.mjs trigger --branch ci/<name> [--workflow webkit-sim] [--cap MIN] [--dry]
+//   node scripts/codemagic.mjs wait --build ID [--timeout S] [--interval S>=120] [--out DIR]
+//   node scripts/codemagic.mjs fetch --build ID --out DIR     build.json, steps.json, artifacts/, ledger row with the minutes the build billed
+//   node scripts/codemagic.mjs compare --github DIR --codemagic DIR [--json]   (each DIR holds v1-session-1.md, the class table)
+//   node scripts/codemagic.mjs ledger | digest FILE.md | dry-run
 //
 // The token is read from the macOS Keychain (service fw-codemagic-token) inside each request: never printed, never in an argument
 // list, never in a file, sent only to api.codemagic.io (a redirect to another host is followed without it). Exit codes of wait (Lean
@@ -248,7 +248,7 @@ function flags(argv, spec) {
 }
 
 const USAGE = [
-  'usage: fw ci codemagic <sub> ...',
+  'usage: node scripts/codemagic.mjs <sub> ...',
   '  check                                            the token works and the app id is one of the apps (needs FW_CODEMAGIC_APP_ID or .local/codemagic.json)',
   '  trigger --branch ci/<name> [--workflow webkit-sim] [--cap MIN (default 40)] [--dry]',
   '  wait --build ID [--timeout S] [--interval S>=120] [--out DIR]     fetch --build ID --out DIR',
