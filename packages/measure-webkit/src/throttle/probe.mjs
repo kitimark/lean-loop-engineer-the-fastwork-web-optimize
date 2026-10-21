@@ -1,6 +1,7 @@
 // One pass of the toolbar-throttle probe in an open session (I/O glue): fresh load, start the page recorder, let the XCUITest
 // driver touch Mobile Safari, fetch the record. Nothing is decided here; report.mjs and stillruns.mjs reduce the records.
 import { readFileSync } from 'node:fs';
+import { loadavg } from 'node:os';
 import { loadFresh, pageInfo } from '../page.mjs';
 import { sleep } from '../sim.mjs';
 import { dragPass } from './driver.mjs';
@@ -21,6 +22,7 @@ export async function armPass(ctx, { driver, udid, drag, settleMs = 6000, tag = 
   const info = await pageInfo(c);
   const started = await c.evaluate(START_JS);
   if (started !== 'started') throw new Error(`the recorder did not start (${started})`);
+  log(`${tag}: page recording, load ${loadavg()[0].toFixed(0)}`);
   const t0 = Date.now();
   const run = await dragPass(driver, { udid, tag, ...drag });
   log(`${tag}: touches ${run.code === 0 ? 'done' : `failed (code ${run.code}${run.timedOut ? ', timed out' : ''}; log ${run.logFile})`} in ${Math.round((Date.now() - t0) / 1000)} s`);

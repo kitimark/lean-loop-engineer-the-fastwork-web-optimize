@@ -2,7 +2,7 @@
 // xcodebuild build-for-testing in a temp dir; nothing is written into the repository) and runs its drag test against the booted
 // Simulator, which swipes in Mobile Safari with real touches. Every child runs in its own process group and is stopped by `stop`.
 import { spawn, spawnSync } from 'node:child_process';
-import { cpSync, mkdtempSync, readdirSync, rmSync, createWriteStream } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readdirSync, rmSync, createWriteStream } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -34,22 +34,31 @@ export function stop() {
   for (const p of children) { try { process.kill(-p.pid, 'SIGTERM'); } catch { /* gone */ } }
 }
 
-/** Build the driver. Returns {dir, xctestrun}. `udid` names the Simulator device (never printed). */
-export async function buildDriver({ udid, log = () => {}, timeoutMs = 600000 }) {
-  const dir = mkdtempSync(join(tmpdir(), 'fw-throttle-driver-'));
+/** The .xctestrun of a finished build in `dir`. */
+export function findDriver(dir) {
+  const prods = join(dir, 'dd', 'Build', 'Products');
+  const xctestrun = readdirSync(prods).find((f) => f.endsWith('.xctestrun'));
+  if (!xctestrun) throw new Error(`no .xctestrun in ${prods}`);
+  return { dir, xctestrun: join(prods, xctestrun) };
+}
+
+/**
+ * Build the driver into `dir` (a new temp dir when absent). Returns {dir, xctestrun}. Without `udid` the build targets any iOS
+ * Simulator, so it can run before the Simulator boots (a build next to a booted Simulator on the 3-vCPU runner starved it).
+ */
+export async function buildDriver({ udid, dir: given, log = () => {}, timeoutMs = 600000 }) {
+  const dir = given ?? mkdtempSync(join(tmpdir(), 'fw-throttle-driver-'));
+  mkdirSync(dir, { recursive: true });
   cpSync(join(HERE, 'driver'), dir, { recursive: true });
   const logFile = join(dir, 'build.log');
   const gen = spawnSync('xcodegen', ['generate'], { cwd: dir, encoding: 'utf8' });
   if (gen.status !== 0) throw new Error(`xcodegen failed: ${(gen.stderr || gen.stdout || '').slice(-400)}`);
   const t0 = Date.now();
   const r = await runGroup('xcodebuild', ['build-for-testing', '-project', 'FwThrottleDriver.xcodeproj', '-scheme', 'FwThrottleDriver',
-    '-destination', `id=${udid}`, '-derivedDataPath', join(dir, 'dd')], { cwd: dir, timeoutMs, logFile });
+    '-destination', udid ? `id=${udid}` : 'generic/platform=iOS Simulator', '-derivedDataPath', join(dir, 'dd')], { cwd: dir, timeoutMs, logFile });
   if (r.code !== 0) throw new Error(`xcodebuild build-for-testing failed (code ${r.code}${r.timedOut ? ', timed out' : ''}); log tail in ${logFile}`);
-  const prods = join(dir, 'dd', 'Build', 'Products');
-  const xctestrun = readdirSync(prods).find((f) => f.endsWith('.xctestrun'));
-  if (!xctestrun) throw new Error('no .xctestrun after build-for-testing');
   log(`driver built in ${Math.round((Date.now() - t0) / 1000)} s`);
-  return { dir, xctestrun: join(prods, xctestrun) };
+  return findDriver(dir);
 }
 
 /** One pass of touches: cycles of a slow drag up and down. Resolves {code, timedOut, logFile}. */

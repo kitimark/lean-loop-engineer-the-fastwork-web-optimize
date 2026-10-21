@@ -3,6 +3,7 @@
 //   Real touches on Mobile Safari in the booted Simulator (XCUITest driver) while the page records frames; one pass per arm and round, the
 //   order rotated each round. original = the read-only snapshot; rewrite = the default prerendered build (--site); lift = the rewrite with
 //   ?fw=engine.scroll:throttle-lift.
+// node src/throttle/cli.mjs build-driver --dir d   build the touch driver once, before the Simulator boots (run --driver d uses it)
 // node src/throttle/cli.mjs report --in a.json,b.json [--md file]   the still-run table and the verdict per job and pooled
 import { parseArgs } from 'node:util';
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
@@ -10,8 +11,10 @@ import { resolve, dirname } from 'node:path';
 import { withSession } from '../session.mjs';
 import { watch } from '../watchdog.mjs';
 import { findDevice } from '../sim.mjs';
-import { buildDriver, cleanup, stop } from './driver.mjs';
+import { loadavg } from 'node:os';
+import { buildDriver, cleanup, findDriver, stop } from './driver.mjs';
 import { armPass } from './probe.mjs';
+import { loadFresh } from '../page.mjs';
 import { reportMd } from './report.mjs';
 
 const argv = process.argv.slice(2).filter((a) => a !== '--');
@@ -21,8 +24,8 @@ const { values: v } = parseArgs({
   options: {
     site: { type: 'string' }, arms: { type: 'string', default: 'rewrite,lift,original' }, rounds: { type: 'string', default: '2' },
     cycles: { type: 'string', default: '4' }, drag: { type: 'string', default: '360' }, velocity: { type: 'string', default: '120' },
-    hold: { type: 'string', default: '600' }, settle: { type: 'string', default: '6000' }, vm: { type: 'string', default: '1' },
-    out: { type: 'string' }, in: { type: 'string' }, md: { type: 'string' }, keep: { type: 'boolean', default: true },
+    hold: { type: 'string', default: '600' }, 'no-warmup': { type: 'boolean', default: false }, settle: { type: 'string', default: '6000' }, vm: { type: 'string', default: '1' },
+    out: { type: 'string' }, dir: { type: 'string' }, driver: { type: 'string' }, in: { type: 'string' }, md: { type: 'string' }, keep: { type: 'boolean', default: true },
   },
   allowNegative: true,
 });
@@ -41,10 +44,20 @@ async function main() {
     case 'run': {
       const arms = v.arms.split(',');
       const udid = findDevice().udid;
-      const driver = await buildDriver({ udid, log });
+      const driver = v.driver ? findDriver(resolve(v.driver)) : await buildDriver({ udid, log });
+      log(`load ${loadavg()[0].toFixed(0)} before the first pass`);
       const drag = { cycles: Number(v.cycles), dragPt: Number(v.drag), velocity: Number(v.velocity), holdMs: Number(v.hold) };
       const passes = [], failed = [];
+      const file = resolve(v.out ?? 'out/throttle.json');
+      mkdirSync(dirname(file), { recursive: true });
+      // written after every pass: a stalled job still reports the passes it finished
+      const save = () => writeFileSync(file, JSON.stringify({ vm: v.vm, drag, passes, failed }) + '\n');
       try {
+        // The first session on a fresh Simulator drops its openurl and asks again, which reloads the page after the recorder started
+        // (both CI jobs that got past the tab lost their first pass that way): load the page once, without touching, before the arms.
+        if (!v['no-warmup']) {
+          try { await withSession(async (ctx) => { await loadFresh(ctx.c, { clock: 'pinned', settleMs: 2000 }); }, { keep: v.keep, site: siteOf(arms.find((a) => a !== 'original') ?? 'original') }); log('warm-up session done'); } catch (e) { log(`warm-up failed: ${e.message}`); }
+        }
         for (let round = 0; round < Number(v.rounds); round++) {
           for (const arm of rotate(arms, round)) {
             const tag = `${arm}-r${round + 1}`;
@@ -53,14 +66,19 @@ async function main() {
                 { keep: v.keep, site: siteOf(arm) });
               passes.push({ arm, round: round + 1, vm: v.vm, ...rec });
             } catch (e) { failed.push(`${tag}: ${e.message}`); log(`${tag} failed: ${e.message}`); }
+            save();
           }
         }
-      } finally { stop(); cleanup(driver); }
-      const file = resolve(v.out ?? 'out/throttle.json');
-      mkdirSync(dirname(file), { recursive: true });
-      writeFileSync(file, JSON.stringify({ vm: v.vm, drag, passes, failed }) + '\n');
+      } finally { stop(); if (!v.driver) cleanup(driver); }
+      save();
       log(`wrote ${file} (${passes.length} passes${failed.length ? `, ${failed.length} failed` : ''})`);
       if (!passes.length) throw new Error('no pass completed');
+      break;
+    }
+    case 'build-driver': {
+      if (!v.dir) throw new Error('usage: build-driver --dir d');
+      await buildDriver({ dir: resolve(v.dir), log });
+      log(`load ${loadavg()[0].toFixed(0)} after the build`);
       break;
     }
     case 'report': {
@@ -74,7 +92,7 @@ async function main() {
       break;
     }
     default:
-      console.error('usage: run|report');
+      console.error('usage: run|build-driver|report');
       process.exitCode = 2;
   }
 }
