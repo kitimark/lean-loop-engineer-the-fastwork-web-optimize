@@ -6,6 +6,7 @@ import Fw.Parts.PlatformMarquee
 import Fw.Parts.PlatformEntries
 import Fw.Parts.PlatformScene
 import Fw.Parts.HiddenPausePlatform
+import Fw.Parts.PlatformShrinkOpt
 /-!
 # Golden vectors for the platform parts
 
@@ -215,13 +216,34 @@ def syncLines : List String :=
          ("orig", Json.arr ((List.range tr.length).map fun k => ratWire (origAt 0 tr k)).toArray),
          ("local", ratWire (run s0 tr).loc)])
 
-/-- The seven golden files of the platform parts and the engine.scene variant on the platform: name and lines, in this
+open Fw.Parts.PlatformShrinkOpt Fw.Site.Breakpoints in
+/-- Lines of `platform-shrink.jsonl` (variant `mq`): the write decision over the gate, the computed value and the last
+written value; the card's look per environment (the booleans `c860`, `le720` are Lean's evaluation of the generated
+conditions at that environment) and inline value.
+
+`planShrink` and `cardLook` in `logic.ts` are checked against these lines (`shrink.test.ts`). -/
+def shrinkMqLines : List String :=
+  let vals : List Rat := [0, 1 / 4, 1 / 2, 1]
+  (([false, true] : List Bool).flatMap fun g => vals.flatMap fun sv => vals.map fun last =>
+    line "planShrink" [("gated", .bool g), ("s", rin sv), ("last", rin last)]
+      (Json.mkObj [("write", .bool (writeNow g sv last)), ("last", ratWire (lastAfter g sv last))])) ++
+  (([(430, 430, true, false), (500, 500, false, false), (700, 700, false, false), (800, 800, false, false),
+     (860, 860, false, false), (861, 861, false, false), (1000, 1000, true, true), (1200, 1200, true, true),
+     (1201, 1201, true, true), (1280, 1280, false, false), (1280, 400, false, false)] :
+      List (Nat × Nat × Bool × Bool)).flatMap fun (w, d, noHover, coarse) =>
+    let env := exEnv w d (if noHover then .none else .hover) (if coarse then .coarse else .fine)
+    vals.map fun v =>
+      line "cardLook" [("width", jn w), ("deviceWidth", jn d), ("c860", .bool (c860.eval env)),
+        ("le720", .bool (wLe720.eval env)), ("v", rin v)]
+        (Json.mkObj [("scale", ratWire (look env v).1), ("radius", ratWire (look env v).2)]))
+
+/-- The eight golden files of the platform parts and the engine.scene variant on the platform: name and lines, in this
 order.
 
-Seven files, each written whole. -/
+Eight files, each written whole. -/
 def files (_ : Unit := ()) : List (String × List String) :=
   [("platform.jsonl", platformLines), ("platform.sweep.jsonl", sweepLines), ("platform.glint.jsonl", glintLines),
    ("platform.marquee.jsonl", marqueeLines), ("platform.entries.jsonl", entriesLines),
-   ("platform.scene.jsonl", sceneLines), ("engine.scene.jsonl", syncLines)]
+   ("platform.scene.jsonl", sceneLines), ("engine.scene.jsonl", syncLines), ("platform-shrink.jsonl", shrinkMqLines)]
 
 end Fw.Parts.PlatformGolden
