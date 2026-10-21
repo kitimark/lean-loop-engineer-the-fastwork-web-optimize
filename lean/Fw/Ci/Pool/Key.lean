@@ -456,7 +456,7 @@ private def arr {α : Type} (f : α → Json) (l : List α) : Json := Json.arr (
 
 /-- The golden `packages/contracts/golden/ci/pool-key.jsonl`: outcomes, key validity, names, dispatch reps, reduce and
 fast-path cases. -/
-def goldenText : String :=
+def goldenText (_ : Unit) : String :=
   let lines : List Json :=
     [Json.mkObj [("kind", "format"), ("prefix", "mres"), ("shaLen", 40), ("cfgLen", 64),
       ("providers", arr (Json.str ∘ providerTag) [.github, .circleci])]]

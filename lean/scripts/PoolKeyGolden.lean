@@ -2,7 +2,7 @@ import Fw.Ci.Pool.Key
 
 def main (args : List String) : IO UInt32 := do
   let p : System.FilePath := ".." / "packages" / "contracts" / "golden" / "ci" / "pool-key.jsonl"
-  let text := Fw.Ci.Pool.Key.goldenText
+  let text := Fw.Ci.Pool.Key.goldenText ()
   if args.contains "--check" then
     let cur ← try IO.FS.readFile p catch _ => pure ""
     if cur != text then
