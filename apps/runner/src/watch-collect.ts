@@ -853,36 +853,87 @@ export function readSamples(p: Paths): TimingSample[] {
 }
 
 // ---- resource baseline (task sup-baseline): a 20 s per-kind footprint sampler ----
-// TS STAND-IN: `argv0Base`, `classifyComm` and `resVerdict` mirror Fw.Obs.Health.Res (lean/Fw/Obs/Health.lean, proved there);
+// TS STAND-IN: `argv0Base`, `roleOf`, `kindAt`, `kindsOf`, `resVerdict` and `trippedBy` mirror Fw.Obs.Health.Res (lean/Fw/Obs/Health.lean, proved there);
 // test/watch-collect-sup.test.ts replays packages/contracts/golden/obs/sup-health.jsonl against them. The rest is I/O glue.
-export type ProcKind = "lean" | "fwcore" | "node" | "pnpm" | "chromium" | "simulator" | "webkit" | "other";
-export const PROC_KINDS: readonly ProcKind[] = ["lean", "fwcore", "node", "pnpm", "chromium", "simulator", "webkit", "other"];
-/** `Fw.Obs.Health.Res.ProcKind.heavy`. */
-export const HEAVY_KINDS: ReadonlySet<ProcKind> = new Set<ProcKind>(["lean", "chromium", "simulator", "webkit"]);
-/** `Fw.Obs.Health.Res.kindTable`: executable basename to kind. */
-export const KIND_TABLE: ReadonlyMap<string, ProcKind> = new Map<string, ProcKind>([
-  ["lean", "lean"], ["lake", "lean"], ["fwcore", "fwcore"], ["fwtest", "fwcore"], ["node", "node"], ["pnpm", "pnpm"],
+export type ProcKind = "leanBuild" | "leanServe" | "fwcore" | "node" | "pnpm" | "chromium" | "simulator" | "webkit" | "system" | "other";
+export const PROC_KINDS: readonly ProcKind[] = ["leanBuild", "leanServe", "fwcore", "node", "pnpm", "chromium", "simulator", "webkit", "system", "other"];
+/** `Fw.Obs.Health.Res.ProcKind.heavy`: our builds, browsers, Simulator device and Safari; never the language server or a system service. */
+export const HEAVY_KINDS: ReadonlySet<ProcKind> = new Set<ProcKind>(["leanBuild", "chromium", "simulator", "webkit"]);
+/** `Fw.Obs.Health.Res.Role`: a plain kind (its own name) or what the program name says before ancestry and arguments are read. */
+export type Role = ProcKind | "leanTool" | "simRoot" | "safari" | "safariDriver" | "webkitHelper";
+/** `Fw.Obs.Health.Res.kindTable`: executable basename to role. */
+export const KIND_TABLE: ReadonlyMap<string, Role> = new Map<string, Role>([
+  ["lean", "leanTool"], ["lake", "leanTool"], ["fwcore", "fwcore"], ["fwtest", "fwcore"], ["node", "node"], ["pnpm", "pnpm"],
   ["Chromium", "chromium"], ["Chromium Helper", "chromium"], ["Chromium Helper (Renderer)", "chromium"], ["Chromium Helper (GPU)", "chromium"],
   ["chrome-headless-shell", "chromium"], ["headless_shell", "chromium"], ["chrome_crashpad_handler", "chromium"],
-  ["launchd_sim", "simulator"], ["Simulator", "simulator"], ["simctl", "simulator"], ["SpringBoard", "simulator"], ["backboardd", "simulator"],
-  ["MobileSafari", "simulator"], ["com.apple.CoreSimulator.CoreSimulatorService", "simulator"],
-  ["Safari", "webkit"], ["com.apple.WebKit.WebContent", "webkit"], ["com.apple.WebKit.Networking", "webkit"], ["com.apple.WebKit.GPU", "webkit"]]);
+  ["launchd_sim", "simRoot"], ["com.apple.CoreSimulator.CoreSimulatorService", "system"],
+  ["Safari", "safari"], ["safaridriver", "safariDriver"],
+  ["com.apple.WebKit.WebContent", "webkitHelper"], ["com.apple.WebKit.Networking", "webkitHelper"], ["com.apple.WebKit.GPU", "webkitHelper"]]);
+/** `Fw.Obs.Health.Res.Proc` (named ProcRow here, `Proc` is the watcher's own); `args` is read only for `lake`, `lean` and `launchd_sim` (empty otherwise). */
+export interface ProcRow { pid: number; ppid: number; comm: string; args: string }
+/** `Fw.Obs.Health.Res.Device`. */
+export interface Device { udid: string; name: string }
 /** `Fw.Obs.Health.Res.argv0Base`: the part after the last `/`, else the first word of a retitled process. */
 export const argv0Base = (comm: string): string => (comm.includes("/") ? (comm.split("/").at(-1) ?? comm) : (comm.split(" ")[0] ?? comm));
-/** `Fw.Obs.Health.Res.classify`: the kind by program name only; no argument is read. */
-export const classifyComm = (comm: string): ProcKind => KIND_TABLE.get(argv0Base(comm)) ?? "other";
+/** `Fw.Obs.Health.Res.roleOf`. */
+export const roleOf = (p: ProcRow): Role | undefined => KIND_TABLE.get(argv0Base(p.comm));
+const hasSub = (s: string, sub: string): boolean => sub !== "" && s.split(sub).length > 1;
+const firstArg = (args: string): string => args.split(" ").slice(1)[0] ?? "";
+const serveVerb = (args: string): boolean => ["serve", "--server", "--worker"].includes(firstArg(args));
+const isOurSimRoot = (devs: readonly Device[], p: ProcRow): boolean => roleOf(p) === "simRoot" && devs.some((d) => d.name.startsWith("fw-") && hasSub(p.args, d.udid));
+const isServeRoot = (p: ProcRow): boolean => roleOf(p) === "leanTool" && serveVerb(p.args);
+const isDriver = (p: ProcRow): boolean => roleOf(p) === "safariDriver";
+const isSafari = (p: ProcRow): boolean => roleOf(p) === "safari";
+/** `Fw.Obs.Health.Res.kindAt`: the kind of a process from its own name and arguments and its ancestors (parent first). */
+export function kindAt(devs: readonly Device[], p: ProcRow, anc: readonly ProcRow[]): ProcKind {
+  const chain = [p, ...anc];
+  if (chain.some((q) => isOurSimRoot(devs, q))) return "simulator";
+  const r = roleOf(p);
+  switch (r) {
+    case undefined: case "simRoot": case "safariDriver": return "other";
+    case "leanTool": return chain.some(isServeRoot) ? "leanServe" : "leanBuild";
+    case "safari": return anc.some(isDriver) ? "webkit" : "other";
+    case "webkitHelper": return anc.some(isSafari) && anc.some(isDriver) ? "webkit" : "system";
+    default: return r;
+  }
+}
+/** `Fw.Obs.Health.Res.ancestors`: the ancestors of `p`, parent first, by at most `n` steps (a parent loop stops). */
+function ancestorsOf(byPid: ReadonlyMap<number, ProcRow>, p: ProcRow, n: number): ProcRow[] {
+  const out: ProcRow[] = [];
+  let cur = p;
+  for (let i = 0; i < n; i++) {
+    const q = byPid.get(cur.ppid);
+    if (!q || q.pid === cur.pid) break;
+    out.push(q);
+    cur = q;
+  }
+  return out;
+}
+/** `Fw.Obs.Health.Res.kindsOf`: the kind of each running process, in order. */
+export function kindsOf(devs: readonly Device[], ps: readonly ProcRow[]): ProcKind[] {
+  const byPid = new Map<number, ProcRow>();
+  for (const p of ps) if (!byPid.has(p.pid)) byPid.set(p.pid, p);
+  return ps.map((p) => kindAt(devs, p, ancestorsOf(byPid, p, ps.length)));
+}
 
-/** `Fw.Obs.Health.Res.Params` (defaults revisable after the 3-day collection). */
+/** `Fw.Obs.Health.Res.Params` (first guesses, revised after the first day of data; `swapPct` is flagged: swap is dynamic on macOS). */
 export interface ResParams { swapPct: number; cmprsPct: number; freePct: number; quietCenti: number }
 export const RES_PARAMS: ResParams = { swapPct: 90, cmprsPct: 50, freePct: 15, quietCenti: 200 };
 /** `Fw.Obs.Health.Res.Obs`: `procs` lists the kinds present, loads in hundredths, memory in MB, free memory in percent. */
 export interface ResObs { procs: ProcKind[]; loadCenti: number; swapUsedMB: number; swapTotalMB: number; compressorMB: number; ramMB: number; freePct: number }
 export type ResVerdict = "quiet" | "busy" | "pressured";
+/** `Fw.Obs.Health.Res.swapHigh`, `cmprsHigh`, `freeLow`: which pressure condition holds. */
+export function trippedBy(p: ResParams, o: ResObs): { swap: boolean; cmprs: boolean; free: boolean } {
+  return {
+    swap: o.swapTotalMB > 0 && p.swapPct * o.swapTotalMB <= 100 * o.swapUsedMB,
+    cmprs: o.ramMB > 0 && p.cmprsPct * o.ramMB <= 100 * o.compressorMB,
+    free: o.freePct <= p.freePct,
+  };
+}
 /** `Fw.Obs.Health.Res.verdict`: `pressured` on swap, compressor or free memory, else `busy` on a heavy process or load, else `quiet`. */
 export function resVerdict(p: ResParams, o: ResObs): ResVerdict {
-  const swapHigh = o.swapTotalMB > 0 && p.swapPct * o.swapTotalMB <= 100 * o.swapUsedMB;
-  const cmprsHigh = o.ramMB > 0 && p.cmprsPct * o.ramMB <= 100 * o.compressorMB;
-  if (swapHigh || cmprsHigh || o.freePct <= p.freePct) return "pressured";
+  const t = trippedBy(p, o);
+  if (t.swap || t.cmprs || t.free) return "pressured";
   return o.procs.some((k) => HEAVY_KINDS.has(k)) || p.quietCenti <= o.loadCenti ? "busy" : "quiet";
 }
 
@@ -893,7 +944,8 @@ export function parseSize(s: string): number | null {
   return m ? Number(m[1]) * UNIT_MB[m[2]!]! : null;
 }
 export interface TopRow { pid: number; memMB: number; cmprsMB: number }
-/** `top -l 1 -stats pid,mem,cmprs`: MEM is the process's physical footprint including its compressed pages (CMPRS is the compressed part). */
+/** `top -l 1 -stats pid,mem,cmprs`: MEM and CMPRS per process. CMPRS can exceed MEM on a row (MEASURED: 6 of 620 rows, e.g. MEM 13M with CMPRS 73M),
+ *  so MEM does not contain CMPRS; the footprint of a process is MEM plus CMPRS (`footMB`). */
 export function parseTop(out: string | null): { rows: TopRow[]; compressorMB: number | null } {
   const rows: TopRow[] = [];
   let compressorMB: number | null = null;
@@ -907,8 +959,17 @@ export function parseTop(out: string | null): { rows: TopRow[]; compressorMB: nu
   }
   return { rows, compressorMB };
 }
-/** `ps -A -o pid=,comm=` as pid to command. */
-export function parsePidComm(out: string | null): Map<number, string> {
+/** `ps -A -o pid=,ppid=,comm=` as processes (no arguments yet). */
+export function parseProcs(out: string | null): ProcRow[] {
+  const ps: ProcRow[] = [];
+  for (const line of (out ?? "").split("\n")) {
+    const m = /^\s*(\d+)\s+(\d+)\s+(.+?)\s*$/.exec(line);
+    if (m) ps.push({ pid: Number(m[1]), ppid: Number(m[2]), comm: m[3]!, args: "" });
+  }
+  return ps;
+}
+/** `ps -o pid=,command= -p <pids>` as pid to command line. */
+export function parseArgs(out: string | null): Map<number, string> {
   const by = new Map<number, string>();
   for (const line of (out ?? "").split("\n")) {
     const m = /^\s*(\d+)\s+(.+?)\s*$/.exec(line);
@@ -916,47 +977,72 @@ export function parsePidComm(out: string | null): Map<number, string> {
   }
   return by;
 }
+/** The processes whose command line the classifier reads: `lake`, `lean` and `launchd_sim`. */
+export const wantsArgs = (p: ProcRow): boolean => { const r = roleOf(p); return r === "leanTool" || r === "simRoot"; };
+const UDID = /[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}/;
+/** The Simulator device id in a `launchd_sim` command line, or null. */
+export const udidOf = (p: ProcRow): string | null => (roleOf(p) === "simRoot" ? (UDID.exec(p.args)?.[0] ?? null) : null);
 /** `sysctl -n vm.swapusage` ("total = 6144.00M  used = 5201.62M  free = 942.38M ..."): used and total in MB. */
 export function parseSwap(out: string | null): { usedMB: number; totalMB: number } | null {
   const t = /total = ([\d.]+)M/.exec(out ?? "");
   const u = /used = ([\d.]+)M/.exec(out ?? "");
   return t && u ? { usedMB: Math.floor(Number(u[1])), totalMB: Math.floor(Number(t[1])) } : null;
 }
-/** `memory_pressure -Q`: the system-wide free memory in percent (the quantity scripts/heavy-lock.mjs observes). */
+/** `memory_pressure -Q`: the system-wide free memory in percent (the pressure input of the verdict, as scripts/heavy-lock.mjs observes it). */
 export function parseFreePct(out: string | null): number | null {
   const m = /free percentage:\s*(\d+)%/.exec(out ?? "");
   return m ? Number(m[1]) : null;
 }
 
 export interface KindUse { n: number; memMB: number; cmprsMB: number }
+/** The footprint of a kind: the `top` MEM and CMPRS columns added. Pages shared between processes are counted once per process. */
+export const footMB = (u: KindUse): number => u.memMB + u.cmprsMB;
 /** One line of `<consoleDir>/sup-samples.jsonl`. `verdict` is null when a reading is missing (named in `partial`). */
 export interface SupSample {
   ts: number; verdict: ResVerdict | null; loadCenti: number; ramMB: number; swapUsedMB: number | null; swapTotalMB: number | null;
   compressorMB: number | null; freePct: number | null; kinds: Record<ProcKind, KindUse>; costMs: number; partial: string[];
 }
-/** Per-kind count and footprint: every `top` row is classified by the command `ps` gives for its pid (a pid `ps` no longer lists is `other`). */
-export function reduceKinds(rows: TopRow[], comms: Map<number, string>): Record<ProcKind, KindUse> {
+/** Per-kind count and footprint: every `top` row is given the kind of its pid (a pid `ps` no longer lists is `other`). */
+export function reduceKinds(rows: TopRow[], kindOfPid: ReadonlyMap<number, ProcKind>): Record<ProcKind, KindUse> {
   const acc = Object.fromEntries(PROC_KINDS.map((k) => [k, { n: 0, memMB: 0, cmprsMB: 0 }])) as Record<ProcKind, KindUse>;
   for (const r of rows) {
-    const u = acc[classifyComm(comms.get(r.pid) ?? "")];
+    const u = acc[kindOfPid.get(r.pid) ?? "other"];
     u.n++; u.memMB += r.memMB; u.cmprsMB += r.cmprsMB;
   }
   for (const k of PROC_KINDS) { acc[k].memMB = Math.round(acc[k].memMB); acc[k].cmprsMB = Math.round(acc[k].cmprsMB); }
   return acc;
 }
-/** One sample from the four command outputs (null: the command failed), the 1-min load and the RAM size in MB. */
-export function buildSample(ts: number, outs: { top: string | null; ps: string | null; swap: string | null; free: string | null }, load1: number, ramMB: number,
-  costMs: number, p: ResParams = RES_PARAMS): SupSample {
+/** The readings of one sample (null: the command failed). `args` is the `ps -p` output for `wantsArgs` processes, `deviceNames` the name of each Simulator device id found. */
+export interface SupReadings { top: string | null; ps: string | null; args: string | null; swap: string | null; free: string | null; deviceNames: Record<string, string | null> }
+/** The processes with their command lines merged in, and the Simulator devices read for them. */
+export function joinProcs(ps: ProcRow[], argsOut: string | null, deviceNames: Record<string, string | null>): { procs: ProcRow[]; devices: Device[]; missing: string[] } {
+  const args = parseArgs(argsOut);
+  const procs = ps.map((p) => (wantsArgs(p) ? { ...p, args: args.get(p.pid) ?? "" } : p));
+  const missing: string[] = [];
+  if (argsOut === null && ps.some(wantsArgs)) missing.push("args");
+  const devices: Device[] = [];
+  for (const u of new Set(procs.map(udidOf).filter((x): x is string => x !== null))) {
+    const name = deviceNames[u];
+    if (typeof name === "string") devices.push({ udid: u, name }); else missing.push("device");
+  }
+  return { procs, devices, missing: [...new Set(missing)] };
+}
+/** One sample from the readings, the 1-min load and the RAM size in MB. */
+export function buildSample(ts: number, outs: SupReadings, load1: number, ramMB: number, costMs: number, p: ResParams = RES_PARAMS): SupSample {
   const top = parseTop(outs.top);
   const swap = parseSwap(outs.swap);
   const freePct = parseFreePct(outs.free);
+  const joined = joinProcs(parseProcs(outs.ps), outs.args, outs.deviceNames);
   const partial: string[] = [];
   if (top.rows.length === 0) partial.push("top");
   if (top.compressorMB === null) partial.push("compressor");
   if (outs.ps === null) partial.push("ps");
+  partial.push(...joined.missing);
   if (swap === null) partial.push("swap");
   if (freePct === null) partial.push("free");
-  const kinds = reduceKinds(top.rows, parsePidComm(outs.ps));
+  const kindOfPid = new Map<number, ProcKind>();
+  kindsOf(joined.devices, joined.procs).forEach((k, i) => kindOfPid.set(joined.procs[i]!.pid, k));
+  const kinds = reduceKinds(top.rows, kindOfPid);
   const loadCenti = Math.floor(Math.max(0, load1) * 100);
   const compressorMB = top.compressorMB === null ? null : Math.round(top.compressorMB);
   const verdict = partial.length === 0
@@ -968,15 +1054,25 @@ export function buildSample(ts: number, outs: { top: string | null; ps: string |
 export const SUP_FILE = "sup-samples.jsonl";
 export const SUP_EVERY_MS = 20_000;
 /** Takes one sample and appends it to `<consoleDir>/sup-samples.jsonl`, unless the file is younger than `minAgeMs` (another
- *  watcher process sampled): returns the sample, or null when skipped. Never throws. */
+ *  watcher sampled): returns the sample, or null when skipped. Never throws. A command line is read only for `lake`, `lean` and `launchd_sim`
+ *  and a Simulator device name only for the ids found there (from the device's `device.plist`, no CoreSimulator call); none is stored. */
 export async function sampleOnce(p: Paths, exec: Runner = run, now = Date.now(), minAgeMs = 15_000, load1 = loadavg()[0]!, ramMB = Math.floor(totalmem() / 1048576)): Promise<SupSample | null> {
   const file = join(p.consoleDir, SUP_FILE);
   try { if (now - statSync(file).mtimeMs < minAgeMs) return null; } catch { /* no file yet */ }
   const t0 = Date.now();
   const [top, ps, swap, free] = await Promise.all([
-    exec("top", ["-l", "1", "-stats", "pid,mem,cmprs"], 20_000), exec("ps", ["-A", "-o", "pid=,comm="], 5000),
+    exec("top", ["-l", "1", "-stats", "pid,mem,cmprs"], 20_000), exec("ps", ["-A", "-o", "pid=,ppid=,comm="], 5000),
     exec("sysctl", ["-n", "vm.swapusage"], 3000), exec("memory_pressure", ["-Q"], 10_000)]);
-  const sample = buildSample(now, { top: text(top), ps: text(ps), swap: text(swap), free: text(free) }, load1, ramMB, Date.now() - t0);
+  const procs = parseProcs(text(ps));
+  const want = procs.filter(wantsArgs).map((q) => q.pid);
+  const args = want.length > 0 ? text(await exec("ps", ["-o", "pid=,command=", "-p", want.join(",")], 5000)) : "";
+  const withArgs = joinProcs(procs, args, {}).procs;
+  const deviceNames: Record<string, string | null> = {};
+  await Promise.all([...new Set(withArgs.map(udidOf).filter((x): x is string => x !== null))].map(async (u) => {
+    const plist = join(p.home, "Library", "Developer", "CoreSimulator", "Devices", u, "device.plist");
+    deviceNames[u] = text(await exec("plutil", ["-extract", "name", "raw", "-o", "-", plist], 3000))?.trim() ?? null;
+  }));
+  const sample = buildSample(now, { top: text(top), ps: text(ps), args, swap: text(swap), free: text(free), deviceNames }, load1, ramMB, Date.now() - t0);
   try {
     mkdirSync(p.consoleDir, { recursive: true });
     appendFileSync(file, `${JSON.stringify(sample)}\n`);

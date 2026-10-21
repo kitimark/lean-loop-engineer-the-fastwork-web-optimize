@@ -8,8 +8,9 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 import {
-  PROC_KINDS, HEAVY_KINDS, RES_PARAMS, SUP_FILE, buildSample, classifyComm, ensureSampler, parseFreePct, parsePidComm, parseSize, parseSwap, parseTop,
-  reduceKinds, resVerdict, sampleOnce, stopSamplers, type Paths, type ProcKind, type ResObs, type ResParams, type Runner, type SupSample,
+  PROC_KINDS, HEAVY_KINDS, KIND_TABLE, RES_PARAMS, SUP_FILE, buildSample, ensureSampler, footMB, joinProcs, kindsOf, parseArgs, parseFreePct, parseProcs,
+  parseSize, parseSwap, parseTop, reduceKinds, resVerdict, sampleOnce, stopSamplers, trippedBy, udidOf,
+  type Device, type Paths, type ProcRow, type ProcKind, type ResObs, type ResParams, type Runner, type SupSample,
 } from "../src/watch-collect.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
@@ -28,8 +29,25 @@ describe("the Lean golden", () => {
     expect(g.response.kinds).toEqual([...PROC_KINDS]);
     expect(g.response.heavy).toEqual(PROC_KINDS.filter((k) => HEAVY_KINDS.has(k)));
   });
+  it("the TS name table equals Lean's kindTable, entry for entry and in order", () => {
+    const g = golden.find((x) => x.request.op === "sup.table")!;
+    expect([...KIND_TABLE]).toEqual(g.response.table);
+  });
+  const procsOf = (g: { request: Record<string, unknown> }) => g.request.procs as ProcRow[];
+  const devsOf = (g: { request: Record<string, unknown> }) => g.request.devices as Device[];
   for (const g of golden.filter((x) => x.request.op === "sup.classify")) {
-    it(`classify: ${g.name}`, () => { expect(classifyComm(String(g.request.comm))).toBe(g.response.kind); });
+    it(`classify: ${g.name}`, () => { expect(kindsOf(devsOf(g), procsOf(g))).toEqual(g.response.kinds); });
+  }
+  for (const g of golden.filter((x) => x.request.op === "sup.sample")) {
+    it(`sample: ${g.name}`, () => {
+      const kinds = kindsOf(devsOf(g), procsOf(g));
+      expect(kinds).toEqual(g.response.kinds);
+      const o = g.request.obs as ResObs;
+      expect(resVerdict(g.request.params as ResParams, { ...o, procs: kinds })).toBe(g.response.verdict);
+    });
+  }
+  for (const g of golden.filter((x) => x.request.op === "sup.tripped")) {
+    it(`tripped: ${g.name}`, () => { expect(trippedBy(g.request.params as ResParams, g.request.obs as ResObs)).toEqual(g.response); });
   }
   for (const g of golden.filter((x) => x.request.op === "sup.verdict")) {
     it(`verdict: ${g.name}`, () => {
@@ -37,6 +55,10 @@ describe("the Lean golden", () => {
       expect(resVerdict(g.request.params as ResParams, o)).toBe(g.response.verdict);
     });
   }
+  it("the golden keeps the two cases the classifier exists for: background processes are quiet, a booted fw- device is busy", () => {
+    expect(golden.find((x) => x.name.startsWith("CoreSimulatorService, system WebContent and lake serve"))?.response.verdict).toBe("quiet");
+    expect(golden.find((x) => x.name === "a booted fw- device subtree is busy")?.response.verdict).toBe("busy");
+  });
   it("the default parameters are the ones the golden's default cases use", () => {
     const g = golden.find((x) => x.name === "an idle machine is quiet")!;
     expect(g.request.params).toEqual(RES_PARAMS);
@@ -58,12 +80,14 @@ const TOP = [
   "junk line 1 2",
 ].join("\n");
 const PS = [
-  "    1 /sbin/launchd",
-  "92347 /Users/x/.nvm/versions/node/v24.22.0/bin/node",
-  " 3093 /Applications/Chromium.app/Contents/Frameworks/Chromium Helper (Renderer).app/Contents/MacOS/Chromium Helper (Renderer)",
-  " 9722 /Users/x/lean/.lake/build/bin/lean",
-  "  101 pnpm run build",
+  "    1     0 /sbin/launchd",
+  "92347     1 /Users/x/.nvm/versions/node/v24.22.0/bin/node",
+  " 3093 92347 /Applications/Chromium.app/Contents/Frameworks/Chromium Helper (Renderer).app/Contents/MacOS/Chromium Helper (Renderer)",
+  " 9722 92347 /Users/x/lean/.lake/build/bin/lean",
+  "  101     1 pnpm run build",
 ].join("\n");
+const ARGS = " 9722 /Users/x/lean/.lake/build/bin/lean -R x -o y\n";
+const noDev = {};
 const SWAP = "total = 6144.00M  used = 5201.62M  free = 942.38M  (encrypted)";
 const FREE = "The system has 17179869184 (1048576 pages with a page size of 16384).\nSystem-wide memory free percentage: 38%\n";
 
@@ -84,10 +108,18 @@ describe("parsers", () => {
     expect(t.rows[1]).toEqual({ pid: 3093, memMB: 947, cmprsMB: 907 });
     expect(parseTop(null)).toEqual({ rows: [], compressorMB: null });
   });
-  it("parsePidComm keeps paths with spaces", () => {
-    const m = parsePidComm(PS);
-    expect(m.get(3093)).toMatch(/Chromium Helper \(Renderer\)$/);
-    expect(m.get(101)).toBe("pnpm run build");
+  it("parseProcs keeps the parent and paths with spaces; parseArgs keeps the command line", () => {
+    const ps = parseProcs(PS);
+    expect(ps.find((q) => q.pid === 3093)).toMatchObject({ ppid: 92347, comm: expect.stringMatching(/Chromium Helper \(Renderer\)$/) });
+    expect(ps.find((q) => q.pid === 101)).toMatchObject({ ppid: 1, comm: "pnpm run build" });
+    expect(parseArgs(ARGS).get(9722)).toBe("/Users/x/lean/.lake/build/bin/lean -R x -o y");
+    expect(parseProcs(null)).toEqual([]);
+  });
+  it("udidOf reads the device id from a launchd_sim command line only", () => {
+    const u = "aaaaaaaa-0000-4000-8000-000000000001";
+    expect(udidOf({ pid: 1, ppid: 0, comm: "/R/sbin/launchd_sim", args: `/R/sbin/launchd_sim /D/Devices/${u}/data/var/run/x.plist` })).toBe(u);
+    expect(udidOf({ pid: 1, ppid: 0, comm: "/usr/bin/top", args: `top ${u}` })).toBeNull();
+    expect(udidOf({ pid: 1, ppid: 0, comm: "/R/sbin/launchd_sim", args: "" })).toBeNull();
   });
   it("parseSwap and parseFreePct", () => {
     expect(parseSwap(SWAP)).toEqual({ usedMB: 5201, totalMB: 6144 });
@@ -97,42 +129,84 @@ describe("parsers", () => {
   });
 });
 
+const readings = (over: Partial<Parameters<typeof buildSample>[1]> = {}) => ({ top: TOP, ps: PS, args: ARGS, swap: SWAP, free: FREE, deviceNames: noDev, ...over });
+const kindMap = (ps: ProcRow[], devs: Device[] = []) => new Map(kindsOf(devs, ps).map((k, i) => [ps[i]!.pid, k] as const));
+
 describe("the sample", () => {
-  it("reduceKinds sums count, footprint and compressed part per kind; an unknown pid is other", () => {
-    const k = reduceKinds(parseTop(TOP).rows, parsePidComm(PS));
+  it("reduceKinds sums count, MEM and CMPRS per kind; an unknown pid is other; the footprint is MEM plus CMPRS", () => {
+    const withArgs = joinProcs(parseProcs(PS), ARGS, noDev).procs;
+    const k = reduceKinds(parseTop(TOP).rows, kindMap(withArgs));
     expect(k.node).toEqual({ n: 1, memMB: 1245, cmprsMB: 199 });
     expect(k.chromium).toEqual({ n: 1, memMB: 947, cmprsMB: 907 });
-    expect(k.lean).toEqual({ n: 1, memMB: 2048, cmprsMB: 871 });
+    expect(k.leanBuild).toEqual({ n: 1, memMB: 2048, cmprsMB: 871 });
     expect(k.pnpm.n).toBe(1);
     expect(k.other).toEqual({ n: 1, memMB: 12, cmprsMB: 1 });
     expect(Object.keys(k)).toEqual([...PROC_KINDS]);
+    expect(footMB(k.chromium)).toBe(947 + 907);
+    expect(footMB(k.leanBuild)).toBe(2048 + 871);
   });
-  it("buildSample: a full set of readings gets a verdict (lean and chromium run, free 38 percent: busy)", () => {
-    const s = buildSample(1000, { top: TOP, ps: PS, swap: SWAP, free: FREE }, 40.829, 16384, 1500);
+  it("a process whose CMPRS exceeds its MEM keeps both columns: the footprint is the sum, not MEM", () => {
+    const top = "PhysMem: 1G used (1M wired, 100M compressor), 1M unused.\nPID MEM CMPRS\n9 13M 73M\n";
+    const k = reduceKinds(parseTop(top).rows, new Map([[9, "node"]]));
+    expect(k.node).toEqual({ n: 1, memMB: 13, cmprsMB: 73 });
+    expect(footMB(k.node)).toBe(86);
+  });
+  it("buildSample: a full set of readings gets a verdict (a lean build and chromium run, free 38 percent: busy)", () => {
+    const s = buildSample(1000, readings(), 40.829, 16384, 1500);
     expect(s).toMatchObject({ ts: 1000, verdict: "busy", loadCenti: 4082, ramMB: 16384, swapUsedMB: 5201, swapTotalMB: 6144, compressorMB: 5255, freePct: 38, costMs: 1500, partial: [] });
   });
+  it("buildSample: the language server and a system service alone leave the machine quiet; a build of ours makes it busy", () => {
+    const top = "PhysMem: 1G used (1M wired, 100M compressor), 1M unused.\nPID MEM CMPRS\n20 900M 10M\n21 500M 0B\n22 90M 0B\n";
+    const ps = ["    1     0 /sbin/launchd", "   20     1 /e/bin/lake", "   21    20 /e/bin/lean", "   22     1 /S/com.apple.WebKit.WebContent"].join("\n");
+    const swap = SWAP.replace("5201.62", "100.00");
+    const serve = buildSample(0, readings({ top, ps, args: "   20 /e/bin/lake serve\n   21 /e/bin/lean --server\n", swap }), 0.5, 16384, 1);
+    expect(serve.verdict).toBe("quiet");
+    expect(serve.kinds.leanServe).toMatchObject({ n: 2, memMB: 1400 });
+    expect(serve.kinds.system.n).toBe(1);
+    const build = buildSample(0, readings({ top, ps, args: "   20 /e/bin/lake build\n   21 /e/bin/lean -R x\n", swap }), 0.5, 16384, 1);
+    expect(build.verdict).toBe("busy");
+    expect(build.kinds.leanBuild.n).toBe(2);
+  });
+  it("buildSample: the whole launchd_sim subtree of a booted fw- device is simulator, a device not named fw- is not", () => {
+    const u = "aaaaaaaa-0000-4000-8000-000000000001";
+    const top = "PhysMem: 1G used (1M wired, 100M compressor), 1M unused.\nPID MEM CMPRS\n30 20M 0B\n31 50M 0B\n32 80M 0B\n";
+    const ps = ["    1     0 /sbin/launchd", "   30     1 /R/sbin/launchd_sim", "   31    30 /R/usr/libexec/backboardd", "   32    31 /R/usr/libexec/some-sim-daemon"].join("\n");
+    const args = `   30 /R/sbin/launchd_sim /D/Devices/${u}/data/var/run/launchd_bootstrap.plist\n`;
+    const swap = SWAP.replace("5201.62", "100.00");
+    const ours = buildSample(0, readings({ top, ps, args, swap, deviceNames: { [u]: "fw-sim 15 Pro Max" } }), 0.5, 16384, 1);
+    expect(ours.kinds.simulator).toMatchObject({ n: 3, memMB: 150 });
+    expect(ours.verdict).toBe("busy");
+    const theirs = buildSample(0, readings({ top, ps, args, swap, deviceNames: { [u]: "iPhone 17" } }), 0.5, 16384, 1);
+    expect(theirs.kinds.simulator.n).toBe(0);
+    expect(theirs.verdict).toBe("quiet");
+    const unknown = buildSample(0, readings({ top, ps, args, swap, deviceNames: { [u]: null } }), 0.5, 16384, 1);
+    expect(unknown.partial).toEqual(["device"]);
+    expect(unknown.verdict).toBeNull();
+  });
   it("buildSample: swap at 90 percent or free memory at 15 percent is pressured, even with nothing heavy running", () => {
-    const light = "PID MEM CMPRS\n5 10M 1M\n";
-    expect(buildSample(0, { top: `PhysMem: 1G used (1M wired, 100M compressor), 1M unused.\n${light}`, ps: "5 /usr/bin/top", swap: "total = 1000.00M used = 900.00M free = 100.00M", free: FREE }, 0, 16384, 1).verdict).toBe("pressured");
-    expect(buildSample(0, { top: `PhysMem: 1G used (1M wired, 100M compressor), 1M unused.\n${light}`, ps: "5 /usr/bin/top", swap: SWAP.replace("5201.62", "100.00"), free: "free percentage: 15%" }, 0, 16384, 1).verdict).toBe("pressured");
-    expect(buildSample(0, { top: `PhysMem: 1G used (1M wired, 100M compressor), 1M unused.\n${light}`, ps: "5 /usr/bin/top", swap: SWAP.replace("5201.62", "100.00"), free: FREE }, 0.5, 16384, 1).verdict).toBe("quiet");
+    const top = "PhysMem: 1G used (1M wired, 100M compressor), 1M unused.\nPID MEM CMPRS\n5 10M 1M\n";
+    const r = (over: Partial<Parameters<typeof buildSample>[1]>) => readings({ top, ps: "5 1 /usr/bin/top", args: "", ...over });
+    expect(buildSample(0, r({ swap: "total = 1000.00M used = 900.00M free = 100.00M" }), 0, 16384, 1).verdict).toBe("pressured");
+    expect(buildSample(0, r({ swap: SWAP.replace("5201.62", "100.00"), free: "free percentage: 15%" }), 0, 16384, 1).verdict).toBe("pressured");
+    expect(buildSample(0, r({ swap: SWAP.replace("5201.62", "100.00") }), 0.5, 16384, 1).verdict).toBe("quiet");
   });
   it("buildSample: a missing reading gives no verdict and names the reading", () => {
-    const s = buildSample(0, { top: TOP, ps: PS, swap: null, free: FREE }, 1, 16384, 1);
+    const s = buildSample(0, readings({ swap: null }), 1, 16384, 1);
     expect(s.verdict).toBeNull();
     expect(s.swapUsedMB).toBeNull();
     expect(s.partial).toEqual(["swap"]);
-    expect(buildSample(0, { top: null, ps: null, swap: null, free: null }, 1, 16384, 1).partial).toEqual(["top", "compressor", "ps", "swap", "free"]);
+    expect(buildSample(0, readings({ args: null }), 1, 16384, 1).partial).toEqual(["args"]);
+    expect(buildSample(0, { top: null, ps: null, args: "", swap: null, free: null, deviceNames: noDev }, 1, 16384, 1).partial).toEqual(["top", "compressor", "ps", "swap", "free"]);
   });
   it("a sample line carries no command, path or argument", () => {
-    const line = JSON.stringify(buildSample(0, { top: TOP, ps: PS, swap: SWAP, free: FREE }, 1, 16384, 1));
-    expect(line).not.toMatch(/Users|Applications|\.nvm|pnpm run|Renderer|\//);
+    const line = JSON.stringify(buildSample(0, readings(), 1, 16384, 1));
+    expect(line).not.toMatch(/Users|Applications|\.nvm|pnpm run|Renderer|-R x|\//);
   });
 });
 
-const fake = (calls: string[] = []): Runner => async (cmd) => {
+const fake = (calls: string[] = []): Runner => async (cmd, args) => {
   calls.push(cmd);
-  return cmd === "top" ? TOP : cmd === "ps" ? PS : cmd === "sysctl" ? SWAP : cmd === "memory_pressure" ? FREE : null;
+  return cmd === "top" ? TOP : cmd === "ps" ? (args.includes("-p") ? ARGS : PS) : cmd === "sysctl" ? SWAP : cmd === "memory_pressure" ? FREE : null;
 };
 
 describe("sampleOnce", () => {
@@ -144,6 +218,7 @@ describe("sampleOnce", () => {
     const lines = readFileSync(f, "utf8").trim().split("\n");
     expect(lines).toHaveLength(1);
     expect((JSON.parse(lines[0]!) as SupSample).kinds.node.n).toBe(1);
+    expect((JSON.parse(lines[0]!) as SupSample).kinds.leanBuild.n).toBe(1);
     // young file (just written): the next watcher process skips
     expect(await sampleOnce(p, fake(), Date.now(), 15_000, 1, 16384)).toBeNull();
     // old file: samples again

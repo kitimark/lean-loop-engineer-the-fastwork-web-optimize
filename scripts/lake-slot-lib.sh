@@ -1,14 +1,15 @@
 # Defines lake_slot, the machine-wide Lake build slot (task lake-build-slots, Lean Fw.Sched.LakeSlot); defines only.
 #   . scripts/lake-slot-lib.sh; ( lake_slot <repo root> <cmd...> )   or   lake_slot_hold <repo root>; ...; lake_slot_release
 # The command-line form is scripts/lake-slot.sh. A slot is a flock(2) lock on fd 9 (lockf on macOS, flock on Linux) on
-# <git common dir>/lake-slot/<i>; the shell then execs the command (with lock events on it runs the command as a child
-# and exits with its status), so the lock lives exactly as long as the command and its children. LAKE_SLOT_DIR overrides the directory. LAKE_SLOT is set for the command; a nested call runs inside the
+# <git common dir>/lake-slot/<i>; the shell then execs the command, so the lock lives exactly as long as the command and its children. LAKE_SLOT_DIR overrides the directory. LAKE_SLOT is set for the command; a nested call runs inside the
 # caller's slot.
 
 # Lock events (task sup-baseline): one JSON line per slot taken or given back in <main checkout>/.fw-console/locks.jsonl
 # (FW_LOCK_EVENTS_FILE overrides the file, FW_LOCK_EVENTS=off or CI disables it). Fields: ts (ms; whole seconds where
 # `date` has no %N), lock, ev, kind, pid ($$ of the calling shell) and start (epoch s, 0 when unknown), slot, waitMs or holdMs. No paths, no arguments.
-# With events on, lake_slot runs the command as a child (to see its end) instead of exec; with events off it execs.
+# lake_slot keeps exec with events on, so it has no step after the command: it logs only the acquire (kind build, with "exec":1) and never a release.
+# Its hold is not derived from the next acquire (that gap includes idle time); a build in progress shows in the sampler's leanBuild kind instead.
+# The group form (lake_slot_hold / lake_slot_release) logs both lines.
 _ls_now() {
   _ls_ms=$(date +%s%N 2>/dev/null) || _ls_ms=
   case "$_ls_ms" in *N|"") _ls_ms=$(( $(date +%s) * 1000 )) ;; *) _ls_ms=$((_ls_ms / 1000000)) ;; esac
@@ -27,8 +28,9 @@ _ls_ev() {
     if [ "$1" = acquire ]; then _ls_f=waitMs; _ls_ed=$((_ls_ms - ${_ls_t0:-$_ls_ms})); _ls_acq=$_ls_ms
     else _ls_f=holdMs; _ls_ed=$((_ls_ms - ${_ls_acq:-$_ls_ms})); fi
     mkdir -p "${_ls_ef%/*}"
-    printf '{"ts":%s,"lock":"lake-slot","ev":"%s","kind":"%s","pid":%s,"start":%s,"slot":%s,"%s":%s}\n' "$_ls_ms" "$1" "$2" "$$" \
-      "$(_ls_start_of "$$")" "${LAKE_SLOT:-0}" "$_ls_f" "$_ls_ed" >> "$_ls_ef"
+    if [ "$1" = acquire ] && [ "$2" = build ]; then _ls_xf=',"exec":1'; else _ls_xf=; fi
+    printf '{"ts":%s,"lock":"lake-slot","ev":"%s","kind":"%s","pid":%s,"start":%s,"slot":%s,"%s":%s%s}\n' "$_ls_ms" "$1" "$2" "$$" \
+      "$(_ls_start_of "$$")" "${LAKE_SLOT:-0}" "$_ls_f" "$_ls_ed" "$_ls_xf" >> "$_ls_ef"
   } 2>/dev/null || :
 }
 
@@ -91,11 +93,6 @@ lake_slot() {
   [ -z "${LAKE_SLOT:-}" ] || exec "$@"
   . "$_ls_r/packages/contracts/golden/sched/lake-slot.gen.sh"
   _ls_hold "$_ls_r" build || :
-  if [ -n "${LAKE_SLOT:-}" ] && [ -n "${_ls_ef:-}" ]; then
-    "$@" && _ls_rc=0 || _ls_rc=$?
-    _ls_ev release build
-    exit "$_ls_rc"
-  fi
   exec "$@"
 }
 
