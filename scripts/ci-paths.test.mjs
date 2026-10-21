@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { decide, loadIntent, matches, preciseInputs } from '../.github/scripts/changed-inputs.mjs';
-import { capProblems, coarseMap, coneOf, coneProblems, loadCaps, dispatchOnly, expand, guardIf, jobConcurrency, LAKE_GEN, leanInputProblems, leanScriptPaths, recheckSteps, withConj, macosJobs, unsafeStatusIf, lakeGenProblems, lakeImportFacts, lakeJobs, lakeTargetsOf, loadGolden, portableGlob, withNotMain, notMainIf, carriesNotMain, cacheWriters, guardComment, readJobs, readLakefile, reconcile, renderPush, run, setMapFor, setupLeanJobs, unguarded, nodePinProblems, jobFacts, jobProblems, pinValueProblems, rowProblems, copyProblems, nodePinRefusal } from './ci-paths.mjs';
+import { capProblems, coarseMap, coneOf, coneProblems, loadCaps, dispatchOnly, expand, guardIf, jobConcurrency, LAKE_GEN, leanInputProblems, leanScriptPaths, recheckSteps, withConj, macosJobs, unsafeStatusIf, lakeGenProblems, lakeImportFacts, lakeJobs, lakeTargetsOf, loadGolden, portableGlob, withNotMain, notMainIf, carriesNotMain, cacheWriters, guardComment, readJobs, readLakefile, reconcile, renderPush, run, setMapFor, setupLeanJobs, unguarded, nodePinProblems, jobFacts, jobProblems, pinValueProblems, rowProblems, copyProblems, nodePinRefusal, runNameProblems } from './ci-paths.mjs';
 
 const root = join(dirname(new URL(import.meta.url).pathname), '..');
 const WF = ['.git', 'hub/workflows'].join('');
@@ -664,9 +664,23 @@ test('node pin lint: floating version, wrong file, old pin, a copy that differs,
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
+/** A line without its trailing comment: a `#` at the line start or after whitespace, outside single and double quotes.
+ *  Limit: the quote state restarts on each line, so a lone apostrophe (shell text such as `don't`) hides a later comment,
+ *  which then still counts its paths: the scan errs towards naming too many scripts, never too few. */
+export function stripComment(line) {
+  let q = '';
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (q) { if (c === q) q = ''; continue; }
+    if (c === '"' || c === "'") q = c;
+    else if (c === '#' && (i === 0 || /\s/.test(line[i - 1]))) return line.slice(0, i);
+  }
+  return line;
+}
+
 /** The `.github/scripts/*` paths a workflow text runs or reads (comment text left out). */
 export function scriptsNamed(text) {
-  const code = text.split('\n').map((l) => l.replace(/(^|\s)#.*$/, '')).join('\n');
+  const code = text.split('\n').map(stripComment).join('\n');
   return [...new Set(code.match(/\.github\/scripts\/[A-Za-z0-9._-]+/g) ?? [])].sort();
 }
 
@@ -690,6 +704,38 @@ test('scripts a workflow runs: a script missing from a row is reported (trajecto
   assert.equal(matches(globs, '.github/scripts/trajectory-line.mjs'), false);
 });
 
+test('scripts a workflow runs: a " #" inside a quoted string is not a comment (the script after it is named)', () => {
+  assert.deepEqual(scriptsNamed(`run: echo "a #b" && node .github/scripts/q.mjs`), ['.github/scripts/q.mjs']);
+  assert.deepEqual(scriptsNamed(`run: echo 'x #y' && node .github/scripts/r.mjs # .github/scripts/s.mjs`), ['.github/scripts/r.mjs']);
+  assert.equal(stripComment('  # whole line'), '  ');
+  assert.equal(stripComment('a#b c'), 'a#b c');
+  assert.equal(stripComment(`don't # x`), `don't # x`); // the stated limit: a lone apostrophe keeps the comment text
+});
+
 test('scripts a workflow runs: the scanner reads run and env lines, not comments', () => {
   assert.deepEqual(scriptsNamed('run: node .github/scripts/a.mjs --x\n  SMOKE: ${{ github.workspace }}/.github/scripts/b.mjs\n# .github/scripts/c.mjs\n  run: x  # .github/scripts/d.mjs'), ['.github/scripts/a.mjs', '.github/scripts/b.mjs']);
+});
+
+test('run names: name and run-name of each dispatch workflow equal Lean titleFor; each drift is a problem', () => {
+  assert.deepEqual(runNameProblems(root), []);
+  const dir = mkdtempSync(join(tmpdir(), 'runname-'));
+  try {
+    mkdirSync(join(dir, WF), { recursive: true });
+    mkdirSync(join(dir, 'packages', 'contracts', 'golden', 'ci'), { recursive: true });
+    copyFileSync(join(root, 'packages', 'contracts', 'golden', 'ci', 'dispatch.jsonl'), join(dir, 'packages', 'contracts', 'golden', 'ci', 'dispatch.jsonl'));
+    const list = readFileSync(join(dir, 'packages', 'contracts', 'golden', 'ci', 'dispatch.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)).find((l) => l.kind === 'workflows').list;
+    assert.ok(list.length >= 4);
+    for (const w of list) copyFileSync(join(root, WF, `${w}.yml`), join(dir, WF, `${w}.yml`));
+    assert.deepEqual(runNameProblems(dir), []);
+    const f = join(dir, WF, `${list[1]}.yml`);
+    const text = readFileSync(f, 'utf8');
+    writeFileSync(f, text.replace(/^run-name:.*$/m, "run-name: ${{ format('x {0}', inputs.nonce) }}"));
+    assert.equal(runNameProblems(dir).filter((p) => p.includes('run-name')).length, 1);
+    writeFileSync(f, text.replace(/^name:.*$/m, 'name: other'));
+    assert.equal(runNameProblems(dir).filter((p) => p.includes('`name:`')).length, 1);
+    writeFileSync(f, text.replace(/^run-name:.*\n/m, ''));
+    assert.equal(runNameProblems(dir).length, 1);
+    rmSync(f);
+    assert.match(runNameProblems(dir)[0], /no such workflow file/);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });

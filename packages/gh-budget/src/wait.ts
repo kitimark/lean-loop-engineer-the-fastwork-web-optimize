@@ -18,12 +18,13 @@ import { ghCharged } from "./charged.ts";
 import { lockAsync, tryLock, type Lock } from "./lock.ts";
 import { pollOnce, LIST_FIELDS } from "./poller.ts";
 import { killOk, markerText } from "./waiters.ts";
-import { wanted, type Want } from "./want.ts";
+import { dispatchOnly, selectOne, wanted, type WRun, type Want } from "./want.ts";
 import { locked, paths, readJson, readStatus, stepEvent, stepUnlocked, writeAtomic, type Row, type Status } from "./state.ts";
 
 export type Target =
   | { kind: "run"; runId: number }
-  /** `since`: epoch second of the commit being waited for (runs created before it are not ours). `msg`: the commit's
+  /** `since`: epoch second of the commit being waited for (runs created before it are not ours; for a dispatch want it is the poller's window, so a dispatch created before `since` is
+   *  never read: pass an earlier `--since`). `msg`: the commit's
    *  message (null or absent: unknown); without `workflow` it selects the lanes mode (every requested lane on this sha). */
   | { kind: "branch"; branch: string; workflow?: string; sha: string; since: number; msg?: string | null;
       /** With `workflow`: the identity of the run waited for (Lean Fw.Ci.Dispatch.select): a push of `sha`, or a dispatch's nonce.
@@ -96,14 +97,40 @@ export function factsOf(jobs: Job[]): RunFacts {
 const lanesMode = (t: Target): boolean => t.kind === "branch" && t.workflow === undefined;
 const msgOf = (t: Target): string | null => (t.kind === "branch" ? t.msg ?? null : null);
 
+const wrun = (r: Row): WRun => ({ id: r.databaseId, event: r.event ?? "", title: r.displayTitle ?? "", sha: r.headSha });
+
+/** The hint of a push wait that selects no run while the workflow has only `workflow_dispatch` runs of the commit (Lean
+ *  `Fw.Ci.Dispatch.dispatchOnly`), else null. */
+export function hintOf(st: Status | null, t: Target): string | null {
+  if (!st || t.kind !== "branch" || t.workflow === undefined || t.want?.kind !== "push") return null;
+  const rows = st.rows.filter((r) => r.headBranch === t.branch && r.workflowName === t.workflow).map(wrun);
+  return dispatchOnly(t.want, rows)
+    ? `hint: ${t.workflow} has only workflow_dispatch runs of ${t.want.sha.slice(0, 7)}, no push run; to wait for a dispatch pass --nonce <n> (fw run prints it)`
+    : null;
+}
+
+/** The ids of several runs that carry the nonce of a dispatch wait (Lean `Fw.Ci.Dispatch.selectOne` is `ambiguous`), else null.
+ *  Two runs with one nonce cannot both be the dispatch's; the wait fails instead of taking the newest. */
+export function ambiguousIds(rows: Row[], t: Target): number[] | null {
+  if (t.kind !== "branch" || t.want?.kind !== "dispatch") return null;
+  const mine = rows.filter((r) => r.headBranch === t.branch && (t.workflow === undefined || r.workflowName === t.workflow)).map(wrun);
+  const one = selectOne(t.want, mine);
+  return one.kind === "ambiguous" ? one.ids : null;
+}
+
 /** Which rows decide the wait: the run; in lanes mode the newest run of each workflow for the exact commit; else the
  *  newest run of the workflow on the branch for the exact commit, created after it. */
 export function relevant(rows: Row[], t: Target): Row[] {
   if (t.kind === "run") return rows.filter((r) => r.databaseId === t.runId);
+  if (ambiguousIds(rows, t)) return []; // several runs of one nonce decide nothing (Lean `selectOne`); the wait reports it
   const mine = lanesMode(t)
     ? rows.filter((r) => r.headBranch === t.branch && r.headSha.startsWith(t.sha))
-    : rows.filter((r) => r.headBranch === t.branch && r.headSha.startsWith(t.sha) && (t.workflow === undefined || r.workflowName === t.workflow) && epoch(r.createdAt) >= t.since
-        && (t.want === undefined || wanted(t.want, { id: r.databaseId, event: r.event ?? "", title: r.displayTitle ?? "", sha: r.headSha })));
+    : t.want !== undefined
+      // identity (Lean `Fw.Ci.Dispatch.select`): a push is its commit's push run; a dispatch is its nonce's run on any head sha
+      // (`dispatch_any_sha`), so neither is cut by the sha or the time of the commit being waited for here. Which runs reach this
+      // list at all is the poller's window (`createdSince` = the waiter's `since`): a dispatch created before `since` is not read
+      ? rows.filter((r) => r.headBranch === t.branch && (t.workflow === undefined || r.workflowName === t.workflow) && wanted(t.want!, wrun(r)))
+      : rows.filter((r) => r.headBranch === t.branch && r.headSha.startsWith(t.sha) && (t.workflow === undefined || r.workflowName === t.workflow) && epoch(r.createdAt) >= t.since);
   const newest = new Map<string, Row>();
   for (const r of mine) { const k = r.workflowName; if (!newest.has(k) || r.databaseId > newest.get(k)!.databaseId) newest.set(k, r); }
   return [...newest.values()];
@@ -376,8 +403,13 @@ async function waitRun(env: Env, t: Target, o: WaitOpts, pr: Probe): Promise<Wai
         reregAt = st.tickAt;
         if (ev.done.some((r) => floor.has(r.databaseId))) stepEvent(env, { register: { runId: id, createdAt } }); // the watch this waiter owns
       }
+      const amb = ambiguousIds(st?.rows ?? [], t);
+      if (amb) { return { code: 2, lines: [`wait: nonce ${t.kind === "branch" && t.want?.kind === "dispatch" ? t.want.nonce : ""} matches several runs (${amb.join(", ")}); not guessing (Lean Fw.Ci.Dispatch.selectOne)`] }; }
       if ("stopped" in ev) { pr.ph.how = "stopped"; return { code: 3, lines: [`wait: the poller stopped (${ev.stopped}); see \`fw ci budget\`, \`fw ci budget --resume\``] }; }
-      if (env.now() >= deadline) return { code: 3, lines: [`wait: timed out after ${o.timeoutS} s; run it again to keep waiting (\`fw ci budget\` shows the poller)`] };
+      if (env.now() >= deadline) {
+        const hint = hintOf(st, t);
+        return { code: 3, lines: [`wait: timed out after ${o.timeoutS} s; run it again to keep waiting (\`fw ci budget\` shows the poller)`, ...(hint ? [hint] : [])] };
+      }
       poller ??= tryLock(paths(env.dir).poller);
       let wake = env.now() + SLICE;
       if (poller && env.now() >= nextAt) {

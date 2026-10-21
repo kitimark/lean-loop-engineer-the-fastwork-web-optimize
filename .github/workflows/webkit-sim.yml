@@ -1,5 +1,9 @@
 name: webkit-sim
 
+# The title of a dispatched run echoes its nonce (`webkit-sim dispatch nonce=<n>`), so `fw run` and `fw ci wait --nonce` find the run
+# they dispatched by identity (Lean Fw.Ci.Dispatch.wanted), never as "the newest run". A push keeps its default title.
+run-name: ${{ github.event_name == 'workflow_dispatch' && format('webkit-sim dispatch nonce={0}', inputs.nonce || 'none') || '' }}
+
 # WebKit lane (PLAN 4.1-4.2) on the GitHub-hosted xcode-27 macOS image: Mobile Safari in the iOS Simulator over the raw
 # Web Inspector protocol, the same code as the local run. Counts only: nothing measured here is phone time.
 # The runtime build is checked FIRST; a different iOS runtime build is a different WebKit, so the job stops instead of
@@ -55,6 +59,11 @@ on:
         description: Fault injection for the fail-fast proof, off by default. kill-safari or kill-proxy starts killing Safari or the inspector proxy 120 s into the session and keeps killing; the run must end with exit 4 within the Lean bound (Fw.Measure.SimBound). A ci/* push sets it with a commit token (fault:kill-safari or fault:kill-proxy in square brackets)
         type: choice
         options: ['', kill-safari, kill-proxy]
+        default: ''
+      nonce:
+        description: >-
+          Identity of this dispatch, echoed in the run title (8 to 32 characters of a-z0-9; `fw run` sets it). Empty = a manual dispatch.
+        type: string
         default: ''
 
 permissions:

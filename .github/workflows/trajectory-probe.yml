@@ -1,7 +1,7 @@
 name: trajectory-probe
 
 # The title of a dispatched run echoes its nonce (`trajectory-probe dispatch nonce=<n>`), so `fw run --trajectory` finds the run it
-# dispatched by identity (Lean Fw.Ci.Dispatch.pick), never as "the newest run". A push keeps its default title (the commit subject);
+# dispatched by identity (Lean Fw.Ci.Dispatch.pick; `fw ci wait --nonce` uses Dispatch.select), never as "the newest run". A push keeps its default title (the commit subject);
 # the inputs it ran with are in the step name `trajectory inputs: ...` of job `site` and in the artifact `trajectory-inputs`.
 run-name: ${{ github.event_name == 'workflow_dispatch' && format('trajectory-probe dispatch nonce={0}', inputs.nonce || 'none') || '' }}
 
