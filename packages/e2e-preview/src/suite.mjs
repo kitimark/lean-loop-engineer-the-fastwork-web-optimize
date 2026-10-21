@@ -194,7 +194,7 @@ async function runTarget(browser, rig, engine, host, target, opts) {
     // debug (`--provoke n`): n uncached image requests started on the landing page just before it is left, the way its own lazy images are
     if (opts.provoke > 0) await page.evaluate(({ base, n }) => { globalThis.__provoked = Array.from({ length: n }, (_, i) => Object.assign(new Image(), { src: `${base}?provoke=${i}-${Math.random()}` })); }, { base: `${host.arm.o}/selling/sellers/photographer/cover.jpg`, n: opts.provoke });
     // the landing page is left through a blank document: what it asked for has ended before the next load is observed (leavePage)
-    const left = true;
+    const left = await leavePage(page, tracker);
     check("landing-page-requests-ended", left, left ? "none open" : `${tracker.open.size} still open`);
     resetLog(log); // rig.seen keeps the grant load: the arm requests of both loads are read below
 
