@@ -13794,7 +13794,8 @@
     "packages/measure-webkit/test/linux-*.test.mjs",
     "research/notes/2026/10-2x-linux-webkit.md",
     "docs/team/handoffs/linux-webkit-probe.md"
-   ]
+   ],
+   "evidence": "b55c58b"
   },
   {
    "devices": [

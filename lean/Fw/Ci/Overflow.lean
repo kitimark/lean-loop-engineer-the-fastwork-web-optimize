@@ -48,6 +48,7 @@ the maximum its inputs allow (over-count is safe, under-count is not). The set b
 - gate-gaps 29: `collect-linux` 2 (gate-gaps.yml:122), `collect-macos` 1 (:185), `images-audit` 8 (:264), `images-pages` 18 (:336)
 - land 5: `land` (land.yml:95)
 - lean-math 1, lean 1: one job after the guard
+- linux-webkit-probe 2: `probe` (linux-webkit-probe.yml, max-parallel 2 over the VMs 1 and 2)
 - mutants 24: `shard` (mutants.yml:126; shards 1 to 24, :110)
 - premise-tests 2: `engine` (premise-tests.yml:66); preview-e2e 2: `engine` (preview-e2e.yml:65)
 - sim-speed 5: `probe` (sim-speed.yml:121; any number of arms, so the 5 macOS slots bound it)
@@ -60,7 +61,7 @@ the maximum its inputs allow (over-count is safe, under-count is not). The set b
 A row can exceed the 20 slots (visual-diff 39): the free count then saturates at 0, which is the safe side. -/
 def widths : List (String × Nat) := [
   ("breakpoint-gate", 10), ("chromium-counts", 20), ("difftest", 2), ("engine-premises", 7), ("gate-gaps", 29), ("land", 5),
-  ("lean-math", 1), ("lean", 1), ("mutants", 24), ("premise-tests", 2), ("preview-e2e", 2), ("sim-speed", 5),
+  ("lean-math", 1), ("lean", 1), ("linux-webkit-probe", 2), ("mutants", 24), ("premise-tests", 2), ("preview-e2e", 2), ("sim-speed", 5),
   ("smoothness", 12), ("snapshot-extract", 7), ("trajectory-probe", 12), ("visual-diff", 39), ("webkit-sim", 3), ("wktr-fixtures", 5), ("wktr", 2)]
 
 /-- Width of a workflow no row names: four jobs, so an unlisted workflow over-counts rather than under-counts. -/
