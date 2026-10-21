@@ -13258,7 +13258,8 @@
     "lean/scripts/check.sh",
     "packages/contracts/golden/sup/**",
     "docs/team/handoffs/sup-wire.md"
-   ]
+   ],
+   "evidence": "5440e67"
   },
   {
    "devices": [
