@@ -16,7 +16,7 @@ jobs it admits rises and falls with the machine's load and memory.
 |---|---|---|
 | `fw slot run --kind <k> [--cache] -- <cmd...>` | waits for a slot, runs `<cmd>` in its own process group, releases | the command's; 75 when refused |
 | `fw slot acquire --kind <k> [--lease s] [--wait s] [--json]` | holds a slot across tool calls; prints the token | 0 admitted, 75 refused or `--wait` passed |
-| `fw slot renew --token t [--lease s]` | extends the lease of your own live slot | 1 when it expired or is not yours |
+| `fw slot renew --token t [--lease s]` | extends your own live slot by its granted length, or by `s` (which becomes its length) | 1 when it expired or is not yours |
 | `fw slot release --token t` | frees your slot | 0 |
 | `fw slot status [--json]` | current limit, sample, holders, queue | 0 |
 | `fw slot sim [--apply]` | the Simulator check now; `--apply` shuts down every booted device when it says shutdown | 0 |
@@ -30,7 +30,7 @@ directory name) names the holder. Typical lines:
 pnpm -s fw slot run --kind check --cache -- sh lean/scripts/check.sh
 pnpm -s fw slot run --kind test --cache -- pnpm --filter @fw/runner test
 pnpm -s fw slot run --kind land --cache -- pnpm -s fw land <branch> --task <id> --dry
-t=$(pnpm -s fw slot acquire --kind sim --lease 1800)   # then: fw slot renew --token "$t"; fw slot release --token "$t"
+t=$(pnpm -s fw slot acquire --kind sim --lease 1800)   # then: fw slot renew --token "$t" (1800 s again); fw slot release --token "$t"
 pnpm -s fw slot admit --kind build                       # lead, before spawning a builder
 ```
 
@@ -61,6 +61,12 @@ pnpm -s fw slot admit --kind build                       # lead, before spawning
   `run` exports them as `LEAN_NUM_THREADS` and `LAKE_SLOT_CORES`.
 - **Holders.** A holder is an owner, a token and a lease, never a process id. A live lease is never recovered as stale
   (`live_never_recovered`). Only the same owner and token renew or release it. `run` renews every 20 s.
+- **Lease length.** A holder stores its granted length, `--lease` capped at 3600 s (`grant`). `renew` without
+  `--lease` runs that length again from now and changes no holder's length (`renew_keeps_len`); `renew --lease s`
+  sets the length to `s`, capped (`renew_sets_len`). A state entry written before the length was stored gets its whole
+  span `till - since` (`leaseOr_legacy`).
+- **Expiry.** Each acquire poll and `status` drop the holders whose lease ended. Each dropped holder yields exactly
+  one `expire` event, and a live holder none (`expire_emits`, `expire_live_silent`).
 - **Simulator.** Only the owner of a live `sim` slot may boot it (`simBoot`). The slot itself checks the booted
   devices (every device, not only `fw-*`) on each acquire poll and on each release, at most every 30 s machine-wide
   (`simDue`). The idle clock starts at the first check that sees a device booted with neither a live sim slot nor the
@@ -83,8 +89,9 @@ pnpm -s fw slot admit --kind build                       # lead, before spawning
 - State: `<main>/.fw-console/slot/state.json`, written under a short `state.lock` directory. A lock whose writer died
   (pid and start time) is renamed to `state.lock.stale-<pid>` and then removed, so only one waiter recovers it; a lock
   that turns out live after the rename is moved back. `FW_SLOT_DIR` moves it.
-- Events: `acquire`, `refuse` and `release` lines with `lock: "slot"` go to `<main>/.fw-console/locks.jsonl`
-  (`FW_LOCK_EVENTS=off` or CI turns them off).
+- Events: `acquire`, `refuse`, `release` and `expire` lines with `lock: "slot"` go to `<main>/.fw-console/locks.jsonl`
+  (`FW_LOCK_EVENTS=off` or CI turns them off). An `expire` line also carries `owner`, `token`, `leaseS`, `holdMs` (the
+  span it held) and `lateMs` (how long after its lease end the poll dropped it).
 - Nested runs: `run` sets `FW_SLOT_HELD=1`, and a `fw slot run` inside it runs at once.
 - `lean/scripts/check.sh` still takes `scripts/heavy-lock.mjs` inside the slot, so both gates apply until
   heavy-lock is retired into the slot.
@@ -92,6 +99,8 @@ pnpm -s fw slot admit --kind build                       # lead, before spawning
 ## Limits
 
 - Footprints and thresholds come from one MEASURED busy window and are initial values.
+- A holder whose process died keeps its slot until its lease ends.
+- `fw watch` does not alert on `expire` events yet.
 - `scripts/sim-lock.sh` callers outside this task still use the old lock; it and the slot exclude each other.
 - The Simulator check runs only while someone polls or releases a slot; `fw watch` does not run it yet.
 - The idle shutdown covers every booted device, also one booted by hand without a slot or the old lock.

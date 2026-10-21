@@ -14561,7 +14561,8 @@
     "docs/team/tools/device-replay.md",
     "docs/team/handoffs/replay-ios-fix.md",
     "packages/measure-webkit/src/device-replay.mjs"
-   ]
+   ],
+   "evidence": "cbba360"
   },
   {
    "devices": [
@@ -14624,7 +14625,8 @@
     "lean/Fw.lean",
     "packages/contracts/golden/gate/path-pix.jsonl",
     "docs/team/handoffs/path-pix-core.md"
-   ]
+   ],
+   "evidence": "b9e0d0a"
   },
   {
    "devices": [
@@ -14768,7 +14770,8 @@
     "apps/runner/test/slot.test.ts",
     "docs/team/tools/slot.md",
     "docs/team/handoffs/slot-renew-lease.md"
-   ]
+   ],
+   "evidence": "7b60a07"
   },
   {
    "devices": [

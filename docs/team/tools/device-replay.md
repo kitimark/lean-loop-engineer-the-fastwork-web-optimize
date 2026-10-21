@@ -21,8 +21,40 @@ node src/device-replay-cli.mjs plan    --kinds recorded,cold --reps 3 --arms 2  
 FW_REPLAY_URL=<page> node src/device-replay-cli.mjs run --source source.json --kinds recorded --reps 3 --out run.json
 ```
 
-`run` starts `safaridriver` as its own child and stops it at the end; it never prints the page address. Keep `source.json`,
-recordings and `run.json` out of git (`.local/` or the scratchpad).
+`run` starts `safaridriver` as its own child (own process group; TERM, then KILL after a grace; stopped again on SIGTERM, SIGINT and exit)
+and stops it at the end; it never prints the page address. Keep `source.json`, recordings and `run.json` out of git (`.local/` or the
+scratchpad).
+
+Pieces and time limits: a profile is sent as one `/actions` call per swipe (`pieces`, Lean `Fw.Device.Replay.pieces`, golden kind
+`pieces`), then a `release`. Every WebDriver call has its own limit (`CALL_MS`; a piece gets `pieceTimeoutMs = 2 x duration + 10 s`, Lean
+`pieceTimeoutMs`). A call that does not answer ends the pass with the named error `replay-stall` ("replay of X stalled at piece N of M:
+CALL did not answer within T ms", fields profile, piece, pieces, call, timeoutMs; other calls: `wd-timeout`). The CLI prints
+`error [code]: message`, exits 3, each pass keeps `pieceMs` (`planned`, `took`, `lag` per piece; dispatch lag = call time minus planned), and records a stalled pass in run.json as `matches:false, swipes:null, stalled:{...}` before it goes on.
+
+iOS Simulator (`--sim <udid>`): sets the capabilities `safari:useSimulator` and `safari:deviceUDID` and, before each fresh session, runs
+`prepareSimulator` (`simctl spawn defaults write com.apple.mobilesafari com.apple.TipKit.HideAllTips -bool true`, then `simctl terminate`
+of Safari so it reads it). Use an iOS 26.x Simulator: safaridriver found no session host on iOS 27.0 here. The profile must lie inside the
+Simulator page (390 x 699 CSS px on an iPhone 17e): a move outside the viewport fails the whole call ("move target out of bounds").
+Run it inside the sim slot (`pnpm -s fw slot acquire --kind sim`).
+
+Phone, named user step (before each phone session): open Safari on the phone once and dismiss the first-run tip (the TipKit popover
+over the page) by tapping its close button. The first pilot's hang has two INFERRED candidates, the first-run tip and the automation
+wedge after a scrolling swipe seen in the Simulator probes (research note); neither is confirmed. The Simulator suppression key is
+unverified, because the tip never appeared there (follow-up: check it on the booked phone session or a fresh CI Simulator).
+
+Simulator page rule (named reasons, research note): a page that scrolls natively under the touch makes `replayMatches` false on the
+Simulator. (1) The touch is placed at the planned point minus the scroll offset (`WebAutomationSessionIOS.mm:205` with
+`PageClientImplIOS.mm:548-551`), so a swipe that scrolls feeds back on itself and later swipes land off-screen; the bounds check
+(`WebAutomationSession.cpp:2424-2425`) uses viewport size only, so the point cannot be pre-compensated. CONFIRMED by source and MEASURED.
+(2) A native scroll take-over gives `pointercancel`, no `touchend`, and a wedged automation session (MEASURED in 5 configurations;
+mechanism UNKNOWN). A replay-capable page keeps the root at scroll offset 0: a scroller in a fixed box, or a page that cancels
+`touchmove` and scrolls with script. On such a page the harness saw 5 of 5 swipes (research note). Any page that scrolls natively on
+the root gives a named `replay-stall`, not a hang.
+
+Piece lag: each piece adds call lag (Simulator 156-237 ms on a replay-capable page). `startOk` allows 50 ms and `timeOk` 17 ms, so
+they fail from the second piece of a multi-swipe pass until lag compensation lands (follow-up, a Lean change: subtract the summed lag
+from the next lead-in pause). Positions (`posOk`) and event counts (`eventsOk`) do match. The recorder runs
+`ceil(actsMs/1000) + 8 + pieces` seconds, so summed lag does not end it early.
 
 ## Pilot on the phone
 
@@ -53,4 +85,6 @@ finding about the engine, not a failure of the compiler. `dispatch late` is how 
 ## Limits
 
 Defaults are research values (position 1 px, time 17 ms, lift speed 10 %, start gap 50 ms, speed window 50 ms; Lean stores tenth px and
-hundredths of a ms); calibration needs phone replays. The Simulator has no touch path in the harness. WDA (path A) is not built.
+hundredths of a ms); calibration needs phone replays. The Simulator takes touches through the same W3C path as the phone, but on a
+natively scrolling root page it saw only 1 of 5 swipes and on a replay-capable page `replayMatches` is false from piece lag (research
+note); it is a harness check, not a stand-in for the phone. WDA (path A) is not built.
