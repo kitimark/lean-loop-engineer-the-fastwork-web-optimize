@@ -13582,7 +13582,8 @@
     ".claude/workflows/build-review.js",
     "docs/team/tools/trajectory-frames.md",
     "docs/team/tools/smoothness-probe.md"
-   ]
+   ],
+   "evidence": "f923d4a"
   },
   {
    "devices": [

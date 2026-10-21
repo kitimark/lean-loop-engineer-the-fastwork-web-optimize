@@ -31,6 +31,6 @@ Question: are the transitions of the original and of the rewrite equally smooth?
 - A running rAF loop keeps the main thread producing frames at every vsync; it does the same to all arms.
 
 ## Use
-- Run: push `ci/<task>` with a commit message that carries `[ci:smoothness]` and optionally `[trajectory preset=v2-proved widths=390,1280]`.
+- Run: push `ci/<task>` with a commit message that carries `[ci:smoothness]` and optionally `[trajectory preset=v2-proved widths=390,1280]`. The trajectory-probe mark rule (a width subset needs `diagnostic`) does not apply here: the workflow passes `LANE=smoothness` to `trajectory-line.mjs`, and Lean `Fw.Ci.Trigger.parseLine_smoothness` proves this lane reads a line exactly as before that rule.
 - Legs: two widths x three sets; each set is its own job (artifact `smoothness-<width>-<set>`), so one run gives three independent noise samples per width. Traced repeats per arm: 5 (`TRACE_REPS`). Hitches (gaps over 60 ms) are listed with scroll position and the browser's long animation frames; descriptive only.
 - Tables from downloaded runs: `gh run download <runId> -D <dir>/<runId> -p 'smoothness-*'`, then `node packages/gate-breakpoints/src/smooth/cli.mjs cadence --runs <dir> --out <out>`; part A: `... continuity --runs <dir> --out <out> --engines chromium,macos-webkit --widths 390,1280`.
