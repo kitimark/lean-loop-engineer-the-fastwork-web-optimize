@@ -13,8 +13,13 @@ Unit: the verdict/diagnostic mark rule (Lean `Fw.Gate.Trajectory.Dispatch`) now 
 - Goldens regenerated from Lean: `golden/ci/triggers.jsonl` (`lake test -- --write-ci-trigger-golden`), `golden/gate/trajectory-dispatch.jsonl`.
 - JS `.github/scripts/trajectory-line.mjs`: `dispatch`, `dispatchIn`, `whyText`, `walkRefusal`; push parse and the dispatch path (env `DIAGNOSTIC`, `WIDTHS`)
   both refuse a subset with the Dispatch text. Test checks `dispatchIn`/`dispatch` against `trajectory-dispatch.jsonl` and `pushProbe` against `triggers.jsonl`.
-- Workflow `trajectory-probe.yml`: input `diagnostic` (boolean), `DIAGNOSTIC` env in step `Read the inputs` (first step reading inputs, before build/plan),
+- Workflow `trajectory-probe.yml`: input `diagnostic` (boolean), `DIAGNOSTIC` env in step `Read the inputs` (the first step that reads the inputs, before the build),
   `diagnostic` in the step name and `inputs.json`.
+- Round 2: Lean `Trigger.lean` `ProbeLane` (trajectory | smoothness | frames): `pushProbe wf lane m` reads the line in `effLane wf m` (trajectory + `[frames:` = frames);
+  `build lane` applies `ProbeIn.widthsOk` (mark rule only when `lane.marked`, i.e. trajectory); `diagnostic` word only where `lane.word`. Smoothness = frozen pre-task reader
+  (`addTokPre`..`parseLinePre`), theorems `parseLine_smoothness`, `push_smoothness_pre`, `push_smoothness_widths`; frames: `push_frames_exempt`, `effLane_*`, `marked_iff`.
+  Goldens `probe` rows now carry `wf` (3 lanes x 2). `trajectory-line.mjs` takes `LANE=trajectory|smoothness|frames` (default trajectory); both workflows set it; `scripts/ci-push.mjs` passes 'trajectory'.
+  Examples in `build-review.js` preamble and the Trigger.lean module doc carry `diagnostic` + the clause.
 - Runner: `run-pick.ts` `dispatch` has the Nodup twin; `run.ts` sends `-f diagnostic=true` for `--diagnostic` only when the ref's workflow declares the
   input (`declaresInput`; an older ref is sent none, logged). `scripts/ci-push.test.mjs` line got the word + a scoped-refusal case.
 - Docs: `trajectory-probe.md` usage line (`--diagnostic` + one sentence), push-line key, step name; new `docs/team/tools/ts-stand-ins.md` (register).
@@ -24,7 +29,7 @@ Unit: the verdict/diagnostic mark rule (Lean `Fw.Gate.Trajectory.Dispatch`) now 
 
 ## Outside the graph writes (list for review)
 `lean/Fw/Ci/Trigger.lean`, `lean/Fw/Store/Layout.lean`, `packages/contracts/golden/ci/triggers.jsonl`, `apps/runner/src/run.ts`, `run-pick.ts`,
-`apps/runner/test/run.test.ts`, `run-dispatch.test.ts`, `scripts/ci-push.test.mjs`: the task text names `Trajectory.lean pushProbe`, but it is in Trigger.lean.
+`apps/runner/test/run.test.ts`, `run-dispatch.test.ts`, `scripts/ci-push.test.mjs`, `scripts/ci-push.mjs` (round 2: lane argument): the task text names `Trajectory.lean pushProbe`, but it is in Trigger.lean.
 
 ## Accepted limits
 Old stored runs unchanged; `fw run` on a ref older than the input dispatches without the mark (the old workflow has no rule); the workflow-input path is

@@ -3,7 +3,9 @@
 // packages/contracts/golden/ci/triggers.jsonl by trajectory-line.test.mjs.
 //   EVENT=push|workflow_dispatch HEAD_MSG=<message> node .github/scripts/trajectory-line.mjs
 // prints engines/fw/preset/widths/debug/diagnostic/source as `key=value` lines (for $GITHUB_OUTPUT); a refused line exits 1 with the reason.
-// The mark rule (task traj-dispatch-push-lane): a run is verdict (walks all four widths) or diagnostic (the bare word `diagnostic` on the
+// The mark rule (task traj-dispatch-push-lane) binds the trajectory lane only (Lean ProbeLane): the smoothness workflow reads the same line
+// but its verdict is at 390,1280, so it keeps the widths allowlist and an unknown token `diagnostic`; a `[frames:` message is a frames run,
+// exempt. Each workflow passes its lane as LANE=trajectory|smoothness. In the trajectory lane a run is verdict (walks all four widths) or diagnostic (the bare word `diagnostic` on the
 // line, the boolean `diagnostic` dispatch input; any nonempty subset). `dispatchIn` is the twin of Fw.Gate.Trajectory.Dispatch.dispatchIn,
 // checked against golden/gate/trajectory-dispatch.jsonl; the push line, the workflow input and `fw run` all follow that one Lean rule.
 import { ALLOWED_WIDTHS, pickWidths } from '../../packages/gate-breakpoints/src/trajectory/reduce.mjs';
@@ -26,6 +28,13 @@ const isCand = (l) => lowerAscii(trim(l)).startsWith(KW);
 const valueOk = /^[A-Za-z0-9.:,_@-]+$/;
 /** Lean `diagnosticWord`: the bare word that marks the run diagnostic. */
 const DIAG = 'diagnostic';
+
+/** Lean `ProbeLane`. */
+export const LANES = ['trajectory', 'smoothness', 'frames'];
+/** Lean `ProbeLane.marked`: does the mark rule hold the lane to the widths? */
+const marked = (lane) => lane === 'trajectory';
+/** Lean `ProbeLane.word`: does the lane know the bare word `diagnostic`? */
+const wordOf = (lane) => lane !== 'smoothness';
 
 export const DEFAULT = { engines: 'both', fw: '', preset: '', widths: '', debug: '', diagnostic: false };
 
@@ -57,71 +66,80 @@ export function walkRefusal(diagnostic, widths, hint) {
   return whyText(d.why, widths) + (d.why === 'scopedVerdict' ? `; ${hint}` : '');
 }
 
-function addTok(acc, t) {
+function addTok(lane, acc, t) {
   const i = t.indexOf('=');
   if (i < 0) {
-    if (t !== DIAG) return { error: `token '${t}' has no '='` };
+    if (!(wordOf(lane) && t === DIAG)) return { error: `token '${t}' has no '='` };
     if (acc.some(([a]) => a === DIAG)) return { error: `key '${DIAG}' given twice` };
     return { ok: [...acc, [DIAG, 'true']] };
   }
   const k = t.slice(0, i);
   const v = t.slice(i + 1);
-  if (k === DIAG) return { error: 'diagnostic is a bare word, not diagnostic=...' };
-  if (!KEYS.includes(k)) return { error: `unknown key '${k}' (keys: fw, preset, widths, engines, debug, diagnostic)` };
+  if (wordOf(lane) && k === DIAG) return { error: 'diagnostic is a bare word, not diagnostic=...' };
+  if (!KEYS.includes(k)) return { error: `unknown key '${k}' (keys: fw, preset, widths, engines, debug${wordOf(lane) ? ', diagnostic' : ''})` };
   if (acc.some(([a]) => a === k)) return { error: `key '${k}' given twice` };
   if (v === '') return { error: `key '${k}' has no value` };
   if (!valueOk.test(v)) return { error: `the value of '${k}' has a character outside A-Z a-z 0-9 . : , _ @ -` };
   return { ok: [...acc, [k, v]] };
 }
 
-function build(kv) {
+/** Lean `ProbeIn.widthsOk`/`widthsWhy`: the refusal of the widths of a run in this lane, or null. */
+function widthsRefusal(lane, diagnostic, widths, hint) {
+  if (marked(lane)) return walkRefusal(diagnostic, widths, hint);
+  return pickWidths(widths) === null ? whyText('badInput', widths) : null;
+}
+
+function build(lane, kv) {
   const g = (k, d) => (kv.find(([a]) => a === k) ?? [k, d])[1];
-  const p = { engines: g('engines', 'both'), fw: g('fw', ''), preset: g('preset', ''), widths: g('widths', ''), debug: g('debug', ''), diagnostic: kv.some(([a]) => a === DIAG) };
+  const p = { engines: g('engines', 'both'), fw: g('fw', ''), preset: g('preset', ''), widths: g('widths', ''), debug: g('debug', ''), diagnostic: wordOf(lane) && kv.some(([a]) => a === DIAG) };
   if (p.fw !== '' && p.preset !== '') return { error: 'fw and preset are exclusive' };
   if (!ENGINES.includes(p.engines)) return { error: 'engines must be both, chromium or playwright-webkit' };
-  const refused = walkRefusal(p.diagnostic, p.widths, 'add the word diagnostic to the line for a run read by hand');
+  const refused = widthsRefusal(lane, p.diagnostic, p.widths, 'add the word diagnostic to the line for a run read by hand');
   if (refused !== null) return { error: refused };
   if (p.debug !== '' && !DEBUGS.includes(p.debug)) return { error: 'debug must be nav-transition' };
   return { ok: p };
 }
 
-function parseOne(line) {
+function parseOne(lane, line) {
   const t = trim(line);
   if (!t.endsWith(']')) return { error: "the line has no closing ']'" };
   const body = t.slice(KW.length, -1);
   if (!(body === '' || body[0] === ' ' || body[0] === '\t')) return { error: 'expected a space after [trajectory' };
   let acc = [];
   for (const tok of body.split(' ').filter((w) => w !== '')) {
-    const r = addTok(acc, tok);
+    const r = addTok(lane, acc, tok);
     if (r.error) return r;
     acc = r.ok;
   }
-  return build(acc);
+  return build(lane, acc);
 }
 
-/** Lean `parseLine`: { kind: 'absent' } | { kind: 'inputs', p } | { kind: 'refused', why }. */
-export function parseLine(msg) {
+/** Lean `parseLine`: { kind: 'absent' } | { kind: 'inputs', p } | { kind: 'refused', why }, the line read in `lane`. */
+export function parseLine(lane, msg) {
   const cands = msg.split('\n').filter(isCand);
   if (cands.length === 0) return { kind: 'absent' };
   if (cands.length > 1) return { kind: 'refused', why: 'more than one [trajectory ...] line' };
-  const r = parseOne(cands[0]);
+  const r = parseOne(lane, cands[0]);
   return r.error ? { kind: 'refused', why: r.error } : { kind: 'inputs', p: r.ok };
-}
-
-/** Lean `pushProbe`: the golden `result` shape. */
-export function pushProbe(lane, msg) {
-  const l = parseLine(msg);
-  if (l.kind === 'refused') return { kind: 'refused', why: l.why };
-  if (l.kind === 'absent') return lane ? { kind: 'run', ...DEFAULT } : { kind: 'notAsked' };
-  return lane ? { kind: 'run', ...l.p } : { kind: 'needsLane' };
 }
 
 /** Lean `hasFrames`: the frames token `[frames:` in the message, ASCII case ignored. */
 export const hasFrames = (msg) => lowerAscii(msg).includes('[frames:');
 
+/** Lean `effLane`: the trajectory workflow reads a message with the frames token as a frames run. */
+export const effLane = (wf, msg) => (wf === 'trajectory' && hasFrames(msg) ? 'frames' : wf);
+
+/** Lean `pushProbe`: the golden `result` shape. `wf` is the workflow's lane, `lane` whether the commit asks for the lane token. */
+export function pushProbe(wf, lane, msg) {
+  const l = parseLine(effLane(wf, msg), msg);
+  if (l.kind === 'refused') return { kind: 'refused', why: l.why };
+  if (l.kind === 'absent') return lane ? { kind: 'run', ...DEFAULT } : { kind: 'notAsked' };
+  return lane ? { kind: 'run', ...l.p } : { kind: 'needsLane' };
+}
+
 /** Lean `recorderOf`: the recorder the probe line asks for, '' for none, a refused line or no line. */
 export const recorderOf = (msg) => {
-  const r = pushProbe(true, msg);
+  const r = pushProbe('trajectory', true, msg);
   return r.kind === 'run' ? r.debug : '';
 };
 
@@ -136,10 +154,15 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     process.stdout.write(`apple_run=${appleRuns(e.EVENT ?? '', e.HEAD_MSG ?? '', Number(e.APPLE_N ?? '0'))}\n`);
     process.exit(0);
   }
+  const wf = e.LANE || 'trajectory';
+  if (!LANES.includes(wf)) {
+    console.error(`trajectory-line: refused: LANE must be one of ${LANES.join(', ')}`);
+    process.exit(1);
+  }
   if ((e.EVENT ?? '') !== 'push') {
     // A dispatch carries its inputs itself; they pass through unchanged, after the mark rule on its `widths` and `diagnostic` inputs.
     const diagnostic = (e.DIAGNOSTIC ?? '') === 'true';
-    const refused = walkRefusal(diagnostic, e.WIDTHS ?? '', 'set the diagnostic input to true for a run read by hand (fw run --trajectory --diagnostic)');
+    const refused = widthsRefusal(wf, diagnostic, e.WIDTHS ?? '', 'set the diagnostic input to true for a run read by hand (fw run --trajectory --diagnostic)');
     if (refused !== null) {
       console.error(`trajectory-line: refused: ${refused}`);
       process.exit(1);
@@ -149,12 +172,12 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   } else {
     // A push that reached this job asked for the lane (the guard `if:` is the Intent decision), so lane = true.
     const msg = e.HEAD_MSG ?? '';
-    const r = pushProbe(true, msg);
+    const r = pushProbe(wf, true, msg);
     if (r.kind === 'refused') {
       console.error(`trajectory-line: refused: ${r.why}`);
       process.exit(1);
     }
-    const source = parseLine(msg).kind === 'inputs' ? 'commit-line' : 'defaults';
+    const source = parseLine(effLane(wf, msg), msg).kind === 'inputs' ? 'commit-line' : 'defaults';
     process.stdout.write(['engines', 'fw', 'preset', 'widths', 'debug', 'diagnostic'].map((k) => `${k}=${r[k]}\n`).join('') + `source=${source}\n`);
   }
 }

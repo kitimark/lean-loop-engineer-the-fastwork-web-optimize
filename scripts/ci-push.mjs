@@ -17,7 +17,7 @@ import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { branchFiles, decide, guardBase, isLanded, loadIntent, preciseInputs, wantedBy } from '../.github/scripts/changed-inputs.mjs';
-import { parseLine, pushProbe } from '../.github/scripts/trajectory-line.mjs';
+import { effLane, parseLine, pushProbe } from '../.github/scripts/trajectory-line.mjs';
 
 export const USAGE = 'usage: fw ci push --branch ci/<name> --lanes <lane,lane | none> [--partial] [--dry]\n' +
   '  lanes: the workflow file stems (lean, wktr, webkit-sim, ...); `none` asks for no lane (lean still runs when its\n' +
@@ -97,12 +97,12 @@ export function preview(cwd, lanes, msg, branch) {
 export function probeNotes(golden, msg, head) {
   const lane = golden.lanes.find((l) => l.name === 'trajectory-probe');
   const asks = lane ? wantedBy({ ...lane, prefix: golden.prefix }, msg) : false;
-  const r = pushProbe(asks, msg);
+  const r = pushProbe('trajectory', asks, msg); // the lane token above is the trajectory-probe's: its mark rule applies
   const notes = [];
   let refuse = false;
   if (r.kind === 'refused') { refuse = true; notes.push(`ci-push: the [trajectory ...] line is refused (${r.why}); the lane would fail on it`); }
   if (r.kind === 'needsLane') notes.push(`ci-push: the tip has a [trajectory ...] line but not ${golden.prefix}trajectory-probe]; the probe will not start and the line is ignored`);
-  if (head !== msg && parseLine(head).kind === 'inputs') notes.push('ci-push: HEAD carries a [trajectory ...] line, but the pushed tip is the request commit without it; put the lane token and the line in HEAD\'s message instead');
+  if (head !== msg && parseLine(effLane('trajectory', head), head).kind === 'inputs') notes.push('ci-push: HEAD carries a [trajectory ...] line, but the pushed tip is the request commit without it; put the lane token and the line in HEAD\'s message instead');
   return { notes, refuse };
 }
 
