@@ -1,0 +1,244 @@
+{
+ "about": "Hand-entered inputs of tables.mjs for research/notes/2026/10-21-macos-minutes.md. Each entry names its source; check = the lead's adversarial check of the macos-minutes synthesis (scratch, uncommitted), whose corrections are binding.",
+ "window": {
+  "from": "2026-10-20T11:37Z",
+  "to": "2026-10-21T12:05Z",
+  "hours": 24.5,
+  "source": "measure job: runs created from 2026-10-20 11:37 UTC, observed until ~12:05 UTC on 10-21 (24.5 h)"
+ },
+ "allWidths": [
+  390,
+  640,
+  641,
+  1280
+ ],
+ "lostClasses": {
+  "a": {
+   "label": "pre-failfast hang (Keep-logs held by a wedged CoreSimulator)",
+   "state": "fixed on main: 056de8de bounded steps + job cap",
+   "tag": "MEASURED"
+  },
+  "b": {
+   "label": "deliberate fault runs (webkit-sim-failfast tests)",
+   "state": "keep: requested",
+   "tag": "MEASURED"
+  },
+  "c": {
+   "label": "page target lost, proxy and socket up",
+   "state": "open: webkit-sim-target-lost",
+   "tag": "MEASURED"
+  },
+  "d": {
+   "label": "Keep-logs 3-min timeout after good sessions",
+   "state": "open: macos-teardown-trim",
+   "tag": "MEASURED"
+  }
+ },
+ "lostJobs": [
+  {
+   "run": 39426562165,
+   "cell": "v1",
+   "class": "a",
+   "evidence": "cancelled in Determinism sessions; webkit-sim.yml:408 comment names this run"
+  },
+  {
+   "run": 39444758495,
+   "cell": "v1",
+   "class": "b",
+   "evidence": "webkit-sim-failfast fault-run push (check correction 5)"
+  },
+  {
+   "run": 39447914983,
+   "cell": "v1",
+   "class": "b",
+   "evidence": "webkit-sim-failfast fault-run push (check correction 5)"
+  },
+  {
+   "run": 39459660693,
+   "cell": "v1",
+   "class": "b",
+   "evidence": "kill-proxy fault run, attempt 2 (docs/team/handoffs/webkit-sim-failfast.md:20-21)"
+  },
+  {
+   "run": 39503100190,
+   "cell": "r2",
+   "class": "c",
+   "evidence": "job 118915144635 log: 'Runtime.evaluate timed out after 120000 ms', then 'waiting for the Safari tab (876 s of 480 s, try 1): no page target'"
+  },
+  {
+   "run": 39503100190,
+   "cell": "v3",
+   "class": "c",
+   "evidence": "job 118917087975 log: 'Runtime.evaluate timed out after 120000 ms', then 4 tab waits to 487 s of 480 s, 'no page target'"
+  },
+  {
+   "run": 39503100190,
+   "cell": "r3",
+   "class": "d",
+   "evidence": "Keep logs and host state step ran into its 3-min timeout"
+  },
+  {
+   "run": 39511908073,
+   "cell": "r2",
+   "class": "d",
+   "evidence": "Keep logs and host state step ran into its 3-min timeout"
+  },
+  {
+   "run": 39530935381,
+   "cell": "r3",
+   "class": "d",
+   "evidence": "Keep logs and host state step ran into its 3-min timeout"
+  }
+ ],
+ "series": {
+  "branch": "ci/scoped-close-start-cause",
+  "freshRuns": [
+   39508414669,
+   39508421419
+  ],
+  "source": "docs/team/handoffs/scoped-close-start-cause.md:3,21 (2 fresh runs, then 10 queued runs for a 5-vs-5 permutation test)"
+ },
+ "teardownTrim": {
+  "perJobS": {
+   "shutdown and delete the Simulator (median)": 16,
+   "host state collection (keep the cp)": 20,
+   "ios_webkit_debug_proxy brew install less a cache restore": 10
+  },
+  "source": "check: ~16 s shutdown + ~20 s host state + ~10 s net iwdp per job (webkit-sim.yml:318-323 install, :410-421 Keep logs, :424-429 shutdown)"
+ },
+ "circleci": {
+  "planCredits": 30000,
+  "altPlanCredits": 25000,
+  "source": "plan 30,000 credits/month; the 25,000 figure is not confirmed (measure job, Table 8)"
+ },
+ "saved": [
+  {
+   "change": "intent guard cb11bf12 + main push runs only the seeder 14a17b94",
+   "state": "on main",
+   "lanes": [],
+   "saved": "rate ~4,000 -> ~390 job-min/day (10-17/18 vs 10-18..10-20); webkit-sim 375 min of the old window would not start",
+   "tag": "INFERRED: lead's replay of 10-17..10-20, data not committed"
+  },
+  {
+   "change": "exit watchdog 9e5641cd",
+   "state": "on main",
+   "lanes": [],
+   "saved": "~150 min of hangs after a result in the 10-20 v2 window",
+   "tag": "INFERRED: 1 job measured, 4 inferred (lead's replay)"
+  },
+  {
+   "change": "webkit-sim-failfast 056de8de",
+   "state": "on main",
+   "lanes": [
+    "webkit-sim"
+   ],
+   "saved": "fault runs end 63-159 s after the kill instead of 26-66 min; class a below is the pre-failfast case",
+   "tag": "MEASURED: 63 s in run 39459660693 (handoff webkit-sim-failfast.md:20-21); 63-159 s over 39447914983, 39444758495, 39459660693 per the lead synthesis"
+  },
+  {
+   "change": "pool-caps (webkit-sim cap 38 min)",
+   "state": "on main",
+   "lanes": [
+    "webkit-sim"
+   ],
+   "saved": "285 job-min per 3 days with fail-fast, replayed at 10-17..10-20 traffic; not seen in this window",
+   "tag": "INFERRED: replay, not measured here"
+  },
+  {
+   "change": "sim-speed",
+   "state": "done",
+   "lanes": [],
+   "saved": "0 (host-bound; xlarge rejected as paid; pre-boot no gain)",
+   "tag": "MEASURED: research/notes/2026/10-17-sim-speed.md"
+  },
+  {
+   "change": "wktr-fixture-speed",
+   "state": "done",
+   "lanes": [
+    "wktr",
+    "wktr-fixtures"
+   ],
+   "saved": "wall 45 -> 24 min, job-min unchanged",
+   "tag": "MEASURED earlier; lane idle in this window"
+  },
+  {
+   "change": "pool-fallback, ci-route",
+   "state": "open",
+   "lanes": [],
+   "saved": "0 GitHub job-min (they cut waiting)",
+   "tag": "INFERRED"
+  }
+ ],
+ "plan": [
+  {
+   "rank": 1,
+   "change": "scope diagnostic trajectory dispatches to the widths their question needs; verdict runs walk all four",
+   "verdict": "adjust",
+   "task": "traj-dispatch-scope",
+   "lo": 0,
+   "hi": 115,
+   "firm": false,
+   "tag": "INFERRED: the one diagnostic series run as one leg (table series); 0 for verdict runs"
+  },
+  {
+   "rank": 2,
+   "change": "bound the page-target-lost wait at 480 s and relaunch once (SimBound class)",
+   "verdict": "adjust",
+   "task": "webkit-sim-target-lost",
+   "lo": 20,
+   "hi": 30,
+   "firm": true,
+   "tag": "INFERRED: class c plus the ~8.5 extra min of class d (check)"
+  },
+  {
+   "rank": 3,
+   "change": "fold webkit-sim cells into fewer booted jobs (existing lanes)",
+   "verdict": "drop",
+   "task": "- (spec rule for smoothness-webkit-cadence)",
+   "lo": 0,
+   "hi": 0,
+   "firm": true,
+   "tag": "CONFIRMED: 3 cells ~41.7 min > 38-min cap; breaks vms 3"
+  },
+  {
+   "rank": 4,
+   "change": "trim webkit-sim teardown/setup; keep the cp that feeds the upload",
+   "verdict": "keep",
+   "task": "macos-teardown-trim",
+   "lo": 15,
+   "hi": 25,
+   "firm": true,
+   "tag": "INFERRED: table teardown"
+  },
+  {
+   "rank": 5,
+   "change": "cap the slots of one dispatch series",
+   "verdict": "drop",
+   "task": "- (fold into pool-fallback/ci-route)",
+   "lo": 0,
+   "hi": 0,
+   "firm": true,
+   "tag": "MEASURED: the series bore its own wait (table wait)"
+  },
+  {
+   "rank": 6,
+   "change": "charge m4pro at an enforced m4pro job timeout, not at p90",
+   "verdict": "adjust",
+   "task": "pool-fallback (review input)",
+   "lo": 0,
+   "hi": 0,
+   "firm": true,
+   "tag": "CONFIRMED: pool-fallback title; 0 GitHub min"
+  },
+  {
+   "rank": 7,
+   "change": "replay cached raw artifacts for push runs",
+   "verdict": "keep parked",
+   "task": "pool-raw-cache",
+   "lo": 0,
+   "hi": 0,
+   "firm": true,
+   "tag": "INFERRED: ~0 today (push repeats were requested); <= ~134 at 10-18..10-20 traffic, not re-derived"
+  }
+ ]
+}
