@@ -5,6 +5,7 @@
 // A reading (Val) is null (absent), an array of integers (a number x 1000) or a string. A sample is { m, since, els, rep, cls, ph, t0 }:
 // `since` is the ms since the last nav class change (null: none happened), `cls` the nav classes that are on, `ph` the index of
 // the phase it was read in, `t0` the ms its reads started at, rounded (null: not recorded); `annotate` adds `ord`.
+import { colourFromV1 } from './kit.mjs';
 
 export const TOL = { discrete: 0, geometry: 1000, unit: 10, colour: 2000 };
 export const ALLOWED_WIDTHS = [390, 640, 641, 1280];
@@ -437,6 +438,67 @@ export function byMStart(ph, p, kind, d, e, oSeg, wSeg) {
   return v;
 }
 
+/** Lean `idOn`. */
+export const idOn = (node, prop) => node === 'nav' && prop === 'background-color';
+
+/** Lean `cutM`. */
+export const CUT_M = 10;
+
+/** Lean `mixFrom` and `mixTo`: [red, alpha], 0 to 255. */
+export const MIX_FROM = [255, 26];
+export const MIX_TO = [19, 255];
+
+const idDen = (m) => MIX_FROM[1] * (10000 - m) + MIX_TO[1] * m;
+const idNum = (m) => 1000 * (MIX_FROM[0] * MIX_FROM[1] * (10000 - m) + MIX_TO[0] * MIX_TO[1] * m);
+
+/** Lean `redOk`. */
+export const redOk = (m, x) => idNum(m) - 500 * idDen(m) <= x * idDen(m) && x * idDen(m) <= idNum(m) + 500 * idDen(m);
+
+/** Lean `alphaOk`. */
+export const alphaOk = (m, a) => idDen(m) - 5000 <= 10 * a && 10 * a <= idDen(m) + 5000;
+
+const hasDriver = (s) => s.cls.includes(DRIVER);
+
+const redAlpha = (els) => (els.length === 1 && Array.isArray(els[0]) && els[0].length === 4 ? [els[0][0], els[0][3]] : null);
+
+/** Lean `idCheck`: true, false, or null (undecided). `conv` maps a stored reading to sRGB (identity in Lean). */
+export function idCheck(d, q, r, conv = (v) => v) {
+  if (q === null || !hasDriver(q) || hasDriver(r) || !inFlight(d, r)) return null;
+  const xa = redAlpha(r.els.map(conv));
+  if (!has(q.m) || !has(r.m) || xa === null) return null;
+  return CUT_M <= q.m && r.m <= CUT_M && redOk(q.m, xa[0]) && alphaOk(q.m, xa[1]);
+}
+
+/** Lean `idJudge`. */
+export function idJudge(kind, d, seg, win, q, r, conv) {
+  const c = idCheck(d, q, r, conv);
+  return c === true ? pass : c === false ? fail('apart') : judgeUnit(kind, d, seg, win, r);
+}
+
+/** Lean `withPrev`: [prev or null, sample]. */
+export function withPrev(ws) {
+  const last = new Map();
+  return ws.map((r) => {
+    const q = last.get(r.rep ?? 0) ?? null;
+    last.set(r.rep ?? 0, r);
+    return [q, r];
+  });
+}
+
+/** Lean `byMId`. */
+export function byMId(ph, p, kind, d, oSeg, wSeg, conv) {
+  const seg = annotate(oSeg), orig = seg.filter((o) => o.ph === p), ws = withPrev(annotate(wSeg)).filter(([, r]) => r.ph === p);
+  return Array.from({ length: 12 }, (_, b) => {
+    const rs = ws.filter(([, r]) => bucket(r.m) === b);
+    if (rs.length === 0) return [b, ph === 'push' && needsSample(b) ? fail('coverage') : skip('noSample')];
+    return [b, combine(rs.map(([q, r]) => idJudge(kind, d, seg, windowAt(ph, d, seg, orig, r), q, r, conv)))];
+  });
+}
+
+/** Lean `byMRule`. */
+export const byMRule = (ph, p, kind, d, e, id, oSeg, wSeg, conv) =>
+  (id ? byMId(ph, p, kind, d, oSeg, wSeg, conv) : byMStart(ph, p, kind, d, e, oSeg, wSeg));
+
 /** The phases of the end-of-page path and whether the wheel moves the morph in them (Lean `Phase`). */
 export const PHASES = [['open', 'push'], ['open-hold', 'hold'], ['close', 'push'], ['close-hold', 'hold']];
 
@@ -491,8 +553,8 @@ export function reduceWidth({ width, orig, rewrite, registries }) {
       for (const n of registries.morph) {
         n.props.forEach((p, pi) => {
           if (lean && !isLeanProp(p)) return;
-          const verdicts = byMStart(ph, k, p.kind, durFor(n.id, p.id), startFor(n.id, p.id, width), pathOf(orig, n.id, pi),
-            pathOf(rewrite, n.id, pi));
+          const verdicts = byMRule(ph, k, p.kind, durFor(n.id, p.id), startFor(n.id, p.id, width), idOn(n.id, p.id),
+            pathOf(orig, n.id, pi), pathOf(rewrite, n.id, pi), colourFromV1);
           push('morph', phase, n.id, p.id, p.kind, verdicts.map(([b, v]) => [`${phase}@${b}`, v]));
         });
       }
