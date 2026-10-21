@@ -44,7 +44,7 @@ test("20 waiters on 20 distinct runs: the ticks are those of 1 waiter (one list 
 
 test("exit codes: failure is 1, cancelled is 1, an already finished run needs no tick", async () => {
   const f = await wait(1, [run(5, { conclusion: "failure" })], { kind: "run", runId: 5 });
-  assert.deepEqual(f.res, [{ code: 1, lines: ["run 5 chromium-counts failure -> fail"] }]);
+  assert.deepEqual(f.res, [{ code: 1, lines: ["run 5 chromium-counts failure -> fail (jobs not success: work)"] }], "a fail without a reason names the jobs that did not succeed");
   const c = await wait(1, [run(6, { conclusion: "cancelled", completeAt: T0 - 1 })], { kind: "run", runId: 6 });
   assert.equal(c.res[0]!.code, 1);
   assert.equal(c.calls.filter((x) => x.args[1] === "list").length, 0);
@@ -210,6 +210,47 @@ test("rerun: the jobs of a running attempt seen as stale are not cached as the v
   const [second] = await drive(w.sim, [waitFor(w.env, { kind: "run", runId: 44 }, { timeoutS: 300 })]);
   assert.equal(second!.code, 0, second!.lines.join("\n"));
   assert.equal(w.calls().filter((c) => c.args.includes("jobs,attempt")).length, 2, "attempt 2 is read by a second jobs view");
+});
+
+// task macos-telemetry: a job without a conclusion right after the finish is GitHub's lag (run 39629760037 printed `success -> fail`
+// because one of 10 matrix jobs was read as `""` and the facts were cached for good). Lean `Fw.Ci.Attempt.jobsSettled` decides.
+const openJobs = (open: number) => [{ name: "guard", conclusion: "success" }, ...Array.from({ length: 4 }, (_, i) => ({ name: `m${i}`, conclusion: i < open ? null : "success" }))];
+
+test("an open job conclusion right after the finish is read again, and only the settled view is cached", async () => {
+  const w = mkWorld(T0, { fastGh: true });
+  w.config({ start: T0, listCost: 2, runs: [run(61, { jobs: openJobs(1) })] });
+  const base = w.env.exec!;
+  let views = 0;
+  const env = { ...w.env, exec: (args: string[]) => {
+    if (args.includes("jobs,attempt") && ++views === 3) w.config({ start: T0, listCost: 2, runs: [run(61, { jobs: openJobs(0) })] }); // GitHub fills the conclusion
+    return base(args);
+  } };
+  const [res] = await drive(w.sim, [waitFor(env, { kind: "run", runId: 61 }, { timeoutS: 3600 })]);
+  assert.deepEqual(res, { code: 0, lines: ["run 61 chromium-counts success -> pass"] });
+  assert.equal(w.calls().filter((c) => c.args.includes("jobs,attempt")).length, 3, "two views with an open job, one settled");
+  const [again] = await drive(w.sim, [waitFor(env, { kind: "run", runId: 61 }, { timeoutS: 3600 })]);
+  assert.equal(again!.code, 0);
+  assert.equal(w.calls().filter((c) => c.args.includes("jobs,attempt")).length, 3, "the settled facts were cached");
+});
+
+test("a job that stays open is read at most 7 times, the result is not cached, and the failing job is named", async () => {
+  const w = mkWorld(T0, { fastGh: true });
+  w.config({ start: T0, listCost: 2, runs: [run(62, { jobs: openJobs(1) })] });
+  const [res] = await drive(w.sim, [waitFor(w.env, { kind: "run", runId: 62 }, { timeoutS: 3600 })]);
+  assert.equal(res!.code, 1);
+  assert.match(res!.lines[0]!, /-> fail \(jobs not success: m0\)$/);
+  const n = w.calls().filter((c) => c.args.includes("jobs,attempt")).length;
+  assert.equal(n, 7, "the first view and 6 re-reads");
+  await drive(w.sim, [waitFor(w.env, { kind: "run", runId: 62 }, { timeoutS: 3600 })]);
+  assert.ok(w.calls().filter((c) => c.args.includes("jobs,attempt")).length > n, "an unsettled view is read again by the next wait");
+});
+
+test("an open job long after the finish is a fact: one view, cached", async () => {
+  const w = mkWorld(T0, { fastGh: true });
+  w.config({ start: T0, listCost: 2, runs: [run(63, { completeAt: T0 - 1000, jobs: openJobs(1) })] });
+  const [res] = await drive(w.sim, [waitFor(w.env, { kind: "run", runId: 63 }, { timeoutS: 3600 })]);
+  assert.equal(res!.code, 1);
+  assert.equal(w.calls().filter((c) => c.args.includes("jobs,attempt")).length, 1);
 });
 
 // task ci-wait-lag: the kind of a wait and its critical run replay the Lean golden (Fw.Ci.Lag.kind, Fw.Ci.Lag.crit)

@@ -148,6 +148,8 @@ import Fw.Ci.Cancel  -- ci-own-trigger: no concurrency group is shared on ci/**,
 import Fw.Ci.Provider  -- circleci-pilot: pair verdict, credits, stop rule and routing rule of the CircleCI pilot
 import Fw.Ci.Overflow  -- land-lane-circleci: which land legs overflow from GitHub Actions to CircleCI
 import Fw.Ci.Telemetry  -- ci-telemetry: the CI job telemetry record and its slow verdicts (ci.telemetry)
+import Fw.Obs.MacTelemetry  -- macos-telemetry: macOS job classes, matched time, billing, queue, sample, grouped sums, ranked cuts
+import Fw.Obs.MacTelemetryWire  -- macos-telemetry: ops obs.macSample, obs.macReduce, obs.macMatched, obs.macIs
 import Fw.Gate.Exit  -- gate-exit-verdict: the summary exit code from the merged engine verdicts
 import Fw.Gate.WebkitScreen  -- gate-green-baseline: the device width of a Playwright WebKit live resize
 import Fw.Spec.AxReach  -- mathview-axreach: shared-memo axiom reachability, exact on cycles
