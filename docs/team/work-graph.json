@@ -13258,7 +13258,8 @@
     "lean/scripts/check.sh",
     "packages/contracts/golden/sup/**",
     "docs/team/handoffs/sup-wire.md"
-   ]
+   ],
+   "evidence": "5440e67"
   },
   {
    "devices": [
@@ -14016,7 +14017,8 @@
     "packages/measure-webkit/test/replay-*.test.mjs",
     "research/notes/2026/10-2x-device-replay.md",
     "docs/team/handoffs/device-replay.md"
-   ]
+   ],
+   "evidence": "eee8c18"
   },
   {
    "devices": [
@@ -14038,7 +14040,8 @@
     "apps/runner/src/fw.ts",
     "docs/team/tools/oracle.md",
     "docs/team/handoffs/jev-core.md"
-   ]
+   ],
+   "evidence": "d09a9a7"
   },
   {
    "devices": [
@@ -14057,24 +14060,38 @@
     "scripts/jev-datasets.test.mjs",
     "research/notes/2026/10-2x-jev-datasets.md",
     "docs/team/handoffs/jev-datasets.md"
-   ]
+   ],
+   "evidence": "b105aa9"
   },
   {
    "devices": [
     "local"
    ],
    "id": "jev-replay",
-   "owner": "researcher",
+   "owner": "lean-prover",
    "stream": "tooling",
    "deps": [
     "jev-core",
     "jev-datasets"
    ],
-   "title": "Offline A/B replay of the Jev trial (user 2026-10-22): each held-out and calibration row of D1..D4 (jev-datasets) goes to Jev (model pinned, jev-1.13.0 on 2026-10-22), to a Haiku agent and to a Sonnet agent with the same question text; record per option precision and recall, coverage at the Lean threshold, confusion, $ per decision, latency, and net saving against the measured token cost of that decision today (incl. double pay on escalation and wrong-call cost). Order D1, D2, D3, D4. Live Jev calls need the user's permission route (a permission rule for the oracle CLI against api.typesafe.ai, or user-run batches via !); ask through the lead before the first send. Output research/notes/2026/10-2x-jev-replay.md with one table per decision type for the user's review; promotion is jev-eval's Lean ladder.",
+   "title": "Offline A/B replay of the Jev trial (user 2026-10-22): each held-out and calibration row of D1..D4 (jev-datasets) goes to Jev (model pinned, jev-1.13.0 on 2026-10-22), to a Haiku agent and to a Sonnet agent with the same question text; record per option precision and recall, coverage at the Lean threshold, confusion, $ per decision, latency, and net saving against the measured token cost of that decision today (incl. double pay on escalation and wrong-call cost). Order D1, D2, D3, D4. Live Jev calls need the user's permission route (a permission rule for the oracle CLI against api.typesafe.ai, or user-run batches via !); ask through the lead before the first send. Output research/notes/2026/10-2x-jev-replay.md with one table per decision type for the user's review; promotion is jev-eval's Lean ladder. Send path (user 2026-10-22 asked for safe permission rules): every live call goes through one command `pnpm fw oracle send --set <D1..D4> [--part calibrate|holdout]` that the user allows with an ask (then allow) rule in .claude/settings.local.json; the command takes a dataset id only (never a file path), sends only to https://api.typesafe.ai, redacts every row before sending (Lean Redact), reads the Keychain key in-process after the Lean pre-check (never in args, logs or files), refuses above a Lean per-run budget (max requests and input tokens), and writes answers only to the local answer log. The lead gives the user the exact rule once the command exists.",
    "writes": [
     "research/notes/2026/10-2x-jev-replay.md",
     "results/jev/**",
-    "docs/team/handoffs/jev-replay.md"
+    "docs/team/handoffs/jev-replay.md",
+    "lean/Fw/Oracle/Questions.lean",
+    "lean/Fw/Oracle/Send.lean",
+    "lean/Fw/Oracle/Replay*.lean",
+    "lean/Fw/Oracle.lean",
+    "lean/scripts/Oracle*Golden.lean",
+    "packages/contracts/golden/oracle/**",
+    "packages/oracle/src/**",
+    "packages/oracle/test/**",
+    "apps/runner/src/oracle*.ts",
+    "apps/runner/test/oracle*.test.ts",
+    "scripts/jev-score*.mjs",
+    "scripts/jev-score*.test.mjs",
+    "docs/team/tools/oracle.md"
    ]
   },
   {
@@ -14096,7 +14113,8 @@
     "results/phone/2026-10-21/summary-v2.json",
     "results/phone/2026-10-21/summary-v2.md",
     "docs/team/handoffs/device-stats-v2.md"
-   ]
+   ],
+   "evidence": "b6d57dd"
   },
   {
    "devices": [
@@ -14258,6 +14276,200 @@
     "apps/runner/test/step*.test.ts",
     "apps/runner/src/watch-collect.ts",
     "docs/team/handoffs/ask-step-guard.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "hero-exit-threaded-port",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [],
+   "title": "User goal 2026-10-22 (hero exit smoother on WebKit). Survey (lead scratch opt-survey/hero-exit.md, repo note 10-22-smooth-candidates landing): the rewrite's remaining hero stalls are Safari's toolbar-collapse throttle: the page gets scroll updates every 100 ms while the toolbar collapses (WKWebViewIOS.mm:3256-3268@862f17d, CONFIRMED), so the JS-driven --exit-opacity steps at about 10 Hz while the sticky hero moves smoothly; compositor-run scroll timelines are updated on every UI scroll callback even while throttled (RemoteScrollingTreeIOS.cpp:56-62, CONFIRMED). Build the TS variant hero.exit:threaded: a CSS scroll-driven animation (animation-timeline on the hero's scroll range) for the exit's opacity/translate (and blur only if WebKit runs a filter on the scroll timeline in the UI process: read the source first; else keep blur on the main path and say so), checked against the Lean golden vectors of HeroExitOpt (consumer_eq_s under premise RG11, proof-hero-exit and hero-exit-restate landed 3dbed91c). Flag registry entry, trajectory gate at every breakpoint on both engines, and the WebKit CI measurement with the corrected exit check (scrollY still runs inside the exit range with a getComputedStyle sample of a consumer, never the stall count, which a CSS animation does not write). Same look is the proof's claim; any pixel difference found goes to the look-change class.",
+   "writes": [
+    "apps/site/src/parts/hero.exit/**",
+    "lean/Fw/Parts/HeroExit*.lean",
+    "packages/contracts/golden/parts/hero-exit*.jsonl",
+    "research/notes/2026/10-2x-hero-exit-threaded.md",
+    "docs/team/handoffs/hero-exit-threaded-port.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "toolbar-throttle-probe",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "title": "Confirm the hero-exit stall cause before and alongside hero-exit-threaded-port: a diagnostic-only flag engine.scroll:throttle-lift (one main-thread scroll-driven animation of an invisible property, which disables the 100 ms toolbar-collapse throttle per WebPageCocoa.mm:2357 and AnimationTimelinesController.cpp:267-279@862f17d; never shipped: it costs power). Measure on the WebKit Simulator lane with a real touch scroll that collapses Safari's toolbar (XCUITest or the device-replay path, not a synthetic WheelEvent) and in the next phone replay session: scrollY still runs per 100 frames inside the exit range, step sizes, and the exit value lag, original vs rewrite vs throttle-lift. Expected (INFERRED): still runs drop from about 83 per pass to near 0. A Lean statement of the still-run count with goldens. Viewport-height confound (h 815 vs 775 between arms) controlled: same height for every arm.",
+   "writes": [
+    "apps/site/src/parts/engine.scroll/**",
+    "packages/measure-webkit/src/throttle/**",
+    "packages/measure-webkit/test/throttle-*.test.mjs",
+    "lean/Fw/Device/StillRuns*.lean",
+    "packages/contracts/golden/device/stillruns*.jsonl",
+    "research/notes/2026/10-2x-toolbar-throttle.md",
+    "docs/team/handoffs/toolbar-throttle-probe.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-strip-webkit",
+   "owner": "lean-prover",
+   "stream": "parts",
+   "deps": [],
+   "title": "End of page, survey rank 1 (C10, morph.countdown:strip, needs hero.countdown:strip): about 80-160 new UIViews are created on Safari's UI thread at morph start (render-cost note F7); the strip cuts countdown layers 80 -> 8 (wk_normal_layers, HeroCountdownOpt strip_visSame). Open items to close: pixel E under the panel's fractional opacity (ledger n 13, partly-proved; v1 saw delta-1 pixel classes in fractional fades): prove or bound it, else move the flag to the look-change class; the open sub_still_not_le condition (the TS strip's shared-loop subscriber must go); the WebKit-side measurement (new layers per commit and UI-process work at morph start, via webkit-cost-counters) since the C3 decision excluded it on Chromium element counts (runs 39257533380, 39259074927). If it wins on WebKit and E holds, reverse the curated exclusion in lean/Fw/Preset/Gen.lean for the v2-proved preset.",
+   "writes": [
+    "lean/Fw/Parts/HeroCountdown*.lean",
+    "lean/Fw/Parts/MorphCountdown*.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "packages/contracts/golden/parts/countdown*.jsonl",
+    "packages/contracts/golden/preset/**",
+    "apps/site/src/parts/morph.countdown/**",
+    "apps/site/src/parts/hero.countdown/**",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/morph-strip-webkit.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-touch-band",
+   "owner": "lean-prover",
+   "stream": "parts",
+   "deps": [],
+   "title": "End of page: our non-passive window touchmove listener makes every pan in its band wait for the main thread with no timeout (WebPageProxy.cpp:5228-5300@862f17d), and morph.mount and morph.tween each attach one (morph-double-listener). Prove in Lean and build: (1) one merged listener (the two armed predicates MorphMount.lean:31 and MorphTween.lean combined; equivalence theorem); (2) the listener attached only in a band around the take point (premise, INFERRED: one touch sequence moves the page at most about one viewport height: state it as a premise and test it on the replay profiles). Same look (behaviour identical inside the band). Measure touch-to-first-scroll on the replay and the WebKit lane.",
+   "writes": [
+    "lean/Fw/Parts/MorphMount*.lean",
+    "lean/Fw/Parts/MorphTween*.lean",
+    "lean/Fw/Parts/MorphListen*.lean",
+    "packages/contracts/golden/parts/morph-listen*.jsonl",
+    "apps/site/src/parts/morph.mount/**",
+    "apps/site/src/parts/morph.tween/**",
+    "docs/team/handoffs/morph-touch-band.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "pin-fight-measure",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "device-replay"
+   ],
+   "title": "End of page: scroll-lock (C4) is not installed under (hover: none) (MorphTweenOpt engage_touch), so on the iPhone pin()'s scrollTo can fight a drag that crosses the take point and its momentum (preventDefault is ignored once a pan started, WKContentViewInteraction.mm:4238-4246@862f17d; effect INFERRED). Measure it before any fix: on the replay profiles (a drag crossing the take point, a fling across it), count scrollend events per gesture, scroll position reversals and the distance pin() moves the page against the gesture; original vs rewrite. A fix (C4t, touch scroll lock) changes the look and goes to the look-change class for the user's review.",
+   "writes": [
+    "packages/measure-webkit/src/pinfight/**",
+    "packages/measure-webkit/test/pinfight-*.test.mjs",
+    "research/notes/2026/10-2x-pin-fight.md",
+    "docs/team/handoffs/pin-fight-measure.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "step-threads",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "User 2026-10-22: 'i'd like to ask you improve the your steps each topic, i'd like to make it that i can ask for more clarify and you ask answer me in the console. i think i catch up on this session the message is quite a lot and hard to catch up.' Build in console-api/console-web and the fw CLI: (1) topics: `fw step post --topic <id>` and `fw step topic --id <id> --title <t> --summary <text>`; the Your steps card groups open steps by topic (e.g. smoothness, measurement, ci-macos, jev, daemon, phone), each topic with the lead's current one-paragraph summary and its last update time, so the user catches up per topic instead of the chat; (2) threads: every step and every topic has a comment thread; the user writes a question in the console; fw watch raises an alert (step.question) that wakes the lead's watch stream; the lead answers with `fw step reply --id <step|topic> --to <comment id> --text <text>`, which closes the alert; `fw step questions [--all]` lists open ones (reuse the review-card feedback mechanism: ReviewFeedback.tsx, review.ts reply/feedback, its watch alert and its Lean open/close decision, generalised to any card). Lean first for the alert open/close decision and the topic grouping order, with goldens. The single-writer rule of console-api holds.",
+   "writes": [
+    "apps/console-api/src/**",
+    "apps/console-api/test/**",
+    "apps/console-web/src/**",
+    "apps/runner/src/fw.ts",
+    "apps/runner/src/step*.ts",
+    "apps/runner/src/review.ts",
+    "apps/runner/src/watch-collect.ts",
+    "apps/runner/test/step*.test.ts",
+    "lean/Fw/Console/Steps*.lean",
+    "packages/contracts/golden/console/steps*.jsonl",
+    "docs/team/tools/console-steps.md",
+    "docs/team/handoffs/step-threads.md"
+   ],
+   "evidence": "8c0b4e8"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "local-adaptive-queue",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "title": "User 2026-10-22: 'i think we might have the queue to manange the local load by probe the resource and automatic adjustable the concurrency size.' (context: load average 27-46 on 8 CPUs with about 11 workflow agents; investigation report in the lead scratch local-load/report.md). One local work queue for heavy agent work (lake builds and check.sh, vitest/tsc runs, Simulator debug runs, trial lands): every heavy step acquires a slot from the queue (generalising the lake-slot and heavy locks in .fw-console/locks.jsonl); a probe samples load average, free memory, swap and compressor pressure every few seconds (the fw-sup baseline sampler's readers); a Lean controller (Fw.Sup.Adapt) sets the admitted concurrency N from the samples: additive increase while load < target and memory free above a floor, multiplicative decrease on overload, with hysteresis and min/max bounds. Theorems: N stays within [min, max]; never admits a job whose expected footprint exceeds free memory minus the floor (per kind, footprints from sup-baseline-tables); no oscillation faster than the hysteresis window; FIFO progress per kind (reuse sup-fairness head_job_granted_by). Wire it into the fw CLI (`fw slot run --kind <k> -- <cmd>`) and the build-review preamble (builders wrap check.sh, package tests and dry lands in it); console shows N, queue length and waits. Stage this as the first live part of fw-sup (no daemon process needed: a file-lock queue like lake-slot). Holder liveness (lead 2026-10-22, sim.lockOrphan on toolbar-throttle-probe): scripts/sim-lock.sh stores $PPID, the shell of one Bash tool call, so a lock an agent takes in one call and uses in later calls reads as stale at once and the next acquirer may take the Simulator while it is still in use; the queue identifies a holder by the owning agent (owner name plus a lease the holder renews), with a Lean theorem that a live holder is never recovered as stale. From the load investigation (lead scratch local-load/report.md, MEASURED: load median 35.5 with the Simulator up vs 6.4 down; memory runs out before CPU): the Simulator kind is the first-class queue member: boot it only under its slot and shut it down after an idle limit; lake slot threads sized from free memory, not cores (pool full 4 runs 12 threads on 8 cores, about 0.7 GB per lean process); recalibrate the swapPct verdict (busy in 543 of 558 samples, so it gates nothing) before the controller reads it; the build-review reviewer skips its repeat of tests and dry land when the tree hash is unchanged (.fw-console/review-cache), same check set and verdict. Console view (N, queue length, waits in console-web and watch-collect) is a follow-up after step-threads lands (both write those files); this task exposes the state through `fw slot status --json` only.",
+   "writes": [
+    "lean/Fw/Sup/Adapt*.lean",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/sup/adapt*.jsonl",
+    "apps/runner/src/slot*.ts",
+    "apps/runner/src/lock*.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/slot*.test.ts",
+    ".claude/workflows/build-review.js",
+    "docs/team/tools/slot.md",
+    "docs/team/handoffs/local-adaptive-queue.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-offload-checks",
+   "owner": "console-builder",
+   "stream": "ci",
+   "deps": [
+    "local-adaptive-queue"
+   ],
+   "title": "User 2026-10-22: 'can we custom the our ci and run the pipeline that specific the agent needed for local concurrency is hit the limit we can delegate some of work to ci instead.' A GitHub workflow agent-checks.yml that runs exactly the checks a builder runs locally for a given task and branch (sh lean/scripts/check.sh with the lake cache, the touched packages' test scripts incl. typecheck, scripts/ci-paths.test.mjs, the apps/runner land-inputs test, fw land --dry) and returns one structured result artifact (per check: pass/fail, duration, first error lines). A Lean router decision per heavy step (Fw.Sup.Offload): run locally when local-adaptive-queue has a slot or its expected wait is under the CI path's expected time (push + queue p50 + run), else offload to CI (GitHub Linux free runners first, then CircleCI Arm per ci-overflow-github-first); theorems: never offload a step that needs this Mac (Simulator, phone, .local data), offload only when the local wait exceeds the CI estimate, result counts the same from either place (same digest). `fw slot run` uses it transparently: an offloaded step pushes ci/check-<task>-<sha>, waits with fw ci wait and prints the same output shape. Trigger design is free (user 2026-10-22: 'you can revise the github pipeline for trigger from your need. it might not following on branch push for every cases'): choose per need between workflow_dispatch with inputs (task, ref, checks) on a pushed ci/check-* ref whose push itself starts nothing, push with path/branch filters, or repository_dispatch; the choice and every changed trigger are rows in Lean Fw.Ci.Trigger with the triggers golden regenerated, and a dispatch is sent only by the offload router through gh workflow run (never gh api). Measure: local load and builder wall time before/after on one busy hour. Premise check first (local-load report: CI wait median 448 s vs check.sh 39 s and the runner suite 176 s locally): the router is expected to offload only under overload; if on a busy hour it never chooses CI, close the task as a finding instead of shipping the workflow.",
+   "writes": [
+    ".github/workflows/agent-checks.yml",
+    "lean/Fw/Sup/Offload*.lean",
+    "packages/contracts/golden/sup/offload*.jsonl",
+    "apps/runner/src/offload*.ts",
+    "apps/runner/src/slot*.ts",
+    "apps/runner/test/offload*.test.ts",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "docs/team/tools/offload.md",
+    "docs/team/handoffs/ci-offload-checks.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "polish-in-flow",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "local-adaptive-queue"
+   ],
+   "title": "User 2026-10-22: 'i'd like to adjust these to more automatic check our project. can we involve these agent in our process ?' (comment-sicko and slop-checker; until now they ran only when the lead remembered: none ran from 10-19 to 10-22, then one manual slop pass cut 55 sentences of which 3 removed facts). Add a Polish stage to .claude/workflows/build-review.js after the adversarial review accepts (or after its only refusals are fix-before-land), before the build returns to the lead: (1) comment-sicko on the branch's code diff (main...branch; TS, JS, shell, YAML, Lean; never snapshot/, goldens or generated files), editing comments only and committing in the branch; (2) slop-checker on the branch's prose diff (md and handoffs, notes, tool docs) returning exact old/new cuts, applied by a patcher only where old occurs once and the cut passes a Lean guard; then the dry land re-runs. Lean Fw.Plan.Polish: file classes (code, prose, skip) from paths with goldens and a theorem that skip-class paths are never edited; a cut guard cutSafe(old, new): every number, file:line, run id, commit id and status word (CONFIRMED, INFERRED, MEASURED) of old also occurs in new (the 10-22 over-cuts are golden cases where a guard applies); the stage runs only when the diff has a file of that class. The lead's own direct commits to main (notes, graph titles, incidents) get the same slop pass through a `fw polish --staged` command that prints the cuts for the lead to apply. Update docs/team/token-policy.md (comment-sicko spawned by the build-review workflow and the lead) and .claude/agents/comment-sicko.md description. Measure: polish stage tokens and wall time on the next 5 builds. Roster check (incident inc-sicko-unknown-role): a test that every .claude/agents/*.md name is in Lean SpawnGuard.prodRoles, so a new role cannot be unspawnable.",
+   "writes": [
+    ".claude/workflows/build-review.js",
+    "lean/Fw/Plan/Polish*.lean",
+    "lean/Fw/Plan.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/plan/polish*.jsonl",
+    "apps/runner/src/polish*.ts",
+    "apps/runner/test/polish*.test.ts",
+    "apps/runner/src/fw.ts",
+    "docs/team/token-policy.md",
+    ".claude/agents/comment-sicko.md",
+    "docs/team/tools/polish.md",
+    "docs/team/handoffs/polish-in-flow.md",
+    "apps/runner/test/spawn-guard*.test.ts",
+    "lean/Fw/Ops/SpawnGuard.lean"
    ]
   }
  ],

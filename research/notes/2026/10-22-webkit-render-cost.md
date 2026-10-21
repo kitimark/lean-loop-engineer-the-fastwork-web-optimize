@@ -138,7 +138,7 @@ C1-C7 are the prior note's. New numbers start at C8. Priority order is the table
 
 ## Applying the adversarial check
 
-Every one of the 18 check findings is applied above, with three deviations:
+
 
 - Candidate labels: the check asked to mark the area-1 "fixed-size nav with `clip-path`" as C1b without the scale. The
   task fixes its canonical number as C8, so C8 carries that label in parentheses.
@@ -157,4 +157,4 @@ the calm baseline for the original and 1.64 for faithful, and concludes "no diff
 | §4.2 Step 1, WebKit lane | Add per morph frame on the CI Simulator: IOSurface creations, Composite minus nested Paint minus main busy time, rAF delta histogram at 16.7, 33.3 and 50 ms, `compositingUpdateCount` per `pin()` call and per frame, layer count before and after the trigger, blank-draw count, touchstart-to-first-scroll inside and outside the band, `scrollend` per gesture. Report device bytes at 5 B/px, Simulator at 4 B/px. Record Low Power Mode per phone pass. |
 | §5.1 `Fw.Engine.WebKit` | Replace the cadence term with the commit gate (iOS one in flight, page tick 16.7 ms at 120 Hz; Mac a second commit after 4 delays). Add: bounds change = new surface + full raster at 5 or 4 B/px; programmatic scroll = sync layout + compositing + full traversal; UIView per new layer on iOS; edge sampling per changed fixed layer. Throttle to 30 fps only for Low Power Mode, idle, cross-origin or the aggressive-thermal setting. Record F8 and F20 as negative results. |
 | §6.1 parts | Rank C1 first, C4 above the pin, then C8 after gap (a) is read; add C9a-C15 as gate candidates; drop image promotion (F8). |
-| Research backlog | Read gaps a, b, c first, then d, e, f. Fix prior note term 11. |
+| Research backlog | Read gaps a, b, c first, then d, e, f. |

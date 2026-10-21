@@ -3750,6 +3750,59 @@
    "leanReason": "Whether a message asks the user is prose; a guard can compare open asks named in the lead's reply against open action steps, which is checkable once asks are marked.",
    "empiricalCheck": "console 'Your steps' card lists ask-codemagic-fallback and ask-jev-live-route",
    "hardening": "ask-step-guard"
+  },
+  {
+   "id": "inc-sim-lock-ppid",
+   "at": "2026-10-22T01:20+07:00",
+   "title": "The sim lock records the pid of one Bash call shell, so an agent holding it across calls reads as stale",
+   "symptom": "fw watch opened sim.lockOrphan for toolbar-throttle-probe two minutes after it acquired the sim lock; the recorded pid was already dead while the agent was still running. (locks log: a sim acquire by the Bash shell pid with no release; .fw-console is local-only.)",
+   "cause": "CONFIRMED (scripts/sim-lock.sh acquire writes $PPID to the lock; alive() is kill -0 on it): each Bash tool call runs in its own shell that exits at the end of the call, so a lock taken in one call and used in later calls has a dead holder pid, and the next acquirer recovers it as stale.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "scripts/sim-lock.sh",
+     "note": "acquire stores $PPID; stale recovery when kill -0 fails"
+    }
+   ],
+   "repro": "Run sh scripts/sim-lock.sh acquire x in one Bash call, then sh scripts/sim-lock.sh status in the next: it prints stale.",
+   "fix": {
+    "task": "local-adaptive-queue"
+   },
+   "regression": "A lock held by a live agent across tool calls is never recovered as stale; the queue identifies the holder by owning agent plus a renewed lease.",
+   "mistakeClass": "c-env-assume",
+   "leanVerdict": "provable",
+   "leanReason": "Holder liveness is a pure decision over (lease expiry, now, holder agent live): theorem that a live holder with an unexpired lease is never recovered.",
+   "empiricalCheck": "The lead released the stale lock after checking no Simulator process ran; sim.lockOrphan closed.",
+   "hardening": "local-adaptive-queue"
+  },
+  {
+   "id": "inc-sicko-unknown-role",
+   "at": "2026-10-22T01:45+07:00",
+   "title": "comment-sicko could never be spawned: the role was added to .claude/agents but not to the spawn-guard roster",
+   "symptom": "The lead ran the no-comments skill; every comment-sicko spawn was refused by spawn-guard (unnamed, then unknownRole). No comment pass had run since the skill was added on 10-19.",
+   "cause": "CONFIRMED (lean/Fw/Ops/SpawnGuard.lean prodRoles and apps/runner/hooks/spawn-guard.mjs ROLES): the skills-reframe task added .claude/agents/comment-sicko.md and the no-comments skill but no roster row; nothing checks that every .claude/agents role is in the roster, and the skill was user-invoked only, so the refusal never surfaced.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "02cd5f37",
+     "note": "comment-sicko added to prodRoles, leadEditHelpers and the hook ROLES"
+    },
+    {
+     "kind": "commit",
+     "ref": "97345d1b",
+     "note": "skills-reframe added the agent and skill"
+    }
+   ],
+   "repro": "Spawn subagent_type comment-sicko from the lead before 02cd5f37.",
+   "fix": {
+    "task": "polish-in-flow"
+   },
+   "regression": "A test fails when a .claude/agents/*.md name is missing from Lean SpawnGuard.prodRoles.",
+   "mistakeClass": "c-late-check",
+   "leanVerdict": "partly",
+   "leanReason": "Roster membership of each agent file is a decidable check over a generated list of agent names; reading the agent files is I/O.",
+   "empiricalCheck": "After 02cd5f37 the three comment-sicko spawns were accepted.",
+   "hardening": "polish-in-flow"
   }
  ]
 }

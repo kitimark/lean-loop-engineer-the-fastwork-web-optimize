@@ -157,7 +157,7 @@ C1 with C2 checks the predicted dominant cost in B; C3 and C4 check the input te
 8. **Layer creation:** layers created when `will-change` returns at morph start, with first paint and commit.
 9. **Overlap churn** from filter outsets in overlap bounds (`RenderLayer.cpp:5638-5644`, `RenderLayerInlines.h:38`, `RenderLayerCompositor.cpp:2594-2612`).
 10. **Input path by type:** trackpad gesture (≤ 50 ms wait, then async unless the first event is prevented; later `preventDefault` ignored; the gesture and its momentum keep the steps latched at its first event, so a gesture that begins with no listener gets no DOM dispatch: `ScrollingTree.cpp:136, 144-148`, `ScrollingTreeLatchingController.cpp:59-73, 91-128`, `PlatformWheelEvent.h:221-229`), mouse wheel (synchronous per event), iOS touch (preventable until the pan starts), and the commits by which main-thread visuals trail the async scroll.
-11. **Cadence:** one commit in flight, a 60 fps preference (Prefs.yaml:6505-6520), and the Low Power Mode throttle to 30 fps (`WC/platform/graphics/AnimationFrameRate.h:43, 50-57`; `WC/page/Page.cpp:544-549, 2809-2817`). Corrected 2026-10-22 (10-22-webkit-render-cost.md, 10-22-lag-coverage.md): plain thermal mitigation does not halve rAF; only `AggressiveThermalMitigation` (off by WebKit default) does, and plain thermal mitigation coarsens DOM timer alignment (`Page.cpp:3071-3072`).
+11. **Cadence:** one commit in flight, a 60 fps preference (Prefs.yaml:6505-6520), and the Low Power Mode throttle to 30 fps (`WC/platform/graphics/AnimationFrameRate.h:43, 50-57`; `WC/page/Page.cpp:544-549, 2809-2817`). Plain thermal mitigation does not halve rAF (10-22-webkit-render-cost.md, 10-22-lag-coverage.md); only `AggressiveThermalMitigation` (off by WebKit default) does, and plain thermal mitigation coarsens DOM timer alignment (`Page.cpp:3071-3072`).
 12. **Device scale** in paint area (2x Mac, 3x iPhone).
 13. **Policy trigger:** `Policy` exists, but the memory condition that switches it to Conservative (`RenderLayerCompositor.cpp:705-722`) does not.
 
@@ -176,7 +176,7 @@ C1 with C2 checks the predicted dominant cost in B; C3 and C4 check the input te
   - layers created per frame (morph start) and image decodes per frame (async or sync, full or sized);
   - wheel processing steps on the approach, split by trackpad and mouse wheel, and `scrollTo` calls from `pin()`;
   - commit cadence.
-  
+
   These rank C1-C7 before any becomes a task.
 - **§5.1 (what is proved).** A lean-prover task adds terms 1-13 to `Fw.Engine.WebKit`, first 1, 5, 7 and 10, which carry both predicted dominant costs and the input stutter.
 - **§6.1 (parts).** After the probe ranks them, C1 with C2 (`nav`, `morph.panel`), C3 and C4 (`morph.tween`) and C5 (`hero.exit`) become graph candidates, each through proof, flag and gate. C6 continues as exit-scoped-inline; C7 is image-audit's arm.

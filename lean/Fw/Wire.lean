@@ -22,6 +22,7 @@ import Fw.Ci.Telemetry
 import Fw.Obs.MacTelemetryWire
 import Fw.Faithful.Wire
 import Fw.Ops.CheckMap
+import Fw.Oracle.Wire
 import Fw.Ops.WatchDiff
 import Fw.Lint.Context
 import Fw.Ops.LakeGc
@@ -232,12 +233,17 @@ def audienceField (j : Json) (id : String) : Except String Audience :=
 def bodyField (j : Json) : Except String String := do
   pure ((← optStr j "body").getD "")
 
-/-- Encode a step. -/
-def stepJson (s : Step) : Json := Json.mkObj [
+def topicField (j : Json) : Except String (Option String) := do
+  match ← optStr j "topic" with
+  | some "" => throw "field topic: empty topic id"
+  | t => pure t
+
+/-- Encode a step; the `topic` key is present only when the step has one. -/
+def stepJson (s : Step) : Json := Json.mkObj ([
   ("id", .str s.id), ("card", ostr s.card), ("title", .str s.title), ("kind", .str (stepKindName s.kind)),
   ("options", optStrs s.options), ("status", .str s.status.name), ("answer", ostr s.answer),
   ("postedAt", toJson s.postedAt), ("lastAt", toJson s.lastAt), ("audience", .str s.audience.name),
-  ("body", .str s.body)]
+  ("body", .str s.body)] ++ (match s.topic with | some t => [("topic", Json.str t)] | none => []))
 
 /-- Decode a step. -/
 def stepOfJson (j : Json) : Except String Step := do
@@ -245,7 +251,7 @@ def stepOfJson (j : Json) : Except String Step := do
          kind := ← stepKindOf (← str j "kind"), options := ← optStrsOf j "options",
          status := ← stepStatusOf (← str j "status"), answer := ← optStr j "answer",
          postedAt := ← nat j "postedAt", lastAt := ← nat j "lastAt",
-         audience := ← audienceField j (← str j "id"), body := ← bodyField j }
+         audience := ← audienceField j (← str j "id"), body := ← bodyField j, topic := ← topicField j }
 
 /-- Encode a run. -/
 def runJson (r : Run) : Json := Json.mkObj [
@@ -283,7 +289,7 @@ def bodyOfJson (j : Json) : Except String Body := do
   | "card.landed" => pure (.cardLanded (← str j "card") (← str j "sha"))
   | "step.post" =>
     pure (.stepPost (← str j "step") (← optStr j "card") (← str j "title")
-      (← stepKindOf (← str j "kind")) (← optStrsOf j "options") (← audienceField j (← str j "step")) (← bodyField j))
+      (← stepKindOf (← str j "kind")) (← optStrsOf j "options") (← audienceField j (← str j "step")) (← bodyField j) (← topicField j))
   | "step.start" => pure (.stepStart (← str j "step"))
   | "step.answer" => pure (.stepAnswer (← str j "step") (← str j "answer"))
   | "step.done" => pure (.stepDone (← str j "step") (← optStr j "note"))
@@ -293,6 +299,7 @@ def bodyOfJson (j : Json) : Except String Body := do
   | "review.previewed" => pure (.reviewPreviewed (← str j "flag") (← str j "device"))
   | "review.feedback" => pure (.reviewFeedback (← str j "flag") (← str j "id") (← str j "text"))
   | "review.feedback.reply" => pure (.reviewFeedbackReply (← str j "flag") (← str j "to") (← str j "text"))
+  | "step.topic" => pure (.stepTopic (← str j "topic") (← str j "title") (← str j "summary"))
   | t => throw s!"unknown event type {t}"
 
 /-- Decode an event (`seq` and unknown fields are ignored). -/
@@ -480,6 +487,7 @@ def ops : List String :=
   ++ Fw.Wire.Ci.Telemetry.ops -- ci-telemetry: ci.telemetry
   ++ Fw.Wire.Obs.MacTelemetry.ops -- macos-telemetry: obs.macSample, obs.macReduce, obs.macMatched, obs.macIs
   ++ Fw.Wire.CheckMap.ops -- check-map-lean: ops.checkMap, ops.checkVerdict
+  ++ Fw.Wire.Oracle.ops
   ++ Fw.Wire.Lint.ops -- context-slop: lint.context
   ++ Fw.Wire.LakeGc.ops -- lean-bin-slim: ops.lakeGc
   ++ Fw.Wire.DiskGc.ops -- disk-auto-gc: ops.diskGc, ops.diskGcPath
@@ -533,6 +541,9 @@ def handleCore (req : Json) : Except String Reply := do
     | some r => r
     | none =>
     match Fw.Wire.CheckMap.handle other req with  -- check-map-lean
+    | some r => r
+    | none =>
+    match Fw.Wire.Oracle.handle other req with
     | some r => r
     | none =>
     match Fw.Wire.Lint.handle other req with  -- context-slop: lint.context

@@ -16,6 +16,7 @@ import Fw.Wire.Compose
 import Fw.Wire.Review
 import Fw.Wire.ReviewPreview
 import Fw.Wire.ReviewFeedback
+import Fw.Wire.Steps
 import Fw.Wire.ReviewInfo
 import Fw.Console.Daemon
 import Fw.Console.LandLegs
@@ -59,6 +60,7 @@ imports it, so it decodes the card fields it needs itself).
 | `console.compose` | `registry` {parts [{id, slot, impls, variants [{name, kind, limit?}], requires, conflicts}], presets}, `ledger` [{part, candidate, status, flag?}], `picks`? [{part, variant}] | `regions`, `parts` (variants with class, why, ledger rows, refusal), `presets` (each with its decision), `decision` for `picks` (`link` only when allowed), `rules` (`Fw.Console.Compose.table`, `decide`; see `Fw.Wire.Compose`) |
 | `console.review` | `looks`? [{flag, date, words}], `steps` [{id, answer?}], `answer`? {flag, word} | `items` (pending look reviews with state open, keep or reject), `open`, `options`, `answer` (`Fw.Console.Review`; see `Fw.Wire.Review`) |
 | `console.reviewPreview` | `looks`?, `steps` as `console.review`, `events` [{flag, device, key?}] (an item counts only the events whose key names its round; no key = first round), `ask`? {flag, view, width}, `names`? {search, flag} | `items` (per review: previewed on desktop and phone, missing devices, ask lines), `plan` (the arm, search, device, event and `carries` of a Preview click), `names` (whether the search names the flag by a whole entry; `Fw.Console.ReviewPreview`; see `Fw.Wire.ReviewPreview`) |
+| `console.stepTopics` | `events` of the log, `steps` of the board | `groups`, `threads` (`Fw.Console.Steps.view`; see `Fw.Wire.Steps`) |
 | `console.reviewFeedback` | `events` [{type, flag, id or to, text, ts}] of the log, `flag`? | `threads` [{flag, open, comments [{id, text, at, status, reply}]}] (`Fw.Console.ReviewFeedback.thread`; see `Fw.Wire.ReviewFeedback`) |
 | `console.reviewInfo` | `flag` | `ok`, `summary`, `gains`, `excerpts`, `mechanism`, `sources`, `formulas` for a look-change flag with a table (`Fw.Console.ReviewInfo`; see `Fw.Wire.ReviewInfo`) |
 | `console.daemon` | `kind`: `start` (`recorded`? pid in api.json, `answered`? pid the health request reported, `alive`? whether the recorded pid exists), `stop` (same), `restart` (same), `rotate` (`size`, `limit`? default 5 MiB) | start: `allow`, `verified` (pid or null), `reason` (`ok`/`running`/`unverifiedAlive`); stop: `target` (the only pid to signal, or null), `reason` (`ok`/`notRunning`); restart: `steps` [{step: `stop`+`pid` / `start`}]; rotate: `rotate`, `limit`, `warn` (size above 50 MiB), `warnLimit` (`Fw.Console.Daemon.startAllowed`, `stopTarget`, `restartPlan`, `rotate`, `logWarns`) |
@@ -790,7 +792,7 @@ def opDaemon (req : Json) : Except String Reply := do
 def ops : List String := ["console.landReadiness", "console.actor", "console.alert", "console.landScope", "console.landLock", "console.landGuard",
   "console.landCommit", "console.landPick", "console.landPool", "console.landRetry", "console.landTier", "console.landLeg", "console.landLegs", "console.landLegsVeto", "console.landLane", "console.landRemote", "console.landLaneState", "console.landDigest", "console.landRenderGuard", "plan.trailers", "plan.lint",
   "console.previewTarget", "console.previewAdmit", "console.previewTick", "console.previewStop", "console.previewFail", "console.previewReap", "console.previewLink",
-  "console.ownerLogin", "console.ownerGate", "console.previewGrant", "console.ownerAction", "console.previewArm", "console.loginReturn", "console.lanStart", "console.previewSweep", "console.previewCache", "console.builds", "console.buildsPicker", "console.buildsSearch", "console.buildsOpen", "console.compose", "console.review", "console.reviewPreview", "console.reviewFeedback", "console.reviewInfo", "console.daemon"]
+  "console.ownerLogin", "console.ownerGate", "console.previewGrant", "console.ownerAction", "console.previewArm", "console.loginReturn", "console.lanStart", "console.previewSweep", "console.previewCache", "console.builds", "console.buildsPicker", "console.buildsSearch", "console.buildsOpen", "console.compose", "console.review", "console.reviewPreview", "console.reviewFeedback", "console.stepTopics", "console.reviewInfo", "console.daemon"]
 
 /-- Dispatch one of these ops (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -840,6 +842,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "console.review" => some (Fw.Wire.Review.opReview req)
   | "console.reviewPreview" => some (Fw.Wire.ReviewPreview.opReviewPreview req)
   | "console.reviewFeedback" => some (Fw.Wire.ReviewFeedback.opReviewFeedback req)
+  | "console.stepTopics" => some (Fw.Wire.Steps.opStepTopics req)
   | "console.reviewInfo" => some (Fw.Wire.ReviewInfo.opReviewInfo req)
   | "console.daemon" => some (opDaemon req)
   | _ => none

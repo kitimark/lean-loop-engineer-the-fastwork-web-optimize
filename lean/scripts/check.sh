@@ -86,7 +86,9 @@ run_group() {
   job "pool-fallback golden check" lake env lean --run scripts/PoolFallbackGolden.lean --check  # golden/ci/pool-fallback.jsonl (Fw.Ci.Pool.Fallback: the macOS fallback route)
   job "obs golden check" lake env lean --run scripts/ObsGolden.lean --check  # golden/obs/health.jsonl and backoff.jsonl (Fw.Obs)
   job "sup-health golden check" lake env lean --run scripts/SupHealthGolden.lean --check  # golden/obs/sup-health.jsonl (Fw.Obs.Health.Res), read by apps/runner/src/watch-collect.ts
+  job "sup wire golden check" sh -c "printf 'import Fw.Wire.Sup\\n#eval Fw.Wire.Sup.Golden.gen [\"--check\"]\\n' | lake env lean --stdin"  # golden/sup/wire.jsonl, each line replayed through Json.parse, decode and encode (Fw.Wire.Sup)
   job "ops golden check" lake env lean --run scripts/OpsGolden.lean --check  # golden/ops/*.jsonl incl. the obs life cases (Fw.Ops.Obs)
+  job "oracle golden check" lake env lean --run scripts/OracleGolden.lean --check  # golden/oracle/wire.jsonl and fixtures.jsonl (Fw.Wire.Oracle.Golden)
   job "lane inputs check" lake env lean --run scripts/LaneInputs.lean --check  # Fw.Store.Lane.inputs equal the workflow_dispatch inputs of chromium-counts, webkit-sim, breakpoint-gate
   job "engine goldens check" lake env lean --run scripts/EngineGoldens.lean  # golden/engine/*.jsonl equal the Lean generators, one generator per file
   job "provider golden check" lake env lean --run scripts/ProviderGolden.lean --check  # golden/ci/provider.jsonl (Fw.Ci.Provider)
@@ -102,6 +104,7 @@ run_group() {
   job "mac telemetry golden check" lake env lean --run scripts/MacTelemetryGolden.lean --check  # golden/obs/mactelemetry.jsonl and the reduced week (Fw.Obs.MacTelemetry)
   job "webkit-screen golden check" lake env lean --run scripts/WebkitScreenGolden.lean --check ../packages/contracts/golden/gate/webkit-screen.jsonl  # the WebKit live-resize screen vectors engines.mjs is checked against (Fw.Gate.WebkitScreen)
   job "device-session golden check" lake env lean --run scripts/DeviceSessionGolden.lean --check ../packages/contracts/golden/device/session.jsonl  # the session reductions, plan texts and replay-export vectors packages/measure-webkit/src/device-session.mjs is checked against (Fw.Device.Session)
+  job "device-replay golden check" lake env lean --run scripts/DeviceReplayGolden.lean --check ../packages/contracts/golden/device/replay.jsonl  # the W3C action, replay-check and profile-generator vectors packages/measure-webkit/src/device-replay.mjs is checked against (Fw.Device.Replay)
   job "webkit-lag golden check" lake env lean --run scripts/WebkitLagGolden.lean --check ../packages/contracts/golden/measure/webkit-lag.jsonl  # the lag-region, paint-attribution and ranking vectors packages/measure-webkit/src/lag/reduce.mjs is checked against (Fw.Measure.WebKitLag)
   job "stage golden check" lake env lean --run scripts/StageGolden.lean --check ../packages/contracts/golden/parts/stage.jsonl  # the ?only= stage plans the site is checked against (Fw.Site.Stage)
   job "reconcile-sched golden check" lake env lean --run scripts/ReconcileSchedGolden.lean --check  # golden/console/reconcile-sched.jsonl
@@ -131,6 +134,7 @@ run_group() {
   job "nav-earn golden check" lake env lean --run scripts/NavEarnGolden.lean --check ../packages/contracts/golden/parts/nav-earn.jsonl  # the earn-no-transition vectors nav/earn.golden.test.ts is checked against (Fw.Parts.NavEarnOpt)
   job "image-arm golden check" lake env lean --run scripts/ImageArmGolden.lean --check ../packages/contracts/golden/gate/image-arm.jsonl  # per-part drawn-size copy decisions (Fw.Measure.ImageArm)
   job "steps golden check" lake env lean --run scripts/StepsGolden.lean --check  # golden/ci/steps.jsonl (Fw.Ci.Steps), read by scripts/ci-steps-lint.mjs
+  job "oracle labels golden check" lake env lean --run scripts/OracleLabelsGolden.lean --check  # golden/oracle/labels.jsonl (Fw.Oracle.Labels), read by scripts/jev-datasets.mjs
   job "breakgen check site" sh -c "$bin/breakgen --check ../apps/site/src/breakpoints.gen.json || echo 'check: WARNING apps/site/src/breakpoints.gen.json is not the Lean output yet'"
   job "sweepsgen sweeps golden" $bin/fwcore sweepsgen --sweeps-golden --check ../packages/contracts/golden/gate/sweeps.jsonl
   job "breakgen check lean" $bin/breakgen --check Fw/Site/breakpoints.gen.json

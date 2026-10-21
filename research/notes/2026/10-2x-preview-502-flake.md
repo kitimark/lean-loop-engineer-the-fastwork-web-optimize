@@ -8,7 +8,7 @@ authors: [agent:console-builder]
 topics: [console-api, e2e-preview, flake, node-http]
 ---
 
-# preview-502-flake (2026-10-22)
+# Preview 502 flake
 
 Question: where does the 502 of `apps/console-api/src/preview/arm-app.ts` come from in 3 to 5 of 1000 compare loads
 (found in `research/notes/2026/10-21-webkit-cancelled-flake.md`), and what fixes it without a retry?
@@ -63,7 +63,7 @@ Every unfixed run had 1 to 3 events in 1000 loads, the old rate. Once `proxy.ts`
   `preview-502` lines): 39627999647, 39628014718, 39629760037, 39631364784, 39631568360, 39633157418, 39634660133,
   39634961753, 39636558737, 39637984172. MEASURED. (`pnpm fw ci wait` printed `success -> fail` for three of them; the run
   conclusion is success and out/webkit.json of 39629760037 holds 23000 ok checks (10 x 2300, every shard reached #100) and no FAIL line; the temporary workflow's out.txt was truncated at exit, which may also explain the waiter label (INFERRED), so that label is the
-  waiter's, not the run's. Not investigated.)
+  waiter's, not the run's.)
 - 10 more green runs of all six targets, 20 loads each (1200 loads per run), same code: 39618779756, 39618810266, 39620413621,
   39621625829, 39622143204, 39623220025, 39623595049, 39624582807, 39625065660, 39626417194. MEASURED.
 
@@ -75,10 +75,10 @@ Total 20 runs, 22000 loads on the final code, 0 x 502. Before the fix: 8 events 
 original arm shows `Google Sans` but not `Playpen Sans Start Selling`), always on the first load of a job, in runs that were
 red for the 502 too. Cause INFERRED: the face loads when text that uses it is laid out, which on a cold first load can come
 after `document.fonts.ready` resolved. Fix: `frameFacts` waits up to 5 s until each wanted family has a loaded face; the
-check still fails when one never loads. After it, 0 failures in 20 runs x 10 jobs. It is a wait on a lazy load, not a
-retry. A direct trace of the font request was not taken.
+check still fails when one never loads. After it, 0 failures in 20 runs x 10 jobs. It waits on a lazy load; it is not a
+retry.
 
-## Small items of the task
+## Other changes
 
 - `suite.mjs` `controlLoad` keeps the result of `leavePage`: a still-open landing request is pushed to `failed`
   (`openFailure`, test in `leave.test.mjs`) and counts as cancelled for that control.

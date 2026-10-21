@@ -236,5 +236,25 @@
     "flag": "nav:earn-no-transition",
     "to": "fb-1",
     "text": "Done: see the note on the card."
+  },
+  {
+    "type": "step.topic",
+    "key": "step-topic-smoothness-1",
+    "actor": "lead",
+    "topic": "smoothness",
+    "title": "Smoothness",
+    "summary": "Hero exit first, then the end of the page."
+  },
+  {
+    "type": "step.post",
+    "key": "k11",
+    "actor": "lead",
+    "step": "s3",
+    "card": null,
+    "title": "Check the hero exit on the phone",
+    "kind": "action",
+    "options": null,
+    "audience": "user",
+    "topic": "smoothness"
   }
 ]

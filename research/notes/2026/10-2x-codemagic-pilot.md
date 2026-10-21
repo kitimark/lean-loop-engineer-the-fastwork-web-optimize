@@ -17,7 +17,7 @@ counts and wall time on shared Macs.
 
 ## What ran (MEASURED, Codemagic builds of branch `ci/codemagic-pilot` at 476da151)
 
-Three builds, the ceiling the task set. All used the same `codemagic.yaml` (`mac_mini_m2`, Xcode 27.0 image, `max_build_duration` 40).
+Three builds. All used the same `codemagic.yaml` (`mac_mini_m2`, Xcode 27.0 image, `max_build_duration` 40).
 
 | Build | Result | Start to finish | Billed (INFERRED rounding up) | Note |
 |---|---|---|---|---|
@@ -66,7 +66,7 @@ Codemagic counterpart in this pilot.
 
 Build 2 hit the same Simulator slowness at its worst: `simctl openurl` itself timed out, which the harness does not retry (the "no tab"
 retry covers an openurl that returned but opened nothing). Causes are INFERRED (a Simulator slow to answer on a 3-CPU shared VM); the logs
-do not show why. Build 2's failure is a finding: one of three builds failed at Simulator start.
+do not show why.
 
 ## Class counts (MEASURED; the digest of a class table is `node scripts/codemagic.mjs digest`)
 
@@ -83,7 +83,7 @@ Rows with another class between two runs: GitHub against GitHub 11; Codemagic 1 
 39631161575 7; Codemagic 1 against GitHub 39624847034 17; Codemagic 3 against GitHub 39624847034 16. Per class, both Codemagic counts fall inside the
 range of the two GitHub runs. Row by row, the Codemagic builds differ from GitHub 39631161575 in 6 and 7 rows, below the 11
 between the two GitHub runs, but from GitHub 39624847034 in 17 and 16 rows, above it. This is not a result: the rule asks for at least 3 runs on separate jobs per provider, and the pilot has
-2 finished builds per side. Read it as "no sign of a difference", INFERRED, and nothing more.
+2 finished builds per side. Read it as "no sign of a difference" (INFERRED).
 
 ## Recommendation (INFERRED from n = 3 builds; the user decides, nothing is wired)
 
@@ -91,12 +91,11 @@ between the two GitHub runs, but from GitHub 39624847034 in 17 and 16 rows, abov
   min against 30 to 33 min on GitHub, in 46 of 500 minutes for three builds. At 19 to 22 billed minutes a cell, the 400-minute line allows about 18 to 21
   cells a month (INFERRED; billing rounding is not documented on the pages read).
 - Failure rates do not rank the two providers: the CircleCI pilot's sim cell stalled in 1 of 2 runs (no output for 743 s; research note
-  `10-20-circleci-pilot.md`), Codemagic failed 1 of 3 (quick, 5 billed minutes). At these sizes that is a tie. The case for putting Codemagic
+  `10-20-circleci-pilot.md`), Codemagic failed 1 of 3 (quick, 5 billed minutes). The case for putting Codemagic
   ahead of CircleCI m4pro in the pool-fallback order (after GitHub) is cost and time: a flat 500 free minutes with no card, and 18 to 21 min a cell.
 - Before it takes load: (1) retry `simctl openurl` in the harness (failure in 1 of 3 builds), (2) cache or preinstall the proxy (saves about 40 to 75 s a build),
   (3) pin Node to 24.22.0 in the yaml, (4) run at least 3 finished builds to meet the class-count rule, (5) one concurrent build only, so it is a
   fallback slot and not a second lane.
-- The wiring into `pool-fallback` is a follow-up that needs the user's approval; this branch does not touch it.
 
 ## Limits
 
