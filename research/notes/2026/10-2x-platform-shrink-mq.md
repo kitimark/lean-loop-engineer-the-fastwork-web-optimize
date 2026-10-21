@@ -52,7 +52,19 @@ animation-frame callbacks and style, so the write lands before the next paint; C
 and :32; the band at :303-315 pins them on the section and sets `border-radius: 0; transform: none` on the card. No other
 file of the part mentions it. `shrink.test.ts` pins these line numbers and the band block.
 
-## Work claim and its limit
-The saving is one custom-property write per moving frame in the band, which restyles the section subtree. Counts are in
-`results/platform-shrink-mq/report.json`. INFERRED: the frames fall on the way into the end-of-page window, not
-inside the felt part; the Simulator replay of the end of page is a follow-up.
+## Result: the premise does not hold on the rewrite page (negative finding)
+- The proposal expected one section restyle saved per frame while the card bottom is between 85 % and 35 % of the screen
+  height. The rewrite's last section is the platform card (App.tsx:68-83; platform.module.css:15, padding 0), so a plain
+  scroll never lifts its bottom above the viewport bottom. CONFIRMED by source. The shrink is 0 at every frame and the
+  original writes nothing either: Lean `unshrunk_run` (writes = 0 while bottom >= 0.85 vh).
+- Debug probe, not a result (local Playwright WebKit on the CI-built site of run 39680958629): card bottom at the end of
+  the page 807.8 px at 430x775, 838.5 px at 1280x800; under `platform:mq` the inline value was never set at 430.
+- MEASURED, CI webkit-sim, end-of-page window y 4500..5200 (15 steps, 2 passes), base run 39680958629 against
+  `?fw=platform:mq` run 39680964944: RecalculateStyles 94/70 against 85/83, Layout 100/56 against 87/76. The gap between
+  arms is smaller than the gap between two passes of the base (24, 44). No effect visible. Frame-time percentiles are
+  not available in this lane (no RenderingFrame events).
+- Gate: breakpoint-gate with `platform:mq`, engines both, run 39680952848 success. Lean CI run 39680908944 pass.
+- Lesson: a saving that rests on a runtime path needs the path shown on the page it will run on before the proof is
+  built; the cheapest check is the card's rect at the end of the scroll. Where a section sits last on the page, a
+  scroll-progress writer keyed to the viewport bottom is dead code there. Follow-ups: the Simulator replay of the end
+  of page (morph push), and re-check if a section is added below the card.

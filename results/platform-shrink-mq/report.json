@@ -1,0 +1,52 @@
+{
+  "schema": "experiment-report/draft-1",
+  "note": "Shape follows the review-reports task (docs/team/work-graph.json id review-reports); that task has not landed, so this file is the draft form: arms, per-lane metrics each tagged MEASURED+run or INFERRED, recommendation.",
+  "proposal": "platform-shrink-mq",
+  "title": "Phone: skip the invisible platform shrink write (platform:mq)",
+  "arms": [
+    { "id": "base", "search": "", "target": "rewrite", "sha": "20467a9", "runs": { "webkit-sim": "39680958629" } },
+    { "id": "flag", "search": "?fw=platform:mq", "target": "rewrite", "sha": "20467a9", "runs": { "webkit-sim": "39680964944", "breakpoint-gate": "39680952848" } }
+  ],
+  "window": "iOS Simulator 430x775 dpr 3, profile swipe-v1, 50 px steps, end of page: scroll y 4500 to 5200 (15 steps), 2 passes per run; sums of the per-step counts",
+  "lanes": {
+    "webkit-sim": {
+      "metrics": [
+        { "name": "RecalculateStyles, window, pass 1 / pass 2", "base": [94, 70], "flag": [85, 83], "unit": "count", "tag": "MEASURED", "runs": ["39680958629", "39680964944"] },
+        { "name": "Layout, window, pass 1 / pass 2", "base": [100, 56], "flag": [87, 76], "unit": "count", "tag": "MEASURED", "runs": ["39680958629", "39680964944"] },
+        { "name": "Paint, window, pass 1 / pass 2", "base": [220, 168], "flag": [203, 223], "unit": "count", "tag": "MEASURED", "runs": ["39680958629", "39680964944"] },
+        { "name": "ScheduleStyleRecalculation, window, pass 1 / pass 2", "base": [72, 67], "flag": [72, 76], "unit": "count", "tag": "MEASURED", "runs": ["39680958629", "39680964944"] },
+        { "name": "RecalculateStyles, whole scroll, pass 1 / pass 2", "base": [681, 648], "flag": [690, 687], "unit": "count", "tag": "MEASURED", "runs": ["39680958629", "39680964944"] },
+        { "name": "noise: base pass 1 against pass 2, same run (RecalculateStyles / Layout, window)", "value": [24, 44], "unit": "count", "tag": "MEASURED", "runs": ["39680958629"] },
+        { "name": "frame time p50 / p90 / p99", "value": null, "tag": "INFERRED", "reason": "the Simulator count lane records no RenderingFrame events (count 0 in every step) and its lag buckets have no time origin that aligns them to the window; a frame-time distribution needs the Simulator replay of the end of page (follow-up)" },
+        { "name": "layer count, render-work share", "value": null, "tag": "INFERRED", "reason": "not read for this window; census layer counts of this lane are quarantined (non-deterministic) in run 39680958629" }
+      ],
+      "reading": "The difference between arms (RecalculateStyles 82 mean against 84, Layout 78 against 81.5) is smaller than the spread between two passes of the same arm (24 and 44). No effect is visible."
+    },
+    "breakpoint-gate": {
+      "metrics": [{ "name": "gate with platform:mq, engines both", "value": "success", "tag": "MEASURED", "runs": ["39680952848"] }]
+    },
+    "lean-ci": {
+      "metrics": [{ "name": "lean lane on the pushed tip", "value": "pass", "tag": "MEASURED", "runs": ["39680908944"] }]
+    }
+  },
+  "finding": {
+    "premise": "the card's bottom edge crosses 85 % to 35 % of the screen height on the way into the end of the page, so the write happens each frame (the proposal card, INFERRED)",
+    "verdict": "refuted for a plain scroll of the rewrite page",
+    "why": "The rewrite's last section is the platform card (apps/site/src/App.tsx:68-83, platform.module.css:15 padding 0), so at the end of the page its bottom edge stays at or below the viewport bottom, under the 0.85 line. The shrink is 0 at every frame; the original writes nothing either. Lean: PlatformShrinkOpt.unshrunk_run.",
+    "evidence": "CONFIRMED by source (above). A local debug probe, not a result, WebKit via Playwright on the CI-built site-dist of run 39680958629, plain scroll: 430x775 card bottom at the end 807.8 px, inline --platform-shrink never set under platform:mq; 1280x800 bottom 838.5 px, value only ever 0.",
+    "tag": "CONFIRMED + INFERRED (probe is a debug observation)"
+  },
+  "proof": {
+    "lean": "lean/Fw/Parts/PlatformShrinkOpt.lean",
+    "theorems": ["look_gated", "look_const_iff", "inl_ungated", "cls_agree", "look_agree", "platformShrink_visSame", "writes_le", "gated_run", "gated_run_lt", "unshrunk_run", "stepV_writes"],
+    "golden": "packages/contracts/golden/parts/platform-shrink.jsonl",
+    "sameLook": "E exact, also across a band change (the media-change handler runs the frame)"
+  },
+  "recommendation": "hold",
+  "recommendationWhy": "The flag is proved to look identical and never writes more, but on the rewrite page the original does not write either during a plain scroll, so there is nothing to save in the end-of-page window; the sim lane shows no difference above its noise. Keep the flag registered (it is cheap and exact) but do not add it to the preset. A save would only exist if the page gets a section below the card or the morph moves the card up; measure that case in the Simulator replay of the end of page (follow-up).",
+  "limits": [
+    "phone band only",
+    "end-of-page window of a plain scroll; the morph push and the Simulator replay of the end of page are follow-ups",
+    "frame-time percentiles are not available in this lane"
+  ]
+}

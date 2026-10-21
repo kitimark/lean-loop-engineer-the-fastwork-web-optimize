@@ -217,6 +217,21 @@ theorem gated_run_lt (ev : Nat → Ev) (k : Nat) (h : ∀ j, j < k → (ev j).ga
     (stV ev k).writes < (stO ev k).writes := by
   rw [(gated_run ev k h).1]; exact hw
 
+/-- **No shrink, no write.** While the card's bottom edge is at or below `0.85` of the viewport height at every event,
+the computed value is 0, so the original writes nothing either and the variant saves nothing.
+
+The rewrite's last section ends the page, so a plain scroll never lifts the bottom above that line. -/
+theorem unshrunk_run (ev : Nat → Ev) (k : Nat)
+    (h : ∀ j, j < k → 0 < (ev j).vh ∧ 17 * (ev j).vh / 20 ≤ (ev j).bottom) :
+    (stO ev k).writes = 0 ∧ (stO ev k).inl = 0 := by
+  induction k with
+  | zero => simp [stO, St.init]
+  | succ k ih =>
+    have ih' := ih (fun j hj => h j (Nat.lt_succ_of_lt hj))
+    obtain ⟨hv, hb⟩ := h k (Nat.lt_succ_self k)
+    have hs : (ev k).val = 0 := (PlatformSection.shrink_ends (ev k).rm (ev k).bottom (ev k).vh hv).1 hb
+    simp [stO, stepO, hs, ih']
+
 /-! ## Decision and goldens -/
 
 /-- **The write decision** the TS driver mirrors: whether to write, given the gate, the computed value and the last
