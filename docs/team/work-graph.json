@@ -12556,7 +12556,8 @@
     "apps/console-web/src/Reviews.tsx",
     "apps/console-web/test/review.test.tsx",
     "docs/team/handoffs/review-strips-console.md"
-   ]
+   ],
+   "evidence": "65f6982"
   },
   {
    "devices": [
