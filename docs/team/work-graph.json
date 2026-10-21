@@ -14595,7 +14595,7 @@
    "owner": "part-builder",
    "stream": "parts",
    "deps": [],
-   "title": "End-of-page smoothness (gpu-same-look inventory rank 3, user goal 2026-10-22: hero-exit and end-of-page smoother on WebKit): on the phone band the CSS pins --platform-shrink, so the per-frame JS write changes nothing visible; skip it there under a flag, same pattern as the proved people.card:mq. Lean: the write is invisible on the phone band (theorem over the band's CSS rule, goldens); flag registered; MEASURED on CI webkit-sim (end-of-page window: Recalculate styles, Layout, frame interval p50/p95, base vs flag) with run ids. Inputs: the lead-scratch gpu-same-look notes (path given in the build prompt): inventory.md (E4) and plan in the gpu-same-look result.",
+   "title": "End-of-page smoothness (gpu-same-look inventory rank 3, user goal 2026-10-22: hero-exit and end-of-page smoother on WebKit): on the phone band the CSS pins --platform-shrink, so the per-frame JS write changes nothing visible; skip it there under a flag, same pattern as the proved people.card:mq. Lean: the write is invisible on the phone band (theorem over the band's CSS rule, goldens); flag registered; MEASURED on CI webkit-sim (end-of-page window: Recalculate styles, Layout, frame interval p50/p95, base vs flag) with run ids. Inputs: the lead-scratch gpu-same-look notes (path given in the build prompt): inventory.md (E4) and plan in the gpu-same-look result. User 2026-10-22 approved this proposal to run (GPU Part Proposals page); finish with a report for the Reviews tab (results/<task>/report.json; posted via review-reports once landed).",
    "writes": [
     "apps/site/src/parts/platform/**",
     "apps/site/src/flags/**",
@@ -14615,7 +14615,7 @@
    "owner": "lean-prover",
    "stream": "gate",
    "deps": [],
-   "title": "Same-look pixel check core (user 2026-10-22: 'the gpu same-look could be provable by lean as well'; gpu-same-look plan (b)): Lean Fw.Gate.PathPix decides one cell (lane x env x pinned sample x declared moved box): two captures per arm identical else invalid; outside the masks byte-equal; inside a mask changed pixels and maxDelta at most the path-only control arm P (Q), byte-equal everywhere (E), else L (frame strips for the user). The Accelerated predicate (every keyframed property in CSSProperties.json's 7 always-accelerated, WebKit@862f17d) gates every GPU-port candidate. Theorems, sample matrix, goldens. Pixel noise is a measured hypothesis with run id, not proved. Inputs: the lead-scratch gpu-same-look notes (path given in the build prompt): measure.md and the pixel-proof research note when it lands.",
+   "title": "Same-look pixel check core (user 2026-10-22: 'the gpu same-look could be provable by lean as well'; gpu-same-look plan (b)): Lean Fw.Gate.PathPix decides one cell (lane x env x pinned sample x declared moved box): two captures per arm identical else invalid; outside the masks byte-equal; inside a mask changed pixels and maxDelta at most the path-only control arm P (Q), byte-equal everywhere (E), else L (frame strips for the user). The Accelerated predicate (every keyframed property in CSSProperties.json's 7 always-accelerated, WebKit@862f17d) gates every GPU-port candidate. Theorems, sample matrix, goldens. Pixel noise is a measured hypothesis with run id, not proved. Inputs: the lead-scratch gpu-same-look notes (path given in the build prompt): measure.md and the pixel-proof research note when it lands. AMEND (layer composer, user-approved 2026-10-22): grade E1 (within 1 level) only with a proved bound plus the measured cell (Near1, shown_near1 beside shown_eq, double_round_le1); a measured-only within-1 cell is Q; S1/T1 snap premises; per-arm premise list.",
    "writes": [
     "lean/Fw/Gate/PathPix*.lean",
     "lean/Fw.lean",
@@ -14631,9 +14631,11 @@
    "owner": "measure-engineer",
    "stream": "measure",
    "deps": [
-    "path-pix-core"
+    "path-pix-core",
+    "site-layer-opts",
+    "layer-census-check"
    ],
-   "title": "PathPix lanes: iOS Simulator verdict lane (pause + currentTime via the Inspector, simctl io screenshot PNG; under the sim slot locally, macos-26 on CI) and Linux Chromium begin-frame screenshot lane (secondary; software compositing, state it). First run is calibration on the original only (A/A plus the path-only arm P). One cell per decision, TS checked against path-pix goldens. Inputs: the lead-scratch gpu-same-look notes (path given in the build prompt): measure.md.",
+   "title": "PathPix lanes: iOS Simulator verdict lane (pause + currentTime via the Inspector, simctl io screenshot PNG; under the sim slot locally, macos-26 on CI) and Linux Chromium begin-frame screenshot lane (secondary; software compositing, state it). First run is calibration on the original only (A/A plus the path-only arm P). One cell per decision, TS checked against path-pix goldens. Inputs: the lead-scratch gpu-same-look notes (path given in the build prompt): measure.md. AMEND (layer composer): cells pinned by Lean-chosen scroll offsets (Q6), composite-both control via fwl, strips original | A | B | amplified diff, Chromium touch-replay filmstrip (motion only, no verdict). Text layers under fractional translate stay L until the user sees strips (Q4); CA blur measured only (Q5).",
    "writes": [
     "packages/measure-webkit/src/pathpix*.mjs",
     "packages/measure-chromium/src/pathpix*.mjs",
@@ -14653,7 +14655,7 @@
    "deps": [
     "path-pix-core"
    ],
-   "title": "End-of-page (gpu-same-look rank 2): platform fade as one time-based Core Animation effect per push (opacity/filter only, Accelerated predicate), fade(ease) as a piecewise cubic-bezier, retarget = new effect from the current value; class E-s under float and phase premises, decided on pixels by PathPix. Measure end-of-page Recalculate styles, Layout, frame interval on CI webkit-sim vs base. Limit: full-section blur layer is tiled (>1280 px).",
+   "title": "End-of-page (gpu-same-look rank 2): platform fade as one time-based Core Animation effect per push (opacity/filter only, Accelerated predicate), fade(ease) as a piecewise cubic-bezier, retarget = new effect from the current value; class E-s under float and phase premises, decided on pixels by PathPix. Measure end-of-page Recalculate styles, Layout, frame interval on CI webkit-sim vs base. Limit: full-section blur layer is tiled (>1280 px). User 2026-10-22 approved this proposal to run (GPU Part Proposals page); finish with a report for the Reviews tab (results/<task>/report.json; posted via review-reports once landed).",
    "writes": [
     "lean/Fw/Parts/PlatformFade*.lean",
     "apps/site/src/parts/platform/**",
@@ -14689,7 +14691,7 @@
    "owner": "measure-engineer",
    "stream": "measure",
    "deps": [],
-   "title": "User review comment on nav:earn-no-transition (keep the animation, try GPU) -> earn-gpu research: before any same-look variant (candidate B: @property --earn-s + translates), measure a probe-only 'bound' arm (earn transitions always off) vs base with aa as noise floor, holdMs 1400, 3 complete jobs per WebKit leg (macOS + iOS Simulator), Lean across verdict. Build B only if bound beats A/A. Note at research/notes/2026/10-2x-earn-gpu.md from the lead-scratch earn-gpu note (path in the build prompt) with the checker's corrections applied.",
+   "title": "User review comment on nav:earn-no-transition (keep the animation, try GPU) -> earn-gpu research: before any same-look variant (candidate B: @property --earn-s + translates), measure a probe-only 'bound' arm (earn transitions always off) vs base with aa as noise floor, holdMs 1400, 3 complete jobs per WebKit leg (macOS + iOS Simulator), Lean across verdict. Build B only if bound beats A/A. Note at research/notes/2026/10-2x-earn-gpu.md from the lead-scratch earn-gpu note (path in the build prompt) with the checker's corrections applied. User 2026-10-22 approved this proposal to run (GPU Part Proposals page); finish with a report for the Reviews tab (results/<task>/report.json; posted via review-reports once landed).",
    "writes": [
     "packages/gate-breakpoints/src/smooth/**",
     ".github/workflows/smoothness*.yml",
@@ -14948,6 +14950,244 @@
     "apps/runner/test/reap*.test.ts",
     "docs/team/tools/reap.md",
     "docs/team/handoffs/lsp-reap.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "layer-decl",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [],
+   "title": "User 2026-10-22 approved the Layer Composer design (review page answers: design Approve; Q4 text layers are a look change until the user sees their strips; Q5 Core Animation blur measured only, shown as Q; snap off by default, on per layer after the user approves its strip; headline = B vs the page as it runs today, frame time p50/p90/p99 ms with fps at the same quantiles, compositor frames on Chromium only; a cell measured within 1 level with no proved bound is Q). Original ask: 'i could pick which layers/component by myself ... some change may effective multiple layer, part or components'. Design text: lead scratch layer-composer/design-checked.md (path in the build prompt). Task 1: part.json gains `layers` (array, id `part_box` using BuildsOpen.okChar only, plain label, text flag) and per-variant `files`, plus `data-fw-layer` on those boxes, for hero, hero.cue, hero.orbit, hero.deck, hero.countdown, nav, morph.panel (not hero.exit: hero-exit-threaded-port owns it; not platform: platform tasks own it). Registry types. No behaviour change; gate both engines.",
+   "writes": [
+    "apps/site/src/registry/types.ts",
+    "apps/site/src/parts/hero/**",
+    "apps/site/src/parts/hero.cue/**",
+    "apps/site/src/parts/hero.orbit/**",
+    "apps/site/src/parts/hero.deck/**",
+    "apps/site/src/parts/hero.countdown/**",
+    "apps/site/src/parts/nav/**",
+    "apps/site/src/parts/morph.panel/**",
+    "docs/team/handoffs/layer-decl.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "compose-layers-lean",
+   "owner": "lean-prover",
+   "stream": "console",
+   "deps": [
+    "layer-decl"
+   ],
+   "title": "User 2026-10-22 approved the Layer Composer design (review page answers: design Approve; Q4 text layers are a look change until the user sees their strips; Q5 Core Animation blur measured only, shown as Q; snap off by default, on per layer after the user approves its strip; headline = B vs the page as it runs today, frame time p50/p90/p99 ms with fps at the same quantiles, compositor frames on Chromium only; a cell measured within 1 level with no proved bound is Q). Original ask: 'i could pick which layers/component by myself ... some change may effective multiple layer, part or components'. Design text: lead scratch layer-composer/design-checked.md (path in the build prompt). Task 2: Lean Fw.Console.Layers (design §3): clash over the whole expanded page (write/write incl. composite as will-change, write-or-clear vs read, I1/I2/I4) coupled only with a Change's combined theorem, else refused; expansion never overrides (refuse + fix closed under requires); look grade E < E1 < Q < L with hypotheses, only E composes (lego_swap_visible_set); premises per arm (P1-P4, S1, C1, C2, C5, C6, T1); canonical search with `fwl` (BuildsOpen.validate learns fwl; link_resolves holds); closed refusal list with goldens; footprints extracted per variant (part-footprint.mjs variant field, clears derived), never declared by hand. FootprintData.lean regenerated at land, never edited by hand.",
+   "writes": [
+    "lean/Fw/Console/Layers*.lean",
+    "lean/Fw/Console/Compose.lean",
+    "lean/Fw/Console/BuildsOpen.lean",
+    "lean/Fw/Parts/Footprint.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Engine/Compose.lean",
+    "apps/site/scripts/part-footprint.mjs",
+    "lean/Fw/Wire/**",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/console/console.compose.jsonl",
+    "packages/contracts/golden/console/layers*.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "docs/team/handoffs/compose-layers-lean.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "changes-registry",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [
+    "layer-decl",
+    "compose-layers-lean",
+    "hero-exit-threaded-port"
+   ],
+   "title": "User 2026-10-22 approved the Layer Composer design (review page answers: design Approve; Q4 text layers are a look change until the user sees their strips; Q5 Core Animation blur measured only, shown as Q; snap off by default, on per layer after the user approves its strip; headline = B vs the page as it runs today, frame time p50/p90/p99 ms with fps at the same quantiles, compositor frames on Chromium only; a cell measured within 1 level with no proved bound is Q). Original ask: 'i could pick which layers/component by myself ... some change may effective multiple layer, part or components'. Design text: lead scratch layer-composer/design-checked.md (path in the build prompt). Task 3: apps/site/src/registry/changes/<id>.json (id, label, picks, lean only); ledger rows gain optional `changes`; declare the hero.exit:threaded vs hero.countdown:hidden-pause conflict in hero.countdown/part.json; built variants only.",
+   "writes": [
+    "apps/site/src/registry/changes/**",
+    "apps/site/src/parts/hero.countdown/part.json",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/changes-registry.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "hero-exit-layer-ids",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [
+    "hero-exit-threaded-port",
+    "layer-decl"
+   ],
+   "title": "User 2026-10-22 approved the Layer Composer design (review page answers: design Approve; Q4 text layers are a look change until the user sees their strips; Q5 Core Animation blur measured only, shown as Q; snap off by default, on per layer after the user approves its strip; headline = B vs the page as it runs today, frame time p50/p90/p99 ms with fps at the same quantiles, compositor frames on Chromium only; a cell measured within 1 level with no proved bound is Q). Original ask: 'i could pick which layers/component by myself ... some change may effective multiple layer, part or components'. Design text: lead scratch layer-composer/design-checked.md (path in the build prompt). Task 4: hero.exit threaded CSS selects other parts' boxes by [data-fw-layer=…] instead of [data-orbit-id] and > article; hero.exit layers/files in part.json. No behaviour change, same goldens, gate both engines.",
+   "writes": [
+    "apps/site/src/parts/hero.exit/**",
+    "docs/team/handoffs/hero-exit-layer-ids.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "site-layer-opts",
+   "owner": "part-builder",
+   "stream": "site",
+   "deps": [
+    "compose-layers-lean"
+   ],
+   "title": "User 2026-10-22 approved the Layer Composer design (review page answers: design Approve; Q4 text layers are a look change until the user sees their strips; Q5 Core Animation blur measured only, shown as Q; snap off by default, on per layer after the user approves its strip; headline = B vs the page as it runs today, frame time p50/p90/p99 ms with fps at the same quantiles, compositor frames on Chromium only; a cell measured within 1 level with no proved bound is Q). Original ask: 'i could pick which layers/component by myself ... some change may effective multiple layer, part or components'. Design text: lead scratch layer-composer/design-checked.md (path in the build prompt). Task 5: the site reads `fwl` (resolve.ts) and applies the Lean-generated per-layer will-change style (unlayered) and snap-table selection; no decision logic in TS; the original snapshot never takes options.",
+   "writes": [
+    "apps/site/src/registry/resolve.ts",
+    "apps/site/src/registry/layer-opts*.ts",
+    "apps/site/src/registry/*.test.ts",
+    "packages/contracts/golden/console/layer-opts*.jsonl",
+    "docs/team/handoffs/site-layer-opts.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "lego-composer-v2",
+   "owner": "console-builder",
+   "stream": "console",
+   "deps": [
+    "compose-layers-lean",
+    "changes-registry",
+    "site-layer-opts"
+   ],
+   "title": "User 2026-10-22 approved the Layer Composer design (review page answers: design Approve; Q4 text layers are a look change until the user sees their strips; Q5 Core Animation blur measured only, shown as Q; snap off by default, on per layer after the user approves its strip; headline = B vs the page as it runs today, frame time p50/p90/p99 ms with fps at the same quantiles, compositor frames on Chromium only; a cell measured within 1 level with no proved bound is Q). Original ask: 'i could pick which layers/component by myself ... some change may effective multiple layer, part or components'. Design text: lead scratch layer-composer/design-checked.md (path in the build prompt). Task 6: Compose tab v2: Parts | Changes, arms A/B, layer chips and sheet, Change cards, collision dialog (no preselected fix), arm sheet with links, Compare A|B mode, Measure A vs B posts a request record; phone 390 px and desktop.",
+   "writes": [
+    "apps/console-web/src/Compose*.tsx",
+    "apps/console-web/src/compose*.ts",
+    "apps/console-web/test/compose*.test.tsx",
+    "apps/console-api/src/preview/compose.ts",
+    "apps/console-api/src/preview/serve-child.ts",
+    "apps/console-api/test/compose*.test.ts",
+    "docs/team/tools/compose.md",
+    "docs/team/handoffs/lego-composer-v2.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "layer-census-check",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "layer-decl",
+    "compose-layers-lean"
+   ],
+   "title": "User 2026-10-22 approved the Layer Composer design (review page answers: design Approve; Q4 text layers are a look change until the user sees their strips; Q5 Core Animation blur measured only, shown as Q; snap off by default, on per layer after the user approves its strip; headline = B vs the page as it runs today, frame time p50/p90/p99 ms with fps at the same quantiles, compositor frames on Chromium only; a cell measured within 1 level with no proved bound is Q). Original ask: 'i could pick which layers/component by myself ... some change may effective multiple layer, part or components'. Design text: lead scratch layer-composer/design-checked.md (path in the build prompt). Task 7: layer census by data-fw / data-fw-layer at pinned samples (WebKit layersForNode with reasons and bytes; Chromium layer list), undeclared multiset equal across arms, S1 device-pixel grid check, Lean check; refuses the run naming the box. One short Simulator debug run under the sim slot.",
+   "writes": [
+    "packages/measure-webkit/src/census*.mjs",
+    "packages/measure-chromium/src/census*.mjs",
+    "packages/measure-webkit/test/census*.test.mjs",
+    "lean/Fw/Measure/Census*.lean",
+    "packages/contracts/golden/measure/census*.jsonl",
+    "docs/team/handoffs/layer-census-check.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "measure-arms-ab",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "compose-layers-lean",
+    "layer-census-check",
+    "earn-bound-arm"
+   ],
+   "title": "User 2026-10-22 approved the Layer Composer design (review page answers: design Approve; Q4 text layers are a look change until the user sees their strips; Q5 Core Animation blur measured only, shown as Q; snap off by default, on per layer after the user approves its strip; headline = B vs the page as it runs today, frame time p50/p90/p99 ms with fps at the same quantiles, compositor frames on Chromium only; a cell measured within 1 level with no proved bound is Q). Original ask: 'i could pick which layers/component by myself ... some change may effective multiple layer, part or components'. Design text: lead scratch layer-composer/design-checked.md (path in the build prompt). Task 8: smoothness gets armA/armB from stored arm records (plus orig, base, aa); p90 and p99 on every lane; fps at quantile in Lean (fps_at_quantile_antitone); Chromium presented-frame p50/p90/p99; Fw.Gate.Search and gate-search.mjs for arm searches; F6 keyed by unit id from the arm record; report JSON for review-reports.",
+   "writes": [
+    "packages/gate-breakpoints/src/smooth/**",
+    ".github/workflows/smoothness*.yml",
+    "lean/Fw/Gate/Smooth.lean",
+    "lean/Fw/Gate/Search.lean",
+    ".github/scripts/gate-search.mjs",
+    "lean/Fw/Measure/Compose.lean",
+    "packages/contracts/golden/gate/**",
+    "docs/team/handoffs/measure-arms-ab.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "snap-hero-proposal",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "deps": [
+    "path-pix-core",
+    "site-layer-opts",
+    "path-pix-lanes",
+    "hero-exit-layer-ids"
+   ],
+   "title": "User 2026-10-22 approved the Layer Composer design (review page answers: design Approve; Q4 text layers are a look change until the user sees their strips; Q5 Core Animation blur measured only, shown as Q; snap off by default, on per layer after the user approves its strip; headline = B vs the page as it runs today, frame time p50/p90/p99 ms with fps at the same quantiles, compositor frames on Chromium only; a cell measured within 1 level with no proved bound is Q). Original ask: 'i could pick which layers/component by myself ... some change may effective multiple layer, part or components'. Design text: lead scratch layer-composer/design-checked.md (path in the build prompt). Task 11: Lean snap tables (staircase linear() per DPR and viewport) for the hero.exit:threaded layers and the snapped-control variant; strips per layer for the user's approval (snap stays off until approved); layers failing S1 stay off.",
+   "writes": [
+    "lean/Fw/Parts/HeroExitSnap*.lean",
+    "lean/Fw.lean",
+    "apps/site/src/parts/hero.exit/snap*.css",
+    "packages/contracts/golden/parts/hero-exit-snap*.jsonl",
+    "docs/team/handoffs/snap-hero-proposal.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ca-blur-fit",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "deps": [
+    "path-pix-lanes"
+   ],
+   "title": "User 2026-10-22 (Layer Composer Q5 note): 'Actually, after we experiment we can do reverse engineer and do lean prove, find math equation that fit to the result'. Core Animation's blur kernel is closed source, so today WebKit compositor blur is measured only (Q). Reverse-engineer it from measurements: on the iOS Simulator verdict lane (sim slot) render known patterns (impulse line, step edge, checker) under CSS filter: blur(r) on the compositor path for r over the page's real radii and DPR 2/3, capture lossless PNG, extract the line/edge spread function per r; fit candidate kernels (Gaussian with sigma = a*r + b, iterated box n=2..4, downsample-blur-upsample) by least squares with held-out radii; choose by residual. Lean: the chosen kernel as a Rat table generated per r (no Mathlib), theorem bounding |conv model - conv mainThreadBox3| <= 1/2 ||k1-k2||_1 (pixel-proof L7) plus the measured fit residual as a named premise with run id, giving a per-layer blur bound in color levels. Report via review-reports with the fit plots' data; classification stays Q unless the user decides otherwise (their rule: measured-only within-1 is Q).",
+   "writes": [
+    "lean/Fw/Gate/BlurFit*.lean",
+    "lean/Fw.lean",
+    "packages/measure-webkit/src/blur-fit*.mjs",
+    "packages/measure-webkit/test/blur-fit*.test.mjs",
+    "packages/contracts/golden/gate/blur-fit*.jsonl",
+    "research/notes/2026/10-2x-ca-blur-fit.md",
+    "results/ca-blur-fit/**",
+    "docs/team/handoffs/ca-blur-fit.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "accent-draw-one",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [],
+   "title": "User 2026-10-22 approved the 'go' and 'measure first' GPU proposals (GPU Part Proposals page): accent draw-one. During the hero accent draw, only the visible copy (frame0) runs the stroke-dashoffset draw; the two copies that are opacity 0 for the whole draw window (accent.module.css:76-83) get no animation while transparent. Lean first: theorem in Fw.Parts.HeroAccentOpt from HiddenPause.hidden_pause_eq (HiddenPause.lean:81), premise the copies are opacity 0 across the draw window, goldens; class E. Register flag hero.accent:draw-one; one WebKit count run on CI (webkit-sim: SVG path layouts per draw frame, Layout, frame interval p50/p90/p99 vs base) with run ids; post the report to the Reviews tab (review-reports) when it has landed, else write results/accent-draw-one/report.json for the lead to post.",
+   "writes": [
+    "apps/site/src/parts/hero.accent/**",
+    "apps/site/src/flags/**",
+    "lean/Fw/Parts/HeroAccentOpt.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/parts/hero.accent*.jsonl",
+    "research/notes/2026/10-2x-accent-draw-one.md",
+    "results/accent-draw-one/**",
+    "docs/team/handoffs/accent-draw-one.md"
    ]
   }
  ],
