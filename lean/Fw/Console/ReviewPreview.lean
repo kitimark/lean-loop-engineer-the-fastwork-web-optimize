@@ -180,7 +180,15 @@ def askText : Device → String
 def asks (evs : List Seen) (f : Flag) : List String := (missing evs f).map askText
 
 /-- The key of the event a Preview click records (a repeated click on the same device is a no-op duplicate). -/
-def eventKey (f : Flag) (d : Device) : String := "review-previewed-" ++ f.key ++ "-" ++ d.word
+def eventKey (f : Flag) (d : Device) (round : String := "") : String := "review-previewed-" ++ f.key ++ "-" ++ d.word ++ round
+
+/-- The key part of a review round: none for the first step of the flag (so a key recorded before rounds existed is the first
+round's), `#k` for a later one. A later round must differ, or its first click would be dropped as the duplicate of the old one. -/
+def roundTag (f : Flag) (step : String) : String := (step.drop (stepId f).length).toString
+
+/-- The step of the open review of a flag: its current round. -/
+def roundStep (ds : List Row) (rs : List Rec) (f : Flag) : String :=
+  (((openItems ds rs).find? (·.flag == f)).map (·.step)).getD (stepId f)
 
 /-- **A recorded preview is seen.** -/
 theorem seenOn_record (evs : List Seen) (f : Flag) (d : Device) : seenOn (evs ++ [(f.key, d.word)]) f d = true := by
@@ -206,7 +214,7 @@ theorem seenOn_mono (evs ts : List Seen) (f : Flag) (d : Device) (h : seenOn evs
 
 /-- The event of a click, or why none is made: the review must be open, and the device is the width's class. -/
 def record (ds : List Row) (rs : List Rec) (f : Flag) (width : Nat) : Except String (String × Device) :=
-  if (openFlags ds rs).contains f then .ok (eventKey f (deviceOf width), deviceOf width)
+  if (openFlags ds rs).contains f then .ok (eventKey f (deviceOf width) (roundTag f (roundStep ds rs f)), deviceOf width)
   else .error "no open look-change review for this flag"
 
 /-- A recorded click is for an open review and carries the width's device. -/
@@ -221,6 +229,34 @@ theorem record_ok_open (ds rs f width k d) (h : record ds rs f width = .ok (k, d
 theorem record_error_closed (ds rs f width) (h : f ∉ openFlags ds rs) :
     record ds rs f width = .error "no open look-change review for this flag" := by
   simp [record, h]
+
+/-! ## Which flags a search names -/
+
+/-- The flag names a search carries: its `fw` entries, split at `,`, each a whole name. -/
+def searchFlags (search : String) : List String :=
+  BuildsOpen.fwEntries (BuildsOpen.params (BuildsOpen.body search))
+
+/-- Whether a search names a flag: one of its entries is the flag's whole key. A flag whose key is the start of another
+(`nav:earn` and `nav:earn-no-transition`) is not named by the other. -/
+def searchHasFlag (search : String) (f : Flag) : Bool := (searchFlags search).contains f.key
+
+/-- **Exact match.** A search names a flag exactly when an entry of it equals the flag's key; no part of an entry counts. -/
+theorem searchHasFlag_iff (search : String) (f : Flag) :
+    searchHasFlag search f = true ↔ f.key ∈ searchFlags search := by
+  simp [searchHasFlag]
+
+/-- A key that is no entry of the search is not named, whatever the entries contain. -/
+theorem searchHasFlag_false (search : String) (f : Flag) (h : f.key ∉ searchFlags search) :
+    searchHasFlag search f = false := by
+  simpa [searchHasFlag] using h
+
+/-- Whether a plan's search is the right one for its view: the flag and compare views name the flag, the faithful view does not. -/
+def carries (f : Flag) (view : View) (search : String) : Bool :=
+  match view with
+  | .faithful => !searchHasFlag search f
+  | _ => searchHasFlag search f
+
+-- The faithful view's empty search names no flag: a #guard below, not a theorem (`String.splitOn` does not reduce in the kernel).
 
 private def ex : Row :=
   { flag := ⟨"nav", "earn-no-transition"⟩, date := "d", decision := .kept, review := .pending }
@@ -241,11 +277,24 @@ private def stOpen : List Rec := [⟨"review-nav:earn-no-transition", none, true
 #guard missing [("nav:e", "desktop"), ("nav:e", "phone")] ⟨"nav", "e"⟩ == []
 #guard missing [("nav:x", "phone")] ⟨"nav", "e"⟩ == [.desktop, .phone]
 #guard eventKey ⟨"nav", "e"⟩ .phone == "review-previewed-nav:e-phone"
+#guard roundTag ⟨"nav", "e"⟩ "review-nav:e" == "" && roundTag ⟨"nav", "e"⟩ "review-nav:e#1" == "#1"
+#guard (record [ex] stOpen ⟨"nav", "earn-no-transition"⟩ 390) matches .ok ("review-previewed-nav:earn-no-transition-phone", .phone)
+#guard (record [ex] [⟨"review-nav:earn-no-transition", none, false⟩, ⟨"review-nav:earn-no-transition#1", none, true⟩] ⟨"nav", "earn-no-transition"⟩ 390)
+  matches .ok ("review-previewed-nav:earn-no-transition-phone#1", .phone)
 -- The flag view of every recorded look decision carries exactly its flag as the one `fw` entry (a decided check over the finite set).
 -- A theorem over any key is not stated: it is false for a key with `,`, `&` or `=`, and its proof needs `String.splitOn` lemmas that
 -- Lean core lacks (`splitOn` is a well-founded scan the kernel does not reduce, so `decide +kernel` fails too). Accepted limit.
 #guard Fw.Preset.Gen.lookDecisions.all fun d =>
   BuildsOpen.fwEntries (BuildsOpen.params (BuildsOpen.body (searchOf d.flag .flag))) == [d.flag.key]
 #guard BuildsOpen.params (BuildsOpen.body (searchOf ⟨"nav", "e"⟩ .faithful)) == []
+#guard searchHasFlag "?fw=nav:earn-no-transition" ⟨"nav", "earn-no-transition"⟩
+#guard !searchHasFlag "?fw=nav:earn-no-transition" ⟨"nav", "earn"⟩
+#guard !searchHasFlag "?fw=nav:earn" ⟨"nav", "earn-no-transition"⟩
+#guard searchHasFlag "?fw=hero:a,nav:earn,nav:earn-no-transition" ⟨"nav", "earn"⟩
+#guard searchHasFlag "?fw=hero:a&fw=nav:earn" ⟨"nav", "earn"⟩
+#guard !searchHasFlag "?fw=nav:earn@x" ⟨"nav", "earn"⟩
+#guard !searchHasFlag "" ⟨"nav", "earn"⟩
+#guard carries ⟨"nav", "earn"⟩ .faithful ""
+#guard Fw.Preset.Gen.lookDecisions.all fun d => carries d.flag .flag (searchOf d.flag .flag) && carries d.flag .compare (searchOf d.flag .compare) && carries d.flag .faithful (searchOf d.flag .faithful)
 
 end Fw.Console.ReviewPreview

@@ -989,8 +989,8 @@ def reviewCases (_ : Unit := ()) : List (String × Json) :=
    ("without looks the rows are Fw.Preset.Gen.lookDecisions", Json.mkObj [("steps", lit "[]")])]
 
 /-- A `console.reviewPreview` request: the decision rows, the board steps, the accepted preview events and an optional click. -/
-def rpv (looks steps events : String) (ask : String := "null") : Json :=
-  Json.mkObj [("looks", lit looks), ("steps", lit steps), ("events", lit events), ("ask", lit ask)]
+def rpv (looks steps events : String) (ask : String := "null") (extra : List (String × Json) := []) : Json :=
+  Json.mkObj ([("looks", lit looks), ("steps", lit steps), ("events", lit events), ("ask", lit ask)] ++ extra)
 
 /-- The `console.reviewPreview` cases. -/
 def reviewPreviewCases (_ : Unit := ()) : List (String × Json) :=
@@ -1000,7 +1000,27 @@ def reviewPreviewCases (_ : Unit := ()) : List (String × Json) :=
   let done := s!"[{st "review-nav:earn-no-transition" "\"keep\"" "false"}]"
   let ev (d : String) := s!"\{\"flag\":\"nav:earn-no-transition\",\"device\":\"{d}\"}"
   let ask (v : String) (w : Nat) := s!"\{\"flag\":\"nav:earn-no-transition\",\"view\":\"{v}\",\"width\":{w}}"
+  let evAt (d : String) (n : Nat) := s!"[\{\"flag\":\"nav:earn-no-transition\",\"device\":\"{d}\",\"seq\":{n}}]"
+  let round2 := s!"[{st "review-nav:earn-no-transition" "null" "false"},{st "review-nav:earn-no-transition#1" "null" "true"}]"
+  let closed1 := s!"[{st "review-nav:earn-no-transition" "null" "false"}]"
+  let post (id : String) (n : Nat) := s!"\{\"step\":\"{id}\",\"seq\":{n}}"
+  let posts1 := [("posts", lit s!"[{post "review-nav:earn-no-transition" 5}]")]
+  let posts2 := [("posts", lit s!"[{post "review-nav:earn-no-transition" 5},{post "review-nav:earn-no-transition#1" 9}]")]
+  let names (search flag : String) := [("names", Json.mkObj [("search", .str search), ("flag", .str flag)])]
   [("nothing previewed: both devices are missing, with an ask line each", rpv pend open_ "[]"),
+   ("round 2 (step #1 posted at 9): a preview at 6 in round 1 is not inherited", rpv pend round2 (evAt "desktop" 6) "null" posts2),
+   ("round 2 click: the event key carries the round (#1), so it is no duplicate of round 1's", rpv pend round2 "[]" (ask "flag" 390) posts2),
+   ("round 2: a preview at 10 after the new step counts", rpv pend round2 (evAt "desktop" 10) "null" posts2),
+   ("round 1 only (step posted at 5): a preview at 6 counts", rpv pend open_ (evAt "desktop" 6) "null" posts1),
+   ("round 1: a preview at 5, the posting itself, counts for nothing", rpv pend open_ (evAt "desktop" 5) "null" posts1),
+   ("round 2 not posted yet: the start is the last posting of the family, so a later event counts until the step is posted (accepted limit)", rpv pend closed1 (evAt "phone" 6) "null" posts1),
+   ("posts given, an old event without seq (position 0) is before the round", rpv pend open_ s!"[{ev "desktop"}]" "null" posts1),
+   ("without posts every event counts, seq or not", rpv pend round2 (evAt "desktop" 6)),
+   ("the search names the flag by a whole entry", rpv pend open_ "[]" "null" (names "?fw=nav:earn-no-transition" "nav:earn-no-transition")),
+   ("nav:earn is not named by a search for nav:earn-no-transition", rpv pend open_ "[]" "null" (names "?fw=nav:earn-no-transition" "nav:earn")),
+   ("nav:earn-no-transition is not named by a search for nav:earn", rpv pend open_ "[]" "null" (names "?fw=nav:earn" "nav:earn-no-transition")),
+   ("a comma list names each of its whole entries", rpv pend open_ "[]" "null" (names "?fw=hero:a,nav:earn,nav:earn-no-transition" "nav:earn")),
+   ("no search names no flag", rpv pend open_ "[]" "null" (names "" "nav:earn")),
    ("previewed on the desktop only: the phone is missing", rpv pend open_ s!"[{ev "desktop"}]"),
    ("previewed on both: nothing missing, no ask line", rpv pend open_ s!"[{ev "phone"},{ev "desktop"}]"),
    ("an event of another flag counts for nothing", rpv pend open_ "[{\"flag\":\"nav:other\",\"device\":\"phone\"}]"),

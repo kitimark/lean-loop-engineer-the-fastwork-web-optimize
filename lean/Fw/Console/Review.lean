@@ -333,4 +333,88 @@ private def exDone : Row := { ex with review := .done }
 -- a flag whose key is a prefix of another is not confused with it
 #guard !inFamily ⟨"nav", "e"⟩ "review-nav:e-x"
 
+/-! ## Review rounds
+
+A review round is one review step of a flag (`stepId`, then `stepIdN`). What the user did in a round (opened a preview, decided)
+belongs to that round: a new round (a step posted again after the last was closed without a verdict) starts with none of it.
+A log event is placed in a round by its log position: it counts for a round when it comes after that round's step was posted.
+Old events carry no round and need no rewrite: the rule reads their position. A verdict is already per round, because a new
+step is posted only while no verdict is recorded (`needsPost_no_verdict`); a served strip records nothing. -/
+
+/-- The posting of a review step in the log: the step id and the log position (`seq`) of its `step.post`. -/
+structure Post where
+  step : String
+  seq : Nat
+deriving DecidableEq, Repr
+
+/-- The postings of the review steps of one flag. -/
+def familyPosts (posts : List Post) (f : Flag) : List Post := posts.filter fun p => inFamily f p.step
+
+/-- Where a round starts: the log position of its step's posting. A step not posted yet starts after the latest posting of the
+flag's family (a new round to come: the old round's events are before it). `none`: the flag has no posted step, nothing is
+older, every event counts. -/
+def roundStart (posts : List Post) (f : Flag) (step : String) : Option Nat :=
+  match posts.find? (·.step == step) with
+  | some p => some p.seq
+  | none => ((familyPosts posts f).map (·.seq)).max?
+
+/-- The events of a round: those after the round's start (each paired with its log position), without the position. -/
+def inRound {α : Type} (start : Option Nat) (evs : List (α × Nat)) : List α :=
+  match start with
+  | none => evs.map (·.1)
+  | some s => (evs.filter fun e => s < e.2).map (·.1)
+
+/-- **An event counts for a round exactly when it is after the round's start.** -/
+theorem mem_inRound {α : Type} (s : Nat) (evs : List (α × Nat)) (x : α) :
+    x ∈ inRound (some s) evs ↔ ∃ e ∈ evs, e.1 = x ∧ s < e.2 := by
+  simp only [inRound, List.mem_map, List.mem_filter, decide_eq_true_eq]
+  constructor
+  · rintro ⟨e, ⟨h1, h2⟩, h3⟩; exact ⟨e, h1, h3, h2⟩
+  · rintro ⟨e, h1, h3, h2⟩; exact ⟨e, ⟨h1, h2⟩, h3⟩
+
+/-- **A new round does not inherit.** Events at or before the round's start count for nothing. -/
+theorem inRound_old {α : Type} (s : Nat) (evs : List (α × Nat)) (h : ∀ e ∈ evs, e.2 ≤ s) :
+    inRound (some s) evs = [] := by
+  simp only [inRound, List.map_eq_nil_iff, List.filter_eq_nil_iff]
+  intro e he; simpa using h e he
+
+/-- With no earlier posting every event counts. -/
+theorem inRound_none {α : Type} (evs : List (α × Nat)) : inRound none evs = evs.map (·.1) := rfl
+
+/-- A later round has a subset of the events of an earlier one. -/
+theorem inRound_mono {α : Type} (s t : Nat) (h : s ≤ t) (evs : List (α × Nat)) (x : α)
+    (hx : x ∈ inRound (some t) evs) : x ∈ inRound (some s) evs := by
+  rw [mem_inRound] at *
+  obtain ⟨e, he, h1, h2⟩ := hx
+  exact ⟨e, he, h1, Nat.lt_of_le_of_lt h h2⟩
+
+/-- A posted step starts its round at its own posting. -/
+theorem roundStart_posted (posts : List Post) (f : Flag) (step : String) (p : Post)
+    (h : posts.find? (·.step == step) = some p) : roundStart posts f step = some p.seq := by
+  simp [roundStart, h]
+
+/-- **A step to be posted starts after every posting of its flag.** Whatever the family's earlier rounds did is before it. -/
+theorem roundStart_unposted (posts : List Post) (f : Flag) (step : String)
+    (h : posts.find? (·.step == step) = none) (q : Post) (hq : q ∈ familyPosts posts f) :
+    ∃ s, roundStart posts f step = some s ∧ q.seq ≤ s := by
+  have hm : q.seq ∈ (familyPosts posts f).map (·.seq) := List.mem_map_of_mem hq
+  simp only [roundStart, h]
+  cases hmx : ((familyPosts posts f).map (·.seq)).max? with
+  | none => simp [List.max?_eq_none_iff] at hmx; simp [hmx] at hm
+  | some m => exact ⟨m, rfl, (List.max?_le_iff hmx).1 (Nat.le_refl m) q.seq hm⟩
+
+/-- **A verdict is per round.** A new step is posted only while no verdict is recorded, so a new round starts undecided. -/
+theorem needsPost_no_verdict (rs : List Rec) (f : Flag) (h : needsPost rs f = true) : recorded rs f = none := by
+  simp only [needsPost, Bool.and_eq_true, Option.isNone_iff_eq_none] at h
+  exact h.1
+
+#guard roundStart [⟨"review-nav:e", 5⟩] ⟨"nav", "e"⟩ "review-nav:e" == some 5
+#guard roundStart [⟨"review-nav:e", 5⟩] ⟨"nav", "e"⟩ "review-nav:e#1" == some 5
+#guard roundStart [⟨"review-nav:e", 5⟩, ⟨"review-nav:e#1", 9⟩] ⟨"nav", "e"⟩ "review-nav:e#1" == some 9
+#guard roundStart [⟨"review-nav:x", 5⟩] ⟨"nav", "e"⟩ "review-nav:e" == none
+#guard roundStart [] ⟨"nav", "e"⟩ "review-nav:e" == none
+#guard inRound (some 5) [("a", 3), ("b", 5), ("c", 6)] == ["c"]
+#guard inRound (some 9) [("a", 3), ("b", 5), ("c", 6)] == ([] : List String)
+#guard inRound none [("a", 3)] == ["a"]
+
 end Fw.Console.Review
