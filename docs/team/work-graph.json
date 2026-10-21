@@ -12383,7 +12383,8 @@
     ".claude/workflows/build-review.js",
     "docs/team/tools/reap.md",
     "docs/team/handoffs/reap-auto-stop.md"
-   ]
+   ],
+   "evidence": "d97943a"
   },
   {
    "devices": [
