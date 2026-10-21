@@ -1,5 +1,6 @@
 # sup-route (lean-prover) handoff
-State: branch worktree-wf_52c2ab8a-83c-1, base main b7399029; commits "sup-route: ..." (see git log main..HEAD).
+State: branch worktree-wf_52c2ab8a-83c-1, main e49111ae merged; check.sh green, dry land `VERDICT dry sup-route`
+(needs `--allow lean/scripts/check.sh`: the one added golden job line is outside the graph writes).
 What exists
 - `lean/Fw/Sup/Route.lean` (namespace `Fw.Sup.Route`, imports only Lean.Data.Json, not Core):
   `Stage` (s0 1a 1b 2 3 4, `rank`), `Service` (20 client paths from design.md section 5, each with `Service.stage`),
