@@ -4356,6 +4356,12 @@ theorem aged_granted_by {c : Cfg} {s : State} {e : Event} {q : Req} {rest : List
   simp [hk]
   exact Or.inr rfl
 
+example : Cmd.reply 2 (.granted { id := 2, owner := 1, kind := .svc, rid := 1, cost := {}, granted := 1, deadline := 61 })
+      ∈ (step Ex.cfg (Ex.after (Ex.held ++ [.request 42 2 Ex.wants])).1 (.request 42 1 Ex.sim)).2 ∧
+    Cmd.reply 1 (.refused .deadline) ∈
+      (step Ex.cfg (Ex.after (Ex.held ++ [.request 42 2 Ex.wants, .request 42 1 Ex.sim])).1 (.tick 31 Ex.calm)).2 := by
+  decide
+
 /-- lease_span: a lease ends at most `hmax · (1 + renewCap)` after its grant. -/
 theorem lease_span {c : Cfg} {s : State} {l : Lease} (h : Inv c s) (hl : l ∈ s.leases) :
     l.deadline ≤ l.granted + span c := by

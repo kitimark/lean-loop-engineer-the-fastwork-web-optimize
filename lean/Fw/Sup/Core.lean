@@ -2,7 +2,7 @@ import Fw.Sched.Admit
 import Fw.Ops.Reap
 
 /-! fw-sup supervisor model: state, events, commands and the pure `step : Cfg → State → Event → State × List Cmd`.
-The shell executes the commands; budgets reuse `Fw.Sched.Admit.Vec`, process rows and the reap plan `Fw.Ops.Reap`. -/
+Stated limit: a nested join checks only that its parent job lease exists, and it outlives the parent's release. -/
 namespace Fw.Sup
 
 open Fw.Sched.Admit (Vec Res)
