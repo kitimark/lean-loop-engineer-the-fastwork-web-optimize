@@ -12578,6 +12578,28 @@
     ".github/workflows/land.yml",
     "docs/team/handoffs/console-web-ci.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "review-preview-devices",
+   "owner": "console-builder",
+   "stream": "console",
+   "deps": [
+    "review-strips-console"
+   ],
+   "title": "User 2026-10-21: a Preview button on each look-change review card: the live site at main with the flag, the faithful arm and a side-by-side view, owner-only, links built from the page host so they work on the phone over the LAN; a Lean-decided device class (phone or desktop by the reported viewport width) recorded per preview (review.previewed) and shown on the card until both devices are seen; e2e-preview phone-host target",
+   "writes": [
+    "lean/Fw/Console/Review.lean",
+    "lean/Fw/Console/ReviewPreview.lean",
+    "apps/console-api/src/review/routes.ts",
+    "apps/console-api/test/review-preview.test.ts",
+    "apps/console-web/src/Reviews.tsx",
+    "apps/console-web/test/review.test.tsx",
+    "packages/e2e-preview/**",
+    "docs/team/handoffs/review-preview-devices.md"
+   ]
   }
  ],
  "deadline": {
