@@ -26,6 +26,7 @@ Writes outside the graph list: `lean/Fw/Ci/{Attempt,Wire,Golden}.lean`, `package
 `apps/runner/src/land.ts` (one PACKAGE_EXTRA_READS line), `docs/team/tools/ci-telemetry.md`.
 
 Open items
+- Round 2 applied review findings 1-5 (dropped premise stated, matched-time label 'yes'/'no', tool doc sentences, reproduce command with --now and --codemagic-builds, 02:57 UTC). Follow-ups: per-workflow span (trajectory-probe is 1.4 days old, its min/day is understated about 3x), wait.ts cache rule for open job views.
 - Follow-up: per-step timeouts for the measure steps (rank 1/2), teardown trim for wktr, wktr-fixtures, engine-premises, gate-gaps (<= 11 min/day), more Codemagic builds before any shift.
 - `.claude/workflows/build-review.js` still calls `fw ci state` (not edited).
 - Window is 4.32 days, not 7: nothing older exists. Codemagic 3 builds and CircleCI 3 jobs are thin rows.
