@@ -169,7 +169,7 @@ def aaVerdict : Facts → Verdict
     else if (applied as).isEmpty then .match
     else .mismatch (applied as)
 
-/-- The verdict on citing a run with facts `f`, in role `r`, from a row about `flag`. -/
+/-- The verdict on citing a run with facts `f` from a row about `flag`, by the citation's role. -/
 def judge (f : Facts) (flag : String) : Role → Verdict
   | .row => verdict f flag
   | .aa => aaVerdict f
@@ -308,7 +308,7 @@ def isFlag (t : String) : Bool :=
     | [] => false
   | _ => false
 
-/-- The role a marker right after a run id gives: ` (A/A)` an A/A run, ` (<part:variant>)` a sibling; else none. -/
+/-- The role a marker right after a run id gives: ` (A/A)` an A/A run, ` (<part:variant>)` a sibling; else `.row`. -/
 def markOf : List Char → Role
   | ' ' :: '(' :: tl =>
     let inner := tl.takeWhile (· != ')')
