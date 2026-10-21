@@ -1,6 +1,6 @@
 # Handoff: device-stats-v2 (second reduction of the 2026-10-21 phone passes)
 
-State: branch `worktree-wf_bd28aae1-6aa-1`, code and results in `cfa7e7d1`, this note in the next commit. Read first:
+State: branch `worktree-wf_bd28aae1-6aa-1`, code and results in `cfa7e7d1`, `#guard` examples in `fa8f8519`; `lean/scripts/check.sh` green there. Read first:
 `results/phone/2026-10-21/summary-v2.md`, then `lean/Fw/Device/Stats.lean`.
 
 ## What exists
