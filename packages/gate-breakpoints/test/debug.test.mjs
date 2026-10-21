@@ -75,12 +75,20 @@ async function sampleWith(win) {
   const g = globalThis;
   const had = ['window', 'requestAnimationFrame'].map((k) => [k, Object.getOwnPropertyDescriptor(g, k)]);
   g.window = win;
-  g.requestAnimationFrame = (cb) => setTimeout(cb, 0);
+  const queue = [];
+  g.requestAnimationFrame = (cb) => { queue.push(cb); return queue.length; };
   try {
     (0, eval)(`(${installKit.toString()})()`);
     const arg = { navSel: '', nodes: [], pageProps: [], arm: 'rewrite', lean: false, stride: 1, phase: 'open' };
     win.__traj.startSampler(arg);
-    await new Promise((r) => setTimeout(r, 60));
+    // Five frames, run by hand: the sample count does not depend on the wall clock. Each frame ends in the kit's sleep(0);
+    // two timer turns let it resolve (same-delay timers run in order), so the loop records and asks for the next frame.
+    const turn = () => new Promise((r) => setTimeout(r, 0));
+    for (let f = 1; f <= 5; f++) {
+      for (const cb of queue.splice(0)) cb(f * 16);
+      await turn();
+      await turn();
+    }
     return win.__traj.stopSampler();
   } finally {
     for (const [k, d] of had) { if (d) Object.defineProperty(g, k, d); else delete g[k]; }
