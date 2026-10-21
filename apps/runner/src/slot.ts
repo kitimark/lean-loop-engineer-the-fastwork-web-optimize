@@ -1,14 +1,12 @@
-// fw slot (task local-adaptive-queue): one queue for heavy local work. Decisions are slot-core.ts (Fw.Sup.Adapt); this
-// file is I/O glue: the probe, the state file under a short mkdir lock, the child process group, and the result cache.
 import { type ChildProcess, spawn, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { appendFileSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, readFileSync, readSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import { basename, dirname, join } from "node:path";
 import {
-  DEFAULT_PARAMS, type BuildVerdict, type CacheKey, type Ctl, type Entry, type Kind, type Params, type Sample, type Verdict,
-  admitBuild, agentsSeen, cacheHit, cacheable, expired, grant, heldOf, init, keyOf, kindOf, leaseOr, prune, release, renew, signal,
-  simAction, simBoot, simDue, simHeld, simIdleNext, simQueued, step, stopAct, verdict, withLegacy,
+  DEFAULT_PARAMS, type BuildVerdict, type CacheKey, type Ctl, type Entry, type Kind, type Mem, type Params, type Sample, type Verdict,
+  type VmMark, admitBuild, agentsSeen, avail, cacheHit, cacheable, expired, grant, heldOf, init, keyOf, kindOf, leaseOr, prune, release, renew, signal,
+  simAction, simBoot, simDue, simHeld, simIdleNext, simQueued, step, stopAct, verdict, vmNext, withLegacy,
 } from "./slot-core.ts";
 
 export class SlotUsage extends Error {}
@@ -28,7 +26,6 @@ export type Health = { time: number; live: number };
 export type GitFacts = { tree: string; clean: boolean; mainSha: string };
 export type SimDevice = { udid: string; name: string };
 
-/** Everything the CLI touches outside its own memory; tests pass temp dirs and fakes. */
 export type Deps = {
   dir: string;
   cacheDir: string;
@@ -50,7 +47,6 @@ const nowS = (): number => Math.floor(Date.now() / 1000);
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 const sleepSync = (ms: number): void => { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms); };
 
-/** Process start time (epoch s) of `pid`, null when it is gone. */
 export function startOf(pid: number): number | null {
   const r = spawnSync("ps", ["-o", "lstart=", "-p", String(pid)], { encoding: "utf8", env: { ...process.env, LC_ALL: "C", TZ: "UTC" } });
   const s = (r.stdout ?? "").trim();
@@ -61,27 +57,81 @@ export function startOf(pid: number): number | null {
 
 const alive = (pid: number): boolean => { try { process.kill(pid, 0); return true; } catch (e) { return (e as NodeJS.ErrnoException).code === "EPERM"; } };
 
-export const parseFreePct = (out: string): number | null => { const m = /free percentage:\s*(\d+)%/.exec(out); return m ? Number(m[1]) : null; };
-export const parseSwapUsedMB = (out: string): number | null => { const m = /used = ([\d.]+)M/.exec(out); return m ? Math.floor(Number(m[1])) : null; };
-export function parseCompressorMB(out: string): number | null {
+export type VmStat = { pageB: number; free: number; spec: number; purg: number; file: number; occupied: number; compressions: number };
+
+export function parseVmStat(out: string): VmStat | null {
   const page = /page size of (\d+) bytes/.exec(out);
-  const occ = /Pages occupied by compressor:\s+(\d+)/.exec(out);
-  return page && occ ? Math.floor((Number(occ[1]) * Number(page[1])) / 1048576) : null;
+  const n = (label: string): number | null => {
+    const m = new RegExp(`^${label}:\\s+(\\d+)\\.?$`, "m").exec(out);
+    return m ? Number(m[1]) : null;
+  };
+  const v = {
+    free: n("Pages free"), spec: n("Pages speculative"), purg: n("Pages purgeable"), file: n("File-backed pages"),
+    occupied: n("Pages occupied by compressor"), compressions: n("Compressions"),
+  };
+  if (page === null || Object.values(v).some((x) => x === null)) return null;
+  return { pageB: Number(page[1]), ...(v as Record<keyof typeof v, number>) };
+}
+
+export type Sysctl = { fileMinPages: number | null; press: number | null; swapUsedMB: number | null; swapTotalMB: number | null };
+
+export function parseSysctl(out: string): Sysctl {
+  const v = (name: string): number | null => {
+    const m = new RegExp(`^${name.replaceAll(".", "\\.")}:\\s*(\\d+)\\s*$`, "m").exec(out);
+    return m ? Number(m[1]) : null;
+  };
+  const used = /used = ([\d.]+)M/.exec(out);
+  const total = /total = ([\d.]+)M/.exec(out);
+  return {
+    fileMinPages: v("vm.vm_page_filecache_min"), press: v("kern.memorystatus_vm_pressure_level"),
+    swapUsedMB: used ? Math.floor(Number(used[1])) : null, swapTotalMB: total ? Math.floor(Number(total[1])) : null,
+  };
+}
+
+export function memOf(vm: VmStat, sc: Sysctl, comprMBPerMin: number): Mem {
+  const mb = (pages: number): number => Math.floor((pages * vm.pageB) / 1048576);
+  return {
+    freeMB: mb(vm.free), specMB: mb(vm.spec), purgMB: mb(vm.purg), fileMB: mb(vm.file), fileMinMB: sc.fileMinPages === null ? mb(vm.file) : mb(sc.fileMinPages),
+    swapUsedMB: sc.swapUsedMB ?? 0, swapTotalMB: sc.swapTotalMB ?? 0, press: sc.press ?? 1, comprMBPerMin,
+  };
+}
+
+export function parseCompressorMB(out: string): number | null {
+  const vm = parseVmStat(out);
+  return vm ? Math.floor((vm.occupied * vm.pageB) / 1048576) : null;
 }
 
 const cmd = (c: string, a: string[]): string => { const r = spawnSync(c, a, { encoding: "utf8" }); return r.status === 0 ? r.stdout : ""; };
 
-/** One probe sample of this machine (macOS tools, falling back to Node's view elsewhere). */
-export function probe(): Sample {
-  const ramMB = Math.floor(os.totalmem() / 1048576);
-  const pct = parseFreePct(cmd("memory_pressure", []));
+export function markNext(dir: string, p: Params, now: number, vm: VmStat): VmMark {
+  const file = join(dir, "vm-mark.json");
+  let prev: VmMark | null = null;
+  try { prev = JSON.parse(readFileSync(file, "utf8")) as VmMark; } catch { prev = null; }
+  const next = vmNext(p, prev, now, vm.compressions, vm.pageB);
+  if (next !== prev) {
+    try {
+      mkdirSync(dir, { recursive: true });
+      const tmp = join(dir, `.vm-mark-${process.pid}.tmp`);
+      writeFileSync(tmp, JSON.stringify(next));
+      renameSync(tmp, file);
+    } catch {}
+  }
+  return next;
+}
+
+export function probe(dir: string, p: Params = DEFAULT_PARAMS): Sample {
+  const time = nowS();
+  const vm = parseVmStat(cmd("vm_stat", []));
+  const mem: Mem = vm === null
+    ? { freeMB: Math.floor(os.freemem() / 1048576), specMB: 0, purgMB: 0, fileMB: 0, fileMinMB: 0, swapUsedMB: 0, swapTotalMB: 0, press: 1, comprMBPerMin: 0 }
+    : memOf(vm, parseSysctl(["vm.vm_page_filecache_min", "kern.memorystatus_vm_pressure_level", "vm.swapusage"].map((o) => cmd("sysctl", [o])).join("")),
+      markNext(dir, p, time, vm).rate);
   return {
-    time: nowS(),
+    time,
     loadCenti: Math.floor((os.loadavg()[0] ?? 0) * 100),
-    freeMB: pct === null ? Math.floor(os.freemem() / 1048576) : Math.floor((pct * ramMB) / 100),
-    ramMB,
-    compressorMB: parseCompressorMB(cmd("vm_stat", [])) ?? 0,
-    swapUsedMB: parseSwapUsedMB(cmd("sysctl", ["-n", "vm.swapusage"])) ?? 0,
+    mem,
+    ramMB: Math.floor(os.totalmem() / 1048576),
+    compressorMB: vm === null ? 0 : Math.floor((vm.occupied * vm.pageB) / 1048576),
     cores: os.availableParallelism(),
   };
 }
@@ -103,8 +153,6 @@ function bootedAll(): SimDevice[] {
   return Object.values(j.devices).flat().filter((d) => d.state === "Booted").map(({ udid, name }) => ({ udid, name }));
 }
 
-/** The last line of the console health log (it grows past 100 MB, so only its tail is read): its time in seconds and the
-agents neither done nor gone. */
 export function lastHealth(file: string): Health | null {
   let fd: number;
   try { fd = openSync(file, "r"); } catch { return null; }
@@ -126,7 +174,6 @@ export function lastHealth(file: string): Health | null {
   }
 }
 
-/** The old `scripts/sim-lock.sh` lock is held while its directory exists and its pid, once written, is alive. */
 export function legacyLive(dir: string): boolean {
   if (!existsSync(dir)) return false;
   let pid = "";
@@ -134,14 +181,14 @@ export function legacyLive(dir: string): boolean {
   return pid === "" || !/^\d+$/.test(pid) || alive(Number(pid));
 }
 
-/** Production dependencies for the checkout at `cwd`. */
 export function realDeps(cwd: string, env: Record<string, string | undefined> = process.env): Deps {
   const main = dirname(gitIn(cwd, ["rev-parse", "--path-format=absolute", "--git-common-dir"]));
   const top = gitIn(cwd, ["rev-parse", "--show-toplevel"]) || cwd;
   const con = env.FW_CONSOLE_DIR ?? join(main, ".fw-console");
   const events = env.FW_LOCK_EVENTS === "off" ? null : env.FW_LOCK_EVENTS_FILE ?? (env.CI ? null : join(con, "locks.jsonl"));
+  const dir = env.FW_SLOT_DIR ?? join(con, "slot");
   return {
-    dir: env.FW_SLOT_DIR ?? join(con, "slot"),
+    dir,
     cacheDir: join(con, "review-cache", "slot"),
     eventsFile: events,
     legacySimLock: join(main, ".local", "locks", "sim"),
@@ -149,7 +196,7 @@ export function realDeps(cwd: string, env: Record<string, string | undefined> = 
     env,
     params: DEFAULT_PARAMS,
     pollMs: 2000,
-    probe,
+    probe: () => probe(dir),
     git: () => gitFacts(cwd),
     simctl: { booted: bootedAll, shutdown: (u) => { spawnSync("xcrun", ["simctl", "shutdown", u], { stdio: "ignore" }); } },
     health: () => lastHealth(join(con, "health.jsonl")),
@@ -157,8 +204,6 @@ export function realDeps(cwd: string, env: Record<string, string | undefined> = 
     err: (s) => process.stderr.write(s),
   };
 }
-
-// ---- state file under a short mkdir lock ----
 
 const myStart = startOf(process.pid);
 
@@ -185,8 +230,6 @@ function readOwner(dir: string): Owner | null {
 
 const dead = (o: Owner): boolean => !alive(o.pid) || startOf(o.pid) !== o.start;
 
-/** Move the lock aside before deleting it, so only one waiter recovers a dead owner's lock; a lock that turns out live
-is moved back. */
 export function recoverStale(lock: string, seen: Owner): void {
   const aside = `${lock}.stale-${process.pid}`;
   try {
@@ -211,7 +254,6 @@ function readState(d: Deps): State {
   return { ...st, holders: st.holders.map(withLease), queue: st.queue.map(withLease) };
 }
 
-/** Run `f` on the state with the lock held, then write it back atomically. */
 export function withState<T>(d: Deps, f: (st: State) => T): T {
   mkdirSync(d.dir, { recursive: true });
   const lock = join(d.dir, "state.lock");
@@ -228,8 +270,6 @@ export function withState<T>(d: Deps, f: (st: State) => T): T {
   }
 }
 
-/** One controller step on `s`, then drop expired holders and tickets. Each dropped holder logs one `expire` event; a
-dropped Simulator holder starts the idle clock. */
 function tick(d: Deps, st: State, s: Sample): void {
   st.ctl = step(d.params, st.ctl, s);
   const gone = expired(s.time, st.holders);
@@ -246,7 +286,7 @@ function event(d: Deps, ev: string, kind: Kind, extra: Record<string, number | s
   try {
     mkdirSync(dirname(d.eventsFile), { recursive: true });
     appendFileSync(d.eventsFile, `${JSON.stringify({ ts: Date.now(), lock: "slot", ev, kind, pid: process.pid, start: myStart, ...extra })}\n`);
-  } catch { /* events never fail a job */ }
+  } catch {}
 }
 
 export function describe(v: Verdict): string {
@@ -257,7 +297,8 @@ export function describe(v: Verdict): string {
         : v.why === "full" ? `${v.running} running, limit ${v.limit}` : v.why === "simBusy" ? "the Simulator slot is held"
         : v.why === "drain" ? `${v.others} other holders finish before the Simulator starts`
         : v.why === "simFirst" ? "a Simulator ticket goes first"
-        : `needs ${v.needMB} MB, ${v.roomMB} MB free above the floor`;
+        : v.why === "memLow" ? `memory is short (${v.availMB} MB available, or pressure, swap or compression high)`
+        : `needs ${v.needMB} MB, ${v.roomMB} MB available above the floor`;
       return `${v.verdict === "timeout" ? "refused" : "waiting"}: ${why}`;
     }
   }
@@ -269,13 +310,12 @@ export function describeBuild(v: BuildVerdict): string {
     case "simWaits": return "wait: a Simulator ticket is queued";
     case "agentsUnknown": return "wait: no recent health reading (pass --agents n)";
     case "agents": return `wait: ${v.live} live agents, limit ${v.max}`;
-    case "memory": return `wait: ${v.freeMB} MB free, needs ${v.needMB} MB`;
+    case "memory": return `wait: ${v.availMB} MB available, needs ${v.needMB} MB`;
   }
 }
 
 export type Grant = { token: string; owner: string; kind: Kind; till: number; verdict: Verdict };
 
-/** Queue a ticket and wait for a verdict: admit (now a holder), timeout, or `waitS` passed (ticket withdrawn). */
 export async function acquire(d: Deps, kind: Kind, leaseS: number, waitS: number | null): Promise<Grant> {
   const token = randomUUID().slice(0, 12);
   const t0 = nowS();
@@ -308,7 +348,6 @@ export async function acquire(d: Deps, kind: Kind, leaseS: number, waitS: number
   }
 }
 
-/** Renew this owner's live slot; `leaseS` null keeps the granted length. */
 export function renewToken(d: Deps, token: string, leaseS: number | null): boolean {
   const now = nowS();
   return withState(d, (st) => {
@@ -331,8 +370,6 @@ export function releaseToken(d: Deps, token: string): boolean {
   return ok;
 }
 
-// ---- result cache ----
-
 type Record_ = { key: CacheKey; exit: number; stdout: string; stderr: string; at: number };
 const CAP = 4 << 20;
 const cacheFile = (d: Deps, k: CacheKey): string => join(d.cacheDir, `${createHash("sha256").update(JSON.stringify(k)).digest("hex").slice(0, 32)}.json`);
@@ -341,16 +378,13 @@ function readRecord(d: Deps, k: CacheKey): Record_ | null {
   try { return JSON.parse(readFileSync(cacheFile(d, k), "utf8")) as Record_; } catch { return null; }
 }
 
-// ---- run ----
-
-/** Stop the child group: TERM, then KILL after the grace while the leader's pid and start are unchanged. */
 async function stopGroup(d: Deps, pid: number, start: number | null): Promise<void> {
   let termAt: number | null = null;
   for (;;) {
     const act = stopAct(d.params, alive(pid), start !== null && startOf(pid) === start, termAt, Date.now());
     if (act === "done") return;
-    if (act === "term") { try { process.kill(-pid, "SIGTERM"); } catch { /* already gone */ } termAt = Date.now(); }
-    if (act === "kill") { try { process.kill(-pid, "SIGKILL"); } catch { /* already gone */ } return; }
+    if (act === "term") { try { process.kill(-pid, "SIGTERM"); } catch {} termAt = Date.now(); }
+    if (act === "kill") { try { process.kill(-pid, "SIGKILL"); } catch {} return; }
     await sleep(200);
   }
 }
@@ -415,11 +449,6 @@ export async function run(d: Deps, kind: Kind, argv: string[], cache: boolean): 
   }
 }
 
-// ---- status and the Simulator ----
-
-/** Look at every booted Simulator device when `simDue` (or `force`): advance the idle clock (`simIdleNext`) and, with
-`apply`, shut the devices down when `simAction` says so. The decision and the shutdown run under the state lock, so no
-Simulator slot is admitted between them. */
 export function simCheck(d: Deps, now: number, apply: boolean, force: boolean): string[] {
   const due = withState(d, (st) => {
     if (!force && !simDue(d.params, now, st.simCheckedAt ?? 0)) return false;
@@ -446,11 +475,11 @@ function status(d: Deps, json: boolean): string[] {
   const st = withState(d, (x) => { tick(d, x, s); return x; });
   if (json) return [JSON.stringify({ sample: s, signal: signal(d.params, st.ctl.prev, s), ...st })];
   const rows = (es: Entry[]) => es.map((e) => `  ${e.kind.padEnd(6)} ${e.owner} ${e.token} ${e.till - s.time}s left${e.foot ? `, ${e.foot} MB` : ""}`);
-  return [`slot: limit ${st.ctl.n}, load ${(s.loadCenti / 100).toFixed(2)}, free ${s.freeMB} MB, swap ${s.swapUsedMB} MB`,
+  const m = s.mem;
+  return [`slot: limit ${st.ctl.n}, load ${(s.loadCenti / 100).toFixed(2)}, available ${avail(s)} MB, pressure ${m.press}, `
+    + `swap ${m.swapUsedMB}/${m.swapTotalMB} MB, compressing ${m.comprMBPerMin} MB/min`,
     `holders (${st.holders.length}):`, ...rows(st.holders), `queue (${st.queue.length}):`, ...rows(st.queue)];
 }
-
-// ---- CLI ----
 
 function flag(args: string[], name: string): string | null {
   const i = args.indexOf(name);
@@ -473,7 +502,6 @@ function kindArg(args: string[]): Kind {
   return k;
 }
 
-/** `fw slot ...`; resolves to the exit code. */
 export async function slotCli(argv: string[], deps: Deps): Promise<number> {
   const dash = argv.indexOf("--");
   const args = dash < 0 ? argv : argv.slice(0, dash);
@@ -520,8 +548,8 @@ export async function slotCli(argv: string[], deps: Deps): Promise<number> {
       const s = d.probe();
       const given = num(args, "--agents", "a whole number");
       const agents = given ?? agentsSeen(d.params, s.time, d.health());
-      const v = admitBuild(d.params, simQueued(s.time, readState(d).queue), s.freeMB, agents);
-      d.err(`slot admit build: ${describeBuild(v)} (load ${(s.loadCenti / 100).toFixed(2)}, free ${s.freeMB} MB, agents ${agents ?? "unknown"})\n`);
+      const v = admitBuild(d.params, simQueued(s.time, readState(d).queue), avail(s), agents);
+      d.err(`slot admit build: ${describeBuild(v)} (load ${(s.loadCenti / 100).toFixed(2)}, available ${avail(s)} MB, agents ${agents ?? "unknown"})\n`);
       d.out(`VERDICT ${v.verdict} build\n`);
       return v.verdict === "admit" ? 0 : EXIT_REFUSED;
     }

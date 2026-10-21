@@ -1,7 +1,7 @@
 # fw slot: one queue for heavy local work
 
-`pnpm -s fw slot` admits Lean checks, package tests, dry lands and Simulator work one queue at a time. The
-admitted count follows the machine's load and memory.
+`pnpm -s fw slot` admits Lean checks, package tests, dry lands and Simulator work one queue at a time. The number of
+jobs it admits follows the machine's load and memory.
 - Spec and proofs: `lean/Fw/Sup/Adapt.lean`.
 - TS stand-in: `apps/runner/src/slot-core.ts` (each function mirrors the Lean definition of the same name).
 - Glue: `apps/runner/src/slot.ts`, which holds the probe, the state file, the child process group and the result cache.
@@ -36,16 +36,31 @@ pnpm -s fw slot admit --kind build                       # lead, before spawning
 
 ## Decisions (Lean)
 
-- **Limit.** Each poll takes one sample and steps the limit `n`. It halves on overload: 1-min load at least 16, free
-  memory under 1 GB, compressor at least 40 % of RAM, or swap growing at least 512 MB a minute. It adds 1 when the
-  load is under 8 with 3 GB free, and otherwise holds. A change waits 30 s after the last one, and `n` stays in 1..4.
-  The swap ratio is never read: macOS swap stays high after a peak (`swap_static_never_trips`).
+- **Available memory.** The probe reads `vm_stat` and `sysctl vm.vm_page_filecache_min
+  kern.memorystatus_vm_pressure_level vm.swapusage` (macOS; elsewhere Node's free memory, pressure normal).
+  `availMB` is free + speculative + purgeable pages plus the file cache above its minimum. Active and inactive pages
+  are left out: they hold running processes' memory. The kernel's "free percentage" counts them
+  (xnu osfmk/vm/vm_page.h:1528@f6217f8, osfmk/vm/vm_pageout.c:4732-4738@f6217f8), so in the lead's busy window
+  (MEASURED) the old probe read 9994-11141 MB free while 217-2005 MB were available. The pageout daemon reclaims
+  file pages only down to `vm_page_filecache_min` and then compresses process memory (vm_pageout.c:2211-2230,
+  2620-2623@f6217f8), so file cache below the minimum adds nothing.
+- **Memory low.** `memLow` holds when available memory is under the 1 GB floor, the kernel pressure level is not
+  normal (1), swap is at least 75 % full, or the compressor takes in at least 1500 MB a minute. The rate comes from the
+  `Compressions` counter and a mark in `<dir>/vm-mark.json`: a new rate after 5 s or more, 0 after 600 s or a counter
+  reset (`vmNext`). The 75 % and 1500 MB/min thresholds are INFERRED until replayed on sampler data. A ticket admitted on a
+  sample is still admitted when only its memory reading is better (`memLow_antitone`, `verdict_antitone`).
+- **Limit.** Each poll takes one sample and steps the limit `n`. It halves on overload: 1-min load at least 16,
+  `memLow`, compressor at least 40 % of RAM, or swap growing at least 512 MB a minute. It adds 1 when the load is under
+  8 with 3 GB available, and otherwise holds. A change waits 30 s after the last one, and `n` stays in 1..4. The
+  growth signal never reads the swap ratio, since macOS swap stays high after a peak (`swap_static_never_trips`); only
+  `memLow` does, at 75 %.
 - **Admission.** A ticket waits while one of its kind is ahead (FIFO per kind). It also waits while a ticket of
   another kind has waited 300 s ahead of it and can run itself, while `n` slots are held, or while a Simulator slot is
   held and it asks for one. A Simulator ticket stuck behind a held Simulator slot never holds back other kinds
-  (`verdict_not_older_of_sim_blocked`). Otherwise it waits until the job's footprint fits above the 1 GB floor.
+  (`verdict_not_older_of_sim_blocked`). It waits as `memLow` while memory is low, and an admitted ticket saw none of
+  the four signals (`admit_calm`). Otherwise it waits until the job's footprint fits above the 1 GB floor (`admit_fits`).
   Footprints: check is 700 MB per Lean worker, test 1600, land 1500, sim 2800, other 1000. Holders admitted in the
-  last 60 s are charged, since free memory does not show them yet. After 1800 s the verdict is timeout, and the job never runs (exit 75).
+  last 60 s are charged, since available memory does not show them yet. After 1800 s the verdict is timeout, and the job never runs (exit 75).
 - **Simulator first.** A Simulator ticket never waits as `older` (`verdict_sim_never_older`). It waits as `drain`
   while more than one holder of another kind runs. A ticket of another kind waits as `simFirst` while a Simulator slot
   is held and another kind still runs, and while a Simulator ticket is pending unless a slot and the Simulator's
@@ -57,7 +72,8 @@ pnpm -s fw slot admit --kind build                       # lead, before spawning
   directory, asks `fw slot held --kind sim` under the slot's state lock, and gives the directory back while a slot sim
   holder is live. A failing check refuses the old lock; CI
   skips the check (no slot there).
-- **Lean workers.** A check gets as many Lean workers as fit the free room, at least 1 and at most the online cores.
+- **Lean workers.** A check gets as many Lean workers as fit the available room, at least 1 and at most the online
+  cores; an admitted check's workers fit above the floor and the warming holders (`threads_fit`).
   `run` exports them as `LEAN_NUM_THREADS` and `LAKE_SLOT_CORES`.
 - **Holders.** A holder is an owner, a token and a lease, never a process id. A live lease is never recovered as stale
   (`live_never_recovered`). Only the same owner and token renew or release it. `run` renews every 20 s.
@@ -74,7 +90,7 @@ pnpm -s fw slot admit --kind build                       # lead, before spawning
   down (`sim_shutdown_idle`); it never does so under a holder (`sim_shutdown_only_unheld`) or at a first sighting
   (`sim_first_sighting_keeps`). The decision and the shutdown run under the state lock.
 - **Builder admission.** `admit --kind build` admits when no Simulator ticket is queued, the live-agent count is known
-  and below 8, and free memory covers the floor plus 2100 MB (`admitBuild_iff`). The count is `--agents n`, else the
+  and below 8, and available memory covers the floor plus 2100 MB (`admitBuild_iff`). The count is `--agents n`, else the
   last line of `<main>/.fw-console/health.jsonl` (agents neither done nor gone), unknown when older than 900 s
   (`agentsSeen`).
 - **Stop.** On TERM or INT, `run` sends TERM to the child's group, then KILL after 5 s, and only while the leader's
