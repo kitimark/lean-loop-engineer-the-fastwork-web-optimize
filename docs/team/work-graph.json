@@ -12356,7 +12356,8 @@
     "lean/Main.lean",
     "lean/lakefile.toml",
     "docs/team/handoffs/fwcore-rebuild-fanout.md"
-   ]
+   ],
+   "evidence": "7132a36"
   },
   {
    "devices": [

@@ -4,6 +4,7 @@ import Fw.Sched.ParMetrics
 import Fw.Measure.Wire
 import Fw.Ops.Wire
 import Fw.Wire.OpsGate
+import Fw.Wire.SchedJson
 /-!
 # JSON codecs and ops of `Fw.Sched` (`ops.admit`, `ops.gate`, `metrics.*`)
 
@@ -69,15 +70,6 @@ def vecOf (j : Json) : Except String Vec := do
   pure { cores := ← natD j "cores" 0, ram := ← natD j "ram" 0, cleanBuild := ← natD j "cleanBuild" 0,
          docker := ← natD j "docker" 0 }
 
-/-- An optional string field (absent or `null` is `none`). -/
-def optS (j : Json) (k : String) : Except String (Option String) :=
-  match opt j k with
-  | none => .ok none
-  | some v => some <$> asStr k v
-
-/-- An optional array of strings (absent is empty). -/
-def strsD (j : Json) (k : String) : Except String (List String) := do (← arrD j k).mapM (asStr k)
-
 /-- A device as a JSON string. -/
 def devJ (v : Json) : Except String Dev := do devOf "devices" (← asStr "devices" v)
 
@@ -128,25 +120,6 @@ def cmdJson : Cmd → Json
 So a reply `state` fed back as the next request's `state` is exactly the state the proofs talk
 about. -/
 
-/-- `Except.ok` then bind is application. -/
-theorem ok_bind {ε α β : Type} (a : α) (f : α → Except ε β) : (Except.ok a >>= f) = f a := rfl
-
-/-- Decoding a mapped list element-wise inverts the encoding when each element round-trips. -/
-theorem mapM_rt {α : Type} (f : α → Json) (g : Json → Except String α) (h : ∀ a, g (f a) = .ok a) :
-    ∀ l : List α, (l.map f).mapM g = .ok l
-  | [] => rfl
-  | a :: l => by simp [List.mapM_cons, h, mapM_rt f g h l]; rfl
-
-/-- An array field reads back as its list. -/
-theorem arrD_arr (j : Json) (k : String) (a : Array Json) (h : j.getObjVal? k = .ok (.arr a)) :
-    arrD j k = .ok a.toList := by
-  simp [arrD, opt, h]; rfl
-
-/-- A string-array field reads back as its list of strings. -/
-theorem strsD_rt (j : Json) (k : String) (l : List String)
-    (h : j.getObjVal? k = .ok (.arr (l.toArray.map .str))) : strsD j k = .ok l := by
-  simp only [strsD, arrD_arr j k _ h, Array.toList_map]
-  exact mapM_rt .str (asStr k) (fun _ => rfl) l
 
 /-- Devices round-trip. -/
 theorem devJ_rt (v : Dev) : devJ (.str (devName v)) = .ok v := by cases v <;> rfl
