@@ -1,5 +1,4 @@
 # Handoff: disk-auto-gc
-
 State: branch `worktree-wf_ee14c2f3-4ac-1`, merged with main 9b74cd5. `fw land --dry` passes with
 `--allow apps/runner/src/watch.ts --allow lean/scripts/DiskGcGolden.lean --allow lean/scripts/check.sh`.
 
@@ -26,7 +25,6 @@ Conventions:
 Open:
 - Daily fw-sup timer run (waits for sup-wire).
 - No real `--delete` was run (the task forbids it).
-- `apps/runner/test/e2e-land.sh` does not set `FW_DISK_GC=0`. Its temp repo has no `lean/`, so class 1 has no root
-  and is skipped there.
+- `apps/runner/test/e2e-land.sh` does not set `FW_DISK_GC=0`; its temp repo has no `lean/`, so class 1 is skipped there.
 
 Read first: `docs/team/tools/disk-gc.md`, then `lean/Fw/Ops/DiskGc.lean` (rules from `ruleLake` on).

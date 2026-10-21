@@ -61,7 +61,7 @@ whose holder is gone is removed first. Every `--delete` appends one
   and the pnpm store). `df` before and after shows what was really freed.
 - Class 5 decides by name and state, not by usage history.
 - Class 3 activity is the HEAD commit time and the mtimes of changed files. A worktree whose only activity is
-  builds counts as idle once 24 h pass; its `lsof` cwd keeps it while an agent works in it.
+  builds counts as idle once 24 h pass; a running agent's worktree lock (pid and start time of its session process) keeps it; `lsof` keeps it only while a command runs inside it. An unlocked worktree whose agent is between commands is not protected by lsof.
 
 ## Real machine, 2026-10-21 (`--list`, no delete)
 
