@@ -13246,7 +13246,8 @@
    "owner": "lean-prover",
    "stream": "tooling",
    "deps": [
-    "sup-model"
+    "sup-model",
+    "sup-fairness"
    ],
    "title": "User 2026-10-21 approved the land, review and daemon plans (AskUserQuestion: 'Land: push + lint + defer', 'Review: dry + items + gates', 'Daemon: model + stage 0', 'fw land --batch'). Sources: scratch land-process/report.md + check.json, review-quality report + check, daemon-design/design.md + check.json. fw-sup stage 0: wire round-trip per message type with a snapshot version field; goldens.",
    "writes": [
@@ -13301,7 +13302,8 @@
    "owner": "lean-prover",
    "stream": "tooling",
    "deps": [
-    "sup-trace-extract"
+    "sup-trace-extract",
+    "sup-fairness"
    ],
    "title": "User 2026-10-21 approved the land, review and daemon plans (AskUserQuestion: 'Land: push + lint + defer', 'Review: dry + items + gates', 'Daemon: model + stage 0', 'fw land --batch'). Sources: scratch land-process/report.md + check.json, review-quality report + check, daemon-design/design.md + check.json. fw-sup stage 0 report: replay the 3-day post-quick-win traces through the step: predicted peak charge, idle MB-hours reclaimable, requests refused; a go/no-go for stages 1-4, which go back to the user.",
    "writes": [
@@ -13318,7 +13320,8 @@
    "owner": "lean-prover",
    "stream": "tooling",
    "deps": [
-    "sup-model"
+    "sup-model",
+    "sup-fairness"
    ],
    "title": "User 2026-10-21 approved the land, review and daemon plans (AskUserQuestion: 'Land: push + lint + defer', 'Review: dry + items + gates', 'Daemon: model + stage 0', 'fw land --batch'). Sources: scratch land-process/report.md + check.json, review-quality report + check, daemon-design/design.md + check.json. fw-sup: the math artifact for the section-3 theorems, checked by math-reviewer against the Lean statements.",
    "writes": [
@@ -13488,7 +13491,8 @@
     "packages/measure-webkit/test/**",
     ".github/workflows/webkit-sim.yml",
     "docs/team/handoffs/webkit-sim-target-lost.md"
-   ]
+   ],
+   "evidence": "5ed2e31"
   },
   {
    "devices": [
@@ -13538,7 +13542,8 @@
     "sup-baseline",
     "sup-wire",
     "sup-route",
-    "smoothness-webkit-cadence"
+    "smoothness-webkit-cadence",
+    "sup-fairness"
    ],
    "title": "User 2026-10-21: 'my idea, i might use my macos for doing measurement of webkit safari. but we need to optimize the our process resource using first.' A local lane (CLAUDE.md 'Measure on CI' exception (c), reason: real Apple GPU and display, which CI VMs lack) that measures WebKit in Safari on this Mac: per-zone computation events (same zones and arms as smoothness-webkit-cadence, arms by dedupArms) plus frame cadence. Runs only under an exclusive fw-sup MEASURE lease: the daemon drains our own heavy jobs and idle services first (drain_quiet), records the machine's quiet state (load, free memory, swap, compressor from sup-baseline's sampler) before and after each pass, and refuses the run when the quiet check fails (Lean rule + theorem + golden). Compare with CI (smoothness-webkit-cadence) and the phone (device-lag-recorder) in ci-device-accuracy's terms. No self-hosted GitHub runner (public repo: fork code could run on this Mac). Starts only after the resource tasks land.",
    "writes": [
@@ -13614,7 +13619,8 @@
    "owner": "measure-engineer",
    "stream": "measure",
    "deps": [
-    "smoothness-webkit-cadence"
+    "smoothness-webkit-cadence",
+    "linux-webkit-probe"
    ],
    "title": "User 2026-10-21 asked whether WebKit rendering was measured on Playwright WebKit on Linux. Known: Linux WebKit is the WPE port (TextureMapper, software frames of 150 ms or more; research/notes/2026/10-17-ci-measurement-feasibility.md:100-112), so its cadence, paint and composite counts are not Safari's. Question: are its WebCore computation events (RecalculateStyles, Layout, script) per zone and arm close enough to macOS WebKit's (smoothness-webkit-cadence) to move the event analysis to free Linux runners and save macOS minutes? Run the same arms and zones on ubuntu-24.04-arm Playwright WebKit, then a Lean agreement rule per zone (rank agreement plus a ratio band, A/A spread as the floor; theorem + golden) against the macOS leg. Verdict per event kind: style/layout move to Linux or stay on macOS; paint/composite stay on macOS by construction. GitHub only.",
    "writes": [
@@ -13732,6 +13738,190 @@
     "apps/runner/src/fw.ts",
     "docs/team/tools/ci-cache.md",
     "docs/team/handoffs/gh-cache-scope.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "sup-fairness",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "title": "fw-sup fairness (from sup-model, landed 8a4941ec, whose fairness trace bound was an accepted limit). MEASURED defect (Fable witness, adversarially re-run): a pending job with deadline 201 is never granted while svc leases renew at 30/85/140/195 and no signal is sent; at 203 it is refused .deadline with no ticket and re-requests with a fresh age. Fix in Lean: (1) Core.lean `.ready` branch keeps the job queued when `a.blk && !c.pinned r.kind` (mirrors the blk test) and the deadline refusal keeps the ticket (`refuseT .deadline`); (2) generalise `fifo_no_overtake` to every grant (svc_respects_blocked as its corollary); (3) step theorem `deadline_keeps_ticket`; (4) the unit: trace theorem `head_job_granted_by` (the head job is granted within span + tickMax + K*(killAfter + 2*tickMax) along a trace meeting hypotheses H1-H6: no drain/restart/clientGone, not shedding, fits once non-pinned resources are gone, ticks at most tickMax apart, every KILL followed by childExit, deadline beyond the bound), proof scheme as Fw.Sched.Admit.aged_admitted_by; (5) non-vacuity trace on Ex.cfg plus the pre-fix witness kept as a documented negative example. Fix design.md:161-162. Unit pinned: the head job (position k, svc progress, needed-set refinement are follow-ups). If refused on item 4 alone, split into sup-fairness-step and sup-fairness-trace.",
+   "writes": [
+    "lean/Fw/Sup/Core.lean",
+    "lean/Fw/Sup/Props.lean",
+    "lean/Fw/Sup/**",
+    "packages/contracts/golden/sup/**",
+    "docs/team/daemon/design.md",
+    "docs/team/handoffs/sup-fairness.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "sup-baseline-tables",
+   "owner": "measure-engineer",
+   "stream": "tooling",
+   "deps": [
+    "sup-baseline"
+   ],
+   "title": "First-day tables of the fw-sup baseline sampler (sup-baseline landed 95cdaa4d; incident inc-spec-data-before-land): after >= 24 h of samples, per process kind (lean build, lake, node workers, Simulator, browsers, agents) the peak and p95 phys_footprint, CPU share and count, plus machine free memory and swap, generated from the samples by a committed reducer; MEASURED with the sample window. Also the two sup-baseline follow-ups: the webkit kind is unreachable on macOS (ppid 1 after launchd reparenting: classify by executable path, not parent), and the lake setup-file process is counted as leanBuild (classify by argv).",
+   "writes": [
+    "apps/runner/src/sup-report.ts",
+    "apps/runner/test/sup-report*.test.ts",
+    "lean/Fw/Sup/Kind*.lean",
+    "research/notes/2026/10-2x-sup-baseline-day1.md",
+    "docs/team/handoffs/sup-baseline-tables.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "linux-webkit-probe",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "title": "User 2026-10-21 asked whether Playwright WebKit (WPE) on Linux CI can measure rendering performance and why its frames are ~150 ms. Research (lead scratch, 4 checked notes) found: headless WPE uses an SHM backend so Mesa falls back to software GL (llvmpipe INFERRED), Skia GL tiles run 4x MSAA on arm by default plus a full-frame copy; the Playwright protocol layer is not the cause (in-page reads 1 ms); mouse.wheel waits one rAF; Timeline events are readable through the Playwright session (Timeline.start / eventRecorded). One free ubuntu-24.04-arm job: separate frame causes (blank page vs our page, widths, dpr, WEBKIT_SKIA_MSAA_SAMPLE_COUNT=0, WEBKIT_SKIA_ENABLE_CPU_RENDERING=1, LP_NUM_THREADS=1, WEBKIT_SHOW_FPS=1), prove Timeline reading on 10 settled scroll steps run twice (A/A), and write research/notes/2026/10-2x-linux-webkit.md with the four findings, CONFIRMED by WebKit source file:line@commit where claimed. GitHub only; free runners.",
+   "writes": [
+    ".github/workflows/linux-webkit-probe.yml",
+    "packages/measure-webkit/src/linux/**",
+    "packages/measure-webkit/test/linux-*.test.mjs",
+    "research/notes/2026/10-2x-linux-webkit.md",
+    "docs/team/handoffs/linux-webkit-probe.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "circleci-cache-save-rule",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "deps": [],
+   "title": "Follow-up of circleci-lean-cache (landed 75f2964a): every Lean source change saves one more ~292 MiB Lake entry (~307 milli GB-month at the ledger's 30-day count, real retention 15 days), so about 3 saves per 30 days reach the 1000 stop and turn the whole CircleCI overflow lane off; a prefix restore also carries old artifacts into the new entry. Decide in Lean (Provider/Overflow): save only for keys of main shas (or at most N saves per window), count caches at their real 15-day retention, prune the Lake dir before save; theorem: storage stays under the stop for any number of land legs.",
+   "writes": [
+    "lean/Fw/Ci/Provider.lean",
+    "lean/Fw/Ci/Overflow.lean",
+    "lean/scripts/ProviderGolden.lean",
+    "packages/contracts/golden/ci/provider.jsonl",
+    ".circleci/config.yml",
+    ".circleci/job.sh",
+    "scripts/circleci.mjs",
+    "scripts/circleci.test.mjs",
+    "docs/team/tools/circleci.md",
+    "docs/team/handoffs/circleci-cache-save-rule.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "runner-starttime-flake",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "apps/runner test/next.test.ts 'a real until false; do sleep 1; done is a sleepLoop owned by the session' failed once on CircleCI pipeline #313 (suites-a): fwcore obs.health failed: field startedAt: expected a non-negative integer. INFERRED: a process start time read as negative on the runner (clock or ps parse). Find the parse, make it total (Lean side rejects, TS never emits a negative), add the failing shape as a test.",
+   "writes": [
+    "apps/runner/src/proc*.ts",
+    "apps/runner/src/watch-collect.ts",
+    "apps/runner/test/next.test.ts",
+    "apps/runner/test/proc*.test.ts",
+    "docs/team/handoffs/runner-starttime-flake.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "target-lost-followups",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "macos-teardown-trim"
+   ],
+   "title": "Follow-ups of webkit-sim-target-lost (landed 9b74cd51; its saving is INFERRED, not shown): (1) a lose-target fault (webkit-sim.yml fault input and FW_WK_FAULT mapping, FAULTS in src/fault.mjs: hold a second inspector client on the tab) and one GitHub run proving the 480 s bound and the relaunch; (2) the cause of r2's single 876 s try that outran its own timers (first suspect: spawnSync relaunch/repair calls in src/sim.mjs:38-40 block every timer, incl. capped()): make them async or bounded; (3) whether a mid-run relaunch keeps determinism/perstep/quiet measurements valid (now shared through wip.mjs reconnect), else those modes fail instead of relaunching; (4) targetWaitMs scales with FW_WK_TIMEOUT_SCALE again or the fixed 480 s is documented. GitHub only.",
+   "writes": [
+    ".github/workflows/webkit-sim.yml",
+    "packages/measure-webkit/src/**",
+    "packages/measure-webkit/test/target-*.test.mjs",
+    "lean/Fw/Measure/SimBound.lean",
+    "packages/contracts/golden/measure/**",
+    "docs/team/handoffs/target-lost-followups.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "unit-inputs-lint",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "title": "Incident inc-spec-data-before-land: a pinned unit asked for data produced only after the task's own land. Add an optional `inputs` list to graph tasks (data a task reads: a run, a file, or another task's output) and a Lean plan lint: every input is produced by a dep (or exists on main), never by the task itself. Low priority; prose units stay the lead's review.",
+   "writes": [
+    "lean/Fw/Plan/**",
+    "packages/contracts/golden/plan/**",
+    "apps/runner/src/plan*.ts",
+    "apps/runner/test/plan*.test.ts",
+    "docs/team/handoffs/unit-inputs-lint.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-dirty-hint",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "Incident inc-lead-dirty-main: a lead edit in the main checkout made a queued land refuse VERDICT dirty after its remote lane passed (re-queue cost one lane). `fw land --queue` and `--queue-status` check the main checkout before the remote tier starts and print the dirty paths up front (refuse before spending CI), and the console shows a 'main checkout dirty while N lands queued' alert.",
+   "writes": [
+    "apps/runner/src/land.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/land-dirty*.test.ts",
+    "apps/runner/src/watch-collect.ts",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/land-dirty-hint.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "review-gate-exitcode",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "Incident inc-gate-last-line: build-review parsed the gate agent's free text for the VERDICT line, and a trailing 'Log:' line sent two ready builds back. Give the gate a structured result: the gate agent returns fw review ready's exit code (0 review, 21 wait, 22 dispatch, 23 returnToBuilder) as a schema field and the script decides from the code; keep the VERDICT text only as display. Also `fw ci state` accepts CircleCI pipeline ids (UUIDs) so the gate can read CircleCI run states (it printed usage for them on circleci-lean-cache).",
+   "writes": [
+    ".claude/workflows/build-review.js",
+    "apps/runner/src/review*.ts",
+    "apps/runner/src/ci.ts",
+    "apps/runner/test/review*.test.ts",
+    "apps/runner/test/ci.test.ts",
+    "docs/team/handoffs/review-gate-exitcode.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-series-parallel-cap",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "deps": [],
+   "title": "Linux concurrency check 2026-10-21 (MEASURED, 1215 runs, 5755 jobs, 10-19..10-21): GitHub's 20-job cap bound for 388 of 2848 active minutes; at 20 the first-job queue was p50 83 s / p95 697 s against 5/7 s below 15. One repro matrix (preview-502-flake, 29 jobs at once) filled the whole pool. Add a Lean max-parallel rule for repro/series matrices (a series holds at most a share of ghTotalCap, never all of it) and a lint over .github/workflows matrices; fold the series admission into ci-route's inputs.",
+   "writes": [
+    "lean/Fw/Ci/Series*.lean",
+    "packages/contracts/golden/ci/series.jsonl",
+    "scripts/ci-matrix-lint.mjs",
+    "scripts/ci-matrix-lint.test.mjs",
+    ".github/workflows/**",
+    "docs/team/handoffs/ci-series-parallel-cap.md"
    ]
   }
  ],

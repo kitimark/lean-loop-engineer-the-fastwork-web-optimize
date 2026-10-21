@@ -3601,6 +3601,131 @@
    "leanVerdict": "provable",
    "leanReason": "Which checks a changed path selects is the Lean Fw.Ci.Trigger table; a theorem that every golden a suite reads selects that suite is a statement over it.",
    "hardening": "console-web-ci"
+  },
+  {
+   "id": "inc-footprint-correction",
+   "at": "2026-10-21T19:30+07:00",
+   "title": "A binding check correction ('footprint = top mem + cmprs') was wrong: MEM already is phys_footprint, which includes compressed memory",
+   "symptom": "The daemon-design check.json told builders to add top's CMPRS to MEM for a process footprint; that double-counts compressed pages.",
+   "cause": "CONFIRMED (source read): top MEM is phys_footprint (top libtop.c:1631@1e3b6ca), and phys_footprint already counts compressed memory (xnu osfmk/kern/task.c:1226-1233@f6217f8). The correction was written from the column names, not from the source.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "95cdaa4d",
+     "note": "sup-baseline land: samples phys_footprint once (xnu osfmk/kern/task.c:1226-1233@f6217f8; top libtop.c:1631@1e3b6ca)"
+    }
+   ],
+   "repro": "Ask for a process footprint formula from top's column headers without reading libtop/xnu.",
+   "fix": {
+    "task": "sup-baseline"
+   },
+   "regression": "sup-baseline (landed 95cdaa4d) samples phys_footprint once; a binding correction about an OS counter cites the source line that defines it.",
+   "mistakeClass": "c-unearned-claim",
+   "leanVerdict": "no",
+   "leanReason": "Which OS counter means what is a fact about xnu/top, outside the Lean model; the guard is a citation rule at review.",
+   "empiricalCheck": "sup-baseline sampler tests (apps/runner sup-report) read phys_footprint and never add CMPRS"
+  },
+  {
+   "id": "inc-spec-data-before-land",
+   "at": "2026-10-21T20:10+07:00",
+   "title": "The sup-baseline spec asked for first-day sampler data inside the task that lands the sampler",
+   "symptom": "The builder could not deliver a day of samples from a sampler that only starts running after its own land.",
+   "cause": "CONFIRMED (spec read): the lead's pinned unit included first-day tables; the data source is the landed sampler, so the unit depended on its own land.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "95cdaa4d",
+     "note": "sup-baseline landed without first-day tables; tables are task sup-baseline-tables"
+    }
+   ],
+   "repro": "Pin a unit whose data is produced by the code the same task lands.",
+   "fix": {
+    "task": "sup-baseline-tables"
+   },
+   "regression": "A pinned unit names only data that exists before the land; data that needs the landed code is a follow-up task with a dependency on it.",
+   "mistakeClass": "c-spec-gap",
+   "leanVerdict": "partly",
+   "leanReason": "A graph rule (a task's data inputs are produced by its deps, never by itself) is checkable over work-graph.json if inputs are declared; the prose unit is not.",
+   "hardening": "unit-inputs-lint"
+  },
+  {
+   "id": "inc-land-waiter-false-refuse",
+   "at": "2026-10-21T21:30+07:00",
+   "title": "Three lands were refused as github:fail while their CI runs were still running or had passed",
+   "symptom": "Runs 39576215019 and 39612772041 and the sup-baseline lane 39614430272 concluded success, but the land printed 'remote: verdict refuse reason=remote-lane-failed (github:fail)'.",
+   "cause": "CONFIRMED (code read, land-wait-final): Lean waitState mapped a waiter exit 1 to fail without reading the run record, and the cached lane view had no job conclusions. Why the waiter exited 1 stays INFERRED (no waiter output was recovered).",
+   "evidence": [
+    {
+     "kind": "ci",
+     "ref": "39612772041",
+     "note": "success at 14:09:07Z, land refused"
+    },
+    {
+     "kind": "ci",
+     "ref": "39614430272",
+     "note": "sup-baseline lane success, land refused"
+    },
+    {
+     "kind": "commit",
+     "ref": "7f27fa25",
+     "note": "land-wait-final: laneState reads the run record first"
+    }
+   ],
+   "repro": "Make the waiter exit 1 on a run that later succeeds.",
+   "fix": {
+    "task": "land-wait-final"
+   },
+   "regression": "Lean laneState: a run not finished stays running whatever the waiter's exit; per-job conclusions decide; theorems per branch and golden rows.",
+   "mistakeClass": "c-proxy-verdict",
+   "leanVerdict": "provable",
+   "leanReason": "The decision from (waiter exit, run record) to verdict is Lean LandRemote.laneState with a theorem per branch.",
+   "hardening": "land-wait-final"
+  },
+  {
+   "id": "inc-lead-dirty-main",
+   "at": "2026-10-21T22:00+07:00",
+   "title": "The lead's uncommitted edit of .claude/workflows/build-review.js made a queued land refuse 'main checkout has uncommitted changes'",
+   "symptom": "traj-dispatch-push-lane passed its remote lane and was then refused VERDICT dirty; it landed on the re-queue.",
+   "cause": "CONFIRMED: the lead edited the workflow script in the main checkout while the land queue ran, intending to commit after the queue.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "d4399cc4",
+     "note": "traj-dispatch-push-lane landed on the re-queue after the dirty refusal"
+    }
+   ],
+   "repro": "Edit a tracked file in the main checkout while fw land --queue runs.",
+   "fix": {
+    "task": "land-dirty-hint"
+   },
+   "regression": "While the queue runs, the lead edits a scratch copy (the workflow runs from scriptPath) and commits once the queue is empty.",
+   "mistakeClass": "c-shared-no-lock",
+   "leanVerdict": "no",
+   "leanReason": "The land already refuses a dirty checkout (retryable verdict); the waste is a re-queue, a lead habit rather than a decision.",
+   "empiricalCheck": "fw land refuses a dirty main checkout with VERDICT dirty (exit 11, retryable)"
+  },
+  {
+   "id": "inc-gate-last-line",
+   "at": "2026-10-21T22:10+07:00",
+   "title": "build-review sent two ready builds back: the gate parse read the answer's last line, and runners append Log/Caveats lines after VERDICT",
+   "symptom": "land-wait-final and circleci-lean-cache got returnToBuilder although fw review ready printed 'VERDICT review-ready <id> review'.",
+   "cause": "CONFIRMED (script read): build-review.js took g.line.split('\\n').pop() and matched it against the VERDICT regex.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "4ad520b0",
+     "note": "the last VERDICT line decides"
+    }
+   ],
+   "repro": "Return 'VERDICT review-ready x review\\nLog: path' from the gate agent.",
+   "fix": {
+    "task": "review-gate-exitcode"
+   },
+   "regression": "The script takes the last line starting with 'VERDICT '.",
+   "mistakeClass": "c-identity-heuristic",
+   "leanVerdict": "partly",
+   "leanReason": "fw review ready's verdict is Lean; extracting it from an agent's free text is glue. A structured gate field (exit code) would remove the parse.",
+   "hardening": "review-gate-exitcode"
   }
  ]
 }
