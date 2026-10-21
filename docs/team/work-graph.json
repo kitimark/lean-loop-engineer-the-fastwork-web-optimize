@@ -13474,7 +13474,8 @@
     "scripts/ci-steps-lint.mjs",
     "scripts/ci-steps-lint.test.mjs",
     "docs/team/handoffs/macos-teardown-trim.md"
-   ]
+   ],
+   "evidence": "bde9aad"
   },
   {
    "devices": [
