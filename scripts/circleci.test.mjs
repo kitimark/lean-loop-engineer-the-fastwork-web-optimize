@@ -9,7 +9,7 @@ import { tmpdir, userInfo } from 'node:os';
 import { delimiter, dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { CHECKOUT_STEP, checkoutOfStatus, keyAdvice, keyCheck, keyExit, keyProceed, keyVerdict, readCloneResult, readKeyList, usableKeyKind, cachePipelineBytes, cacheSavedBytes, classOfApi, parseCacheSave, readCacheSave, savesCacheJob, API, MIN_POLL_S, ROOT, call, callBytes, comparePairs, compare, credits, digestJob, dryRun, fetchPipeline, fixtureFetch, githubDigests, githubRuns, isPilotPipeline, jobOfGithub, listAll, loadFixture, loadGolden, main, ofCircleStatus, ofGithubConclusion, parseLoose, premiseDigest, premisesArtifact, readLedger, redact, renderComparison, route, stops, storageMilli, timingsDoc, triggerRequest, urls, waitPipeline, waitStep } from './circleci.mjs';
+import { landLane, landLegs, CHECKOUT_STEP, checkoutOfStatus, keyAdvice, keyCheck, keyExit, keyProceed, keyVerdict, readCloneResult, readKeyList, usableKeyKind, cachePipelineBytes, cacheSavedBytes, classOfApi, parseCacheSave, readCacheSave, savesCacheJob, API, MIN_POLL_S, ROOT, call, callBytes, comparePairs, compare, credits, digestJob, dryRun, fetchPipeline, fixtureFetch, githubDigests, githubRuns, isPilotPipeline, jobOfGithub, listAll, loadFixture, loadGolden, main, ofCircleStatus, ofGithubConclusion, parseLoose, premiseDigest, premisesArtifact, readLedger, redact, renderComparison, route, stops, storageMilli, timingsDoc, triggerRequest, urls, waitPipeline, waitStep } from './circleci.mjs';
 
 const g = loadGolden();
 const here = dirname(fileURLToPath(import.meta.url));
@@ -682,4 +682,68 @@ test('cli: key-check and trigger stop before the POST when the key is missing, a
   assert.ok(!a.calls.some((c) => c.startsWith('POST')));
   assert.equal(await main(['trigger', '--lane', 'premise-tests', '--branch', 'ci/x'], { root, env, ctx: a.ctx, log: (l) => logs.push(l) }), 0);
   assert.ok(a.calls.includes('POST /project/s/pipeline/run'));
+});
+
+test('land lane: the trigger request carries the legs and the class, --legs is checked against lean/land-legs.txt', async () => {
+  const r = triggerRequest({ slug: 's', definitionId: 'd', branch: 'ci/land-x', lane: 'land', cls: 'arm.medium.gen2', legs: ['check-sh', 'chromium'] });
+  assert.deepEqual(r.body.parameters, { lane: 'land', resource_class: 'arm.medium.gen2', legs: 'check-sh,chromium' });
+  assert.deepEqual(triggerRequest({ slug: 's', definitionId: 'd', branch: 'ci/x', lane: 'premise-tests', legs: ['chromium'] }).body.parameters, { lane: 'premise-tests' });
+  assert.deepEqual(landLegs(), ['check-sh', 'suites-a', 'suites-b', 'chromium', 'playwright-webkit']);
+  const root = mkdtempSync(join(tmpdir(), 'fwroot-'));
+  const logs = [];
+  const run = (a) => main(a, { root, env: {}, log: (l) => logs.push(l) });
+  assert.equal(await run(['trigger', '--lane', 'land', '--branch', 'ci/x', '--dry']), 64, 'a land trigger needs legs');
+  assert.equal(await run(['trigger', '--lane', 'land', '--branch', 'ci/x', '--legs', 'nope', '--dry']), 64);
+  assert.equal(await run(['trigger', '--lane', 'premise-tests', '--branch', 'ci/x', '--legs', 'chromium', '--dry']), 64);
+  assert.equal(await run(['trigger', '--lane', 'land', '--branch', 'ci/x', '--legs', 'check-sh,chromium', '--dry']), 0);
+  assert.match(logs.join('\n'), /"legs": "check-sh,chromium"/);
+});
+
+test('land lane: landLane reads the record a land job writes and nothing else', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'fwlane-'));
+  const f = join(dir, 'lane.json');
+  assert.equal(landLane(null), null);
+  assert.equal(landLane(f), null);
+  writeFileSync(f, '{"leg":"suites-a","sha":"abc","digest":"d1","engine":"false","rc":0}\n');
+  assert.deepEqual(landLane(f), { leg: 'suites-a', sha: 'abc', digest: 'd1', engine: 'false', rc: 0 });
+  writeFileSync(f, '{"leg":"suites-a"}');
+  assert.equal(landLane(f), null);
+  writeFileSync(f, 'not json');
+  assert.equal(landLane(f), null);
+});
+
+test('land lane: the pinned elan in job.sh is the pin of the setup-lean action, every leg has its workflow', () => {
+  const job = readFileSync(join(ROOT, '.circleci', 'job.sh'), 'utf8');
+  const action = readFileSync(join(ROOT, '.github', 'actions', 'setup-lean', 'action.yml'), 'utf8');
+  for (const k of ['ELAN_VERSION', 'ELAN_SHA256']) {
+    const a = new RegExp(`${k}[=:] ?(\\S+)`).exec(action)?.[1], b = new RegExp(`^${k}=(\\S+)`, 'm').exec(job)?.[1];
+    assert.ok(a && a === b, `${k}: setup-lean ${a}, job.sh ${b}`);
+  }
+  const cfg = readFileSync(join(ROOT, '.circleci', 'config.yml'), 'utf8');
+  for (const leg of landLegs()) {
+    assert.ok(cfg.includes(`name: land-${leg}`) && cfg.includes(`leg: ${leg}`), `config.yml has a workflow for ${leg}`);
+  }
+  assert.equal(cfg.split('pattern: "^ci/.*"').length - 1, landLegs().length, 'each land workflow is guarded on ci/ branches');
+  assert.match(cfg, /enum: \[check-sh, suites-a, suites-b, chromium, playwright-webkit\]/);
+});
+
+test('land lane: fetchPipeline puts the lane record of each land job into run.json', async () => {
+  const sha = 'a'.repeat(40);
+  const api = {
+    'GET /pipeline/p1': { vcs: { revision: sha } },
+    'GET /pipeline/p1/workflow': { items: [{ id: 'w1' }] },
+    'GET /workflow/w1/job': { items: [{ name: 'land-suites-a', job_number: 7, status: 'success' }] },
+    'GET /project/s/job/7': { name: 'land-suites-a', status: 'success', started_at: '2026-10-21T10:00:00Z', stopped_at: '2026-10-21T10:10:00Z', queued_at: '2026-10-21T09:59:00Z', duration: 600000, executor: { resource_class: 'arm-medium-gen2' } },
+    'GET /project/s/7/artifacts': { items: [{ path: 'tmp/fw/artifacts/lane.json', url: 'https://x.test/lane.json' }] },
+  };
+  const body = `{"leg":"suites-a","sha":"${sha}","digest":"dd","engine":"false","rc":0}\n`;
+  const ctx = { golden: loadGolden(), getToken: () => 't', sleep: async () => {}, now: () => 0, log: () => {}, fetchFn: async (url) => {
+    if (String(url).startsWith('https://x.test/')) return new Response(body, { status: 200 });
+    const key = `GET ${String(url).replace(API, '').split('?')[0]}`;
+    if (!(key in api)) return new Response('{}', { status: 404 });
+    return new Response(JSON.stringify(api[key]), { status: 200, headers: { 'content-type': 'application/json' } });
+  } };
+  const out = mkdtempSync(join(tmpdir(), 'fwland-'));
+  const doc = await fetchPipeline(ctx, { slug: 's', pipelineId: 'p1', out });
+  assert.deepEqual(doc.lanes, [{ job: 'land-suites-a', conclusion: 'pass', leg: 'suites-a', sha, digest: 'dd', engine: 'false', rc: 0 }]);
 });

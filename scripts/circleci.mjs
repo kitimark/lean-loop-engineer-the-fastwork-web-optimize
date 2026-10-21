@@ -5,7 +5,7 @@
 // copied here; scripts/circleci.test.mjs replays every other row through the functions below). This file is request
 // building, parsing, polling, file writing and printing.
 //
-//   fw ci circleci trigger --lane premise-tests|webkit-sim --branch ci/<name> [--class C] [--xcode V] [--dry]
+//   fw ci circleci trigger --lane premise-tests|webkit-sim|land --branch ci/<name> [--class C] [--xcode V] [--legs a,b] [--dry]
 //   fw ci circleci wait (--pipeline ID | --branch ci/<name> [--since EPOCH]) [--timeout S] [--interval S] [--out DIR]
 //   fw ci circleci fetch --pipeline ID --out DIR
 //   fw ci circleci compare --github gh-run.json --circleci DIR/run.json [--json]   (downloads the GitHub premises-<engine> artifacts)
@@ -33,7 +33,10 @@ export const API = 'https://circleci.com/api/v2';
 export const KEYCHAIN_SERVICE = 'fw-circleci-token';
 /** CircleCI answers 429 with a Retry-After; a poll is never faster than this (gh-hygiene: polls >= 120 s). */
 export const MIN_POLL_S = 120;
-export const LANES = ['premise-tests', 'webkit-sim'];
+export const LANES = ['premise-tests', 'webkit-sim', 'land'];
+
+/** The land legs (lean/land-legs.txt, the names of .github/workflows/land.yml's matrix): the values of `--legs`. */
+export const landLegs = (root = ROOT) => readFileSync(join(root, 'lean', 'land-legs.txt'), 'utf8').split(/\s+/).filter(Boolean);
 /** Free Arm classes the trigger accepts: the Gen 2 names (CONFIRMED: accepted by pipelines 15 and 16) and the Gen 1 fallback. */
 export const CLASSES = ['arm.medium.gen2', 'arm.large.gen2', 'arm.medium', 'arm.large'];
 
@@ -247,9 +250,10 @@ export async function listAll(ctx, url, { maxPages = 10 } = {}) {
 
 /** The request that starts a pipeline for a branch (POST /project/{slug}/pipeline/run; the definition id is the project's
  *  pipeline definition). Returns { method, url, headers, body } with the token left out. */
-export function triggerRequest({ slug, definitionId, branch, lane, cls, xcode }) {
+export function triggerRequest({ slug, definitionId, branch, lane, cls, xcode, legs }) {
   const parameters = { lane };
-  if (lane === 'premise-tests' && cls) parameters.resource_class = cls;
+  if ((lane === 'premise-tests' || lane === 'land') && cls) parameters.resource_class = cls;
+  if (lane === 'land' && legs?.length) parameters.legs = legs.join(',');
   if (lane === 'webkit-sim' && xcode) parameters.xcode = xcode;
   return { method: 'POST', url: `${API}/project/${slug}/pipeline/run`, headers: { 'Circle-Token': '<redacted>', Accept: 'application/json', 'Content-Type': 'application/json' },
     body: { definition_id: definitionId, config: { branch }, checkout: { branch }, parameters } };
@@ -500,7 +504,7 @@ export async function fetchPipeline(ctx, { slug, pipelineId, out }) {
   mkdirSync(out, { recursive: true });
   const sha = (await call(ctx, 'GET', urls.pipeline(pipelineId))).vcs?.revision ?? '';
   if (!/^[0-9a-f]{40}$/.test(sha)) throw new Error(`pipeline ${pipelineId} has no vcs.revision`);
-  const runs = [], spans = [];
+  const runs = [], spans = [], lanes = [];
   const bytes = { artifacts: 0, cache: 0, workspace: 0 };
   const cacheSaves = [];
   for (const wf of await listAll(ctx, urls.workflows(pipelineId))) {
@@ -510,12 +514,14 @@ export async function fetchPipeline(ctx, { slug, pipelineId, out }) {
       const d = await call(ctx, 'GET', urls.job(slug, j.job_number));
       const dir = join(out, j.name);
       mkdirSync(dir, { recursive: true });
+      let lanePath = null;
       let timingsPath = join(dir, 'timings.json'); // CircleCI keeps the absolute upload path (tmp/fw/artifacts/...) in the artifact path
       for (const a of await listAll(ctx, urls.artifacts(slug, j.job_number))) {
         const rel = String(a.path).replace(/^\/+/, '');
         if (rel.split('/').includes('..') || rel === '') throw new Error(`artifact path ${a.path} leaves the output directory`);
         const dest = join(dir, ...rel.split('/'));
         if (rel.split('/').pop() === 'timings.json') timingsPath = dest;
+        if (rel.split('/').pop() === 'lane.json') lanePath = dest;
         if (!(dest + sep).startsWith(dir + sep)) throw new Error(`artifact path ${a.path} leaves the output directory`);
         const buf = await callBytes(ctx, a.url);
         mkdirSync(dirname(dest), { recursive: true });
@@ -523,6 +529,8 @@ export async function fetchPipeline(ctx, { slug, pipelineId, out }) {
         bytes.artifacts += buf.length;
       }
       runs.push(circleRun(d, { sha, digest: digestJob(g, j.name) ? premiseDigest(dir) : null }));
+      const lane = landLane(lanePath);
+      if (lane) lanes.push({ job: j.name, conclusion: ofCircleStatus(d.status), ...lane });
       const started = ms(d.started_at), stopped = ms(d.stopped_at), queuedAt = ms(d.queued_at) ?? ms(d.created_at);
       let own = [], saved = {};
       try { const t = JSON.parse(readFileSync(timingsPath, 'utf8')); own = t.spans ?? []; saved = t.bytes ?? {}; } catch { /* no timings.json: the job died before finish */ }
@@ -546,9 +554,21 @@ export async function fetchPipeline(ctx, { slug, pipelineId, out }) {
   }
   const all = ctx.ledgerPath ? ledgerBytes(ledger) : total;
   const milli = storageMilli(all, RETENTION_DAYS);
-  const doc = { schema: 'fw.circleci-run/1', pipelineId, sha, runs, spans, storage: { ...bytes, cacheSaves, bytes: total, ledgerBytes: all, days: RETENTION_DAYS, milli, stops: stops(g, { durMs: 0, queueMs: 0, storageMilli: milli }) } };
+  const doc = { schema: 'fw.circleci-run/1', pipelineId, sha, runs, lanes, spans, storage: { ...bytes, cacheSaves, bytes: total, ledgerBytes: all, days: RETENTION_DAYS, milli, stops: stops(g, { durMs: 0, queueMs: 0, storageMilli: milli }) } };
   writeFileSync(join(out, 'run.json'), `${JSON.stringify(doc, null, 2)}\n`);
   return doc;
+}
+
+/** The lane record a land job writes ({leg, sha, digest, engine, rc}; .circleci/job.sh `land_suites`), or null when the file is absent
+ *  or not that shape. The digest is the `LANE digest=` line of `fw checks`: the same value `.github/workflows/land.yml` prints in its
+ *  `lane: sha=.. digest=..` step name, so the two providers' legs compare by `leg` and `digest`. */
+export function landLane(path) {
+  if (!path) return null;
+  try {
+    const j = JSON.parse(readFileSync(path, 'utf8'));
+    if (typeof j.leg !== 'string' || typeof j.sha !== 'string' || typeof j.digest !== 'string') return null;
+    return { leg: j.leg, sha: j.sha, digest: j.digest, engine: String(j.engine ?? ''), rc: Number(j.rc) };
+  } catch { return null; }
 }
 
 /** Pair the runs by job and compare them with the Lean verdict: lines for print, and the exit code. */
@@ -629,7 +649,7 @@ function flags(argv, spec) {
 
 const USAGE = [
   'usage: fw ci circleci <sub> ...',
-  '  trigger --lane premise-tests|webkit-sim --branch ci/<name> [--class arm.medium.gen2|arm.large.gen2] [--xcode V] [--dry]',
+  '  trigger --lane premise-tests|webkit-sim|land --branch ci/<name> [--class arm.medium.gen2|arm.large.gen2] [--xcode V] [--legs a,b (land)] [--dry]',
   '  wait (--pipeline ID | --branch ci/<name> [--since EPOCH]) [--timeout S] [--interval S>=120] [--out DIR]',
   '  fetch --pipeline ID --out DIR      compare --github gh-run.json --circleci DIR/run.json [--json]',
   '  route --lane L --platform linux-arm|macos --class C --est-ms N --credits-left N [--allow a,b] [--gh-degraded]',
@@ -667,7 +687,7 @@ export async function main(argv, { root = ROOT, env = process.env, ctx: ctx0 = {
     }
     if (sub === 'dry-run') {
       const o = flags(rest, { lane: 'v', branch: 'v', class: 'v', xcode: 'v', fixture: 'v' });
-      for (const lane of o.lane ? [o.lane] : LANES) {
+      for (const lane of o.lane ? [o.lane] : LANES.filter((l) => l !== 'land')) { // land has no recorded fixture: its proof is the live paired run
         if (!LANES.includes(lane)) throw new Usage(`unknown lane ${lane}; lanes: ${LANES.join(', ')}`);
         await dryRun({ golden, lane, branch: o.branch ?? 'ci/circleci-pilot', cls: o.class, xcode: o.xcode, fixture: o.fixture, log });
       }
@@ -684,10 +704,13 @@ export async function main(argv, { root = ROOT, env = process.env, ctx: ctx0 = {
       return keyExit(r.verdict);
     }
     if (sub === 'trigger') {
-      const o = flags(rest, { lane: 'v', branch: 'v', class: 'v', xcode: 'v', dry: 'bool' });
+      const o = flags(rest, { lane: 'v', branch: 'v', class: 'v', xcode: 'v', legs: 'v', dry: 'bool' });
       if (!LANES.includes(o.lane) || !/^ci\/[A-Za-z0-9._/-]+$/.test(o.branch ?? '')) throw new Usage(USAGE);
+      const legs = o.legs ? o.legs.split(',').filter(Boolean) : [];
+      if (o.lane === 'land' && (legs.length === 0 || legs.some((l) => !landLegs().includes(l)))) throw new Usage(`--legs must list land legs: ${landLegs().join(',')}`);
+      if (o.lane !== 'land' && o.legs) throw new Usage('--legs is for --lane land only');
       if (o.class && !CLASSES.includes(o.class)) throw new Usage(`--class must be one of ${CLASSES.join(', ')} (no paid class)`);
-      const req = triggerRequest({ slug: o.dry ? (cfg.slug || '<project-slug>') : need('slug'), definitionId: o.dry ? (cfg.definitionId || '<definition-id>') : need('definitionId'), branch: o.branch, lane: o.lane, cls: o.class, xcode: o.xcode });
+      const req = triggerRequest({ slug: o.dry ? (cfg.slug || '<project-slug>') : need('slug'), definitionId: o.dry ? (cfg.definitionId || '<definition-id>') : need('definitionId'), branch: o.branch, lane: o.lane, cls: o.class, xcode: o.xcode, legs });
       if (o.dry) { log(`${req.method} ${req.url}`); log(JSON.stringify({ headers: req.headers, body: req.body }, null, 2)); return 0; }
       const k = await keyCheck(ctx, { slug: cfg.slug });
       if (!k.proceed) { log(keyAdvice(k)); return keyExit(k.verdict); }
