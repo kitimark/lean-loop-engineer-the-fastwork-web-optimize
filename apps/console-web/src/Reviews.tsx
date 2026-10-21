@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { apiFetch } from "@/lib/auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ReviewPreview, type PreviewState } from "./ReviewPreview";
+import { ReviewInfo, useReviewInfo } from "./ReviewInfo";
 
 // Rendering only. Which reviews are pending, open or decided is Lean `console.review` (console-api `GET /api/reviews`); Keep and Reject
 // post the decision, which Lean accepts or refuses. The page link comes from the owner's private `.local/reviews.json`.
@@ -17,6 +19,8 @@ export type ReviewItem = {
   changed: { id: string | null; candidate: string; visual: string | null; chromium: string | null; webkit: string | null } | null;
   material: { chromium: Strips; webkit: Strips } | null;
   link: string | null;
+  /** which devices the owner previewed on and what is still asked (Lean `console.reviewPreview`) */
+  preview?: PreviewState | null;
 };
 export type ReviewsData = { ok: boolean; open: number; options: string[]; items: ReviewItem[] };
 export type Verdict = "keep" | "reject";
@@ -128,9 +132,14 @@ export function StripCard({ flag, s }: { flag: string; s: StripItem }) {
 const DONE: Record<Verdict, string> = { keep: "You kept it.", reject: "You rejected it." };
 
 /** One review: what changed, the review material, and Keep / Reject with an in-page confirm step. */
-export function ReviewCard({ item, confirming, busy, error, onAsk, onConfirm, onCancel }: {
+/** The information panel of a card (gains, code change, mechanism and math), loaded from console.reviewInfo. */
+function InfoSlot({ flag }: { flag: string }) {
+  return <ReviewInfo flag={flag} data={useReviewInfo(flag)} />;
+}
+
+export function ReviewCard({ item, confirming, busy, error, onAsk, onConfirm, onCancel, onPreviewed }: {
   item: ReviewItem; confirming: Verdict | null; busy: boolean; error: string | null;
-  onAsk: (v: Verdict) => void; onConfirm: () => void; onCancel: () => void;
+  onAsk: (v: Verdict) => void; onConfirm: () => void; onCancel: () => void; onPreviewed?: () => void;
 }) {
   const decided = item.state !== "open";
   return (
@@ -160,6 +169,8 @@ export function ReviewCard({ item, confirming, busy, error, onAsk, onConfirm, on
           {(item.strips ?? []).map((s, k) => <StripCard key={`${s.engine}-${s.width ?? k}-${s.push ?? ""}`} flag={item.flag} s={s} />)}
         </div>
       ) : null}
+      <ReviewPreview flag={item.flag} preview={item.state === "open" ? item.preview : null} {...(onPreviewed ? { onChanged: onPreviewed } : {})} />
+      <InfoSlot flag={item.flag} />
       {item.link
         ? <p className="text-sm"><span className="text-xs text-muted-foreground">Fallback: </span><a className="underline" href={item.link} target="_blank" rel="noreferrer" data-testid="review-link">Open the review page</a></p>
         : <p className="text-xs text-muted-foreground" data-testid="no-link">No review link on this machine; fetch the artifact named above from its CI run.</p>}
@@ -185,9 +196,9 @@ export function ReviewCard({ item, confirming, busy, error, onAsk, onConfirm, on
 }
 
 /** The panel: the open items first, then the decided ones. */
-export function ReviewsPanel({ data, confirm, busy, error, onAsk, onConfirm, onCancel }: {
+export function ReviewsPanel({ data, confirm, busy, error, onAsk, onConfirm, onCancel, onPreviewed }: {
   data: ReviewsData; confirm: { flag: string; word: Verdict } | null; busy: boolean; error: { flag: string; text: string } | null;
-  onAsk: (flag: string, v: Verdict) => void; onConfirm: () => void; onCancel: () => void;
+  onAsk: (flag: string, v: Verdict) => void; onConfirm: () => void; onCancel: () => void; onPreviewed?: () => void;
 }) {
   const items = [...data.items.filter((i) => i.state === "open"), ...data.items.filter((i) => i.state !== "open")];
   return (
@@ -196,7 +207,7 @@ export function ReviewsPanel({ data, confirm, busy, error, onAsk, onConfirm, onC
       {items.length === 0 ? <p className="text-sm text-muted-foreground" data-testid="no-reviews">Nothing waits for your review.</p> : null}
       {items.map((i) => (
         <ReviewCard key={i.flag} item={i} confirming={confirm?.flag === i.flag ? confirm.word : null} busy={busy && confirm?.flag === i.flag}
-          error={error?.flag === i.flag ? error.text : null} onAsk={(v) => onAsk(i.flag, v)} onConfirm={onConfirm} onCancel={onCancel} />
+          error={error?.flag === i.flag ? error.text : null} onAsk={(v) => onAsk(i.flag, v)} onConfirm={onConfirm} onCancel={onCancel} {...(onPreviewed ? { onPreviewed } : {})} />
       ))}
     </section>
   );
@@ -221,5 +232,5 @@ export function ReviewsView({ data, reload }: { data: ReviewsData | null; reload
   }
   if (!data) return <p className="text-muted-foreground">Loading reviews...</p>;
   return <ReviewsPanel data={data} confirm={confirm} busy={busy} error={error} onAsk={(flag, word) => { setError(null); setConfirm({ flag, word }); }}
-    onConfirm={() => void send()} onCancel={() => setConfirm(null)} />;
+    onConfirm={() => void send()} onCancel={() => setConfirm(null)} onPreviewed={() => void reload()} />;
 }

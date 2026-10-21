@@ -46,6 +46,7 @@ import Fw.Parts.PeopleGolden
 import Fw.Parts.PlatformGolden
 import Fw.Parts.MorphTweenOpt
 import Fw.Parts.HiddenPause
+import Fw.Parts.HeroScenePause
 import Fw.Parts.MorphMountOpt
 import Fw.Parts.MorphMountDormant
 import Fw.Parts.HeroExitOpt
@@ -160,6 +161,7 @@ import Fw.Console.LandRemote  -- land-wait: provider-neutral remote land verdict
 import Fw.Console.ReconcileSched  -- console-reconcile-speed: reconcile request coalescing
 import Fw.Console.JournalFold  -- console-idle-cpu: journal cache, settled runs, safety tick
 import Fw.Console.Review  -- user-review-queue: pending look-change reviews as user steps
+import Fw.Console.ReviewPreview  -- review-preview-devices: Preview arms, URLs and the device class of a look-change review
 import Fw.Console.LandPool -- land-pool-fair: fair-share floor under poolSize, wired into land.ts by console.landPool and console.landRetry
 import Fw.Land.RenderGuard  -- land-render-guard: refuse a land whose history writes a media file outside snapshot/ (console.landRenderGuard)
 import Fw.Ops.LedgerMerge  -- ledger-merge-driver: three-way id merge of the JSON ledgers (scripts/merge-ledger.mjs)

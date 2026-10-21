@@ -9,6 +9,7 @@ import type { Hono } from "hono";
 import { z } from "zod";
 import type { Store } from "../store.ts";
 import { readLedger } from "../preview/compose.ts";
+import { previewInfo } from "./preview.ts";
 
 /** The review material of a flag: what exists and where it can be fetched. Facts from `Fw.Preset.Gen.lookDecisions`, through Lean `console.review`. */
 export interface Material {
@@ -120,6 +121,7 @@ export function mountReviews(app: Hono, store: Store, root: string, opts: Review
     const r = await ask(store, undefined, { today: today() });
     const ledger = readLedger(root).findings;
     const links = readLinks(root);
+    const pv = await previewInfo(store);
     return c.json({
       ok: true, open: r.open, options: r.options,
       items: r.items.map((i) => {
@@ -130,6 +132,7 @@ export function mountReviews(app: Hono, store: Store, root: string, opts: Review
           material: i.material,
           strips: i.strips ?? [],
           link: links[i.flag] ?? null,
+          preview: pv[i.flag] ?? null,
         };
       }),
     });

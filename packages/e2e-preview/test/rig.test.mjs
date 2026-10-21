@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { PREVIEW_ID, startRig } from "../src/rig.mjs";
-import { documentUrl, ENTRY_SEARCH, evalReport, PATHS } from "../src/suite.mjs";
+import { documentUrl, ENTRY_SEARCH, evalReport, PATHS, REVIEW_SEARCH } from "../src/suite.mjs";
 
 describe("evalReport", () => {
   it("a module evaluated once per file is clean", () => {
@@ -21,7 +21,7 @@ describe("evalReport", () => {
 });
 
 describe("the suite covers the task arm, the original arm and the side-by-side page", () => {
-  it("paths", () => assert.deepEqual(PATHS.map((p) => p.id), ["r", "o", "compare", "entry-r", "entry-o"]));
+  it("paths", () => assert.deepEqual(PATHS.map((p) => p.id), ["r", "o", "compare", "entry-r", "entry-o", "entry-review-flag"]));
   it("an arm's document is its own origin; the side-by-side page is on the preview port", () => {
     const host = { origin: "http://h:10", arm: { r: "http://h:11", o: "http://h:12" } };
     assert.equal(documentUrl(host, PATHS[0]), "http://h:11/");
@@ -33,6 +33,12 @@ describe("the suite covers the task arm, the original arm and the side-by-side p
     assert.equal(documentUrl(host, PATHS[3]), `http://h:10/preview/${PREVIEW_ID}/r/${ENTRY_SEARCH}`);
     assert.equal(documentUrl(host, PATHS[4]), `http://h:10/preview/${PREVIEW_ID}/o/${ENTRY_SEARCH}`);
     assert.match(ENTRY_SEARCH, /^\?.+=/);
+  });
+  it("the review flag target opens the flag arm of a review card: ?fw=<flag key> on the entry path, kept by the hop to the arm origin", () => {
+    const host = { origin: "http://h:10", arm: { r: "http://h:11", o: "http://h:12" } };
+    assert.equal(REVIEW_SEARCH, "?fw=nav:earn-no-transition");
+    assert.equal(documentUrl(host, PATHS[5]), `http://h:10/preview/${PREVIEW_ID}/r/${REVIEW_SEARCH}`);
+    assert.equal(PATHS[5].arm, "r");
   });
 });
 
@@ -63,6 +69,10 @@ describe("rig over plain HTTP", () => {
       assert.equal(hop.status, 302);
       assert.equal(hop.headers.get("location"), `${h.arm[arm]}/${ENTRY_SEARCH}`);
     }
+    // a review card's flag query arrives on the arm origin unchanged (the colon of the flag key included)
+    const flagHop = await get(h.origin, `/preview/${PREVIEW_ID}/r/${REVIEW_SEARCH}`);
+    assert.equal(flagHop.status, 302);
+    assert.equal(flagHop.headers.get("location"), `${h.arm.r}/${REVIEW_SEARCH}`);
     for (const arm of ["o", "r"]) {
       const doc = await get(h.arm[arm], "/");
       assert.equal(doc.status, 200, arm);
