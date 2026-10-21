@@ -1,0 +1,21 @@
+name = "FwMath"
+version = "0.1.0"
+defaultTargets = ["FwMath"]
+
+# Real-number companion to lean/ (task mathlib-poc). The dependency is one-way: FwMath imports Fw modules,
+# and lean/ (package fwcore) never requires this package or Mathlib.
+
+[leanOptions]
+autoImplicit = false
+
+[[require]]
+name = "mathlib"
+git = "https://github.com/leanprover-community/mathlib4"
+rev = "v4.35.0"
+
+[[require]]
+name = "fwcore"
+path = "../lean"
+
+[[lean_lib]]
+name = "FwMath"
