@@ -853,3 +853,6 @@ def exRw : Request := { exReq with target := "rewrite", preset := "strip-demo", 
 #guard cacheOf none ["a"] == "unknown"
 
 end Fw.Store
+
+/-- Probe of task fwcore-rebuild-fanout (a typical change in the cone of `Fw.Wire.Sched`). -/
+theorem fanoutProbe : True := trivial
