@@ -99,7 +99,7 @@ describe("fw reap --stop on real process trees", () => {
     for (const p of all) expect(running(p)).toBe(false);
     expect(r.byKind[0]!.kind).toBe("removed");
     expect(r.freedKb).toBeGreaterThan(0);
-  }, 30_000);
+  });
 
   it("KILL path: a child that ignores TERM is killed only after the grace", async () => {
     const t = await startTree(join(main, ".claude", "worktrees", "gone1"), ["term", "ignore"]);
@@ -116,7 +116,7 @@ describe("fw reap --stop on real process trees", () => {
     const firstKill = log.findIndex((l) => l.sig === "SIGKILL");
     expect(firstKill).toBeGreaterThan(0);
     expect(log.slice(0, firstKill).every((l) => l.sig === "SIGTERM")).toBe(true);
-  }, 30_000);
+  });
 
   it("pid-reuse guard: a pid whose start time changed after TERM is never sent KILL", async () => {
     const t = await startTree(join(main, ".claude", "worktrees", "gone1"), ["ignore"]);
@@ -129,7 +129,7 @@ describe("fw reap --stop on real process trees", () => {
     expect(r.killed).toEqual([]);
     expect(running(victim)).toBe(true); // still the real process, which we did not touch after TERM
     expect(r.left.some((l) => l.pid === victim)).toBe(false);
-  }, 30_000);
+  });
 
   it("a process in a live checkout, in the main checkout or outside any worktree is never touched", async () => {
     const live = await startTree(join(main, ".claude", "worktrees", "live1"), ["ignore"]);
@@ -143,7 +143,7 @@ describe("fw reap --stop on real process trees", () => {
     expect(log.every((l) => !safe.includes(l.pid))).toBe(true);
     for (const p of safe) expect(running(p)).toBe(true);
     for (const p of [gone.parent, ...gone.kids]) expect(running(p)).toBe(false);
-  }, 30_000);
+  });
 
   it("a tool below a dead owner is stopped even when its own cwd is outside every worktree; a look-alike is not", async () => {
     const t = await startTree(join(main, ".claude", "worktrees", "gone1"), ["term"], tmp);
@@ -154,7 +154,7 @@ describe("fw reap --stop on real process trees", () => {
     expect(kinds[t.kids[0]!]).toBe("descendant");
     expect(running(t.kids[0]!)).toBe(false);
     for (const p of [lookalike.parent, ...lookalike.kids]) { expect(kinds[p]).toBeUndefined(); expect(running(p)).toBe(true); }
-  }, 30_000);
+  });
 
   it("a worktree removed with git while a tree runs in it is stopped by the land hook, which reports and records it", async () => {
     const wt = join(main, ".claude", "worktrees", "landed1");
@@ -169,7 +169,7 @@ describe("fw reap --stop on real process trees", () => {
     const rec = readFileSync(join(tmp, "console", "reap.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l) as { type: string; kind: string; pids: number[]; freedKb: number });
     expect(rec[0]).toMatchObject({ type: "reap.stopped", kind: "removed" });
     expect(rec[0]!.pids.sort()).toEqual([t.parent, ...t.kids].sort());
-  }, 30_000);
+  });
 
   it("--stop prints the list and the result; --list alone signals nothing", async () => {
     const t = await startTree(join(main, ".claude", "worktrees", "gone1"), ["term"]);
@@ -186,5 +186,5 @@ describe("fw reap --stop on real process trees", () => {
     out.length = 0;
     expect(reapCli(["--stop"], main, call, (s) => out.push(s), scoped, recording([]))).toBe(0);
     expect(out).toEqual(["reap: nothing leftover"]);
-  }, 30_000);
+  });
 });

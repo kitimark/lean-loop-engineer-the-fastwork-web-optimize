@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { classify, COULD_NOT_LIST, insideLive, isMcp, parseLsof, parsePs, wtIdOf, reapCli, reapLines, ReapUsage, recordedConsoles, type Facts } from "../src/reap.ts";
+import { classify, COULD_NOT_LIST, reapTick, renderStop, stopSelected, type Io, insideLive, isMcp, parseLsof, parsePs, wtIdOf, reapCli, reapLines, ReapUsage, recordedConsoles, type Facts } from "../src/reap.ts";
 import { fwcoreCall } from "../src/run.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
@@ -89,5 +89,43 @@ describe("live checkout identity and the recorded console", () => {
     expect(recordedConsoles(root, { FW_CONSOLE_DIR: join(d, "c") })).toContainEqual({ pid: 600, at: 101 });
     expect(recordedConsoles(root, { FW_CONSOLE_DIR: join(d, "none") }).every((k) => k.pid !== 600)).toBe(true);
     rmSync(d, { recursive: true, force: true });
+  });
+});
+
+describe("reap-auto-stop glue with a stubbed process table", () => {
+  const call = fwcoreCall(root);
+  const facts: Facts = { rows: [{ pid: 800, ppid: 1, pgid: 800, start: 9, cwd: 20, kind: "tool", wt: "gone" }], live: [1], mcps: [], keep: [], liveIds: ["live"] };
+  const stub = (alive: (sent: string[]) => boolean) => {
+    const sent: string[] = [];
+    const io: Io = {
+      signal: (t, sig) => { sent.push(`${sig} ${t.group ? "-" : ""}${t.pid}`); },
+      sleep: () => {},
+      table: () => (alive(sent) ? [{ pid: 800, ppid: 1, pgid: 800, start: 9, cwd: null, kind: "tool" }] : []),
+      rss: () => new Map([[800, 2048]]),
+    };
+    return { sent, io };
+  };
+  it("a target that ends on TERM is not KILLed, the freed RSS and the event are recorded", () => {
+    const { sent, io } = stub((s) => s.length === 0);
+    const dir = mkdtempSync(join(tmpdir(), "reap-tick-"));
+    const lines = reapTick(root, { FW_CONSOLE_DIR: dir }, io, () => facts, () => call);
+    expect(sent).toEqual(["SIGTERM -800"]);
+    expect(lines).toEqual(["REAP stopped removed 1 process(es) [800] freed 2.0 MiB"]);
+    expect(JSON.parse(readFileSync(join(dir, "reap.jsonl"), "utf8"))).toMatchObject({ type: "reap.stopped", kind: "removed", pids: [800], freedKb: 2048 });
+    rmSync(dir, { recursive: true, force: true });
+  });
+  it("a target that survives the grace is KILLed after the TERM, and one that survives KILL is reported", () => {
+    const { sent, io } = stub(() => true);
+    const r = stopSelected(root, call, io, () => facts)!;
+    expect(sent).toEqual(["SIGTERM -800", "SIGKILL -800"]);
+    expect(r.left.map((t) => t.pid)).toEqual([800]);
+    expect(renderStop(r).join("\n")).toContain("still running after KILL: 800");
+    expect(reapCli(["--stop"], root, call, () => {}, () => facts, io)).toBe(2);
+  });
+  it("FW_WATCH_REAP=0 and an unreadable table do nothing", () => {
+    const { sent, io } = stub(() => true);
+    expect(reapTick(root, { FW_WATCH_REAP: "0" }, io, () => facts, () => call)).toEqual([]);
+    expect(reapTick(root, {}, io, () => null, () => call)).toEqual([]);
+    expect(sent).toEqual([]);
   });
 });

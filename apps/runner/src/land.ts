@@ -69,7 +69,7 @@ export type LandOptions = {
   attribution?: string[];
   /** run after a successful landing, in the main checkout (plan sync); its lines are printed; it throws when it failed */
   after?: (mainDir: string) => Promise<string[]>;
-  /** leftover-process lines (Lean `ops.lspReap`) added to the report after a worktree removal; never signals */
+  /** run after a worktree removal: stops the processes Lean selects (TERM, grace, KILL of unchanged survivors; `reapStopLines`) and returns the report lines; tests inject a stub */
   reap?: (mainDir: string) => Promise<string[]>;
   /** console-api base URL, only used to print the commands for steps that failed after the commit */
   base?: string;
@@ -997,7 +997,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       } else if (!tryGit(mainDir, ["worktree", "remove", wt.dir])) { removed = false; lines.push(`worktree ${wt.dir} left: git refused to remove it`); }
       else {
         lines.push(`worktree ${wt.dir} removed`);
-        if (o.reap) { try { lines.push(...(await o.reap(mainDir))); } catch { /* the list is advisory */ } }
+        if (o.reap) { try { lines.push(...(await o.reap(mainDir))); } catch { /* the stop is best effort; the report line says what happened */ } }
       }
     }
     if (removed) lines.push(tryGit(mainDir, ["branch", "-d", branch]) ? `branch ${branch} deleted` : `branch ${branch} kept (branch -d refused)`);

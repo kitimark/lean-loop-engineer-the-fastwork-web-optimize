@@ -356,4 +356,19 @@ export function reapCli(argv: string[], top: string, call: Call, print: (s: stri
   return 0;
 }
 
+/** One watch tick: stop what Lean selects and return the lines to print (`REAP stopped <kind> ...`), recording each kind in
+ *  `reap.jsonl`. `FW_WATCH_REAP=0` turns it off. Never throws: a failed read or stop is a quiet tick. */
+export function reapTick(top: string, env: Record<string, string | undefined> = process.env, io: Io = realIo,
+  gatherFn: (top: string) => Facts | null = gather, call: () => Call = () => fwcoreCall(top)): string[] {
+  if (env.FW_WATCH_REAP === "0") return [];
+  try {
+    const r = stopSelected(top, call(), io, gatherFn);
+    if (r === null || r.byKind.length === 0) return [];
+    recordStopped(top, r, Date.now(), env);
+    return r.byKind.map((k) => `REAP stopped ${k.kind} ${k.pids.length} process(es) [${k.pids.join(",")}] freed ${(k.freedKb / 1024).toFixed(1)} MiB${r.left.length ? `; still running: ${r.left.map((t) => t.pid).join(",")}` : ""}`);
+  } catch {
+    return [];
+  }
+}
+
 export class ReapUsage extends Error {}
