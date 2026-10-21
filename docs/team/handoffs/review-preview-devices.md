@@ -20,7 +20,7 @@ Round 2:
 - Blocked pop-up: `openAndRecord` records only when a window opened; otherwise the rendered link records on its click (test).
 - `flag_search_exact` stays a `#guard` over `lookDecisions` (accepted limit): Lean core has no `String.splitOn` lemmas and `decide +kernel` does not reduce it.
 - Previewed-on is not scoped to a review round (accepted limit: a re-review of the same flag counts old previews).
-- ci/review-preview-devices run: see the report.
+- CI: preview-e2e run 39557255514 (ci/review-preview-devices @257d0684) green on chromium and playwright-webkit; entry-review-flag 38 checks each all ok on loopback and plain-http (fw-phone.test); landed URL carries ?fw=nav:earn-no-transition.
 
 Open:
 - Original-snapshot arm is not offered (Compare is the existing original-vs-flag page).
