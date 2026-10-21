@@ -49,6 +49,13 @@ describe("GET /api/reviews/:flag/info", () => {
     expect(j.summary).toContain("WebKit: unknown");
   });
 
+  it("the console-web fixture is the Lean reply (regenerate it from fwcore when this fails)", async () => {
+    const j = await info();
+    const fx = JSON.parse(readFileSync(join(ROOT, "apps/console-web/test/fixtures/review-info.earn.json"), "utf8"));
+    const strip = ({ id: _id, ...x }: any) => ({ ...x, excerpts: x.excerpts.map(({ ok: _o, lines: _l, reason: _r, ...e }: any) => e) });
+    expect(strip(j)).toEqual(strip(fx));
+  });
+
   it("every row has a status, and a shown gain never has an unknown status", async () => {
     const j = await info();
     for (const g of j.gains) {

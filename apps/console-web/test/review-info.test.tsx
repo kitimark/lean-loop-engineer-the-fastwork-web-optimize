@@ -1,13 +1,10 @@
-import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { ReviewInfo, mathHtml, statusText, type Excerpt, type Gain, type InfoData } from "../src/ReviewInfo";
 
 const FLAG = "nav:earn-no-transition";
-const ROOT = join(import.meta.dirname, "../../..");
-const FWCORE = join(ROOT, "lean/.lake/build/bin/fwcore");
 
 const gain = (o: Partial<Gain> = {}): Gain => ({
   metric: "earn max-width", engine: "model (both engines)", push: "open", viewport: "1440 and 390 (same)", before: [43, 43], after: [3, 3], noise: 0,
@@ -63,11 +60,12 @@ describe("ReviewInfo", () => {
   });
 });
 
-describe.skipIf(!existsSync(FWCORE))("ReviewInfo with the Lean reply", () => {
-  const reply = JSON.parse(execFileSync(FWCORE, { input: JSON.stringify({ op: "console.reviewInfo", flag: FLAG }) + "\n", encoding: "utf8" }).split("\n")[0]!);
+// The fixture is the Lean reply (console-api test review-info checks that it equals `console.reviewInfo`).
+describe("ReviewInfo with the Lean reply", () => {
+  const reply = JSON.parse(readFileSync(join(import.meta.dirname, "fixtures/review-info.earn.json"), "utf8"));
   const withLines = (): InfoData => ({
     ...reply,
-    excerpts: reply.excerpts.map((e: any) => ({ ...e, ok: true, lines: readFileSync(join(ROOT, e.file), "utf8").split("\n").slice(e.first - 1, e.last).map((text, i) => ({ n: e.first + i, text })) })),
+    excerpts: reply.excerpts.map((e: any) => ({ ...e, ok: true, lines: [{ n: e.first, text: e.anchor }] })),
   });
   it("renders all 16 gain rows and every formula with KaTeX (throwOnError)", () => {
     const d = withLines();
