@@ -14070,7 +14070,7 @@
     "jev-core",
     "jev-datasets"
    ],
-   "title": "Offline A/B replay of the Jev trial (user 2026-10-22): each held-out and calibration row of D1..D4 (jev-datasets) goes to Jev (model pinned, jev-1.13.0 on 2026-10-22), to a Haiku agent and to a Sonnet agent with the same question text; record per option precision and recall, coverage at the Lean threshold, confusion, $ per decision, latency, and net saving against the measured token cost of that decision today (incl. double pay on escalation and wrong-call cost). Order D1, D2, D3, D4. Live Jev calls need the user's permission route (a permission rule for the oracle CLI against api.typesafe.ai, or user-run batches via !); ask through the lead before the first send. Output research/notes/2026/10-2x-jev-replay.md with one table per decision type for the user's review; promotion is jev-eval's Lean ladder.",
+   "title": "Offline A/B replay of the Jev trial (user 2026-10-22): each held-out and calibration row of D1..D4 (jev-datasets) goes to Jev (model pinned, jev-1.13.0 on 2026-10-22), to a Haiku agent and to a Sonnet agent with the same question text; record per option precision and recall, coverage at the Lean threshold, confusion, $ per decision, latency, and net saving against the measured token cost of that decision today (incl. double pay on escalation and wrong-call cost). Order D1, D2, D3, D4. Live Jev calls need the user's permission route (a permission rule for the oracle CLI against api.typesafe.ai, or user-run batches via !); ask through the lead before the first send. Output research/notes/2026/10-2x-jev-replay.md with one table per decision type for the user's review; promotion is jev-eval's Lean ladder. Send path (user 2026-10-22 asked for safe permission rules): every live call goes through one command `pnpm fw oracle send --set <D1..D4> [--part calibrate|holdout]` that the user allows with an ask (then allow) rule in .claude/settings.local.json; the command takes a dataset id only (never a file path), sends only to https://api.typesafe.ai, redacts every row before sending (Lean Redact), reads the Keychain key in-process after the Lean pre-check (never in args, logs or files), refuses above a Lean per-run budget (max requests and input tokens), and writes answers only to the local answer log. The lead gives the user the exact rule once the command exists.",
    "writes": [
     "research/notes/2026/10-2x-jev-replay.md",
     "results/jev/**",
@@ -14258,6 +14258,100 @@
     "apps/runner/test/step*.test.ts",
     "apps/runner/src/watch-collect.ts",
     "docs/team/handoffs/ask-step-guard.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "hero-exit-threaded-port",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [],
+   "title": "User goal 2026-10-22 (hero exit smoother on WebKit). Survey (lead scratch opt-survey/hero-exit.md, repo note 10-22-smooth-candidates landing): the rewrite's remaining hero stalls are Safari's toolbar-collapse throttle: the page gets scroll updates every 100 ms while the toolbar collapses (WKWebViewIOS.mm:3256-3268@862f17d, CONFIRMED), so the JS-driven --exit-opacity steps at about 10 Hz while the sticky hero moves smoothly; compositor-run scroll timelines are updated on every UI scroll callback even while throttled (RemoteScrollingTreeIOS.cpp:56-62, CONFIRMED). Build the TS variant hero.exit:threaded: a CSS scroll-driven animation (animation-timeline on the hero's scroll range) for the exit's opacity/translate (and blur only if WebKit runs a filter on the scroll timeline in the UI process: read the source first; else keep blur on the main path and say so), checked against the Lean golden vectors of HeroExitOpt (consumer_eq_s under premise RG11, proof-hero-exit and hero-exit-restate landed 3dbed91c). Flag registry entry, trajectory gate at every breakpoint on both engines, and the WebKit CI measurement with the corrected exit check (scrollY still runs inside the exit range with a getComputedStyle sample of a consumer, never the stall count, which a CSS animation does not write). Same look is the proof's claim; any pixel difference found goes to the look-change class.",
+   "writes": [
+    "apps/site/src/parts/hero.exit/**",
+    "lean/Fw/Parts/HeroExit*.lean",
+    "packages/contracts/golden/parts/hero-exit*.jsonl",
+    "research/notes/2026/10-2x-hero-exit-threaded.md",
+    "docs/team/handoffs/hero-exit-threaded-port.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "toolbar-throttle-probe",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "title": "Confirm the hero-exit stall cause before and alongside hero-exit-threaded-port: a diagnostic-only flag engine.scroll:throttle-lift (one main-thread scroll-driven animation of an invisible property, which disables the 100 ms toolbar-collapse throttle per WebPageCocoa.mm:2357 and AnimationTimelinesController.cpp:267-279@862f17d; never shipped: it costs power). Measure on the WebKit Simulator lane with a real touch scroll that collapses Safari's toolbar (XCUITest or the device-replay path, not a synthetic WheelEvent) and in the next phone replay session: scrollY still runs per 100 frames inside the exit range, step sizes, and the exit value lag, original vs rewrite vs throttle-lift. Expected (INFERRED): still runs drop from about 83 per pass to near 0. A Lean statement of the still-run count with goldens. Viewport-height confound (h 815 vs 775 between arms) controlled: same height for every arm.",
+   "writes": [
+    "apps/site/src/parts/engine.scroll/**",
+    "packages/measure-webkit/src/throttle/**",
+    "packages/measure-webkit/test/throttle-*.test.mjs",
+    "lean/Fw/Device/StillRuns*.lean",
+    "packages/contracts/golden/device/stillruns*.jsonl",
+    "research/notes/2026/10-2x-toolbar-throttle.md",
+    "docs/team/handoffs/toolbar-throttle-probe.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-strip-webkit",
+   "owner": "lean-prover",
+   "stream": "parts",
+   "deps": [],
+   "title": "End of page, survey rank 1 (C10, morph.countdown:strip, needs hero.countdown:strip): about 80-160 new UIViews are created on Safari's UI thread at morph start (render-cost note F7); the strip cuts countdown layers 80 -> 8 (wk_normal_layers, HeroCountdownOpt strip_visSame). Open items to close: pixel E under the panel's fractional opacity (ledger n 13, partly-proved; v1 saw delta-1 pixel classes in fractional fades): prove or bound it, else move the flag to the look-change class; the open sub_still_not_le condition (the TS strip's shared-loop subscriber must go); the WebKit-side measurement (new layers per commit and UI-process work at morph start, via webkit-cost-counters) since the C3 decision excluded it on Chromium element counts (runs 39257533380, 39259074927). If it wins on WebKit and E holds, reverse the curated exclusion in lean/Fw/Preset/Gen.lean for the v2-proved preset.",
+   "writes": [
+    "lean/Fw/Parts/HeroCountdown*.lean",
+    "lean/Fw/Parts/MorphCountdown*.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "packages/contracts/golden/parts/countdown*.jsonl",
+    "packages/contracts/golden/preset/**",
+    "apps/site/src/parts/morph.countdown/**",
+    "apps/site/src/parts/hero.countdown/**",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/morph-strip-webkit.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-touch-band",
+   "owner": "lean-prover",
+   "stream": "parts",
+   "deps": [],
+   "title": "End of page: our non-passive window touchmove listener makes every pan in its band wait for the main thread with no timeout (WebPageProxy.cpp:5228-5300@862f17d), and morph.mount and morph.tween each attach one (morph-double-listener). Prove in Lean and build: (1) one merged listener (the two armed predicates MorphMount.lean:31 and MorphTween.lean combined; equivalence theorem); (2) the listener attached only in a band around the take point (premise, INFERRED: one touch sequence moves the page at most about one viewport height: state it as a premise and test it on the replay profiles). Same look (behaviour identical inside the band). Measure touch-to-first-scroll on the replay and the WebKit lane.",
+   "writes": [
+    "lean/Fw/Parts/MorphMount*.lean",
+    "lean/Fw/Parts/MorphTween*.lean",
+    "lean/Fw/Parts/MorphListen*.lean",
+    "packages/contracts/golden/parts/morph-listen*.jsonl",
+    "apps/site/src/parts/morph.mount/**",
+    "apps/site/src/parts/morph.tween/**",
+    "docs/team/handoffs/morph-touch-band.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "pin-fight-measure",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "device-replay"
+   ],
+   "title": "End of page: scroll-lock (C4) is not installed under (hover: none) (MorphTweenOpt engage_touch), so on the iPhone pin()'s scrollTo can fight a drag that crosses the take point and its momentum (preventDefault is ignored once a pan started, WKContentViewInteraction.mm:4238-4246@862f17d; effect INFERRED). Measure it before any fix: on the replay profiles (a drag crossing the take point, a fling across it), count scrollend events per gesture, scroll position reversals and the distance pin() moves the page against the gesture; original vs rewrite. A fix (C4t, touch scroll lock) changes the look and goes to the look-change class for the user's review.",
+   "writes": [
+    "packages/measure-webkit/src/pinfight/**",
+    "packages/measure-webkit/test/pinfight-*.test.mjs",
+    "research/notes/2026/10-2x-pin-fight.md",
+    "docs/team/handoffs/pin-fight-measure.md"
    ]
   }
  ],
