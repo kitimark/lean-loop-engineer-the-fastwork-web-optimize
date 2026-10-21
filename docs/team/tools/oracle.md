@@ -77,6 +77,19 @@ from the tasks jev-datasets and jev-replay; nothing is calibrated on landing, so
 
 Which texts are public enough to send is the caller's choice for now; a provenance check per field is a follow-up.
 
+## Replay ops (Fw.Wire.OracleReplay)
+
+| op | request | reply |
+|---|---|---|
+| `oracle.replay` | `set` (`d1`, `d2`), `rows` [Dataset row], `part`? (`holdout` or `calibrate`), `limit`? | `set`, `question`, `file`, `sampled`, `labeled`, `unknownLabel`, `leaking`, `selected`, `rows` [{`id`, `label`, `part`, `state`}] |
+| `oracle.preRun` | `name`, `names`?, `state`, `logged`?, `today`, `days` [string], `sent`, `spent` | `pre` replay/refuse/send, `failure`?, `bodyText` and `tokens` (on send) |
+| `oracle.score` | `name`, `arm` (`jev`, `haiku`, `sonnet`), `replay` [{`id`, `label`}], `answers` [Arm answer] | `arm`, `question`, `labeled`, `missing`, `all` and `holdout` (rows, answered, right, accuracy, per option labeled, chosen, right, precision, recall), `confusion` {`columns`, `rows`}, `thresholds`, `choose`, `holdoutCert`, `minHoldout`, `inputTokens`, `outputTokens`, `dollars`, `msMean`, `msMedian`, `msMax` |
+
+Dataset row: an object with `id`, `label` (an option name, or null) and the text keys of the set (`ReplaySet.fields`);
+other keys are ignored, and the row's own `split` is never read (Lean splits by id). Arm answer: `{id, reply}` (the
+Jev response text), `{id, failure}`, or `{id, choice, probabilities?}` (another arm), each with `inputTokens`?,
+`outputTokens`? (for a Jev reply, read from its `usage` when absent) and `ms`?.
+
 ## Redaction (Fw.Oracle.Redact)
 
 - Home paths in four forms (`/Users/`, `/home/`, `\Users\`, `-Users-`) become `~` (`no_home_forms`); the git user

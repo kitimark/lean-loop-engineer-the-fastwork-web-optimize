@@ -2,22 +2,8 @@ import Lean.Data.Json
 import Fw.Oracle.Replay
 import Fw.Oracle.Wire
 /-!
-# The ops of the offline replay: `oracle.replay`, `oracle.preRun`, `oracle.score`
-
-Glue between `fwcore`'s JSON lines and `Fw.Oracle.Replay` (namespace `Fw.Wire.OracleReplay`). `fw oracle send` asks
-`oracle.replay` which rows of a set to send and with which state, asks `oracle.preRun` before each send, and the
-scorer (`fw oracle score`, apps/runner/src/oracle-score.ts) asks `oracle.score` for the numbers of one arm.
-
-| op | request | reply |
-|---|---|---|
-| `oracle.replay` | `set` (`d1`, `d2`), `rows` [Dataset row], `part`? (`holdout` or `calibrate`), `limit`? | `set`, `question`, `file`, `sampled`, `labeled`, `unknownLabel`, `leaking`, `selected`, `rows` [{`id`, `label`, `part`, `state`}] |
-| `oracle.preRun` | `name`, `names`?, `state`, `logged`?, `today`, `days` [string], `sent`, `spent` | `pre` replay/refuse/send, `failure`?, `bodyText` and `tokens` (on send) |
-| `oracle.score` | `name`, `arm` (`jev`, `haiku`, `sonnet`), `replay` [{`id`, `label`}], `answers` [Arm answer] | see `opScore` |
-
-Dataset row: an object with `id`, `label` (an option name, or null) and the text keys of the set (`ReplaySet.fields`);
-other keys are ignored, and the row's own `split` is never read (Lean splits by id). Arm answer: `{id, reply}` (the
-Jev response text), `{id, failure}`, or `{id, choice, probabilities?}` (another arm), each with `inputTokens`?,
-`outputTokens`? (for a Jev reply, read from its `usage` when absent) and `ms`?.
+# The ops `oracle.replay`, `oracle.preRun`, `oracle.score` (namespace `Fw.Wire.OracleReplay`)
+Request and reply fields: docs/team/tools/oracle.md, section Replay ops.
 -/
 namespace Fw.Wire.OracleReplay
 open Lean
