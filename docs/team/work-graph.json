@@ -12685,7 +12685,8 @@
    "writes": [
     "lean/Fw/Parts/Bezier.lean",
     "docs/team/handoffs/bezier-header-claims.md"
-   ]
+   ],
+   "evidence": "22e888f"
   },
   {
    "devices": [
@@ -12737,6 +12738,148 @@
     "apps/console-api/test/review-preview-door.test.ts",
     "lean/Fw/Console/Review.lean",
     "docs/team/handoffs/review-followups.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-evidence-order-test",
+   "owner": "console-builder",
+   "stream": "ops",
+   "deps": [
+    "local-mem-budget"
+   ],
+   "title": "Split from local-mem-budget (fix round refused for a missing test only; the code change was confirmed correct). A runner test proves the fallback land writes the task evidence BEFORE its checks: fixture commits docs/team/work-graph.json on main with the task's evidence null; land(branch, {prelock: false, task, checks: [[sh, -c, git diff --cached --name-only | grep -qx docs/team/work-graph.json]]}) succeeds and main's work-graph.json carries the evidence; temporarily moving the writeEvidence block back below the abort check makes it fail (state it). Also: golden vectors with scripts/fwcore-record-rule.sh for landQueue.afterLand and landSpeed binMoved, and apps/runner/test/land-queue.test.ts:96 calls coreSource instead of its own copy.",
+   "writes": [
+    "apps/runner/test/land-evidence-order.test.ts",
+    "apps/runner/test/land-queue.test.ts",
+    "lean/Fw/Console/LandQueue.lean",
+    "lean/Fw/Console/LandSpeed.lean",
+    "packages/contracts/golden/console/land-queue.jsonl",
+    "packages/contracts/golden/console/land-speed.jsonl",
+    "docs/team/handoffs/land-evidence-order-test.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "review-feedback",
+   "owner": "console-builder",
+   "stream": "console",
+   "deps": [],
+   "title": "User 2026-10-21: 'i was see the preview of Your reviews, your proposal may can improve. i'd like to add the feedback comment for you do more research. can you improve the console ?' Each review card in the console Reviews tab gets a feedback thread: the user writes a comment on the proposal (the flag under review, its strips, preview and info panel); only the user (owner actor) can post feedback, only the lead can reply (fw command, bare `pnpm fw review reply --flag <f> --to <id> --text ...`); every unanswered feedback raises one fw watch alert `review.feedback <flag>` (OPEN on post, CLOSE when the lead replies) so the lead's Monitor stream sees it without a chat message; the thread shows on the card with status (open / answered) and the lead's reply. Lean first: event kinds, who may post what (actor rule), open/answered state and the alert decision in Lean with theorems (feedback never from the lead; a reply closes exactly its feedback; an open feedback always yields the alert); wire op + golden; TS glue only. Text stays data: shown escaped, length-capped, never executed.",
+   "writes": [
+    "lean/Fw/Console/ReviewFeedback.lean",
+    "lean/Fw/Wire/ReviewFeedback.lean",
+    "lean/Fw/Wire/Console.lean",
+    "lean/Fw/Console.lean",
+    "lean/Fw/Obs/Health.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/console/reviewFeedback.jsonl",
+    "packages/contracts/golden/obs/health.jsonl",
+    "packages/contracts/src/index.ts",
+    "apps/console-api/src/review/feedback.ts",
+    "apps/console-api/src/review/routes.ts",
+    "apps/console-api/src/app.ts",
+    "apps/console-api/test/review-feedback.test.ts",
+    "apps/console-web/src/ReviewFeedback.tsx",
+    "apps/console-web/src/Reviews.tsx",
+    "apps/console-web/test/review-feedback.test.tsx",
+    "apps/runner/src/fw.ts",
+    "apps/runner/src/review-cmd.ts",
+    "apps/runner/src/watch-collect.ts",
+    "apps/runner/test/review-cmd.test.ts",
+    "docs/team/tools/review-feedback.md",
+    "docs/team/handoffs/review-feedback.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "smoothness-probe",
+   "owner": "measure-engineer",
+   "stream": "gate",
+   "deps": [],
+   "title": "User 2026-10-21: 'lag ... might not just the animation computation. it may include the transition smooth. did you measure how transition are smooth from original and optimization before?' Answer was no: CI counts use deterministic frames (BeginFrameControl), the trajectory probe checks values, and PLAN class SM had no licensed model; only phone session 1b measured the ORIGINAL's rAF jank (first 2500 px). Build two smoothness measures for the two user windows (hero -> people transition; end of page), original vs faithful rewrite vs each flag in v2-proved and the look-change class: (A) MOTION CONTINUITY from existing trajectory-probe artifacts (no new CI needed): per animated property, frame-to-frame step sizes along the push; metrics defined in Lean (new module Fw.Gate.Smooth: e.g. largest step relative to the curve's ideal step, stall count where the computed value moves but the shown value does not, jump count, a monotonicity check), with theorems on what each metric detects (a restarting transition, a held value, a skipped frame) and goldens; TS reducer twin. (B) FRAME CADENCE: a real-time lane (Chromium without BeginFrameControl, presentation timestamps / dropped-frame events from the trace; WebKit via Web Inspector rendering-frame durations on the macOS Playwright WebKit lane), scrolled through each window with a fixed scripted profile, >= 5 reps per arm plus A/A to bound runner noise; verdict rule in Lean (an arm is smoother only if its bad-frame rate beats the other's by more than the A/A spread). Free runners only. Report tables per window, engine, arm; MEASURED with run ids. Does not change any gate; the lead and the user decide afterwards whether smoothness becomes evidence or a gate (PLAN class SM).",
+   "writes": [
+    "lean/Fw/Gate/Smooth.lean",
+    "lean/scripts/SmoothGolden.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/gate/smooth.jsonl",
+    "packages/gate-breakpoints/src/smooth/**",
+    "packages/gate-breakpoints/test/smooth.test.mjs",
+    ".github/workflows/smoothness.yml",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/ci/intent.jsonl",
+    "research/notes/2026/10-2*-smoothness-probe.md",
+    "results/smoothness-probe/**",
+    "docs/team/tools/smoothness-probe.md",
+    "docs/team/handoffs/smoothness-probe.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "device-lag-recorder",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "title": "User 2026-10-21: 'can you build the measurement and probe tools for collect the stats in the real device. i'll do with my scroll for reproduce how laggy that i felt then you can use the stats for produce on your measurement.' Extend the phone tooling (packages/measure-webkit/src/device-cli.mjs swipe, device-swipe.mjs; handoff docs/team/handoffs/phone-session-1.md) into a recorder the user drives on the real iPhone: (1) record per frame: rAF timestamp, scrollY, touch points (time, x, y, phase) without preventDefault, and the animated values of the parts in the two user windows (hero card exit, people reveal; end of page) sampled per frame; optional Timeline counts arm as today; (2) a 'felt lag' mark: a triple-tap anywhere records a mark (time, scrollY), never changing the page; (3) export the user's gesture as a replay profile in the CI profile format (packages/measure-chromium/profiles/*.json, and the WebKit lanes' equivalent) so CI replays the exact scroll on original, faithful rewrite and each flag; (4) reductions in Lean (new module, e.g. Fw.Device.Session): zones of the two windows, frame intervals over 34/50 ms per 100, longest, median, spread across passes, felt-mark windows, and the comparison rule original vs arm (beats only beyond the pass-to-pass spread); goldens + TS twin; (5) an A/B/A session plan (original, rewrite, rewrite + v2-proved flags, look-change flags) with the phone banner giving one instruction at a time and the lead relaying the same steps in the console; (6) results packaged under results/phone/<date>/ with raw timestamps local only. Privacy: no address, device id or device name in any file (device.mjs redact). The device lane is local-by-necessity (real device): name it so in the work graph. Results are calibration input for CI and the smoothness metrics (smoothness-probe), never a replacement for the engine-source proofs.",
+   "writes": [
+    "packages/measure-webkit/src/device-cli.mjs",
+    "packages/measure-webkit/src/device-swipe.mjs",
+    "packages/measure-webkit/src/device-record.mjs",
+    "packages/measure-webkit/src/device-profile.mjs",
+    "packages/measure-webkit/test/device-record.test.mjs",
+    "lean/Fw/Device/Session.lean",
+    "lean/scripts/DeviceSessionGolden.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/device/session.jsonl",
+    "packages/measure-chromium/profiles/user-*.json",
+    "docs/team/tools/device-lag-recorder.md",
+    "docs/team/handoffs/device-lag-recorder.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "close-start-later-samples",
+   "owner": "lean-prover",
+   "stream": "gate",
+   "deps": [
+    "close-start-identity-rule"
+   ],
+   "title": "Follow-up of close-start-identity-rule (accepted; admission still blocked): in hero.exit:scoped close@0 passes where the class dropped at m(q) 133-282 (sample gaps), samples read 60-226 ms after the identity sample move away from bgRed m(q) while byM compares them with the original near the cut (macOS WebKit 39466179818 390/640 px; Chromium 39448209903 1280 px). Judge those later in-flight samples against the transition FROM bgRed m(q) (nav background curve and duration restated from the CSS), never more lenient than byM elsewhere (theorem), and KEEP A GAP CHECK: a gap regression above B's minimum detectable effect (0.31 ln g) must still be refused in a named cell (idCheck_t0 makes the decided sample blind to the gap). Re-reduce the 5 cited runs listing every changed cell; then say whether admit-hero-exit-scoped can run.",
+   "writes": [
+    "lean/Fw/Gate/Trajectory.lean",
+    "packages/contracts/golden/gate/trajectory.jsonl",
+    "packages/gate-breakpoints/src/trajectory/reduce.mjs",
+    "packages/gate-breakpoints/test/trajectory.test.mjs",
+    "docs/team/tools/trajectory-probe.md",
+    "docs/team/handoffs/close-start-later-samples.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "wire-obs-proof-split",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "deps": [
+    "local-mem-budget"
+   ],
+   "title": "Fw.Wire.Obs takes about 4.4 min to build since local-mem-budget (systemOf_systemJson at 4M heartbeats, elaborating for minutes); every CI land leg whose change touches its import cone pays it (timing.slow on land/*/fwcore build, 2026-10-21). Split the round-trip proof (per-field lemmas outside the big obtain, or nested structures each with its own round-trip lemma) so the module builds in under 30 s, no maxHeartbeats raise; measure the module build time before and after on CI (fwcore build span of one land leg).",
+   "writes": [
+    "lean/Fw/Wire/Obs.lean",
+    "docs/team/handoffs/wire-obs-proof-split.md"
    ]
   }
  ],
