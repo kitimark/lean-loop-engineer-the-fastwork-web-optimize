@@ -22,3 +22,9 @@ Open: sys.swapHigh; proc.leftover; proc.heavy; proc.long missed lake-serve trees
 Conventions: Lean writes goldens (`lake env lean --run scripts/<X>Golden.lean`, `--check`); never hand-edit *.gen / golden.
 Writes outside the graph list: Trigger.lean, LandSpeed.lean, land.ts, Stale.lean, Wire/Obs.lean, Health.lean, Timing.lean, Golden.lean,
 Heavy.lean, lean.yml, build-base.ts, watch-*.ts, fwcore-build.sh, fwcore-record-rule.sh, their tests, docs/team/tools/{console-stale,land,watch-rules}.md.
+Round 3 (follow-ups, commit below): fallback land writes the evidence right after the marker check, before runChecks (test: fwcore-build.test.mjs
+land cases; the old-order contrast is its own case, expected unknown); heavy-lock reads queue/ then holders/; `fwcore-record-rule.sh` in
+FWCORE_BUILD_READS, both diff lists, `coreSource` (TS and Lean LandQueue), Lean `fwcoreBuildReads` (+ proof hr/h3); ps with LC_ALL=C TZ=UTC parsed
+as UTC; hysteresis replay labelled INFERRED. land-card-unreachable test fixture now commits work-graph.json on main (the early staged evidence made
+its untracked file vanish on merge --abort; tracked files are restored). Goldens: after merging main run `lake build Fw.Ci.Trigger` before
+regenerating triggers.jsonl (a stale olean wrote a stale golden once).
