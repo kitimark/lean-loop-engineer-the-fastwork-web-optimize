@@ -57,9 +57,10 @@ Step 1: the builder's report is the JSON below. For each run id in its runs arra
 Step 2: pass the corrected report to: pnpm -s fw review ready --report - --task ${t.id} <<'REPORT' (heredoc body = the corrected report JSON).
 Return its last VERDICT line as line (and any "item ..." or "fwcore:" lines above it as detail). The exit code (0 review, 21 wait, 22 dispatch, 23 returnToBuilder) goes with the line; do not interpret it.\nReport:\n${report}`,
   { label: `gate:${t.id}`, phase: 'Review', agentType: 'runner', schema: GATE })
-// the VERDICT line must be the last line of the answer and carry this task's id (escaped: ids hold - and .)
+// the last VERDICT line of the answer decides and must carry this task's id (escaped: ids hold - and .);
+// runners append "Log: <path>" after it (wf_d2d71389 was sent back on a review-ready line)
 const idRe = t.id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-const lastLine = g && typeof g.line === 'string' ? g.line.trim().split('\n').pop() : ''
+const lastLine = g && typeof g.line === 'string' ? g.line.trim().split('\n').filter(l => l.startsWith('VERDICT ')).pop() || '' : ''
 const m = new RegExp(`^VERDICT review-ready ${idRe} (review|wait|dispatch|returnToBuilder)$`).exec(lastLine)
 const ready = m ? m[1] : 'returnToBuilder'
 if (ready !== 'review') return [{ task: t.id, build: b, gate: ready, gateLine: g ? g.line : null, adv: null }]
