@@ -13499,7 +13499,8 @@
     "apps/runner/src/run-pick.ts",
     "apps/runner/test/**",
     "docs/team/handoffs/traj-dispatch-scope.md"
-   ]
+   ],
+   "evidence": "6a2a107"
   },
   {
    "devices": [
@@ -13541,6 +13542,70 @@
     "research/notes/2026/10-2x-mac-safari-measure.md",
     "results/mac-safari/**",
     "docs/team/handoffs/mac-safari-measure.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "traj-dispatch-push-lane",
+   "owner": "measure-engineer",
+   "stream": "gate",
+   "deps": [
+    "traj-dispatch-scope"
+   ],
+   "title": "Follow-ups of traj-dispatch-scope (review 2026-10-21): apply the verdict/diagnostic mark rule (Fw.Gate.Trajectory.Dispatch) to the push-message lane (Lean pushProbe, .github/scripts/trajectory-line.mjs: a [trajectory ... widths=...] subset needs a diagnostic key) and to the trajectory-probe workflow widths input; add ws.Nodup to dispatch's accept condition (dispatch_accepted_iff then matches dispatchIn); docs/team/tools/trajectory-probe.md:15 usage gets --diagnostic plus one sentence (verdict runs walk all four widths); list run-pick.ts's twin in the TS stand-in register. GitHub only.",
+   "writes": [
+    "lean/Fw/Gate/Trajectory/Dispatch.lean",
+    "lean/Fw/Gate/Trajectory.lean",
+    "packages/contracts/golden/gate/trajectory-dispatch.jsonl",
+    ".github/scripts/trajectory-line.mjs",
+    ".github/scripts/trajectory-line.test.mjs",
+    ".github/workflows/trajectory-probe.yml",
+    "docs/team/tools/trajectory-probe.md",
+    "docs/team/tools/ts-stand-ins.md",
+    "docs/team/handoffs/traj-dispatch-push-lane.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "macos-minutes-note-fixes",
+   "owner": "researcher",
+   "stream": "research",
+   "deps": [
+    "macos-minutes-note"
+   ],
+   "title": "Low follow-ups of macos-minutes-note (review 2026-10-21): one sentence that the Keep-logs class-d minutes (~8/day) count in both rank 2 and rank 4, so the firm total overlaps; cite legTable/legs (Trajectory.lean:2820-2826) for the one-slot rule, plan_webkit_apple only for the all-widths case; tables.mjs --check requires each block to end at a blank line or file end; handoff names its commits.",
+   "writes": [
+    "research/notes/2026/10-21-macos-minutes.md",
+    "research/notes/2026/macos-minutes/tables.mjs",
+    "docs/team/handoffs/macos-minutes-note.md"
+   ],
+   "evidence": "632cfcf"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "linux-webkit-events",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "smoothness-webkit-cadence"
+   ],
+   "title": "User 2026-10-21 asked whether WebKit rendering was measured on Playwright WebKit on Linux. Known: Linux WebKit is the WPE port (TextureMapper, software frames of 150 ms or more; research/notes/2026/10-17-ci-measurement-feasibility.md:100-112), so its cadence, paint and composite counts are not Safari's. Question: are its WebCore computation events (RecalculateStyles, Layout, script) per zone and arm close enough to macOS WebKit's (smoothness-webkit-cadence) to move the event analysis to free Linux runners and save macOS minutes? Run the same arms and zones on ubuntu-24.04-arm Playwright WebKit, then a Lean agreement rule per zone (rank agreement plus a ratio band, A/A spread as the floor; theorem + golden) against the macOS leg. Verdict per event kind: style/layout move to Linux or stay on macOS; paint/composite stay on macOS by construction. GitHub only.",
+   "writes": [
+    "lean/Fw/Measure/LinuxAgree.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/measure/linux-agree.jsonl",
+    "packages/measure-webkit/src/linux-events*.mjs",
+    "packages/measure-webkit/test/linux-events*.test.mjs",
+    ".github/workflows/smoothness.yml",
+    "research/notes/2026/10-2x-linux-webkit-events.md",
+    "results/linux-webkit-events/**",
+    "docs/team/handoffs/linux-webkit-events.md"
    ]
   }
  ],

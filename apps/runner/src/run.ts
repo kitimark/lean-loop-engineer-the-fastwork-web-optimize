@@ -11,7 +11,7 @@ import { dirname, join, relative } from "node:path";
 import { GateReply, ManifestReply, PlanReply, ReduceReply, type PlanJob, type RunManifest } from "@fw/contracts";
 import { UsageError } from "./lib.ts";
 import { recordRunKind } from "./timing.ts";
-import { newNonce, parseRunRows, pickRun, titleOf } from "./run-pick.ts";
+import { dispatchIn, enginesOf, legsOf, newNonce, parseRunRows, pickRun, refusalText, titleOf } from "./run-pick.ts";
 
 export type RunArgs = {
   target: string; preset: string; fw: string[]; engines: string[]; profile?: string; runs?: number; dry: boolean;
@@ -20,11 +20,13 @@ export type RunArgs = {
   gate?: boolean; presetGiven?: boolean;
   /** `--trajectory`: dispatch trajectory-probe.yml (the same inputs as `--gate`, plus `--widths`). */
   trajectory?: boolean; widths?: string;
+  /** `--diagnostic`: the run is read by hand, never stored or judged, so `--widths` may be a subset (default: a verdict run, all four widths). */
+  diagnostic?: boolean;
 };
 
 export const RUN_USAGE = "usage: fw run --target original|rewrite [--preset <name>] [--fw part:variant,...] --engines chromium,webkit\n" +
   "       fw run --gate [--engines both|chromium|playwright-webkit] [--preset <name> | --fw part:variant,...] [--ref <branch>]\n" +
-  "       fw run --trajectory [--engines both|chromium|playwright-webkit] [--preset <name> | --fw part:variant,...] [--widths 390,640,641,1280] [--ref <branch>]\n" +
+  "       fw run --trajectory [--engines both|chromium|playwright-webkit] [--preset <name> | --fw part:variant,...] [--widths 390,640,641,1280 [--diagnostic]] [--ref <branch>]\n" +
   "              [--profile <id>] [--runs 2..10]\n" +
   "              [--ref <pushed branch>] [--sha <git sha>] [--image engine=sha256:...] [--from-run engine=<run id>] [--dry]";
 
@@ -52,6 +54,7 @@ export function parseRunArgs(argv: string[]): RunArgs {
     else if (f === "--gate") a.gate = true;
     else if (f === "--trajectory") a.trajectory = true;
     else if (f === "--widths") a.widths = val(i++, f);
+    else if (f === "--diagnostic") a.diagnostic = true;
     else if (f === "--preset") { a.preset = val(i++, f); a.presetGiven = true; }
     else if (f === "--fw") a.fw.push(...val(i++, f).split(",").filter(Boolean));
     else if (f === "--engines") a.engines = val(i++, f).split(",").filter(Boolean);
@@ -65,6 +68,7 @@ export function parseRunArgs(argv: string[]): RunArgs {
   }
   if (a.gate && a.trajectory) throw new UsageError(`--gate and --trajectory are separate lanes\n${RUN_USAGE}`);
   if (a.widths !== undefined && !a.trajectory) throw new UsageError(`--widths belongs to --trajectory\n${RUN_USAGE}`);
+  if (a.diagnostic && !a.trajectory) throw new UsageError(`--diagnostic belongs to --trajectory\n${RUN_USAGE}`);
   if (a.trajectory) {
     if (a.engines.length > 1) throw new UsageError(`--trajectory takes one --engines value (both, chromium or playwright-webkit)\n${RUN_USAGE}`);
     if (a.target || a.profile || a.runs !== undefined) throw new UsageError(`--trajectory takes no --target, --profile or --runs\n${RUN_USAGE}`);
@@ -358,6 +362,13 @@ export function planGate(call: FwCall, args: RunArgs, lane: "gate" | "trajectory
 /** `fw run --gate` or `--trajectory`: dispatch breakpoint-gate.yml or trajectory-probe.yml on the ref and wait for the run. The
  *  lane files nothing in the store; its tables are artifacts of the run (`gh run download <id>`). Exit 0 ok, 2 refused. */
 async function runGate(args: RunArgs, d: RunDeps, sha: string, lane: "gate" | "trajectory" = "gate"): Promise<number> {
+  if (lane === "trajectory") {
+    const mark = args.diagnostic ? "diagnostic" : "verdict";
+    const decision = dispatchIn(mark, args.widths ?? "");
+    if (decision.kind === "refused") { d.log(refusalText(decision.why, args.widths ?? "")); return 2; }
+    const legs = (enginesOf(args.engines[0] ?? "both") ?? []).map((e) => `${e} ${legsOf(e, decision.widths).length}`).join(", ");
+    d.log(`fw run: trajectory ${mark}, widths ${decision.widths.join(",")}, legs ${legs}`);
+  }
   const reply = planGate(d.call, args, lane);
   const job = reply.job;
   d.log(`fw run${args.dry ? " (dry)" : ""}: ${lane}, sha ${sha.slice(0, 7)}`);

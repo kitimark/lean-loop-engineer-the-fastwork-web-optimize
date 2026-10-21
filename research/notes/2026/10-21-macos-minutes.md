@@ -197,8 +197,8 @@ data is not committed.
   - Scope limit: a stored run gives no verdict unless all four widths are present. `outcome` returns
     `.unjudged .widths` (:2951), and `outcome_widths` (:2961) proves it. So only runs marked diagnostic may pass a
     nonempty subset of the widths. Verdict runs always walk all four.
-  - Slots: a run takes 1 slot only when its widths fall within {390,641} or within {640,1280} (`plan_webkit_apple`,
-    :2905-2906). scoped-close-start-cause's question named 390, 640 and 641, so it would still need both legs
+  - Slots: a run takes 1 slot only when its widths fall within {390,641} or within {640,1280} (`legTable`/`legs`,
+    lean/Fw/Gate/Trajectory.lean:2820-2826@d72e6153; `plan_webkit_apple`, :2906, covers only the all-widths case). scoped-close-start-cause's question named 390, 640 and 641, so it would still need both legs
     (INFERRED). Its 108-114/day is the ceiling, not an expectation.
   - Kept: REPS 5 per leg (`.github/workflows/trajectory-probe.yml:546@409ad8e4`).
 - **Rank 2, webkit-sim-target-lost (adjust).** Bound the page-target-lost wait (class c) at its 480 s and relaunch once,
@@ -220,6 +220,8 @@ data is not committed.
   - Per job it saves ~16 s of shutdown/delete (:424-429), ~20 s of host-state collection (keep the unconditional `cp` at
     :418) and ~10 s net of the iwdp install (:318).
   - The table below gives 20.3/day, plus 8.3 job-min of Keep-logs timeouts: ~15-25/day (INFERRED).
+  - Overlap: per the binding check, the Keep-logs class-d minutes (~8/day) count in both rank 2 and rank 4, so the firm
+    total overlaps by about 8/day (INFERRED).
   - It also removes failure class (d), 3 of the 9 webkit-sim failures.
 - **Rank 5, series admission (drop).** The series bore 85 % of the external wait itself (table wait). Any admission rule
   goes into pool-fallback/ci-route. The 6-vs-5 peak is unresolved.
