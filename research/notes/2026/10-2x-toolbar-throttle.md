@@ -76,10 +76,14 @@ rebuilt from the three job files with `cli.mjs report`.
 "Toolbar moved" counts passes where the visual viewport grew by 40 pt (775 to 815), so the toolbar really collapsed;
 it is the same pair the phone passes showed. One original pass was excluded (touch driver timed out, retry failed).
 
-Earlier runs on the same page and flag, with harness versions that lost the first measured pass of each job:
-`39659502492` (jobs 1 and 2 complete, job 3 without rewrite; pooled rewrite 17.4 per 1000, lift 0 of 9,904 frames,
-original 10.6) and `39652336316` (job 2 only; rewrite 15.7, lift 0, original 16.0). All point the same way. They are
-listed, not pooled with the table.
+Two earlier runs on the same page and flag read as failed in `fw ci state`; they are context, not pooled with the table:
+
+- `39659502492` failed: job 3 had no rewrite pass (the first measured page was lost); jobs 1 and 2 gave rewrite 17.4 per 1000
+  (lift 0 of 9,904 frames, original 10.6).
+- `39652336316` failed: jobs 1 and 3 got no Safari tab (the driver build starved the Simulator); job 2 alone gave rewrite
+  15.7, lift 0, original 16.0.
+
+Both point the same way as the table.
 
 What the table does not say: the count of runs of 1-9 frames is the same with and without the flag (1,271 vs 1,324).
 The flag removes the 100 ms band, not every short pause. Whether the exit then looks smoother is the phone question.
