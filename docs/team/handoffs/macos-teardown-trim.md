@@ -20,7 +20,7 @@ Measured (GitHub, webkit-sim, cell original/430/1; basis for the figures in the 
 - run 39624847034 (iwdp cache MISS): iwdp step 17 s, boot 198 s, measure 23.4 min, Keep logs 20 s, upload 52 s, telemetry 75 s.
 - run 39631161575 (iwdp cache HIT): iwdp step 2 s, boot 181 s, measure 20.5 min, Keep logs 11 s, upload 80 s, telemetry 21 s.
 - Removed by absence: "Shut down and delete the Simulator" (16 s in the note). Host-state step skipped on success in both.
-- Per run on a hit about 38 s (16 + about 10 + 12); per day about 17 job-min at 27 jobs/day. INFERRED, n=1 per state.
+- Per run (MEASURED steps, n=1 per state): shutdown/delete 16 s (by absence) + Keep logs 1.5-10.5 s (20 s and 11 s vs the 21.5 s median) + iwdp incl. cache restore/post: hit -7 s (7 s vs 14 s), miss +21 s (35 s vs 14 s). Hit: about 25-34 s per job; miss: about -4 to +6 s. Per day at 27 jobs: about 11-15 job-min if every job hits, about 0 if every job misses; the hit rate is unknown (INFERRED). A ci/* branch cache is not seeded from main (macosCaches), so the first run of each branch misses.
 
 Open items
 - Follow-up: trim the Simulator teardown in wktr, wktr-fixtures, engine-premises, gate-gaps (the lint prints them as
