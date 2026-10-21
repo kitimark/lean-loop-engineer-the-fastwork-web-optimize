@@ -1,23 +1,29 @@
-# reap-auto-stop handoff
+# reap-auto-stop handoff (round 2)
 Branch worktree-wf_19c39b39-743-1. Read first: docs/team/tools/reap.md, lean/Fw/Ops/Reap.lean, apps/runner/src/reap.ts.
 
 State
-- Lean: branches A/B/C selection, stop plan, kill plan, verify, script, theorems, golden reap.jsonl (27) and lspreap.jsonl.
-- TS: reap.ts executor (stopSelected, reapTick, reapCli), fw reap --list|--stop, fw land hook, fw watch tick.
-- Teardown: build-review preamble line; land.ts runCheck children get their own group and die on SIGINT/SIGTERM/exit.
+- Lean: every branch (A console, A lspServe, B, C) needs the cwd inside THIS repo; A and B need a non-live worktree id
+  (`goneWt`), C `inRepo`. Theorems: in_repo, console_in_removed_wt, lsp_in_removed_wt, removed_branch, descendant_branch.
+  The recorded console and everything below it is shielded on all branches (`live_console_never_selected`). B/C also take an
+  orphan `lake serve`. New ops: `ops.reapTerm` (identity re-read right before TERM, `term_present`) and `ops.reapGuard`
+  (`guardOk`, `guard_scope`: no signal outside the scope, none to pid <= 1).
+- TS: `membership`/`repoIdOf` decide repo identity by (dev, inode) of the repo root and `.claude/worktrees` (no path string);
+  `recordedConsoles` also reads the console dir of the checkout the code runs from. `stopSelected(..., scope?)`: scope =
+  Lean's selection in production, the test's own pids in tests; every signal passes `ops.reapGuard`.
+- Golden: lspreap.jsonl (26) and reap.jsonl (38), both replayed by reap.test.ts.
+- Tests: reap-safety.test.ts (console-like orphan in ANOTHER temp repo: nothing selected; recorded console + its child never),
+  reap-stop.test.ts (real trees, scope refusal, pre-TERM re-read, pid reuse).
 
-Verified
-- apps/runner vitest all green, incl. 7 real process-tree tests (TERM, KILL, pid-reuse, live never touched) and stubbed glue.
-- lean/scripts/check.sh at the final commit.
+Round 1 incident: the test run at 04:15:47 TERMed the live console (pids 4444 and 4480 were console-api and its fwcore).
+Cause: branch A console was repo-agnostic (no this-repo condition); fixed in round 2 (first fix commit a5cc66b8; theorems above).
+Record in docs/team/incidents/ledger.json (inc-reap-console-kill exists on main).
 
-Local lane (evidence, not a measurement): `fw reap --list` on this Mac printed "nothing leftover". `fw reap --stop` was
-denied by the permission classifier, so no stop ran locally.
+Verified: see the report (runner test script, lean/scripts/check.sh, ci-paths test, land-inputs, Linux CI run id).
 
-Incident: an early non-hermetic test run TERMed two unrelated real processes (pids 4444, 4480) chosen by Lean relative
-to a temp repo; fixed by hermetic gather and signal guard in the tests.
-
-Open
-- Console display of reap.stopped needs a contract command plus console-api/web edits (not done).
-- checks.ts spawnRunner (land checks) still spawns without its own group; outside allowed writes.
-- fw ci wait uses short gh calls only; nothing to stop. Linux path (/proc cwd) untested locally; CI is Linux.
-- Groups with unselected members are signalled per pid. MCP servers not stopped.
+Open (follow-ups)
+- Console display of reap.stopped (contract command plus console-api/web edits).
+- checks.ts spawnRunner (land checks) still spawns without its own process group.
+- No local `fw reap --stop` run on this Mac (classifier denies it); the real-process tests are the evidence.
+- 1-second start-time resolution; inode collisions across devices can only add a live inode (a kept row).
+- C is now rarely different from B: it labels descendants whose cwd is a deleted directory of this repo.
+- MCP servers are not stopped.

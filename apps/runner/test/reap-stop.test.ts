@@ -81,6 +81,9 @@ function mine(): Set<number> {
 let snapshot = new Set<number>(); // the pids of the trees at the time Lean read the table (a child orphaned by TERM stays in it)
 const scoped = (top: string): Facts | null => { const f = gather(top); if (f === null) return null; const m = snapshot = mine(); return { ...f, rows: f.rows.filter((r) => m.has(r.pid)), mcps: [] }; };
 
+/** The scope every test passes: only the pids this run started and everything below them. */
+const stop = (io: Io, top = main) => stopSelected(top, call, io, scoped, [...mine()]);
+
 const recording = (log: { pid: number; sig: string; group: boolean }[], over: Partial<Io> = {}): Io =>
   ({ ...realIo, signal: (t: Target, sig) => { if (!snapshot.has(t.pid)) throw new Error(`test would signal pid ${t.pid}, which it did not start`); log.push({ pid: t.pid, sig, group: t.group }); realIo.signal(t, sig); }, ...over });
 
@@ -88,7 +91,7 @@ describe("fw reap --stop on real process trees", () => {
   it("TERM path: a tree in a removed worktree whose members end on TERM is stopped without KILL", async () => {
     const t = await startTree(join(main, ".claude", "worktrees", "gone1"), ["term", "term"]);
     const log: { pid: number; sig: string; group: boolean }[] = [];
-    const r = stopSelected(main, call, recording(log), scoped)!;
+    const r = stop(recording(log))!;
     const all = [t.parent, ...t.kids];
     expect(r.selected.map((s) => s.pid).sort()).toEqual([...all].sort());
     expect(r.termed.length).toBe(3);
@@ -105,7 +108,7 @@ describe("fw reap --stop on real process trees", () => {
     const t = await startTree(join(main, ".claude", "worktrees", "gone1"), ["term", "ignore"]);
     const log: { pid: number; sig: string; group: boolean }[] = [];
     const t0 = Date.now();
-    const r = stopSelected(main, call, recording(log), scoped)!;
+    const r = stop(recording(log))!;
     const elapsed = Date.now() - t0;
     const ignorer = t.kids[1]!;
     expect(r.killed.some((k) => k.pid === ignorer || (k.group && k.pid === t.parent))).toBe(true);
@@ -118,13 +121,42 @@ describe("fw reap --stop on real process trees", () => {
     expect(log.slice(0, firstKill).every((l) => l.sig === "SIGTERM")).toBe(true);
   });
 
+  it("scope guard: a signal to a pid outside the scope is refused, even when Lean selected it", async () => {
+    const t = await startTree(join(main, ".claude", "worktrees", "gone1"), ["ignore", "ignore"]);
+    const log: { pid: number; sig: string; group: boolean }[] = [];
+    const only = t.kids[0]!;
+    const r = stopSelected(main, call, recording(log), scoped, [only])!;
+    expect(r.selected.length).toBe(3); // Lean selected all three
+    expect(log.every((l) => l.pid === only)).toBe(true); // the group signal is refused (members outside the scope), so are the others
+    expect(r.refused.map((x) => x.pid).sort()).toEqual(expect.arrayContaining([t.parent, t.kids[1]!]));
+    expect(running(t.parent)).toBe(true);
+    expect(running(t.kids[1]!)).toBe(true);
+  });
+
+  it("scope guard: pid 1, pid 0 and an empty scope are refused by Lean's guard", () => {
+    const table = realIo.table()!;
+    for (const pid of [0, 1]) expect((call({ op: "ops.reapGuard", scope: [0, 1], rows: table, target: { pid, start: 0, group: false } }) as { allowed: boolean }).allowed).toBe(false);
+    expect((call({ op: "ops.reapGuard", scope: [], rows: table, target: { pid: process.pid, start: 0, group: false } }) as { allowed: boolean }).allowed).toBe(false);
+  });
+
+  it("pre-TERM re-read: a pid that is another process by the time of TERM (start changed) is not TERMed", async () => {
+    const t = await startTree(join(main, ".claude", "worktrees", "gone1"), ["term"]);
+    const victim = t.kids[0]!;
+    const log: { pid: number; sig: string; group: boolean }[] = [];
+    // the first table read (right before TERM) shows `victim` with a later start, as after a pid reuse since the gather
+    let reads = 0;
+    const io = recording(log, { table: () => realIo.table()!.map((r) => (r.pid === victim && reads++ === 0 ? { ...r, start: r.start + 100 } : r)) });
+    stop(io);
+    expect(log.some((l) => l.pid === victim && l.sig === "SIGTERM")).toBe(false);
+  });
+
   it("pid-reuse guard: a pid whose start time changed after TERM is never sent KILL", async () => {
     const t = await startTree(join(main, ".claude", "worktrees", "gone1"), ["ignore"]);
     const victim = t.kids[0]!;
     const log: { pid: number; sig: string; group: boolean }[] = [];
     // the table says `victim` is now another process (same pid, later start), as after a pid reuse
     const io = recording(log, { table: () => realIo.table()!.map((r) => (r.pid === victim ? { ...r, start: r.start + 100 } : r)) });
-    const r = stopSelected(main, call, io, scoped)!;
+    const r = stop(io)!;
     expect(log.some((l) => l.sig === "SIGKILL")).toBe(false);
     expect(r.killed).toEqual([]);
     expect(running(victim)).toBe(true); // still the real process, which we did not touch after TERM
@@ -137,7 +169,7 @@ describe("fw reap --stop on real process trees", () => {
     const outside = await startTree(tmp, ["ignore"]);
     const gone = await startTree(join(main, ".claude", "worktrees", "gone1"), ["term"]);
     const log: { pid: number; sig: string; group: boolean }[] = [];
-    const r = stopSelected(main, call, recording(log), scoped)!;
+    const r = stop(recording(log))!;
     const safe = [live, inMain, outside].flatMap((x) => [x.parent, ...x.kids]);
     expect(r.selected.map((s) => s.pid).sort()).toEqual([gone.parent, ...gone.kids].sort());
     expect(log.every((l) => !safe.includes(l.pid))).toBe(true);
@@ -145,14 +177,21 @@ describe("fw reap --stop on real process trees", () => {
     for (const p of [gone.parent, ...gone.kids]) expect(running(p)).toBe(false);
   });
 
-  it("a tool below a dead owner is stopped even when its own cwd is outside every worktree; a look-alike is not", async () => {
-    const t = await startTree(join(main, ".claude", "worktrees", "gone1"), ["term"], tmp);
+  it("a tool below a dead owner whose cwd is a deleted directory of this repo is a descendant; one whose cwd is outside the repo is kept", async () => {
+    const stale = join(main, "stale-dir");
+    mkdirSync(stale);
+    const t = await startTree(join(main, ".claude", "worktrees", "gone1"), ["term"], stale);
+    rmSync(stale, { recursive: true });
+    const outsider = await startTree(join(main, ".claude", "worktrees", "gone1"), ["term"], tmp);
     const lookalike = await startTree(tmp, ["term"]);
-    const r = stopSelected(main, call, recording([]), scoped)!;
+    const r = stop(recording([]))!;
     const kinds = Object.fromEntries(r.selected.map((s) => [s.pid, s.kind]));
     expect(kinds[t.parent]).toBe("removed");
     expect(kinds[t.kids[0]!]).toBe("descendant");
     expect(running(t.kids[0]!)).toBe(false);
+    expect(kinds[outsider.parent]).toBe("removed");
+    expect(kinds[outsider.kids[0]!]).toBeUndefined(); // its own cwd is outside this repo: not selected whoever its parent is
+    expect(running(outsider.kids[0]!)).toBe(true);
     for (const p of [lookalike.parent, ...lookalike.kids]) { expect(kinds[p]).toBeUndefined(); expect(running(p)).toBe(true); }
   });
 
@@ -162,7 +201,7 @@ describe("fw reap --stop on real process trees", () => {
     const t = await startTree(wt, ["term"]);
     git(main, "worktree", "remove", "--force", wt);
     process.env.FW_CONSOLE_DIR = join(tmp, "console");
-    const lines = reapStopLines(main, call, recording([]), scoped);
+    const lines = reapStopLines(main, call, recording([]), scoped, [...mine()]);
     delete process.env.FW_CONSOLE_DIR;
     expect(lines[0]).toMatch(/^leftover processes stopped: 2 of 2/);
     for (const p of [t.parent, ...t.kids]) expect(running(p)).toBe(false);
@@ -179,12 +218,12 @@ describe("fw reap --stop on real process trees", () => {
     expect(running(t.parent)).toBe(true);
     out.length = 0;
     process.env.FW_CONSOLE_DIR = join(tmp, "console2");
-    expect(reapCli(["--stop"], main, call, (s) => out.push(s), scoped, recording([]))).toBe(0);
+    expect(reapCli(["--stop"], main, call, (s) => out.push(s), scoped, recording([]), [...mine()])).toBe(0);
     delete process.env.FW_CONSOLE_DIR;
     expect(out.some((l) => l.startsWith("stopped removed: 2 process(es)"))).toBe(true);
     expect(running(t.parent)).toBe(false);
     out.length = 0;
-    expect(reapCli(["--stop"], main, call, (s) => out.push(s), scoped, recording([]))).toBe(0);
+    expect(reapCli(["--stop"], main, call, (s) => out.push(s), scoped, recording([]), [...mine()])).toBe(0);
     expect(out).toEqual(["reap: nothing leftover"]);
   });
 });
