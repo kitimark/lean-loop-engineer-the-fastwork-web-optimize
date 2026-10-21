@@ -62,6 +62,22 @@ export async function latestRunId(gh: Gh, workflow: string, branch: string): Pro
   return rows[0] ? String(rows[0].databaseId) : null;
 }
 
+/** The state word `fw review ready` reads for one run: `complete` (completed, success), `failed` (completed otherwise) or `running`. I/O glue, no decision. */
+export function runStateWord(status: string, conclusion: string | null): "running" | "complete" | "failed" {
+  if (status !== "completed") return "running";
+  return conclusion === "success" ? "complete" : "failed";
+}
+
+/** `fw ci state <run id>`: read one run by identity from `gh run list` (one list call, never `gh run view` or `gh api`). Prints `<id> <state>`; exit 0, or 2 when the id is not among the latest 100 runs. */
+export async function ciState(runId: string, d: { gh: Gh; log: (l: string) => void }): Promise<number> {
+  if (!/^[0-9]+$/.test(runId)) throw new UsageError("usage: fw ci state <run id>");
+  const rows = JSON.parse(await d.gh(["run", "list", "--limit", "100", "--json", "databaseId,status,conclusion"])) as { databaseId: number; status: string; conclusion: string | null }[];
+  const r = rows.find((x) => String(x.databaseId) === runId);
+  if (!r) { d.log(`${runId} unknown`); return 2; }
+  d.log(`${runId} ${runStateWord(r.status, r.conclusion)}`);
+  return 0;
+}
+
 /** The whole command. Exit code: 0 stored (or unchanged), 2 refused. */
 export async function ciMain(args: CiArgs, d: CiDeps): Promise<number> {
   const runId = args.runId ?? (args.branch ? await latestRunId(d.gh, args.workflow, args.branch) : null);
@@ -107,4 +123,9 @@ export async function ciCli(argv: string[], cwd: string, env: Record<string, str
   const common = spawnSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd, encoding: "utf8" }).stdout.trim();
   const consoleDir = env.FW_CONSOLE_DIR ?? join(dirname(common), ".fw-console");
   return ciMain(args, { call: fwcoreCall(cwd), gh: chargedGh(realEnv(cwd)), store: args.store ?? storeDir(consoleDir), tmp: join(consoleDir, "tmp"), log: (l) => console.log(l) });
+}
+
+export async function ciStateCli(argv: string[], cwd: string): Promise<number> {
+  if (argv.length !== 1) throw new UsageError("usage: fw ci state <run id>");
+  return ciState(argv[0]!, { gh: chargedGh(realEnv(cwd)), log: (l) => console.log(l) });
 }

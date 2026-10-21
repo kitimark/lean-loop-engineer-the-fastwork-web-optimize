@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFil
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { ciMain, ciRun, parseCiArgs, type CiFacts, type CiRunInfo } from "../src/ci.ts";
+import { ciMain, ciRun, ciState, runStateWord, parseCiArgs, type CiFacts, type CiRunInfo } from "../src/ci.ts";
 import { UsageError } from "../src/lib.ts";
 import { fwcoreCall, type FwCall, type Gh } from "../src/run.ts";
 
@@ -153,5 +153,24 @@ describe.skipIf(!hasCore)("ciMain against fwcore", () => {
     const logs: string[] = [];
     expect(await ciMain({ runId: "43", workflow: "chromium-counts", branch: "main" }, deps(fakeGh(info, ALL, ["original", "rewrite"]), store, logs))).toBe(2);
     expect(logs[0]).toMatch(/already stored from run 42/);
+  });
+});
+
+describe("fw ci state <run id> (review-flow-v2-followups: the gate agent reads run states by identity)", () => {
+  const rows = [{ databaseId: 7, status: "in_progress", conclusion: null }, { databaseId: 8, status: "completed", conclusion: "success" }, { databaseId: 9, status: "completed", conclusion: "failure" }, { databaseId: 10, status: "queued", conclusion: "" }];
+  const seen: string[][] = [];
+  const gh: Gh = async (args) => { seen.push(args); return JSON.stringify(rows); };
+  const read = async (id: string) => { const out: string[] = []; const code = await ciState(id, { gh, log: (l) => out.push(l) }); return { code, out }; };
+  it("maps status and conclusion to running, complete, failed", async () => {
+    expect(await read("7")).toEqual({ code: 0, out: ["7 running"] });
+    expect(await read("8")).toEqual({ code: 0, out: ["8 complete"] });
+    expect(await read("9")).toEqual({ code: 0, out: ["9 failed"] });
+    expect(await read("10")).toEqual({ code: 0, out: ["10 running"] });
+    expect(runStateWord("completed", "cancelled")).toBe("failed");
+  });
+  it("an id not in the list is unknown (exit 2); a non-numeric id is a usage error; only gh run list is called", async () => {
+    expect(await read("99")).toEqual({ code: 2, out: ["99 unknown"] });
+    await expect(read("x1")).rejects.toThrow(UsageError);
+    expect(seen.every((a) => a[0] === "run" && a[1] === "list")).toBe(true);
   });
 });
