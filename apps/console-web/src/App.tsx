@@ -9,7 +9,7 @@ import { HealthView } from "./Health";
 import { BuildsView } from "./Builds";
 import { ComposeView } from "./Compose";
 import { ReviewsView, ReviewsTabLabel, openFlags, useReviews } from "./Reviews";
-import { age, sendAsUser, useBoard, useNow } from "@/lib/api";
+import { age, randomId, sendAsUser, useBoard, useNow } from "@/lib/api";
 
 /** The tab and note a login landing asks for (`/?tab=builds&note=stopped`); anything else is the console tab. */
 export function landingOf(search: string): { tab: "console" | "builds" | "compose" | "reviews"; note: string | null } {
@@ -31,8 +31,10 @@ export function App() {
 
   // every click is a typed command that the reducer may refuse; the reason is shown, never hidden
   const act = async (cmd: Record<string, unknown>) => {
-    const r = await sendAsUser(cmd);
-    setError(r.ok ? null : `Refused: ${r.reason}`);
+    try {
+      const r = await sendAsUser(cmd);
+      setError(r.ok ? null : `Refused: ${r.reason}`);
+    } catch (e) { setError(`Not sent: ${(e as Error).message}`); }
   };
 
   return (
@@ -151,7 +153,7 @@ function PostForm({ act }: { act: Act }) {
   const [options, setOptions] = useState("");
   const [card, setCard] = useState("");
   const submit = async () => {
-    await act({ type: "step.post", step: `web-${crypto.randomUUID().slice(0, 8)}`, card: card || null, title, kind,
+    await act({ type: "step.post", step: `web-${randomId().slice(0, 8)}`, card: card || null, title, kind,
       options: kind === "choice" ? options.split(",").map((o) => o.trim()).filter(Boolean) : null });
     setTitle("");
   };
