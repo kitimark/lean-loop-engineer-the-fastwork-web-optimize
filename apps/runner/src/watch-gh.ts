@@ -80,3 +80,9 @@ export async function collectGh(prevDegraded: boolean, get: GhFetch = fetchJson)
 export function ghFlagged(out: { system?: { alerts?: string[] } } | null | undefined): boolean {
   return out?.system?.alerts?.includes("sys.ghDegraded") === true;
 }
+
+/** Whether the logged output of the previous pass carried the `sys.contended` alert (the hysteresis bit of Lean
+ *  `Fw.Obs.Health.contendedNow`: open since the last check, it stays open down to `calmLoad`). */
+export function contendedFlagged(out: { system?: { alerts?: string[] } } | null | undefined): boolean {
+  return out?.system?.alerts?.includes("sys.contended") === true;
+}
