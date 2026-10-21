@@ -1,22 +1,23 @@
-# review-feedback handoff (console-builder)
+# review-feedback handoff (console-builder), round 2
 
 Branch `worktree-wf_21068a14-405-1`. Read `docs/team/tools/review-feedback.md` first (who decides what).
 
-## State
-- Done and tested: Lean thread (`lean/Fw/Console/ReviewFeedback.lean`, laws in `ReviewFeedbackLaws.lean`), reducer events
-  `review.feedback` (user) and `review.feedback.reply` (lead) in `lean/Fw/Console.lean` and `Serve.lean`, wire op
-  `console.reviewFeedback` + golden, mutant guards, console-api route + test, runner `fw review reply|feedback` + test,
-  web Feedback section + test, contracts commands, schemas (`pnpm gen`), fixtures.
-- Alert decision proved in `lean/Fw/Obs/FeedbackAlert.lean` (pairs flag/detail; theorems: alert iff open comment, one per
-  flag, count, post opens, reply closes, detail = open count + first 120 characters).
+## State (all five round-1 findings fixed; `lean/scripts/check.sh` exit 0; console-api, console-web, runner, contracts tests green)
+- Watch alert wired: `Code.reviewFeedback` (`review.feedback`, rank 12 after `procLong`, later ranks +1), `System.feedback` (list of
+  `Fw.Console.ReviewFeedback.Ev`), `sFeedback` over `FeedbackAlert.alerts`, theorems `feedback_iff`, `feedback_post_opens`,
+  `feedback_reply_closes` in `Health.lean`; wire `fbEvJson/fbEvOf` + round trip in `Wire/Obs.lean`; 3 cases in `Obs/Golden.lean`;
+  `collectFeedback` in `apps/runner/src/watch-collect.ts`; watch test runs real fwcore (post opens, reply closes).
+- Door test: `/api/commands`, every actor with and without the secret, for `review.feedback` (user only) and the reply (lead only).
+- Idempotency key `review-feedback-<flag>-<id>`; same cid on two flags: second is refused (422), first keeps its comment.
+- Cap unit = code points (Lean `String.length`); zod `FeedbackText` counts code points; golden `console/reviewFeedback.jsonl` has 2000 and
+  2001 astral characters; textarea `maxLength` removed (it counted UTF-16 units).
+- Send path: `sendFeedback` in `ReviewFeedback.tsx` (extracted so a test can run it); tests stub `crypto` without randomUUID. Mutations
+  shown to fail (restored): `crypto.randomUUID()` instead of `makeCid()`, URL typo, body without `cid`.
+
+## Extra writes beyond the graph list
+`lean/Fw/Wire/Obs.lean` (feedback wire; `maxHeartbeats` of `systemOf_systemJson` 4M -> 16M, that file now builds in ~10 min cold),
+`lean/Fw/Ops/Golden.lean`, `packages/contracts/{src/index.ts,test/contracts.test.ts,schema/*.json}`, `docs/team/tools/watch-rules.md`.
 
 ## Open
-- Health glue not done: `local-mem-budget` edits `Fw/Obs/Health.lean`, `golden/obs/**`, `watch-collect.ts`, and had not landed
-  when I stopped. After it lands: merge main, add `Code.reviewFeedback` (name `review.feedback`, rank after `procLong` so
-  `names_sorted` holds), an `Obs.system` input of feedback events, a `sFeedback` piece mapping `FeedbackAlert.alerts`, regenerate
-  `golden/obs`, read the events in `watch-collect.ts`, add a watch test (post opens, reply closes).
-
-## Conventions
-- Generated files: `lake env lean --run scripts/OpsGolden.lean` (in `lean/`), `pnpm gen` in `packages/contracts`.
-- `fb` is not in `stateJson`/`stateOfJson` (like `plan`).
-- Lean has no Mathlib here: no `tauto`, `by_contra`; use `Classical.byContradiction`.
+- `systemOf_systemJson` is slow (whnf of `rfl` over a 15-key object); a faster proof would cut a cold build.
+- TS stand-ins: none for decisions.
