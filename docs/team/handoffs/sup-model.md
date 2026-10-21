@@ -26,4 +26,4 @@ OS assumptions (prose, never axioms)
 - S5 An exit is seen within one tick, for direct children only (SIGCHLD or the tryWait sweep); adopted children after a restart are not our children, so their exit is observed by the ps poll.
 - S6 The ps/top sample is a snapshot good enough for identity; the start time is re-read before every signal.
 Open items: shell (TS/Rust glue) not written; fwcore wire op and golden replay for run_eq_fold not done; trace-level fairness (needs the design change above); nested-join authorization.
-Read first: design note (lead scratch daemon-design/design.md, lines 145-196), then Core `step`, then Props section headers.
+Read first: design note (docs/team/daemon/design.md, lines 147-198), then Core `step`, then Props section headers.
