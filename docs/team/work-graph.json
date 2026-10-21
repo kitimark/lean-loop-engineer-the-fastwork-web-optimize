@@ -8176,7 +8176,7 @@
    "id": "ci-route",
    "owner": "lean-prover",
    "stream": "ops",
-   "title": "One Lean router for every CI lane across GitHub Actions and CircleCI: inputs health (gh-status, circleci-status), free quota left, measured queue p50/p95 per provider and class, per-provider lane allowlist; outputs an ordered provider list (failover) and an optional hedge start when the first queue exceeds T; feeds fw ci push and LandRemote; takes macOS lanes from Fw.Ci.Pool fallback route (one router, one source; user 2026-10-20)",
+   "title": "One Lean router for every CI lane across GitHub Actions and CircleCI: inputs health (gh-status, circleci-status), free quota left, measured queue p50/p95 per provider and class, per-provider lane allowlist; outputs an ordered provider list (failover) and an optional hedge start when the first queue exceeds T; feeds fw ci push and LandRemote; takes macOS lanes from Fw.Ci.Pool fallback route (one router, one source; user 2026-10-20) Inputs from pool-key-outcome review (2026-10-21): define a provider-independent attempt order (GitHub run_attempt and CircleCI numbers are separate counters), and the reduce must map keys still held by the router (queued/running on CircleCI) to waiting, not notRun.",
    "deps": [
     "land-lane-circleci",
     "circleci-status",
@@ -13354,6 +13354,44 @@
     "results/smoothness-throttle/**",
     "research/notes/2026/10-2x-smoothness-throttle.md",
     "docs/team/handoffs/smoothness-cpu-throttle.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "pool-key-portof",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "pool-key-outcome"
+   ],
+   "title": "Follow-up of pool-key-outcome (accepted; its review: design 10-20-macos-pool-v2.md section 3 assigns portOf to Key.lean, not delivered): portOf lane (WKTR serve port per pool lane) proved injective over pool lanes, with its golden; update section 3 of the design note for the names that drifted (name_inj, runFails, cfg64, the provider segment); itemsOf_nodup so exactly_one_row holds for real plans; reduce_perm (output independent of artifact order).",
+   "writes": [
+    "lean/Fw/Ci/Pool/Key.lean",
+    "lean/scripts/PoolKeyGolden.lean",
+    "packages/contracts/golden/ci/pool-key.jsonl",
+    "research/notes/2026/10-20-macos-pool-v2.md",
+    "docs/team/handoffs/pool-key-portof.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "circleci-lean-cache",
+   "owner": "measure-engineer",
+   "stream": "ops",
+   "deps": [
+    "land-lane-circleci"
+   ],
+   "title": "Follow-up of land-lane-circleci: CircleCI land legs took 450-579 s against 63-127 s on GitHub for the same legs (pipelines 54ecd7d1 #304, 7733541c; INFERRED cause: the CircleCI land job has no Lean build cache). Add a Lake build cache to the CircleCI land job keyed like setup-lean (toolchain + manifest + source hash), saved only when the key changes (the circleci-cache-accounting stop rule: storage under 1 GB-month), restored on every leg; measure leg time before/after on paired runs; the overflow is only worth it if a CircleCI leg is not slower than the GitHub queue it avoids.",
+   "writes": [
+    ".circleci/**",
+    "scripts/circleci.mjs",
+    "scripts/circleci.test.mjs",
+    "research/notes/2026/10-2x-circleci-lean-cache.md",
+    "docs/team/handoffs/circleci-lean-cache.md"
    ]
   }
  ],
