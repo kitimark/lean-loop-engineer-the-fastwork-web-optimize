@@ -3,6 +3,7 @@ import Std.Data.TreeMap.Raw.Lemmas
 import Fw.Obs.Backoff
 import Fw.Obs.Health
 import Fw.Obs.Next
+import Fw.Obs.Push
 import Fw.Obs.Timing
 import Fw.Ops.Wire
 import Fw.Wire.SchedJson
@@ -999,7 +1000,7 @@ def opBackoff (req : Json) : Except String Reply := do
 end Backoff
 
 /-- The `Fw.Obs` ops. -/
-def ops : List String := ["obs.health", "obs.next", "obs.signals", "obs.timing", "obs.slow", "obs.backoff"]
+def ops : List String := ["obs.health", "obs.next", "obs.signals", "obs.timing", "obs.slow", "obs.backoff", "obs.push"]
 
 /-- Dispatch an `Fw.Obs` op (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -1010,6 +1011,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "obs.timing" => some (Timing.opTiming req)
   | "obs.slow" => some (Timing.opSlow req)
   | "obs.backoff" => some (Backoff.opBackoff req)
+  | "obs.push" => some (Fw.Wire.Obs.Push.opPush req)
   | _ => none
 
 /-! ## Examples -/
