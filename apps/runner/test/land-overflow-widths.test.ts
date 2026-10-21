@@ -17,6 +17,11 @@ const read = (p: string) => readFileSync(join(root, p), "utf8");
 const num = (text: string, re: RegExp, what: string): number => { const m = re.exec(text); if (!m) throw new Error(`${what}: no match for ${re}`); return Number(m[1]); };
 /** the largest number in a `case "$X" in 1|2|3) ;;` list */
 const caseMax = (text: string, v: string): number => { const m = new RegExp(`case "\\$${v}" in ((?:\\d\\|)*\\d)\\)`).exec(text); if (!m) throw new Error(`no case list for ${v}`); return Math.max(...m[1]!.split("|").map(Number)); };
+// the widths a `[trajectory widths=..]` line may list (.github/scripts/trajectory-line.mjs asks pickWidths): the longest accepted list
+const { pickWidths } = (await import(join(root, "packages/gate-breakpoints/src/trajectory/reduce.mjs"))) as { pickWidths: (s: string) => number[] | null };
+const widthsMax = (): number => { const ws = [390, 640, 641, 1280]; let best = 0; for (let m = 0; m < 16; m++) { const l = ws.filter((_, i) => m & (1 << i)); if (pickWidths(l.join(",")) !== null) best = Math.max(best, l.length); } return best; };
+/** the number of sets in `set: [1, 2, 3]` of smoothness.yml's plan step */
+const setsOf = (text: string): number => { const m = /set: \[((?:\d, )*\d)\]/.exec(text); if (!m) throw new Error("smoothness sets: no match"); return m[1]!.split(", ").length; };
 const engines2 = 2; // `both` is [chromium, playwright-webkit] in the plan step of every workflow below
 
 /** The most one dynamic matrix can have, per `workflow/job`, with where the bound comes from (CONFIRMED by reading it, at the time of this commit). */
@@ -40,6 +45,8 @@ function dynamicMax(): Record<string, () => number> {
     "visual-diff/port-fonts": () => engines2,
     // sim-speed.yml:121 `fromJSON(needs.plan.outputs.matrix)` = arms (any number of words, :105) x reps 1..3 (:104); unbounded, so the 5 macOS slots (runs-on xcode-27) are the bound
     "sim-speed/probe": () => 1e9,
+    // smoothness.yml:155 `fromJSON(needs.site.outputs.legs)` = widths (up to every width the push line allows, trajectory-line.mjs:44) x sets [1, 2, 3] (:39 of the plan step)
+    "smoothness/cadence": () => widthsMax() * setsOf(wf("smoothness.yml")),
     // trajectory-probe.yml:259 linux legs, :498 apple legs (max-parallel 2), :430 merge per engine: .../trajectory/plan.mjs over every input
     "trajectory-probe/probe": () => traj().linux,
     "trajectory-probe/probe-apple": () => traj().apple,
