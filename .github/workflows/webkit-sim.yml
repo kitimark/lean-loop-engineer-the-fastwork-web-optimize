@@ -191,10 +191,10 @@ jobs:
         env:
           FWCORE: ${{ runner.temp }}/bin/fwcore
           # a ci/* push carries no inputs: its commit token asks for the lag probe, `[lag]` (original and rewrite, 3 VMs each) or
-          # `[lag:v2-proved]` (the rewrite at that preset, 3 VMs); a dispatch uses its inputs
+          # `[lag:v2-proved]` (the rewrite at that preset, 3 VMs) or `[lag:rewrite]` (the default rewrite only, 3 VMs); a dispatch uses its inputs
           VMS: ${{ inputs.vms || (contains(github.event.head_commit.message, '[lag') && '3') || '1' }}
           SESSIONS: ${{ inputs.sessions || '1' }}
-          TARGET: ${{ inputs.target || (contains(github.event.head_commit.message, '[lag:v2-proved]') && 'rewrite') || (contains(github.event.head_commit.message, '[lag]') && 'both') || 'original' }}
+          TARGET: ${{ inputs.target || (contains(github.event.head_commit.message, '[lag:v2-proved]') && 'rewrite') || (contains(github.event.head_commit.message, '[lag:rewrite]') && 'rewrite') || (contains(github.event.head_commit.message, '[lag]') && 'both') || 'original' }}
           PRESET: ${{ inputs.preset || (contains(github.event.head_commit.message, '[lag:v2-proved]') && 'v2-proved') || 'original' }}
           FW: ${{ inputs.fw || '' }}
           EXPERIMENT: ${{ inputs.experiment || 'determinism' }}
