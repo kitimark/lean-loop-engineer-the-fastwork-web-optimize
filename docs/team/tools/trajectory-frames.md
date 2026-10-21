@@ -36,6 +36,10 @@ own times, so columns line up by time, not by frame number.
 - `--source screenshot`: `page.screenshot` of the band in a loop for 1.5 s after the wheel event; the interval is the time that screenshot took.
 - `--source screencast`: `page.screencast.start({onFrame})` (playwright-core 1.64.1), the JPEG frames the engine composites; the interval is
   from the frame's swap time to the next frame's. The frame in effect at the wheel event is shot 0, from 0. Not `recordVideo` (ffmpeg resamples to 25 fps).
+- `--reps N`: the capture repeats each push N times per arm and pools the shots of the repeats, ordered by ms after the wheel event
+  (`pooled` in `frames.mjs`); the label carries the repeat (`#i rK from-to ms`). The `probe-apple` frames step uses `--reps 3`. Why: run
+  39529343997 (one repeat) gave 4 to 10 shots per push on macOS (130 to 300 ms per screenshot on the runner), none usable; run
+  39530106935 (3 repeats) gave 18 to 35 per arm, all 8 strips usable, identity ok.
 - `usable` = min(shots.faithful, shots.flag) >= 10 (Lean `Fw.Gate.Frames.usable`, TS stand-in `usable` in `frames.mjs`, same cases in
   `test/frames.test.mjs`). Decided per strip.
 
@@ -45,6 +49,7 @@ artifact and path.
 ## Limits
 
 - macOS Playwright WebKit is not Safari on a phone. Linux WebKit (WebKitGTK/WPE) screenshots land 1 to 10 shots per push.
+- Pooled repeats mix the timing jitter of separate pushes: a column shows shots of different repeats at about the same ms, not one continuous run.
 - Screencast times: Chromium takes the compositor's swap time; Playwright WebKit takes the engine's frame timestamp plus a clock offset fixed at the
   first frame (coreBundle.js `_onScreencastFrame`), so all WebKit screencast intervals carry that one constant, the delivery delay of the first frame.
 - The wheel time is the node wall clock after the mouse moved to the wheel point, before the wheel call; its latency to the page is not subtracted.

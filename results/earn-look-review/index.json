@@ -1,6 +1,6 @@
 {
- "what": "nav band frames through the open and the close push, no flag (faithful) against ?fw=nav:earn-no-transition (flag); review material for the user's visual review, it decides nothing. The strips are not committed: each one is the file path inside the CI artifact it names, from run 39473950464 (expires 2026-11-19). Both arms get the same wheel input; each arm is sampled at its own shot times. usable = min(shots.faithful, shots.flag) >= 10, decided per strip.",
- "workflow": "trajectory-probe.yml, job frames (packages/gate-breakpoints/src/trajectory/frames.mjs)",
+ "what": "nav band frames through the open and the close push, no flag (faithful) against ?fw=nav:earn-no-transition (flag); review material for the user's visual review, it decides nothing. The strips are not committed: each one is the file path inside the CI artifact it names, from the run in its own `run` field (run 39473950464 expires 2026-11-19, run 39530106935 expires 2026-11-20). Both arms get the same wheel input; each arm is sampled at its own shot times, labels are from-to ms after the wheel event. usable = min(shots.faithful, shots.flag) >= 10 (Lean Fw.Gate.Frames.usable), decided per strip. Run 39530106935 is macOS Playwright WebKit (macos-26, job probe-apple), 3 repeats of each push pooled, by screenshots (`source` screenshot) and by the screencast (`source` screencast, file name suffix -screencast); all 8 of its strips are usable. Runs without `reps` are one repeat.",
+ "workflow": "trajectory-probe.yml, job frames (Linux) and the frames step of job probe-apple (macOS); packages/gate-breakpoints/src/trajectory/frames.mjs",
  "runs": [
   {
    "run": 39473950464,
@@ -12,6 +12,17 @@
     "frames-playwright-webkit"
    ],
    "expires": "2026-11-19"
+  },
+  {
+   "run": 39530106935,
+   "commit": "494c6db2",
+   "branch": "ci/earn-look-review-webkit",
+   "runner": "macos-26",
+   "artifacts": [
+    "frames-apple-390",
+    "frames-apple-1280"
+   ],
+   "expires": "2026-11-20"
   }
  ],
  "strips": [
@@ -230,6 +241,238 @@
     "flag": "ok"
    },
    "usable": false
+  },
+  {
+   "artifact": "frames-apple-390",
+   "path": "strips/playwright-webkit-390-open.png",
+   "run": 39530106935,
+   "expires": "2026-11-20",
+   "engine": "playwright-webkit",
+   "version": "WebKit 27.2 (playwright-core 1.64.1)",
+   "source": "screenshot",
+   "reps": 3,
+   "width": 390,
+   "push": "open",
+   "search": "?fw=nav:earn-no-transition",
+   "columns": 24,
+   "crop": {
+    "x": 154,
+    "width": 236,
+    "y": 0,
+    "height": 84
+   },
+   "shots": {
+    "faithful": 23,
+    "flag": 20
+   },
+   "usable": true,
+   "identity": {
+    "faithful": "ok",
+    "flag": "ok"
+   }
+  },
+  {
+   "artifact": "frames-apple-390",
+   "path": "strips/playwright-webkit-390-close.png",
+   "run": 39530106935,
+   "expires": "2026-11-20",
+   "engine": "playwright-webkit",
+   "version": "WebKit 27.2 (playwright-core 1.64.1)",
+   "source": "screenshot",
+   "reps": 3,
+   "width": 390,
+   "push": "close",
+   "search": "?fw=nav:earn-no-transition",
+   "columns": 21,
+   "crop": {
+    "x": 154,
+    "width": 236,
+    "y": 0,
+    "height": 84
+   },
+   "shots": {
+    "faithful": 20,
+    "flag": 18
+   },
+   "usable": true,
+   "identity": {
+    "faithful": "ok",
+    "flag": "ok"
+   }
+  },
+  {
+   "artifact": "frames-apple-390",
+   "path": "strips/playwright-webkit-390-open-screencast.png",
+   "run": 39530106935,
+   "expires": "2026-11-20",
+   "engine": "playwright-webkit",
+   "version": "WebKit 27.2 (playwright-core 1.64.1)",
+   "source": "screencast",
+   "reps": 3,
+   "width": 390,
+   "push": "open",
+   "search": "?fw=nav:earn-no-transition",
+   "columns": 29,
+   "crop": {
+    "x": 154,
+    "width": 236,
+    "y": 0,
+    "height": 84
+   },
+   "shots": {
+    "faithful": 25,
+    "flag": 28
+   },
+   "usable": true,
+   "identity": {
+    "faithful": "ok",
+    "flag": "ok"
+   }
+  },
+  {
+   "artifact": "frames-apple-390",
+   "path": "strips/playwright-webkit-390-close-screencast.png",
+   "run": 39530106935,
+   "expires": "2026-11-20",
+   "engine": "playwright-webkit",
+   "version": "WebKit 27.2 (playwright-core 1.64.1)",
+   "source": "screencast",
+   "reps": 3,
+   "width": 390,
+   "push": "close",
+   "search": "?fw=nav:earn-no-transition",
+   "columns": 33,
+   "crop": {
+    "x": 154,
+    "width": 236,
+    "y": 0,
+    "height": 84
+   },
+   "shots": {
+    "faithful": 35,
+    "flag": 28
+   },
+   "usable": true,
+   "identity": {
+    "faithful": "ok",
+    "flag": "ok"
+   }
+  },
+  {
+   "artifact": "frames-apple-1280",
+   "path": "strips/playwright-webkit-1280-open.png",
+   "run": 39530106935,
+   "expires": "2026-11-20",
+   "engine": "playwright-webkit",
+   "version": "WebKit 27.2 (playwright-core 1.64.1)",
+   "source": "screenshot",
+   "reps": 3,
+   "width": 1280,
+   "push": "open",
+   "search": "?fw=nav:earn-no-transition",
+   "columns": 31,
+   "crop": {
+    "x": 873,
+    "width": 403,
+    "y": 0,
+    "height": 96
+   },
+   "shots": {
+    "faithful": 19,
+    "flag": 30
+   },
+   "usable": true,
+   "identity": {
+    "faithful": "ok",
+    "flag": "ok"
+   }
+  },
+  {
+   "artifact": "frames-apple-1280",
+   "path": "strips/playwright-webkit-1280-close.png",
+   "run": 39530106935,
+   "expires": "2026-11-20",
+   "engine": "playwright-webkit",
+   "version": "WebKit 27.2 (playwright-core 1.64.1)",
+   "source": "screenshot",
+   "reps": 3,
+   "width": 1280,
+   "push": "close",
+   "search": "?fw=nav:earn-no-transition",
+   "columns": 29,
+   "crop": {
+    "x": 873,
+    "width": 403,
+    "y": 0,
+    "height": 96
+   },
+   "shots": {
+    "faithful": 18,
+    "flag": 31
+   },
+   "usable": true,
+   "identity": {
+    "faithful": "ok",
+    "flag": "ok"
+   }
+  },
+  {
+   "artifact": "frames-apple-1280",
+   "path": "strips/playwright-webkit-1280-open-screencast.png",
+   "run": 39530106935,
+   "expires": "2026-11-20",
+   "engine": "playwright-webkit",
+   "version": "WebKit 27.2 (playwright-core 1.64.1)",
+   "source": "screencast",
+   "reps": 3,
+   "width": 1280,
+   "push": "open",
+   "search": "?fw=nav:earn-no-transition",
+   "columns": 28,
+   "crop": {
+    "x": 873,
+    "width": 403,
+    "y": 0,
+    "height": 96
+   },
+   "shots": {
+    "faithful": 28,
+    "flag": 29
+   },
+   "usable": true,
+   "identity": {
+    "faithful": "ok",
+    "flag": "ok"
+   }
+  },
+  {
+   "artifact": "frames-apple-1280",
+   "path": "strips/playwright-webkit-1280-close-screencast.png",
+   "run": 39530106935,
+   "expires": "2026-11-20",
+   "engine": "playwright-webkit",
+   "version": "WebKit 27.2 (playwright-core 1.64.1)",
+   "source": "screencast",
+   "reps": 3,
+   "width": 1280,
+   "push": "close",
+   "search": "?fw=nav:earn-no-transition",
+   "columns": 31,
+   "crop": {
+    "x": 873,
+    "width": 403,
+    "y": 0,
+    "height": 96
+   },
+   "shots": {
+    "faithful": 29,
+    "flag": 33
+   },
+   "usable": true,
+   "identity": {
+    "faithful": "ok",
+    "flag": "ok"
+   }
   }
  ]
 }
