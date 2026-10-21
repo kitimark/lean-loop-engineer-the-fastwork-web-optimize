@@ -1,7 +1,6 @@
 # local-adaptive-queue handoff
 
-State: branch `worktree-wf_d4f933d8-5ab-1`, round 2 (review r1 blocker fixed); main merged in; check.sh green through
-`fw slot run --kind check`.
+State: branch `worktree-wf_d4f933d8-5ab-1`, round 2 (r1 blocker fixed); main merged; check.sh green via the slot.
 
 Verified:
 - `lean/Fw/Sup/Adapt.lean`: controller (`step_range`, `step_change_spaced`, `changes_spaced`, `step_overload`,
@@ -16,7 +15,6 @@ Verified:
   (`recoverStale`, tests "state lock recovery"). Residual: release still removes `state.lock` by path.
 - `fw slot run` was run by hand: TERM was ignored by the child, KILL followed after the 5 s grace, exit 137, and the
   holder was released.
-
 Open (follow-ups, outside the pinned unit):
 - Console view of N, queue and waits; migrate the sim-lock.sh callers (measure-engineer.md, measure-webkit
   device.mjs, gate-breakpoints); `fw slot sim --apply` in `fw watch`; retire heavy-lock; busy-hour measurement.
