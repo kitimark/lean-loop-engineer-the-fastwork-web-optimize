@@ -192,6 +192,7 @@ def table : List Wf := [
     "packages/contracts/golden/parts/hero.exit.scoped.json", "packages/measure-chromium/scenarios.gen.json",
     "packages/contracts/golden/parts/morph.mount.dormant.jsonl", "packages/contracts/golden/parts/morph-mount-tap.jsonl",
     "packages/contracts/golden/parts/nav-earn.jsonl",
+    "packages/contracts/golden/gate/image-arm.jsonl",
     ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", ".github/scripts/runner-info.sh",
     ".github/actions/telemetry/**", "scripts/ci-telemetry/**", own "lean.yml", ".node-version"], []⟩,
   ⟨"mutants.yml", ciAll, [
@@ -897,20 +898,23 @@ head commit message that starts with `[trajectory` carries the inputs of the tra
 
 The lane is still asked for with its `[ci:trajectory-probe]` token (`Fw.Ci.Intent`); this section decides what the push
 runs *with*. Only a line that starts with the keyword counts, so a message that quotes the form in prose asks for nothing.
-Keys: `fw`, `preset` (exclusive with `fw`), `widths`, `engines`; each at most once, each with a value from a closed
-character set. A line that does not parse is refused with a reason (the plan step of the workflow fails with it); it is
+Keys: `fw`, `preset` (exclusive with `fw`), `widths`, `engines`, `debug`; each at most once, each with a value from a closed
+character set. `debug` names a page recorder of the probe (`nav-transition`) and takes only a value of a closed list; no file
+of the repo can turn a recorder on, so nothing that lands on `main` does. A line that does not parse is refused with a reason (the plan step of the workflow fails with it); it is
 never ignored. Two such lines are refused too. -/
 
-/-- The inputs of one probe run (an empty string is "none"; `engines` defaults to `both`). -/
+/-- The inputs of one probe run (an empty string is "none"; `engines` defaults to `both`; `debug` is the page recorder
+the run switches on, `""` for none). -/
 structure ProbeIn where
   engines : String
   fw : String
   preset : String
   widths : String
+  debug : String
 deriving Repr, DecidableEq
 
 /-- The inputs of a run whose message names none: the dispatch defaults. -/
-def ProbeIn.default : ProbeIn := ⟨"both", "", "", ""⟩
+def ProbeIn.default : ProbeIn := ⟨"both", "", "", "", ""⟩
 
 /-- What the message says about the probe inputs. -/
 inductive ProbeLine where
@@ -951,10 +955,13 @@ def isCand (l : List Char) : Bool := lineKw.isPrefixOf ((trimL l).map Char.toLow
 def valueChar (c : Char) : Bool := c.isAlphanum || c == '.' || c == ':' || c == ',' || c == '_' || c == '@' || c == '-'
 
 /-- The keys of a line. -/
-def probeKeys : List String := ["fw", "preset", "widths", "engines"]
+def probeKeys : List String := ["fw", "preset", "widths", "engines", "debug"]
 
 /-- The engines input values. -/
 def probeEngines : List String := ["both", "chromium", "playwright-webkit"]
+
+/-- The page recorders a push may ask for (`apps/site/src/debug/`; the probe loads the rewrite arms with `fw-debug=<name>`). -/
+def probeDebugs : List String := ["nav-transition"]
 
 /-- Split `key=value` at the first `=`. -/
 def splitEq : List Char → Option (List Char × List Char)
@@ -968,7 +975,7 @@ def addTok (acc : List (String × String)) (t : List Char) : Except String (List
   | none => .error s!"token '{String.ofList t}' has no '='"
   | some (k, v) =>
     let ks := String.ofList k
-    if !probeKeys.contains ks then .error s!"unknown key '{ks}' (keys: fw, preset, widths, engines)"
+    if !probeKeys.contains ks then .error s!"unknown key '{ks}' (keys: fw, preset, widths, engines, debug)"
     else if acc.any (·.1 == ks) then .error s!"key '{ks}' given twice"
     else if v.isEmpty then .error s!"key '{ks}' has no value"
     else if !v.all valueChar then .error s!"the value of '{ks}' has a character outside A-Z a-z 0-9 . : , _ @ -"
@@ -978,14 +985,16 @@ def addTok (acc : List (String × String)) (t : List Char) : Except String (List
 def addAll (toks : List (List Char)) : Except String (List (String × String)) :=
   toks.foldl (fun r t => r.bind fun acc => addTok acc t) (.ok [])
 
-/-- The inputs from the pairs: defaults, the exclusivity of `fw` and `preset`, the engines allowlist and the widths allowlist. -/
+/-- The inputs from the pairs: defaults, the exclusivity of `fw` and `preset`, the engines allowlist, the widths allowlist
+and the recorder allowlist (`debug` is empty or one of `probeDebugs`). -/
 def build (kv : List (String × String)) : Except String ProbeIn :=
   let g := fun (k d : String) => (kv.lookup k).getD d
-  let p : ProbeIn := ⟨g "engines" "both", g "fw" "", g "preset" "", g "widths" ""⟩
+  let p : ProbeIn := ⟨g "engines" "both", g "fw" "", g "preset" "", g "widths" "", g "debug" ""⟩
   if p.fw != "" && p.preset != "" then .error "fw and preset are exclusive"
   else if !probeEngines.contains p.engines then .error "engines must be both, chromium or playwright-webkit"
   else if decide (Fw.Gate.Trajectory.pickWidths p.widths = .refused) then
     .error "widths must be a comma list of 390, 640, 641, 1280 without repeats"
+  else if p.debug != "" && !probeDebugs.contains p.debug then .error "debug must be nav-transition"
   else .ok p
 
 /-- One candidate line parsed. -/
@@ -1040,9 +1049,10 @@ theorem parse_one_err (m : String) (l : List Char) (w : String) (h : candidates 
   simp [parseLine, h, hp]
 
 /-- **Every accepted input set is allowed.** `fw` and `preset` are never both set, the engines are one of the three
-values and the widths pass the Lean allowlist of the probe. -/
+values, the widths pass the Lean allowlist of the probe and the recorder is none or one of `probeDebugs`. -/
 theorem build_ok (kv : List (String × String)) (p : ProbeIn) (h : build kv = .ok p) :
-    (p.fw = "" ∨ p.preset = "") ∧ p.engines ∈ probeEngines ∧ Fw.Gate.Trajectory.pickWidths p.widths ≠ .refused := by
+    (p.fw = "" ∨ p.preset = "") ∧ p.engines ∈ probeEngines ∧ Fw.Gate.Trajectory.pickWidths p.widths ≠ .refused ∧
+      (p.debug = "" ∨ p.debug ∈ probeDebugs) := by
   unfold build at h
   dsimp only at h
   split at h
@@ -1051,16 +1061,71 @@ theorem build_ok (kv : List (String × String)) (p : ProbeIn) (h : build kv = .o
   · simp at h
   split at h
   · simp at h
+  split at h
+  · simp at h
   simp only [Except.ok.injEq] at h
   subst h
-  rename_i h1 h2 h3
-  refine ⟨?_, ?_, ?_⟩
+  rename_i h1 h2 h3 h4
+  refine ⟨?_, ?_, ?_, ?_⟩
   · simp only [Bool.and_eq_true, bne_iff_ne, ne_eq, not_and, Classical.not_not] at h1
     by_cases hf : (kv.lookup "fw").getD "" = ""
     · exact Or.inl hf
     · exact Or.inr (h1 hf)
   · simpa using h2
   · simpa using h3
+  · simp only [Bool.and_eq_true, bne_iff_ne, ne_eq, Bool.not_eq_true', not_and] at h4
+    by_cases hd : (kv.lookup "debug").getD "" = ""
+    · exact Or.inl hd
+    · exact Or.inr (by simpa using h4 hd)
+
+/-- Branch no `debug` key: the run switches no recorder on. -/
+theorem build_debug_none (kv : List (String × String)) (p : ProbeIn) (h : build kv = .ok p)
+    (hk : kv.lookup "debug" = none) : p.debug = "" := by
+  unfold build at h
+  dsimp only at h
+  split at h
+  · simp at h
+  split at h
+  · simp at h
+  split at h
+  · simp at h
+  split at h
+  · simp at h
+  simp only [Except.ok.injEq] at h
+  subst h
+  simp [hk]
+
+/-- Branch a `debug` key that is accepted: the run switches exactly that recorder on (`build_ok`: it is listed). -/
+theorem build_debug_some (kv : List (String × String)) (d : String) (hk : kv.lookup "debug" = some d) (p : ProbeIn) (h : build kv = .ok p) : p.debug = d := by
+  unfold build at h
+  dsimp only at h
+  split at h
+  · simp at h
+  split at h
+  · simp at h
+  split at h
+  · simp at h
+  split at h
+  · simp at h
+  simp only [Except.ok.injEq] at h
+  subst h
+  simp [hk]
+
+/-- Branch a `debug` key with a value outside `probeDebugs`: the line is refused (never ignored, never run). -/
+theorem build_debug_unknown (kv : List (String × String)) (d : String) (hk : kv.lookup "debug" = some d)
+    (hne : d ≠ "") (hd : d ∉ probeDebugs) : ∃ w, build kv = .error w := by
+  unfold build
+  dsimp only
+  simp only [hk, Option.getD_some]
+  split
+  · exact ⟨_, rfl⟩
+  split
+  · exact ⟨_, rfl⟩
+  split
+  · exact ⟨_, rfl⟩
+  have hc : (d != "" && !probeDebugs.contains d) = true := by simpa [hne] using hd
+  simp only [hc, ↓reduceIte]
+  exact ⟨_, rfl⟩
 
 /-- Branch refused line: a push never runs the probe past a refused line, whether or not it asked for the lane. -/
 theorem push_refused (lane : Bool) (m : String) (w : String) (h : parseLine m = .refused w) :
@@ -1126,14 +1191,21 @@ def probeMsgs : List String := [
   "[trajectory fw=a b]",
   "[trajectory fw=a.b:c]\n[trajectory widths=390]",
   "[trajectory fw=a.b:c]\n[trajectory fw=a.b:c]",
-  "[trajectory fw=a.b:c]\nsome prose\n[trajectory widths=bad]"]
+  "[trajectory fw=a.b:c]\nsome prose\n[trajectory widths=bad]",
+  "[trajectory fw=morph.tween:waapi widths=1280 engines=playwright-webkit debug=nav-transition]",
+  "[trajectory debug=nav-transition]",
+  "[trajectory fw=morph.tween:waapi debug=nav-transition debug=nav-transition]",
+  "[trajectory debug=other]",
+  "[trajectory debug=Nav-Transition]",
+  "[trajectory debug=nav-transition,nav-transition]",
+  "[trajectory debug=]"]
 
 /-- The JSON of a decision. -/
 def pushProbeJson : PushProbe → Json
   | .notAsked => Json.mkObj [("kind", "notAsked")]
   | .needsLane => Json.mkObj [("kind", "needsLane")]
   | .run p => Json.mkObj [("kind", "run"), ("engines", .str p.engines), ("fw", .str p.fw), ("preset", .str p.preset),
-      ("widths", .str p.widths)]
+      ("widths", .str p.widths), ("debug", .str p.debug)]
   | .refused w => Json.mkObj [("kind", "refused"), ("why", .str w)]
 
 /-- One probe golden line. -/
@@ -1143,7 +1215,9 @@ def probeLine (lane : Bool) (m : String) : Json :=
 /-- All probe golden lines: each message with the lane asked and not asked. -/
 def probeLines (_ : Unit := ()) : List Json := probeMsgs.flatMap fun m => [probeLine true m, probeLine false m]
 
-example : pushProbe true "[trajectory fw=a.b:c widths=390]" = .run ⟨"both", "a.b:c", "", "390"⟩ := by decide
+example : pushProbe true "[trajectory fw=a.b:c widths=390]" = .run ⟨"both", "a.b:c", "", "390", ""⟩ := by decide
+example : pushProbe true "[trajectory debug=nav-transition]" = .run { ProbeIn.default with debug := "nav-transition" } := by decide
+example : pushProbe true "[trajectory debug=other]" = .refused "debug must be nav-transition" := by decide
 example : pushProbe true "x [trajectory fw=a.b:c]" = .run ProbeIn.default := by decide
 example : pushProbe false "[trajectory fw=a.b:c]" = .needsLane := by decide
 example : pushProbe true "[trajectory fw=a preset=b]" = .refused "fw and preset are exclusive" := by decide
