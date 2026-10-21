@@ -4,6 +4,7 @@ import { registerScroll } from '../../engine/scroll';
 import type { PanelWriter } from '../morph.panel';
 import { LangMenu, type LocaleCode } from '../nav.langMenu';
 import { PROFILE_SECTION_SELECTOR, PROFILE_STICKY_SELECTOR } from '../nav.hitTest/probe';
+import { installNavTransitionDebug } from '../../debug/nav-transition';
 import { createNavDriver, type NavEnv } from './driver';
 import { CLASS_OF, EARN_STILL_CLASS, EARN_STILL_VARIANT, earnTransitionOn, type Sticky } from './logic';
 import { matchList } from './media';
@@ -128,7 +129,10 @@ export function Nav({
       panelWriterRef?.current?.apply(env.morph());
     });
     mo.observe(nav, { attributes: true, attributeFilter: ['data-fw-morph'] });
+    // Debug recorder (src/debug/nav-transition.ts): installed after `mo`, only on `?fw-debug=nav-transition`; null, and nothing touched, otherwise.
+    const offDebug = installNavTransitionDebug(location.search, nav);
     return () => {
+      offDebug?.();
       off();
       mo.disconnect();
       reduce.removeEventListener('change', onQuery);

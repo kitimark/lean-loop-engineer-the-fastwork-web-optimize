@@ -12144,7 +12144,8 @@
     "packages/contracts/golden/parts/morph-tween*.jsonl",
     "research/notes/2026/10-2*-waapi-tail-webkit.md",
     "docs/team/handoffs/waapi-tail-webkit.md"
-   ]
+   ],
+   "evidence": "5a431f8"
   },
   {
    "devices": [

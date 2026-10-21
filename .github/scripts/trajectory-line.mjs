@@ -2,12 +2,14 @@
 // (lean/Fw/Ci/Trigger.lean, task ci-push-probe-inputs), checked against the `probe` lines of
 // packages/contracts/golden/ci/triggers.jsonl by trajectory-line.test.mjs.
 //   EVENT=push|workflow_dispatch HEAD_MSG=<message> node .github/scripts/trajectory-line.mjs
-// prints engines/fw/preset/widths/source as `key=value` lines (for $GITHUB_OUTPUT); a refused line exits 1 with the reason.
+// prints engines/fw/preset/widths/debug/source as `key=value` lines (for $GITHUB_OUTPUT); a refused line exits 1 with the reason.
 import { pickWidths } from '../../packages/gate-breakpoints/src/trajectory/reduce.mjs';
 
 const KW = '[trajectory';
-const KEYS = ['fw', 'preset', 'widths', 'engines'];
+const KEYS = ['fw', 'preset', 'widths', 'engines', 'debug'];
 const ENGINES = ['both', 'chromium', 'playwright-webkit'];
+/** Lean `probeDebugs`: the page recorders a push may ask for. */
+const DEBUGS = ['nav-transition'];
 const isWs = (c) => c === ' ' || c === '\t' || c === '\r';
 const trim = (s) => {
   let a = 0;
@@ -20,14 +22,14 @@ const lowerAscii = (s) => s.replace(/[A-Z]/g, (c) => c.toLowerCase());
 const isCand = (l) => lowerAscii(trim(l)).startsWith(KW);
 const valueOk = /^[A-Za-z0-9.:,_@-]+$/;
 
-export const DEFAULT = { engines: 'both', fw: '', preset: '', widths: '' };
+export const DEFAULT = { engines: 'both', fw: '', preset: '', widths: '', debug: '' };
 
 function addTok(acc, t) {
   const i = t.indexOf('=');
   if (i < 0) return { error: `token '${t}' has no '='` };
   const k = t.slice(0, i);
   const v = t.slice(i + 1);
-  if (!KEYS.includes(k)) return { error: `unknown key '${k}' (keys: fw, preset, widths, engines)` };
+  if (!KEYS.includes(k)) return { error: `unknown key '${k}' (keys: fw, preset, widths, engines, debug)` };
   if (acc.some(([a]) => a === k)) return { error: `key '${k}' given twice` };
   if (v === '') return { error: `key '${k}' has no value` };
   if (!valueOk.test(v)) return { error: `the value of '${k}' has a character outside A-Z a-z 0-9 . : , _ @ -` };
@@ -36,10 +38,11 @@ function addTok(acc, t) {
 
 function build(kv) {
   const g = (k, d) => (kv.find(([a]) => a === k) ?? [k, d])[1];
-  const p = { engines: g('engines', 'both'), fw: g('fw', ''), preset: g('preset', ''), widths: g('widths', '') };
+  const p = { engines: g('engines', 'both'), fw: g('fw', ''), preset: g('preset', ''), widths: g('widths', ''), debug: g('debug', '') };
   if (p.fw !== '' && p.preset !== '') return { error: 'fw and preset are exclusive' };
   if (!ENGINES.includes(p.engines)) return { error: 'engines must be both, chromium or playwright-webkit' };
   if (pickWidths(p.widths) === null) return { error: 'widths must be a comma list of 390, 640, 641, 1280 without repeats' };
+  if (p.debug !== '' && !DEBUGS.includes(p.debug)) return { error: 'debug must be nav-transition' };
   return { ok: p };
 }
 
@@ -78,7 +81,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const e = process.env;
   if ((e.EVENT ?? '') !== 'push') {
     // A dispatch carries its inputs itself; they pass through unchanged.
-    const p = { engines: e.ENGINES || 'both', fw: e.FW ?? '', preset: e.PRESET ?? '', widths: e.WIDTHS ?? '', source: 'dispatch' };
+    const p = { engines: e.ENGINES || 'both', fw: e.FW ?? '', preset: e.PRESET ?? '', widths: e.WIDTHS ?? '', debug: '', source: 'dispatch' };
     process.stdout.write(Object.entries(p).map(([k, v]) => `${k}=${v}\n`).join(''));
   } else {
     // A push that reached this job asked for the lane (the guard `if:` is the Intent decision), so lane = true.
@@ -89,6 +92,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       process.exit(1);
     }
     const source = parseLine(msg).kind === 'inputs' ? 'commit-line' : 'defaults';
-    process.stdout.write(['engines', 'fw', 'preset', 'widths'].map((k) => `${k}=${r[k]}\n`).join('') + `source=${source}\n`);
+    process.stdout.write(['engines', 'fw', 'preset', 'widths', 'debug'].map((k) => `${k}=${r[k]}\n`).join('') + `source=${source}\n`);
   }
 }
