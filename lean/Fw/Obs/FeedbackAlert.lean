@@ -108,10 +108,10 @@ theorem filter_len (l : List String) (h : l.Nodup) (f : String) :
     · subst hx
       have : (xs.filter (· == x)).length = 0 := by
         rw [ih h.2]; simp [h.1]
-      simp [List.filter_cons, this]
+      simp [this]
     · have hx' : (x == f) = false := by simpa using hx
       have := ih h.2
-      simp [List.filter_cons, hx, this, List.mem_cons, Ne.symm hx]
+      simp [hx, this, List.mem_cons, Ne.symm hx]
 
 /-- **The count**: a flag has exactly one alert when it has an open comment, none otherwise. -/
 theorem alert_count (evs : List Ev) (f : String) :
