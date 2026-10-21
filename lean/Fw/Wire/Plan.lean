@@ -4,6 +4,7 @@ import Fw.Plan.Incident
 import Fw.Plan.Overlap
 import Fw.Plan.ReviewReady
 import Fw.Plan.Polish
+import Fw.Ops.SpawnGuard
 /-!
 # JSON for the plan commands and the board plan
 
@@ -49,8 +50,9 @@ The stateless op `plan.incidentLint` (task `incident-lint`, `Fw.Plan.Incident`),
 | `plan.incidentLint` | `incidents` [ledger records as in the file], `tasks` [{id, evidence?, agent?}] (work graph rows with board state), `commits`? [refs that are commits on main], `files`? [refs that exist], `classes`? [class ids of research/mistakes/ledger.json] | `ok`, `errors`, `warnings`, `incidents` [{id, status, findings [{code, severity, detail}]}] |
 | `plan.reviewReady` | `items` [{id, status, evidence}], `runs` [{id, state}] (missing = `[]`), `task` (the task id, missing = blank), `dry` (the `VERDICT` line of `fw land --dry`, missing = blank) (task `review-flow-v2`, `Fw.Plan.ReviewReady`) | `ready` (`review`, `dispatch`, `wait`, `returnToBuilder`) |
 | `plan.reviewVerdict` | `severities` [word] (`blocker`, `fix-before-land`, `follow-up`; any other word is a blocker), `audited`? [bool: the medium-only audit is done] | `verdict` (`accept`, `refuse`), `recheck` [bool: the verdict used is accept and a `fix-before-land` finding is present, so the checker re-checks], `blockers`, `fixes` [counts] |
-| `plan.polishPlan` | `gen`, `paths`, `edited` [paths] (missing = `[]`) (`Fw.Plan.Polish`) | `classes` [{path, class, mark}], `stages`, `scopes` {comments, prose}, `keep`, `restore` |
-| `plan.polishCuts` | `gen` [paths], `docs` [{path, text}], `cuts` [{path, old, new}] (`Fw.Plan.Polish.applyAll`) | `cuts` [{path, old, verdict, missing}], `docs` [{path, text, changed}] |
+| `plan.polishPlan` | `gen`, `paths`, `edited` [paths] (missing = `[]`), `heads`? [{path, head}] (first lines; a generator stamp makes the path skip) (`Fw.Plan.Polish`) | `classes` [{path, class, mark}], `stages`, `scopes` {comments, prose}, `keep`, `restore` |
+| `plan.polishCuts` | `gen` [paths], `heads`?, `docs` [{path, text}], `cuts` [{path, old, new}] (`Fw.Plan.Polish.applyAll`) | `cuts` [{path, old, verdict, missing}], `docs` [{path, text, changed}] |
+| `plan.roster` | (none) | `roles` [{name, runsAs, edits}]: `Fw.Ops.SpawnGuard.prodRoles` |
 | `plan.overlap` | `rows` [{id, writes}] (work graph), `running` [task ids], `candidate`? [task id], `override`? [reason] (task `spawn-write-overlap`, `Fw.Plan.Overlap`) | `verdict` (`clear`, `refused`, `overridden`, `unknown`), `conflicts` [{a, b, ga, gb}], `unknown` [ids] |
 -/
 namespace Fw.Wire.Plan
@@ -255,10 +257,15 @@ def opReviewVerdict (req : Json) : Except String Reply := do
         ("blockers", toJson (fs.filter (· == .blocker)).length),
         ("fixes", toJson (fs.filter (· == .fixBeforeLand)).length)]
 
+/-- The optional `heads` field of the polish ops: [{path, head}], the first line of each file. -/
+def heads (req : Json) : Except String (List (String × String)) := do
+  (← match opt req "heads" with | none => pure #[] | some v => asArr "heads" v).toList.mapM fun h => do
+    pure (← str h "path", ← str h "head")
+
 open Fw.Plan.Polish in
 /-- `plan.polishPlan`: the class and comment mark of each path, the stages that run, their scopes, and which edited paths are kept. -/
 def opPolishPlan (req : Json) : Except String Reply := do
-  let gen ← strsD req "gen"
+  let gen := genOf (← strsD req "gen") (← heads req)
   let ps ← strsD req "paths"
   let ed ← strsD req "edited"
   pure [("classes", .arr (ps.toArray.map fun p => Json.mkObj [("path", .str p), ("class", .str (classify gen p).name),
@@ -270,7 +277,7 @@ def opPolishPlan (req : Json) : Except String Reply := do
 open Fw.Plan.Polish in
 /-- `plan.polishCuts`: each cut judged in order against its file's text (`applyAll`), and each file's text after the applied cuts. -/
 def opPolishCuts (req : Json) : Except String Reply := do
-  let gen ← strsD req "gen"
+  let gen := genOf (← strsD req "gen") (← heads req)
   let docs ← (← arr req "docs").toList.mapM fun d => do pure (← str d "path", ← str d "text")
   let cuts ← (← arr req "cuts").toList.mapM fun c => do
     pure ({ path := ← str c "path", old := ← str c "old", new := ← str c "new" } : Cut)
@@ -284,9 +291,17 @@ def opPolishCuts (req : Json) : Except String Reply := do
         ("docs", .arr (per.toArray.map fun (p, _, d, vs) => Json.mkObj [("path", .str p), ("text", .str d),
           ("changed", .bool (vs.any (· == .apply)))]))]
 
+open Fw.Ops.SpawnGuard in
+/-- `plan.roster`: `Fw.Ops.SpawnGuard.prodRoles`, the roles the spawn guard knows. -/
+def opRoster : Reply :=
+  [("roles", .arr (prodRoles.toArray.map fun r => Json.mkObj [("name", .str r.name),
+    ("runsAs", .str (match r.runsAs with | .teammate => "teammate" | .subagent => "subagent" | .worktree => "worktree")),
+    ("edits", .bool r.edits)]))]
+
 /-- The stateless ops of this module. -/
 def ops : List String :=
-  ["plan.incidentLint", "plan.overlap", "plan.reviewReady", "plan.reviewVerdict", "plan.polishPlan", "plan.polishCuts"]
+  ["plan.incidentLint", "plan.overlap", "plan.reviewReady", "plan.reviewVerdict", "plan.polishPlan", "plan.polishCuts",
+   "plan.roster"]
 
 /-- Dispatch one of these ops (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -297,6 +312,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "plan.reviewVerdict" => some (opReviewVerdict req)
   | "plan.polishPlan" => some (opPolishPlan req)
   | "plan.polishCuts" => some (opPolishCuts req)
+  | "plan.roster" => some (pure opRoster)
   | _ => none
 
 end Fw.Wire.Plan
