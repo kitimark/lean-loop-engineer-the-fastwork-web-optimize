@@ -294,6 +294,11 @@ export async function runMain(args: RunArgs, d: RunDeps): Promise<number> {
 /** Whether the `workflow_dispatch` of a workflow file declares the input `nonce` (the text of the file at the ref). `gh workflow run`
  *  refuses an input the ref's file does not declare (HTTP 422), so a ref older than the nonce inputs must not be sent one. */
 export function declaresNonce(text: string): boolean {
+  return declaresInput(text, "nonce");
+}
+
+/** Whether the `workflow_dispatch` of a workflow file declares the input `name`. */
+export function declaresInput(text: string, name: string): boolean {
   const lines = text.split("\n");
   const ind = (l: string) => l.length - l.trimStart().length;
   const at = lines.findIndex((l) => /^\s*workflow_dispatch:\s*(#.*)?$/.test(l));
@@ -306,7 +311,7 @@ export function declaresNonce(text: string): boolean {
     if (ind(l) <= base) return false;
     if (!inInputs) { if (/^\s*inputs:\s*(#.*)?$/.test(l)) { inInputs = true; inputsIndent = ind(l); } continue; }
     if (ind(l) <= inputsIndent) return false;
-    if (ind(l) === inputsIndent + 2 && /^\s*nonce:\s*(#.*)?$/.test(l)) return true;
+    if (ind(l) === inputsIndent + 2 && new RegExp(`^\\s*${name}:\\s*(#.*)?$`).test(l)) return true;
   }
   return false;
 }
@@ -370,7 +375,12 @@ async function runGate(args: RunArgs, d: RunDeps, sha: string, lane: "gate" | "t
     d.log(`fw run: trajectory ${mark}, widths ${decision.widths.join(",")}, legs ${legs}`);
   }
   const reply = planGate(d.call, args, lane);
-  const job = reply.job;
+  // The workflow's `diagnostic` input carries the mark (it checks the same Lean rule in its first step); a verdict dispatch sends none.
+  // A ref older than the input has no such rule to satisfy and `gh workflow run` would answer 422, so it is sent none (the log says so).
+  const refText = reply.job ? d.refWorkflowText?.(args.ref ?? d.branch, reply.job.workflow) : undefined;
+  const sendMark = !!args.diagnostic && lane === "trajectory" && (!d.refWorkflowText || (refText !== undefined && declaresInput(refText, "diagnostic")));
+  if (args.diagnostic && lane === "trajectory" && !sendMark) d.log(`trajectory: ${args.ref ?? d.branch} has no diagnostic input in trajectory-probe.yml (a ref older than the mark rule); dispatching without it`);
+  const job = reply.job && sendMark ? { ...reply.job, inputs: { ...reply.job.inputs, diagnostic: "true" } } : reply.job;
   d.log(`fw run${args.dry ? " (dry)" : ""}: ${lane}, sha ${sha.slice(0, 7)}`);
   for (const pr of reply.problems) d.log(`  problem: ${pr}`);
   if (!job) return 2;

@@ -107,7 +107,7 @@ test('pushOk equals the Lean push vectors (every preview of at most 3 lanes, wit
 
 test('probeNotes: a [trajectory] line without the lane token is reported, a refused line stops the push', () => {
   const g = loadIntent(root).lanes;
-  const line = '[trajectory fw=hero.exit:scoped widths=390,1280 engines=both]';
+  const line = '[trajectory fw=hero.exit:scoped widths=390,1280 engines=both diagnostic]';
   assert.deepEqual(probeNotes(g, `ci: m\n\n${line}`, `ci: m\n\n${line}`).refuse, false);
   assert.match(probeNotes(g, `ci: m\n\n${line}`, `ci: m\n\n${line}`).notes[0], /not \[ci:trajectory-probe\]/);
   assert.deepEqual(probeNotes(g, `ci: m\n\n[ci:trajectory-probe]\n${line}`, 'x').notes, []);
@@ -115,5 +115,9 @@ test('probeNotes: a [trajectory] line without the lane token is reported, a refu
   const bad = probeNotes(g, 'ci: m\n\n[ci:trajectory-probe]\n[trajectory fw=a:b preset=x]', 'x');
   assert.equal(bad.refuse, true);
   assert.match(bad.notes[0], /refused/);
+  // a width subset without the diagnostic word is a verdict run short of a width: refused before the push
+  const scoped = probeNotes(g, 'ci: m\n\n[ci:trajectory-probe]\n[trajectory widths=390,1280]', 'x');
+  assert.equal(scoped.refuse, true);
+  assert.match(scoped.notes[0], /walks all four widths.*add the word diagnostic/);
   assert.match(probeNotes(g, 'ci: request [ci:trajectory-probe]', `[ci:trajectory-probe]\n${line}`).notes[0], /request commit/);
 });
