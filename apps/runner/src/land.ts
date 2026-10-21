@@ -938,7 +938,6 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
         throw x;
       }
       if (e) return abort(e);
-      // the task's evidence goes into the merge commit itself, next to the Task: trailer (a commit of the branch, so on main)
       // commit only into the merge the land opened (Lean: landTip): no lock, no MERGE_HEAD or a moved HEAD means someone
       // else touched main; then nothing is committed and nothing is reset
       const d = facts();

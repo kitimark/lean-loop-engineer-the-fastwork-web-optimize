@@ -28,3 +28,5 @@ FWCORE_BUILD_READS, both diff lists, `coreSource` (TS and Lean LandQueue), Lean 
 as UTC; hysteresis replay labelled INFERRED. land-card-unreachable test fixture now commits work-graph.json on main (the early staged evidence made
 its untracked file vanish on merge --abort; tracked files are restored). Goldens: after merging main run `lake build Fw.Ci.Trigger` before
 regenerating triggers.jsonl (a stale olean wrote a stale golden once).
+
+Known limits after the fix round: the fallback land now stages work-graph.json before its checks, so a failing check runs `git merge --abort` with it staged and discards unstaged lead edits to that file in the main checkout. The evidence-order fix has no regression test yet: split into task land-evidence-order-test (reviewer recipe), which also adds golden vectors for scripts/fwcore-record-rule.sh in landQueue.afterLand and landSpeed binMoved.
