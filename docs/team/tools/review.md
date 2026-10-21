@@ -57,7 +57,9 @@ An experiment reports its result to the user as a report, shown in the Reports s
   with a CI run id (digits) or INFERRED with its reason, values are decimals, 2 to 4 arms with distinct names, strips are
   https, the recommendation is adopt, hold or drop. A refusal names the place (lane, metric, arm). Answers: approve, hold,
   reject, with an optional comment; a comment becomes `review.feedback` on the topic `report:<id>` (the lead gets the
-  existing `review.feedback` alert). Goldens: `packages/contracts/golden/console/report.jsonl` (30 cases).
+  existing `review.feedback` alert; the lead replies with `fw review reply --flag report:<id> --to <feedback id> --text <text>`).
+  Lean checks only the numbers of the metric tables and layer verdicts; the title and recommendation are free text and carry no
+  numbers. The original snapshot has no search and is named by its arm name; the rewrite arm is `base` with an empty search. Goldens: `packages/contracts/golden/console/report.jsonl` (30 cases).
 - **Post:** `pnpm -s fw review report post --file <report.json>` (example: `results/review-reports/example.json`, used in
   tests only, never posted to the live log). It posts `step.post` `report-<id>` (choice, audience user).
 - **HTTP (`apps/console-api/src/review/reports.ts`):** `GET /api/reports`, `POST /api/reports` {report},

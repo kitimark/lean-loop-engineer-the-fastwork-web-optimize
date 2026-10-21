@@ -14,7 +14,6 @@ Writes outside the graph list: apps/console-api/src/app.ts (mount), apps/runner/
 
 Open:
 - The Reviews tab badge counts look-change reviews only; adding `openReports` needs App.tsx (outside this task).
-- The strips link in the example is a placeholder (OWNER/REPO).
 - The lead posts the first real report; each experiment task posts its own.
 
 Read first: docs/team/tools/review.md (Reports), lean/Fw/Console/Report.lean (theorems).

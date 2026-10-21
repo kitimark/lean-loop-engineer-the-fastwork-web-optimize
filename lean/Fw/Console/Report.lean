@@ -398,7 +398,7 @@ def stepId (id : String) : String := "report-" ++ id
 /-- The feedback topic of a report (the `flag` of `review.feedback`). -/
 def topic (id : String) : String := "report:" ++ id
 
-/-- The topic of a report is not a step or topic subject, so its comments raise the `review.feedback` alert to the lead. -/
+/-- The feedback topic of a report is `report:` followed by its id. -/
 theorem topic_prefix (id : String) : topic id = "report:" ++ id := rfl
 
 /-- Where a report stands on the board. -/

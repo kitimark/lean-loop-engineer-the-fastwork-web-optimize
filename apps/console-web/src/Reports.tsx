@@ -27,7 +27,7 @@ const ASK: Record<Answer, string> = { approve: "Approve this report?", hold: "Ho
 const YES: Record<Answer, string> = { approve: "Yes, approve", hold: "Yes, hold", reject: "Yes, reject" };
 const DONE: Record<string, string> = { approve: "You approved this report.", hold: "You put this report on hold.", reject: "You rejected this report.", closed: "This report's step was closed without an answer." };
 
-/** Reports with an open step: the Reviews tab badge counts them with the look-change reviews. */
+/** Reports with an open step (the Reviews tab badge does not count them yet; follow-up tab-badge). */
 export function openReports(d: ReportsData | null): number { return d ? d.open : 0; }
 
 /** The reports, reloaded when the board moves (`seq`). */
@@ -163,9 +163,9 @@ export function ReportCard({ item, confirming, comment, busy, error, onComment, 
 }
 
 /** The panel: the open reports first, then the answered ones. Nothing is rendered when there is no report. */
-export function ReportsPanel({ data, confirm, comment, busy, error, onComment, onAsk, onConfirm, onCancel, onChanged }: {
-  data: ReportsData; confirm: { id: string; word: Answer } | null; comment: string; busy: boolean; error: { id: string; text: string } | null;
-  onComment: (t: string) => void; onAsk: (id: string, a: Answer) => void; onConfirm: () => void; onCancel: () => void; onChanged?: () => void;
+export function ReportsPanel({ data, confirm, comments, busy, error, onComment, onAsk, onConfirm, onCancel, onChanged }: {
+  data: ReportsData; confirm: { id: string; word: Answer } | null; comments: Record<string, string>; busy: boolean; error: { id: string; text: string } | null;
+  onComment: (id: string, t: string) => void; onAsk: (id: string, a: Answer) => void; onConfirm: () => void; onCancel: () => void; onChanged?: () => void;
 }) {
   const items = [...data.items.filter((i) => i.state === "open"), ...data.items.filter((i) => i.state !== "open")];
   return (
@@ -173,8 +173,8 @@ export function ReportsPanel({ data, confirm, comment, busy, error, onComment, o
       <h2 className="font-semibold">Reports</h2>
       {items.length === 0 ? <p className="text-sm text-muted-foreground" data-testid="no-reports">No experiment report waits for you.</p> : null}
       {items.map((i) => (
-        <ReportCard key={i.id} item={i} confirming={confirm?.id === i.id ? confirm.word : null} comment={confirm?.id === i.id || i.state === "open" ? comment : ""}
-          busy={busy && confirm?.id === i.id} error={error?.id === i.id ? error.text : null} onComment={onComment}
+        <ReportCard key={i.id} item={i} confirming={confirm?.id === i.id ? confirm.word : null} comment={i.state === "open" ? comments[i.id] ?? "" : ""}
+          busy={busy && confirm?.id === i.id} error={error?.id === i.id ? error.text : null} onComment={(t) => onComment(i.id, t)}
           onAsk={(a) => onAsk(i.id, a)} onConfirm={onConfirm} onCancel={onCancel} {...(onChanged ? { onChanged } : {})} />
       ))}
       {data.invalid.length > 0 ? (
@@ -190,7 +190,7 @@ export function ReportsPanel({ data, confirm, comment, busy, error, onComment, o
 export function ReportsSection({ seq }: { seq?: number | undefined }) {
   const { data, reload } = useReports(seq);
   const [confirm, setConfirm] = useState<{ id: string; word: Answer } | null>(null);
-  const [comment, setComment] = useState("");
+  const [comments, setComments] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<{ id: string; text: string } | null>(null);
   const [cid, setCid] = useState<string>(() => makeCid());
@@ -199,16 +199,16 @@ export function ReportsSection({ seq }: { seq?: number | undefined }) {
     setBusy(true); setError(null);
     try {
       const r = await apiFetch(`/api/reports/${encodeURIComponent(confirm.id)}/answer`, {
-        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ word: confirm.word, comment, cid }),
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ word: confirm.word, comment: comments[confirm.id] ?? "", cid }),
       });
       const j = (await r.json()) as { ok: boolean; reason?: string };
       if (!j.ok) setError({ id: confirm.id, text: `Refused: ${j.reason ?? r.status}` });
-      else { setComment(""); setCid(makeCid()); }
+      else { const done = confirm.id; setComments((c) => { const { [done]: _gone, ...rest } = c; return rest; }); setCid(makeCid()); }
       setConfirm(null);
       await reload();
     } catch (e) { setError({ id: confirm.id, text: (e as Error).message }); } finally { setBusy(false); }
   }
   if (!data || (data.items.length === 0 && data.invalid.length === 0)) return null;
-  return <ReportsPanel data={data} confirm={confirm} comment={comment} busy={busy} error={error} onComment={setComment}
+  return <ReportsPanel data={data} confirm={confirm} comments={comments} busy={busy} error={error} onComment={(id, t) => setComments((c) => ({ ...c, [id]: t }))}
     onAsk={(id, word) => { setError(null); setConfirm({ id, word }); }} onConfirm={() => void send()} onCancel={() => setConfirm(null)} onChanged={() => void reload()} />;
 }

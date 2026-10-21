@@ -7,7 +7,7 @@ import { UsageError, parseFlags } from "./lib.ts";
 
 export const REPORT_USAGE = "usage: fw review report post --file <report.json>   (post an experiment report; Lean refuses a number without MEASURED run id or INFERRED tag)";
 
-export const REVIEW_USAGE = "usage: fw review reply --flag <part:variant> --to <feedback id> --text <text>   (the lead answers a comment)\n" +
+export const REVIEW_USAGE = "usage: fw review reply --flag <part:variant|report:id> --to <feedback id> --text <text>   (the lead answers a comment)\n" +
   "       fw review feedback [--flag <part:variant>] [--all]   (print the open comments; --all adds the answered ones)";
 
 const need = (v: string | undefined, what: string): string => {

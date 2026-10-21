@@ -43,7 +43,7 @@ describe("reports (Lean Fw.Console.Report)", () => {
     expect(l.invalid).toEqual([]);
     expect(l.options).toEqual(["approve", "hold", "reject"]);
     expect(l.items[0]).toMatchObject({ id: ID, step: `report-${ID}`, state: "open", feedback: { flag: `report:${ID}`, open: 0 } });
-    expect(l.items[0].report.arms.map((a: any) => a.name)).toEqual(["original", "rewrite"]);
+    expect(l.items[0].report.arms.map((a: any) => a.name)).toEqual(["original-snapshot", "rewrite"]);
     expect(l.items[0].report.lanes[0].rows.length).toBeGreaterThanOrEqual(5);
     const step = (await store.board()).steps.find((s) => s.id === `report-${ID}`);
     expect(step).toMatchObject({ status: "waiting", kind: "choice", audience: "user" });

@@ -3,8 +3,8 @@
   "proposal": "hero-exit",
   "title": "Hero exit (hero to people) on macOS WebKit: original against the rewrite",
   "arms": [
-    { "name": "original", "search": "" },
-    { "name": "rewrite", "search": "?preset=v2-proved" }
+    { "name": "original-snapshot", "search": "" },
+    { "name": "rewrite", "search": "" }
   ],
   "lanes": [
     {
@@ -14,7 +14,7 @@
           "metric": "frame interval p50",
           "unit": "ms",
           "cells": [
-            { "arm": "original", "value": 34.0, "tag": { "kind": "measured", "run": "39634194664" } },
+            { "arm": "original-snapshot", "value": 34.0, "tag": { "kind": "measured", "run": "39634194664" } },
             { "arm": "rewrite", "value": 17.0, "tag": { "kind": "measured", "run": "39634194664" } }
           ]
         },
@@ -22,7 +22,7 @@
           "metric": "frame interval p95",
           "unit": "ms",
           "cells": [
-            { "arm": "original", "value": 136.0, "tag": { "kind": "measured", "run": "39634194664" } },
+            { "arm": "original-snapshot", "value": 136.0, "tag": { "kind": "measured", "run": "39634194664" } },
             { "arm": "rewrite", "value": 52.0, "tag": { "kind": "measured", "run": "39634194664" } }
           ]
         },
@@ -30,7 +30,7 @@
           "metric": "frames over 60 ms per rep (median)",
           "unit": "frames",
           "cells": [
-            { "arm": "original", "value": 43, "tag": { "kind": "measured", "run": "39634194664" } },
+            { "arm": "original-snapshot", "value": 43, "tag": { "kind": "measured", "run": "39634194664" } },
             { "arm": "rewrite", "value": 4, "tag": { "kind": "measured", "run": "39634194664" } }
           ]
         },
@@ -38,7 +38,7 @@
           "metric": "render-work share of the window",
           "unit": "%",
           "cells": [
-            { "arm": "original", "value": 42.6, "tag": { "kind": "measured", "run": "39634194664" } },
+            { "arm": "original-snapshot", "value": 42.6, "tag": { "kind": "measured", "run": "39634194664" } },
             { "arm": "rewrite", "value": 18.6, "tag": { "kind": "measured", "run": "39634194664" } }
           ]
         },
@@ -46,7 +46,7 @@
           "metric": "Layout time per window",
           "unit": "ms",
           "cells": [
-            { "arm": "original", "value": 2491.18, "tag": { "kind": "measured", "run": "39634194664" } },
+            { "arm": "original-snapshot", "value": 2491.18, "tag": { "kind": "measured", "run": "39634194664" } },
             { "arm": "rewrite", "value": 85.99, "tag": { "kind": "measured", "run": "39634194664" } }
           ]
         },
@@ -54,15 +54,15 @@
           "metric": "Layout records",
           "unit": "n",
           "cells": [
-            { "arm": "original", "value": 147, "tag": { "kind": "measured", "run": "39634194664" } },
+            { "arm": "original-snapshot", "value": 147, "tag": { "kind": "measured", "run": "39634194664" } },
             { "arm": "rewrite", "value": 138, "tag": { "kind": "measured", "run": "39634194664" } }
           ]
         },
         {
-          "metric": "Layout time ratio (original / rewrite)",
+          "metric": "Layout time ratio (original-snapshot / rewrite)",
           "unit": "x",
           "cells": [
-            { "arm": "original", "value": 29.0, "tag": { "kind": "inferred", "why": "quotient of the two measured Layout times above" } },
+            { "arm": "original-snapshot", "value": 29.0, "tag": { "kind": "inferred", "why": "quotient of the two measured Layout times above" } },
             { "arm": "rewrite", "value": 1.0, "tag": { "kind": "inferred", "why": "the reference arm of the quotient" } }
           ]
         }
@@ -70,9 +70,8 @@
       "layers": []
     }
   ],
-  "strips": "https://github.com/OWNER/REPO/actions/runs/39634194664",
   "recommendation": {
     "word": "adopt",
-    "why": "The rewrite does the same layouts in about 3.5 percent of the time and has about a tenth of the long frames on macOS WebKit. The iOS hero zone has no original window, so the phone is not covered by this run."
+    "why": "The rewrite spends far less time in Layout and has far fewer long frames on macOS WebKit (see the table). The iOS hero zone has no original window, so this run does not cover the phone."
   }
 }
