@@ -19,7 +19,7 @@ About 4 chars per token (INFERRED).
 | Verbatim text you will edit | inline `Read` with offset/limit; never delegate |
 | Checklist judgement over > 20 KB (failure diagnosis, number cross-check, diff hunk) | `checker`; adversarial math, number or privacy review stays with Opus reviewers |
 | Prose of a diff or file set against `no-slop` | `slop-checker` |
-| Code comments of a diff or file set | lead runs `no-comments` (spawns `comment-sicko`) |
+| Code comments of a diff or file set | build-review Polish; lead: `fw polish --staged` (`tools/polish.md`) |
 | Mechanical edits to many named files | lead spawns `patcher` at depth 1 with absolute paths; nobody touches those files until it returns |
 | Same-model helper | only if the task passes ~10k tokens and no cheaper tier can do it |
 
@@ -31,12 +31,12 @@ About 4 chars per token (INFERRED).
 | `runner` | haiku / low | lead or a role with `Agent` | one named build/test/measure command, logged to the given scratchpad path; returns exit code and first errors | Bash, Read, Grep, Glob |
 | `checker` | sonnet / medium | lead or a role with `Agent` | one checklist question over a log, hunk or file set | Read, Grep, Glob, Bash |
 | `slop-checker` | sonnet / medium | lead or a role with `Agent` | review prose against `no-slop`; returns file:line and the cut | Read, Grep, Glob, Bash |
-| `comment-sicko` | sonnet / medium | lead only, unnamed | delete comments that fail its keep list, flag `MUST KILL` code | Read, Grep, Glob, Bash, Edit |
+| `comment-sicko` | sonnet / medium | lead or build-review, unnamed | delete comments that fail its keep list, flag `MUST KILL` code | Read, Grep, Glob, Bash, Edit |
 | `patcher` | sonnet / low | lead only (depth 1) | edits exactly specified in the prompt, on absolute paths | Read, Edit, Grep, Glob (no Bash) |
 
 All helpers but `patcher` and `comment-sicko` (comments only) are read-only. Lean `Fw.Ops.SpawnGuard` decides every
 spawn (`every_role_spawnable`, `helpers_from_lead`, `helpers_nested`, `patcher_nested_refused`); the hook is
-`apps/runner/hooks/spawn-guard.mjs`. The guard refuses `comment-sicko` until task comment-sicko-spawn registers it.
+`apps/runner/hooks/spawn-guard.mjs`.
 
 ## Nested spawning
 
