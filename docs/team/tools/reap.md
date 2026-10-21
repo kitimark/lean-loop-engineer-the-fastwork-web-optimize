@@ -50,7 +50,9 @@ the row stays within `cpuTolCs` of it, else a new one at `now` (`rebase_quiet`, 
 ## Limits
 The MCP processes themselves (the lean-lsp-mcp launcher and its Python) are not stopped; D stops only the `lake serve`
 stack below one, which lean-lsp-mcp 0.31.0 restarts on its next request to that worktree (a client whose process ended is
-replaced: `client_utils.py` `_get_or_create_shared_client`, CONFIRMED in the 0.31.0 source). Serena and serena-lean are
+replaced: lean_lsp_mcp/client_utils.py:156-187@lean-lsp-mcp 0.31.0, `_get_or_create_shared_client` returns the client
+only while `client.alive` (:168), else closes it and calls `_start_client` (:187); `alive` is leanclient/aio/transport.py:75
+(process returncode is None); CONFIRMED). Serena and serena-lean are
 out of scope until the user approves them. Idle is INFERRED from CPU time (a stack waiting on a request without CPU looks
 idle). A lock holder is checked by pid only, so a reused pid keeps the stack (the safe side); a teammate session whose
 worktree is not locked counts as live only through a lean-lsp-mcp started there. Unselected processes still need the user; the console does not yet display `reap.stopped`.
