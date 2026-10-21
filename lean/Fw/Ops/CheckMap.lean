@@ -28,9 +28,10 @@ match wins:
 | 8 | `s = docs/team/work-graph.json` | `workGraph` | schema check (`graphCheck`) |
 | 9 | `s = research/findings/ledger.json` | `findingsLedger` | preset `--check` (`presetCheck`) |
 
-The preset check also runs when any other input of `Fw.Preset.Gen` is among the paths (`presetInput`), whatever its own kind.
 | 10 | by extension (`byExt`) | see `byExt` | `checkOf` |
 | 11 | `e = ""`, by basename (`byName`) | `prose` / `text` | exempt |
+
+The preset check also runs when any other input of `Fw.Preset.Gen` is among the paths (`presetInput`), whatever its own kind.
 
 Proved: `checkOf_exempt_iff` (exactly the five exempt kinds have no check), `precommit_covers` (every path with a code
 extension outside the snapshot and the research sketches has a non-exempt check), `tracked_mapped` (every
