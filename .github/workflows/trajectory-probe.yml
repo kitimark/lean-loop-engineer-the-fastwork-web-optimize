@@ -20,8 +20,10 @@ run-name: ${{ github.event_name == 'workflow_dispatch' && format('trajectory-pro
 # decide: Chromium and macOS WebKit hero and morph, Linux WebKit hero only (its 150 ms frames cannot decide the morph pushes).
 # Apple witness (job probe-apple): the same lane on a free standard macos-26 runner with Playwright WebKit (the macOS build, the
 # closest engine CI has to Safari), the dispatched rewrite search vs the original on the hero and morph paths. It runs for every dispatch
-# (never a push) whose engines include playwright-webkit (Lean enginesOf: macOS WebKit runs with every WebKit), so each flag can get the
-# macOS morph cell v2-proved needs; max-parallel 2 (5 macOS slots are shared across lanes); its verdict is a separate artifact
+# whose engines include playwright-webkit (Lean enginesOf: macOS WebKit runs with every WebKit), so each flag can get the
+# macOS morph cell v2-proved needs; on a ci/* push it runs only when the commit line names a page recorder (`debug=`), because a recorder
+# row of macOS WebKit is the only thing a push has asked for there (YAML glue, not a Lean decision: the legs are Lean's `plan`,
+# the `if:` below only gates them); max-parallel 2 (5 macOS slots are shared across lanes); its verdict is a separate artifact
 # `trajectory-apple` and never part of the Linux verdicts.
 on:
   # Every push creates a run and its guard job decides on these inputs (Lean Fw.Ci.Intent); `workflow_dispatch` runs it on demand
@@ -115,6 +117,7 @@ jobs:
       apple_n: ${{ steps.p.outputs.apple_n }}
       search: ${{ steps.p.outputs.search }}
       widths: ${{ steps.p.outputs.widths }}
+      debug: ${{ steps.p.outputs.debug }}
     steps:
       - name: 'tip re-check'
         id: tip
@@ -156,20 +159,21 @@ jobs:
           set -euo pipefail
           node --test .github/scripts/trajectory-line.test.mjs  # the line parser equals Lean pushProbe
           node .github/scripts/trajectory-line.mjs | tee -a "$GITHUB_OUTPUT"
-      - name: 'trajectory inputs: engines=${{ steps.in.outputs.engines }} fw=${{ steps.in.outputs.fw }} preset=${{ steps.in.outputs.preset }} widths=${{ steps.in.outputs.widths }} (${{ steps.in.outputs.source }})'
+      - name: 'trajectory inputs: engines=${{ steps.in.outputs.engines }} fw=${{ steps.in.outputs.fw }} preset=${{ steps.in.outputs.preset }} widths=${{ steps.in.outputs.widths }} debug=${{ steps.in.outputs.debug }} (${{ steps.in.outputs.source }})'
         env:
           NONCE: ${{ inputs.nonce }}
           IN_ENGINES: ${{ steps.in.outputs.engines }}
           IN_FW: ${{ steps.in.outputs.fw }}
           IN_PRESET: ${{ steps.in.outputs.preset }}
           IN_WIDTHS: ${{ steps.in.outputs.widths }}
+          IN_DEBUG: ${{ steps.in.outputs.debug }}
           IN_SOURCE: ${{ steps.in.outputs.source }}
         run: |
           set -euo pipefail
           mkdir -p trajectory-inputs
-          jq -n --arg event "$GITHUB_EVENT_NAME" --arg sha "$GITHUB_SHA" --arg nonce "$NONCE" --arg engines "$IN_ENGINES" --arg fw "$IN_FW" --arg preset "$IN_PRESET" --arg widths "$IN_WIDTHS" --arg source "$IN_SOURCE" \
-            '{event:$event,sha:$sha,nonce:$nonce,engines:$engines,fw:$fw,preset:$preset,widths:$widths,source:$source}' | tee trajectory-inputs/inputs.json
-          echo "inputs: engines=$IN_ENGINES fw=$IN_FW preset=$IN_PRESET widths=$IN_WIDTHS source=$IN_SOURCE sha=$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+          jq -n --arg event "$GITHUB_EVENT_NAME" --arg sha "$GITHUB_SHA" --arg nonce "$NONCE" --arg engines "$IN_ENGINES" --arg fw "$IN_FW" --arg preset "$IN_PRESET" --arg widths "$IN_WIDTHS" --arg debug "$IN_DEBUG" --arg source "$IN_SOURCE" \
+            '{event:$event,sha:$sha,nonce:$nonce,engines:$engines,fw:$fw,preset:$preset,widths:$widths,debug:$debug,source:$source}' | tee trajectory-inputs/inputs.json
+          echo "inputs: engines=$IN_ENGINES fw=$IN_FW preset=$IN_PRESET widths=$IN_WIDTHS debug=$IN_DEBUG source=$IN_SOURCE sha=$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: trajectory-inputs
@@ -183,6 +187,7 @@ jobs:
           FW: ${{ steps.in.outputs.fw }}
           PRESET: ${{ steps.in.outputs.preset }}
           WIDTHS: ${{ steps.in.outputs.widths }}
+          DEBUG: ${{ steps.in.outputs.debug }}
         run: |
           set -euo pipefail
           node --test .github/scripts/gate-search.test.mjs  # the search decision equals Fw.Gate.Search
@@ -204,6 +209,7 @@ jobs:
             echo "apple_n=$(echo "$plan" | jq '.apple.include | length')"
             echo "search=$search"
             echo "widths=$WIDTHS"
+            echo "debug=$DEBUG"
           } >> "$GITHUB_OUTPUT"
           echo "$engines search=$search widths=${WIDTHS:-all}"
           echo "$plan" | jq -c '.linux.include[], .apple.include[]'
@@ -301,6 +307,8 @@ jobs:
           # full = every property in every frame; lean = discrete props, m, logo rect and hero copy/cards during pushes (switch it
           # when the read-timing table shows reads dominate the frame; the setting is recorded in the artifact).
           READS: full
+          # The page recorder of the push commit line (`debug=`, Lean allowlist); empty = none, and then nothing in the page records.
+          FW_DEBUG: ${{ needs.site.outputs.debug }}
           # Rep count of the morph path (one empty tenth-bucket in a push is fail:coverage; more passes fill it).
           REPS: 5
         working-directory: packages/gate-breakpoints
@@ -472,7 +480,7 @@ jobs:
   # the original, in the width legs of the plan (two). The Linux jobs above never wait for it and it never changes their verdicts.
   probe-apple:
     needs: [site]
-    if: ${{ github.event_name == 'workflow_dispatch' && needs.site.outputs.apple_n != '0' }}
+    if: ${{ (github.event_name == 'workflow_dispatch' || needs.site.outputs.debug != '') && needs.site.outputs.apple_n != '0' }}
     concurrency:
       group: ci-lane:trajectory-probe:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:probe-apple:${{ strategy.job-index }}
     runs-on: macos-26
@@ -529,6 +537,7 @@ jobs:
           WIDTHS: ${{ matrix.widths }}
           PATHS: ${{ matrix.paths }}
           REPS: 5
+          FW_DEBUG: ${{ needs.site.outputs.debug }}
           SEARCH: ${{ needs.site.outputs.search }}
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot

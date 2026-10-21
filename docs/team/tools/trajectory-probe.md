@@ -29,7 +29,7 @@ runs the probe with the inputs of one message line:
     [ci:trajectory-probe]
     [trajectory fw=hero.exit:scoped,morph.tween:waapi widths=390,1280 engines=both]
 
-- Keys `fw` (flag set) or `preset` (exclusive with `fw`), `widths`, `engines`; each at most once; values from `A-Za-z0-9.:,_@-`; no
+- Keys `fw` (flag set) or `preset` (exclusive with `fw`), `widths`, `engines`, `debug` (a page recorder, only `nav-transition`; any other value is refused; the workflow sets `FW_DEBUG` from it and the probe loads the rewrite arms with `fw-debug=<name>`, `src/trajectory/debug.mjs`; a push with `debug=` also runs the macOS leg, see Apple witness); each at most once; values from `A-Za-z0-9.:,_@-`; no
   line = the dispatch defaults. Only a line that starts with `[trajectory` counts (prose that quotes it asks for nothing). A line that
   does not parse, or a second line, fails the `site` job with the reason (Lean `Fw.Ci.Trigger.pushProbe`, golden `probe` lines of
   `packages/contracts/golden/ci/triggers.jsonl`, node twin `.github/scripts/trajectory-line.mjs`). A line without `[ci:trajectory-probe]`
@@ -104,7 +104,7 @@ is read at rest. The setting is in the artifact header.
 
 ## Apple witness
 
-Job `probe-apple` (workflow dispatch only, never on a push) runs the same lane with Playwright WebKit on a free standard
+Job `probe-apple` (every dispatch; on a `ci/*` push only when the commit line has a `debug=` key) runs the same lane with Playwright WebKit on a free standard
 `macos-26` runner: hero and morph paths, the dispatched search against the original, two width legs with `max-parallel: 2` (5
 macOS slots are shared by all lanes). It runs for every dispatch whose engines include `playwright-webkit`: a flag enters
 `v2-proved` only with a macOS morph pass, so the witness is no longer limited to `hero.exit` searches. Its verdict is
