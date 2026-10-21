@@ -321,10 +321,10 @@ export function stopSelected(top: string, call: Call, io: Io = realIo, gatherFn:
     io.signal(t, sig);
     return true;
   };
+  const rss0 = io.rss(planned.map((t) => t.pid));
   const pre = io.table();
   if (pre === null) return null;
   const toTerm = (call({ op: "ops.reapTerm", planned, rows: pre }) as { term: Target[] }).term;
-  const rss0 = io.rss(toTerm.map((t) => t.pid));
   const termed = toTerm.filter((t) => send(t, "SIGTERM", pre));
   const left = (): Target[] | null => {
     const rows = io.table();

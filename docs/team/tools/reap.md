@@ -30,5 +30,8 @@ group with a member outside the scope (`guard_scope`). Start time has 1-second r
 
 ## Limits
 MCP servers are not stopped; unselected processes still need the user; the console does not yet display `reap.stopped`.
+C may select a tool whose cwd is a deleted directory anywhere in this repo when its ancestor is selected by A or B.
+A process a group member forks after the pre-signal table read is in the group and gets the group signal (it is a child
+of a selected process).
 Tests: `apps/runner/test/reap-stop.test.ts` (real process trees), `reap-safety.test.ts` (a console-like process of another
 repo), `reap.test.ts` (golden replay of `lspreap.jsonl` and `reap.jsonl`, stubbed table).

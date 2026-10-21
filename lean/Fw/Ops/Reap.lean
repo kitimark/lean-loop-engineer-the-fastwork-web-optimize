@@ -543,7 +543,7 @@ theorem antitone_keep {i : Input} {extra : List (Nat × Nat)} {r : Row} {k : Kin
 /-- The reason printed for a kind. -/
 def Kind.reason : Kind → String
   | .lspServe => "lake serve of lean-lsp-mcp, cwd in no live checkout"
-  | .console => "orphan console-api, cwd in no live checkout"
+  | .console => "orphan console-api, cwd in a removed worktree of this repo"
   | .removed => "tool whose cwd is in a removed worktree"
   | .descendant => "tool below a selected process"
 
