@@ -1,30 +1,30 @@
 # land-lane-circleci handoff
 
-State: branch worktree-wf_27cbc28d-204-2. `sh lean/scripts/check.sh` green (axiom check 0 failing); apps/runner `pnpm test` 1836 pass; `node --test scripts/circleci.test.mjs
-scripts/ci-paths.test.mjs` 118 pass. Read first: `docs/team/tools/land.md` ("The land overflows to CircleCI"), `research/notes/2026/10-21-land-lane-circleci.md`.
+State: branch worktree-wf_27cbc28d-204-2, round 2 code commit bd1fec07 (round 1 c79f8223). `sh lean/scripts/check.sh` exit 0 (axiom check 0 failing, overflow golden 48 lines);
+apps/runner `pnpm test` 1863 pass (typecheck included); `node --test scripts/ci-paths.test.mjs scripts/circleci.test.mjs` 118 pass.
+Read first: `docs/team/tools/land.md` ("The land overflows to CircleCI"), `research/notes/2026/10-21-land-lane-circleci.md`, `lean/Fw/Ci/Overflow.lean`.
 
 Built
-- Lean `Fw.Ci.Overflow` (rule, widths table, theorems `github_first`, `overflow_only_when_full`, `never_both`, `verdict_same`, `pickKind_*`), wire ops `ci.overflow`,
-  `ci.overflowCombine`, golden `packages/contracts/golden/ci/overflow.jsonl` (40 lines), replayed in `apps/runner/test/land-overflow.test.ts`.
-- `.circleci/config.yml` + `job.sh`: land job per leg (same `fw checks --tier remote --leg` entry, writes `lane.json`); `scripts/circleci.mjs` `trigger --lane land --legs`,
-  `landLegs`, `landLane`, lanes in run.json, `creditsSoFar`, 404-on-new-workflow tolerance in `pollOnce`.
-- `land-remote.ts`: `circleciAdapter`, `normalizeCircle`, `makePusher` (one marker for both providers), `markerMessage` (`[legs:a,b]`), `awaitGroups`, `legsCovered`.
-  `land-overflow.ts`: slot count (`gh run list`, 120 s cache, newest 100 runs), CircleCI facts, `planOverflow`. `land.ts` wires it (any setup failure: GitHub only).
-- `land.yml` guard reads `[legs:..]` into a matrix `exclude`. `land-probe.ts` lands HEAD through the real path on a probe branch.
+- Lean `Fw.Ci.Overflow`: rule, `widths`, `settle`; theorems `github_first`, `overflow_only_when_full`, `never_both`, `verdict_same`, `pickKind_*`, `failed_start_covered_once`.
+  Wire ops `ci.overflow`, `ci.overflowCombine`, `ci.overflowSettle`; golden `packages/contracts/golden/ci/overflow.jsonl`, replayed in `apps/runner/test/land-overflow.test.ts`.
+- `.circleci/config.yml` + `job.sh` land job per leg; `scripts/circleci.mjs` `trigger --lane land --legs`. `land-remote.ts`: `circleciAdapter`, `makePusher`, `awaitGroups`, `legsCovered`.
+  `land-overflow.ts`: slot count and CircleCI facts. `land.yml` guard reads `[legs:..]`. `land-probe.ts` lands HEAD through the real path on a probe branch.
+- Round 2: the `widths` rows are derived from the workflow files by `apps/runner/test/land-overflow-widths.test.ts` (+ `workflow-widths.ts`); a matrix, job or workflow that grows fails it
+  until the Lean row is raised. A CircleCI start that fails (adapter missing, key check, push, trigger) re-runs its legs on GitHub on branch `...-again` (`awaitGroups`), never locally.
 
-Live (MEASURED, one run each; ids are public run ids)
-- Paired: GitHub run 39586853718 and CircleCI pipeline 54ecd7d1-a61a-4bf7-9319-4df18982ed7f (#304): 5 legs each, same sha and `digest=remote:apps/runner,packages/engine-check`.
-- Forced overflow: `FW_LAND_FORCE_FULL=1 node apps/runner/src/land-probe.ts --task llc-forced2` -> pipeline 7733541c-8613-42c1-8412-0fae5bef0eb5, `VERDICT accept remote-pass`.
-  First try (pipeline 5cece824-a357-4ea0-bfb7-f0418cc37450) found the 404 race, fixed.
-- Partial split: GitHub run 39590436245 ran only `land (check-sh)` and `land (suites-a)`.
+Live (MEASURED; public ids): paired GitHub run 39586853718 + CircleCI pipeline 54ecd7d1-a61a-4bf7-9319-4df18982ed7f; forced overflow pipeline 7733541c-8613-42c1-8412-0fae5bef0eb5
+(`VERDICT accept remote-pass`); partial split GitHub run 39590436245. Round-2 forced-overflow re-run: see the report (id recorded there).
 
-TS stand-ins (not Lean): status-to-active filter in `readSlots`; `markerMessage`; `legsCovered`; sha and digest uniformity in `normalizeCircle`.
-Extra writes beyond the declared list: `lean/Fw/Ci/Wire.lean`, `lean/scripts/OverflowGolden.lean`, `.github/workflows/land.yml`, `apps/runner/src/land.ts`,
-`land-overflow.ts`, `land-probe.ts`, `test/land-overflow.test.ts`.
+TS stand-ins (not Lean): status-to-active filter in `readSlots`; `markerMessage`; `legsCovered`; sha and digest uniformity in `normalizeCircle`; the width derivation in the test
+(`workflow-widths.ts`) and the choice of `-again` branch / group wiring in `awaitGroups` (the leg split itself is Lean `settle`).
+Extra writes beyond the declared list: `lean/Fw/Ci/Wire.lean`, `lean/scripts/OverflowGolden.lean`, `.github/workflows/land.yml`, `apps/runner/src/land.ts`, `land-overflow.ts`,
+`land-probe.ts`, `test/land-overflow.test.ts`, `test/land-overflow-widths.test.ts`, `test/workflow-widths.ts`.
 
-Limits: slot count up to 120 s old and sees only the newest 100 runs (under-count); width table over-counts finished jobs; Linux legs only; no hedge; CircleCI under load
-not measured; credits count only fetched pipelines (rolling 30 days); an aborted CircleCI pipeline is not cancelled; one group "local" runs the whole remote tier here; `ghPrev` false.
+Limits (named): the slot count reads THIS REPOSITORY only and the NEWEST 100 RUNS, so other repositories of the account and older runs are invisible (it can under-count); it is up to
+120 s old; width rows over-count finished jobs; Linux legs only; no hedge; busy-window CircleCI concurrency unmeasured; credits count only fetched pipelines (30 days);
+an aborted CircleCI pipeline is not cancelled; a GitHub group that cannot start runs the remote tier here; `ghPrev` false.
 
 Open
 - Busy-window measurement of CircleCI concurrency; hedging; macOS lanes (tasks ci-route, pool-fallback).
-- CircleCI legs ran 450 to 579 s vs GitHub 63 to 127 s: a CircleCI Lean build cache (config.yml has `save_cache`) may close part of it; not measured.
+- CircleCI Lean cache (follow-up task): the CircleCI land job has NO Lean cache today (config.yml: "No cache of any kind", storage stop rule); its legs took 450-579 s (second run about 466-471 s)
+  against 63-127 s on GitHub, INFERRED to be the cold Lean build; weigh a cache against the storage stop rule.
