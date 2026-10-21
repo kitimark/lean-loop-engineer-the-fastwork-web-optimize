@@ -4,7 +4,7 @@ Decides a GitHub job against its CircleCI twin on the same commit, what a Circle
 -/
 namespace Fw.Ci.Provider
 
-/-- The CI provider a job ran on. -/
+/-- The CI provider a job ran on (src-change probe of task circleci-lean-cache, not kept). -/
 inductive Provider where
   | github
   | circleci
