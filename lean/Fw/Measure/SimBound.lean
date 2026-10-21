@@ -558,7 +558,7 @@ def targetAfterRelaunch (ok : Bool) : TargetAction := if ok then .wait else .fai
 /-- The longest time one poll of the wait may take: what is left of the bound. -/
 def targetCapMs (relaunched : Bool) (elapsedMs : Nat) : Nat := targetLimit relaunched - elapsedMs
 
-/-- From the loss to the exit when the target never returns: first wait, relaunch, second wait, exit. -/
+/-- From the start of the page-target wait to the exit: first wait, relaunch, second wait, exit (the timed-out command, the close and the proxy check before the wait are not counted). -/
 def targetEndMs : Nat := targetWaitMs + relaunchMs + targetAfterMs + exitMs
 
 /-- The cells of a matrix that still run after `failed` failed its session. -/
@@ -627,10 +627,10 @@ theorem target_after_relaunch (ok : Bool) :
 /-- **The lost-target exit is its own code.** Not the dead inspector's, the watchdog's or an ordinary failure's. -/
 theorem target_exit_distinct : targetLostExit ≠ deadExit ∧ targetLostExit ≠ 3 ∧ targetLostExit ≠ 1 := by decide
 
-/-- **From the loss to the exit takes at most `targetEndMs`, under the 38-minute job cap of the lag cells.** -/
+/-- **From the start of the page-target wait to the exit: first wait, relaunch, second wait, exit (the timed-out command, the close and the proxy check before the wait are not counted). It takes at most `targetEndMs`, under the 38-minute job cap of the lag cells.** -/
 theorem target_end_bound : targetEndMs = 930000 ∧ targetEndMs < 38 * 60 * 1000 := by decide
 
-/-- **A failed session fails no other cell.** Every other cell of the matrix still runs. -/
+/-- **A failed session fails no other cell.** Every other cell of the matrix still runs. The workflow side is strategy.fail-fast: false (.github/workflows/webkit-sim.yml:273); this theorem covers only the cell list. -/
 theorem siblings_unaffected (cells : List String) (failed c : String) (hc : c ∈ cells) (hne : c ≠ failed) :
     c ∈ cellsAfter cells failed := by
   simp [cellsAfter, hc, hne]
