@@ -40,7 +40,7 @@ describe("console.compose golden: fwcore gives Lean's answer for every vector", 
     it(c.name, async () => {
       if (c.response.error !== undefined) {
         const got = await core.ops("console.compose", c.request).then((r) => r, (e: Error) => ({ error: String(e.message) }));
-        expect(JSON.stringify(got)).toContain(c.response.error);
+        expect((got as { error?: string }).error ?? JSON.stringify(got)).toContain(c.response.error);
       } else {
         const { id: _id, ...got } = await core.ops("console.compose", c.request) as Record<string, unknown>;
         expect(JSON.parse(JSON.stringify(got))).toEqual(c.response);
@@ -94,7 +94,7 @@ describe("GET /api/compose over the real registry and ledger", () => {
     expect(r.decision).toMatchObject({ ok: true, link: "" });
   });
 
-  it("the explicit ledger pairs attach, and no variant says the proof is incomplete without the rows saying so", async () => {
+  it("rows attach by their flags, and no variant says the proof is incomplete without the rows saying so", async () => {
     const r = await composeReply(ROOT, core, []) as any;
     const v = (part: string, name: string) => r.parts.find((p: any) => p.id === part).variants.find((x: any) => x.name === name);
     expect(v("morph.columns", "hidden-pause").class).not.toBe("unrated");
@@ -102,6 +102,8 @@ describe("GET /api/compose over the real registry and ledger", () => {
     expect(v("morph.countdown", "hidden-pause").rows.length).toBeGreaterThanOrEqual(1);
     for (const p of r.parts) for (const x of p.variants) expect(x.why).not.toContain("not complete");
     expect(r.parts.flatMap((p: any) => p.variants).filter((x: any) => x.class === "unrated").map((x: any) => x.name)).toEqual([]);
+    for (const p of r.parts) for (const x of p.variants) for (const i of x.rows) expect(ledger.findings[i]!.flags).toContain(`${p.id}:${x.name}`);
+    expect(ledger.findings.every((x) => Array.isArray(x.flags))).toBe(true);
   });
 
   it("a refuted variant is classed refuted, cites its ledger row, and a pick of it is refused", async () => {
@@ -116,6 +118,18 @@ describe("GET /api/compose over the real registry and ledger", () => {
     expect(r.decision.ok).toBe(false);
     expect(r.decision.link).toBeNull();
     expect(r.decision.reasons.join("|")).toContain("refuted");
+  });
+
+  it("a superseded refuted row does not refute: hero.exit:scoped takes the class of the row that superseded it", async () => {
+    const r = await composeReply(ROOT, core, [{ part: "hero.exit", variant: "scoped" }]) as any;
+    const v = r.parts.find((p: any) => p.id === "hero.exit").variants.find((x: any) => x.name === "scoped");
+    const idx = (id: string) => ledger.findings.findIndex((x) => x.id === id);
+    expect(ledger.findings[idx("hero.exit.scoped.falsified")]!.supersededBy).toBe("hero.exit.scoped.inline");
+    expect(v.rows).toContain(idx("hero.exit.scoped.falsified"));
+    expect(v.rows).toContain(idx("hero.exit.scoped.inline"));
+    expect(v.class).toBe("ledger-proved");
+    expect(v.refusal).toBeNull();
+    expect(r.decision).toMatchObject({ ok: true, link: "?fw=hero.exit:scoped" });
   });
 
   it("every ledger row an explanation cites exists in the ledger, with its own words", async () => {
@@ -185,8 +199,8 @@ describe("Compose routes, and the open path with a composed search", () => {
     writeFileSync(join(root, "apps/site/src/registry/presets/v2-proved.json"), JSON.stringify({ extends: "original", name: "v2-proved", fw: { nav: "skip", hero: "strip" } }));
     mkdirSync(join(root, "research/findings"), { recursive: true });
     writeFileSync(join(root, "research/findings/ledger.json"), JSON.stringify({ findings: [
-      { part: "hero", candidate: "hero `strip`", status: "measured", visual: "same", lesson: "run 24123456789 shows it" },
-      { part: "nav", candidate: "nav `skip`", status: "refuted", flag: "nav:skip", leanFor: ["a"], leanAgainst: ["b"] }], notes: [] }));
+      { part: "hero", candidate: "hero `strip`", status: "measured", flags: ["hero:strip"], visual: "same", lesson: "run 24123456789 shows it" },
+      { part: "nav", candidate: "nav `skip`", status: "refuted", flags: ["nav:skip"], flag: "nav:skip", leanFor: ["a"], leanAgainst: ["b"] }], notes: [] }));
     sh(root, "add", "-A"); sh(root, "commit", "-qm", "base");
     return root;
   }
