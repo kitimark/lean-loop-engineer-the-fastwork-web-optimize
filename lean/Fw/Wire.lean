@@ -23,6 +23,7 @@ import Fw.Obs.MacTelemetryWire
 import Fw.Faithful.Wire
 import Fw.Ops.CheckMap
 import Fw.Oracle.Wire
+import Fw.Oracle.ReplayWire
 import Fw.Ops.WatchDiff
 import Fw.Lint.Context
 import Fw.Ops.LakeGc
@@ -488,6 +489,7 @@ def ops : List String :=
   ++ Fw.Wire.Obs.MacTelemetry.ops -- macos-telemetry: obs.macSample, obs.macReduce, obs.macMatched, obs.macIs
   ++ Fw.Wire.CheckMap.ops -- check-map-lean: ops.checkMap, ops.checkVerdict
   ++ Fw.Wire.Oracle.ops
+  ++ Fw.Wire.OracleReplay.ops
   ++ Fw.Wire.Lint.ops -- context-slop: lint.context
   ++ Fw.Wire.LakeGc.ops -- lean-bin-slim: ops.lakeGc
   ++ Fw.Wire.DiskGc.ops -- disk-auto-gc: ops.diskGc, ops.diskGcPath
@@ -544,6 +546,9 @@ def handleCore (req : Json) : Except String Reply := do
     | some r => r
     | none =>
     match Fw.Wire.Oracle.handle other req with
+    | some r => r
+    | none =>
+    match Fw.Wire.OracleReplay.handle other req with  -- jev-replay: oracle.replay, oracle.preRun, oracle.score
     | some r => r
     | none =>
     match Fw.Wire.Lint.handle other req with  -- context-slop: lint.context

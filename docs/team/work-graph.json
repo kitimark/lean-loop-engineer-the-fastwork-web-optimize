@@ -14097,7 +14097,8 @@
     "lean/Fw/Oracle/Golden.lean",
     "lean/Fw/Wire.lean",
     "apps/runner/src/oracle-score.ts"
-   ]
+   ],
+   "evidence": "caab315"
   },
   {
    "devices": [
@@ -14494,7 +14495,8 @@
     "packages/contracts/golden/obs/push*.jsonl",
     "docs/team/tools/watch.md",
     "docs/team/handoffs/console-push.md"
-   ]
+   ],
+   "evidence": "aa82ed2"
   },
   {
    "devices": [

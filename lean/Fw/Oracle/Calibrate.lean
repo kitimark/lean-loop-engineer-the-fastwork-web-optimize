@@ -1,4 +1,5 @@
 import Fw.Oracle.Core
+import Fw.Oracle.Labels
 /-! A threshold per option, computed from that option's labeled replay rows. -/
 namespace Fw.Oracle
 
@@ -336,10 +337,10 @@ theorem wilsonOk_sound (z q : Rat) (h n : Nat) (hz : 0 < z) (hn : h ≤ n) (hw :
 
 /-! ## Held-out certification -/
 
-def idSum (i : String) : Nat := (i.toList.map Char.toNat).sum
+/-- The split by id: `Labels.heldOut` (FNV-1a 32 of the id is 0 mod 4). -/
+def heldOut (i : String) : Bool := Labels.heldOut i
 
-/-- The split by id: a row is held out exactly when the code points of its id sum to an odd number. -/
-def heldOut (i : String) : Bool := idSum i % 2 == 1
+theorem heldOut_canonical : heldOut = Labels.heldOut := rfl
 
 /-- A labeled replay row with its id. -/
 abbrev IdRow := String × Row
@@ -349,6 +350,15 @@ def choosePart (rs : List IdRow) : List Row := (rs.filter fun p => !heldOut p.1)
 
 /-- The holdout part: the rows whose id is held out, in order. -/
 def holdPart (rs : List IdRow) : List Row := (rs.filter fun p => heldOut p.1).map (·.2)
+
+theorem holdPart_canonical (rs : List IdRow) : holdPart rs = (Labels.heldOutRows Prod.fst rs).map (·.2) := by
+  simp only [holdPart, Labels.heldOutRows, heldOut_canonical]
+  rfl
+
+theorem choosePart_canonical (rs : List IdRow) :
+    choosePart rs = (Labels.calibrationRows Prod.fst rs).map (·.2) := by
+  simp only [choosePart, Labels.calibrationRows, heldOut_canonical]
+  rfl
 
 theorem hitsAs_le_advisedAs (s : Spec) (τ : Rat) (rows : List Row) (o : Advice) :
     hitsAs s τ rows o ≤ advisedAs s τ rows o := by
@@ -369,6 +379,12 @@ def certOpt (s : Spec) (q : Rat) (k : Nat) (rs : List IdRow) (o : Advice) : Opti
 /-- Certified calibration (the table `oracle.calibrate` returns). -/
 def certify (s : Spec) (q : Rat) (k : Nat) (rs : List IdRow) : Thresholds :=
   s.advisable.filterMap fun o => (certOpt s q k rs o).map (o, ·)
+
+theorem certify_split (s : Spec) (q : Rat) (k : Nat) (rs : List IdRow) :
+    certify s q k rs = s.advisable.filterMap fun o =>
+      ((calibrateOpt s q k ((Labels.calibrationRows Prod.fst rs).map (·.2)) o).filter
+        (holdOk s q k ((Labels.heldOutRows Prod.fst rs).map (·.2)) o)).map (o, ·) := by
+  simp only [certify, certOpt, choosePart_canonical, holdPart_canonical]
 
 theorem certify_lookup (s : Spec) (q : Rat) (k : Nat) (rs : List IdRow) (o : Advice) :
     (certify s q k rs).lookup o = if o ∈ s.advisable then certOpt s q k rs o else none :=
@@ -437,7 +453,7 @@ theorem certify_none_of_sparse_holdout (s : Spec) (q : Rat) (k : Nat) (rs : List
     have := hitsAs_le s τ (holdPart rs) o
     omega
 
-#guard heldOut "a" && !heldOut "b" && !heldOut "m001" && heldOut "m002"
+#guard heldOut "a" && !heldOut "b" && !heldOut "m001" && heldOut "m004"
 private def idRows (l : List (String × Row)) : List IdRow := l
 private def part (held : Bool) (p : String) (n : Nat) (r : Row) : List IdRow :=
   ((((List.range (4 * n + 8)).map fun i => p ++ toString i).filter fun i => heldOut i == held).take n).map (·, r)

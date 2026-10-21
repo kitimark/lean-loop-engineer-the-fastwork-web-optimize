@@ -36,10 +36,11 @@ def pickNotMaxFlake : String := sampleReply "real" "0.97" "0.01" "0.01" "0.01"
 
 def pickNotMaxUnknown : String := sampleReply "real" "0.01" "0.01" "0.01" "0.97"
 
-/-- The id of row `n` in the holdout part. -/
+/-- The first id `r<n>`, `r<n>-1`, ... that `heldOut` puts in the wanted part. -/
 def idIn (held : Bool) (n : Nat) : String :=
   let b := s!"r{n}"
-  if heldOut b == held then b else b ++ "y"
+  let cands := b :: (List.range 64).map fun k => s!"{b}-{k + 1}"
+  (cands.find? (heldOut · == held)).getD b
 
 def rowsIn (held : Bool) (n0 : Nat) (gs : List (Nat × String × String)) : List (String × String × String) :=
   let rs := gs.flatMap fun (n, reply, label) => List.replicate n (reply, label)
