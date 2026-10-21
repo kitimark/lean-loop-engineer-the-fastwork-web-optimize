@@ -88,6 +88,8 @@ export type LandOptions = {
   /** the dry land's reads test: its argv and whether the change selects it; default: the land-inputs test, selected when the change
    *  selects the reads-scan check (`LandSpeed.scan_selected`; tests inject both) */
   dryReads?: { argv: string[]; selected?: boolean };
+  /** the dry land's local tests (default `LOCAL_TESTS`; tests inject their own and then no fwcore build is planned) */
+  dryLocal?: Check[];
   /** the dry land's fast lints (argv list, run in the merge-tree worktree); default: `dryLintArgv` (ci-paths --check, and the math-view
    *  lint when the change touches `lean/`) */
   dryLints?: string[][];
@@ -837,9 +839,9 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       // change the real land's CI tier would refuse (a part.json variant without a findings row) fails here with the test file's name.
       // TS stand-in: Lean `lintPlan` does not list them; a failure is kind `lint`, the real land reports it as `checks`.
       if (reads && lints) {
-        const local = LOCAL_TESTS.filter((t) => selectChecks([t], changed).length > 0);
+        const local = (o.dryLocal ?? LOCAL_TESTS).filter((t) => selectChecks([t], changed).length > 0);
         if (local.length) {
-          const argv = [...(phase1Build(changed) || !existsSync(join(slot.dir, FWCORE_BIN)) ? [["sh", "scripts/fwcore-build.sh"]] : []), ...local.map((t) => t.argv)];
+          const argv = [...(!o.dryLocal && (phase1Build(changed) || !existsSync(join(slot.dir, FWCORE_BIN))) ? [["sh", "scripts/fwcore-build.sh"]] : []), ...local.map((t) => t.argv)];
           const bad = await runChecks(slot.dir, argv);
           lints = bad === null; detail = bad ?? "";
           if (lints) lines.push(`dry: local tests ok (${local.map((t) => t.id).join(", ")})`);
