@@ -1,6 +1,6 @@
 // The review queue (user-review-queue): which kept look changes wait for the owner's visual review is Lean `console.review`
 // (Fw.Console.Review). This file posts the step Lean says is missing, attaches the ledger's words and the review material, and
-// turns an accepted Keep or Reject into a `step.answer` of the user. It decides nothing. GET reads only; the steps are posted by
+// turns an accepted Keep or Reject into a `step.answer` of the user. It decides nothing. GET changes no board state (the strip GET may fill the review cache from CI); the steps are posted by
 // POST (before it asks Lean) and by `ensureReviewSteps` at startup.
 import { execFile } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync } from "node:fs";
@@ -140,7 +140,7 @@ export function mountReviews(app: Hono, store: Store, root: string, opts: Review
   app.get("/api/reviews/:flag/strips/:file", async (c) => {
     let r: LeanReply;
     try { r = await ask(store, undefined, { today: today(), serve: { flag: c.req.param("flag"), file: c.req.param("file") } }); }
-    catch { return c.json({ ok: false, reason: "not a servable strip" }, 404); }
+    catch (e) { return c.json({ ok: false, reason: `the core failed: ${(e as Error).message}` }, 500); }
     const s = r.serve;
     if (!s || !s.ok || !s.run || !s.artifact || !s.path) return c.json({ ok: false, reason: s?.reason ?? "not a servable strip" }, 404);
     let file: string;

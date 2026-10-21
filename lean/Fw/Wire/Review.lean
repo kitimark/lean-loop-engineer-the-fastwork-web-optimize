@@ -73,14 +73,17 @@ def itemJson (rs : List Rec) (i : Item) : Json :=
     ("post", .bool (needsPost rs i.flag)), ("title", .str (title i.flag)),
     ("body", .str (body i)), ("audience", .str audience.name)]
 
-/-- A strip as JSON. -/
+/-- A strip as JSON. The run and expiry are those of the material (`Fw.Console.ReviewStrips.Strip`); a missing strip has none. -/
 def stripJson (f : Fw.Preset.Flag) (o : Fw.Console.ReviewStrips.Out) : Json :=
-  match o.row with
-  | none => Json.mkObj [("engine", .str o.engine), ("state", .str o.state.word), ("redo", .str (Fw.Console.ReviewStrips.redo f))]
-  | some r => Json.mkObj ([("engine", .str o.engine), ("state", .str o.state.word), ("width", toJson r.width),
-      ("push", .str r.push.word), ("file", .str r.file), ("run", .str r.run), ("artifact", .str r.artifact),
-      ("expires", .str r.expires), ("note", .str r.note), ("diff", .str r.diff)] ++
-      (if o.state == .expired then [("redo", .str (Fw.Console.ReviewStrips.redo f))] else []))
+  let base := [("engine", Json.str o.engine), ("state", .str o.state.word)]
+  let redo := [("redo", Json.str (Fw.Console.ReviewStrips.redo f))]
+  match o.row, o.strip with
+  | none, _ => Json.mkObj (base ++ redo)
+  | some r, none => Json.mkObj (base ++ [("width", toJson r.width), ("push", .str r.push.word), ("file", .str r.file)] ++ redo)
+  | some r, some s => Json.mkObj (base ++ [("width", toJson r.width),
+      ("push", .str r.push.word), ("file", .str r.file), ("run", .str s.run), ("artifact", .str r.artifact),
+      ("expires", .str s.expires), ("note", .str r.note), ("diff", .str r.diff)] ++
+      (if o.state == .expired then redo else []))
 
 /-- `console.review` (`Fw.Console.Review.items`, `accept`). -/
 def opReview (req : Json) : Except String Reply := do
@@ -109,7 +112,7 @@ def opReview (req : Json) : Except String Reply := do
         | none => Json.mkObj [("ok", .bool false), ("reason", .str "no pending review for this flag")]
         | some i => match Fw.Console.ReviewStrips.serve t f i.material file with
           | none => Json.mkObj [("ok", .bool false), ("reason", .str "not a servable strip of this review")]
-          | some r => Json.mkObj [("ok", .bool true), ("run", .str r.run), ("artifact", .str r.artifact), ("path", .str r.path)])
+          | some st => Json.mkObj [("ok", .bool true), ("run", .str st.run), ("artifact", .str st.row.artifact), ("path", .str st.row.path)])
     | _, _ => pure Json.null)
   pure ([("items", .arr (its.map withStrips).toArray),
     ("open", toJson (openItems ds rs).length),

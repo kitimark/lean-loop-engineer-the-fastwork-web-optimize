@@ -105,7 +105,7 @@ describe("frame strips in the review card", () => {
   it("a ready strip shows tag, push name, diff, note, the legend and a scroll box for the image", () => {
     const html = renderToStaticMarkup(<StripCard flag={FLAG} s={ready} />);
     for (const w of ["Chromium · Phone 390", "Button comes back", "about 0.4 s earlier", "Look at the dark Join waitlist pill.",
-      "Top row original, bottom row flag; frame number and ms under each shot", 'data-testid="strip-scroll"', "overflow-x-auto", "max-w-full"]) expect(html).toContain(w);
+      "Top row original, bottom row flag; frame number and ms under each shot", "compare the ms labels, not the column positions", 'data-testid="strip-scroll"', "overflow-x-auto", "max-w-full"]) expect(html).toContain(w);
   });
   it("an empty note reads no note yet; the desktop tag and the open push name", () => {
     const html = renderToStaticMarkup(<StripCard flag={FLAG} s={{ ...ready, engine: "webkit", width: 1280, push: "open", note: "", diff: "" }} />);

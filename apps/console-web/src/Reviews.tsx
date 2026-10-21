@@ -97,7 +97,7 @@ function StripImage({ flag, s }: { flag: string; s: StripItem }) {
 export function StripCard({ flag, s }: { flag: string; s: StripItem }) {
   const engine = ENGINE[s.engine] ?? s.engine;
   if (s.state === "missing") {
-    return <p className="text-xs" data-testid="strip-missing">{engine} strips: none made for this change yet. To make them, push a ci/* commit with the two message lines <code className="font-mono">{s.redo}</code>.</p>;
+    return <p className="text-xs" data-testid="strip-missing">{engine} strips{s.width ? ` (${s.width}, ${s.push})` : ""}: none made for this change yet. To make them, push a ci/* commit with the message line <code className="font-mono">{s.redo}</code>, then update the material in Gen.lean (Fw.Preset.Gen.lookDecisions) with the new run.</p>;
   }
   const tag = `${s.width === 390 ? "Phone" : "Desktop"} ${s.width}`;
   const head = (
@@ -111,7 +111,7 @@ export function StripCard({ flag, s }: { flag: string; s: StripItem }) {
     return (
       <section className="min-w-0 space-y-1 rounded border p-2" data-testid="strip-expired">
         {head}
-        <p className="break-words text-xs">This strip expired on {s.expires} (the CI artifact is gone). To re-make it, push a ci/* commit with the two message lines <code className="font-mono">{s.redo}</code>.</p>
+        <p className="break-words text-xs">This strip expired on {s.expires} (the CI artifact is gone). To re-make it, push a ci/* commit with the message line <code className="font-mono">{s.redo}</code>, then update the material in Gen.lean (Fw.Preset.Gen.lookDecisions) with the new run.</p>
       </section>
     );
   }
@@ -119,7 +119,7 @@ export function StripCard({ flag, s }: { flag: string; s: StripItem }) {
     <section className="min-w-0 space-y-2 rounded border p-2" data-testid="strip">
       {head}
       <p className="break-words text-sm" data-testid="strip-note">{s.note ? s.note : <span className="text-muted-foreground">no note yet</span>}</p>
-      <p className="text-xs text-muted-foreground">Top row original, bottom row flag; frame number and ms under each shot. Scroll the strip sideways.</p>
+      <p className="text-xs text-muted-foreground">Top row original, bottom row flag; frame number and ms under each shot. Scroll the strip sideways. Each arm is sampled at its own screenshot times, so compare the ms labels, not the column positions.</p>
       <StripImage flag={flag} s={s} />
     </section>
   );

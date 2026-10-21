@@ -38,19 +38,32 @@ function stub() {
 }
 
 describe("GET /api/reviews strips", () => {
-  it("lists the 4 chromium strips ready, with tag data, note and diff; webkit material is pending so none", async () => {
+  it("lists the 8 strips: 4 chromium ready with the gen.mjs notes, 4 webkit with an empty note; run and expiry are the material's", async () => {
     const { app } = await rig(stub().download);
     const i = ((await (await app.request("/api/reviews")).json()) as any).items[0];
-    expect(i.strips).toHaveLength(4);
-    expect(i.strips.every((s: any) => s.state === "ready" && s.engine === "chromium")).toBe(true);
-    const close390 = i.strips.find((s: any) => s.width === 390 && s.push === "close");
+    expect(i.strips).toHaveLength(8);
+    expect(i.strips.every((s: any) => s.state === "ready")).toBe(true);
+    const ch = i.strips.filter((s: any) => s.engine === "chromium"), wk = i.strips.filter((s: any) => s.engine === "webkit");
+    expect([ch.length, wk.length]).toEqual([4, 4]);
+    expect(ch.every((s: any) => s.run === i.material.chromium.run && s.expires === i.material.chromium.expires && s.note !== "")).toBe(true);
+    expect(wk.every((s: any) => s.run === i.material.webkit.run && s.expires === i.material.webkit.expires && s.note === "")).toBe(true);
+    const close390 = ch.find((s: any) => s.width === 390 && s.push === "close");
     expect(close390).toMatchObject({ file: "chromium-390-close.png", run: "39473950464", artifact: "frames-chromium", diff: "about 0.4 s earlier" });
     expect(close390.note).toContain("Join waitlist");
+    expect(wk.find((s: any) => s.width === 1280 && s.push === "close")).toMatchObject({ file: "playwright-webkit-1280-close.png", run: "39530106935", artifact: "frames-apple-1280", expires: "2026-11-20" });
   });
-  it("on the expiry day the strips are expired and name the dispatch that re-makes them", async () => {
+  it("on 2026-11-19 chromium is expired (with the redo line) and webkit still ready", async () => {
     const { app } = await rig(stub().download, "2026-11-19");
     const i = ((await (await app.request("/api/reviews")).json()) as any).items[0];
-    expect(i.strips.every((s: any) => s.state === "expired" && s.redo === `[ci:trajectory-probe] [frames:${FLAG}]`)).toBe(true);
+    const ch = i.strips.filter((s: any) => s.engine === "chromium"), wk = i.strips.filter((s: any) => s.engine === "webkit");
+    expect(ch.every((s: any) => s.state === "expired" && s.redo === `[ci:trajectory-probe] [frames:${FLAG}]`)).toBe(true);
+    expect(wk.every((s: any) => s.state === "ready")).toBe(true);
+  });
+  it("on 2026-11-20 all 8 strips are expired", async () => {
+    const { app } = await rig(stub().download, "2026-11-20");
+    const i = ((await (await app.request("/api/reviews")).json()) as any).items[0];
+    expect(i.strips).toHaveLength(8);
+    expect(i.strips.every((s: any) => s.state === "expired")).toBe(true);
   });
 });
 
@@ -77,7 +90,7 @@ describe("GET /api/reviews/<flag>/strips/<file>", () => {
   it("refuses every name that is no row file, with no download", async () => {
     const s = stub();
     const { app } = await rig(s.download);
-    for (const f of ["..%2F..%2Fevents.jsonl", "..", "%2e%2e%2fx.png", "strips%2Fchromium-390-open.png", "other.png", "chromium-390-open.PNG", "playwright-webkit-390-open.png"]) {
+    for (const f of ["..%2F..%2Fevents.jsonl", "..", "%2e%2e%2fx.png", "strips%2Fchromium-390-open.png", "other.png", "chromium-390-open.PNG", "playwright-webkit-390-open-screencast.png"]) {
       expect((await app.request(url(f))).status).toBe(404);
     }
     expect((await app.request(`/api/reviews/nav:other/strips/chromium-390-open.png`)).status).toBe(404);
@@ -88,6 +101,8 @@ describe("GET /api/reviews/<flag>/strips/<file>", () => {
     const s = stub();
     const { app } = await rig(s.download, "2026-11-19");
     expect((await app.request(url("chromium-390-open.png"))).status).toBe(404);
+    const w = await rig(s.download, "2026-11-20");
+    expect((await w.app.request(url("playwright-webkit-390-open.png"))).status).toBe(404);
     expect(s.calls).toHaveLength(0);
   });
   it("a refused download (403) gives 502, leaves no cache and is not retried", async () => {
@@ -115,19 +130,31 @@ describe("GET /api/reviews/<flag>/strips/<file>", () => {
   });
 });
 
-describe("console.review strips in Lean (material ready for both engines)", () => {
-  const looks = (webkit: string) => [{ date: "2026-10-21", decision: "kept", flag: FLAG, review: "pending",
-    material: { chromium: { state: "ready" }, webkit: { state: webkit } } }];
-  it("returns the 8 strips, the webkit ones with an empty note, and serves a webkit file from its own artifact", async () => {
-    const r = await selectCore().ops("console.review", { looks: looks("ready"), steps: [], today: "2026-10-21", serve: { flag: FLAG, file: "playwright-webkit-1280-close.png" } }) as any;
-    const st = r.items[0].strips;
-    expect(st).toHaveLength(8);
-    expect(st.filter((s: any) => s.engine === "webkit").map((s: any) => s.artifact).sort()).toEqual(["frames-apple-1280", "frames-apple-1280", "frames-apple-390", "frames-apple-390"]);
-    expect(st.find((s: any) => s.engine === "webkit").note).toBe("");
+describe("console.review strips in Lean (run and expiry only from the material)", () => {
+  const mat = (webkit: object) => ({ chromium: { state: "ready", run: "1", artifact: "frames-chromium", expires: "2026-12-01" }, webkit });
+  const looks = (m: object) => [{ date: "2026-10-21", decision: "kept", flag: FLAG, review: "pending", material: m }];
+  const ask = (m: object | null, file = "playwright-webkit-1280-close.png") =>
+    selectCore().ops("console.review", { ...(m ? { looks: looks(m) } : {}), steps: [], today: "2026-10-21", serve: { flag: FLAG, file } }) as any;
+  it("the default material serves a webkit file from its own artifact, run 39530106935", async () => {
+    const r = await ask(null);
+    expect(r.items[0].strips.filter((s: any) => s.engine === "webkit").map((s: any) => s.artifact).sort()).toEqual(["frames-apple-1280", "frames-apple-1280", "frames-apple-390", "frames-apple-390"]);
     expect(r.serve).toEqual({ ok: true, run: "39530106935", artifact: "frames-apple-1280", path: "strips/playwright-webkit-1280-close.png" });
   });
+  it("a new run in the material changes the strips' run and expiry (rows hold none)", async () => {
+    const r = await ask(mat({ state: "ready", run: "777", artifact: "frames-apple-390, frames-apple-1280", expires: "2026-12-09" }));
+    const wk = r.items[0].strips.filter((s: any) => s.engine === "webkit");
+    expect(wk.every((s: any) => s.run === "777" && s.expires === "2026-12-09")).toBe(true);
+    expect(r.serve).toMatchObject({ ok: true, run: "777" });
+  });
+  it("a row whose artifact the material does not name is missing and not served", async () => {
+    const r = await ask(mat({ state: "ready", run: "5", artifact: "frames-apple-390", expires: "2026-12-09" }));
+    const w = r.items[0].strips.filter((s: any) => s.engine === "webkit");
+    expect(w.filter((s: any) => s.state === "missing").map((s: any) => s.file)).toEqual(["playwright-webkit-1280-close.png", "playwright-webkit-1280-open.png"]);
+    expect(w.filter((s: any) => s.state === "missing").every((s: any) => s.run === undefined)).toBe(true);
+    expect(r.serve.ok).toBe(false);
+  });
   it("webkit pending gives only the chromium strips and refuses a webkit file", async () => {
-    const r = await selectCore().ops("console.review", { looks: looks("pending"), steps: [], today: "2026-10-21", serve: { flag: FLAG, file: "playwright-webkit-1280-close.png" } }) as any;
+    const r = await ask(mat({ state: "pending", task: "x" }));
     expect(r.items[0].strips).toHaveLength(4);
     expect(r.serve.ok).toBe(false);
   });
