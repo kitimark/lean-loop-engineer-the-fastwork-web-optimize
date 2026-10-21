@@ -12,17 +12,17 @@
 //   node scripts/circleci-series.mjs github --out results/circleci-series [--limit 20]            (stored GitHub land-lane runs)
 //   node scripts/circleci-series.mjs summary --out results/circleci-series                       (summary.json and the table)
 //
-// Budget: at most MAX_RUNS pipelines in one invocation (the task's cap is 30 CircleCI runs in all; `run` also reads the rows already
+// Budget: at most MAX_RUNS pipelines in one invocation (the task's cap is 40 CircleCI runs in all, 20 per class; `run` also reads the rows already
 // written and refuses to pass the cap). The token is read inside each request by scripts/circleci.mjs, never printed.
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { API, CLASSES, MIN_POLL_S, call, credits, fetchPipeline, keychainToken, listAll, loadConfig, loadGolden, ms, triggerRequest, urls, waitPipeline } from './circleci.mjs';
+import { API, CLASSES, MIN_POLL_S, call, credits, fetchPipeline, keyAdvice, keyCheck, keychainToken, listAll, loadConfig, loadGolden, ms, triggerRequest, urls, waitPipeline } from './circleci.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 export const ROOT = resolve(here, '..');
-export const MAX_RUNS = 30;
+export const MAX_RUNS = 40;
 const idsPath = join(ROOT, '.local', 'circleci-series-ids.json'); // { <pipeline number>: { pipelineId, workflowId } }, gitignored
 
 // ------------------------------------------------------------------------------------------------------------ statistics
@@ -88,6 +88,9 @@ async function runSeries(o) {
   const cfg = loadConfig(o['config-root'] ? resolve(o['config-root']) : ROOT);
   if (!cfg.slug || !cfg.definitionId) throw new Error('no slug or definition id (.local/circleci.json or the FW_CIRCLECI_* variables)');
   const ctx = { golden: g, fetchFn: fetch, getToken: keychainToken, sleep, now: Date.now, log: (m) => console.log(m), ledgerPath: join(ROOT, '.local', 'circleci-ledger.json'), minPollS: MIN_POLL_S };
+  const key = await keyCheck(ctx, { slug: cfg.slug });
+  if (!key.proceed) throw new Error(keyAdvice(key));
+  console.log(`series: key check ${key.verdict}`);
   mkdirSync(rowsDir(out), { recursive: true });
   let failures = 0;
   for (let i = 1; i <= per; i++) {

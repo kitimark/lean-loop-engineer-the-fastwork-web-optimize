@@ -26,6 +26,15 @@ def mismatchName : Mismatch → String
   | .sha => "sha"
   | .digest => "digest"
 
+def keyVerdictName : KeyVerdict → String
+  | .ok => "ok"
+  | .missing => "missing"
+  | .unknown => "unknown"
+
+def optBool : Option Bool → Json
+  | some b => Json.bool b
+  | none => Json.null
+
 def stopName : Stop → String
   | .cap => "cap"
   | .queue => "queue"
@@ -228,6 +237,19 @@ def waitCases : List (String × WaitInput) := [
   ("a running workflow one second before the timeout goes on", ⟨["running"], 3599, 300, 3600⟩),
   ("final workflows decide even past the timeout", ⟨["success"], 4000, 300, 3600⟩)]
 
+def keyCases : List (String × KeyInput) := [
+  ("a listed key: ok", ⟨some 1, none⟩),
+  ("two listed keys: ok", ⟨some 2, some false⟩),
+  ("an empty key list: missing", ⟨some 0, none⟩),
+  ("an empty key list beats a clone that worked", ⟨some 0, some true⟩),
+  ("an unreadable list, last clone worked: ok", ⟨none, some true⟩),
+  ("an unreadable list, last clone failed: missing", ⟨none, some false⟩),
+  ("an unreadable list, no clone seen: unknown", ⟨none, none⟩)]
+
+def keyKinds : List String := ["deploy-key", "github-user-key", "github-oauth-key", "", "Deploy-Key"]
+
+def checkoutStatuses : List String := ["success", "failed", "running", "not_run", "canceled", "infrastructure_fail", ""]
+
 def ghJobNames : List String := [
   "engine (chromium)", "engine (playwright-webkit)", "verdict", "engine (chromium) again", "engine", "",
   "sim (original, 430, 1, 40a8d4c1deadbeef, v1)", "sim (original, 390, 2, 40a8d4c1deadbeef, v1)",
@@ -267,7 +289,14 @@ def text : String :=
       line "stop" n (stopInputJson i)
         (Json.mkObj [("stop", .bool (stop i)), ("reasons", .arr ((stops i).map fun s => Json.str (stopName s)).toArray)]))
     ++ routeCases.map (fun (n, i) =>
-      line "route" n (routeInputJson i) (Json.mkObj [("provider", .str (providerName (route i)))])))
+      line "route" n (routeInputJson i) (Json.mkObj [("provider", .str (providerName (route i)))]))
+    ++ keyCases.map (fun (n, i) =>
+      line "keyCheck" n (Json.mkObj [("keys", optNat i.keys), ("checkout", optBool i.checkout)])
+        (Json.mkObj [("verdict", .str (keyVerdictName (keyVerdict i))), ("proceed", .bool (keyProceed i))]))
+    ++ keyKinds.map (fun k =>
+      line "keyKind" k (Json.mkObj [("kind", .str k)]) (Json.mkObj [("usable", .bool (usableKeyKind k))]))
+    ++ checkoutStatuses.map (fun st =>
+      line "checkoutStatus" st (Json.mkObj [("status", .str st)]) (Json.mkObj [("clone", optBool (checkoutOfStatus st))])))
 
 def main (args : List String) : IO UInt32 := do
   let p : System.FilePath := ".." / "packages" / "contracts" / "golden" / "ci" / "provider.jsonl"
