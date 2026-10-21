@@ -66,6 +66,25 @@ export function compile(p) {
   return out;
 }
 
+/**
+ * The compiled actions cut at the swipes (Lean `Fw.Device.Replay.pieces`): one piece per swipe, its lead-in pause run first, the finger
+ * up at its end. The pieces joined are `compile(p)`.
+ */
+export function pieces(p) {
+  const ss = p.swipes.filter((s) => s.s.length > 0);
+  if (ss.length === 0) return [];
+  let prev = swipePts(ss[0])[0].m;
+  return ss.map((s) => {
+    const pts = swipePts(s);
+    const pc = [...pauseRun(gap(prev, pts[0].m)), ...swipeActs(pts, swipeEnd(s))];
+    prev = swipeEnd(s);
+    return pc;
+  });
+}
+
+/** The time a /actions call of a piece that takes `d` ms may take before the client calls it hung (Lean `pieceTimeoutMs`). */
+export const pieceTimeoutMs = (d) => 2 * d + 10000;
+
 export function w3c(acts) {
   const one = (a) => {
     switch (a[0]) {

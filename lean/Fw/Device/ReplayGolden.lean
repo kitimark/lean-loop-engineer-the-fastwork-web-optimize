@@ -77,6 +77,11 @@ private def matchJ (name : String) (lim : Lim) (src rep : List Swipe) : Json :=
 
 private def runKind (k : Kind) : Json := k.code
 
+private def piecesJ (p : Profile) : Json :=
+  Json.mkObj [("kind", "pieces"), ("profile", profileJ p),
+    ("pieces", Json.arr ((pieces p).map fun pc => Json.arr (pc.map actJ).toArray).toArray),
+    ("timeouts", toJson ((pieces p).map fun pc => pieceTimeoutMs ((pc.map Act.dur).sum.toNat)))]
+
 private def goldenLines (_ : Unit) : List String :=
   let src := swipesOf fixtureSorted
   let prof : Profile := ⟨"fixture", 390, 844, .warm, src⟩
@@ -93,6 +98,10 @@ private def goldenLines (_ : Unit) : List String :=
     (Json.mkObj [("kind", "compile"), ("profile", profileJ one), ("acts", Json.arr ((compile one).map actJ).toArray),
       ("w3c", w3c (compile one))]).compress,
     (Json.mkObj [("kind", "compile"), ("profile", profileJ prof), ("acts", Json.arr ((compile prof).map actJ).toArray)]).compress,
+    (piecesJ one).compress,
+    (piecesJ prof).compress,
+    (piecesJ ⟨"gap", 390, 844, .warm, (src.take 1 ++ [{ start := 9000, lift := 9000, samples := [] }] ++ src.drop 1)⟩).compress,
+    (piecesJ ⟨"empty", 390, 844, .warm, []⟩).compress,
     (matchJ "same" lim src src).compress,
     (matchJ "nudged" lim src pass).compress,
     (matchJ "count" lim src (src.take 2)).compress,
