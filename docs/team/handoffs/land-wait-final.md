@@ -1,6 +1,6 @@
 # land-wait-final handoff
 
-State: branch worktree-wf_d2d71389-809-1; Lean + TS + tests + docs committed (see `git log -1`). `sh lean/scripts/check.sh` green; runner suite 2041 pass; ci-paths 54 pass.
+State: branch worktree-wf_d2d71389-809-1; Lean + TS + tests + docs committed (see `git log -1`). `sh lean/scripts/check.sh` green; runner suite 2047 pass; ci-paths 54 pass.
 
 Cause (both incidents, INFERRED: neither waiter output was recovered): `fw ci wait` child exited 1 without judging the run (crash; incident 2 land log ended 14:09:23Z, run success 14:09:07Z).
 Old Lean `waitState 1 = fail`, and the run's own record (success / in progress) was only consulted for a completed *failure*.
