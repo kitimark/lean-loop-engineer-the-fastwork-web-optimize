@@ -1367,4 +1367,247 @@ theorem pump_pm {c : Cfg} {s0 : State} (hw : Wf c s0) : PM s0 (pumpAcc c s0) :=
   pump_ind hw (PM s0) ⟨⟨id, (List.map_id _).symm, fun x _ => Moved.refl _ x⟩, fun _ hx => absurd hx List.not_mem_nil⟩
     fun _ _ _ hj h => pumpOne_pm hw hj h
 
+/-! ## Step decomposition -/
+
+theorem step_mem {c : Cfg} {s : State} {e : Event} {x : Cmd} (h : x ∈ (step c s e).2) :
+    authed c e = true ∧ (x ∈ (pre c s e).2 ∨ x ∈ (pumpAcc c (pre c s e).1).out) := by
+  cases ha : authed c e
+  · simp [step, ha] at h
+  · rw [step_eq ha] at h
+    exact ⟨rfl, List.mem_append.1 h⟩
+
+theorem step_st {c : Cfg} {s : State} {e : Event} (ha : authed c e = true) :
+    (step c s e).1 = (pumpAcc c (pre c s e).1).st := by
+  rw [step_eq ha]; rfl
+
+theorem step_out {c : Cfg} {s : State} {e : Event} (ha : authed c e = true) :
+    (step c s e).2 = (pre c s e).2 ++ (pumpAcc c (pre c s e).1).out := by
+  rw [step_eq ha]; rfl
+
+theorem not_reply_pre {c : Cfg} {s : State} {e : Event} {n : Nat} {l : Lease} (h : .reply n (.granted l) ∈ (pre c s e).2) :
+    l.kind = .job := by
+  rcases pre_cmds h with hq | ⟨r, e', hr⟩
+  · simp [quiet] at hq
+  · simp only [Cmd.reply.injEq] at e'
+    obtain ⟨_, rfl⟩ := e'
+    exact (hr l rfl).1
+
+theorem no_spawn_pre {c : Cfg} {s : State} {e : Event} {rid k : Nat} (h : .spawn rid k ∈ (pre c s e).2) : False := by
+  rcases pre_cmds h with hq | ⟨r, e', _⟩
+  · simp [quiet] at hq
+  · cases e'
+
+theorem pending_ids_nodup {c : Cfg} {s : State} (h : Wf c s) : (s.pending.map (·.id)).Nodup :=
+  (List.nodup_append.1 h.ids).2.1
+
+/-! ## Theorems -/
+
+/-- sup_auth: an event that needs the token and lacks it changes nothing and sends nothing. -/
+theorem sup_auth (c : Cfg) (s : State) (e : Event) (h : authed c e = false) : step c s e = (s, []) := by
+  simp [step, h]
+
+/-- run_eq_fold: one more event is the step from the state so far, its commands appended to the log. -/
+theorem run_eq_fold (c : Cfg) (s : State) (es : List Event) (e : Event) :
+    run c s (es ++ [e]) = ((step c (run c s es).1 e).1, (run c s es).2 ++ (step c (run c s es).1 e).2) := by
+  simp [run, List.foldl_append]
+
+/-- owner_unique: a process group belongs to at most one resource. -/
+theorem owner_unique {c : Cfg} {s : State} (h : Inv c s) {x y : Rsrc} {i : Ident} (hx : x ∈ s.res) (hy : y ∈ s.res)
+    (hxi : x.proc = some i) (hyi : y.proc = some i) : x = y :=
+  eq_of_nodup_filterMap (·.proc) s.res h.1.procs x hx y hy i hxi hyi
+
+/-- grant_ready: a granted service lease is held in the new state and its resource is ready there. -/
+theorem grant_ready {c : Cfg} {s : State} {e : Event} {n : Nat} {l : Lease} (h : Inv c s)
+    (hm : .reply n (.granted l) ∈ (step c s e).2) (hk : l.kind = .svc) :
+    l ∈ (step c s e).1.leases ∧ ∃ r ∈ (step c s e).1.res, r.id = l.rid ∧ r.phase = .ready := by
+  obtain ⟨ha, hm⟩ := step_mem hm
+  have hw := wf_pre e h.1
+  have hl : l ∈ (step c s e).1.leases := by
+    rcases hm with hm | hm
+    · rw [not_reply_pre hm] at hk; cases hk
+    · rw [step_st ha, (pump_pj hw).leases]
+      exact List.mem_append_right _ (List.mem_filterMap.2 ⟨_, hm, rfl⟩)
+  exact ⟨hl, ((step_inv e h).1.svc l hl hk).2⟩
+
+/-- spawned_recorded (spawn): a spawned resource is starting now in the new state, with no group yet. -/
+theorem spawned_recorded {c : Cfg} {s : State} {e : Event} {rid k : Nat} (h : Inv c s)
+    (hm : .spawn rid k ∈ (step c s e).2) :
+    ∃ r ∈ (step c s e).1.res, r.id = rid ∧ r.kind = k ∧ r.phase = .starting (step c s e).1.now ∧ r.proc = none := by
+  obtain ⟨ha, hm⟩ := step_mem hm
+  have hw := wf_pre e h.1
+  rcases hm with hm | hm
+  · exact (no_spawn_pre hm).elim
+  · rw [step_st ha]
+    rcases (pump_pm hw).2 _ hm with ⟨_, _, e'⟩ | ⟨y, hy, e', hp, hn⟩ | ⟨_, _, _, _, _, e'⟩
+    · cases e'
+    · simp only [Cmd.spawn.injEq] at e'
+      exact ⟨y, hy, e'.1.symm, e'.2.symm, by rw [(pump_pj hw).now]; exact hp, hn⟩
+    · cases e'
+
+theorem pre_spawned {c : Cfg} {s : State} {rid : Nat} {i : Ident}
+    (hw : ∃ x ∈ s.res, x.id = rid ∧ x.proc = none ∧ ∃ t, x.phase = .starting t) (hf : ∀ x ∈ s.res, x.proc ≠ some i) :
+    pre c s (.spawned rid (some i)) =
+      ({ s with res := s.res.map fun x => if x.id == rid then { x with proc := some i, adopted := false } else x },
+       [.probe rid]) := by
+  simp only [pre, spawned]
+  rw [if_neg, if_pos]
+  · obtain ⟨x, hx, h1, h2, t, h3⟩ := hw
+    exact List.any_eq_true.2 ⟨x, hx, by simp [h1, h2, h3]⟩
+  · intro ha
+    obtain ⟨x, hx, e⟩ := List.any_eq_true.1 ha
+    exact hf x hx (by simpa using e)
+
+/-- spawned_recorded (spawn result): a group reported for a waiting resource is set on exactly the records of that
+id, and a probe follows. -/
+theorem spawned_sets {c : Cfg} {s : State} {rid : Nat} {i : Ident} (h : Inv c s)
+    (hw : ∃ x ∈ s.res, x.id = rid ∧ x.proc = none ∧ ∃ t, x.phase = .starting t) (hf : ∀ x ∈ s.res, x.proc ≠ some i) :
+    (∀ y ∈ (step c s (.spawned rid (some i))).1.res, y.proc = some i ↔ y.id = rid)
+    ∧ (∃ y ∈ (step c s (.spawned rid (some i))).1.res, y.id = rid)
+    ∧ Cmd.probe rid ∈ (step c s (.spawned rid (some i))).2 := by
+  have ha : authed c (.spawned rid (some i)) = true := rfl
+  have hw' := wf_pre (.spawned rid (some i)) h.1
+  obtain ⟨⟨F, hF, hFm⟩, _⟩ := pump_pm hw'
+  have hpre := pre_spawned (c := c) hw hf
+  refine ⟨fun y hy => ?_, ?_, ?_⟩
+  · rw [step_st ha, hF] at hy
+    obtain ⟨x, hx, rfl⟩ := List.mem_map.1 hy
+    have hk := (hFm x hx).1
+    rw [key_proc hk, key_id hk]
+    rw [hpre] at hx
+    obtain ⟨z, hz, rfl⟩ := List.mem_map.1 hx
+    by_cases e : z.id = rid
+    · simp [e]
+    · simp only [e, beq_iff_eq, if_false]
+      exact ⟨fun h' => absurd h' (hf z hz), fun h' => h'.elim⟩
+  · obtain ⟨x, hx, h1, _⟩ := hw
+    have hx' : (if x.id == rid then { x with proc := some i, adopted := false } else x) ∈ (pre c s (.spawned rid (some i))).1.res := by
+      rw [hpre]; exact List.mem_map_of_mem hx
+    obtain ⟨y0, hy0, hid⟩ : ∃ y0 ∈ (pre c s (.spawned rid (some i))).1.res, y0.id = rid := ⟨_, hx', by simp [h1]⟩
+    refine ⟨F y0, ?_, ?_⟩
+    · rw [step_st ha, hF]; exact List.mem_map_of_mem hy0
+    · rw [key_id (hFm _ hy0).1, hid]
+  · rw [step_out ha, hpre]
+    exact List.mem_append_left _ List.mem_cons_self
+
+theorem adopt_live (rows : List Fw.Ops.Reap.Row) : ∀ (seen : List Ident) (xs : List Rsrc), ∀ y ∈ adopt rows seen xs,
+    (y.phase.live = true ↔ ∃ i, y.proc = some i ∧ alive rows i = true)
+  | _, [], _, h => absurd h List.not_mem_nil
+  | seen, x :: xs, y, hy => by
+    have hclear : ∀ y, y = adopt.clear x → (y.phase.live = true ↔ ∃ i, y.proc = some i ∧ alive rows i = true) := by
+      intro y e
+      subst e
+      constructor
+      · intro hl
+        simp only [adopt.clear] at hl
+        split at hl
+        · cases hl
+        · rename_i hn; exact absurd hl hn
+      · intro ⟨_, hi, _⟩; cases hi
+    unfold adopt at hy
+    split at hy
+    · rename_i i hi
+      split at hy
+      · rename_i hc
+        rcases List.mem_cons.1 hy with e | hy
+        · subst e
+          simp only [Bool.and_eq_true] at hc
+          exact ⟨fun _ => ⟨i, hi, hc.1.2⟩, fun _ => hc.1.1⟩
+        · exact adopt_live rows _ xs y hy
+      · rcases List.mem_cons.1 hy with e | hy
+        · exact hclear y e
+        · exact adopt_live rows _ xs y hy
+    · rcases List.mem_cons.1 hy with e | hy
+      · exact hclear y e
+      · exact adopt_live rows _ xs y hy
+
+theorem step_restart (c : Cfg) (s : State) (now : Nat) (snap : State) (inp : Fw.Ops.Reap.Input) :
+    step c s (.restart now snap inp) = recover c now snap inp := by
+  rw [step_eq rfl]
+  exact Prod.ext rfl (List.append_nil _)
+
+/-- recover_adopt_or_reap: after a restart a resource is live exactly when it keeps a group whose leader row is
+alive; each reap plan target that no record owns gets TERM; each snapshot lease that is not well formed is revoked. -/
+theorem recover_adopt_or_reap (c : Cfg) (s : State) (now : Nat) (snap : State) (inp : Fw.Ops.Reap.Input) :
+    (∀ y ∈ (step c s (.restart now snap inp)).1.res,
+      y.phase.live = true ↔ ∃ i, y.proc = some i ∧ alive inp.rows i = true)
+    ∧ (∀ p ∈ Fw.Ops.Reap.plan inp, (∀ y ∈ (step c s (.restart now snap inp)).1.res, y.proc.map (·.pgid) ≠ some p.pid) →
+        .signal (.reap p) .term ∈ (step c s (.restart now snap inp)).2)
+    ∧ ∀ l ∈ snap.leases,
+        validLease c (step c s (.restart now snap inp)).1.res (step c s (.restart now snap inp)).1.now l = false →
+        .revoke l.owner l.id ∈ (step c s (.restart now snap inp)).2 := by
+  rw [step_restart]
+  refine ⟨fun y hy => adopt_live _ _ _ y hy, fun p hp ho => ?_, fun l hl hv => ?_⟩
+  · have hn : ((recover c now snap inp).1.res.any fun x => x.proc.map (·.pgid) == some p.pid) = false :=
+      List.any_eq_false.2 fun y hy e => ho y hy (by simpa using e)
+    simp only [recover] at hn ⊢
+    exact List.mem_append_right _ (List.mem_map.2 ⟨p, List.mem_filter.2 ⟨hp, by simp [hn]⟩, rfl⟩)
+  · simp only [recover] at hv ⊢
+    exact List.mem_append_left _ (List.mem_map.2 ⟨l, List.mem_filter.2 ⟨hl, by simp [hv]⟩, rfl⟩)
+
+/-- client_gone_releases: a gone client holds no lease, has no queued request, and none of its queued requests gets a
+reply. -/
+theorem client_gone_releases {c : Cfg} {s : State} {o : Nat} (h : Inv c s) :
+    (∀ l ∈ (step c s (.clientGone o)).1.leases, l.owner ≠ o)
+    ∧ (∀ q ∈ (step c s (.clientGone o)).1.pending, q.owner ≠ o)
+    ∧ ∀ q ∈ s.pending, q.owner = o → ∀ r, .reply q.id r ∉ (step c s (.clientGone o)).2 := by
+  have ha : authed c (.clientGone o) = true := rfl
+  have hw := wf_pre (.clientGone o) h.1
+  have hj := pump_pj hw
+  have hpend : ∀ q ∈ (pre c s (.clientGone o)).1.pending, q ∈ s.pending ∧ q.owner ≠ o := fun q hq => by
+    have := List.mem_filter.1 hq
+    exact ⟨this.1, by simpa using this.2⟩
+  refine ⟨fun l hl => ?_, fun q hq => ?_, fun q hq ho r hr => ?_⟩
+  · rw [step_st ha, hj.leases] at hl
+    rcases List.mem_append.1 hl with hl | hl
+    · have := (List.mem_filter.1 hl).2
+      simpa using this
+    · obtain ⟨x, hx, hl'⟩ := List.mem_filterMap.1 hl
+      cases x with
+      | reply n r' =>
+        cases r' with
+        | granted l' =>
+          cases hl'
+          obtain ⟨_, _, q', hq', _, e, _⟩ := hj.gid n l hx
+          rw [← e]; exact (hpend q' hq').2
+        | _ => cases hl'
+      | _ => cases hl'
+  · rw [step_st ha] at hq
+    have := hj.sub.subset (List.mem_append_left _ hq)
+    exact (hpend q this).2
+  · obtain ⟨_, hr⟩ := step_mem hr
+    rcases hr with hr | hr
+    · cases hr
+    · have hm : q.id ∈ replyIds (pumpAcc c (pre c s (.clientGone o)).1).out := List.mem_filterMap.2 ⟨_, hr, rfl⟩
+      have := hj.perm.subset (List.mem_append_left _ hm)
+      obtain ⟨q', hq', e⟩ := List.mem_map.1 this
+      have h2 := hpend q' hq'
+      have := eq_of_nodup_map (·.id) _ (pending_ids_nodup h.1) q' q h2.1 hq e
+      rw [this] at h2
+      exact h2.2 ho
+
+theorem pre_nested {c : Cfg} {s : State} {o p : Nat} {a : Ask} (hp : a.parent = some p) :
+    (pre c s (.request c.token o a)).1.pending = s.pending ∧
+    ∃ r, (pre c s (.request c.token o a)).2 = [.reply s.next r] := by
+  simp only [pre, request, hp]
+  split
+  · split
+    · exact ⟨rfl, _, rfl⟩
+    · exact ⟨rfl, _, rfl⟩
+  · exact ⟨rfl, _, rfl⟩
+
+/-- nested_no_wait: a nested request is answered in the step that receives it and never queued. -/
+theorem nested_no_wait {c : Cfg} {s : State} {o p : Nat} {a : Ask} (h : Inv c s) (hp : a.parent = some p) :
+    (∃ r, .reply s.next r ∈ (step c s (.request c.token o a)).2)
+    ∧ ∀ q ∈ (step c s (.request c.token o a)).1.pending, q.id ≠ s.next := by
+  have ha : authed c (.request c.token o a) = true := by simp [authed]
+  obtain ⟨hpq, r, hr⟩ := pre_nested (c := c) (s := s) (o := o) hp
+  refine ⟨⟨r, ?_⟩, fun q hq => ?_⟩
+  · rw [step_out ha, hr]; exact List.mem_append_left _ List.mem_cons_self
+  · have hj := pump_pj (wf_pre (.request c.token o a) h.1)
+    rw [step_st ha] at hq
+    have hq' := hj.sub.subset (List.mem_append_left _ hq)
+    rw [hpq] at hq'
+    have := h.1.below q.id (List.mem_append_right _ (List.mem_map_of_mem hq'))
+    exact Nat.ne_of_lt this
+
 end Fw.Sup
