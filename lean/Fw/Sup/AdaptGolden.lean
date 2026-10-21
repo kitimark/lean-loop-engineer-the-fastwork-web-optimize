@@ -71,15 +71,12 @@ def keyJson : Option CacheKey → Json
 def line (name op : String) (req : List (String × Json)) (resp : Json) : String :=
   (Json.mkObj [("name", .str name), ("request", Json.mkObj (("op", .str op) :: req)), ("response", resp)]).compress
 
-/-- Parameter overrides the cases use, as the JSON fields that differ from the defaults. -/
 def tight : Params := { holdS := 0, nMax := 6 }
 
 def tightJson : Json := Json.mkObj [("holdS", toJson tight.holdS), ("nMax", toJson tight.nMax)]
 
 def busySample : Sample := { okSample with loadCenti := 3550 }
 
-/-- The first sample of the lead's overload probe (MEASURED 03:18:44): vm_stat and sysctl in MB, compression from the
-next sample 11 s later. -/
 def busyWindow : Sample :=
   let m : Mem :=
     { freeMB := 217, specMB := 120, purgMB := 87, fileMB := 4986, fileMinMB := 3656, swapUsedMB := 3046,
@@ -216,7 +213,6 @@ def threadsLines : List String :=
     line s!"threads cores={c} roomMB={r}" "adapt.threads" [("cores", toJson c), ("roomMB", toJson r)]
       (Json.mkObj [("threads", toJson (leanThreads {} c r))])
 
-/-- An idle reading on the same Mac (MEASURED 2026-10-22, vm_stat and sysctl in MB). -/
 def idleMem : Mem :=
   { freeMB := 723, specMB := 40, purgMB := 10, fileMB := 6223, fileMinMB := 4545, swapUsedMB := 3466, swapTotalMB := 5120 }
 
@@ -387,7 +383,6 @@ def genPath : System.FilePath := "../packages/contracts/golden/sup/adapt.jsonl"
 set_option compiler.extract_closed false in
 def genText (_ : Unit := ()) : String := String.join ((goldenLines ()).map (· ++ "\n"))
 
-/-- Write `genPath`, or with `--check` throw when the file differs from `genText`. -/
 def gen (args : List String) : IO Unit := do
   if args.contains "--check" then
     let cur ← IO.FS.readFile genPath

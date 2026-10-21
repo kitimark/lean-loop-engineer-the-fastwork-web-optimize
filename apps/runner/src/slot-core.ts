@@ -1,7 +1,3 @@
-// TS STAND-IN for Fw.Sup.Adapt (lean/Fw/Sup/Adapt.lean, proved there): every function mirrors the Lean definition of
-// the same name; test/slot.test.ts replays packages/contracts/golden/sup/adapt.jsonl against them. Replace by fwcore
-// once it serves `sup.adapt`.
-
 export type Kind = "check" | "test" | "land" | "sim" | "other";
 export const KINDS: readonly Kind[] = ["check", "test", "land", "sim", "other"];
 export const kindOf = (s: string): Kind | null => (KINDS as readonly string[]).includes(s) ? (s as Kind) : null;
@@ -14,7 +10,6 @@ export type Params = {
   rateMinS: number; rateMaxS: number;
 };
 
-/** Equal to `Fw.Sup.Adapt.Params` defaults (golden case "default parameters"). */
 export const DEFAULT_PARAMS: Params = {
   nMin: 1, nMax: 4, targetCenti: 800, highCenti: 1600, floorMB: 1024, headroomMB: 2048, cmprsPct: 40, swapRiseMBPerMin: 512,
   holdS: 30, leanProcMB: 700, testMB: 1600, landMB: 1500, simMB: 2800, otherMB: 1000, warmS: 60, ageS: 300, maxWaitS: 1800,
@@ -22,7 +17,6 @@ export const DEFAULT_PARAMS: Params = {
   swapPct: 75, comprMBPerMinMax: 1500, rateMinS: 5, rateMaxS: 600,
 };
 
-/** One memory reading in MB; `press` is the kernel pressure level (1 normal, 2 warning, 4 critical). */
 export type Mem = {
   freeMB: number; specMB: number; purgMB: number; fileMB: number; fileMinMB: number; swapUsedMB: number; swapTotalMB: number;
   press: number; comprMBPerMin: number;
@@ -71,7 +65,6 @@ export function step(p: Params, c: Ctl, s: Sample): Ctl {
 
 export const init = (p: Params): Ctl => ({ n: clamp(p, 2), lastChange: 0, prev: null });
 
-/** A queue ticket or a slot holder; no process id. `leaseS` is the granted lease length (s). */
 export type Entry = { owner: string; token: string; kind: Kind; since: number; till: number; foot: number; leaseS: number };
 
 export const live = (now: number, e: Entry): boolean => now < e.till;

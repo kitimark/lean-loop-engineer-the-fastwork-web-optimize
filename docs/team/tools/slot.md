@@ -1,7 +1,7 @@
 # fw slot: one queue for heavy local work
 
 `pnpm -s fw slot` admits Lean checks, package tests, dry lands and Simulator work one queue at a time. The number of
-jobs it admits rises and falls with the machine's load and memory.
+jobs it admits follows the machine's load and memory.
 - Spec and proofs: `lean/Fw/Sup/Adapt.lean`.
 - TS stand-in: `apps/runner/src/slot-core.ts` (each function mirrors the Lean definition of the same name).
 - Glue: `apps/runner/src/slot.ts`, which holds the probe, the state file, the child process group and the result cache.
@@ -70,7 +70,7 @@ pnpm -s fw slot admit --kind build                       # lead, before spawning
 - **Old lock.** A live `.local/locks/sim` directory (no pid yet, or a live pid) counts as one Simulator holder
   (`withLegacy`): a sim ticket waits `simBusy` (`verdict_legacy_blocks_sim`). `sim-lock.sh acquire` takes its
   directory, asks `fw slot held --kind sim` under the slot's state lock, and gives the directory back while a slot sim
-  holder is live. Either order of the two locks leaves one Simulator user. A failing check refuses the old lock; CI
+  holder is live. A failing check refuses the old lock; CI
   skips the check (no slot there).
 - **Lean workers.** A check gets as many Lean workers as fit the available room, at least 1 and at most the online
   cores; an admitted check's workers fit above the floor and the warming holders (`threads_fit`).
@@ -114,12 +114,12 @@ pnpm -s fw slot admit --kind build                       # lead, before spawning
 
 ## Limits
 
-- Footprints and thresholds come from one MEASURED busy window and are initial values.
+- Footprints and thresholds are initial values from one MEASURED busy window.
 - A holder whose process died keeps its slot until its lease ends.
 - `fw watch` does not alert on `expire` events yet.
 - `scripts/sim-lock.sh` callers outside this task still use the old lock; it and the slot exclude each other.
 - The Simulator check runs only while someone polls or releases a slot; `fw watch` does not run it yet.
 - The idle shutdown covers every booted device, also one booted by hand without a slot or the old lock.
 - `admit --kind build` is run by the lead by hand; `build-review.js` does not call it yet. Its thresholds (8 agents,
-  2100 MB) come from the same busy window.
+  2100 MB) are from the same window.
 - The Simulator's own footprint is not reduced; sim priority only orders the other work around it.

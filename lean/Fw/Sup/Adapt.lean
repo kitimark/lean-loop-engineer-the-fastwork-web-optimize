@@ -2,7 +2,6 @@
 builder admission, the stop rule and the result cache. -/
 namespace Fw.Sup.Adapt
 
-/-- A kind of heavy local work. -/
 inductive Kind where
   | check | test | land | sim | other
 deriving DecidableEq, Repr
@@ -17,8 +16,6 @@ def Kind.ofName? (s : String) : Option Kind := Kind.all.find? (·.name == s)
 #guard Kind.all.all fun k => Kind.ofName? k.name == some k
 #guard Kind.ofName? "lake" == none
 
-/-- Controller, footprint, lease, Simulator and builder-admission parameters (initial values, revised from the sampler
-tables). -/
 structure Params where
   nMin : Nat := 1
   nMax : Nat := 4
@@ -51,9 +48,6 @@ structure Params where
   rateMaxS : Nat := 600
 deriving DecidableEq, Repr
 
-/-- One memory reading in MB: free, speculative and purgeable pages, file-backed pages and the kernel's file-cache
-minimum, swap used and total, the kernel pressure level (1 normal, 2 warning, 4 critical) and the memory compressed per
-minute since the previous reading. -/
 structure Mem where
   freeMB : Nat
   specMB : Nat := 0
@@ -66,17 +60,12 @@ structure Mem where
   comprMBPerMin : Nat := 0
 deriving DecidableEq, Repr
 
-/-- Memory a new job can take before the kernel compresses or swaps another process: free, speculative and purgeable
-pages, and the file cache above the kernel's minimum. Inactive anonymous pages are not counted. -/
 def availMB (m : Mem) : Nat := m.freeMB + m.specMB + m.purgMB + (m.fileMB - m.fileMinMB)
 
-/-- Swap is at least `swapPct` percent full. A machine with no swap file is never full. -/
 def swapFull (p : Params) (m : Mem) : Bool := decide (0 < m.swapTotalMB ∧ p.swapPct * m.swapTotalMB ≤ 100 * m.swapUsedMB)
 
-/-- The kernel compresses at least `comprMBPerMinMax` MB a minute. -/
 def thrash (p : Params) (m : Mem) : Bool := decide (p.comprMBPerMinMax ≤ m.comprMBPerMin)
 
-/-- Memory is short: little available, a pressure level other than normal, swap nearly full, or heavy compression. -/
 def memLow (p : Params) (m : Mem) : Bool :=
   decide (availMB m < p.floorMB) || decide (m.press ≠ 1) || swapFull p m || thrash p m
 
@@ -92,16 +81,12 @@ def memLow (p : Params) (m : Mem) : Bool :=
 #guard memLow {} { freeMB := 9000, comprMBPerMin := 1500 }
 #guard !memLow {} { freeMB := 9000, comprMBPerMin := 1499 }
 
-/-- A compression-counter mark: its time (s), the counter (pages) and the rate it gave (MB a minute). -/
 structure VmMark where
   time : Nat
   count : Nat
   rate : Nat
 deriving DecidableEq, Repr
 
-/-- The next mark from a counter reading of `count` pages of `pageB` bytes at `now`. Within `rateMinS` of the last mark
-the mark and its rate stay; up to `rateMaxS` the rate is the counter's growth per minute since the mark; with no mark, an
-older one or a counter that went back (a reboot), the rate is 0. -/
 def vmNext (p : Params) (prev : Option VmMark) (now count pageB : Nat) : VmMark :=
   match prev with
   | some m =>
@@ -117,8 +102,6 @@ def vmNext (p : Params) (prev : Option VmMark) (now count pageB : Nat) : VmMark 
 #guard vmNext {} (some ⟨100, 10, 7⟩) 701 99999 16384 == ⟨701, 99999, 0⟩
 #guard vmNext {} (some ⟨100, 500, 7⟩) 160 10 16384 == ⟨160, 10, 0⟩
 
-/-- One probe sample: time (s), 1-min load times 100, the memory reading, RAM and compressor-resident memory (MB), online
-cores. -/
 structure Sample where
   time : Nat
   loadCenti : Nat
@@ -130,9 +113,6 @@ deriving DecidableEq, Repr
 
 def Sample.avail (s : Sample) : Nat := availMB s.mem
 
-/-! ## Controller -/
-
-/-- Controller state: admitted concurrency, time of its last change, and the previous (time, swap used) reading. -/
 structure Ctl where
   n : Nat
   lastChange : Nat
@@ -150,7 +130,6 @@ def loadHigh (p : Params) (s : Sample) : Bool := decide (p.highCenti ≤ s.loadC
 
 def cmprsHigh (p : Params) (s : Sample) : Bool := decide (0 < s.ramMB ∧ p.cmprsPct * s.ramMB ≤ 100 * s.compressorMB)
 
-/-- Swap grew by at least `swapRiseMBPerMin` per minute since the previous reading; the swap ratio is not read. -/
 def swapRising (p : Params) (prev : Option (Nat × Nat)) (s : Sample) : Bool :=
   match prev with
   | none => false
@@ -172,13 +151,10 @@ def target (n : Nat) : Signal → Nat
   | .under => n + 1
   | .hold => n
 
-/-- Whether the hysteresis window since the last change has passed. -/
 def windowOpen (p : Params) (c : Ctl) (now : Nat) : Bool := decide (c.lastChange + p.holdS ≤ now)
 
-/-- The clamped AIMD target for a sample. -/
 def nextN (p : Params) (c : Ctl) (s : Sample) : Nat := clamp p (target c.n (signal p c.prev s))
 
-/-- One controller step on a sample: AIMD target, clamped, applied only once the hysteresis window has passed. -/
 def step (p : Params) (c : Ctl) (s : Sample) : Ctl :=
   if windowOpen p c s.time && nextN p c s != c.n then
     { n := nextN p c s, lastChange := s.time, prev := some (s.time, s.mem.swapUsedMB) }
@@ -194,7 +170,6 @@ def okSample : Sample :=
 
 def Sample.withMem (s : Sample) (m : Mem) : Sample := { s with mem := m }
 
-/-- `s` with `mb` free and every other memory reading unchanged. -/
 def Sample.withFree (s : Sample) (mb : Nat) : Sample := s.withMem { s.mem with freeMB := mb }
 
 #guard (step {} { n := 2, lastChange := 0 } okSample).n == 3
@@ -208,7 +183,6 @@ def Sample.withFree (s : Sample) (mb : Nat) : Sample := s.withMem { s.mem with f
 theorem clamp_range (p : Params) (h : p.nMin ≤ p.nMax) (x : Nat) : inRange p (clamp p x) := by
   unfold inRange clamp; omega
 
-/-- **N stays within [nMin, nMax].** -/
 theorem step_range (p : Params) (h : p.nMin ≤ p.nMax) (c : Ctl) (s : Sample) (hc : inRange p c.n) :
     inRange p (step p c s).n := by
   unfold step
@@ -218,7 +192,6 @@ theorem step_range (p : Params) (h : p.nMin ≤ p.nMax) (c : Ctl) (s : Sample) (
 
 theorem init_range (p : Params) (h : p.nMin ≤ p.nMax) : inRange p (init p).n := clamp_range p h 2
 
-/-- A change happens only after the hysteresis window and stamps the sample time. -/
 theorem step_change_spaced (p : Params) (c : Ctl) (s : Sample) (h : (step p c s).n ≠ c.n) :
     c.lastChange + p.holdS ≤ s.time ∧ (step p c s).lastChange = s.time := by
   unfold step at *
@@ -238,14 +211,12 @@ theorem step_same_lastChange (p : Params) (c : Ctl) (s : Sample) (h : (step p c 
   · rename_i hw
     simp [hw]
 
-/-- Inside the hysteresis window N does not move. -/
 theorem step_window_closed (p : Params) (c : Ctl) (s : Sample) (h : s.time < c.lastChange + p.holdS) :
     (step p c s).n = c.n := by
   unfold step
   have : windowOpen p c s.time = false := by simp [windowOpen]; omega
   simp [this]
 
-/-- Once the window has passed, N is the clamped AIMD target. -/
 theorem step_window_open (p : Params) (c : Ctl) (s : Sample) (h : c.lastChange + p.holdS ≤ s.time) :
     (step p c s).n = clamp p (target c.n (signal p c.prev s)) := by
   unfold step
@@ -271,30 +242,25 @@ theorem overload_of_cmprs (p : Params) (prev : Option (Nat × Nat)) (s : Sample)
 theorem overload_of_swap (p : Params) (prev : Option (Nat × Nat)) (s : Sample) (h : swapRising p prev s = true) :
     signal p prev s = .overload := signal_overload p prev s (by simp [overloaded, h])
 
-/-- An increase needs a sample that is not overloaded, below the load target and with headroom above the floor. -/
 theorem signal_under_iff (p : Params) (prev : Option (Nat × Nat)) (s : Sample) :
     signal p prev s = .under ↔ overloaded p prev s = false ∧ roomy p s = true := by
   unfold signal
   cases ho : overloaded p prev s <;> cases hr : roomy p s <;> simp
 
-/-- Multiplicative decrease: an overloaded sample after the window halves N (clamped). -/
 theorem step_overload (p : Params) (c : Ctl) (s : Sample) (hw : c.lastChange + p.holdS ≤ s.time)
     (h : overloaded p c.prev s = true) : (step p c s).n = clamp p (c.n / 2) := by
   rw [step_window_open p c s hw, signal_overload p c.prev s h]; rfl
 
-/-- Additive increase: a roomy sample with no overload after the window adds one (clamped). -/
 theorem step_under (p : Params) (c : Ctl) (s : Sample) (hw : c.lastChange + p.holdS ≤ s.time)
     (h : overloaded p c.prev s = false) (hr : roomy p s = true) : (step p c s).n = clamp p (c.n + 1) := by
   rw [step_window_open p c s hw, (signal_under_iff p c.prev s).2 ⟨h, hr⟩]; rfl
 
-/-- An overloaded sample never raises N. -/
 theorem step_no_rise_on_overload (p : Params) (c : Ctl) (s : Sample) (hc : inRange p c.n)
     (h : overloaded p c.prev s = true) : (step p c s).n ≤ c.n := by
   by_cases hw : c.lastChange + p.holdS ≤ s.time
   · rw [step_overload p c s hw h]; unfold clamp; unfold inRange at hc; omega
   · rw [step_window_closed p c s (by omega)]; exact Nat.le_refl _
 
-/-- A swap reading that did not grow never trips, whatever the swap ratio (the dynamic-swap recalibration). -/
 theorem swap_static_never_trips (p : Params) (t mb : Nat) (s : Sample) (hp : 0 < p.swapRiseMBPerMin)
     (h : s.mem.swapUsedMB ≤ mb) : swapRising p (some (t, mb)) s = false := by
   simp only [swapRising, decide_eq_false_iff_not, not_and, Nat.not_le]
@@ -302,20 +268,16 @@ theorem swap_static_never_trips (p : Params) (t mb : Nat) (s : Sample) (hp : 0 <
   have : s.mem.swapUsedMB - mb = 0 := by omega
   rw [this]; exact Nat.mul_pos hp (by omega)
 
-/-- Times at which N changed along a run of samples. -/
 def changeTimes (p : Params) : Ctl → List Sample → List Nat
   | _, [] => []
   | c, s :: ss =>
     let c' := step p c s
     if c'.n = c.n then changeTimes p c' ss else s.time :: changeTimes p c' ss
 
-/-- Consecutive values at least `h` apart, starting from `a`. -/
 def spaced (h : Nat) : Nat → List Nat → Prop
   | _, [] => True
   | a, b :: t => a + h ≤ b ∧ spaced h b t
 
-/-- **No oscillation faster than the hysteresis window**: along any run, every change is at least `holdS` seconds after
-the previous one (the first after the initial `lastChange`). -/
 theorem changes_spaced (p : Params) (c : Ctl) (ss : List Sample) :
     spaced p.holdS c.lastChange (changeTimes p c ss) := by
   induction ss generalizing c with
@@ -333,10 +295,6 @@ theorem changes_spaced (p : Params) (c : Ctl) (ss : List Sample) :
       have hi := ih (step p c s)
       rwa [h2] at hi
 
-/-! ## Holders and leases -/
-
-/-- A queue ticket or a slot holder: the owning agent, a lease token, kind, time it entered (s), lease expiry (s), the
-memory charged (MB) and the granted lease length (s). No process id. -/
 structure Entry where
   owner : String
   token : String
@@ -349,34 +307,27 @@ deriving DecidableEq, Repr
 
 def live (now : Nat) (e : Entry) : Bool := decide (now < e.till)
 
-/-- Drop entries whose lease expired. -/
 def prune (now : Nat) (es : List Entry) : List Entry := es.filter (live now)
 
-/-- The entries `prune` drops; the slot logs one `expire` event for each. -/
 def expired (now : Nat) (es : List Entry) : List Entry := es.filter (fun e => !live now e)
 
 def same (owner token : String) (e : Entry) : Bool := e.owner == owner && e.token == token
 
-/-- The lease end granted for a requested lease at `now`. -/
 def grantUntil (p : Params) (now lease : Nat) : Nat := now + min lease p.leaseMaxS
 
-/-- The holder an admitted ticket becomes: lease `lease` capped at `leaseMaxS`, stored as its length. -/
 def grant (p : Params) (me : Entry) (now lease foot : Nat) : Entry :=
   { me with since := now, till := grantUntil p now lease, foot := foot, leaseS := min lease p.leaseMaxS }
 
-/-- The lease length a renew sets: the requested one capped at `leaseMaxS`, else the entry's own. -/
 def lenOf (p : Params) (lease : Option Nat) (e : Entry) : Nat :=
   match lease with
   | some l => min l p.leaseMaxS
   | none => e.leaseS
 
-/-- Renew the live entry of (owner, token) for `lenOf`; `none` when it has none (expired or never held). -/
 def renew (p : Params) (now : Nat) (owner token : String) (lease : Option Nat) (es : List Entry) : Option (List Entry) :=
   if es.any (fun e => same owner token e && live now e) then
     some (es.map fun e => if same owner token e then { e with till := now + lenOf p lease e, leaseS := lenOf p lease e } else e)
   else none
 
-/-- The lease length of a state entry written before `leaseS` was stored: its whole span. -/
 def leaseOr (stored : Option Nat) (since till : Nat) : Nat := stored.getD (till - since)
 
 def release (owner token : String) (es : List Entry) : List Entry := es.filter (fun e => !same owner token e)
@@ -398,35 +349,28 @@ def holdA : Entry := { owner := "a", token := "t1", kind := .sim, since := 0, ti
 #guard release "a" "t1" [holdA] == []
 #guard release "b" "t1" [holdA] == [holdA]
 
-/-- **A live holder with an unexpired lease is never recovered as stale.** -/
 theorem live_never_recovered (now : Nat) (es : List Entry) (e : Entry) (he : e ∈ es) (hl : now < e.till) :
     e ∈ prune now es := by
   simp [prune, live, he, hl]
 
-/-- Only an expired lease is recovered. -/
 theorem recovered_expired (now : Nat) (es : List Entry) (e : Entry) (he : e ∈ es) (hr : e ∉ prune now es) :
     e.till ≤ now := by
   simp [prune, live, he] at hr; exact hr
 
-/-- Liveness reads only the lease end and the clock. -/
 theorem live_iff (now : Nat) (e : Entry) : live now e = true ↔ now < e.till := by simp [live]
 
-/-- **Each pruned entry yields exactly one `expire` event**: an expired entry occurs in `expired` as often as in the
-list. -/
 theorem expire_emits (now : Nat) (es : List Entry) (e : Entry) (h : live now e = false) :
     (expired now es).count e = es.count e := by
   unfold expired
   rw [List.count_filter]
   simp [h]
 
-/-- A live entry yields no `expire` event. -/
 theorem expire_live_silent (now : Nat) (es : List Entry) (e : Entry) (h : live now e = true) :
     (expired now es).count e = 0 := by
   unfold expired
   rw [List.count_eq_zero]
   simp [h]
 
-/-- Every entry is either kept by `prune` or logged by `expired`, never both. -/
 theorem prune_expired_split (now : Nat) (es : List Entry) :
     (prune now es).length + (expired now es).length = es.length := by
   unfold prune expired
@@ -444,8 +388,6 @@ theorem renew_other (p : Params) (now : Nat) (o t : String) (lease : Option Nat)
   · cases h; exact List.mem_map.2 ⟨e, he, by simp [hs]⟩
   · cases h
 
-/-- **Renew without a length keeps the granted one**: the renewed entry runs `leaseS` from now, and no entry's
-`leaseS` changes. -/
 theorem renew_keeps_len (p : Params) (now : Nat) (o t : String) (es es' : List Entry)
     (h : renew p now o t none es = some es') :
     es'.map (·.leaseS) = es.map (·.leaseS) ∧
@@ -460,7 +402,6 @@ theorem renew_keeps_len (p : Params) (now : Nat) (o t : String) (es es' : List E
     by_cases hs : same o t e = true <;> simp [hs, lenOf]
   · cases h
 
-/-- Renew with a length sets it: the renewed entry runs the requested length, capped at `leaseMaxS`, from now. -/
 theorem renew_sets_len (p : Params) (now : Nat) (o t : String) (l : Nat) (es es' : List Entry)
     (h : renew p now o t (some l) es = some es') :
     ∀ e ∈ es, same o t e = true → { e with till := grantUntil p now l, leaseS := min l p.leaseMaxS } ∈ es' := by
@@ -470,7 +411,6 @@ theorem renew_sets_len (p : Params) (now : Nat) (o t : String) (l : Nat) (es es'
     exact fun e he hs => List.mem_map.2 ⟨e, he, by simp [hs, lenOf, grantUntil]⟩
   · cases h
 
-/-- A holder granted `lease` and renewed without a length runs the same length again. -/
 theorem grant_renew_keeps (p : Params) (me : Entry) (t0 now lease foot : Nat) (es es' : List Entry)
     (h : renew p now me.owner me.token none (es ++ [grant p me t0 lease foot]) = some es') :
     { grant p me t0 lease foot with till := now + min lease p.leaseMaxS } ∈ es' :=
@@ -492,11 +432,9 @@ theorem renew_live (p : Params) (now : Nat) (o t : String) (lease : Option Nat) 
 
 theorem leaseOr_stored (l since till : Nat) : leaseOr (some l) since till = l := rfl
 
-/-- An entry stored before `leaseS` existed gets back the span it was granted, so its renew keeps its end distance. -/
 theorem leaseOr_legacy (since till : Nat) (h : since ≤ till) : since + leaseOr none since till = till := by
   simp [leaseOr]; omega
 
-/-- An expired or foreign lease cannot be renewed: the asker learns it lost the slot. -/
 theorem renew_none (p : Params) (now : Nat) (o t : String) (lease : Option Nat) (es : List Entry)
     (h : ∀ e ∈ es, same o t e = true → live now e = false) : renew p now o t lease es = none := by
   unfold renew
@@ -513,12 +451,8 @@ theorem release_removes (o t : String) (es : List Entry) (e : Entry) (hs : same 
     e ∉ release o t es := by
   simp [release, hs]
 
-/-! ## Admission -/
-
-/-- Lean worker processes for a `check` job: as many as fit `roomMB` at `leanProcMB` each, at least 1, at most the cores. -/
 def leanThreads (p : Params) (cores roomMB : Nat) : Nat := max 1 (min cores (roomMB / p.leanProcMB))
 
-/-- The memory a job of kind `k` is charged with `threads` Lean workers. -/
 def foot (p : Params) (threads : Nat) : Kind → Nat
   | .check => threads * p.leanProcMB
   | .test => p.testMB
@@ -526,7 +460,6 @@ def foot (p : Params) (threads : Nat) : Kind → Nat
   | .sim => p.simMB
   | .other => p.otherMB
 
-/-- Memory of holders admitted within the last `warmS` seconds, not yet visible in the available-memory reading. -/
 def charged (p : Params) (now : Nat) (hs : List Entry) : Nat :=
   ((prune now hs).filter (fun h => decide (now < h.since + p.warmS))).foldr (fun h a => h.foot + a) 0
 
@@ -556,32 +489,23 @@ deriving DecidableEq, Repr
 def waitOr (p : Params) (waited : Nat) (w : Why) : Verdict :=
   if p.maxWaitS ≤ waited then .timeout w else .wait w
 
-/-- Tickets ahead of `me` in the FIFO queue. -/
 def before (q : List Entry) (me : Entry) : List Entry := q.takeWhile (fun e => e.token != me.token)
 
 def aheadSame (q : List Entry) (me : Entry) : Nat := ((before q me).filter (fun e => e.kind == me.kind)).length
 
 def simHeld (now : Nat) (hs : List Entry) : Bool := (prune now hs).any (fun h => h.kind == .sim)
 
-/-- Whether a live holder of kind `k` exists. -/
 def heldOf (now : Nat) (hs : List Entry) (k : Kind) : Bool := (prune now hs).any (fun h => h.kind == k)
 
 theorem heldOf_sim (now : Nat) (hs : List Entry) : heldOf now hs .sim = simHeld now hs := rfl
 
-/-- Live holders of a kind other than `sim`. -/
 def others (now : Nat) (hs : List Entry) : Nat := ((prune now hs).filter (fun h => h.kind != .sim)).length
 
-/-- A Simulator ticket is queued while no Simulator slot is held. -/
 def simPending (now : Nat) (hs q : List Entry) : Bool := q.any (fun e => e.kind == .sim) && !simHeld now hs
 
-/-- A ticket of another kind ahead of `me` has waited `ageS` seconds and can itself run (not a Simulator ticket while
-the Simulator is held): kinds then share one FIFO order. -/
 def starved (p : Params) (now : Nat) (hs q : List Entry) (me : Entry) : Bool :=
   (before q me).any (fun e => e.kind != me.kind && decide (e.since + p.ageS ≤ now) && !(e.kind == .sim && simHeld now hs))
 
-/-- A ticket of another kind steps aside for the Simulator. While a Simulator slot is held, it waits for every other
-holder to finish. While a Simulator ticket is pending, it also waits unless one slot and the Simulator footprint above
-the floor stay free after it starts. -/
 def yieldsToSim (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) : Bool :=
   me.kind != .sim &&
     ((simHeld s.time hs && decide (0 < others s.time hs)) ||
@@ -589,9 +513,6 @@ def yieldsToSim (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : En
         (decide (0 < others s.time hs) || decide (n < (prune s.time hs).length + 2) ||
           decide (s.avail < need p s hs me.kind + p.floorMB + charged p s.time hs + p.simMB))))
 
-/-- The decision for ticket `me` in queue `q` (FIFO order) under concurrency `n`, holders `hs` and sample `s`. A
-Simulator ticket never waits as `older`, and waits while more than one holder of another kind runs. Any ticket waits as
-`memLow` while memory is short, and as `memory` while its footprint does not fit available memory above the floor. -/
 def verdict (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (waited : Nat) : Verdict :=
   let running := (prune s.time hs).length
   if 0 < aheadSame q me then waitOr p waited (.queued (aheadSame q me))
@@ -661,8 +582,6 @@ theorem verdict_admit (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (m
   cases h
   exact ⟨by omega, by simpa using h2, by omega, by simpa using h4, by simpa using h5, by omega, by simpa using h7, rfl, rfl⟩
 
-/-- **Never admits a job whose footprint exceeds available memory minus the floor** (and the memory of warming
-holders). -/
 theorem admit_fits (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w t f : Nat)
     (h : verdict p n s hs q me w = .admit t f) : f + p.floorMB + charged p s.time hs ≤ s.avail := by
   have := verdict_admit p n s hs q me w t f h
@@ -691,8 +610,6 @@ theorem verdict_admit_memLow (p : Params) (n : Nat) (s : Sample) (hs q : List En
   rename_i _ _ _ _ _ hm _ _
   simpa using hm
 
-/-- **Never admits under memory stress**: an admitted job saw the normal pressure level, swap below `swapPct`, compression
-below `comprMBPerMinMax` and at least the floor available. -/
 theorem admit_calm (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w t f : Nat)
     (h : verdict p n s hs q me w = .admit t f) :
     s.mem.press = 1 ∧ swapFull p s.mem = false ∧ thrash p s.mem = false ∧ p.floorMB ≤ s.avail := by
@@ -700,23 +617,19 @@ theorem admit_calm (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me :
   simp only [memLow, Bool.or_eq_false_iff, decide_eq_false_iff_not, Nat.not_lt, Decidable.not_not] at hm
   exact ⟨hm.1.1.2, hm.1.2, hm.2, hm.1.1.1⟩
 
-/-- An admit keeps the live holders below N. -/
 theorem verdict_admit_under_n (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w t f : Nat)
     (h : verdict p n s hs q me w = .admit t f) : (prune s.time hs).length < n :=
   (verdict_admit p n s hs q me w t f h).2.2.1
 
-/-- FIFO per kind: only a ticket with no same-kind ticket ahead is admitted. -/
 theorem verdict_admit_head (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w t f : Nat)
     (h : verdict p n s hs q me w = .admit t f) : aheadSame q me = 0 :=
   (verdict_admit p n s hs q me w t f h).1
 
-/-- At most one live Simulator holder. -/
 theorem verdict_admit_sim_exclusive (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w t f : Nat)
     (h : verdict p n s hs q me w = .admit t f) (hk : me.kind = .sim) : simHeld s.time hs = false := by
   have := (verdict_admit p n s hs q me w t f h).2.2.2.1
   simpa [hk] using this
 
-/-- A Simulator ticket is admitted only while at most one holder of another kind runs. -/
 theorem verdict_admit_sim_drained (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w t f : Nat)
     (h : verdict p n s hs q me w = .admit t f) (hk : me.kind = .sim) : others s.time hs ≤ 1 := by
   have := (verdict_admit p n s hs q me w t f h).2.2.2.2.1
@@ -738,14 +651,11 @@ theorem yieldsToSim_false (p : Params) (n : Nat) (s : Sample) (hs q : List Entry
     · simp [hp] at h2
     · omega
 
-/-- While a Simulator slot is held, a job of another kind is admitted only when no other such job runs. -/
 theorem verdict_admit_beside_sim (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w t f : Nat)
     (h : verdict p n s hs q me w = .admit t f) (hk : me.kind ≠ .sim) (hh : simHeld s.time hs = true) :
     others s.time hs = 0 :=
   (yieldsToSim_false p n s hs q me hk (verdict_admit p n s hs q me w t f h).2.2.2.2.2.2.1).1 hh
 
-/-- **A pending Simulator ticket reserves its slot and footprint**: a job of another kind admitted meanwhile runs alone,
-leaves one slot free and leaves the Simulator footprint above the floor. -/
 theorem verdict_admit_reserves_sim (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w t f : Nat)
     (h : verdict p n s hs q me w = .admit t f) (hk : me.kind ≠ .sim) (hp : simPending s.time hs q = true) :
     others s.time hs = 0 ∧ (prune s.time hs).length + 2 ≤ n ∧ f + p.simMB + p.floorMB + charged p s.time hs ≤ s.avail := by
@@ -754,7 +664,6 @@ theorem verdict_admit_reserves_sim (p : Params) (n : Nat) (s : Sample) (hs q : L
   rw [ha.2.2.2.2.2.2.2.2]
   exact ⟨this.1, this.2.1, by omega⟩
 
-/-- Progress: the head of its kind passing every check is admitted. -/
 theorem verdict_head_admitted (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w : Nat)
     (h1 : aheadSame q me = 0) (h2 : (me.kind != .sim && starved p s.time hs q me) = false)
     (h3 : (prune s.time hs).length < n) (h4 : (me.kind == .sim && simHeld s.time hs) = false)
@@ -771,7 +680,6 @@ theorem starved_iff (p : Params) (now : Nat) (hs q : List Entry) (me : Entry) :
       (e.kind = .sim → simHeld now hs = false) := by
   simp [starved, Decidable.imp_iff_not_or, and_assoc]
 
-/-- A Simulator ticket ahead of `me` while the Simulator is held never makes `me` starved. -/
 theorem starved_skips_blocked_sim (p : Params) (now : Nat) (hs q : List Entry) (me e : Entry) (hk : e.kind = .sim)
     (hb : simHeld now hs = true) (h : starved p now hs q me = true) :
     ∃ e' ∈ before q me, e' ≠ e ∧ e'.kind ≠ me.kind ∧ e'.since + p.ageS ≤ now := by
@@ -784,7 +692,6 @@ theorem waitOr_ne_older (p : Params) (w : Nat) (y : Why) (hy : y ≠ .older) :
     waitOr p w y ≠ .wait .older ∧ waitOr p w y ≠ .timeout .older := by
   unfold waitOr; split <;> simp [hy]
 
-/-- The verdict is `older` (wait or timeout) only when the ticket is not a Simulator ticket and is starved. -/
 theorem verdict_older (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w : Nat)
     (h : verdict p n s hs q me w = .wait .older ∨ verdict p n s hs q me w = .timeout .older) :
     me.kind ≠ .sim ∧ starved p s.time hs q me = true := by
@@ -808,13 +715,10 @@ theorem verdict_older (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (m
   · have := waitOr_ne_older p w .simFirst (by simp); rcases h with h | h <;> simp_all
   · rcases h with h | h <;> cases h
 
-/-- **Simulator first**: a Simulator ticket never waits or times out as `older`. -/
 theorem verdict_sim_never_older (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w : Nat)
     (hk : me.kind = .sim) : verdict p n s hs q me w ≠ .wait .older ∧ verdict p n s hs q me w ≠ .timeout .older :=
   ⟨fun h => (verdict_older p n s hs q me w (.inl h)).1 hk, fun h => (verdict_older p n s hs q me w (.inr h)).1 hk⟩
 
-/-- **No cross-kind stall**: while the Simulator is held, a ticket whose other-kind tickets ahead are all Simulator
-tickets never waits or times out as `older`. -/
 theorem verdict_not_older_of_sim_blocked (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w : Nat)
     (hb : simHeld s.time hs = true) (hq : ∀ e ∈ before q me, e.kind ≠ me.kind → e.kind = .sim) :
     verdict p n s hs q me w ≠ .wait .older ∧ verdict p n s hs q me w ≠ .timeout .older := by
@@ -838,7 +742,6 @@ theorem before_append_of_ne (pre post : List Entry) (a me : Entry) (hpre : ∀ e
     simp only [before, List.cons_append, List.takeWhile, hb]
     exact List.mem_cons_of_mem _ this
 
-/-- **No overtaking within a kind**: a ticket behind a same-kind ticket is not admitted. -/
 theorem verdict_no_overtake (p : Params) (n : Nat) (s : Sample) (hs : List Entry) (pre post : List Entry)
     (a me : Entry) (w t f : Nat) (hk : a.kind = me.kind) (hpre : ∀ e ∈ pre, e.token ≠ me.token)
     (ha : a.token ≠ me.token) : verdict p n s hs (pre ++ a :: post) me w ≠ .admit t f := by
@@ -855,7 +758,6 @@ theorem leanThreads_pos (p : Params) (c r : Nat) : 1 ≤ leanThreads p c r := by
 theorem leanThreads_le_cores (p : Params) (c r : Nat) (hc : 1 ≤ c) : leanThreads p c r ≤ c := by
   unfold leanThreads; omega
 
-/-- **Lean workers sized from available memory**: when one worker fits the room, all of them fit it. -/
 theorem leanThreads_fit (p : Params) (c r : Nat) (hr : p.leanProcMB ≤ r) :
     leanThreads p c r * p.leanProcMB ≤ r := by
   unfold leanThreads
@@ -866,7 +768,6 @@ theorem leanThreads_fit (p : Params) (c r : Nat) (hr : p.leanProcMB ≤ r) :
   calc max 1 (min c (r / p.leanProcMB)) * p.leanProcMB ≤ r / p.leanProcMB * p.leanProcMB := Nat.mul_le_mul_right _ hm
     _ ≤ r := Nat.div_mul_le_self r p.leanProcMB
 
-/-- **An admitted check's Lean workers fit available memory** above the floor and the warming holders. -/
 theorem threads_fit (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w t f : Nat)
     (h : verdict p n s hs q me w = .admit t f) (hk : me.kind = .check) :
     t * p.leanProcMB ≤ s.avail - p.floorMB - charged p s.time hs := by
@@ -875,10 +776,6 @@ theorem threads_fit (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me 
   have hf : f = t * p.leanProcMB := by rw [ha.2.2.2.2.2.2.2.2, ha.2.2.2.2.2.2.2.1, hk]; rfl
   omega
 
-/-! ## Monotonicity in memory -/
-
-/-- `m'` is no better for admission than `m`: no more available memory, a pressure level no lower (from normal up), no
-less swap used of the same total, and no less compression. -/
 def Worse (m m' : Mem) : Prop :=
   availMB m' ≤ availMB m ∧ 1 ≤ m.press ∧ m.press ≤ m'.press ∧ m.swapUsedMB ≤ m'.swapUsedMB ∧
     m'.swapTotalMB = m.swapTotalMB ∧ m.comprMBPerMin ≤ m'.comprMBPerMin
@@ -894,8 +791,6 @@ theorem memLow_antitone (p : Params) (m m' : Mem) (hw : Worse m m') (h : memLow 
   have : 100 * m.swapUsedMB ≤ 100 * m'.swapUsedMB := Nat.mul_le_mul_left 100 hsw
   omega
 
-/-- Workers chosen for room `r'` that fit with `e` to spare still fit with room `r ≥ r'`, when `e` is 0 or at least one
-worker. -/
 theorem threads_fit_mono (L c r r' e : Nat) (he : e = 0 ∨ L ≤ e) (hr : r' ≤ r)
     (h : max 1 (min c (r' / L)) * L + e ≤ r') : max 1 (min c (r / L)) * L + e ≤ r := by
   rcases Nat.eq_zero_or_pos L with hL | hL
@@ -955,8 +850,6 @@ theorem yieldsToSim_antitone (p : Params) (n : Nat) (s s' : Sample) (hs q : List
   · exact .inl h2
   · exact .inr ⟨h2.1, hn h2.2⟩
 
-/-- **Less memory never turns a wait into an admit**: when a ticket is admitted on a sample, it is admitted on the same
-sample with a memory reading no worse. -/
 theorem verdict_antitone (p : Params) (hp : p.leanProcMB ≤ p.simMB) (n : Nat) (s : Sample) (m' : Mem)
     (hs q : List Entry) (me : Entry) (w t f : Nat) (hw : Worse s.mem m')
     (h : verdict p n { s with mem := m' } hs q me w = .admit t f) :
@@ -974,9 +867,6 @@ theorem verdict_antitone (p : Params) (hp : p.leanProcMB ≤ p.simMB) (n : Nat) 
     omega
   · exact yieldsToSim_antitone p n s { s with mem := m' } hs q me hp rfl rfl hav ha.2.2.2.2.2.2.1
 
-/-! ## Simulator priority over the admitted state -/
-
-/-- The holder an admitted ticket becomes: admitted at `now`, leased until `till`, charged `f`. -/
 def holderOf (me : Entry) (now till f : Nat) : Entry := { me with since := now, till := till, foot := f }
 
 theorem prune_append_live (now : Nat) (hs : List Entry) (x : Entry) (hx : now < x.till) :
@@ -1009,10 +899,8 @@ theorem charged_append_le (p : Params) (now : Nat) (hs : List Entry) (x : Entry)
     by_cases h1 : live now x = true <;> by_cases h2 : now < x.since + p.warmS <;> simp [h1, h2]
   omega
 
-/-- Held Simulator implies at most one live holder of another kind. -/
 def simInv (now : Nat) (hs : List Entry) : Prop := simHeld now hs = true → others now hs ≤ 1
 
-/-- **Held Simulator, at most one other holder**: every admission leaves the holders satisfying `simInv`. -/
 theorem admit_keeps_simInv (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w t f till : Nat)
     (h : verdict p n s hs q me w = .admit t f) (ht : s.time < till) :
     simInv s.time (hs ++ [holderOf me s.time till f]) := by
@@ -1030,8 +918,6 @@ theorem admit_keeps_simInv (p : Params) (n : Nat) (s : Sample) (hs q : List Entr
     have := verdict_admit_beside_sim p n s hs q me w t f h hk hs'
     omega
 
-/-- **A waiting Simulator ticket is never starved by tickets of other kinds**: after any such ticket is admitted while a
-Simulator ticket is pending, the head Simulator ticket is admitted on the same sample. -/
 theorem sim_not_starved (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w t f till : Nat)
     (h : verdict p n s hs q me w = .admit t f) (hk : me.kind ≠ .sim) (hp : simPending s.time hs q = true)
     (ht : s.time < till) (q' : List Entry) (e : Entry) (he : e.kind = .sim) (h1 : aheadSame q' e = 0) (w' : Nat) :
@@ -1055,13 +941,9 @@ theorem sim_not_starved (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) 
   · rw [he, hneed]; omega
   · simp [yieldsToSim, he]
 
-/-! ## The old Simulator lock -/
-
-/-- The old `scripts/sim-lock.sh` lock, read as a live Simulator holder. -/
 def legacyEntry (now : Nat) : Entry :=
   { owner := "sim-lock", token := "sim-lock", kind := .sim, since := 0, till := now + 1 }
 
-/-- The holders the verdict sees: the slot's own, plus the old lock while it is held. -/
 def withLegacy (now : Nat) (legacy : Bool) (hs : List Entry) : List Entry :=
   if legacy then hs ++ [legacyEntry now] else hs
 
@@ -1077,22 +959,17 @@ theorem others_withLegacy (now : Nat) (l : Bool) (hs : List Entry) : others now 
     rw [others_append now hs (legacyEntry now) (by simp [legacyEntry])]
     simp [legacyEntry]
 
-/-- **One gate for the old lock**: while it is held, no Simulator slot is admitted. -/
 theorem verdict_legacy_blocks_sim (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w t f : Nat)
     (hk : me.kind = .sim) : verdict p n s (withLegacy s.time true hs) q me w ≠ .admit t f := by
   intro h
   have := verdict_admit_sim_exclusive p n s _ q me w t f h hk
   rw [simHeld_withLegacy] at this; cases this
 
-/-- While the old lock is held, a job of another kind is admitted only when no other such job runs. -/
 theorem verdict_legacy_one_other (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w t f : Nat)
     (hk : me.kind ≠ .sim) (h : verdict p n s (withLegacy s.time true hs) q me w = .admit t f) : others s.time hs = 0 := by
   rw [← others_withLegacy s.time true hs]
   exact verdict_admit_beside_sim p n s _ q me w t f h hk (simHeld_withLegacy s.time hs)
 
-/-! ## Simulator kind -/
-
-/-- Booting the Simulator is allowed only to the owner of a live Simulator slot. -/
 def simBoot (now : Nat) (owner token : String) (hs : List Entry) : Bool :=
   hs.any (fun h => h.kind == .sim && same owner token h && live now h)
 
@@ -1103,13 +980,9 @@ deriving DecidableEq, Repr
 def SimAct.name : SimAct → String
   | .none => "none" | .keep => "keep" | .shutdown => "shutdown"
 
-/-- The idle clock of the Simulator: it starts at the first sighting of a booted device with neither a live Simulator slot
-nor the old lock, keeps that start while the device stays so, and clears otherwise. -/
 def simIdleNext (now : Nat) (held booted : Bool) (prev : Option Nat) : Option Nat :=
   if booted && !held then some (prev.getD now) else none
 
-/-- What to do with the booted Simulator devices (any device, not only ours): keep them while a live slot or the old sim
-lock holds the Simulator, shut them down once the idle clock has run `simIdleS` seconds. -/
 def simAction (p : Params) (now : Nat) (hs : List Entry) (booted legacyHeld : Bool) (idleSince : Option Nat) : SimAct :=
   if !booted then .none
   else if legacyHeld || simHeld now hs then .keep
@@ -1117,7 +990,6 @@ def simAction (p : Params) (now : Nat) (hs : List Entry) (booted legacyHeld : Bo
     | none => .keep
     | some i => if i + p.simIdleS ≤ now then .shutdown else .keep
 
-/-- Whether the slot looks at the Simulator devices again: `simPollS` seconds after its last look. -/
 def simDue (p : Params) (now last : Nat) : Bool := decide (last + p.simPollS ≤ now)
 
 #guard simBoot 50 "a" "t1" [holdA]
@@ -1139,7 +1011,6 @@ theorem simBoot_iff (now : Nat) (o t : String) (hs : List Entry) :
     simBoot now o t hs = true ↔ ∃ h ∈ hs, h.kind = .sim ∧ same o t h = true ∧ now < h.till := by
   simp [simBoot, live, and_assoc]
 
-/-- A live Simulator slot keeps the Simulator up. -/
 theorem sim_keep_under_holder (p : Params) (now : Nat) (hs : List Entry) (l : Bool) (i : Option Nat)
     (h : simHeld now hs = true) : simAction p now hs true l i = .keep := by
   simp [simAction, h]
@@ -1148,7 +1019,6 @@ theorem sim_keep_under_legacy (p : Params) (now : Nat) (hs : List Entry) (i : Op
     simAction p now hs true true i = .keep := by
   simp [simAction]
 
-/-- **Shut down after the idle limit**: booted, no live slot, no old lock, idle `simIdleS` seconds. -/
 theorem sim_shutdown_idle (p : Params) (now : Nat) (hs : List Entry) (i : Nat) (h : simHeld now hs = false)
     (hi : i + p.simIdleS ≤ now) : simAction p now hs true false (some i) = .shutdown := by
   simp [simAction, h, hi]
@@ -1158,7 +1028,6 @@ theorem sim_keep_within_idle (p : Params) (now : Nat) (hs : List Entry) (l : Boo
   have : ¬ i + p.simIdleS ≤ now := by omega
   cases l <;> cases simHeld now hs <;> simp [simAction, this]
 
-/-- With no idle clock running, the Simulator is kept. -/
 theorem sim_keep_no_clock (p : Params) (now : Nat) (hs : List Entry) (l : Bool) :
     simAction p now hs true l none = .keep := by
   cases l <;> cases simHeld now hs <;> simp [simAction]
@@ -1186,13 +1055,10 @@ theorem simIdleNext_cleared (now : Nat) (b : Bool) (prev : Option Nat) : simIdle
 theorem simIdleNext_kept (now i : Nat) : simIdleNext now false true (some i) = some i := by
   simp [simIdleNext]
 
-/-- **No shutdown at the first sighting**: a device first seen booted and unheld is kept, so it gets the whole idle window. -/
 theorem sim_first_sighting_keeps (p : Params) (now : Nat) (hs : List Entry) (h : 0 < p.simIdleS) :
     simAction p now hs true false (simIdleNext now false true none) = .keep := by
   simp only [simIdleNext, Bool.not_false, Bool.and_self, ite_true, Option.getD_none]
   exact sim_keep_within_idle p now hs false now (by omega)
-
-/-! ## Admitting a new builder (lead side) -/
 
 inductive BuildWhy where
   | simWaits
@@ -1206,17 +1072,12 @@ inductive BuildVerdict where
   | wait (why : BuildWhy)
 deriving DecidableEq, Repr
 
-/-- A Simulator ticket is queued (with a live ticket lease). -/
 def simQueued (now : Nat) (q : List Entry) : Bool := (prune now q).any (fun e => e.kind == .sim)
 
-/-- The live-agent count of the last health reading `(time, count)`, `none` when there is none or it is older than
-`agentsAgeS` seconds. -/
 def agentsSeen (p : Params) (now : Nat) : Option (Nat × Nat) → Option Nat
   | none => none
   | some (t0, n) => if now ≤ t0 + p.agentsAgeS then some n else none
 
-/-- Whether the lead may start one more builder or reviewer: no Simulator ticket waits, the live-agent count is known
-and below `agentsMax`, and available memory (`availMB`) covers the floor plus `buildMB`. -/
 def admitBuild (p : Params) (simWaits : Bool) (availMB : Nat) (agents : Option Nat) : BuildVerdict :=
   if simWaits then .wait .simWaits
   else match agents with
@@ -1252,8 +1113,6 @@ theorem admitBuild_memory (p : Params) (m a : Nat) (ha : a < p.agentsMax) (h : m
   have : ¬ p.agentsMax ≤ a := by omega
   simp [admitBuild, this, h]
 
-/-- **Builder admission**: admitted exactly when no Simulator ticket waits, the live-agent count is known and below
-`agentsMax`, and available memory covers the floor plus `buildMB`. -/
 theorem admitBuild_iff (p : Params) (sw : Bool) (m : Nat) (a : Option Nat) :
     admitBuild p sw m a = .admit ↔ sw = false ∧ ∃ k, a = some k ∧ k < p.agentsMax ∧ p.floorMB + p.buildMB ≤ m := by
   cases sw
@@ -1267,13 +1126,10 @@ theorem admitBuild_iff (p : Params) (sw : Bool) (m : Nat) (a : Option Nat) :
         · simp [admitBuild, h1, h2]; omega
   · simp [admitBuild]
 
-/-- A stale health reading never admits a builder. -/
 theorem agentsSeen_stale (p : Params) (now t0 n : Nat) (h : t0 + p.agentsAgeS < now) :
     agentsSeen p now (some (t0, n)) = none := by
   have : ¬ now ≤ t0 + p.agentsAgeS := by omega
   simp [agentsSeen, this]
-
-/-! ## Stopping the wrapped command -/
 
 inductive StopAct where
   | term | wait | kill | done
@@ -1282,8 +1138,6 @@ deriving DecidableEq, Repr
 def StopAct.name : StopAct → String
   | .term => "term" | .wait => "wait" | .kill => "kill" | .done => "done"
 
-/-- The next stop action for our child group: TERM first, KILL only after `graceMs` and only while the leader's pid and
-start time are unchanged. -/
 def stopAct (p : Params) (alive sameStart : Bool) (termAt : Option Nat) (nowMs : Nat) : StopAct :=
   if !alive || !sameStart then .done
   else match termAt with
@@ -1313,9 +1167,6 @@ theorem stop_never_other (p : Params) (a : Bool) (tm : Option Nat) (now : Nat) :
 
 theorem stop_term_first (p : Params) (now : Nat) : stopAct p true true none now = .term := by simp [stopAct]
 
-/-! ## Review result cache -/
-
-/-- What a cached result is keyed by: kind, the exact argv, the clean tree hash and, for `land`, the main commit. -/
 structure CacheKey where
   kind : Kind
   argv : List String
@@ -1323,11 +1174,9 @@ structure CacheKey where
   base : String
 deriving DecidableEq, Repr
 
-/-- The key of a run, `none` when the worktree is not clean (no cache read or write then). -/
 def keyOf (k : Kind) (argv : List String) (tree mainSha : String) (clean : Bool) : Option CacheKey :=
   if clean then some { kind := k, argv, tree, base := if k == .land then mainSha else "" } else none
 
-/-- A recorded result replays only for the same key and only when it passed. -/
 def cacheHit (recorded : CacheKey) (exit : Nat) (k : Option CacheKey) : Bool :=
   match k with
   | none => false
@@ -1343,7 +1192,6 @@ def cacheable (exit : Nat) : Bool := exit == 0
 #guard !cacheHit ⟨.test, ["x"], "t", ""⟩ 0 (keyOf .test ["y"] "t" "m" true)
 #guard !cacheHit ⟨.land, ["x"], "t", "m"⟩ 0 (keyOf .land ["x"] "t" "m2" true)
 
-/-- **Same check set and verdict**: a hit is the same argv on the same clean tree (and main, for a land), recorded passing. -/
 theorem cacheHit_same (r : CacheKey) (e : Nat) (k : Kind) (argv : List String) (tree m : String) (c : Bool)
     (h : cacheHit r e (keyOf k argv tree m c) = true) :
     c = true ∧ r.kind = k ∧ r.argv = argv ∧ r.tree = tree ∧ (k = .land → r.base = m) ∧ e = 0 := by

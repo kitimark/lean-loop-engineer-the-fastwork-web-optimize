@@ -1,5 +1,3 @@
-// fw slot (task local-adaptive-queue): one queue for heavy local work. Decisions are slot-core.ts (Fw.Sup.Adapt); this
-// file is I/O glue: the probe, the state file under a short mkdir lock, the child process group, and the result cache.
 import { type ChildProcess, spawn, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { appendFileSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, readFileSync, readSync, renameSync, rmSync, writeFileSync } from "node:fs";
@@ -28,7 +26,6 @@ export type Health = { time: number; live: number };
 export type GitFacts = { tree: string; clean: boolean; mainSha: string };
 export type SimDevice = { udid: string; name: string };
 
-/** Everything the CLI touches outside its own memory; tests pass temp dirs and fakes. */
 export type Deps = {
   dir: string;
   cacheDir: string;
@@ -50,7 +47,6 @@ const nowS = (): number => Math.floor(Date.now() / 1000);
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 const sleepSync = (ms: number): void => { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms); };
 
-/** Process start time (epoch s) of `pid`, null when it is gone. */
 export function startOf(pid: number): number | null {
   const r = spawnSync("ps", ["-o", "lstart=", "-p", String(pid)], { encoding: "utf8", env: { ...process.env, LC_ALL: "C", TZ: "UTC" } });
   const s = (r.stdout ?? "").trim();
@@ -61,7 +57,6 @@ export function startOf(pid: number): number | null {
 
 const alive = (pid: number): boolean => { try { process.kill(pid, 0); return true; } catch (e) { return (e as NodeJS.ErrnoException).code === "EPERM"; } };
 
-/** The vm_stat counts this probe reads, in pages, and the page size in bytes. */
 export type VmStat = { pageB: number; free: number; spec: number; purg: number; file: number; occupied: number; compressions: number };
 
 export function parseVmStat(out: string): VmStat | null {
@@ -78,7 +73,6 @@ export function parseVmStat(out: string): VmStat | null {
   return { pageB: Number(page[1]), ...(v as Record<keyof typeof v, number>) };
 }
 
-/** `sysctl vm.vm_page_filecache_min kern.memorystatus_vm_pressure_level vm.swapusage` output. */
 export type Sysctl = { fileMinPages: number | null; press: number | null; swapUsedMB: number | null; swapTotalMB: number | null };
 
 export function parseSysctl(out: string): Sysctl {
@@ -94,7 +88,6 @@ export function parseSysctl(out: string): Sysctl {
   };
 }
 
-/** The memory reading from vm_stat and sysctl. An unread pressure level counts as normal, unread swap as none. */
 export function memOf(vm: VmStat, sc: Sysctl, comprMBPerMin: number): Mem {
   const mb = (pages: number): number => Math.floor((pages * vm.pageB) / 1048576);
   return {
@@ -110,7 +103,6 @@ export function parseCompressorMB(out: string): number | null {
 
 const cmd = (c: string, a: string[]): string => { const r = spawnSync(c, a, { encoding: "utf8" }); return r.status === 0 ? r.stdout : ""; };
 
-/** The compression mark in `<dir>/vm-mark.json` advanced by this reading (vmNext); the file keeps the rate across processes. */
 export function markNext(dir: string, p: Params, now: number, vm: VmStat): VmMark {
   const file = join(dir, "vm-mark.json");
   let prev: VmMark | null = null;
@@ -122,12 +114,11 @@ export function markNext(dir: string, p: Params, now: number, vm: VmStat): VmMar
       const tmp = join(dir, `.vm-mark-${process.pid}.tmp`);
       writeFileSync(tmp, JSON.stringify(next));
       renameSync(tmp, file);
-    } catch { /* the mark is advisory */ }
+    } catch {}
   }
   return next;
 }
 
-/** One probe sample of this machine from vm_stat and sysctl (macOS), falling back to Node's free memory elsewhere. */
 export function probe(dir: string, p: Params = DEFAULT_PARAMS): Sample {
   const time = nowS();
   const vm = parseVmStat(cmd("vm_stat", []));
@@ -162,8 +153,6 @@ function bootedAll(): SimDevice[] {
   return Object.values(j.devices).flat().filter((d) => d.state === "Booted").map(({ udid, name }) => ({ udid, name }));
 }
 
-/** The last line of the console health log (it grows past 100 MB, so only its tail is read): its time in seconds and the
-agents neither done nor gone. */
 export function lastHealth(file: string): Health | null {
   let fd: number;
   try { fd = openSync(file, "r"); } catch { return null; }
@@ -185,7 +174,6 @@ export function lastHealth(file: string): Health | null {
   }
 }
 
-/** The old `scripts/sim-lock.sh` lock is held while its directory exists and its pid, once written, is alive. */
 export function legacyLive(dir: string): boolean {
   if (!existsSync(dir)) return false;
   let pid = "";
@@ -193,7 +181,6 @@ export function legacyLive(dir: string): boolean {
   return pid === "" || !/^\d+$/.test(pid) || alive(Number(pid));
 }
 
-/** Production dependencies for the checkout at `cwd`. */
 export function realDeps(cwd: string, env: Record<string, string | undefined> = process.env): Deps {
   const main = dirname(gitIn(cwd, ["rev-parse", "--path-format=absolute", "--git-common-dir"]));
   const top = gitIn(cwd, ["rev-parse", "--show-toplevel"]) || cwd;
@@ -217,8 +204,6 @@ export function realDeps(cwd: string, env: Record<string, string | undefined> = 
     err: (s) => process.stderr.write(s),
   };
 }
-
-// ---- state file under a short mkdir lock ----
 
 const myStart = startOf(process.pid);
 
@@ -245,8 +230,6 @@ function readOwner(dir: string): Owner | null {
 
 const dead = (o: Owner): boolean => !alive(o.pid) || startOf(o.pid) !== o.start;
 
-/** Move the lock aside before deleting it, so only one waiter recovers a dead owner's lock; a lock that turns out live
-is moved back. */
 export function recoverStale(lock: string, seen: Owner): void {
   const aside = `${lock}.stale-${process.pid}`;
   try {
@@ -271,7 +254,6 @@ function readState(d: Deps): State {
   return { ...st, holders: st.holders.map(withLease), queue: st.queue.map(withLease) };
 }
 
-/** Run `f` on the state with the lock held, then write it back atomically. */
 export function withState<T>(d: Deps, f: (st: State) => T): T {
   mkdirSync(d.dir, { recursive: true });
   const lock = join(d.dir, "state.lock");
@@ -288,8 +270,6 @@ export function withState<T>(d: Deps, f: (st: State) => T): T {
   }
 }
 
-/** One controller step on `s`, then drop expired holders and tickets. Each dropped holder logs one `expire` event; a
-dropped Simulator holder starts the idle clock. */
 function tick(d: Deps, st: State, s: Sample): void {
   st.ctl = step(d.params, st.ctl, s);
   const gone = expired(s.time, st.holders);
@@ -306,7 +286,7 @@ function event(d: Deps, ev: string, kind: Kind, extra: Record<string, number | s
   try {
     mkdirSync(dirname(d.eventsFile), { recursive: true });
     appendFileSync(d.eventsFile, `${JSON.stringify({ ts: Date.now(), lock: "slot", ev, kind, pid: process.pid, start: myStart, ...extra })}\n`);
-  } catch { /* events never fail a job */ }
+  } catch {}
 }
 
 export function describe(v: Verdict): string {
@@ -336,7 +316,6 @@ export function describeBuild(v: BuildVerdict): string {
 
 export type Grant = { token: string; owner: string; kind: Kind; till: number; verdict: Verdict };
 
-/** Queue a ticket and wait for a verdict: admit (now a holder), timeout, or `waitS` passed (ticket withdrawn). */
 export async function acquire(d: Deps, kind: Kind, leaseS: number, waitS: number | null): Promise<Grant> {
   const token = randomUUID().slice(0, 12);
   const t0 = nowS();
@@ -369,7 +348,6 @@ export async function acquire(d: Deps, kind: Kind, leaseS: number, waitS: number
   }
 }
 
-/** Renew this owner's live slot; `leaseS` null keeps the granted length. */
 export function renewToken(d: Deps, token: string, leaseS: number | null): boolean {
   const now = nowS();
   return withState(d, (st) => {
@@ -392,8 +370,6 @@ export function releaseToken(d: Deps, token: string): boolean {
   return ok;
 }
 
-// ---- result cache ----
-
 type Record_ = { key: CacheKey; exit: number; stdout: string; stderr: string; at: number };
 const CAP = 4 << 20;
 const cacheFile = (d: Deps, k: CacheKey): string => join(d.cacheDir, `${createHash("sha256").update(JSON.stringify(k)).digest("hex").slice(0, 32)}.json`);
@@ -402,16 +378,13 @@ function readRecord(d: Deps, k: CacheKey): Record_ | null {
   try { return JSON.parse(readFileSync(cacheFile(d, k), "utf8")) as Record_; } catch { return null; }
 }
 
-// ---- run ----
-
-/** Stop the child group: TERM, then KILL after the grace while the leader's pid and start are unchanged. */
 async function stopGroup(d: Deps, pid: number, start: number | null): Promise<void> {
   let termAt: number | null = null;
   for (;;) {
     const act = stopAct(d.params, alive(pid), start !== null && startOf(pid) === start, termAt, Date.now());
     if (act === "done") return;
-    if (act === "term") { try { process.kill(-pid, "SIGTERM"); } catch { /* already gone */ } termAt = Date.now(); }
-    if (act === "kill") { try { process.kill(-pid, "SIGKILL"); } catch { /* already gone */ } return; }
+    if (act === "term") { try { process.kill(-pid, "SIGTERM"); } catch {} termAt = Date.now(); }
+    if (act === "kill") { try { process.kill(-pid, "SIGKILL"); } catch {} return; }
     await sleep(200);
   }
 }
@@ -476,11 +449,6 @@ export async function run(d: Deps, kind: Kind, argv: string[], cache: boolean): 
   }
 }
 
-// ---- status and the Simulator ----
-
-/** Look at every booted Simulator device when `simDue` (or `force`): advance the idle clock (`simIdleNext`) and, with
-`apply`, shut the devices down when `simAction` says so. The decision and the shutdown run under the state lock, so no
-Simulator slot is admitted between them. */
 export function simCheck(d: Deps, now: number, apply: boolean, force: boolean): string[] {
   const due = withState(d, (st) => {
     if (!force && !simDue(d.params, now, st.simCheckedAt ?? 0)) return false;
@@ -513,8 +481,6 @@ function status(d: Deps, json: boolean): string[] {
     `holders (${st.holders.length}):`, ...rows(st.holders), `queue (${st.queue.length}):`, ...rows(st.queue)];
 }
 
-// ---- CLI ----
-
 function flag(args: string[], name: string): string | null {
   const i = args.indexOf(name);
   if (i < 0) return null;
@@ -536,7 +502,6 @@ function kindArg(args: string[]): Kind {
   return k;
 }
 
-/** `fw slot ...`; resolves to the exit code. */
 export async function slotCli(argv: string[], deps: Deps): Promise<number> {
   const dash = argv.indexOf("--");
   const args = dash < 0 ? argv : argv.slice(0, dash);

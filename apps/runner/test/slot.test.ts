@@ -14,7 +14,6 @@ import {
   slotCli, startOf, withState,
 } from "../src/slot.ts";
 
-// Every vector is generated from Lean (lean/Fw/Sup/AdaptGolden.lean); the TS stand-in must give the same response.
 const golden = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "packages", "contracts", "golden", "sup", "adapt.jsonl");
 type Case = { name: string; request: Record<string, unknown> & { op: string }; response: Record<string, unknown> };
 const cases = readFileSync(golden, "utf8").trim().split("\n").map((l) => JSON.parse(l) as Case);
