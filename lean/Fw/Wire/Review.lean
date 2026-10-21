@@ -106,9 +106,11 @@ def opReview (req : Json) : Except String Reply := do
     | j, _ => j
   let srv ← (match opt req "serve", today? with
     | some s, some t => do
-      let f ← flagOf (← str s "flag")
+      let fk ← str s "flag"
       let file ← str s "file"
-      pure (match its.find? (·.flag == f) with
+      pure (match flagOf fk with
+      | .error _ => Json.mkObj [("ok", .bool false), ("reason", .str "not a flag")]
+      | .ok f => match its.find? (·.flag == f) with
         | none => Json.mkObj [("ok", .bool false), ("reason", .str "no pending review for this flag")]
         | some i => match Fw.Console.ReviewStrips.serve t f i.material file with
           | none => Json.mkObj [("ok", .bool false), ("reason", .str "not a servable strip of this review")]
