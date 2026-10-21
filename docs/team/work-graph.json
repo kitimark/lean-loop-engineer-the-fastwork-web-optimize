@@ -14625,7 +14625,8 @@
     "lean/Fw.lean",
     "packages/contracts/golden/gate/path-pix.jsonl",
     "docs/team/handoffs/path-pix-core.md"
-   ]
+   ],
+   "evidence": "b9e0d0a"
   },
   {
    "devices": [
