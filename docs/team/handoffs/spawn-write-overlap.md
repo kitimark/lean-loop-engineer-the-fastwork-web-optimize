@@ -21,5 +21,6 @@ Open items
 - Advisory only: no hook in the Workflow tool; the lead must run it before a spawn. Excludes (`!`) are ignored (conservative).
 - Running tasks are read from the board; a task claimed but not yet reflected in the board is missed (pass `--running`).
 - Overlap of the real graph is broader than the pair named: golden/parts and research/findings/ledger.json also collide.
+- TS stand-in: runningOf (running set) -> Lean; output should name the running set it checked (an empty set prints CLEAR like a real clear); count handed-back-unlanded tasks as running; test that an exclude does not separate a pair; exercise the override record on the real event log; Wire/Plan.lean and Fw.lean edits are outside the graph writes (lead approves at land).
 
 Read first: `docs/team/tools/plan-overlap.md`, then the module header of `lean/Fw/Plan/Overlap.lean`.
