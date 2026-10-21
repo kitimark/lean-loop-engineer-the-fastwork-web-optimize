@@ -88,6 +88,7 @@ import Fw.Sched.Admit
 import Fw.Sched.ParMetrics
 import Fw.Sched.LakeSlot  -- lake-build-slots: slot pools and the thread bound of scripts/lake-slot.sh
 import Fw.Wire.Sched
+import Fw.Wire.SchedJson
 import Fw.Store.Layout
 import Fw.Store.Reduce
 import Fw.Wire.Store
@@ -164,6 +165,7 @@ import Fw.Land.RenderGuard  -- land-render-guard: refuse a land whose history wr
 import Fw.Ops.LedgerMerge  -- ledger-merge-driver: three-way id merge of the JSON ledgers (scripts/merge-ledger.mjs)
 import Fw.Ops.Cache  -- gate-speed-ci: cache soundness (cache_sound, key_complete)
 import Fw.Ops.LakeCache  -- site-build-cache: one Lake cache writer (cache_complete, rebuild_mono, table_complete)
+import Fw.Ops.Rebuild  -- fwcore-rebuild-fanout: the rebuild set of a stale Lake entry and its critical path
 import Fw.Site.GenRoute  -- site-build-cache: breakgen / sweepsgen split (split_agrees)
 import Fw.Site.Head
 import Fw.Gate.Schedule  -- gate-speed-ci: Graham bound and the gate job split

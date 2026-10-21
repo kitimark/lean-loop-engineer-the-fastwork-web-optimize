@@ -1033,6 +1033,29 @@ export function nodePinProblems(root, table) {
   return out;
 }
 
+/** The `name:` and `run-name:` of every workflow in Lean `Fw.Ci.Dispatch.dispatchWorkflows` equal what Lean says (the `workflows` line of
+ *  packages/contracts/golden/ci/dispatch.jsonl: `list` and `runNames`, from `titleFor`). A run-name that drifts makes every identity
+ *  wait (`fw ci wait --nonce`, `fw run`) find no run, so a difference is a problem here, not a timeout later. */
+export function runNameProblems(root) {
+  const out = [];
+  let line;
+  try {
+    line = readFileSync(join(root, 'packages', 'contracts', 'golden', 'ci', 'dispatch.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)).find((l) => l.kind === 'workflows');
+  } catch (e) { return [`dispatch golden unreadable: ${e.message}`]; }
+  if (!line || !Array.isArray(line.list) || !Array.isArray(line.runNames) || line.list.length !== line.runNames.length) return ['the dispatch golden has no workflows line with list and runNames (lake test -- --write-ci-trigger-golden)'];
+  line.list.forEach((w, i) => {
+    const file = `${w}.yml`;
+    let text;
+    try { text = readFileSync(join(root, WF_DIR, file), 'utf8'); } catch { out.push(`${file}: in Lean dispatchWorkflows but no such workflow file`); return; }
+    const lines = text.split('\n');
+    const name = lines.find((l) => /^name:/.test(l));
+    if (name?.slice(5).trim() !== w) out.push(`${file}: \`name:\` is \`${name?.slice(5).trim() ?? ''}\`, Lean dispatchWorkflows says \`${w}\` (the identity waits match the run title)`);
+    const rn = lines.find((l) => /^run-name:/.test(l));
+    if (rn?.slice(9).trim() !== line.runNames[i]) out.push(`${file}: \`run-name:\` is \`${rn?.slice(9).trim() ?? ''}\`, Lean titleFor says \`${line.runNames[i]}\``);
+  });
+  return out;
+}
+
 /** Check (or write) every workflow. Returns { problems, wrote }. */
 export function run(root, write) {
   const { table } = loadGolden(root);
@@ -1041,7 +1064,7 @@ export function run(root, write) {
   const S = coarseMap(table);
   const dir = join(root, WF_DIR);
   const files = readdirSync(dir).filter((f) => f.endsWith('.yml')).sort();
-  const problems = [...coneProblems(root, table), ...leanInputProblems(root, table), ...cacheWriterProblems(root, table), ...nodePinProblems(root, table)];
+  const problems = [...coneProblems(root, table), ...leanInputProblems(root, table), ...cacheWriterProblems(root, table), ...nodePinProblems(root, table), ...runNameProblems(root)];
   const caps = loadCaps(root);
   for (const k of caps.caps.keys()) if (!files.includes(k.split(' ')[0])) problems.push(`${k.split(' ')[0]}: Lean cap row but no such workflow file`);
   let wrote = 0;
@@ -1075,7 +1098,7 @@ function main() {
   const { problems, wrote } = run(root, write);
   if (write) {
     console.log(`ci-paths: wrote ${wrote} workflow file(s)`);
-    const left = problems.filter((p) => /by hand|not in the Lean table|no such workflow|not read the same|outside coneGlobs|no lane in the Lean intent|lean\/scripts\/|Lean cap row|Lean cap for job|has no Lean cap|does not run on macOS|runs-on is an expression/.test(p));
+    const left = problems.filter((p) => /by hand|not in the Lean table|no such workflow|not read the same|outside coneGlobs|no lane in the Lean intent|lean\/scripts\/|Lean cap row|run-name|dispatchWorkflows|Lean cap for job|has no Lean cap|does not run on macOS|runs-on is an expression/.test(p));
     for (const p of left) console.log(`  ${p}`);
     process.exit(left.length ? 1 : 0);
   }

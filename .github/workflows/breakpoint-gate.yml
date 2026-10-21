@@ -1,5 +1,9 @@
 name: breakpoint-gate
 
+# The title of a dispatched run echoes its nonce (`breakpoint-gate dispatch nonce=<n>`), so `fw run` and `fw ci wait --nonce` find the run
+# they dispatched by identity (Lean Fw.Ci.Dispatch.wanted), never as "the newest run". A push keeps its default title.
+run-name: ${{ github.event_name == 'workflow_dispatch' && format('breakpoint-gate dispatch nonce={0}', inputs.nonce || 'none') || '' }}
+
 # Breakpoint parity gate (PLAN 6.6): original snapshot against the rewrite, 124 loads per engine and the 4 live-resize
 # sweeps, split over a few jobs per engine by the Lean split (default: Fw.Gate.Shard, LPT over measured unit costs,
 # golden/gate/shards.jsonl; older sets: Fw.Gate.Schedule.choose, golden/gate/schedule.jsonl; .github/scripts/gate-jobs.mjs
@@ -56,6 +60,11 @@ on:
           Pilot parts to check, comma separated (engine.scroll, nav.hitTest, hero.countdown, hero.exit); empty = all.
           A narrowed run loads only the probes and sweeps of those parts' Lean scope (packages/gate-breakpoints/src/scope.gen.json), collects and judges only those parts, and its summary names the parts covered and skipped.
           (Not the pnpm FILTERS of setup-pnpm, which select packages to install.)
+        type: string
+        default: ''
+      nonce:
+        description: >-
+          Identity of this dispatch, echoed in the run title (8 to 32 characters of a-z0-9; `fw run` sets it). Empty = a manual dispatch.
         type: string
         default: ''
 

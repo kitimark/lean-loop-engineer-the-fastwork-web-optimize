@@ -1,5 +1,9 @@
 name: chromium-counts
 
+# The title of a dispatched run echoes its nonce (`chromium-counts dispatch nonce=<n>`), so `fw run` and `fw ci wait --nonce` find the run
+# they dispatched by identity (Lean Fw.Ci.Dispatch.wanted), never as "the newest run". A push keeps its default title.
+run-name: ${{ github.event_name == 'workflow_dispatch' && format('chromium-counts dispatch nonce={0}', inputs.nonce || 'none') || '' }}
+
 # Chromium counts lane (PLAN 4.1-4.2) on GitHub-hosted arm64 Linux: the same image and browser bytes as the local Docker
 # run. N runs on N fresh VMs give the cross-machine determinism check (V-i) that one Mac cannot.
 # CI results are a separate `platform` key until a local-vs-CI V-b check passes (research note ci-measurement-feasibility).
@@ -39,6 +43,11 @@ on:
         default: ''
       image_run:
         description: Optional run id of an earlier chromium-counts run; its chromium-image artifact is reused instead of building (class-freeze pins one image across workflow runs this way)
+        type: string
+        default: ''
+      nonce:
+        description: >-
+          Identity of this dispatch, echoed in the run title (8 to 32 characters of a-z0-9; `fw run` sets it). Empty = a manual dispatch.
         type: string
         default: ''
 
