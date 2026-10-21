@@ -1,28 +1,31 @@
-# ci-wait-dispatch: handoff
+# ci-wait-dispatch: handoff (round 2)
 
-State: branch worktree-wf_e007c264-660-4. Commits: 4ced7032 (Lean + TS twin + golden), 14b16d48 (workflows, fw run, stripper,
-docs), a9832776 and 5fdb0b4e (CI push commits). Green here: lean/scripts/check.sh, packages/gh-budget test (68),
-apps/runner test (1680, incl. typecheck), scripts/ci-paths.test.mjs (53).
+State: branch worktree-wf_e007c264-660-4, last code commit 16267322 (merge of main af281d80 before it). Green at 16267322:
+lean/scripts/check.sh, packages/gh-budget 70, apps/runner 1684 (incl. tsc), scripts/ci-paths.test.mjs 54.
 
-Delivered (follow-up numbers from the graph title)
-1. Code and Lean agree on dispatch: Lean `Dispatch.dispatch_any_sha` (the head sha plays no part); `relevant` in
-   packages/gh-budget/src/wait.ts no longer cuts a wanted run by sha or `since` (test: dispatch on another sha is found).
-2. `Want.dispatch workflow nonce`; `dispatchWorkflows` = trajectory-probe, breakpoint-gate, chromium-counts, webkit-sim (golden
-   `workflows` line, TS `DISPATCH_WORKFLOWS`). `parseWait` refuses `--nonce` for any other workflow. Theorem per branch:
-   dispatch_never_push, _other_nonce, _bad_nonce, _unknown_workflow, _selects, _any_sha. The other workflows keep no nonce.
-3. Hint: Lean `dispatchOnly` (+3 theorems, golden `hint` lines), TS `dispatchOnly`/`hintOf`, printed on a push-wait timeout.
-4. scripts/ci-paths.test.mjs `stripComment` tracks quotes; limit stated in its docstring (a lone apostrophe keeps comment text).
-5. `fw run` count lanes and `--gate` dispatch with a fresh nonce and wait with `want: dispatch` (apps/runner/src/run.ts
-   `dispatchAndWait`); no run list before the dispatch any more. `--trajectory` keeps `findDispatched`/Lean `pick`.
-6. CI: push of ci/ci-wait-dispatch. Run 39529994249 (a9832776) was skipped `unchanged` (no trajectory-probe input differed
-   from main); run 39530080105 (5fdb0b4e, engines=playwright-webkit widths=390): guard, site, `probe playwright-webkit 390`,
-   `merge playwright-webkit` success; `fw ci wait` picked it (exit 0, pass).
+Round 1 (4ced7032 Lean+TS twin+golden, 14b16d48 workflows/fw run/stripper/docs): identity waits, `Want.dispatch workflow nonce`,
+`dispatchWorkflows`, `dispatchOnly` hint, `dispatch_any_sha`. Round 2 fixes, by finding
+1. Apple one-leg: `pnpm -s fw run --trajectory --engines playwright-webkit --widths 390 --ref ci/ci-wait-dispatch` (one dispatch, nonce
+   c4d36930f4a6719f) -> run 39542978747 at 16267322, event workflow_dispatch, title matches. `fw ci wait --nonce` picked it: pass.
+   Jobs: probe apple (playwright-webkit, macos-26) 390 success, probe playwright-webkit 390 success, merge playwright-webkit success,
+   merge apple (playwright-webkit) success.
+3. Lean `runNameFor`; golden `workflows` line has `runNames`; `runNameProblems` in scripts/ci-paths.mjs (part of `run`) fails on a
+   `name:` or `run-name:` that differs; test with each drift. No yml edited this round.
+4. `fw run` sends `-f nonce` only when `git show <ref>:.github/workflows/<file>` declares it (`declaresNonce`); else the old pick
+   (newest run created after the dispatch) and the log says so. Tests with a stub fwcore, none skipped.
+5. Lean `selectOne` (One: found/absent/ambiguous; theorems per branch, `foldl_max_mem`), golden `one` lines; TS `selectOne`,
+   `ambiguousIds`; `relevant` keeps no run and the wait returns code 2 ("matches several runs"), never the newest.
+6. Window limit stated (wait.ts Target doc, cli usage, fw-ci.md): the poller reads runs created at or after `--since`; a dispatch
+   created earlier is never read, pass an earlier `--since`. The test is renamed to the reachable claim.
+7. Subjects for the lead at land (reword the two round 1 commits): a9832776 -> "ci: trajectory probe push (playwright-webkit 390;
+   apple leg is dispatch-only, not run)"; 5fdb0b4e -> same plus "(trajectory-probe.yml comment edit to pass the unchanged guard)".
 
-NOT delivered: the apple leg. `probe-apple` and `merge-apple` run only on `workflow_dispatch` (trajectory-probe.yml line 475), so a
-push cannot exercise them; both were skipped in 39530080105. Command in open[0].
+Open
+- One dispatched run per workflow with a nonce exists only for trajectory-probe (39542978747). breakpoint-gate, chromium-counts and
+  webkit-sim run-names and nonce inputs have never run on CI. Command, by the lead: `pnpm -s fw run --gate --engines chromium
+  --ref ci/ci-wait-dispatch` (and a count run per lane); the run-name text is checked by ci-paths, not by a run.
+- Workflows outside `dispatchWorkflows` keep no nonce (accepted limit).
 
-Writes beyond the task list: lean/Fw/Store/Layout.lean (`Lane.inputs` gained "nonce" for chromium-counts, webkit-sim,
-breakpoint-gate; LaneInputs --check demands it), .github/workflows/{breakpoint-gate,chromium-counts,webkit-sim}.yml (nonce
-input + run-name), trajectory-probe.yml (comment), packages/gh-budget/src/index.ts, apps/runner/test/run-budget.test.ts.
-TS stand-ins (until a fwcore op): packages/gh-budget/src/want.ts, apps/runner/src/run-pick.ts (both replayed against golden).
-Read first: Dispatch.lean section "Which run does a wait mean?", then `dispatchAndWait` in run.ts.
+Writes beyond the task list: Layout.lean (`Lane.inputs` + "nonce", merged with main's `lag`), the three yml files (nonce input,
+run-name), trajectory-probe.yml comment, gh-budget index.ts, run-budget.test.ts, scripts/ci-paths.mjs. TS stand-ins: want.ts,
+run-pick.ts, `declaresNonce` (replayed or tested, no fwcore op). Read first: Dispatch.lean "Which run does a wait mean?".
