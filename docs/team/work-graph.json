@@ -12760,6 +12760,41 @@
     "packages/contracts/golden/console/land-speed.jsonl",
     "docs/team/handoffs/land-evidence-order-test.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "review-feedback",
+   "owner": "console-builder",
+   "stream": "console",
+   "deps": [],
+   "title": "User 2026-10-21: 'i was see the preview of Your reviews, your proposal may can improve. i'd like to add the feedback comment for you do more research. can you improve the console ?' Each review card in the console Reviews tab gets a feedback thread: the user writes a comment on the proposal (the flag under review, its strips, preview and info panel); only the user (owner actor) can post feedback, only the lead can reply (fw command, bare `pnpm fw review reply --flag <f> --to <id> --text ...`); every unanswered feedback raises one fw watch alert `review.feedback <flag>` (OPEN on post, CLOSE when the lead replies) so the lead's Monitor stream sees it without a chat message; the thread shows on the card with status (open / answered) and the lead's reply. Lean first: event kinds, who may post what (actor rule), open/answered state and the alert decision in Lean with theorems (feedback never from the lead; a reply closes exactly its feedback; an open feedback always yields the alert); wire op + golden; TS glue only. Text stays data: shown escaped, length-capped, never executed.",
+   "writes": [
+    "lean/Fw/Console/ReviewFeedback.lean",
+    "lean/Fw/Wire/ReviewFeedback.lean",
+    "lean/Fw/Wire/Console.lean",
+    "lean/Fw/Console.lean",
+    "lean/Fw/Obs/Health.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/console/reviewFeedback.jsonl",
+    "packages/contracts/golden/obs/health.jsonl",
+    "packages/contracts/src/index.ts",
+    "apps/console-api/src/review/feedback.ts",
+    "apps/console-api/src/review/routes.ts",
+    "apps/console-api/src/app.ts",
+    "apps/console-api/test/review-feedback.test.ts",
+    "apps/console-web/src/ReviewFeedback.tsx",
+    "apps/console-web/src/Reviews.tsx",
+    "apps/console-web/test/review-feedback.test.tsx",
+    "apps/runner/src/fw.ts",
+    "apps/runner/src/review-cmd.ts",
+    "apps/runner/src/watch-collect.ts",
+    "apps/runner/test/review-cmd.test.ts",
+    "docs/team/tools/review-feedback.md",
+    "docs/team/handoffs/review-feedback.md"
+   ]
   }
  ],
  "deadline": {
