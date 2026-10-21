@@ -36,6 +36,7 @@ export function summariseTrace(events) {
   const q = (xs, p) => (xs.length === 0 ? null : quantile(xs, p));
   return {
     ...names,
+    slow: slowOf(events),
     pipelines: durs.length,
     states,
     pipelineP50: q(durs, 50),
@@ -47,6 +48,25 @@ export function summariseTrace(events) {
     noUpdate: states.STATE_NO_UPDATE_DESIRED ?? 0,
     presented: (states.STATE_PRESENTED_ALL ?? 0) + (states.STATE_PRESENTED_PARTIAL ?? 0),
   };
+}
+
+/**
+ * The longest complete events (ph X) of 15 ms or more: per event name the count, the longest (tenths of ms) and the sum, longest first, at most
+ * 8 names. It says where main-thread or raster time went in a window with a bad frame; it never enters a verdict. The shape of the
+ * events is Chromium's trace format (name, ph, dur in microseconds).
+ */
+export function slowOf(events) {
+  const by = new Map();
+  for (const e of events) {
+    if (e.ph !== 'X' || !(e.dur >= 15000)) continue;
+    const d = Math.round(e.dur / 100);
+    const s = by.get(e.name) ?? { name: e.name, n: 0, max: 0, sum: 0 };
+    s.n++;
+    s.max = Math.max(s.max, d);
+    s.sum += d;
+    by.set(e.name, s);
+  }
+  return [...by.values()].sort((a, b) => b.max - a.max).slice(0, 8);
 }
 
 /** The events of a trace buffer (Playwright's stopTracing returns the JSON file as a Buffer). */

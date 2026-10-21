@@ -103,6 +103,18 @@ export function markdown({ cells, skipped }, sum) {
       out.push(`| ${c.run} | ${c.width} | ${c.window} | ${a} | ${ts.length} | ${sum2('BeginFrame')} | ${sum2('DrawFrame')} | ${sum2('dropped')} | ${sum2('DroppedFrame')} | ${sum2('presented')} | ${ms(quantile(ts.map((t) => t.presentedP95).filter((x) => x !== null), 50))} |`);
     }
   }
+  const slowCells = traced.filter((c) => c.traces.some((t) => (t.trace.slow ?? []).length > 0));
+  if (slowCells.length > 0) {
+    out.push('', '### Longest trace events of the traced reps (events of 15 ms or more; per arm the longest, summed over the traced reps)', '', '| run | width | window | arm | event | count | longest ms | total ms |', '| --- | --- | --- | --- | --- | --- | --- | --- |');
+    for (const c of slowCells) for (const a of ARMS) {
+      const by = new Map();
+      for (const t of c.traces.filter((x) => x.arm === a)) for (const s of t.trace.slow ?? []) {
+        const e = by.get(s.name) ?? { n: 0, max: 0, sum: 0 };
+        by.set(s.name, { n: e.n + s.n, max: Math.max(e.max, s.max), sum: e.sum + s.sum });
+      }
+      for (const [name, e] of [...by.entries()].sort((x, y) => y[1].max - x[1].max).slice(0, 5)) out.push(`| ${c.run} | ${c.width} | ${c.window} | ${a} | ${name} | ${e.n} | ${ms(e.max)} | ${ms(e.sum)} |`);
+    }
+  }
   if (skipped.length > 0) out.push('', `Skipped: ${skipped.map((s) => `${s.run} (${s.why})`).join(', ')}`);
   return out.join('\n');
 }

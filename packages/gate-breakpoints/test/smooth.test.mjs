@@ -6,8 +6,8 @@ import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as S from '../src/smooth/reduce.mjs';
-import { summariseTrace } from '../src/smooth/trace.mjs';
-import { cellOf, summary } from '../src/smooth/cadence-table.mjs';
+import { slowOf, summariseTrace } from '../src/smooth/trace.mjs';
+import { cellOf, hitchesOf, summary } from '../src/smooth/cadence-table.mjs';
 import { intervalsOf, orderFor } from '../src/smooth/cadence.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -81,6 +81,20 @@ test('trace: pipeline pairs are counted by state and begin/draw/drop events by n
   assert.equal(t.DroppedFrame, 2);
   assert.equal(t.pipelines, 2);
   assert.equal(t.presentedMax, 170);
+});
+
+test('trace: the slow list keeps events of 15 ms or more, longest name first', () => {
+  const s = slowOf([
+    { name: 'Layout', ph: 'X', dur: 40000 }, { name: 'Layout', ph: 'X', dur: 20000 }, { name: 'Paint', ph: 'X', dur: 14999 },
+    { name: 'Decode', ph: 'X', dur: 60000 }, { name: 'Decode', ph: 'B', dur: 90000 },
+  ]);
+  assert.deepEqual(s, [{ name: 'Decode', n: 1, max: 600, sum: 600 }, { name: 'Layout', n: 2, max: 400, sum: 600 }]);
+});
+
+test('cadence table: hitches are the gaps of 60 ms or more with their scroll position', () => {
+  const h = hitchesOf([{ arm: 'base', rep: 2, ivs: [167, 833, 599, 600], ys: [10, 20, 30, 40], loaf: [{ d: 76, block: 0, scripts: [] }] }]);
+  assert.deepEqual(h.base.map((x) => [x.rep, x.i, x.ms, x.y]), [[2, 1, 83.3, 20], [2, 3, 60, 40]]);
+  assert.deepEqual(h.orig, []);
 });
 
 test('cadence: intervals are tenths of ms between rAF times; the rep order rotates', () => {
