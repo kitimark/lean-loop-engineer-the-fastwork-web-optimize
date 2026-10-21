@@ -159,7 +159,7 @@ export function renderBlock(files, { headline = 'orig-w390-d3' } = {}) {
     '',
     stepTable(files, headline),
     '',
-    '### Renderer string and WEBKIT_SHOW_FPS',
+    '### Renderer string (the page sees only WebKit\'s masked name) and WEBKIT_SHOW_FPS',
     '',
     hintTable(files),
     '',
