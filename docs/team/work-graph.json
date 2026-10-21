@@ -8182,7 +8182,8 @@
     "land-lane-circleci",
     "circleci-status",
     "circleci-series",
-    "pool-fallback"
+    "pool-fallback",
+    "macos-pool-7"
    ],
    "writes": [
     "lean/Fw/Ci/Route*.lean",
@@ -13257,7 +13258,8 @@
     "lean/scripts/check.sh",
     "packages/contracts/golden/sup/**",
     "docs/team/handoffs/sup-wire.md"
-   ]
+   ],
+   "evidence": "5440e67"
   },
   {
    "devices": [
@@ -13275,7 +13277,8 @@
     "lean/Fw.lean",
     "packages/contracts/golden/sup/route.jsonl",
     "docs/team/handoffs/sup-route.md"
-   ]
+   ],
+   "evidence": "4af29f1"
   },
   {
    "devices": [
@@ -13952,7 +13955,8 @@
     "docs/team/tools/codemagic.md",
     "research/notes/2026/10-2x-codemagic-pilot.md",
     "docs/team/handoffs/codemagic-pilot.md"
-   ]
+   ],
+   "evidence": "5ebb1b8"
   },
   {
    "devices": [
@@ -14067,11 +14071,312 @@
     "jev-core",
     "jev-datasets"
    ],
-   "title": "Offline A/B replay of the Jev trial (user 2026-10-22): each held-out and calibration row of D1..D4 (jev-datasets) goes to Jev (model pinned, jev-1.13.0 on 2026-10-22), to a Haiku agent and to a Sonnet agent with the same question text; record per option precision and recall, coverage at the Lean threshold, confusion, $ per decision, latency, and net saving against the measured token cost of that decision today (incl. double pay on escalation and wrong-call cost). Order D1, D2, D3, D4. Live Jev calls need the user's permission route (a permission rule for the oracle CLI against api.typesafe.ai, or user-run batches via !); ask through the lead before the first send. Output research/notes/2026/10-2x-jev-replay.md with one table per decision type for the user's review; promotion is jev-eval's Lean ladder.",
+   "title": "Offline A/B replay of the Jev trial (user 2026-10-22): each held-out and calibration row of D1..D4 (jev-datasets) goes to Jev (model pinned, jev-1.13.0 on 2026-10-22), to a Haiku agent and to a Sonnet agent with the same question text; record per option precision and recall, coverage at the Lean threshold, confusion, $ per decision, latency, and net saving against the measured token cost of that decision today (incl. double pay on escalation and wrong-call cost). Order D1, D2, D3, D4. Live Jev calls need the user's permission route (a permission rule for the oracle CLI against api.typesafe.ai, or user-run batches via !); ask through the lead before the first send. Output research/notes/2026/10-2x-jev-replay.md with one table per decision type for the user's review; promotion is jev-eval's Lean ladder. Send path (user 2026-10-22 asked for safe permission rules): every live call goes through one command `pnpm fw oracle send --set <D1..D4> [--part calibrate|holdout]` that the user allows with an ask (then allow) rule in .claude/settings.local.json; the command takes a dataset id only (never a file path), sends only to https://api.typesafe.ai, redacts every row before sending (Lean Redact), reads the Keychain key in-process after the Lean pre-check (never in args, logs or files), refuses above a Lean per-run budget (max requests and input tokens), and writes answers only to the local answer log. The lead gives the user the exact rule once the command exists.",
    "writes": [
     "research/notes/2026/10-2x-jev-replay.md",
     "results/jev/**",
     "docs/team/handoffs/jev-replay.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "device-stats-v2",
+   "owner": "lean-prover",
+   "stream": "measure",
+   "deps": [],
+   "title": "User goal 2026-10-22 ('find the real webkit lag measurement'). research/notes/2026/10-22-lag-coverage.md (committed 02bac431): Safari renders the page at 60 Hz on the 120 Hz phone, one missed update (33.3 ms) is under the > 34 ms line and never counted, and the felt-mark window (ends at the third tap, moving frames only) misses the felt moment (5/10, 10/22, 5/31 marks had zero counted frames). Re-reduce in Lean Fw.Device.Session with golden vectors: first-tap anchor with a 3 s lookback; all-frame and animating-frame stats; skipped-slot count (primary miss count; slot = round((t - t0) / 16.67 ms)), > 25 ms count beside it, hitch ms/s (Apple bands, per zone, expected interval from the session median), p95, longest 30 fps run; touch-to-first-moving-frame and finger-to-scroll offset from the raw touch stream; per-traversal split (first pass vs later). Theorems: over50 <= over34 <= miss25; an interval over 2 slots implies a skipped slot (the converse fails: keep the counterexample as a golden). Then re-reduce the four 2026-10-21 passes (raw records are local only: read them from .local/phone/2026-10-21/ if present, else the lead scratch path given in the prompt; never commit raw records, timestamps or device ids) and write results/phone/2026-10-21/summary-v2.{json,md} (zone counts, felt marks with the new window, per arm) with the same privacy rules as summary.md.",
+   "writes": [
+    "lean/Fw/Device/Session.lean",
+    "lean/Fw/Device/Stats*.lean",
+    "lean/scripts/DeviceSessionGolden.lean",
+    "packages/contracts/golden/device/session.jsonl",
+    "packages/measure-webkit/src/device-session.mjs",
+    "packages/measure-webkit/test/device-session*.test.mjs",
+    "results/phone/2026-10-21/summary-v2.json",
+    "results/phone/2026-10-21/summary-v2.md",
+    "docs/team/handoffs/device-stats-v2.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "webkit-cost-counters",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "title": "User goal 2026-10-22 ('try to measure on ci or local'). research note 10-22-webkit-render-cost (lead, landing) and 10-22-lag-coverage: the end-of-page cost lands in the GPU process (a layer whose bounds change every frame gets a new IOSurface and a full repaint; one commit in flight, so page frames come in whole display ticks) and in the UI process (about 80 new layers become UIViews at morph start); Web Inspector files raster under Composite. Add per-frame counters to the WebKit Simulator lane (webkit-lag-probe, landed a3c4fd41) for the hero-exit and end-of-page zones, original vs rewrite vs flags: rAF delta histogram with skipped-slot and > 25 ms counts; Composite vs Paint time per frame; new layers per commit and layer bounds changes per frame (layer tree dumps through Internals or the Inspector LayerTree domain); Paint records in the 500 ms after the morph ends (ImageQualityController redraw); and, if reachable, IOSurface allocations or the UI-process slowFrame signpost through xctrace on the Simulator (probe; else name the gap). Lean first: the counted predicates and the reduction (per zone, per arm) in Lean with goldens before the TS reducer. GitHub macOS runners only; one debug run locally allowed.",
+   "writes": [
+    "lean/Fw/Measure/WkCost*.lean",
+    "lean/scripts/WkCostGolden.lean",
+    "packages/contracts/golden/measure/wkcost*.jsonl",
+    "packages/measure-webkit/src/lag/**",
+    "packages/measure-webkit/test/lag-*.test.mjs",
+    ".github/workflows/webkit-lag-probe.yml",
+    "research/notes/2026/10-2x-webkit-cost-counters.md",
+    "docs/team/handoffs/webkit-cost-counters.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "xctrace-ci-probe",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "title": "User goal 2026-10-22: render-side WebKit lag on CI. Probe on one free GitHub macOS runner whether xctrace can record the iOS Simulator's Safari/WKWebView with (a) the Animation Hitches template (commit vs render hitches) and (b) WebKit kdebug signposts (RenderingUpdate, CommitLayerTree, AsyncImageDecode, SystemTracing.h) during a scripted scroll of the hero-exit and end-of-page zones; export with xctrace export and reduce to per-zone counts. Report what works on a VM (no real GPU) with run ids; MEASURED A/A on two runs. If it works, a reducer with Lean goldens; if not, the reason with source/docs citations as a negative finding. GitHub only.",
+   "writes": [
+    ".github/workflows/xctrace-probe.yml",
+    "packages/measure-webkit/src/xctrace/**",
+    "packages/measure-webkit/test/xctrace-*.test.mjs",
+    "research/notes/2026/10-2x-xctrace-ci.md",
+    "docs/team/handoffs/xctrace-ci-probe.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "phone-hitches-xctrace",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "device-replay"
+   ],
+   "title": "From research/notes/2026/10-22-lag-coverage.md: Instruments Animation Hitches on the phone is the only planned way to see render-server and commit hitches (blur, backdrop, raster) that rAF cannot. Build the session steps: xctrace record --template 'Animation Hitches' --device <id> --attach Safari (or all processes) for one replayed pass per arm (device-replay profiles), export, reduce per zone (hitch ms/s, commit vs render) in Lean with goldens; one debug run of 5 min or less first. User-only steps (Developer Mode, the booked session) go through the lead; device ids never committed.",
+   "writes": [
+    "packages/measure-webkit/src/hitches/**",
+    "packages/measure-webkit/test/hitches-*.test.mjs",
+    "lean/Fw/Device/Hitches*.lean",
+    "packages/contracts/golden/device/hitches*.jsonl",
+    "docs/team/tools/phone-hitches.md",
+    "docs/team/handoffs/phone-hitches-xctrace.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "smooth-miss-counts",
+   "owner": "lean-prover",
+   "stream": "measure",
+   "deps": [
+    "smoothness-webkit-cadence"
+   ],
+   "title": "From research/notes/2026/10-22-lag-coverage.md: add the skipped-slot count (primary) and the > 25 ms count to Fw.Gate.Smooth beside badTenths 340, for both the Chromium cadence lane and the WebKit cadence leg; push the WebKit morph through a real wheel/scroll path instead of the synthetic WheelEvent (lag/probe.mjs:67); read Chromium's jank and smoothness histograms where the real-time run allows. Goldens and theorems as in device-stats-v2 (over50 <= over34 <= miss25; over-2-slots implies skip).",
+   "writes": [
+    "lean/Fw/Gate/Smooth*.lean",
+    "packages/contracts/golden/gate/smooth*.jsonl",
+    "packages/measure-chromium/src/smooth/**",
+    "packages/measure-webkit/src/smooth/**",
+    "packages/measure-webkit/src/lag/probe.mjs",
+    "docs/team/handoffs/smooth-miss-counts.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "macos-pool-7",
+   "owner": "lean-prover",
+   "stream": "ci",
+   "deps": [],
+   "title": "User 2026-10-22: 'i'd like to scale the concurrency of macos ci, so we can scale up to 7 concurrent. the first prority is github action, codemagic and circle ci (following the free budget).' Extend the Lean macOS pool route (Fw.Ci.Pool fallback, landed with pool-fallback d7b32abc) to three tiers: GitHub Actions (5 concurrent macOS jobs, free) first; then Codemagic (1 concurrent build on the free plan; Fw.Ci.Codemagic stop at 400 of 500 minutes per month, landed fdf87b62); then CircleCI m4pro (1 concurrent, within the free-credit stop rules of Fw.Ci.Overflow). Theorems: github_first (a free GitHub slot always wins), codemagic_before_circleci (Codemagic free and under its minute line -> never CircleCI), cap_7 (never more than 7 macOS jobs in flight across providers), each provider's stop rule refuses (no route past a budget line), and a result counts the same from any provider. Wire it: the `fw ci codemagic` hook in apps/runner (fw.ts plus the land.ts read globs for scripts/codemagic.mjs, scripts/codemagic.test.mjs, codemagic.yaml, as the circleci lines do), the dispatch path that sends an overflow macOS job to Codemagic, and the pilot's harness fixes (simctl openurl retry, ios_webkit_debug_proxy cached or preinstalled, Node pinned to 24.22.0 in codemagic.yaml). One live overflow proof: 7 macOS jobs at once with run/build ids per provider. Free tiers only.",
+   "writes": [
+    "lean/Fw/Ci/Pool*.lean",
+    "lean/Fw/Ci/Codemagic.lean",
+    "lean/Fw/Ci/Overflow.lean",
+    "lean/scripts/PoolGolden.lean",
+    "packages/contracts/golden/ci/pool*.jsonl",
+    "packages/contracts/golden/ci/codemagic.jsonl",
+    "apps/runner/src/fw.ts",
+    "apps/runner/src/land.ts",
+    "apps/runner/src/ci-pool*.ts",
+    "apps/runner/test/ci-pool*.test.ts",
+    "scripts/codemagic.mjs",
+    "scripts/codemagic.test.mjs",
+    "codemagic.yaml",
+    "docs/team/tools/codemagic.md",
+    "docs/team/tools/ci-pool.md",
+    "docs/team/handoffs/macos-pool-7.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "macos-telemetry",
+   "owner": "measure-engineer",
+   "stream": "ci",
+   "deps": [],
+   "title": "User 2026-10-22: 'we could correct and probe the ci telemetry for data to do the macos ci optimization that use less macos minutes.' Extend ci-telemetry (landed) to every macOS job on GitHub, Codemagic and CircleCI: per-step spans (setup, Simulator boot, runtime install, proxy, cache restore/save, measurement, upload, post steps), queue time, billed minutes per provider rule, retries and timeouts, cache hit rate. Correct the known telemetry errors first: fw ci state prints unknown for completed runs of other branches (macos-teardown-trim and codemagic-pilot reviews); fw ci wait printed 'success -> fail' for successful runs of workflows with no Lean row (preview-502-flake); GitHub job time includes 3-6 min of upload/post steps that a step-matched comparison must drop (codemagic-pilot review). Then a Lean reducer over the last 7 days of macOS jobs: minutes per workflow, per step class and per provider, and a ranked list of minute cuts with the saving per day each would give (MEASURED inputs, saving INFERRED until a change lands). Output research/notes/2026/10-2x-macos-telemetry.md. GitHub list calls only where possible; never gh api.",
+   "writes": [
+    "lean/Fw/Obs/MacTelemetry*.lean",
+    "lean/scripts/MacTelemetryGolden.lean",
+    "packages/contracts/golden/obs/mactelemetry*.jsonl",
+    "apps/runner/src/ci-telemetry*.ts",
+    "apps/runner/src/ci.ts",
+    "apps/runner/test/ci-telemetry*.test.ts",
+    "apps/runner/test/ci.test.ts",
+    "research/notes/2026/10-2x-macos-telemetry.md",
+    "docs/team/handoffs/macos-telemetry.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "macos-lane-eligibility",
+   "owner": "lean-prover",
+   "stream": "measure",
+   "deps": [
+    "macos-telemetry",
+    "xctrace-ci-probe",
+    "webkit-cost-counters"
+   ],
+   "title": "User 2026-10-22: 'in the future we might need to use macos ci for doing measurement of some case that playwright webkit cannot collect it. and we could optimize these resource more efficient following our data.' A Lean rule per measurement kind deciding the cheapest lane that can collect it: Linux Playwright WebKit (WPE: no Safari compositor, software GL, research/notes/2026/10-2x-linux-webkit.md), the macOS Simulator (Safari/WKWebView, RemoteLayerTree, BGRA8 surfaces, no real GPU), this Mac's Safari (real GPU), or the phone; inputs from the lag taxonomy (research/notes/2026/10-22-lag-coverage.md), the counters that worked on CI (webkit-cost-counters, xctrace-ci-probe) and the minutes per lane (macos-telemetry). Theorem: a kind is routed to macOS only when no Linux lane can observe it. Output the eligibility table and the macOS minutes it implies per week.",
+   "writes": [
+    "lean/Fw/Measure/LaneEligibility*.lean",
+    "packages/contracts/golden/measure/lane-eligibility.jsonl",
+    "research/notes/2026/10-2x-macos-lane-eligibility.md",
+    "docs/team/handoffs/macos-lane-eligibility.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ask-step-guard",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "Incident inc-ask-chat-only: the lead asked two user decisions in chat without a console step. Add a check that every ask the lead marks in a reply (a line starting 'Ask:' or an AskUserQuestion) has an open action step posted in the same turn; the console shows an alert 'ask without step' otherwise. Low priority; the habit rule applies now.",
+   "writes": [
+    "apps/runner/src/step*.ts",
+    "apps/runner/test/step*.test.ts",
+    "apps/runner/src/watch-collect.ts",
+    "docs/team/handoffs/ask-step-guard.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "hero-exit-threaded-port",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [],
+   "title": "User goal 2026-10-22 (hero exit smoother on WebKit). Survey (lead scratch opt-survey/hero-exit.md, repo note 10-22-smooth-candidates landing): the rewrite's remaining hero stalls are Safari's toolbar-collapse throttle: the page gets scroll updates every 100 ms while the toolbar collapses (WKWebViewIOS.mm:3256-3268@862f17d, CONFIRMED), so the JS-driven --exit-opacity steps at about 10 Hz while the sticky hero moves smoothly; compositor-run scroll timelines are updated on every UI scroll callback even while throttled (RemoteScrollingTreeIOS.cpp:56-62, CONFIRMED). Build the TS variant hero.exit:threaded: a CSS scroll-driven animation (animation-timeline on the hero's scroll range) for the exit's opacity/translate (and blur only if WebKit runs a filter on the scroll timeline in the UI process: read the source first; else keep blur on the main path and say so), checked against the Lean golden vectors of HeroExitOpt (consumer_eq_s under premise RG11, proof-hero-exit and hero-exit-restate landed 3dbed91c). Flag registry entry, trajectory gate at every breakpoint on both engines, and the WebKit CI measurement with the corrected exit check (scrollY still runs inside the exit range with a getComputedStyle sample of a consumer, never the stall count, which a CSS animation does not write). Same look is the proof's claim; any pixel difference found goes to the look-change class.",
+   "writes": [
+    "apps/site/src/parts/hero.exit/**",
+    "lean/Fw/Parts/HeroExit*.lean",
+    "packages/contracts/golden/parts/hero-exit*.jsonl",
+    "research/notes/2026/10-2x-hero-exit-threaded.md",
+    "docs/team/handoffs/hero-exit-threaded-port.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "toolbar-throttle-probe",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "title": "Confirm the hero-exit stall cause before and alongside hero-exit-threaded-port: a diagnostic-only flag engine.scroll:throttle-lift (one main-thread scroll-driven animation of an invisible property, which disables the 100 ms toolbar-collapse throttle per WebPageCocoa.mm:2357 and AnimationTimelinesController.cpp:267-279@862f17d; never shipped: it costs power). Measure on the WebKit Simulator lane with a real touch scroll that collapses Safari's toolbar (XCUITest or the device-replay path, not a synthetic WheelEvent) and in the next phone replay session: scrollY still runs per 100 frames inside the exit range, step sizes, and the exit value lag, original vs rewrite vs throttle-lift. Expected (INFERRED): still runs drop from about 83 per pass to near 0. A Lean statement of the still-run count with goldens. Viewport-height confound (h 815 vs 775 between arms) controlled: same height for every arm.",
+   "writes": [
+    "apps/site/src/parts/engine.scroll/**",
+    "packages/measure-webkit/src/throttle/**",
+    "packages/measure-webkit/test/throttle-*.test.mjs",
+    "lean/Fw/Device/StillRuns*.lean",
+    "packages/contracts/golden/device/stillruns*.jsonl",
+    "research/notes/2026/10-2x-toolbar-throttle.md",
+    "docs/team/handoffs/toolbar-throttle-probe.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-strip-webkit",
+   "owner": "lean-prover",
+   "stream": "parts",
+   "deps": [],
+   "title": "End of page, survey rank 1 (C10, morph.countdown:strip, needs hero.countdown:strip): about 80-160 new UIViews are created on Safari's UI thread at morph start (render-cost note F7); the strip cuts countdown layers 80 -> 8 (wk_normal_layers, HeroCountdownOpt strip_visSame). Open items to close: pixel E under the panel's fractional opacity (ledger n 13, partly-proved; v1 saw delta-1 pixel classes in fractional fades): prove or bound it, else move the flag to the look-change class; the open sub_still_not_le condition (the TS strip's shared-loop subscriber must go); the WebKit-side measurement (new layers per commit and UI-process work at morph start, via webkit-cost-counters) since the C3 decision excluded it on Chromium element counts (runs 39257533380, 39259074927). If it wins on WebKit and E holds, reverse the curated exclusion in lean/Fw/Preset/Gen.lean for the v2-proved preset.",
+   "writes": [
+    "lean/Fw/Parts/HeroCountdown*.lean",
+    "lean/Fw/Parts/MorphCountdown*.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "packages/contracts/golden/parts/countdown*.jsonl",
+    "packages/contracts/golden/preset/**",
+    "apps/site/src/parts/morph.countdown/**",
+    "apps/site/src/parts/hero.countdown/**",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/morph-strip-webkit.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-touch-band",
+   "owner": "lean-prover",
+   "stream": "parts",
+   "deps": [],
+   "title": "End of page: our non-passive window touchmove listener makes every pan in its band wait for the main thread with no timeout (WebPageProxy.cpp:5228-5300@862f17d), and morph.mount and morph.tween each attach one (morph-double-listener). Prove in Lean and build: (1) one merged listener (the two armed predicates MorphMount.lean:31 and MorphTween.lean combined; equivalence theorem); (2) the listener attached only in a band around the take point (premise, INFERRED: one touch sequence moves the page at most about one viewport height: state it as a premise and test it on the replay profiles). Same look (behaviour identical inside the band). Measure touch-to-first-scroll on the replay and the WebKit lane.",
+   "writes": [
+    "lean/Fw/Parts/MorphMount*.lean",
+    "lean/Fw/Parts/MorphTween*.lean",
+    "lean/Fw/Parts/MorphListen*.lean",
+    "packages/contracts/golden/parts/morph-listen*.jsonl",
+    "apps/site/src/parts/morph.mount/**",
+    "apps/site/src/parts/morph.tween/**",
+    "docs/team/handoffs/morph-touch-band.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "pin-fight-measure",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "device-replay"
+   ],
+   "title": "End of page: scroll-lock (C4) is not installed under (hover: none) (MorphTweenOpt engage_touch), so on the iPhone pin()'s scrollTo can fight a drag that crosses the take point and its momentum (preventDefault is ignored once a pan started, WKContentViewInteraction.mm:4238-4246@862f17d; effect INFERRED). Measure it before any fix: on the replay profiles (a drag crossing the take point, a fling across it), count scrollend events per gesture, scroll position reversals and the distance pin() moves the page against the gesture; original vs rewrite. A fix (C4t, touch scroll lock) changes the look and goes to the look-change class for the user's review.",
+   "writes": [
+    "packages/measure-webkit/src/pinfight/**",
+    "packages/measure-webkit/test/pinfight-*.test.mjs",
+    "research/notes/2026/10-2x-pin-fight.md",
+    "docs/team/handoffs/pin-fight-measure.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "step-threads",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "User 2026-10-22: 'i'd like to ask you improve the your steps each topic, i'd like to make it that i can ask for more clarify and you ask answer me in the console. i think i catch up on this session the message is quite a lot and hard to catch up.' Build in console-api/console-web and the fw CLI: (1) topics: `fw step post --topic <id>` and `fw step topic --id <id> --title <t> --summary <text>`; the Your steps card groups open steps by topic (e.g. smoothness, measurement, ci-macos, jev, daemon, phone), each topic with the lead's current one-paragraph summary and its last update time, so the user catches up per topic instead of the chat; (2) threads: every step and every topic has a comment thread; the user writes a question in the console; fw watch raises an alert (step.question) that wakes the lead's watch stream; the lead answers with `fw step reply --id <step|topic> --to <comment id> --text <text>`, which closes the alert; `fw step questions [--all]` lists open ones (reuse the review-card feedback mechanism: ReviewFeedback.tsx, review.ts reply/feedback, its watch alert and its Lean open/close decision, generalised to any card). Lean first for the alert open/close decision and the topic grouping order, with goldens. The single-writer rule of console-api holds.",
+   "writes": [
+    "apps/console-api/src/**",
+    "apps/console-api/test/**",
+    "apps/console-web/src/**",
+    "apps/runner/src/fw.ts",
+    "apps/runner/src/step*.ts",
+    "apps/runner/src/review.ts",
+    "apps/runner/src/watch-collect.ts",
+    "apps/runner/test/step*.test.ts",
+    "lean/Fw/Console/Steps*.lean",
+    "packages/contracts/golden/console/steps*.jsonl",
+    "docs/team/tools/console-steps.md",
+    "docs/team/handoffs/step-threads.md"
    ]
   }
  ],
