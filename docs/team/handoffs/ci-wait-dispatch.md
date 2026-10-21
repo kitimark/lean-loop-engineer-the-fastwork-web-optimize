@@ -1,6 +1,6 @@
 # ci-wait-dispatch: handoff (round 2)
 
-State: branch worktree-wf_e007c264-660-4, last code commit 16267322 (merge of main af281d80 before it). Green at 16267322:
+State: branch worktree-wf_e007c264-660-4, last code commit 16267322 (after merge af281d80). Green at 16267322:
 lean/scripts/check.sh, packages/gh-budget 70, apps/runner 1684 (incl. tsc), scripts/ci-paths.test.mjs 54.
 
 Round 1 (4ced7032 Lean+TS twin+golden, 14b16d48 workflows/fw run/stripper/docs): identity waits, `Want.dispatch workflow nonce`,
@@ -25,7 +25,6 @@ Open
   webkit-sim run-names and nonce inputs have never run on CI. Command, by the lead: `pnpm -s fw run --gate --engines chromium
   --ref ci/ci-wait-dispatch` (and a count run per lane); the run-name text is checked by ci-paths, not by a run.
 - Workflows outside `dispatchWorkflows` keep no nonce (accepted limit).
-
 Writes beyond the task list: Layout.lean (`Lane.inputs` + "nonce", merged with main's `lag`), the three yml files (nonce input,
 run-name), trajectory-probe.yml comment, gh-budget index.ts, run-budget.test.ts, scripts/ci-paths.mjs. TS stand-ins: want.ts,
 run-pick.ts, `declaresNonce` (replayed or tested, no fwcore op). Read first: Dispatch.lean "Which run does a wait mean?".
