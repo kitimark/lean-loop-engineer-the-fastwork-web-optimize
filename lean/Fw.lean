@@ -171,6 +171,7 @@ import Fw.Gate.ShardObs  -- gate-shard-balance: observed jobs of a CI run, reduc
 import Fw.Gate.Search  -- gate-preset-input: the search string of the gate rewrite arm from its fw and preset inputs
 import Fw.Gate.Trajectory  -- trajectory-probe: per-unit verdict of the rewrite against the original along a scroll path
 import Fw.Gate.Colour  -- kit-colour-space: every trajectory colour reading in sRGB x1000, the error budget the judge allows
+import Fw.Gate.RunPerm  -- scoped-gap-did: run-level permutation test of the close gap g, statistic and exact p
 import Fw.Wire.ShardGolden  -- gate-shard-balance: golden/gate/shards.jsonl
 import Fw.Measure.WktrLayout  -- wktr-fixture-speed: lane layout, premise gate, fixture assertions
 import Fw.Measure.WktrVariance  -- wktr-serial-baseline: run-to-run variance of class kinds, findings, verdict
