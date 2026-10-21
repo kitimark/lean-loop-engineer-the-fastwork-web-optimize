@@ -664,9 +664,322 @@ def secStr (ms : Nat) : String := dec1 ms 1000
 /-- Percent of `b` that `a` is, one decimal. -/
 def pctStr (a b : Nat) : String := if b = 0 then "-" else dec1 (a * 100) b ++ "%"
 
+/-- A Markdown table row. -/
+def mdRow (cells : List String) : String := "| " ++ " | ".intercalate cells ++ " |"
+
+/-- A Markdown table: header, separator, rows. -/
+def mdTable (hdr : List String) (rows : List (List String)) : String :=
+  "\n".intercalate ([mdRow hdr, mdRow (hdr.map fun _ => "---")] ++ rows.map mdRow)
+
+#guard mdTable ["a", "b"] [["1", "2"]] == "| a | b |\n| --- | --- |\n| 1 | 2 |"
 #guard minStr 90000 == "1.5"
 #guard minStr 59999 == "0.9"
 #guard secStr 1234 == "1.2"
 #guard pctStr 1 3 == "33.3%"
 #guard pctStr 1 0 == "-"
+
+/-! ## The reducer -/
+
+/-- The window of rows to reduce. `jobs` holds every job of the read runs (the Linux jobs without steps: they only date a
+`needs` edge), the macOS jobs of the other providers with steps. -/
+structure Input where
+  fromMs : Nat
+  toMs : Nat
+  minRunMs : Nat
+  cap : Nat
+  runs : List Run
+  jobs : List Job
+
+/-- The rows the tables count: macOS jobs only. -/
+def Input.kept (i : Input) : List Job := i.jobs.filter fun j => j.prov != .github || isMacJob j.wf j.name
+
+/-- **A kept GitHub job is a macOS job.** -/
+theorem Input.kept_github (i : Input) (j : Job) (hj : j ∈ i.kept) (hg : j.prov = .github) : isMacJob j.wf j.name = true := by
+  simp only [Input.kept, List.mem_filter, Bool.or_eq_true, bne_iff_ne, ne_eq] at hj
+  rcases hj.2 with h | h
+  · exact absurd hg h
+  · exact h
+
+/-- The earliest creation time in the rows (the data may start after the window does). -/
+def Input.firstMs (i : Input) : Nat := ((i.runs.map (·.createdMs)) ++ (i.jobs.map (·.createdMs))).foldl min i.toMs
+
+/-- The window the rates are per day of: from the later of the stated start and the first row. -/
+def Input.winMs (i : Input) : Nat := i.toMs - max i.fromMs i.firstMs
+
+/-- **The window of the rates is never longer than the stated one.** -/
+theorem Input.winMs_le (i : Input) : i.winMs ≤ i.toMs - i.fromMs :=
+  Nat.sub_le_sub_left (Nat.le_max_left ..) _
+
+/-- **A window that starts at the stated start when the data does** has the stated length. -/
+theorem Input.winMs_stated (i : Input) (h : i.fromMs ≥ i.firstMs) : i.winMs = i.toMs - i.fromMs := by
+  unfold Input.winMs
+  rw [Nat.max_eq_left h]
+
+/-- The workflows with a macOS job, in table order. -/
+def wfs : List String := macJobs.map (·.1)
+
+/-- What the tables share. -/
+structure Ctx where
+  i : Input
+  kept : List Job
+  gh : List Job
+  ws : List (String × Nat)
+  win : Nat
+
+/-- Prepare the shared parts. -/
+def Ctx.of (i : Input) : Ctx :=
+  let k := i.kept
+  { i, kept := k, gh := k.filter (·.prov == .github), ws := weights i.minRunMs i.runs i.jobs, win := i.winMs }
+
+/-- Weighted milliseconds of a job measure over the jobs of one provider, per job: `Σ w x / Σ w`. -/
+def Ctx.mean (c : Ctx) (p : Prov) (x : Job → Nat) : Nat :=
+  let js := c.kept.filter (·.prov == p)
+  ((js.map fun j => j.weight c.ws * x j).sum) / max 1 ((js.map fun j => j.weight c.ws).sum)
+
+/-- Weighted sum (per mille x ms) of a measure over some jobs. -/
+def Ctx.wsum (c : Ctx) (js : List Job) (x : Job → Nat) : Nat := (js.map fun j => j.weight c.ws * x j).sum
+
+/-- Per day, in ms, of a weighted sum. -/
+def Ctx.day (c : Ctx) (x : Nat) : Nat := perDay x c.win
+
+/-- Minutes per day of a weighted sum, as text. -/
+def Ctx.dayMin (c : Ctx) (x : Nat) : String := minStr (c.day x)
+
+/-- The run-level table: all runs of the macOS workflows. -/
+def runsTable (c : Ctx) : String :=
+  mdTable ["workflow", "runs", "dispatched", "success", "failure", "cancelled", "candidates", "read", "run wall min", "run wall min/day"]
+    (wfs.map fun w =>
+      let rs := c.i.runs.filter (·.wf == w)
+      let cnt (o : Outcome) := (rs.filter fun r => outcomeOf .github r.concl == o).length
+      let wall := ((rs.filter fun r => r.concl != "").map Run.wallMs).sum
+      let read := (((c.gh.filter (·.wf == w)).map (·.run)).eraseDups).length
+      [w, toString rs.length, toString (rs.filter fun r => r.event == "workflow_dispatch").length, toString (cnt .success),
+       toString (cnt .failure), toString (cnt .cancelled), toString (rs.filter (Run.candidate c.i.minRunMs)).length,
+       toString read, minStr wall, c.dayMin (wall * 1000)])
+
+/-- The per-workflow table of GitHub macOS jobs, weighted to all candidate runs. -/
+def jobsTable (c : Ctx) : String :=
+  let g := groupAgg (·.wf) (fun j => Agg.ofJob c.i.jobs (j.weight c.ws) j) c.gh
+  mdTable ["workflow", "jobs read", "mean wall min", "est. wall min/day", "est. billed min/day", "est. matched min/day",
+      "est. queue min/day", "non-success wall min/day", "non-success share"]
+    (wfs.map fun w =>
+      let a := (g.lookup w).getD {}
+      [w, toString a.n, minStr (a.wall / max 1 a.wt), c.dayMin a.wall, c.dayMin (a.billed * 60000), c.dayMin a.matched,
+       c.dayMin a.queue, c.dayMin a.bad, pctStr a.bad a.wall])
+
+/-- The per-provider table. -/
+def providersTable (c : Ctx) : String :=
+  let g := groupAgg (·.prov.tag) (fun j => Agg.ofJob c.i.jobs (j.weight c.ws) j) c.kept
+  mdTable ["provider", "jobs", "mean wall min", "mean billed min", "mean matched min", "mean queue min", "est. wall min/day",
+      "est. billed min/day", "CircleCI credits/day"]
+    (Prov.all.map fun p =>
+      let a := (g.lookup p.tag).getD {}
+      let w := max 1 a.wt
+      [p.tag, toString a.n, minStr (a.wall / w), minStr (a.billed * 60000 / w), minStr (a.matched / w), minStr (a.queue / w),
+       c.dayMin a.wall, c.dayMin (a.billed * 60000),
+       if p = .circleci then toString (c.day (a.billed * circleCreditsPerMin)) else "-"])
+
+/-- Time of all steps of a job. -/
+def Job.stepsMs (j : Job) : Nat := (j.steps.map Step.durMs).sum
+
+/-- Wall time that no step covers (the runner's own start-up and the gaps between steps). -/
+def Job.gapMs (j : Job) : Nat := j.wallMs - j.stepsMs
+
+/-- The per-step-class table: mean seconds per job on each provider, and the GitHub share of the wall time. -/
+def classTable (c : Ctx) : String :=
+  let sec (p : Prov) (x : Job → Nat) := secStr (c.mean p x)
+  let ghWall := c.wsum c.gh (·.wallMs)
+  mdTable ["class", "on every provider", "GitHub s/job", "Codemagic s/job", "CircleCI s/job", "GitHub min/day", "GitHub share of wall"]
+    (Cls.all.map (fun cl =>
+      let x := c.wsum c.gh (·.classMs cl)
+      [cl.tag, if cl.matched then "yes" else "GitHub only", sec .github (·.classMs cl), sec .codemagic (·.classMs cl),
+       sec .circleci (·.classMs cl), c.dayMin x, pctStr x ghWall]) ++
+     [["(gap: wall minus steps)", "-", sec .github (·.gapMs), sec .codemagic (·.gapMs), sec .circleci (·.gapMs),
+       c.dayMin (c.wsum c.gh (·.gapMs)), pctStr (c.wsum c.gh (·.gapMs)) ghWall],
+      ["(job wall)", "-", sec .github (·.wallMs), sec .codemagic (·.wallMs), sec .circleci (·.wallMs), c.dayMin ghWall, "100.0%"]])
+
+/-- One executed step of a GitHub macOS job, keyed by workflow, job and step name. -/
+structure SRow where
+  key : String
+  cls : Cls
+  dur : Nat
+  w : Nat
+
+/-- All steps of the GitHub macOS jobs. -/
+def Ctx.stepRows (c : Ctx) : List SRow :=
+  c.gh.flatMap fun j => j.steps.map fun s =>
+    { key := j.wf ++ " / " ++ baseName j.name ++ " / " ++ s.name, cls := classOf s.name, dur := s.durMs, w := j.weight c.ws }
+
+/-- The statistics of one step key. -/
+structure StepStat where
+  key : String
+  cls : Cls
+  n : Nat
+  wall : Nat
+  med : Nat
+  max : Nat
+  tail : Nat
+
+/-- Weighted time above the median: what bringing every slow occurrence down to the median would save. -/
+def tailOf (rs : List SRow) (m : Nat) : Nat := (rs.map fun s => s.w * (s.dur - m)).sum
+
+/-- Weighted time of some steps. -/
+def wallOf (rs : List SRow) : Nat := (rs.map fun s => s.w * s.dur).sum
+
+/-- **Bringing every step down to a median never saves more than the steps took.** -/
+theorem tailOf_le (rs : List SRow) (m : Nat) : tailOf rs m ≤ wallOf rs := by
+  unfold tailOf wallOf
+  induction rs with
+  | nil => simp
+  | cons s t ih =>
+    simp only [List.map_cons, List.sum_cons]
+    have := Nat.mul_le_mul_left s.w (Nat.sub_le s.dur m)
+    omega
+
+/-- The groups of step keys with their statistics; a key seen fewer than three times has no tail (the median of one or two
+numbers is not a norm). -/
+def stepStats (rows : List SRow) : List StepStat :=
+  (groupAgg (·.key) (fun s => ({ n := 1, wt := s.w, raw := s.dur, wall := s.w * s.dur } : Agg)) rows).map fun (k, a) =>
+    let rs := rows.filter (·.key == k)
+    let ds := rs.map (·.dur)
+    let m := median ds
+    { key := k, cls := (match rs with | [] => .measure | r :: _ => r.cls), n := a.n, wall := a.wall, med := m,
+      max := ds.foldl Nat.max 0, tail := if rs.length < 3 then 0 else tailOf rs m }
+
+/-- The busiest steps: top `k` keys by weighted time. -/
+def stepsTable (c : Ctx) (k : Nat) : String :=
+  let st := (sortDesc (·.wall) (stepStats c.stepRows)).take k
+  mdTable ["step (workflow / job / step)", "class", "read", "est. min/day", "median s", "max s", "tail above median min/day"]
+    (st.map fun s => [s.key, s.cls.tag, toString s.n, c.dayMin s.wall, secStr s.med, secStr s.max, c.dayMin s.tail])
+
+theorem sum_map_le {α : Type} (l : List α) (f g : α → Nat) (h : ∀ x ∈ l, f x ≤ g x) : (l.map f).sum ≤ (l.map g).sum := by
+  induction l with
+  | nil => simp
+  | cons x t ih =>
+    simp only [List.map_cons, List.sum_cons]
+    have h1 := h x (List.mem_cons_self ..)
+    have h2 := ih (fun y hy => h y (List.mem_cons_of_mem _ hy))
+    omega
+
+/-- The wall time of the success runs of the same workflow and job. -/
+def Ctx.successWalls (c : Ctx) (j : Job) : List Nat :=
+  (c.gh.filter fun o => o.wf == j.wf && baseName o.name == baseName j.name && o.outcome == .success).map (·.wallMs)
+
+/-- What a cap of 1.5 x the median success wall saves on one job (weighted ms): the wall time above the cap, for a
+non-success job of a group with at least three successes. -/
+def Ctx.capTerm (c : Ctx) (j : Job) : Nat :=
+  if j.outcome == .success then 0
+  else if (c.successWalls j).length < 3 then 0
+  else j.weight c.ws * (j.wallMs - 3 * median (c.successWalls j) / 2)
+
+/-- What the cap would save over all jobs (weighted ms). -/
+def Ctx.capSaving (c : Ctx) : Nat := (c.gh.map c.capTerm).sum
+
+/-- **The cap never saves more than the jobs took.** -/
+theorem Ctx.capSaving_le (c : Ctx) : c.capSaving ≤ c.wsum c.gh (·.wallMs) := by
+  unfold Ctx.capSaving Ctx.wsum
+  apply sum_map_le
+  intro j _
+  unfold Ctx.capTerm
+  split
+  · exact Nat.zero_le _
+  · split
+    · exact Nat.zero_le _
+    · exact Nat.mul_le_mul_left _ (Nat.sub_le _ _)
+
+/-- **A success job is never capped.** -/
+theorem Ctx.capTerm_success (c : Ctx) (j : Job) (h : j.outcome = .success) : c.capTerm j = 0 := by
+  simp [Ctx.capTerm, h]
+
+/-- **A group with fewer than three successes has no cap** (the median of one or two walls is not a norm). -/
+theorem Ctx.capTerm_few (c : Ctx) (j : Job) (h : (c.successWalls j).length < 3) : c.capTerm j = 0 := by
+  simp [Ctx.capTerm, h]
+
+/-- **A failure in a group of three successes is capped above 1.5 x their median.** -/
+theorem Ctx.capTerm_failure (c : Ctx) (j : Job) (h : j.outcome ≠ .success) (h3 : 3 ≤ (c.successWalls j).length) :
+    c.capTerm j = j.weight c.ws * (j.wallMs - 3 * median (c.successWalls j) / 2) := by
+  have h1 : (j.outcome == .success) = false := by simpa using h
+  have h2 : ¬ (c.successWalls j).length < 3 := Nat.not_lt.2 h3
+  simp [Ctx.capTerm, h1, h2]
+
+
+/-- The Codemagic minutes the plan allows (the stop line of the pilot, `research/notes/2026/10-2x-codemagic-pilot.md`). -/
+def codemagicStopMin : Nat := 400
+
+/-- Days the allowance covers. -/
+def codemagicDays : Nat := 30
+
+/-- Saving of moving the `webkit-sim` `sim` job to Codemagic as far as the allowance goes (ms of GitHub wall per day): as
+many jobs per day as the allowance covers, each freeing a GitHub job; never more than the GitHub sim jobs take. -/
+def Ctx.shiftSaving (c : Ctx) : Nat :=
+  let sim := c.gh.filter fun j => j.wf == "webkit-sim" && baseName j.name == "sim"
+  let cm := c.kept.filter (·.prov == .codemagic)
+  if sim.isEmpty || cm.isEmpty then 0
+  else
+    let ghMean := c.wsum sim (·.wallMs) / max 1 (c.wsum sim fun _ => 1)
+    let cmMean := (cm.map (·.wallMs)).sum / cm.length
+    min (c.day (c.wsum sim (·.wallMs))) (codemagicStopMin * 60000 / codemagicDays * ghMean / max 1 cmMean)
+
+/-- **The move never frees more than the sim jobs take.** -/
+theorem Ctx.shiftSaving_le (c : Ctx) :
+    c.shiftSaving ≤ c.day (c.wsum (c.gh.filter fun j => j.wf == "webkit-sim" && baseName j.name == "sim") (·.wallMs)) := by
+  unfold Ctx.shiftSaving
+  dsimp only
+  split
+  · exact Nat.zero_le _
+  · exact Nat.min_le_left ..
+
+/-- **Without a Codemagic build there is no move.** -/
+theorem Ctx.shiftSaving_no_codemagic (c : Ctx) (h : (c.kept.filter (·.prov == .codemagic)).isEmpty = true) :
+    c.shiftSaving = 0 := by
+  unfold Ctx.shiftSaving
+  simp [h]
+
+/-- One candidate cut: what it saves per day (ms of GitHub macOS time), and how sure the number is. -/
+structure Cut where
+  id : String
+  title : String
+  savedMs : Nat
+  bound : String
+
+/-- The classes whose slow occurrences are a cut of their own. -/
+def tailClasses : List Cls := [.setup, .cache, .runtime, .proxy, .simBoot, .measure, .upload]
+
+/-- All candidate cuts, in no order. -/
+def Ctx.cuts (c : Ctx) : List Cut :=
+  let st := stepStats c.stepRows
+  [{ id := "cap-nonsuccess", title := "Stop a non-success job at 1.5 x the median success wall of its job", savedMs := c.day c.capSaving,
+     bound := "estimate" },
+   { id := "drop-telemetry", title := "Drop the telemetry steps (the telemetry action, runner facts, host sampler)",
+     savedMs := c.day (c.wsum c.gh (·.classMs .telemetry)), bound := "upper bound" },
+   { id := "trim-teardown", title := "Drop the teardown steps (device deletion, log keeping, shut down)",
+     savedMs := c.day (c.wsum c.gh (·.classMs .teardown)), bound := "upper bound" },
+   { id := "shift-codemagic", title := "Run the sim job on Codemagic up to the allowance", savedMs := c.shiftSaving, bound := "estimate" }] ++
+  tailClasses.map fun cl =>
+    { id := s!"tail-{cl.tag}", title := s!"Bring slow {cl.tag} steps down to their median",
+      savedMs := c.day ((st.filter (·.cls == cl)).map (·.tail)).sum, bound := "upper bound" }
+
+/-- The cuts, largest saving first. -/
+def rankCuts (cs : List Cut) : List Cut := sortDesc (·.savedMs) cs
+
+/-- **Ranking loses and adds no cut.** -/
+theorem rankCuts_perm (cs : List Cut) : (rankCuts cs).Perm cs := sortDesc_perm _ _
+
+/-- **Ranking orders by saving.** -/
+theorem rankCuts_sorted (cs : List Cut) : (rankCuts cs).Pairwise (fun a b => b.savedMs ≤ a.savedMs) := sortDesc_sorted _ _
+
+/-- The ranked cuts as a table. -/
+def cutsTable (c : Ctx) : String :=
+  let total := c.wsum c.gh (·.wallMs)
+  mdTable ["rank", "cut", "saves min/day", "share of GitHub macOS wall", "kind"]
+    ((rankCuts c.cuts).zipIdx.map fun (x, r) =>
+      [toString (r + 1), x.title, minStr x.savedMs, pctStr (x.savedMs * 1000) (c.day total * 1000), x.bound])
+
+/-- Every table of the report by name. -/
+def tables (i : Input) : List (String × String) :=
+  let c := Ctx.of i
+  [("runs", runsTable c), ("jobs", jobsTable c), ("providers", providersTable c), ("classes", classTable c),
+   ("steps", stepsTable c 12), ("cuts", cutsTable c)]
+
+end Fw.Obs.MacTelemetry
 
