@@ -18,8 +18,9 @@ if (cmd === 'sim') {
   const res = await runSimCadence({ siteDir: resolve(site), lookSearch: search, reps: Number(flag('--reps') ?? 6), settleMs: Number(flag('--settle') ?? 2500) });
   mkdirSync(out, { recursive: true });
   writeFileSync(join(out, 'sim.json'), `${JSON.stringify(res)}\n`);
-  console.log(`webkit sim: ${res.rows.length} windows, refused=${res.refused}, ${res.wallSeconds} s, ${res.runtime}`);
-  if (res.refused) process.exit(1);
+  console.log(`webkit sim: ${res.rows.length} windows, refused=${res.refused}, incomplete=${res.incomplete ?? 'no'}, ${res.wallSeconds} s, ${res.runtime}`);
+  // a refused arm identity fails the job; an incomplete session keeps its windows read so far (the report counts them) unless none was kept
+  if (res.refused || (res.incomplete && !res.rows.some((r) => r.ok))) process.exit(1);
 } else if (cmd === 'report') {
   const { reportMain } = await import('./report.mjs');
   const { classify } = await import('../../../measure-chromium/src/fwcore.mjs');

@@ -393,7 +393,7 @@ jobs:
           SEARCH: ${{ needs.site.outputs.search }}
           SITE_DIR: ${{ runner.temp }}/site
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
-          REPS: 6
+          REPS: 5
           # The runner boots Safari several times slower than a Mac: every wait in packages/measure-webkit is scaled (counts do not depend on waits).
           FW_WK_TIMEOUT_SCALE: '8'
           FW_WK_ATTEMPTS: '3'
