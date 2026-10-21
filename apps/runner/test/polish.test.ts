@@ -48,7 +48,7 @@ const cases: [string, Record<string, unknown>][] = [
   ["cuts: apply a cut that keeps every fact", cutsReq([{ path: md, text: "See lean/Fw/A.lean:12 for the rule, which is the rule.\n" }],
     [{ path: md, old: "for the rule, which is the rule.", new: "for the rule." }])],
   ["cuts: 10-22 sup-wire over-cut leaves a space before ;", cutsReq([doc(supWire)], [supWire])],
-  ["cuts: 10-22 waiter over-cut keeps every token (accepted limit: meaning)", cutsReq([doc(waiter)], [waiter])],
+  ["cuts: 10-22 waiter over-cut drops not", cutsReq([doc(waiter)], [waiter])],
   ["cuts: 10-22 jev-datasets over-cut drops commits and counts", cutsReq([doc(jev)], [jev])],
   ["cuts: a code file is notProse", cutsReq([{ path: "apps/x/a.ts", text: "// a b\n" }], [{ path: "apps/x/a.ts", old: "a b", new: "a" }])],
   ["cuts: a skip file is notProse", cutsReq([{ path: "snapshot/a.md", text: "a b\n" }], [{ path: "snapshot/a.md", old: "a b", new: "a" }])],
@@ -100,8 +100,8 @@ describe("plan.polishPlan / plan.polishCuts golden (packages/contracts/golden/pl
 
   it("cut verdicts, one per branch of judge", () => {
     expect(verdicts("cuts: apply a cut")).toEqual(["apply"]);
-    expect(verdicts("cuts: 10-22 sup-wire")).toEqual(["breaksPunct"]);
-    expect(verdicts("cuts: 10-22 waiter")).toEqual(["apply"]);
+    expect(verdicts("cuts: 10-22 sup-wire")).toEqual(["dropsFacts"]);
+    expect(verdicts("cuts: 10-22 waiter")).toEqual(["dropsFacts"]);
     expect(verdicts("cuts: 10-22 jev-datasets")).toEqual(["dropsFacts"]);
     expect((res("cuts: 10-22 jev-datasets").cuts as { missing: string[] }[])[0]!.missing).toEqual(expect.arrayContaining(["b2d4dff0", "ecdc0787"]));
     expect(verdicts("cuts: a code file")).toEqual(["notProse"]);

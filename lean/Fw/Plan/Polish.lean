@@ -180,6 +180,10 @@ theorem stages_nil (gen : List String) : stages gen [] = [] := by
 
 def statusWords : List String := ["CONFIRMED", "INFERRED", "MEASURED"]
 
+/-- Polarity words: a cut that drops one flips or loses a claim. -/
+def polarWords : List String :=
+  ["not", "Not", "no", "No", "never", "Never", "without", "Without", "unless", "Unless"]
+
 def wordChar (c : Char) : Bool := c.isAlphanum || "._/:-#+~".contains c
 
 def trimTail (w : String) : String :=
@@ -203,7 +207,7 @@ def isCommit (w : String) : Bool :=
 def facts (s : String) : List String :=
   ((s.splitToList (!·.isDigit)).filter (!·.isEmpty) ++
     ((s.splitToList (!wordChar ·)).map trimTail).filter fun w =>
-      isFileLine w || isCommit w || statusWords.contains w).eraseDups
+      isFileLine w || isCommit w || statusWords.contains w || polarWords.contains w).eraseDups
 
 def missing (old new : String) : List String :=
   let fn := facts new
@@ -321,8 +325,8 @@ def jevCounts : Cut := ⟨"docs/team/handoffs/jev-datasets.md",
   "Round 2 (branch merged with main at b2d4dff0; ledger commit ecdc0787; counts.json 2026-10-22T00:57:38+07:00). Counts (rows / labelled / held out):",
   "Counts (counts.json) (rows / labelled / held out):"⟩
 
-#guard judge [] supWire.old supWire = .breaksPunct
-#guard judge [] waiter.old waiter = .apply
+#guard (judge [] supWire.old supWire).name = "dropsFacts"
+#guard (judge [] waiter.old waiter).name = "dropsFacts"
 #guard (missing jevCounts.old jevCounts.new).take 3 = ["2", "4", "0"]
 #guard ["b2d4dff0", "ecdc0787"].all (missing jevCounts.old jevCounts.new).contains
 #guard (judge [] jevCounts.old jevCounts).name = "dropsFacts"

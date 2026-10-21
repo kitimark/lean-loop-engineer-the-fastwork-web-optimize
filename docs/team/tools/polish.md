@@ -47,12 +47,12 @@ Errors print `VERDICT <kind> <id> error` and exit 1; a usage error exits 64.
 ## Goldens
 
 `packages/contracts/golden/plan/polish.jsonl` (test `apps/runner/test/polish.test.ts`; regenerate with
-`FW_WRITE_POLISH_GOLDEN=1`). The three over-cuts of the 10-22 slop pass are cases: the `sup-wire` cut is `breaksPunct`,
-the `jev-datasets` cut is `dropsFacts`, the preview-502 cut is `apply`.
+`FW_WRITE_POLISH_GOLDEN=1`). The three over-cuts of the 10-22 slop pass are cases: all three are `dropsFacts` (polarity words `not`, `no`, `never`,
+`without`, `unless` are facts).
 
 ## Limits
 
-- A cut that keeps every token but drops meaning (the preview-502 case) applies; `slop-checker`'s judgement stays an
+- A cut that keeps every token and polarity word but drops other meaning applies; `slop-checker`'s judgement stays an
   agent's, and so does `comment-sicko`'s.
 - Each polish run costs one comment and one prose agent per accepted build.
 - A cut applies only where its old text occurs once in the file and `cutSafe` holds.

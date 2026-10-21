@@ -14300,7 +14300,8 @@
     "packages/contracts/golden/parts/hero-exit*.jsonl",
     "research/notes/2026/10-2x-hero-exit-threaded.md",
     "docs/team/handoffs/hero-exit-threaded-port.md"
-   ]
+   ],
+   "evidence": "74539e8"
   },
   {
    "devices": [
@@ -14558,8 +14559,10 @@
     "packages/contracts/golden/device/replay*.jsonl",
     "research/notes/2026/10-2x-device-replay.md",
     "docs/team/tools/device-replay.md",
-    "docs/team/handoffs/replay-ios-fix.md"
-   ]
+    "docs/team/handoffs/replay-ios-fix.md",
+    "packages/measure-webkit/src/device-replay.mjs"
+   ],
+   "evidence": "cbba360"
   },
   {
    "devices": [
@@ -14585,7 +14588,8 @@
     "scripts/sim-lock.sh",
     "docs/team/tools/slot.md",
     "docs/team/handoffs/sim-first-queue.md"
-   ]
+   ],
+   "evidence": "951e6c7"
   },
   {
    "devices": [
@@ -14595,7 +14599,7 @@
    "owner": "part-builder",
    "stream": "parts",
    "deps": [],
-   "title": "End-of-page smoothness (gpu-same-look inventory rank 3, user goal 2026-10-22: hero-exit and end-of-page smoother on WebKit): on the phone band the CSS pins --platform-shrink, so the per-frame JS write changes nothing visible; skip it there under a flag, same pattern as the proved people.card:mq. Lean: the write is invisible on the phone band (theorem over the band's CSS rule, goldens); flag registered; MEASURED on CI webkit-sim (end-of-page window: Recalculate styles, Layout, frame interval p50/p95, base vs flag) with run ids. Inputs: the lead-scratch gpu-same-look notes (path given in the build prompt): inventory.md (E4) and plan in the gpu-same-look result.",
+   "title": "End-of-page smoothness (gpu-same-look inventory rank 3, user goal 2026-10-22: hero-exit and end-of-page smoother on WebKit): on the phone band the CSS pins --platform-shrink, so the per-frame JS write changes nothing visible; skip it there under a flag, same pattern as the proved people.card:mq. Lean: the write is invisible on the phone band (theorem over the band's CSS rule, goldens); flag registered; MEASURED on CI webkit-sim (end-of-page window: Recalculate styles, Layout, frame interval p50/p95, base vs flag) with run ids. Inputs: the lead-scratch gpu-same-look notes (path given in the build prompt): inventory.md (E4) and plan in the gpu-same-look result. User 2026-10-22 approved this proposal to run (GPU Part Proposals page); finish with a report for the Reviews tab (results/<task>/report.json; posted via review-reports once landed).",
    "writes": [
     "apps/site/src/parts/platform/**",
     "apps/site/src/flags/**",
@@ -14615,13 +14619,14 @@
    "owner": "lean-prover",
    "stream": "gate",
    "deps": [],
-   "title": "Same-look pixel check core (user 2026-10-22: 'the gpu same-look could be provable by lean as well'; gpu-same-look plan (b)): Lean Fw.Gate.PathPix decides one cell (lane x env x pinned sample x declared moved box): two captures per arm identical else invalid; outside the masks byte-equal; inside a mask changed pixels and maxDelta at most the path-only control arm P (Q), byte-equal everywhere (E), else L (frame strips for the user). The Accelerated predicate (every keyframed property in CSSProperties.json's 7 always-accelerated, WebKit@862f17d) gates every GPU-port candidate. Theorems, sample matrix, goldens. Pixel noise is a measured hypothesis with run id, not proved. Inputs: the lead-scratch gpu-same-look notes (path given in the build prompt): measure.md and the pixel-proof research note when it lands.",
+   "title": "Same-look pixel check core (user 2026-10-22: 'the gpu same-look could be provable by lean as well'; gpu-same-look plan (b)): Lean Fw.Gate.PathPix decides one cell (lane x env x pinned sample x declared moved box): two captures per arm identical else invalid; outside the masks byte-equal; inside a mask changed pixels and maxDelta at most the path-only control arm P (Q), byte-equal everywhere (E), else L (frame strips for the user). The Accelerated predicate (every keyframed property in CSSProperties.json's 7 always-accelerated, WebKit@862f17d) gates every GPU-port candidate. Theorems, sample matrix, goldens. Pixel noise is a measured hypothesis with run id, not proved. Inputs: the lead-scratch gpu-same-look notes (path given in the build prompt): measure.md and the pixel-proof research note when it lands. AMEND (layer composer, user-approved 2026-10-22): grade E1 (within 1 level) only with a proved bound plus the measured cell (Near1, shown_near1 beside shown_eq, double_round_le1); a measured-only within-1 cell is Q; S1/T1 snap premises; per-arm premise list.",
    "writes": [
     "lean/Fw/Gate/PathPix*.lean",
     "lean/Fw.lean",
     "packages/contracts/golden/gate/path-pix.jsonl",
     "docs/team/handoffs/path-pix-core.md"
-   ]
+   ],
+   "evidence": "b9e0d0a"
   },
   {
    "devices": [
@@ -14631,9 +14636,11 @@
    "owner": "measure-engineer",
    "stream": "measure",
    "deps": [
-    "path-pix-core"
+    "path-pix-core",
+    "site-layer-opts",
+    "layer-census-check"
    ],
-   "title": "PathPix lanes: iOS Simulator verdict lane (pause + currentTime via the Inspector, simctl io screenshot PNG; under the sim slot locally, macos-26 on CI) and Linux Chromium begin-frame screenshot lane (secondary; software compositing, state it). First run is calibration on the original only (A/A plus the path-only arm P). One cell per decision, TS checked against path-pix goldens. Inputs: the lead-scratch gpu-same-look notes (path given in the build prompt): measure.md.",
+   "title": "PathPix lanes: iOS Simulator verdict lane (pause + currentTime via the Inspector, simctl io screenshot PNG; under the sim slot locally, macos-26 on CI) and Linux Chromium begin-frame screenshot lane (secondary; software compositing, state it). First run is calibration on the original only (A/A plus the path-only arm P). One cell per decision, TS checked against path-pix goldens. Inputs: the lead-scratch gpu-same-look notes (path given in the build prompt): measure.md. AMEND (layer composer): cells pinned by Lean-chosen scroll offsets (Q6), composite-both control via fwl, strips original | A | B | amplified diff, Chromium touch-replay filmstrip (motion only, no verdict). Text layers under fractional translate stay L until the user sees strips (Q4); CA blur measured only (Q5).",
    "writes": [
     "packages/measure-webkit/src/pathpix*.mjs",
     "packages/measure-chromium/src/pathpix*.mjs",
@@ -14653,7 +14660,7 @@
    "deps": [
     "path-pix-core"
    ],
-   "title": "End-of-page (gpu-same-look rank 2): platform fade as one time-based Core Animation effect per push (opacity/filter only, Accelerated predicate), fade(ease) as a piecewise cubic-bezier, retarget = new effect from the current value; class E-s under float and phase premises, decided on pixels by PathPix. Measure end-of-page Recalculate styles, Layout, frame interval on CI webkit-sim vs base. Limit: full-section blur layer is tiled (>1280 px).",
+   "title": "End-of-page (gpu-same-look rank 2): platform fade as one time-based Core Animation effect per push (opacity/filter only, Accelerated predicate), fade(ease) as a piecewise cubic-bezier, retarget = new effect from the current value; class E-s under float and phase premises, decided on pixels by PathPix. Measure end-of-page Recalculate styles, Layout, frame interval on CI webkit-sim vs base. Limit: full-section blur layer is tiled (>1280 px). User 2026-10-22 approved this proposal to run (GPU Part Proposals page); finish with a report for the Reviews tab (results/<task>/report.json; posted via review-reports once landed).",
    "writes": [
     "lean/Fw/Parts/PlatformFade*.lean",
     "apps/site/src/parts/platform/**",
@@ -14689,7 +14696,7 @@
    "owner": "measure-engineer",
    "stream": "measure",
    "deps": [],
-   "title": "User review comment on nav:earn-no-transition (keep the animation, try GPU) -> earn-gpu research: before any same-look variant (candidate B: @property --earn-s + translates), measure a probe-only 'bound' arm (earn transitions always off) vs base with aa as noise floor, holdMs 1400, 3 complete jobs per WebKit leg (macOS + iOS Simulator), Lean across verdict. Build B only if bound beats A/A. Note at research/notes/2026/10-2x-earn-gpu.md from the lead-scratch earn-gpu note (path in the build prompt) with the checker's corrections applied.",
+   "title": "User review comment on nav:earn-no-transition (keep the animation, try GPU) -> earn-gpu research: before any same-look variant (candidate B: @property --earn-s + translates), measure a probe-only 'bound' arm (earn transitions always off) vs base with aa as noise floor, holdMs 1400, 3 complete jobs per WebKit leg (macOS + iOS Simulator), Lean across verdict. Build B only if bound beats A/A. Note at research/notes/2026/10-2x-earn-gpu.md from the lead-scratch earn-gpu note (path in the build prompt) with the checker's corrections applied. User 2026-10-22 approved this proposal to run (GPU Part Proposals page); finish with a report for the Reviews tab (results/<task>/report.json; posted via review-reports once landed).",
    "writes": [
     "packages/gate-breakpoints/src/smooth/**",
     ".github/workflows/smoothness*.yml",
@@ -14722,7 +14729,8 @@
     "apps/runner/test/review*.test.ts",
     "docs/team/tools/review.md",
     "docs/team/handoffs/review-reports.md"
-   ]
+   ],
+   "evidence": "0c2b0bf"
   },
   {
    "devices": [
@@ -14740,6 +14748,488 @@
     "packages/contracts/golden/console/review.jsonl",
     "research/findings/ledger.json",
     "docs/team/handoffs/earn-reject-apply.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "slot-renew-lease",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "deps": [
+    "sim-first-queue"
+   ],
+   "title": "User 2026-10-22: 'when local resource is overloaded, i'd like to ask you investigate and find how to manage, optimize for improve this resource usage. likes move them to queue or make it use less resource.' Investigation overload (lead scratch overload/plan.md, probe.md, bypass.md, lighter.md; path in the build prompt). Rule: same checks, same verdicts; only queue order and footprint change. S1: `fw slot renew` without --lease cuts an 1800 s sim lease to 60 s (slot.ts:421), so the replay builder's Simulator slot lapsed silently at 03:12:58 and a second Simulator was admitted at 03:13:00; expiry emits no event. Fix: Entry stores leaseS; renew without a length keeps the grant (renew_keeps_len); each pruned holder yields one expire event in locks.jsonl (expire_emits). Must be in place before sim-first-queue's any-device shutdown acts on a lapsed but active device.",
+   "writes": [
+    "lean/Fw/Sup/Adapt.lean",
+    "lean/Fw/Sup/AdaptGolden.lean",
+    "packages/contracts/golden/sup/adapt.jsonl",
+    "apps/runner/src/slot-core.ts",
+    "apps/runner/src/slot.ts",
+    "apps/runner/test/slot.test.ts",
+    "docs/team/tools/slot.md",
+    "docs/team/handoffs/slot-renew-lease.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "slot-mem-avail",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "deps": [
+    "sim-first-queue",
+    "slot-renew-lease"
+   ],
+   "title": "User 2026-10-22: 'when local resource is overloaded, i'd like to ask you investigate and find how to manage, optimize for improve this resource usage. likes move them to queue or make it use less resource.' Investigation overload (lead scratch overload/plan.md, probe.md, bypass.md, lighter.md; path in the build prompt). Rule: same checks, same verdicts; only queue order and footprint change. S2: the slot's freeMB is memory_pressure's free percentage x RAM = kern.memorystatus_level, which counts active+inactive pages (xnu vm_pageout.c:4738); MEASURED slot 9994-11141 MB vs real available 217-2005 MB; never below 4915 in 957 samples, so memLow never fired and a check got 8 Lean workers at 61 MB free. Lean Mem {free, speculative, purgeable, fileBacked, fileMin, swapUsed, swapTotal, press, comprMBPerMin}; availMB = free+spec+purg+max(0, fileBacked-fileMin); memLow when availMB < floor or press != 1 or swap full or thrash. Theorems admit_fits, admit_calm, verdict_antitone, threads_fit. Probe parsing tested on vm_stat/sysctl fixtures. sim reservation and fw slot admit read availMB unchanged.",
+   "writes": [
+    "lean/Fw/Sup/Adapt.lean",
+    "lean/Fw/Sup/AdaptGolden.lean",
+    "packages/contracts/golden/sup/adapt.jsonl",
+    "apps/runner/src/slot-core.ts",
+    "apps/runner/src/slot.ts",
+    "apps/runner/test/slot.test.ts",
+    "docs/team/tools/slot.md",
+    "apps/runner/test/fixtures/vm_stat*.txt",
+    "docs/team/handoffs/slot-mem-avail.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "slot-lean-charge",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "deps": [
+    "slot-mem-avail"
+   ],
+   "title": "User 2026-10-22: 'when local resource is overloaded, i'd like to ask you investigate and find how to manage, optimize for improve this resource usage. likes move them to queue or make it use less resource.' Investigation overload (lead scratch overload/plan.md, probe.md, bypass.md, lighter.md; path in the build prompt). Rule: same checks, same verdicts; only queue order and footprint change. S3: charge a Lean check by private memory (shared olean pages once per worktree + width x ~250 MB, MEASURED 120-225 MB private per worker) instead of 700 MB per worker, and LEAN_NUM_THREADS=1 per parallel golden job (today 8 jobs x 8 threads). Lean charge_mono in width.",
+   "writes": [
+    "lean/Fw/Sup/Adapt.lean",
+    "lean/Fw/Sup/AdaptGolden.lean",
+    "packages/contracts/golden/sup/adapt.jsonl",
+    "apps/runner/src/slot-core.ts",
+    "apps/runner/src/slot.ts",
+    "apps/runner/test/slot.test.ts",
+    "docs/team/tools/slot.md",
+    "lean/scripts/check.sh",
+    "docs/team/handoffs/slot-lean-charge.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "heavy-self-route",
+   "owner": "console-builder",
+   "stream": "ops",
+   "deps": [
+    "sim-first-queue",
+    "polish-in-flow"
+   ],
+   "title": "User 2026-10-22: 'when local resource is overloaded, i'd like to ask you investigate and find how to manage, optimize for improve this resource usage. likes move them to queue or make it use less resource.' Investigation overload (lead scratch overload/plan.md, probe.md, bypass.md, lighter.md; path in the build prompt). Rule: same checks, same verdicts; only queue order and footprint change. S4: heavy work bypasses the slot: builder compound lines slot only the first command (two runner suites ran at once at limit 1), direct lake build / lake env lean, reviewer re-runs; build-review.js still gives bare forms (:15, :20, :22, :68). Fix: lean/scripts/check.sh and each package.json test script route themselves through fw slot run (no-op under FW_SLOT_HELD, the existing nested rule); drop the bare forms from build-review.js. A PreToolUse hook for one-off lake/vitest runs is a follow-up needing the user's settings approval.",
+   "writes": [
+    "lean/scripts/check.sh",
+    "scripts/slot-self.mjs",
+    "package.json",
+    "apps/*/package.json",
+    "packages/*/package.json",
+    ".claude/workflows/build-review.js",
+    "docs/team/tools/slot.md",
+    "docs/team/handoffs/heavy-self-route.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-under-slot",
+   "owner": "console-builder",
+   "stream": "ops",
+   "deps": [
+    "sim-first-queue",
+    "heavy-self-route"
+   ],
+   "title": "User 2026-10-22: 'when local resource is overloaded, i'd like to ask you investigate and find how to manage, optimize for improve this resource usage. likes move them to queue or make it use less resource.' Investigation overload (lead scratch overload/plan.md, probe.md, bypass.md, lighter.md; path in the build prompt). Rule: same checks, same verdicts; only queue order and footprint change. S5: fw land --queue runs 6 local package tests with poolFair >= 4 at any load and no slot (land.ts:746, LandPool.lean:30). Fix: the local tier takes a land slot; pool = min poolFair slotWorkers (pool_le_slot, pool_pos). CI tiers unchanged.",
+   "writes": [
+    "apps/runner/src/land.ts",
+    "lean/Fw/Console/LandPool.lean",
+    "packages/contracts/golden/console/land-pool*.jsonl",
+    "apps/runner/test/land*.test.ts",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/land-under-slot.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-readset-cache",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "deps": [
+    "land-under-slot"
+   ],
+   "title": "User 2026-10-22: 'when local resource is overloaded, i'd like to ask you investigate and find how to manage, optimize for improve this resource usage. likes move them to queue or make it use less resource.' Investigation overload (lead scratch overload/plan.md, probe.md, bypass.md, lighter.md; path in the build prompt). Rule: same checks, same verdicts; only queue order and footprint change. S6: 26 of 30 lands differ from the branch only in work-graph.json yet rerun every check. A land replays a check whose read set hash equals the branch's and whose branch verdict passed (replay_same_verdict); land-inputs.test guards undeclared reads.",
+   "writes": [
+    "apps/runner/src/land.ts",
+    "lean/Fw/Console/LandCache.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/console/land-cache.jsonl",
+    "apps/runner/test/land-cache.test.ts",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/land-readset-cache.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "golden-compiled",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "deps": [
+    "heavy-self-route"
+   ],
+   "title": "User 2026-10-22: 'when local resource is overloaded, i'd like to ask you investigate and find how to manage, optimize for improve this resource usage. likes move them to queue or make it use less resource.' Investigation overload (lead scratch overload/plan.md, probe.md, bypass.md, lighter.md; path in the build prompt). Rule: same checks, same verdicts; only queue order and footprint change. S7: check.sh starts 63 interpreted lean processes (120-225 MB private, 1-2 s each; compiled checker 0.18 s, 15 MB); fold them into one compiled `fwcore golden <name> --check` route table generated in Lean (routes_cover). About 100 of 219 CPU-s per check run saved (INFERRED), 841 runs in 3 days.",
+   "writes": [
+    "lean/Fw/Golden/Route.lean",
+    "lean/Fw.lean",
+    "lean/lakefile.toml",
+    "lean/scripts/check.sh",
+    "lean/Fw/Main.lean",
+    "docs/team/lean-first.md",
+    "docs/team/handoffs/golden-compiled.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "sim-one-device",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "sim-first-queue"
+   ],
+   "title": "User 2026-10-22: 'when local resource is overloaded, i'd like to ask you investigate and find how to manage, optimize for improve this resource usage. likes move them to queue or make it use less resource.' Investigation overload (lead scratch overload/plan.md, probe.md, bypass.md, lighter.md; path in the build prompt). Rule: same checks, same verdicts; only queue order and footprint change. S8: Simulator runs use one reused fw-iphone-27 device (never a second model), Safari closed after each run; 2.4-2.7 GB and 111-250 processes per booted device (MEASURED). Background services trim is a separate measured experiment.",
+   "writes": [
+    "packages/measure-webkit/src/sim.mjs",
+    "packages/measure-webkit/src/device-replay-*.mjs",
+    "packages/measure-webkit/test/sim*.test.mjs",
+    "docs/team/tools/device-replay.md",
+    "docs/team/handoffs/sim-one-device.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "sup-sampler-avail",
+   "owner": "measure-engineer",
+   "stream": "ops",
+   "deps": [],
+   "title": "User 2026-10-22: 'when local resource is overloaded, i'd like to ask you investigate and find how to manage, optimize for improve this resource usage. likes move them to queue or make it use less resource.' Investigation overload (lead scratch overload/plan.md, probe.md, bypass.md, lighter.md; path in the build prompt). Rule: same checks, same verdicts; only queue order and footprint change. S9: the sup-baseline sampler records the availMB inputs (free, speculative, purgeable, fileBacked, fileMin, pressure level, swap total, compression delta) and counts every CoreSimulator device (isOurSimRoot), so S2's thresholds can be replayed from history.",
+   "writes": [
+    "apps/runner/src/watch-collect.ts",
+    "apps/runner/test/watch-collect*.test.ts",
+    "docs/team/tools/fw-watch.md",
+    "docs/team/handoffs/sup-sampler-avail.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "lsp-reap",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "deps": [],
+   "title": "User 2026-10-22: 'when local resource is overloaded, i'd like to ask you investigate and find how to manage, optimize for improve this resource usage. likes move them to queue or make it use less resource.' Investigation overload (lead scratch overload/plan.md, probe.md, bypass.md, lighter.md; path in the build prompt). Rule: same checks, same verdicts; only queue order and footprint change. S10: idle MCP Lean/TS servers hold 1.1-1.3 GB (serena-lean idle 2 d 16 h). Lean Fw.Ops.Reap selects a lean-lsp-mcp worker idle > N min in a worktree with no live agent (never_live_mcp_parent); serena-lean stays until the user approves a config change.",
+   "writes": [
+    "lean/Fw/Ops/Reap.lean",
+    "apps/runner/src/reap.ts",
+    "packages/contracts/golden/ops/reap*.jsonl",
+    "apps/runner/test/reap*.test.ts",
+    "docs/team/tools/reap.md",
+    "docs/team/handoffs/lsp-reap.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "layer-decl",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [],
+   "title": "User 2026-10-22 approved the Layer Composer design (review page answers: design Approve; Q4 text layers are a look change until the user sees their strips; Q5 Core Animation blur measured only, shown as Q; snap off by default, on per layer after the user approves its strip; headline = B vs the page as it runs today, frame time p50/p90/p99 ms with fps at the same quantiles, compositor frames on Chromium only; a cell measured within 1 level with no proved bound is Q). Original ask: 'i could pick which layers/component by myself ... some change may effective multiple layer, part or components'. Design text: lead scratch layer-composer/design-checked.md (path in the build prompt). Task 1: part.json gains `layers` (array, id `part_box` using BuildsOpen.okChar only, plain label, text flag) and per-variant `files`, plus `data-fw-layer` on those boxes, for hero, hero.cue, hero.orbit, hero.deck, hero.countdown, nav, morph.panel (not hero.exit: hero-exit-threaded-port owns it; not platform: platform tasks own it). Registry types. No behaviour change; gate both engines.",
+   "writes": [
+    "apps/site/src/registry/types.ts",
+    "apps/site/src/parts/hero/**",
+    "apps/site/src/parts/hero.cue/**",
+    "apps/site/src/parts/hero.orbit/**",
+    "apps/site/src/parts/hero.deck/**",
+    "apps/site/src/parts/hero.countdown/**",
+    "apps/site/src/parts/nav/**",
+    "apps/site/src/parts/morph.panel/**",
+    "docs/team/handoffs/layer-decl.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "compose-layers-lean",
+   "owner": "lean-prover",
+   "stream": "console",
+   "deps": [
+    "layer-decl"
+   ],
+   "title": "User 2026-10-22 approved the Layer Composer design (review page answers: design Approve; Q4 text layers are a look change until the user sees their strips; Q5 Core Animation blur measured only, shown as Q; snap off by default, on per layer after the user approves its strip; headline = B vs the page as it runs today, frame time p50/p90/p99 ms with fps at the same quantiles, compositor frames on Chromium only; a cell measured within 1 level with no proved bound is Q). Original ask: 'i could pick which layers/component by myself ... some change may effective multiple layer, part or components'. Design text: lead scratch layer-composer/design-checked.md (path in the build prompt). Task 2: Lean Fw.Console.Layers (design §3): clash over the whole expanded page (write/write incl. composite as will-change, write-or-clear vs read, I1/I2/I4) coupled only with a Change's combined theorem, else refused; expansion never overrides (refuse + fix closed under requires); look grade E < E1 < Q < L with hypotheses, only E composes (lego_swap_visible_set); premises per arm (P1-P4, S1, C1, C2, C5, C6, T1); canonical search with `fwl` (BuildsOpen.validate learns fwl; link_resolves holds); closed refusal list with goldens; footprints extracted per variant (part-footprint.mjs variant field, clears derived), never declared by hand. FootprintData.lean regenerated at land, never edited by hand.",
+   "writes": [
+    "lean/Fw/Console/Layers*.lean",
+    "lean/Fw/Console/Compose.lean",
+    "lean/Fw/Console/BuildsOpen.lean",
+    "lean/Fw/Parts/Footprint.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Engine/Compose.lean",
+    "apps/site/scripts/part-footprint.mjs",
+    "lean/Fw/Wire/**",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/console/console.compose.jsonl",
+    "packages/contracts/golden/console/layers*.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "docs/team/handoffs/compose-layers-lean.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "changes-registry",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [
+    "layer-decl",
+    "compose-layers-lean",
+    "hero-exit-threaded-port"
+   ],
+   "title": "User 2026-10-22 approved the Layer Composer design (review page answers: design Approve; Q4 text layers are a look change until the user sees their strips; Q5 Core Animation blur measured only, shown as Q; snap off by default, on per layer after the user approves its strip; headline = B vs the page as it runs today, frame time p50/p90/p99 ms with fps at the same quantiles, compositor frames on Chromium only; a cell measured within 1 level with no proved bound is Q). Original ask: 'i could pick which layers/component by myself ... some change may effective multiple layer, part or components'. Design text: lead scratch layer-composer/design-checked.md (path in the build prompt). Task 3: apps/site/src/registry/changes/<id>.json (id, label, picks, lean only); ledger rows gain optional `changes`; declare the hero.exit:threaded vs hero.countdown:hidden-pause conflict in hero.countdown/part.json; built variants only.",
+   "writes": [
+    "apps/site/src/registry/changes/**",
+    "apps/site/src/parts/hero.countdown/part.json",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/changes-registry.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "hero-exit-layer-ids",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [
+    "hero-exit-threaded-port",
+    "layer-decl"
+   ],
+   "title": "User 2026-10-22 approved the Layer Composer design (review page answers: design Approve; Q4 text layers are a look change until the user sees their strips; Q5 Core Animation blur measured only, shown as Q; snap off by default, on per layer after the user approves its strip; headline = B vs the page as it runs today, frame time p50/p90/p99 ms with fps at the same quantiles, compositor frames on Chromium only; a cell measured within 1 level with no proved bound is Q). Original ask: 'i could pick which layers/component by myself ... some change may effective multiple layer, part or components'. Design text: lead scratch layer-composer/design-checked.md (path in the build prompt). Task 4: hero.exit threaded CSS selects other parts' boxes by [data-fw-layer=…] instead of [data-orbit-id] and > article; hero.exit layers/files in part.json. No behaviour change, same goldens, gate both engines.",
+   "writes": [
+    "apps/site/src/parts/hero.exit/**",
+    "docs/team/handoffs/hero-exit-layer-ids.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "site-layer-opts",
+   "owner": "part-builder",
+   "stream": "site",
+   "deps": [
+    "compose-layers-lean"
+   ],
+   "title": "User 2026-10-22 approved the Layer Composer design (review page answers: design Approve; Q4 text layers are a look change until the user sees their strips; Q5 Core Animation blur measured only, shown as Q; snap off by default, on per layer after the user approves its strip; headline = B vs the page as it runs today, frame time p50/p90/p99 ms with fps at the same quantiles, compositor frames on Chromium only; a cell measured within 1 level with no proved bound is Q). Original ask: 'i could pick which layers/component by myself ... some change may effective multiple layer, part or components'. Design text: lead scratch layer-composer/design-checked.md (path in the build prompt). Task 5: the site reads `fwl` (resolve.ts) and applies the Lean-generated per-layer will-change style (unlayered) and snap-table selection; no decision logic in TS; the original snapshot never takes options.",
+   "writes": [
+    "apps/site/src/registry/resolve.ts",
+    "apps/site/src/registry/layer-opts*.ts",
+    "apps/site/src/registry/*.test.ts",
+    "packages/contracts/golden/console/layer-opts*.jsonl",
+    "docs/team/handoffs/site-layer-opts.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "lego-composer-v2",
+   "owner": "console-builder",
+   "stream": "console",
+   "deps": [
+    "compose-layers-lean",
+    "changes-registry",
+    "site-layer-opts"
+   ],
+   "title": "User 2026-10-22 approved the Layer Composer design (review page answers: design Approve; Q4 text layers are a look change until the user sees their strips; Q5 Core Animation blur measured only, shown as Q; snap off by default, on per layer after the user approves its strip; headline = B vs the page as it runs today, frame time p50/p90/p99 ms with fps at the same quantiles, compositor frames on Chromium only; a cell measured within 1 level with no proved bound is Q). Original ask: 'i could pick which layers/component by myself ... some change may effective multiple layer, part or components'. Design text: lead scratch layer-composer/design-checked.md (path in the build prompt). Task 6: Compose tab v2: Parts | Changes, arms A/B, layer chips and sheet, Change cards, collision dialog (no preselected fix), arm sheet with links, Compare A|B mode, Measure A vs B posts a request record; phone 390 px and desktop.",
+   "writes": [
+    "apps/console-web/src/Compose*.tsx",
+    "apps/console-web/src/compose*.ts",
+    "apps/console-web/test/compose*.test.tsx",
+    "apps/console-api/src/preview/compose.ts",
+    "apps/console-api/src/preview/serve-child.ts",
+    "apps/console-api/test/compose*.test.ts",
+    "docs/team/tools/compose.md",
+    "docs/team/handoffs/lego-composer-v2.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "layer-census-check",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "layer-decl",
+    "compose-layers-lean"
+   ],
+   "title": "User 2026-10-22 approved the Layer Composer design (review page answers: design Approve; Q4 text layers are a look change until the user sees their strips; Q5 Core Animation blur measured only, shown as Q; snap off by default, on per layer after the user approves its strip; headline = B vs the page as it runs today, frame time p50/p90/p99 ms with fps at the same quantiles, compositor frames on Chromium only; a cell measured within 1 level with no proved bound is Q). Original ask: 'i could pick which layers/component by myself ... some change may effective multiple layer, part or components'. Design text: lead scratch layer-composer/design-checked.md (path in the build prompt). Task 7: layer census by data-fw / data-fw-layer at pinned samples (WebKit layersForNode with reasons and bytes; Chromium layer list), undeclared multiset equal across arms, S1 device-pixel grid check, Lean check; refuses the run naming the box. One short Simulator debug run under the sim slot.",
+   "writes": [
+    "packages/measure-webkit/src/census*.mjs",
+    "packages/measure-chromium/src/census*.mjs",
+    "packages/measure-webkit/test/census*.test.mjs",
+    "lean/Fw/Measure/Census*.lean",
+    "packages/contracts/golden/measure/census*.jsonl",
+    "docs/team/handoffs/layer-census-check.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "measure-arms-ab",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "compose-layers-lean",
+    "layer-census-check",
+    "earn-bound-arm"
+   ],
+   "title": "User 2026-10-22 approved the Layer Composer design (review page answers: design Approve; Q4 text layers are a look change until the user sees their strips; Q5 Core Animation blur measured only, shown as Q; snap off by default, on per layer after the user approves its strip; headline = B vs the page as it runs today, frame time p50/p90/p99 ms with fps at the same quantiles, compositor frames on Chromium only; a cell measured within 1 level with no proved bound is Q). Original ask: 'i could pick which layers/component by myself ... some change may effective multiple layer, part or components'. Design text: lead scratch layer-composer/design-checked.md (path in the build prompt). Task 8: smoothness gets armA/armB from stored arm records (plus orig, base, aa); p90 and p99 on every lane; fps at quantile in Lean (fps_at_quantile_antitone); Chromium presented-frame p50/p90/p99; Fw.Gate.Search and gate-search.mjs for arm searches; F6 keyed by unit id from the arm record; report JSON for review-reports.",
+   "writes": [
+    "packages/gate-breakpoints/src/smooth/**",
+    ".github/workflows/smoothness*.yml",
+    "lean/Fw/Gate/Smooth.lean",
+    "lean/Fw/Gate/Search.lean",
+    ".github/scripts/gate-search.mjs",
+    "lean/Fw/Measure/Compose.lean",
+    "packages/contracts/golden/gate/**",
+    "docs/team/handoffs/measure-arms-ab.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "snap-hero-proposal",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "deps": [
+    "path-pix-core",
+    "site-layer-opts",
+    "path-pix-lanes",
+    "hero-exit-layer-ids"
+   ],
+   "title": "User 2026-10-22 approved the Layer Composer design (review page answers: design Approve; Q4 text layers are a look change until the user sees their strips; Q5 Core Animation blur measured only, shown as Q; snap off by default, on per layer after the user approves its strip; headline = B vs the page as it runs today, frame time p50/p90/p99 ms with fps at the same quantiles, compositor frames on Chromium only; a cell measured within 1 level with no proved bound is Q). Original ask: 'i could pick which layers/component by myself ... some change may effective multiple layer, part or components'. Design text: lead scratch layer-composer/design-checked.md (path in the build prompt). Task 11: Lean snap tables (staircase linear() per DPR and viewport) for the hero.exit:threaded layers and the snapped-control variant; strips per layer for the user's approval (snap stays off until approved); layers failing S1 stay off.",
+   "writes": [
+    "lean/Fw/Parts/HeroExitSnap*.lean",
+    "lean/Fw.lean",
+    "apps/site/src/parts/hero.exit/snap*.css",
+    "packages/contracts/golden/parts/hero-exit-snap*.jsonl",
+    "docs/team/handoffs/snap-hero-proposal.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ca-blur-fit",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "deps": [
+    "path-pix-lanes"
+   ],
+   "title": "User 2026-10-22 (Layer Composer Q5 note): 'Actually, after we experiment we can do reverse engineer and do lean prove, find math equation that fit to the result'. Core Animation's blur kernel is closed source, so today WebKit compositor blur is measured only (Q). Reverse-engineer it from measurements: on the iOS Simulator verdict lane (sim slot) render known patterns (impulse line, step edge, checker) under CSS filter: blur(r) on the compositor path for r over the page's real radii and DPR 2/3, capture lossless PNG, extract the line/edge spread function per r; fit candidate kernels (Gaussian with sigma = a*r + b, iterated box n=2..4, downsample-blur-upsample) by least squares with held-out radii; choose by residual. Lean: the chosen kernel as a Rat table generated per r (no Mathlib), theorem bounding |conv model - conv mainThreadBox3| <= 1/2 ||k1-k2||_1 (pixel-proof L7) plus the measured fit residual as a named premise with run id, giving a per-layer blur bound in color levels. Report via review-reports with the fit plots' data; classification stays Q unless the user decides otherwise (their rule: measured-only within-1 is Q).",
+   "writes": [
+    "lean/Fw/Gate/BlurFit*.lean",
+    "lean/Fw.lean",
+    "packages/measure-webkit/src/blur-fit*.mjs",
+    "packages/measure-webkit/test/blur-fit*.test.mjs",
+    "packages/contracts/golden/gate/blur-fit*.jsonl",
+    "research/notes/2026/10-2x-ca-blur-fit.md",
+    "results/ca-blur-fit/**",
+    "docs/team/handoffs/ca-blur-fit.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "accent-draw-one",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [],
+   "title": "User 2026-10-22 approved the 'go' and 'measure first' GPU proposals (GPU Part Proposals page): accent draw-one. During the hero accent draw, only the visible copy (frame0) runs the stroke-dashoffset draw; the two copies that are opacity 0 for the whole draw window (accent.module.css:76-83) get no animation while transparent. Lean first: theorem in Fw.Parts.HeroAccentOpt from HiddenPause.hidden_pause_eq (HiddenPause.lean:81), premise the copies are opacity 0 across the draw window, goldens; class E. Register flag hero.accent:draw-one; one WebKit count run on CI (webkit-sim: SVG path layouts per draw frame, Layout, frame interval p50/p90/p99 vs base) with run ids; post the report to the Reviews tab (review-reports) when it has landed, else write results/accent-draw-one/report.json for the lead to post.",
+   "writes": [
+    "apps/site/src/parts/hero.accent/**",
+    "apps/site/src/flags/**",
+    "lean/Fw/Parts/HeroAccentOpt.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/parts/hero.accent*.jsonl",
+    "research/notes/2026/10-2x-accent-draw-one.md",
+    "results/accent-draw-one/**",
+    "docs/team/handoffs/accent-draw-one.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-tier-compose-test",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "Incident 2026-10-22 (hero-exit land run 39674287486 refused at suites-b): the local land tier did not select apps/console-api/test/compose.test.ts although the branch changed a part.json and research/findings/ledger.json, which Compose reads. Lean first in Fw.Console.LandTier: each local test declares its read set; a test is selected iff a changed path matches its read set; theorem selects_reader (a changed path read by a test selects it) with goldens; add compose.test's reads (apps/site/src/parts/*/part.json, research/findings/ledger.json). Unit: the selection rule for one test. Limits: tests with undeclared reads stay on the CI tier only; record the incident in docs/team/incidents/ledger.json.",
+   "writes": [
+    "lean/Fw/Console/LandTier.lean",
+    "packages/contracts/golden/console/land-tier*.jsonl",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land-tier.test.ts",
+    "docs/team/incidents/ledger.json",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/land-tier-compose-test.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gate-apt-no-update",
+   "owner": "measure-engineer",
+   "stream": "gate",
+   "deps": [],
+   "title": "fw watch timing.slow 2026-10-22 on land (chromium) gate-engine: 34 s vs 19-22 s in the 4 lands before (runs 39675529398 vs 39674287486). MEASURED cause: the 'System libraries' step runs playwright install-deps, whose apt-get update refreshed 14.5 MB of lists in 13 s (8.2 MB in 6 s the run before, runner image with 89 vs 47 pending upgrades) and upgraded 8 packages, although the 18 debs came from the cache. Change: on an apt cache hit install the cached debs without apt-get update (dpkg -i or apt-get install --no-download from the cache dir), fall back to install-deps on a miss or a failed install. Lean: Fw.Ops.Cache rule hit -> no network step, theorem with goldens. Unit: the gate-engine apt step. Measure 3 land runs before/after (step seconds, run ids). Limits: a runner image that lacks a dep the cache does not hold falls back to the slow path.",
+   "writes": [
+    ".github/actions/gate-engine/action.yml",
+    "lean/Fw/Ops/Cache.lean",
+    "packages/contracts/golden/ops/cache.jsonl",
+    "research/notes/2026/10-2x-gate-apt-no-update.md",
+    "docs/team/handoffs/gate-apt-no-update.md"
    ]
   }
  ],

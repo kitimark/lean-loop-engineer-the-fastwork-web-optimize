@@ -4,7 +4,8 @@
 //   node src/device-replay-cli.mjs compile  --profile profile.json [--out actions.json]       (W3C payload, tick statistics; no phone)
 //   node src/device-replay-cli.mjs check    --profile profile.json --in replay-record.json    (replayMatches, conjuncts per swipe)
 //   node src/device-replay-cli.mjs plan     --kinds recorded,fast-fling --reps 3 --arms 2     (the passes and the arm order of each)
-//   node src/device-replay-cli.mjs run      --source source.json [--kinds recorded] [--reps 3] [--arms original=ENV,..] --out run.json  (the phone; needs the setup step)
+//   node src/device-replay-cli.mjs run      --source source.json [--kinds recorded] [--reps 3] --out run.json [--sim <simulator udid>]  (the phone, or an iOS Simulator with --sim)
+// Exit codes: 0 ok, 1 error, 2 usage, 3 a named replay error (replay-stall, wd-timeout): the message names the piece and the call that hung.
 // The source file holds a person's finger path: keep it out of git (.local/ or the scratchpad).
 import { parseArgs } from 'node:util';
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
@@ -12,7 +13,7 @@ import { resolve, dirname } from 'node:path';
 import { readRecord } from './device-profile.mjs';
 import { replayStrokes, t0Of } from './device-session.mjs';
 import { ofTouches, compile, w3c, actsMs, TICK_MAX, makeProfile, schedule, LIM, simulateEvents } from './device-replay.mjs';
-import { checkRecord, wdClient, startSafaridriver, runSession } from './device-replay-wd.mjs';
+import { checkRecord, wdClient, startSafaridriver, runSession, prepareSimulator } from './device-replay-wd.mjs';
 
 const argv = process.argv.slice(2).filter((a) => a !== '--');
 const [cmd, ...rest] = argv;
@@ -22,7 +23,7 @@ const { values: v } = parseArgs({
     in: { type: 'string' }, id: { type: 'string' }, out: { type: 'string' }, source: { type: 'string' }, profile: { type: 'string' }, kind: { type: 'string', default: 'recorded' },
     kinds: { type: 'string', default: 'recorded' }, reps: { type: 'string', default: '3' }, arms: { type: 'string', default: '1' }, n: { type: 'string', default: '5' },
     gap: { type: 'string', default: '300' }, port: { type: 'string', default: '4444' }, base: { type: 'string' }, caps: { type: 'string', default: '{"browserName":"Safari","platformName":"iOS"}' },
-    settle: { type: 'string', default: '6000' },
+    settle: { type: 'string', default: '6000' }, sim: { type: 'string' },
   },
 });
 const log = (s) => console.error(s);
@@ -83,9 +84,13 @@ async function main() {
       const driver = v.base ? { base: v.base, stop() {} } : await startSafaridriver(Number(v.port), { log });
       try {
         const wd = wdClient(driver.base);
-        const r = await runSession({ wd, caps: JSON.parse(v.caps), arms: urls, base: source.profile, kinds: v.kinds.split(',').filter(Boolean), reps: Number(v.reps), gen: { n: opts.n, gap: opts.gap, reps: opts.reps, zone: source.zone }, settleMs: Number(v.settle), log });
+        const caps = v.sim ? { ...JSON.parse(v.caps), 'safari:useSimulator': true, 'safari:deviceUDID': v.sim } : JSON.parse(v.caps);
+        const prepare = v.sim ? () => prepareSimulator(v.sim, { log }) : null;
+        const r = await runSession({ wd, caps, prepare, arms: urls, base: source.profile, kinds: v.kinds.split(',').filter(Boolean), reps: Number(v.reps), gen: { n: opts.n, gap: opts.gap, reps: opts.reps, zone: source.zone }, settleMs: Number(v.settle), log });
         save({ schema: 'fw.replay.run/1', lim: LIM, passes: r.passes });
-        console.log(JSON.stringify({ passes: r.passes.length, matches: r.passes.filter((p) => p.matches).length, over34: r.passes.map((p) => p.report.total.over34), n: r.passes.map((p) => p.report.total.n) }));
+        const ok = r.passes.filter((p) => p.report !== null);
+        console.log(JSON.stringify({ passes: r.passes.length, matches: r.passes.filter((p) => p.matches).length, stalled: r.passes.filter((p) => p.stalled).map((p) => ({ arm: p.arm, ...p.stalled })), over34: ok.map((p) => p.report.total.over34), n: ok.map((p) => p.report.total.n) }));
+        if (r.passes.some((p) => p.stalled)) process.exitCode = 3;
       } finally { driver.stop(); }
       break;
     }
@@ -94,4 +99,4 @@ async function main() {
       process.exitCode = 2;
   }
 }
-main().catch((e) => { console.error(`error: ${e.message}`); process.exitCode = 1; });
+main().catch((e) => { console.error(`error${e.code ? ` [${e.code}]` : ''}: ${e.message}`); process.exitCode = e.code === 'replay-stall' || e.code === 'wd-timeout' ? 3 : 1; });

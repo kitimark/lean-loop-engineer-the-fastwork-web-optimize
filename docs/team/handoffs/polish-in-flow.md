@@ -1,6 +1,6 @@
 # polish-in-flow handoff
 
-State: branch `worktree-wf_882335de-ca7-1`, merged with main 2e64cc2a; check.sh green, apps/runner test green,
+State (round 2): branch `worktree-wf_882335de-ca7-1`, merged with main (incl. f86ed22a build-review gate report file); check.sh green, apps/runner test green,
 `fw land --dry` prints `VERDICT dry polish-in-flow`. Read first: `docs/team/tools/polish.md`.
 
 What was built
@@ -20,4 +20,9 @@ Open
 - Measuring the stage over 5 builds is a follow-up (pinned unit excludes it).
 - `fw polish` in the workflow needs this branch on main and fwcore rebuilt in the main checkout (post-land routine).
 - The runner helper runs `fw polish commit`, which writes git through fw; runner.md forbids only direct git writes.
-- Accepted limit: a cut that keeps every token but drops meaning applies (preview-502 golden row).
+- Round 2: `polarWords` (not/no/never/without/unless) are facts in `facts` (Polish.lean), so all three 10-22 over-cuts are
+  `dropsFacts`; build-review.js runs Polish when the review's only refusals are fix-before-land/follow-up (`onlyFixes`).
+- Accepted limits: a cut that keeps every token and polarity word but drops other meaning applies; kept edits are chosen
+  by path (a comment-only hunk check is a follow-up, with findings 5-8 of round 1).
+- Commit note: the pre-commit checkmap runs `node --check` on .claude/workflows/build-review.js, which has top-level
+  return/await and fails with a current fwcore; the merge commit needs the lead (land token) or a CheckMap rule for it.

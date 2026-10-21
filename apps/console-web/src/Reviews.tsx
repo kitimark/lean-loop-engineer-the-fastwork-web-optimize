@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ReviewPreview, type PreviewState } from "./ReviewPreview";
 import { ReviewInfo, useReviewInfo } from "./ReviewInfo";
 import { ReviewFeedback, type FeedbackThread } from "./ReviewFeedback";
+import { ReportsSection } from "./Reports";
 
 // Rendering only. Which reviews are pending, open or decided is Lean `console.review` (console-api `GET /api/reviews`); Keep and Reject
 // post the decision, which Lean accepts or refuses. The page link comes from the owner's private `.local/reviews.json`.
@@ -235,6 +236,11 @@ export function ReviewsView({ data, reload }: { data: ReviewsData | null; reload
     } catch (e) { setError({ flag: confirm.flag, text: (e as Error).message }); } finally { setBusy(false); }
   }
   if (!data) return <p className="text-muted-foreground">Loading reviews...</p>;
-  return <ReviewsPanel data={data} confirm={confirm} busy={busy} error={error} onAsk={(flag, word) => { setError(null); setConfirm({ flag, word }); }}
-    onConfirm={() => void send()} onCancel={() => setConfirm(null)} onPreviewed={() => void reload()} />;
+  return (
+    <div className="min-w-0 space-y-6">
+      <ReviewsPanel data={data} confirm={confirm} busy={busy} error={error} onAsk={(flag, word) => { setError(null); setConfirm({ flag, word }); }}
+        onConfirm={() => void send()} onCancel={() => setConfirm(null)} onPreviewed={() => void reload()} />
+      <ReportsSection seq={data.open} />
+    </div>
+  );
 }

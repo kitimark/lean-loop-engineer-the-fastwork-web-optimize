@@ -21,6 +21,7 @@ import { mountReviews, type ReviewOpts } from "./review/routes.ts";
 import { mountReviewPreview } from "./review/preview.ts";
 import { mountReviewInfo } from "./review/info.ts";
 import { mountReviewFeedback } from "./review/feedback.ts";
+import { mountReports } from "./review/reports.ts";
 import { mountStepThreads } from "./steps/threads.ts";
 
 /** Owner login and LAN mode (console-lan-owner): the login guard and whether LAN requests are possible at all. */
@@ -86,6 +87,7 @@ export function createApp(store: Store, webDist?: string, reconciler?: Reconcile
   mountReviews(app, store, reviewRoot, reviewOpts); // Your reviews: Lean console.review items; Keep / Reject is the user's step.answer
   mountReviewPreview(app, store, () => owner.previewPort); // the Preview button of a look-change card: Lean console.reviewPreview plans it, the user's review.previewed records it
   mountReviewInfo(app, store, reviewRoot); // the card's information panel: Lean console.reviewInfo (gains, code excerpts read from the checkout, mechanism, math)
+  mountReports(app, store); // the Reports section of the Reviews tab: Lean console.report judges a report and its answer (approve, hold, reject)
   mountReviewFeedback(app, store); // the Feedback section of a review card: the user's comments, the lead's replies (Lean console.reviewFeedback, reducer-decided)
   mountStepThreads(app, store);  if (reconciler) mountReconcile(app, store, reconciler);
   const { drain, caps } = mountAgentRoutes(app, store); // capability-gated agent door + spool drain
