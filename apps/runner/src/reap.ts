@@ -1,31 +1,48 @@
 // fw reap (tasks orphan-guard, reap-auto-stop): lists (--list) or stops (--stop) the leftover processes Lean selects
-// (ops.lspReap / ops.reapPlan / ops.reapKill / ops.reapVerify, lean/Fw/Ops/Reap.lean, goldens
-// packages/contracts/golden/ops/{lspreap,reap}.jsonl). This file gathers facts, sends the signals Lean names and prints;
-// every decision (who, group or pid, who survives the grace, who is KILLed) is Lean's.
+// (ops.lspReap / ops.reapPlan / ops.reapKill / ops.reapVerify / ops.reapIdle, lean/Fw/Ops/Reap.lean, goldens
+// packages/contracts/golden/ops/{lspreap,reap,reap-idle}.jsonl). This file gathers facts, sends the signals Lean names and
+// prints; every decision (who, group or pid, who survives the grace, who is KILLed, which CPU baselines to keep) is Lean's.
 import { spawnSync } from "node:child_process";
-import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, readlinkSync, statSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, readlinkSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { consoleDirOf } from "./lib.ts";
 import { fwcoreCall } from "./run.ts";
 
-export const REAP_USAGE = "usage: fw reap --list   (prints the processes Lean selects: pid, group flag, kind, reason; signals none)\n       fw reap --stop   (TERM the selected, wait the grace, KILL the unchanged survivors, verify; prints what stopped)";
+export const REAP_USAGE = "usage: fw reap --list   (prints the processes Lean selects: pid, group flag, kind, reason, MB of an idle lean-lsp-mcp stack; signals none)\n       fw reap --stop   (TERM the selected, wait the grace, KILL the unchanged survivors, verify; prints what stopped)";
 
-export type ReapRow = { pid: number; ppid: number; pgid: number; start: number; cwd: number | null; kind: string; wt?: string | null; inRepo?: boolean };
+export type ReapRow = {
+  pid: number; ppid: number; pgid: number; start: number; cwd: number | null; kind: string; wt?: string | null; inRepo?: boolean;
+  /** CPU time used so far, centiseconds; absent or null when unread */
+  cpu?: number | null;
+};
 export type Selected = { pid: number; start: number; kind: string; group: boolean; reason: string };
 export type Target = { pid: number; start: number; group: boolean };
 export type Call = (req: Record<string, unknown>) => Record<string, unknown>;
+/** A CPU baseline (ops.reapIdle): identity, the second it was set, the CPU time then (centiseconds). */
+export type Base = { pid: number; start: number; since: number; cpu: number };
+/** A worktree lock: the worktree id and the pid its reason names (null: none named). */
+export type Lock = { id: string; holder: number | null };
 export type Facts = {
-  rows: ReapRow[]; live: number[]; mcps: { pid: number; cwd: number | null }[]; keep: { pid: number; at: number }[];
+  rows: ReapRow[]; live: number[]; mcps: { pid: number; cwd: number | null; wt?: string | null }[]; keep: { pid: number; at: number }[];
   liveIds?: string[]; protect?: number[];
+  /** the current second, the previous run's CPU baselines and the worktree locks (branch D); absent: nothing is idle */
+  now?: number; bases?: Base[]; locks?: Lock[];
+  /** where the baselines Lean returns are stored for the next run; absent: not stored */
+  idleFile?: string;
 };
 
-/** The argv kind the Lean op expects: `lspServe` (a `lake serve`), `console` (console-api main), `tool` (lean, lake,
- *  fwcore, node, a playwright browser: selected only through a removed worktree or a dead ancestor, never by this name),
- *  else `other`. */
-export function classify(args: string): "lspServe" | "console" | "tool" | "other" {
+/** A serena process (the MCP server, its Python, its language servers under `~/.serena`): never selected, nor anything
+ *  below it. */
+export const isSerena = (args: string): boolean => /(^|[\s/])serena(\s|$)/.test(args) || /\/\.serena\//.test(args);
+
+/** The argv kind the Lean op expects: `serena` (never selected, nor anything below it), `lspServe` (a `lake serve`),
+ *  `console` (console-api main), `tool` (lean, lake, fwcore, node, a playwright browser: selected only through a removed
+ *  worktree, a dead ancestor or an idle lean-lsp-mcp stack, never by this name), else `other`. */
+export function classify(args: string): "serena" | "lspServe" | "console" | "tool" | "other" {
   const w = args.trim().split(/\s+/);
   const base = w[0]?.split("/").pop() ?? "";
+  if (isSerena(args)) return "serena";
   if (base === "lake" && w[1] === "serve") return "lspServe";
   if (/(^|\/)node$/.test(w[0] ?? "") && w.some((x) => /apps\/console-api\/src\/main\.ts$/.test(x))) return "console";
   if (["lean", "lake", "fwcore", "node", "esbuild"].includes(base)) return "tool";
@@ -172,11 +189,65 @@ export function recordedConsoles(top: string, env: Record<string, string | undef
   return out;
 }
 
+/** `git worktree list --porcelain` of `top`; `null` when git fails. */
+export function worktreeList(top: string): string | null {
+  const r = spawnSync("git", ["worktree", "list", "--porcelain"], { cwd: top, encoding: "utf8" });
+  return r.status === 0 ? r.stdout : null;
+}
+
+/** The worktree directories of a porcelain list that exist (the main checkout first). */
+export const dirsOf = (porcelain: string): string[] =>
+  porcelain.split("\n").filter((l) => l.startsWith("worktree ")).map((l) => l.slice(9)).filter((d) => existsSync(d));
+
 /** Live checkout directories: the worktree list of `top` that exist (the main checkout first); `null` when git fails. */
 export function liveDirs(top: string): string[] | null {
-  const r = spawnSync("git", ["worktree", "list", "--porcelain"], { cwd: top, encoding: "utf8" });
+  const p = worktreeList(top);
+  return p === null ? null : dirsOf(p);
+}
+
+/** The locked worktrees of a porcelain list: the id (by `idOf` of the worktree path; a path with no id is skipped) and the
+ *  pid the lock reason names (`(pid P ...`), `null` when it names none. */
+export function parseLocks(porcelain: string, idOf: (path: string) => string | null): Lock[] {
+  const out: Lock[] = [];
+  let path: string | null = null;
+  for (const l of porcelain.split("\n")) {
+    if (l.startsWith("worktree ")) path = l.slice(9);
+    else if (path !== null && (l === "locked" || l.startsWith("locked "))) {
+      const id = idOf(path);
+      const m = /\(pid (\d+)/.exec(l);
+      if (id !== null) out.push({ id, holder: m ? +m[1]! : null });
+    }
+  }
+  return out;
+}
+
+/** A `ps` `time` value (`[dd-][hh:]mm:ss[.cc]`) in centiseconds; `null` when it does not parse. */
+export function parseCpuTime(s: string): number | null {
+  const m = /^(?:(\d+)-)?(\d+(?::\d+){0,2})(?:\.(\d{1,2}))?$/.exec(s.trim());
+  if (!m) return null;
+  const secs = m[2]!.split(":").reduce((a, x) => a * 60 + Number(x), 0) + Number(m[1] ?? 0) * 86400;
+  return secs * 100 + Number((m[3] ?? "0").padEnd(2, "0"));
+}
+
+/** CPU time per pid in centiseconds (`ps -axo pid=,time=`); `null` when `ps` fails. */
+export function cpuTable(): Map<number, number> | null {
+  const r = spawnSync("ps", ["-axo", "pid=,time="], { encoding: "utf8", env: { ...process.env, LC_ALL: "C" }, maxBuffer: 1 << 26 });
   if (r.status !== 0) return null;
-  return r.stdout.split("\n").filter((l) => l.startsWith("worktree ")).map((l) => l.slice(9)).filter((d) => existsSync(d));
+  const m = new Map<number, number>();
+  for (const l of r.stdout.split("\n")) {
+    const x = /^\s*(\d+)\s+(\S+)\s*$/.exec(l);
+    const c = x ? parseCpuTime(x[2]!) : null;
+    if (x && c !== null) m.set(+x[1]!, c);
+  }
+  return m;
+}
+
+/** The baselines stored by the previous run; none when the file is missing or broken. */
+export function loadBases(file: string): Base[] {
+  try {
+    const j = JSON.parse(readFileSync(file, "utf8")) as { bases?: unknown };
+    return Array.isArray(j.bases) ? (j.bases as Base[]).filter((b) => [b.pid, b.start, b.since, b.cpu].every(Number.isInteger)) : [];
+  } catch { return []; }
 }
 
 const PS_ARGS = ["-axo", "pid=,ppid=,pgid=,stat=,lstart=,args="];
@@ -201,15 +272,20 @@ export function selfChain(all: Ps[], me = process.pid): number[] {
 /** The facts of one run; `null` when `ps`, the cwd read or git fails (the caller prints that, not a wrong list). Rows are the
  *  whole process table (Lean walks the parent chains through them); the live inodes are this repo's checkout roots plus the
  *  cwd inode of every candidate that sits inside one (nested Lean projects).
+ *  Branch D's facts: the CPU time of every row (unread when the second `ps` fails), each lean-lsp-mcp's worktree id, the
+ *  worktree locks, `now` and the baselines of `reap-idle.json` in the console directory.
  *  Accepted limit: inodes are not paired with st_dev; a collision across devices can only add a live inode (a kept row). */
-export function gather(top: string): Facts | null {
+export function gather(top: string, env: Record<string, string | undefined> = process.env): Facts | null {
   const t = psRows();
-  const dirs = liveDirs(top);
-  if (t === null || dirs === null || dirs.length === 0) return null;
+  const porcelain = worktreeList(top);
+  if (t === null || porcelain === null) return null;
+  const dirs = dirsOf(porcelain);
+  if (dirs.length === 0) return null;
   const base = dirs[0]!;
   const repo = repoIdOf(base);
   if (repo === null) return null;
-  const cand = t.rows.filter((r) => r.kind !== "other");
+  const cpu = cpuTable();
+  const cand = t.rows.filter((r) => r.kind !== "other" && r.kind !== "serena");
   const mcpPs = t.ps.filter((p) => isMcp(p.args));
   const cwd = readCwds([...cand, ...mcpPs].map((p) => p.pid));
   if (cwd === null) return null;
@@ -220,30 +296,64 @@ export function gather(top: string): Facts | null {
   // a directory under <main>/.claude/worktrees/<id> is inside a live checkout only when <id> is live (the main checkout contains them all)
   const isLive = (pid: number, c: Cwd) => { const id = where.get(pid)?.wt ?? null; return (id === null || liveIds.includes(id)) && insideLive(c, dirs); };
   for (const [pid, c] of cwd) if (isLive(pid, c)) live.add(c.ino);
+  const idleFile = join(consoleDirOf(env, top), "reap-idle.json");
   return {
     rows: t.rows.map((r) => {
       const c = cwd.get(r.pid);
       const m = where.get(r.pid);
-      return r.kind === "other" ? r : { ...r, cwd: c?.ino ?? null, wt: m?.wt ?? null, inRepo: m?.inRepo ?? false };
+      const used = { cpu: cpu?.get(r.pid) ?? null };
+      return r.kind === "other" || r.kind === "serena" ? { ...r, ...used } : { ...r, cwd: c?.ino ?? null, wt: m?.wt ?? null, inRepo: m?.inRepo ?? false, ...used };
     }),
     live: [...live],
-    mcps: mcpPs.map((p) => ({ pid: p.pid, cwd: cwd.get(p.pid)?.ino ?? null })),
+    mcps: mcpPs.map((p) => ({ pid: p.pid, cwd: cwd.get(p.pid)?.ino ?? null, wt: where.get(p.pid)?.wt ?? null })),
     keep: recordedConsoles(top),
     liveIds,
     protect: selfChain(t.ps),
+    now: secs(Date.now()),
+    bases: loadBases(idleFile),
+    locks: parseLocks(porcelain, (p) => wtIdOf(p, repo)),
+    idleFile,
   };
 }
 
-const request = (op: string, f: Facts) => ({ op, rows: f.rows, live: f.live, mcps: f.mcps, keep: f.keep, liveIds: f.liveIds ?? [], protect: f.protect ?? [] });
+const request = (op: string, f: Facts) => ({
+  op, rows: f.rows, live: f.live, mcps: f.mcps, keep: f.keep, liveIds: f.liveIds ?? [], protect: f.protect ?? [],
+  now: f.now ?? 0, bases: f.bases ?? [], locks: f.locks ?? [],
+});
 
-/** Lean's list for these facts. */
-export function select(f: Facts, call: Call): Selected[] {
-  return (call(request("ops.lspReap", f)) as { selected: Selected[] }).selected;
+/** Store the baselines Lean returns for these facts (`ops.reapIdle`) in `f.idleFile`, when set. Best effort: a failed write
+ *  only delays branch D (a stack with no baseline is kept). */
+export function saveIdle(f: Facts, call: Call): void {
+  if (!f.idleFile) return;
+  try {
+    const bases = (call(request("ops.reapIdle", f)) as { bases: Base[] }).bases;
+    mkdirSync(dirname(f.idleFile), { recursive: true });
+    writeFileSync(f.idleFile, JSON.stringify({ at: f.now ?? 0, bases }) + "\n");
+  } catch { /* advisory state */ }
 }
 
-/** One printed line per selected process. */
-export function render(sel: Selected[]): string[] {
-  return sel.map((s) => `${s.pid} ${s.group ? "group" : "pid"} ${s.kind}: ${s.reason}`);
+/** Lean's list for these facts; the baselines for the next run are stored on the way. */
+export function select(f: Facts, call: Call): Selected[] {
+  const sel = (call(request("ops.lspReap", f)) as { selected: Selected[] }).selected;
+  saveIdle(f, call);
+  return sel;
+}
+
+const mb = (kb: number) => (kb / 1024).toFixed(1);
+
+/** One printed line per selected process; with `rssKb`, a selected process of an idle lean-lsp-mcp stack also shows its RSS. */
+export function render(sel: Selected[], rssKb?: Map<number, number>): string[] {
+  return sel.map((s) => {
+    const kb = s.kind === "mcpIdle" ? rssKb?.get(s.pid) : undefined;
+    return `${s.pid} ${s.group ? "group" : "pid"} ${s.kind}: ${s.reason}${kb === undefined ? "" : ` (${mb(kb)} MB)`}`;
+  });
+}
+
+/** The total line of the idle lean-lsp-mcp rows, none when there are none. */
+export function idleTotal(sel: Selected[], rssKb: Map<number, number>): string[] {
+  const idle = sel.filter((s) => s.kind === "mcpIdle");
+  if (idle.length === 0) return [];
+  return [`mcpIdle: ${idle.length} process(es), ${mb(idle.reduce((a, s) => a + (rssKb.get(s.pid) ?? 0), 0))} MB RSS`];
 }
 
 /** The advisory line when the list cannot be made (a failure must not look like "nothing leftover"). */
@@ -311,6 +421,7 @@ export function stopSelected(top: string, call: Call, io: Io = realIo, gatherFn:
   const f = gatherFn(top);
   if (f === null) return null;
   const plan = call(request("ops.reapPlan", f)) as { selected: Selected[]; targets: Target[]; graceMs: number; killWaitMs: number };
+  saveIdle(f, call);
   if (plan.targets.length === 0) return { ...EMPTY };
   const planned = plan.targets;
   const allowed = scope ?? plan.selected.map((s) => s.pid);
@@ -408,7 +519,9 @@ export function reapCli(argv: string[], top: string, call: Call, print: (s: stri
   const f = gatherFn(top);
   if (f === null) { print("reap: could not read the process table or the worktree list"); return 1; }
   const sel = select(f, call);
-  for (const l of render(sel)) print(l);
+  const rss = io.rss(sel.filter((s) => s.kind === "mcpIdle").map((s) => s.pid));
+  for (const l of render(sel, rss)) print(l);
+  for (const l of idleTotal(sel, rss)) print(l);
   if (sel.length === 0) print("reap: nothing leftover");
   return 0;
 }
