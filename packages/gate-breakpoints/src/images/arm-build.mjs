@@ -247,6 +247,16 @@ export async function armCli(args, { arg, list }) {
     await pagesCli(args.slice(1), { arg, list });
     return;
   }
-  console.error('usage: arm build|check|verify|pages');
+  if (sub === 'run') {
+    const { armV2Cli } = await import('./armv2.mjs');
+    await armV2Cli(args.slice(1), { arg, list });
+    return;
+  }
+  if (sub === 'decide') {
+    const { decideCli } = await import('./armdecide.mjs');
+    await decideCli(args.slice(1), { arg, list });
+    return;
+  }
+  console.error('usage: arm build|check|verify|pages|run|decide');
   process.exit(2);
 }

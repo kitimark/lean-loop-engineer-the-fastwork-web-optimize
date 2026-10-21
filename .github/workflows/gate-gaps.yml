@@ -12,10 +12,11 @@ name: gate-gaps
 #                   collect job, uploaded together.
 #   images-*        Task image-audit, asked for by `[images]` / `[images-only]` in the commit message or the `images` input:
 #                   images-audit (every image of the hero, morph and people regions per Lean width and DPR, three reps per
-#                   engine and arm; the drawn arm only with `[images-arm]`), images-pages and images-verify (`[images-arm]`
-#                   only: visual diff of the lag parts, baseline against the drawn-size arm; each copy against its source; with
-#                   `[images-arm]` they fail until task image-arm-v2 builds the copies on CI),
-#                   images-summary (ranked tables). Counts and bytes only.
+#                   engine and arm), images-pages (`[images-arm]` only, task image-arm-v2: per probe, read what each image is
+#                   drawn at, build the copies with ImageMagick in the job, run the visual diff of the lag parts with the site
+#                   as it is and with the copies, policies exact and fit; three reps per engine, shards of the probe list),
+#                   images-decide (`[images-arm]`: the decision of each part per policy and engine, from the Lean twin),
+#                   images-summary (ranked tables). Counts, verdicts and decoded bytes only.
 # Counts and verdicts only: nothing measured here is phone time.
 on:
   push:
@@ -253,7 +254,7 @@ jobs:
   # nothing measured here is frame time or phone time.
   images-audit:
     needs: [site]
-    if: ${{ contains(github.event.head_commit.message, '[images') || (github.event_name == 'workflow_dispatch' && inputs.images) }}
+    if: ${{ contains(github.event.head_commit.message, '[images]') || contains(github.event.head_commit.message, '[images-only]') || (github.event_name == 'workflow_dispatch' && inputs.images) }}
     concurrency:
       group: ci-lane:gate-gaps:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:images-audit:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
@@ -321,7 +322,8 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-  # The arm against the build as it is, with the real visual diff on the parts of the lag regions (arm pages in arm-build.mjs).
+  # The drawn-size arm per probe (arm run in armv2.mjs): copies built here with ImageMagick, the real visual diff on the parts of the
+  # lag regions with the site as it is and with the copies. The probe list is src/images/arm-probes.json, split into shards.
   images-pages:
     needs: [site]
     if: ${{ contains(github.event.head_commit.message, '[images-arm]') || (github.event_name == 'workflow_dispatch' && inputs.images) }}
@@ -334,6 +336,7 @@ jobs:
       matrix:
         engine: [chromium, playwright-webkit]
         rep: [r1, r2, r3]
+        shard: [1, 2, 3]
     steps:
       - name: 'tip re-check'
         id: tip
@@ -372,45 +375,40 @@ jobs:
           test -x "$chrome"
           echo "CHROME_PATH=$chrome" >> "$GITHUB_ENV"
           "$chrome" --version
-      - name: 'Require the drawn copies (built by task image-arm-v2; none on CI yet)'
-        run: test -n "$(ls -A apps/site/dist/aot/images-drawn 2>/dev/null)" || { echo 'no drawn copies in apps/site/dist/aot/images-drawn (task image-arm-v2)'; exit 1; }
-      - name: 'The table against its files and the sources'
+      - name: 'ImageMagick (builds the copies; Lanczos resize, written as lossless PNG)'
+        run: |
+          set -euo pipefail
+          if ! command -v magick >/dev/null 2>&1 && ! command -v convert >/dev/null 2>&1; then sudo apt-get update -qq && sudo apt-get install -y -qq imagemagick; fi
+          (magick -version 2>/dev/null || convert -version) | head -1
+      - name: 'Arm: ${{ matrix.engine }} / ${{ matrix.rep }} / shard ${{ matrix.shard }} of 3 (base, exact and fit copies, visual diff of the lag parts)'
         env:
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
         working-directory: packages/gate-breakpoints
-        run: node src/images/cli.mjs arm check --out ../../apps/site/dist/aot/images-drawn
-      - name: 'Pages: ${{ matrix.engine }} / ${{ matrix.rep }} (baseline against the arm, visual diff of the lag parts)'
-        env:
-          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
-          FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
-        working-directory: packages/gate-breakpoints
-        run: node src/images/cli.mjs arm pages --engine ${{ matrix.engine }} --out out/images-pages
+        run: node src/images/cli.mjs arm run --engine ${{ matrix.engine }} --out out/images-arm --shard ${{ matrix.shard }}/3 --tag ${{ matrix.rep }}-s${{ matrix.shard }} --deadline-min 48
         continue-on-error: true
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: images-pages-${{ matrix.engine }}-${{ matrix.rep }}
-          path: |
-            packages/gate-breakpoints/out/images-pages/pages-*.json
-            packages/gate-breakpoints/out/images-pages/pages-*.md
+          name: images-arm-${{ matrix.engine }}-${{ matrix.rep }}-s${{ matrix.shard }}
+          path: packages/gate-breakpoints/out/images-arm/arm-*.json
           if-no-files-found: ignore
-          retention-days: 14
+          retention-days: 30
+      # the diff images of the exact policy only (a few cells); the fit control's are not kept (about 100 MB per job)
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: armimg-${{ matrix.engine }}-${{ matrix.rep }}-s${{ matrix.shard }}
+          path: packages/gate-breakpoints/out/images-arm/v/*/exact/img
+          if-no-files-found: ignore
+          retention-days: 3
 
-  # The ranked tables and the cross-run canon of the audit files; no judging of frame time (there is none).
-  # Every copy of the table against its source, drawn at the sizes the copy serves, on a white page, at DPR 2 and 3, with the PL tolerance
-  # (arm verify in verify.mjs). Runs with the arm (`[images-arm]`).
-  images-verify:
-    needs: [site]
-    if: ${{ contains(github.event.head_commit.message, '[images-arm]') || (github.event_name == 'workflow_dispatch' && inputs.images) }}
+  # The decision of each part per policy and engine (arm decide in armdecide.mjs, over the Lean twin armplan.mjs), as a table with the cells behind it.
+  images-decide:
+    needs: [guard, images-pages]
+    if: ${{ !cancelled() && needs.guard.outputs.run == 'true' && needs.images-pages.result != 'skipped' }}
     concurrency:
-      group: ci-lane:gate-gaps:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:images-verify:${{ strategy.job-index }}
+      group: ci-lane:gate-gaps:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:images-decide:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        engine: [chromium, playwright-webkit]
-        rep: [r1, r2, r3]
+    timeout-minutes: 15
     steps:
       - name: 'tip re-check'
         id: tip
@@ -432,45 +430,23 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup-pnpm
         with:
-          filter: '@fw/gate-breakpoints @fw/visual-diff'
-      - name: Verify the snapshot against snapshot.lock.json
-        run: node .github/scripts/verify-snapshot.mjs
+          filter: '@fw/gate-breakpoints'
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: site-dist
-          path: apps/site/dist/aot
-      - name: Playwright Chromium (full build, new headless) and WebKit (Linux build)
+          pattern: images-arm-*
+          path: ${{ runner.temp }}/arm
+      - name: Decide
         working-directory: packages/gate-breakpoints
         run: |
           set -euo pipefail
-          pnpm exec playwright-core install --with-deps chromium webkit
-          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
-          chrome=$(node -e "import('playwright-core').then((m) => console.log(m.chromium.executablePath()))")
-          test -x "$chrome"
-          echo "CHROME_PATH=$chrome" >> "$GITHUB_ENV"
-          "$chrome" --version
-      - name: 'Require the drawn copies (built by task image-arm-v2; none on CI yet)'
-        run: test -n "$(ls -A apps/site/dist/aot/images-drawn 2>/dev/null)" || { echo 'no drawn copies in apps/site/dist/aot/images-drawn (task image-arm-v2)'; exit 1; }
-      - name: 'The table against its files and the sources'
-        env:
-          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
-          FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
-        working-directory: packages/gate-breakpoints
-        run: node src/images/cli.mjs arm check --out ../../apps/site/dist/aot/images-drawn
-      - name: 'Verify: ${{ matrix.engine }} / ${{ matrix.rep }} (each copy against its source at DPR 2 and 3)'
-        env:
-          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
-          FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
-        working-directory: packages/gate-breakpoints
-        run: node src/images/cli.mjs arm verify --engine ${{ matrix.engine }} --out out/images-verify --dprs 2,3
-        continue-on-error: true
+          mkdir -p out
+          node src/images/cli.mjs arm decide --in "$RUNNER_TEMP/arm" --out out/images-decide.md --run-id "$GITHUB_RUN_ID" --sha "$GITHUB_SHA" | tail -n 60
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: images-verify-${{ matrix.engine }}-${{ matrix.rep }}
-          path: |
-            packages/gate-breakpoints/out/images-verify/verify-*.json
-          if-no-files-found: ignore
-          retention-days: 14
+          name: images-decide
+          path: packages/gate-breakpoints/out/images-decide.md
+          if-no-files-found: error
+          retention-days: 30
 
   # The ranked tables and the cross-run canon of the audit files; no judging of frame time (there is none).
   images-summary:

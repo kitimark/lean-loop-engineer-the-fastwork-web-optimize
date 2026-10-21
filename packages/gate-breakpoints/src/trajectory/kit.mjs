@@ -208,10 +208,20 @@ export function installKit() {
 
   const state = { rows: [], loop: false, gen: 0, lastMut: null, observer: null };
   /**
+   * A page recorder (apps/site/src/debug/nav-transition.ts, only on `fw-debug=nav-transition`) offers `window.__fwDebug.navTransitionRead`;
+   * calling it before the reads of a sample puts a `read` row in the recorder's own log, so a forced style flush between two of its
+   * rows is visible there. No recorder: nothing happens (the original arm and every run without the debug key).
+   */
+  const stampRead = () => {
+    const d = window.__fwDebug;
+    if (d && typeof d.navTransitionRead === 'function') d.navTransitionRead();
+  };
+  /**
    * One sample: the time before the reads (`t0`) and after (`t1`, also `t`), scroll, the morph value (x 10000) and ms since the
    * last nav class change, the nodes. `t1 - t0` is the read cost; the gap between two `t0` is the frame time with the reads in it.
    */
   const snap = (arg, tag, extra) => {
+    stampRead();
     const t0 = stamp();
     const nav = arg.navSel ? document.querySelector(arg.navSel) : null;
     let m = null;
