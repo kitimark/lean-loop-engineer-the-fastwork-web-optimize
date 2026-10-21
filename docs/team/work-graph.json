@@ -13608,6 +13608,45 @@
     "results/linux-webkit-events/**",
     "docs/team/handoffs/linux-webkit-events.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "preview-502-flake",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "From webkit-cancelled-flake (landed bd7a7669): a second flake, HTTP 502 'preview server not reachable' from apps/console-api/src/preview/arm-app.ts:88, in 3-5 of 1000 loads on old and new code alike (run 39600742129, load #92, shows as 'Load request cancelled' on webkit/loopback/compare/cancelled-same-origin-0). Cause INFERRED: a reused keep-alive socket. First log the upstream error code, reproduce with the e2e-preview --repeat/--provoke flags on a ci/preview-502-flake branch (GitHub only), fix the cause (no retry), 10 green 1000-load repeats. Also: suite.mjs controlLoad must not drop leavePage's result (a still-open landing request goes to failed), and docs/team/tools/preview-e2e.md documents --only/--repeat/--trace/--provoke and updates lines 79-80; the webkit-cancelled-flake note gets its rate (2 in 2400 natural loads), the out/webkit.json count source and the list of the 18 land runs read.",
+   "writes": [
+    "apps/console-api/src/preview/**",
+    "apps/console-api/test/preview*.test.ts",
+    "packages/e2e-preview/src/**",
+    "packages/e2e-preview/test/**",
+    "docs/team/tools/preview-e2e.md",
+    "research/notes/2026/10-21-webkit-cancelled-flake.md",
+    "research/notes/2026/10-2x-preview-502-flake.md",
+    "docs/team/handoffs/preview-502-flake.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "sim-lock-orphan-identity",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "title": "fw watch alert sim.lockOrphan misfired 2026-10-21 20:00: the sim lock was held by sup-warmup's live measurement (pid 82302, node measure.mjs sim) but the rule's branch 'holder names no agent' (lean/Fw/Obs/Golden.lean:170, Health.lean lockOrphan_iff) fired because workflow agents are not team members. Identity over inference: decide orphan from the holder's (pid, start time) liveness recorded at acquire, not from the owner name; sim-lock.sh records the start time; theorem: a live holder is never an orphan; goldens. Also alert on a booted fw-* Simulator with the lock free for longer than the idle grace (an idle fw-iphone-27 stayed booted ~22 h on 2026-10-21), as an interim until fw-sup's idle_stopped runs.",
+   "writes": [
+    "lean/Fw/Obs/Health.lean",
+    "lean/Fw/Obs/Golden.lean",
+    "packages/contracts/golden/obs/**",
+    "scripts/sim-lock.sh",
+    "apps/runner/src/watch-collect.ts",
+    "apps/runner/test/watch-collect*.test.ts",
+    "docs/team/handoffs/sim-lock-orphan-identity.md"
+   ]
   }
  ],
  "deadline": {
