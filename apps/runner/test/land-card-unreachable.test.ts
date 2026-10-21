@@ -34,6 +34,9 @@ async function setup() {
   await cmd({ type: "task.define", key: "d", actor: "lead", task: "my-task", title: "t", stream: "s", milestone: null, deps: [], owner: "o", writes: ["a.txt"], devices: [], evidence: null });
   mkdirSync(join(fx.root, "docs/team"), { recursive: true });
   writeFileSync(join(fx.root, "docs/team/work-graph.json"), JSON.stringify({ tasks: [{ id: "my-task", owner: "o", writes: ["a.txt"] }] }));
+  // tracked on main, as in the real repo: the evidence the land stages before its checks is undone by the merge abort
+  fx.git(fx.root, "add", "docs/team/work-graph.json");
+  fx.git(fx.root, "commit", "-qm", "work graph");
   const sha = fx.commit(fx.worktree("card/A"), "a.txt");
   await http.post("/api/reconcile", {});
   await cmd({ type: "card.screen", key: "s", actor: "script", card: "A", sha, pass: true });

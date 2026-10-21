@@ -159,7 +159,7 @@ theorem slow_of_ceiling (p : Params) (hist : List Sample) (i : Nat) (t : Span)
   (Fw.Obs.Timing.slow_iff p hist i t.sample).2 (Or.inl h)
 
 theorem slow_of_window (p : Params) (hist : List Sample) (i : Nat) (t : Span)
-    (hn : p.nMin ≤ (Fw.Obs.Timing.windowOf p hist t.sample.key).length) (hq : Fw.Obs.Timing.noisy p t.sample = false)
+    (hn : p.nMin ≤ (Fw.Obs.Timing.windowOf p hist t.sample.key).length) (hq : Fw.Obs.Timing.contended p t.sample = false)
     (hB : Fw.Obs.Timing.budgetOf p t.sample.tool < t.sample.durMs)
     (hk : p.kNum * Fw.Obs.Timing.p50 (Fw.Obs.Timing.windowOf p hist t.sample.key) < p.kDen * t.sample.durMs) :
     (Fw.Obs.Timing.judge p hist i t.sample).code = .slow :=
@@ -167,7 +167,7 @@ theorem slow_of_window (p : Params) (hist : List Sample) (i : Nat) (t : Span)
 
 theorem not_slow_of_neither (p : Params) (hist : List Sample) (i : Nat) (t : Span)
     (hc : Fw.Obs.Timing.ceilingBreach p t.sample = false)
-    (hw : ¬ (p.nMin ≤ (Fw.Obs.Timing.windowOf p hist t.sample.key).length ∧ Fw.Obs.Timing.noisy p t.sample = false ∧
+    (hw : ¬ (p.nMin ≤ (Fw.Obs.Timing.windowOf p hist t.sample.key).length ∧ Fw.Obs.Timing.contended p t.sample = false ∧
       Fw.Obs.Timing.budgetOf p t.sample.tool < t.sample.durMs ∧
       p.kNum * Fw.Obs.Timing.p50 (Fw.Obs.Timing.windowOf p hist t.sample.key) < p.kDen * t.sample.durMs)) :
     (Fw.Obs.Timing.judge p hist i t.sample).code ≠ .slow := fun h =>

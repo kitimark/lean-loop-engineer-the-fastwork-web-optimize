@@ -27,9 +27,13 @@ What runs, not what is on disk (`Stack`, three bases):
   (`restartApi_without_rebuild_stale`).
 
 The build record. One writer: `sh scripts/fwcore-build.sh` (also what `lean/scripts/check.sh` builds through; `fw land` runs
-that in its land worktree, never in the main checkout) reads `HEAD` BEFORE `lake build`, builds, and writes `lean/.lake/build/bin/fwcore.commit` =
-`<sha of HEAD read before the build> <sha256 of the built binary>`, only after a successful build on a tree that is clean
-before and after, not mid-merge or mid-rebase, with HEAD unmoved. Nothing is inferred from file times or the reflog (Lake's
+that in its land worktree, never in the main checkout) reads the index tree (`git write-tree`) BEFORE `lake build`, builds, and writes `lean/.lake/build/bin/fwcore.commit` =
+`tree <tree id read before the build> <sha256 of the built binary>` (atomic tmp+mv), only after a successful build whose
+files equal the index before and after (no unstaged change, no untracked file under `lean/`) with the tree unmoved. A
+mid-merge tree is fine: its tree is the one the landing commit will have (Lean `Fw.Obs.recordTree`, `recordTree_merged`;
+sh stand-in `scripts/fwcore-record-rule.sh`). The old record stays until the new one replaces it. The record resolves to
+the commit of main whose tree it is (`chooseBaseTree`, `chooseBaseTree_landed`); a tree no commit of main has yet
+(a land in progress) stays unknown (`chooseBaseTree_unlanded`). The legacy `<commit> <sha256>` form is still read. Nothing is inferred from file times or the reflog (Lake's
 artifact cache restores a binary with an old mtime, so an mtime is not the build time). `chooseBase` (Lean
 `Fw.Obs.chooseBase`; TS stand-in `apps/console-api/src/core/build-base.ts`, same table in `test/build-base.test.ts` and
 the `#guard`s): a record is accepted only when the sha256 of the binary now on disk equals the recorded one, and then the

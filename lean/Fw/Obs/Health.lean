@@ -1,5 +1,6 @@
 import Fw.Obs.Stale
 import Fw.Obs.GhStatus
+import Fw.Obs.Timing
 /-!
 # Team health: per-agent state and alert rules over one observation snapshot
 
@@ -26,7 +27,8 @@ it gone (the previous check, `prevAt`, did not).
 Slow work (the lead's monitor): `ci.slow` (a run queued or in progress for more than `ciSlowMin`), `ci.finished` (a
 run that the previous check flagged as slow has finished: its duration and conclusion, once), `agent.toolSlow` (a tool
 call in flight for more than `toolSlowMin`, waits excepted), `proc.long` (a process tree started by the session alive
-for more than `procMaxMin`, see below), `sys.loadHigh` (1-min load average at or above `loadMax`).
+for more than `procMaxMin`, see below), `sys.loadHigh` (1-min load average at or above `loadMax`), `sys.contended` (1-min load above
+`Fw.Obs.Timing.contendedLoad`, the CPUs of the local Mac: the one signal that stands for the per-step `timing.slow` the load causes).
 
 Long-running processes (`proc.long`): a tree is exempt when it is an intended long-runner (`declaredB`: its program is
 on the checked-in allowlist `keepProgs`, or one of its pids is a service pid or a pid the lead declared with
@@ -51,7 +53,7 @@ Rules (proved below):
 * `health_mono`: loosening the thresholds (raising any upper threshold, lowering `diskMinGB`, same `wfQuietMin` and
   `goneAfterMin`) never adds an alert.
 * `lockOrphan_iff`, `permissionWait_iff`, `loadHigh_iff`: when `sim.lockOrphan`, `team.permissionWait` and
-  `sys.loadHigh` fire.
+  `sys.loadHigh` fire; `sysContended_iff`, `sysContended_iff_sample`: when `sys.contended` fires, and that it is the test that makes a local timing sample `contended`.
 * `procLong_iff`, `ownerLive_quiet`, `declared_quiet`, `procLong_sound`, `orphan_raised`: a live agent's process tree
   and a declared long-runner never raise `proc.long`; every `proc.long` alert is an undeclared tree older than
   `procMaxMin` whose owner is not live; an orphan of an ended agent does raise it.
@@ -214,6 +216,16 @@ structure Proc where
   agent     : Option String := none
 deriving DecidableEq, Repr
 
+/-- What the local machine runs when it is loaded (task `local-mem-budget`): the `lake` builders and the live heavy-lock
+holders (for the detail of `sys.contended`), and whether the previous check already raised `sys.contended`
+(`prevContended`: the one bit of memory of the hysteresis). One field of `System`, so its wire round trip is its own lemma.
+-/
+structure LoadInfo where
+  builders      : Nat := 0
+  heavyJobs     : Nat := 0
+  prevContended : Bool := false
+deriving DecidableEq, Repr
+
 /-- The machine-level facts the rules read: free disk (GB), memory pressure, the simulator lock, running containers,
 the number of git worktrees, recent CI runs, the floor of the 1-min load average, the session's process trees, the
 service pids (long-running on purpose: the console server, the watcher itself), and the pids the lead declared as
@@ -236,6 +248,7 @@ structure System where
   svcs        : List Svc := []
   alivePids   : Option (List Nat) := none
   gh          : Gh := {}
+  load        : LoadInfo := {}
 deriving DecidableEq, Repr
 
 /-- One observation: the time it was taken (ms), the agents, the lead session's facts, the system facts, the time of
@@ -395,14 +408,14 @@ theorem stalled_facts (p : Params) (t : Nat) (A : List Agent) (a : Agent) (h : s
 /-- The alert codes, listed in the order of their wire names. -/
 inductive Code where
   | ctxHigh | ctxWarn | errStreak | gone | stalled | toolHang | toolSlow
-  | ciFailed | ciFinished | ciSlow | dockerOrphan | procLong | simLockLong | simLockOrphan | svcStale | svcSweepError | svcUnknown | diskLow | ghDegraded | loadHigh
+  | ciFailed | ciFinished | ciSlow | dockerOrphan | procLong | simLockLong | simLockOrphan | svcStale | svcSweepError | svcUnknown | sysContended | diskLow | ghDegraded | loadHigh
   | memCritical | overCap | permissionWait | worktreesMany
 deriving DecidableEq, Repr
 
 /-- Every code, in rank order. -/
 def Code.all : List Code :=
   [.ctxHigh, .ctxWarn, .errStreak, .gone, .stalled, .toolHang, .toolSlow,
-   .ciFailed, .ciFinished, .ciSlow, .dockerOrphan, .procLong, .simLockLong, .simLockOrphan, .svcStale, .svcSweepError, .svcUnknown, .diskLow, .ghDegraded, .loadHigh,
+   .ciFailed, .ciFinished, .ciSlow, .dockerOrphan, .procLong, .simLockLong, .simLockOrphan, .svcStale, .svcSweepError, .svcUnknown, .sysContended, .diskLow, .ghDegraded, .loadHigh,
    .memCritical, .overCap, .permissionWait, .worktreesMany]
 
 /-- The wire name of a code. -/
@@ -411,7 +424,7 @@ def Code.name : Code → String
   | .gone => "agent.gone" | .stalled => "agent.stalled" | .toolHang => "agent.toolHang"
   | .toolSlow => "agent.toolSlow" | .ciFailed => "ci.failed" | .ciFinished => "ci.finished" | .ciSlow => "ci.slow"
   | .dockerOrphan => "docker.orphan" | .procLong => "proc.long" | .simLockLong => "sim.lockLong"
-  | .simLockOrphan => "sim.lockOrphan" | .svcStale => "svc.stale" | .svcSweepError => "svc.sweepError" | .svcUnknown => "svc.unknown" | .diskLow => "sys.diskLow" | .ghDegraded => "sys.ghDegraded" | .loadHigh => "sys.loadHigh"
+  | .simLockOrphan => "sim.lockOrphan" | .svcStale => "svc.stale" | .svcSweepError => "svc.sweepError" | .svcUnknown => "svc.unknown" | .sysContended => "sys.contended" | .diskLow => "sys.diskLow" | .ghDegraded => "sys.ghDegraded" | .loadHigh => "sys.loadHigh"
   | .memCritical => "sys.memCritical" | .overCap => "team.overCap" | .permissionWait => "team.permissionWait"
   | .worktreesMany => "worktrees.many"
 
@@ -419,8 +432,8 @@ def Code.name : Code → String
 def Code.rank : Code → Nat
   | .ctxHigh => 0 | .ctxWarn => 1 | .errStreak => 2 | .gone => 3 | .stalled => 4 | .toolHang => 5 | .toolSlow => 6
   | .ciFailed => 7 | .ciFinished => 8 | .ciSlow => 9 | .dockerOrphan => 10 | .procLong => 11 | .simLockLong => 12
-  | .simLockOrphan => 13 | .svcStale => 14 | .svcSweepError => 15 | .svcUnknown => 16 | .diskLow => 17 | .ghDegraded => 18 | .loadHigh => 19
-  | .memCritical => 20 | .overCap => 21 | .permissionWait => 22 | .worktreesMany => 23
+  | .simLockOrphan => 13 | .svcStale => 14 | .svcSweepError => 15 | .svcUnknown => 16 | .sysContended => 17 | .diskLow => 18 | .ghDegraded => 19 | .loadHigh => 20
+  | .memCritical => 21 | .overCap => 22 | .permissionWait => 23 | .worktreesMany => 24
 
 /-- Whether a code is about one agent (`agent.*`). -/
 def Code.isAgent (c : Code) : Bool := c.rank < 7
@@ -899,6 +912,22 @@ def sLoad (p : Params) (o : Obs) : List Alert :=
   when (decide (p.loadMax ≤ o.system.loadFloor))
     ⟨.loadHigh, "load", s!"load average {o.system.loadFloor} (1 min, floor)", false⟩
 
+/-- Is the machine contended now: above `contendedLoad`, or open since the previous check and still above `calmLoad`. -/
+def contendedNow (o : Obs) : Bool :=
+  decide (Fw.Obs.Timing.contendedLoad < o.system.loadFloor) ||
+    (o.system.load.prevContended && decide (Fw.Obs.Timing.calmLoad < o.system.loadFloor))
+
+/-- `sys.contended` (task `local-mem-budget`), with hysteresis: it opens when the floor of the 1-min load average is strictly
+above `Fw.Obs.Timing.contendedLoad` (the test that makes a local timing sample `contended`) and, once open (the previous
+check raised it), stays open until the floor is at or below `Fw.Obs.Timing.calmLoad`. A load that wobbles around 8 is one
+open alert, not a new OPEN line at every crossing (alert key `code|subject`). One signal for the whole machine, with the
+builders and heavy jobs that run, in place of one `timing.slow` per step the load slowed.
+-/
+def sContended (o : Obs) : List Alert :=
+  when (contendedNow o)
+    ⟨.sysContended, "load",
+      s!"load average {o.system.loadFloor} (1 min, floor) over {Fw.Obs.Timing.contendedLoad} CPUs; {o.system.load.builders} builders, {o.system.load.heavyJobs} heavy jobs", false⟩
+
 /-- `sim.lockLong`: the simulator lock has a holder and a start time and has been held for `simLockMaxMin` minutes. -/
 def sLockLong (p : Params) (o : Obs) : List Alert :=
   when (o.system.simLock.holder.isSome &&
@@ -1139,7 +1168,7 @@ def sPerm (o : Obs) : List Alert :=
 /-- The team and system alerts: the pieces in code order. -/
 def sysAlerts (p : Params) (o : Obs) : List Alert :=
   sCiFailed o ++ sCiFin p o ++ sCiSlow p o ++ sDocker p o ++ sProc p o ++ sLockLong p o ++ sOrphan p o ++
-    sStale o ++ sSweep o ++ sUnknown o ++ sDisk p o ++ sGh o ++ sLoad p o ++ sMem o ++ sOver p o ++ sPerm o ++ sWt p o
+    sStale o ++ sSweep o ++ sUnknown o ++ sContended o ++ sDisk p o ++ sGh o ++ sLoad p o ++ sMem o ++ sOver p o ++ sPerm o ++ sWt p o
 
 /-- Every raised alert, unsorted: each agent's alerts, then the team and system alerts. -/
 def raw (p : Params) (o : Obs) : List Alert := o.agents.flatMap (agentAll p o) ++ sysAlerts p o
@@ -1268,6 +1297,7 @@ def sysPiece (p : Params) (o : Obs) : Code → List Alert
   | .overCap => sOver p o
   | .permissionWait => sPerm o
   | .worktreesMany => sWt p o
+  | .sysContended => sContended o
   | .ctxHigh | .ctxWarn | .errStreak | .gone | .stalled | .toolHang | .toolSlow => []
 
 /-- `sysAlerts` is the concatenation of the pieces in rank order. -/
@@ -1277,7 +1307,7 @@ theorem sysAlerts_eq (p : Params) (o : Obs) : sysAlerts p o = Code.all.flatMap (
 /-- Every alert of a piece carries the piece's code. -/
 theorem piece_code (p : Params) (o : Obs) (c : Code) (x : Alert) (h : x ∈ sysPiece p o c) : x.code = c := by
   cases c <;> simp only [sysPiece, sCiFailed, sCiFin, sCiSlow, sDocker, sProc, sLockLong, sOrphan, sStale, sSweep, sUnknown, sDisk, sGh, sLoad,
-    sMem, sOver, sPerm, sWt, List.not_mem_nil] at h
+    sMem, sOver, sPerm, sWt, sContended, List.not_mem_nil] at h
   all_goals first
     | (obtain ⟨s, _, e⟩ := List.mem_filterMap.1 h
        cases hu : s.unknown <;> simp only [hu, Option.map_none, Option.map_some, reduceCtorEq, Option.some.injEq] at e
@@ -1392,6 +1422,44 @@ theorem loadHigh_iff (p : Params) (o : Obs) :
     (∃ x ∈ (health p o).alerts, x.code = .loadHigh) ↔ p.loadMax ≤ o.system.loadFloor := by
   rw [sys_code_iff p o _ rfl]
   simp only [sysPiece, sLoad, when_ne_nil, decide_eq_true_eq]
+
+/-- `sys.contended` fires exactly when the floor of the 1-min load average is above `contendedLoad`, or the previous
+check raised it and the floor is still above `calmLoad` (hysteresis). -/
+theorem sysContended_iff (p : Params) (o : Obs) :
+    (∃ x ∈ (health p o).alerts, x.code = .sysContended) ↔
+      Fw.Obs.Timing.contendedLoad < o.system.loadFloor ∨
+        (o.system.load.prevContended = true ∧ Fw.Obs.Timing.calmLoad < o.system.loadFloor) := by
+  rw [sys_code_iff p o _ rfl]
+  simp only [sysPiece, sContended, contendedNow, when_ne_nil, Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq]
+
+/-- Opens above `contendedLoad`, whatever the previous check said. -/
+theorem sysContended_opens (p : Params) (o : Obs) (h : Fw.Obs.Timing.contendedLoad < o.system.loadFloor) :
+    ∃ x ∈ (health p o).alerts, x.code = .sysContended :=
+  (sysContended_iff p o).2 (Or.inl h)
+
+/-- Closes at or below `calmLoad`, whatever the previous check said. -/
+theorem sysContended_closes (p : Params) (o : Obs) (h : o.system.loadFloor ≤ Fw.Obs.Timing.calmLoad) :
+    ¬ ∃ x ∈ (health p o).alerts, x.code = .sysContended := by
+  rw [sysContended_iff]
+  have := Fw.Obs.Timing.calmLoad_lt
+  omega
+
+/-- Between the two limits the alert keeps the state of the previous check: open stays open, closed stays closed. -/
+theorem sysContended_between (p : Params) (o : Obs) (h1 : Fw.Obs.Timing.calmLoad < o.system.loadFloor)
+    (h2 : o.system.loadFloor ≤ Fw.Obs.Timing.contendedLoad) :
+    (∃ x ∈ (health p o).alerts, x.code = .sysContended) ↔ o.system.load.prevContended = true := by
+  rw [sysContended_iff]
+  cases hp : o.system.load.prevContended <;> simp <;> omega
+
+/-- **The signal and the timing verdict are one test.** `sys.contended` fires exactly when a local timing sample taken
+at the observation's load (with the default limit, `contendedLoad`) is `contended`: while the machine is contended
+every step's timing is judged `contended` and the one `sys.contended` carries it; at normal load neither does.
+-/
+theorem sysContended_iff_sample (p : Params) (o : Obs) (s : Fw.Obs.Timing.Sample)
+    (hh : s.host = .«local») (hl : s.load = o.system.loadFloor) (hp : o.system.load.prevContended = false) :
+    (∃ x ∈ (health p o).alerts, x.code = .sysContended) ↔ Fw.Obs.Timing.contended {} s = true := by
+  rw [sysContended_iff]
+  simp [Fw.Obs.Timing.contended, hh, hl, hp]
 
 /-- A run waiting or running for more than the workflow's limit `s_p(wf(r))` minutes raises `ci.slow` with subject `workflow@branch`. -/
 theorem ciSlow_raised (p : Params) (o : Obs) (r : CiRun) (hr : r ∈ o.system.ci) (h : ciSlowB p o.now r = true) :
@@ -1737,6 +1805,7 @@ theorem sysPiece_mono (p q : Params) (o : Obs) (hpq : Looser p q) (c : Code) (x 
   · exact h
   · exact h
   · exact h
+  · exact h
   · exact when_sub _ (fun hb => by simp only [decide_eq_true_eq] at hb ⊢; omega) x h
   · exact h
   · exact when_sub _ (fun hb => by simp only [decide_eq_true_eq] at hb ⊢; omega) x h
@@ -1795,7 +1864,7 @@ theorem sysAlerts_perm (p : Params) (o : Obs) (l : List Agent) (hl : l.Perm o.ag
   have ha : procAlert { o with agents := l } = procAlert o := rfl
   have hc : ciSlowAlert { o with agents := l } = ciSlowAlert o := rfl
   simp only [sysAlerts, sCiFailed, sCiFin, sCiSlow, sDocker, sProc, sLockLong, sOrphan, sStale, sSweep, sUnknown, sDisk, sGh, sLoad, sMem, sOver,
-    sPerm, sWt, hn, hk, hh, ho, hd, hq, ha, hc]
+    sPerm, sWt, sContended, contendedNow, hn, hk, hh, ho, hd, hq, ha, hc]
 
 /-- The report's alerts, system codes and counts do not depend on the order of the agents (the rows follow it). -/
 theorem health_perm (p : Params) (o : Obs) (l : List Agent) (hl : l.Perm o.agents) :
@@ -2017,7 +2086,17 @@ def ci0 : CiRun := { workflow := "ci", branch := "main", status := "completed", 
 #guard (health {} { now := 0, critical := ["t"], agents := [{ a0 with errTail := 3 }],
                     system := { diskFreeGB := 19, ci := [{ ci0 with branch := "ci/t", conclusion := some "failure" }] } }).alerts.map (·.code)
   == [.ciFailed, .errStreak, .diskLow]
-#guard (health {} { now := 0, system := { diskFreeGB := 19, loadFloor := 200 } }).system == [.diskLow, .loadHigh]
+#guard (health {} { now := 0, system := { diskFreeGB := 19, loadFloor := 200 } }).system == [.sysContended, .diskLow, .loadHigh]
+-- sys.contended: strictly above contendedLoad (8), with the builders and heavy jobs in the detail
+#guard sContended { now := 0, system := { loadFloor := 8 } } == []
+#guard sContended { now := 0, system := { loadFloor := 9, load := { builders := 4, heavyJobs := 2 } } } ==
+  [⟨.sysContended, "load", "load average 9 (1 min, floor) over 8 CPUs; 4 builders, 2 heavy jobs", false⟩]
+-- hysteresis: open above 8; once open, stays open down to calmLoad + 1 = 5 and closes at 4 or below
+#guard (sContended { now := 0, system := { loadFloor := 8 } }).isEmpty
+#guard (sContended { now := 0, system := { loadFloor := 6, load := { prevContended := true } } }).length == 1
+#guard (sContended { now := 0, system := { loadFloor := 6 } }).isEmpty
+#guard (sContended { now := 0, system := { loadFloor := 5, load := { prevContended := true } } }).length == 1
+#guard (sContended { now := 0, system := { loadFloor := 4, load := { prevContended := true } } }).isEmpty
 #guard sortU [⟨.diskLow, "disk", "1", false⟩, ⟨.ctxHigh, "b", "x", false⟩, ⟨.ctxHigh, "a", "x", false⟩,
     ⟨.diskLow, "disk", "1", false⟩, ⟨.worktreesMany, "worktrees", "1", true⟩]
   == [⟨.worktreesMany, "worktrees", "1", true⟩, ⟨.ctxHigh, "a", "x", false⟩, ⟨.ctxHigh, "b", "x", false⟩,
