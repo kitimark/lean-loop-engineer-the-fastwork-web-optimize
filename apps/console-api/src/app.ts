@@ -19,6 +19,7 @@ import type { ReturnStore } from "./preview/return.ts";
 import { LoginGuard } from "./preview/login.ts";
 import { mountReviews, type ReviewOpts } from "./review/routes.ts";
 import { mountReviewPreview } from "./review/preview.ts";
+import { mountReviewInfo } from "./review/info.ts";
 
 /** Owner login and LAN mode (console-lan-owner): the login guard and whether LAN requests are possible at all. */
 export interface GateOptions { login: LoginGuard; lan: boolean; grants?: Grants; returns?: ReturnStore }
@@ -82,6 +83,7 @@ export function createApp(store: Store, webDist?: string, reconciler?: Reconcile
   mountOps(app, store);
   mountReviews(app, store, reviewRoot, reviewOpts); // Your reviews: Lean console.review items; Keep / Reject is the user's step.answer
   mountReviewPreview(app, store, () => owner.previewPort); // the Preview button of a look-change card: Lean console.reviewPreview plans it, the user's review.previewed records it
+  mountReviewInfo(app, store, reviewRoot); // the card's information panel: Lean console.reviewInfo (gains, code excerpts read from the checkout, mechanism, math)
   if (reconciler) mountReconcile(app, store, reconciler);
   const { drain, caps } = mountAgentRoutes(app, store); // capability-gated agent door + spool drain
   if (previews) mountPreview(app, store, caps, previews, owner, gate?.grants ? { grants: gate.grants, lan: gate.lan } : undefined); // task detail panel + owner-only preview (task-preview)
