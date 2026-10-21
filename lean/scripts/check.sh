@@ -86,6 +86,7 @@ run_group() {
   job "pool-fallback golden check" lake env lean --run scripts/PoolFallbackGolden.lean --check  # golden/ci/pool-fallback.jsonl (Fw.Ci.Pool.Fallback: the macOS fallback route)
   job "obs golden check" lake env lean --run scripts/ObsGolden.lean --check  # golden/obs/health.jsonl and backoff.jsonl (Fw.Obs)
   job "sup-health golden check" lake env lean --run scripts/SupHealthGolden.lean --check  # golden/obs/sup-health.jsonl (Fw.Obs.Health.Res), read by apps/runner/src/watch-collect.ts
+  job "sup wire golden check" lake env lean --run scripts/SupWireGolden.lean --check  # golden/sup/wire.jsonl (Fw.Wire.Sup), each line replayed through Json.parse, decode and encode
   job "ops golden check" lake env lean --run scripts/OpsGolden.lean --check  # golden/ops/*.jsonl incl. the obs life cases (Fw.Ops.Obs)
   job "lane inputs check" lake env lean --run scripts/LaneInputs.lean --check  # Fw.Store.Lane.inputs equal the workflow_dispatch inputs of chromium-counts, webkit-sim, breakpoint-gate
   job "engine goldens check" lake env lean --run scripts/EngineGoldens.lean  # golden/engine/*.jsonl equal the Lean generators, one generator per file
