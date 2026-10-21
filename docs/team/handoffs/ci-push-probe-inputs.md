@@ -8,6 +8,10 @@ What changed
 - `.claude/workflows/build-review.js` PREAMBLE line 16 points builders at the push route; `docs/team/tools/trajectory-probe.md` has the section.
 - Message form: `[ci:trajectory-probe]` plus `[trajectory fw=a:b,c:d widths=390,1280 engines=both]` (or `preset=`). Only a line starting with `[trajectory` counts.
 
+Found, not fixed: a run with ONE leg (one engine, one width, e.g. engines=chromium widths=390) fails job `merge` with "merge: no leg"
+(download-artifact with a pattern that matches one artifact puts its files in legs/ itself, so the `find -type d` sees no leg directory).
+Runs 39519445950 (push) and 39519469405 (dispatch) show it; use two widths or both engines until it is fixed (follow-up).
+
 Verified: golden equality (Lean to node twin), ci-paths --check. CI runs: see the report (ids).
 
 Writes outside the task lists: `lean/FwTestMain.lean` (golden wiring), `lean/Fw/Store/Layout.lean` (Lane.trajectory.inputs gains `nonce`, required by the lane-inputs check), `.github/scripts/trajectory-line.mjs` and its test.
