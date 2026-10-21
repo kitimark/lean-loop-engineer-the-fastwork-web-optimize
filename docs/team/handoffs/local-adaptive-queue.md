@@ -18,12 +18,8 @@ Verified:
   holder was released.
 
 Open (follow-ups, outside the pinned unit):
-- Console view of N, queue and waits (console-web, watch-collect), after step-threads lands.
-- Migrate the sim-lock.sh callers: `.claude/agents/measure-engineer.md`, `packages/measure-webkit/src/device.mjs`,
-  packages/gate-breakpoints.
-- Run `fw slot sim --apply` from the `fw watch` tick, and retire heavy-lock into the slot.
-- Measure busy-hour load before and after the change. Bound FIFO waits at trace level (sup-fairness
-  `head_job_granted_by`).
+- Console view of N, queue and waits; migrate the sim-lock.sh callers (measure-engineer.md, measure-webkit
+  device.mjs, gate-breakpoints); `fw slot sim --apply` in `fw watch`; retire heavy-lock; busy-hour measurement.
 - r1 follow-ups: review-cache records are unauthenticated and the key omits env and Node version (add
   `process.version` and an env digest to `CacheKey`, or record the producer); link `verdict_head_admitted` to
   `Fw.Sup.Props.head_job_granted_by` or say in slot.md why it is a separate model; Simulator rules are advisory, and
@@ -33,5 +29,4 @@ Open (follow-ups, outside the pinned unit):
 Conventions: Lean first. Change `Fw.Sup.Adapt`, regenerate with
 `printf 'import Fw.Sup.AdaptGolden\n#eval Fw.Sup.Adapt.gen []\n' | lake env lean --stdin` (in lean/), then mirror the
 change in slot-core.ts. Tests inject `Deps` and never boot the Simulator or read the real state.
-
 Read first: `docs/team/tools/slot.md`, then `lean/Fw/Sup/Adapt.lean`.
