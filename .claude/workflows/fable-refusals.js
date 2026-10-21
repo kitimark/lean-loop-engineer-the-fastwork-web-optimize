@@ -1,11 +1,13 @@
 export const meta = {
   name: 'fable-refusals',
-  description: 'Fable investigates each refused build-review task (verify findings, retro, fix list or split), then an adversarial check of the advice',
+  description: 'Fable investigates each refused build-review task (verify findings, retro, fix list or split), then an adversarial check that returns the corrected spec',
   whenToUse: 'After a build-review run with refused reviews: args = { tasks: [{ id, branch, worktree, findings, prompt, round }], out, context? }',
   phases: [{ title: 'Investigate' }, { title: 'Check' }],
 }
 
-const VERDICT = { type: 'object', properties: { accept: { type: 'boolean' }, findings: { type: 'array', items: { type: 'object', properties: { severity: { type: 'string' }, where: { type: 'string' }, what: { type: 'string' } }, required: ['severity', 'where', 'what'] } } }, required: ['accept', 'findings'] }
+// The check returns the corrected spec (the next round's fix list, pinned unit and accepted limits), not an accept bit: the bit was 0 in every
+// run and carried no signal. An empty corrections list means Fable's advice stands.
+const SPEC = { type: 'object', properties: { spec: { type: 'string' }, corrections: { type: 'array', items: { type: 'object', properties: { where: { type: 'string' }, what: { type: 'string' }, why: { type: 'string' } }, required: ['where', 'what', 'why'] } } }, required: ['spec', 'corrections'] }
 const tasks = (args && args.tasks) || []
 const out = args && args.out
 const context = (args && args.context) || ''
@@ -22,10 +24,10 @@ Investigate why the review did not accept this task and how to fix it. (1) For e
   async (advice, t) => {
     const check = await agent(`Adversarial check (read-only) of Fable's advice on refused task ${t.id}. ${ctx(t)}
 
-Verify at least 6 of Fable's classifications against the code and the snapshot (cite). Check that the fix list resolves every real finding, that the pinned unit and accepted limits are honest (nothing the task claims is left undecided without being listed), and that any split leaves nothing a downstream claim depends on. Refute anything wrong; give exact fixes. Return accept + findings.
+Verify at least 6 of Fable's classifications against the code and the snapshot (cite). Check that the fix list resolves every real finding, that the pinned unit and accepted limits are honest (nothing the task claims is left undecided without being listed), and that any split leaves nothing a downstream claim depends on. Refute anything wrong. Return the corrected spec as spec (the complete ordered fix list, the pinned unit of decision and the accepted limits, ready to paste into the next round's prompt; keep Fable's text where it is right) and each change you made to Fable's advice as corrections {where, what, why}.
 
 FABLE:
-${advice}`, { label: `check:${t.id}`, phase: 'Check', agentType: 'reviewer', schema: VERDICT })
+${advice}`, { label: `check:${t.id}`, phase: 'Check', agentType: 'reviewer', schema: SPEC })
     return { task: t.id, advice, check }
   },
 )

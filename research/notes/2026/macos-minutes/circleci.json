@@ -1,0 +1,933 @@
+{
+ "webkit-sim": {
+  "runs": [
+   {
+    "id": "12644e72-c3f0-4e1f-9ae8-9b2fde96df85",
+    "created": "2026-10-19T22:05:13.971Z",
+    "durationS": 372,
+    "status": "success",
+    "credits": 1025,
+    "branch": "ci/circleci-pilot"
+   },
+   {
+    "id": "5affa41c-f098-4411-817b-1768e12d99ee",
+    "created": "2026-10-19T21:23:46.879Z",
+    "durationS": 887,
+    "status": "failed",
+    "credits": 2756,
+    "branch": "ci/circleci-pilot"
+   },
+   {
+    "id": "7fd4c606-414d-487c-897d-af451fc1f1e6",
+    "created": "2026-10-19T20:17:30.849Z",
+    "durationS": 356,
+    "status": "success",
+    "credits": 992,
+    "branch": "ci/circleci-pilot"
+   }
+  ],
+  "summaryJobs": [
+   {
+    "name": "webkit-sim",
+    "credits": 4773,
+    "runs": 3
+   }
+  ]
+ },
+ "probe": {
+  "runs": [
+   {
+    "id": "59a24ba7-abc1-4903-82a1-36d1563994c9",
+    "created": "2026-10-20T01:47:00.132Z",
+    "durationS": 9,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/tween-platform-scope-base"
+   },
+   {
+    "id": "5a53e887-d059-4268-abcd-dbd5574a3d76",
+    "created": "2026-10-20T01:23:28.708Z",
+    "durationS": 10,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/tween-platform-scope-base"
+   },
+   {
+    "id": "50f33a7c-9828-4791-8cfa-dddfe9b41d9f",
+    "created": "2026-10-19T23:54:33.362Z",
+    "durationS": 12,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/cmr-fix2-cdc"
+   },
+   {
+    "id": "348ce417-c358-4e92-8d12-bbc31eb8a53b",
+    "created": "2026-10-19T23:54:29.309Z",
+    "durationS": 8,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/cmr-fix2-ml"
+   },
+   {
+    "id": "cf4ed4d6-f517-4f62-b2da-9141a7870ee2",
+    "created": "2026-10-19T23:54:25.307Z",
+    "durationS": 9,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/cmr-fix2-esv"
+   },
+   {
+    "id": "42ea4ad3-f571-4cd4-84b0-ac271fe65a3f",
+    "created": "2026-10-19T23:53:26.342Z",
+    "durationS": 9,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/cmr-fix2"
+   },
+   {
+    "id": "ee96295a-3416-47ea-bc80-290380af6f9d",
+    "created": "2026-10-19T23:31:19.362Z",
+    "durationS": 10,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/cmr-diag3"
+   },
+   {
+    "id": "a0cc8ae4-3f7f-4153-805d-6a04b6f78ed9",
+    "created": "2026-10-19T23:13:35.975Z",
+    "durationS": 8,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/cmr-diag3"
+   },
+   {
+    "id": "1bad6a2e-4cac-4df8-9510-00bf0805ac95",
+    "created": "2026-10-19T22:52:01.181Z",
+    "durationS": 9,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/cmr-diag3"
+   },
+   {
+    "id": "19d6bf43-d6ae-499c-a7f5-643ccf54debd",
+    "created": "2026-10-19T22:51:22.598Z",
+    "durationS": 10,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/tween-platform-scope"
+   },
+   {
+    "id": "07019509-cb43-4125-9e23-a54034049521",
+    "created": "2026-10-19T22:48:14.302Z",
+    "durationS": 8,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/land-preview-e2e"
+   },
+   {
+    "id": "0ad42e17-bb9c-47fc-9882-3573569f945e",
+    "created": "2026-10-19T22:48:10.521Z",
+    "durationS": 9,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/preview-e2e"
+   },
+   {
+    "id": "0797157e-ca73-45e6-bd04-c2054a798cf4",
+    "created": "2026-10-19T22:46:54.723Z",
+    "durationS": 13,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/mount-scroll-tap"
+   },
+   {
+    "id": "93a31bb1-a16b-4207-8791-87fb5ec5288d",
+    "created": "2026-10-19T22:34:45.967Z",
+    "durationS": 10,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/land-exit-scoped-var-f869315"
+   },
+   {
+    "id": "1cda0d39-7a4d-4298-8b36-3a8037ab741b",
+    "created": "2026-10-19T22:33:38.827Z",
+    "durationS": 10,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/mount-scroll-tap"
+   },
+   {
+    "id": "752e070e-1189-44ef-bd4e-f2b3caa24dfc",
+    "created": "2026-10-19T22:32:25.774Z",
+    "durationS": 10,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/mount-scroll-tap-base"
+   },
+   {
+    "id": "313bb154-a64b-472a-958e-2337dd45922b",
+    "created": "2026-10-19T22:31:37.375Z",
+    "durationS": 9,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/cmr-fix-cdc"
+   },
+   {
+    "id": "2e6c2b24-8973-402a-947a-6f738b3e7fae",
+    "created": "2026-10-19T22:31:33.074Z",
+    "durationS": 10,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/cmr-fix-ml"
+   },
+   {
+    "id": "9a0730bb-efb7-4da8-82a0-cf530a5d05d2",
+    "created": "2026-10-19T22:31:29.358Z",
+    "durationS": 9,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/cmr-fix-esv"
+   },
+   {
+    "id": "fff3869c-9ab9-4fdf-a15a-a0932578cd21",
+    "created": "2026-10-19T22:30:57.247Z",
+    "durationS": 9,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/preview-e2e"
+   },
+   {
+    "id": "73c757c1-66bf-471d-9e70-5c0cfddd135e",
+    "created": "2026-10-19T22:30:23.023Z",
+    "durationS": 9,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/breakpoints-named-import"
+   },
+   {
+    "id": "7f0157c9-5522-45ba-95a6-0abf0dd02a96",
+    "created": "2026-10-19T22:27:24.213Z",
+    "durationS": 12,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/cmr-fix"
+   },
+   {
+    "id": "636b389b-b89f-4226-adef-42e565ed8b5a",
+    "created": "2026-10-19T22:26:16.768Z",
+    "durationS": 8,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/preview-e2e"
+   },
+   {
+    "id": "9cac86af-ef7c-4ce8-b720-3a4b0cce1976",
+    "created": "2026-10-19T22:24:10.312Z",
+    "durationS": 9,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/land-lake-gc-refs-ca3da10"
+   },
+   {
+    "id": "5ca06a99-37fc-45ce-b4cb-81f1ccc7bc95",
+    "created": "2026-10-19T22:17:42.433Z",
+    "durationS": 12,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/preview-e2e"
+   },
+   {
+    "id": "a47025e5-6a17-4149-aa96-a30929205450",
+    "created": "2026-10-19T22:15:29.509Z",
+    "durationS": 8,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/land-morph-layers-c62aae1"
+   },
+   {
+    "id": "2f06ed53-5a30-4043-82fd-ef05f202d79e",
+    "created": "2026-10-19T22:10:16.455Z",
+    "durationS": 23,
+    "status": "success",
+    "credits": 2,
+    "branch": "ci/cmr-diag2"
+   },
+   {
+    "id": "86bc36e3-924d-4b6e-8b47-7bff4066e5bd",
+    "created": "2026-10-19T22:08:01.529Z",
+    "durationS": 12,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/land-fwcore-lazy-tables-448eee3"
+   },
+   {
+    "id": "b281801b-3e02-4ad3-9521-bb382ead2392",
+    "created": "2026-10-19T21:55:24.869Z",
+    "durationS": 8,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/fwcore-lazy-tables"
+   },
+   {
+    "id": "cbdcad21-1e16-4a53-a3ba-1fe514d19025",
+    "created": "2026-10-19T21:48:12.563Z",
+    "durationS": 9,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/preview-e2e"
+   },
+   {
+    "id": "da7beb8f-8180-45b7-b150-5f5925fd1fc5",
+    "created": "2026-10-19T21:44:32.502Z",
+    "durationS": 9,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/preview-e2e"
+   },
+   {
+    "id": "1d76312a-510c-446d-931b-e1fc8a38d790",
+    "created": "2026-10-19T21:39:58.629Z",
+    "durationS": 15,
+    "status": "success",
+    "credits": 2,
+    "branch": "ci/preview-e2e"
+   },
+   {
+    "id": "6187c36f-9a47-4ab6-bc12-44bf2d5c33c2",
+    "created": "2026-10-19T21:34:17.952Z",
+    "durationS": 13,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/preview-e2e"
+   },
+   {
+    "id": "41d38805-ccba-44aa-97a2-d7edfbd1c0cc",
+    "created": "2026-10-19T21:26:00.161Z",
+    "durationS": 10,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/preview-e2e"
+   },
+   {
+    "id": "0b615924-7233-4d60-ad6c-80c9f5d2e19c",
+    "created": "2026-10-19T21:19:44.495Z",
+    "durationS": 9,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/preview-e2e"
+   },
+   {
+    "id": "17651e7f-93e5-439c-8f46-3677cbd8f0a8",
+    "created": "2026-10-19T21:19:00.738Z",
+    "durationS": 10,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/land-probe-r2-bd45639"
+   },
+   {
+    "id": "117466e0-7d00-4447-9bbb-f34cc181a62c",
+    "created": "2026-10-19T21:14:53.407Z",
+    "durationS": 9,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/preview-e2e"
+   },
+   {
+    "id": "b14a33b6-d6a7-4c37-af52-3f8286ada92a",
+    "created": "2026-10-19T21:13:41.161Z",
+    "durationS": 9,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/morph-layers-probe3"
+   },
+   {
+    "id": "5ea2e6d6-8a1e-4d81-a067-4430410abda3",
+    "created": "2026-10-19T21:12:33.889Z",
+    "durationS": 10,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/morph-layers"
+   },
+   {
+    "id": "08fe99a6-e556-480f-aab3-0a4e8e5d8d74",
+    "created": "2026-10-19T21:07:32.954Z",
+    "durationS": 12,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/preview-e2e"
+   },
+   {
+    "id": "77a4b375-dd74-44f1-9830-889321d10740",
+    "created": "2026-10-19T21:06:42.519Z",
+    "durationS": 9,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/fwcore-lazy-tables"
+   },
+   {
+    "id": "8e0082c4-701c-4ea8-a5b4-073516be768e",
+    "created": "2026-10-19T21:05:13.459Z",
+    "durationS": 8,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/ci-telemetry"
+   },
+   {
+    "id": "7a0a3c8c-35db-441f-bdaa-d73e74ad40cf",
+    "created": "2026-10-19T21:03:10.488Z",
+    "durationS": 13,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/cmr-diag"
+   },
+   {
+    "id": "d5751e1f-c3f8-4643-bc56-7f79185f8132",
+    "created": "2026-10-19T20:54:04.154Z",
+    "durationS": 9,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/fwcore-lazy-tables"
+   },
+   {
+    "id": "26227140-540b-4374-8255-a2d0e4b1c00e",
+    "created": "2026-10-19T20:51:51.659Z",
+    "durationS": 9,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/morph-layers-probe2"
+   },
+   {
+    "id": "1849c2c9-7a7b-4436-b75f-0a57dc4f135d",
+    "created": "2026-10-19T20:50:48.424Z",
+    "durationS": 11,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/preview-e2e"
+   },
+   {
+    "id": "292d0759-1f09-4193-8459-2fd460c397cb",
+    "created": "2026-10-19T20:50:02.364Z",
+    "durationS": 12,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/morph-layers"
+   },
+   {
+    "id": "20d2f3b9-e0dc-4c19-9b2c-fee695209686",
+    "created": "2026-10-19T20:48:30.129Z",
+    "durationS": 12,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/preview-e2e"
+   },
+   {
+    "id": "1c779fd7-9099-4219-9096-d41a80004392",
+    "created": "2026-10-19T20:29:31.720Z",
+    "durationS": 9,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/land-probe-e5b7f17"
+   },
+   {
+    "id": "b80b2bde-9110-4563-98bb-850911205d00",
+    "created": "2026-10-19T20:21:10.929Z",
+    "durationS": 12,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/ci-telemetry"
+   },
+   {
+    "id": "25603868-6b00-47de-b4e6-c28dbbf5af27",
+    "created": "2026-10-19T20:15:30.845Z",
+    "durationS": 11,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/land-probe-30a307f"
+   },
+   {
+    "id": "d10015a9-451a-4417-ae30-815772687b1d",
+    "created": "2026-10-19T19:53:11.046Z",
+    "durationS": 9,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/ci-telemetry"
+   },
+   {
+    "id": "231aa358-93c3-43a1-8100-7835a51df57e",
+    "created": "2026-10-19T19:50:18.835Z",
+    "durationS": 10,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/exit-scoped-var"
+   },
+   {
+    "id": "59f00230-1a57-4047-8d81-d07bced77c4a",
+    "created": "2026-10-19T19:46:20.844Z",
+    "durationS": 10,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/countdown-one-chain"
+   },
+   {
+    "id": "df858795-ac27-469e-993a-13a375a0ae4b",
+    "created": "2026-10-19T19:35:45.038Z",
+    "durationS": 10,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/waapi-touch-arm"
+   },
+   {
+    "id": "91de6307-3bb7-4490-adcb-00c058c385bf",
+    "created": "2026-10-19T19:35:08.077Z",
+    "durationS": 10,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/morph-layers"
+   },
+   {
+    "id": "aabf3f9c-ed2f-4113-9868-4053be97e992",
+    "created": "2026-10-19T19:33:58.060Z",
+    "durationS": 13,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/countdown-hidden-arm"
+   },
+   {
+    "id": "252a767a-8660-4f6d-b9bf-7fb24486235f",
+    "created": "2026-10-19T19:14:36.995Z",
+    "durationS": 11,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/morph-layers-probe"
+   },
+   {
+    "id": "be1dc730-3be3-4662-aa9c-e8d2fd3b491c",
+    "created": "2026-10-19T19:09:56.694Z",
+    "durationS": 9,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/circleci-smoke"
+   },
+   {
+    "id": "bff7c861-a7c8-4907-ac64-3ef27b21dd46",
+    "created": "2026-10-19T19:09:34.156Z",
+    "durationS": 10,
+    "status": "success",
+    "credits": 1,
+    "branch": "ci/circleci-smoke"
+   }
+  ],
+  "summaryJobs": [
+   {
+    "name": "probe",
+    "credits": 62,
+    "runs": 60
+   }
+  ]
+ },
+ "premise-tests": {
+  "runs": [
+   {
+    "id": "7bf8cd2f-6868-49ba-98c9-e83452e9d301",
+    "created": "2026-10-21T07:51:37.279Z",
+    "durationS": 130,
+    "status": "success",
+    "credits": 20,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "a9b28c3f-e774-410b-a582-5f6acb05b581",
+    "created": "2026-10-21T07:49:04.158Z",
+    "durationS": 121,
+    "status": "success",
+    "credits": 12,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "7211b413-85c7-4b5a-ba59-555579f1f659",
+    "created": "2026-10-21T07:44:44.341Z",
+    "durationS": 127,
+    "status": "success",
+    "credits": 21,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "9ca00741-03ad-49ad-944e-5b080e301961",
+    "created": "2026-10-21T07:38:21.454Z",
+    "durationS": 256,
+    "status": "success",
+    "credits": 25,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "6e057ade-2620-4722-8235-57ffc4a1c59f",
+    "created": "2026-10-21T07:35:46.662Z",
+    "durationS": 126,
+    "status": "success",
+    "credits": 21,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "b8d338d5-eb40-480f-89bb-73ac7fadd6ae",
+    "created": "2026-10-21T07:31:27.664Z",
+    "durationS": 146,
+    "status": "success",
+    "credits": 14,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "74d14d6b-2ab5-4082-99f7-7913722a19f8",
+    "created": "2026-10-21T07:28:53.932Z",
+    "durationS": 135,
+    "status": "success",
+    "credits": 21,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "b47ad4cc-03da-4591-80e7-1763434c9708",
+    "created": "2026-10-21T07:24:34.097Z",
+    "durationS": 125,
+    "status": "success",
+    "credits": 11,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "52618a22-03ca-4a9a-9e8e-988aca3bb55c",
+    "created": "2026-10-21T07:20:13.773Z",
+    "durationS": 128,
+    "status": "success",
+    "credits": 20,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "f98f4d0b-fa2b-4ad7-978f-0b9906dfe00c",
+    "created": "2026-10-21T07:17:22.933Z",
+    "durationS": 134,
+    "status": "success",
+    "credits": 11,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "2505f50a-2332-45c3-9bf3-6d331bdc1210",
+    "created": "2026-10-21T07:14:46.957Z",
+    "durationS": 124,
+    "status": "success",
+    "credits": 20,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "845ee639-2f72-4c87-a776-4163032055a7",
+    "created": "2026-10-21T07:12:11.747Z",
+    "durationS": 136,
+    "status": "success",
+    "credits": 11,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "6fd55a93-9d78-49a8-ba06-0b97e6604b02",
+    "created": "2026-10-21T07:07:52.529Z",
+    "durationS": 134,
+    "status": "success",
+    "credits": 22,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "5635951c-8e16-4c58-bd9b-83f56cc17ca4",
+    "created": "2026-10-21T07:03:16.575Z",
+    "durationS": 138,
+    "status": "success",
+    "credits": 11,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "4afe8f6c-6e96-4184-8eb1-e46c39b48379",
+    "created": "2026-10-21T07:00:42.654Z",
+    "durationS": 132,
+    "status": "success",
+    "credits": 21,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "ce7e4380-af5a-4ceb-8abd-0b8dee8494f2",
+    "created": "2026-10-21T06:58:08.977Z",
+    "durationS": 109,
+    "status": "success",
+    "credits": 10,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "ef0b84cc-3d69-4bb8-9126-77c66d67d9b3",
+    "created": "2026-10-21T06:55:34.954Z",
+    "durationS": 124,
+    "status": "success",
+    "credits": 21,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "b8da11bd-4590-4c79-ab98-2656ff3c3603",
+    "created": "2026-10-21T06:53:00.200Z",
+    "durationS": 128,
+    "status": "success",
+    "credits": 11,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "2dcf2b7b-1f80-4693-b6e6-7186a0810148",
+    "created": "2026-10-21T06:50:25.068Z",
+    "durationS": 123,
+    "status": "success",
+    "credits": 20,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "c722d736-5288-493b-b618-b508b8bd5648",
+    "created": "2026-10-21T06:46:05.455Z",
+    "durationS": 127,
+    "status": "success",
+    "credits": 11,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "b1e6d03b-f711-4a7c-9d38-91f8f60ea76a",
+    "created": "2026-10-21T06:43:31.890Z",
+    "durationS": 121,
+    "status": "success",
+    "credits": 19,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "ed87e9ec-ac2a-4ace-9c19-74f6d7c0e453",
+    "created": "2026-10-21T06:39:11.751Z",
+    "durationS": 128,
+    "status": "success",
+    "credits": 11,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "1fbe7da5-e06a-4de9-a225-dfe9e632039c",
+    "created": "2026-10-21T06:36:38.538Z",
+    "durationS": 134,
+    "status": "success",
+    "credits": 21,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "89777b3b-b2d7-4178-9da3-80cfc7f5c01f",
+    "created": "2026-10-21T06:34:05.294Z",
+    "durationS": 129,
+    "status": "success",
+    "credits": 11,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "9aeff780-aafd-4f9c-ac4b-c4af486a26b9",
+    "created": "2026-10-21T06:31:31.308Z",
+    "durationS": 124,
+    "status": "success",
+    "credits": 20,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "6f206106-bfc8-433d-a703-edd768104815",
+    "created": "2026-10-21T06:28:58.110Z",
+    "durationS": 134,
+    "status": "success",
+    "credits": 11,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "ed728bcc-df7e-4b5a-b399-8d2503d80d07",
+    "created": "2026-10-21T06:26:24.064Z",
+    "durationS": 127,
+    "status": "success",
+    "credits": 21,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "4e026d11-cd86-42f1-9bb1-be091c4884b8",
+    "created": "2026-10-21T06:22:03.946Z",
+    "durationS": 139,
+    "status": "success",
+    "credits": 11,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "3b9cdf1e-3387-4925-912a-e0a7d7d5d927",
+    "created": "2026-10-21T06:19:29.953Z",
+    "durationS": 125,
+    "status": "success",
+    "credits": 19,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "f33eaa07-3532-4c43-99ab-752c29f18123",
+    "created": "2026-10-21T06:16:55.646Z",
+    "durationS": 123,
+    "status": "success",
+    "credits": 10,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "52029ae6-a1d7-44df-aa68-55dac2452afc",
+    "created": "2026-10-21T06:14:21.221Z",
+    "durationS": 131,
+    "status": "success",
+    "credits": 20,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "0f056845-5b7b-40e2-b59b-09acbbf94d2d",
+    "created": "2026-10-21T06:11:30.830Z",
+    "durationS": 133,
+    "status": "success",
+    "credits": 11,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "bcf66a6f-cf24-408d-ab45-60477e0f7a9b",
+    "created": "2026-10-21T06:08:56.982Z",
+    "durationS": 126,
+    "status": "success",
+    "credits": 20,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "48bd8eaa-88d0-40ae-9b4f-55e5b2737677",
+    "created": "2026-10-21T06:06:23.594Z",
+    "durationS": 121,
+    "status": "success",
+    "credits": 11,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "d6382b68-9bef-4b80-a048-b0e30f6ed80c",
+    "created": "2026-10-21T06:03:49.447Z",
+    "durationS": 134,
+    "status": "success",
+    "credits": 20,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "d3040bbd-65df-49d6-ac6d-0d6c08da3260",
+    "created": "2026-10-21T06:01:16.300Z",
+    "durationS": 129,
+    "status": "success",
+    "credits": 12,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "4efbc7f7-8b2c-4934-8d5d-a3783d85dcc9",
+    "created": "2026-10-21T05:58:42.517Z",
+    "durationS": 124,
+    "status": "success",
+    "credits": 19,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "83a3fa4c-0757-4bf9-ba11-58dbaff8f541",
+    "created": "2026-10-21T05:56:08.361Z",
+    "durationS": 129,
+    "status": "success",
+    "credits": 11,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "4f3e9375-9bea-4ac9-952d-f2cf7a915359",
+    "created": "2026-10-21T05:51:47.600Z",
+    "durationS": 123,
+    "status": "success",
+    "credits": 20,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "4ba238ea-676c-45df-8f9f-3b70448fa5a6",
+    "created": "2026-10-21T05:49:11.317Z",
+    "durationS": 99,
+    "status": "success",
+    "credits": 11,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "b469c3cc-87c2-4b5d-99e3-bd682ad81ef0",
+    "created": "2026-10-21T05:41:15.981Z",
+    "durationS": 119,
+    "status": "success",
+    "credits": 10,
+    "branch": "ci/circleci-key-check"
+   },
+   {
+    "id": "99735d6b-1789-4dfb-965e-141483022e85",
+    "created": "2026-10-20T20:42:12.970Z",
+    "durationS": 40,
+    "status": "failed",
+    "credits": 2,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "78ad2c26-f29d-4f42-904f-fef4610b76cf",
+    "created": "2026-10-20T20:37:45.817Z",
+    "durationS": 38,
+    "status": "failed",
+    "credits": 2,
+    "branch": "ci/circleci-series"
+   },
+   {
+    "id": "fdbe280b-833e-4d8f-b8fa-25dbc160db0c",
+    "created": "2026-10-20T17:40:52.513Z",
+    "durationS": 138,
+    "status": "success",
+    "credits": 11,
+    "branch": "ci/circleci-cache-accounting"
+   },
+   {
+    "id": "9be359d1-49f3-4363-ba2e-905fdca6bf86",
+    "created": "2026-10-20T17:38:15.696Z",
+    "durationS": 118,
+    "status": "success",
+    "credits": 12,
+    "branch": "ci/circleci-cache-accounting"
+   },
+   {
+    "id": "e6ea2458-70cf-4920-b968-390dd8188610",
+    "created": "2026-10-20T17:35:02.690Z",
+    "durationS": 134,
+    "status": "success",
+    "credits": 11,
+    "branch": "ci/circleci-cache-accounting"
+   },
+   {
+    "id": "5df1e85e-7003-48c4-a330-899c4ee4b297",
+    "created": "2026-10-19T19:55:48.563Z",
+    "durationS": 139,
+    "status": "success",
+    "credits": 21,
+    "branch": "ci/circleci-pilot"
+   },
+   {
+    "id": "084b6e4e-f867-4e46-ae03-ecbd4e5a3134",
+    "created": "2026-10-19T19:55:38.354Z",
+    "durationS": 126,
+    "status": "success",
+    "credits": 12,
+    "branch": "ci/circleci-pilot"
+   }
+  ],
+  "summaryJobs": [
+   {
+    "name": "engine-chromium",
+    "credits": 26,
+    "runs": 7
+   },
+   {
+    "name": "engine-playwright-webkit",
+    "credits": 37,
+    "runs": 7
+   },
+   {
+    "name": "verdict",
+    "credits": 8,
+    "runs": 5
+   }
+  ]
+ }
+}

@@ -201,14 +201,14 @@ describe("trajectory-probe lane", () => {
     it("--dry prints the four inputs; no gh", async () => {
       const logs: string[] = [];
       const gh: Gh = async () => { throw new Error("no gh"); };
-      expect(await runMain(parseRunArgs(["--trajectory", "--fw", "morph.tween:waapi", "--widths", "390", "--dry"]), { ...base(), call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: (l) => logs.push(l) })).toBe(0);
+      expect(await runMain(parseRunArgs(["--trajectory", "--fw", "morph.tween:waapi", "--widths", "390", "--diagnostic", "--dry"]), { ...base(), call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: (l) => logs.push(l) })).toBe(0);
       expect(logs.join("\n")).toMatch(/trajectory-probe\.yml\s+inputs engines=both fw=morph\.tween:waapi preset= widths=390/);
     });
     it("a width outside the allowlist is a problem, nothing dispatched", async () => {
       const logs: string[] = [];
       const gh: Gh = async () => { throw new Error("no gh"); };
       expect(await runMain(parseRunArgs(["--trajectory", "--widths", "800"]), { ...base(), call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: (l) => logs.push(l) })).toBe(2);
-      expect(logs.join("\n")).toMatch(/problem: widths/);
+      expect(logs.join("\n")).toMatch(/refused: --widths 800 must be a comma list/);
     });
     it("dispatches with -f on the ref and reports the run id", async () => {
       const logs: string[] = [];
@@ -225,7 +225,7 @@ describe("trajectory-probe lane", () => {
 describe("fw run --trajectory finds its run by nonce", () => {
   const call: FwCall = () => ({ fw: [], job: { blocked: null, inputs: { engines: "chromium", fw: "", preset: "", widths: "390" }, workflow: "trajectory-probe.yml" }, problems: [] });
   const mk = () => mkdtempSync(join(tmpdir(), "fw-run-"));
-  const args = () => parseRunArgs(["--trajectory", "--engines", "chromium", "--widths", "390", "--ref", "ci/t"]);
+  const args = () => parseRunArgs(["--trajectory", "--engines", "chromium", "--widths", "390", "--diagnostic", "--ref", "ci/t"]);
   const row = (id: number, nonce: string, event = "workflow_dispatch") => ({ databaseId: id, displayTitle: titleOf(nonce), event });
   const deps = (gh: Gh, logs: string[], nonce: string, waited: Target[] = []) => ({ now: () => 1_800_000_000, wait: async (t: Target) => { waited.push(t); return { code: 0 as const, lines: ["run 7 trajectory-probe success"] }; },
     call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: (l: string) => logs.push(l), nonce: () => nonce, sleep: async () => {} });
@@ -276,7 +276,7 @@ describe("fw run on a ref whose workflow file has no nonce input", () => {
     const waited: Target[] = [];
     const logs: string[] = [];
     const gh: Gh = async (a) => { calls.push(a); if (a[1] === "list") return a.includes("--event") ? JSON.stringify([{ databaseId: 7, displayTitle: titleOf("abcd1234"), event: "workflow_dispatch" }]) : "[]"; if (a[1] === "view") return JSON.stringify({ headSha: SHA }); return ""; };
-    const code = await runMain(parseRunArgs(["--trajectory", "--engines", "chromium", "--widths", "390", "--ref", "ci/old"]), { now: () => 1_800_000_000,
+    const code = await runMain(parseRunArgs(["--trajectory", "--engines", "chromium", "--widths", "390", "--diagnostic", "--ref", "ci/old"]), { now: () => 1_800_000_000,
       wait: async (t: Target) => { waited.push(t); return { code: 0 as const, lines: ["run 7 trajectory-probe success"] }; },
       call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: (l) => logs.push(l), nonce: () => "abcd1234", sleep: async () => {}, refWorkflowText: () => text });
     return { code, calls, waited, logs: logs.join("\n") };
