@@ -26,7 +26,7 @@ at those shas); INFERRED = reasoned, not shown.
 Each arm launches a fresh `webkit.launch` (Playwright-core 1.64.1, browser 27.2), loads a page from a local static
 server, waits 1 s, starts the Timeline, reads the page's own `requestAnimationFrame` intervals for a 3 s idle window,
 then does 10 `mouse.wheel` steps of 400 px, each followed by a wait until `scrollY` is stable for 3 frames (a settled
-step), then stops the Timeline. Pages: `blank` (30000 px tall, empty), `paint` (the same, with the body colour changed
+step; the wait is capped at 4 s), then stops the Timeline. Pages: `blank` (30000 px tall, empty), `paint` (the same, with the body colour changed
 every frame, so every frame repaints), `orig` (our original site, the read-only snapshot). Widths 390 and 1280 CSS px,
 device pixel ratio 1 and 3 (viewports 390x844 and 1280x800). Switch arms (width 390, dpr 3, on `paint` and `orig`):
 `WEBKIT_SKIA_MSAA_SAMPLE_COUNT=0` (msaa0), `WEBKIT_SKIA_ENABLE_CPU_RENDERING=1` (cpu), `LP_NUM_THREADS=1` (lp1, Mesa's
@@ -34,7 +34,7 @@ software rasterizer), `WEBKIT_SHOW_FPS=1` (fps). Round A runs every arm, then ro
 VM); the second VM is a different machine of the same kind. The runner: 4 vCPU Neoverse-N2, 16 GB, kernel 6.17, Mesa
 25.2.8 (`libgl1-mesa-dri`, `libegl-mesa0`, `mesa-libgallium`), no GPU (artifact `machine-vm<N>.txt`).
 
-## Finding 1: the frame time comes from the page's content cost at device-pixel scale, in software GL, not from the headless backend
+## Finding 1: the frame time comes from the page's content cost, which grows with dpr at a fixed width, in software GL, not from the headless backend
 
 - MEASURED: an empty page and a page that repaints every frame hold the 60 Hz cadence (rAF p50 16 ms) at 390 and 1280 CSS px
   with dpr 1, and at 390 px with dpr 3 the repaint page costs 19 ms. So the backend, the Playwright driver and the
@@ -44,9 +44,10 @@ VM); the second VM is a different machine of the same kind. The runner: 4 vCPU N
   there is, so ~57 ms is the floor for a full-viewport frame at 3840x2400 on this VM.
 - MEASURED: our page is far above that floor: scroll rAF p50 102 ms (width 390, dpr 1), 229 ms (390, dpr 3, range
   228-233 over 4 samples), 49 ms (1280, dpr 1), 173 ms (1280, dpr 3). That is 12 times the repaint page at the
-  same pixel count. The Timeline of the 10 steps at 390/3 shows about 380 Layout, 425 style recalculation and 700
-  Paint records (see the tables), so the page's own work per frame is the cost, scaled by device pixels (102 to 229 ms
-  from dpr 1 to 3).
+  same pixel count. The Timeline of the whole recording (idle and 10 steps) at 390/3 shows about 380 Layout, 425 style
+  recalculation and 700 Paint records (see the tables), so the page's own work per frame is the cost, and at a fixed width it grows with dpr (102 to 229 ms
+  from dpr 1 to 3). Across widths the layout differs (390 px gets the mobile layout), so pixels alone do not order the
+  cost: 1280/3 (9.2 Mpx) is faster than 390/3 (3.0 Mpx).
 - MEASURED (relative effect on `orig`, 390 px, dpr 3, base 229.5 ms; A/A noise of these cells up to 13 %):
   `LP_NUM_THREADS=1` 617 ms (x2.7, far outside noise); `WEBKIT_SKIA_ENABLE_CPU_RENDERING=1` 157.5 ms (-31 %, outside
   noise); `WEBKIT_SKIA_MSAA_SAMPLE_COUNT=0` 182.5 ms (-20 %, at the edge of the noise: A 181, B 202 on vm1);
@@ -56,9 +57,11 @@ VM); the second VM is a different machine of the same kind. The runner: 4 vCPU N
   is not evidence of hardware. The proof that Mesa's software rasterizer does the work is the effect of
   `LP_NUM_THREADS=1` (a variable only llvmpipe reads): INFERRED from that effect that the GL path is llvmpipe. Mesa
   packages are on the VM (MEASURED, `machine-vm<N>.txt`).
-- MEASURED (`WEBKIT_SHOW_FPS`, the compositor's own count in the page console, `fps` arms): the repaint page runs
-  at 51-58 FPS; our page runs at 3-10 FPS during the scroll steps (a few lines read 35-62 while idle). The compositor
-  itself is the slow loop during scroll, not a pacing cap in front of fast frames.
+- MEASURED (`WEBKIT_SHOW_FPS`, the compositor's own count in the page console, `fps` arms): the repaint page logs
+  49-58 FPS after a warm-up line of 8.4-8.6 (`paint-w390-d3-fps`, round A); our page logs values from 2.8 to 62 (`orig-w390-d3-fps`, vm1 A). The lines have no timestamps and repeat
+  (LayerTreeHost.cpp:427-435 posts one per finished frame while the value is set), so they are not attributed to idle or
+  scroll. The per-step Composite counts (15-70 per step against 8 rAF frames) show the compositor finishing more frames
+  than the main thread renders, so the slow loop is the main-thread rendering update, not the compositor (INFERRED).
 - CONFIRMED (WK Tools/wpe/backends/fdo/HeadlessViewBackendFdo.cpp:54, :87-101, :111): the headless view is the libwpe
   fdo backend in SHM mode (`wpe_fdo_initialize_shm`), always visible, and it completes a frame at most every 1/60 s
   (`G_USEC_PER_SEC / 60`, :96): a cap at 60 Hz, which the blank page reaches, not a floor of 150 ms.
@@ -71,7 +74,8 @@ VM); the second VM is a different machine of the same kind. The runner: 4 vCPU N
 - CONFIRMED (WK Source/WebKit/WebProcess/WebPage/CoordinatedGraphics/ThreadedCompositor.cpp:726-734; Source/WebKit/
   WebProcess/WebPage/CoordinatedGraphics/LayerTreeHost.cpp:431-434): `WEBKIT_SHOW_FPS=<seconds>` sets the FPS
   window and each completed frame may add a console message "FPS: n" to the page. The value in these arms is
-  1, so one line per second.
+  1; the lines are not one per second (ThreadedCompositor.cpp:747-766 sets the value once per interval, and every
+  finished frame posts a line while it is set).
 - What stays open: the split of the 229 ms between the main thread (layout, style, script) and tile raster is not
   measured here. The CPU-raster arm moves it by 31 % and one raster thread by 170 %, so raster in software is a large share; the
   Timeline cannot separate them (Finding 3).
@@ -92,7 +96,9 @@ VM); the second VM is a different machine of the same kind. The runner: 4 vCPU N
 ## Finding 3: the Timeline can be read from Linux WebKit, with a narrower event set than on Cocoa
 
 - MEASURED: 80 arm runs (2 VMs x 20 arms x 2 rounds), 0 errors, 0 Timeline errors, 800 of 800 steps delimited by the
-  `fw-s<i>` / `fw-e<i>` stamps. The route is Playwright's own page session (`page._connection.toImpl(page).delegate._session`)
+  `fw-s<i>` / `fw-e<i>` stamps. MEASURED: 773 of 800 steps settled (`scrollTimedOutSteps`); the 27 that hit the 4 s cap are
+  24 in `orig-w390-d3-lp1` (6 of 10 steps in each of the 4 samples) and 3 single steps in `orig-w390-d1` vm1 A,
+  `orig-w1280-d1` vm1 A and `orig-w390-d3` vm2 A; the shown per-step table (`orig-w390-d3` vm1) has all 20 settled. The route is Playwright's own page session (`page._connection.toImpl(page).delegate._session`)
   with `Timeline.start {maxCallStackDepth: 1}` and `Timeline.eventRecorded`; no extra WebKit launch option. Event
   types seen: RequestAnimationFrame, FireAnimationFrame, FunctionCall, TimeStamp, Composite, Paint, Layout, InvalidateLayout, ScheduleLayout,
   RecalculateStyles, ScheduleStyleRecalculation, ObserverCallback, LargestContentfulPaint, TimerInstall, TimerFire,
@@ -103,14 +109,16 @@ VM); the second VM is a different machine of the same kind. The runner: 4 vCPU N
   record is only started under `#if PLATFORM(COCOA)`. CONFIRMED (Source/WebCore/page/Page.cpp:2594 and :2608 with
   Source/WebKit/WebProcess/WebPage/CoordinatedGraphics/LayerTreeHost.cpp:424 and :428-434): Composite is wrapped
   from `willStartRenderingUpdateDisplay` to `didCompleteRenderingUpdateDisplay`, which the WPE compositor calls when
-  its frame finished (`didRenderFrame`), so on Linux it covers the compositor thread's frame, and the Page.cpp comment
-  itself calls the name inexact. So a Composite record count is a count of finished compositor frames, not Cocoa's CA commit.
+  its frame finished (`didRenderFrame`). Both hooks are posted to the main thread from the compositor thread
+  (ThreadedCompositor.cpp:579-584, :606-612), so on Linux one Composite record is one finished compositor frame, but its
+  start and duration are main-thread drain times (MEASURED: duration p90 0 ms, records arrive in bursts, orig-w390-d3 vm1 A
+  raw); count Composite, never time it. The Page.cpp comment itself calls the name inexact, and it is not Cocoa's CA commit.
 - CONFIRMED (Source/WebCore/inspector/agents/InspectorTimelineAgent.cpp:102-108, :170-183, :340-348): `start`
   with a call stack depth, and `performance.mark` becomes a TimeStamp record with its own time; the probe stamps zones with
   `performance.mark` and `console.timeStamp`, so each stamp appears twice (the generated table says so).
 - MEASURED A/A: record counts of the same arm in the two rounds differ by 0-2 % for the blank and repaint pages and by up to 11 % for
   `orig` at dpr 1 (the frame count itself varies by that much when frames are slow); at 390/3 the totals are
-  17894 / 17899 (vm1) and 17462 / 18338 (vm2). The per-step table shows the 10 settled steps twice (A and B):
+  17894 / 17899 (vm1) and 17462 / 18338 (vm2). The per-step table shows the 10 steps twice (A and B):
   Layout, style and Paint counts per step agree within a few records (for example Paint 99 and 99 in step 0), the
   Composite counts differ more (step 4: 61 and 70). Counts per step are a reading, not a class: this note does not
   claim a deterministic or stable class for any cell (the class policy runs on 3 independent VMs; this run has 2).
@@ -127,7 +135,8 @@ VM); the second VM is a different machine of the same kind. The runner: 4 vCPU N
   remote layer trees, CoreAnimation and GPU-process raster. At the Playwright base (and WebKitGTK/WPE 2.54.1)
   the compositor also uses Skia (`UseSkiaForComposition`, UnifiedWebPreferences.yaml:9325-9335); older
   releases (WPE 2.48.3, GTK 2.52.6) composite with TextureMapper. WPE and GTK are equally far from iOS only at the same version.
-- CONFIRMED (Launchpad / Debian package indexes, 2026-10-21): Ubuntu 24.04 arm64 has WebKitGTK 2.52.6 with
+- CONFIRMED (Launchpad / Debian package indexes, 2026-10-21; https://launchpad.net/ubuntu/noble/+source/webkit2gtk and
+  https://packages.debian.org/search?keywords=wpewebkit): Ubuntu 24.04 arm64 has WebKitGTK 2.52.6 with
   `webkit2gtk-driver`; WPE WebKit is only in Debian (trixie 2.48.3, sid 2.54.1), where 2.48.3 rasterizes on the CPU
   by default for WPE (WebProcessGLib.cpp:174-185@wpewebkit-2.48.3). These are driven by WebDriver, not Playwright.
 - INFERRED: building WebKit from source on 4 cores takes hours; the apt route takes minutes. Neither was run.
@@ -204,32 +213,32 @@ Median over all samples (VMs x rounds); the p50 columns add (min-max) of the per
 | `paint-w390-d3-fps` | 19 / 19 | 20 / 20 | 3328 / 3290 | 3210 / 3217 | 0 % |
 | `orig-w390-d3-fps` | 203 / 195 | 188 / 190 | 18351 / 17389 | 18156 / 18255 | 4 % |
 
-### Timeline records over the 10 settled steps (median over samples)
+### Timeline records over the whole recording (3 s idle and 10 steps; median over samples)
 
 Records are counted as nested (a FunctionCall inside a FireAnimationFrame is two records). Each zone stamp is emitted twice (`performance.mark` and `console.timeStamp`), so TimeStamp = 2 x stamps.
 
-| arm | records | Layout | RecalculateStyles | FunctionCall | FireAnimationFrame | Paint | Composite | TimeStamp | steps delimited |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `blank-w390-d1` | 1904 | 0 | 0 | 567 | 567 | 28 | 130 | 44 | 10 / 10 |
-| `blank-w390-d3` | 1909 | 0 | 0 | 566 | 566 | 36 | 130 | 44 | 10 / 10 |
-| `blank-w1280-d1` | 1908 | 0 | 0 | 568 | 568 | 30 | 130 | 44 | 10 / 10 |
-| `blank-w1280-d3` | 1403 | 0 | 0 | 421 | 421 | 38 | 57 | 44 | 10 / 10 |
-| `paint-w390-d1` | 3631 | 0 | 377 | 567 | 567 | 754 | 377 | 44 | 10 / 10 |
-| `paint-w390-d3` | 3294 | 0 | 342 | 513 | 513 | 684 | 342 | 44 | 10 / 10 |
-| `paint-w1280-d1` | 3631 | 0 | 377 | 567 | 567 | 754 | 377 | 44 | 10 / 10 |
-| `paint-w1280-d3` | 1584 | 0 | 155 | 255 | 255 | 310 | 154 | 44 | 10 / 10 |
-| `orig-w390-d1` | 17775 | 336 | 399 | 888 | 540 | 782 | 859 | 44 | 10 / 10 |
-| `orig-w390-d3` | 17897 | 384 | 425 | 942 | 532 | 696 | 544 | 44 | 10 / 10 |
-| `orig-w1280-d1` | 10433 | 258 | 322 | 803 | 505 | 609 | 220 | 44 | 10 / 10 |
-| `orig-w1280-d3` | 8040 | 205 | 285 | 724 | 374 | 487 | 84 | 44 | 10 / 10 |
-| `paint-w390-d3-msaa0` | 3265 | 0 | 339 | 509 | 509 | 678 | 338 | 44 | 10 / 10 |
-| `orig-w390-d3-msaa0` | 17924 | 396 | 442 | 978 | 582 | 706 | 578 | 44 | 10 / 10 |
-| `paint-w390-d3-cpu` | 3030 | 0 | 313 | 474 | 474 | 626 | 312 | 44 | 10 / 10 |
-| `orig-w390-d3-cpu` | 17302 | 381 | 429 | 923 | 579 | 801 | 719 | 44 | 10 / 10 |
-| `paint-w390-d3-lp1` | 1725 | 0 | 171 | 276 | 276 | 341 | 170 | 44 | 10 / 10 |
-| `orig-w390-d3-lp1` | 21278 | 376 | 410 | 1061 | 424 | 614 | 304 | 44 | 10 / 10 |
-| `paint-w390-d3-fps` | 3254 | 0 | 338 | 507 | 507 | 676 | 337 | 44 | 10 / 10 |
-| `orig-w390-d3-fps` | 18206 | 395 | 436 | 972 | 580 | 687 | 576 | 44 | 10 / 10 |
+| arm | records | Layout | RecalculateStyles | FunctionCall | FireAnimationFrame | Paint | Composite | TimeStamp | steps delimited | steps settled |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `blank-w390-d1` | 1904 | 0 | 0 | 567 | 567 | 28 | 130 | 44 | 10 / 10 | 10 / 10 |
+| `blank-w390-d3` | 1909 | 0 | 0 | 566 | 566 | 36 | 130 | 44 | 10 / 10 | 10 / 10 |
+| `blank-w1280-d1` | 1908 | 0 | 0 | 568 | 568 | 30 | 130 | 44 | 10 / 10 | 10 / 10 |
+| `blank-w1280-d3` | 1403 | 0 | 0 | 421 | 421 | 38 | 57 | 44 | 10 / 10 | 10 / 10 |
+| `paint-w390-d1` | 3631 | 0 | 377 | 567 | 567 | 754 | 377 | 44 | 10 / 10 | 10 / 10 |
+| `paint-w390-d3` | 3294 | 0 | 342 | 513 | 513 | 684 | 342 | 44 | 10 / 10 | 10 / 10 |
+| `paint-w1280-d1` | 3631 | 0 | 377 | 567 | 567 | 754 | 377 | 44 | 10 / 10 | 10 / 10 |
+| `paint-w1280-d3` | 1584 | 0 | 155 | 255 | 255 | 310 | 154 | 44 | 10 / 10 | 10 / 10 |
+| `orig-w390-d1` | 17775 | 336 | 399 | 888 | 540 | 782 | 859 | 44 | 10 / 10 | 10 / 10 |
+| `orig-w390-d3` | 17897 | 384 | 425 | 942 | 532 | 696 | 544 | 44 | 10 / 10 | 10 / 10 |
+| `orig-w1280-d1` | 10433 | 258 | 322 | 803 | 505 | 609 | 220 | 44 | 10 / 10 | 10 / 10 |
+| `orig-w1280-d3` | 8040 | 205 | 285 | 724 | 374 | 487 | 84 | 44 | 10 / 10 | 10 / 10 |
+| `paint-w390-d3-msaa0` | 3265 | 0 | 339 | 509 | 509 | 678 | 338 | 44 | 10 / 10 | 10 / 10 |
+| `orig-w390-d3-msaa0` | 17924 | 396 | 442 | 978 | 582 | 706 | 578 | 44 | 10 / 10 | 10 / 10 |
+| `paint-w390-d3-cpu` | 3030 | 0 | 313 | 474 | 474 | 626 | 312 | 44 | 10 / 10 | 10 / 10 |
+| `orig-w390-d3-cpu` | 17302 | 381 | 429 | 923 | 579 | 801 | 719 | 44 | 10 / 10 | 10 / 10 |
+| `paint-w390-d3-lp1` | 1725 | 0 | 171 | 276 | 276 | 341 | 170 | 44 | 10 / 10 | 10 / 10 |
+| `orig-w390-d3-lp1` | 21278 | 376 | 410 | 1061 | 424 | 614 | 304 | 44 | 10 / 10 | 4 / 10 |
+| `paint-w390-d3-fps` | 3254 | 0 | 338 | 507 | 507 | 676 | 337 | 44 | 10 / 10 | 10 / 10 |
+| `orig-w390-d3-fps` | 18206 | 395 | 436 | 972 | 580 | 687 | 576 | 44 | 10 / 10 | 10 / 10 |
 
 ### Timeline per settled step, A and B
 

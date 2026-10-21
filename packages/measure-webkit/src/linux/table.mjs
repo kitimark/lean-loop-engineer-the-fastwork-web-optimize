@@ -81,15 +81,16 @@ export function aaTable(files) {
   return md(rows);
 }
 
-/** Table 3: Timeline record counts over the whole 10-step window per arm (median over samples; steps delimited = settled steps whose two stamps were found). */
+/** Table 3: Timeline record counts over the whole recording (3 s idle and 10 steps) per arm (median over samples). steps delimited = steps whose two stamps were found; steps settled = 10 - the steps that hit the settle cap. */
 export function recordTable(files) {
   const { ok } = samples(files);
-  const rows = [['arm', 'records', ...TYPES, 'TimeStamp', 'steps delimited']];
+  const rows = [['arm', 'records', ...TYPES, 'TimeStamp', 'steps delimited', 'steps settled']];
   rows.push(rows[0].map(() => '---'));
   for (const id of armOrder(files)) {
     const s = ok.filter((x) => x.id === id);
     rows.push([`\`${id}\``, fmt(median(s.map((x) => x.r.timeline.records)), 0), ...TYPES.map((t) => fmt(median(s.map((x) => count(x.r, t))), 0)),
-      fmt(median(s.map((x) => count(x.r, 'TimeStamp'))), 0), `${fmt(median(s.map((x) => x.r.timeline.stepsDelimited)), 0)} / 10`]);
+      fmt(median(s.map((x) => count(x.r, 'TimeStamp'))), 0), `${fmt(median(s.map((x) => x.r.timeline.stepsDelimited)), 0)} / 10`,
+      `${fmt(median(s.map((x) => 10 - (x.r.scrollTimedOutSteps ?? 0))), 0)} / 10`]);
   }
   return md(rows);
 }
@@ -149,7 +150,7 @@ export function renderBlock(files, { headline = 'orig-w390-d3' } = {}) {
     '',
     aaTable(files),
     '',
-    '### Timeline records over the 10 settled steps (median over samples)',
+    '### Timeline records over the whole recording (3 s idle and 10 steps; median over samples)',
     '',
     'Records are counted as nested (a FunctionCall inside a FireAnimationFrame is two records). Each zone stamp is emitted twice (`performance.mark` and `console.timeStamp`), so TimeStamp = 2 x stamps.',
     '',
