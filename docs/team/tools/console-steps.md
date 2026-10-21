@@ -29,7 +29,7 @@ Texts are plain text, never HTML. It works on a phone and on the plain-http LAN 
 ## Accepted limits
 
 - One lead answers; plain text only; no edit or delete; no attachments.
-- The question reaches the lead as a `USER review.feedback ...` line of `fw watch --stream` within about 2 s (console-push); the `step.question` alert follows at the next tick; no phone notification (follow-up).
+- The alert reaches the lead through the existing `fw watch` stream (next check, every 5 min at most); no phone notification (follow-up).
 - Threads exist on steps and topics only, not on other card kinds (follow-up).
 - The reducer does not check that the step or topic named in a question exists (the subject is the `flag` text with a `step:` or `topic:` prefix); a question on an unknown subject shows in `fw step questions` and raises its alert, and the lead answers it as usual.
 - A topic carries no state in the reducer: its definition is read from the log, the latest valid one per id wins.
