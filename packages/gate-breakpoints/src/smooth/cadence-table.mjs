@@ -30,7 +30,7 @@ export function cellOf(runId, file, width, window) {
 export const HITCH_TENTHS = 600;
 export function hitchesOf(rows) {
   return Object.fromEntries(ARMS.map((a) => [a, rows.filter((r) => r.arm === a).flatMap((r) => r.ivs.flatMap((v, i) => (v >= HITCH_TENTHS
-    ? [{ rep: r.rep, i, ms: v / 10, y: r.ys?.[i] ?? null, loaf: (r.loaf ?? []).filter((l) => l.d >= 50).map((l) => ({ d: l.d, block: l.block, scripts: l.scripts })) }] : [])))]));
+    ? [{ rep: r.rep, i, ms: v / 10, y: r.ys?.[i] ?? null, loaf: (r.loaf ?? []).some((l) => l.d >= 50) }] : [])))]));
 }
 
 /** Every cell of every run under `dir`. Refused or empty files are listed in `skipped`. */
@@ -90,7 +90,7 @@ export function markdown({ cells, skipped }, sum) {
     const h = c.hitches?.[a] ?? [];
     if (h.length === 0) continue;
     const ys = h.map((x) => x.y).filter((y) => y !== null);
-    const loafReps = new Set(h.filter((x) => x.loaf.length > 0).map((x) => x.rep)).size;
+    const loafReps = new Set(h.filter((x) => x.loaf).map((x) => x.rep)).size;
     out.push(`| ${c.run} | ${c.width} | ${c.window} | ${a} | ${c.arms[a].reps} | ${h.length} | ${(quantile(h.map((x) => x.ms * 10), 50) / 10).toFixed(1)} | ${ys.length ? quantile(ys, 50) : '-'} | ${loafReps} |`);
   }
   const traced = cells.filter((c) => c.traces.length > 0);
