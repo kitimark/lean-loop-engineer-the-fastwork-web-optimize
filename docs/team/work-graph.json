@@ -13543,6 +13543,46 @@
     "results/mac-safari/**",
     "docs/team/handoffs/mac-safari-measure.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "traj-dispatch-push-lane",
+   "owner": "measure-engineer",
+   "stream": "gate",
+   "deps": [
+    "traj-dispatch-scope"
+   ],
+   "title": "Follow-ups of traj-dispatch-scope (review 2026-10-21): apply the verdict/diagnostic mark rule (Fw.Gate.Trajectory.Dispatch) to the push-message lane (Lean pushProbe, .github/scripts/trajectory-line.mjs: a [trajectory ... widths=...] subset needs a diagnostic key) and to the trajectory-probe workflow widths input; add ws.Nodup to dispatch's accept condition (dispatch_accepted_iff then matches dispatchIn); docs/team/tools/trajectory-probe.md:15 usage gets --diagnostic plus one sentence (verdict runs walk all four widths); list run-pick.ts's twin in the TS stand-in register. GitHub only.",
+   "writes": [
+    "lean/Fw/Gate/Trajectory/Dispatch.lean",
+    "lean/Fw/Gate/Trajectory.lean",
+    "packages/contracts/golden/gate/trajectory-dispatch.jsonl",
+    ".github/scripts/trajectory-line.mjs",
+    ".github/scripts/trajectory-line.test.mjs",
+    ".github/workflows/trajectory-probe.yml",
+    "docs/team/tools/trajectory-probe.md",
+    "docs/team/tools/ts-stand-ins.md",
+    "docs/team/handoffs/traj-dispatch-push-lane.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "macos-minutes-note-fixes",
+   "owner": "researcher",
+   "stream": "research",
+   "deps": [
+    "macos-minutes-note"
+   ],
+   "title": "Low follow-ups of macos-minutes-note (review 2026-10-21): one sentence that the Keep-logs class-d minutes (~8/day) count in both rank 2 and rank 4, so the firm total overlaps; cite legTable/legs (Trajectory.lean:2820-2826) for the one-slot rule, plan_webkit_apple only for the all-widths case; tables.mjs --check requires each block to end at a blank line or file end; handoff names its commits.",
+   "writes": [
+    "research/notes/2026/10-21-macos-minutes.md",
+    "research/notes/2026/macos-minutes/tables.mjs",
+    "docs/team/handoffs/macos-minutes-note.md"
+   ]
   }
  ],
  "deadline": {
