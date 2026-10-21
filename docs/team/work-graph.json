@@ -14559,7 +14559,8 @@
     "packages/contracts/golden/device/replay*.jsonl",
     "research/notes/2026/10-2x-device-replay.md",
     "docs/team/tools/device-replay.md",
-    "docs/team/handoffs/replay-ios-fix.md"
+    "docs/team/handoffs/replay-ios-fix.md",
+    "packages/measure-webkit/src/device-replay.mjs"
    ]
   },
   {
