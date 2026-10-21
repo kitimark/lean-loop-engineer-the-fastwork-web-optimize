@@ -12282,7 +12282,8 @@
     "packages/contracts/golden/gate/trajectory.jsonl",
     "docs/team/tools/trajectory-probe.md",
     "docs/team/handoffs/close-start-identity-rule.md"
-   ]
+   ],
+   "evidence": "02c61b5"
   },
   {
    "devices": [
