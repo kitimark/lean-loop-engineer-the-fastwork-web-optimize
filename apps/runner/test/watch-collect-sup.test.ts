@@ -133,7 +133,7 @@ const readings = (over: Partial<Parameters<typeof buildSample>[1]> = {}) => ({ t
 const kindMap = (ps: ProcRow[], devs: Device[] = []) => new Map(kindsOf(devs, ps).map((k, i) => [ps[i]!.pid, k] as const));
 
 describe("the sample", () => {
-  it("reduceKinds sums count, MEM and CMPRS per kind; an unknown pid is other; the footprint is MEM plus CMPRS", () => {
+  it("reduceKinds sums count, MEM and CMPRS per kind; an unknown pid is other; the footprint is MEM", () => {
     const withArgs = joinProcs(parseProcs(PS), ARGS, noDev).procs;
     const k = reduceKinds(parseTop(TOP).rows, kindMap(withArgs));
     expect(k.node).toEqual({ n: 1, memMB: 1245, cmprsMB: 199 });
