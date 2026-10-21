@@ -5,6 +5,8 @@ import Fw.Oracle.Send
 import Fw.Oracle.Questions
 import Fw.Oracle.Body
 import Fw.Oracle.Wire
+import Fw.Oracle.Replay
+import Fw.Oracle.ReplayWire
 /-!
 # Fw.Oracle: typed answers from an outside model, and what we do with them
 
@@ -35,9 +37,13 @@ It proves what we do with any answer, and with any failure:
   body or an exhausted budget; else send the body Lean built from the redacted state (`pre_send`, `body_from_lean`,
   `send_fields`, `send_no_home`, `send_caps`). A calibration run writes its table only when every labeled row was
   answered (`mayWrite_sound`, `unanswered_no_write`), and `--resume` is checked to fit the run cap
-  (`resume_within_cap`).
-- `Questions`: the registered questions (`ciTriage`), the registry and the seeded option shuffle (`shuffle_perm`);
-  `Wire`: the `oracle.*` ops.
+  (`resume_within_cap`). A replay run also stops at 60 sends or 400 000 estimated input tokens (`preRun_send`).
+- `Questions`: the registered questions (`ciTriage`, `incidentClass`, `findingSeverity`), the registry and the
+  seeded option shuffle (`shuffle_perm`); `Wire`: the `oracle.*` ops.
+- `Replay`: the replay sets D1 and D2, the state of a row (`rowState_declared`, `scrubWf_clean`), the stratified
+  sample (`sampleHeld_mem`, `d2_pick_le`) sized by the least held-out count that can certify an option
+  (`certify_needs_holdout`, `minHoldout_least`), and the score of one arm (`right_le_chosen`, `right_le_labeled`,
+  `armPrice`); `ReplayWire`: the ops `oracle.replay`, `oracle.preRun`, `oracle.score`.
 
 Which texts are public enough to send is the caller's choice here; a provenance check per field is a later task.
 Accuracy is MEASURED on labeled replay rows (`certify`, `oracle.eval` on the holdout part), never proved.

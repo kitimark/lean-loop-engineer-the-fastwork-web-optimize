@@ -13,11 +13,12 @@ A replay set is a file of labeled rows from our own history (task `jev-datasets`
   (`textLines`, `chunk_le`, `chunk_flatten`: no character is lost) with local run ids (`wf_…`) replaced by `wf_<id>`
   (`scrubWf`, `scrubWf_clean`), and every state built this way passes the field check of the send gate
   (`rowState_declared`).
-- The sample of a sampled set: per option, the first `minHoldout` held-out rows and the first `max 1 k` calibration
-  rows labeled with it, in hash order (`sampleOpt`, `sampleOpt_held`). `minHoldout q k` is the least number of
-  held-out hits that can pass the holdout test (`minHoldout_least`), and certifying an option needs at least that
-  many held-out rows labeled with it (`certify_needs_holdout`), so no smaller stratified sample can certify an
-  option. Rows whose finding text names a grade are left out (`leaks`).
+- The sample of a sampled set (`pick`): per option, the first `minHoldout` held-out rows and the first `max 1 k`
+  calibration rows labeled with it, in hash order (`sampleHeld_mem`, `sampleHeld_length`, `sampleCal_mem`; at most
+  90 rows for D2, `d2_pick_le`). `minHoldout q k` is the least number of held-out hits that can pass the holdout
+  test (`minHoldout_least`), and certifying an option needs at least that many held-out rows labeled with it
+  (`certify_needs_holdout`), so no smaller stratified sample can certify an option. Rows whose finding or location
+  names a grade are left out (`leaks`).
 - The score of one arm: the confusion matrix, per option the rows chosen, labeled and right (`right_le_chosen`,
   `right_le_labeled`), cost from the published prices (`armPrice`, `dollars`) and latency (`meanQ`, `medianN`).
 -/

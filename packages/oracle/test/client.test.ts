@@ -23,7 +23,7 @@ function world(pre: Json, opts: { key?: string | null; respond?: () => Promise<R
     const op = String(req.op);
     ev.push({ kind: "core", op, req });
     if (op === "oracle.request") return { bodyText: BODY, state: {} };
-    if (op === "oracle.pre") return pre;
+    if (op === "oracle.pre" || op === "oracle.preRun") return pre;
     if (op === "oracle.store") return { text: req.text };
     if (op === "oracle.decide") return { action: "escalate", seen: "reply" in req ? { reply: req.reply } : { failure: req.failure } };
     throw new Error(`unexpected op ${op}`);
@@ -114,4 +114,22 @@ test("a reply that echoes the key is stored and decided on scrubbed", async () =
   const r = await ask(d, a0);
   assert.ok(!String(r.reply).includes(FAKE_KEY));
   assert.ok(!readFileSync(d.logPath, "utf8").includes(FAKE_KEY));
+});
+
+test("replay run: the gate is oracle.preRun with the run's sends and tokens, and its estimate comes back", async () => {
+  const { d, ev } = world({ ...SEND, tokens: BODY.length });
+  const r = await ask(d, { ...a0, replayRun: { sent: 3, spent: 900 } });
+  assert.equal(r.source, "live");
+  assert.equal(r.tokens, BODY.length);
+  const gate = ev.filter((e) => e.kind === "core" && (e.op === "oracle.pre" || e.op === "oracle.preRun"));
+  assert.deepEqual(gate.map((e) => e.kind === "core" && [e.op, e.req.sent, e.req.spent]), [["oracle.preRun", 3, 900]]);
+  assert.ok(at(ev, (e) => e.kind === "core" && e.op === "oracle.preRun") < at(ev, (e) => e.kind === "key"));
+});
+
+test("replay run refused by the run cap: no key read, nothing sent", async () => {
+  const { d, ev } = world({ pre: "refuse", failure: { kind: "overBudget" } });
+  const r = await ask(d, { ...a0, replayRun: { sent: 60, spent: 0 } });
+  assert.equal(r.source, "refused");
+  assert.equal(r.sent, false);
+  assert.ok(!ev.some((e) => e.kind === "key" || e.kind === "fetch"));
 });

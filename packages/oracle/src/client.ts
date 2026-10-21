@@ -1,7 +1,8 @@
 // The oracle client: thin I/O around fwcore's `oracle.*` ops (lean/Fw/Oracle/Wire.lean). It decides nothing:
 //   oracle.request -> exact body text (state redacted in Lean) -> sha256 key -> answer log lookup
 //   oracle.pre     -> replay | refuse(failure) | send(bodyText)   (declared fields, redaction, size, daily cap, run
-//                     cap: Fw.Oracle.pre)
+//                     cap: Fw.Oracle.pre); in a replay run `oracle.preRun` instead, which also caps the run's sends
+//                     and estimated input tokens (Fw.Oracle.preRun)
 //   send           -> exactly the bodyText oracle.pre returned; the key is read from the keychain only here, after
 //                     oracle.pre said send; no key is failure noKey (never a crash)
 //   oracle.store   -> the reply as logged and decided on (at most 64 KiB)
@@ -42,6 +43,9 @@ export type Ask = {
   thresholds: Json | null;
   /** Calls already made in this calibration run (enables the run cap). */
   run?: number;
+  /** Sends and estimated input tokens already spent in this replay run (`fw oracle send`): the gate is
+   *  `oracle.preRun`, and `run` is ignored. */
+  replayRun?: { sent: number; spent: number };
 };
 
 export type Asked = {
@@ -55,6 +59,8 @@ export type Asked = {
   reply?: string;
   /** Whether a request went out. */
   sent: boolean;
+  /** The body's estimated input tokens, when `oracle.preRun` let it go out. */
+  tokens?: number;
 };
 
 /** UTC day YYYY-MM-DD. */
@@ -74,10 +80,14 @@ export async function ask(d: Deps, a: Ask): Promise<Asked> {
   const prior = loggedReply(entries, key);
   const today = utcDay(d.now());
   // the raw state: Lean checks its fields, then redacts it and builds the body itself
-  const pre = d.core({
-    op: "oracle.pre", name: a.question, names, state: a.state,
-    logged: prior !== undefined, today, days: entries.map((e) => e.day), ...(a.run !== undefined ? { run: a.run } : {}),
-  });
+  const days = entries.map((e) => e.day);
+  const pre = a.replayRun
+    ? d.core({ op: "oracle.preRun", name: a.question, names, state: a.state, logged: prior !== undefined, today, days, ...a.replayRun })
+    : d.core({
+      op: "oracle.pre", name: a.question, names, state: a.state,
+      logged: prior !== undefined, today, days, ...(a.run !== undefined ? { run: a.run } : {}),
+    });
+  const tokens = typeof pre.tokens === "number" ? { tokens: pre.tokens } : {};
   const decide = (o: { reply: string } | { failure: Json }) =>
     d.core({ op: "oracle.decide", name: a.question, ...(a.thresholds ? { thresholds: a.thresholds } : {}), ...o });
   if (pre.pre === "replay" && prior !== undefined) {
@@ -94,7 +104,7 @@ export async function ask(d: Deps, a: Ask): Promise<Asked> {
   const secret = d.readKey();
   if (!secret) {
     end?.(0);
-    return { decision: decide({ failure: { kind: "noKey" } }), key, source: "nokey", sent: false };
+    return { decision: decide({ failure: { kind: "noKey" } }), key, source: "nokey", sent: false, ...tokens };
   }
   const t0 = performance.now();
   let reply: string | undefined;
@@ -123,7 +133,7 @@ export async function ask(d: Deps, a: Ask): Promise<Asked> {
   });
   end?.(stored !== undefined ? 0 : 1);
   const outcome = stored !== undefined ? { reply: stored } : { failure: failure! };
-  return { decision: decide(outcome), key, source: stored !== undefined ? "live" : "failed", ...(stored !== undefined ? { reply: stored } : {}), sent: true };
+  return { decision: decide(outcome), key, source: stored !== undefined ? "live" : "failed", ...(stored !== undefined ? { reply: stored } : {}), sent: true, ...tokens };
 }
 
 /** One plain line for a decision: `advise <value> (gate g)` or `escalate: <reason>`. */

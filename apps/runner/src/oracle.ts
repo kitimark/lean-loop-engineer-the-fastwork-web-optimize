@@ -11,6 +11,10 @@
 //       first checks that the rows missing from the answer log fit in the run cap (exit 2 if not)
 //   fw oracle eval <question> --replay <rows.jsonl> --thresholds <table.json>
 //       holdout part: accuracy and coverage at the stored thresholds (MEASURED)
+//   fw oracle send --set <d1|d2> [--part calibrate|holdout] [--limit n] [--dir <datasets dir>]
+//       the offline replay of a dataset (task jev-replay): Lean's oracle.replay picks the rows (all labeled rows of
+//       D1, the stratified sample of D2) and builds each state; each send passes oracle.preRun (daily cap, 60 sends
+//       and 400 000 estimated input tokens per run); logged answers replay, so a second run sends only what is missing
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { userInfo } from "node:os";
@@ -22,7 +26,8 @@ import { begin } from "./timing.ts";
 
 export const ORACLE_USAGE = "usage: fw oracle ask <question> --state <state.json> [--thresholds <table.json>] [--json] | " +
   "fw oracle calibrate <question> --replay <rows.jsonl> [--limit n] [--resume] [--out <table.json>] | " +
-  "fw oracle eval <question> --replay <rows.jsonl> --thresholds <table.json>";
+  "fw oracle eval <question> --replay <rows.jsonl> --thresholds <table.json> | " +
+  "fw oracle send --set <d1|d2> [--part calibrate|holdout] [--limit n] [--dir <datasets dir>]";
 
 /** The answer log: FW_ORACLE_LOG, else FW_CONSOLE_DIR, else the main checkout's .fw-console (gitignored). */
 export function logPathFor(cwd: string, env: NodeJS.ProcessEnv = process.env): string {
@@ -192,6 +197,58 @@ async function evaluate(io: Io, args: string[]): Promise<number> {
   return 0;
 }
 
+/** The datasets directory of task jev-datasets: `.cache/jev` of the main checkout (gitignored). */
+export function datasetsDir(cwd: string): string {
+  const common = execFileSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd }).toString().trim();
+  return join(dirname(common), ".cache", "jev");
+}
+
+/** One row as `oracle.replay` gives it. */
+export type Picked = { id: string; label: string; part: string; state: Record<string, string | string[]> };
+
+/** The rows of a replay set to send, as Lean picks them (`oracle.replay`), or the reason they cannot be read. */
+export function pickedRows(core: FwCall, set: string, dir: string, extra: Json = {}):
+    { question: string; rows: Picked[]; reply: Json } | string {
+  const head = core({ op: "oracle.replay", set, rows: [] });
+  const file = join(dir, String(head.file));
+  if (!existsSync(file)) return `no dataset ${file} (run node scripts/jev-datasets.mjs first)`;
+  const rows = readFileSync(file, "utf8").split("\n").filter((l) => l.trim()).map((l) => JSON.parse(l) as Json);
+  const r = core({ op: "oracle.replay", set, rows, ...extra });
+  return { question: String(r.question), rows: r.rows as Picked[], reply: r };
+}
+
+/** Send the picked rows of a set, one run: stops at the first refusal (a cap) or a missing key. */
+async function sendSet(io: Io, args: string[]): Promise<number> {
+  const set = flag(args, "--set");
+  const part = flag(args, "--part");
+  const lim = flag(args, "--limit");
+  const limit = lim !== undefined ? Number(lim) : undefined;
+  if (!set || (limit !== undefined && !(Number.isInteger(limit) && limit >= 0))) { io.out(ORACLE_USAGE); return 64; }
+  const dir = flag(args, "--dir");
+  const picked = pickedRows(io.deps.core, set, dir !== undefined ? resolve(io.cwd, dir) : datasetsDir(io.cwd),
+    { ...(part !== undefined ? { part } : {}), ...(limit !== undefined ? { limit } : {}) });
+  if (typeof picked === "string") { io.out(`oracle send: ${picked}`); return 2; }
+  const counts: Record<string, number> = {};
+  let sent = 0, spent = 0, done = 0, stop = "";
+  for (const row of picked.rows) {
+    const r = await ask(io.deps, { question: picked.question, state: row.state, names: io.names, thresholds: null,
+      replayRun: { sent, spent } });
+    counts[r.source] = (counts[r.source] ?? 0) + 1;
+    if (r.sent) { sent++; spent += r.tokens ?? 0; }
+    if (r.source === "replay" || r.source === "live") done++;
+    if (r.source === "nokey") { stop = "no key"; break; }
+    if (r.source === "refused") {
+      stop = (r.decision.reason as { failure?: { kind?: string } } | undefined)?.failure?.kind ?? "refused";
+      break;
+    }
+  }
+  const n = picked.rows.length;
+  const tally = Object.entries(counts).map(([k, v]) => `${k} ${v}`).join(", ") || "none";
+  io.out(`oracle send ${set} (${picked.question}): ${done}/${n} answered (${tally}); sent ${sent}, estimated input ` +
+    `tokens ${spent}${stop ? `; stopped: ${stop}` : ""}${done < n ? "; run again to send the rest (logged answers replay)" : ""}`);
+  return done === n ? 0 : 2;
+}
+
 /** `fw oracle ...`. */
 export async function oracleCli(args: string[], cwd: string, io?: Io): Promise<number> {
   const [sub, ...rest] = args;
@@ -201,6 +258,7 @@ export async function oracleCli(args: string[], cwd: string, io?: Io): Promise<n
     if (sub === "ask") return await askCli(real, rest);
     if (sub === "calibrate") return await calibrate(real, rest);
     if (sub === "eval") return await evaluate(real, rest);
+    if (sub === "send") return await sendSet(real, rest);
     real.out(ORACLE_USAGE);
     return 64;
   } catch (e) {

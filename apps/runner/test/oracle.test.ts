@@ -48,8 +48,10 @@ function deps(over: Partial<Deps> = {}): Deps {
 const state = { job: "build", step: "lake build", log: ["error at /Users/example/w/x.lean:3", "done"] };
 /** Whether Lean puts id `id` in the holdout part (`oracle.plan` with `part`). */
 const isHeld = (id: string) => (call({ op: "oracle.plan", rows: [{ id, label: "x" }], part: "holdout" }).ids as string[]).length === 1;
-/** An id in the wanted part: `r<n>`, or `r<n>y` when that flips it (`y` has an odd code point). */
-const idIn = (held: boolean, n: number) => (isHeld(`r${n}`) === held ? `r${n}` : `r${n}y`);
+/** The first id `r<n>`, `r<n>y`, `r<n>yy`, ... in the wanted part (the split hashes the id, `Labels.heldOut`). */
+function idIn(held: boolean, n: number): string {
+  for (let id = `r${n}`; ; id += "y") if (isHeld(id) === held) return id;
+}
 /** Replay row `k` (id `r<k>` unless given): its state names the row, so each row has its own request body. */
 const row = (k: number, label: string, id = `r${k}`) => ({ id, state: { log: `error in row-${k}.` }, label });
 /** A fetch that answers each body with the fixture of the row it names. */
@@ -287,5 +289,70 @@ describe.skipIf(!hasCore)("Lean decisions the reviewer probed", () => {
     expect(r("MacBook-Pro-of-alice.local")).toBe("MacBook-Pro-of-<user>.local");
     expect(r("C:\\Users\\alice\\src")).toBe("C:~\\src");
     expect(r("malice alice2")).toBe("malice alice2");
+  });
+});
+
+describe.skipIf(!hasCore)("fw oracle send (jev-replay)", () => {
+  const classes = ["c-orphan-wait", "c-order-derived", "c-shared-no-lock", "c-quota"];
+  /** A Jev reply to `incident-class` that picks `c-quota`: 0.9 on it, the rest spread over the other options. */
+  function quotaReply(): string {
+    const body = String(call({ op: "oracle.request", name: "incident-class", names: [], state: { title: "t" } }).bodyText);
+    const names = [...new Set([...body.matchAll(/"(c-[a-z-]+|none)"/g)].map((m) => m[1]!))];
+    const rest = 0.1 / (names.length - 1);
+    const probabilities = Object.fromEntries(names.map((n) => [n, n === "c-quota" ? 0.9 : rest]));
+    return JSON.stringify({ model: "jev-1.13.0", answers: { "incident-class": { type: "choice", choice: "c-quota",
+      probabilities, confidence: 0.5 } }, usage: { input_tokens: 300, output_tokens: 1 } });
+  }
+  /** A datasets dir with `d1.jsonl` of `n` labeled rows and one unlabeled row, which is not sent. */
+  function d1Dir(n: number): string {
+    const dir = mkdtempSync(join(tmpdir(), "jev-"));
+    const rows = Array.from({ length: n }, (_, k) => JSON.stringify({ id: `inc-${k}`, set: "d1",
+      label: classes[k % classes.length], title: `row-${k}.`, symptom: "s", cause: `seen in wf_${k}abc`, split: "x" }));
+    rows.push(JSON.stringify({ id: "inc-x", set: "d1", label: null, title: "t", symptom: "s", cause: "c" }));
+    writeFileSync(join(dir, "d1.jsonl"), rows.join("\n") + "\n");
+    return dir;
+  }
+  function io(over: Partial<Io> = {}): Io & { lines: string[] } {
+    const lines: string[] = [];
+    return { deps: deps(), cwd: process.cwd(), names: [], out: (s) => lines.push(s), lines, ...over };
+  }
+  it("70 rows: the run cap stops the first run at 60 sends (exit 2); the second replays 60 and sends 10", async () => {
+    const reply = quotaReply();
+    expect(reply).toContain("c-orphan-wait");
+    const ff = fakeFetch(() => new Response(reply));
+    const d = deps({ fetch: ff.fetch });
+    const dir = d1Dir(70);
+    const x = io({ deps: d });
+    expect(await oracleCli(["send", "--set", "d1", "--dir", dir], x.cwd, x)).toBe(2);
+    expect(ff.sent).toHaveLength(60);
+    expect(x.lines[0]).toMatch(/^oracle send d1 \(incident-class\): 60\/70 answered \(live 60, refused 1\); sent 60, /);
+    expect(x.lines[0]).toContain("stopped: overBudget");
+    expect(ff.sent.some((s) => /wf_\d+abc/.test(s.body))).toBe(false);
+    const y = io({ deps: d });
+    expect(await oracleCli(["send", "--set", "d1", "--dir", dir], y.cwd, y)).toBe(0);
+    expect(ff.sent).toHaveLength(70);
+    expect(y.lines[0]).toMatch(/^oracle send d1 \(incident-class\): 70\/70 answered \(replay 60, live 10\); sent 10, /);
+    expect(readLog(d.logPath)).toHaveLength(70);
+  });
+  it("--part and --limit cut the rows Lean picks", async () => {
+    const ff = fakeFetch(() => new Response(quotaReply()));
+    const x = io({ deps: deps({ fetch: ff.fetch }) });
+    expect(await oracleCli(["send", "--set", "d1", "--dir", d1Dir(20), "--part", "holdout", "--limit", "2"], x.cwd, x)).toBe(0);
+    expect(ff.sent).toHaveLength(2);
+    expect(x.lines[0]).toContain(": 2/2 answered (live 2)");
+  });
+  it("no key: stops at the first row, sends nothing, exit 2", async () => {
+    const ff = fakeFetch(() => new Response(quotaReply()));
+    const x = io({ deps: deps({ fetch: ff.fetch, readKey: () => null }) });
+    expect(await oracleCli(["send", "--set", "d1", "--dir", d1Dir(3)], x.cwd, x)).toBe(2);
+    expect(ff.sent).toHaveLength(0);
+    expect(x.lines[0]).toContain("stopped: no key");
+  });
+  it("a missing dataset or a bad --limit sends nothing", async () => {
+    const x = io({ deps: deps({ readKey: noKeychain }) });
+    expect(await oracleCli(["send", "--set", "d1", "--dir", mkdtempSync(join(tmpdir(), "jev-"))], x.cwd, x)).toBe(2);
+    expect(x.lines[0]).toMatch(/^oracle send: no dataset /);
+    expect(await oracleCli(["send", "--set", "d1", "--limit", "-1"], x.cwd, x)).toBe(64);
+    expect(await oracleCli(["send"], x.cwd, x)).toBe(64);
   });
 });
