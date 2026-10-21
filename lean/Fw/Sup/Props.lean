@@ -4553,4 +4553,24 @@ example : ∃ q ∈ (pre Ex.cfg (Ex.after [.tick 1 Ex.calm, .request 42 1 Ex.sim
     (e := .request 42 1 Ex.sim) (o := 1) (a := Ex.sim) (t := ⟨1, 1, 1⟩) rfl rfl (by decide)
   exact ⟨q, hq, by rw [ha]; decide⟩
 
+/-- `Ex.cfg` with requests that may wait 200 s. -/
+abbrev Ex.slow : Cfg := { Ex.cfg with maxWait := 200 }
+
+/-- Fable's witness: before the svc grant waited behind a blocked job (Core at 31510359), svc grants at 30, 85, 140
+and 195 kept the Simulator leased, no signal was sent, and the job was refused at 203 with no ticket. -/
+abbrev Ex.starve : List Event :=
+  let job : Ask := { Ex.big with cost := { ram := 5500 }, wait := 200 }
+  let sim : Ask := { Ex.sim with wait := 200 }
+  let calm : Sample := { clients := [1, 2, 3, 4] }
+  [.tick 1 calm, .request 42 1 sim, .spawned 1 (some ⟨500, 7⟩), .ready 1, .request 42 2 job, .tick 30 calm,
+   .request 42 3 sim, .tick 61 calm, .tick 85 calm, .request 42 4 sim, .tick 100 calm, .tick 140 calm,
+   .request 42 1 sim, .tick 185 calm, .tick 195 calm, .request 42 3 sim, .tick 200 calm, .tick 203 calm,
+   .request 42 2 job]
+
+example : Cmd.signal (.group ⟨500, 7⟩) .term ∈ (run Ex.slow (init Ex.slow) Ex.starve).2 ∧
+    ((run Ex.slow (init Ex.slow) Ex.starve).2.filter fun c => match c with
+      | .reply _ (.granted _) => true | _ => false).length = 1 ∧
+    ((run Ex.slow (init Ex.slow) Ex.starve).1.pending.map fun q => (q.id, q.age)).head? = some (6, 1) := by
+  decide
+
 end Fw.Sup
