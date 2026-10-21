@@ -107,3 +107,15 @@ pnpm -s fw slot admit --kind build                       # lead, before spawning
 - `admit --kind build` is run by the lead by hand; `build-review.js` does not call it yet. Its thresholds (8 agents,
   2100 MB) come from the same busy window.
 - The Simulator's own footprint is not reduced; sim priority only orders the other work around it.
+
+## Self-routing
+
+Heavy entry points queue themselves, so a compound line or a reviewer re-run cannot bypass the slot.
+- `lean/scripts/check.sh`, `lean:build` (root) and every package `test` script run `node scripts/slot-self.mjs <check|test> -- <cmd>`.
+  The package scripts keep their old body as `test:run`; `test` is `slot-self.mjs test -- pnpm run test:run`.
+- Not held: the helper runs `fw slot run --kind <kind> -- <cmd>` and waits in the queue.
+- Held (`FW_SLOT_HELD` set, the nested rule above), on CI (`CI` set) or with `FW_SLOT_SELF=off`: the command runs
+  directly, so a nested call starts at once and CI behaves as before. The helper decides nothing else (no Lean).
+- Tests: `node --test scripts/slot-self.test.mjs` (plan table, nested start, bare call goes through the slot).
+- Not covered (follow-up, needs a PreToolUse hook the user approves): one-off `lake build <target>`,
+  `lake env lean --run/--stdin`, `npx vitest`.
