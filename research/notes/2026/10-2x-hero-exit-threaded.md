@@ -52,3 +52,25 @@ depends on them. A custom property in a keyframe would break this (not accelerat
 - The felt effect on the phone is not measured here (follow-up: phone replay).
 - Open as in the Lean header: RG11 (which numbers a `contain` range gives under dynamic toolbars), the opacity-1
   crossing, resident layers.
+
+## Trajectory probe (MEASURED, CI)
+
+Run 39652612704 (push of cfeae169, `fw=hero.exit:threaded engines=both`, verdict run, all four widths; inputs read back
+from the step name and the `trajectory-inputs` artifact). Verdict RED on both engines, and every red unit is a card that
+is not rendered in that width band:
+
+| engine | new units | which |
+| --- | --- | --- |
+| Chromium 156 | 25 content, 42 coverage | content: `hero.orbit.card` opacity and translate at 390, `hero.deck.card` opacity at 640 and 641; coverage: one `open@1` sample at 641 morph (sampling noise, nav only) |
+| WebKit 27.2 (Linux) | 40 content, 0 coverage | the same cards (and `hero.deck.card` opacity at 1280) |
+
+Every visible node of the hero path (stage, copy, cue, the visible orbit or deck cards) passes at all widths on both
+engines. The first run (a8afffef) failed the same way plus the stage `count` rows: the sentinel was a `div`, which the
+anchor `[data-fw="hero-exit"] > div` also matched; it is a `span` now.
+
+Why the hidden cards differ (INFERRED from the CSS animations spec and the pattern of the rows): an element with
+`display: none` runs no animation, so its computed `opacity` and `translate` stay at the rule value with the cleared
+`--exit-opacity` (rest), while the original's JS keeps writing the variable they inherit. The probe reads these nodes
+(`getComputedStyle` of a hidden node), and no user sees them. Making them agree needs a per-frame write, which is what
+the variant removes. Open for the lead: the gate should not compare nodes that are not rendered in the band (a Lean rule
+`hidden node = not a consumer`), or the variant is judged on visible nodes only.
