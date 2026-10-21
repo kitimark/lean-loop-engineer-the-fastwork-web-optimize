@@ -69,6 +69,7 @@ import Fw.Measure.Tolerance
 import Fw.Measure.WebKit
 import Fw.Measure.WebKitLag  -- webkit-lag-probe: scroll regions, paint attribution to parts, counter ranking
 import Fw.Device.Session  -- device-lag-recorder: phone-session zones, frame intervals, felt marks, comparison, replay export
+import Fw.Device.StillRuns  -- toolbar-throttle-probe: still runs of scrollY under the toolbar-collapse throttle, the lift verdict
 import Fw.Measure.WebKitProfile  -- smoothness-webkit-cadence: WebKit Timeline records on the page clock, binned to zones, per-frame render work
 import Fw.Device.Replay
 import Fw.Device.ReplayProfiles
