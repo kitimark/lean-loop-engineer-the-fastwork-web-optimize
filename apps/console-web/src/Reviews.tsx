@@ -3,6 +3,7 @@ import { apiFetch } from "@/lib/auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ReviewPreview, type PreviewState } from "./ReviewPreview";
+import { ReviewInfo, useReviewInfo } from "./ReviewInfo";
 
 // Rendering only. Which reviews are pending, open or decided is Lean `console.review` (console-api `GET /api/reviews`); Keep and Reject
 // post the decision, which Lean accepts or refuses. The page link comes from the owner's private `.local/reviews.json`.
@@ -131,6 +132,11 @@ export function StripCard({ flag, s }: { flag: string; s: StripItem }) {
 const DONE: Record<Verdict, string> = { keep: "You kept it.", reject: "You rejected it." };
 
 /** One review: what changed, the review material, and Keep / Reject with an in-page confirm step. */
+/** The information panel of a card (gains, code change, mechanism and math), loaded from console.reviewInfo. */
+function InfoSlot({ flag }: { flag: string }) {
+  return <ReviewInfo flag={flag} data={useReviewInfo(flag)} />;
+}
+
 export function ReviewCard({ item, confirming, busy, error, onAsk, onConfirm, onCancel, onPreviewed }: {
   item: ReviewItem; confirming: Verdict | null; busy: boolean; error: string | null;
   onAsk: (v: Verdict) => void; onConfirm: () => void; onCancel: () => void; onPreviewed?: () => void;
@@ -164,7 +170,7 @@ export function ReviewCard({ item, confirming, busy, error, onAsk, onConfirm, on
         </div>
       ) : null}
       <ReviewPreview flag={item.flag} preview={item.state === "open" ? item.preview : null} {...(onPreviewed ? { onChanged: onPreviewed } : {})} />
-      {/* review-info panel */}
+      <InfoSlot flag={item.flag} />
       {item.link
         ? <p className="text-sm"><span className="text-xs text-muted-foreground">Fallback: </span><a className="underline" href={item.link} target="_blank" rel="noreferrer" data-testid="review-link">Open the review page</a></p>
         : <p className="text-xs text-muted-foreground" data-testid="no-link">No review link on this machine; fetch the artifact named above from its CI run.</p>}
