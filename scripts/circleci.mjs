@@ -466,7 +466,11 @@ export async function pollOnce(ctx, { slug, pipelineId, now }) {
   const wfs = await listAll(ctx, urls.workflows(pipelineId));
   const jobs = [];
   for (const wf of wfs) {
-    for (const j of await listAll(ctx, urls.jobs(wf.id))) {
+    // A workflow the pipeline listing has just created answers 404 on its job list for a moment (seen on the first poll right after a
+    // trigger, pipeline of task land-lane-circleci); that is "no jobs yet", and the workflow status still decides the exit code.
+    let list = [];
+    try { list = await listAll(ctx, urls.jobs(wf.id)); } catch (e) { if (!/HTTP 404/.test(String(e?.message))) throw e; }
+    for (const j of list) {
       let queueMs = 0, durMs = 0;
       if (j.job_number != null && (j.status === 'queued' || j.status === 'running')) {
         const d = await call(ctx, 'GET', urls.job(slug, j.job_number));

@@ -765,3 +765,14 @@ test('creditsSoFar: a fetch writes its credits and time into the ledger, and the
   writeFileSync(ledgerPath, JSON.stringify({ pipelines: { old: { artifacts: 1, cache: 0, workspace: 0 } } }));
   assert.equal(creditsSoFar({ ledgerPath }, now), 0, 'a pipeline fetched before credits were kept counts 0');
 });
+
+test('wait: a workflow whose job list answers 404 is "no jobs yet" (seen right after a trigger); another error still stops the wait', async () => {
+  const fx = loadFixture('premise-tests');
+  const base = fixtureFetch(fx.api);
+  const jobPath = `/workflow/${wfIdOf(fx)}/job`;
+  const failing = (status) => async (u, i) => (String(u).startsWith(`${API}${jobPath}`) ? { status, ok: false, headers: { get: () => null }, text: async () => '{"message":"x"}' } : base(u, i));
+  const w = await waitPipeline(ctxOf(fx, { fetchFn: failing(404) }).ctx, { slug: fx.slug, pipelineId: fx.pipelineId });
+  assert.equal(w.code, 0);
+  assert.deepEqual(w.jobs, []);
+  await assert.rejects(waitPipeline(ctxOf(fx, { fetchFn: failing(500) }).ctx, { slug: fx.slug, pipelineId: fx.pipelineId }), /HTTP 500/);
+});

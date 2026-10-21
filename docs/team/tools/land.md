@@ -42,7 +42,7 @@ force push), waits with `fw ci wait` (no CPU: one sleeping child per slice) and 
   and the failed run refuses (`remote-lane-failed`).
 - A failing local tier ends the wait and refuses. Spans: `remote push`, `remote queue`, `remote lane`, `local tier`.
 - `remote: false` (option) and an injected `checks` run everything here. The fallback protocol (locked) stays all-local.
-- Providers: GitHub is complete; the CircleCI adapter is a stub (`unavailable`), a follow-up after circleci-pilot lands.
+- Providers: GitHub first; CircleCI takes the legs GitHub has no free job slot for (section "The land overflows to CircleCI").
 TS stand-ins: `normalizeGithub` (the state is Lean's `laneState`), `awaitRemote`, `runTiered` (glue around the Lean verdict; tests in `land-remote.test.ts`).
 
 TS stand-in, marked for Lean replacement: `prelockAction` (no fwcore op yet); checked against the `landSpeed.prelock` golden.
@@ -78,6 +78,35 @@ then does only its part, so the wall time of the lane is the slowest leg:
   Measurements: `docs/team/handoffs/land-legs-followups.md`.
 - Cost: one runner per leg (free runners; four per land, the engine legs idle after setup when no browser suite is selected). Numbers and
   the phases that remain: `research/notes/2026/10-20-land-lane-speed.md`. Not changed: the local tier already starts with the push.
+
+## The land overflows to CircleCI (task land-lane-circleci)
+
+GitHub Actions runs every leg of the land lane unless it has no free job slot for them; the legs it cannot take run on CircleCI.
+- **Rule (Lean `Fw.Ci.Overflow`, fwcore ops `ci.overflow`, `ci.overflowCombine`, golden `packages/contracts/golden/ci/overflow.jsonl`).** Slots
+  are 20 (`ghCap`) minus the widths of the workflow runs now queued or running (`widths`: one row per `.github/workflows` name, an unlisted
+  name counts 4; a finished job still counts, the safe side). The first legs that fit stay on GitHub, in matrix order; the rest go to CircleCI
+  only if CircleCI is usable (status fresh and healthy, a checkout key, credits and storage under the reserve). Theorems: `github_first`
+  (no overflow while GitHub has room), `overflow_only_when_full`, `never_both` (a leg is on one provider), `verdict_same` (one bound pass is
+  judged alike on either provider). A degraded Actions status moves every leg (`github-degraded`). `reason` says which branch decided.
+- **Facts (`apps/runner/src/land-overflow.ts`).** The slot count is one `gh run list --limit 100` (never `gh api`), cached in the gh-budget
+  directory for 120 s, no retry on a refusal (unreadable means GitHub first). It is up to 120 s old and sees only the newest 100 runs, so
+  an older run still going is not counted. The CircleCI facts are read only when the first answer moves a leg: the console's
+  `/api/ci-status`, the key check and the credit and storage ledger of `scripts/circleci.mjs`. The test flag `FW_LAND_FORCE_FULL=1` marks GitHub full.
+- **One marker, two lanes.** Both providers use the same `ci/land-<task>-<sha7>` branch and marker commit (pushed once, `makePusher`). A
+  land with legs on both says which GitHub gets in the marker message (`[legs:a,b]`); `land.yml`'s guard turns that into a matrix `exclude`.
+  A land with no leg on GitHub leaves out `[ci:land]`, so GitHub starts nothing. The GitHub adapter passes a partial land only if the run has
+  a job `land (<leg>)` for each leg it was given (`legsCovered`).
+- **CircleCI.** `.circleci/config.yml` has one workflow per leg (parameter `legs`, `lane == land`, branch `ci/*`); `.circleci/job.sh` runs the
+  same `fw checks --affected --tier remote --leg` entry and writes `lane.json` (`{leg, sha, digest, engine, rc}`). The adapter triggers
+  through `scripts/circleci.mjs` (token from the Keychain, never printed), waits at 120 s or slower, reads `vcs.revision` and the
+  artifacts, and binds a pass only to a sha and digest every leg printed (`normalizeCircle`). Groups are waited for on their own and
+  combined by fwcore (`awaitGroups`: refuse, else local, else a wait or try, else accept (Lean `pickKind`)).
+- **Limits.** Linux legs only; no hedge; macOS lanes are follow-ups (tasks ci-route, pool-fallback). Credits count only pipelines this
+  Mac fetched (rolling 30 days). An aborted CircleCI pipeline is not cancelled. If one provider's group says local, the whole remote tier
+  runs here. `ghPrev` (the last Actions flag) is not tracked yet.
+- **Proof by hand.** `FW_LAND_FORCE_FULL=1 node apps/runner/src/land-probe.ts` lands HEAD through this path on a probe branch (no merge).
+- TS stand-ins: the status-to-active filter in `readSlots`, `markerMessage`, `legsCovered`, the sha and digest uniformity in `normalizeCircle`
+  (tests in `land-overflow.test.ts`; the rule itself is replayed from the Lean golden).
 
 ## `--dry` and verdict lines
 
