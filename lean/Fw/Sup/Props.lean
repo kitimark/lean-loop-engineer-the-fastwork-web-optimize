@@ -2113,17 +2113,75 @@ theorem crash_cap (c : Cfg) (now : Nat) (f : Bool) (x : Rsrc) (h : c.maxRestarts
   simp only [crash] at h ⊢
   rw [if_pos h]
 
+theorem least_spec (p : Nat → Bool) : ∀ (n i : Nat),
+    (p (least p i n) = true ∨ least p i n = i + n) ∧ i ≤ least p i n ∧ ∀ k, i ≤ k → k < least p i n → p k = false
+  | 0, i => ⟨Or.inr rfl, Nat.le_refl i, fun k h1 h2 => absurd h2 (Nat.not_lt_of_le h1)⟩
+  | n + 1, i => by
+    simp only [least]
+    cases hp : p i
+    · obtain ⟨h1, h2, h3⟩ := least_spec p n (i + 1)
+      simp only [Bool.false_eq_true, ↓reduceIte]
+      refine ⟨?_, Nat.le_of_succ_le h2, fun k hk hl => ?_⟩
+      · rcases h1 with h | h
+        · exact Or.inl h
+        · exact Or.inr (by omega)
+      · rcases Nat.eq_or_lt_of_le hk with e | e
+        · rw [← e]; exact hp
+        · exact h3 k e hl
+    · simp only [↓reduceIte]
+      exact ⟨Or.inl hp, Nat.le_refl i, fun k h1 h2 => absurd h2 (Nat.not_lt_of_le h1)⟩
+
+/-- The eviction and shed prefix: a rank-order prefix of the candidates after which `add` fits, or all of them, and
+no shorter prefix makes `add` fit. -/
+theorem prefixFor_spec (c : Cfg) (s : State) (add : Res → Nat) :
+    prefixFor c s add <+: byRank c s ∧
+    (fitsFree c s add (prefixFor c s add) = true ∨ prefixFor c s add = byRank c s) ∧
+    ∀ k < (prefixFor c s add).length, fitsFree c s add ((byRank c s).take k) = false := by
+  obtain ⟨h1, _, h3⟩ := least_spec (fun k => fitsFree c s add ((byRank c s).take k)) (byRank c s).length 0
+  simp only [prefixFor]
+  refine ⟨List.take_prefix _ _, ?_, fun k hk => h3 k (Nat.zero_le k) ?_⟩
+  · rcases h1 with h | h
+    · exact Or.inl h
+    · rw [h, Nat.zero_add, List.take_length]
+      exact Or.inr rfl
+  · rw [List.length_take] at hk
+    exact Nat.lt_of_lt_of_le hk (Nat.min_le_left _ _)
+
+/-- The shed pick: every candidate under pressure at warn; otherwise the shortest rank-order prefix after which the
+margin fits, or all candidates when none does. -/
+theorem shedPick_spec (c : Cfg) (s : State) :
+    shedPick c s <+: byRank c s ∧
+    (fitsFree c s c.margin.get (shedPick c s) = true ∨ shedPick c s = byRank c s) ∧
+    (c.warn ≤ s.obs.pressure → shedPick c s = byRank c s) ∧
+    (s.obs.pressure < c.warn → ∀ k < (shedPick c s).length, fitsFree c s c.margin.get ((byRank c s).take k) = false) := by
+  by_cases hw : c.warn ≤ s.obs.pressure
+  · have e : shedPick c s = byRank c s := by simp only [shedPick, hw, ↓reduceIte]
+    rw [e]
+    exact ⟨List.prefix_refl _, Or.inr rfl, fun _ => rfl, fun h => absurd hw (Nat.not_le_of_lt h)⟩
+  · have e : shedPick c s = prefixFor c s c.margin.get := by simp only [shedPick, hw, ↓reduceIte]
+    rw [e]
+    obtain ⟨h1, h2, h3⟩ := prefixFor_spec c s c.margin.get
+    exact ⟨h1, h2, fun h => absurd h hw, fun _ => h3⟩
+
 /-- overrun_sheds: a tick that sees pressure at warn or load plus external footprint over budget sheds, admits nothing,
-and sends TERM to the group of every resource the shed pick names. -/
+and sends TERM to the group of every resource the shed pick names. The pick is a rank-order prefix of the candidates
+after which the margin fits, or all of them, and all of them under pressure at warn. -/
 theorem overrun_sheds {c : Cfg} {s : State} {now : Nat} {smp : Sample} (h : Inv c s)
     (ho : c.warn ≤ smp.pressure ∨ ∃ d, c.budget.get d < used (observe c s now smp).1 d + smp.ext.get d) :
     (step c s (.tick now smp)).1.shedding = true ∧ (∀ x ∈ (step c s (.tick now smp)).2, NoAdm x) ∧
-    ∀ y ∈ shedPick c (idleStage c (observe c s now smp).1).1, ∀ i, y.proc = some i →
-      Cmd.signal (.group i) .term ∈ (step c s (.tick now smp)).2 := by
+    (∀ y ∈ shedPick c (idleStage c (observe c s now smp).1).1, ∀ i, y.proc = some i →
+      Cmd.signal (.group i) .term ∈ (step c s (.tick now smp)).2) ∧
+    shedPick c (idleStage c (observe c s now smp).1).1 <+: byRank c (idleStage c (observe c s now smp).1).1 ∧
+    (fitsFree c (idleStage c (observe c s now smp).1).1 c.margin.get (shedPick c (idleStage c (observe c s now smp).1).1)
+        = true ∨ shedPick c (idleStage c (observe c s now smp).1).1 = byRank c (idleStage c (observe c s now smp).1).1) ∧
+    (c.warn ≤ smp.pressure →
+      shedPick c (idleStage c (observe c s now smp).1).1 = byRank c (idleStage c (observe c s now smp).1).1) := by
   have hs : (observe c s now smp).1.shedding = true := observe_shed ho
   have hp : (pre c s (.tick now smp)).1.shedding = true := (congrArg State.shedding (tick_st c s now smp)).trans hs
   have hw := wf_pre (.tick now smp) h.1
-  refine ⟨by rw [step_st (e := .tick now smp) rfl, (pump_pj hw).shedding]; exact hp, fun x hx => ?_, fun y hy i hi => ?_⟩
+  obtain ⟨hs1, hs2, hs3, _⟩ := shedPick_spec c (idleStage c (observe c s now smp).1).1
+  refine ⟨by rw [step_st (e := .tick now smp) rfl, (pump_pj hw).shedding]; exact hp, fun x hx => ?_, fun y hy i hi => ?_,
+    hs1, hs2, hs3⟩
   · rw [step_out (e := .tick now smp) rfl] at hx
     rcases List.mem_append.1 hx with hx | hx
     · exact quiet_noAdm (tick_quiet hx)
@@ -2136,8 +2194,8 @@ theorem overrun_sheds {c : Cfg} {s : State} {now : Nat} {smp : Sample} (h : Inv 
     rw [shedStage_on hB]
     exact stopAll_emits hr hy hrd hi
 
-/-- starvation_limit: while the new state sheds, the step spawns nothing and grants only nested job joins of cost zero,
-so queued requests wait until shedding ends. -/
+/-- starvation_limit: while the new state sheds, the step spawns nothing and grants only nested job joins of cost
+zero. -/
 theorem starvation_limit {c : Cfg} {s : State} {e : Event} {x : Cmd} (h : Inv c s)
     (hs : (step c s e).1.shedding = true) (hx : x ∈ (step c s e).2) :
     (∀ rid k, x ≠ .spawn rid k) ∧ ∀ n l, x = .reply n (.granted l) → n = s.next ∧ l.kind = .job ∧ l.cost = {} := by
@@ -2935,8 +2993,8 @@ theorem pump_pt {c : Cfg} {s0 : State} (hw : Wf c s0) : PT c s0 (pumpAcc c s0) :
     fun _ _ _ hj h => ⟨pumpOne_pm hw hj h.1, pumpOne_pt hw hj h.1 h.2⟩
   exact this.2
 
-/-- evict_for_pending: every TERM the pump sends stops a ready, unpinned resource without a service lease, for a
-blocked request that stays queued after the step. -/
+/-- evict_for_pending: every TERM the pump sends stops a ready, unpinned resource without a service lease, and some
+request queued before the pump stays queued after the step. -/
 theorem evict_for_pending {c : Cfg} {s : State} {e : Event} {i : Ident} (h : Inv c s) (ha : authed c e = true)
     (hx : Cmd.signal (.group i) .term ∈ (pumpAcc c (pre c s e).1).out) :
     (∃ q ∈ (step c s e).1.pending, q ∈ (pre c s e).1.pending) ∧
@@ -4060,6 +4118,53 @@ theorem pumpOne_mono {c : Cfg} {a : Acc} {q : Req} {x : Cmd} (h : x ∈ a.out) :
 theorem fold_mono {c : Cfg} {x : Cmd} : ∀ (B : List Req) (a : Acc), x ∈ a.out → x ∈ (B.foldl (pumpOne c) a).out
   | [], _, h => h
   | _ :: B, _, h => fold_mono B _ (pumpOne_mono h)
+
+theorem block_emits {c : Cfg} {a : Acc} {q : Req} {add : Res → Nat} (hb : a.blk = false)
+    (hr : fitsFree c a.st add (byRank c a.st) = true) {y : Rsrc} (hy : y ∈ prefixFor c a.st add) {i : Ident}
+    (hi : y.proc = some i) : Cmd.signal (.group i) .term ∈ (block c a q add).out := by
+  have hc := mem_byRank (prefixFor_sub hy)
+  have hm : y ∈ evictPick c a.st add := by simp only [evictPick, hr, ↓reduceIte]; exact hy
+  simp only [block, hb, Bool.false_eq_true, ↓reduceIte, keepQ]
+  exact List.mem_append_right _ (stopAll_emits (cands_ready hc).1 hm (cands_ready hc).2 hi)
+
+/-- evict_live: when the queue before the step's pump is `A ++ q :: B`, nothing in `A` leaves the pump blocked, and
+`q` is a job, or a service request on an absent resource, that does not fit next to the load but fits once every
+stop candidate is gone, then the step sends TERM to the group of every resource in the rank-order prefix that makes
+`q` fit. -/
+theorem evict_live {c : Cfg} {s : State} {e : Event} (ha : authed c e = true) {A B : List Req} {q : Req} {a : Acc}
+    {add : Res → Nat} (hp : (pre c s e).1.pending = A ++ q :: B) (hA : A.foldl (pumpOne c) (acc0 (pre c s e).1) = a)
+    (hb : a.blk = false) (hd : a.st.now < q.deadline) (hn : a.st.draining = false)
+    (hq : (q.kind = .job ∧ add = q.cost.get) ∨
+      (q.kind = .svc ∧ ∃ r, find a.st q.rid = some r ∧ r.phase = .absent ∧ add = charge r))
+    (hf : fitsB c a.st add = false) (hr : fitsFree c a.st add (byRank c a.st) = true) :
+    ∀ y ∈ prefixFor c a.st add, ∀ i, y.proc = some i → Cmd.signal (.group i) .term ∈ (step c s e).2 := by
+  intro y hy i hi
+  rw [step_out ha]
+  refine List.mem_append_right _ ?_
+  have e1 : pumpAcc c (pre c s e).1 = B.foldl (pumpOne c) (pumpOne c a q) := by
+    unfold pumpAcc; rw [hp, List.foldl_append, ← hA]; rfl
+  rw [e1]
+  refine fold_mono B _ ?_
+  have hd' : ¬ q.deadline ≤ a.st.now := Nat.not_le_of_lt hd
+  have hbl : pumpOne c a q = block c a q add := by
+    rcases hq with ⟨hk, rfl⟩ | ⟨hk, r, hfd, hph, rfl⟩
+    · unfold pumpOne
+      simp only [hd', hn, hk, hb, hf, ↓reduceIte, Bool.false_eq_true, Bool.not_false, Bool.and_true,
+        Bool.and_false]
+    · unfold pumpOne
+      simp only [hd', hn, hk, hb, hfd, hph, hf, ↓reduceIte, Bool.false_eq_true, Bool.not_false, Bool.and_true,
+        Bool.and_false]
+  rw [hbl]
+  exact block_emits hb hr hy hi
+
+/-- After the release, a job for 6000 MB from client 2 does not fit next to the idle simulator. -/
+abbrev Ex.wants : Ask := { Ex.big with cost := { ram := 6000 } }
+
+example : Cmd.signal (.group ⟨500, 7⟩) .term ∈ (step Ex.cfg (Ex.after Ex.freed).1 (.request 42 2 Ex.wants)).2 := by
+  obtain ⟨y, hy, hyi⟩ : ∃ y ∈ prefixFor Ex.cfg (acc0 (pre Ex.cfg (Ex.after Ex.freed).1 (.request 42 2 Ex.wants)).1).st
+      Ex.wants.cost.get, y.proc = some ⟨500, 7⟩ := by decide
+  exact evict_live (A := []) (B := []) (q := ⟨2, 2, .job, 0, Ex.wants.cost, 60, 1, 1, 31⟩) rfl (by decide) rfl rfl
+    (by decide) rfl (Or.inl ⟨rfl, rfl⟩) (by decide) (by decide) y hy _ hyi
 
 /-- aged_granted_by: the request at the head of the queue, a job before its deadline, is granted in the step when
 nothing drains or sheds and it fits next to the load and the external footprint. -/
