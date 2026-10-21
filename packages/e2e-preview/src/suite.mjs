@@ -5,6 +5,7 @@
 // same-origin requests in every load, in both engines. It decides nothing about the product: each check is an observation of the
 // page (status codes, fonts, images, module evaluations, navigations) compared with a stated expectation.
 import { PLAIN_HOST, PREVIEW_ID } from "./rig.mjs";
+import { makeTracer, PAGE_TRACE } from "./trace.mjs";
 
 export const IPHONE_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1";
 export const VIEWPORT = { width: 390, height: 844 };
@@ -135,37 +136,49 @@ async function runTarget(browser, rig, engine, host, target, opts) {
   });
   const own = ownOrigins(host);
   const log = newLog();
+  const tr = opts.trace ? makeTracer() : null;
   const checks = [];
   const check = (id, ok, detail = "") => checks.push({ id: `${engine}/${host.name}/${target.id}/${id}`, ok: Boolean(ok), detail: String(detail) });
+  let page = null;
   try {
     if (opts.route !== false) await ctx.route((u) => !own.has(u.origin), blockExternal(log));
-    const page = await ctx.newPage();
+    if (tr) await ctx.addInitScript(PAGE_TRACE);
+    page = await ctx.newPage();
+    tr?.wire(page);
     observe(page, log, own);
 
     // access: the grant link is redeemed on the preview port of this very host (cookie scoped to the host, not to a port), as the
     // phone's browser would; its page-level hop lands on the arm's own origin
     rig.seen.length = 0;
     const link = await rig.grantUrl(host.origin, target.arm);
+    tr?.mark("goto-grant");
     const g = await page.goto(link, { waitUntil: "load" });
+    tr?.mark("grant-loaded");
     check("grant-redeemed", g && g.status() === 200 && page.url() === `${host.arm[target.arm]}/`, `${g?.status()} ${page.url()}`);
     // the landing page hydrates after its load event; leaving it mid-import would cancel that import (the browser's doing, not the server's)
     await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => undefined);
     await page.waitForTimeout(300);
+    tr?.mark("landing-settled");
     // the real entry path, first half: the grant link and its landing page (the hop to the arm origin included) show no
     // rejection, no cancelled request and no failed one
     noiseChecks((id, ok, d) => check(`landing/${id}`, ok, d), log, own, { documentHops: true });
     resetLog(log); // rig.seen keeps the grant load: the arm requests of both loads are read below
 
+    tr?.mark("goto-document");
     const doc = await page.goto(documentUrl(host, target), { waitUntil: "load" });
+    tr?.mark("document-loaded");
     if (target.entry) check("entry-landed-on-arm-origin-with-search", page.url() === `${host.arm[target.arm]}/${searchOf(target)}`, page.url());
     check("document-200", doc && doc.status() === 200 && /text\/html/.test(doc.headers()["content-type"] ?? ""), `${doc?.status()} ${doc?.headers()["content-type"]}`);
     for (const f of target.frames) {
       const fr = target.id === "compare" ? await frameOn(page, host.arm[f.arm]) : page.mainFrame();
       if (!fr) { check(`frame-${f.name}-present`, false, host.arm[f.arm]); continue; }
       await fr.waitForLoadState("load").catch(() => undefined);
+      tr?.mark(`settle-start ${f.name}`);
       await settle(fr);
+      tr?.mark(`settle-end ${f.name}`);
     }
     await page.waitForTimeout(500);
+    tr?.mark("checks");
 
     noiseChecks(check, log, own, { documentHops: Boolean(target.entry) });
 
@@ -196,9 +209,19 @@ async function runTarget(browser, rig, engine, host, target, opts) {
   } catch (e) {
     check("run", false, String(e?.message ?? e).split("\n").slice(0, 4).join(" / "));
   } finally {
+    if (tr) await keepTrace(opts.trace, tr, page, checks);
     await ctx.close().catch(() => undefined);
   }
   return checks;
+}
+
+/** Debug runs: file the timeline of a load whose request check failed, and of the first two loads for comparison. */
+async function keepTrace(sink, tr, page, checks) {
+  const failed = checks.some((c) => !c.ok && /\/cancelled-same-origin-0$/.test(c.id));
+  if (!failed && sink.ok++ >= sink.keepOk) return;
+  const pages = [];
+  for (const f of page?.frames() ?? []) pages.push({ url: f.url(), main: f === page.mainFrame(), trace: await f.evaluate(() => globalThis.__fwTrace ?? null).catch((e) => String(e).slice(0, 80)) });
+  sink.loads.push({ failed, t0: tr.t0, node: tr.ev, pages, checks: checks.filter((c) => !c.ok).map((c) => `${c.id}: ${c.detail}`) });
 }
 
 /** The frame of the side-by-side page that lives on `origin` (the arm's own origin), once it has navigated there. */
@@ -361,13 +384,26 @@ export function attribution(ctl) {
   return { shown, ok: shown.length === 0 && arms.every((a) => ctl.some((c) => c.arm === a)) };
 }
 
-export async function runEngine(browser, rig, engine, { passphrase, keep, route } = {}) {
+/** `only`: run just these targets (ids of PATHS) on the loopback host `repeat` times and nothing else: the way to repeat one check on
+ *  its own. `trace`: a sink `{ loads: [], ok: 0, keepOk: 2 }` that collects the timeline of each load (trace.mjs). */
+export async function runEngine(browser, rig, engine, { passphrase, keep, route, only, repeat = 1, trace } = {}) {
   const out = [];
+  if (only) {
+    const host = rig.hosts.loopback;
+    for (let i = 1; i <= repeat; i++) {
+      for (const target of PATHS.filter((p) => only.includes(p.id))) {
+        const cs = await runTarget(browser, rig, engine, host, target, { keep, route, trace });
+        for (const c of cs) process.stderr.write(`  ${c.ok ? "ok  " : "FAIL"} #${i} ${c.id}  (${c.detail})\n`);
+        out.push(...cs.map((c) => ({ ...c, id: `${c.id}#${i}` })));
+      }
+    }
+    return out;
+  }
   for (const host of Object.values(rig.hosts)) {
     if (host.name === "lan") { out.push(...(await lanLogin(browser, rig, engine, host, passphrase))); continue; }
     for (const target of PATHS) {
       const t0 = Date.now();
-      const cs = await runTarget(browser, rig, engine, host, target, { keep, route });
+      const cs = await runTarget(browser, rig, engine, host, target, { keep, route, trace });
       for (const c of cs) process.stderr.write(`  ${c.ok ? "ok  " : "FAIL"} ${c.id}  (${c.detail})\n`);
       process.stderr.write(`  # ${Date.now() - t0} ms\n`);
       out.push(...cs);

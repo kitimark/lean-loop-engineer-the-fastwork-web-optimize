@@ -20,6 +20,10 @@ const engineArg = opt("engine", "chromium");
 const engine = engineArg === "playwright-webkit" || engineArg === "webkit" ? "webkit" : engineArg === "chromium" ? "chromium" : null;
 if (!engine) { console.error("usage: node src/run.mjs --engine chromium|playwright-webkit [--out dir] [--no-lan]"); process.exit(64); }
 const out = resolve(opt("out", join(here, "..", "out")));
+// Debug runs: `--only compare[,o,...] --repeat 20` runs just those targets on loopback 20 times; `--trace` also writes out/trace-<engine>.json
+const only = opt("only", null)?.split(",") ?? null;
+const repeat = Number(opt("repeat", "1"));
+const trace = args.includes("--trace") ? { loads: [], ok: 0, keepOk: 2 } : null;
 
 const lan = args.includes("--no-lan") ? null : await lanAddress();
 process.stderr.write("# starting rig\n");
@@ -33,7 +37,7 @@ try {
     ? await webkit.launch()
     : await chromium.launch({ ...(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {}), ...(process.env.E2E_CHROMIUM_CHANNEL ? { channel: process.env.E2E_CHROMIUM_CHANNEL } : {}) });
   version = browser.version();
-  checks = await runEngine(browser, rig, engine, { passphrase: TEST_PASSPHRASE, route: !args.includes("--no-route") });
+  checks = await runEngine(browser, rig, engine, { passphrase: TEST_PASSPHRASE, route: !args.includes("--no-route"), only, repeat, trace });
 } catch (e) {
   checks = [{ id: `${engine}/harness`, ok: false, detail: String(e?.message ?? e).split("\n")[0] }];
 } finally {
@@ -44,6 +48,7 @@ for (const c of checks) console.log(`${c.ok ? "ok  " : "FAIL"} ${c.id}${c.detail
 const failed = checks.filter((c) => !c.ok);
 const doc = { schema: 1, engine, browser: version, playwrightCore: "1.64.1", lanHost: lan !== null, checks };
 mkdirSync(out, { recursive: true });
+if (trace) writeFileSync(join(out, `trace-${engine}.json`), `${JSON.stringify(trace.loads)}\n`);
 writeFileSync(join(out, `${engine}.json`), `${JSON.stringify(doc, null, 2)}\n`);
 console.log(`${engine} ${version}: ${checks.length - failed.length}/${checks.length} checks passed${lan ? "" : " (no LAN address: LAN-mode login not run)"}`);
 process.exit(failed.length ? 1 : 0);
