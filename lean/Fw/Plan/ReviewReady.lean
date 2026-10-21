@@ -11,6 +11,9 @@ Task `review-flow-v2`. Two pure decisions that the workflows `build-review` and 
 * `verdictOf` reads the severities of a review's findings (`blocker`, `fix-before-land`, `follow-up`) and accepts iff there
   is no blocker. `strictVerdict` is the interim rule until the medium-only refusals are audited: it also refuses on any
   `fix-before-land`. An unknown severity word counts as a blocker.
+
+Coverage of the pinned unit (does the item list name every deliverable and every prior finding?) is not decided here:
+it is the reviewer's check. `reviewReady` only checks that the list is non-empty and that each item is well-formed.
 -/
 namespace Fw.Plan.ReviewReady
 
@@ -56,9 +59,9 @@ structure Item where
   evidence : String
 deriving Repr, DecidableEq
 
-/-- A run the report names, with the state the builder reports (`running`, `complete`, `failed`).
+/-- A run the report names, with its state (`running`, `complete`, `failed`).
 
-The reviewer re-checks the state with `fw ci`.
+The gate agent reads it by run id with `fw ci state <id>` and replaces the builder's state field.
 -/
 structure Run where
   id : String
@@ -326,9 +329,9 @@ def verdictOf (fs : List Sev) : Verdict := if fs.any (· == .blocker) then .refu
 
 /-- Must a checker re-check text the lead applies?
 
-An accept that carries a `fix-before-land` finding.
+An accept (the verdict actually used, `v`) that carries a `fix-before-land` finding. A refuse never needs it.
 -/
-def recheck (fs : List Sev) : Bool := verdictOf fs == .accept && fs.any (· == .fixBeforeLand)
+def recheck (v : Verdict) (fs : List Sev) : Bool := v == .accept && fs.any (· == .fixBeforeLand)
 
 /-- The interim rule until the medium-only audit: also refuse on a `fix-before-land` finding.
 
@@ -350,12 +353,19 @@ Acceptance needs no blocker.
 theorem verdictOf_accept_iff (fs) : verdictOf fs = .accept ↔ .blocker ∉ fs := by
   unfold verdictOf; split <;> simp_all
 
-/-- Branch `recheck`: no blocker and some `fix-before-land`.
+/-- Branch `recheck` under the 3-level rule: no blocker and some `fix-before-land`.
 
 Exactly these accepts need the checker's second look.
 -/
-theorem recheck_iff (fs) : recheck fs = true ↔ (.blocker ∉ fs ∧ .fixBeforeLand ∈ fs) := by
+theorem recheck_iff (fs) : recheck (verdictOf fs) fs = true ↔ (.blocker ∉ fs ∧ .fixBeforeLand ∈ fs) := by
   unfold recheck; simp [verdictOf_accept_iff]
+
+/-- A refuse never needs a re-check.
+
+Whatever rule gave the verdict.
+-/
+theorem recheck_refuse (fs) : recheck .refuse fs = false := by
+  simp [recheck]
 
 /-- The strict rule accepts exactly the all-`follow-up` lists.
 
@@ -377,6 +387,19 @@ theorem strict_accept_verdict (fs) (h : strictVerdict fs = .accept) : verdictOf 
   have := (strict_accept_iff fs).1 h _ hb
   cases this
 
+/-- Branch `recheck` under the interim rule: never.
+
+`strictVerdict` accepts only all-`follow-up` lists, so an accept carries no `fix-before-land`.
+-/
+theorem recheck_strict (fs) : recheck (strictVerdict fs) fs = false := by
+  unfold recheck
+  by_cases hv : strictVerdict fs = .accept
+  · have all := (strict_accept_iff fs).1 hv
+    have : fs.any (· == .fixBeforeLand) = false := by
+      rw [List.any_eq_false]; intro f hf; rw [all f hf]; decide
+    simp [this]
+  · simp [hv]
+
 -- Goldens: one #guard per branch.
 private def it (s e : String) : Item := ⟨"x", s, e⟩
 private def passDry := "VERDICT dry t"
@@ -396,7 +419,9 @@ private def passDry := "VERDICT dry t"
 #guard reviewReady "t" [it "done" "lean/Fw/X.lean:12"] [] "VERDICT dry " == .returnToBuilder
 #guard verdictOf [.followUp, .fixBeforeLand] == .accept
 #guard verdictOf [.followUp, .blocker] == .refuse
-#guard recheck [.fixBeforeLand] && !recheck [.followUp] && !recheck [.blocker, .fixBeforeLand]
+#guard recheck (verdictOf [.fixBeforeLand]) [.fixBeforeLand] && !recheck (verdictOf [.followUp]) [.followUp]
+  && !recheck (verdictOf [.blocker, .fixBeforeLand]) [.blocker, .fixBeforeLand]
+#guard !recheck (strictVerdict [.fixBeforeLand]) [.fixBeforeLand]
 #guard strictVerdict [.fixBeforeLand] == .refuse && strictVerdict [] == .accept
 #guard Sev.ofString "high" == .blocker
 

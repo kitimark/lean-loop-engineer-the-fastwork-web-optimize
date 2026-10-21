@@ -21,7 +21,7 @@
 {"name":"verdict: only follow-ups accept","request":{"op":"plan.reviewVerdict","severities":["follow-up","follow-up"]},"response":{"blockers":0,"fixes":0,"recheck":false,"verdict":"accept"}}
 {"name":"verdict: no findings accept","request":{"op":"plan.reviewVerdict","severities":[]},"response":{"blockers":0,"fixes":0,"recheck":false,"verdict":"accept"}}
 {"name":"verdict: a blocker refuses","request":{"op":"plan.reviewVerdict","severities":["follow-up","blocker"]},"response":{"blockers":1,"fixes":0,"recheck":false,"verdict":"refuse"}}
-{"name":"verdict: fix-before-land refuses until the audit","request":{"op":"plan.reviewVerdict","severities":["fix-before-land"]},"response":{"blockers":0,"fixes":1,"recheck":true,"verdict":"refuse"}}
+{"name":"verdict: fix-before-land refuses until the audit","request":{"op":"plan.reviewVerdict","severities":["fix-before-land"]},"response":{"blockers":0,"fixes":1,"recheck":false,"verdict":"refuse"}}
 {"name":"verdict: fix-before-land accepts after the audit, with a re-check","request":{"op":"plan.reviewVerdict","severities":["fix-before-land","follow-up"],"audited":true},"response":{"blockers":0,"fixes":1,"recheck":true,"verdict":"accept"}}
 {"name":"verdict: a blocker refuses after the audit too","request":{"op":"plan.reviewVerdict","severities":["blocker","fix-before-land"],"audited":true},"response":{"blockers":1,"fixes":1,"recheck":false,"verdict":"refuse"}}
 {"name":"verdict: an unknown word is a blocker","request":{"op":"plan.reviewVerdict","severities":["high"],"audited":true},"response":{"blockers":1,"fixes":0,"recheck":false,"verdict":"refuse"}}
