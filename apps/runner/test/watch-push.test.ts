@@ -1,4 +1,4 @@
-import { appendFileSync, existsSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, truncateSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -20,6 +20,7 @@ const user = { type: "review.feedback", actor: "user", flag: "step:s1", id: "fb-
 describe("pushLine", () => {
   it("one line, subject and text", () => expect(pushLine(user)).toBe("USER review.feedback step:s1 why is it slow?"));
   it("step events show the step", () => expect(pushLine({ type: "step.done", actor: "user", step: "ask-x" })).toBe("USER step.done ask-x"));
+  it("a step answer shows the answer", () => expect(pushLine({ type: "step.answer", actor: "user", step: "ask-x", answer: "yes" })).toBe("USER step.answer ask-x yes"));
 });
 
 describe("LineTail", () => {
@@ -34,6 +35,14 @@ describe("LineTail", () => {
     renameSync(f, join(d, "events.old"));
     writeFileSync(f, '{"c":3}\n');
     expect(t.read()).toEqual(['{"c":3}']);
+  });
+  it("a file truncated in place resumes at its new end, not at 0", () => {
+    const { f } = setup();
+    appendFileSync(f, '{"a":1}\n{"torn');
+    const t = new LineTail(f);
+    truncateSync(f, readFileSync(f).indexOf("{\"torn"));
+    appendFileSync(f, '{"n":1}\n');
+    expect(t.read()).toEqual(['{"n":1}']);
   });
 });
 

@@ -12,11 +12,12 @@ const cut = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1) + "~" : 
 export function pushLine(e: Record<string, unknown>): string {
   const s = (k: string) => (typeof e[k] === "string" ? (e[k] as string) : "");
   const subject = s("flag") || s("step") || s("id");
-  return oneLine(`USER ${s("type")} ${subject} ${cut(oneLine(s("text")), 160)}`);
+  const body = s("text") || s("answer") || s("note");
+  return oneLine(`USER ${s("type")} ${subject} ${cut(oneLine(body), 160)}`);
 }
 
 /** Reads the complete new lines of a growing file from a byte offset. A partial last line waits for its newline;
- *  a shrunk file or a new inode (rotation) restarts at 0. */
+ *  a new inode (rotation) restarts at 0; a file truncated in place (console-api drops a torn last line) resumes at its new end. */
 export class LineTail {
   private off: number;
   private ino: number;
@@ -31,7 +32,8 @@ export class LineTail {
     try { fd = openSync(this.file, "r"); } catch { return []; }
     try {
       const st = fstatSync(fd);
-      if (st.ino !== this.ino || st.size < this.off) { this.off = 0; this.rest = Buffer.alloc(0); this.ino = st.ino; }
+      if (st.ino !== this.ino) { this.off = 0; this.rest = Buffer.alloc(0); this.ino = st.ino; }
+      else if (st.size < this.off) { this.off = st.size; this.rest = Buffer.alloc(0); }
       const n = st.size - this.off;
       if (n <= 0) return [];
       const buf = Buffer.alloc(n);
