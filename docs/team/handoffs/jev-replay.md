@@ -1,8 +1,7 @@
 # Handoff: jev-replay (lean-prover)
 
 ## State
-- Branch `worktree-wf_30bab1a1-3ee-1` (main merged in); Jev arm run on 2026-10-21 UTC (answer log day), rescored
-  in round 2 with the one-rule scorer.
+- Branch `worktree-wf_30bab1a1-3ee-1` (main merged); Jev arm run 2026-10-21 UTC, rescored in round 2.
 - Round 2 fixed: `fw oracle send` takes a set id only (`--dir` exits 64; tests pass `Io.datasets`); `pickOf` reads
   the choice of a Jev reply as of any arm answer (`choiceIn`, `replyChoice`, `pickOf_*` theorems, equal-score
   `#guard`); note sentences per review findings 3 and 4.
