@@ -227,7 +227,9 @@
    "part": "hero.exit",
    "candidate": "hero-exit-threaded (v6, KD#2): JS --exit-opacity writer → per-consumer CSS scroll-driven animations, plus an IO sentinel for pointer-events",
    "status": "partly-proved",
-   "flags": [],
+   "flags": [
+    "hero.exit:threaded"
+   ],
    "chromium": "trade",
    "webkit": "trade",
    "visual": "E-s at the computed-value level under RG11 (consumer_eq_s; exact at integer scroll offsets, otherwise within the progress quantum: 1/(16R) in Chromium, 1 px on WebKit's main thread). Pixels: WebKit E in the v1 Simulator except a 30 px top band (78 levels). Chromium not-equal under the pixel rule (v1: ≤ 6 levels on 15-42k px, 1 device-px copy shift from GPU blending and snapping), so Q at best: PathPremises.raster_path fails there (INFERRED).",
