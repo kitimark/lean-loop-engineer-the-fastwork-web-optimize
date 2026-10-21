@@ -1,0 +1,632 @@
+import Lean.Data.Json
+import Fw.Measure.WebKitLag
+/-!
+# Felt-lag sessions on the real phone
+Frame-interval counts per zone, felt-mark windows, the arm comparison rule and the replay strokes of `packages/measure-webkit/src/device-session.mjs`.
+-/
+namespace Fw.Device.Session
+open Lean
+
+/-! ## Thresholds and zones -/
+
+/-- 34 ms in hundredths of a millisecond. -/
+def slow : Int := 3400
+
+/-- 50 ms in hundredths of a millisecond. -/
+def bad : Int := 5000
+
+theorem slow_lt_bad : slow < bad := by decide
+
+/-- The window a scroll position (tenth px) falls in. -/
+inductive Zone where
+  | hero | finish | rest
+  deriving DecidableEq, Repr
+
+/-- The name written in the output. -/
+def Zone.name : Zone → String
+  | .hero => "hero" | .finish => "finish" | .rest => "rest"
+
+/-- Hero to people is the first two viewports, the end of the page its last viewport, positions in tenth px. -/
+def zoneOf (vh10 maxY10 y : Int) : Zone :=
+  if y < 2 * vh10 then .hero
+  else if maxY10 - y < vh10 then .finish
+  else .rest
+
+theorem zoneOf_hero {vh10 maxY10 y : Int} (h : y < 2 * vh10) : zoneOf vh10 maxY10 y = .hero := by
+  simp [zoneOf, h]
+
+theorem zoneOf_finish {vh10 maxY10 y : Int} (h1 : ¬ y < 2 * vh10) (h2 : maxY10 - y < vh10) :
+    zoneOf vh10 maxY10 y = .finish := by
+  simp [zoneOf, h1, h2]
+
+theorem zoneOf_rest {vh10 maxY10 y : Int} (h1 : ¬ y < 2 * vh10) (h2 : ¬ maxY10 - y < vh10) :
+    zoneOf vh10 maxY10 y = .rest := by
+  simp [zoneOf, h1, h2]
+
+/-- The first region of the lag probe lies in the hero window. -/
+theorem regionA_in_hero {vh : Nat} (hv : 0 < vh) {maxY y : Int}
+    (h : Fw.Measure.WebKitLag.regionOf vh maxY y = .a) : zoneOf (vh * 10) (maxY * 10) (y * 10) = .hero := by
+  have := (Fw.Measure.WebKitLag.regionOf_a_iff_zone (vh := vh) (maxY := maxY) y).1 h
+  have h0 : Fw.Measure.WebKitLag.zoneOf vh y = 0 := this
+  have := (Fw.Measure.WebKitLag.zoneOf_eq_zero_iff hv y).1 h0
+  apply zoneOf_hero
+  omega
+
+/-- The last region of the lag probe lies in the finish or hero window. -/
+theorem regionB_in_finish_or_hero {vh : Nat} (hv : 0 < vh) {maxY y : Int}
+    (h : Fw.Measure.WebKitLag.regionOf vh maxY y = .b) :
+    zoneOf (vh * 10) (maxY * 10) (y * 10) = .finish ∨ zoneOf (vh * 10) (maxY * 10) (y * 10) = .hero := by
+  unfold Fw.Measure.WebKitLag.regionOf at h
+  by_cases h1 : Fw.Measure.WebKitLag.zoneOf vh y = 0
+  · simp [h1] at h
+  · by_cases h2 : Fw.Measure.WebKitLag.zoneOf vh (maxY - y) = 0
+    · have := (Fw.Measure.WebKitLag.zoneOf_eq_zero_iff hv (maxY - y)).1 h2
+      by_cases h3 : y * 10 < 2 * ((vh : Int) * 10)
+      · exact Or.inr (zoneOf_hero (by push_cast; omega))
+      · exact Or.inl (zoneOf_finish (by push_cast; omega) (by push_cast; omega))
+    · by_cases h3 : 2 ≤ Fw.Measure.WebKitLag.zoneOf vh y ∧ 2 ≤ Fw.Measure.WebKitLag.zoneOf vh (maxY - y) <;>
+        simp [h1, h2, h3] at h
+
+/-! ## Frame intervals -/
+
+/-- A frame in which the page scrolled: the interval to the frame before (hundredths of a ms) and the position (tenth px). -/
+structure Row where
+  dt : Int
+  y : Int
+  deriving Repr, DecidableEq
+
+/-- The moving frames of a list of (time, position) frames. -/
+def movingRows : List (Int × Int) → List Row
+  | a :: b :: rest => (if b.2 ≠ a.2 then [⟨b.1 - a.1, b.2⟩] else []) ++ movingRows (b :: rest)
+  | _ => []
+
+theorem movingRows_length : ∀ l : List (Int × Int), (movingRows l).length ≤ l.length - 1
+  | [] => by simp [movingRows]
+  | [_] => by simp [movingRows]
+  | a :: b :: rest => by
+    have ih := movingRows_length (b :: rest)
+    simp only [movingRows, List.length_append, List.length_cons] at ih ⊢
+    split <;> simp <;> omega
+
+/-- The frames of a list that exceed `th`. -/
+def countOver (th : Int) (rs : List Row) : Nat := rs.countP fun r => decide (th < r.dt)
+
+theorem countOver_bad_le_slow (rs : List Row) : countOver bad rs ≤ countOver slow rs := by
+  apply List.countP_mono_left
+  intro r _ h
+  have := slow_lt_bad
+  simp only [decide_eq_true_eq] at h ⊢
+  omega
+
+theorem countOver_le_length (th : Int) (rs : List Row) : countOver th rs ≤ rs.length :=
+  List.countP_le_length
+
+/-- The largest value of a list, 0 when it is empty. -/
+def maxOf0 (l : List Int) : Int := l.foldr max 0
+
+theorem le_maxOf0 : ∀ {l : List Int} {x : Int}, x ∈ l → x ≤ maxOf0 l
+  | [], _, h => by simp at h
+  | a :: l, x, h => by
+    rcases List.mem_cons.1 h with rfl | h
+    · exact Int.le_max_left _ _
+    · exact Int.le_trans (le_maxOf0 h) (Int.le_max_right _ _)
+
+/-- The longest interval. -/
+def longest (rs : List Row) : Int := maxOf0 (rs.map (·.dt))
+
+theorem le_longest {rs : List Row} {r : Row} (h : r ∈ rs) : r.dt ≤ longest rs :=
+  le_maxOf0 (List.mem_map.2 ⟨r, h, rfl⟩)
+
+/-- The interval at index `n / 2` of the sorted intervals, 0 when there are none. -/
+def median (rs : List Row) : Int := ((rs.map (·.dt)).mergeSort fun a b => decide (a ≤ b)).getD (rs.length / 2) 0
+
+theorem median_mem {rs : List Row} (h : rs ≠ []) : ∃ r ∈ rs, r.dt = median rs := by
+  have hl : rs.length / 2 < ((rs.map (·.dt)).mergeSort fun a b => decide (a ≤ b)).length := by
+    rw [List.length_mergeSort, List.length_map]
+    have : 0 < rs.length := List.length_pos_iff.2 h
+    omega
+  have hm : median rs ∈ (rs.map (·.dt)).mergeSort fun a b => decide (a ≤ b) := by
+    unfold median
+    rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hl]
+    exact List.getElem_mem _
+  obtain ⟨r, hr, e⟩ := List.mem_map.1 ((List.mem_mergeSort).1 hm)
+  exact ⟨r, hr, e⟩
+
+theorem median_le_longest {rs : List Row} (h : rs ≠ []) : median rs ≤ longest rs := by
+  obtain ⟨r, hr, e⟩ := median_mem h
+  rw [← e]
+  exact le_longest hr
+
+/-- Hundredths of a count per 100 frames, rounded down; 0 for no frames. -/
+def per100 (k n : Nat) : Nat := 10000 * k / n
+
+theorem per100_le {k n : Nat} (h : k ≤ n) : per100 k n ≤ 10000 := by
+  unfold per100
+  rcases Nat.eq_zero_or_pos n with rfl | hn
+  · simp
+  · exact Nat.div_le_of_le_mul (by have := Nat.mul_le_mul_left 10000 h; omega)
+
+/-- The counts of one set of moving frames. -/
+structure Stat where
+  n : Nat
+  over34 : Nat
+  over50 : Nat
+  per34 : Nat
+  per50 : Nat
+  longest : Int
+  median : Int
+  deriving Repr, DecidableEq
+
+/-- Counts over 34 and 50 ms, per 100 frames, longest and median interval. -/
+def stat (rs : List Row) : Stat :=
+  ⟨rs.length, countOver slow rs, countOver bad rs, per100 (countOver slow rs) rs.length,
+    per100 (countOver bad rs) rs.length, longest rs, median rs⟩
+
+theorem stat_over50_le_over34 (rs : List Row) : (stat rs).over50 ≤ (stat rs).over34 := countOver_bad_le_slow rs
+
+theorem stat_over34_le_n (rs : List Row) : (stat rs).over34 ≤ (stat rs).n := countOver_le_length _ _
+
+/-- The moving frames in zone `z`. -/
+def inZone (vh10 maxY10 : Int) (z : Zone) (rs : List Row) : List Row :=
+  rs.filter fun r => zoneOf vh10 maxY10 r.y == z
+
+/-- The three zones hold every moving frame once. -/
+theorem zone_counts_sum (vh10 maxY10 : Int) :
+    ∀ rs : List Row, (inZone vh10 maxY10 .hero rs).length + (inZone vh10 maxY10 .finish rs).length +
+      (inZone vh10 maxY10 .rest rs).length = rs.length
+  | [] => by simp [inZone]
+  | r :: rs => by
+    have ih := zone_counts_sum vh10 maxY10 rs
+    unfold inZone at ih ⊢
+    cases h : zoneOf vh10 maxY10 r.y <;> simp [h] <;> omega
+
+/-! ## The arm comparison rule -/
+
+/-- Largest minus smallest of the per-pass values, 0 when there are none. -/
+def spread (l : List Int) : Int :=
+  match l.max?, l.min? with
+  | some h, some m => h - m
+  | _, _ => 0
+
+/-- How an arm compares with the original; lower values are better. -/
+inductive Verdict where
+  | beats | worse | same | unresolved
+  deriving DecidableEq, Repr
+
+/-- The name written in the output. -/
+def Verdict.name : Verdict → String
+  | .beats => "beats" | .worse => "worse" | .same => "same" | .unresolved => "unresolved"
+
+/-- An arm beats (or loses to) the original only when its extreme pass is clear of the original's by more than the original's pass-to-pass spread. -/
+def verdict (orig arm : List Int) : Verdict :=
+  if orig.length < 2 then .unresolved else
+  match orig.min?, orig.max?, arm.min?, arm.max? with
+  | some oLo, some oHi, some aLo, some aHi =>
+    if aHi + spread orig < oLo then .beats
+    else if oHi + spread orig < aLo then .worse
+    else .same
+  | _, _, _, _ => .unresolved
+
+theorem verdict_unresolved_single {orig : List Int} (arm : List Int) (h : orig.length < 2) :
+    verdict orig arm = .unresolved := by
+  simp [verdict, h]
+
+theorem verdict_unresolved_no_arm (orig : List Int) : verdict orig [] = .unresolved := by
+  unfold verdict
+  split <;> simp
+
+theorem verdict_beats_beyond {orig arm : List Int} (h : verdict orig arm = .beats) :
+    ∀ o ∈ orig, ∀ a ∈ arm, a + spread orig < o := by
+  intro o ho a ha
+  unfold verdict at h
+  split at h
+  · simp at h
+  · split at h
+    · rename_i oLo oHi aLo aHi e1 e2 e3 e4
+      split at h
+      · rename_i hb
+        have h1 := ((List.min?_eq_some_iff).1 e1).2 o ho
+        have h2 := ((List.max?_eq_some_iff).1 e4).2 a ha
+        omega
+      · split at h <;> simp at h
+    · simp at h
+
+theorem verdict_worse_beyond {orig arm : List Int} (h : verdict orig arm = .worse) :
+    ∀ o ∈ orig, ∀ a ∈ arm, o + spread orig < a := by
+  intro o ho a ha
+  unfold verdict at h
+  split at h
+  · simp at h
+  · split at h
+    · rename_i oLo oHi aLo aHi e1 e2 e3 e4
+      split at h
+      · simp at h
+      · split at h
+        · rename_i hb
+          have h1 := ((List.max?_eq_some_iff).1 e2).2 o ho
+          have h2 := ((List.min?_eq_some_iff).1 e3).2 a ha
+          omega
+        · simp at h
+    · simp at h
+
+theorem verdict_beats_of {orig arm : List Int} {oLo oHi aLo aHi : Int} (hl : 2 ≤ orig.length)
+    (e1 : orig.min? = some oLo) (e2 : orig.max? = some oHi) (e3 : arm.min? = some aLo) (e4 : arm.max? = some aHi)
+    (h : aHi + spread orig < oLo) : verdict orig arm = .beats := by
+  simp [verdict, show ¬ orig.length < 2 by omega, e1, e2, e3, e4, h]
+
+theorem verdict_worse_of {orig arm : List Int} {oLo oHi aLo aHi : Int} (hl : 2 ≤ orig.length)
+    (e1 : orig.min? = some oLo) (e2 : orig.max? = some oHi) (e3 : arm.min? = some aLo) (e4 : arm.max? = some aHi)
+    (h1 : ¬ aHi + spread orig < oLo) (h2 : oHi + spread orig < aLo) : verdict orig arm = .worse := by
+  simp [verdict, show ¬ orig.length < 2 by omega, e1, e2, e3, e4, h1, h2]
+
+theorem verdict_same_of {orig arm : List Int} {oLo oHi aLo aHi : Int} (hl : 2 ≤ orig.length)
+    (e1 : orig.min? = some oLo) (e2 : orig.max? = some oHi) (e3 : arm.min? = some aLo) (e4 : arm.max? = some aHi)
+    (h1 : ¬ aHi + spread orig < oLo) (h2 : ¬ oHi + spread orig < aLo) : verdict orig arm = .same := by
+  simp [verdict, show ¬ orig.length < 2 by omega, e1, e2, e3, e4, h1, h2]
+
+/-- An arm pass within the original's spread of an original pass is never a win. -/
+theorem not_beats_within {orig arm : List Int} {o a : Int} (ho : o ∈ orig) (ha : a ∈ arm)
+    (h : o ≤ a + spread orig) : verdict orig arm ≠ .beats := by
+  intro hb
+  have := verdict_beats_beyond hb o ho a ha
+  omega
+
+/-! ## Animated values of a part -/
+
+/-- A frame pair in which the page moved but the value (per mille) stayed, mid-transition. -/
+def stallAt (a b : Int × Int) : Bool :=
+  a.1 != b.1 && a.2 == b.2 && decide (0 < a.2) && decide (a.2 < 1000)
+
+/-- Frame pairs in which the page moved but the value stayed mid-transition. -/
+def stalls : List (Int × Int) → Nat
+  | a :: b :: rest => (if stallAt a b then 1 else 0) + stalls (b :: rest)
+  | _ => 0
+
+/-- Absolute value steps between consecutive frames. -/
+def stepAbs : List (Int × Int) → List Int
+  | a :: b :: rest => (if a.2 ≤ b.2 then b.2 - a.2 else a.2 - b.2) :: stepAbs (b :: rest)
+  | _ => []
+
+/-- The largest step of the value. -/
+def maxStep (l : List (Int × Int)) : Int := maxOf0 (stepAbs l)
+
+theorem stalls_le : ∀ l : List (Int × Int), stalls l ≤ l.length - 1
+  | [] => by simp [stalls]
+  | [_] => by simp [stalls]
+  | a :: b :: rest => by
+    have ih := stalls_le (b :: rest)
+    simp only [stalls, List.length_cons] at ih ⊢
+    split <;> omega
+
+theorem stallAt_moved {a b : Int × Int} (h : stallAt a b = true) : a.1 ≠ b.1 := by
+  simp [stallAt] at h
+  exact h.1.1.1
+
+theorem stallAt_mid {a b : Int × Int} (h : stallAt a b = true) : 0 < a.2 ∧ a.2 < 1000 := by
+  simp [stallAt] at h
+  exact ⟨h.1.2, h.2⟩
+
+theorem stallAt_held {a b : Int × Int} (h : stallAt a b = true) : a.2 = b.2 := by
+  simp [stallAt] at h
+  exact h.1.1.2
+
+theorem le_maxStep {l : List (Int × Int)} {a b : Int × Int} (h : [a, b] <+: l) :
+    (if a.2 ≤ b.2 then b.2 - a.2 else a.2 - b.2) ≤ maxStep l := by
+  obtain ⟨t, rfl⟩ := h
+  apply le_maxOf0
+  simp [stepAbs]
+
+/-- A value that never changes has no step. -/
+theorem maxStep_const (v : Int) : ∀ l : List Int, maxStep (l.map fun y => (y, v)) = 0
+  | [] => by simp [maxStep, stepAbs, maxOf0]
+  | [_] => by simp [maxStep, stepAbs, maxOf0]
+  | a :: b :: rest => by
+    have ih := maxStep_const v (b :: rest)
+    simp only [List.map_cons] at ih ⊢
+    simp [maxStep, stepAbs, maxOf0] at ih ⊢
+    omega
+
+/-! ## Touches, taps and felt marks -/
+
+/-- A touch event: start, move, stop or cancel. -/
+inductive Phase where
+  | start | move | stop | cancel
+  deriving DecidableEq, Repr
+
+/-- The letter written in the record. -/
+def Phase.code : Phase → String
+  | .start => "s" | .move => "m" | .stop => "e" | .cancel => "c"
+
+/-- One touch event: time (hundredths of a ms), position (tenth px), fingers down after it. -/
+structure Touch where
+  t : Int
+  ph : Phase
+  x : Int
+  y : Int
+  n : Nat
+  deriving Repr, DecidableEq
+
+/-- Strokes: start to stop; a cancel or a start inside a stroke drops the open one, events outside a stroke are ignored. -/
+def strokesAux : Option (List Touch) → List Touch → List (List Touch)
+  | _, [] => []
+  | none, e :: es => if e.ph = .start then strokesAux (some [e]) es else strokesAux none es
+  | some cur, e :: es =>
+    match e.ph with
+    | .start => strokesAux (some [e]) es
+    | .move => strokesAux (some (cur ++ [e])) es
+    | .stop => (cur ++ [e]) :: strokesAux none es
+    | .cancel => strokesAux none es
+
+/-- The strokes of a touch stream. -/
+def strokes (ts : List Touch) : List (List Touch) := strokesAux none ts
+
+/-- A stroke is a tap when it lasts at most 300 ms and no event is more than 10 px from its start. -/
+def isTap (s : List Touch) : Bool :=
+  match s.head?, s.getLast? with
+  | some a, some z =>
+    decide (z.t - a.t ≤ 30000) && s.all fun e => decide ((e.x - a.x).natAbs ≤ 100 ∧ (e.y - a.y).natAbs ≤ 100)
+  | _, _ => false
+
+theorem isTap_long {s : List Touch} {a z : Touch} (ha : s.head? = some a) (hz : s.getLast? = some z)
+    (h : 30000 < z.t - a.t) : isTap s = false := by
+  simp [isTap, ha, hz]
+  omega
+
+theorem isTap_travel {s : List Touch} {a e : Touch} (ha : s.head? = some a) (he : e ∈ s)
+    (h : 100 < (e.x - a.x).natAbs ∨ 100 < (e.y - a.y).natAbs) : isTap s = false := by
+  unfold isTap
+  rw [ha]
+  cases hz : s.getLast? with
+  | none => simp
+  | some z =>
+    simp only [Bool.and_eq_false_iff]
+    right
+    rw [Bool.eq_false_iff, Ne, List.all_eq_true]
+    intro hall
+    have := hall e he
+    simp at this
+    omega
+
+theorem isTap_nil : isTap [] = false := by simp [isTap]
+
+/-- A tap: when it ended and where it began (tenth px). -/
+structure Tap where
+  t : Int
+  x : Int
+  y : Int
+  deriving Repr, DecidableEq
+
+/-- The tap of a stroke, if it is one. -/
+def tapOf (s : List Touch) : Option Tap :=
+  match s.head?, s.getLast? with
+  | some a, some z => if isTap s then some ⟨z.t, a.x, a.y⟩ else none
+  | _, _ => none
+
+/-- The taps of a touch stream. -/
+def taps (ts : List Touch) : List Tap := (strokes ts).filterMap tapOf
+
+/-- Two taps within 40 px of each other on both axes. -/
+def near (a b : Tap) : Bool := decide ((a.x - b.x).natAbs ≤ 400 ∧ (a.y - b.y).natAbs ≤ 400)
+
+/-- Three taps are a felt mark when each follows the one before within 500 ms and lies near it. -/
+def triple (a b c : Tap) : Bool :=
+  decide (b.t - a.t ≤ 50000 ∧ c.t - b.t ≤ 50000) && near a b && near b c
+
+theorem triple_slow_first {a b c : Tap} (h : 50000 < b.t - a.t) : triple a b c = false := by
+  simp [triple]
+  omega
+
+theorem triple_slow_second {a b c : Tap} (h : 50000 < c.t - b.t) : triple a b c = false := by
+  simp [triple]
+  omega
+
+theorem triple_far_first {a b c : Tap} (h : near a b = false) : triple a b c = false := by
+  simp [triple, h]
+
+theorem triple_far_second {a b c : Tap} (h : near b c = false) : triple a b c = false := by
+  simp [triple, h]
+
+/-- The third tap of every felt mark, scanning from the left; a mark uses its three taps once. -/
+def marksOf : List Tap → List Tap
+  | a :: b :: c :: rest => if triple a b c then c :: marksOf rest else marksOf (b :: c :: rest)
+  | _ => []
+termination_by l => l.length
+
+theorem marksOf_length : ∀ l : List Tap, 3 * (marksOf l).length ≤ l.length
+  | [] => by simp [marksOf]
+  | [_] => by simp [marksOf]
+  | [_, _] => by simp [marksOf]
+  | a :: b :: c :: rest => by
+    have h1 := marksOf_length rest
+    have h2 := marksOf_length (b :: c :: rest)
+    rw [marksOf]
+    split
+    · simp only [List.length_cons] at h1 ⊢
+      omega
+    · simp only [List.length_cons] at h2 ⊢
+      omega
+termination_by l => l.length
+
+theorem marksOf_mem : ∀ {l : List Tap} {m : Tap}, m ∈ marksOf l → m ∈ l
+  | [], _, h => by simp [marksOf] at h
+  | [_], _, h => by simp [marksOf] at h
+  | [_, _], _, h => by simp [marksOf] at h
+  | a :: b :: c :: rest, m, h => by
+    rw [marksOf] at h
+    split at h
+    · rcases List.mem_cons.1 h with rfl | h
+      · simp
+      · exact List.mem_cons_of_mem _ (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ (marksOf_mem h)))
+    · exact List.mem_cons_of_mem _ (marksOf_mem h)
+termination_by l => l.length
+
+/-- Two taps are never a mark. -/
+theorem marksOf_pair (a b : Tap) : marksOf [a, b] = [] := by simp [marksOf]
+
+/-- The scroll position at time `t`: the last frame at or before it, else the first frame, else 0. -/
+def yAt (fs : List (Int × Int)) (t : Int) : Int :=
+  match (fs.filter fun f => decide (f.1 ≤ t)).getLast? with
+  | some f => f.2
+  | none => match fs with
+    | f :: _ => f.2
+    | [] => 0
+
+theorem yAt_nil (t : Int) : yAt [] t = 0 := by simp [yAt]
+
+/-- The lookback of a felt mark: 1.5 s in hundredths of a ms. -/
+def lookback : Int := 150000
+
+/-- The frames from `lookback` before time `t` up to `t`. -/
+def windowFrames (fs : List (Int × Int)) (t : Int) : List (Int × Int) :=
+  fs.filter fun f => decide (t - lookback ≤ f.1 ∧ f.1 ≤ t)
+
+theorem mem_windowFrames {fs : List (Int × Int)} {t : Int} {f : Int × Int} :
+    f ∈ windowFrames fs t ↔ f ∈ fs ∧ t - lookback ≤ f.1 ∧ f.1 ≤ t := by
+  simp [windowFrames]
+
+/-- A felt mark: when, where, in which zone, and the frame intervals of its lookback window. -/
+structure Felt where
+  t : Int
+  y : Int
+  zone : Zone
+  stat : Stat
+  deriving Repr, DecidableEq
+
+/-- The felt mark of a triple tap. -/
+def feltOf (vh10 maxY10 : Int) (fs : List (Int × Int)) (m : Tap) : Felt :=
+  let y := yAt fs m.t
+  ⟨m.t, y, zoneOf vh10 maxY10 y, stat (movingRows (windowFrames fs m.t))⟩
+
+theorem felt_n_le (vh10 maxY10 : Int) (fs : List (Int × Int)) (m : Tap) :
+    (feltOf vh10 maxY10 fs m).stat.n ≤ (windowFrames fs m.t).length - 1 :=
+  movingRows_length _
+
+theorem windowFrames_length_le (fs : List (Int × Int)) (t : Int) : (windowFrames fs t).length ≤ fs.length :=
+  List.length_filter_le _ _
+
+/-! ## The replay strokes -/
+
+/-- The frame of time `t` on the 60 Hz grid that starts at `t0` (hundredths of a ms). -/
+def frameOf (t0 t : Int) : Nat := ((t - t0) * 60 / 100000).toNat
+
+/-- A replayed stroke: the frame of its touch start and the finger position (tenth px) in each frame from there. -/
+structure Stroke where
+  f0 : Nat
+  path : List (Int × Int)
+  deriving Repr, DecidableEq
+
+/-- The finger position at frame `j`: the last event at or before it, else the first. -/
+def posAt (s : List Touch) (t0 : Int) (j : Nat) : Int × Int :=
+  match (s.filter fun e => decide (frameOf t0 e.t ≤ j)).getLast? with
+  | some e => (e.x, e.y)
+  | none => match s with
+    | e :: _ => (e.x, e.y)
+    | [] => (0, 0)
+
+/-- A point clamped into the viewport box. -/
+def clampPt (w10 h10 : Int) (p : Int × Int) : Int × Int := (max 0 (min w10 p.1), max 0 (min h10 p.2))
+
+/-- Whether a point lies in the viewport box. -/
+def inBox (w10 h10 : Int) (p : Int × Int) : Bool :=
+  decide (0 ≤ p.1 ∧ p.1 ≤ w10 ∧ 0 ≤ p.2 ∧ p.2 ≤ h10)
+
+theorem clampPt_inBox {w10 h10 : Int} (hw : 0 ≤ w10) (hh : 0 ≤ h10) (p : Int × Int) :
+    inBox w10 h10 (clampPt w10 h10 p) = true := by
+  unfold inBox
+  exact decide_eq_true (by simp only [clampPt]; refine ⟨?_, ?_, ?_, ?_⟩ <;> omega)
+
+/-- A stroke on the frame grid, not before frame `floor`, at least two frames long, clamped into the viewport. -/
+def strokeOf (t0 : Int) (floor : Nat) (w10 h10 : Int) (s : List Touch) : Option Stroke :=
+  match s.head?, s.getLast? with
+  | some a, some z =>
+    let ks := max (frameOf t0 a.t) floor
+    let ke := max (frameOf t0 z.t) (ks + 1)
+    some ⟨ks, (List.range (ke - ks + 1)).map fun i => clampPt w10 h10 (posAt s t0 (ks + i))⟩
+  | _, _ => none
+
+/-- The strokes in order, each starting after the one before has ended. -/
+def strokesGo (t0 : Int) (w10 h10 : Int) : Nat → List (List Touch) → List Stroke
+  | _, [] => []
+  | floor, s :: ss =>
+    match strokeOf t0 floor w10 h10 s with
+    | some st => st :: strokesGo t0 w10 h10 (st.f0 + st.path.length) ss
+    | none => strokesGo t0 w10 h10 floor ss
+
+/-- A stroke the loader accepts: two points or more, all inside the viewport. -/
+def strokeOk (w10 h10 : Int) (st : Stroke) : Bool :=
+  decide (2 ≤ st.path.length) && st.path.all (inBox w10 h10)
+
+/-- Strokes in order and disjoint: each starts at or after `floor`, and the next floor is after its last frame. -/
+def ordered : Nat → List Stroke → Bool
+  | _, [] => true
+  | floor, st :: r => decide (floor ≤ st.f0) && ordered (st.f0 + st.path.length) r
+
+/-- The last frame after the strokes, 0 for none. -/
+def endFrame : List Stroke → Nat
+  | [] => 0
+  | [st] => st.f0 + st.path.length
+  | _ :: r => endFrame r
+
+/-- What the CI profile loader accepts of a replay: every stroke ok, in order, ending within `cap` frames. -/
+def replayOk (w10 h10 : Int) (cap : Nat) (ss : List Stroke) : Bool :=
+  !ss.isEmpty && ss.all (strokeOk w10 h10) && ordered 0 ss && decide (endFrame ss ≤ cap)
+
+theorem strokeOf_spec {t0 : Int} {floor : Nat} {w10 h10 : Int} (hw : 0 ≤ w10) (hh : 0 ≤ h10) {s : List Touch} {st : Stroke}
+    (h : strokeOf t0 floor w10 h10 s = some st) : floor ≤ st.f0 ∧ strokeOk w10 h10 st = true := by
+  unfold strokeOf at h
+  split at h
+  · simp only [Option.some.injEq] at h
+    subst h
+    refine ⟨Nat.le_max_right _ _, ?_⟩
+    simp only [strokeOk, Bool.and_eq_true, decide_eq_true_eq, List.all_eq_true, List.mem_map, List.length_map,
+      List.length_range]
+    refine ⟨by omega, ?_⟩
+    rintro p ⟨i, _, rfl⟩
+    exact clampPt_inBox hw hh _
+  · simp at h
+
+theorem strokesGo_ok (t0 : Int) {w10 h10 : Int} (hw : 0 ≤ w10) (hh : 0 ≤ h10) :
+    ∀ (ss : List (List Touch)) (floor : Nat),
+      ordered floor (strokesGo t0 w10 h10 floor ss) = true ∧ (strokesGo t0 w10 h10 floor ss).all (strokeOk w10 h10) = true
+  | [], floor => by simp [strokesGo, ordered]
+  | s :: ss, floor => by
+    unfold strokesGo
+    split
+    · rename_i st hst
+      obtain ⟨h1, h2⟩ := strokeOf_spec hw hh hst
+      obtain ⟨ih1, ih2⟩ := strokesGo_ok t0 hw hh ss (st.f0 + st.path.length)
+      simp [ordered, h1, h2, ih1, ih2]
+    · exact strokesGo_ok t0 hw hh ss floor
+
+/-- The strokes of a stream that are not taps. -/
+def replayStrokes (ts : List Touch) : List (List Touch) := (strokes ts).filter fun s => !isTap s
+
+theorem replayStrokes_not_tap {ts : List Touch} {s : List Touch} (h : s ∈ replayStrokes ts) : isTap s = false := by
+  simp [replayStrokes] at h
+  exact h.2
+
+/-- The first replayed stroke's first event time, 0 for none. -/
+def t0Of (ss : List (List Touch)) : Int :=
+  match ss with
+  | (a :: _) :: _ => a.t
+  | _ => 0
+
+/-- Whether no event had more than one finger down. -/
+def singleFinger (ts : List Touch) : Bool := ts.all fun e => decide (e.n ≤ 1)
+
+/-- The replay of a stream in a viewport of `w` by `h` px, none when a second finger was ever down. -/
+def replay (ts : List Touch) (w h : Nat) : Option (List Stroke) :=
+  if singleFinger ts then
+    some (strokesGo (t0Of (replayStrokes ts)) ((w : Int) * 10) ((h : Int) * 10) 0 (replayStrokes ts))
+  else none
+
+theorem replay_multi_refused {ts : List Touch} (w h : Nat) (hm : singleFinger ts = false) : replay ts w h = none := by
+  simp [replay, hm]
+
+theorem replay_ok_of_single {ts : List Touch} (w h : Nat) (hs : singleFinger ts = true) :
+    ∃ ss, replay ts w h = some ss ∧ ordered 0 ss = true ∧ ss.all (strokeOk ((w : Int) * 10) ((h : Int) * 10)) = true := by
+  have := strokesGo_ok (t0Of (replayStrokes ts)) (w10 := (w : Int) * 10) (h10 := (h : Int) * 10) (by omega) (by omega)
+    (replayStrokes ts) 0
+  exact ⟨_, by simp [replay, hs], this⟩
+
+end Fw.Device.Session
