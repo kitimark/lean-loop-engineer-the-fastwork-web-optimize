@@ -3327,4 +3327,133 @@ theorem fifo_no_overtake {c : Cfg} {s : State} {e : Event} {q : Req} {A B : List
     rw [hb2] at this
     cases this
 
+/-! ## The hypotheses are met -/
+
+theorem ex_inv (es : List Event) : Inv Ex.cfg (Ex.after es).1 := run_inv es _ (init_inv Ex.cfg)
+
+/-- A ready service resource 1 with group `⟨500, 7⟩` and its lease 0 held by client 1. -/
+abbrev Ex.held : List Event := [.tick 1 Ex.calm, .request 42 1 Ex.sim, .spawned 1 (some ⟨500, 7⟩), .ready 1]
+
+/-- The same resource after client 1 released the lease. -/
+abbrev Ex.freed : List Event := Ex.held ++ [.release 42 1 0]
+
+example : step Ex.cfg (init Ex.cfg) (.request 9 1 Ex.big) = (init Ex.cfg, []) := sup_auth _ _ _ rfl
+
+example : ∃ x ∈ (Ex.after Ex.held).1.res, x.proc = some ⟨500, 7⟩ ∧
+    ∀ y ∈ (Ex.after Ex.held).1.res, y.proc = some ⟨500, 7⟩ → y = x := by
+  obtain ⟨x, hx, hi⟩ : ∃ x ∈ (Ex.after Ex.held).1.res, x.proc = some ⟨500, 7⟩ := by decide
+  exact ⟨x, hx, hi, fun y hy hyi => owner_unique (ex_inv _) hy hx hyi hi⟩
+
+example : ⟨0, 1, .svc, 1, {}, 1, 61, 0⟩ ∈
+    (step Ex.cfg (Ex.after [.tick 1 Ex.calm, .request 42 1 Ex.sim, .spawned 1 (some ⟨500, 7⟩)]).1 (.ready 1)).1.leases :=
+  (grant_ready (ex_inv _) (n := 0) (e := .ready 1) (by decide) rfl).1
+
+example : ∃ r ∈ (step Ex.cfg (Ex.after [.tick 1 Ex.calm]).1 (.request 42 1 Ex.sim)).1.res, r.id = 1 ∧
+    (recent Ex.cfg (step Ex.cfg (Ex.after [.tick 1 Ex.calm]).1 (.request 42 1 Ex.sim)).1.now r.crashes).length <
+      Ex.cfg.maxRestarts := by
+  obtain ⟨r, hr, h1, _, h3⟩ := restart_bounded (ex_inv [.tick 1 Ex.calm]) (e := .request 42 1 Ex.sim) (rid := 1) (k := 1)
+    (by decide)
+  exact ⟨r, hr, h1, h3⟩
+
+example : Fits Ex.cfg (step Ex.cfg (Ex.after [.tick 1 Ex.calm]).1 (.request 42 1 Ex.sim)).1 :=
+  spawn_fits (ex_inv _) (e := .request 42 1 Ex.sim) (rid := 1) (k := 1) (by decide)
+
+example : ∃ r ∈ (step Ex.cfg (Ex.after [.tick 1 Ex.calm]).1 (.request 42 1 Ex.sim)).1.res, r.id = 1 :=
+  match spawned_recorded (ex_inv [.tick 1 Ex.calm]) (e := .request 42 1 Ex.sim) (rid := 1) (k := 1) (by decide) with
+  | ⟨r, hr, h1, _⟩ => ⟨r, hr, h1⟩
+
+example : Fits Ex.cfg (step Ex.cfg (Ex.after [.tick 1 Ex.calm]).1 (.request 42 1 Ex.big)).1 :=
+  admit_fits (ex_inv _) (n := 0) (l := ⟨0, 1, .job, 0, { ram := 5000 }, 1, 61, 0⟩) (by decide) rfl (by decide)
+
+example : ∀ r, Cmd.reply 1 r ∉
+    (step Ex.cfg (Ex.after [.tick 1 Ex.calm, .request 42 1 Ex.big, .request 42 2 Ex.big]).1 (.clientGone 2)).2 :=
+  (client_gone_releases (o := 2) (ex_inv _)).2.2 ⟨1, 2, .job, 0, { ram := 5000 }, 60, 1, 1, 31⟩ (by decide) rfl
+
+example : ∃ r, Cmd.reply 1 r ∈
+    (step Ex.cfg (Ex.after [.tick 1 Ex.calm, .request 42 1 Ex.big]).1 (.request Ex.cfg.token 2
+      { Ex.big with parent := some 0 })).2 := by
+  have := (nested_no_wait (o := 2) (ex_inv [.tick 1 Ex.calm, .request 42 1 Ex.big]) (a := { Ex.big with parent := some 0 })
+    rfl).1
+  exact this
+
+example : (crash Ex.cfg 5 false { id := 1, kind := 1, cost := {}, crashes := [3] }).phase = .failed 105 .restartCap :=
+  crash_cap Ex.cfg 5 false _ (by decide)
+
+example : (step Ex.cfg (Ex.after [.tick 1 Ex.calm]).1 (.tick 2 { Ex.calm with pressure := 2 })).1.shedding = true :=
+  (overrun_sheds (ex_inv _) (Or.inl (by decide))).1
+
+example : ∀ rid k, Cmd.reply 0 .op ≠ .spawn rid k :=
+  (starvation_limit (e := .op 42 1) (x := .reply 0 .op) (init_inv Ex.cfg) (by decide) (by decide)).1
+
+example : NoAdm (Cmd.reply 0 .draining) := drain_quiet (e := .drain 42 1) (init_inv Ex.cfg) (by decide) (by decide)
+
+example : (step Ex.cfg (Ex.after [.tick 1 Ex.calm, .drain 42 1]).1 (.tick 2 Ex.calm)).1.leases = [] :=
+  (drain_exit (ex_inv _) (by decide)).2
+
+example : ∀ r ∈ (step Ex.cfg (Ex.after Ex.freed).1 (.tick 20 Ex.calm)).1.res, r.proc = some ⟨500, 7⟩ →
+    leasesOn (step Ex.cfg (Ex.after Ex.freed).1 (.tick 20 Ex.calm)).1 r.id = [] :=
+  stop_never_leased (g := .term) (ex_inv _) (by decide)
+
+example : ∃ y ∈ (Ex.after Ex.freed).1.res, y.proc = some ⟨500, 7⟩ := by
+  rcases signal_identity (t := .group ⟨500, 7⟩) (g := .term) (e := .tick 20 Ex.calm) (ex_inv Ex.freed) (by decide) with
+    ⟨i, e, h | ⟨_, h⟩ | ⟨_, _, _, h, _⟩⟩ | ⟨_, _, _, _, _, e⟩ | ⟨_, _, _, h, _⟩
+  · injection e with e; subst e; exact h
+  · cases h
+  · cases h
+  · cases e
+  · cases h
+
+example : Cmd.signal (.group ⟨500, 7⟩) .kill ∈
+    (step Ex.cfg (Ex.after (Ex.freed ++ [.tick 20 Ex.calm])).1 (.tick 30 Ex.calm)).2 := by
+  obtain ⟨x, hx, hp, hi⟩ : ∃ x ∈ (Ex.after (Ex.freed ++ [.tick 20 Ex.calm])).1.res,
+      x.phase = .stopping 20 .term ∧ x.proc = some ⟨500, 7⟩ := by decide
+  exact stop_escalates hx hp hi (by decide)
+
+example : ∃ y ∈ (step Ex.cfg (Ex.after [.tick 1 Ex.calm, .request 42 1 Ex.sim]).1 (.tick 25 Ex.calm)).1.res,
+    y.id = 1 ∧ ∃ u w, y.phase = .failed u w := by
+  obtain ⟨x, hx, hp, hid⟩ : ∃ x ∈ (Ex.after [.tick 1 Ex.calm, .request 42 1 Ex.sim]).1.res,
+      x.phase = .starting 1 ∧ x.id = 1 := by decide
+  obtain ⟨y, hy, e, h⟩ := (start_bounded (now := 25) (smp := Ex.calm) (ex_inv _) hx hp (by decide)).1
+  exact ⟨y, hy, e.trans hid, h⟩
+
+example : Cmd.signal (.group ⟨500, 7⟩) .term ∈ (step Ex.cfg (Ex.after Ex.freed).1 (.tick 20 Ex.calm)).2 := by
+  obtain ⟨x, hx, hp, hi, hpin, ha, hl, hg⟩ : ∃ x ∈ (Ex.after Ex.freed).1.res, x.phase = .ready ∧
+      x.proc = some ⟨500, 7⟩ ∧ Ex.cfg.pinned x.kind = false ∧ x.adopted = false ∧
+      (∀ l ∈ (Ex.after Ex.freed).1.leases, l.kind = .svc → l.rid ≠ x.id) ∧ x.lastUse + Ex.cfg.grace x.kind ≤ 20 := by
+    decide
+  exact idle_stopped hx hp hi hpin (Or.inl ha) hl hg
+
+example : ∃ q ∈ (step Ex.cfg (Ex.after Ex.freed).1 (.request 42 2 { Ex.big with cost := { ram := 6000 } })).1.pending,
+    q ∈ (pre Ex.cfg (Ex.after Ex.freed).1 (.request 42 2 { Ex.big with cost := { ram := 6000 } })).1.pending :=
+  (evict_for_pending (ex_inv _) rfl (i := ⟨500, 7⟩) (by decide)).1
+
+example : (∃ now smp, Event.tick 20 Ex.calm = .tick now smp ∧ ∃ y, y.proc = some ⟨500, 7⟩ ∧
+      (y ∈ idle Ex.cfg (observe Ex.cfg (Ex.after Ex.freed).1 now smp).1 ∨
+        ((idleStage Ex.cfg (observe Ex.cfg (Ex.after Ex.freed).1 now smp).1).1.shedding = true ∧
+          y ∈ shedPick Ex.cfg (idleStage Ex.cfg (observe Ex.cfg (Ex.after Ex.freed).1 now smp).1).1)))
+    ∨ ((∃ q ∈ (step Ex.cfg (Ex.after Ex.freed).1 (.tick 20 Ex.calm)).1.pending,
+        q ∈ (pre Ex.cfg (Ex.after Ex.freed).1 (.tick 20 Ex.calm)).1.pending) ∧
+      ∃ y ∈ (pre Ex.cfg (Ex.after Ex.freed).1 (.tick 20 Ex.calm)).1.res, y.proc = some ⟨500, 7⟩ ∧
+        y.phase = .ready ∧ Ex.cfg.pinned y.kind = false ∧
+        ∀ l ∈ (pre Ex.cfg (Ex.after Ex.freed).1 (.tick 20 Ex.calm)).1.leases, l.kind = .svc → l.rid ≠ y.id) :=
+  stop_only_idle (ex_inv _) (by decide)
+
+example : Cmd.revoke 1 0 ∈ (step Ex.cfg (Ex.after Ex.held).1 (.childExit ⟨500, 7⟩)).2 := by
+  obtain ⟨x, hx, hi, hid⟩ : ∃ x ∈ (Ex.after Ex.held).1.res, x.proc = some ⟨500, 7⟩ ∧ x.id = 1 := by decide
+  exact (exit_releases (ex_inv _) hx hi).2 ⟨0, 1, .svc, 1, {}, 1, 61, 0⟩ (by decide) rfl hid.symm
+
+example : (step Ex.cfg (Ex.after [.tick 1 Ex.calm, .request 42 1 Ex.big]).1 (.tick 62 Ex.calm)).2.count (.revoke 1 0) = 1 :=
+  (expired_revoked (l := ⟨0, 1, .job, 0, { ram := 5000 }, 1, 61, 0⟩) (ex_inv _) (by decide) (Or.inl (by decide))).1
+
+/-- Client 1 holds 5000 MB; client 2 waits for 3500 MB, then client 3 for 6000 MB. -/
+abbrev Ex.queued : List Event :=
+  [.tick 1 Ex.calm, .request 42 1 Ex.big, .request 42 2 { Ex.big with cost := { ram := 3500 } },
+   .request 42 3 { Ex.big with cost := { ram := 6000 } }]
+
+example : 1 ∈ [(⟨1, 2, .job, 0, { ram := 3500 }, 60, 1, 1, 31⟩ : Req)].map (·.id) ∨
+    ({ ram := 3500 } : Vec) = {} :=
+  fifo_no_overtake (e := .release 42 1 0) (ex_inv Ex.queued) (B := [])
+    (q := ⟨2, 3, .job, 0, { ram := 6000 }, 60, 1, 1, 31⟩) (by decide) (by decide) rfl
+    (l := ⟨1, 2, .job, 0, { ram := 3500 }, 1, 61, 0⟩) (by decide) rfl
+
 end Fw.Sup
