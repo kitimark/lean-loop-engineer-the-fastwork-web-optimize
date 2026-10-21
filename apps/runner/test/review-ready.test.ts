@@ -155,6 +155,19 @@ describe("fw review ready|verdict CLI", () => {
     expect(lines.filter((l) => l.startsWith("VERDICT")).length).toBe(1);
   });
 
+  it("a later fwcore error or a missing answer still ends in one returnToBuilder line (exit 23)", async () => {
+    let n = 0;
+    const second = async () => { if (++n === 1) return { ready: "returnToBuilder" }; throw new Error("boom on call 2"); };
+    const empty = async () => ({});
+    const rep = file("e2.json", { items: [item("done", "a.ts:1")], dry });
+    for (const core of [second, empty]) {
+      const lines: string[] = [];
+      expect(await readyCli(["ready", "--report", rep, "--task", "t"], root, { core, log: (l) => lines.push(l) })).toBe(23);
+      expect(lines.at(-1)).toBe("VERDICT review-ready t returnToBuilder");
+      expect(lines.filter((l) => l.startsWith("VERDICT")).length).toBe(1);
+    }
+  });
+
   it("verdict: blockers refuse (exit 1), follow-ups accept (exit 0), fix-before-land follows the audit flag", async () => {
     const f = (sev: string[]) => file("f.json", { findings: sev.map((severity) => ({ severity, where: "x", what: "y" })) });
     expect((await run(["verdict", "--findings", f(["follow-up"])])).code).toBe(0);

@@ -44,20 +44,21 @@ export async function readyCli(argv: string[], cwd: string, deps: Deps = {}): Pr
     let ready: Ready;
     try {
       ready = (await call(req(items, rep.dry ?? ""))).ready as Ready;
+      if (!(ready in READY_EXIT)) throw new Error(`fwcore: no ready answer (${JSON.stringify(ready)})`);
+      if (ready !== "review") {
+        // which items hold it up: fwcore asked about each item alone with a passing dry line
+        for (const i of items) {
+          const r = (await call(req([i], `VERDICT dry ${task}`))).ready as Ready;
+          if (r !== "review") out(`  item ${i.id} (${i.status}): ${r}`);
+        }
+        if ((rep.dry ?? "") !== `VERDICT dry ${task}`) out(`  dry: the report must carry exactly \`VERDICT dry ${task}\` (fw land --dry)`);
+        if (items.length === 0) out("  items: the report lists none");
+      }
     } catch (e) {
       // one VERDICT line, last, also when fwcore fails: the script routes on it and a failure sends the report back
       out(`  fwcore: ${e instanceof Error ? e.message : String(e)}`);
       out(`VERDICT review-ready ${task} returnToBuilder`);
       return READY_EXIT.returnToBuilder;
-    }
-    if (ready !== "review") {
-      // which items hold it up: fwcore asked about each item alone with a passing dry line
-      for (const i of items) {
-        const r = (await call(req([i], `VERDICT dry ${task}`))).ready as Ready;
-        if (r !== "review") out(`  item ${i.id} (${i.status}): ${r}`);
-      }
-      if ((rep.dry ?? "") !== `VERDICT dry ${task}`) out(`  dry: the report must carry exactly \`VERDICT dry ${task}\` (fw land --dry)`);
-      if (items.length === 0) out("  items: the report lists none");
     }
     out(`VERDICT review-ready ${task} ${ready}`);
     return READY_EXIT[ready];
