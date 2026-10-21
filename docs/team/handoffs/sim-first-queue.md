@@ -21,10 +21,10 @@ Verified:
 | 20:16:36 | shut down, released | 405 | 8519 | 1 | none / check, test, test |
 
   During boot, 185 runnable processes were Simulator runtime processes: the load comes from the Simulator itself, and
-  the controller halved `n` to 1 so the queued work waited. Other worktrees still ran main's slot code then.
-Open (follow-ups): `admit` in `build-review.js`; the Simulator check in `fw watch` (today it runs only while someone
-polls or releases); thresholds (8 agents, 2100 MB) from one busy window; the Simulator footprint is not reduced; the
-check also shuts down devices booted by hand without a slot.
+  the controller halved `n` to 1 so the queued work waited. Other worktrees still ran main's slot code then. At 20:28:56
+  an acquire poll of my test ticket shut down an iPhone 17e left booted and unheld since 20:17 (idle clock, 600 s).
+Open (follow-ups): `admit` in `build-review.js`; the Simulator check in `fw watch` (it runs only on slot polls and
+releases); thresholds from one busy window; Simulator footprint not reduced; hand-booted devices are shut down too.
 
 Conventions: Lean first, regenerate the golden as in `local-adaptive-queue.md`, mirror in slot-core.ts;
 `State.simIdleSince` stays for older checkouts. Read first: `docs/team/tools/slot.md`, then `lean/Fw/Sup/Adapt.lean`.
