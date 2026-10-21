@@ -11644,7 +11644,7 @@
     "packages/contracts/golden/ci/intent.jsonl",
     "results/earn-look-review/index.json",
     "research/findings/ledger.json",
-    "docs/team/tools/trajectory-probe.md",
+    "docs/team/tools/trajectory-frames.md",
     "docs/team/handoffs/earn-look-review-webkit.md"
    ]
   },
@@ -12002,7 +12002,8 @@
     "apps/runner/src/plan-check.ts",
     "apps/runner/test/plan-check.test.ts",
     "docs/team/handoffs/graph-check-lean.md"
-   ]
+   ],
+   "evidence": "fb459b9"
   },
   {
    "devices": [
@@ -12014,7 +12015,7 @@
    "deps": [
     "user-review-queue"
    ],
-   "title": "user-review-queue review follow-ups: theorem freshId_unused (the re-posted review step id is never on the board; pigeonhole over stepIdN); a step's open state comes from Lean StepStatus.isOpen through Fw.Wire.Review (drop the TS re-implementation in routes.ts ask()); review steps are marked from Lean ids, not the review- id prefix in App.tsx",
+   "title": "user-review-queue review follow-ups: theorem freshId_unused (the re-posted review step id is never on the board; pigeonhole over stepIdN); a step's open state comes from Lean StepStatus.isOpen through Fw.Wire.Review (drop the TS re-implementation in routes.ts ask()); review steps are marked from Lean ids, not the review- id prefix in App.tsx; RunPerm (scoped-gap-did review): a lemma that count = the number of S in choose k (range n) with sumAt obs <= sumAt S, tying count to the note's #{L : T(L) >= T_obs}",
    "writes": [
     "lean/Fw/Console/Review*.lean",
     "lean/Fw/Wire/Review.lean",
@@ -12024,7 +12025,8 @@
     "apps/console-web/src/App.tsx",
     "apps/console-web/test/steps-audience.test.tsx",
     "docs/team/tools/review.md",
-    "docs/team/handoffs/review-lean-followups.md"
+    "docs/team/handoffs/review-lean-followups.md",
+    "lean/Fw/Gate/RunPerm.lean"
    ]
   },
   {
@@ -12062,7 +12064,8 @@
     "scripts/run-cite*.test.mjs",
     "docs/team/tools/run-cite.md",
     "docs/team/handoffs/run-cite-check.md"
-   ]
+   ],
+   "evidence": "3fcbc8f"
   },
   {
    "devices": [
@@ -12178,7 +12181,8 @@
     ".claude/workflows/build-review.js",
     "docs/team/tools/trajectory-probe.md",
     "docs/team/handoffs/ci-push-probe-inputs.md"
-   ]
+   ],
+   "evidence": "8882868"
   },
   {
    "devices": [
@@ -12188,7 +12192,7 @@
    "owner": "console-builder",
    "stream": "tooling",
    "deps": [],
-   "title": "Tool bug (morph-scroll-lock r2): fw run --trajectory took the skipped push run 39505172794 as its dispatch run and exited; the real dispatches were 39505188144 and 39505203727. Identify the dispatched run by identity (workflow_dispatch event, the inputs echoed in the run name or a dispatch nonce), never by 'newest run on the ref'; Lean decides the match from the run list (golden)",
+   "title": "Absorbed into ci-push-probe-inputs (round 2 landed it: fw ci wait selects the push run by sha and event, a trajectory-probe dispatch by nonce; Lean Fw.Ci.Dispatch.wanted/select, golden). Tool bug (morph-scroll-lock r2): fw run --trajectory took the skipped push run 39505172794 as its dispatch run and exited; the real dispatches were 39505188144 and 39505203727. Identify the dispatched run by identity (workflow_dispatch event, the inputs echoed in the run name or a dispatch nonce), never by 'newest run on the ref'; Lean decides the match from the run list (golden)",
    "writes": [
     "apps/runner/src/run*.ts",
     "apps/runner/test/run*.test.ts",
@@ -12196,7 +12200,8 @@
     "packages/contracts/golden/ci/dispatch*.jsonl",
     ".github/workflows/trajectory-probe.yml",
     "docs/team/handoffs/fw-run-dispatch-pick.md"
-   ]
+   ],
+   "evidence": "a4804645"
   },
   {
    "devices": [
@@ -12216,7 +12221,8 @@
     "packages/gate-breakpoints/test/closegap*.test.mjs",
     "research/notes/2026/10-2*-scoped-gap-did.md",
     "docs/team/handoffs/scoped-gap-did.md"
-   ]
+   ],
+   "evidence": "51c098d"
   },
   {
    "devices": [
@@ -12258,6 +12264,92 @@
     "packages/contracts/golden/gate/trajectory.jsonl",
     "docs/team/tools/trajectory-probe.md",
     "docs/team/handoffs/close-start-identity-rule.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "run-cite-roles",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "run-cite-check"
+   ],
+   "title": "run-cite-check review follow-ups: ledger evidence has no role for A/A or sibling-flag runs, so all 11 mismatches on the real ledger are false positives (A/A runs and sibling-flag runs whose prose labels them correctly). Add a role marker the reader parses (Lean RunCite: an A/A or sibling citation is judged by its own rule: the run carried no flag / the named sibling), write the evidence edits as ledger row text in the handoff (lead applies; ledger is a hot file); check rows with `evidence` but no `flag` (hero.exit.scoped.inline is skipped silently) and say which fields are read; spawnSync gh with cwd: top; run scripts/run-cite.test.mjs from a package test script; gate.runCite in the fwcore wire-replies golden. Unit: run-cite over the ledger reports 0 false mismatches, with each role decided in Lean (golden)",
+   "writes": [
+    "scripts/run-cite*.mjs",
+    "lean/Fw/Gate/RunCite.lean",
+    "packages/contracts/golden/gate/run-cite*.jsonl",
+    "lean/scripts/RunCiteGolden.lean",
+    "package.json",
+    "docs/team/tools/run-cite.md",
+    "docs/team/handoffs/run-cite-roles.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-wait-dispatch",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "ci-push-probe-inputs"
+   ],
+   "title": "ci-push-probe-inputs review follow-ups: (1) the TS caller ANDs headSha and since before Lean wanted(), so a nonce dispatch on another sha is never found, while Lean says 'whatever its head sha': make code and Lean agree (drop the filters for dispatch, or restate Lean + golden case dispatch_other_sha); (2) --nonce with a workflow other than trajectory-probe can never match: refuse it in parseWait or add the workflow's run-name to Lean Want.dispatch; (3) print a hint when only workflow_dispatch rows of W exist on the sha; (4) ci-paths scriptsNamed comment stripper cuts at ' #' inside quoted strings; (5) --gate and the count lanes of fw run still take the newest run: move them to identity; (6) the apple-leg one-leg merge is not yet exercised on CI (one apple run, one width). Unit: fw ci wait and fw run select runs only by identity, Lean-decided with golden, one apple one-leg run green",
+   "writes": [
+    "packages/gh-budget/src/*.ts",
+    "packages/gh-budget/test/*.ts",
+    "apps/runner/src/run*.ts",
+    "apps/runner/test/run*.test.ts",
+    "lean/Fw/Ci/Dispatch.lean",
+    "packages/contracts/golden/ci/dispatch.jsonl",
+    "scripts/ci-paths.test.mjs",
+    "docs/team/tools/fw-ci.md",
+    "docs/team/handoffs/ci-wait-dispatch.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "checkmap-preset-inputs",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "graph-check-lean"
+   ],
+   "title": "graph-check-lean review follow-ups: (1) a staged deletion of a preset input (part.json, golden/preset file) does not trigger the preset check (--diff-filter=ACMR drops D); (2) the trigger set leaves out generator code Gen imports (Fw.Preset.V2Proved, Fw.Gate.Trajectory); (3) no theorem links presetInput to plan (only sample-path theorems and #guard). Unit: every staged add, change or delete of any Gen input (incl. its imported modules) runs the preset check, proved in Lean (presetInput -> plan has a presetCheck command) with golden and a deletion test",
+   "writes": [
+    "lean/Fw/Ops/CheckMap.lean",
+    "packages/contracts/golden/ops/checkmap*.jsonl",
+    "lean/scripts/CheckMapGolden.lean",
+    "scripts/checkmap*",
+    "scripts/test-checkmap.mjs",
+    "docs/team/handoffs/checkmap-preset-inputs.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "fwcore-rebuild-fanout",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "land-fwcore-once"
+   ],
+   "title": "Slow alert 2026-10-21 (timing.slow land/* fwcore build): every lean-changing land spends 217-233 s on fwcore build in each of the 5 legs (run 39526074627), although setup-lean restores the newest Lake cache through restore-keys, so the build is incremental. Measure which modules each of the last 5 lean-changing lands rebuilt (lake build -v or trace mtimes on CI, one debug run allowed; read the Lake trace rules from Lean/Lake source at the pinned toolchain, cite file:line), and the import fan-out that forces them (which root, e.g. a wire module that imports every op, pulls the most); compute in Lean the rebuild set from the import graph (golden from Lake's own graph) and whether splitting the fan-out root (or moving goldens and scripts out of the exe closure) cuts the typical rebuild; ship the split only if one CI land run shows the fwcore build step faster on a typical lean change, else close as a negative finding with the Lean why. Unit: per-land rebuild set and time from CI, the fan-out cause, Lean-computed rebuild sets, and either a measured faster land or a negative finding",
+   "writes": [
+    "research/notes/2026/10-21-fwcore-rebuild-fanout.md",
+    "lean/Fw/Ops/Rebuild.lean",
+    "packages/contracts/golden/ops/rebuild*.jsonl",
+    "lean/scripts/RebuildGolden.lean",
+    "lean/Fw/Wire/*.lean",
+    "lean/Main.lean",
+    "lean/lakefile.toml",
+    "docs/team/handoffs/fwcore-rebuild-fanout.md"
    ]
   }
  ],

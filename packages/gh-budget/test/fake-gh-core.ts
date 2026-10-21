@@ -15,7 +15,7 @@ type Cfg = {
   start?: number; listCost?: number;
   drains?: { at: number; remaining: number }[];
   overrides?: { at: number; lines: string[] }[];
-  runs?: { databaseId: number; createdAt: number; completeAt: number; conclusion?: string; headBranch?: string; workflowName?: string; headSha?: string; jobs?: FakeJob[];
+  runs?: { databaseId: number; createdAt: number; completeAt: number; conclusion?: string; headBranch?: string; workflowName?: string; headSha?: string; event?: string; displayTitle?: string; jobs?: FakeJob[];
     /** The attempt the list rows show, and the attempt the jobs view shows (a rerun: the list lags the view). Default 1, as GitHub shows. */
     attempt?: number; viewAttempt?: number }[];
 };
@@ -82,7 +82,7 @@ export function fakeGh(dir: string, args: string[], costEnv: string | undefined,
   const row = (r: NonNullable<Cfg["runs"]>[number]) => {
     const done = t >= r.completeAt;
     return { databaseId: r.databaseId, status: done ? "completed" : "in_progress", conclusion: done ? r.conclusion : null,
-      headBranch: r.headBranch ?? "ci/x", workflowName: r.workflowName ?? "chromium-counts", headSha: r.headSha ?? "abc", createdAt: iso(r.createdAt), updatedAt: iso(done ? r.completeAt : r.createdAt), attempt: r.attempt ?? 1 };
+      headBranch: r.headBranch ?? "ci/x", workflowName: r.workflowName ?? "chromium-counts", headSha: r.headSha ?? "abc", createdAt: iso(r.createdAt), updatedAt: iso(done ? r.completeAt : r.createdAt), attempt: r.attempt ?? 1, event: r.event ?? "push", displayTitle: r.displayTitle ?? "" };
   };
   const runs = cfg.runs ?? [];
   if (isList) {
