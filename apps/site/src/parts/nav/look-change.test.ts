@@ -53,7 +53,7 @@ describe('look-change candidates', () => {
       review: 'pending',
       material: {
         chromium: { state: 'ready', run: '39473950464', artifact: 'frames-chromium', expires: '2026-11-19' },
-        webkit: { state: 'pending', task: 'earn-look-review-webkit' },
+        webkit: { state: 'ready', run: '39530106935', artifact: 'frames-apple-390, frames-apple-1280', expires: '2026-11-20' },
       },
     });
   });
