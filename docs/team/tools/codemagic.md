@@ -1,6 +1,6 @@
 # Codemagic pilot
 
-One cell of the `webkit-sim` lane (`sim (original, 430, 1, <sha>, v1)`: Simulator boot, Safari, `ios_webkit_debug_proxy`, one determinism session of two passes) on a Codemagic Mac mini M2 with the Xcode 27 image, side by side with its GitHub twin. Task `codemagic-pilot`; results and the recommendation: `research/notes/2026/10-2x-codemagic-pilot.md`. Counts and verdicts only: nothing measured on Codemagic is phone time.
+One cell of the `webkit-sim` lane (`sim (original, 430, 1, <sha>, v1)`: Simulator boot, Safari, `ios_webkit_debug_proxy`, one determinism session of two passes) on a Codemagic Mac mini M2 with the Xcode 27 image, side by side with its GitHub twin. Results and the recommendation: `research/notes/2026/10-2x-codemagic-pilot.md`. Counts and verdicts only: nothing measured on Codemagic is phone time.
 
 ## What is built
 
@@ -13,7 +13,7 @@ One cell of the `webkit-sim` lane (`sim (original, 430, 1, <sha>, v1)`: Simulato
 
 ## Your setup (once, about 10 minutes)
 
-1. Sign in at codemagic.io with GitHub (Personal plan: 500 Mac mini M2 minutes a month, 1 concurrent build, no card; the pricing page was checked 2026-10-21) and add this repository as an application. It needs no Workflow Editor config: the build reads `codemagic.yaml` from the branch.
+1. Sign in at codemagic.io with GitHub (Personal plan: 500 Mac mini M2 minutes a month, 1 concurrent build, no card) and add this repository as an application. It needs no Workflow Editor config: the build reads `codemagic.yaml` from the branch.
 2. Copy the application id (the part after `app_id=` in the builds URL).
 3. Make a personal API token (Account settings, API token) and keep it in the Keychain without putting it on a command line: `security add-generic-password -s fw-codemagic-token -a fw -w` (it prompts for the token). Nothing else reads or stores it; it is sent only to `api.codemagic.io`.
 4. Give the app id to the adapter: the environment variable `FW_CODEMAGIC_APP_ID`, or the gitignored file `.local/codemagic.json` `{"appId": "<id>"}`. The id is not secret, but it stays out of committed files.
@@ -39,5 +39,4 @@ One cell of the `webkit-sim` lane (`sim (original, 430, 1, <sha>, v1)`: Simulato
 - The month boundary is UTC; Codemagic's billing month is not documented on the pages read (INFERRED). The 100-minute margin under the 400 line absorbs a day's difference.
 - `GET /builds/:id` is not on docs.codemagic.io (it lists `POST /builds` and cancel only). The API answers HTTP 200 with the legacy camelCase shape `{application, build}` (`build.buildActions[]` with `startedAt`/`finishedAt` ISO strings, `build.artefacts[]`); the adapter also reads the v3 snake_case shape. The raw response carries the commit author and the repository's branch list, so it is never committed; `build.json` keeps only status, times, per-step seconds, billed minutes and artifact names (CONFIRMED by builds 1 to 3, research note).
 - Image facts the builds showed: macOS 27.0 (26A428), Xcode 27.0, iOS 27.0 runtime 24A434 preinstalled (equal to the GitHub cell's pin), Node v26.8.2 as default (the yaml does not pin it), `ios_webkit_debug_proxy` installed by brew each build (41 to 76 s). `simctl openurl` timed out in 1 of 3 builds; the harness does not retry that call.
-- Pilot result: 3 builds, 46 of 500 minutes (two finished at 22 and 19 billed minutes, one failed at 5).
 - No wiring into `pool-fallback`: a follow-up the user approves.

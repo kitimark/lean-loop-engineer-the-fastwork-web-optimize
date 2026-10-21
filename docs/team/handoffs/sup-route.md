@@ -5,7 +5,7 @@ What exists
 - `lean/Fw/Sup/Route.lean` (namespace `Fw.Sup.Route`, imports only Lean.Data.Json, not Core):
   `Stage` (s0 1a 1b 2 3 4, `rank`), `Service` (20 client paths from design.md section 5, each with `Service.stage`),
   `on st svc := svc.stage.rank ≤ st.rank`, `routeOf st svc present hashOk : Route` (daemon | today), `routeAll`.
-- Theorems: routeOf_absent, routeOf_off, routeOf_hash (each fallback branch -> today), routeOf_daemon (all hold),
+- Theorems: routeOf_absent, routeOf_off, routeOf_hash (each fallback branch routes to today), routeOf_daemon (all hold),
   routeOf_daemon_iff, routeOf_today_iff, routeOf_total, routeOf_s0 (stage 0 routes nothing), routeOf_mono (raising
   the stage never takes a service off the daemon), routeAll_lookup / routeAll_own (a batch decides each service
   alone), Stage.all_complete / Service.all_complete (the goldens cover the whole input domain), stage_moves.

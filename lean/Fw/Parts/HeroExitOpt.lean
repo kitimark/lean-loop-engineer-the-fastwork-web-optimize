@@ -1384,4 +1384,309 @@ def runScoped (args : List String) : IO UInt32 := do
 
 end Scoped
 
+/-! ## Variant `threaded`: the port's CSS endpoints, the hand-over rule and the sentinel, as golden rows -/
+
+section Threaded
+
+/-- The hero stage's `data-splash` value (set by `hero.orbit`). -/
+inductive Splash where
+  | prep
+  | run
+  | done
+deriving Repr, DecidableEq, Inhabited
+
+/-- Whether the hero stage runs on its CSS animations (true) or on the original's callback (false); `fin` is that the
+entrance animations have finished (the phone cue's `copyIn` can still run at `data-splash = done`). -/
+def live (s : Splash) (fin supported reduced : Bool) : Bool := decide (s = .done) && fin && supported && !reduced
+
+/-- Live exactly when all four conditions hold. -/
+theorem live_iff (s : Splash) (fin supported reduced : Bool) :
+    live s fin supported reduced = true ↔ s = .done ∧ fin = true ∧ supported = true ∧ reduced = false := by
+  unfold live
+  cases fin <;> cases supported <;> cases reduced <;> simp
+
+/-- While the splash plays the callback keeps the page. -/
+theorem live_splash (s : Splash) (hs : s ≠ .done) (fin supported reduced : Bool) :
+    live s fin supported reduced = false := by
+  unfold live
+  simp [hs]
+
+/-- While an entrance animation still runs (splash `done`) the callback keeps the page. -/
+theorem live_unfinished (supported reduced : Bool) : live .done false supported reduced = false := by
+  unfold live
+  simp
+
+/-- Without `animation-timeline` the callback keeps the page. -/
+theorem live_unsupported (s : Splash) (fin reduced : Bool) : live s fin false reduced = false := by
+  unfold live
+  simp
+
+/-- Under reduced motion the callback keeps the page. -/
+theorem live_reduced (s : Splash) (fin supported : Bool) : live s fin supported true = false := by
+  unfold live
+  simp
+
+/-- The one live case: settled, finished, supported, not reduced. -/
+theorem live_done : live .done true true false = true := by
+  unfold live
+  simp
+
+/-- The next `live`: a live stage stays live (`prev`) until a mutation batch saw the splash leave `done` (`left`). -/
+def liveNext (prev left : Bool) (s : Splash) (fin sup red : Bool) : Bool := live s (fin || (prev && !left)) sup red
+
+/-- A batch that saw the splash leave `done` drops the latch. -/
+theorem liveNext_left (prev : Bool) (s : Splash) (fin sup red : Bool) :
+    liveNext prev true s fin sup red = live s fin sup red := by
+  unfold liveNext
+  simp
+
+/-- With no such batch, a live stage stays live while its own animations read as unfinished. -/
+theorem liveNext_latch (sup : Bool) : liveNext true false .done false sup false = sup := by
+  unfold liveNext live
+  simp
+
+/-- A finished entrance needs no latch. -/
+theorem liveNext_fin (prev left : Bool) (s : Splash) (sup red : Bool) :
+    liveNext prev left s true sup red = live s true sup red := by
+  unfold liveNext
+  simp
+
+/-- A stage that was not live and saw no leave follows `live`. -/
+theorem liveNext_fresh (left : Bool) (s : Splash) (fin sup red : Bool) :
+    liveNext false left s fin sup red = live s fin sup red := by
+  unfold liveNext
+  simp
+
+/-- The nodes whose animation names the exit variant may touch. -/
+inductive ExitNode where
+  | orbit
+  | deck
+  | copy
+  | cue
+deriving Repr, DecidableEq
+
+/-- Every node. -/
+def exitNodes : List ExitNode := [.orbit, .deck, .copy, .cue]
+
+/-- The node's name in the golden rows. -/
+def ExitNode.label : ExitNode → String
+  | .orbit => "orbit"
+  | .deck => "deck"
+  | .copy => "copy"
+  | .cue => "cue"
+
+/-- The original's entrance animations that still run at splash `s`; a finished `copyIn` is left out because the live cue rule restates its forwards fill (`--copy-in: 1`). -/
+def origNames (n : ExitNode) (le600 : Bool) (s : Splash) (ended : Bool) : List String :=
+  match n with
+  | .orbit => if s = .run then ["ringAppear", "cardFromRing"] else []
+  | .deck => []
+  | .copy => if !le600 && s = .run then ["copyFromRing"] else []
+  | .cue =>
+    if le600 then (if s = .prep || ended then [] else ["copyIn"])
+    else if s = .run then ["copyFromRing"] else []
+
+/-- The exit animations the live rule names (it replaces the node's whole list). -/
+def exitNames (n : ExitNode) (le600 : Bool) : List String :=
+  match n with
+  | .orbit => ["exitCardFade", "exitCardMove"]
+  | .deck => ["exitCardFade", "exitCardMove"]
+  | .copy => if le600 then ["exitFade", "exitCopyUpNarrow"] else ["exitFade", "exitCopyUp", "exitBlur"]
+  | .cue => if le600 then ["exitFade", "exitCueUpNarrow", "exitBlur"] else ["exitFade", "exitBlur"]
+
+/-- One style pass: the splash, whether `copyIn` ended, and the mutation batch (`some left`) delivered before it. -/
+structure StylePass where
+  s : Splash
+  ended : Bool
+  mo : Option Bool
+deriving Repr, Inhabited
+
+/-- The entrance counts as finished when the cue runs nothing (the TS reads the cue's animations). -/
+def finOf (le600 : Bool) (p : StylePass) : Bool := (origNames .cue le600 p.s p.ended).isEmpty
+
+/-- The state of `data-exit-live` at each style pass, from `a` before the first. -/
+def attrRun (le600 sup red : Bool) : Bool → List StylePass → List Bool
+  | _, [] => []
+  | a, p :: ps =>
+    let a' := match p.mo with
+      | none => a
+      | some left => liveNext a left p.s (finOf le600 p) sup red
+    a' :: attrRun le600 sup red a' ps
+
+/-- The original's animation names of a node at a pass. -/
+def origAt (n : ExitNode) (le600 : Bool) (p : StylePass) : List String := origNames n le600 p.s p.ended
+
+/-- The variant's: the exit list when the attribute is set at `done`, else the original's. -/
+def varAt (n : ExitNode) (le600 : Bool) (p : StylePass) (a : Bool) : List String :=
+  if a && decide (p.s = .done) then exitNames n le600 else origNames n le600 p.s p.ended
+
+/-- The names present at a pass and absent at the one before. -/
+def restarts (ls : List (List String)) : List (List String) :=
+  List.zipWith (fun prev cur => cur.filter (fun x => !prev.contains x)) ([] :: ls) ls
+
+/-- A path: band, `data-exit-live` before the first pass, the passes. -/
+structure EntrancePath where
+  name : String
+  le600 : Bool
+  a0 : Bool
+  passes : List StylePass
+
+/-- Initial load, wide: prep, run, done, entrance end. -/
+def pathLoadWide : EntrancePath :=
+  ⟨"load", false, false, [⟨.prep, false, some false⟩, ⟨.run, false, some false⟩, ⟨.done, false, some false⟩, ⟨.done, true, some false⟩]⟩
+
+/-- Initial load, phone: prep, done (`copyIn` runs), entrance end. -/
+def pathLoadNarrow : EntrancePath :=
+  ⟨"load", true, false, [⟨.prep, false, some false⟩, ⟨.done, false, some false⟩, ⟨.done, true, some false⟩]⟩
+
+/-- Restore, wide: done, prep (forced layout, no callback yet), run (one batch that left `done`), done. -/
+def pathRestoreWide : EntrancePath :=
+  ⟨"restore", false, true, [⟨.done, true, none⟩, ⟨.prep, false, none⟩, ⟨.run, false, some true⟩, ⟨.done, false, some false⟩]⟩
+
+/-- Restore, phone: done, prep (forced layout), done (one batch that left `done`, `copyIn` plays again), entrance end. -/
+def pathRestoreNarrow : EntrancePath :=
+  ⟨"restore", true, true, [⟨.done, true, none⟩, ⟨.prep, false, none⟩, ⟨.done, false, some true⟩, ⟨.done, true, some false⟩]⟩
+
+/-- The four paths. -/
+def entrancePaths : List EntrancePath := [pathLoadWide, pathLoadNarrow, pathRestoreWide, pathRestoreNarrow]
+
+/-- The variant's name list of a node at every pass of a path. -/
+def varLists (e : EntrancePath) (sup red : Bool) (n : ExitNode) : List (List String) :=
+  List.zipWith (fun p a => varAt n e.le600 p a) e.passes (attrRun e.le600 sup red e.a0 e.passes)
+
+/-- The original's. -/
+def origLists (e : EntrancePath) (n : ExitNode) : List (List String) := e.passes.map (origAt n e.le600)
+
+/-- Drop the exit names. -/
+def dropExit (n : ExitNode) (le600 : Bool) (l : List String) : List String :=
+  l.filter (fun x => !(exitNames n le600).contains x)
+
+/-- The variant minus the exit names equals the original at every pass, and so do the restart sets. -/
+def entranceSame (e : EntrancePath) (sup red : Bool) (n : ExitNode) : Bool :=
+  (varLists e sup red n).map (dropExit n e.le600) == origLists e n &&
+  (restarts (varLists e sup red n)).map (dropExit n e.le600) == restarts (origLists e n)
+
+/-- On every path, band, node and support setting the variant minus the exit names equals the original, restarts included. -/
+theorem entrance_same :
+    entrancePaths.all (fun e => [true, false].all fun sup => [true, false].all fun red =>
+      exitNodes.all (entranceSame e sup red)) = true := by
+  decide +kernel
+
+/-- The live rule applies at the last pass of the phone restore (the entrance ended), and replaces the cue's list. -/
+theorem restore_narrow_cue_live :
+    (varLists pathRestoreNarrow true false .cue).getLast? = some (exitNames .cue true) := by
+  decide +kernel
+
+/-- Right after the phone restore the cue is not live, so its `copyIn` plays again. -/
+theorem restore_narrow_cue_replays :
+    (varLists pathRestoreNarrow true false .cue)[2]? = some ["copyIn"] := by
+  decide +kernel
+
+/-- The settled consumers the CSS animates in band `l`, named as in the golden. -/
+def settled (l : Bool) : List (String × Consumer) :=
+  [("copyOpacity", .copyOpacity 1), ("copyTranslateY", .copyTranslateY 1 l), ("copyBlur", .copyBlur 1 l),
+   ("cueBlur", .cueBlur), ("cueTranslateY", .cueTranslateY l), ("cardOpacity", .cardOpacity),
+   ("cardTranslate", .cardTranslate 1 0 1)]
+
+/-- The keyframe endpoints (rest, exited) of every settled consumer in the wide band, as `threaded.module.css` restates them. -/
+theorem keyframe_table_wide :
+    (settled false).map (fun p => (p.2.val 1, p.2.val 0)) =
+      [(1, 0), (0, -10), (0, 18), (0, 18), (0, 0), (1, 13 / 20), (0, 1)] := by
+  decide +kernel
+
+/-- The same endpoints in the phone band. -/
+theorem keyframe_table_narrow :
+    (settled true).map (fun p => (p.2.val 1, p.2.val 0)) =
+      [(1, 0), (0, -8), (0, 0), (0, 18), (0, -10), (1, 13 / 20), (0, 1)] := by
+  decide +kernel
+
+/-- The splash as a golden string. -/
+def splashLabel : Splash → String
+  | .prep => "prep"
+  | .run => "run"
+  | .done => "done"
+
+/-- A rational as a golden number object. -/
+def gRat (q : Rat) : Lean.Json := Lean.Json.mkObj [("num", .str (toString q.num)), ("den", .str (toString q.den))]
+
+/-- An integer as a JSON number. -/
+def gInt (n : Int) : Lean.Json := Lean.toJson n
+
+/-- One golden line (keys sorted by `mkObj`'s rendering). -/
+def gLine (fn : String) (inp : List (String × Lean.Json)) (out : Lean.Json) : String :=
+  (Lean.Json.mkObj [("fn", .str fn), ("in", Lean.Json.mkObj inp), ("out", out)]).compress
+
+/-- The sample geometries: `(T, h, v)` with the track top at scroll offset `T` (desktop and phone shapes, a nonzero
+`T`, and a degenerate track). -/
+def threadedGeoms : List (Int × Int × Int) := [(0, 1600, 800), (300, 1600, 800), (0, 1688, 844), (0, 100, 800)]
+
+/-- The sample scroll offsets: before, at, inside (first/mid/last), at and after the end of the range, and the
+pointer-off cut. -/
+def threadedOffsets (T h v : Int) : List Int :=
+  let n : Int := max 1 (h - v)
+  [T - 50, T, T + 1, T + n / 4, T + n / 2, T + n * 19 / 20, T + n * 19 / 20 + 1, T + n - 1, T + n, T + n + 1, T + n + 500]
+
+/-- **Golden lines of `hero-exit.threaded.jsonl`.** `keyframes`: the `0%`/`100%` values of each settled consumer.
+`anim`: the animated value at offset `y` under RG11 next to the original's `calc()` value (equal: `consumer_eq_s`).
+`sentinelTop`: where the sentinel sits below the track top. `sentinelAbove`: the pointer decision. `live`: the hand-over
+table. -/
+def threadedLines (_ : Unit := ()) : List String :=
+  ([false, true].flatMap fun l => (settled l).map fun (n, k) =>
+    gLine "keyframes" [("consumer", .str n), ("le600", .bool l)]
+      (Lean.Json.mkObj [("from", gRat (k.val 1)), ("to", gRat (k.val 0))])) ++
+  ([false, true].flatMap fun l => threadedGeoms.flatMap fun (T, h, v) => (threadedOffsets T h v).flatMap fun y =>
+    (settled l).map fun (n, k) =>
+      let prog := timelineProgress T (exitRange h v) y
+      gLine "anim" [("consumer", .str n), ("le600", .bool l), ("T", gInt T), ("h", gInt h), ("v", gInt v), ("y", gInt y)]
+        (Lean.Json.mkObj [("progress", gRat prog), ("anim", gRat (k.anim prog)),
+          ("orig", gRat (k.val (exitOpacityAt T h v y)))])) ++
+  (threadedGeoms.map fun (_, h, v) =>
+    gLine "sentinelTop" [("h", gInt h), ("v", gInt v)] (gRat (19 / 20 * exitRange h v))) ++
+  (threadedGeoms.flatMap fun (T, h, v) => (threadedOffsets T h v).map fun y =>
+    gLine "sentinelAbove" [("T", gInt T), ("h", gInt h), ("v", gInt v), ("y", gInt y)]
+      (.bool (sentinelAbove T h v y))) ++
+  ([Splash.prep, .run, .done].flatMap fun s => [false, true].flatMap fun fin => [false, true].flatMap fun sup =>
+    [false, true].map fun red =>
+    gLine "live" [("splash", .str (splashLabel s)),
+      ("entranceFinished", .bool fin), ("supported", .bool sup), ("reduced", .bool red)] (.bool (live s fin sup red))) ++
+  ([false, true].flatMap fun prev => [false, true].flatMap fun left => [Splash.prep, .run, .done].flatMap fun s =>
+    [false, true].flatMap fun fin => [false, true].flatMap fun sup => [false, true].map fun red =>
+    gLine "liveNext" [("prev", .bool prev), ("left", .bool left), ("splash", .str (splashLabel s)),
+      ("entranceFinished", .bool fin), ("supported", .bool sup), ("reduced", .bool red)]
+      (.bool (liveNext prev left s fin sup red))) ++
+  (exitNodes.flatMap fun n => [false, true].map fun l =>
+    gLine "exitNames" [("node", .str n.label), ("le600", .bool l)] (Lean.toJson (exitNames n l))) ++
+  (entrancePaths.flatMap fun e => exitNodes.flatMap fun n =>
+    let attrs := attrRun e.le600 true false e.a0 e.passes
+    let vs := varLists e true false n
+    let os := origLists e n
+    let vr := restarts vs
+    let orr := restarts os
+    (List.range e.passes.length).map fun (k : Nat) =>
+      gLine "entrance" [("path", .str e.name), ("le600", .bool e.le600), ("node", .str n.label), ("pass", gInt (Int.ofNat k))]
+        (Lean.Json.mkObj [("splash", .str (splashLabel (e.passes[k]!).s)), ("live", .bool attrs[k]!),
+          ("orig", Lean.toJson os[k]!), ("variant", Lean.toJson vs[k]!),
+          ("origRestart", Lean.toJson orr[k]!), ("variantRestart", Lean.toJson vr[k]!)]))
+
+/-- The golden text. -/
+def threadedText (_ : Unit := ()) : String := String.join ((threadedLines ()).map (· ++ "\n"))
+
+#guard (([false, true].flatMap fun l => threadedGeoms.flatMap fun (T, h, v) => (threadedOffsets T h v).flatMap fun y =>
+  (settled l).map fun (_, k) =>
+    k.anim (timelineProgress T (exitRange h v) y) == k.val (exitOpacityAt T h v y)).all id)
+
+/-- Print the golden, or with `--check <file>` compare it; exit 1 on a difference. -/
+def runThreaded (args : List String) : IO UInt32 := do
+  match args with
+  | ["--check", path] =>
+    if (← IO.FS.readFile path) == threadedText () then
+      IO.eprintln s!"exit threaded golden: {path} is up to date"
+      return 0
+    IO.eprintln s!"exit threaded golden: {path} differs from the generated text"
+    return 1
+  | _ =>
+    IO.print (threadedText ())
+    return 0
+
+end Threaded
+
 end Fw.Parts.HeroExitOpt

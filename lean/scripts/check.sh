@@ -86,7 +86,9 @@ run_group() {
   job "pool-fallback golden check" lake env lean --run scripts/PoolFallbackGolden.lean --check  # golden/ci/pool-fallback.jsonl (Fw.Ci.Pool.Fallback: the macOS fallback route)
   job "obs golden check" lake env lean --run scripts/ObsGolden.lean --check  # golden/obs/health.jsonl and backoff.jsonl (Fw.Obs)
   job "sup-health golden check" lake env lean --run scripts/SupHealthGolden.lean --check  # golden/obs/sup-health.jsonl (Fw.Obs.Health.Res), read by apps/runner/src/watch-collect.ts
+  job "sup wire golden check" sh -c "printf 'import Fw.Wire.Sup\\n#eval Fw.Wire.Sup.Golden.gen [\"--check\"]\\n' | lake env lean --stdin"  # golden/sup/wire.jsonl, each line replayed through Json.parse, decode and encode (Fw.Wire.Sup)
   job "ops golden check" lake env lean --run scripts/OpsGolden.lean --check  # golden/ops/*.jsonl incl. the obs life cases (Fw.Ops.Obs)
+  job "oracle golden check" lake env lean --run scripts/OracleGolden.lean --check  # golden/oracle/wire.jsonl and fixtures.jsonl (Fw.Wire.Oracle.Golden)
   job "lane inputs check" lake env lean --run scripts/LaneInputs.lean --check  # Fw.Store.Lane.inputs equal the workflow_dispatch inputs of chromium-counts, webkit-sim, breakpoint-gate
   job "engine goldens check" lake env lean --run scripts/EngineGoldens.lean  # golden/engine/*.jsonl equal the Lean generators, one generator per file
   job "provider golden check" lake env lean --run scripts/ProviderGolden.lean --check  # golden/ci/provider.jsonl (Fw.Ci.Provider)
@@ -99,9 +101,12 @@ run_group() {
   job "exit golden check" lake env lean --run scripts/ExitGolden.lean --check ../packages/contracts/golden/gate/exit.jsonl  # the exit verdict vectors cli.mjs is checked against (Fw.Gate.Exit)
   job "preset v2-proved check" sh -c "printf 'import Fw.Preset.Gen\\n#eval Fw.Preset.Gen.run [\"--check\"]\\n' | lake env lean --stdin"  # regenerates the v2-proved preset files from the findings ledger and the parts; any byte difference fails (Fw.Preset.Gen.run)
   job "ci telemetry golden check" lake env lean --run scripts/TelemetryGolden.lean --check  # golden/ci/telemetry.jsonl (Fw.Ci.Telemetry)
+  job "mac telemetry golden check" lake env lean --run scripts/MacTelemetryGolden.lean --check  # golden/obs/mactelemetry.jsonl and the reduced week (Fw.Obs.MacTelemetry)
   job "webkit-screen golden check" lake env lean --run scripts/WebkitScreenGolden.lean --check ../packages/contracts/golden/gate/webkit-screen.jsonl  # the WebKit live-resize screen vectors engines.mjs is checked against (Fw.Gate.WebkitScreen)
   job "device-session golden check" lake env lean --run scripts/DeviceSessionGolden.lean --check ../packages/contracts/golden/device/session.jsonl  # the session reductions, plan texts and replay-export vectors packages/measure-webkit/src/device-session.mjs is checked against (Fw.Device.Session)
   job "device-stillruns golden check" lake env lean --run scripts/StillRunsGolden.lean --check ../packages/contracts/golden/device/stillruns.jsonl  # the still-run counts and the throttle-lift verdict packages/measure-webkit/src/throttle/stillruns.mjs is checked against (Fw.Device.StillRuns)
+  job "webkit-profile golden check" lake env lean --run scripts/WebkitProfileGolden.lean --check ../packages/contracts/golden/measure/webkit-profile.jsonl  # the zone-binned Timeline profile vectors packages/measure-webkit/src/profile/reduce.mjs is checked against (Fw.Measure.WebKitProfile)
+  job "device-replay golden check" lake env lean --run scripts/DeviceReplayGolden.lean --check ../packages/contracts/golden/device/replay.jsonl  # the W3C action, replay-check and profile-generator vectors packages/measure-webkit/src/device-replay.mjs is checked against (Fw.Device.Replay)
   job "webkit-lag golden check" lake env lean --run scripts/WebkitLagGolden.lean --check ../packages/contracts/golden/measure/webkit-lag.jsonl  # the lag-region, paint-attribution and ranking vectors packages/measure-webkit/src/lag/reduce.mjs is checked against (Fw.Measure.WebKitLag)
   job "stage golden check" lake env lean --run scripts/StageGolden.lean --check ../packages/contracts/golden/parts/stage.jsonl  # the ?only= stage plans the site is checked against (Fw.Site.Stage)
   job "reconcile-sched golden check" lake env lean --run scripts/ReconcileSchedGolden.lean --check  # golden/console/reconcile-sched.jsonl
@@ -115,6 +120,7 @@ run_group() {
   job "engine premise golden check" lake env lean --run scripts/EnginePremiseGolden.lean --check
   job "salvage golden check" lake env lean --run scripts/SalvageGolden.lean --check  # golden/ops/salvage.jsonl (Fw.Ops.Salvage)
   job "exit scoped golden check" lake env lean --run scripts/ExitScopedGolden.lean --check ../packages/contracts/golden/parts/hero.exit.scoped.json  # hero.exit:scoped reader list, inherit chain and units (Fw.Parts.HeroExitOpt)
+  job "exit threaded golden check" lake env lean --run scripts/ExitThreadedGolden.lean --check ../packages/contracts/golden/parts/hero-exit.threaded.jsonl  # hero.exit:threaded keyframes, hand-over rule, sentinel (Fw.Parts.HeroExitOpt)
   job "timing golden check" lake env lean --run scripts/TimingGolden.lean --check  # golden/obs/timing.jsonl (Fw.Obs.Timing)
   job "heavy golden check" lake env lean --run scripts/HeavyGolden.lean --check  # golden/sched/heavy.jsonl (Fw.Sched.Heavy), replayed by scripts/heavy-lock.test.mjs
   job "land-legs golden check" lake env lean --run scripts/LandLegsGolden.lean --check  # golden/console/land-legs.jsonl + lean/land-legs.txt (Fw.Console.LandLegs)
@@ -125,12 +131,14 @@ run_group() {
   job "land-tier golden check" lake env lean --run scripts/LandTierGolden.lean --check  # golden/console/land-tier.jsonl + lean/land-filter.txt (Fw.Console.LandTier)
   job "lake-slot golden check" sh -c "printf 'import Fw.Sched.LakeSlot\\n#eval Fw.Sched.LakeSlot.gen [\"--check\"]\\n' | lake env lean --stdin"  # golden/sched/lake-slot.gen.sh, sourced by scripts/lake-slot-lib.sh
   job "sup-route golden check" sh -c "printf 'import Fw.Sup.Route\\n#eval Fw.Sup.Route.gen [\"--check\"]\\n' | lake env lean --stdin"  # golden/sup/route.jsonl (Fw.Sup.Route.routeOf)
+  job "sup-adapt golden check" sh -c "printf 'import Fw.Sup.AdaptGolden\\n#eval Fw.Sup.Adapt.gen [\"--check\"]\\n' | lake env lean --stdin"  # golden/sup/adapt.jsonl (Fw.Sup.Adapt)
   job "node-budget golden check" lake env lean --run scripts/NodeBudgetGolden.lean --check  # golden/sched/node-budget.gen.json (read by the vitest configs, the package node --test scripts and fw land) + node-budget.jsonl (Fw.Sched.NodeBudget)
   job "tap golden check" lake env lean --run scripts/MorphTapGolden.lean --check ../packages/contracts/golden/parts/morph-mount-tap.jsonl
   job "hero-scene-pause golden check" lake env lean --run scripts/HeroScenePauseGolden.lean --check ../packages/contracts/golden/parts/hero-scene-pause.jsonl  # the hero scene vectors hero/scene.golden.test.ts is checked against (Fw.Parts.HeroScenePause)
   job "nav-earn golden check" lake env lean --run scripts/NavEarnGolden.lean --check ../packages/contracts/golden/parts/nav-earn.jsonl  # the earn-no-transition vectors nav/earn.golden.test.ts is checked against (Fw.Parts.NavEarnOpt)
   job "image-arm golden check" lake env lean --run scripts/ImageArmGolden.lean --check ../packages/contracts/golden/gate/image-arm.jsonl  # per-part drawn-size copy decisions (Fw.Measure.ImageArm)
   job "steps golden check" lake env lean --run scripts/StepsGolden.lean --check  # golden/ci/steps.jsonl (Fw.Ci.Steps), read by scripts/ci-steps-lint.mjs
+  job "oracle labels golden check" lake env lean --run scripts/OracleLabelsGolden.lean --check  # golden/oracle/labels.jsonl (Fw.Oracle.Labels), read by scripts/jev-datasets.mjs
   job "breakgen check site" sh -c "$bin/breakgen --check ../apps/site/src/breakpoints.gen.json || echo 'check: WARNING apps/site/src/breakpoints.gen.json is not the Lean output yet'"
   job "sweepsgen sweeps golden" $bin/fwcore sweepsgen --sweeps-golden --check ../packages/contracts/golden/gate/sweeps.jsonl
   job "breakgen check lean" $bin/breakgen --check Fw/Site/breakpoints.gen.json

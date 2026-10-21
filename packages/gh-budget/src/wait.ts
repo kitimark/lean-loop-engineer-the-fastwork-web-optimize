@@ -86,9 +86,9 @@ export function factsOf(jobs: Job[]): RunFacts {
   const g = jobs.find((j) => j.name === "guard");
   const heavy = jobs.filter((j) => j !== g);
   return {
-    ...(g ? { guard: g.conclusion } : {}),
+    ...(g ? { guard: g.conclusion ?? "" } : {}),
     steps: (g?.steps ?? []).map((s) => ({ name: s.name, conclusion: s.conclusion })),
-    jobs: heavy.map((j) => j.conclusion),
+    jobs: heavy.map((j) => j.conclusion ?? ""), // an open job is "" as `gh` prints it; Lean reads a string
     heavySteps: heavy.flatMap((j) => (j.steps ?? []).map((s) => ({ name: s.name, conclusion: s.conclusion }))),
   };
 }
@@ -159,12 +159,20 @@ export function evaluate(st: Status | null, t: Target, regAt: number, required: 
 }
 
 /** What a jobs read gives: the facts, a failure, or `stale` (the run is on a newer attempt than the row said). */
-type Jobs = { facts: RunFacts } | { fail: Waited } | { stale: { runId: number; attempt: number } };
-/** The cached jobs of one run: the facts and the attempt they were read at. */
-type JobsRec = { attempt?: number; facts: RunFacts };
+type Jobs = { facts: RunFacts; bad?: string[] } | { fail: Waited } | { stale: { runId: number; attempt: number } };
+/** The cached jobs of one run: the facts and the attempt they were read at; `bad`: the names of the jobs that did not succeed (display only). */
+type JobsRec = { attempt?: number; facts: RunFacts; bad?: string[] };
+
+/** Re-reads of a jobs view that shows jobs without a conclusion, and the pause between them (seconds). GitHub fills the
+ *  conclusion of a matrix job a moment after the run is marked completed (Lean `Fw.Ci.Attempt.jobsSettled`). */
+export const OPEN_REREADS = 6;
+export const OPEN_PAUSE_S = 5;
+/** The jobs that ended other than success or skipped (display only; the verdict is Lean's). */
+const badJobs = (jobs: Job[]): string[] => jobs.filter((j) => j.conclusion !== "success" && j.conclusion !== "skipped" && j.conclusion !== "neutral").map((j) => j.name);
+const openFacts = (f: RunFacts): boolean => f.jobs.some((c) => !c) || (f.guard !== undefined && !f.guard);
 
 const freshRead = (env: Env, readAt: number | undefined): boolean => readAt !== undefined && env.core({ op: "ci.attempt", read: readAt, now: env.now() }).fresh === true;
-const attemptOf = (env: Env, q: Record<string, unknown>, key: "reuse" | "settled" | "current"): boolean => env.core({ op: "ci.attempt", ...q })[key] === true;
+const attemptOf = (env: Env, q: Record<string, unknown>, key: "reuse" | "settled" | "current" | "jobsSettled"): boolean => env.core({ op: "ci.attempt", ...q })[key] === true;
 
 /** The facts of a finished run: one charged `gh run view <id> --json jobs,attempt`, cached in meta/<id>.jobs.json with the
  *  attempt it was read at (the cache answers only for that attempt, Lean `Fw.Ci.Attempt.reuse`), one call per run id and
@@ -172,37 +180,53 @@ const attemptOf = (env: Env, q: Record<string, unknown>, key: "reuse" | "settled
 async function jobsOf(env: Env, row: Row, deadline: number, pr: Probe): Promise<Jobs> {
   const runId = row.databaseId;
   const file = paths(env.dir).jobs(runId);
-  const hit = (k: JobsRec | null): k is JobsRec => k !== null && attemptOf(env, { recorded: k.attempt ?? null, live: row.attempt ?? null }, "reuse");
+  // a cache written with an open job (before this check existed) is read again
+  const hit = (k: JobsRec | null): k is JobsRec => k !== null && !openFacts(k.facts) && attemptOf(env, { recorded: k.attempt ?? null, live: row.attempt ?? null }, "reuse");
   const k = readJson<JobsRec>(file);
-  if (hit(k)) { pr.ph.cached++; return { facts: k.facts }; }
+  if (hit(k)) { pr.ph.cached++; return { facts: k.facts, ...(k.bad ? { bad: k.bad } : {}) }; }
   mkdirSync(join(env.dir, "meta"), { recursive: true });
   const t0 = pr.ms();
   const l = await lockAsync(paths(env.dir).jobsLock(runId), 120, env.now, env.sleepUntil);
   pr.ph.lockMs += pr.ms() - t0;
   try {
     const k2 = readJson<JobsRec>(file);
-    if (hit(k2)) { pr.ph.cached++; return { facts: k2.facts }; }
-    const g0 = pr.ms();
-    const res = await ghCharged(env, ["run", "view", String(runId), "--json", "jobs,attempt"], { cost: 3, block: true, deadline });
-    pr.ph.ghMs += pr.ms() - g0;
-    pr.ph.views++;
-    if (!res.ran) return { fail: { code: 3, lines: [`wait: no gh call for the jobs of run ${runId}: ${res.decision} (${res.reason}); see \`fw ci budget\``] } };
-    if (res.code !== 0) return { fail: { code: 2, lines: [`wait: gh run view ${runId} --json jobs failed: ${res.error ?? "unknown"}`] } };
-    const v = JSON.parse(res.stdout) as { jobs?: Job[]; attempt?: number };
-    const rec: JobsRec = { ...(v.attempt === undefined ? {} : { attempt: v.attempt }), facts: factsOf(v.jobs ?? []) };
-    // cache only a view that settles the row: a view of a newer, still running attempt must not become the verdict later
-    if (v.attempt !== undefined && !attemptOf(env, { row: row.attempt ?? null, view: v.attempt }, "settled")) return { stale: { runId, attempt: v.attempt } };
-    writeAtomic(file, JSON.stringify(rec));
-    return { facts: rec.facts };
+    if (hit(k2)) { pr.ph.cached++; return { facts: k2.facts, ...(k2.bad ? { bad: k2.bad } : {}) }; }
+    for (let reread = 0; ; reread++) {
+      const g0 = pr.ms();
+      const res = await ghCharged(env, ["run", "view", String(runId), "--json", "jobs,attempt"], { cost: 3, block: true, deadline });
+      pr.ph.ghMs += pr.ms() - g0;
+      pr.ph.views++;
+      if (!res.ran) return { fail: { code: 3, lines: [`wait: no gh call for the jobs of run ${runId}: ${res.decision} (${res.reason}); see \`fw ci budget\``] } };
+      if (res.code !== 0) return { fail: { code: 2, lines: [`wait: gh run view ${runId} --json jobs failed: ${res.error ?? "unknown"}`] } };
+      const v = JSON.parse(res.stdout) as { jobs?: Job[]; attempt?: number };
+      const jobs = v.jobs ?? [];
+      const rec: JobsRec = { ...(v.attempt === undefined ? {} : { attempt: v.attempt }), facts: factsOf(jobs), bad: badJobs(jobs) };
+      // cache only a view that settles the row: a view of a newer, still running attempt must not become the verdict later
+      if (v.attempt !== undefined && !attemptOf(env, { row: row.attempt ?? null, view: v.attempt }, "settled")) return { stale: { runId, attempt: v.attempt } };
+      // a job without a conclusion right after the finish is GitHub's lag, not a failure (Lean `jobsSettled`): read again, never cache it
+      const ago = row.updatedAt ? Math.max(0, env.now() - epoch(row.updatedAt)) : 0;
+      const open = jobs.filter((j) => !j.conclusion).length;
+      if (!attemptOf(env, { open, ago }, "jobsSettled")) {
+        if (reread < OPEN_REREADS && env.now() + OPEN_PAUSE_S < deadline) { await env.sleepUntil(env.now() + OPEN_PAUSE_S); continue; }
+        return { facts: rec.facts, bad: rec.bad! };
+      }
+      writeAtomic(file, JSON.stringify(rec));
+      return { facts: rec.facts, bad: rec.bad! };
+    }
   } finally {
     l.release();
   }
 }
 
+/** A `fail` verdict without a reason names the jobs that did not succeed (display only), so a fail is never a bare word. */
+const failedNote = (verdict: string, bad: string[] | undefined): string =>
+  verdict === "fail" && bad && bad.length > 0 ? ` (jobs not success: ${bad.slice(0, 6).join(", ")}${bad.length > 6 ? `, +${bad.length - 6}` : ""})` : "";
+
 /** Lanes mode: the newest run of each requested lane for the commit, then fwcore `ci.verdict {msg, lanes}` decides
  *  (Lean `combineRequested`): a lane with no run is `missing`, never a pass. */
 async function lanesVerdictOf(env: Env, msg: string | null, required: string[], rs: Row[], deadline: number, pr: Probe): Promise<Waited | Stale> {
   const lanes: Record<string, RunFacts | null> = {};
+  const bads: Record<string, string[]> = {};
   for (const n of required) {
     const r = rs.find((x) => x.workflowName === n);
     if (!r) { lanes[n] = null; continue; }
@@ -210,6 +234,7 @@ async function lanesVerdictOf(env: Env, msg: string | null, required: string[], 
     if ("fail" in f) return f.fail;
     if ("stale" in f) return f;
     lanes[n] = f.facts;
+    bads[n] = f.bad ?? [];
   }
   pr.ph.viewEndMs = pr.ms();
   const v = env.core({ op: "ci.verdict", msg, lanes });
@@ -217,7 +242,7 @@ async function lanesVerdictOf(env: Env, msg: string | null, required: string[], 
   const per = v.lanes as { name: string; verdict: string; code: number; reason: string }[];
   const lines = per.map((p) => {
     const r = rs.find((x) => x.workflowName === p.name);
-    return `${r ? line(r) : `lane ${p.name} no run`} -> ${p.verdict}${p.reason ? ` (${p.reason})` : ""}`;
+    return `${r ? line(r) : `lane ${p.name} no run`} -> ${p.verdict}${p.reason ? ` (${p.reason})` : failedNote(p.verdict, bads[p.name])}`;
   });
   return { code: Number(v.code) as Waited["code"], lines: [...lines, `lanes ${required.join(",")} -> ${String(v.verdict)}`] };
 }
@@ -225,17 +250,19 @@ async function lanesVerdictOf(env: Env, msg: string | null, required: string[], 
 /** The verdict of finished decisive runs: their jobs, then fwcore `ci.verdict` decides (Lean `Fw.Ci.Verdict`). */
 async function verdictOf(env: Env, rs: Row[], deadline: number, pr: Probe): Promise<Waited | Stale> {
   const facts: RunFacts[] = [];
+  const bads: string[][] = [];
   for (const r of rs) {
     const f = await jobsOf(env, r, deadline, pr);
     if ("fail" in f) return f.fail;
     if ("stale" in f) return f;
     facts.push(f.facts);
+    bads.push(f.bad ?? []);
   }
   pr.ph.viewEndMs = pr.ms();
   const v = env.core({ op: "ci.verdict", runs: facts });
   pr.ph.doneMs = pr.ms();
   const per = v.runs as { verdict: string; code: number; reason: string }[];
-  const lines = rs.map((r, i) => `${line(r)} -> ${per[i]!.verdict}${per[i]!.reason ? ` (${per[i]!.reason})` : ""}`);
+  const lines = rs.map((r, i) => `${line(r)} -> ${per[i]!.verdict}${per[i]!.reason ? ` (${per[i]!.reason})` : failedNote(per[i]!.verdict, bads[i])}`);
   return { code: Number(v.code) as Waited["code"], lines };
 }
 

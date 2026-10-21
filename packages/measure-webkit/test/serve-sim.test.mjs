@@ -63,3 +63,17 @@ test('bootstrap source parses and pins only when asked', () => {
   assert.match(bootstrapSource({ clock: 'pinned' }), /static now\(\)/);
   assert.doesNotMatch(bootstrapSource({ clock: 'live' }), /static now\(\)/);
 });
+
+test('serveTree select: one origin answers from the tree the selector names at the time of the request', async () => {
+  const a = mkdtempSync(join(tmpdir(), 'fw-wk-a-'));
+  const b = mkdtempSync(join(tmpdir(), 'fw-wk-b-'));
+  writeFileSync(join(a, 'index.html'), 'A');
+  writeFileSync(join(b, 'x.html'), 'B');
+  let now = { root: a, rewrite: null };
+  const s = await serveTree(a, { select: () => now });
+  try {
+    assert.equal(await (await fetch(`http://127.0.0.1:${s.port}/`)).text(), 'A');
+    now = { root: b, rewrite: (p) => (p === '/' ? '/x.html' : null) };
+    assert.equal(await (await fetch(`http://127.0.0.1:${s.port}/`)).text(), 'B');
+  } finally { await s.close(); }
+});

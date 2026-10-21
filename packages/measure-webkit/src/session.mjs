@@ -35,7 +35,7 @@ export function snapshotRoot(env = process.env) {
  * @param {(ctx:{c:object, url:string, base:string, root:string, device:object, log:Function})=>Promise<any>} fn
  * @param {{keep?:boolean, vendors?:'off'|'live', log?:Function}} opts keep: leave the Simulator booted
  */
-export async function withSession(fn, { keep = false, vendors = 'off', site = null, log = (s) => console.error(s) } = {}) {
+export async function withSession(fn, { keep = false, vendors = 'off', site = null, arms = null, log = (s) => console.error(s) } = {}) {
   // site: { dir, search } serves a prerendered build of apps/site (dist/aot): "/" + search is answered with the HTML of
   // that search's config hash (configs.json), as a CDN rewrite would. Without it: the read-only snapshot.
   let root, rewrite = null, startPath = '/';
@@ -49,7 +49,24 @@ export async function withSession(fn, { keep = false, vendors = 'off', site = nu
     startPath = '/' + (site.search ?? '');
     site.configHash = hash;
   } else root = snapshotRoot();
-  const server = await serveTree(root, { vendors, mounts: { '/__fixtures': FIXTURES }, rewrite });
+  // arms: { name: { dir, search } } serves one tree per arm on ONE origin (dir null = the snapshot); `ctx.setArm(name)` picks the tree
+  // the next request is answered from. The tab keeps its origin, so the inspector guard and the tab lookup stay valid.
+  let select = null, armTable = null, armNow = null;
+  if (arms) {
+    armTable = Object.fromEntries(Object.entries(arms).map(([name, a]) => {
+      if (!a.dir) return [name, { root: snapshotRoot(), rewrite: null, hash: null }];
+      const r = resolve(a.dir);
+      const cfg = JSON.parse(readFileSync(join(r, 'configs.json'), 'utf8'));
+      const hash = cfg.bySearch[a.search ?? ''];
+      if (!hash) throw new Error(`arm ${name}: search "${a.search}" is not prerendered; known: ${Object.keys(cfg.bySearch).join(' | ')}`);
+      const file = cfg.byHash[hash];
+      return [name, { root: r, rewrite: (p) => (p === '/' || p === '/index.html' ? '/' + file : null), hash }];
+    }));
+    armNow = Object.keys(armTable)[0];
+    root = armTable[armNow].root;
+    select = () => armTable[armNow];
+  }
+  const server = await serveTree(root, { vendors, mounts: { '/__fixtures': FIXTURES }, rewrite, select });
   log(`serving ${site ? 'the prerendered build ' + site.dir : 'the snapshot'} read-only at ${server.url}`);
   let device = null, proxy = null, client = null, cleaned = false, guard = null, fault = null;
   const cleanup = async () => {
@@ -86,6 +103,8 @@ export async function withSession(fn, { keep = false, vendors = 'off', site = nu
     const ctx = {
       c: client, url: server.url + startPath.slice(1), base: server.url.replace(/\/$/, ''), root, device: { name: device.name }, log,
       setClient: (c2) => { client = c2; ctx.c = c2; },
+      setArm: (name) => { if (!armTable?.[name]) throw new Error(`no arm ${name}`); armNow = name; },
+      armHash: (name) => armTable?.[name]?.hash ?? null,
     };
     // A dead inspector (Lean: Fw.Measure.SimBound): probed at the start of every attempt (ctx.check) and on every tick of the
     // stall watchdog. Two failed probes in a row, or a gone socket: Safari is relaunched once; a second death ends the run

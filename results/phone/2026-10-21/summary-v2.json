@@ -1,0 +1,3377 @@
+{
+ "schema": "fw.phone.session.v2/1",
+ "date": "2026-10-21",
+ "reduction": "Fw.Device.Stats.reduceV2",
+ "displayHz": 120,
+ "pageHz": 60,
+ "units": {
+  "time": "hundredths of a ms",
+  "per": "hundredths per 100 intervals",
+  "hitch": "hundredths of a ms per s",
+  "offset": "tenth px"
+ },
+ "passes": [
+  {
+   "arm": "original",
+   "pass": 1,
+   "viewport": {
+    "w": 430,
+    "h": 815
+   },
+   "frames": 3734,
+   "expected": 1700,
+   "sets": {
+    "all": {
+     "whole": {
+      "n": 3733,
+      "skips": 952,
+      "lost": 1815,
+      "over25": 933,
+      "over34": 598,
+      "over50": 272,
+      "perSkip": 2550,
+      "per25": 2499,
+      "per34": 1601,
+      "per50": 728,
+      "span": 9000400,
+      "late": 3012300,
+      "hitch": 33468,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 6300,
+      "longest": 21500,
+      "run30": 53
+     },
+     "hero": {
+      "n": 2222,
+      "skips": 614,
+      "lost": 1255,
+      "over25": 625,
+      "over34": 435,
+      "over50": 205,
+      "perSkip": 2763,
+      "per25": 2812,
+      "per34": 1957,
+      "per50": 922,
+      "span": 5626900,
+      "late": 2091400,
+      "hitch": 37167,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 6900,
+      "longest": 16300,
+      "run30": 52
+     },
+     "finish": {
+      "n": 807,
+      "skips": 175,
+      "lost": 224,
+      "over25": 153,
+      "over34": 70,
+      "over50": 10,
+      "perSkip": 2168,
+      "per25": 1895,
+      "per34": 867,
+      "per50": 123,
+      "span": 1693600,
+      "late": 371400,
+      "hitch": 21929,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 4100,
+      "longest": 11900,
+      "run30": 7
+     },
+     "rest": {
+      "n": 704,
+      "skips": 163,
+      "lost": 336,
+      "over25": 155,
+      "over34": 93,
+      "over50": 57,
+      "perSkip": 2315,
+      "per25": 2201,
+      "per34": 1321,
+      "per50": 809,
+      "span": 1679900,
+      "late": 549500,
+      "hitch": 32710,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 6200,
+      "longest": 21500,
+      "run30": 28
+     }
+    },
+    "animating": {
+     "whole": {
+      "n": 1216,
+      "skips": 553,
+      "lost": 1206,
+      "over25": 559,
+      "over34": 369,
+      "over50": 206,
+      "perSkip": 4547,
+      "per25": 4597,
+      "per34": 3034,
+      "per50": 1694,
+      "span": 4008800,
+      "late": 2006800,
+      "hitch": 50059,
+      "band": "urgent",
+      "median": 2300,
+      "p95": 8900,
+      "longest": 21500,
+      "run30": 36
+     },
+     "hero": {
+      "n": 485,
+      "skips": 307,
+      "lost": 753,
+      "over25": 321,
+      "over34": 234,
+      "over50": 142,
+      "perSkip": 6329,
+      "per25": 6618,
+      "per34": 4824,
+      "per50": 2927,
+      "span": 2049400,
+      "late": 1259200,
+      "hitch": 61442,
+      "band": "urgent",
+      "median": 3400,
+      "p95": 9900,
+      "longest": 15200,
+      "run30": 35
+     },
+     "finish": {
+      "n": 266,
+      "skips": 98,
+      "lost": 134,
+      "over25": 91,
+      "over34": 44,
+      "over50": 8,
+      "perSkip": 3684,
+      "per25": 3421,
+      "per34": 1654,
+      "per50": 300,
+      "span": 662700,
+      "late": 219300,
+      "hitch": 33091,
+      "band": "urgent",
+      "median": 2000,
+      "p95": 4700,
+      "longest": 11900,
+      "run30": 7
+     },
+     "rest": {
+      "n": 465,
+      "skips": 148,
+      "lost": 319,
+      "over25": 147,
+      "over34": 91,
+      "over50": 56,
+      "perSkip": 3182,
+      "per25": 3161,
+      "per34": 1956,
+      "per50": 1204,
+      "span": 1296700,
+      "late": 528300,
+      "hitch": 40741,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 8200,
+      "longest": 21500,
+      "run30": 28
+     }
+    },
+    "moving": {
+     "whole": {
+      "n": 1003,
+      "skips": 435,
+      "lost": 1035,
+      "over25": 445,
+      "over34": 308,
+      "over50": 190,
+      "perSkip": 4336,
+      "per25": 4436,
+      "per34": 3070,
+      "per50": 1894,
+      "span": 3374000,
+      "late": 1722400,
+      "hitch": 51049,
+      "band": "urgent",
+      "median": 2000,
+      "p95": 9300,
+      "longest": 21500,
+      "run30": 23
+     },
+     "hero": {
+      "n": 434,
+      "skips": 284,
+      "lost": 704,
+      "over25": 297,
+      "over34": 214,
+      "over50": 132,
+      "perSkip": 6543,
+      "per25": 6843,
+      "per34": 4930,
+      "per50": 3041,
+      "span": 1887400,
+      "late": 1174700,
+      "hitch": 62239,
+      "band": "urgent",
+      "median": 3400,
+      "p95": 10200,
+      "longest": 15200,
+      "run30": 18
+     },
+     "finish": {
+      "n": 124,
+      "skips": 23,
+      "lost": 44,
+      "over25": 21,
+      "over34": 16,
+      "over50": 7,
+      "perSkip": 1854,
+      "per25": 1693,
+      "per34": 1290,
+      "per50": 564,
+      "span": 277500,
+      "late": 73000,
+      "hitch": 26306,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 5200,
+      "longest": 11900,
+      "run30": 7
+     },
+     "rest": {
+      "n": 445,
+      "skips": 128,
+      "lost": 287,
+      "over25": 127,
+      "over34": 78,
+      "over50": 51,
+      "perSkip": 2876,
+      "per25": 2853,
+      "per34": 1752,
+      "per50": 1146,
+      "span": 1209100,
+      "late": 474700,
+      "hitch": 39260,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 8200,
+      "longest": 21500,
+      "run30": 22
+     }
+    }
+   },
+   "traversal": {
+    "first": {
+     "all": {
+      "n": 1073,
+      "skips": 170,
+      "lost": 279,
+      "over25": 159,
+      "over34": 86,
+      "over50": 42,
+      "perSkip": 1584,
+      "per25": 1481,
+      "per34": 801,
+      "per50": 391,
+      "span": 2138400,
+      "late": 452500,
+      "hitch": 21160,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 4300,
+      "longest": 11000,
+      "run30": 33
+     },
+     "animating": {
+      "n": 390,
+      "skips": 114,
+      "lost": 204,
+      "over25": 115,
+      "over34": 65,
+      "over50": 33,
+      "perSkip": 2923,
+      "per25": 2948,
+      "per34": 1666,
+      "per50": 846,
+      "span": 970300,
+      "late": 339400,
+      "hitch": 34978,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 6000,
+      "longest": 11000,
+      "run30": 28
+     },
+     "moving": {
+      "n": 355,
+      "skips": 97,
+      "lost": 175,
+      "over25": 98,
+      "over34": 54,
+      "over50": 28,
+      "perSkip": 2732,
+      "per25": 2760,
+      "per34": 1521,
+      "per50": 788,
+      "span": 867900,
+      "late": 291100,
+      "hitch": 33540,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 6000,
+      "longest": 10200,
+      "run30": 12
+     }
+    },
+    "later": {
+     "all": {
+      "n": 2660,
+      "skips": 782,
+      "lost": 1536,
+      "over25": 774,
+      "over34": 512,
+      "over50": 230,
+      "perSkip": 2939,
+      "per25": 2909,
+      "per34": 1924,
+      "per50": 864,
+      "span": 6862000,
+      "late": 2559800,
+      "hitch": 37303,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 6800,
+      "longest": 21500,
+      "run30": 53
+     },
+     "animating": {
+      "n": 826,
+      "skips": 439,
+      "lost": 1002,
+      "over25": 444,
+      "over34": 304,
+      "over50": 173,
+      "perSkip": 5314,
+      "per25": 5375,
+      "per34": 3680,
+      "per50": 2094,
+      "span": 3038500,
+      "late": 1667400,
+      "hitch": 54875,
+      "band": "urgent",
+      "median": 2800,
+      "p95": 9600,
+      "longest": 21500,
+      "run30": 36
+     },
+     "moving": {
+      "n": 648,
+      "skips": 338,
+      "lost": 860,
+      "over25": 347,
+      "over34": 254,
+      "over50": 162,
+      "perSkip": 5216,
+      "per25": 5354,
+      "per34": 3919,
+      "per50": 2500,
+      "span": 2506100,
+      "late": 1431300,
+      "hitch": 57112,
+      "band": "urgent",
+      "median": 2900,
+      "p95": 9900,
+      "longest": 21500,
+      "run30": 23
+     }
+    }
+   },
+   "felt": [],
+   "touch": {
+    "drags": 34,
+    "starts": {
+     "n": 9,
+     "median": 10500,
+     "p95": 15800,
+     "max": 15800
+    },
+    "offsets": {
+     "n": 13,
+     "median": 124,
+     "p95": 1774,
+     "max": 1774
+    }
+   }
+  },
+  {
+   "arm": "rewrite",
+   "pass": 1,
+   "viewport": {
+    "w": 430,
+    "h": 775
+   },
+   "frames": 5026,
+   "expected": 1700,
+   "sets": {
+    "all": {
+     "whole": {
+      "n": 5025,
+      "skips": 480,
+      "lost": 578,
+      "over25": 333,
+      "over34": 146,
+      "over50": 24,
+      "perSkip": 955,
+      "per25": 662,
+      "per34": 290,
+      "per50": 47,
+      "span": 8999500,
+      "late": 870700,
+      "hitch": 9674,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 2900,
+      "longest": 9500,
+      "run30": 13
+     },
+     "hero": {
+      "n": 1808,
+      "skips": 110,
+      "lost": 115,
+      "over25": 66,
+      "over34": 18,
+      "over50": 0,
+      "perSkip": 608,
+      "per25": 365,
+      "per34": 99,
+      "per50": 0,
+      "span": 3069500,
+      "late": 143900,
+      "hitch": 4688,
+      "band": "critical",
+      "median": 1700,
+      "p95": 2300,
+      "longest": 4500,
+      "run30": 3
+     },
+     "finish": {
+      "n": 1237,
+      "skips": 262,
+      "lost": 342,
+      "over25": 205,
+      "over34": 108,
+      "over50": 23,
+      "perSkip": 2118,
+      "per25": 1657,
+      "per34": 873,
+      "per50": 185,
+      "span": 2561100,
+      "late": 546400,
+      "hitch": 21334,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 4200,
+      "longest": 9500,
+      "run30": 13
+     },
+     "rest": {
+      "n": 1980,
+      "skips": 108,
+      "lost": 121,
+      "over25": 62,
+      "over34": 20,
+      "over50": 1,
+      "perSkip": 545,
+      "per25": 313,
+      "per34": 101,
+      "per50": 5,
+      "span": 3368900,
+      "late": 180400,
+      "hitch": 5354,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 2400,
+      "longest": 7300,
+      "run30": 3
+     }
+    },
+    "animating": {
+     "whole": {
+      "n": 2368,
+      "skips": 269,
+      "lost": 324,
+      "over25": 185,
+      "over34": 85,
+      "over50": 16,
+      "perSkip": 1135,
+      "per25": 781,
+      "per34": 358,
+      "per50": 67,
+      "span": 4354200,
+      "late": 495000,
+      "hitch": 11368,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 3000,
+      "longest": 8300,
+      "run30": 10
+     },
+     "hero": {
+      "n": 841,
+      "skips": 65,
+      "lost": 66,
+      "over25": 35,
+      "over34": 11,
+      "over50": 0,
+      "perSkip": 772,
+      "per25": 416,
+      "per34": 130,
+      "per50": 0,
+      "span": 1453300,
+      "late": 80000,
+      "hitch": 5504,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 2500,
+      "longest": 4500,
+      "run30": 3
+     },
+     "finish": {
+      "n": 447,
+      "skips": 129,
+      "lost": 174,
+      "over25": 108,
+      "over34": 61,
+      "over50": 15,
+      "perSkip": 2885,
+      "per25": 2416,
+      "per34": 1364,
+      "per50": 335,
+      "span": 1028700,
+      "late": 288500,
+      "hitch": 28045,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 4600,
+      "longest": 8300,
+      "run30": 10
+     },
+     "rest": {
+      "n": 1080,
+      "skips": 75,
+      "lost": 84,
+      "over25": 42,
+      "over34": 13,
+      "over50": 1,
+      "perSkip": 694,
+      "per25": 388,
+      "per34": 120,
+      "per50": 9,
+      "span": 1872200,
+      "late": 126500,
+      "hitch": 6756,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 2500,
+      "longest": 7300,
+      "run30": 3
+     }
+    },
+    "moving": {
+     "whole": {
+      "n": 2027,
+      "skips": 164,
+      "lost": 192,
+      "over25": 92,
+      "over34": 41,
+      "over50": 7,
+      "perSkip": 809,
+      "per25": 453,
+      "per34": 202,
+      "per50": 34,
+      "span": 3579400,
+      "late": 278100,
+      "hitch": 7769,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 2500,
+      "longest": 8300,
+      "run30": 4
+     },
+     "hero": {
+      "n": 750,
+      "skips": 58,
+      "lost": 59,
+      "over25": 27,
+      "over34": 9,
+      "over50": 0,
+      "perSkip": 773,
+      "per25": 360,
+      "per34": 120,
+      "per50": 0,
+      "span": 1296500,
+      "late": 67100,
+      "hitch": 5175,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 2500,
+      "longest": 4500,
+      "run30": 3
+     },
+     "finish": {
+      "n": 272,
+      "skips": 35,
+      "lost": 54,
+      "over25": 25,
+      "over34": 20,
+      "over50": 6,
+      "perSkip": 1286,
+      "per25": 919,
+      "per34": 735,
+      "per50": 220,
+      "span": 535700,
+      "late": 89500,
+      "hitch": 16707,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 4200,
+      "longest": 8300,
+      "run30": 4
+     },
+     "rest": {
+      "n": 1005,
+      "skips": 71,
+      "lost": 79,
+      "over25": 40,
+      "over34": 12,
+      "over50": 1,
+      "perSkip": 706,
+      "per25": 398,
+      "per34": 119,
+      "per50": 9,
+      "span": 1747200,
+      "late": 121500,
+      "hitch": 6953,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 2500,
+      "longest": 7300,
+      "run30": 3
+     }
+    }
+   },
+   "traversal": {
+    "first": {
+     "all": {
+      "n": 1227,
+      "skips": 44,
+      "lost": 49,
+      "over25": 32,
+      "over34": 11,
+      "over50": 0,
+      "perSkip": 358,
+      "per25": 260,
+      "per34": 89,
+      "per50": 0,
+      "span": 2079600,
+      "late": 80200,
+      "hitch": 3856,
+      "band": "critical",
+      "median": 1700,
+      "p95": 2100,
+      "longest": 4700,
+      "run30": 3
+     },
+     "animating": {
+      "n": 514,
+      "skips": 30,
+      "lost": 35,
+      "over25": 25,
+      "over34": 11,
+      "over50": 0,
+      "perSkip": 583,
+      "per25": 486,
+      "per34": 214,
+      "per50": 0,
+      "span": 896400,
+      "late": 61500,
+      "hitch": 6860,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 2500,
+      "longest": 4700,
+      "run30": 3
+     },
+     "moving": {
+      "n": 467,
+      "skips": 28,
+      "lost": 32,
+      "over25": 23,
+      "over34": 10,
+      "over50": 0,
+      "perSkip": 599,
+      "per25": 492,
+      "per34": 214,
+      "per50": 0,
+      "span": 817300,
+      "late": 56900,
+      "hitch": 6961,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 2500,
+      "longest": 4700,
+      "run30": 3
+     }
+    },
+    "later": {
+     "all": {
+      "n": 3798,
+      "skips": 436,
+      "lost": 529,
+      "over25": 301,
+      "over34": 135,
+      "over50": 24,
+      "perSkip": 1147,
+      "per25": 792,
+      "per34": 355,
+      "per50": 63,
+      "span": 6919900,
+      "late": 790500,
+      "hitch": 11423,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 3100,
+      "longest": 9500,
+      "run30": 13
+     },
+     "animating": {
+      "n": 1854,
+      "skips": 239,
+      "lost": 289,
+      "over25": 160,
+      "over34": 74,
+      "over50": 16,
+      "perSkip": 1289,
+      "per25": 862,
+      "per34": 399,
+      "per50": 86,
+      "span": 3457800,
+      "late": 433500,
+      "hitch": 12536,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 3100,
+      "longest": 8300,
+      "run30": 10
+     },
+     "moving": {
+      "n": 1560,
+      "skips": 136,
+      "lost": 160,
+      "over25": 69,
+      "over34": 31,
+      "over50": 7,
+      "perSkip": 871,
+      "per25": 442,
+      "per34": 198,
+      "per50": 44,
+      "span": 2762100,
+      "late": 221200,
+      "hitch": 8008,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 2500,
+      "longest": 8300,
+      "run30": 4
+     }
+    }
+   },
+   "felt": [
+    {
+     "zone": "rest",
+     "oldEmpty": false,
+     "all": {
+      "n": 175,
+      "skips": 12,
+      "over25": 5,
+      "over34": 1,
+      "over50": 0,
+      "perSkip": 685,
+      "hitch": 6147,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 159,
+      "skips": 12,
+      "over25": 5,
+      "over34": 1,
+      "over50": 0,
+      "perSkip": 754,
+      "hitch": 6693,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "rest",
+     "oldEmpty": true,
+     "all": {
+      "n": 173,
+      "skips": 11,
+      "over25": 7,
+      "over34": 3,
+      "over50": 0,
+      "perSkip": 635,
+      "hitch": 7297,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 62,
+      "skips": 7,
+      "over25": 3,
+      "over34": 1,
+      "over50": 0,
+      "perSkip": 1129,
+      "hitch": 9566,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "hero",
+     "oldEmpty": false,
+     "all": {
+      "n": 177,
+      "skips": 10,
+      "over25": 8,
+      "over34": 2,
+      "over50": 0,
+      "perSkip": 564,
+      "hitch": 5266,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 58,
+      "skips": 4,
+      "over25": 2,
+      "over34": 0,
+      "over50": 0,
+      "perSkip": 689,
+      "hitch": 5138,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "hero",
+     "oldEmpty": true,
+     "all": {
+      "n": 178,
+      "skips": 11,
+      "over25": 8,
+      "over34": 3,
+      "over50": 0,
+      "perSkip": 617,
+      "hitch": 5500,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 39,
+      "skips": 2,
+      "over25": 1,
+      "over34": 0,
+      "over50": 0,
+      "perSkip": 512,
+      "hitch": 3630,
+      "band": "critical"
+     }
+    },
+    {
+     "zone": "hero",
+     "oldEmpty": true,
+     "all": {
+      "n": 180,
+      "skips": 11,
+      "over25": 9,
+      "over34": 2,
+      "over50": 0,
+      "perSkip": 611,
+      "hitch": 5960,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 18,
+      "skips": 0,
+      "over25": 0,
+      "over34": 0,
+      "over50": 0,
+      "perSkip": 0,
+      "hitch": 0,
+      "band": "good"
+     }
+    },
+    {
+     "zone": "hero",
+     "oldEmpty": true,
+     "all": {
+      "n": 180,
+      "skips": 11,
+      "over25": 8,
+      "over34": 3,
+      "over50": 0,
+      "perSkip": 611,
+      "hitch": 6497,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 0,
+      "skips": 0,
+      "over25": 0,
+      "over34": 0,
+      "over50": 0,
+      "perSkip": 0,
+      "hitch": 0,
+      "band": "good"
+     }
+    },
+    {
+     "zone": "finish",
+     "oldEmpty": false,
+     "all": {
+      "n": 160,
+      "skips": 22,
+      "over25": 14,
+      "over34": 3,
+      "over50": 1,
+      "perSkip": 1375,
+      "hitch": 11636,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 105,
+      "skips": 11,
+      "over25": 8,
+      "over34": 2,
+      "over50": 1,
+      "perSkip": 1047,
+      "hitch": 10683,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "finish",
+     "oldEmpty": true,
+     "all": {
+      "n": 165,
+      "skips": 19,
+      "over25": 12,
+      "over34": 4,
+      "over50": 1,
+      "perSkip": 1151,
+      "hitch": 10063,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 48,
+      "skips": 6,
+      "over25": 5,
+      "over34": 2,
+      "over50": 1,
+      "perSkip": 1250,
+      "hitch": 13469,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "finish",
+     "oldEmpty": false,
+     "all": {
+      "n": 168,
+      "skips": 15,
+      "over25": 10,
+      "over34": 3,
+      "over50": 0,
+      "perSkip": 892,
+      "hitch": 8627,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 4,
+      "skips": 3,
+      "over25": 3,
+      "over34": 1,
+      "over50": 0,
+      "perSkip": 7500,
+      "hitch": 48484,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "finish",
+     "oldEmpty": false,
+     "all": {
+      "n": 101,
+      "skips": 48,
+      "over25": 42,
+      "over34": 29,
+      "over50": 13,
+      "perSkip": 4752,
+      "hitch": 44544,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 23,
+      "skips": 16,
+      "over25": 15,
+      "over34": 15,
+      "over50": 9,
+      "perSkip": 6956,
+      "hitch": 60750,
+      "band": "urgent"
+     }
+    }
+   ],
+   "touch": {
+    "drags": 32,
+    "starts": {
+     "n": 12,
+     "median": 11700,
+     "p95": 15800,
+     "max": 15800
+    },
+    "offsets": {
+     "n": 17,
+     "median": 0,
+     "p95": 1136,
+     "max": 1136
+    }
+   }
+  },
+  {
+   "arm": "look",
+   "pass": 1,
+   "viewport": {
+    "w": 430,
+    "h": 775
+   },
+   "frames": 5161,
+   "expected": 1700,
+   "sets": {
+    "all": {
+     "whole": {
+      "n": 5160,
+      "skips": 358,
+      "lost": 411,
+      "over25": 256,
+      "over34": 95,
+      "over50": 11,
+      "perSkip": 693,
+      "per25": 496,
+      "per34": 184,
+      "per50": 21,
+      "span": 8999900,
+      "late": 654400,
+      "hitch": 7271,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 2500,
+      "longest": 7900,
+      "run30": 9
+     },
+     "hero": {
+      "n": 2004,
+      "skips": 103,
+      "lost": 111,
+      "over25": 87,
+      "over34": 25,
+      "over50": 0,
+      "perSkip": 513,
+      "per25": 434,
+      "per34": 124,
+      "per50": 0,
+      "span": 3422400,
+      "late": 188700,
+      "hitch": 5513,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 2500,
+      "longest": 5000,
+      "run30": 3
+     },
+     "finish": {
+      "n": 2051,
+      "skips": 193,
+      "lost": 228,
+      "over25": 138,
+      "over34": 57,
+      "over50": 8,
+      "perSkip": 941,
+      "per25": 672,
+      "per34": 277,
+      "per50": 39,
+      "span": 3707500,
+      "late": 357000,
+      "hitch": 9629,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 2900,
+      "longest": 7900,
+      "run30": 9
+     },
+     "rest": {
+      "n": 1105,
+      "skips": 62,
+      "lost": 72,
+      "over25": 31,
+      "over34": 13,
+      "over50": 3,
+      "perSkip": 561,
+      "per25": 280,
+      "per34": 117,
+      "per50": 27,
+      "span": 1870000,
+      "late": 108700,
+      "hitch": 5812,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 2300,
+      "longest": 5700,
+      "run30": 2
+     }
+    },
+    "animating": {
+     "whole": {
+      "n": 2080,
+      "skips": 207,
+      "lost": 242,
+      "over25": 148,
+      "over34": 60,
+      "over50": 9,
+      "perSkip": 995,
+      "per25": 711,
+      "per34": 288,
+      "per50": 43,
+      "span": 3773400,
+      "late": 385500,
+      "hitch": 10216,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 2900,
+      "longest": 7900,
+      "run30": 8
+     },
+     "hero": {
+      "n": 768,
+      "skips": 55,
+      "lost": 62,
+      "over25": 38,
+      "over34": 19,
+      "over50": 0,
+      "perSkip": 716,
+      "per25": 494,
+      "per34": 247,
+      "per50": 0,
+      "span": 1356900,
+      "late": 102100,
+      "hitch": 7524,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 2500,
+      "longest": 5000,
+      "run30": 3
+     },
+     "finish": {
+      "n": 483,
+      "skips": 102,
+      "lost": 124,
+      "over25": 88,
+      "over34": 32,
+      "over50": 6,
+      "perSkip": 2111,
+      "per25": 1821,
+      "per34": 662,
+      "per50": 124,
+      "span": 994400,
+      "late": 194200,
+      "hitch": 19529,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 3800,
+      "longest": 7900,
+      "run30": 8
+     },
+     "rest": {
+      "n": 829,
+      "skips": 50,
+      "lost": 56,
+      "over25": 22,
+      "over34": 9,
+      "over50": 3,
+      "perSkip": 603,
+      "per25": 265,
+      "per34": 108,
+      "per50": 36,
+      "span": 1422100,
+      "late": 89200,
+      "hitch": 6272,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 2400,
+      "longest": 5700,
+      "run30": 2
+     }
+    },
+    "moving": {
+     "whole": {
+      "n": 1768,
+      "skips": 128,
+      "lost": 153,
+      "over25": 73,
+      "over34": 36,
+      "over50": 7,
+      "perSkip": 723,
+      "per25": 412,
+      "per34": 203,
+      "per50": 39,
+      "span": 3120800,
+      "late": 240900,
+      "hitch": 7719,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 2500,
+      "longest": 7900,
+      "run30": 5
+     },
+     "hero": {
+      "n": 658,
+      "skips": 40,
+      "lost": 45,
+      "over25": 24,
+      "over34": 11,
+      "over50": 0,
+      "perSkip": 607,
+      "per25": 364,
+      "per34": 167,
+      "per50": 0,
+      "span": 1155500,
+      "late": 74100,
+      "hitch": 6412,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 2500,
+      "longest": 5000,
+      "run30": 3
+     },
+     "finish": {
+      "n": 366,
+      "skips": 41,
+      "lost": 56,
+      "over25": 28,
+      "over34": 17,
+      "over50": 5,
+      "perSkip": 1120,
+      "per25": 765,
+      "per34": 464,
+      "per50": 136,
+      "span": 687700,
+      "late": 84100,
+      "hitch": 12229,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 3300,
+      "longest": 7900,
+      "run30": 5
+     },
+     "rest": {
+      "n": 744,
+      "skips": 47,
+      "lost": 52,
+      "over25": 21,
+      "over34": 8,
+      "over50": 2,
+      "perSkip": 631,
+      "per25": 282,
+      "per34": 107,
+      "per50": 26,
+      "span": 1277600,
+      "late": 82700,
+      "hitch": 6473,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 2400,
+      "longest": 5700,
+      "run30": 2
+     }
+    }
+   },
+   "traversal": {
+    "first": {
+     "all": {
+      "n": 501,
+      "skips": 26,
+      "lost": 33,
+      "over25": 22,
+      "over34": 8,
+      "over50": 1,
+      "perSkip": 518,
+      "per25": 439,
+      "per34": 159,
+      "per50": 19,
+      "span": 854200,
+      "late": 51000,
+      "hitch": 5970,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 2500,
+      "longest": 5100,
+      "run30": 2
+     },
+     "animating": {
+      "n": 298,
+      "skips": 11,
+      "lost": 14,
+      "over25": 8,
+      "over34": 4,
+      "over50": 1,
+      "perSkip": 369,
+      "per25": 268,
+      "per34": 134,
+      "per50": 33,
+      "span": 513800,
+      "late": 26600,
+      "hitch": 5177,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 2400,
+      "longest": 5100,
+      "run30": 2
+     },
+     "moving": {
+      "n": 197,
+      "skips": 7,
+      "lost": 9,
+      "over25": 6,
+      "over34": 2,
+      "over50": 0,
+      "perSkip": 355,
+      "per25": 304,
+      "per34": 101,
+      "per50": 0,
+      "span": 340300,
+      "late": 16300,
+      "hitch": 4789,
+      "band": "critical",
+      "median": 1700,
+      "p95": 2300,
+      "longest": 4400,
+      "run30": 2
+     }
+    },
+    "later": {
+     "all": {
+      "n": 4659,
+      "skips": 332,
+      "lost": 378,
+      "over25": 234,
+      "over34": 87,
+      "over50": 10,
+      "perSkip": 712,
+      "per25": 502,
+      "per34": 186,
+      "per50": 21,
+      "span": 8145700,
+      "late": 603400,
+      "hitch": 7407,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 2600,
+      "longest": 7900,
+      "run30": 9
+     },
+     "animating": {
+      "n": 1782,
+      "skips": 196,
+      "lost": 228,
+      "over25": 140,
+      "over34": 56,
+      "over50": 8,
+      "perSkip": 1099,
+      "per25": 785,
+      "per34": 314,
+      "per50": 44,
+      "span": 3259600,
+      "late": 358900,
+      "hitch": 11010,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 3000,
+      "longest": 7900,
+      "run30": 8
+     },
+     "moving": {
+      "n": 1571,
+      "skips": 121,
+      "lost": 144,
+      "over25": 67,
+      "over34": 34,
+      "over50": 7,
+      "perSkip": 770,
+      "per25": 426,
+      "per34": 216,
+      "per50": 44,
+      "span": 2780500,
+      "late": 224600,
+      "hitch": 8077,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 2500,
+      "longest": 7900,
+      "run30": 5
+     }
+    }
+   },
+   "felt": [
+    {
+     "zone": "rest",
+     "oldEmpty": false,
+     "all": {
+      "n": 176,
+      "skips": 5,
+      "over25": 5,
+      "over34": 1,
+      "over50": 1,
+      "perSkip": 284,
+      "hitch": 5091,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 141,
+      "skips": 4,
+      "over25": 3,
+      "over34": 1,
+      "over50": 1,
+      "perSkip": 283,
+      "hitch": 5282,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "rest",
+     "oldEmpty": false,
+     "all": {
+      "n": 177,
+      "skips": 7,
+      "over25": 6,
+      "over34": 2,
+      "over50": 1,
+      "perSkip": 395,
+      "hitch": 5542,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 95,
+      "skips": 3,
+      "over25": 1,
+      "over34": 1,
+      "over50": 1,
+      "perSkip": 315,
+      "hitch": 5476,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "finish",
+     "oldEmpty": false,
+     "all": {
+      "n": 154,
+      "skips": 13,
+      "over25": 12,
+      "over34": 10,
+      "over50": 5,
+      "perSkip": 844,
+      "hitch": 15333,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 128,
+      "skips": 8,
+      "over25": 7,
+      "over34": 6,
+      "over50": 3,
+      "perSkip": 625,
+      "hitch": 12119,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "finish",
+     "oldEmpty": true,
+     "all": {
+      "n": 154,
+      "skips": 15,
+      "over25": 14,
+      "over34": 11,
+      "over50": 5,
+      "perSkip": 974,
+      "hitch": 16594,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 74,
+      "skips": 8,
+      "over25": 7,
+      "over34": 6,
+      "over50": 3,
+      "perSkip": 1081,
+      "hitch": 18729,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "finish",
+     "oldEmpty": false,
+     "all": {
+      "n": 161,
+      "skips": 17,
+      "over25": 14,
+      "over34": 6,
+      "over50": 1,
+      "perSkip": 1055,
+      "hitch": 12224,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 53,
+      "skips": 10,
+      "over25": 10,
+      "over34": 5,
+      "over50": 1,
+      "perSkip": 1886,
+      "hitch": 21371,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "finish",
+     "oldEmpty": false,
+     "all": {
+      "n": 167,
+      "skips": 14,
+      "over25": 9,
+      "over34": 4,
+      "over50": 1,
+      "perSkip": 838,
+      "hitch": 9300,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 31,
+      "skips": 5,
+      "over25": 4,
+      "over34": 3,
+      "over50": 1,
+      "perSkip": 1612,
+      "hitch": 20062,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "hero",
+     "oldEmpty": true,
+     "all": {
+      "n": 180,
+      "skips": 7,
+      "over25": 2,
+      "over34": 0,
+      "over50": 0,
+      "perSkip": 388,
+      "hitch": 3395,
+      "band": "critical"
+     },
+     "animating": {
+      "n": 73,
+      "skips": 3,
+      "over25": 1,
+      "over34": 0,
+      "over50": 0,
+      "perSkip": 410,
+      "hitch": 4574,
+      "band": "critical"
+     }
+    },
+    {
+     "zone": "hero",
+     "oldEmpty": false,
+     "all": {
+      "n": 178,
+      "skips": 9,
+      "over25": 9,
+      "over34": 2,
+      "over50": 0,
+      "perSkip": 505,
+      "hitch": 4746,
+      "band": "critical"
+     },
+     "animating": {
+      "n": 81,
+      "skips": 5,
+      "over25": 5,
+      "over34": 1,
+      "over50": 0,
+      "perSkip": 617,
+      "hitch": 6440,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "hero",
+     "oldEmpty": true,
+     "all": {
+      "n": 177,
+      "skips": 10,
+      "over25": 10,
+      "over34": 1,
+      "over50": 0,
+      "perSkip": 564,
+      "hitch": 5217,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 43,
+      "skips": 4,
+      "over25": 5,
+      "over34": 1,
+      "over50": 0,
+      "perSkip": 930,
+      "hitch": 10594,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "finish",
+     "oldEmpty": false,
+     "all": {
+      "n": 166,
+      "skips": 16,
+      "over25": 12,
+      "over34": 4,
+      "over50": 1,
+      "perSkip": 963,
+      "hitch": 8975,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 85,
+      "skips": 13,
+      "over25": 10,
+      "over34": 4,
+      "over50": 1,
+      "perSkip": 1529,
+      "hitch": 13353,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "finish",
+     "oldEmpty": false,
+     "all": {
+      "n": 166,
+      "skips": 15,
+      "over25": 12,
+      "over34": 4,
+      "over50": 1,
+      "perSkip": 903,
+      "hitch": 9609,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 71,
+      "skips": 12,
+      "over25": 10,
+      "over34": 4,
+      "over50": 1,
+      "perSkip": 1690,
+      "hitch": 15345,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "hero",
+     "oldEmpty": false,
+     "all": {
+      "n": 176,
+      "skips": 8,
+      "over25": 6,
+      "over34": 3,
+      "over50": 0,
+      "perSkip": 454,
+      "hitch": 3747,
+      "band": "critical"
+     },
+     "animating": {
+      "n": 103,
+      "skips": 6,
+      "over25": 4,
+      "over34": 3,
+      "over50": 0,
+      "perSkip": 582,
+      "hitch": 4445,
+      "band": "critical"
+     }
+    },
+    {
+     "zone": "hero",
+     "oldEmpty": true,
+     "all": {
+      "n": 177,
+      "skips": 7,
+      "over25": 8,
+      "over34": 3,
+      "over50": 0,
+      "perSkip": 395,
+      "hitch": 4618,
+      "band": "critical"
+     },
+     "animating": {
+      "n": 58,
+      "skips": 4,
+      "over25": 2,
+      "over34": 2,
+      "over50": 0,
+      "perSkip": 689,
+      "hitch": 4785,
+      "band": "critical"
+     }
+    },
+    {
+     "zone": "finish",
+     "oldEmpty": false,
+     "all": {
+      "n": 162,
+      "skips": 20,
+      "over25": 13,
+      "over34": 8,
+      "over50": 0,
+      "perSkip": 1234,
+      "hitch": 11140,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 43,
+      "skips": 6,
+      "over25": 4,
+      "over34": 2,
+      "over50": 0,
+      "perSkip": 1395,
+      "hitch": 12562,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "finish",
+     "oldEmpty": true,
+     "all": {
+      "n": 151,
+      "skips": 30,
+      "over25": 26,
+      "over34": 13,
+      "over50": 1,
+      "perSkip": 1986,
+      "hitch": 18181,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 19,
+      "skips": 12,
+      "over25": 13,
+      "over34": 3,
+      "over50": 1,
+      "perSkip": 6315,
+      "hitch": 39925,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "finish",
+     "oldEmpty": false,
+     "all": {
+      "n": 171,
+      "skips": 20,
+      "over25": 14,
+      "over34": 1,
+      "over50": 0,
+      "perSkip": 1169,
+      "hitch": 8176,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 21,
+      "skips": 10,
+      "over25": 11,
+      "over34": 1,
+      "over50": 0,
+      "perSkip": 4761,
+      "hitch": 30332,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "finish",
+     "oldEmpty": true,
+     "all": {
+      "n": 181,
+      "skips": 13,
+      "over25": 3,
+      "over34": 0,
+      "over50": 0,
+      "perSkip": 718,
+      "hitch": 3418,
+      "band": "critical"
+     },
+     "animating": {
+      "n": 5,
+      "skips": 0,
+      "over25": 0,
+      "over34": 0,
+      "over50": 0,
+      "perSkip": 0,
+      "hitch": 0,
+      "band": "good"
+     }
+    },
+    {
+     "zone": "finish",
+     "oldEmpty": true,
+     "all": {
+      "n": 181,
+      "skips": 11,
+      "over25": 2,
+      "over34": 0,
+      "over50": 0,
+      "perSkip": 607,
+      "hitch": 3252,
+      "band": "critical"
+     },
+     "animating": {
+      "n": 5,
+      "skips": 0,
+      "over25": 0,
+      "over34": 0,
+      "over50": 0,
+      "perSkip": 0,
+      "hitch": 0,
+      "band": "good"
+     }
+    },
+    {
+     "zone": "finish",
+     "oldEmpty": true,
+     "all": {
+      "n": 181,
+      "skips": 7,
+      "over25": 1,
+      "over34": 0,
+      "over50": 0,
+      "perSkip": 386,
+      "hitch": 2495,
+      "band": "warning"
+     },
+     "animating": {
+      "n": 5,
+      "skips": 0,
+      "over25": 0,
+      "over34": 0,
+      "over50": 0,
+      "perSkip": 0,
+      "hitch": 0,
+      "band": "good"
+     }
+    },
+    {
+     "zone": "finish",
+     "oldEmpty": true,
+     "all": {
+      "n": 180,
+      "skips": 6,
+      "over25": 1,
+      "over34": 0,
+      "over50": 0,
+      "perSkip": 333,
+      "hitch": 2333,
+      "band": "warning"
+     },
+     "animating": {
+      "n": 0,
+      "skips": 0,
+      "over25": 0,
+      "over34": 0,
+      "over50": 0,
+      "perSkip": 0,
+      "hitch": 0,
+      "band": "good"
+     }
+    },
+    {
+     "zone": "hero",
+     "oldEmpty": true,
+     "all": {
+      "n": 180,
+      "skips": 2,
+      "over25": 4,
+      "over34": 0,
+      "over50": 0,
+      "perSkip": 111,
+      "hitch": 2265,
+      "band": "warning"
+     },
+     "animating": {
+      "n": 62,
+      "skips": 2,
+      "over25": 2,
+      "over34": 0,
+      "over50": 0,
+      "perSkip": 322,
+      "hitch": 3864,
+      "band": "critical"
+     }
+    },
+    {
+     "zone": "finish",
+     "oldEmpty": false,
+     "all": {
+      "n": 166,
+      "skips": 19,
+      "over25": 12,
+      "over34": 5,
+      "over50": 0,
+      "perSkip": 1144,
+      "hitch": 10542,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 115,
+      "skips": 11,
+      "over25": 7,
+      "over34": 3,
+      "over50": 0,
+      "perSkip": 956,
+      "hitch": 9484,
+      "band": "urgent"
+     }
+    }
+   ],
+   "touch": {
+    "drags": 33,
+    "starts": {
+     "n": 11,
+     "median": 9100,
+     "p95": 12600,
+     "max": 12600
+    },
+    "offsets": {
+     "n": 19,
+     "median": 243,
+     "p95": 1710,
+     "max": 1710
+    }
+   }
+  },
+  {
+   "arm": "original",
+   "pass": 2,
+   "viewport": {
+    "w": 430,
+    "h": 815
+   },
+   "frames": 4304,
+   "expected": 1700,
+   "sets": {
+    "all": {
+     "whole": {
+      "n": 4303,
+      "skips": 951,
+      "lost": 1354,
+      "over25": 787,
+      "over34": 420,
+      "over50": 139,
+      "perSkip": 2210,
+      "per25": 1828,
+      "per34": 976,
+      "per50": 323,
+      "span": 8999900,
+      "late": 2182800,
+      "hitch": 24253,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 4500,
+      "longest": 11700,
+      "run30": 19
+     },
+     "hero": {
+      "n": 1771,
+      "skips": 426,
+      "lost": 661,
+      "over25": 384,
+      "over34": 208,
+      "over50": 89,
+      "perSkip": 2405,
+      "per25": 2168,
+      "per34": 1174,
+      "per50": 502,
+      "span": 3846200,
+      "late": 1082400,
+      "hitch": 28142,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 5100,
+      "longest": 11700,
+      "run30": 18
+     },
+     "finish": {
+      "n": 1455,
+      "skips": 271,
+      "lost": 358,
+      "over25": 215,
+      "over34": 113,
+      "over50": 27,
+      "perSkip": 1862,
+      "per25": 1477,
+      "per34": 776,
+      "per50": 185,
+      "span": 2919700,
+      "late": 568600,
+      "hitch": 19474,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 4000,
+      "longest": 9500,
+      "run30": 15
+     },
+     "rest": {
+      "n": 1077,
+      "skips": 254,
+      "lost": 335,
+      "over25": 188,
+      "over34": 99,
+      "over50": 23,
+      "perSkip": 2358,
+      "per25": 1745,
+      "per34": 919,
+      "per50": 213,
+      "span": 2234000,
+      "late": 531800,
+      "hitch": 23804,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 4300,
+      "longest": 8600,
+      "run30": 15
+     }
+    },
+    "animating": {
+     "whole": {
+      "n": 1397,
+      "skips": 599,
+      "lost": 951,
+      "over25": 547,
+      "over34": 331,
+      "over50": 126,
+      "perSkip": 4287,
+      "per25": 3915,
+      "per34": 2369,
+      "per50": 901,
+      "span": 3869000,
+      "late": 1571300,
+      "hitch": 40612,
+      "band": "urgent",
+      "median": 2300,
+      "p95": 5900,
+      "longest": 11700,
+      "run30": 19
+     },
+     "hero": {
+      "n": 489,
+      "skips": 263,
+      "lost": 479,
+      "over25": 265,
+      "over34": 173,
+      "over50": 84,
+      "perSkip": 5378,
+      "per25": 5419,
+      "per34": 3537,
+      "per50": 1717,
+      "span": 1607800,
+      "late": 808500,
+      "hitch": 50286,
+      "band": "urgent",
+      "median": 2800,
+      "p95": 7100,
+      "longest": 11700,
+      "run30": 18
+     },
+     "finish": {
+      "n": 353,
+      "skips": 127,
+      "lost": 184,
+      "over25": 119,
+      "over34": 64,
+      "over50": 19,
+      "perSkip": 3597,
+      "per25": 3371,
+      "per34": 1813,
+      "per50": 538,
+      "span": 882400,
+      "late": 300400,
+      "hitch": 34043,
+      "band": "urgent",
+      "median": 2000,
+      "p95": 5100,
+      "longest": 8200,
+      "run30": 12
+     },
+     "rest": {
+      "n": 555,
+      "skips": 209,
+      "lost": 288,
+      "over25": 163,
+      "over34": 94,
+      "over50": 23,
+      "perSkip": 3765,
+      "per25": 2936,
+      "per34": 1693,
+      "per50": 414,
+      "span": 1378800,
+      "late": 462400,
+      "hitch": 33536,
+      "band": "urgent",
+      "median": 2100,
+      "p95": 4800,
+      "longest": 8600,
+      "run30": 15
+     }
+    },
+    "moving": {
+     "whole": {
+      "n": 1103,
+      "skips": 452,
+      "lost": 739,
+      "over25": 402,
+      "over34": 248,
+      "over50": 108,
+      "perSkip": 4097,
+      "per25": 3644,
+      "per34": 2248,
+      "per50": 979,
+      "span": 3033300,
+      "late": 1221100,
+      "hitch": 40256,
+      "band": "urgent",
+      "median": 2100,
+      "p95": 6100,
+      "longest": 11700,
+      "run30": 16
+     },
+     "hero": {
+      "n": 368,
+      "skips": 203,
+      "lost": 390,
+      "over25": 202,
+      "over34": 134,
+      "over50": 74,
+      "perSkip": 5516,
+      "per25": 5489,
+      "per34": 3641,
+      "per50": 2010,
+      "span": 1265400,
+      "late": 660300,
+      "hitch": 52181,
+      "band": "urgent",
+      "median": 2900,
+      "p95": 7300,
+      "longest": 11700,
+      "run30": 15
+     },
+     "finish": {
+      "n": 203,
+      "skips": 52,
+      "lost": 82,
+      "over25": 47,
+      "over34": 28,
+      "over50": 13,
+      "perSkip": 2561,
+      "per25": 2315,
+      "per34": 1379,
+      "per50": 640,
+      "span": 462500,
+      "late": 132700,
+      "hitch": 28691,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 5300,
+      "longest": 8200,
+      "run30": 7
+     },
+     "rest": {
+      "n": 532,
+      "skips": 197,
+      "lost": 267,
+      "over25": 153,
+      "over34": 86,
+      "over50": 21,
+      "perSkip": 3703,
+      "per25": 2875,
+      "per34": 1616,
+      "per50": 394,
+      "span": 1305400,
+      "late": 428100,
+      "hitch": 32794,
+      "band": "urgent",
+      "median": 2100,
+      "p95": 4800,
+      "longest": 8600,
+      "run30": 10
+     }
+    }
+   },
+   "traversal": {
+    "first": {
+     "all": {
+      "n": 1458,
+      "skips": 196,
+      "lost": 234,
+      "over25": 147,
+      "over34": 59,
+      "over50": 8,
+      "perSkip": 1344,
+      "per25": 1008,
+      "per34": 404,
+      "per50": 54,
+      "span": 2681000,
+      "late": 405500,
+      "hitch": 15124,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 3300,
+      "longest": 8600,
+      "run30": 15
+     },
+     "animating": {
+      "n": 432,
+      "skips": 107,
+      "lost": 138,
+      "over25": 92,
+      "over34": 45,
+      "over50": 8,
+      "perSkip": 2476,
+      "per25": 2129,
+      "per34": 1041,
+      "per50": 185,
+      "span": 943600,
+      "late": 242300,
+      "hitch": 25678,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 4200,
+      "longest": 8600,
+      "run30": 15
+     },
+     "moving": {
+      "n": 403,
+      "skips": 100,
+      "lost": 128,
+      "over25": 83,
+      "over34": 41,
+      "over50": 7,
+      "perSkip": 2481,
+      "per25": 2059,
+      "per34": 1017,
+      "per50": 173,
+      "span": 880900,
+      "late": 224000,
+      "hitch": 25428,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 4100,
+      "longest": 8600,
+      "run30": 7
+     }
+    },
+    "later": {
+     "all": {
+      "n": 2845,
+      "skips": 755,
+      "lost": 1120,
+      "over25": 640,
+      "over34": 361,
+      "over50": 131,
+      "perSkip": 2653,
+      "per25": 2249,
+      "per34": 1268,
+      "per50": 460,
+      "span": 6318900,
+      "late": 1777300,
+      "hitch": 28126,
+      "band": "urgent",
+      "median": 1700,
+      "p95": 4900,
+      "longest": 11700,
+      "run30": 19
+     },
+     "animating": {
+      "n": 965,
+      "skips": 492,
+      "lost": 813,
+      "over25": 455,
+      "over34": 286,
+      "over50": 118,
+      "perSkip": 5098,
+      "per25": 4715,
+      "per34": 2963,
+      "per50": 1222,
+      "span": 2925400,
+      "late": 1329000,
+      "hitch": 45429,
+      "band": "urgent",
+      "median": 2500,
+      "p95": 6600,
+      "longest": 11700,
+      "run30": 19
+     },
+     "moving": {
+      "n": 700,
+      "skips": 352,
+      "lost": 611,
+      "over25": 319,
+      "over34": 207,
+      "over50": 101,
+      "perSkip": 5028,
+      "per25": 4557,
+      "per34": 2957,
+      "per50": 1442,
+      "span": 2152400,
+      "late": 997100,
+      "hitch": 46325,
+      "band": "urgent",
+      "median": 2500,
+      "p95": 6800,
+      "longest": 11700,
+      "run30": 16
+     }
+    }
+   },
+   "felt": [
+    {
+     "zone": "hero",
+     "oldEmpty": false,
+     "all": {
+      "n": 110,
+      "skips": 15,
+      "over25": 17,
+      "over34": 7,
+      "over50": 1,
+      "perSkip": 1363,
+      "hitch": 17313,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 51,
+      "skips": 15,
+      "over25": 15,
+      "over34": 7,
+      "over50": 1,
+      "perSkip": 2941,
+      "hitch": 29334,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "hero",
+     "oldEmpty": false,
+     "all": {
+      "n": 165,
+      "skips": 18,
+      "over25": 18,
+      "over34": 7,
+      "over50": 1,
+      "perSkip": 1090,
+      "hitch": 14006,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 53,
+      "skips": 16,
+      "over25": 15,
+      "over34": 7,
+      "over50": 1,
+      "perSkip": 3018,
+      "hitch": 29387,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "hero",
+     "oldEmpty": false,
+     "all": {
+      "n": 165,
+      "skips": 24,
+      "over25": 19,
+      "over34": 8,
+      "over50": 0,
+      "perSkip": 1454,
+      "hitch": 14966,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 40,
+      "skips": 12,
+      "over25": 12,
+      "over34": 7,
+      "over50": 0,
+      "perSkip": 3000,
+      "hitch": 29608,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "hero",
+     "oldEmpty": true,
+     "all": {
+      "n": 166,
+      "skips": 24,
+      "over25": 20,
+      "over34": 8,
+      "over50": 0,
+      "perSkip": 1445,
+      "hitch": 16183,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 33,
+      "skips": 10,
+      "over25": 10,
+      "over34": 6,
+      "over50": 0,
+      "perSkip": 3030,
+      "hitch": 31143,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "hero",
+     "oldEmpty": false,
+     "all": {
+      "n": 142,
+      "skips": 35,
+      "over25": 23,
+      "over34": 6,
+      "over50": 1,
+      "perSkip": 2464,
+      "hitch": 23531,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 65,
+      "skips": 17,
+      "over25": 15,
+      "over34": 5,
+      "over50": 1,
+      "perSkip": 2615,
+      "hitch": 28260,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "hero",
+     "oldEmpty": true,
+     "all": {
+      "n": 143,
+      "skips": 35,
+      "over25": 25,
+      "over34": 6,
+      "over50": 1,
+      "perSkip": 2447,
+      "hitch": 23376,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 44,
+      "skips": 15,
+      "over25": 15,
+      "over34": 5,
+      "over50": 1,
+      "perSkip": 3409,
+      "hitch": 34594,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "finish",
+     "oldEmpty": false,
+     "all": {
+      "n": 154,
+      "skips": 31,
+      "over25": 17,
+      "over34": 7,
+      "over50": 1,
+      "perSkip": 2012,
+      "hitch": 17038,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 92,
+      "skips": 15,
+      "over25": 8,
+      "over34": 4,
+      "over50": 1,
+      "perSkip": 1630,
+      "hitch": 16077,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "finish",
+     "oldEmpty": true,
+     "all": {
+      "n": 157,
+      "skips": 25,
+      "over25": 15,
+      "over34": 7,
+      "over50": 1,
+      "perSkip": 1592,
+      "hitch": 15187,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 88,
+      "skips": 13,
+      "over25": 7,
+      "over34": 4,
+      "over50": 1,
+      "perSkip": 1477,
+      "hitch": 15245,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "finish",
+     "oldEmpty": false,
+     "all": {
+      "n": 160,
+      "skips": 23,
+      "over25": 18,
+      "over34": 8,
+      "over50": 1,
+      "perSkip": 1437,
+      "hitch": 13769,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 49,
+      "skips": 12,
+      "over25": 9,
+      "over34": 6,
+      "over50": 1,
+      "perSkip": 2448,
+      "hitch": 23913,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "finish",
+     "oldEmpty": true,
+     "all": {
+      "n": 165,
+      "skips": 21,
+      "over25": 13,
+      "over34": 6,
+      "over50": 1,
+      "perSkip": 1272,
+      "hitch": 10614,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 23,
+      "skips": 8,
+      "over25": 6,
+      "over34": 5,
+      "over50": 1,
+      "perSkip": 3478,
+      "hitch": 31768,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "hero",
+     "oldEmpty": false,
+     "all": {
+      "n": 125,
+      "skips": 42,
+      "over25": 33,
+      "over34": 24,
+      "over50": 5,
+      "perSkip": 3360,
+      "hitch": 32259,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 77,
+      "skips": 36,
+      "over25": 31,
+      "over34": 24,
+      "over50": 5,
+      "perSkip": 4675,
+      "hitch": 40520,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "hero",
+     "oldEmpty": false,
+     "all": {
+      "n": 138,
+      "skips": 37,
+      "over25": 29,
+      "over34": 21,
+      "over50": 4,
+      "perSkip": 2681,
+      "hitch": 27508,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 61,
+      "skips": 28,
+      "over25": 25,
+      "over34": 21,
+      "over50": 4,
+      "perSkip": 4590,
+      "hitch": 40606,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "finish",
+     "oldEmpty": false,
+     "all": {
+      "n": 117,
+      "skips": 43,
+      "over25": 40,
+      "over34": 29,
+      "over50": 10,
+      "perSkip": 3675,
+      "hitch": 38561,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 34,
+      "skips": 29,
+      "over25": 27,
+      "over34": 21,
+      "over50": 8,
+      "perSkip": 8529,
+      "hitch": 59261,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "finish",
+     "oldEmpty": false,
+     "all": {
+      "n": 112,
+      "skips": 43,
+      "over25": 42,
+      "over34": 30,
+      "over50": 11,
+      "perSkip": 3839,
+      "hitch": 40527,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 34,
+      "skips": 29,
+      "over25": 27,
+      "over34": 21,
+      "over50": 8,
+      "perSkip": 8529,
+      "hitch": 59261,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "hero",
+     "oldEmpty": false,
+     "all": {
+      "n": 98,
+      "skips": 50,
+      "over25": 48,
+      "over34": 30,
+      "over50": 16,
+      "perSkip": 5102,
+      "hitch": 47619,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 61,
+      "skips": 45,
+      "over25": 44,
+      "over34": 29,
+      "over50": 16,
+      "perSkip": 7377,
+      "hitch": 57280,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "hero",
+     "oldEmpty": false,
+     "all": {
+      "n": 104,
+      "skips": 46,
+      "over25": 45,
+      "over34": 28,
+      "over50": 16,
+      "perSkip": 4423,
+      "hitch": 44600,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 53,
+      "skips": 40,
+      "over25": 41,
+      "over34": 27,
+      "over50": 16,
+      "perSkip": 7547,
+      "hitch": 58742,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "finish",
+     "oldEmpty": false,
+     "all": {
+      "n": 123,
+      "skips": 40,
+      "over25": 35,
+      "over34": 23,
+      "over50": 4,
+      "perSkip": 3252,
+      "hitch": 32655,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 68,
+      "skips": 27,
+      "over25": 23,
+      "over34": 18,
+      "over50": 4,
+      "perSkip": 3970,
+      "hitch": 38411,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "finish",
+     "oldEmpty": false,
+     "all": {
+      "n": 133,
+      "skips": 32,
+      "over25": 27,
+      "over34": 21,
+      "over50": 3,
+      "perSkip": 2406,
+      "hitch": 27729,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 59,
+      "skips": 22,
+      "over25": 18,
+      "over34": 16,
+      "over50": 3,
+      "perSkip": 3728,
+      "hitch": 37263,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "finish",
+     "oldEmpty": false,
+     "all": {
+      "n": 131,
+      "skips": 39,
+      "over25": 31,
+      "over34": 13,
+      "over50": 6,
+      "perSkip": 2977,
+      "hitch": 28479,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 59,
+      "skips": 25,
+      "over25": 18,
+      "over34": 6,
+      "over50": 4,
+      "perSkip": 4237,
+      "hitch": 32346,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "finish",
+     "oldEmpty": false,
+     "all": {
+      "n": 129,
+      "skips": 45,
+      "over25": 34,
+      "over34": 14,
+      "over50": 7,
+      "perSkip": 3488,
+      "hitch": 30720,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 60,
+      "skips": 25,
+      "over25": 18,
+      "over34": 6,
+      "over50": 4,
+      "perSkip": 4166,
+      "hitch": 32203,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "hero",
+     "oldEmpty": false,
+     "all": {
+      "n": 73,
+      "skips": 56,
+      "over25": 59,
+      "over34": 40,
+      "over50": 20,
+      "perSkip": 7671,
+      "hitch": 60615,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 60,
+      "skips": 53,
+      "over25": 55,
+      "over34": 40,
+      "over50": 20,
+      "perSkip": 8833,
+      "hitch": 63916,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "hero",
+     "oldEmpty": false,
+     "all": {
+      "n": 100,
+      "skips": 51,
+      "over25": 55,
+      "over34": 32,
+      "over50": 15,
+      "perSkip": 5100,
+      "hitch": 47965,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 49,
+      "skips": 43,
+      "over25": 44,
+      "over34": 30,
+      "over50": 14,
+      "perSkip": 8775,
+      "hitch": 61055,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "finish",
+     "oldEmpty": false,
+     "all": {
+      "n": 134,
+      "skips": 45,
+      "over25": 38,
+      "over34": 19,
+      "over50": 4,
+      "perSkip": 3358,
+      "hitch": 29936,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 58,
+      "skips": 32,
+      "over25": 28,
+      "over34": 13,
+      "over50": 4,
+      "perSkip": 5517,
+      "hitch": 40619,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "finish",
+     "oldEmpty": false,
+     "all": {
+      "n": 134,
+      "skips": 46,
+      "over25": 37,
+      "over34": 18,
+      "over50": 4,
+      "perSkip": 3432,
+      "hitch": 29833,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 58,
+      "skips": 32,
+      "over25": 28,
+      "over34": 13,
+      "over50": 4,
+      "perSkip": 5517,
+      "hitch": 40619,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "finish",
+     "oldEmpty": false,
+     "all": {
+      "n": 144,
+      "skips": 37,
+      "over25": 30,
+      "over34": 13,
+      "over50": 2,
+      "perSkip": 2569,
+      "hitch": 23168,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 49,
+      "skips": 26,
+      "over25": 23,
+      "over34": 9,
+      "over50": 2,
+      "perSkip": 5306,
+      "hitch": 37753,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "hero",
+     "oldEmpty": false,
+     "all": {
+      "n": 78,
+      "skips": 52,
+      "over25": 54,
+      "over34": 34,
+      "over50": 23,
+      "perSkip": 6666,
+      "hitch": 58555,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 53,
+      "skips": 42,
+      "over25": 47,
+      "over34": 30,
+      "over50": 21,
+      "perSkip": 7924,
+      "hitch": 64230,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "hero",
+     "oldEmpty": false,
+     "all": {
+      "n": 88,
+      "skips": 53,
+      "over25": 51,
+      "over34": 30,
+      "over50": 21,
+      "perSkip": 6022,
+      "hitch": 53689,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 39,
+      "skips": 32,
+      "over25": 37,
+      "over34": 24,
+      "over50": 18,
+      "perSkip": 8205,
+      "hitch": 67137,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "finish",
+     "oldEmpty": false,
+     "all": {
+      "n": 132,
+      "skips": 45,
+      "over25": 41,
+      "over34": 18,
+      "over50": 3,
+      "perSkip": 3409,
+      "hitch": 29943,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 57,
+      "skips": 25,
+      "over25": 28,
+      "over34": 15,
+      "over50": 3,
+      "perSkip": 4385,
+      "hitch": 41246,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "finish",
+     "oldEmpty": true,
+     "all": {
+      "n": 132,
+      "skips": 41,
+      "over25": 38,
+      "over34": 18,
+      "over50": 3,
+      "perSkip": 3106,
+      "hitch": 29577,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 56,
+      "skips": 25,
+      "over25": 28,
+      "over34": 15,
+      "over50": 3,
+      "perSkip": 4464,
+      "hitch": 41375,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "hero",
+     "oldEmpty": false,
+     "all": {
+      "n": 90,
+      "skips": 44,
+      "over25": 44,
+      "over34": 32,
+      "over50": 20,
+      "perSkip": 4888,
+      "hitch": 51040,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 65,
+      "skips": 41,
+      "over25": 41,
+      "over34": 30,
+      "over50": 20,
+      "perSkip": 6307,
+      "hitch": 57428,
+      "band": "urgent"
+     }
+    },
+    {
+     "zone": "hero",
+     "oldEmpty": false,
+     "all": {
+      "n": 99,
+      "skips": 39,
+      "over25": 39,
+      "over34": 29,
+      "over50": 20,
+      "perSkip": 3939,
+      "hitch": 46996,
+      "band": "urgent"
+     },
+     "animating": {
+      "n": 56,
+      "skips": 34,
+      "over25": 35,
+      "over34": 27,
+      "over50": 20,
+      "perSkip": 6071,
+      "hitch": 58519,
+      "band": "urgent"
+     }
+    }
+   ],
+   "touch": {
+    "drags": 45,
+    "starts": {
+     "n": 13,
+     "median": 9700,
+     "p95": 12800,
+     "max": 12800
+    },
+    "offsets": {
+     "n": 25,
+     "median": 0,
+     "p95": 480,
+     "max": 1446
+    }
+   }
+  }
+ ],
+ "felt": [
+  {
+   "arm": "original",
+   "marks": 31,
+   "oldEmpty": 5,
+   "newEmpty": 0,
+   "skip": 31,
+   "over25": 31,
+   "over34": 31,
+   "over50": 29,
+   "windowPerSkip": 3252,
+   "passPerSkip": [
+    2550,
+    2210
+   ]
+  },
+  {
+   "arm": "rewrite",
+   "marks": 10,
+   "oldEmpty": 5,
+   "newEmpty": 0,
+   "skip": 10,
+   "over25": 10,
+   "over34": 10,
+   "over50": 3,
+   "windowPerSkip": 685,
+   "passPerSkip": [
+    955
+   ]
+  },
+  {
+   "arm": "look",
+   "marks": 22,
+   "oldEmpty": 10,
+   "newEmpty": 0,
+   "skip": 22,
+   "over25": 22,
+   "over34": 16,
+   "over50": 9,
+   "windowPerSkip": 718,
+   "passPerSkip": [
+    693
+   ]
+  }
+ ],
+ "compare": [
+  {
+   "metric": "perSkip",
+   "zone": "whole",
+   "original": [
+    2550,
+    2210
+   ],
+   "spread": 340,
+   "arms": [
+    {
+     "arm": "rewrite",
+     "values": [
+      955
+     ],
+     "verdict": "beats"
+    },
+    {
+     "arm": "look",
+     "values": [
+      693
+     ],
+     "verdict": "beats"
+    }
+   ]
+  },
+  {
+   "metric": "perSkip",
+   "zone": "hero",
+   "original": [
+    2763,
+    2405
+   ],
+   "spread": 358,
+   "arms": [
+    {
+     "arm": "rewrite",
+     "values": [
+      608
+     ],
+     "verdict": "beats"
+    },
+    {
+     "arm": "look",
+     "values": [
+      513
+     ],
+     "verdict": "beats"
+    }
+   ]
+  },
+  {
+   "metric": "perSkip",
+   "zone": "finish",
+   "original": [
+    2168,
+    1862
+   ],
+   "spread": 306,
+   "arms": [
+    {
+     "arm": "rewrite",
+     "values": [
+      2118
+     ],
+     "verdict": "same"
+    },
+    {
+     "arm": "look",
+     "values": [
+      941
+     ],
+     "verdict": "beats"
+    }
+   ]
+  },
+  {
+   "metric": "perSkip",
+   "zone": "rest",
+   "original": [
+    2315,
+    2358
+   ],
+   "spread": 43,
+   "arms": [
+    {
+     "arm": "rewrite",
+     "values": [
+      545
+     ],
+     "verdict": "beats"
+    },
+    {
+     "arm": "look",
+     "values": [
+      561
+     ],
+     "verdict": "beats"
+    }
+   ]
+  },
+  {
+   "metric": "hitch",
+   "zone": "whole",
+   "original": [
+    33468,
+    24253
+   ],
+   "spread": 9215,
+   "arms": [
+    {
+     "arm": "rewrite",
+     "values": [
+      9674
+     ],
+     "verdict": "beats"
+    },
+    {
+     "arm": "look",
+     "values": [
+      7271
+     ],
+     "verdict": "beats"
+    }
+   ]
+  },
+  {
+   "metric": "hitch",
+   "zone": "hero",
+   "original": [
+    37167,
+    28142
+   ],
+   "spread": 9025,
+   "arms": [
+    {
+     "arm": "rewrite",
+     "values": [
+      4688
+     ],
+     "verdict": "beats"
+    },
+    {
+     "arm": "look",
+     "values": [
+      5513
+     ],
+     "verdict": "beats"
+    }
+   ]
+  },
+  {
+   "metric": "hitch",
+   "zone": "finish",
+   "original": [
+    21929,
+    19474
+   ],
+   "spread": 2455,
+   "arms": [
+    {
+     "arm": "rewrite",
+     "values": [
+      21334
+     ],
+     "verdict": "same"
+    },
+    {
+     "arm": "look",
+     "values": [
+      9629
+     ],
+     "verdict": "beats"
+    }
+   ]
+  },
+  {
+   "metric": "hitch",
+   "zone": "rest",
+   "original": [
+    32710,
+    23804
+   ],
+   "spread": 8906,
+   "arms": [
+    {
+     "arm": "rewrite",
+     "values": [
+      5354
+     ],
+     "verdict": "beats"
+    },
+    {
+     "arm": "look",
+     "values": [
+      5812
+     ],
+     "verdict": "beats"
+    }
+   ]
+  }
+ ]
+}

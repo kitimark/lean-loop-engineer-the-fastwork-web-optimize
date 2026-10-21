@@ -165,6 +165,13 @@ def table : List Wf := [
     "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/verify-snapshot.mjs",
     ".github/scripts/runner-info.sh", ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**",
     ".node-version", ".github/actions/setup-pnpm/**", ".github/actions/telemetry/**", "scripts/ci-telemetry/**", own "chromium-counts.yml"], []⟩,
+  ⟨"device-replay.yml", ["ci/device-replay"], [
+    "packages/measure-webkit/src/replay/**", "packages/measure-webkit/src/device-replay*.mjs", "packages/measure-webkit/src/device-record.mjs",
+    "packages/measure-webkit/src/device-session.mjs", "packages/measure-webkit/src/linux/serve.mjs", "packages/measure-webkit/src/linux/run.mjs",
+    "packages/measure-webkit/test/replay-*.test.mjs", "packages/contracts/golden/device/**", "packages/measure-chromium/profiles/user-fixture.json",
+    "packages/measure-chromium/src/profile.mjs", "packages/gate-breakpoints/package.json", "snapshot/**", "snapshot.lock.json",
+    "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/verify-snapshot.mjs", ".github/scripts/changed-inputs.mjs",
+    ".node-version", ".github/actions/setup-pnpm/**", ".github/actions/telemetry/**", "scripts/ci-telemetry/**", own "device-replay.yml"], []⟩,
   ⟨"difftest.yml", ciAll, [
     "packages/difftest/**", "packages/measure-webkit/src/**", "packages/measure-chromium/src/**",
     "apps/runner/hooks/cap.mjs", "apps/console-api/src/cap/**", "@fwcore", "pnpm-lock.yaml",
@@ -189,11 +196,11 @@ def table : List Wf := [
   ⟨"lean.yml", ciMain, [
     "lean/**", "apps/site/src/breakpoints.gen.json", "apps/site/src/sweeps.gen.json", "apps/site/src/head.gen.json", "scripts/span.sh",
     "scripts/fwcore-build.sh", "scripts/fwcore-record-rule.sh", "scripts/fwcore-build.test.mjs", "apps/console-api/src/core/build-base.ts", "scripts/lake-slot.sh", "scripts/lake-slot-lib.sh", "scripts/heavy-lock.mjs", "scripts/heavy-lock.test.mjs", "scripts/lake-slot.test.mjs", "packages/contracts/golden/sched/lake-slot.gen.sh",
-    "packages/contracts/golden/console/land-dry.jsonl", "packages/contracts/golden/gate/sweeps.jsonl", "packages/contracts/golden/gate/exit.jsonl", "packages/contracts/golden/gate/webkit-screen.jsonl", "packages/contracts/golden/device/session.jsonl", "packages/contracts/golden/device/stillruns.jsonl", "packages/contracts/golden/measure/webkit-lag.jsonl", "packages/contracts/golden/gate/search.jsonl",
+    "packages/contracts/golden/console/land-dry.jsonl", "packages/contracts/golden/gate/sweeps.jsonl", "packages/contracts/golden/gate/exit.jsonl", "packages/contracts/golden/gate/webkit-screen.jsonl", "packages/contracts/golden/device/session.jsonl", "packages/contracts/golden/device/replay.jsonl", "packages/contracts/golden/device/stillruns.jsonl", "packages/contracts/golden/measure/webkit-lag.jsonl", "packages/contracts/golden/measure/webkit-profile.jsonl", "packages/contracts/golden/gate/search.jsonl",
     "packages/contracts/golden/gate/smooth.jsonl", "packages/contracts/golden/gate/trajectory-colour.jsonl", "packages/gate-breakpoints/src/scope.gen.json", "packages/contracts/golden/parts/contracts.gen.json",
     "packages/contracts/golden/gate/run-perm.jsonl", "packages/contracts/golden/gate/run-perm-cells.jsonl",
     "packages/contracts/golden/parts/stage.jsonl", "packages/contracts/golden/parts/stage-mode.jsonl",
-    "packages/contracts/golden/parts/hero.exit.scoped.json", "packages/measure-chromium/scenarios.gen.json",
+    "packages/contracts/golden/parts/hero.exit.scoped.json", "packages/contracts/golden/parts/hero-exit.threaded.jsonl", "packages/measure-chromium/scenarios.gen.json",
     "packages/contracts/golden/parts/morph.mount.dormant.jsonl", "packages/contracts/golden/parts/morph-mount-tap.jsonl",
     "packages/contracts/golden/parts/nav-earn.jsonl", "packages/contracts/golden/parts/hero-scene-pause.jsonl",
     "packages/contracts/golden/gate/image-arm.jsonl",
@@ -232,7 +239,9 @@ def table : List Wf := [
     ".github/scripts/trajectory-line.mjs", ".github/scripts/trajectory-line.test.mjs", "packages/contracts/golden/ci/triggers.jsonl",
     "packages/contracts/golden/gate/search.jsonl", "packages/contracts/golden/gate/smooth.jsonl", "packages/contracts/golden/ops/cache.jsonl",
     ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", ".node-version", ".github/actions/setup-pnpm/**",
-    ".github/actions/gate-engine/**", ".github/actions/telemetry/**", "scripts/ci-telemetry/**", own "smoothness.yml"], []⟩,
+    ".github/actions/gate-engine/**", ".github/actions/telemetry/**", "scripts/ci-telemetry/**", "packages/measure-webkit/**",
+    "packages/measure-chromium/src/profile.mjs", "packages/contracts/golden/measure/webkit-profile.jsonl", ".github/scripts/check-simulator.sh",
+    ".github/scripts/runner-info.sh", own "smoothness.yml"], []⟩,
   ⟨"snapshot-extract.yml", ciAll, [
     "packages/snapshot-extract/**", "packages/gate-breakpoints/**", "apps/site/**", "snapshot/**", "snapshot.lock.json",
     "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/verify-snapshot.mjs",
@@ -293,7 +302,7 @@ def run (diff merged : List String) : List String :=
 #guard run ["packages/contracts/golden/gate/pixel.jsonl"] [] == ["land.yml", "visual-diff.yml"]
 #guard run ["docs/team/handoffs/x.md"] [] == []
 -- a change of the Node pin starts every lane that sets up Node (task node-pin)
-#guard run [".node-version"] [] == ["breakpoint-gate.yml", "chromium-counts.yml", "difftest.yml", "engine-premises.yml", "gate-gaps.yml", "land.yml", "lean-math.yml", "lean.yml", "linux-webkit-probe.yml", "mutants.yml", "premise-tests.yml", "preview-e2e.yml", "sim-speed.yml", "smoothness.yml", "snapshot-extract.yml", "toolbar-throttle.yml", "trajectory-probe.yml", "visual-diff.yml", "webkit-sim.yml", "wktr-fixtures.yml", "wktr.yml"]
+#guard run [".node-version"] [] == ["breakpoint-gate.yml", "chromium-counts.yml", "device-replay.yml", "difftest.yml", "engine-premises.yml", "gate-gaps.yml", "land.yml", "lean-math.yml", "lean.yml", "linux-webkit-probe.yml", "mutants.yml", "premise-tests.yml", "preview-e2e.yml", "sim-speed.yml", "smoothness.yml", "snapshot-extract.yml", "toolbar-throttle.yml", "trajectory-probe.yml", "visual-diff.yml", "webkit-sim.yml", "wktr-fixtures.yml", "wktr.yml"]
 -- a merge of main changes lean/ and apps/site but starts nothing
 #guard run ["lean/Fw/Wire.lean", "apps/site/src/a.ts"] ["lean/Fw/Wire.lean", "apps/site/src/a.ts"] == []
 #guard run ["packages/measure-wktr/src/a.mjs", "lean/Fw/Wire.lean"] ["lean/Fw/Wire.lean"] == ["engine-premises.yml", "land.yml", "wktr-fixtures.yml", "wktr.yml"]
@@ -438,7 +447,7 @@ theorem branches_split : ∀ w ∈ table, w.branches = ciPart w.branches ++ (if 
 
 /-- The `ci/**` triggers, unchanged by task `ci-main-triggers`. -/
 theorem ci_triggers : table.map (fun w => (w.file, ciPart w.branches)) = [
-    ("breakpoint-gate.yml", ["ci/**"]), ("chromium-counts.yml", ["ci/**"]), ("difftest.yml", ["ci/**"]),
+    ("breakpoint-gate.yml", ["ci/**"]), ("chromium-counts.yml", ["ci/**"]), ("device-replay.yml", ["ci/device-replay"]), ("difftest.yml", ["ci/**"]),
     ("engine-premises.yml", ["ci/**"]), ("gate-gaps.yml", ["ci/**"]), ("land.yml", ["ci/land-*"]), ("lean-math.yml", ["ci/**"]),
     ("lean.yml", ["ci/**"]), ("linux-webkit-probe.yml", ["ci/linux-webkit-probe"]), ("mutants.yml", ["ci/**"]), ("premise-tests.yml", ["ci/**"]), ("preview-e2e.yml", ["ci/**"]), ("sim-speed.yml", ["ci/sim-speed"]),
     ("smoothness.yml", ["ci/**"]), ("snapshot-extract.yml", ["ci/**"]), ("toolbar-throttle.yml", ["ci/**"]), ("trajectory-probe.yml", ["ci/**"]), ("visual-diff.yml", ["ci/**"]), ("webkit-sim.yml", ["ci/**"]),
