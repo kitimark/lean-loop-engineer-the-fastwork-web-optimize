@@ -429,8 +429,8 @@ in pass 0 and 73 in pass 3 (`tol` 10); max-width at trigger 4 reads 2285 in pass
 later trigger by the original's reading there; round 2 (`chainCost`) tried and was closed as a finding.
 
 Rule (Lean `startCheck`, `settleCheck`, `byMStart`; TS twin of the same names in `reduce.mjs`), only the units of
-`startOn` (earn `opacity`, earn `max-width`). `full` is the value at rest (`fullOf`, `Nav.lean` 266-269 after the CSS at
-`apps/site/src/parts/nav/nav.module.css` 170, 173 and 285): opacity 1, max-width 11rem = 176 px, 9.5rem = 152 px up to
+`startOn` (earn `opacity`, earn `max-width`). `full` is the value at rest (`fullOf`, `Nav.lean` 266-269 and 274, which restate the original CSS (snapshot lines 11480, 11483, 11485, 11594-11596), ported in
+`apps/site/src/parts/nav/nav.module.css` 170, 173, 176 (opacity) and 285): opacity 1, max-width 11rem = 176 px, 9.5rem = 152 px up to
 640 px. Values are times 1000.
 
 - close@0 (push of the close, bucket 0), for a rewrite sample `r` after the earlier samples of its pass:
@@ -459,7 +459,7 @@ Proved (`lean/Fw/Gate/Trajectory.lean`, section `CloseStart`):
   - `byMStart_collapsed` (stays at 0): passes close@0 (inside the range), refused at close-hold@0.
   - `byMStart_target` (rests at 0.9): `byM` passes close-hold@0 against the original's in-flight 895, settle refuses.
   - `byMStart_duration` (463 ms instead of 320): reads 989 at settle time, refused at close-hold@0.
-- Smallest refused change, read exactly `settleAt` after the trigger and rounded half up as `kit.mjs` 43 rounds
+- Smallest refused change (one trigger, rise from 0), read exactly `settleAt` after the trigger and rounded half up as `kit.mjs` 43 rounds
   (`readRise`, `rounded_iff`, `settle_dur_iff`, `settle_delay_iff`, monotone by `along_dur_le` and `along_delay_le`):
 
 | unit | duration | delay |
@@ -468,14 +468,15 @@ Proved (`lean/Fw/Gate/Trajectory.lean`, section `CloseStart`):
 | max-width above 640 px (680 ms) | +166 ms (`settle_wide_duration`) | +149 ms (`settle_wide_delay`) |
 | max-width up to 640 px (680 ms) | +173 ms (`settle_phone_duration`) | +154 ms (`settle_phone_delay`) |
 
-A sample read later than `settleAt` refuses a smaller change only if the transition is still short of `full - tol`
-there; read earlier, the check does not decide.
+Read later than `settleAt`, or from a start above 0 (real last triggers start in flight, up to 73/1000 opacity and tens of
+px max-width), the smallest refused increase is larger; read earlier, the check does not decide.
 
 Accepted limits (each a theorem or a measurement):
 
 - (i) Another curve, or a shorter duration, with the same endpoints passes close@0 (`byMStart_curve`: linear max-width
   at 390 px; the 320 ms opacity where `is-hero-pill` runs 200 ms).
-- (ii) A pass with no close-hold sample read `settleAt` after its last trigger keeps `byM` only (`byMSettle_keep`).
+- (ii) A close-hold with no refusing settle check is `byM` (`byMSettle_keep`); a pass with no late sample adds only
+  undecided checks (`settleCheck_early`).
   MEASURED: 0 of 12280 macOS WebKit and 0 of 19722 Chromium close@0 samples of the four runs are read that late, so the
   settle check never decides in close@0; close-hold samples read that late: macOS WebKit 788 of 1338, 781 of 1396, 742
   of 1284, 765 of 1358 per run.
@@ -484,9 +485,11 @@ Accepted limits (each a theorem or a measurement):
 - (iv) `startJitter` = 80 ms (MEASURED in round 1), in `settleAt`.
 - (v) `tol` 0.01 opacity, 1 px max-width.
 - (vi) Any close@0 in-flight reading inside `[anchor - tol, full + tol]` passes.
-- Wrong `darkCut` (0.25 instead of 0.2), INFERRED from a float simulation of the 39508421419 pass 0 timeline at 1280
-  px: max-width moves at most 0.9 px in close buckets 1 and 2 and 1.06 px later in bucket 0 (inside the range), opacity
-  not at all; those buckets are judged by `byM`.
+- (vii) When `startCheck` decides a bucket-0 sample it bypasses `judgeUnit`, including its coverage outcomes (no
+  window, no counterpart in the original). Follow-up: run the coverage branch first.
+- Wrong `darkCut` (0.25 instead of 0.2) is NOT caught: `byM` judges it in close buckets 1 and 2, and the change there
+  (at most 0.9 px; 1.06 px later in bucket 0, inside the range; opacity unmoved) is inside tol 1 px. INFERRED from a
+  float simulation of the 39508421419 pass 0 timeline at 1280 px (scratch script, not committed).
 
 Re-reduced (MEASURED, raw artifacts of the four runs reduced by main's reducer at 74fccd34 and by this rule; "stored" is
 the run's own units file). Candidate `new` units on macOS WebKit:

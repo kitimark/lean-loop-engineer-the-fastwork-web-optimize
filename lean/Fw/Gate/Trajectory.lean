@@ -3169,7 +3169,7 @@ def startTr (node prop : String) (width : Nat) (cls : List String) : Option (Nat
   ((transitionsOf node width cls).find? fun (p, _, _) => (cssOf node prop).contains p).map fun (_, d, l) => (d, l)
 
 /-- The earn button's value at rest past the hero, times 1000: opacity `Nav.expand false`, max-width `Nav.earnMaxW` at
-morph value 0 (`Nav.lean` 266-269). -/
+morph value 0 (`Nav.lean` 266-269, 274; snapshot CSS 11480, 11483, 11485, 11594-11596). -/
 def fullOf (prop : String) (width : Nat) : Rat :=
   if prop == "opacity" then Nav.expand false * 1000 else Nav.earnMaxW ⟨width, 0⟩ false 0 * 1000
 
