@@ -28,7 +28,7 @@ const Input = z.object({
     errTail: Num.optional(), inflight: z.object({ tool: Str, since: Num }).nullish(), ctxTokens: Num.nullish(),
   }).passthrough()),
   system: z.object({
-    diskFreeGB: Num, memPressure: Str.optional(),
+    diskFreeGB: Num, memPressure: Str.optional(), load1: Num.optional(),
     simLock: z.object({ holder: Str.nullish(), since: Num.nullish() }).optional(),
     docker: z.array(z.object({ name: Str, startedAt: Num }).passthrough()).optional(),
     worktrees: Num.optional(),
@@ -59,7 +59,7 @@ function project(line: z.infer<typeof Line>) {
     alerts: output.alerts, // already sorted and deduplicated by Lean
     systemAlerts: output.system.alerts,
     system: {
-      diskFreeGB: input.system.diskFreeGB,
+      diskFreeGB: input.system.diskFreeGB, load1: input.system.load1 ?? 0,
       memPressure: input.system.memPressure ?? "normal",
       simLock: { holder: input.system.simLock?.holder ?? null, since: input.system.simLock?.since ?? null },
       docker: (input.system.docker ?? []).map((c) => ({ name: c.name, startedAt: c.startedAt })),

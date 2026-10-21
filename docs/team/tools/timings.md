@@ -43,3 +43,10 @@ p90. Job spans contain their step spans, so compare within a level. Raw lines: `
 `fw watch` turns the latest slow sample per `<tool>/<step>` (Lean `Fw.Obs.Next.slowSteps`, from `Fw.Obs.Timing`) into
 `timing.slow` and `NEXT investigate step=<tool/step>`; replay test: apps/runner/test/timing-alert.test.ts against
 packages/contracts/golden/obs/timing.jsonl.
+
+## Contended samples and the heavy-job lock
+A span recorded while the 1-min load average is above `Fw.Obs.Timing.contendedLoad` (8) has code `contended`: it is not
+compared with the baseline, and it does not become the baseline (measured: the same step takes 1.5-2x longer at load 16-40
+than below 4; props lint 16.8 s vs 22.7 s). `sys.contended` reports the load once. `lean/scripts/check.sh` runs inside
+`scripts/heavy-lock.mjs` (Lean `Fw.Sched.Heavy`: a FIFO queue, at most `cap` holders, free memory for the job plus a reserve,
+swap below 60 percent; an idle machine always admits). `FW_HEAVY_LOCK=off` skips it. The lock files are in `<git dir>/fw-heavy/`.

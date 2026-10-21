@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { binIn, buildBase, chooseBase, parseRecord, readRecord } from "../src/core/build-base.ts";
+import { binIn, buildBase, chooseBase, chooseBaseTree, parseRecord, readRecord } from "../src/core/build-base.ts";
 
 const sha256 = (t: string) => createHash("sha256").update(t).digest("hex");
 const C = "c".repeat(40);
@@ -21,7 +21,25 @@ describe("chooseBase (table shared with lean/Fw/Obs/Stale.lean)", () => {
   });
 });
 
+// the #guards of Fw.Obs.chooseBaseTree (theorems chooseBaseTree_at, chooseBaseTree_landed, chooseBaseTree_unlanded)
+describe("chooseBaseTree (table shared with lean/Fw/Obs/Stale.lean)", () => {
+  it("the newest commit with the recorded tree is the base", () => {
+    expect(chooseBaseTree("H", "T", "H", [["c2", "T2"], ["c1", "T"]])).toEqual({ sha: "c1" });
+    expect(chooseBaseTree("H", "T", "H", [["c3", "T"], ["c1", "T"]])).toEqual({ sha: "c3" });
+  });
+  it("a tree no commit has, or a record of another binary, is unknown", () => {
+    expect("unknown" in chooseBaseTree("H", "T", "H", [["c2", "T2"]])).toBe(true);
+    expect("unknown" in chooseBaseTree("H2", "T", "H", [["c1", "T"]])).toBe(true);
+  });
+  it("chooseBase resolves a tree record through the log", () => {
+    expect(chooseBase("H", { tree: "T", hash: "H" }, [["c1", "T"]])).toEqual({ sha: "c1" });
+  });
+});
+
 describe("parseRecord", () => {
+  it("reads `tree <id> <sha256>`", () => {
+    expect(parseRecord(`tree ${C} ${sha256("x")}\n`)).toEqual({ tree: C, hash: sha256("x") });
+  });
   it("reads `<sha> <sha256>` and rejects anything else", () => {
     expect(parseRecord(`${C} ${sha256("x")}\n`)).toEqual({ sha: C, hash: sha256("x") });
     for (const bad of ["", C, `${C}\n`, `${C} short`, `zz ${sha256("x")}`, `${C} ${sha256("x")} extra`]) expect(parseRecord(bad)).toBeNull();

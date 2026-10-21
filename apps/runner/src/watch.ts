@@ -6,7 +6,7 @@ import { appendFileSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, 
 import { dirname, join, resolve } from "node:path";
 import { UsageError } from "./lib.ts";
 import { collectFacts, formatNext, nextAlerts, slowAlerts, slowNextLines, type NextReply } from "./next.ts";
-import { ghFlagged } from "./watch-gh.ts";
+import { contendedFlagged, ghFlagged } from "./watch-gh.ts";
 import { reapTick } from "./reap.ts";
 import {
   collectSnapshot, exe, parseStartRows, pathsFor, PS_START, readKeep, readSamples, writeKeep, type AgentSnap, type KeepDecide, type KeepEntry, type Paths,
@@ -91,7 +91,7 @@ export async function nextMain(args: string[], cwd: string, print: (s: string) =
   const paths = pathsFor(main);
   const call = core ?? coreCaller(coreCandidates(root, main));
   const last = readLastLog(paths);
-  const prevSnap: Prev | null = last?.input?.system ? { at: last.at, system: last.input.system, critical: last.input.critical, ghDegraded: ghFlagged(last.output) } : null;
+  const prevSnap: Prev | null = last?.input?.system ? { at: last.at, system: last.input.system, critical: last.input.critical, ghDegraded: ghFlagged(last.output), contended: contendedFlagged(last.output) } : null;
   const snap = await collectSnapshot(paths, Date.now(), undefined, prevSnap, undefined, keepDecider(call));
   const h = await check(snap, call);
   const reply = await nextFor(paths, main, snap, h, call);
@@ -308,7 +308,7 @@ export async function watchMain(args: string[], cwd: string, print?: (s: string)
   // and a failed gh/docker collector carries that check's value forward (marked stale)
   const last = readLastLog(paths);
   let prev: AlertKey[] | null = last ? last.output.alerts.map((a) => ({ code: a.code, subject: a.subject })) : null;
-  let prevSnap: Prev | null = last?.input?.system ? { at: last.at, system: last.input.system, critical: last.input.critical, ghDegraded: ghFlagged(last.output) } : null;
+  let prevSnap: Prev | null = last?.input?.system ? { at: last.at, system: last.input.system, critical: last.input.critical, ghDegraded: ghFlagged(last.output), contended: contendedFlagged(last.output) } : null;
   for (;;) {
     const { snap, h, nx, slow } = await pass(paths, main, prevSnap, call, decide);
     const fresh = o.untilAlert ? await newAlerts(call, prev, h) : [];
@@ -318,7 +318,7 @@ export async function watchMain(args: string[], cwd: string, print?: (s: string)
       return 3;
     }
     prev = h.alerts.map((a) => ({ code: a.code, subject: a.subject }));
-    prevSnap = { at: snap.now, system: snap.system, critical: snap.critical, ghDegraded: ghFlagged(h) };
+    prevSnap = { at: snap.now, system: snap.system, critical: snap.critical, ghDegraded: ghFlagged(h), contended: contendedFlagged(h) };
     if (o.intervalS !== null) for (const l of reapTick(main)) if (!o.json) say(l); // reap-auto-stop: each tick stops the processes Lean selects
     if (o.intervalS === null) return 0;
     await new Promise((r) => setTimeout(r, o.intervalS! * 1000));
@@ -348,7 +348,7 @@ async function streamMain(o: WatchOpts, paths: Paths, main: string, call: CoreCa
   process.once("exit", (c) => end(`exit ${c}`));
   for (const [sig, n] of [["SIGINT", 2], ["SIGTERM", 15], ["SIGHUP", 1]] as const) process.once(sig, () => { end(`signal ${sig}`); process.exit(128 + n); });
   const last = readLastLog(paths);
-  let prevSnap: Prev | null = last?.input?.system ? { at: last.at, system: last.input.system, critical: last.input.critical, ghDegraded: ghFlagged(last.output) } : null;
+  let prevSnap: Prev | null = last?.input?.system ? { at: last.at, system: last.input.system, critical: last.input.critical, ghDegraded: ghFlagged(last.output), contended: contendedFlagged(last.output) } : null;
   let open: AlertKey[] = []; // each stream starts empty and prints every open alert once: nothing is persisted
   try {
     for (;;) {
@@ -357,7 +357,7 @@ async function streamMain(o: WatchOpts, paths: Paths, main: string, call: CoreCa
       for (const line of streamLines(d)) say(line);
       open = d.next;
       for (const l of reapTick(main)) say(l); // reap-auto-stop: `REAP stopped ...` lines are the only non-OPEN/CLOSE lines
-      prevSnap = { at: snap.now, system: snap.system, critical: snap.critical, ghDegraded: ghFlagged(h) };
+      prevSnap = { at: snap.now, system: snap.system, critical: snap.critical, ghDegraded: ghFlagged(h), contended: contendedFlagged(h) };
       await new Promise((r) => setTimeout(r, o.intervalS! * 1000));
     }
   } catch (e) {
