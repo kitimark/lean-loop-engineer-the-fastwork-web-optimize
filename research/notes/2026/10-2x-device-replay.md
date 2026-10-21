@@ -7,10 +7,10 @@ created: 2026-10-22
 topics: [device, replay, safaridriver, webkit, chromium]
 ---
 
-# Device replay (task device-replay)
+# Device replay
 
 Goal: the felt lag lives on the phone, and a person is too noisy to compare two pages with. A replay sends the same finger path to
-both pages. This note is the method, the checks that shaped it, and what is and is not known. Status words: CONFIRMED (source or
+both pages. Status words: CONFIRMED (source or
 measurement cited), INFERRED, UNKNOWN (to measure), MEASURED.
 
 ## Method
@@ -59,20 +59,18 @@ measurement cited), INFERRED, UNKNOWN (to measure), MEASURED.
 - Lean, TS twin and driver on synthetic fixtures: MEASURED (tests pass; the Lean check and the twin agree on the golden). See the
   handoff for run ids.
 - Chromium lane on GitHub CI, one profile run (the committed `user-fixture` profile, three kinds, repeats): the result is the replay
-  check per swipe and recorder frame counts, not class counts. INFERRED expectation before the run: Chromium may coalesce
-  `touchmove` events under 6x throttle, so `eventsOk` can fail; the per-conjunct output records that as a finding, not as a defect of the
-  profile.
+  check per swipe and recorder frame counts, not class counts.
 - MEASURED, run 39646030536 (ubuntu-24.04-arm, one run, 3 kinds x 2 repeats, 5 swipes each): every dispatch left within 5 ms of its
   time (p95 at most 1.1 ms), all 5 swipes were seen in every pass, but the page saw 105 to 113 of the 300 to 307 touch events
   sent, so `eventsOk` and `replayMatches` are false in all 6 passes. Cause INFERRED: renderer-side coalescing of continuous touchmove
   (main-thread event queue, rAF-aligned input) under 6x throttle; not yet cited from Chromium source and not separated from coalescing
   at 1x. So Chromium cannot stand in for the phone's event stream; it can still load the page with the finger path. Frames
-  above 34 ms: 82 to 93 of 111 to 117 moving frames. The numbers are one run, not class counts.
+  above 34 ms: 82 to 93 of 111 to 117 moving frames.
 - The phone pilot did not run (needs the user step and a booked session): UNKNOWN.
 
 ## Accepted limits and follow-ups
 
-- Limits are defaults, not calibrated. Calibration needs phone replays (follow-up `limit-calibration`).
+- Calibrating the limits needs phone replays (follow-up `limit-calibration`).
 - The pilot verdict (success: all three replays of rec-1 pass `replayMatches` and their spread is below the gap between two different
   recordings): the CLI prints replayMatches per pass and the frame counts and writes run.json; the spread of the 3 replays and the
   rec-1 vs rec-4 gap are not computed yet (follow-up pilot-verdict, with the verdict function in Lean).

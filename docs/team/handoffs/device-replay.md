@@ -5,7 +5,7 @@ Read first: `research/notes/2026/10-2x-device-replay.md` (method, 7 check fixes,
 ## State
 - Lean: `lean/Fw/Device/Replay.lean` (profile, W3C compiler with `compile_dur_le`/`compile_targets`/`px_err`, `replayMatches` with
   one theorem per conjunct, `Lim` defaults), `ReplayProfiles.lean` (fast-fling, zone-loop, cold, arm rotation, schedule with
-  theorems), `ReplayGolden.lean` + `lean/scripts/DeviceReplayGolden.lean` -> `packages/contracts/golden/device/replay.jsonl`
+  theorems), `ReplayGolden.lean` + `lean/scripts/DeviceReplayGolden.lean`, which writes `packages/contracts/golden/device/replay.jsonl`
   (24 lines; job `device-replay golden check` in `lean/scripts/check.sh`).
 - TS (`packages/measure-webkit`): `src/device-replay.mjs` (twin), `src/device-replay-wd.mjs`, `src/device-replay-cli.mjs` (safaridriver
   lane, never run on a phone), `src/replay/` (Chromium CDP lane for CI). Tests `test/replay-{twin,driver,chromium}.test.mjs`
@@ -18,7 +18,7 @@ Read first: `research/notes/2026/10-2x-device-replay.md` (method, 7 check fixes,
 `land-overflow-widths` tests.
 
 ## Open
-- Phone pilot (rec-1 x3): needs user step `ask-replay-setup` (`safaridriver --enable`, iPhone Remote Automation ON, booked session).
+- Phone pilot (rec-1, three runs): needs user step `ask-replay-setup` (`safaridriver --enable`, iPhone Remote Automation ON, booked session).
   Command in the tool doc. Safari capabilities UNKNOWN until then.
 - Follow-ups: Simulator lane (no touch path in the harness), limit calibration (`Lim` defaults are research values), pilot verdict
   function in Lean (the CLI prints the numbers), WDA path A not built, bootstrap CI / hero-stall stats not built.

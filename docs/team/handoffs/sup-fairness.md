@@ -2,7 +2,7 @@
 
 State: branch `worktree-wf_c2b0e206-401-1`, base 7267a8f0; see `git log` for the head commit.
 
-Done (all in `lean/Fw/Sup/Core.lean` and `lean/Fw/Sup/Props.lean`, no new module):
+Done (in `lean/Fw/Sup/Core.lean` and `lean/Fw/Sup/Props.lean`):
 - Core pumpOne: a svc grant on an unpinned resource waits behind a blocked job; the deadline refusal keeps a ticket
   (`refuseT`).
 - `fifo_no_overtake` for every grant, `svc_respects_blocked` as its A = [] corollary, `deadline_keeps_ticket`.

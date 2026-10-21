@@ -14394,7 +14394,8 @@
     "packages/contracts/golden/console/steps*.jsonl",
     "docs/team/tools/console-steps.md",
     "docs/team/handoffs/step-threads.md"
-   ]
+   ],
+   "evidence": "8c0b4e8"
   },
   {
    "devices": [
@@ -14441,6 +14442,34 @@
     "packages/contracts/golden/ci/triggers.jsonl",
     "docs/team/tools/offload.md",
     "docs/team/handoffs/ci-offload-checks.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "polish-in-flow",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "local-adaptive-queue"
+   ],
+   "title": "User 2026-10-22: 'i'd like to adjust these to more automatic check our project. can we involve these agent in our process ?' (comment-sicko and slop-checker; until now they ran only when the lead remembered: none ran from 10-19 to 10-22, then one manual slop pass cut 55 sentences of which 3 removed facts). Add a Polish stage to .claude/workflows/build-review.js after the adversarial review accepts (or after its only refusals are fix-before-land), before the build returns to the lead: (1) comment-sicko on the branch's code diff (main...branch; TS, JS, shell, YAML, Lean; never snapshot/, goldens or generated files), editing comments only and committing in the branch; (2) slop-checker on the branch's prose diff (md and handoffs, notes, tool docs) returning exact old/new cuts, applied by a patcher only where old occurs once and the cut passes a Lean guard; then the dry land re-runs. Lean Fw.Plan.Polish: file classes (code, prose, skip) from paths with goldens and a theorem that skip-class paths are never edited; a cut guard cutSafe(old, new): every number, file:line, run id, commit id and status word (CONFIRMED, INFERRED, MEASURED) of old also occurs in new (the 10-22 over-cuts are golden cases where a guard applies); the stage runs only when the diff has a file of that class. The lead's own direct commits to main (notes, graph titles, incidents) get the same slop pass through a `fw polish --staged` command that prints the cuts for the lead to apply. Update docs/team/token-policy.md (comment-sicko spawned by the build-review workflow and the lead) and .claude/agents/comment-sicko.md description. Measure: polish stage tokens and wall time on the next 5 builds. Roster check (incident inc-sicko-unknown-role): a test that every .claude/agents/*.md name is in Lean SpawnGuard.prodRoles, so a new role cannot be unspawnable.",
+   "writes": [
+    ".claude/workflows/build-review.js",
+    "lean/Fw/Plan/Polish*.lean",
+    "lean/Fw/Plan.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/plan/polish*.jsonl",
+    "apps/runner/src/polish*.ts",
+    "apps/runner/test/polish*.test.ts",
+    "apps/runner/src/fw.ts",
+    "docs/team/token-policy.md",
+    ".claude/agents/comment-sicko.md",
+    "docs/team/tools/polish.md",
+    "docs/team/handoffs/polish-in-flow.md",
+    "apps/runner/test/spawn-guard*.test.ts",
+    "lean/Fw/Ops/SpawnGuard.lean"
    ]
   }
  ],

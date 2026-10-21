@@ -1,13 +1,13 @@
-# Labelled replay sets for the Jev trial (task jev-datasets)
+# Labelled replay sets for the Jev trial
 
-Status: MEASURED 2026-10-22 (round 2 run: counts.json written 2026-10-22T00:57:38+07:00; ledger at commit ecdc0787) on the dev Mac from local history (this is a data extraction, not a performance result). No Jev call was made and no `gh api` call. The datasets stay local in `.cache/jev/<set>.jsonl` (gitignored); this note commits only counts.
+Status: MEASURED 2026-10-22 (round 2 run: counts.json written 2026-10-22T00:57:38+07:00; ledger at commit ecdc0787) on the dev Mac from local history (this is a data extraction, not a performance result). The datasets stay local in `.cache/jev/<set>.jsonl` (gitignored); this note commits only counts.
 
 The trial asks whether Jev can sort our own past work. Each set below is a list of items from our history with a label that was decided before Jev saw anything. A later task (calibration, jev-replay) sends the items to Jev and scores the answers against the labels.
 
 ## How a row gets its label
 
 - CONFIRMED (lean/Fw/Oracle/Labels.lean, golden packages/contracts/golden/oracle/labels.jsonl, 189 lines): every label rule and the split are Lean, standalone and proved by case theorems. `scripts/jev-datasets.mjs` reads its constants and rule tables from the golden; `scripts/jev-datasets.test.mjs` replays every golden row (hash, d1, severity, fable, apply, phrase, all 64 CI fact combinations, all 30 alert combinations).
-- Split: a row is held out when FNV-1a 32 of its id mod 4 is 0 (`heldOut`); the rest is calibration. Theorems `split_exclusive`, `split_disjoint`, `split_complete`. The split depends on the id only, and every id is stable: D1 by the ledger incident id, D2 by `<task>#<workflow id>#f<n>` (the workflow id is the journal's own, so pruning an old journal removes its rows and moves no other row; `round` is a field, not part of the id), D3 by `run-<run id>`, D4 by the step id. A row never moves between runs.
+- Split: a row is held out when FNV-1a 32 of its id mod 4 is 0 (`heldOut`); the rest is calibration. Theorems `split_exclusive`, `split_disjoint`, `split_complete`. The split depends on the id only, and every id is stable: D1 by the ledger incident id, D2 by `<task>#<workflow id>#f<n>` (the workflow id is the journal's own, so pruning an old journal removes its rows and moves no other row; `round` is a field, not part of the id), D3 by `run-<run id>`, D4 by the step id.
 - Redaction: home paths, user names, emails, session ids, agent ids, LAN IPs, device ids and tokens become placeholders before a row is written; a row with a residual leak is withheld and counted. This is a TS stand-in (see the end).
 
 ## D1: incident mistake class
@@ -50,9 +50,9 @@ MEASURED why `medium` is unlabelled: of reviews with a medium finding, 44 were a
 
 Exact words are the three grade names; legacy words are the older vocabulary mapped by the word table. Held out: 602 rows, 364 labelled (blocker 31, fix-before-land 43, follow-up 290). Unit membership: in unit 309 (blocker plus fix-before-land), out of unit 1200. 124 of the 393 reviewer prompts lack a "Pinned unit of decision" line, so the unit field is empty for those rows (flag `hasUnit`).
 
-Regrades: a Fable advice (workflow `fable-refusals`) can lower a grade (a line saying "reviewer error" or "rule noise" dismisses the finding; "real, low value" makes it a follow-up). 46 Fable advices were found; a regrade applies only when the advice has exactly as many classification lines as the round has findings, and then by position. That held for 1 advice; 45 were skipped; 6 regrades exist, and the source (`fable:<workflow id>`) is in each affected row's `labelSource`. Not searched: the check agents of `fable-refusals` runs and lead regrades by task split; lead regrades by quoting a finding in a later prompt were tried and dropped because the text match was unreliable. Labels outside the 6 Fable regrades are the reviewer grades.
+Regrades: a Fable advice (workflow `fable-refusals`) can lower a grade (a line saying "reviewer error" or "rule noise" dismisses the finding; "real, low value" makes it a follow-up). 46 Fable advices were found; a regrade applies only when the advice has exactly as many classification lines as the round has findings, and then by position. That held for 1 advice; 45 were skipped; 6 regrades exist, and the source (`fable:<workflow id>`) is in each affected row's `labelSource`. Not searched: the check agents of `fable-refusals` runs and lead regrades by task split. Labels outside the 6 Fable regrades are the reviewer grades.
 
-The journals are live, so the D2 counts are those of the last run (counts.json, 2026-10-22T00:57:38+07:00); a later review adds rows. Limits (accepted in the task): labels are reviewer grades, noisy by the reviewer's own variance; the legacy word mapping is a decision (the Lean table), not a fact; review rounds of tasks whose journals were already pruned are absent (jev-oracle's rounds are not in the journals).
+The journals are live, so the D2 counts are those of the last run (counts.json); a later review adds rows. Limits (accepted in the task): labels are reviewer grades, noisy by the reviewer's own variance; the legacy word mapping is a decision (the Lean table), not a fact; review rounds of tasks whose journals were already pruned are absent (jev-oracle's rounds are not in the journals).
 
 ## D3: CI failure cause
 
@@ -81,10 +81,10 @@ Source: the console event log. Label (Lean `alertTriage`): the alert's audience 
 | mitigate | 3 |
 | total | 10 (held out 0) |
 
-GAP (named): only 10 alert steps exist in the console event log (19453 events read). `fw watch` alerts are not persisted and the lead's mitigations are in chat transcripts, which this task does not read. The set is too small to hold out any row (the split gives 0) or to score; it is a format check. A fuller D4 needs the watch to persist its alerts and the lead's action; follow-up.
+Gap: only 10 alert steps exist in the console event log (19453 events read). `fw watch` alerts are not persisted and the lead's mitigations are in chat transcripts, which this task does not read. The set is too small to hold out any row (the split gives 0) or to score; it is a format check. A fuller D4 needs the watch to persist its alerts and the lead's action; follow-up.
 
 ## TS stand-ins and gaps
 
 - Stand-in: the redaction (regexes plus the local user names read at run time), the journal and prompt parsing (unit, limits, task text), the Fable classification-line finder and the log tail reduction are TS, tested on synthetic fixtures only; they hold no label decision. A leak the regexes miss is possible: the files stay local.
-- Gap: D3 is a bounded sample (150 logs) with the success list only back to 2026-10-19; D4 is tiny; D2 labels are noisy; calibration and Jev calls are other tasks.
+
 - Rerun: `node scripts/jev-datasets.mjs --sets d1,d2,d3,d4 [--no-gh --logs-dir .cache/jev/d3-logs]` writes `.cache/jev/*.jsonl` and `counts.json`; without `--runs-dir` D3 reads the run lists itself with `gh run list`.
