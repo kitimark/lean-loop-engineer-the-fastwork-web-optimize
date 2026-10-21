@@ -12219,7 +12219,8 @@
     "packages/gate-breakpoints/test/closegap*.test.mjs",
     "research/notes/2026/10-2*-scoped-gap-did.md",
     "docs/team/handoffs/scoped-gap-did.md"
-   ]
+   ],
+   "evidence": "51c098d"
   },
   {
    "devices": [
