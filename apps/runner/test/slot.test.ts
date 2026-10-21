@@ -5,12 +5,12 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import {
-  DEFAULT_PARAMS, type CacheKey, type Ctl, type Entry, type Params, type Sample,
-  admitBuild, agentsSeen, cacheHit, expired, grant, heldOf, keyOf, leanThreads, leaseOr, prune, release, renew, signal, simAction, simBoot,
-  simDue, simIdleNext, simQueued, step, stopAct, verdict, withLegacy,
+  DEFAULT_PARAMS, type CacheKey, type Ctl, type Entry, type Mem, type Params, type Sample, type VmMark,
+  admitBuild, agentsSeen, availMB, cacheHit, expired, grant, heldOf, keyOf, leanThreads, leaseOr, prune, release, renew, signal, simAction, simBoot,
+  simDue, simIdleNext, simQueued, step, stopAct, swapFull, thrash, memLow, verdict, vmNext, withLegacy,
 } from "../src/slot-core.ts";
 import {
-  type Deps, type GitFacts, EXIT_REFUSED, SlotUsage, lastHealth, legacyLive, parseCompressorMB, parseFreePct, parseSwapUsedMB, recoverStale,
+  type Deps, type GitFacts, EXIT_REFUSED, SlotUsage, lastHealth, legacyLive, markNext, memOf, parseCompressorMB, parseSysctl, parseVmStat, recoverStale,
   slotCli, startOf, withState,
 } from "../src/slot.ts";
 
@@ -42,7 +42,12 @@ function answer(r: Record<string, unknown> & { op: string }): Record<string, unk
       return { action: simAction(p, r.now as number, r.holders as Entry[], r.booted as boolean, r.legacyHeld as boolean, r.idleSince as number | null) };
     case "adapt.simIdleNext": return { idleSince: simIdleNext(r.now as number, r.held as boolean, r.booted as boolean, r.prev as number | null) };
     case "adapt.simDue": return { due: simDue(p, r.now as number, r.last as number) };
-    case "adapt.admitBuild": return admitBuild(p, r.simWaits as boolean, r.freeMB as number, r.agents as number | null);
+    case "adapt.admitBuild": return admitBuild(p, r.simWaits as boolean, r.availMB as number, r.agents as number | null);
+    case "adapt.memLow": {
+      const m = r.mem as Mem;
+      return { availMB: availMB(m), swapFull: swapFull(p, m), thrash: thrash(p, m), memLow: memLow(p, m) };
+    }
+    case "adapt.vmNext": return { mark: vmNext(p, r.prev as VmMark | null, r.now as number, r.count as number, r.pageB as number) };
     case "adapt.agentsSeen": return { agents: agentsSeen(p, r.now as number, r.reading as { time: number; live: number } | null) };
     case "adapt.simQueued": return { queued: simQueued(r.now as number, r.queue as Entry[]) };
     case "adapt.withLegacy": return { holders: withLegacy(r.now as number, r.legacy as boolean, r.holders as Entry[]) };
@@ -56,22 +61,57 @@ function answer(r: Record<string, unknown> & { op: string }): Record<string, unk
 
 describe("slot-core replays the Fw.Sup.Adapt golden vectors", () => {
   it(`${cases.length} cases, every op covered`, () => {
-    expect(new Set(cases.map((c) => c.request.op)).size).toBe(22);
+    expect(new Set(cases.map((c) => c.request.op)).size).toBe(24);
     for (const c of cases) expect(answer(c.request), c.name).toEqual(c.response);
   });
 });
 
+const fixture = (n: string): string => readFileSync(join(dirname(fileURLToPath(import.meta.url)), "fixtures", n), "utf8");
+const busySysctl = "vm.vm_page_filecache_min: 233999\nkern.memorystatus_vm_pressure_level: 1\n"
+  + "vm.swapusage: total = 4096.00M  used = 3046.50M  free = 1049.50M  (encrypted)\n";
+
 describe("probe parsers", () => {
-  it("reads memory_pressure, vm.swapusage and vm_stat", () => {
-    expect(parseFreePct("System-wide memory free percentage: 46%")).toBe(46);
-    expect(parseSwapUsedMB("total = 8192.00M  used = 5040.25M  free = 3151.75M  (encrypted)")).toBe(5040);
-    expect(parseCompressorMB("Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages occupied by compressor:   358400.\n")).toBe(5600);
-    expect(parseFreePct("")).toBeNull();
+  it("reads vm_stat, sysctl and the compressor footprint", () => {
+    expect(parseVmStat(fixture("vm_stat-busy.txt"))).toEqual({
+      pageB: 16384, free: 13944, spec: 7683, purg: 5581, file: 319116, occupied: 192199, compressions: 1701467470,
+    });
+    expect(parseSysctl(busySysctl)).toEqual({ fileMinPages: 233999, press: 1, swapUsedMB: 3046, swapTotalMB: 4096 });
+    expect(parseSysctl("")).toEqual({ fileMinPages: null, press: null, swapUsedMB: null, swapTotalMB: null });
+    expect(parseCompressorMB(fixture("vm_stat-busy.txt"))).toBe(3003);
+    expect(parseVmStat("")).toBeNull();
     expect(parseCompressorMB("")).toBeNull();
+  });
+
+  it("the lead's busy window (MEASURED 03:18:44): 1754 MB available, compressing 5309 MB a minute", () => {
+    const dir = mkdtempSync(join(tmpdir(), "fw-vm-"));
+    try {
+      const a = parseVmStat(fixture("vm_stat-busy.txt"))!, b = parseVmStat(fixture("vm_stat-busy-next.txt"))!;
+      expect(markNext(dir, DEFAULT_PARAMS, 1792613925, a)).toEqual({ time: 1792613925, count: 1701467470, rate: 0 });
+      const rate = markNext(dir, DEFAULT_PARAMS, 1792613936, b).rate;
+      expect(rate).toBe(5309);
+      const m = memOf(a, parseSysctl(busySysctl), rate);
+      expect(m).toEqual({
+        freeMB: 217, specMB: 120, purgMB: 87, fileMB: 4986, fileMinMB: 3656, swapUsedMB: 3046, swapTotalMB: 4096, press: 1, comprMBPerMin: 5309,
+      });
+      expect(availMB(m)).toBe(1754);
+      expect(memLow(DEFAULT_PARAMS, m)).toBe(true);
+      expect(memLow(DEFAULT_PARAMS, { ...m, comprMBPerMin: 0 })).toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("an idle reading on this Mac and a missing pressure level", () => {
+    const m = memOf(parseVmStat(fixture("vm_stat-idle.txt"))!, parseSysctl("vm.vm_page_filecache_min: 276653\n"), 0);
+    expect(availMB(m)).toBe(2536);
+    expect(m.press).toBe(1);
+    expect(memLow(DEFAULT_PARAMS, m)).toBe(false);
   });
 });
 
-const quiet = (): Sample => ({ time: Math.floor(Date.now() / 1000), loadCenti: 100, freeMB: 12000, ramMB: 16384, compressorMB: 0, swapUsedMB: 0, cores: 8 });
+const mem = (freeMB: number): Mem =>
+  ({ freeMB, specMB: 0, purgMB: 0, fileMB: 0, fileMinMB: 0, swapUsedMB: 0, swapTotalMB: 0, press: 1, comprMBPerMin: 0 });
+const quiet = (): Sample => ({ time: Math.floor(Date.now() / 1000), loadCenti: 100, mem: mem(12000), ramMB: 16384, compressorMB: 0, cores: 8 });
 const tmps: string[] = [];
 afterEach(() => { for (const t of tmps.splice(0)) rmSync(t, { recursive: true, force: true }); });
 
@@ -338,7 +378,7 @@ describe("fw slot admit --kind build", () => {
     const stale = deps({ health: () => ({ time: 0, live: 1 }) });
     expect(await slotCli(["admit", "--kind", "build"], stale.d)).toBe(EXIT_REFUSED);
     expect(stale.err.join("")).toContain("no recent health reading");
-    const low = deps({ probe: () => ({ ...quiet(), freeMB: 3000 }) });
+    const low = deps({ probe: () => ({ ...quiet(), mem: mem(3000) }) });
     expect(await slotCli(["admit", "--kind", "build"], low.d)).toBe(EXIT_REFUSED);
     const sim = deps();
     withState(sim.d, (st) => { const t = Math.floor(Date.now() / 1000); st.queue.push({ owner: "o", token: "q", kind: "sim", since: t, till: t + 60, foot: 0, leaseS: 60 }); });

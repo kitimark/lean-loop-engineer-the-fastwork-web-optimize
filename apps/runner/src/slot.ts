@@ -6,9 +6,9 @@ import { appendFileSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, 
 import os from "node:os";
 import { basename, dirname, join } from "node:path";
 import {
-  DEFAULT_PARAMS, type BuildVerdict, type CacheKey, type Ctl, type Entry, type Kind, type Params, type Sample, type Verdict,
-  admitBuild, agentsSeen, cacheHit, cacheable, expired, grant, heldOf, init, keyOf, kindOf, leaseOr, prune, release, renew, signal,
-  simAction, simBoot, simDue, simHeld, simIdleNext, simQueued, step, stopAct, verdict, withLegacy,
+  DEFAULT_PARAMS, type BuildVerdict, type CacheKey, type Ctl, type Entry, type Kind, type Mem, type Params, type Sample, type Verdict,
+  type VmMark, admitBuild, agentsSeen, avail, cacheHit, cacheable, expired, grant, heldOf, init, keyOf, kindOf, leaseOr, prune, release, renew, signal,
+  simAction, simBoot, simDue, simHeld, simIdleNext, simQueued, step, stopAct, verdict, vmNext, withLegacy,
 } from "./slot-core.ts";
 
 export class SlotUsage extends Error {}
@@ -61,27 +61,86 @@ export function startOf(pid: number): number | null {
 
 const alive = (pid: number): boolean => { try { process.kill(pid, 0); return true; } catch (e) { return (e as NodeJS.ErrnoException).code === "EPERM"; } };
 
-export const parseFreePct = (out: string): number | null => { const m = /free percentage:\s*(\d+)%/.exec(out); return m ? Number(m[1]) : null; };
-export const parseSwapUsedMB = (out: string): number | null => { const m = /used = ([\d.]+)M/.exec(out); return m ? Math.floor(Number(m[1])) : null; };
-export function parseCompressorMB(out: string): number | null {
+/** The vm_stat counts this probe reads, in pages, and the page size in bytes. */
+export type VmStat = { pageB: number; free: number; spec: number; purg: number; file: number; occupied: number; compressions: number };
+
+export function parseVmStat(out: string): VmStat | null {
   const page = /page size of (\d+) bytes/.exec(out);
-  const occ = /Pages occupied by compressor:\s+(\d+)/.exec(out);
-  return page && occ ? Math.floor((Number(occ[1]) * Number(page[1])) / 1048576) : null;
+  const n = (label: string): number | null => {
+    const m = new RegExp(`^${label}:\\s+(\\d+)\\.?$`, "m").exec(out);
+    return m ? Number(m[1]) : null;
+  };
+  const v = {
+    free: n("Pages free"), spec: n("Pages speculative"), purg: n("Pages purgeable"), file: n("File-backed pages"),
+    occupied: n("Pages occupied by compressor"), compressions: n("Compressions"),
+  };
+  if (page === null || Object.values(v).some((x) => x === null)) return null;
+  return { pageB: Number(page[1]), ...(v as Record<keyof typeof v, number>) };
+}
+
+/** `sysctl vm.vm_page_filecache_min kern.memorystatus_vm_pressure_level vm.swapusage` output. */
+export type Sysctl = { fileMinPages: number | null; press: number | null; swapUsedMB: number | null; swapTotalMB: number | null };
+
+export function parseSysctl(out: string): Sysctl {
+  const v = (name: string): number | null => {
+    const m = new RegExp(`^${name.replaceAll(".", "\\.")}:\\s*(\\d+)\\s*$`, "m").exec(out);
+    return m ? Number(m[1]) : null;
+  };
+  const used = /used = ([\d.]+)M/.exec(out);
+  const total = /total = ([\d.]+)M/.exec(out);
+  return {
+    fileMinPages: v("vm.vm_page_filecache_min"), press: v("kern.memorystatus_vm_pressure_level"),
+    swapUsedMB: used ? Math.floor(Number(used[1])) : null, swapTotalMB: total ? Math.floor(Number(total[1])) : null,
+  };
+}
+
+/** The memory reading from vm_stat and sysctl. An unread pressure level counts as normal, unread swap as none. */
+export function memOf(vm: VmStat, sc: Sysctl, comprMBPerMin: number): Mem {
+  const mb = (pages: number): number => Math.floor((pages * vm.pageB) / 1048576);
+  return {
+    freeMB: mb(vm.free), specMB: mb(vm.spec), purgMB: mb(vm.purg), fileMB: mb(vm.file), fileMinMB: mb(sc.fileMinPages ?? 0),
+    swapUsedMB: sc.swapUsedMB ?? 0, swapTotalMB: sc.swapTotalMB ?? 0, press: sc.press ?? 1, comprMBPerMin,
+  };
+}
+
+export function parseCompressorMB(out: string): number | null {
+  const vm = parseVmStat(out);
+  return vm ? Math.floor((vm.occupied * vm.pageB) / 1048576) : null;
 }
 
 const cmd = (c: string, a: string[]): string => { const r = spawnSync(c, a, { encoding: "utf8" }); return r.status === 0 ? r.stdout : ""; };
 
-/** One probe sample of this machine (macOS tools, falling back to Node's view elsewhere). */
-export function probe(): Sample {
-  const ramMB = Math.floor(os.totalmem() / 1048576);
-  const pct = parseFreePct(cmd("memory_pressure", []));
+/** The compression mark in `<dir>/vm-mark.json` advanced by this reading (vmNext); the file keeps the rate across processes. */
+export function markNext(dir: string, p: Params, now: number, vm: VmStat): VmMark {
+  const file = join(dir, "vm-mark.json");
+  let prev: VmMark | null = null;
+  try { prev = JSON.parse(readFileSync(file, "utf8")) as VmMark; } catch { prev = null; }
+  const next = vmNext(p, prev, now, vm.compressions, vm.pageB);
+  if (next !== prev) {
+    try {
+      mkdirSync(dir, { recursive: true });
+      const tmp = join(dir, `.vm-mark-${process.pid}.tmp`);
+      writeFileSync(tmp, JSON.stringify(next));
+      renameSync(tmp, file);
+    } catch { /* the mark is advisory */ }
+  }
+  return next;
+}
+
+/** One probe sample of this machine from vm_stat and sysctl (macOS), falling back to Node's free memory elsewhere. */
+export function probe(dir: string, p: Params = DEFAULT_PARAMS): Sample {
+  const time = nowS();
+  const vm = parseVmStat(cmd("vm_stat", []));
+  const mem: Mem = vm === null
+    ? { freeMB: Math.floor(os.freemem() / 1048576), specMB: 0, purgMB: 0, fileMB: 0, fileMinMB: 0, swapUsedMB: 0, swapTotalMB: 0, press: 1, comprMBPerMin: 0 }
+    : memOf(vm, parseSysctl(cmd("sysctl", ["vm.vm_page_filecache_min", "kern.memorystatus_vm_pressure_level", "vm.swapusage"])),
+      markNext(dir, p, time, vm).rate);
   return {
-    time: nowS(),
+    time,
     loadCenti: Math.floor((os.loadavg()[0] ?? 0) * 100),
-    freeMB: pct === null ? Math.floor(os.freemem() / 1048576) : Math.floor((pct * ramMB) / 100),
-    ramMB,
-    compressorMB: parseCompressorMB(cmd("vm_stat", [])) ?? 0,
-    swapUsedMB: parseSwapUsedMB(cmd("sysctl", ["-n", "vm.swapusage"])) ?? 0,
+    mem,
+    ramMB: Math.floor(os.totalmem() / 1048576),
+    compressorMB: vm === null ? 0 : Math.floor((vm.occupied * vm.pageB) / 1048576),
     cores: os.availableParallelism(),
   };
 }
@@ -140,8 +199,9 @@ export function realDeps(cwd: string, env: Record<string, string | undefined> = 
   const top = gitIn(cwd, ["rev-parse", "--show-toplevel"]) || cwd;
   const con = env.FW_CONSOLE_DIR ?? join(main, ".fw-console");
   const events = env.FW_LOCK_EVENTS === "off" ? null : env.FW_LOCK_EVENTS_FILE ?? (env.CI ? null : join(con, "locks.jsonl"));
+  const dir = env.FW_SLOT_DIR ?? join(con, "slot");
   return {
-    dir: env.FW_SLOT_DIR ?? join(con, "slot"),
+    dir,
     cacheDir: join(con, "review-cache", "slot"),
     eventsFile: events,
     legacySimLock: join(main, ".local", "locks", "sim"),
@@ -149,7 +209,7 @@ export function realDeps(cwd: string, env: Record<string, string | undefined> = 
     env,
     params: DEFAULT_PARAMS,
     pollMs: 2000,
-    probe,
+    probe: () => probe(dir),
     git: () => gitFacts(cwd),
     simctl: { booted: bootedAll, shutdown: (u) => { spawnSync("xcrun", ["simctl", "shutdown", u], { stdio: "ignore" }); } },
     health: () => lastHealth(join(con, "health.jsonl")),
@@ -257,7 +317,8 @@ export function describe(v: Verdict): string {
         : v.why === "full" ? `${v.running} running, limit ${v.limit}` : v.why === "simBusy" ? "the Simulator slot is held"
         : v.why === "drain" ? `${v.others} other holders finish before the Simulator starts`
         : v.why === "simFirst" ? "a Simulator ticket goes first"
-        : `needs ${v.needMB} MB, ${v.roomMB} MB free above the floor`;
+        : v.why === "memLow" ? `memory is short (${v.availMB} MB available, or pressure, swap or compression high)`
+        : `needs ${v.needMB} MB, ${v.roomMB} MB available above the floor`;
       return `${v.verdict === "timeout" ? "refused" : "waiting"}: ${why}`;
     }
   }
@@ -269,7 +330,7 @@ export function describeBuild(v: BuildVerdict): string {
     case "simWaits": return "wait: a Simulator ticket is queued";
     case "agentsUnknown": return "wait: no recent health reading (pass --agents n)";
     case "agents": return `wait: ${v.live} live agents, limit ${v.max}`;
-    case "memory": return `wait: ${v.freeMB} MB free, needs ${v.needMB} MB`;
+    case "memory": return `wait: ${v.availMB} MB available, needs ${v.needMB} MB`;
   }
 }
 
@@ -446,7 +507,9 @@ function status(d: Deps, json: boolean): string[] {
   const st = withState(d, (x) => { tick(d, x, s); return x; });
   if (json) return [JSON.stringify({ sample: s, signal: signal(d.params, st.ctl.prev, s), ...st })];
   const rows = (es: Entry[]) => es.map((e) => `  ${e.kind.padEnd(6)} ${e.owner} ${e.token} ${e.till - s.time}s left${e.foot ? `, ${e.foot} MB` : ""}`);
-  return [`slot: limit ${st.ctl.n}, load ${(s.loadCenti / 100).toFixed(2)}, free ${s.freeMB} MB, swap ${s.swapUsedMB} MB`,
+  const m = s.mem;
+  return [`slot: limit ${st.ctl.n}, load ${(s.loadCenti / 100).toFixed(2)}, available ${avail(s)} MB, pressure ${m.press}, `
+    + `swap ${m.swapUsedMB}/${m.swapTotalMB} MB, compressing ${m.comprMBPerMin} MB/min`,
     `holders (${st.holders.length}):`, ...rows(st.holders), `queue (${st.queue.length}):`, ...rows(st.queue)];
 }
 
@@ -520,8 +583,8 @@ export async function slotCli(argv: string[], deps: Deps): Promise<number> {
       const s = d.probe();
       const given = num(args, "--agents", "a whole number");
       const agents = given ?? agentsSeen(d.params, s.time, d.health());
-      const v = admitBuild(d.params, simQueued(s.time, readState(d).queue), s.freeMB, agents);
-      d.err(`slot admit build: ${describeBuild(v)} (load ${(s.loadCenti / 100).toFixed(2)}, free ${s.freeMB} MB, agents ${agents ?? "unknown"})\n`);
+      const v = admitBuild(d.params, simQueued(s.time, readState(d).queue), avail(s), agents);
+      d.err(`slot admit build: ${describeBuild(v)} (load ${(s.loadCenti / 100).toFixed(2)}, available ${avail(s)} MB, agents ${agents ?? "unknown"})\n`);
       d.out(`VERDICT ${v.verdict} build\n`);
       return v.verdict === "admit" ? 0 : EXIT_REFUSED;
     }

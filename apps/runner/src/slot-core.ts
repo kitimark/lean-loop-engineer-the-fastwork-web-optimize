@@ -10,7 +10,8 @@ export type Params = {
   nMin: number; nMax: number; targetCenti: number; highCenti: number; floorMB: number; headroomMB: number; cmprsPct: number;
   swapRiseMBPerMin: number; holdS: number; leanProcMB: number; testMB: number; landMB: number; simMB: number; otherMB: number;
   warmS: number; ageS: number; maxWaitS: number; leaseS: number; leaseMaxS: number; simIdleS: number; graceMs: number;
-  simPollS: number; buildMB: number; agentsMax: number; agentsAgeS: number;
+  simPollS: number; buildMB: number; agentsMax: number; agentsAgeS: number; swapPct: number; comprMBPerMinMax: number;
+  rateMinS: number; rateMaxS: number;
 };
 
 /** Equal to `Fw.Sup.Adapt.Params` defaults (golden case "default parameters"). */
@@ -18,9 +19,15 @@ export const DEFAULT_PARAMS: Params = {
   nMin: 1, nMax: 4, targetCenti: 800, highCenti: 1600, floorMB: 1024, headroomMB: 2048, cmprsPct: 40, swapRiseMBPerMin: 512,
   holdS: 30, leanProcMB: 700, testMB: 1600, landMB: 1500, simMB: 2800, otherMB: 1000, warmS: 60, ageS: 300, maxWaitS: 1800,
   leaseS: 60, leaseMaxS: 3600, simIdleS: 600, graceMs: 5000, simPollS: 30, buildMB: 2100, agentsMax: 8, agentsAgeS: 900,
+  swapPct: 75, comprMBPerMinMax: 1500, rateMinS: 5, rateMaxS: 600,
 };
 
-export type Sample = { time: number; loadCenti: number; freeMB: number; ramMB: number; compressorMB: number; swapUsedMB: number; cores: number };
+/** One memory reading in MB; `press` is the kernel pressure level (1 normal, 2 warning, 4 critical). */
+export type Mem = {
+  freeMB: number; specMB: number; purgMB: number; fileMB: number; fileMinMB: number; swapUsedMB: number; swapTotalMB: number;
+  press: number; comprMBPerMin: number;
+};
+export type Sample = { time: number; loadCenti: number; mem: Mem; ramMB: number; compressorMB: number; cores: number };
 export type Prev = { time: number; swapUsedMB: number } | null;
 export type Ctl = { n: number; lastChange: number; prev: Prev };
 export type Signal = "overload" | "under" | "hold";
@@ -28,21 +35,36 @@ export type Signal = "overload" | "under" | "hold";
 const sub = (a: number, b: number): number => Math.max(0, a - b);
 const div = (a: number, b: number): number => (b === 0 ? 0 : Math.floor(a / b));
 
+export const availMB = (m: Mem): number => m.freeMB + m.specMB + m.purgMB + sub(m.fileMB, m.fileMinMB);
+export const avail = (s: Sample): number => availMB(s.mem);
+export const swapFull = (p: Params, m: Mem): boolean => m.swapTotalMB > 0 && p.swapPct * m.swapTotalMB <= 100 * m.swapUsedMB;
+export const thrash = (p: Params, m: Mem): boolean => p.comprMBPerMinMax <= m.comprMBPerMin;
+export const memLow = (p: Params, m: Mem): boolean => availMB(m) < p.floorMB || m.press !== 1 || swapFull(p, m) || thrash(p, m);
+
+export type VmMark = { time: number; count: number; rate: number };
+export function vmNext(p: Params, prev: VmMark | null, now: number, count: number, pageB: number): VmMark {
+  if (prev === null) return { time: now, count, rate: 0 };
+  if (now < prev.time + p.rateMinS) return prev;
+  if (now <= prev.time + p.rateMaxS && prev.count <= count) {
+    return { time: now, count, rate: div((count - prev.count) * pageB * 60, (now - prev.time) * 1048576) };
+  }
+  return { time: now, count, rate: 0 };
+}
+
 export const loadHigh = (p: Params, s: Sample): boolean => p.highCenti <= s.loadCenti;
-export const memLow = (p: Params, s: Sample): boolean => s.freeMB < p.floorMB;
 export const cmprsHigh = (p: Params, s: Sample): boolean => s.ramMB > 0 && p.cmprsPct * s.ramMB <= 100 * s.compressorMB;
 export const swapRising = (p: Params, prev: Prev, s: Sample): boolean =>
-  prev !== null && prev.time < s.time && p.swapRiseMBPerMin * (s.time - prev.time) <= 60 * sub(s.swapUsedMB, prev.swapUsedMB);
+  prev !== null && prev.time < s.time && p.swapRiseMBPerMin * (s.time - prev.time) <= 60 * sub(s.mem.swapUsedMB, prev.swapUsedMB);
 export const overloaded = (p: Params, prev: Prev, s: Sample): boolean =>
-  loadHigh(p, s) || memLow(p, s) || cmprsHigh(p, s) || swapRising(p, prev, s);
-export const roomy = (p: Params, s: Sample): boolean => s.loadCenti < p.targetCenti && p.floorMB + p.headroomMB <= s.freeMB;
+  loadHigh(p, s) || memLow(p, s.mem) || cmprsHigh(p, s) || swapRising(p, prev, s);
+export const roomy = (p: Params, s: Sample): boolean => s.loadCenti < p.targetCenti && p.floorMB + p.headroomMB <= avail(s);
 export const signal = (p: Params, prev: Prev, s: Sample): Signal => (overloaded(p, prev, s) ? "overload" : roomy(p, s) ? "under" : "hold");
 export const clamp = (p: Params, x: number): number => Math.max(p.nMin, Math.min(p.nMax, x));
 export const target = (n: number, g: Signal): number => (g === "overload" ? div(n, 2) : g === "under" ? n + 1 : n);
 export const nextN = (p: Params, c: Ctl, s: Sample): number => clamp(p, target(c.n, signal(p, c.prev, s)));
 
 export function step(p: Params, c: Ctl, s: Sample): Ctl {
-  const prev = { time: s.time, swapUsedMB: s.swapUsedMB };
+  const prev = { time: s.time, swapUsedMB: s.mem.swapUsedMB };
   const m = nextN(p, c, s);
   return c.lastChange + p.holdS <= s.time && m !== c.n ? { n: m, lastChange: s.time, prev } : { ...c, prev };
 }
@@ -84,7 +106,7 @@ export function foot(p: Params, threads: number, k: Kind): number {
 
 export const charged = (p: Params, now: number, hs: Entry[]): number =>
   prune(now, hs).filter((h) => now < h.since + p.warmS).reduce((a, h) => a + h.foot, 0);
-export const room = (p: Params, s: Sample, hs: Entry[]): number => sub(sub(s.freeMB, p.floorMB), charged(p, s.time, hs));
+export const room = (p: Params, s: Sample, hs: Entry[]): number => sub(sub(avail(s), p.floorMB), charged(p, s.time, hs));
 export const threadsFor = (p: Params, s: Sample, hs: Entry[]): number => leanThreads(p, s.cores, room(p, s, hs));
 export const need = (p: Params, s: Sample, hs: Entry[], k: Kind): number => foot(p, threadsFor(p, s, hs), k);
 
@@ -95,6 +117,7 @@ export type Why =
   | { why: "simBusy" }
   | { why: "drain"; others: number }
   | { why: "memory"; needMB: number; roomMB: number }
+  | { why: "memLow"; availMB: number }
   | { why: "simFirst" };
 export type Verdict = { verdict: "admit"; threads: number; footMB: number } | ({ verdict: "wait" | "timeout" } & Why);
 
@@ -119,7 +142,7 @@ export function yieldsToSim(p: Params, n: number, s: Sample, hs: Entry[], q: Ent
   if (simHeld(s.time, hs) && 0 < o) return true;
   return (
     simPending(s.time, hs, q) &&
-    (0 < o || n < prune(s.time, hs).length + 2 || s.freeMB < need(p, s, hs, me.kind) + p.floorMB + charged(p, s.time, hs) + p.simMB)
+    (0 < o || n < prune(s.time, hs).length + 2 || avail(s) < need(p, s, hs, me.kind) + p.floorMB + charged(p, s.time, hs) + p.simMB)
   );
 }
 
@@ -131,8 +154,9 @@ export function verdict(p: Params, n: number, s: Sample, hs: Entry[], q: Entry[]
   if (n <= running) return waitOr(p, waited, { why: "full", running, limit: n });
   if (me.kind === "sim" && simHeld(s.time, hs)) return waitOr(p, waited, { why: "simBusy" });
   if (me.kind === "sim" && 1 < others(s.time, hs)) return waitOr(p, waited, { why: "drain", others: others(s.time, hs) });
+  if (memLow(p, s.mem)) return waitOr(p, waited, { why: "memLow", availMB: avail(s) });
   const needMB = need(p, s, hs, me.kind);
-  if (s.freeMB < needMB + p.floorMB + charged(p, s.time, hs)) return waitOr(p, waited, { why: "memory", needMB, roomMB: room(p, s, hs) });
+  if (avail(s) < needMB + p.floorMB + charged(p, s.time, hs)) return waitOr(p, waited, { why: "memory", needMB, roomMB: room(p, s, hs) });
   if (yieldsToSim(p, n, s, hs, q, me)) return waitOr(p, waited, { why: "simFirst" });
   return { verdict: "admit", threads: threadsFor(p, s, hs), footMB: needMB };
 }
@@ -158,16 +182,16 @@ export type BuildWhy =
   | { why: "simWaits" }
   | { why: "agentsUnknown" }
   | { why: "agents"; live: number; max: number }
-  | { why: "memory"; freeMB: number; needMB: number };
+  | { why: "memory"; availMB: number; needMB: number };
 export type BuildVerdict = { verdict: "admit" } | ({ verdict: "wait" } & BuildWhy);
 export const simQueued = (now: number, q: Entry[]): boolean => prune(now, q).some((e) => e.kind === "sim");
 export const agentsSeen = (p: Params, now: number, reading: { time: number; live: number } | null): number | null =>
   reading !== null && now <= reading.time + p.agentsAgeS ? reading.live : null;
-export function admitBuild(p: Params, simWaits: boolean, freeMB: number, agents: number | null): BuildVerdict {
+export function admitBuild(p: Params, simWaits: boolean, availMB: number, agents: number | null): BuildVerdict {
   if (simWaits) return { verdict: "wait", why: "simWaits" };
   if (agents === null) return { verdict: "wait", why: "agentsUnknown" };
   if (p.agentsMax <= agents) return { verdict: "wait", why: "agents", live: agents, max: p.agentsMax };
-  if (freeMB < p.floorMB + p.buildMB) return { verdict: "wait", why: "memory", freeMB, needMB: p.floorMB + p.buildMB };
+  if (availMB < p.floorMB + p.buildMB) return { verdict: "wait", why: "memory", availMB, needMB: p.floorMB + p.buildMB };
   return { verdict: "admit" };
 }
 
