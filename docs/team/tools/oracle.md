@@ -1,14 +1,14 @@
 # fw oracle
 
-Typed answers from an outside model (TypeSafe's Jev) for decisions we cannot script, used **only as advice**.
+Typed answers from an outside model (TypeSafe's Jev) for decisions we cannot script, used only as advice.
 
-- **What Lean proves:** what we DO with any answer and any failure (lean/Fw/Oracle). Every failure escalates,
+- Lean proves what we DO with any answer and any failure (lean/Fw/Oracle). Every failure escalates,
   an answer is advised only at its own option's threshold (`decideOpt`): an option with no threshold escalates
   (`uncalibrated`; the no-match option never has one), a threshold outside (0, 1] escalates, a gate value below the
   option's threshold escalates, a Choice reply whose pick is not its most probable option is a schema failure, and the
   only effects are "print advice" or "ask a person": nothing lands, pushes, deletes, cancels or kills
   (`never_irreversible`).
-- **What Lean does not prove:** that an answer is right. Accuracy is **MEASURED** on a labeled replay set by
+- Lean does not prove that an answer is right. Accuracy is MEASURED on a labeled replay set by
   `fw oracle calibrate` (each threshold chosen on the choose part and certified on the holdout part) and reported on
   the holdout part by `fw oracle eval`. It holds only for questions like the ones in that set.
 
@@ -40,7 +40,7 @@ from the tasks jev-datasets and jev-replay; nothing is calibrated on landing, so
   holdout rows are independent draws of the questions we will ask. Holdout rows can remove a threshold but never move
   one (`choose_independent_of_holdout`).
 - The split is by id, fixed in Lean: a row is held out when the code points of its id sum to an odd number.
-- The reviewer's round-5 probe on the holdout part (flake advised 16 times, 5 right; 5 infra; 25 real) certifies
+- A probe on the holdout part (flake advised 16 times, 5 right; 5 infra; 25 real) certifies
   real only: a `#guard` in `Fw.Oracle.Calibrate`, a golden in `wire.jsonl` and a vitest case.
 - Option order: Jev leans towards the first listed option, so a Choice's options are listed in an order shuffled by
   a seed (FNV-1a of the redacted state text): the same state gives the same bytes and the order is a permutation
@@ -88,7 +88,7 @@ Which texts are public enough to send is the caller's choice for now; a provenan
 - CONFIRMED (https://docs.typesafe.ai/api.md, read 2026-10-18): `POST https://api.typesafe.ai/v1/systemone`,
   `Authorization: Bearer <key>`, body `{state, model, questions}`. Response `{model, answers, usage}`. Errors 400,
   401, 413, 415, 422, 429, 529.
-- MEASURED 2026-10-22: Choice criteria as a list gives 422; as an object of option to description it gives 200 on
+- MEASURED: Choice criteria as a list gives 422; as an object of option to description it gives 200 on
   `jev-1.13.0` (`answers.<name>.choice`, `confidence`, `probabilities`). A noul answer is a number.
 - CONFIRMED (https://docs.typesafe.ai/models.md): pin a version (`jev-1.13.0`); aliases move.
 

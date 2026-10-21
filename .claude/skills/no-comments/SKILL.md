@@ -1,7 +1,6 @@
 ---
 name: no-comments
 description: Lead runs this before review of code in TS, JS, shell, YAML or Lean: spawns comment-sicko on the scope, judges its findings, fixes accepted ones at the root and offers to encode constraint comments as a type, Lean theorem, test or lint.
-disable-model-invocation: true
 ---
 
 # No comments

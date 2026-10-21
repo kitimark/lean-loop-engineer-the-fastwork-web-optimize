@@ -9,7 +9,7 @@ topics: [lag, webkit, ios-toolbar, scroll-driven, hero.exit, hero.cue, engine.sc
 
 # Smoothness candidates for the hero exit and the end of page
 
-Two surveys merged, with all 16 adversarial-check findings applied ("Check findings"). No new measurement; the
+No new measurement; the
 2026-10-21 phone records were recounted. WebKit cites `@862f17d`; `WK/` = Source/WebKit/, `Prefs` =
 Source/WTF/Scripts/Preferences/UnifiedWebPreferences.yaml. Repo lines from the surveys at `e49111a`; lines the check
 named rechecked at `ecdc078`. LS = [10-20-webkit-lag-source](10-20-webkit-lag-source.md), RC =
@@ -41,7 +41,7 @@ All four passes in `results/phone/2026-10-21/summary.json` ran 430 wide at dpr 3
 | 3 | look | 430 x 775 | 5161 | 94 |
 | 4 | original | 430 x 815 | 4304 | 108 |
 
-- **Confound.** The 40 px height gap most likely reflects a different toolbar state at the start of each arm
+- The 40 px height gap most likely reflects a different toolbar state at the start of each arm
   (INFERRED). The throttle acts only while the toolbar collapses, so an arm comparison of stalls or still runs mixes
   the arm with the toolbar state.
 - **Nav geometry at 430 wide** (`apps/site/src/parts/nav/nav.module.css:254-261`). The width goes from 398 px
@@ -173,7 +173,7 @@ is in (0, 1000). The jump is the `scrollY` change that ends a 5- or 6-frame run.
 
 ## Check findings
 
-All 16 were applied. Three were applied with a stated difference.
+
 
 | # | finding | applied |
 | --- | --- | --- |

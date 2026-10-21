@@ -2,12 +2,12 @@
 
 State: branch worktree-wf_2a4f5755-f50-1. Rules in `lean/Fw/Oracle/Labels.lean` (golden `packages/contracts/golden/oracle/labels.jsonl`), extractor `scripts/jev-datasets.mjs`, tests `scripts/jev-datasets.test.mjs` (13 pass), note `research/notes/2026/10-2x-jev-datasets.md` (counts, gaps). Read the note first.
 Verified: `sh lean/scripts/check.sh` green; node tests and `land-inputs.test.ts` green. Rerun: `node scripts/jev-datasets.mjs --sets d1,d2,d3,d4` (data lands in gitignored `.cache/jev/<set>.jsonl`; `--no-gh --logs-dir .cache/jev/d3-logs` reuses cached logs). No Jev call, no `gh api`.
-Round 2 (branch merged with main at b2d4dff0; ledger commit ecdc0787; counts.json 2026-10-22T00:57:38+07:00). Counts (rows / labelled / held out): D1 115/115/33; D2 2434/1509/602 (364 labelled held out); D3 347/21/98 (5 labelled); D4 10/10/0 (gap, alerts not persisted). D2 row id is `<task>#<workflow id>#f<n>`; the workflow id is a local run id (follow-up 9: redact `wf_` ids before jev-replay sends text; ids are not sent).
-Round-2 fixes: synthetic ids in the test, e-mail local part only in localNames (test added), stable D2 ids, regrade sentence. Real session/agent ids were in an earlier commit of this branch (07a41145, never pushed): squash on land.
+Counts from counts.json (rows / labelled / held out): D1 115/115/33; D2 2434/1509/602 (364 labelled held out); D3 347/21/98 (5 labelled); D4 10/10/0 (gap, alerts not persisted). D2 row id is `<task>#<workflow id>#f<n>`; the workflow id is a local run id (follow-up 9: redact `wf_` ids before jev-replay sends text; ids are not sent).
+Real session/agent ids were in an earlier commit of this branch (07a41145, never pushed): squash on land.
 Follow-ups left: D3 passedSameSha keyed on inputs/arms; Fable regrade by cited index not position; `wf_` redaction rule; severity `follow-up` infix anchor (Labels.lean:105).
 Open: D4 needs persisted alerts plus the lead's action; D3 thin (146 logs read, success list only since 10-19); D2 regrades rare (Fable positional, 1 of 46 applied); redaction/parsing/Fable-line finder are TS stand-ins.
 Convention: label rules only in Lean; held out = FNV-1a 32 of id mod 4 = 0; datasets never committed.
-Example rows (text shortened; label | id or text):
+Example rows: see `research/notes/2026/10-2x-jev-datasets.md`.
 D1 c-orphan-wait | inc-orphan-wait-loop, inc-silent-stdin-bg, inc-watch-bg-ampersand
 D1 c-order-derived | inc-unlanded-handback, inc-claim-order, inc-plan-sync-on-land-only
 D1 c-shared-no-lock | inc-commit-during-land, inc-fw-lean-import-conflict, inc-findings-shared-entry

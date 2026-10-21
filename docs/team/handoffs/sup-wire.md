@@ -12,7 +12,7 @@ Done
 - Key lemma `fld_mkObj`: a field of `Json.mkObj l` with distinct keys is `l.lookup k`; record proofs are
   `simp [xOf, xJson, fld_mkObj, List.lookup, <part lemmas>]`, list-free records close by `rfl`.
 - Golden `packages/contracts/golden/sup/wire.jsonl` (68 lines `{name, ok, wire}`: every event, every command incl.
-  each Target × Sig and each Reply/Why, 3 snapshots, an `Ex.after` trace, 9 refused lines) from
+  each Target and Sig pair and each Reply/Why, 3 snapshots, an `Ex.after` trace, 9 refused lines) from
   `Fw.Wire.Sup.Golden.gen` (cases take the token as a parameter, so fwcore builds no start-time constant); `--check`
   compares bytes and replays every line through `Json.parse`, `decode` and `encode`. Registered in
   `lean/scripts/check.sh`; regenerate by piping `#eval Fw.Wire.Sup.Golden.gen []` to `lake env lean --stdin`.
