@@ -4776,7 +4776,7 @@
   },
   {
    "id": "jev-oracle",
-   "title": "(M) Jev (TypeSafe System One) as a Lean-wrapped advisory oracle for judgement calls we cannot script: Lean Fw.Oracle (typed question specs Choice/Noul/Score, answer+failure total policy, escalate below a Lean-computed calibrated threshold, never an irreversible action from the oracle alone, redaction before send, answer log keyed by input hash for exact replay); thin TS client (key from macOS keychain service typesafe-api, never in files/logs); first use CI failure triage advisory in fw watch, calibrated on CI history",
+   "title": "SUPERSEDED 2026-10-22 by jev-core + jev-datasets + jev-replay (5 refused rounds, held since 10-18; split per the review-loop rule; branch worktree-wf_0c9d3381-3c7-1 is the source jev-core salvages from). (M) Jev (TypeSafe System One) as a Lean-wrapped advisory oracle for judgement calls we cannot script: Lean Fw.Oracle (typed question specs Choice/Noul/Score, answer+failure total policy, escalate below a Lean-computed calibrated threshold, never an irreversible action from the oracle alone, redaction before send, answer log keyed by input hash for exact replay); thin TS client (key from macOS keychain service typesafe-api, never in files/logs); first use CI failure triage advisory in fw watch, calibrated on CI history",
    "stream": "tooling",
    "milestone": "M5",
    "deps": [],
@@ -4804,7 +4804,7 @@
    "stream": "tooling",
    "milestone": "M5",
    "deps": [
-    "jev-oracle"
+    "jev-replay"
    ],
    "owner": "lean-prover",
    "writes": [
@@ -14013,6 +14013,65 @@
     "packages/measure-webkit/test/replay-*.test.mjs",
     "research/notes/2026/10-2x-device-replay.md",
     "docs/team/handoffs/device-replay.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "jev-core",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "title": "Split from jev-oracle (user 2026-10-22: 'it worth to try the jev model and measurement them before we promote them into our part'). Land only the Jev core from branch worktree-wf_0c9d3381-3c7-1 onto a fresh branch of main: Lean Fw.Oracle Core (typed questions Choice/Noul/Score, total answer+failure policy, escalate below a calibrated threshold, never an irreversible action from the oracle), Redact (before send), Body (the request body Lean builds; choice criteria are an object option -> description, MEASURED 422 on a list 2026-10-22), Questions, Wire, Golden, and the answer log keyed by input hash for exact replay; thin TS client (key read from Keychain service typesafe-api only after the Lean pre step, never in args, files or logs; endpoint api.typesafe.ai only). Fix the round-5 blocker: calibration certifies an option only when its held-out precision lower bound (Wilson or Clopper-Pearson, stated in Lean) is >= the target q, per option, with a theorem that a certified option's held-out hits/advices meet the bound; the probe case (16 advices, 5 right) must not certify. Drop from this task: ci-triage log fetching, fw watch integration, committedPublic provenance (follow-ups). Tests run offline with fixtures; no live call in tests.",
+   "writes": [
+    "lean/Fw/Oracle/**",
+    "lean/Fw.lean",
+    "lean/scripts/OracleGolden.lean",
+    "packages/contracts/golden/oracle/**",
+    "packages/oracle/**",
+    "apps/runner/src/oracle*.ts",
+    "apps/runner/test/oracle*.test.ts",
+    "apps/runner/src/fw.ts",
+    "docs/team/tools/oracle.md",
+    "docs/team/handoffs/jev-core.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "jev-datasets",
+   "owner": "measure-engineer",
+   "stream": "tooling",
+   "deps": [],
+   "title": "Labelled replay sets for the Jev trial (user 2026-10-22), built from our own history, no Jev calls: D1 incident mistake class (docs/team/incidents/ledger.json, 114 rows, 13 classes); D2 review finding severity (blocker / fix-before-land / follow-up) and in-unit vs out-of-unit, from build-review and fable-refusals workflow journals (finding text, where, the task's pinned unit and limits; label = the reviewer grade, replaced by the lead's or Fable's later regrade where one exists, the regrade source named); D3 CI failure cause (ours / flake / infra) from gh run list conclusions and failed-job log tails, labelled by a Lean rule where decisive and left unlabelled otherwise; D4 fw watch alert triage (ignore / mitigate / ask user) from console events and the lead's recorded mitigations. Label rules and the held-out split (id hash) are Lean (Fw.Oracle.Labels) with golden vectors; the extractor writes the sets under .cache/jev/ (gitignored, local only) and commits only counts per label and the extractor. Redaction before any row is written: no personal data, home paths, session ids or emails (the Redact rules of jev-core or a local copy until it lands). Report per set: rows, label counts, held-out size, and examples of 3 rows per label in the handoff with text shortened.",
+   "writes": [
+    "lean/Fw/Oracle/Labels*.lean",
+    "lean/scripts/OracleLabelsGolden.lean",
+    "packages/contracts/golden/oracle/labels*.jsonl",
+    "scripts/jev-datasets.mjs",
+    "scripts/jev-datasets.test.mjs",
+    "research/notes/2026/10-2x-jev-datasets.md",
+    "docs/team/handoffs/jev-datasets.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "jev-replay",
+   "owner": "researcher",
+   "stream": "tooling",
+   "deps": [
+    "jev-core",
+    "jev-datasets"
+   ],
+   "title": "Offline A/B replay of the Jev trial (user 2026-10-22): each held-out and calibration row of D1..D4 (jev-datasets) goes to Jev (model pinned, jev-1.13.0 on 2026-10-22), to a Haiku agent and to a Sonnet agent with the same question text; record per option precision and recall, coverage at the Lean threshold, confusion, $ per decision, latency, and net saving against the measured token cost of that decision today (incl. double pay on escalation and wrong-call cost). Order D1, D2, D3, D4. Live Jev calls need the user's permission route (a permission rule for the oracle CLI against api.typesafe.ai, or user-run batches via !); ask through the lead before the first send. Output research/notes/2026/10-2x-jev-replay.md with one table per decision type for the user's review; promotion is jev-eval's Lean ladder.",
+   "writes": [
+    "research/notes/2026/10-2x-jev-replay.md",
+    "results/jev/**",
+    "docs/team/handoffs/jev-replay.md"
    ]
   }
  ],
