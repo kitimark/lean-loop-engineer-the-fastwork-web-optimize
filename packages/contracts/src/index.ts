@@ -52,6 +52,8 @@ export const Command = z.discriminatedUnion("type", [
   cmd("step.cancel", { step: Id }),
   cmd("run.start", { run: Id, card: Id, kind: RunKind }),
   cmd("run.finish", { run: Id, ok: z.boolean() }),
+  /** the user opened a look-change review's preview on a device (lean/Fw/Console/ReviewPreview); only the user may cause it; the reducer refuses a device other than desktop or phone */
+  cmd("review.previewed", { flag: Id, device: Id }),
   // work graph (lean/Fw/Plan): the plan is events too. Upsert by task id; the reducer refuses cycles and unknown deps.
   cmd("task.define", {
     task: Id, title: Text, stream: Id, milestone: Id.nullable(), deps: z.array(Id).max(32), owner: Id,

@@ -1150,6 +1150,56 @@
             },
             "type": {
               "type": "string",
+              "const": "review.previewed"
+            },
+            "key": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "actor": {
+              "type": "string",
+              "enum": [
+                "user",
+                "lead",
+                "owner",
+                "reviewer",
+                "script",
+                "git",
+                "hook"
+              ]
+            },
+            "flag": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "device": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            }
+          },
+          "required": [
+            "ts",
+            "type",
+            "key",
+            "actor",
+            "flag",
+            "device"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "ts": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "type": {
+              "type": "string",
               "const": "task.define"
             },
             "key": {
