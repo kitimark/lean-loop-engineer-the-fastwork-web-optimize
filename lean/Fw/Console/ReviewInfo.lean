@@ -215,7 +215,7 @@ def earnMechanism : List String :=
     "The flag sets is-earn-still while the nav morphs, which turns the transitions off. An unlisted property shows its computed value, so the button follows --morph directly (Lean shown_off).",
     "On the open push the computed values reach their end at frame 3 (--earn-out saturates at m = 0.2), so the flag restyles the button on 3 frames instead of 43. On the close push the transitions return at m <= 0.001 (frame 37), so the last steps still run as transitions and the work count is the same.",
     "A row that says 'N more' counts value changes, not restyle work. On the close push the faithful opacity is held at 0 by the restarting 120 ms delay, so it changes on fewer frames, yet the faithful arm restyles the button on as many frames as the flag arm (modelled work 51 against 51 of 91, golden nav-earn.jsonl fn=work); the flag arm's opacity follows the morph and so changes value more often.",
-    "A delta uses the cautious bound of its direction: a gain is the lowest faithful count minus the highest flag count, a loss is the highest faithful count minus the lowest flag count; ranges that share a count show no difference. A delta inside the A/A noise of the same metric is not shown. The 640 and 641 close rows are left out: the research note's value-change table has only their open rows." ]
+    "A delta uses the cautious bound of its direction: a gain is the lowest faithful count minus the highest flag count, a loss is the highest faithful count minus the lowest flag count; ranges that share a count show no difference. A gain is shown only when its bound is greater than the noise, a loss only when its bound is below minus the noise ('N more' is minus the loss bound). A delta inside the A/A noise of the same metric is not shown. The 640 and 641 close rows are left out: the research note's value-change table has only their open rows." ]
 
 /-- An engine source line that supports the mechanism. -/
 structure Source where
@@ -263,17 +263,17 @@ def earnFormulas : List Formula :=
     { id := "settled", tex := "t\\ \\text{monotone},\\ 0<d,\\ \\big(\\forall i\\in(j,j{+}n]:\\ g_i=g_j\\big),\\ t_j+\\delta+d\\le t_{j+n}\\ \\Rightarrow\\ \\mathrm{shown}_{j+n}=g_{j+n}",
       says := "Once the computed value has been still for the delay plus the duration, every arm shows it.",
       decl := "shown_settled", file := nf, line := 145, kind := "theorem" },
-    { id := "same", tex := "\\forall\\,\\mathrm{draw}:\\ \\mathrm{draw}\\big(\\mathrm{shown}^{\\mathrm{on}}_{j+n}\\big)=\\mathrm{draw}\\big(\\mathrm{shown}^{\\mathrm{on}'}_{j+n}\\big)\\quad\\text{on every settled window }(j,n)",
-      says := "On settled frames the two arms look the same (VisSame E), for any scene drawn from the shown value.",
+    { id := "same", tex := "t\\ \\text{monotone},\\ 0<d\\ \\Rightarrow\\ \\forall\\,\\mathrm{draw},\\mathrm{env},\\ \\forall (j,n)\\in\\mathrm{Settled}:\\ \\mathrm{visible}_{vp(\\mathrm{env})}\\big(\\mathrm{draw}_{\\mathrm{env}}(\\mathrm{shown}^{\\mathrm{on}}_{j+n})\\big)=\\mathrm{visible}_{vp(\\mathrm{env})}\\big(\\mathrm{draw}_{\\mathrm{env}}(\\mathrm{shown}^{\\mathrm{on}'}_{j+n})\\big)",
+      says := "With frame times in order and a positive duration, on settled frames the two arms look the same in every viewport (VisSame E): what is visible after clipping to the viewport is equal, for any scene drawn from the shown value.",
       decl := "visSame_settled", file := nf, line := 177, kind := "theorem" },
-    { id := "work", tex := "\\mathrm{work}_{\\mathrm{on}}(n)=\\#\\{k<n\\mid \\mathrm{dirty}_{\\mathrm{on}}(k)\\},\\quad \\mathrm{dirty}(k{+}1)=[g_{k+1}\\neq g_k]\\vee\\mathrm{running}_{k+1}",
+    { id := "work", tex := "\\mathrm{work}_{\\mathrm{on}}(n)=\\#\\{k<n\\mid \\mathrm{dirty}_{\\mathrm{on}}(k)\\},\\quad \\mathrm{dirty}(0)=\\mathrm{false},\\ \\mathrm{dirty}(k{+}1)=[g_{k+1}\\neq g_k]\\vee\\mathrm{running}_{k+1},\\ \\mathrm{running}_{k}=\\mathrm{live}(\\mathrm{run}_k)\\wedge t_k<\\mathrm{start}(\\mathrm{run}_k)+\\delta+d",
       says := "The work of a property is the number of frames on which its style changes: the value moved or a transition runs.",
       decl := "work", file := nf, line := 192, kind := "def" },
     { id := "worklE", tex := "\\mathrm{work}_{\\mathrm{on}}(n)\\ \\le\\ \\mathrm{work}_{\\mathrm{faithful}}(n)",
-      says := "Over any frame range, the flag restyles the property on at most as many frames as the faithful arm.",
+      says := "Over the first n frames, for every n, the flag restyles the property on at most as many frames as the faithful arm.",
       decl := "work_le", file := nf, line := 230, kind := "theorem" },
     { id := "saving", tex := "s=\\mathrm{work}_{\\mathrm{faithful}}-\\mathrm{work}_{\\mathrm{flag}}\\ \\ge 0:\\quad 43-3=40,\\ \\ 29-3=26\\ (\\text{open}),\\ \\ 65-65=0,\\ \\ 51-51=0\\ (\\text{close})",
-      says := "The saving is never negative (work_le). The numbers are the fn=work lines of packages/contracts/golden/parts/nav-earn.jsonl (1440 and 390, 91 frames); the #guards at NavEarnOpt.lean:371-373 witness 43-3, 29-3 and the close max-width count only.",
+      says := "The saving is never negative: work_le bounds the model's work, and the golden counts are the model's because trace_eq equates the trace countFor reads with the per-frame state and dirtyAt is dirty by construction (that last link is by construction, not a theorem). The numbers are the fn=work lines of packages/contracts/golden/parts/nav-earn.jsonl (1440 and 390, 91 frames); the #guards at NavEarnOpt.lean:371-373 witness 43-3, 29-3 and the close max-width count only.",
       decl := "countFor", file := nf, line := 371, kind := "guard" },
     { id := "trace", tex := "\\mathrm{trace}\\ k\\ (\\mathrm{run}_k)\\ m=\\big[\\mathrm{run}_{k+i}\\big]_{i=0}^{m}",
       says := "The linear-time trace the golden uses equals the per-frame state, so the golden counts are the model's.",
@@ -282,7 +282,7 @@ def earnFormulas : List Formula :=
       says := "At a frame where all three properties have settled, each shows the same value in both arms.",
       decl := "settled3_same", file := nf, line := 429, kind := "theorem" },
     { id := "window", tex := "40\\cdot\\tfrac{50}{3}\\approx 666.7\\ \\mathrm{ms}<680\\ \\mathrm{ms}=\\max(0{+}680,\\,120{+}320)\\le 41\\cdot\\tfrac{50}{3}\\approx 683.3\\ \\mathrm{ms}",
-      says := "The morph stops at frame 41; 41 more frames (683 ms) cover the longest delay plus duration, 40 do not. Witnessed per push and viewport.",
+      says := "The morph stops at frame 41; 41 more frames (683 ms) cover the longest delay plus duration, 41 frames are witnessed for both pushes at both viewports (NavEarnOpt.lean:448-451); that 40 do not is witnessed for desktop open only (:452).",
       decl := "settled3B", file := nf, line := 448, kind := "guard" } ]
 
 /-- The info of a flag: `none` when no table is written for it. -/
