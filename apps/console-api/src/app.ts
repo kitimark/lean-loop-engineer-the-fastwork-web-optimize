@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, extname, join, normalize } from "node:path";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import { Command } from "@fw/contracts";
+import { PublicCommand } from "@fw/contracts";
 import type { Store } from "./store.ts";
 import { mountReconcile } from "./reconcile/routes.ts";
 import type { Reconciler } from "./reconcile/reconciler.ts";
@@ -66,7 +66,7 @@ export function createApp(store: Store, webDist?: string, reconciler?: Reconcile
   app.post("/api/commands", async (c) => {
     let body: unknown;
     try { body = await c.req.json(); } catch { return c.json({ ok: false, reason: "body is not JSON" }, 400); }
-    const parsed = Command.safeParse(body);
+    const parsed = PublicCommand.safeParse(body);
     if (!parsed.success) {
       return c.json({ ok: false, reason: parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ") }, 400);
     }

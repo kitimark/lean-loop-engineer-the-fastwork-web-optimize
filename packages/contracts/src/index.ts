@@ -25,7 +25,7 @@ export type RunKind = z.infer<typeof RunKind>;
 const cmd = <T extends string, S extends z.ZodRawShape>(type: T, shape: S) =>
   z.object({ type: z.literal(type), key: Id, actor: Actor, ...shape });
 
-export const Command = z.discriminatedUnion("type", [
+const publicCommands = [
   cmd("card.open", { card: Id, owner: Id, needsDevice: z.boolean() }),
   cmd("card.approve", { card: Id }),
   cmd("card.build", { card: Id, sha: Sha, agent: Id }),
@@ -52,8 +52,6 @@ export const Command = z.discriminatedUnion("type", [
   cmd("step.cancel", { step: Id }),
   cmd("run.start", { run: Id, card: Id, kind: RunKind }),
   cmd("run.finish", { run: Id, ok: z.boolean() }),
-  /** the user opened a look-change review's preview on a device (lean/Fw/Console/ReviewPreview); only the user may cause it; the reducer refuses a device other than desktop or phone */
-  cmd("review.previewed", { flag: Id, device: Id }),
   // work graph (lean/Fw/Plan): the plan is events too. Upsert by task id; the reducer refuses cycles and unknown deps.
   cmd("task.define", {
     task: Id, title: Text, stream: Id, milestone: Id.nullable(), deps: z.array(Id).max(32), owner: Id,
@@ -95,7 +93,20 @@ export const Command = z.discriminatedUnion("type", [
   cmd("task.integrate", { task: Id, branch: Id, tip: Sha }),
   cmd("task.park", { task: Id, reason: Text }),
   cmd("task.unpark", { task: Id }),
-]);
+] as const;
+
+/** Commands only console-api itself appends, never the command door: `review.previewed` is appended by the review preview route
+ *  from Lean's `console.reviewPreview` plan (device from the width, only open look-change reviews), so a caller cannot record a
+ *  device it did not open. The log, the reducer and `Event` accept it. */
+const internalCommands = [
+  /** the user opened a look-change review's preview on a device (lean/Fw/Console/ReviewPreview); the reducer refuses a device other than desktop or phone */
+  cmd("review.previewed", { flag: Id, device: Id }),
+] as const;
+
+/** What `POST /api/commands` accepts. */
+export const PublicCommand = z.discriminatedUnion("type", [...publicCommands]);
+export const Command = z.discriminatedUnion("type", [...publicCommands, ...internalCommands]);
+
 export type Command = z.infer<typeof Command>;
 export type CommandType = Command["type"];
 

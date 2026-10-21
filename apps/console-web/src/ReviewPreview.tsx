@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { apiFetch } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { previewBase, refusedText } from "./TaskDetail";
@@ -31,11 +31,21 @@ export function PreviewStatus({ p }: { p: PreviewState }) {
   );
 }
 
+/** Navigate the window the click opened and record only then; a blocked pop-up (`w` null) records nothing here: the rendered link
+ *  records on its own click. Returns whether it recorded. */
+export async function openAndRecord(w: { location: { href: string } } | null, href: string, record: () => Promise<unknown>): Promise<boolean> {
+  if (!w) return false;
+  w.location.href = href;
+  await record();
+  return true;
+}
+
 /** The Preview section of an open look-change card: three buttons and the device line. */
 export function ReviewPreview({ flag, preview, onChanged }: { flag: string; preview: PreviewState | null | undefined; onChanged?: () => void }) {
   const [busy, setBusy] = useState<View | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [opened, setOpened] = useState<{ view: View; href: string } | null>(null);
+  const recordRef = useRef<(() => Promise<unknown>) | null>(null); // records the open when the pop-up was blocked and the link is clicked
   if (!preview || !preview.open) return null;
   const route = `/api/reviews/${encodeURIComponent(flag)}/preview`;
 
@@ -55,10 +65,9 @@ export function ReviewPreview({ flag, preview, onChanged }: { flag: string; prev
         if (!j.ok) return fail(j.reason === "search refused" ? "That search is not valid; nothing was opened." : refusedText(String(j.reason)));
         if (j.state === "open") {
           const href = armHref(plan.previewPort, String(j.path));
-          if (w) w.location.href = href; else setMsg(`Pop-up blocked: open ${href}`);
+          const record = async () => { await apiFetch(route, { method: "POST", headers: J, body: JSON.stringify({ ...body, done: true }) }); onChanged?.(); };
+          if (!(await openAndRecord(w, href, record))) { recordRef.current = record; setMsg(`Pop-up blocked: open ${href}`); }
           setOpened({ view, href });
-          await apiFetch(route, { method: "POST", headers: J, body: JSON.stringify({ ...body, done: true }) });
-          onChanged?.();
           return;
         }
         const id = String(j.preview);
@@ -85,7 +94,7 @@ export function ReviewPreview({ flag, preview, onChanged }: { flag: string; prev
         ))}
       </div>
       <PreviewStatus p={preview} />
-      {opened ? <p className="break-all text-xs" data-testid="preview-opened">Opened ({opened.view}): <a className="underline" href={opened.href} target="_blank" rel="noreferrer">{opened.href}</a></p> : null}
+      {opened ? <p className="break-all text-xs" data-testid="preview-opened">Opened ({opened.view}): <a className="underline" href={opened.href} onClick={() => { const r = recordRef.current; recordRef.current = null; void r?.(); }} target="_blank" rel="noreferrer">{opened.href}</a></p> : null}
       {msg ? <p className="break-words text-xs text-destructive" role="alert">{msg}</p> : null}
     </div>
   );

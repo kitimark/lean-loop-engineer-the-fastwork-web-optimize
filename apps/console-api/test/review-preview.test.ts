@@ -85,4 +85,14 @@ describe("review preview routes (Lean console.reviewPreview)", () => {
     expect(((await late.json()) as any).reason).toContain("no open look-change review");
     expect(events(store.dir).filter((e) => e.type === "review.previewed")).toHaveLength(0);
   });
+
+  it("the command door refuses review.previewed: only the preview route can record it", async () => {
+    const { app, store } = await rig();
+    for (const actor of ["user", "script"]) {
+      const r = await app.request("/api/commands", { method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ type: "review.previewed", key: `k-${actor}`, actor, flag: "nav:not-a-review", device: "phone" }) });
+      expect(r.status).toBe(400);
+    }
+    expect((await store.readEvents()).filter((e) => (e as { type: string }).type === "review.previewed")).toHaveLength(0);
+  });
 });

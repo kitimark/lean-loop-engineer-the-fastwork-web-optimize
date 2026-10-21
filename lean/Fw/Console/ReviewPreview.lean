@@ -241,7 +241,9 @@ private def stOpen : List Rec := [⟨"review-nav:earn-no-transition", none, true
 #guard missing [("nav:e", "desktop"), ("nav:e", "phone")] ⟨"nav", "e"⟩ == []
 #guard missing [("nav:x", "phone")] ⟨"nav", "e"⟩ == [.desktop, .phone]
 #guard eventKey ⟨"nav", "e"⟩ .phone == "review-previewed-nav:e-phone"
--- the flag view of every recorded look decision carries exactly its flag as the one `fw` entry; the faithful view carries none
+-- The flag view of every recorded look decision carries exactly its flag as the one `fw` entry (a decided check over the finite set).
+-- A theorem over any key is not stated: it is false for a key with `,`, `&` or `=`, and its proof needs `String.splitOn` lemmas that
+-- Lean core lacks (`splitOn` is a well-founded scan the kernel does not reduce, so `decide +kernel` fails too). Accepted limit.
 #guard Fw.Preset.Gen.lookDecisions.all fun d =>
   BuildsOpen.fwEntries (BuildsOpen.params (BuildsOpen.body (searchOf d.flag .flag))) == [d.flag.key]
 #guard BuildsOpen.params (BuildsOpen.body (searchOf ⟨"nav", "e"⟩ .faithful)) == []
