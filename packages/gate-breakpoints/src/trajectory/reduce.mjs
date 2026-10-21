@@ -2,9 +2,9 @@
 // packages/contracts/golden/gate/trajectory.jsonl (test/trajectory.test.mjs). Every function below mirrors a Lean definition of the
 // same name; `reduceRun` (the loop over nodes, properties and steps) is the only part Lean does not hold (a listed TS stand-in).
 //
-// A reading (Val) is null (absent), an array of integers (a number x 1000) or a string. A sample is { m, since, els, rep, cls, ph }:
+// A reading (Val) is null (absent), an array of integers (a number x 1000) or a string. A sample is { m, since, els, rep, cls, ph, t0 }:
 // `since` is the ms since the last nav class change (null: none happened), `cls` the nav classes that are on, `ph` the index of
-// the phase it was read in; `annotate` adds `ord`.
+// the phase it was read in, `t0` the ms its reads started at, rounded (null: not recorded); `annotate` adds `ord`.
 
 export const TOL = { discrete: 0, geometry: 1000, unit: 10, colour: 2000 };
 export const ALLOWED_WIDTHS = [390, 640, 641, 1280];
@@ -327,6 +327,116 @@ export const readsDominate = (readP50, gapP50) => gapP50 > 0 && gapP50 <= 2 * re
 
 // ---- reading the raw output of run.mjs (TS stand-in: the loops; the decisions are the functions above) ------------------
 
+// The close rule of the earn button (Lean section `CloseStart`). Every value is an integer (property value x 1000), so
+// every comparison is the exact one Lean makes.
+
+/** Lean `startOn`. */
+export const startOn = (node, prop) => node === 'earn' && (prop === 'opacity' || prop === 'max-width');
+
+/** Lean `startTr`: [duration, delay] or null. */
+export function startTr(node, prop, width, cls) {
+  const css = cssOf(node, prop);
+  const t = transitionsOf(node, width, cls).find(([p]) => css.includes(p));
+  return t === undefined ? null : [t[1], t[2] ?? 0];
+}
+
+/** Lean `fullOf`: opacity 1; max-width 9.5rem up to 640 px, else 11rem; times 1000. */
+export const fullOf = (prop, width) => (prop === 'opacity' ? 1000 : width <= 640 ? 152000 : 176000);
+
+/** Lean `startFor`: { tr, full } or null. */
+export const startFor = (node, prop, width) =>
+  (startOn(node, prop) ? { tr: (cls) => startTr(node, prop, width, cls), full: fullOf(prop, width) } : null);
+
+/** Lean `closePh`. */
+export const CLOSE_PH = 2;
+
+/** Lean `startJitter`. */
+export const START_JITTER = 80;
+
+/** Lean `Nav.darkCut` x 10000: the morph value at which the earn button is fully collapsed. */
+export const DARK_CUT = 2000;
+
+const clampCut = (m) => Math.min(DARK_CUT, Math.max(0, m));
+
+/** Lean `oneNum`. */
+const oneNum = (els) => (els.length === 1 && Array.isArray(els[0]) && els[0].length === 1 ? els[0][0] : null);
+
+const has = (x) => x !== null && x !== undefined;
+
+/** Lean `retargets`. */
+const retargets = (a, b) => has(a.m) && has(b.m) && clampCut(a.m) !== clampCut(b.m);
+
+/** Lean `triggersOf`. */
+export function triggersOf(ps) {
+  const out = [];
+  for (let j = 1; j < ps.length; j++) if (retargets(ps[j - 1], ps[j])) out.push(ps[j]);
+  return out;
+}
+
+const passOf = (seg, q) => seg.filter((s) => (s.rep ?? 0) === q);
+
+/** Lean `origFirst`. */
+export const origFirst = (seg, r) => triggersOf(passOf(seg, r.rep ?? 0).filter((s) => s.ph === r.ph))[0] ?? null;
+
+/** Lean `excess`. */
+export const excess = (lo, hi, w) => (w < lo ? lo - w : hi < w ? w - hi : 0);
+
+/** Lean `startCheck`: true, false, or null (undecided). */
+export function startCheck(kind, full, seg, prior, r) {
+  const q = triggersOf([...prior, r])[0] ?? null, o = origFirst(seg, r);
+  if (q === null || o === null) return null;
+  const s = oneNum(o.els), w = oneNum(q.els), x = oneNum(r.els);
+  if (s === null || w === null || x === null) return null;
+  return excess(s, s, w) <= TOL[kind] && excess(s, full, x) <= TOL[kind];
+}
+
+/** Lean `judgeStart`. */
+export function judgeStart(kind, d, full, seg, win, prior, r) {
+  const c = startCheck(kind, full, seg, prior, r);
+  return c === true ? pass : c === false ? fail('apart') : judgeUnit(kind, d, seg, win, r);
+}
+
+/** Lean `startBucket`. */
+export function startBucket(kind, d, full, seg, orig, rew) {
+  const rs = rew.map((r, i) => [passOf(rew.slice(0, i), r.rep ?? 0), r]).filter(([, r]) => bucket(r.m) === 0);
+  if (rs.length === 0) return skip('noSample');
+  return combine(rs.map(([ps, r]) => judgeStart(kind, d, full, seg, windowAt('push', d, seg, orig, r), ps, r)));
+}
+
+/** Lean `closeOf`. */
+const closeOf = (seg, r) => passOf(seg, r.rep ?? 0).filter((s) => s.ph === CLOSE_PH || s.ph === CLOSE_PH + 1);
+
+/** Lean `settleAt`. */
+export const settleAt = (dur, delay) => dur + delay + START_JITTER;
+
+/** Lean `settleCheck`: true, false, or null (undecided). */
+export function settleCheck(kind, e, seg, r) {
+  const q = triggersOf(closeOf(seg, r)).at(-1) ?? null;
+  if (q === null) return null;
+  const t = e.tr(q.cls), x = oneNum(r.els);
+  if (t === null || !has(q.t0) || !has(r.t0) || x === null) return null;
+  return settleAt(t[0], t[1]) <= r.t0 - q.t0 ? excess(e.full, e.full, x) <= TOL[kind] : null;
+}
+
+/** Lean `settleAnd`. */
+export const settleAnd = (v, cs) => (v === pass && cs.includes(false) ? fail('apart') : v);
+
+/** Lean `byMStart`: `byM`, with bucket 0 of the close by `startBucket` and the close-hold by `settleAnd` when `e` is
+ * given. */
+export function byMStart(ph, p, kind, d, e, oSeg, wSeg) {
+  const v = byM(ph, p, kind, d, oSeg, wSeg);
+  if (e === null) return v;
+  if (ph === 'push' && p === CLOSE_PH) {
+    const seg = annotate(oSeg), orig = seg.filter((o) => o.ph === p), rew = annotate(wSeg).filter((r) => r.ph === p);
+    return v.map(([b, x]) => (b === 0 ? [b, startBucket(kind, d, e.full, seg, orig, rew)] : [b, x]));
+  }
+  if (ph === 'hold' && p === CLOSE_PH + 1) {
+    const ws = annotate(wSeg), here = ws.filter((r) => r.ph === p);
+    return v.map(([b, x]) => [b, settleAnd(x, here.filter((r) => bucket(r.m) === b).map((r) => settleCheck(kind, e, ws, r)))]);
+  }
+  return v;
+}
+
 /** The phases of the end-of-page path and whether the wheel moves the morph in them (Lean `Phase`). */
 export const PHASES = [['open', 'push'], ['open-hold', 'hold'], ['close', 'push'], ['close-hold', 'hold']];
 
@@ -343,6 +453,7 @@ const sampleOf = (row, ni, pi, withM, ph, navCls) => ({
   rep: row.rep ?? 0,
   cls: clsOf(row, navCls),
   ph,
+  t0: typeof row.t0 === 'number' ? Math.round(row.t0) : null,
 });
 
 /**
@@ -380,7 +491,8 @@ export function reduceWidth({ width, orig, rewrite, registries }) {
       for (const n of registries.morph) {
         n.props.forEach((p, pi) => {
           if (lean && !isLeanProp(p)) return;
-          const verdicts = byM(ph, k, p.kind, durFor(n.id, p.id), pathOf(orig, n.id, pi), pathOf(rewrite, n.id, pi));
+          const verdicts = byMStart(ph, k, p.kind, durFor(n.id, p.id), startFor(n.id, p.id, width), pathOf(orig, n.id, pi),
+            pathOf(rewrite, n.id, pi));
           push('morph', phase, n.id, p.id, p.kind, verdicts.map(([b, v]) => [`${phase}@${b}`, v]));
         });
       }

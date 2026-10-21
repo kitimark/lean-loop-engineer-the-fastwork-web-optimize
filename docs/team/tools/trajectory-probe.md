@@ -417,6 +417,106 @@ are no core for a hold sample (row 4 of the table, MEASURED, not adopted here).
 
 Limit: judgeUnit_sound bounds a reading against the range of the whole original path (every phase, epoch and class set) and needs every reading in it to have the same shape (n elements, numeric); one absent or string reading makes it vacuous for that path.
 
+### Earn close start (tasks earn-close-start-rule, earn-close-chain-rule, earn-close-settle-rule)
+
+Mechanism (MEASURED, the four runs below): in close@0 the earn button's `opacity` and `max-width` follow one CSS
+transition per trigger. A trigger is a sample whose `--earn-out` (Lean `collapse`, `clamp01(m / darkCut)`, `darkCut` =
+0.2) differs from the sample before it in the same pass and phase. Each trigger retargets the transition from the value
+in flight, so the reading at a later trigger depends on when the earlier triggers fell. Two passes of the same original
+already differ there (MEASURED, 39508421419 macOS WebKit 641 px, the first triggers equal): opacity at trigger 4 reads 0
+in pass 0 and 73 in pass 3 (`tol` 10); max-width at trigger 4 reads 2285 in pass 1 and 69491 in pass 3, 67206 apart
+(`tol` 1000). Lean `ooOpacity` and `ooMaxWidth` hold the readings, `#guard`s the differences. So no rule can bound a
+later trigger by the original's reading there; round 2 (`chainCost`) tried and was closed as a finding.
+
+Rule (Lean `startCheck`, `settleCheck`, `byMStart`; TS twin of the same names in `reduce.mjs`), only the units of
+`startOn` (earn `opacity`, earn `max-width`). `full` is the value at rest (`fullOf`, `Nav.lean` 266-269 and 274, which restate the original CSS (snapshot lines 11480, 11483, 11485, 11594-11596), ported in
+`apps/site/src/parts/nav/nav.module.css` 170, 173, 176 (opacity) and 285): opacity 1, max-width 11rem = 176 px, 9.5rem = 152 px up to
+640 px. Values are times 1000.
+
+- close@0 (push of the close, bucket 0), for a rewrite sample `r` after the earlier samples of its pass:
+  - Anchor: the reading at the pass's first trigger lies within `tol` of `s`, the reading at the original's first
+    trigger of the same pass and phase (`origFirst`).
+  - Range: `r`'s reading lies in `[s - tol, full + tol]`.
+  - Both hold: pass; one fails: `fail apart`; no trigger up to `r`, no original trigger or a reading that is not one
+    number: `judgeUnit` decides as before. Every other bucket of the close is `byM` (`byMStart_keeps`).
+- close-hold, every bucket: `byM`, and in addition each rewrite sample read `settleAt` = duration + delay + 80 ms or
+  more after the last trigger of its pass's close and close-hold reads within `tol` of `full`. A refusing sample turns
+  a passing bucket into `fail apart` (`settleAnd`); otherwise the bucket keeps `byM`'s verdict.
+
+Proved (`lean/Fw/Gate/Trajectory.lean`, section `CloseStart`):
+
+- `byMSettle`: a close-hold bucket `byMStart` passes, `byM` passes; the settle check is never more lenient than `byM`.
+  `byMSettle_keep`: with no refusing settle check the close-hold is `byM`.
+- `startCheck_pass_iff`: with every part found and `s ≤ full`, a sample passes exactly when the trigger reads within
+  `tol` of `s` and `r` reads in `[s - tol, full + tol]`. `settleCheck_pass_iff`: read late enough, a sample passes
+  exactly when it reads within `tol` of `full`. `fullOf_opacity`, `fullOf_phone`, `fullOf_wide`.
+- Branches: `startCheck_found`, `_no_trigger`, `_no_orig`, `_no_reading`; `judgeStart_on`, `_off`, `_undecided`;
+  `settleCheck_found`, `_early`, `_no_trigger`, `_no_part`; `settleAnd_keep`, `_refuse`, `_other`, `_pass`;
+  `byMStart_none`, `_other`, `_keeps`, `_bucket0`; `startOn_opacity`, `startOn_maxWidth`, `startFor_off`.
+- Mutations, each refused in a named cell of the judge (`byMStart` at 390 px, opacity):
+  - `byMStart_stale` (the trigger reads 600 instead of 0): close@0, anchor.
+  - `byMStart_reversed` (1 to 0): close@0 by the anchor and close-hold@0 by settle.
+  - `byMStart_collapsed` (stays at 0): passes close@0 (inside the range), refused at close-hold@0.
+  - `byMStart_target` (rests at 0.9): `byM` passes close-hold@0 against the original's in-flight 895, settle refuses.
+  - `byMStart_duration` (463 ms instead of 320): reads 989 at settle time, refused at close-hold@0.
+- Smallest refused change (one trigger, rise from 0), read exactly `settleAt` after the trigger and rounded half up as `kit.mjs` 43 rounds
+  (`readRise`, `rounded_iff`, `settle_dur_iff`, `settle_delay_iff`, monotone by `along_dur_le` and `along_delay_le`):
+
+| unit | duration | delay |
+|---|---|---|
+| opacity (320 ms after 120 ms) | +143 ms (`settle_opacity_duration`) | +124 ms (`settle_opacity_delay`) |
+| max-width above 640 px (680 ms) | +166 ms (`settle_wide_duration`) | +149 ms (`settle_wide_delay`) |
+| max-width up to 640 px (680 ms) | +173 ms (`settle_phone_duration`) | +154 ms (`settle_phone_delay`) |
+
+Read later than `settleAt`, or from a start above 0 (real last triggers start in flight, up to 73/1000 opacity and tens of
+px max-width), the smallest refused increase is larger; read earlier, the check does not decide.
+
+Accepted limits (each a theorem or a measurement):
+
+- (i) Another curve, or a shorter duration, with the same endpoints passes close@0 (`byMStart_curve`: linear max-width
+  at 390 px; the 320 ms opacity where `is-hero-pill` runs 200 ms).
+- (ii) A close-hold with no refusing settle check is `byM` (`byMSettle_keep`); a pass with no late sample adds only
+  undecided checks (`settleCheck_early`).
+  MEASURED: 0 of 12280 macOS WebKit and 0 of 19722 Chromium close@0 samples of the four runs are read that late, so the
+  settle check never decides in close@0; close-hold samples read that late: macOS WebKit 788 of 1338, 781 of 1396, 742
+  of 1284, 765 of 1358 per run.
+- (iii) Drift inside the range passes (`byMStart_drift`: 9, 18 and 27 above the original at three triggers, at rest
+  and while moving, pass close@0 and close-hold@0). This is the finding of round 2.
+- (iv) `startJitter` = 80 ms (MEASURED in round 1), in `settleAt`.
+- (v) `tol` 0.01 opacity, 1 px max-width.
+- (vi) Any close@0 in-flight reading inside `[anchor - tol, full + tol]` passes.
+- (vii) When `startCheck` decides a bucket-0 sample it bypasses `judgeUnit`, including its coverage outcomes (no
+  window, no counterpart in the original). Follow-up: run the coverage branch first.
+- Wrong `darkCut` (0.25 instead of 0.2) is NOT caught: `byM` judges it in close buckets 1 and 2, and the change there
+  (at most 0.9 px; 1.06 px later in bucket 0, inside the range; opacity unmoved) is inside tol 1 px. INFERRED from a
+  float simulation of the 39508421419 pass 0 timeline at 1280 px (scratch script, not committed).
+
+Re-reduced (MEASURED, raw artifacts of the four runs reduced by main's reducer at 74fccd34 and by this rule; "stored" is
+the run's own units file). Candidate `new` units on macOS WebKit:
+
+| run | search | stored | main | after |
+|---|---|---|---|---|
+| 39466179818 | hero.exit:scoped | 176 | 173 | 172 |
+| 39472217441 | hero.exit:faithful | 130 | 128 | 128 |
+| 39508414669 | hero.exit:scoped | 257 | 257 | 253 |
+| 39508421419 | hero.exit:faithful | 44 | 44 | 44 |
+
+Chromium (0, 0, 84, 0) and Linux WebKit (0 in all four) keep their counts. Every unit that changes against main is an
+earn close@0 unit on macOS WebKit (candidate / base / rel); no close-hold unit changes:
+
+| run | width | property | main | after |
+|---|---|---|---|---|
+| 39466179818 | 390 | max-width | fail apart / pass / new | pass / pass / ok |
+| 39466179818 | 640 | max-width | pass / fail apart / cleared | pass / pass / ok |
+| 39472217441 | 640 | opacity | pass / fail apart / cleared | pass / pass / ok |
+| 39472217441 | 640 | max-width | fail apart / fail apart / both | pass / pass / ok |
+| 39508414669 | 390, 641 | opacity | fail apart / pass / new | pass / pass / ok |
+| 39508414669 | 390, 641 | max-width | fail apart / pass / new | pass / pass / ok |
+| 39508421419 | 640 | max-width | fail apart / fail apart / both | pass / pass / ok |
+
+Limit: the anchor needs the original's first trigger to read like the rewrite's; a pass whose first trigger falls
+mid-transition in one arm only is judged `fail apart`. Admission of the scoped arm is task close-start-identity-rule.
+
 ## Admission
 
 No flag enters `v2-proved` without a stored pass in Chromium and in WebKit on both paths (Lean `member_needs_trajectory`,

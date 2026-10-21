@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { isDeepStrictEqual } from 'node:util';
 import { fileURLToPath } from 'node:url';
-import { annotate, armCheck, byM, byStep, bucket, durOf, judgeEls, judgeOwn, judgeUnit, pickWidths, quantile, readsDominate, reduceRaw, reduceWidth, rel, RULES, runCheck, START_LAG, verdictLines, window as windowOf, windowAt } from '../src/trajectory/reduce.mjs';
+import { annotate, armCheck, byM, byMStart, byStep, bucket, CLOSE_PH, DARK_CUT, durOf, fullOf, settleCheck, START_JITTER, startCheck, startFor, startOn, startTr, judgeEls, judgeOwn, judgeUnit, pickWidths, quantile, readsDominate, reduceRaw, reduceWidth, rel, RULES, runCheck, START_LAG, verdictLines, window as windowOf, windowAt } from '../src/trajectory/reduce.mjs';
 import { mergeRaws, planOf } from '../src/trajectory/plan.mjs';
 import { HERO_NODES, MORPH_NODES, PAGE_PROPS, HERO_STEPS, WIDTHS, MOTION_PROPS } from '../src/trajectory/registry.mjs';
 
@@ -15,6 +15,10 @@ const navCss = readFileSync(fileURLToPath(new URL('../../../apps/site/src/parts/
 
 /** The transition function a golden line names: the table's for (node, prop, width), or none under any class set. */
 const durFn = (dur) => (dur === null ? () => null : (cls) => durOf(dur.node, dur.prop, dur.width, cls));
+
+/** An integer as a [num, den] BigInt pair; a pair as the golden { num, den }. */
+const qInt = (x) => [BigInt(x), 1n];
+const qJson = ([n, d]) => ({ num: String(n), den: String(d) });
 
 /** Milliseconds of a CSS time (`0.7s`, `120ms`). */
 const msOf = (t) => (t.endsWith('ms') ? Number(t.slice(0, -2)) : Math.round(Number(t.slice(0, -1)) * 1000));
@@ -113,7 +117,7 @@ function rulesOfCss(css) {
 }
 
 test('the golden file holds every operation', () => {
-  assert.deepEqual([...new Set(golden.map((g) => g.op))].sort(), ['els', 'window', 'bucket', 'byM', 'byStep', 'unit', 'rule', 'dur', 'annotate', 'widths', 'rel', 'arm', 'run', 'quantile', 'dominate', 'plan'].sort());
+  assert.deepEqual([...new Set(golden.map((g) => g.op))].sort(), ['els', 'window', 'bucket', 'byM', 'byStep', 'unit', 'rule', 'dur', 'annotate', 'widths', 'rel', 'arm', 'run', 'quantile', 'dominate', 'plan', 'byMStart', 'start', 'startCheck', 'settleCheck', 'curve'].sort());
   assert.ok(golden.length >= 200);
   assert.ok(golden.some((g) => g.op === 'byM' && [...g.oSeg, ...g.wSeg].some((x) => x.rep > 0)), 'golden has rows with rep > 0');
 });
@@ -122,6 +126,34 @@ test('the transition table is the CSS: every rule of nav.module.css that sets a 
   const lean = golden.filter((g) => g.op === 'rule').map((g) => g.rule);
   assert.deepEqual(rulesOfCss(navCss), lean);
   assert.deepEqual(RULES, lean);
+});
+
+test('the earn curve is the CSS: every earn opacity and max-width transition of nav.module.css eases on Lean `earnCurve`', () => {
+  const g = golden.find((x) => x.op === 'curve');
+  const want = g.bez.map((q) => Number(q.num) / Number(q.den));
+  const got = [];
+  for (const [, body] of navCss.matchAll(/\.btn\.earn[^{}]*\{([^{}]*)\}/g)) {
+    for (const [, v] of body.matchAll(/transition:([^;]*);/g)) {
+      for (const item of topSplit(v)) {
+        const [prop] = item.split(/\s+/);
+        if (prop !== 'opacity' && prop !== 'max-width') continue;
+        const bez = item.match(/cubic-bezier\(([^)]*)\)/);
+        assert.ok(bez, `${item} has no cubic-bezier`);
+        got.push(bez[1].split(',').map(Number));
+      }
+    }
+  }
+  assert.ok(got.length >= 4, `found ${got.length} earn transitions`);
+  for (const c of got) assert.deepEqual(c, want);
+});
+
+test('the earn width at rest is the CSS: max-width 11rem, 9.5rem up to 640 px, as the golden `full` rows', () => {
+  const g = golden.find((x) => x.op === 'curve');
+  const rems = [...navCss.matchAll(/max-width: calc\(var\(--earn-layout\) \* ([\d.]+)rem\)/g)].map((m) => Number(m[1]));
+  assert.deepEqual(rems, [11, 9.5]);
+  const full = (w) => g.full.find(([p, x]) => p === 'max-width' && x === w)[2];
+  assert.deepEqual(full(1280), qJson(qInt(rems[0] * 16 * 1000)));
+  assert.deepEqual(full(390), qJson(qInt(rems[1] * 16 * 1000)));
 });
 
 test('the CSS reader keys a rule by its selector and reads its transitions', () => {
@@ -160,7 +192,22 @@ for (const g of golden) {
       const got = pickWidths(g.input);
       assert.deepEqual(got === null ? { ok: false } : { ok: true, widths: got }, g.pick);
     } else if (g.op === 'plan') assert.deepEqual(planOf(g.engines, g.widths), g.legs);
-    else assert.fail(`unknown op ${g.op}`);
+    else if (g.op === 'byMStart') {
+      const d = (cls) => durOf(g.node, g.prop, g.width, cls);
+      assert.deepEqual(byMStart(g.phase, g.p, g.kind, d, startFor(g.node, g.prop, g.width), g.oSeg, g.wSeg).map((x) => x[1]), g.verdicts);
+    } else if (g.op === 'start') {
+      assert.equal(startOn(g.node, g.prop), g.on);
+      assert.deepEqual(g.trs.map((_, k) => startTr(g.node, g.prop, g.width, g.classes.filter((_, i) => (k >> i) & 1))), g.trs);
+    } else if (g.op === 'startCheck') assert.equal(startCheck(g.kind, g.full, g.oSeg, g.prior, g.r), g.check);
+    else if (g.op === 'settleCheck') {
+      const e = startFor(g.node, g.prop, g.width);
+      assert.equal(e === null ? null : settleCheck(g.kind, e, g.seg, g.r), g.check);
+    } else if (g.op === 'curve') {
+      assert.equal(START_JITTER, g.jitter);
+      assert.equal(CLOSE_PH, g.close);
+      assert.deepEqual(qJson(qInt(DARK_CUT)), g.darkCut);
+      for (const [prop, width, full] of g.full) assert.deepEqual(qJson(qInt(fullOf(prop, width))), full);
+    } else assert.fail(`unknown op ${g.op}`);
   });
 }
 

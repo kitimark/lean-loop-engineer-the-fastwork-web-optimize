@@ -12649,7 +12649,8 @@
     "packages/contracts/golden/gate/trajectory.jsonl",
     "docs/team/tools/trajectory-probe.md",
     "docs/team/handoffs/earn-close-settle-rule.md"
-   ]
+   ],
+   "evidence": "7089912"
   },
   {
    "devices": [
@@ -12666,7 +12667,8 @@
     ".github/workflows/lean-math.yml",
     "research/notes/2026/10-21-mathlib-poc.md",
     "docs/team/handoffs/mathlib-poc.md"
-   ]
+   ],
+   "evidence": "9eb64cf"
   },
   {
    "devices": [

@@ -1,0 +1,126 @@
+name: lean-math
+
+# The Mathlib companion package lean-math/ (FwMath): real-number statements about fwcore definitions (task mathlib-poc).
+# Selected only when a declared input changes (Lean Fw.Ci.Trigger row `lean-math.yml`); a ci/* push asks for it with
+# `[ci:lean-math]`. Mathlib comes as prebuilt oleans (`lake exe cache get`, only the import closure of FwMath).
+on:
+  push:
+    branches: ['ci/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # Guard (Lean Fw.Ci.Intent + Fw.Ci.Trigger, scripts/ci-paths.mjs). On a ci/* push it, and so every job, is skipped unless
+  # the head commit asks for this lane (`[ci:<lane>]`; the default lane lean always); then it runs the workflow only if
+  # the commit is the branch tip, is not on main yet, and (lean: always) some file that differs from main on the whole
+  # branch is an input. A main push starts no run; dispatches always run. Fails open.
+  # Every other job re-checks the tip first (`stale:` fails it) and has its own group, never cancelled on ci/*.
+  guard:
+    if: ${{ github.event_name != 'push' || !startsWith(github.ref, 'refs/heads/ci/') || contains(github.event.head_commit.message, '[ci:lean-math]') }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.g.outputs.run }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - id: g
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          BEFORE: ${{ github.event.before }}
+          GUARD_TOKEN: ${{ github.token }}
+        run: node .github/scripts/changed-inputs.mjs --workflow .github/workflows/lean-math.yml
+      - name: 'decision: run'
+        if: steps.g.outputs.run == 'true'
+        run: 'true'
+      - name: 'decision: skip: ${{ steps.g.outputs.reason }}'
+        if: steps.g.outputs.run != 'true'
+        run: 'true'
+
+  math:
+    needs: [guard]
+    if: ${{ needs.guard.outputs.run == 'true' }}
+    concurrency:
+      group: ci-lane:lean-math:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:math:${{ strategy.job-index }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      # Same pinned elan as .github/actions/setup-lean, inlined: that action restores the fwcore Lake cache, not Mathlib.
+      - name: Install elan (pinned release, sha256 checked)
+        shell: bash
+        env:
+          ELAN_VERSION: v4.2.4
+          ELAN_SHA256: 05febd124d84ebf994b2e7479922a5650b1e950c17ae3bd1ddd776b65bb72bf9
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = aarch64
+          dir="$RUNNER_TEMP/elan-dl"
+          mkdir -p "$dir"
+          curl -fsSL --retry 5 --retry-all-errors -o "$dir/elan.tgz" \
+            "https://github.com/leanprover/elan/releases/download/${ELAN_VERSION}/elan-aarch64-unknown-linux-gnu.tar.gz"
+          echo "${ELAN_SHA256}  $dir/elan.tgz" | sha256sum -c -
+          tar -xzf "$dir/elan.tgz" -C "$dir"
+          "$dir/elan-init" -y --no-modify-path --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: Install the Lean toolchain
+        shell: bash
+        working-directory: lean-math
+        run: |
+          set -euo pipefail
+          ok=0
+          for i in 1 2 3 4 5; do
+            if elan toolchain install "$(cat lean-toolchain)"; then ok=1; break; fi
+            echo "elan toolchain install failed (attempt $i)"; sleep $((i * 5))
+          done
+          test "$ok" = 1
+          lean --version
+      - name: Restore the Mathlib olean archives (and save them at the end of this job)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/mathlib
+          key: mathlib-${{ runner.arch }}-${{ hashFiles('lean-math/lake-manifest.json') }}
+      - name: Fetch the dependencies and the Mathlib oleans of the import closure
+        shell: bash
+        working-directory: lean-math
+        env:
+          MATHLIB_NO_CACHE_ON_UPDATE: '1'
+        run: |
+          set -euo pipefail
+          start=$(date +%s)
+          lake exe cache get Mathlib.Topology.Algebra.Ring.Real
+          echo "fetch: $(( $(date +%s) - start )) s"
+      - name: Build FwMath
+        shell: bash
+        working-directory: lean-math
+        run: |
+          set -euo pipefail
+          start=$(date +%s)
+          lake build
+          echo "build: $(( $(date +%s) - start )) s"
