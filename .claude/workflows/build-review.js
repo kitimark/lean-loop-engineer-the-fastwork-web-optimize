@@ -60,8 +60,9 @@ Return its last VERDICT line as line (and any "item ..." or "fwcore:" lines abov
 // the last VERDICT line of the answer decides and must carry this task's id (escaped: ids hold - and .);
 // runners append "Log: <path>" after it (wf_d2d71389 was sent back on a review-ready line)
 const idRe = t.id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-const lastLine = g && typeof g.line === 'string' ? g.line.trim().split('\n').filter(l => l.startsWith('VERDICT ')).pop() || '' : ''
-const m = new RegExp(`^VERDICT review-ready ${idRe} (review|wait|dispatch|returnToBuilder)$`).exec(lastLine)
+// runners also put the line mid-text ('exit=0 | VERDICT ... review (note)', wf_73b9728f); the last match decides
+const all = g && typeof g.line === 'string' ? [...g.line.matchAll(new RegExp(`VERDICT review-ready ${idRe} (review|wait|dispatch|returnToBuilder)\\b`, 'g'))] : []
+const m = all.length ? all[all.length - 1] : null
 const ready = m ? m[1] : 'returnToBuilder'
 if (ready !== 'review') return [{ task: t.id, build: b, gate: ready, gateLine: g ? g.line : null, adv: null }]
 const adv = await agent(`Adversarial review of task ${t.id}: branch ${b.branch} at ${b.commit} (read-only). Builder: ${b.summary}\nTask: ${t.prompt}\n${scope(t)}\nBuilder items: ${JSON.stringify(b.items || [])}\nBuilder dry-land line: ${b.dry}. Gate line: ${g.line}. Re-check both yourself, and the run states the builder reports, before you trust them (pnpm -s fw land ${b.branch} --task ${t.id} --dry; pnpm -s fw review ready; pnpm -s fw ci state <run id>).\nRun the tests yourself. Grade each finding: blocker (the unit is wrong, unproved or undelivered), fix-before-land (exact text the lead can apply), follow-up (outside the pinned unit or an accepted limit). Write the findings as JSON to a scratch file and run pnpm -s fw review verdict --findings <file> --task ${t.id}; return its last line as verdictLine and accept = whether it says accept.`,

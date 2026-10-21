@@ -4,6 +4,7 @@ import Fw.Ci.Verdict
 import Fw.Ci.Attempt
 import Fw.Ci.Intent
 import Fw.Ci.Overflow
+import Fw.Ci.Pool.FallbackWire
 import Fw.Ops.Wire
 /-!
 # JSON codecs and the ops `ci.budget.*` (the GitHub request budget of the CI poller)
@@ -30,6 +31,7 @@ and passes it to the next call.
 | `ci.overflow` | `legs` [name], `ghActive` [workflow name] or null, `ghActions`, `ghPrev`?, `ccArm`, `ccReadAt` (ms or null), `now` (ms), `spent`, `storage`, `keys` (n or null), `checkout` (bool or null), `forceFull`? | `gh` [leg], `cc` [leg], `reason`, `ghFree`, `ghDegraded`, `ccReady` (`Fw.Ci.Overflow`) |
 | `ci.overflowCombine` | `kinds` [verdict kind] | `kind` (the deciding kind, null for none; `Fw.Ci.Overflow.pickKind`) |
 | `ci.overflowSettle` | `gh` [leg], `cc` [leg], `ccStarted` (bool) | `gh`, `cc`, `again` [leg]: a CircleCI group that could not start hands its legs to a second GitHub run (`again`; `Fw.Ci.Overflow.settle`) |
+| `ci.poolRoute`, `ci.poolConsts` | see `Fw.Wire.CiPool` | the macOS fallback route (`Fw.Ci.Pool.Fallback`) |
 
 Facts: `{guard, steps:[{name, conclusion}], jobs:[conclusion], heavySteps:[{name, conclusion}]}` (`heavySteps`: the
 steps of every non-guard job, read for the tip re-check's `stale:` step).
@@ -408,7 +410,8 @@ def opOverflowSettle (req : Json) : Except String Reply := do
 /-- The ops of this module. -/
 def ops : List String :=
   ["ci.budget.reserve", "ci.budget.next", "ci.budget.observe", "ci.budget.step", "ci.budget.status", "ci.budget.limits",
-    "ci.verdict", "ci.required", "ci.attempt", "ci.overflow", "ci.overflowCombine", "ci.overflowSettle"]
+    "ci.verdict", "ci.required", "ci.attempt", "ci.overflow", "ci.overflowCombine", "ci.overflowSettle"] ++
+    Fw.Wire.CiPool.ops
 
 /-- Dispatch a `ci.budget.*` op (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -425,7 +428,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "ci.overflow" => some (opOverflow req)
   | "ci.overflowCombine" => some (opOverflowCombine req)
   | "ci.overflowSettle" => some (opOverflowSettle req)
-  | _ => none
+  | _ => Fw.Wire.CiPool.handle op req
 
 /-! ## Examples -/
 

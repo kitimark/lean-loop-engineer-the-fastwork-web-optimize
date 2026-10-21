@@ -7,6 +7,7 @@
 //              the only trigger of morph.tween, N2:13065-13069), one rAF per step mark.
 import { loadFresh, pageInfo, RAF_HELPER } from '../page.mjs';
 import { reconnect } from '../wip.mjs';
+import { TargetLostError } from '../inspector.mjs';
 import { attempts } from '../timeouts.mjs';
 import { scrollRun, schedule } from '../scrollrun.mjs';
 import { startTimeline } from '../timeline.mjs';
@@ -158,6 +159,7 @@ export async function morphRun(c, { clock, settleMs }) {
 export async function lagSession(ctx, { passes, clock, settleMs, step, framesPerStep, log }) {
   const geometry = await geometryPass(ctx, { clock, settleMs, step, log });
   const out = [], failed = [];
+  let targetLost = false;
   for (let i = 0; i < passes; i++) {
     let scroll;
     try {
@@ -165,16 +167,16 @@ export async function lagSession(ctx, { passes, clock, settleMs, step, framesPer
         await loadFresh(ctx.c, { clock, settleMs });
         return scrollRun(ctx.c, { step, framesPerStep, mode: 'base' });
       });
-    } catch (e) { failed.push(`pass ${i + 1} scroll: ${e.message}`); log(`  ${failed.at(-1)}`); break; }
+    } catch (e) { targetLost = e instanceof TargetLostError; failed.push(`pass ${i + 1} scroll: ${e.message}`); log(`  ${failed.at(-1)}`); break; }
     const t = scroll.reduced.total;
     log(`pass ${i + 1}/${passes} scroll: ${scroll.ys.length} steps, style ${t.RecalculateStyles} layout ${t.Layout} paint ${t.Paint} composite ${t.Composite}`);
     let morph;
     try {
       morph = await retrying(ctx, 'morph', log, () => morphRun(ctx.c, { clock, settleMs }));
-    } catch (e) { out.push({ scroll }); failed.push(`pass ${i + 1} morph: ${e.message}`); log(`  ${failed.at(-1)}`); break; }
+    } catch (e) { targetLost = e instanceof TargetLostError; out.push({ scroll }); failed.push(`pass ${i + 1} morph: ${e.message}`); log(`  ${failed.at(-1)}`); break; }
     const m = morph.reduced.total;
     log(`pass ${i + 1}/${passes} morph: taken ${JSON.stringify(morph.taken)}, scrollTo ${morph.scrollTo}, style ${m.RecalculateStyles} layout ${m.Layout} paint ${m.Paint} composite ${m.Composite}`);
     out.push({ scroll, morph });
   }
-  return { schema: 'fw.webkit.lag/1', step, framesPerStep, geometry, passes: out, failed };
+  return { schema: 'fw.webkit.lag/1', step, framesPerStep, geometry, passes: out, failed, ...(targetLost ? { targetLost } : {}) };
 }
