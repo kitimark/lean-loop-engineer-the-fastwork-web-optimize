@@ -2653,6 +2653,39 @@
    "lesson": "A felt lag can be a platform throttle, not page work; count still runs before optimizing page cost.",
    "next": "Phone pass in the user session with and without ?fw=engine.scroll:throttle-lift; then decide whether a shippable variant can avoid the throttle.",
    "evidence": "CI run 39667548341; research/notes/2026/10-2x-toolbar-throttle.md"
+  },
+  {
+   "id": "platform.mq",
+   "n": 42,
+   "part": "platform",
+   "candidate": "platform:mq: skip the --platform-shrink write while the phone-band media query matches (the card look does not read it there); write the current value at once when the page leaves the band",
+   "status": "partly-proved",
+   "flag": "platform:mq",
+   "flags": [
+    "platform:mq"
+   ],
+   "chromium": "no-win",
+   "webkit": "no-win",
+   "visual": "E (platformShrink_visSame: visible scenes equal across band changes; look_gated: the phone-band look is independent of --platform-shrink)",
+   "mechanism": "MEASURED (CI webkit-sim, end-of-page window y 4500-5200, two passes per arm; base run 39680958629, flag run 39680964944): RecalculateStyles 94/70 vs 85/83, Layout 100/56 vs 87/76; the arm gap is smaller than the pass-to-pass gap of the base (24 and 44), so no effect shows. PROVED why: unshrunk_run, the original writes nothing while the card bottom stays at or below 0.85 of the viewport, and the card is the last section, so a plain scroll never shrinks it. Breakpoint gate both engines: run 39680952848.",
+   "leanFor": [
+    "Fw.Parts.PlatformShrinkOpt.look_gated",
+    "Fw.Parts.PlatformShrinkOpt.platformShrink_visSame",
+    "Fw.Parts.PlatformShrinkOpt.writes_le",
+    "Fw.Parts.PlatformShrinkOpt.unshrunk_run"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "No frame-time percentiles: the webkit-sim count lane records no RenderingFrame events (Simulator replay of the end of page is a follow-up)",
+    "The arms differ by 36 px of document height, so the window sits differently from the page end"
+   ],
+   "premises": [
+    "The platform card is the last section of the rewrite page (apps/site/src/App.tsx); whether the original snapshot also ends there is open"
+   ],
+   "v1Evidence": "",
+   "lesson": "A write that is skipped only where the original never writes saves nothing; check that the original does the work in the measured window before porting a skip.",
+   "next": "Hold: keep the flag registered, out of the preset; re-measure in the Simulator replay of the end of page, or if a section is added below the card.",
+   "evidence": "CI runs 39680952848, 39680958629, 39680964944, 39685930205; research/notes/2026/10-2x-platform-shrink-mq.md; results/platform-shrink-mq/report.json"
   }
  ],
  "notes": [

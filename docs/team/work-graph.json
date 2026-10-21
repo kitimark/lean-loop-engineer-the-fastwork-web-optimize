@@ -14612,7 +14612,8 @@
     "packages/contracts/golden/parts/platform-shrink*.jsonl",
     "research/notes/2026/10-2x-platform-shrink-mq.md",
     "docs/team/handoffs/platform-shrink-mq.md"
-   ]
+   ],
+   "evidence": "d685f96"
   },
   {
    "devices": [
