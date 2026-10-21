@@ -60,7 +60,7 @@ const cellOfKind = (p, k) => p.cells.find((c) => c[0] === k) ?? [k, 0, 0];
 export function jobCell(file, arm, zone) {
   const ps = zoneReps(file, arm, zone);
   const kinds = Object.fromEntries(KINDS.map((k) => [k, { n: med(ps.map((p) => cellOfKind(p, k)[1])), dur: med(ps.map((p) => cellOfKind(p, k)[2])) }]));
-  return { reps: ps.length, frames: med(ps.map((p) => p.frames)), perFrame: med(ps.map((p) => p.perFrame)), perFrameAll: ps.map((p) => p.perFrame), work: med(ps.map((p) => p.work)), span: med(ps.map((p) => p.span)), kinds };
+  return { reps: ps.length, frames: med(ps.map((p) => p.frames)), perFrame: med(ps.map((p) => p.perFrame)), perFrameAll: ps.map((p) => p.perFrame), work: med(ps.map((p) => p.work)), span: med(ps.map((p) => p.span)), share: med(ps.map((p) => (p.span ? Math.floor((1000 * p.work) / p.span) : 0))), kinds };
 }
 
 /** Lean `zoneVerdict` for one job and zone, on the per-window render work per frame, against the A/A pair (base, aa). */
@@ -171,7 +171,9 @@ export function ratioTable(leg) {
     out.push(head(['metric', ...leg.arms, 'orig / base', 'base / aa']));
     const metrics = [
       ['frames in zone', (x) => x.frames, fmt],
+      ['window span ms', (x) => x.span, ms2],
       ['render work ms / window', (x) => x.work, ms2],
+      ['render work share of the window span %', (x) => x.share, (v) => (v == null ? '-' : (v / 10).toFixed(1))],
       ['render work us / frame', (x) => x.perFrame, fmt],
       ...['RecalculateStyles', 'Layout', 'Paint'].flatMap((k) => [[`${k} n`, (x) => x.kinds[k].n, fmt], [`${k} ms`, (x) => x.kinds[k].dur, ms2]]),
       ['Composite n', (x) => x.kinds.Composite.n, fmt],

@@ -1,0 +1,58 @@
+{
+ "jobs": [
+  {
+   "name": "guard",
+   "conclusion": "success",
+   "startedAt": "2026-10-21T16:22:38Z",
+   "completedAt": "2026-10-21T16:22:48Z"
+  },
+  {
+   "name": "site",
+   "conclusion": "success",
+   "startedAt": "2026-10-21T16:22:53Z",
+   "completedAt": "2026-10-21T16:23:44Z"
+  },
+  {
+   "name": "webkit mac (playwright-webkit, macos-26) job 1",
+   "conclusion": "success",
+   "startedAt": "2026-10-21T16:23:46Z",
+   "completedAt": "2026-10-21T16:34:27Z"
+  },
+  {
+   "name": "webkit sim (mobile safari, xcode-27) job 1",
+   "conclusion": "failure",
+   "startedAt": "2026-10-21T16:23:47Z",
+   "completedAt": "2026-10-21T16:46:56Z"
+  },
+  {
+   "name": "cadence ${{ matrix.width }} set ${{ matrix.set }}",
+   "conclusion": "skipped",
+   "startedAt": "2026-10-21T16:23:44Z",
+   "completedAt": "2026-10-21T16:23:44Z"
+  },
+  {
+   "name": "webkit mac (playwright-webkit, macos-26) job 2",
+   "conclusion": "success",
+   "startedAt": "2026-10-21T16:36:30Z",
+   "completedAt": "2026-10-21T16:45:34Z"
+  },
+  {
+   "name": "webkit mac (playwright-webkit, macos-26) job 3",
+   "conclusion": "cancelled",
+   "startedAt": "2026-10-21T16:45:34Z",
+   "completedAt": "2026-10-21T17:00:35Z"
+  },
+  {
+   "name": "webkit sim (mobile safari, xcode-27) job 2",
+   "conclusion": "success",
+   "startedAt": "2026-10-21T16:47:00Z",
+   "completedAt": "2026-10-21T17:24:39Z"
+  },
+  {
+   "name": "webkit sim (mobile safari, xcode-27) job 3",
+   "conclusion": "success",
+   "startedAt": "2026-10-21T17:24:42Z",
+   "completedAt": "2026-10-21T17:56:27Z"
+  }
+ ]
+}
