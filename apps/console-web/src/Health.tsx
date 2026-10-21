@@ -14,7 +14,7 @@ export type HealthView = {
     ctxTokens: number | null; inflight: { tool: string; since: number } | null }[];
   alerts: { code: string; subject: string; detail: string; critical: boolean }[];
   systemAlerts: string[];
-  system: { diskFreeGB: number; memPressure: string; simLock: { holder: string | null; since: number | null };
+  system: { diskFreeGB: number; load1?: number; memPressure: string; simLock: { holder: string | null; since: number | null };
     docker: { name: string; startedAt: number }[]; worktrees: number;
     ci: { workflow: string; branch: string; status: string; conclusion: string | null }[]; stale: string[] };
   gh: GhView | null;
@@ -169,6 +169,7 @@ export function HealthView({ now }: { now: number }) {
   const sysRows: { name: string; value: string; codes: string[]; stale: boolean }[] = [
     { name: "Disk", value: `${s.diskFreeGB} GB free`, codes: ["sys.diskLow"], stale: false },
     { name: "Memory", value: s.memPressure, codes: ["sys.memCritical"], stale: false },
+    { name: "Load", value: `${s.load1 ?? 0} (1 min)`, codes: ["sys.contended", "load.high"], stale: false },
     { name: "Sim lock", value: s.simLock.holder ? `held by ${s.simLock.holder}${s.simLock.since ? `, ${age(health.now - s.simLock.since)}` : ""}` : "free",
       codes: ["sim.lockLong", "sim.lockOrphan"], stale: false },
     { name: "CI", value: s.ci.length === 0 ? "no runs" : s.ci.slice(0, 5).map((r) => `${r.workflow}@${r.branch} ${r.conclusion ?? r.status}`).join("; "),
