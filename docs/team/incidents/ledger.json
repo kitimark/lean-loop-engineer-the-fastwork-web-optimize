@@ -3755,18 +3755,13 @@
    "id": "inc-sim-lock-ppid",
    "at": "2026-10-22T01:20+07:00",
    "title": "The sim lock records the pid of one Bash call shell, so an agent holding it across calls reads as stale",
-   "symptom": "fw watch opened sim.lockOrphan for toolbar-throttle-probe two minutes after it acquired the sim lock; the recorded pid was already dead while the agent was still running.",
+   "symptom": "fw watch opened sim.lockOrphan for toolbar-throttle-probe two minutes after it acquired the sim lock; the recorded pid was already dead while the agent was still running. (locks log: a sim acquire by the Bash shell pid with no release; .fw-console is local-only.)",
    "cause": "CONFIRMED (scripts/sim-lock.sh acquire writes $PPID to the lock; alive() is kill -0 on it): each Bash tool call runs in its own shell that exits at the end of the call, so a lock taken in one call and used in later calls has a dead holder pid, and the next acquirer recovers it as stale.",
    "evidence": [
     {
      "kind": "file",
      "ref": "scripts/sim-lock.sh",
      "note": "acquire stores $PPID; stale recovery when kill -0 fails"
-    },
-    {
-     "kind": "file",
-     "ref": ".fw-console/locks.jsonl",
-     "note": "sim acquire by pid 99420 with no release; pid gone at the alert"
     }
    ],
    "repro": "Run sh scripts/sim-lock.sh acquire x in one Bash call, then sh scripts/sim-lock.sh status in the next: it prints stale.",
