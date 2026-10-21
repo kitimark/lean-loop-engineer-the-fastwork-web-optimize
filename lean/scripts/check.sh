@@ -76,6 +76,7 @@ run_group() {
   job "engine golden cite lint" lake env lean --run scripts/EngineCiteLint.lean  # `lake env` builds nothing and takes no lock
   job "port golden check" lake env lean --run scripts/PortGolden.lean --check  # golden/port/* the port digest is checked against (Fw.Port.*, Fw.Site.Assets)
   job "lakegc golden check" lake env lean --run scripts/LakeGcGolden.lean --check  # golden/ops/lakegc.jsonl (Fw.Ops.LakeGc)
+  job "rebuild golden check" lake env lean --run scripts/RebuildGolden.lean --check  # golden/ops/rebuild.jsonl: the Lake-graph rebuild set of each sampled land equals what CI built (Fw.Ops.Rebuild)
   job "lspreap golden check" lake env lean --run scripts/ReapGolden.lean --check  # golden/ops/lspreap.jsonl (Fw.Ops.Reap)
   job "pool-caps golden check" lake env lean --run scripts/PoolCapsGolden.lean --check  # golden/ci/pool-caps.jsonl (Fw.Ci.Pool.Caps), read by scripts/ci-paths.mjs
   job "obs golden check" lake env lean --run scripts/ObsGolden.lean --check  # golden/obs/health.jsonl and backoff.jsonl (Fw.Obs)
