@@ -14770,7 +14770,8 @@
     "apps/runner/test/slot.test.ts",
     "docs/team/tools/slot.md",
     "docs/team/handoffs/slot-renew-lease.md"
-   ]
+   ],
+   "evidence": "7b60a07"
   },
   {
    "devices": [
