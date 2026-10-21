@@ -13258,7 +13258,8 @@
     "lean/scripts/check.sh",
     "packages/contracts/golden/sup/**",
     "docs/team/handoffs/sup-wire.md"
-   ]
+   ],
+   "evidence": "5440e67"
   },
   {
    "devices": [
@@ -14016,7 +14017,8 @@
     "packages/measure-webkit/test/replay-*.test.mjs",
     "research/notes/2026/10-2x-device-replay.md",
     "docs/team/handoffs/device-replay.md"
-   ]
+   ],
+   "evidence": "eee8c18"
   },
   {
    "devices": [
@@ -14038,7 +14040,8 @@
     "apps/runner/src/fw.ts",
     "docs/team/tools/oracle.md",
     "docs/team/handoffs/jev-core.md"
-   ]
+   ],
+   "evidence": "d09a9a7"
   },
   {
    "devices": [
@@ -14057,7 +14060,8 @@
     "scripts/jev-datasets.test.mjs",
     "research/notes/2026/10-2x-jev-datasets.md",
     "docs/team/handoffs/jev-datasets.md"
-   ]
+   ],
+   "evidence": "b105aa9"
   },
   {
    "devices": [
@@ -14096,7 +14100,8 @@
     "results/phone/2026-10-21/summary-v2.json",
     "results/phone/2026-10-21/summary-v2.md",
     "docs/team/handoffs/device-stats-v2.md"
-   ]
+   ],
+   "evidence": "b6d57dd"
   },
   {
    "devices": [
