@@ -21,7 +21,7 @@ import { backfill, ingestRuns, lagCli, runIdsOf, waitSpanExtra } from "./timing-
 enforceNodePin();
 const [group, ...rest] = process.argv.slice(2);
 // timing-spans: one span per invocation (step = group + subcommand); `watch` times each pass itself, `timings` is a view
-const SUBS = new Set(["plan", "ci", "incidents", "step", "card", "task", "console"]);
+const SUBS = new Set(["plan", "ci", "incidents", "step", "card", "task", "console", "review"]);
 let spanExtra: ReturnType<typeof waitSpanExtra> = {}; // ci-wait-lag: the phases of a `fw ci wait`, written on its span at exit
 if (group && group !== "watch" && group !== "timings") { const end = begin("fw", SUBS.has(group) && rest[0] && !rest[0].startsWith("-") ? `${group} ${rest[0]}` : group); process.once("exit", (c) => end(c, spanExtra)); }
 try {
@@ -169,17 +169,20 @@ try {
         process.exitCode = exitCode(kind);
       }
     }
-  } else if (group === "step" || group === "card" || group === "task" || group === "send") {
+  } else if (group === "review" && rest[0] === "feedback") {
+    console.log(await (await import("./review.ts")).feedbackCli(rest.slice(1), base)); // review-feedback: read-only, the open comments
+  } else if (group === "step" || group === "card" || group === "task" || group === "send" || group === "review") {
     // `fw send '<json command>'` is the escape hatch for run.* commands
     const cmd = group === "step" ? stepCommand(rest, process.env)
       : group === "card" ? cardCommand(rest, process.env)
       : group === "task" ? taskCommand(rest, process.env, Date.now(), (b) => gitFullRef(b))
+      : group === "review" ? (await import("./review.ts")).reviewCommand(rest, process.env)
       : Command.parse(JSON.parse(rest[0] ?? "{}"));
     const { body } = await send(base, cmd, process.argv.slice(2));
     if (body.ok) console.log(body.duplicate ? "duplicate (already applied)" : `ok seq ${body.seq}`);
     else { console.error(`refused: ${body.reason}`); process.exitCode = 2; }
   } else {
-    throw new UsageError(`usage: fw status | fw console start|stop|restart|status|logs | fw preview grant [<id>] | fw plan sync <file>|show|overlap [task] | fw watch [--json] [--interval s] [--until-alert] | fw next | fw engine-check --rows <jsonl> --run <dir> | fw land <branch> [--task id] [--allow glob] [--dry] | fw land --queue <branch> --task id | fw land --queue-status | fw incidents lint [ledger.json] | fw lake-gc [--list|--json|--delete] [--check] | fw reap --list|--stop | fw step post|start|answer|done|cancel ... | fw task handback|integrate|park|unpark ... | fw send '<json>'\n${CARD_USAGE}`);
+    throw new UsageError(`usage: fw status | fw console start|stop|restart|status|logs | fw preview grant [<id>] | fw plan sync <file>|show|overlap [task] | fw watch [--json] [--interval s] [--until-alert] | fw next | fw engine-check --rows <jsonl> --run <dir> | fw land <branch> [--task id] [--allow glob] [--dry] | fw land --queue <branch> --task id | fw land --queue-status | fw incidents lint [ledger.json] | fw lake-gc [--list|--json|--delete] [--check] | fw reap --list|--stop | fw step post|start|answer|done|cancel ... | fw task handback|integrate|park|unpark ... | fw review reply|feedback ... | fw send '<json>'\n${CARD_USAGE}`);
   }
 } catch (e) {
   console.error(e instanceof Error ? e.message : String(e));

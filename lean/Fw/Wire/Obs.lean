@@ -27,7 +27,7 @@ idleAt?, workflowDone? [false], transcriptOnly? [false], ctxTokens?}` (any other
 `errors`, `tokens`, `inflight.verb`, is ignored). Lead: `{lastToolAt?, noteAt?}` (absent: no events). System:
 `{diskFreeGB, memPressure? ["normal"|"warn"|"critical"], simLock? {holder?, since?}, docker? [{id, name, startedAt}],
 worktrees? [0] (a count), ci? [{workflow, branch, status, conclusion?, startedAt, endedAt?, headSha? [""]}], loadFloor? [0] (the floor
-of the 1-min load average; above `Fw.Obs.Timing.contendedLoad` it raises sys.contended), load? {builders? [0], heavyJobs? [0], prevContended? [false]} (the local check.sh/lake builders and heavy jobs that run, in the sys.contended detail, and whether the previous check raised it: the hysteresis bit), procs? [{pid, name, startedAt, pids? [[]], agent?}] (`agent`: the
+of the 1-min load average; above `Fw.Obs.Timing.contendedLoad` it raises sys.contended), load? {builders? [0], heavyJobs? [0], prevContended? [false]} (the local check.sh/lake builders and heavy jobs that run, in the sys.contended detail, and whether the previous check raised it: the hysteresis bit), feedback? [{kind: "post"|"reply", flag, ref (the comment id, or the one answered), text, ts}] (the accepted review.feedback events of the log, oldest first: an open comment raises review.feedback), procs? [{pid, name, startedAt, pids? [[]], agent?}] (`agent`: the
 id of the agent whose Bash call started the tree), services? [[]] (pids), keep? [[]] (pids the lead declared), svcs? [{name, inputs? [{path, changed? false}], unknown? (why the code that runs cannot be identified: raises svc.unknown), sweepErrors? 0 (fwcore throws its drain caught since start: raises svc.sweepError)}] (services and, for each input group, whether
 `main` changed it since the service's base commit)}` (any other field,
 e.g. `load1`, `consolePids`, `stale`, is ignored). `prevAt` is the time of the previous check (absent: first check);
@@ -222,6 +222,18 @@ def procOf (j : Json) : Except String Proc := do
   pure { pid := ← nat j "pid", name := ← str j "name", startedAt := ← nat j "startedAt",
          pids := ← (← arrD j "pids").mapM (asNat "pids"), agent := ← optS j "agent" }
 
+/-- A feedback event as JSON: `kind` `post` (`ref` the comment id) or `reply` (`ref` the comment answered). -/
+def fbEvJson : Fw.Console.ReviewFeedback.Ev → Json
+  | .post flag id text ts => Json.mkObj [("kind", .str "post"), ("flag", .str flag), ("ref", .str id), ("text", .str text), ("ts", toJson ts)]
+  | .reply flag to text ts => Json.mkObj [("kind", .str "reply"), ("flag", .str flag), ("ref", .str to), ("text", .str text), ("ts", toJson ts)]
+
+/-- Decode a feedback event; a `kind` other than `post` and `reply` is an error. -/
+def fbEvOf (j : Json) : Except String Fw.Console.ReviewFeedback.Ev := do
+  let k ← str j "kind"
+  if k = "post" then pure (.post (← str j "flag") (← str j "ref") (← str j "text") (← nat j "ts"))
+  else if k = "reply" then pure (.reply (← str j "flag") (← str j "ref") (← str j "text") (← nat j "ts"))
+  else throw s!"kind: unknown feedback event {k}"
+
 /-- A service input group as JSON. -/
 def svcInputJson (i : SvcInput) : Json := Json.mkObj [("path", .str i.path), ("changed", .bool i.changed)]
 
@@ -284,7 +296,7 @@ def systemJson (s : System) : Json :=
     ("procs", .arr (s.procs.toArray.map procJson)), ("services", .arr (s.services.toArray.map toJson)),
     ("keep", .arr (s.keep.toArray.map toJson)), ("svcs", .arr (s.svcs.toArray.map svcJson)),
     ("alivePids", match s.alivePids with | some l => .arr (l.toArray.map toJson) | none => .null),
-    ("gh", ghJson s.gh), ("load", loadJson s.load)]
+    ("gh", ghJson s.gh), ("load", loadJson s.load), ("feedback", .arr (s.feedback.toArray.map fbEvJson))]
 
 /-- The optional listed pids (absent or `null`: the process table was not read). -/
 def alivePidsOf (j : Json) : Except String (Option (List Nat)) :=
@@ -311,7 +323,7 @@ def systemOf (j : Json) : Except String System := do
          ci := ← (← arrD j "ci").mapM ciOf, loadFloor := ← natD j "loadFloor" 0,
          procs := ← (← arrD j "procs").mapM procOf, services := ← (← arrD j "services").mapM (asNat "services"),
          keep := ← (← arrD j "keep").mapM (asNat "keep"), svcs := ← (← arrD j "svcs").mapM svcOf,
-         alivePids := ← alivePidsOf j, load }
+         alivePids := ← alivePidsOf j, load, feedback := ← (← arrD j "feedback").mapM fbEvOf }
 
 /-- A request body as JSON: `now`, `params`, `agents`, `lead`, `system`, `prevAt`, `critical`. -/
 def reqJson (p : Params) (o : Obs) : Json :=
@@ -441,6 +453,10 @@ theorem leadOf_leadJson (l : Lead) : leadOf (leadJson l) = .ok l := by
   obtain ⟨t, n⟩ := l
   cases t <;> cases n <;> rfl
 
+/-- Feedback events round-trip. -/
+theorem fbEvOf_fbEvJson (e : Fw.Console.ReviewFeedback.Ev) : fbEvOf (fbEvJson e) = .ok e := by
+  cases e <;> rfl
+
 /-- Containers round-trip. -/
 theorem containerOf_containerJson (c : Container) : containerOf (containerJson c) = .ok c := by
   cases c; rfl
@@ -490,40 +506,41 @@ theorem ghOf_ghJson (g : Fw.Obs.Gh) : ghOf (ghJson g) = .ok g := by
     mapM_rt ghIncidentJson ghIncidentOf ghIncidentOf_ghIncidentJson]
   rfl
 
-set_option maxHeartbeats 4000000 in
+set_option maxHeartbeats 16000000 in
 /-- System facts round-trip. -/
 theorem systemOf_systemJson (s : System) : systemOf (systemJson s) = .ok s := by
-  obtain ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, al, gh, ld⟩ := s
-  have hd := arrD_arr (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, al, gh, ld⟩) "docker" _ rfl
-  have hc := arrD_arr (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, al, gh, ld⟩) "ci" _ rfl
-  have hq := arrD_arr (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, al, gh, ld⟩) "procs" _ rfl
-  have hv := arrD_arr (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, al, gh, ld⟩) "services" _ rfl
-  have hw := arrD_arr (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, al, gh, ld⟩) "svcs" _ rfl
-  have hk := arrD_arr (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, al, gh, ld⟩) "keep" _ rfl
-  have hm : opt (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, al, gh, ld⟩) "memPressure" =
+  obtain ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, al, gh, ld, fb⟩ := s
+  have hd := arrD_arr (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, al, gh, ld, fb⟩) "docker" _ rfl
+  have hc := arrD_arr (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, al, gh, ld, fb⟩) "ci" _ rfl
+  have hq := arrD_arr (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, al, gh, ld, fb⟩) "procs" _ rfl
+  have hv := arrD_arr (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, al, gh, ld, fb⟩) "services" _ rfl
+  have hw := arrD_arr (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, al, gh, ld, fb⟩) "svcs" _ rfl
+  have hk := arrD_arr (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, al, gh, ld, fb⟩) "keep" _ rfl
+  have hf := arrD_arr (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, al, gh, ld, fb⟩) "feedback" _ rfl
+  have hm : opt (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, al, gh, ld, fb⟩) "memPressure" =
       some (.str (memName mem)) := rfl
-  have hl : opt (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, al, gh, ld⟩) "simLock" =
+  have hl : opt (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, al, gh, ld, fb⟩) "simLock" =
       some (simLockJson ⟨holder, since⟩) := rfl
-  have hal : alivePidsOf (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, al, gh, ld⟩) = .ok al := by
+  have hal : alivePidsOf (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, al, gh, ld, fb⟩) = .ok al := by
     cases al with
     | none => rfl
     | some l =>
-      have h := arrD_arr (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, some l, gh, ld⟩) "alivePids" (l.toArray.map toJson) rfl
-      have ho : opt (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, some l, gh, ld⟩) "alivePids" =
+      have h := arrD_arr (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, some l, gh, ld, fb⟩) "alivePids" (l.toArray.map toJson) rfl
+      have ho : opt (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, some l, gh, ld, fb⟩) "alivePids" =
           some (.arr (l.toArray.map toJson)) := rfl
       simp only [alivePidsOf, ho, h, Array.toList_map, ok_bind, mapM_rt toJson (asNat "alivePids") (fun _ => rfl)]
       rfl
-  have hg : opt (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, al, gh, ld⟩) "gh" =
+  have hg : opt (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, al, gh, ld, fb⟩) "gh" =
       some (ghJson gh) := rfl
-  have hld : opt (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, al, gh, ld⟩) "load" =
+  have hld : opt (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, al, gh, ld, fb⟩) "load" =
       some (loadJson ld) := rfl
   have hml : memOf (memName mem) = .ok mem := by cases mem <;> rfl
   have hsl : simLockOf (simLockJson ⟨holder, since⟩) = .ok ⟨holder, since⟩ := by
     cases holder <;> cases since <;> rfl
-  simp only [systemOf, hd, hc, hq, hv, hk, hw, hm, hl, hal, hg, hld, ghOf_ghJson, loadOf_loadJson, Array.toList_map, ok_bind,
+  simp only [systemOf, hd, hc, hq, hv, hk, hw, hf, hm, hl, hal, hg, hld, ghOf_ghJson, loadOf_loadJson, Array.toList_map, ok_bind,
     mapM_rt containerJson containerOf containerOf_containerJson, mapM_rt ciJson ciOf ciOf_ciJson,
     mapM_rt procJson procOf procOf_procJson, mapM_rt toJson (asNat "services") (fun _ => rfl),
-    mapM_rt toJson (asNat "keep") (fun _ => rfl), mapM_rt svcJson svcOf svcOf_svcJson]
+    mapM_rt toJson (asNat "keep") (fun _ => rfl), mapM_rt svcJson svcOf svcOf_svcJson, mapM_rt fbEvJson fbEvOf fbEvOf_fbEvJson]
   simp only [asStr, ok_bind, hml, hsl]
   rfl
 
