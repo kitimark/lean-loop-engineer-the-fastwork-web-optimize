@@ -3859,7 +3859,7 @@
    "mistakeClass": "c-late-check",
    "leanVerdict": "provable",
    "leanReason": "Selection of a test from its declared read set is Fw.Console.LandTier.selects_reader; the read set is declared by hand.",
-   "empiricalCheck": "fw land --dry of a branch with an unrated variant fails with test/compose.test.ts in the output.",
+   "empiricalCheck": "Not run on a real unrated variant. apps/runner/test/land-dry.test.ts injects a failing local test and checks the refusal names test/compose.test.ts; apps/runner/test/land-tier.test.ts checks that a changed part.json selects console-api:compose; CI runs 39674287486, 39685526491, 39688115785 show compose.test.ts refusing an unrated variant.",
    "hardening": "land-tier-compose-test"
   }
  ]
