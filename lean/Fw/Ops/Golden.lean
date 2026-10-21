@@ -989,8 +989,8 @@ def reviewCases (_ : Unit := ()) : List (String × Json) :=
    ("without looks the rows are Fw.Preset.Gen.lookDecisions", Json.mkObj [("steps", lit "[]")])]
 
 /-- A `console.reviewPreview` request: the decision rows, the board steps, the accepted preview events and an optional click. -/
-def rpv (looks steps events : String) (ask : String := "null") : Json :=
-  Json.mkObj [("looks", lit looks), ("steps", lit steps), ("events", lit events), ("ask", lit ask)]
+def rpv (looks steps events : String) (ask : String := "null") (extra : List (String × Json) := []) : Json :=
+  Json.mkObj ([("looks", lit looks), ("steps", lit steps), ("events", lit events), ("ask", lit ask)] ++ extra)
 
 /-- The `console.reviewPreview` cases. -/
 def reviewPreviewCases (_ : Unit := ()) : List (String × Json) :=
@@ -1000,7 +1000,25 @@ def reviewPreviewCases (_ : Unit := ()) : List (String × Json) :=
   let done := s!"[{st "review-nav:earn-no-transition" "\"keep\"" "false"}]"
   let ev (d : String) := s!"\{\"flag\":\"nav:earn-no-transition\",\"device\":\"{d}\"}"
   let ask (v : String) (w : Nat) := s!"\{\"flag\":\"nav:earn-no-transition\",\"view\":\"{v}\",\"width\":{w}}"
+  let kev (d : String) (tag : String) := s!"[\{\"flag\":\"nav:earn-no-transition\",\"device\":\"{d}\",\"key\":\"review-previewed-nav:earn-no-transition-{d}{tag}\"}]"
+  let round2 := s!"[{st "review-nav:earn-no-transition" "null" "false"},{st "review-nav:earn-no-transition#1" "null" "true"}]"
+  let closed1 := s!"[{st "review-nav:earn-no-transition" "null" "false"}]"
+  let names (search flag : String) := [("names", Json.mkObj [("search", .str search), ("flag", .str flag)])]
   [("nothing previewed: both devices are missing, with an ask line each", rpv pend open_ "[]"),
+   ("round 2 (step #1 open): a preview keyed for round 1 is not inherited", rpv pend round2 (kev "desktop" "")),
+   ("round 2 click: the event key carries the round (#1), so it is no duplicate of round 1's", rpv pend round2 "[]" (ask "flag" 390)),
+   ("round 2: a preview keyed #1 counts", rpv pend round2 (kev "desktop" "#1")),
+   ("round 1 only (step open): a preview keyed for round 1 counts", rpv pend open_ (kev "desktop" "")),
+   ("round 1: a preview keyed for round 2 (#1) is not shown", rpv pend open_ (kev "desktop" "#1")),
+   ("round 2 not posted yet: the old round's event (keyed round 1) shows nothing", rpv pend closed1 (kev "phone" "")),
+   ("round 2 not posted yet: a click recorded in the unposted window (key #1) shows in round 2", rpv pend closed1 (kev "phone" "#1")),
+   ("an untagged old event (no key) shows in round 1", rpv pend open_ s!"[{ev "desktop"}]"),
+   ("an untagged old event (no key) is not shown in round 2", rpv pend round2 s!"[{ev "desktop"}]"),
+   ("the search names the flag by a whole entry", rpv pend open_ "[]" "null" (names "?fw=nav:earn-no-transition" "nav:earn-no-transition")),
+   ("nav:earn is not named by a search for nav:earn-no-transition", rpv pend open_ "[]" "null" (names "?fw=nav:earn-no-transition" "nav:earn")),
+   ("nav:earn-no-transition is not named by a search for nav:earn", rpv pend open_ "[]" "null" (names "?fw=nav:earn" "nav:earn-no-transition")),
+   ("a comma list names each of its whole entries", rpv pend open_ "[]" "null" (names "?fw=hero:a,nav:earn,nav:earn-no-transition" "nav:earn")),
+   ("no search names no flag", rpv pend open_ "[]" "null" (names "" "nav:earn")),
    ("previewed on the desktop only: the phone is missing", rpv pend open_ s!"[{ev "desktop"}]"),
    ("previewed on both: nothing missing, no ask line", rpv pend open_ s!"[{ev "phone"},{ev "desktop"}]"),
    ("an event of another flag counts for nothing", rpv pend open_ "[{\"flag\":\"nav:other\",\"device\":\"phone\"}]"),

@@ -21,10 +21,9 @@ run-name: ${{ github.event_name == 'workflow_dispatch' && format('trajectory-pro
 # Apple witness (job probe-apple): the same lane on a free standard macos-26 runner with Playwright WebKit (the macOS build, the
 # closest engine CI has to Safari), the dispatched rewrite search vs the original on the hero and morph paths. It runs for every dispatch
 # whose engines include playwright-webkit (Lean enginesOf: macOS WebKit runs with every WebKit), so each flag can get the
-# macOS morph cell v2-proved needs; on a ci/* push it runs only when the commit line names a page recorder (`debug=`), because a recorder
-# row of macOS WebKit is the only thing a push has asked for there (YAML glue, not a Lean decision: the legs are Lean's `plan`,
-# the `if:` below only gates them); max-parallel 2 (5 macOS slots are shared across lanes); its verdict is a separate artifact
-# `trajectory-apple` and never part of the Linux verdicts.
+# macOS morph cell v2-proved needs; on a ci/* push it runs only when the commit carries `[frames:` or its probe line names a page recorder
+# (`debug=`): Lean `Fw.Ci.Trigger.appleRuns` decides, the plan step prints it as `apple_run` and the `if:` below only reads it;
+# max-parallel 2 (5 macOS slots are shared across lanes); its verdict is a separate artifact `trajectory-apple` and never part of the Linux verdicts.
 # Frames on macOS (task earn-look-review-webkit): a ci/* push whose head commit carries `[frames:<part:variant>]` also runs job probe-apple,
 # with its walk skipped and a frames step in its place (no second macOS job); merge-apple skips. Docs: docs/team/tools/trajectory-frames.md.
 on:
@@ -117,6 +116,7 @@ jobs:
       linux: ${{ steps.p.outputs.linux }}
       apple: ${{ steps.p.outputs.apple }}
       apple_n: ${{ steps.p.outputs.apple_n }}
+      apple_run: ${{ steps.p.outputs.apple_run }}
       search: ${{ steps.p.outputs.search }}
       widths: ${{ steps.p.outputs.widths }}
       debug: ${{ steps.p.outputs.debug }}
@@ -190,6 +190,8 @@ jobs:
           PRESET: ${{ steps.in.outputs.preset }}
           WIDTHS: ${{ steps.in.outputs.widths }}
           DEBUG: ${{ steps.in.outputs.debug }}
+          EVENT: ${{ github.event_name }}
+          HEAD_MSG: ${{ github.event.head_commit.message }}
         run: |
           set -euo pipefail
           node --test .github/scripts/gate-search.test.mjs  # the search decision equals Fw.Gate.Search
@@ -212,6 +214,8 @@ jobs:
             echo "search=$search"
             echo "widths=$WIDTHS"
             echo "debug=$DEBUG"
+            # Does the macOS leg run? Lean's Fw.Ci.Trigger.appleRuns; the twin is .github/scripts/trajectory-line.mjs.
+            APPLE_N=$(echo "$plan" | jq '.apple.include | length') node .github/scripts/trajectory-line.mjs apple
           } >> "$GITHUB_OUTPUT"
           echo "$engines search=$search widths=${WIDTHS:-all}"
           echo "$plan" | jq -c '.linux.include[], .apple.include[]'
@@ -482,7 +486,7 @@ jobs:
   # the original, in the width legs of the plan (two). The Linux jobs above never wait for it and it never changes their verdicts.
   probe-apple:
     needs: [site]
-    if: ${{ (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[frames:')) || needs.site.outputs.debug != '') && needs.site.outputs.apple_n != '0' }}
+    if: ${{ needs.site.outputs.apple_run == 'true' }}
     concurrency:
       group: ci-lane:trajectory-probe:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:probe-apple:${{ strategy.job-index }}
     runs-on: macos-26

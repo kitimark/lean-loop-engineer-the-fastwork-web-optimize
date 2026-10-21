@@ -8122,7 +8122,7 @@
    "id": "land-lane-circleci",
    "owner": "measure-engineer",
    "stream": "ops",
-   "title": "CircleCI land job running the same fw checks --tier remote entry as land.yml and emitting laneDigest; the CircleCI adapter in land-remote.ts (pipeline/run with definition id, sha from GET /pipeline/{id}); live proof on one ci/land-* probe. User 2026-10-21: use CircleCI for the Linux/Arm jobs to raise concurrency (30 per Arm class on top of GitHub's 20). Routing is overflow, decided in Lean (Fw.Ci.Provider route): a Linux land leg goes to CircleCI when GitHub's running+queued jobs for this repo leave no free slot or GitHub is degraded, and CircleCI is healthy (circleci-status) with credits and storage under the stop rules; the leg's verdict counts the same from either provider (laneDigest equal on a paired run). Measure: land lane wall time and queue wait with and without overflow under a busy GitHub pool",
+   "title": "CircleCI land job running the same fw checks --tier remote entry as land.yml and emitting laneDigest; the CircleCI adapter in land-remote.ts (pipeline/run with definition id, sha from GET /pipeline/{id}); live proof on one ci/land-* probe. User 2026-10-21: use CircleCI for the Linux/Arm jobs to raise concurrency (30 per Arm class on top of GitHub's 20). Routing is overflow, decided in Lean (Fw.Ci.Provider route): a Linux land leg goes to CircleCI when GitHub's running+queued jobs for this repo leave no free slot or GitHub is degraded, and CircleCI is healthy (circleci-status) with credits and storage under the stop rules; the leg's verdict counts the same from either provider (laneDigest equal on a paired run). Measure: land lane wall time and queue wait with and without overflow under a busy GitHub pool User 2026-10-21 (approved the chain): 'github action ci as first priority. if at that time it hit limit concurrency. it could delegate to circle ci for more concurrency.'",
    "deps": [
     "land-wait",
     "circleci-pilot",
@@ -8136,7 +8136,17 @@
     "apps/runner/test/land-remote*.test.ts",
     "scripts/circleci.mjs",
     "scripts/circleci.test.mjs",
-    "docs/team/handoffs/land-lane-circleci.md"
+    "docs/team/handoffs/land-lane-circleci.md",
+    "lean/Fw/Ci/Provider.lean",
+    "lean/Fw/Ci/Overflow.lean",
+    "lean/Fw.lean",
+    "lean/scripts/ProviderGolden.lean",
+    "packages/contracts/golden/ci/provider.jsonl",
+    "packages/contracts/golden/ci/overflow.jsonl",
+    "lean/scripts/check.sh",
+    "apps/runner/src/fw.ts",
+    "docs/team/tools/land.md",
+    "research/notes/2026/10-21-land-lane-circleci.md"
    ]
   },
   {
@@ -9215,7 +9225,8 @@
     "research/notes/2026/10-20-circleci-series.md",
     "results/circleci-series/**",
     "docs/team/handoffs/circleci-series.md"
-   ]
+   ],
+   "evidence": "ce6fc68"
   },
   {
    "devices": [
@@ -11080,7 +11091,8 @@
     "lean/scripts/PoolKeyGolden.lean",
     "lean/scripts/check.sh",
     "packages/contracts/golden/ci/pool-key.jsonl",
-    "docs/team/handoffs/pool-key-outcome.md"
+    "docs/team/handoffs/pool-key-outcome.md",
+    "lean/Fw.lean"
    ]
   },
   {
@@ -12270,7 +12282,8 @@
     "packages/contracts/golden/gate/trajectory.jsonl",
     "docs/team/tools/trajectory-probe.md",
     "docs/team/handoffs/close-start-identity-rule.md"
-   ]
+   ],
+   "evidence": "02c61b5"
   },
   {
    "devices": [
@@ -12488,7 +12501,8 @@
     "packages/contracts/golden/ci/triggers.jsonl",
     ".github/workflows/trajectory-probe.yml",
     "docs/team/handoffs/waapi-tail-webkit-p2.md"
-   ]
+   ],
+   "evidence": "a32940d"
   },
   {
    "devices": [
@@ -12739,7 +12753,8 @@
     "apps/console-api/test/review-preview-door.test.ts",
     "lean/Fw/Console/Review.lean",
     "docs/team/handoffs/review-followups.md"
-   ]
+   ],
+   "evidence": "9190ad5"
   },
   {
    "devices": [
@@ -12881,6 +12896,419 @@
    "writes": [
     "lean/Fw/Wire/Obs.lean",
     "docs/team/handoffs/wire-obs-proof-split.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "node-worker-budget",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "title": "User 2026-10-21 ('the quick win we can do. but i'd like to align these quick win should applied on daemon adoption research as well'): each quick win is built as the first piece of its fw-sup daemon stage (design scratch daemon-design/design.md + check), decision in Lean in the module the daemon will run, the TS path kept as the fallback routeOf keeps. Daemon stage 3 (test budget), first piece: a Lean rule for Node test workers per run (constant room today: 2 workers, MEASURED console-api suite 1486 MiB at 7 workers vs 808 MiB at 2, same CPU-s; land pool 4 x 7 = 28 workers -> 8), generated into a constants file that apps/*/vitest.config.ts maxWorkers and node --test --test-concurrency read, and fw land sets per check; theorems: at least 1 worker, sum over the land pool within the room; later the daemon supplies room from its ledger.",
+   "writes": [
+    "lean/Fw/Sched/NodeBudget.lean",
+    "lean/Fw.lean",
+    "lean/scripts/NodeBudgetGolden.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/sched/node-budget.jsonl",
+    "packages/contracts/src/node-budget.gen.json",
+    "apps/console-api/vitest.config.ts",
+    "apps/runner/vitest.config.ts",
+    "apps/site/vitest.config.ts",
+    "apps/runner/src/land.ts",
+    "package.json",
+    "docs/team/handoffs/node-worker-budget.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "fw-bin-direct",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "land-lane-circleci"
+   ],
+   "title": "User 2026-10-21 ('the quick win we can do. but i'd like to align these quick win should applied on daemon adoption research as well'): each quick win is built as the first piece of its fw-sup daemon stage (design scratch daemon-design/design.md + check), decision in Lean in the module the daemon will run, the TS path kept as the fallback routeOf keeps. Daemon stage 2 (thin client), first piece: a bin/fw entry that execs the pinned node (node-guard's choice) on apps/runner/src/fw.ts with no pnpm parent (MEASURED 65-67 MiB footprint and 0.28-0.6 s per call; 4-6 live wrappers), internal spawns (land-remote.ts ci wait, watch, hooks) use process.execPath; later the same entry routes to fwsup when present. The settings allowlist change for bare 'bin/fw' goes to the user as a ! command; 'pnpm fw' keeps working. Waits for land-lane-circleci (both write land-remote.ts).",
+   "writes": [
+    "bin/fw",
+    "package.json",
+    "apps/runner/src/land-remote.ts",
+    "apps/runner/src/node-guard.ts",
+    "apps/runner/test/fw-bin.test.ts",
+    "docs/team/tools/fw.md",
+    "docs/team/handoffs/fw-bin-direct.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-waiter-dedup",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "title": "User 2026-10-21 ('the quick win we can do. but i'd like to align these quick win should applied on daemon adoption research as well'): each quick win is built as the first piece of its fw-sup daemon stage (design scratch daemon-design/design.md + check), decision in Lean in the module the daemon will run, the TS path kept as the fallback routeOf keeps. Daemon stage 2 (waits on the one poller), first piece: Lean rule one waiter per (branch, workflow, sha): a second wait attaches to the first's marker in .git/fw-gh-budget/waiters or exits with its verdict; theorems at_most_one_waiter_per_target, attach_same_verdict; goldens; the daemon later runs it as one lease per target.",
+   "writes": [
+    "lean/Fw/Ci/Waiter.lean",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/ci/waiter.jsonl",
+    "packages/gh-budget/src/waiters.ts",
+    "packages/gh-budget/src/wait.ts",
+    "packages/gh-budget/test/**",
+    "docs/team/handoffs/ci-waiter-dedup.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "mem-gate-bypass",
+   "owner": "researcher",
+   "stream": "tooling",
+   "deps": [],
+   "title": "User 2026-10-21 ('the quick win we can do. but i'd like to align these quick win should applied on daemon adoption research as well'): each quick win is built as the first piece of its fw-sup daemon stage (design scratch daemon-design/design.md + check), decision in Lean in the module the daemon will run, the TS path kept as the fallback routeOf keeps. Daemon stage 1b (Lean builds under leases), input: Lean check bursts reached 4.2-5.4 GiB at 58 MB free memory while Heavy.lean:82-83 gates heavy jobs on swap and free memory (node-resources report, MEASURED). Find every Lean entry point that bypasses the heavy lock (lake builds under LakeSlot without a memory input, agents' direct lake build / lake env lean, lean-lsp-mcp, check.sh paths), measure each one's peak, and write the fix as a lease kind the daemon will own. Read-only investigation; note with MEASURED/CONFIRMED tags.",
+   "writes": [
+    "research/notes/2026/10-21-mem-gate-bypass.md",
+    "docs/team/handoffs/mem-gate-bypass.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "sup-baseline",
+   "owner": "measure-engineer",
+   "stream": "tooling",
+   "deps": [
+    "node-worker-budget"
+   ],
+   "title": "User 2026-10-21 ('the quick win we can do. but i'd like to align these quick win should applied on daemon adoption research as well'): each quick win is built as the first piece of its fw-sup daemon stage (design scratch daemon-design/design.md + check), decision in Lean in the module the daemon will run, the TS path kept as the fallback routeOf keeps. Daemon stage 0 baseline (design check correction): add acquire/release jsonl to heavy-lock, lake-slot and sim-lock, and a ~20 s per-kind process count + footprint (top mem+cmprs, not ps RSS) sampler with swap and compressor size to watch health; collect 3 days after the quick wins land; note with each metric of the design's section 5.",
+   "writes": [
+    "apps/runner/src/watch-collect.ts",
+    "apps/runner/test/watch-collect*.test.ts",
+    "scripts/heavy-lock.mjs",
+    "scripts/lake-slot-lib.sh",
+    "scripts/sim-lock.sh",
+    "lean/Fw/Obs/Health.lean",
+    "packages/contracts/golden/obs/**",
+    "research/notes/2026/10-2x-sup-baseline.md",
+    "docs/team/handoffs/sup-baseline.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-wait-final",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "land-lane-circleci"
+   ],
+   "title": "Land-process investigation (scratch land-process/report.md + check), a correctness bug: the remote wait refused local-mem-budget pass 2 ('verdict refuse reason=remote-lane-failed' logged before 09:25:40Z) while run 39576215019 was still running and later concluded success at 09:31:16Z. A wait error or a non-final run state must stay undecided and keep waiting; the verdict comes from per-job conclusions, an unknown conclusion stays a refusal. Lean LandRemote decision with a golden row per case (in progress, wait error, all success, one failure, unknown); the refusal line names the run id, the failed legs and check ids.",
+   "writes": [
+    "lean/Fw/Console/LandRemote.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/console/**",
+    "apps/runner/src/land-remote.ts",
+    "apps/runner/test/land-remote*.test.ts",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/land-wait-final.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "webkit-cancelled-flake",
+   "owner": "measure-engineer",
+   "stream": "tooling",
+   "deps": [],
+   "title": "Land-process investigation: e2e-preview webkit/loopback/compare/cancelled-same-origin-0 failed 6 land lane runs (latest run 39573231550, 10-21), cause INFERRED only. Root-cause it from the failed runs' logs and artifacts (gh run view --log-failed, no gh api), reproduce on CI on a ci/ branch, fix the cause (not a retry), and show 10 green repeats on CI.",
+   "writes": [
+    "packages/e2e-preview/**",
+    "research/notes/2026/10-21-webkit-cancelled-flake.md",
+    "docs/team/handoffs/webkit-cancelled-flake.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-seed-due",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "title": "User 2026-10-21 approved the land, review and daemon plans (AskUserQuestion: 'Land: push + lint + defer', 'Review: dry + items + gates', 'Daemon: model + stage 0', 'fw land --batch'). Sources: scratch land-process/report.md + check.json, review-quality report + check, daemon-design/design.md + check.json. Land change 1: land runs restore the Lake cache lean.yml saved on the last main push (land.yml never saves, lean.yml:89); runs with > 5 unpushed Lean files built fwcore cold (245 vs 22 s per leg, 61 runs, ~560 leg-min, MEASURED). Lean seedDue lag := lag > 5 (goldens 0, 5, 6); after a land fw land prints PUSH-DUE <n> when due; the lead scans and pushes.",
+   "writes": [
+    "lean/Fw/Console/LandSpeed.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/console/**",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land*.test.ts",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/land-seed-due.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-main-defer",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "land-allow-writes"
+   ],
+   "title": "User 2026-10-21 approved the land, review and daemon plans (AskUserQuestion: 'Land: push + lint + defer', 'Review: dry + items + gates', 'Daemon: model + stage 0', 'fw land --batch'). Sources: scratch land-process/report.md + check.json, review-quality report + check, daemon-design/design.md + check.json. Land change 3, defer-not-refuse: lead main commits during an in-flight land restarted lands (67 wall-min, 189 job-min); a land is in flight 49% of the time (longest 44 min), so a hard refusal is wrong. Lean mainCommitAllowed: during a land, graph-only edits ride with the land (land-allow-writes), other lead commits are deferred (recorded, applied after the land's result), a recorded override admits a red-main fix; theorem: no main commit lands between enqueue and result except the land's own fast-forward or a recorded override. Pre-commit hook glue.",
+   "writes": [
+    "lean/Fw/Console/LandQueue.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/console/**",
+    "scripts/hooks/pre-commit",
+    "apps/runner/src/land-queue.ts",
+    "apps/runner/test/land-queue*.test.ts",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/land-main-defer.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-allow-writes",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "User 2026-10-21 approved the land, review and daemon plans (AskUserQuestion: 'Land: push + lint + defer', 'Review: dry + items + gates', 'Daemon: model + stage 0', 'fw land --batch'). Sources: scratch land-process/report.md + check.json, review-quality report + check, daemon-design/design.md + check.json. Land change 7: the entry's --allow list becomes the task's writes inside the land's own work-graph edit (Lean landScope, Land.lean:174), Land-Allow trailer kept, globs capped per entry; 88 of 123 lead main commits since 10-19 were graph-only (MEASURED), so this is the enabler for land-main-defer.",
+   "writes": [
+    "lean/Fw/Console/Land.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/console/**",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land*.test.ts",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/land-allow-writes.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ledger-cite-lint",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "title": "User 2026-10-21 approved the land, review and daemon plans (AskUserQuestion: 'Land: push + lint + defer', 'Review: dry + items + gates', 'Daemon: model + stage 0', 'fw land --batch'). Sources: scratch land-process/report.md + check.json, review-quality report + check, daemon-design/design.md + check.json. Land change 2 (what remains after checkmap graph mode): the incident-ledger lint with a rule that every cited file is git-tracked (today only a JSON parse, CheckMap.lean:687-692), the ci-paths test whenever check.sh or a workflow changes, and fixture tests against a fresh fwcore, in pre-commit and fw land --dry; every CI check stays.",
+   "writes": [
+    "lean/Fw/Ops/CheckMap.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/ops/**",
+    "scripts/checkmap.mjs",
+    "scripts/hooks/pre-commit",
+    "docs/team/handoffs/ledger-cite-lint.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "fw-land-batch",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "land-allow-writes",
+    "land-seed-due",
+    "node-worker-budget",
+    "land-wait-final",
+    "land-main-defer"
+   ],
+   "title": "User 2026-10-21 approved the land, review and daemon plans (AskUserQuestion: 'Land: push + lint + defer', 'Review: dry + items + gates', 'Daemon: model + stage 0', 'fw land --batch'). Sources: scratch land-process/report.md + check.json, review-quality report + check, daemon-design/design.md + check.json. Land change 6: fw land absorbs the lead's wrapper scripts: merge main into the branch, regenerate only allowlisted generated files whose inputs changed (footprint data/rows, LakeJobsGen join Land.lean generated) then run --check, post-land fwcore/web/console steps decided by Lean afterLand; full output to the land log, VERDICT lines to stdout (no head truncation, no SIGPIPE). Metric: hand-written land scripts per day -> 0.",
+   "writes": [
+    "lean/Fw/Console/Land.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/console/**",
+    "apps/runner/src/land.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/land*.test.ts",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/fw-land-batch.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "review-flow-v2",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "User 2026-10-21 approved the land, review and daemon plans (AskUserQuestion: 'Land: push + lint + defer', 'Review: dry + items + gates', 'Daemon: model + stage 0', 'fw land --batch'). Sources: scratch land-process/report.md + check.json, review-quality report + check, daemon-design/design.md + check.json. Review changes (corrected estimate 15-20 of 156 refusals): in .claude/workflows/build-review.js the builder preamble requires fw land --dry and returns its VERDICT line; the BUILD schema gains items:[{id,status,evidence}] (one per deliverable and per prior finding; refuse a handback whose item lacks file:line or a run id); an evidence gate returns to the lead instead of reviewing while an item names a pending run; severity is one of blocker/fix-before-land/follow-up and accept means no blocker (fix-before-land text applied by the lead gets a checker re-check before land); in fable-refusals.js the check returns the corrected spec, not an accept bit. Decisions in Lean (Fw.Plan.ReviewReady: reviewReady, verdictOf) with goldens; the builder runs 'fw review ready' to get the gate line.",
+   "writes": [
+    ".claude/workflows/build-review.js",
+    ".claude/workflows/fable-refusals.js",
+    "lean/Fw/Plan/ReviewReady.lean",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/plan/**",
+    "apps/runner/src/fw.ts",
+    "apps/runner/src/review-ready.ts",
+    "apps/runner/test/review-ready.test.ts",
+    "docs/team/tools/prompt-rules.md",
+    "docs/team/handoffs/review-flow-v2.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "lean-nonvacuity",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "title": "User 2026-10-21 approved the land, review and daemon plans (AskUserQuestion: 'Land: push + lint + defer', 'Review: dry + items + gates', 'Daemon: model + stage 0', 'fw land --batch'). Sources: scratch land-process/report.md + check.json, review-quality report + check, daemon-design/design.md + check.json. Review change 5: Lean statements weak or vacuous were 9-10% of blocking findings. Each theorem with hypotheses ships an example instantiating them (non-vacuity witness), a linter in check.sh flags unused or underscore hypotheses, and docs citing a theorem quote its generated hypothesis list.",
+   "writes": [
+    "lean/Fw/Ops/Nonvacuity.lean",
+    "lean/scripts/nonvacuity.lean",
+    "lean/scripts/check.sh",
+    "docs/team/tools/lean-conventions.md",
+    "docs/team/handoffs/lean-nonvacuity.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "sup-plan",
+   "owner": "plan-editor",
+   "stream": "tooling",
+   "deps": [],
+   "title": "User 2026-10-21 approved the land, review and daemon plans (AskUserQuestion: 'Land: push + lint + defer', 'Review: dry + items + gates', 'Daemon: model + stage 0', 'fw land --batch'). Sources: scratch land-process/report.md + check.json, review-quality report + check, daemon-design/design.md + check.json. fw-sup daemon: the PLAN row and the stage table (design.md with the check's corrections), the local lane named with its reason (this Mac's resources cannot be measured on CI).",
+   "writes": [
+    "docs/plan/PLAN.md",
+    "docs/team/handoffs/sup-plan.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "sup-warmup",
+   "owner": "measure-engineer",
+   "stream": "tooling",
+   "deps": [],
+   "title": "User 2026-10-21 approved the land, review and daemon plans (AskUserQuestion: 'Land: push + lint + defer', 'Review: dry + items + gates', 'Daemon: model + stage 0', 'fw land --batch'). Sources: scratch land-process/report.md + check.json, review-quality report + check, daemon-design/design.md + check.json. fw-sup stage 0: each cold-start cost measured on its own (lake serve, local Simulator boot/shutdown, fwcore start in tests, longest lake build p99), for the idle grace per kind.",
+   "writes": [
+    "research/notes/2026/10-21-warmup-costs.md",
+    "docs/team/handoffs/sup-warmup.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "sup-model",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "title": "User 2026-10-21 approved the land, review and daemon plans (AskUserQuestion: 'Land: push + lint + defer', 'Review: dry + items + gates', 'Daemon: model + stage 0', 'fw land --batch'). Sources: scratch land-process/report.md + check.json, review-quality report + check, daemon-design/design.md + check.json. fw-sup stage 0: Lean Fw.Sup.Core/Props: state, events, commands, pure step; every theorem of design section 3 on its own including the check's additions idle_stopped, stop_escalates, start_bounded, evict_for_pending, admit_fits, restart_inv, sup_auth, nested_no_wait, a progress floor or an accepted starvation limit, and the corrected aged_granted_by, grant_ready (svc leases), signal_identity (pgid, leaderStart), restart_bounded (crashes only), reply at most once; job and svc lease kinds; reuse Fw.Sched.Admit, Fw.Spec.Lease, Fw.Ops.Reap.",
+   "writes": [
+    "lean/Fw/Sup/Core.lean",
+    "lean/Fw/Sup/Props.lean",
+    "lean/Fw.lean",
+    "docs/team/handoffs/sup-model.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "sup-wire",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "sup-model"
+   ],
+   "title": "User 2026-10-21 approved the land, review and daemon plans (AskUserQuestion: 'Land: push + lint + defer', 'Review: dry + items + gates', 'Daemon: model + stage 0', 'fw land --batch'). Sources: scratch land-process/report.md + check.json, review-quality report + check, daemon-design/design.md + check.json. fw-sup stage 0: wire round-trip per message type with a snapshot version field; goldens.",
+   "writes": [
+    "lean/Fw/Wire/Sup.lean",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/sup/**",
+    "docs/team/handoffs/sup-wire.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "sup-route",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "sup-model"
+   ],
+   "title": "User 2026-10-21 approved the land, review and daemon plans (AskUserQuestion: 'Land: push + lint + defer', 'Review: dry + items + gates', 'Daemon: model + stage 0', 'fw land --batch'). Sources: scratch land-process/report.md + check.json, review-quality report + check, daemon-design/design.md + check.json. fw-sup: routeOf per (stage, service, binary-hash match); absent daemon or stage off keeps today's path; goldens.",
+   "writes": [
+    "lean/Fw/Sup/Route.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/sup/route.jsonl",
+    "docs/team/handoffs/sup-route.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "sup-trace-extract",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "sup-wire",
+    "sup-baseline"
+   ],
+   "title": "User 2026-10-21 approved the land, review and daemon plans (AskUserQuestion: 'Land: push + lint + defer', 'Review: dry + items + gates', 'Daemon: model + stage 0', 'fw land --batch'). Sources: scratch land-process/report.md + check.json, review-quality report + check, daemon-design/design.md + check.json. fw-sup stage 0: map each baseline log (lock acquire/release, 20 s samples, reap, timings, health) to Sup events.",
+   "writes": [
+    "apps/runner/src/sup-trace.ts",
+    "apps/runner/test/sup-trace.test.ts",
+    "docs/team/handoffs/sup-trace-extract.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "sup-sim",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "sup-trace-extract"
+   ],
+   "title": "User 2026-10-21 approved the land, review and daemon plans (AskUserQuestion: 'Land: push + lint + defer', 'Review: dry + items + gates', 'Daemon: model + stage 0', 'fw land --batch'). Sources: scratch land-process/report.md + check.json, review-quality report + check, daemon-design/design.md + check.json. fw-sup stage 0 report: replay the 3-day post-quick-win traces through the step: predicted peak charge, idle MB-hours reclaimable, requests refused; a go/no-go for stages 1-4, which go back to the user.",
+   "writes": [
+    "lean/Fw/Sup/Sim.lean",
+    "research/notes/2026/10-2x-sup-sim.md",
+    "docs/team/handoffs/sup-sim.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "sup-math",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "sup-model"
+   ],
+   "title": "User 2026-10-21 approved the land, review and daemon plans (AskUserQuestion: 'Land: push + lint + defer', 'Review: dry + items + gates', 'Daemon: model + stage 0', 'fw land --batch'). Sources: scratch land-process/report.md + check.json, review-quality report + check, daemon-design/design.md + check.json. fw-sup: the math artifact for the section-3 theorems, checked by math-reviewer against the Lean statements.",
+   "writes": [
+    "docs/team/handoffs/sup-math.md"
    ]
   }
  ],
