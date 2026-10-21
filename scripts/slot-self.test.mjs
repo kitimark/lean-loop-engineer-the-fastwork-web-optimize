@@ -1,4 +1,3 @@
-// node --test scripts/slot-self.test.mjs (task heavy-self-route): nested starts at once, bare queues, CI runs directly.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";

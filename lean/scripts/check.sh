@@ -18,7 +18,6 @@
 set -u
 # heavy-job lock (Lean Fw.Sched.Heavy; scripts/heavy-lock.mjs): wait for a free slot, then run this script again inside it
 cd "$(dirname "$0")/.."
-# self-route (task heavy-self-route; docs/team/tools/slot.md): queue through fw slot run unless nested (FW_SLOT_HELD), on CI or FW_SLOT_SELF=off
 [ -z "${FW_SLOT_HELD:-}" ] && [ -z "${CI:-}" ] && [ "${FW_SLOT_SELF:-}" != off ] && exec node ../scripts/slot-self.mjs check -- sh scripts/check.sh "$@"
 [ -z "${FW_HEAVY_HELD:-}" ] && [ "${FW_HEAVY_LOCK:-}" != off ] && exec node ../scripts/heavy-lock.mjs run --kind check -- sh scripts/check.sh "$@"
 . ../scripts/lake-slot-lib.sh

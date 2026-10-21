@@ -1,7 +1,7 @@
 # fw slot: one queue for heavy local work
 
-`pnpm -s fw slot` admits Lean checks, package tests, dry lands and Simulator work one queue at a time. The number of
-jobs it admits rises and falls with the machine's load and memory.
+`pnpm -s fw slot` admits Lean checks, package tests, dry lands and Simulator work one queue at a time. The
+admitted count follows the machine's load and memory.
 - Spec and proofs: `lean/Fw/Sup/Adapt.lean`.
 - TS stand-in: `apps/runner/src/slot-core.ts` (each function mirrors the Lean definition of the same name).
 - Glue: `apps/runner/src/slot.ts`, which holds the probe, the state file, the child process group and the result cache.
@@ -93,26 +93,26 @@ pnpm -s fw slot admit --kind build                       # lead, before spawning
   (`FW_LOCK_EVENTS=off` or CI turns them off). An `expire` line also carries `owner`, `token`, `leaseS`, `holdMs` (the
   span it held) and `lateMs` (how long after its lease end the poll dropped it).
 - Nested runs: `run` sets `FW_SLOT_HELD=1`, and a `fw slot run` inside it runs at once.
-- `lean/scripts/check.sh` still takes `scripts/heavy-lock.mjs` inside the slot, so both gates apply until
-  heavy-lock is retired into the slot.
+- `lean/scripts/check.sh` still takes `scripts/heavy-lock.mjs` inside the slot; both gates apply until
+  heavy-lock is retired.
 
 ## Limits
 
-- Footprints and thresholds come from one MEASURED busy window and are initial values.
+- Footprints and thresholds are initial values from one MEASURED busy window.
 - A holder whose process died keeps its slot until its lease ends.
 - `fw watch` does not alert on `expire` events yet.
-- `scripts/sim-lock.sh` callers outside this task still use the old lock; it and the slot exclude each other.
+- `scripts/sim-lock.sh` callers still use the old lock; it and the slot exclude each other.
 - The Simulator check runs only while someone polls or releases a slot; `fw watch` does not run it yet.
 - The idle shutdown covers every booted device, also one booted by hand without a slot or the old lock.
 - `admit --kind build` is run by the lead by hand; `build-review.js` does not call it yet. Its thresholds (8 agents,
-  2100 MB) come from the same busy window.
+  2100 MB) are from the same window.
 - The Simulator's own footprint is not reduced; sim priority only orders the other work around it.
 
 ## Self-routing
 
 Heavy entry points queue themselves, so a compound line or a reviewer re-run cannot bypass the slot.
 - `lean/scripts/check.sh`, `lean:build` (root) and every package `test` script run `node scripts/slot-self.mjs <check|test> -- <cmd>`.
-  The package scripts keep their old body as `test:run`; `test` is `slot-self.mjs test -- pnpm run test:run`.
+  The package scripts keep their old body as `test:run`.
 - Not held: the helper runs `fw slot run --kind <kind> -- <cmd>` and waits in the queue.
 - Held (`FW_SLOT_HELD` set, the nested rule above), on CI (`CI` set) or with `FW_SLOT_SELF=off`: the command runs
   directly, so a nested call starts at once and CI behaves as before. The helper decides nothing else (no Lean).
