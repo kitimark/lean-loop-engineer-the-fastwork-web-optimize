@@ -1,41 +1,28 @@
-# traj-dispatch-push-lane handoff
+# traj-dispatch-push-lane handoff (round 2)
 
-Unit: the verdict/diagnostic mark rule (Lean `Fw.Gate.Trajectory.Dispatch`) now gates all three entry points: `fw run --trajectory`
-(already), the push line `[trajectory ... diagnostic]`, and the workflow `widths` input with a boolean `diagnostic` input.
+Unit: the verdict/diagnostic mark rule (Lean `Fw.Gate.Trajectory.Dispatch`) gates `fw run --trajectory`, the trajectory push line
+`[trajectory ... diagnostic]` and the workflow `widths` input (boolean `diagnostic`). Round 2: the rule binds the trajectory lane only.
 
 ## State
-- Lean `Dispatch.lean`: `dispatch` refuses a repeated width (`ws.Nodup`); `dispatch_accepted_iff` restated with `Nodup`; new
-  `dispatch_repeat`, `accepted_nodup`, `Why.text` (shared refusal words); `dispatch_bad`/`dispatch_verdict_scoped`/`dispatch_diagnostic` adjusted.
-- Lean `Ci/Trigger.lean` (where `pushProbe` lives, not Trajectory.lean): `ProbeIn.diagnostic`, bare word `diagnostic` in `addTok`, `build` asks
-  `ProbeIn.walksOk`/`walkWhy` (= `dispatchIn`). Theorems `walk_verdict_all`, `walk_diagnostic_some`, `parseLine_walks`,
-  `push_verdict_all_widths` (a push without the word walks all four), `push_diagnostic_widths`; `example`s for each refusal text.
-  `Lane.inputs .trajectory` (Store/Layout.lean) gained `diagnostic` (LaneInputs check), trajectory-probe row reads `trajectory-dispatch.jsonl`.
-- Goldens regenerated from Lean: `golden/ci/triggers.jsonl` (`lake test -- --write-ci-trigger-golden`), `golden/gate/trajectory-dispatch.jsonl`.
-- JS `.github/scripts/trajectory-line.mjs`: `dispatch`, `dispatchIn`, `whyText`, `walkRefusal`; push parse and the dispatch path (env `DIAGNOSTIC`, `WIDTHS`)
-  both refuse a subset with the Dispatch text. Test checks `dispatchIn`/`dispatch` against `trajectory-dispatch.jsonl` and `pushProbe` against `triggers.jsonl`.
-- Workflow `trajectory-probe.yml`: input `diagnostic` (boolean), `DIAGNOSTIC` env in step `Read the inputs` (the first step that reads the inputs, before the build),
-  `diagnostic` in the step name and `inputs.json`.
-- Round 2: Lean `Trigger.lean` `ProbeLane` (trajectory | smoothness | frames): `pushProbe wf lane m` reads the line in `effLane wf m` (trajectory + `[frames:` = frames);
-  `build lane` applies `ProbeIn.widthsOk` (mark rule only when `lane.marked`, i.e. trajectory); `diagnostic` word only where `lane.word`. Smoothness = frozen pre-task reader
-  (`addTokPre`..`parseLinePre`), theorems `parseLine_smoothness`, `push_smoothness_pre`, `push_smoothness_widths`; frames: `push_frames_exempt`, `effLane_*`, `marked_iff`.
-  Goldens `probe` rows now carry `wf` (3 lanes x 2). `trajectory-line.mjs` takes `LANE=trajectory|smoothness|frames` (default trajectory); both workflows set it; `scripts/ci-push.mjs` passes 'trajectory'.
-  Examples in `build-review.js` preamble and the Trigger.lean module doc carry `diagnostic` + the clause.
-- Runner: `run-pick.ts` `dispatch` has the Nodup twin; `run.ts` sends `-f diagnostic=true` for `--diagnostic` only when the ref's workflow declares the
-  input (`declaresInput`; an older ref is sent none, logged). `scripts/ci-push.test.mjs` line got the word + a scoped-refusal case.
-- Docs: `trajectory-probe.md` usage line (`--diagnostic` + one sentence), push-line key, step name; new `docs/team/tools/ts-stand-ins.md` (register).
+- `lean/Fw/Gate/Trajectory/Dispatch.lean`: `dispatch` refuses a repeated width; `dispatch_accepted_iff` restated with `Nodup`; `Why.text` shared.
+- `lean/Fw/Ci/Trigger.lean` (pushProbe lives here, not Trajectory.lean): `ProbeLane` (trajectory | smoothness | frames), `effLane wf m` (trajectory +
+  `[frames:` = frames), `pushProbe wf lane m`, `build lane` with `ProbeIn.widthsOk` (mark rule only when `lane.marked`), the word `diagnostic` only where `lane.word`.
+- Smoothness = the frozen pre-task reader (`addTokPre`..`parseLinePre`): `parseLine_smoothness`, `push_smoothness_pre`, `push_smoothness_widths`.
+  Frames: `push_frames_exempt`, `marked_iff`. Trajectory: `push_verdict_all_widths`, `push_diagnostic_widths` (need `effLane wf m = .trajectory`).
+- Goldens (`golden/ci/triggers.jsonl`, `lake exe fwcore fwtest --write-ci-trigger-golden`): `probe` rows carry `wf`, every message in all 3 lanes.
+- `.github/scripts/trajectory-line.mjs`: `LANE=trajectory|smoothness|frames` (default trajectory; both workflows set it); `pushProbe(wf, lane, msg)`; test parses the
+  line documented in `docs/team/tools/trajectory-frames.md` and the smoothness 390,1280 line. `scripts/ci-push.mjs` passes 'trajectory'.
+- `trajectory-probe.yml`: input `diagnostic`, `DIAGNOSTIC`/`LANE` env in "Read the inputs" (the first step that reads the inputs, before the build).
+- Runner: `run-pick.ts` Nodup twin; `run.ts` sends `-f diagnostic=true` only when the ref's workflow declares the input.
+- Preamble example (`.claude/workflows/build-review.js:17`) and the Trigger.lean module doc carry `diagnostic` plus "a widths subset needs the bare word diagnostic".
 
 ## Verified
-`sh lean/scripts/check.sh` green; runner `pnpm test` green; `node --test` on ci-paths, changed-inputs, ci-push, circleci, lake-slot, trajectory-line green.
+`sh lean/scripts/check.sh` green; runner `pnpm test` (1911); `node --test .github/scripts/*.test.mjs scripts/*.test.mjs` (278) green.
+CI run 39606077971 (round 1, trajectory push without the word) failed in the site job as designed; the accept path is a follow-up (node spawn tests cover it).
 
-## Outside the graph writes (list for review)
-`lean/Fw/Ci/Trigger.lean`, `lean/Fw/Store/Layout.lean`, `packages/contracts/golden/ci/triggers.jsonl`, `apps/runner/src/run.ts`, `run-pick.ts`,
-`apps/runner/test/run.test.ts`, `run-dispatch.test.ts`, `scripts/ci-push.test.mjs`, `scripts/ci-push.mjs` (round 2: lane argument): the task text names `Trajectory.lean pushProbe`, but it is in Trigger.lean.
+## Outside the graph writes
+`Trigger.lean`, `Store/Layout.lean`, `golden/ci/triggers.jsonl`, `run.ts`, `run-pick.ts`, `run.test.ts`, `run-dispatch.test.ts`, `scripts/ci-push.test.mjs`, `scripts/ci-push.mjs`.
 
 ## Accepted limits
-Old stored runs unchanged; `fw run` on a ref older than the input dispatches without the mark (the old workflow has no rule); the workflow-input path is
-proved by the node spawn test, not by a dispatch (agents cannot dispatch); one CI push run proves the push-line step (see report).
-
-## CI proof (one run, GitHub)
-Run 39606077971 (push, `ci/traj-dispatch-push-lane`, line `[trajectory widths=390,641 engines=chromium]` without the word): job `site`, step
-"Read the inputs" ran `trajectory-line.test.mjs` (9 pass, 0 fail) then failed with `trajectory-line: refused: widths 390,641 is a subset ... add the word diagnostic ...`
-before any build. The accept path and the dispatch input were not run on CI (a diagnostic run is a full probe; dispatch is lead-only): node spawn tests cover both.
+Old stored runs unchanged; `fw run` on a ref older than the input dispatches without the mark; dispatch-input paths proved by spawn tests; GitHub only.
+TS stand-ins: `docs/team/tools/ts-stand-ins.md`.
