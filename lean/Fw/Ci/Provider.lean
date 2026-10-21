@@ -284,6 +284,39 @@ def affordable (i : RouteInput) : Bool :=
 def route (i : RouteInput) : Provider :=
   if i.allow.contains i.lane && affordable i && (i.platform != .macos || i.ghDegraded) then .circleci else .github
 
+/-- A checkout-key kind the clone can use. -/
+def usableKeyKind (k : String) : Bool := k == "deploy-key" || k == "github-user-key"
+
+/-- A `Checkout code` step status as a clone result: `success` worked, `failed` did not, anything else says nothing. -/
+def checkoutOfStatus (s : String) : Option Bool :=
+  if s == "success" then some true else if s == "failed" then some false else none
+
+/-- What the key check reads: the usable keys of the key list (none: the list answered 403) and the newest clone result. -/
+structure KeyInput where
+  keys : Option Nat
+  checkout : Option Bool
+deriving DecidableEq, Repr
+
+/-- The checkout key is there, is not, or cannot be told. -/
+inductive KeyVerdict where
+  | ok
+  | missing
+  | unknown
+deriving DecidableEq, Repr
+
+/-- A readable key list decides; an unreadable one falls back to the newest clone result. -/
+def keyVerdict (i : KeyInput) : KeyVerdict :=
+  match i.keys with
+  | some n => if 0 < n then .ok else .missing
+  | none =>
+    match i.checkout with
+    | some true => .ok
+    | some false => .missing
+    | none => .unknown
+
+/-- A pipeline may start only on `ok`. -/
+def keyProceed (i : KeyInput) : Bool := keyVerdict i == .ok
+
 /-! ## Rate table -/
 
 theorem rates_cls_nodup : (rates.map (·.cls)).Nodup := by decide
@@ -879,5 +912,48 @@ theorem digest_missing_not_comparable (g c : Run) (hg : g.provider = .github) (h
 #guard route ⟨"webkit-sim", .macos, "m4pro.medium", ["webkit-sim"], true, 600000, 30000⟩ == .circleci
 #guard route ⟨"webkit-sim", .macos, "m4pro.medium", ["webkit-sim"], true, 600000, 1999⟩ == .github
 #guard route ⟨"webkit-sim", .macos, "m4pro.large", ["webkit-sim"], true, 600000, 30000⟩ == .github
+
+
+/-! ## Key check -/
+
+theorem key_listed_ok (n : Nat) (c : Option Bool) (h : 0 < n) : keyVerdict ⟨some n, c⟩ = .ok := by
+  simp [keyVerdict, h]
+
+theorem key_list_empty_missing (c : Option Bool) : keyVerdict ⟨some 0, c⟩ = .missing := by
+  simp [keyVerdict]
+
+theorem key_unreadable_clone_ok : keyVerdict ⟨none, some true⟩ = .ok := by decide
+
+theorem key_unreadable_clone_failed_missing : keyVerdict ⟨none, some false⟩ = .missing := by decide
+
+theorem key_unreadable_no_evidence_unknown : keyVerdict ⟨none, none⟩ = .unknown := by decide
+
+theorem key_list_beats_clone (n : Nat) (c d : Option Bool) : keyVerdict ⟨some n, c⟩ = keyVerdict ⟨some n, d⟩ := by
+  simp [keyVerdict]
+
+theorem key_proceed_iff (i : KeyInput) : keyProceed i = true ↔ keyVerdict i = .ok := by
+  simp [keyProceed]
+
+theorem key_not_ok_no_start (i : KeyInput) (h : keyVerdict i ≠ .ok) : keyProceed i = false := by
+  simp [keyProceed, h]
+
+theorem key_missing_never_starts (i : KeyInput) (h : keyVerdict i = .missing) : keyProceed i = false := by
+  simp [keyProceed, h]
+
+theorem key_unknown_never_starts (i : KeyInput) (h : keyVerdict i = .unknown) : keyProceed i = false := by
+  simp [keyProceed, h]
+
+theorem usable_deploy : usableKeyKind "deploy-key" = true := by decide
+
+theorem usable_user : usableKeyKind "github-user-key" = true := by decide
+
+theorem unusable_other : usableKeyKind "other" = false := by decide
+
+theorem checkout_success : checkoutOfStatus "success" = some true := by decide
+
+theorem checkout_failed : checkoutOfStatus "failed" = some false := by decide
+
+theorem checkout_silent (s : String) (h1 : s ≠ "success") (h2 : s ≠ "failed") : checkoutOfStatus s = none := by
+  simp [checkoutOfStatus, h1, h2]
 
 end Fw.Ci.Provider
