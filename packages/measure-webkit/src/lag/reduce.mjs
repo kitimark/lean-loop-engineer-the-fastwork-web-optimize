@@ -33,10 +33,14 @@ export function byKey(entries) {
 export const coarse = (s) => s.split('-')[0];
 export const rollup = (ledger) => byKey(ledger.map(([k, v]) => [coarse(k), v]));
 
+/** Zone of position `y` at zone height `vh`: Fw.Measure.WebKit.zoneIx, floor(y / vh) and 0 below `y = 0`. */
+export const zoneOf = (vh, y) => (vh <= 0 ? 0 : Math.max(0, (y - (((y % vh) + vh) % vh)) / vh));
+
+/** A is zone 0 of the position, B is zone 0 of the distance to the end, calm is zone 2 or above from both ends. */
 export function regionOf(vh, maxY, y) {
-  if (y <= vh) return 'A';
-  if (maxY - vh <= y) return 'B';
-  if (2 * vh < y && y < maxY - 2 * vh) return 'calm';
+  if (zoneOf(vh, y) === 0) return 'A';
+  if (zoneOf(vh, maxY - y) === 0) return 'B';
+  if (zoneOf(vh, y) >= 2 && zoneOf(vh, maxY - y) >= 2) return 'calm';
   return 'other';
 }
 
@@ -52,15 +56,56 @@ export function filterTotals(vp, items) {
   return { count: vis.length, area: vis.reduce((s, f) => s + f.a, 0), areaRadius: vis.reduce((s, f) => s + f.a * f.radius, 0) };
 }
 
-const colSum = (rows, j) => rows.reduce((s, r) => s + (r[j] ?? 0), 0);
+export const colSum = (rows, j) => rows.reduce((s, r) => s + (r[j] ?? 0), 0);
 export const windowOf = (vh, maxY, ys, rows, region) => rows.filter((_, i) => regionOf(vh, maxY, ys[i]) === region);
+
+/** Raw excess carries the unit of its column; kept only to show why the probe does not rank by it. */
 export const excess = (nR, nC, sR, sC) => sR * nC - sC * nR;
 
-/** Counters ranked by excess of one window of step rows over another, highest first, ties in column order. */
-export function rankWindows(wr, wc, names) {
-  const items = names.map((n, j) => [n, excess(wr.length, wc.length, colSum(wr, j), colSum(wc, j))]);
-  return items.map((e, i) => [e, i]).sort((a, b) => b[0][1] - a[0][1] || a[1] - b[1]).map(([e]) => e);
+const gcd = (a, b) => { a = Math.abs(a); b = Math.abs(b); while (b) [a, b] = [b, a % b]; return a; };
+/** A reduced fraction [num, den] with den > 0 (Rat.divInt). */
+export function frac(n, d) {
+  const g = gcd(n, d) || 1;
+  return d < 0 ? [-n / g, -d / g] : [n / g, d / g];
+}
+const lt = ([a, b], [c, d]) => BigInt(a) * BigInt(d) < BigInt(c) * BigInt(b);
+const le = (x, y) => !lt(y, x);
+
+/** Window-to-baseline ratio (sR / nR) / (sC / nC) as a fraction; unit-free (Lean: ratio_scale). */
+export const ratio = (nR, nC, sR, sC) => frac(sR * nC, sC * nR);
+
+/**
+ * Counters ranked by ratio of a window of step rows to a baseline window, highest first, ties in column order.
+ * fR and fC are the frames per row of the two windows. Counters without a baseline (sum 0, or an empty window) are `unranked`.
+ */
+export function rankWindows(fR, fC, wr, wc, names) {
+  const nR = fR * wr.length, nC = fC * wc.length;
+  const ok = (j) => nR > 0 && nC > 0 && colSum(wc, j) > 0;
+  const items = names.map((n, j) => [n, j]).filter(([, j]) => ok(j)).map(([n, j]) => [n, ratio(nR, nC, colSum(wr, j), colSum(wc, j))]);
+  const ranked = items.map((e, i) => [e, i]).sort((a, b) => (lt(a[0][1], b[0][1]) ? 1 : lt(b[0][1], a[0][1]) ? -1 : a[1] - b[1])).map(([e]) => e);
+  return { ranked, unranked: names.filter((_, j) => !ok(j)) };
 }
 
 export const rankRegion = (vh, maxY, ys, rows, names, region) =>
-  rankWindows(windowOf(vh, maxY, ys, rows, region), windowOf(vh, maxY, ys, rows, 'calm'), names);
+  rankWindows(1, 1, windowOf(vh, maxY, ys, rows, region), windowOf(vh, maxY, ys, rows, 'calm'), names);
+
+/** An arm difference is stated only when the per-pass ranges are separated (Lean: verdict). */
+export function verdict(orig, faith) {
+  if (orig.length === 0 || faith.length === 0) return 'overlap';
+  const sepBelow = (lo, hi) => lo.every((x) => hi.every((y) => lt(x, y)));
+  if (sepBelow(faith, orig)) return 'lower';
+  if (sepBelow(orig, faith)) return 'higher';
+  return 'overlap';
+}
+
+/** The `k` items with the largest value, [y, value] pairs, highest first, equal values in input order. */
+export const topK = (k, items) =>
+  items.map((e, i) => [e, i]).sort((a, b) => b[0][1] - a[0][1] || a[1] - b[1]).slice(0, k).map(([e]) => e);
+
+/** The part with the most paint area at a step, `(none)` for a step without paint. */
+export function topPart(step) {
+  const l = byKey(stepArea(step)).map((e, i) => [e, i]).sort((a, b) => b[0][1] - a[0][1] || a[1] - b[1]);
+  return l.length ? l[0][0][0] : '(none)';
+}
+
+export { le as fracLe, lt as fracLt };
