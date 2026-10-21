@@ -7,6 +7,7 @@ import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { withSession } from '../session.mjs';
 import { watch } from '../watchdog.mjs';
+import { TARGET_LOST_EXIT } from '../inspector.mjs';
 import { lagSession } from './probe.mjs';
 import { analyzeArm, reportMd } from './report.mjs';
 import { fillBlock } from './note.mjs';
@@ -36,6 +37,7 @@ async function main() {
       mkdirSync(dirname(file), { recursive: true });
       writeFileSync(file, JSON.stringify(res) + '\n');
       log(`wrote ${file}${res.failed.length ? ` (stopped early: ${res.failed.join('; ')})` : ''}`);
+      if (res.targetLost) throw Object.assign(new Error(`the page target was lost for good (the passes kept are in ${file})`), { exitCode: TARGET_LOST_EXIT });
       if (!res.passes.length) throw new Error('no pass completed');
       break;
     }

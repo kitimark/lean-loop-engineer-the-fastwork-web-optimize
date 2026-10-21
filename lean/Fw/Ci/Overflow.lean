@@ -379,4 +379,7 @@ theorem settle_nodup (gh cc : List Leg) (st : Bool) (nd : (gh ++ cc).Nodup) :
     ((settle gh cc st).gh ++ (settle gh cc st).again ++ (settle gh cc st).cc).Nodup :=
   (settle_perm gh cc st).nodup_iff.2 nd
 
+/-- The CircleCI land jobs of `Provider.landJobs` (the jobs that save the Lake cache) are the legs of the lane, in matrix order, each as `land-<leg>`. -/
+theorem landJobs_eq_legs : Provider.landJobs = legs.map fun l => "land-" ++ l.name := by decide
+
 end Fw.Ci.Overflow
