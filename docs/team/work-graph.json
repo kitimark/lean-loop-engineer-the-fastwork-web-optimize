@@ -14845,7 +14845,8 @@
     ".claude/workflows/build-review.js",
     "docs/team/tools/slot.md",
     "docs/team/handoffs/heavy-self-route.md"
-   ]
+   ],
+   "evidence": "f3e6660"
   },
   {
    "devices": [
@@ -15320,7 +15321,8 @@
    "writes": [
     "research/notes/2026/10-2x-platform-end-premise.md",
     "docs/team/handoffs/platform-end-premise.md"
-   ]
+   ],
+   "evidence": "bc76ad8"
   }
  ],
  "deadline": {

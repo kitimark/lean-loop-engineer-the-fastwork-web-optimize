@@ -7,7 +7,8 @@
   "engines": { "node": ">=24" },
   "scripts": {
     "e2e": "node src/run.mjs",
-    "test": "node --test --test-concurrency=${VITEST_MAX_WORKERS:-$(node -p \"require('../contracts/golden/sched/node-budget.gen.json').workers\")} \"test/*.test.mjs\""
+    "test": "node ../../scripts/slot-self.mjs test -- pnpm run test:run",
+    "test:run": "node --test --test-concurrency=${VITEST_MAX_WORKERS:-$(node -p \"require('../contracts/golden/sched/node-budget.gen.json').workers\")} \"test/*.test.mjs\""
   },
   "dependencies": {
     "playwright-core": "1.64.1"
