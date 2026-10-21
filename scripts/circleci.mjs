@@ -445,6 +445,15 @@ export const RETENTION_DAYS = 30;
 /** Thousandths of a GB-month stored by every pilot pipeline of the ledger except `exceptId` (0 without a ledger path). */
 export const storageSoFar = (ctx, exceptId = '') => (ctx.ledgerPath ? storageMilli(ledgerBytes(readLedger(ctx.ledgerPath), exceptId), RETENTION_DAYS) : 0);
 
+/** Credits the fetched pilot pipelines of the ledger spent in the last RETENTION_DAYS days (a rolling month: it counts more than a
+ *  calendar month does early in the month, the safe side). A pipeline that was never fetched, and every pipeline fetched before the
+ *  ledger kept credits, counts 0. */
+export function creditsSoFar(ctx, now = Date.now()) {
+  if (!ctx.ledgerPath) return 0;
+  const since = now - RETENTION_DAYS * 86400000;
+  return Object.values(readLedger(ctx.ledgerPath).pipelines ?? {}).reduce((n, b) => n + (Number(b.at) >= since ? Number(b.credits) || 0 : 0), 0);
+}
+
 // ----------------------------------------------------------------------------------------------------------- the pilot
 
 const sleepReal = (s) => new Promise((r) => setTimeout(r, s * 1000));
@@ -548,7 +557,8 @@ export async function fetchPipeline(ctx, { slug, pipelineId, out }) {
   let ledger = { pipelines: {} };
   if (ctx.ledgerPath) {
     ledger = readLedger(ctx.ledgerPath);
-    ledger.pipelines = { ...ledger.pipelines, [pipelineId]: bytes };
+    const spent = runs.reduce((n, r) => n + (credits(g, r.class, r.durMs) ?? 0), 0);
+    ledger.pipelines = { ...ledger.pipelines, [pipelineId]: { ...bytes, credits: spent, at: ctx.now?.() ?? Date.now() } };
     mkdirSync(dirname(ctx.ledgerPath), { recursive: true });
     writeFileSync(ctx.ledgerPath, `${JSON.stringify(ledger, null, 2)}\n`);
   }

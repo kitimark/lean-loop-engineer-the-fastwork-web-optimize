@@ -9,7 +9,7 @@ import { tmpdir, userInfo } from 'node:os';
 import { delimiter, dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { landLane, landLegs, CHECKOUT_STEP, checkoutOfStatus, keyAdvice, keyCheck, keyExit, keyProceed, keyVerdict, readCloneResult, readKeyList, usableKeyKind, cachePipelineBytes, cacheSavedBytes, classOfApi, parseCacheSave, readCacheSave, savesCacheJob, API, MIN_POLL_S, ROOT, call, callBytes, comparePairs, compare, credits, digestJob, dryRun, fetchPipeline, fixtureFetch, githubDigests, githubRuns, isPilotPipeline, jobOfGithub, listAll, loadFixture, loadGolden, main, ofCircleStatus, ofGithubConclusion, parseLoose, premiseDigest, premisesArtifact, readLedger, redact, renderComparison, route, stops, storageMilli, timingsDoc, triggerRequest, urls, waitPipeline, waitStep } from './circleci.mjs';
+import { creditsSoFar, landLane, landLegs, CHECKOUT_STEP, checkoutOfStatus, keyAdvice, keyCheck, keyExit, keyProceed, keyVerdict, readCloneResult, readKeyList, usableKeyKind, cachePipelineBytes, cacheSavedBytes, classOfApi, parseCacheSave, readCacheSave, savesCacheJob, API, MIN_POLL_S, ROOT, call, callBytes, comparePairs, compare, credits, digestJob, dryRun, fetchPipeline, fixtureFetch, githubDigests, githubRuns, isPilotPipeline, jobOfGithub, listAll, loadFixture, loadGolden, main, ofCircleStatus, ofGithubConclusion, parseLoose, premiseDigest, premisesArtifact, readLedger, redact, renderComparison, route, stops, storageMilli, timingsDoc, triggerRequest, urls, waitPipeline, waitStep } from './circleci.mjs';
 
 const g = loadGolden();
 const here = dirname(fileURLToPath(import.meta.url));
@@ -746,4 +746,22 @@ test('land lane: fetchPipeline puts the lane record of each land job into run.js
   const out = mkdtempSync(join(tmpdir(), 'fwland-'));
   const doc = await fetchPipeline(ctx, { slug: 's', pipelineId: 'p1', out });
   assert.deepEqual(doc.lanes, [{ job: 'land-suites-a', conclusion: 'pass', leg: 'suites-a', sha, digest: 'dd', engine: 'false', rc: 0 }]);
+});
+
+test('creditsSoFar: a fetch writes its credits and time into the ledger, and the sum is a rolling 30 days', async () => {
+  const fx = loadFixture('premise-tests');
+  const dir = mkdtempSync(join(tmpdir(), 'fwcred-'));
+  const ledgerPath = join(dir, 'ledger.json');
+  const now = Date.UTC(2026, 9, 21);
+  const { ctx } = ctxOf(fx, { ledgerPath, now: () => now });
+  await fetchPipeline(ctx, { slug: fx.slug, pipelineId: fx.pipelineId, out: join(dir, 'o') });
+  const b = readLedger(ledgerPath).pipelines[fx.pipelineId];
+  assert.equal(b.at, now);
+  assert.ok(b.credits >= 0);
+  assert.equal(creditsSoFar({ ledgerPath }, now), b.credits);
+  assert.equal(creditsSoFar({ ledgerPath }, now + 29 * 86400000), b.credits);
+  assert.equal(creditsSoFar({ ledgerPath }, now + 31 * 86400000), 0, 'older than 30 days: out of the month');
+  assert.equal(creditsSoFar({}, now), 0, 'no ledger path: nothing counted');
+  writeFileSync(ledgerPath, JSON.stringify({ pipelines: { old: { artifacts: 1, cache: 0, workspace: 0 } } }));
+  assert.equal(creditsSoFar({ ledgerPath }, now), 0, 'a pipeline fetched before credits were kept counts 0');
 });
