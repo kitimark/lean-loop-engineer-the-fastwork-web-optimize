@@ -184,8 +184,8 @@ the window); the original has no recorder. The unit is the first close flip
 Counts over the three runs (15 reps per arm): split class **c0 in 30 of 30**; no c1, c2, c3, C-probe, noFlip or noBase. Cand: c0 12,
 c4 3, jumped 15. Base: c0 9, c4 6, held 15. The phase 1 run agrees (c0 in 10 of 10, cand jumped 5, base held 5).
 
-**Reading of one rep.** In every cand rep the rows at the flip are `data` and `cls` at one `t` (path M: the marker finish
-writes the data only), then a `raf` row of the same frame (it may also come after the next row) and the `base` row with the identical value 0 to 1 ms
+**Reading of one rep.** In 14 of 15 cand reps the rows at the flip are `data` and `cls` at one `t` (path M: the marker finish
+writes the data only); in 1 (39572308204 rep 3) `data`, `cls` and `base` share one `t` (path A or S). In the 14, then a `raf` row of the same frame (it may also come after the next row) and the `base` row with the identical value 0 to 1 ms
 later (the poll's rAF callback of that frame). No `read` and no `size` row lies between them. In the base arm `base`, `data` and `cls`
 sit at one `t`. A width `transitionrun`/`transitionstart` appears 21 to 135 ms after the flip in both arms. The difference is
 the first `size` row after the flip: the base arm keeps its width (15 of 15, next == prev), the cand arm drops to within 0.21 px of
@@ -195,7 +195,7 @@ rest (0.00 to 0.21 px above rest) from 0.33 to 2.4 px above rest.
 
 | Candidate | Decision | Why |
 |---|---|---|
-| C1, C2 (writes in different style updates) | refuted for these reps (0 of 30) | no `size`, `read` or later-frame `raf` row lies between `data`, `cls` and `base`: one style update |
+| C1, C2 (writes in different style updates) | refuted for these reps (0 of 30), INFERRED | `base` follows `cls` by 0 to 1 ms with the frame ts at or before the flip, under WebKit's update-the-rendering order; "no row between" alone does not prove one style update, since `raf` and `size` rows are not a complete frame list |
 | **C-probe** | **ruled out** | the probe's reads occur only between frames, never between the writes (no `read` row between in 30 of 30); the probe does not split the update, so no run without reads is needed |
 | C3 (a transition cancelled by nothing) | 0 of 30 | no width cancel without a write one frame before it |
 | C4 (a train of cancels by writes) | present in 9 of 30 reps, in both arms | two or more width cancels, each a frame after a write; it does not separate the arms (cand: 3 of 15 c4 and 15 of 15 jumped; base: 6 of 15 and 15 of 15 held), so it does not explain the jump |
@@ -232,3 +232,8 @@ the JSON-to-row normaliser `normalizeRow` (its rounding is the Lean `scaled`, te
 - Why the cand width at the first size row after the flip is W(m(R)): read the before-change style source (Styleable.cpp:606-618)
   against the rows; a run with the window off would show whether the transition then starts.
 - Frames: WebKit logs `size` rows in frames that have no `raf` row, so a `raf` row is not a complete frame list.
+
+## Review notes (lead, 2026-10-21)
+
+- The Lean verdict `drop_on_measured` takes a hand-typed input (`verdict 3 (List.replicate 15 Hold.jumped)`); the holds come from the node twin `classifyRaw` over the raw files of the four runs, which the reviewer re-ran and matched. No committed script feeds the raw rows to Lean.
+- Every cand rep counts as a hit rep: the poll's base row is at the flip in each one, so the base window was on; no code filters reps by `baseWindow.delay`.
