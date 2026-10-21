@@ -45,7 +45,7 @@ private def wk (w : Nat) (p : Push) : Row :=
     path := s!"strips/playwright-webkit-{w}-{p.word}.png", note := "", diff := "" }
 
 /-- **The strips** (CI run 39473950464, Chromium 156, real scroll input; run 39530106935, macOS Playwright WebKit, screenshot
-strips, time-aligned between the two rows). The notes of the WebKit strips are not written yet. The runs and
+strips, the ones to compare timing with; each arm is sampled at its own shot times). The notes of the WebKit strips are not written yet. The runs and
 expiries are in `Gen.lookDecisions`, not here. -/
 def rows : List Row :=
   [ chr 390 .close "Look at the dark Join waitlist pill. With the flag it is on screen at 478 ms and solid at about 588 ms, moving together with the nav. In the original it starts fading in only at about 865 ms and is solid at about 1032 ms." "about 0.4 s earlier",

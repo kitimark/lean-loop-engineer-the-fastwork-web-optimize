@@ -147,7 +147,7 @@ export function mountReviews(app: Hono, store: Store, root: string, opts: Review
     try { file = join(await cache.dir(s.run, s.artifact), s.path); }
     catch (e) { return c.json({ ok: false, reason: `the CI artifact could not be fetched: ${(e as Error).message}` }, 502); }
     if (!existsSync(file)) return c.json({ ok: false, reason: "the artifact has no such file" }, 404);
-    c.header("Cache-Control", "private, max-age=3600");
+    c.header("Cache-Control", "private, no-cache");
     c.header("Content-Type", "image/png");
     return c.body(readFileSync(file));
   });

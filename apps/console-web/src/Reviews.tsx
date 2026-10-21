@@ -97,7 +97,7 @@ function StripImage({ flag, s }: { flag: string; s: StripItem }) {
 export function StripCard({ flag, s }: { flag: string; s: StripItem }) {
   const engine = ENGINE[s.engine] ?? s.engine;
   if (s.state === "missing") {
-    return <p className="text-xs" data-testid="strip-missing">{engine} strips{s.width ? ` (${s.width}, ${s.push})` : ""}: none made for this change yet. To make them, push a ci/* commit with the message line <code className="font-mono">{s.redo}</code>, then update the material in Gen.lean (Fw.Preset.Gen.lookDecisions) with the new run.</p>;
+    return <p className="text-xs" data-testid="strip-missing">{engine} strips{s.width ? ` (${s.width}, ${s.push})` : ""}: {s.file ? "not named by the current material" : "none made for this change yet"}. To make them, push a ci/* commit with the message line <code className="font-mono">{s.redo}</code>, then update run, artifact and expires of the material in Gen.lean (Fw.Preset.Gen.lookDecisions).</p>;
   }
   const tag = `${s.width === 390 ? "Phone" : "Desktop"} ${s.width}`;
   const head = (
@@ -111,7 +111,7 @@ export function StripCard({ flag, s }: { flag: string; s: StripItem }) {
     return (
       <section className="min-w-0 space-y-1 rounded border p-2" data-testid="strip-expired">
         {head}
-        <p className="break-words text-xs">This strip expired on {s.expires} (the CI artifact is gone). To re-make it, push a ci/* commit with the message line <code className="font-mono">{s.redo}</code>, then update the material in Gen.lean (Fw.Preset.Gen.lookDecisions) with the new run.</p>
+        <p className="break-words text-xs">This strip expired on {s.expires} (the CI artifact is gone). To re-make it, push a ci/* commit with the message line <code className="font-mono">{s.redo}</code>, then update run, artifact and expires of the material in Gen.lean (Fw.Preset.Gen.lookDecisions).</p>
       </section>
     );
   }
