@@ -13,7 +13,8 @@ def paramsJson (p : Params) : Json :=
     ("leanProcMB", toJson p.leanProcMB), ("testMB", toJson p.testMB), ("landMB", toJson p.landMB),
     ("simMB", toJson p.simMB), ("otherMB", toJson p.otherMB), ("warmS", toJson p.warmS), ("ageS", toJson p.ageS),
     ("maxWaitS", toJson p.maxWaitS), ("leaseS", toJson p.leaseS), ("leaseMaxS", toJson p.leaseMaxS),
-    ("simIdleS", toJson p.simIdleS), ("graceMs", toJson p.graceMs)]
+    ("simIdleS", toJson p.simIdleS), ("graceMs", toJson p.graceMs), ("simPollS", toJson p.simPollS),
+    ("buildMB", toJson p.buildMB), ("agentsMax", toJson p.agentsMax), ("agentsAgeS", toJson p.agentsAgeS)]
 
 def sampleJson (s : Sample) : Json :=
   Json.mkObj [("time", toJson s.time), ("loadCenti", toJson s.loadCenti), ("freeMB", toJson s.freeMB),
@@ -23,6 +24,10 @@ def sampleJson (s : Sample) : Json :=
 def prevJson : Option (Nat × Nat) → Json
   | none => .null
   | some (t, mb) => Json.mkObj [("time", toJson t), ("swapUsedMB", toJson mb)]
+
+def optJson : Option Nat → Json
+  | none => .null
+  | some n => toJson n
 
 def ctlJson (c : Ctl) : Json :=
   Json.mkObj [("n", toJson c.n), ("lastChange", toJson c.lastChange), ("prev", prevJson c.prev)]
@@ -38,7 +43,9 @@ def whyFields : Why → List (String × Json)
   | .older => [("why", "older")]
   | .full r l => [("why", "full"), ("running", toJson r), ("limit", toJson l)]
   | .simBusy => [("why", "simBusy")]
+  | .drain o => [("why", "drain"), ("others", toJson o)]
   | .memory n r => [("why", "memory"), ("needMB", toJson n), ("roomMB", toJson r)]
+  | .simFirst => [("why", "simFirst")]
 
 def verdictJson : Verdict → Json
   | .admit t f => Json.mkObj [("verdict", "admit"), ("threads", toJson t), ("footMB", toJson f)]
@@ -131,7 +138,34 @@ def verdictCases : List (String × Nat × Sample × List Entry × List Entry × 
     ("waited just below the limit: wait", 1, okSample, [liveH "x" "9" .test 0 0], [me], me, 1799),
     ("waited the limit: timeout, never run", 1, okSample, [liveH "x" "9" .test 0 0], [me], me, 1800),
     ("waited the limit but admissible: admit", 2, okSample, [], [me], me, 9999),
-    ("ticket missing from the queue: every same-kind ticket is ahead", 2, okSample, [], [tk "b" "2" .check 980], me, 0) ]
+    ("ticket missing from the queue: every same-kind ticket is ahead", 2, okSample, [], [tk "b" "2" .check 980], me, 0),
+    ("sim pending: a check that leaves less than the sim footprint waits simFirst", 4, okSample, [],
+      [me, tk "s" "5" .sim 995], me, 0),
+    ("sim pending: a check that leaves the sim footprint is admitted", 4, { okSample with freeMB := 12000 }, [],
+      [me, tk "s" "5" .sim 995], me, 0),
+    ("sim pending: the check leaves no slot for it (N 1): simFirst", 1, { okSample with freeMB := 12000 }, [],
+      [me, tk "s" "5" .sim 995], me, 0),
+    ("sim pending: N 2 leaves one slot for it: admit", 2, { okSample with freeMB := 12000 }, [],
+      [me, tk "s" "5" .sim 995], me, 0),
+    ("sim pending: another job already runs: simFirst", 4, { okSample with freeMB := 12000 }, [liveH "x" "9" .test 0 0],
+      [me, tk "s" "5" .sim 995], me, 0),
+    ("sim pending, plain memory short: memory first", 4, { okSample with freeMB := 1700 }, [], [me, tk "s" "5" .sim 995], me, 0),
+    ("sim held: a second job beside it waits simFirst", 4, { okSample with freeMB := 12000 },
+      [liveH "x" "9" .sim 0 2800, liveH "y" "8" .test 0 0], [me], me, 0),
+    ("sim held, nothing else runs: one check beside it", 4, { okSample with freeMB := 12000 }, [liveH "x" "9" .sim 0 2800],
+      [me], me, 0),
+    ("sim ticket, two other jobs run: drain", 4, { okSample with freeMB := 12000 },
+      [liveH "x" "9" .test 0 0, liveH "y" "8" .land 0 0], [tk "s" "5" .sim 990], tk "s" "5" .sim 990, 0),
+    ("sim ticket, one other job runs: admit", 4, { okSample with freeMB := 12000 }, [liveH "x" "9" .test 0 0],
+      [tk "s" "5" .sim 990], tk "s" "5" .sim 990, 0),
+    ("sim ticket behind an old test ticket: never older", 4, { okSample with freeMB := 12000 }, [],
+      [tk "b" "2" .test 600, tk "s" "5" .sim 990], tk "s" "5" .sim 990, 0),
+    ("old sim lock held: a sim ticket waits simBusy", 4, { okSample with freeMB := 12000 }, withLegacy 1000 true [],
+      [tk "s" "5" .sim 990], tk "s" "5" .sim 990, 0),
+    ("old sim lock held, nothing else runs: one check beside it", 4, { okSample with freeMB := 12000 }, withLegacy 1000 true [],
+      [me], me, 0),
+    ("old sim lock held, a test runs: the check waits simFirst", 4, { okSample with freeMB := 12000 },
+      withLegacy 1000 true [liveH "y" "8" .test 0 0], [me], me, 0) ]
 
 def verdictLines (p : Params := {}) : List String :=
   verdictCases.map fun (nm, n, s, hs, q, me, w) =>
@@ -168,16 +202,66 @@ def simLines : List String :=
   let boot := fun (nm : String) (now : Nat) (o t : String) (hs : List Entry) =>
     line nm "adapt.simBoot" [("now", toJson now), ("owner", .str o), ("token", .str t), ("holders", entriesJson hs)]
       (Json.mkObj [("boot", .bool (simBoot now o t hs))])
-  let act := fun (nm : String) (now : Nat) (hs : List Entry) (b l : Bool) (i : Nat) =>
+  let act := fun (nm : String) (now : Nat) (hs : List Entry) (b l : Bool) (i : Option Nat) =>
     line nm "adapt.simAction" [("now", toJson now), ("holders", entriesJson hs), ("booted", .bool b), ("legacyHeld", .bool l),
-      ("idleSince", toJson i)] (Json.mkObj [("action", .str (simAction {} now hs b l i).name)])
+      ("idleSince", optJson i)] (Json.mkObj [("action", .str (simAction {} now hs b l i).name)])
+  let idle := fun (nm : String) (now : Nat) (h b : Bool) (prev : Option Nat) =>
+    line nm "adapt.simIdleNext" [("now", toJson now), ("held", .bool h), ("booted", .bool b), ("prev", optJson prev)]
+      (Json.mkObj [("idleSince", optJson (simIdleNext now h b prev))])
+  let due := fun (nm : String) (now last : Nat) =>
+    line nm "adapt.simDue" [("now", toJson now), ("last", toJson last)] (Json.mkObj [("due", .bool (simDue {} now last))])
   [ boot "slot owner boots" 50 "a" "t1" [holdA], boot "no slot: no boot" 50 "a" "t1" [],
     boot "another agent's slot: no boot" 50 "b" "t1" [holdA], boot "expired slot: no boot" 100 "a" "t1" [holdA],
     boot "a test slot does not allow a boot" 50 "b" "t2" [holdB],
-    act "not booted: nothing" 5000 [] false false 0, act "live sim slot: keep" 50 [holdA] true false 0,
-    act "old sim lock held: keep" 5000 [] true true 0, act "idle 599 s: keep" 1599 [] true false 1000,
-    act "idle 600 s: shutdown" 1600 [] true false 1000, act "expired slot, idle: shutdown" 700 [holdA] true false 0,
-    act "a live test slot does not keep the Simulator" 700 [{ holdB with till := 9999 }] true false 0 ]
+    act "not booted: nothing" 5000 [] false false (some 0), act "live sim slot: keep" 50 [holdA] true false (some 0),
+    act "old sim lock held: keep" 5000 [] true true (some 0), act "idle 599 s: keep" 1599 [] true false (some 1000),
+    act "idle 600 s: shutdown" 1600 [] true false (some 1000), act "expired slot, idle: shutdown" 700 [holdA] true false (some 0),
+    act "a live test slot does not keep the Simulator" 700 [{ holdB with till := 9999 }] true false (some 0),
+    act "no idle clock yet: keep" 99999 [] true false none,
+    idle "first unheld sighting starts the clock" 700 false true none, idle "the clock keeps its start" 900 false true (some 700),
+    idle "a holder clears the clock" 900 true true (some 700), idle "no device booted clears the clock" 900 false false (some 700),
+    due "first look (last 0)" 100 0, due "29 s after the last look: not due" 129 100, due "30 s after: due" 130 100 ]
+
+def buildWhyFields : BuildWhy → List (String × Json)
+  | .simWaits => [("why", "simWaits")]
+  | .agentsUnknown => [("why", "agentsUnknown")]
+  | .agents l m => [("why", "agents"), ("live", toJson l), ("max", toJson m)]
+  | .memory f n => [("why", "memory"), ("freeMB", toJson f), ("needMB", toJson n)]
+
+def buildVerdictJson : BuildVerdict → Json
+  | .admit => Json.mkObj [("verdict", "admit")]
+  | .wait w => Json.mkObj (("verdict", "wait") :: buildWhyFields w)
+
+def buildLines : List String :=
+  let ad := fun (nm : String) (sw : Bool) (m : Nat) (a : Option Nat) =>
+    line nm "adapt.admitBuild" [("simWaits", .bool sw), ("freeMB", toJson m), ("agents", optJson a)]
+      (buildVerdictJson (admitBuild {} sw m a))
+  let seen := fun (nm : String) (now : Nat) (r : Option (Nat × Nat)) =>
+    line nm "adapt.agentsSeen" [("now", toJson now), ("reading", match r with
+        | none => .null
+        | some (t, n) => Json.mkObj [("time", toJson t), ("live", toJson n)])]
+      (Json.mkObj [("agents", optJson (agentsSeen {} now r))])
+  let sq := fun (nm : String) (now : Nat) (q : List Entry) =>
+    line nm "adapt.simQueued" [("now", toJson now), ("queue", entriesJson q)] (Json.mkObj [("queued", .bool (simQueued now q))])
+  [ ad "quiet: admit" false 9000 (some 5), ad "a Simulator ticket waits" true 9000 (some 5),
+    ad "no fresh agent count" false 9000 none, ad "8 live agents: wait" false 9000 (some 8), ad "7 live agents: admit" false 9000 (some 7),
+    ad "free memory 1 MB short of floor + buildMB" false 3123 (some 7), ad "free memory exactly floor + buildMB" false 3124 (some 7),
+    ad "busy window (free 400 MB, 9 agents): agents first" false 400 (some 9),
+    seen "fresh reading" 1900 (some (1000, 6)), seen "reading 901 s old: unknown" 1901 (some (1000, 6)),
+    seen "no reading" 1901 none,
+    sq "live sim ticket" 99 [{ tk "s" "5" .sim 0 with till := 100 }], sq "expired sim ticket" 100 [{ tk "s" "5" .sim 0 with till := 100 }],
+    sq "only a test ticket" 50 [tk "t" "6" .test 0] ]
+
+def holdLines : List String :=
+  let lg := fun (nm : String) (now : Nat) (l : Bool) (hs : List Entry) =>
+    line nm "adapt.withLegacy" [("now", toJson now), ("legacy", .bool l), ("holders", entriesJson hs)]
+      (Json.mkObj [("holders", entriesJson (withLegacy now l hs))])
+  let ho := fun (nm : String) (now : Nat) (k : Kind) (hs : List Entry) =>
+    line nm "adapt.heldOf" [("now", toJson now), ("kind", .str k.name), ("holders", entriesJson hs)]
+      (Json.mkObj [("held", .bool (heldOf now hs k))])
+  [ lg "old lock held: one more sim holder" 1000 true [holdB], lg "old lock free: unchanged" 1000 false [holdB],
+    ho "live sim holder" 50 .sim [holdA, holdB], ho "expired sim holder" 100 .sim [holdA], ho "live test holder" 50 .test [holdB],
+    ho "no holder" 50 .sim [] ]
 
 def stopLines : List String :=
   let st := fun (nm : String) (a s : Bool) (tm : Option Nat) (now : Nat) =>
@@ -211,7 +295,7 @@ def cacheLines : List String :=
 set_option compiler.extract_closed false in
 def goldenLines (_ : Unit := ()) : List String :=
   [line "default parameters" "adapt.params" [] (paramsJson {})] ++ stepLines ++ verdictLines ++ threadsLines ++ leaseLines ++
-    simLines ++ stopLines ++ cacheLines
+    simLines ++ buildLines ++ holdLines ++ stopLines ++ cacheLines
 
 def genPath : System.FilePath := "../packages/contracts/golden/sup/adapt.jsonl"
 
