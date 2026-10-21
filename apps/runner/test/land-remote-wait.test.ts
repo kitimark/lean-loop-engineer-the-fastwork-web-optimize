@@ -1,13 +1,14 @@
 // land-wait-final: the two incidents where `fw land` refused a lane that was running or green.
 //   (1) 2026-10-20, run 39576215019: refused ("remote-lane-failed") while the run was still going.
 //   (2) 2026-10-21, run 39612772041: log "lane still running", then "verdict refuse reason=remote-lane-failed (github:fail)" 16 s after the
-//       run concluded success. Cause: the waiter child (`pnpm -s fw ci wait`) exited 1 without judging the run (a crash after or before its
-//       verdict), and `waitState 1` was `fail`; the run's own record, which said success, was not asked.
+//       run concluded success. Cause (INFERRED: neither waiter output was recovered): the waiter child (`pnpm -s fw ci wait`) exited 1
+//       without judging the run (a crash after or before its verdict), and `waitState 1` was `fail`; the run's own record, which said
+//       success, was not asked.
 // Fake provider: the waiter and gh are scripted; Lean (fwcore) decides.
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { awaitRemote, githubAdapter, remoteDigest, type GhRunView, type GithubDeps, type Want } from "../src/land-remote.ts";
+import { awaitRemote, circleciAdapter, githubAdapter, remoteDigest, type GhRunView, type GithubDeps, type Want } from "../src/land-remote.ts";
 import { fwcoreCall } from "../src/run.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
@@ -78,11 +79,29 @@ describe("incident 1 (run 39576215019): the waiter errors while the run is still
     expect(out.verdict).toMatchObject({ kind: "accept" });
     expect(out.runs.map((r) => r.state)).toEqual(["pass"]);
   });
-  it("a waiter error with no readable record is a wait error (unavailable), never fail", async () => {
-    const { d } = deps([CRASH], [new Error("gh: HTTP 403")]);
+  it("a waiter error with no readable record keeps waiting (polls again), never fail, never an early local run", async () => {
+    const { d, polls } = deps([CRASH], [new Error("gh: HTTP 403")]);
     const { out } = await run(d, { deadlineS: 0.3 });
-    expect(out.verdict.reason).not.toBe("remote-lane-failed");
-    expect(out.runs.map((r) => r.state)).not.toContain("fail");
+    expect(polls()).toBeGreaterThan(1);
+    expect(out.verdict).toMatchObject({ kind: "local", reason: "remote-timeout-run-locally" });
+    expect(out.runs.map((r) => r.state)).toEqual(["timeout"]);
+  });
+  it("a waiter error with no record, then a green record: accept", async () => {
+    const { d, polls } = deps([CRASH], [new Error("gh: HTTP 403"), view("completed", "success", ALL_OK)]);
+    const { out } = await run(d, { deadlineS: 5 });
+    expect(polls()).toBeGreaterThan(1);
+    expect(out.verdict).toMatchObject({ kind: "accept", reason: "remote-pass" });
+  });
+});
+
+describe("incident 2, production read: the waiter's cached record (cachedLaneView shape) has no job conclusions", () => {
+  it("a completed success hit plus a crashed waiter reads the full run view and accepts", async () => {
+    const cached: GhRunView = { ...view("completed", "success", ALL_OK), jobs: [{ name: "guard", steps: [] }, { name: "lane", steps: [{ name: `lane: sha=${SHA} digest=${DIGEST}`, conclusion: "success" }] }] };
+    const { d, views } = deps([CRASH], [view("completed", "success", ALL_OK)]);
+    const { out } = await run({ ...d, cache: () => cached });
+    expect(views()).toBe(1);
+    expect(out.verdict).toMatchObject({ kind: "accept", reason: "remote-pass" });
+    expect(out.runs.map((r) => r.state)).toEqual(["pass"]);
   });
 });
 
@@ -121,12 +140,25 @@ describe("failure: the verdict names the run, the failed legs and their check id
   });
 });
 
+describe("CircleCI refusal names the pipeline, the failed legs and their checks", () => {
+  it("a failed overflow group: detail with pipeline id and leg", async () => {
+    const cc = circleciAdapter({ call, push: async () => ({ branch: "ci/b", marker: MARKER }), trigger: async () => "pipe-1", wait: async () => 1,
+      fetch: async () => ({ sha: MARKER, lanes: [{ job: "land-x", conclusion: "fail", leg: "chromium", sha: SHA, digest: DIGEST, engine: "chromium", rc: 1 }] }) });
+    const ctx = { task: "t", mergeSha: SHA, want, checks: CHECKS, legs: { all: LEGS, gh: LEGS.slice(0, 4), cc: ["chromium"] } };
+    const h = await cc.start(ctx);
+    const p = await cc.poll(h, ctx, 1);
+    expect(p.run.state).toBe("fail");
+    expect(p.detail).toContain("pipeline pipe-1, failed legs: chromium");
+  });
+});
+
 describe("golden rows are served by fwcore (console.landLaneState)", () => {
   const st = (o: Record<string, unknown>) => (call({ op: "console.landLaneState", ...o }) as { state: string }).state;
-  it("all jobs success, waiter exit 1: pass; in progress, exit 1: running; no record, unsaid exit 1: unavailable", () => {
+  it("all jobs success, waiter exit 1: pass; in progress, exit 1: running; no record, unsaid exit 1: running", () => {
     expect(st({ exit: 1, status: "completed", conclusion: "success", saidFail: false, jobs: [true, true] })).toBe("pass");
     expect(st({ exit: 1, status: "in_progress", conclusion: "", saidFail: false })).toBe("running");
-    expect(st({ exit: 1, status: "", conclusion: "", saidFail: false })).toBe("unavailable");
+    expect(st({ exit: 1, status: "", conclusion: "", saidFail: false })).toBe("running");
+    expect(st({ exit: 137, status: "", conclusion: "", saidFail: false })).toBe("unavailable");
     expect(st({ exit: 1, status: "", conclusion: "", saidFail: true })).toBe("fail");
   });
 });

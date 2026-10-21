@@ -213,7 +213,7 @@ export function githubAdapter(d: GithubDeps, push: Pusher = makePusher(d)): Adap
         id = /\brun (\d+)\b/.exec(w.out)?.[1];
         // Cached facts first (no budget): a completed failed record, or a record whose jobs show the bind, is enough.
         const hit = d.cache?.(h, id) ?? null;
-        if (hit && (hit.conclusion === "failure" || (!partial && laneBind(hit)))) view = hit;
+        if (hit && (hit.conclusion === "failure" || (!partial && laneBind(hit) && (w.code === 0 || legResults(hit) !== null)))) view = hit; // a non-pass waiter on a record without job conclusions reads the full `gh run view`
         else {
           const o = { deadline: Math.ceil((d.now?.() ?? Date.now()) / 1000 + sliceS), ...(signal ? { signal } : {}) };
           try {
@@ -302,7 +302,16 @@ export function circleciAdapter(d: CircleDeps): Adapter {
       try { f = await d.fetch(id); } catch (e) { note = `pipeline ${id} record not read (${e instanceof Error ? e.message : String(e)})`; }
       const t = f?.times;
       const end = (d.now ?? Date.now)();
-      return { run: normalizeCircle(d.call, state, f, { marker: h.marker, want: c.want, legs: c.legs?.cc ?? [] }),
+      const run = normalizeCircle(d.call, state, f, { marker: h.marker, want: c.want, legs: c.legs?.cc ?? [] });
+      let detail: string | undefined;
+      if (run.state === "fail") {
+        const failed = (c.legs?.cc ?? []).filter((leg) => !f?.lanes.some((l) => l.leg === leg && l.rc === 0 && l.conclusion === "pass")).map((leg) => {
+          const ids = (d.call({ op: "console.landLeg", leg, ids: c.checks ?? [] }) as { ids: string[] }).ids;
+          return `${leg}${ids.length ? ` [checks ${ids.join(" ")}]` : ""}`;
+        });
+        detail = `pipeline ${id}, failed legs: ${failed.join("; ") || "none named"}`;
+      }
+      return { run, ...(detail ? { detail } : {}),
         times: t ? { startMs: end - t.queueMs - t.laneMs, queueMs: t.queueMs, laneMs: t.laneMs } : null, ...(note ? { note } : {}) };
     },
   };

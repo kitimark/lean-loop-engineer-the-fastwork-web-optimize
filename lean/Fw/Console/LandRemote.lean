@@ -119,11 +119,12 @@ def verdict (localOk needed : Bool) (allow : List Provider) (w : Want) (waitsLef
   fallback allow waitsLeft rel
 
 /-- The state `fw ci wait` reports by its exit code: 0 pass, 1 fail only when its output said `-> fail` (`saidFail`; any other exit 1 is
-a crashed waiter, a wait error, `unavailable`), 3 the slice ran out with the run still going (`timedOut`: its output said `timed out after`;
-any other exit 3 is a stopped poller or a refused gh call), 4 not run, else gh unavailable. -/
-def waitState (code : Nat) (timedOut saidFail : Bool) : RunState :=
+a crashed waiter, a wait error), 2 and 3 are wait errors too (a refused gh call, a stopped poller) or the slice ran out (`timedOut`); a wait
+error says nothing about the run, so it is `running` and the land keeps waiting until the existing deadline marks it `timeout`; 4 not run;
+any other exit: gh unavailable. -/
+def waitState (code : Nat) (_timedOut saidFail : Bool) : RunState :=
   match code with
-  | 0 => .pass | 1 => if saidFail then .fail else .unavailable | 3 => if timedOut then .running else .unavailable | 4 => .cancelled | _ => .unavailable
+  | 0 => .pass | 1 => if saidFail then .fail else .running | 2 => .running | 3 => .running | 4 => .cancelled | _ => .unavailable
 
 /-- A run that completed with conclusion `failure` (a view without a `status` field counts as completed). -/
 def completedFailure (status conclusion : String) : Bool := conclusion == "failure" && (status == "completed" || status == "")
@@ -514,13 +515,17 @@ theorem laneState_one_failure (code : Nat) (t s : Bool) (rs : List Bool) (hc : c
   have hok : LandLegs.legsOk rs = false := LandLegs.legsOk_fail_wins rs hf
   simp [laneState, completedFailure, completedUnknown, going, hj, hrs, hok]
 
-/-- Branch 4, wait error: with no run record, a waiter that did not say `fail` never yields `fail`: exit 1 without the line, and every
-exit but 0, 1, 3 and 4, are `unavailable` and keep waiting. -/
-theorem laneState_wait_error (code : Nat) (t : Bool) (h : code ≠ 0 ∧ code ≠ 3 ∧ code ≠ 4) :
+/-- Branch 4, wait error: with no run record, a waiter that did not say `fail` never yields `fail`: exit 1 without the line, exit 2 and
+exit 3 are `running` (the land keeps waiting); every exit but 0 to 4 is `unavailable`. -/
+theorem laneState_wait_error (code : Nat) (t : Bool) (h : code ≠ 0 ∧ code ≠ 1 ∧ code ≠ 2 ∧ code ≠ 3 ∧ code ≠ 4) :
     laneState code t "" "" false none = .unavailable := by
-  obtain ⟨h0, h3, h4⟩ := h
+  obtain ⟨h0, h1, h2, h3, h4⟩ := h
   simp [laneState, completedFailure, completedUnknown, going, waitState]
-  split <;> simp_all
+
+/-- Branch 4, wait error that waits: no record and no `-> fail` line, exit 1, 2 or 3: the run is `running`. -/
+theorem laneState_wait_error_running (code : Nat) (t : Bool) (h : code = 1 ∨ code = 2 ∨ code = 3) :
+    laneState code t "" "" false none = .running := by
+  rcases h with rfl | rfl | rfl <;> simp [laneState, completedFailure, completedUnknown, going, waitState]
 
 /-- Branch 4, the waiter stands: with no record, the waiter's outcome decides. -/
 theorem laneState_waiter (code : Nat) (t s : Bool) : laneState code t "" "" s none = waitState code t s := by
@@ -548,6 +553,20 @@ theorem verdict_completed_failure_refuses (a : List Provider) (w : Want) (k : Na
     (hm : laneRun p w.sha w.laneId w.laneDigest code t sf status conclusion jobs ∈ rs) :
     verdict true true a w k rs = .refuse .remoteFail :=
   verdict_fail a w k rs ⟨_, hm, by simp [Want.binds, laneRun], laneState_completed_failure code t sf status conclusion jobs hc⟩
+
+/-- A bound lane run whose waiter errored with no record and no fail line (exit 1, 2 or 3) keeps the land waiting, not run locally and not
+a new provider, when nothing else decided: the wait lasts until the deadline turns the run into `timeout`. -/
+theorem verdict_wait_error_waits (a : List Provider) (w : Want) (k : Nat) (p : Provider) (code : Nat) (t : Bool)
+    (h : code = 1 ∨ code = 2 ∨ code = 3) :
+    verdict true true a w k [laneRun p w.sha w.laneId w.laneDigest code t false "" "" none] = .wait .pending := by
+  have hs := laneState_wait_error_running code t h
+  have hb : w.binds (laneRun p w.sha w.laneId w.laneDigest code t false "" "" none) = true := by simp [Want.binds, laneRun]
+  apply verdict_pending a w k
+  · intro r hr hbr
+    rw [List.mem_singleton] at hr; subst hr; simp [laneRun, hs]
+  · intro r hr hbr hps
+    rw [List.mem_singleton] at hr; subst hr; simp [laneRun, hs] at hps
+  · exact ⟨_, List.mem_singleton_self _, hb, Or.inr (by simp [laneRun, hs])⟩
 
 /-- A fallback to the local tier is impossible while a completed bound failed run is among the runs. -/
 theorem verdict_no_local_after_failure (a : List Provider) (w : Want) (k : Nat) (rs : List Run) (p : Provider)
@@ -645,9 +664,9 @@ def stateCases : List Json :=
    stateLine "pass, exit 0" 0 false "completed" "success",
    stateLine "fail by the waiter, no view" 1 false "" "",
    stateLine "exit 3 timed out, run going" 3 true "in_progress" "",
-   stateLine "exit 3 without timed out: unavailable" 3 false "" "",
+   stateLine "exit 3 without timed out: running" 3 false "" "",
    stateLine "exit 4: cancelled" 4 false "completed" "success",
-   stateLine "exit 2: unavailable" 2 false "" "",
+   stateLine "exit 2: running" 2 false "" "",
    stateLine "cancelled conclusion keeps the waiter outcome" 4 false "completed" "cancelled",
    stateLine "failure conclusion on a run still going is no completed failure" 3 true "in_progress" "failure",
    -- in progress: the record decides, not the exit
@@ -656,7 +675,9 @@ def stateCases : List Json :=
    stateLine "in progress, waiter exit 2: running" 2 false "in_progress" "",
    stateLine "queued, waiter exit 0: running" 0 false "queued" "",
    -- wait error: no record, no `-> fail` line
-   stateLine "wait error: exit 1 without a fail line, no record: unavailable" 1 false "" "" false,
+   stateLine "wait error: exit 1 without a fail line, no record: running" 1 false "" "" false,
+   stateLine "wait error: exit 2, no record: running" 2 false "" "" false,
+   stateLine "wait error: exit 3 without timed out, no record: running" 3 false "" "" false,
    stateLine "wait error: exit 1 said fail, no record: fail" 1 false "" "" true,
    stateLine "wait error: exit 137, no record: unavailable" 137 false "" "" false,
    -- timeout of the slice
@@ -668,7 +689,7 @@ def stateCases : List Json :=
    stateLine "all jobs success, waiter exit 0: pass" 0 false "completed" "success" false (some [true, true]),
    stateLine "all jobs success, exit 4 (guard skipped): cancelled" 4 false "completed" "success" false (some [true, true]),
    stateLine "success without job conclusions, waiter exit 1 said fail: fail" 1 false "completed" "success" true none,
-   stateLine "success with no legs, waiter exit 1 crashed: unavailable" 1 false "completed" "success" false (some []),
+   stateLine "success with no legs, waiter exit 1 crashed: running" 1 false "completed" "success" false (some []),
    -- one failure
    stateLine "one job failed, run success, waiter exit 0: fail" 0 false "completed" "success" false (some [true, false, true]),
    stateLine "one job failed, run success, waiter exit 1: fail" 1 false "completed" "success" true (some [true, false, true]),
