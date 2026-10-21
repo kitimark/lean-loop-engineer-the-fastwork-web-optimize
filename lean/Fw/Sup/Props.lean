@@ -2853,4 +2853,152 @@ theorem stop_only_idle {c : Cfg} {s : State} {e : Event} {i : Ident} (h : Inv c 
     · injection e' with e1; cases e1
   · exact Or.inr (evict_for_pending h ha hx)
 
+/-! ## Lease ends -/
+
+theorem exits_nr (c : Cfg) (now : Nat) (x : Rsrc) : (exits c now x).phase ≠ .ready := by
+  unfold exits
+  cases hp : x.phase <;> simp only [hp] <;> first | exact crash_not_ready _ _ _ _ | (intro e; cases e) | simp
+
+/-- exit_releases: when a group exits, the resource that had it holds no service lease after the step, and each
+service lease it held is revoked. -/
+theorem exit_releases {c : Cfg} {s : State} {i : Ident} {x : Rsrc} (h : Inv c s) (hx : x ∈ s.res)
+    (hi : x.proc = some i) :
+    leasesOn (step c s (.childExit i)).1 x.id = [] ∧
+    ∀ l ∈ s.leases, l.kind = .svc → l.rid = x.id → Cmd.revoke l.owner l.id ∈ (step c s (.childExit i)).2 := by
+  let f := fun y : Rsrc => if y.proc == some i then exits c s.now y else y
+  have hpre : (pre c s (.childExit i)).1.res = s.res.map f := rfl
+  have hy1 : f x ∈ (pre c s (.childExit i)).1.res := by rw [hpre]; exact List.mem_map_of_mem hx
+  have hfx : f x = exits c s.now x := by simp [f, hi]
+  have hnr : (f x).phase ≠ .ready := by rw [hfx]; exact exits_nr c s.now x
+  have hid : (f x).id = x.id := by rw [hfx]; exact (exits_same c s.now x).1
+  have hwp := wf_pre (.childExit i) h.1
+  have hnd : ∀ z ∈ (pre c s (.childExit i)).1.res, z.id = x.id → z = f x := fun z hz e =>
+    eq_of_nodup_map (·.id) _ hwp.rids z (f x) hz hy1 (e.trans hid.symm)
+  refine ⟨?_, fun l hl hk hr => ?_⟩
+  · have hi' := step_inv (.childExit i) h
+    rw [step_st (e := .childExit i) rfl] at hi' ⊢
+    obtain ⟨⟨F, hF, hFm⟩, _⟩ := pump_pm hwp
+    apply List.eq_nil_iff_forall_not_mem.2
+    intro l hl
+    obtain ⟨hl1, hl2⟩ := List.mem_filter.1 hl
+    simp only [Bool.and_eq_true, beq_iff_eq] at hl2
+    obtain ⟨r, hr, hrid, hrd⟩ := (hi'.1.svc l hl1 hl2.1).2
+    rw [hF] at hr
+    obtain ⟨z, hz, rfl⟩ := List.mem_map.1 hr
+    have hz' : z = f x := hnd z hz (by rw [← key_id (hFm z hz).1, hrid, hl2.2])
+    subst hz'
+    rcases (hFm _ hz).2 with e | ⟨_, _, e⟩ | ⟨_, e⟩
+    · exact hnr (e.symm.trans hrd)
+    · rw [hrd] at e; cases e
+    · rw [hrd] at e; cases e
+  · have hrf : readyId (s.res.map f) l.rid = false := by
+      cases e : readyId (s.res.map f) l.rid
+      · rfl
+      · obtain ⟨z, hz, e2⟩ := List.any_eq_true.1 e
+        simp only [Bool.and_eq_true, beq_iff_eq] at e2
+        have := hnd z hz (e2.1.trans hr)
+        subst this
+        exact absurd e2.2 hnr
+    rw [step_out (e := .childExit i) rfl]
+    refine List.mem_append_left _ ?_
+    show _ ∈ ((s.leases.filter fun l => !svcOk (s.res.map f) l).map fun l => Cmd.revoke l.owner l.id)
+    refine List.mem_map.2 ⟨l, List.mem_filter.2 ⟨hl, ?_⟩, rfl⟩
+    simp [svcOk, hk, hrf]
+
+theorem countP_one {L : List Lease} {p : Lease → Bool} {l : Lease} (hn : (L.map (·.id)).Nodup) (hl : l ∈ L)
+    (hp : p l = true) (hq : ∀ l' ∈ L, p l' = true → l'.id = l.id) : L.countP p = 1 := by
+  induction L with
+  | nil => cases hl
+  | cons a L ih =>
+    rw [List.map_cons, List.nodup_cons] at hn
+    rw [List.countP_cons]
+    rcases List.mem_cons.1 hl with rfl | hl'
+    · have h0 : L.countP p = 0 := List.countP_eq_zero.2 fun l' hl'' hp' =>
+        hn.1 (by rw [← hq l' (List.mem_cons_of_mem _ hl'') hp']; exact List.mem_map_of_mem hl'')
+      simp [hp, h0]
+    · have ha : p a = false := by
+        cases e : p a
+        · rfl
+        · exact absurd (by rw [hq a List.mem_cons_self e]; exact List.mem_map_of_mem hl') hn.1
+      rw [ih hn.2 hl' (fun l' h' => hq l' (List.mem_cons_of_mem _ h')), ha]
+      rfl
+
+theorem mem_grantsIn {cs : List Cmd} {l : Lease} (h : l ∈ grantsIn cs) : ∃ n, Cmd.reply n (.granted l) ∈ cs := by
+  obtain ⟨x, hx, e⟩ := List.mem_filterMap.1 h
+  cases x with
+  | reply n r =>
+    cases r with
+    | granted l0 =>
+      simp only [Option.some.injEq] at e
+      subst e
+      exact ⟨n, hx⟩
+    | _ => simp at e
+  | _ => simp at e
+
+theorem count_zero {r : Cmd} {L : List Cmd} (h : ∀ x ∈ L, x ≠ r) : L.count r = 0 :=
+  List.count_eq_zero.2 fun hx => h _ hx rfl
+
+/-- expired_revoked: on a tick, a lease past its deadline or held by a client missing from the sample is revoked
+exactly once, and no lease with its id is left. -/
+theorem expired_revoked {c : Cfg} {s : State} {now : Nat} {smp : Sample} {l : Lease} (h : Inv c s)
+    (hl : l ∈ s.leases) (hd : l.deadline ≤ now ∨ smp.clients.contains l.owner = false) :
+    (step c s (.tick now smp)).2.count (.revoke l.owner l.id) = 1 ∧
+    ∀ l' ∈ (step c s (.tick now smp)).1.leases, l'.id ≠ l.id := by
+  have hw := wf_pre (.tick now smp) h.1
+  refine ⟨?_, ?_⟩
+  · rw [step_out (e := .tick now smp) rfl, List.count_append]
+    rw [count_zero (L := (pumpAcc c (pre c s (.tick now smp)).1).out) fun x hx e => by
+      rcases (pump_pm hw).2 _ hx with ⟨_, _, e'⟩ | ⟨_, _, e', _⟩ | ⟨_, _, _, _, _, e'⟩ <;> rw [e] at e' <;> cases e']
+    have hO : (observe c s now smp).2.count (.revoke l.owner l.id) = 1 := by
+      unfold observe mapRes cut
+      dsimp only
+      rw [List.count_append, count_zero fun x hx e => by
+        obtain ⟨y, _, hy⟩ := List.mem_flatMap.1 hx
+        rcases tickRec_sig hy with ⟨_, _, e'⟩ | ⟨_, _, e'⟩ <;> rw [e] at e' <;> cases e']
+      rw [Nat.zero_add, List.count_eq_countP, List.countP_map]
+      have hn : (s.leases.map (·.id)).Nodup := (List.nodup_append.1 h.1.ids).1
+      refine countP_one ((List.filter_sublist).map _ |>.nodup hn) (List.mem_filter.2 ⟨hl, ?_⟩) (by simp) ?_
+      · rcases hd with hd | hd
+        · have : ¬ max s.now now < l.deadline := by omega
+          simp [this]
+        · have : ¬ l.owner ∈ smp.clients := by simpa using hd
+          simp [this]
+      · intro l' _ e
+        simp only [Function.comp_def, beq_iff_eq, Cmd.revoke.injEq] at e
+        exact e.2
+    show List.count _ (tick c s now smp).2 + 0 = 1
+    unfold tick
+    dsimp only
+    simp only [List.count_append]
+    rw [count_zero (L := (idleStage c (observe c s now smp).1).2) fun x hx e => by
+      obtain ⟨_, _, _, _, _, _, e'⟩ := stopAll_sig hx; rw [e] at e'; cases e']
+    rw [count_zero (L := (shedStage c (idleStage c (observe c s now smp).1).1).2) fun x hx e => by
+      rcases shedStage_eq c (idleStage c (observe c s now smp).1).1 with e2 | e2 <;> rw [e2] at hx
+      · obtain ⟨_, _, _, _, _, _, e'⟩ := stopAll_sig hx; rw [e] at e'; cases e'
+      · cases hx]
+    rw [hO]
+    split <;> simp
+  · have hids := h.1.ids
+    have hle : (pre c s (.tick now smp)).1.leases = (observe c s now smp).1.leases := by
+      have := congrArg State.leases (tick_st c s now smp); exact this
+    have hpe : (pre c s (.tick now smp)).1.pending = (observe c s now smp).1.pending := by
+      have := congrArg State.pending (tick_st c s now smp); exact this
+    rw [step_st (e := .tick now smp) rfl, (pump_pj hw).leases]
+    intro l' hl' e
+    rcases List.mem_append.1 hl' with hl' | hl'
+    · rw [hle] at hl'
+      obtain ⟨hl1, hk⟩ := List.mem_filter.1 hl'
+      have : l' = l := eq_of_nodup_map (·.id) _ (List.nodup_append.1 hids).1 l' l hl1 hl e
+      subst this
+      simp only [Bool.and_eq_true, decide_eq_true_eq] at hk
+      rcases hd with hd | hd
+      · exact absurd hk.1.1 (by omega)
+      · rw [hd] at hk; exact absurd hk.1.2 (by simp)
+    · obtain ⟨n, hn⟩ := mem_grantsIn hl'
+      obtain ⟨hid, _, q, hq, hqid, _⟩ := (pump_pj hw).gid n l' hn
+      rw [hpe] at hq
+      have hq' : q ∈ s.pending := (List.mem_filter.1 hq).1
+      exact (List.nodup_append.1 hids).2.2 l.id (List.mem_map_of_mem hl) q.id (List.mem_map_of_mem hq')
+        (by rw [← e, hid, hqid])
+
 end Fw.Sup
