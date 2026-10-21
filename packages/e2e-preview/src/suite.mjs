@@ -48,11 +48,15 @@ const blockExternal = (log) => async (route) => {
   await route.abort("blockedbyclient");
 };
 
-/** Everything the checks read from a loaded frame, in one evaluate. */
-async function frameFacts(frame) {
-  return await frame.evaluate(async () => {
+/** Everything the checks read from a loaded frame, in one evaluate. `want`: font families the page is expected to load by itself; a face
+ *  loads when text that uses it is first laid out, which on a cold first load of WebKit can come after `fonts.ready` resolved, so
+ *  the read waits (at most 5 s) until each wanted family has a loaded face. The check still fails when one never loads. */
+async function frameFacts(frame, want = []) {
+  return await frame.evaluate(async (want) => {
     await document.fonts.ready;
-    const fonts = [...document.fonts].filter((f) => f.status === "loaded").map((f) => f.family.replace(/["']/g, ""));
+    const loaded = () => [...document.fonts].filter((f) => f.status === "loaded").map((f) => f.family.replace(/["']/g, ""));
+    for (let t = 0; t < 50 && !want.every((n) => loaded().some((x) => x.includes(n))); t++) await new Promise((r) => setTimeout(r, 100));
+    const fonts = loaded();
     const imgs = [...document.images];
     return {
       title: document.title,
@@ -66,7 +70,7 @@ async function frameFacts(frame) {
       hydratedAttr: document.documentElement.getAttribute("data-hydrated"),
       bodyText: (document.body?.innerText ?? "").length,
     };
-  });
+  }, want);
 }
 
 /** Scroll the page to the bottom in steps so lazy images load, then let the network go quiet. */
@@ -235,7 +239,7 @@ async function runTarget(browser, rig, engine, host, target, opts) {
     for (const f of target.frames) {
       const fr = target.id === "compare" ? await frameOn(page, host.arm[f.arm]) : page.mainFrame();
       if (!fr) continue;
-      const facts = await frameFacts(fr);
+      const facts = await frameFacts(fr, FONTS[f.kind]);
       const tag = target.id === "compare" ? `${f.name}-frame/` : "";
       check(`${tag}fonts-loaded`, FONTS[f.kind].every((n) => facts.fonts.some((x) => x.includes(n))), `loaded: ${facts.fonts.join(", ") || "none"}`);
       check(`${tag}images-0-broken`, facts.images > 0 && facts.broken.length === 0, `${facts.images} images, ${facts.broken.length} broken ${facts.broken.slice(0, 2).join(" ")}`);
