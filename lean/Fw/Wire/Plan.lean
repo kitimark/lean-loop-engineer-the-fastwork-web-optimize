@@ -46,7 +46,7 @@ The stateless op `plan.incidentLint` (task `incident-lint`, `Fw.Plan.Incident`),
 | op | request | reply |
 |---|---|---|
 | `plan.incidentLint` | `incidents` [ledger records as in the file], `tasks` [{id, evidence?, agent?}] (work graph rows with board state), `commits`? [refs that are commits on main], `files`? [refs that exist], `classes`? [class ids of research/mistakes/ledger.json] | `ok`, `errors`, `warnings`, `incidents` [{id, status, findings [{code, severity, detail}]}] |
-| `plan.reviewReady` | `items` [{id, status, evidence}], `runs` [{id, state}] (missing = `[]`), `dry` (the `VERDICT` line of `fw land --dry`, missing = blank) (task `review-flow-v2`, `Fw.Plan.ReviewReady`) | `ready` (`review`, `dispatch`, `wait`, `returnToBuilder`) |
+| `plan.reviewReady` | `items` [{id, status, evidence}], `runs` [{id, state}] (missing = `[]`), `task` (the task id, missing = blank), `dry` (the `VERDICT` line of `fw land --dry`, missing = blank) (task `review-flow-v2`, `Fw.Plan.ReviewReady`) | `ready` (`review`, `dispatch`, `wait`, `returnToBuilder`) |
 | `plan.reviewVerdict` | `severities` [word] (`blocker`, `fix-before-land`, `follow-up`; any other word is a blocker), `audited`? [bool: the medium-only audit is done] | `verdict` (`accept`, `refuse`), `recheck` [bool: an accept that carries a `fix-before-land` finding needs the checker], `blockers`, `fixes` [counts] |
 | `plan.overlap` | `rows` [{id, writes}] (work graph), `running` [task ids], `candidate`? [task id], `override`? [reason] (task `spawn-write-overlap`, `Fw.Plan.Overlap`) | `verdict` (`clear`, `refused`, `overridden`, `unknown`), `conflicts` [{a, b, ga, gb}], `unknown` [ids] |
 -/
@@ -239,7 +239,8 @@ def opReviewReady (req : Json) : Except String Reply := do
   let runs ← ((← match opt req "runs" with | none => pure #[] | some v => asArr "runs" v)).toList.mapM fun r => do
     pure ({ id := ← str r "id", state := ← str r "state" } : Run)
   let dry := (← optStr req "dry").getD ""
-  pure [("ready", .str (reviewReady items runs dry).name)]
+  let task := (← optStr req "task").getD ""
+  pure [("ready", .str (reviewReady task items runs dry).name)]
 
 open Fw.Plan.ReviewReady in
 /-- `plan.reviewVerdict`: `verdictOf` (audited) or `strictVerdict` (the interim rule) over the severity words. -/

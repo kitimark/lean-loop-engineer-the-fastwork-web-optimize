@@ -56,9 +56,9 @@ structure Item where
   evidence : String
 deriving Repr, DecidableEq
 
-/-- A run a report names, with its state word (`running`, `complete`, `failed`).
+/-- A run the report names, with the state the builder reports (`running`, `complete`, `failed`).
 
-What the lead or `fw ci` knows about the run.
+The reviewer re-checks the state with `fw ci`.
 -/
 structure Run where
   id : String
@@ -129,25 +129,25 @@ def itemGate (runs : List Run) (i : Item) : Ready :=
       | some run => if run.state == "running" then .wait else if run.state == "complete" then .review else .returnToBuilder
   | .undelivered | .unknown => .returnToBuilder
 
-/-- Is the `fw land --dry` line a passing one?
+/-- Is the `fw land --dry` line a passing one for this task?
 
-The line starts `VERDICT dry `.
+The line is exactly `VERDICT dry <task>`, so a line from another task or a bare prefix fails.
 -/
-def dryOk (dry : String) : Bool := dry.startsWith "VERDICT dry "
+def dryOk (task dry : String) : Bool := dry == "VERDICT dry " ++ task
 
 /-- Is the report itself at fault?
 
 The dry line is not a pass, the report has no item, or an item goes back to the builder.
 -/
-def fault (items : List Item) (runs : List Run) (dry : String) : Bool :=
-  !dryOk dry || items.isEmpty || items.any fun i => itemGate runs i == .returnToBuilder
+def fault (task : String) (items : List Item) (runs : List Run) (dry : String) : Bool :=
+  !dryOk task dry || items.isEmpty || items.any fun i => itemGate runs i == .returnToBuilder
 
 /-- The gate: `returnToBuilder` on a fault, else `dispatch` if an item needs one, else `wait` if an item waits, else `review`.
 
 Whether a build report earns an Opus review.
 -/
-def reviewReady (items : List Item) (runs : List Run) (dry : String) : Ready :=
-  if fault items runs dry then .returnToBuilder
+def reviewReady (task : String) (items : List Item) (runs : List Run) (dry : String) : Ready :=
+  if fault task items runs dry then .returnToBuilder
   else if items.any fun i => itemGate runs i == .dispatch then .dispatch
   else if items.any fun i => itemGate runs i == .wait then .wait
   else .review
@@ -156,49 +156,49 @@ def reviewReady (items : List Item) (runs : List Run) (dry : String) : Ready :=
 
 The `Prop` form of `fault`.
 -/
-theorem fault_iff (items runs dry) :
-    fault items runs dry = true ↔
-      (dryOk dry = false ∨ items = [] ∨ ∃ i ∈ items, itemGate runs i = .returnToBuilder) := by
+theorem fault_iff (task items runs dry) :
+    fault task items runs dry = true ↔
+      (dryOk task dry = false ∨ items = [] ∨ ∃ i ∈ items, itemGate runs i = .returnToBuilder) := by
   simp [fault, List.any_eq_true, List.isEmpty_iff, or_assoc]
 
 /-- Branch `returnToBuilder`: exactly when the dry line is not a pass, no item is listed, or an item goes back.
 
 A faulty report is sent back, whatever else it holds.
 -/
-theorem reviewReady_returnToBuilder_iff (items runs dry) :
-    reviewReady items runs dry = .returnToBuilder ↔
-      (dryOk dry = false ∨ items = [] ∨ ∃ i ∈ items, itemGate runs i = .returnToBuilder) := by
+theorem reviewReady_returnToBuilder_iff (task items runs dry) :
+    reviewReady task items runs dry = .returnToBuilder ↔
+      (dryOk task dry = false ∨ items = [] ∨ ∃ i ∈ items, itemGate runs i = .returnToBuilder) := by
   rw [← fault_iff]; unfold reviewReady
-  by_cases hf : fault items runs dry = true <;> by_cases hd : (items.any fun i => itemGate runs i == .dispatch) = true <;>
+  by_cases hf : fault task items runs dry = true <;> by_cases hd : (items.any fun i => itemGate runs i == .dispatch) = true <;>
     by_cases hw : (items.any fun i => itemGate runs i == .wait) = true <;> simp [hf, hd, hw]
 
 /-- Branch `dispatch`: a sound report with an item that needs a dispatched run.
 
 Only a report with no fault asks the lead to dispatch.
 -/
-theorem reviewReady_dispatch_iff (items runs dry) :
-    reviewReady items runs dry = .dispatch ↔
-      (¬ fault items runs dry = true ∧ ∃ i ∈ items, itemGate runs i = .dispatch) := by
+theorem reviewReady_dispatch_iff (task items runs dry) :
+    reviewReady task items runs dry = .dispatch ↔
+      (¬ fault task items runs dry = true ∧ ∃ i ∈ items, itemGate runs i = .dispatch) := by
   have hD : (∃ i ∈ items, itemGate runs i = .dispatch) ↔ (items.any fun i => itemGate runs i == .dispatch) = true := by
     simp [List.any_eq_true]
   unfold reviewReady
-  by_cases hf : fault items runs dry = true <;> by_cases hd : (items.any fun i => itemGate runs i == .dispatch) = true <;>
+  by_cases hf : fault task items runs dry = true <;> by_cases hd : (items.any fun i => itemGate runs i == .dispatch) = true <;>
     by_cases hw : (items.any fun i => itemGate runs i == .wait) = true <;> simp [hf, hd, hw, hD]
 
 /-- Branch `wait`: a sound report, no dispatch needed, an item names a running run.
 
 Only a report with no fault and no missing dispatch waits.
 -/
-theorem reviewReady_wait_iff (items runs dry) :
-    reviewReady items runs dry = .wait ↔
-      (¬ fault items runs dry = true ∧ (∀ i ∈ items, itemGate runs i ≠ .dispatch) ∧
+theorem reviewReady_wait_iff (task items runs dry) :
+    reviewReady task items runs dry = .wait ↔
+      (¬ fault task items runs dry = true ∧ (∀ i ∈ items, itemGate runs i ≠ .dispatch) ∧
         ∃ i ∈ items, itemGate runs i = .wait) := by
   have hD : (∃ i ∈ items, itemGate runs i = .dispatch) ↔ (items.any fun i => itemGate runs i == .dispatch) = true := by
     simp [List.any_eq_true]
   have hW : (∃ i ∈ items, itemGate runs i = .wait) ↔ (items.any fun i => itemGate runs i == .wait) = true := by
     simp [List.any_eq_true]
   unfold reviewReady
-  by_cases hf : fault items runs dry = true <;> by_cases hd : (items.any fun i => itemGate runs i == .dispatch) = true <;>
+  by_cases hf : fault task items runs dry = true <;> by_cases hd : (items.any fun i => itemGate runs i == .dispatch) = true <;>
     by_cases hw : (items.any fun i => itemGate runs i == .wait) = true <;> simp [hf, hd, hw, hD, hW]
   all_goals first | (intro i hi; exact fun e => hd (hD.1 ⟨i, hi, e⟩)) | skip
 
@@ -206,9 +206,9 @@ theorem reviewReady_wait_iff (items runs dry) :
 
 A review is spent only when nothing is missing, pending or wrong.
 -/
-theorem reviewReady_review_iff (items runs dry) :
-    reviewReady items runs dry = .review ↔
-      (dryOk dry = true ∧ items ≠ [] ∧ ∀ i ∈ items, itemGate runs i = .review) := by
+theorem reviewReady_review_iff (task items runs dry) :
+    reviewReady task items runs dry = .review ↔
+      (dryOk task dry = true ∧ items ≠ [] ∧ ∀ i ∈ items, itemGate runs i = .review) := by
   have hD : (∃ i ∈ items, itemGate runs i = .dispatch) ↔ (items.any fun i => itemGate runs i == .dispatch) = true := by
     simp [List.any_eq_true]
   have hW : (∃ i ∈ items, itemGate runs i = .wait) ↔ (items.any fun i => itemGate runs i == .wait) = true := by
@@ -217,8 +217,8 @@ theorem reviewReady_review_iff (items runs dry) :
       (itemGate runs i ≠ .returnToBuilder ∧ itemGate runs i ≠ .dispatch ∧ itemGate runs i ≠ .wait)) := by
     intro i _; cases itemGate runs i <;> simp
   unfold reviewReady
-  by_cases hf : fault items runs dry = true
-  · have := (fault_iff items runs dry).1 hf
+  by_cases hf : fault task items runs dry = true
+  · have := (fault_iff task items runs dry).1 hf
     simp only [hf, ite_true]
     constructor
     · intro h; cases h
@@ -227,7 +227,7 @@ theorem reviewReady_review_iff (items runs dry) :
       · simp_all
       · exact absurd h ne
       · rw [all i hi] at e; cases e
-  · have hf' := fun h => hf ((fault_iff items runs dry).2 h)
+  · have hf' := fun h => hf ((fault_iff task items runs dry).2 h)
     simp only [hf]
     by_cases hd : (items.any fun i => itemGate runs i == .dispatch) = true
     · simp only [hd, ite_true]
@@ -256,18 +256,37 @@ theorem reviewReady_review_iff (items runs dry) :
 
 The gate gives one of the four answers.
 -/
-theorem reviewReady_total (items runs dry) :
-    reviewReady items runs dry = .review ∨ reviewReady items runs dry = .dispatch ∨
-    reviewReady items runs dry = .wait ∨ reviewReady items runs dry = .returnToBuilder := by
-  cases h : reviewReady items runs dry <;> simp
+theorem reviewReady_total (task items runs dry) :
+    reviewReady task items runs dry = .review ∨ reviewReady task items runs dry = .dispatch ∨
+    reviewReady task items runs dry = .wait ∨ reviewReady task items runs dry = .returnToBuilder := by
+  cases h : reviewReady task items runs dry <;> simp
 
 /-- Without a passing `fw land --dry` line the gate never says `review`.
 
 The dry line is the lone entry point.
 -/
-theorem no_review_without_dry (items runs dry) (h : dryOk dry = false) :
-    reviewReady items runs dry = .returnToBuilder := by
+theorem no_review_without_dry (task items runs dry) (h : dryOk task dry = false) :
+    reviewReady task items runs dry = .returnToBuilder := by
   rw [reviewReady_returnToBuilder_iff]; exact Or.inl h
+
+/-- The dry line passes exactly when it is `VERDICT dry <task>`.
+
+The pass test as a statement.
+-/
+theorem dryOk_iff (task dry) : dryOk task dry = true ↔ dry = "VERDICT dry " ++ task := by
+  simp [dryOk]
+
+/-- A dry line of another task never passes.
+
+A stale line from a different task sends the report back.
+-/
+theorem dry_other_task_refused (task other items runs) (h : other ≠ task) :
+    reviewReady task items runs ("VERDICT dry " ++ other) = .returnToBuilder := by
+  apply no_review_without_dry
+  cases hb : dryOk task ("VERDICT dry " ++ other)
+  · rfl
+  · have := (dryOk_iff task _).1 hb
+    exact absurd (by simpa using this) h
 
 /-- A review finding's severity.
 
@@ -361,18 +380,20 @@ theorem strict_accept_verdict (fs) (h : strictVerdict fs = .accept) : verdictOf 
 -- Goldens: one #guard per branch.
 private def it (s e : String) : Item := ⟨"x", s, e⟩
 private def passDry := "VERDICT dry t"
-#guard reviewReady [it "done" "lean/Fw/X.lean:12"] [] passDry == .review
-#guard reviewReady [it "done" "lean/Fw/X.lean:12"] [] "VERDICT scope t" == .returnToBuilder
-#guard reviewReady [it "done" "no cite here"] [] passDry == .returnToBuilder
-#guard reviewReady [] [] passDry == .returnToBuilder
-#guard reviewReady [it "dispatch" "gh workflow run foo"] [] passDry == .dispatch
-#guard reviewReady [it "pending" "run:123"] [⟨"123", "running"⟩] passDry == .wait
-#guard reviewReady [it "pending" "run:123"] [⟨"123", "complete"⟩] passDry == .review
-#guard reviewReady [it "pending" "run:123"] [⟨"123", "failed"⟩] passDry == .returnToBuilder
-#guard reviewReady [it "pending" "run:9"] [] passDry == .returnToBuilder
-#guard reviewReady [it "pending" "run:1", it "dispatch" "cmd"] [⟨"1", "running"⟩] passDry == .dispatch
-#guard reviewReady [it "followUp" "", it "undelivered" ""] [] passDry == .returnToBuilder
-#guard reviewReady [it "followUp" ""] [] passDry == .review
+#guard reviewReady "t" [it "done" "lean/Fw/X.lean:12"] [] passDry == .review
+#guard reviewReady "t" [it "done" "lean/Fw/X.lean:12"] [] "VERDICT scope t" == .returnToBuilder
+#guard reviewReady "t" [it "done" "no cite here"] [] passDry == .returnToBuilder
+#guard reviewReady "t" [] [] passDry == .returnToBuilder
+#guard reviewReady "t" [it "dispatch" "gh workflow run foo"] [] passDry == .dispatch
+#guard reviewReady "t" [it "pending" "run:123"] [⟨"123", "running"⟩] passDry == .wait
+#guard reviewReady "t" [it "pending" "run:123"] [⟨"123", "complete"⟩] passDry == .review
+#guard reviewReady "t" [it "pending" "run:123"] [⟨"123", "failed"⟩] passDry == .returnToBuilder
+#guard reviewReady "t" [it "pending" "run:9"] [] passDry == .returnToBuilder
+#guard reviewReady "t" [it "pending" "run:1", it "dispatch" "cmd"] [⟨"1", "running"⟩] passDry == .dispatch
+#guard reviewReady "t" [it "followUp" "", it "undelivered" ""] [] passDry == .returnToBuilder
+#guard reviewReady "t" [it "followUp" ""] [] passDry == .review
+#guard reviewReady "t" [it "done" "lean/Fw/X.lean:12"] [] "VERDICT dry other" == .returnToBuilder
+#guard reviewReady "t" [it "done" "lean/Fw/X.lean:12"] [] "VERDICT dry " == .returnToBuilder
 #guard verdictOf [.followUp, .fixBeforeLand] == .accept
 #guard verdictOf [.followUp, .blocker] == .refuse
 #guard recheck [.fixBeforeLand] && !recheck [.followUp] && !recheck [.blocker, .fixBeforeLand]

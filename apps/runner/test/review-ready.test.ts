@@ -21,7 +21,7 @@ const bin = bins[0];
 
 const dry = "VERDICT dry t";
 const item = (status: string, evidence: string, id = "x") => ({ id, status, evidence });
-const ready = (items: unknown[], runs: unknown[] = [], d: string | null = dry) => ({ op: "plan.reviewReady", items, runs, dry: d });
+const ready = (items: unknown[], runs: unknown[] = [], d: string | null = dry) => ({ op: "plan.reviewReady", items, runs, task: "t", dry: d });
 const verdict = (severities: string[], audited?: boolean) => ({ op: "plan.reviewVerdict", severities, ...(audited === undefined ? {} : { audited }) });
 const cases: [string, Record<string, unknown>][] = [
   ["review: a done item with a file:line", ready([item("done", "lean/Fw/Plan/ReviewReady.lean:12-30")])],
@@ -30,6 +30,8 @@ const cases: [string, Record<string, unknown>][] = [
   ["review: a pending item whose run completed", ready([item("pending", "run:7")], [{ id: "7", state: "complete" }])],
   ["returnToBuilder: the dry line is missing", ready([item("done", "a.ts:1")], [], null)],
   ["returnToBuilder: the dry land was refused", ready([item("done", "a.ts:1")], [], "VERDICT scope t")],
+  ["returnToBuilder: the dry line is another task's", ready([item("done", "lean/Fw/X.lean:12")], [], "VERDICT dry other")],
+  ["returnToBuilder: the dry line has no task id", ready([item("done", "lean/Fw/X.lean:12")], [], "VERDICT dry ")],
   ["returnToBuilder: no items", ready([])],
   ["returnToBuilder: a done item without file:line or run id", ready([item("done", "see the summary")])],
   ["returnToBuilder: a path without a line number", ready([item("done", "lean/Fw/X.lean")])],
@@ -124,13 +126,33 @@ describe("fw review ready|verdict CLI", () => {
   it("a report without the dry line names it and goes back", async () => {
     const r = await run(["ready", "--report", file("nodry.json", { items: [item("done", "a.ts:1")] })]);
     expect(r.code).toBe(23);
-    expect(r.lines.join("\n")).toContain("no `VERDICT dry <id>` line");
+    expect(r.lines.join("\n")).toContain("must carry exactly `VERDICT dry -`");
   });
 
   it("the item that holds the gate is named", async () => {
-    const r = await run(["ready", "--report", file("n.json", { items: [item("done", "a.ts:1", "ok"), item("done", "prose", "bad")], dry })]);
+    const r = await run(["ready", "--report", file("n.json", { items: [item("done", "a.ts:1", "ok"), item("done", "prose", "bad")], dry }), "--task", "t"]);
     expect(r.lines.join("\n")).toContain("item bad (done): returnToBuilder");
     expect(r.lines.join("\n")).not.toContain("item ok");
+  });
+
+  it("a dry line of another task goes back (exit 23)", async () => {
+    const r = await run(["ready", "--report", file("o.json", { items: [item("done", "a.ts:1")], dry: "VERDICT dry other" }), "--task", "t"]);
+    expect(r.code).toBe(23);
+    expect(r.lines.at(-1)).toBe("VERDICT review-ready t returnToBuilder");
+  });
+
+  it("fwcore errors still print exactly one VERDICT line, last (ready: returnToBuilder 23, verdict: refuse 1)", async () => {
+    const boom = async () => { throw new Error("fwcore obs.health failed: unknown op plan.reviewReady"); };
+    const lines: string[] = [];
+    const log = (l: string) => lines.push(l);
+    const rep = file("e.json", { items: [item("done", "a.ts:1")], dry });
+    expect(await readyCli(["ready", "--report", rep, "--task", "t"], root, { core: boom, log })).toBe(23);
+    expect(lines).toEqual(["  fwcore: fwcore obs.health failed: unknown op plan.reviewReady", "VERDICT review-ready t returnToBuilder"]);
+    lines.length = 0;
+    const fnd = file("ef.json", [{ severity: "follow-up" }]);
+    expect(await readyCli(["verdict", "--findings", fnd, "--task", "t"], root, { core: boom, log })).toBe(1);
+    expect(lines).toEqual(["  fwcore: fwcore obs.health failed: unknown op plan.reviewReady", "VERDICT review-verdict t refuse"]);
+    expect(lines.filter((l) => l.startsWith("VERDICT")).length).toBe(1);
   });
 
   it("verdict: blockers refuse (exit 1), follow-ups accept (exit 0), fix-before-land follows the audit flag", async () => {
