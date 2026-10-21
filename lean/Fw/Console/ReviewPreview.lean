@@ -179,8 +179,19 @@ def askText : Device → String
 /-- The ask lines of a flag, one per missing device. -/
 def asks (evs : List Seen) (f : Flag) : List String := (missing evs f).map askText
 
+/-- The key of a flag and device word before the round tag: `review-previewed-<flag key>-<device word>`. -/
+def keyPrefix (flagKey dev : String) : String := "review-previewed-" ++ flagKey ++ "-" ++ dev
+
 /-- The key of the event a Preview click records (a repeated click on the same device is a no-op duplicate). -/
-def eventKey (f : Flag) (d : Device) : String := "review-previewed-" ++ f.key ++ "-" ++ d.word
+def eventKey (f : Flag) (d : Device) (round : String := "") : String := keyPrefix f.key d.word ++ round
+
+/-- The key part of a review round: none for the first step of the flag (so a key recorded before rounds existed is the first
+round's), `#k` for a later one. A later round must differ, or its first click would be dropped as the duplicate of the old one. -/
+def roundTag (f : Flag) (step : String) : String := (step.drop (stepId f).length).toString
+
+/-- The step of the open review of a flag: its current round. -/
+def roundStep (ds : List Row) (rs : List Rec) (f : Flag) : String :=
+  (((openItems ds rs).find? (·.flag == f)).map (·.step)).getD (stepId f)
 
 /-- **A recorded preview is seen.** -/
 theorem seenOn_record (evs : List Seen) (f : Flag) (d : Device) : seenOn (evs ++ [(f.key, d.word)]) f d = true := by
@@ -206,7 +217,7 @@ theorem seenOn_mono (evs ts : List Seen) (f : Flag) (d : Device) (h : seenOn evs
 
 /-- The event of a click, or why none is made: the review must be open, and the device is the width's class. -/
 def record (ds : List Row) (rs : List Rec) (f : Flag) (width : Nat) : Except String (String × Device) :=
-  if (openFlags ds rs).contains f then .ok (eventKey f (deviceOf width), deviceOf width)
+  if (openFlags ds rs).contains f then .ok (eventKey f (deviceOf width) (roundTag f (roundStep ds rs f)), deviceOf width)
   else .error "no open look-change review for this flag"
 
 /-- A recorded click is for an open review and carries the width's device. -/
@@ -221,6 +232,118 @@ theorem record_ok_open (ds rs f width k d) (h : record ds rs f width = .ok (k, d
 theorem record_error_closed (ds rs f width) (h : f ∉ openFlags ds rs) :
     record ds rs f width = .error "no open look-change review for this flag" := by
   simp [record, h]
+
+/-! ## The round an event names
+
+A `review.previewed` event is placed in a review round by the round tag of its own key (identity), never by its log position or
+the order of postings. The tag is the key's part after `keyPrefix`: `""` for the first round of a flag, `#k` for a later one
+(`roundTag`). A key that does not start with its flag and device prefix, or an event without a key, names the first round (`""`):
+an event recorded before round tags existed. -/
+
+/-- The round tag a key names: what follows `keyPrefix flagKey dev`; `""` when the key does not start with it. -/
+def roundOfKey (flagKey dev key : String) : String :=
+  if (keyPrefix flagKey dev).toList.isPrefixOf key.toList
+  then String.ofList (key.toList.drop (keyPrefix flagKey dev).toList.length) else ""
+
+/-- **The key parser inverts the key builder.** The round of a recorded key is the tag it was built with. -/
+theorem roundOfKey_eventKey (f : Flag) (d : Device) (t : String) : roundOfKey f.key d.word (eventKey f d t) = t := by
+  simp [roundOfKey, eventKey, String.toList_append]
+
+/-- **The key of a click names the round of its step.** The round of the key a click of the step `id` records is the step's
+round tag. -/
+theorem roundOfKey_roundTag (f : Flag) (d : Device) (id : String) :
+    roundOfKey f.key d.word (eventKey f d (roundTag f id)) = roundTag f id := roundOfKey_eventKey f d _
+
+/-- A preview event as the reader gets it: the flag key and device word, and the event's key. -/
+abbrev KSeen := Seen × String
+
+/-- The round tag an event's key names. -/
+def keyedRound (e : KSeen) : String := roundOfKey e.1.1 e.1.2 e.2
+
+/-- The events of the round with the tag `t`: those whose key names `t`. -/
+def roundEventsOf (t : String) (evs : List KSeen) : List Seen := (evs.filter fun e => keyedRound e == t).map (·.1)
+
+/-- **Membership.** An event is in a round exactly when some event of the log with that flag and device names that round. -/
+theorem mem_roundEventsOf (t : String) (evs : List KSeen) (x : Seen) :
+    x ∈ roundEventsOf t evs ↔ ∃ e ∈ evs, e.1 = x ∧ keyedRound e = t := by
+  simp only [roundEventsOf, List.mem_map, List.mem_filter, beq_iff_eq]
+  constructor
+  · rintro ⟨e, ⟨h1, h2⟩, h3⟩; exact ⟨e, h1, h3, h2⟩
+  · rintro ⟨e, h1, h3, h2⟩; exact ⟨e, ⟨h1, h2⟩, h3⟩
+
+/-- **T1: an event is shown in exactly the round its key names.** Alone in the log, an event is in round `t` exactly when its
+key names `t`. -/
+theorem shown_iff_named (e : KSeen) (t : String) : e.1 ∈ roundEventsOf t [e] ↔ keyedRound e = t := by
+  rw [mem_roundEventsOf]; simp
+
+/-- **T1, in any log.** An event of the log is shown in the round its key names. -/
+theorem named_round_shows (evs : List KSeen) (e : KSeen) (h : e ∈ evs) : e.1 ∈ roundEventsOf (keyedRound e) evs :=
+  (mem_roundEventsOf _ _ _).2 ⟨e, h, rfl, rfl⟩
+
+/-- **T2: a round shows no event keyed for another round.** If no event of the log names round `t`, round `t` is empty. This
+covers the window before a new step is posted and a click whose read raced a close: the key was fixed when the click was recorded. -/
+theorem other_rounds_show_nothing (t : String) (evs : List KSeen) (h : ∀ e ∈ evs, keyedRound e ≠ t) : roundEventsOf t evs = [] := by
+  simp only [roundEventsOf, List.map_eq_nil_iff, List.filter_eq_nil_iff, beq_iff_eq]
+  intro e he; exact h e he
+
+/-- **T2, per event.** An event keyed for round `j` is not shown in a different round `t`, unless another event of the log
+with the same flag and device is keyed for `t`. -/
+theorem keyed_elsewhere_hidden (t : String) (e : KSeen) (h : keyedRound e ≠ t) : roundEventsOf t [e] = [] :=
+  other_rounds_show_nothing t [e] (by simpa using h)
+
+/-- **T3: a click of the open round hits a shown event.** The key `record` gives a click names the round tag of the open step
+(`roundTag f (roundStep ds rs f)`), so an event recorded with that key is shown in that round; a later click of the same device in
+that round has the same key and is the duplicate of a shown event, never of a hidden one. -/
+theorem record_key_shown (ds rs f width k d) (h : record ds rs f width = .ok (k, d)) (evs : List KSeen)
+    (hm : ((f.key, d.word), k) ∈ evs) :
+    (f.key, d.word) ∈ roundEventsOf (roundTag f (roundStep ds rs f)) evs := by
+  have hk : k = eventKey f (deviceOf width) (roundTag f (roundStep ds rs f)) ∧ d = deviceOf width := by
+    unfold record at h
+    split at h
+    · simp at h; exact ⟨h.1.symm, h.2.symm⟩
+    · cases h
+  obtain ⟨h1, h2⟩ := hk
+  subst h2; subst h1
+  rw [mem_roundEventsOf]
+  exact ⟨_, hm, rfl, by simp [keyedRound, roundOfKey_eventKey]⟩
+
+/-- A key that is not built from its flag and device names the first round (`""`): an event without a key is untagged. -/
+theorem roundOfKey_untagged (flagKey dev : String) : roundOfKey flagKey dev "" = "" := by
+  simp [roundOfKey, keyPrefix, String.toList_append]
+
+/-- **L1: an untagged event shows only in the first round.** An event keyed `eventKey f d ""` (or with no key) is in round `""`
+and in no other. -/
+theorem untagged_first_round_only (f : Flag) (d : Device) (t : String) (h : t ≠ "") :
+    roundEventsOf t [((f.key, d.word), eventKey f d "")] = [] :=
+  keyed_elsewhere_hidden t _ (by simp [keyedRound, roundOfKey_eventKey, Ne.symm h])
+
+/-! ## Which flags a search names -/
+
+/-- The flag names a search carries: its `fw` entries, split at `,`, each a whole name. -/
+def searchFlags (search : String) : List String :=
+  BuildsOpen.fwEntries (BuildsOpen.params (BuildsOpen.body search))
+
+/-- Whether a search names a flag: one of its entries is the flag's whole key. A flag whose key is the start of another
+(`nav:earn` and `nav:earn-no-transition`) is not named by the other. -/
+def searchHasFlag (search : String) (f : Flag) : Bool := (searchFlags search).contains f.key
+
+/-- **Exact match.** A search names a flag exactly when an entry of it equals the flag's key; no part of an entry counts. -/
+theorem searchHasFlag_iff (search : String) (f : Flag) :
+    searchHasFlag search f = true ↔ f.key ∈ searchFlags search := by
+  simp [searchHasFlag]
+
+/-- A key that is no entry of the search is not named, whatever the entries contain. -/
+theorem searchHasFlag_false (search : String) (f : Flag) (h : f.key ∉ searchFlags search) :
+    searchHasFlag search f = false := by
+  simpa [searchHasFlag] using h
+
+/-- Whether a plan's search is the right one for its view: the flag and compare views name the flag, the faithful view does not. -/
+def carries (f : Flag) (view : View) (search : String) : Bool :=
+  match view with
+  | .faithful => !searchHasFlag search f
+  | _ => searchHasFlag search f
+
+-- The faithful view's empty search names no flag: a #guard below, not a theorem (`String.splitOn` does not reduce in the kernel).
 
 private def ex : Row :=
   { flag := ⟨"nav", "earn-no-transition"⟩, date := "d", decision := .kept, review := .pending }
@@ -241,11 +364,31 @@ private def stOpen : List Rec := [⟨"review-nav:earn-no-transition", none, true
 #guard missing [("nav:e", "desktop"), ("nav:e", "phone")] ⟨"nav", "e"⟩ == []
 #guard missing [("nav:x", "phone")] ⟨"nav", "e"⟩ == [.desktop, .phone]
 #guard eventKey ⟨"nav", "e"⟩ .phone == "review-previewed-nav:e-phone"
+#guard roundTag ⟨"nav", "e"⟩ "review-nav:e" == "" && roundTag ⟨"nav", "e"⟩ "review-nav:e#1" == "#1"
+#guard (record [ex] stOpen ⟨"nav", "earn-no-transition"⟩ 390) matches .ok ("review-previewed-nav:earn-no-transition-phone", .phone)
+#guard (record [ex] [⟨"review-nav:earn-no-transition", none, false⟩, ⟨"review-nav:earn-no-transition#1", none, true⟩] ⟨"nav", "earn-no-transition"⟩ 390)
+  matches .ok ("review-previewed-nav:earn-no-transition-phone#1", .phone)
+-- Round of a key: the tag after the prefix; untagged and keyless events are the first round.
+#guard roundOfKey "nav:e" "phone" "review-previewed-nav:e-phone" == ""
+#guard roundOfKey "nav:e" "phone" "review-previewed-nav:e-phone#1" == "#1"
+#guard roundOfKey "nav:e" "phone" "" == ""
+#guard roundOfKey "nav:e" "phone" "review-previewed-nav:x-phone#1" == ""
+#guard roundEventsOf "#1" [(("nav:e", "desktop"), "review-previewed-nav:e-desktop"), (("nav:e", "phone"), "review-previewed-nav:e-phone#1")] == [("nav:e", "phone")]
+#guard roundEventsOf "" [(("nav:e", "desktop"), "review-previewed-nav:e-desktop"), (("nav:e", "phone"), "review-previewed-nav:e-phone#1")] == [("nav:e", "desktop")]
 -- The flag view of every recorded look decision carries exactly its flag as the one `fw` entry (a decided check over the finite set).
 -- A theorem over any key is not stated: it is false for a key with `,`, `&` or `=`, and its proof needs `String.splitOn` lemmas that
 -- Lean core lacks (`splitOn` is a well-founded scan the kernel does not reduce, so `decide +kernel` fails too). Accepted limit.
 #guard Fw.Preset.Gen.lookDecisions.all fun d =>
   BuildsOpen.fwEntries (BuildsOpen.params (BuildsOpen.body (searchOf d.flag .flag))) == [d.flag.key]
 #guard BuildsOpen.params (BuildsOpen.body (searchOf ⟨"nav", "e"⟩ .faithful)) == []
+#guard searchHasFlag "?fw=nav:earn-no-transition" ⟨"nav", "earn-no-transition"⟩
+#guard !searchHasFlag "?fw=nav:earn-no-transition" ⟨"nav", "earn"⟩
+#guard !searchHasFlag "?fw=nav:earn" ⟨"nav", "earn-no-transition"⟩
+#guard searchHasFlag "?fw=hero:a,nav:earn,nav:earn-no-transition" ⟨"nav", "earn"⟩
+#guard searchHasFlag "?fw=hero:a&fw=nav:earn" ⟨"nav", "earn"⟩
+#guard !searchHasFlag "?fw=nav:earn@x" ⟨"nav", "earn"⟩
+#guard !searchHasFlag "" ⟨"nav", "earn"⟩
+#guard carries ⟨"nav", "earn"⟩ .faithful ""
+#guard Fw.Preset.Gen.lookDecisions.all fun d => carries d.flag .flag (searchOf d.flag .flag) && carries d.flag .compare (searchOf d.flag .compare) && carries d.flag .faithful (searchOf d.flag .faithful)
 
 end Fw.Console.ReviewPreview
