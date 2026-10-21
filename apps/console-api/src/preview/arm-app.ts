@@ -27,7 +27,11 @@ const DROP = new Set(["connection", "keep-alive", "transfer-encoding", "set-cook
 // agentTimeout` with agentTimeout 0 never holds), so without `timeout` it keeps an idle socket until the server's FIN arrives
 // and can send a request into the connection the server is just closing: ECONNRESET, a 502. A client-side idle limit well
 // below the server's closes an idle socket first, so a reused socket is never one the server may be closing.
-const agent = new http.Agent({ keepAlive: true, maxSockets: 64 });
+// The Agent reads a server's `Keep-Alive: timeout=N` hint only when it has a `timeout` of its own (Node v24.22.0
+// lib/_http_agent.js:655 `serverHintTimeout < agentTimeout`, agentTimeout 0 without the option); without one it keeps an idle
+// socket until the server's FIN arrives and can send a request into a connection the server is closing: ECONNRESET, a 502.
+// With `timeout` it closes an idle socket at min(timeout, hint - 1 s) (:641-663), before the server does.
+const agent = new http.Agent({ keepAlive: true, maxSockets: 64, timeout: 30_000 });
 
 const lastEnd = new WeakMap<object, number>(); // TEMP evidence: when a socket last finished a response
 function upstream(port: number, pathq: string, method: string, headers: Record<string, string>): Promise<IncomingMessage> {
