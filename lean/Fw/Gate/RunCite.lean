@@ -380,26 +380,59 @@ structure Row where
   evidence : String
   deriving DecidableEq, Repr
 
-/-- The citations of a row that names a flag. -/
+/-- The run ids of evidence `ev` that no marker in it follows, first occurrence first. -/
+def unmarked (ev : String) : List String :=
+  let ms := mentions ev
+  ((ms.map (·.1)).eraseDups).filter fun run => marks ms run == []
+
+/-- The citations of a row: by its `flag`, else only its marked runs, cited with flag `""`. -/
 def rowCites (r : Row) : List Cite :=
   match r.flag with
   | some f => citesOf f r.evidence
-  | none => []
+  | none => (citesOf "" r.evidence).filter (·.role != .row)
 
-/-- The rows that cite runs but name no flag, with their run ids: reported, not checked. -/
+/-- The rows with no flag and some unmarked run id, with those ids: reported, not checked. -/
 def unflagged (rs : List Row) : List (String × List String) :=
   rs.filterMap fun r =>
-    let runs := ((mentions r.evidence).map (·.1)).eraseDups
+    let runs := unmarked r.evidence
     if r.flag.isNone && !runs.isEmpty then some (r.id, runs) else none
 
-theorem row_no_flag (r : Row) (h : r.flag = none) : rowCites r = [] := by simp [rowCites, h]
+theorem mem_unmarked (ev run : String) :
+    run ∈ unmarked ev ↔ (∃ r, (run, r) ∈ mentions ev) ∧ marks (mentions ev) run = [] := by
+  simp only [unmarked, List.mem_filter, List.mem_eraseDups, List.mem_map, beq_iff_eq]
+  constructor
+  · rintro ⟨⟨⟨run', r⟩, hm, rfl⟩, h⟩; exact ⟨⟨r, hm⟩, h⟩
+  · rintro ⟨⟨r, hm⟩, h⟩; exact ⟨⟨(run, r), hm, rfl⟩, h⟩
+
+theorem row_flag (r : Row) (f : String) (h : r.flag = some f) : rowCites r = citesOf f r.evidence := by
+  simp [rowCites, h]
+
+theorem row_no_flag (r : Row) (h : r.flag = none) (c : Cite) :
+    c ∈ rowCites r ↔ c.flag = "" ∧ (c.run, c.role) ∈ mentions r.evidence ∧ c.role ≠ .row := by
+  obtain ⟨run, flag, role⟩ := c
+  simp only [rowCites, h, List.mem_filter, bne_iff_ne, ne_eq]
+  constructor
+  · rintro ⟨hc, hr⟩
+    obtain ⟨rfl⟩ := ((mem_citesOf _ _ _).mp hc).1
+    exact ⟨rfl, (cite_marked _ _ _ _ hr).mp hc, hr⟩
+  · rintro ⟨rfl, hm, hr⟩
+    exact ⟨(cite_marked _ _ _ _ hr).mpr hm, hr⟩
+
+theorem row_no_flag_covers (r : Row) (h : r.flag = none) (run : String) (role : Role)
+    (hm : (run, role) ∈ mentions r.evidence) : (∃ c ∈ rowCites r, c.run = run) ∨ run ∈ unmarked r.evidence := by
+  cases hk : marks (mentions r.evidence) run with
+  | nil => exact .inr ((mem_unmarked _ _).mpr ⟨⟨role, hm⟩, hk⟩)
+  | cons k ks =>
+    have hk' : k ∈ marks (mentions r.evidence) run := hk ▸ List.mem_cons_self
+    obtain ⟨hmk, hne⟩ := (mem_marks _ _ _).mp hk'
+    exact .inl ⟨⟨run, "", k⟩, (row_no_flag r h _).mpr ⟨rfl, hmk, hne⟩, rfl⟩
 
 theorem mem_unflagged (rs : List Row) (r : Row) (hr : r ∈ rs) (hf : r.flag = none) (run : String)
-    (hm : run ∈ (mentions r.evidence).map (·.1)) : ∃ runs, (r.id, runs) ∈ unflagged rs ∧ run ∈ runs := by
-  refine ⟨((mentions r.evidence).map (·.1)).eraseDups, ?_, List.mem_eraseDups.mpr hm⟩
-  have hne : ((mentions r.evidence).map (·.1)).eraseDups.isEmpty = false := by
-    cases h : ((mentions r.evidence).map (·.1)).eraseDups with
-    | nil => have := List.mem_eraseDups.mpr hm; simp [h] at this
+    (hm : run ∈ unmarked r.evidence) : ∃ runs, (r.id, runs) ∈ unflagged rs ∧ run ∈ runs := by
+  refine ⟨unmarked r.evidence, ?_, hm⟩
+  have hne : (unmarked r.evidence).isEmpty = false := by
+    cases h : unmarked r.evidence with
+    | nil => simp [h] at hm
     | cons _ _ => rfl
   simp only [unflagged, List.mem_filterMap]
   exact ⟨r, hr, by simp [hf, hne]⟩
@@ -416,6 +449,12 @@ theorem mem_unflagged (rs : List Row) (r : Row) (hr : r ∈ rs) (hf : r.flag = n
   [⟨"39400000000", "a:b", .aa⟩, ⟨"39400000000", "a:b", .sibling "c:d"⟩]
 #guard unflagged [⟨"r1", none, "runs 39400000000"⟩, ⟨"r2", some "a:b", "39400000000"⟩, ⟨"r3", none, "none"⟩] ==
   [("r1", ["39400000000"])]
+#guard unflagged [⟨"r", none, "39400000000 (a:b), 39400000001 (A/A)"⟩] == []
+#guard unflagged [⟨"r", none, "39400000000 (a:b), 39400000001 and 39400000000"⟩] == [("r", ["39400000001"])]
+#guard rowCites ⟨"r", none, "39400000000 (a:b), 39400000001, 39400000002 (A/A)"⟩ ==
+  [⟨"39400000000", "", .sibling "a:b"⟩, ⟨"39400000002", "", .aa⟩]
+#guard rowCites ⟨"r", some "c:d", "39400000000 (a:b), 39400000001"⟩ ==
+  [⟨"39400000000", "c:d", .sibling "a:b"⟩, ⟨"39400000001", "c:d", .row⟩]
 
 /-! ## Wire codec of `gate.runCite` -/
 
@@ -550,8 +589,12 @@ def cases : List (String × String) := [
   ("ledger rows: prose that is not a marker leaves the row's flag",
     reqRows "{\"run\":\"39466378530\",\"arms\":[\"\",\"\",\"\"]},{\"run\":\"39464294630\",\"arms\":[\"\",\"\"]}"
       "{\"id\":\"r\",\"flag\":\"nav:earn-no-transition\",\"evidence\":\"A/A 39466378530; 39464294630 and 39464322751 (A/A); 39400000001 (hero.exit:faithful A/A); 39400000002(A/A); 39400000003 (flag); 394000000 and x39400000004\"}"),
-  ("ledger rows: a row with run ids but no flag is reported, not checked; a row without run ids is neither",
-    reqRows "" "{\"id\":\"hero.exit.scoped.inline\",\"evidence\":\"runs 39448209903, 39452631146 (hero.exit:scoped), 39456741492 (A/A)\"},{\"id\":\"n\",\"flag\":3,\"evidence\":\"39400000000\"},{\"id\":\"none\",\"evidence\":\"no run\"}")]
+  ("ledger rows: a row with no flag checks its marked runs and reports its unmarked ones; a row without run ids is neither",
+    reqRows "{\"run\":\"39452631146\",\"arms\":[\"\",\"\",\"?fw=hero.exit:scoped\"]},{\"run\":\"39456741492\",\"arms\":[\"\",\"\",\"?fw=hero.exit:faithful\"]}"
+      "{\"id\":\"hero.exit.scoped.inline\",\"evidence\":\"runs 39448209903, 39452631146 (hero.exit:scoped), 39456741492 (A/A)\"},{\"id\":\"n\",\"flag\":3,\"evidence\":\"39400000000\"},{\"id\":\"none\",\"evidence\":\"no run\"}"),
+  ("ledger rows: a row with no flag whose every run is marked is checked in full and not reported",
+    reqRows "{\"run\":\"39448209903\",\"arms\":[\"\",\"\",\"?fw=hero.exit:scoped\"]},{\"run\":\"39462188464\",\"arms\":[\"\",\"\",\"\"]}"
+      "{\"id\":\"hero.exit.scoped.inline\",\"evidence\":\"runs 39448209903 (hero.exit:scoped), 39462188464 (A/A)\"}")]
 
 /-- One golden line `{name, request, response}`; `response` is the reply `fwcore` gives without its `id`. -/
 def line (c : String × String) : Json :=

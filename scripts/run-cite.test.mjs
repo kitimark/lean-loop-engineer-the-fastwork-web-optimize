@@ -115,11 +115,11 @@ test("cli: the incident citation is a mismatch with the flag the run carried (ex
 
 const SEARCH = { "39466378530": "", "39457767229": "?fw=morph.tween:waapi-scoped", "39449092483": "?fw=morph.tween:waapi" };
 
-test("cli on a ledger: A/A and sibling markers are judged by their own rule, a row without a flag is reported", () => scratch((d) => {
+test("cli on a ledger: A/A and sibling markers are judged by their own rule, a row without a flag checks its marked runs and reports the rest", () => scratch((d) => {
   const ledger = join(d, "ledger.json");
   writeFileSync(ledger, JSON.stringify({ findings: [
     { id: "w", flag: "morph.tween:waapi", evidence: "39466378530 (A/A); waapi 39449092483; scoped 39457767229 (morph.tween:waapi-scoped)" },
-    { id: "inline", flags: ["hero.exit:scoped"], evidence: "runs 39449092483, 39457767229" },
+    { id: "inline", flags: ["hero.exit:scoped"], evidence: "runs 39449092483, 39457767229 (morph.tween:waapi-scoped), 39466378530 (A/A), 39400000000" },
   ] }));
   const fetched = [];
   const lines = [];
@@ -131,23 +131,28 @@ test("cli on a ledger: A/A and sibling markers are judged by their own rule, a r
     "match    39466378530 (A/A) morph.tween:waapi  [ledger:w]",
     "match    39449092483 morph.tween:waapi  [ledger:w]",
     "match    39457767229 (morph.tween:waapi-scoped) morph.tween:waapi  [ledger:w]",
-    "unflagged inline: 2 run ids not checked (the row has no flag)",
-    "run-cite: 3 citations of 3 runs (3 downloaded): match 3, mismatch 0, unknown 0; unflagged rows 1",
+    "match    39457767229 (morph.tween:waapi-scoped)  [ledger:inline]",
+    "match    39466378530 (A/A)  [ledger:inline]",
+    "unflagged inline: 2 unmarked run ids not checked (the row has no flag)",
+    "run-cite: 5 citations of 3 runs (3 downloaded): match 5, mismatch 0, unknown 0; unflagged rows 1",
   ]);
   writeFileSync(ledger, JSON.stringify({ findings: [{ id: "w", flag: "morph.tween:waapi", evidence: "39457767229 (A/A)" }] }));
   assert.equal(cli(["--ledger", ledger], opts), 1);
   assert.equal(lines.at(-2), "mismatch 39457767229 (A/A) morph.tween:waapi  [ledger:w]  carried: morph.tween:waapi-scoped");
 }));
 
-test("ghDownload runs gh with its working directory at the repo top", () => scratch((d) => {
+test("ghDownload runs gh with its working directory at the repo top, called from another cwd", () => scratch((d) => {
   const bin = join(d, "bin");
   mkdirSync(bin);
   writeFileSync(join(bin, "gh"), `#!/bin/sh\npwd -P > "${join(d, "cwd")}"\n`, { mode: 0o755 });
   const path = process.env.PATH;
+  const was = process.cwd();
   process.env.PATH = `${bin}:${path}`;
+  process.chdir(d);
   try {
     assert.deepEqual(ghDownload("1", d), { ok: true });
   } finally {
+    process.chdir(was);
     process.env.PATH = path;
   }
   assert.equal(readFileSync(join(d, "cwd"), "utf8").trim(), realpathSync(top));

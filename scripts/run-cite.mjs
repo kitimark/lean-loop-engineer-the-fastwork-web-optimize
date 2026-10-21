@@ -132,11 +132,11 @@ export function coreCall(bin) {
   };
 }
 
-/** The line of one verdict; a role prints as the evidence marker that set it. */
+/** The line of one verdict; a role prints as the evidence marker that set it, and an empty row flag (a row with no `flag`) not at all. */
 export function lineOf(v, source) {
   const tail = v.verdict === "mismatch" ? `carried: ${v.carried.length ? v.carried.join(", ") : "(no flag)"}` : v.verdict === "unknown" ? v.why : "";
   const mark = v.role === "aa" ? " (A/A)" : v.role === "sibling" ? ` (${v.sibling})` : "";
-  return `${v.verdict.padEnd(8)} ${v.run}${mark} ${v.flag}  [${source}]${tail ? `  ${tail}` : ""}`;
+  return `${v.verdict.padEnd(8)} ${v.run}${mark}${v.flag ? ` ${v.flag}` : ""}  [${source}]${tail ? `  ${tail}` : ""}`;
 }
 
 /** Exit 0: no mismatch; 1: a mismatch; 2: usage or a failure. */
@@ -163,7 +163,7 @@ export function cli(argv, { core, cacheFile = defaultCache(), download = ghDownl
   if (json) log(JSON.stringify({ verdicts: out, unflagged }));
   else {
     for (const v of out) log(lineOf(v, v.source));
-    for (const u of unflagged) log(`unflagged ${u.row}: ${u.runs.length} run ids not checked (the row has no flag)`);
+    for (const u of unflagged) log(`unflagged ${u.row}: ${u.runs.length} unmarked run ids not checked (the row has no flag)`);
     const n = (k) => out.filter((r) => r.verdict === k).length;
     log(`run-cite: ${out.length} citations of ${runs.length} runs (${fetched} downloaded): match ${n("match")}, mismatch ${n("mismatch")}, unknown ${n("unknown")}; unflagged rows ${unflagged.length}`);
   }
