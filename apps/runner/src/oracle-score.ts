@@ -1,13 +1,3 @@
-// The scorer of the offline replay (task jev-replay): `fw oracle score` and `fw oracle arm-input`.
-//
-// `score` joins the rows Lean picks for a set (`oracle.replay`) with one arm's answers and asks `oracle.score` for
-// the numbers; it writes them under the arm's name into `results/jev/<set>.json`, keeping the other arms. The Jev
-// arm's answers are read from the answer log: per row, the logged entry of the exact request body Lean builds for
-// it (sha256 of `bodyText`). Another arm's answers come from a JSONL file of {id, choice, probabilities?,
-// inputTokens?, outputTokens?, ms?}.
-//
-// `arm-input` writes the prompt of every picked row for another arm: the same instructions, criteria and redacted
-// state as the Jev body, and the answer format.
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { readLog, sha256, type FwCall, type Json, type LogEntry } from "@fw/oracle";
@@ -16,7 +6,6 @@ import type { Picked } from "./oracle.ts";
 /** The arms `oracle.score` prices. */
 export const ARMS = ["jev", "haiku", "sonnet"] as const;
 
-/** The logged entry of request body `body`: the latest with a reply, else the latest failure. */
 function entryFor(entries: LogEntry[], body: string): LogEntry | undefined {
   const key = sha256(body);
   const mine = entries.filter((e) => e.key === key);

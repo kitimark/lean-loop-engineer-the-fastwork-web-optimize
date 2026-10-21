@@ -1,15 +1,11 @@
 import Lean.Data.Json
 import Fw.Device.Replay
 import Fw.Device.ReplayProfiles
-/-!
-# Replay golden
-The cases `packages/contracts/golden/device/replay.jsonl` holds, on synthetic touch streams only.
--/
+/-! Golden cases of `packages/contracts/golden/device/replay.jsonl`, on synthetic touch streams. -/
 namespace Fw.Device.Replay
 open Lean
 open Fw.Device.Session (Touch Phase Zone t0Of replayStrokes)
 
-/-- A compact action: `["m",x,y,d]`, `["d"]` (finger down), `["u"]` (finger up), `["p",d]`. -/
 def actJ : Act → Json
   | .move x y d => toJson [Json.str "m", Json.num x, Json.num y, Json.num d]
   | .down => toJson [Json.str "d"]
@@ -51,12 +47,10 @@ def stroke (t0 x y0 dy dt : Int) (n : Nat) (fingers : Nat := 1) : List Touch :=
     (List.range n).map (fun (i : Nat) => (⟨t0 + dt * ((i : Int) + 1), .move, x, y0 + dy * ((i : Int) + 1), fingers⟩ : Touch)) ++
     [⟨t0 + dt * ((n : Int) + 1), .stop, x, y0 + dy * ((n : Int) + 1), 0⟩]
 
-/-- The synthetic stream: a medium swipe, a fast one, a tap, a slow swipe. -/
 def fixtureSorted : List Touch :=
   stroke 100000 1950 6000 (-400) 1650 8 ++ stroke 140000 1950 6500 (-700) 800 10 ++
   [⟨160000, .start, 1000, 3000, 1⟩, ⟨160800, .stop, 1000, 3000, 0⟩] ++ stroke 180000 1800 5000 (-250) 2000 6
 
-/-- The same stream with a second finger on the first stroke. -/
 def fixtureMulti : List Touch := stroke 100000 1950 6000 (-400) 1650 8 (fingers := 2) ++ stroke 140000 1950 6500 (-700) 800 10
 
 private def frames : List (Int × Int) := [(0, 0), (100000, 1000), (140000, 30000), (180000, 95000)]
@@ -68,7 +62,6 @@ private def dropOne (s : Swipe) : Swipe := { s with samples := s.samples.drop 1 
 private def moveStart (d : Int) (s : Swipe) : Swipe := { s with start := s.start + d }
 private def nudge (s : Swipe) : Swipe :=
   { s with samples := s.samples.map fun e => { e with y := e.y + 3, t := e.t + 500 }, lift := s.lift + 500 }
-/-- The last sample moved along the finger's way, so only the lift-off velocity changes. -/
 private def faster2 (s : Swipe) : Swipe :=
   { s with samples := s.samples.mapIdx fun i e => if i + 1 = s.samples.length then { e with y := e.y - 400 } else e }
 

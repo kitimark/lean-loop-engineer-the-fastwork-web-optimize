@@ -4125,8 +4125,6 @@ theorem fold_of {c : Cfg} : ∀ (B : List Req) (a : Acc),
         obtain ⟨r', hr', hk⟩ := mem_of_key pumpOne_key hr
         exact ⟨h0, r', hr', (key_id hk).trans hid, (key_kind hk) ▸ hpin⟩
 
-/-- fifo_no_overtake: when a job stays queued after a step, every lease the step grants answers a request that was
-ahead of it in the queue, or has cost zero and is a nested join or a share of a resource of a pinned kind. -/
 theorem fifo_no_overtake {c : Cfg} {s : State} {e : Event} {q : Req} {A B : List Req} {n : Nat} {l : Lease}
     (h : Inv c s) (hL : (pre c s e).1.pending = A ++ q :: B) (hq : q ∈ (step c s e).1.pending) (hk : q.kind = .job)
     (hg : Cmd.reply n (.granted l) ∈ (step c s e).2) :
@@ -4172,8 +4170,6 @@ theorem fifo_no_overtake {c : Cfg} {s : State} {e : Event} {q : Req} {A B : List
     rw [← hid, ← key_id hk']
     exact find_of_mem hr' hrids
 
-/-- svc_respects_blocked: when a job at the head of the queue stays queued after a step, every lease the step grants
-has cost zero and is a nested join or a share of a resource of a pinned kind. -/
 theorem svc_respects_blocked {c : Cfg} {s : State} {e : Event} {q : Req} {B : List Req} {n : Nat} {l : Lease}
     (h : Inv c s) (hL : (pre c s e).1.pending = q :: B) (hq : q ∈ (step c s e).1.pending) (hk : q.kind = .job)
     (hg : Cmd.reply n (.granted l) ∈ (step c s e).2) :
@@ -4514,8 +4510,6 @@ theorem pumpOne_deadline {c : Cfg} {a : Acc} {q : Req} {n : Nat}
     · exact Or.inl hm
     · simp at hm
 
-/-- deadline_keeps_ticket: a queued request refused at its deadline leaves its owner a ticket with the request's
-age, so a re-request keeps its place in the queue order. -/
 theorem deadline_keeps_ticket {c : Cfg} {s : State} {e : Event} {q : Req} (h : Inv c s)
     (hr : Cmd.reply q.id (.refused .deadline) ∈ (step c s e).2) (hq : q ∈ (pre c s e).1.pending) :
     (⟨q.owner, q.rid, q.age⟩ : Ticket) ∈ (step c s e).1.tickets := by
@@ -4556,8 +4550,7 @@ example : ∃ q ∈ (pre Ex.cfg (Ex.after [.tick 1 Ex.calm, .request 42 1 Ex.sim
 /-- `Ex.cfg` with requests that may wait 200 s. -/
 abbrev Ex.slow : Cfg := { Ex.cfg with maxWait := 200 }
 
-/-- Fable's witness: before the svc grant waited behind a blocked job (Core at 31510359), svc grants at 30, 85, 140
-and 195 kept the Simulator leased, no signal was sent, and the job was refused at 203 with no ticket. -/
+/-- Fable's witness: before the svc grant waited behind a blocked job. -/
 abbrev Ex.starve : List Event :=
   let job : Ask := { Ex.big with cost := { ram := 5500 }, wait := 200 }
   let sim : Ask := { Ex.sim with wait := 200 }
@@ -4574,24 +4567,20 @@ example : Cmd.signal (.group ⟨500, 7⟩) .term ∈ (run Ex.slow (init Ex.slow)
   decide
 
 /-! ## Head job granted -/
-/-- Whether a phase is stopping. -/
 def Phase.isStop : Phase → Bool
   | .stopping _ _ => true
   | _ => false
 
-/-- The ready resources with a group and an unpinned kind. -/
 def stoppable (c : Cfg) (s : State) : List Rsrc :=
   s.res.filter fun x => x.phase == .ready && x.proc.isSome && !c.pinned x.kind
 
 /-- The number of resources of an unpinned kind. -/
 def unpinned (c : Cfg) (s : State) : Nat := (s.res.filter fun x => !c.pinned x.kind).length
 
-/-- The wait bound for the head job: every lease gone, one tick, then per unpinned resource a TERM, a KILL and the
-exit. -/
+/-- The wait bound for the head job: every lease gone, one tick, then per unpinned resource a TERM, a KILL and the exit. -/
 def bound (c : Cfg) (tm k : Nat) : Nat := span c + tm + k * (c.killAfter + 2 * tm)
 
-/-- An event while the head job `q` waits: no drain or restart, `q`'s owner stays a client, a tick moves the clock by
-at most `tm` and finds no KILL outstanding. -/
+/-- An event while the head job `q` waits. -/
 def Along (q : Req) (tm : Nat) (s : State) : Event → Prop
   | .drain _ _ => False
   | .restart _ _ _ => False
@@ -4603,22 +4592,18 @@ def Along (q : Req) (tm : Nat) (s : State) : Event → Prop
 def Room (c : Cfg) (q : Req) (s : State) : Prop :=
   s.shedding = false ∧ fitsFree c { s with leases := [] } q.cost.get (stoppable c s) = true
 
-/-- The clock value by which a stopping resource has left: a TERM escalates by `max n (t + killAfter) + tm`, a KILL
-exits before the next tick. -/
+/-- The clock value by which a stopping resource has left. -/
 def due (c : Cfg) (tm n : Nat) : Phase → Nat
   | .stopping t .term => max n (t + c.killAfter) + tm
   | _ => n
 
-/-- One resource across a stage from clock `n` to `n'`: id and kind kept, nothing becomes live, a stopping resource
-stays stopping or leaves by its due time, and a new stop is of an unpinned kind and due within
-`killAfter + tm`. -/
+/-- One resource across a stage from clock `n` to `n'`. -/
 def Tr (c : Cfg) (tm n n' : Nat) (x y : Rsrc) : Prop :=
   y.id = x.id ∧ y.kind = x.kind ∧ (y.phase.live = true → x.phase.live = true) ∧
   (x.phase.isStop = true → (y.phase.live = true → y.phase.isStop = true) ∧ n' ≤ due c tm n x.phase) ∧
   (y.phase.isStop = true → (x.phase.isStop = true → due c tm n' y.phase ≤ due c tm n x.phase) ∧
     (x.phase.isStop = false → due c tm n' y.phase ≤ n' + c.killAfter + tm ∧ c.pinned y.kind = false))
 
-/-- The resources of `s'` are those of `s` mapped by `Tr`. -/
 def TrS (c : Cfg) (tm : Nat) (s s' : State) : Prop :=
   ∃ F : Rsrc → Rsrc, s'.res = s.res.map F ∧ ∀ x ∈ s.res, Tr c tm s.now s'.now x (F x)
 
@@ -4833,7 +4818,6 @@ theorem stop_tr (c : Cfg) (tm : Nat) (s : State) (xs : List Rsrc) (hn : (s.res.m
     rw [Nat.max_eq_right (Nat.le_add_right _ _)]
     exact Nat.le_refl _
 
-/-- A lease of cost zero that is a nested job lease or a share of a resource of a pinned kind. -/
 def Shaped (c : Cfg) (s : State) (l : Lease) : Prop :=
   l.cost = {} ∧ (l.kind = .job ∨ ∃ r ∈ s.res, r.id = l.rid ∧ c.pinned r.kind = true)
 
@@ -4846,9 +4830,6 @@ theorem shaped_tr {c : Cfg} {tm : Nat} {s s' : State} {l : Lease} (h : TrS c tm 
   · refine Or.inr ⟨F r, by rw [hF]; exact List.mem_map_of_mem hr, (hFt r hr).1.trans hid, ?_⟩
     rw [(hFt r hr).2.1]; exact hp
 
-/-- The head-job invariant: `q` heads the queue, no queued request or ticket is older, the clock is past `n0`, no
-drain, every stopping resource unpinned and due within `killAfter + tm`, every lease shaped or granted by `n0` while
-the clock is before `n0 + span`, and at most `k` live unpinned resources. -/
 structure HJ (c : Cfg) (q : Req) (tm n0 k : Nat) (s : State) : Prop where
   inv : Inv c s
   head : ∃ rest, s.pending = q :: rest
@@ -4862,7 +4843,6 @@ structure HJ (c : Cfg) (q : Req) (tm n0 k : Nat) (s : State) : Prop where
   leases : ∀ l ∈ s.leases, Shaped c s l ∨ (l.granted ≤ n0 ∧ s.now < n0 + span c)
   mu : mu c s ≤ k
 
-/-- The state after the stage before the pump, against the state `s` before it. -/
 structure PF (c : Cfg) (q : Req) (tm n0 : Nat) (s p : State) : Prop where
   tr : TrS c tm s p
   now1 : s.now ≤ p.now
@@ -5124,8 +5104,6 @@ theorem fitsFree_view {c : Cfg} {s1 s2 : State} (add : Res → Nat) (hr : s1.res
   simp only [ho]
   rfl
 
-/-- A pump step behind a blocked request: resources keep their view, the mark stays, requests are only appended, and
-the clock, sample and shedding flag stay. -/
 def BlkStep (a a' : Acc) : Prop :=
   (∃ g : Rsrc → Rsrc, a'.st.res = a.st.res.map g ∧ ∀ x, view (g x) = view x) ∧ a'.blk = true ∧
   (∃ X, a'.st.pending = a.st.pending ++ X) ∧ a'.st.now = a.st.now ∧ a'.st.obs = a.st.obs ∧
@@ -5289,8 +5267,6 @@ theorem cands_eq {c : Cfg} {s : State} (hw : Wf c s) (hl : ∀ l ∈ s.leases, S
   · rw [leasesOn_nil hw hl hx hp]; simp
   · simp
 
-/-- The potential of the wait: the old leases may still hold, or a stopping resource is due early enough that one
-round per live unpinned resource still ends before the bound. -/
 def Pot (c : Cfg) (tm n0 k : Nat) (s : State) : Prop :=
   s.now < n0 + span c ∨ ∃ x ∈ s.res, x.phase.isStop = true ∧
     due c tm s.now x.phase + mu c s * (c.killAfter + 2 * tm) < n0 + span c + (k + 1) * (c.killAfter + 2 * tm)
@@ -5534,10 +5510,6 @@ theorem mu_unpinned (c : Cfg) (s : State) : mu c s ≤ unpinned c s := by
     simp only [Bool.and_eq_true] at hx
     exact hx.2
 
-/-- head_job_granted_by: a job at the head of the queue, with no older queued request or ticket, in a state not
-draining whose stopping resources are unpinned and began by `s.now`, is granted by `s.now + bound` when along the
-way it is never drained, restarted or dropped, every tick comes within `tm` and finds no KILL outstanding, nothing
-is shed and it fits once leases, stopping and stoppable resources are gone. -/
 theorem head_job_granted_by {c : Cfg} {q : Req} {tm : Nat} {s : State} {rest : List Req} (es : List Event)
     (h : Inv c s) (hpend : s.pending = q :: rest) (hk : q.kind = .job) (hages : ∀ p ∈ rest, q.age ≤ p.age)
     (htk : ∀ t ∈ s.tickets, q.age ≤ t.age) (hage : q.age ≤ s.now) (hdr : s.draining = false)
@@ -5569,7 +5541,6 @@ theorem head_job_granted_by {c : Cfg} {q : Req} {tm : Nat} {s : State} {rest : L
   unfold bound at hend
   omega
 
-/-- Whether an event meets `Along`, with the KILL check made on the phases. -/
 def alongB (q : Req) (tm : Nat) (s : State) : Event → Bool
   | .drain _ _ => false
   | .restart _ _ _ => false
@@ -5596,7 +5567,6 @@ theorem along_of {q : Req} {tm : Nat} {s : State} {e : Event} (h : alongB q tm s
 instance (c : Cfg) (q : Req) (s : State) : Decidable (Room c q s) :=
   inferInstanceAs (Decidable (_ = false ∧ _ = true))
 
-/-- `Ex.cfg` with requests that may wait 400 s. -/
 abbrev Ex.patient : Cfg := { Ex.cfg with maxWait := 400 }
 
 /-- Ticks every 5 s from `a`, `n` of them. -/
@@ -5607,8 +5577,7 @@ abbrev Ex.blocked : List Event :=
   [.tick 1 Ex.calm, .request 42 1 Ex.sim, .spawned 1 (some ⟨500, 7⟩), .ready 1,
    .request 42 2 { Ex.big with cost := { ram := 5500 }, wait := 400 }]
 
-/-- The Simulator lease renewed to 116 and 171, ticks every 5 s, the KILL at 176 answered by the exit, ticks to
-201. -/
+/-- The Simulator lease renewed to 116 and 171, ticks every 5 s, the KILL at 176 answered by the exit, ticks to 201. -/
 abbrev Ex.renewed : List Event :=
   Ex.ticks 6 11 ++ [.renew 42 1 0] ++ Ex.ticks 61 11 ++ [.renew 42 1 0] ++ Ex.ticks 116 13 ++
     [.childExit ⟨500, 7⟩] ++ Ex.ticks 181 5

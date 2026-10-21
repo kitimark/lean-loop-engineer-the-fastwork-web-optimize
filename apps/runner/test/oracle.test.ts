@@ -1,5 +1,3 @@
-// jev-core: the oracle client and `fw oracle` against the real fwcore, a fake fetch serving the Lean-generated fixture
-// replies (packages/contracts/golden/oracle/fixtures.jsonl) and a fake keychain. No network, no key.
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -11,7 +9,6 @@ import { oracleCli, thresholdsOf, type Io } from "../src/oracle.ts";
 import { ARM_PREAMBLE } from "../src/oracle-score.ts";
 
 const hasCore = (() => { try { fwcoreCall(process.cwd()); return true; } catch { return false; } })();
-// one persistent fwcore behind a synchronous bridge (the CLI spawns one per decision; the calibrate tests make hundreds)
 const call: FwCall = hasCore ? fastCore() : () => ({});
 const golden = join(process.cwd(), "..", "..", "packages", "contracts", "golden", "oracle");
 const fixtures = new Map<string, { reply: string; label: string; decide: Json }>(
@@ -22,7 +19,6 @@ const fixtures = new Map<string, { reply: string; label: string; decide: Json }>
 const fx = (n: string) => fixtures.get(n)!.reply;
 const FAKE_KEY = "tsk_test_0123456789abcdef";
 const HALF = { num: "1", den: "2" };
-/** The threshold table with 1/2 for every CI-triage option. */
 const ALL = { flake: HALF, infra: HALF, real: HALF };
 const noKeychain = () => { throw new Error("keychain must not be read"); };
 
@@ -47,15 +43,11 @@ function deps(over: Partial<Deps> = {}): Deps {
 }
 
 const state = { job: "build", step: "lake build", log: ["error at /Users/example/w/x.lean:3", "done"] };
-/** Whether Lean puts id `id` in the holdout part (`oracle.plan` with `part`). */
 const isHeld = (id: string) => (call({ op: "oracle.plan", rows: [{ id, label: "x" }], part: "holdout" }).ids as string[]).length === 1;
-/** The first id `r<n>`, `r<n>y`, `r<n>yy`, ... in the wanted part (the split hashes the id, `Labels.heldOut`). */
 function idIn(held: boolean, n: number): string {
   for (let id = `r${n}`; ; id += "y") if (isHeld(id) === held) return id;
 }
-/** Replay row `k` (id `r<k>` unless given): its state names the row, so each row has its own request body. */
 const row = (k: number, label: string, id = `r${k}`) => ({ id, state: { log: `error in row-${k}.` }, label });
-/** A fetch that answers each body with the fixture of the row it names. */
 const byRow = (ans: string[]) => fakeFetch(({ body }) => new Response(fx(ans[Number(/row-(\d+)\./.exec(body)![1])]!)));
 
 describe.skipIf(!hasCore)("golden wire vectors replay through fwcore", () => {
@@ -173,7 +165,6 @@ describe.skipIf(!hasCore)("fw oracle", () => {
     return { deps: deps(), cwd: mkdtempSync(join(tmpdir(), "oracle-dir-")), names: [], out: (s) => lines.push(s), lines, ...over };
   }
   type Spec = [number, string, string, "choose" | "holdout"][];
-  /** Rows labeled in order, each in its part (its id), written to `rows.jsonl`; returns the fixture of each row. */
   function replaySet(dir: string, spec: Spec): string[] {
     const rows: string[] = [];
     const answers: string[] = [];
@@ -295,7 +286,6 @@ describe.skipIf(!hasCore)("Lean decisions the reviewer probed", () => {
 
 describe.skipIf(!hasCore)("fw oracle send (jev-replay)", () => {
   const classes = ["c-orphan-wait", "c-order-derived", "c-shared-no-lock", "c-quota"];
-  /** A Jev reply to `incident-class` that picks `c-quota`: 0.9 on it, the rest spread over the other options. */
   function quotaReply(): string {
     const body = String(call({ op: "oracle.request", name: "incident-class", names: [], state: { title: "t" } }).bodyText);
     const names = [...new Set([...body.matchAll(/"(c-[a-z-]+|none)"/g)].map((m) => m[1]!))];
@@ -304,7 +294,6 @@ describe.skipIf(!hasCore)("fw oracle send (jev-replay)", () => {
     return JSON.stringify({ model: "jev-1.13.0", answers: { "incident-class": { type: "choice", choice: "c-quota",
       probabilities, confidence: 0.5 } }, usage: { input_tokens: 300, output_tokens: 1 } });
   }
-  /** A datasets dir with `d1.jsonl` of `n` labeled rows and one unlabeled row, which is not sent. */
   function d1Dir(n: number): string {
     const dir = mkdtempSync(join(tmpdir(), "jev-"));
     const rows = Array.from({ length: n }, (_, k) => JSON.stringify({ id: `inc-${k}`, set: "d1",
@@ -367,7 +356,7 @@ describe.skipIf(!hasCore)("fw oracle send (jev-replay)", () => {
     expect(r.rows).toBeUndefined();
     expect(r.arms.jev).toMatchObject({ arm: "jev", missing: 2, all: { rows: 6 }, inputTokens: 1800, outputTokens: 6 });
     expect(r.arms.haiku).toMatchObject({ arm: "haiku", missing: 0, all: { rows: 8, right: 8 }, inputTokens: 8000,
-      dollars: { num: "11", den: "12500" }, msMedian: 900 }); // 8000 in at $0.10/M and 160 out at $0.50/M
+      dollars: { num: "11", den: "12500" }, msMedian: 900 });
     const jevQuota = r.arms.jev.all.options.find((o: { option: string }) => o.option === "c-quota");
     expect(r.arms.jev.all.right).toBe(jevQuota.right);
     expect(jevQuota.chosen).toBe(6);

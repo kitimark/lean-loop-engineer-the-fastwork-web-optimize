@@ -140,9 +140,6 @@ const EVAL_MARK = "(globalThis.__fwEvals ||= []).push(import.meta.url);\n";
 const START_FN = /(async function \w+\(\w+,\w+,\w+\)\{)(if\(globalThis\.__sveltekit_\w+\.data\))/;
 const START_MARK = "(globalThis.__fwStarts=(globalThis.__fwStarts||0)+1);";
 export const instrumentModule = (text) => EVAL_MARK + text.replace(START_FN, `$1${START_MARK}$2`);
-/** Hop-by-hop headers belong to one connection: the tap must not pass the preview server's `Connection` and `Keep-Alive: timeout=65`
- *  on to the arm app, because the tap's own idle limit is Node's default 5 s (+1 s) and the arm app's Agent trusts the hint it reads
- *  (task preview-502-flake: it reused a socket the tap had just closed, ECONNRESET, HTTP 502). The tap adds its own, true hint. */
 const HOP = new Set(["connection", "keep-alive", "proxy-connection", "transfer-encoding", "upgrade", "te", "trailer"]);
 const noHop = (h) => Object.fromEntries(Object.entries(h).filter(([k]) => !HOP.has(k.toLowerCase())));
 function startTap(listenPort, targetPort, mode) {

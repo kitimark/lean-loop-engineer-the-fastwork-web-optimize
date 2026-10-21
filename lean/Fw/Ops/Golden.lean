@@ -1059,10 +1059,43 @@ def reviewFeedbackCases (_ : Unit := ()) : List (String × Json) :=
    ("a text of 2000 astral characters (the cap) is accepted", rfb s!"[{p a "fb-1" (String.ofList (List.replicate 2000 '😀')) 100}]"),
    ("a text of 2001 astral characters (one over the cap) is ignored", rfb s!"[{p a "fb-1" (String.ofList (List.replicate 2001 '😀')) 100}]")]
 
+def stp (events steps : String) : Json := Json.mkObj [("events", lit events), ("steps", lit steps)]
+
+def stepTopicsCases (_ : Unit := ()) : List (String × Json) :=
+  let tp (id title sum : String) (ts : Nat) := s!"\{\"type\":\"step.topic\",\"topic\":\"{id}\",\"title\":\"{title}\",\"summary\":\"{sum}\",\"ts\":{ts}}"
+  let q (f i t : String) (ts : Nat) := s!"\{\"type\":\"review.feedback\",\"flag\":\"{f}\",\"id\":\"{i}\",\"text\":\"{t}\",\"ts\":{ts}}"
+  let r (f to t : String) (ts : Nat) := s!"\{\"type\":\"review.feedback.reply\",\"flag\":\"{f}\",\"to\":\"{to}\",\"text\":\"{t}\",\"ts\":{ts}}"
+  let st (id : String) (topic : Option String) (status audience : String) (last : Nat) :=
+    s!"\{\"id\":\"{id}\",\"topic\":{match topic with | some t => "\"" ++ t ++ "\"" | none => "null"},\"status\":\"{status}\",\"audience\":\"{audience}\",\"lastAt\":{last}}"
+  [("no events and no steps: no groups, no threads", stp "[]" "[]"),
+   ("a topic with an open step: the group lists the step and counts its time as activity",
+    stp s!"[{tp "smoothness" "Smoothness" "Hero exit first." 100}]" s!"[{st "s1" (some "smoothness") "waiting" "user" 500}]"),
+   ("more recent activity first: the topic with the newer step stands before the older one",
+    stp s!"[{tp "a" "A" "one" 100},{tp "b" "B" "two" 200}]" s!"[{st "s1" (some "a") "waiting" "user" 900},{st "s2" (some "b") "started" "user" 300}]"),
+   ("equal activity keeps definition order",
+    stp s!"[{tp "a" "A" "one" 100},{tp "b" "B" "two" 100}]" "[]"),
+   ("a step without a topic, and one with an undefined topic, form the group of the rest, after topics with work",
+    stp s!"[{tp "a" "A" "one" 100}]" s!"[{st "s1" none "waiting" "user" 900},{st "s2" (some "gone") "waiting" "user" 950},{st "s3" (some "a") "waiting" "user" 200}]"),
+   ("a quiet topic (no open step, no open question) stands after the group of the rest",
+    stp s!"[{tp "quiet" "Quiet" "nothing open" 900},{tp "a" "A" "one" 100}]" s!"[{st "s1" none "waiting" "user" 50},{st "s2" (some "a") "waiting" "user" 60}]"),
+   ("an open question on a quiet topic puts it among the topics with work",
+    stp s!"[{tp "quiet" "Quiet" "nothing open" 900},{q "topic:quiet" "fb-1" "what is next?" 950}]" "[]"),
+   ("the lead's reply to the question makes the topic quiet again",
+    stp s!"[{tp "quiet" "Quiet" "nothing open" 900},{q "topic:quiet" "fb-1" "what is next?" 950},{r "topic:quiet" "fb-1" "nothing" 960}]" "[]"),
+   ("a new definition of a topic replaces its title, summary and time and keeps its place",
+    stp s!"[{tp "a" "A" "old" 100},{tp "b" "B" "two" 150},{tp "a" "A2" "new" 300}]" "[]"),
+   ("an invalid topic event (blank title) changes nothing",
+    stp s!"[{tp "a" "A" "one" 100},{tp "a" "  " "two" 200},{tp "" "T" "x" 300}]" "[]"),
+   ("only open steps for the user are grouped: closed and lead steps are left out",
+    stp s!"[{tp "a" "A" "one" 100}]" s!"[{st "s1" (some "a") "done" "user" 500},{st "s2" (some "a") "waiting" "lead" 500},{st "s3" (some "a") "answered" "user" 500}]"),
+   ("threads: step and topic subjects only, in the order of the first comment; review flags are left out",
+    stp s!"[{tp "a" "A" "one" 100},{q "nav:x" "fb-1" "review" 200},{q "step:s1" "fb-2" "why" 210},{q "topic:a" "fb-3" "how" 220},{r "step:s1" "fb-2" "because" 230}]" s!"[{st "s1" (some "a") "waiting" "user" 500}]")]
+
 /-- Golden files whose name is not their op: (directory under `packages/contracts/golden`, file stem, op, cases). -/
 def named (_ : Unit := ()) : List (String × String × String × List (String × Json)) := [
   ("ops", "lean-first", "ops.leanFirst", leanFirstCases),
   ("console", "reviewFeedback", "console.reviewFeedback", reviewFeedbackCases),
+  ("console", "steps-topics", "console.stepTopics", stepTopicsCases),
   ("land", "render-guard", "console.landRenderGuard", renderGuardCases),
   ("console", "review", "console.review", reviewCases),
   ("console", "reviewPreview", "console.reviewPreview", reviewPreviewCases)]

@@ -1,7 +1,3 @@
-// Replaying a profile on the phone through safaridriver's W3C Perform Actions (pointerType touch), and reading back what the page saw.
-// I/O glue only: the actions, the check and the profiles are device-replay.mjs (Lean Fw.Device.Replay). The page is the one the
-// recorder already measures (RECORD_JS of device-record.mjs, native requestAnimationFrame, passive touch listeners). The address of
-// the page comes from the caller and is never printed.
 import { spawn } from 'node:child_process';
 import { RECORD_JS, POLL_JS } from './device-record.mjs';
 import { reducePass, normalize } from './device-session.mjs';
@@ -9,7 +5,6 @@ import { compile, w3c, actsMs, simulateEvents, swipesOf, touchesOf, conjuncts, r
 
 const sleepMs = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/** A minimal W3C WebDriver client over fetch. `base` is e.g. http://127.0.0.1:4444 . */
 export function wdClient(base, fetchImpl = globalThis.fetch) {
   const call = async (method, path, body) => {
     const res = await fetchImpl(`${base}${path}`, { method, headers: { 'content-type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
@@ -30,7 +25,6 @@ export function wdClient(base, fetchImpl = globalThis.fetch) {
   };
 }
 
-/** Start `safaridriver -p port` as our own child and wait until it answers; resolves {base, stop}. */
 export async function startSafaridriver(port, { bin = 'safaridriver', log = () => {} } = {}) {
   const child = spawn(bin, ['-p', String(port)], { stdio: 'ignore' });
   let dead = null;
@@ -40,7 +34,7 @@ export async function startSafaridriver(port, { bin = 'safaridriver', log = () =
   const t0 = Date.now();
   for (;;) {
     if (dead !== null) throw new Error(`safaridriver exited with ${dead} (is it enabled: safaridriver --enable?)`);
-    try { await wd.status(); break; } catch { /* not up yet */ }
+    try { await wd.status(); break; } catch {}
     if (Date.now() - t0 > 15000) { child.kill('SIGTERM'); throw new Error('safaridriver did not answer within 15 s'); }
     await sleepMs(300);
   }
@@ -48,18 +42,11 @@ export async function startSafaridriver(port, { bin = 'safaridriver', log = () =
   return { base, stop: () => { if (dead === null) child.kill('SIGTERM'); } };
 }
 
-/** The script that starts the page recorder without blocking the call (as phoneRecord does). */
 export const startRecorderJs = (seconds) =>
   `window.__wkRecOn = true; window.__wkRec = undefined; Promise.resolve(${RECORD_JS(seconds)}).then(v => { window.__wkRec = JSON.stringify(v); }, e => { window.__wkRec = JSON.stringify({err: String(e)}); }); 'started'`;
 
-/** Seconds the recorder runs: the replay, a margin for the fling after the last lift, and the call latency. */
 export const recorderSeconds = (acts) => Math.ceil(actsMs(acts) / 1000) + 8;
 
-/**
- * One pass: load the page, record, perform the compiled actions, read the page's record, check it. Opts: wd, caps, url, profile,
- * lim, settleMs, pollMs, session (reuse an open session id; a cold profile opens a fresh one), log, sleep.
- * Returns the record, the replay's swipes, the conjuncts per swipe, replayMatches and the frame reduction of the record.
- */
 export async function replayPass({ wd, caps, url, profile, lim = LIM, settleMs = 6000, pollMs = 2500, session = null, log = () => {}, sleep = sleepMs }) {
   const acts = compile(profile);
   if (acts.length === 0) throw new Error(`profile ${profile.id} compiles to no actions`);
@@ -88,14 +75,12 @@ export async function replayPass({ wd, caps, url, profile, lim = LIM, settleMs =
   }
 }
 
-/** The check of a page record against the profile it replayed: swipes the page saw, conjuncts per swipe, replayMatches, frame reduction. */
 export function checkRecord({ rec, profile, lim = LIM }) {
   const rep = swipesOf(touchesOf(rec));
   const perSwipe = profile.swipes.slice(0, rep.length).map((a, i) => conjuncts(lim, a, rep[i]));
   return { rec, rep, perSwipe, matches: replayMatches(lim, profile.swipes, rep), report: reducePass(normalize(rec)) };
 }
 
-/** What a phone (or its double) does with actions, for tests: a WebDriver double whose page sees the events of the simulated touch source. */
 export function doubleWd(capture = {}) {
   const sessions = new Map();
   let n = 0;
@@ -123,10 +108,6 @@ export function doubleWd(capture = {}) {
   };
 }
 
-/**
- * A session: every kind of profile, `reps` repeats, the arm order rotated per repeat. `arms` are {name, url}; `base` the recorded
- * profile; `gen` {n, gap, reps, zone: {maxY10, frames, t0}} the generator inputs. Returns the passes in the order they ran.
- */
 export async function runSession({ wd, caps, arms, base, kinds, reps, gen, lim = LIM, settleMs, pollMs, log = () => {}, sleep }) {
   const passes = [];
   for (const run of schedule(kinds, reps, arms.length)) {

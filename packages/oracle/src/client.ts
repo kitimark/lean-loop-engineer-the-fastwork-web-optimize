@@ -1,19 +1,8 @@
-// The oracle client: thin I/O around fwcore's `oracle.*` ops (lean/Fw/Oracle/Wire.lean). It decides nothing:
-//   oracle.request -> exact body text (state redacted in Lean) -> sha256 key -> answer log lookup
-//   oracle.pre     -> replay | refuse(failure) | send(bodyText)   (declared fields, redaction, size, daily cap, run
-//                     cap: Fw.Oracle.pre); in a replay run `oracle.preRun` instead, which also caps the run's sends
-//                     and estimated input tokens (Fw.Oracle.preRun)
-//   send           -> exactly the bodyText oracle.pre returned; the key is read from the keychain only here, after
-//                     oracle.pre said send; no key is failure noKey (never a crash)
-//   oracle.store   -> the reply as logged and decided on (at most 64 KiB)
-//   oracle.decide  -> advise | escalate   (Fw.Oracle.policy; every failure escalates)
-// The key is never logged, written, put in the environment or in an error (./scrub.ts).
 import { scrub } from "./scrub.ts";
 import { appendLog, loggedReply, readLog, sha256 } from "./log.ts";
 import type { KeyReader } from "./key.ts";
 
 export type Json = Record<string, unknown>;
-/** One fwcore request, one reply; an `error` reply throws. */
 export type FwCall = (req: Json) => Json;
 
 /** The API endpoint (CONFIRMED https://docs.typesafe.ai/api.md, read 2026-10-18). */
@@ -23,25 +12,17 @@ export type Deps = {
   core: FwCall;
   fetch: typeof fetch;
   readKey: KeyReader;
-  /** The answer log file. */
   logPath: string;
   now: () => Date;
-  /** Per-request timeout. */
   timeoutMs?: number;
-  /** Start a timing span; call the result with the exit code. */
   span?: (step: string) => (exit?: number) => void;
 };
 
 export type Ask = {
   question: string;
-  /** Field to string or lines. Redacted by fwcore before anything else happens. */
   state: Record<string, string | string[]>;
-  /** Extra words to redact (e.g. the git user name), never logged. */
   names?: string[];
-  /** The stored threshold table (option key to {num, den} or null; Fw.Oracle.decideOpt: an answer is advised only
-   *  at its own option's threshold), or null (uncalibrated: always escalate). */
   thresholds: Json | null;
-  /** Calls already made in this calibration run (enables the run cap). */
   run?: number;
   /** Sends and estimated input tokens already spent in this replay run (`fw oracle send`): the gate is
    *  `oracle.preRun`, and `run` is ignored. */
@@ -49,21 +30,15 @@ export type Ask = {
 };
 
 export type Asked = {
-  /** fwcore's `oracle.decide` reply: {action, advice?, reason?, gate?}. */
   decision: Json;
-  /** sha256 of the request body. */
   key: string;
-  /** Where the outcome came from. */
   source: "replay" | "live" | "refused" | "nokey" | "failed";
-  /** The reply text, when there is one (for calibration). */
   reply?: string;
-  /** Whether a request went out. */
   sent: boolean;
   /** The body's estimated input tokens, when `oracle.preRun` let it go out. */
   tokens?: number;
 };
 
-/** UTC day YYYY-MM-DD. */
 export function utcDay(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
@@ -79,7 +54,6 @@ export async function ask(d: Deps, a: Ask): Promise<Asked> {
   const entries = readLog(d.logPath);
   const prior = loggedReply(entries, key);
   const today = utcDay(d.now());
-  // the raw state: Lean checks its fields, then redacts it and builds the body itself
   const days = entries.map((e) => e.day);
   const pre = a.replayRun
     ? d.core({ op: "oracle.preRun", name: a.question, names, state: a.state, logged: prior !== undefined, today, days, ...a.replayRun })
@@ -98,7 +72,6 @@ export async function ask(d: Deps, a: Ask): Promise<Asked> {
     end?.(0);
     return { decision: decide({ failure: (pre.failure as Json) ?? { kind: "schema", detail: "pre" } }), key, source: "refused", sent: false };
   }
-  // send exactly the string Lean built (Fw.Oracle.body_from_lean); it is the logged body by construction
   const sendText = String(pre.bodyText);
   if (sendText !== bodyText) throw new Error("oracle: oracle.pre body differs from oracle.request body");
   const secret = d.readKey();
@@ -125,7 +98,6 @@ export async function ask(d: Deps, a: Ask): Promise<Asked> {
   }
   const ms = Math.round(performance.now() - t0);
   const model = (() => { try { return String((JSON.parse(bodyText) as Json).model); } catch { return ""; } })();
-  // what the log stores is what is decided on: the scrubbed reply, capped at 64 KiB by fwcore (Fw.Oracle.storedReply)
   const stored = reply !== undefined ? String(d.core({ op: "oracle.store", text: scrub(reply, secret) }).text) : undefined;
   appendLog(d.logPath, {
     key, question: a.question, model, day: today, at: d.now().toISOString(), ms,
@@ -136,7 +108,6 @@ export async function ask(d: Deps, a: Ask): Promise<Asked> {
   return { decision: decide(outcome), key, source: stored !== undefined ? "live" : "failed", ...(stored !== undefined ? { reply: stored } : {}), sent: true, ...tokens };
 }
 
-/** One plain line for a decision: `advise <value> (gate g)` or `escalate: <reason>`. */
 export function decisionLine(dec: Json): string {
   const q = (x: unknown) => {
     const r = x as { num?: string; den?: string } | undefined;

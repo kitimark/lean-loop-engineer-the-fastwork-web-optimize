@@ -1,7 +1,8 @@
 # Handoff: jev-replay (lean-prover)
 
 ## State
-- Branch `worktree-wf_30bab1a1-3ee-1`; Jev arm run and scored on 2026-10-21 UTC (the answer log's day).
+- Branch `worktree-wf_30bab1a1-3ee-1` (main merged in); Jev arm run and scored on 2026-10-21 UTC (answer log
+  day).
 - Lean: `Fw/Oracle/Questions.lean` (incident-class, finding-severity), `Send.lean` (`RunBudget`, `preRun`),
   `Replay.lean` (sets D1/D2, `scrubWf`, `minHoldout`, stratified sample, score math), `ReplayWire.lean` (ops
   `oracle.replay`, `oracle.preRun`, `oracle.score`), `Calibrate.lean` (`heldOut` = `Labels.heldOut`).
@@ -23,4 +24,4 @@
 ## Conventions
 - Live sends only as bare `pnpm fw oracle send ...`; datasets stay in `.cache/jev` (gitignored); prompts files stay
   out of git.
-- Read first: the note, then `lean/Fw/Oracle/ReplayWire.lean` (op table in its module doc).
+- Read first: the note, the replay op table in `docs/team/tools/oracle.md`, then `lean/Fw/Oracle/ReplayWire.lean`.

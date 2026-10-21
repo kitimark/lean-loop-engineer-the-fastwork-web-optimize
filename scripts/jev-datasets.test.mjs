@@ -1,4 +1,3 @@
-// Tests of scripts/jev-datasets.mjs on synthetic fixtures only (no real ledger, journal, run list or event log).
 import assert from 'node:assert/strict'
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -8,7 +7,6 @@ import { GOLDEN, buildD1, buildD2, buildD3, buildD4, fableClassLines, leaks, loa
 
 const golden = readFileSync(GOLDEN, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l))
 const rules = loadRules()
-// Synthetic personal-looking values are assembled at run time so this file holds no literal the privacy scrub would flag.
 const HOME = ['/Us', 'ers/'].join('')
 const LINUXHOME = ["/ho", "me/"].join("")
 const ENC = ['-Us', 'ers-'].join('')
@@ -175,12 +173,12 @@ test('buildD3: infra, flake, ours, uncovered, unread log', () => {
   const t0 = '2026-10-19T12:00:00Z'
   const fl = (id, wf, sha, at, conclusion = 'failure') => ({ databaseId: id, workflowName: wf, headSha: sha, headBranch: 'ci/x', event: 'push', createdAt: at, displayTitle: 'T', conclusion })
   const failures = [
-    fl(1, 'lean', 's1', '2026-10-20T00:00:00Z'), // infra log
-    fl(2, 'lean', 's2', '2026-10-20T00:00:00Z'), // same sha passed, code log
-    fl(3, 'lean', 's3', '2026-10-20T00:00:00Z'), // code log, nothing passed
-    fl(4, 'lean', 's4', '2026-10-01T00:00:00Z'), // before the success window
-    fl(5, 'lean', 's5', '2026-10-20T00:00:00Z'), // log not read
-    fl(6, 'lean', 's6', '2026-10-20T00:00:00Z'), // no phrase
+    fl(1, 'lean', 's1', '2026-10-20T00:00:00Z'),
+    fl(2, 'lean', 's2', '2026-10-20T00:00:00Z'),
+    fl(3, 'lean', 's3', '2026-10-20T00:00:00Z'),
+    fl(4, 'lean', 's4', '2026-10-01T00:00:00Z'),
+    fl(5, 'lean', 's5', '2026-10-20T00:00:00Z'),
+    fl(6, 'lean', 's6', '2026-10-20T00:00:00Z'),
   ]
   const successes = [{ databaseId: 9, workflowName: 'lean', headSha: 's2', createdAt: t0, conclusion: 'success' }, { databaseId: 10, workflowName: 'other', headSha: 's3', createdAt: t0, conclusion: 'success' }]
   const logs = { 1: 'curl: ECONNRESET', 2: 'AssertionError: x', 3: 'error TS2322', 4: 'AssertionError', 6: 'exit code 1' }

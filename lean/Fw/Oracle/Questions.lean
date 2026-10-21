@@ -1,24 +1,9 @@
 import Fw.Oracle.Core
 import Fw.Oracle.Labels
-/-!
-# Fw.Oracle.Questions: the registered questions, and the seeded option order of a request
-
-`questions` is the registry the wire looks names up in: `ciTriage` (why a failed CI run failed), and the questions
-of the trial's replay sets, `incidentClass` (set D1: the mistake class of an incident) and `findingSeverity` (set D2:
-the grade of a review finding). Their options are the labels the sets carry (`incidentClass_labels`,
-`findingSeverity_labels`), so every labeled row can be scored. A System One model leans towards
-the first listed option (lead note, 2026-10-18), so the request lists a Choice question's options in an order
-shuffled per call:
-`shuffle` sorts the options by a 64-bit FNV-1a hash of the seed and the option, and the seed is the FNV-1a hash of
-the request's redacted state text. The order is a permutation of the options (`shuffle_perm`), and the same state
-gives the same order, so a logged request replays byte for byte.
--/
+/-! The registered questions and the seeded option order of a request. -/
 namespace Fw.Oracle
 
-/-- **The CI-triage question**: why did this failed CI run fail? Options `flake`, `infra`, `real`, and the no-match
-option `unknown`; an option keeps a threshold only when, on the held-out rows the policy advises as that option, the
-one-sided 95 % Wilson lower bound of the precision is at least 9/10 and at least 5 of them are right
-(`Fw.Oracle.certify`). The state fields are `job`, `step` and `log`. -/
+/-- The CI-triage question: why did this failed CI run fail? Options `flake`. -/
 def ciTriage : Question where
   name := "ci-triage"
   instructions := "A GitHub Actions run of a repository failed. The state holds the failing job and step, and the " ++
@@ -36,17 +21,14 @@ def ciTriage : Question where
   perOption := 5
   fields := ["job", "step", "log"]
 
-/-- **The CI-triage answer space is well formed** (distinct options, the no-match option among them, 2 to 255 options). -/
 theorem ciTriage_wf : ciTriage.spec.wf = true := by decide
 
-/-- **Every option of the CI-triage question has a description, in option order.** -/
 theorem ciTriage_criteria : ciTriage.criteria.map Prod.fst = ciTriage.spec.keys := by decide
 
 /-- The no-match option of the incident question. -/
 def noClass : String := "none"
 
-/-- The 13 mistake classes the incident ledger's rows carry, each with what tells it apart (restated from
-`research/mistakes/ledger.json`). `c-mathdoc` and `c-principle` label no incident, so they are not offered. -/
+/-- The 13 mistake classes of the incident ledger, with their criteria. -/
 def incidentClasses : List (String × String) := [
   ("c-orphan-wait", "A wait loop or child process with no bound and no owner: a shell loop polls for text that " ++
     "never appears, or a background child outlives the task that started it."),
@@ -73,9 +55,7 @@ def incidentClasses : List (String × String) := [
   ("c-handcopy", "A value or model copied by hand with no generated or golden link to its source of truth."),
   ("c-policy-prose", "A safety or privacy rule written only in prose and not enforced at the tool boundary.")]
 
-/-- **The incident-class question** (set D1): which mistake class does this incident belong to? The options are the
-13 classes (`incidentClasses`) and the no-match option `none`; the state fields are the incident's `title`,
-`symptom` and `cause`. Calibration constants as for CI triage: target 9/10, at least 5 right per option. -/
+/-- The incident-class question of set D1. -/
 def incidentClass : Question where
   name := "incident-class"
   instructions := "An incident from a software project's incident ledger: an agent or a script made a mistake. The " ++
@@ -87,21 +67,16 @@ def incidentClass : Question where
   perOption := 5
   fields := ["title", "symptom", "cause"]
 
-/-- **The incident question's answer space is well formed** (14 distinct options, the no-match option among them). -/
 theorem incidentClass_wf : incidentClass.spec.wf = true := by decide
 
-/-- **Every option of the incident question has a description, in option order.** -/
 theorem incidentClass_criteria : incidentClass.criteria.map Prod.fst = incidentClass.spec.keys := by decide
 
-/-- **Every class offered is a label set D1 can carry** (`Labels.d1Label` keeps it). -/
 theorem incidentClass_labels : ∀ c ∈ incidentClasses.map (·.1), Labels.d1Label c = some c := by decide
 
 /-- The no-match option of the severity question. -/
 def noGrade : String := "unclear"
 
-/-- **The finding-severity question** (set D2): how serious is this review finding for the task's pinned unit? The
-options are the three grades of the review rules and the no-match option `unclear`; the state fields are the
-finding, where it points, the task text, the pinned unit and the accepted limits. -/
+/-- The finding-severity question of set D2. -/
 def findingSeverity : Question where
   name := "finding-severity"
   instructions := "A reviewer checked a builder's delivery of a task and wrote this finding. The state holds the " ++
@@ -119,13 +94,10 @@ def findingSeverity : Question where
   perOption := 5
   fields := ["finding", "where", "task", "unit", "limits"]
 
-/-- **The severity question's answer space is well formed.** -/
 theorem findingSeverity_wf : findingSeverity.spec.wf = true := by decide
 
-/-- **Every option of the severity question has a description, in option order.** -/
 theorem findingSeverity_criteria : findingSeverity.criteria.map Prod.fst = findingSeverity.spec.keys := by decide
 
-/-- **The grades offered are exactly the grade names set D2 labels with** (`Labels.exactWords`), in order. -/
 theorem findingSeverity_labels : findingSeverity.spec.keys.filter (· != noGrade) = Labels.exactWords := by decide
 
 /-- The registered questions. -/
@@ -134,22 +106,18 @@ def questions : List Question := [ciTriage, incidentClass, findingSeverity]
 /-- The registered question with this name, if any. -/
 def question (x : String) : Option Question := questions.find? (·.name == x)
 
-/-- **The registered names are distinct**, so a name finds exactly its question. -/
 theorem questions_names_nodup : (questions.map (·.name)).Nodup := by decide
 
 /-- 64-bit FNV-1a over the code points of a text (offset basis 14695981039346656037, prime 1099511628211). -/
 def fnv (s : String) : Nat :=
   s.toList.foldl (fun h c => ((h ^^^ c.toNat) * 1099511628211) % 2 ^ 64) 14695981039346656037
 
-/-- The sort key of an option under a seed: the hash of the seed's decimal text, `:`, and the option. -/
 def shuffleKey (seed : Nat) (o : String) : Nat := fnv (toString seed ++ ":" ++ o)
 
-/-- **The seeded shuffle**: the options sorted by their key under the seed (a stable merge sort; equal keys keep
-their order). -/
+/-- The seeded shuffle: the options sorted by their key under the seed. -/
 def shuffle (seed : Nat) (os : List String) : List String :=
   os.mergeSort fun a b => decide (shuffleKey seed a ≤ shuffleKey seed b)
 
-/-- **The shuffle is a permutation**: every option is listed, each exactly as often as before. -/
 theorem shuffle_perm (seed : Nat) (os : List String) : (shuffle seed os).Perm os :=
   List.mergeSort_perm _ _
 

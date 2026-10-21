@@ -21,7 +21,6 @@ decreasing_by
   simp only [List.length_drop]
   omega
 
-/-- **No element is lost**: the pieces put back together are the list. -/
 theorem chunk_flatten {α : Type} (n : Nat) (l : List α) : (chunk n l).flatten = l := by
   induction l using (measure List.length).wf.induction with
   | h l ih =>
@@ -36,7 +35,6 @@ theorem chunk_flatten {α : Type} (n : Nat) (l : List α) : (chunk n l).flatten 
       · rename_i h; simp [h]
       · simp
 
-/-- **Every piece has at most `n` elements** (for `n > 0`). -/
 theorem chunk_le {α : Type} (n : Nat) (hn : 0 < n) (l : List α) : ∀ c ∈ chunk n l, c.length ≤ n := by
   induction l using (measure List.length).wf.induction with
   | h l ih =>
@@ -55,16 +53,13 @@ theorem chunk_le {α : Type} (n : Nat) (hn : 0 < n) (l : List α) : ∀ c ∈ ch
       · rename_i hl
         exact absurd ⟨hn, hl⟩ h
 
-/-- The most characters a state line of a replay row has (under the send gate's 500, so a redaction that lengthens a
-line stays under it). -/
+/-- The longest state line of a replay row, under the send gate's 500. -/
 def lineWidth : Nat := 400
 
-/-- **The lines of a text**: its newline-separated lines, each cut into pieces of at most `lineWidth` characters;
-empty lines are dropped. -/
+/-- The newline-separated lines of a text, each cut to `lineWidth`, empty lines dropped. -/
 def textLines (s : String) : List String :=
   (s.splitOn "\n").flatMap fun ln => (chunk lineWidth ln.toList).map String.ofList
 
-/-- **Every line of a text is at most `lineWidth` characters.** -/
 theorem textLines_le (s : String) : ∀ x ∈ textLines s, x.length ≤ lineWidth := by
   intro x hx
   simp only [textLines, List.mem_flatMap, List.mem_map] at hx
@@ -116,7 +111,6 @@ theorem startsId_w {c : Char} {r : List Char} (h : startsId (c :: r) = true) : c
   unfold startsId at h
   split at h <;> simp_all
 
-/-- Scrubbing keeps the first character. -/
 theorem scrubWf_head (c : Char) (r : List Char) : ∃ t, scrubWf (c :: r) = c :: t := by
   rw [scrubWf]
   split
@@ -125,7 +119,6 @@ theorem scrubWf_head (c : Char) (r : List Char) : ∃ t, scrubWf (c :: r) = c ::
     exact ⟨_, rfl⟩
   · exact ⟨_, rfl⟩
 
-/-- Scrubbing passes a character other than `w` through. -/
 theorem scrubWf_cons {c : Char} (hc : c ≠ 'w') (r : List Char) : scrubWf (c :: r) = c :: scrubWf r := by
   have hs : startsId (c :: r) = false := by
     cases h : startsId (c :: r)
@@ -134,7 +127,6 @@ theorem scrubWf_cons {c : Char} (hc : c ≠ 'w') (r : List Char) : scrubWf (c ::
   rw [scrubWf]
   simp [hs]
 
-/-- A run id in front of a scrubbed text was already in front of the text. -/
 theorem startsId_scrub (c : Char) (rest : List Char) (h : startsId (c :: scrubWf rest) = true) :
     startsId (c :: rest) = true := by
   have hw := startsId_w h
@@ -168,7 +160,6 @@ theorem startsId_scrub (c : Char) (rest : List Char) (h : startsId (c :: scrubWf
         · simp [startsId, hy] at h
     · simp [startsId, hx] at h
 
-/-- **A scrubbed text holds no local run id.** -/
 theorem scrubWf_clean (l : List Char) : noWfId (scrubWf l) = true := by
   induction l using (measure List.length).wf.induction with
   | h l ih =>
@@ -195,8 +186,7 @@ theorem scrubWf_clean (l : List Char) : noWfId (scrubWf l) = true := by
 
 /-! ## The sets -/
 
-/-- A registered replay set: its name, its file under the datasets directory, its question, the row key that fills
-each state field, and whether it is sent in full or as the stratified sample. -/
+/-- A replay set: name, file, question, the row key of each state field, and whether it is sampled. -/
 structure ReplaySet where
   name : String
   file : String
@@ -209,8 +199,7 @@ def d1 : ReplaySet :=
   { name := "d1", file := "d1.jsonl", question := incidentClass, sampled := false,
     fields := [("title", "title"), ("symptom", "symptom"), ("cause", "cause")] }
 
-/-- **D2**: the review findings, the stratified sample. The finding text is the row's `what`, the task text its
-`taskText`. -/
+/-- D2: review findings, sent as the stratified sample. -/
 def d2 : ReplaySet :=
   { name := "d2", file := "d2.jsonl", question := findingSeverity, sampled := true,
     fields := [("finding", "what"), ("where", "where"), ("task", "taskText"), ("unit", "unit"),
@@ -222,21 +211,16 @@ def sets : List ReplaySet := [d1, d2]
 /-- The registered set with this name, if any. -/
 def replaySet (x : String) : Option ReplaySet := sets.find? (·.name == x)
 
-/-- **Each set fills exactly its question's fields, in order.** -/
 theorem sets_fields : ∀ r ∈ sets, r.fields.map Prod.fst = r.question.fields := by
   simp only [sets, List.mem_cons, List.not_mem_nil, or_false, forall_eq_or_imp, forall_eq]
   exact ⟨rfl, rfl⟩
 
-/-- **The D2 options are the three grade words and the no-match option** (D1's classes are D1 labels:
-`incidentClass_labels`). -/
 theorem d2_labels : d2.question.spec.keys = Labels.exactWords ++ [noGrade] := by decide
 
-/-- The state of one row: each field's text (the row's value at its key, empty when absent) with local run ids
-replaced (`scrubWf`) and cut into lines (`textLines`). -/
+/-- The state of one row: each field's text with run ids scrubbed, cut into lines. -/
 def rowState (r : ReplaySet) (row : List (String × String)) : State :=
   r.fields.map fun (f, k) => (f, textLines (String.ofList (scrubWf ((row.lookup k).getD "").toList)))
 
-/-- **A row's state names exactly the set's question fields**, so the send gate never refuses it as undeclared. -/
 theorem rowState_declared (r : ReplaySet) (hr : r ∈ sets) (row : List (String × String)) :
     declared r.question (rowState r row) = true := by
   have hf := sets_fields r hr
@@ -245,7 +229,6 @@ theorem rowState_declared (r : ReplaySet) (hr : r ∈ sets) (row : List (String 
   rw [← hf]
   exact List.contains_iff_mem.mpr (List.mem_map.mpr ⟨(f, key), hm, rfl⟩)
 
-/-- **No state line of a row is longer than `lineWidth`.** -/
 theorem rowState_lines (r : ReplaySet) (row : List (String × String)) :
     ∀ p ∈ rowState r row, ∀ x ∈ p.2, x.length ≤ lineWidth := by
   intro p hp x hx
@@ -253,9 +236,7 @@ theorem rowState_lines (r : ReplaySet) (row : List (String × String)) :
   obtain ⟨_, _, rfl⟩ := hp
   exact textLines_le _ x hx
 
-/-- A text names a grade: one of the three grade words anywhere, or a grade word of the old vocabulary as its first
-word (`Labels.wordGrade`). A D2 row whose finding or location names a grade is left out of the sample, since its
-answer would be read off the text. -/
+/-- A text names a grade (a grade word anywhere, or an old grade word first). -/
 def namesGrade (text : String) : Bool :=
   let l := Labels.lowerTrim text
   Labels.exactWords.any (fun w => Labels.hasInfix w.toList l) || (Labels.wordGrade (Labels.headWord l)).isSome
@@ -273,8 +254,6 @@ def leaks (row : List (String × String)) : Bool := leakKeys.any fun k => namesG
 
 /-! ## The least sample that can certify -/
 
-/-- **More right answers among fewer rows still pass**: if `h` hits of `n` rows pass the Wilson test at a rate
-`0 ≤ q < 1`, then `h` hits of `h` rows pass it too (the bound only rises when misses are removed). -/
 theorem wilsonOk_hits (z q : Rat) (h n : Nat) (hz : 0 ≤ z) (hq : 0 ≤ q) (hh : 0 < h) (hn : h ≤ n)
     (hw : wilsonOk z q h n = true) : wilsonOk z q h h = true := by
   simp only [wilsonOk, Bool.and_eq_true, decide_eq_true_eq] at hw ⊢
@@ -334,22 +313,17 @@ theorem firstFrom_least (p : Nat → Bool) :
       · subst e; simpa using hps
       · exact ih (start + 1) j (by omega) hj
 
-/-- **The least number of held-out rows that can certify an option**: the least `h ≥ max 1 k` such that `h` right of
-`h` passes the Wilson test at rate `q` (searched up to 10000). -/
+/-- The least `h ≥ max 1 k` such that `h` right of `h` passes the Wilson test at `q`. -/
 def minHoldout (q : Rat) (k : Nat) : Nat := firstFrom (fun h => wilsonOk wilsonZ q h h) (max 1 k) 10000
 
 #guard minHoldout (9 / 10) 5 == 25
 #guard minHoldout (8 / 10) 5 == 11
 #guard minHoldout (1 / 2) 5 == 5
 
-/-- **No smaller number passes**: below `minHoldout q k`, `h` right of `h` fails the Wilson test. -/
 theorem minHoldout_least (q : Rat) (k h : Nat) (hk : max 1 k ≤ h) (hlt : h < minHoldout q k) :
     wilsonOk wilsonZ q h h = false :=
   firstFrom_least (fun x => wilsonOk wilsonZ q x x) 10000 (max 1 k) h hk hlt
 
-/-- **Certifying an option needs at least `minHoldout q k` held-out rows labeled with it** (for `0 ≤ q`): whatever
-the answers, a certified table entry for `o` means the holdout part holds that many rows whose label is `o`. So a
-sample with fewer held-out rows of an option can never certify it. -/
 theorem certify_needs_holdout (s : Spec) (q : Rat) (k : Nat) (rs : List IdRow) (o : Advice) (τ : Rat) (hq : 0 ≤ q)
     (h : (certify s q k rs).lookup o = some τ) :
     minHoldout q k ≤ ((holdPart rs).filter (·.label == o)).length := by
@@ -380,7 +354,6 @@ def sampleCal (k : Nat) (rows : List (String × String)) (o : String) : List (St
 def sample (q : Rat) (k : Nat) (opts : List String) (rows : List (String × String)) : List (String × String) :=
   opts.flatMap fun o => sampleHeld q k rows o ++ sampleCal k rows o
 
-/-- **The held-out sample of an option is held out, labeled with it, and taken from the rows.** -/
 theorem sampleHeld_mem (q : Rat) (k : Nat) (rows : List (String × String)) (o : String) :
     ∀ r ∈ sampleHeld q k rows o, r ∈ rows ∧ r.2 = o ∧ heldOut r.1 = true := by
   intro r hr
@@ -389,14 +362,12 @@ theorem sampleHeld_mem (q : Rat) (k : Nat) (rows : List (String × String)) (o :
   simp only [List.mem_mergeSort, List.mem_filter, Bool.and_eq_true, beq_iff_eq] at this
   exact ⟨this.1, this.2.1, this.2.2⟩
 
-/-- **The sample holds `minHoldout q k` held-out rows of an option whenever the set has that many.** -/
 theorem sampleHeld_length (q : Rat) (k : Nat) (rows : List (String × String)) (o : String)
     (h : minHoldout q k ≤ (rows.filter fun r => r.2 == o && heldOut r.1).length) :
     (sampleHeld q k rows o).length = minHoldout q k := by
   simp only [sampleHeld, byHash, List.length_take, List.length_mergeSort]
   omega
 
-/-- **The calibration sample of an option is not held out.** -/
 theorem sampleCal_mem (k : Nat) (rows : List (String × String)) (o : String) :
     ∀ r ∈ sampleCal k rows o, r ∈ rows ∧ r.2 = o ∧ heldOut r.1 = false := by
   intro r hr
@@ -406,7 +377,6 @@ theorem sampleCal_mem (k : Nat) (rows : List (String × String)) (o : String) :
     Bool.not_true] at this
   exact ⟨this.1, this.2.1, this.2.2⟩
 
-/-- **At most `minHoldout q k + max 1 k` rows per option.** -/
 theorem sample_length (q : Rat) (k : Nat) (opts : List String) (rows : List (String × String)) :
     (sample q k opts rows).length ≤ opts.length * (minHoldout q k + max 1 k) := by
   induction opts with
@@ -431,14 +401,12 @@ def optionName : Advice → String
 def unleaked (rows : List (String × String × Bool)) : List (String × String) :=
   rows.filterMap fun (i, l, lk) => if lk then none else some (i, l)
 
-/-- **The rows a set sends**: every labeled row when the set is not sampled, else the sample over the advisable
-options of its question, leaking rows left out. Rows are `(id, label, leaks)`. -/
+/-- The rows `(id, label, leaks)` a set sends: all labeled rows, or the sample of non-leaking rows. -/
 def pick (r : ReplaySet) (rows : List (String × String × Bool)) : List (String × String) :=
   if r.sampled then
     sample r.question.target r.question.perOption (r.question.spec.advisable.map optionName) (unleaked rows)
   else rows.map fun (i, l, _) => (i, l)
 
-/-- **The D2 sample has at most `minHoldout (9/10) 5 + 5` rows per grade** (25 + 5, so 90 for the three grades). -/
 theorem d2_pick_le (rows : List (String × String × Bool)) :
     (pick d2 rows).length ≤ 3 * (minHoldout (9 / 10) 5 + 5) :=
   sample_length (9 / 10) 5 (d2.question.spec.advisable.map optionName) (unleaked rows)
@@ -473,11 +441,9 @@ theorem filter_and_le {α : Type} (p q : α → Bool) (l : List α) :
     simp only [List.filter_cons]
     by_cases hp : p x <;> by_cases hq : q x <;> simp [hp, hq] <;> omega
 
-/-- **Right answers are among the answers of that option.** -/
 theorem right_le_chosen (rs : List Scored) (o : String) : rightN rs o ≤ chosenN rs o :=
   filter_and_le _ _ rs
 
-/-- **Right answers are among the rows of that label.** -/
 theorem right_le_labeled (rs : List Scored) (o : String) : rightN rs o ≤ labeledN rs o := by
   have : rightN rs o = (rs.filter fun r => r.1 == o && r.2 == some o).length := by
     unfold rightN
@@ -509,9 +475,7 @@ structure Price where
   output : Rat
 deriving Repr, DecidableEq
 
-/-- **The published prices** (CONFIRMED, read 2026-10-22): Jev 0.042 per million input tokens, output free
-(docs.typesafe.ai/models.md); Claude Haiku 5.5 0.10 and 0.50, Claude Sonnet 5.5 2 and 10 (docs.claude.com pricing,
-prompts up to 100k tokens). -/
+/-- Dollars per Mtok in and out: docs.typesafe.ai/models.md and docs.claude.com pricing, read 2026-10-22. -/
 def armPrice : String → Option Price
   | "jev" => some { input := 42 / 1000, output := 0 }
   | "haiku" => some { input := 1 / 10, output := 1 / 2 }
