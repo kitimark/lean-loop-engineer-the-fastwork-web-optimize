@@ -49,3 +49,25 @@ first (Yes / Cancel); the decision shows after. Compose marks the variant `look 
 
 The lead applies it to `Gen.lookDecisions` by hand (set `review := .done`, the verdict, and the ledger text), regenerates the
 goldens, and the item leaves the queue. Not automated yet.
+
+## Reports (review-reports)
+
+An experiment reports its result to the user as a report, shown in the Reports section below the look-change reviews.
+- **Decision (Lean `Fw.Console.Report`, op `console.report`):** a report is shown only if every number is tagged MEASURED
+  with a CI run id (digits) or INFERRED with its reason, values are decimals, 2 to 4 arms with distinct names, strips are
+  https, the recommendation is adopt, hold or drop. A refusal names the place (lane, metric, arm). Answers: approve, hold,
+  reject, with an optional comment; a comment becomes `review.feedback` on the topic `report:<id>` (the lead gets the
+  existing `review.feedback` alert; the lead replies with `fw review reply --flag report:<id> --to <feedback id> --text <text>`).
+  Lean checks only the numbers of the metric tables and layer verdicts; the title and recommendation are free text and carry no
+  numbers. The original snapshot has no search and is named by its arm name; the rewrite arm is `base` with an empty search. Goldens: `packages/contracts/golden/console/report.jsonl` (30 cases).
+- **Post:** `pnpm -s fw review report post --file <report.json>` (example: `results/review-reports/example.json`, used in
+  tests only, never posted to the live log). It posts `step.post` `report-<id>` (choice, audience user).
+- **HTTP (`apps/console-api/src/review/reports.ts`):** `GET /api/reports`, `POST /api/reports` {report},
+  `POST /api/reports/:id/answer` {word, comment?, cid?}. A different report under a used id is 409.
+- **Storage:** `<console dir>/reports/<id>.json`; a step body is capped at 2000 characters, so the report is a side file
+  and the step body is Lean's short text.
+- **Web (`Reports.tsx`):** arms side by side, a metric table per lane with a tag chip per cell, layer verdicts, the strips
+  link, the thread, a comment box and Approve / Hold / Reject with an in-page confirm step. Works at 390 px.
+- **TS stand-in:** none for decisions. Unchecked glue: the file store and the posting calls.
+- **Limits:** strips link to CI artifacts, which expire; no image hosting; the Reviews tab badge counts look-change
+  reviews only (reports show their own count in the section). Each experiment task posts its own report.

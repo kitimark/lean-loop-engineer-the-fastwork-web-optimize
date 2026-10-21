@@ -34,7 +34,7 @@ def ctlJson (c : Ctl) : Json :=
 
 def entryJson (e : Entry) : Json :=
   Json.mkObj [("owner", .str e.owner), ("token", .str e.token), ("kind", .str e.kind.name), ("since", toJson e.since),
-    ("till", toJson e.till), ("foot", toJson e.foot)]
+    ("till", toJson e.till), ("foot", toJson e.foot), ("leaseS", toJson e.leaseS)]
 
 def entriesJson (es : List Entry) : Json := .arr (es.map entryJson).toArray
 
@@ -179,23 +179,43 @@ def threadsLines : List String :=
     line s!"threads cores={c} roomMB={r}" "adapt.threads" [("cores", toJson c), ("roomMB", toJson r)]
       (Json.mkObj [("threads", toJson (leanThreads {} c r))])
 
-def holdB : Entry := { owner := "b", token := "t2", kind := .test, since := 0, till := 60 }
+def holdB : Entry := { owner := "b", token := "t2", kind := .test, since := 0, till := 60, leaseS := 60 }
+
+def simGrant : Entry := grant {} holdA 0 1800 2800
 
 def leaseLines : List String :=
   let es := [holdA, holdB]
   let pr := fun (nm : String) (now : Nat) =>
     line nm "adapt.prune" [("now", toJson now), ("entries", entriesJson es)] (Json.mkObj [("entries", entriesJson (prune now es))])
-  let rn := fun (nm : String) (now : Nat) (o t : String) (lease : Nat) =>
-    line nm "adapt.renew" [("now", toJson now), ("owner", .str o), ("token", .str t), ("lease", toJson lease),
+  let ex := fun (nm : String) (now : Nat) (es : List Entry) =>
+    line nm "adapt.expired" [("now", toJson now), ("entries", entriesJson es)]
+      (Json.mkObj [("entries", entriesJson (expired now es))])
+  let rnIn := fun (nm : String) (now : Nat) (o t : String) (lease : Option Nat) (es : List Entry) =>
+    line nm "adapt.renew" [("now", toJson now), ("owner", .str o), ("token", .str t), ("lease", optJson lease),
       ("entries", entriesJson es)]
       (Json.mkObj [("entries", match renew {} now o t lease es with | some r => entriesJson r | none => .null)])
+  let rn := fun (nm : String) (now : Nat) (o t : String) (lease : Option Nat) => rnIn nm now o t lease es
+  let gr := fun (nm : String) (now lease foot : Nat) =>
+    line nm "adapt.grant" [("me", entryJson holdB), ("now", toJson now), ("lease", toJson lease), ("foot", toJson foot)]
+      (Json.mkObj [("entry", entryJson (grant {} holdB now lease foot))])
+  let lo := fun (nm : String) (stored : Option Nat) (since till : Nat) =>
+    line nm "adapt.leaseOr" [("stored", optJson stored), ("since", toJson since), ("till", toJson till)]
+      (Json.mkObj [("leaseS", toJson (leaseOr stored since till))])
   let rl := fun (nm : String) (o t : String) =>
     line nm "adapt.release" [("owner", .str o), ("token", .str t), ("entries", entriesJson es)]
       (Json.mkObj [("entries", entriesJson (release o t es))])
   [ pr "both live" 59, pr "one lease ends at 60" 60, pr "both expired" 100,
-    rn "own live lease renewed" 50 "a" "t1" 600, rn "lease capped at leaseMaxS" 50 "a" "t1" 99999,
-    rn "wrong token refused" 50 "a" "t9" 600, rn "another owner refused" 50 "b" "t1" 600,
-    rn "expired lease refused" 100 "a" "t1" 600, rn "lease at its last second renewed" 99 "a" "t1" 60,
+    ex "both live: no expire" 59 es, ex "one lease ends at 60: one expire" 60 es, ex "both expired: two expire" 100 es,
+    ex "a duplicated expired entry: one expire each" 100 [holdA, holdA], ex "no entries" 5 [],
+    rn "own live lease renewed" 50 "a" "t1" (some 600), rn "lease capped at leaseMaxS" 50 "a" "t1" (some 99999),
+    rn "no length keeps the granted 100 s" 50 "a" "t1" none, rn "no length keeps the other holder's 60 s" 30 "b" "t2" none,
+    rnIn "sim lease of 1800 s renewed after 1192 s with no length keeps 1800 s" 1192 "a" "t1" none [simGrant],
+    rnIn "sim lease renewed with a length sets it" 1192 "a" "t1" (some 60) [simGrant],
+    rn "wrong token refused" 50 "a" "t9" (some 600), rn "another owner refused" 50 "b" "t1" (some 600),
+    rn "expired lease refused" 100 "a" "t1" (some 600), rn "expired lease refused with no length" 100 "a" "t1" none,
+    rn "lease at its last second renewed" 99 "a" "t1" (some 60),
+    gr "grant stores the requested length" 10 1800 2800, gr "grant caps at leaseMaxS" 10 99999 0,
+    lo "stored length wins" (some 30) 0 100, lo "legacy entry: its whole span" none 40 100,
     rl "own entry released" "a" "t1", rl "foreign release is a no-op" "a" "t2" ]
 
 def simLines : List String :=

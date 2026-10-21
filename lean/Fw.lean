@@ -176,6 +176,7 @@ import Fw.Console.JournalFold  -- console-idle-cpu: journal cache, settled runs,
 import Fw.Console.Review  -- user-review-queue: pending look-change reviews as user steps
 import Fw.Console.ReviewPreview  -- review-preview-devices: Preview arms, URLs and the device class of a look-change review
 import Fw.Console.ReviewFeedback  -- review-feedback: feedback threads on the review cards
+import Fw.Console.Report  -- review-reports: experiment reports in the Reviews tab (tagged numbers, approve/hold/reject)
 import Fw.Console.ReviewFeedbackLaws  -- review-feedback: what the reducer guarantees about the threads
 import Fw.Console.Steps
 import Fw.Obs.FeedbackAlert  -- review-feedback: the watch alert for open feedback
@@ -196,6 +197,7 @@ import Fw.Gate.Trajectory.Dispatch  -- trajectory dispatch scope: verdict runs w
 import Fw.Gate.Colour  -- kit-colour-space: every trajectory colour reading in sRGB x1000, the error budget the judge allows
 import Fw.Gate.RunPerm  -- scoped-gap-did: run-level permutation test of the close gap g, statistic and exact p
 import Fw.Gate.Frames  -- earn-look-review-webkit: when a frame strip is usable (>= 10 shots per arm)
+import Fw.Gate.PathPix  -- path-pix-core: one pinned-frame pixel cell graded E, E1, Q, L or invalid
 import Fw.Gate.Smooth  -- smoothness-probe: motion continuity along a push (stalls, jumps, tail) and the bad-frame cadence verdict
 import Fw.Wire.ShardGolden  -- gate-shard-balance: golden/gate/shards.jsonl
 import Fw.Measure.WktrLayout  -- wktr-fixture-speed: lane layout, premise gate, fixture assertions

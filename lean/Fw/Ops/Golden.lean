@@ -1091,6 +1091,72 @@ def stepTopicsCases (_ : Unit := ()) : List (String × Json) :=
    ("threads: step and topic subjects only, in the order of the first comment; review flags are left out",
     stp s!"[{tp "a" "A" "one" 100},{q "nav:x" "fb-1" "review" 200},{q "step:s1" "fb-2" "why" 210},{q "topic:a" "fb-3" "how" 220},{r "step:s1" "fb-2" "because" 230}]" s!"[{st "s1" (some "a") "waiting" "user" 500}]")]
 
+/-- A MEASURED tag with a run id. -/
+def rpM (run : String) : Json := Json.mkObj [("kind", "measured"), ("run", run)]
+
+/-- An INFERRED tag with its reason. -/
+def rpI (why : String) : Json := Json.mkObj [("kind", "inferred"), ("why", why)]
+
+/-- A report with the knobs the cases turn: the id, the tag and value of one cell, a layer verdict and its tag, the strips link,
+the second arm's name and search, and the recommendation word and reason. -/
+def rpt (id : String := "hero-exit") (tag : Option Json := some (rpM "39634194664")) (value : String := "34.0")
+    (layer : Option (String × Option Json) := none) (strips : Option String := some "https://github.com/OWNER/REPO/actions/runs/39634194664")
+    (arm2 : String := "rewrite") (search2 : String := "?fw=hero:exit") (word : String := "adopt") (why : String := "Layout time falls 29 times") : Json :=
+  let cell (arm v : String) (t : Option Json) := Json.mkObj ([("arm", Json.str arm), ("value", lit v)] ++ (match t with | some j => [("tag", j)] | none => []))
+  let layers := (match layer with
+    | some (v, t) => [Json.mkObj ([("layer", Json.str "hero"), ("verdict", Json.str v)] ++ (match t with | some j => [("tag", j)] | none => []))]
+    | none => [])
+  Json.mkObj ([("id", Json.str id), ("proposal", "hero-exit"), ("title", "Hero exit on WebKit"),
+    ("arms", Json.arr #[Json.mkObj [("name", "original"), ("search", "")], Json.mkObj [("name", Json.str arm2), ("search", Json.str search2)]]),
+    ("lanes", Json.arr #[Json.mkObj [("name", "webkit 1280"), ("layers", Json.arr layers.toArray),
+      ("rows", Json.arr #[Json.mkObj [("metric", "frame interval p50"), ("unit", "ms"),
+        ("cells", Json.arr #[cell "original" value tag, cell "rewrite" "17.0" (some (rpM "39634194664"))])],
+        Json.mkObj [("metric", "render-work share"), ("unit", "%"),
+        ("cells", Json.arr #[cell "original" "42.6" (some (rpM "39634194664")), cell "rewrite" "18.6" (some (rpI "A/A copy reads 16.7"))])]])]]),
+    ("recommendation", Json.mkObj [("word", Json.str word), ("why", Json.str why)])] ++
+    (match strips with | some u => [("strips", Json.str u)] | none => []))
+
+/-- A `console.report` request. -/
+def rq (reports : List Json) (steps : String := "[]") (answer : String := "null") : Json :=
+  Json.mkObj [("reports", Json.arr reports.toArray), ("steps", lit steps), ("answer", lit answer)]
+
+/-- The `console.report` cases. -/
+def reportCases (_ : Unit := ()) : List (String × Json) :=
+  let st (id : String) (ans : String) (o : String) := s!"\{\"id\":\"{id}\",\"answer\":{ans},\"open\":{o}}"
+  let open_ := s!"[{st "report-hero-exit" "null" "true"}]"
+  let done (w : String) := s!"[{st "report-hero-exit" s!"\"{w}\"" "false"}]"
+  let ans (w c : String) := s!"\{\"id\":\"hero-exit\",\"word\":\"{w}\",\"comment\":\"{c}\"}"
+  [("a fully tagged report is shown and its step is still to be posted", rq [rpt]),
+   ("a report whose step is open is open", rq [rpt] open_),
+   ("a report whose step holds approve is approve", rq [rpt] (done "approve")),
+   ("a step closed without a verdict is closed", rq [rpt] (done "later")),
+   ("a number without a tag is refused", rq [rpt (tag := none)]),
+   ("MEASURED without a run id is refused", rq [rpt (tag := some (rpM ""))]),
+   ("MEASURED with a run that is no number is refused", rq [rpt (tag := some (rpM "abc"))]),
+   ("INFERRED without its reason is refused", rq [rpt (tag := some (rpI "  "))]),
+   ("a tag of another kind is refused", rq [rpt (tag := some (Json.mkObj [("kind", "guessed")]))]),
+   ("a value that is no number is refused", rq [rpt (value := "\"fast\"")]),
+   ("a layer verdict without a tag is refused", rq [rpt (layer := some ("E", none))]),
+   ("a layer verdict outside E, Q, L is refused", rq [rpt (layer := some ("X", some (rpM "39634194664")))]),
+   ("a tagged layer verdict Q is shown", rq [rpt (layer := some ("Q", some (rpM "39634194664")))]),
+   ("two arms with one name are refused", rq [rpt (arm2 := "original")]),
+   ("an arm search that is no query is refused", rq [rpt (search2 := "fw=hero")]),
+   ("a strips link that is not https is refused", rq [rpt (strips := some "file:///tmp/x")]),
+   ("a report without strips is shown", rq [rpt (strips := none)]),
+   ("a recommendation outside adopt, hold, drop is refused", rq [rpt (word := "maybe")]),
+   ("a recommendation without a reason is refused", rq [rpt (why := " ")]),
+   ("an id with a capital letter is refused", rq [rpt (id := "Hero")]),
+   ("one bad report does not hide a good one", rq [rpt (tag := none), rpt (id := "second")]),
+   ("approve with no comment writes no feedback", rq [rpt] open_ (ans "approve" "")),
+   ("hold with a comment writes feedback on report:<id>", rq [rpt] open_ (ans "hold" "check the 390 px strip")),
+   ("reject with a blank comment writes no feedback", rq [rpt] open_ (ans "reject" "  ")),
+   ("a word outside approve, hold, reject is refused", rq [rpt] open_ (ans "keep" "")),
+   ("an answered report refuses a second answer", rq [rpt] (done "approve") (ans "reject" "")),
+   ("an unposted report refuses an answer", rq [rpt] "[]" (ans "approve" "")),
+   ("a step closed without a verdict refuses an answer", rq [rpt] (done "later") (ans "approve" "")),
+   ("an answer for a report that is not shown is refused", rq [rpt (tag := none)] open_ (ans "approve" "")),
+   ("a comment over the feedback cap is refused", rq [rpt] open_ (ans "approve" (String.ofList (List.replicate 2001 'x'))))]
+
 /-- Golden files whose name is not their op: (directory under `packages/contracts/golden`, file stem, op, cases). -/
 def named (_ : Unit := ()) : List (String × String × String × List (String × Json)) := [
   ("ops", "lean-first", "ops.leanFirst", leanFirstCases),
@@ -1098,6 +1164,7 @@ def named (_ : Unit := ()) : List (String × String × String × List (String ×
   ("console", "steps-topics", "console.stepTopics", stepTopicsCases),
   ("land", "render-guard", "console.landRenderGuard", renderGuardCases),
   ("console", "review", "console.review", reviewCases),
+  ("console", "report", "console.report", reportCases),
   ("console", "reviewPreview", "console.reviewPreview", reviewPreviewCases)]
 
 /-- The request with its `op` field set. -/

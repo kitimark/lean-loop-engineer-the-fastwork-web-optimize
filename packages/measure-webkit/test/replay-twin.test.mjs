@@ -111,3 +111,21 @@ test('CI profile adapter keeps the strokes', () => {
   assert.equal(p.swipes[1].start, Math.round((30 * 100000) / 60));
   assert.deepEqual(p.swipes[1].s[2], [Math.round((2 * 100000) / 60), 50, 80]);
 });
+
+test('pieces: one per swipe with points, equal Lean, joined they are the compiled actions, a timeout above each duration', () => {
+  const gs = of('pieces');
+  assert.equal(gs.length, 4);
+  for (const g of gs) {
+    const ps = R.pieces(g.profile);
+    assert.deepEqual(ps, g.pieces, g.profile.id);
+    assert.deepEqual(ps.flat(), R.compile(g.profile));
+    assert.deepEqual(ps.map((p) => R.pieceTimeoutMs(R.actsMs(p))), g.timeouts);
+    assert.equal(ps.length, g.profile.swipes.filter((s) => s.s.length > 0).length);
+    for (const [i, p] of ps.entries()) {
+      assert.equal(p.filter((a) => a[0] === 'd').length, 1);
+      assert.equal(p.filter((a) => a[0] === 'u').length, 1);
+      assert.equal(p[p.length - 1][0], 'u');
+      assert.ok(g.timeouts[i] > R.actsMs(p));
+    }
+  }
+});
