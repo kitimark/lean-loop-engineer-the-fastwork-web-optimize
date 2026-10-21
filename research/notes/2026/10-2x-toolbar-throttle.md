@@ -49,7 +49,7 @@ invisible and fixed, so it draws nothing (INFERRED from the CSS; no pixel compar
 
 The count: a *still run* is a maximal run of consecutive frames with the same `scrollY`, inside the hero exit range
 (value strictly between 0 and 1) and between two moving frames. A band run lasts 5 or 6 frames. At 60 Hz, 100 ms is
-`throttleK 1667 = 5` frames (theorem `throttleK_60hz`), and every frame time from 1429 to 1999 (tenths of ms) gives 5 or 6
+`throttleK 1667 = 5` frames (theorem `throttleK_60hz`), and every frame time from 1429 to 1999 (hundredths of a ms, 14.29 to 19.99 ms; theorem throttleK_mem_band: 1429 <= d < 2000) gives 5 or 6
 (`throttleK_mem_band`). The frame time in every CI pass is a median of 17.0 ms (job 1, checked per pass).
 
 ## Table (MEASURED)
