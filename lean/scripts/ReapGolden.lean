@@ -51,22 +51,117 @@ def reapCases : List (String × Json) := [
   ("pid 1 is never selected", req [row 1 1 1 9 (some 12) "console"] [] []),
   ("no rows", req [] [] [])]
 
-/-- The golden text. -/
+
+/-- A row with a worktree id as JSON. -/
+def rowW (pid ppid pgid start : Nat) (cwd : Option Nat) (kind : String) (wt : Option String) : Json :=
+  match row pid ppid pgid start cwd kind with
+  | .obj kvs => .obj (kvs.insert "wt" (match wt with | some w => .str w | none => .null))
+  | j => j
+
+/-- A selection request with the live worktree ids. -/
+def reqW (rows : List Json) (live : List Nat) (mcps : List Json) (keep : List (Nat × Nat) := []) (ids : List String := []) :
+    Json :=
+  match req rows live mcps keep with
+  | .obj kvs => .obj (kvs.insert "liveIds" (.arr (ids.map Json.str).toArray))
+  | j => j
+
+/-- A stop target as JSON. -/
+def tgt (pid start : Nat) (group : Bool) : Json :=
+  Json.mkObj [("pid", toJson pid), ("start", toJson start), ("group", .bool group)]
+
+/-- A kill or verify request: the planned targets and the fresh rows. -/
+def stopReq (planned : List Json) (rows : List Json) : Json :=
+  Json.mkObj [("planned", .arr planned.toArray), ("rows", .arr rows.toArray)]
+
+/-- The cases of the tool branches and the stop plan, `(op, name, request)`. Ids: `gone` is a removed worktree, `live` a live one. -/
+def stopCases : List (String × String × Json) := [
+  ("ops.lspReap", "B: a tool whose cwd path is in a removed worktree is selected as removed",
+    reqW [rowW 800 1 800 9 (some 20) "tool" (some "gone")] [1] [] [] ["live"]),
+  ("ops.lspReap", "B: a tool in a live worktree id is kept",
+    reqW [rowW 800 1 800 9 (some 20) "tool" (some "live")] [1] [] [] ["live"]),
+  ("ops.lspReap", "B: a tool with no worktree id (cwd elsewhere) is kept",
+    reqW [rowW 800 1 800 9 (some 20) "tool" none] [1] [] [] ["live"]),
+  ("ops.lspReap", "B: a tool whose cwd inode is a live checkout's is kept even when its path names a gone id",
+    reqW [rowW 800 1 800 9 (some 1) "tool" (some "gone")] [1] [] [] ["live"]),
+  ("ops.lspReap", "B: a tool with an unreadable cwd is kept",
+    reqW [rowW 800 1 800 9 none "tool" (some "gone")] [1] [] [] ["live"]),
+  ("ops.lspReap", "B: an MCP process of a removed worktree is never selected as a tool",
+    reqW [rowW 800 1 800 9 (some 20) "tool" (some "gone")] [1] [mcpJ 800 (some 20)] [] ["live"]),
+  ("ops.lspReap", "B: the stopper's own process and its ancestors (protect) are kept, a sibling is selected",
+    match reqW [rowW 800 1 800 9 (some 20) "tool" (some "gone"), rowW 801 800 800 9 (some 20) "tool" (some "gone"),
+        rowW 802 1 802 9 (some 20) "tool" (some "gone")] [1] [] [] [] with
+    | .obj kvs => .obj (kvs.insert "protect" (toJson [800, 801]))
+    | j => j),
+  ("ops.lspReap", "B: pid 1 is never selected",
+    reqW [rowW 1 1 1 9 (some 20) "tool" (some "gone")] [1] [] [] []),
+  ("ops.lspReap", "B: the recorded console's own fwcore (child of the kept console) is kept, the console is kept",
+    reqW [rowW 600 1 600 100 (some 20) "console" (some "gone"), rowW 601 600 600 100 (some 20) "tool" (some "gone")] [1] []
+      [(600, 101)] []),
+  ("ops.lspReap", "B: a tool below a shell below the recorded console is kept",
+    reqW [rowW 600 1 600 100 (some 20) "console" (some "gone"), rowW 602 600 600 100 (some 20) "other" none,
+      rowW 601 602 600 100 (some 20) "tool" (some "gone")] [1] [] [(600, 101)] []),
+  ("ops.lspReap", "C: tools below a selected lake serve are selected as descendants, also through an unnamed shell",
+    reqW [rowW 500 400 500 9 (some 11) "lspServe" none, rowW 501 500 500 9 (some 11) "tool" none,
+      rowW 502 501 500 9 (some 11) "other" none, rowW 503 502 500 9 (some 11) "tool" none] [1] [mcpJ 400 (some 1)] [] []),
+  ("ops.lspReap", "C: a tool below a live-checkout parent is kept (no selected ancestor)",
+    reqW [rowW 500 400 500 9 (some 1) "lspServe" none, rowW 501 500 500 9 (some 11) "tool" none] [1] [mcpJ 400 (some 1)] [] []),
+  ("ops.lspReap", "C: a tool below a selected parent whose own cwd is live is kept",
+    reqW [rowW 500 400 500 9 (some 11) "lspServe" none, rowW 501 500 500 9 (some 1) "tool" none] [1] [mcpJ 400 (some 1)] [] []),
+  ("ops.lspReap", "C: an unnamed process below a selected parent is kept",
+    reqW [rowW 500 400 500 9 (some 11) "lspServe" none, rowW 501 500 500 9 (some 11) "other" none] [1] [mcpJ 400 (some 1)] [] []),
+  ("ops.lspReap", "C: a tool below a removed-worktree tool is selected",
+    reqW [rowW 800 1 800 9 (some 20) "tool" (some "gone"), rowW 801 800 800 9 (some 21) "tool" none] [1] [] [] []),
+  ("ops.lspReap", "C: a parent cycle in the table ends (fuel) and selects nothing unrooted",
+    reqW [rowW 810 811 810 9 (some 21) "tool" none, rowW 811 810 811 9 (some 21) "tool" none] [1] [] [] []),
+  ("ops.reapPlan", "plan: a group whose members are all selected is signalled as a group",
+    reqW [rowW 800 1 800 9 (some 20) "tool" (some "gone"), rowW 801 800 800 9 (some 20) "tool" (some "gone")] [1] [] [] []),
+  ("ops.reapPlan", "plan: a group with an unselected member (an unnamed shell) is signalled by pid",
+    reqW [rowW 800 1 800 9 (some 20) "tool" (some "gone"), rowW 802 800 800 9 (some 20) "other" none] [1] [] [] []),
+  ("ops.reapPlan", "plan: a selected row that is not its group leader is signalled by pid",
+    reqW [rowW 801 1 700 9 (some 20) "tool" (some "gone")] [1] [] [] []),
+  ("ops.reapPlan", "plan: nothing selected gives an empty plan, the script and the grace",
+    reqW [] [] [] [] []),
+  ("ops.reapKill", "kill: a planned identity present with the same start is killed",
+    stopReq [tgt 800 9 false] [row 800 1 800 9 none "tool"]),
+  ("ops.reapKill", "kill: a pid reused with a later start is not killed",
+    stopReq [tgt 800 9 false] [row 800 1 800 50 none "tool"]),
+  ("ops.reapKill", "kill: a planned identity that exited is not killed",
+    stopReq [tgt 800 9 false] [row 900 1 900 9 none "tool"]),
+  ("ops.reapKill", "kill: a group with a stranger now in it is killed by pid, not as a group",
+    stopReq [tgt 800 9 true] [row 800 1 800 9 none "tool", row 900 1 800 70 none "other"]),
+  ("ops.reapKill", "kill: a group whose rows are all planned stays a group",
+    stopReq [tgt 800 9 true, tgt 801 9 false] [row 800 1 800 9 none "tool", row 801 800 800 9 none "tool"]),
+  ("ops.reapVerify", "verify: a survivor is left, an exited target is gone",
+    stopReq [tgt 800 9 false, tgt 801 9 false] [row 800 1 800 9 none "tool"]),
+  ("ops.reapVerify", "verify: a reused pid is not a survivor",
+    stopReq [tgt 800 9 false] [row 800 1 800 50 none "tool"])]
+
+/-- The golden text of `lspreap.jsonl`. -/
 def text : String :=
   String.join (reapCases.map fun (name, r) =>
     (Json.mkObj [("name", .str name), ("request", withOp "ops.lspReap" r), ("response", respond "ops.lspReap" r)]).compress
       ++ "\n")
 
-/-- Write the golden file, or with `--check` exit 1 when it differs from the Lean output. -/
+/-- The golden text of `reap.jsonl`. -/
+def stopText : String :=
+  String.join (stopCases.map fun (op, name, r) =>
+    (Json.mkObj [("name", .str name), ("request", withOp op r), ("response", respond op r)]).compress ++ "\n")
+
+/-- Write the golden files, or with `--check` exit 1 when one differs from the Lean output. -/
 def main (args : List String) : IO UInt32 := do
-  let p : System.FilePath := ".." / "packages" / "contracts" / "golden" / "ops" / "lspreap.jsonl"
+  let dir : System.FilePath := ".." / "packages" / "contracts" / "golden" / "ops"
+  let files : List (String × String × Nat) :=
+    [("lspreap.jsonl", text, reapCases.length), ("reap.jsonl", stopText, stopCases.length)]
   if args.contains "--check" then
-    let cur ← try IO.FS.readFile p catch _ => pure ""
-    if cur != text then
-      IO.println s!"lspreap golden: {p} is stale (regenerate: cd lean && lake env lean --run scripts/ReapGolden.lean)"
-      return 1
-    IO.println s!"lspreap golden: {reapCases.length} cases, up to date"
-    return 0
-  IO.FS.writeFile p text
-  IO.println s!"lspreap golden: {reapCases.length} cases written"
+    let mut bad := false
+    for (f, t, n) in files do
+      let cur ← try IO.FS.readFile (dir / f) catch _ => pure ""
+      if cur != t then
+        IO.println s!"reap golden: {dir / f} is stale (regenerate: cd lean && lake env lean --run scripts/ReapGolden.lean)"
+        bad := true
+      else IO.println s!"reap golden: {f} {n} cases, up to date"
+    return if bad then 1 else 0
+  for (f, t, n) in files do
+    IO.FS.writeFile (dir / f) t
+    IO.println s!"reap golden: {f} {n} cases written"
   return 0
