@@ -226,7 +226,6 @@ def fbDone : List Event := fbLog ++ [ev "f2" 11 .lead (.reviewFeedbackReply "nav
 #guard (project fbDone).fb.length == 1 && (project fbDone).fb.all (!·.isOpen)
 
 
--- step.topic and a step's topic: wire name, actors, every refusal reason, the topic recorded on the step
 def topicSteps : List Event := [ev "t1" 2 .lead (.stepPost "S" none "q" .action none .user "" (some "smoothness"))]
 #guard EvType.stepTopic.name == "step.topic"
 #guard [Actor.user, .lead, .owner, .reviewer, .script, .git, .hook].filter (may · EvType.stepTopic) == [.lead, .script]

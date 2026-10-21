@@ -1,9 +1,6 @@
 import Lean.Data.Json
 import Fw.Device.Session
-/-!
-# Replaying a recorded finger path on the phone
-The W3C action compiler, the per-stroke replay check and the worst-case profile generators of `packages/measure-webkit/src/device-replay.mjs`.
--/
+/-! Replaying a recorded finger path on the phone: W3C action compiler and per-stroke replay check. -/
 namespace Fw.Device.Replay
 open Lean
 open Fw.Device.Session (Touch Phase replayStrokes t0Of singleFinger Zone zoneOf yAt)
@@ -166,14 +163,12 @@ theorem pauseRun_no_target (n : Nat) : (pauseRun n).filterMap Act.target = [] :=
   · rfl
   · simp [List.filterMap_map, Function.comp_def]
 
-/-- A sample on the ms grid: its time and its position in whole px. -/
 structure Pt where
   m : Int
   x : Int
   y : Int
   deriving Repr, DecidableEq
 
-/-- The time of the point that follows, the lift when none does. -/
 def nextMs : List Pt → Int → Int
   | [], fin => fin
   | q :: _, _ => q.m
@@ -205,7 +200,6 @@ def swipePts (s : Swipe) : List Pt :=
 /-- The end of a swipe on the ms grid. -/
 def swipeEnd (s : Swipe) : Int := ms (s.start + s.lift)
 
-/-- The actions of the swipes after the first: the wait since the last lift, then the swipe. -/
 def goActs : Int → List Swipe → List Act
   | _, [] => []
   | prev, s :: ss =>
@@ -277,7 +271,6 @@ theorem goActs_dur_le : ∀ (prev : Int) (ss : List Swipe), ∀ a ∈ goActs pre
       · exact swipeActs_dur_le _ _ a ha
       · exact ih _ a ha
 
-/-- Every action of the compiled profile takes at most 16 ms, so no move enters WebKit's interpolation loop. -/
 theorem compile_dur_le (p : Profile) : ∀ a ∈ compile p, 0 ≤ a.dur ∧ a.dur ≤ tickMax := by
   intro a ha
   unfold compile at ha
@@ -327,7 +320,6 @@ theorem goActs_targets : ∀ (prev : Int) (ss : List Swipe),
     · rename_i f rest h
       simp [List.filterMap_append, pauseRun_no_target, swipeActs_targets, ih, List.map_append]
 
-/-- The move targets of the compiled profile are the profile's samples in whole px, in order, so none is more than half a px (5 tenth px) from its sample. -/
 theorem compile_targets (p : Profile) :
     (compile p).filterMap Act.target = ((p.swipes.filter fun s => !s.samples.isEmpty).flatMap swipePts).map fun q => (q.x, q.y) := by
   unfold compile
@@ -377,7 +369,6 @@ theorem emit_dur_sum : ∀ (n : Nat) (p : Pt) (rest : List Pt) (fin : Int), rest
         Act.dur, nextMs, gap, tickMax]
       omega
 
-/-- The ticks of a swipe add up to the time from its first point to its lift. -/
 theorem swipeActs_dur_sum (f : Pt) (rest : List Pt) (fin : Int) (hc : chain f.m rest fin) :
     ((swipeActs (f :: rest) fin).map Act.dur).sum = fin - f.m := by
   unfold swipeActs
@@ -396,7 +387,7 @@ theorem swipeActs_dur_sum (f : Pt) (rest : List Pt) (fin : Int) (hc : chain f.m 
 
 /-! ## What the page sees of a replay -/
 
-/-- The samples whose whole px differ from the sample kept before them: a move to the place it is already at sends no event. -/
+/-- The samples whose whole px differ from the sample kept before them. -/
 def keep : Int × Int → List Sample → List Sample
   | _, [] => []
   | prev, e :: es =>
@@ -488,7 +479,6 @@ theorem replayMatches_of {lim : Lim} {src rep : List Swipe} (hc : src.length = r
   simp only [Bool.and_eq_true, List.all_eq_true, decide_eq_true_eq]
   exact ⟨hc, fun p hp => h p.1 p.2 hp⟩
 
-/-- One failing swipe fails the pass: the decision is per swipe, never pooled. -/
 theorem replayMatches_false_of_swipe {lim : Lim} {src rep : List Swipe} {a b : Swipe} (hm : (a, b) ∈ src.zip rep)
     (hf : swipeMatches lim a b = false) : replayMatches lim src rep = false := by
   cases h : replayMatches lim src rep

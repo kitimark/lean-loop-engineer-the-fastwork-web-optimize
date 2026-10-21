@@ -1129,13 +1129,9 @@ theorem procAlert_code (o : Obs) (q : Proc) : (procAlert o q).code = .procLong :
 def sProc (p : Params) (o : Obs) : List Alert :=
   (o.system.procs.filter (procLongB p o)).map (procAlert o)
 
-/-- `review.feedback`: one alert per review flag with an open feedback comment (subject the flag, detail the open count and the newest
-text's start); the decision is `Fw.Console.Steps.reviewAlerts`. -/
 def sFeedback (o : Obs) : List Alert :=
   (Fw.Console.Steps.reviewAlerts o.system.feedback).map fun fd => ⟨.reviewFeedback, fd.1, fd.2, false⟩
 
-/-- `step.question`: one alert per step or topic subject with an open question (subject `step:<id>` or `topic:<id>`, detail the open
-count and the newest text's start); the decision is `Fw.Console.Steps.questionAlerts`. -/
 def sQuestion (o : Obs) : List Alert :=
   (Fw.Console.Steps.questionAlerts o.system.feedback).map fun fd => ⟨.stepQuestion, fd.1, fd.2, false⟩
 
@@ -1403,8 +1399,6 @@ theorem sys_code_iff (p : Params) (o : Obs) (c : Code) (hc : c.isAgent = false) 
     have e := piece_code p o c y hy
     refine ⟨y, (mem_alerts p o y).2 (List.mem_append.2 (.inr ((mem_sys p o y).2 (by rw [e]; exact hy)))), e⟩
 
-/-- **`review.feedback` in the report**: the report has a `review.feedback` alert for a flag exactly when the flag is a review flag (not a
-step or topic subject) with an open comment in the thread of the feedback events. -/
 theorem feedback_iff (p : Params) (o : Obs) (f : String) :
     (∃ x ∈ (health p o).alerts, x.code = .reviewFeedback ∧ x.subject = f) ↔
       Fw.Console.Steps.isStepSubject f = false ∧
@@ -1427,8 +1421,6 @@ theorem feedback_iff (p : Params) (o : Obs) (f : String) :
       exact List.mem_map.2 ⟨fd, hfd, rfl⟩
     exact ⟨_, (mem_alerts p o _).2 (List.mem_append.2 (.inr ((mem_sys p o _).2 hy))), rfl, e⟩
 
-/-- **`step.question` in the report**: the report has a `step.question` alert for a subject exactly when the subject is a step or topic
-subject with an open comment in the thread of the feedback events. -/
 theorem question_iff (p : Params) (o : Obs) (f : String) :
     (∃ x ∈ (health p o).alerts, x.code = .stepQuestion ∧ x.subject = f) ↔
       Fw.Console.Steps.isStepSubject f = true ∧
@@ -1451,8 +1443,6 @@ theorem question_iff (p : Params) (o : Obs) (f : String) :
       exact List.mem_map.2 ⟨fd, hfd, rfl⟩
     exact ⟨_, (mem_alerts p o _).2 (List.mem_append.2 (.inr ((mem_sys p o _).2 hy))), rfl, e⟩
 
-/-- **A user comment on a review flag opens the alert** (its own branch): when the reducer accepts a post on a review flag, the report
-after it has the `review.feedback` alert of that flag. -/
 theorem feedback_post_opens (p : Params) (o : Obs) (f i t : String) (ts : Nat)
     (hf : Fw.Console.Steps.isStepSubject f = false)
     (h : Fw.Console.ReviewFeedback.postRefusal (Fw.Console.ReviewFeedback.thread o.system.feedback) f i t = none) :
@@ -1461,8 +1451,6 @@ theorem feedback_post_opens (p : Params) (o : Obs) (f i t : String) (ts : Nat)
   rw [feedback_iff]
   exact ⟨hf, (Fw.Obs.FeedbackAlert.mem_flags _ f).mp (Fw.Obs.FeedbackAlert.post_opens _ f i t ts h)⟩
 
-/-- **The lead's reply closes the alert** (its own branch): when the reducer accepts a reply to the review flag's only open comment, the
-report after it has no `review.feedback` alert for that flag. -/
 theorem feedback_reply_closes (p : Params) (o : Obs) (f to t : String) (ts : Nat)
     (h : Fw.Console.ReviewFeedback.replyRefusal (Fw.Console.ReviewFeedback.thread o.system.feedback) f to t = none)
     (honly : ∀ y ∈ Fw.Console.ReviewFeedback.thread o.system.feedback, y.flag = f → y.isOpen = true → y.id = to) :
@@ -1472,8 +1460,6 @@ theorem feedback_reply_closes (p : Params) (o : Obs) (f to t : String) (ts : Nat
   rintro ⟨_, hne⟩
   exact Fw.Obs.FeedbackAlert.reply_closes _ f to t ts h honly ((Fw.Obs.FeedbackAlert.mem_flags _ f).mpr hne)
 
-/-- **A user question opens the alert** (its own branch): when the reducer accepts a post on a step or topic subject, the report after it
-has the `step.question` alert of that subject. -/
 theorem question_post_opens (p : Params) (o : Obs) (f i t : String) (ts : Nat)
     (hf : Fw.Console.Steps.isStepSubject f = true)
     (h : Fw.Console.ReviewFeedback.postRefusal (Fw.Console.ReviewFeedback.thread o.system.feedback) f i t = none) :
@@ -1482,8 +1468,6 @@ theorem question_post_opens (p : Params) (o : Obs) (f i t : String) (ts : Nat)
   rw [question_iff]
   exact ⟨hf, (Fw.Obs.FeedbackAlert.mem_flags _ f).mp (Fw.Obs.FeedbackAlert.post_opens _ f i t ts h)⟩
 
-/-- **The lead's reply closes the question alert** (its own branch): when the reducer accepts a reply to the subject's only open comment,
-the report after it has no `step.question` alert for that subject. -/
 theorem question_reply_closes (p : Params) (o : Obs) (f to t : String) (ts : Nat)
     (h : Fw.Console.ReviewFeedback.replyRefusal (Fw.Console.ReviewFeedback.thread o.system.feedback) f to t = none)
     (honly : ∀ y ∈ Fw.Console.ReviewFeedback.thread o.system.feedback, y.flag = f → y.isOpen = true → y.id = to) :

@@ -1,7 +1,3 @@
-// The same replay in Chromium, native requestAnimationFrame, CPU throttled (the Linux proxy for the phone: docs/team/tools/device-replay.md).
-// I/O glue only: the events are the ones a WebKit touch source would make of the compiled actions (device-replay.mjs `simulateEvents`),
-// sent with CDP Input.dispatchTouchEvent at their wall-clock times; the page records with the phone's recorder (RECORD_JS) and the
-// Lean-proved check (replayMatches) judges what it saw. No virtual time, no seeking: the page runs on its own clock.
 import { performance } from 'node:perf_hooks';
 import { POLL_JS } from '../device-record.mjs';
 import { startRecorderJs, recorderSeconds, checkRecord } from '../device-replay-wd.mjs';
@@ -9,7 +5,6 @@ import { compile, simulateEvents, expected, seen, LIM } from '../device-replay.m
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/** Wait until the clock reads `target` ms (setTimeout for the bulk, a short spin for the last 2 ms). */
 export async function sleepUntil(target, clock = () => performance.now(), wait = sleep) {
   for (;;) {
     const left = target - clock();
@@ -20,10 +15,8 @@ export async function sleepUntil(target, clock = () => performance.now(), wait =
 
 const TOUCH = { s: 'touchStart', m: 'touchMove', e: 'touchEnd' };
 
-/** The CDP message of one touch event [ms, phase, x, y]. */
 export const touchMessage = ([, ph, x, y]) => ({ type: TOUCH[ph], touchPoints: ph === 'e' ? [] : [{ x, y, id: 0 }] });
 
-/** Send the events at their times (fire and forget, in order: the renderer's ack must not delay the next event). Returns how late each left. */
 export async function dispatchAt(cdp, events, { clock = () => performance.now(), wait = sleep } = {}) {
   const t0 = clock() + 50;
   const late = [], pending = [];
@@ -36,17 +29,12 @@ export async function dispatchAt(cdp, events, { clock = () => performance.now(),
   return late;
 }
 
-/** Ms of the lateness list: n, max, p95 (nearest rank). */
 export function lateStats(late) {
   const s = [...late].sort((a, b) => a - b);
   const at = (q) => (s.length === 0 ? 0 : s[Math.min(s.length - 1, Math.ceil(q * s.length) - 1)]);
   return { n: s.length, max: Number((s[s.length - 1] ?? 0).toFixed(2)), p95: Number(at(0.95).toFixed(2)) };
 }
 
-/**
- * One pass in a fresh context of `browser`. Returns what the phone pass returns plus the dispatch lateness. A cold profile throttles
- * before the load (first load, empty caches: a fresh context has none); a warm one after it.
- */
 export async function chromiumPass({ browser, origin, profile, throttle = 6, lim = LIM, settleMs = 4000, pollMs = 1000, log = () => {} }) {
   const acts = compile(profile);
   const context = await browser.newContext({ viewport: { width: profile.w, height: profile.h }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
@@ -84,7 +72,6 @@ export async function chromiumPass({ browser, origin, profile, throttle = 6, lim
   }
 }
 
-/** Markdown table of a run. */
 export function table(run) {
   const rows = ['| kind | rep | profile | swipes seen/sent | events sent/expected/seen | replayMatches | frames >34 ms | frames >50 ms | moving frames | dispatch late p95/max ms |', '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |'];
   for (const p of run.passes) {

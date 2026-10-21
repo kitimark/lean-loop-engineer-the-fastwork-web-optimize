@@ -1,8 +1,5 @@
 import Fw.Device.Replay
-/-!
-# Worst-case replay profiles
-Fast-fling, zone-loop and cold profiles made from a recorded one, and the arm order of a replay session.
--/
+/-! Worst-case replay profiles (fast-fling, zone-loop, cold) made from a recorded one, and the arm order. -/
 namespace Fw.Device.Replay
 open Fw.Device.Session (Zone zoneOf yAt)
 
@@ -25,7 +22,6 @@ theorem compile_sample_within (p : Profile) {s : Swipe} (hs : s ∈ p.swipes) {e
 
 /-! ## Laying swipes out -/
 
-/-- The swipes in order from `at_`, each starting `gap` after the one before has lifted. -/
 def layoutFrom (at_ gap : Int) : List Swipe → List Swipe
   | [] => []
   | s :: ss => { s with start := at_ } :: layoutFrom (at_ + s.lift + gap) gap ss
@@ -33,7 +29,6 @@ def layoutFrom (at_ gap : Int) : List Swipe → List Swipe
 /-- The swipes in order from 0. -/
 def layout (gap : Int) (ss : List Swipe) : List Swipe := layoutFrom 0 gap ss
 
-/-- Each swipe starts exactly `g` after the one before has lifted. -/
 def gapsOk (g : Int) : List Swipe → Bool
   | s :: t :: r => decide (t.start = s.start + s.lift + g) && gapsOk g (t :: r)
   | _ => true
@@ -133,7 +128,6 @@ theorem fastest_mem {l : List Swipe} {f : Swipe} (h : fastest l = some f) : f �
     · rw [h]; exact hsub s (by simp)
     · exact hsub _ (by simp [h])
 
-/-- No swipe that scrolls down is faster than the one picked. -/
 theorem fastest_max {l : List Swipe} {f : Swipe} (h : fastest l = some f) : ∀ s ∈ l, scrollsDown s = true → speed2 s ≤ speed2 f := by
   unfold fastest at h
   split at h
@@ -178,7 +172,6 @@ theorem fastFling_fastest {p q : Profile} {n : Nat} {g : Int} (h : fastFling p n
 
 /-! ## Zone loop -/
 
-/-- The zone the page is in when a swipe starts, `t0` the record time of the first swipe. -/
 def swipeZone (vh10 maxY10 : Int) (frames : List (Int × Int)) (t0 : Int) (s : Swipe) : Zone :=
   zoneOf vh10 maxY10 (yAt frames (t0 + s.start))
 
@@ -239,7 +232,7 @@ theorem cold_load (p : Profile) : (cold p).load = .cold := rfl
 
 /-! ## The order of arms -/
 
-/-- Arm positions `0 .. n-1` rotated left by `r`, so repeat `r` starts with arm `r` and every arm leads once in `n` repeats. -/
+/-- Arm positions `0 .. -/
 def rotation (n r : Nat) : List Nat := (List.range n).drop (r % n) ++ (List.range n).take (r % n)
 
 theorem rotation_perm (n r : Nat) : (rotation n r).Perm (List.range n) := by
@@ -255,7 +248,6 @@ theorem rotation_lead (n r : Nat) (hn : 0 < n) : (rotation n r).head? = some (r 
   rw [List.head?_append, List.head?_drop, List.getElem?_range hk]
   rfl
 
-/-- In `n` repeats every arm leads exactly once. -/
 theorem rotation_lead_cover (n : Nat) (a : Nat) (ha : a < n) : ∃ r < n, (rotation n r).head? = some a := by
   refine ⟨a, ha, ?_⟩
   rw [rotation_lead n a (by omega), Nat.mod_eq_of_lt ha]

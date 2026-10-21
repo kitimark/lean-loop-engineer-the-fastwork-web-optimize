@@ -1,5 +1,3 @@
-// jev-core: the oracle client and `fw oracle` against the real fwcore, a fake fetch serving the Lean-generated fixture
-// replies (packages/contracts/golden/oracle/fixtures.jsonl) and a fake keychain. No network, no key.
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -10,7 +8,6 @@ import { fastCore } from "../../../packages/gh-budget/test/util.ts";
 import { oracleCli, thresholdsOf, type Io } from "../src/oracle.ts";
 
 const hasCore = (() => { try { fwcoreCall(process.cwd()); return true; } catch { return false; } })();
-// one persistent fwcore behind a synchronous bridge (the CLI spawns one per decision; the calibrate tests make hundreds)
 const call: FwCall = hasCore ? fastCore() : () => ({});
 const golden = join(process.cwd(), "..", "..", "packages", "contracts", "golden", "oracle");
 const fixtures = new Map<string, { reply: string; label: string; decide: Json }>(
@@ -21,7 +18,6 @@ const fixtures = new Map<string, { reply: string; label: string; decide: Json }>
 const fx = (n: string) => fixtures.get(n)!.reply;
 const FAKE_KEY = "tsk_test_0123456789abcdef";
 const HALF = { num: "1", den: "2" };
-/** The threshold table with 1/2 for every CI-triage option. */
 const ALL = { flake: HALF, infra: HALF, real: HALF };
 const noKeychain = () => { throw new Error("keychain must not be read"); };
 
@@ -46,13 +42,9 @@ function deps(over: Partial<Deps> = {}): Deps {
 }
 
 const state = { job: "build", step: "lake build", log: ["error at /Users/example/w/x.lean:3", "done"] };
-/** Whether Lean puts id `id` in the holdout part (`oracle.plan` with `part`). */
 const isHeld = (id: string) => (call({ op: "oracle.plan", rows: [{ id, label: "x" }], part: "holdout" }).ids as string[]).length === 1;
-/** An id in the wanted part: `r<n>`, or `r<n>y` when that flips it (`y` has an odd code point). */
 const idIn = (held: boolean, n: number) => (isHeld(`r${n}`) === held ? `r${n}` : `r${n}y`);
-/** Replay row `k` (id `r<k>` unless given): its state names the row, so each row has its own request body. */
 const row = (k: number, label: string, id = `r${k}`) => ({ id, state: { log: `error in row-${k}.` }, label });
-/** A fetch that answers each body with the fixture of the row it names. */
 const byRow = (ans: string[]) => fakeFetch(({ body }) => new Response(fx(ans[Number(/row-(\d+)\./.exec(body)![1])]!)));
 
 describe.skipIf(!hasCore)("golden wire vectors replay through fwcore", () => {
@@ -170,7 +162,6 @@ describe.skipIf(!hasCore)("fw oracle", () => {
     return { deps: deps(), cwd: mkdtempSync(join(tmpdir(), "oracle-dir-")), names: [], out: (s) => lines.push(s), lines, ...over };
   }
   type Spec = [number, string, string, "choose" | "holdout"][];
-  /** Rows labeled in order, each in its part (its id), written to `rows.jsonl`; returns the fixture of each row. */
   function replaySet(dir: string, spec: Spec): string[] {
     const rows: string[] = [];
     const answers: string[] = [];

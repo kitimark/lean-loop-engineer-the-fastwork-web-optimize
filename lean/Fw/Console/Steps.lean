@@ -1,10 +1,6 @@
 import Fw.Console.ReviewFeedback
 import Fw.Obs.FeedbackAlert
-/-!
-# Topics and threads on steps
-
-A topic groups open steps under the lead's summary; a step or a topic has a comment thread (`ReviewFeedback`, subject `step:<id>` or `topic:<id>`).
--/
+/-! Topics group open steps under the lead's summary; steps and topics carry comment threads. -/
 namespace Fw.Console.Steps
 open Fw.Console.ReviewFeedback
 
@@ -18,7 +14,6 @@ def topicRefusal (id title summary : String) : Option String :=
   else if titleCap < title.length then some s!"title is longer than {titleCap} characters"
   else textRefusal summary
 
-/-- The thread subject of a step. -/
 def stepSubject (id : String) : String := "step:" ++ id
 
 /-- The thread subject of a topic. -/
@@ -27,11 +22,9 @@ def topicSubject (id : String) : String := "topic:" ++ id
 /-- Whether a thread subject names a step or a topic (any other subject is a review flag). -/
 def isStepSubject (s : String) : Bool := s.startsWith "step:" || s.startsWith "topic:"
 
-/-- A step subject is a step subject. -/
 theorem isStepSubject_step (id : String) : isStepSubject (stepSubject id) = true := by
   simp [isStepSubject, stepSubject]
 
-/-- A topic subject is a step subject. -/
 theorem isStepSubject_topic (id : String) : isStepSubject (topicSubject id) = true := by
   simp [isStepSubject, topicSubject]
 
@@ -51,7 +44,7 @@ structure Topic where
   updatedAt : Nat
 deriving Repr, DecidableEq
 
-/-- One event: an invalid one changes nothing, a known id gets the new title, summary and time in place, a new id is appended. -/
+/-- One event: an invalid one changes nothing. -/
 def define (ts : List Topic) (e : TopicEv) : List Topic :=
   if (topicRefusal e.id e.title e.summary).isSome then ts
   else if ts.any (·.id == e.id) then
@@ -61,7 +54,6 @@ def define (ts : List Topic) (e : TopicEv) : List Topic :=
 /-- The topics of a log, in the order of their first definition. -/
 def topics (evs : List TopicEv) : List Topic := evs.foldl define []
 
-/-- Defining keeps the ids distinct. -/
 theorem define_nodup {ts : List Topic} (h : (ts.map (·.id)).Nodup) (e : TopicEv) : ((define ts e).map (·.id)).Nodup := by
   unfold define
   split
@@ -88,7 +80,6 @@ theorem define_nodup {ts : List Topic} (h : (ts.map (·.id)).Nodup) (e : TopicEv
     apply hn
     exact List.any_eq_true.mpr ⟨x, hx, by simp [hab]⟩
 
-/-- The topics of any log have distinct ids. -/
 theorem topics_nodup (evs : List TopicEv) : ((topics evs).map (·.id)).Nodup := by
   unfold topics
   suffices ∀ (acc : List Topic), (acc.map (·.id)).Nodup → ((evs.foldl define acc).map (·.id)).Nodup from this [] List.nodup_nil
@@ -96,7 +87,6 @@ theorem topics_nodup (evs : List TopicEv) : ((topics evs).map (·.id)).Nodup := 
   | nil => intro acc h; exact h
   | cons e es ih => intro acc h; exact ih _ (define_nodup h e)
 
-/-- **The newest valid definition wins**: a valid event leaves a topic of its id with its title, summary and time. -/
 theorem define_latest (ts : List Topic) (e : TopicEv) (h : topicRefusal e.id e.title e.summary = none) :
     ∃ t ∈ define ts e, t.id = e.id ∧ t.title = e.title ∧ t.summary = e.summary ∧ t.updatedAt = e.ts := by
   unfold define
@@ -109,7 +99,6 @@ theorem define_latest (ts : List Topic) (e : TopicEv) (h : topicRefusal e.id e.t
     · simp at hxe; simp [hxe]
   · exact ⟨⟨e.id, e.title, e.summary, e.ts⟩, by simp, rfl, rfl, rfl, rfl⟩
 
-/-- An invalid event changes nothing. -/
 theorem define_invalid (ts : List Topic) (e : TopicEv) (h : (topicRefusal e.id e.title e.summary).isSome = true) :
     define ts e = ts := by
   simp [define, h]
@@ -123,7 +112,7 @@ structure Item where
   last  : Nat
 deriving Repr, DecidableEq
 
-/-- A group: a topic (`none` is the group of steps without a known topic) with its open steps, open questions and activity. -/
+/-- A group: a topic (`none` is the group of steps without a known topic) with its open steps. -/
 structure Group where
   topic         : Option String
   title         : String
@@ -151,7 +140,6 @@ def other (ts : List Topic) (items : List Item) : Group :=
   { topic := none, title := "Other", summary := "", updatedAt := none, items := rest ts items, openQuestions := 0,
     activity := latest 0 (rest ts items) }
 
-/-- The groups before ordering: one per defined topic (in definition order), then the group of the rest if it has any item. -/
 def mkGroups (ts : List Topic) (items : List Item) (fs : List Fb) : List Group :=
   (ts.map fun t =>
     let its := items.filter (itemKey ts · == some t.id)
@@ -159,7 +147,6 @@ def mkGroups (ts : List Topic) (items : List Item) (fs : List Fb) : List Group :
       openQuestions := (openOf fs (topicSubject t.id)).length, activity := latest t.updatedAt its }) ++
   (if (rest ts items).isEmpty then [] else [other ts items])
 
-/-- Each item is in exactly the group of its key, and nowhere else. -/
 theorem mem_items {ts : List Topic} {items : List Item} {fs : List Fb} {g : Group} (hg : g ∈ mkGroups ts items fs) (i : Item) :
     i ∈ g.items ↔ i ∈ items ∧ itemKey ts i = g.topic := by
   simp only [mkGroups, List.mem_append, List.mem_map] at hg
@@ -171,7 +158,6 @@ theorem mem_items {ts : List Topic} {items : List Item} {fs : List Fb} {g : Grou
       subst hg
       simp [other, rest, List.mem_filter]
 
-/-- Every item is in some group. -/
 theorem cover (ts : List Topic) (items : List Item) (fs : List Fb) (i : Item) (hi : i ∈ items) :
     ∃ g ∈ mkGroups ts items fs, i ∈ g.items := by
   cases hk : itemKey ts i with
@@ -217,48 +203,38 @@ def order (gs : List Group) : List Group := gs.mergeSort before
 /-- The grouped view of the open steps. -/
 def view (ts : List Topic) (items : List Item) (fs : List Fb) : List Group := order (mkGroups ts items fs)
 
-/-- `before` is transitive. -/
 theorem before_trans (a b c : Group) (h1 : before a b = true) (h2 : before b c = true) : before a c = true := by
   simp only [before, Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq, beq_iff_eq] at *
   omega
 
-/-- `before` is total. -/
 theorem before_total (a b : Group) : (before a b || before b a) = true := by
   simp only [before, Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq, beq_iff_eq]
   omega
 
-/-- **The order loses and adds no group.** -/
 theorem order_perm (gs : List Group) : (order gs).Perm gs := List.mergeSort_perm gs before
 
-/-- **The order is sorted**: each group stands before every later one. -/
 theorem order_sorted (gs : List Group) : (order gs).Pairwise (fun a b => before a b = true) :=
   List.pairwise_mergeSort before_trans before_total gs
 
-/-- What `before` says about ranks. -/
 theorem before_rank {a b : Group} (h : before a b = true) : a.rank ≤ b.rank := by
   simp only [before, Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq, beq_iff_eq] at h
   omega
 
-/-- What `before` says about equal ranks: the earlier group is at least as recent. -/
 theorem before_activity {a b : Group} (h : before a b = true) (hr : a.rank = b.rank) : b.activity ≤ a.activity := by
   simp only [before, Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq, beq_iff_eq] at h
   omega
 
-/-- **Open work comes first**: ranks never decrease along the order, so a topic with an open step or question stands before the group of the rest and before quiet topics. -/
 theorem order_rank_sorted (gs : List Group) : (order gs).Pairwise (fun a b => a.rank ≤ b.rank) :=
   (order_sorted gs).imp before_rank
 
-/-- The group of the rest ranks 1; a quiet topic ranks 2; a topic with work ranks 0. -/
 theorem rank_cases (g : Group) : g.rank = 0 ∨ g.rank = 1 ∨ g.rank = 2 := by
   unfold Group.rank
   split <;> (try split) <;> simp
 
-/-- The view groups each item exactly once: its group is the one named by its key. -/
 theorem view_mem_items {ts : List Topic} {items : List Item} {fs : List Fb} {g : Group} (hg : g ∈ view ts items fs) (i : Item) :
     i ∈ g.items ↔ i ∈ items ∧ itemKey ts i = g.topic :=
   mem_items ((order_perm _).mem_iff.mp hg) i
 
-/-- Every item is shown. -/
 theorem view_cover (ts : List Topic) (items : List Item) (fs : List Fb) (i : Item) (hi : i ∈ items) :
     ∃ g ∈ view ts items fs, i ∈ g.items := by
   obtain ⟨g, hg, hi'⟩ := cover ts items fs i hi
@@ -274,13 +250,10 @@ def questionAlerts (evs : List Ev) : List (String × String) :=
 def reviewAlerts (evs : List Ev) : List (String × String) :=
   (Fw.Obs.FeedbackAlert.alerts evs).filter fun p => !isStepSubject p.1
 
-/-- The subjects that have a `step.question` alert. -/
 def questionSubjects (evs : List Ev) : List String := (questionAlerts evs).map Prod.fst
 
-/-- The flags that have a `review.feedback` alert. -/
 def reviewFlags (evs : List Ev) : List String := (reviewAlerts evs).map Prod.fst
 
-/-- **A question alert exists exactly when a step or topic subject has an open comment.** -/
 theorem mem_questionSubjects (evs : List Ev) (f : String) :
     f ∈ questionSubjects evs ↔ isStepSubject f = true ∧ openOf (thread evs) f ≠ [] := by
   have := Fw.Obs.FeedbackAlert.mem_flags evs f
@@ -294,7 +267,6 @@ theorem mem_questionSubjects (evs : List Ev) (f : String) :
     simp only [Fw.Obs.FeedbackAlert.flags, List.mem_map, Prod.exists, exists_and_right, exists_eq_right] at hf
     exact ⟨hf, hs⟩
 
-/-- **A review alert exists exactly when a review flag (not a step or topic subject) has an open comment.** -/
 theorem mem_reviewFlags (evs : List Ev) (f : String) :
     f ∈ reviewFlags evs ↔ isStepSubject f = false ∧ openOf (thread evs) f ≠ [] := by
   have := Fw.Obs.FeedbackAlert.mem_flags evs f
@@ -309,21 +281,18 @@ theorem mem_reviewFlags (evs : List Ev) (f : String) :
     simp only [Fw.Obs.FeedbackAlert.flags, List.mem_map, Prod.exists, exists_and_right, exists_eq_right] at hf
     exact ⟨hf, hs⟩
 
-/-- **A subject has at most one kind of alert**: a step or topic subject never has a review alert, a review flag never a question alert. -/
 theorem kinds_disjoint (evs : List Ev) (f : String) : ¬ (f ∈ questionSubjects evs ∧ f ∈ reviewFlags evs) := by
   rintro ⟨h1, h2⟩
   have a := ((mem_questionSubjects evs f).mp h1).1
   have b := ((mem_reviewFlags evs f).mp h2).1
   simp [a] at b
 
-/-- **A user's question opens the alert**: after an accepted post on a step or topic subject, the subject has a `step.question` alert. -/
 theorem post_opens (evs : List Ev) (f i t : String) (ts : Nat) (hs : isStepSubject f = true)
     (h : postRefusal (thread evs) f i t = none) : f ∈ questionSubjects (evs ++ [Ev.post f i t ts]) := by
   rw [mem_questionSubjects]
   refine ⟨hs, ?_⟩
   exact (Fw.Obs.FeedbackAlert.mem_flags _ f).mp (Fw.Obs.FeedbackAlert.post_opens evs f i t ts h)
 
-/-- **The lead's reply closes the alert** when it answers the subject's only open comment. -/
 theorem reply_closes (evs : List Ev) (f to t : String) (ts : Nat)
     (h : replyRefusal (thread evs) f to t = none)
     (honly : ∀ y ∈ thread evs, y.flag = f → y.isOpen = true → y.id = to) :

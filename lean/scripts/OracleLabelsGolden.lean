@@ -1,9 +1,7 @@
 import Lean.Data.Json
 import Fw.Oracle.Labels
 
-/-! Write (or with `--check`, verify) `packages/contracts/golden/oracle/labels.jsonl` (Fw.Oracle.Labels): the constants,
-the split, the label rules and their cases. Consumer: `scripts/jev-datasets.mjs`, replayed by `scripts/jev-datasets.test.mjs`.
-Run from `lean/`: `lake env lean --run scripts/OracleLabelsGolden.lean [--check]`. -/
+/-! Write (or with `--check`, verify) `packages/contracts/golden/oracle/labels.jsonl` (Fw.Oracle.Labels). -/
 
 open Lean Fw.Oracle.Labels
 
