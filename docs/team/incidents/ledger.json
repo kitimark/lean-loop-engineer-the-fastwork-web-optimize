@@ -3573,6 +3573,34 @@
    "leanReason": "Which browser APIs exist depends on the page origin at run time, outside any pure function; a test of the page code without the API and a source scan are the guard.",
    "hardening": "lan-click-silent",
    "empiricalCheck": "apps/console-web/test/lan-click.test.ts (local vitest only: no CI runs console-web tests yet; task console-web-ci)"
+  },
+  {
+   "id": "inc-site-test-unrun",
+   "at": "2026-10-21T14:20+07:00",
+   "title": "A site unit test went red on main and every land passed: no CI lane runs apps/site unit tests",
+   "symptom": "apps/site src/parts/nav/look-change.test.ts:50 failed on main from 66458a10 (it expected the nav:earn-no-transition WebKit material pending); the hero-pause-rule reviewer found it on 2026-10-21; lands of review-strips-console and reap-auto-stop passed meanwhile.",
+   "cause": "CONFIRMED (workflow read): the land lane remote checks are check.sh, console-api, runner and five packages; apps/site vitest runs in no workflow, and its input rows do not include the preset goldens the test reads. The lead changed Gen.lean lookDecisions and regenerated look-change.candidates.jsonl, ran check.sh and the console tests, but not the site tests.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "66458a10",
+     "note": "made the test stale (WebKit material ready)"
+    },
+    {
+     "kind": "commit",
+     "ref": "461b5d67",
+     "note": "test expectation updated"
+    }
+   ],
+   "repro": "Change packages/contracts/golden/preset/look-change.candidates.jsonl and run fw land: no check runs apps/site vitest.",
+   "fix": {
+    "task": "console-web-ci"
+   },
+   "regression": "console-web-ci: the land lane runs apps/site and console-web unit tests, selected by their sources and the goldens they read (Trigger rows with a selection theorem).",
+   "mistakeClass": "c-late-check",
+   "leanVerdict": "provable",
+   "leanReason": "Which checks a changed path selects is the Lean Fw.Ci.Trigger table; a theorem that every golden a suite reads selects that suite is a statement over it.",
+   "hardening": "console-web-ci"
   }
  ]
 }

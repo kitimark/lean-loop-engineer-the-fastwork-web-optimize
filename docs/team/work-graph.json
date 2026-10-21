@@ -12573,14 +12573,15 @@
    "deps": [
     "lan-click-silent"
    ],
-   "title": "The land lane runs the console-web tests: no CI runs apps/console-web vitest today (the remote checks are check.sh, console-api, runner and 5 packages), so test/lan-click.test.ts and the other console-web tests guard only local runs. Add apps/console-web to the land lane checks the Lean way (Fw.Ci.Trigger / ci-paths input rows, regenerated goldens), and prove a console-web change selects that check",
+   "title": "The land lane runs the console-web AND apps/site unit tests: no CI runs either (the remote checks are check.sh, console-api, runner and 5 packages). Two misses on 2026-10-21: test/lan-click.test.ts guards only local runs (inc-lan-click-silent), and apps/site nav/look-change.test.ts went red on main at 66458a10 (a preset golden it reads changed) and every land passed (inc-site-test-unrun). Add both suites to the land lane checks the Lean way (Fw.Ci.Trigger / ci-paths input rows: their sources AND the goldens they read, e.g. packages/contracts/golden/preset/**), regenerate goldens, and prove a change to each input selects its check",
    "writes": [
     "lean/Fw/Ci/Trigger.lean",
     "packages/contracts/golden/ci/triggers.jsonl",
     "scripts/ci-paths.mjs",
     "scripts/ci-paths.test.mjs",
     ".github/workflows/land.yml",
-    "docs/team/handoffs/console-web-ci.md"
+    "docs/team/handoffs/console-web-ci.md",
+    "apps/site/package.json"
    ]
   },
   {
