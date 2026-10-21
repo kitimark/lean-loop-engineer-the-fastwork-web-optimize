@@ -17,11 +17,16 @@ Golden: `packages/contracts/golden/ci/dispatch.jsonl`, written by `lake test -- 
 namespace Fw.Ci.Dispatch
 open Lean
 
-/-- The title a dispatch with this nonce gets (`run-name` of the workflow). -/
-def titlePrefix : String := "trajectory-probe dispatch nonce="
+/-- The workflows whose `run-name` echoes the nonce of a dispatch (`<workflow> dispatch nonce=<n>`) and whose
+`workflow_dispatch` declares the input `nonce`: the four `fw run` dispatches. A wait with a nonce for any other workflow
+can never match a run. -/
+def dispatchWorkflows : List String := ["trajectory-probe", "breakpoint-gate", "chromium-counts", "webkit-sim"]
 
-/-- The run title of a dispatch. -/
-def title (n : String) : String := titlePrefix ++ n
+/-- The run title of a dispatch of workflow `wf` with this nonce (`run-name` of the workflow). -/
+def titleFor (wf n : String) : String := wf ++ " dispatch nonce=" ++ n
+
+/-- The run title of a trajectory-probe dispatch. -/
+def title (n : String) : String := titleFor "trajectory-probe" n
 
 /-- A nonce is 8 to 32 characters of `a-z0-9`, so it cannot be mistaken for another title and needs no escaping. -/
 def validNonce (n : String) : Bool :=
@@ -55,11 +60,14 @@ def pick (n : String) (rows : List Row) : Pick :=
     | is => .ambiguous is
 
 /-- A title determines its nonce. -/
-theorem title_inj (a b : String) (h : title a = title b) : a = b := by
-  unfold title at h
+theorem titleFor_inj (wf a b : String) (h : titleFor wf a = titleFor wf b) : a = b := by
+  unfold titleFor at h
   have := congrArg String.toList h
-  simp only [String.toList_append] at this
-  exact String.toList_inj.mp (List.append_cancel_left this)
+  simp only [String.toList_append, List.append_assoc] at this
+  exact String.toList_inj.mp (List.append_cancel_left (List.append_cancel_left this))
+
+/-- A trajectory-probe title determines its nonce. -/
+theorem title_inj (a b : String) (h : title a = title b) : a = b := titleFor_inj "trajectory-probe" a b h
 
 /-- Branch bad nonce: nothing is picked. -/
 theorem pick_bad (n : String) (rows : List Row) (h : validNonce n = false) : pick n rows = .badNonce := by
@@ -141,7 +149,7 @@ a dispatch run is `isMine` (event `workflow_dispatch`, the nonce's title), whate
 /-- What a wait is for. -/
 inductive Want where
   | push (sha : String)
-  | dispatch (nonce : String)
+  | dispatch (workflow nonce : String)
 deriving Repr, DecidableEq
 
 /-- A run list row with its head sha. -/
@@ -159,7 +167,7 @@ def validSha (s : String) : Bool :=
 /-- The run is the one the wait means. -/
 def wanted : Want → Run → Bool
   | .push s, r => validSha s && r.event == "push" && s.isPrefixOf r.sha
-  | .dispatch n, r => validNonce n && isMine n ⟨r.id, r.event, r.title⟩
+  | .dispatch w n, r => dispatchWorkflows.contains w && validNonce n && r.event == "workflow_dispatch" && r.title == titleFor w n
 
 /-- The ids of the runs the wait means, in list order. -/
 def select (w : Want) (rows : List Run) : List Nat := (rows.filter (wanted w)).map (·.id)
@@ -178,22 +186,54 @@ theorem push_selects (s : String) (r : Run) (hs : validSha s = true) (he : r.eve
   simp [wanted, hs, he, hp]
 
 /-- Branch dispatch: a push run is never selected, whatever its title. -/
-theorem dispatch_never_push (n : String) (r : Run) (h : r.event ≠ "workflow_dispatch") : wanted (.dispatch n) r = false := by
-  simp [wanted, isMine, h]
+theorem dispatch_never_push (w n : String) (r : Run) (h : r.event ≠ "workflow_dispatch") : wanted (.dispatch w n) r = false := by
+  simp [wanted, h]
 
 /-- Branch dispatch: a run of another nonce is not selected. -/
-theorem dispatch_other_nonce (a b : String) (r : Run) (hne : a ≠ b) (h : r.title = title b) : wanted (.dispatch a) r = false := by
-  have := other_nonce_not_mine a b ⟨r.id, r.event, r.title⟩ hne h
-  simp [wanted, this]
+theorem dispatch_other_nonce (w a b : String) (r : Run) (hne : a ≠ b) (h : r.title = titleFor w b) : wanted (.dispatch w a) r = false := by
+  simp only [wanted, Bool.and_eq_false_iff, beq_eq_false_iff_ne, ne_eq]
+  right
+  intro ht
+  exact hne (titleFor_inj w a b (ht.symm.trans h))
 
 /-- Branch dispatch: an invalid nonce selects nothing. -/
-theorem dispatch_bad_nonce (n : String) (rows : List Run) (h : validNonce n = false) : select (.dispatch n) rows = [] := by
+theorem dispatch_bad_nonce (w n : String) (rows : List Run) (h : validNonce n = false) : select (.dispatch w n) rows = [] := by
   simp [select, wanted, h]
 
+/-- Branch dispatch: a workflow outside `dispatchWorkflows` selects nothing (no run-name carries a nonce there). -/
+theorem dispatch_unknown_workflow (w n : String) (rows : List Run) (h : dispatchWorkflows.contains w = false) : select (.dispatch w n) rows = [] := by
+  have h' : w ∉ dispatchWorkflows := by simpa using h
+  simp [select, wanted, h']
+
 /-- Branch dispatch: a run with the dispatch's title is selected, on any head sha. -/
-theorem dispatch_selects (n : String) (r : Run) (hn : validNonce n = true) (he : r.event = "workflow_dispatch") (ht : r.title = title n) :
-    wanted (.dispatch n) r = true := by
-  simp [wanted, isMine, hn, he, ht]
+theorem dispatch_selects (w n : String) (r : Run) (hw : dispatchWorkflows.contains w = true) (hn : validNonce n = true)
+    (he : r.event = "workflow_dispatch") (ht : r.title = titleFor w n) : wanted (.dispatch w n) r = true := by
+  have hw' : w ∈ dispatchWorkflows := by simpa using hw
+  simp [wanted, hw', hn, he, ht]
+
+/-- Branch dispatch: the head sha plays no part (the TS caller must not filter by it either). -/
+theorem dispatch_any_sha (w n s : String) (r : Run) : wanted (.dispatch w n) { r with sha := s } = wanted (.dispatch w n) r := by
+  simp [wanted]
+
+/-- A push wait whose commit has only `workflow_dispatch` runs: nothing is selected, and a hint says so. -/
+def dispatchOnly : Want → List Run → Bool
+  | .push s, rows => validSha s && (select (.push s) rows).isEmpty && rows.any fun r => r.event == "workflow_dispatch" && s.isPrefixOf r.sha
+  | .dispatch _ _, _ => false
+
+/-- Hint branch: a dispatch wait never gets the hint. -/
+theorem dispatchOnly_dispatch (w n : String) (rows : List Run) : dispatchOnly (.dispatch w n) rows = false := rfl
+
+/-- Hint branch: a selected push run silences the hint. -/
+theorem dispatchOnly_selected (s : String) (rows : List Run) (h : select (.push s) rows ≠ []) : dispatchOnly (.push s) rows = false := by
+  cases hs : select (.push s) rows with
+  | nil => exact absurd hs h
+  | cons a t => simp [dispatchOnly, hs]
+
+/-- Hint branch: no push run is selected and a dispatch run of the commit exists: the hint. -/
+theorem dispatchOnly_fires (s : String) (rows : List Run) (r : Run) (hs : validSha s = true) (hsel : select (.push s) rows = [])
+    (hr : r ∈ rows) (he : r.event = "workflow_dispatch") (hp : s.isPrefixOf r.sha = true) : dispatchOnly (.push s) rows = true := by
+  simp only [dispatchOnly, hs, hsel, List.isEmpty_nil, Bool.and_true, Bool.true_and, List.any_eq_true]
+  exact ⟨r, hr, by simp [he, hp]⟩
 
 /-- **Soundness.** A selected id belongs to a row of the list that `wanted` accepts. -/
 theorem select_sound (w : Want) (rows : List Run) (i : Nat) (h : i ∈ select w rows) :
@@ -248,23 +288,46 @@ def selectCases : List (String × Want × List Run) := [
   ("push: a short sha is refused", .push "abcdef", [sr 9 "push" "ci: x" "abcdef1234567"]),
   ("push: an upper case sha is refused", .push "ABCDEF1234", [sr 9 "push" "ci: x" "ABCDEF1234567"]),
   ("push: a schedule run", .push "abcdef1234", [sr 9 "schedule" "x" "abcdef1234567"]),
-  ("dispatch: the push is newer, the dispatch is picked", .dispatch "abc12345", [sr 9 "push" "ci: measure" "abcdef1234567", sr 8 "workflow_dispatch" (title "abc12345") "abcdef1234567"]),
-  ("dispatch: two dispatches, each its own (first)", .dispatch "aaaa1111", [sr 22 "workflow_dispatch" (title "bbbb2222") "abcdef1234567", sr 21 "workflow_dispatch" (title "aaaa1111") "abcdef1234567"]),
-  ("dispatch: two dispatches, each its own (second)", .dispatch "bbbb2222", [sr 22 "workflow_dispatch" (title "bbbb2222") "abcdef1234567", sr 21 "workflow_dispatch" (title "aaaa1111") "abcdef1234567"]),
-  ("dispatch: a push run with the dispatch's title text", .dispatch "abc12345", [sr 9 "push" (title "abc12345") "abcdef1234567"]),
-  ("dispatch: a bad nonce", .dispatch "abc", [sr 9 "workflow_dispatch" (title "abc") "abcdef1234567"]),
-  ("dispatch: no run yet", .dispatch "abc12345", [])]
+  ("dispatch: the push is newer, the dispatch is picked", .dispatch "trajectory-probe" "abc12345", [sr 9 "push" "ci: measure" "abcdef1234567", sr 8 "workflow_dispatch" (title "abc12345") "abcdef1234567"]),
+  ("dispatch: two dispatches, each its own (first)", .dispatch "trajectory-probe" "aaaa1111", [sr 22 "workflow_dispatch" (title "bbbb2222") "abcdef1234567", sr 21 "workflow_dispatch" (title "aaaa1111") "abcdef1234567"]),
+  ("dispatch: two dispatches, each its own (second)", .dispatch "trajectory-probe" "bbbb2222", [sr 22 "workflow_dispatch" (title "bbbb2222") "abcdef1234567", sr 21 "workflow_dispatch" (title "aaaa1111") "abcdef1234567"]),
+  ("dispatch: a push run with the dispatch's title text", .dispatch "trajectory-probe" "abc12345", [sr 9 "push" (title "abc12345") "abcdef1234567"]),
+  ("dispatch: a bad nonce", .dispatch "trajectory-probe" "abc", [sr 9 "workflow_dispatch" (title "abc") "abcdef1234567"]),
+  ("dispatch: no run yet", .dispatch "trajectory-probe" "abc12345", []),
+  ("dispatch: on another head sha (the sha plays no part)", .dispatch "trajectory-probe" "abc12345", [sr 9 "workflow_dispatch" (title "abc12345") "1234567abcdef"]),
+  ("dispatch: breakpoint-gate has its own title", .dispatch "breakpoint-gate" "abc12345", [sr 9 "workflow_dispatch" (titleFor "breakpoint-gate" "abc12345") "abcdef1234567", sr 8 "workflow_dispatch" (title "abc12345") "abcdef1234567"]),
+  ("dispatch: chromium-counts", .dispatch "chromium-counts" "abc12345", [sr 9 "workflow_dispatch" (titleFor "chromium-counts" "abc12345") "abcdef1234567"]),
+  ("dispatch: webkit-sim", .dispatch "webkit-sim" "abc12345", [sr 9 "workflow_dispatch" (titleFor "webkit-sim" "abc12345") "abcdef1234567"]),
+  ("dispatch: a workflow with no nonce selects nothing", .dispatch "wktr" "abc12345", [sr 9 "workflow_dispatch" (titleFor "wktr" "abc12345") "abcdef1234567"])]
+
+/-- Cases of `dispatchOnly`: (name, want, rows). -/
+def hintCases : List (String × Want × List Run) := [
+  ("hint: only a dispatch run of the commit", .push "abcdef1234", [sr 9 "workflow_dispatch" (title "abc12345") "abcdef1234567"]),
+  ("hint: a push run exists, no hint", .push "abcdef1234", [sr 9 "workflow_dispatch" (title "abc12345") "abcdef1234567", sr 8 "push" "ci: x" "abcdef1234567"]),
+  ("hint: a dispatch of another commit", .push "abcdef1234", [sr 9 "workflow_dispatch" (title "abc12345") "1234567abcdef"]),
+  ("hint: no runs", .push "abcdef1234", []),
+  ("hint: a dispatch wait", .dispatch "trajectory-probe" "abc12345", [sr 9 "workflow_dispatch" (title "abc12345") "abcdef1234567"]),
+  ("hint: a short sha", .push "abcdef", [sr 9 "workflow_dispatch" (title "abc12345") "abcdef1234567"])]
 
 /-- The JSON of a want. -/
 def wantJson : Want → Json
   | .push s => Json.mkObj [("kind", "push"), ("sha", .str s)]
-  | .dispatch n => Json.mkObj [("kind", "dispatch"), ("nonce", .str n)]
+  | .dispatch w n => Json.mkObj [("kind", "dispatch"), ("workflow", .str w), ("nonce", .str n)]
 
 /-- One golden line of `select`. -/
 def selectLine (c : String × Want × List Run) : Json :=
   Json.mkObj [("kind", "select"), ("name", .str c.1), ("want", wantJson c.2.1),
     ("rows", .arr (c.2.2.map fun r => Json.mkObj [("id", .num r.id), ("event", .str r.event), ("title", .str r.title), ("sha", .str r.sha)]).toArray),
     ("ids", .arr ((select c.2.1 c.2.2).map fun (i : Nat) => (Json.num i : Json)).toArray)]
+
+/-- One golden line of `dispatchOnly`. -/
+def hintLine (c : String × Want × List Run) : Json :=
+  Json.mkObj [("kind", "hint"), ("name", .str c.1), ("want", wantJson c.2.1),
+    ("rows", .arr (c.2.2.map fun r => Json.mkObj [("id", .num r.id), ("event", .str r.event), ("title", .str r.title), ("sha", .str r.sha)]).toArray),
+    ("hint", .bool (dispatchOnly c.2.1 c.2.2))]
+
+/-- The golden line of `dispatchWorkflows`. -/
+def workflowsLine : Json := Json.mkObj [("kind", "workflows"), ("list", .arr (dispatchWorkflows.map Json.str).toArray)]
 
 /-- One golden line. -/
 def caseLine (c : String × String × List Row) : Json :=
@@ -273,7 +336,8 @@ def caseLine (c : String × String × List Row) : Json :=
 
 /-- The text of the golden file. -/
 def goldenText (_ : Unit := ()) : String := String.join (cases.map fun c => (caseLine c).compress ++ "\n") ++
-  String.join (selectCases.map fun c => (selectLine c).compress ++ "\n")
+  String.join (selectCases.map fun c => (selectLine c).compress ++ "\n") ++
+  String.join (hintCases.map fun c => (hintLine c).compress ++ "\n") ++ workflowsLine.compress ++ "\n"
 
 /-- Compare (or write) the golden file; returns the number of stale files. -/
 def runGolden (root : System.FilePath) (write : Bool) : IO Nat := do
@@ -281,13 +345,13 @@ def runGolden (root : System.FilePath) (write : Bool) : IO Nat := do
   if write then
     IO.FS.createDirAll (root / ".." / "packages" / "contracts" / "golden" / "ci")
     IO.FS.writeFile p goldenText
-    IO.println s!"ci dispatch golden: written {cases.length + selectCases.length} cases"
+    IO.println s!"ci dispatch golden: written {cases.length + selectCases.length + hintCases.length + 1} cases"
     return 0
   let cur ← try IO.FS.readFile p catch _ => pure ""
   if cur != goldenText then
     IO.println s!"ci dispatch golden: {p} is stale (regenerate: cd lean && lake test -- --write-ci-trigger-golden)"
     return 1
-  IO.println s!"ci dispatch golden: {cases.length + selectCases.length} cases ok"
+  IO.println s!"ci dispatch golden: {cases.length + selectCases.length + hintCases.length + 1} cases ok"
   return 0
 
 end Fw.Ci.Dispatch

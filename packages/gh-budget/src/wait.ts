@@ -18,7 +18,7 @@ import { ghCharged } from "./charged.ts";
 import { lockAsync, tryLock, type Lock } from "./lock.ts";
 import { pollOnce, LIST_FIELDS } from "./poller.ts";
 import { killOk, markerText } from "./waiters.ts";
-import { wanted, type Want } from "./want.ts";
+import { dispatchOnly, wanted, type WRun, type Want } from "./want.ts";
 import { locked, paths, readJson, readStatus, stepEvent, stepUnlocked, writeAtomic, type Row, type Status } from "./state.ts";
 
 export type Target =
@@ -96,14 +96,29 @@ export function factsOf(jobs: Job[]): RunFacts {
 const lanesMode = (t: Target): boolean => t.kind === "branch" && t.workflow === undefined;
 const msgOf = (t: Target): string | null => (t.kind === "branch" ? t.msg ?? null : null);
 
+const wrun = (r: Row): WRun => ({ id: r.databaseId, event: r.event ?? "", title: r.displayTitle ?? "", sha: r.headSha });
+
+/** The hint of a push wait that selects no run while the workflow has only `workflow_dispatch` runs of the commit (Lean
+ *  `Fw.Ci.Dispatch.dispatchOnly`), else null. */
+export function hintOf(st: Status | null, t: Target): string | null {
+  if (!st || t.kind !== "branch" || t.workflow === undefined || t.want?.kind !== "push") return null;
+  const rows = st.rows.filter((r) => r.headBranch === t.branch && r.workflowName === t.workflow).map(wrun);
+  return dispatchOnly(t.want, rows)
+    ? `hint: ${t.workflow} has only workflow_dispatch runs of ${t.want.sha.slice(0, 7)}, no push run; to wait for a dispatch pass --nonce <n> (fw run prints it)`
+    : null;
+}
+
 /** Which rows decide the wait: the run; in lanes mode the newest run of each workflow for the exact commit; else the
  *  newest run of the workflow on the branch for the exact commit, created after it. */
 export function relevant(rows: Row[], t: Target): Row[] {
   if (t.kind === "run") return rows.filter((r) => r.databaseId === t.runId);
   const mine = lanesMode(t)
     ? rows.filter((r) => r.headBranch === t.branch && r.headSha.startsWith(t.sha))
-    : rows.filter((r) => r.headBranch === t.branch && r.headSha.startsWith(t.sha) && (t.workflow === undefined || r.workflowName === t.workflow) && epoch(r.createdAt) >= t.since
-        && (t.want === undefined || wanted(t.want, { id: r.databaseId, event: r.event ?? "", title: r.displayTitle ?? "", sha: r.headSha })));
+    : t.want !== undefined
+      // identity (Lean `Fw.Ci.Dispatch.select`): a push is its commit's push run; a dispatch is its nonce's run on any head sha
+      // (`dispatch_any_sha`), so neither is cut by the sha or the time of the commit being waited for
+      ? rows.filter((r) => r.headBranch === t.branch && (t.workflow === undefined || r.workflowName === t.workflow) && wanted(t.want!, wrun(r)))
+      : rows.filter((r) => r.headBranch === t.branch && r.headSha.startsWith(t.sha) && (t.workflow === undefined || r.workflowName === t.workflow) && epoch(r.createdAt) >= t.since);
   const newest = new Map<string, Row>();
   for (const r of mine) { const k = r.workflowName; if (!newest.has(k) || r.databaseId > newest.get(k)!.databaseId) newest.set(k, r); }
   return [...newest.values()];
@@ -377,7 +392,10 @@ async function waitRun(env: Env, t: Target, o: WaitOpts, pr: Probe): Promise<Wai
         if (ev.done.some((r) => floor.has(r.databaseId))) stepEvent(env, { register: { runId: id, createdAt } }); // the watch this waiter owns
       }
       if ("stopped" in ev) { pr.ph.how = "stopped"; return { code: 3, lines: [`wait: the poller stopped (${ev.stopped}); see \`fw ci budget\`, \`fw ci budget --resume\``] }; }
-      if (env.now() >= deadline) return { code: 3, lines: [`wait: timed out after ${o.timeoutS} s; run it again to keep waiting (\`fw ci budget\` shows the poller)`] };
+      if (env.now() >= deadline) {
+        const hint = hintOf(st, t);
+        return { code: 3, lines: [`wait: timed out after ${o.timeoutS} s; run it again to keep waiting (\`fw ci budget\` shows the poller)`, ...(hint ? [hint] : [])] };
+      }
       poller ??= tryLock(paths(env.dir).poller);
       let wake = env.now() + SLICE;
       if (poller && env.now() >= nextAt) {
