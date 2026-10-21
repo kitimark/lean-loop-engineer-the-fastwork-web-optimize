@@ -12258,7 +12258,7 @@
    "stream": "gate",
    "deps": [
     "scoped-gap-did",
-    "earn-close-chain-rule"
+    "earn-close-settle-rule"
    ],
    "title": "Follow-up A of scoped-close-start-cause (only after B says 'not shown' and C lands): judge the first in-flight sample after a class removal by the identity |reading - f(m_i)| <= 0.5 (f = bgRed/bgAlpha restated from the CSS in Lean; m_i = the SAME arm and rep's last sample with the class), plus identity checks against Fw.Parts.Nav.morphingCut: m_i > cut at the last sample with the class and m_j <= cut at the first without (an early class removal must fail). Accepted limits: depends on the probe reading sample j at progress 0; m rounding 1e-4; admits any gap regression below B's minimum detectable effect",
    "writes": [
@@ -12513,7 +12513,7 @@
    "deps": [
     "earn-close-start-rule"
    ],
-   "title": "Re-plan of earn-close-start-rule (closed as a finding): judge earn.opacity and earn.max-width at close@0 by anchoring only the FIRST trigger of the close (both arms read fully collapsed there) at the original's reading, and each later trigger on the CSS curve from the previous trigger's reading (the retarget chain: every m change below 2000 restarts the transition). Required: a judge-level drift mutation theorem (a rewrite +tol-1 off the original at each successive trigger yet within band per link) stating whether it passes, and if it passes, a cumulative bound (|rewrite - original| <= tol at every trigger, not only per link); the stale-start, reversed, linear and duration mutations from round 2 kept; golden; TS twin; re-reduce runs 39466179818, 39472217441, 39508414669, 39508421419 (scratch TS of the candidate gave 172/128/253/44 mac new, no earn close@0 cell failing). Round-2 builder branch worktree-wf_c8917a6a-e58-1 (6971b07d) and its scratch (ecs2/src-chain, ecs2/rered.mjs) are the starting point",
+   "title": "CLOSED AS A FINDING 2026-10-21 (nothing landed; ledger hero.exit.scoped.inline next): earn close@0 in-flight readings are frame phase; the original differs from its own reps by up to 115.8 px at triggers 2+, so no same-index judge against the original admits the faithful arm and refuses drift (the chain judge passed a moving +9/+18/+27 drift). Re-planned as earn-close-settle-rule. Original: Re-plan of earn-close-start-rule (closed as a finding): judge earn.opacity and earn.max-width at close@0 by anchoring only the FIRST trigger of the close (both arms read fully collapsed there) at the original's reading, and each later trigger on the CSS curve from the previous trigger's reading (the retarget chain: every m change below 2000 restarts the transition). Required: a judge-level drift mutation theorem (a rewrite +tol-1 off the original at each successive trigger yet within band per link) stating whether it passes, and if it passes, a cumulative bound (|rewrite - original| <= tol at every trigger, not only per link); the stale-start, reversed, linear and duration mutations from round 2 kept; golden; TS twin; re-reduce runs 39466179818, 39472217441, 39508414669, 39508421419 (scratch TS of the candidate gave 172/128/253/44 mac new, no earn close@0 cell failing). Round-2 builder branch worktree-wf_c8917a6a-e58-1 (6971b07d) and its scratch (ecs2/src-chain, ecs2/rered.mjs) are the starting point",
    "writes": [
     "lean/Fw/Gate/Trajectory.lean",
     "packages/gate-breakpoints/src/trajectory/reduce.mjs",
@@ -12521,7 +12521,8 @@
     "packages/contracts/golden/gate/trajectory.jsonl",
     "docs/team/tools/trajectory-probe.md",
     "docs/team/handoffs/earn-close-chain-rule.md"
-   ]
+   ],
+   "evidence": "f7080e0c"
   },
   {
    "devices": [
@@ -12621,6 +12622,26 @@
     "apps/console-web/package.json",
     "pnpm-lock.yaml",
     "docs/team/handoffs/review-info.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "earn-close-settle-rule",
+   "owner": "lean-prover",
+   "stream": "gate",
+   "deps": [
+    "earn-close-chain-rule"
+   ],
+   "title": "FINAL DESIGN ROUND (re-plan of earn-close-chain-rule; advice scratch fable-earn-close-chain-rule.md plus its check). Unit of decision: one sample of earn.opacity / earn.max-width in close@0 (push phase 2, bucket 0) or close-hold. (1) Anchor: the sample at the arm's first trigger reads the original's first-trigger reading within tol (existing excess/origFirst lemmas from branch worktree-wf_27d7c8bb-7e0-1; drop linkExcess/linksExcess/chainCost). (2) close@0 between the first trigger and settle time gets a RANGE check only, [anchor - tol, full + tol]; say so in doc and ledger: 0 of 6140 close@0 samples fall at settle time (MEASURED). (3) Settle: an EXTRA conjunct on close-hold samples (byM hold stays in force; theorem byMSettle v = pass -> byM v = pass): every sample at >= delay + dur + startJitter after the rep's last trigger (opacity 520 ms, max-width 760 ms from startTr) reads full within tol, full := Fw.Parts.Nav.earnMaxW v false 0 and Nav expand at heroPill false (cite Nav.lean:266-269 and the snapshot lines), never the arm's hold; a rep with no settle-time sample keeps its byM verdict. Mutation theorems, each naming the cell (phase, bucket) that refuses it: stale, reversed, target (full*0.9), duration/delay with the smallest refused increase stated as a theorem under its sampling assumption (smaller = accepted limit); wrong collapse cut: a refusing mutation theorem with a realistic timeline (cut 0.25, steps 30-40 ms) or an accepted limit naming which byM buckets judge it; the negative theorem: the drift pair passes and a cited O/O pair from 39508421419 differs by more than tol. Golden, TS twin, re-reduce the 4 runs (39466179818, 39472217441, 39508414669, 39508421419), every changed cell listed; 'cells clear' stays INFERRED until re-reduced. Accepted limits: (i) shorter duration or another curve with the same endpoints passes at close@0; (ii) a rep with no settle sample keeps byM only; (iii) drift inside the range passes (the finding); (iv) startJitter 80 ms; (v) tol 0.01 / 1 px; (vi) any close@0 in-flight reading inside [anchor - tol, full + tol] passes. A refusal splits (anchor-only lands; settle becomes its own task)",
+   "writes": [
+    "lean/Fw/Gate/Trajectory.lean",
+    "packages/gate-breakpoints/src/trajectory/reduce.mjs",
+    "packages/gate-breakpoints/test/trajectory.test.mjs",
+    "packages/contracts/golden/gate/trajectory.jsonl",
+    "docs/team/tools/trajectory-probe.md",
+    "docs/team/handoffs/earn-close-settle-rule.md"
    ]
   }
  ],
