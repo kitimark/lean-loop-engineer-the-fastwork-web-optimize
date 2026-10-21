@@ -14,7 +14,7 @@ const gain = (o: Partial<Gain> = {}): Gain => ({
 const small = (gains: Gain[], excerpts: Excerpt[] = []): InfoData => ({
   ok: true, flag: FLAG, summary: "Open push: 40 fewer frames.", gains, excerpts, mechanism: ["Each frame --morph changes."],
   sources: [{ claim: "WebKit restarts a transition", status: "CONFIRMED", cite: "Styleable.cpp:743-756" }],
-  formulas: [{ id: "worklE", tex: "\\mathrm{work}_{a}(n)\\le\\mathrm{work}_{f}(n)", says: "At most the faithful work.", decl: "work_le", file: "lean/Fw/Parts/NavEarnOpt.lean", line: 230, kind: "theorem" }],
+  formulas: [{ id: "worklE", tex: "\\mathrm{work}_{a}(n)\\le\\mathrm{work}_{f}(n)", says: "At most the faithful work.", decl: "work_le", file: "Fw/Parts/NavEarnOpt.lean", line: 230, kind: "theorem" }],
 });
 const html = (d: InfoData | null) => renderToStaticMarkup(<ReviewInfo flag={FLAG} data={d} />);
 
@@ -49,7 +49,7 @@ describe("ReviewInfo", () => {
     const h = html(small([gain()]));
     expect(h).toContain('class="katex');
     expect(h).toContain("work_le");
-    expect(h).toContain("lean/Fw/Parts/NavEarnOpt.lean:230");
+    expect(h).toContain("Fw/Parts/NavEarnOpt.lean:230");
   });
   it("loading and refusal states", () => {
     expect(html(null)).toContain("review-info-loading");
