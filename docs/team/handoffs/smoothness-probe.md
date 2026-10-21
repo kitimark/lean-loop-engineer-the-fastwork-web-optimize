@@ -1,7 +1,6 @@
 # smoothness-probe handoff (measure-engineer, round 2)
-
 State: branch `worktree-wf_acae42f5-f34-1` (final commit in the report), CI branch `ci/smoothness-probe`, round-2 run 39589237987.
-Read first: `research/notes/2026/10-2x-smoothness-probe.md` (answer), then `docs/team/tools/smoothness-probe.md` (how to run).
+Read first: `research/notes/2026/10-2x-smoothness-probe.md`, then `docs/team/tools/smoothness-probe.md`.
 
 Verified
 - Lean `Fw.Gate.Smooth`: rate `verdict`, hitch count (frames over 60 ms), `hitchVerdict`, `across`/`agreeNeeded`, each OR-branch its own
@@ -24,8 +23,7 @@ Out-of-graph edits: `lean/scripts/check.sh` (one job line), `lean/Fw/Ops/LakeJob
 Open
 - Which images decode twice at 390 px near 672 px scroll: a trace with image URLs (start from `smoothness-390-*` traces).
 - Original hero rows for macOS WebKit; WebKit cadence (a macOS leg needs a measured-p90 row in `Fw.Ci.Pool.Caps`).
-- Registry nodes for the people reveal and the nav morph inside the hero window.
-- Phone check of the 390 hitch is out of scope (user-booked session only).
+- Registry nodes for the people reveal and the nav morph inside the hero window. Phone check of the 390 hitch: user-booked only.
 
 Conventions: push `ci/smoothness-probe` with `[ci:smoothness]` and `[trajectory preset=v2-proved widths=390,1280]` in the commit message; wait with
 `pnpm -s fw ci wait --branch ci/smoothness-probe --workflow smoothness`; download `gh run download <id> -D <dir>/<id> -p 'smoothness-*'`; tables with
