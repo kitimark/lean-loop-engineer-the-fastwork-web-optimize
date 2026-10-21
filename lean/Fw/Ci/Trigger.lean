@@ -193,7 +193,7 @@ def table : List Wf := [
     "packages/contracts/golden/gate/smooth.jsonl", "packages/contracts/golden/gate/trajectory-colour.jsonl", "packages/gate-breakpoints/src/scope.gen.json", "packages/contracts/golden/parts/contracts.gen.json",
     "packages/contracts/golden/gate/run-perm.jsonl", "packages/contracts/golden/gate/run-perm-cells.jsonl",
     "packages/contracts/golden/parts/stage.jsonl", "packages/contracts/golden/parts/stage-mode.jsonl",
-    "packages/contracts/golden/parts/hero.exit.scoped.json", "packages/measure-chromium/scenarios.gen.json",
+    "packages/contracts/golden/parts/hero.exit.scoped.json", "packages/contracts/golden/parts/hero-exit.threaded.jsonl", "packages/measure-chromium/scenarios.gen.json",
     "packages/contracts/golden/parts/morph.mount.dormant.jsonl", "packages/contracts/golden/parts/morph-mount-tap.jsonl",
     "packages/contracts/golden/parts/nav-earn.jsonl", "packages/contracts/golden/parts/hero-scene-pause.jsonl",
     "packages/contracts/golden/gate/image-arm.jsonl",

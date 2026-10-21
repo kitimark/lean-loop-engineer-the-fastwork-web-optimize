@@ -1491,7 +1491,7 @@ def threadedOffsets (T h v : Int) : List Int :=
 `anim`: the animated value at offset `y` under RG11 next to the original's `calc()` value (equal: `consumer_eq_s`).
 `sentinelTop`: where the sentinel sits below the track top. `sentinelAbove`: the pointer decision. `live`: the hand-over
 table. -/
-def threadedLines : List String :=
+def threadedLines (_ : Unit := ()) : List String :=
   ([false, true].flatMap fun l => (settled l).map fun (n, k) =>
     gLine "keyframes" [("consumer", .str n), ("le600", .bool l)]
       (Lean.Json.mkObj [("from", gRat (k.val 1)), ("to", gRat (k.val 0))])) ++
@@ -1511,7 +1511,7 @@ def threadedLines : List String :=
       ("supported", .bool sup), ("reduced", .bool red)] (.bool (live s sup red)))
 
 /-- The golden text. -/
-def threadedText : String := String.join (threadedLines.map (· ++ "\n"))
+def threadedText (_ : Unit := ()) : String := String.join ((threadedLines ()).map (· ++ "\n"))
 
 -- Every sampled `anim` line carries equal animated and original values (`consumer_eq_s`, evaluated on the samples).
 #guard (([false, true].flatMap fun l => threadedGeoms.flatMap fun (T, h, v) => (threadedOffsets T h v).flatMap fun y =>
@@ -1522,13 +1522,13 @@ def threadedText : String := String.join (threadedLines.map (· ++ "\n"))
 def runThreaded (args : List String) : IO UInt32 := do
   match args with
   | ["--check", path] =>
-    if (← IO.FS.readFile path) == threadedText then
+    if (← IO.FS.readFile path) == threadedText () then
       IO.eprintln s!"exit threaded golden: {path} is up to date"
       return 0
     IO.eprintln s!"exit threaded golden: {path} differs from the generated text"
     return 1
   | _ =>
-    IO.print threadedText
+    IO.print (threadedText ())
     return 0
 
 end Threaded
