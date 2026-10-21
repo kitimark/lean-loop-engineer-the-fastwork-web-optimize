@@ -7,6 +7,8 @@ created: 2026-10-21
 topics: [ci, circleci, free-tier, measurement, queue, credits]
 ---
 
+Superseded by `10-21-circleci-series.md` (the key was added; 40 pipelines ran).
+
 Question: how do CircleCI Arm medium and large compare with GitHub's free Arm runner for the `premise-tests` job, in duration
 spread, queue p50/p95 and credits? Tool and rules: `docs/team/tools/circleci.md`; pilot: `research/notes/2026/10-20-circleci-pilot.md`.
 

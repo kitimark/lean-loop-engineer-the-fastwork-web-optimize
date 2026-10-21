@@ -123,7 +123,7 @@ async function runSeries(o) {
 
 // ----------------------------------------------------------------------------------------------------------- insights
 
-/** Billed credits per workflow run: GET /insights/{slug}/workflows/premise-tests/runs (credits_used), matched to rows by workflow id. */
+/** Billed credits per workflow run: GET /insights/{slug}/workflows/premise-tests?branch=..&reporting-window=last-7-days (credits_used), matched to rows by workflow id. */
 async function insights(o) {
   const out = resolve(o.out ?? 'results/circleci-series');
   const cfg = loadConfig(o['config-root'] ? resolve(o['config-root']) : ROOT);
@@ -131,7 +131,7 @@ async function insights(o) {
   const rows = readRows(out);
   const ids = existsSync(idsPath) ? JSON.parse(readFileSync(idsPath, 'utf8')) : {};
   const branch = String(o.branch ?? 'ci/circleci-series');
-  const url = `${API}/insights/${cfg.slug}/workflows/premise-tests/runs?branch=${encodeURIComponent(branch)}&start-date=${new Date(Date.now() - 2 * 864e5).toISOString().slice(0, 10)}T00:00:00Z`;
+  const url = `${API}/insights/${cfg.slug}/workflows/premise-tests?branch=${encodeURIComponent(branch)}&reporting-window=last-7-days`;
   const items = await listAll(ctx, url);
   const byId = new Map(items.map((x) => [x.id, x]));
   let matched = 0;
