@@ -327,43 +327,8 @@ export const readsDominate = (readP50, gapP50) => gapP50 > 0 && gapP50 <= 2 * re
 
 // ---- reading the raw output of run.mjs (TS stand-in: the loops; the decisions are the functions above) ------------------
 
-// The close-start rule (Lean section `CloseStart`). Rationals are [num, den] BigInt pairs, den > 0, in lowest terms, so
-// that every comparison is the exact one Lean makes.
-
-const gcd = (a, b) => { a = a < 0n ? -a : a; b = b < 0n ? -b : b; while (b) [a, b] = [b, a % b]; return a; };
-const Q = (n, d = 1n) => { if (d < 0n) { n = -n; d = -d; } const g = gcd(n, d) || 1n; return [n / g, d / g]; };
-const qa = ([a, b], [c, d]) => Q(a * d + c * b, b * d);
-const qs = ([a, b], [c, d]) => Q(a * d - c * b, b * d);
-const qm = ([a, b], [c, d]) => Q(a * c, b * d);
-const qd = ([a, b], [c, d]) => Q(a * d, b * c);
-const qlt = ([a, b], [c, d]) => a * d < c * b;
-const qle = ([a, b], [c, d]) => a * d <= c * b;
-const qi = (x) => Q(BigInt(x));
-const ONE = qi(1), ZERO = qi(0), HALF = Q(1n, 2n), THREE = qi(3);
-
-/** Lean `earnCurve`: `cubic-bezier(0.33, 0, 0.2, 1)`. */
-export const EARN_CURVE = [Q(33n, 100n), ZERO, Q(1n, 5n), ONE];
-
-/** Lean `Bezier.steps`. */
-export const BEZ_STEPS = 40;
-
-/** Lean `Bezier.coord`. */
-const coord = (a, b, s) => {
-  const u = qs(ONE, s);
-  return qa(qa(qm(qm(qm(qm(THREE, u), u), s), a), qm(qm(qm(qm(THREE, u), s), s), b)), qm(qm(s, s), s));
-};
-
-/** Lean `Bezier.ease` of `c` at time fraction `t`. */
-export function ease(c, t) {
-  if (qle(t, ZERO)) return ZERO;
-  if (qle(ONE, t)) return ONE;
-  let lo = ZERO, hi = ONE;
-  for (let k = 0; k < BEZ_STEPS; k++) {
-    const m = qm(qa(lo, hi), HALF);
-    if (qlt(coord(c[0], c[2], m), t)) lo = m; else hi = m;
-  }
-  return coord(c[1], c[3], qm(qa(lo, hi), HALF));
-}
+// The close rule of the earn button (Lean section `CloseStart`). Every value is an integer (property value x 1000), so
+// every comparison is the exact one Lean makes.
 
 /** Lean `startOn`. */
 export const startOn = (node, prop) => node === 'earn' && (prop === 'opacity' || prop === 'max-width');
@@ -375,8 +340,12 @@ export function startTr(node, prop, width, cls) {
   return t === undefined ? null : [t[1], t[2] ?? 0];
 }
 
-/** Lean `startFor`. */
-export const startFor = (node, prop, width) => (startOn(node, prop) ? (cls) => startTr(node, prop, width, cls) : null);
+/** Lean `fullOf`: opacity 1; max-width 9.5rem up to 640 px, else 11rem; times 1000. */
+export const fullOf = (prop, width) => (prop === 'opacity' ? 1000 : width <= 640 ? 152000 : 176000);
+
+/** Lean `startFor`: { tr, full } or null. */
+export const startFor = (node, prop, width) =>
+  (startOn(node, prop) ? { tr: (cls) => startTr(node, prop, width, cls), full: fullOf(prop, width) } : null);
 
 /** Lean `closePh`. */
 export const CLOSE_PH = 2;
@@ -389,25 +358,13 @@ export const DARK_CUT = 2000;
 
 const clampCut = (m) => Math.min(DARK_CUT, Math.max(0, m));
 
-/** Lean `collapse`, as a rational. */
-const collapse = (m) => Q(BigInt(clampCut(m)), BigInt(DARK_CUT));
-
-/** Lean `along`, as a rational; `s` and `t` rationals, `x` an integer. */
-export const along = (dur, delay, s, t, x) => qa(s, qm(qs(t, s), ease(EARN_CURVE, qd(qs(qi(x), qi(delay)), qi(dur)))));
-
-/** Lean `onCurve`; `s` and `t` rationals. */
-export function onCurve(kind, dur, delay, s, t, tau, r) {
-  const a = along(dur, delay, s, t, tau - START_JITTER), b = along(dur, delay, s, t, tau + START_JITTER);
-  const tol = qi(TOL[kind]), x = qi(r);
-  return qle(qs(qlt(b, a) ? b : a, tol), x) && qle(x, qa(qlt(a, b) ? b : a, tol));
-}
-
 /** Lean `oneNum`. */
 const oneNum = (els) => (els.length === 1 && Array.isArray(els[0]) && els[0].length === 1 ? els[0][0] : null);
 
+const has = (x) => x !== null && x !== undefined;
+
 /** Lean `retargets`. */
-const retargets = (a, b) => a.m !== null && a.m !== undefined && b.m !== null && b.m !== undefined
-  && clampCut(a.m) !== clampCut(b.m);
+const retargets = (a, b) => has(a.m) && has(b.m) && clampCut(a.m) !== clampCut(b.m);
 
 /** Lean `triggersOf`. */
 export function triggersOf(ps) {
@@ -418,96 +375,66 @@ export function triggersOf(ps) {
 
 const passOf = (seg, q) => seg.filter((s) => (s.rep ?? 0) === q);
 
-/** Lean `settledOf`. */
-export function settledOf(seg, r) {
-  const e = passOf(seg, r.rep ?? 0).filter((s) => s.ph === r.ph + 1);
-  return e.length === 0 ? null : oneNum(e[e.length - 1].els);
-}
-
-const has = (x) => x !== null && x !== undefined;
-
 /** Lean `origFirst`. */
 export const origFirst = (seg, r) => triggersOf(passOf(seg, r.rep ?? 0).filter((s) => s.ph === r.ph))[0] ?? null;
 
-/** Lean `excess`; `lo` and `hi` rationals, `w` an integer. */
-export function excess(lo, hi, w) {
-  const x = qi(w);
-  return qlt(x, lo) ? qs(lo, x) : qlt(hi, x) ? qs(x, hi) : ZERO;
-}
-
-/** Lean `target`, as a rational. */
-export const target = (full, m) => qm(qi(full), qs(ONE, collapse(m)));
-
-const qmin = (a, b) => (qle(a, b) ? a : b);
-const qmax = (a, b) => (qle(a, b) ? b : a);
-
-/** Lean `hull`: [lo, hi] rationals; `s`, `tp` and `tq` rationals, `tau` an integer. */
-export function hull(dur, delay, s, tp, tq, tau) {
-  const a = along(dur, delay, s, tp, tau - START_JITTER), b = along(dur, delay, s, tp, tau + START_JITTER);
-  const c = along(dur, delay, s, tq, tau - START_JITTER), d = along(dur, delay, s, tq, tau + START_JITTER);
-  return [qmin(qmin(a, b), qmin(c, d)), qmax(qmax(a, b), qmax(c, d))];
-}
-
-/** Lean `linkExcess`: a rational, or null (undecided). */
-export function linkExcess(tr, full, p, q) {
-  if (!has(p.m) || !has(q.m)) return null;
-  const t = tr(p.cls), s = oneNum(p.els), w = oneNum(q.els);
-  if (t === null || s === null || w === null || !has(p.t0) || !has(q.t0) || t[0] === 0) return null;
-  const [lo, hi] = hull(t[0], t[1], qi(s), target(full, p.m), target(full, q.m), q.t0 - p.t0);
-  return excess(lo, hi, w);
-}
-
-/** Lean `linksExcess`: a rational, or null when a link is undecided. */
-export function linksExcess(tr, full, ps) {
-  let c = ZERO;
-  for (let j = 1; j < ps.length; j++) {
-    const e = linkExcess(tr, full, ps[j - 1], ps[j]);
-    if (e === null) return null;
-    c = qa(c, e);
-  }
-  return c;
-}
-
-/** Lean `chainOf`. */
-export function chainOf(prior, r) {
-  const ts = triggersOf([...prior, r]);
-  return prior.length > 0 && retargets(prior[prior.length - 1], r) ? ts : [...ts, r];
-}
-
-/** Lean `chainCost`: a rational, or null (undecided). */
-export function chainCost(tr, seg, prior, r) {
-  const q = triggersOf([...prior, r])[0] ?? null, o = origFirst(seg, r), full = settledOf(seg, r);
-  if (q === null || o === null || full === null) return null;
-  const s = oneNum(o.els), w = oneNum(q.els), c = linksExcess(tr, full, chainOf(prior, r));
-  if (s === null || w === null || c === null) return null;
-  return qa(excess(qi(s), qi(s), w), c);
-}
+/** Lean `excess`. */
+export const excess = (lo, hi, w) => (w < lo ? lo - w : hi < w ? w - hi : 0);
 
 /** Lean `startCheck`: true, false, or null (undecided). */
-export function startCheck(kind, tr, seg, prior, r) {
-  const c = chainCost(tr, seg, prior, r);
-  return c === null ? null : qle(c, qi(TOL[kind]));
+export function startCheck(kind, full, seg, prior, r) {
+  const q = triggersOf([...prior, r])[0] ?? null, o = origFirst(seg, r);
+  if (q === null || o === null) return null;
+  const s = oneNum(o.els), w = oneNum(q.els), x = oneNum(r.els);
+  if (s === null || w === null || x === null) return null;
+  return excess(s, s, w) <= TOL[kind] && excess(s, full, x) <= TOL[kind];
 }
 
 /** Lean `judgeStart`. */
-export function judgeStart(kind, d, tr, seg, win, prior, r) {
-  const c = startCheck(kind, tr, seg, prior, r);
+export function judgeStart(kind, d, full, seg, win, prior, r) {
+  const c = startCheck(kind, full, seg, prior, r);
   return c === true ? pass : c === false ? fail('apart') : judgeUnit(kind, d, seg, win, r);
 }
 
 /** Lean `startBucket`. */
-export function startBucket(kind, d, tr, seg, orig, rew) {
+export function startBucket(kind, d, full, seg, orig, rew) {
   const rs = rew.map((r, i) => [passOf(rew.slice(0, i), r.rep ?? 0), r]).filter(([, r]) => bucket(r.m) === 0);
   if (rs.length === 0) return skip('noSample');
-  return combine(rs.map(([ps, r]) => judgeStart(kind, d, tr, seg, windowAt('push', d, seg, orig, r), ps, r)));
+  return combine(rs.map(([ps, r]) => judgeStart(kind, d, full, seg, windowAt('push', d, seg, orig, r), ps, r)));
 }
 
-/** Lean `byMStart`: `byM`, with bucket 0 of the close by `startBucket` when `tr` is given. */
-export function byMStart(ph, p, kind, d, tr, oSeg, wSeg) {
+/** Lean `closeOf`. */
+const closeOf = (seg, r) => passOf(seg, r.rep ?? 0).filter((s) => s.ph === CLOSE_PH || s.ph === CLOSE_PH + 1);
+
+/** Lean `settleAt`. */
+export const settleAt = (dur, delay) => dur + delay + START_JITTER;
+
+/** Lean `settleCheck`: true, false, or null (undecided). */
+export function settleCheck(kind, e, seg, r) {
+  const q = triggersOf(closeOf(seg, r)).at(-1) ?? null;
+  if (q === null) return null;
+  const t = e.tr(q.cls), x = oneNum(r.els);
+  if (t === null || !has(q.t0) || !has(r.t0) || x === null) return null;
+  return settleAt(t[0], t[1]) <= r.t0 - q.t0 ? excess(e.full, e.full, x) <= TOL[kind] : null;
+}
+
+/** Lean `settleAnd`. */
+export const settleAnd = (v, cs) => (v === pass && cs.includes(false) ? fail('apart') : v);
+
+/** Lean `byMStart`: `byM`, with bucket 0 of the close by `startBucket` and the close-hold by `settleAnd` when `e` is
+ * given. */
+export function byMStart(ph, p, kind, d, e, oSeg, wSeg) {
   const v = byM(ph, p, kind, d, oSeg, wSeg);
-  if (tr === null || ph !== 'push' || p !== CLOSE_PH) return v;
-  const seg = annotate(oSeg), orig = seg.filter((o) => o.ph === p), rew = annotate(wSeg).filter((r) => r.ph === p);
-  return v.map(([b, x]) => (b === 0 ? [b, startBucket(kind, d, tr, seg, orig, rew)] : [b, x]));
+  if (e === null) return v;
+  if (ph === 'push' && p === CLOSE_PH) {
+    const seg = annotate(oSeg), orig = seg.filter((o) => o.ph === p), rew = annotate(wSeg).filter((r) => r.ph === p);
+    return v.map(([b, x]) => (b === 0 ? [b, startBucket(kind, d, e.full, seg, orig, rew)] : [b, x]));
+  }
+  if (ph === 'hold' && p === CLOSE_PH + 1) {
+    const ws = annotate(wSeg), here = ws.filter((r) => r.ph === p);
+    return v.map(([b, x]) => [b, settleAnd(x, here.filter((r) => bucket(r.m) === b).map((r) => settleCheck(kind, e, ws, r)))]);
+  }
+  return v;
 }
 
 /** The phases of the end-of-page path and whether the wheel moves the morph in them (Lean `Phase`). */

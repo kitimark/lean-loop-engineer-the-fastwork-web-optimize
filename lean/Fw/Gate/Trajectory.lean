@@ -4514,6 +4514,7 @@ def Case.line : Case → Json
   | .curve =>
     Json.mkObj [("op", "curve"), ("name", "earn"), ("jitter", toJson startJitter), ("close", toJson closePh),
       ("darkCut", ratJson (Fw.Parts.Nav.darkCut * 10000)),
+      ("bez", Json.arr #[ratJson earnCurve.x1, ratJson earnCurve.y1, ratJson earnCurve.x2, ratJson earnCurve.y2]),
       ("full", Json.arr (fullRows.map fun (p, w) => Json.arr #[Json.str p, toJson w, ratJson (fullOf p w)]).toArray)]
 
 /-- Where the golden lives, relative to `lean/`. -/
