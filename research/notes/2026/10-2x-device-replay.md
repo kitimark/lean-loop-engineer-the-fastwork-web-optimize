@@ -60,6 +60,11 @@ measurement cited), INFERRED, UNKNOWN (to measure), MEASURED.
   check per swipe and recorder frame counts, not class counts. INFERRED expectation before the run: Chromium may coalesce
   `touchmove` events under 6x throttle, so `eventsOk` can fail; the per-conjunct output records that as a finding, not as a defect of the
   profile.
+- MEASURED, run 39646030536 (ubuntu-24.04-arm, one run, 3 kinds x 2 repeats, 5 swipes each): every dispatch left within 5 ms of its
+  time (p95 at most 1.1 ms), all 5 swipes were seen in every pass, but the page saw 105 to 113 of the 300 to 307 touch events
+  sent, so `eventsOk` and `replayMatches` are false in all 6 passes. That is the predicted coalescing: Chromium merges touchmoves
+  under 6x throttle, so Chromium cannot stand in for the phone's event stream; it can still load the page with the finger path. Frames
+  above 34 ms: 82 to 93 of 111 to 117 moving frames. The numbers are one run, not class counts.
 - The phone pilot did not run (needs the user step and a booked session): UNKNOWN.
 
 ## Accepted limits and follow-ups

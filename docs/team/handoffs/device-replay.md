@@ -11,7 +11,7 @@ Read first: `research/notes/2026/10-2x-device-replay.md` (method, 7 check fixes,
   lane, never run on a phone), `src/replay/` (Chromium CDP lane for CI). Tests `test/replay-{twin,driver,chromium}.test.mjs`
   pass on synthetic fixtures only.
 - CI: `.github/workflows/device-replay.yml` (lane, rows in `lean/Fw/Ci/Trigger.lean` and `Overflow.lean`, goldens
-  `ci/triggers.jsonl` + `ci/intent.jsonl` regenerated with `cd lean && lake test -- --write-ci-trigger-golden`). Run id in the report.
+  `ci/triggers.jsonl` + `ci/intent.jsonl` regenerated with `cd lean && lake test -- --write-ci-trigger-golden`). Run 39646030536 passed; Chromium saw about a third of the touch events (coalescing), so `replayMatches` is false there.
 
 ## Verified
 `sh lean/scripts/check.sh` green; measure-webkit tests; `scripts/ci-paths.test.mjs`; apps/runner `ci-triggers`, `land-inputs`,
