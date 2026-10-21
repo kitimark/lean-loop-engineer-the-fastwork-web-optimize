@@ -165,7 +165,7 @@ def stem (f : String) : String := (f.dropEnd 4).toString
 def laneOf (w : Wf) : Lane := ⟨w, stem w.file, macosFiles.contains w.file, defaultFiles.contains w.file⟩
 
 /-- Every lane, in table order. -/
-def lanes : List Lane := table.map laneOf
+def lanes (_ : Unit := ()) : List Lane := table.map laneOf
 
 #guard lanes.all (validName ·.name)
 #guard (lanes.map (·.name)).eraseDups.length == lanes.length
@@ -632,7 +632,7 @@ def gateEnvs : List (String × String) :=
     ("schedule", "refs/heads/main")]
 
 /-- The messages of the gate vectors: no token, `[ci:none]`, near misses, and every lane's token (also upper case). -/
-def gateMsgs : List String :=
+def gateMsgs (_ : Unit := ()) : List String :=
   ["fix x", "[ci:none]", "[ci: lean]", "[ci:wktr-fixtures]"] ++
     lanes.flatMap fun l => [String.ofList (tok l.name), (String.ofList (tok l.name)).toUpper]
 
@@ -646,7 +646,7 @@ concurrency group of its heavy jobs (`<job>` stands for the job id); also the gu
 (`Fw.Ci.Verdict.decisionStep`), the skip tags, and the re-check steps every heavy job starts with.
 Here `step` is the decision step name of `Fw.Ci.Verdict.decisionStep`, `K` the skip kinds in their
 listed order, and `L` the lanes in their listed order. -/
-def lanesLine : Json :=
+def lanesLine (_ : Unit := ()) : Json :=
   Json.mkObj [("kind", "lanes"), ("prefix", .str (String.ofList tokPrefix)),
     ("decision", Json.mkObj [("run", .str (Fw.Ci.Verdict.decisionStep true)),
       ("skip", .str (Fw.Ci.Verdict.decisionStep false))]),

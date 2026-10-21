@@ -150,7 +150,7 @@ def setMap (cone : String → List String) (g : String) : List String :=
 
 Each row is (workflow file, branches, input globs); `lean/**` is replaced by the binary's own inputs where the
 workflow only builds `fwcore` or `breakgen`, while `lean.yml` and the lean checks keep `lean/**`. -/
-def table : List Wf := [
+def table (_ : Unit := ()) : List Wf := [
   ⟨"breakpoint-gate.yml", ciAll, [
     "packages/gate-breakpoints/**", "apps/site/**", "@fwcore", "@breakgen", "snapshot/**", "snapshot.lock.json",
     "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/gate-shards.mjs",
@@ -873,7 +873,7 @@ theorem copyProblems_iff (pin : Option String) (copies : List (String × Option 
 def strs (xs : List String) : Json := .arr (xs.map Json.str).toArray
 
 /-- The table line: workflows with branches and symbolic inputs, and the named sets. -/
-def tableLine : Json :=
+def tableLine (_ : Unit := ()) : Json :=
   Json.mkObj [("kind", "table"),
     ("workflows", .arr (table.map fun w => Json.mkObj [("file", .str w.file), ("branches", strs w.branches),
       ("inputs", strs w.inputs), ("crons", strs w.crons), ("onKeys", strs w.onKeys)]).toArray),
