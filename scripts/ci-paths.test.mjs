@@ -664,9 +664,23 @@ test('node pin lint: floating version, wrong file, old pin, a copy that differs,
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
+/** A line without its trailing comment: a `#` at the line start or after whitespace, outside single and double quotes.
+ *  Limit: the quote state restarts on each line, so a lone apostrophe (shell text such as `don't`) hides a later comment,
+ *  which then still counts its paths: the scan errs towards naming too many scripts, never too few. */
+export function stripComment(line) {
+  let q = '';
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (q) { if (c === q) q = ''; continue; }
+    if (c === '"' || c === "'") q = c;
+    else if (c === '#' && (i === 0 || /\s/.test(line[i - 1]))) return line.slice(0, i);
+  }
+  return line;
+}
+
 /** The `.github/scripts/*` paths a workflow text runs or reads (comment text left out). */
 export function scriptsNamed(text) {
-  const code = text.split('\n').map((l) => l.replace(/(^|\s)#.*$/, '')).join('\n');
+  const code = text.split('\n').map(stripComment).join('\n');
   return [...new Set(code.match(/\.github\/scripts\/[A-Za-z0-9._-]+/g) ?? [])].sort();
 }
 
@@ -688,6 +702,14 @@ test('scripts a workflow runs: a script missing from a row is reported (trajecto
   const globs = expand(S, w.inputs).filter((g) => g !== '.github/scripts/trajectory-line.mjs');
   assert.ok(scriptsNamed(readFileSync(join(root, WF, w.file), 'utf8')).includes('.github/scripts/trajectory-line.mjs'));
   assert.equal(matches(globs, '.github/scripts/trajectory-line.mjs'), false);
+});
+
+test('scripts a workflow runs: a " #" inside a quoted string is not a comment (the script after it is named)', () => {
+  assert.deepEqual(scriptsNamed(`run: echo "a #b" && node .github/scripts/q.mjs`), ['.github/scripts/q.mjs']);
+  assert.deepEqual(scriptsNamed(`run: echo 'x #y' && node .github/scripts/r.mjs # .github/scripts/s.mjs`), ['.github/scripts/r.mjs']);
+  assert.equal(stripComment('  # whole line'), '  ');
+  assert.equal(stripComment('a#b c'), 'a#b c');
+  assert.equal(stripComment(`don't # x`), `don't # x`); // the stated limit: a lone apostrophe keeps the comment text
 });
 
 test('scripts a workflow runs: the scanner reads run and env lines, not comments', () => {

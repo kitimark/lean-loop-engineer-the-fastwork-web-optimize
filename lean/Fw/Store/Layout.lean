@@ -424,9 +424,9 @@ def Lane.file : Lane → String
 `scripts/LaneInputs.lean --check` (a stage of `lean/scripts/check.sh`) parses the three files and fails when a list differs.
 -/
 def Lane.inputs : Lane → List String
-  | .chromiumCounts => ["profile", "runs", "target", "preset", "fw", "only", "image_run"]
-  | .webkitSim => ["vms", "sessions", "fresh_boot", "experiment", "arms", "reps", "target", "preset", "fw", "fault"]
-  | .breakpointGate => ["engines", "runs", "free", "times", "fw", "preset", "parts"]
+  | .chromiumCounts => ["profile", "runs", "target", "preset", "fw", "only", "image_run", "nonce"]
+  | .webkitSim => ["vms", "sessions", "fresh_boot", "experiment", "arms", "reps", "target", "preset", "fw", "fault", "nonce"]
+  | .breakpointGate => ["engines", "runs", "free", "times", "fw", "preset", "parts", "nonce"]
   | .trajectory => ["engines", "fw", "preset", "widths", "nonce"]
 
 /-- The lane that measures an engine's counts. -/

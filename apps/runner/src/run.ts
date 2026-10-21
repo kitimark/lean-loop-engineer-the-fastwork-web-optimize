@@ -5,7 +5,7 @@
 // the object paths, the verdict) is Lean's (lean/Fw/Store); the only TS stand-in here is sha256 and file I/O.
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { ghCharged, realEnv, waitFor, type Env, type Target, type Waited } from "@fw/gh-budget";
+import { ghCharged, realEnv, titleFor, waitFor, type Env, type Target, type Waited } from "@fw/gh-budget";
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { GateReply, ManifestReply, PlanReply, ReduceReply, type PlanJob, type RunManifest } from "@fw/contracts";
@@ -269,14 +269,7 @@ export async function runMain(args: RunArgs, d: RunDeps): Promise<number> {
     if (j.cache === "hit") { d.log(`${j.engine}: cached at ${j.manifest}`); continue; }
     let runId = args.fromRun[j.engine];
     if (!runId) {
-      const before = await latestRun(d.gh, j.workflow, ref);
-      const at = d.now();
-      await d.gh(dispatchArgs(j, ref));
-      d.log(`${j.engine}: dispatched ${j.workflow} on ${ref}; waiting for the run`);
-      // the dispatched run is the newest run of that workflow on the ref created after the previous newest one
-      const name = before?.workflowName || d.workflowName?.(j.workflow);
-      const w = await waitDecided(d.wait, { kind: "branch", branch: ref, ...(name ? { workflow: name } : {}), sha, since: before ? epoch(before.createdAt) + 1 : at - 60 }, d.now, d.capS);
-      runId = decided(j.engine, w);
+      runId = decided(j.engine, await dispatchAndWait(d, j, ref, sha, j.engine));
       d.recordKind?.(Number(runId), j.inputs);
     } else {
       runId = decided(j.engine, await waitDecided(d.wait, { kind: "run", runId: Number(runId) }, d.now, d.capS));
@@ -290,6 +283,18 @@ export async function runMain(args: RunArgs, d: RunDeps): Promise<number> {
     d.log(`${j.engine}: run ${runId} filed, ${r.manifest.entries.length} artifacts (${r.objects} new, ${r.reused} already stored) -> ${relative(d.store, r.path)}`);
   }
   return 0;
+}
+
+/** Dispatch a count or gate workflow with a fresh nonce and wait for the run that carries it. Identity, not recency: the
+ *  workflow's `run-name` echoes the nonce and the wait selects that dispatch (Lean `Fw.Ci.Dispatch.select`, `.dispatch`),
+ *  on any head sha; the caller checks the head sha of the run it got. */
+async function dispatchAndWait(d: RunDeps, job: Pick<PlanJob, "workflow" | "inputs">, ref: string, sha: string, label: string): Promise<Waited> {
+  const nonce = d.nonce?.() ?? newNonce();
+  const stem = job.workflow.replace(/\.ya?ml$/, "");
+  await d.gh(dispatchArgs({ workflow: job.workflow, inputs: { ...job.inputs, nonce } }, ref));
+  d.log(`${label}: dispatched ${job.workflow} on ${ref} with nonce ${nonce} (run title "${titleFor(stem, nonce)}"); waiting for that run`);
+  const name = d.workflowName?.(job.workflow) ?? stem;
+  return waitDecided(d.wait, { kind: "branch", branch: ref, workflow: name, sha, since: d.now() - 60, want: { kind: "dispatch", workflow: stem, nonce } }, d.now, d.capS);
 }
 
 /** The sha a run is measured at: `--sha`, else the tip of `--ref` (when the caller can resolve it), else the checkout's. */
@@ -332,13 +337,7 @@ async function runGate(args: RunArgs, d: RunDeps, sha: string, lane: "gate" | "t
     d.log(`${lane}: the run with nonce ${nonce} is ${picked}`);
     runId = decided(lane, await waitDecided(d.wait, { kind: "run", runId: Number(picked) }, d.now, d.capS));
   } else if (!runId) {
-    const before = await latestRun(d.gh, job.workflow, ref);
-    const at = d.now();
-    await d.gh(dispatchArgs({ workflow: job.workflow, inputs: job.inputs }, ref));
-    d.log(`${lane}: dispatched ${job.workflow} on ${ref}; waiting for the run`);
-    const name = before?.workflowName || d.workflowName?.(job.workflow);
-    const w = await waitDecided(d.wait, { kind: "branch", branch: ref, ...(name ? { workflow: name } : {}), sha, since: before ? epoch(before.createdAt) + 1 : at - 60 }, d.now, d.capS);
-    runId = decided(lane, w);
+    runId = decided(lane, await dispatchAndWait(d, job, ref, sha, lane));
   } else {
     runId = decided(lane, await waitDecided(d.wait, { kind: "run", runId: Number(runId) }, d.now, d.capS));
   }
