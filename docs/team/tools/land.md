@@ -200,3 +200,20 @@ fwcore users. Lean `LandTier.phase1Build` skips it when every changed build read
 Theorems: `phase1Build_of_input` (a changed build input always builds), `skip_binMoved`, `skip_selection`, `skip_binary_equal` (premise
 `land.binaryOfInputs`), `skip_keeps_local_build` (a local fwcore user still builds in the local plan), `built_selection`. Golden: `land-phase1.jsonl`.
 The post-land `scripts/fwcore-build.sh` is unchanged. A change to a Lean module or the lakefile still builds: the closure of `Fw` covers every module.
+
+## Local tests with a declared read set (task land-tier-compose-test)
+
+A test inside a land-lane-only suite was invisible to the local tier and the dry land. Incident
+`inc-local-tier-misses-compose`: lands of hero-exit-threaded-port (run 39674287486), toolbar-throttle-probe (39685526491) and
+platform-shrink-mq (39688115785) failed at CI `suites-b` on `apps/console-api/test/compose.test.ts` because each branch registered a
+flag variant in a `part.json` with no row in `research/findings/ledger.json` (class `unrated`, `Compose.classBy`).
+
+- Lean `Fw.Console.LandTier.localTests`: single test files with a declared read set (`composeReads`: every
+  `apps/site/src/parts/*/part.json`, the registry, `research/findings/ledger.json`, console-api source, the compose test and golden, the
+  `fwcore` binary). `selectLocal` is `LandSpeed.selectChecks` over them; `selects_reader` proves that a changed path in a read set selects
+  the test, `selects_only_reader` that nothing else does. Golden `packages/contracts/golden/console/land-tier-local.jsonl`.
+- `apps/runner/src/land.ts`: `LOCAL_TESTS` (id `console-api:compose`, tier `onMac`, a `fwcore` user) is a candidate check, so the real
+  land's local tier runs it, and the dry land runs the selected ones after the fast lints (a failure is `VERDICT lint`, the output names
+  `test/compose.test.ts`). Test: `apps/runner/test/land-tier.test.ts`.
+- Limits: a test with undeclared reads stays on the CI tier only; read sets are written by hand.
+  TS stand-ins: the dry land's local-test step (Lean `lintPlan` does not list it; the real land reports the same failure as `checks`).
