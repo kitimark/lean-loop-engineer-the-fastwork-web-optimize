@@ -4,8 +4,8 @@
 # Lock dir: <main checkout>/.local/locks/sim (shared by all worktrees); files: owner, pid, at (acquire ms), start (owner start, epoch s).
 # pid is the parent process ($PPID) of this script, so the lock lives as long as the caller.
 # Lock events (task sup-baseline): one JSON line per acquire, release and stale recovery in <main>/.fw-console/locks.jsonl
-# (FW_LOCK_EVENTS_FILE overrides, FW_LOCK_EVENTS=off or CI disables). Fields: ts (ms), lock, ev, kind, pid, start (epoch s,
-# 0 unknown), waitMs on acquire, holdMs on release. No owner name, no paths, no arguments.
+# (FW_LOCK_EVENTS_FILE overrides, FW_LOCK_EVENTS=off or CI disables). Fields: ts (ms; whole seconds where `date` has no %N), lock, ev, kind, pid, start (epoch s,
+# 0 unknown), waitMs on acquire (whole seconds: the poll loop sleeps 1 s), holdMs on release. No owner name, no paths, no arguments.
 set -eu
 main=$(cd "$(git rev-parse --git-common-dir)/.." && pwd -P)
 lock="$main/.local/locks/sim"

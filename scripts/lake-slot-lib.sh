@@ -6,8 +6,8 @@
 # caller's slot.
 
 # Lock events (task sup-baseline): one JSON line per slot taken or given back in <main checkout>/.fw-console/locks.jsonl
-# (FW_LOCK_EVENTS_FILE overrides the file, FW_LOCK_EVENTS=off or CI disables it). Fields: ts (ms, whole seconds in this
-# shell), lock, ev, kind, pid ($$ of the calling shell) and start (epoch s, 0 when unknown), slot, waitMs or holdMs. No paths, no arguments.
+# (FW_LOCK_EVENTS_FILE overrides the file, FW_LOCK_EVENTS=off or CI disables it). Fields: ts (ms; whole seconds where
+# `date` has no %N), lock, ev, kind, pid ($$ of the calling shell) and start (epoch s, 0 when unknown), slot, waitMs or holdMs. No paths, no arguments.
 # With events on, lake_slot runs the command as a child (to see its end) instead of exec; with events off it execs.
 _ls_now() {
   _ls_ms=$(date +%s%N 2>/dev/null) || _ls_ms=

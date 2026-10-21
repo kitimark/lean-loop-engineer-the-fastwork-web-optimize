@@ -150,10 +150,11 @@ const sec = (ms: number): string => (ms / 1000).toFixed(ms >= 10_000 ? 0 : 1);
 export function render(r: Report): string {
   const date = r.samples ? day(r.from) : "no data";
   const share = (n: number): string => (r.samples ? `${((100 * n) / r.samples).toFixed(1)} %` : "0 %");
+  const spanMin = r.samples ? (r.to - r.from) / 60_000 : 0;
   const lines: string[] = [];
   lines.push(
     "# Resource baseline of the dev Mac, first-day tables (task sup-baseline)", "",
-    `Status: MEASURED ${date} on the dev Mac (macOS, ${gb(r.ramMB)} GB RAM, ${gb(r.swapTotalMB)} GB swap); ${r.samples} samples, ${r.samples ? stamp(r.from) : "-"} to ${r.samples ? stamp(r.to) : "-"}.`,
+    `Status: MEASURED ${date} on the dev Mac (macOS, ${gb(r.ramMB)} GB RAM, ${gb(r.swapTotalMB)} GB swap); ${r.samples} samples, ${r.samples ? stamp(r.from) : "-"} to ${r.samples ? stamp(r.to) : "-"} (a span of ${spanMin.toFixed(spanMin < 10 ? 1 : 0)} min).`,
     "These are FIRST-DAY numbers. The 3-day collection continues in the running watch process; its full tables and the conclusions (which jobs to move, which limits to set) are follow-ups, not claimed here.",
     "Every table below is generated from the local-only files `.fw-console/sup-samples.jsonl` and `.fw-console/locks.jsonl` by `apps/runner/src/sup-report.ts` (a TS stand-in; the verdict of each sample is Lean's); edit the generator, not this file.", "",
     "## What is measured", "",
@@ -185,7 +186,7 @@ export function render(r: Report): string {
     "## Simulator", "",
     table(["measure", "value"], [
       ["samples with a simulator-kind process", r.sim.samples], ["of which with no sim-lock held", r.sim.idleSamples],
-      ["simulator footprint, GB-hours", r.sim.gbHours.toFixed(2)], ["of which with no sim-lock held (idle), GB-hours", r.sim.idleGbHours.toFixed(2)]]), "",
+      ["simulator footprint, GB-hours", r.sim.gbHours.toFixed(3)], ["of which with no sim-lock held (idle), GB-hours", r.sim.idleGbHours.toFixed(3)]]), "",
     "The simulator kind includes `MobileSafari`, `SpringBoard` and the CoreSimulator service. The Simulator's WebKit helpers carry the same names as Safari's (`com.apple.WebKit.*`), so they count under `webkit`, and a Safari the user opens counts there too: `webkit` cannot tell the two apart. A booted Simulator is idle when the sim-lock is free.", "",
     "## Locks", "",
     r.locks.length
@@ -193,9 +194,10 @@ export function render(r: Report): string {
         r.locks.map((l) => [l.lock, l.kind, l.acquires, l.refuses, l.open, l.waited, l.wait.p50, l.wait.p90, l.wait.max, l.hold.p50, l.hold.p90, l.hold.max, l.maxConc]))
       : "No lock event was logged in this window.",
     "", r.lockFrom !== null ? `Lock events span ${stamp(r.lockFrom)} to ${stamp(r.lockTo ?? r.lockFrom)}; ${r.orphans} release(s) had no acquire in the window (the job began before logging).` : "",
-    "`lake-slot` and `sim-lock` time stamps are whole seconds (macOS `date` has no `%N`), so their waits and holds are rounded to seconds and a release and an acquire in one second may count as overlapping or not; \"most at once\" is a lower bound. `heavy` is in ms. The lake-slot pid is the calling shell's (`$$`), also inside a subshell, so two holders in one shell share a pid. With events on, `lake_slot` runs its command as a child instead of `exec`-ing it, so the shell stays alive for the build's duration; a wrapper killed by a signal logs no release (the hold shows as \"still open\") while its child keeps the slot.", "",
+    "`heavy` and `lake-slot` time stamps are in ms where the shell's `date` has `%N` (this Mac's does) and whole seconds otherwise; a `sim-lock` wait is counted in whole seconds (its poll loop sleeps 1 s). A release and an acquire at the same instant are counted as not overlapping, so \"most at once\" is a lower bound. The lake-slot pid is the calling shell's (`$$`), also inside a subshell, so two holders in one shell share a pid. With events on, `lake_slot` runs its command as a child instead of `exec`-ing it, so the shell stays alive for the build's duration; a wrapper killed by a signal logs no release (the hold shows as \"still open\") while its child keeps the slot.", "",
     "## Limits", "",
     "- First-day data only: one day of one person's use of one Mac. Do not generalize to other days or machines; the 3 days decide.",
+    ...(spanMin < 360 ? [`- The window is ${spanMin.toFixed(spanMin < 10 ? 1 : 0)} min, under 6 h: every share above is dominated by whatever ran in it, which includes this task's own checks, tests and dry land. Read the numbers as a demonstration of the tables, not as a picture of a normal day.`] : []),
     "- Local-only lane: this Mac's resources cannot be measured on CI; the raw files stay under `.fw-console/` (gitignored).",
     "- The 20 s cadence misses anything shorter (a 5 s lake build can fall between two samples); `top` itself costs the time in the cost row, and a sample under heavy load may be late (see the gap rows).",
     "- Kinds are by program name, so a `node` that is our watcher and a `node` that is someone's dev server both count as `node`.", "");

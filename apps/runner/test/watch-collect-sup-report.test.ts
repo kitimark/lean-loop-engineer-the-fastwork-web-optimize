@@ -90,6 +90,13 @@ describe("render", () => {
     const big = render(reduce([sample(T0, { other: [500, 20_000, 0] })], []));
     expect(big).toContain("exceeds the 16.0 GB of RAM, which shows the double counting");
   });
+  it("states the span, warns when it is under 6 h, and not otherwise", () => {
+    expect(md).toContain("(a span of 0.3 min)");
+    expect(md).toContain("The window is 0.3 min, under 6 h");
+    const long = render(reduce([sample(T0), sample(T0 + 7 * 3_600_000)], []));
+    expect(long).toContain("(a span of 420 min)");
+    expect(long).not.toContain("under 6 h");
+  });
   it("carries no home path, email or LAN address", () => {
     expect(md).not.toMatch(/\/Users\/|\/home\/|@[a-z]+\.|\b192\.168\.|\b10\.\d+\.\d+\.\d+\b/);
   });
