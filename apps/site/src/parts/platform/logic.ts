@@ -31,6 +31,24 @@ export function shrinking({ bottom, vh }: { bottom: number; vh: number }): boole
   return raw({ bottom, vh }) > 1 / 25;
 }
 
+/**
+ * The `mq` write decision (Lean `PlatformShrinkOpt.writeNow` / `lastAfter`): no write while the gate (`mq.c860`) matches,
+ * else a write exactly when the value differs from the last written one. `last` stays put while a write is skipped.
+ */
+export function planShrink({ gated, s, last }: { gated: boolean; s: number; last: number }): { write: boolean; last: number } {
+  const write = !gated && s !== last;
+  return { write, last: write ? s : last };
+}
+
+/**
+ * The card's look at inline `--platform-shrink` value `v` (Lean `PlatformShrinkOpt.look`): scale and radius in px, given
+ * whether `mq.c860` and `mq.w-le-720` match. Restates platform.module.css:8, 31, 32 with the overrides at 286-290, 303-315.
+ */
+export function cardLook({ c860, le720, v }: { c860: boolean; le720: boolean; v: number }): { scale: number; radius: number } {
+  if (c860) return { scale: 1, radius: 0 };
+  return { scale: 1 - 0.083333 * v, radius: (le720 ? 24 : 32) * v };
+}
+
 /** Card scale `1 - 0.083333 s`. */
 export function scale({ s }: { s: number }): number {
   return 1 - 0.083333 * s;

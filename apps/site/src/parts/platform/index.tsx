@@ -92,6 +92,7 @@ export function Platform({ variant, sub = {} }: PlatformProps) {
     const c = card.current;
     if (!sec || !c) return;
     const reduce = matchList('mq.rm-reduce');
+    const c860 = variant === 'mq' ? matchList('mq.c860') : null;
     const frame = createShrink(
       {
         cardBottom: () => c.getBoundingClientRect().bottom,
@@ -99,12 +100,17 @@ export function Platform({ variant, sub = {} }: PlatformProps) {
         setShrinking: (on) => sec.classList.toggle(css.isShrinking!, on),
       },
       { reduced: () => reduce?.matches ?? false, vh: () => window.innerHeight },
+      { gate: () => c860?.matches === true },
     );
     frame();
+    // leaving the band (rotation, resize): write the current value now, before the next paint (Lean PlatformShrinkOpt P1)
+    const onBand = () => frame();
+    c860?.addEventListener('change', onBand);
     const off = getScrollEngine().register('platform.shrink', SHRINK_ORDER, () => frame());
     const stopScene = bindScene(sec, watchActive);
     return () => {
       stopScene();
+      c860?.removeEventListener('change', onBand);
       off();
     };
   }, []);
