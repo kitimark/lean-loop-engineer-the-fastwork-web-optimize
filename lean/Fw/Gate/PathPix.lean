@@ -143,9 +143,9 @@ def Claim.filters (c : Claim) : Bool := c.props.any fun p => p == .filter || p =
 /-- The layer is on a compositor path in either arm. -/
 def Claim.composited (c : Claim) : Bool := c.compA || c.compB
 
-/-- `doubleRound` covers an opacity-only claim with no scale. -/
+/-- `doubleRound` covers an opacity-only claim with no scale and no text. -/
 def Bound1.covers : Bound1 → Claim → Bool
-  | .doubleRound, c => !c.props.isEmpty && c.props.all (· == .opacity) && !c.scales
+  | .doubleRound, c => !c.props.isEmpty && c.props.all (· == .opacity) && !c.scales && !c.text
 
 /-- The premises a run must pass for one claimed layer on one engine (design 3.4). -/
 def premises (eng : Engine) (c : Claim) : List Premise :=
@@ -635,7 +635,8 @@ def gradeCases : List (String × Cell) :=
    ("Chromium composited blur, byte-equal", { mkCell blur z z with p1 := true }),
    ("scale, byte-equal", { mkCell { moveClaim with compA := true, scales := true } z z with p1 := true }),
    ("not composited in either arm, byte-equal", mkCell { opacityClaim with compB := false } z z),
-   ("bound named on a translate claim, within 1", mkCell { moveClaim with bound := some .doubleRound } z one)]
+   ("bound named on a translate claim, within 1", mkCell { moveClaim with bound := some .doubleRound } z one),
+   ("double-rounded opacity over text within 1", mkCell { dr with text := true } z one)]
 
 /-- The golden `accelerated` cases. -/
 def accelCases : List (List CssProp) :=
@@ -690,7 +691,7 @@ def run (args : List String) : IO UInt32 := do
 
 #guard (gradeCases.map fun (_, c) => (grade c).name) ==
   ["E", "Q", "E1", "E1", "Q", "Q", "L", "L", "L", "L", "invalid", "invalid", "invalid", "invalid", "invalid",
-   "invalid", "invalid", "invalid", "invalid", "E", "Q", "Q", "L", "Q", "E", "Q", "E", "Q", "E", "Q"]
+   "invalid", "invalid", "invalid", "invalid", "E", "Q", "Q", "L", "Q", "E", "Q", "E", "Q", "E", "Q", "Q"]
 #guard (premiseCases.map fun (_, e, c) => (premises e c).map Premise.name) ==
   [["P1", "P2", "P3", "P4"], ["P2", "P3", "P4"], ["P1", "P2", "P3", "P4", "C5"], ["P1", "P2", "P3", "P4", "S1", "T1"],
    ["P1", "P2", "P3", "P4", "C1", "C5"], ["P1", "P2", "P3", "P4", "S1", "T1"],
