@@ -13,70 +13,111 @@ topics: [images, webkit, chromium, measurement, lag]
 Question: can a part's images be served at the size they are drawn (device pixels) with no visible change, and how much
 decoded memory does that save? Scope limit (accepted): decode memory only, no frame time.
 
+Provenance. Measured at f3ee5ee0 (gate-gaps run 39527779967, branch `ci/image-arm-v2`, 3 reps on 3 separate jobs per engine,
+22 probes in 3 shards); decided by `armdecide.mjs` at 0cb6552d (the commit that last changed it; `git diff --stat f3ee5ee0..HEAD`
+over the measurement code, which is every file under `packages/gate-breakpoints/src` except `armdecide.mjs` and `trajectory/`,
+`packages/visual-diff`, `apps/site`, `gate-gaps.yml` and `ImageArm.lean`, prints nothing). The tables at the end of this note
+are the output of that CLI over the artifacts of that run, not edited; every section of them except Coverage is byte-identical
+to the run's own `images-decide` artifact (job 118996415162). Every claim below holds at the 22 probe ids of
+`arm-probes.json` only (22 of the 124 gate probes; 22 of 68 width x DPR pairs, see Coverage).
+
 ## Outcome
 
-- MEASURED: with the exact policy (a 1:1 copy of a plain `<img>` at its snapped device size) **no part is admissible**.
-  Only `people.card` and `people.carousel` have a file that qualifies; `people.card` fails its own baseline in most
-  cells (shippedFails), `people.carousel` shows copy failures where the baseline passes (lookChange).
-  The other eight parts have no file that a 1:1 copy can reach (noCopy).
-- MEASURED: the control policy (fit: the largest drawn device size at the file's aspect ratio, which may resample) changes the
-  look in `morph.columns`, `morph.panel` (both engines), `people.card` (Chromium), `people.carousel`, `people.deck`; the hero
-  parts stay undecided (their baseline never settles, 18 to 66 cells each, all open).
-- The decoded saving per cell is large (exact: median 1.7 MiB per probe; fit: 7 to 183 MiB per part and probe) but belongs
-  to no admissible part, so it is a bound, not a result to ship.
+Verdict words below are copied from the decision tables (policy `exact` = a 1:1 copy of a plain `<img>` at its snapped device
+size; policy `fit` = the control, the largest drawn device size at the file's aspect ratio, which may resample). "Both engines"
+means that column; a verdict said of one engine is that engine's column. `lookChange`: some cell fails with the copies where the
+original files passed. `shippedFails`: some cell fails with the copies and no failing cell passed with the original files. One
+failing cell is enough for either; both are negative. `admissible` needs a cell and every cell passing.
 
-Runs (gate-gaps, branch `ci/image-arm-v2`, 3 reps on 3 separate jobs per engine, 22 probes in 3 shards):
-final tip 4e4a44d6 = run 39520488340 (success); the previous tip's run 39506658971 (success) agrees on every part except
-`people.carousel`, exact: shippedFails there, lookChange in the final run (a noisy baseline: some cells pass in one run and
-fail in the other). A run on 39513157760 lost one runner job and was cancelled.
+- MEASURED, exact, both engines: **no part is admissible** at the 22 probe ids. `noCopy` in both engines (no file of the
+  part has an exact copy at the 22 probe ids in arm-probes.json): hero, hero.deck, hero.exit, hero.orbit, morph.columns,
+  morph.panel, people.deck, people.o. `shippedFails` in both engines: people.card (Chromium 46 of 66 cells have a copy, worst 4349 ppm;
+  WebKit 35 of 66, 2649 ppm) and people.carousel (46 of 66, 33739 ppm; 35 of 66, 126609 ppm). No exact cell is in the
+  "copy fails and the baseline passes" table, so exact has no `lookChange` at the 22 probe ids.
+- MEASURED, fit, both engines column: `lookChange` for morph.columns, morph.panel, people.card, people.carousel and
+  people.deck; `undecided` for hero.deck, hero.exit and hero.orbit (every cell of theirs is open, `open>open`: the baseline
+  never settles); `noCopy` for hero and people.o. Per engine: people.card is `lookChange` in Chromium and `shippedFails` in
+  WebKit; people.deck is `shippedFails` in Chromium and `lookChange` in WebKit; morph.columns, morph.panel and people.carousel are
+  `lookChange` in both.
+- Decoded saving (companion file, section "Decoded saving per part and probe"): exact, the two parts with a copy:
+  median 1768 KiB (1.7 MiB) per probe, 864 to 1792 KiB; fit: 6.8 to 182.7 MiB per part and probe (6914.9 to 187105.3 KiB).
+  No saving belongs to an admissible part, so each is a bound, not a result to ship.
+- Per-part change against run 39520488340 (tip 4e4a44d6, copies JPEG q95 4:4:4, same 22 probes; its `images-decide`
+  artifact): of 20 part x engine entries per policy, exact changes one part and fit changes one entry. Exact:
+  people.carousel `lookChange` -> `shippedFails` in both engines (and in the both-engines column); people.card `shippedFails`
+  unchanged; the other eight parts `noCopy` unchanged; cells with a copy 45 -> 46 (Chromium) and 33 -> 35 (WebKit). Fit:
+  people.carousel in WebKit `shippedFails` -> `lookChange` (both-engines column `lookChange` unchanged); every other entry
+  unchanged, so no part became admissible when the copies went from JPEG q95 to lossless PNG32. The lossless copy removed the
+  encode stage; it moved the exact worst ppm of people.card in WebKit from 17187 to 2649 but the part still fails
+  (`shippedFails`: the baseline fails in the same cells).
 
 ## How it is built
 
-- Rules in Lean: `lean/Fw/Measure/ImageArm.lean` (snapping, reach, policies, per-part decision, decoded bytes `4*w*h`),
-  75 golden lines `packages/contracts/golden/gate/image-arm.jsonl`; the TS twin `armplan.mjs` is checked against them
-  (`packages/gate-breakpoints/test/images-armplan.test.mjs`).
+- Rules in Lean: `lean/Fw/Measure/ImageArm.lean` (snapping, reach, per-part decision `partDecision` and `partDecisionWithCopies`,
+  decoded bytes `4*w*h`), 91 golden lines `packages/contracts/golden/gate/image-arm.jsonl`; the TS twins `armplan.mjs` and the
+  decision in `armdecide.mjs` are checked against them (`test/images-armplan.test.mjs`, `test/images-armv2.test.mjs`).
 - Per probe (width x DPR x input): audit with the probe's environment, group readings by file URL, assign each file to
-  parts through the `data-fw` anchors, build copies with ImageMagick (Lanczos, JPEG q95 4:4:4) over the served URLs in a
-  temporary copy of `dist`, run `visual-diff --parts` on the base and on each policy.
+  parts through the `data-fw` anchors, build copies with ImageMagick over the served URLs in a temporary copy of `dist`:
+  lossless PNG32, one Lanczos stage (the decoded source resized to exactly w x h, no lossy encode), then run
+  `visual-diff --parts` on the base and on each policy.
 - Verdict per cell (part x engine x width x DPR x rep): pixel-lag tolerance ppm <= 2000, delta <= 64, antialiasing not
-  excluded. `partDecision` order: lookChange (a copy fails where the baseline passes) > shippedFails (the baseline itself fails)
-  > undecided (any cell open) > admissible (all cells pass, with a copy in every cell).
-- Probes: the upper side of each main width breakpoint at desktop and touch, two hover/pointer crosses, phone landscape.
+  excluded. `partDecision` order: lookChange > shippedFails > undecided (any other missing pass: unsettled, invalid, nc, error)
+  > admissible (a cell, all cells pass); a part none of whose cells has a copy is `noCopy`. An error row is an error cell, and
+  a cell whose copy differs between reps is `nc` per rep (the tables count it as `disputed`).
+- The 22 probes (`arm-probes.json`): the upper side of each main width breakpoint at desktop (11, DPR 1) and touch (8, DPR 3 up
+  to 481, DPR 2 from 601), two hover/pointer crosses at DPR 2 and the phone landscape (DPR 3).
 
-## Why so few files are reachable (why-table, CI artifact `images-decide`)
+## Why so few files are reachable (Why table, generated below)
 
-Per probe, files that get an exact copy: 0 to 4 of about 100. The rest: `cropped` (object-fit or an overflow clip, 25 to 52
-per probe), `notImg` (backgrounds, 11 to 41), `format:svg` (20), `scaled` (a transform scale at some stop, 0 to 8),
-`format:avif`/`external` (3/1), `fractional` (0 to 1). A copy is exact only when the file is a plain `<img>`, drawn at an
-integral device size, at scale 1.
+Per probe and engine, files that get an exact copy (`ok`): 0 to 2 of 68 to 118. The rest: `cropped` (25 to 52 per probe),
+`notImg` (11 to 41), `format:svg` (20 to 21), `scaled` (a transform scale at some stop, 0 to 8), `disputed` (the reps differ,
+0 to 7), `format:avif` (3), `external` (1), `fractional` (0 to 1). A copy is exact only when the file is a plain `<img>`, drawn
+at an integral device size, at scale 1, with a saving. All of this is at the 22 probe ids in arm-probes.json.
 
 ## The 1:1 question from engine source
 
 Question: is a bitmap drawn at its own pixel size copied untouched, so a copy at the drawn device size is the same pixels?
+The text of the answer is the module docstring of `lean/Fw/Measure/ImageArm.lean:12-29@f3ee5ee0`, Q1.
 
-- Chromium (chromium@f842f52): `ImagePainter` snaps the destination rect to whole pixels,
-  `third_party/blink/renderer/core/paint/image_painter.cc:210` (`ToPixelSnappedRect(dest_rect)`), and sets the image rendering
-  quality from style only (`:250-252`). There is no 1:1 branch in the paint step. CONFIRMED (source read). The Skia sampling step
-  below it is not in our sparse clone; that integer-translation draws sample like nearest is INFERRED from Skia and is not read.
-- WebKit (WebKit@862f17d): `RenderImage.cpp:693` and `:569` snap the content rect with `snapRectToDevicePixels`;
-  `ImageQualityController::chooseInterpolationQuality` has an explicit branch for the 1:1 case,
-  `Source/WebCore/rendering/ImageQualityController.cpp:176` (`size == imageSize && !contextIsScaled` -> `Default`). It returns
-  the default quality, not "no filter", so the shortcut is a choice of quality, not a copy. CONFIRMED (source).
-- Answer: the engines place the image on a snapped rectangle. A copy made at the snapped size matches the original only when
-  the original is drawn without scaling, which is what the reach rule requires. The CI result agrees: where both exist, the
-  baseline and the exact copy differ only in a few cells (`people.carousel`), and `people.card` fails its own baseline in 32 of 45 Chromium cells and 33 of 33 WebKit cells.
-  The engine step (CoreGraphics in Safari) is not exercised: Playwright WebKit on Linux is a different graphics build.
-  The Lean twin gives the snapped sizes (`snapSize_shift`, `exact_copy_is_snapped_size`).
+- A draw whose destination rectangle is a whole number of device pixels, at the copy's own pixel size, resamples nothing: the
+  browser's second stage vanishes and the page differs from the original only by the copy tool's one stage (the exact copies
+  are lossless PNG, so the stage is one Lanczos resize and no encode).
+- CONFIRMED (source read): Skia turns a bilinear sample into a nearest one when the matrix is an integer translate
+  (`tweak_sampling`, `src/shaders/SkImageShader.cpp:473-484`, called at `:522`, Skia 95ee33d7 = `skia_revision` at `DEPS:340` of
+  chromium@f842f52; the CPU raster path). Chromium snaps the destination rectangle of an `<img>` to device pixels and draws it
+  with that rectangle (`third_party/blink/renderer/core/paint/image_painter.cc:210,224-235@f842f52`). WebKit snaps with
+  `snapRectToDevicePixels` (`Source/WebCore/rendering/RenderImage.cpp:569,693,774-808@862f17d`), and its Skia port, the Linux
+  Playwright WebKit, draws with `kLinear` for Default quality
+  (`Source/WebCore/platform/graphics/skia/GraphicsContextSkia.cpp:188-201,291,295@862f17d`) into the same shader rule.
+  `ImageQualityController.cpp:172-176@862f17d` only picks the quality for an unscaled context at DPR 1 and plays no part for a
+  copy at DPR 2 or 3.
+- INFERRED (not read): that the float matrix of a WebKit draw at DPR 2 or 3 is an exact integer translate, the GPU raster path,
+  and Apple's CoreGraphics (closed source). The CI cells are the evidence for those.
+- The snapped size of a rectangle depends on where it sits (`snapSize_position_dependent`), except when its size is a whole
+  number of device pixels (`snapSize_shift`): the only size a single copy can match wherever the image is.
+  `exact_copy_is_snapped_size` proves the copy then equals the snapped size at every position. So a copy is reachable only for
+  an `<img>` that fills its box, under no scale, of whole device-pixel size and smaller than the file; every other image has no
+  1:1 copy, its drawn size moves with a transform or the position, and any copy is resampled twice.
+- What the cells say, at the 22 probe ids: exact copies exist for 2 files of people.card and people.carousel; in those cells the
+  original files fail too (`fail>fail` 25 and 12 in Chromium, 8 and 0 in WebKit; one Chromium people.card cell is `pass>pass`;
+  the rest are open or disputed), so the cells do not settle that an exact copy draws like its source. The question of whether the second stage vanishes in
+  WebKit at DPR 2 and 3 stays INFERRED for the 22 probe ids.
 
-## Accepted limits and stand-ins
+## Limits (accepted)
 
+- 22 of 124 gate probes: 22 of 68 width x DPR pairs are probed (the 46 unprobed pairs are listed in Coverage), and 24 more
+  probes at probed pairs (reduced motion, hover/pointer crosses other than the two, other heights, for example `desk-rm-*`,
+  `touch-1200`) are not probed. Every verdict above is at the 22 probe ids.
 - Decode memory only; no frame time (as set in the task).
-- Linux Playwright WebKit is not Safari's CoreGraphics build; no phone claim.
-- Many baseline cells are open (unsettled or invalid): the hero and `people.deck` rows are undecided for that reason, not
-  because the copies passed.
+- Linux Playwright WebKit is not CoreGraphics (Safari); no phone claim. GPU raster is not exercised.
+- Many baseline cells are open (unsettled or invalid): the hero rows are `undecided` for that reason in the fit policy, not
+  because the copies passed; people.deck is `noCopy` under exact (no file has an exact copy).
+- `people.carousel` flips between runs (the baseline is noisy): its verdict word is one run's (run 39520488340: exact
+  `lookChange`, this run: `shippedFails`).
 - A file shared by two parts is copied once for both; the part rows therefore share cells (shared-URL caveat).
-- TS stand-ins (not proved): `imgOf` (reading -> Lean input), `whyFile` (report only), the aggregation in `armdecide.mjs`
-  (grouping per policy/engine/part; the decision itself is `armplan.partDecision`, twin of Lean).
+- The cells companion `10-21-image-arm-v2-cells.md` (about 1,300 lines) is generated and is not read as prose.
+- TS stand-ins (not proved as TS): `imgOf` (reading -> Lean input), `whyFile` (report only), the aggregation in `armdecide.mjs`
+  (grouping per policy, engine and part; its cell and part decisions are `armplan.mjs`, checked against the Lean golden).
 - Old `pages.mjs`, `verify.mjs`, `arm.mjs` stay as legacy (tests import them).
 
 ## Generated tables
