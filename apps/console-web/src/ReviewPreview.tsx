@@ -51,8 +51,9 @@ export function ReviewPreview({ flag, preview, onChanged }: { flag: string; prev
 
   /** Ask Lean for the plan, open (or reuse) the main build with it, send the tab there and then record the preview. */
   async function run(view: View) {
+    recordRef.current = null;
     setMsg(null); setBusy(view);
-    const w = window.open("about:blank", "_blank"); // on the click, so a pop-up blocker allows it
+    const w =window.open("about:blank", "_blank"); // on the click, so a pop-up blocker allows it
     if (w) w.opener = null;
     const fail = (m: string) => { w?.close(); setMsg(m); };
     const body = { view, width: window.innerWidth };

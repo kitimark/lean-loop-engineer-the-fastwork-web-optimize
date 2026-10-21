@@ -12,8 +12,7 @@ Design:
 - Web: the page runs the existing `POST /api/builds/open` loop with the plan's search and arm; links use `previewBase` (page host).
 - e2e-preview: target `entry-review-flag` (`?fw=nav:earn-no-transition` through the entry path on every host).
 
-Verified locally: lean check.sh green, fwtest console-apply 49/49, console-api 709 tests, console-web 70 tests + tsc + build,
-e2e-preview 15 browser-free tests, ci-paths 54, land-inputs 55. Browser e2e run is CI only (not run).
+Verified locally: lean check.sh green, fwtest console-apply 49/49, console-api 709 tests, console-web 70 tests + tsc + build, e2e-preview 15 browser-free tests, ci-paths 54, land-inputs 55. Browser e2e: CI preview-e2e run 39557255514 (see Round 2).
 
 Round 2:
 - `review.previewed` is out of the public door: contracts `PublicCommand` (used by `POST /api/commands` and the agent door `stamp`) omits it; `Command`/`Event` (log, reducer) keep it. Only `mountReviewPreview` appends it from Lean's plan. Test: door returns 400.
