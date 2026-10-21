@@ -35,7 +35,7 @@ backed before this task. A proves it in core Lean over `Rat`; B proves it with M
 
 | | A: core Lean, `Rat` (`lean/Fw/Parts/Bezier.lean`) | B: Mathlib, `ℝ` (`lean-math/FwMath/Bezier.lean`) |
 |---|---|---|
-| headline | `bracket_cut`, `ease_err` (every rational root, error ≤ 3·2^-(steps+1)) `existsUnique_root`: ∃! s* ∈ [0,1], x(s*) = t; `ease_exact` bundles it with abs(bisect − s*) ≤ 2^-40 and abs(ease − y(s*)) ≤ 3·2^-40 (its ∃! is over points meeting all four, so uniqueness of the root itself is `existsUnique_root`) |
+| headline | `bracket_cut`, `ease_err` (every rational root, error ≤ 3·2^-(steps+1)) | `existsUnique_root`: ∃! s* ∈ [0,1], x(s*) = t; `ease_exact` bundles it with abs(bisect − s*) ≤ 2^-40 and abs(ease − y(s*)) ≤ 3·2^-40 (its ∃! is over points meeting all four, so uniqueness of the root itself is `existsUnique_root`) |
 | cannot say | that a root exists (it may be irrational) | anything about the floating-point code in browsers |
 | reuse | n/a | the bracket lemmas of A, cast to `ℝ` (`bx_cast`, `ease_cast`) |
 | theorems / added lines | 28 / +261 | 16 / +188 |
