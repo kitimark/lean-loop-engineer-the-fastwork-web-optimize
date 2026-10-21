@@ -102,7 +102,7 @@ GitHub Actions runs every leg of the land lane unless it has no free job slot fo
   a job `land (<leg>)` for each leg it was given (`legsCovered`).
 - **CircleCI.** The land job restores a Lake cache (key `lake-v1-arm64-<toolchain+manifest hash>-<Lean source hash>`, prefix fallback) and saves it
   only when the key changed (`job.sh lake-gate` halts before `save_cache` otherwise); a warm leg takes 48-215 s against 420-576 s cold (MEASURED,
-  `research/notes/2026/10-21-circleci-lean-cache.md`; one save is about 292 MiB, 307 thousandths of a GB-month at the 30-day ledger bound). `.circleci/config.yml` has one workflow per leg (parameter `legs`, `lane == land`, branch `ci/*`); `.circleci/job.sh` runs the
+  `research/notes/2026/10-2x-circleci-lean-cache.md`; one save is about 292 MiB, 307 thousandths of a GB-month at the 30-day ledger bound). `.circleci/config.yml` has one workflow per leg (parameter `legs`, `lane == land`, branch `ci/*`); `.circleci/job.sh` runs the
   same `fw checks --affected --tier remote --leg` entry and writes `lane.json` (`{leg, sha, digest, engine, rc}`). The adapter triggers
   through `scripts/circleci.mjs` (token from the Keychain, never printed), waits at 120 s or slower, reads `vcs.revision` and the
   artifacts, and binds a pass only to a sha and digest every leg printed (`normalizeCircle`). Groups are waited for on their own and

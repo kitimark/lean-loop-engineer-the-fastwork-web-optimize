@@ -1,6 +1,6 @@
 # Handoff: circleci-lean-cache
 
-Branch `worktree-wf_9aef738e-414-1`. Read first: `research/notes/2026/10-21-circleci-lean-cache.md` (tables, verdict, limits).
+Branch `worktree-wf_9aef738e-414-1`. Read first: `research/notes/2026/10-2x-circleci-lean-cache.md` (tables, verdict, limits).
 
 ## State
 - The CircleCI land job restores/saves a Lake cache: `.circleci/config.yml` (land job steps `lake-key`, `restore_cache`, `lake-probe`, `lake-gate`,
