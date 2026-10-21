@@ -1,46 +1,31 @@
 # Handoff: review-followups (console-builder)
 
-State: branch `worktree-wf_f3657445-cd9-2`, committed. Read first: `lean/Fw/Console/Review.lean` (section "Review rounds"), `lean/Fw/Console/ReviewPreview.lean`
-(section "Which flags a search names", `roundTag`), `apps/console-api/test/review-preview-door.test.ts`.
+State: branch `worktree-wf_f3657445-cd9-2`, committed; round 3 (final design round) accepted. Read first: `lean/Fw/Console/ReviewPreview.lean`
+(`roundTag`, `roundOfKey`, `roundEventsOf`), `apps/console-api/test/review-preview-door.test.ts`.
 
 Built
 1. Door: `review-preview-door.test.ts` proves `POST /api/commands` and the cap `stamp` refuse `review.previewed` for every actor; only the preview route
-   (done) records it. Mutation check: in-test mutant union admits it (so the check would flag it); also run for real by moving `internalCommands` into
-   `PublicCommand` (3 tests failed, then reverted).
+   (done) records it. Mutation check: moving `internalCommands` into `PublicCommand` failed 3 tests (reverted).
 2. Exact flag match: Lean `searchFlags`, `searchHasFlag` (+ `searchHasFlag_iff`, `searchHasFlag_false`), `carries`; wire `names` {search, flag} and plan
-   `carries`; goldens (`nav:earn` vs `nav:earn-no-transition` both ways, comma list, second `fw`); the route refuses (500) a plan whose search does not carry the flag.
-3. Round scoping: Lean `Post`, `roundStart`, `inRound` with `mem_inRound`, `inRound_old` (a new round inherits nothing), `inRound_mono`, `roundStart_posted`,
-   `roundStart_unposted`, `needsPost_no_verdict` (a verdict is per round). Rule reads log positions: an event counts for a round when its seq is after the round
-   step's `step.post`. No event rewrite; old events are read by position. The event key carries the round (`...-desktop#1`, `roundTag`) so a round-2 click is no
-   duplicate of round 1's. preview.ts hands Lean `events` {flag, device, seq} and `posts` {step, seq}.
+   `carries`; goldens (`nav:earn` vs `nav:earn-no-transition` both ways, comma list, second `fw`); the route refuses (500) a plan whose search lacks the flag.
+   It hardens an invariant and fixes no live bug.
+3. Round scoping by identity: the reader places a `review.previewed` event by the round tag parsed from its KEY (`...-desktop#1`), never by seq or posting
+   order. Lean: `keyPrefix`, `roundOfKey` (+ `roundOfKey_eventKey`, `roundOfKey_roundTag`: the parser inverts the builder), `roundEventsOf tag evs`;
+   T1 `shown_iff_named`, `named_round_shows`; T2 `other_rounds_show_nothing`, `keyed_elsewhere_hidden` (covers the unposted window and races: the key is
+   fixed at record time); T3 `record_key_shown` (a repeat click duplicates a shown event); `untagged_first_round_only`. Round identity is the tag string
+   ("" first round, "#k"). Wire events {flag, device, key?}; an old caller's `posts` is ignored. preview.ts passes each event's key.
+   Goldens from Lean (`lake env lean --run scripts/OpsGolden.lean`). Door test "the reviewer's window" ends desktop true with one event keyed `#1`;
+   it failed with the seq-based reader restored.
 
-Round 3 (final design round, part 3): identity reader. SUPERSEDES the seq-based round scoping (item 3 and Round 2 "Unposted window") below.
-- The reader places a `review.previewed` event by the round tag parsed from its KEY, never by seq or posting order. Lean `Fw.Console.ReviewPreview`: `keyPrefix`,
-  `roundOfKey` (+ `roundOfKey_eventKey`, `roundOfKey_roundTag`: the parser inverts the builder), `roundEventsOf tag evs` (+ `mem_roundEventsOf`). T1 `shown_iff_named`,
-  `named_round_shows`; T2 `other_rounds_show_nothing`, `keyed_elsewhere_hidden` (unposted window and races: the key is fixed at record time); T3 `record_key_shown`
-  (the key `record` gives is shown in the open step's round, so a repeat click is a duplicate of a shown event); `untagged_first_round_only`, `roundOfKey_untagged`.
-  The posting-seq code (`Post`, `inRound`, old `roundEventsOf`) is deleted from Review.lean. Round identity is the tag STRING ("" first round, "#k"), so no number parsing.
-- Wire: events {flag, device, key?}; no posts/seq (an old caller's posts is ignored). preview.ts passes each event's key.
-- Goldens regenerated from Lean (`lake env lean --run scripts/OpsGolden.lean`): unposted-window click (key #1) shows in round 2; an event keyed for round 1 shows nothing
-  there; an untagged event shows only in round 1.
-- Test: door test "the reviewer's window" ends with desktop true and one event keyed `...-desktop#1`. Mutation: with the previous seq-based Lean and preview.ts
-  restored, that test failed; restored.
-- check.sh exit 0; console-api 734, console-web 80, ci-paths 54, land-inputs 55 pass.
-- Accepted limits: L1 untagged events (no key, or a key without its flag-device prefix) belong to round 1 only. L2 the wire carries key; absent = round 1.
-  L3 the recorder's tag for an unposted round is `freshId` via `stepOf`; that ensureReviewSteps posts that same id is cited (Review.lean stepOf, freshId), not proved
-  here; the window test exercises it. L4 no UI redesign, no log rewrite, parts (1) and (2) unchanged.
+Verified: check.sh exit 0; console-api 734, console-web 80, ci-paths 54, land-inputs 55.
 
-Round 2 (fixes of the r1 review)
-- Unposted window: `roundEventsOf` replaces `roundStart`. A step not posted yet while the flag's family has a posting has NO events (theorem
-  `unposted_inherits_nothing`; `roundEventsOf_posted`, `unposted_no_family` for the other branches). `record` needs an open step, so none can belong to it.
-  Golden case 7 now expects nothing previewed; door test reads GET /api/reviews after closing the step and before `ensureReviewSteps`.
-- Wire/Console.lean row for `console.reviewPreview` now matches Wire/ReviewPreview.lean (extra write). Door test: the guard is the real-door assertions; the
-  mutant case only checks `admits`.
-- Exact flag matching (`searchHasFlag`, `names`, `carries`) hardens an invariant and fixes no live bug: no substring match existed before it.
-- After editing Lean, run `lake build` (fwcore exe) before console-api tests, else they run the old binary.
+Accepted limits: L1 an event without a key belongs to round 1 only. L2 the wire carries key; absent = round 1. L3 that ensureReviewSteps posts the id the
+recorder tagged (`stepOf`, `freshId` in Review.lean) is cited, not proved; the window test exercises it. L4 no UI redesign, no log rewrite.
 
-Open / accepted limits
-- The empty-search and per-key facts are `#guard`s, not theorems (`String.splitOn` does not reduce in the kernel).
-- "Strip shown" records nothing, so there is nothing to scope.
-- Writes beyond the graph list: `lean/Fw/Wire/ReviewPreview.lean`, `lean/Fw/Wire/Console.lean`, `lean/Fw/Ops/Golden.lean`, `lean/Fw/Console/ReviewPreview.lean`, `packages/contracts/golden/console/reviewPreview.jsonl` (generated by `lake env lean --run scripts/OpsGolden.lean`).
-No TS stand-ins.
+Open (follow-ups from the round-3 review)
+- Add `roundStep_eq_item` (or restate `record_key_shown` against the reader's item step) to link T3 to the reader.
+- `roundOfKey_untagged` proves only the empty key; narrow its docstring or prove the no-prefix case.
+- The empty-search and per-key facts are `#guard`s (`String.splitOn` does not reduce in the kernel).
+- After editing Lean, run `lake build` before console-api tests, else they run the old fwcore binary.
+- Extra writes: `lean/Fw/Wire/ReviewPreview.lean`, `lean/Fw/Wire/Console.lean`, `lean/Fw/Ops/Golden.lean`, `lean/Fw/Console/{Review,ReviewPreview}.lean`,
+  `packages/contracts/golden/console/reviewPreview.jsonl`. No TS stand-ins.
