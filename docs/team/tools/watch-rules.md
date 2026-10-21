@@ -35,7 +35,7 @@ Every threshold is strict `>` except the load.
 - `sys.contended`: the floor of the 1-min load average is above `Fw.Obs.Timing.contendedLoad` (8, one load unit per CPU of the 8-CPU Mac); one
   alert for the whole machine, with the load, the `lake` builders and the heavy-lock holders in the detail
   (`sysContended_iff`). Hysteresis: once open it closes only when the floor falls to `calmLoad` (4) or below
-  (`sysContended_opens`, `_closes`, `_between`); the previous state rides in `system.load.prevContended`. Replay of the
+  (`sysContended_opens`, `_closes`, `_between`); the previous state rides in `system.load.prevContended`. Replay (INFERRED) of the
   local timings: 5, 32, 25, 25, 12 opens per day (10-17..10-21) before, 1, 11, 6, 14, 2 after. Accepted limit: 60-96%
   of local lean/check samples per day are still contended; CI timings are the backstop. Timed steps measured while the load is above 8 are contended samples: they never raise `timing.slow`
   (Lean `contended_not_slow`), so the per-step burst under contention is this one signal instead.

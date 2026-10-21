@@ -118,7 +118,7 @@ def contendedLoad : Nat := 8
 the local Mac. The table above measures the steps at `λ < 4` as the fastest column (props lint 16.8 s against 19.2 s at
 `4 ≤ λ < 8`), so a floor at or below 4 is a calm machine. Replayed over the 5-minute bins of the local timing samples of
 `.fw-console/timings.jsonl` (lowest load floor of each bin; 2026-10-17 to 21), opening above 8 gives 5, 32, 25, 25, 12 OPEN
-lines a day, and holding it open down to 5 gives 1, 11, 6, 14, 2. -/
+lines a day, and holding it open down to 5 gives 1, 11, 6, 14, 2 (replay, INFERRED: local timings, not a live run). -/
 def calmLoad : Nat := 4
 
 /-- The closing load is below the opening load, so the alert has a band to hold in. -/

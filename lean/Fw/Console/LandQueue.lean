@@ -228,7 +228,7 @@ whose merged diff touches a path fwcore is built from (`lean/` or the build scri
 dequeue. If the rebuild fails the next entry gets the kind `rebuild` (never `stale`: its branch is fine) and the queue stops. -/
 
 /-- Is a path one fwcore is built from? Lean `lean/**` or the build script (TS `FWCORE_BUILD_READS`). -/
-def coreSource (p : String) : Bool := p.startsWith "lean/" || p == "scripts/fwcore-build.sh"
+def coreSource (p : String) : Bool := p.startsWith "lean/" || p == "scripts/fwcore-build.sh" || p == "scripts/fwcore-record-rule.sh"
 
 /-- Does a merged diff touch a path fwcore is built from? -/
 def touchesCore (paths : List String) : Bool := paths.any coreSource

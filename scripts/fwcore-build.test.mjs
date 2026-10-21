@@ -71,6 +71,11 @@ describe('fwcore-build.sh record', () => {
     sh(d, 'git', 'commit', '-qm', 'main moves');
     sh(d, 'git', 'merge', '--no-commit', '--no-ff', 'feat');
     assert.ok(existsSync(path.join(d, '.git/MERGE_HEAD')));
+    // the land writes the task evidence into the merge before the checks (and so before the build): the committed tree is the built tree
+    const wg = path.join(d, 'docs/team/work-graph.json');
+    mkdirSync(path.dirname(wg), { recursive: true });
+    writeFileSync(wg, '{"evidence":"abc1234"}\n');
+    sh(d, 'git', 'add', 'docs/team/work-graph.json');
     const err = build();
     assert.doesNotMatch(err, /no build record/);
     // before the landing commit exists the tree is on no commit: unknown, with the reason, not a guess
@@ -78,6 +83,27 @@ describe('fwcore-build.sh record', () => {
     assert.ok('unknown' in mid && /on no commit of main/.test(mid.unknown), JSON.stringify(mid));
     sh(d, 'git', 'commit', '-qm', 'land feat');
     assert.deepEqual(base(), { sha: sh(d, 'git', 'rev-parse', 'HEAD') });
+  });
+
+  it('a land that writes the evidence after the build (the old fallback order): the built tree is not the committed tree, unknown', () => {
+    const { d, build, base } = fixture();
+    sh(d, 'git', 'checkout', '-qb', 'feat');
+    writeFileSync(path.join(d, 'lean/Fw/B.lean'), 'b\n');
+    sh(d, 'git', 'add', '-A');
+    sh(d, 'git', 'commit', '-qm', 'feat');
+    sh(d, 'git', 'checkout', '-q', 'main');
+    writeFileSync(path.join(d, 'lean/Fw/C.lean'), 'c\n');
+    sh(d, 'git', 'add', '-A');
+    sh(d, 'git', 'commit', '-qm', 'main moves');
+    sh(d, 'git', 'merge', '--no-commit', '--no-ff', 'feat');
+    build();
+    const wg = path.join(d, 'docs/team/work-graph.json');
+    mkdirSync(path.dirname(wg), { recursive: true });
+    writeFileSync(wg, '{"evidence":"abc1234"}\n');
+    sh(d, 'git', 'add', 'docs/team/work-graph.json');
+    sh(d, 'git', 'commit', '-qm', 'land feat');
+    const b = base();
+    assert.ok('unknown' in b, JSON.stringify(b));
   });
 
   it('a dirty tree writes no new record; the binary of the old record still resolves when nothing relinked', () => {

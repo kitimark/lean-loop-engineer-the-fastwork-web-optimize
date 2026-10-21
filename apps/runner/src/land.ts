@@ -249,7 +249,7 @@ export const FWCORE_USERS = ["apps/console-api", "apps/runner", "packages/diffte
 /** Lean `fwcoreBin`: the stripped binary as a declared read. */
 export const FWCORE_BIN = "lean/.lake/build/bin/fwcore";
 /** Lean `fwcoreBuildReads`. */
-export const FWCORE_BUILD_READS = ["lean/**", "scripts/fwcore-build.sh"];
+export const FWCORE_BUILD_READS = ["lean/**", "scripts/fwcore-build.sh", "scripts/fwcore-record-rule.sh"];
 /** sha256 hex of a binary, or null when unknown. */
 export type Digest = string | null;
 /** Lean `binMoved`, checked against the `landSpeed.select2` golden. */
@@ -470,7 +470,7 @@ export function fwcorePreflight(mainDir: string, main: string): string | null {
   const same = recorded === head;
   let moved = true; // an unknown commit counts as moved
   if (recorded !== null && !same) {
-    try { moved = git(mainDir, ["diff", "--name-only", recorded, main, "--", "lean", "scripts/fwcore-build.sh"]) !== ""; } catch { moved = true; }
+    try { moved = git(mainDir, ["diff", "--name-only", recorded, main, "--", "lean", "scripts/fwcore-build.sh", "scripts/fwcore-record-rule.sh"]) !== ""; } catch { moved = true; }
   }
   return fwcoreStale(recorded, same, moved) ? FWCORE_STALE_REASON : null;
 }
@@ -479,7 +479,7 @@ export function storeDigest(mainDir: string, commit: string, d: string): void {
 }
 /** `lean/` and the build script of `dir` equal its HEAD and `lean/` holds no untracked file. */
 export function buildClean(dir: string): boolean {
-  if (!tryGit(dir, ["diff", "--quiet", "HEAD", "--", "lean", "scripts/fwcore-build.sh"])) return false;
+  if (!tryGit(dir, ["diff", "--quiet", "HEAD", "--", "lean", "scripts/fwcore-build.sh", "scripts/fwcore-record-rule.sh"])) return false;
   try { return git(dir, ["ls-files", "--others", "--exclude-standard", "--", "lean"]) === ""; } catch { return false; }
 }
 
@@ -924,6 +924,10 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       try { marks = git(mainDir, ["grep", "-n", "-E", MARKER_RE]); } catch { /* exit 1: no match */ }
       if (marks) return abort(`conflict markers after the merge:\n${marks.split("\n").slice(0, 10).join("\n")}`, "conflict");
       lines.push("no conflict markers");
+      // the evidence goes in before the checks: the checked and fwcore-recorded tree is the committed tree
+      const ev = writeEvidence(mainDir, o.task, sha.slice(0, 7));
+      if (ev === "failed") return abort("could not write the evidence into docs/team/work-graph.json");
+      if (ev === "written") lines.push(`evidence ${sha.slice(0, 7)} written into docs/team/work-graph.json (in the merge commit)`);
       const bad = await runChecks(mainDir, checks);
       if (bad) return abort(bad, badKind);
       let e: string | null;
@@ -935,9 +939,6 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       }
       if (e) return abort(e);
       // the task's evidence goes into the merge commit itself, next to the Task: trailer (a commit of the branch, so on main)
-      const ev = writeEvidence(mainDir, o.task, sha.slice(0, 7));
-      if (ev === "failed") return abort("could not write the evidence into docs/team/work-graph.json");
-      if (ev === "written") lines.push(`evidence ${sha.slice(0, 7)} written into docs/team/work-graph.json (in the merge commit)`);
       // commit only into the merge the land opened (Lean: landTip): no lock, no MERGE_HEAD or a moved HEAD means someone
       // else touched main; then nothing is committed and nothing is reset
       const d = facts();

@@ -66,9 +66,9 @@ export function describe(w) {
 
 function startOf(pid) {
   try {
-    const s = execFileSync('ps', ['-o', 'lstart=', '-p', String(pid)], { encoding: 'utf8' }).trim();
+    const s = execFileSync('ps', ['-o', 'lstart=', '-p', String(pid)], { encoding: 'utf8', env: { ...process.env, LC_ALL: 'C', TZ: 'UTC' } }).trim();
     if (!s) return null;
-    const t = Date.parse(s);
+    const t = Date.parse(`${s} UTC`); // lstart is local time; TZ=UTC above, so UTC here (as watch-collect's parseStartRows)
     return Number.isNaN(t) ? null : Math.floor(t / 1000);
   } catch {
     return null;
@@ -149,8 +149,9 @@ async function acquire(kind) {
   let lastSaid = '';
   let lastAt = 0;
   for (;;) {
-    const holders = dropStale(readEntries(hd));
+    // queue first, holders second: a ticket gone from the queue means its holder file exists (written before the ticket is removed)
     const queue = dropStale(readEntries(qd));
+    const holders = dropStale(readEntries(hd));
     let rank = queue.findIndex((q) => q.pid === me.pid);
     if (rank < 0) { ticket = enqueue(); rank = queue.length; } // the ticket was lost: go to the back of the queue, never to the head
     const waited = Math.floor((Date.now() - t0) / 1000);

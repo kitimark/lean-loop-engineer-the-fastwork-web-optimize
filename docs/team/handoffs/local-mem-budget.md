@@ -7,7 +7,7 @@ State: branch `worktree-wf_a08b7aa9-761-1`, commit named in the report. Read fir
 Round 1: contended samples never raise timing.slow (`contendedLoad` 8); `sys.contended` alert; heavy lock (Lean verdict, TS stand-in
 `scripts/heavy-lock.mjs`, golden sched/heavy.jsonl); propslint exe; one fwcore builder.
 Round 2:
-- svc.unknown trace: 6 records, all `fwcore` "no build record", next to `lean/check | lake build` or `fw land | fwcore rebuild`
+- svc.unknown trace: 7 records, all `fwcore` "no build record", next to `lean/check | lake build` or `fw land | fwcore rebuild`
   spans (attribution INFERRED, spans carry no cwd). Causes: old script removed the record at build start; no record on dirty or
   mid-merge trees. Fix: record is `tree <write-tree id before build> <sha256>`, written only when files equal the index before and
   after (Lean `recordTree`); readers resolve it to the commit of main with that tree (`build-base.ts`, land.ts `parseBuildRecord`).
