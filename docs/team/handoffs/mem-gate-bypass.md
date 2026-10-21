@@ -1,7 +1,7 @@
 # mem-gate-bypass handoff
 
 State: round 2 research done on branch `worktree-wf_f48889d4-126-2`; round 1 was b49892f6, round 2 merges main
-2edd65b1 (merge 1186e05e) and rewrites the note; the round-2 commit is the branch tip (`git log -1`). No code changed.
+2edd65b1 (merge 1186e05e) and rewrites the note; the round-2 note commit is afb6bca1. No code changed.
 
 Read first: `research/notes/2026/10-21-mem-gate-bypass.md` (22-row entry-point table with the sweep commands, burst
 tables from samples, memory-gate section, lease kind, I1/I1-L/I2, round-1 findings answered with line numbers).
