@@ -14,7 +14,7 @@ import { PIN_SRC, waitReady } from '../page.mjs';
 import { startServer, snapshotRoot, siteDist, rewriteFor } from '../serve.mjs';
 import { envFor } from '../trajectory/registry.mjs';
 import { runCheck } from '../trajectory/reduce.mjs';
-import { HERO_BURST, END_PUSH, orderFor } from './cadence.mjs';
+import { HERO_BURST, END_PUSH, orderFor } from './schedule.mjs';
 import { hitches } from './reduce.mjs';
 import { RECORDER_SRC, TO_END_JS, pageOf, intervalsOf } from '../../../measure-webkit/src/profile/recorder.mjs';
 import { profileWindow, toHundredths } from '../../../measure-webkit/src/profile/reduce.mjs';

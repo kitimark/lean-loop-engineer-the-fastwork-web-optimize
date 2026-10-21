@@ -226,7 +226,9 @@ def table : List Wf := [
     ".github/scripts/trajectory-line.mjs", ".github/scripts/trajectory-line.test.mjs", "packages/contracts/golden/ci/triggers.jsonl",
     "packages/contracts/golden/gate/search.jsonl", "packages/contracts/golden/gate/smooth.jsonl", "packages/contracts/golden/ops/cache.jsonl",
     ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", ".node-version", ".github/actions/setup-pnpm/**",
-    ".github/actions/gate-engine/**", ".github/actions/telemetry/**", "scripts/ci-telemetry/**", own "smoothness.yml"], []⟩,
+    ".github/actions/gate-engine/**", ".github/actions/telemetry/**", "scripts/ci-telemetry/**", "packages/measure-webkit/**",
+    "packages/measure-chromium/src/profile.mjs", "packages/contracts/golden/measure/webkit-profile.jsonl", ".github/scripts/check-simulator.sh",
+    ".github/scripts/runner-info.sh", own "smoothness.yml"], []⟩,
   ⟨"snapshot-extract.yml", ciAll, [
     "packages/snapshot-extract/**", "packages/gate-breakpoints/**", "apps/site/**", "snapshot/**", "snapshot.lock.json",
     "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/verify-snapshot.mjs",

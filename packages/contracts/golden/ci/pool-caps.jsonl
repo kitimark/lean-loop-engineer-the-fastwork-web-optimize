@@ -4,6 +4,8 @@
 {"capMin":8,"file":"engine-premises.yml","job":"webkit","kind":"cap","lane":"engine-premises","n":15,"p90dm":56,"source":"research/notes/2026/10-20-macos-pool-v2.md: jobs-an.json, 305 jobs 10-17..10-20, successes only, linear p90 rounded up to 0.1 min","status":"MEASURED","thin":false}
 {"capMin":26,"file":"gate-gaps.yml","job":"collect-macos","kind":"cap","lane":"gate-gaps","n":3,"p90dm":198,"source":"research/notes/2026/10-20-macos-pool-v2.md: jobs-an.json, 305 jobs 10-17..10-20, successes only, linear p90 rounded up to 0.1 min","status":"MEASURED","thin":true}
 {"capMin":15,"file":"trajectory-probe.yml","job":"probe-apple","kind":"cap","lane":"trajectory-probe","n":4,"p90dm":112,"source":"runs 39453181962 and 39455284967 (task trajectory-probe-speed): probe-apple width legs, successes only, linear p90 rounded up to 0.1 min","status":"MEASURED","thin":true}
+{"capMin":26,"file":"smoothness.yml","job":"webkit-mac","kind":"cap","lane":"smoothness-webkit-mac","n":1,"p90dm":200,"source":"task smoothness-webkit-cadence: the lane's own CI runs, wall of the job, successes only (thin until 10 successes)","status":"MEASURED","thin":true}
+{"capMin":65,"file":"smoothness.yml","job":"webkit-sim","kind":"cap","lane":"smoothness-webkit-sim","n":1,"p90dm":500,"source":"task smoothness-webkit-cadence: the lane's own CI runs, wall of the job, successes only (thin until 10 successes)","status":"MEASURED","thin":true}
 {"file":"webkit-sim.yml","kind":"excluded","task":"webkit-sim-failfast"}
 {"capMin":0,"kind":"vector","p90dm":0}
 {"capMin":1,"kind":"vector","p90dm":1}
