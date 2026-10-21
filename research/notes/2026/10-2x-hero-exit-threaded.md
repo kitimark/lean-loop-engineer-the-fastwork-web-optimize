@@ -74,3 +74,12 @@ Why the hidden cards differ (INFERRED from the CSS animations spec and the patte
 (`getComputedStyle` of a hidden node), and no user sees them. Making them agree needs a per-frame write, which is what
 the variant removes. Open for the lead: the gate should not compare nodes that are not rendered in the band (a Lean rule
 `hidden node = not a consumer`), or the variant is judged on visible nodes only.
+
+## Proof status and the exit check
+
+- The Lean statements this variant rests on, `consumer_eq_s` under RG11 and `proof-hero-exit`/`hero-exit-restate`,
+  landed in 3dbed91c. This task adds `live_*`, `keyframe_table_*` and the golden rows (section Threaded).
+- The exit check for the phone is not the stall count: a CSS animation does not write `--exit-opacity`, so the stall
+  series of `Fw.Device.Session` cannot see it. The check is that `scrollY` still runs inside the exit range (still runs
+  of 5 to 6 frames are the toolbar throttle) together with a `getComputedStyle` sample of one consumer (the copy's
+  `opacity`) per frame. No lane records that pair yet; it is dispatch for the lead.
