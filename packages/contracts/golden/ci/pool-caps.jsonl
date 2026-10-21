@@ -5,6 +5,7 @@
 {"capMin":26,"file":"gate-gaps.yml","job":"collect-macos","kind":"cap","lane":"gate-gaps","n":3,"p90dm":198,"source":"research/notes/2026/10-20-macos-pool-v2.md: jobs-an.json, 305 jobs 10-17..10-20, successes only, linear p90 rounded up to 0.1 min","status":"MEASURED","thin":true}
 {"capMin":15,"file":"trajectory-probe.yml","job":"probe-apple","kind":"cap","lane":"trajectory-probe","n":4,"p90dm":112,"source":"runs 39453181962 and 39455284967 (task trajectory-probe-speed): probe-apple width legs, successes only, linear p90 rounded up to 0.1 min","status":"MEASURED","thin":true}
 {"file":"webkit-sim.yml","kind":"excluded","task":"webkit-sim-failfast"}
+{"file":"xctrace-probe.yml","kind":"excluded","task":"xctrace-ci-probe"}
 {"capMin":0,"kind":"vector","p90dm":0}
 {"capMin":1,"kind":"vector","p90dm":1}
 {"capMin":8,"kind":"vector","p90dm":56}

@@ -1,0 +1,242 @@
+name: xctrace-probe
+
+# Research probe (task xctrace-ci-probe; note research/notes/2026/10-2x-xctrace-ci.md): which of three Apple tools see the render side of
+# a Mobile Safari scroll on a free GitHub macOS runner (the xcode-27 image, a VM)?
+#   (1) Instruments Animation Hitches through `xctrace record`, on the Simulator device and on the host Mac,
+#   (2) WebKit's kdebug trace points and os_signposts (wtf/SystemTracing.h) through the System Trace template and the os_signpost instrument,
+#   (3) XCTHitchMetric (XCTest, iOS 26.0 and later) in an XCUITest that swipes Safari.
+# Each VM scripts the same scroll of the two zones (the first and the last screen of the original page) and records it once per arm and
+# pass; two passes per VM and two VMs give the A/A. Code: packages/measure-webkit/src/xctrace/. Nothing here is phone time: the VM has no
+# real GPU, so what the render side shows is the VM's (the note says what that can and cannot stand in for).
+on:
+  push:
+    branches: [ci/xctrace-ci-probe]
+  workflow_dispatch:
+    inputs:
+      arms:
+        description: Comma separated arms of the xctrace recording (empty = all; `node packages/measure-webkit/src/xctrace/cli.mjs run` lists them in its error text)
+        type: string
+        default: ''
+      passes:
+        description: Passes per arm and VM
+        type: string
+        default: '2'
+      hitchmetric:
+        description: Run the XCTHitchMetric job step
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Guard (Lean Fw.Ci.Intent + Fw.Ci.Trigger, scripts/ci-paths.mjs). On a ci/* push it, and so every job, is skipped unless
+  # the head commit asks for this lane (`[ci:<lane>]`; the default lane lean always); then it runs the workflow only if
+  # the commit is the branch tip, is not on main yet, and (lean: always) some file that differs from main on the whole
+  # branch is an input. A main push starts no run; dispatches always run. Fails open.
+  # Every other job re-checks the tip first (`stale:` fails it) and has its own group, never cancelled on ci/*.
+  guard:
+    if: ${{ github.event_name != 'push' || !startsWith(github.ref, 'refs/heads/ci/') || contains(github.event.head_commit.message, '[ci:xctrace-probe]') }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.g.outputs.run }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - id: g
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          BEFORE: ${{ github.event.before }}
+          GUARD_TOKEN: ${{ github.token }}
+        run: node .github/scripts/changed-inputs.mjs --workflow .github/workflows/xctrace-probe.yml
+      - name: 'decision: run'
+        if: steps.g.outputs.run == 'true'
+        run: 'true'
+      - name: 'decision: skip: ${{ steps.g.outputs.reason }}'
+        if: steps.g.outputs.run != 'true'
+        run: 'true'
+
+  probe:
+    needs: [guard]
+    if: ${{ needs.guard.outputs.run == 'true' }}
+    concurrency:
+      group: ci-lane:xctrace-probe:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:probe:${{ strategy.job-index }}
+    runs-on: xcode-27
+    timeout-minutes: 75
+    name: probe vm ${{ matrix.vm }}
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        vm: [1, 2]
+    env:
+      FW_IOS_VERSION: '27.0'
+      FW_IOS_BUILD: 24A434
+      FW_SIM_NAME: fw-iphone-27
+    steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+
+      - name: Pinned iOS runtime build, then create the device
+        run: sh .github/scripts/check-simulator.sh --create
+
+      - name: Verify the snapshot against snapshot.lock.json
+        run: node .github/scripts/verify-snapshot.mjs
+
+      - uses: ./.github/actions/telemetry
+        with:
+          mode: start
+          label: xctrace-${{ matrix.vm }}
+
+      - name: Tests of the probe code
+        run: node --test packages/measure-webkit/test/xctrace-arms.test.mjs packages/measure-webkit/test/xctrace-reduce.test.mjs
+
+      # Inspector bridge to the Simulator's webinspectord socket (the lane's own scroll driver). Same install as webkit-sim.yml.
+      - name: ios_webkit_debug_proxy
+        shell: bash
+        run: |
+          set -euo pipefail
+          brew install ios-webkit-debug-proxy
+          command -v ios_webkit_debug_proxy
+          brew list --versions ios-webkit-debug-proxy
+
+      - name: Tool and runner facts
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/result"
+          sh .github/scripts/runner-info.sh "$RUNNER_TEMP/result/runner.json" || true
+          {
+            echo "## sw_vers"; sw_vers
+            echo "## xcodebuild"; xcodebuild -version
+            echo "## xctrace version"; xcrun xctrace version
+            echo "## xctrace templates"; xcrun xctrace list templates
+            echo "## xctrace instruments"; xcrun xctrace list instruments
+            echo "## xctrace devices"; xcrun xctrace list devices
+            echo "## runtimes"; xcrun simctl list runtimes
+            echo "## machine"; sysctl -n machdep.cpu.brand_string hw.ncpu hw.memsize kern.hv_vmm_present 2>&1 || true
+            echo "## displays"; system_profiler SPDisplaysDataType 2>&1 | head -40 || true
+            echo "## sudo"; sudo -n true && echo "sudo -n ok" || echo "sudo -n refused"
+            echo "## DevToolsSecurity"; DevToolsSecurity -status 2>&1 || true
+            echo "## csrutil"; csrutil status 2>&1 || true
+            echo "## kdebug"; sysctl kern.kdebug 2>&1 | head -5 || true
+          } > "$RUNNER_TEMP/result/tools-${{ matrix.vm }}.txt" 2>&1
+          sed -n 1,40p "$RUNNER_TEMP/result/tools-${{ matrix.vm }}.txt"
+
+      # Boot once and keep it booted; bootDevice() is idempotent.
+      - name: Boot the Simulator (kept booted for the whole job)
+        run: |
+          set -euo pipefail
+          xcrun simctl shutdown all || true
+          udid=$(cat "$RUNNER_TEMP/fw-sim-udid.txt")
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
+
+      - name: Recordings (every arm, every pass; a bad arm is a result, not a failure)
+        timeout-minutes: 40
+        env:
+          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
+          ARMS: ${{ inputs.arms }}
+          PASSES: ${{ inputs.passes || '2' }}
+          FW_WK_TIMEOUT_SCALE: '8'
+          FW_WK_ATTEMPTS: '3'
+        working-directory: packages/measure-webkit
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          arms=()
+          if [ -n "$ARMS" ]; then arms=(--arms "$ARMS"); fi
+          node src/xctrace/cli.mjs run --passes "$PASSES" --out out/xctrace ${arms[@]+"${arms[@]}"} 2> >(tee out/xctrace.log >&2)
+          ls -l out/xctrace | head -60
+
+      - name: Per-zone counts of the recordings (the reducer on the exports)
+        if: ${{ !cancelled() && steps.stale.outcome == 'skipped' }}
+        working-directory: packages/measure-webkit
+        run: |
+          set -euo pipefail
+          node src/xctrace/cli.mjs reduce --dir out/xctrace --json out/xctrace-counts.json
+          head -c 3000 out/xctrace-counts.json
+
+      - name: XCTHitchMetric (an XCUITest swipes Safari on the served page)
+        if: ${{ !cancelled() && steps.stale.outcome == 'skipped' && (github.event_name != 'workflow_dispatch' || inputs.hitchmetric) }}
+        timeout-minutes: 25
+        env:
+          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
+        shell: bash
+        run: |
+          set -uo pipefail
+          out="$GITHUB_WORKSPACE/packages/measure-webkit/out/hitchmetric"
+          mkdir -p "$out"
+          udid=$(cat "$RUNNER_TEMP/fw-sim-udid.txt")
+          brew install xcodegen > "$out/brew-xcodegen.log" 2>&1 || { echo "xcodegen install failed"; tail -5 "$out/brew-xcodegen.log"; exit 0; }
+          proj="$GITHUB_WORKSPACE/packages/measure-webkit/src/xctrace/hitchmetric"
+          (cd "$proj" && xcodegen generate) > "$out/xcodegen.log" 2>&1 || { echo "xcodegen failed"; tail -5 "$out/xcodegen.log"; exit 0; }
+          # the page: the snapshot served read-only on a fixed port, in its own session (perl setsid; macOS has no setsid command)
+          perl -MPOSIX -e 'setsid; exec @ARGV' node "$GITHUB_WORKSPACE/packages/measure-webkit/src/xctrace/cli.mjs" serve --port 8731 > "$out/serve.log" 2>&1 &
+          spid=$!
+          trap 'kill -TERM -- "-$spid" 2>/dev/null || kill -TERM "$spid" 2>/dev/null || true' EXIT
+          sleep 3
+          xcrun simctl openurl "$udid" http://127.0.0.1:8731/ || true
+          sleep 20
+          rm -rf "$out/hitch.xcresult"
+          set +e
+          xcodebuild test -project "$proj/HitchProbe.xcodeproj" -scheme HitchProbe -destination "id=$udid" \
+            -derivedDataPath "$RUNNER_TEMP/dd" -resultBundlePath "$out/hitch.xcresult" CODE_SIGNING_ALLOWED=NO > "$out/xcodebuild.log" 2>&1
+          echo "xcodebuild exit $?" | tee "$out/xcodebuild.exit"
+          tail -40 "$out/xcodebuild.log"
+          xcrun xcresulttool get test-results summary --path "$out/hitch.xcresult" > "$out/summary.json" 2>&1 || true
+          xcrun xcresulttool get test-results tests --path "$out/hitch.xcresult" > "$out/tests.json" 2>&1 || true
+          xcrun xcresulttool get test-results metrics --path "$out/hitch.xcresult" > "$out/metrics.json" 2>&1 || true
+          ls -l "$out"
+          exit 0
+
+      # Steps after the measurement steps: collect, upload, telemetry. The VM is discarded after the job.
+      - name: Keep logs
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
+        working-directory: packages/measure-webkit
+        env:
+          VM: ${{ matrix.vm }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/result"
+          cp -R out "$RUNNER_TEMP/result/out-$VM" 2>/dev/null || true
+          find "$RUNNER_TEMP/result" -name '*.trace' -prune -exec rm -rf {} + 2>/dev/null || true
+          du -sh "$RUNNER_TEMP/result" || true
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
+        with:
+          name: xctrace-probe-${{ matrix.vm }}
+          path: ${{ runner.temp }}/result
+          if-no-files-found: error
+          retention-days: 30
+      - uses: ./.github/actions/telemetry
+        if: ${{ (always()) && steps.stale.outcome == 'skipped' }}
+        with:
+          mode: finish
+          label: xctrace-${{ matrix.vm }}

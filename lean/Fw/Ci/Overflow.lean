@@ -58,11 +58,12 @@ the maximum its inputs allow (over-count is safe, under-count is not). The set b
 - visual-diff 39: `shoot` 32 (visual-diff.yml:274; 2 engines x 16 shards), `port` 1, `port-fonts` 2, `navscroll` 2, `people-layout` 2
 - webkit-sim 3: `merge`, `align`, `lag-report` after `sim` (webkit-sim.yml:446,517,592; `sim` is 2, max-parallel :274)
 - wktr-fixtures 5: `fixtures` 4 (wktr-fixtures.yml:129; jobs 1 to 4, :110) and `fwcore` 1; wktr 2: `plan` and `fwcore` (wktr.yml)
+- xctrace-probe 2: `probe` (xctrace-probe.yml, max-parallel 2 over the VMs 1 and 2)
 A row can exceed the 20 slots (visual-diff 39): the free count then saturates at 0, which is the safe side. -/
 def widths : List (String × Nat) := [
   ("breakpoint-gate", 10), ("chromium-counts", 20), ("difftest", 2), ("engine-premises", 7), ("gate-gaps", 29), ("land", 5),
   ("lean-math", 1), ("lean", 1), ("linux-webkit-probe", 2), ("mutants", 24), ("premise-tests", 2), ("preview-e2e", 2), ("sim-speed", 5),
-  ("smoothness", 12), ("snapshot-extract", 7), ("trajectory-probe", 12), ("visual-diff", 39), ("webkit-sim", 3), ("wktr-fixtures", 5), ("wktr", 2)]
+  ("smoothness", 12), ("snapshot-extract", 7), ("trajectory-probe", 12), ("visual-diff", 39), ("webkit-sim", 3), ("wktr-fixtures", 5), ("wktr", 2), ("xctrace-probe", 2)]
 
 /-- Width of a workflow no row names: four jobs, so an unlisted workflow over-counts rather than under-counts. -/
 def defaultWidth : Nat := 4

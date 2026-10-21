@@ -56,7 +56,7 @@ def rows : List Row :=
 
 /-- The workflows whose macOS jobs carry no cap here, each with the task that owns their timeout. -/
 def excluded : List (String × String) :=
-  [("webkit-sim.yml", "webkit-sim-failfast")]
+  [("webkit-sim.yml", "webkit-sim-failfast"), ("xctrace-probe.yml", "xctrace-ci-probe")]
 
 /-- The cap row of a workflow job, if it has one. -/
 def capOf (file job : String) : Option Nat := (rows.find? fun r => r.file == file && r.job == job).map (·.cap)
