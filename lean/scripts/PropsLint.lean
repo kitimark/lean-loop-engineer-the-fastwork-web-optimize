@@ -5,10 +5,13 @@ import Fw.Spec.Reach
 
 An environment scan, decided in Lean. Run from `lean/`:
 
-* `lake env lean --run scripts/PropsLint.lean` lints every built module of every `[[lean_lib]]` of `lakefile.toml`
+* `lake env .lake/build/bin/propslint` (the compiled form, `lean_exe propslint` in `lakefile.toml`; check.sh runs it) or
+  `lake env lean --run scripts/PropsLint.lean` (the interpreter, 2.3 GB peak footprint against 0.2 GB: it has already
+  mapped the `Lean` oleans of this file's `import Lean`, so `importModules` reads them into the heap a second time,
+  MEASURED 2026-10-21) lints every built module of every `[[lean_lib]]` of `lakefile.toml`
   (`Fw`, `MathView`, `FwTest`, ...: the module `L` and every module under `L/`) against
   `../docs/team/incidents/ledger.json`;
-* `lake env lean --run scripts/PropsLint.lean <dir> <Module>` also imports the compiled module `<Module>` from `<dir>`
+* the same with `<dir> <Module>` after the command also imports the compiled module `<Module>` from `<dir>`
   (for example a reviewer's probe, compiled first with `lake env lean -R <dir> -o <dir>/<Module>.olean
   <dir>/<Module>.lean`) and lints its declarations as well.
 

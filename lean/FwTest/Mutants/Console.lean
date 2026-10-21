@@ -47,7 +47,7 @@ abbrev yes : Outcome := .accepted false
     .cardLanded, .stepPost, .stepStart, .stepAnswer, .stepDone, .stepCancel, .runStart, .runFinish]
   types.map (fun t => all.filter (may · t)) ==
     [[.user, .lead, .owner], [.user, .lead], [.git], [.script], [.reviewer], [.script], [.user, .lead], [.git],
-     [.lead, .owner, .script], [.user], [.user], [.user, .owner, .script], [.user, .lead, .script],
+     [.lead, .owner, .script], [.user], [.user], [.user, .lead, .owner, .script], [.user, .lead, .script],
      [.lead, .owner, .script], [.script]]
 
 -- card refusals, branch by branch

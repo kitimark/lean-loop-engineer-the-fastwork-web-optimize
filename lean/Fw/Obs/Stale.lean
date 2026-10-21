@@ -315,6 +315,124 @@ theorem chooseBase_unknown_alerts (binHash : String) (rec : Option (String × St
   | «at» s => exact absurd ((chooseBase_at_iff binHash rec s).1 hb) (h s)
   | unknown w => rfl
 
+/-! ## The built tree (task local-mem-budget)
+
+`scripts/fwcore-build.sh` used to name the commit `HEAD` it built from and wrote nothing on a tree that was mid-merge
+(`fw land` builds the merged tree before the commit that lands it exists), so the watcher raised `svc.unknown` for
+each such build. The record now names the built TREE (the id `git write-tree` gives for the index, read before the
+build). A tree is identity: the commit that lands the merge has the same tree, so the base commit is found by
+looking the tree up among the commits of `main` (`chooseBaseTree`). The merge, rebase or cherry-pick state is no input:
+only the tree and whether the working files equal it.
+-/
+
+/-- What the build script observes: the tree id of the index before and after the build, and whether the working
+files (tracked, and untracked under `lean/`) equal that index before and after. -/
+structure BuildFacts where
+  before      : Option String
+  after       : Option String
+  cleanBefore : Bool
+  cleanAfter  : Bool
+deriving DecidableEq, Repr
+
+/-- The tree to record: the one built, when the files equalled it before and after and it did not change. -/
+def recordTree (f : BuildFacts) : Option String :=
+  match f.before, f.after with
+  | some a, some b => if f.cleanBefore && f.cleanAfter && a = b then some a else none
+  | _, _ => none
+
+/-- A tree is recorded exactly when both reads gave that tree and the files equalled it at both ends. -/
+theorem recordTree_some_iff (f : BuildFacts) (t : String) :
+    recordTree f = some t ↔ f.before = some t ∧ f.after = some t ∧ f.cleanBefore = true ∧ f.cleanAfter = true := by
+  unfold recordTree
+  rcases hb : f.before with _ | a <;> rcases ha : f.after with _ | b <;> simp
+  by_cases h : f.cleanBefore = true ∧ f.cleanAfter = true ∧ a = b
+  · simp [h.1, h.2.1, h.2.2]
+  · have : ¬(f.cleanBefore = true ∧ f.cleanAfter = true ∧ a = b ∧ a = t) := fun hh => h ⟨hh.1, hh.2.1, hh.2.2.1⟩
+    by_cases h1 : f.cleanBefore = true <;> by_cases h2 : f.cleanAfter = true <;> by_cases h3 : a = b <;>
+      (simp_all <;> (intro h4 h5; exact h3 (h4.trans h5.symm)))
+
+/-- A dirty tree is never recorded (no commit can have the tree that was built). -/
+theorem recordTree_dirty (f : BuildFacts) (h : f.cleanBefore = false ∨ f.cleanAfter = false) : recordTree f = none := by
+  unfold recordTree
+  rcases f.before with _ | a <;> rcases f.after with _ | b <;> simp
+  rcases h with h | h <;> simp [h]
+
+/-- A tree that changed during the build (HEAD or the index moved) is never recorded. -/
+theorem recordTree_moved (f : BuildFacts) (a b : String) (hb : f.before = some a) (ha : f.after = some b) (hne : a ≠ b) :
+    recordTree f = none := by
+  unfold recordTree; simp [hb, ha, hne]
+
+/-- A merge, rebase or cherry-pick in progress is no input: a clean merged tree is recorded like a committed one. -/
+theorem recordTree_merged (t : String) :
+    recordTree ⟨some t, some t, true, true⟩ = some t := by
+  simp [recordTree]
+
+/-- Commits of `main`, newest first, each with its tree id. -/
+abbrev CommitLog := List (String × String)
+
+/-- The base of a binary built from tree `t` (recorded with hash `h`), given the commits of `main`: the newest commit
+with that tree, when the record is the binary's own. -/
+def chooseBaseTree (binHash t h : String) (log : CommitLog) : Base :=
+  if h = binHash then
+    match log.find? (fun c => c.2 = t) with
+    | some (c, _) => .at c
+    | none => .unknown "the built tree is on no commit of main (a land in progress, or the build was never landed)"
+  else .unknown "the build record does not match the binary (rebuilt without scripts/fwcore-build.sh)"
+
+/-- A base commit comes only from the binary's own record and carries the recorded tree. -/
+theorem chooseBaseTree_at (binHash t h : String) (log : CommitLog) (c : String)
+    (hb : chooseBaseTree binHash t h log = .at c) : h = binHash ∧ (c, t) ∈ log := by
+  unfold chooseBaseTree at hb
+  by_cases hh : h = binHash
+  · simp only [hh, ite_true] at hb
+    rcases hf : log.find? (fun c => c.2 = t) with _ | ⟨c', t'⟩
+    · simp [hf] at hb
+    · simp [hf] at hb
+      subst hb
+      have := List.mem_of_find?_eq_some hf
+      have h2 := List.find?_some hf
+      simp at h2; subst h2
+      exact ⟨hh, this⟩
+  · simp [hh] at hb
+
+/-- A commit of `main` has the tree when the lookup finds one. -/
+theorem find_tree_some (log : CommitLog) (t c : String) (hc : (c, t) ∈ log) :
+    ∃ c', log.find? (fun x => decide (x.2 = t)) = some (c', t) := by
+  rcases hf : log.find? (fun x => decide (x.2 = t)) with _ | ⟨c', t'⟩
+  · have := List.find?_eq_none.1 hf (c, t) hc
+    simp at this
+  · have h2 := List.find?_some hf
+    simp at h2; subst h2
+    exact ⟨c', hf⟩
+
+/-- The land: the commit that lands the merge has the built tree, so the binary's base is a commit, never
+`svc.unknown`. -/
+theorem chooseBaseTree_landed (binHash t : String) (log : CommitLog) (c : String) (hc : (c, t) ∈ log) :
+    ∃ c', chooseBaseTree binHash t binHash log = .at c' := by
+  obtain ⟨c', hf⟩ := find_tree_some log t c hc
+  exact ⟨c', by simp [chooseBaseTree, hf]⟩
+
+/-- A tree no commit of `main` has is unknown (never a guess): it alerts. -/
+theorem chooseBaseTree_unlanded (binHash t : String) (log : CommitLog) (h : ∀ c, (c, t) ∉ log) :
+    (Base.svc "fwcore" (chooseBaseTree binHash t binHash log)).unknownB = true := by
+  rcases hf : log.find? (fun x => decide (x.2 = t)) with _ | ⟨c', t'⟩
+  · simp [chooseBaseTree, hf, Base.svc, Base.unknownOf, Svc.unknownB]
+  · have hm := List.mem_of_find?_eq_some hf
+    have h2 := List.find?_some hf
+    simp at h2; subst h2
+    exact absurd hm (h c')
+
+#guard recordTree ⟨some "T", some "T", true, true⟩ == some "T"
+#guard recordTree ⟨some "T", some "T", false, true⟩ == none
+#guard recordTree ⟨some "T", some "T", true, false⟩ == none
+#guard recordTree ⟨some "T", some "U", true, true⟩ == none
+#guard recordTree ⟨none, some "T", true, true⟩ == none
+#guard recordTree ⟨some "T", none, true, true⟩ == none
+#guard chooseBaseTree "H" "T" "H" [("c2", "T2"), ("c1", "T")] == .at "c1"
+#guard chooseBaseTree "H" "T" "H" [("c3", "T"), ("c1", "T")] == .at "c3"
+#guard (chooseBaseTree "H" "T" "H" [("c2", "T2")]).unknownOf.isSome
+#guard (chooseBaseTree "H2" "T" "H" [("c1", "T")]).unknownOf.isSome
+
 -- the table of `apps/console-api/test/build-base.test.ts`
 #guard chooseBase "H1" (some ("c1", "H1")) == .at "c1"
 #guard (chooseBase "H2" (some ("c1", "H1"))).unknownOf.isSome
