@@ -9,7 +9,6 @@
 // the cookie the preview port or the grant link set is sent here), the Host must name this arm's port. Nothing is forwarded
 // to the preview server but Accept-Encoding and If-None-Match; its Set-Cookie is dropped. GET and HEAD only.
 // Only I/O: the verdicts come from fwcore.
-import http, { type IncomingMessage } from "node:http";
 import { Readable } from "node:stream";
 import { Hono } from "hono";
 import type { Context } from "hono";
@@ -20,32 +19,10 @@ import { isLoopback } from "./lan.ts";
 import { remoteOf } from "./gate.ts";
 import { Grants } from "./grants.ts";
 import type { ReturnStore } from "./return.ts";
+import { log502, previewAgent, upstream } from "./upstream.ts";
 
 const DROP = new Set(["connection", "keep-alive", "transfer-encoding", "set-cookie", "upgrade", "proxy-authenticate"]);
-// The preview server (serve-child.ts) closes an idle connection after 65 s + 1 s. Node's client Agent reads that hint
-// (`Keep-Alive: timeout=65`) only when it has a `timeout` of its own (_http_agent.js keepSocketAlive: `serverHintTimeout <
-// agentTimeout` with agentTimeout 0 never holds), so without `timeout` it keeps an idle socket until the server's FIN arrives
-// and can send a request into the connection the server is just closing: ECONNRESET, a 502. A client-side idle limit well
-// below the server's closes an idle socket first, so a reused socket is never one the server may be closing.
-// The Agent reads a server's `Keep-Alive: timeout=N` hint only when it has a `timeout` of its own (Node v24.22.0
-// lib/_http_agent.js:655 `serverHintTimeout < agentTimeout`, agentTimeout 0 without the option); without one it keeps an idle
-// socket until the server's FIN arrives and can send a request into a connection the server is closing: ECONNRESET, a 502.
-// With `timeout` it closes an idle socket at min(timeout, hint - 1 s) (:641-663), before the server does.
-const agent = new http.Agent({ keepAlive: true, maxSockets: 64, timeout: 30_000 });
-
-const lastEnd = new WeakMap<object, number>(); // when a socket last finished a response: the idle time logged with an upstream error
-function upstream(port: number, pathq: string, method: string, headers: Record<string, string>): Promise<IncomingMessage> {
-  return new Promise((resolve, reject) => {
-    let idle: number | undefined, sock: object | undefined;
-    const r = http.request({ host: "127.0.0.1", port, path: pathq, method, agent, headers }, (res) => {
-      res.on("end", () => { if (sock) lastEnd.set(sock, Date.now()); });
-      resolve(res);
-    });
-    r.on("socket", (s) => { sock = s; const t = lastEnd.get(s); idle = t === undefined ? undefined : Date.now() - t; });
-    r.on("error", (e) => reject(Object.assign(e, { fwReused: r.reusedSocket, fwIdle: idle })));
-    r.end();
-  });
-}
+const agent = previewAgent(64);
 
 /** The local port of the connection a request arrived on (node server only; undefined for in-process requests). */
 export const localPortOf = (c: Context): number | undefined =>
@@ -94,17 +71,13 @@ export function createArmApp(core: Core, owner: OwnerAuth, pm: PreviewManager, o
     const enc = c.req.header("accept-encoding"); if (enc) fwd["accept-encoding"] = enc;
     const etag = c.req.header("if-none-match"); if (etag) fwd["if-none-match"] = etag;
     try {
-      const up = await upstream(Number(r.backend), String(r.path), c.req.method, fwd);
+      const up = await upstream(agent, Number(r.backend), String(r.path), c.req.method, fwd);
       const headers = new Headers();
       for (const [k, v] of Object.entries(up.headers)) if (!DROP.has(k) && v !== undefined) headers.set(k, Array.isArray(v) ? v.join(", ") : v);
       const status = up.statusCode ?? 502;
       if (c.req.method === "HEAD" || status === 304) { up.resume(); return new Response(null, { status, headers }); }
       return new Response(Readable.toWeb(up) as unknown as ReadableStream, { status, headers });
-    } catch (e) {
-      const x = e as NodeJS.ErrnoException & { fwReused?: boolean; fwIdle?: number };
-      console.error(`preview-502 ${JSON.stringify({ code: x.code, syscall: x.syscall, msg: x.message, reused: x.fwReused, idleMs: x.fwIdle, path: pathq })}`);
-      return c.json({ ok: false, reason: "preview server not reachable" }, 502);
-    }
+    } catch (e) { log502("arm", e, pathq); return c.json({ ok: false, reason: "preview server not reachable" }, 502); }
   });
   return app;
 }
