@@ -14140,7 +14140,8 @@
     ".github/workflows/webkit-lag-probe.yml",
     "research/notes/2026/10-2x-webkit-cost-counters.md",
     "docs/team/handoffs/webkit-cost-counters.md"
-   ]
+   ],
+   "evidence": "a22a9c5"
   },
   {
    "devices": [
@@ -14479,7 +14480,8 @@
     "docs/team/handoffs/polish-in-flow.md",
     "apps/runner/test/spawn-guard*.test.ts",
     "lean/Fw/Ops/SpawnGuard.lean"
-   ]
+   ],
+   "evidence": "f121568"
   },
   {
    "devices": [
