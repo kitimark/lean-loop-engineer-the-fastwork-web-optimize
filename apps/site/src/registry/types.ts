@@ -3,6 +3,8 @@ export type Impl = 'mui' | 'plain';
 export interface VariantDef {
   kind: 'faithful' | 'optimized' | 'ablation' | 'proposal';
   tier?: string;
+  /** A probe arm that answers a question and never ships; it is `ablation` and never enters a preset. */
+  diagnostic?: boolean;
   /** Look class while the part moves (PLAN 4.7); `L` is a look change, never in `v2-proved`. */
   visClass?: 'E' | 'E-s' | 'Q' | 'L';
   layerBudget?: number;
