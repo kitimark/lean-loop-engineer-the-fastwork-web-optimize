@@ -3,7 +3,7 @@
 // screenshotted as fast as the engine allows from the wheel event on. Real time, native rAF, no animation seeking. The output
 // is review material for a person: it decides nothing. Glue only.
 //
-//   node src/trajectory/frames.mjs capture --engine chromium --widths 390,1280 --search '?fw=nav:earn-no-transition' --out DIR [--source screenshot|screencast]
+//   node src/trajectory/frames.mjs capture --engine chromium --widths 390,1280 --search '?fw=nav:earn-no-transition' --out DIR [--source screenshot|screencast] [--reps N]
 //   node src/trajectory/frames.mjs strips --in DIR[,DIR2] --out DIR3 [--run ID] [--cols 40]
 // A shot is one image with the interval of ms from the wheel event it stands for: a screenshot, the time its capture took; a screencast
 // frame, the time from its swap until the next frame's.
@@ -32,8 +32,8 @@ export const PUSHES = [
 export const MIN_SHOTS = 10;
 export const usable = (faithful, flag) => Math.min(faithful, flag) >= MIN_SHOTS;
 
-/** The label under a shot: its interval in ms from the wheel event. */
-export const labelOf = (s) => `#${s.i} ${s.from}-${s.to} ms`;
+/** The label under a shot: its number, its repeat and its interval in ms from the wheel event. */
+export const labelOf = (s) => `#${s.i} r${s.rep} ${s.from}-${s.to} ms`;
 
 /**
  * The shots of a screencast over one push. `frames` are { ts, data } in swap order (ts: wall-clock ms), `tw` the wall-clock ms of the
@@ -50,6 +50,13 @@ export function shotsOfFrames(frames, tw, endMs) {
     const to = n + 1 < kept.length ? Math.max(from, at(kept[n + 1].f)) : Math.max(from, endMs);
     return { frame: k, from, to };
   }).filter((x, n, all) => x.to > x.from || n === all.length - 1);
+}
+
+/** The shots of one push over all repeats of one arm, pooled and ordered by time, numbered from 0; the rows of every repeat. */
+export function pooled(run, push) {
+  const ps = run.pushes.filter((x) => x.push === push);
+  const shots = ps.flatMap((x) => x.shots.map((sh) => ({ ...sh, rep: x.rep ?? 0 }))).sort((x, y) => x.ms - y.ms || x.rep - y.rep).map((sh, i) => ({ ...sh, i }));
+  return { push, shots, rows: ps.flatMap((x) => x.rows) };
 }
 
 /** In-page recorder: per rendering frame, the rects of the nav, its actions group and the earn button, and the earn opacity
@@ -90,8 +97,8 @@ async function bandOf(s, sel, env) {
 
 const even = (n) => n - (n % 2);
 
-/** One arm at one width: approach, rest, then each push captured from its wheel event for `ms`, by `source`. */
-async function captureArm(engine, width, arm, outDir, source) {
+/** One arm at one width: approach, rest, then `reps` times each push captured from its wheel event for `ms`, by `source`. */
+async function captureArm(engine, width, arm, outDir, source, reps) {
   const env = envFor(width);
   const s = await engine.open(env, { origin: arm.origin, path: '/' + arm.search, init: `${INIT}\n${REC}`, frozen: false });
   try {
@@ -103,7 +110,7 @@ async function captureArm(engine, width, arm, outDir, source) {
     const pushes = [];
     const cast = [];
     const stopCast = source === 'screencast' ? await s.screencast((f) => { cast.push({ ts: f.timestamp, data: f.data }); }, { width: even(env.width), height: even(env.height) }) : null;
-    for (const p of PUSHES) {
+    for (const { rep, p } of Array.from({ length: reps }, (_, rep) => PUSHES.map((p) => ({ rep, p }))).flat()) {
       if (source === 'screenshot') await s.shot(clip); // warm-up: the first screenshot of a page costs several frames
       await s.evaluate((q) => window.__rec.start(q), sel);
       const shots = [];
@@ -116,20 +123,20 @@ async function captureArm(engine, width, arm, outDir, source) {
           const a = now();
           const buf = await s.shot(clip);
           const b = now();
-          const file = `${arm.role}-${width}-${p.push}-${String(shots.length).padStart(3, '0')}.png`;
+          const file = `${arm.role}-${width}-${p.push}-r${rep}-${String(shots.length).padStart(3, '0')}.png`;
           writeFileSync(join(outDir, file), buf);
-          shots.push({ i: shots.length, file, ms: Math.round((a + b) / 2 - tw), from: Math.round(a - tw), to: Math.round(b - tw), offY: 0 });
+          shots.push({ file, ms: Math.round((a + b) / 2 - tw), from: Math.round(a - tw), to: Math.round(b - tw), offY: 0 });
         }
       } else {
         await sleep(p.ms);
         for (const x of shotsOfFrames(cast.slice(), wall, p.ms)) {
-          const file = `${arm.role}-${width}-${p.push}-${String(shots.length).padStart(3, '0')}.jpg`;
+          const file = `${arm.role}-${width}-${p.push}-r${rep}-${String(shots.length).padStart(3, '0')}.jpg`;
           writeFileSync(join(outDir, file), cast[x.frame].data);
-          shots.push({ i: shots.length, file, ms: x.from, from: x.from, to: x.to, offY: clip.y });
+          shots.push({ file, ms: x.from, from: x.from, to: x.to, offY: clip.y });
         }
       }
       const rows = await s.evaluate(() => window.__rec.stop());
-      pushes.push({ push: p.push, dy: p.dy, shots, rows });
+      pushes.push({ push: p.push, rep, dy: p.dy, shots, rows });
       await sleep(p.holdMs);
     }
     if (stopCast) await stopCast();
@@ -137,7 +144,7 @@ async function captureArm(engine, width, arm, outDir, source) {
   } finally { await s.close().catch(() => {}); }
 }
 
-async function capture({ engineName, widths, search, out, source }) {
+async function capture({ engineName, widths, search, out, source, reps }) {
   mkdirSync(out, { recursive: true });
   const env = process.env;
   const variant = rewriteFor(siteDist(env), { ...env, FW_SEARCH: search });
@@ -153,13 +160,13 @@ async function capture({ engineName, widths, search, out, source }) {
   try {
     for (const width of widths) for (const arm of arms) {
       log(`frames ${engineName} ${source} ${width} ${arm.role}`);
-      const r = await captureArm(engine, width, arm, out, source);
+      const r = await captureArm(engine, width, arm, out, source, reps);
       r.want = arm.want;
       r.identity = r.self && r.self.config === arm.want && r.self.mode === 'hydrate' ? 'ok' : 'mismatch';
       runs.push(r);
-      log(`frames ${engineName} ${source} ${width} ${arm.role}: ${r.pushes.map((p) => `${p.push} ${p.shots.length} shots`).join(', ')}, identity ${r.identity}`);
+      log(`frames ${engineName} ${source} ${width} ${arm.role}: ${PUSHES.map((q) => `${q.push} ${pooled(r, q.push).shots.length} shots`).join(', ')}, identity ${r.identity}`);
     }
-    const head = { engine: engineName, version: await engine.version(), source, search, runs };
+    const head = { engine: engineName, version: await engine.version(), source, reps, search, runs };
     writeFileSync(join(out, `frames-${engineName}.json`), JSON.stringify(head, null, 1));
     if (runs.some((r) => r.identity !== 'ok')) { log('frames: an arm is not the page it was asked for'); process.exitCode = 2; }
   } finally {
@@ -236,16 +243,16 @@ async function strips({ ins, out, run, cols }) {
           const crop = cropOf(a, b);
           const height = Math.min(a.clip.height, b.clip.height);
           for (const p of PUSHES.map((x) => x.push)) {
-            const fa = a.pushes.find((x) => x.push === p), fl = b.pushes.find((x) => x.push === p);
+            const fa = pooled(a, p), fl = pooled(b, p);
             const cs = columnsOf(fa, fl, cols, head.source);
             const source = head.source ?? 'screenshot';
-            const title = `${head.engine} (${head.version}) width ${width}, ${p} push, ${source}; top: no flag, bottom: ${head.search}; from-to ms after the wheel event${run ? `; run ${run}` : ''}`;
+            const title = `${head.engine} (${head.version}) width ${width}, ${p} push, ${source}${head.reps > 1 ? `, ${head.reps} repeats pooled` : ''}; top: no flag, bottom: ${head.search}; from-to ms after the wheel event${run ? `; run ${run}` : ''}`;
             const page = await browser.newPage({ viewport: { width: 400, height: 300 } });
             await page.setContent(stripHtml({ title, crop, height, cols: cs, dirOf: { a: dir, b: dir } }));
             const name = `${head.engine}-${width}-${p}${source === 'screencast' ? '-screencast' : ''}.png`;
             await page.locator('body').screenshot({ path: join(out, name) });
             await page.close();
-            index.strips.push({ file: name, engine: head.engine, version: head.version, source, width, push: p, search: head.search,
+            index.strips.push({ file: name, engine: head.engine, version: head.version, source, reps: head.reps ?? 1, width, push: p, search: head.search,
               columns: cs.length, crop: { ...crop, y: a.clip.y, height }, shots: { faithful: fa.shots.length, flag: fl.shots.length },
               usable: usable(fa.shots.length, fl.shots.length), identity: { faithful: a.identity, flag: b.identity } });
             log(`strip ${name}: ${cs.length} columns`);
@@ -261,11 +268,11 @@ const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(`--${k}`); return i >= 0 ? args[i + 1] : d; };
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   if (args[0] === 'capture' && ['screenshot', 'screencast'].includes(opt('source', 'screenshot'))) {
-    await capture({ engineName: opt('engine'), widths: opt('widths', '390,1280').split(',').map(Number), search: opt('search', ''), out: opt('out'), source: opt('source', 'screenshot') });
+    await capture({ engineName: opt('engine'), widths: opt('widths', '390,1280').split(',').map(Number), search: opt('search', ''), out: opt('out'), source: opt('source', 'screenshot'), reps: Number(opt('reps', '1')) });
   } else if (args[0] === 'strips') {
     await strips({ ins: opt('in').split(','), out: opt('out'), run: opt('run'), cols: Number(opt('cols', '40')) });
   } else {
-    log('usage: frames.mjs capture --engine E --widths 390,1280 --search ?fw=... --out DIR [--source screenshot|screencast] | strips --in DIR --out DIR [--run ID] [--cols 40]');
+    log('usage: frames.mjs capture --engine E --widths 390,1280 --search ?fw=... --out DIR [--source screenshot|screencast] [--reps N] | strips --in DIR --out DIR [--run ID] [--cols 40]');
     process.exitCode = 2;
   }
 }
