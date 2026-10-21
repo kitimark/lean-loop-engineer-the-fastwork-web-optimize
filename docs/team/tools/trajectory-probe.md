@@ -21,6 +21,27 @@ unchanged. Each holds `raw-<engine>.json` (all
 readings plus what each arm's page reported), `units-<engine>.json` and `summary-<engine>.md`. Re-reduce raw files offline:
 `node src/trajectory/cli.mjs summary --out <dir>`. A local run is a debug run, never a result.
 
+## Run it from a push, and find a dispatch's run (tasks ci-push-probe-inputs, fw-run-dispatch-pick)
+
+Agents cannot dispatch a workflow (sandbox, incident m195), but they can push. A `ci/*` push whose head commit asks for the lane
+runs the probe with the inputs of one message line:
+
+    [ci:trajectory-probe]
+    [trajectory fw=hero.exit:scoped,morph.tween:waapi widths=390,1280 engines=both]
+
+- Keys `fw` (flag set) or `preset` (exclusive with `fw`), `widths`, `engines`; each at most once; values from `A-Za-z0-9.:,_@-`; no
+  line = the dispatch defaults. Only a line that starts with `[trajectory` counts (prose that quotes it asks for nothing). A line that
+  does not parse, or a second line, fails the `site` job with the reason (Lean `Fw.Ci.Trigger.pushProbe`, golden `probe` lines of
+  `packages/contracts/golden/ci/triggers.jsonl`, node twin `.github/scripts/trajectory-line.mjs`). A line without `[ci:trajectory-probe]`
+  does not start the lane (Lean says `needsLane`; nothing reports it yet, a follow-up for `fw ci push`).
+- The run records its inputs: step name `trajectory inputs: engines=.. fw=.. preset=.. widths=.. (commit-line|defaults|dispatch)` of job
+  `site` (`gh run view <id> --json jobs`) and artifact `trajectory-inputs` (`inputs.json`: event, sha, nonce, inputs, source).
+- `fw run --trajectory` sends a fresh `nonce` input; the workflow's `run-name` is `trajectory-probe dispatch nonce=<n>`; the command lists
+  `workflow_dispatch` runs of the ref and takes the one whose title is exactly that (Lean `Fw.Ci.Dispatch.pick`, golden
+  `packages/contracts/golden/ci/dispatch.jsonl`, TS stand-in `apps/runner/src/run-pick.ts`). None yet: it looks again every 120 s
+  (5 looks); two: it stops. It never takes "the newest run on the ref" (that was a skipped push run, and the same run for two parallel
+  dispatches). The same fix for `--gate` and the count lanes needs a `nonce` input in their workflows (follow-up).
+
 ## The three checks that make a run count
 
 1. **Arm identity (refuses the run).** Each arm records its resolved config hash and `fwMode`. Lean `armCheck` allows only:

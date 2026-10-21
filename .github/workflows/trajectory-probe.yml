@@ -1,5 +1,10 @@
 name: trajectory-probe
 
+# The title of a dispatched run echoes its nonce (`trajectory-probe dispatch nonce=<n>`), so `fw run --trajectory` finds the run it
+# dispatched by identity (Lean Fw.Ci.Dispatch.pick), never as "the newest run". A push keeps its default title (the commit subject);
+# the inputs it ran with are in the step name `trajectory inputs: ...` of job `site` and in the artifact `trajectory-inputs`.
+run-name: ${{ github.event_name == 'workflow_dispatch' && format('trajectory-probe dispatch nonce={0}', inputs.nonce || 'none') || '' }}
+
 # The trajectory probe (task trajectory-probe): does the rewrite MOVE like the original along a scroll path? The breakpoint gate,
 # the counts and the goldens compare rest states and frame counts, so they missed three bugs of the motion itself (hero copy and
 # cards stale in WebKit under hero.exit:scoped; nav classes stale under morph.tween:waapi; is-on-dark never re-evaluated on the
@@ -43,6 +48,11 @@ on:
       widths:
         description: >-
           Widths to walk, comma separated, from 390, 640, 641, 1280 without repeats. Empty = all four.
+        type: string
+        default: ''
+      nonce:
+        description: >-
+          Identity of this dispatch, echoed in the run title (8 to 32 characters of a-z0-9; `fw run --trajectory` sets it). Empty = a manual dispatch.
         type: string
         default: ''
 
@@ -131,13 +141,48 @@ jobs:
         with:
           mode: start
           label: site
-      - id: p
-        name: Plan the probe (engines, search, widths)
+      # The inputs of this run: a dispatch's own, or on a ci/* push the `[trajectory ...]` line of the head commit (Lean
+      # Fw.Ci.Trigger.pushProbe, twin .github/scripts/trajectory-line.mjs). A line that does not parse fails the job with its reason.
+      - id: in
+        name: Read the inputs (dispatch inputs or the commit line)
         env:
+          EVENT: ${{ github.event_name }}
+          HEAD_MSG: ${{ github.event.head_commit.message }}
           ENGINES: ${{ inputs.engines || 'both' }}
           FW: ${{ inputs.fw || '' }}
           PRESET: ${{ inputs.preset || '' }}
           WIDTHS: ${{ inputs.widths || '' }}
+        run: |
+          set -euo pipefail
+          node --test .github/scripts/trajectory-line.test.mjs  # the line parser equals Lean pushProbe
+          node .github/scripts/trajectory-line.mjs | tee -a "$GITHUB_OUTPUT"
+      - name: 'trajectory inputs: engines=${{ steps.in.outputs.engines }} fw=${{ steps.in.outputs.fw }} preset=${{ steps.in.outputs.preset }} widths=${{ steps.in.outputs.widths }} (${{ steps.in.outputs.source }})'
+        env:
+          NONCE: ${{ inputs.nonce }}
+          IN_ENGINES: ${{ steps.in.outputs.engines }}
+          IN_FW: ${{ steps.in.outputs.fw }}
+          IN_PRESET: ${{ steps.in.outputs.preset }}
+          IN_WIDTHS: ${{ steps.in.outputs.widths }}
+          IN_SOURCE: ${{ steps.in.outputs.source }}
+        run: |
+          set -euo pipefail
+          mkdir -p trajectory-inputs
+          jq -n --arg event "$GITHUB_EVENT_NAME" --arg sha "$GITHUB_SHA" --arg nonce "$NONCE" --arg engines "$IN_ENGINES" --arg fw "$IN_FW" --arg preset "$IN_PRESET" --arg widths "$IN_WIDTHS" --arg source "$IN_SOURCE" \
+            '{event:$event,sha:$sha,nonce:$nonce,engines:$engines,fw:$fw,preset:$preset,widths:$widths,source:$source}' | tee trajectory-inputs/inputs.json
+          echo "inputs: engines=$IN_ENGINES fw=$IN_FW preset=$IN_PRESET widths=$IN_WIDTHS source=$IN_SOURCE sha=$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: trajectory-inputs
+          path: trajectory-inputs/inputs.json
+          if-no-files-found: error
+          retention-days: 3
+      - id: p
+        name: Plan the probe (engines, search, widths)
+        env:
+          ENGINES: ${{ steps.in.outputs.engines }}
+          FW: ${{ steps.in.outputs.fw }}
+          PRESET: ${{ steps.in.outputs.preset }}
+          WIDTHS: ${{ steps.in.outputs.widths }}
         run: |
           set -euo pipefail
           node --test .github/scripts/gate-search.test.mjs  # the search decision equals Fw.Gate.Search
