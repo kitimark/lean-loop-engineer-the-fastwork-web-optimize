@@ -15,7 +15,7 @@ on the event gate, the media-change handler runs the frame).
 
 **Measured (CI, sha 20467a9):** lean 39680908944 pass; breakpoint-gate `--fw platform:mq` both engines 39680952848 success;
 webkit-sim base 39680958629, flag 39680964944. End-of-page window shows no difference above pass noise. Report:
-`results/platform-shrink-mq/report.json` (draft shape; review-reports not landed). Recommendation: hold.
+`results/platform-shrink-mq/report.json` (review-reports shape; Lean console.report accepts it; not posted). Recommendation: hold.
 
 **Finding (premise refuted):** the rewrite's last section is the platform card, so a plain scroll never lifts the card
 bottom above 0.85 vh; the shrink is 0 and the original writes nothing. Note `research/notes/2026/10-2x-platform-shrink-mq.md`.
