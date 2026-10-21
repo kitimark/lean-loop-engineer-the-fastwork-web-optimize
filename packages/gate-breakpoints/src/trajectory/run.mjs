@@ -6,6 +6,7 @@ import { LAUNCHERS } from '../engines.mjs';
 import { PIN_SRC, waitReady } from '../page.mjs';
 import { startServer, snapshotRoot, siteDist, rewriteFor } from '../serve.mjs';
 import { HERO_NODES, HERO_STEPS, MORPH_NODES, PAGE_PROPS, envFor, resolveNodes } from './registry.mjs';
+import { debugFor, fieldOf, readDebug, withDebug } from './debug.mjs';
 import { installKit } from './kit.mjs';
 import { runCheck } from './reduce.mjs';
 
@@ -27,10 +28,11 @@ const forArm = (nodes, site) => nodes.map((n) => ({ id: n.id, sel: site === 'ori
  * Opens one arm. The rewrite is loaded at `/` + the search: the page resolves its flags from `location.search` (entry-client.tsx),
  * so the flagged HTML alone would run the default config (incident inc-variant-gate-flags-off). What the page reports about itself
  * (`window.__fw.configHash` and `.mode`; the original has no `window.__fw`) is returned in `arm` and written into the raw artifact;
- * Lean's `armCheck` decides on it (reduce.mjs), never this function.
+ * Lean's `armCheck` decides on it (reduce.mjs), never this function. `debug` (debug.mjs) names a page recorder to switch on for a
+ * rewrite arm: it only adds `fw-debug=<name>` to the URL, which the page's flag resolution ignores (same config hash).
  */
-async function open(engine, env, origin, site, search) {
-  const s = await engine.open(env, { origin, path: site === 'rewrite' ? '/' + search : '/', init: INIT, frozen: false });
+async function open(engine, env, origin, site, search, debug = '') {
+  const s = await engine.open(env, { origin, path: site === 'rewrite' ? '/' + withDebug(search, debug) : '/', init: INIT, frozen: false });
   const ready = await s.evaluate(waitReady, { site, capMs: 20000 });
   const arm = await s.evaluate(() => (window.__fw ? { config: window.__fw.configHash ?? null, mode: window.__fw.mode ?? null } : { config: null, mode: null }));
   return { s, ready, arm };
@@ -55,20 +57,24 @@ export async function heroPath(engine, env, origin, site, search = '') {
  * The reducer never pairs neighbours across reps (Lean `windowOf`, `windowOf_pass_iff`): a rewrite sample is compared with the
  * union of the windows of the original's reps, each aligned on its own.
  */
-export async function morphPath(engine, env, origin, site, search = '', reads = 'full', reps = 1) {
+export async function morphPath(engine, env, origin, site, search = '', reads = 'full', reps = 1, debug = '') {
   let out = null;
+  const debugReps = [];
   for (let rep = 0; rep < reps; rep++) {
-    const one = await morphPass(engine, env, origin, site, search, reads);
+    const { debugRows, ...one } = await morphPass(engine, env, origin, site, search, reads, debug);
+    if (debug !== '') debugReps.push({ rep, name: debug, rows: debugRows });
     for (const rows of Object.values(one.phases)) for (const r of rows) r.rep = rep;
     if (out === null) { out = { ...one, reps, extraArms: [] }; continue; }
     out.extraArms.push(one.arm);
     for (const [ph, rows] of Object.entries(one.phases)) out.phases[ph] = (out.phases[ph] ?? []).concat(rows);
   }
+  // The recorder's rows of every rep (null rows: the page did not install it), next to the readings; the reducer never reads them.
+  if (debug !== '') out.debugReps = debugReps;
   return out;
 }
 
-async function morphPass(engine, env, origin, site, search, reads) {
-  const { s, ready, arm } = await open(engine, env, origin, site, search);
+async function morphPass(engine, env, origin, site, search, reads, debug) {
+  const { s, ready, arm } = await open(engine, env, origin, site, search, debug);
   try {
     const nodes = forArm(resolveNodes(MORPH_NODES), site);
     const navSel = nodes.find((n) => n.id === 'nav').sel;
@@ -85,7 +91,8 @@ async function morphPass(engine, env, origin, site, search, reads) {
       await sleep(p.ms);
       phases[p.phase] = await s.evaluate(() => window.__traj.stopSampler());
     }
-    return { ready, arm, watched, approach, phases, phaseReads };
+    const debugRows = debug === '' ? null : await s.evaluate(readDebug, fieldOf(debug));
+    return { ready, arm, watched, approach, phases, phaseReads, debugRows };
   } finally { await s.close().catch(() => {}); }
 }
 
@@ -105,6 +112,8 @@ export async function runLane({ engineName, widths, search = '', paths = ['hero'
   const configs = JSON.parse(readFileSync(join(siteDist(env), 'configs.json'), 'utf8'));
   const baseHash = configs.bySearch[''];
   const want = variant.hash ?? baseHash;
+  const debug = debugFor(search, env); // '' unless a recorder is asked for (debug.mjs)
+  if (debug !== '') log(`trajectory ${engineName}: page recorder "${debug}" on the rewrite arms`);
   const origin = await startServer(snapshotRoot(env));
   // The faithful arm is served the default page; only the candidate gets the page prerendered for its search (a flagged page
   // served to the default search would client-render, and armCheck refuses a client render).
@@ -125,13 +134,13 @@ export async function runLane({ engineName, widths, search = '', paths = ['hero'
         const t0 = Date.now();
         const run = { width, site: a.site, role: a.role, search: a.search, want: a.want };
         if (paths.includes('hero')) { log(`trajectory ${engineName} ${width} ${a.role}: hero`); run.hero = await heroPath(engine, e, a.origin, a.site, a.search); }
-        if (paths.includes('morph')) { log(`trajectory ${engineName} ${width} ${a.role}: morph`); run.morph = await morphPath(engine, e, a.origin, a.site, a.search, reads, reps); }
+        if (paths.includes('morph')) { log(`trajectory ${engineName} ${width} ${a.role}: morph`); run.morph = await morphPath(engine, e, a.origin, a.site, a.search, reads, reps, a.site === 'rewrite' ? debug : ''); }
         runs.push(run);
         log(`trajectory ${engineName} ${width} ${a.role}: done in ${Date.now() - t0} ms`);
         if (runCheck(armsOfRun(run)) !== 'ok') { refused = true; log(`trajectory ${engineName} ${width} ${a.role}: REFUSED config (${JSON.stringify(armsOfRun(run))})`); break outer; }
       }
     }
-    return { engine: engineName, version: await engine.version(), search, hash: want, baseHash, paths, reads, reps, refused, runs };
+    return { engine: engineName, version: await engine.version(), search, hash: want, baseHash, paths, reads, reps, debug, refused, runs };
   } finally {
     await engine.close().catch(() => {});
     await origin.close(); await faithful.close();
