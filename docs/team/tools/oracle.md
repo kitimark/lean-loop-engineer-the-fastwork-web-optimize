@@ -5,141 +5,98 @@ Typed answers from an outside model (TypeSafe's Jev) for decisions we cannot scr
 - **What Lean proves:** what we DO with any answer and any failure (lean/Fw/Oracle). Every failure escalates,
   an answer is advised only at its own option's threshold (`decideOpt`): an option with no threshold escalates
   (`uncalibrated`; the no-match option never has one), a threshold outside (0, 1] escalates, a gate value below the
-  option's threshold escalates, a Choice reply whose pick is not its most probable option is a schema failure, and the only
-  effects are "print advice" or "ask a person": nothing lands, pushes, deletes, cancels or kills
+  option's threshold escalates, a Choice reply whose pick is not its most probable option is a schema failure, and the
+  only effects are "print advice" or "ask a person": nothing lands, pushes, deletes, cancels or kills
   (`never_irreversible`).
 - **What Lean does not prove:** that an answer is right. Accuracy is **MEASURED** on a labeled replay set by
   `fw oracle calibrate` (each threshold chosen on the choose part and certified on the holdout part) and reported on
-  the holdout part by `fw oracle eval`. It is never proved, and it holds only for questions like the ones in that
-  set. Too few rows of an option means no threshold, and that option escalates.
+  the holdout part by `fw oracle eval`. It holds only for questions like the ones in that set.
 
 ## Commands
 
 | command | does |
 |---|---|
-| `pnpm fw oracle triage <runId> [--json]` | Explains why a failed CI run failed: `advise flake/infra/real (gate g)`, or `escalate: <reason>`. Exits 0 either way. |
-| `pnpm fw oracle calibrate <question> [--limit n] [--resume]` | Asks about every labeled row of `packages/contracts/golden/oracle/<question>.jsonl` (live, at most 60 sends per run, logged replies replay for free). The ids come from Lean (`oracle.plan`: a row's id is `id` or `run-<runId>`; a row whose label is null is skipped; a row with a `split` field is an error). Lean splits the rows by id (`heldOut`), chooses each option's least acceptable gate value on the choose part, and keeps it only when the holdout part also passes (`certify`). It writes the table (`thresholds`, plus `choose` and `holdout` coverage and hits) to `thresholds.json`, marked MEASURED, only when every labeled id has an answer (`mayWrite_sound`); a refused row, the run cap or `--limit` prints the table and exits 2 without writing. `--resume` first checks (`oracle.plan`) that the rows missing from the answer log fit the run cap, else exits 2 and sends nothing. |
-| `pnpm fw oracle eval <question>` | Asks about the holdout rows only (`oracle.plan` with `part: holdout`) and prints accuracy (hits / covered) and coverage (covered / rows) at the stored per-option thresholds, MEASURED. Writes nothing. |
-| `pnpm fw oracle collect --runs <runs.json> --out <rows.jsonl> [--max 40]` | Builds unlabeled replay rows (redacted triage state) from failed runs. |
+| `pnpm fw oracle ask <question> --state <state.json> [--thresholds <table.json>] [--json]` | One state (an object of field to string or lines): `advise <option> (gate g)` or `escalate: <reason>`, exit 0 either way. No table, or no entry for the question, means uncalibrated: every answer escalates. |
+| `pnpm fw oracle calibrate <question> --replay <rows.jsonl> [--limit n] [--resume] [--out <table.json>]` | Asks about every labeled row (at most 60 sends per run; logged replies replay for free). Ids come from Lean (`oracle.plan`: `id`, else `run-<runId>`; a null label is skipped; a `split` field is an error). Lean splits the rows by id (`heldOut`), chooses each option's least acceptable gate value on the choose part and keeps it only when the holdout part certifies it (`certify`). The entry (`thresholds`, `choose`, `holdout`, `used`, `dropped`, `rows`, `model`, `measuredOn`, `status: MEASURED`) is written to `--out` only when every labeled id has an answer (`mayWrite_sound`); a refused row, the run cap or `--limit` prints it and exits 2. `--resume` first checks (`oracle.plan`) that the rows missing from the answer log fit the run cap, else exits 2 and sends nothing. |
+| `pnpm fw oracle eval <question> --replay <rows.jsonl> --thresholds <table.json>` | Asks about the holdout rows only and prints accuracy (hits / covered) and coverage (covered / rows) at the stored thresholds, MEASURED. Writes nothing. |
 
-Until `thresholds.json` holds a threshold for an option, every answer advising that option escalates (`uncalibrated`). That is the state on landing.
+Replay rows are `{id?, runId?, state, label}`, one per line. The replay sets and the per-question thresholds come
+from the tasks jev-datasets and jev-replay; nothing is calibrated on landing, so every answer escalates.
 
 ## Questions (Fw.Oracle.Questions)
 
-| question | options | calibration constants (Lean, not overridable) | replay set |
+| question | options | fields | calibration constants (Lean, not overridable) |
 |---|---|---|---|
-| `ci-triage` | flake, infra, real; no-match unknown | q = 9/10, k = 5 | `ci-triage.jsonl` (TS data, rows `{runId, headSha?, state, label}`; no infra rows yet, so infra gets no threshold by `calibrate_none_of_sparse`) |
-| `mistake-class` | the 15 class ids of `research/mistakes/ledger.json`; no-match `no-match` | q = 4/5, k = 1 | `mistake-class.jsonl` (generated by Lean from the ledger: CONFIRMED rows; state = title, symptom, root cause) |
+| `ci-triage` | flake, infra, real; no-match unknown | job, step, log | q = 9/10, k = 5 |
 
 - Calibration is per option, never pooled (`per_option_sound`): option o gets the least observed gate value t such
   that, among the choose-part rows advised as o at gate ≥ t, at least max(1, k) are labeled o and the precision is at
-  least q. No other option's rows enter o's count. An option with fewer than max(1, k) labeled rows gets no threshold
-  (`calibrate_none_of_sparse`), and so does one the model never answers (`never_answered_none`).
-- Held-out certification (`holdout_certified`): t is kept only when the holdout rows advised as o at gate ≥ t also
-  have at least max(1, k) hits and precision at least q; otherwise o has no threshold and escalates. Holdout rows can
-  remove a threshold but never move one (`choose_independent_of_holdout`), and an option with fewer than max(1, k)
-  holdout rows gets none (`certify_none_of_sparse_holdout`).
-- The split is by id, fixed in Lean: a row is held out when the code points of its id sum to an odd number. The
-  replay file names no split, so no author picks which rows test a threshold.
-- The reviewer's round-3 probe (5 flake/flake, 11 flake/real, 5 infra/infra, 90 real/real) gives flake no threshold
-  (5 hits of 16 advised): a `#guard` in `Fw.Oracle.Calibrate`, a golden in `wire.jsonl` and a vitest case.
-- mistake-class has 126 labeled rows (64 held out by the id split) and the run cap is 60: run `calibrate
-  mistake-class` three times (sends 60, then replays 60 and sends 60, then sends the last 6 and writes); the first two
-  runs exit 2 and write nothing. A class with no holdout row gets no threshold.
-- Option order: Jev leans towards the first listed option, so the request lists a Choice's options in an order
-  shuffled by a seed (FNV-1a of the redacted state text): the same state gives the same bytes (replay works), and the
-  order is a permutation (`shuffle_perm`).
+  least q. An option with fewer rows gets none (`calibrate_none_of_sparse`), and so does one the model never answers
+  (`never_answered_none`).
+- Held-out certification (`holdout_certified`, `wilsonOk_sound`): t is kept only when the holdout rows advised as o at
+  gate ≥ t have at least max(1, k) hits h out of n advised and the one-sided Wilson score lower bound of h/n at
+  z = 1.645 (95 %) is at least q. In exact arithmetic: q·n ≤ h and z²·n·q·(1 − q) ≤ (h − q·n)². At q = 9/10, 25 right
+  of 25 passes and 24 of 24 does not; 100 of 104 passes; 15 of 16 (point precision 0.94) is refused. The bound assumes the
+  holdout rows are independent draws of the questions we will ask. Holdout rows can remove a threshold but never move
+  one (`choose_independent_of_holdout`).
+- The split is by id, fixed in Lean: a row is held out when the code points of its id sum to an odd number.
+- The reviewer's round-5 probe on the holdout part (flake advised 16 times, 5 right; 5 infra; 25 real) certifies
+  real only: a `#guard` in `Fw.Oracle.Calibrate`, a golden in `wire.jsonl` and a vitest case.
+- Option order: Jev leans towards the first listed option, so a Choice's options are listed in an order shuffled by
+  a seed (FNV-1a of the redacted state text): the same state gives the same bytes and the order is a permutation
+  (`shuffle_perm`).
 
 ## Flow (all decisions are fwcore ops, `oracle.*`)
 
-1. `oracle.triage.state`: the `--log-failed` lines are cut after the last `##[error]` line (what follows is runner
-   cleanup). The state is the job and step of the last kept line and the text of the last 60 kept lines
-   (byte-order marks, timestamps and colour codes removed). The workflow name is not in the state: the log does not
-   carry it, so it could not be sourced.
-2. Provenance (TS gathers, Lean checks): every state field must be one of the question's fields and carry a
-   public source (`send_requires_provenance`):
-   - `committedPublic(path, sha)`: a relative path at the public head only. The CLI reads
-     sha = `git rev-parse origin/main` (never `HEAD` or a worktree), passes it as `publicHead` with the text of
-     `git show sha:path`; a provenance at any other commit, or no public head, is refused as `notPublic`. Each line
-     of the field must equal a whole line of the file or a whole JSON string value in it (after JSON unescaping), so
-     a fragment of a line is refused. mistake-class rows come from `research/mistakes/ledger.json`.
-   - `githubRunnerLog(runId, jobs, log)`: run id > 0; `jobs` holds one fact per job of every file in
-     `.github/workflows` at the run's head commit (the client parses the YAML with the `yaml` package and passes each
-     job's `runs-on` value); Lean accepts the log as public only when there is at least one job and every job's
-     `runs-on` is a non-empty list of exact GitHub-hosted labels (`hosted_iff_every_job`; a self-hosted label, an
-     expression, a mapping, a missing value or a file that does not parse refuses; `oracle.hosted` exposes the check).
-     Each line of the field must be a whole line of the fetched `--log-failed` text, its message text or its job or
-     step column (`runLines`). Stored ci-triage states are re-derived from the fetched log before a send.
-   - Each question accepts one kind (`send_kind_allowed`): mistake-class only `committedPublic`, ci-triage only
-     `githubRunnerLog`.
-   Anything else is refused with `unsourced` before the key is read. `committedPublic` here means public once the
-   user pushes `main`; `origin/main` is the last fetched copy of it.
-3. `oracle.pre`:
+1. `oracle.request`: Lean redacts the state and builds the exact body (`bodyText`); the client hashes it (sha256) as
+   the answer-log key.
+2. `oracle.pre`, on the raw state:
    - a logged reply is replayed (no call);
-   - a committed source not at the public head is refused (`notPublic`), then an unsourced state (`unsourced`);
-   - Lean redacts the state and builds the exact body (`bodyText`: question with options in the seeded order,
-     redacted state, pinned model `jev-1.13.0`); an unredacted state or a body over 64 KiB is refused;
+   - a field the question does not declare is refused (`undeclared`);
+   - an unredacted state or a body over 64 KiB is refused;
    - the daily cap of 200 sends (counted from the log) or the run cap of 60 sends refuses with `overBudget`;
-   - otherwise it returns `send` with the body, and the client sends exactly that string (`body_from_lean`; the
-     client throws if it differs from `oracle.request`). The cache key is sha256 of that text.
-4. Send:
-   - the key is read from the keychain only now. No key means failure `noKey`, which escalates; it never crashes.
-   - Timeout 30 s. A non-200 status is failure `http`; a 429 or 529 is not retried, it escalates.
-5. `oracle.decide`:
-   - Lean parses the reply (decimal numbers read exactly) and validates it against the question.
-   - It recomputes the gate value from the probabilities; the reported `confidence` is ignored.
-   - It then applies the policy.
-6. Answer log: one line per send in `.fw-console/oracle.jsonl` of the main checkout (gitignored). The reply is
-   stored and decided on as `oracle.store` returns it: at most 64 KiB, cut with ` [truncated]` (then malformed).
-   - Each line holds the key hash, the day, the time taken, and the reply or the failure.
-   - It never holds the API key or the request body.
-   - A timing span is recorded for every call (`tool: oracle`).
+   - otherwise `send` with the body, and the client sends exactly that string (`body_from_lean`; it throws if the
+     string differs from `oracle.request`'s).
+3. Send: the key is read from the keychain only now, after `send`. No key is failure `noKey`, which escalates. Timeout
+   30 s; a non-200 status is failure `http` (429 and 529 are not retried).
+4. `oracle.decide`: Lean parses the reply (decimals read exactly), validates it, recomputes the gate value from the
+   probabilities (the reported `confidence` is ignored) and applies the policy.
+5. Answer log: one line per send in `.fw-console/oracle.jsonl` of the main checkout (gitignored; `FW_ORACLE_LOG`
+   overrides). It holds the key hash, the day, the time taken and the reply (as `oracle.store` caps it, 64 KiB) or
+   the failure; never the API key or the request body. Each call records a timing span (`tool: oracle`).
+
+Which texts are public enough to send is the caller's choice for now; a provenance check per field is a follow-up.
 
 ## Redaction (Fw.Oracle.Redact)
 
-- What it removes (a second layer; provenance is the first):
-  - home paths in four forms, `/Users/`, `/home/`, `\Users\` and `-Users-`, become `~` (`no_home_forms`);
-  - the git user name (and its words), the git user e-mail and the login name become `<user>`, bounded by
-    non-alphanumerics (`user_name`, `by-name`, `name.local` are cut; `malice`, `name2` are not), in any letter case;
-  - e-mail addresses become `<email>`;
-  - IPv4 addresses become `<ip>`;
-  - key-shaped tokens become `<token>` (`ghp_ gho_ ghu_ ghs_ ghr_ github_pat_ sk- sk_ xoxb- xoxp- AKIA Bearer`).
-- `redact_idem` and `no_home_path` hold for every input: a result that is not already clean is withheld, as an empty text.
-- Size caps (`redacted_caps`, `send_caps`): each state line at most 500 characters (cut with ` [truncated]`),
-  each state at most 32 KiB (each field keeps its last lines that fit), each stored reply at most 64 KiB.
+- Home paths in four forms (`/Users/`, `/home/`, `\Users\`, `-Users-`) become `~` (`no_home_forms`); the git user
+  name and its words, the git e-mail and the login name become `<user>` in any letter case, bounded by
+  non-alphanumerics; e-mail addresses, IPv4 addresses and key-shaped tokens are replaced.
+- `redact_idem` and `no_home_path` hold for every input. Caps (`redacted_caps`, `send_caps`): 500 characters per state
+  line, 32 KiB per state, 64 KiB per stored reply.
 - Errors and logged replies are scrubbed of the key as well (`packages/oracle/src/scrub.ts`).
 
 ## The key (user step)
 
-- In your own terminal: `security add-generic-password -s typesafe-api -a typesafe -w`.
-  - It prompts for the key, so the key is never in shell history.
-- Agents never read, print, export or store the key. The client reads it with
-  `security find-generic-password -s typesafe-api -w` only at the moment it sends.
+- In your own terminal: `security add-generic-password -s typesafe-api -a typesafe -w` (it prompts, so the key never
+  enters shell history).
+- Agents never read, print, export or store the key, and tests use a fake reader. The client reads it with
+  `security find-generic-password -s typesafe-api -w` only after `oracle.pre` answers `send`.
 
-## API facts (CONFIRMED, read 2026-10-18)
+## API facts
 
-- From https://docs.typesafe.ai/api.md:
-  - `POST https://api.typesafe.ai/v1/systemone`, `Authorization: Bearer <key>`, body `{state, model, questions}`.
-  - Choice criteria: an option map, at most 255 options. Score: 2 to 10 ordered levels. Noul: optional `true`/`false` meanings.
-  - Response: `{model, answers, usage}`. A choice answer has `choice`, `probabilities` (summing to 1) and `confidence`.
-  - Errors: 400, 401, 413 (body over 32 MiB), 415, 422, 429 (rate limit), 529 (overloaded).
-- From https://docs.typesafe.ai/confidence.md:
-  - Choice confidence is (p_max − 1/n)/(1 − 1/n). Noul has no confidence; we use |2p − 1|.
-  - Score confidence is 1 − expected distance / the uniform one.
-  - Thresholds must be validated on your own data.
-- From https://docs.typesafe.ai/models.md:
-  - `jev-1.13.0` and `jev-1.14.0`; `jev-latest` points to 1.13.0, and aliases move, so pin a version.
-  - $0.042 per million input tokens, output free; 64k context per request.
-  - Rate limits are per organization (429). Jev is not trained on customer requests.
+- CONFIRMED (https://docs.typesafe.ai/api.md, read 2026-10-18): `POST https://api.typesafe.ai/v1/systemone`,
+  `Authorization: Bearer <key>`, body `{state, model, questions}`. Response `{model, answers, usage}`. Errors 400,
+  401, 413, 415, 422, 429, 529.
+- MEASURED 2026-10-22: Choice criteria as a list gives 422; as an object of option to description it gives 200 on
+  `jev-1.13.0` (`answers.<name>.choice`, `confidence`, `probabilities`). A noul answer is a number.
+- CONFIRMED (https://docs.typesafe.ai/models.md): pin a version (`jev-1.13.0`); aliases move.
 
 ## Files
 
-- `lean/Fw/Oracle/*.lean`: the math.
-- `packages/oracle/src`: the client. It has no package.json yet; see the handoff.
-- `apps/runner/src/oracle.ts`: the CLI.
-- Tests: `apps/runner/test/oracle.test.ts` (fake fetch, fake keychain, fake gh, fake git; never the real `origin/main`).
-- `packages/contracts/golden/oracle/`:
-  - generated by Lean (`cd lean && lake test -- --write-oracle-golden`): `wire.jsonl`, `fixtures.jsonl`,
-    `mistake-class.jsonl`, and `lean/Fw/Oracle/MistakeClasses.lean` (rebuild after a ledger change);
-  - data: `ci-triage.jsonl` (labeled replay set), `thresholds.json` (`ci-triage` and `mistake-class` null until a
-    calibration run writes `{thresholds, choose, holdout, used, dropped, rows, model, measuredOn, status}` for them).
+- `lean/Fw/Oracle/*.lean`: the math; `lean/Fw/Oracle/Wire.lean`: the ops.
+- `packages/oracle`: the client (`@fw/oracle`), with offline tests (`pnpm --filter ./packages/oracle test`).
+- `apps/runner/src/oracle.ts`: the CLI; tests `apps/runner/test/oracle.test.ts` (real fwcore, fake fetch, fake
+  keychain).
+- `packages/contracts/golden/oracle/`: `wire.jsonl` and `fixtures.jsonl`, generated by Lean
+  (`cd lean && lake env lean --run scripts/OracleGolden.lean`; `--check` runs in `lean/scripts/check.sh`).

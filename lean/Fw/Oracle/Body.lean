@@ -16,9 +16,7 @@ namespace Fw.Oracle
 open Lean
 
 /-- A state as a JSON object: a one-line field as a string, any other as an array of strings (keys sorted by the
-JSON object). A field name that occurs more than once keeps only its last entry.
-
-$$\mathrm{stateJ}(S) = \{\, k : (x \text{ if } L = [x] \text{ else } L) \mid (k, L) \text{ the last entry of } S \text{ with name } k \,\}$$ -/
+JSON object). A field name that occurs more than once keeps only its last entry. -/
 def stateJ (st : State) : Json :=
   Json.mkObj (st.map fun (k, ls) => (k, match ls with
     | [s] => .str s
@@ -28,42 +26,32 @@ def stateJ (st : State) : Json :=
 #guard (stateJ [("a", ["x"]), ("a", ["y"])]).compress == "{\"a\":\"y\"}"
 
 /-- The criteria of a question as the API wants them: an option map (choice), `true`/`false` meanings (noul), the
-level list (score).
-
-$$\mathrm{critJ}(q) = \begin{cases} L & q.\mathit{spec} = \mathrm{score}(L) \\ \{\, k : v \mid (k, v) \in q.\mathit{criteria} \,\} & \text{otherwise} \end{cases}$$ -/
+level list (score). -/
 def criteriaJ (q : Question) : Json :=
   match q.spec with
   | .score ls => toJson ls
   | _ => Json.mkObj (q.criteria.map fun (k, v) => (k, Json.str v))
 
-/-- A JSON object text with its keys in the given order.
-
-$$\mathrm{obj}([(k_1, v_1), \ldots, (k_n, v_n)]) = \texttt{\{} \mathrm{js}(k_1) \texttt{:} \mathrm{js}(v_1) \texttt{,} \ldots \texttt{,} \mathrm{js}(k_n) \texttt{:} \mathrm{js}(v_n) \texttt{\}}$$ -/
+/-- A JSON object text with its keys in the given order. -/
 def objText (kvs : List (String × String)) : String :=
   "{" ++ ",".intercalate (kvs.map fun (k, v) => (Json.str k).compress ++ ":" ++ (Json.str v).compress) ++ "}"
 
 /-- The criteria text of a request: a choice's options in the order `shuffle seed`, each with its description (the
 first one listed for that key, should a key repeat; a repeated key is then listed as often as it repeats), else the
-compact `criteriaJ`.
-
-$$\mathrm{critT}(q, \sigma) = \begin{cases} \mathrm{obj}([\, (k, \mathrm{lookup}(k, q.\mathit{criteria})) : k \in \mathrm{shuffle}(\sigma, \pi_1(q.\mathit{criteria})) \,]) & q.\mathit{spec} = \mathrm{choice}(O, z) \\ \mathrm{compress}(\mathrm{critJ}(q)) & \text{otherwise} \end{cases},\quad \mathrm{lookup}(k, C) = v \text{ for the first } (k, v) \in C$$ -/
+compact `criteriaJ`. -/
 def criteriaText (q : Question) (seed : Nat) : String :=
   match q.spec with
   | .choice .. => objText ((shuffle seed (q.criteria.map (·.1))).filterMap fun k => (q.criteria.lookup k).map (k, ·))
   | _ => (criteriaJ q).compress
 
-/-- The wire name of a question's answer type.
-
-$$\mathrm{ty}(\mathrm{choice}(O, z)) = \texttt{choice},\quad \mathrm{ty}(\mathrm{noul}) = \texttt{noul},\quad \mathrm{ty}(\mathrm{score}(L)) = \texttt{score}$$ -/
+/-- The wire name of a question's answer type. -/
 def Spec.wireType : Spec → String
   | .choice .. => "choice"
   | .noul => "noul"
   | .score _ => "score"
 
 /-- **The request bytes**: the keys `model`, `questions`, `state`, with the criteria of a choice in the order
-shuffled by the seed `fnv` of the compact state text (so the same state gives the same bytes).
-
-$$\mathrm{body}(q, S) = \texttt{\{"model":} \mathrm{js}(m) \texttt{,"questions":\{} \mathrm{js}(q.\mathit{name}) \texttt{:\{"criteria":} \mathrm{critT}(q, \mathrm{fnv}(t)) \texttt{,"instructions":} \mathrm{js}(q.\mathit{instructions}) \texttt{,"type":"} \mathrm{ty}(q.\mathit{spec}) \texttt{"\}\},"state":} t \texttt{\}},\quad t = \mathrm{compress}(\mathrm{stateJ}(S)),\ m = \mathrm{model}$$ -/
+shuffled by the seed `fnv` of the compact state text (so the same state gives the same bytes). -/
 def bodyText (q : Question) (st : State) : String :=
   let sj := (stateJ st).compress
   "{\"model\":" ++ (Json.str model).compress ++ ",\"questions\":{" ++ (Json.str q.name).compress ++

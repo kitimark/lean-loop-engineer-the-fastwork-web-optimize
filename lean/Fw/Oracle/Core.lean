@@ -34,33 +34,25 @@ namespace Fw.Oracle
 /-! ## Questions and answers -/
 
 /-- The answer type of an oracle question: one option of a finite list (the list includes a no-match option `z`),
-a yes/no probability, or a position on ordered levels (lowest first).
-
-$$\mathrm{Spec} ::= \mathrm{choice}(O, z) \mid \mathrm{noul} \mid \mathrm{score}(L), \quad O, L \in \mathrm{String}^{*},\ z \in \mathrm{String}$$ -/
+a yes/no probability, or a position on ordered levels (lowest first). -/
 inductive Spec where
   | choice (options : List String) (noMatch : String)
   | noul
   | score (levels : List String)
 deriving Repr, DecidableEq, Inhabited
 
-/-- The tolerance on the sum of a reply's probabilities (the API returns floats that sum to 1 up to rounding).
-
-$$\varepsilon = \tfrac{1}{1000}$$ -/
+/-- The tolerance on the sum of a reply's probabilities (the API returns floats that sum to 1 up to rounding). -/
 def eps : Rat := 1 / 1000
 
 /-- The probability keys a reply must carry: the options of a Choice, the level indices `"0"`…`"n-1"` of a Score,
-none for a Noul.
-
-$$\mathrm{keys}(\mathrm{choice}(O, z)) = O, \quad \mathrm{keys}(\mathrm{noul}) = [\,], \quad \mathrm{keys}(\mathrm{score}(L)) = [\,\mathrm{str}(i) : 0 \le i < |L|\,]$$ -/
+none for a Noul. -/
 def Spec.keys : Spec → List String
   | .choice os _ => os
   | .noul => []
   | .score ls => (List.range ls.length).map toString
 
 /-- A well-formed question: distinct keys; a Choice has 2 to 255 options (the API's maximum) and its no-match
-option among them; a Score has 2 to 10 levels (the API's range).
-
-$$\mathrm{wf}(\mathrm{choice}(O, z)) \iff \mathrm{nodup}(O) \land z \in O \land 2 \le |O| \le 255, \quad \mathrm{wf}(\mathrm{noul}), \quad \mathrm{wf}(\mathrm{score}(L)) \iff \mathrm{nodup}(\mathrm{keys}) \land 2 \le |L| \le 10$$ -/
+option among them; a Score has 2 to 10 levels (the API's range). -/
 def Spec.wf : Spec → Bool
   | .choice os z => decide os.Nodup && os.contains z && decide (2 ≤ os.length) && decide (os.length ≤ 255)
   | .noul => true
@@ -68,44 +60,30 @@ def Spec.wf : Spec → Bool
       decide (ls.length ≤ 10)
 
 /-- A validated answer: the pick of a Choice with the probabilities of its options (in option order), the yes
-probability of a Noul, or the probabilities of a Score's levels (in level order).
-
-$$\mathrm{Answer} ::= \mathrm{choice}(o, d) \mid \mathrm{noul}(p) \mid \mathrm{score}(d), \quad o \in \mathrm{String},\ d \in \mathbb{Q}^{*},\ p \in \mathbb{Q}$$ -/
+probability of a Noul, or the probabilities of a Score's levels (in level order). -/
 inductive Answer where
   | choice (pick : String) (dist : List Rat)
   | noul (p : Rat)
   | score (dist : List Rat)
 deriving Repr, DecidableEq, Inhabited
 
-/-- A probability lies in the closed unit interval.
-
-$$\mathrm{unit}(p) \iff 0 \le p \le 1$$ -/
+/-- A probability lies in the closed unit interval. -/
 def unit (p : Rat) : Bool := decide (0 ≤ p) && decide (p ≤ 1)
 
-/-- The probabilities sum to 1 within `eps`.
-
-$$\mathrm{sumOk}(d) \iff 1 - \varepsilon \le \textstyle\sum_i d_i \le 1 + \varepsilon$$ -/
+/-- The probabilities sum to 1 within `eps`. -/
 def sumOk (d : List Rat) : Bool := decide (1 - eps ≤ d.sum) && decide (d.sum ≤ 1 + eps)
 
-/-- A distribution over `n` outcomes: `n` values, each in [0, 1], summing to 1 within `eps`.
-
-$$\mathrm{distOk}(n, d) \iff |d| = n \land (\forall p \in d:\ 0 \le p \le 1) \land \mathrm{sumOk}(d)$$ -/
+/-- A distribution over `n` outcomes: `n` values, each in [0, 1], summing to 1 within `eps`. -/
 def distOk (n : Nat) (d : List Rat) : Bool := d.length == n && d.all unit && sumOk d
 
-/-- The largest value of a list, `0` for the empty list (probabilities are never negative).
-
-$$\mathrm{maxQ}([\,]) = 0, \quad \mathrm{maxQ}(x :: xs) = \max(x, \mathrm{maxQ}(xs))$$ -/
+/-- The largest value of a list, `0` for the empty list (probabilities are never negative). -/
 def maxQ : List Rat → Rat
   | [] => 0
   | x :: xs => let m := maxQ xs; if x ≤ m then m else x
 
 /-- A well-typed answer for a question: the same primitive; a Choice's pick is one of its options and carries the
 highest probability (ties allowed: the API defines `choice` as the highest-probability option); the distribution
-has one probability per key. Here $\mathrm{idx}(O, o)$ is the position of the first $o$ in $O$ and $d_i$ is
-undefined (so the equation false) when $i \ge |d|$.
-
-$$\mathrm{wt}(\mathrm{choice}(O, z), \mathrm{choice}(o, d)) \iff o \in O \land \mathrm{distOk}(|O|, d) \land d_{\mathrm{idx}(O, o)} = \mathrm{maxQ}(d), \quad \mathrm{wt}(\mathrm{noul}, \mathrm{noul}(p)) \iff 0 \le p \le 1, \quad \mathrm{wt}(\mathrm{score}(L), \mathrm{score}(d)) \iff \mathrm{distOk}(|L|, d),$$
-$$\text{and } \mathrm{wt}(s, a) \text{ is false for every other pair}$$ -/
+has one probability per key. -/
 def wt : Spec → Answer → Bool
   | .choice os _, .choice pk d => os.contains pk && distOk os.length d && d[os.idxOf pk]? == some (maxQ d)
   | .noul, .noul p => unit p
@@ -113,9 +91,7 @@ def wt : Spec → Answer → Bool
   | _, _ => false
 
 /-- The answer object of a reply as the wire reads it, before validation: the `type` string, the optional
-`choice` and `noul` fields, and the `probabilities` map as a key list.
-
-$$\mathrm{Raw} = \mathrm{String} \times \mathrm{Option}(\mathrm{String}) \times \mathrm{Option}(\mathbb{Q}) \times (\mathrm{String} \times \mathbb{Q})^{*}$$ -/
+`choice` and `noul` fields, and the `probabilities` map as a key list. -/
 structure Raw where
   type : String
   pick : Option String := none
@@ -123,9 +99,7 @@ structure Raw where
   probs : List (String × Rat) := []
 deriving Repr, DecidableEq
 
-/-- Look up every key, in key order; `none` as soon as one key is missing.
-
-$$\mathrm{lookupAll}(l, [\,]) = [\,], \quad \mathrm{lookupAll}(l, k :: ks) = \begin{cases} v :: vs & l(k) = v,\ \mathrm{lookupAll}(l, ks) = vs \\ \bot & \text{otherwise} \end{cases}$$ -/
+/-- Look up every key, in key order; `none` as soon as one key is missing. -/
 def lookupAll (l : List (String × Rat)) : List String → Option (List Rat)
   | [] => some []
   | k :: ks =>
@@ -134,9 +108,7 @@ def lookupAll (l : List (String × Rat)) : List String → Option (List Rat)
     | _, _ => none
 
 /-- Check a reply's probabilities against the keys: exactly as many entries as keys, every key present, every value
-in [0, 1], sum 1 within `eps`; the result is the values in key order.
-
-$$\mathrm{checkDist}(K, l) = d \iff |l| = |K| \land \mathrm{lookupAll}(l, K) = d \land \mathrm{distOk}(|K|, d)$$ -/
+in [0, 1], sum 1 within `eps`; the result is the values in key order. -/
 def checkDist (keys : List String) (l : List (String × Rat)) : Except String (List Rat) :=
   if l.length ≠ keys.length then .error "probabilities: the keys differ from the question's" else
   match lookupAll l keys with
@@ -147,9 +119,7 @@ def checkDist (keys : List String) (l : List (String × Rat)) : Except String (L
     else .ok d
 
 /-- Validate a raw answer against its question (the `oracle.validate` op): a schema-mismatch reason, or the typed
-answer.
-
-$$\mathrm{validate}(s, r) = \begin{cases} \mathrm{noul}(p) & s = \mathrm{noul},\ r.\mathit{type} = \texttt{noul},\ r.\mathit{noul} = p,\ 0 \le p \le 1 \\ \mathrm{choice}(o, d) & s = \mathrm{choice}(O, z),\ r.\mathit{type} = \texttt{choice},\ r.\mathit{pick} = o \in O,\ \mathrm{checkDist}(O, r.\mathit{probs}) = d,\ d_{\mathrm{idx}(O, o)} = \mathrm{maxQ}(d) \\ \mathrm{score}(d) & s = \mathrm{score}(L),\ r.\mathit{type} = \texttt{score},\ \mathrm{checkDist}(\mathrm{keys}(s), r.\mathit{probs}) = d \\ \mathrm{error} & \text{otherwise, and whenever } \lnot\mathrm{wf}(s) \end{cases}$$ -/
+answer. -/
 def validate (s : Spec) (r : Raw) : Except String Answer :=
   if !s.wf then .error "the question is not well-formed" else
   match s with
@@ -175,9 +145,7 @@ def validate (s : Spec) (r : Raw) : Except String Answer :=
     | .error e => .error e
     | .ok d => .ok (.score d)
 
-/-- The raw form of a typed answer (what a correct reply carries): the inverse direction of `validate`.
-
-$$\mathrm{toRaw}(s, \mathrm{choice}(o, d)) = (\texttt{choice}, o, \bot, \mathrm{zip}(\mathrm{keys}(s), d)), \quad \mathrm{toRaw}(s, \mathrm{noul}(p)) = (\texttt{noul}, \bot, p, [\,]), \quad \mathrm{toRaw}(s, \mathrm{score}(d)) = (\texttt{score}, \bot, \bot, \mathrm{zip}(\mathrm{keys}(s), d))$$ -/
+/-- The raw form of a typed answer (what a correct reply carries): the inverse direction of `validate`. -/
 def toRaw (s : Spec) : Answer → Raw
   | .choice pk d => { type := "choice", pick := some pk, probs := s.keys.zip d }
   | .noul p => { type := "noul", noul := some p }
@@ -185,9 +153,7 @@ def toRaw (s : Spec) : Answer → Raw
 
 /-! ### Validation is sound and complete -/
 
-/-- A successful `lookupAll` returns one value per key.
-
-$$\forall l, K, d:\ \mathrm{lookupAll}(l, K) = \mathrm{some}(d) \Rightarrow |d| = |K|$$ -/
+/-- A successful `lookupAll` returns one value per key. -/
 theorem lookupAll_length (l : List (String × Rat)) :
     ∀ (ks : List String) (d : List Rat), lookupAll l ks = some d → d.length = ks.length
   | [], d, h => by simp [lookupAll] at h; subst h; rfl
@@ -199,9 +165,7 @@ theorem lookupAll_length (l : List (String × Rat)) :
       simp [lookupAll_length l ks vs hvs]
     · exact absurd h (by simp)
 
-/-- With distinct keys, a pair of the list is what `lookup` finds.
-
-$$\forall l, k, v:\ \mathrm{nodup}(\mathrm{map}(\mathrm{fst}, l)) \land (k, v) \in l \Rightarrow \mathrm{lookup}(l, k) = \mathrm{some}(v)$$ -/
+/-- With distinct keys, a pair of the list is what `lookup` finds. -/
 theorem lookup_of_mem :
     ∀ (l : List (String × Rat)) (k : String) (v : Rat), (l.map Prod.fst).Nodup → (k, v) ∈ l → l.lookup k = some v
   | [], _, _, _, h => by simp at h
@@ -217,9 +181,7 @@ theorem lookup_of_mem :
       rw [this]
       exact lookup_of_mem t k v hn.2 ht
 
-/-- Looking up every key of `zip(K, d)` in a list that contains all its pairs (with distinct keys) gives `d` back.
-
-$$\forall l, K, d:\ |K| = |d| \land \mathrm{zip}(K, d) \subseteq l \land \mathrm{nodup}(\mathrm{map}(\mathrm{fst}, l)) \Rightarrow \mathrm{lookupAll}(l, K) = \mathrm{some}(d)$$ -/
+/-- Looking up every key of `zip(K, d)` in a list that contains all its pairs (with distinct keys) gives `d` back. -/
 theorem lookupAll_of_sub (l : List (String × Rat)) (hn : (l.map Prod.fst).Nodup) :
     ∀ (ks : List String) (d : List Rat), ks.length = d.length → (∀ p ∈ ks.zip d, p ∈ l) → lookupAll l ks = some d
   | [], [], _, _ => rfl
@@ -232,9 +194,7 @@ theorem lookupAll_of_sub (l : List (String × Rat)) (hn : (l.map Prod.fst).Nodup
       lookupAll_of_sub l hn ks vs h fun p hp => hs p (by simp [hp])
     simp [lookupAll, h1, h2]
 
-/-- With distinct keys and one value per key, looking the keys up in their own zip returns the values.
-
-$$\forall K, d:\ \mathrm{nodup}(K) \land |K| = |d| \Rightarrow \mathrm{lookupAll}(\mathrm{zip}(K, d), K) = \mathrm{some}(d)$$ -/
+/-- With distinct keys and one value per key, looking the keys up in their own zip returns the values. -/
 theorem lookupAll_zip (ks : List String) (d : List Rat) (hn : ks.Nodup) (h : ks.length = d.length) :
     lookupAll (ks.zip d) ks = some d := by
   apply lookupAll_of_sub
@@ -242,9 +202,7 @@ theorem lookupAll_zip (ks : List String) (d : List Rat) (hn : ks.Nodup) (h : ks.
   · exact h
   · intro p hp; exact hp
 
-/-- What `checkDist` accepts is a distribution with one value per key.
-
-$$\forall K, l, d:\ \mathrm{checkDist}(K, l) = \mathrm{ok}(d) \Rightarrow \mathrm{distOk}(|K|, d)$$ -/
+/-- What `checkDist` accepts is a distribution with one value per key. -/
 theorem checkDist_sound (keys : List String) (l : List (String × Rat)) (d : List Rat)
     (h : checkDist keys l = .ok d) : distOk keys.length d = true := by
   unfold checkDist at h
@@ -263,9 +221,7 @@ theorem checkDist_sound (keys : List String) (l : List (String × Rat)) (d : Lis
           simp only [Bool.not_eq_false] at hu hs
           simp [distOk, lookupAll_length l keys d' hd', hu, hs]
 
-/-- `checkDist` accepts the zip of distinct keys with a distribution over them.
-
-$$\forall K, d:\ \mathrm{nodup}(K) \land \mathrm{distOk}(|K|, d) \Rightarrow \mathrm{checkDist}(K, \mathrm{zip}(K, d)) = \mathrm{ok}(d)$$ -/
+/-- `checkDist` accepts the zip of distinct keys with a distribution over them. -/
 theorem checkDist_complete (keys : List String) (d : List Rat) (hn : keys.Nodup) (h : distOk keys.length d = true) :
     checkDist keys (keys.zip d) = .ok d := by
   simp only [distOk, Bool.and_eq_true, beq_iff_eq] at h
@@ -274,9 +230,7 @@ theorem checkDist_complete (keys : List String) (d : List Rat) (hn : keys.Nodup)
   have hla := lookupAll_zip keys d hn hl.symm
   simp [checkDist, hz, hla, hu, hs]
 
-/-- **Validation is sound.** Every accepted reply is a well-typed answer of a well-formed question.
-
-$$\forall s, r, a:\ \mathrm{validate}(s, r) = \mathrm{ok}(a) \Rightarrow \mathrm{wf}(s) \land \mathrm{wt}(s, a)$$ -/
+/-- **Validation is sound.** Every accepted reply is a well-typed answer of a well-formed question. -/
 theorem validate_sound (s : Spec) (r : Raw) (a : Answer) (h : validate s r = .ok a) :
     s.wf = true ∧ wt s a = true := by
   unfold validate at h
@@ -326,9 +280,7 @@ theorem validate_sound (s : Spec) (r : Raw) (a : Answer) (h : validate s r = .ok
           simp [wt, this]
 
 /-- **Validation is complete.** The raw form of every well-typed answer of a well-formed question is accepted and
-read back as that answer.
-
-$$\forall s, a:\ \mathrm{wf}(s) \land \mathrm{wt}(s, a) \Rightarrow \mathrm{validate}(s, \mathrm{toRaw}(s, a)) = \mathrm{ok}(a)$$ -/
+read back as that answer. -/
 theorem validate_complete (s : Spec) (a : Answer) (hw : s.wf = true) (ht : wt s a = true) :
     validate s (toRaw s a) = .ok a := by
   cases s with
@@ -377,35 +329,25 @@ theorem validate_complete (s : Spec) (a : Answer) (hw : s.wf = true) (ht : wt s 
 
 /-! ## Confidence (recomputed from the validated probabilities) -/
 
-/-- The absolute value of a rational.
-
-$$|q| = \begin{cases} -q & q < 0 \\ q & \text{otherwise} \end{cases}$$ -/
+/-- The absolute value of a rational. -/
 def absQ (q : Rat) : Rat := if q < 0 then -q else q
 
-/-- The first index holding the largest value (`|d|` when there is none, i.e. for the empty list).
-
-$$\mathrm{argmax}(d) = \min\{\, i : d_i = \mathrm{maxQ}(d) \,\} \ (\text{or } |d| \text{ if no such } i)$$ -/
+/-- The first index holding the largest value (`|d|` when there is none, i.e. for the empty list). -/
 def argmax (d : List Rat) : Nat := d.findIdx (· == maxQ d)
 
-/-- Σ over the list of `d_i · |i − c|` (indices from `i₀`): the probability-weighted distance from the level `c`.
-
-$$\mathrm{spread}(d, c, i_0) = \textstyle\sum_{j < |d|} d_j \cdot |i_0 + j - c|$$ -/
+/-- Σ over the list of `d_i · |i − c|` (indices from `i₀`): the probability-weighted distance from the level `c`. -/
 def spread : List Rat → Rat → Nat → Rat
   | [], _, _ => 0
   | p :: ps, c, i => p * absQ ((i : Rat) - c) + spread ps c (i + 1)
 
 /-- Choice confidence: (p_max − 1/n)/(1 − 1/n), 1 when all probability sits on one option, 0 when it is even
-(Rat division by zero is 0, so `n ≤ 1` gives 0).
-
-$$\mathrm{confChoice}(d) = \begin{cases} \dfrac{\mathrm{maxQ}(d) - 1/n}{1 - 1/n} & n \ge 2 \\ 0 & n \le 1 \end{cases}, \quad n = |d|$$ -/
+(Rat division by zero is 0, so `n ≤ 1` gives 0). -/
 def confChoice (d : List Rat) : Rat :=
   let n : Rat := d.length
   (maxQ d - 1 / n) / (1 - 1 / n)
 
 /-- Score confidence: 1 minus the probability-weighted distance from the most likely level `m`, over the same
-distance of an even spread measured from the middle level, floored at 0 (0 when that even-spread distance is 0).
-
-$$\mathrm{confScore}(d) = \begin{cases} \max\!\left(0,\ 1 - \dfrac{\mathrm{spread}(d, m, 0)}{\mathrm{MAD}}\right) & \mathrm{MAD} > 0 \\ 0 & \text{otherwise} \end{cases}, \quad m = \mathrm{argmax}(d),\ \mathrm{MAD} = \frac{1}{n}\sum_{i < n}\left|i - \frac{n - 1}{2}\right|,\ n = |d|$$ -/
+distance of an even spread measured from the middle level, floored at 0 (0 when that even-spread distance is 0). -/
 def confScore (d : List Rat) : Rat :=
   let n := d.length
   let mad := spread (List.replicate n 1) (((n : Rat) - 1) / 2) 0 / (n : Rat)
@@ -413,9 +355,7 @@ def confScore (d : List Rat) : Rat :=
   let c := 1 - spread d (argmax d : Rat) 0 / mad
   if c < 0 then 0 else c
 
-/-- The gate value of an answer: the confidence of a Choice or Score, the margin |2p − 1| of a Noul.
-
-$$\mathrm{gate}(\mathrm{choice}(o, d)) = \mathrm{confChoice}(d), \quad \mathrm{gate}(\mathrm{noul}(p)) = |2p - 1|, \quad \mathrm{gate}(\mathrm{score}(d)) = \mathrm{confScore}(d)$$ -/
+/-- The gate value of an answer: the confidence of a Choice or Score, the margin |2p − 1| of a Noul. -/
 def gate : Answer → Rat
   | .choice _ d => confChoice d
   | .noul p => absQ (2 * p - 1)
@@ -436,9 +376,7 @@ def gate : Answer → Rat
 
 /-- Why no answer came back: a timeout, an HTTP status, an unparsable body, a reply that fails validation, the
 spend guard, no API key in the keychain, a state that is not redacted, a state field the question does not declare,
-or a request body over its size cap (the last three: the send gate refuses to send it).
-
-$$\mathrm{Failure} ::= \mathrm{timeout} \mid \mathrm{http}(c) \mid \mathrm{malformed} \mid \mathrm{schema}(e) \mid \mathrm{overBudget} \mid \mathrm{noKey} \mid \mathrm{unredacted} \mid \mathrm{undeclared} \mid \mathrm{tooLarge}$$ -/
+or a request body over its size cap (the last three: the send gate refuses to send it). -/
 inductive Failure where
   | timeout
   | http (status : Nat)
@@ -451,18 +389,14 @@ inductive Failure where
   | tooLarge
 deriving Repr, DecidableEq, Inhabited
 
-/-- What one call produced: a validated answer or a failure.
-
-$$\mathrm{Outcome} ::= \mathrm{answer}(a) \mid \mathrm{failure}(f)$$ -/
+/-- What one call produced: a validated answer or a failure. -/
 inductive Outcome where
   | answer (a : Answer)
   | failure (f : Failure)
 deriving Repr, DecidableEq
 
 /-- The advice an oracle can give: a label only (an option, yes or no, a level index). It is printed for a person or
-an agent, never executed.
-
-$$\mathrm{Advice} ::= \mathrm{pick}(o) \mid \mathrm{yes} \mid \mathrm{no} \mid \mathrm{level}(i)$$ -/
+an agent, never executed. -/
 inductive Advice where
   | pick (option : String)
   | yes
@@ -471,9 +405,7 @@ inductive Advice where
 deriving Repr, DecidableEq, Inhabited
 
 /-- Why an outcome escalates to a person (or a reasoning model): a failure, no calibrated threshold yet, a stored
-threshold outside (0, 1], a gate value below the threshold, or the no-match option.
-
-$$\mathrm{Reason} ::= \mathrm{failure}(f) \mid \mathrm{uncalibrated} \mid \mathrm{badThreshold}(\tau) \mid \mathrm{below}(g, \tau) \mid \mathrm{noMatch}$$ -/
+threshold outside (0, 1], a gate value below the threshold, or the no-match option. -/
 inductive Reason where
   | failure (f : Failure)
   | uncalibrated
@@ -483,32 +415,24 @@ inductive Reason where
 deriving Repr, DecidableEq, Inhabited
 
 /-- The whole action space of an oracle question: advise or escalate. There is no constructor for a land, push,
-delete, cancel or kill, so no oracle outcome can become one.
-
-$$\mathrm{Action} ::= \mathrm{advise}(v) \mid \mathrm{escalate}(r), \quad v \in \mathrm{Advice},\ r \in \mathrm{Reason}$$ -/
+delete, cancel or kill, so no oracle outcome can become one. -/
 inductive Action where
   | advise (v : Advice)
   | escalate (r : Reason)
 deriving Repr, DecidableEq, Inhabited
 
-/-- Is the action an escalation?
-
-$$\mathrm{isEsc}(\mathrm{escalate}(r)) = \top, \quad \mathrm{isEsc}(\mathrm{advise}(v)) = \bot$$ -/
+/-- Is the action an escalation? -/
 def Action.isEscalate : Action → Bool
   | .escalate _ => true
   | .advise _ => false
 
-/-- The advice an answer gives: the pick of a Choice, yes iff p ≥ 1/2 for a Noul, the most likely level of a Score.
-
-$$\mathrm{adv}(\mathrm{choice}(o, d)) = \mathrm{pick}(o), \quad \mathrm{adv}(\mathrm{noul}(p)) = \begin{cases} \mathrm{yes} & p \ge \tfrac12 \\ \mathrm{no} & \text{otherwise} \end{cases}, \quad \mathrm{adv}(\mathrm{score}(d)) = \mathrm{level}(\mathrm{argmax}(d))$$ -/
+/-- The advice an answer gives: the pick of a Choice, yes iff p ≥ 1/2 for a Noul, the most likely level of a Score. -/
 def adviceOf : Answer → Advice
   | .choice pk _ => .pick pk
   | .noul p => if 1 / 2 ≤ p then .yes else .no
   | .score d => .level (argmax d)
 
-/-- The answer picks the question's no-match option.
-
-$$\mathrm{isNoMatch}(s, a) \iff s = \mathrm{choice}(O, z) \land a = \mathrm{choice}(z, d) \text{ for some } O, z, d$$ -/
+/-- The answer picks the question's no-match option. -/
 def isNoMatch : Spec → Answer → Bool
   | .choice _ z, .choice pk _ => pk == z
   | _, _ => false
@@ -516,9 +440,7 @@ def isNoMatch : Spec → Answer → Bool
 /-- **The policy** (the `oracle.decide` op): a failure escalates with it; an answer that is not well-typed escalates as
 a schema failure; without a calibrated threshold everything escalates; a threshold outside (0, 1] escalates (a
 hand-edited `thresholds.json` cannot open the gate); a gate value below the threshold escalates; the no-match option
-escalates; otherwise the answer's advice.
-
-$$\mathrm{policy}(s, t, o) = \begin{cases} \mathrm{escalate}(\mathrm{failure}(f)) & o = \mathrm{failure}(f) \\ \mathrm{escalate}(\mathrm{failure}(\mathrm{schema})) & o = \mathrm{answer}(a),\ \lnot(\mathrm{wf}(s) \land \mathrm{wt}(s, a)) \\ \mathrm{escalate}(\mathrm{uncalibrated}) & o = \mathrm{answer}(a),\ \mathrm{wf}(s) \land \mathrm{wt}(s, a),\ t = \bot \\ \mathrm{escalate}(\mathrm{badThreshold}(\tau)) & \ldots,\ t = \tau,\ \lnot(0 < \tau \le 1) \\ \mathrm{escalate}(\mathrm{below}(\mathrm{gate}(a), \tau)) & \ldots,\ t = \tau,\ 0 < \tau \le 1,\ \mathrm{gate}(a) < \tau \\ \mathrm{escalate}(\mathrm{noMatch}) & \ldots,\ t = \tau,\ 0 < \tau \le 1,\ \mathrm{gate}(a) \ge \tau,\ \mathrm{isNoMatch}(s, a) \\ \mathrm{advise}(\mathrm{adv}(a)) & \ldots,\ t = \tau,\ 0 < \tau \le 1,\ \mathrm{gate}(a) \ge \tau,\ \lnot\mathrm{isNoMatch}(s, a) \end{cases}$$ -/
+escalates; otherwise the answer's advice. -/
 def policy (s : Spec) (t : Option Rat) : Outcome → Action
   | .failure f => .escalate (.failure f)
   | .answer a =>
@@ -531,42 +453,32 @@ def policy (s : Spec) (t : Option Rat) : Outcome → Action
       else if isNoMatch s a then .escalate .noMatch
       else .advise (adviceOf a)
 
-/-- **The policy is total**: every question, threshold and outcome gives exactly an advice or an escalation.
-
-$$\forall s, t, o:\ (\exists v:\ \mathrm{policy}(s, t, o) = \mathrm{advise}(v)) \lor (\exists r:\ \mathrm{policy}(s, t, o) = \mathrm{escalate}(r))$$ -/
+/-- **The policy is total**: every question, threshold and outcome gives exactly an advice or an escalation. -/
 theorem policy_total (s : Spec) (t : Option Rat) (o : Outcome) :
     (∃ v, policy s t o = .advise v) ∨ (∃ r, policy s t o = .escalate r) := by
   cases h : policy s t o with
   | advise v => exact .inl ⟨v, rfl⟩
   | escalate r => exact .inr ⟨r, rfl⟩
 
-/-- **Every failure escalates**, with the failure as the reason, whatever the question and threshold.
-
-$$\forall s, t, f:\ \mathrm{policy}(s, t, \mathrm{failure}(f)) = \mathrm{escalate}(\mathrm{failure}(f))$$ -/
+/-- **Every failure escalates**, with the failure as the reason, whatever the question and threshold. -/
 theorem failure_escalates (s : Spec) (t : Option Rat) (f : Failure) :
     policy s t (.failure f) = .escalate (.failure f) := rfl
 
-/-- **Without a threshold every outcome escalates.**
-
-$$\forall s, o:\ \exists r:\ \mathrm{policy}(s, \bot, o) = \mathrm{escalate}(r)$$ -/
+/-- **Without a threshold every outcome escalates.** -/
 theorem uncalibrated_escalates (s : Spec) (o : Outcome) : ∃ r, policy s none o = .escalate r := by
   cases o with
   | failure f => exact ⟨_, rfl⟩
   | answer a =>
     by_cases hw : (s.wf && wt s a) = true <;> simp [policy, hw]
 
-/-- **Below the threshold escalates.** A confidence (or Noul margin) strictly below the threshold never advises.
-
-$$\forall s, a, \tau:\ \mathrm{gate}(a) < \tau \Rightarrow \exists r:\ \mathrm{policy}(s, \mathrm{some}(\tau), \mathrm{answer}(a)) = \mathrm{escalate}(r)$$ -/
+/-- **Below the threshold escalates.** A confidence (or Noul margin) strictly below the threshold never advises. -/
 theorem escalate_below (s : Spec) (a : Answer) (τ : Rat) (h : gate a < τ) :
     ∃ r, policy s (some τ) (.answer a) = .escalate r := by
   by_cases hw : (s.wf && wt s a) = true <;> simp [policy, hw, h] <;> split <;> exact ⟨_, rfl⟩
 
 /-- **What an advice certifies.** An advice comes only from a well-typed answer of a well-formed question (for a
 Choice: the pick carries the highest probability), under a threshold in (0, 1] that the gate value reaches, not the
-no-match option, and it is that answer's advice.
-
-$$\forall s, t, o, v:\ \mathrm{policy}(s, t, o) = \mathrm{advise}(v) \Rightarrow \exists a, \tau:\ o = \mathrm{answer}(a) \land t = \mathrm{some}(\tau) \land \mathrm{wf}(s) \land \mathrm{wt}(s, a) \land 0 < \tau \land \tau \le 1 \land \tau \le \mathrm{gate}(a) \land \lnot\mathrm{isNoMatch}(s, a) \land v = \mathrm{adv}(a)$$ -/
+no-match option, and it is that answer's advice. -/
 theorem advise_sound (s : Spec) (t : Option Rat) (o : Outcome) (v : Advice) (h : policy s t o = .advise v) :
     ∃ a τ, o = .answer a ∧ t = some τ ∧ s.wf = true ∧ wt s a = true ∧ 0 < τ ∧ τ ≤ 1 ∧ τ ≤ gate a ∧
       isNoMatch s a = false ∧ v = adviceOf a := by
@@ -589,9 +501,7 @@ theorem advise_sound (s : Spec) (t : Option Rat) (o : Outcome) (v : Advice) (h :
           simp [policy, hw, this] at h
     · simp [policy, hw] at h
 
-/-- **A threshold outside (0, 1] never advises.**
-
-$$\forall s, a, \tau:\ \lnot(0 < \tau \le 1) \Rightarrow \exists r:\ \mathrm{policy}(s, \mathrm{some}(\tau), \mathrm{answer}(a)) = \mathrm{escalate}(r)$$ -/
+/-- **A threshold outside (0, 1] never advises.** -/
 theorem escalate_bad_threshold (s : Spec) (a : Answer) (τ : Rat) (h : ¬(0 < τ ∧ τ ≤ 1)) :
     ∃ r, policy s (some τ) (.answer a) = .escalate r := by
   cases hp : policy s (some τ) (.answer a) with
@@ -603,9 +513,7 @@ theorem escalate_bad_threshold (s : Spec) (a : Answer) (τ : Rat) (h : ¬(0 < τ
 /-! ## The action space holds no irreversible effect -/
 
 /-- Every effect a tool of this repo can have on the world: land, push, delete, cancel, kill, or the two harmless
-ones, print a line and ask a person.
-
-$$\mathrm{Effect} ::= \mathrm{land} \mid \mathrm{push} \mid \mathrm{delete} \mid \mathrm{cancel} \mid \mathrm{kill} \mid \mathrm{print} \mid \mathrm{ask}$$ -/
+ones, print a line and ask a person. -/
 inductive Effect where
   | land
   | push
@@ -616,46 +524,34 @@ inductive Effect where
   | ask
 deriving Repr, DecidableEq
 
-/-- The irreversible effects: land, push, delete, cancel, kill.
-
-$$\mathrm{irrev}(e) \iff e \in \{\mathrm{land}, \mathrm{push}, \mathrm{delete}, \mathrm{cancel}, \mathrm{kill}\}$$ -/
+/-- The irreversible effects: land, push, delete, cancel, kill. -/
 def Effect.irreversible : Effect → Bool
   | .land | .push | .delete | .cancel | .kill => true
   | .print | .ask => false
 
-/-- The only effect an oracle action has: an advice is printed, an escalation asks a person.
-
-$$\mathrm{eff}(\mathrm{advise}(v)) = \mathrm{print}, \quad \mathrm{eff}(\mathrm{escalate}(r)) = \mathrm{ask}$$ -/
+/-- The only effect an oracle action has: an advice is printed, an escalation asks a person. -/
 def Action.effect : Action → Effect
   | .advise _ => .print
   | .escalate _ => .ask
 
-/-- **No oracle action is irreversible**, by the type: every `Action` (whatever produced it) has a reversible effect.
-
-$$\forall x \in \mathrm{Action}:\ \lnot\mathrm{irrev}(\mathrm{eff}(x))$$ -/
+/-- **No oracle action is irreversible**, by the type: every `Action` (whatever produced it) has a reversible effect. -/
 theorem action_reversible (x : Action) : x.effect.irreversible = false := by
   cases x <;> rfl
 
-/-- **Oracle output is never a land, push, delete, cancel or kill**: for every question, threshold and outcome.
-
-$$\forall s, t, o:\ \lnot\mathrm{irrev}(\mathrm{eff}(\mathrm{policy}(s, t, o)))$$ -/
+/-- **Oracle output is never a land, push, delete, cancel or kill**: for every question, threshold and outcome. -/
 theorem never_irreversible (s : Spec) (t : Option Rat) (o : Outcome) :
     (policy s t o).effect.irreversible = false := action_reversible _
 
 /-! ## Registered questions -/
 
 /-- The pinned model version (CONFIRMED at https://docs.typesafe.ai/models.md, read 2026-10-18: `jev-latest` is
-`jev-1.13.0`, and aliases move, so pin a versioned id; a request with it returned 200 on 2026-10-22).
-
-$$\mathrm{model} = \texttt{jev-1.13.0}$$ -/
+`jev-1.13.0`, and aliases move, so pin a versioned id; a request with it returned 200 on 2026-10-22). -/
 def model : String := "jev-1.13.0"
 
 /-- A registered question: wire id, instructions, answer space, option descriptions (choice options, or the `true` and
 `false` meanings of a noul; score levels are the descriptions in the spec), the calibration constants, both per
 option (precision target `q` and least correctly advised rows `k`; fixed here, the wire cannot override them), and
-the state field names a request may carry (a field name is sent, so only these fixed names can be).
-
-$$\mathrm{Question} = \mathrm{String} \times \mathrm{String} \times \mathrm{Spec} \times (\mathrm{String} \times \mathrm{String})^{*} \times \mathbb{Q} \times \mathbb{N} \times \mathrm{String}^{*}$$ -/
+the state field names a request may carry (a field name is sent, so only these fixed names can be). -/
 structure Question where
   name : String
   instructions : String

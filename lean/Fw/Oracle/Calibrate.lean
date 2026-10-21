@@ -31,18 +31,14 @@ questions.
 -/
 namespace Fw.Oracle
 
-/-- A labeled replay row: the model's answer and the true label.
-
-$$\mathrm{Row} = \mathrm{Answer} \times \mathrm{Advice}$$ -/
+/-- A labeled replay row: the model's answer and the true label. -/
 structure Row where
   answer : Answer
   label : Advice
 deriving Repr, DecidableEq
 
 /-- The advice values a question can give (the no-match option is never advised): every option of a Choice but the
-no-match option, yes and no for a Noul, every level index of a Score.
-
-$$\mathrm{advisable}(\mathrm{choice}(O, z)) = [\, \mathrm{pick}(o) : o \in O,\ o \ne z \,], \quad \mathrm{advisable}(\mathrm{noul}) = [\mathrm{yes}, \mathrm{no}], \quad \mathrm{advisable}(\mathrm{score}(L)) = [\, \mathrm{level}(i) : 0 \le i < |L| \,]$$ -/
+no-match option, yes and no for a Noul, every level index of a Score. -/
 def Spec.advisable : Spec → List Advice
   | .choice os z => (os.filter (· != z)).map .pick
   | .noul => [.yes, .no]
@@ -51,23 +47,17 @@ def Spec.advisable : Spec → List Advice
 /-! ## The decision under a per-option table -/
 
 /-- A threshold table: a threshold per option (the first entry of an option counts; an option without an entry has
-no threshold).
-
-$$\mathrm{Th} = (\mathrm{Advice} \times \mathbb{Q})^{*},\quad \mathrm{th}(T, o) = \begin{cases} \tau & (o, \tau) \text{ is the first entry of } T \text{ for } o \\ \bot & \text{no entry of } T \text{ is for } o \end{cases}$$ -/
+no threshold). -/
 abbrev Thresholds := List (Advice × Rat)
 
 /-- **The decision** (the `oracle.decide` op): a failure escalates with it; an answer goes through `policy` under the
 threshold of its own advice, or with no threshold (so it escalates as uncalibrated) when the table has no entry for
-that advice.
-
-$$\mathrm{decideOpt}(s, T, \mathrm{failure}(f)) = \mathrm{escalate}(\mathrm{failure}(f)),\quad \mathrm{decideOpt}(s, T, \mathrm{answer}(a)) = \mathrm{policy}(s, \mathrm{th}(T, \mathrm{adv}(a)), \mathrm{answer}(a))$$ -/
+that advice. -/
 def decideOpt (s : Spec) (th : Thresholds) : Outcome → Action
   | .failure f => .escalate (.failure f)
   | .answer a => policy s (th.lookup (adviceOf a)) (.answer a)
 
-/-- The policy advises only an answer's own advice.
-
-$$\forall s, t, a, v:\ \mathrm{policy}(s, t, \mathrm{answer}(a)) = \mathrm{advise}(v) \Rightarrow v = \mathrm{adv}(a)$$ -/
+/-- The policy advises only an answer's own advice. -/
 theorem policy_advise_eq (s : Spec) (t : Option Rat) (a : Answer) (v : Advice)
     (h : policy s t (.answer a) = .advise v) : v = adviceOf a := by
   obtain ⟨a', _, ho, _, _, _, _, _, _, _, hv⟩ := advise_sound s t _ v h
@@ -75,9 +65,7 @@ theorem policy_advise_eq (s : Spec) (t : Option Rat) (a : Answer) (v : Advice)
 
 /-- **What an advice under a table certifies.** It comes from an answer whose own advice it is, under that advice's
 entry `τ` of the table, with `τ` in (0, 1] reached by the gate value, from a well-typed answer of a well-formed
-question that is not the no-match option.
-
-$$\forall s, T, o, v:\ \mathrm{decideOpt}(s, T, o) = \mathrm{advise}(v) \Rightarrow \exists a, \tau:\ o = \mathrm{answer}(a) \land \mathrm{th}(T, v) = \tau \land \mathrm{wf}(s) \land \mathrm{wt}(s, a) \land 0 < \tau \le 1 \land \tau \le \mathrm{gate}(a) \land \lnot\mathrm{isNoMatch}(s, a) \land v = \mathrm{adv}(a)$$ -/
+question that is not the no-match option. -/
 theorem decideOpt_advise (s : Spec) (th : Thresholds) (o : Outcome) (v : Advice) (h : decideOpt s th o = .advise v) :
     ∃ a τ, o = .answer a ∧ th.lookup v = some τ ∧ s.wf = true ∧ wt s a = true ∧ 0 < τ ∧ τ ≤ 1 ∧ τ ≤ gate a ∧
       isNoMatch s a = false ∧ v = adviceOf a := by
@@ -91,9 +79,7 @@ theorem decideOpt_advise (s : Spec) (th : Thresholds) (o : Outcome) (v : Advice)
     exact ⟨a, τ, rfl, by rw [hv]; exact ht, hw, hwt, h0, h1, hg, hn, hv⟩
 
 /-- **Advising `o` reads only `o`'s entry.** Two tables with the same entry for `o` advise `o` on exactly the same
-outcomes, whatever their other entries.
-
-$$\forall s, T, T', v, o:\ \mathrm{th}(T, v) = \mathrm{th}(T', v) \Rightarrow (\mathrm{decideOpt}(s, T, o) = \mathrm{advise}(v) \iff \mathrm{decideOpt}(s, T', o) = \mathrm{advise}(v))$$ -/
+outcomes, whatever their other entries. -/
 theorem decideOpt_local (s : Spec) (th th' : Thresholds) (v : Advice) (o : Outcome)
     (h : th.lookup v = th'.lookup v) : decideOpt s th o = .advise v ↔ decideOpt s th' o = .advise v := by
   cases o with
@@ -105,50 +91,36 @@ theorem decideOpt_local (s : Spec) (th th' : Thresholds) (v : Advice) (o : Outco
       · intro hp; exact absurd (policy_advise_eq s _ a v hp).symm hv
       · intro hp; exact absurd (policy_advise_eq s _ a v hp).symm hv
 
-/-- **An empty table never advises.**
-
-$$\forall s, o:\ \exists r:\ \mathrm{decideOpt}(s, [\,], o) = \mathrm{escalate}(r)$$ -/
+/-- **An empty table never advises.** -/
 theorem decideOpt_empty (s : Spec) (o : Outcome) : ∃ r, decideOpt s [] o = .escalate r := by
   cases o with
   | failure f => exact ⟨_, rfl⟩
   | answer a => exact uncalibrated_escalates s (.answer a)
 
-/-- **An option without an entry never advises**: an answer whose advice has no entry escalates.
-
-$$\forall s, T, a:\ \mathrm{th}(T, \mathrm{adv}(a)) = \bot \Rightarrow \exists r:\ \mathrm{decideOpt}(s, T, \mathrm{answer}(a)) = \mathrm{escalate}(r)$$ -/
+/-- **An option without an entry never advises**: an answer whose advice has no entry escalates. -/
 theorem decideOpt_missing (s : Spec) (th : Thresholds) (a : Answer) (h : th.lookup (adviceOf a) = none) :
     ∃ r, decideOpt s th (.answer a) = .escalate r := by
   simp only [decideOpt, h]; exact uncalibrated_escalates s (.answer a)
 
 /-! ## Counting one option's rows -/
 
-/-- The rows the policy at threshold `τ` advises as `o`.
-
-$$\mathrm{adv}_o(s, \tau, R) = |[\, r \in R : \mathrm{policy}(s, \tau, \mathrm{answer}(r.a)) = \mathrm{advise}(o) \,]|$$ -/
+/-- The rows the policy at threshold `τ` advises as `o`. -/
 def advisedAs (s : Spec) (τ : Rat) (rows : List Row) (o : Advice) : Nat :=
   (rows.filter fun r => policy s (some τ) (.answer r.answer) == .advise o).length
 
-/-- The hits on option `o`: the rows on which the policy at threshold `τ` advises `o` and whose true label is `o`.
-
-$$\mathrm{hits}_o(s, \tau, R) = |[\, r \in R : \mathrm{policy}(s, \tau, \mathrm{answer}(r.a)) = \mathrm{advise}(o) \land r.\ell = o \,]|$$ -/
+/-- The hits on option `o`: the rows on which the policy at threshold `τ` advises `o` and whose true label is `o`. -/
 def hitsAs (s : Spec) (τ : Rat) (rows : List Row) (o : Advice) : Nat :=
   (rows.filter fun r => policy s (some τ) (.answer r.answer) == .advise o && r.label == o).length
 
-/-- The rows the decision under table `T` advises as `o`.
-
-$$\mathrm{adv}_o(s, T, R) = |[\, r \in R : \mathrm{decideOpt}(s, T, \mathrm{answer}(r.a)) = \mathrm{advise}(o) \,]|$$ -/
+/-- The rows the decision under table `T` advises as `o`. -/
 def advisedBy (s : Spec) (th : Thresholds) (rows : List Row) (o : Advice) : Nat :=
   (rows.filter fun r => decideOpt s th (.answer r.answer) == .advise o).length
 
-/-- The rows the decision under table `T` advises as `o` whose true label is `o`.
-
-$$\mathrm{hits}_o(s, T, R) = |[\, r \in R : \mathrm{decideOpt}(s, T, \mathrm{answer}(r.a)) = \mathrm{advise}(o) \land r.\ell = o \,]|$$ -/
+/-- The rows the decision under table `T` advises as `o` whose true label is `o`. -/
 def hitsBy (s : Spec) (th : Thresholds) (rows : List Row) (o : Advice) : Nat :=
   (rows.filter fun r => decideOpt s th (.answer r.answer) == .advise o && r.label == o).length
 
-/-- Under a table whose entry for `o` is `τ`, the decision advises `o` exactly when the policy at `τ` does.
-
-$$\forall s, T, o, \tau, a:\ \mathrm{th}(T, o) = \tau \Rightarrow (\mathrm{decideOpt}(s, T, \mathrm{answer}(a)) = \mathrm{advise}(o) \iff \mathrm{policy}(s, \tau, \mathrm{answer}(a)) = \mathrm{advise}(o))$$ -/
+/-- Under a table whose entry for `o` is `τ`, the decision advises `o` exactly when the policy at `τ` does. -/
 theorem decideOpt_iff_policy (s : Spec) (th : Thresholds) (o : Advice) (τ : Rat) (a : Answer)
     (h : th.lookup o = some τ) :
     decideOpt s th (.answer a) = .advise o ↔ policy s (some τ) (.answer a) = .advise o := by
@@ -158,9 +130,7 @@ theorem decideOpt_iff_policy (s : Spec) (th : Thresholds) (o : Advice) (τ : Rat
     · intro hp; exact absurd (policy_advise_eq s _ a o hp).symm hv
     · intro hp; exact absurd (policy_advise_eq s _ a o hp).symm hv
 
-/-- Under a table whose entry for `o` is `τ`, the rows advised as `o` and their hits are those of the policy at `τ`.
-
-$$\forall s, T, R, o, \tau:\ \mathrm{th}(T, o) = \tau \Rightarrow \mathrm{adv}_o(s, T, R) = \mathrm{adv}_o(s, \tau, R) \land \mathrm{hits}_o(s, T, R) = \mathrm{hits}_o(s, \tau, R)$$ -/
+/-- Under a table whose entry for `o` is `τ`, the rows advised as `o` and their hits are those of the policy at `τ`. -/
 theorem counts_by_entry (s : Spec) (th : Thresholds) (rows : List Row) (o : Advice) (τ : Rat)
     (h : th.lookup o = some τ) :
     advisedBy s th rows o = advisedAs s τ rows o ∧ hitsBy s th rows o = hitsAs s τ rows o := by
@@ -169,9 +139,7 @@ theorem counts_by_entry (s : Spec) (th : Thresholds) (rows : List Row) (o : Advi
     Bool.eq_iff_iff.mpr (by simpa only [beq_iff_eq] using decideOpt_iff_policy s th o τ r.answer h)
   simp [advisedBy, advisedAs, hitsBy, hitsAs, e]
 
-/-- The least element of a list, `none` for the empty list.
-
-$$\mathrm{least}([\,]) = \bot, \quad \mathrm{least}(x :: xs) = \begin{cases} x & \mathrm{least}(xs) = \bot \\ \min(x, y) & \mathrm{least}(xs) = y \end{cases}$$ -/
+/-- The least element of a list, `none` for the empty list. -/
 def least : List Rat → Option Rat
   | [] => none
   | x :: xs =>
@@ -179,9 +147,7 @@ def least : List Rat → Option Rat
     | none => some x
     | some y => some (if x ≤ y then x else y)
 
-/-- The least element is an element.
-
-$$\forall L, m:\ \mathrm{least}(L) = \mathrm{some}(m) \Rightarrow m \in L$$ -/
+/-- The least element is an element. -/
 theorem least_mem : ∀ (l : List Rat) (m : Rat), least l = some m → m ∈ l
   | [], _, h => by simp [least] at h
   | x :: xs, m, h => by
@@ -194,9 +160,7 @@ theorem least_mem : ∀ (l : List Rat) (m : Rat), least l = some m → m ∈ l
       · subst h; simp
       · subst h; exact List.mem_cons_of_mem _ (least_mem xs y hy)
 
-/-- The least element is below every element.
-
-$$\forall L, m:\ \mathrm{least}(L) = \mathrm{some}(m) \Rightarrow \forall x \in L:\ m \le x$$ -/
+/-- The least element is below every element. -/
 theorem least_le : ∀ (l : List Rat) (m : Rat), least l = some m → ∀ x ∈ l, m ≤ x
   | [], _, h, _, _ => by simp [least] at h
   | x :: xs, m, h, w, hw => by
@@ -226,9 +190,7 @@ theorem least_le : ∀ (l : List Rat) (m : Rat), least l = some m → ∀ x ∈ 
         · exact Rat.le_of_lt (Rat.not_le.mp hxy)
         · exact hyw w hw'
 
-/-- `least` is `none` only for the empty list.
-
-$$\forall L:\ \mathrm{least}(L) = \bot \iff L = [\,]$$ -/
+/-- `least` is `none` only for the empty list. -/
 theorem least_none (l : List Rat) : least l = none ↔ l = [] := by
   cases l with
   | nil => simp [least]
@@ -239,28 +201,20 @@ theorem least_none (l : List Rat) : least l = none ↔ l = [] := by
 /-! ## Calibration, one option at a time -/
 
 /-- A threshold `τ` is acceptable for option `o` when at least `max 1 k` rows advised as `o` at `τ` are hits and the
-precision on the rows advised as `o` is at least `q`.
-
-$$\mathrm{ok}_o(s, q, k, R, \tau) \iff \max(1, k) \le \mathrm{hits}_o(s, \tau, R) \land q \cdot \mathrm{adv}_o(s, \tau, R) \le \mathrm{hits}_o(s, \tau, R)$$ -/
+precision on the rows advised as `o` is at least `q`. -/
 def okOpt (s : Spec) (q : Rat) (k : Nat) (rows : List Row) (o : Advice) (τ : Rat) : Bool :=
   decide (max 1 k ≤ hitsAs s τ rows o) && decide (q * (advisedAs s τ rows o : Rat) ≤ (hitsAs s τ rows o : Rat))
 
-/-- The threshold of one option: the least gate value observed in the rows that is acceptable for `o`, or `none`.
-
-$$\mathrm{cal}_o(s, q, k, R) = \mathrm{least}([\, \mathrm{gate}(r.a) : r \in R,\ \mathrm{ok}_o(s, q, k, R, \mathrm{gate}(r.a)) \,])$$ -/
+/-- The threshold of one option: the least gate value observed in the rows that is acceptable for `o`, or `none`. -/
 def calibrateOpt (s : Spec) (q : Rat) (k : Nat) (rows : List Row) (o : Advice) : Option Rat :=
   least ((rows.map (gate ·.answer)).filter (okOpt s q k rows o))
 
 /-- **Calibration** on one row set (`certify` applies `calibrateOpt` to the choose part): for each advisable option in order, its
-threshold when it has one.
-
-$$\mathrm{calibrate}(s, q, k, R) = [\, (o, \tau) : o \in \mathrm{advisable}(s),\ \mathrm{cal}_o(s, q, k, R) = \tau \,]$$ -/
+threshold when it has one. -/
 def calibrate (s : Spec) (q : Rat) (k : Nat) (rows : List Row) : Thresholds :=
   s.advisable.filterMap fun o => (calibrateOpt s q k rows o).map (o, ·)
 
-/-- Looking up an option in a table built from a list of options gives that option's value when it is listed.
-
-$$\forall f, o, L:\ \mathrm{th}([\, (x, \tau) : x \in L,\ f(x) = \tau \,], o) = \begin{cases} f(o) & o \in L \\ \bot & o \notin L \end{cases}$$ -/
+/-- Looking up an option in a table built from a list of options gives that option's value when it is listed. -/
 theorem lookup_filterMap (f : Advice → Option Rat) (o : Advice) :
     ∀ L : List Advice, (L.filterMap fun x => (f x).map (x, ·)).lookup o = if o ∈ L then f o else none
   | [] => by simp
@@ -279,17 +233,13 @@ theorem lookup_filterMap (f : Advice → Option Rat) (o : Advice) :
       · have : (o == x) = false := by simpa using hox
         simp [this, ih, hox]
 
-/-- **The table's entry for `o` is `o`'s own calibration** (and none for an option the question cannot advise).
-
-$$\forall s, q, k, R, o:\ \mathrm{th}(\mathrm{calibrate}(s, q, k, R), o) = \begin{cases} \mathrm{cal}_o(s, q, k, R) & o \in \mathrm{advisable}(s) \\ \bot & \text{otherwise} \end{cases}$$ -/
+/-- **The table's entry for `o` is `o`'s own calibration** (and none for an option the question cannot advise). -/
 theorem calibrate_lookup (s : Spec) (q : Rat) (k : Nat) (rows : List Row) (o : Advice) :
     (calibrate s q k rows).lookup o = if o ∈ s.advisable then calibrateOpt s q k rows o else none :=
   lookup_filterMap _ o _
 
 /-- **One option's calibration is sound on its data.** At the returned threshold at least `max 1 k` rows advised as
-`o` are hits, and the precision on the rows advised as `o` reaches `q`.
-
-$$\forall s, q, k, R, o, \tau:\ \mathrm{cal}_o(s, q, k, R) = \tau \Rightarrow \max(1, k) \le \mathrm{hits}_o(s, \tau, R) \land q \cdot \mathrm{adv}_o(s, \tau, R) \le \mathrm{hits}_o(s, \tau, R)$$ -/
+`o` are hits, and the precision on the rows advised as `o` reaches `q`. -/
 theorem calibrateOpt_sound (s : Spec) (q : Rat) (k : Nat) (rows : List Row) (o : Advice) (τ : Rat)
     (h : calibrateOpt s q k rows o = some τ) :
     max 1 k ≤ hitsAs s τ rows o ∧ q * (advisedAs s τ rows o : Rat) ≤ (hitsAs s τ rows o : Rat) := by
@@ -297,9 +247,7 @@ theorem calibrateOpt_sound (s : Spec) (q : Rat) (k : Nat) (rows : List Row) (o :
   have hτ : okOpt s q k rows o τ = true := (List.mem_filter.mp hm).2
   simpa only [okOpt, Bool.and_eq_true, decide_eq_true_eq] using hτ
 
-/-- **One option's threshold is its least acceptable observed gate value.**
-
-$$\forall s, q, k, R, o, \tau:\ \mathrm{cal}_o(s, q, k, R) = \tau \Rightarrow \forall r \in R:\ \mathrm{ok}_o(s, q, k, R, \mathrm{gate}(r.a)) \Rightarrow \tau \le \mathrm{gate}(r.a)$$ -/
+/-- **One option's threshold is its least acceptable observed gate value.** -/
 theorem calibrateOpt_least (s : Spec) (q : Rat) (k : Nat) (rows : List Row) (o : Advice) (τ : Rat)
     (h : calibrateOpt s q k rows o = some τ) (r : Row) (hr : r ∈ rows)
     (hok : okOpt s q k rows o (gate r.answer) = true) : τ ≤ gate r.answer :=
@@ -307,9 +255,7 @@ theorem calibrateOpt_least (s : Spec) (q : Rat) (k : Nat) (rows : List Row) (o :
 
 /-- **Per-option soundness.** If the decision under the calibrated table advises `o` on any outcome, then `o` is an
 advisable option and, on the calibration rows, among the rows that same decision advises as `o` at least `max 1 k`
-are labeled `o` and the precision is at least `q`. No other option's rows enter this count.
-
-$$\forall s, q, k, R, x, o:\ \mathrm{decideOpt}(s, T, x) = \mathrm{advise}(o) \Rightarrow o \in \mathrm{advisable}(s) \land \max(1, k) \le \mathrm{hits}_o(s, T, R) \land q \cdot \mathrm{adv}_o(s, T, R) \le \mathrm{hits}_o(s, T, R),\quad T = \mathrm{calibrate}(s, q, k, R)$$ -/
+are labeled `o` and the precision is at least `q`. No other option's rows enter this count. -/
 theorem per_option_sound (s : Spec) (q : Rat) (k : Nat) (rows : List Row) (x : Outcome) (o : Advice)
     (h : decideOpt s (calibrate s q k rows) x = .advise o) :
     o ∈ s.advisable ∧ max 1 k ≤ hitsBy s (calibrate s q k rows) rows o ∧
@@ -325,9 +271,7 @@ theorem per_option_sound (s : Spec) (q : Rat) (k : Nat) (rows : List Row) (x : O
     exact ⟨ho, hs⟩
   · simp [ho] at hl'
 
-/-- The hits on `o` are among the rows labeled `o`.
-
-$$\forall s, \tau, R, o:\ \mathrm{hits}_o(s, \tau, R) \le |[\, r \in R : r.\ell = o \,]|$$ -/
+/-- The hits on `o` are among the rows labeled `o`. -/
 theorem hitsAs_le (s : Spec) (τ : Rat) (rows : List Row) (o : Advice) :
     hitsAs s τ rows o ≤ (rows.filter (·.label == o)).length := by
   unfold hitsAs
@@ -338,9 +282,7 @@ theorem hitsAs_le (s : Spec) (τ : Rat) (rows : List Row) (o : Advice) :
     by_cases h1 : r.label == o <;> by_cases h2 : policy s (some τ) (.answer r.answer) == .advise o <;>
       simp [h1, h2] <;> omega
 
-/-- A model whose answers never give the advice `o` has no hits on `o`.
-
-$$\forall s, \tau, R, o:\ (\forall r \in R:\ \mathrm{adv}(r.a) \ne o) \Rightarrow \mathrm{hits}_o(s, \tau, R) = 0$$ -/
+/-- A model whose answers never give the advice `o` has no hits on `o`. -/
 theorem hitsAs_eq_zero (s : Spec) (τ : Rat) (rows : List Row) (o : Advice)
     (h : ∀ r ∈ rows, adviceOf r.answer ≠ o) : hitsAs s τ rows o = 0 := by
   unfold hitsAs
@@ -350,9 +292,7 @@ theorem hitsAs_eq_zero (s : Spec) (τ : Rat) (rows : List Row) (o : Advice)
   exact h r hr (policy_advise_eq s _ _ o hp.1).symm
 
 /-- **A sparse option gets no threshold.** If fewer than `max 1 k` rows are labeled `o`, the table has no entry for
-`o` (so an answer advising `o` escalates), whatever the model answered.
-
-$$\forall s, q, k, R, o:\ |[\, r \in R : r.\ell = o \,]| < \max(1, k) \Rightarrow \mathrm{th}(\mathrm{calibrate}(s, q, k, R), o) = \bot$$ -/
+`o` (so an answer advising `o` escalates), whatever the model answered. -/
 theorem calibrate_none_of_sparse (s : Spec) (q : Rat) (k : Nat) (rows : List Row) (o : Advice)
     (hk : (rows.filter (·.label == o)).length < max 1 k) : (calibrate s q k rows).lookup o = none := by
   rw [calibrate_lookup]
@@ -366,9 +306,7 @@ theorem calibrate_none_of_sparse (s : Spec) (q : Rat) (k : Nat) (rows : List Row
   · rfl
 
 /-- **An option the model never answers gets no threshold.** In particular a model that gives the same advice `o₀`
-on every row gets a threshold for no other option, however the rows are labeled.
-
-$$\forall s, q, k, R, o:\ (\forall r \in R:\ \mathrm{adv}(r.a) \ne o) \Rightarrow \mathrm{th}(\mathrm{calibrate}(s, q, k, R), o) = \bot$$ -/
+on every row gets a threshold for no other option, however the rows are labeled. -/
 theorem never_answered_none (s : Spec) (q : Rat) (k : Nat) (rows : List Row) (o : Advice)
     (h : ∀ r ∈ rows, adviceOf r.answer ≠ o) : (calibrate s q k rows).lookup o = none := by
   rw [calibrate_lookup]
@@ -411,18 +349,14 @@ private def says (pick l : String) : Row :=
 
 /-! ## The Wilson lower bound -/
 
-/-- The one-sided 95 % normal quantile used by the held-out test, rounded to three places.
-
-$$z = 1.645$$ -/
+/-- The one-sided 95 % normal quantile used by the held-out test, rounded to three places. -/
 def wilsonZ : Rat := 1645 / 1000
 
 /-- **The Wilson score test**: `h` hits among `n` advised rows show a hit rate of at least `q` when `n > 0`, `q < 1`,
 `h ≥ q · n` and the score statistic at `q` reaches `z`, stated without square roots or division. By `wilsonOk_sound`
 this holds only when the Wilson score lower bound of `h/n` at quantile `z` is at least `q`. The Wilson bound is used
 rather than Clopper-Pearson because it is a polynomial inequality over the rationals (no beta quantiles), so Lean
-decides it exactly.
-
-$$\mathrm{wok}(z, q, h, n) \iff 0 < n \land q < 1 \land q n \le h \land z^2 n q (1 - q) \le (h - q n)^2$$ -/
+decides it exactly. -/
 def wilsonOk (z q : Rat) (h n : Nat) : Bool :=
   decide (0 < n) && decide (q < 1) && decide (q * n ≤ h) &&
     decide (z * z * n * q * (1 - q) ≤ (h - q * n) * (h - q * n))
@@ -457,11 +391,7 @@ private theorem wilson_core (N H q p Z : Rat) (hN : 0 < N) (hZ : 0 < Z) (hq1 : q
 /-- **The Wilson test bounds the rate from below.** If `wilsonOk z q h n` (with `z > 0` and `h ≤ n`), then every rate
 `p < q` lies below the observed rate and is rejected by the one-sided score test: `h/n` is more than `z` standard
 errors above `p`. So the Wilson score lower bound `L` of `h/n` (the least `p` the test does not reject) is at least
-`q`. It also needs `z² q ≤ n (1 − q)` rows: at `q = 9/10` and `z = 1.645`, at least 25.
-
-$$\forall z, q, h, n:\ 0 < z \land h \le n \land \mathrm{wok}(z, q, h, n) \Rightarrow z^2 q \le n (1 - q) \land \forall p < q:\ n p < h \land z^2 n p (1 - p) < (h - n p)^2$$
-
-$$\text{hence}\quad L = \frac{h + z^2/2 - z \sqrt{h (n - h)/n + z^2/4}}{n + z^2} \ \ge\ q$$ -/
+`q`. It also needs `z² q ≤ n (1 − q)` rows: at `q = 9/10` and `z = 1.645`, at least 25. -/
 theorem wilsonOk_sound (z q : Rat) (h n : Nat) (hz : 0 < z) (hn : h ≤ n) (hw : wilsonOk z q h n = true) :
     z * z * q ≤ n * (1 - q) ∧
       ∀ p : Rat, p < q → n * p < h ∧ z * z * n * p * (1 - p) < (h - n * p) * (h - n * p) := by
@@ -487,35 +417,23 @@ theorem wilsonOk_sound (z q : Rat) (h n : Nat) (hz : 0 < z) (hn : h ≤ n) (hw :
 
 /-! ## Held-out certification -/
 
-/-- The sum of the code points of a row id.
-
-$$\Sigma(c_1 \cdots c_n) = \sum_{j=1}^{n} \mathrm{code}(c_j)$$ -/
+/-- The sum of the code points of a row id. -/
 def idSum (i : String) : Nat := (i.toList.map Char.toNat).sum
 
 /-- **The split by id**: a row is held out exactly when the code points of its id sum to an odd number; every other
-row is in the choose part. The replay file names no split, so no author picks which rows test a threshold.
-
-$$\mathrm{held}(i) \iff \Sigma(i) \bmod 2 = 1$$ -/
+row is in the choose part. The replay file names no split, so no author picks which rows test a threshold. -/
 def heldOut (i : String) : Bool := idSum i % 2 == 1
 
-/-- A labeled replay row with its id.
-
-$$\mathrm{IRow} = \mathrm{String} \times \mathrm{Row}$$ -/
+/-- A labeled replay row with its id. -/
 abbrev IdRow := String × Row
 
-/-- The choose part: the rows whose id is not held out, in order.
-
-$$C(R) = [\, r : (i, r) \in R,\ \lnot\mathrm{held}(i) \,]$$ -/
+/-- The choose part: the rows whose id is not held out, in order. -/
 def choosePart (rs : List IdRow) : List Row := (rs.filter fun p => !heldOut p.1).map (·.2)
 
-/-- The holdout part: the rows whose id is held out, in order.
-
-$$H(R) = [\, r : (i, r) \in R,\ \mathrm{held}(i) \,]$$ -/
+/-- The holdout part: the rows whose id is held out, in order. -/
 def holdPart (rs : List IdRow) : List Row := (rs.filter fun p => heldOut p.1).map (·.2)
 
-/-- The hits on `o` are among the rows advised as `o`.
-
-$$\forall s, \tau, R, o:\ \mathrm{hits}_o(s, \tau, R) \le \mathrm{adv}_o(s, \tau, R)$$ -/
+/-- The hits on `o` are among the rows advised as `o`. -/
 theorem hitsAs_le_advisedAs (s : Spec) (τ : Rat) (rows : List Row) (o : Advice) :
     hitsAs s τ rows o ≤ advisedAs s τ rows o := by
   unfold hitsAs advisedAs
@@ -527,36 +445,26 @@ theorem hitsAs_le_advisedAs (s : Spec) (τ : Rat) (rows : List Row) (o : Advice)
       simp [h1, h2] <;> omega
 
 /-- **The holdout test** of option `o` at `τ`: `τ` is acceptable for `o` on the rows (`okOpt`), and the Wilson score
-lower bound of the hit rate among the rows advised as `o` is at least `q` (`wilsonOk` at `wilsonZ`).
-
-$$\mathrm{hold}_o(s, q, k, R, \tau) \iff \mathrm{ok}_o(s, q, k, R, \tau) \land \mathrm{wok}(z, q, \mathrm{hits}_o(s, \tau, R), \mathrm{adv}_o(s, \tau, R))$$ -/
+lower bound of the hit rate among the rows advised as `o` is at least `q` (`wilsonOk` at `wilsonZ`). -/
 def holdOk (s : Spec) (q : Rat) (k : Nat) (rows : List Row) (o : Advice) (τ : Rat) : Bool :=
   okOpt s q k rows o τ && wilsonOk wilsonZ q (hitsAs s τ rows o) (advisedAs s τ rows o)
 
 /-- The certified threshold of one option: the threshold chosen on the choose part, kept only when that same value
-passes the holdout test for `o` on the holdout part, else none.
-
-$$\mathrm{cert}_o(s, q, k, R) = \begin{cases} \tau & \mathrm{cal}_o(s, q, k, C(R)) = \tau \land \mathrm{hold}_o(s, q, k, H(R), \tau) \\ \bot & \text{otherwise} \end{cases}$$ -/
+passes the holdout test for `o` on the holdout part, else none. -/
 def certOpt (s : Spec) (q : Rat) (k : Nat) (rs : List IdRow) (o : Advice) : Option Rat :=
   (calibrateOpt s q k (choosePart rs) o).filter (holdOk s q k (holdPart rs) o)
 
 /-- **Certified calibration** (the table `oracle.calibrate` returns): for each advisable option in order, its
-certified threshold when it has one.
-
-$$\mathrm{certify}(s, q, k, R) = [\, (o, \tau) : o \in \mathrm{advisable}(s),\ \mathrm{cert}_o(s, q, k, R) = \tau \,]$$ -/
+certified threshold when it has one. -/
 def certify (s : Spec) (q : Rat) (k : Nat) (rs : List IdRow) : Thresholds :=
   s.advisable.filterMap fun o => (certOpt s q k rs o).map (o, ·)
 
-/-- The certified table's entry for `o` is `o`'s certified threshold (none for an option the question cannot advise).
-
-$$\forall s, q, k, R, o:\ \mathrm{th}(\mathrm{certify}(s, q, k, R), o) = \begin{cases} \mathrm{cert}_o(s, q, k, R) & o \in \mathrm{advisable}(s) \\ \bot & \text{otherwise} \end{cases}$$ -/
+/-- The certified table's entry for `o` is `o`'s certified threshold (none for an option the question cannot advise). -/
 theorem certify_lookup (s : Spec) (q : Rat) (k : Nat) (rs : List IdRow) (o : Advice) :
     (certify s q k rs).lookup o = if o ∈ s.advisable then certOpt s q k rs o else none :=
   lookup_filterMap _ o _
 
-/-- **A certified entry is the choose part's threshold, passing the holdout test on the holdout part.**
-
-$$\forall s, q, k, R, o, \tau:\ \mathrm{th}(\mathrm{certify}(s, q, k, R), o) = \tau \Rightarrow o \in \mathrm{advisable}(s) \land \mathrm{cal}_o(s, q, k, C(R)) = \tau \land \mathrm{hold}_o(s, q, k, H(R), \tau)$$ -/
+/-- **A certified entry is the choose part's threshold, passing the holdout test on the holdout part.** -/
 theorem certify_entry (s : Spec) (q : Rat) (k : Nat) (rs : List IdRow) (o : Advice) (τ : Rat)
     (h : (certify s q k rs).lookup o = some τ) :
     o ∈ s.advisable ∧ calibrateOpt s q k (choosePart rs) o = some τ ∧ holdOk s q k (holdPart rs) o τ = true := by
@@ -578,11 +486,7 @@ theorem certify_entry (s : Spec) (q : Rat) (k : Nat) (rs : List IdRow) (o : Advi
 advisable and, on the holdout rows, among the `n` rows that same decision advises as `o` the `h` hits (rows labeled
 `o`) number at least `max 1 k`, the precision `h/n` is at least `q`, and every rate `p < q` is rejected by the
 one-sided score test at `z = wilsonZ`, so the Wilson lower bound of `h/n` is at least `q` (`wilsonOk_sound`). On the
-choose rows the hits and the point precision meet the same bounds. No other option's rows enter these counts.
-
-$$\forall s, q, k, R, x, o:\ \mathrm{decideOpt}(s, T, x) = \mathrm{advise}(o) \Rightarrow o \in \mathrm{advisable}(s) \land \mathrm{pt}(H(R)) \land \big(\forall p < q:\ n p < h \land z^2 n p (1 - p) < (h - n p)^2\big) \land \mathrm{pt}(C(R))$$
-
-$$T = \mathrm{certify}(s, q, k, R),\quad h = \mathrm{hits}_o(s, T, H(R)),\quad n = \mathrm{adv}_o(s, T, H(R)),\quad \mathrm{pt}(P) \iff \max(1, k) \le \mathrm{hits}_o(s, T, P) \land q \cdot \mathrm{adv}_o(s, T, P) \le \mathrm{hits}_o(s, T, P)$$ -/
+choose rows the hits and the point precision meet the same bounds. No other option's rows enter these counts. -/
 theorem holdout_certified (s : Spec) (q : Rat) (k : Nat) (rs : List IdRow) (x : Outcome) (o : Advice)
     (h : decideOpt s (certify s q k rs) x = .advise o) :
     o ∈ s.advisable ∧
@@ -607,9 +511,7 @@ theorem holdout_certified (s : Spec) (q : Rat) (k : Nat) (rs : List IdRow) (x : 
   exact ⟨ho, hk.1, hw, hs⟩
 
 /-- **Holdout rows never move a threshold.** Two row sets with the same choose part give the same threshold to every
-option both certify; the holdout rows can only remove an entry.
-
-$$\forall s, q, k, R, R', o, \tau, \tau':\ C(R) = C(R') \land \mathrm{th}(\mathrm{certify}(s, q, k, R), o) = \tau \land \mathrm{th}(\mathrm{certify}(s, q, k, R'), o) = \tau' \Rightarrow \tau = \tau'$$ -/
+option both certify; the holdout rows can only remove an entry. -/
 theorem choose_independent_of_holdout (s : Spec) (q : Rat) (k : Nat) (rs rs' : List IdRow) (o : Advice) (τ τ' : Rat)
     (hc : choosePart rs = choosePart rs') (h : (certify s q k rs).lookup o = some τ)
     (h' : (certify s q k rs').lookup o = some τ') : τ = τ' := by
@@ -618,18 +520,14 @@ theorem choose_independent_of_holdout (s : Spec) (q : Rat) (k : Nat) (rs rs' : L
   rw [hc, e'] at e
   exact (Option.some.inj e).symm
 
-/-- Appending held-out rows leaves the choose part unchanged.
-
-$$\forall R, R':\ (\forall (i, r) \in R':\ \mathrm{held}(i)) \Rightarrow C(R \mathbin{+\!\!+} R') = C(R)$$ -/
+/-- Appending held-out rows leaves the choose part unchanged. -/
 theorem choosePart_append_held (rs extra : List IdRow) (h : ∀ p ∈ extra, heldOut p.1 = true) :
     choosePart (rs ++ extra) = choosePart rs := by
   have : extra.filter (fun p => !heldOut p.1) = [] := List.filter_eq_nil_iff.mpr fun p hp => by simp [h p hp]
   simp [choosePart, List.filter_append, this]
 
 /-- **A sparse holdout gives no threshold.** If fewer than `max 1 k` holdout rows are labeled `o`, the certified
-table has no entry for `o`, whatever the choose part shows.
-
-$$\forall s, q, k, R, o:\ |[\, r \in H(R) : r.\ell = o \,]| < \max(1, k) \Rightarrow \mathrm{th}(\mathrm{certify}(s, q, k, R), o) = \bot$$ -/
+table has no entry for `o`, whatever the choose part shows. -/
 theorem certify_none_of_sparse_holdout (s : Spec) (q : Rat) (k : Nat) (rs : List IdRow) (o : Advice)
     (hk : ((holdPart rs).filter (·.label == o)).length < max 1 k) : (certify s q k rs).lookup o = none := by
   cases hl : (certify s q k rs).lookup o with
@@ -675,16 +573,12 @@ private def probeHold (f : Nat) : List IdRow :=
 /-! ## Held-out evaluation -/
 
 /-- **Held-out evaluation** (the `oracle.eval` op): under table `T`, the number of rows the decision advises on and
-the number of those whose advice equals the true label.
-
-$$\mathrm{eval}(s, T, R) = \big(|[\, r \in R : \lnot\mathrm{isEsc}(\mathrm{decideOpt}(s, T, \mathrm{answer}(r.a))) \,]|,\ |[\, r \in R : \mathrm{decideOpt}(s, T, \mathrm{answer}(r.a)) = \mathrm{advise}(r.\ell) \,]|\big)$$ -/
+the number of those whose advice equals the true label. -/
 def evalBy (s : Spec) (th : Thresholds) (rows : List Row) : Nat × Nat :=
   ((rows.filter fun r => !(decideOpt s th (.answer r.answer)).isEscalate).length,
    (rows.filter fun r => decideOpt s th (.answer r.answer) == .advise r.label).length)
 
-/-- **Without a table entry nothing is advised**, so evaluation under the empty table covers no row.
-
-$$\forall s, R:\ \mathrm{eval}(s, [\,], R) = (0, 0)$$ -/
+/-- **Without a table entry nothing is advised**, so evaluation under the empty table covers no row. -/
 theorem evalBy_empty (s : Spec) (rows : List Row) : evalBy s [] rows = (0, 0) := by
   simp only [evalBy, Prod.mk.injEq, List.length_eq_zero_iff, List.filter_eq_nil_iff]
   constructor

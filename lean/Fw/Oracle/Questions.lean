@@ -15,9 +15,7 @@ namespace Fw.Oracle
 /-- **The CI-triage question**: why did this failed CI run fail? Options `flake`, `infra`, `real`, and the no-match
 option `unknown`; an option keeps a threshold only when, on the held-out rows the policy advises as that option, the
 one-sided 95 % Wilson lower bound of the precision is at least 9/10 and at least 5 of them are right
-(`Fw.Oracle.certify`). The state fields are `job`, `step` and `log`.
-
-$$\mathrm{ciTriage}.\mathit{spec} = \mathrm{choice}([\texttt{flake}, \texttt{infra}, \texttt{real}, \texttt{unknown}], \texttt{unknown}),\quad q = 9/10,\quad k = 5,\quad \mathit{fields} = [\texttt{job}, \texttt{step}, \texttt{log}]$$ -/
+(`Fw.Oracle.certify`). The state fields are `job`, `step` and `log`. -/
 def ciTriage : Question where
   name := "ci-triage"
   instructions := "A GitHub Actions run of a repository failed. The state holds the failing job and step, and the " ++
@@ -35,52 +33,34 @@ def ciTriage : Question where
   perOption := 5
   fields := ["job", "step", "log"]
 
-/-- **The CI-triage answer space is well formed** (distinct options, the no-match option among them, 2 to 255 options).
-
-$$\mathrm{wf}(\mathrm{ciTriage}.\mathit{spec}) = \top$$ -/
+/-- **The CI-triage answer space is well formed** (distinct options, the no-match option among them, 2 to 255 options). -/
 theorem ciTriage_wf : ciTriage.spec.wf = true := by decide
 
-/-- **Every option of the CI-triage question has a description, in option order.**
-
-$$\mathrm{map}(\pi_1, \mathrm{ciTriage}.\mathit{criteria}) = \mathrm{keys}(\mathrm{ciTriage}.\mathit{spec})$$ -/
+/-- **Every option of the CI-triage question has a description, in option order.** -/
 theorem ciTriage_criteria : ciTriage.criteria.map Prod.fst = ciTriage.spec.keys := by decide
 
-/-- The registered questions.
-
-$$\mathrm{questions} = [\mathrm{ciTriage}]$$ -/
+/-- The registered questions. -/
 def questions : List Question := [ciTriage]
 
-/-- The registered question with this name, if any.
-
-$$\mathrm{question}(x) = \text{the first } Q \in \mathrm{questions} \text{ with } Q.\mathit{name} = x, \text{ else } \bot$$ -/
+/-- The registered question with this name, if any. -/
 def question (x : String) : Option Question := questions.find? (·.name == x)
 
-/-- **The registered names are distinct**, so a name finds exactly its question.
-
-$$\mathrm{nodup}([\, Q.\mathit{name} : Q \in \mathrm{questions} \,])$$ -/
+/-- **The registered names are distinct**, so a name finds exactly its question. -/
 theorem questions_names_nodup : (questions.map (·.name)).Nodup := by decide
 
-/-- 64-bit FNV-1a over the code points of a text (offset basis 14695981039346656037, prime 1099511628211).
-
-$$h_0 = 14695981039346656037,\quad h_{i+1} = ((h_i \oplus c_i) \cdot 1099511628211) \bmod 2^{64},\quad \mathrm{fnv}(s) = h_{|s|}$$ -/
+/-- 64-bit FNV-1a over the code points of a text (offset basis 14695981039346656037, prime 1099511628211). -/
 def fnv (s : String) : Nat :=
   s.toList.foldl (fun h c => ((h ^^^ c.toNat) * 1099511628211) % 2 ^ 64) 14695981039346656037
 
-/-- The sort key of an option under a seed: the hash of the seed's decimal text, `:`, and the option.
-
-$$\kappa(\sigma, o) = \mathrm{fnv}(\mathrm{str}(\sigma) \mathbin{+\!\!+} \texttt{:} \mathbin{+\!\!+} o)$$ -/
+/-- The sort key of an option under a seed: the hash of the seed's decimal text, `:`, and the option. -/
 def shuffleKey (seed : Nat) (o : String) : Nat := fnv (toString seed ++ ":" ++ o)
 
 /-- **The seeded shuffle**: the options sorted by their key under the seed (a stable merge sort; equal keys keep
-their order).
-
-$$\mathrm{shuffle}(\sigma, O) = \mathrm{mergeSort}_{\le}(O)\ \text{by}\ \kappa(\sigma, \cdot)$$ -/
+their order). -/
 def shuffle (seed : Nat) (os : List String) : List String :=
   os.mergeSort fun a b => decide (shuffleKey seed a ≤ shuffleKey seed b)
 
-/-- **The shuffle is a permutation**: every option is listed, each exactly as often as before.
-
-$$\forall \sigma, O:\ \mathrm{shuffle}(\sigma, O) \sim O$$ -/
+/-- **The shuffle is a permutation**: every option is listed, each exactly as often as before. -/
 theorem shuffle_perm (seed : Nat) (os : List String) : (shuffle seed os).Perm os :=
   List.mergeSort_perm _ _
 

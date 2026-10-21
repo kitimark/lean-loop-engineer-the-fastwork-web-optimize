@@ -15,6 +15,7 @@
   "dependencies": {
     "@fw/contracts": "workspace:*",
     "@fw/gh-budget": "workspace:*",
+    "@fw/oracle": "workspace:*",
     "zod": "^4.6.7"
   }
 }

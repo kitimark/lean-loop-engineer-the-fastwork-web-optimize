@@ -1,9 +1,9 @@
 // The oracle client: thin I/O around fwcore's `oracle.*` ops (lean/Fw/Oracle/Wire.lean). It decides nothing:
 //   oracle.request -> exact body text (state redacted in Lean) -> sha256 key -> answer log lookup
-//   oracle.pre     -> replay | refuse(failure) | send(bodyText)   (provenance, redaction, size, daily cap, run cap:
-//                     Fw.Oracle.pre; the client gathers the provenance and the file texts, Lean checks them)
-//   send           -> exactly the bodyText oracle.pre returned; key from the keychain at call time; no key is
-//                     failure noKey (never a crash)
+//   oracle.pre     -> replay | refuse(failure) | send(bodyText)   (declared fields, redaction, size, daily cap, run
+//                     cap: Fw.Oracle.pre)
+//   send           -> exactly the bodyText oracle.pre returned; the key is read from the keychain only here, after
+//                     oracle.pre said send; no key is failure noKey (never a crash)
 //   oracle.store   -> the reply as logged and decided on (at most 64 KiB)
 //   oracle.decide  -> advise | escalate   (Fw.Oracle.policy; every failure escalates)
 // The key is never logged, written, put in the environment or in an error (./scrub.ts).
@@ -42,25 +42,7 @@ export type Ask = {
   thresholds: Json | null;
   /** Calls already made in this calibration run (enables the run cap). */
   run?: number;
-  /** Where each field's text comes from (Fw.Oracle.Provenance); a field without one is refused as unsourced. */
-  provenance: Record<string, Provenance>;
-  /** The committed files a provenance names, as `git show sha:path` printed them. */
-  files?: FileAt[];
-  /** The commit `origin/main` names (`git rev-parse origin/main`); a committed file at any other commit is refused
-   *  as notPublic. */
-  publicHead?: string;
 };
-
-/** One job of a workflow file at a run's head commit: its parsed `runs-on` value (absent when the job has none or the
- *  file does not parse; Lean's `hostedLog` then refuses the log as not public). */
-export type JobFact = { file?: string; job?: string; runsOn?: unknown };
-
-/** A field's origin: a file of this repository at a commit, or a GitHub Actions run's `--log-failed` text with the
- *  job facts of the workflows at its head commit. */
-export type Provenance =
-  | { kind: "committedPublic"; path: string; sha: string }
-  | { kind: "githubRunnerLog"; runId: number; jobs: JobFact[]; log: string };
-export type FileAt = { path: string; sha: string; content: string };
 
 export type Asked = {
   /** fwcore's `oracle.decide` reply: {action, advice?, reason?, gate?}. */
@@ -91,10 +73,9 @@ export async function ask(d: Deps, a: Ask): Promise<Asked> {
   const entries = readLog(d.logPath);
   const prior = loggedReply(entries, key);
   const today = utcDay(d.now());
-  // the raw state: Lean checks its provenance, then redacts it and builds the body itself
+  // the raw state: Lean checks its fields, then redacts it and builds the body itself
   const pre = d.core({
-    op: "oracle.pre", name: a.question, names, state: a.state, provenance: a.provenance, files: a.files ?? [],
-    ...(a.publicHead !== undefined ? { publicHead: a.publicHead } : {}),
+    op: "oracle.pre", name: a.question, names, state: a.state,
     logged: prior !== undefined, today, days: entries.map((e) => e.day), ...(a.run !== undefined ? { run: a.run } : {}),
   });
   const decide = (o: { reply: string } | { failure: Json }) =>
