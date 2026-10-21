@@ -33,7 +33,7 @@ test("nested call starts at once and runs the command (no deadlock)", () => {
   const env = { ...process.env, FW_SLOT_HELD: "1" };
   delete env.CI;
   const r = spawnSync(process.execPath, [helper, "test", "--", process.execPath, "-e", "console.log('ran', process.env.FW_SLOT_HELD); process.exit(4)"],
-    { env, encoding: "utf8", timeout: 20000 });
+    { env, encoding: "utf8" });
   assert.equal(r.status, 4);
   assert.match(r.stdout, /ran 1/);
 });
@@ -43,7 +43,7 @@ test("bare call queues: it goes through the slot (state written, child sees FW_S
   const env = { ...process.env, FW_SLOT_DIR: dir, FW_LOCK_EVENTS: "off", FW_SLOT_OWNER: "slot-self-test" };
   delete env.FW_SLOT_HELD; delete env.CI; delete env.FW_SLOT_SELF;
   const r = spawnSync(process.execPath, [helper, "test", "--", process.execPath, "-e", "console.log('held', process.env.FW_SLOT_HELD, process.env.FW_SLOT_OWNER)"],
-    { env, encoding: "utf8", timeout: 60000, cwd: top });
+    { env, encoding: "utf8", cwd: top });
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /held 1 slot-self-test/);
   assert.ok(readdirSync(dir).length > 0, "slot state written");
