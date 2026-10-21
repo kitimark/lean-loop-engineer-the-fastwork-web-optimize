@@ -6,6 +6,9 @@ import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as S from '../src/smooth/reduce.mjs';
+import { summariseTrace } from '../src/smooth/trace.mjs';
+import { cellOf, summary } from '../src/smooth/cadence-table.mjs';
+import { intervalsOf, orderFor } from '../src/smooth/cadence.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const golden = readFileSync(resolve(here, '../../contracts/golden/gate/smooth.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
@@ -64,4 +67,42 @@ test('repeats, rates and verdicts equal the golden', () => {
 
 test('the verdict set covers first, second, same and insufficient', () => {
   assert.deepEqual([...new Set(ops('verdict').map((g) => g.out))].sort(), ['first', 'insufficient', 'same', 'second']);
+});
+
+test('trace: pipeline pairs are counted by state and begin/draw/drop events by name', () => {
+  const b = (id, state, ts) => ({ name: 'PipelineReporter', ph: 'b', pid: 1, cat: 'cc', id2: { local: id }, ts, args: { frame_reporter: { state } } });
+  const e = (id, ts) => ({ name: 'PipelineReporter', ph: 'e', pid: 1, cat: 'cc', id2: { local: id }, ts, args: {} });
+  const t = summariseTrace([
+    b('0x1', 'STATE_PRESENTED_ALL', 1000), e('0x1', 18000), b('0x2', 'STATE_DROPPED', 20000), e('0x2', 60000),
+    { name: 'BeginFrame', ph: 'I', ts: 1 }, { name: 'DrawFrame', ph: 'I', ts: 2 }, { name: 'DroppedFrame', ph: 'I', ts: 3 }, { name: 'DroppedFrame', ph: 'I', ts: 4 },
+  ]);
+  assert.equal(t.presented, 1);
+  assert.equal(t.dropped, 1);
+  assert.equal(t.DroppedFrame, 2);
+  assert.equal(t.pipelines, 2);
+  assert.equal(t.presentedMax, 170);
+});
+
+test('cadence: intervals are tenths of ms between rAF times; the rep order rotates', () => {
+  assert.deepEqual(intervalsOf([0, 16.7, 33.4, 100]), [167, 167, 666]);
+  assert.deepEqual(orderFor(['a', 'b', 'c'], 0), ['a', 'b', 'c']);
+  assert.deepEqual(orderFor(['a', 'b', 'c'], 1), ['b', 'c', 'a']);
+  assert.deepEqual(orderFor(['a', 'b', 'c'], 3), ['a', 'b', 'c']);
+});
+
+test('cadence table: a cell takes its verdicts from the Lean-twin verdict over the base/aa pair', () => {
+  const rep = (arm, rep, bad) => ({ width: 390, arm, window: 'end', rep, ivs: [...Array(100 - bad).fill(167), ...Array(bad).fill(500)] });
+  const runs = [];
+  for (let r = 0; r < 5; r++) {
+    runs.push(rep('orig', r, 10), rep('base', r, 0), rep('aa', r, 0), rep('cand', r, 0));
+  }
+  const cell = cellOf('1', { runs, traces: [], search: '?x', hash: 'h', baseHash: 'b', version: 'v' }, 390, 'end');
+  assert.equal(cell.spread, 0);
+  assert.equal(cell.verdicts['orig|base'], 'second');
+  assert.equal(cell.verdicts['base|cand'], 'same');
+  assert.equal(cell.arms.orig.rate, 1000);
+  const sum = summary([cell]);
+  assert.equal(sum.find((e) => e.first === 'orig' && e.second === 'base').counts.second, 1);
+  const few = cellOf('2', { runs: runs.filter((r) => r.rep < 3), traces: [] }, 390, 'end');
+  assert.equal(few.verdicts['orig|base'], 'insufficient');
 });
