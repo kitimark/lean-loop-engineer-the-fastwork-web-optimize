@@ -29,10 +29,12 @@ and what fixes it without a retry or a longer timeout?
 
 ## Evidence
 
-Failed land runs (logs read): 39416621069, 39495702143, 39546479081, 39573231550 (the land report counted 6; two
-have no log left). All four print the same line: `1 cancelled of 1 failed: GET /selling/sellers/photographer/service-strawberry.jpg
+Failed land runs (logs read): 39416621069, 39495702143, 39546479081, 39573231550 (the land report counted 6: it counts the failed
+`cancelled-same-origin-0` checks in each run's `out/webkit.json`, INFERRED, the report is not kept; two of the six have no log left). All four print the same line: `1 cancelled of 1 failed: GET /selling/sellers/photographer/service-strawberry.jpg
 Load request cancelled`, with navigations `main compare, frame blank, frame blank, frame /, frame /, frame /`. No other
-webkit test failed in any of the 18 land failure logs. MEASURED.
+webkit test failed in any of the 18 land failure logs read. The ids of those 18 were not written down when they were read and
+cannot be recovered from this repository, so only the four above are named; `gh run list --workflow land.yml --status failure`
+lists the candidates. MEASURED for the four, not re-checkable for the other 14.
 
 Trace (`--trace`, run 39596410734, job 9 of 10, 1 failure in 200 compare loads), time in ms from load start:
 
@@ -73,7 +75,7 @@ Runner `ubuntu24-arm64 20261012.149.1`, node 24.22.0, 4 cpus (`ubuntu-24.04-arm`
 Natural rate on idle CI runners is low, so the natural repeats alone cannot separate fix from luck:
 run 39596410734 (old code) had 1 strawberry cancel in 200 compare loads; run 39597361506 (old code, all 6 targets,
 1200 loads) had 1; two pairs of 1000 compare loads (39600742129 fixed code, 39600767374 old code) had 0 each. So the
-natural rate is about 0.1 to 0.5 % per load; the land lane's loaded runners raise it. The provoke pair is the proof,
+natural rate on the old code is 2 in 2400 loads (200 + 1200 + 1000), about 0.1 %, and at most 0.5 % by the 1-in-200 run; the land lane's loaded runners raise it. The provoke pair is the proof,
 the natural repeats are the green record. MEASURED.
 
 ## A second flake, found on the way (not fixed here)
@@ -84,8 +86,8 @@ and on the old code, 3 of 1000 loads and 5 of 1000 loads, so it does not depend 
 shows up as "Load request cancelled" too, so it can turn the same test red with a different cause (run 39600742129 is
 red for that reason: its strawberry check passed in all 1000 loads). INFERRED cause: a reused keep-alive socket to
 the preview server (the shared `http.Agent`, `keepAlive`, `maxSockets 64`, line 25) that the server closed, so the
-request fails with a connection error that the `catch` turns into a 502 without a retry. Not verified: I did not
-get an error code from the arm app, and the file is outside this task's writes. Filed as an open item.
+request fails with a connection error that the `catch` turns into a 502 without a retry. Cause found and fixed in task preview-502-flake: `research/notes/2026/10-2x-preview-502-flake.md` (the inference was
+right about the reused socket; the closing side was the test rig's tap, not the preview server).
 
 ## Open
 

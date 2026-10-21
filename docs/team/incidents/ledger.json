@@ -3726,6 +3726,30 @@
    "leanVerdict": "partly",
    "leanReason": "fw review ready's verdict is Lean; extracting it from an agent's free text is glue. A structured gate field (exit code) would remove the parse.",
    "hardening": "review-gate-exitcode"
+  },
+  {
+   "id": "inc-ask-chat-only",
+   "at": "2026-10-22T01:30+07:00",
+   "title": "The lead asked the user two decisions in chat only, without a console step",
+   "symptom": "The Codemagic fallback approval and the Jev live-call route were written as 'Waiting on you' in chat; the user asked why they were not in their steps.",
+   "cause": "CONFIRMED (transcript): the lead posted console steps only for setup actions (safaridriver, copying records) and treated approvals and choices as chat text, against the standing rule that every user-only ask is also a console step.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "fdf87b62",
+     "note": "codemagic-pilot landed; its fallback wiring ask was then posted as step ask-codemagic-fallback (seq 19327) with ask-jev-live-route (seq 19328)"
+    }
+   ],
+   "repro": "End a status report with a question to the user and post no fw step.",
+   "fix": {
+    "task": "ask-step-guard"
+   },
+   "regression": "Every lead message that asks the user for a decision posts a pnpm fw step post --as lead --kind action in the same turn.",
+   "mistakeClass": "c-policy-prose",
+   "leanVerdict": "partly",
+   "leanReason": "Whether a message asks the user is prose; a guard can compare open asks named in the lead's reply against open action steps, which is checkable once asks are marked.",
+   "empiricalCheck": "console 'Your steps' card lists ask-codemagic-fallback and ask-jev-live-route",
+   "hardening": "ask-step-guard"
   }
  ]
 }

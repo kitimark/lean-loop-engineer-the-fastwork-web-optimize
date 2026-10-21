@@ -90,6 +90,7 @@ run_group() {
   job "lane inputs check" lake env lean --run scripts/LaneInputs.lean --check  # Fw.Store.Lane.inputs equal the workflow_dispatch inputs of chromium-counts, webkit-sim, breakpoint-gate
   job "engine goldens check" lake env lean --run scripts/EngineGoldens.lean  # golden/engine/*.jsonl equal the Lean generators, one generator per file
   job "provider golden check" lake env lean --run scripts/ProviderGolden.lean --check  # golden/ci/provider.jsonl (Fw.Ci.Provider)
+  job "codemagic golden check" lake env lean --run scripts/CodemagicGolden.lean --check  # golden/ci/codemagic.jsonl (Fw.Ci.Codemagic)
   job "overflow golden check" lake env lean --run scripts/OverflowGolden.lean --check  # golden/ci/overflow.jsonl (Fw.Ci.Overflow: which land legs overflow from GitHub to CircleCI)
   job "faithful golden check" lake env lean --run scripts/FaithfulGolden.lean --check  # golden/faithful/faithful.{verdict,comparable}.jsonl (Fw.Faithful)
   job "stage-mode golden check" lake env lean --run scripts/StageModeGolden.lean --check ../packages/contracts/golden/parts/stage-mode.jsonl  # the part-page plan, accept and read decisions the Chromium driver is checked against (Fw.Site.StageMode)
@@ -123,6 +124,7 @@ run_group() {
   job "run-perm golden check" lake env lean --run scripts/RunPermGolden.lean --check ../packages/contracts/golden/gate/run-perm.jsonl  # the run-level close-gap test closegap-did.mjs is checked against (Fw.Gate.RunPerm)
   job "land-tier golden check" lake env lean --run scripts/LandTierGolden.lean --check  # golden/console/land-tier.jsonl + lean/land-filter.txt (Fw.Console.LandTier)
   job "lake-slot golden check" sh -c "printf 'import Fw.Sched.LakeSlot\\n#eval Fw.Sched.LakeSlot.gen [\"--check\"]\\n' | lake env lean --stdin"  # golden/sched/lake-slot.gen.sh, sourced by scripts/lake-slot-lib.sh
+  job "sup-route golden check" sh -c "printf 'import Fw.Sup.Route\\n#eval Fw.Sup.Route.gen [\"--check\"]\\n' | lake env lean --stdin"  # golden/sup/route.jsonl (Fw.Sup.Route.routeOf)
   job "node-budget golden check" lake env lean --run scripts/NodeBudgetGolden.lean --check  # golden/sched/node-budget.gen.json (read by the vitest configs, the package node --test scripts and fw land) + node-budget.jsonl (Fw.Sched.NodeBudget)
   job "tap golden check" lake env lean --run scripts/MorphTapGolden.lean --check ../packages/contracts/golden/parts/morph-mount-tap.jsonl
   job "hero-scene-pause golden check" lake env lean --run scripts/HeroScenePauseGolden.lean --check ../packages/contracts/golden/parts/hero-scene-pause.jsonl  # the hero scene vectors hero/scene.golden.test.ts is checked against (Fw.Parts.HeroScenePause)
