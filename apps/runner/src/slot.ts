@@ -91,7 +91,7 @@ export function parseSysctl(out: string): Sysctl {
 export function memOf(vm: VmStat, sc: Sysctl, comprMBPerMin: number): Mem {
   const mb = (pages: number): number => Math.floor((pages * vm.pageB) / 1048576);
   return {
-    freeMB: mb(vm.free), specMB: mb(vm.spec), purgMB: mb(vm.purg), fileMB: mb(vm.file), fileMinMB: mb(sc.fileMinPages ?? 0),
+    freeMB: mb(vm.free), specMB: mb(vm.spec), purgMB: mb(vm.purg), fileMB: mb(vm.file), fileMinMB: sc.fileMinPages === null ? mb(vm.file) : mb(sc.fileMinPages),
     swapUsedMB: sc.swapUsedMB ?? 0, swapTotalMB: sc.swapTotalMB ?? 0, press: sc.press ?? 1, comprMBPerMin,
   };
 }
@@ -124,7 +124,7 @@ export function probe(dir: string, p: Params = DEFAULT_PARAMS): Sample {
   const vm = parseVmStat(cmd("vm_stat", []));
   const mem: Mem = vm === null
     ? { freeMB: Math.floor(os.freemem() / 1048576), specMB: 0, purgMB: 0, fileMB: 0, fileMinMB: 0, swapUsedMB: 0, swapTotalMB: 0, press: 1, comprMBPerMin: 0 }
-    : memOf(vm, parseSysctl(cmd("sysctl", ["vm.vm_page_filecache_min", "kern.memorystatus_vm_pressure_level", "vm.swapusage"])),
+    : memOf(vm, parseSysctl(["vm.vm_page_filecache_min", "kern.memorystatus_vm_pressure_level", "vm.swapusage"].map((o) => cmd("sysctl", [o])).join("")),
       markNext(dir, p, time, vm).rate);
   return {
     time,

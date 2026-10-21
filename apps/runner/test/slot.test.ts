@@ -106,6 +106,10 @@ describe("probe parsers", () => {
     expect(m.press).toBe(1);
     expect(memLow(DEFAULT_PARAMS, m)).toBe(false);
   });
+
+  it("an unread file-cache minimum counts no file cache", () => {
+    expect(availMB(memOf(parseVmStat(fixture("vm_stat-busy.txt"))!, parseSysctl(""), 0))).toBe(424);
+  });
 });
 
 const mem = (freeMB: number): Mem =>
