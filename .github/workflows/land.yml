@@ -39,6 +39,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       run: ${{ steps.g.outputs.run }}
+      skip: ${{ steps.legs.outputs.skip }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
@@ -61,6 +62,24 @@ jobs:
       - name: 'decision: skip: ${{ steps.g.outputs.reason }}'
         if: steps.g.outputs.run != 'true'
         run: 'true'
+      # Overflow (Lean Fw.Ci.Overflow): a land whose GitHub job slots are short gives GitHub only some legs and says which in the head
+      # commit (`[legs:a,b]`); the other legs run on CircleCI. No `[legs:]` (and a dispatch): every leg runs here.
+      - id: legs
+        env:
+          MSG: ${{ github.event.head_commit.message }}
+        run: |
+          set -eu
+          only=$(printf '%s' "$MSG" | sed -n 's/.*\[legs:\([a-z0-9,-]*\)\].*/\1/p' | head -n 1)
+          skip=""
+          # shellcheck disable=SC2013
+          for l in $(cat lean/land-legs.txt); do
+            case ",$only," in
+              *",$l,"*) ;;
+              *) if [ -n "$only" ]; then skip="$skip,{\"leg\":\"$l\"}"; fi ;;
+            esac
+          done
+          echo "skip=[${skip#,}]" >> "$GITHUB_OUTPUT"
+          echo "legs given to GitHub: ${only:-all}"
 
   land:
     needs: [guard]
@@ -75,6 +94,8 @@ jobs:
       fail-fast: false
       matrix:
         leg: [check-sh, suites-a, suites-b, chromium, playwright-webkit]
+        # the legs the guard says went to CircleCI (empty: none)
+        exclude: ${{ fromJSON(needs.guard.outputs.skip || '[]') }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
     steps:

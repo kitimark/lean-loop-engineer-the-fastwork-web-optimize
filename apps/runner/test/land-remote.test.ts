@@ -215,8 +215,9 @@ describe("awaitRemote with fake providers", () => {
     expect(started).toEqual(["github"]);
     expect(o.verdict.kind).toBe("local");
   });
-  it("the CircleCI stub is unavailable, so the land falls back", async () => {
-    const o = await awaitRemote(base({ circleci: circleciAdapter(() => false) }, ["circleci"]));
+  it("a CircleCI trigger that is refused is unavailable, so the land falls back", async () => {
+    const refused = circleciAdapter({ call, push: async () => ({ branch: "ci/b", marker: MARKER }), trigger: async () => { throw new Error("key check: missing"); }, wait: async () => 3, fetch: async () => { throw new Error("unused"); } });
+    const o = await awaitRemote({ ...base({ circleci: refused }, ["circleci"]), ctx: { task: "t", mergeSha: SHA, want, legs: { all: ["a"], gh: [], cc: ["a"] } } });
     expect(o.verdict.kind).toBe("local");
   });
   it("a start that throws is unavailable", async () => {

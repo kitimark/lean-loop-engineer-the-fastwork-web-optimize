@@ -10,7 +10,8 @@ import { basename, dirname, join, resolve } from "node:path";
 import { Command } from "@fw/contracts";
 import { branchCard } from "../../console-api/src/reconcile/naming.ts";
 import { begin, record, span } from "./timing.ts";
-import { cachedLaneView, circleciAdapter, DEFAULT_ALLOW, githubAdapter, BUILD_ARGV, runTiered, spawnWait, type Adapter, type Provider } from "./land-remote.ts";
+import { cachedLaneView, circleciAdapter, DEFAULT_ALLOW, githubAdapter, makePusher, BUILD_ARGV, runTiered, spawnWait, type Adapter, type OverflowPlan, type Provider } from "./land-remote.ts";
+import { ccStatusFrom, forceFullFromEnv, ghStatusOnce, overflowFor, readSlots, realCircle } from "./land-overflow.ts";
 import { askCore, dropLock, lockFacts, lockFile, readLock, takeLock } from "../hooks/land-guard.mjs";
 import { FWCORE_STALE_REASON, checkFailKind, failedStages, fwcoreStale, lintPlan, outcome, outcomeKind, type Kind, type Outcome } from "./land-verdict.ts";
 import { consoleSecret } from "./lib.ts";
@@ -679,9 +680,23 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     const all = candidateChecks(dir);
     const laneSel = new Set(selectTwoPhase(all, laneChanged, null, null));
     const laneIds = (call({ op: "console.landTier", ids: all.filter((x) => laneSel.has(x.id)).map((x) => x.id) }) as { remote: string[] }).remote;
+    // GitHub first; the legs it has no free job slot for go to CircleCI (Lean Fw.Ci.Overflow, land-overflow.ts). Injected adapters (tests) get no overflow.
+    let adapters = r.adapters;
+    let overflow: OverflowPlan | undefined;
+    if (!adapters) {
+      const gh = chargedGh(realEnv(mainDir));
+      const push = makePusher({ git: (a) => git(mainDir, a), scan: (m) => scanRange(dir, mainDir, m) });
+      adapters = { github: githubAdapter({ call, git: (a) => git(mainDir, a), scan: (m) => scanRange(dir, mainDir, m), wait: spawnWait(mainDir), gh, cache: (h, id) => cachedLaneView(realEnv(mainDir).dir, h, id) }, push) };
+      try {
+        const cc = await realCircle(mainDir, join(mainDir, ".fw-console", "circleci"), logLine);
+        const legs = readFileSync(join(dir, "lean", "land-legs.txt"), "utf8").split(/\s+/).filter(Boolean);
+        adapters.circleci = circleciAdapter(cc.deps(call, push));
+        overflow = overflowFor({ call, legs, now: Date.now, slots: () => readSlots(gh, Date.now, join(realEnv(mainDir).dir, "overflow-slots.json")), ghStatus: () => ghStatusOnce(), ccStatus: () => ccStatusFrom((p) => o.http.get(p)), keys: cc.keys, budget: cc.budget, forceFull: forceFullFromEnv(o.env ?? process.env) });
+      } catch (e) { logLine(`remote: CircleCI overflow is off (${e instanceof Error ? e.message : String(e)}); every leg on GitHub`); }
+    }
     const res = await runTiered({
       call, checks: list, laneIds, task: o.task, mergeSha: c, allow: r.allow ?? DEFAULT_ALLOW,
-      adapters: r.adapters ?? { github: githubAdapter({ call, git: (a) => git(mainDir, a), scan: (m) => scanRange(dir, mainDir, m), wait: spawnWait(mainDir), gh: chargedGh(realEnv(mainDir)), cache: (h, id) => cachedLaneView(realEnv(mainDir).dir, h, id) }), circleci: circleciAdapter(() => tryGit(mainDir, ["cat-file", "-e", `${main}:scripts/circleci.mjs`])) },
+      adapters, overflow,
       runLocal: async (argv) => { const bad = await runChecks(dir, argv); return { bad, kind: badKind }; },
       log: logLine, span: (step, startMs, durMs, exit) => record({ tool: "fw land", step, startMs, durMs, exit }, mainDir),
       sliceS: r.sliceS, deadlineS: r.deadlineS, waitsLeft: r.waitsLeft, built: phase1Built,
