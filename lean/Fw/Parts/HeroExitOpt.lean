@@ -1384,4 +1384,153 @@ def runScoped (args : List String) : IO UInt32 := do
 
 end Scoped
 
+/-! ## Variant `threaded`: the port's CSS endpoints, the hand-over rule and the sentinel, as golden rows -/
+
+section Threaded
+
+/-- The hero stage's `data-splash` value (set by `hero.orbit`): `prep` and `run` while the ring splash plays, `done`
+once the entrance is settled.
+
+The state of the entrance the variant waits for. -/
+inductive Splash where
+  | prep
+  | run
+  | done
+deriving Repr, DecidableEq
+
+/-- **The hand-over rule.** The scroll-driven animations replace the per-frame callback only when the entrance is
+settled (`consumer_eq_s` is stated for a settled entrance), the browser knows `animation-timeline`, and motion is not
+reduced (reduced motion keeps the original's rest frame).
+
+Whether the stage runs on its CSS animations (true) or on the original's callback (false). -/
+def live (s : Splash) (supported reduced : Bool) : Bool := decide (s = .done) && supported && !reduced
+
+/-- Live exactly when all three conditions hold.
+
+The rule has no other way to be true. -/
+theorem live_iff (s : Splash) (supported reduced : Bool) :
+    live s supported reduced = true ↔ s = .done ∧ supported = true ∧ reduced = false := by
+  unfold live
+  cases supported <;> cases reduced <;> simp
+
+/-- While the splash plays (`prep` or `run`) the callback keeps the page, whatever else holds.
+
+An unsettled entrance never hands over. -/
+theorem live_splash (s : Splash) (hs : s ≠ .done) (supported reduced : Bool) : live s supported reduced = false := by
+  unfold live
+  simp [hs]
+
+/-- Without `animation-timeline` the callback keeps the page.
+
+A browser that cannot run the timeline never hands over. -/
+theorem live_unsupported (s : Splash) (reduced : Bool) : live s false reduced = false := by
+  unfold live
+  simp
+
+/-- Under reduced motion the callback keeps the page.
+
+Reduced motion never hands over. -/
+theorem live_reduced (s : Splash) (supported : Bool) : live s supported true = false := by
+  unfold live
+  simp
+
+/-- The one live case.
+
+Settled, supported and not reduced: the animations run. -/
+theorem live_done : live .done true false = true := by
+  unfold live
+  simp
+
+/-- The settled consumers of one width band, named by the golden: the copy's entrance amount is 1 and a card's entrance
+state is 1 with scatter offset 1 (the card's `to` keyframe is `var(--scatter-*)` times that), so each value is a number
+of the exit opacity alone.
+
+What the CSS animates, per band `ℓ`. -/
+def settled (l : Bool) : List (String × Consumer) :=
+  [("copyOpacity", .copyOpacity 1), ("copyTranslateY", .copyTranslateY 1 l), ("copyBlur", .copyBlur 1 l),
+   ("cueBlur", .cueBlur), ("cueTranslateY", .cueTranslateY l), ("cardOpacity", .cardOpacity),
+   ("cardTranslate", .cardTranslate 1 0 1)]
+
+/-- The keyframe endpoints of every settled consumer, both bands: `0%` is the rest value, `100%` the exited one.
+
+These are the numbers `threaded.module.css` restates (px for lengths, bare for opacity and the card's scatter share). -/
+theorem keyframe_table_wide :
+    (settled false).map (fun p => (p.2.val 1, p.2.val 0)) =
+      [(1, 0), (0, -10), (0, 18), (0, 18), (0, 0), (1, 13 / 20), (0, 1)] := by
+  decide +kernel
+
+/-- The phone band: no copy blur (`filter: none`), the copy and the cue slide by 8 and 10 px.
+
+The same table at `(width<=600px)`. -/
+theorem keyframe_table_narrow :
+    (settled true).map (fun p => (p.2.val 1, p.2.val 0)) =
+      [(1, 0), (0, -8), (0, 0), (0, 18), (0, -10), (1, 13 / 20), (0, 1)] := by
+  decide +kernel
+
+/-- A rational as a golden number object. -/
+def gRat (q : Rat) : Lean.Json := Lean.Json.mkObj [("num", .str (toString q.num)), ("den", .str (toString q.den))]
+
+/-- An integer as a JSON number. -/
+def gInt (n : Int) : Lean.Json := Lean.toJson n
+
+/-- One golden line (keys sorted by `mkObj`'s rendering). -/
+def gLine (fn : String) (inp : List (String × Lean.Json)) (out : Lean.Json) : String :=
+  (Lean.Json.mkObj [("fn", .str fn), ("in", Lean.Json.mkObj inp), ("out", out)]).compress
+
+/-- The sample geometries: `(T, h, v)` with the track top at scroll offset `T` (desktop and phone shapes, a nonzero
+`T`, and a degenerate track). -/
+def threadedGeoms : List (Int × Int × Int) := [(0, 1600, 800), (300, 1600, 800), (0, 1688, 844), (0, 100, 800)]
+
+/-- The sample scroll offsets: before, at, inside (first/mid/last), at and after the end of the range, and the
+pointer-off cut. -/
+def threadedOffsets (T h v : Int) : List Int :=
+  let n : Int := max 1 (h - v)
+  [T - 50, T, T + 1, T + n / 4, T + n / 2, T + n * 19 / 20, T + n * 19 / 20 + 1, T + n - 1, T + n, T + n + 1, T + n + 500]
+
+/-- **Golden lines of `hero-exit.threaded.jsonl`.** `keyframes`: the `0%`/`100%` values of each settled consumer.
+`anim`: the animated value at offset `y` under RG11 next to the original's `calc()` value (equal: `consumer_eq_s`).
+`sentinelTop`: where the sentinel sits below the track top. `sentinelAbove`: the pointer decision. `live`: the hand-over
+table. -/
+def threadedLines : List String :=
+  ([false, true].flatMap fun l => (settled l).map fun (n, k) =>
+    gLine "keyframes" [("consumer", .str n), ("le600", .bool l)]
+      (Lean.Json.mkObj [("from", gRat (k.val 1)), ("to", gRat (k.val 0))])) ++
+  ([false, true].flatMap fun l => threadedGeoms.flatMap fun (T, h, v) => (threadedOffsets T h v).flatMap fun y =>
+    (settled l).map fun (n, k) =>
+      let prog := timelineProgress T (exitRange h v) y
+      gLine "anim" [("consumer", .str n), ("le600", .bool l), ("T", gInt T), ("h", gInt h), ("v", gInt v), ("y", gInt y)]
+        (Lean.Json.mkObj [("progress", gRat prog), ("anim", gRat (k.anim prog)),
+          ("orig", gRat (k.val (exitOpacityAt T h v y)))])) ++
+  (threadedGeoms.map fun (_, h, v) =>
+    gLine "sentinelTop" [("h", gInt h), ("v", gInt v)] (gRat (19 / 20 * exitRange h v))) ++
+  (threadedGeoms.flatMap fun (T, h, v) => (threadedOffsets T h v).map fun y =>
+    gLine "sentinelAbove" [("T", gInt T), ("h", gInt h), ("v", gInt v), ("y", gInt y)]
+      (.bool (sentinelAbove T h v y))) ++
+  ([Splash.prep, .run, .done].flatMap fun s => [false, true].flatMap fun sup => [false, true].map fun red =>
+    gLine "live" [("splash", .str (match s with | .prep => "prep" | .run => "run" | .done => "done")),
+      ("supported", .bool sup), ("reduced", .bool red)] (.bool (live s sup red)))
+
+/-- The golden text. -/
+def threadedText : String := String.join (threadedLines.map (· ++ "\n"))
+
+-- Every sampled `anim` line carries equal animated and original values (`consumer_eq_s`, evaluated on the samples).
+#guard (([false, true].flatMap fun l => threadedGeoms.flatMap fun (T, h, v) => (threadedOffsets T h v).flatMap fun y =>
+  (settled l).map fun (_, k) =>
+    k.anim (timelineProgress T (exitRange h v) y) == k.val (exitOpacityAt T h v y)).all id)
+
+/-- Print the golden, or with `--check <file>` compare it; exit 1 on a difference. -/
+def runThreaded (args : List String) : IO UInt32 := do
+  match args with
+  | ["--check", path] =>
+    if (← IO.FS.readFile path) == threadedText then
+      IO.eprintln s!"exit threaded golden: {path} is up to date"
+      return 0
+    IO.eprintln s!"exit threaded golden: {path} differs from the generated text"
+    return 1
+  | _ =>
+    IO.print threadedText
+    return 0
+
+end Threaded
+
 end Fw.Parts.HeroExitOpt
