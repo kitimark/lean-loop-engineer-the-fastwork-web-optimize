@@ -19,7 +19,9 @@ jobs it admits rises and falls with the machine's load and memory.
 | `fw slot renew --token t [--lease s]` | extends the lease of your own live slot | 1 when it expired or is not yours |
 | `fw slot release --token t` | frees your slot | 0 |
 | `fw slot status [--json]` | current limit, sample, holders, queue | 0 |
-| `fw slot sim [--apply]` | the Simulator action; `--apply` shuts down booted `fw-*` devices when it says shutdown | 0 |
+| `fw slot sim [--apply]` | the Simulator check now; `--apply` shuts down every booted device when it says shutdown | 0 |
+| `fw slot held --kind <k>` | whether a live slot of kind `k` exists (used by `scripts/sim-lock.sh`) | 0 held, 1 free |
+| `fw slot admit --kind build [--agents n]` | may the lead start one more builder or reviewer; prints `VERDICT admit build` or `VERDICT wait build`, the reason on stderr | 0 admit, 75 wait |
 
 Kinds: `check`, `test`, `land`, `sim`, `other`. `--owner o` (default `FW_SLOT_OWNER`, else the worktree's
 directory name) names the holder. Typical lines:
@@ -29,6 +31,7 @@ pnpm -s fw slot run --kind check --cache -- sh lean/scripts/check.sh
 pnpm -s fw slot run --kind test --cache -- pnpm --filter @fw/runner test
 pnpm -s fw slot run --kind land --cache -- pnpm -s fw land <branch> --task <id> --dry
 t=$(pnpm -s fw slot acquire --kind sim --lease 1800)   # then: fw slot renew --token "$t"; fw slot release --token "$t"
+pnpm -s fw slot admit --kind build                       # lead, before spawning a builder
 ```
 
 ## Decisions (Lean)
@@ -43,13 +46,31 @@ t=$(pnpm -s fw slot acquire --kind sim --lease 1800)   # then: fw slot renew --t
   (`verdict_not_older_of_sim_blocked`). Otherwise it waits until the job's footprint fits above the 1 GB floor.
   Footprints: check is 700 MB per Lean worker, test 1600, land 1500, sim 2800, other 1000. Holders admitted in the
   last 60 s are charged, since free memory does not show them yet. After 1800 s the verdict is timeout, and the job never runs (exit 75).
+- **Simulator first.** A Simulator ticket never waits as `older` (`verdict_sim_never_older`). It waits as `drain`
+  while more than one holder of another kind runs. A ticket of another kind waits as `simFirst` while a Simulator slot
+  is held and another kind still runs, and while a Simulator ticket is pending unless a slot and the Simulator's
+  2800 MB above the floor stay free after it starts. So every admission keeps "Simulator held implies at most one other
+  holder" (`admit_keeps_simInv`). When another kind is admitted while a Simulator ticket is pending, the first
+  Simulator ticket is still admitted on the same sample (`sim_not_starved`).
+- **Old lock.** A live `.local/locks/sim` directory (no pid yet, or a live pid) counts as one Simulator holder
+  (`withLegacy`): a sim ticket waits `simBusy` (`verdict_legacy_blocks_sim`). `sim-lock.sh acquire` takes its
+  directory, asks `fw slot held --kind sim` under the slot's state lock, and gives the directory back while a slot sim
+  holder is live. Either order of the two locks leaves one Simulator user. A failing check refuses the old lock; CI
+  skips the check (no slot there).
 - **Lean workers.** A check gets as many Lean workers as fit the free room, at least 1 and at most the online cores.
   `run` exports them as `LEAN_NUM_THREADS` and `LAKE_SLOT_CORES`.
 - **Holders.** A holder is an owner, a token and a lease, never a process id. A live lease is never recovered as stale
   (`live_never_recovered`). Only the same owner and token renew or release it. `run` renews every 20 s.
-- **Simulator.** Only the owner of a live `sim` slot may boot it (`simBoot`). `fw slot sim` keeps a booted `fw-*`
-  device while a live sim slot or the old `.local/locks/sim` lock exists. Once 600 s have passed with neither, it
-  shuts the device down.
+- **Simulator.** Only the owner of a live `sim` slot may boot it (`simBoot`). The slot itself checks the booted
+  devices (every device, not only `fw-*`) on each acquire poll and on each release, at most every 30 s machine-wide
+  (`simDue`). The idle clock starts at the first check that sees a device booted with neither a live sim slot nor the
+  old lock, and clears while either holds (`simIdleNext`). Once it has run 600 s, the check shuts every booted device
+  down (`sim_shutdown_idle`); it never does so under a holder (`sim_shutdown_only_unheld`) or at a first sighting
+  (`sim_first_sighting_keeps`). The decision and the shutdown run under the state lock.
+- **Builder admission.** `admit --kind build` admits when no Simulator ticket is queued, the live-agent count is known
+  and below 8, and free memory covers the floor plus 2100 MB (`admitBuild_iff`). The count is `--agents n`, else the
+  last line of `<main>/.fw-console/health.jsonl` (agents neither done nor gone), unknown when older than 900 s
+  (`agentsSeen`).
 - **Stop.** On TERM or INT, `run` sends TERM to the child's group, then KILL after 5 s, and only while the leader's
   pid and start time are unchanged.
 - **Result cache.** With `--cache` on a clean tree, the key is the kind, the exact argv, the HEAD tree hash and, for
@@ -71,5 +92,9 @@ t=$(pnpm -s fw slot acquire --kind sim --lease 1800)   # then: fw slot renew --t
 ## Limits
 
 - Footprints and thresholds come from one MEASURED busy window and are initial values.
-- `scripts/sim-lock.sh` callers outside this task still use the old lock. `fw slot sim` respects it.
-- `fw slot sim --apply` is not yet run by `fw watch`.
+- `scripts/sim-lock.sh` callers outside this task still use the old lock; it and the slot exclude each other.
+- The Simulator check runs only while someone polls or releases a slot; `fw watch` does not run it yet.
+- The idle shutdown covers every booted device, also one booted by hand without a slot or the old lock.
+- `admit --kind build` is run by the lead by hand; `build-review.js` does not call it yet. Its thresholds (8 agents,
+  2100 MB) come from the same busy window.
+- The Simulator's own footprint is not reduced; sim priority only orders the other work around it.
