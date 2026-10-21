@@ -6,7 +6,7 @@ Read-only on the site and the ledger; the lead updates ledger row n=42 from the 
 Verified (CONFIRMED by source, no measurement)
 - Answer 1: the original (snapshot/site @94928077) ends at the platform card at every width. Page template
   `nodes/2.DyWL8TcE.js` byte 364269: main = hero, people, pain, commission, platform (GM at 364831) with no width
-  condition; after main only the closed `<dialog>` (display:none, position:fixed, `DialogHeader.Qcgwm6ST.css` 16223).
+  condition; after main only the closed `<dialog>` (display:none, position:fixed, `DialogHeader.Qcgwm6ST.css` 16223); plus an empty tooltip portal div and a visually hidden locale nav (index.html 99466, CSS at 3999).
   Section padding 0 at all widths (`2.gBuqKVzi.css` 94996, 144953); the card is its only child (343776). No footer.
 - Answer 2: WebKit@862f17d `Page.cpp:2298-2300` runs `evaluateMediaQueriesAndReportChanges` -> `Document.cpp:5861-5867`
   -> `MediaQueryMatcher.cpp:95-116` -> `MediaQueryList.cpp:108` dispatches `change` synchronously; this comes before rAF
