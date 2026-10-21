@@ -3142,4 +3142,189 @@ theorem reply_once {c : Cfg} {s : State} {es : List Event} (h : Inv c s)
 example : (replyIds (Ex.after [.tick 1 Ex.calm, .request 42 1 Ex.big, .request 42 2 Ex.big, .tick 62 Ex.calm]).2).Nodup :=
   reply_once (init_inv Ex.cfg) fun e he now snap inp h => by subst h; simp at he
 
+theorem mem_replyIds {n : Nat} {r : Reply} {cs : List Cmd} (h : Cmd.reply n r ∈ cs) : n ∈ replyIds cs :=
+  List.mem_filterMap.2 ⟨_, h, rfl⟩
+
+theorem replyIds_mem {n : Nat} {cs : List Cmd} (h : n ∈ replyIds cs) : ∃ r, Cmd.reply n r ∈ cs := by
+  obtain ⟨x, hx, e⟩ := List.mem_filterMap.1 h
+  cases x <;> first | (simp at e; subst e; exact ⟨_, hx⟩) | simp at e
+
+theorem tick_pend_mem {c : Cfg} {s : State} {now : Nat} {smp : Sample} {q : Req} (hq : q ∈ s.pending)
+    (hc : smp.clients.contains q.owner = true) : q ∈ (tick c s now smp).1.pending := by
+  unfold tick
+  dsimp only
+  unfold shedStage
+  split <;> exact List.mem_filter.2 ⟨hq, hc⟩
+
+theorem tick_now {c : Cfg} {s : State} {now : Nat} {smp : Sample} : (tick c s now smp).1.now = max s.now now := by
+  unfold tick
+  dsimp only
+  unfold shedStage
+  split <;> rfl
+
+/-- reply_by_deadline: a request still queued when a tick reaches its deadline gets a reply in that step, unless
+its client is missing from the sample; its deadline is at most `maxWait` after its arrival. -/
+theorem reply_by_deadline {c : Cfg} {s : State} {now : Nat} {smp : Sample} {q : Req} (h : Inv c s)
+    (hq : q ∈ s.pending) (hd : q.deadline ≤ now) (hc : smp.clients.contains q.owner = true) :
+    (∃ r, Cmd.reply q.id r ∈ (step c s (.tick now smp)).2) ∧ q.deadline ≤ q.born + c.maxWait := by
+  refine ⟨?_, (h.1.preq q hq).1⟩
+  have ha : authed c (.tick now smp) = true := rfl
+  have hw := wf_pre (.tick now smp) h.1
+  have hj := pump_pj hw
+  have hq1 : q ∈ (pre c s (.tick now smp)).1.pending := tick_pend_mem hq hc
+  have hperm : (replyIds (pumpAcc c (pre c s (.tick now smp)).1).out ++
+      (pumpAcc c (pre c s (.tick now smp)).1).st.pending.map (·.id)).Perm
+      ((pre c s (.tick now smp)).1.pending.map (·.id)) := by simpa using hj.perm
+  have hs2 : (pumpAcc c (pre c s (.tick now smp)).1).st.pending.Sublist (pre c s (.tick now smp)).1.pending := by
+    simpa using hj.sub
+  rcases List.mem_append.1 (hperm.symm.subset (List.mem_map_of_mem hq1)) with hm | hm
+  · obtain ⟨r, hr⟩ := replyIds_mem hm
+    exact ⟨r, by rw [step_out ha]; exact List.mem_append_right _ hr⟩
+  · obtain ⟨q', hq', e'⟩ := List.mem_map.1 hm
+    have hi := step_inv (.tick now smp) h
+    rw [step_st ha] at hi
+    have h1 := hi.2 q' hq'
+    have : q' = q := eq_of_nodup_map (·.id) _ (pending_ids_nodup hw) q' q (hs2.subset hq') hq1 e'
+    subst this
+    rw [hj.now] at h1
+    have : (pre c s (.tick now smp)).1.now = max s.now now := tick_now
+    omega
+
+example : ∃ r, Cmd.reply 1 r ∈ (step Ex.cfg (Ex.after [.tick 1 Ex.calm, .request 42 1 Ex.big, .request 42 2 Ex.big]).1
+    (.tick 62 Ex.calm)).2 := by
+  have h := run_inv [.tick 1 Ex.calm, .request 42 1 Ex.big, .request 42 2 Ex.big] _ (init_inv Ex.cfg)
+  exact (reply_by_deadline (q := ⟨1, 2, .job, 0, { ram := 5000 }, 60, 1, 1, 31⟩) h (by decide) (by decide)
+    (by decide)).1
+
+/-! ## Queue order -/
+
+/-- What one pump step does against the accumulator `a` and request `q`: the queue grows by at most `q`, a blocked
+pump stays blocked, a queued job implies blocked, and a new grant answers `q`, as a job only when not blocked. -/
+def OF (a : Acc) (q : Req) (a' : Acc) : Prop :=
+  (∀ x ∈ a'.st.pending, x ∈ a.st.pending ∨ x = q) ∧ (a.blk = true → a'.blk = true) ∧
+  ((∀ x ∈ a.st.pending, x.kind = .job → a.blk = true) → ∀ x ∈ a'.st.pending, x.kind = .job → a'.blk = true) ∧
+  ∀ x ∈ a'.out, x ∈ a.out ∨ ∀ n l, x = .reply n (.granted l) → n = q.id ∧ (l.kind = .job → a.blk = false)
+
+theorem of_reply {a : Acc} {q : Req} {r : Reply} (a' : Acc) (hp : a'.st.pending = a.st.pending)
+    (hb : a'.blk = a.blk) (ho : a'.out = a.out ++ [.reply q.id r]) (hr : ∀ l, r = .granted l → l.kind = .job → a.blk = false) :
+    OF a q a' := by
+  refine ⟨fun x hx => Or.inl (hp ▸ hx), fun h => hb ▸ h, fun h x hx hk => hb ▸ h x (hp ▸ hx) hk, fun x hx => ?_⟩
+  rw [ho] at hx
+  rcases List.mem_append.1 hx with hx | hx
+  · exact Or.inl hx
+  · refine Or.inr fun n l e => ?_
+    rw [List.mem_singleton.1 hx] at e
+    injection e with e1 e2
+    exact ⟨e1.symm, hr l e2⟩
+
+theorem of_keep {a : Acc} {q : Req} (a' : Acc) (b : Bool) (cs : List Cmd) (hp : a'.st.pending = a.st.pending ++ [q])
+    (hb : a'.blk = (a.blk || b)) (ho : a'.out = a.out ++ cs) (hc : ∀ x ∈ cs, ∀ n r, x ≠ .reply n r)
+    (hk : q.kind = .job → b = true) : OF a q a' := by
+  refine ⟨fun x hx => ?_, fun h => by rw [hb, h]; rfl, fun h x hx hxk => ?_, fun x hx => ?_⟩
+  · rw [hp] at hx
+    rcases List.mem_append.1 hx with hx | hx
+    · exact Or.inl hx
+    · exact Or.inr (List.mem_singleton.1 hx)
+  · rw [hp] at hx
+    rw [hb]
+    rcases List.mem_append.1 hx with hx | hx
+    · rw [h x hx hxk]; rfl
+    · rw [List.mem_singleton.1 hx] at hxk; rw [hk hxk]; cases a.blk <;> rfl
+  · rw [ho] at hx
+    rcases List.mem_append.1 hx with hx | hx
+    · exact Or.inl hx
+    · exact Or.inr fun n l e => absurd e (hc x hx n _)
+
+theorem pumpOne_of {c : Cfg} {a : Acc} {q : Req} : OF a q (pumpOne c a q) := by
+  refine pumpOne_cases c a q (OF a q) (fun w _ => of_reply _ rfl rfl rfl fun _ e => by cases e)
+    (fun _ _ _ hk => of_reply _ rfl rfl rfl fun l e hl => ?_) (fun _ _ add _ => ?_)
+    (fun _ _ hk => of_keep _ false [] rfl rfl (List.append_nil _).symm (fun _ hx => by cases hx)
+      fun e => by rw [hk] at e; cases e)
+    (fun _ _ _ _ _ _ _ _ => of_reply _ rfl rfl rfl fun _ e => by cases e)
+    (fun _ _ _ _ hk _ _ _ _ _ _ => of_keep _ false [_] rfl rfl rfl (fun x hx n r e => by
+      rw [List.mem_singleton.1 hx] at e; cases e) fun e => by rw [hk] at e; cases e)
+  · injection e with e
+    subst e
+    rcases hk with ⟨_, hb, _⟩ | ⟨hs, _⟩
+    · exact hb
+    · simp [leaseOf, hs] at hl
+  · unfold block
+    split
+    · exact of_keep _ true [] rfl rfl (List.append_nil _).symm (fun _ hx => by cases hx) fun _ => rfl
+    · refine of_keep _ true _ rfl rfl rfl (fun x hx n r e => ?_) fun _ => rfl
+      obtain ⟨_, _, _, _, _, _, e'⟩ := stopAll_sig hx
+      rw [e'] at e; cases e
+
+theorem fold_of {c : Cfg} : ∀ (B : List Req) (a : Acc),
+    (∀ x ∈ (B.foldl (pumpOne c) a).st.pending, x ∈ a.st.pending ∨ x ∈ B) ∧
+    (a.blk = true → (B.foldl (pumpOne c) a).blk = true) ∧
+    ((∀ x ∈ a.st.pending, x.kind = .job → a.blk = true) →
+      ∀ x ∈ (B.foldl (pumpOne c) a).st.pending, x.kind = .job → (B.foldl (pumpOne c) a).blk = true) ∧
+    ∀ x ∈ (B.foldl (pumpOne c) a).out, x ∈ a.out ∨
+      ∀ n l, x = .reply n (.granted l) → n ∈ B.map (·.id) ∧ (l.kind = .job → a.blk = false)
+  | [], _ => ⟨fun _ hx => Or.inl hx, id, id, fun _ hx => Or.inl hx⟩
+  | b :: B, a => by
+    obtain ⟨p1, b1, f1, o1⟩ := pumpOne_of (c := c) (a := a) (q := b)
+    obtain ⟨p2, b2, f2, o2⟩ := fold_of B (pumpOne c a b)
+    refine ⟨fun x hx => ?_, fun h => b2 (b1 h), fun h => f2 (f1 h), fun x hx => ?_⟩
+    · rcases p2 x hx with hx | hx
+      · rcases p1 x hx with hx | rfl
+        · exact Or.inl hx
+        · exact Or.inr List.mem_cons_self
+      · exact Or.inr (List.mem_cons_of_mem _ hx)
+    · rcases o2 x hx with hx | hx
+      · rcases o1 x hx with hx | hx
+        · exact Or.inl hx
+        · exact Or.inr fun n l e => ⟨by rw [(hx n l e).1]; exact List.mem_cons_self, (hx n l e).2⟩
+      · refine Or.inr fun n l e => ⟨List.mem_cons_of_mem _ (hx n l e).1, fun hk => ?_⟩
+        cases hb : a.blk
+        · rfl
+        · have := (hx n l e).2 hk
+          rw [b1 hb] at this
+          cases this
+
+/-- fifo_no_overtake: when a job stays queued after a step, every job the step grants was ahead of it in the queue,
+or is a nested join of cost zero. -/
+theorem fifo_no_overtake {c : Cfg} {s : State} {e : Event} {q : Req} {A B : List Req} {n : Nat} {l : Lease}
+    (h : Inv c s) (hL : (pre c s e).1.pending = A ++ q :: B) (hq : q ∈ (step c s e).1.pending) (hk : q.kind = .job)
+    (hg : Cmd.reply n (.granted l) ∈ (step c s e).2) (hl : l.kind = .job) :
+    n ∈ A.map (·.id) ∨ l.cost = {} := by
+  obtain ⟨ha, hx⟩ := step_mem hg
+  rcases hx with hx | hx
+  · rcases pre_cmds hx with hq' | ⟨r, e', hr⟩
+    · simp [quiet] at hq'
+    · injection e' with _ e2
+      exact Or.inr (hr l e2.symm).2
+  refine Or.inl ?_
+  rw [step_st ha] at hq
+  have hw := wf_pre e h.1
+  have hj := pump_pj hw
+  have hperm : (replyIds (pumpAcc c (pre c s e).1).out ++ (pumpAcc c (pre c s e).1).st.pending.map (·.id)).Perm
+      ((pre c s e).1.pending.map (·.id)) := by simpa using hj.perm
+  have hdis := (List.nodup_append.1 (hperm.nodup_iff.2 (pending_ids_nodup hw))).2.2
+  have hnq : n ≠ q.id := fun e' => hdis n (mem_replyIds hx) q.id (List.mem_map_of_mem hq) e'
+  have hn := pending_ids_nodup hw
+  rw [hL, List.map_append, List.map_cons, List.nodup_append] at hn
+  have hqB : q ∉ B := fun hm => (List.nodup_cons.1 hn.2.1).1 (List.mem_map_of_mem hm)
+  have e1 : pumpAcc c (pre c s e).1 = B.foldl (pumpOne c) (pumpOne c (A.foldl (pumpOne c) (acc0 (pre c s e).1)) q) := by
+    unfold pumpAcc; rw [hL, List.foldl_append, List.foldl_cons]; rfl
+  rw [e1] at hq hx
+  obtain ⟨_, _, fA, oA⟩ := fold_of (c := c) A (acc0 (pre c s e).1)
+  obtain ⟨_, _, f1, o1⟩ := pumpOne_of (c := c) (a := A.foldl (pumpOne c) (acc0 (pre c s e).1)) (q := q)
+  obtain ⟨pB, _, _, oB⟩ := fold_of (c := c) B (pumpOne c (A.foldl (pumpOne c) (acc0 (pre c s e).1)) q)
+  have hq2 : q ∈ (pumpOne c (A.foldl (pumpOne c) (acc0 (pre c s e).1)) q).st.pending := by
+    rcases pB q hq with hm | hm
+    · exact hm
+    · exact absurd hm hqB
+  have hb2 := f1 (fA fun x hx => absurd hx List.not_mem_nil) q hq2 hk
+  rcases oB _ hx with hx2 | hx2
+  · rcases o1 _ hx2 with hx1 | hx1
+    · rcases oA _ hx1 with hx0 | hx0
+      · exact absurd hx0 List.not_mem_nil
+      · exact (hx0 n l rfl).1
+    · exact absurd (hx1 n l rfl).1 hnq
+  · have := (hx2 n l rfl).2 hl
+    rw [hb2] at this
+    cases this
+
 end Fw.Sup
