@@ -19,7 +19,10 @@ Verdict walks all four widths; diagnostic walks any nonempty subset of {390,640,
   the width-800 case now matches the new refusal text.
 
 ## Verified
-See the report for the check.sh exit code, runner test result and the `fw land --dry` VERDICT line.
+`sh lean/scripts/check.sh` exit 0 (all gates green incl. the new golden check); runner `pnpm test` 66 files / 1897 tests pass;
+`node --test scripts/ci-paths.test.mjs` 54 pass; `fw land --dry ... --allow lean/scripts/TrajectoryDispatchGolden.lean
+--allow lean/scripts/check.sh` gives `VERDICT dry traj-dispatch-scope` (without the two --allow: `VERDICT scope`, they are
+outside the graph writes: the generator script and its check.sh wiring).
 
 ## Not done / accepted limits
 - No CI dispatch, no measured saving. Saving bound is INFERRED from the macos-minutes check: up to ~115 job-min/day on
