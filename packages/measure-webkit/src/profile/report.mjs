@@ -224,20 +224,38 @@ export function blocksOf(summary, jobs, minutes) {
   return b;
 }
 
-/** Job minutes per leg from `minutes.json` ([{ run, leg, job, minutes }]). */
+/** The WebKit legs' jobs of `gh run view <id> --json jobs` results (`{ [runId]: { jobs } }`) as `[{ run, leg, job, conclusion, minutes }]`: wall minutes to 0.1. */
+export function minutesOf(byRun) {
+  const out = [];
+  for (const run of Object.keys(byRun).sort()) {
+    for (const j of byRun[run].jobs ?? []) {
+      const leg = /^webkit mac/.test(j.name) ? 'mac' : /^webkit sim/.test(j.name) ? 'sim' : null;
+      if (!leg || !j.startedAt || !j.completedAt) continue;
+      const minutes = Math.round((Date.parse(j.completedAt) - Date.parse(j.startedAt)) / 6000) / 10;
+      out.push({ run, leg, job: j.name, conclusion: j.conclusion, minutes });
+    }
+  }
+  return out;
+}
+
+const medianF = (l) => { const t = [...l].sort((x, y) => x - y); const n = t.length; return n % 2 ? t[(n - 1) / 2] : Math.round(((t[n / 2 - 1] + t[n / 2]) / 2) * 10) / 10; };
+
+/** Job minutes per leg (`minutesOf`): every job of the runs, the median and the longest over the successes, and the billed minutes (each job rounded up). */
 export function minutesTable(minutes) {
   if (!minutes?.length) return 'no job minutes were recorded';
-  const out = [head(['run', 'leg', 'job', 'minutes'])];
-  for (const m of minutes) out.push(row([m.run, m.leg, m.job, m.minutes]));
+  const out = [head(['run', 'leg', 'job', 'result', 'wall min', 'billed min'])];
+  for (const m of minutes) out.push(row([m.run, m.leg, m.job, m.conclusion ?? 'success', m.minutes, Math.ceil(m.minutes)]));
   for (const leg of ['mac', 'sim']) {
-    const ms = minutes.filter((m) => m.leg === leg).map((m) => m.minutes);
-    if (ms.length) out.push(row(['median', leg, '', med(ms)]));
+    const ok = minutes.filter((m) => m.leg === leg && (m.conclusion ?? 'success') === 'success').map((m) => m.minutes);
+    if (ok.length) out.push(row(['median of successes', leg, '', `n=${ok.length}`, medianF(ok), '']), row(['longest success', leg, '', '', Math.max(...ok), '']));
+    const all = minutes.filter((m) => m.leg === leg);
+    if (all.length) out.push(row(['all jobs billed', leg, '', `n=${all.length}`, '', all.reduce((acc, m) => acc + Math.ceil(m.minutes), 0)]));
   }
   return out.join('\n');
 }
 
 /** Read `<runs>`, write `<out>/summary.json` and `<out>/tables.md`, and fill the blocks of `<note>` when given. */
-export async function reportMain({ runs, out, note, minutesFile, classify }) {
+export async function reportMain({ runs, out, note, jobsDir, classify }) {
   const { files, skipped } = loadRuns(runs);
   const summary = {};
   for (const leg of ['mac', 'sim']) {
@@ -245,7 +263,11 @@ export async function reportMain({ runs, out, note, minutesFile, classify }) {
     if (jobs.length) summary[leg] = legSummary(jobs, classify);
   }
   let minutes = null;
-  try { minutes = JSON.parse(readFileSync(minutesFile, 'utf8')); } catch { /* none recorded */ }
+  try {
+    const byRun = {};
+    for (const f of readdirSync(jobsDir).filter((n) => /^\d+\.json$/.test(n))) byRun[f.replace('.json', '')] = JSON.parse(readFileSync(join(jobsDir, f), 'utf8'));
+    minutes = minutesOf(byRun);
+  } catch { /* none recorded */ }
   const blocks = blocksOf(summary, files, minutes);
   mkdirSync(out, { recursive: true });
   writeFileSync(join(out, 'summary.json'), `${JSON.stringify({ skipped, jobs: files.map((f) => f.label), summary }, null, 1)}\n`);

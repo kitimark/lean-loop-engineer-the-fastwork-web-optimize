@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // smoothness-webkit-cadence, leg 2 and the tables. Usage:
 //   node src/profile/cli.mjs sim --site <dist/aot> --search ?fw=... --reps 6 --out <dir>   iOS Simulator leg (writes <dir>/sim.json)
-//   node src/profile/cli.mjs report --runs <dir> --out <dir> [--note <file>] [--minutes <file>]   tables from downloaded leg files
+//   node src/profile/cli.mjs report --runs <dir> --out <dir> [--note <file>] [--jobs <dir>]   tables from downloaded leg files
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 
@@ -27,7 +27,7 @@ if (cmd === 'sim') {
   const runs = flag('--runs');
   const out = flag('--out');
   if (!runs || !out) { console.error('report needs --runs <dir> --out <dir>'); process.exit(2); }
-  const r = await reportMain({ runs, out, note: flag('--note'), minutesFile: flag('--minutes') ?? join(out, 'minutes.json'), classify });
+  const r = await reportMain({ runs, out, note: flag('--note'), jobsDir: flag('--jobs') ?? join(out, 'jobs'), classify });
   console.log(`report: ${r.jobs} jobs, ${r.skipped.length} skipped, blocks missing from the note: ${r.missing.join(', ') || 'none'}`);
 } else {
   console.error('usage: cli.mjs sim|report');

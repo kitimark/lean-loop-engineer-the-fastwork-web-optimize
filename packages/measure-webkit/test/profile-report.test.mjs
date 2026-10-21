@@ -6,7 +6,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { KINDS } from '../src/profile/reduce.mjs';
-import { jobCell, jobVerdicts, acrossJobs, legSummary, headlineTable, verdictTable, fillBlocks, loadRuns, reportMain, minutesTable } from '../src/profile/report.mjs';
+import { jobCell, jobVerdicts, acrossJobs, legSummary, headlineTable, verdictTable, fillBlocks, loadRuns, reportMain, minutesTable, minutesOf } from '../src/profile/report.mjs';
 
 const zero = () => KINDS.map((k) => [k, 0, 0]);
 const prof = (frames, perFrame, layout) => ({ frames, work: perFrame * frames / 10, perFrame, cells: zero().map((c) => (c[0] === 'Layout' ? ['Layout', layout, layout * 10] : c)) });
@@ -75,7 +75,7 @@ test('reportMain reads <runs>/<id>/<artifact>/mac.json, skips refused files, wri
   const note = join(dir, 'note.md');
   writeFileSync(note, '# n\n<!-- gen:mac-verdict -->\n<!-- /gen:mac-verdict -->\n');
   const out = join(dir, 'out');
-  const r = await reportMain({ runs: dir, out, note, minutesFile: join(dir, 'none.json'), classify: () => ({}) });
+  const r = await reportMain({ runs: dir, out, note, jobsDir: join(dir, "none"), classify: () => ({}) });
   assert.equal(r.jobs, 3);
   assert.deepEqual(r.skipped.map((s) => s.run), ['14:smoothness-webkit-mac']);
   assert.match(readFileSync(note, 'utf8'), /hero \| orig, base/);
@@ -83,8 +83,16 @@ test('reportMain reads <runs>/<id>/<artifact>/mac.json, skips refused files, wri
   assert.equal(loadRuns(dir).files.length, 3);
 });
 
-test('minutesTable lists the runs and the median per leg', () => {
-  const t = minutesTable([{ run: 1, leg: 'mac', job: 'm', minutes: 9 }, { run: 2, leg: 'mac', job: 'm', minutes: 11 }, { run: 1, leg: 'sim', job: 's', minutes: 30 }]);
-  assert.match(t, /\| median \| mac \|  \| 11 \|/);
-  assert.match(t, /\| median \| sim \|  \| 30 \|/);
+test('minutesOf reads the WebKit jobs of gh run view; minutesTable gives the median, the longest and the billed minutes', () => {
+  const at = (a, b) => ({ startedAt: `2026-10-21T10:${a}:00Z`, completedAt: `2026-10-21T10:${b}:30Z` });
+  const m = minutesOf({
+    2: { jobs: [{ name: 'guard', ...at('00', '01') }, { name: 'webkit mac (playwright-webkit, macos-26)', conclusion: 'success', ...at('10', '20') }] },
+    1: { jobs: [{ name: 'webkit mac (playwright-webkit, macos-26)', conclusion: 'success', ...at('00', '08') }, { name: 'webkit sim (mobile safari, xcode-27)', conclusion: 'failure', ...at('00', '14') }] },
+  });
+  assert.deepEqual(m.map((r) => [r.run, r.leg, r.conclusion, r.minutes]), [['1', 'mac', 'success', 8.5], ['1', 'sim', 'failure', 14.5], ['2', 'mac', 'success', 10.5]]);
+  const t = minutesTable(m);
+  assert.match(t, /\| median of successes \| mac \|  \| n=2 \| 9\.5 \|/);
+  assert.match(t, /\| longest success \| mac \|  \|  \| 10\.5 \|/);
+  assert.match(t, /\| all jobs billed \| sim \|  \| n=1 \|  \| 15 \|/);
+  assert.equal(minutesTable([]), 'no job minutes were recorded');
 });
