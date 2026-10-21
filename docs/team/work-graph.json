@@ -13311,6 +13311,49 @@
    "writes": [
     "docs/team/handoffs/sup-math.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "smoothness-webkit-cadence",
+   "owner": "measure-engineer",
+   "stream": "gate",
+   "deps": [
+    "smoothness-probe"
+   ],
+   "title": "User 2026-10-21: 'the laggy it happend on WebKit, so Chromium engine do optimize quite good. except if we run chromium on x6 throttling we will found laggy on chromium engine.' The felt lag is WebKit, and smoothness-probe B measured Chromium only. Add a real-time WebKit cadence leg on the macOS Playwright WebKit lane (rAF intervals plus Web Inspector rendering-frame durations where the lane exposes them) for both windows (hero -> people; end of page), arms original, faithful rewrite, ?preset=v2-proved and the look-change flags, >= 5 reps per arm plus A/A, the same Lean Fw.Gate.Smooth verdicts (hitch count per rep, across rule). First add its measured-p90 row to Fw.Ci.Pool.Caps (job time cap from a debug run) so the job runs under the 5-slot macOS rules; max-parallel 1. Also fill the missing macOS WebKit hero ORIGINAL continuity rows from a trajectory-probe run with the orig arm. Free runners only; MEASURED with run ids.",
+   "writes": [
+    "lean/Fw/Ci/Pool/Caps.lean",
+    "packages/contracts/golden/ci/**",
+    "lean/Fw/Ci/Trigger.lean",
+    ".github/workflows/smoothness.yml",
+    "packages/gate-breakpoints/src/smooth/**",
+    "packages/gate-breakpoints/test/smooth*.test.mjs",
+    "results/smoothness-webkit/**",
+    "research/notes/2026/10-2x-smoothness-webkit.md",
+    "docs/team/handoffs/smoothness-webkit-cadence.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "smoothness-cpu-throttle",
+   "owner": "measure-engineer",
+   "stream": "gate",
+   "deps": [
+    "smoothness-probe"
+   ],
+   "title": "User 2026-10-21: 'the laggy it happend on WebKit, so Chromium engine do optimize quite good. except if we run chromium on x6 throttling we will found laggy on chromium engine.' A cheap Linux proxy of the felt lag: run the Chromium cadence arms with CDP Emulation.setCPUThrottlingRate 6 (and 1 as the control) in both windows, the same arms, reps and Lean verdicts; report which windows and arms lag under 6x, and whether the ranking of arms matches the WebKit cadence and the iPhone recordings when those exist. Reported as a PROXY, never as WebKit evidence.",
+   "writes": [
+    ".github/workflows/smoothness.yml",
+    "packages/gate-breakpoints/src/smooth/**",
+    "packages/gate-breakpoints/test/smooth*.test.mjs",
+    "results/smoothness-throttle/**",
+    "research/notes/2026/10-2x-smoothness-throttle.md",
+    "docs/team/handoffs/smoothness-cpu-throttle.md"
+   ]
   }
  ],
  "deadline": {
