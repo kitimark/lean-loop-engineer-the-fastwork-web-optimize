@@ -1,6 +1,7 @@
 // Prints every table of research/notes/2026/10-21-macos-minutes.md from jobs.json, circleci.json and facts.json.
 // Usage (repo root): node research/notes/2026/macos-minutes/tables.mjs          -> every table block, in note order
-//                    node research/notes/2026/macos-minutes/tables.mjs --check  -> exit 1 unless each block is in the note verbatim
+//                    node research/notes/2026/macos-minutes/tables.mjs --check  -> exit 1 unless each block is in the note verbatim,
+//                                                                                followed by a blank line or the note's end
 // A one-off JS reduction of one measured day: a stand-in, not a Lean decision (named in the note's accepted limits).
 // Minutes are summed in whole seconds of job wall (startedAt..completedAt) and rounded half up to 0.1 min at print.
 import { readFileSync } from "node:fs";
@@ -209,8 +210,16 @@ const queued = series.filter((j) => !F.series.freshRuns.includes(j.run));
 
 if (process.argv.includes("--check")) {
   const note = readFileSync(join(here, "..", "10-21-macos-minutes.md"), "utf8");
-  const missing = out.filter((b) => !note.includes(b)).map((b) => b.split("\n")[0]);
-  if (missing.length) { console.error(`not verbatim in the note:\n${missing.join("\n")}`); process.exit(1); }
+  // A block counts only where it ends at a blank line or at the end of the note, so a row appended by hand fails.
+  const ends = (b) => {
+    for (let i = note.indexOf(b); i !== -1; i = note.indexOf(b, i + 1)) {
+      const rest = note.slice(i + b.length);
+      if (rest === "" || rest === "\n" || rest.startsWith("\n\n")) return true;
+    }
+    return false;
+  };
+  const missing = out.filter((b) => !ends(b)).map((b) => b.split("\n")[0]);
+  if (missing.length) { console.error(`not verbatim in the note, or not followed by a blank line or the end:\n${missing.join("\n")}`); process.exit(1); }
   console.log(`ok: ${out.length} tables verbatim in the note`);
 } else {
   console.log(out.join("\n\n"));
