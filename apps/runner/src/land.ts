@@ -222,7 +222,9 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
   "packages/engine-check": ["packages/contracts/golden/measure/**"],
   "packages/difftest": ["apps/console-api/src/cap/cap.ts", "apps/runner/hooks/cap.mjs", "packages/measure-chromium/src/n0.mjs",
     "packages/measure-chromium/src/trace.mjs", "packages/measure-webkit/src/quietsteps.mjs", "packages/measure-webkit/src/reduce.mjs"],
-  "packages/measure-webkit": ["packages/contracts/golden/measure/**", "apps/site/src/flags/images/drawn.json"],
+  "packages/measure-webkit": ["packages/contracts/golden/measure/**", "apps/site/src/flags/images/drawn.json",
+    // webkit-lag-probe: test/lag-findings.test.mjs reads the note whose Findings it checks against the generated block
+    "research/notes/2026/10-21-webkit-lag-probe.md"],
   "packages/snapshot-extract": ["packages/gate-breakpoints/src/**"],
   "packages/visual-diff": ["packages/gate-breakpoints/src/**", "apps/site/src/breakpoints.gen.json", "packages/contracts/golden/gate/**", "scripts/port/**", "packages/contracts/golden/port/**"],
 };
