@@ -8,6 +8,7 @@ import { UsageError } from "./lib.ts";
 import { collectFacts, formatNext, nextAlerts, slowAlerts, slowNextLines, type NextReply } from "./next.ts";
 import { contendedFlagged, ghFlagged } from "./watch-gh.ts";
 import { reapTick } from "./reap.ts";
+import { startPush } from "./watch-push.ts";
 import { CLASSES, diskGcTick } from "./disk-gc.ts";
 import { fwcoreCall } from "./run.ts";
 import {
@@ -356,6 +357,7 @@ async function streamMain(o: WatchOpts, paths: Paths, main: string, call: CoreCa
   for (const [sig, n] of [["SIGINT", 2], ["SIGTERM", 15], ["SIGHUP", 1]] as const) process.once(sig, () => { end(`signal ${sig}`); process.exit(128 + n); });
   const last = readLastLog(paths);
   let prevSnap: Prev | null = last?.input?.system ? { at: last.at, system: last.input.system, critical: last.input.critical, ghDegraded: ghFlagged(last.output), contended: contendedFlagged(last.output) } : null;
+  const stopPush = startPush(join(paths.consoleDir, "events.jsonl"), call, say); // console-push: user events as they are appended
   let open: AlertKey[] = []; // each stream starts empty and prints every open alert once: nothing is persisted
   try {
     for (;;) {
@@ -371,5 +373,5 @@ async function streamMain(o: WatchOpts, paths: Paths, main: string, call: CoreCa
   } catch (e) {
     end(`error ${e instanceof Error ? e.message : String(e)}`);
     return 1;
-  }
+  } finally { stopPush(); }
 }
