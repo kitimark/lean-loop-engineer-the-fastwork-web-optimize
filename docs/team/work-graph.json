@@ -14040,7 +14040,8 @@
     "apps/runner/src/fw.ts",
     "docs/team/tools/oracle.md",
     "docs/team/handoffs/jev-core.md"
-   ]
+   ],
+   "evidence": "d09a9a7"
   },
   {
    "devices": [
@@ -14098,7 +14099,8 @@
     "results/phone/2026-10-21/summary-v2.json",
     "results/phone/2026-10-21/summary-v2.md",
     "docs/team/handoffs/device-stats-v2.md"
-   ]
+   ],
+   "evidence": "b6d57dd"
   },
   {
    "devices": [

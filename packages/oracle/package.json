@@ -1,0 +1,18 @@
+{
+  "name": "@fw/oracle",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "I/O glue for typed answers from TypeSafe Jev: answer log, keychain read after Lean's send gate, one POST per sent body. Every decision is fwcore's (Fw.Oracle, ops oracle.*).",
+  "engines": { "node": ">=24" },
+  "main": "src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "test": "tsc --noEmit && node --test --test-concurrency=${VITEST_MAX_WORKERS:-$(node -p \"require('../contracts/golden/sched/node-budget.gen.json').workers\")} \"test/*.test.ts\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2"
+  }
+}
