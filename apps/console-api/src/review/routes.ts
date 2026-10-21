@@ -81,7 +81,8 @@ export async function ensureReviewSteps(store: Store): Promise<void> { await pos
 export class StripCache {
   private inflight = new Map<string, Promise<string>>();
   private failed = new Map<string, { at: number; why: string; ms: number }>();
-  constructor(private base: string, private download: Downloader, private clock: () => number = Date.now) {}
+  private base: string; private download: Downloader; private clock: () => number;
+  constructor(base: string, download: Downloader, clock: () => number = Date.now) { this.base = base; this.download = download; this.clock = clock; }
 
   /** The directory of an artifact; fetched on first use. `run` and `artifact` come from Lean rows, never from a request. */
   async dir(run: string, artifact: string): Promise<string> {
