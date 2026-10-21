@@ -140,7 +140,7 @@ describe('on: ?fw-debug=nav-transition', () => {
     }
   });
 
-  it('records the data write, the class flip and the base write in the order the observers see them', async () => {
+  it('records the data write, the class flip and the base write of separate tasks in the order they were written', async () => {
     const f = fakeEnv();
     const off = installNavTransitionDebug(ON, nav, f.env);
     expect(off).not.toBeNull();
@@ -168,6 +168,89 @@ describe('on: ?fw-debug=nav-transition', () => {
     expect(rows[0]).toMatchObject({ k: 'cls', on: true });
     expect(rows[5]).toMatchObject({ k: 'base', v: '0' });
     off?.();
+  });
+
+  it('one row per MutationRecord in record order: --morph, then the class, then data-fw-morph in ONE task give base, cls, data', async () => {
+    const f = fakeEnv();
+    const off = installNavTransitionDebug(ON, nav, f.env);
+    f.at(7);
+    nav.style.setProperty('--morph', '0.4');
+    nav.classList.add('is-morphing');
+    nav.setAttribute('data-fw-morph', '0.4');
+    await flush();
+    expect(log(f.store).rows).toEqual([
+      { k: 'base', t: 7, v: '0.4' },
+      { k: 'cls', t: 7, on: true },
+      { k: 'data', t: 7, v: '0.4' },
+    ]);
+    off?.();
+  });
+
+  it('the other order of the same three writes gives the other order of rows (the order is not fixed by the recorder)', async () => {
+    const f = fakeEnv();
+    const off = installNavTransitionDebug(ON, nav, f.env);
+    nav.setAttribute('data-fw-morph', '0.4');
+    nav.classList.add('is-morphing');
+    nav.style.setProperty('--morph', '0.4');
+    await flush();
+    expect(log(f.store).rows.map((r) => r.k)).toEqual(['data', 'cls', 'base']);
+    off?.();
+  });
+
+  it('records of one attribute keep their own values and interleave with the others: base 0.5, cls on, base 0.6, cls off', async () => {
+    const f = fakeEnv();
+    const off = installNavTransitionDebug(ON, nav, f.env);
+    nav.style.setProperty('--morph', '0.5');
+    nav.classList.add('is-morphing');
+    nav.style.setProperty('--morph', '0.6');
+    nav.classList.remove('is-morphing');
+    await flush();
+    expect(log(f.store).rows.map((r) => (r.k === 'base' ? `base:${r.v}` : r.k === 'cls' ? `cls:${r.on}` : r.k))).toEqual([
+      'base:0.5',
+      'cls:true',
+      'base:0.6',
+      'cls:false',
+    ]);
+    off?.();
+  });
+
+  it('a record that changes nothing the recorder watches gives no row (another class, another property, the same value)', async () => {
+    const f = fakeEnv();
+    const off = installNavTransitionDebug(ON, nav, f.env);
+    nav.classList.add('is-on-dark');
+    nav.style.setProperty('--other', '1');
+    nav.setAttribute('data-fw-morph', '0');
+    await flush();
+    expect(log(f.store).rows.map((r) => r.k)).toEqual(['data']);
+    nav.setAttribute('data-fw-morph', '0');
+    await flush();
+    expect(log(f.store).rows).toHaveLength(1);
+    off?.();
+  });
+
+  it('a sampler read is a row between the writes it falls between: base, read, cls (the read takes the queued records first)', async () => {
+    const f = fakeEnv();
+    const off = installNavTransitionDebug(ON, nav, f.env);
+    const read = (f.store[DEBUG_GLOBAL] as { navTransitionRead?: () => void }).navTransitionRead!;
+    f.at(10);
+    nav.dispatchEvent(new Event('transitionrun')); // hot
+    f.at(20);
+    nav.style.setProperty('--morph', '0.5');
+    read(); // same task as the write: the base record is logged before the read
+    nav.classList.add('is-morphing');
+    await flush();
+    expect(log(f.store).rows.map((r) => r.k)).toEqual(['tr', 'base', 'read', 'cls']);
+    off?.();
+  });
+
+  it('a read while cold logs nothing, and the function is gone after the disposer', async () => {
+    const f = fakeEnv();
+    const off = installNavTransitionDebug(ON, nav, f.env);
+    const bag = f.store[DEBUG_GLOBAL] as { navTransitionRead?: () => void };
+    bag.navTransitionRead!();
+    expect(log(f.store).rows).toEqual([]);
+    off?.();
+    expect(bag.navTransitionRead).toBeUndefined();
   });
 
   it('records the nav own transition events and ignores a child bubbling one', () => {
@@ -198,25 +281,46 @@ describe('on: ?fw-debug=nav-transition', () => {
     expect(log(f.store).rows).toHaveLength(4);
   });
 
-  it('logs frames and sizes only while hot (HOT_MS after a nav row)', () => {
+  it('runs the frame loop only while hot: none while cold, one per frame until HOT_MS after the last nav row, re-armed by the next row', () => {
     const f = fakeEnv();
     const off = installNavTransitionDebug(ON, nav, f.env);
+    expect(f.pendingFrames()).toBe(0); // cold: no rAF is registered at install
     f.at(1);
-    f.frame(1);
-    f.size(984, 56);
+    f.frame(1); // nothing to run
+    f.size(984, 56); // cold size: not logged
     expect(log(f.store).rows).toEqual([]);
+    expect(f.pendingFrames()).toBe(0);
     f.at(100);
-    nav.dispatchEvent(new Event('transitionrun'));
+    nav.dispatchEvent(new Event('transitionrun')); // a nav row heats the recorder and starts the loop
+    expect(f.pendingFrames()).toBe(1);
     f.at(116);
     f.frame(116);
     f.size(985, 56);
-    f.at(100 + HOT_MS + 1);
-    f.frame(100 + HOT_MS + 1);
+    expect(f.pendingFrames()).toBe(1);
+    f.at(100 + HOT_MS - 1);
+    f.frame(100 + HOT_MS - 1);
+    expect(f.pendingFrames()).toBe(1);
+    f.at(100 + HOT_MS); // the first frame at or past hotUntil logs nothing and does not re-register
+    f.frame(100 + HOT_MS);
+    expect(f.pendingFrames()).toBe(0);
     f.size(986, 56);
-    expect(log(f.store).rows.map((r) => r.k)).toEqual(['tr', 'raf', 'size']);
+    expect(log(f.store).rows.map((r) => r.k)).toEqual(['tr', 'raf', 'size', 'raf']);
+    f.at(5000);
+    nav.dispatchEvent(new Event('transitionrun')); // re-armed by the next nav row
     expect(f.pendingFrames()).toBe(1);
     off?.();
     expect(f.pendingFrames()).toBe(0);
+  });
+
+  it('a nav row while the loop runs does not start a second loop', () => {
+    const f = fakeEnv();
+    const off = installNavTransitionDebug(ON, nav, f.env);
+    f.at(10);
+    nav.dispatchEvent(new Event('transitionrun'));
+    f.at(20);
+    nav.dispatchEvent(new Event('transitionstart'));
+    expect(f.pendingFrames()).toBe(1);
+    off?.();
   });
 
   it('keeps at most MAX_ROWS rows and counts the rest', () => {

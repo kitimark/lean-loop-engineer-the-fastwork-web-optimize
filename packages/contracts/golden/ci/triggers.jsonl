@@ -71,27 +71,27 @@
 {"copies":[{"name":".nvmrc","value":"24.22.0"},{"name":"engines.node","value":"24.22.0"},{"name":"useNodeVersion","value":"24.22.0"}],"kind":"pinCopies","pin":"24.22.0","problems":[]}
 {"copies":[{"name":".nvmrc","value":"24.21.0"},{"name":"engines.node","value":"24.22.0"},{"name":"useNodeVersion","value":null}],"kind":"pinCopies","pin":"24.22.0","problems":["differs:.nvmrc","differs:useNodeVersion"]}
 {"copies":[{"name":".nvmrc","value":"24.22.0"},{"name":"engines.node","value":">=24"}],"kind":"pinCopies","pin":"24.22.0","problems":["differs:engines.node"]}
-{"kind":"probe","lane":true,"msg":"ci: measure\n\n[ci:trajectory-probe]","result":{"engines":"both","fw":"","kind":"run","preset":"","widths":""}}
+{"kind":"probe","lane":true,"msg":"ci: measure\n\n[ci:trajectory-probe]","result":{"debug":"","engines":"both","fw":"","kind":"run","preset":"","widths":""}}
 {"kind":"probe","lane":false,"msg":"ci: measure\n\n[ci:trajectory-probe]","result":{"kind":"notAsked"}}
-{"kind":"probe","lane":true,"msg":"ci: measure\n\n[ci:trajectory-probe]\n[trajectory fw=hero.exit:scoped widths=390,1280 engines=both]","result":{"engines":"both","fw":"hero.exit:scoped","kind":"run","preset":"","widths":"390,1280"}}
+{"kind":"probe","lane":true,"msg":"ci: measure\n\n[ci:trajectory-probe]\n[trajectory fw=hero.exit:scoped widths=390,1280 engines=both]","result":{"debug":"","engines":"both","fw":"hero.exit:scoped","kind":"run","preset":"","widths":"390,1280"}}
 {"kind":"probe","lane":false,"msg":"ci: measure\n\n[ci:trajectory-probe]\n[trajectory fw=hero.exit:scoped widths=390,1280 engines=both]","result":{"kind":"needsLane"}}
-{"kind":"probe","lane":true,"msg":"[trajectory preset=v2-proved]","result":{"engines":"both","fw":"","kind":"run","preset":"v2-proved","widths":""}}
+{"kind":"probe","lane":true,"msg":"[trajectory preset=v2-proved]","result":{"debug":"","engines":"both","fw":"","kind":"run","preset":"v2-proved","widths":""}}
 {"kind":"probe","lane":false,"msg":"[trajectory preset=v2-proved]","result":{"kind":"needsLane"}}
-{"kind":"probe","lane":true,"msg":"[trajectory fw=morph.tween:waapi,hero.exit:scoped]\n","result":{"engines":"both","fw":"morph.tween:waapi,hero.exit:scoped","kind":"run","preset":"","widths":""}}
+{"kind":"probe","lane":true,"msg":"[trajectory fw=morph.tween:waapi,hero.exit:scoped]\n","result":{"debug":"","engines":"both","fw":"morph.tween:waapi,hero.exit:scoped","kind":"run","preset":"","widths":""}}
 {"kind":"probe","lane":false,"msg":"[trajectory fw=morph.tween:waapi,hero.exit:scoped]\n","result":{"kind":"needsLane"}}
-{"kind":"probe","lane":true,"msg":"[Trajectory FW=morph.tween:waapi]","result":{"kind":"refused","why":"unknown key 'FW' (keys: fw, preset, widths, engines)"}}
-{"kind":"probe","lane":false,"msg":"[Trajectory FW=morph.tween:waapi]","result":{"kind":"refused","why":"unknown key 'FW' (keys: fw, preset, widths, engines)"}}
-{"kind":"probe","lane":true,"msg":"[TRAJECTORY fw=a.b:c engines=chromium]","result":{"engines":"chromium","fw":"a.b:c","kind":"run","preset":"","widths":""}}
+{"kind":"probe","lane":true,"msg":"[Trajectory FW=morph.tween:waapi]","result":{"kind":"refused","why":"unknown key 'FW' (keys: fw, preset, widths, engines, debug)"}}
+{"kind":"probe","lane":false,"msg":"[Trajectory FW=morph.tween:waapi]","result":{"kind":"refused","why":"unknown key 'FW' (keys: fw, preset, widths, engines, debug)"}}
+{"kind":"probe","lane":true,"msg":"[TRAJECTORY fw=a.b:c engines=chromium]","result":{"debug":"","engines":"chromium","fw":"a.b:c","kind":"run","preset":"","widths":""}}
 {"kind":"probe","lane":false,"msg":"[TRAJECTORY fw=a.b:c engines=chromium]","result":{"kind":"needsLane"}}
-{"kind":"probe","lane":true,"msg":"[trajectory]","result":{"engines":"both","fw":"","kind":"run","preset":"","widths":""}}
+{"kind":"probe","lane":true,"msg":"[trajectory]","result":{"debug":"","engines":"both","fw":"","kind":"run","preset":"","widths":""}}
 {"kind":"probe","lane":false,"msg":"[trajectory]","result":{"kind":"needsLane"}}
-{"kind":"probe","lane":true,"msg":"  [trajectory   widths=641  engines=playwright-webkit  ]  ","result":{"engines":"playwright-webkit","fw":"","kind":"run","preset":"","widths":"641"}}
+{"kind":"probe","lane":true,"msg":"  [trajectory   widths=641  engines=playwright-webkit  ]  ","result":{"debug":"","engines":"playwright-webkit","fw":"","kind":"run","preset":"","widths":"641"}}
 {"kind":"probe","lane":false,"msg":"  [trajectory   widths=641  engines=playwright-webkit  ]  ","result":{"kind":"needsLane"}}
-{"kind":"probe","lane":true,"msg":"[trajectory widths=390]\r\nbody","result":{"engines":"both","fw":"","kind":"run","preset":"","widths":"390"}}
+{"kind":"probe","lane":true,"msg":"[trajectory widths=390]\r\nbody","result":{"debug":"","engines":"both","fw":"","kind":"run","preset":"","widths":"390"}}
 {"kind":"probe","lane":false,"msg":"[trajectory widths=390]\r\nbody","result":{"kind":"needsLane"}}
-{"kind":"probe","lane":true,"msg":"text that quotes [trajectory fw=a.b:c] in the middle","result":{"engines":"both","fw":"","kind":"run","preset":"","widths":""}}
+{"kind":"probe","lane":true,"msg":"text that quotes [trajectory fw=a.b:c] in the middle","result":{"debug":"","engines":"both","fw":"","kind":"run","preset":"","widths":""}}
 {"kind":"probe","lane":false,"msg":"text that quotes [trajectory fw=a.b:c] in the middle","result":{"kind":"notAsked"}}
-{"kind":"probe","lane":true,"msg":"ci: x\n\n    [trajectory fw=a.b:c]","result":{"engines":"both","fw":"a.b:c","kind":"run","preset":"","widths":""}}
+{"kind":"probe","lane":true,"msg":"ci: x\n\n    [trajectory fw=a.b:c]","result":{"debug":"","engines":"both","fw":"a.b:c","kind":"run","preset":"","widths":""}}
 {"kind":"probe","lane":false,"msg":"ci: x\n\n    [trajectory fw=a.b:c]","result":{"kind":"needsLane"}}
 {"kind":"probe","lane":true,"msg":"[trajectory fw=a.b:c","result":{"kind":"refused","why":"the line has no closing ']'"}}
 {"kind":"probe","lane":false,"msg":"[trajectory fw=a.b:c","result":{"kind":"refused","why":"the line has no closing ']'"}}
@@ -103,8 +103,8 @@
 {"kind":"probe","lane":false,"msg":"[trajectory fw]","result":{"kind":"refused","why":"token 'fw' has no '='"}}
 {"kind":"probe","lane":true,"msg":"[trajectory fw=]","result":{"kind":"refused","why":"key 'fw' has no value"}}
 {"kind":"probe","lane":false,"msg":"[trajectory fw=]","result":{"kind":"refused","why":"key 'fw' has no value"}}
-{"kind":"probe","lane":true,"msg":"[trajectory colour=red]","result":{"kind":"refused","why":"unknown key 'colour' (keys: fw, preset, widths, engines)"}}
-{"kind":"probe","lane":false,"msg":"[trajectory colour=red]","result":{"kind":"refused","why":"unknown key 'colour' (keys: fw, preset, widths, engines)"}}
+{"kind":"probe","lane":true,"msg":"[trajectory colour=red]","result":{"kind":"refused","why":"unknown key 'colour' (keys: fw, preset, widths, engines, debug)"}}
+{"kind":"probe","lane":false,"msg":"[trajectory colour=red]","result":{"kind":"refused","why":"unknown key 'colour' (keys: fw, preset, widths, engines, debug)"}}
 {"kind":"probe","lane":true,"msg":"[trajectory fw=a.b:c fw=d.e:f]","result":{"kind":"refused","why":"key 'fw' given twice"}}
 {"kind":"probe","lane":false,"msg":"[trajectory fw=a.b:c fw=d.e:f]","result":{"kind":"refused","why":"key 'fw' given twice"}}
 {"kind":"probe","lane":true,"msg":"[trajectory fw=a.b:c preset=v2-proved]","result":{"kind":"refused","why":"fw and preset are exclusive"}}
@@ -129,3 +129,17 @@
 {"kind":"probe","lane":false,"msg":"[trajectory fw=a.b:c]\n[trajectory fw=a.b:c]","result":{"kind":"refused","why":"more than one [trajectory ...] line"}}
 {"kind":"probe","lane":true,"msg":"[trajectory fw=a.b:c]\nsome prose\n[trajectory widths=bad]","result":{"kind":"refused","why":"more than one [trajectory ...] line"}}
 {"kind":"probe","lane":false,"msg":"[trajectory fw=a.b:c]\nsome prose\n[trajectory widths=bad]","result":{"kind":"refused","why":"more than one [trajectory ...] line"}}
+{"kind":"probe","lane":true,"msg":"[trajectory fw=morph.tween:waapi widths=1280 engines=playwright-webkit debug=nav-transition]","result":{"debug":"nav-transition","engines":"playwright-webkit","fw":"morph.tween:waapi","kind":"run","preset":"","widths":"1280"}}
+{"kind":"probe","lane":false,"msg":"[trajectory fw=morph.tween:waapi widths=1280 engines=playwright-webkit debug=nav-transition]","result":{"kind":"needsLane"}}
+{"kind":"probe","lane":true,"msg":"[trajectory debug=nav-transition]","result":{"debug":"nav-transition","engines":"both","fw":"","kind":"run","preset":"","widths":""}}
+{"kind":"probe","lane":false,"msg":"[trajectory debug=nav-transition]","result":{"kind":"needsLane"}}
+{"kind":"probe","lane":true,"msg":"[trajectory fw=morph.tween:waapi debug=nav-transition debug=nav-transition]","result":{"kind":"refused","why":"key 'debug' given twice"}}
+{"kind":"probe","lane":false,"msg":"[trajectory fw=morph.tween:waapi debug=nav-transition debug=nav-transition]","result":{"kind":"refused","why":"key 'debug' given twice"}}
+{"kind":"probe","lane":true,"msg":"[trajectory debug=other]","result":{"kind":"refused","why":"debug must be nav-transition"}}
+{"kind":"probe","lane":false,"msg":"[trajectory debug=other]","result":{"kind":"refused","why":"debug must be nav-transition"}}
+{"kind":"probe","lane":true,"msg":"[trajectory debug=Nav-Transition]","result":{"kind":"refused","why":"debug must be nav-transition"}}
+{"kind":"probe","lane":false,"msg":"[trajectory debug=Nav-Transition]","result":{"kind":"refused","why":"debug must be nav-transition"}}
+{"kind":"probe","lane":true,"msg":"[trajectory debug=nav-transition,nav-transition]","result":{"kind":"refused","why":"debug must be nav-transition"}}
+{"kind":"probe","lane":false,"msg":"[trajectory debug=nav-transition,nav-transition]","result":{"kind":"refused","why":"debug must be nav-transition"}}
+{"kind":"probe","lane":true,"msg":"[trajectory debug=]","result":{"kind":"refused","why":"key 'debug' has no value"}}
+{"kind":"probe","lane":false,"msg":"[trajectory debug=]","result":{"kind":"refused","why":"key 'debug' has no value"}}

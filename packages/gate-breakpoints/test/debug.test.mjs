@@ -1,27 +1,27 @@
 // The page-recorder request of the trajectory probe (src/trajectory/debug.mjs): off unless asked, one named recorder, the search for
-// the config lookup never carries the debug param.
+// the config lookup never carries the debug param. The request is the env var FW_DEBUG, set by the workflow from the push commit line.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { DEBUGS, debugFor, fieldOf, readDebug, withDebug } from '../src/trajectory/debug.mjs';
 import { mergeRaws } from '../src/trajectory/plan.mjs';
+import { installKit } from '../src/trajectory/kit.mjs';
 
-const requests = [{ search: '?fw=morph.tween:waapi', debug: 'nav-transition' }];
-
-test('debugFor: no recorder by default, whatever the search', () => {
-  for (const search of ['', '?fw=morph.tween:waapi', '?preset=v2-proved', '?fw=hero.exit:scoped']) assert.equal(debugFor(search, {}, []), '');
-  assert.equal(debugFor('?fw=hero.exit:scoped', {}, requests), '');
-  assert.equal(debugFor('', { FW_DEBUG: '' }, requests), '');
+test('debugFor: no recorder unless FW_DEBUG names one', () => {
+  assert.equal(debugFor({}), '');
+  assert.equal(debugFor({ FW_DEBUG: '' }), '');
+  assert.equal(debugFor({ FW_SEARCH: '?fw=morph.tween:waapi' }), '');
+  assert.equal(debugFor({ FW_DEBUG: 'nav-transition' }), 'nav-transition');
+  assert.throws(() => debugFor({ FW_DEBUG: 'nope' }), /unknown recorder "nope"/);
+  assert.throws(() => debugFor({ FW_DEBUG: 'Nav-Transition' }), /unknown recorder/);
 });
 
-test('debugFor: a request row matches its search exactly; FW_DEBUG overrides for a local run', () => {
-  assert.equal(debugFor('?fw=morph.tween:waapi', {}, requests), 'nav-transition');
-  assert.equal(debugFor('?fw=morph.tween:waapi-scoped', {}, requests), '');
-  assert.equal(debugFor('?fw=morph.tween:waapi,nav:earn-no-transition', {}, requests), '');
-  assert.equal(debugFor('', { FW_DEBUG: 'nav-transition' }, []), 'nav-transition');
-  assert.throws(() => debugFor('', { FW_DEBUG: 'nope' }, []), /unknown recorder "nope"/);
-  assert.throws(() => debugFor('?fw=a:b', {}, [{ search: '?fw=a:b', debug: 'nope' }]), /unknown recorder/);
+test('no file of the package requests a recorder: debug.requests.json is gone and debug.mjs reads no file', () => {
+  const dir = fileURLToPath(new URL('../src/trajectory/', import.meta.url));
+  assert.equal(existsSync(dir + 'debug.requests.json'), false);
+  const src = readFileSync(dir + 'debug.mjs', 'utf8');
+  assert.doesNotMatch(src, /readFileSync|requests\.json|node:fs/);
 });
 
 test('withDebug: appends fw-debug after the search; nothing for no recorder', () => {
@@ -29,14 +29,6 @@ test('withDebug: appends fw-debug after the search; nothing for no recorder', ()
   assert.equal(withDebug('', ''), '');
   assert.equal(withDebug('?fw=morph.tween:waapi', 'nav-transition'), '?fw=morph.tween:waapi&fw-debug=nav-transition');
   assert.equal(withDebug('', 'nav-transition'), '?fw-debug=nav-transition');
-});
-
-test('the committed requests name known recorders and plain fw searches', () => {
-  const rows = JSON.parse(readFileSync(fileURLToPath(new URL('../src/trajectory/debug.requests.json', import.meta.url)), 'utf8'));
-  for (const r of rows) {
-    assert.ok(DEBUGS.some((d) => d.name === r.debug), `known recorder: ${r.debug}`);
-    assert.match(r.search, /^\?fw=[A-Za-z0-9.:,\-_@]+$/);
-  }
 });
 
 test('readDebug: the field of the recorder, or null when the page did not install it', () => {
@@ -76,4 +68,30 @@ test('mergeRaws keeps the recorder rows of a leg and refuses legs that disagree 
   assert.deepEqual(m.runs.map((r) => r.width), [390, 1280]);
   assert.equal(m.runs[0].morph.debugReps[0].name, 'nav-transition');
   assert.throws(() => mergeRaws([leg(390), leg(640, { debug: '' })]), /disagree on debug/);
+});
+
+/** The kit as the probe runs it (its source text, in a bare window), with the globals a sample touches stubbed. */
+async function sampleWith(win) {
+  const g = globalThis;
+  const had = ['window', 'requestAnimationFrame'].map((k) => [k, Object.getOwnPropertyDescriptor(g, k)]);
+  g.window = win;
+  g.requestAnimationFrame = (cb) => setTimeout(cb, 0);
+  try {
+    (0, eval)(`(${installKit.toString()})()`);
+    const arg = { navSel: '', nodes: [], pageProps: [], arm: 'rewrite', lean: false, stride: 1, phase: 'open' };
+    win.__traj.startSampler(arg);
+    await new Promise((r) => setTimeout(r, 60));
+    return win.__traj.stopSampler();
+  } finally {
+    for (const [k, d] of had) { if (d) Object.defineProperty(g, k, d); else delete g[k]; }
+  }
+}
+
+test('the kit calls the recorder once before each sample when it exists, and does nothing when it does not', async () => {
+  const calls = [];
+  const rows = await sampleWith({ scrollY: 0, __fwDebug: { navTransitionRead: () => calls.push(1) } });
+  assert.ok(rows.length >= 2, `samples: ${rows.length}`);
+  assert.equal(calls.length, rows.length);
+  assert.ok((await sampleWith({ scrollY: 0 })).length >= 2);
+  assert.ok((await sampleWith({ scrollY: 0, __fwDebug: {} })).length >= 2);
 });

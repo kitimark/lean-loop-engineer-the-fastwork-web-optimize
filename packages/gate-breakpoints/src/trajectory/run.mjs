@@ -112,7 +112,7 @@ export async function runLane({ engineName, widths, search = '', paths = ['hero'
   const configs = JSON.parse(readFileSync(join(siteDist(env), 'configs.json'), 'utf8'));
   const baseHash = configs.bySearch[''];
   const want = variant.hash ?? baseHash;
-  const debug = debugFor(search, env); // '' unless a recorder is asked for (debug.mjs)
+  const debug = debugFor(env); // '' unless FW_DEBUG names a recorder (debug.mjs)
   if (debug !== '') log(`trajectory ${engineName}: page recorder "${debug}" on the rewrite arms`);
   const origin = await startServer(snapshotRoot(env));
   // The faithful arm is served the default page; only the candidate gets the page prerendered for its search (a flagged page
