@@ -1,0 +1,1 @@
+{"generated":"Fw.Sched.NodeBudget (lean/Fw/Sched/NodeBudget.lean); regenerate from lean/: lake env lean --run scripts/NodeBudgetGolden.lean","room":{"cores":8,"freeMiB":1024,"workerMiB":115,"pool":4},"workers":2,"byPool":{"1":8,"2":4,"3":2,"4":2,"5":1,"6":1,"7":1,"8":1}}
