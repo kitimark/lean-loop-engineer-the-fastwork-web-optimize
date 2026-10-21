@@ -86,7 +86,7 @@ def enterprise : Cfg := { phase1 with ghMacCap := 50, ghTotalCap := 500 }
 
 /-- Each constant of `phase1` with its status and source. -/
 def sources : List (String × String × String) := [
-  ("ghMacCap", "CONFIRMED", "docs.github.com/en/actions/reference/limits (Free/Pro/Team: 5 concurrent macOS jobs); the measured 6 of 2026-10-20 18:21:30Z counted job 118800606953, which ran no step (queued, then cancelled): by step times the peak is 5"),
+  ("ghMacCap", "CONFIRMED", "docs.github.com/en/actions/reference/limits (Free/Pro/Team: 5 concurrent macOS jobs); the measured 6 of 2026-10-20 18:21:30Z counted job 118800606953, which ran no step: GitHub never acquired a hosted runner for it (annotation: not acquired by Runner of type hosted even after multiple attempts; macOS arm64 capacity notice) and cancelled it after 21.4 min (MEASURED, gh run view). By step times the peak is 5. Jobs over our own cap of 5 do queue (max cap wait 72.3 min, 10-20-macos-pool.md), so this cancellation is a GitHub capacity failure, not the cap."),
   ("ghTotalCap", "CONFIRMED", "docs.github.com/en/actions/reference/limits (Free: 20 concurrent jobs)"),
   ("ghWaitMaxS", "INFERRED", "design choice, research/notes/2026/10-20-macos-pool-v2.md section 5; swept by task pool-replay"),
   ("waitMaxS", "INFERRED", "design choice above the longest measured cap wait, 72.3 min (research/notes/2026/10-20-macos-pool.md, 5-job cap section)"),
@@ -97,8 +97,8 @@ def sources : List (String × String × String) := [
   ("circleMacAllow", "CONFIRMED", "empty: no CircleCI macOS spend in experiments (user 2026-10-21)"),
   ("circleCaps", "CONFIRMED", "empty: no lane has a measured m4pro cap; the failed m4pro pipeline of 2026-10-19 cost 2756 credits (research/notes/2026/10-21-macos-minutes.md section 5)"),
   ("bitriseOn", "CONFIRMED", "off until the user's public-app test (research/notes/2026/10-20-bitrise-macos.md)"),
-  ("bitriseConc", "UNKNOWN", "2018 public-app terms, research/notes/2026/10-20-bitrise-macos.md"),
-  ("bitriseMaxMin", "UNKNOWN", "2018 public-app terms, research/notes/2026/10-20-bitrise-macos.md"),
+  ("bitriseConc", "INFERRED", "2018 public-app terms, research/notes/2026/10-20-bitrise-macos.md; unverified until the user's public-app test"),
+  ("bitriseMaxMin", "INFERRED", "2018 public-app terms, research/notes/2026/10-20-bitrise-macos.md; unverified until the user's public-app test"),
   ("bitriseAllow", "CONFIRMED", "empty while bitriseOn is false"),
   ("wpeTolerant", "CONFIRMED", "empty: no lane owner has declared WPE tolerance"),
   ("ghOnly", "CONFIRMED", "sim-speed measures GitHub runners; gate-gaps runs three engines in one job until it is split"),

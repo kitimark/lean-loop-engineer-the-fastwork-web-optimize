@@ -23,7 +23,7 @@ Results: a result row carries the provider, class and engine of its dispatch (`r
 
 ## The 6-vs-5 macOS peak (resolved)
 
-The measured peak of 6 concurrent macOS jobs (2026-10-20 18:21:30Z, 136 s) counted job 118800606953 (trajectory-probe, `probe apple (playwright-webkit, macos-26) 640_1280`), which ran no step: it was queued, then cancelled. By step times the peak is 5 (MEASURED, 114 macOS jobs of runs created 2026-10-19 to 2026-10-21). The limit is 5 concurrent macOS jobs on Free, Pro and Team, 50 on Enterprise, shared across standard and larger runners (CONFIRMED, docs.github.com/en/actions/reference/limits, "Job concurrency limits for GitHub-hosted runners"). `phase1.ghMacCap` is 5.
+The measured peak of 6 concurrent macOS jobs (2026-10-20 18:21:30Z, 136 s) counted job 118800606953 (trajectory-probe, `probe apple (playwright-webkit, macos-26) 640_1280`), which ran no step: GitHub never acquired a hosted runner for it (annotation: not acquired by Runner of type hosted even after multiple attempts; macOS arm64 capacity notice) and cancelled it after 21.4 min (MEASURED, gh run view). By step times the peak is 5. Jobs over our own cap of 5 do queue (max cap wait 72.3 min, 10-20-macos-pool.md), so this cancellation is a GitHub capacity failure, not the cap. (MEASURED, 114 macOS jobs of runs created 2026-10-19 to 2026-10-21). The limit is 5 concurrent macOS jobs on Free, Pro and Team, 50 on Enterprise, shared across standard and larger runners (CONFIRMED, docs.github.com/en/actions/reference/limits, "Job concurrency limits for GitHub-hosted runners"). `phase1.ghMacCap` is 5.
 
 ## Not wired yet
 
