@@ -1,0 +1,6298 @@
+[
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "end-close",
+  "ideal": "line",
+  "arm": "base",
+  "runs": 29,
+  "runIds": [
+   "39448209903",
+   "39449092483",
+   "39452631146",
+   "39453181962",
+   "39453458295",
+   "39453764374",
+   "39455284967",
+   "39456741492",
+   "39457063232",
+   "39457767229",
+   "39462241403",
+   "39463486725",
+   "39464294630",
+   "39464309993",
+   "39464322751",
+   "39466179818",
+   "39466378530",
+   "39471466367",
+   "39472217441",
+   "39496271199",
+   "39498373119",
+   "39500347224",
+   "39504209400",
+   "39505188144",
+   "39505203727",
+   "39508414669",
+   "39508421419",
+   "39520317047",
+   "39548822269"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   8
+  ],
+  "defectsPerPush": 49,
+  "defectsRange": [
+   43,
+   101
+  ],
+  "tailPerPush": 47,
+  "tailRange": [
+   39,
+   98
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "end-close",
+  "ideal": "line",
+  "arm": "cand:?preset=v2-proved",
+  "runs": 2,
+  "runIds": [
+   "39453181962",
+   "39455284967"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   4
+  ],
+  "defectsPerPush": 43,
+  "defectsRange": [
+   43,
+   47
+  ],
+  "tailPerPush": 39,
+  "tailRange": [
+   39,
+   45
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "end-close",
+  "ideal": "line",
+  "arm": "cand:hero:scene-pause",
+  "runs": 1,
+  "runIds": [
+   "39548822269"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   4
+  ],
+  "defectsPerPush": 47,
+  "defectsRange": [
+   47,
+   47
+  ],
+  "tailPerPush": 45,
+  "tailRange": [
+   45,
+   45
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "end-close",
+  "ideal": "line",
+  "arm": "cand:hero.exit:faithful",
+  "runs": 5,
+  "runIds": [
+   "39453764374",
+   "39456741492",
+   "39457063232",
+   "39472217441",
+   "39508421419"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   4
+  ],
+  "defectsPerPush": 50,
+  "defectsRange": [
+   48,
+   51
+  ],
+  "tailPerPush": 49,
+  "tailRange": [
+   46,
+   52
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "end-close",
+  "ideal": "line",
+  "arm": "cand:hero.exit:scoped",
+  "runs": 4,
+  "runIds": [
+   "39448209903",
+   "39452631146",
+   "39466179818",
+   "39508414669"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   4
+  ],
+  "defectsPerPush": 47,
+  "defectsRange": [
+   45,
+   49
+  ],
+  "tailPerPush": 44,
+  "tailRange": [
+   42,
+   48
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "end-close",
+  "ideal": "line",
+  "arm": "cand:morph.tween:scroll-lock",
+  "runs": 3,
+  "runIds": [
+   "39496271199",
+   "39498373119",
+   "39505188144"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   4
+  ],
+  "defectsPerPush": 47,
+  "defectsRange": [
+   45,
+   51
+  ],
+  "tailPerPush": 39,
+  "tailRange": [
+   39,
+   47
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "end-close",
+  "ideal": "line",
+  "arm": "cand:morph.tween:waapi",
+  "runs": 5,
+  "runIds": [
+   "39449092483",
+   "39453458295",
+   "39471466367",
+   "39504209400",
+   "39520317047"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   4
+  ],
+  "defectsPerPush": 44,
+  "defectsRange": [
+   43,
+   48
+  ],
+  "tailPerPush": 29,
+  "tailRange": [
+   27,
+   55
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "end-close",
+  "ideal": "line",
+  "arm": "cand:morph.tween:waapi-scoped",
+  "runs": 2,
+  "runIds": [
+   "39457767229",
+   "39462241403"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   4
+  ],
+  "defectsPerPush": 43,
+  "defectsRange": [
+   43,
+   47
+  ],
+  "tailPerPush": 24,
+  "tailRange": [
+   24,
+   29
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "end-close",
+  "ideal": "line",
+  "arm": "cand:nav:earn-no-transition",
+  "runs": 2,
+  "runIds": [
+   "39463486725",
+   "39464309993"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   4
+  ],
+  "defectsPerPush": 37,
+  "defectsRange": [
+   37,
+   44
+  ],
+  "tailPerPush": 39,
+  "tailRange": [
+   39,
+   46
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "end-close",
+  "ideal": "line",
+  "arm": "orig",
+  "runs": 29,
+  "runIds": [
+   "39448209903",
+   "39449092483",
+   "39452631146",
+   "39453181962",
+   "39453458295",
+   "39453764374",
+   "39455284967",
+   "39456741492",
+   "39457063232",
+   "39457767229",
+   "39462241403",
+   "39463486725",
+   "39464294630",
+   "39464309993",
+   "39464322751",
+   "39466179818",
+   "39466378530",
+   "39471466367",
+   "39472217441",
+   "39496271199",
+   "39498373119",
+   "39500347224",
+   "39504209400",
+   "39505188144",
+   "39505203727",
+   "39508414669",
+   "39508421419",
+   "39520317047",
+   "39548822269"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   4
+  ],
+  "defectsPerPush": 47,
+  "defectsRange": [
+   42,
+   53
+  ],
+  "tailPerPush": 45,
+  "tailRange": [
+   40,
+   52
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "end-close",
+  "ideal": "ref",
+  "arm": "base",
+  "runs": 29,
+  "runIds": [
+   "39448209903",
+   "39449092483",
+   "39452631146",
+   "39453181962",
+   "39453458295",
+   "39453764374",
+   "39455284967",
+   "39456741492",
+   "39457063232",
+   "39457767229",
+   "39462241403",
+   "39463486725",
+   "39464294630",
+   "39464309993",
+   "39464322751",
+   "39466179818",
+   "39466378530",
+   "39471466367",
+   "39472217441",
+   "39496271199",
+   "39498373119",
+   "39500347224",
+   "39504209400",
+   "39505188144",
+   "39505203727",
+   "39508414669",
+   "39508421419",
+   "39520317047",
+   "39548822269"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   3,
+   8
+  ],
+  "defectsPerPush": 18,
+  "defectsRange": [
+   13,
+   38
+  ],
+  "tailPerPush": 46,
+  "tailRange": [
+   38,
+   97
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "end-close",
+  "ideal": "ref",
+  "arm": "cand:?preset=v2-proved",
+  "runs": 2,
+  "runIds": [
+   "39453181962",
+   "39455284967"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 3,
+  "flaggedNodesRange": [
+   3,
+   4
+  ],
+  "defectsPerPush": 13,
+  "defectsRange": [
+   13,
+   15
+  ],
+  "tailPerPush": 38,
+  "tailRange": [
+   38,
+   45
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "end-close",
+  "ideal": "ref",
+  "arm": "cand:hero:scene-pause",
+  "runs": 1,
+  "runIds": [
+   "39548822269"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 3,
+  "flaggedNodesRange": [
+   3,
+   3
+  ],
+  "defectsPerPush": 18,
+  "defectsRange": [
+   18,
+   18
+  ],
+  "tailPerPush": 45,
+  "tailRange": [
+   45,
+   45
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "end-close",
+  "ideal": "ref",
+  "arm": "cand:hero.exit:faithful",
+  "runs": 5,
+  "runIds": [
+   "39453764374",
+   "39456741492",
+   "39457063232",
+   "39472217441",
+   "39508421419"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 3,
+  "flaggedNodesRange": [
+   3,
+   4
+  ],
+  "defectsPerPush": 18,
+  "defectsRange": [
+   18,
+   20
+  ],
+  "tailPerPush": 48,
+  "tailRange": [
+   45,
+   51
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "end-close",
+  "ideal": "ref",
+  "arm": "cand:hero.exit:scoped",
+  "runs": 4,
+  "runIds": [
+   "39448209903",
+   "39452631146",
+   "39466179818",
+   "39508414669"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   4
+  ],
+  "defectsPerPush": 18,
+  "defectsRange": [
+   16,
+   20
+  ],
+  "tailPerPush": 43,
+  "tailRange": [
+   42,
+   48
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "end-close",
+  "ideal": "ref",
+  "arm": "cand:morph.tween:scroll-lock",
+  "runs": 3,
+  "runIds": [
+   "39496271199",
+   "39498373119",
+   "39505188144"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   4
+  ],
+  "defectsPerPush": 17,
+  "defectsRange": [
+   17,
+   19
+  ],
+  "tailPerPush": 39,
+  "tailRange": [
+   38,
+   47
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "end-close",
+  "ideal": "ref",
+  "arm": "cand:morph.tween:waapi",
+  "runs": 5,
+  "runIds": [
+   "39449092483",
+   "39453458295",
+   "39471466367",
+   "39504209400",
+   "39520317047"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   5
+  ],
+  "defectsPerPush": 23,
+  "defectsRange": [
+   18,
+   26
+  ],
+  "tailPerPush": 31,
+  "tailRange": [
+   29,
+   54
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "end-close",
+  "ideal": "ref",
+  "arm": "cand:morph.tween:waapi-scoped",
+  "runs": 2,
+  "runIds": [
+   "39457767229",
+   "39462241403"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   4
+  ],
+  "defectsPerPush": 23,
+  "defectsRange": [
+   23,
+   24
+  ],
+  "tailPerPush": 23,
+  "tailRange": [
+   23,
+   30
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "end-close",
+  "ideal": "ref",
+  "arm": "cand:nav:earn-no-transition",
+  "runs": 2,
+  "runIds": [
+   "39463486725",
+   "39464309993"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   4
+  ],
+  "defectsPerPush": 15,
+  "defectsRange": [
+   15,
+   17
+  ],
+  "tailPerPush": 39,
+  "tailRange": [
+   39,
+   45
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "end-close",
+  "ideal": "ref",
+  "arm": "orig",
+  "runs": 29,
+  "runIds": [
+   "39448209903",
+   "39449092483",
+   "39452631146",
+   "39453181962",
+   "39453458295",
+   "39453764374",
+   "39455284967",
+   "39456741492",
+   "39457063232",
+   "39457767229",
+   "39462241403",
+   "39463486725",
+   "39464294630",
+   "39464309993",
+   "39464322751",
+   "39466179818",
+   "39466378530",
+   "39471466367",
+   "39472217441",
+   "39496271199",
+   "39498373119",
+   "39500347224",
+   "39504209400",
+   "39505188144",
+   "39505203727",
+   "39508414669",
+   "39508421419",
+   "39520317047",
+   "39548822269"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   4
+  ],
+  "defectsPerPush": 18,
+  "defectsRange": [
+   15,
+   22
+  ],
+  "tailPerPush": 45,
+  "tailRange": [
+   39,
+   51
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "end-open",
+  "ideal": "line",
+  "arm": "base",
+  "runs": 29,
+  "runIds": [
+   "39448209903",
+   "39449092483",
+   "39452631146",
+   "39453181962",
+   "39453458295",
+   "39453764374",
+   "39455284967",
+   "39456741492",
+   "39457063232",
+   "39457767229",
+   "39462241403",
+   "39463486725",
+   "39464294630",
+   "39464309993",
+   "39464322751",
+   "39466179818",
+   "39466378530",
+   "39471466367",
+   "39472217441",
+   "39496271199",
+   "39498373119",
+   "39500347224",
+   "39504209400",
+   "39505188144",
+   "39505203727",
+   "39508414669",
+   "39508421419",
+   "39520317047",
+   "39548822269"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   4,
+   10
+  ],
+  "defectsPerPush": 50,
+  "defectsRange": [
+   45,
+   102
+  ],
+  "tailPerPush": 5,
+  "tailRange": [
+   2,
+   10
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "end-open",
+  "ideal": "line",
+  "arm": "cand:?preset=v2-proved",
+  "runs": 2,
+  "runIds": [
+   "39453181962",
+   "39455284967"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 48,
+  "defectsRange": [
+   48,
+   48
+  ],
+  "tailPerPush": 5,
+  "tailRange": [
+   5,
+   5
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "end-open",
+  "ideal": "line",
+  "arm": "cand:hero:scene-pause",
+  "runs": 1,
+  "runIds": [
+   "39548822269"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 47,
+  "defectsRange": [
+   47,
+   47
+  ],
+  "tailPerPush": 5,
+  "tailRange": [
+   5,
+   5
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "end-open",
+  "ideal": "line",
+  "arm": "cand:hero.exit:faithful",
+  "runs": 5,
+  "runIds": [
+   "39453764374",
+   "39456741492",
+   "39457063232",
+   "39472217441",
+   "39508421419"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 52,
+  "defectsRange": [
+   50,
+   53
+  ],
+  "tailPerPush": 5,
+  "tailRange": [
+   3,
+   6
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "end-open",
+  "ideal": "line",
+  "arm": "cand:hero.exit:scoped",
+  "runs": 4,
+  "runIds": [
+   "39448209903",
+   "39452631146",
+   "39466179818",
+   "39508414669"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 48,
+  "defectsRange": [
+   48,
+   51
+  ],
+  "tailPerPush": 5,
+  "tailRange": [
+   4,
+   5
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "end-open",
+  "ideal": "line",
+  "arm": "cand:morph.tween:scroll-lock",
+  "runs": 3,
+  "runIds": [
+   "39496271199",
+   "39498373119",
+   "39505188144"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 47,
+  "defectsRange": [
+   45,
+   53
+  ],
+  "tailPerPush": 5,
+  "tailRange": [
+   4,
+   5
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "end-open",
+  "ideal": "line",
+  "arm": "cand:morph.tween:waapi",
+  "runs": 5,
+  "runIds": [
+   "39449092483",
+   "39453458295",
+   "39471466367",
+   "39504209400",
+   "39520317047"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   4,
+   5
+  ],
+  "defectsPerPush": 46,
+  "defectsRange": [
+   40,
+   54
+  ],
+  "tailPerPush": 3,
+  "tailRange": [
+   2,
+   5
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "end-open",
+  "ideal": "line",
+  "arm": "cand:morph.tween:waapi-scoped",
+  "runs": 2,
+  "runIds": [
+   "39457767229",
+   "39462241403"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 45,
+  "defectsRange": [
+   45,
+   45
+  ],
+  "tailPerPush": 4,
+  "tailRange": [
+   4,
+   4
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "end-open",
+  "ideal": "line",
+  "arm": "cand:nav:earn-no-transition",
+  "runs": 2,
+  "runIds": [
+   "39463486725",
+   "39464309993"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 48,
+  "defectsRange": [
+   48,
+   54
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   2
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "end-open",
+  "ideal": "line",
+  "arm": "orig",
+  "runs": 29,
+  "runIds": [
+   "39448209903",
+   "39449092483",
+   "39452631146",
+   "39453181962",
+   "39453458295",
+   "39453764374",
+   "39455284967",
+   "39456741492",
+   "39457063232",
+   "39457767229",
+   "39462241403",
+   "39463486725",
+   "39464294630",
+   "39464309993",
+   "39464322751",
+   "39466179818",
+   "39466378530",
+   "39471466367",
+   "39472217441",
+   "39496271199",
+   "39498373119",
+   "39500347224",
+   "39504209400",
+   "39505188144",
+   "39505203727",
+   "39508414669",
+   "39508421419",
+   "39520317047",
+   "39548822269"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 49,
+  "defectsRange": [
+   44,
+   54
+  ],
+  "tailPerPush": 5,
+  "tailRange": [
+   2,
+   6
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "end-open",
+  "ideal": "ref",
+  "arm": "base",
+  "runs": 29,
+  "runIds": [
+   "39448209903",
+   "39449092483",
+   "39452631146",
+   "39453181962",
+   "39453458295",
+   "39453764374",
+   "39455284967",
+   "39456741492",
+   "39457063232",
+   "39457767229",
+   "39462241403",
+   "39463486725",
+   "39464294630",
+   "39464309993",
+   "39464322751",
+   "39466179818",
+   "39466378530",
+   "39471466367",
+   "39472217441",
+   "39496271199",
+   "39498373119",
+   "39500347224",
+   "39504209400",
+   "39505188144",
+   "39505203727",
+   "39508414669",
+   "39508421419",
+   "39520317047",
+   "39548822269"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   3,
+   10
+  ],
+  "defectsPerPush": 2,
+  "defectsRange": [
+   0,
+   7
+  ],
+  "tailPerPush": 5,
+  "tailRange": [
+   2,
+   10
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "end-open",
+  "ideal": "ref",
+  "arm": "cand:?preset=v2-proved",
+  "runs": 2,
+  "runIds": [
+   "39453181962",
+   "39455284967"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 1,
+  "defectsRange": [
+   1,
+   2
+  ],
+  "tailPerPush": 5,
+  "tailRange": [
+   5,
+   5
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "end-open",
+  "ideal": "ref",
+  "arm": "cand:hero:scene-pause",
+  "runs": 1,
+  "runIds": [
+   "39548822269"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   4
+  ],
+  "defectsPerPush": 1,
+  "defectsRange": [
+   1,
+   1
+  ],
+  "tailPerPush": 5,
+  "tailRange": [
+   5,
+   5
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "end-open",
+  "ideal": "ref",
+  "arm": "cand:hero.exit:faithful",
+  "runs": 5,
+  "runIds": [
+   "39453764374",
+   "39456741492",
+   "39457063232",
+   "39472217441",
+   "39508421419"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   4
+  ],
+  "defectsPerPush": 2,
+  "defectsRange": [
+   1,
+   3
+  ],
+  "tailPerPush": 5,
+  "tailRange": [
+   3,
+   6
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "end-open",
+  "ideal": "ref",
+  "arm": "cand:hero.exit:scoped",
+  "runs": 4,
+  "runIds": [
+   "39448209903",
+   "39452631146",
+   "39466179818",
+   "39508414669"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   5
+  ],
+  "defectsPerPush": 1,
+  "defectsRange": [
+   1,
+   5
+  ],
+  "tailPerPush": 5,
+  "tailRange": [
+   4,
+   5
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "end-open",
+  "ideal": "ref",
+  "arm": "cand:morph.tween:scroll-lock",
+  "runs": 3,
+  "runIds": [
+   "39496271199",
+   "39498373119",
+   "39505188144"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   5
+  ],
+  "defectsPerPush": 2,
+  "defectsRange": [
+   1,
+   2
+  ],
+  "tailPerPush": 5,
+  "tailRange": [
+   4,
+   5
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "end-open",
+  "ideal": "ref",
+  "arm": "cand:morph.tween:waapi",
+  "runs": 5,
+  "runIds": [
+   "39449092483",
+   "39453458295",
+   "39471466367",
+   "39504209400",
+   "39520317047"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 3,
+  "flaggedNodesRange": [
+   3,
+   5
+  ],
+  "defectsPerPush": 4,
+  "defectsRange": [
+   1,
+   4
+  ],
+  "tailPerPush": 3,
+  "tailRange": [
+   2,
+   5
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "end-open",
+  "ideal": "ref",
+  "arm": "cand:morph.tween:waapi-scoped",
+  "runs": 2,
+  "runIds": [
+   "39457767229",
+   "39462241403"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   5
+  ],
+  "defectsPerPush": 3,
+  "defectsRange": [
+   3,
+   4
+  ],
+  "tailPerPush": 4,
+  "tailRange": [
+   4,
+   4
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "end-open",
+  "ideal": "ref",
+  "arm": "cand:nav:earn-no-transition",
+  "runs": 2,
+  "runIds": [
+   "39463486725",
+   "39464309993"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 18,
+  "defectsRange": [
+   18,
+   19
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   2
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "end-open",
+  "ideal": "ref",
+  "arm": "orig",
+  "runs": 29,
+  "runIds": [
+   "39448209903",
+   "39449092483",
+   "39452631146",
+   "39453181962",
+   "39453458295",
+   "39453764374",
+   "39455284967",
+   "39456741492",
+   "39457063232",
+   "39457767229",
+   "39462241403",
+   "39463486725",
+   "39464294630",
+   "39464309993",
+   "39464322751",
+   "39466179818",
+   "39466378530",
+   "39471466367",
+   "39472217441",
+   "39496271199",
+   "39498373119",
+   "39500347224",
+   "39504209400",
+   "39505188144",
+   "39505203727",
+   "39508414669",
+   "39508421419",
+   "39520317047",
+   "39548822269"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   4,
+   5
+  ],
+  "defectsPerPush": 2,
+  "defectsRange": [
+   1,
+   5
+  ],
+  "tailPerPush": 5,
+  "tailRange": [
+   2,
+   6
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "hero",
+  "ideal": "line",
+  "arm": "base",
+  "runs": 29,
+  "runIds": [
+   "39448209903",
+   "39449092483",
+   "39452631146",
+   "39453181962",
+   "39453458295",
+   "39453764374",
+   "39455284967",
+   "39456741492",
+   "39457063232",
+   "39457767229",
+   "39462241403",
+   "39463486725",
+   "39464294630",
+   "39464309993",
+   "39464322751",
+   "39466179818",
+   "39466378530",
+   "39471466367",
+   "39472217441",
+   "39496271199",
+   "39498373119",
+   "39500347224",
+   "39504209400",
+   "39505188144",
+   "39505203727",
+   "39508414669",
+   "39508421419",
+   "39520317047",
+   "39548822269"
+  ],
+  "judgedNodes": 10,
+  "flaggedNodes": 6,
+  "flaggedNodesRange": [
+   6,
+   12
+  ],
+  "defectsPerPush": 12,
+  "defectsRange": [
+   0,
+   24
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "hero",
+  "ideal": "line",
+  "arm": "cand:?preset=v2-proved",
+  "runs": 2,
+  "runIds": [
+   "39453181962",
+   "39455284967"
+  ],
+  "judgedNodes": 10,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   4
+  ],
+  "defectsPerPush": 0,
+  "defectsRange": [
+   0,
+   0
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "hero",
+  "ideal": "line",
+  "arm": "cand:hero:scene-pause",
+  "runs": 1,
+  "runIds": [
+   "39548822269"
+  ],
+  "judgedNodes": 10,
+  "flaggedNodes": 6,
+  "flaggedNodesRange": [
+   6,
+   6
+  ],
+  "defectsPerPush": 0,
+  "defectsRange": [
+   0,
+   0
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "hero",
+  "ideal": "line",
+  "arm": "cand:hero.exit:faithful",
+  "runs": 5,
+  "runIds": [
+   "39453764374",
+   "39456741492",
+   "39457063232",
+   "39472217441",
+   "39508421419"
+  ],
+  "judgedNodes": 10,
+  "flaggedNodes": 6,
+  "flaggedNodesRange": [
+   6,
+   6
+  ],
+  "defectsPerPush": 0,
+  "defectsRange": [
+   0,
+   12
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "hero",
+  "ideal": "line",
+  "arm": "cand:hero.exit:scoped",
+  "runs": 4,
+  "runIds": [
+   "39448209903",
+   "39452631146",
+   "39466179818",
+   "39508414669"
+  ],
+  "judgedNodes": 10,
+  "flaggedNodes": 6,
+  "flaggedNodesRange": [
+   6,
+   6
+  ],
+  "defectsPerPush": 12,
+  "defectsRange": [
+   0,
+   12
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "hero",
+  "ideal": "line",
+  "arm": "cand:morph.tween:scroll-lock",
+  "runs": 3,
+  "runIds": [
+   "39496271199",
+   "39498373119",
+   "39505188144"
+  ],
+  "judgedNodes": 10,
+  "flaggedNodes": 6,
+  "flaggedNodesRange": [
+   6,
+   6
+  ],
+  "defectsPerPush": 0,
+  "defectsRange": [
+   0,
+   0
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "hero",
+  "ideal": "line",
+  "arm": "cand:morph.tween:waapi",
+  "runs": 5,
+  "runIds": [
+   "39449092483",
+   "39453458295",
+   "39471466367",
+   "39504209400",
+   "39520317047"
+  ],
+  "judgedNodes": 10,
+  "flaggedNodes": 6,
+  "flaggedNodesRange": [
+   6,
+   6
+  ],
+  "defectsPerPush": 0,
+  "defectsRange": [
+   0,
+   12
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "hero",
+  "ideal": "line",
+  "arm": "cand:morph.tween:waapi-scoped",
+  "runs": 2,
+  "runIds": [
+   "39457767229",
+   "39462241403"
+  ],
+  "judgedNodes": 10,
+  "flaggedNodes": 6,
+  "flaggedNodesRange": [
+   6,
+   6
+  ],
+  "defectsPerPush": 12,
+  "defectsRange": [
+   12,
+   12
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "hero",
+  "ideal": "line",
+  "arm": "cand:nav:earn-no-transition",
+  "runs": 2,
+  "runIds": [
+   "39463486725",
+   "39464309993"
+  ],
+  "judgedNodes": 10,
+  "flaggedNodes": 6,
+  "flaggedNodesRange": [
+   6,
+   6
+  ],
+  "defectsPerPush": 12,
+  "defectsRange": [
+   12,
+   12
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "hero",
+  "ideal": "line",
+  "arm": "orig",
+  "runs": 29,
+  "runIds": [
+   "39448209903",
+   "39449092483",
+   "39452631146",
+   "39453181962",
+   "39453458295",
+   "39453764374",
+   "39455284967",
+   "39456741492",
+   "39457063232",
+   "39457767229",
+   "39462241403",
+   "39463486725",
+   "39464294630",
+   "39464309993",
+   "39464322751",
+   "39466179818",
+   "39466378530",
+   "39471466367",
+   "39472217441",
+   "39496271199",
+   "39498373119",
+   "39500347224",
+   "39504209400",
+   "39505188144",
+   "39505203727",
+   "39508414669",
+   "39508421419",
+   "39520317047",
+   "39548822269"
+  ],
+  "judgedNodes": 10,
+  "flaggedNodes": 6,
+  "flaggedNodesRange": [
+   6,
+   6
+  ],
+  "defectsPerPush": 0,
+  "defectsRange": [
+   0,
+   0
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "hero",
+  "ideal": "ref",
+  "arm": "base",
+  "runs": 29,
+  "runIds": [
+   "39448209903",
+   "39449092483",
+   "39452631146",
+   "39453181962",
+   "39453458295",
+   "39453764374",
+   "39455284967",
+   "39456741492",
+   "39457063232",
+   "39457767229",
+   "39462241403",
+   "39463486725",
+   "39464294630",
+   "39464309993",
+   "39464322751",
+   "39466179818",
+   "39466378530",
+   "39471466367",
+   "39472217441",
+   "39496271199",
+   "39498373119",
+   "39500347224",
+   "39504209400",
+   "39505188144",
+   "39505203727",
+   "39508414669",
+   "39508421419",
+   "39520317047",
+   "39548822269"
+  ],
+  "judgedNodes": 10,
+  "flaggedNodes": 10,
+  "flaggedNodesRange": [
+   0,
+   20
+  ],
+  "defectsPerPush": 0,
+  "defectsRange": [
+   0,
+   0
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "hero",
+  "ideal": "ref",
+  "arm": "cand:?preset=v2-proved",
+  "runs": 2,
+  "runIds": [
+   "39453181962",
+   "39455284967"
+  ],
+  "judgedNodes": 10,
+  "flaggedNodes": 10,
+  "flaggedNodesRange": [
+   10,
+   10
+  ],
+  "defectsPerPush": 0,
+  "defectsRange": [
+   0,
+   0
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "hero",
+  "ideal": "ref",
+  "arm": "cand:hero:scene-pause",
+  "runs": 1,
+  "runIds": [
+   "39548822269"
+  ],
+  "judgedNodes": 10,
+  "flaggedNodes": 0,
+  "flaggedNodesRange": [
+   0,
+   0
+  ],
+  "defectsPerPush": 0,
+  "defectsRange": [
+   0,
+   0
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "hero",
+  "ideal": "ref",
+  "arm": "cand:hero.exit:faithful",
+  "runs": 5,
+  "runIds": [
+   "39453764374",
+   "39456741492",
+   "39457063232",
+   "39472217441",
+   "39508421419"
+  ],
+  "judgedNodes": 10,
+  "flaggedNodes": 0,
+  "flaggedNodesRange": [
+   0,
+   10
+  ],
+  "defectsPerPush": 0,
+  "defectsRange": [
+   0,
+   0
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "hero",
+  "ideal": "ref",
+  "arm": "cand:hero.exit:scoped",
+  "runs": 4,
+  "runIds": [
+   "39448209903",
+   "39452631146",
+   "39466179818",
+   "39508414669"
+  ],
+  "judgedNodes": 10,
+  "flaggedNodes": 10,
+  "flaggedNodesRange": [
+   0,
+   10
+  ],
+  "defectsPerPush": 0,
+  "defectsRange": [
+   0,
+   0
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "hero",
+  "ideal": "ref",
+  "arm": "cand:morph.tween:scroll-lock",
+  "runs": 3,
+  "runIds": [
+   "39496271199",
+   "39498373119",
+   "39505188144"
+  ],
+  "judgedNodes": 10,
+  "flaggedNodes": 0,
+  "flaggedNodesRange": [
+   0,
+   0
+  ],
+  "defectsPerPush": 0,
+  "defectsRange": [
+   0,
+   0
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "hero",
+  "ideal": "ref",
+  "arm": "cand:morph.tween:waapi",
+  "runs": 5,
+  "runIds": [
+   "39449092483",
+   "39453458295",
+   "39471466367",
+   "39504209400",
+   "39520317047"
+  ],
+  "judgedNodes": 10,
+  "flaggedNodes": 7,
+  "flaggedNodesRange": [
+   0,
+   10
+  ],
+  "defectsPerPush": 0,
+  "defectsRange": [
+   0,
+   0
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "hero",
+  "ideal": "ref",
+  "arm": "cand:morph.tween:waapi-scoped",
+  "runs": 2,
+  "runIds": [
+   "39457767229",
+   "39462241403"
+  ],
+  "judgedNodes": 10,
+  "flaggedNodes": 10,
+  "flaggedNodesRange": [
+   10,
+   10
+  ],
+  "defectsPerPush": 0,
+  "defectsRange": [
+   0,
+   0
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 1280,
+  "window": "hero",
+  "ideal": "ref",
+  "arm": "cand:nav:earn-no-transition",
+  "runs": 2,
+  "runIds": [
+   "39463486725",
+   "39464309993"
+  ],
+  "judgedNodes": 10,
+  "flaggedNodes": 10,
+  "flaggedNodesRange": [
+   10,
+   10
+  ],
+  "defectsPerPush": 0,
+  "defectsRange": [
+   0,
+   0
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "end-close",
+  "ideal": "line",
+  "arm": "base",
+  "runs": 33,
+  "runIds": [
+   "39448209903",
+   "39449092483",
+   "39452631146",
+   "39453181962",
+   "39453458295",
+   "39453764374",
+   "39455284967",
+   "39456741492",
+   "39457063232",
+   "39457767229",
+   "39462241403",
+   "39463486725",
+   "39464294630",
+   "39464309993",
+   "39464322751",
+   "39466179818",
+   "39466378530",
+   "39471466367",
+   "39472217441",
+   "39496271199",
+   "39498373119",
+   "39500347224",
+   "39504209400",
+   "39505188144",
+   "39505203727",
+   "39508414669",
+   "39508421419",
+   "39520317047",
+   "39522707053",
+   "39548822269",
+   "39553952680",
+   "39556935431",
+   "39557718020"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   10
+  ],
+  "defectsPerPush": 98,
+  "defectsRange": [
+   92,
+   198
+  ],
+  "tailPerPush": 57,
+  "tailRange": [
+   56,
+   115
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "end-close",
+  "ideal": "line",
+  "arm": "cand:?preset=v2-proved",
+  "runs": 2,
+  "runIds": [
+   "39453181962",
+   "39455284967"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 96,
+  "defectsRange": [
+   96,
+   98
+  ],
+  "tailPerPush": 56,
+  "tailRange": [
+   56,
+   57
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "end-close",
+  "ideal": "line",
+  "arm": "cand:hero:scene-pause",
+  "runs": 3,
+  "runIds": [
+   "39548822269",
+   "39553952680",
+   "39556935431"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 97,
+  "defectsRange": [
+   97,
+   103
+  ],
+  "tailPerPush": 57,
+  "tailRange": [
+   57,
+   58
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "end-close",
+  "ideal": "line",
+  "arm": "cand:hero.exit:faithful",
+  "runs": 5,
+  "runIds": [
+   "39453764374",
+   "39456741492",
+   "39457063232",
+   "39472217441",
+   "39508421419"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 99,
+  "defectsRange": [
+   93,
+   102
+  ],
+  "tailPerPush": 57,
+  "tailRange": [
+   56,
+   57
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "end-close",
+  "ideal": "line",
+  "arm": "cand:hero.exit:scoped",
+  "runs": 5,
+  "runIds": [
+   "39448209903",
+   "39452631146",
+   "39466179818",
+   "39508414669",
+   "39522707053"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 97,
+  "defectsRange": [
+   92,
+   100
+  ],
+  "tailPerPush": 57,
+  "tailRange": [
+   56,
+   57
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "end-close",
+  "ideal": "line",
+  "arm": "cand:morph.tween:scroll-lock",
+  "runs": 3,
+  "runIds": [
+   "39496271199",
+   "39498373119",
+   "39505188144"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 102,
+  "defectsRange": [
+   101,
+   104
+  ],
+  "tailPerPush": 57,
+  "tailRange": [
+   57,
+   57
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "end-close",
+  "ideal": "line",
+  "arm": "cand:morph.tween:waapi",
+  "runs": 5,
+  "runIds": [
+   "39449092483",
+   "39453458295",
+   "39471466367",
+   "39504209400",
+   "39520317047"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 89,
+  "defectsRange": [
+   84,
+   95
+  ],
+  "tailPerPush": 34,
+  "tailRange": [
+   34,
+   58
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "end-close",
+  "ideal": "line",
+  "arm": "cand:morph.tween:waapi-scoped",
+  "runs": 2,
+  "runIds": [
+   "39457767229",
+   "39462241403"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 86,
+  "defectsRange": [
+   86,
+   90
+  ],
+  "tailPerPush": 34,
+  "tailRange": [
+   34,
+   34
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "end-close",
+  "ideal": "line",
+  "arm": "cand:nav:earn-no-transition",
+  "runs": 2,
+  "runIds": [
+   "39463486725",
+   "39464309993"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 80,
+  "defectsRange": [
+   80,
+   82
+  ],
+  "tailPerPush": 57,
+  "tailRange": [
+   57,
+   57
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "end-close",
+  "ideal": "line",
+  "arm": "orig",
+  "runs": 33,
+  "runIds": [
+   "39448209903",
+   "39449092483",
+   "39452631146",
+   "39453181962",
+   "39453458295",
+   "39453764374",
+   "39455284967",
+   "39456741492",
+   "39457063232",
+   "39457767229",
+   "39462241403",
+   "39463486725",
+   "39464294630",
+   "39464309993",
+   "39464322751",
+   "39466179818",
+   "39466378530",
+   "39471466367",
+   "39472217441",
+   "39496271199",
+   "39498373119",
+   "39500347224",
+   "39504209400",
+   "39505188144",
+   "39505203727",
+   "39508414669",
+   "39508421419",
+   "39520317047",
+   "39522707053",
+   "39548822269",
+   "39553952680",
+   "39556935431",
+   "39557718020"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 101,
+  "defectsRange": [
+   97,
+   105
+  ],
+  "tailPerPush": 57,
+  "tailRange": [
+   56,
+   58
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "end-close",
+  "ideal": "ref",
+  "arm": "base",
+  "runs": 33,
+  "runIds": [
+   "39448209903",
+   "39449092483",
+   "39452631146",
+   "39453181962",
+   "39453458295",
+   "39453764374",
+   "39455284967",
+   "39456741492",
+   "39457063232",
+   "39457767229",
+   "39462241403",
+   "39463486725",
+   "39464294630",
+   "39464309993",
+   "39464322751",
+   "39466179818",
+   "39466378530",
+   "39471466367",
+   "39472217441",
+   "39496271199",
+   "39498373119",
+   "39500347224",
+   "39504209400",
+   "39505188144",
+   "39505203727",
+   "39508414669",
+   "39508421419",
+   "39520317047",
+   "39522707053",
+   "39548822269",
+   "39553952680",
+   "39556935431",
+   "39557718020"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   9
+  ],
+  "defectsPerPush": 29,
+  "defectsRange": [
+   19,
+   60
+  ],
+  "tailPerPush": 56,
+  "tailRange": [
+   55,
+   114
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "end-close",
+  "ideal": "ref",
+  "arm": "cand:?preset=v2-proved",
+  "runs": 2,
+  "runIds": [
+   "39453181962",
+   "39455284967"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 29,
+  "defectsRange": [
+   29,
+   33
+  ],
+  "tailPerPush": 55,
+  "tailRange": [
+   55,
+   56
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "end-close",
+  "ideal": "ref",
+  "arm": "cand:hero:scene-pause",
+  "runs": 3,
+  "runIds": [
+   "39548822269",
+   "39553952680",
+   "39556935431"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   5
+  ],
+  "defectsPerPush": 21,
+  "defectsRange": [
+   20,
+   22
+  ],
+  "tailPerPush": 57,
+  "tailRange": [
+   57,
+   57
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "end-close",
+  "ideal": "ref",
+  "arm": "cand:hero.exit:faithful",
+  "runs": 5,
+  "runIds": [
+   "39453764374",
+   "39456741492",
+   "39457063232",
+   "39472217441",
+   "39508421419"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   4
+  ],
+  "defectsPerPush": 22,
+  "defectsRange": [
+   19,
+   30
+  ],
+  "tailPerPush": 56,
+  "tailRange": [
+   55,
+   56
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "end-close",
+  "ideal": "ref",
+  "arm": "cand:hero.exit:scoped",
+  "runs": 5,
+  "runIds": [
+   "39448209903",
+   "39452631146",
+   "39466179818",
+   "39508414669",
+   "39522707053"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   5
+  ],
+  "defectsPerPush": 28,
+  "defectsRange": [
+   18,
+   31
+  ],
+  "tailPerPush": 56,
+  "tailRange": [
+   55,
+   57
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "end-close",
+  "ideal": "ref",
+  "arm": "cand:morph.tween:scroll-lock",
+  "runs": 3,
+  "runIds": [
+   "39496271199",
+   "39498373119",
+   "39505188144"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   5
+  ],
+  "defectsPerPush": 23,
+  "defectsRange": [
+   19,
+   25
+  ],
+  "tailPerPush": 57,
+  "tailRange": [
+   56,
+   58
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "end-close",
+  "ideal": "ref",
+  "arm": "cand:morph.tween:waapi",
+  "runs": 5,
+  "runIds": [
+   "39449092483",
+   "39453458295",
+   "39471466367",
+   "39504209400",
+   "39520317047"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 36,
+  "defectsRange": [
+   25,
+   40
+  ],
+  "tailPerPush": 38,
+  "tailRange": [
+   37,
+   58
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "end-close",
+  "ideal": "ref",
+  "arm": "cand:morph.tween:waapi-scoped",
+  "runs": 2,
+  "runIds": [
+   "39457767229",
+   "39462241403"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 41,
+  "defectsRange": [
+   41,
+   42
+  ],
+  "tailPerPush": 37,
+  "tailRange": [
+   37,
+   37
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "end-close",
+  "ideal": "ref",
+  "arm": "cand:nav:earn-no-transition",
+  "runs": 2,
+  "runIds": [
+   "39463486725",
+   "39464309993"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   4
+  ],
+  "defectsPerPush": 33,
+  "defectsRange": [
+   33,
+   34
+  ],
+  "tailPerPush": 56,
+  "tailRange": [
+   56,
+   56
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "end-close",
+  "ideal": "ref",
+  "arm": "orig",
+  "runs": 33,
+  "runIds": [
+   "39448209903",
+   "39449092483",
+   "39452631146",
+   "39453181962",
+   "39453458295",
+   "39453764374",
+   "39455284967",
+   "39456741492",
+   "39457063232",
+   "39457767229",
+   "39462241403",
+   "39463486725",
+   "39464294630",
+   "39464309993",
+   "39464322751",
+   "39466179818",
+   "39466378530",
+   "39471466367",
+   "39472217441",
+   "39496271199",
+   "39498373119",
+   "39500347224",
+   "39504209400",
+   "39505188144",
+   "39505203727",
+   "39508414669",
+   "39508421419",
+   "39520317047",
+   "39522707053",
+   "39548822269",
+   "39553952680",
+   "39556935431",
+   "39557718020"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   4,
+   5
+  ],
+  "defectsPerPush": 20,
+  "defectsRange": [
+   17,
+   25
+  ],
+  "tailPerPush": 56,
+  "tailRange": [
+   55,
+   58
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "end-open",
+  "ideal": "line",
+  "arm": "base",
+  "runs": 33,
+  "runIds": [
+   "39448209903",
+   "39449092483",
+   "39452631146",
+   "39453181962",
+   "39453458295",
+   "39453764374",
+   "39455284967",
+   "39456741492",
+   "39457063232",
+   "39457767229",
+   "39462241403",
+   "39463486725",
+   "39464294630",
+   "39464309993",
+   "39464322751",
+   "39466179818",
+   "39466378530",
+   "39471466367",
+   "39472217441",
+   "39496271199",
+   "39498373119",
+   "39500347224",
+   "39504209400",
+   "39505188144",
+   "39505203727",
+   "39508414669",
+   "39508421419",
+   "39520317047",
+   "39522707053",
+   "39548822269",
+   "39553952680",
+   "39556935431",
+   "39557718020"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   10
+  ],
+  "defectsPerPush": 118,
+  "defectsRange": [
+   113,
+   243
+  ],
+  "tailPerPush": 9,
+  "tailRange": [
+   6,
+   19
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "end-open",
+  "ideal": "line",
+  "arm": "cand:?preset=v2-proved",
+  "runs": 2,
+  "runIds": [
+   "39453181962",
+   "39455284967"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 115,
+  "defectsRange": [
+   115,
+   116
+  ],
+  "tailPerPush": 6,
+  "tailRange": [
+   6,
+   7
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "end-open",
+  "ideal": "line",
+  "arm": "cand:hero:scene-pause",
+  "runs": 3,
+  "runIds": [
+   "39548822269",
+   "39553952680",
+   "39556935431"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 117,
+  "defectsRange": [
+   115,
+   118
+  ],
+  "tailPerPush": 9,
+  "tailRange": [
+   9,
+   10
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "end-open",
+  "ideal": "line",
+  "arm": "cand:hero.exit:faithful",
+  "runs": 5,
+  "runIds": [
+   "39453764374",
+   "39456741492",
+   "39457063232",
+   "39472217441",
+   "39508421419"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 118,
+  "defectsRange": [
+   115,
+   119
+  ],
+  "tailPerPush": 9,
+  "tailRange": [
+   6,
+   10
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "end-open",
+  "ideal": "line",
+  "arm": "cand:hero.exit:scoped",
+  "runs": 5,
+  "runIds": [
+   "39448209903",
+   "39452631146",
+   "39466179818",
+   "39508414669",
+   "39522707053"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 118,
+  "defectsRange": [
+   115,
+   119
+  ],
+  "tailPerPush": 7,
+  "tailRange": [
+   7,
+   9
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "end-open",
+  "ideal": "line",
+  "arm": "cand:morph.tween:scroll-lock",
+  "runs": 3,
+  "runIds": [
+   "39496271199",
+   "39498373119",
+   "39505188144"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 119,
+  "defectsRange": [
+   118,
+   119
+  ],
+  "tailPerPush": 9,
+  "tailRange": [
+   9,
+   10
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "end-open",
+  "ideal": "line",
+  "arm": "cand:morph.tween:waapi",
+  "runs": 5,
+  "runIds": [
+   "39449092483",
+   "39453458295",
+   "39471466367",
+   "39504209400",
+   "39520317047"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 112,
+  "defectsRange": [
+   106,
+   119
+  ],
+  "tailPerPush": 8,
+  "tailRange": [
+   6,
+   9
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "end-open",
+  "ideal": "line",
+  "arm": "cand:morph.tween:waapi-scoped",
+  "runs": 2,
+  "runIds": [
+   "39457767229",
+   "39462241403"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 112,
+  "defectsRange": [
+   112,
+   117
+  ],
+  "tailPerPush": 6,
+  "tailRange": [
+   6,
+   6
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "end-open",
+  "ideal": "line",
+  "arm": "cand:nav:earn-no-transition",
+  "runs": 2,
+  "runIds": [
+   "39463486725",
+   "39464309993"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 112,
+  "defectsRange": [
+   112,
+   116
+  ],
+  "tailPerPush": 2,
+  "tailRange": [
+   2,
+   2
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "end-open",
+  "ideal": "line",
+  "arm": "orig",
+  "runs": 33,
+  "runIds": [
+   "39448209903",
+   "39449092483",
+   "39452631146",
+   "39453181962",
+   "39453458295",
+   "39453764374",
+   "39455284967",
+   "39456741492",
+   "39457063232",
+   "39457767229",
+   "39462241403",
+   "39463486725",
+   "39464294630",
+   "39464309993",
+   "39464322751",
+   "39466179818",
+   "39466378530",
+   "39471466367",
+   "39472217441",
+   "39496271199",
+   "39498373119",
+   "39500347224",
+   "39504209400",
+   "39505188144",
+   "39505203727",
+   "39508414669",
+   "39508421419",
+   "39520317047",
+   "39522707053",
+   "39548822269",
+   "39553952680",
+   "39556935431",
+   "39557718020"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 118,
+  "defectsRange": [
+   112,
+   124
+  ],
+  "tailPerPush": 9,
+  "tailRange": [
+   8,
+   9
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "end-open",
+  "ideal": "ref",
+  "arm": "base",
+  "runs": 33,
+  "runIds": [
+   "39448209903",
+   "39449092483",
+   "39452631146",
+   "39453181962",
+   "39453458295",
+   "39453764374",
+   "39455284967",
+   "39456741492",
+   "39457063232",
+   "39457767229",
+   "39462241403",
+   "39463486725",
+   "39464294630",
+   "39464309993",
+   "39464322751",
+   "39466179818",
+   "39466378530",
+   "39471466367",
+   "39472217441",
+   "39496271199",
+   "39498373119",
+   "39500347224",
+   "39504209400",
+   "39505188144",
+   "39505203727",
+   "39508414669",
+   "39508421419",
+   "39520317047",
+   "39522707053",
+   "39548822269",
+   "39553952680",
+   "39556935431",
+   "39557718020"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   4,
+   10
+  ],
+  "defectsPerPush": 16,
+  "defectsRange": [
+   5,
+   40
+  ],
+  "tailPerPush": 9,
+  "tailRange": [
+   6,
+   19
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "end-open",
+  "ideal": "ref",
+  "arm": "cand:?preset=v2-proved",
+  "runs": 2,
+  "runIds": [
+   "39453181962",
+   "39455284967"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   4
+  ],
+  "defectsPerPush": 16,
+  "defectsRange": [
+   16,
+   18
+  ],
+  "tailPerPush": 6,
+  "tailRange": [
+   6,
+   7
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "end-open",
+  "ideal": "ref",
+  "arm": "cand:hero:scene-pause",
+  "runs": 3,
+  "runIds": [
+   "39548822269",
+   "39553952680",
+   "39556935431"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   4,
+   5
+  ],
+  "defectsPerPush": 5,
+  "defectsRange": [
+   5,
+   9
+  ],
+  "tailPerPush": 9,
+  "tailRange": [
+   9,
+   10
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "end-open",
+  "ideal": "ref",
+  "arm": "cand:hero.exit:faithful",
+  "runs": 5,
+  "runIds": [
+   "39453764374",
+   "39456741492",
+   "39457063232",
+   "39472217441",
+   "39508421419"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   5
+  ],
+  "defectsPerPush": 13,
+  "defectsRange": [
+   8,
+   18
+  ],
+  "tailPerPush": 9,
+  "tailRange": [
+   6,
+   10
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "end-open",
+  "ideal": "ref",
+  "arm": "cand:hero.exit:scoped",
+  "runs": 5,
+  "runIds": [
+   "39448209903",
+   "39452631146",
+   "39466179818",
+   "39508414669",
+   "39522707053"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 18,
+  "defectsRange": [
+   9,
+   19
+  ],
+  "tailPerPush": 7,
+  "tailRange": [
+   7,
+   9
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "end-open",
+  "ideal": "ref",
+  "arm": "cand:morph.tween:scroll-lock",
+  "runs": 3,
+  "runIds": [
+   "39496271199",
+   "39498373119",
+   "39505188144"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   5
+  ],
+  "defectsPerPush": 7,
+  "defectsRange": [
+   2,
+   10
+  ],
+  "tailPerPush": 9,
+  "tailRange": [
+   9,
+   10
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "end-open",
+  "ideal": "ref",
+  "arm": "cand:morph.tween:waapi",
+  "runs": 5,
+  "runIds": [
+   "39449092483",
+   "39453458295",
+   "39471466367",
+   "39504209400",
+   "39520317047"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 3,
+  "flaggedNodesRange": [
+   3,
+   4
+  ],
+  "defectsPerPush": 5,
+  "defectsRange": [
+   0,
+   12
+  ],
+  "tailPerPush": 8,
+  "tailRange": [
+   6,
+   9
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "end-open",
+  "ideal": "ref",
+  "arm": "cand:morph.tween:waapi-scoped",
+  "runs": 2,
+  "runIds": [
+   "39457767229",
+   "39462241403"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 3,
+  "flaggedNodesRange": [
+   3,
+   4
+  ],
+  "defectsPerPush": 11,
+  "defectsRange": [
+   11,
+   14
+  ],
+  "tailPerPush": 6,
+  "tailRange": [
+   6,
+   6
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "end-open",
+  "ideal": "ref",
+  "arm": "cand:nav:earn-no-transition",
+  "runs": 2,
+  "runIds": [
+   "39463486725",
+   "39464309993"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   4
+  ],
+  "defectsPerPush": 42,
+  "defectsRange": [
+   42,
+   51
+  ],
+  "tailPerPush": 2,
+  "tailRange": [
+   2,
+   2
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "end-open",
+  "ideal": "ref",
+  "arm": "orig",
+  "runs": 33,
+  "runIds": [
+   "39448209903",
+   "39449092483",
+   "39452631146",
+   "39453181962",
+   "39453458295",
+   "39453764374",
+   "39455284967",
+   "39456741492",
+   "39457063232",
+   "39457767229",
+   "39462241403",
+   "39463486725",
+   "39464294630",
+   "39464309993",
+   "39464322751",
+   "39466179818",
+   "39466378530",
+   "39471466367",
+   "39472217441",
+   "39496271199",
+   "39498373119",
+   "39500347224",
+   "39504209400",
+   "39505188144",
+   "39505203727",
+   "39508414669",
+   "39508421419",
+   "39520317047",
+   "39522707053",
+   "39548822269",
+   "39553952680",
+   "39556935431",
+   "39557718020"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   3,
+   5
+  ],
+  "defectsPerPush": 0,
+  "defectsRange": [
+   0,
+   9
+  ],
+  "tailPerPush": 9,
+  "tailRange": [
+   8,
+   9
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "hero",
+  "ideal": "line",
+  "arm": "base",
+  "runs": 33,
+  "runIds": [
+   "39448209903",
+   "39449092483",
+   "39452631146",
+   "39453181962",
+   "39453458295",
+   "39453764374",
+   "39455284967",
+   "39456741492",
+   "39457063232",
+   "39457767229",
+   "39462241403",
+   "39463486725",
+   "39464294630",
+   "39464309993",
+   "39464322751",
+   "39466179818",
+   "39466378530",
+   "39471466367",
+   "39472217441",
+   "39496271199",
+   "39498373119",
+   "39500347224",
+   "39504209400",
+   "39505188144",
+   "39505203727",
+   "39508414669",
+   "39508421419",
+   "39520317047",
+   "39522707053",
+   "39548822269",
+   "39553952680",
+   "39556935431",
+   "39557718020"
+  ],
+  "judgedNodes": 9,
+  "flaggedNodes": 8,
+  "flaggedNodesRange": [
+   6,
+   16
+  ],
+  "defectsPerPush": 0,
+  "defectsRange": [
+   0,
+   24
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "hero",
+  "ideal": "line",
+  "arm": "cand:?preset=v2-proved",
+  "runs": 2,
+  "runIds": [
+   "39453181962",
+   "39455284967"
+  ],
+  "judgedNodes": 9,
+  "flaggedNodes": 8,
+  "flaggedNodesRange": [
+   8,
+   8
+  ],
+  "defectsPerPush": 0,
+  "defectsRange": [
+   0,
+   0
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "hero",
+  "ideal": "line",
+  "arm": "cand:hero:scene-pause",
+  "runs": 3,
+  "runIds": [
+   "39548822269",
+   "39553952680",
+   "39556935431"
+  ],
+  "judgedNodes": 7,
+  "flaggedNodes": 6,
+  "flaggedNodesRange": [
+   6,
+   6
+  ],
+  "defectsPerPush": 0,
+  "defectsRange": [
+   0,
+   0
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "hero",
+  "ideal": "line",
+  "arm": "cand:hero.exit:faithful",
+  "runs": 5,
+  "runIds": [
+   "39453764374",
+   "39456741492",
+   "39457063232",
+   "39472217441",
+   "39508421419"
+  ],
+  "judgedNodes": 7,
+  "flaggedNodes": 6,
+  "flaggedNodesRange": [
+   6,
+   8
+  ],
+  "defectsPerPush": 0,
+  "defectsRange": [
+   0,
+   12
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "hero",
+  "ideal": "line",
+  "arm": "cand:hero.exit:scoped",
+  "runs": 5,
+  "runIds": [
+   "39448209903",
+   "39452631146",
+   "39466179818",
+   "39508414669",
+   "39522707053"
+  ],
+  "judgedNodes": 9,
+  "flaggedNodes": 8,
+  "flaggedNodesRange": [
+   6,
+   8
+  ],
+  "defectsPerPush": 12,
+  "defectsRange": [
+   0,
+   12
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "hero",
+  "ideal": "line",
+  "arm": "cand:morph.tween:scroll-lock",
+  "runs": 3,
+  "runIds": [
+   "39496271199",
+   "39498373119",
+   "39505188144"
+  ],
+  "judgedNodes": 7,
+  "flaggedNodes": 6,
+  "flaggedNodesRange": [
+   6,
+   6
+  ],
+  "defectsPerPush": 0,
+  "defectsRange": [
+   0,
+   0
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "hero",
+  "ideal": "line",
+  "arm": "cand:morph.tween:waapi",
+  "runs": 5,
+  "runIds": [
+   "39449092483",
+   "39453458295",
+   "39471466367",
+   "39504209400",
+   "39520317047"
+  ],
+  "judgedNodes": 7,
+  "flaggedNodes": 6,
+  "flaggedNodesRange": [
+   6,
+   8
+  ],
+  "defectsPerPush": 0,
+  "defectsRange": [
+   0,
+   12
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "hero",
+  "ideal": "line",
+  "arm": "cand:morph.tween:waapi-scoped",
+  "runs": 2,
+  "runIds": [
+   "39457767229",
+   "39462241403"
+  ],
+  "judgedNodes": 9,
+  "flaggedNodes": 8,
+  "flaggedNodesRange": [
+   8,
+   8
+  ],
+  "defectsPerPush": 12,
+  "defectsRange": [
+   12,
+   12
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "hero",
+  "ideal": "line",
+  "arm": "cand:nav:earn-no-transition",
+  "runs": 2,
+  "runIds": [
+   "39463486725",
+   "39464309993"
+  ],
+  "judgedNodes": 9,
+  "flaggedNodes": 8,
+  "flaggedNodesRange": [
+   8,
+   8
+  ],
+  "defectsPerPush": 12,
+  "defectsRange": [
+   12,
+   12
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "hero",
+  "ideal": "line",
+  "arm": "orig",
+  "runs": 33,
+  "runIds": [
+   "39448209903",
+   "39449092483",
+   "39452631146",
+   "39453181962",
+   "39453458295",
+   "39453764374",
+   "39455284967",
+   "39456741492",
+   "39457063232",
+   "39457767229",
+   "39462241403",
+   "39463486725",
+   "39464294630",
+   "39464309993",
+   "39464322751",
+   "39466179818",
+   "39466378530",
+   "39471466367",
+   "39472217441",
+   "39496271199",
+   "39498373119",
+   "39500347224",
+   "39504209400",
+   "39505188144",
+   "39505203727",
+   "39508414669",
+   "39508421419",
+   "39520317047",
+   "39522707053",
+   "39548822269",
+   "39553952680",
+   "39556935431",
+   "39557718020"
+  ],
+  "judgedNodes": 7,
+  "flaggedNodes": 6,
+  "flaggedNodesRange": [
+   6,
+   6
+  ],
+  "defectsPerPush": 0,
+  "defectsRange": [
+   0,
+   0
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "hero",
+  "ideal": "ref",
+  "arm": "base",
+  "runs": 33,
+  "runIds": [
+   "39448209903",
+   "39449092483",
+   "39452631146",
+   "39453181962",
+   "39453458295",
+   "39453764374",
+   "39455284967",
+   "39456741492",
+   "39457063232",
+   "39457767229",
+   "39462241403",
+   "39463486725",
+   "39464294630",
+   "39464309993",
+   "39464322751",
+   "39466179818",
+   "39466378530",
+   "39471466367",
+   "39472217441",
+   "39496271199",
+   "39498373119",
+   "39500347224",
+   "39504209400",
+   "39505188144",
+   "39505203727",
+   "39508414669",
+   "39508421419",
+   "39520317047",
+   "39522707053",
+   "39548822269",
+   "39553952680",
+   "39556935431",
+   "39557718020"
+  ],
+  "judgedNodes": 7,
+  "flaggedNodes": 0,
+  "flaggedNodesRange": [
+   0,
+   14
+  ],
+  "defectsPerPush": 0,
+  "defectsRange": [
+   0,
+   0
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "hero",
+  "ideal": "ref",
+  "arm": "cand:?preset=v2-proved",
+  "runs": 2,
+  "runIds": [
+   "39453181962",
+   "39455284967"
+  ],
+  "judgedNodes": 7,
+  "flaggedNodes": 7,
+  "flaggedNodesRange": [
+   7,
+   7
+  ],
+  "defectsPerPush": 0,
+  "defectsRange": [
+   0,
+   0
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "hero",
+  "ideal": "ref",
+  "arm": "cand:hero:scene-pause",
+  "runs": 3,
+  "runIds": [
+   "39548822269",
+   "39553952680",
+   "39556935431"
+  ],
+  "judgedNodes": 7,
+  "flaggedNodes": 0,
+  "flaggedNodesRange": [
+   0,
+   0
+  ],
+  "defectsPerPush": 0,
+  "defectsRange": [
+   0,
+   0
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "hero",
+  "ideal": "ref",
+  "arm": "cand:hero.exit:faithful",
+  "runs": 5,
+  "runIds": [
+   "39453764374",
+   "39456741492",
+   "39457063232",
+   "39472217441",
+   "39508421419"
+  ],
+  "judgedNodes": 7,
+  "flaggedNodes": 0,
+  "flaggedNodesRange": [
+   0,
+   7
+  ],
+  "defectsPerPush": 0,
+  "defectsRange": [
+   0,
+   0
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "hero",
+  "ideal": "ref",
+  "arm": "cand:hero.exit:scoped",
+  "runs": 5,
+  "runIds": [
+   "39448209903",
+   "39452631146",
+   "39466179818",
+   "39508414669",
+   "39522707053"
+  ],
+  "judgedNodes": 7,
+  "flaggedNodes": 7,
+  "flaggedNodesRange": [
+   0,
+   7
+  ],
+  "defectsPerPush": 0,
+  "defectsRange": [
+   0,
+   0
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "hero",
+  "ideal": "ref",
+  "arm": "cand:morph.tween:scroll-lock",
+  "runs": 3,
+  "runIds": [
+   "39496271199",
+   "39498373119",
+   "39505188144"
+  ],
+  "judgedNodes": 7,
+  "flaggedNodes": 0,
+  "flaggedNodesRange": [
+   0,
+   0
+  ],
+  "defectsPerPush": 0,
+  "defectsRange": [
+   0,
+   0
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "hero",
+  "ideal": "ref",
+  "arm": "cand:morph.tween:waapi",
+  "runs": 5,
+  "runIds": [
+   "39449092483",
+   "39453458295",
+   "39471466367",
+   "39504209400",
+   "39520317047"
+  ],
+  "judgedNodes": 7,
+  "flaggedNodes": 0,
+  "flaggedNodesRange": [
+   0,
+   7
+  ],
+  "defectsPerPush": 0,
+  "defectsRange": [
+   0,
+   0
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "hero",
+  "ideal": "ref",
+  "arm": "cand:morph.tween:waapi-scoped",
+  "runs": 2,
+  "runIds": [
+   "39457767229",
+   "39462241403"
+  ],
+  "judgedNodes": 7,
+  "flaggedNodes": 7,
+  "flaggedNodesRange": [
+   7,
+   7
+  ],
+  "defectsPerPush": 0,
+  "defectsRange": [
+   0,
+   0
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "chromium",
+  "width": 390,
+  "window": "hero",
+  "ideal": "ref",
+  "arm": "cand:nav:earn-no-transition",
+  "runs": 2,
+  "runIds": [
+   "39463486725",
+   "39464309993"
+  ],
+  "judgedNodes": 7,
+  "flaggedNodes": 7,
+  "flaggedNodesRange": [
+   7,
+   7
+  ],
+  "defectsPerPush": 0,
+  "defectsRange": [
+   0,
+   0
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 1280,
+  "window": "end-close",
+  "ideal": "line",
+  "arm": "base",
+  "runs": 23,
+  "runIds": [
+   "39453181962",
+   "39455284967",
+   "39466179818",
+   "39471466367",
+   "39472217441",
+   "39496271199",
+   "39498373119",
+   "39500347224",
+   "39504209400",
+   "39505188144",
+   "39505203727",
+   "39508414669",
+   "39508421419",
+   "39514533027",
+   "39514585897",
+   "39514619612",
+   "39514655614",
+   "39514696773",
+   "39514734504",
+   "39515982760",
+   "39516021307",
+   "39516056860",
+   "39516092834"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   8
+  ],
+  "defectsPerPush": 44,
+  "defectsRange": [
+   31,
+   88
+  ],
+  "tailPerPush": 37,
+  "tailRange": [
+   18,
+   73
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 1280,
+  "window": "end-close",
+  "ideal": "line",
+  "arm": "cand:?preset=v2-proved",
+  "runs": 2,
+  "runIds": [
+   "39453181962",
+   "39455284967"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   4
+  ],
+  "defectsPerPush": 41,
+  "defectsRange": [
+   41,
+   46
+  ],
+  "tailPerPush": 30,
+  "tailRange": [
+   30,
+   41
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 1280,
+  "window": "end-close",
+  "ideal": "line",
+  "arm": "cand:hero.exit:faithful",
+  "runs": 7,
+  "runIds": [
+   "39472217441",
+   "39508421419",
+   "39514655614",
+   "39514696773",
+   "39514734504",
+   "39516021307",
+   "39516092834"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   4
+  ],
+  "defectsPerPush": 48,
+  "defectsRange": [
+   37,
+   57
+  ],
+  "tailPerPush": 54,
+  "tailRange": [
+   19,
+   59
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 1280,
+  "window": "end-close",
+  "ideal": "line",
+  "arm": "cand:hero.exit:scoped",
+  "runs": 7,
+  "runIds": [
+   "39466179818",
+   "39508414669",
+   "39514533027",
+   "39514585897",
+   "39514619612",
+   "39515982760",
+   "39516056860"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   4
+  ],
+  "defectsPerPush": 42,
+  "defectsRange": [
+   36,
+   51
+  ],
+  "tailPerPush": 33,
+  "tailRange": [
+   19,
+   58
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 1280,
+  "window": "end-close",
+  "ideal": "line",
+  "arm": "cand:morph.tween:scroll-lock",
+  "runs": 3,
+  "runIds": [
+   "39496271199",
+   "39498373119",
+   "39505188144"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   4
+  ],
+  "defectsPerPush": 38,
+  "defectsRange": [
+   37,
+   46
+  ],
+  "tailPerPush": 33,
+  "tailRange": [
+   16,
+   42
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 1280,
+  "window": "end-close",
+  "ideal": "line",
+  "arm": "cand:morph.tween:waapi",
+  "runs": 2,
+  "runIds": [
+   "39471466367",
+   "39504209400"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   4
+  ],
+  "defectsPerPush": 34,
+  "defectsRange": [
+   34,
+   44
+  ],
+  "tailPerPush": 31,
+  "tailRange": [
+   31,
+   31
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 1280,
+  "window": "end-close",
+  "ideal": "line",
+  "arm": "orig",
+  "runs": 23,
+  "runIds": [
+   "39453181962",
+   "39455284967",
+   "39466179818",
+   "39471466367",
+   "39472217441",
+   "39496271199",
+   "39498373119",
+   "39500347224",
+   "39504209400",
+   "39505188144",
+   "39505203727",
+   "39508414669",
+   "39508421419",
+   "39514533027",
+   "39514585897",
+   "39514619612",
+   "39514655614",
+   "39514696773",
+   "39514734504",
+   "39515982760",
+   "39516021307",
+   "39516056860",
+   "39516092834"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   5
+  ],
+  "defectsPerPush": 42,
+  "defectsRange": [
+   31,
+   53
+  ],
+  "tailPerPush": 36,
+  "tailRange": [
+   15,
+   59
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 1280,
+  "window": "end-close",
+  "ideal": "ref",
+  "arm": "base",
+  "runs": 23,
+  "runIds": [
+   "39453181962",
+   "39455284967",
+   "39466179818",
+   "39471466367",
+   "39472217441",
+   "39496271199",
+   "39498373119",
+   "39500347224",
+   "39504209400",
+   "39505188144",
+   "39505203727",
+   "39508414669",
+   "39508421419",
+   "39514533027",
+   "39514585897",
+   "39514619612",
+   "39514655614",
+   "39514696773",
+   "39514734504",
+   "39515982760",
+   "39516021307",
+   "39516056860",
+   "39516092834"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   3,
+   8
+  ],
+  "defectsPerPush": 16,
+  "defectsRange": [
+   8,
+   33
+  ],
+  "tailPerPush": 37,
+  "tailRange": [
+   18,
+   72
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 1280,
+  "window": "end-close",
+  "ideal": "ref",
+  "arm": "cand:?preset=v2-proved",
+  "runs": 2,
+  "runIds": [
+   "39453181962",
+   "39455284967"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   4
+  ],
+  "defectsPerPush": 11,
+  "defectsRange": [
+   11,
+   17
+  ],
+  "tailPerPush": 29,
+  "tailRange": [
+   29,
+   41
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 1280,
+  "window": "end-close",
+  "ideal": "ref",
+  "arm": "cand:hero.exit:faithful",
+  "runs": 7,
+  "runIds": [
+   "39472217441",
+   "39508421419",
+   "39514655614",
+   "39514696773",
+   "39514734504",
+   "39516021307",
+   "39516092834"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   3,
+   4
+  ],
+  "defectsPerPush": 19,
+  "defectsRange": [
+   12,
+   22
+  ],
+  "tailPerPush": 53,
+  "tailRange": [
+   18,
+   58
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 1280,
+  "window": "end-close",
+  "ideal": "ref",
+  "arm": "cand:hero.exit:scoped",
+  "runs": 7,
+  "runIds": [
+   "39466179818",
+   "39508414669",
+   "39514533027",
+   "39514585897",
+   "39514619612",
+   "39515982760",
+   "39516056860"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   3,
+   4
+  ],
+  "defectsPerPush": 15,
+  "defectsRange": [
+   11,
+   20
+  ],
+  "tailPerPush": 33,
+  "tailRange": [
+   18,
+   58
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 1280,
+  "window": "end-close",
+  "ideal": "ref",
+  "arm": "cand:morph.tween:scroll-lock",
+  "runs": 3,
+  "runIds": [
+   "39496271199",
+   "39498373119",
+   "39505188144"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   4
+  ],
+  "defectsPerPush": 13,
+  "defectsRange": [
+   8,
+   19
+  ],
+  "tailPerPush": 32,
+  "tailRange": [
+   15,
+   41
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 1280,
+  "window": "end-close",
+  "ideal": "ref",
+  "arm": "cand:morph.tween:waapi",
+  "runs": 2,
+  "runIds": [
+   "39471466367",
+   "39504209400"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   4
+  ],
+  "defectsPerPush": 16,
+  "defectsRange": [
+   16,
+   20
+  ],
+  "tailPerPush": 30,
+  "tailRange": [
+   30,
+   32
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 1280,
+  "window": "end-close",
+  "ideal": "ref",
+  "arm": "orig",
+  "runs": 23,
+  "runIds": [
+   "39453181962",
+   "39455284967",
+   "39466179818",
+   "39471466367",
+   "39472217441",
+   "39496271199",
+   "39498373119",
+   "39500347224",
+   "39504209400",
+   "39505188144",
+   "39505203727",
+   "39508414669",
+   "39508421419",
+   "39514533027",
+   "39514585897",
+   "39514619612",
+   "39514655614",
+   "39514696773",
+   "39514734504",
+   "39515982760",
+   "39516021307",
+   "39516056860",
+   "39516092834"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   5
+  ],
+  "defectsPerPush": 16,
+  "defectsRange": [
+   8,
+   21
+  ],
+  "tailPerPush": 35,
+  "tailRange": [
+   15,
+   58
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 1280,
+  "window": "end-open",
+  "ideal": "line",
+  "arm": "base",
+  "runs": 23,
+  "runIds": [
+   "39453181962",
+   "39455284967",
+   "39466179818",
+   "39471466367",
+   "39472217441",
+   "39496271199",
+   "39498373119",
+   "39500347224",
+   "39504209400",
+   "39505188144",
+   "39505203727",
+   "39508414669",
+   "39508421419",
+   "39514533027",
+   "39514585897",
+   "39514619612",
+   "39514655614",
+   "39514696773",
+   "39514734504",
+   "39515982760",
+   "39516021307",
+   "39516056860",
+   "39516092834"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   9
+  ],
+  "defectsPerPush": 43,
+  "defectsRange": [
+   26,
+   79
+  ],
+  "tailPerPush": 4,
+  "tailRange": [
+   1,
+   15
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 1280,
+  "window": "end-open",
+  "ideal": "line",
+  "arm": "cand:?preset=v2-proved",
+  "runs": 2,
+  "runIds": [
+   "39453181962",
+   "39455284967"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   5
+  ],
+  "defectsPerPush": 38,
+  "defectsRange": [
+   38,
+   45
+  ],
+  "tailPerPush": 3,
+  "tailRange": [
+   3,
+   8
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 1280,
+  "window": "end-open",
+  "ideal": "line",
+  "arm": "cand:hero.exit:faithful",
+  "runs": 7,
+  "runIds": [
+   "39472217441",
+   "39508421419",
+   "39514655614",
+   "39514696773",
+   "39514734504",
+   "39516021307",
+   "39516092834"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 50,
+  "defectsRange": [
+   27,
+   66
+  ],
+  "tailPerPush": 7,
+  "tailRange": [
+   4,
+   9
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 1280,
+  "window": "end-open",
+  "ideal": "line",
+  "arm": "cand:hero.exit:scoped",
+  "runs": 7,
+  "runIds": [
+   "39466179818",
+   "39508414669",
+   "39514533027",
+   "39514585897",
+   "39514619612",
+   "39515982760",
+   "39516056860"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 37,
+  "defectsRange": [
+   32,
+   58
+  ],
+  "tailPerPush": 5,
+  "tailRange": [
+   3,
+   5
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 1280,
+  "window": "end-open",
+  "ideal": "line",
+  "arm": "cand:morph.tween:scroll-lock",
+  "runs": 3,
+  "runIds": [
+   "39496271199",
+   "39498373119",
+   "39505188144"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   4,
+   5
+  ],
+  "defectsPerPush": 30,
+  "defectsRange": [
+   24,
+   43
+  ],
+  "tailPerPush": 2,
+  "tailRange": [
+   1,
+   5
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 1280,
+  "window": "end-open",
+  "ideal": "line",
+  "arm": "cand:morph.tween:waapi",
+  "runs": 2,
+  "runIds": [
+   "39471466367",
+   "39504209400"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 27,
+  "defectsRange": [
+   27,
+   35
+  ],
+  "tailPerPush": 2,
+  "tailRange": [
+   2,
+   5
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 1280,
+  "window": "end-open",
+  "ideal": "line",
+  "arm": "orig",
+  "runs": 23,
+  "runIds": [
+   "39453181962",
+   "39455284967",
+   "39466179818",
+   "39471466367",
+   "39472217441",
+   "39496271199",
+   "39498373119",
+   "39500347224",
+   "39504209400",
+   "39505188144",
+   "39505203727",
+   "39508414669",
+   "39508421419",
+   "39514533027",
+   "39514585897",
+   "39514619612",
+   "39514655614",
+   "39514696773",
+   "39514734504",
+   "39515982760",
+   "39516021307",
+   "39516056860",
+   "39516092834"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   4,
+   5
+  ],
+  "defectsPerPush": 38,
+  "defectsRange": [
+   26,
+   62
+  ],
+  "tailPerPush": 5,
+  "tailRange": [
+   1,
+   8
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 1280,
+  "window": "end-open",
+  "ideal": "ref",
+  "arm": "base",
+  "runs": 23,
+  "runIds": [
+   "39453181962",
+   "39455284967",
+   "39466179818",
+   "39471466367",
+   "39472217441",
+   "39496271199",
+   "39498373119",
+   "39500347224",
+   "39504209400",
+   "39505188144",
+   "39505203727",
+   "39508414669",
+   "39508421419",
+   "39514533027",
+   "39514585897",
+   "39514619612",
+   "39514655614",
+   "39514696773",
+   "39514734504",
+   "39515982760",
+   "39516021307",
+   "39516056860",
+   "39516092834"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   3,
+   8
+  ],
+  "defectsPerPush": 4,
+  "defectsRange": [
+   1,
+   10
+  ],
+  "tailPerPush": 4,
+  "tailRange": [
+   1,
+   15
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 1280,
+  "window": "end-open",
+  "ideal": "ref",
+  "arm": "cand:?preset=v2-proved",
+  "runs": 2,
+  "runIds": [
+   "39453181962",
+   "39455284967"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 3,
+  "flaggedNodesRange": [
+   3,
+   4
+  ],
+  "defectsPerPush": 3,
+  "defectsRange": [
+   3,
+   6
+  ],
+  "tailPerPush": 3,
+  "tailRange": [
+   3,
+   8
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 1280,
+  "window": "end-open",
+  "ideal": "ref",
+  "arm": "cand:hero.exit:faithful",
+  "runs": 7,
+  "runIds": [
+   "39472217441",
+   "39508421419",
+   "39514655614",
+   "39514696773",
+   "39514734504",
+   "39516021307",
+   "39516092834"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   5
+  ],
+  "defectsPerPush": 3,
+  "defectsRange": [
+   1,
+   10
+  ],
+  "tailPerPush": 7,
+  "tailRange": [
+   4,
+   9
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 1280,
+  "window": "end-open",
+  "ideal": "ref",
+  "arm": "cand:hero.exit:scoped",
+  "runs": 7,
+  "runIds": [
+   "39466179818",
+   "39508414669",
+   "39514533027",
+   "39514585897",
+   "39514619612",
+   "39515982760",
+   "39516056860"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   5
+  ],
+  "defectsPerPush": 6,
+  "defectsRange": [
+   2,
+   10
+  ],
+  "tailPerPush": 5,
+  "tailRange": [
+   3,
+   5
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 1280,
+  "window": "end-open",
+  "ideal": "ref",
+  "arm": "cand:morph.tween:scroll-lock",
+  "runs": 3,
+  "runIds": [
+   "39496271199",
+   "39498373119",
+   "39505188144"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 3,
+  "flaggedNodesRange": [
+   2,
+   4
+  ],
+  "defectsPerPush": 4,
+  "defectsRange": [
+   4,
+   7
+  ],
+  "tailPerPush": 2,
+  "tailRange": [
+   1,
+   5
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 1280,
+  "window": "end-open",
+  "ideal": "ref",
+  "arm": "cand:morph.tween:waapi",
+  "runs": 2,
+  "runIds": [
+   "39471466367",
+   "39504209400"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   5
+  ],
+  "defectsPerPush": 5,
+  "defectsRange": [
+   5,
+   6
+  ],
+  "tailPerPush": 2,
+  "tailRange": [
+   2,
+   5
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 1280,
+  "window": "end-open",
+  "ideal": "ref",
+  "arm": "orig",
+  "runs": 23,
+  "runIds": [
+   "39453181962",
+   "39455284967",
+   "39466179818",
+   "39471466367",
+   "39472217441",
+   "39496271199",
+   "39498373119",
+   "39500347224",
+   "39504209400",
+   "39505188144",
+   "39505203727",
+   "39508414669",
+   "39508421419",
+   "39514533027",
+   "39514585897",
+   "39514619612",
+   "39514655614",
+   "39514696773",
+   "39514734504",
+   "39515982760",
+   "39516021307",
+   "39516056860",
+   "39516092834"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   4,
+   5
+  ],
+  "defectsPerPush": 4,
+  "defectsRange": [
+   2,
+   10
+  ],
+  "tailPerPush": 5,
+  "tailRange": [
+   1,
+   8
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 1280,
+  "window": "hero",
+  "ideal": "line",
+  "arm": "base",
+  "runs": 8,
+  "runIds": [
+   "39448209903",
+   "39452631146",
+   "39453181962",
+   "39455284967",
+   "39456741492",
+   "39461484608",
+   "39466179818",
+   "39472217441"
+  ],
+  "judgedNodes": 10,
+  "flaggedNodes": 6,
+  "flaggedNodesRange": [
+   6,
+   6
+  ],
+  "defectsPerPush": 12,
+  "defectsRange": [
+   12,
+   12
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 1280,
+  "window": "hero",
+  "ideal": "line",
+  "arm": "cand:?preset=v2-proved",
+  "runs": 2,
+  "runIds": [
+   "39453181962",
+   "39455284967"
+  ],
+  "judgedNodes": 10,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   4
+  ],
+  "defectsPerPush": 0,
+  "defectsRange": [
+   0,
+   0
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 1280,
+  "window": "hero",
+  "ideal": "line",
+  "arm": "cand:hero.exit:faithful",
+  "runs": 3,
+  "runIds": [
+   "39456741492",
+   "39461484608",
+   "39472217441"
+  ],
+  "judgedNodes": 10,
+  "flaggedNodes": 6,
+  "flaggedNodesRange": [
+   6,
+   6
+  ],
+  "defectsPerPush": 12,
+  "defectsRange": [
+   12,
+   12
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 1280,
+  "window": "hero",
+  "ideal": "line",
+  "arm": "cand:hero.exit:scoped",
+  "runs": 3,
+  "runIds": [
+   "39448209903",
+   "39452631146",
+   "39466179818"
+  ],
+  "judgedNodes": 10,
+  "flaggedNodes": 6,
+  "flaggedNodesRange": [
+   6,
+   6
+  ],
+  "defectsPerPush": 12,
+  "defectsRange": [
+   12,
+   12
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 390,
+  "window": "end-close",
+  "ideal": "line",
+  "arm": "base",
+  "runs": 24,
+  "runIds": [
+   "39453181962",
+   "39455284967",
+   "39466179818",
+   "39471466367",
+   "39472217441",
+   "39496271199",
+   "39498373119",
+   "39500347224",
+   "39504209400",
+   "39505188144",
+   "39505203727",
+   "39508414669",
+   "39508421419",
+   "39514533027",
+   "39514585897",
+   "39514619612",
+   "39514655614",
+   "39514696773",
+   "39514734504",
+   "39515982760",
+   "39516021307",
+   "39516056860",
+   "39516092834",
+   "39542978747"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   10
+  ],
+  "defectsPerPush": 55,
+  "defectsRange": [
+   40,
+   117
+  ],
+  "tailPerPush": 32,
+  "tailRange": [
+   18,
+   72
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 390,
+  "window": "end-close",
+  "ideal": "line",
+  "arm": "cand:?preset=v2-proved",
+  "runs": 2,
+  "runIds": [
+   "39453181962",
+   "39455284967"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 59,
+  "defectsRange": [
+   59,
+   61
+  ],
+  "tailPerPush": 44,
+  "tailRange": [
+   44,
+   53
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 390,
+  "window": "end-close",
+  "ideal": "line",
+  "arm": "cand:hero.exit:faithful",
+  "runs": 7,
+  "runIds": [
+   "39472217441",
+   "39508421419",
+   "39514655614",
+   "39514696773",
+   "39514734504",
+   "39516021307",
+   "39516092834"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 51,
+  "defectsRange": [
+   49,
+   60
+  ],
+  "tailPerPush": 30,
+  "tailRange": [
+   20,
+   38
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 390,
+  "window": "end-close",
+  "ideal": "line",
+  "arm": "cand:hero.exit:scoped",
+  "runs": 7,
+  "runIds": [
+   "39466179818",
+   "39508414669",
+   "39514533027",
+   "39514585897",
+   "39514619612",
+   "39515982760",
+   "39516056860"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 54,
+  "defectsRange": [
+   49,
+   61
+  ],
+  "tailPerPush": 31,
+  "tailRange": [
+   22,
+   48
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 390,
+  "window": "end-close",
+  "ideal": "line",
+  "arm": "cand:morph.tween:scroll-lock",
+  "runs": 3,
+  "runIds": [
+   "39496271199",
+   "39498373119",
+   "39505188144"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 50,
+  "defectsRange": [
+   43,
+   53
+  ],
+  "tailPerPush": 18,
+  "tailRange": [
+   12,
+   32
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 390,
+  "window": "end-close",
+  "ideal": "line",
+  "arm": "cand:morph.tween:waapi",
+  "runs": 2,
+  "runIds": [
+   "39471466367",
+   "39504209400"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 45,
+  "defectsRange": [
+   45,
+   50
+  ],
+  "tailPerPush": 18,
+  "tailRange": [
+   18,
+   23
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 390,
+  "window": "end-close",
+  "ideal": "line",
+  "arm": "orig",
+  "runs": 24,
+  "runIds": [
+   "39453181962",
+   "39455284967",
+   "39466179818",
+   "39471466367",
+   "39472217441",
+   "39496271199",
+   "39498373119",
+   "39500347224",
+   "39504209400",
+   "39505188144",
+   "39505203727",
+   "39508414669",
+   "39508421419",
+   "39514533027",
+   "39514585897",
+   "39514619612",
+   "39514655614",
+   "39514696773",
+   "39514734504",
+   "39515982760",
+   "39516021307",
+   "39516056860",
+   "39516092834",
+   "39542978747"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 60,
+  "defectsRange": [
+   45,
+   80
+  ],
+  "tailPerPush": 30,
+  "tailRange": [
+   19,
+   50
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 390,
+  "window": "end-close",
+  "ideal": "ref",
+  "arm": "base",
+  "runs": 24,
+  "runIds": [
+   "39453181962",
+   "39455284967",
+   "39466179818",
+   "39471466367",
+   "39472217441",
+   "39496271199",
+   "39498373119",
+   "39500347224",
+   "39504209400",
+   "39505188144",
+   "39505203727",
+   "39508414669",
+   "39508421419",
+   "39514533027",
+   "39514585897",
+   "39514619612",
+   "39514655614",
+   "39514696773",
+   "39514734504",
+   "39515982760",
+   "39516021307",
+   "39516056860",
+   "39516092834",
+   "39542978747"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   4,
+   10
+  ],
+  "defectsPerPush": 16,
+  "defectsRange": [
+   11,
+   36
+  ],
+  "tailPerPush": 31,
+  "tailRange": [
+   18,
+   71
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 390,
+  "window": "end-close",
+  "ideal": "ref",
+  "arm": "cand:?preset=v2-proved",
+  "runs": 2,
+  "runIds": [
+   "39453181962",
+   "39455284967"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   5
+  ],
+  "defectsPerPush": 23,
+  "defectsRange": [
+   23,
+   24
+  ],
+  "tailPerPush": 43,
+  "tailRange": [
+   43,
+   52
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 390,
+  "window": "end-close",
+  "ideal": "ref",
+  "arm": "cand:hero.exit:faithful",
+  "runs": 7,
+  "runIds": [
+   "39472217441",
+   "39508421419",
+   "39514655614",
+   "39514696773",
+   "39514734504",
+   "39516021307",
+   "39516092834"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   4,
+   5
+  ],
+  "defectsPerPush": 17,
+  "defectsRange": [
+   13,
+   22
+  ],
+  "tailPerPush": 30,
+  "tailRange": [
+   21,
+   38
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 390,
+  "window": "end-close",
+  "ideal": "ref",
+  "arm": "cand:hero.exit:scoped",
+  "runs": 7,
+  "runIds": [
+   "39466179818",
+   "39508414669",
+   "39514533027",
+   "39514585897",
+   "39514619612",
+   "39515982760",
+   "39516056860"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   4,
+   5
+  ],
+  "defectsPerPush": 16,
+  "defectsRange": [
+   14,
+   23
+  ],
+  "tailPerPush": 30,
+  "tailRange": [
+   22,
+   47
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 390,
+  "window": "end-close",
+  "ideal": "ref",
+  "arm": "cand:morph.tween:scroll-lock",
+  "runs": 3,
+  "runIds": [
+   "39496271199",
+   "39498373119",
+   "39505188144"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 14,
+  "defectsRange": [
+   10,
+   18
+  ],
+  "tailPerPush": 18,
+  "tailRange": [
+   12,
+   33
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 390,
+  "window": "end-close",
+  "ideal": "ref",
+  "arm": "cand:morph.tween:waapi",
+  "runs": 2,
+  "runIds": [
+   "39471466367",
+   "39504209400"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 14,
+  "defectsRange": [
+   14,
+   19
+  ],
+  "tailPerPush": 18,
+  "tailRange": [
+   18,
+   23
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 390,
+  "window": "end-close",
+  "ideal": "ref",
+  "arm": "orig",
+  "runs": 24,
+  "runIds": [
+   "39453181962",
+   "39455284967",
+   "39466179818",
+   "39471466367",
+   "39472217441",
+   "39496271199",
+   "39498373119",
+   "39500347224",
+   "39504209400",
+   "39505188144",
+   "39505203727",
+   "39508414669",
+   "39508421419",
+   "39514533027",
+   "39514585897",
+   "39514619612",
+   "39514655614",
+   "39514696773",
+   "39514734504",
+   "39515982760",
+   "39516021307",
+   "39516056860",
+   "39516092834",
+   "39542978747"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 17,
+  "defectsRange": [
+   13,
+   23
+  ],
+  "tailPerPush": 31,
+  "tailRange": [
+   18,
+   49
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 390,
+  "window": "end-open",
+  "ideal": "line",
+  "arm": "base",
+  "runs": 24,
+  "runIds": [
+   "39453181962",
+   "39455284967",
+   "39466179818",
+   "39471466367",
+   "39472217441",
+   "39496271199",
+   "39498373119",
+   "39500347224",
+   "39504209400",
+   "39505188144",
+   "39505203727",
+   "39508414669",
+   "39508421419",
+   "39514533027",
+   "39514585897",
+   "39514619612",
+   "39514655614",
+   "39514696773",
+   "39514734504",
+   "39515982760",
+   "39516021307",
+   "39516056860",
+   "39516092834",
+   "39542978747"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   10
+  ],
+  "defectsPerPush": 50,
+  "defectsRange": [
+   34,
+   107
+  ],
+  "tailPerPush": 5,
+  "tailRange": [
+   2,
+   15
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 390,
+  "window": "end-open",
+  "ideal": "line",
+  "arm": "cand:?preset=v2-proved",
+  "runs": 2,
+  "runIds": [
+   "39453181962",
+   "39455284967"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 62,
+  "defectsRange": [
+   62,
+   72
+  ],
+  "tailPerPush": 9,
+  "tailRange": [
+   9,
+   9
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 390,
+  "window": "end-open",
+  "ideal": "line",
+  "arm": "cand:hero.exit:faithful",
+  "runs": 7,
+  "runIds": [
+   "39472217441",
+   "39508421419",
+   "39514655614",
+   "39514696773",
+   "39514734504",
+   "39516021307",
+   "39516092834"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 48,
+  "defectsRange": [
+   44,
+   56
+  ],
+  "tailPerPush": 4,
+  "tailRange": [
+   2,
+   9
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 390,
+  "window": "end-open",
+  "ideal": "line",
+  "arm": "cand:hero.exit:scoped",
+  "runs": 7,
+  "runIds": [
+   "39466179818",
+   "39508414669",
+   "39514533027",
+   "39514585897",
+   "39514619612",
+   "39515982760",
+   "39516056860"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 49,
+  "defectsRange": [
+   34,
+   64
+  ],
+  "tailPerPush": 4,
+  "tailRange": [
+   2,
+   9
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 390,
+  "window": "end-open",
+  "ideal": "line",
+  "arm": "cand:morph.tween:scroll-lock",
+  "runs": 3,
+  "runIds": [
+   "39496271199",
+   "39498373119",
+   "39505188144"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 34,
+  "defectsRange": [
+   32,
+   57
+  ],
+  "tailPerPush": 2,
+  "tailRange": [
+   2,
+   5
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 390,
+  "window": "end-open",
+  "ideal": "line",
+  "arm": "cand:morph.tween:waapi",
+  "runs": 2,
+  "runIds": [
+   "39471466367",
+   "39504209400"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 42,
+  "defectsRange": [
+   42,
+   56
+  ],
+  "tailPerPush": 2,
+  "tailRange": [
+   2,
+   8
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 390,
+  "window": "end-open",
+  "ideal": "line",
+  "arm": "orig",
+  "runs": 24,
+  "runIds": [
+   "39453181962",
+   "39455284967",
+   "39466179818",
+   "39471466367",
+   "39472217441",
+   "39496271199",
+   "39498373119",
+   "39500347224",
+   "39504209400",
+   "39505188144",
+   "39505203727",
+   "39508414669",
+   "39508421419",
+   "39514533027",
+   "39514585897",
+   "39514619612",
+   "39514655614",
+   "39514696773",
+   "39514734504",
+   "39515982760",
+   "39516021307",
+   "39516056860",
+   "39516092834",
+   "39542978747"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   5,
+   5
+  ],
+  "defectsPerPush": 45,
+  "defectsRange": [
+   34,
+   62
+  ],
+  "tailPerPush": 4,
+  "tailRange": [
+   1,
+   8
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 390,
+  "window": "end-open",
+  "ideal": "ref",
+  "arm": "base",
+  "runs": 24,
+  "runIds": [
+   "39453181962",
+   "39455284967",
+   "39466179818",
+   "39471466367",
+   "39472217441",
+   "39496271199",
+   "39498373119",
+   "39500347224",
+   "39504209400",
+   "39505188144",
+   "39505203727",
+   "39508414669",
+   "39508421419",
+   "39514533027",
+   "39514585897",
+   "39514619612",
+   "39514655614",
+   "39514696773",
+   "39514734504",
+   "39515982760",
+   "39516021307",
+   "39516056860",
+   "39516092834",
+   "39542978747"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   3,
+   10
+  ],
+  "defectsPerPush": 8,
+  "defectsRange": [
+   3,
+   19
+  ],
+  "tailPerPush": 5,
+  "tailRange": [
+   2,
+   15
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 390,
+  "window": "end-open",
+  "ideal": "ref",
+  "arm": "cand:?preset=v2-proved",
+  "runs": 2,
+  "runIds": [
+   "39453181962",
+   "39455284967"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   5
+  ],
+  "defectsPerPush": 9,
+  "defectsRange": [
+   9,
+   10
+  ],
+  "tailPerPush": 9,
+  "tailRange": [
+   9,
+   9
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 390,
+  "window": "end-open",
+  "ideal": "ref",
+  "arm": "cand:hero.exit:faithful",
+  "runs": 7,
+  "runIds": [
+   "39472217441",
+   "39508421419",
+   "39514655614",
+   "39514696773",
+   "39514734504",
+   "39516021307",
+   "39516092834"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   4,
+   5
+  ],
+  "defectsPerPush": 7,
+  "defectsRange": [
+   6,
+   11
+  ],
+  "tailPerPush": 4,
+  "tailRange": [
+   2,
+   9
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 390,
+  "window": "end-open",
+  "ideal": "ref",
+  "arm": "cand:hero.exit:scoped",
+  "runs": 7,
+  "runIds": [
+   "39466179818",
+   "39508414669",
+   "39514533027",
+   "39514585897",
+   "39514619612",
+   "39515982760",
+   "39516056860"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   3,
+   5
+  ],
+  "defectsPerPush": 9,
+  "defectsRange": [
+   4,
+   11
+  ],
+  "tailPerPush": 4,
+  "tailRange": [
+   2,
+   9
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 390,
+  "window": "end-open",
+  "ideal": "ref",
+  "arm": "cand:morph.tween:scroll-lock",
+  "runs": 3,
+  "runIds": [
+   "39496271199",
+   "39498373119",
+   "39505188144"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   3,
+   4
+  ],
+  "defectsPerPush": 5,
+  "defectsRange": [
+   4,
+   7
+  ],
+  "tailPerPush": 3,
+  "tailRange": [
+   2,
+   5
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 390,
+  "window": "end-open",
+  "ideal": "ref",
+  "arm": "cand:morph.tween:waapi",
+  "runs": 2,
+  "runIds": [
+   "39471466367",
+   "39504209400"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 4,
+  "flaggedNodesRange": [
+   4,
+   5
+  ],
+  "defectsPerPush": 10,
+  "defectsRange": [
+   10,
+   12
+  ],
+  "tailPerPush": 2,
+  "tailRange": [
+   2,
+   8
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 390,
+  "window": "end-open",
+  "ideal": "ref",
+  "arm": "orig",
+  "runs": 24,
+  "runIds": [
+   "39453181962",
+   "39455284967",
+   "39466179818",
+   "39471466367",
+   "39472217441",
+   "39496271199",
+   "39498373119",
+   "39500347224",
+   "39504209400",
+   "39505188144",
+   "39505203727",
+   "39508414669",
+   "39508421419",
+   "39514533027",
+   "39514585897",
+   "39514619612",
+   "39514655614",
+   "39514696773",
+   "39514734504",
+   "39515982760",
+   "39516021307",
+   "39516056860",
+   "39516092834",
+   "39542978747"
+  ],
+  "judgedNodes": 5,
+  "flaggedNodes": 5,
+  "flaggedNodesRange": [
+   4,
+   5
+  ],
+  "defectsPerPush": 7,
+  "defectsRange": [
+   2,
+   11
+  ],
+  "tailPerPush": 4,
+  "tailRange": [
+   1,
+   8
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 390,
+  "window": "hero",
+  "ideal": "line",
+  "arm": "base",
+  "runs": 8,
+  "runIds": [
+   "39448209903",
+   "39452631146",
+   "39453181962",
+   "39455284967",
+   "39456741492",
+   "39461484608",
+   "39466179818",
+   "39472217441"
+  ],
+  "judgedNodes": 9,
+  "flaggedNodes": 8,
+  "flaggedNodesRange": [
+   8,
+   8
+  ],
+  "defectsPerPush": 12,
+  "defectsRange": [
+   12,
+   12
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 390,
+  "window": "hero",
+  "ideal": "line",
+  "arm": "cand:?preset=v2-proved",
+  "runs": 2,
+  "runIds": [
+   "39453181962",
+   "39455284967"
+  ],
+  "judgedNodes": 9,
+  "flaggedNodes": 8,
+  "flaggedNodesRange": [
+   8,
+   8
+  ],
+  "defectsPerPush": 0,
+  "defectsRange": [
+   0,
+   0
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 390,
+  "window": "hero",
+  "ideal": "line",
+  "arm": "cand:hero.exit:faithful",
+  "runs": 3,
+  "runIds": [
+   "39456741492",
+   "39461484608",
+   "39472217441"
+  ],
+  "judgedNodes": 9,
+  "flaggedNodes": 8,
+  "flaggedNodesRange": [
+   8,
+   8
+  ],
+  "defectsPerPush": 12,
+  "defectsRange": [
+   12,
+   12
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ },
+ {
+  "engine": "macos-webkit",
+  "width": 390,
+  "window": "hero",
+  "ideal": "line",
+  "arm": "cand:hero.exit:scoped",
+  "runs": 3,
+  "runIds": [
+   "39448209903",
+   "39452631146",
+   "39466179818"
+  ],
+  "judgedNodes": 9,
+  "flaggedNodes": 8,
+  "flaggedNodesRange": [
+   8,
+   8
+  ],
+  "defectsPerPush": 12,
+  "defectsRange": [
+   12,
+   12
+  ],
+  "tailPerPush": 0,
+  "tailRange": [
+   0,
+   0
+  ]
+ }
+]
