@@ -417,6 +417,79 @@ are no core for a hold sample (row 4 of the table, MEASURED, not adopted here).
 
 Limit: judgeUnit_sound bounds a reading against the range of the whole original path (every phase, epoch and class set) and needs every reading in it to have the same shape (n elements, numeric); one absent or string reading makes it vacuous for that path.
 
+### Earn close start (tasks earn-close-start-rule, earn-close-chain-rule)
+
+Mechanism (MEASURED, the four runs below): in close@0 the earn button's `opacity` and `max-width` follow one CSS
+transition per trigger. A trigger is a sample whose `--earn-out` (Lean `collapse`, `clamp01(m / darkCut)`, `darkCut` =
+0.2) differs from the sample before it in the same pass and phase. Each trigger retargets the transition from the value
+in flight, so the reading at a later trigger depends on when the earlier triggers fell, and two arms of one site read
+different values there (round 1: max-width 14.837 px against 16.985 px and 29.461 px, macOS, 39466179818). Duration,
+delay and curve come from the Lean table (`startTr`, rules 167 and 189): opacity 320 ms after 120 ms (200 ms, no delay,
+under `is-hero-pill`), max-width 680 ms, `cubic-bezier(0.33, 0, 0.2, 1)` (`earnCurve`). Round 1 anchored every trigger
+to the original's reading of the same collapse and refused the faithful arm; this rule anchors only the first trigger,
+where the button is fully collapsed and both arms read the same value.
+
+Rule (Lean `startCheck` and `chainCost`, TS twin of the same names in `reduce.mjs`): only bucket 0 of the close, only
+these two units (`startOn`). For a rewrite sample `r` with the earlier samples `prior` of its pass:
+
+- The chain (`chainOf`) is the triggers of `prior ++ [r]`, then `r` when `r` is no trigger.
+- Anchor: `excess s s w`, how far the chain's first reading `w` lies from `s`, the reading at the original's first
+  trigger of the same pass and phase (`origFirst`).
+- Link from chain point `p` to the next point `q` (`linkExcess`): how far `q`'s reading lies outside `hull`, the least
+  and greatest value of the transitions from `p`'s reading towards the targets of `p`'s and of `q`'s collapse
+  (`target` = `full * (1 - collapse)`), at `tau - 80` and `tau + 80` ms, `tau` = `q.t0 - p.t0`; `full` is the original's
+  last close-hold reading of the pass (`settledOf`).
+- `chainCost` = anchor + the sum of the links (`linksExcess`); `r` passes when it is at most `tol`, else `fail apart`.
+  With no trigger up to `r`, a missing part or a 0 ms transition, `judgeUnit` decides as before. Every other unit and
+  bucket is `byM` (`byMStart_none`, `byMStart_other`, `byMStart_keeps`).
+
+Proved (`lean/Fw/Gate/Trajectory.lean`, section `CloseStart`):
+
+- `startCheck_budget`: a passing sample has anchor + links at most `tol`, its first trigger within `tol` of the
+  original's, and each link at most `tol`. `startCheck_pass`, `startCheck_fail`, `startCheck_none`.
+- `judgeStart_sound` (cost at most `tol` passes); `linkExcess_on` (a link read on either transition, within 80 ms of
+  `tau`, costs 0); `hull_mem`, `excess_zero`, `excess_le_iff`, `along_le`, `along_ge`.
+- Branches: `linkExcess_found`, `_zero`, `_no_start_morph`, `_no_morph`, `_no_transition`, `_no_start_reading`,
+  `_no_reading`, `_no_start_time`, `_no_time`; `linksExcess_short`, `_cons`, `_link_none`, `_rest_none`;
+  `chainCost_found`, `_no_trigger`, `_no_orig`, `_no_settled`, `_no_orig_reading`, `_no_trigger_reading`,
+  `_link_none`.
+- Mutations through the judge, each a theorem that bucket 0 of `byMStart` is not `pass`: `byMStart_stale` (the trigger
+  reads 600 instead of 0), `byMStart_reversed` (opacity 1 to 0), `byMStart_linear` (linear max-width at 1280 px),
+  `byMStart_duration` (the 320 ms curve where `is-hero-pill` runs 200 ms).
+- Drift: `driftRew` reads 9, 18 and 27 at three triggers where `driftOrig` reads 0. `drift_links`: each step alone is
+  9, within `tol` = 10. `drift_second`: the first trigger passes (cost 9), the second costs 9 + 9 = 18 and fails.
+  `byMStart_drift`: bucket 0 is `fail apart`.
+
+`startJitter` = 80 ms (MEASURED in round 1). Budget (MEASURED, scratch float model of the same cost over every passing
+sample of the four runs, 640 per property): highest cost 0 for opacity and 834 for max-width (`tol` 1000).
+
+Re-reduced (MEASURED, artifacts of the four runs downloaded into new empty dirs; "main" is main's reducer at 0e426af3,
+"after" this rule). Candidate `new` units on macOS WebKit:
+
+| run | search | stored | main | after |
+|---|---|---|---|---|
+| 39466179818 | hero.exit:scoped | 176 | 173 | 172 |
+| 39472217441 | hero.exit:faithful | 130 | 128 | 128 |
+| 39508414669 | hero.exit:scoped | 257 | 257 | 253 |
+| 39508421419 | hero.exit:faithful | 44 | 44 | 44 |
+
+Chromium (0, 0, 84, 0) and Linux WebKit (0 in all four) keep their counts. All 96 earn close@0 cells (4 runs, 3
+engines, 4 widths, 2 properties) read `pass / pass / ok` after the rule. The cells that change against main, each an
+earn close@0 cell on macOS WebKit (candidate / base / rel; no other cell changes):
+
+| run | width | property | main | after |
+|---|---|---|---|---|
+| 39466179818 | 390 | max-width | fail apart / pass / new | pass / pass / ok |
+| 39466179818 | 640 | max-width | pass / fail apart / cleared | pass / pass / ok |
+| 39472217441 | 640 | opacity | pass / fail apart / cleared | pass / pass / ok |
+| 39472217441 | 640 | max-width | fail apart / fail apart / both | pass / pass / ok |
+| 39508414669 | 390, 641 | opacity | fail apart / pass / new | pass / pass / ok |
+| 39508414669 | 390, 641 | max-width | fail apart / pass / new | pass / pass / ok |
+| 39508421419 | 640 | max-width | fail apart / fail apart / both | pass / pass / ok |
+
+Limit: the anchor needs the original's first trigger to read like the rewrite's; a pass whose first trigger falls
+mid-transition in one arm only is judged `fail apart`. Admission of the scoped arm is task close-start-identity-rule.
+
 ## Admission
 
 No flag enters `v2-proved` without a stored pass in Chromium and in WebKit on both paths (Lean `member_needs_trajectory`,

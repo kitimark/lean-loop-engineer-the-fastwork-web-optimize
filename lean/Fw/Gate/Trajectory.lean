@@ -3220,8 +3220,7 @@ def excess (lo hi : Rat) (w : Int) : Rat :=
 /-- The earn value the collapse at morph value `m` aims at, `full` the settled value. -/
 def target (full m : Int) : Rat := full * (1 - collapse m)
 
-/-- The least and the greatest value `tau - startJitter` and `tau + startJitter` ms after a trigger reading `s`, on the
-transitions towards `tp` and towards `tq`. -/
+/-- The range of the transitions from `s` towards `tp` and `tq` at `tau - startJitter` and `tau + startJitter` ms. -/
 def hull (dur delay : Nat) (s tp tq : Rat) (tau : Int) : Rat × Rat :=
   let a := along dur delay s tp (tau - startJitter)
   let b := along dur delay s tp (tau + startJitter)
@@ -3229,8 +3228,7 @@ def hull (dur delay : Nat) (s tp tq : Rat) (tau : Int) : Rat × Rat :=
   let d := along dur delay s tq (tau + startJitter)
   (min (min a b) (min c d), max (max a b) (max c d))
 
-/-- How far the reading at `q` lies outside the `hull` of the transition that `p` triggered, its targets those of `p`'s
-and `q`'s morph values; `none`: undecided. -/
+/-- How far `q`'s reading lies outside the `hull` from `p`'s reading towards both morph targets; `none`: undecided. -/
 def linkExcess (tr : List String → Option (Nat × Nat)) (full : Int) (p q : Samp) : Option Rat :=
   match p.m, q.m, tr p.cls, oneNum p.els, oneNum q.els, p.t0, q.t0 with
   | some mp, some mq, some (dur, delay), some s, some w, some a, some b =>
@@ -3261,8 +3259,7 @@ def chainCost (tr : List String → Option (Nat × Nat)) (seg prior : List Samp)
     | _, _, _ => none
   | _, _, _ => none
 
-/-- Rewrite sample `r` with its pass's earlier samples `prior` passes when its `chainCost` is at most `tol k`;
-`none`: undecided. -/
+/-- Sample `r` after `prior` passes when its `chainCost` is at most `tol k`; `none`: undecided. -/
 def startCheck (k : Kind) (tr : List String → Option (Nat × Nat)) (seg prior : List Samp) (r : Samp) : Option Bool :=
   (chainCost tr seg prior r).map fun c => decide (c ≤ (tol k : Rat))
 
@@ -3637,9 +3634,7 @@ theorem startCheck_none (k : Kind) (tr : List String → Option (Nat × Nat)) (s
     (h : chainCost tr seg prior r = none) : startCheck k tr seg prior r = none := by
   simp [startCheck, h]
 
-/-- The cumulative bound of a passing sample: the first trigger's distance from the original's first trigger and every
-link's excess over the hull of the curve from the previous chain point add up to at most `tol k`; so each one alone, and
-the first trigger's reading lies within `tol k` of the original's. -/
+/-- A pass bounds anchor plus links by `tol k`, the first trigger to within `tol k` of the original's, and each link. -/
 theorem startCheck_budget (k : Kind) (tr : List String → Option (Nat × Nat)) (seg prior : List Samp) (r q o : Samp)
     (ts : List Samp) (full s w : Int) (c : Rat) (h : startCheck k tr seg prior r = some true)
     (hq : triggersOf (prior ++ [r]) = q :: ts) (ho : origFirst seg r = some o) (hf : settledOf seg r = some full)
@@ -3707,8 +3702,7 @@ theorem excess_zero (lo hi : Rat) (w : Int) (h1 : lo ≤ w) (h2 : (w : Rat) ≤ 
   · grind
   · split <;> grind
 
-/-- A link read exactly on either transition, at a time within `startJitter` of the read-time difference, costs
-nothing. -/
+/-- A link read on either transition within `startJitter` of the read-time difference costs 0. -/
 theorem linkExcess_on (tr : List String → Option (Nat × Nat)) (full : Int) (p q : Samp) (mp mq : Int)
     (dur delay : Nat) (s w : Int) (a b : Nat) (u : Int) (t : Rat) (hp : p.m = some mp) (hq : q.m = some mq)
     (htr : tr p.cls = some (dur, delay)) (hd : 0 < dur) (hs : oneNum p.els = some s) (hw : oneNum q.els = some w)
@@ -3870,22 +3864,20 @@ theorem byMStart_duration :
     (byMStart .push 2 .unit (durOf "earn" "opacity" 390) (startFor "earn" "opacity" 390) pillOrig slowRew).lookup 0 ≠ some .pass := by
   decide +kernel
 
-/-- An original earn opacity close at 390 px with three triggers 30 ms apart, all inside the 120 ms delay, each reading 0. -/
+/-- An earn opacity close at 390 px with three triggers 30 ms apart inside the 120 ms delay, each reading 0. -/
 def driftOrig : List Samp := [ec 6540 0 0, ec 400 100 0, ec 300 130 0, ec 0 160 0, eh 900 1000]
 
 /-- `driftOrig` rewritten to drift: each trigger reads `tol .unit - 1` = 9 more than the one before. -/
 def driftRew : List Samp := [ec 6540 0 0, ec 400 100 9, ec 300 130 18, ec 0 160 27, eh 900 1000]
 
-/-- Mutation drift, one link at a time: the first trigger of `driftRew` reads 9 from the original's, and each later
-trigger lies 9 outside the hull of the curve from the trigger before; each is within `tol .unit`. -/
+/-- Mutation drift, per link: the anchor and each link of `driftRew` cost 9, within `tol .unit`. -/
 theorem drift_links :
     linkExcess (startTr "earn" "opacity" 390) 1000 (ec 400 100 9) (ec 300 130 18) = some 9 ∧
       linkExcess (startTr "earn" "opacity" 390) 1000 (ec 300 130 18) (ec 0 160 27) = some 9 ∧
       excess 0 0 9 = 9 ∧ (9 : Rat) ≤ tol .unit := by
   decide +kernel
 
-/-- Mutation drift, cumulative: at its second trigger `driftRew` reads 18 where the original reads 0; the chain's cost
-there is 9 + 9 = 18, above `tol .unit`, so the check refuses it while it passes the first trigger. -/
+/-- Mutation drift, cumulative: the first trigger passes, the second costs 9 + 9 = 18 and fails. -/
 theorem drift_second :
     startCheck .unit (startTr "earn" "opacity" 390) driftOrig [ec 6540 0 0] (ec 400 100 9) = some true ∧
       chainCost (startTr "earn" "opacity" 390) driftOrig [ec 6540 0 0, ec 400 100 9] (ec 300 130 18) = some 18 ∧
