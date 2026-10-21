@@ -1,0 +1,28 @@
+{
+ "schema": "fw.images.arm-probes/1",
+ "about": "Probe ids (apps/site/src/breakpoints.gen.json, Lean matrix) the drawn-size arm covers: the upper side of each main width breakpoint at desktop (DPR 1, hover, fine) and touch (DPR 3 up to 481, DPR 2 from 601), two hover/pointer crosses at DPR 2 and the phone landscape. Split into shards by position.",
+ "probes": [
+  "desk-1512",
+  "touch-401",
+  "desk-320",
+  "touch-1031",
+  "desk-481",
+  "touch-601",
+  "desk-721",
+  "touch-320",
+  "desk-1031",
+  "touch-481",
+  "desk-1201",
+  "touch-861",
+  "desk-401",
+  "desk-601",
+  "desk-861",
+  "desk-1101",
+  "desk-1280",
+  "touch-1201",
+  "touch-1512",
+  "hover-pointer-cross-1024x768-none-fine",
+  "hover-pointer-cross-1200x900-hover-coarse",
+  "phone-landscape-no-preference"
+ ]
+}

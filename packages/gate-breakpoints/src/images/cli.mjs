@@ -5,6 +5,8 @@
 // node src/images/cli.mjs table  --in DIR[,DIR...] --engine E --arm A     (the note's ranked table from the summary's rows files; table.mjs)
 // node src/images/cli.mjs arm     build --audit a.json,b.json --out DIR   (resized copies + drawn.json; arm-build.mjs)
 // node src/images/cli.mjs arm     check                                                    (files and sources against drawn.json)
+// node src/images/cli.mjs arm     run --engine E --out DIR [--probes a,b] [--shard i/n] [--tag rep1] [--deadline-min N]   (the drawn-size arm per probe; armv2.mjs)
+// node src/images/cli.mjs arm     decide --in DIR[,DIR...] [--out FILE.md]                  (decisions and tables from the arm results; armdecide.mjs)
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
