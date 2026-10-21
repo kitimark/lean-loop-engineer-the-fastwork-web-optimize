@@ -24,7 +24,7 @@ export async function armPass(ctx, { driver, udid, drag, settleMs = 6000, tag = 
   if (started !== 'started') throw new Error(`the recorder did not start (${started})`);
   log(`${tag}: page recording, load ${loadavg()[0].toFixed(0)}`);
   const t0 = Date.now();
-  const run = await dragPass(driver, { udid, tag, ...drag });
+  const run = await dragPass(driver, { udid, tag, log, ...drag });
   log(`${tag}: touches ${run.code === 0 ? 'done' : `failed (code ${run.code}${run.timedOut ? ', timed out' : ''}; log ${run.logFile})`} in ${Math.round((Date.now() - t0) / 1000)} s`);
   await sleep(500);
   const rec = JSON.parse(await c.evaluate(FETCH_JS));

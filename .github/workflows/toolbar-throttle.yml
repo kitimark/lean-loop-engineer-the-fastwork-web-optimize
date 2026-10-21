@@ -200,7 +200,7 @@ jobs:
           xcrun simctl bootstatus "$udid" -b
 
       - name: Touch probe (three arms, rotated per round)
-        timeout-minutes: 40
+        timeout-minutes: 45
         env:
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           SITE_DIR: ${{ runner.temp }}/site

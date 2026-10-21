@@ -12,10 +12,10 @@ import { withSession } from '../session.mjs';
 import { watch } from '../watchdog.mjs';
 import { findDevice } from '../sim.mjs';
 import { loadavg } from 'node:os';
-import { buildDriver, cleanup, findDriver, stop } from './driver.mjs';
+import { buildDriver, cleanup, dragPass, findDriver, stop } from './driver.mjs';
 import { armPass } from './probe.mjs';
 import { loadFresh } from '../page.mjs';
-import { reportMd } from './report.mjs';
+import { excludeReason, reportMd } from './report.mjs';
 
 const argv = process.argv.slice(2).filter((a) => a !== '--');
 const [cmd, ...rest] = argv;
@@ -53,19 +53,35 @@ async function main() {
       // written after every pass: a stalled job still reports the passes it finished
       const save = () => writeFileSync(file, JSON.stringify({ vm: v.vm, drag, passes, failed }) + '\n');
       try {
-        // The first session on a fresh Simulator drops its openurl and asks again, which reloads the page after the recorder started
-        // (both CI jobs that got past the tab lost their first pass that way): load the page once, without touching, before the arms.
+        // The first session on a fresh Simulator drops its openurl and asks again, and the first XCUITest run relaunches Safari: both
+        // reload the page after the recorder started (the first measured pass was lost that way in 4 of 6 CI jobs). One warm-up
+        // session loads the page and runs one touch cycle, unrecorded, before the arms.
         if (!v['no-warmup']) {
-          try { await withSession(async (ctx) => { await loadFresh(ctx.c, { clock: 'pinned', settleMs: 2000 }); }, { keep: v.keep, site: siteOf(arms.find((a) => a !== 'original') ?? 'original') }); log('warm-up session done'); } catch (e) { log(`warm-up failed: ${e.message}`); }
+          try {
+            await withSession(async (ctx) => {
+              await loadFresh(ctx.c, { clock: 'pinned', settleMs: 2000 });
+              const r = await dragPass(driver, { udid, tag: 'warm-up', log, ...drag, cycles: 1 });
+              log(`warm-up: touches ${r.code === 0 ? 'done' : `failed (code ${r.code})`}`);
+            }, { keep: v.keep, site: siteOf(arms.find((a) => a !== 'original') ?? 'original') });
+          } catch (e) { log(`warm-up failed: ${e.message}`); }
         }
         for (let round = 0; round < Number(v.rounds); round++) {
           for (const arm of rotate(arms, round)) {
             const tag = `${arm}-r${round + 1}`;
-            try {
-              const rec = await withSession((ctx) => armPass(ctx, { driver, udid, drag, settleMs: Number(v.settle), tag }),
-                { keep: v.keep, site: siteOf(arm) });
-              passes.push({ arm, round: round + 1, vm: v.vm, ...rec });
-            } catch (e) { failed.push(`${tag}: ${e.message}`); log(`${tag} failed: ${e.message}`); }
+            // one retry with a fresh session: a pass that lost its page or whose touches hung is not a result of the arm
+            for (let attempt = 1; attempt <= 2; attempt++) {
+              try {
+                const rec = await withSession((ctx) => armPass(ctx, { driver, udid, drag, settleMs: Number(v.settle), tag }),
+                  { keep: v.keep, site: siteOf(arm) });
+                const bad = excludeReason({ arm, round: round + 1, vm: v.vm, ...rec });
+                if (bad && attempt < 2) { log(`${tag} not usable (${bad}); trying once more`); continue; }
+                passes.push({ arm, round: round + 1, vm: v.vm, attempt, ...rec });
+                break;
+              } catch (e) {
+                log(`${tag} failed: ${e.message}`);
+                if (attempt === 2) failed.push(`${tag}: ${e.message}`);
+              }
+            }
             save();
           }
         }
