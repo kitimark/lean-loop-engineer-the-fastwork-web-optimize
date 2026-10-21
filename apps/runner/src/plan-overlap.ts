@@ -30,7 +30,8 @@ export interface Deps {
 /** Ids of the board tasks that hold their writes: a live agent, no landed evidence. */
 export const runningOf = (board: Board): string[] => board.filter((t) => !!t.agent && !t.evidence).map((t) => t.id);
 
-/** The step pair that records an override: posted for the lead and closed at once, keyed by task, reason and pairs. */
+/** The step pair that records an override: posted for the lead and closed at once by the script (the reducer lets only the script close a
+ * waiting lead step, Fw.Console stepRefusal), keyed by task, reason and pairs. */
 export function overrideCommands(cand: string | null, reason: string, r: OverlapReply): Command[] {
   const others = [...new Set(r.conflicts.flatMap((c) => [c.a, c.b]).filter((x) => x !== cand))];
   const h = createHash("sha1").update(JSON.stringify([cand, reason, r.conflicts])).digest("hex").slice(0, 10);
@@ -39,7 +40,7 @@ export function overrideCommands(cand: string | null, reason: string, r: Overlap
   const body = `override reason: ${reason}\n${r.conflicts.map((c) => `${c.a} writes ${c.ga} <-> ${c.b} writes ${c.gb}`).join("\n")}`.slice(0, 2000);
   return [
     { type: "step.post", key: `${step}:post`, actor: "lead", step, card: null, title: `write-overlap override: ${what}`.slice(0, 200), kind: "action", options: null, audience: "lead", body },
-    { type: "step.done", key: `${step}:done`, actor: "lead", step, note: reason.slice(0, 200) },
+    { type: "step.done", key: `${step}:done`, actor: "script", step, note: reason.slice(0, 200) },
   ];
 }
 
