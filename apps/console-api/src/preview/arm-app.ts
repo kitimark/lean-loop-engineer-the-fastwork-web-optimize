@@ -27,17 +27,17 @@ const DROP = new Set(["connection", "keep-alive", "transfer-encoding", "set-cook
 // agentTimeout` with agentTimeout 0 never holds), so without `timeout` it keeps an idle socket until the server's FIN arrives
 // and can send a request into the connection the server is just closing: ECONNRESET, a 502. A client-side idle limit well
 // below the server's closes an idle socket first, so a reused socket is never one the server may be closing.
-const agent = new http.Agent({ keepAlive: true, maxSockets: 64, timeout: 30_000 });
+const agent = new http.Agent({ keepAlive: true, maxSockets: 64 });
 
 const lastEnd = new WeakMap<object, number>(); // TEMP evidence: when a socket last finished a response
 function upstream(port: number, pathq: string, method: string, headers: Record<string, string>): Promise<IncomingMessage> {
   return new Promise((resolve, reject) => {
-    let idle: number | undefined;
+    let idle: number | undefined, sock: object | undefined;
     const r = http.request({ host: "127.0.0.1", port, path: pathq, method, agent, headers }, (res) => {
-      res.on("end", () => { if (res.socket) lastEnd.set(res.socket, Date.now()); });
+      res.on("end", () => { if (sock) lastEnd.set(sock, Date.now()); });
       resolve(res);
     });
-    r.on("socket", (s) => { const t = lastEnd.get(s); idle = t === undefined ? undefined : Date.now() - t; });
+    r.on("socket", (s) => { sock = s; const t = lastEnd.get(s); idle = t === undefined ? undefined : Date.now() - t; });
     r.on("error", (e) => reject(Object.assign(e, { fwReused: r.reusedSocket, fwIdle: idle })));
     r.end();
   });
