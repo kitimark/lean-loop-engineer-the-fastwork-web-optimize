@@ -1,0 +1,308 @@
+import Fw.Ci.Provider
+import Fw.Obs.CiStatus
+import Fw.Console.LandLegs
+import Fw.Console.LandRemote
+/-!
+# Land overflow: which land legs run on GitHub Actions and which on CircleCI
+
+GitHub Actions comes first. A leg goes to CircleCI only when GitHub has no free job slot for it (or Actions is degraded) and
+CircleCI is usable: healthy and fresh status, credits and storage under the stop rules, a checkout key. Task
+`land-lane-circleci`; golden `packages/contracts/golden/ci/overflow.jsonl`; ops `ci.overflow`, `ci.overflowCombine`
+(`Fw.Wire.Ci`).
+
+The plan cap, the CircleCI class and the budget numbers below are the only constants; each says where it comes from.
+-/
+namespace Fw.Ci.Overflow
+open Fw.Console.LandLegs (Leg legs)
+open Fw.Obs (GhComp ghOpenB)
+open Fw.Obs.CiStatus (usable)
+
+/-- Concurrent jobs the GitHub Free plan runs at once, all runners together (CONFIRMED:
+https://docs.github.com/en/actions/reference/limits, "Job concurrency limits": Free, 20; the page does not name Arm runners,
+so counting them against the 20 is INFERRED). Jobs over the cap queue. -/
+def ghCap : Nat := 20
+
+/-- The CircleCI resource class every overflow leg uses (MEASURED, `research/notes/2026/10-21-circleci-series.md`: the large class
+costs more and is not faster). -/
+def ccClass : String := "arm.medium.gen2"
+
+/-- Policy estimate of one leg's wall time on CircleCI, in ms (cold `lake build fwcore` about 260 s plus the leg; a bound, to be
+read against the live run in `research/notes/2026/10-21-land-lane-circleci.md`). -/
+def estLegMs : Nat := 900000
+
+/-- Credits kept back from the pool, a month's 20 % (policy), so the overflow never spends the pilot's last credits. -/
+def creditReserve : Nat := 80000
+
+/-! ## Slots GitHub is using -/
+
+/-- Jobs a workflow of this name runs at once at its widest `needs` level (CONFIRMED from the files of `.github/workflows` on the
+commit that added this table; `apps/runner/test/land-overflow.test.ts` fails when a workflow has no row). -/
+def widths : List (String × Nat) := [
+  ("breakpoint-gate", 1), ("chromium-counts", 3), ("difftest", 2), ("engine-premises", 2), ("gate-gaps", 29), ("land", 5),
+  ("lean-math", 1), ("lean", 1), ("mutants", 1), ("premise-tests", 2), ("preview-e2e", 2), ("sim-speed", 1),
+  ("snapshot-extract", 6), ("trajectory-probe", 4), ("visual-diff", 7), ("webkit-sim", 3), ("wktr-fixtures", 2), ("wktr", 2)]
+
+/-- Width of a workflow no row names: four jobs, so an unlisted workflow over-counts rather than under-counts. -/
+def defaultWidth : Nat := 4
+
+/-- Width of one workflow. -/
+def width (name : String) : Nat := ((widths.find? (·.1 == name)).map (·.2)).getD defaultWidth
+
+/-- Slots held by the active (queued or running) workflow runs: the sum of their widths. A run that has finished some of its jobs
+still counts in full, so the count is never below the real one (the safe side: it moves a leg to CircleCI sooner, never later). -/
+def used (active : List String) : Nat := (active.map width).sum
+
+/-! ## What the decision reads -/
+
+/-- Facts of one decision. Times are ms since the epoch. -/
+structure Facts where
+  /-- the legs the land needs, in matrix order -/
+  legs : List Leg
+  /-- names of the GitHub workflow runs now queued or running; none: the list could not be read -/
+  ghActive : Option (List String)
+  /-- status of the GitHub Actions component (wire name) -/
+  ghActions : String
+  /-- the last decision of the Actions flag, kept when the status could not be read -/
+  ghPrev : Bool
+  /-- verdict of the CircleCI arm lane (`healthy`, `degraded`, `unknown`) -/
+  ccArm : String
+  /-- when that verdict was read -/
+  ccReadAt : Option Nat
+  now : Nat
+  /-- credits the pilot spent this month -/
+  spent : Nat
+  /-- cache storage in thousandths of the monthly storage allowance -/
+  storage : Nat
+  /-- usable checkout keys of the CircleCI project (none: the list answered 403) -/
+  keys : Option Nat
+  /-- result of the newest CircleCI clone -/
+  checkout : Option Bool
+  /-- test flag: GitHub counts as full -/
+  forceFull : Bool
+deriving DecidableEq, Repr
+
+/-- Free job slots on GitHub: none under the test flag; all of them when the count is unknown (unknown means GitHub first); else
+the cap less the used slots. -/
+def ghFree (f : Facts) : Nat :=
+  if f.forceFull then 0 else
+  match f.ghActive with
+  | none => ghCap
+  | some a => ghCap - used a
+
+/-- GitHub Actions is flagged (Lean `Fw.Obs.ghOpenB`: an unreadable status keeps the last decision). -/
+def ghDegraded (f : Facts) : Bool := ghOpenB f.ghPrev (GhComp.ofName f.ghActions)
+
+/-- CircleCI status is healthy and fresh. -/
+def ccUp (f : Facts) : Bool := usable (Fw.Obs.CiStatus.Verdict.ofName f.ccArm) f.ccReadAt f.now
+
+/-- `n` legs fit the credits left: the class is priced and their estimate, the credits spent and the reserve fit the free pool. -/
+def ccFits (f : Facts) (n : Nat) : Bool :=
+  match Provider.credits ccClass (n * estLegMs) with
+  | none => false
+  | some c => decide (c + f.spent + creditReserve ≤ Provider.poolCredits .oss)
+
+/-- The storage stop rule does not fire. -/
+def storageClear (f : Facts) : Bool := !(Provider.stops ⟨0, 0, f.storage⟩).contains .storage
+
+/-- The checkout key check passes. -/
+def keyClear (f : Facts) : Bool := Provider.keyProceed ⟨f.keys, f.checkout⟩
+
+/-- CircleCI may take `n` legs. -/
+def ccReady (f : Facts) (n : Nat) : Bool := ccUp f && ccFits f n && storageClear f && keyClear f
+
+/-! ## The split -/
+
+/-- Legs that stay on GitHub: none when Actions is degraded, else as many as there are free slots. -/
+def kept (f : Facts) : Nat := if ghDegraded f then 0 else min f.legs.length (ghFree f)
+
+/-- The legs GitHub cannot take, the later ones of the matrix. -/
+def overflowSet (f : Facts) : List Leg := f.legs.drop (kept f)
+
+/-- The overflow goes to CircleCI: there is some, and CircleCI is ready for it. -/
+def goesCc (f : Facts) : Bool := !(overflowSet f).isEmpty && ccReady f (overflowSet f).length
+
+/-- Legs the GitHub land run takes. -/
+def ghLegs (f : Facts) : List Leg := if goesCc f then f.legs.take (kept f) else f.legs
+
+/-- Legs the CircleCI land runs. -/
+def ccLegs (f : Facts) : List Leg := if goesCc f then overflowSet f else []
+
+/-- Why the split is what it is, for the log. -/
+def reason (f : Facts) : String :=
+  if (overflowSet f).isEmpty then "github-first"
+  else if goesCc f then (if ghDegraded f then "github-degraded" else "github-full")
+  else if !ccUp f then "circleci-not-usable"
+  else if !ccFits f (overflowSet f).length then "circleci-credits"
+  else if !storageClear f then "circleci-storage"
+  else "circleci-key"
+
+/-- A leg is on GitHub or on CircleCI. -/
+inductive Where where
+  | github | circleci
+deriving DecidableEq, Repr
+
+/-- Where one leg runs. -/
+def whereIs (f : Facts) (l : Leg) : Where := if l ∈ ccLegs f then .circleci else .github
+
+/-! ## Theorems -/
+
+theorem ghLegs_append_ccLegs (f : Facts) : ghLegs f ++ ccLegs f = f.legs := by
+  unfold ghLegs ccLegs overflowSet
+  split <;> simp
+
+/-- `never_both`: the GitHub and CircleCI legs partition the legs (nothing is lost) and, for distinct legs, share none. -/
+theorem never_both (f : Facts) (nd : f.legs.Nodup) (l : Leg) : ¬ (l ∈ ghLegs f ∧ l ∈ ccLegs f) := by
+  unfold ghLegs ccLegs overflowSet
+  split
+  · intro ⟨h1, h2⟩
+    have := List.take_append_drop (kept f) f.legs
+    rw [← this] at nd
+    exact (List.nodup_append.1 nd).2.2 l h1 l h2 rfl
+  · simp
+
+/-- The legs on CircleCI are legs of the land. -/
+theorem ccLegs_sub (f : Facts) (l : Leg) (h : l ∈ ccLegs f) : l ∈ f.legs := by
+  unfold ccLegs overflowSet at h
+  split at h
+  · exact List.mem_of_mem_drop h
+  · simp at h
+
+/-- `github_first`: GitHub always keeps the first `kept` legs; with free slots for all legs and Actions not degraded, it keeps all
+of them and CircleCI gets none. -/
+theorem github_first (f : Facts) : f.legs.take (kept f) <+: ghLegs f := by
+  unfold ghLegs
+  split
+  · exact List.prefix_refl _
+  · exact List.take_prefix _ _
+
+theorem github_first_all (f : Facts) (hd : ghDegraded f = false) (hf : f.legs.length ≤ ghFree f) :
+    ghLegs f = f.legs ∧ ccLegs f = [] := by
+  have hk : kept f = f.legs.length := by
+    unfold kept; rw [hd]; simp; omega
+  have hn : overflowSet f = [] := by
+    unfold overflowSet; rw [hk]; simp
+  have hg : goesCc f = false := by
+    unfold goesCc; rw [hn]; simp
+  unfold ghLegs ccLegs
+  rw [hg]; simp
+
+/-- `overflow_only_when_full`: a leg goes to CircleCI only when Actions is degraded or the free slots are fewer than the legs. -/
+theorem overflow_only_when_full (f : Facts) (h : ccLegs f ≠ []) : ghDegraded f = true ∨ ghFree f < f.legs.length := by
+  by_cases hd : ghDegraded f = true
+  · exact Or.inl hd
+  · right
+    by_cases hf : f.legs.length ≤ ghFree f
+    · exact absurd (github_first_all f (by simpa using hd) hf).2 h
+    · omega
+
+/-- CircleCI takes legs only when it is ready for them: its status is healthy and fresh, ... -/
+theorem overflow_needs_ready (f : Facts) (h : ccLegs f ≠ []) : ccReady f (ccLegs f).length = true := by
+  unfold ccLegs at h ⊢
+  by_cases g : goesCc f = true
+  · simp only [g, ite_true]
+    unfold goesCc at g
+    simpa using (Bool.and_eq_true_iff.1 g).2
+  · simp [g] at h
+
+theorem overflow_needs_up (f : Facts) (h : ccLegs f ≠ []) : ccUp f = true := by
+  have := overflow_needs_ready f h
+  simp [ccReady] at this; exact this.1.1.1
+
+/-- ... the credits fit ... -/
+theorem overflow_needs_credits (f : Facts) (h : ccLegs f ≠ []) : ccFits f (ccLegs f).length = true := by
+  have := overflow_needs_ready f h
+  simp [ccReady] at this; exact this.1.1.2
+
+/-- ... the storage stop rule is clear ... -/
+theorem overflow_needs_storage (f : Facts) (h : ccLegs f ≠ []) : storageClear f = true := by
+  have := overflow_needs_ready f h
+  simp [ccReady] at this; exact this.1.2
+
+/-- ... and the checkout key check passes. -/
+theorem overflow_needs_key (f : Facts) (h : ccLegs f ≠ []) : keyClear f = true := by
+  have := overflow_needs_ready f h
+  simp [ccReady] at this; exact this.2
+
+/-- A storage stop (the allowance is over) keeps every leg on GitHub. -/
+theorem storage_stop_keeps_github (f : Facts) (h : Provider.storageMaxMilli < f.storage) : ccLegs f = [] := by
+  refine Classical.byContradiction fun hne => ?_
+  have := overflow_needs_storage f hne
+  simp [storageClear, Provider.stops] at this
+  omega
+
+/-- An unreadable slot count means GitHub first: every leg stays on GitHub while Actions is not degraded, whatever the count of
+legs (up to the cap) and the state of CircleCI. -/
+theorem unknown_count_github (f : Facts) (hn : f.ghActive = none) (hf : f.forceFull = false) (hd : ghDegraded f = false)
+    (hl : f.legs.length ≤ ghCap) : ghLegs f = f.legs ∧ ccLegs f = [] := by
+  apply github_first_all f hd
+  simp [ghFree, hn, hf]; exact hl
+
+/-- The test flag forces every leg off GitHub (when CircleCI is ready). -/
+theorem force_full_free (f : Facts) (h : f.forceFull = true) : ghFree f = 0 := by simp [ghFree, h]
+
+/-! ### The same verdict from either provider -/
+
+/-- The verdict of the land (Lean `Fw.Console.LandRemote.verdict`) reads a provider only to ask whether it has a run and whether an
+allowed one passed; a run bound to the wanted commit, lane and digest therefore decides identically from GitHub and from CircleCI. -/
+theorem verdict_same (localOk needed : Bool) (w : Fw.Console.LandRemote.Want) (k : Nat) (p q : Fw.Console.LandRemote.Provider)
+    (s : Fw.Console.LandRemote.RunState) :
+    Fw.Console.LandRemote.verdict localOk needed [p] w k [⟨p, w.sha, w.laneId, w.laneDigest, s⟩] =
+    Fw.Console.LandRemote.verdict localOk needed [q] w k [⟨q, w.sha, w.laneId, w.laneDigest, s⟩] := by
+  cases s <;> simp [Fw.Console.LandRemote.verdict, Fw.Console.LandRemote.Want.binds, Fw.Console.LandRemote.hasFail,
+    Fw.Console.LandRemote.hasPass, Fw.Console.LandRemote.hasPending, Fw.Console.LandRemote.fallback,
+    Fw.Console.LandRemote.started, Fw.Console.LandRemote.whyLocal]
+
+/-- Whether a run binds to the wanted lane does not depend on its provider. -/
+theorem binds_provider_blind (w : Fw.Console.LandRemote.Want) (r : Fw.Console.LandRemote.Run) (p : Fw.Console.LandRemote.Provider) :
+    w.binds { r with provider := p } = w.binds r := rfl
+
+/-! ### Combining the verdicts of the two providers' legs -/
+
+/-- The kind that decides when the legs of each provider have a verdict of their own (kinds as in
+`Fw.Console.LandRemote.Verdict.kind`): `refuse` if any, else `local` if any, else the first kind that is not `accept` (`wait`,
+`try`), else `accept`; none for no verdict. -/
+def pickKind (ks : List String) : Option String :=
+  if "refuse" ∈ ks then some "refuse"
+  else if "local" ∈ ks then some "local"
+  else match ks.find? (· != "accept") with
+    | some k => some k
+    | none => if ks.isEmpty then none else some "accept"
+
+/-- A refusal in either provider's legs refuses the land. -/
+theorem pickKind_refuse (ks : List String) (h : "refuse" ∈ ks) : pickKind ks = some "refuse" := by
+  simp [pickKind, h]
+
+/-- With no refusal, a leg that must run locally decides. -/
+theorem pickKind_local (ks : List String) (h : "local" ∈ ks) (nr : "refuse" ∉ ks) : pickKind ks = some "local" := by
+  simp [pickKind, h, nr]
+
+/-- `combine_accept`: the combined verdict accepts exactly when there is a verdict and every one accepts. -/
+theorem pickKind_accept_iff (ks : List String) : pickKind ks = some "accept" ↔ ks ≠ [] ∧ ∀ k ∈ ks, k = "accept" := by
+  unfold pickKind
+  split
+  · rename_i h; constructor
+    · intro e; simp at e
+    · rintro ⟨_, a⟩; have := a "refuse" h; simp at this
+  · split
+    · rename_i h1 h2; constructor
+      · intro e; simp at e
+      · rintro ⟨_, a⟩; have := a "local" h2; simp at this
+    · rename_i h1 h2
+      split
+      · rename_i k hk
+        have := List.find?_some hk
+        have hm := List.mem_of_find?_eq_some hk
+        constructor
+        · intro e; simp at e; subst e; simp at this
+        · rintro ⟨_, a⟩; have := a k hm; simp [this] at *
+      · rename_i hn
+        rw [List.find?_eq_none] at hn
+        split
+        · rename_i he; simp at he; subst he; simp
+        · rename_i he
+          simp at he
+          constructor
+          · intro _; exact ⟨he, fun k hk => by simpa using hn k hk⟩
+          · intro _; rfl
+
+end Fw.Ci.Overflow

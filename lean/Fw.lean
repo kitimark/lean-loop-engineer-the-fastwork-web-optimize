@@ -137,6 +137,7 @@ import Fw.Ci.Attempt  -- ci-wait-lag: a cached fact answers for a run only at th
 import Fw.Ci.Lag  -- ci-wait-lag: the partition of a wait's lag into phases
 import Fw.Ci.Cancel  -- ci-own-trigger: no concurrency group is shared on ci/**, so nothing cancels a ci/** run
 import Fw.Ci.Provider  -- circleci-pilot: pair verdict, credits, stop rule and routing rule of the CircleCI pilot
+import Fw.Ci.Overflow  -- land-lane-circleci: which land legs overflow from GitHub Actions to CircleCI
 import Fw.Ci.Telemetry  -- ci-telemetry: the CI job telemetry record and its slow verdicts (ci.telemetry)
 import Fw.Gate.Exit  -- gate-exit-verdict: the summary exit code from the merged engine verdicts
 import Fw.Gate.WebkitScreen  -- gate-green-baseline: the device width of a Playwright WebKit live resize
