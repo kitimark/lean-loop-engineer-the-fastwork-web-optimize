@@ -20,7 +20,7 @@ input to `Fw.Sup`. The Lean encoding of the rule is a follow-up (sup-model, sup-
 
 **Accepted limits.** Local measurements on a shared, busy Mac (8 cores, 16 GB): every sample carries the load average
 and the free memory beside it, and none is a CI result. The Simulator runtime available here is the pinned iOS 27.0
-build 24A434 on an iPhone 15 Pro Max device type, the platform `check-simulator.sh` pins for CI; CI's host is a
+build 24A434 on an iPhone 15 Pro Max device type, the platform `.github/scripts/check-simulator.sh:11-13` pins for CI; CI's host is a
 different machine, so its boot time differs.
 
 ## How it was measured
@@ -45,8 +45,9 @@ different machine, so its boot time differs.
 Reproduce (needs `lean/.lake` built; Node 24.22.0):
 
 ```
-node research/notes/2026/warmup-costs/measure.mjs lakehist
+node research/notes/2026/warmup-costs/measure.mjs lakehist --until 2026-10-21T12:55:33.147Z
 node research/notes/2026/warmup-costs/measure.mjs fwcore --n 5
+node research/notes/2026/warmup-costs/measure.mjs fwcore --rss-only   # the second fwcore series alone, spawn series kept
 node research/notes/2026/warmup-costs/measure.mjs lsp --n 5
 node research/notes/2026/warmup-costs/measure.mjs vitest --n 3
 node research/notes/2026/warmup-costs/measure.mjs sim --n 3
@@ -73,28 +74,30 @@ Commands, one per kind (also the first line of each table section):
 ### Headline numbers
 
 - **lake serve** (5 fresh servers): first diagnostics median 540 ms, file done median 2584 ms, max 4790 ms; tree footprint 234 MB.
-- **Simulator** (3 fresh devices): first boot to ready median 46.1 s, reboot to ready median 13.3 s, shutdown median 4.34 s; tree footprint 1448 MB at most.
-- **fwcore start**: spawn to reply median 72.2 ms (5 runs), `time -l` real median 60 ms, peak footprint 11 MB, binary 78 MB.
+- **Simulator** (3 fresh devices): first boot to ready median 46.1 s, reboot to ready median 13.3 s, shutdown median 4.34 s (pooled: 3 first and 3 second shutdowns; first alone 4.88 s, second alone 4.26 s); tree footprint 1448 MB at most.
+- **fwcore start**: spawn to reply median 72.2 ms (5 runs), `time -l` real median 40 ms, peak footprint 11 MB, binary 78 MB.
 - **fwcore in a test run**: median 52 ms per start inside a vitest worker; `checks.test.ts` starts it 74 times.
-- **lake build** (local history, 2026-10-17 to 2026-10-21): rebuild p50 13.9 s, p90 45.1 s, p99 190.9 s, max 303.3 s (n 384).
+- **lake build** (local history, 2026-10-17 to 2026-10-21): rebuild p50 13.9 s, p90 45.1 s, p99 190.9 s, max 303.3 s (n 384); p99 below load1 10: 116.3 s (n 66, equals its max), at or above: 190.9 s (n 318).
 
 ### Cold-start cost per kind
 
 | kind | typical cold cost s | worst cold cost s | basis | footprint MB |
 | --- | --- | --- | --- | --- |
-| lake serve (spawn to file done) | 4.79 | 195.7 | max of 5 ok runs; worst adds the rebuild p99 (stale oleans) | 234 |
-| Simulator (reboot to ready) | 14.8 | 48.6 | max reboot-to-ready of 3 runs; worst = max first boot of a new device; stop (shutdown) max 8.49 s | 1448 |
-| fwcore start (one request) | 0.14 | 0.14 | max of 5 runs | 11 |
+| lake serve (spawn to file done) | 2.58 | 195.7 | median of 5 ok runs (max 4.79 s); worst = max plus the rebuild p99 (stale oleans) | 234 |
+| Simulator (reboot to ready) | 13.3 | 48.6 | median reboot-to-ready of 3 runs (max 14.8 s); worst = max first boot of a new device; stop (shutdown) max 8.49 s | 1448 |
+| fwcore start (one request) | 0.07 | 0.14 | median of 5 runs (max 143 ms); worst = max incl. in-test starts | 11 |
 
 Longest lake build (no idle process, so no grace; it bounds the worst case above): p99 of 384 rebuilds of 2 s or more, 190.9 s.
 
-### Proposed idle grace per kind (rule: grace = clamp(10 x typical cold cost, 60 s, 1800 s))
+### Proposed idle grace per kind (rule: grace = clamp(10 x typical cold cost, gMin, 1800 s), typical = median of n runs, gMin = 2 x tick)
 
-| kind | typical cold cost s | k x cold s | grace s |
-| --- | --- | --- | --- |
-| lake serve (spawn to file done) | 4.79 | 10 x 4.79 = 48 | 60 |
-| Simulator (reboot to ready) | 14.8 | 10 x 14.8 = 148 | 148 |
-| fwcore start (one request) | 0.14 | 10 x 0.14 = 1 | 60 |
+The supervisor tick is not fixed (daemon-design S4 names `tickMax` with no number), so gMin is shown for two ticks: 20 s (the stage 0 sampler of check.json section 5, INFERRED to be the tick) and 300 s (`fw watch --interval 300`, docs/team/tools/fw-watch.md:7, the only loop today).
+
+| kind | typical (median) cold cost s | k x cold s | grace s at tick 20 s (gMin 40 s) | grace s at tick 300 s (gMin 600 s) |
+| --- | --- | --- | --- | --- |
+| lake serve (spawn to file done) | 2.58 | 10 x 2.58 = 26 | 40 | 600 |
+| Simulator (reboot to ready) | 13.3 | 10 x 13.3 = 133 | 133 | 600 |
+| fwcore start (one request) | 0.07 | 10 x 0.07 = 1 | 40 | 600 |
 
 
 ### lake serve to first diagnostics
@@ -133,11 +136,11 @@ Command: `node: spawnSync(lean/.lake/build/bin/fwcore, [], {input: one console.l
 
 | run | real ms (time -l) | max RSS MB | peak footprint MB | load1 / free MB / avail MB |
 | --- | --- | --- | --- | --- |
-| 1 | 60 | 46 | 11 | 65.28 / 447 / 3488 |
-| 2 | 70 | 46 | 11 | 65.28 / 415 / 3521 |
-| 3 | 50 | 46 | 11 | 65.28 / 423 / 3521 |
-| 4 | 60 | 46 | 11 | 65.28 / 403 / 3506 |
-| 5 | 60 | 46 | 11 | 65.28 / 412 / 3518 |
+| 1 | 190 | 46 | 11 | 10.44 / 288 / 3781 |
+| 2 | 40 | 46 | 11 | 10.44 / 328 / 3735 |
+| 3 | 40 | 46 | 11 | 10.44 / 332 / 3749 |
+| 4 | 40 | 46 | 11 | 10.44 / 412 / 3810 |
+| 5 | 40 | 46 | 11 | 10.44 / 988 / 4106 |
 
 ### fwcore starts inside a test run
 
@@ -171,31 +174,44 @@ Source: `node measure.mjs lakehist: nearest-rank quantiles of .fw-console/timing
 | exit 0, load1 >= 10 | 870 | 0.89 | 24.3 | 108.7 | 303.3 |
 | exit 0, under 2 s (no module rebuilt) | 786 | 0.58 | 1.04 | 1.65 | 1.95 |
 | exit 0, 2 s or more (a rebuild) | 384 | 13.9 | 45.1 | 190.9 | 303.3 |
+| a rebuild, load1 < 10 (p99 equals max at this n) | 66 | 11.7 | 26.2 | 116.3 | 116.3 |
+| a rebuild, load1 >= 10 | 318 | 14.3 | 45.9 | 190.9 | 303.3 |
 | bench: solo build, plain | 6 | 5.20 | 10.3 | 10.3 | 10.3 |
 | bench: clean fwcore-build, plain | 5 | 144.6 | 178.0 | 178.0 | 178.0 |
 <!-- /GENERATED:tables -->
 
 ## Reading the numbers
 
-- **The kinds sit on very different scales.** A fwcore start is tens of milliseconds, a lake serve is seconds, a
-  Simulator boot is tens of seconds, a rebuild is up to minutes (headline numbers above). A grace priced by cold cost
-  therefore differs by that ratio between kinds, which is what the design asks for (Simulator long, lake serve medium,
-  warm core short).
-- **fwcore start is a time cost, not a memory cost.** Its footprint is small, so keeping it warm saves wall time
-  only. In `checks.test.ts` the starts are most of the file's wall time (the generated line under the test-run
-  table). That is the case for one warm core in the daemon (stage 2); it is not a case for a long idle grace.
-- **The Simulator needs the device kept, the process stopped.** A first boot of a new device costs about three times
-  a reboot of an existing one (tables), so an idle teardown must `simctl shutdown` the repo's device and keep it,
-  never delete it. That is also what check.json section 5 asks (shutdown by the repo's UDID only).
-- **Footprint of a fresh Simulator is below the idle 3 GB of the baseline.** A device booted here had no app opened in it; the baseline's idle device had loaded content (INFERRED). What a stop frees depends on what
-  ran in the device, so the supervisor should read the footprint when it decides, not assume one.
-- **Load.** Samples were taken between load1 values listed beside each; the 3 Simulator samples show
-  no ordering by load, and the 5 lake serve samples fall with the load except one (too few to say; INFERRED), but the
-  lake build p99 does follow load (the load split in its table).
-  Read the build number as a load-dependent upper bound.
-- **Interpretation of "longest lake build of a single module".** `timings.jsonl` records the `lake build` stage of a
-  `check.sh` run (modules rebuilt after a change, then strip and the build record), not one module. The stage's p99
-  over rebuilds of 2 s or more is the closest recorded number and an upper bound for one module.
+Status of each claim: CONFIRMED (a source or a table above), MEASURED (a number in the tables), INFERRED (my reading).
+
+- **The kinds sit on very different scales (MEASURED).** A fwcore start is tens of milliseconds, a lake serve is
+  seconds, a Simulator boot is tens of seconds, a rebuild is up to minutes (headline numbers above). A grace priced
+  by cold cost therefore differs by that ratio between kinds, which is what the design asks for (Simulator long, lake
+  serve medium, warm core short; `daemon-design` section 3).
+- **fwcore start is a time cost, not a memory cost (MEASURED: 11 MB footprint).** Keeping it warm saves wall time
+  only. In `checks.test.ts` the starts are most of the file's wall time (INFERRED: the probe request
+  `console.landTier` is assumed to cost what the requests of `checks.test.ts` cost; the 74 starts x in-test median
+  and the process wall are in the generated line under the test-run table). That is the case for one warm core in the
+  daemon (stage 2); it is not a case for a long idle grace.
+- **The Simulator needs the device kept, the process stopped (MEASURED: first boot 46.1 s median against 13.3 s for a
+  reboot, about 3.5 times).** So an idle teardown must `simctl shutdown` the repo's device and keep it, never delete
+  it. Shutdown by the repo's UDID only, with a simctl timeout, is what the check of `daemon-design` asks for its
+  section 5 (CONFIRMED: check.json corrections, stage 4: "`simctl shutdown` only for the repo's device UDID").
+- **Footprint of a fresh Simulator is below the idle 3 GB of the baseline (INFERRED).** A device booted here had no
+  app opened in it; the baseline's idle device had loaded content. What a stop frees depends on what ran in the
+  device, so the supervisor should read the footprint when it decides, not assume one.
+- **Load (MEASURED, 5 and 3 samples; the lake build split is n 66 and n 318).** Samples were taken between the load1
+  values listed beside each. The 3 Simulator samples show no ordering by load. Across the 5 lake serve samples load
+  falls from run 1 to run 5 (65 to 49), yet file-done time rises at run 2 and again at run 4: two exceptions, so
+  there is no clear ordering with 5 samples (INFERRED). The lake build does follow load, on the rebuild series the
+  grace uses (exit 0, 2 s or more): p99 116.3 s below load1 10 (n 66, so p99 equals the max) and 190.9 s at or above
+  (n 318), tables above. Read the build number as a load-dependent upper bound (INFERRED).
+  The 5 fwcore `time -l` samples were re-measured in round 2 at load1 10.4 (the first series ran at 65): real time
+  40 ms for four runs and 190 ms for the first, while the spawn series (72 ms median) stayed from the load-65 session
+  (MEASURED, tables above); peak footprint and RSS did not change with the load.
+- **Interpretation of "longest lake build of a single module" (INFERRED).** `timings.jsonl` records the `lake build`
+  stage of a `check.sh` run (modules rebuilt after a change, then strip and the build record), not one module. The
+  stage's p99 over rebuilds of 2 s or more is the closest recorded number and an upper bound for one module.
 
 ## Idle grace as an input for Fw.Sup
 
@@ -203,17 +219,23 @@ The design (`daemon-design` section 3, `stop_only_idle`) stops a ready, unleased
 `now - lastUse >= grace kind` or under memory pressure, and says the grace is "priced by cold-start cost". This is the
 rule that fits the measurements, stated as an input; whether it is the right one is a Lean question (sup-model).
 
-- **Rule (INFERRED).** `grace kind = clamp (K * typical cold cost kind) gMin gMax`, with `K = 10`, `gMin = 60 s`,
-  `gMax = 1800 s`.
+- **Rule (INFERRED).** `grace kind = clamp (K * typical cold cost kind) gMin gMax`, with `K = 10`, `gMin = 2 x tick`,
+  `gMax = 1800 s`, and `typical cold cost` the median of the n runs of the kind (nearest rank; the worst is the max).
   - `K * cold` is the ski-rental argument. Keeping a process warm for exactly its cold cost `B` is 2-competitive
     against an offline choice when waiting time and idle time weigh the same (`K = 1`). An agent waiting on a cold
     start costs more than an idle process costs while memory is free, so `K > 1`; 10 is a starting value, not a
     measurement, and the first week of stage 0's reuse-gap log should replace it.
-  - `gMin` keeps the stop decision off the tick: the supervisor looks about every 30 s (INFERRED from the watch
-    cadence), so a grace under two ticks would race it. `gMax` is the 30-minute re-arm period of the watch stream: a
+  - `gMin = 2 x tick` keeps the stop decision off the tick: a grace under two ticks would race it. The tick is not
+    known: `daemon-design/design.md` axiom S4 names `tickMax` without a number, and the `~20 s` of check.json section 5
+    is the stage 0 sampler period, not a declared tick (INFERRED that the tick is no longer than the sampler). The only
+    supervisor loop that exists today is `fw watch --interval 300` (CONFIRMED, docs/team/tools/fw-watch.md:7). So
+    `gMin` is a function of the tick and the grace table above shows two: tick 20 s gives `gMin` 40 s, tick 300 s gives
+    600 s. At tick 300 s `gMin` (600 s)
+    exceeds every `K x cold` (largest 133 s, MEASURED) and all three kinds get 600 s; at tick 20 s only the
+    Simulator's 133 s exceeds `gMin` 40 s. sup-model fixes `tickMax`; this note does not. `gMax` is the 30-minute re-arm period of the watch stream: a
     resource unused for that long is not in a work loop.
   - Under pressure the grace does not apply (`shedding s`), so `K` only decides the idle-and-comfortable case.
-- **Typical, not worst.** The rule uses the typical restart (an existing device rebooted, fresh oleans). The worst
+- **Typical, not worst.** The rule uses the typical restart: the median of the n runs of an existing device rebooted on fresh oleans (the max of the runs is the worst column). The worst
   case (a first boot of a new device, `lake serve` on stale oleans that need the longest rebuild) belongs to the
   start timeout (`startMax`, theorem `start_bounded`), not to the grace.
 - **Per kind.** The long cold start (Simulator) gets the longest grace and is the only kind whose stop is ours to

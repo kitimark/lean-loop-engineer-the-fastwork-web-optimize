@@ -1,5 +1,5 @@
 // Cold-start cost of each long-lived or repeated process kind on this Mac (task sup-warmup, input of Fw.Sup's idle grace).
-//   node measure.mjs lsp|sim|fwcore|vitest|lakehist [--n N] [--out results.json]
+//   node measure.mjs lsp|sim|fwcore|vitest|lakehist [--n N] [--out results.json] [--rss-only (fwcore)] [--until ISO (lakehist)]
 // One kind per call; the result is merged into results.json under kinds.<kind>. Local lane: these are this Mac's own
 // process costs under whatever load it carries, never CI results. Every sample records the load average and the free
 // memory beside it. A series only starts when no land is queued or holding the land lock (it waits, it never kills).
@@ -31,10 +31,11 @@ export function machine() {
     availMB: mb(pg("Pages free") + pg("Pages speculative") + pg("Pages inactive") + pg("Pages purgeable")), swapUsedMB: Math.round(Number(swap ?? 0)) };
 }
 
-/** true while a land is queued or holds the land lock (fw land --queue-status prints one VERDICT line per task). */
+/** true while a land is queued or holds the land lock. Allowlist: `fw land --queue-status` prints `VERDICT queued <task>` for a pending entry and
+ *  `VERDICT <kind> <task>` (a Kind of apps/runner/src/land-verdict.ts:7) for a finished one, which is history, not work; a running land holds fw-land.lock. */
 function landBusy() {
   const q = sh("pnpm", ["-s", "fw", "land", "--queue-status"], { cwd: root, env: { ...process.env } });
-  const queued = (q.stdout ?? "").split("\n").some((l) => l.startsWith("VERDICT ") && !l.startsWith("VERDICT done") && !l.startsWith("VERDICT refused") && !l.startsWith("VERDICT failed"));
+  const queued = (q.stdout ?? "").split("\n").some((l) => l.startsWith("VERDICT queued "));
   const common = sh("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: root }).stdout.trim();
   return queued || existsSync(join(common, "fw-land.lock"));
 }
@@ -172,14 +173,16 @@ async function fwcore(n) {
   const input = JSON.stringify({ op: "console.landTier", ids: ["x"], built: false, id: 0 }) + "\n";
   const env = { ...process.env, LEAN_ABORT_ON_PANIC: "1" };
   const bytes = statSync(bin).size;
-  const spawnSamples = []; const rssSamples = [];
-  for (let i = 0; i < n; i++) {
+  const rssOnly = args.includes("--rss-only"); // re-measure only the `time -l` series, keep the spawn series already in results.json
+  const spawnSamples = rssOnly ? results.kinds.fwcore.spawnSamples : []; const rssSamples = [];
+  for (let i = 0; i < (rssOnly ? 0 : n); i++) {
     await waitNoLand();
     const m = machine(); const t = now();
     const r = spawnSync(bin, [], { input, env, maxBuffer: 1 << 30 });
     spawnSamples.push({ n: i + 1, at: stamp(), ms: Math.round((now() - t) * 10) / 10, status: r.status, ...m });
   }
   for (let i = 0; i < n; i++) {
+    await waitNoLand();
     const m = machine();
     const r = spawnSync("/usr/bin/time", ["-l", bin], { input, env, encoding: "utf8", maxBuffer: 1 << 30 });
     const rss = Number(/(\d+)\s+maximum resident set size/.exec(r.stderr)?.[1] ?? 0);
@@ -233,9 +236,10 @@ async function vitest(n) {
 
 // ---- longest lake build, from .fw-console/timings.jsonl (local `lean/check` stage `lake build`) -------------------------------------------------------
 function lakehist() {
+  const until = opt("--until", null); // ISO time: ignore rows that start later, so a re-run reproduces an earlier window (the log only grows)
   const common = sh("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: root }).stdout.trim();
   const file = join(dirname(common), ".fw-console/timings.jsonl");
-  const rows = readFileSync(file, "utf8").split("\n").filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+  const rows = readFileSync(file, "utf8").split("\n").filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean).filter((r) => !until || r.startMs <= Date.parse(until));
   const pick = (f) => rows.filter(f).map((r) => r.durMs).sort((a, b) => a - b);
   const q = (v, p) => v.length ? v[Math.min(v.length - 1, Math.ceil((p / 100) * v.length) - 1)] : null; // nearest rank, as `fw timings`
   const sum = (v) => ({ n: v.length, p50: q(v, 50), p90: q(v, 90), p99: q(v, 99), max: v.length ? v[v.length - 1] : null });
@@ -245,12 +249,13 @@ function lakehist() {
   const series = {
     all: sum(pick(base)), exit0: sum(pick((r) => base(r) && ok(r))),
     exit0_load_lt10: sum(pick((r) => base(r) && ok(r) && r.load < 10)), exit0_load_ge10: sum(pick((r) => base(r) && ok(r) && r.load >= 10)),
+    exit0_real_lt10: sum(pick((r) => base(r) && ok(r) && r.durMs >= 2000 && r.load < 10)), exit0_real_ge10: sum(pick((r) => base(r) && ok(r) && r.durMs >= 2000 && r.load >= 10)),
     exit0_noop_lt2s: sum(pick((r) => base(r) && ok(r) && r.durMs < 2000)), exit0_real_ge2s: sum(pick((r) => base(r) && ok(r) && r.durMs >= 2000)),
     bench_solo_build_plain: sum(pick((r) => r.tool === "lake-slot/bench" && r.step === "solo build plain a")),
     bench_clean_fwcore_build_plain: sum(pick((r) => r.tool === "lake-slot/bench" && r.step === "clean fwcore-build plain")),
   };
   save("lakehist", { command: "node measure.mjs lakehist: nearest-rank quantiles of .fw-console/timings.jsonl rows tool=lean/check host=local step='lake build' (scripts/fwcore-build.sh: lake build + strip + build record, one per lean/check.sh); bench rows tool=lake-slot/bench",
-    from: new Date(first).toISOString(), to: new Date(last).toISOString(), rows: rows.length, unit: "ms per build", series, at: stamp(), ...machine() });
+    from: new Date(first).toISOString(), to: new Date(last).toISOString(), until, rows: rows.length, unit: "ms per build", series, at: stamp(), ...machine() });
 }
 
 const n = Number(opt("--n", kind === "sim" ? "3" : "5"));

@@ -5,7 +5,8 @@
       "command": "node measure.mjs lakehist: nearest-rank quantiles of .fw-console/timings.jsonl rows tool=lean/check host=local step='lake build' (scripts/fwcore-build.sh: lake build + strip + build record, one per lean/check.sh); bench rows tool=lake-slot/bench",
       "from": "2026-10-17T21:25:23.897Z",
       "to": "2026-10-21T12:49:50.509Z",
-      "rows": 114808,
+      "until": "2026-10-21T12:55:33.147Z",
+      "rows": 114868,
       "unit": "ms per build",
       "series": {
         "all": {
@@ -34,6 +35,20 @@
           "p50": 890,
           "p90": 24307,
           "p99": 108727,
+          "max": 303330
+        },
+        "exit0_real_lt10": {
+          "n": 66,
+          "p50": 11668,
+          "p90": 26170,
+          "p99": 116319,
+          "max": 116319
+        },
+        "exit0_real_ge10": {
+          "n": 318,
+          "p50": 14262,
+          "p90": 45866,
+          "p99": 190923,
           "max": 303330
         },
         "exit0_noop_lt2s": {
@@ -65,11 +80,11 @@
           "max": 178013
         }
       },
-      "at": "2026-10-21T12:55:33.147Z",
-      "load1": 73.79,
-      "freeMB": 163,
-      "availMB": 3306,
-      "swapUsedMB": 5659
+      "at": "2026-10-21T13:15:00.385Z",
+      "load1": 10.59,
+      "freeMB": 314,
+      "availMB": 4099,
+      "swapUsedMB": 5435
     },
     "fwcore": {
       "command": "node: spawnSync(lean/.lake/build/bin/fwcore, [], {input: one console.landTier request line, env LEAN_ABORT_ON_PANIC=1}) as fwcoreCall in apps/runner/src/run.ts; rss series: /usr/bin/time -l fwcore < the same line",
@@ -129,58 +144,58 @@
       "rssSamples": [
         {
           "n": 1,
-          "at": "2026-10-21T12:55:40.718Z",
-          "realMs": 60,
+          "at": "2026-10-21T13:14:44.918Z",
+          "realMs": 190,
           "maxRssMB": 46,
           "peakFootprintMB": 11,
-          "load1": 65.28,
-          "freeMB": 447,
-          "availMB": 3488,
-          "swapUsedMB": 5659
+          "load1": 10.44,
+          "freeMB": 288,
+          "availMB": 3781,
+          "swapUsedMB": 5467
         },
         {
           "n": 2,
-          "at": "2026-10-21T12:55:40.829Z",
-          "realMs": 70,
+          "at": "2026-10-21T13:14:45.442Z",
+          "realMs": 40,
           "maxRssMB": 46,
           "peakFootprintMB": 11,
-          "load1": 65.28,
-          "freeMB": 415,
-          "availMB": 3521,
-          "swapUsedMB": 5659
+          "load1": 10.44,
+          "freeMB": 328,
+          "availMB": 3735,
+          "swapUsedMB": 5467
         },
         {
           "n": 3,
-          "at": "2026-10-21T12:55:40.900Z",
-          "realMs": 50,
+          "at": "2026-10-21T13:14:45.946Z",
+          "realMs": 40,
           "maxRssMB": 46,
           "peakFootprintMB": 11,
-          "load1": 65.28,
-          "freeMB": 423,
-          "availMB": 3521,
-          "swapUsedMB": 5659
+          "load1": 10.44,
+          "freeMB": 332,
+          "availMB": 3749,
+          "swapUsedMB": 5467
         },
         {
           "n": 4,
-          "at": "2026-10-21T12:55:40.996Z",
-          "realMs": 60,
+          "at": "2026-10-21T13:14:46.447Z",
+          "realMs": 40,
           "maxRssMB": 46,
           "peakFootprintMB": 11,
-          "load1": 65.28,
-          "freeMB": 403,
-          "availMB": 3506,
-          "swapUsedMB": 5659
+          "load1": 10.44,
+          "freeMB": 412,
+          "availMB": 3810,
+          "swapUsedMB": 5467
         },
         {
           "n": 5,
-          "at": "2026-10-21T12:55:41.079Z",
-          "realMs": 60,
+          "at": "2026-10-21T13:14:46.933Z",
+          "realMs": 40,
           "maxRssMB": 46,
           "peakFootprintMB": 11,
-          "load1": 65.28,
-          "freeMB": 412,
-          "availMB": 3518,
-          "swapUsedMB": 5659
+          "load1": 10.44,
+          "freeMB": 988,
+          "availMB": 4106,
+          "swapUsedMB": 5467
         }
       ]
     },
