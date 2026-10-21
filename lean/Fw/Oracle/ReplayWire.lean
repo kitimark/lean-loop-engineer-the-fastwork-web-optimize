@@ -6,7 +6,7 @@ import Fw.Oracle.Wire
 
 Glue between `fwcore`'s JSON lines and `Fw.Oracle.Replay` (namespace `Fw.Wire.OracleReplay`). `fw oracle send` asks
 `oracle.replay` which rows of a set to send and with which state, asks `oracle.preRun` before each send, and the
-scorer (`scripts/jev-score.mjs`) asks `oracle.score` for the numbers of one arm.
+scorer (`fw oracle score`, apps/runner/src/oracle-score.ts) asks `oracle.score` for the numbers of one arm.
 
 | op | request | reply |
 |---|---|---|

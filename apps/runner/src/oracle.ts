@@ -15,6 +15,11 @@
 //       the offline replay of a dataset (task jev-replay): Lean's oracle.replay picks the rows (all labeled rows of
 //       D1, the stratified sample of D2) and builds each state; each send passes oracle.preRun (daily cap, 60 sends
 //       and 400 000 estimated input tokens per run); logged answers replay, so a second run sends only what is missing
+//   fw oracle score --set <d1|d2> [--arm jev|haiku|sonnet] [--answers <arm.jsonl>] [--dir] [--out <results.json>]
+//       the numbers of one arm on the picked rows (Lean's oracle.score), written into results/jev/<set>.json; the
+//       Jev arm reads the answer log, another arm its --answers file (oracle-score.ts)
+//   fw oracle arm-input --set <d1|d2> --out <prompts.jsonl> [--dir]
+//       the prompt of every picked row for another arm: {id, prompt}
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { userInfo } from "node:os";
@@ -22,12 +27,15 @@ import { dirname, join, resolve } from "node:path";
 import { fwcoreCall } from "@fw/gh-budget";
 import { ask, decisionLine, errorText, keychainKey, loggedReply, readLog, sha256, type Deps, type FwCall,
   type Json } from "@fw/oracle";
+import { ARMS, armAnswers, armPrompt, bodyOf, jevAnswers, scoreArm, writeResult } from "./oracle-score.ts";
 import { begin } from "./timing.ts";
 
 export const ORACLE_USAGE = "usage: fw oracle ask <question> --state <state.json> [--thresholds <table.json>] [--json] | " +
   "fw oracle calibrate <question> --replay <rows.jsonl> [--limit n] [--resume] [--out <table.json>] | " +
   "fw oracle eval <question> --replay <rows.jsonl> --thresholds <table.json> | " +
-  "fw oracle send --set <d1|d2> [--part calibrate|holdout] [--limit n] [--dir <datasets dir>]";
+  "fw oracle send --set <d1|d2> [--part calibrate|holdout] [--limit n] [--dir <datasets dir>] | " +
+  "fw oracle score --set <d1|d2> [--arm jev|haiku|sonnet] [--answers <arm.jsonl>] [--dir] [--out <results.json>] | " +
+  "fw oracle arm-input --set <d1|d2> --out <prompts.jsonl> [--dir]";
 
 /** The answer log: FW_ORACLE_LOG, else FW_CONSOLE_DIR, else the main checkout's .fw-console (gitignored). */
 export function logPathFor(cwd: string, env: NodeJS.ProcessEnv = process.env): string {
@@ -249,6 +257,50 @@ async function sendSet(io: Io, args: string[]): Promise<number> {
   return done === n ? 0 : 2;
 }
 
+/** The picked rows of `--set` from `--dir` (default: the main checkout's datasets), or the reason they cannot be read. */
+function pickedOf(io: Io, args: string[]): ReturnType<typeof pickedRows> | undefined {
+  const set = flag(args, "--set");
+  if (!set) return undefined;
+  const dir = flag(args, "--dir");
+  return pickedRows(io.deps.core, set, dir !== undefined ? resolve(io.cwd, dir) : datasetsDir(io.cwd));
+}
+
+/** Score one arm of a set and write it into the set's results file. */
+async function scoreCli(io: Io, args: string[]): Promise<number> {
+  const set = flag(args, "--set");
+  const arm = flag(args, "--arm") ?? "jev";
+  const file = flag(args, "--answers");
+  const picked = pickedOf(io, args);
+  if (!set || picked === undefined || !(ARMS as readonly string[]).includes(arm) || (arm !== "jev") !== (file !== undefined)) {
+    io.out(ORACLE_USAGE);
+    return 64;
+  }
+  if (typeof picked === "string") { io.out(`oracle score: ${picked}`); return 2; }
+  const answers = arm === "jev"
+    ? jevAnswers(io.deps.core, picked.question, io.names, picked.rows, io.deps.logPath)
+    : armAnswers(resolve(io.cwd, file!));
+  const score = scoreArm(io.deps.core, picked.question, arm, picked.rows, answers);
+  const { rows: _rows, ...head } = picked.reply;
+  const out = resolve(io.cwd, flag(args, "--out") ?? join("results", "jev", `${set}.json`));
+  writeResult(out, head, arm, score);
+  const all = score.all as { right: number; rows: number };
+  io.out(`oracle score ${set} ${arm} (${picked.question}): right ${all.right}/${all.rows}, missing ${String(score.missing)}; ` +
+    `wrote ${out}`);
+  return score.missing === 0 ? 0 : 2;
+}
+
+/** Write the prompt of every picked row of a set for another arm. */
+async function armInputCli(io: Io, args: string[]): Promise<number> {
+  const out = flag(args, "--out");
+  const picked = pickedOf(io, args);
+  if (out === undefined || picked === undefined) { io.out(ORACLE_USAGE); return 64; }
+  if (typeof picked === "string") { io.out(`oracle arm-input: ${picked}`); return 2; }
+  const lines = picked.rows.map((r) => JSON.stringify({ id: r.id, prompt: armPrompt(bodyOf(io.deps.core, picked.question, io.names, r)) }));
+  writeFileSync(resolve(io.cwd, out), lines.join("\n") + "\n");
+  io.out(`oracle arm-input ${flag(args, "--set")}: ${lines.length} prompts in ${out}`);
+  return 0;
+}
+
 /** `fw oracle ...`. */
 export async function oracleCli(args: string[], cwd: string, io?: Io): Promise<number> {
   const [sub, ...rest] = args;
@@ -259,6 +311,8 @@ export async function oracleCli(args: string[], cwd: string, io?: Io): Promise<n
     if (sub === "calibrate") return await calibrate(real, rest);
     if (sub === "eval") return await evaluate(real, rest);
     if (sub === "send") return await sendSet(real, rest);
+    if (sub === "score") return await scoreCli(real, rest);
+    if (sub === "arm-input") return await armInputCli(real, rest);
     real.out(ORACLE_USAGE);
     return 64;
   } catch (e) {

@@ -8,6 +8,7 @@ import { fwcoreCall } from "@fw/gh-budget";
 import { ask, decisionLine, errorText, readLog, scrub, sha256, type Deps, type FwCall, type Json } from "@fw/oracle";
 import { fastCore } from "../../../packages/gh-budget/test/util.ts";
 import { oracleCli, thresholdsOf, type Io } from "../src/oracle.ts";
+import { ARM_PREAMBLE } from "../src/oracle-score.ts";
 
 const hasCore = (() => { try { fwcoreCall(process.cwd()); return true; } catch { return false; } })();
 // one persistent fwcore behind a synchronous bridge (the CLI spawns one per decision; the calibrate tests make hundreds)
@@ -347,6 +348,45 @@ describe.skipIf(!hasCore)("fw oracle send (jev-replay)", () => {
     expect(await oracleCli(["send", "--set", "d1", "--dir", d1Dir(3)], x.cwd, x)).toBe(2);
     expect(ff.sent).toHaveLength(0);
     expect(x.lines[0]).toContain("stopped: no key");
+  });
+  it("score: the Jev arm from the answer log, another arm from its file; both arms land in one results file", async () => {
+    const reply = quotaReply();
+    const d = deps({ fetch: fakeFetch(() => new Response(reply)).fetch });
+    const dir = d1Dir(8);
+    const x = io({ deps: d, cwd: dir });
+    expect(await oracleCli(["send", "--set", "d1", "--dir", dir, "--limit", "6"], x.cwd, x)).toBe(0);
+    expect(await oracleCli(["score", "--set", "d1", "--dir", dir, "--out", "r.json"], x.cwd, x)).toBe(2);
+    expect(x.lines[1]).toMatch(/^oracle score d1 jev \(incident-class\): right [12]\/6, missing 2; wrote /);
+    const ids = Array.from({ length: 8 }, (_, k) => `inc-${k}`);
+    writeFileSync(join(dir, "haiku.jsonl"), ids.map((id, k) => JSON.stringify({ id, choice: classes[k % classes.length],
+      inputTokens: 1000, outputTokens: 20, ms: 900 })).join("\n") + "\n");
+    expect(await oracleCli(["score", "--set", "d1", "--dir", dir, "--arm", "haiku", "--answers", "haiku.jsonl", "--out", "r.json"],
+      x.cwd, x)).toBe(0);
+    const r = JSON.parse(readFileSync(join(dir, "r.json"), "utf8"));
+    expect(r).toMatchObject({ set: "d1", question: "incident-class", labeled: 8, selected: 8 });
+    expect(r.rows).toBeUndefined();
+    expect(r.arms.jev).toMatchObject({ arm: "jev", missing: 2, all: { rows: 6 }, inputTokens: 1800, outputTokens: 6 });
+    expect(r.arms.haiku).toMatchObject({ arm: "haiku", missing: 0, all: { rows: 8, right: 8 }, inputTokens: 8000,
+      dollars: { num: "11", den: "12500" }, msMedian: 900 }); // 8000 in at $0.10/M and 160 out at $0.50/M
+    const jevQuota = r.arms.jev.all.options.find((o: { option: string }) => o.option === "c-quota");
+    expect(r.arms.jev.all.right).toBe(jevQuota.right);
+    expect(jevQuota.chosen).toBe(6);
+  });
+  it("score: a bad arm, or --answers with the Jev arm, is a usage error", async () => {
+    const x = io({ deps: deps({ readKey: noKeychain }) });
+    expect(await oracleCli(["score", "--set", "d1", "--arm", "gpt"], x.cwd, x)).toBe(64);
+    expect(await oracleCli(["score", "--set", "d1", "--answers", "a.jsonl"], x.cwd, x)).toBe(64);
+    expect(await oracleCli(["score", "--set", "d1", "--arm", "haiku"], x.cwd, x)).toBe(64);
+  });
+  it("arm-input: one prompt per picked row, with the preamble and the redacted state of the Jev body", async () => {
+    const dir = d1Dir(3);
+    const x = io({ deps: deps({ readKey: noKeychain }), cwd: dir });
+    expect(await oracleCli(["arm-input", "--set", "d1", "--dir", dir, "--out", "p.jsonl"], x.cwd, x)).toBe(0);
+    const p = readFileSync(join(dir, "p.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l) as { id: string; prompt: string });
+    expect(p.map((r) => r.id).sort()).toEqual(["inc-0", "inc-1", "inc-2"]);
+    expect(p[0]!.prompt.startsWith(ARM_PREAMBLE)).toBe(true);
+    expect(p[0]!.prompt).toContain('"question": "incident-class"');
+    expect(p[0]!.prompt).toContain("wf_<id>");
   });
   it("a missing dataset or a bad --limit sends nothing", async () => {
     const x = io({ deps: deps({ readKey: noKeychain }) });
