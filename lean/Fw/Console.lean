@@ -1,4 +1,5 @@
 import Fw.Plan.Core
+import Fw.Console.ReviewFeedback
 /-!
 # Console reducer
 
@@ -136,14 +137,16 @@ inductive Body where
   | runStart        (run card : String) (kind : RunKind)
   | runFinish       (run : String) (ok : Bool)
   | reviewPreviewed (flag device : String)
+  | reviewFeedback  (flag id text : String)
+  | reviewFeedbackReply (flag to text : String)
   | plan            (c : Fw.Plan.Cmd)
 deriving Repr, DecidableEq
 
-/-- The 16 card/step/run/review event types and the 7 plan command types (the `type` field on the wire). -/
+/-- The 18 card/step/run/review event types and the 7 plan command types (the `type` field on the wire). -/
 inductive EvType where
   | cardOpen | cardApprove | cardBuild | cardScreen | cardReview | cardSwipe | cardLandRequest
   | cardLanded | stepPost | stepStart | stepAnswer | stepDone | stepCancel | runStart | runFinish
-  | reviewPreviewed
+  | reviewPreviewed | reviewFeedback | reviewFeedbackReply
   | plan (t : Fw.Plan.CmdType)
 deriving Repr, DecidableEq
 
@@ -154,7 +157,8 @@ def EvType.name : EvType → String
   | .cardLandRequest => "card.land_request" | .cardLanded => "card.landed"
   | .stepPost => "step.post" | .stepStart => "step.start" | .stepAnswer => "step.answer"
   | .stepDone => "step.done" | .stepCancel => "step.cancel" | .runStart => "run.start"
-  | .runFinish => "run.finish" | .reviewPreviewed => "review.previewed" | .plan t => t.name
+  | .runFinish => "run.finish" | .reviewPreviewed => "review.previewed"
+  | .reviewFeedback => "review.feedback" | .reviewFeedbackReply => "review.feedback.reply" | .plan t => t.name
 
 /-- The type of a body. -/
 def Body.type : Body → EvType
@@ -163,7 +167,8 @@ def Body.type : Body → EvType
   | .cardLandRequest .. => .cardLandRequest | .cardLanded .. => .cardLanded
   | .stepPost .. => .stepPost | .stepStart .. => .stepStart | .stepAnswer .. => .stepAnswer
   | .stepDone .. => .stepDone | .stepCancel .. => .stepCancel | .runStart .. => .runStart
-  | .runFinish .. => .runFinish | .reviewPreviewed .. => .reviewPreviewed | .plan c => .plan c.type
+  | .runFinish .. => .runFinish | .reviewPreviewed .. => .reviewPreviewed
+  | .reviewFeedback .. => .reviewFeedback | .reviewFeedbackReply .. => .reviewFeedbackReply | .plan c => .plan c.type
 
 /-- An event: an idempotency key, the stamp time (ms, by console-api), the actor and the body. -/
 structure Event where
@@ -182,6 +187,7 @@ structure State where
   steps : List Step := []
   runs  : List Run := []
   plan  : Fw.Plan.State := {}
+  fb    : List Fw.Console.ReviewFeedback.Fb := []
 deriving Repr, DecidableEq
 
 /-- The authority table (`MAY`): the actors allowed to cause each event type.
@@ -205,6 +211,8 @@ def mayList : EvType → List Actor
   | .runStart => [.script, .owner, .lead]
   | .runFinish => [.script]
   | .reviewPreviewed => [.user]
+  | .reviewFeedback => [.user]
+  | .reviewFeedbackReply => [.lead]
   | .plan .define | .plan .drop | .plan .milestone => [.lead, .user, .script]
   | .plan .claim => [.hook, .script, .lead]
   | .plan .done => [.git, .lead, .user]
@@ -352,6 +360,8 @@ def check (s : State) (e : Event) : Option String :=
     | none => some "no such run"
     | some run => if run.status = .running then none else some "run already finished"
   | .reviewPreviewed flag device => reviewPreviewedRefusal flag device
+  | .reviewFeedback flag id text => ReviewFeedback.postRefusal s.fb flag id text
+  | .reviewFeedbackReply flag to text => ReviewFeedback.replyRefusal s.fb flag to text
   | .plan c => Fw.Plan.check s.plan c
   | b => match cardOf b with
     | none => none
@@ -385,6 +395,8 @@ def accept (s : State) (e : Event) : State :=
                runs := s.runs.map fun x =>
                  if x.id = r then { x with status := if ok then .passed else .failed } else x }
     | none => s
+  | .reviewFeedback flag id text => { s with fb := ReviewFeedback.post s.fb flag id text t }
+  | .reviewFeedbackReply flag to text => { s with fb := ReviewFeedback.answer s.fb flag to text t }
   | .plan c => { s with plan := Fw.Plan.exec s.plan c }
   | b => match cardOf b with
     | some id => { s with cards := mapCards id (cardStep t b) s.cards }

@@ -93,6 +93,10 @@ const publicCommands = [
   cmd("task.integrate", { task: Id, branch: Id, tip: Sha }),
   cmd("task.park", { task: Id, reason: Text }),
   cmd("task.unpark", { task: Id }),
+  // feedback threads on the review cards (lean/Fw/Console/ReviewFeedback): a comment from the user and the lead's reply. The reducer
+  // refuses any other actor, an unknown or answered `to`, a repeated id, and a text over 2000 characters (Lean `textCap`).
+  cmd("review.feedback", { flag: Id, id: Id, text: z.string().min(1).max(2000) }),
+  cmd("review.feedback.reply", { flag: Id, to: Id, text: z.string().min(1).max(2000) }),
 ] as const;
 
 /** Commands only console-api itself appends, never the command door: `review.previewed` is appended by the review preview route

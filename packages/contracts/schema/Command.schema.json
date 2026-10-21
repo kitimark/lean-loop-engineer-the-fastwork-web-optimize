@@ -1391,6 +1391,106 @@
       "properties": {
         "type": {
           "type": "string",
+          "const": "review.feedback"
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "actor": {
+          "type": "string",
+          "enum": [
+            "user",
+            "lead",
+            "owner",
+            "reviewer",
+            "script",
+            "git",
+            "hook"
+          ]
+        },
+        "flag": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        }
+      },
+      "required": [
+        "type",
+        "key",
+        "actor",
+        "flag",
+        "id",
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "review.feedback.reply"
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "actor": {
+          "type": "string",
+          "enum": [
+            "user",
+            "lead",
+            "owner",
+            "reviewer",
+            "script",
+            "git",
+            "hook"
+          ]
+        },
+        "flag": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "to": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        }
+      },
+      "required": [
+        "type",
+        "key",
+        "actor",
+        "flag",
+        "to",
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
           "const": "review.previewed"
         },
         "key": {

@@ -200,4 +200,29 @@ def card (dev : Bool := false) (head : Option String := some "s1") (sc rv dv : O
 #guard out opened (ev "x" 5 .user (.reviewPreviewed "nav:a" "tablet")) == no "device must be desktop or phone"
 #guard out opened (ev "x" 5 .user (.reviewPreviewed "nocolon" "phone")) == no "flag must be a key part:variant"
 
+-- review.feedback / review.feedback.reply: wire names, actors, every refusal reason, the reply closing the thread
+
+def fbLog : List Event := opened ++ [ev "f1" 10 .user (.reviewFeedback "nav:a" "fb-1" "look at the font")]
+def fbDone : List Event := fbLog ++ [ev "f2" 11 .lead (.reviewFeedbackReply "nav:a" "fb-1" "done")]
+#guard EvType.reviewFeedback.name == "review.feedback"
+#guard EvType.reviewFeedbackReply.name == "review.feedback.reply"
+#guard [Actor.user, .lead, .owner, .reviewer, .script, .git, .hook].filter (may · EvType.reviewFeedback) == [.user]
+#guard [Actor.user, .lead, .owner, .reviewer, .script, .git, .hook].filter (may · EvType.reviewFeedbackReply) == [.lead]
+#guard out opened (ev "x" 5 .user (.reviewFeedback "nav:a" "fb-1" "hi")) == yes
+#guard out opened (ev "x" 5 .lead (.reviewFeedback "nav:a" "fb-1" "hi")) == no "actor lead may not cause review.feedback"
+#guard out fbLog (ev "x" 12 .user (.reviewFeedbackReply "nav:a" "fb-1" "done")) == no "actor user may not cause review.feedback.reply"
+#guard out opened (ev "x" 5 .user (.reviewFeedback "nocolon" "fb-1" "hi")) == no "flag must be a key part:variant"
+#guard out opened (ev "x" 5 .user (.reviewFeedback "nav:a" "" "hi")) == no "id is empty"
+#guard out opened (ev "x" 5 .user (.reviewFeedback "nav:a" "fb-1" "  ")) == no "text is empty"
+#guard out opened (ev "x" 5 .user (.reviewFeedback "nav:a" "fb-1" (String.ofList (List.replicate 2001 'a')))) == no "text is longer than 2000 characters"
+#guard out opened (ev "x" 5 .user (.reviewFeedback "nav:a" "fb-1" (String.ofList (List.replicate 2000 'a')))) == yes
+#guard out fbLog (ev "x" 12 .user (.reviewFeedback "nav:a" "fb-1" "again")) == no "feedback id exists"
+#guard out fbLog (ev "x" 12 .lead (.reviewFeedbackReply "nav:a" "fb-1" "done")) == yes
+#guard out fbLog (ev "x" 12 .lead (.reviewFeedbackReply "nav:a" "fb-9" "done")) == no "no such feedback"
+#guard out fbLog (ev "x" 12 .lead (.reviewFeedbackReply "nav:b" "fb-1" "done")) == no "no such feedback"
+#guard out fbDone (ev "x" 13 .lead (.reviewFeedbackReply "nav:a" "fb-1" "twice")) == no "feedback already answered"
+#guard out fbLog (ev "x" 12 .lead (.reviewFeedbackReply "nav:a" "fb-1" "")) == no "text is empty"
+#guard (project fbLog).fb.length == 1 && (project fbLog).fb.all (·.isOpen)
+#guard (project fbDone).fb.length == 1 && (project fbDone).fb.all (!·.isOpen)
+
 end FwTest.Mutants.Console
