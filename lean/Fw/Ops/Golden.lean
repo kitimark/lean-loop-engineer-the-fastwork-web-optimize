@@ -1036,7 +1036,10 @@ def reviewFeedbackCases (_ : Unit := ()) : List (String × Json) :=
    ("events of other types are ignored", rfb "[{\"type\":\"step.start\",\"step\":\"x\"}]"),
    ("two flags are two threads, in the order of the first comment", rfb s!"[{p b "fb-1" "hero" 100},{p a "fb-2" "nav" 110}]"),
    ("with a flag only that thread", rfb s!"[{p b "fb-1" "hero" 100},{p a "fb-2" "nav" 110}]" (some a)),
-   ("a flag with no comment gets an empty thread", rfb "[]" (some a))]
+   ("a flag with no comment gets an empty thread", rfb "[]" (some a)),
+   -- the cap counts characters (code points), not UTF-16 units: 2000 astral characters are 4000 units and are accepted, 2001 are refused
+   ("a text of 2000 astral characters (the cap) is accepted", rfb s!"[{p a "fb-1" (String.ofList (List.replicate 2000 '😀')) 100}]"),
+   ("a text of 2001 astral characters (one over the cap) is ignored", rfb s!"[{p a "fb-1" (String.ofList (List.replicate 2001 '😀')) 100}]")]
 
 /-- Golden files whose name is not their op: (directory under `packages/contracts/golden`, file stem, op, cases). -/
 def named (_ : Unit := ()) : List (String × String × String × List (String × Json)) := [

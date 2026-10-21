@@ -46,7 +46,7 @@ export function mountReviewFeedback(app: Hono, store: Store) {
   });
 
   /** `POST /api/reviews/<flag>/feedback` {text, cid?}: the user's comment. The actor is `user` (the owner session behind the gate); the
-   *  reducer accepts or refuses it. A repeated `cid` is the same event (a duplicate, not a second comment). */
+   *  reducer accepts or refuses it. A repeated `cid` on the same flag is the same event (a duplicate, not a second comment); the key holds the flag, so the same `cid` on another flag is a new event that the reducer refuses (ids are unique). */
   app.post("/api/reviews/:flag/feedback", async (c) => {
     c.header("Cache-Control", "no-store");
     let body: unknown;
@@ -55,7 +55,7 @@ export function mountReviewFeedback(app: Hono, store: Store) {
     if (!req.success) return c.json({ ok: false, reason: "expected {text}" }, 400);
     const flag = c.req.param("flag");
     const id = req.data.cid ? `fb-${req.data.cid}` : mintId();
-    const reply = await store.submit({ type: "review.feedback", key: `review-feedback-${id}`, actor: "user", flag, id, text: req.data.text } as never);
+    const reply = await store.submit({ type: "review.feedback", key: `review-feedback-${flag}-${id}`, actor: "user", flag, id, text: req.data.text } as never);
     if (!reply.ok) return c.json(reply, 422);
     return c.json({ ...reply, id, thread: (await threads(store, flag))[0] });
   });

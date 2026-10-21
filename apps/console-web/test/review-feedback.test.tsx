@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { ReviewCard, type ReviewItem } from "../src/Reviews";
-import { FeedbackThreadView, makeCid, ReviewFeedback } from "../src/ReviewFeedback";
+import { FeedbackThreadView, makeCid, ReviewFeedback, sendFeedback } from "../src/ReviewFeedback";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -45,11 +45,48 @@ describe("Feedback section of a review card", () => {
   });
 });
 
-describe("the client id on the plain-http LAN page", () => {
-  it("is made without crypto.randomUUID and fits the server's pattern", () => {
-    vi.stubGlobal("crypto", { getRandomValues: globalThis.crypto.getRandomValues.bind(globalThis.crypto) });
+describe("the send on the plain-http LAN page", () => {
+  /** Only `getRandomValues` survives outside a secure context. */
+  const insecureCrypto = () => ({ getRandomValues: globalThis.crypto.getRandomValues.bind(globalThis.crypto) });
+  const stubFetch = (reply: () => Response | Promise<Response>) => {
+    const calls: { url: string; init: RequestInit }[] = [];
+    vi.stubGlobal("fetch", async (url: string, init: RequestInit) => { calls.push({ url, init }); return reply(); });
+    return calls;
+  };
+  const json = (b: unknown) => new Response(JSON.stringify(b), { headers: { "content-type": "application/json" } });
+
+  it("a client id is made without crypto.randomUUID and fits the server's pattern", () => {
+    vi.stubGlobal("crypto", insecureCrypto());
     const a = makeCid(); const b = makeCid();
     expect(a).toMatch(/^[A-Za-z0-9-]{8,60}$/);
     expect(a).not.toBe(b);
+  });
+  it("sendFeedback POSTs {text, cid} to the flag's route when randomUUID is missing, and reports no error", async () => {
+    vi.stubGlobal("crypto", insecureCrypto());
+    const calls = stubFetch(() => json({ ok: true, id: "fb-x" }));
+    const r = await sendFeedback(FLAG, "look at the font", null);
+    expect(r.error).toBeNull();
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.url).toBe(`/api/reviews/${encodeURIComponent(FLAG)}/feedback`);
+    expect(calls[0]!.init.method).toBe("POST");
+    const body = JSON.parse(String(calls[0]!.init.body));
+    expect(body).toEqual({ text: "look at the font", cid: r.cid });
+    expect(body.cid).toMatch(/^[A-Za-z0-9-]{8,60}$/);
+  });
+  it("a retry reuses the client id it is given", async () => {
+    vi.stubGlobal("crypto", insecureCrypto());
+    const calls = stubFetch(() => json({ ok: true }));
+    await sendFeedback(FLAG, "t", "abcd-1234");
+    expect(JSON.parse(String(calls[0]!.init.body)).cid).toBe("abcd-1234");
+  });
+  it("shows why a comment was not recorded: a refusal, a network failure", async () => {
+    vi.stubGlobal("crypto", insecureCrypto());
+    stubFetch(() => json({ ok: false, reason: "text is longer than 2000 characters" }));
+    expect((await sendFeedback(FLAG, "x", null)).error).toBe("Refused: text is longer than 2000 characters");
+    vi.stubGlobal("fetch", async () => { throw new TypeError("Failed to fetch"); });
+    expect((await sendFeedback(FLAG, "x", null)).error).toBe("Not sent: Failed to fetch");
+  });
+  it("the textarea has no UTF-16 length cap (Lean counts characters and refuses)", () => {
+    expect(renderToStaticMarkup(<ReviewFeedback flag={FLAG} thread={null} />)).not.toContain("maxlength");
   });
 });

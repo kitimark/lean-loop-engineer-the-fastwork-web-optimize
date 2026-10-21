@@ -14,6 +14,19 @@ export const makeCid = (): string => `${Date.now().toString(36)}-${Math.random()
 
 const when = (ms: number): string => new Date(ms).toISOString().replace("T", " ").slice(0, 16);
 
+/** The send: POST the comment with a client id (made here when `cid` is null, so a retry of the same text reuses it). Returns the id used
+ *  and the text to show when the comment was not recorded (`null`: recorded). No crypto API is used, so it runs on the plain-http LAN page. */
+export async function sendFeedback(flag: string, text: string, cid: string | null): Promise<{ cid: string; error: string | null }> {
+  const id = cid ?? makeCid();
+  try {
+    const r = await apiFetch(`/api/reviews/${encodeURIComponent(flag)}/feedback`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text, cid: id }),
+    });
+    const j = (await r.json().catch(() => null)) as { ok?: boolean; reason?: string } | null;
+    return { cid: id, error: j?.ok ? null : `Refused: ${j?.reason ?? r.status}` };
+  } catch (e) { return { cid: id, error: `Not sent: ${(e as Error).message}` }; }
+}
+
 /** The thread: each comment with its time, a status chip and the lead's reply. */
 export function FeedbackThreadView({ thread }: { thread: FeedbackThread | null | undefined }) {
   const cs = thread?.comments ?? [];
@@ -47,22 +60,19 @@ export function ReviewFeedback({ flag, thread, onChanged }: { flag: string; thre
   const cid = useRef<string | null>(null);
   async function send() {
     if (!text.trim()) { setErr("Write a comment first."); return; }
-    cid.current ??= makeCid();
     setBusy(true); setErr(null);
     try {
-      const r = await apiFetch(`/api/reviews/${encodeURIComponent(flag)}/feedback`, {
-        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text, cid: cid.current }),
-      });
-      const j = (await r.json().catch(() => null)) as { ok?: boolean; reason?: string } | null;
-      if (!j?.ok) { setErr(`Refused: ${j?.reason ?? r.status}`); return; }
+      const r = await sendFeedback(flag, text, cid.current);
+      cid.current = r.cid;
+      if (r.error) { setErr(r.error); return; }
       cid.current = null; setText(""); onChanged?.();
-    } catch (e) { setErr(`Not sent: ${(e as Error).message}`); } finally { setBusy(false); }
+    } finally { setBusy(false); }
   }
   return (
     <section className="min-w-0 space-y-2" data-testid="review-feedback" aria-label={`Feedback on ${flag}`}>
       <h4 className="text-sm font-medium">Feedback{thread && thread.open > 0 ? ` (${thread.open} open)` : ""}</h4>
       <textarea className="min-h-20 w-full rounded border bg-background p-2 text-sm" aria-label="Your feedback for more research" placeholder="What should the next research look at?"
-        value={text} maxLength={2000} disabled={busy} onChange={(e) => { setText(e.target.value); cid.current = null; }} data-testid="feedback-input" />
+        value={text} disabled={busy} onChange={(e) => { setText(e.target.value); cid.current = null; }} data-testid="feedback-input" />
       <Button className="min-h-11 w-full sm:w-auto" disabled={busy} onClick={() => void send()} data-testid="feedback-send">{busy ? "Sending..." : "Send"}</Button>
       {err ? <p className="break-words text-xs text-destructive" role="alert" data-testid="feedback-error">{err}</p> : null}
       <FeedbackThreadView thread={thread} />

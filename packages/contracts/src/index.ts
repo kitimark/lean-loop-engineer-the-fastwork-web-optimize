@@ -22,6 +22,11 @@ export type RunKind = z.infer<typeof RunKind>;
 // ---- typed commands: the ONLY input of agents and of the user ---------------------------
 // A command is a request. console-api stamps `seq` and `ts` and the reducer may refuse it.
 // Free text exists only in `title` / `answer` / `note` and is never read by a decision.
+/** The feedback text cap of Lean `Fw.Console.ReviewFeedback.textCap`, in code points (Lean `String.length`). */
+export const FEEDBACK_TEXT_CAP = 2000;
+/** Non-empty text of at most `FEEDBACK_TEXT_CAP` code points: the unit Lean counts, so TS never refuses what Lean would accept. */
+const FeedbackText = z.string().min(1).refine((t) => [...t].length <= FEEDBACK_TEXT_CAP, { message: `at most ${FEEDBACK_TEXT_CAP} characters` });
+
 const cmd = <T extends string, S extends z.ZodRawShape>(type: T, shape: S) =>
   z.object({ type: z.literal(type), key: Id, actor: Actor, ...shape });
 
@@ -95,8 +100,9 @@ const publicCommands = [
   cmd("task.unpark", { task: Id }),
   // feedback threads on the review cards (lean/Fw/Console/ReviewFeedback): a comment from the user and the lead's reply. The reducer
   // refuses any other actor, an unknown or answered `to`, a repeated id, and a text over 2000 characters (Lean `textCap`).
-  cmd("review.feedback", { flag: Id, id: Id, text: z.string().min(1).max(2000) }),
-  cmd("review.feedback.reply", { flag: Id, to: Id, text: z.string().min(1).max(2000) }),
+  // Lean counts characters (code points, `String.length`); `FeedbackText` counts the same unit, not UTF-16 units (an emoji is 1).
+  cmd("review.feedback", { flag: Id, id: Id, text: FeedbackText }),
+  cmd("review.feedback.reply", { flag: Id, to: Id, text: FeedbackText }),
 ] as const;
 
 /** Commands only console-api itself appends, never the command door: `review.previewed` is appended by the review preview route

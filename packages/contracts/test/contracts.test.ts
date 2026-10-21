@@ -73,3 +73,27 @@ describe("obs records (spool)", () => {
     expect(ObsRecord.safeParse({ ...rec, surprise: 1 }).success).toBe(false); // still strict
   });
 });
+
+describe("review.feedback text cap: the unit is Lean's (characters = code points), golden console/reviewFeedback", () => {
+  const cases = readFileSync(join(root, "golden/console/reviewFeedback.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l)) as
+    { name: string; request: { events: { text: string; flag: string; id: string; type: string }[] }; response: { threads: { comments: unknown[] }[] } }[];
+  const cmd = (type: string, text: string) => ({ type, key: "k1", actor: type === "review.feedback" ? "user" : "lead", flag: "nav:a", ...(type === "review.feedback" ? { id: "fb-1" } : { to: "fb-1" }), text });
+  it("Lean accepts 2000 astral characters (4000 UTF-16 units) and ignores 2001; the zod command parses exactly the same texts", () => {
+    const accepted = cases.find((c) => c.name.startsWith("a text of 2000 astral"))!;
+    const refused = cases.find((c) => c.name.startsWith("a text of 2001 astral"))!;
+    const at = accepted.request.events[0]!.text, over = refused.request.events[0]!.text;
+    expect([...at].length).toBe(2000); expect(at.length).toBe(4000);
+    expect([...over].length).toBe(2001);
+    expect(accepted.response.threads[0]!.comments).toHaveLength(1); // Lean: accepted
+    expect(refused.response.threads).toEqual([]);                   // Lean: refused
+    for (const type of ["review.feedback", "review.feedback.reply"]) {
+      expect(Command.safeParse(cmd(type, at)).success, `${type} at the cap`).toBe(true);
+      expect(Command.safeParse(cmd(type, over)).success, `${type} over the cap`).toBe(false);
+      expect(Command.safeParse(cmd(type, "")).success, `${type} empty`).toBe(false);
+    }
+  });
+  it("the cap counts characters, not UTF-16 units, for plain text too: 2000 'a' parse, 2001 do not", () => {
+    expect(Command.safeParse(cmd("review.feedback", "a".repeat(2000))).success).toBe(true);
+    expect(Command.safeParse(cmd("review.feedback", "a".repeat(2001))).success).toBe(false);
+  });
+});

@@ -1756,8 +1756,7 @@
         },
         "text": {
           "type": "string",
-          "minLength": 1,
-          "maxLength": 2000
+          "minLength": 1
         }
       },
       "required": [
@@ -1818,8 +1817,7 @@
         },
         "text": {
           "type": "string",
-          "minLength": 1,
-          "maxLength": 2000
+          "minLength": 1
         }
       },
       "required": [

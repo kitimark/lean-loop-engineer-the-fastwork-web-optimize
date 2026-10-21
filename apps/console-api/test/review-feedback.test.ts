@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -19,7 +19,7 @@ async function rig() {
   const store = await Store.open(join(root, ".fw-console"), selectCore(), () => 1_700_000_000_000);
   stores.push(store);
   await ensureReviewSteps(store);
-  return { store, app: createApp(store, undefined, undefined, undefined, undefined, undefined, undefined, root) };
+  return { store, root, app: createApp(store, undefined, undefined, undefined, undefined, undefined, undefined, root) };
 }
 type App = Awaited<ReturnType<typeof rig>>["app"];
 const send = (app: App, text: string, cid?: string, flag = FLAG) =>
@@ -87,5 +87,59 @@ describe("review feedback (Lean Fw.Console.ReviewFeedback)", () => {
     const { app } = await rig();
     await send(app, "one"); await send(app, "two");
     expect((await thread(app)).comments).toHaveLength(2);
+  });
+
+  // The real door (`POST /api/commands`): the capability door first (an agent actor needs the console secret), then the reducer.
+  describe("the command door, every actor", () => {
+    const ACTORS = ["user", "lead", "owner", "reviewer", "script", "git", "hook"] as const;
+    const AGENT = new Set(["lead", "owner", "reviewer"]);
+    const door = (app: App, root: string, body: object, secret: boolean) =>
+      app.request("/api/commands", { method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json",
+        ...(secret ? { "x-fw-secret": readFileSync(join(root, ".fw-console", "secret"), "utf8").trim() } : {}) } });
+
+    it("review.feedback is accepted from the user alone", async () => {
+      const { app, root } = await rig();
+      for (const actor of ACTORS) for (const secret of [false, true]) {
+        const id = `fb-${actor}-${secret}`;
+        const r = await door(app, root, { type: "review.feedback", key: `k-${id}`, actor, flag: FLAG, id, text: "x" }, secret);
+        if (actor === "user") { expect(r.status, `${actor} ${secret}`).toBe(200); continue; }
+        const refused = AGENT.has(actor) && !secret ? 403 : 422;
+        expect(r.status, `${actor} secret=${secret}`).toBe(refused);
+        const j = await r.json() as any;
+        expect(j.reason, `${actor} secret=${secret}`).toContain(refused === 403 ? "needs a capability" : `actor ${actor} may not cause review.feedback`);
+      }
+      // only the two user posts (secret or not) are in the thread
+      expect((await thread(app)).comments.map((c: any) => c.id)).toEqual(["fb-user-false", "fb-user-true"]);
+    });
+
+    it("review.feedback.reply is accepted from the lead alone (with the secret), and refusals leave the thread open", async () => {
+      const { app, root, store } = await rig();
+      await send(app, "one", "aaaaaaaa");
+      const reply = (actor: string, secret: boolean) => door(app, root,
+        { type: "review.feedback.reply", key: `r-${actor}-${secret}`, actor, flag: FLAG, to: "fb-aaaaaaaa", text: "done" }, secret);
+      for (const actor of ACTORS) for (const secret of [false, true]) {
+        if (actor === "lead" && secret) continue; // the one accepted door, last
+        const r = await reply(actor, secret);
+        const refused = AGENT.has(actor) && !secret ? 403 : 422;
+        expect(r.status, `${actor} secret=${secret}`).toBe(refused);
+        expect(((await r.json()) as any).reason, `${actor} secret=${secret}`)
+          .toContain(refused === 403 ? "needs a capability" : `actor ${actor} may not cause review.feedback.reply`);
+        expect((await thread(app)).open, `${actor} secret=${secret}`).toBe(1);
+      }
+      expect((await reply("lead", true)).status).toBe(200);
+      expect((await thread(app)).open).toBe(0);
+      void store;
+    });
+  });
+
+  it("the same cid on two flags is not silently lost: the second flag gets a refusal, the first keeps its one comment", async () => {
+    const { app } = await rig();
+    const other = "hero:cta-pulse";
+    expect(((await (await send(app, "one", "abcd1234")).json()) as any).ok).toBe(true);
+    const r = await send(app, "two", "abcd1234", other);
+    expect(r.status).toBe(422);
+    expect(((await r.json()) as any).duplicate).not.toBe(true);
+    expect((await thread(app)).comments).toHaveLength(1);
+    expect((await thread(app, other))?.comments ?? []).toHaveLength(0);
   });
 });
