@@ -90,6 +90,7 @@ run_group() {
   job "preset v2-proved check" sh -c "printf 'import Fw.Preset.Gen\\n#eval Fw.Preset.Gen.run [\"--check\"]\\n' | lake env lean --stdin"  # regenerates the v2-proved preset files from the findings ledger and the parts; any byte difference fails (Fw.Preset.Gen.run)
   job "ci telemetry golden check" lake env lean --run scripts/TelemetryGolden.lean --check  # golden/ci/telemetry.jsonl (Fw.Ci.Telemetry)
   job "webkit-screen golden check" lake env lean --run scripts/WebkitScreenGolden.lean --check ../packages/contracts/golden/gate/webkit-screen.jsonl  # the WebKit live-resize screen vectors engines.mjs is checked against (Fw.Gate.WebkitScreen)
+  job "webkit-lag golden check" lake env lean --run scripts/WebkitLagGolden.lean --check ../packages/contracts/golden/measure/webkit-lag.jsonl  # the lag-region, paint-attribution and ranking vectors packages/measure-webkit/src/lag/reduce.mjs is checked against (Fw.Measure.WebKitLag)
   job "stage golden check" lake env lean --run scripts/StageGolden.lean --check ../packages/contracts/golden/parts/stage.jsonl  # the ?only= stage plans the site is checked against (Fw.Site.Stage)
   job "reconcile-sched golden check" lake env lean --run scripts/ReconcileSchedGolden.lean --check  # golden/console/reconcile-sched.jsonl
   job "dormant golden check" lake env lean --run scripts/MorphDormantGolden.lean --check ../packages/contracts/golden/parts/morph.mount.dormant.jsonl
@@ -106,6 +107,7 @@ run_group() {
   job "land-legs golden check" lake env lean --run scripts/LandLegsGolden.lean --check  # golden/console/land-legs.jsonl + lean/land-legs.txt (Fw.Console.LandLegs)
   job "trajectory golden check" lake env lean --run scripts/TrajectoryGolden.lean --check  # the trajectory-probe verdict vectors reduce.mjs is checked against (Fw.Gate.Trajectory)
   job "trajectory-colour golden check" lake env lean --run scripts/ColourGolden.lean --check ../packages/contracts/golden/gate/trajectory-colour.jsonl  # the colour readings kit.mjs is checked against (Fw.Gate.Colour)
+  job "run-perm golden check" lake env lean --run scripts/RunPermGolden.lean --check ../packages/contracts/golden/gate/run-perm.jsonl  # the run-level close-gap test closegap-did.mjs is checked against (Fw.Gate.RunPerm)
   job "land-tier golden check" lake env lean --run scripts/LandTierGolden.lean --check  # golden/console/land-tier.jsonl + lean/land-filter.txt (Fw.Console.LandTier)
   job "lake-slot golden check" sh -c "printf 'import Fw.Sched.LakeSlot\\n#eval Fw.Sched.LakeSlot.gen [\"--check\"]\\n' | lake env lean --stdin"  # golden/sched/lake-slot.gen.sh, sourced by scripts/lake-slot-lib.sh
   job "tap golden check" lake env lean --run scripts/MorphTapGolden.lean --check ../packages/contracts/golden/parts/morph-mount-tap.jsonl
