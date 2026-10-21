@@ -206,7 +206,7 @@ def mayList : EvType → List Actor
   | .stepPost => [.script, .owner, .lead]
   | .stepStart => [.user]
   | .stepAnswer => [.user]
-  | .stepDone => [.user, .owner, .script]
+  | .stepDone => [.user, .owner, .script, .lead]
   | .stepCancel => [.script, .user, .lead]
   | .runStart => [.script, .owner, .lead]
   | .runFinish => [.script]
@@ -296,8 +296,9 @@ def stepRefusal (st : Step) (actor : Actor) : Body → Option String
     if st.status = .waiting then none else some s!"step is {st.status.name}, not waiting"
   | .stepCancel _ => if st.status.isOpen then none else some s!"step already {st.status.name}"
   | .stepDone _ _ =>
-    if st.status = .started then none
-    else if actor = .script && st.status = .waiting && st.audience = .lead then none
+    if actor = .lead && st.audience ≠ .lead then some "the lead closes only its own lead steps"
+    else if st.status = .started then none
+    else if (actor = .script || actor = .lead) && st.status = .waiting && st.audience = .lead then none
     else some s!"step is {st.status.name}, only a started step can be done"
   | .stepAnswer _ a =>
     if !st.status.isOpen then some s!"step already {st.status.name}"
@@ -319,10 +320,18 @@ theorem script_done_waiting_is_lead (st : Step) (id : String) (n : Option String
   · exact ha
   · simp [ha] at h
 
+/-- **The lead closes only its own steps**: a `step.done` of the lead is accepted only on a step for the lead (an
+override record, a lead note), never on a step for the user, started or not. -/
+theorem lead_done_is_lead_step (st : Step) (id : String) (n : Option String)
+    (h : stepRefusal st .lead (.stepDone id n) = none) : st.audience = .lead := by
+  by_cases ha : st.audience = .lead
+  · exact ha
+  · simp [stepRefusal, ha] at h
+
 /-- **Only the owner finishes a user step**: no actor other than the user finishes a waiting step for the user. -/
 theorem user_step_done_needs_start (st : Step) (id : String) (n : Option String) (a : Actor)
     (hw : st.status = .waiting) (hu : st.audience = .user) : stepRefusal st a (.stepDone id n) ≠ none := by
-  simp [stepRefusal, hw, hu]
+  by_cases hl : a = .lead <;> simp [stepRefusal, hw, hu, hl]
 
 /-- The device words a `review.previewed` event may carry (`Fw.Console.ReviewPreview.Device.word`). -/
 def previewDevices : List String := ["desktop", "phone"]

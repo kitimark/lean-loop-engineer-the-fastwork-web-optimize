@@ -9,6 +9,10 @@ import { describe, expect, it } from "vitest";
 import { overlapCli, overrideCommands, runningOf, type OverlapReply } from "../src/plan-overlap.ts";
 import { Command } from "@fw/contracts";
 import { coreCandidates, coreCaller } from "../src/watch.ts";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { selectCore } from "../../console-api/src/core/index.ts";
+import { Store } from "../../console-api/src/store.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "../../..");
@@ -126,6 +130,17 @@ describe("fw plan overlap (CLI)", () => {
     expect(post).toMatchObject({ type: "step.post", audience: "lead", card: null });
     expect(done).toMatchObject({ type: "step.done", note: "different functions" });
     expect((post as { title: string }).title).toContain("morph-scroll-lock over waapi-nav-width-tail");
+  });
+
+  it("the recorded override passes the real reducer: the step is posted and closed (inc: actor lead may not cause step.done)", async () => {
+    const store = await Store.open(join(mkdtempSync(join(tmpdir(), "fw-overlap-")), ".fw-console"), selectCore(), () => 1_700_000_000_000);
+    try {
+      const rec: Command[][] = [];
+      expect(await run(["morph-scroll-lock", "--running", "waapi-nav-width-tail", "--override", "real reducer"], rec)).toBe(0);
+      const replies = [];
+      for (const c of rec[0]!) replies.push(await store.submit(Command.parse(c)));
+      expect(replies.map((r) => r.ok)).toEqual([true, true]);
+    } finally { store.close(); }
   });
 
   it("an override the event log did not accept is not a start (exit 2)", async () => {
