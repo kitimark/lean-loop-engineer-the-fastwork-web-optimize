@@ -143,3 +143,43 @@
 {"kind":"probe","lane":false,"msg":"[trajectory debug=nav-transition,nav-transition]","result":{"kind":"refused","why":"debug must be nav-transition"}}
 {"kind":"probe","lane":true,"msg":"[trajectory debug=]","result":{"kind":"refused","why":"key 'debug' has no value"}}
 {"kind":"probe","lane":false,"msg":"[trajectory debug=]","result":{"kind":"refused","why":"key 'debug' has no value"}}
+{"appleN":2,"event":"workflow_dispatch","kind":"apple","msg":"ci: measure\n\n[ci:trajectory-probe]","run":true}
+{"appleN":0,"event":"workflow_dispatch","kind":"apple","msg":"ci: measure\n\n[ci:trajectory-probe]","run":false}
+{"appleN":2,"event":"push","kind":"apple","msg":"ci: measure\n\n[ci:trajectory-probe]","run":false}
+{"appleN":0,"event":"push","kind":"apple","msg":"ci: measure\n\n[ci:trajectory-probe]","run":false}
+{"appleN":2,"event":"workflow_dispatch","kind":"apple","msg":"[ci:trajectory-probe]\n[trajectory fw=morph.tween:waapi widths=1280 engines=playwright-webkit debug=nav-transition]","run":true}
+{"appleN":0,"event":"workflow_dispatch","kind":"apple","msg":"[ci:trajectory-probe]\n[trajectory fw=morph.tween:waapi widths=1280 engines=playwright-webkit debug=nav-transition]","run":false}
+{"appleN":2,"event":"push","kind":"apple","msg":"[ci:trajectory-probe]\n[trajectory fw=morph.tween:waapi widths=1280 engines=playwright-webkit debug=nav-transition]","run":true}
+{"appleN":0,"event":"push","kind":"apple","msg":"[ci:trajectory-probe]\n[trajectory fw=morph.tween:waapi widths=1280 engines=playwright-webkit debug=nav-transition]","run":false}
+{"appleN":2,"event":"workflow_dispatch","kind":"apple","msg":"[trajectory debug=nav-transition]","run":true}
+{"appleN":0,"event":"workflow_dispatch","kind":"apple","msg":"[trajectory debug=nav-transition]","run":false}
+{"appleN":2,"event":"push","kind":"apple","msg":"[trajectory debug=nav-transition]","run":true}
+{"appleN":0,"event":"push","kind":"apple","msg":"[trajectory debug=nav-transition]","run":false}
+{"appleN":2,"event":"workflow_dispatch","kind":"apple","msg":"[trajectory debug=other]","run":true}
+{"appleN":0,"event":"workflow_dispatch","kind":"apple","msg":"[trajectory debug=other]","run":false}
+{"appleN":2,"event":"push","kind":"apple","msg":"[trajectory debug=other]","run":false}
+{"appleN":0,"event":"push","kind":"apple","msg":"[trajectory debug=other]","run":false}
+{"appleN":2,"event":"workflow_dispatch","kind":"apple","msg":"[trajectory fw=a.b:c widths=1280]","run":true}
+{"appleN":0,"event":"workflow_dispatch","kind":"apple","msg":"[trajectory fw=a.b:c widths=1280]","run":false}
+{"appleN":2,"event":"push","kind":"apple","msg":"[trajectory fw=a.b:c widths=1280]","run":false}
+{"appleN":0,"event":"push","kind":"apple","msg":"[trajectory fw=a.b:c widths=1280]","run":false}
+{"appleN":2,"event":"workflow_dispatch","kind":"apple","msg":"[trajectory fw=a.b:c debug=nav-transition debug=nav-transition]","run":true}
+{"appleN":0,"event":"workflow_dispatch","kind":"apple","msg":"[trajectory fw=a.b:c debug=nav-transition debug=nav-transition]","run":false}
+{"appleN":2,"event":"push","kind":"apple","msg":"[trajectory fw=a.b:c debug=nav-transition debug=nav-transition]","run":false}
+{"appleN":0,"event":"push","kind":"apple","msg":"[trajectory fw=a.b:c debug=nav-transition debug=nav-transition]","run":false}
+{"appleN":2,"event":"workflow_dispatch","kind":"apple","msg":"ci: look\n\n[frames:morph.tween:waapi]","run":true}
+{"appleN":0,"event":"workflow_dispatch","kind":"apple","msg":"ci: look\n\n[frames:morph.tween:waapi]","run":false}
+{"appleN":2,"event":"push","kind":"apple","msg":"ci: look\n\n[frames:morph.tween:waapi]","run":true}
+{"appleN":0,"event":"push","kind":"apple","msg":"ci: look\n\n[frames:morph.tween:waapi]","run":false}
+{"appleN":2,"event":"workflow_dispatch","kind":"apple","msg":"ci: look\n\n[Frames:morph.tween:waapi]\n[trajectory debug=nav-transition]","run":true}
+{"appleN":0,"event":"workflow_dispatch","kind":"apple","msg":"ci: look\n\n[Frames:morph.tween:waapi]\n[trajectory debug=nav-transition]","run":false}
+{"appleN":2,"event":"push","kind":"apple","msg":"ci: look\n\n[Frames:morph.tween:waapi]\n[trajectory debug=nav-transition]","run":true}
+{"appleN":0,"event":"push","kind":"apple","msg":"ci: look\n\n[Frames:morph.tween:waapi]\n[trajectory debug=nav-transition]","run":false}
+{"appleN":2,"event":"workflow_dispatch","kind":"apple","msg":"[frames","run":true}
+{"appleN":0,"event":"workflow_dispatch","kind":"apple","msg":"[frames","run":false}
+{"appleN":2,"event":"push","kind":"apple","msg":"[frames","run":false}
+{"appleN":0,"event":"push","kind":"apple","msg":"[frames","run":false}
+{"appleN":2,"event":"workflow_dispatch","kind":"apple","msg":"frames: x","run":true}
+{"appleN":0,"event":"workflow_dispatch","kind":"apple","msg":"frames: x","run":false}
+{"appleN":2,"event":"push","kind":"apple","msg":"frames: x","run":false}
+{"appleN":0,"event":"push","kind":"apple","msg":"frames: x","run":false}
