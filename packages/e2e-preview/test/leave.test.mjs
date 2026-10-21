@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import { describe, it } from "node:test";
-import { leavePage, trackOpen } from "../src/suite.mjs";
+import { leavePage, openFailure, trackOpen } from "../src/suite.mjs";
 
 describe("trackOpen", () => {
   it("is idle at once when nothing is open", async () => {
@@ -51,5 +51,14 @@ describe("leavePage", () => {
     assert.equal(await leavePage(page, t), true);
     assert.deepEqual(gone, ["about:blank"]);
     assert.equal(t.open.size, 0);
+  });
+});
+
+describe("openFailure (controlLoad keeps leavePage's result)", () => {
+  it("is null when every request ended", () => { assert.equal(openFailure(true, { open: new Set() }), null); });
+  it("names the still-open requests as a cancellation, which the control counts", () => {
+    const line = openFailure(false, { open: new Set([{}, {}]) });
+    assert.match(line, /2 request\(s\) still open/);
+    assert.match(line, /cancel/i);
   });
 });

@@ -314,11 +314,48 @@ jobs:
           label: sim-${{ matrix.vm }}
 
       # Inspector bridge to the Simulator's webinspectord socket. Not pinned by brew (formula version = the tap's), so the
-      # version is recorded in the artifact.
+      # version is recorded in the artifact. The kegs brew adds to the image are cached per image build: a hit unpacks and
+      # links them, a miss (or a hit that does not run) installs with brew and saves them.
+      - name: ios_webkit_debug_proxy cache key
+        id: iwdp-key
+        shell: bash
+        run: echo "key=iwdp-$(uname -m)-$(sw_vers -productVersion)-$(sw_vers -buildVersion)-${ImageVersion:-none}-v1" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: iwdp-cache
+        with:
+          path: ${{ runner.temp }}/iwdp
+          key: ${{ steps.iwdp-key.outputs.key }}
       - name: ios_webkit_debug_proxy
+        shell: bash
+        env:
+          HIT: ${{ steps.iwdp-cache.outputs.cache-hit }}
         run: |
           set -euo pipefail
-          brew install ios-webkit-debug-proxy
+          prefix=$(brew --prefix)
+          dir="$RUNNER_TEMP/iwdp"
+          ok=no
+          if [ "$HIT" = true ] && [ -f "$dir/kegs.txt" ]; then
+            if tar -xf "$dir/kegs.tar" -C "$prefix/Cellar" \
+              && while read -r k; do ln -sfn "../Cellar/$k" "$prefix/opt/${k%/*}"; done < "$dir/kegs.txt" \
+              && brew link --overwrite ios-webkit-debug-proxy > /dev/null \
+              && ios_webkit_debug_proxy --help > /dev/null 2>&1; then
+              ok=yes
+              echo "ios_webkit_debug_proxy: unpacked from the cache"
+            else
+              echo "ios_webkit_debug_proxy: the cache did not run, installing with brew"
+              while read -r k; do rm -rf "${prefix:?}/Cellar/$k"; rm -f "${prefix:?}/opt/${k%/*}"; done < "$dir/kegs.txt"
+            fi
+          fi
+          if [ "$ok" = no ]; then
+            rm -rf "$dir"
+            mkdir -p "$dir"
+            find "$prefix/Cellar" -mindepth 2 -maxdepth 2 -type d | sed "s|^$prefix/Cellar/||" | LC_ALL=C sort > "$dir/before.txt"
+            brew install ios-webkit-debug-proxy
+            find "$prefix/Cellar" -mindepth 2 -maxdepth 2 -type d | sed "s|^$prefix/Cellar/||" | LC_ALL=C sort > "$dir/after.txt"
+            LC_ALL=C comm -13 "$dir/before.txt" "$dir/after.txt" > "$dir/kegs.txt"
+            tar -cf "$dir/kegs.tar" -C "$prefix/Cellar" -T "$dir/kegs.txt"
+            rm "$dir/before.txt" "$dir/after.txt"
+          fi
           command -v ios_webkit_debug_proxy
           brew list --versions ios-webkit-debug-proxy
 
@@ -404,29 +441,27 @@ jobs:
 
       # The within-VM class tables are made by the merge job: pairing rows is fwcore's (Lean) and this job has no Linux binary.
 
-      # Kept even when a session failed: the logs say where a slow start stalled. The logs are copied first and each host
-      # command is bounded by an alarm: a wedged CoreSimulator held this step for 28 min (run 39426562165), and a job
-      # that ends by its timeout keeps no log at all.
-      - name: Keep logs and host state
+      # Steps after the measurement step are the Lean allowlist (Fw.Ci.Steps, scripts/ci-steps-lint.mjs). The VM is discarded
+      # after the job, so the Simulator is neither shut down nor deleted. Kept when a session failed; no step has a timeout.
+      - name: Keep logs
         if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
-        timeout-minutes: 3
         working-directory: packages/measure-webkit
         env:
           VM: ${{ matrix.vm }}
         run: |
           mkdir -p out "$RUNNER_TEMP/result"
           cp out/"$VM"-* "$RUNNER_TEMP/result/" 2>/dev/null || true
+
+      # Host state, only after a failure: where a slow start stalled. Each Simulator command is bounded by an alarm.
+      - name: Host state on failure
+        if: ${{ failure() && steps.stale.outcome == 'skipped' }}
+        continue-on-error: true
+        env:
+          VM: ${{ matrix.vm }}
+        run: |
           bounded() { perl -e 'alarm 20; exec @ARGV' -- "$@"; }
           # shellcheck disable=SC2009
           { uptime; bounded xcrun simctl list devices booted; ps -axo pid,pcpu,rss,comm | sort -k2 -nr | head -15; ps -axo pid,ppid,etime,stat,command | grep -E "cli.mjs|ios_webkit|tee " | grep -v grep; } > "$RUNNER_TEMP/result/$VM-host.txt" 2>&1 || true
-
-      # Stop the proxy's device and delete it, also when a step failed; a cancelled job skips this (the runner is discarded).
-      - name: Shut down and delete the Simulator
-        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
-        timeout-minutes: 3
-        run: |
-          xcrun simctl shutdown all || true
-          xcrun simctl delete "$FW_SIM_NAME" || true
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}

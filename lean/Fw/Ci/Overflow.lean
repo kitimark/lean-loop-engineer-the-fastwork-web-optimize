@@ -43,11 +43,13 @@ its `max-parallel`, and at most 5 on a macOS runner (https://docs.github.com/en/
 the maximum its inputs allow (over-count is safe, under-count is not). The set behind each row:
 - breakpoint-gate 10: `gate` (breakpoint-gate.yml:226; `gate-jobs.mjs` plans at most 10 over the inputs of :171-:174)
 - chromium-counts 20: `counts` (chromium-counts.yml:380; 2 targets x 10 runs, :145)
+- device-replay 1: `replay` (device-replay.yml, one VM)
 - difftest 2: `fixed`, `rotating` (difftest.yml:99,158)
 - engine-premises 7: `chromium` 6 (engine-premises.yml:174, :110) and `webkit` 1 (:243)
 - gate-gaps 29: `collect-linux` 2 (gate-gaps.yml:122), `collect-macos` 1 (:185), `images-audit` 8 (:264), `images-pages` 18 (:336)
 - land 5: `land` (land.yml:95)
 - lean-math 1, lean 1: one job after the guard
+- linux-webkit-probe 2: `probe` (linux-webkit-probe.yml, max-parallel 2 over the VMs 1 and 2)
 - mutants 24: `shard` (mutants.yml:126; shards 1 to 24, :110)
 - premise-tests 2: `engine` (premise-tests.yml:66); preview-e2e 2: `engine` (preview-e2e.yml:65)
 - sim-speed 5: `probe` (sim-speed.yml:121; any number of arms, so the 5 macOS slots bound it)
@@ -59,8 +61,8 @@ the maximum its inputs allow (over-count is safe, under-count is not). The set b
 - wktr-fixtures 5: `fixtures` 4 (wktr-fixtures.yml:129; jobs 1 to 4, :110) and `fwcore` 1; wktr 2: `plan` and `fwcore` (wktr.yml)
 A row can exceed the 20 slots (visual-diff 39): the free count then saturates at 0, which is the safe side. -/
 def widths : List (String × Nat) := [
-  ("breakpoint-gate", 10), ("chromium-counts", 20), ("difftest", 2), ("engine-premises", 7), ("gate-gaps", 29), ("land", 5),
-  ("lean-math", 1), ("lean", 1), ("mutants", 24), ("premise-tests", 2), ("preview-e2e", 2), ("sim-speed", 5),
+  ("breakpoint-gate", 10), ("chromium-counts", 20), ("device-replay", 1), ("difftest", 2), ("engine-premises", 7), ("gate-gaps", 29), ("land", 5),
+  ("lean-math", 1), ("lean", 1), ("linux-webkit-probe", 2), ("mutants", 24), ("premise-tests", 2), ("preview-e2e", 2), ("sim-speed", 5),
   ("smoothness", 14), ("snapshot-extract", 7), ("trajectory-probe", 12), ("visual-diff", 39), ("webkit-sim", 3), ("wktr-fixtures", 5), ("wktr", 2)]
 
 /-- Width of a workflow no row names: four jobs, so an unlisted workflow over-counts rather than under-counts. -/

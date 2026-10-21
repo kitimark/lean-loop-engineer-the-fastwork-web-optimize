@@ -1,0 +1,126 @@
+name: device-replay
+
+# Task device-replay (note research/notes/2026/10-2x-device-replay.md, tool docs/team/tools/device-replay.md). The Chromium lane of the
+# touch replay: one finger path (the committed CI profile user-fixture) is sent into our original page with CDP Input.dispatchTouchEvent
+# at its wall-clock times, native requestAnimationFrame, CPU throttled 6x (the Linux proxy for the phone, never phone time). The page
+# records with the phone's recorder and the Lean-proved replay check (Fw.Device.Replay `replayMatches`) judges each swipe, one conjunct
+# at a time. The result is the replay check and the frame-interval counts of the recorder; it is not a class count.
+on:
+  push:
+    branches: [ci/device-replay]
+  workflow_dispatch:
+    inputs:
+      kinds:
+        description: Comma separated profile kinds (recorded, fast-fling, cold)
+        type: string
+        default: recorded,fast-fling,cold
+      reps:
+        description: Repeats per kind
+        type: string
+        default: '2'
+
+permissions:
+  contents: read
+
+jobs:
+  # Guard (Lean Fw.Ci.Intent + Fw.Ci.Trigger, scripts/ci-paths.mjs). On a ci/* push it, and so every job, is skipped unless
+  # the head commit asks for this lane (`[ci:<lane>]`; the default lane lean always); then it runs the workflow only if
+  # the commit is the branch tip, is not on main yet, and (lean: always) some file that differs from main on the whole
+  # branch is an input. A main push starts no run; dispatches always run. Fails open.
+  # Every other job re-checks the tip first (`stale:` fails it) and has its own group, never cancelled on ci/*.
+  guard:
+    if: ${{ github.event_name != 'push' || !startsWith(github.ref, 'refs/heads/ci/') || contains(github.event.head_commit.message, '[ci:device-replay]') }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.g.outputs.run }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - id: g
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          BEFORE: ${{ github.event.before }}
+          GUARD_TOKEN: ${{ github.token }}
+        run: node .github/scripts/changed-inputs.mjs --workflow .github/workflows/device-replay.yml
+      - name: 'decision: run'
+        if: steps.g.outputs.run == 'true'
+        run: 'true'
+      - name: 'decision: skip: ${{ steps.g.outputs.reason }}'
+        if: steps.g.outputs.run != 'true'
+        run: 'true'
+
+  replay:
+    needs: [guard]
+    if: ${{ needs.guard.outputs.run == 'true' }}
+    concurrency:
+      group: ci-lane:device-replay:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:replay:${{ strategy.job-index }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      # playwright-core comes from the gate package (measure-webkit has no Playwright dependency of its own).
+      - uses: ./.github/actions/setup-pnpm
+        with:
+          filter: '@fw/gate-breakpoints'
+      - uses: ./.github/actions/telemetry
+        with:
+          mode: start
+          label: replay
+      - name: Verify the snapshot against snapshot.lock.json
+        run: node .github/scripts/verify-snapshot.mjs
+      - name: Tests of the replay code (the TS twin against the Lean golden, the driver on a WebDriver double, the Chromium lane's pure parts)
+        run: node --test packages/measure-webkit/test/replay-twin.test.mjs packages/measure-webkit/test/replay-driver.test.mjs packages/measure-webkit/test/replay-chromium.test.mjs
+      - name: Playwright Chromium with its system libraries
+        working-directory: packages/gate-breakpoints
+        run: pnpm exec playwright-core install --with-deps chromium
+      - name: Replay (every kind, repeated, CPU throttled 6x)
+        timeout-minutes: 20
+        env:
+          KINDS: ${{ inputs.kinds || 'recorded,fast-fling,cold' }}
+          REPS: ${{ inputs.reps || '2' }}
+        run: |
+          set -euo pipefail
+          mkdir -p out/device-replay
+          node packages/measure-webkit/src/replay/cli.mjs run --profile packages/measure-chromium/profiles/user-fixture.json --kinds "$KINDS" --reps "$REPS" --throttle 6 --out out/device-replay 2>&1 | tee out/device-replay/log.txt
+      - name: Table of this run (the step summary; the artifact is the record)
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
+        run: |
+          set -euo pipefail
+          if [ -f out/device-replay/run.json ]; then node packages/measure-webkit/src/replay/cli.mjs table --in out/device-replay/run.json >> "$GITHUB_STEP_SUMMARY"; fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
+        with:
+          name: device-replay
+          path: out/device-replay
+          if-no-files-found: error
+          retention-days: 30
+      - uses: ./.github/actions/telemetry
+        if: ${{ (always()) && steps.stale.outcome == 'skipped' }}
+        with:
+          mode: finish
+          label: replay

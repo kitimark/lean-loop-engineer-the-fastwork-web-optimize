@@ -9,7 +9,6 @@
 // the cookie the preview port or the grant link set is sent here), the Host must name this arm's port. Nothing is forwarded
 // to the preview server but Accept-Encoding and If-None-Match; its Set-Cookie is dropped. GET and HEAD only.
 // Only I/O: the verdicts come from fwcore.
-import http, { type IncomingMessage } from "node:http";
 import { Readable } from "node:stream";
 import { Hono } from "hono";
 import type { Context } from "hono";
@@ -20,17 +19,10 @@ import { isLoopback } from "./lan.ts";
 import { remoteOf } from "./gate.ts";
 import { Grants } from "./grants.ts";
 import type { ReturnStore } from "./return.ts";
+import { log502, previewAgent, upstream } from "./upstream.ts";
 
 const DROP = new Set(["connection", "keep-alive", "transfer-encoding", "set-cookie", "upgrade", "proxy-authenticate"]);
-const agent = new http.Agent({ keepAlive: true, maxSockets: 64 });
-
-function upstream(port: number, pathq: string, method: string, headers: Record<string, string>): Promise<IncomingMessage> {
-  return new Promise((resolve, reject) => {
-    const r = http.request({ host: "127.0.0.1", port, path: pathq, method, agent, headers }, resolve);
-    r.on("error", reject);
-    r.end();
-  });
-}
+const agent = previewAgent(64);
 
 /** The local port of the connection a request arrived on (node server only; undefined for in-process requests). */
 export const localPortOf = (c: Context): number | undefined =>
@@ -79,13 +71,13 @@ export function createArmApp(core: Core, owner: OwnerAuth, pm: PreviewManager, o
     const enc = c.req.header("accept-encoding"); if (enc) fwd["accept-encoding"] = enc;
     const etag = c.req.header("if-none-match"); if (etag) fwd["if-none-match"] = etag;
     try {
-      const up = await upstream(Number(r.backend), String(r.path), c.req.method, fwd);
+      const up = await upstream(agent, Number(r.backend), String(r.path), c.req.method, fwd);
       const headers = new Headers();
       for (const [k, v] of Object.entries(up.headers)) if (!DROP.has(k) && v !== undefined) headers.set(k, Array.isArray(v) ? v.join(", ") : v);
       const status = up.statusCode ?? 502;
       if (c.req.method === "HEAD" || status === 304) { up.resume(); return new Response(null, { status, headers }); }
       return new Response(Readable.toWeb(up) as unknown as ReadableStream, { status, headers });
-    } catch { return c.json({ ok: false, reason: "preview server not reachable" }, 502); }
+    } catch (e) { log502("arm", e, pathq); return c.json({ ok: false, reason: "preview server not reachable" }, 502); }
   });
   return app;
 }

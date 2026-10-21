@@ -21,7 +21,7 @@ import { backfill, ingestRuns, lagCli, runIdsOf, waitSpanExtra } from "./timing-
 enforceNodePin();
 const [group, ...rest] = process.argv.slice(2);
 // timing-spans: one span per invocation (step = group + subcommand); `watch` times each pass itself, `timings` is a view
-const SUBS = new Set(["plan", "ci", "incidents", "step", "card", "task", "console", "review"]);
+const SUBS = new Set(["plan", "ci", "incidents", "step", "card", "task", "console", "review", "oracle"]);
 let spanExtra: ReturnType<typeof waitSpanExtra> = {}; // ci-wait-lag: the phases of a `fw ci wait`, written on its span at exit
 if (group && group !== "watch" && group !== "timings") { const end = begin("fw", SUBS.has(group) && rest[0] && !rest[0].startsWith("-") ? `${group} ${rest[0]}` : group); process.once("exit", (c) => end(c, spanExtra)); }
 /** disk-auto-gc after a land: delete classes 1, 2, 6 that Lean selects in the main checkout, timed; lines to stderr so
@@ -32,7 +32,7 @@ async function postLandGc(mainDir: string): Promise<void> {
   for (const l of lines) console.error(l);
 }
 try {
-  const base = NO_API_GROUPS.includes(group ?? "") || group === "disk-gc" || (group === "plan" && rest[0] === "overlap") || (group === "review" && (rest[0] === "ready" || rest[0] === "verdict")) ? "" : apiBase(process.env); // these need no console-api (CI runs some of them)
+  const base = NO_API_GROUPS.includes(group ?? "") || group === "disk-gc" || group === "oracle" || (group === "plan" && rest[0] === "overlap") || (group === "review" && (rest[0] === "ready" || rest[0] === "verdict")) ? "" : apiBase(process.env); // these need no console-api (CI runs some of them)
   if (group === "timings") {
     console.log(rest.includes("--backfill") ? await backfill(rest, process.cwd()) : rest.includes("--lag") ? lagCli(rest, process.cwd()) : timingsView(rest, process.cwd()));
   } else if (group === "checks") {
@@ -68,6 +68,8 @@ try {
     process.exitCode = await (await import("./ci.ts")).ciStateCli(rest.slice(1), process.cwd()); // review-flow-v2-followups: one run's state by id
   } else if (group === "ci") {
     process.exitCode = await ciCli(rest, process.cwd());
+  } else if (group === "oracle") {
+    process.exitCode = await (await import("./oracle.ts")).oracleCli(rest, process.cwd()); // jev-core: advice from Jev, decided in Lean
   } else if (group === "incidents") {
     process.exitCode = await (await import("./incidents.ts")).incidentsCli(rest, process.cwd()); // incident-lint: board optional
   } else if (group === "premises") { process.exitCode = await (await import("./premises.ts")).premisesCli(rest, process.cwd()); // Lean premises vs browser tests

@@ -63,6 +63,20 @@ Progress goes to stderr; `out/<engine>.json` holds every check. Exit 1 on any fa
   Lean row (`Fw.Ci.Trigger`: `@fwcore`, `apps/console-api/src/**`, `packages/contracts/src/**`, ...) matches a changed file
   (`scripts/ci-paths.test.mjs`). Never on every push.
 
+## Debug flags of `src/run.mjs`
+
+Debug runs repeat targets on loopback on one engine; they are for CI branches (a temporary `ci/<task>` workflow), not for the land lane.
+
+| flag | meaning |
+|---|---|
+| `--only a,b` | run just these target ids (`r`, `o`, `compare`, `entry-r`, `entry-o`, `entry-review-flag`) on the loopback host |
+| `--repeat n` | with `--only` (or alone): n loads of each selected target; the check ids carry `#<load>` |
+| `--trace` | also write `out/trace-<engine>.json`: the timeline of each failed load and 2 passing ones (`src/trace.mjs`) |
+| `--provoke n` | start n uncached image requests on the landing page just before it is left (makes the landing-page cancel deterministic) |
+
+An error of an upstream request (arm app `arm-app.ts`, compare proxy `proxy.ts`) is logged on stderr as
+`preview-502 {"who","code","syscall","msg","reused","idleMs","path"}`; a run with `2>err.txt` keeps it.
+
 ## Why one origin per arm (replaces the 302 and the double-import question)
 
 The snapshot boot script imports `/_app/immutable/entry/start.*.js` by a root-absolute string. The old proxy answered that
@@ -76,8 +90,16 @@ old per-origin one (`console.previewArm`, goldens in `packages/contracts/golden/
 
 - Playwright WebKit stands in for iOS Safari; the user's phone check is the final confirmation. iOS Safari is not in the suite.
 - WebKit on macOS may stall on the LAN-address page load (local network permission); use `--no-lan` there. CI has no such prompt.
-- The suite waits for the grant landing page to finish hydrating before it navigates away (and the control loads listen only
-  afterwards): leaving a page mid-import makes the browser cancel that import, which is not a server fault.
+- The suite waits for the grant landing page to finish hydrating, then leaves it through `about:blank` (`leavePage`) and waits
+  until every request the page asked for has ended (check `landing-page-requests-ended`); only then is the log reset and the next
+  load observed. A plain `goto` from a page with a lazy image in flight makes the browser cancel that request (WebKit
+  `DocumentLoader::stopLoadingSubresources`) and the cancel lands in the next load's checks: not a server fault, see
+  `research/notes/2026/10-21-webkit-cancelled-flake.md`. The control loads leave their landing page the same way; a request still
+  open is counted as a cancelled one for that control (`openFailure`).
+- The tap between an arm app and the preview server is a Node server with the default 5 s keep-alive; it passes no hop-by-hop
+  header (`Connection`, `Keep-Alive`) of the preview server's reply on, so the arm app's Agent reads the tap's true hint. A
+  copied `Keep-Alive: timeout=65` once made the Agent reuse a socket the tap had just closed: HTTP 502 in about 3 of 1000 loads
+  (`research/notes/2026/10-2x-preview-502-flake.md`).
 - Ports: `startRig` holds every port of a run together (up to 8 attempts) and releases them together just before the preview child
   starts; a port another process takes in that window fails its bind loudly (accepted). A start that fails half way closes
   what it opened. The private-port offset is Lean's `Fw.Console.Preview.backendOff`, read from the `console.previewAdmit`

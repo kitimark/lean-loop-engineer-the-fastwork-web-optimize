@@ -140,18 +140,23 @@ const EVAL_MARK = "(globalThis.__fwEvals ||= []).push(import.meta.url);\n";
 const START_FN = /(async function \w+\(\w+,\w+,\w+\)\{)(if\(globalThis\.__sveltekit_\w+\.data\))/;
 const START_MARK = "(globalThis.__fwStarts=(globalThis.__fwStarts||0)+1);";
 export const instrumentModule = (text) => EVAL_MARK + text.replace(START_FN, `$1${START_MARK}$2`);
+/** Hop-by-hop headers belong to one connection: the tap must not pass the preview server's `Connection` and `Keep-Alive: timeout=65`
+ *  on to the arm app, because the tap's own idle limit is Node's default 5 s (+1 s) and the arm app's Agent trusts the hint it reads
+ *  (task preview-502-flake: it reused a socket the tap had just closed, ECONNRESET, HTTP 502). The tap adds its own, true hint. */
+const HOP = new Set(["connection", "keep-alive", "proxy-connection", "transfer-encoding", "upgrade", "te", "trailer"]);
+const noHop = (h) => Object.fromEntries(Object.entries(h).filter(([k]) => !HOP.has(k.toLowerCase())));
 function startTap(listenPort, targetPort, mode) {
   const srv = createServer((req, res) => {
     const headers = mode.tap ? { ...req.headers, "accept-encoding": "identity" } : { ...req.headers };
     if (mode.tap) delete headers["if-none-match"];
     const up = httpRequest({ host: "127.0.0.1", port: targetPort, path: req.url, method: req.method, headers }, (r) => {
       const isModule = mode.tap && /^\/_app\/.+\.m?js$/.test((req.url ?? "").split("?")[0]) && r.statusCode === 200;
-      if (!isModule) { res.writeHead(r.statusCode ?? 502, r.headers); return r.pipe(res); }
+      if (!isModule) { res.writeHead(r.statusCode ?? 502, noHop(r.headers)); return r.pipe(res); }
       const chunks = [];
       r.on("data", (c) => chunks.push(c));
       r.on("end", () => {
         const body = Buffer.from(instrumentModule(Buffer.concat(chunks).toString("utf8")));
-        const h = { ...r.headers, "content-length": String(body.length) };
+        const h = { ...noHop(r.headers), "content-length": String(body.length) };
         delete h.etag; delete h["content-encoding"]; h["cache-control"] = "no-store";
         res.writeHead(200, h); res.end(req.method === "HEAD" ? undefined : body);
       });
