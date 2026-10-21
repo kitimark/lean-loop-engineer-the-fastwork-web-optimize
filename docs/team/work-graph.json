@@ -12415,7 +12415,8 @@
     "lean/Fw/Obs/Timing.lean",
     "scripts/fwcore-build.sh",
     "packages/contracts/golden/obs/**"
-   ]
+   ],
+   "evidence": "48eaaad"
   },
   {
    "devices": [

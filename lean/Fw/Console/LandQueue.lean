@@ -224,11 +224,11 @@ theorem fwcoreFresh_unmoved (c : String) (same : Bool) : fwcoreStale (some c) sa
 
 Incident 2026-10-20: `land-fwcore-once` landed a change under `lean/`; the three entries queued behind it were each refused
 `fwcore-stale` and only landed after a manual `sh scripts/fwcore-build.sh`. The step between two queue entries: after a `done` land
-whose merged diff touches a path fwcore is built from (`lean/` or the build script), the queue rebuilds fwcore before the next
+whose merged diff touches a path fwcore is built from (`lean/**`, the build script or its record rule `scripts/fwcore-record-rule.sh`), the queue rebuilds fwcore before the next
 dequeue. If the rebuild fails the next entry gets the kind `rebuild` (never `stale`: its branch is fine) and the queue stops. -/
 
-/-- Is a path one fwcore is built from? Lean `lean/**` or the build script (TS `FWCORE_BUILD_READS`). -/
-def coreSource (p : String) : Bool := p.startsWith "lean/" || p == "scripts/fwcore-build.sh"
+/-- Is a path one fwcore is built from? Lean `lean/**`, the build script or its record rule (TS `FWCORE_BUILD_READS`). -/
+def coreSource (p : String) : Bool := p.startsWith "lean/" || p == "scripts/fwcore-build.sh" || p == "scripts/fwcore-record-rule.sh"
 
 /-- Does a merged diff touch a path fwcore is built from? -/
 def touchesCore (paths : List String) : Bool := paths.any coreSource

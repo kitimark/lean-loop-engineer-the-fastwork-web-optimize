@@ -1460,6 +1460,21 @@ theorem slowSteps_nil_of_no_slow (vs : List Timing.Verdict)
       exact absurd hc (h v hv)
   rw [this]; rfl
 
+/-- **A contended sample never raises `timing.slow`.** Every alert subject of the whole pipeline (`timingVerdicts`, then
+`slowSteps`) is the name of a sample that is not contended: a step whose samples are all contended, however slow, has
+no `timing.slow` (the machine-wide `sys.contended` signal carries it instead). Task `local-mem-budget`.
+-/
+theorem slowSteps_uncontended (p : Timing.Params) (ss : List Timing.Sample) (s : String)
+    (h : s ∈ slowSteps (Timing.timingVerdicts p ss)) :
+    ∃ x ∈ ss, Timing.contended p x = false ∧
+      x.tool ++ "/" ++ x.step ++ (if x.kind == "" then "" else "#" ++ x.kind) = s := by
+  obtain ⟨v, hv, hc, hn⟩ := slowLatest_sound _ s ((mem_dedupL _ s).1 h)
+  obtain ⟨i, hi, rfl⟩ := Timing.mem_sample p ss v hv
+  refine ⟨ss[i], List.getElem_mem hi, ?_, hn⟩
+  cases hq : Timing.contended p ss[i]
+  · rfl
+  · exact absurd hc (Timing.contended_not_slow p _ i _ hq)
+
 /-- A later sample of the same history is found by `laterSame`. -/
 theorem laterSame_of_mem (v : Timing.SampleVerdict) (rest : List Timing.Verdict)
     (h : ∃ w, Timing.Verdict.sample w ∈ rest ∧ sameKey v w = true) : laterSame v rest = true := by
@@ -1540,14 +1555,14 @@ private def tv (tool step : String) (code : Timing.Code) : Timing.Verdict :=
 #guard slowSteps [tv "lean" "check.sh" .slow, tv "lean" "check.sh" .ok] == []
 -- other steps do not
 #guard slowSteps [tv "lean" "check.sh" .slow, tv "lean" "lake build" .ok] == ["lean/check.sh"]
--- noisy and noBaseline are not alerts
-#guard slowSteps [tv "a" "b" .noisy, tv "a" "c" .noBaseline] == []
+-- contended and noBaseline are not alerts
+#guard slowSteps [tv "a" "b" .contended, tv "a" "c" .noBaseline] == []
 -- ok then slow alerts; slow then slow does not re-alert (the transition was the alert); slow, ok, slow alerts again
 #guard slowSteps [tv "a" "b" .ok, tv "a" "b" .slow] == ["a/b"]
 #guard slowSteps [tv "a" "b" .ok, tv "a" "b" .slow, tv "a" "b" .slow] == []
 #guard slowSteps [tv "a" "b" .slow, tv "a" "b" .ok, tv "a" "b" .slow] == ["a/b"]
--- noisy between two slows is not slow: the next slow is a transition
-#guard slowSteps [tv "a" "b" .slow, tv "a" "b" .noisy, tv "a" "b" .slow] == ["a/b"]
+-- contended between two slows is not slow: the next slow is a transition
+#guard slowSteps [tv "a" "b" .slow, tv "a" "b" .contended, tv "a" "b" .slow] == ["a/b"]
 -- the run kind separates histories: a slow of kind k1 after a slow of kind k2 is a first slow, named with its kind
 private def tvk (tool step kind : String) (code : Timing.Code) : Timing.Verdict :=
   match tv tool step code with | .sample v => .sample { v with kind } | x => x
