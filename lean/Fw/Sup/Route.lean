@@ -148,8 +148,9 @@ open Lean (Json)
 
 def bools : List Bool := [false, true]
 
+set_option compiler.extract_closed false in
 /-- One golden line per (stage, service, present, hashOk): the whole input domain. -/
-def goldenLines : List String :=
+def goldenLines (_ : Unit := ()) : List String :=
   Stage.all.flatMap fun st => Service.all.flatMap fun svc => bools.flatMap fun present => bools.map fun hashOk =>
     (Json.mkObj [("name", .str s!"{st.name} {svc.name} present={present} hashOk={hashOk}"),
       ("request", Json.mkObj [("op", "sup.route"), ("stage", .str st.name), ("service", .str svc.name),
@@ -157,21 +158,22 @@ def goldenLines : List String :=
       ("response", Json.mkObj [("route", .str (routeOf st svc present hashOk).name),
         ("serviceStage", .str svc.stage.name)])]).compress
 
-#guard goldenLines.length == 6 * 20 * 4
+#guard (goldenLines ()).length == 6 * 20 * 4
 
 def genPath : System.FilePath := "../packages/contracts/golden/sup/route.jsonl"
 
-def genText : String := String.join (goldenLines.map (· ++ "\n"))
+set_option compiler.extract_closed false in
+def genText (_ : Unit := ()) : String := String.join ((goldenLines ()).map (· ++ "\n"))
 
 /-- Write `genPath`, or with `--check` throw when the file differs from `genText`. -/
 def gen (args : List String) : IO Unit := do
   if args.contains "--check" then
     let cur ← IO.FS.readFile genPath
-    if cur != genText then
+    if cur != genText () then
       throw (IO.userError s!"sup-route: {genPath} is stale; regenerate with Fw.Sup.Route.gen []")
     IO.println s!"sup-route: {genPath} equals the Lean output"
   else
     IO.FS.createDirAll "../packages/contracts/golden/sup"
-    IO.FS.writeFile genPath genText
+    IO.FS.writeFile genPath (genText ())
 
 end Fw.Sup.Route
