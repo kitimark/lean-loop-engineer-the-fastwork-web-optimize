@@ -63,6 +63,7 @@ test('the recorder script and its length', () => {
   const js = startRecorderJs(20);
   assert.ok(js.includes('window.__wkRec = undefined') && js.includes('addEventListener'));
   assert.equal(recorderSeconds(R.compile(profile)), Math.ceil(R.actsMs(R.compile(profile)) / 1000) + 8);
+  assert.equal(recorderSeconds(R.compile(profile), R.pieces(profile).length), Math.ceil(R.actsMs(R.compile(profile)) / 1000) + 8 + R.pieces(profile).length);
 });
 
 test('the WebDriver client speaks W3C over HTTP', async () => {
@@ -194,4 +195,47 @@ test('simulator preparation: tips off for Safari, then Safari ended, failures lo
   assert.deepEqual(ran[0], ['xcrun', 'simctl', 'spawn', 'UDID-1', 'defaults', 'write', 'com.apple.mobilesafari', 'com.apple.TipKit.HideAllTips', '-bool', 'true']);
   assert.deepEqual(ran[1], ['xcrun', 'simctl', 'terminate', 'UDID-1', 'com.apple.mobilesafari']);
   assert.deepEqual(logs, ['simctl terminate: not running']);
+});
+
+test('a real SIGTERM to the process that owns safaridriver ends a driver that ignores TERM (no orphan)', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'fw-sd-'));
+  const stub = join(dir, 'stub-safaridriver');
+  writeFileSync(stub, `#!${process.execPath}
+const http = require('node:http');
+process.on('SIGTERM', () => {});
+const port = Number(process.argv[3]);
+http.createServer((q, s) => { s.writeHead(200, { 'content-type': 'application/json' }).end('{"value":{"ready":true}}'); }).listen(port, '127.0.0.1');
+`, { mode: 0o755 });
+  const owner = join(dir, 'owner.mjs');
+  writeFileSync(owner, `import { startSafaridriver } from ${JSON.stringify(new URL('../src/device-replay-wd.mjs', import.meta.url).href)};
+const drv = await startSafaridriver(Number(process.argv[2]), { bin: ${JSON.stringify(stub)}, graceMs: 400 });
+console.log('ready ' + drv.pid);
+setInterval(() => {}, 1 << 30);
+`);
+  const probe = http.createServer();
+  await new Promise((ok) => probe.listen(0, '127.0.0.1', ok));
+  const port = probe.address().port;
+  await new Promise((ok) => probe.close(ok));
+  const { spawn } = await import('node:child_process');
+  const owner$ = spawn(process.execPath, [owner, String(port)], { stdio: ['ignore', 'pipe', 'inherit'] });
+  const pid = await new Promise((ok, no) => {
+    let buf = '';
+    owner$.stdout.on('data', (d) => { buf += d; const m = /ready (\d+)/.exec(buf); if (m) ok(Number(m[1])); });
+    owner$.on('exit', () => no(new Error('owner exited before ready')));
+  });
+  const alive = (p) => { try { process.kill(p, 0); return true; } catch (e) { return e.code !== 'ESRCH'; } };
+  try {
+    assert.ok(alive(pid), 'the stub driver runs');
+    const t0 = Date.now();
+    const exited = new Promise((ok) => owner$.on('exit', (code, sig) => ok({ code, sig, ms: Date.now() - t0 })));
+    owner$.kill('SIGTERM');
+    const r = await exited;
+    assert.equal(r.sig, 'SIGTERM', 'the owner still dies of the signal');
+    assert.ok(r.ms >= 350, `the owner waited for the grace (${r.ms} ms)`);
+    await new Promise((ok) => setTimeout(ok, 100));
+    assert.equal(alive(pid), false, 'the stub driver that ignored TERM is gone');
+  } finally {
+    if (alive(pid)) { try { process.kill(-pid, 'SIGKILL'); } catch {} }
+    if (owner$.exitCode === null && owner$.signalCode === null) owner$.kill('SIGKILL');
+  }
 });

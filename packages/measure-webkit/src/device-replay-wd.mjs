@@ -70,12 +70,15 @@ export function killGroup(pid, sig, kill = process.kill) {
 /**
  * safaridriver in a process group of its own, so that stopping it takes its helpers with it. It is stopped (SIGTERM to the group, SIGKILL
  * after `graceMs`) when `stop()` is called, when this process exits and when this process gets SIGTERM or SIGINT; only the pid this
- * function spawned is ever signalled.
+ * function spawned is ever signalled. On a signal the handler first sends SIGTERM to the group, then waits for the child to exit for
+ * at most `graceMs`, then sends SIGKILL to the group (a driver that ignores TERM, as one stuck in a hung session does, dies there) and
+ * only then lets the signal take the default action. A process killed by a signal emits no 'exit' event, so the kill cannot wait for it.
  */
 export async function startSafaridriver(port, { bin = 'safaridriver', args = [], log = () => {}, graceMs = 3000, spawnImpl = spawn, kill = process.kill } = {}) {
   const child = spawnImpl(bin, ['-p', String(port), ...args], { stdio: 'ignore', detached: true });
   let dead = null;
-  child.on('exit', (c, sig) => { dead = c ?? sig ?? 'signal'; });
+  const exitWaiters = [];
+  child.on('exit', (c, sig) => { dead = c ?? sig ?? 'signal'; for (const f of exitWaiters.splice(0)) f(); });
   let killTimer = null;
   const stop = () => {
     if (dead !== null || child.pid === undefined) return;
@@ -84,7 +87,27 @@ export async function startSafaridriver(port, { bin = 'safaridriver', args = [],
   };
   const onExit = () => { if (child.pid !== undefined) killGroup(child.pid, 'SIGKILL', kill); };
   const handlers = {};
-  for (const sig of ['SIGTERM', 'SIGINT']) handlers[sig] = () => { stop(); process.removeListener(sig, handlers[sig]); process.kill(process.pid, sig); };
+  for (const sig of ['SIGTERM', 'SIGINT']) {
+    let handling = false;
+    handlers[sig] = () => {
+      if (handling) return;
+      handling = true;
+      stop();
+      let finished = false;
+      let grace = null;
+      const finish = () => {
+        if (finished) return;
+        finished = true;
+        clearTimeout(grace);
+        if (child.pid !== undefined) killGroup(child.pid, 'SIGKILL', kill);
+        process.removeListener(sig, handlers[sig]);
+        process.kill(process.pid, sig);
+      };
+      if (dead !== null) { finish(); return; }
+      grace = setTimeout(finish, graceMs);
+      exitWaiters.push(finish);
+    };
+  }
   process.once('exit', onExit);
   for (const [sig, h] of Object.entries(handlers)) process.on(sig, h);
   child.on('exit', () => { process.removeListener('exit', onExit); for (const [sig, h] of Object.entries(handlers)) process.removeListener(sig, h); });
@@ -120,7 +143,12 @@ export async function prepareSimulator(udid, { run, log = () => {} } = {}) {
 export const startRecorderJs = (seconds) =>
   `window.__wkRecOn = true; window.__wkRec = undefined; Promise.resolve(${RECORD_JS(seconds)}).then(v => { window.__wkRec = JSON.stringify(v); }, e => { window.__wkRec = JSON.stringify({err: String(e)}); }); 'started'`;
 
-export const recorderSeconds = (acts) => Math.ceil(actsMs(acts) / 1000) + 8;
+/**
+ * How long the page recorder runs: the planned time of the actions, 8 s of headroom and, per piece, 1 s for the dispatch lag of its
+ * `/actions` call (Simulator: 161 to 403 ms per piece) so that late pieces still fall inside the recording. `pieceCount` is 0 where
+ * the actions are sent in one call (the Chromium lane).
+ */
+export const recorderSeconds = (acts, pieceCount = 0) => Math.ceil(actsMs(acts) / 1000) + 8 + pieceCount;
 
 export async function replayPass({ wd, caps, url, profile, lim = LIM, settleMs = 6000, pollMs = 2500, session = null, log = () => {}, sleep = sleepMs, prepare = null, now = () => performance.now() }) {
   const acts = compile(profile);
@@ -132,10 +160,10 @@ export async function replayPass({ wd, caps, url, profile, lim = LIM, settleMs =
     await wd.url(sid, url);
     await sleep(settleMs);
     await wd.execute(sid, 'scrollTo({ top: 0, behavior: "instant" }); return 1');
-    const seconds = recorderSeconds(acts);
+    const ps = pieces(profile);
+    const seconds = recorderSeconds(acts, ps.length);
     await wd.execute(sid, `${startRecorderJs(seconds)}; return 'started'`);
     log(`replaying ${profile.id}: ${acts.length} actions, ${(actsMs(acts) / 1000).toFixed(1)} s, recorder ${seconds} s`);
-    const ps = pieces(profile);
     const pieceMs = [];
     for (const [i, pc] of ps.entries()) {
       try {

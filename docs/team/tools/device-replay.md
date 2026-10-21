@@ -38,8 +38,23 @@ Simulator page (390 x 699 CSS px on an iPhone 17e): a move outside the viewport 
 Run it inside the sim slot (`pnpm -s fw slot acquire --kind sim`).
 
 Phone, named user step (before each phone session): open Safari on the phone once and dismiss the first-run tip (the TipKit popover
-over the page) by tapping its close button; the hang of the first pilot is attributed to it (INFERRED, see the research note). The
-Simulator suppression key is not verified effective, because the tip never appeared there.
+over the page) by tapping its close button. The first pilot's hang has two INFERRED candidates, the first-run tip and the automation
+wedge after a scrolling swipe seen in the Simulator probes (research note); neither is confirmed. The Simulator suppression key is
+unverified, because the tip never appeared there (follow-up: check it on the booked phone session or a fresh CI Simulator).
+
+Simulator page rule (named reasons, research note): a page that scrolls natively under the touch makes `replayMatches` false on the
+Simulator. (1) The touch is placed at the planned point minus the scroll offset (`WebAutomationSessionIOS.mm:205` with
+`PageClientImplIOS.mm:548-551`), so a swipe that scrolls feeds back on itself and later swipes land off-screen; the bounds check
+(`WebAutomationSession.cpp:2424-2425`) uses viewport size only, so the point cannot be pre-compensated. CONFIRMED by source and MEASURED.
+(2) A native scroll take-over gives `pointercancel`, no `touchend`, and a wedged automation session (MEASURED in 5 configurations;
+mechanism UNKNOWN). A replay-capable page keeps the root at scroll offset 0: a scroller in a fixed box, or a page that cancels
+`touchmove` and scrolls with script. On such a page the harness saw 5 of 5 swipes (research note). Any page that scrolls natively on
+the root gives a named `replay-stall`, not a hang.
+
+Piece lag: each piece adds call lag (Simulator 156-237 ms on a replay-capable page). `startOk` allows 50 ms and `timeOk` 17 ms, so
+they fail from the second piece of a multi-swipe pass until lag compensation lands (follow-up, a Lean change: subtract the summed lag
+from the next lead-in pause). Positions (`posOk`) and event counts (`eventsOk`) do match. The recorder runs
+`ceil(actsMs/1000) + 8 + pieces` seconds, so summed lag does not end it early.
 
 ## Pilot on the phone
 
@@ -70,5 +85,6 @@ finding about the engine, not a failure of the compiler. `dispatch late` is how 
 ## Limits
 
 Defaults are research values (position 1 px, time 17 ms, lift speed 10 %, start gap 50 ms, speed window 50 ms; Lean stores tenth px and
-hundredths of a ms); calibration needs phone replays. The Simulator takes touches through the same W3C path as the phone, but it saw
-only 1 of 5 swipes (research note); it is a harness check, not a stand-in for the phone. WDA (path A) is not built.
+hundredths of a ms); calibration needs phone replays. The Simulator takes touches through the same W3C path as the phone, but on a
+natively scrolling root page it saw only 1 of 5 swipes and on a replay-capable page `replayMatches` is false from piece lag (research
+note); it is a harness check, not a stand-in for the phone. WDA (path A) is not built.

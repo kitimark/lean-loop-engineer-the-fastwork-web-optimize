@@ -9,19 +9,21 @@ Done
 - Driver (`packages/measure-webkit/src/device-replay-wd.mjs`): one `/actions` call per swipe, per-call limits (`CALL_MS`),
   named `replay-stall` / `wd-timeout` (CLI exit 3), safaridriver in its own process group stopped on SIGTERM/SIGINT/exit,
   `prepareSimulator` (TipKit HideAllTips + Safari terminate), CLI `--sim <udid>`.
-- Source reading and Simulator measurement: `research/notes/2026/10-2x-device-replay.md`; usage: `docs/team/tools/device-replay.md`.
-
-Verified: tests above; two local debug runs on iOS 26.5 Simulator (original and rewrite, 1 rep each): replayMatches false, 1 of 5 swipes
-seen, no stall; dispatch lag per piece (`pieceMs`) 161 to 403 ms.
-
+- Notes: `research/notes/2026/10-2x-device-replay.md`; usage: `docs/team/tools/device-replay.md`.
+Round 2: `replayMatches` cannot be true on a page that scrolls natively under the touch; two named reasons, source-cited and
+MEASURED (research note): (1) drift, `WebAutomationSessionIOS.mm:205` + `PageClientImplIOS.mm:548-551` put the touch at planned y minus
+scrollY, not compensable (`WebAutomationSession.cpp:2424-2425`); (2) native scroll take-over loses `touchend` and wedges the session
+(mechanism UNKNOWN). On a replay-capable page (root offset 0, page cancels touchmove) the harness saw 5 of 5 swipes x 3 passes;
+`replayMatches` false there from piece lag only (`startOk` 50 ms, `timeOk` 17 ms fail from piece 2). `/root` gave a named
+`replay-stall` in 48 s, no orphan. Signal handler now waits graceMs, SIGKILLs the group, re-raises (real-signal test);
+`recorderSeconds` adds one second per piece.
+Verified: tests above; Simulator runs (local debug, iOS 26.5): 2 on the site (1 of 5 swipes), 3 passes on `/ok` (5 of 5), 1 stall.
 Open
-- Phone session (lead books): dismiss the Safari first-run tip first; run `run --kinds recorded`; a stall now ends as `replay-stall`.
-- Why 4 of 5 swipes lose their touchend, and why probe sessions wedged after a scrolling swipe but the harness passes did not: UNKNOWN.
-- `HideAllTips` suppression unverified (tip never appeared on the Simulator). iOS 27.0 Simulators have no safaridriver session host.
-- CI reproduction of the Simulator run (3 jobs) not done.
-- TS stand-ins (no decision logic): `prepareSimulator`, `startSafaridriver`, `ReplayStall`/`WdTimeout`; `pieces`/`pieceTimeoutMs` are
-  golden-checked. `device-replay.mjs` was edited (outside the graph writes list).
-
+- Lead: add `packages/measure-webkit/src/device-replay.mjs` to the task writes in `docs/team/work-graph.json` (I edited it; the file is outside the list).
+- Phone session (lead books): dismiss the Safari first-run tip first; run `run --kinds recorded`; a stall ends as `replay-stall`.
+- Lag compensation (Lean change, subtract summed lag from the next lead-in pause); wedge mechanism UNKNOWN; XCUITest/idb driver idea.
+- `HideAllTips` suppression unverified; CI reproduction (3 jobs) not done; iOS 27.0 Simulators have no safaridriver session host.
+- TS stand-ins (no decision logic): `prepareSimulator`, `startSafaridriver`, `ReplayStall`/`WdTimeout`; `pieces`/`pieceTimeoutMs` golden-checked.
 Conventions: the Simulator profile must fit the page (390 x 699 on a 17e) or the whole call fails out of bounds; never commit a person's
 recording; Simulator runs inside the sim slot.
 Read first: the research note section "iOS: how automation sends touches".
