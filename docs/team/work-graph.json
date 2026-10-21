@@ -15190,6 +15190,42 @@
     "results/accent-draw-one/**",
     "docs/team/handoffs/accent-draw-one.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-tier-compose-test",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "Incident 2026-10-22 (hero-exit land run 39674287486 refused at suites-b): the local land tier did not select apps/console-api/test/compose.test.ts although the branch changed a part.json and research/findings/ledger.json, which Compose reads. Lean first in Fw.Console.LandTier: each local test declares its read set; a test is selected iff a changed path matches its read set; theorem selects_reader (a changed path read by a test selects it) with goldens; add compose.test's reads (apps/site/src/parts/*/part.json, research/findings/ledger.json). Unit: the selection rule for one test. Limits: tests with undeclared reads stay on the CI tier only; record the incident in docs/team/incidents/ledger.json.",
+   "writes": [
+    "lean/Fw/Console/LandTier.lean",
+    "packages/contracts/golden/console/land-tier*.jsonl",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land-tier.test.ts",
+    "docs/team/incidents/ledger.json",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/land-tier-compose-test.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gate-apt-no-update",
+   "owner": "measure-engineer",
+   "stream": "gate",
+   "deps": [],
+   "title": "fw watch timing.slow 2026-10-22 on land (chromium) gate-engine: 34 s vs 19-22 s in the 4 lands before (runs 39675529398 vs 39674287486). MEASURED cause: the 'System libraries' step runs playwright install-deps, whose apt-get update refreshed 14.5 MB of lists in 13 s (8.2 MB in 6 s the run before, runner image with 89 vs 47 pending upgrades) and upgraded 8 packages, although the 18 debs came from the cache. Change: on an apt cache hit install the cached debs without apt-get update (dpkg -i or apt-get install --no-download from the cache dir), fall back to install-deps on a miss or a failed install. Lean: Fw.Ops.Cache rule hit -> no network step, theorem with goldens. Unit: the gate-engine apt step. Measure 3 land runs before/after (step seconds, run ids). Limits: a runner image that lacks a dep the cache does not hold falls back to the slow path.",
+   "writes": [
+    ".github/actions/gate-engine/action.yml",
+    "lean/Fw/Ops/Cache.lean",
+    "packages/contracts/golden/ops/cache.jsonl",
+    "research/notes/2026/10-2x-gate-apt-no-update.md",
+    "docs/team/handoffs/gate-apt-no-update.md"
+   ]
   }
  ],
  "deadline": {
