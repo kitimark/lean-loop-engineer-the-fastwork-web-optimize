@@ -18,7 +18,7 @@ Round 1 incident: the test run at 04:15:47 TERMed the live console (pids 4444 an
 Cause: branch A console was repo-agnostic (no this-repo condition); fixed in round 2 (first fix commit a5cc66b8; theorems above).
 Record in docs/team/incidents/ledger.json (inc-reap-console-kill exists on main).
 
-Verified: see the report (runner test script, lean/scripts/check.sh, ci-paths test, land-inputs, Linux CI run id).
+Verified: runner test 1745/1746 (the one failure is incidents lint: inc-reap-console-kill evidence .fw-console/console.log is not in git), check.sh green, ci-paths 52/52, land-inputs 55/55. Linux CI land run 39545711452: reap-stop (10) and reap-safety (2) green; lean run 39545711435 green.
 
 Open (follow-ups)
 - Console display of reap.stopped (contract command plus console-api/web edits).
