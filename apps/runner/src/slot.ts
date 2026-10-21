@@ -135,11 +135,36 @@ function takeLock(lock: string): void {
     } catch (e) {
       if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e;
     }
-    let o: { pid: number; start: number | null } | null = null;
-    try { o = JSON.parse(readFileSync(join(lock, "owner"), "utf8")); } catch { o = null; }
-    if (o !== null && (!alive(o.pid) || startOf(o.pid) !== o.start)) rmSync(lock, { recursive: true, force: true });
+    const o = readOwner(lock);
+    if (o !== null && dead(o)) recoverStale(lock, o);
     else sleepSync(20);
   }
+}
+
+export type Owner = { pid: number; start: number | null };
+
+function readOwner(dir: string): Owner | null {
+  try { return JSON.parse(readFileSync(join(dir, "owner"), "utf8")) as Owner; } catch { return null; }
+}
+
+const dead = (o: Owner): boolean => !alive(o.pid) || startOf(o.pid) !== o.start;
+
+/** Move the lock aside before deleting it, so only one waiter recovers a dead owner's lock; a lock that turns out live
+is moved back. */
+export function recoverStale(lock: string, seen: Owner): void {
+  const aside = `${lock}.stale-${process.pid}`;
+  try {
+    renameSync(lock, aside);
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === "ENOENT") return;
+    throw e;
+  }
+  const o = readOwner(aside);
+  if (o !== null && o.pid === seen.pid && o.start === seen.start) {
+    rmSync(aside, { recursive: true, force: true });
+    return;
+  }
+  try { renameSync(aside, lock); } catch { rmSync(aside, { recursive: true, force: true }); }
 }
 
 function readState(d: Deps): State {

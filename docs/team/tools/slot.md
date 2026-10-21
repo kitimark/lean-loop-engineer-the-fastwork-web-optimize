@@ -38,8 +38,9 @@ t=$(pnpm -s fw slot acquire --kind sim --lease 1800)   # then: fw slot renew --t
   load is under 8 with 3 GB free, and otherwise holds. A change waits 30 s after the last one, and `n` stays in 1..4.
   The swap ratio is never read: macOS swap stays high after a peak (`swap_static_never_trips`).
 - **Admission.** A ticket waits while one of its kind is ahead (FIFO per kind). It also waits while a ticket of
-  another kind has waited 300 s ahead of it, while `n` slots are held, or while a Simulator slot is held and it asks
-  for one. Otherwise it waits until the job's footprint fits above the 1 GB floor. Footprints: check is 700 MB per
+  another kind has waited 300 s ahead of it and can run itself, while `n` slots are held, or while a Simulator slot is
+  held and it asks for one. A Simulator ticket stuck behind a held Simulator slot never holds back other kinds
+  (`verdict_not_older_of_sim_blocked`). Otherwise it waits until the job's footprint fits above the 1 GB floor. Footprints: check is 700 MB per
   Lean worker, test 1600, land 1500, sim 2800, other 1000. Holders admitted in the last 60 s are charged, since free
   memory does not show them yet. After 1800 s the verdict is timeout, and the job never runs (exit 75).
 - **Lean workers.** A check gets as many Lean workers as fit the free room, at least 1 and at most the online cores.
@@ -59,7 +60,8 @@ t=$(pnpm -s fw slot acquire --kind sim --lease 1800)   # then: fw slot renew --t
 ## Files and switches
 
 - State: `<main>/.fw-console/slot/state.json`, written under a short `state.lock` directory. A lock whose writer died
-  is removed, checked by pid and start time. `FW_SLOT_DIR` moves it.
+  (pid and start time) is renamed to `state.lock.stale-<pid>` and then removed, so only one waiter recovers it; a lock
+  that turns out live after the rename is moved back. `FW_SLOT_DIR` moves it.
 - Events: `acquire`, `refuse` and `release` lines with `lock: "slot"` go to `<main>/.fw-console/locks.jsonl`
   (`FW_LOCK_EVENTS=off` or CI turns them off).
 - Nested runs: `run` sets `FW_SLOT_HELD=1`, and a `fw slot run` inside it runs at once.

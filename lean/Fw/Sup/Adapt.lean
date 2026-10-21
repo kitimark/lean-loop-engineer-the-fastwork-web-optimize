@@ -388,17 +388,18 @@ def before (q : List Entry) (me : Entry) : List Entry := q.takeWhile (fun e => e
 
 def aheadSame (q : List Entry) (me : Entry) : Nat := ((before q me).filter (fun e => e.kind == me.kind)).length
 
-/-- A ticket of another kind ahead of `me` has waited `ageS` seconds: kinds then share one FIFO order. -/
-def starved (p : Params) (now : Nat) (q : List Entry) (me : Entry) : Bool :=
-  (before q me).any (fun e => e.kind != me.kind && decide (e.since + p.ageS ≤ now))
-
 def simHeld (now : Nat) (hs : List Entry) : Bool := (prune now hs).any (fun h => h.kind == .sim)
+
+/-- A ticket of another kind ahead of `me` has waited `ageS` seconds and can itself run (not a Simulator ticket while
+the Simulator is held): kinds then share one FIFO order. -/
+def starved (p : Params) (now : Nat) (hs q : List Entry) (me : Entry) : Bool :=
+  (before q me).any (fun e => e.kind != me.kind && decide (e.since + p.ageS ≤ now) && !(e.kind == .sim && simHeld now hs))
 
 /-- The decision for ticket `me` in queue `q` (FIFO order) under concurrency `n`, holders `hs` and sample `s`. -/
 def verdict (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (waited : Nat) : Verdict :=
   let running := (prune s.time hs).length
   if 0 < aheadSame q me then waitOr p waited (.queued (aheadSame q me))
-  else if starved p s.time q me then waitOr p waited .older
+  else if starved p s.time hs q me then waitOr p waited .older
   else if n ≤ running then waitOr p waited (.full running n)
   else if me.kind == .sim && simHeld s.time hs then waitOr p waited .simBusy
   else if s.freeMB < need p s hs me.kind + p.floorMB + charged p s.time hs then
@@ -412,6 +413,8 @@ def tk (o t : String) (k : Kind) (t0 : Nat) : Entry := { owner := o, token := t,
 #guard verdict {} 2 okSample [] [tk "a" "1" .test 600, tk "b" "2" .sim 991] (tk "b" "2" .sim 991) 0 == .wait .older
 #guard verdict {} 1 okSample [{ tk "c" "9" .test 0 with till := 2000 }] [tk "a" "1" .test 990] (tk "a" "1" .test 990) 0 == .wait (.full 1 1)
 #guard verdict {} 3 okSample [{ tk "c" "9" .sim 0 with till := 2000 }] [tk "a" "1" .sim 990] (tk "a" "1" .sim 990) 0 == .wait .simBusy
+#guard verdict {} 4 okSample [{ tk "c" "9" .sim 0 with till := 2000 }] [tk "s" "5" .sim 600, tk "a" "1" .check 990] (tk "a" "1" .check 990) 0 == .admit 7 4900
+#guard verdict {} 4 okSample [] [tk "s" "5" .sim 600, tk "a" "1" .check 990] (tk "a" "1" .check 990) 0 == .wait .older
 #guard verdict {} 3 { okSample with freeMB := 3000 } [] [tk "a" "1" .sim 990] (tk "a" "1" .sim 990) 0 == .wait (.memory 2800 1976)
 #guard verdict {} 3 { okSample with freeMB := 3000 } [] [tk "a" "1" .sim 990] (tk "a" "1" .sim 990) 1800 == .timeout (.memory 2800 1976)
 
@@ -420,7 +423,7 @@ theorem waitOr_ne_admit (p : Params) (w : Nat) (y : Why) (t f : Nat) : ¬ waitOr
 
 theorem verdict_admit (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w t f : Nat)
     (h : verdict p n s hs q me w = .admit t f) :
-    aheadSame q me = 0 ∧ starved p s.time q me = false ∧ (prune s.time hs).length < n ∧
+    aheadSame q me = 0 ∧ starved p s.time hs q me = false ∧ (prune s.time hs).length < n ∧
       (me.kind == .sim && simHeld s.time hs) = false ∧
       need p s hs me.kind + p.floorMB + charged p s.time hs ≤ s.freeMB ∧ t = threadsFor p s hs ∧ f = need p s hs me.kind := by
   unfold verdict at h
@@ -464,7 +467,7 @@ theorem verdict_admit_sim_exclusive (p : Params) (n : Nat) (s : Sample) (hs q : 
 /-- Progress: the head of its kind, with no starved ticket ahead, below N, the Simulator free if it asks for it, and
 memory for its footprint, is admitted. -/
 theorem verdict_head_admitted (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w : Nat)
-    (h1 : aheadSame q me = 0) (h2 : starved p s.time q me = false) (h3 : (prune s.time hs).length < n)
+    (h1 : aheadSame q me = 0) (h2 : starved p s.time hs q me = false) (h3 : (prune s.time hs).length < n)
     (h4 : (me.kind == .sim && simHeld s.time hs) = false)
     (h5 : need p s hs me.kind + p.floorMB + charged p s.time hs ≤ s.freeMB) :
     verdict p n s hs q me w = .admit (threadsFor p s hs) (need p s hs me.kind) := by
@@ -472,6 +475,48 @@ theorem verdict_head_admitted (p : Params) (n : Nat) (s : Sample) (hs q : List E
   have h3' : ¬ n ≤ (prune s.time hs).length := by omega
   have h5' : ¬ s.freeMB < need p s hs me.kind + p.floorMB + charged p s.time hs := by omega
   simp [h1, h2, h3', h4, h5']
+
+theorem starved_iff (p : Params) (now : Nat) (hs q : List Entry) (me : Entry) :
+    starved p now hs q me = true ↔ ∃ e ∈ before q me, e.kind ≠ me.kind ∧ e.since + p.ageS ≤ now ∧
+      (e.kind = .sim → simHeld now hs = false) := by
+  simp [starved, Decidable.imp_iff_not_or, and_assoc]
+
+/-- A Simulator ticket ahead of `me` while the Simulator is held never makes `me` starved. -/
+theorem starved_skips_blocked_sim (p : Params) (now : Nat) (hs q : List Entry) (me e : Entry) (hk : e.kind = .sim)
+    (hb : simHeld now hs = true) (h : starved p now hs q me = true) :
+    ∃ e' ∈ before q me, e' ≠ e ∧ e'.kind ≠ me.kind ∧ e'.since + p.ageS ≤ now := by
+  obtain ⟨e', he', hk', ha', hn'⟩ := (starved_iff p now hs q me).1 h
+  refine ⟨e', he', ?_, hk', ha'⟩
+  rintro rfl
+  simp [hn' hk] at hb
+
+theorem waitOr_ne_older (p : Params) (w : Nat) (y : Why) (hy : y ≠ .older) :
+    waitOr p w y ≠ .wait .older ∧ waitOr p w y ≠ .timeout .older := by
+  unfold waitOr; split <;> simp [hy]
+
+/-- **No cross-kind stall**: while the Simulator is held, a ticket whose other-kind tickets ahead are all Simulator
+tickets never waits or times out as `older`. -/
+theorem verdict_not_older_of_sim_blocked (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry) (w : Nat)
+    (hb : simHeld s.time hs = true) (hq : ∀ e ∈ before q me, e.kind ≠ me.kind → e.kind = .sim) :
+    verdict p n s hs q me w ≠ .wait .older ∧ verdict p n s hs q me w ≠ .timeout .older := by
+  have hst : starved p s.time hs q me = false := by
+    cases h : starved p s.time hs q me
+    · rfl
+    · obtain ⟨e, he, hk, _, hn⟩ := (starved_iff p s.time hs q me).1 h
+      simp [hn (hq e he hk)] at hb
+  unfold verdict
+  simp only [hst]
+  split
+  · exact waitOr_ne_older _ _ _ (by simp)
+  split
+  · simp_all
+  split
+  · exact waitOr_ne_older _ _ _ (by simp)
+  split
+  · exact waitOr_ne_older _ _ _ (by simp)
+  split
+  · exact waitOr_ne_older _ _ _ (by simp)
+  simp
 
 theorem before_append_of_ne (pre post : List Entry) (a me : Entry) (hpre : ∀ e ∈ pre, e.token ≠ me.token)
     (ha : a.token ≠ me.token) : a ∈ before (pre ++ a :: post) me := by

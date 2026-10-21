@@ -97,15 +97,15 @@ export function before(q: Entry[], me: Entry): Entry[] {
 }
 
 export const aheadSame = (q: Entry[], me: Entry): number => before(q, me).filter((e) => e.kind === me.kind).length;
-export const starved = (p: Params, now: number, q: Entry[], me: Entry): boolean =>
-  before(q, me).some((e) => e.kind !== me.kind && e.since + p.ageS <= now);
 export const simHeld = (now: number, hs: Entry[]): boolean => prune(now, hs).some((h) => h.kind === "sim");
+export const starved = (p: Params, now: number, hs: Entry[], q: Entry[], me: Entry): boolean =>
+  before(q, me).some((e) => e.kind !== me.kind && e.since + p.ageS <= now && !(e.kind === "sim" && simHeld(now, hs)));
 
 export function verdict(p: Params, n: number, s: Sample, hs: Entry[], q: Entry[], me: Entry, waited: number): Verdict {
   const running = prune(s.time, hs).length;
   const ahead = aheadSame(q, me);
   if (ahead > 0) return waitOr(p, waited, { why: "queued", ahead });
-  if (starved(p, s.time, q, me)) return waitOr(p, waited, { why: "older" });
+  if (starved(p, s.time, hs, q, me)) return waitOr(p, waited, { why: "older" });
   if (n <= running) return waitOr(p, waited, { why: "full", running, limit: n });
   if (me.kind === "sim" && simHeld(s.time, hs)) return waitOr(p, waited, { why: "simBusy" });
   const needMB = need(p, s, hs, me.kind);

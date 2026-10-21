@@ -1,4 +1,5 @@
-import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,7 +8,9 @@ import {
   DEFAULT_PARAMS, type CacheKey, type Ctl, type Entry, type Params, type Sample,
   cacheHit, keyOf, leanThreads, prune, release, renew, signal, simAction, simBoot, step, stopAct, verdict,
 } from "../src/slot-core.ts";
-import { type Deps, type GitFacts, EXIT_REFUSED, SlotUsage, parseCompressorMB, parseFreePct, parseSwapUsedMB, slotCli } from "../src/slot.ts";
+import {
+  type Deps, type GitFacts, EXIT_REFUSED, SlotUsage, parseCompressorMB, parseFreePct, parseSwapUsedMB, recoverStale, slotCli, startOf,
+} from "../src/slot.ts";
 
 // Every vector is generated from Lean (lean/Fw/Sup/AdaptGolden.lean); the TS stand-in must give the same response.
 const golden = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "packages", "contracts", "golden", "sup", "adapt.jsonl");
@@ -109,6 +112,39 @@ describe("fw slot acquire, renew, release", () => {
     await expect(slotCli(["run", "--kind", "test"], d)).rejects.toThrow(SlotUsage);
     await expect(slotCli(["renew"], d)).rejects.toThrow(SlotUsage);
     await expect(slotCli(["acquire", "--kind", "test", "--wait", "soon"], d)).rejects.toThrow(SlotUsage);
+  });
+});
+
+describe("state lock recovery", () => {
+  const deadPid = (): number => spawnSync("true").pid ?? 0;
+  const lockWith = (dir: string, owner: object): string => {
+    const lock = join(dir, "state.lock");
+    mkdirSync(lock, { recursive: true });
+    writeFileSync(join(lock, "owner"), JSON.stringify(owner));
+    return lock;
+  };
+
+  it("a lock left by a dead owner is moved aside and removed, then the call proceeds", async () => {
+    const { d, state } = deps();
+    lockWith(d.dir, { pid: deadPid(), start: null });
+    expect(await slotCli(["acquire", "--kind", "test", "--lease", "60"], d)).toBe(0);
+    expect(state().holders).toHaveLength(1);
+    expect(readdirSync(d.dir).filter((f) => f.startsWith("state.lock"))).toEqual([]);
+  });
+
+  it("a lock that another waiter already recovered (ENOENT on rename) is left alone", () => {
+    const { d } = deps();
+    mkdirSync(d.dir, { recursive: true });
+    expect(() => recoverStale(join(d.dir, "state.lock"), { pid: deadPid(), start: null })).not.toThrow();
+    expect(readdirSync(d.dir)).toEqual([]);
+  });
+
+  it("a fresh lock taken after the dead owner was read is moved back, not deleted", () => {
+    const { d } = deps();
+    const lock = lockWith(d.dir, { pid: process.pid, start: startOf(process.pid) });
+    recoverStale(lock, { pid: deadPid(), start: null });
+    expect(existsSync(join(lock, "owner"))).toBe(true);
+    expect(readdirSync(d.dir)).toEqual(["state.lock"]);
   });
 });
 
