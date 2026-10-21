@@ -173,4 +173,28 @@ describe("fw ci state <run id> (review-flow-v2-followups: the gate agent reads r
     await expect(read("x1")).rejects.toThrow(UsageError);
     expect(seen.every((a) => a[0] === "run" && a[1] === "list")).toBe(true);
   });
+  it("a run older than the newest 100 is found by the longer list (MEASURED: 100 runs span about an hour)", async () => {
+    const calls: string[][] = [];
+    const all = Array.from({ length: 1000 }, (_, i) => ({ databaseId: 5000 - i, status: "completed", conclusion: i === 250 ? "success" : "failure" }));
+    const big: Gh = async (args) => { calls.push(args); return JSON.stringify(all.slice(0, Number(args[args.indexOf("--limit") + 1]))); };
+    const out: string[] = [];
+    expect(await ciState(String(5000 - 250), { gh: big, log: (l) => out.push(l) })).toBe(0);
+    expect(out).toEqual(["4750 complete"]);
+    expect(calls.map((a) => a[a.indexOf("--limit") + 1])).toEqual(["100", "400"]);
+    expect(calls.every((a) => a[0] === "run" && a[1] === "list")).toBe(true);
+  });
+  it("an id in none of the lists is unknown after the last limit; a short list stops at once; --branch and --workflow narrow", async () => {
+    const calls: string[][] = [];
+    const all = Array.from({ length: 1000 }, (_, i) => ({ databaseId: 9000 - i, status: "completed", conclusion: "success" }));
+    const big: Gh = async (args) => { calls.push(args); return JSON.stringify(all.slice(0, Number(args[args.indexOf("--limit") + 1]))); };
+    const out: string[] = [];
+    expect(await ciState("1", { gh: big, log: (l) => out.push(l), branch: "ci/x", workflow: "wktr" })).toBe(2);
+    expect(out).toEqual(["1 unknown"]);
+    expect(calls.map((a) => a[a.indexOf("--limit") + 1])).toEqual(["100", "400", "1000"]);
+    expect(calls[0]!.slice(0, 6)).toEqual(["run", "list", "--branch", "ci/x", "--workflow", "wktr"]);
+    calls.length = 0;
+    const small: Gh = async (args) => { calls.push(args); return JSON.stringify(all.slice(0, 7)); };
+    expect(await ciState("1", { gh: small, log: () => {} })).toBe(2);
+    expect(calls.length).toBe(1);
+  });
 });

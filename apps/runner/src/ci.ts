@@ -68,14 +68,26 @@ export function runStateWord(status: string, conclusion: string | null): "runnin
   return conclusion === "success" ? "complete" : "failed";
 }
 
-/** `fw ci state <run id>`: read one run by identity from `gh run list` (one list call, never `gh run view` or `gh api`). Prints `<id> <state>`; exit 0, or 2 when the id is not among the latest 100 runs. */
-export async function ciState(runId: string, d: { gh: Gh; log: (l: string) => void }): Promise<number> {
-  if (!/^[0-9]+$/.test(runId)) throw new UsageError("usage: fw ci state <run id>");
-  const rows = JSON.parse(await d.gh(["run", "list", "--limit", "100", "--json", "databaseId,status,conclusion"])) as { databaseId: number; status: string; conclusion: string | null }[];
-  const r = rows.find((x) => String(x.databaseId) === runId);
-  if (!r) { d.log(`${runId} unknown`); return 2; }
-  d.log(`${runId} ${runStateWord(r.status, r.conclusion)}`);
-  return 0;
+/** The list sizes `fw ci state` tries in turn: the newest 100 runs cover about an hour of a busy repository, so a run that
+ *  finished earlier needs a longer list (MEASURED 2026-10-21: 100 runs spanned 51 min; gh pages up to 1000 in one call). */
+export const STATE_LIMITS = [100, 400, 1000] as const;
+
+/** `fw ci state <run id> [--branch b] [--workflow w]`: read one run by identity from `gh run list` (list calls only, never `gh run view` or `gh api`).
+ *  The list grows (100, 400, 1000) until the id appears; `--branch` and `--workflow` narrow it so older runs are in reach.
+ *  Prints `<id> <state>`; exit 0, or 2 when the id is in none of the lists. TS stand-in: pure I/O plus one status word. */
+export async function ciState(runId: string, d: { gh: Gh; log: (l: string) => void; branch?: string; workflow?: string }): Promise<number> {
+  if (!/^[0-9]+$/.test(runId)) throw new UsageError("usage: fw ci state <run id> [--branch <b>] [--workflow <w>]");
+  const narrow = [...(d.branch ? ["--branch", d.branch] : []), ...(d.workflow ? ["--workflow", d.workflow] : [])];
+  let last = 0;
+  for (const limit of STATE_LIMITS) {
+    const rows = JSON.parse(await d.gh(["run", "list", ...narrow, "--limit", String(limit), "--json", "databaseId,status,conclusion"])) as { databaseId: number; status: string; conclusion: string | null }[];
+    const r = rows.find((x) => String(x.databaseId) === runId);
+    if (r) { d.log(`${runId} ${runStateWord(r.status, r.conclusion)}`); return 0; }
+    if (rows.length < limit || rows.length === last) break; // the list ended before the limit: a longer one adds nothing
+    last = rows.length;
+  }
+  d.log(`${runId} unknown`);
+  return 2;
 }
 
 /** The whole command. Exit code: 0 stored (or unchanged), 2 refused. */
@@ -126,6 +138,14 @@ export async function ciCli(argv: string[], cwd: string, env: Record<string, str
 }
 
 export async function ciStateCli(argv: string[], cwd: string): Promise<number> {
-  if (argv.length !== 1) throw new UsageError("usage: fw ci state <run id>");
-  return ciState(argv[0]!, { gh: chargedGh(realEnv(cwd)), log: (l) => console.log(l) });
+  const usage = "usage: fw ci state <run id> [--branch <b>] [--workflow <w>]";
+  const [id, ...rest] = argv;
+  if (!id) throw new UsageError(usage);
+  const o: { branch?: string; workflow?: string } = {};
+  for (let i = 0; i < rest.length; i += 2) {
+    const f = rest[i], v = rest[i + 1];
+    if ((f !== "--branch" && f !== "--workflow") || v === undefined || v.startsWith("--")) throw new UsageError(usage);
+    o[f === "--branch" ? "branch" : "workflow"] = v;
+  }
+  return ciState(id, { gh: chargedGh(realEnv(cwd)), log: (l) => console.log(l), ...o });
 }

@@ -14246,7 +14246,8 @@
     "apps/runner/test/ci.test.ts",
     "research/notes/2026/10-2x-macos-telemetry.md",
     "docs/team/handoffs/macos-telemetry.md"
-   ]
+   ],
+   "evidence": "16c3904"
   },
   {
    "devices": [
