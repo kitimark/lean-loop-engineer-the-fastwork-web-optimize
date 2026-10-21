@@ -1,9 +1,7 @@
 import Fw.Ops.Golden
 
-/-! Write (or with `--check`, verify) `packages/contracts/golden/ops/diskgc.jsonl`: one line per case,
-`{"name", "request", "response"}` for `ops.diskGc` and `ops.diskGcPath` (Fw.Ops.DiskGc), the reply being what `fwcore`
-answers (without the `id`). Consumer: `apps/runner/src/disk-gc.ts`; `apps/runner/test/disk-gc.test.ts` replays every
-line through the built `fwcore`. Run from `lean/`: `lake env lean --run scripts/DiskGcGolden.lean [--check]`. -/
+/-! Writes, or with `--check` verifies, `packages/contracts/golden/ops/diskgc.jsonl` (`ops.diskGc`, `ops.diskGcPath`).
+Run from `lean/`: `lake env lean --run scripts/DiskGcGolden.lean [--check]`. -/
 
 open Lean Fw.Wire.Ops.Golden
 

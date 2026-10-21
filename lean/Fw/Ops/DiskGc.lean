@@ -8,13 +8,7 @@ Six classes, each decided on its own over a closed allowlist of path shapes unde
 -/
 namespace Fw.Ops.DiskGc
 
-/-- The classes, in the order of the task:
-1. `lake`: Lake cache artifacts `Fw.Ops.LakeGc` lists.
-2. `landed`: a worktree whose branch is merged into main.
-3. `idle`: `node_modules` and `lean/.lake` of an unmerged worktree idle longer than `idleH`.
-4. `scratch`: a session scratchpad directory.
-5. `sim`: a Simulator device named `fw-*`.
-6. `console`: an entry of `.fw-console/tmp` or `.fw-console/land-logs`. -/
+/-- The six cleanup classes, numbered 1 to 6 in this order. -/
 inductive Cls where
   | lake
   | landed
@@ -71,56 +65,57 @@ structure Roots where
   devices : String
 deriving Repr
 
-/-- One candidate as the glue reads it: its class, its resolved absolute path, its bytes, its owner, whether git tracks
-it, the newest modification time it holds (seconds since the epoch), and whether it is a directory (lstat). The other
-fields are class facts:
-- `lake`: the Lake cache fact (class 1).
-- `branch`, `merged`, `dirty`, `lock`: of the worktree (classes 2 and 3); for class 3 `newest` is the newest time of the
-  worktree's files outside its rebuildable folders.
-- `device`: the device name and state (class 5).
-An absent fact keeps the candidate. -/
+/-- One candidate as the glue reads it; an absent class fact keeps it. -/
 structure Cand where
   cls : Cls
+  /-- The resolved absolute path. -/
   path : String
   bytes : Nat
+  /-- The owner's uid. -/
   uid : Nat
   tracked : Bool
+  /-- The newest modification time it holds (epoch seconds); for class 3, that of its worktree's other files. -/
   newest : Nat
+  /-- A directory (lstat, so not a symlink). -/
   dir : Bool
+  /-- The Lake cache fact (class 1). -/
   lake : Option LakeGc.Fact := none
+  /-- The worktree's branch (classes 2 and 3; empty when detached). -/
   branch : String := ""
+  /-- The branch is landed in main (classes 2 and 3). -/
   merged : Option Bool := none
+  /-- The worktree has uncommitted or untracked changes (classes 2 and 3). -/
   dirty : Option Bool := none
   lock : Lock := .free
+  /-- The device name and state (class 5). -/
   device : Option (String × String) := none
 deriving Repr
 
-/-- The run's inputs besides the candidates. `none` for a fact family means it was not gathered; every rule that needs
-it then keeps its candidates.
-- `classes`: the classes this run may delete.
-- `uid`: the user running it.
-- `idleH`, `scratchH`, `keepDays`: the age floors of classes 3, 4 and 6.
-- `lake`: the `Fw.Ops.LakeGc` config of class 1.
-- `opens`: every path a process holds open or has as its working directory.
-- `procs`: the process table, for worktree locks.
-- `queued`: the branches with a pending land.
-- `cited`: the `scratchpad/<dir>` strings committed files hold.
-- `named`: the `fw-*` names the workflows and packages hold.
-- `simLock`: whether the Simulator lock is held. -/
+/-- The run's inputs besides the candidates; a fact family that is `none` was not gathered and keeps what it guards. -/
 structure Config where
   roots : Roots
+  /-- The classes this run may delete. -/
   classes : List Cls
+  /-- The uid of the user running it. -/
   uid : Nat
   now : Nat
+  /-- The age floors of classes 3, 4 (hours) and 6 (days). -/
   idleH : Nat
   scratchH : Nat
   keepDays : Nat
+  /-- The `Fw.Ops.LakeGc` config of class 1. -/
   lake : Option LakeGc.Config
+  /-- Every path a process holds open or works in. -/
   opens : Option (List String)
+  /-- The process table, for worktree locks. -/
   procs : Option (List Proc)
+  /-- The branches with a pending land. -/
   queued : Option (List String)
+  /-- The `scratchpad/<dir>` strings committed files hold. -/
   cited : Option (List String)
+  /-- The `fw-*` names the workflows and packages hold. -/
   named : Option (List String)
+  /-- The Simulator lock is held. -/
   simLock : Option Bool
 deriving Repr
 
