@@ -33,8 +33,9 @@ row is skipped). No other field is read: run ids in `visual`, `mechanism`, `next
   `(hero.exit:faithful A/A)`, `A/A 3946...`, `3946...(A/A)`) leaves the row's flag.
 - A run marked anywhere in the row gets one citation per marker and none for the row's flag. An unmarked run is cited
   for the row's flag.
-- A row with no `flag` cites only its marked runs (with flag `""`, which no marker reads: `row_no_flag`); each other
-  run id is listed under `unflagged` (`row_no_flag_covers`). To check such a row, mark every run id in it, the row's
+- A row with no `flag` cites only its marked runs, with flag `""` (`row_no_flag`), which the A/A and sibling rules
+  ignore (`aa_ignores_flag`, `sibling_ignores_flag`); each other run id is listed under `unflagged`
+  (`row_no_flag_covers`). To check such a row, mark every run id in it, the row's
   own runs with ` (<part:variant>)`. A `flag` field is not the way: `Fw.Preset.Gen` reads `flag`, and a new one changes
   `packages/contracts/golden/preset/v2-proved.decisions.jsonl`.
 
