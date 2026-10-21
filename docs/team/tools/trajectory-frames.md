@@ -12,6 +12,8 @@ Head commit message of a `ci/*` push:
     [ci:trajectory-probe] [frames:nav:earn-no-transition]
     [trajectory engines=playwright-webkit widths=390,1280]
 
+A `[frames:` message is exempt from the verdict/diagnostic mark rule (Lean `Fw.Ci.Trigger.effLane`: a frames run is read by eye and never stored as a verdict run), so `widths=390,1280` needs no `diagnostic`; `trajectory-line.test.mjs` parses this very line.
+
 Wait with `pnpm -s fw ci wait --branch ci/<name> --workflow trajectory-probe --sha <sha>` (polls >= 120 s), read the artifacts with
 `pnpm fw ci <runId>` or `gh run download <runId>`.
 

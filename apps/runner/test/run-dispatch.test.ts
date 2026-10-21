@@ -89,6 +89,12 @@ describe("fw run --trajectory enforces the scope", () => {
     expect(r.code).toBe(0);
     expect(r.logs).toMatch(/trajectory diagnostic, widths 390,641, legs chromium 2, linux-webkit 2, mac-webkit 1/);
   });
+  it("sends the mark to the workflow as the diagnostic input, only for a diagnostic dispatch", async () => {
+    const dia = await run(["--trajectory", "--widths", "390,641", "--diagnostic", "--dry"]);
+    expect(dia.logs).toMatch(/trajectory-probe\.yml\s+inputs .*diagnostic=true/);
+    const ver = await run(["--trajectory", "--dry"]);
+    expect(ver.logs).not.toMatch(/diagnostic=/);
+  });
   it("accepts a verdict dispatch over all four widths, given or default", async () => {
     for (const argv of [["--trajectory", "--dry"], ["--trajectory", "--widths", "1280,641,640,390", "--dry"]]) {
       const r = await run(argv);
