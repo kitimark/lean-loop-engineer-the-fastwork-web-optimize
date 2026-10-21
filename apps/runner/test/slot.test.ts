@@ -7,8 +7,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   DEFAULT_PARAMS, type CacheKey, type Ctl, type Entry, type Params, type Sample,
   admitBuild, agentsSeen, cacheHit, expired, grant, heldOf, keyOf, leanThreads, leaseOr, prune, release, renew, signal, simAction, simBoot,
-  simDue, simIdleNext,
-  simQueued, step, stopAct, verdict, withLegacy,
+  simDue, simIdleNext, simQueued, step, stopAct, verdict, withLegacy,
 } from "../src/slot-core.ts";
 import {
   type Deps, type GitFacts, EXIT_REFUSED, SlotUsage, lastHealth, legacyLive, parseCompressorMB, parseFreePct, parseSwapUsedMB, recoverStale,

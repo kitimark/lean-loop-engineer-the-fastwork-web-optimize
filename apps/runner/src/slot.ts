@@ -8,8 +8,7 @@ import { basename, dirname, join } from "node:path";
 import {
   DEFAULT_PARAMS, type BuildVerdict, type CacheKey, type Ctl, type Entry, type Kind, type Params, type Sample, type Verdict,
   admitBuild, agentsSeen, cacheHit, cacheable, expired, grant, heldOf, init, keyOf, kindOf, leaseOr, prune, release, renew, signal,
-  simAction, simBoot,
-  simDue, simHeld, simIdleNext, simQueued, step, stopAct, verdict, withLegacy,
+  simAction, simBoot, simDue, simHeld, simIdleNext, simQueued, step, stopAct, verdict, withLegacy,
 } from "./slot-core.ts";
 
 export class SlotUsage extends Error {}
