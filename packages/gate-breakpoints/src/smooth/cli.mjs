@@ -2,6 +2,7 @@
 // smoothness-probe tables. Usage:
 //   node src/smooth/cli.mjs continuity --runs <dir> --out <dir>   motion continuity from downloaded trajectory-probe runs (part A)
 //   node src/smooth/cli.mjs run --widths 390,1280 --search ?preset=v2-proved --reps 6 --out <dir>   the cadence lane on one runner (part B)
+//   node src/smooth/cli.mjs webkit --width 390 --search ?fw=... --reps 6 --cadence-reps 5 --out <dir>   leg 1 of smoothness-webkit-cadence (WebKit on macOS)
 //   node src/smooth/cli.mjs cadence --runs <dir> --out <dir>      frame cadence from downloaded smoothness runs (part B)
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -36,6 +37,16 @@ if (cmd === 'continuity') {
   mkdirSync(out, { recursive: true });
   for (const w of widths) writeFileSync(join(out, `cadence-${w}.json`), `${JSON.stringify({ ...res, runs: res.runs.filter((r) => r.width === w), traces: res.traces.filter((r) => r.width === w) })}\n`);
   console.log(`cadence run: ${res.runs.length} windows, ${res.traces.length} traced, refused=${res.refused}`);
+  if (res.refused) process.exit(1);
+} else if (cmd === 'webkit') {
+  // Leg 1 of smoothness-webkit-cadence: Playwright WebKit on a macOS runner, all arms, the Timeline profile and the cadence.
+  const { runWebkitCadence } = await import('./webkit-cadence.mjs');
+  const out = flag('--out') ?? 'out/smoothness-webkit';
+  const res = await runWebkitCadence({ width: Number(flag('--width') ?? 390), lookSearch: flag('--search'), reps: Number(flag('--reps') ?? 6), cadenceReps: Number(flag('--cadence-reps') ?? 5) });
+  mkdirSync(out, { recursive: true });
+  const { writeRaws } = await import('../../../measure-webkit/src/profile/raw.mjs');
+  writeFileSync(join(out, 'mac.json'), `${JSON.stringify(writeRaws(out, 'mac', res))}\n`);
+  console.log(`webkit mac: ${res.rows.length} windows, refused=${res.refused}, ${res.wallSeconds} s`);
   if (res.refused) process.exit(1);
 } else if (cmd === 'cadence') {
   const { cadenceMain } = await import('./cadence-table.mjs');

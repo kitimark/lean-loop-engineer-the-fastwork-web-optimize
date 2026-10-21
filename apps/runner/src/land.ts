@@ -222,7 +222,9 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     "packages/contracts/golden/gate/**", "packages/contracts/golden/parts/**",
     // image-audit: the test compares the byte copy of arm.mjs that packages/measure-webkit keeps (visual-diff is a workspace
     // dependency, so workspaceDeps already reads packages/visual-diff/**)
-    "packages/measure-webkit/src/images/arm.mjs", "apps/site/src/flags/images/drawn.json"],
+    "packages/measure-webkit/src/images/arm.mjs", "apps/site/src/flags/images/drawn.json",
+    // smoothness-webkit-cadence: src/smooth/webkit-cadence.mjs imports the WebKit profile recorder, its Lean twin, the raw-window writer and the arm plan
+    "packages/measure-webkit/src/profile/recorder.mjs", "packages/measure-webkit/src/profile/reduce.mjs", "packages/measure-webkit/src/profile/raw.mjs", "packages/measure-webkit/src/device-arms.mjs"],
   "packages/premise-tests": ["packages/gate-breakpoints/src/align-equiv.mjs"],
   // preview-e2e: the rig starts console-api's server files (imported by file URL) and the preview servers over the snapshot
   "packages/e2e-preview": ["apps/console-api/src/**", "apps/console-api/package.json", "packages/contracts/src/**", "packages/contracts/package.json", "packages/contracts/golden/console/**", "snapshot/site/**"],
@@ -235,7 +237,10 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     // device-lag-recorder: device-arms.mjs resolves the arms' URLs from the site's presets and part files at record time
     "apps/site/src/registry/presets/**", "apps/site/src/parts/**",
     // webkit-lag-probe: test/lag-findings.test.mjs reads the note whose Findings it checks against the generated block
-    "research/notes/2026/10-21-webkit-lag-probe.md"],
+    "research/notes/2026/10-21-webkit-lag-probe.md",
+    // smoothness-webkit-cadence: the profile report classifies with fwcore, the sim leg reuses the Chromium lane's schedule, hitch rule and arm-identity check
+    "packages/measure-chromium/src/fwcore.mjs", "packages/gate-breakpoints/src/smooth/schedule.mjs", "packages/gate-breakpoints/src/smooth/reduce.mjs",
+    "packages/gate-breakpoints/src/trajectory/reduce.mjs"],
   "packages/snapshot-extract": ["packages/gate-breakpoints/src/**"],
   "packages/visual-diff": ["packages/gate-breakpoints/src/**", "apps/site/src/breakpoints.gen.json", "packages/contracts/golden/gate/**", "scripts/port/**", "packages/contracts/golden/port/**"],
 };
