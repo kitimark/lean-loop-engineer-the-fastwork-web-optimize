@@ -333,4 +333,18 @@ private def exDone : Row := { ex with review := .done }
 -- a flag whose key is a prefix of another is not confused with it
 #guard !inFamily ⟨"nav", "e"⟩ "review-nav:e-x"
 
+/-! ## Review rounds
+
+A review round is one review step of a flag (`stepId`, then `stepIdN`). What the user did in a round (opened a preview, decided)
+belongs to that round: a new round (a step posted again after the last was closed without a verdict) starts with none of it.
+A preview event names its round in its own key (`Fw.Console.ReviewPreview.roundOfKey`); the reader places it by that name, never
+by log position. A verdict is already per round, because a new step is posted only while no verdict is recorded
+(`needsPost_no_verdict`); a served strip records nothing. -/
+
+/-- **A verdict is per round.** A new step is posted only while no verdict is recorded, so a new round starts undecided. -/
+theorem needsPost_no_verdict (rs : List Rec) (f : Flag) (h : needsPost rs f = true) : recorded rs f = none := by
+  simp only [needsPost, Bool.and_eq_true, Option.isNone_iff_eq_none] at h
+  exact h.1
+
+
 end Fw.Console.Review

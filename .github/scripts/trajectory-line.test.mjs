@@ -2,10 +2,24 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { pushProbe } from './trajectory-line.mjs';
+import { appleRuns, pushProbe } from './trajectory-line.mjs';
 
 const lines = readFileSync(new URL('../../packages/contracts/golden/ci/triggers.jsonl', import.meta.url), 'utf8')
   .trim().split('\n').map((l) => JSON.parse(l)).filter((l) => l.kind === 'probe');
+
+const apple = readFileSync(new URL('../../packages/contracts/golden/ci/triggers.jsonl', import.meta.url), 'utf8')
+  .trim().split('\n').map((l) => JSON.parse(l)).filter((l) => l.kind === 'apple');
+
+test('appleRuns equals Lean on every golden line, and the golden has each branch', () => {
+  assert.ok(apple.length >= 40);
+  for (const l of apple) assert.equal(appleRuns(l.event, l.msg, l.appleN), l.run, `${l.event} ${JSON.stringify(l.msg)} n=${l.appleN}`);
+  const on = apple.filter((l) => l.run);
+  assert.ok(on.some((l) => l.event === 'workflow_dispatch'));
+  assert.ok(on.some((l) => l.event === 'push' && /\[frames:/i.test(l.msg)));
+  assert.ok(on.some((l) => l.event === 'push' && l.msg.includes('debug=nav-transition')));
+  assert.ok(apple.some((l) => l.event === 'push' && l.appleN === 2 && !l.run));
+  assert.ok(apple.every((l) => l.appleN !== 0 || !l.run));
+});
 
 test('the golden has probe cases of every decision', () => {
   assert.ok(lines.length >= 50);
@@ -20,7 +34,9 @@ test('the workflow carries the debug key from the commit line to the probe steps
   const wf = readFileSync(new URL('../workflows/trajectory-probe.yml', import.meta.url), 'utf8');
   assert.match(wf, /debug: \$\{\{ steps\.p\.outputs\.debug \}\}/);
   assert.equal((wf.match(/FW_DEBUG: \$\{\{ needs\.site\.outputs\.debug \}\}/g) ?? []).length, 2); // probe and probe-apple
-  assert.match(wf, /if: \$\{\{ \(github\.event_name == 'workflow_dispatch' \|\| \(github\.event_name == 'push' && contains\(github\.event\.head_commit\.message, '\[frames:'\)\) \|\| needs\.site\.outputs\.debug != ''\) && needs\.site\.outputs\.apple_n != '0' \}\}/);
+  assert.match(wf, /apple_run: \$\{\{ steps\.p\.outputs\.apple_run \}\}/);
+  assert.match(wf, /probe-apple:\n    needs: \[site\]\n    if: \$\{\{ needs\.site\.outputs\.apple_run == 'true' \}\}/); // the rule is Lean's appleRuns, not the `if:`
+  assert.match(wf, /node \.github\/scripts\/trajectory-line\.mjs apple/);
   assert.equal(existsSync(new URL('../../packages/gate-breakpoints/src/trajectory/debug.requests.json', import.meta.url)), false);
 });
 

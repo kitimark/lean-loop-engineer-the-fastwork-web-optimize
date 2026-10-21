@@ -185,7 +185,7 @@ final list. -/
 def checkShReads : List String :=
   ["lean/**", "packages/contracts/golden/**", "apps/site/src/breakpoints.gen.json",
     "apps/site/src/sweeps.gen.json", "apps/site/src/head.gen.json", "packages/gate-breakpoints/src/scope.gen.json", ".github/workflows/**",
-    "scripts/span.sh", "scripts/fwcore-build.sh", "scripts/lake-slot.sh", "scripts/lake-slot-lib.sh", "docs/team/incidents/ledger.json", "research/findings/ledger.json",
+    "scripts/span.sh", "scripts/fwcore-build.sh", "scripts/fwcore-record-rule.sh", "scripts/lake-slot.sh", "scripts/lake-slot-lib.sh", "scripts/heavy-lock.mjs", "docs/team/incidents/ledger.json", "research/findings/ledger.json",
     "apps/site/src/parts/**", "apps/site/src/registry/presets/v2-proved.json",
     "packages/measure-chromium/scenarios.gen.json"]
 
@@ -214,7 +214,7 @@ def sampleDecls : List Decl :=
 theorem parseScope_checkShReads : parseScope checkShReads =
     ⟨[["lean", "**"], ["packages", "contracts", "golden", "**"], ["apps", "site", "src", "breakpoints.gen.json"],
       ["apps", "site", "src", "sweeps.gen.json"], ["apps", "site", "src", "head.gen.json"], ["packages", "gate-breakpoints", "src", "scope.gen.json"],
-      [".github", "workflows", "**"], ["scripts", "span.sh"], ["scripts", "fwcore-build.sh"], ["scripts", "lake-slot.sh"], ["scripts", "lake-slot-lib.sh"],
+      [".github", "workflows", "**"], ["scripts", "span.sh"], ["scripts", "fwcore-build.sh"], ["scripts", "fwcore-record-rule.sh"], ["scripts", "lake-slot.sh"], ["scripts", "lake-slot-lib.sh"], ["scripts", "heavy-lock.mjs"],
       ["docs", "team", "incidents", "ledger.json"],
       ["research", "findings", "ledger.json"], ["apps", "site", "src", "parts", "**"],
       ["apps", "site", "src", "registry", "presets", "v2-proved.json"],
@@ -335,7 +335,7 @@ def scanDecls : List Decl := withScan (sampleDecls ++ [⟨"site", ["apps/site/**
 def fwcoreBin : String := "lean/.lake/build/bin/fwcore"
 
 /-- The tracked paths the binary's bytes depend on; the build slot's files are left out (premise `land.binaryOfLean`). -/
-def fwcoreBuildReads : List String := ["lean/**", "scripts/fwcore-build.sh"]
+def fwcoreBuildReads : List String := ["lean/**", "scripts/fwcore-build.sh", "scripts/fwcore-record-rule.sh"]
 
 /-- Two binary digests (`none`: unknown) that do not show one binary. -/
 def digestDiffers : Option String → Option String → Bool
@@ -429,12 +429,15 @@ theorem leanFw_inScope : inScope (parseScope fwcoreBuildReads) "lean/Fw.lean" = 
     simp (config := {decide := true}) [segs, String.splitOn, String.splitOnAux]
   have hs : segs "scripts/fwcore-build.sh" = ["scripts", "fwcore-build.sh"] := by
     simp (config := {decide := true}) [segs, String.splitOn, String.splitOnAux]
+  have hr : segs "scripts/fwcore-record-rule.sh" = ["scripts", "fwcore-record-rule.sh"] := by
+    simp (config := {decide := true}) [segs, String.splitOn, String.splitOnAux]
   have h1 : "lean/**".startsWith "!" = false := by simp
   have h2 : "scripts/fwcore-build.sh".startsWith "!" = false := by simp
+  have h3 : "scripts/fwcore-record-rule.sh".startsWith "!" = false := by simp
   have hm : matchesPath ["lean", "**"] ["lean", "Fw.lean"] = true := by
     simp only [matchesPath, List.any_eq_true, List.mem_range]
     exact ⟨1, by decide, by simp [globMatch, segMatch_lit]⟩
-  simp [inScope, parseScope, fwcoreBuildReads, h1, h2, hp, hg, hs, hm]
+  simp [inScope, parseScope, fwcoreBuildReads, h1, h2, h3, hp, hg, hs, hr, hm]
 
 /-- A build that copies one Lean source into the binary. -/
 def copyBuild : St → Blob := fun σ => σ "lean/Fw.lean"
@@ -458,9 +461,12 @@ example : (fun σ : St => σ fwcoreBin) (fun p => if p = fwcoreBin ∨ p = "lean
     simp (config := {decide := true}) [segs, String.splitOn, String.splitOnAux]
   have hs : segs "scripts/fwcore-build.sh" = ["scripts", "fwcore-build.sh"] := by
     simp (config := {decide := true}) [segs, String.splitOn, String.splitOnAux]
+  have hr : segs "scripts/fwcore-record-rule.sh" = ["scripts", "fwcore-record-rule.sh"] := by
+    simp (config := {decide := true}) [segs, String.splitOn, String.splitOnAux]
   have h0 : fwcoreBin.startsWith "!" = false := by simp [fwcoreBin]
   have h1 : "lean/**".startsWith "!" = false := by simp
   have h2 : "scripts/fwcore-build.sh".startsWith "!" = false := by simp
+  have h3 : "scripts/fwcore-record-rule.sh".startsWith "!" = false := by simp
   have hrw : ReadsWithin (fun σ : St => σ fwcoreBin) [fwcoreBin] := fun σ σ' h => h fwcoreBin (by
     have hm : matchesPath (segs fwcoreBin) (segs fwcoreBin) = true := by
       rw [hb]; simp only [matchesPath, List.any_eq_true, List.mem_range]
@@ -470,7 +476,7 @@ example : (fun σ : St => σ fwcoreBin) (fun p => if p = fwcoreBin ∨ p = "lean
   refine (fwcore_nobuild_skip (fun σ : St => σ fwcoreBin) [fwcoreBin] ["docs/x.md"] hrw none none ?_ ?_ copyBuild
     copyBuild_binaryOfBuildReads _ _ (by decide) (by decide) ?_).2
   · simp [selected, inScope, parseScope, h0, hb, hx, matchesPath, globMatch, segMatch]
-  · simp [selected, inScope, parseScope, fwcoreBuildReads, h1, h2, hg, hs, hx, matchesPath, globMatch, segMatch]
+  · simp [selected, inScope, parseScope, fwcoreBuildReads, h1, h2, h3, hg, hs, hr, hx, matchesPath, globMatch, segMatch]
   · intro p hp _
     simp only [List.mem_singleton] at hp
     simp [hp]

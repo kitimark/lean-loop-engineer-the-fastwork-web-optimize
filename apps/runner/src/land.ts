@@ -168,7 +168,7 @@ export const selectChecks = (ds: { id: string; reads: string[] }[], changed: str
   ds.filter((d) => changed.some((c) => inScope(d.reads, c))).map((d) => d.id);
 
 /** What `lean/scripts/check.sh` reads: Lean `Fw.Console.LandSpeed.checkShReads` (equal to the golden's declaration). */
-export const CHECK_SH_READS = ["lean/**", "packages/contracts/golden/**", "apps/site/src/breakpoints.gen.json", "apps/site/src/sweeps.gen.json", "apps/site/src/head.gen.json", "packages/gate-breakpoints/src/scope.gen.json", ".github/workflows/**", "scripts/span.sh", "scripts/fwcore-build.sh", "scripts/lake-slot.sh", "scripts/lake-slot-lib.sh", "docs/team/incidents/ledger.json",
+export const CHECK_SH_READS = ["lean/**", "packages/contracts/golden/**", "apps/site/src/breakpoints.gen.json", "apps/site/src/sweeps.gen.json", "apps/site/src/head.gen.json", "packages/gate-breakpoints/src/scope.gen.json", ".github/workflows/**", "scripts/span.sh", "scripts/fwcore-build.sh", "scripts/fwcore-record-rule.sh", "scripts/lake-slot.sh", "scripts/lake-slot-lib.sh", "scripts/heavy-lock.mjs", "docs/team/incidents/ledger.json",
   "research/findings/ledger.json", "apps/site/src/parts/**", "apps/site/src/registry/presets/v2-proved.json", "packages/measure-chromium/scenarios.gen.json"];
 export const INSTALL_READS = ["pnpm-lock.yaml", "**/package.json"];
 /** apps/site reads of snapshot assets, derived from the one source apps/site/assets.manifest.json (listed <=> copied <=> read). */
@@ -212,7 +212,7 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
   "packages/measure-wktr": ["packages/measure-chromium/src/fwcore.mjs", "packages/measure-webkit/src/page.mjs", "packages/measure-webkit/src/serve.mjs"],
   "packages/measure-chromium": ["lean/Fw/Store/Layout.lean", "lean/Fw/Faithful/Measured.lean", "packages/contracts/golden/measure/**", "packages/contracts/golden/faithful/**", "packages/contracts/golden/parts/stage-mode.jsonl", ".github/workflows/chromium-counts.yml", "results/baselines/chromium/**"],
   "packages/gate-breakpoints": ["lean/**", "packages/measure-webkit/src/device.mjs", "scripts/sim-lock.sh", "apps/site/src/breakpoints.gen.json", "apps/site/src/parts/**",
-    "packages/contracts/golden/gate/**",
+    "packages/contracts/golden/gate/**", "packages/contracts/golden/parts/**",
     // image-audit: the test compares the byte copy of arm.mjs that packages/measure-webkit keeps (visual-diff is a workspace
     // dependency, so workspaceDeps already reads packages/visual-diff/**)
     "packages/measure-webkit/src/images/arm.mjs", "apps/site/src/flags/images/drawn.json"],
@@ -249,7 +249,7 @@ export const FWCORE_USERS = ["apps/console-api", "apps/runner", "packages/diffte
 /** Lean `fwcoreBin`: the stripped binary as a declared read. */
 export const FWCORE_BIN = "lean/.lake/build/bin/fwcore";
 /** Lean `fwcoreBuildReads`. */
-export const FWCORE_BUILD_READS = ["lean/**", "scripts/fwcore-build.sh"];
+export const FWCORE_BUILD_READS = ["lean/**", "scripts/fwcore-build.sh", "scripts/fwcore-record-rule.sh"];
 /** sha256 hex of a binary, or null when unknown. */
 export type Digest = string | null;
 /** Lean `binMoved`, checked against the `landSpeed.select2` golden. */
@@ -436,26 +436,41 @@ const digestFile = (mainDir: string, commit: string) =>
 export function storedDigest(mainDir: string, commit: string): Digest {
   try { const d = readFileSync(digestFile(mainDir, commit), "utf8").trim(); if (HEX64.test(d)) return d; } catch { /* none stored */ }
   try {
-    const [c, h] = readFileSync(join(mainDir, `${FWCORE_BIN}.commit`), "utf8").trim().split(" ");
-    if (c === commit && h !== undefined && HEX64.test(h) && binDigest(mainDir) === h) return h;
+    const r = parseBuildRecord(readFileSync(join(mainDir, `${FWCORE_BIN}.commit`), "utf8"));
+    if (r && binDigest(mainDir) === r.hash) {
+      if (r.kind === "commit" ? r.id === commit : git(mainDir, ["rev-parse", `${commit}^{tree}`]) === r.id) return r.hash;
+    }
   } catch { /* no record */ }
   return null;
 }
+/** The build record (`fwcore.commit`): `tree <tree id> <sha256>` (scripts/fwcore-build.sh) or the legacy `<commit> <sha256>`. */
+export function parseBuildRecord(text: string): { kind: "tree" | "commit"; id: string; hash: string } | null {
+  const f = text.trim().split(/\s+/);
+  if (f[0] === "tree" && f.length === 3 && f[1] && HEX64.test(f[2] ?? "")) return { kind: "tree", id: f[1], hash: f[2] as string };
+  if (f.length === 2 && f[0] && f[0] !== "tree" && HEX64.test(f[1] ?? "")) return { kind: "commit", id: f[0], hash: f[1] as string };
+  return null;
+}
 /** The land preflight (task land-queue-why): the reason to refuse early, or null. Facts only; Lean `fwcoreStale` decides. The installed binary is
- *  the main checkout's; its record (`fwcore.commit`) names the commit it was built from, and counts only when the binary's sha256 is the recorded one.
+ *  the main checkout's; its record (`fwcore.commit`) names the commit or tree it was built from, and counts only when the binary's sha256 is the recorded one.
  *  A tree without `scripts/fwcore-build.sh` has no binary to be stale. */
 export function fwcorePreflight(mainDir: string, main: string): string | null {
   if (!tryGit(mainDir, ["cat-file", "-e", `${main}:scripts/fwcore-build.sh`])) return null;
   let recorded: string | null = null;
   try {
-    const [c, h] = readFileSync(join(mainDir, `${FWCORE_BIN}.commit`), "utf8").trim().split(" ");
-    if (c && h !== undefined && HEX64.test(h) && binDigest(mainDir) === h) recorded = c;
+    const r = parseBuildRecord(readFileSync(join(mainDir, `${FWCORE_BIN}.commit`), "utf8"));
+    if (r && binDigest(mainDir) === r.hash) {
+      if (r.kind === "commit") recorded = r.id;
+      else { // a tree record names the newest first-parent commit of main with that tree; none: the record is unknown
+        const hit = git(mainDir, ["log", "--first-parent", "-n", "1000", "--format=%H %T", main]).split("\n").find((l) => l.endsWith(` ${r.id}`));
+        if (hit) recorded = hit.split(" ")[0] ?? null;
+      }
+    }
   } catch { /* no record */ }
   const head = git(mainDir, ["rev-parse", main]);
   const same = recorded === head;
   let moved = true; // an unknown commit counts as moved
   if (recorded !== null && !same) {
-    try { moved = git(mainDir, ["diff", "--name-only", recorded, main, "--", "lean", "scripts/fwcore-build.sh"]) !== ""; } catch { moved = true; }
+    try { moved = git(mainDir, ["diff", "--name-only", recorded, main, "--", "lean", "scripts/fwcore-build.sh", "scripts/fwcore-record-rule.sh"]) !== ""; } catch { moved = true; }
   }
   return fwcoreStale(recorded, same, moved) ? FWCORE_STALE_REASON : null;
 }
@@ -464,7 +479,7 @@ export function storeDigest(mainDir: string, commit: string, d: string): void {
 }
 /** `lean/` and the build script of `dir` equal its HEAD and `lean/` holds no untracked file. */
 export function buildClean(dir: string): boolean {
-  if (!tryGit(dir, ["diff", "--quiet", "HEAD", "--", "lean", "scripts/fwcore-build.sh"])) return false;
+  if (!tryGit(dir, ["diff", "--quiet", "HEAD", "--", "lean", "scripts/fwcore-build.sh", "scripts/fwcore-record-rule.sh"])) return false;
   try { return git(dir, ["ls-files", "--others", "--exclude-standard", "--", "lean"]) === ""; } catch { return false; }
 }
 
@@ -909,6 +924,10 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       try { marks = git(mainDir, ["grep", "-n", "-E", MARKER_RE]); } catch { /* exit 1: no match */ }
       if (marks) return abort(`conflict markers after the merge:\n${marks.split("\n").slice(0, 10).join("\n")}`, "conflict");
       lines.push("no conflict markers");
+      // the evidence goes in before the checks: the checked and fwcore-recorded tree is the committed tree
+      const ev = writeEvidence(mainDir, o.task, sha.slice(0, 7));
+      if (ev === "failed") return abort("could not write the evidence into docs/team/work-graph.json");
+      if (ev === "written") lines.push(`evidence ${sha.slice(0, 7)} written into docs/team/work-graph.json (in the merge commit)`);
       const bad = await runChecks(mainDir, checks);
       if (bad) return abort(bad, badKind);
       let e: string | null;
@@ -919,10 +938,6 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
         throw x;
       }
       if (e) return abort(e);
-      // the task's evidence goes into the merge commit itself, next to the Task: trailer (a commit of the branch, so on main)
-      const ev = writeEvidence(mainDir, o.task, sha.slice(0, 7));
-      if (ev === "failed") return abort("could not write the evidence into docs/team/work-graph.json");
-      if (ev === "written") lines.push(`evidence ${sha.slice(0, 7)} written into docs/team/work-graph.json (in the merge commit)`);
       // commit only into the merge the land opened (Lean: landTip): no lock, no MERGE_HEAD or a moved HEAD means someone
       // else touched main; then nothing is committed and nothing is reset
       const d = facts();

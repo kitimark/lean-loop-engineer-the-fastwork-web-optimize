@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
 import {
-  carryCritical, collectAgents, collectCritical, collectSystem, exe, findTranscripts, keepNames, ownProcs, parseStartRows, parseTaskIds, readKeep, parseCi, parseEtime, parsePs, sessionProcs, parseDocker, parseMemLevel, parseSpool, parseWorktreeCount, pathsFor,
+  carryCritical, collectAgents, collectCritical, collectSystem, countBuilders, countHeavy, exe, findTranscripts, keepNames, ownProcs, parseStartRows, parseTaskIds, readKeep, parseCi, parseEtime, parsePs, sessionProcs, parseDocker, parseMemLevel, parseSpool, parseWorktreeCount, pathsFor,
   summarizeLead, summarizeSpool, summarizeTranscript, type Runner, type SystemSnap,
 } from "../src/watch-collect.ts";
 import {
@@ -211,6 +211,24 @@ describe("system parsers", () => {
       + '{"workflowName":"ci","headBranch":"c","status":"in_progress","conclusion":"","createdAt":"2026-10-17T10:00:00Z","updatedAt":"2026-10-17T10:05:00Z"}]').map((r) => r.endedAt))
       .toEqual([T0 + 25 * 60000, null]);
     expect(parseCi("nope")).toEqual([]);
+  });
+});
+
+describe("sys.contended counts", () => {
+  it("counts lake processes and live heavy-lock holders", () => {
+    const rows = parsePs("10 1 00:05 /Users/x/.elan/bin/lake\n11 10 00:05 /bin/zsh\n12 1 00:05 /Users/x/.elan/bin/lake\n13 1 00:05 node");
+    expect(countBuilders(rows)).toBe(2);
+    const root = mkdtempSync(join(tmpdir(), "fw-heavy-"));
+    const starts = [{ pid: 13, start: 1000, args: "node" }, { pid: 14, start: 2000, args: "node" }];
+    expect(countHeavy(root, starts)).toBe(0);
+    mkdirSync(join(root, ".git", "fw-heavy", "holders"), { recursive: true });
+    const put = (pid: number, start: number) => writeFileSync(join(root, ".git", "fw-heavy", "holders", `${pid}.json`), JSON.stringify({ pid, start, kind: "check" }));
+    put(13, 1000); // alive, same start: a holder
+    put(14, 1999); // pid reused (another start time): stale, as Lean Fw.Sched.Heavy.reused_pid_stale
+    put(99, 5);   // no such process
+    writeFileSync(join(root, ".git", "fw-heavy", "holders", "bad.json"), "{");
+    expect(countHeavy(root, starts)).toBe(1);
+    rmSync(root, { recursive: true, force: true });
   });
 });
 
