@@ -122,7 +122,7 @@ export const startRecorderJs = (seconds) =>
 
 export const recorderSeconds = (acts) => Math.ceil(actsMs(acts) / 1000) + 8;
 
-export async function replayPass({ wd, caps, url, profile, lim = LIM, settleMs = 6000, pollMs = 2500, session = null, log = () => {}, sleep = sleepMs, prepare = null }) {
+export async function replayPass({ wd, caps, url, profile, lim = LIM, settleMs = 6000, pollMs = 2500, session = null, log = () => {}, sleep = sleepMs, prepare = null, now = () => performance.now() }) {
   const acts = compile(profile);
   if (acts.length === 0) throw new Error(`profile ${profile.id} compiles to no actions`);
   const fresh = session === null || profile.load === 'cold';
@@ -136,9 +136,13 @@ export async function replayPass({ wd, caps, url, profile, lim = LIM, settleMs =
     await wd.execute(sid, `${startRecorderJs(seconds)}; return 'started'`);
     log(`replaying ${profile.id}: ${acts.length} actions, ${(actsMs(acts) / 1000).toFixed(1)} s, recorder ${seconds} s`);
     const ps = pieces(profile);
+    const pieceMs = [];
     for (const [i, pc] of ps.entries()) {
       try {
+        const t0 = now();
         await wd.perform(sid, w3c(pc));
+        const took = Math.round(now() - t0), planned = actsMs(pc);
+        pieceMs.push({ planned, took, lag: took - planned });
         await wd.release(sid).catch((e) => { if (e instanceof WdTimeout) throw e; });
       } catch (e) {
         if (e instanceof WdTimeout) throw new ReplayStall({ profile: profile.id, piece: i, pieces: ps.length, call: e.call, timeoutMs: e.timeoutMs });
@@ -153,7 +157,7 @@ export async function replayPass({ wd, caps, url, profile, lim = LIM, settleMs =
       if (v) rec = JSON.parse(v);
     }
     if (rec === null || rec.err) throw new Error(`recording did not finish: ${rec?.err ?? 'timeout'}`);
-    return { sid, ...checkRecord({ rec, profile, lim }) };
+    return { sid, pieceMs, ...checkRecord({ rec, profile, lim }) };
   } finally {
     if (fresh) await wd.quit(sid).catch((e) => log(`quit: ${e.message}`));
   }
@@ -208,8 +212,8 @@ export async function runSession({ wd, caps, arms, base, kinds, reps, gen, lim =
         log(`${run.kind} rep ${run.rep} arm ${arms[ai].name}: ${e.message}; swipes seen unknown (the session no longer answers)`);
         continue;
       }
-      passes.push({ kind: run.kind, rep: run.rep, arm: arms[ai].name, profile: profile.id, matches: r.matches, perSwipe: r.perSwipe, report: r.report, swipes: r.rep.length });
-      log(`${run.kind} rep ${run.rep} arm ${arms[ai].name}: replayMatches ${r.matches}, ${r.rep.length} of ${profile.swipes.length} swipes seen, total over34 ${r.report.total.over34}/${r.report.total.n}`);
+      passes.push({ kind: run.kind, rep: run.rep, arm: arms[ai].name, profile: profile.id, matches: r.matches, perSwipe: r.perSwipe, report: r.report, swipes: r.rep.length, pieceMs: r.pieceMs });
+      log(`${run.kind} rep ${run.rep} arm ${arms[ai].name}: replayMatches ${r.matches}, ${r.rep.length} of ${profile.swipes.length} swipes seen, total over34 ${r.report.total.over34}/${r.report.total.n}, piece lag ms ${r.pieceMs.map((p) => p.lag).join('/')}`);
     }
   }
   return { passes };

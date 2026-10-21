@@ -127,6 +127,17 @@ test('a pass is sent piece by piece, the pieces joined are the compiled actions'
   assert.deepEqual(cap.payloads.flatMap((p) => p.actions[0].actions), R.w3c(R.compile(profile)).actions[0].actions);
 });
 
+test('the lag of each piece is the time its call took minus the planned duration of the piece', async () => {
+  let t = 0;
+  const wd = doubleWd({});
+  const perform = wd.perform;
+  wd.perform = async (sid, payload) => { t += 40; return perform(sid, payload); };
+  const r = await replayPass({ wd, caps: {}, url: 'http://x.invalid/', profile, sleep: noSleep, settleMs: 0, pollMs: 0, now: () => t });
+  const ps = R.pieces(profile);
+  assert.equal(r.pieceMs.length, ps.length);
+  r.pieceMs.forEach((m, i) => assert.deepEqual(m, { planned: R.actsMs(ps[i]), took: 40, lag: 40 - R.actsMs(ps[i]) }));
+});
+
 test('a call that does not answer is the named error wd-timeout; a stalled piece is replay-stall naming the piece, and the session is quit', async () => {
   const srv = http.createServer((req) => { if (!(req.url.endsWith('/actions') && req.method === 'POST')) req.resume(); });
   await new Promise((ok) => srv.listen(0, '127.0.0.1', ok));

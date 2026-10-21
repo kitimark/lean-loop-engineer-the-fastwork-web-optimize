@@ -109,14 +109,20 @@ Simulator has no display attach; not testable here). This matches the lead's pho
 prove the phone's cause: the phone pilot also had the Safari first-run tip. The tip did not reproduce on the Simulator (screenshots show
 the Start Page and the page, even with the TipKit store moved away), so `HideAllTips` is INFERRED to suppress it, not verified.
 
-MEASURED, replay-ios-fix harness, iOS 26.5 Simulator, one local debug run in the sim slot (harness check, not a result of record): committed
-fixture `user-fixture` (5 swipes) scaled into the page, 2 arms (original, rewrite) x 1 rep, kind `recorded`, one `/actions` call per swipe
-(pieces):
+MEASURED, replay-ios-fix harness, iOS 26.5 Simulator, two local debug runs in the sim slot (run 2 after adding the lag field; harness
+checks, not results of record): committed fixture `user-fixture` (5 swipes) scaled into the page, 2 arms (original, rewrite) x 1 rep each
+run, kind `recorded`, one `/actions` call per swipe (pieces):
 
-| arm | replayMatches | swipes seen of 5 | stalled | frames over 34 ms |
-| --- | --- | --- | --- | --- |
-| original | false | 1 | no | 11 of 12 |
-| rewrite | false | 1 | no | 13 of 98 |
+| run | arm | replayMatches | swipes seen of 5 | stalled | frames over 34 ms | dispatch lag per piece (ms) |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | original | false | 1 | no | 11 of 12 | not recorded |
+| 1 | rewrite | false | 1 | no | 13 of 98 | not recorded |
+| 2 | original | false | 1 | no | 35 of 116 | 260, 253, 202, 403, 240 |
+| 2 | rewrite | false | 1 | no | 12 of 63 | 275, 248, 175, 186, 161 |
+
+Dispatch lag of a piece is the wall time of its `/actions` call minus the planned duration of the piece (`pieceMs` in run.json, taken with
+`performance.now()` around `perform` on this Mac). The lag is the call overhead (HID setup, completion marker, HTTP) on a Simulator with
+no display, 161 to 403 ms per piece of 1.3 s planned; it is not phone time.
 
 Every piece answered within its limit and the session quit cleanly. That differs from the probes, where the calls after a scrolling swipe
 timed out; why is UNKNOWN (the harness page is the real site, the probe page a tall test page; the pieces also carry the 16 ms ticks of the

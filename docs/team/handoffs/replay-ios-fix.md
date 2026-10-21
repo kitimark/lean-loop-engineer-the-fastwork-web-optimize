@@ -11,8 +11,8 @@ Done
   `prepareSimulator` (TipKit HideAllTips + Safari terminate), CLI `--sim <udid>`.
 - Source reading and Simulator measurement: `research/notes/2026/10-2x-device-replay.md`; usage: `docs/team/tools/device-replay.md`.
 
-Verified: tests above; one local debug run on iOS 26.5 Simulator (original and rewrite, 1 rep): replayMatches false, 1 of 5 swipes seen,
-no stall.
+Verified: tests above; two local debug runs on iOS 26.5 Simulator (original and rewrite, 1 rep each): replayMatches false, 1 of 5 swipes
+seen, no stall; dispatch lag per piece (`pieceMs`) 161 to 403 ms.
 
 Open
 - Phone session (lead books): dismiss the Safari first-run tip first; run `run --kinds recorded`; a stall now ends as `replay-stall`.

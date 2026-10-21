@@ -29,7 +29,7 @@ Pieces and time limits: a profile is sent as one `/actions` call per swipe (`pie
 `pieces`), then a `release`. Every WebDriver call has its own limit (`CALL_MS`; a piece gets `pieceTimeoutMs = 2 x duration + 10 s`, Lean
 `pieceTimeoutMs`). A call that does not answer ends the pass with the named error `replay-stall` ("replay of X stalled at piece N of M:
 CALL did not answer within T ms", fields profile, piece, pieces, call, timeoutMs; other calls: `wd-timeout`). The CLI prints
-`error [code]: message`, exits 3, and records a stalled pass in run.json as `matches:false, swipes:null, stalled:{...}` before it goes on.
+`error [code]: message`, exits 3, each pass keeps `pieceMs` (`planned`, `took`, `lag` per piece; dispatch lag = call time minus planned), and records a stalled pass in run.json as `matches:false, swipes:null, stalled:{...}` before it goes on.
 
 iOS Simulator (`--sim <udid>`): sets the capabilities `safari:useSimulator` and `safari:deviceUDID` and, before each fresh session, runs
 `prepareSimulator` (`simctl spawn defaults write com.apple.mobilesafari com.apple.TipKit.HideAllTips -bool true`, then `simctl terminate`
