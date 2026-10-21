@@ -21,6 +21,296 @@
    ],
    "zones": {
     "hero": {
+     "pool": {
+      "orig": {
+       "reps": 12,
+       "frames": 72,
+       "perFrame": 42229,
+       "perFrameAll": [
+        73989,
+        50857,
+        52120,
+        42229,
+        43219,
+        44048,
+        29330,
+        28788,
+        26012,
+        28746,
+        26574,
+        26218
+       ],
+       "work": 299832,
+       "span": 682900,
+       "share": 426,
+       "kinds": {
+        "RecalculateStyles": {
+         "n": 202,
+         "dur": 42161
+        },
+        "Layout": {
+         "n": 147,
+         "dur": 249118
+        },
+        "Paint": {
+         "n": 433,
+         "dur": 9601
+        },
+        "Composite": {
+         "n": 72,
+         "dur": 0
+        },
+        "FunctionCall": {
+         "n": 409,
+         "dur": 219421
+        },
+        "EvaluateScript": {
+         "n": 0,
+         "dur": 0
+        },
+        "TimerFire": {
+         "n": 25,
+         "dur": 1534
+        },
+        "FireAnimationFrame": {
+         "n": 297,
+         "dur": 205529
+        },
+        "EventDispatch": {
+         "n": 59,
+         "dur": 568
+        },
+        "ObserverCallback": {
+         "n": 31,
+         "dur": 8224
+        },
+        "RenderingFrame": {
+         "n": 0,
+         "dur": 0
+        }
+       },
+       "split": [
+        6,
+        6
+       ]
+      },
+      "base": {
+       "reps": 12,
+       "frames": 69,
+       "perFrame": 7098,
+       "perFrameAll": [
+        7681,
+        7098,
+        8608,
+        8519,
+        8834,
+        8328,
+        5749,
+        6755,
+        6162,
+        5878,
+        6452,
+        5873
+       ],
+       "work": 52999,
+       "span": 275200,
+       "share": 186,
+       "kinds": {
+        "RecalculateStyles": {
+         "n": 200,
+         "dur": 34426
+        },
+        "Layout": {
+         "n": 138,
+         "dur": 8599
+        },
+        "Paint": {
+         "n": 391,
+         "dur": 10730
+        },
+        "Composite": {
+         "n": 69,
+         "dur": 0
+        },
+        "FunctionCall": {
+         "n": 686,
+         "dur": 42082
+        },
+        "EvaluateScript": {
+         "n": 0,
+         "dur": 0
+        },
+        "TimerFire": {
+         "n": 8,
+         "dur": 262
+        },
+        "FireAnimationFrame": {
+         "n": 291,
+         "dur": 36787
+        },
+        "EventDispatch": {
+         "n": 475,
+         "dur": 4022
+        },
+        "ObserverCallback": {
+         "n": 12,
+         "dur": 544
+        },
+        "RenderingFrame": {
+         "n": 0,
+         "dur": 0
+        }
+       },
+       "split": [
+        6,
+        6
+       ]
+      },
+      "aa": {
+       "reps": 12,
+       "frames": 70,
+       "perFrame": 6764,
+       "perFrameAll": [
+        7841,
+        8822,
+        8218,
+        7327,
+        8616,
+        6276,
+        6232,
+        5574,
+        6764,
+        6531,
+        5710,
+        5841
+       ],
+       "work": 43932,
+       "span": 288000,
+       "share": 167,
+       "kinds": {
+        "RecalculateStyles": {
+         "n": 202,
+         "dur": 29422
+        },
+        "Layout": {
+         "n": 143,
+         "dur": 7765
+        },
+        "Paint": {
+         "n": 406,
+         "dur": 9990
+        },
+        "Composite": {
+         "n": 70,
+         "dur": 0
+        },
+        "FunctionCall": {
+         "n": 679,
+         "dur": 34930
+        },
+        "EvaluateScript": {
+         "n": 0,
+         "dur": 0
+        },
+        "TimerFire": {
+         "n": 8,
+         "dur": 259
+        },
+        "FireAnimationFrame": {
+         "n": 293,
+         "dur": 30374
+        },
+        "EventDispatch": {
+         "n": 465,
+         "dur": 4417
+        },
+        "ObserverCallback": {
+         "n": 12,
+         "dur": 690
+        },
+        "RenderingFrame": {
+         "n": 0,
+         "dur": 0
+        }
+       },
+       "split": [
+        6,
+        6
+       ]
+      },
+      "look": {
+       "reps": 12,
+       "frames": 68,
+       "perFrame": 7524,
+       "perFrameAll": [
+        7524,
+        7715,
+        8084,
+        8534,
+        8899,
+        8207,
+        6050,
+        5913,
+        6072,
+        6657,
+        5983,
+        6128
+       ],
+       "work": 51168,
+       "span": 279600,
+       "share": 184,
+       "kinds": {
+        "RecalculateStyles": {
+         "n": 204,
+         "dur": 32014
+        },
+        "Layout": {
+         "n": 148,
+         "dur": 9212
+        },
+        "Paint": {
+         "n": 402,
+         "dur": 10607
+        },
+        "Composite": {
+         "n": 68,
+         "dur": 0
+        },
+        "FunctionCall": {
+         "n": 686,
+         "dur": 37587
+        },
+        "EvaluateScript": {
+         "n": 0,
+         "dur": 0
+        },
+        "TimerFire": {
+         "n": 8,
+         "dur": 285
+        },
+        "FireAnimationFrame": {
+         "n": 290,
+         "dur": 32177
+        },
+        "EventDispatch": {
+         "n": 477,
+         "dur": 5105
+        },
+        "ObserverCallback": {
+         "n": 12,
+         "dur": 526
+        },
+        "RenderingFrame": {
+         "n": 0,
+         "dur": 0
+        }
+       },
+       "split": [
+        6,
+        6
+       ]
+      }
+     },
      "cells": {
       "orig": [
        {
@@ -583,6 +873,296 @@
      }
     },
     "finish": {
+     "pool": {
+      "orig": {
+       "reps": 12,
+       "frames": 64,
+       "perFrame": 17730,
+       "perFrameAll": [
+        29494,
+        28885,
+        28547,
+        27125,
+        24701,
+        17730,
+        12666,
+        10425,
+        12261,
+        8738,
+        9575,
+        8649
+       ],
+       "work": 99292,
+       "span": 223300,
+       "share": 438,
+       "kinds": {
+        "RecalculateStyles": {
+         "n": 164,
+         "dur": 43088
+        },
+        "Layout": {
+         "n": 141,
+         "dur": 45290
+        },
+        "Paint": {
+         "n": 2708,
+         "dur": 14321
+        },
+        "Composite": {
+         "n": 64,
+         "dur": 0
+        },
+        "FunctionCall": {
+         "n": 110,
+         "dur": 54390
+        },
+        "EvaluateScript": {
+         "n": 0,
+         "dur": 0
+        },
+        "TimerFire": {
+         "n": 5,
+         "dur": 24
+        },
+        "FireAnimationFrame": {
+         "n": 100,
+         "dur": 54396
+        },
+        "EventDispatch": {
+         "n": 4,
+         "dur": 78
+        },
+        "ObserverCallback": {
+         "n": 5,
+         "dur": 13
+        },
+        "RenderingFrame": {
+         "n": 0,
+         "dur": 0
+        }
+       },
+       "split": [
+        6,
+        6
+       ]
+      },
+      "base": {
+       "reps": 12,
+       "frames": 57,
+       "perFrame": 10470,
+       "perFrameAll": [
+        10921,
+        14096,
+        11559,
+        13112,
+        15921,
+        10470,
+        9027,
+        8985,
+        9592,
+        7945,
+        8987,
+        8062
+       ],
+       "work": 60067,
+       "span": 205400,
+       "share": 287,
+       "kinds": {
+        "RecalculateStyles": {
+         "n": 146,
+         "dur": 42276
+        },
+        "Layout": {
+         "n": 124,
+         "dur": 7292
+        },
+        "Paint": {
+         "n": 2263,
+         "dur": 13245
+        },
+        "Composite": {
+         "n": 57,
+         "dur": 0
+        },
+        "FunctionCall": {
+         "n": 376,
+         "dur": 16653
+        },
+        "EvaluateScript": {
+         "n": 0,
+         "dur": 0
+        },
+        "TimerFire": {
+         "n": 4,
+         "dur": 36
+        },
+        "FireAnimationFrame": {
+         "n": 88,
+         "dur": 15985
+        },
+        "EventDispatch": {
+         "n": 228,
+         "dur": 831
+        },
+        "ObserverCallback": {
+         "n": 58,
+         "dur": 314
+        },
+        "RenderingFrame": {
+         "n": 0,
+         "dur": 0
+        }
+       },
+       "split": [
+        6,
+        6
+       ]
+      },
+      "aa": {
+       "reps": 12,
+       "frames": 59,
+       "perFrame": 10201,
+       "perFrameAll": [
+        10201,
+        10645,
+        12553,
+        14874,
+        13876,
+        11990,
+        8885,
+        7995,
+        8206,
+        7933,
+        7756,
+        8124
+       ],
+       "work": 56492,
+       "span": 204800,
+       "share": 275,
+       "kinds": {
+        "RecalculateStyles": {
+         "n": 145,
+         "dur": 40841
+        },
+        "Layout": {
+         "n": 125,
+         "dur": 6670
+        },
+        "Paint": {
+         "n": 2215,
+         "dur": 12597
+        },
+        "Composite": {
+         "n": 59,
+         "dur": 0
+        },
+        "FunctionCall": {
+         "n": 373,
+         "dur": 15340
+        },
+        "EvaluateScript": {
+         "n": 0,
+         "dur": 0
+        },
+        "TimerFire": {
+         "n": 4,
+         "dur": 32
+        },
+        "FireAnimationFrame": {
+         "n": 89,
+         "dur": 14905
+        },
+        "EventDispatch": {
+         "n": 206,
+         "dur": 651
+        },
+        "ObserverCallback": {
+         "n": 56,
+         "dur": 290
+        },
+        "RenderingFrame": {
+         "n": 0,
+         "dur": 0
+        }
+       },
+       "split": [
+        6,
+        6
+       ]
+      },
+      "look": {
+       "reps": 12,
+       "frames": 60,
+       "perFrame": 9133,
+       "perFrameAll": [
+        10137,
+        9133,
+        11233,
+        11262,
+        11420,
+        11351,
+        7995,
+        7233,
+        8002,
+        7844,
+        8671,
+        7517
+       ],
+       "work": 55187,
+       "span": 205100,
+       "share": 262,
+       "kinds": {
+        "RecalculateStyles": {
+         "n": 149,
+         "dur": 36968
+        },
+        "Layout": {
+         "n": 115,
+         "dur": 5968
+        },
+        "Paint": {
+         "n": 2287,
+         "dur": 12854
+        },
+        "Composite": {
+         "n": 60,
+         "dur": 0
+        },
+        "FunctionCall": {
+         "n": 279,
+         "dur": 13895
+        },
+        "EvaluateScript": {
+         "n": 0,
+         "dur": 0
+        },
+        "TimerFire": {
+         "n": 4,
+         "dur": 39
+        },
+        "FireAnimationFrame": {
+         "n": 89,
+         "dur": 13464
+        },
+        "EventDispatch": {
+         "n": 132,
+         "dur": 476
+        },
+        "ObserverCallback": {
+         "n": 54,
+         "dur": 293
+        },
+        "RenderingFrame": {
+         "n": 0,
+         "dur": 0
+        }
+       },
+       "split": [
+        6,
+        6
+       ]
+      }
+     },
      "cells": {
       "orig": [
        {
@@ -1145,6 +1725,296 @@
      }
     },
     "rest": {
+     "pool": {
+      "orig": {
+       "reps": 12,
+       "frames": 66,
+       "perFrame": 25240,
+       "perFrameAll": [
+        42162,
+        32235,
+        31723,
+        37480,
+        25024,
+        43896,
+        19373,
+        24248,
+        23801,
+        24104,
+        23689,
+        25240
+       ],
+       "work": 192687,
+       "span": 682900,
+       "share": 333,
+       "kinds": {
+        "RecalculateStyles": {
+         "n": 123,
+         "dur": 26715
+        },
+        "Layout": {
+         "n": 111,
+         "dur": 166793
+        },
+        "Paint": {
+         "n": 173,
+         "dur": 2058
+        },
+        "Composite": {
+         "n": 66,
+         "dur": 0
+        },
+        "FunctionCall": {
+         "n": 283,
+         "dur": 172108
+        },
+        "EvaluateScript": {
+         "n": 0,
+         "dur": 0
+        },
+        "TimerFire": {
+         "n": 16,
+         "dur": 626
+        },
+        "FireAnimationFrame": {
+         "n": 209,
+         "dur": 171133
+        },
+        "EventDispatch": {
+         "n": 69,
+         "dur": 464
+        },
+        "ObserverCallback": {
+         "n": 12,
+         "dur": 129
+        },
+        "RenderingFrame": {
+         "n": 0,
+         "dur": 0
+        }
+       },
+       "split": [
+        6,
+        6
+       ]
+      },
+      "base": {
+       "reps": 12,
+       "frames": 68,
+       "perFrame": 3797,
+       "perFrameAll": [
+        3852,
+        3740,
+        5052,
+        4672,
+        4296,
+        4003,
+        3025,
+        3660,
+        3797,
+        3594,
+        3123,
+        3618
+       ],
+       "work": 23922,
+       "span": 275200,
+       "share": 89,
+       "kinds": {
+        "RecalculateStyles": {
+         "n": 129,
+         "dur": 16803
+        },
+        "Layout": {
+         "n": 114,
+         "dur": 4560
+        },
+        "Paint": {
+         "n": 235,
+         "dur": 2166
+        },
+        "Composite": {
+         "n": 68,
+         "dur": 0
+        },
+        "FunctionCall": {
+         "n": 374,
+         "dur": 24533
+        },
+        "EvaluateScript": {
+         "n": 0,
+         "dur": 0
+        },
+        "TimerFire": {
+         "n": 4,
+         "dur": 70
+        },
+        "FireAnimationFrame": {
+         "n": 180,
+         "dur": 23128
+        },
+        "EventDispatch": {
+         "n": 241,
+         "dur": 1664
+        },
+        "ObserverCallback": {
+         "n": 6,
+         "dur": 83
+        },
+        "RenderingFrame": {
+         "n": 0,
+         "dur": 0
+        }
+       },
+       "split": [
+        6,
+        6
+       ]
+      },
+      "aa": {
+       "reps": 12,
+       "frames": 63,
+       "perFrame": 3830,
+       "perFrameAll": [
+        3607,
+        4045,
+        5208,
+        3830,
+        4300,
+        3086,
+        4094,
+        3449,
+        3629,
+        4098,
+        3595,
+        3541
+       ],
+       "work": 25385,
+       "span": 288000,
+       "share": 88,
+       "kinds": {
+        "RecalculateStyles": {
+         "n": 132,
+         "dur": 16797
+        },
+        "Layout": {
+         "n": 114,
+         "dur": 4627
+        },
+        "Paint": {
+         "n": 234,
+         "dur": 2109
+        },
+        "Composite": {
+         "n": 63,
+         "dur": 0
+        },
+        "FunctionCall": {
+         "n": 375,
+         "dur": 23174
+        },
+        "EvaluateScript": {
+         "n": 0,
+         "dur": 0
+        },
+        "TimerFire": {
+         "n": 5,
+         "dur": 96
+        },
+        "FireAnimationFrame": {
+         "n": 170,
+         "dur": 21775
+        },
+        "EventDispatch": {
+         "n": 243,
+         "dur": 1507
+        },
+        "ObserverCallback": {
+         "n": 6,
+         "dur": 84
+        },
+        "RenderingFrame": {
+         "n": 0,
+         "dur": 0
+        }
+       },
+       "split": [
+        6,
+        6
+       ]
+      },
+      "look": {
+       "reps": 12,
+       "frames": 65,
+       "perFrame": 3816,
+       "perFrameAll": [
+        3867,
+        4336,
+        4851,
+        3816,
+        4312,
+        4024,
+        3523,
+        3422,
+        3569,
+        3688,
+        3238,
+        3690
+       ],
+       "work": 24552,
+       "span": 279600,
+       "share": 90,
+       "kinds": {
+        "RecalculateStyles": {
+         "n": 129,
+         "dur": 18721
+        },
+        "Layout": {
+         "n": 116,
+         "dur": 4540
+        },
+        "Paint": {
+         "n": 253,
+         "dur": 1998
+        },
+        "Composite": {
+         "n": 65,
+         "dur": 0
+        },
+        "FunctionCall": {
+         "n": 373,
+         "dur": 25488
+        },
+        "EvaluateScript": {
+         "n": 0,
+         "dur": 0
+        },
+        "TimerFire": {
+         "n": 4,
+         "dur": 99
+        },
+        "FireAnimationFrame": {
+         "n": 172,
+         "dur": 24032
+        },
+        "EventDispatch": {
+         "n": 245,
+         "dur": 1538
+        },
+        "ObserverCallback": {
+         "n": 6,
+         "dur": 98
+        },
+        "RenderingFrame": {
+         "n": 0,
+         "dur": 0
+        }
+       },
+       "split": [
+        6,
+        6
+       ]
+      }
+     },
      "cells": {
       "orig": [
        {
@@ -1851,6 +2721,104 @@
        }
       }
      ],
+     "pool": {
+      "orig": {
+       "reps": 12,
+       "split": [
+        6,
+        6
+       ],
+       "hitches": [
+        76,
+        43,
+        53,
+        48,
+        43,
+        51,
+        20,
+        15,
+        14,
+        17,
+        17,
+        23
+       ],
+       "p50": 340,
+       "p95": 1360,
+       "max": 4840
+      },
+      "base": {
+       "reps": 12,
+       "split": [
+        6,
+        6
+       ],
+       "hitches": [
+        5,
+        4,
+        7,
+        8,
+        10,
+        12,
+        1,
+        3,
+        3,
+        3,
+        4,
+        4
+       ],
+       "p50": 170,
+       "p95": 520,
+       "max": 1670
+      },
+      "aa": {
+       "reps": 12,
+       "split": [
+        6,
+        6
+       ],
+       "hitches": [
+        7,
+        6,
+        5,
+        13,
+        10,
+        8,
+        2,
+        2,
+        4,
+        3,
+        3,
+        3
+       ],
+       "p50": 170,
+       "p95": 500,
+       "max": 2420
+      },
+      "look": {
+       "reps": 12,
+       "split": [
+        6,
+        6
+       ],
+       "hitches": [
+        5,
+        5,
+        10,
+        7,
+        10,
+        8,
+        2,
+        2,
+        3,
+        2,
+        6,
+        3
+       ],
+       "p50": 170,
+       "p95": 500,
+       "max": 2270
+      }
+     },
      "verdicts": {
       "orig|base": {
        "jobs": 2,
@@ -2013,6 +2981,96 @@
        }
       }
      ],
+     "pool": {
+      "orig": {
+       "reps": 10,
+       "split": [
+        5,
+        5
+       ],
+       "hitches": [
+        22,
+        25,
+        75,
+        18,
+        59,
+        23,
+        24,
+        24,
+        25,
+        23
+       ],
+       "p50": 340,
+       "p95": 1220,
+       "max": 4220
+      },
+      "base": {
+       "reps": 10,
+       "split": [
+        5,
+        5
+       ],
+       "hitches": [
+        13,
+        10,
+        7,
+        6,
+        20,
+        6,
+        5,
+        2,
+        7,
+        5
+       ],
+       "p50": 170,
+       "p95": 640,
+       "max": 3130
+      },
+      "aa": {
+       "reps": 10,
+       "split": [
+        5,
+        5
+       ],
+       "hitches": [
+        12,
+        5,
+        4,
+        9,
+        14,
+        10,
+        6,
+        3,
+        2,
+        6
+       ],
+       "p50": 170,
+       "p95": 630,
+       "max": 1250
+      },
+      "look": {
+       "reps": 10,
+       "split": [
+        5,
+        5
+       ],
+       "hitches": [
+        12,
+        14,
+        11,
+        11,
+        16,
+        9,
+        6,
+        8,
+        4,
+        5
+       ],
+       "p50": 170,
+       "p95": 700,
+       "max": 2100
+      }
+     },
      "verdicts": {
       "orig|base": {
        "jobs": 2,
@@ -2183,6 +3241,104 @@
        }
       }
      ],
+     "pool": {
+      "orig": {
+       "reps": 12,
+       "split": [
+        6,
+        6
+       ],
+       "hitches": [
+        14,
+        17,
+        15,
+        13,
+        18,
+        7,
+        5,
+        1,
+        4,
+        1,
+        5,
+        5
+       ],
+       "p50": 320,
+       "p95": 930,
+       "max": 1940
+      },
+      "base": {
+       "reps": 12,
+       "split": [
+        6,
+        6
+       ],
+       "hitches": [
+        10,
+        16,
+        12,
+        11,
+        18,
+        9,
+        4,
+        4,
+        10,
+        2,
+        9,
+        4
+       ],
+       "p50": 270,
+       "p95": 920,
+       "max": 1530
+      },
+      "aa": {
+       "reps": 12,
+       "split": [
+        6,
+        6
+       ],
+       "hitches": [
+        9,
+        13,
+        9,
+        16,
+        12,
+        11,
+        5,
+        2,
+        8,
+        4,
+        14,
+        9
+       ],
+       "p50": 270,
+       "p95": 930,
+       "max": 2200
+      },
+      "look": {
+       "reps": 12,
+       "split": [
+        6,
+        6
+       ],
+       "hitches": [
+        11,
+        11,
+        13,
+        12,
+        11,
+        9,
+        4,
+        7,
+        2,
+        9,
+        5,
+        4
+       ],
+       "p50": 250,
+       "p95": 860,
+       "max": 1930
+      }
+     },
      "verdicts": {
       "orig|base": {
        "jobs": 2,
@@ -2345,6 +3501,96 @@
        }
       }
      ],
+     "pool": {
+      "orig": {
+       "reps": 10,
+       "split": [
+        5,
+        5
+       ],
+       "hitches": [
+        14,
+        15,
+        20,
+        1,
+        25,
+        1,
+        1,
+        11,
+        5,
+        2
+       ],
+       "p50": 320,
+       "p95": 920,
+       "max": 1620
+      },
+      "base": {
+       "reps": 10,
+       "split": [
+        5,
+        5
+       ],
+       "hitches": [
+        13,
+        8,
+        13,
+        9,
+        8,
+        4,
+        8,
+        3,
+        7,
+        5
+       ],
+       "p50": 250,
+       "p95": 840,
+       "max": 2790
+      },
+      "aa": {
+       "reps": 10,
+       "split": [
+        5,
+        5
+       ],
+       "hitches": [
+        11,
+        9,
+        14,
+        12,
+        8,
+        2,
+        8,
+        5,
+        4,
+        2
+       ],
+       "p50": 240,
+       "p95": 840,
+       "max": 1450
+      },
+      "look": {
+       "reps": 10,
+       "split": [
+        5,
+        5
+       ],
+       "hitches": [
+        10,
+        12,
+        13,
+        9,
+        16,
+        2,
+        2,
+        5,
+        2,
+        3
+       ],
+       "p50": 230,
+       "p95": 810,
+       "max": 1570
+      }
+     },
      "verdicts": {
       "orig|base": {
        "jobs": 2,
@@ -2383,6 +3629,266 @@
    ],
    "zones": {
     "hero": {
+     "pool": {
+      "orig": {
+       "reps": 0,
+       "frames": null,
+       "perFrame": null,
+       "perFrameAll": [],
+       "work": null,
+       "span": null,
+       "share": null,
+       "kinds": {
+        "RecalculateStyles": {
+         "n": null,
+         "dur": null
+        },
+        "Layout": {
+         "n": null,
+         "dur": null
+        },
+        "Paint": {
+         "n": null,
+         "dur": null
+        },
+        "Composite": {
+         "n": null,
+         "dur": null
+        },
+        "FunctionCall": {
+         "n": null,
+         "dur": null
+        },
+        "EvaluateScript": {
+         "n": null,
+         "dur": null
+        },
+        "TimerFire": {
+         "n": null,
+         "dur": null
+        },
+        "FireAnimationFrame": {
+         "n": null,
+         "dur": null
+        },
+        "EventDispatch": {
+         "n": null,
+         "dur": null
+        },
+        "ObserverCallback": {
+         "n": null,
+         "dur": null
+        },
+        "RenderingFrame": {
+         "n": null,
+         "dur": null
+        }
+       },
+       "split": [
+        0,
+        0
+       ]
+      },
+      "base": {
+       "reps": 7,
+       "frames": 7,
+       "perFrame": 30992,
+       "perFrameAll": [
+        30992,
+        20402,
+        37541,
+        23667,
+        27388,
+        31844,
+        42961
+       ],
+       "work": 21695,
+       "span": 156900,
+       "share": 138,
+       "kinds": {
+        "RecalculateStyles": {
+         "n": 33,
+         "dur": 8943
+        },
+        "Layout": {
+         "n": 84,
+         "dur": 5901
+        },
+        "Paint": {
+         "n": 116,
+         "dur": 6778
+        },
+        "Composite": {
+         "n": 7,
+         "dur": 0
+        },
+        "FunctionCall": {
+         "n": 178,
+         "dur": 25060
+        },
+        "EvaluateScript": {
+         "n": 0,
+         "dur": 0
+        },
+        "TimerFire": {
+         "n": 52,
+         "dur": 15604
+        },
+        "FireAnimationFrame": {
+         "n": 32,
+         "dur": 9997
+        },
+        "EventDispatch": {
+         "n": 113,
+         "dur": 882
+        },
+        "ObserverCallback": {
+         "n": 7,
+         "dur": 283
+        },
+        "RenderingFrame": {
+         "n": 0,
+         "dur": 0
+        }
+       },
+       "split": [
+        5,
+        2
+       ]
+      },
+      "aa": {
+       "reps": 6,
+       "frames": 6,
+       "perFrame": 40500,
+       "perFrameAll": [
+        40500,
+        44244,
+        22772,
+        33060,
+        45438,
+        27366
+       ],
+       "work": 22719,
+       "span": 157100,
+       "share": 144,
+       "kinds": {
+        "RecalculateStyles": {
+         "n": 30,
+         "dur": 8339
+        },
+        "Layout": {
+         "n": 83,
+         "dur": 6953
+        },
+        "Paint": {
+         "n": 105,
+         "dur": 9643
+        },
+        "Composite": {
+         "n": 6,
+         "dur": 0
+        },
+        "FunctionCall": {
+         "n": 173,
+         "dur": 28052
+        },
+        "EvaluateScript": {
+         "n": 0,
+         "dur": 0
+        },
+        "TimerFire": {
+         "n": 54,
+         "dur": 16181
+        },
+        "FireAnimationFrame": {
+         "n": 27,
+         "dur": 9674
+        },
+        "EventDispatch": {
+         "n": 101,
+         "dur": 1452
+        },
+        "ObserverCallback": {
+         "n": 6,
+         "dur": 362
+        },
+        "RenderingFrame": {
+         "n": 0,
+         "dur": 0
+        }
+       },
+       "split": [
+        5,
+        1
+       ]
+      },
+      "look": {
+       "reps": 6,
+       "frames": 7,
+       "perFrame": 30558,
+       "perFrameAll": [
+        39292,
+        27810,
+        20878,
+        22450,
+        30615,
+        30558
+       ],
+       "work": 18369,
+       "span": 156900,
+       "share": 117,
+       "kinds": {
+        "RecalculateStyles": {
+         "n": 32,
+         "dur": 7617
+        },
+        "Layout": {
+         "n": 81,
+         "dur": 5225
+        },
+        "Paint": {
+         "n": 102,
+         "dur": 6535
+        },
+        "Composite": {
+         "n": 7,
+         "dur": 0
+        },
+        "FunctionCall": {
+         "n": 159,
+         "dur": 24377
+        },
+        "EvaluateScript": {
+         "n": 0,
+         "dur": 0
+        },
+        "TimerFire": {
+         "n": 54,
+         "dur": 14893
+        },
+        "FireAnimationFrame": {
+         "n": 36,
+         "dur": 8970
+        },
+        "EventDispatch": {
+         "n": 92,
+         "dur": 868
+        },
+        "ObserverCallback": {
+         "n": 8,
+         "dur": 290
+        },
+        "RenderingFrame": {
+         "n": 0,
+         "dur": 0
+        }
+       },
+       "split": [
+        5,
+        1
+       ]
+      }
+     },
      "cells": {
       "orig": [
        {
@@ -2914,6 +4420,272 @@
      }
     },
     "finish": {
+     "pool": {
+      "orig": {
+       "reps": 6,
+       "frames": 5,
+       "perFrame": 116323,
+       "perFrameAll": [
+        115638,
+        132535,
+        102832,
+        137864,
+        116323,
+        111343
+       ],
+       "work": 66806,
+       "span": 208800,
+       "share": 322,
+       "kinds": {
+        "RecalculateStyles": {
+         "n": 21,
+         "dur": 12418
+        },
+        "Layout": {
+         "n": 24,
+         "dur": 50231
+        },
+        "Paint": {
+         "n": 400,
+         "dur": 3775
+        },
+        "Composite": {
+         "n": 5,
+         "dur": 0
+        },
+        "FunctionCall": {
+         "n": 23,
+         "dur": 52993
+        },
+        "EvaluateScript": {
+         "n": 0,
+         "dur": 0
+        },
+        "TimerFire": {
+         "n": 6,
+         "dur": 152
+        },
+        "FireAnimationFrame": {
+         "n": 15,
+         "dur": 52802
+        },
+        "EventDispatch": {
+         "n": 4,
+         "dur": 287
+        },
+        "ObserverCallback": {
+         "n": 0,
+         "dur": 0
+        },
+        "RenderingFrame": {
+         "n": 0,
+         "dur": 0
+        }
+       },
+       "split": [
+        5,
+        1
+       ]
+      },
+      "base": {
+       "reps": 6,
+       "frames": 6,
+       "perFrame": 43341,
+       "perFrameAll": [
+        56460,
+        26197,
+        40766,
+        22421,
+        45062,
+        43341
+       ],
+       "work": 22584,
+       "span": 202400,
+       "share": 111,
+       "kinds": {
+        "RecalculateStyles": {
+         "n": 26,
+         "dur": 17714
+        },
+        "Layout": {
+         "n": 28,
+         "dur": 3561
+        },
+        "Paint": {
+         "n": 425,
+         "dur": 4477
+        },
+        "Composite": {
+         "n": 6,
+         "dur": 0
+        },
+        "FunctionCall": {
+         "n": 142,
+         "dur": 3982
+        },
+        "EvaluateScript": {
+         "n": 0,
+         "dur": 0
+        },
+        "TimerFire": {
+         "n": 6,
+         "dur": 168
+        },
+        "FireAnimationFrame": {
+         "n": 16,
+         "dur": 3344
+        },
+        "EventDispatch": {
+         "n": 137,
+         "dur": 694
+        },
+        "ObserverCallback": {
+         "n": 12,
+         "dur": 197
+        },
+        "RenderingFrame": {
+         "n": 0,
+         "dur": 0
+        }
+       },
+       "split": [
+        5,
+        1
+       ]
+      },
+      "aa": {
+       "reps": 6,
+       "frames": 5,
+       "perFrame": 46956,
+       "perFrameAll": [
+        68462,
+        37638,
+        33248,
+        46956,
+        92177,
+        35260
+       ],
+       "work": 23478,
+       "span": 202300,
+       "share": 112,
+       "kinds": {
+        "RecalculateStyles": {
+         "n": 18,
+         "dur": 15723
+        },
+        "Layout": {
+         "n": 18,
+         "dur": 2759
+        },
+        "Paint": {
+         "n": 406,
+         "dur": 7133
+        },
+        "Composite": {
+         "n": 5,
+         "dur": 0
+        },
+        "FunctionCall": {
+         "n": 107,
+         "dur": 4536
+        },
+        "EvaluateScript": {
+         "n": 0,
+         "dur": 0
+        },
+        "TimerFire": {
+         "n": 6,
+         "dur": 485
+        },
+        "FireAnimationFrame": {
+         "n": 15,
+         "dur": 3907
+        },
+        "EventDispatch": {
+         "n": 78,
+         "dur": 1145
+        },
+        "ObserverCallback": {
+         "n": 10,
+         "dur": 277
+        },
+        "RenderingFrame": {
+         "n": 0,
+         "dur": 0
+        }
+       },
+       "split": [
+        5,
+        1
+       ]
+      },
+      "look": {
+       "reps": 6,
+       "frames": 6,
+       "perFrame": 28078,
+       "perFrameAll": [
+        28078,
+        22507,
+        33768,
+        24063,
+        76970,
+        24385
+       ],
+       "work": 16884,
+       "span": 200500,
+       "share": 84,
+       "kinds": {
+        "RecalculateStyles": {
+         "n": 18,
+         "dur": 12755
+        },
+        "Layout": {
+         "n": 18,
+         "dur": 2563
+        },
+        "Paint": {
+         "n": 409,
+         "dur": 4492
+        },
+        "Composite": {
+         "n": 6,
+         "dur": 0
+        },
+        "FunctionCall": {
+         "n": 91,
+         "dur": 3596
+        },
+        "EvaluateScript": {
+         "n": 0,
+         "dur": 0
+        },
+        "TimerFire": {
+         "n": 6,
+         "dur": 232
+        },
+        "FireAnimationFrame": {
+         "n": 13,
+         "dur": 2994
+        },
+        "EventDispatch": {
+         "n": 69,
+         "dur": 556
+        },
+        "ObserverCallback": {
+         "n": 10,
+         "dur": 234
+        },
+        "RenderingFrame": {
+         "n": 0,
+         "dur": 0
+        }
+       },
+       "split": [
+        5,
+        1
+       ]
+      }
+     },
      "cells": {
       "orig": [
        {
@@ -3452,6 +5224,271 @@
      }
     },
     "rest": {
+     "pool": {
+      "orig": {
+       "reps": 6,
+       "frames": 2,
+       "perFrame": 1432690,
+       "perFrameAll": [
+        1346185,
+        1342165,
+        1445865,
+        1432690,
+        2823180,
+        624023
+       ],
+       "work": 282318,
+       "span": 305100,
+       "share": 912,
+       "kinds": {
+        "RecalculateStyles": {
+         "n": 22,
+         "dur": 16400
+        },
+        "Layout": {
+         "n": 81,
+         "dur": 274600
+        },
+        "Paint": {
+         "n": 49,
+         "dur": 1440
+        },
+        "Composite": {
+         "n": 2,
+         "dur": 0
+        },
+        "FunctionCall": {
+         "n": 37,
+         "dur": 257921
+        },
+        "EvaluateScript": {
+         "n": 0,
+         "dur": 0
+        },
+        "TimerFire": {
+         "n": 5,
+         "dur": 235211
+        },
+        "FireAnimationFrame": {
+         "n": 16,
+         "dur": 13347
+        },
+        "EventDispatch": {
+         "n": 1,
+         "dur": 13
+        },
+        "ObserverCallback": {
+         "n": 12,
+         "dur": 10762
+        },
+        "RenderingFrame": {
+         "n": 0,
+         "dur": 0
+        }
+       },
+       "split": [
+        5,
+        1
+       ]
+      },
+      "base": {
+       "reps": 6,
+       "frames": 4,
+       "perFrame": 40250,
+       "perFrameAll": [
+        105070,
+        27070,
+        37162,
+        31832,
+        40250,
+        114800
+       ],
+       "work": 11480,
+       "span": 157000,
+       "share": 72,
+       "kinds": {
+        "RecalculateStyles": {
+         "n": 25,
+         "dur": 8597
+        },
+        "Layout": {
+         "n": 26,
+         "dur": 4096
+        },
+        "Paint": {
+         "n": 57,
+         "dur": 1831
+        },
+        "Composite": {
+         "n": 4,
+         "dur": 0
+        },
+        "FunctionCall": {
+         "n": 105,
+         "dur": 6836
+        },
+        "EvaluateScript": {
+         "n": 0,
+         "dur": 0
+        },
+        "TimerFire": {
+         "n": 1,
+         "dur": 52
+        },
+        "FireAnimationFrame": {
+         "n": 24,
+         "dur": 4457
+        },
+        "EventDispatch": {
+         "n": 83,
+         "dur": 3282
+        },
+        "ObserverCallback": {
+         "n": 7,
+         "dur": 462
+        },
+        "RenderingFrame": {
+         "n": 0,
+         "dur": 0
+        }
+       },
+       "split": [
+        5,
+        1
+       ]
+      },
+      "aa": {
+       "reps": 5,
+       "frames": 2,
+       "perFrame": 44756,
+       "perFrameAll": [
+        57010,
+        44756,
+        41873,
+        111270,
+        31830
+       ],
+       "work": 11402,
+       "span": 157000,
+       "share": 72,
+       "kinds": {
+        "RecalculateStyles": {
+         "n": 14,
+         "dur": 8384
+        },
+        "Layout": {
+         "n": 13,
+         "dur": 4073
+        },
+        "Paint": {
+         "n": 44,
+         "dur": 1881
+        },
+        "Composite": {
+         "n": 2,
+         "dur": 0
+        },
+        "FunctionCall": {
+         "n": 77,
+         "dur": 7662
+        },
+        "EvaluateScript": {
+         "n": 0,
+         "dur": 0
+        },
+        "TimerFire": {
+         "n": 2,
+         "dur": 93
+        },
+        "FireAnimationFrame": {
+         "n": 11,
+         "dur": 4765
+        },
+        "EventDispatch": {
+         "n": 59,
+         "dur": 2767
+        },
+        "ObserverCallback": {
+         "n": 8,
+         "dur": 290
+        },
+        "RenderingFrame": {
+         "n": 0,
+         "dur": 0
+        }
+       },
+       "split": [
+        4,
+        1
+       ]
+      },
+      "look": {
+       "reps": 6,
+       "frames": 3,
+       "perFrame": 44365,
+       "perFrameAll": [
+        66590,
+        29667,
+        44310,
+        41850,
+        109620,
+        44365
+       ],
+       "work": 11867,
+       "span": 156900,
+       "share": 75,
+       "kinds": {
+        "RecalculateStyles": {
+         "n": 23,
+         "dur": 8588
+        },
+        "Layout": {
+         "n": 28,
+         "dur": 3902
+        },
+        "Paint": {
+         "n": 64,
+         "dur": 2834
+        },
+        "Composite": {
+         "n": 3,
+         "dur": 0
+        },
+        "FunctionCall": {
+         "n": 104,
+         "dur": 7325
+        },
+        "EvaluateScript": {
+         "n": 0,
+         "dur": 0
+        },
+        "TimerFire": {
+         "n": 2,
+         "dur": 262
+        },
+        "FireAnimationFrame": {
+         "n": 21,
+         "dur": 5070
+        },
+        "EventDispatch": {
+         "n": 100,
+         "dur": 2345
+        },
+        "ObserverCallback": {
+         "n": 8,
+         "dur": 471
+        },
+        "RenderingFrame": {
+         "n": 0,
+         "dur": 0
+        }
+       },
+       "split": [
+        5,
+        1
+       ]
+      }
+     },
      "cells": {
       "orig": [
        {
@@ -4110,6 +6147,81 @@
        }
       }
      ],
+     "pool": {
+      "orig": {
+       "reps": 6,
+       "split": [
+        5,
+        1
+       ],
+       "hitches": [
+        1,
+        1,
+        1,
+        1,
+        0,
+        2
+       ],
+       "p50": 3750,
+       "p95": 4740,
+       "max": 4740
+      },
+      "base": {
+       "reps": 7,
+       "split": [
+        5,
+        2
+       ],
+       "hitches": [
+        3,
+        7,
+        7,
+        7,
+        4,
+        3,
+        3
+       ],
+       "p50": 1360,
+       "p95": 5310,
+       "max": 7910
+      },
+      "aa": {
+       "reps": 6,
+       "split": [
+        5,
+        1
+       ],
+       "hitches": [
+        3,
+        6,
+        6,
+        5,
+        3,
+        4
+       ],
+       "p50": 1650,
+       "p95": 5290,
+       "max": 7590
+      },
+      "look": {
+       "reps": 6,
+       "split": [
+        5,
+        1
+       ],
+       "hitches": [
+        3,
+        6,
+        6,
+        7,
+        4,
+        4
+       ],
+       "p50": 1560,
+       "p95": 5730,
+       "max": 6380
+      }
+     },
      "verdicts": {
       "orig|base": {
        "jobs": 2,
@@ -4256,6 +6368,80 @@
        }
       }
      ],
+     "pool": {
+      "orig": {
+       "reps": 6,
+       "split": [
+        5,
+        1
+       ],
+       "hitches": [
+        4,
+        3,
+        4,
+        4,
+        5,
+        5
+       ],
+       "p50": 4370,
+       "p95": 6270,
+       "max": 8050
+      },
+      "base": {
+       "reps": 6,
+       "split": [
+        5,
+        1
+       ],
+       "hitches": [
+        3,
+        7,
+        5,
+        7,
+        4,
+        5
+       ],
+       "p50": 3600,
+       "p95": 5760,
+       "max": 7800
+      },
+      "aa": {
+       "reps": 6,
+       "split": [
+        5,
+        1
+       ],
+       "hitches": [
+        4,
+        4,
+        5,
+        4,
+        3,
+        3
+       ],
+       "p50": 4400,
+       "p95": 7130,
+       "max": 7810
+      },
+      "look": {
+       "reps": 6,
+       "split": [
+        5,
+        1
+       ],
+       "hitches": [
+        4,
+        6,
+        4,
+        5,
+        4,
+        6
+       ],
+       "p50": 3880,
+       "p95": 5200,
+       "max": 10230
+      }
+     },
      "verdicts": {
       "orig|base": {
        "jobs": 2,

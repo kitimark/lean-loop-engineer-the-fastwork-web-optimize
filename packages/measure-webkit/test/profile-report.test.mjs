@@ -6,8 +6,9 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { KINDS, profileWindow } from '../src/profile/reduce.mjs';
+import { medianNat } from '../src/profile/reduce.mjs';
 import { writeRaws } from '../src/profile/raw.mjs';
-import { jobCell, jobVerdicts, acrossJobs, legSummary, headlineTable, verdictTable, ratioTable, fillBlocks, loadRuns, rereduce, reportMain, minutesTable, minutesOf } from '../src/profile/report.mjs';
+import { jobCell, poolCell, armWindows, cadenceTable, kindTable, jobVerdicts, acrossJobs, legSummary, headlineTable, verdictTable, ratioTable, fillBlocks, loadRuns, rereduce, reportMain, minutesTable, minutesOf } from '../src/profile/report.mjs';
 
 const zero = () => KINDS.map((k) => [k, 0, 0]);
 const prof = (frames, perFrame, layout) => ({ frames, work: perFrame * frames / 10, perFrame, cells: zero().map((c) => (c[0] === 'Layout' ? ['Layout', layout, layout * 10] : c)) });
@@ -53,7 +54,7 @@ test('legSummary and the tables: class counts need three jobs, the headline list
   const leg = legSummary(jobs, (runs, k, t) => { calls.push([runs.length, k, t]); return { Layout: { class: 'stable', k: 1, t: 1 } }; });
   assert.deepEqual(calls[0], [3, 4, 24]);
   assert.equal(leg.zones.hero.verdicts['orig|base'].verdict, 'first');
-  assert.match(headlineTable(leg), /\| orig \| 3 \| 15 \| 30 \|/);
+  assert.match(headlineTable(leg), /\| orig \| 15 \(5\+5\+5\) \| 30 \|/);
   assert.match(verdictTable(leg), /hero \| orig, base \| 3 \| 3 \| 0 \| 0 \| 0 \| first/);
   const two = legSummary(jobs.slice(0, 2), () => { throw new Error('classified two jobs'); });
   assert.equal(two.zones.hero.classes.orig, null);
@@ -127,4 +128,64 @@ test('ratioTable: computed from the pooled medians, orig over base and base over
   const leg = legSummary(jobs, () => ({}));
   assert.match(ratioTable(leg), /\| render work us \/ frame \| 402 \| 102 \| 102 \| 3\.9 \| 1\.0 \|/);
   assert.match(ratioTable(leg), /\| Composite n \| 0 \| 0 \| 0 \| - \| - \|/);
+});
+
+// ---- pooling over jobs: every value cell is one statistic over the concatenated windows of all loaded jobs ----
+
+const golden = readFileSync(new URL('../../contracts/golden/measure/webkit-profile.jsonl', import.meta.url), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+/** A mac job file whose arm `base` has one hero window per value, the window's work per frame being that value. */
+const fileOfValues = (values) => ({
+  leg: 'mac', engine: 'x', version: '1', arms: ['base'], plan: { kept: ['base'], dropped: [], flags: {} }, wallSeconds: 1,
+  rows: values.map((v, rep) => ({ arm: 'base', window: 'hero', rep, mode: 'events', ok: true, ivs: [160], hitches: 0, profiles: { hero: prof(30, v, 4), rest: empty(), finish: empty() } })),
+});
+const jobsOf = (...lists) => lists.map((l, i) => ({ label: `${i}:a`, leg: 'mac', file: fileOfValues(l) }));
+
+test('poolCell: jobs with 5 and 1 windows give the median of the 6-window list (index 3), not the 1-window job\'s value', () => {
+  const jobs = jobsOf([10, 20, 30, 40, 50], [1000]);
+  const c = poolCell(jobs, 'base', 'hero');
+  assert.deepEqual(armWindows(jobs, 'base', 'hero').map((p) => p.perFrame), [10, 20, 30, 40, 50, 1000]);
+  assert.equal(c.reps, 6);
+  assert.deepEqual(c.split, [5, 1]);
+  assert.equal(c.perFrame, 40);
+  assert.equal(c.frames, 30);
+  assert.notEqual(c.perFrame, jobCell(jobs[1].file, 'base', 'hero').perFrame);
+});
+
+test('poolCell equals the Lean medianNat golden on the concatenation of the windows, however the list is split over jobs', () => {
+  const cases = golden.filter((c) => c.kind === 'median' && c.values.length > 0);
+  assert.ok(cases.length >= 4);
+  for (const c of cases) {
+    for (let cut = 0; cut <= c.values.length; cut++) {
+      const jobs = jobsOf(c.values.slice(0, cut), c.values.slice(cut));
+      assert.equal(poolCell(jobs, 'base', 'hero').perFrame, c.median, `${JSON.stringify(c.values)} cut ${cut}`);
+      assert.equal(medianNat(armWindows(jobs, 'base', 'hero').map((p) => p.perFrame)), c.median);
+    }
+  }
+});
+
+test('headlineTable, kindTable, ratioTable: a cell with 4 pooled windows prints insufficient (n=4), 5 prints the number and the split', () => {
+  const four = legSummary(jobsOf([1, 2, 3], [4]).map((j) => ({ ...j, file: { ...j.file, arms: ['orig', 'base'], rows: [...j.file.rows, ...j.file.rows.map((r) => ({ ...r, arm: 'orig' }))] } })), () => ({}));
+  assert.match(headlineTable(four), /\| base \| 4 \(3\+1\) \| insufficient \(n=4\) \| insufficient \(n=4\) \|/);
+  assert.doesNotMatch(headlineTable(four).split('**finish**')[0], /\| base \| 4 \(3\+1\) \| 30 /);
+  assert.match(kindTable(four), /\| Layout \| insufficient \(n=4\) \| insufficient \(n=4\) \|/);
+  assert.match(ratioTable(four), /\| render work us \/ frame \| insufficient \(n=4\) \| insufficient \(n=4\) \| - \| - \|/);
+  const five = legSummary(jobsOf([1, 2, 3], [4, 5]).map((j) => ({ ...j, file: { ...j.file, arms: ['orig', 'base'], rows: [...j.file.rows, ...j.file.rows.map((r) => ({ ...r, arm: 'orig' }))] } })), () => ({}));
+  assert.match(headlineTable(five), /\| base \| 5 \(3\+2\) \| 30 \| .* \| 3 \(1-5\) \|/);
+  assert.match(ratioTable(five), /\| n windows \(per job\) \| 5 \(3\+2\) \| 5 \(3\+2\) \|/);
+});
+
+test('cadenceTable: p50 and p95 are quantiles over all intervals of all jobs\' repeats, not the median of per-job quantiles', () => {
+  const job = (label, ivs, n) => ({ label, leg: 'mac', file: { leg: 'mac', arms: ['base'], plan: { kept: ['base'], dropped: [], flags: {} }, rows: Array.from({ length: n }, (_, rep) => ({ arm: 'base', window: 'hero', rep, mode: 'events', ok: true, ivs, hitches: ivs.filter((x) => x > 600).length })) } });
+  // job a: 5 repeats of [100, 100, 100, 100]; job b: 1 repeat of [900, 900, 900, 900] -> pooled 24 intervals, 20 of 100 and 4 of 900
+  const leg = legSummary([job('a', [100, 100, 100, 100], 5), job('b', [900, 900, 900, 900], 1)], () => ({}));
+  const row = cadenceTable(leg).split('\n').find((l) => l.startsWith('| hero | on | base'));
+  assert.match(row, /\| 6 \(5\+1\) \| 0 \| 10\.0 \| 90\.0 \| 90\.0 \|/);
+  const few = legSummary([job('a', [100], 4)], () => ({}));
+  assert.match(cadenceTable(few), /\| 4 \(4\) \| insufficient \(n=4\) \| insufficient \(n=4\) \| insufficient \(n=4\) \| insufficient \(n=4\) \|/);
+});
+
+test('minutesOf bills the minutes rounded up from the unrounded seconds: 901 s is 16, not the 15 of the 0.1-minute display', () => {
+  const m = minutesOf({ 1: { jobs: [{ name: 'webkit mac (x)', conclusion: 'cancelled', startedAt: '2026-10-21T10:00:00Z', completedAt: '2026-10-21T10:15:01Z' }, { name: 'webkit mac (y)', conclusion: 'success', startedAt: '2026-10-21T10:00:00Z', completedAt: '2026-10-21T10:10:00Z' }] } });
+  assert.deepEqual(m.map((r) => [r.minutes, r.billed]), [[15, 16], [10, 10]]);
+  assert.match(minutesTable(m), /\| all jobs billed \| mac \|  \| n=2 \|  \| 26 \|/);
 });

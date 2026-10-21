@@ -8,7 +8,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSy
 import { join } from 'node:path';
 import { KINDS, ZONES, medianNat, zoneVerdict, profileFromRaw } from './reduce.mjs';
 import { readRaws } from './raw.mjs';
-import { across, agreeNeeded, hitchVerdict, armRate, repOf, quantile } from '../../../gate-breakpoints/src/smooth/reduce.mjs';
+import { across, agreeNeeded, hitchVerdict, armRate, repOf, quantile, enoughN } from '../../../gate-breakpoints/src/smooth/reduce.mjs';
 
 /** The pairs judged, each against the A/A pair (base, aa): [first arm, second arm]. `first` = the first arm does less. */
 export const PAIRS = [['orig', 'base'], ['base', 'look'], ['orig', 'look'], ['base', 'v2']];
@@ -56,11 +56,26 @@ export function zoneReps(file, arm, zone) {
 
 const cellOfKind = (p, k) => p.cells.find((c) => c[0] === k) ?? [k, 0, 0];
 
-/** One job, one arm, one zone: medians over the kept windows. Durations are hundredths of ms, work per frame is microseconds. */
-export function jobCell(file, arm, zone) {
-  const ps = zoneReps(file, arm, zone);
+/** The medians (Lean `medianNat`, index n/2) of a list of kept windows. Durations are hundredths of ms, work per frame is microseconds. */
+function cellOf(ps) {
   const kinds = Object.fromEntries(KINDS.map((k) => [k, { n: med(ps.map((p) => cellOfKind(p, k)[1])), dur: med(ps.map((p) => cellOfKind(p, k)[2])) }]));
   return { reps: ps.length, frames: med(ps.map((p) => p.frames)), perFrame: med(ps.map((p) => p.perFrame)), perFrameAll: ps.map((p) => p.perFrame), work: med(ps.map((p) => p.work)), span: med(ps.map((p) => p.span)), share: med(ps.map((p) => (p.span ? Math.floor((1000 * p.work) / p.span) : 0))), kinds };
+}
+
+/** One job, one arm, one zone: the medians over that job's kept windows (used for the per-job verdicts and class counts only). */
+export function jobCell(file, arm, zone) {
+  return cellOf(zoneReps(file, arm, zone));
+}
+
+/** The kept windows of an arm in a zone, concatenated over all loaded jobs of a leg (`jobs` = [{ label, file }]). */
+export function armWindows(jobs, arm, zone) {
+  return jobs.flatMap((j) => zoneReps(j.file, arm, zone).map((p) => ({ job: j.label, ...p })));
+}
+
+/** One leg, one arm, one zone: the medians over all kept windows of all jobs, `reps` the pooled n and `split` the n of each job. */
+export function poolCell(jobs, arm, zone) {
+  const ps = armWindows(jobs, arm, zone);
+  return { ...cellOf(ps), split: jobs.map((j) => ps.filter((p) => p.job === j.label).length) };
 }
 
 /** Lean `zoneVerdict` for one job and zone, on the per-window render work per frame, against the A/A pair (base, aa). */
@@ -94,24 +109,35 @@ export function jobCadence(file, win, mode) {
   return { arms, verdicts };
 }
 
+/** Cadence of one leg, window and mode, pooled: per arm the repeats of all jobs, their hitch counts, and the quantiles (Lean `quantile`) over all their intervals. */
+export function poolCadence(jobs, arms, win, mode) {
+  return Object.fromEntries(arms.map((a) => {
+    const per = jobs.map((j) => cadRows(j.file, a, win, mode));
+    const rs = per.flat();
+    const ivs = rs.flatMap((r) => r.ivs);
+    return [a, { reps: rs.length, split: per.map((r) => r.length), hitches: rs.map((r) => r.hitches), p50: quantile(ivs, 50), p95: quantile(ivs, 95), max: ivs.length ? Math.max(...ivs) : null }];
+  }));
+}
+
 /** Everything for one leg over its jobs. */
 export function legSummary(jobs, classify) {
   const arms = ALL_ARMS.filter((a) => jobs.some((j) => j.file.arms.includes(a)));
   const zones = {};
   for (const z of ZONES) {
     const cells = Object.fromEntries(arms.map((a) => [a, jobs.map((j) => ({ job: j.label, ...jobCell(j.file, a, z) }))]));
+    const pool = Object.fromEntries(arms.map((a) => [a, poolCell(jobs, a, z)]));
     const perJobV = jobs.map((j) => jobVerdicts(j.file, z));
     const classes = {};
     for (const a of arms) {
       const runs = cells[a].filter((c) => c.reps > 0).map((c) => [{ counts: Object.fromEntries(KINDS.map((k) => [k, c.kinds[k].n ?? 0])) }]);
       classes[a] = runs.length >= 3 ? classify(runs, 4, 24) : null;
     }
-    zones[z] = { cells, verdicts: acrossJobs(perJobV), perJob: perJobV.map((v, i) => ({ job: jobs[i].label, ...v })), classes };
+    zones[z] = { pool, cells, verdicts: acrossJobs(perJobV), perJob: perJobV.map((v, i) => ({ job: jobs[i].label, ...v })), classes };
   }
   const cadence = {};
   for (const win of ['hero', 'end']) for (const mode of ['events', 'cadence']) {
     const per = jobs.map((j) => ({ job: j.label, ...jobCadence(j.file, win, mode) })).filter((c) => Object.values(c.arms).some((a) => a.reps > 0));
-    if (per.length) cadence[`${win}|${mode}`] = { jobs: per, verdicts: acrossJobs(per.map((c) => c.verdicts)) };
+    if (per.length) cadence[`${win}|${mode}`] = { jobs: per, pool: poolCadence(jobs, arms, win, mode), verdicts: acrossJobs(per.map((c) => c.verdicts)) };
   }
   return { arms, zones, cadence };
 }
@@ -122,34 +148,41 @@ const ms2 = (h) => (h == null ? '-' : (h / 100).toFixed(2));
 const fmt = (x) => (x == null ? '-' : String(x));
 const row = (cells) => `| ${cells.join(' | ')} |`;
 const head = (cols) => `${row(cols)}\n${row(cols.map(() => '---'))}`;
-const pooled = (cells, f) => med(cells.filter((c) => c.reps > 0).map(f).filter((x) => x != null));
-const range = (cells) => {
-  const all = cells.flatMap((c) => c.perFrameAll);
-  return all.length ? `${Math.min(...all)}-${Math.max(...all)}` : '-';
-};
+/** Pooled n of a cell with the n of each loaded job, e.g. `12 (6+6)`. */
+const nOf = (c) => `${c.reps} (${c.split.join('+')})`;
+/** The Lean `minReps` rule (twin `enoughN`): a pooled cell under it shows no number. */
+const sufficient = (c) => enoughN({ length: c.reps });
+const insufficient = (c) => `insufficient (n=${c.reps})`;
+/** `show(f(c))` when the pooled cell has at least `minReps` windows, else the insufficient text. */
+const cellOr = (c, f, show = fmt) => (sufficient(c) ? show(f(c)) : insufficient(c));
+const range = (c) => (c.perFrameAll.length ? `${Math.min(...c.perFrameAll)}-${Math.max(...c.perFrameAll)}` : '-');
 
-/** Headline table of a leg: per zone and arm, the median over jobs of the per-job medians (frames, render work per frame, key counts). */
+/**
+ * Headline table of a leg: per zone and arm, each value is the Lean `medianNat` (index n/2, upper middle on an even count) over all kept
+ * windows of all loaded jobs; `n` is the pooled window count with the split per job; under `minReps` every value prints insufficient.
+ */
 export function headlineTable(leg) {
   const out = [];
   for (const z of ZONES) {
     out.push(`**${z}**\n`);
-    out.push(head(['arm', 'jobs', 'windows', 'frames', 'render work ms / window (median)', 'render work us/frame (median, range)', ...KEY_KINDS.map((k) => `${k} n`)]));
+    out.push(head(['arm', 'n windows (per job)', 'frames', 'render work ms / window (median)', 'render work us/frame (median, range)', ...KEY_KINDS.map((k) => `${k} n`)]));
     for (const a of leg.arms) {
-      const cs = leg.zones[z].cells[a];
-      out.push(row([a, cs.filter((c) => c.reps > 0).length, cs.reduce((s, c) => s + c.reps, 0), fmt(pooled(cs, (c) => c.frames)), ms2(pooled(cs, (c) => c.work)), `${fmt(pooled(cs, (c) => c.perFrame))} (${range(cs)})`, ...KEY_KINDS.map((k) => fmt(pooled(cs, (c) => c.kinds[k].n)))]));
+      const c = leg.zones[z].pool[a];
+      out.push(row([a, nOf(c), cellOr(c, (x) => x.frames), cellOr(c, (x) => x.work, ms2), cellOr(c, (x) => `${fmt(x.perFrame)} (${range(x)})`, String), ...KEY_KINDS.map((k) => cellOr(c, (x) => x.kinds[k].n))]));
     }
     out.push('');
   }
   return out.join('\n');
 }
 
-/** Per-kind table (count and covered ms) of a leg, per zone. `Composite` is a count only. */
+/** Per-kind table (count and covered ms) of a leg, per zone, over all kept windows of all loaded jobs. `Composite` is a count only. */
 export function kindTable(leg) {
   const out = [];
   for (const z of ZONES) {
-    out.push(`**${z}** (median count / median covered ms per window; covered = union of the kind's intervals in the window, never above the window span; Composite is a count)\n`);
+    out.push(`**${z}** (median count / median covered ms per window over all kept windows of all jobs; covered = union of the kind's intervals in the window, never above the window span; Composite is a count)\n`);
     out.push(head(['kind', ...leg.arms]));
-    for (const k of KINDS) out.push(row([k, ...leg.arms.map((a) => { const cs = leg.zones[z].cells[a]; return `${fmt(pooled(cs, (c) => c.kinds[k].n))} / ${k === 'Composite' ? 'count only' : ms2(pooled(cs, (c) => c.kinds[k].dur))}`; })]));
+    out.push(row(['n windows (per job)', ...leg.arms.map((a) => nOf(leg.zones[z].pool[a]))]));
+    for (const k of KINDS) out.push(row([k, ...leg.arms.map((a) => cellOr(leg.zones[z].pool[a], (x) => `${fmt(x.kinds[k].n)} / ${k === 'Composite' ? 'count only' : ms2(x.kinds[k].dur)}`, String))]));
     out.push('');
   }
   return out.join('\n');
@@ -160,15 +193,16 @@ const ratio = (a, b) => (a == null || b == null || b === 0 ? '-' : (a / b).toFix
 /**
  * Ratios between arms of the same pooled medians the tables show, computed here and never rounded by hand: per zone, the render work,
  * the counts and covered times of the key kinds, for each arm, then original over rewrite (`orig/base`) and rewrite over its A/A copy
- * (`base/aa`, the noise floor). Composite is a count.
+ * (`base/aa`, the noise floor). A ratio with an insufficient arm is `-`. Composite is a count.
  */
 export function ratioTable(leg) {
   const out = [];
   for (const z of ZONES) {
-    const c = (a) => leg.zones[z].cells[a];
+    const c = (a) => leg.zones[z].pool[a];
     if (!leg.arms.includes('orig') || !leg.arms.includes('base')) continue;
     out.push(`**${z}**\n`);
     out.push(head(['metric', ...leg.arms, 'orig / base', 'base / aa']));
+    out.push(row(['n windows (per job)', ...leg.arms.map((a) => nOf(c(a))), '', '']));
     const metrics = [
       ['frames in zone', (x) => x.frames, fmt],
       ['window span ms', (x) => x.span, ms2],
@@ -180,8 +214,8 @@ export function ratioTable(leg) {
       ...['FunctionCall', 'FireAnimationFrame'].flatMap((k) => [[`${k} n`, (x) => x.kinds[k].n, fmt], [`${k} ms`, (x) => x.kinds[k].dur, ms2]]),
     ];
     for (const [name, f, show] of metrics) {
-      const v = Object.fromEntries(leg.arms.map((a) => [a, pooled(c(a), f)]));
-      out.push(row([name, ...leg.arms.map((a) => show(v[a])), ratio(v.orig, v.base), ratio(v.base, v.aa)]));
+      const v = Object.fromEntries(leg.arms.map((a) => [a, sufficient(c(a)) ? f(c(a)) : null]));
+      out.push(row([name, ...leg.arms.map((a) => cellOr(c(a), f, show)), ratio(v.orig, v.base), ratio(v.base, v.aa)]));
     }
     out.push('');
   }
@@ -207,15 +241,19 @@ export function classTable(leg) {
   return out.join('\n');
 }
 
-/** Cadence table of a leg: per window and mode, per arm the pooled hitch counts (frames over 60 ms) and interval quantiles (ms). */
+/**
+ * Cadence table of a leg: per window and mode, per arm the repeats of all loaded jobs (n with the split per job), the median hitch count
+ * (frames over 60 ms) per repeat, and the p50 / p95 (Lean `quantile`) and max over all intervals of all those repeats (ms).
+ * Under `minReps` repeats every value prints insufficient.
+ */
 export function cadenceTable(leg) {
-  const out = [head(['window', 'timeline', 'arm', 'jobs', 'reps', 'hitches per rep (median)', 'p50 ms', 'p95 ms', 'max ms'])];
+  const out = [head(['window', 'timeline', 'arm', 'reps n (per job)', 'hitches per rep (median)', 'p50 ms', 'p95 ms', 'max ms'])];
   for (const [key, c] of Object.entries(leg.cadence)) {
     const [win, mode] = key.split('|');
     for (const a of leg.arms) {
-      const ps = c.jobs.map((j) => j.arms[a]).filter((x) => x && x.reps > 0);
-      if (!ps.length) continue;
-      out.push(row([win, mode === 'events' ? 'on' : 'off', a, ps.length, ps.reduce((s, p) => s + p.reps, 0), fmt(med(ps.flatMap((p) => p.hitches))), (med(ps.map((p) => p.p50)) / 10).toFixed(1), (med(ps.map((p) => p.p95)) / 10).toFixed(1), (Math.max(...ps.map((p) => p.max)) / 10).toFixed(1)]));
+      const p = c.pool[a];
+      if (!p || !p.reps) continue;
+      out.push(row([win, mode === 'events' ? 'on' : 'off', a, nOf(p), cellOr(p, (x) => med(x.hitches)), cellOr(p, (x) => x.p50, (v) => (v / 10).toFixed(1)), cellOr(p, (x) => x.p95, (v) => (v / 10).toFixed(1)), cellOr(p, (x) => x.max, (v) => (v / 10).toFixed(1))]));
     }
   }
   return out.join('\n');
@@ -274,15 +312,15 @@ export function blocksOf(summary, jobs, minutes) {
   return b;
 }
 
-/** The WebKit legs' jobs of `gh run view <id> --json jobs` results (`{ [runId]: { jobs } }`) as `[{ run, leg, job, conclusion, minutes }]`: wall minutes to 0.1. */
+/** The WebKit legs' jobs of `gh run view <id> --json jobs` results (`{ [runId]: { jobs } }`) as `[{ run, leg, job, conclusion, minutes, billed }]`: wall minutes to 0.1 for display, billed minutes rounded up from the unrounded seconds. */
 export function minutesOf(byRun) {
   const out = [];
   for (const run of Object.keys(byRun).sort()) {
     for (const j of byRun[run].jobs ?? []) {
       const leg = /^webkit mac/.test(j.name) ? 'mac' : /^webkit sim/.test(j.name) ? 'sim' : null;
       if (!leg || !j.startedAt || !j.completedAt) continue;
-      const minutes = Math.round((Date.parse(j.completedAt) - Date.parse(j.startedAt)) / 6000) / 10;
-      out.push({ run, leg, job: j.name, conclusion: j.conclusion, minutes });
+      const ms = Date.parse(j.completedAt) - Date.parse(j.startedAt);
+      out.push({ run, leg, job: j.name, conclusion: j.conclusion, minutes: Math.round(ms / 6000) / 10, billed: Math.ceil(ms / 60000) });
     }
   }
   return out;
@@ -290,16 +328,16 @@ export function minutesOf(byRun) {
 
 const medianF = (l) => { const t = [...l].sort((x, y) => x - y); const n = t.length; return n % 2 ? t[(n - 1) / 2] : Math.round(((t[n / 2 - 1] + t[n / 2]) / 2) * 10) / 10; };
 
-/** Job minutes per leg (`minutesOf`): every job of the runs, the median and the longest over the successes, and the billed minutes (each job rounded up). */
+/** Job minutes per leg (`minutesOf`): every job of the runs, the median and the longest over the successes, and the billed minutes (each job rounded up from its unrounded seconds). */
 export function minutesTable(minutes) {
   if (!minutes?.length) return 'no job minutes were recorded';
   const out = [head(['run', 'leg', 'job', 'result', 'wall min', 'billed min'])];
-  for (const m of minutes) out.push(row([m.run, m.leg, m.job, m.conclusion ?? 'success', m.minutes, Math.ceil(m.minutes)]));
+  for (const m of minutes) out.push(row([m.run, m.leg, m.job, m.conclusion ?? 'success', m.minutes, m.billed]));
   for (const leg of ['mac', 'sim']) {
     const ok = minutes.filter((m) => m.leg === leg && (m.conclusion ?? 'success') === 'success').map((m) => m.minutes);
     if (ok.length) out.push(row(['median of successes', leg, '', `n=${ok.length}`, medianF(ok), '']), row(['longest success', leg, '', '', Math.max(...ok), '']));
     const all = minutes.filter((m) => m.leg === leg);
-    if (all.length) out.push(row(['all jobs billed', leg, '', `n=${all.length}`, '', all.reduce((acc, m) => acc + Math.ceil(m.minutes), 0)]));
+    if (all.length) out.push(row(['all jobs billed', leg, '', `n=${all.length}`, '', all.reduce((acc, m) => acc + m.billed, 0)]));
   }
   return out.join('\n');
 }
