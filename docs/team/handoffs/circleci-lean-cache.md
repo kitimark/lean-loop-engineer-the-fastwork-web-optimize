@@ -23,3 +23,4 @@ Branch `worktree-wf_9aef738e-414-1`. Read first: `research/notes/2026/10-2x-circ
 ## Conventions
 - CircleCI only through `scripts/circleci.mjs` (Keychain token); never print slug or token. Arm Linux only, no macOS.
 - Each measurement used one pipeline per cold/warm/probe; wait with `pnpm -s fw ci wait --provider circleci --pipeline <id> --out <dir>`.
+Scope: landed with --allow for docs/team/tools/{circleci,land}.md, lean/Fw/Ci/{Overflow,Provider}.lean and lean/scripts/ProviderGolden.lean: without Lean landJobs the storage ledger would not count a land save.

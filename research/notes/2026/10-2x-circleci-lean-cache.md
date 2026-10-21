@@ -1,7 +1,7 @@
 ---
 id: 2026-10-21-circleci-lean-cache
 kind: note
-title: "A Lake cache on the CircleCI land job: the cold Lean build was 75-80% of a leg"
+title: "A Lake cache on the CircleCI land job: the cold Lean build was 61-89% of a leg"
 status: final
 created: 2026-10-21
 authors: [agent:measure-engineer]
@@ -16,9 +16,10 @@ is now worth its queue. Tool docs: `docs/team/tools/land.md`, `docs/team/tools/c
 
 ## Verdict
 
-**VERDICT circleci-lean-cache: a warm CircleCI leg is not slower than the GitHub wait it avoids once GitHub's queue passes about 25 s for a browser
-leg, and at any wait for the three non-browser legs. At GitHub's measured p50 queue (18 s) the two browser legs are about 7-10 s slower on
-CircleCI; at its p95 queue (684 s) every leg is 450+ s faster. (INFERRED from MEASURED medians, n small.)**
+**VERDICT circleci-lean-cache: comparing exact-key hits on both providers, a warm CircleCI leg is not slower than the GitHub wait it avoids once
+GitHub's queue passes about 5 s for check-sh and suites-b, at any wait for suites-a, and about 50-56 s for the two browser legs. At GitHub's
+measured p50 queue (18 s) the browser legs are about 31-38 s slower on CircleCI. At its p95 queue (684 s) every leg is 600+ s faster. (INFERRED
+from MEASURED medians, n small.)**
 
 ## What was built (CONFIRMED, `.circleci/config.yml`, `.circleci/job.sh`)
 
@@ -51,7 +52,7 @@ Cold = no entry for the key and no prefix entry; warm = exact key restored. Rang
 | job total chromium | 509.0 | 146.9 | 158.9 | 199.9 |
 | job total webkit | 576.1 | 215.1 | 186.5 | 195.1 |
 
-- The cold `fwcore build` (353-374 s) is 75-80% of the cold leg: the INFERRED cause is CONFIRMED. Warm, the step ran 322 ms ("Build completed
+- The cold `fwcore build` (353-374 s) is 61-89% of the cold leg (per leg: check-sh highest, webkit lowest): the INFERRED cause is CONFIRMED. Warm, the step ran 322 ms ("Build completed
   successfully (672 jobs)"). A one-docstring change in one Lean module (#314) rebuilt in 15.2 s, so the prefix restore works.
 - The browser suite varies 123-200 s between runs of the same commit (pool noise); the other steps are stable to a few seconds.
 - A save step appeared only in the cold pipeline (check-sh stored, the other four legs "skipped") and in #314 (check-sh stored again, new key).
@@ -77,16 +78,18 @@ because the Lean sources had changed.
 CircleCI warm wall = queue (about 30 s) + job total (medians of #312 and #313). GitHub wall = its queue + leg. The break-even GitHub queue is
 CircleCI wall minus the GitHub leg: below it GitHub is faster, above it CircleCI is.
 
+GitHub leg = the twin's leg minus its 27-30 s fwcore rebuild (a prefix hit there; an exact hit rebuilds in 0 s, like the measure_warm step).
+
 | leg | CircleCI warm wall | GitHub leg | break-even GitHub queue |
 |---|---|---|---|
-| check-sh | about 78 | about 100 | below 0 (CircleCI always) |
-| suites-a | about 148 | 186 | below 0 |
-| suites-b | about 121 | 145 | below 0 |
-| chromium | about 184 | 157 | about 27 |
-| webkit | about 234 | 210 | about 24 |
+| check-sh | about 78 | about 73 (101 minus fwcore 28) | about 5 |
+| suites-a | about 149 | about 158 | below 0 |
+| suites-b | about 121 | about 118 | about 3 |
+| chromium | about 183 | about 127 | about 56 |
+| webkit | about 231 | about 182 | about 49 |
 
 - GitHub queue, from the measured series (`10-21-circleci-series.md`, not re-measured): p50 18 s, p95 684 s. CircleCI queue p50 32 s there; wall p50 128 s.
-- So at the p50 queue the two browser legs are 6-9 s slower on CircleCI, and the other three legs are not. At the p95 queue and at the 222-252 s wait
+- So at the p50 queue the browser legs are about 31-38 s slower on CircleCI, and the other three legs are within a few seconds. At the p95 queue and at the 222-252 s wait
   seen on this session's GitHub run every leg is faster on CircleCI. The overflow rule only sends a leg to CircleCI when GitHub has no free slot,
   i.e. when the wait is long, which is the regime where CircleCI wins.
 
