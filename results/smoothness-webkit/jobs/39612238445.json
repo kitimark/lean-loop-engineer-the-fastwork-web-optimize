@@ -1,0 +1,34 @@
+{
+ "jobs": [
+  {
+   "name": "guard",
+   "conclusion": "success",
+   "startedAt": "2026-10-21T13:57:56Z",
+   "completedAt": "2026-10-21T13:58:09Z"
+  },
+  {
+   "name": "site",
+   "conclusion": "success",
+   "startedAt": "2026-10-21T14:05:27Z",
+   "completedAt": "2026-10-21T14:06:25Z"
+  },
+  {
+   "name": "webkit mac (playwright-webkit, macos-26)",
+   "conclusion": "success",
+   "startedAt": "2026-10-21T14:11:27Z",
+   "completedAt": "2026-10-21T14:20:53Z"
+  },
+  {
+   "name": "webkit sim (mobile safari, xcode-27)",
+   "conclusion": "success",
+   "startedAt": "2026-10-21T14:06:29Z",
+   "completedAt": "2026-10-21T14:40:32Z"
+  },
+  {
+   "name": "cadence ${{ matrix.width }} set ${{ matrix.set }}",
+   "conclusion": "skipped",
+   "startedAt": "2026-10-21T14:06:26Z",
+   "completedAt": "2026-10-21T14:06:25Z"
+  }
+ ]
+}
