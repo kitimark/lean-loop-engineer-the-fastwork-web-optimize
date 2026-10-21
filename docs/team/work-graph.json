@@ -14479,7 +14479,8 @@
     "docs/team/handoffs/polish-in-flow.md",
     "apps/runner/test/spawn-guard*.test.ts",
     "lean/Fw/Ops/SpawnGuard.lean"
-   ]
+   ],
+   "evidence": "f121568"
   },
   {
    "devices": [
@@ -14770,7 +14771,8 @@
     "apps/runner/test/slot.test.ts",
     "docs/team/tools/slot.md",
     "docs/team/handoffs/slot-renew-lease.md"
-   ]
+   ],
+   "evidence": "7b60a07"
   },
   {
    "devices": [
