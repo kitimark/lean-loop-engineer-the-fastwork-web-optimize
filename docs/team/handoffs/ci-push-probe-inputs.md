@@ -1,23 +1,25 @@
-# ci-push-probe-inputs (with fw-run-dispatch-pick): handoff
+# ci-push-probe-inputs (with fw-run-dispatch-pick): handoff, round 2
 
-State: branch worktree-wf_06230cac-6e8-1; Lean check.sh green, runner tests (run, run-pick, land-inputs), ci-paths test, trajectory-line test green.
+State: branch worktree-wf_06230cac-6e8-1. Commits: 9701601e (all fixes), 8a26f39d (run-pick test filter), b71d1847 (CI push commit).
+Verified: lean/scripts/check.sh green; apps/runner test (1665), packages/gh-budget test (65), scripts/ci-paths.test.mjs (52),
+ci-push.test.mjs, trajectory-line.test.mjs green. CI: one run, push, chromium + width 390 (ONE leg): run 39522707053, job
+`merge chromium` success, `fw ci wait --workflow trajectory-probe --sha b71d1847...` picked it (exit 0).
 
-What changed
-- `lean/Fw/Ci/Trigger.lean` section "The probe line": `parseLine`, `pushProbe lane msg` (run / needsLane / notAsked / refused why), one theorem per branch, `build_ok` (fw/preset exclusive, engines and widths allowlists). Golden: `probe` lines of `packages/contracts/golden/ci/triggers.jsonl` (`cd lean && lake test -- --write-ci-trigger-golden`).
-- Node twin `.github/scripts/trajectory-line.mjs` + `.test.mjs` (replays the golden); `trajectory-probe.yml` job `site` reads the inputs (push: commit line; dispatch: inputs), names a step `trajectory inputs: ...`, uploads artifact `trajectory-inputs`, run-name echoes the dispatch nonce.
-- `.claude/workflows/build-review.js` PREAMBLE line 16 points builders at the push route; `docs/team/tools/trajectory-probe.md` has the section.
-- Message form: `[ci:trajectory-probe]` plus `[trajectory fw=a:b,c:d widths=390,1280 engines=both]` (or `preset=`). Only a line starting with `[trajectory` counts.
+Round 1 fixes
+1. Trigger.lean trajectory-probe.yml row now lists trajectory-line.mjs, its test and golden/ci/triggers.jsonl. New ci-paths test
+   `scriptsNamed`: every .github/scripts/* path in a workflow (comments left out) must match that workflow's Lean inputs. It also
+   found two older gaps, fixed in Lean: land.yml lacked land-base.sh, wktr.yml lacked changed-inputs.test.mjs.
+2. One-leg merge: each leg uploads `artifact-name.txt`; `merge` / `merge-apple` move a single download under legs/<name>/
+   (download with merge-multiple false). Proved by run 39522707053.
+3. `fw ci wait --branch --workflow` selects by identity: push = event push + head sha prefix of --sha; `--nonce n` = the dispatch whose
+   title carries the nonce. Lean `Fw.Ci.Dispatch.wanted/select` + 7 theorems (one per branch), golden `select` lines in
+   golden/ci/dispatch.jsonl, TS twin packages/gh-budget/src/want.ts (TS stand-in until a fwcore op), used by wait.ts `relevant`
+   (Target.want). The poller list now also reads `event,displayTitle`. fw ci wait lives in packages/gh-budget (not apps/runner).
+4. `pnpm fw ci push` prints needsLane / refused before the push (`probeNotes`, scripts/ci-push.mjs; refused stops with exit 2).
 
-Found, not fixed: a run with ONE leg (one engine, one width, e.g. engines=chromium widths=390) fails job `merge` with "merge: no leg"
-(download-artifact with a pattern that matches one artifact puts its files in legs/ itself, so the `find -type d` sees no leg directory).
-Runs 39519445950 (push) and 39519469405 (dispatch) show it; use two widths or both engines until it is fixed (follow-up).
+Accepted limits: a plain `git push origin ci/x` reports nothing (said in trajectory-probe.md and the preamble); `--gate` and the
+count lanes of `fw run` keep the newest-run rule (Target.want absent); an old runs-status file without event/displayTitle selects no
+run until the next poller tick.
 
-Verified: golden equality (Lean to node twin), ci-paths --check. CI runs: see the report (ids).
-
-Writes outside the task lists: `lean/FwTestMain.lean` (golden wiring), `lean/Fw/Store/Layout.lean` (Lane.trajectory.inputs gains `nonce`, required by the lane-inputs check), `.github/scripts/trajectory-line.mjs` and its test.
-
-Open items
-- `needsLane` (a `[trajectory]` line without the lane token) is decided in Lean but nothing reports it; `fw ci push` should call it.
-- `fw ci push` could add the `[ci:trajectory-probe]` token itself when a line is present.
-
-Read first: the Trigger.lean section header comment, then trajectory-probe.yml step `in`.
+Writes beyond the task list: packages/gh-budget/{src/cli,poller,state,wait,want}.ts and tests, scripts/ci-push.mjs(+test),
+apps/runner/test/run-pick.test.ts, lean/Fw/Ci/Dispatch.lean, golden dispatch.jsonl. Read first: Dispatch.lean section "Which run does a wait mean?".
