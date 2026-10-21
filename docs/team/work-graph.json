@@ -15237,6 +15237,89 @@
     "research/notes/2026/10-2x-gate-apt-no-update.md",
     "docs/team/handoffs/gate-apt-no-update.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "wkcost-cost-input",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "title": "webkit-cost-counters review follow-ups (landed 33d24878): the counters cannot be rerun on CI because the webkit-sim lag step never passes --cost. Add a `cost` workflow_dispatch input to .github/workflows/webkit-sim.yml (off|on|only, default off) passed as --cost to lag/cli.mjs run; the dispatch input is the only selector (no commit token). cli.mjs accepts only off|on|only and throws on anything else. One dispatch with cost=on and its run id. Unit: the input and the strict flag parse. Limits: the 35 min step bound and the rewrite-arm failures stay follow-ups.",
+   "writes": [
+    ".github/workflows/webkit-sim.yml",
+    "packages/measure-webkit/src/lag/cli.mjs",
+    "packages/measure-webkit/test/lag-cli*.test.mjs",
+    "docs/team/handoffs/wkcost-cost-input.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "slot-lease-cap",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "deps": [],
+   "title": "slot-renew-lease review follow-up (landed 1c225f82): a holder saved before leaseS existed gets leaseOr = till - since, which after old renews can exceed leaseMaxS (a run holder renewed for 2 h gets about 7260 s), so a dead holder could keep the slot for hours. Fix: leaseOr caps the legacy span at leaseMaxS (Lean def, hypothesis on leaseOr_legacy, goldens, TS mirror Math.min), docstring and slot.md say 'an upper bound after old renews'. Unit: leaseOr. Limits: only holders alive across the upgrade are affected.",
+   "writes": [
+    "lean/Fw/Sup/Adapt.lean",
+    "lean/Fw/Sup/AdaptGolden.lean",
+    "packages/contracts/golden/sup/adapt.jsonl",
+    "apps/runner/src/slot-core.ts",
+    "apps/runner/src/slot.ts",
+    "apps/runner/test/slot.test.ts",
+    "docs/team/tools/slot.md",
+    "docs/team/handoffs/slot-lease-cap.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "polish-followups",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "polish-in-flow review follow-ups (landed bf1793e3): (1) polarWords misses contractions and other negators (cannot, isn't, don't, neither, nor, none, fails): add them with one #guard per form (apostrophe forms need wordChar or a substring check); (2) build-review.js onlyFixes is true for a refusal with an empty findings list: require at least one finding; (3) rename the case 'sup-wire over-cut leaves a space before ;' to 'cuts: 10-22 sup-wire over-cut drops no' and regenerate polish.jsonl. Unit: the three items. Limits: comment-only hunk check, dirty-tree refusal and staged-blob items stay open.",
+   "writes": [
+    "lean/Fw/Plan/Polish.lean",
+    "packages/contracts/golden/plan/polish.jsonl",
+    "apps/runner/test/polish.test.ts",
+    ".claude/workflows/build-review.js",
+    "docs/team/tools/polish.md",
+    "docs/team/handoffs/polish-followups.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "builder-checkpoint",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "Incident 2026-10-22: the xctrace-ci-probe builder (workflow wf_3d7f87b0-856) ran 5.7 h, pushed 5 CI runs and stopped without a report, note or handoff (StructuredOutput never called), so the lead could only restart from git and CI state; its last run kept 2 macOS VMs busy past the agent. Fix in .claude/workflows/build-review.js: the builder prompt requires a handoff file written after the first CI push and updated after each run; on a builder with no result the script returns the worktree, branch and the handoff path instead of failing the whole run. Record the incident in docs/team/incidents/ledger.json (after land-tier-compose-test lands; it writes that file too). Unit: the checkpoint rule and the no-result return. Limits: no hard time limit on builders (follow-up).",
+   "writes": [
+    ".claude/workflows/build-review.js",
+    "docs/team/incidents/ledger.json",
+    "docs/team/handoffs/builder-checkpoint.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "platform-end-premise",
+   "owner": "researcher",
+   "stream": "parts",
+   "deps": [],
+   "title": "platform-shrink-mq (landed b0be6383, hold) rests on the platform card being the last section of the rewrite page (apps/site/src/App.tsx:68-83). Check the original snapshot under snapshot/: does fastwork.com also end at that card at the phone and desktop widths? If yes, the original's shrink is dead code on the phone too (write it as a finding in the ledger row n=42's lesson); if no, name the missing content below the card and open a port task. Also give the WebKit file:line@sha in .cache/upstream where media-query change listeners run inside Page::updateRendering (premise P1 of the platform note). Unit: the two answers with sources. Limits: read-only on the site.",
+   "writes": [
+    "research/notes/2026/10-2x-platform-end-premise.md",
+    "docs/team/handoffs/platform-end-premise.md"
+   ]
   }
  ],
  "deadline": {
