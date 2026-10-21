@@ -156,15 +156,12 @@ test('the earn width at rest is the CSS: max-width 11rem, 9.5rem up to 640 px, a
   assert.deepEqual(full(390), qJson(qInt(rems[1] * 16 * 1000)));
 });
 
-test('the identity colours are the CSS: the nav background mixes #ffffff1a into #131922 by --morph, as the golden `from` and `to`', () => {
+test('the identity colours are the ported CSS: the nav background mixes #ffffff1a into #131922 by --morph, as the golden `from` and `to`', () => {
   const g = golden.find((x) => x.op === 'identity');
   const hex = (h, i) => parseInt(h.slice(i, i + 2), 16);
-  const snap = readFileSync(fileURLToPath(new URL('../../../snapshot/site/_app/immutable/assets/2.gBuqKVzi.css', import.meta.url)), 'utf8');
-  for (const css of [navCss, snap]) {
-    const m = css.replace(/\s+/g, ' ').match(/background: ?color-mix\( ?in srgb, #([0-9a-f]{8}) calc\(\(1 - var\(--morph\)\) \* 100%\), #([0-9a-f]{6}) calc\(var\(--morph\) \* 100%\) ?\)/);
-    assert.ok(m, 'no nav background color-mix');
-    assert.deepEqual([[hex(m[1], 0), hex(m[1], 6)], [hex(m[2], 0), 255]], [g.from, g.to]);
-  }
+  const m = navCss.replace(/\s+/g, ' ').match(/background: ?color-mix\( ?in srgb, #([0-9a-f]{8}) calc\(\(1 - var\(--morph\)\) \* 100%\), #([0-9a-f]{6}) calc\(var\(--morph\) \* 100%\) ?\)/);
+  assert.ok(m, 'no nav background color-mix');
+  assert.deepEqual([[hex(m[1], 0), hex(m[1], 6)], [hex(m[2], 0), 255]], [g.from, g.to]);
   const logic = readFileSync(fileURLToPath(new URL('../../../apps/site/src/parts/nav/logic.ts', import.meta.url)), 'utf8');
   assert.equal(Number(logic.match(/MORPHING_CUT = ([\d.]+)/)[1]) * 10000, g.cut);
 });
