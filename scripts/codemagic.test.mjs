@@ -15,7 +15,8 @@ const here = dirname(fileURLToPath(import.meta.url));
 const g = loadGolden();
 const TOKEN = 'cm-fake-token-0123456789';
 const APP = 'appid000000000000000000a';
-const tmp = () => mkdtempSync(join(tmpdir(), 'cm-test-'));
+// every test root carries a codemagic.yaml: the trigger cap is its max_build_duration
+const tmp = (cap = 40) => { const d = mkdtempSync(join(tmpdir(), 'cm-test-')); writeFileSync(join(d, 'codemagic.yaml'), `workflows:\n  webkit-sim:\n    max_build_duration: ${cap}\n`); return d; };
 const res = (status, body = {}, headers = {}) => ({ status, ok: status >= 200 && status < 300, headers: { get: (k) => headers[k.toLowerCase()] ?? null }, text: async () => (typeof body === 'string' ? body : JSON.stringify(body)),
   arrayBuffer: async () => new TextEncoder().encode(typeof body === 'string' ? body : JSON.stringify(body)).buffer });
 
@@ -156,12 +157,12 @@ test('trigger: the ledger is checked first, a pending row counts in full, fetch 
 
 test('trigger refuses (exit 5, no request) at 361 + 40, at three builds and at cap 41', async () => {
   for (const [name, builds, cap, why] of [
-    ['over the line', { a: { month: '2026-10', minutes: 180 }, b: { month: '2026-10', minutes: 181 } }, '40', 'minutes'],
-    ['three builds', { a: { month: '2026-09', minutes: 5 }, b: { month: '2026-09', minutes: 5 }, c: { month: '2026-09', minutes: 5 } }, '40', 'builds'],
-    ['cap', {}, '41', 'cap']]) {
-    const root = tmp(); const ledgerPath = join(root, 'ledger.json'); writeFileSync(ledgerPath, JSON.stringify({ builds }));
+    ['over the line', { a: { month: '2026-10', minutes: 180 }, b: { month: '2026-10', minutes: 181 } }, 40, 'minutes'],
+    ['three builds', { a: { month: '2026-09', minutes: 5 }, b: { month: '2026-09', minutes: 5 }, c: { month: '2026-09', minutes: 5 } }, 40, 'builds'],
+    ['cap', {}, 41, 'cap']]) {
+    const root = tmp(Number(cap)); const ledgerPath = join(root, 'ledger.json'); writeFileSync(ledgerPath, JSON.stringify({ builds }));
     const api = fakeApi(); const logs = [];
-    const code = await main(['trigger', '--branch', 'ci/codemagic-pilot', '--cap', cap], { root, env: { FW_CODEMAGIC_APP_ID: APP }, log: (m) => logs.push(m), ctx: { fetchFn: api.fetchFn, getToken: () => TOKEN, ledgerPath, now: () => Date.parse('2026-10-21T10:00:00Z') } });
+    const code = await main(['trigger', '--branch', 'ci/codemagic-pilot'], { root, env: { FW_CODEMAGIC_APP_ID: APP }, log: (m) => logs.push(m), ctx: { fetchFn: api.fetchFn, getToken: () => TOKEN, ledgerPath, now: () => Date.parse('2026-10-21T10:00:00Z') } });
     assert.equal(code, 5, name);
     assert.equal(api.calls.length, 0, name);
     assert.match(logs.join('\n'), new RegExp(`STOP.*${why}`), name);
@@ -175,6 +176,25 @@ test('a trigger the API rejects leaves no row in the ledger', async () => {
     const code = await main(['trigger', '--branch', 'ci/x'], { root, env: { FW_CODEMAGIC_APP_ID: APP }, log: () => {}, ctx: { fetchFn: api.fetchFn, getToken: () => TOKEN, ledgerPath, now: () => 1 } });
     assert.equal(code, 1);
     assert.deepEqual(ledgerRows(JSON.parse(readFileSync(ledgerPath, 'utf8'))), []);
+  } finally { console.error = err; }
+});
+
+test('a trigger whose request fails without an answer keeps its pending row (the build may have started)', async () => {
+  const root = tmp(); const ledgerPath = join(root, 'ledger.json'); const err = console.error; console.error = () => {};
+  try {
+    const fetchFn = async () => { throw new Error('socket hang up'); };
+    const code = await main(['trigger', '--branch', 'ci/x'], { root, env: { FW_CODEMAGIC_APP_ID: APP }, log: () => {}, ctx: { fetchFn, getToken: () => TOKEN, ledgerPath, now: () => 1, sleep: async () => {} } });
+    assert.equal(code, 1);
+    assert.equal(ledgerRows(JSON.parse(readFileSync(ledgerPath, 'utf8'))).length, 1);
+  } finally { console.error = err; }
+});
+
+test('--workflow other than webkit-sim is refused', async () => {
+  const root = tmp(); const api = fakeApi(); const err = console.error; console.error = () => {};
+  try {
+    const code = await main(['trigger', '--branch', 'ci/x', '--workflow', 'other'], { root, env: { FW_CODEMAGIC_APP_ID: APP }, log: () => {}, ctx: { fetchFn: api.fetchFn, getToken: () => TOKEN, ledgerPath: join(root, 'l.json'), now: () => 1 } });
+    assert.notEqual(code, 0);
+    assert.equal(api.calls.length, 0);
   } finally { console.error = err; }
 });
 

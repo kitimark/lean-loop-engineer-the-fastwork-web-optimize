@@ -80,8 +80,9 @@ Rows are `Fw/Measure/Classes` classes over the 104 rows of `v1-session-1.md`.
 | Codemagic 3 | 34 | 57 | 13 |
 
 Rows with another class between two runs: GitHub against GitHub 11; Codemagic 1 against Codemagic 3 7; Codemagic 3 against GitHub
-39631161575 7; Codemagic 1 against GitHub 39624847034 17; Codemagic 3 against GitHub 39624847034 16. The Codemagic builds sit inside the spread
-the two GitHub runs show against each other. This is not a result: the rule asks for at least 3 runs on separate jobs per provider, and the pilot has
+39631161575 7; Codemagic 1 against GitHub 39624847034 17; Codemagic 3 against GitHub 39624847034 16. Per class, both Codemagic counts fall inside the
+range of the two GitHub runs. Row by row, the Codemagic builds differ from GitHub 39631161575 in 6 and 7 rows, below the 11
+between the two GitHub runs, but from GitHub 39624847034 in 17 and 16 rows, above it. This is not a result: the rule asks for at least 3 runs on separate jobs per provider, and the pilot has
 2 finished builds per side. Read it as "no sign of a difference", INFERRED, and nothing more.
 
 ## Recommendation (INFERRED from n = 3 builds; the user decides, nothing is wired)

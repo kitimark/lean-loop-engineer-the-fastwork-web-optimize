@@ -16,7 +16,7 @@ def freeMinutes : Nat := 500
 /-- The pilot trigger stops when `used + cap` would pass this many minutes of the month. -/
 def stopAt : Nat := 400
 
-/-- The longest `max_build_duration` the pilot allows, in minutes (the one cell took 33 min on GitHub with 2 sessions). -/
+/-- The longest `max_build_duration` the pilot allows, in minutes (the one cell, one session of two passes, took 33 min on GitHub). -/
 def maxCapMin : Nat := 40
 
 /-- At most this many pilot builds ever (the task's accepted limit). -/

@@ -5,7 +5,7 @@
 // billedMin, monthOf, refusals/mayTrigger, exitOf). This file is request building, parsing, polling, file writing and printing.
 //
 //   node scripts/codemagic.mjs check                          read-only: the token works and the app id is one of the account's apps (GET /apps)
-//   node scripts/codemagic.mjs trigger --branch ci/<name> [--workflow webkit-sim] [--cap MIN] [--dry]
+//   node scripts/codemagic.mjs trigger --branch ci/<name> [--workflow webkit-sim] [--dry]   (cap = codemagic.yaml max_build_duration)
 //   node scripts/codemagic.mjs wait --build ID [--timeout S] [--interval S>=120] [--out DIR]
 //   node scripts/codemagic.mjs fetch --build ID --out DIR     build.json, steps.json, artifacts/, ledger row with the minutes the build billed
 //   node scripts/codemagic.mjs compare --github DIR --codemagic DIR [--json]   (each DIR holds v1-session-1.md, the class table)
@@ -100,7 +100,7 @@ export async function request({ fetchFn = fetch, getToken = keychainToken, sleep
       if (new URL(url).protocol !== 'https:') throw new Error(`${method} ${shown(url)}: redirect to a non-https URL refused`);
       continue;
     }
-    if (!res.ok) throw new Error(redact(`${method} ${shown(url)}: HTTP ${res.status} ${(await res.text()).slice(0, 200)}`, token));
+    if (!res.ok) throw Object.assign(new Error(redact(`${method} ${shown(url)}: HTTP ${res.status} ${(await res.text()).slice(0, 200)}`, token)), { status: res.status });
     return res;
   }
 }
@@ -250,10 +250,18 @@ function flags(argv, spec) {
 const USAGE = [
   'usage: node scripts/codemagic.mjs <sub> ...',
   '  check                                            the token works and the app id is one of the apps (needs FW_CODEMAGIC_APP_ID or .local/codemagic.json)',
-  '  trigger --branch ci/<name> [--workflow webkit-sim] [--cap MIN (default 40)] [--dry]',
+  '  trigger --branch ci/<name> [--workflow webkit-sim] [--dry]   (cap = codemagic.yaml max_build_duration)',
   '  wait --build ID [--timeout S] [--interval S>=120] [--out DIR]     fetch --build ID --out DIR',
   '  compare --github DIR --codemagic DIR [--json]    ledger    digest FILE.md    dry-run',
 ].join('\n');
+
+/** The build cap the Lean rule adds: codemagic.yaml max_build_duration, the limit Codemagic enforces. */
+export function yamlCap(root) {
+  const cap = Number(/^\s*max_build_duration:\s*(\d+)\s*$/m.exec(readFileSync(join(root, 'codemagic.yaml'), 'utf8'))?.[1]);
+  if (!Number.isInteger(cap) || cap < 1) throw new Error('codemagic.yaml: no max_build_duration');
+  return cap;
+}
+const onlyWorkflow = (w) => { if (w !== undefined && w !== WORKFLOW) throw new Usage(`--workflow must be ${WORKFLOW} (codemagic.yaml has one workflow)`); return WORKFLOW; };
 
 /** The trigger decision for now: the ledger, the month, the Lean refusals. */
 export function triggerDecision(g, ledgerPath, cap, now) {
@@ -287,9 +295,9 @@ export async function main(argv, { root = ROOT, env = process.env, ctx: ctx0 = {
       return !r.comparable ? 2 : r.equal ? 0 : 1;
     }
     if (sub === 'dry-run' || (sub === 'trigger' && rest.includes('--dry'))) {
-      const o = flags(rest.filter((x) => x !== 'dry-run'), { branch: 'v', workflow: 'v', cap: 'v', dry: 'bool' });
-      const cap = Number(o.cap ?? g.constants.maxCapMin), branch = o.branch ?? 'ci/codemagic-pilot';
-      const req = triggerRequest({ appId: cfg.appId || '<app-id>', workflowId: o.workflow ?? WORKFLOW, branch });
+      const o = flags(rest.filter((x) => x !== 'dry-run'), { branch: 'v', workflow: 'v', dry: 'bool' });
+      const cap = yamlCap(root), branch = o.branch ?? 'ci/codemagic-pilot';
+      const req = triggerRequest({ appId: cfg.appId || '<app-id>', workflowId: onlyWorkflow(o.workflow), branch });
       const d = triggerDecision(g, ctx.ledgerPath, cap, ctx.now());
       log(`${req.method} ${req.url}\n${JSON.stringify({ headers: req.headers, body: { ...req.body, appId: req.body.appId === cfg.appId && cfg.appId ? '<app-id>' : req.body.appId } }, null, 2)}`);
       log(`ledger (Lean Fw.Ci.Codemagic.refusals): month ${d.month}, ${d.used} of ${g.constants.freeMinutes} minutes used, ${d.builds} pilot build(s), cap ${d.cap} -> ${d.refusals.length ? `REFUSED (${d.refusals.join(', ')})` : 'allowed'}`);
@@ -304,18 +312,18 @@ export async function main(argv, { root = ROOT, env = process.env, ctx: ctx0 = {
       return ok ? 0 : 1;
     }
     if (sub === 'trigger') {
-      const o = flags(rest, { branch: 'v', workflow: 'v', cap: 'v', dry: 'bool' });
+      const o = flags(rest, { branch: 'v', workflow: 'v', dry: 'bool' });
       if (!/^ci\/[A-Za-z0-9._/-]+$/.test(o.branch ?? '')) throw new Usage(USAGE);
-      const cap = Number(o.cap ?? g.constants.maxCapMin);
-      if (!Number.isInteger(cap) || cap < 1) throw new Usage('--cap must be a whole number of minutes');
+      const cap = yamlCap(root), workflowId = onlyWorkflow(o.workflow);
       const d = triggerDecision(g, ctx.ledgerPath, cap, ctx.now());
       if (d.refusals.length) { log(`STOP (Lean Fw.Ci.Codemagic.refusals): ${d.refusals.join(', ')}; ${d.used} of ${g.constants.freeMinutes} minutes used in ${d.month} (line ${g.constants.stopAt}), ${d.builds} pilot build(s) (max ${g.constants.maxBuilds}), cap ${cap}`); return 5; }
-      const req = triggerRequest({ appId: needApp(), workflowId: o.workflow ?? WORKFLOW, branch: o.branch });
+      const req = triggerRequest({ appId: needApp(), workflowId, branch: o.branch });
       const ledger = readLedger(ctx.ledgerPath), tmpId = `pending-${ctx.now()}`;
       ledger.builds[tmpId] = { month: d.month, minutes: cap, pending: true, at: ctx.now() }; // counts in full from before the request is sent
       writeLedger(ctx.ledgerPath, ledger);
       let r;
-      try { r = await call(ctx, req.method, req.url, req.body); } catch (e) { delete ledger.builds[tmpId]; writeLedger(ctx.ledgerPath, ledger); throw e; }
+      // only a 4xx answer proves no build started; a network error or timeout may follow an accepted build, so its row stays
+      try { r = await call(ctx, req.method, req.url, req.body); } catch (e) { if (e.status >= 400 && e.status < 500) { delete ledger.builds[tmpId]; writeLedger(ctx.ledgerPath, ledger); } throw e; }
       const id = r.buildId ?? r.build?._id ?? r.id;
       if (!id) throw new Error('trigger answered without a build id');
       delete ledger.builds[tmpId];
