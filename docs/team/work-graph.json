@@ -8177,7 +8177,7 @@
    "id": "ci-route",
    "owner": "lean-prover",
    "stream": "ops",
-   "title": "One Lean router for every CI lane across GitHub Actions and CircleCI: inputs health (gh-status, circleci-status), free quota left, measured queue p50/p95 per provider and class, per-provider lane allowlist; outputs an ordered provider list (failover) and an optional hedge start when the first queue exceeds T; feeds fw ci push and LandRemote; takes macOS lanes from Fw.Ci.Pool fallback route (one router, one source; user 2026-10-20) Inputs from pool-key-outcome review (2026-10-21): define a provider-independent attempt order (GitHub run_attempt and CircleCI numbers are separate counters), and the reduce must map keys still held by the router (queued/running on CircleCI) to waiting, not notRun.",
+   "title": "One Lean router for every CI lane across GitHub Actions and CircleCI: inputs health (gh-status, circleci-status), free quota left, measured queue p50/p95 per provider and class, per-provider lane allowlist; outputs an ordered provider list (failover) and an optional hedge start when the first queue exceeds T; feeds fw ci push and LandRemote; takes macOS lanes from Fw.Ci.Pool fallback route (one router, one source; user 2026-10-20) Inputs from pool-key-outcome review (2026-10-21): define a provider-independent attempt order (GitHub run_attempt and CircleCI numbers are separate counters), and the reduce must map keys still held by the router (queued/running on CircleCI) to waiting, not notRun. Inputs from pool-fallback review (landed d7b32abc): a GitHub overflow dispatch whose queued macOS job GitHub cancels for capacity (job 118800606953, 'not acquired by Runner of type hosted', 21.4 min) must map to a new attempt or notRun, never a hanging durable record; reject a macOS request with engine pwWebkitWpe (or prove os = linux <-> engine = pwWebkitWpe).",
    "deps": [
     "land-lane-circleci",
     "circleci-status",
@@ -13924,6 +13924,30 @@
     "scripts/ci-matrix-lint.test.mjs",
     ".github/workflows/**",
     "docs/team/handoffs/ci-series-parallel-cap.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "codemagic-pilot",
+   "owner": "measure-engineer",
+   "stream": "ci",
+   "deps": [],
+   "title": "User 2026-10-21: 'ok, let's try codemagic, i'll provide the credential for you.' Codemagic free personal plan (codemagic.io/pricing, checked 2026-10-21): 500 Mac mini M2 (8-core, 12 GB) minutes per month, 1 concurrent build, 120-min build limit, no card on file so no pay-as-you-go; Xcode 27.0.x/27.1.x/27.2.x images listed (docs.codemagic.io specs). Build: scripts/codemagic.mjs adapter like scripts/circleci.mjs (token from the Keychain service fw-codemagic-token, never printed, sent only to api.codemagic.io; app id in gitignored .local/codemagic.json; trigger POST /builds for a ci/* branch, wait >= 120 s polls, fetch logs/artifacts), a codemagic.yaml workflow running ONE webkit-sim cell on the Xcode 27 image (Simulator boot, Safari, ios_webkit_debug_proxy) with per-step timings, and a Lean minutes ledger rule: stop at 400 of 500 free minutes per calendar month (theorem: no trigger when used + cap > 400). At most 3 pilot builds. Note research/notes/2026/10-2x-codemagic-pilot.md: per-step minutes vs the same GitHub cell (run ids), whether the iOS 27 Simulator and the inspector work, the result digest vs GitHub's, and whether it should take the second-Mac slot of pool-fallback ahead of CircleCI (still off until the user approves). Waits for the user's setup step (ask-codemagic-setup-1021).",
+   "writes": [
+    "scripts/codemagic.mjs",
+    "scripts/codemagic.test.mjs",
+    "codemagic.yaml",
+    "lean/Fw/Ci/Codemagic.lean",
+    "lean/Fw.lean",
+    "lean/scripts/CodemagicGolden.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/ci/codemagic.jsonl",
+    "apps/runner/src/fw.ts",
+    "docs/team/tools/codemagic.md",
+    "research/notes/2026/10-2x-codemagic-pilot.md",
+    "docs/team/handoffs/codemagic-pilot.md"
    ]
   }
  ],
