@@ -13356,7 +13356,8 @@
     ".github/workflows/webkit-sim.yml",
     "packages/measure-webkit/src/**",
     "packages/measure-webkit/test/**"
-   ]
+   ],
+   "evidence": "b22f64d"
   },
   {
    "devices": [
@@ -14091,7 +14092,11 @@
     "apps/runner/test/oracle*.test.ts",
     "scripts/jev-score*.mjs",
     "scripts/jev-score*.test.mjs",
-    "docs/team/tools/oracle.md"
+    "docs/team/tools/oracle.md",
+    "lean/Fw/Oracle/Calibrate.lean",
+    "lean/Fw/Oracle/Golden.lean",
+    "lean/Fw/Wire.lean",
+    "apps/runner/src/oracle-score.ts"
    ]
   },
   {
@@ -14470,6 +14475,86 @@
     "docs/team/handoffs/polish-in-flow.md",
     "apps/runner/test/spawn-guard*.test.ts",
     "lean/Fw/Ops/SpawnGuard.lean"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "console-push",
+   "owner": "console-builder",
+   "stream": "console",
+   "deps": [],
+   "title": "User 2026-10-22: 'when i comment it could automatic send to directly, it couldn't no need to timeout. it too late.' A user question or step action in the console reaches the lead within seconds: fw watch --stream emits one line per new user event (review.feedback with a step:/topic:/flag subject, step.answer, step.done, step.cancel by actor user) as soon as the console-api appends it (fs.watch on the event log, or the api pushes to a local socket the stream reads), in addition to the 300 s health ticks, so one Monitor stream covers both. Lean decides which events are lead-facing (golden rows). The interim lead workaround (a separate tail -F Monitor) is retired when this lands. Measure: append-to-line latency p50/p95 on 20 events.",
+   "writes": [
+    "apps/runner/src/watch*.ts",
+    "apps/runner/test/watch-push*.test.ts",
+    "lean/Fw/Obs/Push*.lean",
+    "packages/contracts/golden/obs/push*.jsonl",
+    "docs/team/tools/watch.md",
+    "docs/team/handoffs/console-push.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "smoothness-third-job",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "smoothness-webkit-cadence"
+   ],
+   "title": "Follow-ups of smoothness-webkit-cadence (landed 46e82b6b; Fable advice and round-3 review): a third complete job per leg (macOS Playwright WebKit and iOS Simulator) so the across-job verdicts and class counts exist; first fix the CI shape: step timeout 50 inside the 45-min job (smoothness.yml:397 vs :327), keep logs of cancelled jobs, rebuild the Caps rows from 10 successes (Caps.lean:62), cadRows filters refused windows (report.mjs:100), fw ci state for smoothness.yml (prints unknown). Then one run and the Answer's arm ratios as verdicts. GitHub macOS minutes only.",
+   "writes": [
+    ".github/workflows/smoothness.yml",
+    "lean/Fw/Ci/Pool/Caps.lean",
+    "packages/contracts/golden/ci/pool-caps.jsonl",
+    "packages/measure-webkit/src/profile/**",
+    "packages/measure-webkit/test/profile-*.test.mjs",
+    "apps/runner/src/ci-state*.ts",
+    "research/notes/2026/10-2x-smoothness-webkit.md",
+    "results/smoothness-webkit/**",
+    "docs/team/handoffs/smoothness-third-job.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "oracle-eps",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "jev-replay"
+   ],
+   "title": "jev-replay finding: Fw.Oracle.Core eps = 1/1000 rejects Jev replies whose probabilities are rounded to 0.01 and sum to 0.99 (9 of 116 D1 replies). Make the sum tolerance depend on the option count and the reply's decimal precision (or renormalise), with a theorem that a reply rounded to d decimals over n options is accepted, goldens, and a re-score of the logged D1/D2 answers (no new sends).",
+   "writes": [
+    "lean/Fw/Oracle/Core.lean",
+    "packages/contracts/golden/oracle/**",
+    "results/jev/**",
+    "research/notes/2026/10-2x-jev-replay.md",
+    "docs/team/handoffs/oracle-eps.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "replay-ios-fix",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "title": "Phone pilot of device-replay (2026-10-22) hung: safaridriver created the iOS Safari session (orange bar), the client sent one POST /actions with 5667 pointer actions (86.2 s), and nothing moved on the phone for 11 min (user confirmed) until the lead stopped it; no error and no timeout (device-replay-wd.mjs:62). Before any new phone session: (1) read WebKit@862f17d for how iOS automation runs W3C pointer actions (WebAutomationSession interaction sequences, simulated touch, _WKTouchEventGenerator, pointerType touch support and limits on iOS) and cite file:line; (2) send the path in pieces (one swipe per actions call, or the size the source allows) with a per-call timeout derived from the piece duration, failing with a named error; (3) prove it on the iOS Simulator first (safaridriver with the simulator capability, own sim slot), MEASURED: dispatch lag per piece and replayMatches per pass; (4) a Lean statement for the piece split (pieces concatenate to the compiled path; each piece's duration bound). Only then the lead books a phone session (incident inc-phone-pilot-untested).",
+   "writes": [
+    "packages/measure-webkit/src/device-replay-wd.mjs",
+    "packages/measure-webkit/src/device-replay-cli.mjs",
+    "packages/measure-webkit/test/replay-*.test.mjs",
+    "lean/Fw/Device/Replay*.lean",
+    "packages/contracts/golden/device/replay*.jsonl",
+    "research/notes/2026/10-2x-device-replay.md",
+    "docs/team/tools/device-replay.md",
+    "docs/team/handoffs/replay-ios-fix.md"
    ]
   }
  ],
