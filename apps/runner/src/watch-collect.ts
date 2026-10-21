@@ -944,8 +944,8 @@ export function parseSize(s: string): number | null {
   return m ? Number(m[1]) * UNIT_MB[m[2]!]! : null;
 }
 export interface TopRow { pid: number; memMB: number; cmprsMB: number }
-/** `top -l 1 -stats pid,mem,cmprs`: MEM and CMPRS per process. CMPRS can exceed MEM on a row (MEASURED: 6 of 620 rows, e.g. MEM 13M with CMPRS 73M),
- *  so MEM does not contain CMPRS; the footprint of a process is MEM plus CMPRS (`footMB`). */
+/** `top -l 1 -stats pid,mem,cmprs`: MEM and CMPRS per process. MEM is phys_footprint (top libtop.c:1631@1e3b6ca), which already contains the
+ *  task's compressed internal memory (xnu osfmk/kern/task.c:1226-1233@f6217f8); CMPRS is that compressed part (task.c:6050), shown on its own. */
 export function parseTop(out: string | null): { rows: TopRow[]; compressorMB: number | null } {
   const rows: TopRow[] = [];
   let compressorMB: number | null = null;
@@ -995,8 +995,9 @@ export function parseFreePct(out: string | null): number | null {
 }
 
 export interface KindUse { n: number; memMB: number; cmprsMB: number }
-/** The footprint of a kind: the `top` MEM and CMPRS columns added. Pages shared between processes are counted once per process. */
-export const footMB = (u: KindUse): number => u.memMB + u.cmprsMB;
+/** The footprint of a kind: the `top` MEM column (phys_footprint, compressed memory included). Pages shared between processes are counted once
+ *  per process. */
+export const footMB = (u: KindUse): number => u.memMB;
 /** One line of `<consoleDir>/sup-samples.jsonl`. `verdict` is null when a reading is missing (named in `partial`). */
 export interface SupSample {
   ts: number; verdict: ResVerdict | null; loadCenti: number; ramMB: number; swapUsedMB: number | null; swapTotalMB: number | null;

@@ -142,14 +142,14 @@ describe("the sample", () => {
     expect(k.pnpm.n).toBe(1);
     expect(k.other).toEqual({ n: 1, memMB: 12, cmprsMB: 1 });
     expect(Object.keys(k)).toEqual([...PROC_KINDS]);
-    expect(footMB(k.chromium)).toBe(947 + 907);
-    expect(footMB(k.leanBuild)).toBe(2048 + 871);
+    expect(footMB(k.chromium)).toBe(947);
+    expect(footMB(k.leanBuild)).toBe(2048);
   });
-  it("a process whose CMPRS exceeds its MEM keeps both columns: the footprint is the sum, not MEM", () => {
+  it("a process whose CMPRS exceeds its MEM keeps both columns; the footprint is MEM (phys_footprint already holds the compressed part)", () => {
     const top = "PhysMem: 1G used (1M wired, 100M compressor), 1M unused.\nPID MEM CMPRS\n9 13M 73M\n";
     const k = reduceKinds(parseTop(top).rows, new Map([[9, "node"]]));
     expect(k.node).toEqual({ n: 1, memMB: 13, cmprsMB: 73 });
-    expect(footMB(k.node)).toBe(86);
+    expect(footMB(k.node)).toBe(13);
   });
   it("buildSample: a full set of readings gets a verdict (a lean build and chromium run, free 38 percent: busy)", () => {
     const s = buildSample(1000, readings(), 40.829, 16384, 1500);

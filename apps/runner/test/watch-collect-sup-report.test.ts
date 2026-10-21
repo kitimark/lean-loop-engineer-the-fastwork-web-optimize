@@ -55,7 +55,7 @@ describe("reducers", () => {
     expect(r.verdicts).toEqual({ quiet: 0, busy: 3, pressured: 1, unknown: 1 });
     expect(r.partial).toBe(1);
     expect(r.kinds.leanBuild.memMB.max).toBe(4000);
-    expect(r.kinds.leanBuild.footMB.max).toBe(4500);
+    expect(r.kinds.leanBuild.footMB.max).toBe(4000);
     expect(r.kinds.leanBuild.present).toBe(1);
     expect(r.kinds.node.n.max).toBe(3);
     expect(r.sys.freePct.p50).toBe(60);
@@ -63,8 +63,8 @@ describe("reducers", () => {
     // simulator samples at +20 s (held) and +40 s (not held): 2 GB for 20 s each
     expect(r.sim.samples).toBe(2);
     expect(r.sim.idleSamples).toBe(1);
-    expect(r.sim.gbHours).toBeCloseTo((2 * (2148 / 1024) * 20) / 3600, 6);
-    expect(r.sim.idleGbHours).toBeCloseTo(((2148 / 1024) * 20) / 3600, 6);
+    expect(r.sim.gbHours).toBeCloseTo((2 * (2048 / 1024) * 20) / 3600, 6);
+    expect(r.sim.idleGbHours).toBeCloseTo(((2048 / 1024) * 20) / 3600, 6);
     expect(r.locks).toMatchObject([{ lock: "sim", kind: "sim", acquires: 1, refuses: 0, open: 0, maxConc: 1, hold: { p50: 20_000 }, released: 1, exec: 0 }]);
   });
   it("reduce on no data is all zeros", () => {
@@ -102,10 +102,10 @@ describe("render", () => {
     expect(big).not.toContain("double counting");
     expect(big).toContain("per-kind rows only");
   });
-  it("footprint is MEM plus CMPRS, with the compressed part beside it", () => {
+  it("footprint is MEM (phys_footprint), with the compressed part beside it", () => {
     const x = reduce([sample(T0, { node: [1, 13, 73] })], []);
-    expect(x.kinds.node.footMB.max).toBe(86);
-    expect(render(x)).toMatch(/\| node \| 1 \(100.0 %\) \| 1 \| 1 \| 1 \| 86 \| 86 \| 86 \| 73 \|/);
+    expect(x.kinds.node.footMB.max).toBe(13);
+    expect(render(x)).toMatch(/\| node \| 1 \(100.0 %\) \| 1 \| 1 \| 1 \| 13 \| 13 \| 13 \| 73 \|/);
   });
   it("the pressure causes are recomputed per sample from the current limits", () => {
     const r2 = reduce([
@@ -145,8 +145,8 @@ describe("render", () => {
     const x = reduce([sample(T0, { leanBuild: [1, 300, 50] }), sample(T0 + 20_000, { leanBuild: [1, 900, 100], leanServe: [2, 1000, 24] }), sample(T0 + 40_000, { leanBuild: [1, 5000, 0] })],
       [ev(T0 + 10_000, "heavy", "acquire", "check", 3, { waitMs: 0 }), ev(T0 + 30_000, "heavy", "release", "check", 3, { holdMs: 20_000 })]);
     expect(x.heavyHeld.samples).toBe(1);
-    expect(x.heavyHeld.peakFootMB.leanBuild).toBe(1000);
-    expect(x.serveMBh).toBeCloseTo((1024 * 20) / 3600, 6);
+    expect(x.heavyHeld.peakFootMB.leanBuild).toBe(900);
+    expect(x.serveMBh).toBeCloseTo((1000 * 20) / 3600, 6);
     expect(render(x)).toContain("1 sample(s) fell inside a heavy-lock hold");
   });
   it("the simulator kind counts by footprint and the text names the launchd_sim subtree and the system helpers", () => {

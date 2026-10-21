@@ -7,11 +7,11 @@ Every table below is generated from the local-only files `.fw-console/sup-sample
 
 ## What is measured
 
-- CONFIRMED (apps/runner/src/watch-collect.ts `sampleOnce`): every 20 s one `top -l 1 -stats pid,mem,cmprs`, `ps -A -o pid=,ppid=,comm=`, `sysctl -n vm.swapusage` and `memory_pressure -Q` are read and reduced to one line: per kind the process count and the footprint (MEM plus CMPRS) with its compressed part, plus swap used, compressor size, free memory, 1-min load, the cost of the sample and the verdict. The command line (`ps -o command`) is read only for the `lake`, `lean` and `launchd_sim` processes, to tell a build from a server and to find the Simulator device; it is not stored. No path or user name is stored.
+- CONFIRMED (apps/runner/src/watch-collect.ts `sampleOnce`): every 20 s one `top -l 1 -stats pid,mem,cmprs`, `ps -A -o pid=,ppid=,comm=`, `sysctl -n vm.swapusage` and `memory_pressure -Q` are read and reduced to one line: per kind the process count and the footprint (MEM, which includes compressed memory) with its compressed part, plus swap used, compressor size, free memory, 1-min load, the cost of the sample and the verdict. The command line (`ps -o command`) is read only for the `lake`, `lean` and `launchd_sim` processes, to tell a build from a server and to find the Simulator device; it is not stored. No path or user name is stored.
 - CONFIRMED (lean/Fw/Obs/Health.lean, namespace `Res`): the kind of a process is decided by identity, not by name alone: the program name from a fixed table (`kindTable`), the first argument for `lake` (a `serve` is `leanServe`, anything else is `leanBuild`), the ancestry (a process under a booted `launchd_sim` of one of our `fw-*` Simulator devices is `simulator`; a Safari under a `safaridriver` we started is `webkit`, and its WebKit helpers follow it) and the Simulator device name from its `device.plist`. Everything else is `other`, and `CoreSimulatorService`, system WebKit helpers and a Safari the user opened are `system` or `other`, not heavy. Heavy kinds are `leanBuild`, `chromium`, `simulator` and `webkit`. The verdict is `pressured` when swap use, the compressor or free memory trips its limit, else `busy` when a heavy kind runs or the 1-min load is at least 2.00, else `quiet`. Theorems: the verdict never lowers as pressure grows (`verdict_rank_mono`), `quiet` implies no heavy kind and a low load (`quiet_no_heavy`, `quiet_low_load`), and the background processes alone give `quiet` (`quiet_with_background`). The limits (swap 90 %, compressor 50 % of RAM, free 15 %, load 2.00) are first guesses, revised after the first day.
 - CONFIRMED (scripts/heavy-lock.mjs, scripts/lake-slot-lib.sh, scripts/sim-lock.sh): each lock appends an acquire line and a release line (heavy-lock also a refuse line) with the time, kind, the holder's pid and start time, the wait or the hold in ms; no path, no argument, no owner name. The exec form of `lake_slot` replaces the shell with its command and so can log the acquire only; its row has no hold (see Locks).
 
-Footprint is the `top` MEM column plus the CMPRS column per process (MEASURED: CMPRS is not a part of MEM; 6 of 620 rows of one `top` run had CMPRS above MEM, e.g. MEM 13 MB with CMPRS 73 MB). It is per process, so pages shared between processes (frameworks, the Lean runtime) can be counted in each. For that reason the tables give per-kind rows only and no total over kinds; read the rows as upper bounds of each kind's share and as comparable between kinds, not as additive.
+Footprint is the `top` MEM column (phys_footprint), which already contains the compressed memory; the last column is the CMPRS part of it (a row can show CMPRS above MEM because footprint subtracts alternate accounting; xnu osfmk/kern/task.c:1226-1233@f6217f8). It is per process, so pages shared between processes (frameworks, the Lean runtime) can be counted in each. For that reason the tables give per-kind rows only and no total over kinds; read the rows as upper bounds of each kind's share and as comparable between kinds, not as additive.
 
 ## Samples
 
@@ -52,17 +52,17 @@ The swap ratio is of DYNAMIC swap: macOS adds swap files on demand, so used over
 | kind | samples present | procs p50 | procs p90 | procs max | footprint MB p50 | p90 | max | of which compressed MB p50 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | leanBuild | 0 (0.0 %) | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| leanServe | 12 (100.0 %) | 5 | 5 | 5 | 2512 | 2512 | 2512 | 1214 |
-| fwcore | 12 (100.0 %) | 1 | 1 | 1 | 58 | 59 | 59 | 15 |
-| node | 12 (100.0 %) | 17 | 26 | 27 | 2840 | 3265 | 3427 | 943 |
+| leanServe | 12 (100.0 %) | 5 | 5 | 5 | 1298 | 1298 | 1298 | 1214 |
+| fwcore | 12 (100.0 %) | 1 | 1 | 1 | 43 | 43 | 43 | 15 |
+| node | 12 (100.0 %) | 17 | 26 | 27 | 1825 | 2335 | 2485 | 943 |
 | pnpm | 0 (0.0 %) | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 | chromium | 0 (0.0 %) | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 | simulator | 0 (0.0 %) | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 | webkit | 0 (0.0 %) | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| system | 12 (100.0 %) | 4 | 4 | 4 | 119 | 121 | 122 | 56 |
-| other | 12 (100.0 %) | 538 | 542 | 551 | 31291 | 31668 | 32095 | 13311 |
+| system | 12 (100.0 %) | 4 | 4 | 4 | 63 | 63 | 63 | 56 |
+| other | 12 (100.0 %) | 538 | 542 | 551 | 17970 | 18048 | 18068 | 13311 |
 
-Footprint is MEM plus CMPRS; the last column is the CMPRS part. There is no total over kinds (shared pages can be counted twice).
+Footprint is MEM; CMPRS is its compressed part. There is no total over kinds (shared pages can be counted twice).
 
 ## Machine
 
@@ -113,7 +113,7 @@ One row per metric of the design's section 5 (stage 0 measurements): the value t
 | 1a | `op` p50 latency against the 40 ms spawn | not collected | - | needs the daemon (stage 1a) to time its calls |
 | 1b | Peak summed footprint of lean children | sampler | leanBuild 0 MB max, 0 processes max | per kind only, the leanServe servers are a separate row |
 | 1b | Lake builds outside a lease | lake-slot events | 2 lake-slot acquire(s); leanBuild present in 0 samples (0.0 %) | the exec form logs no hold interval, so a build outside a lease is not separated here |
-| 1b | Lake serve MB-hours idle | sampler | leanServe 172.2 MB-hours in total | the idle split is not collected |
+| 1b | Lake serve MB-hours idle | sampler | leanServe 89.0 MB-hours in total | the idle split is not collected |
 | 2 | Long-lived Node processes | sampler | node processes p50 17, p90 26, max 27 | no process age is read, so "long-lived" is not separated |
 | 2 | Hook start footprint | not collected | - | needs a per-hook sample |
 | 2 | Watch re-arm cold passes | not collected | - | needs the watch log |

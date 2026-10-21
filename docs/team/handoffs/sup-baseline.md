@@ -9,7 +9,7 @@ Branch `worktree-wf_f3ac4663-d82-1`; state = the commit that adds this file (`gi
   are not heavy. Theorems: `verdict_rank_mono`, `quiet_with_background`, `busy_with_one_heavy`, `background_procs_not_heavy`, `simulator_of_sim_root`, role lemmas.
   Golden: packages/contracts/golden/obs/sup-health.jsonl (ops sup.kinds/table/classify/sample/tripped/verdict) from lean/scripts/SupHealthGolden.lean.
   `Params` are first guesses; `swapPct` is on dynamic swap and flagged for revision.
-- Footprint = top MEM + CMPRS per process (MEASURED CMPRS > MEM in 6 of 620 rows); per-kind rows only, no total (shared pages).
+- Footprint = top MEM (phys_footprint, includes compressed; xnu task.c:1226-1233@f6217f8); per-kind rows only, no total (shared pages).
 - Sampler (watch-collect.ts `sampleOnce`): `ps -A pid,ppid,comm`, args only for lake/lean/launchd_sim (not stored), `plutil` for the device name, no CoreSimulator call.
 - Lock events: heavy-lock.mjs, lake-slot-lib.sh, sim-lock.sh. `lake_slot` keeps `exec` and logs the acquire only (`"exec":1`); the hold is not
   derived from the next acquire (idle time). The group form logs both lines.
