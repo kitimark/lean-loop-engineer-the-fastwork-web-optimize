@@ -69,6 +69,7 @@ import Fw.Measure.Tolerance
 import Fw.Measure.WebKit
 import Fw.Measure.WebKitLag  -- webkit-lag-probe: scroll regions, paint attribution to parts, counter ranking
 import Fw.Device.Session  -- device-lag-recorder: phone-session zones, frame intervals, felt marks, comparison, replay export
+import Fw.Measure.WebKitProfile  -- smoothness-webkit-cadence: WebKit Timeline records on the page clock, binned to zones, per-frame render work
 import Fw.Device.Replay
 import Fw.Device.ReplayProfiles
 import Fw.Device.ReplayGolden
@@ -227,6 +228,8 @@ import Fw.Port.Fonts  -- port-fonts-check: check 5, fonts per leaf and loaded fa
 import Fw.Parts.NavOofRoot  -- nav-oof-root-finding: no boundary scopes the relayout of a dirty fixed box whose containing block is the view (negative finding)
 import Fw.Ci.Pool  -- pool-caps: per-lane macOS job time caps from measured p90 walls
 import Fw.Sup.Props  -- sup-model: supervisor daemon state machine, invariant and lease, queue, stop and reply theorems
+import Fw.Sup.Adapt
+import Fw.Sup.AdaptGolden
 import Fw.Wire.Sup
 import Fw.Sup.Route
 import Fw.Ci.Pool.Key  -- pool-key-outcome: request keys, provider-tagged artifact names, one terminal row per planned unit

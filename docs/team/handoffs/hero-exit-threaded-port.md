@@ -9,11 +9,11 @@ Built:
   accelerated properties.
 - Hand-over (Lean `live s fin supported reduced`): the original callback runs until `data-splash` is `done`, the entrance
   has finished (`fin`: the stage's `getAnimations()` all finished, re-read on `animationend`; the phone cue's `copyIn`
-  still runs at `done`), the browser has `animation-timeline` and motion is not reduced. Once live, `fin` is not re-read.
-- Orbit cards keep the shared unhashed entrance names (`--fw-entrance-names`) in every state, so a bfcache hand-back
-  never restarts the entrance. The sentinel has height 0 (pointer cut-off exactly at Lean `sentinelAbove`).
+  still runs at `done`), the browser has `animation-timeline` and motion is not reduced. Once live, `fin` is not re-read until a mutation batch saw the splash leave `done`.
+- The live rules name only the exit animations; the entrance is the original's (the hand-back cancels the exit animations
+  at the prep forced layout and, at <=600, through the record-based hand-back: `attributeOldValue`, Lean `liveNext`). The sentinel has height 0 (pointer cut-off exactly at Lean `sentinelAbove`).
 - Lean: section Threaded of `lean/Fw/Parts/HeroExitOpt.lean`; generator `lean/scripts/ExitThreadedGolden.lean`; golden
-  `packages/contracts/golden/parts/hero-exit.threaded.jsonl` (24 `live` rows); `threaded.test.ts` checks the TS twin and the CSS.
+  `packages/contracts/golden/parts/hero-exit.threaded.jsonl` (`live`, `liveNext`, `exitNames` and `entrance` rows; `entrance_same` proves variant minus exit names = original per node, band, path); `threaded.test.ts` checks the TS twin and the CSS.
 
 Verified: site tests, typecheck, `lean/scripts/check.sh`, `fw land --dry` with the allow list in the task.
 

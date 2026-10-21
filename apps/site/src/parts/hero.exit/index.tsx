@@ -53,8 +53,8 @@ export function HeroExit({ variant, children }: HeroExitProps) {
           return () => io.disconnect();
         },
       });
-      const mo = new MutationObserver(handoff.sync);
-      mo.observe(hero, { attributes: true, attributeFilter: ['data-splash'] });
+      const mo = new MutationObserver((records) => handoff.onMutations(records));
+      mo.observe(hero, { attributes: true, attributeFilter: ['data-splash'], attributeOldValue: true });
       hero.addEventListener('animationend', handoff.sync);
       hero.addEventListener('animationcancel', handoff.sync);
       const onResize = () => handoff.resize();

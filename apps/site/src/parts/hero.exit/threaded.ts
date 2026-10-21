@@ -13,6 +13,16 @@ export function threadedLive(splash: Splash, entranceFinished: boolean, supporte
   return splash === 'done' && entranceFinished && supported && !reduced;
 }
 
+/** Lean `liveNext`: `prev` is the stage's state, `left` that a mutation batch saw the splash leave `done`. */
+export function liveNext(prev: boolean, left: boolean, splash: Splash, entranceFinished: boolean, supported: boolean, reduced: boolean): boolean {
+  return threadedLive(splash, entranceFinished || (prev && !left), supported, reduced);
+}
+
+/** Whether a mutation batch of `data-splash` saw the value leave `done`. */
+export function splashLeftDone(records: readonly { oldValue: string | null }[]): boolean {
+  return records.some((r) => r.oldValue === 'done');
+}
+
 /** Lean `sentinelTop`: where the pointer-events sentinel sits below the track top, `19/20` of the exit range. */
 export function sentinelTop(trackHeight: number, viewportHeight: number): number {
   return (19 / 20) * exitRange(trackHeight, viewportHeight);
@@ -119,30 +129,36 @@ export function createHandoff(deps: HandoffDeps) {
     const s = deps.stage.getAttribute('data-splash');
     return s === 'done' || s === 'run' ? s : 'prep';
   };
-  const sync = () => {
-    const want = threadedLive(splash(), live || deps.entranceFinished(), deps.supported, deps.reduced());
+  const handBack = () => {
+    live = false;
+    deps.track.removeAttribute(LIVE_ATTR);
+    stopSentinel?.();
+    stopSentinel = null;
+    deps.stage.style.pointerEvents = '';
+    stopDriver = deps.startDriver();
+  };
+  const handOver = () => {
+    live = true;
+    stopDriver?.();
+    stopDriver = null;
+    deps.stage.style.removeProperty('--exit-opacity');
+    deps.placeSentinel();
+    stopSentinel = deps.watchSentinel((none) => {
+      deps.stage.style.pointerEvents = none ? 'none' : '';
+    });
+    deps.track.setAttribute(LIVE_ATTR, '');
+  };
+  const sync = (left = false) => {
+    if (left && live) handBack();
+    const want = liveNext(live, left, splash(), deps.entranceFinished(), deps.supported, deps.reduced());
     if (want === live) return;
-    live = want;
-    if (want) {
-      stopDriver?.();
-      stopDriver = null;
-      deps.stage.style.removeProperty('--exit-opacity');
-      deps.placeSentinel();
-      stopSentinel = deps.watchSentinel((none) => {
-        deps.stage.style.pointerEvents = none ? 'none' : '';
-      });
-      deps.track.setAttribute(LIVE_ATTR, '');
-    } else {
-      deps.track.removeAttribute(LIVE_ATTR);
-      stopSentinel?.();
-      stopSentinel = null;
-      deps.stage.style.pointerEvents = '';
-      stopDriver = deps.startDriver();
-    }
+    if (want) handOver();
+    else handBack();
   };
   sync();
   return {
-    sync,
+    sync: () => sync(),
+    onMutations: (records: readonly { oldValue: string | null }[]) => sync(splashLeftDone(records)),
     resize() {
       if (live) deps.placeSentinel();
     },

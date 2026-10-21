@@ -14,11 +14,6 @@
     view-timeline: --hero-exit block;
   }
 
-  [data-fw='hero-exit'][data-fw-variant='threaded'] [data-orbit-id] {
-    --fw-entrance-names: fwEntranceRingAppear, fwEntranceCardFromRing;
-    animation-name: var(--fw-entrance-names);
-  }
-
   @media (prefers-reduced-motion: no-preference) {
     @media (width>600px) {
       [data-exit-live] [data-splash='done'] [data-fw='hero'] {
@@ -74,16 +69,16 @@
       }
     }
 
-    [data-exit-live] [data-splash='done'] [data-orbit-id] {
-      animation-name: var(--fw-entrance-names), exitCardFade, exitCardMove;
-      animation-duration: 0.12s, 1.7s, auto, auto;
-      animation-delay: 0s, var(--orbit-enter-delay), 0s, 0s;
+    [data-fw='hero-exit'][data-exit-live] [data-splash='done'] [data-orbit-id] {
+      animation-name: exitCardFade, exitCardMove;
+      animation-duration: auto;
+      animation-delay: 0s;
       animation-iteration-count: 1;
       animation-direction: normal;
-      animation-timing-function: ease-out, cubic-bezier(0.2, 0.9, 0.2, 1), linear, linear;
-      animation-fill-mode: backwards, both, both, both;
-      animation-timeline: auto, auto, --hero-exit, --hero-exit;
-      animation-range: normal, normal, contain, contain;
+      animation-timing-function: linear;
+      animation-fill-mode: both;
+      animation-timeline: --hero-exit;
+      animation-range: contain;
     }
     [data-exit-live] [data-splash='done'] [data-fw='hero-deck'] > article {
       animation-name: exitCardFade, exitCardMove;
@@ -153,23 +148,6 @@
     to {
       translate: calc((1 - var(--entered)) * var(--orbit-enter-x) + var(--scatter-x))
         calc((1 - var(--entered)) * var(--orbit-enter-y) + var(--scatter-y));
-    }
-  }
-  @keyframes :global(fwEntranceRingAppear) {
-    0% {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
-  }
-  @keyframes :global(fwEntranceCardFromRing) {
-    0%,
-    68% {
-      --entered: 0;
-    }
-    to {
-      --entered: 1;
     }
   }
 }

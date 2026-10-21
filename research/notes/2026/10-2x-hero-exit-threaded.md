@@ -23,10 +23,15 @@ topics: [hero.exit, webkit, scroll-driven, threaded-animations, ios-toolbar, lag
   stage's `getAnimations()` and re-read on `animationend`), in a browser that knows `animation-timeline` and without
   reduced motion (Lean `live`, one theorem per branch, golden `live` rows with `entranceFinished`). Before that the entrance
   animations own `opacity`, `translate` and `--entered`, which a scroll animation on the same properties would hide.
-- **Stable card entrance.** The orbit cards list the shared, unhashed `fwEntranceRingAppear` and `fwEntranceCardFromRing`
-  in every state (through `--fw-entrance-names`, because CSS modules hash `animation-name`), so the hand-back of a
-  bfcache restore appends and removes only the exit animations and the entrance never restarts.
-- **`pointer-events`** is flipped by an IntersectionObserver on a 1 px sentinel at 19/20 of the exit range (Lean
+- **The entrance is the original's.** The live rules name only the exit animations. A reset in the original goes done, prep
+  (`animation: none`), forced layout, run, so the engines cancel the animations at that forced layout and create them again at
+  run; the variant keeps that, because its exit animations are cancelled at the same forced layout (the splash is not `done`
+  there) and the hand-back runs before the next style pass. At <=600 the reset runs prep, run, done in one task and the
+  observer sees only `done`: the hand-back reads the mutation records (`attributeOldValue`), and a batch that saw the
+  splash leave `done` drops the latch (Lean `liveNext`, `liveNext_left`), so the cue's `copyIn` plays again as in the original.
+  Lean `entrance_same` (INFERRED for the engine side, PROVED for the name lists): per node, band and path (load, restore),
+  the variant's animation names minus the exit names equal the original's at every style pass, with the same restarts.
+- **`pointer-events`** is flipped by an IntersectionObserver on a zero-height sentinel at 19/20 of the exit range (Lean
   `sentinelTop`, `sentinel_iff_pointerOff`); it is not a per-frame write.
 
 ## Which properties run in the UI process (CONFIRMED, WebKit@862f17d)
@@ -96,5 +101,4 @@ the variant removes. Open for the lead: the gate should not compare nodes that a
 
 Round 2: run 39660528157 (push of 8eacef89, `fw=hero.exit:threaded engines=both`, verdict run). RED on both engines, only on nodes whose rect is empty in
 all three arms (`hero.orbit.card` at 390, `hero.deck.card` at 640 and 641, counted in the raw legs); Chromium also reports the nav `open@1` coverage sample at 640.
-The candidate arm now waits about 1.3 s like the others. The probe has no sample before that ready wait, so the phone entrance window is
-covered by Lean `live` (`entranceFinished`) and the unit tests, not by this run (follow-up: an early sample in the harness).
+The candidate arm still waits about 20.3 s (scroll-driven animations count as pending: 15 left at 390, 27 at 640 and wider), so the entrance window is not sampled.

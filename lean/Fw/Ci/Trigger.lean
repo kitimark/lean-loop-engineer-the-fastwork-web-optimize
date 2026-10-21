@@ -196,7 +196,7 @@ def table : List Wf := [
   ⟨"lean.yml", ciMain, [
     "lean/**", "apps/site/src/breakpoints.gen.json", "apps/site/src/sweeps.gen.json", "apps/site/src/head.gen.json", "scripts/span.sh",
     "scripts/fwcore-build.sh", "scripts/fwcore-record-rule.sh", "scripts/fwcore-build.test.mjs", "apps/console-api/src/core/build-base.ts", "scripts/lake-slot.sh", "scripts/lake-slot-lib.sh", "scripts/heavy-lock.mjs", "scripts/heavy-lock.test.mjs", "scripts/lake-slot.test.mjs", "packages/contracts/golden/sched/lake-slot.gen.sh",
-    "packages/contracts/golden/console/land-dry.jsonl", "packages/contracts/golden/gate/sweeps.jsonl", "packages/contracts/golden/gate/exit.jsonl", "packages/contracts/golden/gate/webkit-screen.jsonl", "packages/contracts/golden/device/session.jsonl", "packages/contracts/golden/device/replay.jsonl", "packages/contracts/golden/measure/webkit-lag.jsonl", "packages/contracts/golden/gate/search.jsonl",
+    "packages/contracts/golden/console/land-dry.jsonl", "packages/contracts/golden/gate/sweeps.jsonl", "packages/contracts/golden/gate/exit.jsonl", "packages/contracts/golden/gate/webkit-screen.jsonl", "packages/contracts/golden/device/session.jsonl", "packages/contracts/golden/device/replay.jsonl", "packages/contracts/golden/measure/webkit-lag.jsonl", "packages/contracts/golden/measure/webkit-profile.jsonl", "packages/contracts/golden/gate/search.jsonl",
     "packages/contracts/golden/gate/smooth.jsonl", "packages/contracts/golden/gate/trajectory-colour.jsonl", "packages/gate-breakpoints/src/scope.gen.json", "packages/contracts/golden/parts/contracts.gen.json",
     "packages/contracts/golden/gate/run-perm.jsonl", "packages/contracts/golden/gate/run-perm-cells.jsonl",
     "packages/contracts/golden/parts/stage.jsonl", "packages/contracts/golden/parts/stage-mode.jsonl",
@@ -239,7 +239,9 @@ def table : List Wf := [
     ".github/scripts/trajectory-line.mjs", ".github/scripts/trajectory-line.test.mjs", "packages/contracts/golden/ci/triggers.jsonl",
     "packages/contracts/golden/gate/search.jsonl", "packages/contracts/golden/gate/smooth.jsonl", "packages/contracts/golden/ops/cache.jsonl",
     ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", ".node-version", ".github/actions/setup-pnpm/**",
-    ".github/actions/gate-engine/**", ".github/actions/telemetry/**", "scripts/ci-telemetry/**", own "smoothness.yml"], []⟩,
+    ".github/actions/gate-engine/**", ".github/actions/telemetry/**", "scripts/ci-telemetry/**", "packages/measure-webkit/**",
+    "packages/measure-chromium/src/profile.mjs", "packages/contracts/golden/measure/webkit-profile.jsonl", ".github/scripts/check-simulator.sh",
+    ".github/scripts/runner-info.sh", own "smoothness.yml"], []⟩,
   ⟨"snapshot-extract.yml", ciAll, [
     "packages/snapshot-extract/**", "packages/gate-breakpoints/**", "apps/site/**", "snapshot/**", "snapshot.lock.json",
     "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/verify-snapshot.mjs",

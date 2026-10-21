@@ -30,9 +30,11 @@ export function safeJoin(root, urlPath) {
  * Start a server on 127.0.0.1. `port: 0` picks a free port.
  * @returns {Promise<{port:number, url:string, requests:string[], close:()=>Promise<void>}>}
  */
-export async function serveTree(root, { port = 0, host = '127.0.0.1', vendors = 'off', mounts = {}, rewrite = null } = {}) {
+export async function serveTree(root0, { port = 0, host = '127.0.0.1', vendors = 'off', mounts = {}, rewrite: rewrite0 = null, select = null } = {}) {
   const requests = [];
   const server = http.createServer(async (req, res) => {
+    // `select()` -> { root, rewrite } read on every request: one origin that serves a different tree per arm (the Simulator keeps one tab origin)
+    const { root, rewrite } = select ? select() : { root: root0, rewrite: rewrite0 };
     const fail = (code, msg) => { res.writeHead(code, { 'content-type': 'text/plain', 'cache-control': 'no-store' }); res.end(msg); };
     try {
       if (req.method !== 'GET' && req.method !== 'HEAD') return fail(405, 'method not allowed');

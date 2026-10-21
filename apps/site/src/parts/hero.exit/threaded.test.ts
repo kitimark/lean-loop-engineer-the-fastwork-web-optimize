@@ -8,6 +8,7 @@ import {
   createHandoff,
   keyframes,
   LIVE_ATTR,
+  liveNext,
   originalValue,
   pointerNoneFromEntry,
   sentinelTop,
@@ -40,6 +41,9 @@ describe('hero.exit:threaded against the Lean golden', () => {
     expect(of('sentinelTop').length).toBe(4);
     expect(of('sentinelAbove').length).toBeGreaterThan(40);
     expect(of('live').length).toBe(24);
+    expect(of('liveNext').length).toBe(96);
+    expect(of('exitNames').length).toBe(8);
+    expect(of('entrance').length).toBe(60);
   });
 
   it('keyframe endpoints equal the Lean values', () => {
@@ -77,6 +81,13 @@ describe('hero.exit:threaded against the Lean golden', () => {
   it('the hand-over rule (one theorem per branch in Lean)', () => {
     for (const r of of('live')) {
       expect(threadedLive(r.in.splash as Splash, r.in.entranceFinished as boolean, r.in.supported as boolean, r.in.reduced as boolean)).toBe(r.out);
+    }
+  });
+
+  it('the latched hand-over rule (liveNext)', () => {
+    for (const r of of('liveNext')) {
+      const i = r.in as Record<string, boolean | string>;
+      expect(liveNext(i.prev as boolean, i.left as boolean, i.splash as Splash, i.entranceFinished as boolean, i.supported as boolean, i.reduced as boolean)).toBe(r.out);
     }
   });
 
@@ -160,10 +171,10 @@ describe('threaded.module.css restates the Lean endpoints and conditions', () =>
     const rules = [...css.matchAll(/animation-name:[^}]*\}/g)].map((m) => m[0]).filter((r) => r.includes('animation-timeline'));
     expect(rules.length).toBe(6);
     for (const r of rules) {
-      expect(r).toMatch(/animation-timeline: (auto, auto, )?--hero-exit(, --hero-exit)?;/);
-      expect(r).toMatch(/animation-range: (normal, normal, )?contain(, contain)?;/);
-      expect(r).toMatch(/animation-timing-function: (ease-out, cubic-bezier\(0\.2, 0\.9, 0\.2, 1\), )?linear(, linear)?;/);
-      expect(r).toMatch(/animation-fill-mode: (backwards, both, )?both(, both)?;/);
+      expect(r).toMatch(/animation-timeline: --hero-exit;/);
+      expect(r).toMatch(/animation-range: contain;/);
+      expect(r).toMatch(/animation-timing-function: linear;/);
+      expect(r).toMatch(/animation-fill-mode: both;/);
     }
     expect(css).toContain('view-timeline: --hero-exit block;');
   });
@@ -172,16 +183,47 @@ describe('threaded.module.css restates the Lean endpoints and conditions', () =>
     expect(css).toMatch(/\.sentinel \{[^}]*height: 0;/);
   });
 
-  it('the orbit card entrance animation names are the same in and out of the live rule', () => {
-    const rule = (sel: string) => css.slice(css.indexOf(sel), css.indexOf('}', css.indexOf(sel)));
-    const base = rule("[data-fw='hero-exit'][data-fw-variant='threaded'] [data-orbit-id] {");
-    const live = rule("[data-exit-live] [data-splash='done'] [data-orbit-id] {");
-    expect(base).toContain('--fw-entrance-names: fwEntranceRingAppear, fwEntranceCardFromRing;');
-    expect(base).toContain('animation-name: var(--fw-entrance-names);');
-    expect(live).toContain('animation-name: var(--fw-entrance-names), exitCardFade, exitCardMove;');
-    expect(/animation-duration: ([^;]*);/.exec(live)![1]!.split(', ').slice(0, 2)).toEqual(['0.12s', '1.7s']);
-    expect(css).toContain('@keyframes :global(fwEntranceRingAppear)');
-    expect(css).toContain('@keyframes :global(fwEntranceCardFromRing)');
+  it('no rule names an animation on a card, hero copy or cue outside the live selector, and the live names are the golden exit names', () => {
+    const body = css.slice(0, css.indexOf('@keyframes'));
+    const selectors: Record<string, string> = {
+      orbit: "[data-orbit-id]",
+      deck: "[data-fw='hero-deck'] > article",
+      copy: "[data-fw='hero']",
+      cue: "[data-fw='hero-cue']",
+    };
+    const rules = [...body.matchAll(/([^{}]+)\{([^{}]*animation-name:[^{}]*)\}/g)].map((m) => ({ sel: m[1]!.trim(), decl: m[2]! }));
+    for (const r of rules) expect(r.sel).toMatch(/\[data-exit-live\] \[data-splash='done'\]/);
+    const names = (decl: string) => /animation-name: ([^;]*);/.exec(decl)![1]!.split(', ');
+    const section = (n: string, le600: boolean) => {
+      const band = le600 ? mediaCondition('mq.w-le-600') : mediaCondition('mq.w-gt-600');
+      const sel = selectors[n]!;
+      const inBand = n === 'copy' || n === 'cue';
+      const from = inBand ? css.indexOf(`@media ${band}`) : 0;
+      const to = inBand && !le600 ? css.indexOf(`@media ${mediaCondition('mq.w-le-600')}`) : css.indexOf('@keyframes');
+      const text = css.slice(from, to);
+      const hits = rules.filter((r) => r.sel.endsWith(sel) && text.includes(r.decl));
+      expect(hits.length).toBe(1);
+      return names(hits[0]!.decl);
+    };
+    for (const r of of('exitNames')) {
+      expect(section(r.in.node as string, r.in.le600 as boolean)).toEqual(r.out);
+    }
+    for (const sel of Object.values(selectors)) {
+      const bare = rules.filter((r) => r.sel.endsWith(sel)).length;
+      expect(bare).toBeGreaterThan(0);
+    }
+    expect(css).not.toContain('fwEntrance');
+    expect(css).toContain("[data-fw='hero-exit'][data-exit-live] [data-splash='done'] [data-orbit-id] {");
+  });
+
+  it('the entrance rows: the variant minus the exit names is the original, with the same restarts', () => {
+    const exits = new Map(of('exitNames').map((r) => [`${r.in.node}/${r.in.le600}`, r.out as string[]]));
+    for (const r of of('entrance')) {
+      const out = r.out as { orig: string[]; variant: string[]; origRestart: string[]; variantRestart: string[] };
+      const drop = (l: string[]) => l.filter((x) => !exits.get(`${r.in.node}/${r.in.le600}`)!.includes(x));
+      expect(drop(out.variant)).toEqual(out.orig);
+      expect(drop(out.variantRestart)).toEqual(out.origRestart);
+    }
   });
 });
 
@@ -275,17 +317,37 @@ describe('hand-over controller', () => {
     expect(a.stage.style.pointerEvents).toBe('none');
   });
 
-  it('hands back when the splash restarts, and restarts the callback', () => {
+  it('hands back on a [prep, run] batch at wide widths, before the next style pass', () => {
     const a = make('done');
     expect(a.h.isLive()).toBe(true);
-    a.stage.attrs['data-splash'] = 'prep';
-    a.h.sync();
+    a.stage.attrs['data-splash'] = 'run';
+    a.h.onMutations([{ oldValue: 'done' }, { oldValue: 'prep' }]);
     expect(a.h.isLive()).toBe(false);
     expect(a.track.attrs.has(LIVE_ATTR)).toBe(false);
     expect(a.running()).toBe(1);
     expect(a.drivers()).toBe(2);
     expect(a.stage.style.pointerEvents).toBe('');
     expect(a.log).toContain('unwatch');
+  });
+
+  it('hands back on a [prep, run, done] batch at phone widths while the cue plays, and is live again after animationend', () => {
+    const a = make('done');
+    a.setFinished(false);
+    a.h.onMutations([{ oldValue: 'done' }, { oldValue: 'prep' }, { oldValue: 'run' }]);
+    expect(a.h.isLive()).toBe(false);
+    expect(a.track.attrs.has(LIVE_ATTR)).toBe(false);
+    expect(a.running()).toBe(1);
+    a.setFinished(true);
+    a.h.sync();
+    expect(a.h.isLive()).toBe(true);
+    expect(a.track.attrs.has(LIVE_ATTR)).toBe(true);
+  });
+
+  it('a batch that never saw done keeps the latch', () => {
+    const a = make('done');
+    a.setFinished(false);
+    a.h.onMutations([{ oldValue: 'run' }]);
+    expect(a.h.isLive()).toBe(true);
   });
 
   it('keeps the callback at splash done while an entrance animation still runs, and hands over when it ends', () => {

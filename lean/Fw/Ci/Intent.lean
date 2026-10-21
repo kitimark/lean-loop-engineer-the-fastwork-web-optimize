@@ -150,9 +150,10 @@ structure Lane where
   byDefault : Bool
 
 /-- The workflows whose push run holds a macOS job (`gate-gaps` runs macOS only on a dispatch with `macos=true`;
-`trajectory-probe` runs its macOS leg on a push only when the head commit carries `[frames:` or the commit line has a `debug=` key). -/
+`trajectory-probe` runs its macOS leg on a push only when the head commit carries `[frames:` or the commit line has a `debug=` key;
+`smoothness` runs its two WebKit legs only when the head commit carries `[webkit-cadence]`). -/
 def macosFiles : List String :=
-  ["engine-premises.yml", "sim-speed.yml", "trajectory-probe.yml", "webkit-sim.yml", "wktr-fixtures.yml", "wktr.yml"]
+  ["engine-premises.yml", "sim-speed.yml", "smoothness.yml", "trajectory-probe.yml", "webkit-sim.yml", "wktr-fixtures.yml", "wktr.yml"]
 
 /-- The default lanes, which start on a push with no intent: only the Lean proofs, on ubuntu. -/
 def defaultFiles : List String := ["lean.yml"]

@@ -1393,7 +1393,7 @@ inductive Splash where
   | prep
   | run
   | done
-deriving Repr, DecidableEq
+deriving Repr, DecidableEq, Inhabited
 
 /-- Whether the hero stage runs on its CSS animations (true) or on the original's callback (false); `fin` is that the
 entrance animations have finished (the phone cue's `copyIn` can still run at `data-splash = done`). -/
@@ -1431,6 +1431,156 @@ theorem live_done : live .done true true false = true := by
   unfold live
   simp
 
+/-- The next `live`: a live stage stays live (`prev`) until a mutation batch saw the splash leave `done` (`left`). -/
+def liveNext (prev left : Bool) (s : Splash) (fin sup red : Bool) : Bool := live s (fin || (prev && !left)) sup red
+
+/-- A batch that saw the splash leave `done` drops the latch. -/
+theorem liveNext_left (prev : Bool) (s : Splash) (fin sup red : Bool) :
+    liveNext prev true s fin sup red = live s fin sup red := by
+  unfold liveNext
+  simp
+
+/-- With no such batch, a live stage stays live while its own animations read as unfinished. -/
+theorem liveNext_latch (sup : Bool) : liveNext true false .done false sup false = sup := by
+  unfold liveNext live
+  simp
+
+/-- A finished entrance needs no latch. -/
+theorem liveNext_fin (prev left : Bool) (s : Splash) (sup red : Bool) :
+    liveNext prev left s true sup red = live s true sup red := by
+  unfold liveNext
+  simp
+
+/-- A stage that was not live and saw no leave follows `live`. -/
+theorem liveNext_fresh (left : Bool) (s : Splash) (fin sup red : Bool) :
+    liveNext false left s fin sup red = live s fin sup red := by
+  unfold liveNext
+  simp
+
+/-- The nodes whose animation names the exit variant may touch. -/
+inductive ExitNode where
+  | orbit
+  | deck
+  | copy
+  | cue
+deriving Repr, DecidableEq
+
+/-- Every node. -/
+def exitNodes : List ExitNode := [.orbit, .deck, .copy, .cue]
+
+/-- The node's name in the golden rows. -/
+def ExitNode.label : ExitNode → String
+  | .orbit => "orbit"
+  | .deck => "deck"
+  | .copy => "copy"
+  | .cue => "cue"
+
+/-- The running entrance animations of the original at splash `s` (`ended`: the cue's `copyIn` has finished). -/
+def origNames (n : ExitNode) (le600 : Bool) (s : Splash) (ended : Bool) : List String :=
+  match n with
+  | .orbit => if s = .run then ["ringAppear", "cardFromRing"] else []
+  | .deck => []
+  | .copy => if !le600 && s = .run then ["copyFromRing"] else []
+  | .cue =>
+    if le600 then (if s = .prep || ended then [] else ["copyIn"])
+    else if s = .run then ["copyFromRing"] else []
+
+/-- The exit animations the live rule names (it replaces the node's whole list). -/
+def exitNames (n : ExitNode) (le600 : Bool) : List String :=
+  match n with
+  | .orbit => ["exitCardFade", "exitCardMove"]
+  | .deck => ["exitCardFade", "exitCardMove"]
+  | .copy => if le600 then ["exitFade", "exitCopyUpNarrow"] else ["exitFade", "exitCopyUp", "exitBlur"]
+  | .cue => if le600 then ["exitFade", "exitCueUpNarrow", "exitBlur"] else ["exitFade", "exitBlur"]
+
+/-- One style pass: the splash, whether `copyIn` ended, and the mutation batch (`some left`) delivered before it. -/
+structure StylePass where
+  s : Splash
+  ended : Bool
+  mo : Option Bool
+deriving Repr, Inhabited
+
+/-- The entrance counts as finished when the cue runs nothing (the TS reads the cue's animations). -/
+def finOf (le600 : Bool) (p : StylePass) : Bool := (origNames .cue le600 p.s p.ended).isEmpty
+
+/-- The state of `data-exit-live` at each style pass, from `a` before the first. -/
+def attrRun (le600 sup red : Bool) : Bool → List StylePass → List Bool
+  | _, [] => []
+  | a, p :: ps =>
+    let a' := match p.mo with
+      | none => a
+      | some left => liveNext a left p.s (finOf le600 p) sup red
+    a' :: attrRun le600 sup red a' ps
+
+/-- The original's animation names of a node at a pass. -/
+def origAt (n : ExitNode) (le600 : Bool) (p : StylePass) : List String := origNames n le600 p.s p.ended
+
+/-- The variant's: the exit list when the attribute is set at `done`, else the original's. -/
+def varAt (n : ExitNode) (le600 : Bool) (p : StylePass) (a : Bool) : List String :=
+  if a && decide (p.s = .done) then exitNames n le600 else origNames n le600 p.s p.ended
+
+/-- The names present at a pass and absent at the one before. -/
+def restarts (ls : List (List String)) : List (List String) :=
+  List.zipWith (fun prev cur => cur.filter (fun x => !prev.contains x)) ([] :: ls) ls
+
+/-- A path: band, `data-exit-live` before the first pass, the passes. -/
+structure EntrancePath where
+  name : String
+  le600 : Bool
+  a0 : Bool
+  passes : List StylePass
+
+/-- Initial load, wide: prep, run, done, entrance end. -/
+def pathLoadWide : EntrancePath :=
+  ⟨"load", false, false, [⟨.prep, false, some false⟩, ⟨.run, false, some false⟩, ⟨.done, false, some false⟩, ⟨.done, true, some false⟩]⟩
+
+/-- Initial load, phone: prep, done (`copyIn` runs), entrance end. -/
+def pathLoadNarrow : EntrancePath :=
+  ⟨"load", true, false, [⟨.prep, false, some false⟩, ⟨.done, false, some false⟩, ⟨.done, true, some false⟩]⟩
+
+/-- Restore, wide: done, prep (forced layout, no callback yet), run (one batch that left `done`), done. -/
+def pathRestoreWide : EntrancePath :=
+  ⟨"restore", false, true, [⟨.done, true, none⟩, ⟨.prep, false, none⟩, ⟨.run, false, some true⟩, ⟨.done, false, some false⟩]⟩
+
+/-- Restore, phone: done, prep (forced layout), done (one batch that left `done`, `copyIn` plays again), entrance end. -/
+def pathRestoreNarrow : EntrancePath :=
+  ⟨"restore", true, true, [⟨.done, true, none⟩, ⟨.prep, false, none⟩, ⟨.done, false, some true⟩, ⟨.done, true, some false⟩]⟩
+
+/-- The four paths. -/
+def entrancePaths : List EntrancePath := [pathLoadWide, pathLoadNarrow, pathRestoreWide, pathRestoreNarrow]
+
+/-- The variant's name list of a node at every pass of a path. -/
+def varLists (e : EntrancePath) (sup red : Bool) (n : ExitNode) : List (List String) :=
+  List.zipWith (fun p a => varAt n e.le600 p a) e.passes (attrRun e.le600 sup red e.a0 e.passes)
+
+/-- The original's. -/
+def origLists (e : EntrancePath) (n : ExitNode) : List (List String) := e.passes.map (origAt n e.le600)
+
+/-- Drop the exit names. -/
+def dropExit (n : ExitNode) (le600 : Bool) (l : List String) : List String :=
+  l.filter (fun x => !(exitNames n le600).contains x)
+
+/-- The variant minus the exit names equals the original at every pass, and so do the restart sets. -/
+def entranceSame (e : EntrancePath) (sup red : Bool) (n : ExitNode) : Bool :=
+  (varLists e sup red n).map (dropExit n e.le600) == origLists e n &&
+  (restarts (varLists e sup red n)).map (dropExit n e.le600) == restarts (origLists e n)
+
+/-- On every path, band, node and support setting the variant minus the exit names equals the original, restarts included. -/
+theorem entrance_same :
+    entrancePaths.all (fun e => [true, false].all fun sup => [true, false].all fun red =>
+      exitNodes.all (entranceSame e sup red)) = true := by
+  decide +kernel
+
+/-- The live rule applies at the last pass of the phone restore (the entrance ended), and replaces the cue's list. -/
+theorem restore_narrow_cue_live :
+    (varLists pathRestoreNarrow true false .cue).getLast? = some (exitNames .cue true) := by
+  decide +kernel
+
+/-- Right after the phone restore the cue is not live, so its `copyIn` plays again. -/
+theorem restore_narrow_cue_replays :
+    (varLists pathRestoreNarrow true false .cue)[2]? = some ["copyIn"] := by
+  decide +kernel
+
 /-- The settled consumers the CSS animates in band `l`, named as in the golden. -/
 def settled (l : Bool) : List (String × Consumer) :=
   [("copyOpacity", .copyOpacity 1), ("copyTranslateY", .copyTranslateY 1 l), ("copyBlur", .copyBlur 1 l),
@@ -1448,6 +1598,12 @@ theorem keyframe_table_narrow :
     (settled true).map (fun p => (p.2.val 1, p.2.val 0)) =
       [(1, 0), (0, -8), (0, 0), (0, 18), (0, -10), (1, 13 / 20), (0, 1)] := by
   decide +kernel
+
+/-- The splash as a golden string. -/
+def splashLabel : Splash → String
+  | .prep => "prep"
+  | .run => "run"
+  | .done => "done"
 
 /-- A rational as a golden number object. -/
 def gRat (q : Rat) : Lean.Json := Lean.Json.mkObj [("num", .str (toString q.num)), ("den", .str (toString q.den))]
@@ -1490,8 +1646,26 @@ def threadedLines (_ : Unit := ()) : List String :=
       (.bool (sentinelAbove T h v y))) ++
   ([Splash.prep, .run, .done].flatMap fun s => [false, true].flatMap fun fin => [false, true].flatMap fun sup =>
     [false, true].map fun red =>
-    gLine "live" [("splash", .str (match s with | .prep => "prep" | .run => "run" | .done => "done")),
-      ("entranceFinished", .bool fin), ("supported", .bool sup), ("reduced", .bool red)] (.bool (live s fin sup red)))
+    gLine "live" [("splash", .str (splashLabel s)),
+      ("entranceFinished", .bool fin), ("supported", .bool sup), ("reduced", .bool red)] (.bool (live s fin sup red))) ++
+  ([false, true].flatMap fun prev => [false, true].flatMap fun left => [Splash.prep, .run, .done].flatMap fun s =>
+    [false, true].flatMap fun fin => [false, true].flatMap fun sup => [false, true].map fun red =>
+    gLine "liveNext" [("prev", .bool prev), ("left", .bool left), ("splash", .str (splashLabel s)),
+      ("entranceFinished", .bool fin), ("supported", .bool sup), ("reduced", .bool red)]
+      (.bool (liveNext prev left s fin sup red))) ++
+  (exitNodes.flatMap fun n => [false, true].map fun l =>
+    gLine "exitNames" [("node", .str n.label), ("le600", .bool l)] (Lean.toJson (exitNames n l))) ++
+  (entrancePaths.flatMap fun e => exitNodes.flatMap fun n =>
+    let attrs := attrRun e.le600 true false e.a0 e.passes
+    let vs := varLists e true false n
+    let os := origLists e n
+    let vr := restarts vs
+    let orr := restarts os
+    (List.range e.passes.length).map fun (k : Nat) =>
+      gLine "entrance" [("path", .str e.name), ("le600", .bool e.le600), ("node", .str n.label), ("pass", gInt (Int.ofNat k))]
+        (Lean.Json.mkObj [("splash", .str (splashLabel (e.passes[k]!).s)), ("live", .bool attrs[k]!),
+          ("orig", Lean.toJson os[k]!), ("variant", Lean.toJson vs[k]!),
+          ("origRestart", Lean.toJson orr[k]!), ("variantRestart", Lean.toJson vr[k]!)]))
 
 /-- The golden text. -/
 def threadedText (_ : Unit := ()) : String := String.join ((threadedLines ()).map (· ++ "\n"))
