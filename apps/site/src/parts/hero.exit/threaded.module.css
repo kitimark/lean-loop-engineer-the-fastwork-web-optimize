@@ -1,0 +1,153 @@
+/* Variant `threaded`: scroll-driven CSS animations on the track's view timeline (Lean `Fw.Parts.HeroExitOpt` section Threaded). */
+@layer parts {
+  .sentinel {
+    visibility: hidden;
+    pointer-events: none;
+    width: 1px;
+    height: 0;
+    display: block;
+    position: absolute;
+    left: 0;
+  }
+
+  [data-fw='hero-exit'][data-exit-live] {
+    view-timeline: --hero-exit block;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    @media (width>600px) {
+      [data-exit-live] [data-splash='done'] [data-fw='hero'] {
+        --copy-in: 1;
+        animation-name: exitFade, exitCopyUp, exitBlur;
+        animation-duration: auto;
+        animation-delay: 0s;
+        animation-iteration-count: 1;
+        animation-direction: normal;
+        animation-timing-function: linear;
+        animation-fill-mode: both;
+        animation-timeline: --hero-exit;
+        animation-range: contain;
+      }
+      [data-exit-live] [data-splash='done'] [data-fw='hero-cue'] {
+        --copy-in: 1;
+        animation-name: exitFade, exitBlur;
+        animation-duration: auto;
+        animation-delay: 0s;
+        animation-iteration-count: 1;
+        animation-direction: normal;
+        animation-timing-function: linear;
+        animation-fill-mode: both;
+        animation-timeline: --hero-exit;
+        animation-range: contain;
+      }
+    }
+
+    @media (width<=600px) {
+      [data-exit-live] [data-splash='done'] [data-fw='hero'] {
+        --copy-in: 1;
+        animation-name: exitFade, exitCopyUpNarrow;
+        animation-duration: auto;
+        animation-delay: 0s;
+        animation-iteration-count: 1;
+        animation-direction: normal;
+        animation-timing-function: linear;
+        animation-fill-mode: both;
+        animation-timeline: --hero-exit;
+        animation-range: contain;
+      }
+      [data-exit-live] [data-splash='done'] [data-fw='hero-cue'] {
+        --copy-in: 1;
+        animation-name: exitFade, exitCueUpNarrow, exitBlur;
+        animation-duration: auto;
+        animation-delay: 0s;
+        animation-iteration-count: 1;
+        animation-direction: normal;
+        animation-timing-function: linear;
+        animation-fill-mode: both;
+        animation-timeline: --hero-exit;
+        animation-range: contain;
+      }
+    }
+
+    [data-fw='hero-exit'][data-exit-live] [data-splash='done'] [data-orbit-id] {
+      animation-name: exitCardFade, exitCardMove;
+      animation-duration: auto;
+      animation-delay: 0s;
+      animation-iteration-count: 1;
+      animation-direction: normal;
+      animation-timing-function: linear;
+      animation-fill-mode: both;
+      animation-timeline: --hero-exit;
+      animation-range: contain;
+    }
+    [data-exit-live] [data-splash='done'] [data-fw='hero-deck'] > article {
+      animation-name: exitCardFade, exitCardMove;
+      animation-duration: auto;
+      animation-delay: 0s;
+      animation-iteration-count: 1;
+      animation-direction: normal;
+      animation-timing-function: linear;
+      animation-fill-mode: both;
+      animation-timeline: --hero-exit;
+      animation-range: contain;
+    }
+  }
+
+  @keyframes exitFade {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+  @keyframes exitCardFade {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0.65;
+    }
+  }
+  @keyframes exitCopyUp {
+    from {
+      transform: translateY(0px);
+    }
+    to {
+      transform: translateY(-10px);
+    }
+  }
+  @keyframes exitCopyUpNarrow {
+    from {
+      transform: translate(-50%, 0px);
+    }
+    to {
+      transform: translate(-50%, -8px);
+    }
+  }
+  @keyframes exitCueUpNarrow {
+    from {
+      transform: translate(-50%, 0px);
+    }
+    to {
+      transform: translate(-50%, -10px);
+    }
+  }
+  @keyframes exitBlur {
+    from {
+      filter: blur(0px);
+    }
+    to {
+      filter: blur(18px);
+    }
+  }
+  @keyframes exitCardMove {
+    from {
+      translate: calc((1 - var(--entered)) * var(--orbit-enter-x)) calc((1 - var(--entered)) * var(--orbit-enter-y));
+    }
+    to {
+      translate: calc((1 - var(--entered)) * var(--orbit-enter-x) + var(--scatter-x))
+        calc((1 - var(--entered)) * var(--orbit-enter-y) + var(--scatter-y));
+    }
+  }
+}

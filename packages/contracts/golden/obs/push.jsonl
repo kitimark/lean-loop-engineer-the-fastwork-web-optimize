@@ -1,0 +1,11 @@
+{"name":"user question or comment","request":{"events":[{"actor":"user","type":"review.feedback"}],"op":"obs.push"},"response":{"push":[true]}}
+{"name":"user step answer","request":{"events":[{"actor":"user","type":"step.answer"}],"op":"obs.push"},"response":{"push":[true]}}
+{"name":"user step done","request":{"events":[{"actor":"user","type":"step.done"}],"op":"obs.push"},"response":{"push":[true]}}
+{"name":"user step cancel","request":{"events":[{"actor":"user","type":"step.cancel"}],"op":"obs.push"},"response":{"push":[true]}}
+{"name":"user step start is not pushed","request":{"events":[{"actor":"user","type":"step.start"}],"op":"obs.push"},"response":{"push":[false]}}
+{"name":"user preview is not pushed","request":{"events":[{"actor":"user","type":"review.previewed"}],"op":"obs.push"},"response":{"push":[false]}}
+{"name":"lead reply is not pushed","request":{"events":[{"actor":"lead","type":"review.feedback.reply"}],"op":"obs.push"},"response":{"push":[false]}}
+{"name":"lead feedback event is not pushed","request":{"events":[{"actor":"lead","type":"review.feedback"}],"op":"obs.push"},"response":{"push":[false]}}
+{"name":"hook spawn is not pushed","request":{"events":[{"actor":"hook","type":"agent.spawn"}],"op":"obs.push"},"response":{"push":[false]}}
+{"name":"script step done is not pushed","request":{"events":[{"actor":"script","type":"step.done"}],"op":"obs.push"},"response":{"push":[false]}}
+{"name":"hook step answer is not pushed","request":{"events":[{"actor":"hook","type":"step.answer"}],"op":"obs.push"},"response":{"push":[false]}}

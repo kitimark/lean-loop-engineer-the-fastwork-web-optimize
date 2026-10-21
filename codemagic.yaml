@@ -1,0 +1,79 @@
+workflows:
+  webkit-sim:
+    name: webkit-sim (pilot, one cell)
+    instance_type: mac_mini_m2
+    max_build_duration: 40
+    environment:
+      xcode: 27.0
+      vars:
+        FW_IOS_VERSION: "27.0"
+        FW_IOS_BUILD: "24A434"
+        FW_SIM_NAME: fw-iphone-27
+        FW_WK_TIMEOUT_SCALE: "8"
+        FW_WK_ATTEMPTS: "3"
+    scripts:
+      - name: tool and runner facts
+        script: |
+          set -eu
+          export RUNNER_TEMP=/tmp/fw; mkdir -p "$RUNNER_TEMP/result"
+          date +%s > "$RUNNER_TEMP/t0"
+          {
+            sw_vers
+            xcodebuild -version
+            xcrun simctl list runtimes
+            node --version
+            sysctl -n hw.ncpu hw.memsize
+            uname -m
+          } 2>&1 | tee "$RUNNER_TEMP/result/tools.txt"
+      - name: pinned iOS runtime build, then create the device
+        script: |
+          set -eu
+          export RUNNER_TEMP=/tmp/fw
+          sh .github/scripts/check-simulator.sh --create 2>&1 | tee "$RUNNER_TEMP/result/check-simulator.txt"
+      - name: verify the snapshot against snapshot.lock.json
+        script: |
+          set -eu
+          node .github/scripts/verify-snapshot.mjs
+      - name: ios_webkit_debug_proxy
+        script: |
+          set -eu
+          brew install ios-webkit-debug-proxy
+          command -v ios_webkit_debug_proxy
+          brew list --versions ios-webkit-debug-proxy | tee -a /tmp/fw/result/tools.txt
+      - name: boot the Simulator (kept booted for the whole job)
+        script: |
+          set -eu
+          export RUNNER_TEMP=/tmp/fw
+          xcrun simctl shutdown all || true
+          udid=$(cat "$RUNNER_TEMP/fw-sim-udid.txt")
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
+      - name: determinism sessions (original arm, 1 session, 2 passes)
+        script: |
+          set -u
+          export RUNNER_TEMP=/tmp/fw
+          export FW_SNAPSHOT_SITE="$PWD/snapshot/site"
+          cd packages/measure-webkit
+          mkdir -p out
+          node src/cli.mjs determinism --runs 2 --keep --out out/v1-session-1.json > out/v1-session-1.md 2> out/v1-session-1.log
+          rc=$?
+          echo "$rc" > "$RUNNER_TEMP/determinism.rc"
+          cat out/v1-session-1.md
+          tail -n 40 out/v1-session-1.log
+          exit 0
+      - name: keep logs and host state, delete the Simulator
+        script: |
+          set -u
+          export RUNNER_TEMP=/tmp/fw
+          mkdir -p "$CM_BUILD_DIR/fw-result"
+          cp packages/measure-webkit/out/v1-* "$RUNNER_TEMP/result/" 2>/dev/null || true
+          { uptime; xcrun simctl list devices booted; ps -axo pid,pcpu,rss,comm | sort -k2 -nr | head -15; } > "$RUNNER_TEMP/result/host.txt" 2>&1 || true
+          echo "tool-start $(cat "$RUNNER_TEMP/t0") end $(date +%s)" > "$RUNNER_TEMP/result/wall.txt"
+          cp "$RUNNER_TEMP"/result/* "$CM_BUILD_DIR/fw-result/" 2>/dev/null || true
+          xcrun simctl shutdown all || true
+          xcrun simctl delete "$FW_SIM_NAME" || true
+          rc=$(cat "$RUNNER_TEMP/determinism.rc" 2>/dev/null || echo 99)
+          echo "determinism exit status: $rc"
+          exit "$rc"
+    artifacts:
+      - fw-result/*

@@ -16,10 +16,10 @@ const when = (ms: number): string => new Date(ms).toISOString().replace("T", " "
 
 /** The send: POST the comment with a client id (made here when `cid` is null, so a retry of the same text reuses it). Returns the id used
  *  and the text to show when the comment was not recorded (`null`: recorded). No crypto API is used, so it runs on the plain-http LAN page. */
-export async function sendFeedback(flag: string, text: string, cid: string | null): Promise<{ cid: string; error: string | null }> {
+export async function sendFeedback(flag: string, text: string, cid: string | null, url?: string): Promise<{ cid: string; error: string | null }> {
   const id = cid ?? makeCid();
   try {
-    const r = await apiFetch(`/api/reviews/${encodeURIComponent(flag)}/feedback`, {
+    const r = await apiFetch(url ?? `/api/reviews/${encodeURIComponent(flag)}/feedback`, {
       method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text, cid: id }),
     });
     const j = (await r.json().catch(() => null)) as { ok?: boolean; reason?: string } | null;
@@ -52,8 +52,9 @@ export function FeedbackThreadView({ thread }: { thread: FeedbackThread | null |
   );
 }
 
-/** The Feedback section of a review card: a box to write a comment for more research, and the thread below. */
-export function ReviewFeedback({ flag, thread, onChanged }: { flag: string; thread?: FeedbackThread | null; onChanged?: () => void }) {
+export type FeedbackWords = { url?: string; heading?: string; aria?: string; placeholder?: string; testid?: string };
+
+export function ReviewFeedback({ flag, thread, onChanged, words = {} }: { flag: string; thread?: FeedbackThread | null; onChanged?: () => void; words?: FeedbackWords }) {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -62,16 +63,16 @@ export function ReviewFeedback({ flag, thread, onChanged }: { flag: string; thre
     if (!text.trim()) { setErr("Write a comment first."); return; }
     setBusy(true); setErr(null);
     try {
-      const r = await sendFeedback(flag, text, cid.current);
+      const r = await sendFeedback(flag, text, cid.current, words.url);
       cid.current = r.cid;
       if (r.error) { setErr(r.error); return; }
       cid.current = null; setText(""); onChanged?.();
     } finally { setBusy(false); }
   }
   return (
-    <section className="min-w-0 space-y-2" data-testid="review-feedback" aria-label={`Feedback on ${flag}`}>
-      <h4 className="text-sm font-medium">Feedback{thread && thread.open > 0 ? ` (${thread.open} open)` : ""}</h4>
-      <textarea className="min-h-20 w-full rounded border bg-background p-2 text-sm" aria-label="Your feedback for more research" placeholder="What should the next research look at?"
+    <section className="min-w-0 space-y-2" data-testid={words.testid ?? "review-feedback"} aria-label={`Feedback on ${flag}`}>
+      <h4 className="text-sm font-medium">{words.heading ?? "Feedback"}{thread && thread.open > 0 ? ` (${thread.open} open)` : ""}</h4>
+      <textarea className="min-h-20 w-full rounded border bg-background p-2 text-sm" aria-label={words.aria ?? "Your feedback for more research"} placeholder={words.placeholder ?? "What should the next research look at?"}
         value={text} disabled={busy} onChange={(e) => { setText(e.target.value); cid.current = null; }} data-testid="feedback-input" />
       <Button className="min-h-11 w-full sm:w-auto" disabled={busy} onClick={() => void send()} data-testid="feedback-send">{busy ? "Sending..." : "Send"}</Button>
       {err ? <p className="break-words text-xs text-destructive" role="alert" data-testid="feedback-error">{err}</p> : null}

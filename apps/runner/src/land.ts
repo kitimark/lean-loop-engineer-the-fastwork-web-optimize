@@ -187,7 +187,9 @@ const WALLCLOCK_LINT_TESTS = ["scripts/*.test.mjs", "apps/*/test/**", "packages/
  *  static scan in test/land-inputs.test.ts (which fails on any it finds that is not covered here). Dynamic reads the scan
  *  cannot see are listed in docs/team/handoffs/checksfor-inputs.md. */
 export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
-  "apps/console-api": ["lean/Fw/Console/PreviewFacts.lean", "snapshot/site/index.html", "apps/console-web/**", "apps/runner/hooks/lib.mjs", "apps/runner/src/plan.ts", "packages/contracts/golden/**", "apps/site/src/registry/resolve.ts", "apps/site/src/registry/types.ts", ...WALLCLOCK_LINT_FILES],
+  // review-reports: the example report that the api and web tests render
+  "apps/console-web": ["results/review-reports/**"],
+  "apps/console-api": ["lean/Fw/Console/PreviewFacts.lean", "snapshot/site/index.html", "apps/console-web/**", "results/review-reports/**","apps/runner/hooks/lib.mjs", "apps/runner/src/plan.ts", "packages/contracts/golden/**", "apps/site/src/registry/resolve.ts", "apps/site/src/registry/types.ts", ...WALLCLOCK_LINT_FILES],
   "apps/runner": ["lean/**", ...WALLCLOCK_LINT_FILES, ...WALLCLOCK_LINT_TESTS, "apps/console-api/**", "docs/team/work-graph.json", "docs/team/incidents/ledger.json", "lean/scripts/check-imports.mjs",
     "packages/contracts/golden/**", "packages/gh-budget/test/util.ts", "scripts/span.sh",
     // ci-trigger-lean: test/ci-triggers.test.ts reads every workflow, the guard script and the lint
@@ -196,6 +198,8 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     "scripts/ci-push.mjs", "scripts/ci-push.test.mjs", "scripts/hooks/**",
     // circleci-pilot: the glue, its fixtures and the pilot config (test/ci-triggers.test.ts runs scripts/circleci.test.mjs; fw ci circleci spawns the glue)
     "scripts/circleci.mjs", "scripts/circleci.test.mjs", "scripts/circleci-fixtures/**", ".circleci/**",
+    // macos-telemetry: test/ci-telemetry-mac.test.ts checks that the note embeds the tables Lean renders from the committed dataset
+    "research/notes/2026/10-2x-macos-telemetry.md",
     // lake-build-slots: test/ci-triggers.test.ts runs the build-slot wrapper's tests (they also read golden/** above)
     "scripts/lake-slot.sh", "scripts/lake-slot-lib.sh", "scripts/lake-slot.test.mjs",
     // sup-baseline: test/watch-collect-sup.test.ts runs scripts/sim-lock.sh in a scratch repo to check its lock events
@@ -220,7 +224,9 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     "packages/contracts/golden/gate/**", "packages/contracts/golden/parts/**",
     // image-audit: the test compares the byte copy of arm.mjs that packages/measure-webkit keeps (visual-diff is a workspace
     // dependency, so workspaceDeps already reads packages/visual-diff/**)
-    "packages/measure-webkit/src/images/arm.mjs", "apps/site/src/flags/images/drawn.json"],
+    "packages/measure-webkit/src/images/arm.mjs", "apps/site/src/flags/images/drawn.json",
+    // smoothness-webkit-cadence: src/smooth/webkit-cadence.mjs imports the WebKit profile recorder, its Lean twin, the raw-window writer and the arm plan
+    "packages/measure-webkit/src/profile/recorder.mjs", "packages/measure-webkit/src/profile/reduce.mjs", "packages/measure-webkit/src/profile/raw.mjs", "packages/measure-webkit/src/device-arms.mjs"],
   "packages/premise-tests": ["packages/gate-breakpoints/src/align-equiv.mjs"],
   // preview-e2e: the rig starts console-api's server files (imported by file URL) and the preview servers over the snapshot
   "packages/e2e-preview": ["apps/console-api/src/**", "apps/console-api/package.json", "packages/contracts/src/**", "packages/contracts/package.json", "packages/contracts/golden/console/**", "snapshot/site/**"],
@@ -233,7 +239,10 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     // device-lag-recorder: device-arms.mjs resolves the arms' URLs from the site's presets and part files at record time
     "apps/site/src/registry/presets/**", "apps/site/src/parts/**",
     // webkit-lag-probe: test/lag-findings.test.mjs reads the note whose Findings it checks against the generated block
-    "research/notes/2026/10-21-webkit-lag-probe.md"],
+    "research/notes/2026/10-21-webkit-lag-probe.md",
+    // smoothness-webkit-cadence: the profile report classifies with fwcore, the sim leg reuses the Chromium lane's schedule, hitch rule and arm-identity check
+    "packages/measure-chromium/src/fwcore.mjs", "packages/gate-breakpoints/src/smooth/schedule.mjs", "packages/gate-breakpoints/src/smooth/reduce.mjs",
+    "packages/gate-breakpoints/src/trajectory/reduce.mjs"],
   "packages/snapshot-extract": ["packages/gate-breakpoints/src/**"],
   "packages/visual-diff": ["packages/gate-breakpoints/src/**", "apps/site/src/breakpoints.gen.json", "packages/contracts/golden/gate/**", "scripts/port/**", "packages/contracts/golden/port/**"],
 };

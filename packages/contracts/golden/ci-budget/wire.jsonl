@@ -57,3 +57,7 @@
 {"name":"attempt current: no attempt under floor 0","request":{"floor":0,"op":"ci.attempt"},"response":{"current":true}}
 {"name":"attempt fresh: a finished row read 30 s ago is shared","request":{"now":130,"op":"ci.attempt","read":100},"response":{"fresh":true}}
 {"name":"attempt fresh: read 31 s ago, the run is read again","request":{"now":131,"op":"ci.attempt","read":100},"response":{"fresh":false}}
+{"name":"attempt jobsSettled: every job has a conclusion","request":{"ago":0,"op":"ci.attempt","open":0},"response":{"jobsSettled":true}}
+{"name":"attempt jobsSettled: one job still open right after the finish, read again","request":{"ago":4,"op":"ci.attempt","open":1},"response":{"jobsSettled":false}}
+{"name":"attempt jobsSettled: one job open 300 s after the finish, still lag","request":{"ago":300,"op":"ci.attempt","open":1},"response":{"jobsSettled":false}}
+{"name":"attempt jobsSettled: one job open 301 s after the finish, a fact","request":{"ago":301,"op":"ci.attempt","open":1},"response":{"jobsSettled":true}}

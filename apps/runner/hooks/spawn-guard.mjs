@@ -18,6 +18,7 @@ export const ROLES = [
   ["researcher", "teammate", true], ["plan-editor", "teammate", true],
   ["reviewer", "subagent", false], ["math-reviewer", "subagent", false], ["checker", "subagent", false],
   ["slop-checker", "subagent", false], ["scout", "subagent", false], ["runner", "subagent", false], ["patcher", "subagent", true],
+  ["comment-sicko", "subagent", true],
   ["Explore", "subagent", false], ["Plan", "subagent", false], ["general-purpose", "subagent", true],
   ["fork", "subagent", false], ["workflow-subagent", "subagent", false], // = Lean SpawnGuard.prodRoles
 ].map(([name, runsAs, edits]) => ({ name, runsAs, edits }));
