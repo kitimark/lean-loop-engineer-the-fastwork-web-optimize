@@ -41,6 +41,7 @@ describe("LineTail", () => {
     appendFileSync(f, '{"a":1}\n{"torn');
     const t = new LineTail(f);
     truncateSync(f, readFileSync(f).indexOf("{\"torn"));
+    expect(t.read()).toEqual([]);
     appendFileSync(f, '{"n":1}\n');
     expect(t.read()).toEqual(['{"n":1}']);
   });
