@@ -88,7 +88,6 @@ export type LandOptions = {
   /** the dry land's reads test: its argv and whether the change selects it; default: the land-inputs test, selected when the change
    *  selects the reads-scan check (`LandSpeed.scan_selected`; tests inject both) */
   dryReads?: { argv: string[]; selected?: boolean };
-  /** the dry land's local tests (default `LOCAL_TESTS`; tests inject their own and then no fwcore build is planned) */
   dryLocal?: Check[];
   /** the dry land's fast lints (argv list, run in the merge-tree worktree); default: `dryLintArgv` (ci-paths --check, and the math-view
    *  lint when the change touches `lean/`) */
@@ -307,11 +306,8 @@ export const READS_SCAN_ARGV = ["pnpm", "--filter", "./apps/runner", "exec", "vi
 export const withScan = (cs: Check[]): Check[] =>
   [...cs, { id: READS_SCAN_ID, argv: READS_SCAN_ARGV, reads: cs.flatMap((c) => c.reads.filter((g) => !g.startsWith("!"))) }];
 
-/** Lean `LandTier.composeReads` (equal to the golden land-tier-local.jsonl `tests` field, pinned by test/land-tier.test.ts). */
 export const COMPOSE_READS = ["apps/site/src/parts/*/part.json", "apps/site/src/registry/**", "research/findings/ledger.json", "apps/console-api/src/**",
   "apps/console-api/test/compose.test.ts", "packages/contracts/golden/console/console.compose.jsonl", "lean/.lake/build/bin/fwcore"];
-/** Lean `LandTier.localTests`: single test files that run on this Mac with a declared read set (incident 2026-10-22, c-late-check). A test with
- *  undeclared reads stays on the CI tier. Selection is `selectChecks`, as for every check (Lean `LandTier.selects_reader`). */
 export const LOCAL_TESTS: Check[] = [
   { id: "console-api:compose", argv: ["pnpm", "--filter", "./apps/console-api", "exec", "vitest", "run", "test/compose.test.ts"], reads: COMPOSE_READS },
 ];
@@ -835,9 +831,6 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
           lints = bad === null; detail = bad ?? "";
         }
       } else lines.push("dry: lints skipped (reads refused first)");
-      // task land-tier-compose-test: the selected local tests (`LOCAL_TESTS`, Lean `LandTier.selectLocal`) run as part of the fast lints, so a
-      // change the real land's CI tier would refuse (a part.json variant without a findings row) fails here with the test file's name.
-      // TS stand-in: Lean `lintPlan` does not list them; a failure is kind `lint`, the real land reports it as `checks`.
       if (reads && lints) {
         const local = (o.dryLocal ?? LOCAL_TESTS).filter((t) => selectChecks([t], changed).length > 0);
         if (local.length) {

@@ -203,7 +203,7 @@ The post-land `scripts/fwcore-build.sh` is unchanged. A change to a Lean module 
 
 ## Local tests with a declared read set (task land-tier-compose-test)
 
-A heavy suite runs only on the land lane, so a test inside it was invisible to the local tier and to the dry land. Incident
+A test inside a land-lane-only suite was invisible to the local tier and the dry land. Incident
 `inc-local-tier-misses-compose`: lands of hero-exit-threaded-port (run 39674287486), toolbar-throttle-probe (39685526491) and
 platform-shrink-mq (39688115785) failed at CI `suites-b` on `apps/console-api/test/compose.test.ts` because each branch registered a
 flag variant in a `part.json` with no row in `research/findings/ledger.json` (class `unrated`, `Compose.classBy`).
@@ -215,5 +215,5 @@ flag variant in a `part.json` with no row in `research/findings/ledger.json` (cl
 - `apps/runner/src/land.ts`: `LOCAL_TESTS` (id `console-api:compose`, tier `onMac`, a `fwcore` user) is a candidate check, so the real
   land's local tier runs it, and the dry land runs the selected ones after the fast lints (a failure is `VERDICT lint`, the output names
   `test/compose.test.ts`). Test: `apps/runner/test/land-tier.test.ts`.
-- Limits: a test with undeclared reads stays on the CI tier only; read sets are written by hand (a generated read set is a follow-up).
+- Limits: a test with undeclared reads stays on the CI tier only; read sets are written by hand.
   TS stand-ins: the dry land's local-test step (Lean `lintPlan` does not list it; the real land reports the same failure as `checks`).

@@ -1,5 +1,3 @@
-// Task land-tier-compose-test: the local tier selects a test from its declared read set (Lean `LandTier.selects_reader`, golden
-// land-tier-local.jsonl). Incident 2026-10-22: a part.json change was not read by any local check, so compose.test failed only on CI.
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";

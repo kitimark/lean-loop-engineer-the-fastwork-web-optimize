@@ -3858,7 +3858,7 @@
    "regression": "apps/runner/test/land-tier.test.ts: a changed part.json or the ledger selects console-api:compose (golden land-tier-local.jsonl); the dry land runs the selected local tests.",
    "mistakeClass": "c-late-check",
    "leanVerdict": "provable",
-   "leanReason": "Selection of a test from its declared read set is Fw.Console.LandTier.selects_reader; the read set is declared by hand (a generated one is a follow-up).",
+   "leanReason": "Selection of a test from its declared read set is Fw.Console.LandTier.selects_reader; the read set is declared by hand.",
    "empiricalCheck": "fw land --dry of a branch with an unrated variant fails with test/compose.test.ts in the output.",
    "hardening": "land-tier-compose-test"
   }
