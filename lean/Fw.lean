@@ -90,6 +90,7 @@ import Fw.Ops.Salvage  -- workflow-salvage: a builder exit without a result (dec
 import Fw.Sched.Admit
 import Fw.Sched.ParMetrics
 import Fw.Sched.LakeSlot  -- lake-build-slots: slot pools and the thread bound of scripts/lake-slot.sh
+import Fw.Sched.NodeBudget  -- node-worker-budget: Node test workers per run from the room
 import Fw.Wire.Sched
 import Fw.Wire.SchedJson
 import Fw.Store.Layout

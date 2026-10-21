@@ -7,7 +7,7 @@
   "engines": { "node": ">=24" },
   "scripts": {
     "premises": "node src/run.mjs",
-    "test": "node --test \"test/*.test.mjs\""
+    "test": "node --test --test-concurrency=${VITEST_MAX_WORKERS:-$(node -p \"require('../contracts/golden/sched/node-budget.gen.json').workers\")} \"test/*.test.mjs\""
   },
   "dependencies": {
     "playwright-core": "1.64.1"
