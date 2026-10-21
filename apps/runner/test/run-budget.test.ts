@@ -39,7 +39,7 @@ describe.skipIf(!hasCore)("fw run through the request budget", { timeout: 120_00
       }
       return out;
     };
-    return { call, gh, wait: (t, timeoutS) => waitFor(w.env, t, { timeoutS }), now: w.sim.now, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: () => {} };
+    return { call, gh, wait: (t, timeoutS) => waitFor(w.env, t, { timeoutS }), now: w.sim.now, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: () => {}, nonce: () => "n0nce1234" };
   }
   const fromRun = parseRunArgs(["--engines", "chromium", "--target", "original", "--from-run", "chromium=111"]);
 
@@ -79,15 +79,17 @@ describe.skipIf(!hasCore)("fw run through the request budget", { timeout: 120_00
     const w = mkWorld(T0, { fastGh: true });
     const old = run({ databaseId: 50, createdAt: T0 - 1000, completeAt: T0 - 900 });
     w.config({ start: T0, listCost: 2, runs: [old] });
-    const d = deps(w, () => w.config({ start: T0, listCost: 2, runs: [old, run({ databaseId: 51, createdAt: w.sim.now() + 5, completeAt: w.sim.now() + 250 })] }));
+    const d = deps(w, () => w.config({ start: T0, listCost: 2, runs: [old, run({ databaseId: 51, createdAt: w.sim.now() + 5, completeAt: w.sim.now() + 250, workflowName: "chromium-counts", event: "workflow_dispatch", displayTitle: "chromium-counts dispatch nonce=n0nce1234" })] }));
     const args = parseRunArgs(["--engines", "chromium", "--target", "original", "--ref", "ci/t"]);
     const [code] = await drive(w.sim, [runMain(args, d)]);
     expect(code).toBe(0);
     const calls = w.calls();
     expect(calls.some((c) => c.args[1] === "watch")).toBe(false);
-    expect(calls.map((c) => c.args.slice(0, 2).join(" ")).slice(0, 2)).toEqual(["run list", "workflow run"]);
+    // identity, not recency: no list before the dispatch; the dispatch carries the nonce, the wait selects the run that echoes it
+    expect(calls[0]!.args.slice(0, 2).join(" ")).toBe("workflow run");
+    expect(calls[0]!.args).toContain("nonce=n0nce1234");
     expect(calls.find((c) => c.args.includes("headSha"))!.args[2]).toBe("51");
-    const ticks = calls.filter((c) => c.args[1] === "list").length - 1; // minus the one before the dispatch
+    const ticks = calls.filter((c) => c.args[1] === "list").length;
     const { Pmin } = JSON.parse(readFileSync(join(goldenDir, "limits.json"), "utf8")) as { Pmin: number };
     expect(ticks).toBeLessThanOrEqual(Math.ceil(250 / Pmin) + 1);
     console.log(`# gh calls: dispatch ${calls.length} ${JSON.stringify(count(calls))}`);

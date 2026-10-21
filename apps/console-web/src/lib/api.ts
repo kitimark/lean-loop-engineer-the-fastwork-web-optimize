@@ -46,9 +46,23 @@ export function useBoard(): { board: LiveBoard | null; offset: number; live: boo
   return { board, offset, live };
 }
 
+/** A random hex id. `crypto.randomUUID` exists only in secure contexts (https, localhost); the LAN page is plain http,
+ *  where only `getRandomValues` exists. */
+export function randomId(): string {
+  return Array.from(crypto.getRandomValues(new Uint8Array(16)), (x) => x.toString(16).padStart(2, "0")).join("");
+}
+
+/** The error line a click leaves: none when accepted, the refusal, or why it was not sent (never swallowed). */
+export async function clickError(send: () => Promise<CommandReply>): Promise<string | null> {
+  try {
+    const r = await send();
+    return r.ok ? null : `Refused: ${r.reason}`;
+  } catch (e) { return `Not sent: ${(e as Error).message}`; }
+}
+
 /** A fresh key per click, so a retried request is idempotent but two clicks are two commands. */
 export async function sendAsUser(partial: Record<string, unknown>): Promise<CommandReply> {
-  const cmd = Command.parse({ ...partial, actor: "user", key: `web:${crypto.randomUUID()}` });
+  const cmd = Command.parse({ ...partial, actor: "user", key: `web:${randomId()}` });
   const r = await apiFetch("/api/commands", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(cmd) });
   return CommandReply.parse(await r.json());
 }

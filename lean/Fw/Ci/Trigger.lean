@@ -193,6 +193,8 @@ def table : List Wf := [
     "packages/contracts/golden/parts/morph.mount.dormant.jsonl", "packages/contracts/golden/parts/morph-mount-tap.jsonl",
     "packages/contracts/golden/parts/nav-earn.jsonl",
     "packages/contracts/golden/gate/image-arm.jsonl",
+    "packages/contracts/golden/ops/rebuild-facts.jsonl",
+    "packages/contracts/golden/ops/rebuild.jsonl",
     ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", ".github/scripts/runner-info.sh",
     ".github/actions/telemetry/**", "scripts/ci-telemetry/**", own "lean.yml", ".node-version"], []⟩,
   ⟨"mutants.yml", ciAll, [

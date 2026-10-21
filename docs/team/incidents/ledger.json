@@ -3544,6 +3544,63 @@
    "leanVerdict": "provable",
    "leanReason": "Whether a row can be selected given the repo identity and the protected console pids is a pure function of the gathered table; 'no selected row lies outside this repo's removed worktrees' and 'no protected pid is selected' are statements over that function.",
    "hardening": "reap-auto-stop"
+  },
+  {
+   "id": "inc-lan-click-silent",
+   "at": "2026-10-21T12:30+07:00",
+   "title": "Console clicks on the LAN page did nothing: the click key needed a secure-context API and the error was swallowed",
+   "symptom": "The user pressed Start on the step ask-circleci-deploy-key and nothing happened; the step stayed waiting and no step.start reached console-api (no event, no refusal in the log).",
+   "cause": "CONFIRMED (code read): sendAsUser built the command key with crypto.randomUUID, which browsers expose only in secure contexts (https, localhost). The LAN console is plain http, so every click there threw a TypeError before fetch, and App.act did not catch it, so no error line was shown. copyText already guarded the clipboard with isSecureContext; the key path had no such guard and no test ran without randomUUID.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "f58b727b",
+     "note": "keys from getRandomValues, clickError, test/lan-click.test.ts"
+    },
+    {
+     "kind": "file",
+     "ref": "apps/console-web/test/lan-click.test.ts",
+     "note": "fails on the old randomUUID key (mutation check), passes on the fix"
+    }
+   ],
+   "repro": "Open the console from another device at its LAN address (plain http) and press any step button: before ca1ca9ef nothing is sent.",
+   "fix": {
+    "task": "lan-click-silent"
+   },
+   "regression": "test/lan-click.test.ts: a click with no crypto.randomUUID sends step.start with a fresh key; a send that throws shows Not sent; a source scan allows secure-context-only APIs only on a line that checks isSecureContext.",
+   "mistakeClass": "c-env-assume",
+   "leanVerdict": "no",
+   "leanReason": "Which browser APIs exist depends on the page origin at run time, outside any pure function; a test of the page code without the API and a source scan are the guard.",
+   "hardening": "lan-click-silent",
+   "empiricalCheck": "apps/console-web/test/lan-click.test.ts (local vitest only: no CI runs console-web tests yet; task console-web-ci)"
+  },
+  {
+   "id": "inc-site-test-unrun",
+   "at": "2026-10-21T14:20+07:00",
+   "title": "A site unit test went red on main and every land passed: no CI lane runs apps/site unit tests",
+   "symptom": "apps/site src/parts/nav/look-change.test.ts:50 failed on main from 66458a10 (it expected the nav:earn-no-transition WebKit material pending); the hero-pause-rule reviewer found it on 2026-10-21; lands of review-strips-console and reap-auto-stop passed meanwhile.",
+   "cause": "CONFIRMED (workflow read): the land lane remote checks are check.sh, console-api, runner and five packages; apps/site vitest runs in no workflow, and its input rows do not include the preset goldens the test reads. The lead changed Gen.lean lookDecisions and regenerated look-change.candidates.jsonl, ran check.sh and the console tests, but not the site tests.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "66458a10",
+     "note": "made the test stale (WebKit material ready)"
+    },
+    {
+     "kind": "commit",
+     "ref": "461b5d67",
+     "note": "test expectation updated"
+    }
+   ],
+   "repro": "Change packages/contracts/golden/preset/look-change.candidates.jsonl and run fw land: no check runs apps/site vitest.",
+   "fix": {
+    "task": "console-web-ci"
+   },
+   "regression": "console-web-ci: the land lane runs apps/site and console-web unit tests, selected by their sources and the goldens they read (Trigger rows with a selection theorem).",
+   "mistakeClass": "c-late-check",
+   "leanVerdict": "provable",
+   "leanReason": "Which checks a changed path selects is the Lean Fw.Ci.Trigger table; a theorem that every golden a suite reads selects that suite is a statement over it.",
+   "hardening": "console-web-ci"
   }
  ]
 }
