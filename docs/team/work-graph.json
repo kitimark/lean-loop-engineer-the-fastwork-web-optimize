@@ -12821,6 +12821,30 @@
     "docs/team/tools/smoothness-probe.md",
     "docs/team/handoffs/smoothness-probe.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "device-lag-recorder",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "title": "User 2026-10-21: 'can you build the measurement and probe tools for collect the stats in the real device. i'll do with my scroll for reproduce how laggy that i felt then you can use the stats for produce on your measurement.' Extend the phone tooling (packages/measure-webkit/src/device-cli.mjs swipe, device-swipe.mjs; handoff docs/team/handoffs/phone-session-1.md) into a recorder the user drives on the real iPhone: (1) record per frame: rAF timestamp, scrollY, touch points (time, x, y, phase) without preventDefault, and the animated values of the parts in the two user windows (hero card exit, people reveal; end of page) sampled per frame; optional Timeline counts arm as today; (2) a 'felt lag' mark: a triple-tap anywhere records a mark (time, scrollY), never changing the page; (3) export the user's gesture as a replay profile in the CI profile format (packages/measure-chromium/profiles/*.json, and the WebKit lanes' equivalent) so CI replays the exact scroll on original, faithful rewrite and each flag; (4) reductions in Lean (new module, e.g. Fw.Device.Session): zones of the two windows, frame intervals over 34/50 ms per 100, longest, median, spread across passes, felt-mark windows, and the comparison rule original vs arm (beats only beyond the pass-to-pass spread); goldens + TS twin; (5) an A/B/A session plan (original, rewrite, rewrite + v2-proved flags, look-change flags) with the phone banner giving one instruction at a time and the lead relaying the same steps in the console; (6) results packaged under results/phone/<date>/ with raw timestamps local only. Privacy: no address, device id or device name in any file (device.mjs redact). The device lane is local-by-necessity (real device): name it so in the work graph. Results are calibration input for CI and the smoothness metrics (smoothness-probe), never a replacement for the engine-source proofs.",
+   "writes": [
+    "packages/measure-webkit/src/device-cli.mjs",
+    "packages/measure-webkit/src/device-swipe.mjs",
+    "packages/measure-webkit/src/device-record.mjs",
+    "packages/measure-webkit/src/device-profile.mjs",
+    "packages/measure-webkit/test/device-record.test.mjs",
+    "lean/Fw/Device/Session.lean",
+    "lean/scripts/DeviceSessionGolden.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/device/session.jsonl",
+    "packages/measure-chromium/profiles/user-*.json",
+    "docs/team/tools/device-lag-recorder.md",
+    "docs/team/handoffs/device-lag-recorder.md"
+   ]
   }
  ],
  "deadline": {
