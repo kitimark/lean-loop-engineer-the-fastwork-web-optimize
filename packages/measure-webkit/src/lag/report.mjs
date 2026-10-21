@@ -1,11 +1,20 @@
-// The ranked attribution of the lag probe: raw `fw.webkit.lag/1` sessions in, per region a counter ranking, a paint
-// attribution to parts and the filter layers out. Every decision is reduce.mjs (twin of Fw.Measure.WebKitLag); this file
-// joins records to boxes and formats.
-import { COUNT_TYPES, bucketBySteps, classify, TOL } from '../reduce.mjs';
-import { MORPH_FRAMES } from './probe.mjs';
-import { Q, regionOf, regionLedger, stepArea, stepCount, rollup, rankWindows, filterTotals, byKey } from './reduce.mjs';
+// The ranked attribution of the lag probe: raw `fw.webkit.lag/1` sessions in, per region a counter ranking by a unit-free
+// ratio, a paint attribution to parts, the top steps, the filter layers and the layer census out, for both arms with the
+// arm difference decided on per-pass ranges. Every decision is reduce.mjs (twin of Fw.Measure.WebKitLag); this file joins
+// records to boxes and formats. Every number in the Markdown is generated here from the raw sessions.
+import { COUNT_TYPES, bucketBySteps } from '../reduce.mjs';
+import { MORPH_FRAMES, scanSteps } from './probe.mjs';
+import {
+  Q, regionOf, regionLedger, stepArea, topPart, rollup, rankWindows, colRatio, colSum, frac, fracLt, verdict, topK,
+  filterTotals, byKey,
+} from './reduce.mjs';
 
-export const COLUMNS = Object.freeze([...COUNT_TYPES, 'paintArea']);
+/** Timeline record types counted besides COUNT_TYPES (present in the raw records, not in the lane's columns). */
+export const EXTRA_TYPES = Object.freeze(['RequestAnimationFrame', 'TimerInstall', 'TimerRemove']);
+/** Record types whose duration (end - start, microseconds on the Simulator host, not phone time) is a column. */
+export const DURATION_TYPES = Object.freeze(['Layout', 'Paint', 'RecalculateStyles', 'Composite', 'FunctionCall']);
+export const COLUMNS = Object.freeze([...COUNT_TYPES, ...EXTRA_TYPES, ...DURATION_TYPES.map((t) => `${t}Us`), 'paintArea']);
+const PAINT = COLUMNS.indexOf('Paint'), AREA = COLUMNS.indexOf('paintArea');
 const PX2 = Q * Q;
 
 /** Bounding rectangle of a Paint clip quad, quarter CSS px. */
@@ -30,7 +39,21 @@ export function clipsPerStep(run, scrollY = 0) {
   });
 }
 
-const rowsOf = (reduced) => reduced.perStep.map((row, i) => [...row, reduced.perStepPaintArea[i]]);
+/**
+ * One row per step of a timed run, columns COLUMNS: the record counts, the durations in microseconds, the paint area in
+ * css px^2. All of it is derived from the run's raw Timeline records.
+ */
+export function stepRows(run) {
+  const { steps } = bucketBySteps(run.records, run.marks, run.endTime);
+  return steps.map((recs, k) => {
+    const count = new Map([...COUNT_TYPES, ...EXTRA_TYPES].map((t) => [t, 0])), dur = new Map(DURATION_TYPES.map((t) => [t, 0]));
+    for (const r of recs) {
+      if (count.has(r[0])) count.set(r[0], count.get(r[0]) + 1);
+      if (dur.has(r[0]) && typeof r[2] === 'number' && typeof r[1] === 'number') dur.set(r[0], dur.get(r[0]) + Math.round((r[2] - r[1]) * 1e6));
+    }
+    return [...COUNT_TYPES, ...EXTRA_TYPES].map((t) => count.get(t)).concat(DURATION_TYPES.map((t) => dur.get(t)), [run.reduced.perStepPaintArea[k]]);
+  });
+}
 
 /**
  * Steps of a scroll run joined to the geometry: y, boxes, clips. The page height differs by a few dozen px between loads
@@ -43,7 +66,7 @@ export function scrollSteps(session, pass) {
   return pass.scroll.ys.map((y, k) => ({ y, boxes: g.scroll[nearest(y)].boxes, clips: clips[k] }));
 }
 
-/** Phases of a morph run: idle (the baseline), open (after the push down), close (after the push up), as step index ranges. */
+/** Phases of a morph run: idle (the idle page tail), open (after the push down), close (after the push up), as step index ranges. */
 export const MORPH_PHASES = Object.freeze({
   idle: [0, MORPH_FRAMES.idle],
   open: [MORPH_FRAMES.idle, MORPH_FRAMES.idle + MORPH_FRAMES.open],
@@ -51,154 +74,296 @@ export const MORPH_PHASES = Object.freeze({
 });
 
 const mean = (a) => (a.length ? a.reduce((s, x) => s + x, 0) / a.length : 0);
-const fmt = (x, d = 2) => (Number.isFinite(x) ? x.toFixed(d) : '-');
-const classOf = (sums) => (sums.length >= 2 ? classify(sums.map((s) => [s]), TOL.zone).cls : 'one run');
-
-/** A window of the stepped scroll: rows of the steps whose y is in `region`, per pass. */
-function scrollWindow(arm, region) {
-  return arm.flatMap((s) => s.passes.map((p) => {
-    const ys = p.scroll.ys, vh = p.scroll.info.vh, maxY = p.scroll.info.maxY, rows = rowsOf(p.scroll.reduced);
-    return rows.filter((_, i) => regionOf(vh, maxY, ys[i]) === region);
-  }));
-}
-
-/** Counter table of one window against its baseline: sums per pass, mean per step, class across the passes, rank. */
-function counterTable(winPerPass, basePerPass) {
-  const rows = COLUMNS.map((name, j) => {
-    const sums = winPerPass.map((w) => w.reduce((s, r) => s + r[j], 0));
-    const nW = mean(winPerPass.map((w) => w.length));
-    const bMean = mean(basePerPass.flatMap((w) => w.map((r) => r[j])));
-    const wMean = mean(winPerPass.flatMap((w) => w.map((r) => r[j])));
-    return { name, perStep: wMean, baseline: bMean, ratio: bMean > 0 ? wMean / bMean : null, cls: classOf(sums), sums, steps: nW };
-  });
-  const ranked = rankWindows(winPerPass.flat(), basePerPass.flat(), COLUMNS);
-  const perPassTop = winPerPass.map((w, i) => rankWindows(w, basePerPass[i], COLUMNS).filter(([, e]) => e > 0).slice(0, 3).map(([n]) => n).join('>'));
-  return { rows, ranked, perPassTop };
-}
-
-const toPx2 = (ledger) => ledger.map(([k, v]) => [k, v / PX2]);
+const num = (q) => q[0] / q[1];
+const sum = (a) => a.reduce((s, x) => s + x, 0);
 
 /** Sessions that kept at least one pass with `part` (a partly failed session still carries its completed passes). */
 const withPart = (arm, part) => arm.map((s) => ({ ...s, passes: s.passes.filter((p) => p[part]) })).filter((s) => s.passes.length);
 
-/** Per-region analysis of one arm (its sessions). */
-export function analyzeScroll(rawArm) {
-  const arm = withPart(rawArm, 'scroll');
-  const base = scrollWindow(arm, 'calm');
-  const out = {};
-  for (const region of ['A', 'B']) {
-    const win = scrollWindow(arm, region);
-    const table = counterTable(win, base);
-    const area = [], count = [], filt = [];
-    for (const s of arm) {
-      for (const pass of s.passes) {
-        const steps = scrollSteps(s, pass), { vh, maxY } = pass.scroll.info;
-        area.push(...regionLedger(vh, maxY, steps, region, stepArea));
-        count.push(...regionLedger(vh, maxY, steps, region, stepCount));
-      }
-      const gi = s.geometry.info, vp = [0, 0, Math.round(gi.vw * Q), Math.round(gi.vh * Q)];
-      s.geometry.ys.forEach((y, k) => { if (regionOf(gi.vh, gi.maxY, y) === region) filt.push(filterTotals(vp, s.geometry.scroll[k].filters)); });
-    }
-    const passes = arm.reduce((n, s) => n + s.passes.length, 0);
-    const scale = (l) => l.map(([k, v]) => [k, v / passes]);
-    out[region] = {
-      steps: table.rows[0].steps, table, passes,
-      paintAreaByPart: toPx2(scale(byKey(area))), paintAreaByCoarse: toPx2(scale(rollup(byKey(area)))), paintCountByPart: scale(byKey(count)), paintCountByCoarse: scale(rollup(byKey(count))),
-      filter: { count: mean(filt.map((f) => f.count)), area: mean(filt.map((f) => f.area)) / PX2, areaRadius: mean(filt.map((f) => f.areaRadius)) / PX2 },
-    };
-  }
-  out.calmFilter = (() => {
-    const f = [];
-    for (const s of arm) {
-      const { vw, vh, maxY } = s.geometry.info, vp = [0, 0, Math.round(vw * Q), Math.round(vh * Q)];
-      s.geometry.ys.forEach((y, k) => { if (regionOf(vh, maxY, y) === 'calm' && s.geometry.scroll[k].filters.length >= 0 && k % 8 === 0) f.push(filterTotals(vp, s.geometry.scroll[k].filters)); });
-    }
-    return { count: mean(f.map((x) => x.count)), area: mean(f.map((x) => x.area)) / PX2, areaRadius: mean(f.map((x) => x.areaRadius)) / PX2 };
-  })();
-  return out;
+/** Min and max of a list of fractions, or null. */
+const rangeOf = (qs) => (qs.length ? [qs.reduce((a, b) => (fracLt(b, a) ? b : a)), qs.reduce((a, b) => (fracLt(a, b) ? b : a))] : null);
+
+/** The difference of two arms from their per-pass values: only separated ranges count (Lean: verdict). */
+const diffOf = (orig, faith) => verdict(orig, faith);
+
+// ---------------------------------------------------------------------------------------------------- analysis
+
+/** The passes of an arm with their rows and steps. */
+function scrollItems(arm) {
+  return withPart(arm, 'scroll').flatMap((s, si) => s.passes.map((p, pi) => {
+    const { vh, maxY } = p.scroll.info;
+    return { s, p, tag: `s${si + 1}p${pi + 1}`, vh, maxY, rows: stepRows(p.scroll), steps: scrollSteps(s, p), fps: p.scroll.framesPerStep ?? s.framesPerStep ?? 2 };
+  }));
 }
 
-/** Morph analysis of one arm: the open and close phases against the idle frames. */
-export function analyzeMorph(rawArm) {
-  const arm = withPart(rawArm, 'morph');
-  const slice = (rows, [a, b]) => rows.slice(a, b);
-  const runs = arm.flatMap((s) => s.passes.map((p) => ({ s, m: p.morph })));
-  const idle = runs.map(({ m }) => slice(rowsOf(m.reduced), MORPH_PHASES.idle));
-  const out = {};
-  for (const phase of ['open', 'close']) {
-    const win = runs.map(({ m }) => slice(rowsOf(m.reduced), MORPH_PHASES[phase]));
-    const table = counterTable(win, idle);
-    const area = [], count = [], filt = [], active = [];
-    for (const { s, m } of runs) {
-      const g = s.geometry.morph, [a, b] = MORPH_PHASES[phase];
-      // frames of the phase whose nav box differs from its idle box: how long the tween really moved (the sampling pass, INFERRED)
-      const nav = (smp) => JSON.stringify(smp?.boxes.find((x) => x.name === 'nav')?.rect ?? null);
-      active.push(g.samples.slice(a, b).filter((smp) => nav(smp) !== nav(g.samples[0])).length);
-      const clips = clipsPerStep(m, m.before?.y ?? 0);
-      const vp = [0, 0, Math.round(m.info.vw * Q), Math.round(m.info.vh * Q)];
-      for (let k = a; k < b; k++) {
-        const smp = g.samples[k];
-        if (!smp) continue;
-        const step = { y: 0, boxes: smp.boxes, clips: clips[k] };
-        area.push(...stepArea(step)); count.push(...stepCount(step));
-        filt.push(filterTotals(vp, smp.filters));
-      }
-    }
-    const n = runs.length;
-    const scale = (l) => l.map(([k, v]) => [k, v / n]);
-    out[phase] = {
-      steps: MORPH_PHASES[phase][1] - MORPH_PHASES[phase][0], table, passes: n, activeFrames: mean(active),
-      paintAreaByPart: toPx2(scale(byKey(area))), paintAreaByCoarse: toPx2(scale(rollup(byKey(area)))), paintCountByPart: scale(byKey(count)), paintCountByCoarse: scale(rollup(byKey(count))),
-      filter: { count: mean(filt.map((f) => f.count)), area: mean(filt.map((f) => f.area)) / PX2, areaRadius: mean(filt.map((f) => f.areaRadius)) / PX2 },
-    };
-  }
-  out.taken = runs.map(({ m }) => m.taken);
-  out.scrollToCalls = runs.map(({ m }) => m.scrollTo);
-  out.morph = runs.map(({ s, m }) => ({ before: m.before.morph, after: m.after.morph, geomBefore: s.geometry.morph.before.morph, geomAfter: s.geometry.morph.after.morph }));
-  out.platform = runs.map(({ m }) => m.before.platform);
-  return out;
+const regionRows = (it, region) => it.rows.filter((_, i) => regionOf(it.vh, it.maxY, it.steps[i].y) === region);
+
+/** Counter table of per-pass windows against per-pass baselines: pooled and per-pass ratios, rank, mean rows. */
+function counterTable(wins, bases, fR, fC) {
+  const w = wins.flat(), b = bases.flat();
+  const { ranked, unranked } = rankWindows(fR, fC, w, b, COLUMNS);
+  const rows = COLUMNS.map((name, j) => ({
+    name, perFrame: sum(w.map((r) => r[j])) / (fR * (w.length || 1)), baseFrame: sum(b.map((r) => r[j])) / (fC * (b.length || 1)),
+    ratio: colRatio(fR, fC, w, b, j), perPass: wins.map((x, i) => colRatio(fR, fC, x, bases[i], j)).filter((x) => x !== null),
+    rank: ranked.findIndex(([n]) => n === name) + 1 || null,
+  }));
+  return { rows, unranked, rowsInWindow: w.length, rowsInBaseline: b.length, passes: wins.length };
 }
 
-const topLines = (ledger, n = 6) => {
-  const total = ledger.reduce((s, [, v]) => s + v, 0);
-  return [...ledger].sort((a, b) => b[1] - a[1]).slice(0, n).map(([k, v]) => `${k} ${fmt(v, 0)} (${fmt((100 * v) / (total || 1), 0)}%)`).join(', ');
+/** Per-part paint area (css px^2) per pass, parts rolled up to their coarse name, with the mean and share over the passes. */
+function partTable(perPassLedgers) {
+  const coarse = perPassLedgers.map((l) => new Map(rollup(l)));
+  const names = [...new Set(coarse.flatMap((m) => [...m.keys()]))];
+  const total = sum(coarse.map((m) => sum([...m.values()])));
+  return names.map((name) => {
+    const perPass = coarse.map((m) => (m.get(name) ?? 0) / PX2);
+    return { name, perPass, mean: mean(perPass), share: total ? sum(perPass) * PX2 / total : 0 };
+  }).sort((a, b) => b.mean - a.mean);
+}
+
+const leafTable = (perPassLedgers) => {
+  const all = byKey(perPassLedgers.flat());
+  const total = sum(all.map(([, v]) => v));
+  return all.map(([k, v]) => ({ name: k, mean: v / PX2 / (perPassLedgers.length || 1), share: total ? v / total : 0 })).sort((a, b) => b.mean - a.mean);
 };
 
-function counterMd(t, label) {
-  const lines = [`| counter (${label}) | per step | calm per step | ratio | excess rank | class over runs |`, '|---|---|---|---|---|---|'];
-  const rank = new Map(t.ranked.map(([n, e], i) => [n, [i + 1, e]]));
-  for (const r of t.rows) {
-    const [i, e] = rank.get(r.name);
-    lines.push(`| ${r.name} | ${fmt(r.perStep)} | ${fmt(r.baseline)} | ${r.ratio === null ? '-' : fmt(r.ratio, 1)} | ${e > 0 ? i : '-'} | ${r.cls} |`);
-  }
-  lines.push('', `top counters per run (excess > 0): ${t.perPassTop.map((x, i) => `r${i + 1} ${x || '-'}`).join('; ')}`);
-  return lines.join('\n');
+/** The steps with the largest paint area (css px^2) in a pool of steps, with their counters and owning part. */
+function topOf(pool, k = 5) {
+  return topK(k, pool.map((e, i) => [i, e.row[AREA]])).map(([i]) => pool[i]);
 }
 
-/** Markdown of one arm. */
-export function armMd(name, arm) {
-  const sc = analyzeScroll(arm), mo = analyzeMorph(arm);
-  const info = withPart(arm, 'scroll')[0].passes[0].scroll.info;
-  const nS = withPart(arm, 'scroll').reduce((n, s) => n + s.passes.length, 0), nM = withPart(arm, 'morph').reduce((n, s) => n + s.passes.length, 0);
-  const L = [`## ${name}`, '', `${arm.length} sessions, ${nS} scroll passes, ${nM} morph passes; viewport ${info.vw}x${info.vh}, maxY ${info.maxY}.`,
-    ...arm.flatMap((s, i) => (s.failed?.length ? [`session ${i + 1} stopped early: ${s.failed.join('; ')}`] : [])), ''];
+/** Filter totals per session at the scanned steps of a region; legacy artifacts (no `scanned`) use the rule they were taken with. */
+function filterStats(arm, region) {
+  return arm.map((s) => {
+    const g = s.geometry, gi = g.info, vp = [0, 0, Math.round(gi.vw * Q), Math.round(gi.vh * Q)];
+    let steps = 0, scanned = 0, count = 0, area = 0, areaRadius = 0;
+    g.ys.forEach((y, k) => {
+      if (regionOf(gi.vh, gi.maxY, y) !== region) return;
+      steps++;
+      const smp = g.scroll[k];
+      const was = smp.scanned ?? (scanSteps(g.ys, gi.vh, gi.maxY).includes(k) || y <= gi.vh || gi.maxY - gi.vh <= y);
+      if (!was) return;
+      const t = filterTotals(vp, smp.filters);
+      scanned++; count += t.count; area += t.area; areaRadius += t.areaRadius;
+    });
+    return { steps, scanned, count: scanned ? frac(count, scanned) : null, area: scanned ? frac(area, scanned * PX2) : null, areaRadius: scanned ? frac(areaRadius, scanned * PX2) : null };
+  });
+}
+
+/** Scroll regions A, B and calm of one arm. */
+function analyzeScrollItems(items, arm) {
+  const out = {};
+  const calm = items.map((it) => regionRows(it, 'calm'));
   for (const region of ['A', 'B']) {
-    const r = sc[region];
-    L.push(`### Region ${region} (scroll)`, '', `${r.steps} steps per pass.`, '', counterMd(r.table, `region ${region}`), '',
-      `paint area per pass by part (css px^2): ${topLines(r.paintAreaByCoarse)}`, `paint area by leaf part: ${topLines(r.paintAreaByPart, 8)}`,
-      `paint count per pass by part: ${topLines(r.paintCountByCoarse)}`,
-      `filter/backdrop elements per step: ${fmt(r.filter.count)} visible, ${fmt(r.filter.area, 0)} px^2, area x radius ${fmt(r.filter.areaRadius, 0)} (calm: ${fmt(sc.calmFilter.count)}, ${fmt(sc.calmFilter.area, 0)}, ${fmt(sc.calmFilter.areaRadius, 0)})`, '');
+    const wins = items.map((it) => regionRows(it, region));
+    const ledgers = items.map((it) => byKey(regionLedger(it.vh, it.maxY, it.steps, region, stepArea)));
+    const pool = items.flatMap((it) => it.steps.map((st, i) => ({ tag: it.tag, y: st.y, row: it.rows[i], part: topPart(st), st })).filter((e) => regionOf(it.vh, it.maxY, e.y) === region));
+    out[region] = {
+      stepsPerPass: mean(wins.map((w) => w.length)), table: counterTable(wins, calm, 1, 1), parts: partTable(ledgers), leaves: leafTable(ledgers),
+      top: topOf(pool).map(({ tag, y, row, part }) => ({ tag, y, row, part })), filter: filterStats(arm, region),
+    };
   }
+  out.calm = { stepsPerPass: mean(calm.map((w) => w.length)), filter: filterStats(arm, 'calm') };
+  return out;
+}
+
+/** Morph phases of one arm: the open and close phases against the scroll calm baseline and against the idle page tail. */
+function analyzeMorphItems(arm, scrollOf) {
+  const runs = withPart(arm, 'morph').flatMap((s, si) => s.passes.map((p, pi) => ({ s, p, tag: `s${si + 1}p${pi + 1}`, m: p.morph, rows: stepRows(p.morph), clips: clipsPerStep(p.morph, p.morph.before?.y ?? 0) })));
+  const out = { passes: runs.length, phases: {} };
+  const fps = scrollOf.length ? scrollOf[0].fps : 2;
+  const calm = runs.map((r) => scrollOf.find((it) => it.p === r.p)).map((it) => (it ? regionRows(it, 'calm') : []));
+  const slice = (r, ph) => r.rows.slice(...MORPH_PHASES[ph]);
+  const frameStep = (r, k) => ({ y: 0, boxes: r.s.geometry.morph.samples[k]?.boxes ?? [], clips: r.clips[k] ?? [] });
   for (const phase of ['open', 'close']) {
-    const r = mo[phase];
-    L.push(`### Region B morph, ${phase} (${r.steps} frames, the nav box differs from idle in ${fmt(r.activeFrames, 0)})`, '', counterMd(r.table, `morph ${phase}`), '',
-      `paint area per pass by part (css px^2): ${topLines(r.paintAreaByCoarse)}`, `paint area by leaf part: ${topLines(r.paintAreaByPart, 8)}`,
-      `paint count per pass by part: ${topLines(r.paintCountByCoarse)}`,
-      `filter/backdrop elements per frame: ${fmt(r.filter.count)} visible, ${fmt(r.filter.area, 0)} px^2, area x radius ${fmt(r.filter.areaRadius, 0)}`, '');
+    const wins = runs.map((r) => slice(r, phase)), idle = runs.map((r) => slice(r, 'idle'));
+    const [a, b] = MORPH_PHASES[phase];
+    const ledgers = runs.map((r) => byKey(Array.from({ length: b - a }, (_, i) => frameStep(r, a + i)).flatMap(stepArea)));
+    const pool = runs.flatMap((r) => Array.from({ length: b - a }, (_, i) => ({ tag: r.tag, y: i, row: r.rows[a + i], part: topPart(frameStep(r, a + i)) })));
+    const active = runs.map((r) => {
+      const g = r.s.geometry.morph, nav = (smp) => JSON.stringify(smp?.boxes.find((x) => x.name === 'nav')?.rect ?? null);
+      return g.samples.slice(a, b).filter((smp) => nav(smp) !== nav(g.samples[0])).length;
+    });
+    const filt = runs.flatMap((r) => r.s.geometry.morph.samples.slice(a, b).map((smp) => filterTotals([0, 0, Math.round(r.m.info.vw * Q), Math.round(r.m.info.vh * Q)], smp.filters)));
+    out.phases[phase] = {
+      frames: b - a, table: counterTable(wins, calm, 1, fps), tableIdle: counterTable(wins, idle, 1, 1), parts: partTable(ledgers), leaves: leafTable(ledgers),
+      top: topOf(pool), activeFrames: mean(active),
+      filter: { count: mean(filt.map((f) => f.count)), area: mean(filt.map((f) => f.area)) / PX2, areaRadius: mean(filt.map((f) => f.areaRadius)) / PX2 },
+    };
   }
-  L.push(`morph validity: wheel taken ${JSON.stringify(mo.taken)}, scrollTo calls ${JSON.stringify(mo.scrollToCalls)}, --morph ${JSON.stringify(mo.morph)}, platform before ${JSON.stringify(mo.platform)}`, '');
-  const c = arm.map((s) => s.geometry.census);
-  L.push('### Layers (census, untimed)', '', '| session | state y | layers | backing MB | filter/backdrop layers |', '|---|---|---|---|---|');
-  c.forEach((cs, i) => cs.forEach((x) => L.push(`| ${i + 1} | ${x.scrollY} | ${x.layerCount} | ${fmt(x.memoryBytes / 1e6, 1)} | ${x.filterLayers.length} |`)));
+  // the idle page tail: what is repainted every frame while nothing moves
+  const idleLedgers = runs.map((r) => byKey(Array.from({ length: MORPH_FRAMES.idle }, (_, i) => frameStep(r, i)).flatMap(stepArea)));
+  out.idle = {
+    frames: MORPH_FRAMES.idle,
+    paintsPerFrame: runs.map((r) => mean(slice(r, 'idle').map((x) => x[PAINT]))),
+    areaPerFrame: runs.map((r) => mean(slice(r, 'idle').map((x) => x[AREA]))),
+    parts: leafTable(idleLedgers.map((l) => l.map(([k, v]) => [k, v / MORPH_FRAMES.idle]))),
+    rects: runs[0] ? [...new Set((runs[0].clips[1] ?? []).map((c) => `${((c[2] - c[0]) / Q).toFixed(1)}x${((c[3] - c[1]) / Q).toFixed(1)} at ${(c[0] / Q).toFixed(0)},${(c[1] / Q).toFixed(0)}`))] : [],
+  };
+  out.taken = runs.map((r) => r.m.taken);
+  out.scrollToCalls = runs.map((r) => r.m.scrollTo);
+  out.morphVar = runs.map((r) => ({ before: r.m.before.morph, after: r.m.after.morph }));
+  out.platform = runs.map((r) => r.m.before.platform);
+  return out;
+}
+
+/** The layer census of one arm: per session the four states. */
+function analyzeCensus(arm) {
+  const states = arm[0].geometry.census.map((c) => c.scrollY);
+  return states.map((_, i) => {
+    const per = arm.map((s) => s.geometry.census[i]).filter(Boolean);
+    const reasons = [...new Set(per.flatMap((c) => Object.keys(c.reasonCounts ?? {})))].sort();
+    return {
+      y: per.map((c) => c.scrollY), layers: per.map((c) => c.layerCount), mb: per.map((c) => c.memoryBytes / 1e6), filterLayers: per.map((c) => c.filterLayers.length),
+      reasons: Object.fromEntries(reasons.map((r) => [r, per.map((c) => c.reasonCounts?.[r] ?? 0)])),
+    };
+  });
+}
+
+/** Full analysis of one arm (its sessions). */
+export function analyzeArm(rawArm) {
+  const items = scrollItems(rawArm);
+  const info = items[0]?.p.scroll.info ?? null;
+  return {
+    sessions: rawArm.length, scrollPasses: items.length, info,
+    failed: rawArm.flatMap((s, i) => (s.failed?.length ? [`session ${i + 1}: ${s.failed.join('; ')}`] : [])),
+    framesPerStep: items[0]?.fps ?? 2,
+    scroll: analyzeScrollItems(items, rawArm), morph: analyzeMorphItems(rawArm, items), census: analyzeCensus(rawArm),
+  };
+}
+
+// ------------------------------------------------------------------------------------------------------ format
+
+const fmt = (x, d) => {
+  if (!Number.isFinite(x)) return '-';
+  if (d === 0) return Math.round(x).toLocaleString('en-US');
+  if (d !== undefined) return x.toFixed(d);
+  const a = Math.abs(x);
+  return a >= 1000 ? Math.round(x).toLocaleString('en-US') : a >= 100 ? x.toFixed(0) : a >= 10 ? x.toFixed(1) : x.toFixed(2);
+};
+const span = (lo, hi) => (lo === hi ? lo : `${lo}-${hi}`);
+const rng = (qs, d) => { const r = rangeOf(qs); return r ? span(fmt(num(r[0]), d), fmt(num(r[1]), d)) : '-'; };
+const rngN = (xs, d) => (xs.length ? span(fmt(Math.min(...xs), d), fmt(Math.max(...xs), d)) : '-');
+const DIFF = { lower: 'faithful lower', higher: 'faithful higher', overlap: 'no difference shown (ranges overlap)' };
+const nameOf = (c) => (c.endsWith('Us') ? `${c.slice(0, -2)} (us)` : c === 'paintArea' ? 'paintArea (px^2)' : c);
+const asFrac = (xs) => xs.map((x) => frac(Math.round(x * PX2), PX2));
+
+/** The ranked table of one region, both arms side by side, ordered by the first arm's rank. */
+function regionTable(label, tabs, names, unit) {
+  const [o, f] = tabs;
+  const L = [`| counter | ${unit} ${names[0]} / ${names[1] ?? '-'} | baseline ${names[0]} / ${names[1] ?? '-'} | ratio ${names[0]} (per-pass range) | rank | ratio ${names[1] ?? '-'} (per-pass range) | rank | difference |`, '|---|---|---|---|---|---|---|---|'];
+  const order = [...o.rows].sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99) || COLUMNS.indexOf(a.name) - COLUMNS.indexOf(b.name));
+  for (const r of order) {
+    const q = f?.rows.find((x) => x.name === r.name);
+    const cell = (x) => (x?.ratio ? `${fmt(num(x.ratio))} (${rng(x.perPass)})` : 'no baseline');
+    const low = !r.name.endsWith('Us') && r.name !== 'paintArea' && r.ratio && r.baseFrame < 0.5 ? ' (*)' : '';
+    L.push(`| ${nameOf(r.name)}${low} | ${fmt(r.perFrame)} / ${q ? fmt(q.perFrame) : '-'} | ${fmt(r.baseFrame)} / ${q ? fmt(q.baseFrame) : '-'} | ${cell(r)} | ${r.rank ?? '-'} | ${q ? cell(q) : '-'} | ${q?.rank ?? '-'} | ${q && r.perPass.length && q.perPass.length ? DIFF[diffOf(r.perPass, q.perPass)] : '-'} |`);
+  }
+  L.push('', '(*) the baseline is below 0.5 events per frame: one event more or less moves the ratio by a factor of 2 or more, so its rank is unstable. Duration columns (us) are Simulator-host microseconds summed over the records of the type; records nest (a Layout inside a FunctionCall), so durations are not additive across types.');
   return L.join('\n');
 }
+
+const partsMd = (parts, k = 6) => parts.slice(0, k).map((p) => `${p.name} ${fmt(p.mean, 0)} (${fmt(100 * p.share, 0)}%)`).join(', ');
+
+/** Per-part table of both arms with the per-pass range and the verdict. */
+function partsCompare(a, b, names) {
+  const L = [`| part | ${names[0]} px^2 per pass (range) | share | ${names[1] ?? '-'} px^2 per pass (range) | share | difference |`, '|---|---|---|---|---|---|'];
+  const bm = new Map((b?.parts ?? []).map((p) => [p.name, p]));
+  for (const p of a.parts.slice(0, 8)) {
+    const q = bm.get(p.name);
+    const both = q && sum(p.perPass) > 0 && sum(q.perPass) > 0;
+    L.push(`| ${p.name} | ${fmt(p.mean, 0)} (${rngN(p.perPass, 0)}) | ${fmt(100 * p.share, 0)}% | ${q ? `${fmt(q.mean, 0)} (${rngN(q.perPass, 0)})` : 'not in this arm'} | ${q ? `${fmt(100 * q.share, 0)}%` : '-'} | ${both ? DIFF[diffOf(asFrac(p.perPass), asFrac(q.perPass))] : 'not compared (part absent in one arm)'} |`);
+  }
+  return L.join('\n');
+}
+
+const topMd = (label, top) => {
+  const L = [`| ${label} | pass | y or frame | Paint | paintArea px^2 | Layout | RecalculateStyles | owning part |`, '|---|---|---|---|---|---|---|---|'];
+  top.forEach((t, i) => L.push(`| ${i + 1} | ${t.tag} | ${t.y} | ${t.row[PAINT]} | ${fmt(t.row[AREA], 0)} | ${t.row[COLUMNS.indexOf('Layout')]} | ${t.row[COLUMNS.indexOf('RecalculateStyles')]} | ${t.part} |`));
+  return L.join('\n');
+};
+
+const filterMd = (names, fs) => {
+  const L = [`| region | arm | scanned / steps (per session) | visible filter layers per step (range over sessions) | visible area px^2 | area x radius |`, '|---|---|---|---|---|---|'];
+  for (const [region, per] of fs) per.forEach((st, i) => {
+    L.push(`| ${region} | ${names[i]} | ${st.map((x) => `${x.scanned}/${x.steps}`).join(', ')} | ${rng(st.map((x) => x.count).filter(Boolean))} | ${rng(st.map((x) => x.area).filter(Boolean), 0)} | ${rng(st.map((x) => x.areaRadius).filter(Boolean), 0)} |`);
+  });
+  return L.join('\n');
+};
+
+const filterDiff = (names, region, fs) => {
+  if (fs.length < 2) return '';
+  const pick = (k) => fs.map((st) => st.map((x) => x[k]).filter(Boolean));
+  const row = (k, label) => `${label}: ${DIFF[diffOf(pick(k)[0], pick(k)[1])]}`;
+  return `${region}: ${row('count', 'filter layers per step')}; ${row('area', 'visible filter area')}; ${row('areaRadius', 'area x radius')}`;
+};
+
+/** The whole Markdown report of the analysed arms ([name, analysis] pairs, the first is the reference arm). */
+export function reportMd(arms) {
+  const names = arms.map(([n]) => n), an = arms.map(([, a]) => a);
+  const [o, f] = an;
+  const L = ['### Inputs', ''];
+  arms.forEach(([n, a]) => L.push(`- ${n}: ${a.sessions} sessions, ${a.scrollPasses} scroll passes, ${a.morph.passes} morph passes; viewport ${a.info.vw}x${a.info.vh}, maxY ${a.info.maxY}${a.failed.length ? `; stopped early: ${a.failed.join(' | ')}` : ''}`));
+  L.push('', 'Ratio = counter per frame in the region over counter per frame in the baseline (unit-free; Lean `ratio_scale`). The range is over passes (each pass against its own baseline). "Difference" is stated only when every pass of one arm is on one side of every pass of the other (Lean `verdict`).', '');
+  const scrollRegion = (r) => `Region ${r}`;
+  for (const r of ['A', 'B']) {
+    L.push(`### ${scrollRegion(r)} (scroll), ratio to the calm scroll baseline`, '',
+      `${names.map((n, i) => `${n}: ${fmt(an[i].scroll[r].stepsPerPass, 1)} steps per pass in the region, ${fmt(an[i].scroll.calm.stepsPerPass, 1)} calm steps per pass`).join('; ')}. Per-step values.`, '',
+      regionTable(r, an.map((a) => a.scroll[r].table), names, 'per step'), '',
+      `Counters with no calm baseline (not ranked): ${names.map((n, i) => `${n} ${an[i].scroll[r].table.unranked.map(nameOf).join(', ') || 'none'}`).join('; ')}.`, '',
+      `Paint area by part (css px^2 per pass; coarse part names, leaf parts below):`, '', partsCompare(o.scroll[r], f?.scroll[r], names), '',
+      ...names.map((n, i) => `- ${n}, leaf parts: ${partsMd(an[i].scroll[r].leaves, 8)}`), '');
+    names.forEach((n, i) => L.push(`Top 5 steps of ${scrollRegion(r)}, ${n} (by paint area, all passes pooled):`, '', topMd('rank', an[i].scroll[r].top), ''));
+  }
+  for (const ph of ['open', 'close']) {
+    const fps = o.framesPerStep;
+    L.push(`### Region B morph, ${ph} push (${o.morph.phases[ph].frames} frames), ratio to the calm scroll baseline`, '',
+      `Per-frame values. The calm baseline is the calm scroll steps of the same pass divided by ${fps} frames per step. The nav box differs from the idle tail in ${names.map((n, i) => `${fmt(an[i].morph.phases[ph].activeFrames, 0)} (${n})`).join(', ')} of the frames.`, '',
+      regionTable('morph', an.map((a) => a.morph.phases[ph].table), names, 'per frame'), '',
+      `Counters with no calm baseline (not ranked): ${names.map((n, i) => `${n} ${an[i].morph.phases[ph].table.unranked.map(nameOf).join(', ') || 'none'}`).join('; ')}.`, '',
+      `Against the idle page tail (the 10 frames before the push, nothing moving) instead; ratio, rank 1-3:`, '',
+      ...names.map((n, i) => {
+        const t = an[i].morph.phases[ph].tableIdle;
+        return `- ${n}: ${t.rows.filter((r) => r.rank && r.rank <= 3).sort((x, y) => x.rank - y.rank).map((r) => `${nameOf(r.name)} x${fmt(num(r.ratio))} (${rng(r.perPass)})`).join(', ')}; no idle baseline: ${t.unranked.map(nameOf).join(', ') || 'none'}`;
+      }), '',
+      `Paint area by part (css px^2 per pass):`, '', partsCompare(o.morph.phases[ph], f?.morph.phases[ph], names), '',
+      ...names.map((n, i) => `- ${n}, leaf parts: ${partsMd(an[i].morph.phases[ph].leaves, 8)}`), '');
+    names.forEach((n, i) => L.push(`Top 5 frames of the ${ph} push, ${n} (by paint area; "y or frame" is the frame in the phase):`, '', topMd('rank', an[i].morph.phases[ph].top), ''));
+  }
+  L.push('### Idle page tail (the 10 frames before the push)', '');
+  names.forEach((n, i) => {
+    const d = an[i].morph.idle;
+    L.push(`- ${n}: Paint per frame ${rngN(d.paintsPerFrame)} per pass, paint area per frame ${rngN(d.areaPerFrame, 0)} px^2 per pass; by part ${partsMd(d.parts, 6)}; first-pass clips ${d.rects.join('; ') || 'none'}`);
+  });
+  L.push('', '### Filter and backdrop-filter elements (geometry pass, per scanned step)', '');
+  const fsRegions = ['A', 'B', 'calm'].map((r) => [r, an.map((a) => a.scroll[r].filter)]);
+  L.push(filterMd(names, fsRegions), '');
+  for (const [r, per] of fsRegions) { const d = filterDiff(names, r, per); if (d) L.push(`- ${d}`); }
+  L.push('', 'The calm baseline scans every eighth step only (the scan reads the computed style of every element); the "scanned / steps" column states how many steps each average is over.', '');
+  L.push('### Layer census (LayerTree, untimed, four scroll states, one value per session)', '');
+  const head = ['| state | y (px) | layers (range over sessions) | backing MB | filter or backdrop layers |', '|---|---|---|---|---|'];
+  L.push(...head);
+  an[0].census.forEach((_, si) => {
+    names.forEach((n, i) => {
+      const c = an[i].census[si];
+      L.push(`| ${si + 1} | ${rngN(c.y, 0)} | ${n} ${rngN(c.layers, 0)} | ${rngN(c.mb, 1)} | ${rngN(c.filterLayers, 0)} |`);
+    });
+    if (f) {
+      const q = (xs, d = 1) => xs.map((x) => frac(Math.round(x * d), d));
+      L.push(`| ${si + 1} | | layers: ${DIFF[diffOf(q(o.census[si].layers), q(f.census[si].layers))]} | MB: ${DIFF[diffOf(q(o.census[si].mb, 1000), q(f.census[si].mb, 1000))]} | filter layers: ${DIFF[diffOf(q(o.census[si].filterLayers), q(f.census[si].filterLayers))]} |`);
+    }
+  });
+  L.push('', 'Layer count change between consecutive states (mean over sessions): ' + names.map((n, i) => `${n} ${an[i].census.slice(1).map((c, k) => fmt(mean(c.layers) - mean(an[i].census[k].layers), 0)).join(', ')}`).join('; '), '');
+  const reasonNames = [...new Set(an.flatMap((a) => Object.keys(a.census.at(-1).reasons)))];
+  L.push(`Compositing reasons at the last state (layers per session, range):`, '', `| reason | ${names.join(' | ')} |`, `|---|${names.map(() => '---').join('|')}|`);
+  reasonNames.forEach((r) => L.push(`| ${r} | ${an.map((a) => rngN(a.census.at(-1).reasons[r] ?? [0], 0)).join(' | ')} |`));
+  L.push('', '### Morph validity', '');
+  names.forEach((n, i) => {
+    const m = an[i].morph, uniq = (xs) => [...new Set(xs.map((x) => JSON.stringify(x)))].join(' ');
+    L.push(`- ${n}: wheel pushes taken (default prevented) in ${m.taken.filter((t) => t.every(Boolean)).length} of ${m.taken.length} passes, scrollTo calls ${uniq(m.scrollToCalls)}, --morph before/after ${uniq(m.morphVar.map((x) => [x.before, x.after]))}, platform box before ${uniq(m.platform.map((x) => x && Math.round(x.height)))}`);
+  });
+  return L.join('\n');
+}
+
+/** Markdown of the arms, from raw sessions: `[[name, sessions], ...]`. */
+export const reportFromSessions = (pairs) => reportMd(pairs.map(([n, s]) => [n, analyzeArm(s)]));

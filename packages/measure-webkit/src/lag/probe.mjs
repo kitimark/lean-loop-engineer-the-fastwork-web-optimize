@@ -45,7 +45,7 @@ const sample = (scan) => {
       filters.push({ kind: hasB ? 'backdrop' : 'filter', radius: blurPx(hasB ? b : f), rect, part, tag: el.tagName.toLowerCase() });
     }
   }
-  return { boxes, filters };
+  return { boxes, filters, scanned: !!scan };
 };
 `;
 
@@ -85,9 +85,12 @@ const MORPH_STATE_JS = `JSON.stringify((() => {
   return { vh: vv ? vv.height : innerHeight, platform: r ? { height: r.height, bottom: r.bottom } : null, morph: nav ? getComputedStyle(nav).getPropertyValue('--morph').trim() : null, y: Math.round(scrollY) };
 })())`;
 
-/** Which scroll steps get the filter scan: every step of A and B, every eighth of the rest. */
+/**
+ * Which scroll steps get the filter scan: every step of A and B, every eighth step of the rest (the scan reads the
+ * computed style of every element, so the calm baseline is a subsample). Each sample records `scanned`.
+ */
 export function scanSteps(ys, vh, maxY) {
-  return ys.map((y, k) => [y, k]).filter(([y, k]) => regionOf(vh, maxY, y) !== 'calm' && regionOf(vh, maxY, y) !== 'other' || k % 8 === 0).map(([, k]) => k);
+  return ys.map((y, k) => [y, k]).filter(([y, k]) => ['A', 'B'].includes(regionOf(vh, maxY, y)) || k % 8 === 0).map(([, k]) => k);
 }
 
 /** Retry a pass from a fresh load after a reconnect, like determinism.mjs `onePassRetrying`. */

@@ -74,16 +74,21 @@ const le = (x, y) => !lt(y, x);
 /** Window-to-baseline ratio (sR / nR) / (sC / nC) as a fraction; unit-free (Lean: ratio_scale). */
 export const ratio = (nR, nC, sR, sC) => frac(sR * nC, sC * nR);
 
+/** The ratio of column `j`, or null when it has none (a window without frames, or a baseline sum that is not positive). */
+export function colRatio(fR, fC, wr, wc, j) {
+  const nR = fR * wr.length, nC = fC * wc.length;
+  return nR > 0 && nC > 0 && colSum(wc, j) > 0 ? ratio(nR, nC, colSum(wr, j), colSum(wc, j)) : null;
+}
+
 /**
  * Counters ranked by ratio of a window of step rows to a baseline window, highest first, ties in column order.
  * fR and fC are the frames per row of the two windows. Counters without a baseline (sum 0, or an empty window) are `unranked`.
  */
 export function rankWindows(fR, fC, wr, wc, names) {
-  const nR = fR * wr.length, nC = fC * wc.length;
-  const ok = (j) => nR > 0 && nC > 0 && colSum(wc, j) > 0;
-  const items = names.map((n, j) => [n, j]).filter(([, j]) => ok(j)).map(([n, j]) => [n, ratio(nR, nC, colSum(wr, j), colSum(wc, j))]);
+  const rs = names.map((n, j) => [n, colRatio(fR, fC, wr, wc, j)]);
+  const items = rs.filter(([, q]) => q !== null);
   const ranked = items.map((e, i) => [e, i]).sort((a, b) => (lt(a[0][1], b[0][1]) ? 1 : lt(b[0][1], a[0][1]) ? -1 : a[1] - b[1])).map(([e]) => e);
-  return { ranked, unranked: names.filter((_, j) => !ok(j)) };
+  return { ranked, unranked: rs.filter(([, q]) => q === null).map(([n]) => n) };
 }
 
 export const rankRegion = (vh, maxY, ys, rows, names, region) =>

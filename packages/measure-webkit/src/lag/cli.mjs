@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 // node src/lag/cli.mjs run [--site dir --search q] [--out file] [--passes 2]   one Simulator session of the lag probe
-// node src/lag/cli.mjs report --original a.json,b.json --faithful c.json,d.json [--json file]   the ranked attribution
+// node src/lag/cli.mjs report --original a.json,b.json --faithful c.json,d.json [--json file] [--note file]   the ranked attribution
+//   --note file replaces the block between the lag-report markers of a Markdown file with the report
 import { parseArgs } from 'node:util';
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { withSession } from '../session.mjs';
 import { watch } from '../watchdog.mjs';
 import { lagSession } from './probe.mjs';
-import { armMd, analyzeScroll, analyzeMorph } from './report.mjs';
+import { analyzeArm, reportMd } from './report.mjs';
+import { fillBlock } from './note.mjs';
 
 const argv = process.argv.slice(2).filter((a) => a !== '--');
 const [cmd, ...rest] = argv;
@@ -17,7 +19,7 @@ const { values: v } = parseArgs({
     site: { type: 'string' }, search: { type: 'string', default: '' }, out: { type: 'string' }, keep: { type: 'boolean', default: true },
     passes: { type: 'string', default: '2' }, step: { type: 'string', default: '50' }, frames: { type: 'string', default: '2' },
     settle: { type: 'string', default: '6000' }, clock: { type: 'string', default: 'pinned' }, vendors: { type: 'string', default: 'off' },
-    original: { type: 'string' }, faithful: { type: 'string' }, json: { type: 'string' },
+    original: { type: 'string' }, faithful: { type: 'string' }, json: { type: 'string' }, note: { type: 'string' },
   },
   allowNegative: true,
 });
@@ -40,11 +42,11 @@ async function main() {
     case 'report': {
       const arms = [['original', v.original], ['faithful', v.faithful]].filter(([, l]) => l);
       if (!arms.length) throw new Error('usage: report --original a.json,b.json --faithful c.json,d.json [--json file]');
-      const loaded = arms.map(([n, l]) => [n, read(l)]);
-      for (const [n, a] of loaded) console.log(`${armMd(n, a)}\n`);
-      if (v.json) {
-        writeFileSync(resolve(v.json), `${JSON.stringify(Object.fromEntries(loaded.map(([n, a]) => [n, { scroll: analyzeScroll(a), morph: analyzeMorph(a) }])), null, 1)}\n`);
-      }
+      const analysed = arms.map(([n, l]) => [n, analyzeArm(read(l))]);
+      const md = reportMd(analysed);
+      if (v.note) writeFileSync(resolve(v.note), fillBlock(readFileSync(resolve(v.note), 'utf8'), md));
+      else console.log(md);
+      if (v.json) writeFileSync(resolve(v.json), `${JSON.stringify(Object.fromEntries(analysed), null, 1)}\n`);
       break;
     }
     default:

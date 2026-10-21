@@ -1,7 +1,8 @@
 // The lag report joins records to boxes and ranks counters (reduce.mjs is the twin of Fw.Measure.WebKitLag, lag-reduce.test.mjs).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { clipRect, clipsPerStep, scrollSteps, analyzeScroll, analyzeMorph, armMd, COLUMNS, MORPH_PHASES } from '../src/lag/report.mjs';
+import { clipRect, clipsPerStep, scrollSteps, stepRows, analyzeArm, reportMd, COLUMNS, MORPH_PHASES } from '../src/lag/report.mjs';
+import { fillBlock, blockOf, BEGIN, END } from '../src/lag/note.mjs';
 import { MORPH_FRAMES, scanSteps } from '../src/lag/probe.mjs';
 import { COUNT_TYPES, reduceSteps } from '../src/reduce.mjs';
 
@@ -23,9 +24,10 @@ function run(n, paints, extra = () => 0) {
 
 const boxes = [{ name: 'hero-deck', rect: [0, 0, 400, 400] }, { name: 'hero', rect: [0, 0, 400, 1600] }, { name: 'platform', rect: [0, 2000, 400, 4000] }];
 
-function session() {
+/** `layoutA` Layout rows per step in region A (the first three steps), so two sessions can differ. */
+function session(layoutA = 4) {
   const ys = [0, 50, 100, 150, 300, 500, 800, 900, 1000];
-  const r = run(ys.length, (k) => (k < 3 ? [quad(0, ys[k], 90, ys[k] + 90)] : [quad(0, 500 + ys[k], 10, 520 + ys[k])]), (k) => (k < 3 ? 4 : 1));
+  const r = run(ys.length, (k) => (k < 3 ? [quad(0, ys[k], 90, ys[k] + 90)] : [quad(0, 500 + ys[k], 10, 520 + ys[k])]), (k) => (k < 3 ? layoutA : 1));
   const scroll = { info, ys, marks: r.marks, endTime: r.endTime, records: r.rows, reduced: reduceSteps(r.rows, r.marks, r.endTime) };
   const n = MORPH_FRAMES.idle + MORPH_FRAMES.open + MORPH_FRAMES.close;
   const m = run(n, (k) => (k >= MORPH_FRAMES.idle ? [quad(0, 500, 12, 515)] : []), (k) => (k >= MORPH_FRAMES.idle ? 3 : 0));
@@ -54,30 +56,54 @@ test('clips are joined to steps by the step marks', () => {
   assert.deepEqual(inView[2], [[0, 0, 360, 360]]);
 });
 
-test('region A is ranked by its excess over the calm baseline and its paints go to the smallest covering part', () => {
-  const a = analyzeScroll([session()]);
-  assert.deepEqual(a.A.table.ranked.slice(0, 2).map(([n]) => n), ['paintArea', 'Layout']);
-  const layout = a.A.table.rows.find((r) => r.name === 'Layout');
-  assert.equal(layout.perStep, 4);
-  assert.equal(layout.baseline, 1);
-  assert.deepEqual(a.A.paintAreaByPart, [['hero-deck', 24300]]);
-  assert.deepEqual(a.A.paintAreaByCoarse, [['hero', 24300]]);
+test('step rows carry the counts, the extra record types and the durations from the raw records', () => {
+  const rows = [['TimeStamp', 0, null, 'wk:s0'], ['Layout', 0.1, 0.3, null], ['RequestAnimationFrame', 0.2, null, null], ['Paint', 0.4, 0.45, quad(0, 0, 10, 10)], ['TimeStamp', 1, null, 'wk:end']];
+  const [row] = stepRows({ records: rows, marks: [0], endTime: 1, reduced: reduceSteps(rows, [0], 1) });
+  const at = (n) => row[COLUMNS.indexOf(n)];
+  assert.equal(at('Layout'), 1);
+  assert.equal(at('RequestAnimationFrame'), 1);
+  assert.equal(at('LayoutUs'), 200000);
+  assert.equal(at('PaintUs'), 50000);
+  assert.equal(at('paintArea'), 100);
+  assert.equal(COLUMNS.length, COUNT_TYPES.length + 3 + 5 + 1);
 });
 
-test('morph phases are ranked against the idle frames', () => {
-  const m = analyzeMorph([session()]);
-  const layout = m.open.table.rows.find((r) => r.name === 'Layout');
-  assert.equal(layout.perStep, 3);
-  assert.equal(layout.baseline, 0);
-  assert.equal(layout.ratio, null);
-  assert.deepEqual(m.open.paintCountByPart, [['platform', MORPH_FRAMES.open]]);
+test('region A is ranked by ratio to the calm baseline; its paints go to the smallest covering part', () => {
+  const a = analyzeArm([session()]);
+  const layout = a.scroll.A.table.rows.find((r) => r.name === 'Layout');
+  assert.equal(layout.perFrame, 4);
+  assert.equal(layout.baseFrame, 1);
+  assert.deepEqual(layout.ratio, [4, 1]);
+  const ranks = a.scroll.A.table.rows.filter((r) => r.rank).sort((x, y) => x.rank - y.rank).map((r) => r.ratio[0] / r.ratio[1]);
+  assert.deepEqual(ranks, [...ranks].sort((x, y) => y - x));
+  assert.deepEqual(a.scroll.A.parts, [{ name: 'hero', perPass: [16200, 16200], mean: 16200, share: 1 }]);
+  assert.equal(a.scroll.A.top[0].part, 'hero-deck');
+});
+
+test('morph phases are ranked against the calm baseline and shown against the idle page tail', () => {
+  const m = analyzeArm([session()]).morph;
+  const open = m.phases.open;
+  const layout = open.table.rows.find((r) => r.name === 'Layout');
+  assert.equal(layout.perFrame, 3);
+  assert.equal(layout.ratio[0] / layout.ratio[1], 3 / (1 / 2));
+  assert.equal(open.tableIdle.rows.find((r) => r.name === 'Layout').ratio, null);
+  assert.ok(open.tableIdle.unranked.includes('Layout'));
+  assert.equal(m.idle.frames, MORPH_FRAMES.idle);
   assert.deepEqual(MORPH_PHASES.close, [70, 130]);
 });
 
-test('the markdown has a section per region', () => {
-  const md = armMd('x', [session()]);
-  for (const h of ['Region A (scroll)', 'Region B (scroll)', 'Region B morph, open', 'Region B morph, close', 'Layers']) assert.ok(md.includes(h), h);
-  assert.equal(COLUMNS.length, COUNT_TYPES.length + 1);
+test('an arm difference needs separated per-pass ranges', () => {
+  const same = reportMd([['x', analyzeArm([session(4)])], ['y', analyzeArm([session(4)])]]);
+  assert.ok(same.includes('no difference shown (ranges overlap)'));
+  assert.ok(!same.includes('faithful lower') && !same.includes('faithful higher'));
+  const lower = reportMd([['x', analyzeArm([session(8)])], ['y', analyzeArm([session(2)])]]);
+  const row = lower.split('\n').find((l) => l.startsWith('| Layout | 8.00 / 2.00'));
+  assert.ok(row?.endsWith('| faithful lower |'), row);
+});
+
+test('the markdown has a section per region and a layer census', () => {
+  const md = reportMd([['x', analyzeArm([session()])]]);
+  for (const h of ['Region A (scroll)', 'Region B (scroll)', 'Region B morph, open', 'Region B morph, close', 'Idle page tail', 'Layer census', 'Top 5 steps of Region A']) assert.ok(md.includes(h), h);
 });
 
 test('a geometry load of another height joins each step to the nearest geometry y', () => {
@@ -87,20 +113,37 @@ test('a geometry load of another height joins each step to the nearest geometry 
   const steps = scrollSteps(shorter, shorter.passes[0]);
   assert.equal(steps.length, s.passes[0].scroll.ys.length);
   assert.equal(steps.at(-1).boxes, shorter.geometry.scroll.at(-1).boxes);
-  assert.ok(analyzeScroll([shorter]).A.steps > 0);
+  assert.ok(analyzeArm([shorter]).scroll.A.stepsPerPass > 0);
 });
 
 test('a session that stopped early still counts its completed runs', () => {
   const s = session();
   const partial = { ...s, passes: [s.passes[0], { scroll: s.passes[1].scroll }], failed: ['pass 2 morph: timed out'] };
-  assert.equal(analyzeScroll([partial]).A.passes, 2);
-  assert.equal(analyzeMorph([partial]).open.passes, 1);
-  const md = armMd('x', [partial]);
+  const a = analyzeArm([partial]);
+  assert.equal(a.scrollPasses, 2);
+  assert.equal(a.morph.passes, 1);
+  const md = reportMd([['x', a]]);
   assert.ok(md.includes('2 scroll passes, 1 morph passes'));
-  assert.ok(md.includes('stopped early: pass 2 morph: timed out'));
+  assert.ok(md.includes('stopped early: session 1: pass 2 morph: timed out'));
 });
 
-test('the filter scan covers every step of A and B and every eighth of the rest', () => {
+test('the filter scan covers every step of A and B and every eighth of the rest, and each sample says so', () => {
   const ys = [0, 50, 100, 150, 300, 500, 800, 900, 1000];
-  assert.deepEqual(scanSteps(ys, 100, 1000), [0, 1, 2, 7, 8]);
+  assert.deepEqual(scanSteps(ys, 100, 1000), [0, 1, 8]);
+});
+
+test('the calm filter average is over the scanned steps only, and says how many', () => {
+  const s = session();
+  s.geometry.scroll.forEach((x, k) => { x.scanned = k % 2 === 0; });
+  const md = reportMd([['x', analyzeArm([s])]]);
+  assert.match(md, /\| calm \| x \| \d+\/\d+ \|/);
+});
+
+test('the note block is replaced in place and nothing else changes', () => {
+  const note = `before\n${BEGIN}\nold\n${END}\nafter\n`;
+  const out = fillBlock(note, 'NEW');
+  assert.equal(blockOf(out), 'NEW');
+  assert.ok(out.startsWith('before\n') && out.endsWith(`${END}\nafter\n`));
+  assert.equal(fillBlock(out, 'NEW'), out);
+  assert.throws(() => fillBlock('no markers', 'x'));
 });
