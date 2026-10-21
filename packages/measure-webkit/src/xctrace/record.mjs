@@ -27,7 +27,7 @@ export function runBounded(cmd, args, { timeoutMs = 120000, maxBuffer = 256 * 10
  * Start one recording. Resolves when xctrace says it is recording (or after `startMs`, with started=false).
  * `stop()` sends SIGINT (the Ctrl-C of the xctrace docs) to the group, waits `stopMs`, then kills the group.
  */
-export async function startRecording(arm, { udid, out, sudo = false, startMs = 60000, stopMs = 180000, limitS = 300, log }) {
+export async function startRecording(arm, { udid, out, sudo = false, startMs = 60000, stopMs = 90000, limitS = 90, log }) {
   const args = recordArgs(arm, { udid, out, limitS });
   const [cmd, argv] = sudo ? ['sudo', ['-n', 'xcrun', ...args]] : ['xcrun', args];
   const child = spawn(cmd, argv, { detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -55,7 +55,7 @@ export async function startRecording(arm, { udid, out, sudo = false, startMs = 6
 }
 
 /** `xctrace export --toc` and the wanted tables of run 1 into `dir`. Returns {schemas, tables:[{schema, file, bytes, status}]}. */
-export function exportTrace(trace, dir, { log, exportMs = 180000, sudo = false } = {}) {
+export function exportTrace(trace, dir, { log, exportMs = 120000, sudo = false } = {}) {
   mkdirSync(dir, { recursive: true });
   const x = (args, file) => {
     const [cmd, argv] = sudo ? ['sudo', ['-n', 'xcrun', 'xctrace', 'export', ...args]] : ['xcrun', ['xctrace', 'export', ...args]];

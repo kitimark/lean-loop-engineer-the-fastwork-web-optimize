@@ -18,8 +18,8 @@ final class HitchTests: XCTestCase {
 
     private func options() -> XCTMeasureOptions {
         let o = XCTMeasureOptions()
-        o.iterationCount = 5
-        o.invocationOptions = [.manuallyStart]
+        o.iterationCount = 3
+        o.invocationOptions = [.manuallyStart, .manuallyStop] // stopMeasuring() is an error in the default autoStop mode
         return o
     }
 

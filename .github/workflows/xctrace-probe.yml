@@ -164,39 +164,14 @@ jobs:
           xcrun simctl boot "$udid"
           xcrun simctl bootstatus "$udid" -b
 
-      - name: 'Stage 1: recordings that target the Simulator device (Animation Hitches, os_signpost, System Trace)'
-        id: sim
-        continue-on-error: true
-        timeout-minutes: 14
-        env:
-          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
-          PASSES: ${{ inputs.passes || '1' }}
-          FW_WK_TIMEOUT_SCALE: '8'
-          FW_WK_ATTEMPTS: '3'
-        working-directory: packages/measure-webkit
-        run: |
-          set -u
-          mkdir -p out
-          node src/xctrace/cli.mjs run --arms hitches,signposts,systrace --passes "$PASSES" --out out/sim 2> >(tee out/sim.log >&2)
-          echo "run exit $?"
-          node src/xctrace/cli.mjs reduce --dir out/sim --json out/sim-counts.json || true
-          ls -l out/sim | head -40
-          exit 0
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
-        with:
-          name: xctrace-sim-${{ matrix.vm }}
-          path: packages/measure-webkit/out/sim*
-          if-no-files-found: warn
-          retention-days: 30
-
-      - name: 'Stage 2: XCTHitchMetric (an XCUITest swipes Safari on the served page)'
+      - name: 'Stage 1: XCTHitchMetric (an XCUITest swipes Safari on the served page)'
         id: hitch
         continue-on-error: true
         if: ${{ !cancelled() && steps.stale.outcome == 'skipped' && (github.event_name != 'workflow_dispatch' || inputs.hitchmetric) }}
-        timeout-minutes: 20
+        timeout-minutes: 25
         env:
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
+          FW_WK_STALL_MS: '3600000'
         shell: bash
         run: |
           set -uo pipefail
@@ -215,9 +190,15 @@ jobs:
           sleep 20
           rm -rf "$out/hitch.xcresult"
           set +e
+          # own deadline (the step timeout kills the whole step and has wedged the VM before): xcodebuild gets TERM after 17 minutes
           xcodebuild test -project "$proj/HitchProbe.xcodeproj" -scheme HitchProbe -destination "id=$udid" \
-            -derivedDataPath "$RUNNER_TEMP/dd" -resultBundlePath "$out/hitch.xcresult" CODE_SIGNING_ALLOWED=NO > "$out/xcodebuild.log" 2>&1
+            -derivedDataPath "$RUNNER_TEMP/dd" -resultBundlePath "$out/hitch.xcresult" CODE_SIGNING_ALLOWED=NO > "$out/xcodebuild.log" 2>&1 &
+          xpid=$!
+          ( sleep 1020; kill -TERM "$xpid" 2>/dev/null ) &
+          wpid=$!
+          wait "$xpid"
           echo "xcodebuild exit $?" | tee "$out/xcodebuild.exit"
+          kill "$wpid" 2>/dev/null
           tail -40 "$out/xcodebuild.log"
           xcrun xcresulttool get test-results summary --path "$out/hitch.xcresult" > "$out/summary.json" 2>&1 || true
           xcrun xcresulttool get test-results tests --path "$out/hitch.xcresult" > "$out/tests.json" 2>&1 || true
@@ -234,7 +215,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
-      - name: 'Stage 3: host recording signposts-host (its own step: a hung recorder costs only this arm)'
+      - name: 'Stage 2: host recording signposts-host (its own step: a hung recorder costs only this arm)'
         id: host-signposts-host
         continue-on-error: true
         timeout-minutes: 7
@@ -259,7 +240,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
-      - name: 'Stage 4: host recording hitches-host (its own step: a hung recorder costs only this arm)'
+      - name: 'Stage 3: host recording hitches-host (its own step: a hung recorder costs only this arm)'
         id: host-hitches-host
         continue-on-error: true
         timeout-minutes: 7
@@ -284,7 +265,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
-      - name: 'Stage 5: host recording systrace-host (its own step: a hung recorder costs only this arm)'
+      - name: 'Stage 4: host recording systrace-host (its own step: a hung recorder costs only this arm)'
         id: host-systrace-host
         continue-on-error: true
         timeout-minutes: 7
@@ -306,6 +287,32 @@ jobs:
         with:
           name: xctrace-host-systrace-host-${{ matrix.vm }}
           path: packages/measure-webkit/out/host-systrace-host*
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: 'Stage 5: recordings that target the Simulator device (Animation Hitches, os_signpost, System Trace)'
+        id: sim
+        continue-on-error: true
+        timeout-minutes: 14
+        env:
+          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
+          PASSES: ${{ inputs.passes || '1' }}
+          FW_WK_TIMEOUT_SCALE: '8'
+          FW_WK_ATTEMPTS: '3'
+        working-directory: packages/measure-webkit
+        run: |
+          set -u
+          mkdir -p out
+          node src/xctrace/cli.mjs run --arms hitches,signposts,systrace --passes "$PASSES" --out out/sim 2> >(tee out/sim.log >&2)
+          echo "run exit $?"
+          node src/xctrace/cli.mjs reduce --dir out/sim --json out/sim-counts.json || true
+          ls -l out/sim | head -40
+          exit 0
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
+        with:
+          name: xctrace-sim-${{ matrix.vm }}
+          path: packages/measure-webkit/out/sim*
           if-no-files-found: warn
           retention-days: 30
 
