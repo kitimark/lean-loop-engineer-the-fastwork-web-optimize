@@ -1,0 +1,189 @@
+{"kind":"split","mod":4,"offset":2166136261,"prime":16777619}
+{"ids":["c-orphan-wait","c-order-derived","c-shared-no-lock","c-quota","c-proxy-verdict","c-identity-heuristic","c-late-check","c-unearned-claim","c-sample-validity","c-env-assume","c-spec-gap","c-handcopy","c-policy-prose","c-mathdoc","c-principle"],"kind":"classes"}
+{"exact":["blocker","fix-before-land","follow-up"],"followTag":"follow-up","kind":"words","table":[["blocker","blocker"],["blocking","blocker"],["critical","blocker"],["high","blocker"],["fix-before-land","fix-before-land"],["major","fix-before-land"],["follow-up","follow-up"],["low","follow-up"],["minor","follow-up"],["nit","follow-up"]]}
+{"dismiss":["reviewer error","rule noise"],"kind":"fable-phrases","lowValue":["low value","real, low"]}
+{"code":["assertionerror","err_module_not_found","cannot find module","syntaxerror","referenceerror","typeerror","error ts","unknown identifier","type mismatch","unsolved goals","premises: failed","trajectory-line: refused","verdict fail","verdict refuse","verdict stale","not ok "],"infra":["ssl connect error","could not download file","econnreset","etimedout","enotfound","econnrefused","connection reset","connection timed out","could not resolve host","shutdown signal","no space left on device","lost communication with the server","502 bad gateway","503 service unavailable","rate limit","unable to make request","unexpected eof","socket hang up","unable to boot","tls handshake"],"kind":"ci-phrases"}
+{"hash":2166136261,"heldOut":false,"id":"","kind":"hash"}
+{"hash":3826002220,"heldOut":true,"id":"a","kind":"hash"}
+{"hash":4189723359,"heldOut":false,"id":"inc-orphan-wait-loop","kind":"hash"}
+{"hash":907153435,"heldOut":false,"id":"inc-ci-hardcoded-expect","kind":"hash"}
+{"hash":780571075,"heldOut":false,"id":"adv:jev-oracle#2","kind":"hash"}
+{"hash":2817072289,"heldOut":false,"id":"run-39641571077","kind":"hash"}
+{"hash":295556170,"heldOut":false,"id":"ü","kind":"hash"}
+{"hash":2670128721,"heldOut":false,"id":"日本","kind":"hash"}
+{"class":"c-orphan-wait","kind":"d1","label":"c-orphan-wait"}
+{"class":"c-order-derived","kind":"d1","label":"c-order-derived"}
+{"class":"c-shared-no-lock","kind":"d1","label":"c-shared-no-lock"}
+{"class":"c-quota","kind":"d1","label":"c-quota"}
+{"class":"c-proxy-verdict","kind":"d1","label":"c-proxy-verdict"}
+{"class":"c-identity-heuristic","kind":"d1","label":"c-identity-heuristic"}
+{"class":"c-late-check","kind":"d1","label":"c-late-check"}
+{"class":"c-unearned-claim","kind":"d1","label":"c-unearned-claim"}
+{"class":"c-sample-validity","kind":"d1","label":"c-sample-validity"}
+{"class":"c-env-assume","kind":"d1","label":"c-env-assume"}
+{"class":"c-spec-gap","kind":"d1","label":"c-spec-gap"}
+{"class":"c-handcopy","kind":"d1","label":"c-handcopy"}
+{"class":"c-policy-prose","kind":"d1","label":"c-policy-prose"}
+{"class":"c-mathdoc","kind":"d1","label":"c-mathdoc"}
+{"class":"c-principle","kind":"d1","label":"c-principle"}
+{"class":"c-nonsense","kind":"d1","label":null}
+{"class":"","kind":"d1","label":null}
+{"grade":"blocker","inUnit":true,"kind":"severity","text":"blocker","tier":"exact"}
+{"grade":"fix-before-land","inUnit":true,"kind":"severity","text":"fix-before-land","tier":"exact"}
+{"grade":"follow-up","inUnit":false,"kind":"severity","text":"follow-up","tier":"exact"}
+{"grade":"blocker","inUnit":true,"kind":"severity","text":" Blocker ","tier":"exact"}
+{"grade":"fix-before-land","inUnit":true,"kind":"severity","text":"FIX-BEFORE-LAND","tier":"exact"}
+{"grade":"blocker","inUnit":true,"kind":"severity","text":"high","tier":"legacy"}
+{"grade":"blocker","inUnit":true,"kind":"severity","text":"High","tier":"legacy"}
+{"grade":"fix-before-land","inUnit":true,"kind":"severity","text":"major","tier":"legacy"}
+{"grade":"blocker","inUnit":true,"kind":"severity","text":"critical","tier":"legacy"}
+{"grade":"blocker","inUnit":true,"kind":"severity","text":"blocking","tier":"legacy"}
+{"grade":"follow-up","inUnit":false,"kind":"severity","text":"low","tier":"legacy"}
+{"grade":"follow-up","inUnit":false,"kind":"severity","text":"minor","tier":"legacy"}
+{"grade":"follow-up","inUnit":false,"kind":"severity","text":"nit","tier":"legacy"}
+{"grade":null,"inUnit":null,"kind":"severity","text":"medium","tier":null}
+{"grade":null,"inUnit":null,"kind":"severity","text":"moderate","tier":null}
+{"grade":null,"inUnit":null,"kind":"severity","text":"info","tier":null}
+{"grade":null,"inUnit":null,"kind":"severity","text":"verified","tier":null}
+{"grade":null,"inUnit":null,"kind":"severity","text":"note","tier":null}
+{"grade":null,"inUnit":null,"kind":"severity","text":"process","tier":null}
+{"grade":null,"inUnit":null,"kind":"severity","text":"lead-decision","tier":null}
+{"grade":null,"inUnit":null,"kind":"severity","text":"","tier":null}
+{"grade":"follow-up","inUnit":false,"kind":"severity","text":"low (follow-up)","tier":"legacy"}
+{"grade":"follow-up","inUnit":false,"kind":"severity","text":"high (follow-up, outside the pinned unit)","tier":"legacy"}
+{"grade":"fix-before-land","inUnit":true,"kind":"severity","text":"major (blocking, pinned unit: measured medians explained)","tier":"legacy"}
+{"grade":"follow-up","inUnit":false,"kind":"severity","text":"medium (follow-up, below pinned unit)","tier":"legacy"}
+{"grade":"follow-up","inUnit":false,"kind":"severity","text":"info (follow-up)","tier":"legacy"}
+{"grade":null,"inUnit":null,"kind":"severity","text":"info (verified)","tier":null}
+{"grade":"follow-up","inUnit":false,"kind":"severity","text":"minor (follow-up; Linux WebKit is an accepted no-verdict limit)","tier":"legacy"}
+{"grade":"follow-up","inUnit":false,"kind":"severity","text":"follow-up (accepted, not in unit)","tier":"legacy"}
+{"grade":null,"inUnit":null,"kind":"severity","text":"medium (do before land)","tier":null}
+{"grade":"fix-before-land","inUnit":true,"kind":"severity","text":"major (lead action before land; branch content is correct)","tier":"legacy"}
+{"kind":"fable","line":"1. blocker, real defect. Re-ran the reviewer's pair","regrade":null}
+{"kind":"fable","line":"R2-4 (G_6 LaTeX block): reviewer error for this task.","regrade":"dismissed"}
+{"kind":"fable","line":"R2-5 (premise text incomplete): real, low value. CONFIRMED","regrade":"follow-up"}
+{"kind":"fable","line":"F3 low, prose: real but low value. CONFIRMED","regrade":"follow-up"}
+{"kind":"fable","line":"| 3 | minor | real, low value | RenderLayerCompositor","regrade":"follow-up"}
+{"kind":"fable","line":"rule noise: the lint does not apply","regrade":"dismissed"}
+{"kind":"fable","line":"reviewer error but real, low value","regrade":"dismissed"}
+{"kind":"fable","line":"2. major, real.","regrade":null}
+{"findings":0,"kind":"applies","ok":false,"parsed":0}
+{"findings":3,"kind":"applies","ok":true,"parsed":3}
+{"findings":3,"kind":"applies","ok":false,"parsed":2}
+{"findings":2,"kind":"applies","ok":false,"parsed":3}
+{"findings":5,"kind":"applies","ok":true,"parsed":5}
+{"findings":0,"kind":"applies","ok":false,"parsed":4}
+{"kind":"apply","label":"blocker","orig":"blocker","regrade":null}
+{"kind":"apply","label":"follow-up","orig":"blocker","regrade":"follow-up"}
+{"kind":"apply","label":"blocker","orig":"blocker","regrade":"blocker"}
+{"kind":"apply","label":null,"orig":"blocker","regrade":"dismissed"}
+{"kind":"apply","label":"follow-up","orig":"follow-up","regrade":null}
+{"kind":"apply","label":"follow-up","orig":"follow-up","regrade":"follow-up"}
+{"kind":"apply","label":"blocker","orig":"follow-up","regrade":"blocker"}
+{"kind":"apply","label":null,"orig":"follow-up","regrade":"dismissed"}
+{"kind":"apply","label":null,"orig":null,"regrade":null}
+{"kind":"apply","label":"follow-up","orig":null,"regrade":"follow-up"}
+{"kind":"apply","label":"blocker","orig":null,"regrade":"blocker"}
+{"kind":"apply","label":null,"orig":null,"regrade":"dismissed"}
+{"code":false,"infra":true,"kind":"phrase","text":"error: SSL connect error (TLS connect error)"}
+{"code":false,"infra":true,"kind":"phrase","text":"Failed to CreateArtifact: Unable to make request: ECONNRESET"}
+{"code":false,"infra":false,"kind":"phrase","text":"Process completed with exit code 1."}
+{"code":true,"infra":false,"kind":"phrase","text":"AssertionError [ERR_ASSERTION]: expected 3"}
+{"code":true,"infra":false,"kind":"phrase","text":"premises: FAILED"}
+{"code":false,"infra":false,"kind":"phrase","text":"FAIL: fast1: no tab (0 tabs)"}
+{"code":true,"infra":false,"kind":"phrase","text":"trajectory-line: refused: widths 390,641 is a subset"}
+{"code":true,"infra":false,"kind":"phrase","text":"src/a.ts(3,1): error TS2322: Type"}
+{"cause":null,"facts":{"codeSig":false,"covered":false,"failure":false,"infraSig":false,"logKnown":false,"passedSameSha":false},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":true,"covered":false,"failure":false,"infraSig":false,"logKnown":false,"passedSameSha":false},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":false,"covered":false,"failure":false,"infraSig":true,"logKnown":false,"passedSameSha":false},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":true,"covered":false,"failure":false,"infraSig":true,"logKnown":false,"passedSameSha":false},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":false,"covered":false,"failure":false,"infraSig":false,"logKnown":false,"passedSameSha":true},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":true,"covered":false,"failure":false,"infraSig":false,"logKnown":false,"passedSameSha":true},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":false,"covered":false,"failure":false,"infraSig":true,"logKnown":false,"passedSameSha":true},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":true,"covered":false,"failure":false,"infraSig":true,"logKnown":false,"passedSameSha":true},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":false,"covered":true,"failure":false,"infraSig":false,"logKnown":false,"passedSameSha":false},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":true,"covered":true,"failure":false,"infraSig":false,"logKnown":false,"passedSameSha":false},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":false,"covered":true,"failure":false,"infraSig":true,"logKnown":false,"passedSameSha":false},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":true,"covered":true,"failure":false,"infraSig":true,"logKnown":false,"passedSameSha":false},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":false,"covered":true,"failure":false,"infraSig":false,"logKnown":false,"passedSameSha":true},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":true,"covered":true,"failure":false,"infraSig":false,"logKnown":false,"passedSameSha":true},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":false,"covered":true,"failure":false,"infraSig":true,"logKnown":false,"passedSameSha":true},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":true,"covered":true,"failure":false,"infraSig":true,"logKnown":false,"passedSameSha":true},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":false,"covered":false,"failure":false,"infraSig":false,"logKnown":true,"passedSameSha":false},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":true,"covered":false,"failure":false,"infraSig":false,"logKnown":true,"passedSameSha":false},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":false,"covered":false,"failure":false,"infraSig":true,"logKnown":true,"passedSameSha":false},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":true,"covered":false,"failure":false,"infraSig":true,"logKnown":true,"passedSameSha":false},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":false,"covered":false,"failure":false,"infraSig":false,"logKnown":true,"passedSameSha":true},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":true,"covered":false,"failure":false,"infraSig":false,"logKnown":true,"passedSameSha":true},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":false,"covered":false,"failure":false,"infraSig":true,"logKnown":true,"passedSameSha":true},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":true,"covered":false,"failure":false,"infraSig":true,"logKnown":true,"passedSameSha":true},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":false,"covered":true,"failure":false,"infraSig":false,"logKnown":true,"passedSameSha":false},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":true,"covered":true,"failure":false,"infraSig":false,"logKnown":true,"passedSameSha":false},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":false,"covered":true,"failure":false,"infraSig":true,"logKnown":true,"passedSameSha":false},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":true,"covered":true,"failure":false,"infraSig":true,"logKnown":true,"passedSameSha":false},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":false,"covered":true,"failure":false,"infraSig":false,"logKnown":true,"passedSameSha":true},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":true,"covered":true,"failure":false,"infraSig":false,"logKnown":true,"passedSameSha":true},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":false,"covered":true,"failure":false,"infraSig":true,"logKnown":true,"passedSameSha":true},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":true,"covered":true,"failure":false,"infraSig":true,"logKnown":true,"passedSameSha":true},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":false,"covered":false,"failure":true,"infraSig":false,"logKnown":false,"passedSameSha":false},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":true,"covered":false,"failure":true,"infraSig":false,"logKnown":false,"passedSameSha":false},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":false,"covered":false,"failure":true,"infraSig":true,"logKnown":false,"passedSameSha":false},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":true,"covered":false,"failure":true,"infraSig":true,"logKnown":false,"passedSameSha":false},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":false,"covered":false,"failure":true,"infraSig":false,"logKnown":false,"passedSameSha":true},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":true,"covered":false,"failure":true,"infraSig":false,"logKnown":false,"passedSameSha":true},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":false,"covered":false,"failure":true,"infraSig":true,"logKnown":false,"passedSameSha":true},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":true,"covered":false,"failure":true,"infraSig":true,"logKnown":false,"passedSameSha":true},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":false,"covered":true,"failure":true,"infraSig":false,"logKnown":false,"passedSameSha":false},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":true,"covered":true,"failure":true,"infraSig":false,"logKnown":false,"passedSameSha":false},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":false,"covered":true,"failure":true,"infraSig":true,"logKnown":false,"passedSameSha":false},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":true,"covered":true,"failure":true,"infraSig":true,"logKnown":false,"passedSameSha":false},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":false,"covered":true,"failure":true,"infraSig":false,"logKnown":false,"passedSameSha":true},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":true,"covered":true,"failure":true,"infraSig":false,"logKnown":false,"passedSameSha":true},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":false,"covered":true,"failure":true,"infraSig":true,"logKnown":false,"passedSameSha":true},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":true,"covered":true,"failure":true,"infraSig":true,"logKnown":false,"passedSameSha":true},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":false,"covered":false,"failure":true,"infraSig":false,"logKnown":true,"passedSameSha":false},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":true,"covered":false,"failure":true,"infraSig":false,"logKnown":true,"passedSameSha":false},"kind":"ci"}
+{"cause":"infra","facts":{"codeSig":false,"covered":false,"failure":true,"infraSig":true,"logKnown":true,"passedSameSha":false},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":true,"covered":false,"failure":true,"infraSig":true,"logKnown":true,"passedSameSha":false},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":false,"covered":false,"failure":true,"infraSig":false,"logKnown":true,"passedSameSha":true},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":true,"covered":false,"failure":true,"infraSig":false,"logKnown":true,"passedSameSha":true},"kind":"ci"}
+{"cause":"infra","facts":{"codeSig":false,"covered":false,"failure":true,"infraSig":true,"logKnown":true,"passedSameSha":true},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":true,"covered":false,"failure":true,"infraSig":true,"logKnown":true,"passedSameSha":true},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":false,"covered":true,"failure":true,"infraSig":false,"logKnown":true,"passedSameSha":false},"kind":"ci"}
+{"cause":"ours","facts":{"codeSig":true,"covered":true,"failure":true,"infraSig":false,"logKnown":true,"passedSameSha":false},"kind":"ci"}
+{"cause":"infra","facts":{"codeSig":false,"covered":true,"failure":true,"infraSig":true,"logKnown":true,"passedSameSha":false},"kind":"ci"}
+{"cause":null,"facts":{"codeSig":true,"covered":true,"failure":true,"infraSig":true,"logKnown":true,"passedSameSha":false},"kind":"ci"}
+{"cause":"flake","facts":{"codeSig":false,"covered":true,"failure":true,"infraSig":false,"logKnown":true,"passedSameSha":true},"kind":"ci"}
+{"cause":"flake","facts":{"codeSig":true,"covered":true,"failure":true,"infraSig":false,"logKnown":true,"passedSameSha":true},"kind":"ci"}
+{"cause":"infra","facts":{"codeSig":false,"covered":true,"failure":true,"infraSig":true,"logKnown":true,"passedSameSha":true},"kind":"ci"}
+{"cause":"flake","facts":{"codeSig":true,"covered":true,"failure":true,"infraSig":true,"logKnown":true,"passedSameSha":true},"kind":"ci"}
+{"audience":"user","end":"user-acted","kind":"alert","restartText":false,"triage":"ask-user"}
+{"audience":"user","end":"user-acted","kind":"alert","restartText":true,"triage":"ask-user"}
+{"audience":"user","end":"lead-cancelled","kind":"alert","restartText":false,"triage":"ask-user"}
+{"audience":"user","end":"lead-cancelled","kind":"alert","restartText":true,"triage":"ask-user"}
+{"audience":"user","end":"auto-resolved","kind":"alert","restartText":false,"triage":"ask-user"}
+{"audience":"user","end":"auto-resolved","kind":"alert","restartText":true,"triage":"ask-user"}
+{"audience":"user","end":"script-cancelled","kind":"alert","restartText":false,"triage":"ask-user"}
+{"audience":"user","end":"script-cancelled","kind":"alert","restartText":true,"triage":"ask-user"}
+{"audience":"user","end":"open","kind":"alert","restartText":false,"triage":"ask-user"}
+{"audience":"user","end":"open","kind":"alert","restartText":true,"triage":"ask-user"}
+{"audience":"lead","end":"user-acted","kind":"alert","restartText":false,"triage":"mitigate"}
+{"audience":"lead","end":"user-acted","kind":"alert","restartText":true,"triage":"mitigate"}
+{"audience":"lead","end":"lead-cancelled","kind":"alert","restartText":false,"triage":"mitigate"}
+{"audience":"lead","end":"lead-cancelled","kind":"alert","restartText":true,"triage":"mitigate"}
+{"audience":"lead","end":"auto-resolved","kind":"alert","restartText":false,"triage":"mitigate"}
+{"audience":"lead","end":"auto-resolved","kind":"alert","restartText":true,"triage":"mitigate"}
+{"audience":"lead","end":"script-cancelled","kind":"alert","restartText":false,"triage":"mitigate"}
+{"audience":"lead","end":"script-cancelled","kind":"alert","restartText":true,"triage":"mitigate"}
+{"audience":"lead","end":"open","kind":"alert","restartText":false,"triage":"mitigate"}
+{"audience":"lead","end":"open","kind":"alert","restartText":true,"triage":"mitigate"}
+{"audience":"unset","end":"user-acted","kind":"alert","restartText":false,"triage":"ask-user"}
+{"audience":"unset","end":"user-acted","kind":"alert","restartText":true,"triage":"ask-user"}
+{"audience":"unset","end":"lead-cancelled","kind":"alert","restartText":false,"triage":"ignore"}
+{"audience":"unset","end":"lead-cancelled","kind":"alert","restartText":true,"triage":"ignore"}
+{"audience":"unset","end":"auto-resolved","kind":"alert","restartText":false,"triage":"mitigate"}
+{"audience":"unset","end":"auto-resolved","kind":"alert","restartText":true,"triage":"mitigate"}
+{"audience":"unset","end":"script-cancelled","kind":"alert","restartText":false,"triage":null}
+{"audience":"unset","end":"script-cancelled","kind":"alert","restartText":true,"triage":"mitigate"}
+{"audience":"unset","end":"open","kind":"alert","restartText":false,"triage":null}
+{"audience":"unset","end":"open","kind":"alert","restartText":true,"triage":null}
