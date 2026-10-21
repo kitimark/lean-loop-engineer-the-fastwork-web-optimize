@@ -3511,6 +3511,39 @@
    "leanVerdict": "provable",
    "leanReason": "The window of a pooled list equals the windows of its passes side by side: a pure statement over lists, proved as windowOf_pass_iff.",
    "hardening": "trajectory-probe"
+  },
+  {
+   "id": "inc-reap-console-kill",
+   "at": "2026-10-21T11:15+07:00",
+   "title": "A reap-auto-stop test stopped the live console: the reap console rule was not scoped to this repo",
+   "symptom": "At 04:15:47Z fwcore logged 'exit code=null signal=SIGTERM' and console-api stopped (fw watch: console-api is not running). The builder of reap-auto-stop had just run its first real-process-tree test, which called stopSelected with a temp repo as the main dir and the machine's real process table; it TERMed pids 4444 and 4480. The lead restarted the console; the event log was intact. The builder's later real fw reap --stop was denied by the permission classifier.",
+   "cause": "CONFIRMED (code read; reviewer reproduced with a list-only probe that selected the live console pid and its fwcore): lean/Fw/Ops/Reap.lean branch A selected any console-api with ppid 1 whose cwd is not a live checkout of the repo passed as top, with no condition that the process belongs to this repo. Relative to a temp repo the real console is in no live checkout, so it and its fwcore (descendant branch) were selected. While reap only listed, this was harmless; once it stopped, any stop run with another top (the test, or e2e-land.sh running fw land on a mktemp repo) kills the real console. The lead's spec asked for real process-tree tests without requiring the executor to see only the test's own processes.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": ".fw-console/console.log",
+     "note": "fwcore incident exit signal=SIGTERM at 1792556147846 ms (04:15:47Z); local file, not in git"
+    },
+    {
+     "kind": "file",
+     "ref": "apps/runner/test/reap.test.ts",
+     "note": "the round-1 builder ran its new reap-stop test (branch only) against the real process table at 04:15:44: expected the test pids, got [4444, 4480]"
+    },
+    {
+     "kind": "file",
+     "ref": "lean/Fw/Ops/Reap.lean",
+     "note": "main: parentOk .console selects any console-api with ppid 1 whose cwd is no live checkout of the given top, with no this-repo condition (harmless while reap only listed; round 1 of reap-auto-stop, b3d31832 on its branch, made it stop)"
+    }
+   ],
+   "repro": "List-only: gather and select (no signals) with an empty temp repo as top while the console runs: the console-api and its fwcore are selected at round-1 commit b3d31832.",
+   "fix": {
+    "task": "reap-auto-stop"
+   },
+   "regression": "Round 2 requires: selection only inside this repo's own .claude/worktrees by inode (theorem per branch), the live console pids of api.json and descendants never selectable whatever top is (theorem), an explicit signal scope (no signal outside scope, theorem + test), identity re-read before TERM and KILL, and a real-process test that a temp repo selects nothing of another repo.",
+   "mistakeClass": "c-spec-gap",
+   "leanVerdict": "provable",
+   "leanReason": "Whether a row can be selected given the repo identity and the protected console pids is a pure function of the gathered table; 'no selected row lies outside this repo's removed worktrees' and 'no protected pid is selected' are statements over that function.",
+   "hardening": "reap-auto-stop"
   }
  ]
 }

@@ -8,6 +8,7 @@
 //   box    [w, h] the CSS size the image is drawn into (an <img>: its content box; a bg: the background positioning area)
 //   img    [w, h] the CSS size the whole picture is drawn at inside that box (object-fit / background-size resolved)
 //   vis    visual scale of the element's own transform chain (getBoundingClientRect / layout size), 1 when none
+//   rw, rh  (an <img> only) the size of its getBoundingClientRect, unrounded: the rectangle the engine snaps to device pixels
 //   effects  effects of the element and its ancestors that matter to paint: filter, backdrop-filter, opacity < 1,
 //            opacity / transform / filter animations, will-change, static transform, mask, mix-blend-mode
 //
@@ -159,7 +160,7 @@ export async function collectImages() {
     items.push({
       kind: 'img', id: idOf(im), url: path(src), attr: path(im.getAttribute('src') || ''), srcset: im.getAttribute('srcset') || null,
       loading: im.loading, decoding: im.decoding, complete: im.complete, nat: [nw, nh], box: [bw, bh], img: drawn, fit,
-      vis: ow > 0 ? r.width / ow : 1, none: cs.display === 'none' || ow === 0 || oh === 0 || cs.visibility === 'hidden',
+      vis: ow > 0 ? r.width / ow : 1, rw: r.width, rh: r.height, none: cs.display === 'none' || ow === 0 || oh === 0 || cs.visibility === 'hidden',
       inView: r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < vh && r.right > 0 && r.left < vw,
       top: Math.round(r.top + W.scrollY), fw: e.fw, cls: e.cls.slice(0, 8), effects: e.effects,
     });

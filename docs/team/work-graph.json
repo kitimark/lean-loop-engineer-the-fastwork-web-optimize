@@ -11983,7 +11983,8 @@
     "packages/measure-webkit/src/images/**",
     "research/notes/2026/10-2*-image-arm-v2.md",
     "docs/team/handoffs/image-arm-v2.md"
-   ]
+   ],
+   "evidence": "057962b"
   },
   {
    "devices": [
@@ -12352,6 +12353,147 @@
     "lean/Main.lean",
     "lean/lakefile.toml",
     "docs/team/handoffs/fwcore-rebuild-fanout.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "reap-auto-stop",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "User 2026-10-21: detect and auto-stop this project's unused processes gracefully. Lean Fw.Ops.Reap selects by identity (pid + start; cwd inside a removed .claude/worktrees/<id> of THIS repo by inode; descendants of a dead owner; orphaned lake serve), never a live checkout, the live console (api.json pids and descendants), MCP servers or pid <= 1; Lean stop plan: re-read identity, TERM the group, grace, re-read, KILL only unchanged survivors, within an explicit signal scope; fw reap --stop, fw land worktree teardown, fw watch tick, reap.stopped records; process-tree tests on macOS and Linux CI. Incident inc-reap-console-kill (round 1 test TERMed the live console)",
+   "writes": [
+    "lean/Fw/Ops/Reap.lean",
+    "lean/scripts/ReapGolden.lean",
+    "packages/contracts/golden/ops/reap*.jsonl",
+    "packages/contracts/golden/ops/lspreap.jsonl",
+    "apps/runner/src/reap.ts",
+    "apps/runner/test/reap*.test.ts",
+    "apps/runner/src/land.ts",
+    "apps/runner/src/watch*.ts",
+    "apps/runner/src/fw.ts",
+    ".claude/workflows/build-review.js",
+    "docs/team/tools/reap.md",
+    "docs/team/handoffs/reap-auto-stop.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "local-mem-budget",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "reap-auto-stop"
+   ],
+   "title": "User 2026-10-21 ('did you check the swap', 'what about the detection, observation for this case'): swap reached 5.1/6.1 GB on 16 GB with 6 builders while sys.memCritical stayed silent (kernel pressure level stayed 1). Add fw watch signals with Lean constants and golden: sys.swapHigh (vm.swapusage used/total, swap-out rate, memory_pressure free %), proc.leftover (reap selection non-empty: kind, pids, footprint from top mem+cmprs, not rss), proc.heavy (a project tree or the sum of heavy local jobs over a memory budget); find why proc.long missed 5-11 h lake-serve trees under the lean-lsp MCP server and close it; memory/swap/builder-count/heavy-job trend per tick into the obs log shown in the console; a local lock limiting concurrent check.sh and lake builds by a Lean memory budget; why PropsLint (lean --run scripts/PropsLint.lean) needs 2.2 GB, cut it or run it once per check",
+   "writes": [
+    "lean/Fw/Obs/Signals.lean",
+    "lean/Fw/Obs/Health.lean",
+    "lean/Fw/Obs/Golden.lean",
+    "packages/contracts/golden/obs/*.jsonl",
+    "apps/runner/src/watch-collect.ts",
+    "apps/runner/src/watch-fold.ts",
+    "apps/runner/src/watch.ts",
+    "apps/runner/test/watch*.test.ts",
+    "lean/scripts/check.sh",
+    "lean/scripts/PropsLint.lean",
+    "scripts/heavy-lock.mjs",
+    "docs/team/tools/fw-watch.md",
+    "docs/team/handoffs/local-mem-budget.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "webkit-sim-keep-logs",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "webkit-lag-probe"
+   ],
+   "title": "The webkit-sim sim job's post step 'Keep logs and host state' failed after the lag JSON was written in run 39511908073 (r2) and run 39530935381 (r3, the lag-report verify dispatch), marking webkit-sim red (ci.failed alert) although the measurement completed; the lag-report job ran green in 39530935381 (the gate fix works). Find the failing command from the job log, fix it or keep the measurement's verdict independent of it, prove on one run",
+   "writes": [
+    ".github/workflows/webkit-sim.yml",
+    "packages/measure-webkit/src/sim*.mjs",
+    "packages/measure-webkit/test/sim*.test.mjs",
+    "docs/team/handoffs/webkit-sim-keep-logs.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "e2e-preview-port-flake",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "Land lane 39543027567 (suites-a) failed in @fw/e2e-preview 'rig over plain HTTP': listen EADDRINUSE 127.0.0.1:33093 (unrelated to the task landed; the re-land passed). The rig listens on port 0 and reads the bound port (or retries on EADDRINUSE); a test that two rigs in parallel never collide",
+   "writes": [
+    "packages/e2e-preview/src/*.mjs",
+    "packages/e2e-preview/test/*.test.mjs",
+    "docs/team/handoffs/e2e-preview-port-flake.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "lag-findings-order",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "webkit-lag-probe"
+   ],
+   "title": "webkit-lag-probe review follow-ups: anchors must follow the order of the numbers in the prose (arm swaps and range endpoints pass today), an optional ratio-range column so a ratio anchor compares only the first number, verdict words in Findings checked against the block, numbers written as words ('four', 'three') as digits with anchors; close the PipeWrap proxy pipes of startProxy in session.mjs teardown (20 s per session)",
+   "writes": [
+    "packages/measure-webkit/test/lag-findings.test.mjs",
+    "research/notes/2026/10-21-webkit-lag-probe.md",
+    "packages/measure-webkit/src/session.mjs",
+    "packages/measure-webkit/src/sim.mjs",
+    "docs/team/handoffs/lag-findings-order.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "waapi-tail-webkit-p2",
+   "owner": "measure-engineer",
+   "stream": "parts",
+   "deps": [
+    "waapi-tail-webkit"
+   ],
+   "title": "Phase 2 of waapi-tail-webkit: classify the recorder rows (C0-C4, C-probe) per rep over >= 3 push-triggered mac WebKit runs on separate jobs ([trajectory fw=morph.tween:waapi widths=1280 engines=playwright-webkit debug=nav-transition]); the read rows decide C-probe; then keep or drop the base-write window on WebKit. Phase 1 review lows: cite the driver lines poll :137-146, onMarker :147-153, push_ :177-219 (write :205, writeBase :216); add path S (settleFlight from first.onfinish, waapi.driver.ts:167-175); the probe-apple push-with-debug rule decided in Lean (Fw.Ci.Trigger or the plan) instead of YAML",
+   "writes": [
+    "research/notes/2026/10-21-waapi-tail-webkit.md",
+    "packages/gate-breakpoints/src/trajectory/debug.mjs",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    ".github/workflows/trajectory-probe.yml",
+    "docs/team/handoffs/waapi-tail-webkit-p2.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "circleci-series-r2",
+   "owner": "measure-engineer",
+   "stream": "tooling",
+   "deps": [
+    "circleci-series"
+   ],
+   "title": "BLOCKED ON THE USER: CircleCI Project Settings > SSH Keys > Add Deploy Key (pipelines 261/262 failed at checkout: 'checkout key has zero length'). Then: a read-only key check before any pipeline (no credits spent on a missing key), and the 20-pipeline series per class with the parked driver (branch worktree-wf_22f9acfd-29a-2, 4003746f): duration and queue p50/p95 against the GitHub baseline (n=20: chromium 44/54 s, playwright-webkit 61/83 s, queue p50 18 s, p95 ~11 min), MEASURED, for ci-route and land-lane-circleci",
+   "writes": [
+    "scripts/circleci.mjs",
+    "scripts/circleci*.test.mjs",
+    "research/notes/2026/10-2*-circleci-series.md",
+    "docs/team/handoffs/circleci-series-r2.md"
    ]
   }
  ],
