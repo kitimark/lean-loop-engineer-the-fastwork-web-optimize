@@ -26,8 +26,8 @@ Question: where does the 502 of `apps/console-api/src/preview/arm-app.ts` come f
   The tap also copied the preview server's reply headers, among them `Keep-Alive: timeout=65`, so the hint it gave was
   65 s while it closed at 6 s. INFERRED from `rig.mjs` (`res.writeHead(r.statusCode, r.headers)`); the fix below removes it
   and the 502 is gone, but I did not log the header on the wire.
-- The same missing idle limit sat in the preview port's compare proxy (`proxy.ts`, its own Agent): run 39614957481 failed
-  with `502 GET /preview/e2e-fixture/compare` after the tap and `arm-app.ts` were fixed. MEASURED.
+- The same missing idle limit sat in the preview port's compare proxy (`proxy.ts`, its own Agent). MEASURED: proxy 502 in
+  39608748473 (shard 4 #4) and 39614957481 (#20); cause INFERRED (same Agent and tap path, not logged then); 0 after the fix in 20 runs.
 - The preview server (`serve-child.ts`) has `keepAliveTimeout` 65 s, so in the console the same race exists only at 66 s idle;
   the 502 in the e2e was the tap's 6 s. The product code is fixed too, because the Agent's blind spot is the same.
 
@@ -51,7 +51,7 @@ Compare only, 10 jobs x 100 loads = 1000 loads per run.
 |---|---|---|
 | 39605321202 | log of the upstream error, all 6 targets, 1200 loads | 0 x 502 (these runs are not sensitive; compare iframes are) |
 | 39606786469 | log only, compare | 3 x 502, `ECONNRESET`, `reused: true` (2 x `GET /`, 1 module) |
-| 39608748473 | log only, compare | 1 x 502, `read ECONNRESET`, `reused: true` |
+| 39608748473 | log only, compare | 2 x 502: 1 arm (`read ECONNRESET`, `reused: true`), 1 proxy `/preview/e2e-fixture/compare` (not logged) |
 | 39612143767 | + idle time | 3 x 502, `idleMs` 5999, 5995, 5995 |
 | 39608784186 | Agent `timeout` only (tap still copies the hint) | 1 x 502: the hint was a lie, the limit did not help |
 | 39612204002, 39614945069 | Agent `timeout` + tap fix (`arm-app.ts` only) | green, green |
@@ -62,12 +62,12 @@ Every unfixed run had 1 to 3 events in 1000 loads, the old rate. Once `proxy.ts`
 - **10 green 1000-load compare repeats** (head commit message carries `[long]`; 100 loads x 10 jobs, 0 failed checks, 0
   `preview-502` lines): 39627999647, 39628014718, 39629760037, 39631364784, 39631568360, 39633157418, 39634660133,
   39634961753, 39636558737, 39637984172. MEASURED. (`pnpm fw ci wait` printed `success -> fail` for three of them; the run
-  conclusion is success and the artifacts of 39629760037 hold 21860 ok checks and no FAIL line, so that label is the
+  conclusion is success and out/webkit.json of 39629760037 holds 23000 ok checks (10 x 2300, every shard reached #100) and no FAIL line; the temporary workflow's out.txt was truncated at exit, which may also explain the waiter label (INFERRED), so that label is the
   waiter's, not the run's. Not investigated.)
 - 10 more green runs of all six targets, 20 loads each (1200 loads per run), same code: 39618779756, 39618810266, 39620413621,
   39621625829, 39622143204, 39623220025, 39623595049, 39624582807, 39625065660, 39626417194. MEASURED.
 
-Total 20 runs, 22000 loads on the final code, 0 x 502. Before the fix: 7 events in 3000 compare loads.
+Total 20 runs, 22000 loads on the final code, 0 x 502. Before the fix: 8 events in 3000 compare loads.
 
 ## A third flake, found on the way
 

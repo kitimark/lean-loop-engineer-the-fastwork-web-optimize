@@ -74,8 +74,8 @@ Debug runs repeat targets on loopback on one engine; they are for CI branches (a
 | `--trace` | also write `out/trace-<engine>.json`: the timeline of each failed load and 2 passing ones (`src/trace.mjs`) |
 | `--provoke n` | start n uncached image requests on the landing page just before it is left (makes the landing-page cancel deterministic) |
 
-An error of the arm app's upstream request is logged on stderr as `preview-502 {"code","syscall","msg","reused","idleMs","path"}`
-(`arm-app.ts`); a run with `2>err.txt` keeps it.
+An error of an upstream request (arm app `arm-app.ts`, compare proxy `proxy.ts`) is logged on stderr as
+`preview-502 {"who","code","syscall","msg","reused","idleMs","path"}`; a run with `2>err.txt` keeps it.
 
 ## Why one origin per arm (replaces the 302 and the double-import question)
 
