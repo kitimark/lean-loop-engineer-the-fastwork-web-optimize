@@ -93,7 +93,8 @@ test('decide: each cell of a part is decided on its own, over reps and engines',
   assert.equal(d('exact', 'chromium', 'hero.deck'), 'noCopy');
   assert.equal(d('exact', 'playwright-webkit', 'hero.exit'), 'undecided');
   assert.equal(d('exact', 'all', 'hero'), 'admissible');
-  const md = tablesMd(res, { runId: 42, sha: 'abcdef0123' });
+  const md = tablesMd(res, { runId: 42, sha: 'abcdef0123', matrix: [{ width: 400, dpr: 3 }, { width: 400, dpr: 1 }, { width: 401, dpr: 1 }] });
+  assert.match(md, /Probed width x DPR pairs: 1 of 3[^]*not probed: DPR 1: 400 401; DPR 2: -; DPR 3: -/);
   assert.match(md, /Decision per part, policy exact \(run 42, commit abcdef01\)/);
   assert.match(md, /\| exact \| chromium \| hero\.orbit \| 1 \| 0 \| 1 \|/);
   assert.match(md, /Cells where the copy fails and the baseline passes[^]*\| exact \| chromium \| p \| 400@3 \| hero\.orbit \| 1\/1 \|/);

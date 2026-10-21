@@ -130,7 +130,7 @@ const kib = (n) => `${(n / 1024).toFixed(1)}`;
 const open = (w) => (w === 'pass' || w === 'fail' ? w : 'open');
 const COLS = ['pass>pass', 'pass>fail', 'fail>pass', 'fail>fail', 'pass>open', 'fail>open', 'open>pass', 'open>fail', 'open>open'];
 
-export const SECTIONS = ['runs', 'decision', 'did', 'fails', 'saving', 'cells', 'why'];
+export const SECTIONS = ['runs', 'coverage', 'decision', 'did', 'fails', 'saving', 'cells', 'why'];
 
 /** The tables as markdown; `opts.sections` picks some of SECTIONS (default all but `cells`), `opts.runId` and `opts.sha` head them. */
 export function tablesMd(results, opts = {}) {
@@ -144,6 +144,7 @@ export function tablesMd(results, opts = {}) {
   if (want.has('runs')) {
     L.push(`### Runs${tag}`, '', ...results.map((r) => `- ${r.engine} ${r.tag} (${r.browser ?? '?'}${r.truncated ? ', TRUNCATED' : ''}): ${r.probes.length} probes`), '');
   }
+  if (want.has('coverage') && opts.matrix) L.push(...coverageMd(cells, opts.matrix, tag));
   const engines = [...new Set(dec.map((d) => d.engine))].filter((e) => e !== 'all').sort();
   const parts = [...new Set(dec.map((d) => d.part))];
   if (want.has('decision')) {
@@ -207,6 +208,17 @@ export function tablesMd(results, opts = {}) {
   return L.join('\n');
 }
 
+/** Which width x DPR pairs of the gate matrix (`matrix`: [{ width, dpr }]) the cells cover, and the pairs they do not. Every claim of the tables holds at the probed pairs only. */
+function coverageMd(cells, matrix, tag) {
+  const pair = (w, d) => `${w}@${d}`;
+  const probed = new Set(cells.map((c) => pair(c.width, c.dpr)));
+  const all = [...new Set(matrix.map((p) => pair(p.width, p.dpr)))];
+  const gaps = all.filter((x) => !probed.has(x));
+  const byDpr = (xs) => [1, 2, 3].map((d) => `DPR ${d}: ${xs.filter((x) => x.endsWith(`@${d}`)).map((x) => x.split('@')[0]).join(' ') || '-'}`).join('; ');
+  return [`### Coverage${tag}`, '', `Probed width x DPR pairs: ${probed.size} of ${all.length} in the gate matrix (${matrix.length} probes). Every verdict below holds at the probed pairs only.`, '',
+    `- probed: ${byDpr([...probed].sort((a, b) => parseFloat(a) - parseFloat(b)))}`, `- not probed: ${byDpr(gaps.sort((a, b) => parseFloat(a) - parseFloat(b)))}`, ''];
+}
+
 /**
  * Why files have no exact copy, per engine and probe, over all reps together: a file counts as `ok` only when every rep planned the
  * same exact copy; when the reps disagree it counts as `disputed`; otherwise it counts under the reason all reps gave.
@@ -243,7 +255,7 @@ function whyMd(results, tag) {
 }
 
 /** The note's generated block: the sections the committed note holds, between the begin and end markers. */
-export const NOTE_SECTIONS = ['runs', 'decision', 'did', 'fails', 'why'];
+export const NOTE_SECTIONS = ['runs', 'coverage', 'decision', 'did', 'fails', 'why'];
 export const BEGIN = '<!-- arm-tables:begin -->';
 export const END = '<!-- arm-tables:end -->';
 
@@ -265,7 +277,8 @@ export async function decideCli(_args, { arg, list }) {
     process.exitCode = 1;
     return;
   }
-  const o = { runId: arg('run-id', null), sha: arg('sha', null) };
+  const { loadGen } = await import('../spec.mjs');
+  const o = { runId: arg('run-id', null), sha: arg('sha', null), matrix: loadGen().gen.matrix.probes };
   const md = tablesMd(results, { ...o, sections: process.argv.includes('--cells') ? SECTIONS : undefined });
   if (arg('out')) writeFileSync(resolve(arg('out')), md + '\n');
   if (arg('splice')) {
