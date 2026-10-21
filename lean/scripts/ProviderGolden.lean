@@ -89,7 +89,8 @@ def tables : List String := [
     (Json.mkObj [("capMs", toJson capMs), ("queueMaxMs", toJson queueMaxMs), ("storageMaxMilli", toJson storageMaxMilli)]),
   line "jobMap" "GitHub job against CircleCI job" (Json.mkObj [])
     (Json.mkObj [("jobs", .arr (jobMap.map fun r =>
-      Json.mkObj [("lane", .str r.lane), ("github", ghNameJson r.gh), ("circleci", .str r.circleci), ("digest", .bool r.digest), ("savesCache", .bool r.savesCache)]).toArray)])]
+      Json.mkObj [("lane", .str r.lane), ("github", ghNameJson r.gh), ("circleci", .str r.circleci), ("digest", .bool r.digest), ("savesCache", .bool r.savesCache)]).toArray),
+      ("landJobs", .arr (landJobs.map Json.str).toArray)])]
 
 def creditCases : List (String × String × Nat) := [
   ("one minute of arm.medium.gen2 costs its rate", "arm.medium.gen2", 60000),

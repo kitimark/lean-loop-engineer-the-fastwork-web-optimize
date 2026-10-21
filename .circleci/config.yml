@@ -12,8 +12,7 @@ version: 2.1
 # Every job writes the result files of its GitHub twin (artifacts) plus timings.json: per-step spans in the
 # .fw-console/timings.jsonl format ({tool, step, startMs, durMs, exit, commit, load, host}) wrapped with the job, class and
 # commit. The queue span (created to started) is added by scripts/circleci.mjs from the API, not by the job.
-# No Lake cache is saved: this pilot builds no Lean. The only cache is the pnpm store of the premise jobs (about 10 MiB archived),
-# keyed by pnpm-lock.yaml. It is saved only when the key is new: CircleCI cannot condition save_cache and sets no "restored" flag,
+# The premise jobs build no Lean: their cache is the pnpm store (about 10 MiB archived), keyed by pnpm-lock.yaml; the land job has a Lake cache (below). It is saved only when the key is new: CircleCI cannot condition save_cache and sets no "restored" flag,
 # so cache-probe / cache-gate (.circleci/job.sh) halt the job (`circleci-agent step halt`) before save_cache when the restored
 # store already belongs to this lockfile. The key is v2 because a v1 cache is immutable and carries no marker. The ledger reads the real saves from the job steps (scripts/circleci.mjs).
 #
@@ -203,8 +202,13 @@ jobs:
       - finish
 
   # The land lane (task land-lane-circleci): one leg of .github/workflows/land.yml, same entry (`pnpm fw checks --affected --tier remote
-  # --leg <leg>`), same lane digest. Linux Arm, the same class as the premise jobs. No cache of any kind: the Lean build is cold (about
-  # 260 s on a GitHub Arm runner), because a cache of the Lean build would count against the storage stop rule.
+  # --leg <leg>`), same lane digest. Linux Arm, the same class as the premise jobs.
+  # The Lake cache (task circleci-lean-cache): the legs took 450-579 s on CircleCI against 63-127 s on GitHub, INFERRED from the cold
+  # Lean build. The key is built like .github/actions/setup-lean: toolchain + Lake manifest + Lean sources (job.sh lake-key writes the
+  # two hash strings that `checksum` reads), the restore key is the toolchain + manifest prefix. Every leg restores; a leg saves only
+  # when the exact key was not restored (lake-probe / lake-gate, the pnpm-cache trick: CircleCI has no "restored" flag and no
+  # condition on save_cache), so one entry is stored per key and the storage stop rule (1 GB-month) counts one upload. The first
+  # writer of a key wins (CircleCI caches are immutable), whichever leg that is. Bump `lake-v1` in both keys to force a fresh entry.
   land:
     parameters:
       leg:
@@ -227,6 +231,19 @@ jobs:
       - checkout
       - since:
           step: checkout
+      - run:
+          name: Lake cache key (hash strings)
+          command: sh .circleci/job.sh lake-key
+      - mark
+      - restore_cache:
+          keys:
+            - lake-v1-arm64-{{ checksum "/tmp/fw/lake-tm.key" }}-{{ checksum "/tmp/fw/lake-src.key" }}
+            - lake-v1-arm64-{{ checksum "/tmp/fw/lake-tm.key" }}-
+      - since:
+          step: lake cache restore
+      - run:
+          name: Lake cache current for this key?
+          command: sh .circleci/job.sh lake-probe
       - run:
           name: toolchain (node 24, pnpm)
           command: sh .circleci/job.sh toolchain
@@ -252,6 +269,13 @@ jobs:
           command: sh .circleci/job.sh land-engine << parameters.leg >>
           no_output_timeout: 30m
       - finish
+      - run:
+          name: Lake cache gate (halts the job here when the exact key was restored)
+          command: sh .circleci/job.sh lake-gate
+      - save_cache:
+          key: lake-v1-arm64-{{ checksum "/tmp/fw/lake-tm.key" }}-{{ checksum "/tmp/fw/lake-src.key" }}
+          paths:
+            - ~/.fw-lake
 
 workflows:
   premise-tests:

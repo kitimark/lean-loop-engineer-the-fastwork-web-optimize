@@ -6,6 +6,7 @@
 #   steps: since <name> | toolchain | install <filters> | browser | test | verdict | cache-probe | cache-gate
 #          sim-prepare | sim-boot | sim-run | sim-delete | finish
 #          land-lean | land-setup | land-fwcore | land-suites <leg> | land-engine <leg>   (the land lane, task land-lane-circleci)
+#          lake-key | lake-probe | lake-gate   (the Lake cache of the land job, task circleci-lean-cache)
 # Env (set by the job): FW_CI_JOB, FW_CI_CLASS, FW_CI_ENGINE (engine jobs), HS_VERSION and HS_SHA256 (chromium).
 set -eu
 cd "$(dirname "$0")/.."
@@ -202,6 +203,53 @@ land_setup() {  # main is the pushed commit's first parent (.github/scripts/land
   git config --global user.email land-lane
 }
 
+# The Lake cache of the land job (task circleci-lean-cache), keyed like .github/actions/setup-lean: the exact key is toolchain +
+# Lake manifest + the Lean sources, the restore key is the toolchain + manifest prefix. CircleCI `checksum` hashes one file, so
+# lake-key writes the hash strings that the config's key template reads. Nothing else is decided here: whether to save is the
+# marker below, the same trick as the pnpm cache (cache_probe / cache_gate): ~/.fw-lake/key holds the exact key the saved cache
+# belongs to; a restore of the exact key leaves a marker equal to the current key and the job halts before save_cache. The cache
+# is the Lake artifact cache (LAKE_CACHE_DIR, enableArtifactCache in lean/lakefile.toml), on the same file system as lean/.lake so
+# Lake can hard-link the artifacts back.
+lake_dir=$HOME/.fw-lake
+export LAKE_CACHE_DIR=$lake_dir/cache
+lake_marker=$lake_dir/key
+
+lake_key() {  # the hash strings of the cache key; tm = toolchain + manifest, src = the Lean sources (the file list setup-lean hashes)
+  tm=$(cat lean/lean-toolchain lean/lake-manifest.json | sha256sum | cut -d' ' -f1)
+  src=$({ ls lean/lakefile.toml lean/*.lean; git ls-files lean/Fw lean/FwTest; } | sort -u | xargs sha256sum | sha256sum | cut -d' ' -f1)
+  # a pipe in $(...) hides a failed sha256sum (sh has no pipefail): an empty or short string would be a key shared by every tree
+  for h in "$tm" "$src"; do test "${#h}" -eq 64 || { echo "lake key: not a sha256 hex string: '$h'" >&2; return 1; }; done
+  printf '%s\n' "$tm" > "$fw/lake-tm.key"
+  printf '%s\n' "$src" > "$fw/lake-src.key"
+  printf '%s-%s\n' "$tm" "$src" > "$fw/lake-full.key"
+  mkdir -p "$LAKE_CACHE_DIR"
+  echo "lake key: toolchain+manifest $(echo "$tm" | cut -c1-8), sources $(echo "$src" | cut -c1-8)"
+}
+
+lake_probe() {  # right after restore_cache: does the restored marker name this exact key?
+  rm -f "$fw/lake-current"
+  mkdir -p "$LAKE_CACHE_DIR"
+  if [ -f "$lake_marker" ] && [ "$(cat "$lake_marker")" = "$(cat "$fw/lake-full.key")" ]; then
+    : > "$fw/lake-current"
+    echo "lake cache: the exact key was restored; no save at the end"
+  elif [ -f "$lake_marker" ]; then
+    echo "lake cache: an older entry (same toolchain and manifest) was restored; the job saves the new key at the end"
+  else
+    echo "lake cache: nothing restored; the job saves one at the end"
+  fi
+}
+
+lake_gate() {  # last step before save_cache: halt when the exact key was restored, else write the marker for the save
+  if [ -f "$fw/lake-current" ]; then
+    echo "lake cache: current, halting before save_cache"
+    circleci-agent step halt
+  else
+    mkdir -p "$lake_dir"
+    cp "$fw/lake-full.key" "$lake_marker"
+    echo "lake cache: marker written, save_cache follows; $(du -sk "$lake_dir" | cut -f1) KiB on disk"
+  fi
+}
+
 land_fwcore() { (cd lean && lake build fwcore); }
 
 land_suites() {  # <leg>
@@ -255,6 +303,9 @@ case "$cmd" in
   land-fwcore) T "fwcore build" land_fwcore ;;
   land-suites) T "suites" land_suites "$1" ;;
   land-engine) T "browser suite" land_engine "$1" ;;
+  lake-key) T "lake key" lake_key ;;
+  lake-probe) lake_probe ;;
+  lake-gate) lake_gate ;;
   cache-probe) cache_probe ;;
   cache-gate) cache_gate ;;
   finish) finish ;;
