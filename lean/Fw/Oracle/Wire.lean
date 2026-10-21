@@ -6,40 +6,7 @@ import Fw.Oracle.Send
 import Fw.Oracle.Questions
 import Fw.Oracle.Body
 import Fw.Ops.Wire
-/-!
-# JSON codecs and the ops `oracle.*` (typed answers from an outside model, and what we do with them)
-
-Glue between `fwcore`'s JSON lines and `Fw.Oracle` (namespace `Fw.Wire.Oracle`, so the math view treats it as wire
-code). The TypeScript client (`packages/oracle`) holds no decision: it asks `oracle.request` for the exact body
-(the state redacted here) and hashes that text (the answer-log key), asks `oracle.pre` with the raw state whether to
-replay, refuse or send, reads the key and sends only on `send`, exactly the `bodyText` that `oracle.pre` returned, and
-passes the reply text (or the failure) to `oracle.decide`.
-
-| op | request | reply |
-|---|---|---|
-| `oracle.question` | `name` | `name`, `model`, `spec`, `target`, `perOption`, `fields` |
-| `oracle.redact` | `names`?, `text` | `text` (one state line: capped at 500 characters, redacted) |
-| `oracle.request` | `name`, `names`?, `state` | `bodyText` (send these bytes; options in seeded order), `state` (redacted, capped) |
-| `oracle.pre` | `name`, `names`?, `state`, `logged`, `today`, `days` [string], `run`? | `pre` replay/refuse/send, `failure`?, `bodyText` (on send: the exact bytes to send) |
-| `oracle.plan` | `rows` [Replay], `part`? (`holdout` or `choose`), `limit`?, `logged`? [bool] (one per selected id) | `ids` (labeled ids), `indices` (positions in `rows`), `missing`, `runCap`, `resumable` |
-| `oracle.validate` | `name`, `reply` (the response body text) | `ok`, then `answer` and `gate`, or `failure` |
-| `oracle.decide` | `name`, `thresholds` (Table, absent for none), `reply` or `failure` | `action`, `advice`? `reason`? `gate`? |
-| `oracle.calibrate` | `name`, `replay` [Replay], `answers` [{`id`, `reply`}] (constants q, k from the question) | `thresholds` (Table: `certify`, chosen on the choose part, kept when its held-out Wilson lower bound reaches q), `choose` and `holdout` (Stats of that table on each part), `labeled`, `answered`, `used`, `dropped`, `write` (`mayWrite`: every labeled id answered) |
-| `oracle.eval` | `name`, `thresholds` (Table), `replay` [Replay], `answers` [{`id`, `reply`}] | `rows` (holdout ids), `answered`, `used`, `dropped`, `covered`, `hits`, `options` |
-| `oracle.store` | `text` | `text` (what the answer log stores: at most 64 KiB) |
-| `oracle.budget` | (nothing) | `dailyCap`, `runCap` |
-
-Shapes. Rational: `{"num":"<int>","den":"<positive int>"}`. State: an object of field to string or array of strings
-(a one-line field is written as a string). Table: an object of option key (the option name of a choice, `yes`/`no`,
-or a level index) to a rational in (0, 1] or null; a key that is not an advisable option is an error. Replay: a row
-of `<question>.jsonl`, `{id | runId, label?}` (id `run-<runId>` without `id`; a null or absent label leaves the row
-out; a `split` key is an error, since Lean splits by id with `heldOut`). Stats: `{rows, covered, hits, options:
-[{option, advised, hits}]}`. Failure: `{kind: timeout|http|malformed|schema|overBudget|noKey|unredacted|undeclared|
-tooLarge, status?, detail?}`. Answer: `{type, pick?, p?, dist?}`. Advice: `{kind: pick|yes|no|level, value?}`. Reason:
-`{reason: failure|uncalibrated|badThreshold|below|noMatch, failure?, gate?, threshold?}`. A reply's numbers are decimal
-fractions converted exactly (mantissa / 10^exponent). A reply that is not JSON is `malformed`; one that is JSON but
-has no answer of the right shape (or a model other than the pinned one) is a `schema` failure.
--/
+/-! JSON codecs and the `oracle.*` ops over `fwcore` JSON lines. -/
 namespace Fw.Wire.Oracle
 open Lean
 open Fw.Wire.Ops (Reply field opt asStr asNat asBool asArr str nat arr natD boolD arrD ostr optN)
@@ -50,7 +17,6 @@ open Fw.Oracle
 /-- A rational on the wire. -/
 def ratJ (q : Rat) : Json := Json.mkObj [("num", .str (toString q.num)), ("den", .str (toString q.den))]
 
-/-- A rational from the wire. -/
 def ratOf (j : Json) : Except String Rat := do
   let n ← str j "num"
   let d ← str j "den"
@@ -58,24 +24,20 @@ def ratOf (j : Json) : Except String Rat := do
   | some n, some d => if d = 0 then throw "rational: den must be positive" else pure (mkRat n d)
   | _, _ => throw "rational: num and den must be decimal integer strings"
 
-/-- A JSON number as an exact rational (`none` for anything else). -/
 def numQ : Json → Option Rat
   | .num n => some (mkRat n.mantissa (10 ^ n.exponent))
   | _ => none
 
-/-- An answer space on the wire. -/
 def specJ : Spec → Json
   | .choice os z => Json.mkObj [("type", "choice"), ("options", toJson os), ("noMatch", .str z)]
   | .noul => Json.mkObj [("type", "noul")]
   | .score ls => Json.mkObj [("type", "score"), ("levels", toJson ls)]
 
-/-- An answer on the wire. -/
 def answerJ : Answer → Json
   | .choice pk d => Json.mkObj [("type", "choice"), ("pick", .str pk), ("dist", .arr (d.map ratJ).toArray)]
   | .noul p => Json.mkObj [("type", "noul"), ("p", ratJ p)]
   | .score d => Json.mkObj [("type", "score"), ("dist", .arr (d.map ratJ).toArray)]
 
-/-- A failure on the wire. -/
 def failureJ : Failure → Json
   | .timeout => Json.mkObj [("kind", "timeout")]
   | .http s => Json.mkObj [("kind", "http"), ("status", toJson s)]
@@ -87,7 +49,6 @@ def failureJ : Failure → Json
   | .undeclared => Json.mkObj [("kind", "undeclared")]
   | .tooLarge => Json.mkObj [("kind", "tooLarge")]
 
-/-- A failure from the wire. -/
 def failureOf (j : Json) : Except String Failure := do
   match ← str j "kind" with
   | "timeout" => pure .timeout
@@ -105,29 +66,24 @@ where strD (j : Json) (k d : String) : Except String String :=
   | none => .ok d
   | some v => asStr k v
 
-/-- An advice on the wire. -/
 def adviceJ : Advice → Json
   | .pick o => Json.mkObj [("kind", "pick"), ("value", .str o)]
   | .yes => Json.mkObj [("kind", "yes")]
   | .no => Json.mkObj [("kind", "no")]
   | .level i => Json.mkObj [("kind", "level"), ("value", toJson i)]
 
-/-- The key of an option in a threshold table: the option name (choice), `yes`/`no` (noul), or the level index
-(score). -/
 def adviceKey : Advice → String
   | .pick o => o
   | .yes => "yes"
   | .no => "no"
   | .level i => toString i
 
-/-- The advisable option of answer space `s` with the given key. -/
 def adviceOfKey (s : Spec) (k : String) : Except String Advice :=
   match s.advisable.find? (adviceKey · == k) with
   | some v => .ok v
   | none => .error s!"thresholds: {k} is not an advisable option"
 
-/-- A threshold table from the request (`thresholds`: an object of option key to a rational in (0, 1] or null; absent
-for the empty table): one entry per non-null key. -/
+/-- A threshold table from the request. -/
 def thresholdsOf (s : Spec) (req : Json) : Except String Thresholds := do
   match opt req "thresholds" with
   | none => pure []
@@ -141,14 +97,12 @@ def thresholdsOf (s : Spec) (req : Json) : Except String Thresholds := do
         if 0 < τ ∧ τ ≤ 1 then pure (some (o, τ)) else throw s!"threshold {τ} of {k} is outside (0, 1]"
   | some _ => throw "thresholds: expected an object"
 
-/-- A threshold table on the wire: every advisable option of `s` by key, with its threshold or null. -/
 def thresholdsJ (s : Spec) (th : Thresholds) : Json :=
   Json.mkObj (s.advisable.map fun o => (adviceKey o, match th.lookup o with
     | some τ => ratJ τ
     | none => .null))
 
-/-- A label from the wire, read against the answer space: an option name (choice), `yes`/`no` (noul), or a level
-index (score). -/
+/-- A label from the wire, read against the answer space. -/
 def labelOf (s : Spec) (j : Json) : Except String Advice :=
   match s, j with
   | .choice os _, .str o => if os.contains o then .ok (.pick o) else .error s!"label: {o} is not an option"
@@ -159,7 +113,6 @@ def labelOf (s : Spec) (j : Json) : Except String Advice :=
     if i < ls.length then pure (.level i) else throw "label: level out of range"
   | _, _ => .error "label: does not fit the question"
 
-/-- A reason on the wire. -/
 def reasonJ : Reason → Json
   | .failure f => Json.mkObj [("reason", "failure"), ("failure", failureJ f)]
   | .uncalibrated => Json.mkObj [("reason", "uncalibrated")]
@@ -167,7 +120,6 @@ def reasonJ : Reason → Json
   | .below g t => Json.mkObj [("reason", "below"), ("gate", ratJ g), ("threshold", ratJ t)]
   | .noMatch => Json.mkObj [("reason", "noMatch")]
 
-/-- An action as reply fields. -/
 def actionFields : Action → Reply
   | .advise v => [("action", "advise"), ("advice", adviceJ v)]
   | .escalate r => [("action", "escalate"), ("reason", reasonJ r)]
@@ -186,22 +138,18 @@ def stateOf (j : Json) : Except String State := do
 def namesOf (req : Json) : Except String (List String) := do
   (← arrD req "names").mapM (asStr "names")
 
-/-- The registered question named in the request. -/
 def questionOf (req : Json) : Except String Question := do
   let n ← str req "name"
   match question n with
   | some q => pure q
   | none => throw s!"unknown question {n}"
 
-/-- The request body for a question and a (redacted) state, as a JSON value (object keys sorted, so the criteria of a
-choice are in key order here; `bodyText` lists them in the seeded order). -/
 def bodyJ (q : Question) (st : State) : Json :=
   Json.mkObj [("state", stateJ st), ("model", .str model),
     ("questions", Json.mkObj [(q.name, Json.mkObj [
       ("type", .str q.spec.wireType),
       ("instructions", .str q.instructions), ("criteria", criteriaJ q)])])]
 
--- the shuffled text parses to the same JSON value as `bodyJ`
 #guard (Json.parse (bodyText ciTriage [("log", ["x"])])).toOption == some (bodyJ ciTriage [("log", ["x"])])
 #guard (Json.parse (bodyText ciTriage [("job", ["j"]), ("log", ["x", "y"])])).toOption ==
   some (bodyJ ciTriage [("job", ["j"]), ("log", ["x", "y"])])
@@ -225,8 +173,7 @@ def rawOf (q : Question) (body : Json) : Except String Raw := do
     | .error _ => pure []
   pure { type := ty, pick, noul, probs }
 
-/-- The outcome of a reply text: `malformed` when it is not JSON, `schema` when it has no fitting answer, else the
-validated answer. -/
+/-- The outcome of a reply text. -/
 def outcomeOf (q : Question) (text : String) : Outcome :=
   match Json.parse text with
   | .error _ => .failure .malformed
@@ -235,7 +182,6 @@ def outcomeOf (q : Question) (text : String) : Outcome :=
     | .ok a => .answer a
     | .error e => .failure (.schema e)
 
-/-- The outcome named by a request: its `failure`, else its `reply` text. -/
 def requestOutcome (q : Question) (req : Json) : Except String Outcome := do
   match opt req "failure" with
   | some f => pure (.failure (← failureOf f))
@@ -243,40 +189,33 @@ def requestOutcome (q : Question) (req : Json) : Except String Outcome := do
 
 /-! ## Ops -/
 
-/-- `oracle.question`: a registered question. -/
 def opQuestion (req : Json) : Except String Reply := do
   let q ← questionOf req
   pure [("name", .str q.name), ("model", .str model), ("spec", specJ q.spec), ("target", ratJ q.target),
     ("perOption", toJson q.perOption), ("fields", toJson q.fields)]
 
-/-- `oracle.redact`: one state line, capped and redacted (`redactLine`). -/
 def opRedact (req : Json) : Except String Reply := do
   pure [("text", .str (redactLine (← namesOf req) (← str req "text")))]
 
-/-- `oracle.store`: the reply text as the answer log stores it (at most `replyCap` bytes). -/
 def opStore (req : Json) : Except String Reply := do
   pure [("text", .str (storedReply (← str req "text")))]
 
-/-- The id of a replay row: its `id`, else `run-` and its `runId`. -/
 def rowId (j : Json) : Except String String :=
   match opt j "id", opt j "runId" with
   | some v, _ => asStr "id" v
   | none, some v => do pure s!"run-{← asNat "runId" v}"
   | none, none => .error "replay: a row needs id or runId"
 
-/-- A replay row may not name its split: Lean splits by id (`heldOut`). -/
 def noSplit (j : Json) : Except String Unit :=
   match opt j "split" with
   | some _ => .error "replay: a row may not name a split (Lean splits by id)"
   | none => pure ()
 
-/-- Whether a replay row is labeled: its `label` is present and not null. -/
 def labeledRow (j : Json) : Bool :=
   match opt j "label" with
   | some .null | none => false
   | some _ => true
 
-/-- One replay row read against question space `s`: its id and label (none when null or absent). -/
 def replayOf (s : Spec) (j : Json) : Except String (String × Option Advice) := do
   noSplit j
   let label ← match opt j "label" with
@@ -284,12 +223,10 @@ def replayOf (s : Spec) (j : Json) : Except String (String × Option Advice) := 
     | some v => do pure (some (← labelOf s v))
   pure (← rowId j, label)
 
-/-- The answers of a request: `(id, reply text)`, in order. -/
 def answersOf (req : Json) : Except String (List (String × String)) := do
   (← arrD req "answers").mapM fun a => do pure (← str a "id", ← str a "reply")
 
-/-- The labeled rows of the request's replay joined with its answers by id (the first answer of an id): the rows with
-their ids whose reply fits question `q`, the labeled ids (`labeledIds`), and how many of them have an answer. -/
+/-- The labeled rows of the request's replay joined with its answers by id. -/
 def joined (q : Question) (req : Json) : Except String (List IdRow × List String × Nat) := do
   let rs ← (← arrD req "replay").mapM (replayOf q.spec)
   let ans ← answersOf req
@@ -301,21 +238,17 @@ def joined (q : Question) (req : Json) : Except String (List IdRow × List Strin
     | _, _ => none
   pure (rows, ids, got.length)
 
-/-- The counts of a table on rows: `covered` and `hits` (`evalBy`), and per advisable option how many rows it
-advised and how many of those were right (`advisedBy`, `hitsBy`). -/
 def statsJ (s : Spec) (th : Thresholds) (rows : List Row) : Reply :=
   let (cov, hit) := evalBy s th rows
   [("covered", toJson cov), ("hits", toJson hit), ("options", .arr (s.advisable.map fun o => Json.mkObj
     [("option", .str (adviceKey o)), ("advised", toJson (advisedBy s th rows o)),
      ("hits", toJson (hitsBy s th rows o))]).toArray)]
 
-/-- `oracle.request`: the exact body to send, with the state redacted. -/
 def opRequest (req : Json) : Except String Reply := do
   let q ← questionOf req
   let st := redactState (← namesOf req) (← stateOf (← field req "state"))
   pure [("bodyText", .str (bodyText q st)), ("state", stateJ st)]
 
-/-- `oracle.pre`: replay, refuse or send; on send, the exact bytes to send. -/
 def opPre (req : Json) : Except String Reply := do
   let q ← questionOf req
   let days ← (← arrD req "days").mapM (asStr "days")
@@ -326,10 +259,7 @@ def opPre (req : Json) : Except String Reply := do
     | .send body => [("pre", "send"), ("bodyText", .str body)]
     | .refuse f => [("pre", "refuse"), ("failure", failureJ f)]
 
-/-- `oracle.plan`: the labeled ids of the replay rows (`labeledIds`; a row is labeled when its `label` is present and
-not null), only those of part `part` when given (`holdout`: `heldOut`, `choose`: not `heldOut`; absent: both parts), at
-most `limit`, and their positions in `rows`; with `logged` (one flag per selected id, in order; absent: none logged),
-how many are missing from the answer log and whether one run sends them all (`resumable`). -/
+/-- `oracle.plan`: the labeled ids of the replay rows. -/
 def opPlan (req : Json) : Except String Reply := do
   let part ← match opt req "part" with
     | some v => do
@@ -353,15 +283,12 @@ def opPlan (req : Json) : Except String Reply := do
   pure [("ids", toJson ids), ("indices", toJson idx), ("missing", toJson (missing logged)),
     ("runCap", toJson defaultBudget.runCap), ("resumable", toJson (resumable defaultBudget.runCap logged))]
 
-/-- `oracle.validate`: the validated answer and its gate value, or the failure. -/
 def opValidate (req : Json) : Except String Reply := do
   let q ← questionOf req
   pure <| match outcomeOf q (← str req "reply") with
     | .answer a => [("ok", true), ("answer", answerJ a), ("gate", ratJ (gate a))]
     | .failure f => [("ok", false), ("failure", failureJ f)]
 
-/-- `oracle.decide`: the action under the request's threshold table (`decideOpt`: an answer meets only its own
-option's threshold). -/
 def opDecide (req : Json) : Except String Reply := do
   let q ← questionOf req
   let th ← thresholdsOf q.spec req
@@ -371,11 +298,6 @@ def opDecide (req : Json) : Except String Reply := do
     | .failure _ => []
   pure (actionFields (decideOpt q.spec th o) ++ g)
 
-/-- `oracle.calibrate`: the certified threshold table (`certify`: one threshold or none per option, chosen on the
-choose part and kept only when the holdout part confirms it) from the labeled replay rows joined with their answers
-by id (answers whose reply fails validation are left out and counted as `dropped`), and the table's counts on each
-part; the precision and per-option minimum are the question's constants. `write` says whether the run may store the
-table (`mayWrite` on the labeled ids and the answered ids). -/
 def opCalibrate (req : Json) : Except String Reply := do
   let q ← questionOf req
   let (rows, ids, answered) ← joined q req
@@ -388,8 +310,6 @@ def opCalibrate (req : Json) : Except String Reply := do
     ("labeled", toJson ids.length), ("answered", toJson answered), ("used", toJson rows.length),
     ("dropped", toJson (answered - rows.length)), ("write", toJson (mayWrite ids (ans.map (·.1))))]
 
-/-- `oracle.eval`: the holdout part under a threshold table: how many rows it advises on (`covered`) and how many of
-those it gets right (`hits`), in total and per option. -/
 def opEval (req : Json) : Except String Reply := do
   let q ← questionOf req
   let th ← thresholdsOf q.spec req
@@ -401,7 +321,6 @@ def opEval (req : Json) : Except String Reply := do
   pure ([("rows", toJson held.length), ("answered", toJson answered), ("used", toJson rows'.length),
     ("dropped", toJson (answered - rows'.length))] ++ statsJ q.spec th rows')
 
-/-- `oracle.budget`: the spend guard. -/
 def opBudget (_ : Json) : Except String Reply :=
   pure [("dailyCap", toJson defaultBudget.dailyCap), ("runCap", toJson defaultBudget.runCap)]
 
@@ -455,7 +374,6 @@ def sampleReply (pick : String) (pf pi pr pu : String) : String :=
   "{\"action\":\"escalate\",\"reason\":{\"failure\":{\"kind\":\"noKey\"},\"reason\":\"failure\"}}"
 #guard run "oracle.pre" "{\"name\":\"ci-triage\",\"state\":{\"log\":[\"/Users/x/y\"]},\"today\":\"d\"}" ==
   (Json.mkObj [("bodyText", .str (bodyText ciTriage [("log", ["~/y"])])), ("pre", "send")]).compress
--- a field the question does not declare is refused; a logged request replays
 #guard run "oracle.pre" "{\"name\":\"ci-triage\",\"state\":{\"note\":\"x\"},\"today\":\"d\"}" ==
   "{\"failure\":{\"kind\":\"undeclared\"},\"pre\":\"refuse\"}"
 #guard run "oracle.pre" "{\"name\":\"ci-triage\",\"state\":{\"log\":\"x\"},\"today\":\"d\",\"logged\":true}" ==
@@ -474,7 +392,6 @@ def sampleReply (pick : String) (pf pi pr pu : String) : String :=
 #guard run "oracle.plan" "{\"rows\":[{\"id\":\"a\",\"label\":\"x\"},{\"id\":\"b\",\"label\":\"x\"}],\"limit\":1}" ==
   "{\"ids\":[\"a\"],\"indices\":[0],\"missing\":1,\"resumable\":true,\"runCap\":60}"
 #guard (run "oracle.plan" "{\"rows\":[{\"id\":\"a\",\"label\":\"x\"}],\"logged\":[]}").startsWith "error: logged"
--- no labeled row never writes; one unanswered labeled id blocks the write
 #guard (run "oracle.calibrate" "{\"name\":\"ci-triage\",\"replay\":[],\"answers\":[]}").endsWith "\"write\":false}"
 #guard (run "oracle.calibrate" ("{\"name\":\"ci-triage\",\"replay\":[{\"id\":\"a\",\"label\":\"real\"}," ++
   "{\"id\":\"b\",\"label\":\"real\"}],\"answers\":[{\"id\":\"a\",\"reply\":\"x\"}]}")) ==
@@ -490,18 +407,15 @@ def sampleReply (pick : String) (pf pi pr pu : String) : String :=
 #guard run "oracle.request" "{\"name\":\"ci-triage\",\"state\":{\"log\":[\"/Users/x/y\"]}}" ==
   run "oracle.request" "{\"name\":\"ci-triage\",\"state\":{\"log\":[\"~/y\"]}}"
 #guard run "oracle.budget" "{}" == "{\"dailyCap\":200,\"runCap\":60}"
--- the two round-1 reviewer replies: the pick is not the most probable option, so both are schema failures
 #guard run "oracle.validate" ("{\"name\":\"ci-triage\",\"reply\":" ++
   (Json.str (sampleReply "real" "0.97" "0.01" "0.01" "0.01")).compress ++ "}") ==
   "{\"failure\":{\"detail\":\"choice: the pick is not the highest-probability option\",\"kind\":\"schema\"},\"ok\":false}"
 #guard run "oracle.validate" ("{\"name\":\"ci-triage\",\"reply\":" ++
   (Json.str (sampleReply "real" "0.01" "0.01" "0.01" "0.97")).compress ++ "}") ==
   "{\"failure\":{\"detail\":\"choice: the pick is not the highest-probability option\",\"kind\":\"schema\"},\"ok\":false}"
--- an answer meets only its own option's threshold: a table for `flake` alone leaves a `real` answer uncalibrated
 #guard run "oracle.decide" ("{\"name\":\"ci-triage\",\"thresholds\":{\"flake\":{\"num\":\"1\",\"den\":\"2\"}," ++
   "\"real\":null},\"reply\":" ++ (Json.str (sampleReply "real" "0.01" "0.01" "0.97" "0.01")).compress ++ "}") ==
   "{\"action\":\"escalate\",\"gate\":{\"den\":\"25\",\"num\":\"24\"},\"reason\":{\"reason\":\"uncalibrated\"}}"
--- thresholds outside (0, 1], and keys that are not advisable options, are refused
 #guard (run "oracle.decide" "{\"name\":\"ci-triage\",\"thresholds\":{\"real\":{\"num\":\"0\",\"den\":\"1\"}},\"reply\":\"x\"}").startsWith "error: threshold"
 #guard (run "oracle.decide" "{\"name\":\"ci-triage\",\"thresholds\":{\"real\":{\"num\":\"3\",\"den\":\"2\"}},\"reply\":\"x\"}").startsWith "error: threshold"
 #guard (run "oracle.decide" "{\"name\":\"ci-triage\",\"thresholds\":{\"unknown\":{\"num\":\"1\",\"den\":\"2\"}},\"reply\":\"x\"}").startsWith "error: thresholds"

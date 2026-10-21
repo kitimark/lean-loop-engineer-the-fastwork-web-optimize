@@ -2,8 +2,7 @@ import Lean.Data.Json
 import Std.Data.TreeMap.Raw.Lemmas
 import Fw.Sup.Core
 
-/-! JSON wire of fw-sup: every event, command and state snapshot of `Fw.Sup.Core` as one versioned message
-`{v, t, body}`, a total decoder, and `decode (encode m) = some m`. -/
+/-! JSON wire of fw-sup: every event, command and snapshot as one versioned message `{v, t, body}`. -/
 namespace Fw.Wire.Sup
 open Lean (Json JsonNumber)
 open Fw.Sup (Ident Sig Why Phase Rsrc LKind Lease Req Ticket Sample State Target Reply Cmd Ask Event)
@@ -18,17 +17,14 @@ def version : Nat := 1
 /-- A natural number as a JSON integer. -/
 def num (x : Nat) : Json := .num (JsonNumber.fromNat x)
 
-/-- A JSON integer that is a natural number. -/
 def natOf : Json → Option Nat
   | .num ⟨.ofNat m, 0⟩ => some m
   | _ => none
 
-/-- A JSON string. -/
 def strOf : Json → Option String
   | .str s => some s
   | _ => none
 
-/-- A JSON boolean. -/
 def boolOf : Json → Option Bool
   | .bool b => some b
   | _ => none
@@ -36,10 +32,8 @@ def boolOf : Json → Option Bool
 /-- The value of a key of a JSON object. -/
 def fld (j : Json) (k : String) : Option Json := (j.getObjVal? k).toOption
 
-/-- A list as a JSON array. -/
 def arrJson {α : Type} (f : α → Json) (l : List α) : Json := .arr (l.map f).toArray
 
-/-- A JSON array decoded element by element; one bad element refuses the whole array. -/
 def arrOf {α : Type} (g : Json → Option α) : Json → Option (List α)
   | .arr a => a.toList.mapM g
   | _ => none
@@ -49,12 +43,10 @@ def optJson {α : Type} (f : α → Json) : Option α → Json
   | none => .null
   | some x => f x
 
-/-- `null` as `none`, any other value decoded as `some`. -/
 def optOf {α : Type} (g : Json → Option α) : Json → Option (Option α)
   | .null => some none
   | j => (g j).map some
 
-/-- A recorded console `(pid, record second)` as `{pid, at}`, the shape of `ops.lspReap`. -/
 def keepJson (p : Nat × Nat) : Json := Json.mkObj [("pid", num p.1), ("at", num p.2)]
 
 /-- Decode a recorded console `{pid, at}`. -/
@@ -63,7 +55,6 @@ def keepOf (j : Json) : Option (Nat × Nat) := do
 
 /-! ## Names -/
 
-/-- The wire name of a signal. -/
 def sigName : Sig → String
   | .term => "term"
   | .kill => "kill"
@@ -74,18 +65,15 @@ def sigOf : Json → Option Sig
   | .str "kill" => some .kill
   | _ => none
 
-/-- The wire name of a lease kind. -/
 def lkindName : LKind → String
   | .job => "job"
   | .svc => "svc"
 
-/-- The lease kind a wire name names. -/
 def lkindOf : Json → Option LKind
   | .str "job" => some .job
   | .str "svc" => some .svc
   | _ => none
 
-/-- The wire name of a refusal reason. -/
 def whyName : Why → String
   | .deadline => "deadline"
   | .draining => "draining"
@@ -98,7 +86,6 @@ def whyName : Why → String
 /-- Every refusal reason of this version, in wire order. -/
 def whys : List Why := [.deadline, .draining, .unknown, .startFailed, .restartCap, .parent, .renewCap]
 
-/-- The refusal reason a wire name names, looked up in `whys`. -/
 def whyOf : Json → Option Why
   | .str s => whys.find? (whyName · == s)
   | _ => none
@@ -139,20 +126,17 @@ def phaseOf (j : Json) : Option Phase := do
   | .str "failed" => pure (.failed (← fld j "till" >>= natOf) (← fld j "why" >>= whyOf))
   | _ => none
 
-/-- A supervised resource. -/
 def rsrcJson (x : Rsrc) : Json :=
   Json.mkObj [("id", num x.id), ("kind", num x.kind), ("cost", vecJson x.cost), ("phase", phaseJson x.phase),
     ("proc", optJson identJson x.proc), ("adopted", .bool x.adopted), ("foot", vecJson x.foot),
     ("lastUse", num x.lastUse), ("crashes", arrJson num x.crashes)]
 
-/-- Decode a supervised resource. -/
 def rsrcOf (j : Json) : Option Rsrc := do
   pure { id := ← fld j "id" >>= natOf, kind := ← fld j "kind" >>= natOf, cost := ← fld j "cost" >>= vecOf,
          phase := ← fld j "phase" >>= phaseOf, proc := ← fld j "proc" >>= optOf identOf,
          adopted := ← fld j "adopted" >>= boolOf, foot := ← fld j "foot" >>= vecOf,
          lastUse := ← fld j "lastUse" >>= natOf, crashes := ← fld j "crashes" >>= arrOf natOf }
 
-/-- A lease. -/
 def leaseJson (l : Lease) : Json :=
   Json.mkObj [("id", num l.id), ("owner", num l.owner), ("kind", .str (lkindName l.kind)), ("rid", num l.rid),
     ("cost", vecJson l.cost), ("granted", num l.granted), ("deadline", num l.deadline), ("renews", num l.renews)]
@@ -175,10 +159,8 @@ def reqOf (j : Json) : Option Req := do
          rid := ← fld j "rid" >>= natOf, cost := ← fld j "cost" >>= vecOf, hold := ← fld j "hold" >>= natOf,
          age := ← fld j "age" >>= natOf, born := ← fld j "born" >>= natOf, deadline := ← fld j "deadline" >>= natOf }
 
-/-- A kept queue age. -/
 def ticketJson (t : Ticket) : Json := Json.mkObj [("owner", num t.owner), ("rid", num t.rid), ("age", num t.age)]
 
-/-- Decode a kept queue age. -/
 def ticketOf (j : Json) : Option Ticket := do
   pure { owner := ← fld j "owner" >>= natOf, rid := ← fld j "rid" >>= natOf, age := ← fld j "age" >>= natOf }
 
@@ -193,14 +175,11 @@ def rowOf (j : Json) : Option Row := do
          start := ← fld j "start" >>= natOf, cwd := ← fld j "cwd" >>= optOf natOf, kind := ← fld j "kind" >>= strOf,
          wt := ← fld j "wt" >>= optOf strOf, inRepo := ← fld j "inRepo" >>= boolOf }
 
-/-- A lean-lsp-mcp process. -/
 def mcpJson (m : Mcp) : Json := Json.mkObj [("pid", num m.pid), ("cwd", optJson num m.cwd)]
 
-/-- Decode a lean-lsp-mcp process. -/
 def mcpOf (j : Json) : Option Mcp := do
   pure { pid := ← fld j "pid" >>= natOf, cwd := ← fld j "cwd" >>= optOf natOf }
 
-/-- The reap inputs of a restart. -/
 def inputJson (i : Input) : Json :=
   Json.mkObj [("rows", arrJson rowJson i.rows), ("live", arrJson num i.live), ("mcps", arrJson mcpJson i.mcps),
     ("keep", arrJson keepJson i.keep), ("liveIds", arrJson .str i.liveIds), ("protect", arrJson num i.protect)]
@@ -211,7 +190,6 @@ def inputOf (j : Json) : Option Input := do
          mcps := ← fld j "mcps" >>= arrOf mcpOf, keep := ← fld j "keep" >>= arrOf keepOf,
          liveIds := ← fld j "liveIds" >>= arrOf strOf, protect := ← fld j "protect" >>= arrOf natOf }
 
-/-- The footprint of one owned group. -/
 def footJson (p : Ident × Vec) : Json := Json.mkObj [("id", identJson p.1), ("foot", vecJson p.2)]
 
 /-- Decode the footprint of one owned group. -/
@@ -242,23 +220,19 @@ def stateOf (j : Json) : Option State := do
          obs := ← fld j "obs" >>= sampleOf, shedding := ← fld j "shedding" >>= boolOf,
          draining := ← fld j "draining" >>= boolOf, now := ← fld j "now" >>= natOf, next := ← fld j "next" >>= natOf }
 
-/-- A lease request. -/
 def askJson (a : Ask) : Json :=
   Json.mkObj [("kind", .str (lkindName a.kind)), ("rid", num a.rid), ("cost", vecJson a.cost), ("wait", num a.wait),
     ("hold", num a.hold), ("parent", optJson num a.parent)]
 
-/-- Decode a lease request. -/
 def askOf (j : Json) : Option Ask := do
   pure { kind := ← fld j "kind" >>= lkindOf, rid := ← fld j "rid" >>= natOf, cost := ← fld j "cost" >>= vecOf,
          wait := ← fld j "wait" >>= natOf, hold := ← fld j "hold" >>= natOf, parent := ← fld j "parent" >>= optOf natOf }
 
 /-! ## Messages -/
 
-/-- A reap stop target. -/
 def reapJson (t : Fw.Ops.Reap.Target) : Json :=
   Json.mkObj [("pid", num t.pid), ("start", num t.start), ("group", .bool t.group)]
 
-/-- Decode a reap stop target. -/
 def reapOf (j : Json) : Option Fw.Ops.Reap.Target := do
   pure { pid := ← fld j "pid" >>= natOf, start := ← fld j "start" >>= natOf, group := ← fld j "group" >>= boolOf }
 
@@ -285,7 +259,6 @@ def replyJson : Reply → Json
   | .op => Json.mkObj [("t", .str "op")]
   | .draining => Json.mkObj [("t", .str "draining")]
 
-/-- Decode a reply. -/
 def replyOf (j : Json) : Option Reply := do
   match ← fld j "t" with
   | .str "granted" => pure (.granted (← fld j "lease" >>= leaseOf))
@@ -348,13 +321,11 @@ def eventOf (j : Json) : Option Event := do
     pure (.restart (← fld j "now" >>= natOf) (← fld j "snap" >>= stateOf) (← fld j "input" >>= inputOf))
   | _ => none
 
-/-- A wire message: an event for `step`, a command it emitted, or a persisted state snapshot. -/
 inductive Msg where
   | event (e : Event)
   | cmd (c : Cmd)
   | snapshot (s : State)
 
-/-- A message under a given version field. -/
 def encodeAt (v : Nat) : Msg → Json
   | .event e => Json.mkObj [("v", num v), ("t", .str "event"), ("body", eventJson e)]
   | .cmd c => Json.mkObj [("v", num v), ("t", .str "cmd"), ("body", cmdJson c)]
@@ -420,7 +391,6 @@ theorem lookup_none {l : List (String × Json)} {k : String} (h : l.lookup k = n
     · simp only [List.lookup, e] at h
       cases h
 
-/-- A key of an object written with distinct keys reads back as its value in the written list. -/
 theorem fld_mkObj {l : List (String × Json)} (k : String) (hd : (l.map Prod.fst).Nodup) :
     fld (Json.mkObj l) k = l.lookup k := by
   have hd' : l.Pairwise (fun a b => ¬ compare a.1 b.1 = .eq) :=
@@ -467,11 +437,8 @@ theorem sigOf_sigName (g : Sig) : sigOf (.str (sigName g)) = some g := by cases 
 
 theorem lkindOf_lkindName (k : LKind) : lkindOf (.str (lkindName k)) = some k := by cases k <;> rfl
 
-/-- Every refusal reason reads back from its wire name; a new `Why` constructor fails this proof until `whys` and
-`whyName` name it. -/
 theorem whyOf_whyName (w : Why) : whyOf (.str (whyName w)) = some w := by cases w <;> rfl
 
-/-- No two refusal reasons share a wire name. -/
 theorem whyName_nodup : (whys.map whyName).Nodup := by decide
 
 theorem vecOf_vecJson (v : Vec) : vecOf (vecJson v) = some v := by
@@ -528,7 +495,6 @@ theorem sampleOf_sampleJson (m : Sample) : sampleOf (sampleJson m) = some m := b
     arrOf_arrJson footJson footOf footOf_footJson, arrOf_arrJson num natOf natOf_num,
     arrOf_arrJson rowJson rowOf rowOf_rowJson]
 
-/-- A state snapshot reads back as itself. -/
 theorem stateOf_stateJson (s : State) : stateOf (stateJson s) = some s := by
   obtain ⟨r, l, p, t, o, sh, dr, n, nx⟩ := s
   simp [stateOf, stateJson, fld_mkObj, List.lookup, natOf_num, boolOf_bool, sampleOf_sampleJson,
@@ -548,14 +514,12 @@ theorem targetOf_targetJson (t : Target) : targetOf (targetJson t) = some t := b
   | member p s => rfl
   | reap r => obtain ⟨a, b, c⟩ := r; rfl
 
-/-- Every reply reads back as itself: grants, refusals with every reason, releases, renewals, ops and drains. -/
 theorem replyOf_replyJson (r : Reply) : replyOf (replyJson r) = some r := by
   cases r with
   | granted l => obtain ⟨a, b, k, d, e, f, g, h⟩ := l; cases k <;> rfl
   | refused w => cases w <;> rfl
   | _ => rfl
 
-/-- Every shell command reads back as itself: spawns, signals, probes, replies, revokes and the exit. -/
 theorem cmdOf_cmdJson (c : Cmd) : cmdOf (cmdJson c) = some c := by
   cases c with
   | signal t g =>
@@ -566,8 +530,6 @@ theorem cmdOf_cmdJson (c : Cmd) : cmdOf (cmdJson c) = some c := by
     simp [cmdOf, cmdJson, fld_mkObj, List.lookup, this, natOf_num]
   | _ => rfl
 
-/-- Every event reads back as itself: requests, releases, renewals, ops, drains, spawn results, readiness, child
-exits, ticks, client losses and restarts. -/
 theorem eventOf_eventJson (e : Event) : eventOf (eventJson e) = some e := by
   cases e with
   | request t o a =>
@@ -586,7 +548,6 @@ theorem eventOf_eventJson (e : Event) : eventOf (eventJson e) = some e := by
     simp [eventOf, eventJson, fld_mkObj, List.lookup, h1, h2, natOf_num]
   | _ => rfl
 
-/-- Every message reads back as itself under the current version. -/
 theorem decode_encode (m : Msg) : decode (encode m) = some m := by
   cases m with
   | event e =>
@@ -599,11 +560,9 @@ theorem decode_encode (m : Msg) : decode (encode m) = some m := by
     have := stateOf_stateJson s
     simp [decode, msgOf, encode, encodeAt, fld_mkObj, List.lookup, this, natOf_num]
 
-/-- A message written under any other version is refused. -/
 theorem decode_wrong_version (v : Nat) (m : Msg) (h : v ≠ version) : decode (encodeAt v m) = none := by
   cases m <;> simp [decode, encodeAt, fld_mkObj, List.lookup, natOf_num, h]
 
-/-- Whatever `decode` accepts carries the current version in its `v` field. -/
 theorem decode_version {j : Json} {m : Msg} (h : decode j = some m) : (fld j "v" >>= natOf) = some version := by
   simp only [decode] at h
   cases e : (fld j "v" >>= natOf) with

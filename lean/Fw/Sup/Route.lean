@@ -1,7 +1,6 @@
 import Lean.Data.Json
 
-/-! fw-sup client routing: `routeOf` sends a service to the daemon only when the daemon is present, the service's stage
-is on and the daemon's binary hash matches; every other case keeps today's path. -/
+/-! fw-sup client routing: `routeOf` sends a service to the daemon only when it is present and the stage is on. -/
 namespace Fw.Sup.Route
 
 /-- A migration stage of the daemon design (docs/team/daemon/design.md section 5). -/
@@ -63,7 +62,6 @@ def on (st : Stage) (svc : Service) : Bool := svc.stage.rank ≤ st.rank
 def routeOf (st : Stage) (svc : Service) (present hashOk : Bool) : Route :=
   if present && on st svc && hashOk then .daemon else .today
 
-/-- The route of each listed service, each decided by `routeOf` alone. -/
 def routeAll (st : Stage) (present hashOk : Bool) (svcs : List Service) : List (Service × Route) :=
   svcs.map fun svc => (svc, routeOf st svc present hashOk)
 
