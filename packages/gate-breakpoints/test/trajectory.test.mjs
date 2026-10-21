@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { isDeepStrictEqual } from 'node:util';
 import { fileURLToPath } from 'node:url';
-import { annotate, armCheck, byM, byMStart, byStep, bucket, CLOSE_PH, DARK_CUT, durOf, fullOf, settleCheck, START_JITTER, startCheck, startFor, startOn, startTr, judgeEls, judgeOwn, judgeUnit, pickWidths, quantile, readsDominate, reduceRaw, reduceWidth, rel, RULES, runCheck, START_LAG, verdictLines, window as windowOf, windowAt } from '../src/trajectory/reduce.mjs';
+import { alphaOk, annotate, armCheck, byM, byMRule, byMStart, CUT_M, idCheck, idOn, MIX_FROM, MIX_TO, redOk, byStep, bucket, CLOSE_PH, DARK_CUT, durOf, fullOf, settleCheck, START_JITTER, startCheck, startFor, startOn, startTr, judgeEls, judgeOwn, judgeUnit, pickWidths, quantile, readsDominate, reduceRaw, reduceWidth, rel, RULES, runCheck, START_LAG, verdictLines, window as windowOf, windowAt } from '../src/trajectory/reduce.mjs';
 import { mergeRaws, planOf } from '../src/trajectory/plan.mjs';
 import { HERO_NODES, MORPH_NODES, PAGE_PROPS, HERO_STEPS, WIDTHS, MOTION_PROPS } from '../src/trajectory/registry.mjs';
 
@@ -117,7 +117,7 @@ function rulesOfCss(css) {
 }
 
 test('the golden file holds every operation', () => {
-  assert.deepEqual([...new Set(golden.map((g) => g.op))].sort(), ['els', 'window', 'bucket', 'byM', 'byStep', 'unit', 'rule', 'dur', 'annotate', 'widths', 'rel', 'arm', 'run', 'quantile', 'dominate', 'plan', 'byMStart', 'start', 'startCheck', 'settleCheck', 'curve'].sort());
+  assert.deepEqual([...new Set(golden.map((g) => g.op))].sort(), ['els', 'window', 'bucket', 'byM', 'byStep', 'unit', 'rule', 'dur', 'annotate', 'widths', 'rel', 'arm', 'run', 'quantile', 'dominate', 'plan', 'byMStart', 'start', 'startCheck', 'settleCheck', 'curve', 'byMRule', 'idCheck', 'identity'].sort());
   assert.ok(golden.length >= 200);
   assert.ok(golden.some((g) => g.op === 'byM' && [...g.oSeg, ...g.wSeg].some((x) => x.rep > 0)), 'golden has rows with rep > 0');
 });
@@ -154,6 +154,16 @@ test('the earn width at rest is the CSS: max-width 11rem, 9.5rem up to 640 px, a
   const full = (w) => g.full.find(([p, x]) => p === 'max-width' && x === w)[2];
   assert.deepEqual(full(1280), qJson(qInt(rems[0] * 16 * 1000)));
   assert.deepEqual(full(390), qJson(qInt(rems[1] * 16 * 1000)));
+});
+
+test('the identity colours are the ported CSS: the nav background mixes #ffffff1a into #131922 by --morph, as the golden `from` and `to`', () => {
+  const g = golden.find((x) => x.op === 'identity');
+  const hex = (h, i) => parseInt(h.slice(i, i + 2), 16);
+  const m = navCss.replace(/\s+/g, ' ').match(/background: ?color-mix\( ?in srgb, #([0-9a-f]{8}) calc\(\(1 - var\(--morph\)\) \* 100%\), #([0-9a-f]{6}) calc\(var\(--morph\) \* 100%\) ?\)/);
+  assert.ok(m, 'no nav background color-mix');
+  assert.deepEqual([[hex(m[1], 0), hex(m[1], 6)], [hex(m[2], 0), 255]], [g.from, g.to]);
+  const logic = readFileSync(fileURLToPath(new URL('../../../apps/site/src/parts/nav/logic.ts', import.meta.url)), 'utf8');
+  assert.equal(Number(logic.match(/MORPHING_CUT = ([\d.]+)/)[1]) * 10000, g.cut);
 });
 
 test('the CSS reader keys a rule by its selector and reads its transitions', () => {
@@ -207,6 +217,16 @@ for (const g of golden) {
       assert.equal(CLOSE_PH, g.close);
       assert.deepEqual(qJson(qInt(DARK_CUT)), g.darkCut);
       for (const [prop, width, full] of g.full) assert.deepEqual(qJson(qInt(fullOf(prop, width))), full);
+    } else if (g.op === 'byMRule') {
+      const d = (cls) => durOf(g.node, g.prop, g.width, cls);
+      assert.equal(idOn(g.node, g.prop), g.id);
+      assert.deepEqual(byMRule(g.phase, g.p, g.kind, d, startFor(g.node, g.prop, g.width), g.id, g.oSeg, g.wSeg).map((x) => x[1]), g.verdicts);
+    } else if (g.op === 'idCheck') assert.equal(idCheck((cls) => durOf('nav', 'background-color', g.width, cls), g.q, g.r), g.check);
+    else if (g.op === 'identity') {
+      assert.equal(CUT_M, g.cut);
+      assert.deepEqual(qJson(qInt(CUT_M)), g.cutRat);
+      assert.deepEqual([MIX_FROM, MIX_TO], [g.from, g.to]);
+      for (const [m, x, a, r, al] of g.rows) assert.deepEqual([redOk(m, x), alphaOk(m, a)], [r, al], `m ${m} red ${x} alpha ${a}`);
     } else assert.fail(`unknown op ${g.op}`);
   });
 }
