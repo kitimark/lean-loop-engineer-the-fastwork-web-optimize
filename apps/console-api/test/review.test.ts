@@ -72,7 +72,7 @@ describe("GET /api/reviews", () => {
     expect(i).toMatchObject({ flag: FLAG, state: "open", audience: "user", link: LINK, step: `review-${FLAG}` });
     expect(i.changed).toMatchObject({ id: "nav.earn.noTransition", visual: "not equal mid-transition" });
     expect(i.material.chromium).toEqual({ state: "ready", run: "39473950464", artifact: "frames-chromium", expires: "2026-11-19" });
-    expect(i.material.webkit).toEqual({ state: "pending", task: "earn-look-review-webkit" });
+    expect(i.material.webkit).toEqual({ state: "ready", run: "39530106935", artifact: "frames-apple-390, frames-apple-1280", expires: "2026-11-20" });
     const step = (await store.board()).steps.find((s) => s.id === `review-${FLAG}`)!;
     expect(step).toMatchObject({ audience: "user", kind: "choice", options: ["keep", "reject"], status: "waiting" });
   });
