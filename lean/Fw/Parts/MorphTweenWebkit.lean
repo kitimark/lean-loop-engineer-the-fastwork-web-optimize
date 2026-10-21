@@ -1,12 +1,8 @@
 import Lean.Data.Json
 
 /-!
-# morph.tween:waapi on macOS WebKit: the rows of the nav recorder and the verdict on the base window
-
-Task `waapi-tail-webkit-p2`. The recorder (`apps/site/src/debug/nav-transition.ts`) logs the writes of the nav and its
-`transition*` events; this module classifies the close flip of one rep from those rows and decides the base window per
-engine cell. The node twin is `packages/gate-breakpoints/src/trajectory/debug.mjs` (`classifyRep`), checked against
-`packages/contracts/golden/parts/morph-tween-webkit-rows.jsonl`.
+# Classes of the nav recorder rows (waapi-tail-webkit-p2) and the verdict on the base window
+Node twin: `packages/gate-breakpoints/src/trajectory/debug.mjs`; golden: `packages/contracts/golden/parts/morph-tween-webkit-rows.jsonl`.
 -/
 
 open Lean
@@ -156,9 +152,7 @@ def isWrite : Row → Bool
 def lastWrite (rs : Array Row) (k : Nat) : Option Nat :=
   (List.range k).reverse.find? fun j => match (rs[j]? : Option Row) with | some r => isWrite r | none => false
 
-/-- Is the cancel at `k` the retarget of a write? The engine dispatches a transition event in the frame after the style
-update that made it, and the probe reads once per frame, so a cancel is caused when the nearest write before it has at most
-one read row between. -/
+/-- A cancel is caused by a write when at most one read row lies between that write and the cancel. -/
 def causedAt (rs : Array Row) (k : Nat) : Bool :=
   match lastWrite rs k with
   | none => false
@@ -256,8 +250,7 @@ inductive Hold where
   | jumped
 deriving Repr, DecidableEq
 
-/-- The decision from the rest width and the sizes before and after the flip's writes: `unseen` when the width before is
-within `2 * widthTol` of rest (nothing to hold); `held` when the width after keeps at least half of the excess before. -/
+/-- Unseen when the width before is within `2 * widthTol` of rest; held when the width after keeps half the excess. -/
 def holdOf (rest : Option Nat) (prev next : Option Nat) : Hold :=
   match rest, prev, next with
   | some r, some p, some n =>
@@ -297,8 +290,7 @@ inductive Verdict where
   | drop
 deriving Repr, DecidableEq
 
-/-- The verdict from the number of runs and the hold of each hit rep: at least three runs, then the window stays iff some
-hit rep held (the window restored the width there), and goes iff some rep was seen and none held. -/
+/-- Keep iff some hit rep held, drop iff some jumped and none held, no claim under three runs. -/
 def verdict (runs : Nat) (holds : List Hold) : Verdict :=
   if runs < 3 then .needMore
   else if holds.contains .held then .keep
@@ -417,11 +409,14 @@ def verdictCases : List (Nat × List Hold) :=
   [(2, [.jumped]), (2, [.held]), (3, [.held, .jumped]), (3, [.jumped, .jumped]), (5, [.jumped, .unseen, .jumped]),
    (3, [.unseen]), (4, []), (3, [.held])]
 
-/-- The contents of `packages/contracts/golden/parts/morph-tween-webkit-rows.jsonl`: one line per case of
-`morph-tween-webkit-rows.cases.json` and one per verdict case. -/
+/-- The golden: one line per case of `morph-tween-webkit-rows.cases.json`, then one per verdict case. -/
 def goldenText (cases : String) : String :=
   let cs := match Json.parse cases with | .ok j => (j.getArr?.toOption.getD #[]).toList | .error _ => []
   String.join ((cs.map repLine ++ verdictCases.map fun (n, hs) => verdictLine n hs).map fun r => r.compress ++ "\n")
+
+/-- **Measured:** runs 39571243779, 39572308204 and 39573516482 (macOS WebKit 1280) hold 15 jumped cand reps, no held one. -/
+theorem drop_on_measured : verdict 3 (List.replicate 15 Hold.jumped) = .drop :=
+  verdict_drop 3 _ (by omega) (by simp) (by simp)
 
 #guard goldenText (include_str "../../../packages/contracts/golden/parts/morph-tween-webkit-rows.cases.json") ==
   include_str "../../../packages/contracts/golden/parts/morph-tween-webkit-rows.jsonl"
