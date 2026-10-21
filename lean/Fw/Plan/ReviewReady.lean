@@ -59,9 +59,9 @@ structure Item where
   evidence : String
 deriving Repr, DecidableEq
 
-/-- A run the report names, with the state the builder reports (`running`, `complete`, `failed`).
+/-- A run the report names, with its state (`running`, `complete`, `failed`).
 
-The reviewer re-checks the state with `fw ci`.
+The gate agent reads it by run id with `fw ci state <id>` and replaces the builder's state field.
 -/
 structure Run where
   id : String

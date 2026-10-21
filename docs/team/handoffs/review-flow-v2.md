@@ -22,7 +22,7 @@ Round 2 (r1 findings)
 - Merged main: build-review.js keeps main's one-task shape (args.task); gate sits between build and review; returns one-element array
   {task, build, gate?, gateLine?, adv}. Gate prompt names the main checkout, a scratchpad log and the Node 24.22.0 PATH.
 - `readyCli` prints exactly one VERDICT line, last, also when fwcore throws (ready: returnToBuilder, exit 23; verdict: refuse, exit 1); test with a throwing stub.
-- Run states are builder-reported (Run docstring, build-review.js comment); the reviewer re-checks with `fw ci`. Follow-up (done, see below): the gate agent reads each run state itself.
+- Run states: the gate agent reads each by run id (`fw ci state`), the builder's state field is ignored (follow-ups section).
 - `dryOk task dry` is `dry == "VERDICT dry " ++ task`; `plan.reviewReady` takes `task`; theorems `dryOk_iff`, `dry_other_task_refused`; golden rows added.
 - Still follow-ups: coverage check (module doc: coverage is the reviewer's check), medium-only audit.
 
