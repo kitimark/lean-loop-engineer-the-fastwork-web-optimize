@@ -5,7 +5,7 @@ Read first: `research/notes/2026/10-2x-webkit-cost-counters.md` (per-zone table,
 
 ## What is verified
 - `lean/Fw/Measure/WkCost.lean` + `lean/scripts/WkCostGolden.lean` + `packages/contracts/golden/measure/wkcost.jsonl` (`--check`); `sh lean/scripts/check.sh` green.
-- packages/measure-webkit `pnpm test` 279 pass; ci-paths 54 pass; land-inputs 56 pass (re-counted after the round-2 merge, see Round 2).
+- packages/measure-webkit `pnpm test` 287 pass; ci-paths 54 pass; apps/runner land-inputs 56 pass (whole runner suite 2328) after the round-2 merge.
 - CI: original 3 jobs (run 39647881249), rewrite 4 jobs (39647881249, 39665776192), preset 3 jobs (39657539501). Tables in the note.
 
 ## How to run it
