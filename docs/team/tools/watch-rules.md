@@ -32,6 +32,10 @@ Every threshold is strict `>` except the load.
   Owner = the agent whose Bash call started the tree; a tree of a live agent (not stopped, not gone) is that agent's own
   business (its `until ...; do sleep 60; done` loop), so it alerts only as an orphan after the agent ended or went gone,
   with detail `alive N min, agent <id> ended`. Trees with no owner (the lead's own) alert unless declared.
+- `sys.contended`: the floor of the 1-min load average is above `Fw.Obs.Timing.contendedLoad` (8, one load unit per CPU of the 8-CPU Mac); one
+  alert for the whole machine, with the load, the `lake` builders and the heavy-lock holders in the detail
+  (`sysContended_iff`). Timed steps measured while the load is above 8 are contended samples: they never raise `timing.slow`
+  (Lean `contended_not_slow`), so the per-step burst under contention is this one signal instead.
 - `sys.loadHigh`: the floor of the 1-min load average >= `loadMax` (150).
 - `team.permissionWait`: a Notification in the lead's spool is newer than the lead's last tool event. Hook Notifications
   carry no agent id, so this is team-level; limits: any lead tool event clears it, and Notifications also fire for idle
@@ -42,7 +46,8 @@ Every threshold is strict `>` except the load.
   land lock names the branch (`landLock`). Proofs: `no_unlanded_once_on_main`, `alert_suppressed_iff_locked`.
 - `timing.slow <tool>/<step>` (with `NEXT investigate step=<tool>/<step>`): `fw watch` and `fw next` send the spans of
   `.fw-console/timings.jsonl` to fwcore `obs.slow` (`Fw.Obs.Next.slowSteps` over `Fw.Obs.Timing` verdicts: the latest
-  sample of a step is slow). No threshold in TS. The console Health view shows them in a Timings card.
+  sample of a step is slow). No threshold in TS. The console Health view shows them in a Timings card. A sample taken at load above 8 is contended and is never the slow one (`slowSteps_uncontended`);
+  a regression that shows at normal load still raises it (`slow_through_contention`). Limit: a load that stays above 8 for a whole run hides a regression from the local alert; CI timings are the check for that.
 
 Critical path: the snapshot's `critical` is GET `/api/plan` `.criticalPath` (task ids). An agent is tied to task c when
 its id, name or task is c or c-<digits>; a CI run when its branch is `ci/c` or `ci/c-<digits>`. Their alerts carry

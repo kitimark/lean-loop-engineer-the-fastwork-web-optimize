@@ -55,6 +55,9 @@ export interface SystemSnap {
   ci: { id?: number; workflow: string; branch: string; status: string; conclusion: string | null; startedAt: number; endedAt?: number | null; headSha?: string }[];
   /** floor of the 1-min load average (fwcore compares it with loadMax) */
   loadFloor?: number;
+  /** `lake` processes running (the local builders) and live heavy-lock holders (scripts/heavy-lock.mjs); both only
+   *  fill the sys.contended detail */
+  builders?: number; heavyJobs?: number;
   /** process trees this Claude session started through its Bash tool: root shell pid, the first non-shell program's
    *  name (executable basename only, never arguments), start time, and every descendant pid */
   procs?: Proc[];
@@ -558,6 +561,15 @@ export function parseCi(out: string | null): SystemSnap["ci"] {
 
 /** One `ps -A -o pid=,ppid=,etime=,comm=` row: the age comes from etime, so no locale-dependent date is parsed. */
 export interface PsRow { pid: number; ppid: number; ageMs: number; comm: string }
+/** The `lake` processes in the process table (the local builders). */
+export const countBuilders = (rows: PsRow[]): number => rows.filter((r) => exe(r.comm) === "lake").length;
+/** The holders of the heavy-job lock (scripts/heavy-lock.mjs, `<git dir>/fw-heavy/holders/<pid>.json`) whose pid runs. */
+export function countHeavy(root: string, rows: PsRow[]): number {
+  try {
+    const alive = new Set(rows.map((r) => r.pid));
+    return readdirSync(join(root, ".git", "fw-heavy", "holders")).filter((f) => alive.has(Number(f.replace(/\.json$/, "")))).length;
+  } catch { return 0; }
+}
 /** `[[dd-]hh:]mm:ss` to milliseconds; null when malformed. */
 export function parseEtime(s: string): number | null {
   const m = /^(?:(?:(\d+)-)?(\d+):)?(\d+):(\d+)$/.exec(s.trim());
@@ -739,7 +751,8 @@ export async function collectSystem(p: Paths, prev: Prev | null = null, now = Da
   let disk = 0;
   try { const s = statfsSync(p.root); disk = Math.floor((Number(s.bavail) * Number(s.bsize)) / 1e9); } catch { /* unknown -> 0 raises sys.diskLow */ }
   return {
-    load1: Math.round(loadavg()[0]! * 100) / 100, loadFloor: Math.floor(loadavg()[0]!), memPressure: parseMemLevel(text(mem)),
+    load1: Math.round(loadavg()[0]! * 100) / 100, loadFloor: Math.floor(loadavg()[0]!),
+    builders: countBuilders(rows), heavyJobs: countHeavy(p.root, rows), memPressure: parseMemLevel(text(mem)),
     diskFreeGB: disk, simLock: collectSimLock(p.root), docker, worktrees: parseWorktreeCount(text(wt)),
     consolePids, ci: ciRuns, procs, services: [process.pid, ...consolePids], keep, svcs, stale,
     ...(ps === null || rows.length === 0 ? {} : { alivePids: rows.map((r) => r.pid) }),

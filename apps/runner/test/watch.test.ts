@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
 import {
-  carryCritical, collectAgents, collectCritical, collectSystem, exe, findTranscripts, keepNames, ownProcs, parseStartRows, parseTaskIds, readKeep, parseCi, parseEtime, parsePs, sessionProcs, parseDocker, parseMemLevel, parseSpool, parseWorktreeCount, pathsFor,
+  carryCritical, collectAgents, collectCritical, collectSystem, countBuilders, countHeavy, exe, findTranscripts, keepNames, ownProcs, parseStartRows, parseTaskIds, readKeep, parseCi, parseEtime, parsePs, sessionProcs, parseDocker, parseMemLevel, parseSpool, parseWorktreeCount, pathsFor,
   summarizeLead, summarizeSpool, summarizeTranscript, type Runner, type SystemSnap,
 } from "../src/watch-collect.ts";
 import {
@@ -211,6 +211,20 @@ describe("system parsers", () => {
       + '{"workflowName":"ci","headBranch":"c","status":"in_progress","conclusion":"","createdAt":"2026-10-17T10:00:00Z","updatedAt":"2026-10-17T10:05:00Z"}]').map((r) => r.endedAt))
       .toEqual([T0 + 25 * 60000, null]);
     expect(parseCi("nope")).toEqual([]);
+  });
+});
+
+describe("sys.contended counts", () => {
+  it("counts lake processes and live heavy-lock holders", () => {
+    const rows = parsePs("10 1 00:05 /Users/x/.elan/bin/lake\n11 10 00:05 /bin/zsh\n12 1 00:05 /Users/x/.elan/bin/lake\n13 1 00:05 node");
+    expect(countBuilders(rows)).toBe(2);
+    const root = mkdtempSync(join(tmpdir(), "fw-heavy-"));
+    expect(countHeavy(root, rows)).toBe(0);
+    mkdirSync(join(root, ".git", "fw-heavy", "holders"), { recursive: true });
+    writeFileSync(join(root, ".git", "fw-heavy", "holders", "13.json"), "{}");
+    writeFileSync(join(root, ".git", "fw-heavy", "holders", "99.json"), "{}");
+    expect(countHeavy(root, rows)).toBe(1);
+    rmSync(root, { recursive: true, force: true });
   });
 });
 

@@ -168,7 +168,7 @@ export const selectChecks = (ds: { id: string; reads: string[] }[], changed: str
   ds.filter((d) => changed.some((c) => inScope(d.reads, c))).map((d) => d.id);
 
 /** What `lean/scripts/check.sh` reads: Lean `Fw.Console.LandSpeed.checkShReads` (equal to the golden's declaration). */
-export const CHECK_SH_READS = ["lean/**", "packages/contracts/golden/**", "apps/site/src/breakpoints.gen.json", "apps/site/src/sweeps.gen.json", "apps/site/src/head.gen.json", "packages/gate-breakpoints/src/scope.gen.json", ".github/workflows/**", "scripts/span.sh", "scripts/fwcore-build.sh", "scripts/lake-slot.sh", "scripts/lake-slot-lib.sh", "docs/team/incidents/ledger.json",
+export const CHECK_SH_READS = ["lean/**", "packages/contracts/golden/**", "apps/site/src/breakpoints.gen.json", "apps/site/src/sweeps.gen.json", "apps/site/src/head.gen.json", "packages/gate-breakpoints/src/scope.gen.json", ".github/workflows/**", "scripts/span.sh", "scripts/fwcore-build.sh", "scripts/lake-slot.sh", "scripts/lake-slot-lib.sh", "scripts/heavy-lock.mjs", "docs/team/incidents/ledger.json",
   "research/findings/ledger.json", "apps/site/src/parts/**", "apps/site/src/registry/presets/v2-proved.json", "packages/measure-chromium/scenarios.gen.json"];
 export const INSTALL_READS = ["pnpm-lock.yaml", "**/package.json"];
 /** apps/site reads of snapshot assets, derived from the one source apps/site/assets.manifest.json (listed <=> copied <=> read). */

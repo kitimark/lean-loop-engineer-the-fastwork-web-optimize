@@ -1,6 +1,6 @@
 name = "fwcore"
 version = "0.1.0"
-defaultTargets = ["Fw", "fwcore", "mathview", "breakgen"]
+defaultTargets = ["Fw", "fwcore", "mathview", "breakgen", "propslint"]
 # `lake test` runs `fwcore fwtest` (task lean-bin-slim: one executable in place of fwcore, fwtest, sweepsgen and
 # partsgolden; Fw.Ops.FwCoreRoute).
 testDriver = "fwcore"
@@ -38,6 +38,15 @@ roots = ["FwTestMain", "SweepsgenMain"]
 [[lean_exe]]
 name = "breakgen"
 root = "BreakgenMain"
+
+# The properties lint (scripts/PropsLint.lean) as a compiled executable. Run through `lean --run`, the interpreter has
+# already mapped the `Lean` oleans of the script's own `import Lean`, so `importModules` of the same files reads each
+# one into the heap a second time: 2.3 GB peak footprint. Compiled, nothing is mapped before the import: 0.7 GB
+# (MEASURED 2026-10-21, `lake env /usr/bin/time -l`; task local-mem-budget).
+[[lean_exe]]
+name = "propslint"
+root = "PropsLint"
+srcDir = "scripts"
 
 [[lean_lib]]
 name = "MathView"

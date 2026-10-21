@@ -11,17 +11,18 @@ agent to investigate and improve (task `timing-alert` wires the op and the alert
 Definitions (all durations in whole ms, `Nat`):
 * A sample is `(tool, step, d, h, λ, kind)` with host `h ∈ {local, ci}` and
   `λ` the floor of the 1-min load average when it ran. Its key is `(tool, step, h, kind)`.
-* A local sample with `λ > L` is **noisy**: it gets the verdict `noisy` and never enters a window. A CI sample is
-  never noisy.
-* The **window** of a sample is the last `N` non-noisy samples with the same key that come before it in the input.
+* A local sample with `λ > L` is **contended** (`L = contendedLoad = 8`, the CPUs of the local Mac): the machine ran more
+  runnable tasks than CPUs, so its duration says how busy the machine was, not how the step changed. It gets the verdict
+  `contended` (never `slow`) and never enters a window. A CI sample is never contended.
+* The **window** of a sample is the last `N` uncontended samples with the same key that come before it in the input.
 * The **baseline** is the nearest-rank median (p50) of the window: the `⌈ n/2 ⌉`-th smallest of its `n`
   values, defined by counting (`ord`), so no sort is needed and the proofs are about counts. It was the p90 until
   task `timing-small-n`: with `n ≤ 9` the p90 is the window maximum, so a regression seen twice became its own
   baseline (history `[2,1,2,27,26]` s, then 40 s was `ok`). A median moves only once a shift fills more than half the window
   (`no_self_mask`), so the counterexample is now `slow` (`site_regression_slow`).
-* Verdict of one sample, first match: `noBaseline` when the window has fewer than `n_min` samples; `noisy`; `slow`
+* Verdict of one sample, first match: `noBaseline` when the window has fewer than `n_min` samples; `contended`; `slow`
   when `d > max(B, k · b)` with `B` the step's budget and `b` the baseline; otherwise `ok`.
-* A **ceiling** is an absolute limit `C(tool, step)` for one step. A non-noisy sample above its
+* A **ceiling** is an absolute limit `C(tool, step)` for one step. A not contended sample above its
   ceiling is `slow` at once, with no window needed: a step that is slow from its first run (the 2-minute `fw land`)
   has no history to be slow against, so the relative rule alone never alerts for it. `landCeilings` sets 30 s for the
   whole `fw land` and 5 s for the time its lock is held.
@@ -37,7 +38,9 @@ Definitions (all durations in whole ms, `Nat`):
 
 Proved (main results; helper lemmas below): `slow_iff`, `ceilingBreach_iff`, `land_budget_alert`,
 `no_alert_within_budget`, `no_alert_within_budget_list`, `slow_mono_dur`, `slow_mono_window`, `no_self_mask`,
-`site_regression_slow`, `site_repeat_slow`, `stable_never_slow`, `noBaseline_iff`, `noBaseline_below_nmin`,
+`site_regression_slow`, `site_repeat_slow`, `stable_never_slow`, `contended_not_slow`, `slow_at_normal_load`,
+`ceiling_at_normal_load`, `windowOf_append_contended`, `code_append_contended`, `slow_through_contention`,
+`lean_check_regression_through_contention`, `ci_not_contended`, `noBaseline_iff`, `noBaseline_below_nmin`,
 `ord_spec`, `ord_le_iff`, `ord_mono`, `ord_interlace`, `ord_between`, `cnt_split`, `p50_le_of_few_above`,
 `le_p50_of_few_below`, `outlier_between`, `outlier_bound`, `outlier_shift`, `structural_iff`, `noise_iff`,
 `calls_total`, `calls_given_stages`, `mem_structural`, `deterministic`, `timingVerdicts_total`.
@@ -91,10 +94,25 @@ structure Stage where
   groups : List Group
 deriving DecidableEq, Repr
 
+/-- **The load above which a local sample is contended**, in CPUs of the local Mac (`hw.ncpu` = 8). MEASURED
+2026-10-21 over the `lean/check` spans of `.fw-console/timings.jsonl` (47 086 local samples), the
+median duration of one step by the floor of the 1-min load average `λ`, in seconds:
+
+| step | `λ < 4` | `4 ≤ λ < 8` | `8 ≤ λ < 12` | `12 ≤ λ < 16` | `16 ≤ λ < 24` | `24 ≤ λ < 40` |
+|---|---|---|---|---|---|---|
+| props lint | 16.8 | 19.2 | 22.8 | 22.7 | 24.3 | 22.7 |
+| init cost lint | 9.0 | 12.1 | 13.9 | 14.9 | 16.4 | 20.1 |
+| shard golden check | 9.1 | 9.4 | 11.6 | 12.1 | 12.5 | 13.2 |
+
+The median of every step rises with `λ` (init cost lint 9.0 s at `λ < 4`, 20.1 s at `24 ≤ λ < 40`), and the burst of
+`timing.slow` of 2026-10-21 (props lint 32 to 51 s against a 22.6 s median) came at `λ` 11 to 23, mostly between this
+limit and the old 16. The limit is a constant of the machine, not tuned to make a verdict pass: `p.loadMax` still overrides it in tests. -/
+def contendedLoad : Nat := 8
+
 /-- The parameters: `n_min` (`nMin`), the window length `N` (`window`), the multiplier `k = k_n / k_d`
 (`kNum`, `kDen`), the default budget `B_0` in ms (`budgetMs`), per-tool budget overrides (`budgets`, first match
-wins), per-step ceilings (`ceilings`, first match wins), the load limit `L` (`loadMax`, compared with the floor of the 1-min load average; the default 16 is twice the
-8 cores of the local Mac), and the parallel stages (`stages`).
+wins), per-step ceilings (`ceilings`, first match wins), the load limit `L` (`loadMax`, compared with the floor of the 1-min load average; the default is `contendedLoad`, the 8 CPUs
+of the local Mac), and the parallel stages (`stages`).
 -/
 structure Params where
   nMin     : Nat := 5
@@ -104,7 +122,7 @@ structure Params where
   budgetMs : Nat := 30000
   budgets  : List (String × Nat) := []
   ceilings : List (String × String × Nat) := []
-  loadMax  : Nat := 16
+  loadMax  : Nat := contendedLoad
   stages   : List Stage := []
 deriving Repr
 
@@ -148,17 +166,17 @@ def p50 (xs : List Nat) : Nat := ord xs (rank50 xs.length - 1)
 
 /-! ## The verdict of one sample -/
 
-/-- A sample is noisy when it ran locally at a load above the limit (CI samples never are). -/
-def noisy (p : Params) (s : Sample) : Bool := decide (s.host = .«local») && decide (p.loadMax < s.load)
+/-- A sample is contended when it ran locally at a load above the limit (CI samples never are). -/
+def contended (p : Params) (s : Sample) : Bool := decide (s.host = .«local») && decide (p.loadMax < s.load)
 
 /-- The last `n` elements of a list (all of it when it is shorter). -/
 def lastN (n : Nat) (xs : List Nat) : List Nat := xs.drop (xs.length - n)
 
 /-- The window of key `k` in a history: the durations of the last `N` samples of `hist` with key `k` that are not
-noisy, oldest first.
+contended, oldest first.
 -/
 def windowOf (p : Params) (hist : List Sample) (k : Key) : List Nat :=
-  lastN p.window ((hist.filter (fun s => decide (s.key = k) && !noisy p s)).map (·.durMs))
+  lastN p.window ((hist.filter (fun s => decide (s.key = k) && !contended p s)).map (·.durMs))
 
 /-- The budget of a tool: its first override in `budgets`, else the default `B_0`. -/
 def budgetOf (p : Params) (tool : String) : Nat := (p.budgets.lookup tool).getD p.budgetMs
@@ -167,12 +185,12 @@ def budgetOf (p : Params) (tool : String) : Nat := (p.budgets.lookup tool).getD 
 def ceilingOf (p : Params) (tool step : String) : Option Nat :=
   (p.ceilings.find? (fun c => decide (c.1 = tool) && decide (c.2.1 = step))).map (·.2.2)
 
-/-- A sample breaches its ceiling when its step has one, the sample is not noisy, and it took longer than the ceiling.
+/-- A sample breaches its ceiling when its step has one, the sample is not contended, and it took longer than the ceiling.
 No window is involved.
 -/
 def ceilingBreach (p : Params) (s : Sample) : Bool :=
   match ceilingOf p s.tool s.step with
-  | some c => decide (c < s.durMs) && !noisy p s
+  | some c => decide (c < s.durMs) && !contended p s
   | none => false
 
 /-- The budget a sample is held to: its tool's budget, lowered to the step's ceiling when the step has one. -/
@@ -191,17 +209,17 @@ def overLimit (p : Params) (budget base d : Nat) : Bool :=
 /-- The verdict code of one sample. -/
 inductive Code where
   | noBaseline
-  | noisy
+  | contended
   | ok
   | slow
 deriving DecidableEq, Repr
 
-/-- The code of sample `s` against window `w`, first match: too short a window, noisy, slow, ok. The baseline is the
+/-- The code of sample `s` against window `w`, first match: too short a window, contended, slow, ok. The baseline is the
 median of the window (with `n_min = 0` an empty window passes the first test and has baseline 0).
 -/
 def codeOf (p : Params) (w : List Nat) (s : Sample) : Code :=
   if w.length < p.nMin then .noBaseline
-  else if noisy p s then .noisy
+  else if contended p s then .contended
   else if overLimit p (budgetOf p s.tool) (p50 w) s.durMs then .slow
   else .ok
 
@@ -358,7 +376,7 @@ private def lk : Key := { tool := "t", step := "s", host := .«local» }
 #guard (codeOf {} [100000, 100000, 100000, 100000, 100000]
   { tool := "t", step := "s", durMs := 150001, host := .ci }) == .slow
 #guard (codeOf {} [100000, 100000, 100000, 100000, 100000]
-  { tool := "t", step := "s", durMs := 150001, host := .«local», load := 17 }) == .noisy
+  { tool := "t", step := "s", durMs := 150001, host := .«local», load := 17 }) == .contended
 #guard (codeOf {} [100000, 100000, 100000, 100000, 100000]
   { tool := "t", step := "s", durMs := 150001, host := .ci, load := 99 }) == .slow
 #guard budgetOf { budgets := [("ci", 120000), ("ci", 1)] } "ci" == 120000 && budgetOf {} "x" == 30000
@@ -400,21 +418,21 @@ private def lk : Key := { tool := "t", step := "s", host := .«local» }
 
 /-! ## Proofs: the verdict of one sample -/
 
-/-- A sample breaches its ceiling exactly when its step has a ceiling `c`, it is not noisy and it took longer than `c`. -/
+/-- A sample breaches its ceiling exactly when its step has a ceiling `c`, it is not contended and it took longer than `c`. -/
 theorem ceilingBreach_iff (p : Params) (s : Sample) :
     ceilingBreach p s = true ↔
-      ∃ c, ceilingOf p s.tool s.step = some c ∧ c < s.durMs ∧ noisy p s = false := by
+      ∃ c, ceilingOf p s.tool s.step = some c ∧ c < s.durMs ∧ contended p s = false := by
   unfold ceilingBreach
   cases h : ceilingOf p s.tool s.step with
   | none => simp
   | some c => simp
 
 /-- The relative rule alone: the code against a window is `slow` exactly when the window is long enough, the sample is
-not noisy, and its duration exceeds both the budget and `k` times the baseline.
+not contended, and its duration exceeds both the budget and `k` times the baseline.
 -/
 theorem codeOf_slow_iff (p : Params) (w : List Nat) (s : Sample) :
     codeOf p w s = .slow ↔
-      p.nMin ≤ w.length ∧ noisy p s = false ∧ budgetOf p s.tool < s.durMs ∧
+      p.nMin ≤ w.length ∧ contended p s = false ∧ budgetOf p s.tool < s.durMs ∧
         p.kNum * p50 w < p.kDen * s.durMs := by
   unfold codeOf overLimit
   split
@@ -428,7 +446,7 @@ theorem codeOf_slow_iff (p : Params) (w : List Nat) (s : Sample) :
       · intro h; cases h
       · intro h; rw [h2] at h; cases h.2.1
     · rename_i h2
-      have h2' : noisy p s = false := by simpa using h2
+      have h2' : contended p s = false := by simpa using h2
       split
       · rename_i h3
         simp only [Bool.and_eq_true, decide_eq_true_eq] at h3
@@ -440,12 +458,12 @@ theorem codeOf_slow_iff (p : Params) (w : List Nat) (s : Sample) :
         · intro h; exact absurd ⟨h.2.2.1, h.2.2.2⟩ h3
 
 /-- When a sample's verdict is `slow`: it breaches its step's ceiling (no window needed), or the window is long
-enough, the sample is not noisy, and its duration exceeds both the budget and `k` times the baseline.
+enough, the sample is not contended, and its duration exceeds both the budget and `k` times the baseline.
 -/
 theorem slow_iff (p : Params) (hist : List Sample) (i : Nat) (s : Sample) :
     (judge p hist i s).code = .slow ↔
       ceilingBreach p s = true ∨
-      (p.nMin ≤ (windowOf p hist s.key).length ∧ noisy p s = false ∧ budgetOf p s.tool < s.durMs ∧
+      (p.nMin ≤ (windowOf p hist s.key).length ∧ contended p s = false ∧ budgetOf p s.tool < s.durMs ∧
         p.kNum * p50 (windowOf p hist s.key) < p.kDen * s.durMs) := by
   unfold judge
   simp only
@@ -499,12 +517,12 @@ held under 5 s): 30 s for the whole land (step `total`) and 5 s for the time its
 def landCeilings : List (String × String × Nat) :=
   [("fw land", "total", 30000), ("fw land", "lock held", 5000)]
 
-/-- A land over budget alerts. With the land ceilings first in `ceilings`, a non-noisy `fw land` sample over 30 s for
+/-- A land over budget alerts. With the land ceilings first in `ceilings`, a not contended `fw land` sample over 30 s for
 its `total`, or over 5 s for its `lock held`, has the verdict `slow`, whatever its history (even none: a land that is
 slow from its first run is flagged).
 -/
 theorem land_budget_alert (p : Params) (hp : ∃ rest, p.ceilings = landCeilings ++ rest)
-    (hist : List Sample) (i : Nat) (s : Sample) (hn : noisy p s = false)
+    (hist : List Sample) (i : Nat) (s : Sample) (hn : contended p s = false)
     (hs : (s.tool = "fw land" ∧ s.step = "total" ∧ 30000 < s.durMs) ∨
           (s.tool = "fw land" ∧ s.step = "lock held" ∧ 5000 < s.durMs)) :
     (judge p hist i s).code = .slow := by
@@ -547,7 +565,7 @@ theorem noBaseline_iff (p : Params) (hist : List Sample) (i : Nat) (s : Sample) 
 theorem window_length (p : Params) (hist : List Sample) (k : Key) :
     (windowOf p hist k).length ≤ p.window ∧
       (windowOf p hist k).length ≤ hist.countP (fun s => decide (s.key = k)) := by
-  have hc : (hist.filter (fun s => decide (s.key = k) && !noisy p s)).length ≤
+  have hc : (hist.filter (fun s => decide (s.key = k) && !contended p s)).length ≤
       hist.countP (fun s => decide (s.key = k)) := by
     rw [← List.countP_eq_length_filter]
     exact List.countP_mono_left (by intro x _ hx; simp only [Bool.and_eq_true] at hx; exact hx.1)
@@ -819,10 +837,10 @@ theorem le_p50_of_few_below (xs : List Nat) (t : Nat)
     omega
 
 /-- No self-masking: a slowdown is judged against a median that it can only move once it fills more than half the
-window. If at most half of the window exceeds a level `t`, a non-noisy sample over budget with `k_d · d > k_n · t` is `slow` (with the p90 baseline this failed for `n ≤ 9`, where the p90 is the maximum).
+window. If at most half of the window exceeds a level `t`, a not contended sample over budget with `k_d · d > k_n · t` is `slow` (with the p90 baseline this failed for `n ≤ 9`, where the p90 is the maximum).
 -/
 theorem no_self_mask (p : Params) (w : List Nat) (s : Sample) (t : Nat)
-    (hn : p.nMin ≤ w.length) (hq : noisy p s = false) (hB : budgetOf p s.tool < s.durMs)
+    (hn : p.nMin ≤ w.length) (hq : contended p s = false) (hB : budgetOf p s.tool < s.durMs)
     (hfew : 2 * w.countP (fun x => decide (t < x)) ≤ w.length) (hk : p.kNum * t < p.kDen * s.durMs) :
     codeOf p w s = .slow :=
   (codeOf_slow_iff p w s).2 ⟨hn, hq, hB,
@@ -915,6 +933,90 @@ with the default parameters `p_0` (`{}`; the median is still 2 s; with the p90 b
 -/
 theorem site_repeat_slow :
     (judge {} ([2000, 1000, 2000, 27000, 26000, 50000].map siteBuild) 6 (siteBuild 50000)).code = .slow := by
+  decide
+
+/-- A local `lean/check` stage sample of `d` ms at 1-min load `l`, for the contended-burst cases. -/
+def checkStage (d l : Nat) : Sample := { tool := "lean/check", step := "props lint", durMs := d, host := .«local», load := l }
+
+/-! ## Proofs: contended samples (task `local-mem-budget`) -/
+
+/-- **A contended sample is never `slow`.** Whatever the history, a sample that ran locally above the load limit has a
+verdict other than `slow`: neither the ceiling branch nor the baseline branch of `slow_iff` holds for it.
+-/
+theorem contended_not_slow (p : Params) (hist : List Sample) (i : Nat) (s : Sample)
+    (h : contended p s = true) : (judge p hist i s).code ≠ .slow := by
+  intro hs
+  rcases (slow_iff p hist i s).1 hs with hb | hr
+  · obtain ⟨_, _, _, hn⟩ := (ceilingBreach_iff p s).1 hb
+    rw [h] at hn
+    cases hn
+  · have := hr.2.1
+    rw [h] at this
+    cases this
+
+/-- A CI sample is never contended, so the contended branch masks no CI regression. -/
+theorem ci_not_contended (p : Params) (s : Sample) (h : s.host = .ci) : contended p s = false := by
+  simp [contended, h]
+
+/-- A local sample at or below the load limit is not contended. -/
+theorem not_contended_of_load_le (p : Params) (s : Sample) (h : s.load ≤ p.loadMax) : contended p s = false := by
+  simp only [contended, Bool.and_eq_false_iff, decide_eq_false_iff_not]
+  exact Or.inr (Nat.not_lt.2 h)
+
+/-- **A slow sample at normal load still alerts.** A sample at or below the load limit (so also every CI sample) whose
+window has at least `n_min` values and whose duration exceeds the budget and `k` times the baseline is `slow`, whatever
+the contended samples around it: this is `slow_iff` read at normal load.
+-/
+theorem slow_at_normal_load (p : Params) (hist : List Sample) (i : Nat) (s : Sample)
+    (hl : s.load ≤ p.loadMax) (hn : p.nMin ≤ (windowOf p hist s.key).length) (hB : budgetOf p s.tool < s.durMs)
+    (hk : p.kNum * p50 (windowOf p hist s.key) < p.kDen * s.durMs) : (judge p hist i s).code = .slow :=
+  (slow_iff p hist i s).2 (Or.inr ⟨hn, not_contended_of_load_le p s hl, hB, hk⟩)
+
+/-- **A ceiling breach at normal load still alerts**, with no history: the sample is at or below the load limit, its
+step has the ceiling `c` and it took longer than `c`.
+-/
+theorem ceiling_at_normal_load (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (c : Nat)
+    (hl : s.load ≤ p.loadMax) (hc : ceilingOf p s.tool s.step = some c) (hd : c < s.durMs) :
+    (judge p hist i s).code = .slow :=
+  (slow_iff p hist i s).2 (Or.inl ((ceilingBreach_iff p s).2 ⟨c, hc, hd, not_contended_of_load_le p s hl⟩))
+
+/-- **Contended samples never enter a window.** Appending samples that are all contended to the history leaves every
+window unchanged.
+-/
+theorem windowOf_append_contended (p : Params) (hist cs : List Sample) (k : Key)
+    (hc : ∀ c ∈ cs, contended p c = true) : windowOf p (hist ++ cs) k = windowOf p hist k := by
+  have h : cs.filter (fun s => decide (s.key = k) && !contended p s) = [] :=
+    List.filter_eq_nil_iff.2 (fun c hc' => by simp [hc c hc'])
+  simp [windowOf, List.filter_append, h]
+
+/-- **Contended samples do not change any verdict.** The code of a sample against a history followed by contended
+samples is its code against the history alone, so a contended burst can neither raise nor hide an alert.
+-/
+theorem code_append_contended (p : Params) (hist cs : List Sample) (i j : Nat) (s : Sample)
+    (hc : ∀ c ∈ cs, contended p c = true) : (judge p (hist ++ cs) j s).code = (judge p hist i s).code := by
+  simp only [judge, windowOf_append_contended p hist cs s.key hc]
+
+/-- **A regression is not masked by contended history.** If a sample is `slow` against a history, it is `slow` against
+the same history followed by any number of contended samples (the converse also holds, `code_append_contended`).
+-/
+theorem slow_through_contention (p : Params) (hist cs : List Sample) (i j : Nat) (s : Sample)
+    (hc : ∀ c ∈ cs, contended p c = true) (h : (judge p hist i s).code = .slow) :
+    (judge p (hist ++ cs) j s).code = .slow := by
+  rw [code_append_contended p hist cs i j s hc]
+  exact h
+
+/-- The worked case: five `lean/check` stage runs of 20 s at load 4, then ten runs of 120 s at load 20 (contended), then
+a 40 s run at load 4 is `slow` (median 20 s, `3 · 20000 < 2 · 40000`, `40000 > 30000`): the contended 120 s runs neither
+alert themselves nor lift the baseline.
+-/
+theorem lean_check_regression_through_contention :
+    (judge {} ((List.replicate 5 (checkStage 20000 4)) ++ List.replicate 10 (checkStage 120000 20)) 15
+      (checkStage 40000 4)).code = .slow := by
+  decide
+
+/-- The contended runs of that case are themselves not `slow`. -/
+theorem lean_check_contended_burst_not_slow :
+    (judge {} (List.replicate 5 (checkStage 20000 4)) 5 (checkStage 120000 20)).code = .contended := by
   decide
 
 /-! ## Proofs: structural verdicts -/
@@ -1108,7 +1210,7 @@ def hostStr : Host → String
 
 def codeStr : Code → String
   | .noBaseline => "noBaseline"
-  | .noisy => "noisy"
+  | .contended => "contended"
   | .ok => "ok"
   | .slow => "slow"
 
@@ -1206,9 +1308,9 @@ def cases : List (String × Params × List Sample) :=
   [("breakpoint-gate run 39067656223: sweeps (345 s) is structural in stage {gate, sweeps} (gate shards <= 147 s), gate is noise, both merges are noise; one run, so every sample is noBaseline",
       gateParams, gateRun),
    ("lean check.sh 128 s after a history of 117-136 s: ok (not slow)",
-      {}, run "lean" "check.sh" .«local» 9 (checkHist ++ [128000])),
+      {}, run "lean" "check.sh" .«local» 8 (checkHist ++ [128000])),
    ("lean check.sh 205 s after a history of 117-136 s: slow (median 122 s; 2 * 205000 > 3 * 122000)",
-      {}, run "lean" "check.sh" .«local» 9 (checkHist ++ [205000])),
+      {}, run "lean" "check.sh" .«local» 8 (checkHist ++ [205000])),
    ("below n_min: 4 earlier samples (nMin 5), a 10 min run is noBaseline",
       {}, run "lean" "lake build" .«local» 3 [60000, 61000, 59000, 60000, 600000]),
    ("exactly k * baseline (150000 = 3/2 * 100000): ok",
@@ -1219,15 +1321,15 @@ def cases : List (String × Params × List Sample) :=
       {}, run "fw" "land" .«local» 2 [10000, 10000, 10000, 10000, 10000, 30000]),
    ("1 ms above the budget and above k * baseline: slow",
       {}, run "fw" "land" .«local» 2 [10000, 10000, 10000, 10000, 10000, 30001]),
-   ("noisy local sample (load 24 > 16): verdict noisy, and it stays out of the next window (n = 5)",
+   ("contended local sample (load 24 > 8): verdict contended, and it stays out of the next window (n = 5)",
       {}, run "lean" "check.sh" .«local» 4 [60000, 60000, 60000, 60000, 60000] ++
         run "lean" "check.sh" .«local» 24 [300000] ++ run "lean" "check.sh" .«local» 4 [61000]),
-   ("CI sample at load 40 is never noisy: slow",
+   ("CI sample at load 40 is never contended: slow",
       {}, run "ci:lean" "check" .ci 40 [60000, 60000, 60000, 60000, 60000, 300000]),
    ("window N = 5 drops the old 400 s outlier: 160 s after five 100 s runs is slow",
       { window := 5 }, run "ci:lean" "check" .ci 0 [400000, 100000, 100000, 100000, 100000, 100000, 160000]),
    ("land ceilings: three real check.sh spans of 2026-10-17 (112.5, 124.1, 152.8 s at load 8-9, lower bounds of the lock-held time) as lock-held samples with no history: all slow at once (5 s ceiling); the relative rule alone gives noBaseline",
-      landParams, run "fw land" "lock held" .«local» 9 [112483, 124065, 152813]),
+      landParams, run "fw land" "lock held" .«local» 8 [112483, 124065, 152813]),
    ("land ceilings: a total of exactly 30000 ms after five 12 s lands: ok",
       landParams, run "fw land" "total" .«local» 4 [12000, 12000, 12000, 12000, 12000, 30000]),
    ("land ceilings: a first-ever total of 30001 ms (no history) is slow",
@@ -1236,7 +1338,7 @@ def cases : List (String × Params × List Sample) :=
       landParams, run "fw land" "lock held" .«local» 4 [1000, 1000, 1000, 1000, 1000, 5000]),
    ("land ceilings: a first-ever lock held of 5001 ms is slow",
       landParams, run "fw land" "lock held" .«local» 4 [5001]),
-   ("land ceilings: a lock held of 150 s at load 24 on the local Mac is noisy, not an alert",
+   ("land ceilings: a lock held of 150 s at load 24 on the local Mac is contended, not an alert",
       landParams, run "fw land" "lock held" .«local» 4 [1000, 1000, 1000, 1000, 1000] ++
         run "fw land" "lock held" .«local» 24 [150000]),
    ("slow-site-build regression: 40 s after 2, 1, 2, 27, 26 s is slow (median 2 s; the old p90 baseline 27 s gave ok)",
@@ -1253,7 +1355,11 @@ def cases : List (String × Params × List Sample) :=
       {}, runK "ci:w" "chromium-counts" "d1" .ci [10000, 10000, 10000, 10000, 10000, 60000] ++ runK "ci:w" "chromium-counts" "d2" .ci [60000]),
    ("run kinds: a 60 s run of digest d1 after 10 s x5 (d1) and 60 s x5 (d2) is slow, d2 history does not hide it",
       {}, runK "ci:w" "chromium-counts" "d1" .ci [10000, 10000, 10000, 10000, 10000] ++
-          runK "ci:w" "chromium-counts" "d2" .ci [60000, 60000, 60000, 60000, 60000] ++ runK "ci:w" "chromium-counts" "d1" .ci [60000])]
+          runK "ci:w" "chromium-counts" "d2" .ci [60000, 60000, 60000, 60000, 60000] ++ runK "ci:w" "chromium-counts" "d1" .ci [60000]),
+   ("contended burst then regression (lean_check_regression_through_contention): props lint 20 s x5 at load 4, 120 s x10 at load 20 (contended, no window entry, no alert), then 40 s at load 4 is slow (median 20 s)",
+      {}, run "lean/check" "props lint" .«local» 4 [20000, 20000, 20000, 20000, 20000] ++
+        run "lean/check" "props lint" .«local» 20 [120000, 120000, 120000, 120000, 120000, 120000, 120000, 120000, 120000, 120000] ++
+        run "lean/check" "props lint" .«local» 4 [40000])]
 
 /-- The last verdict code of each case's samples, and the structural groups: the expected outcomes. -/
 def lastCode (p : Params) (ss : List Sample) : Option Code :=
@@ -1266,8 +1372,8 @@ def lastCode (p : Params) (ss : List Sample) : Option Code :=
 #guard (sampleVerdicts gateParams gateRun).all (·.code == .noBaseline)
 #guard (cases.drop 1).map (fun (_, p, ss) => lastCode p ss) ==
   [some .ok, some .slow, some .noBaseline, some .ok, some .slow, some .ok, some .slow, some .ok, some .slow, some .slow,
-   some .slow, some .ok, some .slow, some .ok, some .slow, some .noisy, some .slow, some .slow, some .ok, some .ok,
-   some .noBaseline, some .noBaseline, some .slow]
+   some .slow, some .ok, some .slow, some .ok, some .slow, some .contended, some .slow, some .slow, some .ok, some .ok,
+   some .noBaseline, some .noBaseline, some .slow, some .slow]
 #guard (sampleVerdicts {} (run "ci:w" "build" .ci 0
     [2000, 2000, 2000, 2000, 50000, 50000, 50000, 50000, 50000, 50000, 50000])).map (·.code) ==
   [.noBaseline, .noBaseline, .noBaseline, .noBaseline, .noBaseline, .slow, .slow, .slow, .slow, .ok, .ok]
@@ -1276,11 +1382,11 @@ def lastCode (p : Params) (ss : List Sample) : Option Code :=
 #guard (structuralVerdicts {} autoRuns).map (fun v => (v.stage, v.group, v.call, v.baseline, v.siblingMax)) ==
   [("wf", "build", .noise, 10000, 110000), ("wf", "test", .structural, 110000, 20000),
    ("wf", "lint", .noise, 20000, 110000)]
-#guard (sampleVerdicts landParams (run "fw land" "lock held" .«local» 9 [112483, 124065, 152813])).all (·.code == .slow)
-#guard (sampleVerdicts {} (run "fw land" "lock held" .«local» 9 [112483, 124065, 152813])).all (·.code == .noBaseline)
+#guard (sampleVerdicts landParams (run "fw land" "lock held" .«local» 8 [112483, 124065, 152813])).all (·.code == .slow)
+#guard (sampleVerdicts {} (run "fw land" "lock held" .«local» 8 [112483, 124065, 152813])).all (·.code == .noBaseline)
 #guard (sampleVerdicts {} (run "lean" "check.sh" .«local» 4 [60000, 60000, 60000, 60000, 60000] ++
   run "lean" "check.sh" .«local» 24 [300000] ++ run "lean" "check.sh" .«local» 4 [61000])).map (·.code) ==
-  [.noBaseline, .noBaseline, .noBaseline, .noBaseline, .noBaseline, .noisy, .ok]
+  [.noBaseline, .noBaseline, .noBaseline, .noBaseline, .noBaseline, .contended, .ok]
 
 def goldenText (_ : Unit := ()) : String :=
   String.join (cases.map fun (n, p, ss) => (caseJson n p ss).compress ++ "\n")

@@ -16,7 +16,9 @@
 # Every failing stage is reported (not just the first); exit non-zero if any failed. The verdict is the conjunction of the
 # stage verdicts, independent of order and completion: Lean Fw.Console.LandSpeed.verdict_perm.
 set -u
+# heavy-job lock (Lean Fw.Sched.Heavy; scripts/heavy-lock.mjs): wait for a free slot, then run this script again inside it
 cd "$(dirname "$0")/.."
+[ -z "${FW_HEAVY_HELD:-}" ] && [ "${FW_HEAVY_LOCK:-}" != off ] && exec node ../scripts/heavy-lock.mjs run --kind check -- sh scripts/check.sh "$@"
 . ../scripts/lake-slot-lib.sh
 . ../scripts/span.sh  # span <tool> <step> <cmd...>: one timing line per stage in .fw-console/timings.jsonl (docs/team/tools/timings.md)
 fails=""
@@ -52,7 +54,7 @@ run_group() {
   # every lean_lib plus the test cases scripts/props-lint-cases/Adv.lean: the findings must be exactly Adv.expected.txt
   job "props lint" sh -c 'mkdir -p "$1" && cp scripts/props-lint-cases/Adv.lean "$1/" &&
     lake env lean -R "$1" -o "$1/Adv.olean" "$1/Adv.lean" &&
-    { lake env lean --run scripts/PropsLint.lean "$1" Adv > "$1/out"
+    { lake env .lake/build/bin/propslint "$1" Adv > "$1/out"
       if grep -q "note: not built" "$1/out"; then echo "props-lint: a lib module is not built, so it was not linted:"; grep "note: not built" "$1/out"; exit 1; fi
       if sed -n "s/^props-lint: \([a-z-]*\) \([^:]*\):.*/\1 \2/p" "$1/out" | LC_ALL=C sort | diff scripts/props-lint-cases/Adv.expected.txt -
       then echo "props-lint: the findings are exactly scripts/props-lint-cases/Adv.expected.txt (the project itself has none)"
@@ -105,6 +107,7 @@ run_group() {
   job "salvage golden check" lake env lean --run scripts/SalvageGolden.lean --check  # golden/ops/salvage.jsonl (Fw.Ops.Salvage)
   job "exit scoped golden check" lake env lean --run scripts/ExitScopedGolden.lean --check ../packages/contracts/golden/parts/hero.exit.scoped.json  # hero.exit:scoped reader list, inherit chain and units (Fw.Parts.HeroExitOpt)
   job "timing golden check" lake env lean --run scripts/TimingGolden.lean --check  # golden/obs/timing.jsonl (Fw.Obs.Timing)
+  job "heavy golden check" lake env lean --run scripts/HeavyGolden.lean --check  # golden/sched/heavy.jsonl (Fw.Sched.Heavy), replayed by scripts/heavy-lock.test.mjs
   job "land-legs golden check" lake env lean --run scripts/LandLegsGolden.lean --check  # golden/console/land-legs.jsonl + lean/land-legs.txt (Fw.Console.LandLegs)
   job "trajectory golden check" lake env lean --run scripts/TrajectoryGolden.lean --check  # the trajectory-probe verdict vectors reduce.mjs is checked against (Fw.Gate.Trajectory)
   job "trajectory-colour golden check" lake env lean --run scripts/ColourGolden.lean --check ../packages/contracts/golden/gate/trajectory-colour.jsonl  # the colour readings kit.mjs is checked against (Fw.Gate.Colour)
