@@ -101,6 +101,14 @@ test('an arm difference needs separated per-pass ranges', () => {
   assert.ok(row?.endsWith('| faithful lower |'), row);
 });
 
+test('a part that only the second arm has is still in the parts table', () => {
+  const a = analyzeArm([session()]);
+  const b = analyzeArm([session()]);
+  b.scroll.A.parts.push({ name: 'pain', perPass: [5, 7], mean: 6e9, share: 0.1 });
+  const row = reportMd([['x', a], ['y', b]]).split('\n').find((l) => l.startsWith('| pain |'));
+  assert.ok(row?.includes('not in this arm') && row.endsWith('| not compared (part absent in one arm) |'), row);
+});
+
 test('the markdown has a section per region and a layer census', () => {
   const md = reportMd([['x', analyzeArm([session()])]]);
   for (const h of ['Region A (scroll)', 'Region B (scroll)', 'Region B morph, open', 'Region B morph, close', 'Idle page tail', 'Layer census', 'Top 5 steps of Region A']) assert.ok(md.includes(h), h);

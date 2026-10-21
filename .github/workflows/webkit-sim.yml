@@ -581,8 +581,9 @@ jobs:
 
   # The ranked attribution of the lag probe (webkit-lag-probe): original (vN) against faithful rewrite (rN), every VM's session.
   lag-report:
-    needs: [plan, sim]
-    if: ${{ inputs.lag && needs.plan.outputs.both == 'true' && needs.sim.result == 'success' }}
+    needs: [guard, plan, sim]
+    # !cancelled(): a session whose lag JSON was written but whose later step failed (Keep logs and host state) still counts; the CLI takes the partial sessions.
+    if: ${{ !cancelled() && needs.guard.outputs.run == 'true' && needs.plan.result == 'success' && inputs.lag && needs.plan.outputs.both == 'true' && needs.sim.result != 'cancelled' }}
     concurrency:
       group: ci-lane:webkit-sim:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:lag-report:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
@@ -619,12 +620,17 @@ jobs:
           set -euo pipefail
           out="$RUNNER_TEMP/lag"
           mkdir -p "$out"
+          shopt -s nullglob
           join_files() { local IFS=,; echo "$*"; }
-          orig=$(join_files "$RUNNER_TEMP"/vms/v*-lag.json)
-          faith=$(join_files "$RUNNER_TEMP"/vms/r*-lag.json)
+          origs=("$RUNNER_TEMP"/vms/v*-lag.json)
+          faiths=("$RUNNER_TEMP"/vms/r*-lag.json)
+          echo "original sessions: ${#origs[@]}, faithful sessions: ${#faiths[@]}"
+          if [ "${#origs[@]}" -eq 0 ] || [ "${#faiths[@]}" -eq 0 ]; then echo "no lag JSON for one arm"; exit 1; fi
+          sha256sum "${origs[@]}" "${faiths[@]}" | tee "$out/sha256.txt"
+          orig=$(join_files "${origs[@]}")
+          faith=$(join_files "${faiths[@]}")
           node packages/measure-webkit/src/lag/cli.mjs report --original "$orig" --faithful "$faith" --json "$out/lag-report.json" | tee "$out/lag-report.md"
           { echo '### webkit-sim: lag regions, original against faithful'; cat "$out/lag-report.md"; } >> "$GITHUB_STEP_SUMMARY"
-          sha256sum "$RUNNER_TEMP"/vms/*-lag.json | tee "$out/sha256.txt"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: webkit-lag-report

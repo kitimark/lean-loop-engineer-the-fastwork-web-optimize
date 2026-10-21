@@ -269,11 +269,15 @@ const partsMd = (parts, k = 6) => parts.slice(0, k).map((p) => `${p.name} ${fmt(
 /** Per-part table of both arms with the per-pass range and the verdict. */
 function partsCompare(a, b, names) {
   const L = [`| part | ${names[0]} px^2 per pass (range) | share | ${names[1] ?? '-'} px^2 per pass (range) | share | difference |`, '|---|---|---|---|---|---|'];
+  const am = new Map(a.parts.map((p) => [p.name, p]));
   const bm = new Map((b?.parts ?? []).map((p) => [p.name, p]));
-  for (const p of a.parts.slice(0, 8)) {
-    const q = bm.get(p.name);
-    const both = q && sum(p.perPass) > 0 && sum(q.perPass) > 0;
-    L.push(`| ${p.name} | ${fmt(p.mean, 0)} (${rngN(p.perPass, 0)}) | ${fmt(100 * p.share, 0)}% | ${q ? `${fmt(q.mean, 0)} (${rngN(q.perPass, 0)})` : 'not in this arm'} | ${q ? `${fmt(100 * q.share, 0)}%` : '-'} | ${both ? DIFF[diffOf(asFrac(p.perPass), asFrac(q.perPass))] : 'not compared (part absent in one arm)'} |`);
+  const union = [...new Set([...am.keys(), ...bm.keys()])].sort((x, y) => Math.max(am.get(y)?.mean ?? 0, bm.get(y)?.mean ?? 0) - Math.max(am.get(x)?.mean ?? 0, bm.get(x)?.mean ?? 0));
+  const cell = (q) => (q ? `${fmt(q.mean, 0)} (${rngN(q.perPass, 0)})` : 'not in this arm');
+  for (const name of union.slice(0, 10)) {
+    const p = am.get(name);
+    const q = bm.get(name);
+    const both = p && q && sum(p.perPass) > 0 && sum(q.perPass) > 0;
+    L.push(`| ${name} | ${cell(p)} | ${p ? `${fmt(100 * p.share, 0)}%` : '-'} | ${cell(q)} | ${q ? `${fmt(100 * q.share, 0)}%` : '-'} | ${both ? DIFF[diffOf(asFrac(p.perPass), asFrac(q.perPass))] : 'not compared (part absent in one arm)'} |`);
   }
   return L.join('\n');
 }
@@ -312,7 +316,7 @@ export function reportMd(arms) {
       `${names.map((n, i) => `${n}: ${fmt(an[i].scroll[r].stepsPerPass, 1)} steps per pass in the region, ${fmt(an[i].scroll.calm.stepsPerPass, 1)} calm steps per pass`).join('; ')}. Per-step values.`, '',
       regionTable(r, an.map((a) => a.scroll[r].table), names, 'per step'), '',
       `Counters with no calm baseline (not ranked): ${names.map((n, i) => `${n} ${an[i].scroll[r].table.unranked.map(nameOf).join(', ') || 'none'}`).join('; ')}.`, '',
-      `Paint area by part (css px^2 per pass; coarse part names, leaf parts below):`, '', partsCompare(o.scroll[r], f?.scroll[r], names), '',
+      `Paint area by part (css px^2 per pass; coarse part names, leaf parts below). The two arms have different part tables (the original a selector table, the rewrite its data-fw elements): a part in one table only is not compared, and the share of a part in both tables can move to a part of the other, so read neighbouring parts together.`, '', partsCompare(o.scroll[r], f?.scroll[r], names), '',
       ...names.map((n, i) => `- ${n}, leaf parts: ${partsMd(an[i].scroll[r].leaves, 8)}`), '');
     names.forEach((n, i) => L.push(`Top 5 steps of ${scrollRegion(r)}, ${n} (by paint area, all passes pooled):`, '', topMd('rank', an[i].scroll[r].top), ''));
   }
@@ -327,7 +331,7 @@ export function reportMd(arms) {
         const t = an[i].morph.phases[ph].tableIdle;
         return `- ${n}: ${t.rows.filter((r) => r.rank && r.rank <= 3).sort((x, y) => x.rank - y.rank).map((r) => `${nameOf(r.name)} x${fmt(num(r.ratio))} (${rng(r.perPass)})`).join(', ')}; no idle baseline: ${t.unranked.map(nameOf).join(', ') || 'none'}`;
       }), '',
-      `Paint area by part (css px^2 per pass):`, '', partsCompare(o.morph.phases[ph], f?.morph.phases[ph], names), '',
+      `Paint area by part (css px^2 per pass; the two arms have different part tables, see Region A):`, '', partsCompare(o.morph.phases[ph], f?.morph.phases[ph], names), '',
       ...names.map((n, i) => `- ${n}, leaf parts: ${partsMd(an[i].morph.phases[ph].leaves, 8)}`), '');
     names.forEach((n, i) => L.push(`Top 5 frames of the ${ph} push, ${n} (by paint area; "y or frame" is the frame in the phase):`, '', topMd('rank', an[i].morph.phases[ph].top), ''));
   }
