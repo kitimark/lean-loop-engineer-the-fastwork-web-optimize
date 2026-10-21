@@ -1,14 +1,14 @@
 # fw slot: one queue for heavy local work
 
-`pnpm -s fw slot` admits Lean checks, package tests, dry lands and Simulator work one queue at a time. The number of
-jobs it admits rises and falls with the machine's load and memory.
+`pnpm -s fw slot` admits Lean checks, package tests, dry lands and Simulator work one queue at a time. The
+admitted count follows the machine's load and memory.
 - Spec and proofs: `lean/Fw/Sup/Adapt.lean`.
 - TS stand-in: `apps/runner/src/slot-core.ts` (each function mirrors the Lean definition of the same name).
 - Glue: `apps/runner/src/slot.ts`, which holds the probe, the state file, the child process group and the result cache.
 - Golden vectors: `packages/contracts/golden/sup/adapt.jsonl` (`lean/Fw/Sup/AdaptGolden.lean`, checked by
   `lean/scripts/check.sh`), replayed by `apps/runner/test/slot.test.ts`.
-- Inputs: the local load report (sup-baseline sampler, one busy window). MEASURED there: the Simulator holds about
-  2.7 GB, one Lean compile 650-770 MB, a runner test run up to 2.1 GB, and memory runs out before CPU.
+- Inputs: the sup-baseline sampler, one busy window. MEASURED: the Simulator holds about 2.7 GB, one Lean compile
+  650-770 MB, a runner test run up to 2.1 GB; memory runs out before CPU.
 
 ## Use
 
@@ -24,7 +24,7 @@ jobs it admits rises and falls with the machine's load and memory.
 | `fw slot admit --kind build [--agents n]` | may the lead start one more builder or reviewer; prints `VERDICT admit build` or `VERDICT wait build`, the reason on stderr | 0 admit, 75 wait |
 
 Kinds: `check`, `test`, `land`, `sim`, `other`. `--owner o` (default `FW_SLOT_OWNER`, else the worktree's
-directory name) names the holder. Typical lines:
+directory name) names the holder. Examples:
 
 ```sh
 pnpm -s fw slot run --kind check --cache -- sh lean/scripts/check.sh
@@ -55,7 +55,7 @@ pnpm -s fw slot admit --kind build                       # lead, before spawning
 - **Old lock.** A live `.local/locks/sim` directory (no pid yet, or a live pid) counts as one Simulator holder
   (`withLegacy`): a sim ticket waits `simBusy` (`verdict_legacy_blocks_sim`). `sim-lock.sh acquire` takes its
   directory, asks `fw slot held --kind sim` under the slot's state lock, and gives the directory back while a slot sim
-  holder is live. Either order of the two locks leaves one Simulator user. A failing check refuses the old lock; CI
+  holder is live. A failing check refuses the old lock; CI
   skips the check (no slot there).
 - **Lean workers.** A check gets as many Lean workers as fit the free room, at least 1 and at most the online cores.
   `run` exports them as `LEAN_NUM_THREADS` and `LAKE_SLOT_CORES`.
@@ -93,17 +93,30 @@ pnpm -s fw slot admit --kind build                       # lead, before spawning
   (`FW_LOCK_EVENTS=off` or CI turns them off). An `expire` line also carries `owner`, `token`, `leaseS`, `holdMs` (the
   span it held) and `lateMs` (how long after its lease end the poll dropped it).
 - Nested runs: `run` sets `FW_SLOT_HELD=1`, and a `fw slot run` inside it runs at once.
-- `lean/scripts/check.sh` still takes `scripts/heavy-lock.mjs` inside the slot, so both gates apply until
-  heavy-lock is retired into the slot.
+- `lean/scripts/check.sh` still takes `scripts/heavy-lock.mjs` inside the slot; both gates apply until
+  heavy-lock is retired.
 
 ## Limits
 
-- Footprints and thresholds come from one MEASURED busy window and are initial values.
+- Footprints and thresholds are initial values from one MEASURED busy window.
 - A holder whose process died keeps its slot until its lease ends.
 - `fw watch` does not alert on `expire` events yet.
-- `scripts/sim-lock.sh` callers outside this task still use the old lock; it and the slot exclude each other.
+- `scripts/sim-lock.sh` callers still use the old lock; it and the slot exclude each other.
 - The Simulator check runs only while someone polls or releases a slot; `fw watch` does not run it yet.
 - The idle shutdown covers every booted device, also one booted by hand without a slot or the old lock.
 - `admit --kind build` is run by the lead by hand; `build-review.js` does not call it yet. Its thresholds (8 agents,
-  2100 MB) come from the same busy window.
+  2100 MB) are from the same window.
 - The Simulator's own footprint is not reduced; sim priority only orders the other work around it.
+
+## Self-routing
+
+Heavy entry points queue themselves.
+- `lean/scripts/check.sh`, `lean:build` (root) and every package `test` script run `node scripts/slot-self.mjs <check|test> -- <cmd>`.
+  The package scripts keep their old body as `test:run`.
+- Not held: the helper runs `fw slot run --kind <kind> -- <cmd>` and waits in the queue.
+- Held (`FW_SLOT_HELD` set, the nested rule above), on CI (`CI` set) or with `FW_SLOT_SELF=off`: the command runs
+  directly, so a nested call starts at once and CI behaves as before. The helper decides nothing else (no Lean).
+- Tests: `node --test scripts/slot-self.test.mjs` (plan table, nested start, bare call goes through the slot).
+- Not covered: one-off `lake build <target>`,
+  `lake env lean --run/--stdin`, `npx vitest`.
+- A `fw slot acquire --kind sim` holder does not get `FW_SLOT_HELD` in its shell: export `FW_SLOT_HELD=1` before running a self-routing script (check.sh, a package `test`), or it queues behind its own slot.

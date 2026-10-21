@@ -8,6 +8,7 @@
   "scripts": {
     "run": "node src/cli.mjs run",
     "classify": "node ../measure-chromium/src/classify.mjs",
-    "test": "node --test --test-concurrency=${VITEST_MAX_WORKERS:-$(node -p \"require('../contracts/golden/sched/node-budget.gen.json').workers\")} \"test/*.test.mjs\""
+    "test": "node ../../scripts/slot-self.mjs test -- pnpm run test:run",
+    "test:run": "node --test --test-concurrency=${VITEST_MAX_WORKERS:-$(node -p \"require('../contracts/golden/sched/node-budget.gen.json').workers\")} \"test/*.test.mjs\""
   }
 }

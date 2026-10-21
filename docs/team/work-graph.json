@@ -14845,7 +14845,8 @@
     ".claude/workflows/build-review.js",
     "docs/team/tools/slot.md",
     "docs/team/handoffs/heavy-self-route.md"
-   ]
+   ],
+   "evidence": "f3e6660"
   },
   {
    "devices": [

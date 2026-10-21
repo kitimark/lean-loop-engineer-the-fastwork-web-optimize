@@ -176,7 +176,7 @@ def table (_ : Unit := ()) : List Wf := [
     "packages/difftest/**", "packages/measure-webkit/src/**", "packages/measure-chromium/src/**",
     "apps/runner/hooks/cap.mjs", "apps/console-api/src/cap/**", "@fwcore", "pnpm-lock.yaml",
     ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", ".node-version", ".github/actions/setup-pnpm/**",
-    own "difftest.yml"], []⟩,
+    "scripts/slot-self.mjs", own "difftest.yml"], []⟩,
   ⟨"engine-premises.yml", ciAll, [
     "packages/measure-chromium/**", "packages/measure-wktr/**", "packages/contracts/golden/ops/engine-premises.jsonl",
     ".github/scripts/runner-info.sh", ".github/scripts/changed-inputs.mjs", ".node-version", own "engine-premises.yml"], []⟩,
@@ -195,7 +195,7 @@ def table (_ : Unit := ()) : List Wf := [
     ".github/scripts/changed-inputs.mjs", ".node-version", own "lean-math.yml"], []⟩,
   ⟨"lean.yml", ciMain, [
     "lean/**", "apps/site/src/breakpoints.gen.json", "apps/site/src/sweeps.gen.json", "apps/site/src/head.gen.json", "scripts/span.sh",
-    "scripts/fwcore-build.sh", "scripts/fwcore-record-rule.sh", "scripts/fwcore-build.test.mjs", "apps/console-api/src/core/build-base.ts", "scripts/lake-slot.sh", "scripts/lake-slot-lib.sh", "scripts/heavy-lock.mjs", "scripts/heavy-lock.test.mjs", "scripts/lake-slot.test.mjs", "packages/contracts/golden/sched/lake-slot.gen.sh",
+    "scripts/fwcore-build.sh", "scripts/fwcore-record-rule.sh", "scripts/fwcore-build.test.mjs", "apps/console-api/src/core/build-base.ts", "scripts/lake-slot.sh", "scripts/lake-slot-lib.sh", "scripts/heavy-lock.mjs", "scripts/heavy-lock.test.mjs", "scripts/slot-self.mjs", "scripts/slot-self.test.mjs", "scripts/lake-slot.test.mjs", "packages/contracts/golden/sched/lake-slot.gen.sh",
     "packages/contracts/golden/console/land-dry.jsonl", "packages/contracts/golden/gate/sweeps.jsonl", "packages/contracts/golden/gate/exit.jsonl", "packages/contracts/golden/gate/webkit-screen.jsonl", "packages/contracts/golden/gate/path-pix.jsonl", "packages/contracts/golden/device/session.jsonl", "packages/contracts/golden/device/replay.jsonl", "packages/contracts/golden/measure/webkit-lag.jsonl", "packages/contracts/golden/measure/wkcost.jsonl", "packages/contracts/golden/measure/webkit-profile.jsonl", "packages/contracts/golden/gate/search.jsonl", "packages/contracts/golden/device/stillruns.jsonl",
     "packages/contracts/golden/gate/smooth.jsonl", "packages/contracts/golden/gate/trajectory-colour.jsonl", "packages/gate-breakpoints/src/scope.gen.json", "packages/contracts/golden/parts/contracts.gen.json",
     "packages/contracts/golden/gate/run-perm.jsonl", "packages/contracts/golden/gate/run-perm-cells.jsonl",
@@ -222,7 +222,7 @@ def table (_ : Unit := ()) : List Wf := [
     "packages/premise-tests/**", "packages/contracts/golden/ops/premise.jsonl", "lean/Fw/Ops/Premise.lean",
     "apps/runner/src/premises.ts", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml",
     ".github/scripts/changed-inputs.mjs", ".node-version", ".github/actions/setup-pnpm/**", ".github/actions/gate-engine/**",
-    ".github/scripts/cache-key.mjs", "packages/contracts/golden/ops/cache.jsonl", ".github/actions/telemetry/**", "scripts/ci-telemetry/**", own "premise-tests.yml"], []⟩,
+    ".github/scripts/cache-key.mjs", "packages/contracts/golden/ops/cache.jsonl", ".github/actions/telemetry/**", "scripts/ci-telemetry/**", "scripts/slot-self.mjs", own "premise-tests.yml"], []⟩,
   ⟨"preview-e2e.yml", ciAll, [
     "packages/e2e-preview/**", "apps/console-api/src/**", "apps/console-api/package.json", "@fwcore",
     "packages/contracts/src/**", "packages/contracts/package.json", "packages/contracts/golden/console/**",
@@ -267,7 +267,7 @@ def table (_ : Unit := ()) : List Wf := [
     "@breakgen", "snapshot/**", "snapshot.lock.json", "package.json",
     "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/verify-snapshot.mjs", ".github/scripts/changed-inputs.mjs",
     ".github/actions/setup-lean/**", ".node-version", ".github/actions/setup-pnpm/**", ".github/actions/gate-engine/**",
-    own "visual-diff.yml"], []⟩,
+    "scripts/slot-self.mjs", own "visual-diff.yml"], []⟩,
   ⟨"webkit-sim.yml", ciAll, [
     "packages/measure-webkit/**", "snapshot/**", "snapshot.lock.json", ".github/scripts/check-simulator.sh",
     ".github/scripts/verify-snapshot.mjs", ".github/scripts/runner-info.sh", ".github/scripts/changed-inputs.mjs",

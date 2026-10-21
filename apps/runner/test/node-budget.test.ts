@@ -21,7 +21,7 @@ describe("testWorkersEnv replays Lean Fw.Sched.NodeBudget.workers of today's roo
 const FLAG = /node --test --test-concurrency=\$\{VITEST_MAX_WORKERS:-\$\(node -p "require\('([^']+)'\)\.workers"\)\} /;
 const packageTests = candidateChecks(root).filter((c) => c.argv[1] === "--filter").map((c) => {
   const dir = c.argv[2]!.slice(2);
-  return { dir, test: (JSON.parse(readFileSync(join(root, dir, "package.json"), "utf8")) as { scripts: { test: string } }).scripts.test };
+  return { dir, test: (JSON.parse(readFileSync(join(root, dir, "package.json"), "utf8")) as { scripts: { "test:run": string } }).scripts["test:run"] };
 });
 
 describe("every node --test script fw land runs passes the Lean budget as --test-concurrency", () => {

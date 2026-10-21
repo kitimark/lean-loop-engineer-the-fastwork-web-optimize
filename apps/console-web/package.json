@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "node ../../scripts/slot-self.mjs test -- pnpm run test:run",
+    "test:run": "vitest run"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
