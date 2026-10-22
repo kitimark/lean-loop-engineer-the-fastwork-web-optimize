@@ -313,8 +313,8 @@ theorem counted_relabel (rs : List Res) (k : Key) (f : Res → Via) (g : Res →
     simp only [counted] at ih ⊢
     rw [List.map_cons, List.filter_cons, List.filter_cons]
     by_cases hx : (x.key == k && x.outcome == .result) = true
-    · rw [if_pos hx, if_pos hx, List.length_cons, List.length_cons, ih]
-    · rw [if_neg hx, if_neg hx, ih]
+    · simp only [hx, ite_true, List.length_cons, ih]
+    · simp only [hx, ite_false, Bool.false_eq_true, ih]
 
 /-- A result from any provider counts once for its key. -/
 theorem result_counts_any_provider (rs : List Res) (x : Res) (hx : x.outcome = .result) :

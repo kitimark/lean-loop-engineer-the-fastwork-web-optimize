@@ -205,6 +205,8 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     "scripts/ci-push.mjs", "scripts/ci-push.test.mjs", "scripts/hooks/**",
     // circleci-pilot: the glue, its fixtures and the pilot config (test/ci-triggers.test.ts runs scripts/circleci.test.mjs; fw ci circleci spawns the glue)
     "scripts/circleci.mjs", "scripts/circleci.test.mjs", "scripts/circleci-fixtures/**", ".circleci/**",
+    // macos-pool-7: test/ci-triggers.test.ts runs scripts/codemagic.test.mjs, which reads codemagic.yaml; fw ci codemagic and fw ci pool dispatch spawn the glue
+    "scripts/codemagic.mjs", "scripts/codemagic.test.mjs", "codemagic.yaml",
     // macos-telemetry: test/ci-telemetry-mac.test.ts checks that the note embeds the tables Lean renders from the committed dataset
     "research/notes/2026/10-2x-macos-telemetry.md",
     // lake-build-slots: test/ci-triggers.test.ts runs the build-slot wrapper's tests (they also read golden/** above)

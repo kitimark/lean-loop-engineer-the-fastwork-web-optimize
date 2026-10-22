@@ -6,7 +6,7 @@ import { delimiter, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import { billedMin, buildMinutes, classDigest, classRows, compareTables, exitOf, fetchBuild, ledgerRows, loadConfig, loadGolden, main, mayTrigger, monthOf, normBuild,
-  redact, refusals, request, triggerRequest, usedIn, waitBuild, MIN_POLL_S } from './codemagic.mjs';
+  poolFacts, poolOk, poolRefusals, redact, refusals, request, triggerRequest, usedIn, waitBuild, MIN_POLL_S } from './codemagic.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const g = loadGolden();
@@ -17,7 +17,7 @@ const res = (status, body = {}, headers = {}) => ({ status, ok: status >= 200 &&
   arrayBuffer: async () => new TextEncoder().encode(typeof body === 'string' ? body : JSON.stringify(body)).buffer });
 
 test('the golden has the kinds the glue replays', () => {
-  assert.deepEqual(Object.keys(g).sort(), ['billed', 'constants', 'month', 'status', 'trigger']);
+  assert.deepEqual(Object.keys(g).sort(), ['billed', 'constants', 'month', 'poolTrigger', 'status', 'trigger']);
   assert.deepEqual([g.constants.freeMinutes, g.constants.stopAt, g.constants.maxCapMin, g.constants.maxBuilds], [500, 400, 40, 3]);
 });
 
@@ -41,6 +41,16 @@ test('trigger rule: every golden row (Lean usedIn, refusals, mayTrigger)', () =>
     const rows = [{ id: 'x', month: '2026-10', minutes: used }];
     if (used + cap > 400) assert.equal(mayTrigger(g.constants, '2026-10', rows, cap), false, `${used}+${cap}`);
   }
+});
+
+test('pool rule: every golden row (Lean poolRefusals, poolOk): no build count, the same minutes line', () => {
+  assert.equal(g.poolTrigger.length, g.trigger.length);
+  for (const r of g.poolTrigger) {
+    assert.equal(usedIn(r.month, r.rows), r.used, r.name);
+    assert.deepEqual(poolRefusals(g.constants, r.used, r.cap), r.refusals, r.name);
+    assert.equal(poolOk(g.constants, r.used, r.cap), r.poolOk, r.name);
+  }
+  assert.equal(g.poolTrigger.find((r) => r.name === 'three builds done').poolOk, true);
 });
 
 test('wait exit codes: every golden status (Lean exitOf)', () => {
@@ -164,6 +174,20 @@ test('trigger refuses (exit 5, no request) at 361 + 40, at three builds and at c
   }
 });
 
+test('trigger --pool: three builds do not refuse, the minutes line does (exit 5, no request); facts count pending builds', async () => {
+  const at = { now: () => Date.parse('2026-10-21T10:00:00Z') };
+  for (const [builds, code] of [
+    [{ a: { month: '2026-10', minutes: 22 }, b: { month: '2026-10', minutes: 5 }, c: { month: '2026-10', minutes: 19 } }, 0],
+    [{ a: { month: '2026-10', minutes: 180 }, b: { month: '2026-10', minutes: 181 } }, 5]]) {
+    const root = tmp(); const ledgerPath = join(root, 'ledger.json'); writeFileSync(ledgerPath, JSON.stringify({ builds }));
+    const api = fakeApi(); const logs = [];
+    assert.equal(await main(['trigger', '--pool', '--branch', 'ci/macos-pool-7'], { root, env: { FW_CODEMAGIC_APP_ID: APP }, log: (m) => logs.push(m), ctx: { fetchFn: api.fetchFn, getToken: () => TOKEN, ledgerPath, ...at } }), code);
+    assert.equal(api.calls.length, code === 0 ? 1 : 0);
+    if (code) assert.match(logs.join('\n'), /STOP \(Lean Fw\.Ci\.Codemagic\.poolRefusals\): minutes/);
+    else assert.deepEqual(poolFacts(ledgerPath, at.now()), { month: '2026-10', used: 86, busy: 1 });
+  }
+});
+
 test('a trigger the API rejects leaves no row in the ledger', async () => {
   const root = tmp(); const ledgerPath = join(root, 'ledger.json'); const err = console.error; console.error = () => {};
   try {
@@ -247,6 +271,10 @@ test('codemagic.yaml: one workflow, the pilot cap, no triggering block, the pinn
   assert.match(y, /instance_type: mac_mini_m2/);
   assert.match(y, new RegExp(`max_build_duration: ${g.constants.maxCapMin}\\b`));
   assert.match(y, /xcode: 27\.0\b/);
+  assert.match(y, /^ {6}node: 24\.22\.0$/m);
+  assert.match(y, /HOMEBREW_NO_AUTO_UPDATE: "1"/);
+  assert.match(y, /cache_paths:\n {8}- \$HOME\/fw-iwdp\n/);
+  assert.match(y, /if ! command -v ios_webkit_debug_proxy/);
   assert.doesNotMatch(y, /^\s*triggering:/m);
   const gh = readFileSync(new URL('../.github/workflows/webkit-sim.yml', import.meta.url), 'utf8');
   for (const v of ['FW_IOS_VERSION', 'FW_IOS_BUILD', 'FW_SIM_NAME', 'FW_WK_TIMEOUT_SCALE', 'FW_WK_ATTEMPTS']) {

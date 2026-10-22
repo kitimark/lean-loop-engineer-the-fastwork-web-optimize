@@ -6,7 +6,7 @@ One cell of the `webkit-sim` lane (`sim (original, 430, 1, <sha>, v1)`: Simulato
 
 | Piece | File |
 |---|---|
-| The workflow: one `webkit-sim` workflow, `mac_mini_m2`, Xcode 27.0, `max_build_duration: 40`, no `triggering` block (a push starts nothing) | `codemagic.yaml` (repo root) |
+| The workflow: one `webkit-sim` workflow, `mac_mini_m2`, Xcode 27.0, Node 24.22.0, `max_build_duration: 40`, no `triggering` block (a push starts nothing) | `codemagic.yaml` (repo root) |
 | Trigger, wait, fetch, compare, ledger, check, dry run | `scripts/codemagic.mjs` (`node scripts/codemagic.mjs <sub>`) |
 | The minutes rule, the billed-minutes rounding, the month key, the wait exit codes | `lean/Fw/Ci/Codemagic.lean`, golden `packages/contracts/golden/ci/codemagic.jsonl` (regenerate: `cd lean && lake env lean --run scripts/CodemagicGolden.lean`) |
 | Tests, fake fetch, no network, no Keychain | `scripts/codemagic.test.mjs` (`node --test scripts/codemagic.test.mjs`) |
@@ -25,12 +25,15 @@ One cell of the `webkit-sim` lane (`sim (original, 430, 1, <sha>, v1)`: Simulato
 - Run: push the branch (`git branch -f ci/<task> HEAD`, then `git push origin ci/<task>`; the build reads the branch tip), then `node scripts/codemagic.mjs trigger --branch ci/<task>`. It prints the build id.
 - Wait: `node scripts/codemagic.mjs wait --build ID --out DIR` polls every 120 s at most (never faster), exits 0 finished, 1 failed or timeout, 3 the wait ran out, 4 canceled or skipped, and fetches `build.json` (status, per-step seconds, minutes billed), `artifacts/` and the step logs the API names.
 - Compare: `node scripts/codemagic.mjs compare --github DIR --codemagic DIR` reads `v1-session-1.md` (the class table) from both directories (the GitHub one from `gh run download <run> -n webkit-sim-v1`); exit 0 same classes in every row, 1 some rows differ, 2 not comparable.
-- `node scripts/codemagic.mjs ledger` prints the minutes used this month.
+- `node scripts/codemagic.mjs ledger` prints the minutes used this month; `facts` prints `{month, used, busy}` (busy: builds not yet fetched), the Codemagic facts of `fw ci pool dispatch`.
+- Pool build: `node scripts/codemagic.mjs trigger --pool --branch ci/<task>` applies the pool rule instead of the pilot rule; `fw ci pool dispatch --go` calls it for a row the three-tier route gives Codemagic (docs/team/tools/ci-pool.md).
+- `pnpm fw ci codemagic <sub> ...` runs `node scripts/codemagic.mjs <sub> ...`, and `pnpm fw ci wait --provider codemagic --build ID --out DIR` runs its `wait`.
 
 ## Rules the code applies (Lean `Fw.Ci.Codemagic`, replayed from the golden)
 
 - Minutes: a build bills its start-to-finish time rounded up to a whole minute, at least one (`billedMin`; INFERRED, Codemagic's own rounding is not documented on the pages read). The ledger `.local/codemagic-ledger.json` holds one row per build with its UTC month; a build not yet fetched is a pending row at its cap and counts in full.
 - Trigger: allowed only when `used(month) + cap <= 400` (of the 500 free), fewer than 3 pilot builds ever ran, and `cap <= 40`. Each refusal has its own theorem (`no_trigger_over`, `no_trigger_builds`, `no_trigger_cap`), `trigger_iff` says allowed means all three hold, `trigger_within_plan` says an allowed trigger never reaches 500, and `ledger_invariant` says that after a build that stays within its cap the month is still within 400. The adapter checks this before every trigger and exits 5 without a request when it refuses.
+- Pool trigger (`--pool`, `poolRefusals`): the same minutes and cap lines, no build count. `pool_no_over` and `pool_no_cap` refuse each line on its own, `poolOk_iff` says allowed means both hold, `pool_within_plan` says an allowed build never reaches 500, and `trigger_pool` says a pilot trigger that passes also passes the pool rule. The refusal names the Lean rule it failed.
 - The ledger lives in the checkout where the trigger ran (`.local/` is gitignored). Another checkout does not see it; copy the file or set the rule's inputs by hand before triggering from there.
 - Status: `finished` exits 0; `failed` and `timeout` 1; `canceled` and `skipped` 4; every other status is "keep waiting".
 
@@ -38,5 +41,5 @@ One cell of the `webkit-sim` lane (`sim (original, 430, 1, <sha>, v1)`: Simulato
 
 - The month boundary is UTC; Codemagic's billing month is not documented on the pages read (INFERRED). The 100-minute margin under the 400 line absorbs a day's difference.
 - `GET /builds/:id` is not on docs.codemagic.io (it lists `POST /builds` and cancel only). The API answers HTTP 200 with the legacy camelCase shape `{application, build}` (`build.buildActions[]` with `startedAt`/`finishedAt` ISO strings, `build.artefacts[]`); the adapter also reads the v3 snake_case shape. The raw response carries the commit author and the repository's branch list, so it is never committed; `build.json` keeps only status, times, per-step seconds, billed minutes and artifact names (CONFIRMED by builds 1 to 3, research note).
-- Image facts the builds showed: macOS 27.0 (26A428), Xcode 27.0, iOS 27.0 runtime 24A434 preinstalled (equal to the GitHub cell's pin), Node v26.8.2 as default (the yaml does not pin it), `ios_webkit_debug_proxy` installed by brew each build (41 to 76 s). `simctl openurl` timed out in 1 of 3 builds; the harness does not retry that call.
-- No wiring into `pool-fallback`: a follow-up the user approves.
+- Image facts the builds showed: macOS 27.0 (26A428), Xcode 27.0, iOS 27.0 runtime 24A434 preinstalled (equal to the GitHub cell's pin), Node v26.8.2 as default, `ios_webkit_debug_proxy` installed by brew each build (41 to 76 s). `simctl openurl` timed out in 1 of 3 builds.
+- Fixes after the pilot: the yaml pins Node 24.22.0 (`environment.node`, CONFIRMED docs.codemagic.io/yaml-basic-configuration/yaml-getting-started); the proxy step uses a preinstalled binary, else the kegs cached in `$HOME/fw-iwdp` (`cache.cache_paths`; Codemagic keeps a cache from the first successful build for 14 days, CONFIRMED docs.codemagic.io/knowledge-codemagic/caching), else brew with auto-update off; `openUrl` in `packages/measure-webkit/src/sim.mjs` retries up to 4 times (waits 2, 4, 8 s).

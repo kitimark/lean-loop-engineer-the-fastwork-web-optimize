@@ -126,8 +126,10 @@ export async function launchSafari(udid, { log = () => {} } = {}) {
   await waitSocket();
 }
 
-export const openUrl = (udid, url, { timeoutMs = T(120000), max = 2 } = {}) => {
-  const r = simctlRetry(['openurl', udid, url], { timeoutMs }, { max }); // blocked 77 s once on a loaded runner
+/** Ask the Simulator to open `url`. CoreSimulator answers "Operation timed out" for a while after boot (twice in 55 s on a
+ *  Codemagic Mac mini M2, build 2 of the pilot), so the default policy asks 4 times: waits of 2, 4 and 8 s. */
+export const openUrl = (udid, url, { timeoutMs = T(120000), max = 4, log = (l) => process.stderr.write(`${l}\n`) } = {}) => {
+  const r = simctlRetry(['openurl', udid, url], { timeoutMs }, { max, log }); // blocked 77 s once on a loaded runner
   if (r.status !== 0) throw new Error(`simctl openurl failed: ${tail(r)}`);
 };
 

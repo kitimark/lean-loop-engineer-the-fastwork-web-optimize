@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 //   node scripts/codemagic.mjs check                          read-only: the token works and the app id is one of the account's apps (GET /apps)
-//   node scripts/codemagic.mjs trigger --branch ci/<name> [--workflow webkit-sim] [--dry]   (cap = codemagic.yaml max_build_duration)
+//   node scripts/codemagic.mjs trigger --branch ci/<name> [--workflow webkit-sim] [--pool] [--dry]   (cap = codemagic.yaml max_build_duration;
+//                                                             --pool: the macOS pool's rule, no build count)
+//   node scripts/codemagic.mjs facts                         the pool facts as JSON: month, minutes used, builds not yet fetched
 //   node scripts/codemagic.mjs wait --build ID [--timeout S] [--interval S>=120] [--out DIR]
 //   node scripts/codemagic.mjs fetch --build ID --out DIR     build.json, steps.json, artifacts/, ledger row with the minutes the build billed
 //   node scripts/codemagic.mjs compare --github DIR --codemagic DIR [--json]   (each DIR holds v1-session-1.md, the class table)
@@ -40,6 +42,12 @@ export function refusals(c, month, rows, cap) {
   return [...(c.stopAt < usedIn(month, rows) + cap ? ['minutes'] : []), ...(c.maxBuilds <= rows.length ? ['builds'] : []), ...(c.maxCapMin < cap ? ['cap'] : [])];
 }
 export const mayTrigger = (c, month, rows, cap) => refusals(c, month, rows, cap).length === 0;
+
+/** Lean `Fw.Ci.Codemagic.poolRefusals`: the macOS pool's rule, the minutes line and the cap without the pilot's build count. */
+export function poolRefusals(c, used, cap) {
+  return [...(c.stopAt < used + cap ? ['minutes'] : []), ...(c.maxCapMin < cap ? ['cap'] : [])];
+}
+export const poolOk = (c, used, cap) => poolRefusals(c, used, cap).length === 0;
 
 export function exitOf(status) {
   if (status === 'finished') return 0;
@@ -214,7 +222,8 @@ function flags(argv, spec) {
 const USAGE = [
   'usage: node scripts/codemagic.mjs <sub> ...',
   '  check                                            the token works and the app id is one of the apps (needs FW_CODEMAGIC_APP_ID or .local/codemagic.json)',
-  '  trigger --branch ci/<name> [--workflow webkit-sim] [--dry]   (cap = codemagic.yaml max_build_duration)',
+  '  trigger --branch ci/<name> [--workflow webkit-sim] [--pool] [--dry]   (cap = codemagic.yaml max_build_duration; --pool: no build count)',
+  '  facts                                            {month, used, busy} for the macOS pool (fw ci pool dispatch)',
   '  wait --build ID [--timeout S] [--interval S>=120] [--out DIR]     fetch --build ID --out DIR',
   '  compare --github DIR --codemagic DIR [--json]    ledger    digest FILE.md    dry-run',
 ].join('\n');
@@ -226,9 +235,15 @@ export function yamlCap(root) {
 }
 const onlyWorkflow = (w) => { if (w !== undefined && w !== WORKFLOW) throw new Usage(`--workflow must be ${WORKFLOW} (codemagic.yaml has one workflow)`); return WORKFLOW; };
 
-export function triggerDecision(g, ledgerPath, cap, now) {
-  const month = monthOf(now), rows = ledgerRows(readLedger(ledgerPath));
-  return { month, used: usedIn(month, rows), builds: rows.length, cap, refusals: refusals(g.constants, month, rows, cap) };
+export function triggerDecision(g, ledgerPath, cap, now, pool = false) {
+  const month = monthOf(now), rows = ledgerRows(readLedger(ledgerPath)), used = usedIn(month, rows);
+  return { month, used, builds: rows.length, cap, rule: pool ? 'poolRefusals' : 'refusals', refusals: pool ? poolRefusals(g.constants, used, cap) : refusals(g.constants, month, rows, cap) };
+}
+
+/** The pool facts of the ledger: minutes used this month (a build not yet fetched counts at its cap) and builds not yet fetched. */
+export function poolFacts(ledgerPath, now) {
+  const month = monthOf(now), builds = readLedger(ledgerPath).builds ?? {};
+  return { month, used: usedIn(month, ledgerRows({ builds })), busy: Object.values(builds).filter((b) => b.pending).length };
 }
 
 export async function main(argv, { root = ROOT, env = process.env, ctx: ctx0 = {}, log = console.log } = {}) {
@@ -256,13 +271,14 @@ export async function main(argv, { root = ROOT, env = process.env, ctx: ctx0 = {
       }
       return !r.comparable ? 2 : r.equal ? 0 : 1;
     }
+    if (sub === 'facts') { flags(rest, {}); log(JSON.stringify(poolFacts(ctx.ledgerPath, ctx.now()))); return 0; }
     if (sub === 'dry-run' || (sub === 'trigger' && rest.includes('--dry'))) {
-      const o = flags(rest.filter((x) => x !== 'dry-run'), { branch: 'v', workflow: 'v', dry: 'bool' });
+      const o = flags(rest.filter((x) => x !== 'dry-run'), { branch: 'v', workflow: 'v', dry: 'bool', pool: 'bool' });
       const cap = yamlCap(root), branch = o.branch ?? 'ci/codemagic-pilot';
       const req = triggerRequest({ appId: cfg.appId || '<app-id>', workflowId: onlyWorkflow(o.workflow), branch });
-      const d = triggerDecision(g, ctx.ledgerPath, cap, ctx.now());
+      const d = triggerDecision(g, ctx.ledgerPath, cap, ctx.now(), !!o.pool);
       log(`${req.method} ${req.url}\n${JSON.stringify({ headers: req.headers, body: { ...req.body, appId: req.body.appId === cfg.appId && cfg.appId ? '<app-id>' : req.body.appId } }, null, 2)}`);
-      log(`ledger (Lean Fw.Ci.Codemagic.refusals): month ${d.month}, ${d.used} of ${g.constants.freeMinutes} minutes used, ${d.builds} pilot build(s), cap ${d.cap} -> ${d.refusals.length ? `REFUSED (${d.refusals.join(', ')})` : 'allowed'}`);
+      log(`ledger (Lean Fw.Ci.Codemagic.${d.rule}): month ${d.month}, ${d.used} of ${g.constants.freeMinutes} minutes used, ${d.builds} pilot build(s), cap ${d.cap} -> ${d.refusals.length ? `REFUSED (${d.refusals.join(', ')})` : 'allowed'}`);
       return 0;
     }
     if (sub === 'check') {
@@ -274,11 +290,11 @@ export async function main(argv, { root = ROOT, env = process.env, ctx: ctx0 = {
       return ok ? 0 : 1;
     }
     if (sub === 'trigger') {
-      const o = flags(rest, { branch: 'v', workflow: 'v', dry: 'bool' });
+      const o = flags(rest, { branch: 'v', workflow: 'v', dry: 'bool', pool: 'bool' });
       if (!/^ci\/[A-Za-z0-9._/-]+$/.test(o.branch ?? '')) throw new Usage(USAGE);
       const cap = yamlCap(root), workflowId = onlyWorkflow(o.workflow);
-      const d = triggerDecision(g, ctx.ledgerPath, cap, ctx.now());
-      if (d.refusals.length) { log(`STOP (Lean Fw.Ci.Codemagic.refusals): ${d.refusals.join(', ')}; ${d.used} of ${g.constants.freeMinutes} minutes used in ${d.month} (line ${g.constants.stopAt}), ${d.builds} pilot build(s) (max ${g.constants.maxBuilds}), cap ${cap}`); return 5; }
+      const d = triggerDecision(g, ctx.ledgerPath, cap, ctx.now(), !!o.pool);
+      if (d.refusals.length) { log(`STOP (Lean Fw.Ci.Codemagic.${d.rule}): ${d.refusals.join(', ')}; ${d.used} of ${g.constants.freeMinutes} minutes used in ${d.month} (line ${g.constants.stopAt}), ${d.builds} build(s) in the ledger${o.pool ? '' : ` (max ${g.constants.maxBuilds})`}, cap ${cap}`); return 5; }
       const req = triggerRequest({ appId: needApp(), workflowId, branch: o.branch });
       const ledger = readLedger(ctx.ledgerPath), tmpId = `pending-${ctx.now()}`;
       ledger.builds[tmpId] = { month: d.month, minutes: cap, pending: true, at: ctx.now() };

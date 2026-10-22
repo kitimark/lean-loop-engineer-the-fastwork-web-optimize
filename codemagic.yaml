@@ -5,7 +5,10 @@ workflows:
     max_build_duration: 40
     environment:
       xcode: 27.0
+      node: 24.22.0
       vars:
+        HOMEBREW_NO_AUTO_UPDATE: "1"
+        HOMEBREW_NO_INSTALL_CLEANUP: "1"
         FW_IOS_VERSION: "27.0"
         FW_IOS_BUILD: "24A434"
         FW_SIM_NAME: fw-iphone-27
@@ -34,12 +37,32 @@ workflows:
         script: |
           set -eu
           node .github/scripts/verify-snapshot.mjs
-      - name: ios_webkit_debug_proxy
+      - name: ios_webkit_debug_proxy (preinstalled, else the cached kegs, else brew)
         script: |
           set -eu
-          brew install ios-webkit-debug-proxy
+          prefix=$(brew --prefix)
+          dir="$HOME/fw-iwdp"
+          how=preinstalled
+          if ! command -v ios_webkit_debug_proxy > /dev/null 2>&1; then
+            how=brew
+            if [ -f "$dir/kegs.txt" ] && tar -xf "$dir/kegs.tar" -C "$prefix/Cellar" \
+              && while read -r k; do ln -sfn "../Cellar/$k" "$prefix/opt/${k%/*}"; done < "$dir/kegs.txt" \
+              && brew link --overwrite ios-webkit-debug-proxy > /dev/null \
+              && ios_webkit_debug_proxy --help > /dev/null 2>&1; then
+              how=cache
+            else
+              rm -rf "$dir"; mkdir -p "$dir"
+              find "$prefix/Cellar" -mindepth 2 -maxdepth 2 -type d | sed "s|^$prefix/Cellar/||" | LC_ALL=C sort > "$dir/before.txt"
+              brew install ios-webkit-debug-proxy
+              find "$prefix/Cellar" -mindepth 2 -maxdepth 2 -type d | sed "s|^$prefix/Cellar/||" | LC_ALL=C sort > "$dir/after.txt"
+              LC_ALL=C comm -13 "$dir/before.txt" "$dir/after.txt" > "$dir/kegs.txt"
+              tar -cf "$dir/kegs.tar" -C "$prefix/Cellar" -T "$dir/kegs.txt"
+              rm "$dir/before.txt" "$dir/after.txt"
+            fi
+          fi
           command -v ios_webkit_debug_proxy
-          brew list --versions ios-webkit-debug-proxy | tee -a /tmp/fw/result/tools.txt
+          echo "ios_webkit_debug_proxy: $how" | tee -a /tmp/fw/result/tools.txt
+          brew list --versions ios-webkit-debug-proxy | tee -a /tmp/fw/result/tools.txt || true
       - name: boot the Simulator (kept booted for the whole job)
         script: |
           set -eu
@@ -75,5 +98,8 @@ workflows:
           rc=$(cat "$RUNNER_TEMP/determinism.rc" 2>/dev/null || echo 99)
           echo "determinism exit status: $rc"
           exit "$rc"
+    cache:
+      cache_paths:
+        - $HOME/fw-iwdp
     artifacts:
       - fw-result/*
