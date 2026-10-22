@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { decodeRat } from '../../engine/golden.testutil';
 import { mediaCondition } from '../../breakpoints';
-import { flipAt, layerOwnsFlip, RANGE_VAR, SUPPORTS, translateY } from './darkScroll';
+import { layerOwnsFlip, RANGE_LEN, RANGE_VAR, rangeStart, SUPPORTS, translateY, WINDOW } from './darkScroll';
 
 type Rgb = [number, number, number];
 type Row = { kind: 'flip' | 'pixel'; [k: string]: number | string | Rgb };
@@ -31,31 +31,32 @@ const supports = block(narrow, '@supports');
 const layer = block(supports, "::before");
 const decl = (body: string, name: string): string => new RegExp(`(?:^|[;\\s])${name}:\\s*([^;]+);`).exec(body)?.[1]?.trim() ?? '';
 
-/** CSS Easing steps(1, jump-start) on the scroll progress of the layer's animation (test-only twin of Lean `layerOpacity`). */
-function opacity(t: number, len: number, y: number): number {
-  const before = y < t;
-  const p = before ? 0 : y < t + len ? (y - t) / len : 1;
-  let cur = Math.floor(p) + 1;
-  if (before && Number.isInteger(p)) cur -= 1;
-  if (p < 0 && cur < 0) cur = 0;
-  if (p <= 1 && cur > 1) cur = 1;
+/**
+ * The layer's opacity from the CSS above (test-only twin of Lean `layerOpacity`): keyframes 0% and X opacity 0, 100%
+ * opacity 1, the interval from X eased by steps(1, jump-start), over the range [s, s + len], filled both ways.
+ */
+function opacity(s: number, len: number, x: number, y: number): number {
+  const p = y < s ? 0 : y < s + len ? (y - s) / len : 1;
+  if (p < x) return 0;
+  const q = (p - x) / (1 - x);
+  let cur = Math.floor(q) + 1;
+  if (q <= 1 && cur > 1) cur = 1;
   return cur;
 }
 
-describe('pain dark-scroll range start (Lean measuredFlip)', () => {
+describe('pain dark-scroll range start (Lean measuredStart)', () => {
   it.each(rows.filter((r) => r.kind === 'flip'))('flip h=$h tr=$tr y0=$y0', (r) => {
-    expect(flipAt({ rectTop: r.rectTop as number, scrollY: r.y0 as number, ty: r.ty as number })).toBeCloseTo(r.flip as number, 9);
+    expect(rangeStart({ rectTop: r.rectTop as number, scrollY: r.y0 as number, ty: r.ty as number })).toBeCloseTo(r.start as number, 9);
   });
-  it('is the header document top minus half a pixel at any scroll offset', () => {
-    for (const y0 of [0, 17.25, 3000]) expect(flipAt({ rectTop: 1850 - y0, scrollY: y0, ty: 0 })).toBe(1849.5);
+  it('is the header document top minus half a pixel minus the window at any scroll offset', () => {
+    for (const y0 of [0, 17.25, 3000]) expect(rangeStart({ rectTop: 1850 - y0, scrollY: y0, ty: 0 })).toBe(1849.5 - WINDOW);
   });
 });
 
 describe('pain dark-scroll pixels (Lean pixel_eq)', () => {
   const white: Rgb = [255, 255, 255];
   it.each(rows.filter((r) => r.kind === 'pixel'))('w=$w h=$h y=$y', (r) => {
-    const flip = (r.h as number) - 0.5;
-    const o = opacity(flip, 1, r.y as number);
+    const o = opacity(r.start as number, RANGE_LEN, WINDOW / RANGE_LEN, r.y as number);
     expect(o).toBe(r.opacity);
     const dark: Rgb = [19, 25, 34];
     const px: Rgb = (r.w as number) <= 860 ? (white.map((c, i) => c + (dark[i]! - c) * o) as Rgb) : dark;
@@ -90,15 +91,17 @@ describe('pain dark-scroll CSS', () => {
     expect(flat).toContain('height: 200svh;');
   });
   it('animates opacity only, steps(1, jump-start), on the root scroll timeline, filled both ways', () => {
-    expect(decl(layer, 'animation-timing-function')).toBe('steps(1, jump-start)');
+    expect(decl(layer, 'animation-timing-function')).toBe('linear');
     expect(decl(layer, 'animation-timeline')).toBe('scroll(root block)');
     expect(decl(layer, 'animation-fill-mode')).toBe('both');
     expect(decl(layer, 'animation-duration')).toBe('auto');
-    expect(block(css, '@keyframes painDark').replace(/\s+/g, ' ').trim()).toBe('from { opacity: 0; } to { opacity: 1; }');
+    expect(block(css, '@keyframes painDark').replace(/\s+/g, ' ').trim()).toBe(
+      `0% { opacity: 0; } ${(WINDOW / RANGE_LEN) * 100}% { opacity: 0; animation-timing-function: steps(1, jump-start); } 100% { opacity: 1; }`,
+    );
   });
-  it('reads the range start from the property the code writes, over a 1px range', () => {
+  it('reads the range start from the property the code writes, over the 32768px range', () => {
     expect(decl(layer, 'animation-range-start')).toBe(`var(${RANGE_VAR}, 100000000px)`);
-    expect(decl(layer, 'animation-range-end')).toBe(`calc(var(${RANGE_VAR}, 100000000px) + 1px)`);
+    expect(decl(layer, 'animation-range-end')).toBe(`calc(var(${RANGE_VAR}, 100000000px) + ${RANGE_LEN}px)`);
   });
   it('exists only inside the band and the @supports, as pseudo-elements (no child is added)', () => {
     expect(css.match(/\](?: \.sticky)?::before/g)?.length).toBe(4);

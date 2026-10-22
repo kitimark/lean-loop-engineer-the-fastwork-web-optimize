@@ -11,9 +11,12 @@ Original (`snapshot/site-pretty/_app/immutable/nodes/2.DyWL8TcE.js`, `Fw.Parts.P
 `0.5` px, which swaps the white section, stage and hold backgrounds for `#131922`.
 
 Variant: the white backgrounds stay and two empty `#131922` layers lie over them behind the content (over the hold, and
-over the stage's own background); each has its opacity animated from 0 to 1 on the root scroll timeline with
-`steps(1, jump-start)`, range start `T = H - 1/2` (`H` the header's document top, written once per layout), range length
-`len > 0`, fill both. Above 860 px the layers do not exist and the base CSS is dark in both arms.
+over the stage's own background); each has its opacity animated from 0 to 1 on the root scroll timeline over a range
+that starts `window` px before the flip offset `T = H - 1/2` (`H` the header's document top, written once per layout)
+and is far longer than the page, fill both. The flip is a keyframe at `window / rangeLen` of the range whose interval
+is eased by `steps(1, jump-start)`, so the animation is already running when the scroll crosses `T` (a range that
+starts at `T` is idle before it, and WebKit then flips on the main thread). Above 860 px the layers do not exist and the
+base CSS is dark in both arms.
 -/
 namespace Fw.Parts.PainDarkScroll
 open Fw.Parts.PeopleCard
@@ -61,13 +64,30 @@ def origPixel (w h tr y : Rat) : Rgb :=
 /-- The scroll offset at which the layer turns on: the header's document top minus `darkTop`. -/
 def flipAt (h : Rat) : Rat := h - darkTop
 
+/-- Scroll px before the flip offset at which the animation's range starts, so the animation is already running (and, in
+WebKit, accelerated) when the scroll crosses the flip. -/
+def window : Rat := 256
+
+/-- The animation's range length in scroll px (past the end of any page in the band). -/
+def rangeLen : Rat := 32768
+
+/-- Keyframe offset of the flip inside the range: `window / rangeLen`, the CSS `0.78125%`. -/
+def offsetX : Rat := window / rangeLen
+
+/-- The range start written for a header at document top `h`. -/
+def rangeStart (h : Rat) : Rat := flipAt h - window
+
+/-- The flip offset the range encodes: its start plus the keyframe offset of the range length. -/
+theorem flip_of_range (h : Rat) : rangeStart h + offsetX * rangeLen = flipAt h := by
+  unfold rangeStart offsetX window rangeLen; grind
+
 /-- What the layout effect writes as range start from a measurement taken at scroll offset `y0`: the header's viewport
 top, the scroll offset and the card's current translation (read from its transform). -/
-def measuredFlip (rectTop y0 ty : Rat) : Rat := rectTop + y0 - ty - darkTop
+def measuredStart (rectTop y0 ty : Rat) : Rat := rectTop + y0 - ty - darkTop - window
 
-/-- **The written range start is the flip offset, at any scroll offset and in any reveal state.** -/
-theorem measure_eq (h tr y0 : Rat) : measuredFlip (headerTop h tr y0) y0 tr = flipAt h := by
-  unfold measuredFlip headerTop flipAt; grind
+/-- **The written range start is the encoded one, at any scroll offset and in any reveal state.** -/
+theorem measure_eq (h tr y0 : Rat) : measuredStart (headerTop h tr y0) y0 tr = rangeStart h := by
+  unfold measuredStart headerTop rangeStart flipAt; grind
 
 /-- CSS Easing `steps(1, jump-start)` (`TimingFunction::transformProgress`, `TimingFunction.cpp:100-139@862f17d`):
 current step `floor p + 1`, minus one when the before flag is set and `p` is an integer, clamped to `[0, 1]`. -/
@@ -78,13 +98,16 @@ def stepsStart1 (before : Bool) (p : Rat) : Rat :=
   let c3 : Int := if decide (p ≤ 1) && decide (1 < c2) then 1 else c2
   (c3 : Rat)
 
-/-- The scroll animation's progress and before flag at offset `y`: before the range (fill backwards) 0 and flag set,
-inside it `(y - T) / len`, after it (fill forwards) 1. -/
-def phase (t len y : Rat) : Rat × Bool :=
-  if y < t then (0, true) else if y < t + len then ((y - t) / len, false) else (1, false)
+/-- The scroll animation's progress at offset `y` over the range `[s, s + len]`: 0 before it (fill backwards), linear
+inside it, 1 after it (fill forwards). -/
+def progress (s len y : Rat) : Rat :=
+  if y < s then 0 else if y < s + len then (y - s) / len else 1
 
-/-- The layer's opacity: keyframes 0 to 1 eased by `steps(1, jump-start)`. -/
-def layerOpacity (t len y : Rat) : Rat := stepsStart1 (phase t len y).2 (phase t len y).1
+/-- The layer's opacity. Keyframes: `0%` opacity 0, `x` opacity 0 with timing `steps(1, jump-start)`, `100%` opacity 1.
+The interval of progress `p` starts at the last keyframe at or before `p`, so at `p = x` the second interval applies. -/
+def layerOpacity (s len x y : Rat) : Rat :=
+  let p := progress s len y
+  if p < x then 0 else stepsStart1 false ((p - x) / (1 - x))
 
 private theorem floor_zero : (0 : Rat).floor = 0 := by
   have := Rat.floor_intCast 0
@@ -99,29 +122,52 @@ private theorem floor_unit (p : Rat) (h0 : 0 ≤ p) (h1 : p < 1) : p.floor = 0 :
   have b : p.floor < 1 := Rat.floor_lt_iff.2 (by simpa using h1)
   omega
 
-/-- **Opacity is exactly 0 before the flip offset and exactly 1 from it on** (steps only, no ramp). -/
-theorem opacity_eq (t len y : Rat) (hl : 0 < len) : layerOpacity t len y = if t ≤ y then 1 else 0 := by
-  unfold layerOpacity phase
-  by_cases h1 : y < t
-  · have : ¬ t ≤ y := by grind
-    simp [h1, this, stepsStart1, floor_zero]
-  · by_cases h2 : y < t + len
-    · have hp0 : 0 ≤ (y - t) / len := by
-        refine Rat.not_lt.1 fun hn => ?_
-        rw [Rat.div_lt_iff hl] at hn
-        grind
-      have hp1 : (y - t) / len < 1 := by
-        rw [Rat.div_lt_iff hl]; grind
-      have hf := floor_unit _ hp0 hp1
-      have : t ≤ y := by grind
-      simp [h1, h2, this, stepsStart1, hf]
-    · have : t ≤ y := by grind
-      simp [h1, h2, this, stepsStart1, floor_one]
+/-- **Opacity is exactly 0 before the flip offset `s + x * len` and exactly 1 from it on** (steps only, no ramp), for any
+range start `s`, positive length and keyframe offset strictly inside `(0, 1)`. -/
+theorem opacity_eq (s len x y : Rat) (hl : 0 < len) (hx0 : 0 < x) (hx1 : x < 1) :
+    layerOpacity s len x y = if s + x * len ≤ y then 1 else 0 := by
+  have hxl : 0 < x * len := Rat.mul_pos hx0 hl
+  have hxl1 : x * len < len := by
+    have := Rat.mul_pos (show 0 < 1 - x by grind) hl
+    grind
+  unfold layerOpacity progress
+  by_cases h1 : y < s
+  · have h3 : ¬ s + x * len ≤ y := by grind
+    simp [h1, h3, hx0]
+  · by_cases h2 : y < s + len
+    · by_cases h4 : (y - s) / len < x
+      · have h5 : ¬ s + x * len ≤ y := by
+          rw [Rat.div_lt_iff hl] at h4; grind
+        simp [h1, h2, h4, h5]
+      · have h6 : s + x * len ≤ y := by
+          have : ¬ (y - s) / len < x := h4
+          rw [Rat.div_lt_iff hl] at this; grind
+        have hq0 : 0 ≤ ((y - s) / len - x) / (1 - x) := by
+          refine Rat.not_lt.1 fun hn => ?_
+          rw [Rat.div_lt_iff (by grind)] at hn
+          have : x ≤ (y - s) / len := Rat.not_lt.1 h4
+          grind
+        have hq1 : ((y - s) / len - x) / (1 - x) < 1 := by
+          rw [Rat.div_lt_iff (by grind)]
+          have : (y - s) / len < 1 := by rw [Rat.div_lt_iff hl]; grind
+          grind
+        have hf := floor_unit _ hq0 hq1
+        simp [h1, h2, h4, h6, stepsStart1, hf]
+    · have h6 : s + x * len ≤ y := by grind
+      have h7 : ¬ (1 : Rat) < x := by grind
+      have h8 : (1 - x) / (1 - x) = 1 := by rw [Rat.div_def]; exact Rat.mul_inv_cancel _ (by grind)
+      simp [h1, h2, h6, h7, h8, stepsStart1, floor_one]
 
-/-- Variant pixel at width `w` and scroll offset `y`: the layer over the white section in the band, the base dark
-above it (layer hidden). -/
-def varPixel (w h len y : Rat) : Rgb :=
-  if w ≤ 860 then over light darkRgb (layerOpacity (flipAt h) len y) else darkRgb
+/-- Variant pixel at width `w` and scroll offset `y`: the layers over the white section in the band, the base dark
+above it (layers absent). -/
+def varPixel (w h y : Rat) : Rgb :=
+  if w ≤ 860 then over light darkRgb (layerOpacity (rangeStart h) rangeLen offsetX y) else darkRgb
+
+/-- The layer's opacity from the written range is 0 before the flip offset and 1 from it on. -/
+theorem layer_flip (h y : Rat) : layerOpacity (rangeStart h) rangeLen offsetX y = if flipAt h ≤ y then 1 else 0 := by
+  have := opacity_eq (rangeStart h) rangeLen offsetX y (by unfold rangeLen; grind) (by unfold offsetX window rangeLen; grind)
+    (by unfold offsetX window rangeLen; grind)
+  rw [this, flip_of_range]
 
 /-! ## Same look -/
 
@@ -131,15 +177,15 @@ def Reveal (tr : Rat) : Prop := tr = 0
 /-- Premise Cont: the original's last class write used this very scroll offset (no frame behind). -/
 def Cont (lastY y : Rat) : Prop := lastY = y
 
-/-- **Pixel equality** (for every width, offset and layer range length): under Reveal and Cont, the variant shows the
-same pixel as the original. -/
-theorem pixel_eq (w h tr lastY y len : Rat) (hl : 0 < len) (hr : Reveal tr) (hc : Cont lastY y) :
-    varPixel w h len y = origPixel w h tr lastY := by
+/-- **Pixel equality** (for every width, document top and offset): under Reveal and Cont, the variant shows the same
+pixel as the original. -/
+theorem pixel_eq (w h tr lastY y : Rat) (hr : Reveal tr) (hc : Cont lastY y) :
+    varPixel w h y = origPixel w h tr lastY := by
   unfold Reveal at hr; unfold Cont at hc
   subst hr; subst hc
   unfold varPixel origPixel
   by_cases hw : w ≤ 860
-  · simp only [hw, ite_true, opacity_eq _ _ _ hl, painDark, decide_true, Bool.not_true, Bool.false_or, headerTop, flipAt]
+  · simp only [hw, ite_true, layer_flip, painDark, decide_true, Bool.not_true, Bool.false_or, headerTop, flipAt]
     by_cases ht : h + 0 - lastY ≤ darkTop
     · have : h - darkTop ≤ lastY := by grind
       simp [ht, this, over_one]
@@ -148,28 +194,27 @@ theorem pixel_eq (w h tr lastY y len : Rat) (hl : 0 < len) (hr : Reveal tr) (hc 
   · simp [hw, painDark]
 
 /-- Reveal is needed: a card still 48 px low (its `translateY(48px)`) flips the original later than the layer. -/
-theorem reveal_needed : ∃ w h y len : Rat, 0 < len ∧ varPixel w h len y ≠ origPixel w h 48 y := by
-  refine ⟨390, 1000, 1000, 1, by grind, ?_⟩
+theorem reveal_needed : ∃ w h y : Rat, varPixel w h y ≠ origPixel w h 48 y := by
+  refine ⟨390, 1000, 1000, ?_⟩
   decide +kernel
 
 /-- Above 860 px both arms are dark at every offset and in every state. -/
-theorem wide_eq (w h tr y len : Rat) (hw : 860 < w) : varPixel w h len y = origPixel w h tr y := by
+theorem wide_eq (w h tr y : Rat) (hw : 860 < w) : varPixel w h y = origPixel w h tr y := by
   have : ¬ w ≤ 860 := by grind
   simp [varPixel, origPixel, this, painDark]
 
 /-- **Where Reveal fails the looks differ only inside a window of at most 48 px of scroll.** The reveal translation
-`tr` runs from 48 px (`translateY(48px)`, card.module.css) down to 0; with a current class and a layer of positive
-range length, the two arms differ at `y` only in the band and only while `flipAt h <= y < flipAt h + tr`, the original
-being the later one. -/
-theorem drift_window (w h tr lastY y len : Rat) (hl : 0 < len) (hc : Cont lastY y) (h0 : 0 ≤ tr) (h48 : tr ≤ 48)
-    (hne : varPixel w h len y ≠ origPixel w h tr lastY) :
+`tr` runs from 48 px (`translateY(48px)`, card.module.css) down to 0; with a current class, the two arms differ at `y`
+only in the band and only while `flipAt h <= y < flipAt h + tr`, the original being the later one. -/
+theorem drift_window (w h tr lastY y : Rat) (hc : Cont lastY y) (h0 : 0 ≤ tr) (h48 : tr ≤ 48)
+    (hne : varPixel w h y ≠ origPixel w h tr lastY) :
     w ≤ 860 ∧ flipAt h ≤ y ∧ y < flipAt h + 48 := by
   unfold Cont at hc
   subst hc
   by_cases hw : w ≤ 860
   · refine ⟨hw, ?_⟩
     unfold varPixel origPixel at hne
-    simp only [hw, ite_true, opacity_eq _ _ _ hl, painDark, decide_true, Bool.not_true, Bool.false_or, headerTop,
+    simp only [hw, ite_true, layer_flip, painDark, decide_true, Bool.not_true, Bool.false_or, headerTop,
       flipAt] at hne
     by_cases ha : h - darkTop ≤ lastY
     · by_cases hb : h + tr - lastY ≤ darkTop
@@ -180,15 +225,16 @@ theorem drift_window (w h tr lastY y len : Rat) (hl : 0 < len) (hc : Cont lastY 
       · exfalso; grind
       · simp [ha, hb, over_zero] at hne
   · exfalso
-    exact hne (wide_eq w h tr lastY len (by grind))
+    exact hne (wide_eq w h tr lastY (by grind))
 
 /-- Cont is needed: an original one frame behind (class from `lastY < y`) differs from the layer. -/
-theorem cont_needed : ∃ w h y lastY len : Rat, 0 < len ∧ varPixel w h len y ≠ origPixel w h 0 lastY := by
-  refine ⟨390, 1000, 1000, 900, 1, by grind, ?_⟩
+theorem cont_needed : ∃ w h y lastY : Rat, varPixel w h y ≠ origPixel w h 0 lastY := by
+  refine ⟨390, 1000, 1000, 900, ?_⟩
   decide +kernel
 
-#guard varPixel 390 1000 1 999 == light && varPixel 390 1000 1 999.5 == darkRgb && varPixel 390 1000 1 5000 == darkRgb
-#guard layerOpacity 100 1 99 == 0 && layerOpacity 100 1 100 == 1 && layerOpacity 100 1 100.5 == 1 && layerOpacity 100 1 101 == 1
+#guard varPixel 390 1000 999 == light && varPixel 390 1000 999.5 == darkRgb && varPixel 390 1000 5000 == darkRgb
+#guard layerOpacity 0 100 (1 / 2) 49 == 0 && layerOpacity 0 100 (1 / 2) 50 == 1 && layerOpacity 0 100 (1 / 2) 100 == 1
+  && layerOpacity 0 100 (1 / 2) (-1) == 0 && layerOpacity 0 100 (1 / 2) 101 == 1
 
 /-! ## Work -/
 
@@ -241,7 +287,11 @@ theorem no_lift : liftsThrottle [darkProps] = false := by decide
 /-- The layers the variant adds: one over the hold, one over the stage (at most 3). -/
 def solidLayers : Nat := 2
 
-theorem solid_layers_le : solidLayers ≤ 3 := by decide
+/-- Layers the engine adds around them. Chromium counts 3 more layers in every frame (CI run 39822446444: 19 to 22,
+`census.layers`); the third is INFERRED to be a host layer for the negative-z layer in the stage. -/
+def hostLayers : Nat := 1
+
+theorem solid_layers_le : solidLayers + hostLayers ≤ 3 := by decide
 
 /-- **The solid layer has no backing store** (no content, no display delegation). -/
 theorem layer_backing_zero (areaKpx : Nat) :
@@ -271,16 +321,16 @@ open Lean in
 def flipRows (_ : Unit := ()) : List String :=
   docTops.flatMap fun h => [0, 48].flatMap fun tr => [0, 313, 1337 / 3].map fun y0 =>
     (Json.mkObj [("kind", .str "flip"), ("h", jrat h), ("tr", jrat tr), ("y0", jrat y0),
-      ("rectTop", jrat (headerTop h tr y0)), ("ty", jrat tr), ("flip", jrat (measuredFlip (headerTop h tr y0) y0 tr))]).compress
+      ("rectTop", jrat (headerTop h tr y0)), ("ty", jrat tr), ("start", jrat (measuredStart (headerTop h tr y0) y0 tr))]).compress
 
 open Lean in
 /-- Pixel rows: original (revealed, class current) and variant at offsets around the flip. -/
 def pixelRows (_ : Unit := ()) : List String :=
   widths.flatMap fun w => docTops.flatMap fun h => deltas.map fun d =>
     let y := flipAt h + d
-    (Json.mkObj [("kind", .str "pixel"), ("w", jrat w), ("h", jrat h), ("y", jrat y), ("len", jrat 1),
-      ("opacity", jrat (layerOpacity (flipAt h) 1 y)), ("orig", jrgb (origPixel w h 0 y)),
-      ("var", jrgb (varPixel w h 1 y))]).compress
+    (Json.mkObj [("kind", .str "pixel"), ("w", jrat w), ("h", jrat h), ("y", jrat y), ("start", jrat (rangeStart h)),
+      ("opacity", jrat (layerOpacity (rangeStart h) rangeLen offsetX y)), ("orig", jrgb (origPixel w h 0 y)),
+      ("var", jrgb (varPixel w h y))]).compress
 
 /-- The contents of `packages/contracts/golden/parts/pain-dark-scroll.jsonl`. -/
 def darkScrollJsonl (_ : Unit := ()) : String := String.join ((flipRows () ++ pixelRows ()).map (· ++ "\n"))

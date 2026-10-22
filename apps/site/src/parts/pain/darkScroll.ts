@@ -29,9 +29,15 @@ export function layerOwnsFlip(variant: string | null, supports: boolean): boolea
   return variant === 'dark-scroll' && supports;
 }
 
-/** Lean `measuredFlip`: the scroll offset at which the header's top reaches `DARK_TOP`, from one measurement. */
-export function flipAt({ rectTop, scrollY, ty }: { rectTop: number; scrollY: number; ty: number }): number {
-  return rectTop + scrollY - ty - DARK_TOP;
+/** Scroll px before the flip at which the animation's range starts (Lean `window`). */
+export const WINDOW = 256;
+
+/** The animation's range length in scroll px (Lean `rangeLen`); the CSS restates it. */
+export const RANGE_LEN = 32768;
+
+/** Lean `measuredStart`: the range start, `WINDOW` before the scroll offset at which the header's top reaches `DARK_TOP`. */
+export function rangeStart({ rectTop, scrollY, ty }: { rectTop: number; scrollY: number; ty: number }): number {
+  return rectTop + scrollY - ty - DARK_TOP - WINDOW;
 }
 
 /** The y translation of a computed `transform` (`none`, `matrix(...)` or `matrix3d(...)`); 0 when there is none. */
@@ -44,7 +50,7 @@ export function translateY(transform: string): number {
 }
 
 /**
- * Keeps `RANGE_VAR` on the Pain section equal to the flip offset while the viewport is in the narrow band. It measures
+ * Keeps `RANGE_VAR` on the Pain section equal to the range start (the flip offset minus `WINDOW`) while the viewport is in the narrow band. It measures
  * when a layout changes (a ResizeObserver on the page, the card and the section, the band edge, load), never per scroll
  * frame, and writes only when the value changes. Returns the disposer.
  */
@@ -57,7 +63,7 @@ export function installRangeStart(section: HTMLElement): () => void {
     const header = card?.firstElementChild;
     let next = '';
     if (narrow.matches && card && header) {
-      const t = flipAt({
+      const t = rangeStart({
         rectTop: header.getBoundingClientRect().top,
         scrollY: window.scrollY,
         ty: translateY(getComputedStyle(card).transform),
