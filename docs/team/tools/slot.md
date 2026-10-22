@@ -165,6 +165,6 @@ A queued run waits in one node process, not a tree (slot-waiter-light, MEASURED 
 
 ## Main's slot code
 
-`fw slot ...` (apps/runner/src/fw.ts) and `scripts/slot-self.mjs` load `slot-main.ts` from the main checkout (the parent of the shared repo dir, see `apps/runner/src/slot-resolve.ts`), so a worktree on an older branch decides with main's slot code against the shared queue. They fall back to their own file only when main's is missing. The Node pin guard and the Monitor line `node apps/runner/src/fw.ts watch --interval 300 --stream` are unchanged.
+`fw slot ...` (apps/runner/src/fw.ts) and `scripts/slot-self.mjs` load `slot-main.ts` from the main checkout (the parent of the shared repo dir, see `apps/runner/src/slot.ts`), so a worktree on an older branch decides with main's slot code against the shared queue. They fall back to their own file only when main's is missing. The Node pin guard and the Monitor line `node apps/runner/src/fw.ts watch --interval 300 --stream` are unchanged.
 - Limits: a run already waiting keeps the code it loaded; main's code must stay compatible with older callers' `state.json` writes.
-- Test: `apps/runner/test/slot-resolve.test.ts` (fixture repo with a worktree). Incident: `inc-slot-branch-code`.
+- Test: `apps/runner/test/slot.test.ts` (fixture repo with a worktree). Incident: `inc-slot-branch-code`.

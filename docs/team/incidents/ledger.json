@@ -3912,11 +3912,11 @@
      "note": "the routing that resolved slot-main.ts inside the caller's worktree"
     }
    ],
-   "repro": "A worktree whose slot-main.ts differs from main's: before the fix its verdict ran; after it, resolveSlotMain returns the main checkout's file (apps/runner/test/slot-resolve.test.ts).",
+   "repro": "A worktree whose slot-main.ts differs from main's: before the fix its verdict ran; after it, resolveSlotMain returns the main checkout's file (apps/runner/test/slot.test.ts).",
    "fix": {
     "task": "slot-main-code"
    },
-   "regression": "apps/runner/test/slot-resolve.test.ts builds a fixture repo with a worktree and checks the resolver picks the main checkout's slot-main.ts, and falls back to the local one when main's is missing.",
+   "regression": "apps/runner/test/slot.test.ts builds a fixture repo with a worktree and checks the resolver picks the main checkout's slot-main.ts, and falls back to the local one when main's is missing.",
    "mistakeClass": "c-spec-gap",
    "leanVerdict": "no",
    "leanReason": "File resolution is I/O glue; the slot decision itself stays in Lean-checked slot-core.",
