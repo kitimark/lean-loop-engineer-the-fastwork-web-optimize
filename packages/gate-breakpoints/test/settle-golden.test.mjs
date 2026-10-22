@@ -1,5 +1,3 @@
-// The settle decisions (src/settle.mjs, and the copies inside page.mjs settleInPage) against the golden file Lean generates
-// (packages/contracts/golden/gate/settle.jsonl, lean/Fw/Gate/Settle.lean). Nothing is decided here.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
@@ -14,7 +12,6 @@ const ROOT = resolve(PKG, '../..');
 const lines = readFileSync(SETTLE_GOLDEN, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
 const of = (kind) => lines.filter((l) => l.kind === kind);
 
-/** The predicate texts between markers in settleInPage, rebuilt as functions: the very text that runs in the page. */
 function fromPage(tag) {
   const src = settleInPage.toString();
   const m = new RegExp(`// <${tag}>\\s*([\\s\\S]*?)\\s*// </${tag}>`).exec(src);
@@ -135,7 +132,6 @@ test('rendered and cell: a node in a skipped subtree is notRendered, never pass 
   }
 });
 
-// gate-settle-scroll-timeline: `running` counts animations on the document timeline only (Fw.Gate.Settle.runCount).
 test('runs: the node twin and the page copy count document-timeline animations only (golden)', () => {
   const pageCounts = fromPage('counts');
   assert.ok(of('runs').length >= 6);
