@@ -1,7 +1,7 @@
 # site-layer-opts-followups (part-builder)
 
-Branch `worktree-wf_4dc1280f-1ad-1`, worktree `.claude/worktrees/wf_4dc1280f-1ad-1`. No CI push (local checks only), CI runs: none.
-Code commit: f93f02fc (round 2 fixes plus merge of main); the handoff commit follows it.
+Branch `worktree-wf_4dc1280f-1ad-1`, worktree `.claude/worktrees/wf_4dc1280f-1ad-1`. No CI push, CI runs: none.
+Code commit: f93f02fc (round 2 fixes plus merge of main).
 
 Done (round 2):
 - `resolve.ts` guard is `new URLSearchParams(search).has('fwl')`: an encoded key (`?f%77l=...`) is refused like Lean.

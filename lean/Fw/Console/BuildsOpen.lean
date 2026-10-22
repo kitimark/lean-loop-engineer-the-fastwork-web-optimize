@@ -188,14 +188,10 @@ theorem verdictOf_refused (names fw fwl) (es : List String) (h : es ≠ []) : ve
   | nil => exact absurd rfl h
   | cons a t => rfl
 
-/-- Encoded `?fwl=`: the console decodes nothing. `%` and `+` are outside `okChar`, so a search carrying an
-encoded layer id is refused whole; the site refuses the same searches (rule: refuse in both). -/
 theorem okChar_percent : okChar '%' = false := by decide
 
 theorem okChar_plus : okChar '+' = false := by decide
 
-/-- Any search of allowed length whose body holds a `%` is refused whole with `charsetReason`: no percent-decoding,
-whatever key carries it (including an encoded `fwl` key). -/
 theorem validate_percent (parts presets) (s : String) (hl : ¬ s.length > maxLen) (hm : '%' ∈ (body s).toList) :
     validate parts presets s = .refused [charsetReason] :=
   validate_charset parts presets s hl (by
@@ -204,7 +200,6 @@ theorem validate_percent (parts presets) (s : String) (hl : ¬ s.length > maxLen
     · have := List.all_eq_true.1 h '%' hm
       simp [okChar_percent] at this)
 
-/-- The same for a `+` (not read as a space). -/
 theorem validate_plus (parts presets) (s : String) (hl : ¬ s.length > maxLen) (hm : '+' ∈ (body s).toList) :
     validate parts presets s = .refused [charsetReason] :=
   validate_charset parts presets s hl (by
