@@ -16312,6 +16312,27 @@
     "lean/Fw.lean"
    ],
    "title": "User 2026-10-22: 'our daemon could handle these lean slots: agents that want to test while we measure wait until the measure is done, or manage it by resource calculation.' Observed 20:15: mac-safari-measure held sim, the adaptive limit rose 1 -> 2, gate-settle-scroll-timeline's check ran beside it (lean 100% CPU) and Fw.Sup.Measure's quiet rule (holdersMax 0) refused passes. Lean first (Fw.Sup.Adapt + new Fw.Sup.MeasureWindow): a measure lease with pass windows. (1) During a live pass window nothing else is admitted (theorem: passLive -> every other request waits). (2) Between passes a queued job is admitted only if its predicted duration plus settle time (per-kind spans and memory from sup-baseline / Fw.Obs.Timing, a stated percentile) ends before the next pass start and its memory fits; else it waits (theorem: an admitted gap job cannot overlap the next pass under the prediction premise; the premise is INFERRED and the pass's quiet check still guards it). (3) Bounded wait: the measure lease has a hard deadline and sup-fairness's starvation bound still holds for queued kinds (theorem). Goldens; slot.ts / slot-core.ts follow the Lean verdict; fw slot status shows the measure window and why each ticket waits. The lead switches packages/measure-webkit/src/safari-local-lease.mjs to the measure kind after both land."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "touch-first-scroll-probe",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "morph-touch-band"
+   ],
+   "writes": [
+    "packages/measure-webkit/src/lag/**",
+    "packages/measure-webkit/test/lag-*.test.mjs",
+    "lean/Fw/Measure/TouchStart*.lean",
+    "packages/contracts/golden/measure/touch-start*.jsonl",
+    ".github/workflows/webkit-lag-probe.yml",
+    "research/notes/2026/10-2x-touch-first-scroll.md",
+    "docs/team/handoffs/touch-first-scroll-probe.md"
+   ],
+   "title": "Split from morph-touch-band (item webkit-touch-to-first-scroll undelivered: no lane). A WebKit probe of touch-to-first-scroll at the end of page (real touches via XCUITest on the iOS Simulator, as toolbar-throttle-probe did): time from touchstart to the first scrollY change and pan-start delay, per pan crossing the morph band, base vs ?fw=morph.mount:band,morph.tween:band (multi-flag prerender), >= 3 jobs. Also count scrollY still runs (5-6 frames, the toolbar throttle) over the end-of-page range for original, rewrite and ?fw=engine.scroll:throttle-lift, answering the user's 2026-10-22 question whether end-of-page lag is page cost or scroll-event limiting. Lean: the counted predicates and reduction with goldens first."
   }
  ],
  "deadline": {
