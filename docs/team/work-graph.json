@@ -16865,7 +16865,15 @@
     "apps/runner/src/land.ts",
     "apps/runner/test/land-install*.test.ts",
     "docs/team/tools/land.md",
-    "docs/team/handoffs/land-install-fallback.md"
+    "docs/team/handoffs/land-install-fallback.md",
+    "lean/Fw/Console/LandVerdict.lean",
+    "lean/Fw/Console/LandDry.lean",
+    "lean/Fw/Console/LandQueue.lean",
+    "packages/contracts/golden/console/land-dry.jsonl",
+    "packages/contracts/golden/console/land-queue.jsonl",
+    "apps/runner/src/land-verdict.ts",
+    "apps/runner/src/fw-main.ts",
+    "apps/runner/test/land-verdict.test.ts"
    ],
    "title": "fw land refused morph-touch-band on 2026-10-23 with 'check FAILED: pnpm --filter ./apps/site test': the land worktree .claude/land-wt/1 lacked jsdom (vitest: Cannot find package 'jsdom'; 37 packages missing). land.ts:356 runs `pnpm install --offline --frozen-lockfile` in the land worktree and swallows any failure (catch {}), so a package absent from the local store leaves node_modules incomplete and the land fails later with an unrelated-looking test error (the lead's `pnpm install --frozen-lockfile` there added 37 packages and fixed it). Fix: on an offline install failure, run the online `pnpm install --frozen-lockfile`; if that fails too, refuse the land with a named reason (VERDICT install) instead of continuing; test both paths with a stubbed exec; doc in land.md."
   },
@@ -16924,6 +16932,85 @@
     "docs/team/handoffs/trajectory-carousel-lean.md"
    ],
    "title": "Review follow-up of gpu-trajectory-cells: the carousel and pain reducers are TS stand-ins (swapsOf, restedBefore, carouselCell pairing by order over min(bs,cs), worst dropping null reps, painCell's no-flip rule). A candidate with fewer or zero swaps grades only min pairs (zero swaps gives null, not L), and worst([E,null]) = E, so a stopped carousel is not flagged; restedBefore has no hold-out (all 12 Chromium recordings open mid-swap). Port the segmentation and pairing to Lean with goldens; swap-count mismatch grades L; a null rep among defined ones makes the unit not comparable; then a fresh hold-out A/A on a recording that starts at rest."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gpu-cells-raw-fixture",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "gpu-trajectory-cells"
+   ],
+   "writes": [
+    "packages/contracts/fixtures/trajectory-gpu/**",
+    "lean/scripts/TrajectoryGpuGolden.lean",
+    "packages/gate-breakpoints/src/trajectory/cells-gpu-cli.mjs",
+    "packages/gate-breakpoints/test/trajectory-gpu-raw.test.mjs",
+    "lean/scripts/check.sh",
+    "docs/team/handoffs/gpu-cells-raw-fixture.md"
+   ],
+   "title": "Follow-up of gpu-trajectory-cells round 3 (Fable + check, lead scratch gtc-final-spec.md): golden inputs are Lean-authored, so Lean and the JS cells meet only on hand-written shapes (rounds 1-2 were refused on shapes the goldens skipped: falling keys, dropped components). Commit a trimmed raw fixture from the Chromium A/A runs 39823047557, 39823476824, 39824100493 (one unit per phase per width), add a --raw mode to lean/scripts/TrajectoryGpuGolden.lean and to cells-gpu-cli that grade it, and compare the two grade lists in check.sh, so Lean and JS agree on CI-produced shapes. Also the panelCell-level theorem composing shiftedGrade_ne_e with panelGrade_no_match_l."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "timing-wait-attrib",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "timing-queue-wait"
+   ],
+   "writes": [
+    "apps/runner/src/slot.ts",
+    "apps/runner/test/slot.test.ts",
+    "docs/team/tools/slot.md",
+    "docs/team/handoffs/timing-wait-attrib.md"
+   ],
+   "title": "Review follow-up of timing-queue-wait: the acquire poll loop (slot.ts:415-416) credits each poll interval to the verdict at its END, not to the reason that caused the sleep, so the last interval before admit is dropped and at each reason change up to pollMs goes to the wrong reason (memory->queued hides up to 2 s of memory wait). Fix: keep prevWhy; per poll `if (prevWhy !== null) waits = addWait(waits, prevWhy, (s.time - prev) * 1000); prevWhy = verdict is wait ? why : null; prev = s.time`; tighten the slot.test bound q.waitMs - sum <= pollMs + 2000 to <= 1000."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "pain-dark-followups",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [
+    "pain-dark-scroll",
+    "gpu-trajectory-cells"
+   ],
+   "writes": [
+    "apps/site/src/parts/pain/**",
+    "lean/Fw/Parts/PainDarkScroll.lean",
+    "packages/contracts/golden/parts/pain-dark-scroll.jsonl",
+    "research/notes/2026/10-2x-pain-dark-scroll.md",
+    "results/pain-dark-scroll/**",
+    "docs/team/handoffs/pain-dark-followups.md"
+   ],
+   "title": "Review follow-ups of pain-dark-scroll (landed HOLD): (1) the breakpoint gate compares only the pre-flip state (anchors.json excludes is-pain-dark; cells at scroll 0), so add a post-flip check on both engines (opacity or pixel at flipAt-1 and flipAt+1), or the trajectory pain-dark cell once gpu-trajectory-cells lands; (2) toggle_free and ride_exceeds hold by definition (varToggle, varRide), so tie the toggle-frame Work model to the measured counts (Chromium toggle-frame recalcs 4 -> 5) or relabel them as model assumptions in part.json provenance and the ledger leanFor; (3) a backing-free arrangement for WebKit: the overlap promotion of the stage text block adds 12.0 MB (run 39828605244); find the arrangement that keeps the paint saving (-28 to -34% per pass) without the backing, Lean layer budget first."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-wt-lock-drift",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "land-install-fallback"
+   ],
+   "writes": [
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land-wt-lock*.test.ts",
+    "lean/Fw/Console/LandVerdict.lean",
+    "packages/contracts/golden/console/land-dry.jsonl",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/land-wt-lock-drift.md"
+   ],
+   "title": "Real cause of the morph-touch-band land refusal (incident inc-land-wt-lock-drift; land-install-fallback review forensics): a reused land worktree (.claude/land-wt/N, checkoutLandWt known branch, land.ts:341-352) runs no install unless the land's own diff touches pnpm-lock.yaml or a package.json, so its node_modules drift behind main's lockfile (land-wt/1 created 10-18, jsdom added 10-20). Fix through the Lean installKind rule: stamp the lockfile hash at each install (or read node_modules/.modules.yaml) and install when the checked-out lockfile differs; golden case for a reused worktree behind main. Also the land-install-fallback follow-ups: an end-to-end both-fail test through land() (injectable exec, VERDICT install, exit 19), the stderr tail in the REFUSED line and an execFileSync timeout, and an install stage in the Lean dryRun outcome."
   }
  ],
  "deadline": {
