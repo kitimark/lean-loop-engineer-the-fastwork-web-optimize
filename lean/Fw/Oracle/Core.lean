@@ -72,10 +72,11 @@ def roundOk (d : Nat) (ps : List Rat) : Bool :=
 
 def sumEps (ps : List Rat) : Bool := decide (1 - eps ≤ ps.sum) && decide (ps.sum ≤ 1 + eps)
 
-/-- The sum check of a reply: 1 within `eps`, or 1 up to rounding at the reply's own precision. -/
+/-- The sum check of a reply: 1 within `eps`, or 1 up to rounding at the reply's own precision, at least one
+decimal. -/
 def sumOk (ps : List Rat) : Bool :=
   sumEps ps || match precision ps with
-    | some d => roundOk d ps
+    | some d => roundOk (max d 1) ps
     | none => false
 
 /-- `xs` is `ps` rounded with an error of at most `h` per value. -/
@@ -188,15 +189,15 @@ theorem gridFrom_le {ps : List Rat} {d : Nat} (hg : ps.all (onGrid d) = true) :
 theorem sumOk_of_sumEps {ps : List Rat} (h : sumEps ps = true) : sumOk ps = true := by
   simp [sumOk, h]
 
-theorem sumOk_of_roundOk {ps : List Rat} {d : Nat} (hp : precision ps = some d) (h : roundOk d ps = true) :
+theorem sumOk_of_roundOk {ps : List Rat} {d : Nat} (hp : precision ps = some d) (h : roundOk (max d 1) ps = true) :
     sumOk ps = true := by
   simp [sumOk, hp, h]
 
-/-- A rounding to at most `maxDec` decimals of a distribution passes the sum check, whatever the option count. -/
-theorem rounded_sumOk {d : Nat} {xs ps : List Rat} (hd : d ≤ maxDec) (hg : xs.all (onGrid d) = true)
+/-- A rounding to 1 to `maxDec` decimals of a distribution passes the sum check, whatever the option count. -/
+theorem rounded_sumOk {d : Nat} {xs ps : List Rat} (hd1 : 1 ≤ d) (hd : d ≤ maxDec) (hg : xs.all (onGrid d) = true)
     (hn : Near (half d) xs ps) (hu : ps.all unit) (hs : ps.sum = 1) : sumOk xs = true := by
   obtain ⟨j, hj, hjd⟩ := gridFrom_le hg (maxDec + 1) 0 (Nat.zero_le _) (by omega)
-  exact sumOk_of_roundOk hj (roundOk_of_near (hn.mono (half_anti hjd)) hu hs)
+  exact sumOk_of_roundOk hj (roundOk_of_near (hn.mono (half_anti (show max j 1 ≤ d by omega))) hu hs)
 
 theorem rounded_sumOk_fine {d : Nat} {xs ps : List Rat} (he : xs.length * half d ≤ eps)
     (hn : Near (half d) xs ps) (hs : ps.sum = 1) : sumOk xs = true := by
@@ -213,10 +214,11 @@ theorem wide_half {n d : Nat} (hn : n ≤ 255) (hd : maxDec < d) : (n : Rat) * h
   have h4 : (255 : Rat) * half 10 ≤ eps := by simp only [half, eps]; decide +kernel
   grind
 
-/-- A rounding of a distribution over at most 255 options to `d` decimals passes the sum check, for every `d`. -/
-theorem rounded_sumOk_wf {d : Nat} {xs ps : List Rat} (hl : xs.length ≤ 255) (hg : xs.all (onGrid d) = true)
-    (hn : Near (half d) xs ps) (hu : ps.all unit) (hs : ps.sum = 1) : sumOk xs = true :=
-  if hd : d ≤ maxDec then rounded_sumOk hd hg hn hu hs
+/-- A rounding of a distribution over at most 255 options to `d` decimals passes the sum check, for every `d ≥ 1`. -/
+theorem rounded_sumOk_wf {d : Nat} {xs ps : List Rat} (hd1 : 1 ≤ d) (hl : xs.length ≤ 255)
+    (hg : xs.all (onGrid d) = true) (hn : Near (half d) xs ps) (hu : ps.all unit) (hs : ps.sum = 1) :
+    sumOk xs = true :=
+  if hd : d ≤ maxDec then rounded_sumOk hd1 hd hg hn hu hs
   else rounded_sumOk_fine (wide_half hl (by omega)) hn hs
 
 theorem pow_ten_pos (d : Nat) : (0 : Rat) < 10 ^ d := Rat.pow_pos (by decide)
@@ -249,10 +251,10 @@ theorem roundTo_onGrid (d : Nat) (x : Rat) : onGrid d (roundTo d x) = true := by
   simp only [onGrid, roundTo_idem, Rat.sub_self, Bool.and_self, decide_eq_true_eq]
   simp only [noise]; decide +kernel
 
-/-- A distribution over at most 255 options, each value rounded half up to `d` decimals, passes the sum check. -/
-theorem roundTo_sumOk (d : Nat) {ps : List Rat} (hl : ps.length ≤ 255) (hu : ps.all unit) (hs : ps.sum = 1) :
-    sumOk (ps.map (roundTo d)) = true :=
-  rounded_sumOk_wf (by simpa using hl) (by simp [List.all_map, roundTo_onGrid])
+/-- A distribution over at most 255 options, each value rounded half up to `d ≥ 1` decimals, passes the sum check. -/
+theorem roundTo_sumOk (d : Nat) (hd1 : 1 ≤ d) {ps : List Rat} (hl : ps.length ≤ 255) (hu : ps.all unit)
+    (hs : ps.sum = 1) : sumOk (ps.map (roundTo d)) = true :=
+  rounded_sumOk_wf hd1 (by simpa using hl) (by simp [List.all_map, roundTo_onGrid])
     (near_map (roundTo_near d) ps) hu hs
 
 #guard precision [1 / 2, 3 / 100] == some 2 && precision [1 / 3] == none && precision [1, 0] == some 0
@@ -265,6 +267,7 @@ theorem roundTo_sumOk (d : Nat) {ps : List Rat} (hl : ps.length ≤ 255) (hu : p
 #guard sumOk [333 / 1000, 333 / 1000, 333 / 1000] && !sumOk [1 / 3, 1 / 3, 1 / 4]
 #guard !sumOk [1 / 10, 1 / 10, 9 / 10, 3 / 10] && sumOk [1 / 10, 1 / 10, 9 / 10, 1 / 10]
 #guard (([1 / 3, 1 / 3, 1 / 3] : List Rat).map (roundTo 2)) == [33 / 100, 33 / 100, 33 / 100]
+#guard !sumOk [1, 1, 0, 0] && !sumOk [0, 0, 0, 0] && sumOk [1, 0, 0, 0]
 
 def distOk (n : Nat) (d : List Rat) : Bool := d.length == n && d.all unit && sumOk d
 
@@ -498,7 +501,7 @@ theorem validate_complete (s : Spec) (a : Answer) (hw : s.wf = true) (ht : wt s 
     | noul _ => simp [wt] at ht
 
 theorem sumOk_cases {ps : List Rat} (h : sumOk ps = true) :
-    sumEps ps = true ∨ ∃ d, precision ps = some d ∧ roundOk d ps = true := by
+    sumEps ps = true ∨ ∃ d, precision ps = some d ∧ roundOk (max d 1) ps = true := by
   simp only [sumOk, Bool.or_eq_true] at h
   rcases h with h | h
   · exact .inl h

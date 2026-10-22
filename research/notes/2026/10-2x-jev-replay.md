@@ -3,8 +3,8 @@
 Status: MEASURED 2026-10-22 local (2026-10-21 UTC, the answer log's day) with `jev-1.13.0`; rows from the local
 datasets of task jev-datasets (`.cache/jev`, gitignored). Numbers come from `results/jev/d1.json` and `d2.json`
 (`pnpm fw oracle score`, Lean's `oracle.score`). Validity counts: re-scored 2026-10-22 from the logged replies
-after task oracle-eps, no new sends (`results/jev/eps-rescore.json`). The Haiku and Sonnet arms are not run yet; the lead runs them with
-the prompt below.
+after task oracle-eps, no new sends (`results/jev/eps-rescore.json`). The Haiku and Sonnet arms ran
+(`results/jev-arms-clean/`).
 
 **Answer.** Jev is not yet useful as an advisor on either question. On D1 (incident class, 14 options) it is right
 on 65 of 116 incidents (56.0 %); 115 of its 116 replies pass validation. On D2 (finding severity, 3 grades) it is right on 40 of the 83 sampled findings
@@ -135,8 +135,8 @@ read 2026-10-22): Haiku 5.5 $0.10 in / $0.50 out, Sonnet 5.5 $2 / $10 per Mtok.
 ## Re-score after oracle-eps (MEASURED, logged replies)
 
 `Fw.Oracle.Core.sumOk` accepts a reply when its sum is within `eps` of 1 (the old rule), or when its values have at
-most 9 decimals (up to a binary-float noise of 10⁻¹²) and lie within half a unit in that last place of some
-distribution that sums to 1. `results/jev/rescore-eps.ts` runs `oracle.validate` and `oracle.score` on every logged
+most 9 decimals (up to a binary-float noise of 10⁻¹²) and lie within half a unit in that last place, at least one
+decimal, of some distribution that sums to 1. `results/jev/rescore-eps.ts` runs `oracle.validate` and `oracle.score` on every logged
 Jev reply and every Claude-arm answer file (first run and clean run) with the old and the new `fwcore`; the same
 rows are in `results/jev-arms-clean/table.md`. No arm was re-run.
 
@@ -156,8 +156,11 @@ rows are in `results/jev-arms-clean/table.md`. No arm was re-run.
   arm reaches a certified option either way.
 - The rejections were not Jev's only: the Claude arms on D1 lost 78 (Haiku) and 16 (Sonnet) clean-run answers to
   `eps`, and 15 (Haiku) and 10 (Sonnet) first-run answers.
-- 62 Haiku D1 answers stay rejected: most write values at three decimals and sum to 1.01 to 1.04, while 14 values
-  rounded to 0.001 are off by at most 0.007 in total. 8 Sonnet answers stay rejected for the sum, 13 for missing keys.
+- 62 Haiku D1 clean-run answers (2 first-run) stay rejected: most write values at three decimals and sum to 1.01 to
+  1.04, while 14 values rounded to 0.001 are off by at most 0.007 in total. 8 Sonnet clean-run answers (5 first-run)
+  stay rejected for the sum, 13 clean-run (76 first-run) for missing keys.
+- Whole-number replies are judged at one decimal: `1, 1, 0, 0` and `0, 0, 0, 0` stay schema failures. No logged
+  reply is whole-number off-sum, so the tables are the same as under the rounding at the reply's own precision.
 
 ## Limits
 
