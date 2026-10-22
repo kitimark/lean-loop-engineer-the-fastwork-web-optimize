@@ -1,6 +1,7 @@
 # jev-retrieval-research (researcher) handoff
 
 State: branch worktree-wf_4625edc7-dff-1, worktree `.claude/worktrees/wf_4625edc7-dff-1`, research only. CI runs: none.
+Last content commit 122fb3a1 (round 2 changed only report evidence tokens to `path:a-b`, no note content).
 No Jev sends and no model runs.
 
 What exists
