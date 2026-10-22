@@ -9,6 +9,7 @@
 {"kind":"varying","name":"svg.accent-module_svg_HwEYD1.accent-module_idleFrame_f6M8wO","varying":true}
 {"kind":"varying","name":"div.typing-module_visual_YdYZxz","varying":true}
 {"kind":"varying","name":"div.typing-module_beat_xRahAp.typing-module_scrollingOut_2jKdD5","varying":true}
+{"kind":"varying","name":"span.typing-module_avatar_lESUvo.typing-module_isLarge_uZcCpC","varying":true}
 {"kind":"varying","name":"span.frame.svelte-1fn2go6","varying":true}
 {"kind":"varying","name":"svg.accent-svg.is-idle-frame","varying":true}
 {"kind":"varying","name":"button.scroll-cue.svelte-1p2vpne","varying":true}
