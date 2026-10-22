@@ -3,13 +3,13 @@ builder admission, the stop rule and the result cache. -/
 namespace Fw.Sup.Adapt
 
 inductive Kind where
-  | check | test | land | sim | other
+  | check | test | land | sim | other | measure
 deriving DecidableEq, Repr
 
 def Kind.name : Kind → String
-  | .check => "check" | .test => "test" | .land => "land" | .sim => "sim" | .other => "other"
+  | .check => "check" | .test => "test" | .land => "land" | .sim => "sim" | .other => "other" | .measure => "measure"
 
-def Kind.all : List Kind := [.check, .test, .land, .sim, .other]
+def Kind.all : List Kind := [.check, .test, .land, .sim, .other, .measure]
 
 def Kind.ofName? (s : String) : Option Kind := Kind.all.find? (·.name == s)
 
@@ -46,6 +46,7 @@ structure Params where
   comprMBPerMinMax : Nat := 1500
   rateMinS : Nat := 5
   rateMaxS : Nat := 600
+  measureMB : Nat := 2800
 deriving DecidableEq, Repr
 
 structure Mem where
@@ -466,6 +467,7 @@ def foot (p : Params) (threads : Nat) : Kind → Nat
   | .land => p.landMB
   | .sim => p.simMB
   | .other => p.otherMB
+  | .measure => p.measureMB
 
 def charged (p : Params) (now : Nat) (hs : List Entry) : Nat :=
   ((prune now hs).filter (fun h => decide (now < h.since + p.warmS))).foldr (fun h a => h.foot + a) 0
@@ -485,6 +487,10 @@ inductive Why where
   | memory (needMB roomMB : Nat)
   | memLow (availMB : Nat)
   | simFirst
+  | pass
+  | gap (needS leftS : Nat)
+  | unknown
+  | measureBusy
 deriving DecidableEq, Repr
 
 inductive Verdict where

@@ -63,8 +63,8 @@ def opTier (req : Json) : Except String Reply := do
   let o := step c rs s
   pure [("log", .arr (o.1.map rowJson).toArray), ("counts", counts o.1), ("inflight", inflight o.2), ("macCap", macCap c),
     ("ghOk", Fw.Ci.Pool.Fallback.ghOk c.base (s.fb c)), ("cmOk", match rs with | r :: _ => toJson (cmOk c r s) | [] => .null),
-    ("ccLeft", Fw.Ci.Overflow.classLeft c.base.circleCls s.ccSpent),
-    ("ccStorageClear", Fw.Ci.Overflow.storageClearAt s.ccStorage), ("state", stateJson' o.2)]
+    ("ccLeft", (s.fb c).circleCreditsLeft),
+    ("ccStorageCredits", Fw.Ci.Provider.storageCredits s.ccStorage), ("state", stateJson' o.2)]
 
 def sources : List (String × String × String) := [
   ("circleMacAllow", "CONFIRMED", "task macos-pool-7 (user 2026-10-21): CircleCI takes the seventh macOS job of webkit-sim, within the Fw.Ci.Overflow stop rules"),
