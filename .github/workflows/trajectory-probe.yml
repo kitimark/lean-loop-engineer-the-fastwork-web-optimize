@@ -339,7 +339,6 @@ jobs:
           SEARCH: ${{ needs.site.outputs.search }}
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
-          SEARCH: ${{ needs.site.outputs.search }}
         working-directory: packages/gate-breakpoints
         timeout-minutes: 15
         run: node src/trajectory/cells-gpu-cli.mjs run --engine chromium --search "$SEARCH" --out out/cells-gpu
