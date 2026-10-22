@@ -1,0 +1,120 @@
+# pain:dark-scroll (GPU route rank 4): the Pain dark flip as a scroll-driven opacity layer
+
+Task `pain-dark-scroll`. Branch `worktree-wf_5c56f74c-ecb-1`, CI branch `ci/pain-dark-scroll`. Context: ledger n=21 (solid
+layer for the `is-pain-dark` flip), `10-2x-toolbar-throttle.md` (throttle-lift rule).
+
+## Verdict
+
+- PROVED (Lean `Fw.Parts.PainDarkScroll`): for every width, header document top and scroll offset, under Reveal and Cont
+  the variant shows the original's pixel (`pixel_eq`); the layer's opacity is exactly 0 before the flip offset and
+  exactly 1 from it on (`opacity_eq`, `layer_flip`); the written range start is the encoded one at any scroll offset and
+  reveal state (`measure_eq`); above 860 px both arms are dark (`wide_eq`).
+- CONFIRMED (CI): breakpoint gate, both engines, all breakpoints, final design: run `39828600078` pass (the pain and
+  people.card rows pass in every cell; the `UNREACHABLE` cells are the standing excused ones).
+- MEASURED, Chromium (counts, 430x932 dpr 3, swipe-v1, 3 runs, identical across runs): in the toggle frame the
+  invalidated paint area falls by one viewport (400,760 px) and the raster tasks fall 26 to 20; over the whole swipe the
+  invalidated area falls 4.0 % and tiles 6.6 %; the price is +3 layers in every frame (solid, no tiles) and +14 style
+  recalcs.
+- MEASURED, WebKit Simulator: the two pseudo-element layers exist with reason `animation` and no backing; the painted
+  area of a whole scroll pass is 28 % and 34 % lower than the base. The price is +12.0 MB backing at the two scroll
+  states that show the Pain stage (the stage's text block is promoted above the animated layer).
+- Not a clean win. The paint saving is real; WebKit pays 12 MB of backing for it and Chromium +3 layers. The toggle-step
+  cell in WebKit is not separable from noise (the paint spike moves between steps). Hold for the user's Safari lane
+  (`gpu-safari-lane`) before a preset.
+- Look: E-s for the pixel, Q for the flip frame (below). Trajectory pain-dark cell: pending (`gpu-trajectory-cells` is
+  not on main).
+
+## Design and the three designs that failed on CI
+
+The flag is `pain:dark-scroll` (part `pain`, variant `dark-scroll`, `visClass: "E-s"`). At most 860 px, in an engine with
+the root scroll timeline and `animation-range-start` (`CSS.supports`, the same text in CSS `@supports`), two empty
+`#131922` pseudo-elements lie over the white hold and over the stage's own background, behind the content, and their
+opacity runs on `scroll(root block)`. `people.card` then neither reads the header nor writes `is-pain-dark`. Other
+engines keep the class flip.
+
+| design | what | CI | why it failed |
+|---|---|---|---|
+| 1 | an empty child `div` in the section | gate run `39817106098` cancelled by me | the gate selects the sticky as `[data-fw="pain"] > div:first-child` (`anchors.json`); a first child shifts it |
+| 2 | one `::before`, sticky and hold made transparent | gate `39818716087` fail, pain cells at every width | the gate compares the computed `background-color` of sticky and hold (white against transparent) |
+| 3 | two `::before` over the unchanged white surfaces, range 1 px long | gate `39822433333` pass, webkit-sim `39822439200` | WebKit accelerates only the active phase: with a 1 px range the layers were never in the layer census, so the flip there is a main-thread style change |
+| 4 (shipped) | as 3, range starts 256 px before the flip and is 32768 px long, the flip is a keyframe at 1/128 with `steps(1, jump-start)` | gate `39828600078` pass, webkit-sim `39828605244`, counts `39828614430` | none; costs below |
+
+Lesson (general): a steps animation that is idle before its flip is not accelerated before it. The flip must lie inside
+the active phase, so the range starts earlier and the step is a keyframe, not the range start.
+
+## Lean
+
+`lean/Fw/Parts/PainDarkScroll.lean`, 240 golden rows (`packages/contracts/golden/parts/pain-dark-scroll.jsonl`, `#guard`).
+Pixels are exact `Rat` triples; opacity is 0 or 1, so source-over is exact (`over_zero`, `over_one`).
+
+| theorem | statement |
+|---|---|
+| `opacity_eq` | for range start `s`, length `len > 0`, keyframe offset `0 < x < 1`: opacity = if `s + x len <= y` then 1 else 0, from the CSS Easing `steps(1, jump-start)` algorithm (`stepsStart1`, `TimingFunction.cpp:100-139@862f17d`) |
+| `layer_flip`, `flip_of_range` | with `rangeStart h = h - 1/2 - 256`, `rangeLen = 32768`, `offsetX = 256/32768`: opacity flips at `flipAt h = h - 1/2` |
+| `measure_eq` | the range start the layout effect writes from one measurement (viewport top, scroll offset, card translation) equals `rangeStart h` at any scroll offset and reveal state |
+| `pixel_eq` | `Reveal tr` and `Cont lastY y` give `varPixel w h y = origPixel w h tr lastY` for all `w`, `h`, `y` |
+| `wide_eq` | above 860 px both arms are dark in every state |
+| `reveal_needed`, `cont_needed` | each premise is needed: a counterexample (card 48 px low; original one frame behind) |
+| `drift_window` | with `0 <= tr <= 48` and Cont, the arms differ only in the band and only for `flipAt h <= y < flipAt h + 48` |
+| `no_lift` (`dark_accelerated`) | the only effect animates opacity, in WebKit's `always` list, so `AnimationTimelinesController.cpp:267-279@862f17d` (`hasProgressBasedScrollDrivenAnimation`) does not hold and the throttle is not lifted |
+| `toggle_free`, `toggle_cost` | the toggle adds no main-thread style or paint in the variant (INFERRED: UI-process flip); the original pays both |
+| `ride_exceeds` | WebKit restyles the animation target in every updating scroll frame (`scroll_comp_ride`): a trade once frames exceed the original's restyled elements |
+| `solid_layers_le`, `layer_backing_zero`, `promoted_cost` | 2 solid layers plus 1 host layer at most 3; they hold no backing; the promoted block costs its whole area (2,999 kpx) |
+
+TS stand-ins (listed): the test-only twin of `layerOpacity` in `darkScroll.test.ts` (checked against the 216 pixel
+rows); `rangeStart` and `translateY` in `darkScroll.ts` (the first against the 24 flip rows). The DOM glue
+(`installRangeStart`: ResizeObserver, media change, load) holds no decision logic.
+
+## Premises
+
+| premise | status |
+|---|---|
+| Cont: the original's class is current at the offset | INFERRED. It is written in a rAF after the scroll callback (`driver.ts`), so it can be one frame behind a UI-process flip. Reported as Q, not gated |
+| Reveal: the card's reveal translation has finished at the flip | MEASURED for the offset, INFERRED for the timing. The Chromium swipe flips first in frame 106 (scroll 970 at height 932; header document top 965, so flip 964.5). Reveal starts at 0.72 of the 100vh exit range (`REVEAL_AT`) and runs 0.9 s; the residual is under 0.5 px after 0.554 s (cubic-bezier(.16,1,.3,1), computed here). The flip is `0.28 vh + 32.5` px of scroll after the reveal (293 px at 932): a swipe averaging over about 530 px/s between the two beats the transition. Then the original is the later arm by at most 48 px of scroll (`drift_window`), under about 1.5 frames at 2000 px/s |
+
+## Measured
+
+All counts are deterministic across the three runs unless stated. Base: counts `39818749535`, webkit-sim `39818734599`;
+final design: counts `39828614430`, webkit-sim `39828605244`. Viewport 430x932 dpr 3 (Chromium), 430x775 dpr 3 (WebKit).
+
+Chromium counts (swipe-v1, 503 frames):
+
+| metric | base | variant | cell |
+|---|---|---|---|
+| toggle frame (scroll 970) invalidation area, px | 3,413,963 | 3,013,203 | MEASURED |
+| toggle frame raster tasks | 26 | 20 | MEASURED |
+| toggle frame invalidated layers | 8 | 7 | MEASURED |
+| toggle frame style recalcs | 4 | 5 | MEASURED |
+| whole swipe invalidation area, px | 94,503,701 | 90,741,721 (-4.0 %) | MEASURED |
+| whole swipe tiles | 50,268 | 46,972 (-6.6 %) | MEASURED |
+| whole swipe style recalcs | 1,832 | 1,846 (+14, frames 106 to 119) | MEASURED |
+| whole swipe layout count | 318 | 318 | MEASURED |
+| layers per frame | 19 at rest | 22 (+3) | MEASURED |
+| drawing area, px (not backing) | 4,289,868 | 5,892,908 | MEASURED |
+
+The second drop of 400,760 px at scroll 1220 is the stage's own background (the base repaints it when the sticky enters
+the viewport). Duration is not recorded by the counts lane: no duration claim.
+
+WebKit Simulator (iOS 27, 2 passes each, `scroll.records` Paint quads, `census`):
+
+| metric | base | variant | cell |
+|---|---|---|---|
+| painted area of one scroll pass, css px squared | 69.1 M, 73.7 M | 49.6 M, 49.0 M | MEASURED (base spread 6.7 %) |
+| backing at scroll 1500 and 3000 | 102.9 / 101.3 MB (pass 1) | 114.9 / 113.3 MB (+12.0) | MEASURED, both passes |
+| backing at scroll 0, 4500, max | - | no change (state 0 is quarantined, spread up to 10 MB) | MEASURED |
+| pseudo-element layers | none | 2, reason `animation`, backing 0 | MEASURED |
+| promoted content layer | none | the text block, 11,997,000 bytes, reason `overlap` | MEASURED, cause INFERRED |
+| paint of the flip step | no separable difference | the spike moves between steps | MEASURED, no claim |
+| style records per pass | 674, 655 | 676, 680 | MEASURED, overlaps the spread (19) |
+
+Gate: run `39828600078`, both engines (Chrome Headless Shell 156 and Playwright WebKit on Linux, not Mobile Safari).
+
+## Accepted limits and open items
+
+- Running the flip in the UI process is INFERRED (UIProcess sources are not in the clone). The census shows the layers
+  with reason `animation` in WebKit, which is the precondition, not the proof.
+- Flip-frame timing may differ by one frame (Q); reported, not gated.
+- Trajectory pain-dark cell: pending on `gpu-trajectory-cells`. Safari-on-Mac numbers: `gpu-safari-lane`.
+- Chromium shows +3 layers where the Lean count is 2 solid plus 1 host (the host is INFERRED).
+- Follow-ups: avoid the WebKit overlap promotion (an arrangement where the content does not paint above the animated
+  layer, e.g. one layer above a transparent stage with `mix-blend-mode`, is not tried); a toggle-frame duration lane.
