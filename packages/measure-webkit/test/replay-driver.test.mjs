@@ -1,0 +1,241 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import http from 'node:http';
+import { spawnSync } from 'node:child_process';
+import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import * as R from '../src/device-replay.mjs';
+import { wdClient, replayPass, runSession, doubleWd, checkRecord, startRecorderJs, recorderSeconds, WdTimeout, ReplayStall, CALL_MS, startSafaridriver, prepareSimulator } from '../src/device-replay-wd.mjs';
+
+const here = dirname(fileURLToPath(import.meta.url));
+const lines = readFileSync(join(here, '../../contracts/golden/device/replay.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+const profile = lines.find((l) => l.kind === 'profile' && l.profile).profile;
+const zone = (() => { const z = lines.find((l) => l.kind === 'zoneLoop'); return { maxY10: z.maxY10, frames: z.frames, t0: z.t0 }; })();
+const noSleep = async () => {};
+
+test('a pass on the double: the compiled actions reach the page as the source swipes', async () => {
+  const cap = {};
+  const r = await replayPass({ wd: doubleWd(cap), caps: {}, url: 'http://x.invalid/', profile, sleep: noSleep, settleMs: 0, pollMs: 0 });
+  assert.equal(r.matches, true);
+  assert.equal(r.rep.length, profile.swipes.length);
+  assert.ok(r.perSwipe.every((c) => c.swipe));
+  assert.equal(cap.payload.actions[0].parameters.pointerType, 'touch');
+  assert.ok(cap.payloads.every((p) => p.actions[0].actions.every((a) => a.type !== 'pause' && a.type !== 'pointerMove' ? true : a.duration <= 16)));
+});
+
+test('a replay that lost an event is refused, naming the conjunct', async () => {
+  const wd = doubleWd();
+  const perform = wd.perform;
+  wd.perform = async (sid, payload) => {
+    const acts = payload.actions[0].actions;
+    let i = acts.findIndex((a) => a.type === 'pointerUp');
+    while (acts[i].type !== 'pointerMove') i--;
+    acts.splice(i, 1);
+    return perform(sid, payload);
+  };
+  const r = await replayPass({ wd, caps: {}, url: 'http://x.invalid/', profile, sleep: noSleep, settleMs: 0, pollMs: 0 });
+  assert.equal(r.matches, false);
+  assert.equal(r.perSwipe[0].swipe, false);
+});
+
+test('a session runs every kind, the arm order rotating per repeat', async () => {
+  const order = [];
+  const wd = doubleWd();
+  const url = wd.url;
+  wd.url = async (sid, u) => { order.push(u); return url(sid, u); };
+  const arms = [{ name: 'a', url: 'a' }, { name: 'b', url: 'b' }];
+  const r = await runSession({ wd, caps: {}, arms, base: profile, kinds: ['recorded', 'fast-fling', 'zone-hero', 'cold'], reps: 2, gen: { n: 3, gap: 40000, reps: 1, zone }, settleMs: 0, pollMs: 0, sleep: noSleep });
+  assert.equal(r.passes.length, 4 * 2 * 2);
+  assert.deepEqual(order.slice(0, 4), ['a', 'b', 'b', 'a'], 'rep 0 starts with arm a, rep 1 with arm b');
+  assert.ok(r.passes.every((p) => p.matches), JSON.stringify(r.passes.filter((p) => !p.matches).map((p) => p.profile)));
+});
+
+test('a session skips a kind the recording has no swipe for', async () => {
+  const logs = [];
+  const r = await runSession({ wd: doubleWd(), caps: {}, arms: [{ name: 'a', url: 'a' }], base: profile, kinds: ['zone-finish', 'recorded'], reps: 1, gen: { n: 1, gap: 1000, reps: 1, zone: { ...zone, frames: [[0, 0]] } }, settleMs: 0, pollMs: 0, sleep: noSleep, log: (s) => logs.push(s) });
+  assert.equal(r.passes.length, 1);
+  assert.ok(logs.some((s) => s.includes('zone-finish')));
+});
+
+test('the recorder script and its length', () => {
+  const js = startRecorderJs(20);
+  assert.ok(js.includes('window.__wkRec = undefined') && js.includes('addEventListener'));
+  assert.equal(recorderSeconds(R.compile(profile)), Math.ceil(R.actsMs(R.compile(profile)) / 1000) + 8);
+  assert.equal(recorderSeconds(R.compile(profile), R.pieces(profile).length), Math.ceil(R.actsMs(R.compile(profile)) / 1000) + 8 + R.pieces(profile).length);
+});
+
+test('the WebDriver client speaks W3C over HTTP', async () => {
+  const seen = [];
+  const srv = http.createServer((req, res) => {
+    let body = '';
+    req.on('data', (c) => { body += c; });
+    req.on('end', () => {
+      seen.push([req.method, req.url, body ? JSON.parse(body) : null]);
+      const value = req.url === '/session' ? { sessionId: 'S1', capabilities: {} } : req.url.endsWith('/execute/sync') ? 7 : null;
+      if (req.url.includes('/boom')) { res.writeHead(404).end(JSON.stringify({ value: { error: 'no such window', message: 'gone' } })); return; }
+      res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ value }));
+    });
+  });
+  await new Promise((ok) => srv.listen(0, '127.0.0.1', ok));
+  try {
+    const wd = wdClient(`http://127.0.0.1:${srv.address().port}`);
+    const sid = await wd.newSession({ browserName: 'Safari' });
+    assert.equal(sid, 'S1');
+    await wd.url(sid, 'http://y.invalid/');
+    assert.equal(await wd.execute(sid, 'return 7'), 7);
+    const payload = R.w3c(R.compile(profile));
+    await wd.perform(sid, payload);
+    await wd.release(sid);
+    await wd.quit(sid);
+    assert.deepEqual(seen[0][2], { capabilities: { alwaysMatch: { browserName: 'Safari' } } });
+    assert.deepEqual(seen.find((s) => s[1].endsWith('/actions') && s[0] === 'POST')[2], payload);
+    assert.deepEqual(seen.map((s) => s[0] + ' ' + s[1].replace('/S1', '/_')).slice(0, 6), ['POST /session', 'POST /session/_/url', 'POST /session/_/execute/sync', 'POST /session/_/actions', 'DELETE /session/_/actions', 'DELETE /session/_']);
+    await assert.rejects(() => wd.url('S1/boom', 'x'), /no such window/);
+  } finally { await new Promise((ok) => srv.close(ok)); }
+});
+
+test('checkRecord on a record of the source itself', () => {
+  const ev = R.simulateEvents(R.compile(profile));
+  const rec = { frames: { t: [0, 16.7], y: [0, 0], p: { hero: [0, 0], people: [0, 0], fade: [0, 0] } }, maxY: 5000, viewport: { w: 390, h: 844, dpr: 3 }, zoom: { frames: 0, min: 1, max: 1 },
+    touches: ev.map(([t, ph, x, y]) => [1000 + t, ph, x, y, ph === 'e' ? 0 : 1]) };
+  assert.equal(checkRecord({ rec, profile }).matches, true);
+});
+
+test('command line: compile and plan on synthetic files', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'replay-cli-'));
+  const pfile = join(dir, 'p.json');
+  writeFileSync(pfile, JSON.stringify(profile));
+  const cli = join(here, '../src/device-replay-cli.mjs');
+  const c = spawnSync('node', [cli, 'compile', '--profile', pfile, '--out', join(dir, 'a.json')], { encoding: 'utf8' });
+  assert.equal(c.status, 0, c.stderr);
+  const out = JSON.parse(c.stdout);
+  assert.ok(out.maxTickMs <= 16 && out.tickMax === 16);
+  assert.deepEqual(JSON.parse(readFileSync(join(dir, 'a.json'), 'utf8')).w3c, R.w3c(R.compile(profile)));
+  const p = spawnSync('node', [cli, 'plan', '--kinds', 'recorded,cold', '--reps', '2', '--arms', '2'], { encoding: 'utf8' });
+  assert.deepEqual(p.stdout.trim().split('\n'), ['recorded rep 0 arms 0,1', 'recorded rep 1 arms 1,0', 'cold rep 0 arms 0,1', 'cold rep 1 arms 1,0']);
+  const bad = spawnSync('node', [cli, 'nope'], { encoding: 'utf8' });
+  assert.equal(bad.status, 2);
+});
+
+test('a pass is sent piece by piece, the pieces joined are the compiled actions', async () => {
+  const cap = {};
+  const r = await replayPass({ wd: doubleWd(cap), caps: {}, url: 'http://x.invalid/', profile, sleep: noSleep, settleMs: 0, pollMs: 0 });
+  assert.equal(r.matches, true);
+  assert.equal(cap.payloads.length, R.pieces(profile).length);
+  assert.ok(cap.payloads.length > 1);
+  assert.deepEqual(cap.payloads.flatMap((p) => p.actions[0].actions), R.w3c(R.compile(profile)).actions[0].actions);
+});
+
+test('the lag of each piece is the time its call took minus the planned duration of the piece', async () => {
+  let t = 0;
+  const wd = doubleWd({});
+  const perform = wd.perform;
+  wd.perform = async (sid, payload) => { t += 40; return perform(sid, payload); };
+  const r = await replayPass({ wd, caps: {}, url: 'http://x.invalid/', profile, sleep: noSleep, settleMs: 0, pollMs: 0, now: () => t });
+  const ps = R.pieces(profile);
+  assert.equal(r.pieceMs.length, ps.length);
+  r.pieceMs.forEach((m, i) => assert.deepEqual(m, { planned: R.actsMs(ps[i]), took: 40, lag: 40 - R.actsMs(ps[i]) }));
+});
+
+test('a call that does not answer is the named error wd-timeout; a stalled piece is replay-stall naming the piece, and the session is quit', async () => {
+  const srv = http.createServer((req) => { if (!(req.url.endsWith('/actions') && req.method === 'POST')) req.resume(); });
+  await new Promise((ok) => srv.listen(0, '127.0.0.1', ok));
+  try {
+    const wd = wdClient(`http://127.0.0.1:${srv.address().port}`);
+    await assert.rejects(() => wd.perform('S1', R.w3c(R.compile(profile)), 120), (e) => e instanceof WdTimeout && e.code === 'wd-timeout' && e.timeoutMs === 120 && e.call === 'POST /session/_/actions');
+  } finally { srv.closeAllConnections(); await new Promise((ok) => srv.close(ok)); }
+  const quit = [];
+  const wd = doubleWd();
+  wd.perform = async () => { throw new WdTimeout('POST /session/_/actions', 5000); };
+  wd.quit = async (sid) => { quit.push(sid); return null; };
+  await assert.rejects(() => replayPass({ wd, caps: {}, url: 'http://x.invalid/', profile, sleep: noSleep, settleMs: 0, pollMs: 0 }),
+    (e) => e instanceof ReplayStall && e.code === 'replay-stall' && e.piece === 0 && e.pieces === R.pieces(profile).length && /stalled at piece 1 of/.test(e.message));
+  assert.equal(quit.length, 1);
+  const wd2 = doubleWd();
+  wd2.release = async () => { throw new WdTimeout('DELETE /session/_/actions', 15000); };
+  const r = await runSession({ wd: wd2, caps: {}, arms: [{ name: 'a', url: 'a' }], base: profile, kinds: ['recorded'], reps: 1, gen: { n: 1, gap: 1, reps: 1, zone }, settleMs: 0, pollMs: 0, sleep: noSleep });
+  assert.equal(r.passes.length, 1);
+  assert.deepEqual([r.passes[0].matches, r.passes[0].swipes, r.passes[0].stalled.piece, r.passes[0].stalled.call], [false, null, 0, 'DELETE /session/_/actions']);
+});
+
+test('a time limit comes with every call of the client', () => {
+  assert.deepEqual(Object.keys(CALL_MS).sort(), ['execute', 'quit', 'release', 'session', 'status', 'url']);
+  assert.ok(Object.values(CALL_MS).every((n) => n > 0));
+});
+
+test('safaridriver is a process group of its own, stopped with SIGTERM to the group, then SIGKILL after the grace', async () => {
+  const calls = [];
+  const handlers = {};
+  const fake = { pid: 4242, on(ev, f) { handlers[ev] = f; return this; } };
+  const spawnImpl = (bin, args, opts) => { calls.push([bin, args, opts]); return fake; };
+  const kill = (pid, sig) => { calls.push(['kill', pid, sig]); };
+  const srv = http.createServer((q, s) => { s.writeHead(200, { 'content-type': 'application/json' }).end('{"value":{"ready":true}}'); });
+  await new Promise((ok) => srv.listen(0, '127.0.0.1', ok));
+  try {
+    const drv = await startSafaridriver(srv.address().port, { spawnImpl, kill, graceMs: 30 });
+    assert.equal(drv.pid, 4242);
+    assert.deepEqual(calls[0][2], { stdio: 'ignore', detached: true });
+    drv.stop();
+    assert.deepEqual(calls[1], ['kill', -4242, 'SIGTERM']);
+    await new Promise((ok) => setTimeout(ok, 80));
+    assert.deepEqual(calls[2], ['kill', -4242, 'SIGKILL']);
+    const before = process.listenerCount('SIGTERM');
+    handlers.exit(0, null);
+    assert.ok(process.listenerCount('SIGTERM') < before);
+  } finally { await new Promise((ok) => srv.close(ok)); }
+});
+
+test('simulator preparation: tips off for Safari, then Safari ended, failures logged not thrown', async () => {
+  const ran = [];
+  const logs = [];
+  const out = await prepareSimulator('UDID-1', { run: async (cmd, args) => { ran.push([cmd, ...args]); return args[1] === 'terminate' ? { err: new Error('not running\nmore') } : {}; }, log: (s) => logs.push(s) });
+  assert.deepEqual(out, ran);
+  assert.deepEqual(ran[0], ['xcrun', 'simctl', 'spawn', 'UDID-1', 'defaults', 'write', 'com.apple.mobilesafari', 'com.apple.TipKit.HideAllTips', '-bool', 'true']);
+  assert.deepEqual(ran[1], ['xcrun', 'simctl', 'terminate', 'UDID-1', 'com.apple.mobilesafari']);
+  assert.deepEqual(logs, ['simctl terminate: not running']);
+});
+
+test('a real SIGTERM to the process that owns safaridriver ends a driver that ignores TERM (no orphan)', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'fw-sd-'));
+  const stub = join(dir, 'stub-safaridriver');
+  writeFileSync(stub, `#!${process.execPath}
+const http = require('node:http');
+process.on('SIGTERM', () => {});
+const port = Number(process.argv[3]);
+http.createServer((q, s) => { s.writeHead(200, { 'content-type': 'application/json' }).end('{"value":{"ready":true}}'); }).listen(port, '127.0.0.1');
+`, { mode: 0o755 });
+  const owner = join(dir, 'owner.mjs');
+  writeFileSync(owner, `import { startSafaridriver } from ${JSON.stringify(new URL('../src/device-replay-wd.mjs', import.meta.url).href)};
+const drv = await startSafaridriver(Number(process.argv[2]), { bin: ${JSON.stringify(stub)}, graceMs: 400 });
+console.log('ready ' + drv.pid);
+setInterval(() => {}, 1 << 30);
+`);
+  const probe = http.createServer();
+  await new Promise((ok) => probe.listen(0, '127.0.0.1', ok));
+  const port = probe.address().port;
+  await new Promise((ok) => probe.close(ok));
+  const { spawn } = await import('node:child_process');
+  const owner$ = spawn(process.execPath, [owner, String(port)], { stdio: ['ignore', 'pipe', 'inherit'] });
+  const pid = await new Promise((ok, no) => {
+    let buf = '';
+    owner$.stdout.on('data', (d) => { buf += d; const m = /ready (\d+)/.exec(buf); if (m) ok(Number(m[1])); });
+    owner$.on('exit', () => no(new Error('owner exited before ready')));
+  });
+  const alive = (p) => { try { process.kill(p, 0); return true; } catch (e) { return e.code !== 'ESRCH'; } };
+  try {
+    assert.ok(alive(pid), 'the stub driver runs');
+    const t0 = Date.now();
+    const exited = new Promise((ok) => owner$.on('exit', (code, sig) => ok({ code, sig, ms: Date.now() - t0 })));
+    owner$.kill('SIGTERM');
+    const r = await exited;
+    assert.equal(r.sig, 'SIGTERM', 'the owner still dies of the signal');
+    assert.ok(r.ms >= 350, `the owner waited for the grace (${r.ms} ms)`);
+    await new Promise((ok) => setTimeout(ok, 100));
+    assert.equal(alive(pid), false, 'the stub driver that ignored TERM is gone');
+  } finally {
+    if (alive(pid)) { try { process.kill(-pid, 'SIGKILL'); } catch {} }
+    if (owner$.exitCode === null && owner$.signalCode === null) owner$.kill('SIGKILL');
+  }
+});

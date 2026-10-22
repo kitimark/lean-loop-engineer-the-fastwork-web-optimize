@@ -88,6 +88,7 @@ export type LandOptions = {
   /** the dry land's reads test: its argv and whether the change selects it; default: the land-inputs test, selected when the change
    *  selects the reads-scan check (`LandSpeed.scan_selected`; tests inject both) */
   dryReads?: { argv: string[]; selected?: boolean };
+  dryLocal?: Check[];
   /** the dry land's fast lints (argv list, run in the merge-tree worktree); default: `dryLintArgv` (ci-paths --check, and the math-view
    *  lint when the change touches `lean/`) */
   dryLints?: string[][];
@@ -169,7 +170,7 @@ export const selectChecks = (ds: { id: string; reads: string[] }[], changed: str
   ds.filter((d) => changed.some((c) => inScope(d.reads, c))).map((d) => d.id);
 
 /** What `lean/scripts/check.sh` reads: Lean `Fw.Console.LandSpeed.checkShReads` (equal to the golden's declaration). */
-export const CHECK_SH_READS = ["lean/**", "packages/contracts/golden/**", "apps/site/src/breakpoints.gen.json", "apps/site/src/sweeps.gen.json", "apps/site/src/head.gen.json", "packages/gate-breakpoints/src/scope.gen.json", ".github/workflows/**", "scripts/span.sh", "scripts/fwcore-build.sh", "scripts/fwcore-record-rule.sh", "scripts/lake-slot.sh", "scripts/lake-slot-lib.sh", "scripts/heavy-lock.mjs", "docs/team/incidents/ledger.json",
+export const CHECK_SH_READS = ["lean/**", "packages/contracts/golden/**", "apps/site/src/breakpoints.gen.json", "apps/site/src/sweeps.gen.json", "apps/site/src/head.gen.json", "packages/gate-breakpoints/src/scope.gen.json", ".github/workflows/**", "scripts/span.sh", "scripts/fwcore-build.sh", "scripts/fwcore-record-rule.sh", "scripts/lake-slot.sh", "scripts/lake-slot-lib.sh", "scripts/heavy-lock.mjs", "scripts/slot-self.mjs", "docs/team/incidents/ledger.json",
   "research/findings/ledger.json", "apps/site/src/parts/**", "apps/site/src/registry/presets/v2-proved.json", "packages/measure-chromium/scenarios.gen.json"];
 export const INSTALL_READS = ["pnpm-lock.yaml", "**/package.json"];
 /** apps/site reads of snapshot assets, derived from the one source apps/site/assets.manifest.json (listed <=> copied <=> read). */
@@ -187,7 +188,9 @@ const WALLCLOCK_LINT_TESTS = ["scripts/*.test.mjs", "apps/*/test/**", "packages/
  *  static scan in test/land-inputs.test.ts (which fails on any it finds that is not covered here). Dynamic reads the scan
  *  cannot see are listed in docs/team/handoffs/checksfor-inputs.md. */
 export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
-  "apps/console-api": ["lean/Fw/Console/PreviewFacts.lean", "snapshot/site/index.html", "apps/console-web/**", "apps/runner/hooks/lib.mjs", "apps/runner/src/plan.ts", "packages/contracts/golden/**", "apps/site/src/registry/resolve.ts", "apps/site/src/registry/types.ts", ...WALLCLOCK_LINT_FILES],
+  // review-reports: the example report that the api and web tests render
+  "apps/console-web": ["results/review-reports/**"],
+  "apps/console-api": ["lean/Fw/Console/PreviewFacts.lean", "snapshot/site/index.html", "apps/console-web/**", "results/review-reports/**","apps/runner/hooks/lib.mjs", "apps/runner/src/plan.ts", "packages/contracts/golden/**", "apps/site/src/registry/resolve.ts", "apps/site/src/registry/types.ts", ...WALLCLOCK_LINT_FILES],
   "apps/runner": ["lean/**", ...WALLCLOCK_LINT_FILES, ...WALLCLOCK_LINT_TESTS, "apps/console-api/**", "docs/team/work-graph.json", "docs/team/incidents/ledger.json", "lean/scripts/check-imports.mjs",
     "packages/contracts/golden/**", "packages/gh-budget/test/util.ts", "scripts/span.sh",
     // ci-trigger-lean: test/ci-triggers.test.ts reads every workflow, the guard script and the lint
@@ -196,6 +199,8 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     "scripts/ci-push.mjs", "scripts/ci-push.test.mjs", "scripts/hooks/**",
     // circleci-pilot: the glue, its fixtures and the pilot config (test/ci-triggers.test.ts runs scripts/circleci.test.mjs; fw ci circleci spawns the glue)
     "scripts/circleci.mjs", "scripts/circleci.test.mjs", "scripts/circleci-fixtures/**", ".circleci/**",
+    // macos-telemetry: test/ci-telemetry-mac.test.ts checks that the note embeds the tables Lean renders from the committed dataset
+    "research/notes/2026/10-2x-macos-telemetry.md",
     // lake-build-slots: test/ci-triggers.test.ts runs the build-slot wrapper's tests (they also read golden/** above)
     "scripts/lake-slot.sh", "scripts/lake-slot-lib.sh", "scripts/lake-slot.test.mjs",
     // sup-baseline: test/watch-collect-sup.test.ts runs scripts/sim-lock.sh in a scratch repo to check its lock events
@@ -220,7 +225,9 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     "packages/contracts/golden/gate/**", "packages/contracts/golden/parts/**",
     // image-audit: the test compares the byte copy of arm.mjs that packages/measure-webkit keeps (visual-diff is a workspace
     // dependency, so workspaceDeps already reads packages/visual-diff/**)
-    "packages/measure-webkit/src/images/arm.mjs", "apps/site/src/flags/images/drawn.json"],
+    "packages/measure-webkit/src/images/arm.mjs", "apps/site/src/flags/images/drawn.json",
+    // smoothness-webkit-cadence: src/smooth/webkit-cadence.mjs imports the WebKit profile recorder, its Lean twin, the raw-window writer and the arm plan
+    "packages/measure-webkit/src/profile/recorder.mjs", "packages/measure-webkit/src/profile/reduce.mjs", "packages/measure-webkit/src/profile/raw.mjs", "packages/measure-webkit/src/device-arms.mjs"],
   "packages/premise-tests": ["packages/gate-breakpoints/src/align-equiv.mjs"],
   // preview-e2e: the rig starts console-api's server files (imported by file URL) and the preview servers over the snapshot
   "packages/e2e-preview": ["apps/console-api/src/**", "apps/console-api/package.json", "packages/contracts/src/**", "packages/contracts/package.json", "packages/contracts/golden/console/**", "snapshot/site/**"],
@@ -233,7 +240,10 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     // device-lag-recorder: device-arms.mjs resolves the arms' URLs from the site's presets and part files at record time
     "apps/site/src/registry/presets/**", "apps/site/src/parts/**",
     // webkit-lag-probe: test/lag-findings.test.mjs reads the note whose Findings it checks against the generated block
-    "research/notes/2026/10-21-webkit-lag-probe.md"],
+    "research/notes/2026/10-21-webkit-lag-probe.md",
+    // smoothness-webkit-cadence: the profile report classifies with fwcore, the sim leg reuses the Chromium lane's schedule, hitch rule and arm-identity check
+    "packages/measure-chromium/src/fwcore.mjs", "packages/gate-breakpoints/src/smooth/schedule.mjs", "packages/gate-breakpoints/src/smooth/reduce.mjs",
+    "packages/gate-breakpoints/src/trajectory/reduce.mjs"],
   "packages/snapshot-extract": ["packages/gate-breakpoints/src/**"],
   "packages/visual-diff": ["packages/gate-breakpoints/src/**", "apps/site/src/breakpoints.gen.json", "packages/contracts/golden/gate/**", "scripts/port/**", "packages/contracts/golden/port/**"],
 };
@@ -254,7 +264,7 @@ function workspaceDeps(root: string, pkg: any): string[] {
  *  packages that have a `test` script (sorted). Which of them a change selects is `selectChecks` (Lean `landSpeed.select`). */
 /** Packages whose tests run the `fwcore` binary. Found by the scan in test/land-inputs.test.ts. Each declares `FWCORE_BIN`;
  *  which of them a Lean change selects is `selectTwoPhase` (the binary digest). */
-export const FWCORE_USERS = ["apps/console-api", "apps/runner", "packages/difftest", "packages/e2e-preview", "packages/engine-check", "packages/gate-breakpoints", "packages/gh-budget", "packages/measure-chromium", "packages/measure-webkit", "packages/measure-wktr"];
+export const FWCORE_USERS = ["apps/console-api", "apps/runner", "packages/difftest", "packages/e2e-preview", "packages/engine-check", "packages/gate-breakpoints", "packages/gh-budget", "packages/measure-chromium", "packages/measure-webkit", "packages/measure-wktr", "console-api:compose"];
 /** Lean `fwcoreBin`: the stripped binary as a declared read. */
 export const FWCORE_BIN = "lean/.lake/build/bin/fwcore";
 /** Lean `fwcoreBuildReads`. */
@@ -296,6 +306,12 @@ export const READS_SCAN_ARGV = ["pnpm", "--filter", "./apps/runner", "exec", "vi
 export const withScan = (cs: Check[]): Check[] =>
   [...cs, { id: READS_SCAN_ID, argv: READS_SCAN_ARGV, reads: cs.flatMap((c) => c.reads.filter((g) => !g.startsWith("!"))) }];
 
+export const COMPOSE_READS = ["apps/site/src/parts/*/part.json", "apps/site/src/registry/**", "research/findings/ledger.json", "apps/console-api/src/**",
+  "apps/console-api/test/compose.test.ts", "packages/contracts/golden/console/console.compose.jsonl", "lean/.lake/build/bin/fwcore"];
+export const LOCAL_TESTS: Check[] = [
+  { id: "console-api:compose", argv: ["pnpm", "--filter", "./apps/console-api", "exec", "vitest", "run", "test/compose.test.ts"], reads: COMPOSE_READS },
+];
+
 export function candidateChecks(root: string): Check[] {
   const out: Check[] = [
     { id: "install", argv: ["pnpm", "install", "--frozen-lockfile"], reads: INSTALL_READS },
@@ -309,11 +325,11 @@ export function candidateChecks(root: string): Check[] {
       try {
         const pkg = JSON.parse(readFileSync(join(root, p, "package.json"), "utf8"));
         if (pkg.scripts?.test) out.push({ id: p, argv: ["pnpm", "--filter", `./${p}`, "test"],
-          reads: [`${p}/**`, NODE_BUDGET_GEN, ...workspaceDeps(root, pkg).map((d) => `${d}/**`), ...(PACKAGE_EXTRA_READS[p] ?? []), ...(FWCORE_USERS.includes(p) ? [FWCORE_BIN] : [])] });
+          reads: [`${p}/**`, NODE_BUDGET_GEN, "scripts/slot-self.mjs", ...workspaceDeps(root, pkg).map((d) => `${d}/**`), ...(PACKAGE_EXTRA_READS[p] ?? []), ...(FWCORE_USERS.includes(p) ? [FWCORE_BIN] : [])] });
       } catch { /* no package.json: nothing to run */ }
     }
   }
-  return withScan(out);
+  return withScan([...out, ...LOCAL_TESTS]);
 }
 
 /** The checks that cover the changed files, each with its declared input set. Digests main0 `d0` and merge tree `d1`
@@ -815,6 +831,15 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
           lints = bad === null; detail = bad ?? "";
         }
       } else lines.push("dry: lints skipped (reads refused first)");
+      if (reads && lints) {
+        const local = (o.dryLocal ?? LOCAL_TESTS).filter((t) => selectChecks([t], changed).length > 0);
+        if (local.length) {
+          const argv = [...(!o.dryLocal && (phase1Build(changed) || !existsSync(join(slot.dir, FWCORE_BIN))) ? [["sh", "scripts/fwcore-build.sh"]] : []), ...local.map((t) => t.argv)];
+          const bad = await runChecks(slot.dir, argv);
+          lints = bad === null; detail = bad ?? "";
+          if (lints) lines.push(`dry: local tests ok (${local.map((t) => t.id).join(", ")})`);
+        }
+      }
       const oc = outcome({ reads, lints });
       if (outcomeKind(oc) !== "dry") return fail(detail || `dry land refused: ${outcomeKind(oc)}`, "unknown", oc);
       lines.push(`dry ok at ${main} ${main0.slice(0, 7)}: the land's scope, merge, reads and fast lints pass unless ${main} moves`);

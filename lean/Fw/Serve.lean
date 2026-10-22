@@ -267,7 +267,7 @@ def fcheck (v : Srv) (e : Event) : Option String :=
   if !may e.actor e.body.type then some s!"actor {e.actor.name} may not cause {e.body.type.name}" else
   match e.body with
   | .cardOpen id _ _ => if v.cards.has id then some "card exists" else none
-  | .stepPost id card _ kind opts _ _ =>
+  | .stepPost id card _ kind opts _ _ _ =>
     if v.steps.has id then some "step exists"
     else if (match card with | some c => !(v.cards.has c) | none => false) then some "no such card"
     else if kind = .choice && (opts.getD []).length < 2 then some "choice step needs at least 2 options"
@@ -286,6 +286,7 @@ def fcheck (v : Srv) (e : Event) : Option String :=
   | .reviewPreviewed flag device => reviewPreviewedRefusal flag device
   | .reviewFeedback flag id text => ReviewFeedback.postRefusal v.fb flag id text
   | .reviewFeedbackReply flag to text => ReviewFeedback.replyRefusal v.fb flag to text
+  | .stepTopic topic title summary => Steps.topicRefusal topic title summary
   | .plan c => Fw.Plan.checkFast v.plan c
   | b => match cardOf b with
     | none => none
@@ -307,8 +308,8 @@ def faccept (v : Srv) (e : Event) : Srv :=
   match e.body with
   | .cardOpen id owner dev =>
     ⟨seen, keys, cards.push Card.id { id, owner, needsDevice := dev, lastAt := t }, steps, runs, plan, fb⟩
-  | .stepPost id card title kind opts audience body =>
-    ⟨seen, keys, cards, steps.push Step.id { id, card, title, kind, options := opts, postedAt := t, lastAt := t, audience, body }, runs, plan, fb⟩
+  | .stepPost id card title kind opts audience body topic =>
+    ⟨seen, keys, cards, steps.push Step.id { id, card, title, kind, options := opts, postedAt := t, lastAt := t, audience, body, topic }, runs, plan, fb⟩
   | .stepStart id => ⟨seen, keys, cards, steps.modify id (stepUpd t fun x => { x with status := .started }), runs, plan, fb⟩
   | .stepAnswer id a =>
     ⟨seen, keys, cards, steps.modify id (stepUpd t fun x => { x with status := .answered, answer := some a }), runs, plan, fb⟩
@@ -403,7 +404,7 @@ theorem faccept_indexed {v : Srv} (h : Indexed v) (e : Event) (hn : fcheck v e =
       · split at hn
         · cases hn
         · exact ⟨hk, Tbl.push_ok hc (Bool.eq_false_iff.mpr ‹¬ v.cards.has id = true›), hs, hr, hp⟩
-    | stepPost id card title kind opts audience body =>
+    | stepPost id card title kind opts audience body topic =>
       simp only [fcheck] at hn
       split at hn
       · cases hn
@@ -436,6 +437,7 @@ theorem faccept_indexed {v : Srv} (h : Indexed v) (e : Event) (hn : fcheck v e =
     | reviewPreviewed f d => exact ⟨hk, hc, hs, hr, hp⟩
     | reviewFeedback f i t => exact ⟨hk, hc, hs, hr, hp⟩
     | reviewFeedbackReply f to t => exact ⟨hk, hc, hs, hr, hp⟩
+    | stepTopic _ _ _ => exact ⟨hk, hc, hs, hr, hp⟩
     | _ => exact ⟨hk, mc _ _ (cardStep_id _ _), hs, hr, hp⟩
 
 /-- On an indexed server, `fstep` gives exactly the console state and the outcome of `step`. -/
@@ -950,8 +952,9 @@ def eventJson (e : Event) : Json :=
     | .cardSwipe c s b => [("card", .str c), ("sha", .str s), ("better", .bool b)]
     | .cardLandRequest c s => [("card", .str c), ("sha", .str s)]
     | .cardLanded c s => [("card", .str c), ("sha", .str s)]
-    | .stepPost s c t k os a b => [("step", .str s), ("card", ostr c), ("title", .str t),
-        ("kind", .str (stepKindName k)), ("options", optStrs os), ("audience", .str a.name), ("body", .str b)]
+    | .stepPost s c t k os a b tp => [("step", .str s), ("card", ostr c), ("title", .str t),
+        ("kind", .str (stepKindName k)), ("options", optStrs os), ("audience", .str a.name), ("body", .str b)] ++
+        (match tp with | some t => [("topic", Json.str t)] | none => [])
     | .stepStart s => [("step", .str s)]
     | .stepAnswer s a => [("step", .str s), ("answer", .str a)]
     | .stepDone s n => [("step", .str s), ("note", ostr n)]
@@ -961,6 +964,7 @@ def eventJson (e : Event) : Json :=
     | .reviewPreviewed f d => [("flag", .str f), ("device", .str d)]
     | .reviewFeedback f i t => [("flag", .str f), ("id", .str i), ("text", .str t)]
     | .reviewFeedbackReply f to t => [("flag", .str f), ("to", .str to), ("text", .str t)]
+    | .stepTopic tp ti su => [("topic", .str tp), ("title", .str ti), ("summary", .str su)]
     | .plan c => Fw.Wire.Plan.cmdFields c
   Json.mkObj ([("key", .str e.key), ("ts", toJson e.ts), ("type", .str e.body.type.name),
     ("actor", .str e.actor.name)] ++ b)

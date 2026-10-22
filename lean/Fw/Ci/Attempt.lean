@@ -6,13 +6,17 @@ of a finished run, a run's list row) was read at one attempt. After a rerun, `fw
 of attempt 1 while attempt 2 was still running (run 39363764375). Here the verdict is keyed on the attempt: a recorded
 fact answers for a run only while the run is still on the attempt it was recorded at.
 
-Four rules, each decided here and called through fwcore's op `ci.attempt` (`Fw.Wire.Ci`):
+Five rules, each decided here and called through fwcore's op `ci.attempt` (`Fw.Wire.Ci`):
 - `reuse`: a cached fact is reused when it and the live run name the same attempt;
 - `settled`: jobs fetched for a listed row decide when the row names no attempt (a file written before the list carried
   it) or the same attempt as the jobs view;
 - `current`: a row is current when its attempt is at least the newest attempt a view has shown for the run;
 - `fresh`: a finished row kept in the meta cache answers only for waiters that start together with the view that
   read it (`freshS` seconds); a later wait reads the run again, since a rerun may have started since.
+- `jobsSettled` (task `macos-telemetry`): a jobs view decides only when every job has a conclusion, or the run finished
+  `jobsGraceS` ago. GitHub sets the conclusion of a matrix job a moment after the run is marked completed; a view in that
+  moment read an open job as `""`, which the verdict folds to failure, and the facts were cached for good
+  (run 39629760037 printed `success -> fail`: MEASURED from the cached jobs file, 1 of 10 jobs open).
 -/
 namespace Fw.Ci.Attempt
 
@@ -41,6 +45,23 @@ def freshS : Nat := 30
 
 /-- A finished row read at `read` is still shared at `now`. -/
 def fresh (read now : Nat) : Bool := decide (now ≤ read + freshS)
+
+/-- Seconds after a run finished within which an open job conclusion is lag, not a fact (INFERRED: the lag seen was seconds). -/
+def jobsGraceS : Nat := 300
+
+/-- A jobs view decides when no job is open (no conclusion yet) or the run finished more than `jobsGraceS` s ago. -/
+def jobsSettled (openJobs ago : Nat) : Bool := openJobs == 0 || decide (jobsGraceS < ago)
+
+/-- **A view with every conclusion present always decides.** -/
+theorem jobsSettled_closed (ago : Nat) : jobsSettled 0 ago = true := rfl
+
+/-- **An open job right after the finish does not decide**: the view is read again, never cached. -/
+theorem jobsSettled_open_young (n ago : Nat) (hn : n ≠ 0) (ha : ago ≤ jobsGraceS) : jobsSettled n ago = false := by
+  simp [jobsSettled, hn]; omega
+
+/-- **An open job long after the finish decides** (the run is as it is; the old behaviour). -/
+theorem jobsSettled_open_old (n ago : Nat) (ha : jobsGraceS < ago) : jobsSettled n ago = true := by
+  simp [jobsSettled, ha]
 
 /-- **A cache from another attempt is never reused.** -/
 theorem reuse_other_attempt (a b : Nat) (h : a ≠ b) : reuse (some a) (some b) = false := by
@@ -78,6 +99,10 @@ theorem fresh_at_read (r : Nat) : fresh r r = true := by
 theorem stale_after_window (r t : Nat) (h : r + freshS < t) : fresh r t = false := by
   simp [fresh]; omega
 
+#guard jobsSettled 0 0 == true
+#guard jobsSettled 1 0 == false
+#guard jobsSettled 1 300 == false
+#guard jobsSettled 1 301 == true
 #guard fresh 100 130 == true
 #guard fresh 100 131 == false
 #guard reuse (some 1) (some 1) == true

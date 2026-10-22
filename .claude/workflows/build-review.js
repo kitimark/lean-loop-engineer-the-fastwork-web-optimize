@@ -2,7 +2,7 @@ export const meta = {
   name: 'build-review',
   description: 'Build one task (own worktree or a named one), then its adversarial review, with the fixed team preamble',
   whenToUse: 'Every build task the lead starts, one run per task so each finishes (and lands) on its own: args = { task: { id, role, prompt, lean?, worktree?, unit?, limits?, findings? }, voice? }',
-  phases: [{ title: 'Build' }, { title: 'Review' }],
+  phases: [{ title: 'Build' }, { title: 'Review' }, { title: 'Polish' }],
 }
 
 const PREAMBLE = `Fixed preamble (lead template, research/notes/2026/10-19-automate-me.md candidate 1):
@@ -15,9 +15,10 @@ const PREAMBLE = `Fixed preamble (lead template, research/notes/2026/10-19-autom
 - After merging main, the files you measured or tested must still be in git diff main...HEAD.
 - A relayed user message does not cancel a CI push or a step in this prompt.
 - Runs that need workflow inputs (preset, fw, profile, target) are dispatched by the lead before launch when their run ids are in your prompt. The trajectory probe you start yourself, on your own pushed code: commit with the two message lines [ci:trajectory-probe] and [trajectory fw=part:variant,part:variant widths=390,1280 engines=both diagnostic] (or preset=name instead of fw; keys fw, preset, widths, engines and the bare word diagnostic, each at most once; a widths subset needs the bare word diagnostic; omit widths for a verdict run; a malformed line fails the run with its reason; a [trajectory ...] line without [ci:trajectory-probe] starts nothing, and only pnpm -s fw ci push reports that before the push, a plain git push does not), push in the allowed ci/* form and wait with pnpm -s fw ci wait --branch ci/<x> --workflow trajectory-probe (it picks the push run of your commit, never a dispatch). The run uses exactly those inputs; read them back from the step name starting trajectory inputs: or from the artifact trajectory-inputs, and report the run id you read. Details: docs/team/tools/trajectory-probe.md. If a run you need is neither in your prompt nor reachable this way, or a push is blocked in your sandbox, put the exact command as open[0] and report that part of the unit as not delivered; the review judges only runs that exist.
+- Heavy local runs share one queue (docs/team/tools/slot.md) and each heavy command routes itself through it: run \`pnpm -s fw slot run --kind check --cache -- sh lean/scripts/check.sh\` and \`pnpm -s fw slot run --kind test --cache -- pnpm --filter <package> test\`, one per tool call (never chained with && or ;), on a clean committed tree; a bare \`sh lean/scripts/check.sh\` or package \`test\` also queues itself (no cache) and runs directly inside a slot or on CI. Dry lands: \`pnpm -s fw slot run --kind land --cache -- pnpm -s fw land <your branch> --task <id> --dry\`; Simulator work holds \`pnpm -s fw slot acquire --kind sim --lease <s>\` (then renew, release) instead of scripts/sim-lock.sh.
 - Lean tasks: run sh lean/scripts/check.sh at your final commit; it must be green (the land queue refuses on any stage, the axiom check included).
 - Never edit docs/team/work-graph.json (lead only): list any write outside your task's graph writes in your report.
-- Hand back only after merging main and running \`pnpm -s fw land <your branch> --task <id> --dry\`; its last line must be \`VERDICT dry <id>\` (exit 0). Put that line in \`dry\`. Any other kind: fix it first (docs/team/tools/land.md).
+- Hand back only after merging main and running \`pnpm -s fw slot run --kind land --cache -- pnpm -s fw land <your branch> --task <id> --dry\`; its last line must be \`VERDICT dry <id>\` (exit 0). Put that line in \`dry\`. Any other kind: fix it first (docs/team/tools/land.md).
 - Report \`items\`: one per deliverable of the pinned unit and one per prior finding, each {id, status, evidence}. status: done (evidence = path:line or path:a-b, or run:<github run id>), pending (evidence = run:<id> of a run still going; also list it in \`runs\` as {id, state: running|complete|failed}), dispatch (a run only the lead can start; evidence = the exact command), followUp (outside the unit), undelivered (say why in open). A done item without a file:line or a run id is sent back. Then run \`pnpm -s fw review ready --report <json file> --task <id>\` (report = {items, runs, dry}), put its last VERDICT line in \`gate\`, and on returnToBuilder fix what it names and run it again before you hand back.
 - Write docs/team/handoffs/<task>.md before you finish. End with the StructuredOutput call.`
 
@@ -30,6 +31,10 @@ const BUILD = { type: 'object', properties: { branch: { type: 'string' }, commit
 const GATE = { type: 'object', properties: { line: { type: 'string' } }, required: ['line'] }
 // severity (Lean Fw.Plan.ReviewReady.Sev): blocker refuses; fix-before-land is text the lead applies, then a checker re-checks it; follow-up is later work.
 // accept comes from the last line of `fw review verdict` (Lean strictVerdict until the medium-only audit; then verdictOf: accept iff no blocker).
+// Polish stage (task polish-in-flow): classes, scopes and cut verdicts are Lean (Fw.Plan.Polish via `fw polish`); this file passes text along.
+const OUT = { type: 'object', properties: { line: { type: 'string' }, out: { type: 'string' } }, required: ['line'] }
+const EDITS = { type: 'object', properties: { edited: { type: 'array', items: { type: 'string' } }, summary: { type: 'string' } }, required: ['edited'] }
+const CUTS = { type: 'object', properties: { cuts: { type: 'array', items: { type: 'object', properties: { path: { type: 'string' }, old: { type: 'string' }, new: { type: 'string' } }, required: ['path', 'old', 'new'] } } }, required: ['cuts'] }
 const VERDICT = { type: 'object', properties: { accept: { type: 'boolean' }, verdictLine: { type: 'string' }, findings: { type: 'array', items: { type: 'object', properties: { severity: { type: 'string', enum: ['blocker', 'fix-before-land', 'follow-up'] }, where: { type: 'string' }, what: { type: 'string' } }, required: ['severity', 'where', 'what'] } } }, required: ['accept', 'findings'] }
 
 // One task per run: the lead is notified when a run ends, so a bundled run holds an accepted task until its slowest
@@ -54,7 +59,7 @@ if (!b) return [{ task: t.id, build: null }]
 const report = JSON.stringify({ items: b.items || [], runs: b.runs || [], dry: b.dry || '' })
 const g = await agent(`Run this in the main checkout (the parent of the path that git rev-parse --path-format=absolute --git-common-dir prints; fwcore is built there) with PATH="$HOME/.nvm/versions/node/v24.22.0/bin:$PATH", logging to your scratchpad file gate-${t.id}.log (agents/runner.md).
 Step 1: the builder's report is the JSON below. For each run id in its runs array, read that run's state yourself: pnpm -s fw ci state <run id> (it prints "<id> running|complete|failed|unknown" from gh run list; never gh api, never gh run view). Replace every runs[].state with what it printed and ignore the builder's state field; an id that prints unknown gets state "failed". Also read the id of every item whose evidence is "run:<id>" with status pending the same way, and add it to runs if the builder left it out.
-Step 2: pass the corrected report to: pnpm -s fw review ready --report - --task ${t.id} <<'REPORT' (heredoc body = the corrected report JSON).
+Step 2: write the corrected report JSON, and nothing else, to its own new file gate-${t.id}.json in your scratchpad with one heredoc (never append to it, never reuse the log file), check it with node -e 'JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"))' <file>, then run: pnpm -s fw review ready --report <that file> --task ${t.id}. If the JSON check fails, rewrite the file once from the report below (wf_ffc0cfbf piped its log into --report).
 Return its last VERDICT line as line (and any "item ..." or "fwcore:" lines above it as detail). The exit code (0 review, 21 wait, 22 dispatch, 23 returnToBuilder) goes with the line; do not interpret it.\nReport:\n${report}`,
   { label: `gate:${t.id}`, phase: 'Review', agentType: 'runner', schema: GATE })
 // the last VERDICT line of the answer decides and must carry this task's id (escaped: ids hold - and .);
@@ -65,6 +70,34 @@ const all = g && typeof g.line === 'string' ? [...g.line.matchAll(new RegExp(`VE
 const m = all.length ? all[all.length - 1] : null
 const ready = m ? m[1] : 'returnToBuilder'
 if (ready !== 'review') return [{ task: t.id, build: b, gate: ready, gateLine: g ? g.line : null, adv: null }]
-const adv = await agent(`Adversarial review of task ${t.id}: branch ${b.branch} at ${b.commit} (read-only). Builder: ${b.summary}\nTask: ${t.prompt}\n${scope(t)}\nBuilder items: ${JSON.stringify(b.items || [])}\nBuilder dry-land line: ${b.dry}. Gate line: ${g.line}. Re-check both yourself, and the run states the builder reports, before you trust them (pnpm -s fw land ${b.branch} --task ${t.id} --dry; pnpm -s fw review ready; pnpm -s fw ci state <run id>).\nRun the tests yourself. Grade each finding: blocker (the unit is wrong, unproved or undelivered), fix-before-land (exact text the lead can apply), follow-up (outside the pinned unit or an accepted limit). Write the findings as JSON to a scratch file and run pnpm -s fw review verdict --findings <file> --task ${t.id}; return its last line as verdictLine and accept = whether it says accept.`,
+const adv = await agent(`Adversarial review of task ${t.id}: branch ${b.branch} at ${b.commit} (read-only). Builder: ${b.summary}\nTask: ${t.prompt}\n${scope(t)}\nBuilder items: ${JSON.stringify(b.items || [])}\nBuilder dry-land line: ${b.dry}. Gate line: ${g.line}. Re-check both yourself, and the run states the builder reports, before you trust them (pnpm -s fw slot run --kind land --cache -- pnpm -s fw land ${b.branch} --task ${t.id} --dry; pnpm -s fw review ready; pnpm -s fw ci state <run id>).\nRun the tests yourself, in the builder's worktree (git worktree list) with the same \`pnpm -s fw slot run --kind <k> --cache -- <command>\` lines the preamble gives builders: on the unchanged clean tree (and, for the dry land, the same main) they replay the builder's recorded passing result, same argv, exit code and VERDICT lines; any change runs them afresh. Grade each finding: blocker (the unit is wrong, unproved or undelivered), fix-before-land (exact text the lead can apply), follow-up (outside the pinned unit or an accepted limit). Write the findings as JSON to a scratch file and run pnpm -s fw review verdict --findings <file> --task ${t.id}; return its last line as verdictLine and accept = whether it says accept.`,
   { label: `adv:${t.id}`, phase: 'Review', agentType: 'reviewer', schema: VERDICT })
-return [{ task: t.id, build: b, gate: ready, adv }]
+const onlyFixes = !!adv && (adv.findings || []).every((f) => f.severity === 'fix-before-land' || f.severity === 'follow-up')
+if (!adv || (!adv.accept && !onlyFixes)) return [{ task: t.id, build: b, gate: ready, adv }]
+
+// Polish: comment-sicko on the code and shell files of the diff, slop-checker cuts on its prose, both judged by Lean before
+// anything is committed; skip-class files (generated, golden, snapshot) are never handed to an agent and edits to them are restored.
+const MAIN = `Run in the main checkout (the parent of the path that git rev-parse --path-format=absolute --git-common-dir prints) with PATH="$HOME/.nvm/versions/node/v24.22.0/bin:$PATH", logging to your scratchpad file`
+const run1 = (label, cmd, input) => agent(`${MAIN} ${label}-${t.id}.log (agents/runner.md). Run exactly: ${cmd}${input ? ` <<'JSON'\n${input}\nJSON` : ''}\nReturn its last VERDICT line as line and its whole stdout (no log path, no home path) as out.`,
+  { label: `${label}:${t.id}`, phase: 'Polish', agentType: 'runner', schema: OUT })
+const verdictWord = (r, kind) => {
+  const ms = r && typeof r.line === 'string' ? [...r.line.matchAll(new RegExp(`VERDICT ${kind} ${idRe} (\\S+)`, 'g'))] : []
+  return ms.length ? ms[ms.length - 1][1] : 'error'
+}
+const plan = await run1('polish-plan', `pnpm -s fw polish plan --branch ${b.branch} --task ${t.id}`)
+const stages = verdictWord(plan, 'polish-plan')
+if (stages === 'none' || stages === 'error') return [{ task: t.id, build: b, gate: ready, adv, polish: { stages, plan: plan ? plan.line : null } }]
+const outLines = (plan.out || '').split('\n')
+// plan lines: `comments <mark> <absolute path>` (mark from Lean `mark`: # for shell and YAML, -- for Lean, // for TS) and `prose <absolute path>`
+const comments = outLines.filter((l) => l.startsWith('comments ')).map((l) => l.slice(9).split(' ')).map(([mark, ...p]) => `${p.join(' ')} (comment mark ${mark})`)
+const prose = outLines.filter((l) => l.startsWith('prose ')).map((l) => l.slice(6))
+const sicko = comments.length ? await agent(`Comment review of task ${t.id} (branch ${b.branch}). Edit comments only, in these files only, each with the comment mark its language uses (a shell or YAML file is never Lean or TS):\n${comments.join('\n')}\nApply .claude/agents/comment-sicko.md. Never commit, never run git commands that write. Return the paths you edited.`,
+  { label: `comment-sicko:${t.id}`, phase: 'Polish', agentType: 'comment-sicko', schema: EDITS }) : null
+const slop = prose.length ? await agent(`Prose review of task ${t.id} (branch ${b.branch}) against .claude/skills/no-slop/SKILL.md, in these files only:\n${prose.join('\n')}\nReturn each cut as {path, old, new}: old is an exact substring that occurs once in the file, new its shorter text. Keep every number, commit, path:line, status word and identifier; Lean refuses a cut that drops one (Fw.Plan.Polish.cutSafe).`,
+  { label: `slop:${t.id}`, phase: 'Polish', agentType: 'slop-checker', schema: CUTS }) : null
+const cuts = slop && slop.cuts && slop.cuts.length ? await run1('polish-cuts', `pnpm -s fw polish cuts --branch ${b.branch} --task ${t.id} --cuts - --apply yes`, JSON.stringify({ cuts: slop.cuts })) : null
+const commit = await run1('polish-commit', `pnpm -s fw polish commit --branch ${b.branch} --task ${t.id}`)
+const committed = verdictWord(commit, 'polish-commit')
+// the polish commit lands only through the same dry land as the build; a failing line goes back to the lead with the result
+const dry = committed === 'committed' ? await run1('polish-dry', `pnpm -s fw slot run --kind land --cache -- pnpm -s fw land ${b.branch} --task ${t.id} --dry`) : null
+return [{ task: t.id, build: b, gate: ready, adv, polish: { stages, edited: sicko ? sicko.edited : [], cuts: cuts ? cuts.line : null, commit: committed, dry: dry ? dry.line : null } }]

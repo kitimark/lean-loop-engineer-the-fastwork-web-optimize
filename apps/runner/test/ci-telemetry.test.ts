@@ -182,6 +182,36 @@ describe.skipIf(!haveCore)("the command, GitHub", () => {
     expect(out).not.toMatch(/ a /);
     expect(out).toMatch(/slow: none/);
   });
+
+  // macos-telemetry fix 3: a (matched) row per job, computed by Lean (obs.macMatched), so a GitHub job compares with a
+  // Codemagic or CircleCI one: the upload, telemetry and post steps matched time drops on every provider are taken out of the wall time.
+  const span = (name: string, durMs: number) => ({ runId: "7", job: "sim", name, tool: "t", step: `sim/${name}`, kind: "k", durMs, code: "ok", n: 3, baseline: durMs, budgetMs: 999999 });
+  const simSpans = [
+    span("(queue)", 4000), span("Determinism sessions", 60_000), span("Run actions/upload-artifact@abc", 10_000),
+    span("Run ./.github/actions/telemetry", 20_000), span("Post Run actions/checkout@abc", 5_000), span("(job)", 100_000),
+  ];
+
+  it("tableLines adds one (matched) row per job: wall minus upload, telemetry and post steps, from fwcore", () => {
+    const out = tableLines({ spans: simSpans, slow: [] }, new Set(["7"]), fwcoreCall(root));
+    const matched = out.filter((l) => / matched$/.test(l));
+    expect(matched).toHaveLength(1);
+    expect(matched[0]).toMatch(/\(matched: wall - upload, telemetry, post\)\s+65\.0 /);
+    // the row comes right after the (job) row; without a call the table is the old one
+    expect(out.findIndex((l) => / matched$/.test(l))).toBe(out.findIndex((l) => / \(job\) /.test(l)) + 1);
+    expect(tableLines({ spans: simSpans, slow: [] }, new Set(["7"])).some((l) => / matched$/.test(l))).toBe(false);
+  });
+
+  it("tableLines hands Lean the wall time and the durations of the steps, not the queue or the (job) span", () => {
+    const seen: unknown[] = [];
+    const call = ((req: { op: string }) => { seen.push(req); return { matchedMs: 1, unmatchedMs: 2 }; }) as unknown as Parameters<typeof tableLines>[2];
+    tableLines({ spans: simSpans, slow: [] }, new Set(["7"]), call);
+    expect(seen).toHaveLength(1);
+    const req = seen[0] as { op: string; wallMs: number; steps: { name: string; startMs: number; endMs: number }[] };
+    expect(req.op).toBe("obs.macMatched");
+    expect(req.wallMs).toBe(100_000);
+    expect(req.steps.map((s) => s.name)).toEqual(["Determinism sessions", "Run actions/upload-artifact@abc", "Run ./.github/actions/telemetry", "Post Run actions/checkout@abc"]);
+    expect(req.steps.map((s) => s.endMs - s.startMs)).toEqual([60_000, 10_000, 20_000, 5_000]);
+  });
 });
 
 describe("the command, CircleCI", () => {

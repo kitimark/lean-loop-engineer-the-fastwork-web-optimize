@@ -301,6 +301,14 @@ def typed : List Typed := [
   { name := "review.feedback: one alert per flag with two open comments; the answered flag has none; a refused reply changes nothing",
     o := { now := t0, system := { okSys with feedback := [.post "nav:a" "fb-1" "one" 100, .post "hero:b" "fb-2" "x" 101,
              .post "nav:a" "fb-3" "two" 102, .reply "hero:b" "fb-2" "ok" 103, .reply "nav:a" "fb-9" "nope" 104] } } },
+  { name := "step.question: a user question on a step opens an alert for step:<id> (and no review.feedback alert)",
+    o := { now := t0, system := { okSys with feedback := [.post "step:s1" "fb-1" "what does this step change?" 100] } } },
+  { name := "step.question: a question on a topic opens an alert for topic:<id>; the lead's reply to the only open one closes it",
+    o := { now := t0, system := { okSys with feedback := [.post "topic:smoothness" "fb-1" "why this order?" 100, .post "topic:jev" "fb-2" "status?" 101,
+             .reply "topic:smoothness" "fb-1" "because the phone" 110] } } },
+  { name := "step.question: a step question beside a review comment gives one alert of each kind; a reply on the wrong subject changes nothing",
+    o := { now := t0, system := { okSys with feedback := [.post "nav:a" "fb-1" "font" 100, .post "step:s1" "fb-2" "why" 101,
+             .reply "step:other" "fb-2" "no" 102] } } },
   { name := "loadMax 150: load floor 149 is fine", o := { now := t0, system := { okSys with loadFloor := 149 } } },
   { name := "loadMax 150: load floor 150 is load.high", o := { now := t0, system := { okSys with loadFloor := 150 } } },
   { name := "contendedLoad 8: load floor 8 is not sys.contended", o := { now := t0, system := { okSys with loadFloor := 8 } } },
@@ -419,6 +427,7 @@ def run (root : System.FilePath) (write : Bool) : IO Nat := do
     IO.FS.writeFile p fileText
     IO.FS.writeFile (root / backoffPath) backoffText
     IO.FS.writeFile (root / Fw.Obs.Fold.goldenPath) Fw.Obs.Fold.goldenText
+    IO.FS.writeFile (root / Fw.Wire.Obs.Push.goldenPath) Fw.Wire.Obs.Push.goldenText
   else
     let cur ← try IO.FS.readFile p catch _ => pure ""
     if cur != fileText then
@@ -431,6 +440,10 @@ def run (root : System.FilePath) (write : Bool) : IO Nat := do
     let curF ← try IO.FS.readFile (root / Fw.Obs.Fold.goldenPath) catch _ => pure ""
     if curF != Fw.Obs.Fold.goldenText then
       IO.println s!"obs golden: {root / Fw.Obs.Fold.goldenPath} is stale (regenerate: cd lean && lake env lean --run scripts/ObsGolden.lean)"
+      bad := bad + 1
+    let curP ← try IO.FS.readFile (root / Fw.Wire.Obs.Push.goldenPath) catch _ => pure ""
+    if curP != Fw.Wire.Obs.Push.goldenText then
+      IO.println s!"obs golden: {root / Fw.Wire.Obs.Push.goldenPath} is stale (regenerate: cd lean && lake env lean --run scripts/ObsGolden.lean)"
       bad := bad + 1
   for g in gaps do
     IO.println s!"obs golden: no case covers {g}"

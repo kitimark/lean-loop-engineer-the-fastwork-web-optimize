@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "tsc --noEmit && vitest run",
+    "test": "node ../../scripts/slot-self.mjs test -- pnpm run test:run",
+    "test:run": "tsc --noEmit && vitest run",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
@@ -15,6 +16,7 @@
   "dependencies": {
     "@fw/contracts": "workspace:*",
     "@fw/gh-budget": "workspace:*",
+    "@fw/oracle": "workspace:*",
     "zod": "^4.6.7"
   }
 }

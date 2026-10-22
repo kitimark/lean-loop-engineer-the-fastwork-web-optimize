@@ -227,7 +227,9 @@
    "part": "hero.exit",
    "candidate": "hero-exit-threaded (v6, KD#2): JS --exit-opacity writer → per-consumer CSS scroll-driven animations, plus an IO sentinel for pointer-events",
    "status": "partly-proved",
-   "flags": [],
+   "flags": [
+    "hero.exit:threaded"
+   ],
    "chromium": "trade",
    "webkit": "trade",
    "visual": "E-s at the computed-value level under RG11 (consumer_eq_s; exact at integer scroll offsets, otherwise within the progress quantum: 1/(16R) in Chromium, 1 px on WebKit's main thread). Pixels: WebKit E in the v1 Simulator except a 30 px top band (78 levels). Chromium not-equal under the pixel rule (v1: ≤ 6 levels on 15-42k px, 1 device-px copy shift from GPU blending and snapping), so Q at best: PathPremises.raster_path fails there (INFERRED).",
@@ -2620,6 +2622,71 @@
    "next": "Probe follow-up: judge open@1 coverage against the original first frame; then retry v2-proved membership. Follow-ups: hero_paused_hidden_copy (kCopy), deferRendering port, a lag-probe Safari run.",
    "evidence": "WebKit census 39548856639, breakpoint gate 39549161028, trajectory 39548822269, 39553952680, 39556935431, control 39557718020 (A/A); research/notes/2026/10-20-hero-pause-rule.md; branch worktree-wf_27d7c8bb-7e0-2",
    "userDecision": null
+  },
+  {
+   "id": "engine.scroll.throttleLift",
+   "n": 41,
+   "part": "engine.scroll",
+   "candidate": "engine.scroll:throttle-lift (diagnostic, never in a preset): remove the cause of Safari's 100 ms scroll-event throttle at the hero exit to test whether the throttle produces the still runs felt as lag",
+   "status": "partly-proved",
+   "flag": "engine.scroll:throttle-lift",
+   "flags": [
+    "engine.scroll:throttle-lift"
+   ],
+   "chromium": "n/a",
+   "webkit": "win",
+   "visual": "n/a (diagnostic ablation; not a shipped variant)",
+   "mechanism": "MEASURED (toolbar-throttle-probe, iOS 27 Simulator on CI, real touches through XCUITest, run 39667548341): still runs of 5-6 frames at the hero exit fall from 163 in 10,104 exit frames (16.1 per 1000) in the default rewrite to 0 in 9,740 with the flag; the original site has 53 in 5,290 (10 per 1000). Lifted in 3 of 3 jobs. Source: WKWebViewIOS.mm:3256-3268@862f17d.",
+   "leanFor": [
+    "Fw.Device.StillRuns.throttleK_60hz",
+    "Fw.Device.StillRuns.throttleK_mem_band"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "Phone pass not done: the Simulator toolbar may differ from the phone (INFERRED)",
+    "Runs 39659502492 and 39652336316 failed and are not pooled"
+   ],
+   "premises": [
+    "A 100 ms scroll throttle produces 5 or 6 still frames at 60 Hz (theorem throttleK_mem_band)"
+   ],
+   "v1Evidence": "",
+   "lesson": "A felt lag can be a platform throttle, not page work; count still runs before optimizing page cost.",
+   "next": "Phone pass in the user session with and without ?fw=engine.scroll:throttle-lift; then decide whether a shippable variant can avoid the throttle.",
+   "evidence": "CI run 39667548341; research/notes/2026/10-2x-toolbar-throttle.md"
+  },
+  {
+   "id": "platform.mq",
+   "n": 42,
+   "part": "platform",
+   "candidate": "platform:mq: skip the --platform-shrink write while the phone-band media query matches (the card look does not read it there); write the current value at once when the page leaves the band",
+   "status": "partly-proved",
+   "flag": "platform:mq",
+   "flags": [
+    "platform:mq"
+   ],
+   "chromium": "no-win",
+   "webkit": "no-win",
+   "visual": "E (platformShrink_visSame: visible scenes equal across band changes; look_gated: the phone-band look is independent of --platform-shrink)",
+   "mechanism": "MEASURED (CI webkit-sim, end-of-page window y 4500-5200, two passes per arm; base run 39680958629, flag run 39680964944): RecalculateStyles 94/70 vs 85/83, Layout 100/56 vs 87/76; the arm gap is smaller than the pass-to-pass gap of the base (24 and 44), so no effect shows. PROVED why: unshrunk_run, the original writes nothing while the card bottom stays at or below 0.85 of the viewport, and the card is the last section, so a plain scroll never shrinks it. Breakpoint gate both engines: run 39680952848.",
+   "leanFor": [
+    "Fw.Parts.PlatformShrinkOpt.look_gated",
+    "Fw.Parts.PlatformShrinkOpt.platformShrink_visSame",
+    "Fw.Parts.PlatformShrinkOpt.writes_le",
+    "Fw.Parts.PlatformShrinkOpt.unshrunk_run"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "No frame-time percentiles: the webkit-sim count lane records no RenderingFrame events (Simulator replay of the end of page is a follow-up)",
+    "The arms differ by 36 px of document height, so the window sits differently from the page end"
+   ],
+   "premises": [
+    "CONFIRMED: the original also ends at the platform card at every width (research/notes/2026/10-2x-platform-end-premise.md; snapshot nodes/2.DyWL8TcE.js byte 364831, index.html 93894-93911)",
+    "Media-query change listeners run inside the rendering update before rAF callbacks: CONFIRMED (WebKit Page.cpp:2298-2300@862f17d, MediaQueryList.cpp:108)"
+   ],
+   "v1Evidence": "",
+   "lesson": "A write that is skipped only where the original never writes saves nothing; check that the original does the work in the measured window before porting a skip. Here the original's shrink is dead code on a plain scroll at phone and desktop width alike (the card is the last section in the original too), so platform:mq cannot win on any end-of-page window.",
+   "next": "Hold; no port task. Re-open only if the snapshot changes, or to measure rubber-band overscroll at the page end (the only path where the original computes a nonzero shrink; INFERRED, unmeasured).",
+   "evidence": "CI runs 39680952848, 39680958629, 39680964944, 39685930205; research/notes/2026/10-2x-platform-shrink-mq.md; results/platform-shrink-mq/report.json"
   }
  ],
  "notes": [

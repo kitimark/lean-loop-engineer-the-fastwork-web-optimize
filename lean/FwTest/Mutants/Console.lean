@@ -225,4 +225,21 @@ def fbDone : List Event := fbLog ++ [ev "f2" 11 .lead (.reviewFeedbackReply "nav
 #guard (project fbLog).fb.length == 1 && (project fbLog).fb.all (·.isOpen)
 #guard (project fbDone).fb.length == 1 && (project fbDone).fb.all (!·.isOpen)
 
+
+def topicSteps : List Event := [ev "t1" 2 .lead (.stepPost "S" none "q" .action none .user "" (some "smoothness"))]
+#guard EvType.stepTopic.name == "step.topic"
+#guard [Actor.user, .lead, .owner, .reviewer, .script, .git, .hook].filter (may · EvType.stepTopic) == [.lead, .script]
+#guard out opened (ev "x" 5 .lead (.stepTopic "smoothness" "Smoothness" "Hero exit first.")) == yes
+#guard out opened (ev "x" 5 .script (.stepTopic "smoothness" "Smoothness" "Hero exit first.")) == yes
+#guard out opened (ev "x" 5 .user (.stepTopic "smoothness" "Smoothness" "Hero exit first.")) == no "actor user may not cause step.topic"
+#guard out opened (ev "x" 5 .lead (.stepTopic "" "Smoothness" "Hero exit first.")) == no "topic id is empty"
+#guard out opened (ev "x" 5 .lead (.stepTopic "s" "  " "Hero exit first.")) == no "title is empty"
+#guard out opened (ev "x" 5 .lead (.stepTopic "s" (String.ofList (List.replicate 121 'a')) "x")) == no "title is longer than 120 characters"
+#guard out opened (ev "x" 5 .lead (.stepTopic "s" (String.ofList (List.replicate 120 'a')) "x")) == yes
+#guard out opened (ev "x" 5 .lead (.stepTopic "s" "T" " ")) == no "text is empty"
+#guard out opened (ev "x" 5 .lead (.stepTopic "s" "T" (String.ofList (List.replicate 2001 'a')))) == no "text is longer than 2000 characters"
+#guard (project topicSteps).steps.map (·.topic) == [some "smoothness"]
+#guard (project [ev "t1" 2 .script (.stepPost "S" none "q" .action none)]).steps.map (·.topic) == [none]
+#guard (project (opened ++ [ev "x" 5 .lead (.stepTopic "s" "T" "sum")])).steps == []
+
 end FwTest.Mutants.Console

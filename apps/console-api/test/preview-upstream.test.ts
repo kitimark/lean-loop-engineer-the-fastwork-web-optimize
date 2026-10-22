@@ -1,5 +1,3 @@
-// Task preview-502-flake: the Agent that talks to the preview server closes an idle socket before the server does. Node's Agent
-// reads the server's `Keep-Alive: timeout=N` hint only when it has a `timeout` option (v24.22.0 lib/_http_agent.js:655).
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
@@ -16,7 +14,6 @@ async function server(keepAliveTimeout: number): Promise<number> {
   return (srv.address() as AddressInfo).port;
 }
 
-/** The idle timeout (ms) the Agent put on the socket it keeps after one response; undefined when no socket is kept. */
 async function keptSocketTimeout(agent: http.Agent, port: number): Promise<number | undefined> {
   const res = await upstream(agent, port, "/", "GET", {});
   res.resume();

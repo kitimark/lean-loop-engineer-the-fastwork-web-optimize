@@ -48,9 +48,6 @@ const blockExternal = (log) => async (route) => {
   await route.abort("blockedbyclient");
 };
 
-/** Everything the checks read from a loaded frame, in one evaluate. `want`: font families the page is expected to load by itself; a face
- *  loads when text that uses it is first laid out, which on a cold first load of WebKit can come after `fonts.ready` resolved, so
- *  the read waits (at most 5 s) until each wanted family has a loaded face. The check still fails when one never loads. */
 async function frameFacts(frame, want = []) {
   return await frame.evaluate(async (want) => {
     await document.fonts.ready;
@@ -142,7 +139,6 @@ export async function leavePage(page, tracker) {
   return await tracker.idle();
 }
 
-/** The failure line for a landing page left with requests still open (leavePage returned false), else null. */
 export function openFailure(left, tracker) {
   return left ? null : `GET (landing page) ${tracker.open.size} request(s) still open, cancelled by the next load`;
 }
@@ -380,8 +376,6 @@ async function controlLoad(browser, rig, engine, arm, url, prepare, opts = {}) {
     const page = await ctx.newPage();
     const tracker = trackOpen(ctx);
     const target = await prepare(page, ctx);
-    // the grant landing page of the arm-only control: what it asked for has ended; a request still open is the landing page's failure, and is
-    // charged to the control (not dropped): the next load would cancel it
     if (target) { const open = openFailure(await leavePage(page, tracker), tracker); if (open) failed.push(open); }
     // listen only from here: leaving the grant landing page mid-load would cancel its images and fonts (the browser's doing)
     page.on("pageerror", (e) => { if (!noise.test(String(e))) errors.push(String(e)); }); // the analytics beacon is no module error

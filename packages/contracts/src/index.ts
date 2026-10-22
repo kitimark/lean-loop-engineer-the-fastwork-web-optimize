@@ -27,6 +27,9 @@ export const FEEDBACK_TEXT_CAP = 2000;
 /** Non-empty text of at most `FEEDBACK_TEXT_CAP` code points: the unit Lean counts, so TS never refuses what Lean would accept. */
 const FeedbackText = z.string().min(1).refine((t) => [...t].length <= FEEDBACK_TEXT_CAP, { message: `at most ${FEEDBACK_TEXT_CAP} characters` });
 
+/** Non-empty topic title of at most 120 code points (Lean `Fw.Console.Steps.titleCap`). */
+const TopicTitle = z.string().min(1).refine((t) => [...t].length <= 120, { message: "at most 120 characters" });
+
 const cmd = <T extends string, S extends z.ZodRawShape>(type: T, shape: S) =>
   z.object({ type: z.literal(type), key: Id, actor: Actor, ...shape });
 
@@ -49,7 +52,11 @@ const publicCommands = [
     audience: Audience.optional(),
     /** plain text under the title: what happened, impact, action, details (Lean `Fw.Console.Alert.Plain`). Missing = "" */
     body: z.string().max(2000).optional(),
+    /** the topic the step is grouped under on the Your steps card (Lean `Fw.Console.Steps`); missing or null = no topic */
+    topic: Id.nullable().optional(),
   }),
+  /** The lead's current title and summary of a topic; the latest valid one per id wins (Lean `Steps.define`). Lead and script only. */
+  cmd("step.topic", { topic: Id, title: TopicTitle, summary: FeedbackText }),
   cmd("step.start", { step: Id }),
   cmd("step.answer", { step: Id, answer: Text }),
   /** `note`: why the script closed it (shown as the step's answer), e.g. "resolved automatically at <time>: <reason>" */
@@ -163,6 +170,7 @@ export const Step = z.object({
   lastAt: z.number().int().nonnegative(),
   audience: Audience,
   body: z.string().max(2000),
+  topic: Id.nullable().optional(),
 });
 export type Step = z.infer<typeof Step>;
 

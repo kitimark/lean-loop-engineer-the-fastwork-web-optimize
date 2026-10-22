@@ -1,0 +1,38 @@
+{"freeMinutes":500,"kind":"constants","maxBuilds":3,"maxCapMin":40,"source":"codemagic.io/pricing checked 2026-10-21 (500 min/month); stopAt, maxCapMin, maxBuilds: task codemagic-pilot","status":"CONFIRMED","stopAt":400}
+{"durMs":0,"kind":"billed","minutes":1}
+{"durMs":1,"kind":"billed","minutes":1}
+{"durMs":59999,"kind":"billed","minutes":1}
+{"durMs":60000,"kind":"billed","minutes":1}
+{"durMs":60001,"kind":"billed","minutes":2}
+{"durMs":119999,"kind":"billed","minutes":2}
+{"durMs":120000,"kind":"billed","minutes":2}
+{"durMs":2400000,"kind":"billed","minutes":40}
+{"durMs":2400001,"kind":"billed","minutes":41}
+{"kind":"month","month":"1970-01","ms":0}
+{"kind":"month","month":"2000-02","ms":951782400000}
+{"kind":"month","month":"2001-10","ms":1004572799999}
+{"kind":"month","month":"2001-11","ms":1004572800000}
+{"kind":"month","month":"2026-12","ms":1798761599999}
+{"kind":"month","month":"2027-01","ms":1798761600000}
+{"cap":40,"kind":"trigger","mayTrigger":true,"month":"2026-10","name":"fresh","refusals":[],"rows":[],"used":0}
+{"cap":40,"kind":"trigger","mayTrigger":true,"month":"2026-10","name":"two builds, 80 used","refusals":[],"rows":[{"id":"a","minutes":38,"month":"2026-10"},{"id":"b","minutes":42,"month":"2026-10"}],"used":80}
+{"cap":40,"kind":"trigger","mayTrigger":true,"month":"2026-10","name":"stop line exact: 360 + 40","refusals":[],"rows":[{"id":"a","minutes":180,"month":"2026-10"},{"id":"b","minutes":180,"month":"2026-10"}],"used":360}
+{"cap":40,"kind":"trigger","mayTrigger":false,"month":"2026-10","name":"over by one: 361 + 40","refusals":["minutes"],"rows":[{"id":"a","minutes":180,"month":"2026-10"},{"id":"b","minutes":181,"month":"2026-10"}],"used":361}
+{"cap":41,"kind":"trigger","mayTrigger":false,"month":"2026-10","name":"cap 41","refusals":["cap"],"rows":[],"used":0}
+{"cap":40,"kind":"trigger","mayTrigger":false,"month":"2026-10","name":"three builds done","refusals":["builds"],"rows":[{"id":"a","minutes":5,"month":"2026-10"},{"id":"b","minutes":5,"month":"2026-10"},{"id":"c","minutes":5,"month":"2026-10"}],"used":15}
+{"cap":40,"kind":"trigger","mayTrigger":true,"month":"2026-11","name":"last month does not count","refusals":[],"rows":[{"id":"a","minutes":390,"month":"2026-10"}],"used":0}
+{"cap":40,"kind":"trigger","mayTrigger":false,"month":"2026-11","name":"last month still counts toward builds","refusals":["builds"],"rows":[{"id":"a","minutes":150,"month":"2026-10"},{"id":"b","minutes":150,"month":"2026-10"},{"id":"c","minutes":90,"month":"2026-10"}],"used":0}
+{"cap":41,"kind":"trigger","mayTrigger":false,"month":"2026-10","name":"all three refusals","refusals":["minutes","builds","cap"],"rows":[{"id":"a","minutes":150,"month":"2026-10"},{"id":"b","minutes":150,"month":"2026-10"},{"id":"c","minutes":90,"month":"2026-10"}],"used":390}
+{"exit":null,"kind":"status","status":"initializing"}
+{"exit":null,"kind":"status","status":"queued"}
+{"exit":null,"kind":"status","status":"preparing"}
+{"exit":null,"kind":"status","status":"fetching"}
+{"exit":null,"kind":"status","status":"testing"}
+{"exit":null,"kind":"status","status":"building"}
+{"exit":null,"kind":"status","status":"publishing"}
+{"exit":null,"kind":"status","status":"finishing"}
+{"exit":0,"kind":"status","status":"finished"}
+{"exit":1,"kind":"status","status":"failed"}
+{"exit":4,"kind":"status","status":"canceled"}
+{"exit":1,"kind":"status","status":"timeout"}
+{"exit":4,"kind":"status","status":"skipped"}

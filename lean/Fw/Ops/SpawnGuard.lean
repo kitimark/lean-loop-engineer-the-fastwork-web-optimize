@@ -169,7 +169,7 @@ def roleOf (i : Input) : Option Role := i.roles.find? (·.name == i.req.role)
 /-- The editing helper roles the lead spawns unnamed, like a read-only helper (`patcher`: lead only, per
 docs/team/token-policy.md). A nested call of one is still refused (`nestedEditor`).
 -/
-def leadEditHelpers : List String := ["patcher"]
+def leadEditHelpers : List String := ["patcher", "comment-sicko"]
 
 /-- An unnamed call is excused: the caps allow unnamed subagents, and the role is a read-only subagent, or a subagent
 of `E` called by the lead (depth 0).
@@ -418,7 +418,7 @@ def prodRoles : List Role :=
    ⟨"researcher", .teammate, true⟩, ⟨"plan-editor", .teammate, true⟩,
    ⟨"reviewer", .subagent, false⟩, ⟨"math-reviewer", .subagent, false⟩, ⟨"checker", .subagent, false⟩,
    ⟨"slop-checker", .subagent, false⟩, ⟨"scout", .subagent, false⟩, ⟨"runner", .subagent, false⟩, ⟨"patcher", .subagent, true⟩,
-   ⟨"Explore", .subagent, false⟩, ⟨"Plan", .subagent, false⟩, ⟨"general-purpose", .subagent, true⟩,
+   ⟨"comment-sicko", .subagent, true⟩, ⟨"Explore", .subagent, false⟩, ⟨"Plan", .subagent, false⟩, ⟨"general-purpose", .subagent, true⟩,
    ⟨"fork", .subagent, false⟩, ⟨"workflow-subagent", .subagent, false⟩]
 
 /-- Roles whose shadow-log refusals were false positives when the lead spawned them with worktree
@@ -540,11 +540,11 @@ isolation at depth 1 from every spawner of `G`.
 theorem helpers_nested : ∀ s ∈ helperSpawners, ∀ n ∈ helperRoles,
     decide (hookInput ⟨"", n, false, "", s, 1⟩) = .allow := by decide +kernel
 
-/-- `patcher` stays lead-only: from every spawner of `G` at depth 1, unnamed or named `p1`, with or without isolation, the call
+/-- `patcher` and `comment-sicko` stay lead-only: from every spawner of `G` at depth 1, unnamed or named `p1`, with or without isolation, the call
 is refused.
 -/
-theorem patcher_nested_refused : ∀ s ∈ helperSpawners, ∀ m ∈ ["", "p1"], ∀ b ∈ [false, true],
-    (decide (hookInput ⟨m, "patcher", b, "", s, 1⟩)).accepted = false := by decide +kernel
+theorem patcher_nested_refused : ∀ s ∈ helperSpawners, ∀ m ∈ ["", "p1"], ∀ b ∈ [false, true], ∀ h ∈ leadEditHelpers,
+    (decide (hookInput ⟨m, h, b, "", s, 1⟩)).accepted = false := by decide +kernel
 
 /-! ## Examples -/
 
