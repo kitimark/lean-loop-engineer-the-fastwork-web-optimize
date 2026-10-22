@@ -15257,7 +15257,8 @@
     "packages/measure-webkit/src/lag/cli.mjs",
     "packages/measure-webkit/test/lag-cli*.test.mjs",
     "docs/team/handoffs/wkcost-cost-input.md",
-    "packages/measure-webkit/src/lag/costmode.mjs"
+    "packages/measure-webkit/src/lag/costmode.mjs",
+    "lean/Fw/Store/Layout.lean"
    ]
   },
   {
@@ -15397,7 +15398,8 @@
     "scripts/slot-self.mjs",
     "scripts/slot-self.test.mjs",
     "docs/team/tools/slot.md",
-    "docs/team/handoffs/slot-waiter-light.md"
+    "docs/team/handoffs/slot-waiter-light.md",
+    "apps/runner/src/fw-main.ts"
    ]
   },
   {
