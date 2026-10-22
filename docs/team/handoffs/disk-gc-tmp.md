@@ -1,6 +1,6 @@
 branch: worktree-wf_3a9b95a9-889-1
 worktree: .claude/worktrees/wf_3a9b95a9-889-1 (of the main checkout)
-last commit: see `git log -1` on the branch (Lean commit 47511d0f, glue commit follows it)
+last commit: 736aca77 (main merged); check.sh green, runner tests 2565 pass, dry land ok
 CI runs: none pushed yet (no ci/disk-gc-tmp branch)
 
 State
