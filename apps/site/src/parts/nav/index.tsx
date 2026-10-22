@@ -11,27 +11,19 @@ import { matchList } from './media';
 import css from './nav.module.css';
 import { art, GenSvg } from '../../GenSvg';
 
-/** Where the nav's own scroll callback sits on the engine: before nav.hitTest (100), as the original reads the sticky item first. */
 export const NAV_ORDER = 99;
 
 export interface NavProps {
   variant: string;
   impl?: 'mui' | 'plain';
-  /** the hero scroll track whose progress ends the hero pill (the original's `.hero-track`) */
   heroSelector?: string;
-  /** the hero element that carries `is-ring-splash-done` (the original's `.hero`) */
   splashSelector?: string;
-  /** the profile sticky item and its section (the original's `.start-selling-profile-sticky`) */
   stickySelector?: string;
   sectionSelector?: string;
-  /** the language the page is in */
   locale?: LocaleCode;
   onSelectLocale?: (code: LocaleCode) => void;
-  /** the "Join waitlist" button (opens the signup overlay) */
   onJoin?: () => void;
-  /** the morph panel (mounted lazily by the page); the nav hosts it and gives it `--morph` by inheritance */
   children?: ReactNode;
-  /** the panel's attribute writer, called with the new value as the observer sees each `data-fw-morph` write (no React state) */
   panelWriterRef?: MutableRefObject<PanelWriter | null>;
 }
 
@@ -49,18 +41,6 @@ function measureSticky(stickySelector: string, sectionSelector: string): Sticky 
   return { present: true, isSticky: true, hasSection: true, top: Number.isFinite(top) ? top : null, itemTop: i.top, itemBottom: i.bottom, sectionBottom: s.bottom };
 }
 
-/**
- * nav (`faithful`): the floating pill of the original's top nav: logo, language switch, the "Join waitlist" button that
- * collapses as the morph opens. Static markup and CSS (nav.module.css, restated); the state classes (`is-hero-pill`,
- * `is-hero-chrome-ready`, `is-morphing`, `is-expanded`, `is-locale-open`, `is-scroll-hidden`) are toggled by the driver
- * on change only, from the scroll engine's callback and from the value morph.tween publishes (`data-fw-morph`). `is-on-dark`
- * belongs to nav.hitTest. No React state: nothing here re-renders. The geometry as functions of `--morph` is CSS and is
- * specified in lean/Fw/Parts/Nav.lean; the decisions are logic.ts (golden vectors).
- *
- * Deltas (named): the logo glyph is read from svg.gen.json; the morph panel is the `children`, hosted
- * here as in the original (title, columns, CTAs and footer are morph.panel's); no `.hero-track`, hero.exit stands in;
- * the profile sticky and section are the people section's data-fw hooks (nav.hitTest/probe.ts).
- */
 export function Nav({
   variant,
   heroSelector = '[data-fw="hero-exit"]',
@@ -123,13 +103,11 @@ export function Nav({
     const onQuery = () => d.queryChanged();
     reduce.addEventListener('change', onQuery);
     narrow.addEventListener('change', onQuery);
-    // The tween writes `data-fw-morph` once per frame; the observer reacts in the same frame (microtask), only on change.
     const mo = new MutationObserver(() => {
       d.morphChanged();
       panelWriterRef?.current?.apply(env.morph());
     });
     mo.observe(nav, { attributes: true, attributeFilter: ['data-fw-morph'] });
-    // Debug recorder (src/debug/nav-transition.ts): installed after `mo`, only on `?fw-debug=nav-transition`; null, and nothing touched, otherwise.
     const offDebug = installNavTransitionDebug(location.search, nav);
     return () => {
       offDebug?.();
@@ -145,14 +123,14 @@ export function Nav({
   const onOpenChange = useCallback((open: boolean) => driver.current?.setLocaleOpen(open), []);
 
   return (
-    <header ref={header} className={`${css.nav} is-hero-pill`} aria-label="Primary navigation" data-fw="nav">
+    <header ref={header} className={`${css.nav} is-hero-pill`} aria-label="Primary navigation" data-fw="nav" data-fw-layer="nav_bar">
       <div className={css.bar}>
         <a className={css.logo} href="/" aria-label="Fastwork home">
           <GenSvg art={art('nav.wordmark')} />
         </a>
         <div className={css.actions} data-fw="nav-actions">
           <LangMenu variant="faithful" locale={locale} onSelect={onSelectLocale} onOpenChange={onOpenChange} />
-          <button className={`${css.btn} ${css.earn}`} type="button" tabIndex={-1} aria-hidden="true" data-fw="nav-earn" onClick={onJoin}>
+          <button className={`${css.btn} ${css.earn}`} type="button" tabIndex={-1} aria-hidden="true" data-fw="nav-earn" data-fw-layer="nav_earn" onClick={onJoin}>
             Join waitlist
           </button>
         </div>

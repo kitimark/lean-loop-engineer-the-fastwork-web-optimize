@@ -1,0 +1,273 @@
+{
+  "id": "platform-fade-threaded",
+  "proposal": "platform-fade-threaded",
+  "title": "Phone: run the platform fade as one opacity and blur effect per push (flag platform:fade-threaded), end of page, iOS Simulator",
+  "arms": [
+    {
+      "name": "base",
+      "search": ""
+    },
+    {
+      "name": "platform:fade-threaded",
+      "search": "?fw=platform:fade-threaded"
+    }
+  ],
+  "lanes": [
+    {
+      "name": "iOS Simulator 430x775, morph push down and up at the page end, two passes",
+      "rows": [
+        {
+          "metric": "RecalculateStyles in the morph pass, pass 1",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 259,
+              "tag": {
+                "kind": "measured",
+                "run": "39731023406"
+              }
+            },
+            {
+              "arm": "platform:fade-threaded",
+              "value": 261,
+              "tag": {
+                "kind": "measured",
+                "run": "39731104953"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "RecalculateStyles in the morph pass, pass 2",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 259,
+              "tag": {
+                "kind": "measured",
+                "run": "39731023406"
+              }
+            },
+            {
+              "arm": "platform:fade-threaded",
+              "value": 261,
+              "tag": {
+                "kind": "measured",
+                "run": "39731104953"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "Layout in the morph pass, pass 1",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 169,
+              "tag": {
+                "kind": "measured",
+                "run": "39731023406"
+              }
+            },
+            {
+              "arm": "platform:fade-threaded",
+              "value": 178,
+              "tag": {
+                "kind": "measured",
+                "run": "39731104953"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "Layout in the morph pass, pass 2",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 174,
+              "tag": {
+                "kind": "measured",
+                "run": "39731023406"
+              }
+            },
+            {
+              "arm": "platform:fade-threaded",
+              "value": 174,
+              "tag": {
+                "kind": "measured",
+                "run": "39731104953"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "Paint records in the morph pass, pass 1",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 740,
+              "tag": {
+                "kind": "measured",
+                "run": "39731023406"
+              }
+            },
+            {
+              "arm": "platform:fade-threaded",
+              "value": 1162,
+              "tag": {
+                "kind": "measured",
+                "run": "39731104953"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "Paint records in the morph pass, pass 2",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 1159,
+              "tag": {
+                "kind": "measured",
+                "run": "39731023406"
+              }
+            },
+            {
+              "arm": "platform:fade-threaded",
+              "value": 1186,
+              "tag": {
+                "kind": "measured",
+                "run": "39731104953"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "style recalculations saved per tween frame (expected from the model: none)",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 0,
+              "tag": {
+                "kind": "inferred",
+                "why": "reference arm"
+              }
+            },
+            {
+              "arm": "platform:fade-threaded",
+              "value": 0,
+              "tag": {
+                "kind": "inferred",
+                "why": "Lean recalc_same, in the write model: the variant drops only the section write, and the nav --morph write still schedules a recalc on every fade frame. A second cause is CONFIRMED in WebKit KeyframeEffect: the running effect invalidates the section on every tick, so moving the nav write alone would not remove the recalc either"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "iOS Simulator 430x775, end of page scroll window y >= 4500, two passes",
+      "rows": [
+        {
+          "metric": "RecalculateStyles in the window, pass 1",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 92,
+              "tag": {
+                "kind": "measured",
+                "run": "39731023406"
+              }
+            },
+            {
+              "arm": "platform:fade-threaded",
+              "value": 100,
+              "tag": {
+                "kind": "measured",
+                "run": "39731104953"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "RecalculateStyles in the window, pass 2",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 99,
+              "tag": {
+                "kind": "measured",
+                "run": "39731023406"
+              }
+            },
+            {
+              "arm": "platform:fade-threaded",
+              "value": 76,
+              "tag": {
+                "kind": "measured",
+                "run": "39731104953"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "Layout in the window, pass 1",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 91,
+              "tag": {
+                "kind": "measured",
+                "run": "39731023406"
+              }
+            },
+            {
+              "arm": "platform:fade-threaded",
+              "value": 112,
+              "tag": {
+                "kind": "measured",
+                "run": "39731104953"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "Layout in the window, pass 2",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 101,
+              "tag": {
+                "kind": "measured",
+                "run": "39731023406"
+              }
+            },
+            {
+              "arm": "platform:fade-threaded",
+              "value": 64,
+              "tag": {
+                "kind": "measured",
+                "run": "39731104953"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "recommendation": {
+    "word": "hold",
+    "why": "The flag is proved to show the original fade and blur on every frame under the WAAPI premises, and every effect it starts meets the Core Animation conditions, with WebKit pixels no better than grade Q, unmeasured, since the compositor blur is not the software blur. It does not cut style or layout passes: the tween still writes the nav on every frame the fade changes, and in WebKit the running effect itself invalidates the section on every tick, so the recalculation runs anyway, and the Simulator counts of the two arms sit inside the gap between passes. The saving it could bring is paint and raster of the blurred section, which needs a lane with a real GPU. Keep the flag registered, leave it out of the preset, and re-open it only with the nav write off the main thread and the effect on the threaded-animations path, measured on a lane with a real GPU."
+  }
+}

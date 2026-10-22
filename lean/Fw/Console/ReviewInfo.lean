@@ -202,7 +202,7 @@ def earnExcerpts : List Excerpt :=
     { id := "js-morphing", side := "both", file := "apps/site/src/parts/nav/logic.ts", first := 63, last := 63,
       anchor := "m > MORPHING_CUT",
       note := "The nav counts as morphing above m = 0.001." },
-    { id := "js-apply", side := "flag", file := "apps/site/src/parts/nav/index.tsx", first := 104, last := 104,
+    { id := "js-apply", side := "flag", file := "apps/site/src/parts/nav/index.tsx", first := 84, last := 84,
       anchor := "EARN_STILL_CLASS",
       note := "Each frame the class is set from the decision. Without the flag the call is always true, so the class is never set." } ]
 

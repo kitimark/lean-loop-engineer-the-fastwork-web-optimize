@@ -3955,6 +3955,40 @@
    "leanVerdict": "no",
    "leanReason": "The rule is a prompt instruction and an I/O return shape; no decision logic is involved.",
    "empiricalCheck": "scripts/build-review.test.mjs; whether a builder obeys the checkpoint rule shows only in its next long run."
+  },
+  {
+   "id": "inc-dry-gen-stale",
+   "at": "2026-10-22T14:00+07:00",
+   "title": "layer-decl dry land passed, the real land refused on a stale generated footprint after the polish stage edited part sources",
+   "symptom": "After the build-review polish stage committed comment cuts in seven part index.tsx files, `fw land --dry` printed VERDICT dry layer-decl, then the real land refused with REFUSED: check FAILED: pnpm --filter ./apps/site test (footprint.test.ts 'footprint.gen.json is fresh'). One land round (local tier plus a remote lane) was spent. A second refusal in the re-land: the console review excerpt js-apply (lean/Fw/Console/ReviewInfo.lean, nav/index.tsx line 104) went stale by the same polish cuts and only the remote console-api suite caught it (run 39736189293).",
+   "cause": "CONFIRMED (lean/Fw/Console/LandDry.lean:298 lintPlan; apps/runner/src/land.ts:534 dryLintArgv): the dry's fast lints are ci-paths and the axiom check only, so no generated-file freshness check runs before the full site suite; the polish commit (cf2c1859) removed comment lines and moved the line numbers the footprint records, and the polish stage's own dry stopped at a scope refusal before any lint.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "lean/Fw/Console/LandDry.lean",
+     "note": "lintPlan: the dry fast lints are ci-paths and the axiom check only"
+    },
+    {
+     "kind": "file",
+     "ref": "apps/site/src/footprint.test.ts",
+     "note": "the full site test that refused the first land on a stale footprint.gen.json"
+    },
+    {
+     "kind": "ci",
+     "ref": "39736189293",
+     "note": "console-api review-info excerpt anchor test failed in the second land"
+    }
+   ],
+   "repro": "Edit a comment line in apps/site/src/parts/nav/index.tsx on a branch with a fresh footprint, run fw land --dry: VERDICT dry; the real land refuses on footprint.test.",
+   "fix": {
+    "task": "dry-gen-fresh"
+   },
+   "regression": "Lean goldens for lintPlan with a part-source change (selects the footprint check) and without (old plan).",
+   "mistakeClass": "c-late-check",
+   "leanVerdict": "provable",
+   "leanReason": "Which lints a dry runs is the pure Lean lintPlan; the generator-input selection is a path rule provable as gen_selected.",
+   "empiricalCheck": "The next land whose polish stage edits part sources refuses at dry, not at the real land.",
+   "hardening": "dry-gen-fresh"
   }
  ]
 }
