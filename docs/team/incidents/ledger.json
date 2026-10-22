@@ -3898,6 +3898,39 @@
    "leanReason": "The rule now proves its idle case: Fw.Sup.Adapt.idle_head_admitted, idle_head_only_when_empty, idle_head_at_most_one and verdict_unchanged_with_holder; memLow reads swapActive, a swap-out rate, not occupancy.",
    "empiricalCheck": "The goldens replay the 2026-10-22 stall reading; the live queue was not re-run under the fix.",
    "hardening": "slot-idle-head"
+  },
+  {
+   "id": "inc-builder-no-result",
+   "at": "2026-10-22T12:00+07:00",
+   "title": "The xctrace-ci-probe builder ran 5.7 h, pushed 5 CI runs and ended with no report, note or handoff",
+   "symptom": "Workflow wf_3d7f87b0-856 (task xctrace-ci-probe) ran 5.7 h and pushed 5 CI runs; the agent never called StructuredOutput. The lead could restart only from git history and CI run state, and the last run kept 2 macOS VMs busy past the agent. The script returned [{ task, build: null }] with no worktree, branch or handoff.",
+   "cause": "CONFIRMED (.claude/workflows/build-review.js before builder-checkpoint): the builder prompt asked for no file state before the final report, so a builder that ended without a result left nothing to resume from, and the null-result path returned no pointer to its worktree.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "docs/team/handoffs/xctrace-ci-probe.md",
+     "note": "the handoff the lead wrote afterwards from git and CI state"
+    },
+    {
+     "kind": "ci",
+     "ref": "39653044145",
+     "note": "first CI run the builder pushed that the handoff names"
+    },
+    {
+     "kind": "ci",
+     "ref": "39693161181",
+     "note": "last CI run the handoff names; its 2 macOS VMs outlived the agent"
+    }
+   ],
+   "repro": "Run build-review with a builder that returns null: before the fix the result is [{ task, build: null }]; after it, a record with state no-result, the handoff path and no later stage (scripts/build-review.test.mjs).",
+   "fix": {
+    "task": "builder-checkpoint"
+   },
+   "regression": "scripts/build-review.test.mjs runs the script with a stub agent that returns null or a result without branch and commit, and checks the no-result record, the single build stage and the checkpoint rule in the builder prompt.",
+   "mistakeClass": "c-orphan-wait",
+   "leanVerdict": "no",
+   "leanReason": "The rule is a prompt instruction and an I/O return shape; no decision logic is involved.",
+   "empiricalCheck": "scripts/build-review.test.mjs; whether a builder obeys the checkpoint rule shows only in its next long run."
   }
  ]
 }
