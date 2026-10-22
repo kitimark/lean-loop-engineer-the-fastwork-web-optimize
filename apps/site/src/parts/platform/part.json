@@ -21,8 +21,16 @@
         "lean": "Fw.Parts.PlatformShrinkOpt",
         "limit": "phone band only: skips the --platform-shrink write while mq.c860 matches and writes the current value when the band is left; the saving may sit outside the felt end-of-page window (INFERRED)"
       }
+    },
+    "fade-threaded": {
+      "kind": "optimized",
+      "tier": "T0",
+      "provenance": {
+        "lean": "Fw.Parts.PlatformFade threaded_eq, frame_blur_eq, ca_accepts, webkit_not_exact",
+        "limit": "one opacity and blur effect per push replaces the per-frame --morph-fade write; equal values under the WAAPI premises, but CA's blur is not the software blur (pixels at most Q on WebKit); the section's blur layer is tiled above 1280 px; Chromium keeps the blur on the main thread"
+      }
     }
   },
   "requires": {},
-  "conflicts": {}
+  "conflicts": { "platform:fade-threaded": ["morph.tween:waapi", "morph.tween:waapi-scoped"] }
 }

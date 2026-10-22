@@ -34,6 +34,9 @@ export interface TweenEnv {
   onActivate?(): void;
   /** The `scroll-lock` arm's root lock (Lean `MorphTweenOpt.stepR`); absent in the original and unless `lockAllowed`. */
   lock?: { overlay(): boolean; set(on: boolean): void };
+  /** Variant `platform:fade-threaded` (Lean `PlatformFade.stepF`): the section's fade runs as one effect per push, and
+   * the driver writes no `--morph-fade` per frame. */
+  fade?: { push(from: number, to: number, start: number): void; settle(m: number): void; dispose(): void };
 }
 
 /**
@@ -68,7 +71,7 @@ export function createTweenDriver(env: TweenEnv) {
   const updateFade = () => {
     const p = env.platform();
     if (!p) return;
-    p.style.setProperty('--morph-fade', String(fade({ m: st.value })));
+    if (!env.fade) p.style.setProperty('--morph-fade', String(fade({ m: st.value })));
     p.style.pointerEvents = pointerNone({ m: st.value }) ? 'none' : '';
   };
   const isArmed = () => {
@@ -121,6 +124,7 @@ export function createTweenDriver(env: TweenEnv) {
     if (!st.pending) {
       cancelFrame?.();
       cancelFrame = null;
+      env.fade?.settle(st.value);
     }
     env.publish(st.value);
     updateFade();
@@ -141,11 +145,13 @@ export function createTweenDriver(env: TweenEnv) {
     if (reduced) {
       cancelFrame?.();
       cancelFrame = null;
+      env.fade?.settle(st.value);
       env.publish(st.value);
       updateFade();
       if (!isActive()) arm();
       return;
     }
+    env.fade?.push(st.from, st.to, st.start);
     cancelFrame?.();
     cancelFrame = env.clock.subscribe(tick, { own: true });
   }
@@ -166,6 +172,7 @@ export function createTweenDriver(env: TweenEnv) {
     dispose() {
       cancelFrame?.();
       cancelFrame = null;
+      env.fade?.dispose();
       if (locked) {
         locked = false;
         env.lock?.set(false);

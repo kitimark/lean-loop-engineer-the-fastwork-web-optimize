@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { getClock } from '../../engine/clock';
 import { registerScroll } from '../../engine/scroll';
+import { createThreadedFade, type FadeEl } from '../platform/fade.driver';
 import { createTweenDriver, type TweenEnv } from './driver';
 import { matchList } from './media';
 import { hoverNoneOf, lockAllowed, overlayOf } from './scroll-lock.logic';
@@ -17,6 +18,8 @@ export interface MorphTweenProps {
   platformSelector?: string;
   /** the element that receives the value as `--morph` and `data-fw-morph` (read by nav.hitTest) */
   navSelector?: string;
+  /** platform's variant is `fade-threaded`: the section's fade runs as one effect per push (`createThreadedFade`). */
+  platformFade?: boolean;
 }
 
 /**
@@ -25,7 +28,7 @@ export interface MorphTweenProps {
  * the nav element straight from the frame (a style property, never React state). Wiring: the driver in driver.ts,
  * decisions in logic.ts (Lean `Fw.Parts.MorphTween`).
  */
-export function MorphTween({ variant, platformSelector = '.start-selling-platform, [data-fw="platform"]', navSelector = '[data-fw="nav"]' }: MorphTweenProps) {
+export function MorphTween({ variant, platformSelector = '.start-selling-platform, [data-fw="platform"]', navSelector = '[data-fw="nav"]', platformFade = false }: MorphTweenProps) {
   useEffect(() => {
     const root = document.documentElement;
     // Anchor for the breakpoint parity gate: one attribute write at mount, never per frame; absent in the prerendered HTML.
@@ -49,6 +52,7 @@ export function MorphTween({ variant, platformSelector = '.start-selling-platfor
         nav.dataset.fwMorph = String(value);
       },
       lock: scrollLockOf(variant, root),
+      fade: platformFade ? createThreadedFade(() => platform() as unknown as FadeEl | null) : undefined,
     };
     const arm: WaapiArm | null = variant === 'waapi' || variant === 'waapi-scoped' ? variant : null;
     const driver = arm ? createWaapiDriver(waapiEnv(env, platform, navSelector, arm), arm) : createTweenDriver(env);
@@ -62,7 +66,7 @@ export function MorphTween({ variant, platformSelector = '.start-selling-platfor
       driver.dispose();
       root.removeAttribute('data-fw-morph-tween');
     };
-  }, [variant, platformSelector, navSelector]);
+  }, [variant, platformSelector, navSelector, platformFade]);
   return null;
 }
 
