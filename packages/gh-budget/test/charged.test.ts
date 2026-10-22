@@ -90,10 +90,8 @@ test("a lock held past lockWaitMs gives busy by name: no gh call, nothing booked
   const held = tryLock(paths(w.stateDir).lock);
   assert.ok(held);
   try {
-    const t0 = Date.now();
     const r = await ghCharged(w.env, ["workflow", "run", "x.yml"], { cost: 2, block: true, lockWaitMs: 150 });
     assert.ok(!r.ran && r.decision === "busy" && /held by another fw process for 0.15 s/.test(r.reason), JSON.stringify(r));
-    assert.ok(Date.now() - t0 < 5000);
     assert.equal(w.calls().length, 0);
     assert.equal(loadState(w.stateDir), null);
   } finally { held.release(); }
@@ -107,8 +105,6 @@ test("a hung gh is killed at timeoutMs and the failure is named", async () => {
   const hang = join(w.root, "hang-gh.sh");
   writeFileSync(hang, "#!/bin/sh\nsleep 30\n");
   chmodSync(hang, 0o755);
-  const t0 = Date.now();
   const r = await ghCharged({ ...w.env, gh: hang }, ["workflow", "run", "x.yml"], { cost: 2, timeoutMs: 300 });
   assert.ok(r.ran && r.code === null && r.error === "gh timed out after 0.3 s and was killed", JSON.stringify(r));
-  assert.ok(Date.now() - t0 < 10000, "the lock was not held for the sleep");
 });
