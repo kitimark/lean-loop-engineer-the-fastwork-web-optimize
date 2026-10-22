@@ -72,6 +72,7 @@ export type LandOptions = {
   after?: (mainDir: string) => Promise<string[]>;
   /** run after a worktree removal: stops the processes Lean selects (TERM, grace, KILL of unchanged survivors; `reapStopLines`) and returns the report lines; tests inject a stub */
   reap?: (mainDir: string) => Promise<string[]>;
+  unpushedLag?: (mainDir: string, head: string, main: string) => number | null;
   /** console-api base URL, only used to print the commands for steps that failed after the commit */
   base?: string;
   /** pause between the two attempts of a post-commit step (ms); default 700 */
@@ -194,7 +195,7 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
   "apps/runner": ["lean/**", ...WALLCLOCK_LINT_FILES, ...WALLCLOCK_LINT_TESTS, "apps/console-api/**", "docs/team/work-graph.json", "docs/team/incidents/ledger.json", "lean/scripts/check-imports.mjs",
     "packages/contracts/golden/**", "packages/gh-budget/test/util.ts", "scripts/span.sh",
     // ci-trigger-lean: test/ci-triggers.test.ts reads every workflow, the guard script and the lint
-    ".github/workflows/**", ".github/scripts/changed-inputs.mjs", ".github/scripts/changed-inputs.test.mjs", "scripts/ci-paths.mjs", "scripts/ci-paths.test.mjs",
+    ".github/workflows/**", ".github/actions/setup-lean/action.yml", ".github/scripts/changed-inputs.mjs", ".github/scripts/changed-inputs.test.mjs", "scripts/ci-paths.mjs", "scripts/ci-paths.test.mjs",
     // ci-own-trigger: the intent helper and its test (run by test/ci-triggers.test.ts; fw ci push spawns it)
     "scripts/ci-push.mjs", "scripts/ci-push.test.mjs", "scripts/hooks/**",
     // circleci-pilot: the glue, its fixtures and the pilot config (test/ci-triggers.test.ts runs scripts/circleci.test.mjs; fw ci circleci spawns the glue)
@@ -274,6 +275,13 @@ export type Digest = string | null;
 /** Lean `binMoved`, checked against the `landSpeed.select2` golden. */
 export const binMoved = (changed: string[], d0: Digest, d1: Digest): boolean =>
   changed.some((c) => inScope(FWCORE_BUILD_READS, c)) && (d0 === null || d1 === null || d0 !== d1);
+export const SEED_READS = ["lean/lean-toolchain", "lean/lake-manifest.json", "lean/lakefile.toml", "lean/*.lean", "lean/Fw/**", "lean/FwTest/**"];
+export const SEED_THRESHOLD = 5;
+export const seedLag = (changed: string[]): number => changed.filter((p) => inScope(SEED_READS, p)).length;
+export const seedDue = (lag: number): boolean => lag > SEED_THRESHOLD;
+export function unpushedLag(mainDir: string, head: string, main: string): number | null {
+  try { return seedLag(git(mainDir, ["diff", "--name-only", "--no-renames", `refs/remotes/origin/${main}`, head]).split("\n").filter(Boolean)); } catch { return null; }
+}
 /** Lean `LandTier.buildFree`: the `lean/` paths no default Lake target reads (checked against the import closure by test/land-phase1.test.ts). */
 export const BUILD_FREE = ["lean/scripts/**", "lean/golden/**", "lean/README.md", "lean/land-filter.txt", "lean/land-legs.txt"];
 /** Lean `LandTier.binaryChange`, checked against the `land-phase1.jsonl` golden. */
@@ -1088,6 +1096,11 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     lines.push(`WARNING: ${main} is changed (${mergeSha.slice(0, 7)}) but ${remaining.length} step(s) did not finish:`);
     for (const w of warnings) lines.push(`  ${w}`);
     lines.push("run these in the main checkout:", ...remaining);
+  }
+  const lag = (o.unpushedLag ?? unpushedLag)(mainDir, mergeSha, main);
+  if (lag !== null && seedDue(lag)) {
+    lines.push(`${main} is ${lag} Lake-key paths ahead of origin/${main}: scan origin/${main}..${main} for personal data, then git push origin ${main}`);
+    lines.push(`PUSH-DUE ${lag}`);
   }
   return { ok: true, lines, warnings, kind: "done" };
 
