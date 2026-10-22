@@ -161,10 +161,10 @@ describe('threaded.module.css restates the Lean endpoints and conditions', () =>
       const at = body.indexOf(sel);
       return body.slice(at, body.indexOf('}', at));
     };
-    expect(block("[data-fw='hero'] {", 'gt')).toContain('animation-name: exitFade, exitCopyUp, exitBlur;');
-    expect(block("[data-fw='hero-cue'] {", 'gt')).toContain('animation-name: exitFade, exitBlur;');
-    expect(block("[data-fw='hero'] {", 'le')).toContain('animation-name: exitFade, exitCopyUpNarrow;');
-    expect(block("[data-fw='hero-cue'] {", 'le')).toContain('animation-name: exitFade, exitCueUpNarrow, exitBlur;');
+    expect(block("[data-fw-layer='hero_copy'] {", 'gt')).toContain('animation-name: exitFade, exitCopyUp, exitBlur;');
+    expect(block("[data-fw-layer='hero.cue_cue'] {", 'gt')).toContain('animation-name: exitFade, exitBlur;');
+    expect(block("[data-fw-layer='hero_copy'] {", 'le')).toContain('animation-name: exitFade, exitCopyUpNarrow;');
+    expect(block("[data-fw-layer='hero.cue_cue'] {", 'le')).toContain('animation-name: exitFade, exitCueUpNarrow, exitBlur;');
   });
 
   it('every animation rule reads the track timeline over the contain range, linear, filled both ways', () => {
@@ -186,10 +186,10 @@ describe('threaded.module.css restates the Lean endpoints and conditions', () =>
   it('no rule names an animation on a card, hero copy or cue outside the live selector, and the live names are the golden exit names', () => {
     const body = css.slice(0, css.indexOf('@keyframes'));
     const selectors: Record<string, string> = {
-      orbit: "[data-orbit-id]",
-      deck: "[data-fw='hero-deck'] > article",
-      copy: "[data-fw='hero']",
-      cue: "[data-fw='hero-cue']",
+      orbit: "[data-fw-layer='hero.orbit_card']",
+      deck: "[data-fw-layer='hero.deck_article']",
+      copy: "[data-fw-layer='hero_copy']",
+      cue: "[data-fw-layer='hero.cue_cue']",
     };
     const rules = [...body.matchAll(/([^{}]+)\{([^{}]*animation-name:[^{}]*)\}/g)].map((m) => ({ sel: m[1]!.trim(), decl: m[2]! }));
     for (const r of rules) expect(r.sel).toMatch(/\[data-exit-live\] \[data-splash='done'\]/);
@@ -213,7 +213,7 @@ describe('threaded.module.css restates the Lean endpoints and conditions', () =>
       expect(bare).toBeGreaterThan(0);
     }
     expect(css).not.toContain('fwEntrance');
-    expect(css).toContain("[data-fw='hero-exit'][data-exit-live] [data-splash='done'] [data-orbit-id] {");
+    expect(css).toContain("[data-fw='hero-exit'][data-exit-live] [data-splash='done'] [data-fw-layer='hero.orbit_card'] {");
   });
 
   it('the entrance rows: the variant minus the exit names is the original, with the same restarts', () => {

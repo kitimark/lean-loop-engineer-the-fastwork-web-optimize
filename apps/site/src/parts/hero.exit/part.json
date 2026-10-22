@@ -5,10 +5,11 @@
   "experiment": true,
   "impls": ["plain"],
   "muiStates": [],
+  "layers": [],
   "variants": {
-    "faithful": { "kind": "faithful", "tier": "T1", "layerBudget": 24 },
-    "scoped": { "kind": "optimized", "tier": "T0", "layerBudget": 24, "provenance": { "lean": "Fw.Parts.HeroExitOpt", "ledger": "O5 exit-scoped-var", "limit": "the win is in UpdateLayoutTree.elementCount, a quarantined counter; WebKit is source-only (Lean wk_units)" } },
-    "threaded": { "kind": "optimized", "tier": "T0", "layerBudget": 24, "provenance": { "lean": "Fw.Parts.HeroExitOpt", "ledger": "hero-exit-threaded-port", "limit": "the CSS animations replace the callback only for a settled entrance in a browser with animation-timeline and unreduced motion; before Safari 26.4 they run on the main thread; countdown hidden-pause reads the stage's inline --exit-opacity, which this variant clears" } }
+    "faithful": { "kind": "faithful", "files": ["driver.ts", "hero.module.css", "index.tsx", "logic.ts", "media.ts", "scope.ts"], "tier": "T1", "layerBudget": 24 },
+    "scoped": { "kind": "optimized", "files": ["driver.ts", "hero.module.css", "index.tsx", "logic.ts", "media.ts", "scope.ts"], "tier": "T0", "layerBudget": 24, "provenance": { "lean": "Fw.Parts.HeroExitOpt", "ledger": "O5 exit-scoped-var", "limit": "the win is in UpdateLayoutTree.elementCount, a quarantined counter; WebKit is source-only (Lean wk_units)" } },
+    "threaded": { "kind": "optimized", "files": ["driver.ts", "hero.module.css", "index.tsx", "logic.ts", "media.ts", "scope.ts", "threaded.module.css", "threaded.ts"], "tier": "T0", "layerBudget": 24, "provenance": { "lean": "Fw.Parts.HeroExitOpt", "ledger": "hero-exit-threaded-port", "limit": "the CSS animations replace the callback only for a settled entrance in a browser with animation-timeline and unreduced motion; before Safari 26.4 they run on the main thread; countdown hidden-pause reads the stage's inline --exit-opacity, which this variant clears" } }
   },
   "requires": {},
   "conflicts": {}

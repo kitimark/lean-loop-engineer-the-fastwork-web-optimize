@@ -16,7 +16,7 @@
 
   @media (prefers-reduced-motion: no-preference) {
     @media (width>600px) {
-      [data-exit-live] [data-splash='done'] [data-fw='hero'] {
+      [data-exit-live] [data-splash='done'] [data-fw-layer='hero_copy'] {
         --copy-in: 1;
         animation-name: exitFade, exitCopyUp, exitBlur;
         animation-duration: auto;
@@ -28,7 +28,7 @@
         animation-timeline: --hero-exit;
         animation-range: contain;
       }
-      [data-exit-live] [data-splash='done'] [data-fw='hero-cue'] {
+      [data-exit-live] [data-splash='done'] [data-fw-layer='hero.cue_cue'] {
         --copy-in: 1;
         animation-name: exitFade, exitBlur;
         animation-duration: auto;
@@ -43,7 +43,7 @@
     }
 
     @media (width<=600px) {
-      [data-exit-live] [data-splash='done'] [data-fw='hero'] {
+      [data-exit-live] [data-splash='done'] [data-fw-layer='hero_copy'] {
         --copy-in: 1;
         animation-name: exitFade, exitCopyUpNarrow;
         animation-duration: auto;
@@ -55,7 +55,7 @@
         animation-timeline: --hero-exit;
         animation-range: contain;
       }
-      [data-exit-live] [data-splash='done'] [data-fw='hero-cue'] {
+      [data-exit-live] [data-splash='done'] [data-fw-layer='hero.cue_cue'] {
         --copy-in: 1;
         animation-name: exitFade, exitCueUpNarrow, exitBlur;
         animation-duration: auto;
@@ -69,7 +69,7 @@
       }
     }
 
-    [data-fw='hero-exit'][data-exit-live] [data-splash='done'] [data-orbit-id] {
+    [data-fw='hero-exit'][data-exit-live] [data-splash='done'] [data-fw-layer='hero.orbit_card'] {
       animation-name: exitCardFade, exitCardMove;
       animation-duration: auto;
       animation-delay: 0s;
@@ -80,7 +80,7 @@
       animation-timeline: --hero-exit;
       animation-range: contain;
     }
-    [data-exit-live] [data-splash='done'] [data-fw='hero-deck'] > article {
+    [data-exit-live] [data-splash='done'] [data-fw-layer='hero.deck_article'] {
       animation-name: exitCardFade, exitCardMove;
       animation-duration: auto;
       animation-delay: 0s;
