@@ -3261,6 +3261,12 @@
    "task": "morph-strip-webkit",
    "field": "mechanism",
    "text": "MEASURED on WebKit (runs 39775174615, 39776549128 (base: default rewrite) and 39775198022, 39776554155 (flag: ?fw=hero.countdown:strip,morph.countdown:strip)): with both strips the page holds 52-56 composited layers before the morph push against 128 with faces (72 hero face layers fewer); see the n=13 strip row for the morph-open counts."
+  },
+  {
+   "entry": "nav:earn-no-transition: the earn button's max-width, padding-inline and opacity transitions are off while the nav morphs, so they follow --morph instead of retargeting every frame",
+   "task": "earn-bound-arm",
+   "field": "mechanism",
+   "text": "MEASURED NO-GO for GPU candidate B: the bound arm (all earn transitions off) against base, finish zone, Lean zoneVerdict then across (agreeNeeded 3 = 2): same in 3 of 3 jobs on macOS WebKit (run 39729682403) and on the iOS Simulator (run 39754568950); run 39744983394 insufficient (4 reps). Per-frame repeats overlap in every job (hitchJudge_same), so the earn work sits inside the A/A spread on the main thread. Lesson: measure a candidate's bound before building it. GPU/UI-process time is not measured (no real GPU on the VMs); the phone replay stays open. Note research/notes/2026/10-2x-earn-gpu.md."
   }
  ]
 }

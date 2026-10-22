@@ -14764,8 +14764,10 @@
     "research/notes/2026/10-2x-earn-gpu.md",
     "results/earn-bound/**",
     "docs/team/handoffs/earn-bound-arm.md",
-    "apps/runner/src/land.ts"
-   ]
+    "apps/runner/src/land.ts",
+    "research/findings/ledger.json"
+   ],
+   "evidence": "95ac2f2"
   },
   {
    "devices": [
@@ -16585,7 +16587,15 @@
     "packages/contracts/golden/parts/commission-gate*.jsonl",
     "research/notes/2026/10-2x-commission-band-gate.md",
     "results/commission-band-gate/**",
-    "docs/team/handoffs/commission-band-gate.md"
+    "docs/team/handoffs/commission-band-gate.md",
+    "lean/Fw.lean",
+    "lean/Fw/Parts/Golden.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json",
+    "research/findings/ledger.json",
+    "packages/contracts/golden/preset/v2-proved.decisions.jsonl"
    ],
    "title": "GPU route (user 2026-10-22: \"experiment then measure and do lean prove ... navbar and the end-of-page\"; design workflow gpu-route-design, lead scratch gpu-route-tasks.json rank 5). commission:band-gate (ledger n22 compact-band snap, partly proved, no flag yet): in the c1000 band the CSS pins scale 1 and radius 0, yet the driver writes --commission-enter-shrink/--commission-shrink every follower frame (JS 3092-3123 runs every frame while the follower moves). Skip both writes in band; write the current pair on band exit before paint; keep class toggles. Non-GPU item: it removes RecalculateStyles of the commission subtree on every follower frame during the platform scroll-in. Flag: Not a GPU route (style-only saving). Look E: catch-up write on band exit before paint. Premise check already passed (commission is not the last section, unlike platform.mq). Layer budget 0.. Lean: Extend Fw.Parts.Commission (pattern PlatformShrinkOpt): look_gated (in the c1000 band the card look does not depend on (n,r)), visSame (skip in band + catch-up on exit gives equal scenes at every breakpoint band), writes_le (writes per frame = 0 in band). Layer budget 0. Measure: WebKit Simulator cost lane, window = platform scroll-in (commission bottom from 0.85h to 0.35h): RecalculateStyles and script per frame. Breakpoint gate both engines including the band-exit catch-up."
   },
@@ -17012,6 +17022,75 @@
     "docs/team/handoffs/land-wt-lock-drift.md"
    ],
    "title": "Real cause of the morph-touch-band land refusal (incident inc-land-wt-lock-drift; land-install-fallback review forensics): a reused land worktree (.claude/land-wt/N, checkoutLandWt known branch, land.ts:341-352) runs no install unless the land's own diff touches pnpm-lock.yaml or a package.json, so its node_modules drift behind main's lockfile (land-wt/1 created 10-18, jsdom added 10-20). Fix through the Lean installKind rule: stamp the lockfile hash at each install (or read node_modules/.modules.yaml) and install when the checked-out lockfile differs; golden case for a reused worktree behind main. Also the land-install-fallback follow-ups: an end-to-end both-fail test through land() (injectable exec, VERDICT install, exit 19), the stderr tail in the REFUSED line and an execFileSync timeout, and an install stage in the Lean dryRun outcome."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "across-insufficient",
+   "owner": "lean-prover",
+   "stream": "measure",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Gate/Smooth.lean",
+    "packages/contracts/golden/gate/smooth*.jsonl",
+    "packages/gate-breakpoints/src/smooth/**",
+    "packages/gate-breakpoints/test/smooth*.test.mjs",
+    "docs/team/handoffs/across-insufficient.md"
+   ],
+   "title": "Review follow-up of earn-bound-arm: Lean `across` (lean/Fw/Gate/Smooth.lean:701) returns `same` when every sample is `insufficient` (length >= minSamples and no first/second counts fall through to same), so re-reduced Simulator tables print hero|rest 'same' over 0 decisive jobs. Hardening: across returns insufficient when fewer than minSamples samples are decisive; theorem across_insufficient and a golden case; JS twins follow."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-state-unknown",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "apps/runner/src/ci-state.ts",
+    "apps/runner/test/ci-state*.test.ts",
+    "docs/team/handoffs/ci-state-unknown.md",
+    "apps/runner/src/ci.ts",
+    "apps/runner/test/ci*.test.ts"
+   ],
+   "title": "Review follow-up of earn-bound-arm: `pnpm fw ci state` prints 'unknown' for three completed runs that GitHub reports as cancelled/success (39729682403, 39744983394, 39754568950), so evidence-run state collection marks real evidence as failed. Investigate the run lookup (find the source with grep 'ci state' apps/runner/src), fix it with a test on those run shapes; list any file outside these writes in open."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "dispatch-latency",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "apps/runner/src/run-phases.ts",
+    "apps/runner/src/run.ts",
+    "apps/runner/test/run-phases*.test.ts",
+    "research/notes/2026/10-2x-dispatch-latency.md",
+    "docs/team/handoffs/dispatch-latency.md"
+   ],
+   "title": "fw watch opens timing.slow for `fw run dispatch` repeatedly (2026-10-23): most dispatches take 2.5-13 s, but 20:25:47 took 35.2 s and 20:51:27 took 31.5 s, and up to 3 dispatches start in the same second from parallel builders. Find which part of the dispatch phase (run-phases.ts: workflow_dispatch call, the nonce run lookup, the gh rate-limit backoff, or a shared lock) takes the time, split the span so the verdict judges each part, and make the slow part lighter (e.g. one shared nonce lookup per poll for concurrent dispatches) within the gh rate-limit rules (poll >= 120 s for waits, no retry on 403). Report the split timings before and after."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "commission-band-followups",
+   "owner": "lean-prover",
+   "stream": "parts",
+   "deps": [
+    "commission-band-gate"
+   ],
+   "writes": [
+    "lean/Fw/Parts/CommissionOpt*.lean",
+    "packages/contracts/golden/parts/commission-gate.jsonl",
+    "research/notes/2026/10-2x-commission-band-gate.md",
+    "docs/team/handoffs/commission-band-followups.md"
+   ],
+   "title": "Review follow-ups of commission-band-gate: (1) visSame covers bodies only; model events as Ev ⊕ media change and prove look agreement over the merged trajectory; (2) premise P1 (the media-query change event fires before paint, in the same rendering update as the rAF body) is a hypothesis: cite the HTML 'update the rendering' order and the WebKit and Chromium source (file:line@commit) and mark it CONFIRMED; (3) state the Chromium window bound convention in the note so the figures reproduce (inclusive 3070 <= scrollY <= 3530 gives 47 frames per run, RecalcStyleCount 5.02 -> 3.09, elementCount 127.1 -> 60.6; the note says 46, 3.07, 60.1)."
   }
  ],
  "deadline": {
