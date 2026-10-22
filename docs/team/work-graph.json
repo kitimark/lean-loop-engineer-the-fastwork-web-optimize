@@ -17226,7 +17226,8 @@
     "research/notes/2026/10-2x-earn-gpu.md",
     "docs/team/handoffs/across-k-decisive.md"
    ],
-   "title": "Review follow-ups of across-insufficient: k = agreeNeeded(all jobs) still counts insufficient jobs (report.mjs:76, cadence-table.mjs:75); decide in Lean whether k is two thirds of the decisive jobs, with a theorem stating the rule (e.g. across with k over decisive jobs never says second from fewer than minSamples decisive seconds) and goldens; JS twins follow. Also: Smooth.lean minSamples docstring -> 'Fewest decisive samples (first, second or same) before agreement means anything.'; research/notes/2026/10-2x-earn-gpu.md:307 cites across_same at :735, now :752."
+   "title": "Review follow-ups of across-insufficient: k = agreeNeeded(all jobs) still counts insufficient jobs (report.mjs:76, cadence-table.mjs:75); decide in Lean whether k is two thirds of the decisive jobs, with a theorem stating the rule (e.g. across with k over decisive jobs never says second from fewer than minSamples decisive seconds) and goldens; JS twins follow. Also: Smooth.lean minSamples docstring -> 'Fewest decisive samples (first, second or same) before agreement means anything.'; research/notes/2026/10-2x-earn-gpu.md:307 cites across_same at :735, now :752.",
+   "evidence": "229ce85"
   },
   {
    "devices": [

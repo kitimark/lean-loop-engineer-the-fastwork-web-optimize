@@ -39,11 +39,13 @@ test('jobVerdicts: first when the first arm does less in every window, same agai
   assert.equal(jobVerdicts(few, 'hero')['orig|base'], 'insufficient');
 });
 
-test('acrossJobs: two thirds of the jobs, none against', () => {
+test('acrossJobs: two thirds of the decisive jobs, none against', () => {
   const v = acrossJobs([{ 'a|b': 'first' }, { 'a|b': 'first' }, { 'a|b': 'same' }]);
   assert.equal(v['a|b'].verdict, 'first');
   assert.equal(acrossJobs([{ 'a|b': 'first' }, { 'a|b': 'second' }, { 'a|b': 'first' }])['a|b'].verdict, 'same');
   assert.equal(acrossJobs([{ 'a|b': 'first' }, { 'a|b': 'first' }])['a|b'].verdict, 'insufficient');
+  const d = acrossJobs([{ 'a|b': 'first' }, { 'a|b': 'first' }, { 'a|b': 'first' }, { 'a|b': 'insufficient' }, { 'a|b': 'insufficient' }])['a|b'];
+  assert.deepEqual([d.jobs, d.need, d.verdict], [5, 2, 'first']);
 });
 
 test('legSummary and the tables: class counts need three jobs, the headline lists every arm', () => {
