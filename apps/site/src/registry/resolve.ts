@@ -63,6 +63,10 @@ function presetEntries(
   return { ...base, ...p.fw };
 }
 
+const FWL_MAX_LEN = 2000;
+const FWL_CHARSET = /^[A-Za-z0-9.:,\-_@=&]*$/;
+const FWL_CHARSET_REASON = 'search has a character outside A-Z a-z 0-9 . : , - _ @ = & (after one leading ?)';
+
 /**
  * Resolution order (PLAN 6.3): URL `?fw=` over `?preset=` over the registry default `faithful`.
  * Mirrors Lean `Fw.Flags.resolve` (defaults = head variant, overrides applied in order, last wins, then
@@ -75,6 +79,13 @@ export function resolve(
   presets: Record<string, PresetDef>,
 ): ResolveResult {
   const errors: string[] = [];
+  // Mirrors Lean `Fw.Console.BuildsOpen.validate_encoded_fwl`: with `?fwl=` present, a search outside the
+  // console charset is refused whole (no percent-decoding, no + to space), as the console refuses it.
+  if (/(^|[?&])fwl=/.test(search)) {
+    if (search.length > FWL_MAX_LEN) return { ok: false, errors: ['search is longer than 2000 characters'] };
+    if (!FWL_CHARSET.test(search.startsWith('?') ? search.slice(1) : search))
+      return { ok: false, errors: [FWL_CHARSET_REASON] };
+  }
   const params = new URLSearchParams(search);
   const byId = new Map(parts.map((p) => [p.id, p]));
 

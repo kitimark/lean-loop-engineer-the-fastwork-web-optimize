@@ -188,6 +188,17 @@ theorem verdictOf_refused (names fw fwl) (es : List String) (h : es ≠ []) : ve
   | nil => exact absurd rfl h
   | cons a t => rfl
 
+/-- Encoded `?fwl=`: the console decodes nothing. `%` and `+` are outside `okChar`, so a search carrying an
+encoded layer id is refused whole; the site refuses the same searches (rule: refuse in both). -/
+theorem okChar_percent : okChar '%' = false := by decide
+
+theorem okChar_plus : okChar '+' = false := by decide
+
+theorem validate_encoded_fwl (parts presets) :
+    validate parts presets "?fwl=hero%5Fcopy:c" = .refused [charsetReason] := by
+  simp [validate, maxLen, body, okChar]
+  decide
+
 theorem validate_ok (parts presets) (s : String) (hl : ¬ s.length > maxLen)
     (hc : (body s).toList.all okChar = true) (h : searchErrors parts presets (params (body s)) = []) :
     validate parts presets s =
