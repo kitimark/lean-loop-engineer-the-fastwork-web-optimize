@@ -5,9 +5,9 @@ namespace Fw.Wire.OracleRetrieve
 open Lean Fw.Oracle Fw.Oracle.Expand
 open Fw.Oracle.Retrieve (RetrieveCfg rcfg tree Call callAt rel hook HookSt traceAt traceBytes Range readRanges
   evidenceValid validEvidence candidates pick1Row pick pickRow pickSends rangeLabel lineSlice hybridRow Item sendPlan
-  runSends runTokens ArmCmp)
+  runSends runTokens ArmCmp pickObs multis atSlot noneCount share noneShare uniformFirst slot answerGate readsIn)
 open Fw.Wire.Ops (Reply field opt asStr asNat str nat arrD natD strD)
-open Fw.Wire.Oracle (numQ)
+open Fw.Wire.Oracle (numQ ratJ)
 open Fw.Wire.OracleReplay (textsOf)
 open Fw.Wire.OracleExpand (blobsOf pairOf flipsJ strsJ)
 
@@ -114,6 +114,25 @@ def opHybrid (req : Json) : Except String Reply := do
   pure [("row", rowJ (hybridRow row parts)), ("kept", strsJ (fs.map Prod.fst)),
     ("cut", strsJ ((parts.map Prod.fst).filter fun l => !(fs.map Prod.fst).contains l)), ("esc", toJson (sizeWith row fs))]
 
+def opPickPos (req : Json) : Except String Reply := do
+  let os ← (← arrD req "rows").mapM fun r => do
+    let p := match opt r "pick" with | some (.str x) => some x | _ => none
+    pure (pickObs (← strsOf r "candidates") p)
+  let ms := multis os
+  let count (n : Nat) : Nat := (os.filter (·.cands == n)).length
+  pure [("rows", toJson os.length), ("empty", toJson (count 0)), ("single", toJson (count 1)), ("multi", toJson ms.length),
+    ("slots", .arr ((List.range rcfg.maxPick).map fun i => Json.mkObj [("slot", .str (slot i)),
+      ("count", toJson (atSlot ms i)), ("share", ratJ (share os i))]).toArray),
+    ("none", Json.mkObj [("count", toJson (noneCount ms)), ("share", ratJ (noneShare os))]),
+    ("uniformFirst", ratJ (uniformFirst os))]
+
+def opAnswer (req : Json) : Except String Reply := do
+  let log ← (← arrD req "log").mapM fun j => do pure (← str j "tool", ← strD j "decision" "")
+  let minReads := if (← match opt req "forced" with | some (.bool b) => pure b | _ => pure false) then rcfg.forcedReads else 0
+  pure <| [("reads", toJson (readsIn log)), ("minReads", toJson minReads)] ++ match answerGate minReads log with
+    | .allow => [("decision", "allow")]
+    | .deny w => [("decision", "deny"), ("why", .str w)]
+
 def itemOf (j : Json) : Except String Item := do pure ⟨← str j "id", ← nat j "sends", ← nat j "tokens"⟩
 
 def opPlan (req : Json) : Except String Reply := do
@@ -140,7 +159,8 @@ def opAdopt (req : Json) : Except String Reply := do
 def ops : List String :=
   ["oracle.retrieveScope", "oracle.retrieveVocab", "oracle.retrieveTree", "oracle.retrieveHook", "oracle.retrieveTrace",
    "oracle.retrieveRanges", "oracle.retrieveEvidence", "oracle.retrievePick1", "oracle.retrievePick",
-   "oracle.retrieveHybrid", "oracle.retrievePlan", "oracle.retrieveAdopt"]
+   "oracle.retrieveHybrid", "oracle.retrievePlan", "oracle.retrieveAdopt", "oracle.retrievePickPos",
+   "oracle.retrieveAnswer"]
 
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
   match op with
@@ -156,6 +176,8 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "oracle.retrieveHybrid" => some (opHybrid req)
   | "oracle.retrievePlan" => some (opPlan req)
   | "oracle.retrieveAdopt" => some (opAdopt req)
+  | "oracle.retrievePickPos" => some (opPickPos req)
+  | "oracle.retrieveAnswer" => some (opAnswer req)
   | _ => none
 
 def run (op : String) (r : String) : String :=
@@ -178,5 +200,10 @@ def run (op : String) (r : String) : String :=
   "{\"pick\":\"b.mjs\",\"row\":{},\"sends\":2}"
 #guard run "oracle.retrieveEvidence" "{\"ranges\":[{\"path\":\"a\",\"first\":1,\"last\":6}],\"evidence\":[{\"path\":\"a\",\"first\":2,\"last\":9}]}" ==
   "{\"invalid\":[{\"first\":2,\"last\":9,\"path\":\"a\"}],\"valid\":[]}"
+
+#guard run "oracle.retrieveAnswer" "{\"forced\":true,\"log\":[{\"tool\":\"Grep\",\"decision\":\"allow\"}]}" ==
+  "{\"decision\":\"deny\",\"minReads\":1,\"reads\":0,\"why\":\"readFirst\"}"
+#guard run "oracle.retrievePickPos" "{\"rows\":[{\"candidates\":[\"a\"],\"pick\":\"a\"},{\"candidates\":[\"a\",\"b\"],\"pick\":\"b\"}]}" ==
+  "{\"empty\":0,\"multi\":1,\"none\":{\"count\":0,\"share\":{\"den\":\"1\",\"num\":\"0\"}},\"rows\":2,\"single\":1,\"slots\":[{\"count\":0,\"share\":{\"den\":\"1\",\"num\":\"0\"},\"slot\":\"f1\"},{\"count\":1,\"share\":{\"den\":\"1\",\"num\":\"1\"},\"slot\":\"f2\"},{\"count\":0,\"share\":{\"den\":\"1\",\"num\":\"0\"},\"slot\":\"f3\"},{\"count\":0,\"share\":{\"den\":\"1\",\"num\":\"0\"},\"slot\":\"f4\"}],\"uniformFirst\":{\"den\":\"2\",\"num\":\"1\"}}"
 
 end Fw.Wire.OracleRetrieve

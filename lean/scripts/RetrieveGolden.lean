@@ -21,6 +21,9 @@ def cases : List (String × String × Json) :=
     Json.mkObj [("arm", "t-sonnet"), ("vsC", .arr vsC.toArray), ("vsX", .arr vsX.toArray), ("dropped", strs dropped),
       ("traced", strs traced)]
   let item (i : String) (s t : Nat) : Json := Json.mkObj [("id", .str i), ("sends", toJson s), ("tokens", toJson t)]
+  let pk (cs : List String) (p : Option String) : Json :=
+    Json.mkObj [("candidates", strs cs), ("pick", match p with | some x => .str x | none => .null)]
+  let ev (t d : String) : Json := Json.mkObj [("tool", .str t), ("decision", .str d)]
   let lines := "\n".intercalate ((List.range 12).map fun i => "line " ++ toString (i + 1))
   [("scope: a kept or over-cap file, or a drop for a word that is not a class id", "oracle.retrieveScope",
       Json.mkObj [("rows", .arr #[
@@ -93,7 +96,21 @@ def cases : List (String × String × Json) :=
       adoptReq (gains4 ++ [pr "l1" true false]) [] [] ["g1", "g2", "g3", "g4"]),
    ("adopt: worse than X", "oracle.retrieveAdopt", adoptReq gains4 [pr "x1" true false] [] ["g1", "g2", "g3", "g4"]),
    ("adopt: a gain on a dropped row and an untraced gain", "oracle.retrieveAdopt",
-      adoptReq gains4 [] ["g1"] ["g1", "g2", "g3"])]
+      adoptReq gains4 [] ["g1"] ["g1", "g2", "g3"]),
+   ("pickPos: one-candidate and empty rows add nothing; shares over rows with 2 or more candidates", "oracle.retrievePickPos",
+      Json.mkObj [("rows", .arr #[pk ["a"] (some "a"), pk ["a"] (some "a"), pk [] none, pk ["a", "b"] (some "a"),
+        pk ["a", "b"] (some "b"), pk ["a", "b", "c"] (some "c"), pk ["a", "b"] none])]),
+   ("pickPos: only one-candidate rows, every share 0", "oracle.retrievePickPos",
+      Json.mkObj [("rows", .arr #[pk ["a"] (some "a"), pk ["b"] none])]),
+   ("pickPos: the D1 J-pick counts (26 single, 2 empty, f1 4 f2 5 f3 1 over 10)", "oracle.retrievePickPos",
+      Json.mkObj [("rows", .arr ((List.replicate 26 (pk ["a"] (some "a"))) ++ (List.replicate 2 (pk [] none)) ++
+        (List.replicate 4 (pk ["a", "b"] (some "a"))) ++ (List.replicate 5 (pk ["a", "b"] (some "b"))) ++
+        [pk ["a", "b", "c"] (some "c")]).toArray)]),
+   ("answer: forced, no read yet", "oracle.retrieveAnswer",
+      Json.mkObj [("forced", true), ("log", .arr #[ev "Grep" "allow", ev "Read" "deny"])]),
+   ("answer: forced, after one allowed read", "oracle.retrieveAnswer",
+      Json.mkObj [("forced", true), ("log", .arr #[ev "Glob" "allow", ev "Read" "allow"])]),
+   ("answer: not forced", "oracle.retrieveAnswer", Json.mkObj [("forced", false), ("log", .arr #[])])]
 
 def lineOf (n op : String) (req : Json) : Json :=
   let resp : Json := match handle op req with
