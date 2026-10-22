@@ -285,13 +285,18 @@ export const swapGrade = (dpr, b, c) => matchedGrade(Array(b[0]?.v.length ?? 0).
 
 export const carouselGrade = (nb, nc, reps) => (nb === nc ? worst(reps) : 'L');
 
-export function carouselCellAt(dpr, base, cand) {
-  const bs = swapsOf(base ?? []), cs = swapsOf(cand ?? []);
-  const grades = bs.slice(0, Math.min(bs.length, cs.length)).map((b, i) => swapGrade(dpr, b, cs[i]));
-  return { swaps: [bs.length, cs.length], grades, grade: carouselGrade(bs.length, cs.length, grades) };
-}
+export const HOLD_TOL = 1;
+export const holdGrade = (hb, hc) => (hb <= hc + HOLD_TOL && hc <= hb + HOLD_TOL ? 'E' : 'L');
+export const repGrade = (motion, hb, hc) => (motion === null ? null : worst([motion, holdGrade(hb, hc)]));
 
 export const holdsOf = (rows, still = 6) => swapSpans(rows ?? [], still).map((sp) => holdFrames(rows, sp));
+
+export function carouselCellAt(dpr, base, cand) {
+  const bs = swapsOf(base ?? []), cs = swapsOf(cand ?? []);
+  const hbs = holdsOf(base), hcs = holdsOf(cand);
+  const grades = bs.slice(0, Math.min(bs.length, cs.length)).map((b, i) => repGrade(swapGrade(dpr, b, cs[i]), hbs[i], hcs[i]));
+  return { swaps: [bs.length, cs.length], grades, grade: carouselGrade(bs.length, cs.length, grades) };
+}
 
 export const STILL_FRAMES = 6;
 export const SETTLE_CAP_MS = rat(2200);

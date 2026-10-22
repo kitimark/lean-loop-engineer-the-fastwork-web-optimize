@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import {
   ratOf, ratStr, tolCss, cellEq, parseDec, parseLen, parseInset, expand4, readShape, shapeVec, interpAt, matchedGrade,
   effectAt, effectTols, cellsOfRaw, seriesOf, keptInterior, effClock, lagFrames, lagGrade, panelGrade, panelCell, darkness, painGrade, rat, ZERO,
-  worst, restedBefore, swapSpans, swapSeries, carouselCellAt, painCell, holdFrames,
+  worst, restedBefore, swapSpans, swapSeries, carouselCellAt, painCell, holdFrames, holdsOf, holdGrade,
   settleRun, tailRun, SETTLE_CAP_MS, TAIL_CAP_MS, STILL_FRAMES,
 } from '../src/trajectory/cells-gpu.mjs';
 
@@ -183,6 +183,7 @@ test('the carousel cell pairs swaps by order; a count mismatch is L and a null r
   for (const l of cases) {
     const c = carouselCellAt(ratOf(l.dpr), rowsOf(l.base), rowsOf(l.cand));
     assert.deepEqual(c.swaps, l.swaps, l.name);
+    assert.deepEqual([holdsOf(rowsOf(l.base)), holdsOf(rowsOf(l.cand))], l.holds, l.name);
     assert.deepEqual(c.grades, l.reps, l.name);
     assert.equal(c.grade, l.grade, l.name);
   }
@@ -190,6 +191,8 @@ test('the carousel cell pairs swaps by order; a count mismatch is L and a null r
   assert.equal(grade('equal swaps in step'), 'E');
   assert.equal(grade('one swap missing'), 'L');
   assert.equal(grade('zero swaps'), 'L');
+  assert.equal(grade('entering avatar held 1 row against 2'), 'E');
+  assert.equal(grade('entering avatar held 2 rows against 4'), 'L');
   assert.equal(grade('a null rep among E reps'), null);
 });
 
@@ -242,4 +245,8 @@ test('the tail stops after 6 equal frames past the window or at the cap, as Lean
     const r = tailRun(ratOf(l.ms), l.still, timed(l.frames));
     assert.deepEqual([r.rows, r.quiet], [l.rows, l.quiet], l.name);
   }
+});
+
+test('the hold grade is E within one frame either way and L beyond, as Lean holdGrade', () => {
+  for (const [hb, hc, g] of [[2, 1, 'E'], [1, 2, 'E'], [3, 3, 'E'], [1, 3, 'L'], [3, 1, 'L'], [0, 4, 'L']]) assert.equal(holdGrade(hb, hc), g, `${hb} against ${hc}`);
 });

@@ -1014,7 +1014,54 @@ def carouselMinCovered : Nat := 4
 def swapGrade (dpr : Rat) (b c : Series) : Option Grade :=
   matchedGrade (List.replicate ((b.head?.map (·.2.length)).getD 0) (tolCss dpr)) carouselGrid frameMs carouselMinCovered b c
 
-def carouselReps (dpr : Rat) (bs cs : List Series) : List (Option Grade) := (bs.zip cs).map fun (b, c) => swapGrade dpr b c
+/-- Between-arm hold difference (frames) that is still E; premise from the A/A spread in runs 39852684450 and 39861846900 (at most 1). -/
+def holdTol : Nat := 1
+
+/-- E iff the two holds differ by at most `holdTol` frames, else L. -/
+def holdGrade (hb hc : Nat) : Grade := if hb ≤ hc + holdTol ∧ hc ≤ hb + holdTol then .e else .l
+
+theorem holdGrade_e_le (hb hc : Nat) (h : hb ≤ hc + holdTol) (h' : hc ≤ hb + holdTol) : holdGrade hb hc = .e := by
+  simp [holdGrade, h, h']
+
+theorem holdGrade_l_base_long (hb hc : Nat) (h : hc + holdTol < hb) : holdGrade hb hc = .l := by
+  have : ¬ hb ≤ hc + holdTol := by omega
+  simp [holdGrade, this]
+
+theorem holdGrade_l_cand_long (hb hc : Nat) (h : hb + holdTol < hc) : holdGrade hb hc = .l := by
+  have : ¬ hc ≤ hb + holdTol := by omega
+  simp [holdGrade, this]
+
+theorem holdGrade_symm (hb hc : Nat) : holdGrade hb hc = holdGrade hc hb := by
+  simp only [holdGrade, and_comm]
+
+theorem holdGrade_refl (h : Nat) : holdGrade h h = .e := holdGrade_e_le h h (by omega) (by omega)
+
+#guard holdGrade 2 1 == .e
+#guard holdGrade 1 2 == .e
+#guard holdGrade 3 3 == .e
+#guard holdGrade 1 3 == .l
+#guard holdGrade 3 1 == .l
+#guard holdGrade 0 4 == .l
+
+/-- The swap rep grade: the motion grade or the hold grade, whichever is worse; no motion grade stays none. -/
+def repGrade (motion : Option Grade) (hb hc : Nat) : Option Grade := motion.map fun g => worse g (holdGrade hb hc)
+
+theorem repGrade_hold_l (motion : Option Grade) (g : Grade) (hm : motion = some g) (hb hc : Nat) (h : holdGrade hb hc = .l) :
+    repGrade motion hb hc = some .l := by
+  subst hm
+  cases g <;> simp [repGrade, h, worse, Grade.rank]
+
+theorem repGrade_hold_e (g : Grade) (hb hc : Nat) (h : holdGrade hb hc = .e) :
+    repGrade (some g) hb hc = some g := by
+  cases g <;> simp [repGrade, h, worse, Grade.rank]
+
+theorem repGrade_none (hb hc : Nat) : repGrade none hb hc = none := rfl
+
+/-- Holds (frames) of each swap of a recording. -/
+def holdsOf (rows : List Row) (still : Nat := 6) : List Nat := (swapSpans rows still).map (holdFrames rows)
+
+def carouselReps (dpr : Rat) (bs cs : List Series) (hbs hcs : List Nat) : List (Option Grade) :=
+  ((bs.zip cs).zip (hbs.zip hcs)).map fun ((b, c), (hb, hc)) => repGrade (swapGrade dpr b c) hb hc
 
 def carouselGrade (nb nc : Nat) (reps : List (Option Grade)) : Option Grade := if nb = nc then worst reps else some .l
 
@@ -1026,7 +1073,7 @@ structure CarouselCell where
 def carouselCell (dpr : Rat) (base cand : List Row) : CarouselCell :=
   let bs := swapsOf base
   let cs := swapsOf cand
-  let reps := carouselReps dpr bs cs
+  let reps := carouselReps dpr bs cs (holdsOf base) (holdsOf cand)
   ⟨(bs.length, cs.length), reps, carouselGrade bs.length cs.length reps⟩
 
 theorem carouselGrade_mismatch (nb nc : Nat) (reps : List (Option Grade)) (h : nb ≠ nc) :
@@ -1127,13 +1174,14 @@ def carouselCases : List (String × List Row × List Row) :=
    ("zero swaps", twoSwaps, hold 0 38), ("a null rep among E reps", jumpSwap, jumpSwap),
    ("no swaps on either side", hold 0 20, hold 0 20), ("end position moved", twoSwaps, movedEnd),
    ("candidate opens mid-swap", twoSwaps, twoSwaps.drop 10),
+   ("entering avatar held 1 row against 2", holdSwap 1, holdSwap 2),
    ("entering avatar held 2 rows against 4", holdSwap 2, holdSwap 4),
    ("entering avatar held 4 rows against 1, steps differ", holdSwap 4, holdSwap 1 5400)]
 
 def carouselDpr : Rat := 2
 
 #guard (carouselCases.map fun (_, b, c) => (carouselCell carouselDpr b c).grade) ==
-  [some .e, some .l, some .l, none, none, some .l, some .l, some .e, some .l]
+  [some .e, some .l, some .l, none, none, some .l, some .l, some .e, some .l, some .l]
 
 #guard (carouselCell carouselDpr jumpSwap jumpSwap).reps == [some .e, none]
 
@@ -1353,7 +1401,7 @@ def goldenLines (_ : Unit := ()) : List String :=
   carouselCases.map (fun (n, b, c) =>
     let cc := carouselCell carouselDpr b c
     o [("kind", "carousel"), ("name", toJson n), ("dpr", toJson (ratStr carouselDpr)), ("base", rowsJson b), ("cand", rowsJson c),
-      ("swaps", toJson [cc.swaps.1, cc.swaps.2]), ("reps", gradesJson cc.reps), ("grade", gradeName cc.grade)]) ++
+      ("swaps", toJson [cc.swaps.1, cc.swaps.2]), ("holds", toJson [holdsOf b, holdsOf c]), ("reps", gradesJson cc.reps), ("grade", gradeName cc.grade)]) ++
   painCellCases.map (fun (n, (ub, uc), (db, dc)) =>
     o [("kind", "paincell"), ("name", toJson n), ("up", toJson [vecJson ub, vecJson uc]), ("down", toJson [vecJson db, vecJson dc]),
       ("reps", gradesJson (painCell (ub, uc) (db, dc))), ("grade", gradeName (worst (painCell (ub, uc) (db, dc))))]) ++

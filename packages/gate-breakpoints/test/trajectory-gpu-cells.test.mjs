@@ -146,15 +146,18 @@ test('a sparse base reference across the opacity kink does not make a run on the
   assert.deepEqual(grades(units, 'panel-effect'), ['E', 'E']);
 });
 
-test('carousel: an entering avatar held for a different number of rows is E when the motion is the same, and carries its holds', () => {
+test('carousel: an entering avatar held one row longer is E when the motion is the same, two rows longer is L, and the cell carries its holds', () => {
   const rowsOf = (hold) => {
     const rest = Array.from({ length: 8 }, () => [0, 0, 1000, 1000]);
     const entry = (x) => [0, 0, 1000, 1000, x, 0, 1000, 1000];
     const moved = Array.from({ length: 12 }, (_, i) => entry(24000 - 2000 * (i + 1)));
     return [...rest, ...Array.from({ length: hold }, () => entry(24000)), ...moved, ...Array.from({ length: 12 }, () => entry(0))].map((v, t) => ({ t: t * 17, v }));
   };
-  const c = carouselCell(390, rowsOf(4), rowsOf(2));
+  const c = carouselCell(390, rowsOf(4), rowsOf(3));
   assert.deepEqual(c.grades, ['E']);
   assert.equal(c.grade, 'E');
+  assert.deepEqual([holdsOf(rowsOf(4)), holdsOf(rowsOf(3))], [[3], [2]]);
+  const far = carouselCell(390, rowsOf(4), rowsOf(2));
+  assert.deepEqual(far.grades, ['L']);
   assert.deepEqual([holdsOf(rowsOf(4)), holdsOf(rowsOf(2))], [[3], [1]]);
 });
