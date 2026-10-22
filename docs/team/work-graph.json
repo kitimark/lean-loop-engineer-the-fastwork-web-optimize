@@ -14227,7 +14227,8 @@
     "codemagic.yaml",
     "docs/team/tools/codemagic.md",
     "docs/team/tools/ci-pool.md",
-    "docs/team/handoffs/macos-pool-7.md"
+    "docs/team/handoffs/macos-pool-7.md",
+    "apps/runner/src/fw-main.ts"
    ]
   },
   {
@@ -15555,7 +15556,11 @@
     "packages/contracts/golden/obs/**",
     "apps/runner/src/watch-collect.ts",
     "apps/runner/test/watch-collect.test.ts",
-    "docs/team/tools/timings.md"
+    "docs/team/tools/timings.md",
+    "apps/runner/src/timing.ts",
+    "lean/Fw/Wire/Obs.lean",
+    "apps/runner/test/timing-alert.test.ts",
+    "scripts/wallclock-allow.json"
    ]
   },
   {
@@ -15589,6 +15594,28 @@
     "docs/team/handoffs/hero-exit-threaded-measure.md"
    ],
    "title": "User goal 2026-10-22 (hero exit smoother on WebKit; GPU same-look route). hero.exit:threaded landed (cbd2365c: exit as view-timeline animations of accelerated properties only, Lean entrance_same, probe run 39669915362 RED only on empty-rect nodes) but has no WebKit cost or lag measurement against the base. Measure on CI webkit-sim with the cost input (cost=on, lag=true; wkcost-cost-input landed 2a938882): base vs ?fw=hero.exit:threaded, hero-exit zone Recalculate styles, Layout, rewrite skipped slots and new layers per read (the webkit-cost-counters tables), frame interval where recorded, both passes, with run ids; plus the breakpoint gate verdict already on record. Write the result as a ledger row update for the hero.exit threaded variant (MEASURED with run ids, mechanism, lesson; a no-win is a finding) and results/hero-exit-threaded-measure/report.json in the review-reports shape (recommendation text without numbers). Unit: base vs flag cost tables with run ids, ledger row, report.json, note. Limits: the Simulator has no real GPU; at most 4 dispatches; frame percentiles only where the lane records them."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-telemetry-fullrun",
+   "owner": "lean-prover",
+   "stream": "obs",
+   "deps": [
+    "ci-span-skipped"
+   ],
+   "writes": [
+    "lean/Fw/Ci/Telemetry.lean",
+    "lean/Fw/Obs/Timing.lean",
+    "packages/contracts/golden/obs/**",
+    "packages/contracts/golden/ci/**",
+    "apps/runner/src/timing.ts",
+    "apps/runner/test/**",
+    "docs/team/tools/timings.md",
+    "docs/team/handoffs/ci-telemetry-fullrun.md"
+   ],
+   "title": "Follow-ups of ci-span-skipped review (2026-10-22). (1) lean/Fw/Ci/Telemetry.lean Record.spans/judged build each Sample without the command's exit (Command.exit dropped) and judge every span, so failed CI commands still enter windows there: pass exit (and skipped) through and apply Fw.Obs.Timing.fullRun, with a theorem that the telemetry verdicts equal timingVerdicts on the same samples. (2) Keep the ceiling check for every exit class: a failed, cancelled or killed run over its ceiling (a hung fw land killed by a timeout) alerts again (ceiling verdict independent of fullRun; the window rule stays full-runs only); prove the ceiling verdict is the same for any exit. (3) timings.md replay figures state the log cutoff (last startMs or line count) they came from. Goldens; TS checked against them. Unit: the exit pass-through with its theorem, the any-exit ceiling rule with its theorem, goldens, the doc cutoff. Limits: old log lines are not rewritten."
   }
  ],
  "deadline": {
