@@ -32,9 +32,9 @@ Breakpoint gate, both engines, `--fw hero.accent:draw-one`: run 39694389914 succ
 The lane has no per-SVG layout events and no RenderingFrame events, so the card's "SVG path layouts per draw frame" (3 to 1) is the
 Lean count, not a CI reading, and frame interval p50/p90/p99 do not exist for this lane.
 
-## Why no win (PROVED shape, INFERRED size)
+## Why no win (INFERRED, StyleDifference.cpp:157-163@862f17d)
 WebKit runs one Layout pass per frame whenever any animated path is dirty; the visible copy still dirties it every draw frame, so the
-pass count is unchanged and two of three small path boxes leave it. About 0.5 ms per Layout event here is below the pass-to-pass spread.
+pass count is unchanged and two of three small path boxes leave it. The saved share is below this lane's pass-to-pass spread.
 
 ## Lesson
 Cutting work on objects nobody sees pays only where the engine pays per object. Next: re-measure where frame time inside the draw windows is recorded.
