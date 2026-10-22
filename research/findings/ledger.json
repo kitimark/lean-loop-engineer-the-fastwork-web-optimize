@@ -2960,7 +2960,7 @@
   },
   {
    "id": "nav.clip-box",
-   "n": 48,
+   "n": 52,
    "part": "nav",
    "candidate": "nav:clip-box: while the nav morphs the box is the union of its boxes at constant size and the pill is a clip-path inset, so the morph writes no width, height, top or border-radius and lays out nothing per frame",
    "status": "partly-proved",
