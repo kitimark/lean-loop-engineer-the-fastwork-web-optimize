@@ -1,32 +1,31 @@
 # compose-layers-lean (lean-prover)
 
 State: branch `worktree-wf_a9545149-400-1`, worktree `.claude/worktrees/wf_a9545149-400-1`, commits cf333e33..HEAD,
-main 76f51b05 merged at 538ade8f. No CI runs (none in scope). Round 2 (report only): after the merge
-`part-footprint.mjs --write` and `ContractsGolden --diff/--rows/--check` regenerated nothing; `sh lean/scripts/check.sh`
-green; site, console-api and runner tests green; `fw land --dry` ends `VERDICT dry compose-layers-lean`.
-`#print axioms` on every Layers theorem shows standard axioms only.
+round 3 fixes at 60bc8ff4 and the morph test fix after it, main 393f8223 merged at 6ba33212. No CI runs (none in scope).
+Round 3: reviewer counterexample (`exShared`, two picks gave `[]`) reproduced with `lake env lean`, now `["clash"]`.
+After the merge: `part-footprint.mjs --check` clean, `ContractsGolden --diff/--rows` regenerate nothing, `--check`
+green; `sh lean/scripts/check.sh` green; site, console-api, runner and ci-paths tests green; dry land run.
 
 Done:
-- `lean/Fw/Console/Layers.lean`: units (pick, change, layer option), `clash` (I1-I4 links, `clash_symm`), expansion
-  (`expandedPicks`, `expand_one_owner`, `expand_idem`), closed refusal list (`Refusal`, one theorem per code), fix
-  (`fixOf`, `fix_closed_requires`), look grade E/E1/Q/L (`look_E_sound`, `look_L_of_unit_L`, `option_not_E`),
-  premises (`premises_complete`, `snap_drops_C5`, `text_composite_C1`), fwl search (`searchOf`, `link_resolves`),
-  `registryErrors`, `decideArm`; `#guard`s on every refusal code over `exPage`.
+- `lean/Fw/Console/Layers.lean`: units, `clash` (I1-I4, `clash_symm`); `Unit.reads` covers every record of each
+  picked variant, shared files included (round 3, finding 1; `#guard`s over `exShared`); expansion (`expand_one_owner`,
+  `expand_idem`); closed refusal list (`Refusal`, one theorem per code); `fixOf`; grade E/E1/Q/L, where `E1` needs a
+  `lean` name (round 3, finding 2; `varGrade` guard without one is `Q`); premises; fwl search (`link_resolves`);
+  `declaredLayerErrors == []` over the extracted layer ids (okChar).
 - `lean/Fw/Engine/Compose.lean`: `lego_swap_visible_set`, `lego_swap_visible_units`.
-- `lean/Fw/Console/BuildsOpen.lean`: `?fwl=` entries, `layerErrors` with one theorem per refusal.
-- Extractor `apps/site/scripts/part-footprint.mjs`: per-record `variants`, `variantFiles`, `layerDecls` in FootprintData.
-- Wire: `lean/Fw/Wire/Layers.lean` (`console.compose` with `arms`; reply without `arms` unchanged), registry `layers`
-  for `console.buildsSearch`. Goldens `golden/console/layers.jsonl`, `layers-search.jsonl` (from `Fw.Ops.Golden`).
-- okChar: `declaredLayerErrors` (`#guard ... == []`) checks every extracted `layerDecls` id with `validate`; the site
-  test no longer parses Lean source (`footprint.test.ts` keeps `layerDecls` equal to the part.json files).
-- Site test `layers.component.test.ts` renders every listed variant with every impl, uses fwId `morph-countdown-clock`.
+- `lean/Fw/Wire/Layers.lean`: `console.compose` with `arms`; variant files come only from `filesOf` (finding 3).
+- Extractor `apps/site/scripts/part-footprint.mjs`: per-record `variants`, `variantFiles`, `layerDecls`.
+- Goldens `golden/console/layers.jsonl` (one row changed in round 3: a faithful pick on `hero` beside `hero-pause`
+  now also reports `clash`), `layers-search.jsonl`.
+- Site test `layers.component.test.ts`: every listed variant x impl; the morph instance over every `hero.countdown`
+  variant x impl with `inverse` and fwId `morph-countdown-clock` (finding 4).
 
-Accepted limits: no site change, no CI measurement, Q/L cells unmeasured; `hero.countdown:*` (branch in a shared
-file) and `hero.exit:threaded` (no files listed) are refused as not extractable.
+Accepted limits: no site change, no CI measurement, Q/L cells unmeasured; `hero.countdown:*` and `hero.exit:threaded`
+refused as not extractable.
 
-Open (follow-ups): console-api glue for `arms` (TS), ledger `changes` column, CSS declaration/keyframe extraction
-(props, will-change, snap paths), unmapped cross-part selectors, branch-level attribution, files for the other parts,
-a `fix_allowed` theorem, site reading `?fwl=`, per-variant I2/I4 rows, verdict/hyps for refused arms.
+Open (follow-ups): review findings 5 (lemma tying `coverReasons = []` and no clash to `Indep` in `look_E_sound`),
+6 (JSONL rows for every refusal code), 7 (`fix_allowed`); console-api glue for `arms`, ledger `changes` column, CSS
+extraction, branch-level attribution, files for the other parts, site reading `?fwl=`.
 
 Read first: `lean/Fw/Console/Layers.lean` header, then `lean/Fw/Wire/Layers.lean`, then `layersCases` in
 `lean/Fw/Ops/Golden.lean`.
