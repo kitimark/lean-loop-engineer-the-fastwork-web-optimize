@@ -721,8 +721,7 @@ theorem across_few (k : Nat) (vs : List Verdict) (h : vs.length < minSamples) : 
   repeat' split
   all_goals first | rfl | omega
 
-/-- **Undecided samples are never a verdict.** Below `minSamples` first, second or same samples, `across` is `insufficient`
-however many `insufficient` samples come with them. -/
+/-- **Undecided samples are never a verdict.** Below `minSamples` first, second or same samples, `across` is `insufficient`. -/
 theorem across_insufficient (k : Nat) (vs : List Verdict) (h : decisive vs < minSamples) : across k vs = .insufficient := by
   unfold across
   repeat' split
