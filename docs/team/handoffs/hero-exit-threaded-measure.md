@@ -1,13 +1,17 @@
 # hero-exit-threaded-measure handoff
 
 Branch `worktree-wf_34794772-0e5-1` (CI copy `ci/hero-exit-threaded-measure`), worktree
-`.claude/worktrees/wf_34794772-0e5-1`. Last commit: `git log -1` (base bb6a5df2 + this update).
+`.claude/worktrees/wf_34794772-0e5-1`. Last commit: `git log -1`.
 
-CI runs (webkit-sim, `gh workflow run webkit-sim.yml --ref ci/hero-exit-threaded-measure -f lag=true -f target=rewrite -f vms=3 -f cost=on [-f fw=hero.exit:threaded] -f nonce=<n>`):
-- base arm, nonce hetmbase1: run 39731185714. r3 success; r2 FAILED (exit 4: Simulator Shutdown after a failed inspector, not a lost page target; log in artifact webkit-sim-r2); r1 still in "Determinism sessions" at checkpoint 2.
-- flag arm `fw=hero.exit:threaded`, nonce hetmflag1: run 39731192687, complete, success, r1 r2 r3 all with 2/2 passes and cost ok.
-Dispatches used: 2 of 4. Artifacts downloaded to scratchpad dirs flag/ (done) and base/ (r3 only so far).
+CI runs (webkit-sim, `gh workflow run webkit-sim.yml --ref ci/hero-exit-threaded-measure -f lag=true -f target=rewrite -f vms=3 -f cost=on [-f fw=hero.exit:threaded] -f nonce=<n>`), all complete:
+- flag arm: run 39731192687, success, r1 r2 r3, 6 passes.
+- base arm: run 39739724461 (r1, r3 ok, 4 passes; r2 failed exit 4); first base run 39731185714 (r3 ok; r2 failed, r1 hit the job limit, no artifact).
+Dispatches used: 3 of 4.
 
-Verified: nothing reduced yet. Open: base r1 result; if base ends with < 3 VMs consider `gh run rerun --failed` (not a new dispatch) or dispatch 3 (base again); reduce with
-`node packages/measure-webkit/src/lag/cli.mjs cost-report --original <base jsons> --rewrite <flag jsons>` and `report`
-(Recalculate styles / Layout per step in the report), write ledger row update, results/hero-exit-threaded-measure/report.json, note.
+Result (MEASURED, note `research/notes/2026/10-2x-hero-exit-threaded-measure.md`): per scroll step in the hero exit zone rAF
+callbacks, Layout events and Recalculate styles events are lower (ranges separated); times, skipped slots, new layers overlap;
+backing store +2.9 MB. Recommendation hold (phone replay). Ledger note appended (finding n 6, task hero-exit-threaded-measure).
+Reduction: `lag/cli.mjs cost-report` and `report` with base r1+r3 of run 39739724461 as --original and flag r1-r3 as --rewrite/--faithful.
+
+Files: results/hero-exit-threaded-measure/report.json, research/findings/ledger.json (notes row), the note, this handoff.
+Open: `fw review ready` gate and `fw land --dry` (see the report), follow-ups: phone replay of the hero exit, base VM 2 fails twice.
