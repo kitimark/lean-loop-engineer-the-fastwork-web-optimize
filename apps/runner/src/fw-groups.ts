@@ -12,9 +12,6 @@ import { REVIEW_VERBS } from "./review.ts";
 import { SLOT_SUBS, slotStep } from "./slot-span.ts";
 import { STEP_THREAD_VERBS } from "./step-threads.ts";
 
-/** Every `fw` group that takes a subcommand, with its subcommands, each list exported by the module that dispatches on it (no hand
- *  list here): the one table that names spans (`fw <group> <sub>`). A test parses the `usage: fw ...` text of fw-main.ts and fails
- *  when a group or an alternative it names is missing. */
 export const SUBCOMMANDS: Readonly<Record<string, readonly string[]>> = {
   plan: PLAN_SUBS,
   ci: CI_SUBS,
@@ -30,8 +27,6 @@ export const SUBCOMMANDS: Readonly<Record<string, readonly string[]>> = {
   slot: SLOT_SUBS,
 };
 
-/** The step name of the `fw` span of one invocation: `group sub` for a group with subcommands (`slot` via `slotStep`, with its
- *  kind), `group` otherwise; `land --dry` is `land dry`, `polish --staged` is `polish staged`. */
 export function spanStep(group: string, rest: string[]): string {
   const sub = rest[0];
   if (group === "slot") return slotStep(rest);

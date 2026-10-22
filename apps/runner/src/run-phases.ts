@@ -4,8 +4,6 @@ import type { Gh, WaitFn } from "./run.ts";
 type Begin = (tool: string, step: string) => (exit?: number | null, extra?: Partial<Span>) => void;
 type Phase = "dispatch" | "wait" | "file" | "dry";
 
-/** `fw run` as three spans instead of one: `run dispatch` (local work up to the dispatch call), `run wait` (the CI wait, carrying
- *  the run id) and `run file` (download and ingest). A dry run is one `run dry` span. Wrap `gh` and `wait` of the real deps. */
 export function runPhases(begin: Begin, dry: boolean) {
   let open: { phase: Phase; end: ReturnType<Begin> } | null = null;
   const enter = (phase: Phase) => {
@@ -31,7 +29,6 @@ export function runPhases(begin: Begin, dry: boolean) {
       }
       return w;
     },
-    /** Close the open span with the command's exit code (a throw is exit 1). */
     finish: (exit: number) => { open?.end(exit); open = null; },
   };
 }

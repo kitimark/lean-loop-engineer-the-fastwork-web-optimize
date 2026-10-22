@@ -11,7 +11,6 @@ const need = (v: string | undefined, what: string): string => {
   return v;
 };
 
-/** The `fw step` verbs this module handles besides STEP_VERBS. */
 export const STEP_THREAD_VERBS = ["topic", "reply", "questions"] as const;
 
 export function topicCommand(argv: string[], env: Record<string, string | undefined>): Command {

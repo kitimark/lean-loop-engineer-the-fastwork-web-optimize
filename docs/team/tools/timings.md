@@ -1,8 +1,7 @@
 # Timings: every automation step as a span
 
 `.fw-console/timings.jsonl` (main checkout, gitignored) holds one JSON line per timed step. Append-only; the writers
-never fail or slow the step. The view `pnpm fw timings` is display only: whether a step is "slow" is decided later by
-Lean (task timing-lean), not by this file or the TS quantiles.
+never fail or slow the step. `pnpm fw timings` only displays; Lean (task timing-lean) decides whether a step is slow, not the TS quantiles.
 
 ## Line schema
 
@@ -74,4 +73,4 @@ swap below 60 percent; an idle machine always admits). `FW_HEAVY_LOCK=off` skips
 | `fw plan show` | 0.16 s | 0.17 s | 123.9 MB | 123.7 MB |
 | `fw slot status` | 0.16 s | 0.17 s | 123.6 MB | 122.4 MB |
 
-The slot path (fw.ts -> timing.ts, slot-span.ts, slot.ts, slot-main.ts) has a static import closure that does not contain fw-groups.ts or any module that exports a verb list; the light waiter stays light.
+The slot path (fw.ts -> timing.ts, slot-span.ts, slot.ts, slot-main.ts) has a static import closure that does not contain fw-groups.ts or any module that exports a verb list.

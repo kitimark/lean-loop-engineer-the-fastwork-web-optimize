@@ -16,7 +16,6 @@ const bool = (v: string | undefined, what: string): boolean => {
 
 export const CARD_USAGE = "usage: fw card open <card> --owner <o> [--device true] | approve <card> | screen <card> <sha> --pass true|false | review <card> <sha> --by <who> --accept true|false | swipe <card> <sha> --better true|false | request <card> <sha>";
 
-/** The verbs `cardCommand` accepts: the keys of DEFAULT_ACTOR. */
 export const CARD_VERBS = Object.keys(DEFAULT_ACTOR);
 
 export function cardCommand(argv: string[], env: Record<string, string | undefined>): Command {

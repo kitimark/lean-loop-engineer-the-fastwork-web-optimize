@@ -16,7 +16,6 @@ Round 2 changes
 - slot-span.ts: `slot run <kind> dry` (wrapped argv has --dry), `... cached` on a replay (slotStepEnd, flag on globalThis; timing.ts begin's
   end(extra.step) overrides the step).
 - run.ts runCli opens the run span before parseRunArgs (new optional `begin` arg for tests).
-- timings.md updated.
 Open: follow-up 5 (check real timings.jsonl for `run wait`, `slot run test`, `slot run land dry`, `dry total`) is the lead's. Plan/ci lists are not used by a module-own guard (dispatch is the if-chain in fw-main.ts).
 Writes outside the graph list: card.ts, ci.ts, console.ts, incidents.ts, lib.ts, oracle.ts, plan.ts, polish.ts, preview.ts, review.ts, review-ready.ts, step-threads.ts, slot.ts, timing.ts, fw.ts, fw-groups.ts, run-phases.ts, slot-span.ts, scripts/slot-self.mjs, tests.
 Read first: apps/runner/src/fw-groups.ts, apps/runner/test/span-names.test.ts.

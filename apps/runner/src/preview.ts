@@ -5,7 +5,6 @@ import { UsageError } from "./lib.ts";
 
 export type Fetch = (url: string, init: { method: string; headers: Record<string, string>; body: string }) => Promise<{ status: number; json(): Promise<unknown> }>;
 
-/** The subcommands `previewCli` accepts; span names come from this list. */
 export const PREVIEW_SUBS = ["grant"] as const;
 export const PREVIEW_USAGE = "usage: fw preview grant [<preview-id>] [--arm r|o]";
 

@@ -11,7 +11,6 @@ import { Command } from "@fw/contracts";
 import { branchCard } from "../../console-api/src/reconcile/naming.ts";
 import { begin as rawBegin, record as rawRecord, span as rawSpan } from "./timing.ts";
 
-/** "dry " while a dry land runs: its spans (`dry total`, `dry merge`, ...) form their own history, apart from real lands. */
 let stepPrefix = "";
 const begin: typeof rawBegin = (tool, step, cwd) => rawBegin(tool, stepPrefix + step, cwd);
 const record: typeof rawRecord = (s, cwd) => rawRecord({ ...s, step: stepPrefix + s.step }, cwd);

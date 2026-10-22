@@ -17,7 +17,6 @@ const need = (v: string | undefined, what: string): string => {
 
 /** `fw review reply --flag f --to id --text t` -> the `review.feedback.reply` command (key derived from the comment id, so a retry
  *  is a duplicate; the actor is the lead unless `--as`/FW_ACTOR says otherwise, and the capability door stamps the real one). */
-/** The `fw review` verbs this module handles (`ready` and `verdict` are in review-ready.ts). */
 export const REVIEW_VERBS = ["reply", "report", "feedback"] as const;
 
 export function reviewCommand(argv: string[], env: Record<string, string | undefined>): Command {

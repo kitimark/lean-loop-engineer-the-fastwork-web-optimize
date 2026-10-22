@@ -237,7 +237,6 @@ export async function logsConsole(d: ConsoleDeps, args: string[]): Promise<numbe
   return 0;
 }
 
-/** The subcommands `consoleCli` dispatches; span names come from this list. */
 export const CONSOLE_SUBS = ["start", "stop", "restart", "status", "logs"] as const;
 
 export async function consoleCli(args: string[], d: ConsoleDeps): Promise<number> {

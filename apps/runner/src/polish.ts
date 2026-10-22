@@ -56,7 +56,6 @@ function readJson(src: string, deps: Deps): unknown {
   try { return JSON.parse(text); } catch (e) { throw new UsageError(`--cuts: not JSON (${e instanceof Error ? e.message : e})`); }
 }
 
-/** The verbs `polishCli` accepts (`--staged` is an alias of `staged`); span names come from this list. */
 export const POLISH_VERBS = ["plan", "cuts", "commit", "staged"] as const;
 
 export async function polishCli(argv: string[], cwd: string, deps: Deps = {}): Promise<number> {

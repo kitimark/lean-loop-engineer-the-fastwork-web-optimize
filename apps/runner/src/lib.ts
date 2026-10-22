@@ -29,9 +29,7 @@ const need = (v: string | undefined, what: string): string => {
 
 /** `fw step post|start|answer|done|cancel ...` -> Command (key derived so retries are idempotent). */
 const STEP_USAGE = "usage: fw step post|start|answer|done|cancel ...";
-/** The verbs `stepCommand` accepts; span names come from this list. */
 export const STEP_VERBS = ["post", "start", "answer", "done", "cancel"] as const;
-/** The verbs `taskCommand` accepts. */
 export const TASK_VERBS = ["handback", "integrate", "park", "unpark"] as const;
 
 export function stepCommand(argv: string[], env: Record<string, string | undefined>): Command {

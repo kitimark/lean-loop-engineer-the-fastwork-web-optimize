@@ -8,7 +8,6 @@ import { runCli } from "../src/run.ts";
 const main = readFileSync(new URL("../src/fw-main.ts", import.meta.url), "utf8");
 const branchGroups = new Set([...main.matchAll(/group === "([a-z-]+)"/g)].map((m) => m[1]!));
 
-// The usage text of fw-main.ts names every `fw <group> a|b|c` form: each group must be a key of SUBCOMMANDS holding each alternative.
 const usage = /throw new UsageError\(`usage: fw status[^`]*`/.exec(main)![0];
 const usageGroups = [...usage.matchAll(/fw ([a-z-]+) ((?:[a-z-]+\|)*[a-z-]+)(?= |\||\\|`|$)/g)].map((m) => ({ g: m[1]!, alts: m[2]!.split("|").filter((a) => /^[a-z][a-z-]*$/.test(a)) }));
 const LIST_OWNERS: Record<string, string[]> = { plan: ["plan"], ci: ["ci"], incidents: ["incidents"], step: ["lib", "step-threads"], card: ["card"], task: ["lib"], console: ["console"],

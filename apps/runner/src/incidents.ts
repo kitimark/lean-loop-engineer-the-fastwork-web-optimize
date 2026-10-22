@@ -8,7 +8,6 @@ import { isAbsolute, join, relative, resolve } from "node:path";
 import { UsageError, apiBase } from "./lib.ts";
 import { coreCandidates, coreCaller, type CoreCall } from "./watch.ts";
 
-/** The subcommands `incidentsCli` accepts; span names come from this list. */
 export const INCIDENTS_SUBS = ["lint"] as const;
 export const INCIDENTS_USAGE = "usage: fw incidents lint [docs/team/incidents/ledger.json]   (exit 1 on any error)";
 export const LEDGER = "docs/team/incidents/ledger.json";

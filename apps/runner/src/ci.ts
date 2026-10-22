@@ -130,7 +130,6 @@ export async function ciMain(args: CiArgs, d: CiDeps): Promise<number> {
   } finally { rmSync(dl, { recursive: true, force: true }); }
 }
 
-/** The `fw ci` subcommands (dispatched in fw-main.ts); span names come from this list. */
 export const CI_SUBS = ["wait", "budget", "circleci", "push", "telemetry", "pool", "state"] as const;
 
 export async function ciCli(argv: string[], cwd: string, env: Record<string, string | undefined> = process.env): Promise<number> {

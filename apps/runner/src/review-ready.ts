@@ -31,7 +31,6 @@ function coreOf(cwd: string, deps: Deps): CoreCall {
   return coreCaller(coreCandidates(root, join(common, "..")));
 }
 
-/** The `fw review` verbs `readyCli` handles. */
 export const READY_VERBS = ["ready", "verdict"] as const;
 
 export async function readyCli(argv: string[], cwd: string, deps: Deps = {}): Promise<number> {

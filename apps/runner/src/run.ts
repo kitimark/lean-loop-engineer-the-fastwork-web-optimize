@@ -455,8 +455,7 @@ export const isDir = (p: string) => existsSync(p) && statSync(p).isDirectory();
 /** `fw run ...` from the shell. Needs no console-api. */
 export async function runCli(argv: string[], cwd: string, env: Record<string, string | undefined> = process.env, begin: typeof beginSpan = beginSpan): Promise<number> {
   const vcs = (...a: string[]) => spawnSync("git", a, { cwd, encoding: "utf8" }).stdout.trim();
-  const ph = runPhases(begin, argv.includes("--dry")); // opened before parsing: a usage error or budget-state failure still writes its span
-  let code = 1;
+  const ph = runPhases(begin, argv.includes("--dry"));  let code = 1;
   try {
   const args = parseRunArgs(argv);
   const consoleDir = env.FW_CONSOLE_DIR ?? join(dirname(vcs("rev-parse", "--path-format=absolute", "--git-common-dir")), ".fw-console");

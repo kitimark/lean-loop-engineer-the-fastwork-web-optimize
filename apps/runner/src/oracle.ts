@@ -255,7 +255,6 @@ async function armInputCli(io: Io, args: string[]): Promise<number> {
   return 0;
 }
 
-/** The subcommands `oracleCli` dispatches; span names come from this list. */
 export const ORACLE_SUBS = ["ask", "calibrate", "eval", "send", "score", "arm-input"] as const;
 
 export async function oracleCli(args: string[], cwd: string, io?: Io): Promise<number> {
