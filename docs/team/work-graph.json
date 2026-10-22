@@ -17043,7 +17043,9 @@
    "writes": [
     "apps/runner/src/ci-state.ts",
     "apps/runner/test/ci-state*.test.ts",
-    "docs/team/handoffs/ci-state-unknown.md"
+    "docs/team/handoffs/ci-state-unknown.md",
+    "apps/runner/src/ci.ts",
+    "apps/runner/test/ci*.test.ts"
    ],
    "title": "Review follow-up of earn-bound-arm: `pnpm fw ci state` prints 'unknown' for three completed runs that GitHub reports as cancelled/success (39729682403, 39744983394, 39754568950), so evidence-run state collection marks real evidence as failed. Investigate the run lookup (find the source with grep 'ci state' apps/runner/src), fix it with a test on those run shapes; list any file outside these writes in open."
   }
