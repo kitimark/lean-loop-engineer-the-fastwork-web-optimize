@@ -205,9 +205,9 @@ describe("fw polish CLI", () => {
     expect(p.lines.at(-1)).toBe("VERDICT polish-plan t none");
   });
 
-  it("genOwned unions both tables and keeps the main set when the branch table does not load", async () => {
+  it("genOwned unions both tables and fails when the branch table does not load", async () => {
     expect(await genOwned(async (r) => (r === "/wt" ? ["b"] : ["a"]), "/root", "/wt")).toEqual(["a", "b"]);
-    expect(await genOwned(async (r) => { if (r === "/wt") throw new Error("x"); return ["a"]; }, "/root", "/wt")).toEqual(["a"]);
+    await expect(genOwned(async (r) => { if (r === "/wt") throw new Error("x"); return ["a"]; }, "/root", "/wt")).rejects.toThrow("x");
   });
 
   it("usage errors throw", async () => {

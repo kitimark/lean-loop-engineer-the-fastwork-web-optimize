@@ -40,7 +40,7 @@ export async function genOutputs(root: string): Promise<string[]> {
 export async function genOwned(gen: (root: string) => Promise<string[]>, root: string, dir: string): Promise<string[]> {
   const base = await gen(root);
   if (dir === root) return base;
-  try { return [...new Set([...base, ...(await gen(dir))])]; } catch { return base; }
+  return [...new Set([...base, ...(await gen(dir))])];
 }
 
 const lines = (s: string) => s.split("\n").map((l) => l.trim()).filter((l) => l !== "");
