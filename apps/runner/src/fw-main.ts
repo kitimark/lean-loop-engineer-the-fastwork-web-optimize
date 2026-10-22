@@ -14,12 +14,12 @@ import { ciCli } from "./ci.ts";
 import { ghBudgetCli, lastWaitPhases } from "@fw/gh-budget";
 import { engineCheckCli } from "./engine-check.ts";
 import { begin, span, timingsView } from "./timing.ts";
+import { spanStep } from "./fw-groups.ts";
 import { backfill, ingestRuns, lagCli, runIdsOf, waitSpanExtra } from "./timing-ci.ts";
 
 const [group, ...rest] = process.argv.slice(2);
-const SUBS = new Set(["plan", "ci", "incidents", "step", "card", "task", "console", "review", "oracle"]);
 let spanExtra: ReturnType<typeof waitSpanExtra> = {};
-if (group && group !== "watch" && group !== "timings") { const end = begin("fw", SUBS.has(group) && rest[0] && !rest[0].startsWith("-") ? `${group} ${rest[0]}` : group); process.once("exit", (c) => end(c, spanExtra)); }
+if (group && group !== "watch" && group !== "timings" && group !== "run") { const end = begin("fw", spanStep(group, rest)); process.once("exit", (c) => end(c, spanExtra)); }
 async function postLandGc(mainDir: string): Promise<void> {
   const { diskGcTick } = await import("./disk-gc.ts");
   const lines = span("fw land", "disk-gc (post-land)", () => diskGcTick(mainDir, ["lake", "landed", "console"], fwcoreCall(mainDir)));

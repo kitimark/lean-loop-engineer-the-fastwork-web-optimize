@@ -9,7 +9,12 @@ import { availableParallelism, loadavg } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { Command } from "@fw/contracts";
 import { branchCard } from "../../console-api/src/reconcile/naming.ts";
-import { begin, record, span } from "./timing.ts";
+import { begin as rawBegin, record as rawRecord, span as rawSpan } from "./timing.ts";
+
+let stepPrefix = "";
+const begin: typeof rawBegin = (tool, step, cwd) => rawBegin(tool, stepPrefix + step, cwd);
+const record: typeof rawRecord = (s, cwd) => rawRecord({ ...s, step: stepPrefix + s.step }, cwd);
+const span: typeof rawSpan = (tool, step, fn, exitOf) => rawSpan(tool, stepPrefix + step, fn, exitOf);
 import { cachedLaneView, circleciAdapter, DEFAULT_ALLOW, githubAdapter, makePusher, BUILD_ARGV, runTiered, spawnWait, type Adapter, type OverflowPlan, type Provider } from "./land-remote.ts";
 import { ccStatusFrom, forceFullFromEnv, ghStatusOnce, overflowFor, readSlots, realCircle } from "./land-overflow.ts";
 import { askCore, dropLock, lockFacts, lockFile, readLock, takeLock } from "../hooks/land-guard.mjs";
@@ -571,8 +576,10 @@ export function renderGuard(cwd: string, main: string, tip: string): { hits: Ren
 
 /** One `fw land` as one span ("fw land" / "total"): its 30 s ceiling is Lean `Fw.Obs.Timing.landCeilings`. A nested land (`via`) is part of the outer span. */
 export async function land(branch: string, o: LandOptions, via?: string): Promise<LandResult> {
+  const before = stepPrefix;
+  if (!via) stepPrefix = o.dry ? "dry " : "";
   const end = via ? () => {} : begin("fw land", "total");
-  try { const r = await landRun(branch, o, via); end(r.ok ? 0 : 1); return r; } catch (e) { end(1); throw e; }
+  try { const r = await landRun(branch, o, via); end(r.ok ? 0 : 1); return r; } catch (e) { end(1); throw e; } finally { stepPrefix = before; }
 }
 
 async function landRun(branch: string, o: LandOptions, via?: string): Promise<LandResult> {

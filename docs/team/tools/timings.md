@@ -1,8 +1,7 @@
 # Timings: every automation step as a span
 
 `.fw-console/timings.jsonl` (main checkout, gitignored) holds one JSON line per timed step. Append-only; the writers
-never fail or slow the step. The view `pnpm fw timings` is display only: whether a step is "slow" is decided later by
-Lean (task timing-lean), not by this file or the TS quantiles.
+never fail or slow the step. `pnpm fw timings` only displays; Lean (task timing-lean) decides whether a step is slow, not the TS quantiles.
 
 ## Line schema
 
@@ -18,6 +17,22 @@ Lean (task timing-lean), not by this file or the TS quantiles.
 | `runId` | CI spans only: the GitHub run id (the dedupe key) |
 
 No paths, no user names. The `fw land` total is the `fw` span with `step=land`.
+
+### Step names of the `fw` tool (task run-span-split)
+One name per cost, so no history pools unlike work:
+- Every group with subcommands is `group sub` (`ci wait`, `polish plan`, `polish staged`, ...). The groups and subcommands are
+  the table `SUBCOMMANDS` in `apps/runner/src/fw-groups.ts`, built only from the lists each module exports (`POLISH_VERBS`,
+  `ORACLE_SUBS`, `CONSOLE_SUBS`, `SLOT_SUBS`, ...; the module's own dispatch uses the same list). `apps/runner/test/span-names.test.ts`
+  parses the `usage: fw ...` text of `fw-main.ts` and fails when a group or an alternative it names is missing, or a key has no list.
+- `fw run` writes `run dispatch` (plan and the dispatch call), `run wait` (the CI wait; carries `runId`), `run file` (download
+  and ingest), or `run dry` for `--dry`; there is no `run` span (`apps/runner/src/run-phases.ts`). The first span opens before the
+  arguments are parsed, so a usage error still writes `run dispatch` (exit 1).
+- `fw slot` is `slot run <kind>`, `slot acquire <kind>`, `slot held <kind>`, `slot admit`, `slot status`, ... from both entries
+  (`fw.ts` and `scripts/slot-self.mjs`, through `apps/runner/src/slot-span.ts`). A wrapped argv with `--dry` adds ` dry`
+  (`slot run land dry`); a `--cache` replay ends as `... cached` (`slot run test cached`), apart from the real run.
+- A dry land is `land dry` (tool `fw`), and its `fw land` spans carry a `dry ` prefix (`dry total`, `dry merge`, ...), so the 30 s
+  ceiling of `fw land`/`total` judges real lands only.
+Older lines keep the old names (`run`, `slot`, `land`, `total`); a new step starts its own history.
 
 ## Writers
 
@@ -50,3 +65,12 @@ compared with the baseline, and it does not become the baseline (measured: the s
 than below 4; props lint 16.8 s vs 22.7 s). `sys.contended` reports the load once. `lean/scripts/check.sh` runs inside
 `scripts/heavy-lock.mjs` (Lean `Fw.Sched.Heavy`: a FIFO queue, at most `cap` holders, free memory for the job plus a reserve,
 swap below 60 percent; an idle machine always admits). `FW_HEAVY_LOCK=off` skips it. The lock files are in `<git dir>/fw-heavy/`.
+
+## Startup cost of the verb-list imports (MEASURED, Node 24.22.0, median of 5, `/usr/bin/time -l`)
+
+| command | main wall | branch wall | main RSS | branch RSS |
+|---|---|---|---|---|
+| `fw plan show` | 0.16 s | 0.17 s | 123.9 MB | 123.7 MB |
+| `fw slot status` | 0.16 s | 0.17 s | 123.6 MB | 122.4 MB |
+
+The slot path (fw.ts -> node-guard.ts, timing.ts, slot-span.ts, slot.ts -> slot-core.ts, slot-main.ts) has a static import closure that does not contain fw-groups.ts or any of the modules it imports; its only verb list is SLOT_SUBS in slot-span.ts, which imports nothing. The light waiter stays light.

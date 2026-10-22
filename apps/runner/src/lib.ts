@@ -28,8 +28,13 @@ const need = (v: string | undefined, what: string): string => {
 };
 
 /** `fw step post|start|answer|done|cancel ...` -> Command (key derived so retries are idempotent). */
+const STEP_USAGE = "usage: fw step post|start|answer|done|cancel ...";
+export const STEP_VERBS = ["post", "start", "answer", "done", "cancel"] as const;
+export const TASK_VERBS = ["handback", "integrate", "park", "unpark"] as const;
+
 export function stepCommand(argv: string[], env: Record<string, string | undefined>): Command {
   const [verb, ...rest] = argv;
+  if (!(STEP_VERBS as readonly string[]).includes(verb ?? "")) throw new UsageError(STEP_USAGE);
   const { pos, flags } = parseFlags(rest);
   const actor = Actor.parse(flags.as ?? env.FW_ACTOR ?? "owner");
   const key = flags.key;
@@ -51,7 +56,7 @@ export function stepCommand(argv: string[], env: Record<string, string | undefin
         answer: need(pos.slice(1).join(" "), "<answer>") });
     }
     default:
-      throw new UsageError("usage: fw step post|start|answer|done|cancel ...");
+      throw new UsageError(STEP_USAGE);
   }
 }
 
@@ -81,6 +86,7 @@ export function gitFullRef(name: string, cwd = process.cwd()): string | null {
 export function taskCommand(argv: string[], env: Record<string, string | undefined>, now = Date.now(),
   resolveRef: (name: string) => string | null = () => null): Command {
   const [verb, ...rest] = argv;
+  if (!(TASK_VERBS as readonly string[]).includes(verb ?? "")) throw new UsageError(TASK_USAGE);
   const { pos, flags } = parseFlags(rest);
   const actor = Actor.parse(flags.as ?? env.FW_ACTOR ?? "lead");
   const task = need(pos[0], "<task>");

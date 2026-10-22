@@ -76,7 +76,7 @@ export function begin(tool: string, step: string, cwd: string = process.cwd()): 
   return (exit = 0, extra = {}) => {
     if (done) return;
     done = true;
-    record({ ...extra, tool, step, startMs, durMs: Math.round(performance.now() - t0), exit }, cwd);
+    record({ ...extra, tool, step: extra.step ?? step, startMs, durMs: Math.round(performance.now() - t0), exit }, cwd);
   };
 }
 

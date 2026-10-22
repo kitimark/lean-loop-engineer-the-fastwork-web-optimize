@@ -11,6 +11,8 @@ const need = (v: string | undefined, what: string): string => {
   return v;
 };
 
+export const STEP_THREAD_VERBS = ["topic", "reply", "questions"] as const;
+
 export function topicCommand(argv: string[], env: Record<string, string | undefined>): Command {
   const { flags } = parseFlags(argv);
   const topic = need(flags.id, "--id <topic>");
