@@ -1,4 +1,4 @@
-import { frame, PAIR0, sceneActive, titleWrapped, ulFire, ulStart, ulTimer, UL_DELAY, type Pair, type Ul } from './logic';
+import { frame, PAIR0, planWrite, sceneActive, titleWrapped, ulFire, ulStart, ulTimer, UL_DELAY, type Pair, type Ul } from './logic';
 
 /** Order on the scroll engine (after the hero, before the nav: hero.exit 10, nav 13090 in the original). */
 export const COMMISSION_ORDER = 50;
@@ -61,6 +61,8 @@ export interface Env {
   compact(): boolean;
   /** reduced motion changed (the original's `change` listener on the list). */
   onReducedChange(cb: () => void): () => void;
+  /** `mq.c1000` changed (the `band-gate` variant runs a frame to write the current pair when the band is left). */
+  onCompactChange?(cb: () => void): () => void;
   /** IntersectionObserver with a root margin and thresholds; returns disconnect. */
   observe(target: unknown, opts: { rootMargin?: string; threshold?: number[] }, cb: (e: IoEntry) => void): () => void;
   /** ResizeObserver; returns disconnect. */
@@ -100,7 +102,7 @@ export function afterFrames(clock: Clock, n: number, fn: () => void): () => void
  * asks for another frame while the follower has not settled. The frame is requested by the engine callback (a scroll or
  * resize while the scene is active), by reduced-motion changes and by the scene turning active.
  */
-export function mountCommission({ els, classes, engine, clock, env }: Deps): () => void {
+export function mountCommission({ els, classes, engine, clock, env }: Deps, opts: { bandGate?: boolean } = {}): () => void {
   let pair: Pair = PAIR0;
   let cancelOwn: (() => void) | null = null;
   let active = false;
@@ -129,8 +131,12 @@ export function mountCommission({ els, classes, engine, clock, env }: Deps): () 
     const section = els.section.getBoundingClientRect();
     const f = frame(pair, card.top, section.bottom, vh, reduced, compactNow);
     pair = { n: f.n, r: f.r };
-    els.section.style.setProperty('--commission-enter-shrink', String(f.n));
-    els.section.style.setProperty('--commission-shrink', String(Math.max(f.n, f.r)));
+    // variant band-gate (Lean CommissionOpt): in the c1000 band the CSS pins scale 1 and radius 0, so the pair is not read;
+    // the first frame that reads the band off writes the current pair, in the same rAF before paint
+    if (planWrite(opts.bandGate === true && compactNow)) {
+      els.section.style.setProperty('--commission-enter-shrink', String(f.n));
+      els.section.style.setProperty('--commission-shrink', String(Math.max(f.n, f.r)));
+    }
     els.section.classList.toggle(classes.entering, f.entering);
     els.section.classList.toggle(classes.shrinking, f.shrinking);
     els.section.toggleAttribute('data-fw-shrinking', f.shrinking);
@@ -209,6 +215,7 @@ export function mountCommission({ els, classes, engine, clock, env }: Deps): () 
   }));
   request(); // the scheduler asks for a frame when a scene registers (rE())
   cleanups.push(env.onReducedChange(request));
+  if (opts.bandGate === true && env.onCompactChange) cleanups.push(env.onCompactChange(request));
 
   return () => {
     cancelOwn?.();

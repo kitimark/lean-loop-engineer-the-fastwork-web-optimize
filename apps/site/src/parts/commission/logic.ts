@@ -86,3 +86,19 @@ export const ulTimer = (u: Ul): Ul => (u === 'enter' ? 'idle' : u);
 
 /** A card is active from one viewport above to two below (JS 2723-2726). */
 export const sceneActive = (top: number, bottom: number, h: number): boolean => -h <= bottom && top <= 2 * h;
+
+/**
+ * The `band-gate` write decision (Lean `CommissionOpt.writeNow`): write the two custom properties exactly when the gate
+ * (`mq.c1000`) is off. The first frame that reads the gate off writes the current pair (`exit_catchup`).
+ */
+export const planWrite = (gated: boolean): boolean => !gated;
+
+/**
+ * The card's look at the inline pair (Lean `CommissionOpt.look`): scale and radius in px, given whether `mq.c1000` matches.
+ * Restates commission.module.css:9, 10, 48 with the band's overrides at 438, 439, 446.
+ */
+export function cardLook(c1000: boolean, enter: number, shrink: number): { scale: number; radius: number } {
+  if (c1000) return { scale: 1, radius: 0 };
+  const w = Math.max(enter, shrink);
+  return { scale: 1 - DEPTH * w, radius: RADIUS * w };
+}

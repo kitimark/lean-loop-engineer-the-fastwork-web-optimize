@@ -71,6 +71,10 @@ export function Commission({ variant, typingVariant = 'faithful' }: CommissionPr
           reduce?.addEventListener('change', cb);
           return () => reduce?.removeEventListener('change', cb);
         },
+        onCompactChange: (cb) => {
+          compact?.addEventListener('change', cb);
+          return () => compact?.removeEventListener('change', cb);
+        },
         observe: (target, opts, cb) => {
           const io = new IntersectionObserver((entries) => {
             for (const e of entries) cb(e);
@@ -89,7 +93,7 @@ export function Commission({ variant, typingVariant = 'faithful' }: CommissionPr
           return r.getClientRects().length;
         },
       },
-    });
+    }, { bandGate: variant === 'band-gate' });
   }, []);
 
   return (

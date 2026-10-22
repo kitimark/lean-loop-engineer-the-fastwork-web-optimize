@@ -2812,6 +2812,40 @@
    "lesson": "A variant that adds a wrapper element or changes the panel insets at rest fails the breakpoint gate, which counts direct children and compares insets at rest; restricting the new geometry to the morphing state and moving each child with its own inset keeps the DOM and the rest state identical.",
    "next": "Judge on a real-GPU lane (mac-safari-measure or the phone); the nav resize (C8) and the tracks are separate candidates.",
    "evidence": "CI runs 39744563175, 39747969466, 39744614747, 39744653093, 39751427150 (hung), 39760667274; research/notes/2026/10-2x-morph-constant-bounds.md; results/morph-constant-bounds/report.json"
+  },
+  {
+   "id": "commission.band-gate",
+   "n": 46,
+   "part": "commission",
+   "candidate": "commission:band-gate: in the c1000 band skip the two custom-property writes (--commission-enter-shrink, --commission-shrink) every follower frame, since the CSS pins scale 1 and radius 0 there; write the current pair on the first frame that reads the band off",
+   "status": "partly-proved",
+   "flag": "commission:band-gate",
+   "flags": [
+    "commission:band-gate"
+   ],
+   "chromium": "unknown",
+   "webkit": "unknown",
+   "visual": "E (commission_visSame: visible scenes equal across band changes; look_gated: the band look is independent of the pair; exit_catchup: the first ungated event holds the faithful pair)",
+   "mechanism": "PROVED (Fw.Parts.CommissionOpt): writes_orig (2 per event today), gated_run (0 in the band), writes_le, fol_cls_agree (follower and classes unchanged). Measurement pending.",
+   "leanFor": [
+    "Fw.Parts.CommissionOpt.look_gated",
+    "Fw.Parts.CommissionOpt.look_const_iff",
+    "Fw.Parts.CommissionOpt.exit_catchup",
+    "Fw.Parts.CommissionOpt.commission_visSame",
+    "Fw.Parts.CommissionOpt.writes_le",
+    "Fw.Parts.CommissionOpt.gated_run"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "measurement pending"
+   ],
+   "premises": [
+    "CONFIRMED: commission is not the last section (platform follows), unlike platform.mq"
+   ],
+   "v1Evidence": "",
+   "lesson": "pending",
+   "next": "pending",
+   "evidence": "research/notes/2026/10-2x-commission-band-gate.md"
   }
  ],
  "notes": [
