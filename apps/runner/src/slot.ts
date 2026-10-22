@@ -57,7 +57,9 @@ export function startOf(pid: number): number | null {
 
 const alive = (pid: number): boolean => { try { process.kill(pid, 0); return true; } catch (e) { return (e as NodeJS.ErrnoException).code === "EPERM"; } };
 
-export type VmStat = { pageB: number; free: number; spec: number; purg: number; file: number; occupied: number; compressions: number };
+export type VmStat = {
+  pageB: number; free: number; spec: number; purg: number; file: number; occupied: number; compressions: number; swapouts: number;
+};
 
 export function parseVmStat(out: string): VmStat | null {
   const page = /page size of (\d+) bytes/.exec(out);
@@ -67,7 +69,7 @@ export function parseVmStat(out: string): VmStat | null {
   };
   const v = {
     free: n("Pages free"), spec: n("Pages speculative"), purg: n("Pages purgeable"), file: n("File-backed pages"),
-    occupied: n("Pages occupied by compressor"), compressions: n("Compressions"),
+    occupied: n("Pages occupied by compressor"), compressions: n("Compressions"), swapouts: n("Swapouts"),
   };
   if (page === null || Object.values(v).some((x) => x === null)) return null;
   return { pageB: Number(page[1]), ...(v as Record<keyof typeof v, number>) };
@@ -88,11 +90,12 @@ export function parseSysctl(out: string): Sysctl {
   };
 }
 
-export function memOf(vm: VmStat, sc: Sysctl, comprMBPerMin: number): Mem {
+export function memOf(vm: VmStat, sc: Sysctl, mark: Pick<VmMark, "rate" | "swapRate">): Mem {
   const mb = (pages: number): number => Math.floor((pages * vm.pageB) / 1048576);
   return {
     freeMB: mb(vm.free), specMB: mb(vm.spec), purgMB: mb(vm.purg), fileMB: mb(vm.file), fileMinMB: sc.fileMinPages === null ? mb(vm.file) : mb(sc.fileMinPages),
-    swapUsedMB: sc.swapUsedMB ?? 0, swapTotalMB: sc.swapTotalMB ?? 0, press: sc.press ?? 1, comprMBPerMin,
+    swapUsedMB: sc.swapUsedMB ?? 0, swapTotalMB: sc.swapTotalMB ?? 0, press: sc.press ?? 1, comprMBPerMin: mark.rate,
+    swapOutMBPerMin: mark.swapRate,
   };
 }
 
@@ -103,11 +106,14 @@ export function parseCompressorMB(out: string): number | null {
 
 const cmd = (c: string, a: string[]): string => { const r = spawnSync(c, a, { encoding: "utf8" }); return r.status === 0 ? r.stdout : ""; };
 
+const isMark = (x: unknown): x is VmMark =>
+  typeof x === "object" && x !== null && (["time", "count", "rate", "swapCount", "swapRate"] as const).every((k) => typeof (x as Record<string, unknown>)[k] === "number");
+
 export function markNext(dir: string, p: Params, now: number, vm: VmStat): VmMark {
   const file = join(dir, "vm-mark.json");
   let prev: VmMark | null = null;
-  try { prev = JSON.parse(readFileSync(file, "utf8")) as VmMark; } catch { prev = null; }
-  const next = vmNext(p, prev, now, vm.compressions, vm.pageB);
+  try { const j: unknown = JSON.parse(readFileSync(file, "utf8")); prev = isMark(j) ? j : null; } catch { prev = null; }
+  const next = vmNext(p, prev, now, vm.compressions, vm.swapouts, vm.pageB);
   if (next !== prev) {
     try {
       mkdirSync(dir, { recursive: true });
@@ -123,9 +129,9 @@ export function probe(dir: string, p: Params = DEFAULT_PARAMS): Sample {
   const time = nowS();
   const vm = parseVmStat(cmd("vm_stat", []));
   const mem: Mem = vm === null
-    ? { freeMB: Math.floor(os.freemem() / 1048576), specMB: 0, purgMB: 0, fileMB: 0, fileMinMB: 0, swapUsedMB: 0, swapTotalMB: 0, press: 1, comprMBPerMin: 0 }
+    ? { freeMB: Math.floor(os.freemem() / 1048576), specMB: 0, purgMB: 0, fileMB: 0, fileMinMB: 0, swapUsedMB: 0, swapTotalMB: 0, press: 1, comprMBPerMin: 0, swapOutMBPerMin: 0 }
     : memOf(vm, parseSysctl(["vm.vm_page_filecache_min", "kern.memorystatus_vm_pressure_level", "vm.swapusage"].map((o) => cmd("sysctl", [o])).join("")),
-      markNext(dir, p, time, vm).rate);
+      markNext(dir, p, time, vm));
   return {
     time,
     loadCenti: Math.floor((os.loadavg()[0] ?? 0) * 100),
@@ -477,7 +483,7 @@ function status(d: Deps, json: boolean): string[] {
   const rows = (es: Entry[]) => es.map((e) => `  ${e.kind.padEnd(6)} ${e.owner} ${e.token} ${e.till - s.time}s left${e.foot ? `, ${e.foot} MB` : ""}`);
   const m = s.mem;
   return [`slot: limit ${st.ctl.n}, load ${(s.loadCenti / 100).toFixed(2)}, available ${avail(s)} MB, pressure ${m.press}, `
-    + `swap ${m.swapUsedMB}/${m.swapTotalMB} MB, compressing ${m.comprMBPerMin} MB/min`,
+    + `swap ${m.swapUsedMB}/${m.swapTotalMB} MB, swapping out ${m.swapOutMBPerMin} MB/min, compressing ${m.comprMBPerMin} MB/min`,
     `holders (${st.holders.length}):`, ...rows(st.holders), `queue (${st.queue.length}):`, ...rows(st.queue)];
 }
 
