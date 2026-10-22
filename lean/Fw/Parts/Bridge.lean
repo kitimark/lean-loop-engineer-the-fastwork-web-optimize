@@ -3,7 +3,7 @@ import Fw.Parts.Contract
 
 /-!
 # Bridge from the contract rows to the Lego swap, and page passes never increase
-`Indep` of `Fw.Engine.Compose` becomes `Flow` (no non-`quiet` path); the 13 isolated `codeParts` rows swap alone; the
+`Indep` of `Fw.Engine.Compose` becomes `Flow` (no non-`quiet` path); the 12 isolated `codeParts` rows swap alone; the
 literal `Independent → Indep` fails on the listed pairs; a strict part pass saving never raises page passes (S3).
 -/
 
@@ -429,16 +429,40 @@ theorem mem_of_reach {ps : List PartSpec} {A : List (List Nat)} {S : List Nat}
 
 Literal of `adj codeParts` (`adj_code`). -/
 def codeAdj : List (List Nat) :=
-  [[1, 3, 13, 15, 16, 17, 22, 28], [],
+  [[1, 3, 13, 15, 16, 17, 22, 28],
+   [],
    [0, 1, 4, 6, 7, 8, 9, 10, 11, 14, 15, 16, 18, 20, 21, 22, 24, 26, 27, 28, 29, 30, 31, 32, 33],
-   [0, 9, 13, 15, 16, 17, 22, 24, 26, 27, 28], [5, 9, 10],
-   [0, 1, 4, 6, 7, 8, 9, 10, 11, 14, 16, 18, 20, 21, 22, 24, 26, 27, 28], [12], [9], [], [3, 4, 7, 8, 10],
-   [4, 7, 8, 9], [0, 1, 2, 4, 6, 7, 8, 9, 10, 14, 16, 18, 20, 21, 22, 24, 26, 27, 28], [6],
-   [0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 15, 16, 17, 20, 21, 22, 24, 25, 26, 27, 28, 29, 30, 33], [],
+   [0, 9, 13, 15, 16, 17, 22, 24, 26, 27, 28],
+   [5, 9, 10],
+   [0, 1, 4, 6, 7, 8, 9, 10, 11, 14, 16, 18, 20, 21, 22, 24, 26, 27, 28],
+   [12],
+   [9],
+   [],
+   [3, 4, 7, 8, 10],
+   [4, 7, 8, 9],
+   [0, 1, 2, 4, 6, 7, 8, 9, 10, 14, 16, 18, 20, 21, 22, 24, 26, 27, 28],
+   [6],
+   [0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 15, 16, 17, 20, 21, 22, 24, 25, 26, 27, 28, 29, 30, 33],
+   [15],
    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 18, 20, 21, 22, 24, 25, 26, 27, 28, 29, 30, 33],
-   [0, 3, 13, 15, 17, 28], [0, 3, 13, 15, 16, 18, 28], [], [], [], [22, 24], [0, 3, 21, 24], [], [3, 21, 22], [],
-   [0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 15, 16, 17, 20, 21, 22, 24, 25, 27, 28, 29, 30, 33], [3, 24],
-   [0, 2, 3, 13, 15, 16, 17, 29], [], [], [], [], []]
+   [0, 3, 13, 15, 17, 28],
+   [0, 3, 13, 15, 16, 18, 28],
+   [],
+   [],
+   [],
+   [22, 24],
+   [0, 3, 21, 24],
+   [],
+   [3, 21, 22],
+   [],
+   [0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 15, 16, 17, 20, 21, 22, 24, 25, 27, 28, 29, 30, 33],
+   [3, 24],
+   [0, 2, 3, 13, 15, 16, 17, 29],
+   [],
+   [],
+   [],
+   [],
+   []]
 
 /-- `codeAdj` is the adjacency of the code rows.
 
@@ -465,15 +489,13 @@ theorem reach_code_iff {p : Nat} (hp : p < 34) (q : Nat) :
     reach_of_mem_reachList mem_codeAdj p 6 q⟩
   exact List.all_eq_true.mp closed_code p (List.mem_range.mpr hp)
 
-/-- **The isolated code rows.** Exactly 13 positions of `codeParts` are quiet towards every other position.
+/-- **The isolated code rows.** Exactly 12 positions of `codeParts` are quiet towards every other position.
 
 These are the parts `lego_swap_sound_flow` applies to. -/
 theorem isolated_code :
-    (List.range 34).filter (isolated codeParts) = [1, 8, 14, 18, 19, 20, 23, 25, 29, 30, 31, 32, 33] ∧
-      ([1, 8, 14, 18, 19, 20, 23, 25, 29, 30, 31, 32, 33].filterMap fun i => codeParts[i]?.map (·.id)) =
-        ["commission.typing", "hero.deck", "morph.panel", "nav.langMenu", "overlays.drawer", "overlays.signup",
-          "people", "people.carousel", "platform.entries", "platform.glint", "platform.marquee",
-          "platform.stageBg", "platform.sweep"] := by decide
+    (List.range 34).filter (isolated codeParts) = [1, 8, 18, 19, 20, 23, 25, 29, 30, 31, 32, 33] ∧
+      ([1, 8, 18, 19, 20, 23, 25, 29, 30, 31, 32, 33].filterMap fun i => codeParts[i]?.map (·.id)) =
+        ["commission.typing", "hero.deck", "nav.langMenu", "overlays.drawer", "overlays.signup", "people", "people.carousel", "platform.entries", "platform.glint", "platform.marquee", "platform.stageBg", "platform.sweep"] := by decide
 
 /-- `Independent` at two positions of `ps`.
 
@@ -571,32 +593,51 @@ theorem chainPairs_code_iff (p q : Nat) :
     have hp : p < 34 := hlen ▸ (List.getElem?_eq_some_iff.mp hP).1
     exact ⟨p, hp, q, ⟨(reach_code_iff hp q).mp hr, fun h => hne h.symm, (indepAt_iff _ _ _).mpr hind⟩, rfl, rfl⟩
 
-/-- There are 314 such pairs.
+/-- There are 341 such pairs.
 
 Each is an ordered pair of code positions. -/
-theorem chainPairs_code_length : (chainPairs codeParts codeAdj 6).length = 314 := by decide +kernel
+theorem chainPairs_code_length : (chainPairs codeParts codeAdj 6).length = 341 := by decide +kernel
 
 
-/-- The 314 pairs grouped by source: entry `p` lists, in search order, every `q` with `(p,q)` in the failing pairs.
+/-- The 341 pairs grouped by source: entry `p` lists, in search order, every `q` with `(p,q)` in the failing pairs.
 
-Sources with an empty entry (1, 6, 8, 12, 14, 18 to 20, 23, 25, 29 to 33) satisfy the literal bridge. -/
+Sources with an empty entry (1, 6, 8, 12, 18, 19, 20, 23, 25, 29, 30, 31, 32, 33) satisfy the literal bridge. -/
 theorem chainTargets_code :
     (List.range 34).map (fun p => ((chainPairs codeParts codeAdj 6).filter (·.1 == p)).map (·.2)) =
-      [[4, 6, 7, 8, 9, 10, 12, 14, 18, 20, 21, 24, 25, 27, 29, 30, 33, 31, 32], [], [3, 5, 12, 17, 25],
-       [1, 2, 4, 5, 6, 7, 8, 10, 11, 12, 14, 18, 20, 21, 25, 29, 30, 33, 31, 32],
-       [0, 1, 3, 6, 7, 8, 14, 16, 18, 20, 21, 22, 24, 27, 28, 12, 17, 25, 29, 30, 33, 31, 32],
-       [2, 3, 12, 17, 25, 29, 30, 33, 31, 32], [],
-       [3, 4, 8, 0, 16, 17, 22, 24, 27, 28, 1, 6, 12, 14, 18, 20, 21, 25, 29, 30, 33, 31, 32], [],
-       [0, 16, 17, 22, 24, 27, 28, 1, 6, 12, 14, 18, 20, 21, 25, 29, 30, 33, 31, 32],
-       [3, 0, 1, 6, 14, 16, 17, 18, 20, 21, 22, 24, 27, 28, 12, 25, 29, 30, 33, 31, 32],
-       [3, 12, 17, 25, 29, 30, 31, 32, 33], [], [8, 14, 18, 31, 32], [], [31, 32],
-       [1, 4, 6, 7, 8, 9, 10, 12, 14, 18, 20, 21, 22, 24, 25, 27, 29, 30, 33, 31, 32],
-       [1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 20, 21, 22, 24, 25, 27, 29, 30, 33, 31, 32], [], [], [],
-       [0, 3, 1, 9, 16, 17, 27, 28, 4, 6, 7, 8, 10, 12, 14, 18, 20, 25, 29, 30, 33, 31, 32],
-       [1, 9, 16, 17, 27, 28, 4, 6, 7, 8, 10, 12, 14, 18, 20, 25, 29, 30, 33, 31, 32], [],
-       [0, 9, 16, 17, 28, 1, 4, 6, 7, 8, 10, 12, 14, 18, 20, 25, 29, 30, 33, 31, 32], [], [8, 14, 18, 31, 32],
-       [0, 9, 16, 17, 21, 22, 28, 1, 4, 6, 7, 8, 10, 12, 14, 18, 20, 25, 29, 30, 33, 31, 32],
-       [1, 4, 6, 7, 8, 9, 10, 12, 14, 18, 20, 21, 22, 24, 25, 27, 30, 31, 32, 33], [], [], [], [], []] := by
+       [[4, 6, 7, 8, 9, 10, 12, 14, 18, 20, 21, 24, 25, 27, 29, 30, 33, 31, 32],
+        [],
+        [3, 5, 12, 17, 25],
+        [1, 2, 4, 5, 6, 7, 8, 10, 11, 12, 14, 18, 20, 21, 25, 29, 30, 33, 31, 32],
+        [0, 1, 3, 6, 7, 8, 14, 16, 18, 20, 21, 22, 24, 27, 28, 12, 17, 25, 29, 30, 33, 31, 32],
+        [2, 3, 12, 17, 25, 29, 30, 33, 31, 32],
+        [],
+        [3, 4, 8, 0, 16, 17, 22, 24, 27, 28, 1, 6, 12, 14, 18, 20, 21, 25, 29, 30, 33, 31, 32],
+        [],
+        [0, 16, 17, 22, 24, 27, 28, 1, 6, 12, 14, 18, 20, 21, 25, 29, 30, 33, 31, 32],
+        [3, 0, 1, 6, 14, 16, 17, 18, 20, 21, 22, 24, 27, 28, 12, 25, 29, 30, 33, 31, 32],
+        [3, 12, 17, 25, 29, 30, 31, 32, 33],
+        [],
+        [8, 14, 18, 31, 32],
+        [0, 1, 3, 4, 6, 7, 8, 9, 10, 12, 13, 16, 17, 18, 20, 21, 22, 24, 25, 26, 27, 28, 29, 30, 33, 31, 32],
+        [31, 32],
+        [1, 4, 6, 7, 8, 9, 10, 12, 14, 18, 20, 21, 22, 24, 25, 27, 29, 30, 33, 31, 32],
+        [1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 20, 21, 22, 24, 25, 27, 29, 30, 33, 31, 32],
+        [],
+        [],
+        [],
+        [0, 3, 1, 9, 16, 17, 27, 28, 4, 6, 7, 8, 10, 12, 14, 18, 20, 25, 29, 30, 33, 31, 32],
+        [1, 9, 16, 17, 27, 28, 4, 6, 7, 8, 10, 12, 14, 18, 20, 25, 29, 30, 33, 31, 32],
+        [],
+        [0, 9, 16, 17, 28, 1, 4, 6, 7, 8, 10, 12, 14, 18, 20, 25, 29, 30, 33, 31, 32],
+        [],
+        [8, 14, 18, 31, 32],
+        [0, 9, 16, 17, 21, 22, 28, 1, 4, 6, 7, 8, 10, 12, 14, 18, 20, 25, 29, 30, 33, 31, 32],
+        [1, 4, 6, 7, 8, 9, 10, 12, 14, 18, 20, 21, 22, 24, 25, 27, 30, 31, 32, 33],
+        [],
+        [],
+        [],
+        [],
+        []] := by
   decide +kernel
 
 #guard match codeParts[19]?, codeParts[0]? with | some P, some Q => quiet P Q | _, _ => false

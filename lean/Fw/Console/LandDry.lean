@@ -125,19 +125,19 @@ theorem dryKind_cases (w : Stages) (c : Base) (m0 b : String) :
 
 
 inductive DStage where
-  | exception | stale | empty | scope | conflict | reads | lint
+  | exception | stale | empty | scope | conflict | install | reads | lint
 deriving DecidableEq, Repr
 
 def DStage.rank : DStage → Nat
-  | .exception => 0 | .stale => 1 | .empty => 2 | .scope => 3 | .conflict => 4 | .reads => 5 | .lint => 6
+  | .exception => 0 | .stale => 1 | .empty => 2 | .scope => 3 | .conflict => 4 | .install => 5 | .reads => 6 | .lint => 7
 
 def DStage.name : DStage → String
   | .exception => "exception" | .stale => "stale" | .empty => "empty" | .scope => "scope" | .conflict => "conflict"
-  | .reads => "reads" | .lint => "lint"
+  | .install => "install" | .reads => "reads" | .lint => "lint"
 
 def DStage.kind : DStage → Kind
   | .exception => .unknown | .stale => .stale | .empty => .empty | .scope => .scope | .conflict => .conflict
-  | .reads => .reads | .lint => .lint
+  | .install => .install | .reads => .reads | .lint => .lint
 
 structure Outcome where
   threw : Bool
@@ -145,18 +145,19 @@ structure Outcome where
   own : Bool
   scope : Bool
   merges : Bool
+  installs : Bool
   reads : Bool
   lints : Bool
 
 def Outcome.passes (o : Outcome) : DStage → Bool
   | .exception => !o.threw | .stale => o.fresh | .empty => o.own | .scope => o.scope | .conflict => o.merges
-  | .reads => o.reads | .lint => o.lints
+  | .install => o.installs | .reads => o.reads | .lint => o.lints
 
-def DStage.order : List DStage := [.exception, .stale, .empty, .scope, .conflict, .reads, .lint]
+def DStage.order : List DStage := [.exception, .stale, .empty, .scope, .conflict, .install, .reads, .lint]
 
 def Outcome.first (o : Outcome) : Option DStage :=
   if o.threw then some .exception else if !o.fresh then some .stale else if !o.own then some .empty
-  else if !o.scope then some .scope else if !o.merges then some .conflict else if !o.reads then some .reads
+  else if !o.scope then some .scope else if !o.merges then some .conflict else if !o.installs then some .install else if !o.reads then some .reads
   else if !o.lints then some .lint else none
 
 def Outcome.kind (o : Outcome) : Kind := match o.first with | some s => s.kind | none => .dry
@@ -166,24 +167,24 @@ def Outcome.log (o : Outcome) : List String := (DStage.order.takeWhile o.passes)
 def dryRun (o : Outcome) (task : String) : List String := o.log ++ [verdictLine o.kind task]
 
 def Outcome.ofStages (w : Stages) (base : Base) (m0 b : String) : Outcome :=
-  if base = .conflict then ⟨false, true, w.own m0 b, true, false, true, true⟩
-  else ⟨false, true, w.own m0 b, w.scope m0 b, w.merges m0 b, w.reads m0 b, w.lints m0 b⟩
+  if base = .conflict then ⟨false, true, w.own m0 b, true, false, true, true, true⟩
+  else ⟨false, true, w.own m0 b, w.scope m0 b, w.merges m0 b, true, w.reads m0 b, w.lints m0 b⟩
 
 theorem first_spec (o : Outcome) :
     (∀ s, o.first = some s → o.passes s = false ∧ ∀ s', s'.rank < s.rank → o.passes s' = true) ∧
     (o.first = none ↔ ∀ s, o.passes s = true) := by
-  obtain ⟨a, b, c, d, e, f, g⟩ := o
+  obtain ⟨a, b, c, d, e, f, g, i⟩ := o
   refine ⟨?_, ?_⟩
   · intro s h
-    cases a <;> cases b <;> cases c <;> cases d <;> cases e <;> cases f <;> cases g <;> cases s <;>
+    cases a <;> cases b <;> cases c <;> cases d <;> cases e <;> cases f <;> cases g <;> cases i <;> cases s <;>
       simp_all [Outcome.first, Outcome.passes] <;> intro s' <;> cases s' <;> simp_all [DStage.rank]
   · constructor
     · intro h s
-      cases a <;> cases b <;> cases c <;> cases d <;> cases e <;> cases f <;> cases g <;> cases s <;>
+      cases a <;> cases b <;> cases c <;> cases d <;> cases e <;> cases f <;> cases g <;> cases i <;> cases s <;>
         simp_all [Outcome.first, Outcome.passes]
     · intro h
       have h0 := h .exception; have h1 := h .stale; have h2 := h .empty; have h3 := h .scope
-      have h4 := h .conflict; have h5 := h .reads; have h6 := h .lint
+      have h4 := h .conflict; have h5 := h .reads; have h6 := h .lint; have h7 := h .install
       simp_all [Outcome.passes, Outcome.first]
 
 theorem dryRun_one_verdict (o : Outcome) (t : String) :
@@ -459,13 +460,13 @@ def checkFailKind (fs : List FailedCheck) : Kind :=
   else if !fs.isEmpty && fs.all (fun f => !f.2.isEmpty && f.2.all (· ∈ lintStages)) then .lint else .checks
 
 inductive RealFailure where
-  | scope | conflict | checks (fs : List FailedCheck)
+  | scope | conflict | install | checks (fs : List FailedCheck)
 
 def RealFailure.kind : RealFailure → Kind
-  | .scope => .scope | .conflict => .conflict | .checks fs => checkFailKind fs
+  | .scope => .scope | .conflict => .conflict | .install => .install | .checks fs => checkFailKind fs
 
 def DStage.real : DStage → Option RealFailure
-  | .scope => some .scope | .conflict => some .conflict | .reads => some (.checks [(true, [])])
+  | .scope => some .scope | .conflict => some .conflict | .install => some .install | .reads => some (.checks [(true, [])])
   | .lint => some (.checks [(false, lintStages)]) | _ => none
 
 theorem dry_kind_is_real_kind (s : DStage) (r : RealFailure) (h : s.real = some r) : r.kind = s.kind := by
@@ -515,6 +516,27 @@ def installCase (offlineOk onlineOk : Bool) : Json :=
   line s!"install {offlineOk} {onlineOk}" [("op", "landVerdict.install"), ("offlineOk", .bool offlineOk), ("onlineOk", .bool onlineOk)]
     [("runsOnline", .bool (installRunsOnline offlineOk)), ("kind", match installKind offlineOk onlineOk with | some k => .str k.name | none => .null)]
 
+def stampJson : Option String → Json | some h => .str h | none => .null
+
+def stampCase (name : String) (known : Bool) (lock stamp : Option String) (offlineOk onlineOk : Bool) : Json :=
+  line s!"stamp {name}" [("op", "landVerdict.installStamp"), ("known", .bool known), ("lock", stampJson lock), ("stamp", stampJson stamp),
+      ("offlineOk", .bool offlineOk), ("onlineOk", .bool onlineOk)]
+    [("needed", match lock with | some h => .bool (installNeeded known h stamp) | none => .bool false),
+     ("kind", match (installStep known lock stamp offlineOk onlineOk).1 with | some k => .str k.name | none => .null),
+     ("stampAfter", stampJson (installStep known lock stamp offlineOk onlineOk).2)]
+
+def stampCases : List Json :=
+  [stampCase "new worktree" false (some "L2") none true true,
+   stampCase "new worktree, both installs fail" false (some "L2") none false false,
+   stampCase "reused, stamp current: no install" true (some "L2") (some "L2") false false,
+   stampCase "reused behind main's lockfile, offline ok" true (some "L2") (some "L1") true false,
+   stampCase "reused behind main's lockfile, online ok" true (some "L2") (some "L1") false true,
+   stampCase "reused behind main's lockfile, both fail" true (some "L2") (some "L1") false false,
+   stampCase "reused, no stamp, offline ok" true (some "L2") none true false,
+   stampCase "reused, no stamp, both fail" true (some "L2") none false false,
+   stampCase "no lockfile: nothing to install" true none (some "L1") false false,
+   stampCase "no lockfile, new worktree" false none none false false]
+
 def flatStages (scope merges sel test own lints : Bool) : Stages :=
   ⟨fun _ _ => scope, fun _ _ => merges, fun _ _ => sel, fun _ _ => test, fun _ _ => own, fun _ _ => lints⟩
 
@@ -527,15 +549,15 @@ def handbackCase (k : Kind) : Json :=
   line s!"handback {k.name}" [("op", "landDry.handback"), ("kind", k.name)] [("allowed", .bool (handbackAllowed k))]
 
 def runCase (o : Outcome) (t : String) : Json :=
-  line s!"run {o.threw} {o.fresh} {o.own} {o.scope} {o.merges} {o.reads} {o.lints}"
+  line s!"run {o.threw} {o.fresh} {o.own} {o.scope} {o.merges} {o.installs} {o.reads} {o.lints}"
     [("op", "landDry.run"), ("threw", .bool o.threw), ("fresh", .bool o.fresh), ("own", .bool o.own), ("scope", .bool o.scope),
-      ("merges", .bool o.merges), ("reads", .bool o.reads), ("lints", .bool o.lints), ("task", t)]
+      ("merges", .bool o.merges), ("installs", .bool o.installs), ("reads", .bool o.reads), ("lints", .bool o.lints), ("task", t)]
     [("lines", toJson (dryRun o t)), ("kind", .str o.kind.name), ("exit", toJson o.kind.exitCode)]
 
 def outcomes : List Outcome :=
   let bs := [true, false]
-  bs.flatMap fun a => bs.flatMap fun b => bs.flatMap fun c => bs.flatMap fun d => bs.flatMap fun e => bs.flatMap fun f =>
-    bs.map fun g => ⟨a, b, c, d, e, f, g⟩
+  bs.flatMap fun a => bs.flatMap fun b => bs.flatMap fun c => bs.flatMap fun d => bs.flatMap fun e => bs.flatMap fun i => bs.flatMap fun f =>
+    bs.map fun g => ⟨a, b, c, d, e, i, f, g⟩
 
 def planCase (name : String) (changed : List String) (a v : Bool) (g : Bool := true) : Json :=
   line name [("op", "landDry.lintPlan"), ("changed", toJson changed), ("hasCiPaths", .bool a), ("hasAxioms", .bool v),
@@ -548,7 +570,8 @@ def ckCase (name : String) (fs : List FailedCheck) : Json :=
 
 def cases (_ : Unit := ()) : List Json :=
   Kind.all.map (kindCase · "land-dry") ++
-  [kindCase .dry "", installCase true true, installCase true false, installCase false true, installCase false false,
+  [kindCase .dry "", installCase true true, installCase true false, installCase false true, installCase false false] ++ stampCases ++
+  [
    dryCase "all pass" true true true true,
    dryCase "all pass, reads not selected (test not run)" true true false true,
    dryCase "scope refuses first" false false true false,
@@ -561,7 +584,7 @@ def cases (_ : Unit := ()) : List Json :=
    dryCase "fast lint fails after all stages pass" true true true true (lints := false),
    dryCase "reads refuses before lint" true true true false (lints := false),
    dryCase "lint fails though reads not selected" true true false false (lints := false)] ++
-  Kind.all.map handbackCase ++ outcomes.map (runCase · "land-dry") ++ [runCase ⟨false, true, true, true, true, true, true⟩ ""] ++
+  Kind.all.map handbackCase ++ outcomes.map (runCase · "land-dry") ++ [runCase ⟨false, true, true, true, true, true, true, true⟩ ""] ++
   [planCase "plan: no lean change" ["apps/x.ts"] true true, planCase "plan: lean change" ["apps/x.ts", "lean/Fw/X.lean"] true true,
    planCase "plan: lean change, no axiom-check script" ["lean/Fw/X.lean"] true false, planCase "plan: no ci-paths script" ["lean/Fw/X.lean"] false true,
    planCase "plan: nothing changed" [] true true, planCase "plan: lean-like prefix is not lean" ["leanx/a", "apps/lean/b"] true true,
@@ -581,7 +604,7 @@ def cases (_ : Unit := ()) : List Json :=
    ckCase "real: lint check and a plain check" [(false, ["axiom check"]), (false, [])], ckCase "real: two lint checks" [(false, ["lake build"]), (false, ["axiom check"])],
    ckCase "real: no failed check" []]
 
-#guard cases.length == 201
+#guard cases.length == 339
 
 def baseCase (behind clean : Bool) : Json :=
   line s!"base behind={behind} clean={clean}" [("op", "landDry.base"), ("behind", .bool behind), ("mergeClean", .bool clean)]
@@ -589,7 +612,7 @@ def baseCase (behind clean : Bool) : Json :=
 
 def outcomeJson (o : Outcome) : Json :=
   Json.mkObj [("threw", .bool o.threw), ("fresh", .bool o.fresh), ("own", .bool o.own), ("scope", .bool o.scope),
-    ("merges", .bool o.merges), ("reads", .bool o.reads), ("lints", .bool o.lints)]
+    ("merges", .bool o.merges), ("installs", .bool o.installs), ("reads", .bool o.reads), ("lints", .bool o.lints)]
 
 def baseKindCase (name : String) (base : Base) (scope merges sel test : Bool) (own lints : Bool := true) : Json :=
   let w := flatStages scope merges sel test own lints

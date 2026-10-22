@@ -2819,46 +2819,6 @@
    "evidence": "CI runs 39744563175, 39747969466, 39744614747, 39744653093, 39751427150 (hung), 39760667274; research/notes/2026/10-2x-morph-constant-bounds.md; results/morph-constant-bounds/report.json"
   },
   {
-   "id": "commission.band-gate",
-   "n": 48,
-   "part": "commission",
-   "candidate": "commission:band-gate: in the c1000 band skip the two custom-property writes (--commission-enter-shrink, --commission-shrink) every follower frame, since the CSS pins scale 1 and radius 0 there; write the current pair on the first frame that reads the band off",
-   "status": "partly-proved",
-   "flag": "commission:band-gate",
-   "flags": [
-    "commission:band-gate"
-   ],
-   "chromium": "win",
-   "webkit": "win",
-   "visual": "E (commission_visSame: visible scenes equal across band changes; look_gated: the band look is independent of the pair; exit_catchup, inl_settled, media_catchup: the pair is the original's on the first ungated body, at rest and after a band change) Limit: the theorems cover the look (scale, radius). While the follower moves in the band, the custom properties' own computed values differ from the original's (getComputedStyle would show it); they are equal again at rest and on band exit, which is what the breakpoint gate compares.",
-   "mechanism": "PROVED (Fw.Parts.CommissionOpt): the original writes two properties on every body (writes_orig); the variant writes none while the gate holds and the follower moves (moving_run), never more than the original (writes_le), and the follower and class bits are unchanged (fol_cls_agree). MEASURED, CI chromium-counts swipe-v1 x3 (430x932, base run 39837044649, flag run 39843560957), window scrollY 3070-3530 (commission bottom 0.85h..0.35h, INFERRED from the class-toggle spike): RecalcStyleCount 5.02 -> 3.07 per frame, elements recalculated 127.3 -> 60.1 per frame, in all three runs; FunctionCall 9.50, Layout 0.57, census layers 66.4, tiles 121.1 and Commit 1.00 per frame equal. MEASURED, CI webkit-sim (iOS Simulator 430x775, 50 px steps, 2 passes; base run 39837001915, flag run 39843567401), y 2500-3500: RecalculateStyles 124/127 -> 99/92, Composite 40/40 -> 40/40, Layout and Paint overlap, FunctionCall is noisy (282/299 against 379/294). Breakpoint gate both engines: run 39843552595 pass (the first design, which skipped every write, failed it: run 39836996121). Not a GPU route.",
-   "leanFor": [
-    "Fw.Parts.CommissionOpt.look_gated",
-    "Fw.Parts.CommissionOpt.look_const_iff",
-    "Fw.Parts.CommissionOpt.exit_catchup",
-    "Fw.Parts.CommissionOpt.inl_settled",
-    "Fw.Parts.CommissionOpt.media_catchup",
-    "Fw.Parts.CommissionOpt.commission_visSame",
-    "Fw.Parts.CommissionOpt.writes_le",
-    "Fw.Parts.CommissionOpt.moving_run"
-   ],
-   "leanAgainst": [],
-   "missingWhy": [
-    "No frame-time percentiles: the count lanes record no frame times; a Simulator or phone replay of the scroll-in is a follow-up",
-    "The WebKit saving also shows at y 3500-4500 (RecalculateStyles 152/154 -> 106/101) where the model predicts no moving follower; the mechanism there is not explained",
-    "The commission window is derived from Chromium class-toggle spikes, not from a measured section rect"
-   ],
-   "premises": [
-    "CONFIRMED: commission is not the last section (platform follows), unlike platform.mq",
-    "CONFIRMED: the two properties are read only by the shrink scale and the card radius (commission.module.css lines 9, 48), pinned by the band at 438-446 (bandgate.test.ts)",
-    "INFERRED: a changed inherited custom property restyles every descendant (elementCount delta 67 per frame)"
-   ],
-   "v1Evidence": "",
-   "lesson": "A skip that leaves a computed value differing from the original in a state the gate compares fails the gate even when nothing shows: the first design failed on the section's custom properties at rest and on a media-change body the original does not run. Writing at settle and writing the follower's pair (not running a body) on a band change kept the saving and the gate.",
-   "next": "Lead decides promotion to the v2-proved preset (status stays partly-proved until a frame-time replay). Follow-up: Simulator or phone replay of the scroll-in for frame times.",
-   "evidence": "CI runs 39843527891 (lean), 39843552595 (gate), 39837044649, 39843560957 (chromium-counts), 39837001915, 39843567401 (webkit-sim); research/notes/2026/10-2x-commission-band-gate.md"
-  },
-  {
    "id": "pain.dark-scroll",
    "n": 47,
    "part": "pain",
@@ -2947,6 +2907,94 @@
    "lesson": "A blocking touch listener can be scoped by an IntersectionObserver band and a finger-down hold without changing what any part sees; the cost moves to one more observer, and the win is only in WebKit pan-start latency, which the current lanes do not measure.",
    "next": "Add a touch-to-first-scroll probe to packages/measure-webkit and multi-flag prerender to the gate build, then measure base vs both flags (>= 3 runs) and gate them together.",
    "evidence": "CI runs 39778906252 (failed: multi-flag search not prerendered), 39779755536, 39779781978, 39781320030; docs/team/handoffs/morph-touch-band.md"
+  },
+  {
+   "id": "morph.panel-threaded",
+   "n": 51,
+   "part": "morph.panel",
+   "candidate": "morph.panel:threaded: run the panel's opacity, blur and scale of a morph push as two Web Animation effects (opacity with scale, and blur alone) instead of three style writes per frame",
+   "status": "partly-proved",
+   "flag": "morph.panel:threaded",
+   "flags": [
+    "morph.panel:threaded"
+   ],
+   "chromium": "unknown",
+   "webkit": "no-win",
+   "visual": "Equal opacity, blur and scale on every frame under the WAAPI premises (interp_eq, threaded_eq, retarget_from_shown). MEASURED (Chromium trajectory, run 39846814254): 0 content differences in 152 panel steps; the 84 new units are first-frame coverage. MEASURED (GPU cells, run 39855506403): panel-effect E in 3 of 4 units, lag at most 0.013 frame; the fourth (640 close) is L in 2 of 3 reps because the cell compares with a chord across the kink at m 0.8 (both arms read within 0.0013 of the Lean model). Pixels on WebKit not measured: compositor blur is not the software blur, so Q at best",
+   "mechanism": "MEASURED (CI webkit-sim, iOS Simulator 430x775, lag and cost passes; reference const-bounds run 39846941236, flag run 39846909558, bundle with platform:fade-threaded run 39846948148): Composite per frame on the open push 236-552 ms against 151-213 ms (cost-report: higher, ranges do not overlap); close push 142-250 against 107-148 ms (overlap); Paint per frame, frames and resized layers overlap; new layers per 100 reads on the close push 100 against 0. The bundle overlaps the reference on every cell. Chromium counts (swipe-v1, runs 39851664186 and 39851674587) are equal because the profile never opens the panel. PROVED (Fw.Parts.MorphPanelThreaded): the variant's tick costs style only (variant_stages, variant_drops) and keeps the nav write (recalc_same), adds no layer when the panel is composited (layer_budget); the stage model has no Composite stage. INFERRED: the blur moves from Paint to the compositor, which runs on the CPU in the Simulator, on a panel whose box is already constant (const-bounds class), so the rise is UNKNOWN",
+   "leanFor": [
+    "Fw.Parts.MorphPanelThreaded.interp_eq",
+    "Fw.Parts.MorphPanelThreaded.chain_offs",
+    "Fw.Parts.MorphPanelThreaded.variant_drops",
+    "Fw.Parts.MorphPanelThreaded.props_accelerated",
+    "Fw.Parts.MorphPanelThreaded.layer_budget",
+    "Fw.Parts.MorphPanelThreaded.bands_equal",
+    "Fw.Parts.MorphPanelThreaded.bands_only_reduced",
+    "Fw.Parts.MorphPanelThreaded.threaded_eq",
+    "Fw.Parts.MorphPanelThreaded.frame_eq",
+    "Fw.Parts.MorphPanelThreaded.retarget_from_shown",
+    "Fw.Parts.MorphPanelThreaded.ca_accepts",
+    "Fw.Parts.MorphPanelThreaded.ease_err"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.MorphPanelThreaded.recalc_same",
+    "Fw.Parts.MorphPanelThreaded.recalc_same_bundle"
+   ],
+   "missingWhy": [
+    "Composite cost is not in the stage model (Fw.Engine.WebKit stages end at paint), so the Composite rise on the open push has no Lean theorem; the cause is UNKNOWN",
+    "Compositor cost is not measured on a real GPU: the Simulator has none, and the open push has only 2-4 frames per pass",
+    "Chromium push not measured: the count profile never opens the panel, and Blink refuses to composite a pixel-moving filter effect (INFERRED no saving)"
+   ],
+   "premises": [
+    "CONFIRMED: GraphicsLayerCA accepts the effect (rate 1, forward, nonzero duration, two or more keyframes, no steps, curve in [0, 1]) (Source/WebCore/platform/graphics/ca/GraphicsLayerCA.cpp:1169-1196@862f17d) and supports filter animations (:289@862f17d)",
+    "CONFIRMED: Blink marks a filter effect with a pixel-moving filter as not compositable (third_party/blink/renderer/core/animation/compositor_animations.cc:408-416@f842f52)",
+    "CONFIRMED: a running effect invalidates style on every tick (Source/WebCore/animation/KeyframeEffect.cpp:2128-2130@862f17d)",
+    "WaapiPremises (Fw.Parts.MorphTweenOpt): linear number interpolation, an exact timing curve, one timeline offset for frames and start reads"
+   ],
+   "v1Evidence": "",
+   "lesson": "A stage that leaves the main thread is not a saving when its work lands in Composite on a lane without a GPU; moving the blur to the compositor cannot beat removing the resize that drives it. Price the Composite stage in the model before building a variant that moves paint work there.",
+   "next": "Hold; no port task. Re-open when measured on a lane with a real GPU (gpu-safari-lane); the cause of the open-push Composite rise is UNKNOWN.",
+   "evidence": "CI runs 39846842455, 39846814254, 39855506403, 39851664186, 39851674587, 39846941236, 39846909558, 39846948148; research/notes/2026/10-2x-morph-panel-threaded.md; results/morph-panel-threaded/report.json"
+  },
+  {
+   "id": "commission.band-gate",
+   "n": 48,
+   "part": "commission",
+   "candidate": "commission:band-gate: in the c1000 band skip the two custom-property writes (--commission-enter-shrink, --commission-shrink) every follower frame, since the CSS pins scale 1 and radius 0 there; write the current pair on the first frame that reads the band off",
+   "status": "partly-proved",
+   "flag": "commission:band-gate",
+   "flags": [
+    "commission:band-gate"
+   ],
+   "chromium": "win",
+   "webkit": "win",
+   "visual": "E (commission_visSame: visible scenes equal across band changes; look_gated: the band look is independent of the pair; exit_catchup, inl_settled, media_catchup: the pair is the original's on the first ungated body, at rest and after a band change) Limit: the theorems cover the look (scale, radius). While the follower moves in the band, the custom properties' own computed values differ from the original's (getComputedStyle would show it); they are equal again at rest and on band exit, which is what the breakpoint gate compares.",
+   "mechanism": "PROVED (Fw.Parts.CommissionOpt): the original writes two properties on every body (writes_orig); the variant writes none while the gate holds and the follower moves (moving_run), never more than the original (writes_le), and the follower and class bits are unchanged (fol_cls_agree). MEASURED, CI chromium-counts swipe-v1 x3 (430x932, base run 39837044649, flag run 39843560957), window scrollY 3070-3530 (commission bottom 0.85h..0.35h, INFERRED from the class-toggle spike): RecalcStyleCount 5.02 -> 3.07 per frame, elements recalculated 127.3 -> 60.1 per frame, in all three runs; FunctionCall 9.50, Layout 0.57, census layers 66.4, tiles 121.1 and Commit 1.00 per frame equal. MEASURED, CI webkit-sim (iOS Simulator 430x775, 50 px steps, 2 passes; base run 39837001915, flag run 39843567401), y 2500-3500: RecalculateStyles 124/127 -> 99/92, Composite 40/40 -> 40/40, Layout and Paint overlap, FunctionCall is noisy (282/299 against 379/294). Breakpoint gate both engines: run 39843552595 pass (the first design, which skipped every write, failed it: run 39836996121). Not a GPU route.",
+   "leanFor": [
+    "Fw.Parts.CommissionOpt.look_gated",
+    "Fw.Parts.CommissionOpt.look_const_iff",
+    "Fw.Parts.CommissionOpt.exit_catchup",
+    "Fw.Parts.CommissionOpt.inl_settled",
+    "Fw.Parts.CommissionOpt.media_catchup",
+    "Fw.Parts.CommissionOpt.commission_visSame",
+    "Fw.Parts.CommissionOpt.writes_le",
+    "Fw.Parts.CommissionOpt.moving_run"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "No frame-time percentiles: the count lanes record no frame times; a Simulator or phone replay of the scroll-in is a follow-up",
+    "The WebKit saving also shows at y 3500-4500 (RecalculateStyles 152/154 -> 106/101) where the model predicts no moving follower; the mechanism there is not explained",
+    "The commission window is derived from Chromium class-toggle spikes, not from a measured section rect"
+   ],
+   "premises": [
+    "CONFIRMED: commission is not the last section (platform follows), unlike platform.mq",
+    "CONFIRMED: the two properties are read only by the shrink scale and the card radius (commission.module.css lines 9, 48), pinned by the band at 438-446 (bandgate.test.ts)",
+    "INFERRED: a changed inherited custom property restyles every descendant (elementCount delta 67 per frame)"
+   ],
+   "v1Evidence": "",
+   "lesson": "A skip that leaves a computed value differing from the original in a state the gate compares fails the gate even when nothing shows: the first design failed on the section's custom properties at rest and on a media-change body the original does not run. Writing at settle and writing the follower's pair (not running a body) on a band change kept the saving and the gate.",
+   "next": "Lead decides promotion to the v2-proved preset (status stays partly-proved until a frame-time replay). Follow-up: Simulator or phone replay of the scroll-in for frame times.",
+   "evidence": "CI runs 39843527891 (lean), 39843552595 (gate), 39837044649, 39843560957 (chromium-counts), 39837001915, 39843567401 (webkit-sim); research/notes/2026/10-2x-commission-band-gate.md"
   },
   {
    "id": "nav.clip-box",
