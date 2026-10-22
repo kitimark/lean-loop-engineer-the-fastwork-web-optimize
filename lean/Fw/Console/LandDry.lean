@@ -276,6 +276,40 @@ theorem gen_stale_refuses (w : Stages) (ch : String → String → List String) 
   simp_all
 
 
+/-- A dry land runs the Lean build when its lint plan has the axiom check (which builds `lean/`) or when the local tests
+need `fwcore` built first.
+-/
+def runsLakeBuild (plan : List Lint) (fwcoreBuild : Bool) : Bool := plan.contains .axioms || fwcoreBuild
+
+/-- The step name of the whole dry land: `dry total`, with ` lake` appended when the run builds `lean/`. The two shapes
+take about 22 s and about 45 s, so each gets its own history in the timing verdict.
+-/
+def dryTotalStep (plan : List Lint) (fwcoreBuild : Bool) : String :=
+  if runsLakeBuild plan fwcoreBuild then "dry total lake" else "dry total"
+
+theorem runsLakeBuild_iff (plan : List Lint) (b : Bool) : runsLakeBuild plan b = true ↔ Lint.axioms ∈ plan ∨ b = true := by
+  simp [runsLakeBuild]
+
+/-- A change under `lean/` with the axiom check present runs the Lean build, so its dry land is keyed `lake`. -/
+theorem lean_change_keyed_lake (P : List String) (a g : Bool) (b : Bool) (p : String) (hp : p ∈ P)
+    (hl : p.startsWith "lean/" = true) : dryTotalStep (lintPlan P a true g) b = "dry total lake" := by
+  have h := (axioms_mem_plan P a true g).2 ⟨rfl, p, hp, hl⟩
+  simp [dryTotalStep, runsLakeBuild, h]
+
+/-- A change with nothing under `lean/` and no `fwcore` build keeps the plain key. -/
+theorem no_lean_plain_key (P : List String) (a v g : Bool) (h : ∀ p ∈ P, p.startsWith "lean/" = false) :
+    dryTotalStep (lintPlan P a v g) false = "dry total" := by
+  have := no_axioms_without_lean P a v g h
+  simp [dryTotalStep, runsLakeBuild, this]
+
+/-- An `fwcore` build alone also keys the dry land `lake`. -/
+theorem fwcore_build_keyed_lake (plan : List Lint) : dryTotalStep plan true = "dry total lake" := by
+  simp [dryTotalStep, runsLakeBuild]
+
+theorem dryTotalStep_ne (plan : List Lint) (b b' : Bool) (h : runsLakeBuild plan b = true) (h' : runsLakeBuild plan b' = false) :
+    dryTotalStep plan b ≠ dryTotalStep plan b' := by
+  simp [dryTotalStep, h, h']
+
 def lintStages : List String := ["lake build", "axiom check"]
 
 abbrev FailedCheck := Bool × List String
