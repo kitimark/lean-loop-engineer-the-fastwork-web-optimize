@@ -15080,7 +15080,10 @@
    "title": "User 2026-10-22 approved the Layer Composer design (review page answers: design Approve; Q4 text layers are a look change until the user sees their strips; Q5 Core Animation blur measured only, shown as Q; snap off by default, on per layer after the user approves its strip; headline = B vs the page as it runs today, frame time p50/p90/p99 ms with fps at the same quantiles, compositor frames on Chromium only; a cell measured within 1 level with no proved bound is Q). Original ask: 'i could pick which layers/component by myself ... some change may effective multiple layer, part or components'. Design text: lead scratch layer-composer/design-checked.md (path in the build prompt). Task 4: hero.exit threaded CSS selects other parts' boxes by [data-fw-layer=…] instead of [data-orbit-id] and > article; hero.exit layers/files in part.json. No behaviour change, same goldens, gate both engines.",
    "writes": [
     "apps/site/src/parts/hero.exit/**",
-    "docs/team/handoffs/hero-exit-layer-ids.md"
+    "docs/team/handoffs/hero-exit-layer-ids.md",
+    "lean/Fw/Parts/FootprintData.lean",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/console/layers.jsonl"
    ]
   },
   {
@@ -16069,7 +16072,8 @@
     "docs/team/handoffs/slot-span-key-followups.md",
     "apps/runner/src/fw-main.ts"
    ],
-   "title": "Follow-ups of slot-span-key (accepted 2026-10-22). (1) `slot wait <kind>` spans are judged by timing.slow: a queue wait over the 30 s budget against a near-zero median alerts, which is the queue noise the task removed, under a new key; exclude wait spans from slow or give them their own Lean budget (theorem). (2) cmdKey maps `pnpm -s fw <sub>` to `pnpm fw`: treat fw as a launcher and key its subcommand. (3) The ` dry`/` cached` suffixes and the seenKeys parser live only in TS, and the 24-key cap counts the last 2 MB of timings.jsonl, so keys that scroll out free places: state the suffix and seen-set rule in Lean with goldens and make the cap per kind and window-independent. (4) slot.ts writes no run span when exec throws or the process exits on a signal: move endRun into a finally with an error exit code. (5) Mark the 16:51 test's `own` samples as synthetic. (6) `fw land/dry total` and `fw/land dry` are bimodal: about 22 s without the Lean build step and about 45 s with it (alerts of 2026-10-22 16:4x and 17:5x), so key the dry span by its Lean dry plan (with or without the lake build) and add apps/runner/src/land.ts to the writes for that. Unit: the six items with goldens and tests."
+   "title": "Follow-ups of slot-span-key (accepted 2026-10-22). (1) `slot wait <kind>` spans are judged by timing.slow: a queue wait over the 30 s budget against a near-zero median alerts, which is the queue noise the task removed, under a new key; exclude wait spans from slow or give them their own Lean budget (theorem). (2) cmdKey maps `pnpm -s fw <sub>` to `pnpm fw`: treat fw as a launcher and key its subcommand. (3) The ` dry`/` cached` suffixes and the seenKeys parser live only in TS, and the 24-key cap counts the last 2 MB of timings.jsonl, so keys that scroll out free places: state the suffix and seen-set rule in Lean with goldens and make the cap per kind and window-independent. (4) slot.ts writes no run span when exec throws or the process exits on a signal: move endRun into a finally with an error exit code. (5) Mark the 16:51 test's `own` samples as synthetic. (6) `fw land/dry total` and `fw/land dry` are bimodal: about 22 s without the Lean build step and about 45 s with it (alerts of 2026-10-22 16:4x and 17:5x), so key the dry span by its Lean dry plan (with or without the lake build) and add apps/runner/src/land.ts to the writes for that. Unit: the six items with goldens and tests.",
+   "evidence": "efb52b8"
   },
   {
    "devices": [
@@ -16185,6 +16189,26 @@
     "docs/team/handoffs/census-load-variance.md"
    ],
    "title": "Follow-up of layer-census-check (2026-10-22): on the iOS Simulator the undeclared layer set differs between two loads of the same page at y=0 (original 124 vs 106 layers, rewrite 118 vs 110; runs 39760288475, 39763719675), so the base census refuses and no WebKit A/B census can accept. Find the cause (load timing, hold length, the running page's own animations, or the Simulator) with at most 3 dispatches; then state in Lean which undeclared boxes may vary between loads (a settle rule or an allowlist keyed by identity, never a count tolerance) so base vs base accepts, with goldens. Also amend design text section 2.4 / S1 so path-pix-core's S1 premise names the in-page node origin (InspectorLayerTreeAgent.cpp:189-191@862f17d gives integer CSS px bounds). Unit: the cause with run ids, the Lean rule, base vs base accepted on CI."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gate-settle-scroll-timeline",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "gate-settle"
+   ],
+   "writes": [
+    "lean/Fw/Gate/Settle.lean",
+    "lean/Fw/Gate/Golden.lean",
+    "packages/contracts/golden/gate/**",
+    "packages/gate-breakpoints/**",
+    "research/notes/2026/10-2x-gate-settle-scroll-timeline.md",
+    "docs/team/handoffs/gate-settle-scroll-timeline.md"
+   ],
+   "title": "(S) Settle probe counts scroll-driven animations as running forever (page.mjs:342 keeps any finite non-finished animation; a ScrollTimeline/ViewTimeline animation never finishes), so every arm with hero.exit:threaded ends UNSETTLED (run 39769627588: 155 unsettled samples, 0 fail readings, merge red). Rule: an animation on a non-document timeline is settled when its timeline's scroll offset is stable; its effect is already in the stable signature. Read the spec and Chromium/WebKit source for scroll-timeline playState/currentTime at a fixed offset (cite file:line@sha), state the rule in Lean Settle (running counts document-timeline animations only; theorem: a scroll-timeline animation at a fixed offset leaves the signature constant), golden vectors, page.mjs change, then rerun the full gate for fw=hero.exit:threaded on both engines and report whether the merge verdict turns pass."
   }
  ],
  "deadline": {
