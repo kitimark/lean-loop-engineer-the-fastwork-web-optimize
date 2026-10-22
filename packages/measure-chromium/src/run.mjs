@@ -107,15 +107,6 @@ async function networkBarrier(r0) {
     await sleep(5);
   }
 }
-// A load that stops answering: pause the busy main thread and print where it is (CDP Debugger.pause), then fail. Diagnostic only.
-async function hangReport(loadFrames) {
-  const paused = new Promise((res) => c.once('Debugger.paused', res));
-  await c.send('Debugger.enable');
-  await c.send('Debugger.pause');
-  const p = await Promise.race([paused, sleep(10000).then(() => null)]);
-  const top = p ? p.callFrames.slice(0, 12).map((f) => `${f.functionName || '(anon)'} ${f.url}:${f.location.lineNumber + 1}:${f.location.columnNumber + 1}`) : ['(no pause in 10 s)'];
-  throw new Error(`load hang at frame ${loadFrames}: main thread busy; stack:\n  ${top.join('\n  ')}`);
-}
 let loaded = false; // set once the page is loaded: from then on an unanswered BeginFrame is a hang, not a navigation commit
 async function frame(vtMs, pre = '', mid = null) {
   touch.frames++;
@@ -152,11 +143,8 @@ let quiet = 0, loadFrames = 0;
 for (; loadFrames < profile.load.maxFrames && quiet < profile.load.quietFrames; loadFrames++) {
   vt = loadFrames * dt;
   await frame(vt);
-  let hangTimer;
-  const st = await Promise.race([
-    ev(`document.readyState + ',' + (document.fonts ? document.fonts.status : 'loaded') + ',' + document.images.length + ',' + [...document.images].filter((i) => !i.complete).length`),
-    new Promise((_, reject) => { hangTimer = setTimeout(() => hangReport(loadFrames).catch(reject), 20000); }),
-  ]).finally(() => clearTimeout(hangTimer));
+  if (process.env.FW_LOAD_TRACE || profile.viewport.mobile === false) console.error(`load frame ${loadFrames} vt ${vt.toFixed(1)} inflight ${srv.inflight()} requests ${srv.requests()}`);
+  const st = await ev(`document.readyState + ',' + (document.fonts ? document.fonts.status : 'loaded') + ',' + document.images.length + ',' + [...document.images].filter((i) => !i.complete).length`);
   const [rs, fonts, , pendingImgs] = st.split(',');
   quiet = rs === 'complete' && fonts === 'loaded' && srv.inflight() === 0 ? quiet + 1 : 0;
 }
