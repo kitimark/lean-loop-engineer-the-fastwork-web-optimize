@@ -377,4 +377,69 @@ theorem lego_swap_visible {V : Type} (Indep : Nat → Nat → Prop) (arm : Nat �
   obtain ⟨j, -, rfl⟩ := mem_zip_map_self _ _ _ q hq
   exact hpart j
 
+/-! ## Lego: swapping a set of parts -/
+
+/-- The variants of `sel'` on the parts in `S`, those of `sel` elsewhere. -/
+def swapSet {V : Type} (sel sel' : Nat → V) (S : Nat → Bool) : Nat → V := fun i => if S i then sel' i else sel i
+
+/-- **A set swap keeps the visible page** when every swapped part keeps its own band. If every part's arm reads only
+the variants of parts it is not independent of, every part in `S` is independent of every part outside `S`, and every
+part in `S` keeps its band height and visible scene under the swap, the visible page scene of parts `0, …, n-1` is
+unchanged from every start offset.
+
+The hypothesis on the parts in `S` is taken on the joint swap; `lego_swap_visible_units` derives it from one
+proof per unit. -/
+theorem lego_swap_visible_set {V : Type} (Indep : Nat → Nat → Prop) (arm : Nat → (Nat → V) → PartArm) (vp : Rect)
+    (n : Nat) (S : Nat → Bool) (sel sel' : Nat → V) (y : Rat)
+    (ha : ReadsOnly Indep arm) (hind : ∀ i q, S i = true → S q = false → Indep i q)
+    (hin : ∀ j, S j = true → (arm j (swapSet sel sel' S)).height = (arm j sel).height ∧
+      ∀ y', visible vp ((arm j (swapSet sel sel' S)).scene y') = visible vp ((arm j sel).scene y')) :
+    visible vp (stackScene y ((List.range n).map fun j => arm j (swapSet sel sel' S))) =
+      visible vp (stackScene y ((List.range n).map fun j => arm j sel)) := by
+  have hout : ∀ q, S q = false → arm q (swapSet sel sel' S) = arm q sel := by
+    intro q hq
+    refine ha q _ _ fun i hi => ?_
+    unfold swapSet
+    cases h : S i
+    · rfl
+    · exact absurd (hind i q h hq) hi
+  have hpart : ∀ j, (arm j (swapSet sel sel' S)).height = (arm j sel).height ∧
+      ∀ y', visible vp ((arm j (swapSet sel sel' S)).scene y') = visible vp ((arm j sel).scene y') := by
+    intro j
+    cases h : S j
+    · rw [hout j h]; exact ⟨rfl, fun _ => rfl⟩
+    · exact hin j h
+  refine visible_append_of_boxes_eq vp y (by simp) ?_
+  intro q hq
+  obtain ⟨j, -, rfl⟩ := mem_zip_map_self _ _ _ q hq
+  exact hpart j
+
+/-- **Units compose on the visible page.** Parts in `S` carry a unit label `u`. If every part's arm reads only the
+variants of parts it is not independent of, swapped parts of different units are independent, every swapped part is
+independent of every part outside `S`, and each unit `k` keeps the band of each of its parts when it is swapped
+alone, then swapping all units at once keeps the visible page scene of parts `0, …, n-1` from every start offset.
+
+One proof per unit, taken alone, gives the composed page. -/
+theorem lego_swap_visible_units {V : Type} (Indep : Nat → Nat → Prop) (arm : Nat → (Nat → V) → PartArm)
+    (vp : Rect) (n : Nat) (S : Nat → Bool) (u : Nat → Nat) (sel sel' : Nat → V) (y : Rat)
+    (ha : ReadsOnly Indep arm) (hind : ∀ i q, S i = true → S q = false → Indep i q)
+    (hcross : ∀ i j, S i = true → S j = true → u i ≠ u j → Indep i j)
+    (hunit : ∀ j, S j = true →
+      (arm j (swapSet sel sel' fun i => S i && u i == u j)).height = (arm j sel).height ∧
+      ∀ y', visible vp ((arm j (swapSet sel sel' fun i => S i && u i == u j)).scene y') =
+        visible vp ((arm j sel).scene y')) :
+    visible vp (stackScene y ((List.range n).map fun j => arm j (swapSet sel sel' S))) =
+      visible vp (stackScene y ((List.range n).map fun j => arm j sel)) := by
+  refine lego_swap_visible_set Indep arm vp n S sel sel' y ha hind fun j hj => ?_
+  have heq : arm j (swapSet sel sel' S) = arm j (swapSet sel sel' fun i => S i && u i == u j) := by
+    refine ha j _ _ fun i hi => ?_
+    unfold swapSet
+    cases hs : S i
+    · simp [hs]
+    · by_cases hu : u i = u j
+      · simp [hs, hu]
+      · exact absurd (hcross i j hs hj hu) hi
+  rw [heq]
+  exact hunit j hj
+
 end Fw.Engine
