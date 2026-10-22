@@ -7,8 +7,12 @@ import { layerOptsTable } from './layer-opts.gen';
 import { resolve } from './resolve';
 import type { LayerOptEntry, PartDef } from './types';
 
-const rows = (name: string) =>
-  readFileSync(fileURLToPath(new URL(`../../../../packages/contracts/golden/console/${name}.jsonl`, import.meta.url)), 'utf8')
+const files = {
+  'layer-opts': new URL('../../../../packages/contracts/golden/console/layer-opts.jsonl', import.meta.url),
+  'layers-search': new URL('../../../../packages/contracts/golden/console/layers-search.jsonl', import.meta.url),
+};
+const rows = (name: keyof typeof files) =>
+  readFileSync(fileURLToPath(files[name]), 'utf8')
     .split('\n')
     .filter((l) => l !== '')
     .map((l) => JSON.parse(l) as Record<string, any>);
