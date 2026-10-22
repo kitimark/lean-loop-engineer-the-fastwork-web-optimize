@@ -17,7 +17,7 @@ const span: typeof rawSpan = (tool, step, fn, exitOf) => rawSpan(tool, stepPrefi
 import { cachedLaneView, circleciAdapter, DEFAULT_ALLOW, githubAdapter, makePusher, BUILD_ARGV, runTiered, spawnWait, type Adapter, type OverflowPlan, type Provider } from "./land-remote.ts";
 import { ccStatusFrom, forceFullFromEnv, ghStatusOnce, overflowFor, readSlots, realCircle } from "./land-overflow.ts";
 import { askCore, dropLock, lockFacts, lockFile, readLock, takeLock } from "../hooks/land-guard.mjs";
-import { FWCORE_STALE_REASON, checkFailKind, failedStages, fwcoreStale, installKind, installNeeded, installRunsOnline, installStep, LINT_ARGV, lintPlan, outcome, outcomeKind, type Kind, type Outcome } from "./land-verdict.ts";
+import { exitCode, FWCORE_STALE_REASON, checkFailKind, failedStages, fwcoreStale, installKind, installNeeded, installRunsOnline, installStep, LINT_ARGV, lintPlan, outcome, outcomeKind, type Kind, type Outcome } from "./land-verdict.ts";
 import { consoleSecret } from "./lib.ts";
 import { CHECK_SH_READS } from "./land-reads.gen.ts";
 import { ConsoleUnreachable } from "./land-queue.ts";
@@ -374,6 +374,8 @@ const installExec: InstallExec = (argv, cwd) => {
   }
 };
 const resultOf = (r: InstallResult) => (typeof r === "boolean" ? { ok: r, tail: "" } : { ok: r.ok, tail: r.tail ?? "" });
+/** The process exit code of a finished land: the kind of the result (done or unknown when it has none) through the exit table. */
+export const landExit = (res: { ok: boolean; kind?: Kind }): number => exitCode(res.kind ?? (res.ok ? "done" : "unknown"));
 export function landInstall(dir: string, exec: InstallExec = installExec): string | null {
   const off = resultOf(exec(["pnpm", "install", "--offline", "--frozen-lockfile"], dir));
   const on = installRunsOnline(off.ok) ? resultOf(exec(["pnpm", "install", "--frozen-lockfile"], dir)) : { ok: false, tail: "" };
@@ -382,18 +384,20 @@ export function landInstall(dir: string, exec: InstallExec = installExec): strin
 }
 
 /** The lockfile stamp: the sha256 of pnpm-lock.yaml at the worktree's last successful install, kept in node_modules (outside git). */
-export type StampFs = { lockHash(dir: string): string | null; readStamp(dir: string): string | null; writeStamp(dir: string, hash: string): void };
+export type StampFs = { lockHash(dir: string): string | null; readStamp(dir: string): string | null; writeStamp(dir: string, hash: string): void; clearStamp(dir: string): void };
 export const STAMP_FILE = "node_modules/.fw-lock-stamp";
 export const realStampFs: StampFs = {
   lockHash: (dir) => { try { return createHash("sha256").update(readFileSync(join(dir, "pnpm-lock.yaml"))).digest("hex"); } catch { return null; } },
   readStamp: (dir) => { try { return readFileSync(join(dir, STAMP_FILE), "utf8").trim() || null; } catch { return null; } },
   writeStamp: (dir, hash) => { mkdirSync(join(dir, "node_modules"), { recursive: true }); writeFileSync(join(dir, STAMP_FILE), `${hash}\n`); },
+  clearStamp: (dir) => { rmSync(join(dir, STAMP_FILE), { force: true }); },
 };
-/** Follows Lean `installStep`: install when the worktree is new or its stamp differs from the checked-out lockfile; stamp after a success. */
+/** Follows Lean `installStep`: install when the worktree is new or its stamp differs from the checked-out lockfile; the stamp is cleared before the install and written only after a success. */
 export function landInstallStamped(dir: string, known: boolean, exec: InstallExec = installExec, fs: StampFs = realStampFs): string | null {
   const lock = fs.lockHash(dir);
   const stamp = fs.readStamp(dir);
   if (lock === null || !installNeeded(known, lock, stamp)) return null;
+  fs.clearStamp(dir);
   const why = landInstall(dir, exec);
   const st = installStep(known, lock, stamp, why === null, why === null);
   if (st.kind === null && st.stampAfter === lock) fs.writeStamp(dir, lock);

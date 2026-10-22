@@ -8,14 +8,14 @@ import { selectCore } from "../../console-api/src/core/index.ts";
 import { Reconciler } from "../../console-api/src/reconcile/reconciler.ts";
 import { Store } from "../../console-api/src/store.ts";
 import { makeRepo } from "../../console-api/test/reconcile-fixture.ts";
-import { land, landInstall, landInstallStamped, realStampFs, STAMP_FILE, type Http, type InstallExec, type StampFs } from "../src/land.ts";
+import { land, landExit, landInstall, landInstallStamped, realStampFs, STAMP_FILE, type Http, type InstallExec, type StampFs } from "../src/land.ts";
 import { dryRun, exitCode, parseVerdict } from "../src/land-verdict.ts";
 
 const OFFLINE = "pnpm install --offline --frozen-lockfile";
 const ONLINE = "pnpm install --frozen-lockfile";
 const memFs = (lock: string | null, stamp: string | null) => {
   const st = { stamp, writes: [] as string[] };
-  const fs: StampFs = { lockHash: () => lock, readStamp: () => st.stamp, writeStamp: (_d, h) => { st.stamp = h; st.writes.push(h); } };
+  const fs: StampFs = { lockHash: () => lock, readStamp: () => st.stamp, writeStamp: (_d, h) => { st.stamp = h; st.writes.push(h); }, clearStamp: () => { st.stamp = null; } };
   return { st, fs };
 };
 const stub = (ok: (cmd: string) => boolean, tail = "") => {
@@ -53,17 +53,33 @@ describe("land worktree lockfile stamp (Lean installStep)", () => {
     expect(s.calls).toEqual([OFFLINE, ONLINE]);
     expect(m.st.stamp).toBe("L2");
   });
-  it("both fail: refuses, never writes the stamp, and the next land installs again", () => {
+  it("both fail: refuses, leaves no stamp, never writes one, and the next land installs again", () => {
     const m = memFs("L2", "L1");
     const s = stub(() => false, "ERR_PNPM_NO_OFFLINE_TARBALL");
     const why = landInstallStamped("/d", true, s.exec, m.fs);
     expect(why).toContain("install failed in /d");
-    expect(m.st.stamp).toBe("L1");
+    expect(m.st.stamp).toBeNull();
     expect(m.st.writes).toEqual([]);
     const again = stub(() => true);
     expect(landInstallStamped("/d", true, again.exec, m.fs)).toBeNull();
     expect(again.calls).toEqual([OFFLINE]);
     expect(m.st.stamp).toBe("L2");
+  });
+  it("stamp A, lock B install fails, then a land with lock A installs again (half-B node_modules)", () => {
+    const m = memFs("B", "A");
+    expect(landInstallStamped("/d", true, stub(() => false).exec, m.fs)).toContain("install failed");
+    expect(m.st.stamp).toBeNull();
+    const lockA: StampFs = { ...m.fs, lockHash: () => "A" };
+    const again = stub(() => true);
+    expect(landInstallStamped("/d", true, again.exec, lockA)).toBeNull();
+    expect(again.calls).toEqual([OFFLINE]);
+    expect(m.st.stamp).toBe("A");
+  });
+  it("the stamp is cleared before the install runs", () => {
+    const m = memFs("B", "A");
+    let seen: string | null | undefined;
+    landInstallStamped("/d", true, () => { seen = m.st.stamp; return { ok: true }; }, m.fs);
+    expect(seen).toBeNull();
   });
   it("no lockfile: nothing to install, no stamp written", () => {
     const m = memFs(null, null);
@@ -87,6 +103,9 @@ describe("land worktree lockfile stamp (Lean installStep)", () => {
       realStampFs.writeStamp(dir, h);
       expect(readFileSync(join(dir, STAMP_FILE), "utf8").trim()).toBe(h);
       expect(realStampFs.readStamp(dir)).toBe(h);
+      realStampFs.clearStamp(dir);
+      expect(realStampFs.readStamp(dir)).toBeNull();
+      realStampFs.clearStamp(dir);
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
 });
@@ -139,13 +158,18 @@ describe("land() through the install step (inc-land-wt-lock-drift, land-install-
     expect(out).not.toContain("dry: install ok");
     expect(parseVerdict(out.join("\n"))?.kind).toBe("install");
     expect(exitCode("install")).toBe(19);
+    expect(landExit(r)).toBe(19);
   });
   it("real land, both installs fail: refused with kind install before any check runs", async () => {
     const { fx, http } = await setup();
     const installExec: InstallExec = () => ({ ok: false, tail: "boom" });
-    const r = await land(BR, { http, cwd: fx.root, ci: false, task: "t1", retryMs: 1, lockWaitMs: 0, installExec, retries: 0 });
+    const marker = join(fx.root, "check-ran");
+    const checks = [["sh", "-c", `touch ${marker}`]];
+    const r = await land(BR, { http, cwd: fx.root, ci: false, task: "t1", retryMs: 1, lockWaitMs: 0, installExec, retries: 0, checks });
     expect(r.ok).toBe(false);
     expect(r.kind).toBe("install");
+    expect(landExit(r)).toBe(19);
+    expect(existsSync(marker)).toBe(false);
     expect(r.lines.join("\n")).toContain("offline stderr: boom");
     expect(existsSync(fx.root)).toBe(true);
   });
@@ -157,6 +181,7 @@ describe("land() through the install step (inc-land-wt-lock-drift, land-install-
       lockHash: (d) => { try { return readFileSync(join(d, "pnpm-lock.yaml"), "utf8").trim(); } catch { return null; } },
       readStamp: (d) => stamps.get(d) ?? null,
       writeStamp: (d, h) => { stamps.set(d, h); },
+      clearStamp: (d) => { stamps.delete(d); },
     };
     const installExec: InstallExec = (argv) => { calls.push(argv.join(" ")); return { ok: true }; };
     const base = { http, cwd: fx.root, ci: false as const, task: "t1", dry: true, retryMs: 1, lockWaitMs: 0, installExec, installFs };

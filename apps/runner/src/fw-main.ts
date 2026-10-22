@@ -1,7 +1,7 @@
 import { Command } from "@fw/contracts";
 import { NO_API_GROUPS, UsageError, apiBase, gitFullRef, renderBoard, send, stepCommand, taskCommand } from "./lib.ts";
 import { CARD_USAGE, cardCommand } from "./card.ts";
-import { fwcorePreflight, httpFor, land, lastDryStep, loopback, type LandResult } from "./land.ts";
+import { fwcorePreflight, httpFor, land, landExit, lastDryStep, loopback, type LandResult } from "./land.ts";
 import { dryRun, exitCode, outcome, outcomeKind, verdictLine } from "./land-verdict.ts";
 import { gitOnMain, lintCli, renderPlan, syncCommands, syncRefusal, type WorkGraph } from "./plan.ts";
 import { readFileSync } from "node:fs";
@@ -180,7 +180,7 @@ try {
         const kind = res.kind ?? (res.ok ? "done" : "unknown");
         if (kind === "done") { const { worktreeOf } = await import("./land.ts"); const m = worktreeOf(process.cwd(), "main"); if (m) await postLandGc(m); }
         console.log(verdictLine(kind, task ?? args[0]!));
-        process.exitCode = exitCode(kind);
+        process.exitCode = landExit(res);
       }
     }
   } else if (group === "review" && (rest[0] === "ready" || rest[0] === "verdict")) {

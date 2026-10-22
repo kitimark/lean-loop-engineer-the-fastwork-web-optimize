@@ -10,7 +10,7 @@ export const installNeeded = (known: boolean, lock: string, stamp: string | null
 /** TS stand-in for Lean `installStep` (golden op `landVerdict.installStamp`); marked for replacement by an fwcore op. */
 export function installStep(known: boolean, lock: string | null, stamp: string | null, offlineOk: boolean, onlineOk: boolean): { kind: Kind | null; stampAfter: string | null } {
   if (lock === null || !installNeeded(known, lock, stamp)) return { kind: null, stampAfter: stamp };
-  return installKind(offlineOk, onlineOk) === null ? { kind: null, stampAfter: lock } : { kind: "install", stampAfter: stamp };
+  return installKind(offlineOk, onlineOk) === null ? { kind: null, stampAfter: lock } : { kind: "install", stampAfter: null };
 }
 export const exitCode = (k: Kind): number => EXIT[k];
 export const retryable = (k: Kind): boolean => k === "busy" || k === "dirty";
