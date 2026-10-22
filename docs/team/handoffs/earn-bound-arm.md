@@ -1,14 +1,16 @@
 branch: worktree-wf_67501544-66c-1 (CI branch ci/earn-bound-arm)
 worktree: .claude/worktrees/wf_67501544-66c-1 (under the main checkout)
-last commit: 1f3df6df (second request commit; code in ac8932ee, workflow token in the commit before)
+last commit: 7c26af23 (third request commit; code in ac8932ee)
 
-# earn-bound-arm checkpoint 3 (mac leg done, second run is sim-only)
+# earn-bound-arm checkpoint 4 (mac done, run 2 done, run 3 sim-only running)
 
 CI runs (smoothness.yml, head commit asks for [ci:smoothness] [webkit-cadence] [earn-bound]):
 - 39729682403 smoothness: FAILED as a whole but usable. mac jobs 1-3 complete (48 windows each, none refused). sim job 1 and 2
   INCOMPLETE (Simulator died after 31 and 38 windows), sim job 3 hit the 45 min limit with no artifact.
-- second push 1f3df6df (tokens earn-bound + sim-only: skips mac, 4 reps per sim job): running, sim jobs 1-3 one after another (about 25-40 min each).
-Dispatches used: 1 of 6 (the first push was run 1, this is run 2; a push is the run). Do not push a newer commit to ci/earn-bound-arm while the run is going (stale check).
+- 39744983394 smoothness (sim-only, 4 reps): success, 3 sim jobs, but only 4-6 finish windows per arm per job (a job needs 5), so
+  the Lean verdict is insufficient in those jobs. Mistake: 4 reps cannot reach the 5-window minimum (MIN_REPS 5).
+- third push 7c26af23 (tokens earn-bound + sim-only, now 6 reps): running, 3 sim jobs one after another (about 30 min each).
+Dispatches used: 2 of 6 (runs 1 and 2 are done, run 3 is running; a push is the run). Do not push a newer commit to ci/earn-bound-arm while the run is going (stale check).
 
 Mac preview (3 jobs, finish zone, render work ms per window): base 725.77, aa 714.48, bound 733.64. Lean across verdict
 base|bound: `same` in hero, finish and rest. So no mac headroom: bound is not below A/A. Not final until the sim legs are in.
