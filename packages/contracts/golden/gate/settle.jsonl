@@ -71,3 +71,10 @@
 {"engine":"playwright-webkit","kind":"viewFor","name":"webkit, other switch value","switch":"yes","view":false}
 {"engine":"firefox","kind":"viewFor","name":"unknown engine, no switch","switch":null,"view":false}
 {"engine":"firefox","kind":"viewFor","name":"unknown engine forced on","switch":"1","view":true}
+{"anims":[],"before":0,"kind":"runs","name":"no animation","running":0}
+{"anims":[{"dur":400,"elapsed":120,"onDocument":true}],"before":1,"kind":"runs","name":"document animation running","running":1}
+{"anims":[{"dur":400,"elapsed":400,"onDocument":true}],"before":0,"kind":"runs","name":"document animation finished","running":0}
+{"anims":[{"dur":400,"elapsed":0,"onDocument":true},{"dur":1000,"elapsed":999,"onDocument":true},{"dur":200,"elapsed":200,"onDocument":true}],"before":2,"kind":"runs","name":"document: two running, one finished","running":2}
+{"anims":[{"dur":1000000,"elapsed":0,"onDocument":false}],"before":1,"kind":"runs","name":"scroll animation at a fixed offset (never finishes)","running":0}
+{"anims":[{"dur":1000000,"elapsed":300000,"onDocument":false},{"dur":1000000,"elapsed":300000,"onDocument":false},{"dur":400,"elapsed":400,"onDocument":true}],"before":2,"kind":"runs","name":"hero.exit:threaded: view-timeline animations beside a finished transition","running":0}
+{"anims":[{"dur":1000000,"elapsed":0,"onDocument":false},{"dur":400,"elapsed":120,"onDocument":true},{"dur":1000000,"elapsed":500000,"onDocument":false}],"before":3,"kind":"runs","name":"scroll animations do not hide a running document animation","running":1}
