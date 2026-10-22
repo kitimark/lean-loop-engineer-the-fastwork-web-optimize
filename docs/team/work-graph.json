@@ -16310,9 +16310,11 @@
     "docs/team/tools/slot.md",
     "docs/team/handoffs/slot-measure-exclusive.md",
     "lean/Fw/Sup/MeasureWindow.lean",
-    "lean/Fw.lean"
+    "lean/Fw.lean",
+    "apps/runner/src/slot-span.ts"
    ],
-   "title": "User 2026-10-22: 'our daemon could handle these lean slots: agents that want to test while we measure wait until the measure is done, or manage it by resource calculation.' Observed 20:15: mac-safari-measure held sim, the adaptive limit rose 1 -> 2, gate-settle-scroll-timeline's check ran beside it (lean 100% CPU) and Fw.Sup.Measure's quiet rule (holdersMax 0) refused passes. Lean first (Fw.Sup.Adapt + new Fw.Sup.MeasureWindow): a measure lease with pass windows. (1) During a live pass window nothing else is admitted (theorem: passLive -> every other request waits). (2) Between passes a queued job is admitted only if its predicted duration plus settle time (per-kind spans and memory from sup-baseline / Fw.Obs.Timing, a stated percentile) ends before the next pass start and its memory fits; else it waits (theorem: an admitted gap job cannot overlap the next pass under the prediction premise; the premise is INFERRED and the pass's quiet check still guards it). (3) Bounded wait: the measure lease has a hard deadline and sup-fairness's starvation bound still holds for queued kinds (theorem). Goldens; slot.ts / slot-core.ts follow the Lean verdict; fw slot status shows the measure window and why each ticket waits. The lead switches packages/measure-webkit/src/safari-local-lease.mjs to the measure kind after both land."
+   "title": "User 2026-10-22: 'our daemon could handle these lean slots: agents that want to test while we measure wait until the measure is done, or manage it by resource calculation.' Observed 20:15: mac-safari-measure held sim, the adaptive limit rose 1 -> 2, gate-settle-scroll-timeline's check ran beside it (lean 100% CPU) and Fw.Sup.Measure's quiet rule (holdersMax 0) refused passes. Lean first (Fw.Sup.Adapt + new Fw.Sup.MeasureWindow): a measure lease with pass windows. (1) During a live pass window nothing else is admitted (theorem: passLive -> every other request waits). (2) Between passes a queued job is admitted only if its predicted duration plus settle time (per-kind spans and memory from sup-baseline / Fw.Obs.Timing, a stated percentile) ends before the next pass start and its memory fits; else it waits (theorem: an admitted gap job cannot overlap the next pass under the prediction premise; the premise is INFERRED and the pass's quiet check still guards it). (3) Bounded wait: the measure lease has a hard deadline and sup-fairness's starvation bound still holds for queued kinds (theorem). Goldens; slot.ts / slot-core.ts follow the Lean verdict; fw slot status shows the measure window and why each ticket waits. The lead switches packages/measure-webkit/src/safari-local-lease.mjs to the measure kind after both land.",
+   "evidence": "f2bda12"
   },
   {
    "devices": [
@@ -16352,7 +16354,8 @@
     "apps/runner/test/land-remote*.test.ts",
     "docs/team/handoffs/land-leg-pending.md"
    ],
-   "title": "Incident inc-land-leg-unfinished (2026-10-22): the gate-settle-scroll-timeline land was refused 'github:fail' on run 39792901389 whose record said status completed / conclusion success while four jobs still read status in_progress with conclusion '' (all their steps had succeeded; GitHub had not finalised the jobs). legResults (land-remote.ts:65) treats '' as a string, so an unfinished job counts as a failed leg. Lean first (LandRemote laneState / LandLegs): a leg whose job status is not completed is pending, never failed; a completed run with a pending leg is re-read (bounded) before any verdict; theorem: no fail verdict from a leg without a completed status; goldens including this record; TS follows."
+   "title": "Incident inc-land-leg-unfinished (2026-10-22): the gate-settle-scroll-timeline land was refused 'github:fail' on run 39792901389 whose record said status completed / conclusion success while four jobs still read status in_progress with conclusion '' (all their steps had succeeded; GitHub had not finalised the jobs). legResults (land-remote.ts:65) treats '' as a string, so an unfinished job counts as a failed leg. Lean first (LandRemote laneState / LandLegs): a leg whose job status is not completed is pending, never failed; a completed run with a pending leg is re-read (bounded) before any verdict; theorem: no fail verdict from a leg without a completed status; goldens including this record; TS follows.",
+   "evidence": "5fd2c06"
   },
   {
    "devices": [
@@ -16662,6 +16665,26 @@
     "docs/team/handoffs/timing-queue-wait.md"
    ],
    "title": "fw watch raised timing.slow for 'fw/slot acquire sim' at 1521 s (2026-10-22): the acquire waited behind another sim holder (locks.jsonl: one sim lease held 1826 s), i.e. a queue wait, not a slow step. Fw.Obs.Timing judges contention by load only (contendedLoad 8), so a lock wait at load 4 reads as slow. Closed rule by identity: the acquire span records the holder it waited behind (slot.ts: kind, owner, waitMs from the queue); Timing gives a sample that waited behind a live holder the verdict queued (never slow, never in a window) and judges only the remaining non-wait time; theorem queued_not_slow plus the existing windowOf properties. A queue wait longer than the holder's lease plus grace stays an alert (lease expiry is the real fault). Golden vectors from Lean; slot.ts and the timing reader checked against them."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-leg-pending-followups",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Console/LandRemote.lean",
+    "lean/Fw/Console/LandLegs.lean",
+    "packages/contracts/golden/console/land-remote.jsonl",
+    "apps/runner/src/land-remote.ts",
+    "apps/runner/test/land-remote*.test.ts",
+    "apps/runner/test/land-legs.test.ts",
+    "docs/team/incidents/ledger.json",
+    "docs/team/handoffs/land-leg-pending-followups.md"
+   ],
+   "title": "Review follow-ups of land-leg-pending (landed 9824f535): (1) legState now maps a completed 'skipped' leg to ok; a guard-skipped land run is safe only because normalizeGithub binds an unbound pass to '' (land-remote.ts:104-110), which has no theorem: either drop the skipped->ok branch (with its #guard and golden rows) or prove that a guard-skipped run normalizes to an unbound run and never accepts a land, and record the change in inc-land-leg-unfinished; (2) delete legsPass / LandLegs.legsVeto (no caller; they disagree with legState on skipped and pending) so one leg rule exists; (3) a multi-run corollary of verdict_pending_leg_no_refuse (a land with several runs, one pending, is not refused)."
   }
  ],
  "deadline": {
