@@ -4307,12 +4307,13 @@
    ],
    "repro": "Run build-review with task.report (path) and task.worktree after a refused review: no builder runs; or pass a report with many items: the runner may echo it with fewer.",
    "fix": {
-    "task": "lead"
+    "task": "build-review-resume-guard"
    },
    "regression": "build-review takes the report object inline (no echo); a findings round on the resume path could be refused by the script (task.findings with task.report).",
-   "leanVerdict": "not-applicable",
+   "leanVerdict": "no",
    "leanReason": "Workflow orchestration choice and an LLM echo; the inline report removes the echo, the path choice is a lead rule.",
-   "hardening": "8e923db89"
+   "hardening": "build-review-resume-guard",
+   "empiricalCheck": "A build-review run with task.findings and task.report refuses before any agent runs, and a resume whose report has no items refuses with that reason (fixture test in build-review-resume-guard)."
   }
  ]
 }
