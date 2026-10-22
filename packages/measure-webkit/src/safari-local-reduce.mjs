@@ -14,10 +14,12 @@ export const swapActive = (m) => ADAPT.swapOutMBPerMinMax <= m.swapOutMBPerMin;
 export const thrash = (m) => ADAPT.comprMBPerMinMax <= m.comprMBPerMin;
 export const cmprsHigh = (r) => r.ramMB > 0 && ADAPT.cmprsPct * r.ramMB <= 100 * r.compressorMB;
 
-/** Lean `whys`: every reason a reading (`{time, loadCenti, mem, ramMB, compressorMB, holders}`) is not quiet, in a fixed order. */
-export function whys(r) {
+/** Lean `ceilCenti`: the load ceiling (centi) of a machine whose idle floor is `fl`. */
+export const ceilCenti = (fl) => fl + Q.loadMarginCenti;
+
+/** Lean `whysRest`: every reason other than load that a reading (`{time, loadCenti, mem, ramMB, compressorMB, holders}`) is not quiet, in a fixed order. */
+export function whysRest(r) {
   const out = [];
-  if (Q.loadMaxCenti < r.loadCenti) out.push('load');
   if (availMB(r.mem) < ADAPT.floorMB) out.push('avail');
   if (r.mem.press !== 1) out.push('pressure');
   if (swapActive(r.mem)) out.push('swapOut');
@@ -26,16 +28,35 @@ export function whys(r) {
   return out;
 }
 
+/** Lean `whys`: every reason a reading is not quiet on a machine with idle floor `fl` (centi), in a fixed order. */
+export const whys = (r, fl) => [...(ceilCenti(fl) < r.loadCenti ? ['load'] : []), ...whysRest(r)];
+
 /** Lean `quiet`. */
-export const quiet = (r) => whys(r).length === 0;
+export const quiet = (r, fl) => whys(r, fl).length === 0;
 
 /** Lean `judge`: the decision on a pass from the readings before and after it. */
-export function judge(b, a) {
-  if (!quiet(b)) return { decision: 'refuse', phase: 'before', why: whys(b) };
-  if (!quiet(a)) return { decision: 'refuse', phase: 'after', why: whys(a) };
+export function judge(b, a, fl) {
+  if (!quiet(b, fl)) return { decision: 'refuse', phase: 'before', why: whys(b, fl) };
+  if (!quiet(a, fl)) return { decision: 'refuse', phase: 'after', why: whys(a, fl) };
   if (a.time < b.time || b.time + Q.maxGapS < a.time) return { decision: 'stale' };
   return { decision: 'accept' };
 }
+
+/** Lean `baselineFloor`: the median load of a baseline window, or null (too few readings, a reading loud in any term but load, a wide spread, a median above the cap). */
+export function baselineFloor(rs) {
+  if (rs.length < Q.baseMinSamples) return null;
+  if (rs.some((r) => whysRest(r).length > 0)) return null;
+  const ls = rs.map((r) => r.loadCenti);
+  if (Q.baseSpreadCenti < pct(100, ls) - pct(0, ls)) return null;
+  if (Q.floorMaxCenti < pct(50, ls)) return null;
+  return pct(50, ls);
+}
+
+/** Lean `settledAfter`: the readings taken at least `settleS` seconds after the device booted. */
+export const settledAfter = (boot, rs) => rs.filter((r) => boot + Q.settleS <= r.time);
+
+/** Lean `simFloor`: the idle floor with the Simulator booted; only readings after the settle period count. */
+export const simFloor = (boot, rs) => baselineFloor(settledAfter(boot, rs));
 
 const sortNat = (l) => [...l].sort((a, b) => a - b);
 

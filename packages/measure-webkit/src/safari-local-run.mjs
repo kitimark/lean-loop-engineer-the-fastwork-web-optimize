@@ -6,7 +6,7 @@ import { promisify } from 'node:util';
 import { dedupArms } from './device-session.mjs';
 import { resolveFlags } from './device-arms.mjs';
 import { orderFor } from '../../gate-breakpoints/src/smooth/schedule.mjs';
-import { judge, quiet, whys, availMB, stat, outcome, pct, Q } from './safari-local-reduce.mjs';
+import { judge, quiet, whys, availMB, stat, outcome, pct, baselineFloor, simFloor, ceilCenti, Q } from './safari-local-reduce.mjs';
 
 const exec = promisify(execFile);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -41,11 +41,33 @@ export async function readMachine({ cwd, mine = [] } = {}) {
   return readingOf(JSON.parse(stdout), mine);
 }
 
-/** Wait until the machine is quiet (Lean `quiet`) or `waitMs` has passed; returns the last reading. */
-export async function waitQuiet({ read, waitMs = 120000, everyMs = 5000, wait = sleep, now = Date.now }) {
+/** A load ceiling needs a measured idle floor: no number, no pass. */
+const needFloor = (fl) => { if (!Number.isInteger(fl) || fl < 0) throw new Error('no idle floor: take a baseline first (takeBaseline), no pass runs without one'); return fl; };
+
+/**
+ * The idle floor of the machine as it is now: readings every `everyMs` until Lean's `baselineFloor` (or `simFloor` when `boot`, the
+ * seconds the Simulator finished booting, is given) accepts the last `Q.baseMinSamples` of them, or `waitMs` has passed.
+ * @returns {{floorCenti:number|null, readings:object[]}} `floorCenti` null when the machine never gave a steady baseline; `readings` is the last window
+ */
+export async function takeBaseline({ read, boot = null, everyMs = 10000, waitMs = 600000, wait = sleep, now = Date.now, log = () => {} }) {
+  const t0 = now();
+  const all = [];
+  for (;;) {
+    all.push(await read());
+    const win = all.slice(-Q.baseMinSamples);
+    const floorCenti = boot == null ? baselineFloor(win) : simFloor(boot, win);
+    if (floorCenti !== null) { log(`idle floor ${floorCenti / 100} (ceiling ${ceilCenti(floorCenti) / 100}) from ${win.length} readings`); return { floorCenti, readings: win.map(brief) }; }
+    if (now() - t0 >= waitMs) { log(`no steady idle floor in ${Math.round((now() - t0) / 1000)} s`); return { floorCenti: null, readings: win.map(brief) }; }
+    await wait(everyMs);
+  }
+}
+
+/** Wait until the machine is quiet (Lean `quiet` at the idle floor `floorCenti`) or `waitMs` has passed; returns the last reading. */
+export async function waitQuiet({ read, floorCenti, waitMs = 120000, everyMs = 5000, wait = sleep, now = Date.now }) {
+  needFloor(floorCenti);
   const t0 = now();
   let r = await read();
-  while (!quiet(r) && now() - t0 < waitMs) { await wait(everyMs); r = await read(); }
+  while (!quiet(r, floorCenti) && now() - t0 < waitMs) { await wait(everyMs); r = await read(); }
   return r;
 }
 
@@ -54,12 +76,12 @@ export async function waitQuiet({ read, waitMs = 120000, everyMs = 5000, wait = 
  * is not run when the machine never became quiet, and its values are dropped when the machine was loud during it.
  * @returns {{decision:string, phase?:string, why?:string[], before:object, after:object|null, value:any}}
  */
-export async function measurePass({ read, run, waitMs, everyMs, wait, now }) {
-  const before = await waitQuiet({ read, waitMs, everyMs, wait, now });
-  if (!quiet(before)) { const d = judge(before, before); return { ...d, before: brief(before), after: null, value: null }; }
+export async function measurePass({ read, run, floorCenti, waitMs, everyMs, wait, now }) {
+  const before = await waitQuiet({ read, floorCenti, waitMs, everyMs, wait, now });
+  if (!quiet(before, floorCenti)) { const d = judge(before, before, floorCenti); return { ...d, before: brief(before), after: null, value: null }; }
   const value = await run();
   const after = await read();
-  const d = judge(before, after);
+  const d = judge(before, after, floorCenti);
   return { ...d, before: brief(before), after: brief(after), value: d.decision === 'accept' ? value : null };
 }
 
@@ -67,7 +89,8 @@ export async function measurePass({ read, run, waitMs, everyMs, wait, now }) {
  * Passes until every cell (window x arm) has `passes` accepted, arms interleaved by `orderFor` per round, at most `maxRounds` rounds
  * and until `deadlineMs`. `readWindow(arm, win, round)` returns the value; a throw is recorded as an error row and `onError` may repair.
  */
-export async function runCells({ engine, arms, windows = WINDOWS, passes = Q.minPasses, maxRounds = 3 * Q.minPasses, deadlineMs = Infinity, read, readWindow, onError = async () => {}, onRow = () => {}, maxErrors = 6, waitMs, everyMs, wait, now = Date.now, log = () => {} }) {
+export async function runCells({ engine, arms, windows = WINDOWS, passes = Q.minPasses, maxRounds = 3 * Q.minPasses, deadlineMs = Infinity, read, floorCenti, readWindow, onError = async () => {}, onRow = () => {}, maxErrors = 6, waitMs, everyMs, wait, now = Date.now, log = () => {} }) {
+  needFloor(floorCenti);
   const rows = [];
   const got = (a, w) => rows.filter((x) => x.arm === a && x.window === w && x.decision === 'accept').length;
   let errors = 0;
@@ -80,7 +103,7 @@ export async function runCells({ engine, arms, windows = WINDOWS, passes = Q.min
         const t0 = now();
         let p;
         try {
-          p = await measurePass({ read, run: () => readWindow(a, w, round), waitMs, everyMs, wait, now });
+          p = await measurePass({ read, floorCenti, run: () => readWindow(a, w, round), waitMs, everyMs, wait, now });
         } catch (e) {
           errors++;
           const er = { engine, arm: a, window: w, round, decision: 'error', message: String(e.message).slice(0, 200) };

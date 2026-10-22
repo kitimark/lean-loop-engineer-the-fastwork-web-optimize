@@ -13,20 +13,32 @@ import { HERO_BURST, END_PUSH } from '../../gate-breakpoints/src/smooth/schedule
 import { runCheck } from '../../gate-breakpoints/src/trajectory/reduce.mjs';
 import { cadenceOf, runCells, ZONE_OF } from './safari-local-run.mjs';
 
-/** Make a device of my own (same type and runtime as `from`) unless one with this name exists. Returns `{name, created}`. */
-export function ensureDevice(name, from = 'fw-iphone-27') {
-  if (listDevices().some((d) => d.name === name)) return { name, created: false };
-  const src = JSON.parse(simctl(['list', '-j', 'devices']).stdout);
-  let spec = null;
-  for (const [runtime, ds] of Object.entries(src.devices)) for (const d of ds) if (d.name === from) spec = { type: d.deviceTypeIdentifier, runtime };
+/** The real simctl calls `ensureDevice` makes; a test passes its own. */
+const realSim = {
+  list: listDevices,
+  specOf(from) {
+    const src = JSON.parse(simctl(['list', '-j', 'devices']).stdout);
+    for (const [runtime, ds] of Object.entries(src.devices)) for (const d of ds) if (d.name === from) return { type: d.deviceTypeIdentifier, runtime };
+    return null;
+  },
+  create: (name, type, runtime) => simctl(['create', name, type, runtime]),
+};
+
+/**
+ * The lane's own device, made once and kept: reused when one with this name exists, created (same type and runtime as `from`) only when none does.
+ * Several with the name is an error. The lane boots and shuts it down and never deletes it: each first boot of a fresh device costs minutes of load.
+ * Returns `{name, created}`.
+ */
+export function ensureDevice(name, from = 'fw-iphone-27', sim = realSim) {
+  const have = sim.list().filter((d) => d.name === name);
+  if (have.length > 1) throw new Error(`${have.length} Simulator devices are named "${name}": delete the extra ones by hand, the lane creates one device and reuses it`);
+  if (have.length === 1) return { name, created: false };
+  const spec = sim.specOf(from);
   if (!spec) throw new Error(`no device "${from}" to copy the type and runtime from`);
-  const r = simctl(['create', name, spec.type, spec.runtime]);
+  const r = sim.create(name, spec.type, spec.runtime);
   if (r.status !== 0) throw new Error(`simctl create failed: ${(r.stderr || r.stdout).trim()}`);
   return { name, created: true };
 }
-
-/** Delete a device I created (never one that existed before). */
-export const removeDevice = (name) => { const d = findDevice(name); simctl(['delete', d.udid]); };
 
 /** The simulator window flow of one arm and one window, from a fresh load. */
 export const simWindow = (ctx, { settleMs, log }) => async (arm, win) => {
@@ -53,18 +65,25 @@ export const simWindow = (ctx, { settleMs, log }) => async (arm, win) => {
   };
 };
 
-/** Run the Simulator lane: one session, every arm on one origin, passes under the quiet rule. Returns `{rows, device, ua}`. */
-export async function runSimLocal({ arms, read, passes, maxRounds, deadlineMs, waitMs, everyMs, onRow, settleMs = 2500, log = (s) => console.error(s) }) {
+/**
+ * Run the Simulator lane: one session, every arm on one origin. After the boot the lane settles, takes the idle floor with the Simulator booted and idle
+ * (`takeBase({boot})`, Lean `simFloor`), and runs passes under the quiet rule at that floor; no steady floor means no pass.
+ * Returns `{rows, baseline, device, ua}`.
+ */
+export async function runSimLocal({ arms, read, takeBase, passes, maxRounds, deadlineMs, waitMs, everyMs, onRow, settleMs = 2500, log = (s) => console.error(s) }) {
   let ua = '', vw = null;
   const device = findDevice();
+  let baseline = null;
   const rows = await withSession(async (ctx) => {
+    baseline = await takeBase({ boot: Math.floor(Date.now() / 1000) });
+    if (baseline.floorCenti === null) return [];
     const win = simWindow(ctx, { settleMs, log });
     const byId = Object.fromEntries(arms.map((a) => [a.id, a]));
     return runCells({
-      engine: 'sim', arms, passes, maxRounds, deadlineMs, read, waitMs, everyMs, onRow, log,
+      engine: 'sim', arms, passes, maxRounds, deadlineMs, read, floorCenti: baseline.floorCenti, waitMs, everyMs, onRow, log,
       readWindow: async (id, w) => { const { ua: u, vw: x, ...v } = await win(byId[id], w); ua = u; vw = x; return v; },
       onError: async (e) => { log(`reconnecting after: ${e.message}`); await reconnect(ctx, { log }); },
     });
   }, { keep: false, arms: Object.fromEntries(arms.map((a) => [a.id, a.tree])), log });
-  return { rows, device: device.name, runtime: device.runtime, ua, vw };
+  return { rows, baseline, device: device.name, runtime: device.runtime, ua, vw };
 }
