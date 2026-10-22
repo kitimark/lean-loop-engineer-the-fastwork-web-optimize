@@ -2,7 +2,7 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { getClock } from '../../engine/clock';
-import { createCountdownDriver, oneChainClock, onVisibilityChange, startFaithful, type DigitHandle, type Writable } from './driver';
+import { createCountdownDriver, oneChainClock, startFaithful, type DigitHandle, type Writable } from './driver';
 import { gatedInstance, installHiddenGate } from './hidden';
 import { digitPlaces, remainingSeconds, unitsFromSeconds } from './logic';
 import { matchList } from './media';
@@ -97,21 +97,7 @@ export function HeroCountdown({ variant, impl = 'mui', inverse = false, fwId = '
       const next = driver.shape();
       if (next.length !== shape.length || next.some((v, i) => v !== shape[i])) setShape(next);
     };
-    const stripSubscribe = () => {
-      const off = getClock().subscribe((now) => {
-        if (driver.tick(now)) onRefresh(true);
-      });
-      const unlisten = onVisibilityChange(document, () => {
-        if (driver.tick(performance.now())) onRefresh(true);
-      });
-      return () => {
-        off();
-        unlisten();
-      };
-    };
-    const unsub = strip
-      ? stripSubscribe()
-      : startFaithful({ clock: variant === 'one-chain' ? oneChainClock(getClock()) : getClock(), driver, perfNow: () => performance.now(), onRefresh });
+    const unsub = startFaithful({ clock: variant === 'one-chain' ? oneChainClock(getClock()) : getClock(), driver, perfNow: () => performance.now(), onRefresh });
     return () => {
       unsub();
       ro.disconnect();
