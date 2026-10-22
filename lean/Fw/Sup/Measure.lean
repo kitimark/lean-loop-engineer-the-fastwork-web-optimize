@@ -535,12 +535,12 @@ theorem hitches_recorded (rows : Nat) (h : 0 < rows) : hitchesRecorded true rows
 /-! ## The recorder's bounds -/
 
 /-- Bounds of one `xctrace record`: seconds after the recording's own time limit before it is interrupted and before its process group is killed, the largest
-trace on disk it may grow to (MB), and the free disk a recording needs to start (MB). -/
+trace on disk it may grow to (MB; one 6-16 s recording wrote 5-7 GB of kernel trace on this Mac), and the free disk a recording needs to start (MB). -/
 structure ProbeLimits where
   graceS : Nat := 60
   hardGraceS : Nat := 120
-  maxTraceMB : Nat := 4096
-  minFreeMB : Nat := 20480
+  maxTraceMB : Nat := 12288
+  minFreeMB : Nat := 30720
 deriving DecidableEq, Repr
 
 /-- What the probe does at one look at a running recording. -/
@@ -736,11 +736,11 @@ def probeLines : List String :=
     look "just before the hard deadline" 125 6 10 true,
     look "hard deadline reached: kill" 126 6 10 true,
     look "far past the deadline: kill" 4000 6 10 true,
-    look "trace at the cap is fine" 3 6 4096 true,
-    look "trace over the cap: kill" 3 6 4097 true,
+    look "trace at the cap is fine" 3 6 12288 true,
+    look "trace over the cap: kill" 3 6 12289 true,
     look "parent gone: kill at once" 0 6 0 false,
     look "parent gone during the grace: kill, not interrupt" 70 6 10 false,
-    room "free disk at the minimum" 20480, room "free disk one MB under" 20479, room "no free disk" 0 ]
+    room "free disk at the minimum" 30720, room "free disk one MB under" 30719, room "no free disk" 0 ]
 
 def paramsLine : String :=
   let q : QParams := {}

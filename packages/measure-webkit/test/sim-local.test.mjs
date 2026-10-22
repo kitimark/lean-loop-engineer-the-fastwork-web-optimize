@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { simWindow } from '../src/sim-local.mjs';
+import { simWindow, ensureDevice } from '../src/sim-local.mjs';
+import * as simLocal from '../src/sim-local.mjs';
 
 /** A fake inspector client: a reload fires the navigation and load events, scripts answer from `facts`. */
 function fakeClient({ info, rec }) {
@@ -51,4 +52,34 @@ test('simWindow runs the end window from the end of the page', async () => {
 test('simWindow refuses a page that is not the arm asked for', async () => {
   const c = fakeClient({ info: { ua: 'UA', vw: 430, fw: { configHash: 'zzz', mode: 'aot' } }, rec });
   await assert.rejects(() => simWindow({ c, setArm: () => {}, armHash: () => 'abc' }, { settleMs: 0, log: () => {} })({ id: 'base', site: 'rewrite', search: '' }, 'hero'), /wrong page/);
+});
+
+/** A fake simctl: the devices that exist, and a record of what was created. */
+const fakeSim = (names) => {
+  const made = [];
+  return { made, list: () => names.map((name) => ({ name, udid: 'U-' + name, state: 'Shutdown', runtime: 'r' })), specOf: (from) => (names.includes(from) ? { type: 'T', runtime: 'R' } : null),
+    create: (name, type, runtime) => { made.push([name, type, runtime]); names.push(name); return { status: 0, stdout: 'U-new\n', stderr: '' }; } };
+};
+
+test('ensureDevice reuses the device of the lane and never creates a second one', () => {
+  const sim = fakeSim(['fw-iphone-27', 'fw-mac-safari-27']);
+  for (let i = 0; i < 3; i++) assert.deepEqual(ensureDevice('fw-mac-safari-27', 'fw-iphone-27', sim), { name: 'fw-mac-safari-27', created: false });
+  assert.equal(sim.made.length, 0);
+});
+
+test('ensureDevice creates the device once, then reuses it on every later run', () => {
+  const sim = fakeSim(['fw-iphone-27']);
+  assert.equal(ensureDevice('fw-mac-safari-27', 'fw-iphone-27', sim).created, true);
+  assert.deepEqual(sim.made, [['fw-mac-safari-27', 'T', 'R']]);
+  for (let i = 0; i < 3; i++) assert.equal(ensureDevice('fw-mac-safari-27', 'fw-iphone-27', sim).created, false);
+  assert.equal(sim.made.length, 1, 'created exactly once over four runs');
+});
+
+test('ensureDevice refuses two devices of the same name and a missing template device', () => {
+  assert.throws(() => ensureDevice('x', 'fw-iphone-27', fakeSim(['x', 'x'])), /delete the extra ones/);
+  assert.throws(() => ensureDevice('x', 'fw-iphone-27', fakeSim([])), /no device "fw-iphone-27"/);
+});
+
+test('the lane has no way to delete a device', () => {
+  assert.equal(simLocal.removeDevice, undefined);
 });

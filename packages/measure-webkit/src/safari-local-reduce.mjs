@@ -90,3 +90,18 @@ export const kept = (xs) => xs.filter(([d]) => d === 'accept').map(([, v]) => v)
 
 /** Lean `hitchesRecorded`. */
 export const hitchesRecorded = (finalized, rows) => finalized && rows > 0;
+
+/** The recorder's bounds (Lean `ProbeLimits`). */
+export const PROBE = readGolden('measure.jsonl').find((r) => r.request.op === 'measure.probeParams').response;
+
+/** Lean `probeAct`: what to do at one look at a running recording (`wait`, `interrupt`, `kill`). */
+export function probeAct({ elapsedS, limitS, traceMB, parentAlive }) {
+  if (!parentAlive) return 'kill';
+  if (PROBE.maxTraceMB < traceMB) return 'kill';
+  if (limitS + PROBE.hardGraceS <= elapsedS) return 'kill';
+  if (limitS + PROBE.graceS <= elapsedS) return 'interrupt';
+  return 'wait';
+}
+
+/** Lean `mayRecord`: a recording starts only when the disk has room for it. */
+export const mayRecord = (freeMB) => PROBE.minFreeMB <= freeMB;

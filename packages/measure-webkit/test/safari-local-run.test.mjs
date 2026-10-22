@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readingOf, brief, waitQuiet, measurePass, runCells, summarize, localArms, cadenceOf } from '../src/safari-local-run.mjs';
+import { readingOf, brief, waitQuiet, measurePass, runCells, summarize, localArms, cadenceOf, takeBaseline } from '../src/safari-local-run.mjs';
 import { tokenOf } from '../src/safari-local-lease.mjs';
 
 const mem = (o = {}) => ({ freeMB: 4000, specMB: 0, purgMB: 0, fileMB: 3000, fileMinMB: 2900, swapUsedMB: 0, swapTotalMB: 4096, press: 1, comprMBPerMin: 0, swapOutMBPerMin: 0, ...o });
@@ -22,11 +22,11 @@ test('brief keeps numbers only', () => {
 
 test('waitQuiet stops at the deadline on a loud machine and returns at once on a quiet one', async () => {
   let t = 0, reads = 0;
-  const r = await waitQuiet({ read: async () => { reads++; return loudR(); }, waitMs: 100, everyMs: 30, wait: async (ms) => { t += ms; }, now: () => t });
+  const r = await waitQuiet({ floorCenti: 150, read: async () => { reads++; return loudR(); }, waitMs: 100, everyMs: 30, wait: async (ms) => { t += ms; }, now: () => t });
   assert.equal(r.loadCenti, 900);
   assert.ok(reads >= 4 && reads <= 6, `reads ${reads}`);
   reads = 0;
-  await waitQuiet({ read: async () => { reads++; return quietR(); }, waitMs: 100, everyMs: 30, wait: async () => {}, now: () => 0 });
+  await waitQuiet({ floorCenti: 150, read: async () => { reads++; return quietR(); }, waitMs: 100, everyMs: 30, wait: async () => {}, now: () => 0 });
   assert.equal(reads, 1);
 });
 
@@ -34,16 +34,16 @@ test('measurePass: accept keeps the value, a loud start never runs the window, a
   const wait = async () => {};
   let ran = 0;
   const run = async () => { ran++; return { stat: { long: 1 } }; };
-  const ok = await measurePass({ read: async () => quietR(), run, waitMs: 0, wait, now: () => 0 });
+  const ok = await measurePass({ floorCenti: 150, read: async () => quietR(), run, waitMs: 0, wait, now: () => 0 });
   assert.equal(ok.decision, 'accept'); assert.deepEqual(ok.value, { stat: { long: 1 } });
   ran = 0;
-  const b = await measurePass({ read: async () => loudR(), run, waitMs: 0, wait, now: () => 0 });
+  const b = await measurePass({ floorCenti: 150, read: async () => loudR(), run, waitMs: 0, wait, now: () => 0 });
   assert.equal(b.decision, 'refuse'); assert.equal(b.phase, 'before'); assert.equal(b.value, null); assert.equal(ran, 0);
   const seq = [quietR(), loudR()];
-  const a = await measurePass({ read: async () => seq.shift(), run, waitMs: 0, wait, now: () => 0 });
+  const a = await measurePass({ floorCenti: 150, read: async () => seq.shift(), run, waitMs: 0, wait, now: () => 0 });
   assert.equal(a.decision, 'refuse'); assert.equal(a.phase, 'after'); assert.equal(a.value, null); assert.deepEqual(a.why, ['load']);
   const late = [quietR(1000), quietR(1000 + 1801)];
-  const s = await measurePass({ read: async () => late.shift(), run, waitMs: 0, wait, now: () => 0 });
+  const s = await measurePass({ floorCenti: 150, read: async () => late.shift(), run, waitMs: 0, wait, now: () => 0 });
   assert.equal(s.decision, 'stale');
 });
 
@@ -57,7 +57,7 @@ test('runCells counts only accepted passes, interleaves arms by rotation and sto
   // every third machine read pair is loud: those passes are refused and run again in a later round
   const read = async () => { n++; return n % 6 === 0 ? loudR() : quietR(); };
   const rows = await runCells({
-    engine: 'x', arms, windows: ['hero'], passes: 3, maxRounds: 9, read, waitMs: 0, wait: async () => {},
+    engine: 'x', arms, windows: ['hero'], passes: 3, maxRounds: 9, read, floorCenti: 150, waitMs: 0, wait: async () => {},
     readWindow: async (a, w, round) => { order.push(`${round}:${a}`); return value(a === 'hx' ? 5 : 1); }, onRow: (r) => reads.push(r),
   });
   const accepted = (a) => rows.filter((r) => r.arm === a && r.decision === 'accept').length;
@@ -72,7 +72,7 @@ test('runCells counts only accepted passes, interleaves arms by rotation and sto
 test('runCells records an error row and calls onError', async () => {
   let calls = 0, repaired = 0;
   const rows = await runCells({
-    engine: 'x', arms: [{ id: 'orig' }], windows: ['hero'], passes: 1, maxRounds: 3, read: async () => quietR(), waitMs: 0, wait: async () => {},
+    engine: 'x', arms: [{ id: 'orig' }], windows: ['hero'], passes: 1, maxRounds: 3, read: async () => quietR(), floorCenti: 150, waitMs: 0, wait: async () => {},
     readWindow: async () => { if (calls++ === 0) throw new Error('boom'); return value(0); }, onError: async () => { repaired++; },
   });
   assert.deepEqual(rows.map((r) => r.decision), ['error', 'accept']);
@@ -110,4 +110,47 @@ test('tokenOf reads the token from the acquire output', () => {
   assert.equal(tokenOf('noise\n{"token":"abc-123","kind":"sim"}\n'), 'abc-123');
   assert.equal(tokenOf('acquired 08cadf75-6d9 sim'), '08cadf75-6d9');
   assert.equal(tokenOf('nothing'), null);
+});
+
+const steadyR = (t, load = 340) => readingOf({ ...status(), sample: { ...status().sample, time: t, loadCenti: load } });
+
+test('takeBaseline returns the median of a steady window and keeps reading until one exists', async () => {
+  let t = 1000, n = 0;
+  // the load decays 900 -> 340 over the first readings (a machine just after a boot), then holds steady
+  const loads = [900, 800, 700, 600, 500, 450, 400, 350, 340, 340, 340, 340, 340, 340, 340, 340];
+  const read = async () => steadyR(t, loads[Math.min(n++, loads.length - 1)]);
+  const wait = async (ms) => { t += ms / 1000; };
+  const b = await takeBaseline({ read, everyMs: 10000, waitMs: 1e9, wait, now: () => t * 1000 });
+  assert.equal(b.floorCenti, 340);
+  assert.equal(b.readings.length, 8);
+  assert.equal(n, 13, 'the first window with a spread of at most 150 is readings 6 to 13');
+});
+
+test('takeBaseline gives no floor when the machine never steadies, and the passes then do not run', async () => {
+  let t = 1000, i = 0;
+  const read = async () => steadyR(t, i++ % 2 ? 100 : 900);
+  const b = await takeBaseline({ read, everyMs: 10000, waitMs: 120000, wait: async (ms) => { t += ms / 1000; }, now: () => t * 1000 });
+  assert.equal(b.floorCenti, null);
+  await assert.rejects(() => runCells({ engine: 'x', arms, read, floorCenti: b.floorCenti, readWindow: async () => value(0) }), /no idle floor/);
+});
+
+test('takeBaseline with a boot time ignores the readings of the settle period (Simulator)', async () => {
+  let t = 1000;
+  const read = async () => steadyR(t);
+  const wait = async (ms) => { t += ms / 1000; };
+  const b = await takeBaseline({ read, boot: 1000, everyMs: 10000, waitMs: 1e9, wait, now: () => t * 1000 });
+  assert.equal(b.floorCenti, 340);
+  assert.ok(b.readings.every((r) => r.time >= 1000 + 120), 'every reading of the window is at least 120 s after the boot');
+  assert.ok(t >= 1000 + 120 + 70, 'the first baseline came after the settle period and a window of eight readings');
+});
+
+test('a pass is refused above the measured floor plus the margin and accepted at it', async () => {
+  const wait = async () => {};
+  const run = async () => ({ stat: { long: 0 } });
+  const at = (load) => async () => steadyR(1000, load);
+  const ok = await measurePass({ floorCenti: 340, read: at(440), run, waitMs: 0, wait, now: () => 0 });
+  assert.equal(ok.decision, 'accept');
+  const no = await measurePass({ floorCenti: 340, read: at(441), run, waitMs: 0, wait, now: () => 0 });
+  assert.equal(no.decision, 'refuse');
+  assert.deepEqual(no.why, ['load']);
 });

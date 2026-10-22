@@ -53,17 +53,17 @@
 {"name":"finalized with rows","request":{"finalized":true,"op":"measure.trace","rows":42},"response":{"recorded":true}}
 {"name":"finalized, empty table","request":{"finalized":true,"op":"measure.trace","rows":0},"response":{"recorded":false}}
 {"name":"never finalized","request":{"finalized":false,"op":"measure.trace","rows":42},"response":{"recorded":false}}
-{"name":"probe limits","request":{"op":"measure.probeParams"},"response":{"graceS":60,"hardGraceS":120,"maxTraceMB":4096,"minFreeMB":20480}}
+{"name":"probe limits","request":{"op":"measure.probeParams"},"response":{"graceS":60,"hardGraceS":120,"maxTraceMB":12288,"minFreeMB":30720}}
 {"name":"inside the time limit","request":{"elapsedS":3,"limitS":6,"op":"measure.probeAct","parentAlive":true,"traceMB":10},"response":{"act":"wait"}}
 {"name":"just before the grace","request":{"elapsedS":65,"limitS":6,"op":"measure.probeAct","parentAlive":true,"traceMB":10},"response":{"act":"wait"}}
 {"name":"grace reached: interrupt","request":{"elapsedS":66,"limitS":6,"op":"measure.probeAct","parentAlive":true,"traceMB":10},"response":{"act":"interrupt"}}
 {"name":"just before the hard deadline","request":{"elapsedS":125,"limitS":6,"op":"measure.probeAct","parentAlive":true,"traceMB":10},"response":{"act":"interrupt"}}
 {"name":"hard deadline reached: kill","request":{"elapsedS":126,"limitS":6,"op":"measure.probeAct","parentAlive":true,"traceMB":10},"response":{"act":"kill"}}
 {"name":"far past the deadline: kill","request":{"elapsedS":4000,"limitS":6,"op":"measure.probeAct","parentAlive":true,"traceMB":10},"response":{"act":"kill"}}
-{"name":"trace at the cap is fine","request":{"elapsedS":3,"limitS":6,"op":"measure.probeAct","parentAlive":true,"traceMB":4096},"response":{"act":"wait"}}
-{"name":"trace over the cap: kill","request":{"elapsedS":3,"limitS":6,"op":"measure.probeAct","parentAlive":true,"traceMB":4097},"response":{"act":"kill"}}
+{"name":"trace at the cap is fine","request":{"elapsedS":3,"limitS":6,"op":"measure.probeAct","parentAlive":true,"traceMB":12288},"response":{"act":"wait"}}
+{"name":"trace over the cap: kill","request":{"elapsedS":3,"limitS":6,"op":"measure.probeAct","parentAlive":true,"traceMB":12289},"response":{"act":"kill"}}
 {"name":"parent gone: kill at once","request":{"elapsedS":0,"limitS":6,"op":"measure.probeAct","parentAlive":false,"traceMB":0},"response":{"act":"kill"}}
 {"name":"parent gone during the grace: kill, not interrupt","request":{"elapsedS":70,"limitS":6,"op":"measure.probeAct","parentAlive":false,"traceMB":10},"response":{"act":"kill"}}
-{"name":"free disk at the minimum","request":{"freeMB":20480,"op":"measure.mayRecord"},"response":{"may":true}}
-{"name":"free disk one MB under","request":{"freeMB":20479,"op":"measure.mayRecord"},"response":{"may":false}}
+{"name":"free disk at the minimum","request":{"freeMB":30720,"op":"measure.mayRecord"},"response":{"may":true}}
+{"name":"free disk one MB under","request":{"freeMB":30719,"op":"measure.mayRecord"},"response":{"may":false}}
 {"name":"no free disk","request":{"freeMB":0,"op":"measure.mayRecord"},"response":{"may":false}}
