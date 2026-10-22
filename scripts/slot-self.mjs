@@ -19,6 +19,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const p = plan(process.env, process.argv.slice(2));
   if (p.error) { process.stderr.write(`${p.error}\n`); process.exit(2); }
   if (p.routed) {
+    const { enforceNodePin } = await import(pathToFileURL(join(here, "..", "apps", "runner", "src", "node-guard.ts")).href);
+    enforceNodePin();
     const { slotMain } = await import(pathToFileURL(SLOT_MAIN).href);
     const { begin } = await import(pathToFileURL(join(here, "..", "apps", "runner", "src", "timing.ts")).href);
     const end = begin("fw", "slot");
