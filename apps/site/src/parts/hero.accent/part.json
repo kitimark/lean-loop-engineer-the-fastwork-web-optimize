@@ -7,7 +7,8 @@
   "muiStates": [],
   "variants": {
     "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:3501-3730; assets/2.gBuqKVzi.css:1221-1400" } },
-    "steps": { "kind": "optimized", "tier": "T0", "provenance": { "lean": "Fw.Parts.HeroAccentOpt", "ledger": "n=15" } }
+    "steps": { "kind": "optimized", "tier": "T0", "provenance": { "lean": "Fw.Parts.HeroAccentOpt", "ledger": "n=15" } },
+    "draw-one": { "kind": "optimized", "tier": "T0", "provenance": { "lean": "Fw.Parts.HeroAccentOpt", "ledger": "accent-draw-one", "limit": "the two copies at opacity 0 in the draw window get no stroke animation (Lean drawOne_visSame, drawOne_still_iff); saves 2 of 3 animated paths per draw frame (animatedCount_values), the visible copy still lays out per frame" } }
   },
   "requires": {},
   "conflicts": {}
