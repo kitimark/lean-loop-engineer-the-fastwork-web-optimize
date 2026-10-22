@@ -149,13 +149,11 @@ function gitIn(cwd: string, args: string[]): string {
 
 export const SLOT_MAIN_REL = join("apps", "runner", "src", "slot-main.ts");
 
-/** The main checkout's directory: the parent of the shared repo dir, or null outside a repo. */
 export function mainCheckout(cwd: string): string | null {
   const out = gitIn(cwd, ["rev-parse", "--path-format=absolute", "--git-common-dir"]);
   return out === "" ? null : dirname(out);
 }
 
-/** The slot-main.ts a caller runs: the main checkout's, else the caller's own file. */
 export function resolveSlotMain(local: string, main: string | null, exists: (p: string) => boolean = existsSync): string {
   if (main === null) return local;
   const shared = join(main, SLOT_MAIN_REL);
