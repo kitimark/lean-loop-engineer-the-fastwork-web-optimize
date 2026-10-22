@@ -17,7 +17,7 @@ def cases : List (String × String × Json) :=
       ("base", .arr base.toArray), ("arm", .arr arm.toArray)]
   let keys := ((Fw.Oracle.question "incident-class").map (·.spec.keys)).getD []
   let dist (m : List (String × Json)) : List (String × Json) := keys.map fun k => (k, (m.lookup k).getD (.num 0))
-  let over := dist [("c-quota", .num ⟨6, 1⟩), ("c-late-check", .num ⟨5, 1⟩)]
+  let over := dist [("c-quota", .num ⟨65, 2⟩), ("c-late-check", .num ⟨45, 2⟩)]
   let exact := dist [("c-quota", .num ⟨6, 1⟩), ("c-late-check", .num ⟨4, 1⟩)]
   let exactB := dist [("c-quota", .num ⟨4, 1⟩), ("c-late-check", .num ⟨6, 1⟩)]
   let reply (i c : String) (ps : List (String × Json)) : Json :=
