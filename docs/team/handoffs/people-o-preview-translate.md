@@ -1,9 +1,10 @@
 Branch: worktree-wf_2ffa3f6a-227-1 (CI branch ci/people-o-preview-translate)
 Worktree: .claude/worktrees/wf_2ffa3f6a-227-1 (under the repo root)
-Last commit: see git log (first CI push dce0985e8; the dispatches ran on that sha)
-CI runs: gate 39850908365 running; counts base 39850913549 FAILED; counts flag 39850930778 FAILED (both: Runtime.evaluate timed out
-in the load loop, run.mjs:146, desktop profile people-o-hover; the base fails too, so the profile or viewport hangs, not the flag).
-Next: diagnostic hangReport (Debugger.pause) added, base counts re-dispatched.
+Last commit: the CI branch tip dbd9567ab at checkpoint 2 (later commits follow)
+CI runs: gate 39850908365 SUCCESS (both engines, flagged config 08b2ef03265b7880, people.o row all pass). Counts people-o-hover
+(1280x800, mobile:false): 39850913549 base FAILED, 39850930778 flag FAILED, 39852501132 FAILED, 39854385797 FAILED; every run hangs
+on the first load frame (Runtime.evaluate timeout, main thread unresponsive; the base fails too, so not the flag). Running: profiles
+people-o-hover-m (mobile+touch) and people-o-hover-t (touch) to find which emulation setting hangs. Then flag vs base counts.
 
 # people-o-preview-translate: handoff
 

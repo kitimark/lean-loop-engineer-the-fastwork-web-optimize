@@ -107,6 +107,29 @@ async function networkBarrier(r0) {
     await sleep(5);
   }
 }
+// A load frame whose evaluate does not answer: the main thread is busy. Record the V8 CPU profile for a few seconds through the
+// browser-side Tracing domain (it needs no renderer answer), print the dearest functions, then fail. Diagnostic for a hung load.
+async function hangProfile(frameNo) {
+  await c.send('Tracing.start', { transferMode: 'ReturnAsStream', traceConfig: { recordMode: 'recordAsMuchAsPossible', includedCategories: ['disabled-by-default-v8.cpu_profiler', 'devtools.timeline'] } });
+  await sleep(6000);
+  const done = new Promise((res) => c.once('Tracing.tracingComplete', res));
+  await c.send('Tracing.end');
+  const { stream } = await done;
+  let txt = '';
+  for (;;) { const r = await c.send('IO.read', { handle: stream, size: 1 << 20 }); txt += r.data; if (r.eof) break; }
+  const events = JSON.parse(txt).traceEvents ?? [];
+  const frames = new Map();
+  const hits = new Map();
+  for (const e of events) {
+    if (e.name !== 'ProfileChunk') continue;
+    const cp = e.args?.data?.cpuProfile;
+    for (const n of cp?.nodes ?? []) frames.set(n.id, n.callFrame);
+    for (const id of cp?.samples ?? []) hits.set(id, (hits.get(id) ?? 0) + 1);
+  }
+  const top = [...hits.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12).map(([id, n]) => { const f = frames.get(id) ?? {}; return `${n} ${f.functionName || '(anon)'} ${f.url ?? ''}:${(f.lineNumber ?? 0) + 1}:${(f.columnNumber ?? 0) + 1}`; });
+  const longs = events.filter((e) => e.ph === 'X' && e.dur > 500000).slice(0, 8).map((e) => `${e.name} ${Math.round(e.dur / 1000)}ms ${JSON.stringify(e.args?.data ?? {}).slice(0, 160)}`);
+  throw new Error(`load hang at frame ${frameNo}: ${events.length} trace events\n top samples:\n  ${top.join('\n  ') || '(none)'}\n long tasks:\n  ${longs.join('\n  ') || '(none)'}`);
+}
 let loaded = false; // set once the page is loaded: from then on an unanswered BeginFrame is a hang, not a navigation commit
 async function frame(vtMs, pre = '', mid = null) {
   touch.frames++;
@@ -144,7 +167,11 @@ for (; loadFrames < profile.load.maxFrames && quiet < profile.load.quietFrames; 
   vt = loadFrames * dt;
   await frame(vt);
   if (process.env.FW_LOAD_TRACE || profile.viewport.mobile === false) console.error(`load frame ${loadFrames} vt ${vt.toFixed(1)} inflight ${srv.inflight()} requests ${srv.requests()}`);
-  const st = await ev(`document.readyState + ',' + (document.fonts ? document.fonts.status : 'loaded') + ',' + document.images.length + ',' + [...document.images].filter((i) => !i.complete).length`);
+  let hangTimer;
+  const st = await Promise.race([
+    ev(`document.readyState + ',' + (document.fonts ? document.fonts.status : 'loaded') + ',' + document.images.length + ',' + [...document.images].filter((i) => !i.complete).length`),
+    new Promise((_, reject) => { hangTimer = setTimeout(() => hangProfile(loadFrames).catch(reject), 20000); }),
+  ]).finally(() => clearTimeout(hangTimer));
   const [rs, fonts, , pendingImgs] = st.split(',');
   quiet = rs === 'complete' && fonts === 'loaded' && srv.inflight() === 0 ? quiet + 1 : 0;
 }
