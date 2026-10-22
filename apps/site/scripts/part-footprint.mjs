@@ -1225,6 +1225,7 @@ const variantRows = partIds.flatMap((p) => {
   const def = partDefs.get(p);
   return def ? Object.entries(def.variants).map(([k, v]) => ({ part: p, variant: k, files: v.files ?? [] })) : [];
 });
+const layerRows = partIds.flatMap((p) => (partDefs.get(p)?.layers ?? []).map((l) => ({ part: p, id: l.id, text: l.text === true })));
 
 const AKEYS = ['part', 'file', 'line', 'op', 'name', 'owner', 'ctx', 'variants'];
 const FKEYS = ['part', 'file', 'line', 'kind', 'detail'];
@@ -1252,6 +1253,7 @@ open Fw.Parts.Footprint
   const list = (xs) => `[${xs.map(leanStr).join(', ')}]`;
   const a = acc.map((r) => `  ⟨${leanStr(r.part)}, ${leanStr(r.file)}, ${r.line}, .${r.op}, ${leanStr(r.name)}, ${leanStr(r.owner)}, ${leanStr(r.ctx)}, ${list(r.variants)}⟩`);
   const v = variantRows.map((r) => `  (${leanStr(r.part)}, ${leanStr(r.variant)}, ${list(r.files)})`);
+  const l = layerRows.map((r) => `  (${leanStr(r.part)}, ${leanStr(r.id)}, ${r.text})`);
   const f = fin.map((r) => `  ⟨${leanStr(r.part)}, ${leanStr(r.file)}, ${r.line}, ${leanStr(r.kind)}, ${leanStr(r.detail)}⟩`);
   return `${head}/-- Part ids, one per folder of apps/site/src/parts, in byte order of the folder names. -/
 def partIds : List String := [${partIds.map(leanStr).join(', ')}]
@@ -1267,6 +1269,10 @@ ${f.join(',\n')}]
 /-- Every variant of every part.json with its \`files\` list, in part then part.json order: (part, variant, files). -/
 def variantFiles : List (String × String × List String) := [
 ${v.join(',\n')}]
+
+/-- Every declared layer of every part.json, in part then part.json order: (part, layer id, holds text). -/
+def layerDecls : List (String × String × Bool) := [
+${l.join(',\n')}]
 
 end Fw.Parts.FootprintData
 `;

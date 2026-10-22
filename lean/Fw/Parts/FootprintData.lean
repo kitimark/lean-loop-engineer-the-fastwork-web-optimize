@@ -1588,4 +1588,16 @@ def variantFiles : List (String × String × List String) := [
   ("platform.stageBg", "faithful", []),
   ("platform.sweep", "faithful", [])]
 
+/-- Every declared layer of every part.json, in part then part.json order: (part, layer id, holds text). -/
+def layerDecls : List (String × String × Bool) := [
+  ("hero", "hero_copy", true),
+  ("hero.countdown", "hero.countdown_face", true),
+  ("hero.countdown", "hero.countdown_strip", true),
+  ("hero.cue", "hero.cue_cue", true),
+  ("hero.deck", "hero.deck_article", true),
+  ("hero.orbit", "hero.orbit_card", true),
+  ("morph.panel", "morph.panel_panel", true),
+  ("nav", "nav_bar", true),
+  ("nav", "nav_earn", true)]
+
 end Fw.Parts.FootprintData
