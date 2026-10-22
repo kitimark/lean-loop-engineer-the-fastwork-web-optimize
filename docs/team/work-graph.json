@@ -15312,7 +15312,9 @@
    "writes": [
     ".claude/workflows/build-review.js",
     "docs/team/incidents/ledger.json",
-    "docs/team/handoffs/builder-checkpoint.md"
+    "docs/team/handoffs/builder-checkpoint.md",
+    "scripts/build-review.test.mjs",
+    ".github/workflows/lean.yml"
    ]
   },
   {
