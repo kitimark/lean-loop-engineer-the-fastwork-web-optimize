@@ -39,9 +39,9 @@
   {
    "anchor": "EARN_STILL_CLASS",
    "file": "apps/site/src/parts/nav/index.tsx",
-   "first": 104,
+   "first": 84,
    "id": "js-apply",
-   "last": 104,
+   "last": 84,
    "note": "Each frame the class is set from the decision. Without the flag the call is always true, so the class is never set.",
    "side": "flag"
   }
