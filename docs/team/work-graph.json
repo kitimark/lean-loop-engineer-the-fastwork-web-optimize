@@ -17293,6 +17293,21 @@
     "docs/team/handoffs/land-rebuild-flake.md"
    ],
    "title": "Found landing ledger-n-unique (2026-10-23): the land printed REFUSED fwcore-rebuild-failed (land-verdict.ts REBUILD_REASON) after merging, yet VERDICT done, and the same sh scripts/fwcore-build.sh run right after by the lead's post-land step passed. The land log kept only Lean linter suggestion lines (if_false -> ite_false, List.find?_cons), not the failing command's output or exit code. Find the cause with forensics before naming it (INFERRED candidates: a concurrent lake build in lean/ from another process, the build reading a half-written .olean, a timeout): keep the full rebuild output and exit code in the land log, reproduce, then fix so the rebuild after a land is reliable or retried once with a named reason; state the retry/refusal rule in Lean with goldens. Also decide whether REFUSED after the merge should still print VERDICT done (state it in the Lean land verdict)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "build-review-resume-guard",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    ".claude/workflows/build-review.js",
+    "docs/team/tools/build-review.md",
+    "docs/team/handoffs/build-review-resume-guard.md"
+   ],
+   "title": "Incident inc-resume-report-echo: the lead resume path (task.report + task.worktree) never builds, yet a findings round was sent through it (wf_362ba514 re-reviewed an unchanged commit); and a runner echoing a report file dropped its 14 items (wf_8aa275ef). 8e923db89 already lets the report be passed inline. Remaining: the script refuses task.findings together with task.report (one line in the result naming the continue path), and refuses a resume whose report has no items; a test or dry-run fixture shows both refusals."
   }
  ],
  "deadline": {
