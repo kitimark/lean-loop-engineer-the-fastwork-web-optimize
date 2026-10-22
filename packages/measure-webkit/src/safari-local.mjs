@@ -70,7 +70,7 @@ const pids = (name) => spawnSync('pgrep', ['-x', name], { encoding: 'utf8' }).st
 const INFO = `return JSON.stringify({ vw: innerWidth, vh: innerHeight, dpr: devicePixelRatio, vis: document.visibilityState, ua: navigator.userAgent, ready: document.readyState, fw: window.__fw ? { configHash: window.__fw.configHash, mode: window.__fw.mode, hydrated: window.__fw.hydrated } : null })`;
 
 /** Run the macOS Safari lane: the idle floor is taken with the driver's Safari window open and idle (`takeBase({boot: null})`), passes run at that floor. Returns `{rows, baseline, ua, vw, rect}`; stops the driver and the Safari it started. */
-export async function runSafariLocal({ arms, read, takeBase, passes, maxRounds, deadlineMs, waitMs, everyMs, onRow, settleMs = 2500, width = 430, height = 932, log = (s) => console.error(s) }) {
+export async function runSafariLocal({ arms, read, takeBase, pass = null, passes, maxRounds, deadlineMs, waitMs, everyMs, onRow, settleMs = 2500, width = 430, height = 932, log = (s) => console.error(s) }) {
   const server = await armServer(arms);
   const port = await freePort();
   const safariBefore = new Set(pids('Safari'));
@@ -88,7 +88,7 @@ export async function runSafariLocal({ arms, read, takeBase, passes, maxRounds, 
     const baseline = await takeBase({ boot: null });
     if (baseline.floorCenti === null) return { rows: [], baseline, ua, vw, rect };
     const rows = await runCells({
-      engine: 'safari', arms, passes, maxRounds, deadlineMs, read, floorCenti: baseline.floorCenti, waitMs, everyMs, onRow, log,
+      engine: 'safari', pass, arms, passes, maxRounds, deadlineMs, read, floorCenti: baseline.floorCenti, waitMs, everyMs, onRow, log,
       readWindow: async (id, w) => {
         const a = byId[id];
         server.setArm(id);

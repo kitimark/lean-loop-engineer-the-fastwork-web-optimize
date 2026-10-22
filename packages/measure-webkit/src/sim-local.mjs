@@ -70,7 +70,7 @@ export const simWindow = (ctx, { settleMs, log }) => async (arm, win) => {
  * (`takeBase({boot})`, Lean `simFloor`), and runs passes under the quiet rule at that floor; no steady floor means no pass.
  * Returns `{rows, baseline, device, ua}`.
  */
-export async function runSimLocal({ arms, read, takeBase, passes, maxRounds, deadlineMs, waitMs, everyMs, onRow, settleMs = 2500, log = (s) => console.error(s) }) {
+export async function runSimLocal({ arms, read, takeBase, pass = null, passes, maxRounds, deadlineMs, waitMs, everyMs, onRow, settleMs = 2500, log = (s) => console.error(s) }) {
   let ua = '', vw = null;
   const device = findDevice();
   let baseline = null;
@@ -80,7 +80,7 @@ export async function runSimLocal({ arms, read, takeBase, passes, maxRounds, dea
     const win = simWindow(ctx, { settleMs, log });
     const byId = Object.fromEntries(arms.map((a) => [a.id, a]));
     return runCells({
-      engine: 'sim', arms, passes, maxRounds, deadlineMs, read, floorCenti: baseline.floorCenti, waitMs, everyMs, onRow, log,
+      engine: 'sim', pass, arms, passes, maxRounds, deadlineMs, read, floorCenti: baseline.floorCenti, waitMs, everyMs, onRow, log,
       readWindow: async (id, w) => { const { ua: u, vw: x, ...v } = await win(byId[id], w); ua = u; vw = x; return v; },
       onError: async (e) => { log(`reconnecting after: ${e.message}`); await reconnect(ctx, { log }); },
     });

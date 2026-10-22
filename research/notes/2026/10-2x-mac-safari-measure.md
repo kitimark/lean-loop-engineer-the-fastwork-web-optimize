@@ -55,8 +55,9 @@ PROVED (Lean theorem named here), INFERRED (reading of MEASURED data). Nothing h
 - **Quiet rule (Lean, `lean/Fw/Sup/Measure.lean`).** A reading is quiet when load is at most the floor plus 1.00 (see Round 2), available memory at least 1024 MB, memory pressure level 1, no swap-out, no thrash, no
   high compression and no other slot holder (`quiet_iff`; each failing reason is a theorem, `not_quiet_load` ... `not_quiet_holders`). A pass is read before and after; `judge` accepts it
   only when both are quiet and in order within the span (`judge_accept`, `judge_stale_order`, `judge_stale_gap`); a refused or stale pass keeps no value (`kept_refused`, `kept_stale`).
-  The readings come from the slot daemon's sampler (`fw slot status --json`). The lane holds a `sim` slot for its whole run; the slot daemon on main has no `measure` kind yet (task `slot-measure-exclusive`), so Lean's `holders` reason
-  (`not_quiet_holders`) refuses a pass while another builder is live. The golden rows (`packages/contracts/golden/sup/measure.jsonl`, 55) are replayed by the TS twin `safari-local-reduce.mjs`.
+  The readings come from the slot daemon's sampler (`fw slot status --json`). macOS Safari (and the macOS xctrace probe) hold a `measure` slot and take an exclusive `fw slot pass start|stop` around each measured window (task `slot-measure-exclusive`, on main); the Simulator lane keeps a `sim` slot,
+  because the daemon shuts a booted device down 600 s after its last `sim` holder (`simAction`) and a `measure` slot does not count as one. Lean's `holders` reason
+  (`not_quiet_holders`) still refuses a pass while another holder is live. The golden rows (`packages/contracts/golden/sup/measure.jsonl`, 55) are replayed by the TS twin `safari-local-reduce.mjs`.
 - **Per cell reduction (Lean).** rAF intervals in tenths of ms: skipped slots (`skipped`, slot 8.3 ms or 16.7 ms from the median, `slotOf_cases`), count over 25 ms (`longCount`), p50, p95, max
   (`stat_p_order`, `max_ge`). A verdict against `base` needs at least 3 accepted passes on both sides; `better` or `worse` only when every pass of the arm beats (loses to) every pass of the base,
   otherwise `same` (`outcome_better`, `outcome_worse`, `outcome_same`; `outcome_self`: an arm never beats itself).
@@ -188,6 +189,6 @@ the live clock on macOS Safari, the xctrace probe (process control and XML count
 
 - No accepted pass: the unit "at least 3 quiet-checked passes with a verdict" is not met on either engine, and this round took none. It needs a Mac whose baseline is steady (a booked window), measured by the new floor rule.
   The first real Simulator run creates `fw-mac-safari-27` once; its first boot is heavy and the settle period and sliding baseline wait it out.
-- Task `slot-measure-exclusive` (not on main when this round was built) adds `fw slot acquire --kind measure` and `fw slot pass start|stop`; then `safari-local-lease.mjs` switches from the `sim` kind to them.
+- `safari-local-lease.mjs` now holds `measure` + `pass start|stop` for macOS Safari and the macOS probe (`holdMeasureSlot`); the Simulator keeps `sim`. A Simulator pass inside a measure window would need the daemon to treat `measure` as a booted-device holder: a follow-up for `slot-measure-exclusive`.
 - `lean/scripts/check.sh` gained one stage line ("sup-measure golden check"), outside the task's file list.
 - macOS Safari has no Timeline events through safaridriver; Paint and Composite exist only in the Simulator lane (Paint has a covered time, Composite is a count, Lean `isTimed`).

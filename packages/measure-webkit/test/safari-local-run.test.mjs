@@ -154,3 +154,65 @@ test('a pass is refused above the measured floor plus the margin and accepted at
   assert.equal(no.decision, 'refuse');
   assert.deepEqual(no.why, ['load']);
 });
+
+// ---- the measure slot and its pass around each window ----
+import { holdMeasureSlot } from '../src/safari-local-lease.mjs';
+
+const fakeFw = (codes = {}) => {
+  const calls = [];
+  const fw = async (cwd, args) => {
+    calls.push(args.join(' '));
+    const c = codes[args[0] === 'pass' ? `pass ${args[1]}` : args[0]];
+    if (c) { const e = new Error(`exit ${c}`); e.code = c; throw e; }
+    return { stdout: args[0] === 'acquire' ? '{"token":"abcd1234-ef0"}\n' : '' };
+  };
+  return { fw, calls };
+};
+
+test('a macOS lane holds a measure slot and starts and stops a pass through fw slot pass', async () => {
+  const { fw, calls } = fakeFw();
+  const l = await holdMeasureSlot({ cwd: '.', fw, renewEveryS: 3600, nextS: 30 });
+  assert.match(calls[0], /^acquire --kind measure --lease 3600 .* --next 30 --json$/);
+  assert.equal(await l.pass.start(900, 60), true);
+  assert.match(calls[1], /^pass start --token abcd1234-ef0 --for 900 --wait 60 /);
+  await l.pass.stop(45);
+  assert.match(calls[2], /^pass stop --token abcd1234-ef0 --next 45 /);
+  await l.pass.stop(45); // not live: no second call
+  assert.equal(calls.length, 3);
+  await l.release();
+  assert.match(calls.at(-1), /^release --token abcd1234-ef0/);
+});
+
+test('a pass that waits out returns false, a lost lease throws, and release ends a live pass first', async () => {
+  const w = fakeFw({ 'pass start': 75 });
+  const a = await holdMeasureSlot({ cwd: '.', fw: w.fw, renewEveryS: 3600 });
+  assert.equal(await a.pass.start(), false);
+  await a.release();
+  const g = fakeFw({ 'pass start': 1 });
+  const b = await holdMeasureSlot({ cwd: '.', fw: g.fw, renewEveryS: 3600 });
+  await assert.rejects(() => b.pass.start(), /pass start failed/);
+  await b.release();
+  const ok = fakeFw();
+  const c = await holdMeasureSlot({ cwd: '.', fw: ok.fw, renewEveryS: 3600 });
+  await c.pass.start();
+  await c.release();
+  const tail = ok.calls.slice(-2);
+  assert.match(tail[0], /^pass stop /);
+  assert.match(tail[1], /^release /);
+});
+
+test('measurePass runs inside the slot pass and stops it on success, refusal and throw', async () => {
+  const ev = [];
+  const pass = { start: async () => { ev.push('start'); return true; }, stop: async () => { ev.push('stop'); } };
+  const calm = quietR();
+  const mk = (run) => measurePass({ read: async () => calm, run, floorCenti: 150, waitMs: 0, everyMs: 1, wait: async () => {}, now: () => 0, pass });
+  const a = await mk(async () => { ev.push('run'); return { v: 1 }; });
+  assert.equal(a.decision, 'accept');
+  assert.deepEqual(ev, ['start', 'run', 'stop']);
+  ev.length = 0;
+  await assert.rejects(() => mk(async () => { throw new Error('x'); }), /x/);
+  assert.deepEqual(ev, ['start', 'stop']);
+  ev.length = 0;
+  await assert.rejects(() => measurePass({ read: async () => calm, run: async () => ({}), floorCenti: 150, waitMs: 0, pass: { start: async () => false, stop: async () => ev.push('stop') } }), /no exclusive pass/);
+  assert.deepEqual(ev, [], 'no window ran and no stop was needed');
+});

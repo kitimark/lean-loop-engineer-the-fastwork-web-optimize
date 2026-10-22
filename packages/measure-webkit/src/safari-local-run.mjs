@@ -72,11 +72,16 @@ export async function waitQuiet({ read, floorCenti, waitMs = 120000, everyMs = 5
 }
 
 /**
- * One pass: wait for quiet, read the window, read the machine again, let Lean's `judge` decide. A window the quiet rule refuses
+ * One pass (inside a slot `pass` when one is given: started before the first reading, stopped in a `finally`): wait for quiet, read the window, read the machine again, let Lean's `judge` decide. A window the quiet rule refuses
  * is not run when the machine never became quiet, and its values are dropped when the machine was loud during it.
  * @returns {{decision:string, phase?:string, why?:string[], before:object, after:object|null, value:any}}
  */
-export async function measurePass({ read, run, floorCenti, waitMs, everyMs, wait, now }) {
+export async function measurePass({ read, run, floorCenti, waitMs, everyMs, wait, now, pass = null }) {
+  if (pass && !(await pass.start())) throw new Error('the slot gave no exclusive pass: other holders stayed live');
+  try { return await passBody({ read, run, floorCenti, waitMs, everyMs, wait, now }); } finally { if (pass) await pass.stop(); }
+}
+
+async function passBody({ read, run, floorCenti, waitMs, everyMs, wait, now }) {
   const before = await waitQuiet({ read, floorCenti, waitMs, everyMs, wait, now });
   if (!quiet(before, floorCenti)) { const d = judge(before, before, floorCenti); return { ...d, before: brief(before), after: null, value: null }; }
   const value = await run();
@@ -89,7 +94,7 @@ export async function measurePass({ read, run, floorCenti, waitMs, everyMs, wait
  * Passes until every cell (window x arm) has `passes` accepted, arms interleaved by `orderFor` per round, at most `maxRounds` rounds
  * and until `deadlineMs`. `readWindow(arm, win, round)` returns the value; a throw is recorded as an error row and `onError` may repair.
  */
-export async function runCells({ engine, arms, windows = WINDOWS, passes = Q.minPasses, maxRounds = 3 * Q.minPasses, deadlineMs = Infinity, read, floorCenti, readWindow, onError = async () => {}, onRow = () => {}, maxErrors = 6, waitMs, everyMs, wait, now = Date.now, log = () => {} }) {
+export async function runCells({ engine, arms, windows = WINDOWS, passes = Q.minPasses, maxRounds = 3 * Q.minPasses, deadlineMs = Infinity, read, floorCenti, pass = null, readWindow, onError = async () => {}, onRow = () => {}, maxErrors = 6, waitMs, everyMs, wait, now = Date.now, log = () => {} }) {
   needFloor(floorCenti);
   const rows = [];
   const got = (a, w) => rows.filter((x) => x.arm === a && x.window === w && x.decision === 'accept').length;
@@ -103,7 +108,7 @@ export async function runCells({ engine, arms, windows = WINDOWS, passes = Q.min
         const t0 = now();
         let p;
         try {
-          p = await measurePass({ read, floorCenti, run: () => readWindow(a, w, round), waitMs, everyMs, wait, now });
+          p = await measurePass({ read, floorCenti, pass, run: () => readWindow(a, w, round), waitMs, everyMs, wait, now });
         } catch (e) {
           errors++;
           const er = { engine, arm: a, window: w, round, decision: 'error', message: String(e.message).slice(0, 200) };

@@ -47,8 +47,12 @@ guard.watchParent(() => { log('the parent process is gone: stopping'); cleanup()
 
 const rec = (target, template, recordArgs, during, limitS = secs) => attempt({ guard, lease, target, template, recordArgs, during, limitS, log });
 try {
-  const { holdSimSlot } = await import('../safari-local-lease.mjs');
-  lease = await holdSimSlot({ cwd: process.cwd(), leaseS: 900, renewEveryS: 120, log });
+  const { holdSimSlot, holdMeasureSlot } = await import('../safari-local-lease.mjs');
+  // a Simulator target needs the `sim` slot (the daemon keeps a booted device only under it); a macOS-only probe holds a `measure` slot and one exclusive pass
+  if (v.target === 'mac') {
+    lease = await holdMeasureSlot({ cwd: process.cwd(), leaseS: 900, renewEveryS: 120, log });
+    if (!(await lease.pass.start(Math.max(300, secs * 8), 300))) throw new Error('the slot gave no exclusive pass: other holders stayed live');
+  } else lease = await holdSimSlot({ cwd: process.cwd(), leaseS: 900, renewEveryS: 120, log });
   const site = v.site ? resolve(v.site) : null;
   if (v.target === 'sim' || v.target === 'both') {
     const { ensureDevice } = await import('../sim-local.mjs');
