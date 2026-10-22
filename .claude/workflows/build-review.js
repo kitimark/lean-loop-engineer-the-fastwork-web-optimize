@@ -44,15 +44,22 @@ const voice = (args && args.voice) || ''
 if (tasks.length !== 1) throw new Error(`build-review: one task per run (got ${tasks.length}); start one run per task`)
 const t = tasks[0]
 
+// Checkpoint rule (task builder-checkpoint): a builder that stops without a report still leaves a state the lead can restart from.
+const CHECKPOINT = (id) => `Checkpoint rule: write docs/team/handoffs/${id}.md right after your first CI push, and update it after each CI run finishes and before any wait longer than 10 minutes. First lines: your branch, your worktree path, the last commit sha, every CI run id with its state, what is verified, what is open. Commit it with your work. The lead restarts from this file if you end without a report.`
+
 const scope = (t) => [
   t.unit ? `Pinned unit of decision: ${t.unit}. Items below it are follow-ups.` : '',
   t.limits ? `Accepted limits: ${t.limits}` : '',
   t.findings ? `Prior review findings (read every one; apply each exact fix or say why not): ${t.findings}` : '',
 ].filter(Boolean).join('\n')
 
-const b = await agent(`Task ${t.id}.${t.worktree ? ` Work only in ${t.worktree}.` : ''}\n${t.prompt}\n${scope(t)}\n\n${voice}\n\n${PREAMBLE}`,
+const b = await agent(`Task ${t.id}.${t.worktree ? ` Work only in ${t.worktree}.` : ''}\n${t.prompt}\n${scope(t)}\n\n${voice}\n\n${CHECKPOINT(t.id)}\n\n${PREAMBLE}`,
   { label: `build:${t.id}`, phase: 'Build', agentType: t.role, schema: BUILD, ...(t.worktree ? {} : { isolation: 'worktree' }) })
-if (!b) return [{ task: t.id, build: null }]
+// Builder with no structured result (it ended or crashed without StructuredOutput; incident inc-builder-no-result): hand the lead the place to
+// restart from and skip every later stage. Branch and worktree path are in the handoff file the checkpoint rule made it write.
+if (!b || typeof b.branch !== 'string' || typeof b.commit !== 'string') {
+  return [{ task: t.id, worktree: t.worktree || 'isolated worktree: see git worktree list and the first lines of the handoff', branch: (b && b.branch) || 'see the handoff, or git branch --list "worktree-*"', handoff: `docs/team/handoffs/${t.id}.md`, state: 'no-result' }]
+}
 // Evidence gate (task review-flow-v2): fwcore decides (`fw review ready`, Lean Fw.Plan.ReviewReady). Only the answer `review` spends an
 // Opus review; dispatch, wait and returnToBuilder return the build to the lead with the gate lines. The builder's own `gate` line is not trusted.
 // Run states are read by the gate agent itself, by run id (`fw ci state <id>`, one `gh run list`; never the builder's state field).
