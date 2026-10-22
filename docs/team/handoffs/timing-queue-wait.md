@@ -15,5 +15,5 @@ Final design round (graph r281/r286/r287). Design: the verdict reads the ms spen
 
 Accepted limits: forever-renewing or legacy sim-lock holder makes waiter time queued; a refusal (maxWaitS / --wait) has no queue and is judged
 plain (the remaining alert path); memory/memLow wait stays judged; allowlist is reviewed, not proved from verdictWith; per-reason ms from poll
-timestamps (the last interval before admit is not counted); waitMs is display only.
+timestamps (the last interval before admit is not counted); waitMs is the total: it keeps a waited sample out of the windows (`counts`) and is otherwise display only.
 Read first: header of lean/Fw/Obs/Timing.lean, then apps/runner/src/slot-queue.ts.

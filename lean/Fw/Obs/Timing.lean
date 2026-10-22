@@ -209,6 +209,8 @@ def contended (p : Params) (s : Sample) : Bool := decide (s.host = .«local») &
 /-- The last `n` elements of a list (all of it when it is shorter). -/
 def lastN (n : Nat) (xs : List Nat) : List Nat := xs.drop (xs.length - n)
 
+/-- A sample waited when its acquire waited under any reason (`waitMs > 0`, memory included). Such a sample stays out of
+    the windows (`counts`). -/
 def Sample.waited (s : Sample) : Bool := decide (0 < s.waitMs)
 
 def holderWait : Fw.Sup.Adapt.WhyTag → Bool
