@@ -22,12 +22,15 @@ No paths, no user names. The `fw land` total is the `fw` span with `step=land`.
 ### Step names of the `fw` tool (task run-span-split)
 One name per cost, so no history pools unlike work:
 - Every group with subcommands is `group sub` (`ci wait`, `polish plan`, `polish staged`, ...). The groups and subcommands are
-  the table `SUBCOMMANDS` in `apps/runner/src/fw-groups.ts`; `apps/runner/test/span-names.test.ts` reads `fw-main.ts` and fails
-  when a dispatch branch reads `rest[0]` for a group not in the table, or names a subcommand the table lacks.
+  the table `SUBCOMMANDS` in `apps/runner/src/fw-groups.ts`, built only from the lists each module exports (`POLISH_VERBS`,
+  `ORACLE_SUBS`, `CONSOLE_SUBS`, `SLOT_SUBS`, ...; the module's own dispatch uses the same list). `apps/runner/test/span-names.test.ts`
+  parses the `usage: fw ...` text of `fw-main.ts` and fails when a group or an alternative it names is missing, or a key has no list.
 - `fw run` writes `run dispatch` (plan and the dispatch call), `run wait` (the CI wait; carries `runId`), `run file` (download
-  and ingest), or `run dry` for `--dry`; there is no `run` span (`apps/runner/src/run-phases.ts`).
+  and ingest), or `run dry` for `--dry`; there is no `run` span (`apps/runner/src/run-phases.ts`). The first span opens before the
+  arguments are parsed, so a usage error still writes `run dispatch` (exit 1).
 - `fw slot` is `slot run <kind>`, `slot acquire <kind>`, `slot held <kind>`, `slot admit`, `slot status`, ... from both entries
-  (`fw.ts` and `scripts/slot-self.mjs`, through `apps/runner/src/slot-span.ts`).
+  (`fw.ts` and `scripts/slot-self.mjs`, through `apps/runner/src/slot-span.ts`). A wrapped argv with `--dry` adds ` dry`
+  (`slot run land dry`); a `--cache` replay ends as `... cached` (`slot run test cached`), apart from the real run.
 - A dry land is `land dry` (tool `fw`), and its `fw land` spans carry a `dry ` prefix (`dry total`, `dry merge`, ...), so the 30 s
   ceiling of `fw land`/`total` judges real lands only.
 Older lines keep the old names (`run`, `slot`, `land`, `total`); a new step starts its own history.

@@ -56,6 +56,9 @@ function readJson(src: string, deps: Deps): unknown {
   try { return JSON.parse(text); } catch (e) { throw new UsageError(`--cuts: not JSON (${e instanceof Error ? e.message : e})`); }
 }
 
+/** The verbs `polishCli` accepts (`--staged` is an alias of `staged`); span names come from this list. */
+export const POLISH_VERBS = ["plan", "cuts", "commit", "staged"] as const;
+
 export async function polishCli(argv: string[], cwd: string, deps: Deps = {}): Promise<number> {
   const out = deps.log ?? ((l: string) => console.log(l));
   const git = deps.git ?? realGit;
@@ -63,7 +66,7 @@ export async function polishCli(argv: string[], cwd: string, deps: Deps = {}): P
   const write = deps.write ?? ((p: string, t: string) => writeFileSync(p, t));
   const [verb0, ...rest] = argv;
   const verb = verb0 === "--staged" ? "staged" : verb0;
-  if (!["plan", "cuts", "commit", "staged"].includes(verb ?? "")) throw new UsageError(POLISH_USAGE);
+  if (!(POLISH_VERBS as readonly string[]).includes(verb ?? "")) throw new UsageError(POLISH_USAGE);
   const { flags } = parseFlags(rest);
   const staged = verb === "staged";
   if (!staged && (!flags.branch || !flags.task)) throw new UsageError(POLISH_USAGE);

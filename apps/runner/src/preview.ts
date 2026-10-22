@@ -5,10 +5,12 @@ import { UsageError } from "./lib.ts";
 
 export type Fetch = (url: string, init: { method: string; headers: Record<string, string>; body: string }) => Promise<{ status: number; json(): Promise<unknown> }>;
 
+/** The subcommands `previewCli` accepts; span names come from this list. */
+export const PREVIEW_SUBS = ["grant"] as const;
 export const PREVIEW_USAGE = "usage: fw preview grant [<preview-id>] [--arm r|o]";
 
 export async function previewCli(args: string[], base: string, doFetch: Fetch = fetch as unknown as Fetch, out: (l: string) => void = console.log): Promise<number> {
-  if (args[0] !== "grant") throw new UsageError(PREVIEW_USAGE);
+  if (!(PREVIEW_SUBS as readonly string[]).includes(args[0] ?? "")) throw new UsageError(PREVIEW_USAGE);
   const rest = args.slice(1);
   let arm: "r" | "o" = "r"; let armGiven = false; let id: string | undefined;
   for (let i = 0; i < rest.length; i++) {

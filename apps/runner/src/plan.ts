@@ -16,6 +16,9 @@ import { coreCandidates, coreCaller, type CoreCall } from "./watch.ts";
 export type { WorkGraph } from "@fw/contracts";
 
 /** sha256 of the JSON text, 10 hex characters: the content digest in every plan sync key. */
+/** The `fw plan` subcommands (dispatched in fw-main.ts); span names come from this list. */
+export const PLAN_SUBS = ["sync", "show", "lint", "overlap"] as const;
+
 export const digest: ContentDigest = (v) => createHash("sha256").update(JSON.stringify(v)).digest("hex").slice(0, 10);
 const usage = (m: string) => new UsageError(m);
 

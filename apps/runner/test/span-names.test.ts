@@ -1,23 +1,44 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { SUBCOMMANDS, spanStep } from "../src/fw-groups.ts";
-import { slotStep } from "../src/slot-span.ts";
+import { slotStep, slotStepEnd, markReplayed } from "../src/slot-span.ts";
 import { runPhases } from "../src/run-phases.ts";
+import { runCli } from "../src/run.ts";
 
 const main = readFileSync(new URL("../src/fw-main.ts", import.meta.url), "utf8");
-const branches = main.split(/\} else if \(group === /).slice(1).map((b) => ({ group: /^"([a-z-]+)"/.exec(b)![1]!, head: b.split("\n")[0]!, body: b }));
 const branchGroups = new Set([...main.matchAll(/group === "([a-z-]+)"/g)].map((m) => m[1]!));
 
-describe("fw span names come from the CLI table", () => {
-  it("every dispatch branch of fw-main.ts that reads rest[0] is a group of the table", () => {
-    const reading = branches.filter((b) => /rest\[0\]/.test(b.body.split(/\n  \} else if \(group/)[0]!)).map((b) => b.group);
-    const missing = [...new Set(reading)].filter((g) => !(g in SUBCOMMANDS));
-    expect(missing).toEqual([]);
+// The usage text of fw-main.ts names every `fw <group> a|b|c` form: each group must be a key of SUBCOMMANDS holding each alternative.
+const usage = /throw new UsageError\(`usage: fw status[^`]*`/.exec(main)![0];
+const usageGroups = [...usage.matchAll(/fw ([a-z-]+) ((?:[a-z-]+\|)*[a-z-]+)(?= |\||\\|`|$)/g)].map((m) => ({ g: m[1]!, alts: m[2]!.split("|").filter((a) => /^[a-z][a-z-]*$/.test(a)) }));
+const LIST_OWNERS: Record<string, string[]> = { plan: ["plan"], ci: ["ci"], incidents: ["incidents"], step: ["lib", "step-threads"], card: ["card"], task: ["lib"], console: ["console"],
+  review: ["review", "review-ready"], oracle: ["oracle"], polish: ["polish"], preview: ["preview"], slot: ["slot-span"] };
+
+describe("fw span names come from the modules' own verb lists", () => {
+  it("every `fw <g> a|b|...` group of the usage text is a SUBCOMMANDS key holding each alternative", () => {
+    const multi = usageGroups.filter((u) => u.alts.length > 1 && u.g !== "land");
+    expect(multi.map((u) => u.g)).toEqual(expect.arrayContaining(["console", "step", "task", "review", "polish"]));
+    for (const u of multi) {
+      expect(SUBCOMMANDS[u.g], `group ${u.g} is missing from SUBCOMMANDS`).toBeDefined();
+      for (const a of u.alts) expect(SUBCOMMANDS[u.g], `${u.g} lacks ${a}`).toContain(a);
+    }
   });
-  it("every `group === g && rest[0] === s` pair named in fw-main.ts is in the table", () => {
-    const pairs = [...main.matchAll(/group === "([a-z-]+)" && \(?rest\[0\] === "([a-z-]+)"/g)].map((m) => [m[1]!, m[2]!] as const);
-    expect(pairs.length).toBeGreaterThan(5);
-    expect(pairs.filter(([g, s]) => !SUBCOMMANDS[g]?.includes(s))).toEqual([]);
+  it("every subcommand pair `fw g sub` in the usage text is in the table", () => {
+    for (const u of usageGroups) if (SUBCOMMANDS[u.g]) for (const a of u.alts) expect(SUBCOMMANDS[u.g], `${u.g} lacks ${a}`).toContain(a);
+  });
+  it("every SUBCOMMANDS key has a non-empty list, imported from its module (no hand list in fw-groups.ts)", () => {
+    const src = readFileSync(new URL("../src/fw-groups.ts", import.meta.url), "utf8");
+    const table = src.slice(src.indexOf("export const SUBCOMMANDS"), src.indexOf("};", src.indexOf("export const SUBCOMMANDS")));
+    expect(Object.keys(SUBCOMMANDS).sort()).toEqual(Object.keys(LIST_OWNERS).sort());
+    for (const g of Object.keys(SUBCOMMANDS)) {
+      expect(SUBCOMMANDS[g]!.length, g).toBeGreaterThan(0);
+      expect(table, `${g} is not built from an imported list`).toMatch(new RegExp(`\\b${g}: [\\[.A-Z_a-z, ]*[A-Z]+_(VERBS|SUBS)`));
+      expect(table, `${g} holds a string literal`).not.toMatch(new RegExp(`\\b${g}: [^\\n]*"`));
+    }
+    for (const owners of Object.values(LIST_OWNERS)) for (const o of owners) expect(src).toContain(`"./${o}.ts"`);
+  });
+  it("the oracle list holds score and arm-input", () => {
+    expect(SUBCOMMANDS.oracle).toEqual(expect.arrayContaining(["score", "arm-input", "ask", "send"]));
   });
   it("every group in the table is a group fw-main.ts dispatches", () => {
     expect(Object.keys(SUBCOMMANDS).filter((g) => !branchGroups.has(g))).toEqual([]);
@@ -46,6 +67,19 @@ describe("slot span names", () => {
     expect(slotStep(["run", "--", "x"])).toBe("slot run");
     expect(slotStep([])).toBe("slot");
     expect(spanStep("slot", ["run", "--kind", "land", "--", "x"])).toBe("slot run land");
+  });
+});
+
+describe("slot spans keep dry and cached apart", () => {
+  it("a wrapped --dry argv adds dry; a cache replay adds cached at the end", () => {
+    expect(slotStep(["run", "--kind", "land", "--cache", "--", "pnpm", "-s", "fw", "land", "b", "--dry"])).toBe("slot run land dry");
+    expect(slotStep(["run", "--kind", "land", "--", "pnpm", "-s", "fw", "land", "b"])).toBe("slot run land");
+    expect(slotStep(["status", "--dry"])).toBe("slot status");
+    const rest = ["run", "--kind", "test", "--cache", "--", "pnpm", "test"];
+    expect(slotStepEnd(rest)).toBe("slot run test");
+    markReplayed();
+    expect(slotStepEnd(rest)).toBe("slot run test cached");
+    delete (globalThis as Record<string, unknown>).__fwSlotReplayed;
   });
 });
 
@@ -85,6 +119,11 @@ describe("fw run phases", () => {
     await ph.wait((async () => done) as never)({} as never, 10);
     ph.finish(0);
     expect(out.map((o) => o.step)).toEqual(["run dispatch", "run wait", "run file"]);
+  });
+  it("a fw run that fails before its first phase (usage error) still writes a span", async () => {
+    const { out, begin } = rec();
+    await expect(runCli(["--bogus"], process.cwd(), {}, begin as never)).rejects.toThrow();
+    expect(out.map((o) => [o.step, o.exit])).toEqual([["run dispatch", 1]]);
   });
   it("a dry run is one run dry span", () => {
     const { out, begin } = rec();

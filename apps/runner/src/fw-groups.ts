@@ -1,21 +1,33 @@
-import { DEFAULT_ACTOR } from "./card.ts";
-import { slotStep } from "./slot-span.ts";
+import { CARD_VERBS } from "./card.ts";
+import { CI_SUBS } from "./ci.ts";
+import { CONSOLE_SUBS } from "./console.ts";
+import { INCIDENTS_SUBS } from "./incidents.ts";
+import { STEP_VERBS, TASK_VERBS } from "./lib.ts";
+import { ORACLE_SUBS } from "./oracle.ts";
+import { PLAN_SUBS } from "./plan.ts";
+import { POLISH_VERBS } from "./polish.ts";
+import { PREVIEW_SUBS } from "./preview.ts";
+import { READY_VERBS } from "./review-ready.ts";
+import { REVIEW_VERBS } from "./review.ts";
+import { SLOT_SUBS, slotStep } from "./slot-span.ts";
+import { STEP_THREAD_VERBS } from "./step-threads.ts";
 
-/** Every `fw` group that takes a subcommand, with its subcommands: the one table that names spans (`fw <group> <sub>`). A test
- *  reads fw-main.ts and fails when a branch there reads `rest[0]` for a group missing here, or a subcommand it names is missing. */
+/** Every `fw` group that takes a subcommand, with its subcommands, each list exported by the module that dispatches on it (no hand
+ *  list here): the one table that names spans (`fw <group> <sub>`). A test parses the `usage: fw ...` text of fw-main.ts and fails
+ *  when a group or an alternative it names is missing. */
 export const SUBCOMMANDS: Readonly<Record<string, readonly string[]>> = {
-  plan: ["sync", "show", "lint", "overlap"],
-  ci: ["wait", "budget", "circleci", "push", "telemetry", "pool", "state"],
-  incidents: ["lint"],
-  step: ["post", "start", "answer", "done", "cancel", "topic", "reply", "questions"],
-  card: Object.keys(DEFAULT_ACTOR),
-  task: ["handback", "integrate", "park", "unpark"],
-  console: ["start", "stop", "restart", "status", "logs"],
-  review: ["reply", "feedback", "report", "ready", "verdict"],
-  oracle: ["ask", "calibrate", "eval", "send"],
-  polish: ["plan", "cuts", "commit", "staged"],
-  preview: ["grant"],
-  slot: ["run", "acquire", "renew", "release", "status", "sim", "held", "admit"],
+  plan: PLAN_SUBS,
+  ci: CI_SUBS,
+  incidents: INCIDENTS_SUBS,
+  step: [...STEP_VERBS, ...STEP_THREAD_VERBS],
+  card: CARD_VERBS,
+  task: TASK_VERBS,
+  console: CONSOLE_SUBS,
+  review: [...REVIEW_VERBS, ...READY_VERBS],
+  oracle: ORACLE_SUBS,
+  polish: POLISH_VERBS,
+  preview: PREVIEW_SUBS,
+  slot: SLOT_SUBS,
 };
 
 /** The step name of the `fw` span of one invocation: `group sub` for a group with subcommands (`slot` via `slotStep`, with its
@@ -24,6 +36,6 @@ export function spanStep(group: string, rest: string[]): string {
   const sub = rest[0];
   if (group === "slot") return slotStep(rest);
   if (group === "polish" && sub === "--staged") return "polish staged";
-  if (!SUBCOMMANDS[group] || !sub || sub.startsWith("-")) return group === "land" && rest.includes("--dry") ? "land dry" : group;
+  if (!sub || !SUBCOMMANDS[group]?.includes(sub)) return group === "land" && rest.includes("--dry") ? "land dry" : group;
   return `${group} ${sub}`;
 }

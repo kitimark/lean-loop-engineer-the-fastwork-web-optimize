@@ -453,15 +453,16 @@ export const storeDir = (consoleDir: string) => join(consoleDir, "store");
 export const isDir = (p: string) => existsSync(p) && statSync(p).isDirectory();
 
 /** `fw run ...` from the shell. Needs no console-api. */
-export async function runCli(argv: string[], cwd: string, env: Record<string, string | undefined> = process.env): Promise<number> {
+export async function runCli(argv: string[], cwd: string, env: Record<string, string | undefined> = process.env, begin: typeof beginSpan = beginSpan): Promise<number> {
   const vcs = (...a: string[]) => spawnSync("git", a, { cwd, encoding: "utf8" }).stdout.trim();
+  const ph = runPhases(begin, argv.includes("--dry")); // opened before parsing: a usage error or budget-state failure still writes its span
+  let code = 1;
+  try {
   const args = parseRunArgs(argv);
   const consoleDir = env.FW_CONSOLE_DIR ?? join(dirname(vcs("rev-parse", "--path-format=absolute", "--git-common-dir")), ".fw-console");
   const genv = args.dry ? null : realEnv(cwd); // --dry makes no gh call and needs no budget state
   const unused = (): never => { throw new Error("no gh call in --dry"); };
-  const ph = runPhases(beginSpan, args.dry);
-  let code = 1;
-  try { code = await runMain(args, {
+  code = await runMain(args, {
     call: fwcoreCall(cwd), gh: genv ? ph.gh(chargedGh(genv)) : unused, wait: genv ? ph.wait((t, timeoutS) => waitFor(genv, t, { timeoutS })) : unused,
     now: genv ? genv.now : () => Math.floor(Date.now() / 1000),
     recordKind: (id, inputs) => { recordRunKind(id, inputs, cwd); },

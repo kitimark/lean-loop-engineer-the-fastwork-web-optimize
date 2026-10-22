@@ -16,9 +16,12 @@ const bool = (v: string | undefined, what: string): boolean => {
 
 export const CARD_USAGE = "usage: fw card open <card> --owner <o> [--device true] | approve <card> | screen <card> <sha> --pass true|false | review <card> <sha> --by <who> --accept true|false | swipe <card> <sha> --better true|false | request <card> <sha>";
 
+/** The verbs `cardCommand` accepts: the keys of DEFAULT_ACTOR. */
+export const CARD_VERBS = Object.keys(DEFAULT_ACTOR);
+
 export function cardCommand(argv: string[], env: Record<string, string | undefined>): Command {
   const [verb, ...rest] = argv;
-  if (!verb || !(verb in DEFAULT_ACTOR)) throw new UsageError(CARD_USAGE);
+  if (!verb || !CARD_VERBS.includes(verb)) throw new UsageError(CARD_USAGE);
   const { pos, flags } = parseFlags(rest);
   const actor = Actor.parse(flags.as ?? env.FW_ACTOR ?? DEFAULT_ACTOR[verb]);
   const card = need(pos[0], "<card>");
