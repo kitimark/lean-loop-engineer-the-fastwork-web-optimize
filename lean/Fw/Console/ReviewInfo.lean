@@ -177,34 +177,162 @@ def earnGains (_ : Unit := ()) : List Gain :=
 #guard shownOf 2 (some (12, 12)) (some (25, 26)) == .worse 13
 #guard shownOf 2 (some (9, 10)) (some (13, 13)) == .worse 3
 
-/-- A code range a flag changes: the file, the lines, an anchor that must still be inside them, and which arm it belongs to. -/
+/-- A code range a flag changes: the file, the text of its first line (`anchor`, once in the file), its line count, and its arm. -/
 structure Excerpt where
   id : String
   side : String
   file : String
-  first : Nat
-  last : Nat
   anchor : String
+  span : Nat
   note : String
 deriving DecidableEq, Repr
 
 /-- The code the flag changes (restated from the repository at request time by the console, never copied here). -/
 def earnExcerpts : List Excerpt :=
-  [ { id := "css-rule", side := "faithful", file := "apps/site/src/parts/nav/nav.module.css", first := 167, last := 185,
-      anchor := "max-width 0.68s",
+  [ { id := "css-rule", side := "faithful", file := "apps/site/src/parts/nav/nav.module.css",
+      anchor := "--earn-out: clamp(", span := 18,
       note := "Both arms. The three properties are functions of --morph and carry a 680 ms transition (opacity 320 ms after a 120 ms delay)." },
-    { id := "css-flag", side := "flag", file := "apps/site/src/parts/nav/nav.module.css", first := 201, last := 203,
-      anchor := "transition: none",
+    { id := "css-flag", side := "flag", file := "apps/site/src/parts/nav/nav.module.css",
+      anchor := ".nav:global(.is-earn-still) .btn.earn {", span := 3,
       note := "Flag only: while the nav carries is-earn-still, the button has no transition, so it shows the computed value." },
-    { id := "js-decision", side := "flag", file := "apps/site/src/parts/nav/logic.ts", first := 92, last := 95,
-      anchor := "return !(flag && morphing)",
+    { id := "js-decision", side := "flag", file := "apps/site/src/parts/nav/logic.ts",
+      anchor := "export function earnTransitionOn(", span := 3,
       note := "The decision (Lean transitionsOn): transitions run unless the flag is on and the nav is morphing." },
-    { id := "js-morphing", side := "both", file := "apps/site/src/parts/nav/logic.ts", first := 63, last := 63,
-      anchor := "m > MORPHING_CUT",
+    { id := "js-morphing", side := "both", file := "apps/site/src/parts/nav/logic.ts",
+      anchor := "m > MORPHING_CUT", span := 1,
       note := "The nav counts as morphing above m = 0.001." },
-    { id := "js-apply", side := "flag", file := "apps/site/src/parts/nav/index.tsx", first := 84, last := 84,
-      anchor := "EARN_STILL_CLASS",
+    { id := "js-apply", side := "flag", file := "apps/site/src/parts/nav/index.tsx",
+      anchor := "nav.classList.toggle(EARN_STILL_CLASS", span := 1,
       note := "Each frame the class is set from the decision. Without the flag the call is always true, so the class is never set." } ]
+
+#guard earnExcerpts.all fun e => e.anchor != "" && e.span ≥ 1
+
+/-- The 1-based numbers, from `n`, of the lines that contain `a`. -/
+def anchorLinesFrom (a : String) : Nat → List String → List Nat
+  | _, [] => []
+  | n, l :: ls => if l.contains a then n :: anchorLinesFrom a (n + 1) ls else anchorLinesFrom a (n + 1) ls
+
+/-- The line numbers of a file's lines that contain the anchor. -/
+def anchorLines (ls : List String) (a : String) : List Nat := anchorLinesFrom a 1 ls
+
+/-- Where an excerpt lies in a file, or why the console does not show it. -/
+inductive Located
+  | at (first last : Nat)
+  | missing
+  | twice (lines : List Nat)
+  | outside (first span total : Nat)
+deriving DecidableEq, Repr
+
+/-- The range of an excerpt: from the one line holding the anchor, `span` lines; refused when the anchor is on no line, on two
+or more lines, or the span is empty or runs past the end. -/
+def locate (ls : List String) (a : String) (span : Nat) : Located :=
+  match anchorLines ls a with
+  | [] => .missing
+  | [n] => if 1 ≤ span ∧ n + span - 1 ≤ ls.length then .at n (n + span - 1) else .outside n span ls.length
+  | ns => .twice ns
+
+#guard locate ["a", "beta", "c", "d"] "beta" 2 == .at 2 3
+#guard locate ["a", "beta", "c"] "zeta" 1 == .missing
+#guard locate ["beta", "x", "alphabeta"] "beta" 1 == .twice [1, 3]
+#guard locate ["a", "beta"] "beta" 2 == .outside 2 2 2
+#guard locate ["a", "beta"] "beta" 0 == .outside 2 0 2
+#guard locate ["new", "lines", "a", "beta", "c"] "beta" 2 == .at 4 5
+
+/-- Why an excerpt is not shown, naming its anchor and file. -/
+def Located.reason (file anchor : String) : Located → Option String
+  | .at _ _ => none
+  | .missing => some s!"the anchor \"{anchor}\" is on no line of {file}; the Lean excerpt needs a new anchor"
+  | .twice ns => some s!"the anchor \"{anchor}\" is on {ns.length} lines of {file} ({", ".intercalate (ns.map toString)}); the Lean excerpt needs an anchor that occurs once"
+  | .outside n k t => some s!"{k} lines from the anchor \"{anchor}\" at {file}:{n} do not fit the file ({t} lines); the Lean span needs an update"
+
+/-- **Found**: the range starts at the only anchor line and holds `span` lines inside the file. -/
+theorem locate_at (ls : List String) (a : String) (k f l : Nat) :
+    locate ls a k = .at f l ↔ anchorLines ls a = [f] ∧ 1 ≤ k ∧ f + k - 1 ≤ ls.length ∧ l = f + k - 1 := by
+  unfold locate
+  rcases hA : anchorLines ls a with _ | ⟨n, _ | ⟨m, rest⟩⟩
+  · simp
+  · dsimp only
+    split
+    · rename_i hc
+      simp only [Located.at.injEq, List.cons.injEq, and_true]
+      constructor
+      · rintro ⟨rfl, rfl⟩; exact ⟨rfl, hc.1, hc.2, rfl⟩
+      · rintro ⟨rfl, -, -, rfl⟩; exact ⟨rfl, rfl⟩
+    · rename_i hc
+      simp only [reduceCtorEq, false_iff, List.cons.injEq, and_true]
+      rintro ⟨rfl, h2, h3, -⟩; exact hc ⟨h2, h3⟩
+  · simp
+
+/-- **Missing**: refused exactly when no line holds the anchor. -/
+theorem locate_missing (ls : List String) (a : String) (k : Nat) : locate ls a k = .missing ↔ anchorLines ls a = [] := by
+  unfold locate
+  rcases hA : anchorLines ls a with _ | ⟨n, _ | ⟨m, rest⟩⟩
+  · simp
+  · dsimp only; split <;> simp
+  · simp
+
+/-- **Twice**: refused, naming the lines, exactly when two or more lines hold the anchor. -/
+theorem locate_twice (ls : List String) (a : String) (k : Nat) (ns : List Nat) :
+    locate ls a k = .twice ns ↔ anchorLines ls a = ns ∧ 2 ≤ ns.length := by
+  unfold locate
+  rcases hA : anchorLines ls a with _ | ⟨n, _ | ⟨m, rest⟩⟩
+  · simp only [reduceCtorEq, false_iff, not_and]; rintro rfl; simp
+  · dsimp only
+    split <;> simp only [reduceCtorEq, false_iff, not_and] <;> rintro rfl <;> simp
+  · simp only [Located.twice.injEq]
+    constructor
+    · rintro rfl; simp
+    · rintro ⟨rfl, -⟩; rfl
+
+/-- **Outside**: refused exactly when the one anchor line is found but `span` lines from it do not fit. -/
+theorem locate_outside (ls : List String) (a : String) (k f t : Nat) :
+    locate ls a k = .outside f k t ↔ anchorLines ls a = [f] ∧ ¬(1 ≤ k ∧ f + k - 1 ≤ ls.length) ∧ t = ls.length := by
+  unfold locate
+  rcases hA : anchorLines ls a with _ | ⟨n, _ | ⟨m, rest⟩⟩
+  · simp
+  · dsimp only
+    split
+    · rename_i hc
+      simp only [reduceCtorEq, false_iff, List.cons.injEq, and_true, not_and]
+      rintro rfl h2; exact (h2 hc.1 hc.2).elim
+    · rename_i hc
+      simp only [Located.outside.injEq, List.cons.injEq, and_true, true_and]
+      constructor
+      · rintro ⟨rfl, rfl⟩; exact ⟨rfl, hc, rfl⟩
+      · rintro ⟨rfl, -, rfl⟩; exact ⟨rfl, rfl⟩
+  · simp
+
+/-- Counting from `n + k` shifts every anchor line by `k`. -/
+theorem anchorLinesFrom_shift (a : String) (ls : List String) (n k : Nat) :
+    anchorLinesFrom a (n + k) ls = (anchorLinesFrom a n ls).map (· + k) := by
+  induction ls generalizing n with
+  | nil => rfl
+  | cons l ls ih =>
+    simp only [anchorLinesFrom]
+    have := ih (n + 1)
+    rw [show n + k + 1 = n + 1 + k by omega, this]
+    split <;> simp [Nat.add_comm]
+
+/-- Lines without the anchor in front only move the count. -/
+theorem anchorLinesFrom_prefix (a : String) (pre ls : List String) (n : Nat) (h : ∀ l ∈ pre, l.contains a = false) :
+    anchorLinesFrom a n (pre ++ ls) = anchorLinesFrom a (n + pre.length) ls := by
+  induction pre generalizing n with
+  | nil => rfl
+  | cons l pre ih =>
+    simp only [List.cons_append, anchorLinesFrom, h l (by simp), List.length_cons]
+    rw [ih (n + 1) (fun x hx => h x (by simp [hx]))]
+    exact congrArg (anchorLinesFrom a · ls) (by omega)
+
+/-- **A line move cannot break an excerpt**: lines added above it without the anchor shift its range by their count. -/
+theorem locate_shift (pre ls : List String) (a : String) (k f l : Nat) (h : ∀ x ∈ pre, x.contains a = false)
+    (hl : locate ls a k = .at f l) : locate (pre ++ ls) a k = .at (f + pre.length) (l + pre.length) := by
+  obtain ⟨h1, h2, h3, h4⟩ := (locate_at ls a k f l).mp hl
+  have hA : anchorLines (pre ++ ls) a = [f + pre.length] := by
+    simp only [anchorLines] at h1 ⊢
+    rw [anchorLinesFrom_prefix a pre ls 1 h, anchorLinesFrom_shift, h1]; simp
+  refine (locate_at _ a k _ _).mpr ⟨hA, h2, ?_, ?_⟩
+  · simp; omega
+  · omega
 
 /-- A step of the mechanism, in plain words. -/
 def earnMechanism : List String :=

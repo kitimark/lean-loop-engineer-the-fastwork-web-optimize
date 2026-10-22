@@ -37,8 +37,8 @@ open Fw.Console.LandVerdict
 
 /-- The pure stage functions of a land, of the main commit `m` and the branch tip `b`: the scope check of the diff, the
 clean merge, whether the change selects the reads-scan check (`LandSpeed.scan_selected`; so the static reads test is part of the real checks), and
-that test's verdict on the merge tree, whether the branch has commits of its own, and the fast lints (the axiom check and
-`ci-paths --check`, run on the merge tree) that refused real lands (task `land-dry-full`). -/
+that test's verdict on the merge tree, whether the branch has commits of its own, and the fast lints (`lintPlan`, run on the
+merge tree) that refused real lands (tasks `land-dry-full`, `dry-gen-fresh`). -/
 structure Stages where
   scope : String → String → Bool
   merges : String → String → Bool
@@ -285,35 +285,72 @@ theorem kind_ofStages (w : Stages) (c : Bool) (m0 b : String) : (Outcome.ofStage
 
 /-- The fast lints a dry run can run. -/
 inductive Lint where
-  | ciPaths | axioms
+  | ciPaths | footprint | axioms
 deriving DecidableEq, Repr
 
 /-- The command of a lint, run in the merge-tree worktree. -/
 def Lint.argv : Lint → List String
   | .ciPaths => ["node", "scripts/ci-paths.mjs", "--check"]
+  | .footprint => ["node", "apps/site/scripts/part-footprint.mjs", "--check"]
   | .axioms => ["sh", "-c", "cd lean && . ../scripts/lake-slot-lib.sh && (lake_slot .. lake build) >&2 && sh scripts/axiom-check.sh"]
 
-/-- The lints a dry run runs, given the changed paths and whether the tree has each script: `ci-paths` whenever its script exists,
-the axiom check when its script exists and some changed path is under `lean/`. -/
-def lintPlan (changed : List String) (hasCiPaths hasAxioms : Bool) : List Lint :=
+/-- The paths `apps/site/scripts/part-footprint.mjs` reads or writes: the part sources, `App.tsx`, the script and its two outputs. -/
+def footprintInput (p : String) : Bool :=
+  p.startsWith "apps/site/src/parts/" || p == "apps/site/src/App.tsx" || p == "apps/site/scripts/part-footprint.mjs" ||
+    p == "lean/Fw/Parts/FootprintData.lean" || p == "packages/contracts/golden/parts/footprint.gen.json"
+
+/-- The lint plan before the footprint freshness lint (incident `inc-dry-gen-stale`). -/
+def basePlan (changed : List String) (hasCiPaths hasAxioms : Bool) : List Lint :=
   (if hasCiPaths then [Lint.ciPaths] else []) ++
   (if hasAxioms && changed.any (·.startsWith "lean/") then [Lint.axioms] else [])
 
+/-- The lints a dry run runs: `ci-paths` when its script exists, the footprint check when its script exists and the change
+touches a `footprintInput`, the axiom check when its script exists and the change touches `lean/`. -/
+def lintPlan (changed : List String) (hasCiPaths hasAxioms hasFootprint : Bool) : List Lint :=
+  (if hasCiPaths then [Lint.ciPaths] else []) ++
+  (if hasFootprint && changed.any footprintInput then [Lint.footprint] else []) ++
+  (if hasAxioms && changed.any (·.startsWith "lean/") then [Lint.axioms] else [])
+
+#guard lintPlan ["apps/site/src/parts/nav/index.tsx"] true true true == [.ciPaths, .footprint]
+#guard lintPlan ["lean/Fw/Parts/FootprintData.lean"] true true true == [.ciPaths, .footprint, .axioms]
+#guard lintPlan ["apps/site/src/partsx/a.ts"] true true true == [.ciPaths]
+#guard lintPlan ["apps/site/src/App.tsx"] true true false == [.ciPaths]
+
 /-- **ci-paths runs exactly when its script exists.** -/
-theorem ciPaths_mem_plan (P : List String) (a v : Bool) : Lint.ciPaths ∈ lintPlan P a v ↔ a = true := by
-  cases a <;> cases v <;> simp [lintPlan]
+theorem ciPaths_mem_plan (P : List String) (a v g : Bool) : Lint.ciPaths ∈ lintPlan P a v g ↔ a = true := by
+  cases a <;> cases v <;> cases g <;> simp [lintPlan]
 
 /-- **The axiom check runs exactly when its script exists and the change touches `lean/`.** -/
-theorem axioms_mem_plan (P : List String) (a v : Bool) :
-    Lint.axioms ∈ lintPlan P a v ↔ (v = true ∧ ∃ p ∈ P, p.startsWith "lean/" = true) := by
-  cases a <;> cases v <;> simp [lintPlan]
+theorem axioms_mem_plan (P : List String) (a v g : Bool) :
+    Lint.axioms ∈ lintPlan P a v g ↔ (v = true ∧ ∃ p ∈ P, p.startsWith "lean/" = true) := by
+  cases a <;> cases v <;> cases g <;> simp [lintPlan]
 
 /-- A change that touches no path under `lean/` never runs the axiom check. -/
-theorem no_axioms_without_lean (P : List String) (a v : Bool) (h : ∀ p ∈ P, p.startsWith "lean/" = false) :
-    Lint.axioms ∉ lintPlan P a v := by
+theorem no_axioms_without_lean (P : List String) (a v g : Bool) (h : ∀ p ∈ P, p.startsWith "lean/" = false) :
+    Lint.axioms ∉ lintPlan P a v g := by
   rw [axioms_mem_plan]
   rintro ⟨_, p, hp, hs⟩
   have := h p hp; simp_all
+
+/-- **The footprint check runs exactly when its script exists and the change touches a generator input.** -/
+theorem footprint_mem_plan (P : List String) (a v g : Bool) :
+    Lint.footprint ∈ lintPlan P a v g ↔ (g = true ∧ ∃ p ∈ P, footprintInput p = true) := by
+  cases a <;> cases v <;> cases g <;> simp [lintPlan]
+
+/-- **A change to a generator input selects its check** when the tree has the script. -/
+theorem gen_selected (P : List String) (a v : Bool) (p : String) (hp : p ∈ P) (hi : footprintInput p = true) :
+    Lint.footprint ∈ lintPlan P a v true :=
+  (footprint_mem_plan P a v true).mpr ⟨rfl, p, hp, hi⟩
+
+/-- **A change that touches no generator input gives the old plan.** -/
+theorem lintPlan_old (P : List String) (a v g : Bool) (h : ∀ p ∈ P, footprintInput p = false) :
+    lintPlan P a v g = basePlan P a v := by
+  have : P.any footprintInput = false := by simpa using h
+  simp [lintPlan, basePlan, this]
+
+/-- **A tree without the generator script gives the old plan.** -/
+theorem lintPlan_noScript (P : List String) (a v : Bool) : lintPlan P a v false = basePlan P a v := by
+  simp [lintPlan, basePlan]
 
 /-- The lint stage passes iff every planned lint passed. -/
 def lintsPass (plan : List Lint) (r : Lint → Bool) : Bool := plan.all r
@@ -321,6 +358,31 @@ def lintsPass (plan : List Lint) (r : Lint → Bool) : Bool := plan.all r
 /-- **Lints pass iff each planned lint passes.** -/
 theorem lintsPass_iff (plan : List Lint) (r : Lint → Bool) : lintsPass plan r = true ↔ ∀ l ∈ plan, r l = true := by
   simp [lintsPass]
+
+/-- The stage table `w` whose lint stage runs `lintPlan` on the changed paths and judges each lint by `r`. -/
+def Stages.planned (w : Stages) (changed : String → String → List String) (a v g : Bool) (r : String → String → Lint → Bool) :
+    Stages :=
+  { w with lints := fun m b => lintsPass (lintPlan (changed m b) a v g) (r m b) }
+
+/-- **A dry pass is a land pass with the new lint**: `dry_pass_land_pass` for the planned lint stage. -/
+theorem dry_pass_land_pass_planned (w : Stages) (ch : String → String → List String) (a v g : Bool) (r : String → String → Lint → Bool)
+    (c : Bool) (m0 h b : String) (hd : dryKind (w.planned ch a v g r) c m0 b = .dry) (hh : h = m0) : landStages w h b = none :=
+  dry_pass_land_pass (w.planned ch a v g r) c m0 h b hd hh
+
+/-- **A dry refusal is the land's refusal with the new lint**: `dry_refusal_is_land_refusal` for the planned lint stage. -/
+theorem dry_refusal_is_land_refusal_planned (w : Stages) (ch : String → String → List String) (a v g : Bool)
+    (r : String → String → Lint → Bool) (c : Bool) (m0 h b : String) (s : Stage) (hd : dryKind (w.planned ch a v g r) c m0 b = s.kind)
+    (hh : h = m0) : landStages w h b = some s :=
+  dry_refusal_is_land_refusal (w.planned ch a v g r) c m0 h b s hd hh
+
+/-- **A stale footprint never passes the dry**: a change to a generator input whose footprint check fails is not `dry`. -/
+theorem gen_stale_refuses (w : Stages) (ch : String → String → List String) (a v : Bool) (r : String → String → Lint → Bool)
+    (c : Bool) (m0 b p : String) (hp : p ∈ ch m0 b) (hi : footprintInput p = true) (hr : r m0 b .footprint = false) :
+    dryKind (w.planned ch a v true r) c m0 b ≠ .dry := by
+  intro hd
+  have hl := (dry_pass_all _ c m0 b hd).2.2.2.2.2
+  have := (lintsPass_iff _ _).mp hl .footprint (gen_selected _ a v p hp hi)
+  simp_all
 
 /-! ### The real land prints the same kind for the same failure -/
 
@@ -425,9 +487,10 @@ def outcomes : List Outcome :=
     bs.map fun g => ⟨a, b, c, d, e, f, g⟩
 
 /-- A `landDry.lintPlan` case: the argv list of the lints run. -/
-def planCase (name : String) (changed : List String) (a v : Bool) : Json :=
-  line name [("op", "landDry.lintPlan"), ("changed", toJson changed), ("hasCiPaths", .bool a), ("hasAxioms", .bool v)]
-    [("argv", toJson ((lintPlan changed a v).map Lint.argv))]
+def planCase (name : String) (changed : List String) (a v : Bool) (g : Bool := true) : Json :=
+  line name [("op", "landDry.lintPlan"), ("changed", toJson changed), ("hasCiPaths", .bool a), ("hasAxioms", .bool v),
+      ("hasFootprint", .bool g)]
+    [("argv", toJson ((lintPlan changed a v g).map Lint.argv))]
 
 /-- A `landDry.checkKind` case: the kind of the real land's refusal from its failed checks (each: reads-test match, failed stages). -/
 def ckCase (name : String) (fs : List FailedCheck) : Json :=
@@ -435,7 +498,7 @@ def ckCase (name : String) (fs : List FailedCheck) : Json :=
     [("kind", .str (checkFailKind fs).name)]
 
 /-- Every golden case: 14 kinds, one kind without a task, 15 dry-verdict cases, 14 hand-back cases, 129 dry-run cases (all 128 stage
-outcomes and one without a task), 7 lint-plan cases, 9 real-kind cases. -/
+outcomes and one without a task), 16 lint-plan cases, 9 real-kind cases. -/
 def cases (_ : Unit := ()) : List Json :=
   Kind.all.map (kindCase · "land-dry") ++
   [kindCase .dry "",
@@ -458,14 +521,23 @@ def cases (_ : Unit := ()) : List Json :=
   [planCase "plan: no lean change" ["apps/x.ts"] true true, planCase "plan: lean change" ["apps/x.ts", "lean/Fw/X.lean"] true true,
    planCase "plan: lean change, no axiom-check script" ["lean/Fw/X.lean"] true false, planCase "plan: no ci-paths script" ["lean/Fw/X.lean"] false true,
    planCase "plan: nothing changed" [] true true, planCase "plan: lean-like prefix is not lean" ["leanx/a", "apps/lean/b"] true true,
-   planCase "plan: no scripts" ["lean/a"] false false] ++
+   planCase "plan: no scripts" ["lean/a"] false false (g := false),
+   planCase "plan: part source selects the footprint check" ["apps/site/src/parts/nav/index.tsx"] true true,
+   planCase "plan: App.tsx selects the footprint check" ["apps/site/src/App.tsx"] true true,
+   planCase "plan: the generator script selects the footprint check" ["apps/site/scripts/part-footprint.mjs"] true true,
+   planCase "plan: the footprint golden selects the footprint check" ["packages/contracts/golden/parts/footprint.gen.json"] true true,
+   planCase "plan: FootprintData.lean selects the footprint and axiom checks" ["lean/Fw/Parts/FootprintData.lean"] true true,
+   planCase "plan: part source, no footprint script" ["apps/site/src/parts/nav/index.tsx"] true true (g := false),
+   planCase "plan: site change outside the parts is the old plan" ["apps/site/src/main.tsx", "apps/site/scripts/other.mjs"] true true,
+   planCase "plan: parts-like prefix is not a part" ["apps/site/src/partsx/a.ts", "x/apps/site/src/parts/a.ts"] true true,
+   planCase "plan: part source and lean change, no ci-paths script" ["apps/site/src/parts/a/b.css", "lean/Fw/X.lean"] false true] ++
   [ckCase "real: reads wins" [(true, ["axiom check"]), (false, [])], ckCase "real: axiom check only" [(false, ["axiom check"])],
    ckCase "real: lake build only" [(false, ["lake build"])], ckCase "real: both lint stages" [(false, ["lake build", "axiom check"])],
    ckCase "real: lint and test" [(false, ["axiom check", "lake test"])], ckCase "real: no stage reported" [(false, [])],
    ckCase "real: lint check and a plain check" [(false, ["axiom check"]), (false, [])], ckCase "real: two lint checks" [(false, ["lake build"]), (false, ["axiom check"])],
    ckCase "real: no failed check" []]
 
-#guard cases.length == 189
+#guard cases.length == 198
 
 /-- The golden file text: one compressed JSON line per case. -/
 def goldenText (_ : Unit := ()) : String := String.join (cases.map fun c => c.compress ++ "\n")

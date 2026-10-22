@@ -67,11 +67,22 @@ export function dryLog(o: Outcome): string[] {
 export const dryRun = (o: Outcome, task: string): string[] => [...dryLog(o), verdictLine(outcomeKind(o), task)];
 
 /** Lean `Lint.argv` of the lints in `lintPlan`. */
-export const LINT_ARGV = { ciPaths: ["node", "scripts/ci-paths.mjs", "--check"], axioms: ["sh", "-c", "cd lean && . ../scripts/lake-slot-lib.sh && (lake_slot .. lake build) >&2 && sh scripts/axiom-check.sh"] };
-/** Lean `lintPlan`: the argv of the lints a dry run runs: ci-paths when its script exists; the axiom check when its script exists
- *  and a changed path is under `lean/`. */
-export function lintPlan(changed: string[], hasCiPaths: boolean, hasAxioms: boolean): string[][] {
-  return [...(hasCiPaths ? [LINT_ARGV.ciPaths] : []), ...(hasAxioms && changed.some((p) => p.startsWith("lean/")) ? [LINT_ARGV.axioms] : [])];
+export const LINT_ARGV = {
+  ciPaths: ["node", "scripts/ci-paths.mjs", "--check"],
+  footprint: ["node", "apps/site/scripts/part-footprint.mjs", "--check"],
+  axioms: ["sh", "-c", "cd lean && . ../scripts/lake-slot-lib.sh && (lake_slot .. lake build) >&2 && sh scripts/axiom-check.sh"],
+};
+/** Lean `footprintInput`: a path the part footprint generator reads or writes. */
+export const footprintInput = (p: string): boolean =>
+  p.startsWith("apps/site/src/parts/") || p === "apps/site/src/App.tsx" || p === "apps/site/scripts/part-footprint.mjs" ||
+  p === "lean/Fw/Parts/FootprintData.lean" || p === "packages/contracts/golden/parts/footprint.gen.json";
+/** Lean `lintPlan`: the argv of the lints a dry run runs. */
+export function lintPlan(changed: string[], hasCiPaths: boolean, hasAxioms: boolean, hasFootprint: boolean): string[][] {
+  return [
+    ...(hasCiPaths ? [LINT_ARGV.ciPaths] : []),
+    ...(hasFootprint && changed.some(footprintInput) ? [LINT_ARGV.footprint] : []),
+    ...(hasAxioms && changed.some((p) => p.startsWith("lean/")) ? [LINT_ARGV.axioms] : []),
+  ];
 }
 
 /** Lean `lintStages`: the `check.sh` stages the dry lint stage runs. */

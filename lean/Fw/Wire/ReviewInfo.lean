@@ -5,7 +5,8 @@ import Fw.Console.ReviewInfo
 
 | op | request | reply |
 |---|---|---|
-| `console.reviewInfo` | `flag` (`part:variant`) | `ok`; with `ok` false only `reason` (no table is written for the flag). Otherwise `flag`, `summary`, `gains` [{metric, engine, push, viewport, before?, after? ([low, high]), noise, unit, status {kind (measured, modelled, unknown), runs?, aa?, theorem?, golden?, why?}, shown {kind (gain, noSaving, inNoise, overlap, worse, unknown), n?, text}}], `excerpts` [{id, side, file, first, last, anchor, note}], `mechanism` [text], `sources` [{claim, status, cite}], `formulas` [{id, tex, says, decl, file, line, kind}] (`Fw.Console.ReviewInfo`) |
+| `console.reviewInfo` | `flag` (`part:variant`) | `ok`; with `ok` false only `reason` (no table is written for the flag). Otherwise `flag`, `summary`, `gains` [{metric, engine, push, viewport, before?, after? ([low, high]), noise, unit, status {kind (measured, modelled, unknown), runs?, aa?, theorem?, golden?, why?}, shown {kind (gain, noSaving, inNoise, overlap, worse, unknown), n?, text}}], `excerpts` [{id, side, file, anchor, span, note}], `mechanism` [text], `sources` [{claim, status, cite}], `formulas` [{id, tex, says, decl, file, line, kind}] (`Fw.Console.ReviewInfo`) |
+| `console.reviewExcerpt` | `flag`, `excerpt` (an excerpt id), `lines` [text] (the excerpt's file, split at newlines) | `ok`; with `ok` true `first`, `last` (1-based); with `ok` false `reason` (`Fw.Console.ReviewInfo.locate`) |
 -/
 namespace Fw.Wire.ReviewInfo
 open Lean Fw.Wire.Ops Fw.Console.ReviewInfo
@@ -38,8 +39,7 @@ def gainJson (g : Gain) : Json :=
 
 /-- An excerpt as JSON. -/
 def excerptJson (e : Excerpt) : Json :=
-  Json.mkObj [("id", e.id), ("side", e.side), ("file", e.file), ("first", toJson e.first), ("last", toJson e.last),
-    ("anchor", e.anchor), ("note", e.note)]
+  Json.mkObj [("id", e.id), ("side", e.side), ("file", e.file), ("anchor", e.anchor), ("span", toJson e.span), ("note", e.note)]
 
 /-- A source as JSON. -/
 def sourceJson (s : Source) : Json := Json.mkObj [("claim", s.claim), ("status", s.status), ("cite", s.cite)]
@@ -59,5 +59,16 @@ def opReviewInfo (req : Json) : Except String Reply := do
       ("gains", .arr (gains.map gainJson).toArray), ("excerpts", .arr (excerpts.map excerptJson).toArray),
       ("mechanism", toJson mechanism), ("sources", .arr (sources.map sourceJson).toArray),
       ("formulas", .arr (formulas.map formulaJson).toArray)]
+
+/-- `console.reviewExcerpt`: the range of excerpt `excerpt` of `flag` in the given file lines (`locate`). -/
+def opReviewExcerpt (req : Json) : Except String Reply := do
+  let flag ← str req "flag"
+  let id ← str req "excerpt"
+  let lines ← (← arr req "lines").toList.mapM (asStr "lines")
+  let some (_, excerpts, _) := infoFor flag | pure [("ok", .bool false), ("reason", .str s!"no information table is written for {flag}")]
+  let some e := excerpts.find? (·.id == id) | pure [("ok", .bool false), ("reason", .str s!"{flag} has no excerpt {id}")]
+  match locate lines e.anchor e.span with
+  | .at f l => pure [("ok", .bool true), ("first", toJson f), ("last", toJson l)]
+  | loc => pure [("ok", .bool false), ("reason", .str ((loc.reason e.file e.anchor).getD ""))]
 
 end Fw.Wire.ReviewInfo

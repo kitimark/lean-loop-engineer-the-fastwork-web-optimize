@@ -27,7 +27,7 @@ describe("land verdict vs Lean golden", () => {
       expect(g.response).toEqual({ lines, kind: outcomeKind(oc), exit: exitCode(outcomeKind(oc)) });
       expect(lines.filter((l) => l.startsWith("VERDICT ")).length).toBe(1);
     } else if (q.op === "landDry.lintPlan") {
-      expect(g.response).toEqual({ argv: lintPlan(q.changed as string[], q.hasCiPaths as boolean, q.hasAxioms as boolean) });
+      expect(g.response).toEqual({ argv: lintPlan(q.changed as string[], q.hasCiPaths as boolean, q.hasAxioms as boolean, q.hasFootprint as boolean) });
     } else if (q.op === "landDry.checkKind") {
       expect(g.response).toEqual({ kind: checkFailKind(q.failed as { reads: boolean; stages: string[] }[]) });
     } else throw new Error(`unknown op ${q.op}`);
