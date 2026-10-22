@@ -14,7 +14,7 @@ name: smoothness
 # (lean/Fw/Measure/WebKitProfile.lean, twin packages/measure-webkit/src/profile/reduce.mjs); both have a cap row in Fw.Ci.Pool.Caps.
 # A head commit that also carries `[earn-bound]` (task earn-bound-arm) runs only `base`, `aa` and the probe-only `bound` arm (the faithful page with
 # the earn button's transitions off, packages/gate-breakpoints/src/smooth/bound.mjs) with each half of the end push held 1400 ms; no candidate search.
-# `[sim-only]` (with `[earn-bound]`) skips the macOS leg and runs 4 reps per simulator job: the Simulator tends to die after about 30 to 40 windows.
+# `[sim-only]` (with `[earn-bound]`) skips the macOS leg and runs 6 reps per simulator job (36 windows; a job needs 5 kept finish windows per arm to decide, and the Simulator tends to die after about 30 to 40 windows).
 # Tables: `node packages/measure-webkit/src/profile/cli.mjs report` over the downloaded artifacts smoothness-webkit-mac-N / -sim-N (N = the matrix job, 1 to 3).
 # Inputs of a ci/* push: the `[trajectory ...]` line of the head commit, parsed by the Lean-checked parser .github/scripts/trajectory-line.mjs
 # (preset or fw picks the candidate, widths the legs; empty widths = 390 and 1280; the engines key is ignored).
@@ -406,7 +406,7 @@ jobs:
           SEARCH: ${{ needs.site.outputs.search }}
           SITE_DIR: ${{ runner.temp }}/site
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
-          REPS: ${{ contains(github.event.head_commit.message, '[sim-only]') && '4' || contains(github.event.head_commit.message, '[earn-bound]') && '7' || '5' }}
+          REPS: ${{ contains(github.event.head_commit.message, '[sim-only]') && '6' || contains(github.event.head_commit.message, '[earn-bound]') && '7' || '5' }}
           # The runner boots Safari several times slower than a Mac: every wait in packages/measure-webkit is scaled (counts do not depend on waits).
           FW_WK_TIMEOUT_SCALE: '8'
           FW_WK_ATTEMPTS: '3'
