@@ -6,7 +6,7 @@ import { createPanelWriter } from './driver';
 import { PANEL } from './content';
 import css from './morph.module.css';
 
-/** The variant that keeps the panel box at the nav's final size (Lean `Fw.Parts.MorphConstBounds`). */
+/** The variant that keeps the panel box at the nav's final size while the nav morphs (Lean `Fw.Parts.MorphConstBounds`). */
 export const CONST_BOUNDS = 'const-bounds';
 
 export type PanelWriter = ReturnType<typeof createPanelWriter>;
@@ -38,80 +38,69 @@ export function MorphPanel({ variant, impl = 'mui', initialMorph = 0, writerRef,
   }, []);
 
   const mui = impl === 'mui';
-  const content = (
-    <>
-      <div className={css.backdrop} data-fw-role="backdrop" aria-hidden="true">
-        {backdrop}
-      </div>
-      <div className={css.veil} data-fw-role="veil" aria-hidden="true" />
-      <div className={css.center} data-fw-role="center">
-        {mui ? (
-          <Typography variant="body1" component="p" className={css.title} data-fw-role="title">
-            {PANEL.title}
-          </Typography>
-        ) : (
-          <p className={css.title} data-fw-role="title">
-            {PANEL.title}
-          </p>
-        )}
-        <div className={css.countdown} data-fw-role="countdown">
-          {countdown}
-        </div>
-        <div className={css.ctaStack} data-fw-role="cta-stack">
-          {mui ? (
-            <ButtonBase ref={ctaRef} className={css.cta} focusRipple={false} tabIndex={-1} data-fw-role="cta" data-selenium="start-selling.header.button.other-role" onClick={onAction}>
-              <BellIcon />
-              {PANEL.cta}
-            </ButtonBase>
-          ) : (
-            <button ref={ctaRef} type="button" className={css.cta} tabIndex={-1} data-fw-role="cta" data-selenium="start-selling.header.button.other-role" onClick={onAction}>
-              <BellIcon />
-              {PANEL.cta}
-            </button>
-          )}
-          <a
-            href={PANEL.rsvpHref}
-            target="_blank"
-            rel="noopener"
-            className={css.rsvp}
-            data-fw-role="link"
-            data-selenium="start-selling.header.link.demo-day"
-          >
-            <CalendarIcon />
-            {PANEL.rsvp}
-          </a>
-        </div>
-      </div>
-      <footer className={css.footer} data-fw-role="footer">
-        <p>{PANEL.operated}</p>
-        <div className={css.footerEnd} data-fw-role="footer-end">
-          <p>{PANEL.copyright}</p>
-          <span className={css.grad} data-fw-role="grad" aria-hidden="true" />
-          <a href={PANEL.privacyHref} data-selenium="start-selling.header.link.privacy">
-            {PANEL.privacy}
-          </a>
-        </div>
-      </footer>
-    </>
-  );
   return (
-    <div
-      ref={panelRef}
-      className={variant === CONST_BOUNDS ? `${css.panel} ${css.cb}` : css.panel}
-      data-fw="morph-panel"
-      data-fw-layer="morph.panel_panel"
-      data-fw-variant={variant}
-      data-start-selling-scene="paused"
-      aria-hidden="true"
-    >
-      {variant === CONST_BOUNDS ? (
-        <div className={css.frame} data-fw-role="frame">
-          {content}
+      <div
+        ref={panelRef}
+        className={variant === CONST_BOUNDS ? `${css.panel} ${css.cb}` : css.panel}
+        data-fw="morph-panel"
+        data-fw-layer="morph.panel_panel"
+        data-fw-variant={variant}
+        data-start-selling-scene="paused"
+        aria-hidden="true"
+      >
+        <div className={css.backdrop} data-fw-role="backdrop" aria-hidden="true">
+          {backdrop}
         </div>
-      ) : (
-        content
-      )}
-    </div>
+        <div className={css.veil} data-fw-role="veil" aria-hidden="true" />
+        <div className={css.center} data-fw-role="center">
+          {mui ? (
+            <Typography variant="body1" component="p" className={css.title} data-fw-role="title">
+              {PANEL.title}
+            </Typography>
+          ) : (
+            <p className={css.title} data-fw-role="title">
+              {PANEL.title}
+            </p>
+          )}
+          <div className={css.countdown} data-fw-role="countdown">
+            {countdown}
+          </div>
+          <div className={css.ctaStack} data-fw-role="cta-stack">
+            {mui ? (
+              <ButtonBase ref={ctaRef} className={css.cta} focusRipple={false} tabIndex={-1} data-fw-role="cta" data-selenium="start-selling.header.button.other-role" onClick={onAction}>
+                <BellIcon />
+                {PANEL.cta}
+              </ButtonBase>
+            ) : (
+              <button ref={ctaRef} type="button" className={css.cta} tabIndex={-1} data-fw-role="cta" data-selenium="start-selling.header.button.other-role" onClick={onAction}>
+                <BellIcon />
+                {PANEL.cta}
+              </button>
+            )}
+            <a
+              href={PANEL.rsvpHref}
+              target="_blank"
+              rel="noopener"
+              className={css.rsvp}
+              data-fw-role="link"
+              data-selenium="start-selling.header.link.demo-day"
+            >
+              <CalendarIcon />
+              {PANEL.rsvp}
+            </a>
+          </div>
+        </div>
+        <footer className={css.footer} data-fw-role="footer">
+          <p>{PANEL.operated}</p>
+          <div className={css.footerEnd} data-fw-role="footer-end">
+            <p>{PANEL.copyright}</p>
+            <span className={css.grad} data-fw-role="grad" aria-hidden="true" />
+            <a href={PANEL.privacyHref} data-selenium="start-selling.header.link.privacy">
+              {PANEL.privacy}
+            </a>
+          </div>
+        </footer>
+      </div>
   );
 }
 
