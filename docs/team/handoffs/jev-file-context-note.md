@@ -1,6 +1,6 @@
 # Handoff jev-file-context-note
 
-- Branch `worktree-wf_eab180aa-d3f-1`, worktree `.claude/worktrees/wf_eab180aa-d3f-1`; last commit: see `git log -1`.
+- Branch `worktree-wf_eab180aa-d3f-1`, worktree `.claude/worktrees/wf_eab180aa-d3f-1`; content commit `35762bbd` (merged main `68e36b44`); dry land `VERDICT dry`, review ready `VERDICT review-ready`.
 - CI runs: none (research note, no measurement lane).
 - Delivered: `research/notes/2026/10-2x-jev-file-context.md` (negative result: do not expand named files into the
   Jev state) and `scripts/jev-leak.mjs` (the scan every number in the note comes from).
