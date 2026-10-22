@@ -70,7 +70,6 @@ const POOLED = [87823, 89931, 1898, 94518, 106347, 105730, 102091, 1034, 2091, 7
 const fwcore = join(root, "lean/.lake/build/bin/fwcore");
 const params = { budgetMs: 30000, budgets: [], ceilings: [], kDen: 2, kNum: 3, loadMax: 8, nMin: 5, window: 20, stages: [] };
 const sample = (step: string, durMs: number) => ({ durMs, exit: 0, host: "local", load: 4, runKind: "", skipped: false, step, tool: "fw" });
-/** A sample made up for a test, not read from timings.jsonl: it carries `synthetic: true` (fwcore ignores the field) so no reader takes it for a measurement. */
 const synthetic = (step: string, durMs: number, tool = "fw") => ({ ...sample(step, durMs), tool, synthetic: true });
 const lastCode = (samples: object[]): string => {
   const r = spawnSync(fwcore, [], { input: `${JSON.stringify({ id: 0, op: "obs.timing", params, samples })}\n`, encoding: "utf8", maxBuffer: 64 << 20 });
@@ -124,7 +123,7 @@ describe("slot run writes the run span under the command key", () => {
     process.env.FW_TIMINGS_FILE = file;
     try {
       const d = { env: { FW_SLOT_HELD: "1", PATH: process.env.PATH }, out: () => {}, err: () => {} } as never;
-      await expect(run(d, "check", ["sh\0x"], false)).rejects.toThrow(); // a NUL byte in the program makes spawn throw
+      await expect(run(d, "check", ["sh\0x"], false)).rejects.toThrow();
       const rows = readFileSync(file, "utf8").trim().split("\n").map((l) => JSON.parse(l) as { step: string; exit: number });
       expect(rows.map((r) => [r.step, r.exit])).toEqual([["slot run check", EXIT_ERROR]]);
     } finally {

@@ -8,7 +8,6 @@ import { branchCard } from "../../console-api/src/reconcile/naming.ts";
 import { begin as rawBegin, record as rawRecord, span as rawSpan } from "./timing.ts";
 
 let stepPrefix = "";
-/** Lean `LandDry.dryTotalStep`: the dry land's total span is keyed ` lake` when the run builds `lean/` (the axiom check is in its lint plan, or `fwcore` is built first). */
 export const dryTotalStep = (plan: string[][], fwcoreBuild: boolean): string => (plan.some((a) => a.join("\0") === LINT_ARGV.axioms.join("\0")) || fwcoreBuild ? "dry total lake" : "dry total");
 let dryStep: string | null = null;
 const begin: typeof rawBegin = (tool, step, cwd) => rawBegin(tool, stepPrefix + step, cwd);

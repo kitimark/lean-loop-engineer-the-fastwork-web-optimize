@@ -4,7 +4,6 @@ import Fw.Console.LandDry
 namespace Fw.Wire.Obs.DryStep
 open Lean Fw.Console.LandDry
 
-/-- Dry lands: the changed files, which lint scripts exist, whether the local tests build `fwcore` first. -/
 def cases : List (String × List String × Bool × Bool × Bool × Bool) :=
   [("site change only", ["apps/site/src/main.tsx"], true, true, true, false),
    ("lean change", ["lean/Fw/X.lean"], true, true, true, false),

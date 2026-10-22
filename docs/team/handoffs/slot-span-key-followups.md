@@ -1,6 +1,6 @@
 Branch: worktree-wf_e3ff40d3-d74-1
 Worktree: .claude/worktrees/wf_e3ff40d3-d74-1
-CI runs: none (local Lean + runner code; no CI push)
+CI runs: none (local Lean and runner code, no CI push)
 
 State: the six follow-ups of slot-span-key, each with a Lean rule, a golden or test.
 1. Wait spans: tool `fw wait` (`Timing.waitTool`, TS `WAIT_TOOL`), its own default budget `Params.waitBudgetMs` (30 min) inside
@@ -16,5 +16,5 @@ State: the six follow-ups of slot-span-key, each with a Lean rule, a golden or t
 Verified: lake build; runner package test (slot-span 44 tests); golden check; fwcore rebuilt through the slot.
 Limits: past samples keep their old keys; the slot-run span `slot run land pnpm fw land dry` is still bimodal (the plan is known only
 inside the child). Wait budget 30 min is a chosen value, not measured.
-Writes outside the graph writes: none beyond apps/runner/src/slot.ts etc.; new goldens dry-step.jsonl, slot-seen.jsonl are under obs/*.jsonl.
+Writes: apps/runner/src/slot.ts and the new goldens dry-step.jsonl, slot-seen.jsonl under obs/*.jsonl.
 Read first: SlotKey section of lean/Fw/Obs/Timing.lean, then apps/runner/src/slot-span.ts.

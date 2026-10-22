@@ -211,12 +211,8 @@ def counts (p : Params) (s : Sample) : Bool := s.full && !contended p s
 def windowOf (p : Params) (hist : List Sample) (k : Key) : List Nat :=
   lastN p.window ((hist.filter (fun s => decide (s.key = k) && counts p s)).map (·.durMs))
 
-/-- The tool of the queue wait spans (`slot wait <kind>`): the time between asking for a slot and the grant. -/
 def waitTool : String := "fw wait"
 
-/-- The budget of a tool: its first override in `budgets`, else the default `B_0`; queue waits (tool `waitTool`) default
-to their own `waitBudgetMs` (a wait is queue noise, not work).
--/
 def budgetOf (p : Params) (tool : String) : Nat :=
   (p.budgets.lookup tool).getD (if tool == waitTool then p.waitBudgetMs else p.budgetMs)
 
@@ -580,19 +576,14 @@ theorem land_budget_alert (p : Params) (hp : ∃ rest, p.ceilings = landCeilings
   · exact ⟨30000, by simp [ceilingOf, hr, landCeilings, ht, hst], hd, hn⟩
   · exact ⟨5000, by simp [ceilingOf, hr, landCeilings, ht, hst], hd, hn⟩
 
-/-- A wait span with no override is held to the wait budget, whatever the default budget. -/
 theorem budgetOf_wait (p : Params) (h : p.budgets.lookup waitTool = none) : budgetOf p waitTool = p.waitBudgetMs := by
   have e : waitTool == waitTool := by decide
   simp [budgetOf, h, e]
 
-/-- Any other tool without an override is held to the default budget. -/
 theorem budgetOf_work (p : Params) (t : String) (h : p.budgets.lookup t = none) (hw : t ≠ waitTool) :
     budgetOf p t = p.budgetMs := by
   simp [budgetOf, h, hw]
 
-/-- A queue wait within the wait budget (and under no ceiling) is never `slow`, however small the median of earlier
-waits: the 30 s default budget no longer applies to it.
--/
 theorem wait_within_budget_not_slow (p : Params) (hist : List Sample) (i : Nat) (s : Sample)
     (hw : s.tool = waitTool) (hu : p.budgets.lookup waitTool = none) (hc : ceilingOf p s.tool s.step = none)
     (hd : s.durMs ≤ p.waitBudgetMs) : (judge p hist i s).code ≠ .slow := by
@@ -605,9 +596,6 @@ theorem wait_within_budget_not_slow (p : Params) (hist : List Sample) (i : Nat) 
     rw [hw, budgetOf_wait p hu] at this
     omega
 
-/-- A queue wait over the wait budget, against a window long enough and a median below `d / k`, is `slow`: the wait
-budget is a real limit, not an exclusion.
--/
 theorem wait_over_budget_slow (p : Params) (hist : List Sample) (i : Nat) (s : Sample)
     (hw : s.tool = waitTool) (hu : p.budgets.lookup waitTool = none) (hn : p.nMin ≤ (windowOf p hist s.key).length)
     (hq : contended p s = false) (hB : p.waitBudgetMs < s.durMs)
@@ -1679,10 +1667,8 @@ def core (h : String) (args : List String) : List String :=
   let (_, first, _) := scan none args
   [base h] ++ (first.map tidy).toList
 
-/-- The program that is a launcher itself: `fw <subcommand> ...` is keyed by its subcommand. -/
 def fwLauncher : String := "fw"
 
-/-- The subcommand of an `fw` call: the first argument that is not a flag. -/
 def subOf (args : List String) : Option String := (args.find? fun a => !a.startsWith "-").map tidy
 
 def cmdKey : List String → Option String
@@ -1704,9 +1690,6 @@ def capKey (seen : List String) (cap : Nat) (k : Option String) : Option String 
   | some x => if seen.contains x || decide (seen.length < cap) then some x else none
   | none => none
 
-/-- The most keys a kind may have: 24, and fewer for the kinds whose commands are few (`land` 8, `sim` 4). The cap
-belongs to the kind, not to the log window the keys are read from.
--/
 def kindCap (kind : String) : Nat := if kind == "land" then 8 else if kind == "sim" then 4 else 24
 
 def runStep (kind : String) (seen : List String) (argv : List String) : String :=
@@ -1714,13 +1697,8 @@ def runStep (kind : String) (seen : List String) (argv : List String) : String :
   | some k => s!"slot run {kind} {k}"
   | none => s!"slot run {kind}"
 
-/-- Drop `suf` from the end of `s` when it ends with it. -/
 def dropSuffix (suf s : String) : String := if s.endsWith suf then (s.dropEnd suf.length).toString else s
 
-/-- The key of a run span name for `kind`: the text after `slot run <kind> ` without its ` cached` and ` dry` suffixes
-(the suffixes mark the cache and the dry flag, not the command); none for another kind, for the pooled name without a
-key, and for a name whose text is only a suffix word.
--/
 def stepKey (kind step : String) : Option String :=
   let pre := s!"slot run {kind} "
   if step.startsWith pre then
@@ -1728,14 +1706,12 @@ def stepKey (kind step : String) : Option String :=
     if k == "" || k == "dry" || k == "cached" then none else some k
   else none
 
-/-- The keys a kind has in a list of span names, without repeats. -/
 def seenKeys (kind : String) (steps : List String) : List String := (steps.filterMap (stepKey kind)).eraseDups
 
 theorem seenKeys_mem (kind : String) (steps : List String) (k : String) :
     k ∈ seenKeys kind steps ↔ ∃ s ∈ steps, stepKey kind s = some k := by
   simp [seenKeys, List.mem_eraseDups, List.mem_filterMap]
 
-/-- The seen set does not depend on where the log is cut: the keys of two parts are the keys of the whole. -/
 theorem seenKeys_append (kind : String) (a b : List String) (k : String) :
     k ∈ seenKeys kind (a ++ b) ↔ k ∈ seenKeys kind a ∨ k ∈ seenKeys kind b := by
   simp only [seenKeys_mem, List.mem_append]
@@ -1747,7 +1723,6 @@ theorem seenKeys_append (kind : String) (a b : List String) (k : String) :
     · exact ⟨s, Or.inl hs, h⟩
     · exact ⟨s, Or.inr hs, h⟩
 
-/-- A key is seen for a kind only through a span name of that kind. -/
 theorem stepKey_prefix (kind step k : String) (h : stepKey kind step = some k) :
     step.startsWith s!"slot run {kind} " = true := by
   by_cases hp : step.startsWith s!"slot run {kind} " = true
@@ -1780,9 +1755,6 @@ theorem capKey_some (seen : List String) (cap : Nat) (k : Option String) (x : St
       simp [capKey] at h
       grind
 
-/-- Admitting keys through the cap never takes a kind past its cap: from a seen set within the cap, a key the cap
-admits leaves the set within the cap.
--/
 theorem capKey_bounded (seen : List String) (cap : Nat) (k : Option String) (x : String) (hs : seen.length ≤ cap)
     (h : capKey seen cap k = some x) : (if x ∈ seen then seen else x :: seen).length ≤ cap := by
   rcases capKey_some seen cap k x h with hx | hl
@@ -1838,7 +1810,6 @@ def cases : List (String × String × List String × List String) :=
    "slot run check pnpm fw ci", "slot run check pnpm fw", "slot run check pnpm fw", "slot run check",
    "slot run land", "slot run land pnpm fw land", "slot run check pnpm fw land", "slot run sim"]
 
-/-- Span names, with the label forms that occur: keyed, pooled, dry, cached, other kinds. -/
 def seenCases : List (String × String × List String) :=
   [("keys, suffixes and repeats", "check",
     ["slot run check sh a.sh", "slot run check sh a.sh cached", "slot run check", "slot run check cached", "slot run check dry",

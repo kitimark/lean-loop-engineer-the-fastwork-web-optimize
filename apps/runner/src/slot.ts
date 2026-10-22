@@ -22,7 +22,6 @@ export const SLOT_USAGE = [
 ].join("\n");
 
 export const EXIT_REFUSED = 75;
-/** The exit a span records when a run ends by a throw, with no exit code of the command. */
 export const EXIT_ERROR = 70;
 
 export type State = { ctl: Ctl; holders: Entry[]; queue: Entry[]; simIdleSince: number; simIdle?: number | null; simCheckedAt?: number };

@@ -69,13 +69,11 @@ export function runStep(kind: string, seen: readonly string[], argv: string[]): 
   return k === null ? `slot run ${kind}` : `slot run ${kind} ${k}`;
 }
 
-/** Lean `Timing.waitTool`: the tool of the wait spans, which has its own budget in the timing verdict. */
 export const WAIT_TOOL = "fw wait";
 export const waitStep = (kind: string): string => `slot wait ${kind}`;
 
 const dropSuffix = (suf: string, s: string): string => (s.endsWith(suf) ? s.slice(0, s.length - suf.length) : s);
 
-/** Lean `SlotKey.stepKey`: the key of a run span name for `kind`, without its ` cached` and ` dry` suffixes. */
 export function stepKey(kind: string, step: string): string | null {
   const pre = `slot run ${kind} `;
   if (!step.startsWith(pre)) return null;
@@ -83,7 +81,6 @@ export function stepKey(kind: string, step: string): string | null {
   return k === "" || k === "dry" || k === "cached" ? null : k;
 }
 
-/** Lean `SlotKey.seenKeys` over span lines (any part of the log: the union over parts is the set of the whole). */
 export function seenKeys(chunk: string, kind: string, into: Set<string> = new Set()): string[] {
   for (const m of chunk.matchAll(/"step":"([^"]*)"/g)) {
     const k = stepKey(kind, m[1]!);
@@ -94,7 +91,6 @@ export function seenKeys(chunk: string, kind: string, into: Set<string> = new Se
 
 const CHUNK_BYTES = 4 << 20;
 
-/** The keys of `kind` in the whole log, read in chunks cut at a line end; no window. */
 export function seenInFile(f: string, kind: string): string[] {
   const fd = openSync(f, "r");
   const seen = new Set<string>();
