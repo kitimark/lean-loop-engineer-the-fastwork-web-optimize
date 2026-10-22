@@ -14,7 +14,6 @@ import { composeReply, parsePicks, readComposeRegistry, readLedger, runIdsIn } f
 import { resolve } from "../../site/src/registry/resolve.ts";
 import type { PartDef, PresetDef } from "../../site/src/registry/types.ts";
 
-/** Its own port range: preview.test.ts uses 47300-47339, builds.test.ts 47340+. */
 const TEST_BASE = 47420;
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "../../..");
@@ -156,7 +155,6 @@ describe("GET /api/compose over the real registry and ledger", () => {
     const r0 = await composeReply(ROOT, core, []) as any;
     const picks = r0.parts.flatMap((p: any) => p.variants.filter((v: any) => v.class === "measured" || v.class === "proved").slice(0, 1).map((v: any) => ({ part: p.id, variant: v.name })));
     expect(picks.length).toBeGreaterThan(2);
-    // Add picks one at a time while Lean allows them; whatever Lean allows must resolve on the site.
     const kept: { part: string; variant: string }[] = [];
     for (const p of picks) {
       const d = ((await composeReply(ROOT, core, [...kept, p])) as any).decision;
@@ -168,7 +166,6 @@ describe("GET /api/compose over the real registry and ledger", () => {
     expect(d.link.startsWith("?fw=")).toBe(true);
     const site = resolve(d.link, parts, presets);
     expect(site.ok).toBe(true);
-    // Picking in the reverse order gives the same link.
     expect((((await composeReply(ROOT, core, [...kept].reverse())) as any).decision).link).toBe(d.link);
   });
 
