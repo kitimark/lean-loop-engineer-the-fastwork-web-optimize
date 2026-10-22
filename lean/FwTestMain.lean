@@ -57,7 +57,6 @@ def FwTestMain.main (args : List String) : IO UInt32 := do
   -- ledger-merge-driver: packages/contracts/golden/ops/ledger-merge.jsonl (`-- --write-ledger-merge-golden` regenerates)
   if args.contains "--write-ledger-merge-golden" then discard <| Fw.Wire.LedgerMerge.Golden.run (← FwTest.Golden.root) true
   let lmg ← Fw.Wire.LedgerMerge.Golden.run (← FwTest.Golden.root) false
-  -- ledger-n-unique: packages/contracts/golden/console/ledger-unique.jsonl (`-- --write-ledger-unique-golden` regenerates)
   if args.contains "--write-ledger-unique-golden" then discard <| Fw.Wire.LedgerUnique.Golden.run (← FwTest.Golden.root) true
   let lug ← Fw.Wire.LedgerUnique.Golden.run (← FwTest.Golden.root) false
   -- replay timing (informational): 2,000 events through the reducer
