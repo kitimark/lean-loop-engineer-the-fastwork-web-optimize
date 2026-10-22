@@ -1,5 +1,5 @@
 import "./land-timeout.ts";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -163,13 +163,12 @@ describe("land() through the install step (inc-land-wt-lock-drift, land-install-
   it("real land, both installs fail: refused with kind install before any check runs", async () => {
     const { fx, http } = await setup();
     const installExec: InstallExec = () => ({ ok: false, tail: "boom" });
-    const marker = join(fx.root, "check-ran");
-    const checks = [["sh", "-c", `touch ${marker}`]];
-    const r = await land(BR, { http, cwd: fx.root, ci: false, task: "t1", retryMs: 1, lockWaitMs: 0, installExec, retries: 0, checks });
+    const r = await land(BR, { http, cwd: fx.root, ci: false, task: "t1", retryMs: 1, lockWaitMs: 0, installExec, retries: 0 });
     expect(r.ok).toBe(false);
     expect(r.kind).toBe("install");
     expect(landExit(r)).toBe(19);
-    expect(existsSync(marker)).toBe(false);
+    const logs = join(fx.root, ".fw-console", "land-logs");
+    expect(existsSync(logs) ? readdirSync(logs) : []).toEqual([]);
     expect(r.lines.join("\n")).toContain("offline stderr: boom");
     expect(existsSync(fx.root)).toBe(true);
   });
