@@ -204,6 +204,7 @@ import Fw.Gate.ShardObs
 import Fw.Gate.Search
 import Fw.Gate.Trajectory
 import Fw.Gate.Trajectory.Dispatch
+import Fw.Gate.TrajectoryGpu
 import Fw.Gate.Colour
 import Fw.Gate.RunPerm
 import Fw.Gate.Frames

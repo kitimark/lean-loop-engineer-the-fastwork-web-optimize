@@ -166,7 +166,11 @@ try {
       const dry = rest.includes("--dry");
       const res = await land(args[0]!, landOpts(task, allow)).catch((e: unknown): LandResult => ({ ok: false, lines: [`REFUSED: ${e instanceof Error ? e.message : String(e)}`], kind: "unknown", outcome: dry ? outcome({ threw: true }) : undefined }));
       if (dry) { const s = lastDryStep(); if (s !== null) spanExtra = { ...spanExtra, step: s.replace(/^dry total/, "land dry") }; }
-      if (dry) {
+      if (dry && res.kind === "install") {
+        for (const l of res.lines) console.error(l);
+        console.log(verdictLine("install", task ?? args[0]!));
+        process.exitCode = exitCode("install");
+      } else if (dry) {
         const oc = res.outcome ?? outcome({ threw: true });
         for (const l of res.lines) console.error(l);
         for (const l of dryRun(oc, task ?? args[0]!)) console.log(l);

@@ -8,7 +8,7 @@ text) share one cause: the outcome of a land was only prose. Here the outcome is
 line `VERDICT <kind> <task>` and exits with the kind's code, so a script decides from the exit code or from the first
 word after `VERDICT`, never from a text match.
 
-* kinds: `busy` `dirty` `scope` `reads` `conflict` `checks` `stale` `unknown` `lint` `rebuild` (refusals); `done` `dry` `queued` `empty` (successes);
+* kinds: `busy` `dirty` `scope` `reads` `conflict` `checks` `stale` `unknown` `lint` `rebuild` `install` (refusals); `done` `dry` `queued` `empty` (successes);
 * exit code: 0 for every success, a distinct non-zero number for every refusal (`exitCode_inj_refusal`);
 * retry: only `busy` and `dirty` are retried (`retryable_iff`): they say that the world, not the branch, is in the way.
 
@@ -20,16 +20,16 @@ namespace Fw.Console.LandVerdict
 
 /-- The outcome kinds of a land (or of a dry land, or of a queue entry). -/
 inductive Kind where
-  | busy | dirty | scope | reads | conflict | checks | stale | unknown | done | dry | queued | empty | lint | rebuild
+  | busy | dirty | scope | reads | conflict | checks | stale | unknown | done | dry | queued | empty | lint | rebuild | install
 deriving DecidableEq, Repr
 
 /-- All kinds, in the order of the golden file. -/
-def Kind.all : List Kind := [.busy, .dirty, .scope, .reads, .conflict, .checks, .stale, .unknown, .done, .dry, .queued, .empty, .lint, .rebuild]
+def Kind.all : List Kind := [.busy, .dirty, .scope, .reads, .conflict, .checks, .stale, .unknown, .done, .dry, .queued, .empty, .lint, .rebuild, .install]
 
 /-- The word printed after `VERDICT`. -/
 def Kind.name : Kind → String
   | .busy => "busy" | .dirty => "dirty" | .scope => "scope" | .reads => "reads" | .conflict => "conflict"
-  | .checks => "checks" | .stale => "stale" | .unknown => "unknown" | .done => "done" | .dry => "dry" | .queued => "queued" | .empty => "empty" | .lint => "lint" | .rebuild => "rebuild"
+  | .checks => "checks" | .stale => "stale" | .unknown => "unknown" | .done => "done" | .dry => "dry" | .queued => "queued" | .empty => "empty" | .lint => "lint" | .rebuild => "rebuild" | .install => "install"
 
 /-- Is the kind a success? A finished land, a passing dry land, an accepted queue entry. -/
 def Kind.ok : Kind → Bool
@@ -39,7 +39,7 @@ def Kind.ok : Kind → Bool
 always used for a refusal). -/
 def Kind.exitCode : Kind → Nat
   | .busy => 10 | .dirty => 11 | .scope => 12 | .reads => 13 | .conflict => 14 | .checks => 15 | .stale => 16
-  | .lint => 17 | .rebuild => 18 | .unknown => 2 | .done => 0 | .dry => 0 | .queued => 0 | .empty => 0
+  | .lint => 17 | .rebuild => 18 | .install => 19 | .unknown => 2 | .done => 0 | .dry => 0 | .queued => 0 | .empty => 0
 
 /-- Does a kind justify trying the same land again later? Only `busy` (another land holds the lock) and `dirty` (the main
 checkout has uncommitted changes) say that something other than the branch is in the way. -/
@@ -76,9 +76,29 @@ theorem verdictLine_prefix (k : Kind) (t : String) :
     ∃ r, verdictLine k t = "VERDICT " ++ k.name ++ " " ++ r :=
   ⟨if t == "" then "-" else t, rfl⟩
 
-#guard Kind.all.length == 14
-#guard (Kind.all.map Kind.name).eraseDups.length == 14
-#guard ((Kind.all.filter (fun k => !k.ok)).map Kind.exitCode).eraseDups.length == 10
+/-- Does the land worktree's offline install need the online retry? Only when the offline install failed. -/
+def installRunsOnline (offlineOk : Bool) : Bool := !offlineOk
+
+/-- The install step's refusal: `install` when both installs failed, else none. -/
+def installKind (offlineOk onlineOk : Bool) : Option Kind :=
+  if offlineOk || onlineOk then none else some .install
+
+theorem installKind_offline_ok (onlineOk : Bool) : installKind true onlineOk = none ∧ installRunsOnline true = false := by
+  simp [installKind, installRunsOnline]
+
+theorem installKind_online_ok : installKind false true = none ∧ installRunsOnline false = true := by
+  simp [installKind, installRunsOnline]
+
+theorem installKind_both_fail : installKind false false = some .install ∧ Kind.exitCode .install = 19 := by
+  simp [installKind, Kind.exitCode]
+
+theorem installKind_refusal (a b : Bool) (k : Kind) (h : installKind a b = some k) : k = .install ∧ k.ok = false := by
+  cases a <;> cases b <;> simp [installKind] at h
+  subst h; exact ⟨rfl, rfl⟩
+
+#guard Kind.all.length == 15
+#guard (Kind.all.map Kind.name).eraseDups.length == 15
+#guard ((Kind.all.filter (fun k => !k.ok)).map Kind.exitCode).eraseDups.length == 11
 #guard verdictLine .busy "land-dry" == "VERDICT busy land-dry"
 #guard verdictLine .scope "" == "VERDICT scope -"
 
