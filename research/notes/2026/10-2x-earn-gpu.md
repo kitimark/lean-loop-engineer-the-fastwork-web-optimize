@@ -318,8 +318,10 @@ windows, insufficient), with the Lean `across` verdict `same` for the pair `base
 
 Report: `results/earn-bound/report.json` is valid. `fwcore` `console.report` answers `"invalid":[]` (an empty
 `invalid` list is the accepted case, not a refusal) and one item "Review the report earn-bound-webkit" with state
-`unposted`; it is not posted. Ledger: a notes row for `nav.earn.noTransition` (task earn-bound-arm) in
-`research/findings/ledger.json`.
+`unposted`; it is not posted. Ledger: `research/findings/ledger.json` tracks this candidate (`nav.earn.noTransition`, n 39) but is outside the
+task's writes, so the lead adds one `notes` row (entry = that finding's `candidate` text, task `earn-bound-arm`, field
+`mechanism`) carrying the three bullets above: runs 39729682403, 39754568950, 39744983394; `across` `same` in 3 of 3
+jobs per leg; `hitchJudge_second`, `hitchVerdict_noisy`, `across_same`; the lesson.
 
 ## What this changes in the plan
 

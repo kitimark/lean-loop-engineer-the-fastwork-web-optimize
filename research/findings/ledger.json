@@ -2819,6 +2819,55 @@
    "evidence": "CI runs 39744563175, 39747969466, 39744614747, 39744653093, 39751427150 (hung), 39760667274; research/notes/2026/10-2x-morph-constant-bounds.md; results/morph-constant-bounds/report.json"
   },
   {
+   "id": "pain.dark-scroll",
+   "n": 47,
+   "part": "pain",
+   "candidate": "pain:dark-scroll: at most 860 px, replace the is-pain-dark class flip (section restyle and background repaint) with two empty solid layers whose opacity runs on the root scroll timeline with steps(1, jump-start), range start 256 px before the flip written once per layout; people.card stops toggling the class where the engine runs it (continues n=21)",
+   "status": "partly-proved",
+   "flag": "pain:dark-scroll",
+   "flags": [
+    "pain:dark-scroll"
+   ],
+   "chromium": "trade",
+   "webkit": "trade",
+   "visual": "E-s under Reveal and Cont (Fw.Parts.PainDarkScroll pixel_eq, opacity_eq: opacity is exactly 0 or 1, no ramp); where Reveal fails (a quick swipe beats the 0.9 s card reveal) the original is the later arm by at most 48 px of scroll (drift_window); flip-frame timing Q (the original flips in a rAF after the scroll callback, the layer in the UI process, INFERRED) The gate compares the pre-flip state only (anchors.json excludes is-pain-dark and the people flip; cells are read at scroll 0); the post-flip look rests on Lean pixel_eq and the pending trajectory pain-dark cell.",
+   "mechanism": "MEASURED (CI chromium-counts, 430x932 dpr 3, swipe-v1, 3 identical runs; base 39818749535, flag 39828614430): in the toggle frame (scroll 970) the invalidated paint area falls 3,413,963 to 3,013,203 px (one viewport) and raster tasks 26 to 20; over the swipe invalidation area falls 4.0 percent, tiles 6.6 percent; price +3 layers in every frame (two solid pseudo-elements and an INFERRED host, no tiles) and +14 style recalcs. MEASURED (CI webkit-sim, iOS Simulator 430x775, 2 passes per arm; base 39818734599, flag 39828605244): the two pseudo-element layers exist with reason animation and no backing; the painted area of a scroll pass is 28 and 34 percent lower; price +12.0 MB backing at the two scroll states showing the Pain stage, because the stage text block is promoted above the animated layer (reason overlap; cause INFERRED); the toggle-step paint spike moves between steps and is not separable from noise. Breakpoint gate both engines on the final design: run 39828600078 pass. Three designs failed first: a child div (the gate selects the sticky as first child), transparent sticky and hold (the gate compares their computed background-color; run 39818716087), and a 1 px range (WebKit accelerates only the active phase, so the layers never appeared in the census and the flip stays on the main thread; run 39822439200).",
+   "leanFor": [
+    "Fw.Parts.PainDarkScroll.pixel_eq",
+    "Fw.Parts.PainDarkScroll.opacity_eq",
+    "Fw.Parts.PainDarkScroll.layer_flip",
+    "Fw.Parts.PainDarkScroll.measure_eq",
+    "Fw.Parts.PainDarkScroll.wide_eq",
+    "Fw.Parts.PainDarkScroll.drift_window",
+    "Fw.Parts.PainDarkScroll.dark_accelerated",
+    "Fw.Parts.PainDarkScroll.no_lift",
+    "Fw.Parts.PainDarkScroll.toggle_free",
+    "Fw.Parts.PainDarkScroll.layer_backing_zero"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.PainDarkScroll.reveal_needed",
+    "Fw.Parts.PainDarkScroll.cont_needed",
+    "Fw.Parts.PainDarkScroll.promoted_cost",
+    "Fw.Parts.PainDarkScroll.ride_exceeds"
+   ],
+   "missingWhy": [
+    "Running the flip in the UI process is INFERRED (UIProcess sources are not in the clone); the census shows the layers with reason animation, which is the precondition",
+    "The WebKit overlap promotion of the stage text block (12 MB) is INFERRED from the layer list, not from RenderLayerCompositor source; an arrangement that avoids it is not tried",
+    "Toggle-frame duration is not measured (the counts lane has no durations; the Simulator pass is too noisy at two passes per arm)",
+    "Trajectory pain-dark cell is pending (gpu-trajectory-cells is not on main); Safari-on-Mac numbers belong to gpu-safari-lane"
+   ],
+   "premises": [
+    "Reveal: the card reveal translation has finished at the flip offset. Fails for a swipe averaging over about 530 px/s between the reveal point (0.72 of the exit range) and the flip (INFERRED from REVEAL_AT, the 0.9 s transition and cubic-bezier(.16,1,.3,1))",
+    "Cont: the original class is current at the offset. INFERRED false by up to one frame (rAF after the scroll callback)",
+    "CONFIRMED: ThreadedScrollDrivenAnimationsEnabled is stable and on by default (UnifiedWebPreferences.yaml:8518-8531@862f17d); steps are allowed on the threaded branch (KeyframeEffect.cpp:2001-2004@862f17d)",
+    "CONFIRMED: a progress-based timeline lifts the scroll throttle only when an effect is not completely accelerated (AnimationTimelinesController.cpp:267-279@862f17d); this effect animates opacity only"
+   ],
+   "v1Evidence": "none (n=21 was not-tried)",
+   "lesson": "A steps animation that is idle before its flip is not accelerated before it: the flip must lie inside the active phase (range starts earlier, the step is a keyframe). And a layer placed under content makes the content overlap-promote in WebKit, so the layer budget of \"solid, 0 MB\" must include the layers the overlap forces.",
+   "next": "Judge on the Safari lane (gpu-safari-lane) with the trajectory pain-dark cell; try an arrangement that does not put content above the animated layer to remove the 12 MB.",
+   "evidence": "CI runs 39817106098 (cancelled), 39818716087 (gate fail), 39822433333, 39822439200, 39828600078 (gate pass), 39828605244, 39818734599, 39828614430, 39818749535; research/notes/2026/10-2x-pain-dark-scroll.md; results/pain-dark-scroll/report.json"
+  },
+  {
    "id": "morph.touch-band",
    "n": 46,
    "part": "morph.mount",
@@ -3172,12 +3221,6 @@
    "task": "morph-strip-webkit",
    "field": "mechanism",
    "text": "MEASURED on WebKit (runs 39775174615, 39776549128 (base: default rewrite) and 39775198022, 39776554155 (flag: ?fw=hero.countdown:strip,morph.countdown:strip)): with both strips the page holds 52-56 composited layers before the morph push against 128 with faces (72 hero face layers fewer); see the n=13 strip row for the morph-open counts."
-  },
-  {
-   "entry": "nav:earn-no-transition: the earn button's max-width, padding-inline and opacity transitions are off while the nav morphs, so they follow --morph instead of retargeting every frame",
-   "task": "earn-bound-arm",
-   "field": "mechanism",
-   "text": "earn-bound-arm (MEASURED, WebKit, finish zone; runs 39729682403 macOS, 39754568950 iOS Simulator, 39744983394 too few windows): a bound arm that switches every earn transition off at all times (transition: none on the button and its pseudo-elements; the earn-unmask and sheen animations stay) does not beat the faithful page, and the A/A copy is as far from base as bound is: Lean across (pair base|bound) says same in 3 of 3 jobs on macOS and 3 of 3 on the Simulator, never second. So the main-thread saving of this candidate on WebKit is inside the A/A spread; the earn transitions are not where the main-thread lag is, and the GPU variant B (@property scalar plus translates) is not built (NO-GO). Lean why (CONFIRMED): second needs every repeat of base above every repeat of bound (Fw.Gate.Smooth.hitchJudge_second) and an A/A pair that is not itself told apart (hitchVerdict_noisy); across_same follows when fewer than agreeNeeded 3 = 2 jobs say second. Neither VM has a real GPU, so GPU and UI-process time is not measured; the phone replay stays open. Lesson: measure a candidate's bound (all its work removed) before building it; a bound inside the A/A spread ends the candidate on that metric and host. Note research/notes/2026/10-2x-earn-gpu.md."
   }
  ]
 }

@@ -27,4 +27,4 @@ Open / follow-ups:
   Cause not investigated. The Simulator dies after about 30-40 windows; keep sim reps at 6 or fewer per job.
 - TS stand-ins: PAIRS entry base|bound (reuses Lean-twin verdict fns); the go/no-go rule was applied by hand from the across table.
 - Continue round: report.json was never invalid (`"invalid":[]` is the accepted answer); negative result written into the note
-  (section "Why the bound arm reads same") and a notes row for nav.earn.noTransition in research/findings/ledger.json (outside the graph writes).
+  (section "Why the bound arm reads same") ; the ledger notes row for nav.earn.noTransition is outside the writes, the lead adds it (text in the note, Report paragraph).
