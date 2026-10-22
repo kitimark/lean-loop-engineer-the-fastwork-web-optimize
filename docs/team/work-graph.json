@@ -15375,6 +15375,26 @@
    "stream": "tooling",
    "deps": [],
    "title": "fw watch timing.slow fw/run 2026-10-22 (lead check of .fw-console/timings.jsonl): the three latest fw/run spans are 1,029 s, 2,190 s and 3,068 s against 113-136 s before; all three started within 0.3 s, one per builder that dispatched a CI run and waited on it (apps/runner/src/fw.ts:26 names the span by group only, run.ts runCli dispatches and waits). The span pools local dispatch work with GitHub run time, so Fw.Obs.Timing flags CI queue and job length as local slowness. Fix: fw run writes two spans, `run dispatch` (local work up to the run id) and `run wait` (carrying the run id and the ci-wait-lag phases like `fw ci wait`), and obs.slow judges `run wait` by its own history; Lean golden for the step naming if Fw.Obs.Timing keys on it; tests; docs/team/tools/timings.md. Same class, 2026-10-22 timing.slow fw/slot: fw.ts SUBS lacks \"slot\", so `slot admit` (46-50 ms) and `slot run --kind check -- <cmd>` (18.7 s, 153 s) share one step; add slot to SUBS and key `slot run` spans by kind (the wrapped command has its own span). Unit: two spans per fw run with goldens/tests, the alert no longer fires on CI length."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "slot-waiter-light",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "User 2026-10-22: 'when local resource is overloaded, i'd like to ask you investigate and find how to manage, optimize for improve this resource usage. likes move them to queue or make it use less resource.' Lead probe 2026-10-22 (fw slot status, ps, vm_stat): limit 1, 0 holders, queue 4 (land dry, check.sh, two runner tests) waiting 9-30 min; available 191 MB (free 179, file cache 4,443 MB under its kernel minimum 4,608 MB so it adds 0), kernel pressure level 1, compressing 0 MB/min, swap 3,276 of 4,096 MB. Each waiter is three node processes, homebrew pnpm 95 MB, pnpm 105 MB and fw.ts 102-105 MB, about 300 MB, so the four waiters held about 1.2 GB while nothing ran. Fix: a queued slot run waits in one light process (the wrapper execs node fw.ts directly, or the pnpm script resolves to node without a nested pnpm), and the measured waiter RSS goes in docs/team/tools/slot.md. Same verdicts, same queue order. Unit: one waiter process per queued run, its RSS measured before and after (MEASURED)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "slot-idle-head",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "title": "User 2026-10-22: 'when local resource is overloaded, i'd like to ask you investigate and find how to manage, optimize for improve this resource usage. likes move them to queue or make it use less resource.' Lead probe 2026-10-22 (fw slot status, ps, vm_stat): limit 1, 0 holders, queue 4 (land dry, check.sh, two runner tests) waiting 9-30 min; available 191 MB (free 179, file cache 4,443 MB under its kernel minimum 4,608 MB so it adds 0), kernel pressure level 1, compressing 0 MB/min, swap 3,276 of 4,096 MB. Fw.Sup.Adapt verdict waits on memLow (availMB < floorMB 1,024) even with 0 holders, so the queue sits until maxWaitS 1,800 s times out while the memory is held by other programs our waiting cannot free. Fix in Lean first: with 0 holders the queue head (one, never more) may run when the kernel pressure level is 1, compression is under its thrash rate and swap is not full; every other memLow case still waits. Theorems: idle_head_at_most_one (it never admits a second holder under memLow), idle_head_only_when_empty, verdict unchanged when a holder exists; goldens; TS mirror slot.ts checked against them; slot.md. Unit: the Lean rule with its theorems and goldens, the TS mirror, slot.md. Limit: the thrash and swap-full guards stay as they are."
   }
  ],
  "deadline": {
