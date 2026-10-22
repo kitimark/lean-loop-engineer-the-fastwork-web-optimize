@@ -88,7 +88,18 @@ CI webkit-sim, iOS Simulator 430x775, lag and cost passes, two passes per arm, b
 Reading: no win on the main thread, as the proof says (children keep their layout inputs, `inset_width_eq`). The saving
 sits in the GPU process (F3) and in the F4 tiles, which the Simulator does not show. INFERRED, not measured.
 
+## Measurement (final design): not delivered
+
+The 5th dispatch, webkit-sim run 39751427150 (target=rewrite, lag=true, cost=on, fw=morph.panel:const-bounds, branch tip
+b4cd0105), booted the Simulator at 08:59:35Z and then sat in the step `Determinism sessions` with no step output until
+GitHub cancelled the job at the 60 min limit (09:55:56Z). No pass completed, no artifact was uploaded, so there are no
+final-design numbers. The first-design numbers above stay recorded as a separate row; they belong to the wrapper design
+that failed the gate. Cause of the hang: unknown (the job log is not served for a cancelled step; INFERRED a lost page
+target, as the lead anticipated). No dispatch is left in this task.
+
 ## Limits
+
+- PathPix pixel cells wait for task path-pix-lanes; a fractional offset caps the grade at Q (accepted limit).
 
 - The nav still resizes (C8) and so do the column tracks (`pitch_scaled_ne`).
 - The panel layer's blur outset changes while the fade runs (m from 0.08 to 0.8), which may still resize it; WebKit's

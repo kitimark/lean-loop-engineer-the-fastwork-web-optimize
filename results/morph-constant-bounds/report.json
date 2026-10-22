@@ -329,6 +329,6 @@
   ],
   "recommendation": {
     "word": "hold",
-    "why": "The shipped flag keeps the panel layer at the final size on every morph frame, shows every child where the original shows it (Lean paint_eq, inset_width_eq) and passes the breakpoint gate on both engines. The measured counts belong to a first design with a wrapper element, which failed the gate; they show no difference from the base beyond the pass-to-pass spread, which is expected since layout inputs are unchanged, and the Simulator has no GPU and logs no surface allocations. The final design has no base-against-flag run yet, and the nav resize and the column tracks still change size on every frame. Hold until the final design is measured on a lane with a real GPU."
+    "why": "The shipped flag keeps the panel layer at the final size on every morph frame, shows every child where the original shows it (Lean paint_eq, inset_width_eq) and passes the breakpoint gate on both engines. The measured counts belong to a first design with a wrapper element, which failed the gate; they show no difference from the base beyond the pass-to-pass spread, which is expected since layout inputs are unchanged, and the Simulator has no GPU and logs no surface allocations. The final design has no base-against-flag run: the one dispatch for it (run 39751427150) hung in the determinism step and was cancelled at 60 min with no artifact, and the nav resize and the column tracks still change size on every frame. Hold until the final design is measured on a lane with a real GPU."
   }
 }
