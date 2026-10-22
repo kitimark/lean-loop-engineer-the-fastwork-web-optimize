@@ -1,18 +1,19 @@
 # Handoff: macos-pool-7 (lean-prover)
 
-Branch `worktree-wf_15afb519-ea0-1`, worktree `.claude/worktrees/wf_15afb519-ea0-1`; pushed `ci/macos-pool-7` at b628840f.
+Branch `worktree-wf_15afb519-ea0-1`, worktree `.claude/worktrees/wf_15afb519-ea0-1`; `ci/macos-pool-7` pushed at b628840f, then 9c4b531e.
 
-CI (push 2026-10-22T06:28Z): GitHub runs webkit-sim 39734101098, wktr 39734101164, wktr-fixtures 39734101121, smoothness 39734101135, lean 39734101026 (running at write time). Codemagic build 6ad9ad10c0a19be428a3fbc3 (`fw ci pool dispatch --go`, triggered 06:28:32Z). CircleCI: none; the route refused (storage stop rule, see below).
+CI, all finished: GitHub webkit-sim 39734101098 success, lean 39734101026 and 39737132825 success, wktr 39734101164 and wktr-fixtures 39734101121 stopped stale at the tip re-check after the second push (their first jobs ran and passed). Codemagic 6ad9ad10c0a19be428a3fbc3 and 6ad9b3b25a4232c65cf47752 finished, 20 min each. CircleCI: none started; the route refused it (storage line).
 
-Read first: `docs/team/tools/ci-pool.md` (three-tier section), then `lean/Fw/Ci/PoolTier.lean`.
+Read first: `docs/team/tools/ci-pool.md` (three-tier section, live run), then `lean/Fw/Ci/PoolTier.lean`.
 
 Verified
-- Lean `Fw.Ci.PoolTier`: `github_first`, `codemagic_before_circleci`, `cap_7`, per-provider lines (`gh_line`, `cm_line`, `cm_refuses_over`, `cc_credits_line`, `cc_storage_line`, `bitrise_line`), `counted_relabel`, `result_counts_any_provider`; `Fw.Ci.Codemagic.poolOk_iff` and refusals; `Fw.Ci.Overflow.classLeft_spec`, `storageClearAt_iff`.
-- Golden `packages/contracts/golden/ci/pool-tier.jsonl` (`lean/scripts/PoolGolden.lean`), replayed in `apps/runner/test/ci-pool-tier.test.ts`; `scripts/codemagic.test.mjs` 24/24 (pool golden, `trigger --pool`, yaml pins).
-- Live dispatch: state GitHub 5 of 5 busy (the push's macOS jobs), Codemagic 46 min used, CircleCI 3575 credits, storage 1297 thousandths of a GB-month (ledger, 30-day retention bound). The route gave Codemagic to rep 5 and `wait` to rep 6: CircleCI storage is over the 1000 line (`cc_storage_line`).
+- Lean `Fw.Ci.PoolTier`: `github_first`, `codemagic_before_circleci`, `cap_7`, per-provider lines (`gh_line`, `cm_line`, `cm_refuses_over`, `cc_credits_line`, `cc_storage_line`, `bitrise_line`), `counted_relabel`, `result_counts_any_provider`; `Fw.Ci.Codemagic.poolOk_iff` and its refusals; `Fw.Ci.Overflow.classLeft_spec`, `storageClearAt_iff`. `sh lean/scripts/check.sh` green, axiom check 0 failing.
+- Golden `packages/contracts/golden/ci/pool-tier.jsonl` (`lean/scripts/PoolGolden.lean`), replayed in `apps/runner/test/ci-pool-tier.test.ts`; apps/runner 2460 tests, measure-webkit 302, `scripts/codemagic.test.mjs` 24, ci-paths 54.
+- Live: at 07:01:15Z six macOS jobs at once, five on GitHub (three ours) and Codemagic 6ad9b3b2. Both dispatches gave Codemagic one request and made the next wait (CircleCI storage 1297 > 1000).
+- Pilot fixes on Codemagic: Node v24.22.0 (after the PATH fix; build 6ad9ad10 still ran v26.8.2), proxy from cached kegs in 4.1 s, `openurl` timeouts recovered by the retry in both builds. Class rows against the GitHub twin differ in 10 and 6 of 104, within the pilot's GitHub-vs-GitHub 11.
 
 Open
-- Fetch the Codemagic build (`node scripts/codemagic.mjs wait --build 6ad9ad10c0a19be428a3fbc3 --out <dir>`) and read the GitHub job times for the overlap.
-- CircleCI's 7th slot needs the storage estimate under 1000: the ledger counts every saved byte for 30 days (caches expire sooner); a measured storage figure is a follow-up.
+- The seventh slot (CircleCI) needs the storage estimate under 1000: `scripts/circleci.mjs` counts every saved byte for 30 days, caches expire sooner. A measured storage figure or a cache retention per save is a follow-up (circleci.mjs is outside this task).
+- No poller calls `fw ci pool dispatch` yet; the GitHub busy count was read by hand (`gh run view` job lists).
 
-Conventions: `.local/` ledgers are per checkout (copied from the main checkout for this run); the Codemagic ledger here has the three pilot builds plus this one.
+Conventions: `.local/` ledgers are per checkout. This worktree's `.local/codemagic-ledger.json` holds builds 1 to 5 (86 of 500 minutes in 2026-10); copy it to the main checkout before the next trigger from there.
