@@ -99,8 +99,9 @@ MEASURED. cost-report verdicts: open push threaded against const-bounds "higher"
 no overlap); close push overlap; every other zone overlap, including Paint per frame on the open push (3.6-10.9 ms
 against 4.5-6.1 ms) and the resized layers, except new layers per 100 reads on the close push (100 against 0, "higher", 2 reads per pass). The bundle overlaps the reference on every cell. Records in the morph pass:
 RecalculateStyles 306-938 (threaded) against 442-2258 (const-bounds) and 324-1280 (bundle): the passes differ by a
-factor of 3 inside one arm, so these are no evidence either way. The third vm of the threaded and const-bounds runs
-(r3) had not finished when this was written; the table holds the passes that exist.
+factor of 3 inside one arm, so these are no evidence either way. The third vm (r3) of the threaded run failed in the
+Simulator (Safari page target lost, simctl launch timed out), so its merge and report jobs were skipped; the const-bounds
+r3 was not read. The table holds the passes of r1 and r2 read from their artifacts.
 
 ## Verdict (negative on cost, with its Lean why)
 - The flag shows the same panel (look: `interp_eq`, `threaded_eq`, panel-effect E) and meets the Core Animation
@@ -120,5 +121,5 @@ factor of 3 inside one arm, so these are no evidence either way. The third vm of
 ## Accepted limits and follow-ups
 - Safari on this Mac (real GPU, `gpu-safari-lane`) and the PathPix cell are follow-ups.
 - Linux WebKit trajectory walks the hero path only (4000 of 4000 clean), no panel rows.
-- Run 39846909558 and 39846941236 had one vm (r3) running at the time of writing.
+- Run 39846909558 ends `failure` (vm r3 infrastructure); only its r1 and r2 artifacts are used.
 - Workflow edit outside the task's writes: `.github/workflows/trajectory-probe.yml`, the GPU cells step passes the search.
