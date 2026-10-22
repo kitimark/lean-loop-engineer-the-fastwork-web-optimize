@@ -1,10 +1,4 @@
-/**
- * Variant `draw-one` of hero.accent (Lean: lean/Fw/Parts/HeroAccentOpt.lean section 7, `animates`, `strokeAnimated`,
- * `drawOne_visSame`; golden: packages/contracts/golden/parts/hero.accent.drawone.jsonl). While a word is drawn out or
- * in, copies 1 and 2 are opacity 0 (accent.module.css, `:is(.drawingIn, .drawingOut) .idleFrame` then `.frame0`), so
- * only copy 0 runs the stroke-dashoffset animation. The selector itself lives in the CSS (`:not(.frame0)`); this module
- * holds the decision the golden rows check and the one attribute the component writes.
- */
+/** Variant `draw-one` (Lean `Fw.Parts.HeroAccentOpt` section 7; golden `golden/parts/hero.accent.drawone.jsonl`). */
 
 export type DrawVariant = 'faithful' | 'draw-one';
 export type DrawPhase = 'idle' | 'drawing';

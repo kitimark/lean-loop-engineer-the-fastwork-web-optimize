@@ -792,17 +792,9 @@ theorem cr_comp_step_not_leE (ev eo : Stage → Bool)
 
 end EndPass
 
-/-! ## 7. The draw window: only the visible copy runs the stroke draw (`draw-one`, ledger n=15 sub-change)
+/-! ## 7. The draw window: only the visible copy runs the stroke draw (`draw-one`)
 
-While the word is drawn out or in (`.drawingOut` / `.drawingIn`, 0.9 s each), the rule
-`:is(.drawingIn, .drawingOut) .idleFrame {opacity: 0}` followed by `.frame0 {opacity: 1}`
-(`apps/site/src/parts/hero.accent/accent.module.css:76-83`) leaves copy 0 opaque and copies 1 and 2 at opacity 0 for the
-whole window. Yet `.drawingIn .path` / `.drawingOut .path` (`:52-61`) start the `strokeIn` / `strokeOut` dash-offset
-animation on all three copies. Variant `draw-one` starts it on copy 0 only. A copy at opacity 0 is dropped by
-`Fw.Engine.visible`, so `Fw.Parts.HiddenPause.hidden_pause_eq` gives the same visible scene for any value of the
-hidden copies' dash offset (class E). The saving is work, not look: in WebKit a dash-offset change forces a layout of
-each animated SVG (`StyleDifference.cpp:157-163`@862f17d, CONFIRMED), so 3 animated paths per draw frame become 1. The
-count is a decision (`animates`); how much layout time it saves is measured on CI, not modelled here. -/
+Copies 1 and 2 are opacity 0 for the whole window (`accent.module.css:76-83`); `Fw.Parts.HiddenPause.hidden_pause_eq` gives class E. -/
 
 open Fw.Parts.HiddenPause (Tmpl inst HiddenOrStill hidden_pause_eq hiddenPause_visSame)
 
