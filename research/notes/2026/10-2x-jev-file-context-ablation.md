@@ -66,10 +66,17 @@ The record per row (paths, verdicts, byte counts, blob ids, no file text) is
 `results/jev-file-context-ablation/inputs.json`. The datasets `d1-expand.jsonl` (set `d1x`) and `d1-naive.jsonl`
 (set `d1n`) stay in `.cache/jev`, out of git.
 
-The design counted 38 rows; the build expands 27. Three rules account for the difference (CONFIRMED from
-`inputs.json`). The vocabulary adds `Labels.exactWords` and the row id to the class ids, so 7 files drop. Nine rows
-name only files that alone exceed the cap; Lean refuses them rather than cut a file. The fit keeps whole files only,
-and 36 rows have a kept file before the fit.
+The design scan counted 38 rows; the build expands 27. The scan kept a file that is allowlisted, present at the pin
+and free of class ids, with no cap. That rule applied to `inputs.json` gives the same 38 rows (MEASURED; the scan
+script is not in git). The other 11 rows keep no file under `Fw.Oracle.Expand` for one of two reasons:
+
+| Reason | Rows |
+|---|---|
+| Every kept file alone exceeds the cap, so the row is refused rather than cut (9) | `inc-retention-hides-unlanded`, `inc-prompt-premise-align`, `inc-proof-of-dead-code`, `inc-mutants-red-no-task`, `inc-helper-spawn-named`, `inc-trajectory-pooled-window`, `inc-land-scope-stale-base`, `inc-main-checkout-busy-queue`, `inc-dispatch-push-runs` |
+| Every allowlisted file holds the exact word `blocker`, which the scan did not check (2) | `inc-workflow-unbound`, `inc-upsert-keeps-evidence` |
+
+The row-id drop removes `apps/runner/src/land.ts` from `inc-land-undeclared-reads`, which still expands with
+another file, so it changes no count.
 
 ## Sends and costs (MEASURED, 2026-10-22)
 
