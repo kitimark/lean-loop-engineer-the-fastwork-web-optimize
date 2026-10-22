@@ -8,7 +8,8 @@ CI runs: none dispatched (offline re-reduction of the artifacts of 39729682403, 
 Rule: the verdict over jobs is `acrossDecisive vs = across (agreeNeeded (decisive vs)) vs`
 (lean/Fw/Gate/Smooth.lean:646); an `insufficient` job counts as absent.
 
-Verified:
+Verified: `sh lean/scripts/check.sh` green; @fw/gate-breakpoints (635) and @fw/measure-webkit (402) tests pass;
+scripts/ci-paths.test.mjs and apps/runner land-inputs.test.ts pass.
 - Theorems: `acrossDecisive_insufficient`, `_first`, `_second`, `_split`, `_same` (one per branch),
   `_first_two_thirds`, `_second_two_thirds` (a first/second needs >= 3 decisive jobs, >= two thirds agreeing, none
   against), `_filter` (dropping insufficient jobs never changes the verdict), `_swap`, `_ne_all_jobs` (the old
@@ -24,4 +25,4 @@ Verified:
 
 Open (outside the task writes, edited because the tests check the twins):
 - packages/gate-breakpoints/test/smooth.test.mjs, packages/measure-webkit/test/profile-report.test.mjs.
-- Committed results/*.json keep the old field `need` (no verdict changes, so not regenerated).
+- results/smoothness-probe/cadence.table.json keeps the old field `need` (no verdict changes, so not regenerated).
