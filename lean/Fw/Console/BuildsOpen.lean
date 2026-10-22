@@ -3,7 +3,8 @@
 
 Two pure decisions. `validate` says whether a pasted URL search is one the site accepts, and gives its canonical form or the
 reasons. It is the rule of `apps/site/src/registry/resolve.ts` (`?preset=` then `?fw=part:variant[@impl]`, one preset, `extends`,
-`requires`, `conflicts`) over registry facts the I/O glue reads, behind a charset allowlist that runs first. `decide` says
+`requires`, `conflicts`) over registry facts the I/O glue reads, behind a charset allowlist that runs first, plus the layer
+options `?fwl=layer:c|s|cs` of `Fw.Console.Layers` (the site does not read `fwl` yet). `decide` says
 what an Open click does: reuse a serving preview of the commit, wait for a building one, rebuild the slot, or start.
 The wire ops are `console.buildsSearch` and `console.buildsOpen`.
 -/
@@ -11,13 +12,15 @@ namespace Fw.Console.BuildsOpen
 
 /-! ## Registry facts -/
 
-/-- One part of the site registry (`part.json`): variants in file order (the head is the default), impls, rules. -/
+/-- One part of the site registry (`part.json`): variants in file order (the head is the default), impls, rules, and the
+ids of its declared layers. -/
 structure PartFact where
   id : String
   variants : List String
   impls : List String
   requires : List (String × List String)
   conflicts : List (String × List String)
+  layers : List String := []
 
 /-- One preset file: its name, optional `extends`, and its own `fw` entries (`part` to `variant` or `variant@impl`). -/
 structure PresetFact where
@@ -54,6 +57,19 @@ def valuesOf (k : String) (ps : List (String × String)) : List String :=
 /-- The `?fw=` entries: every `fw` value split at `,`, empty entries dropped. -/
 def fwEntries (ps : List (String × String)) : List String :=
   ((valuesOf "fw" ps).flatMap (·.splitOn ",")).filter (· != "")
+
+/-- The `?fwl=` entries: every `fwl` value split at `,`, empty entries dropped. -/
+def fwlEntries (ps : List (String × String)) : List String :=
+  ((valuesOf "fwl" ps).flatMap (·.splitOn ",")).filter (· != "")
+
+/-- The layer options: `c` composite, `s` snap, `cs` both. -/
+def layerOpts : List String := ["c", "s", "cs"]
+
+/-- `layer:opts` with `opts` one of `layerOpts`. -/
+def splitLayer (e : String) : Option (String × String) :=
+  match e.splitOn ":" with
+  | [l, o] => if l != "" && layerOpts.contains o then some (l, o) else none
+  | _ => none
 
 /-- `part:variant` or `part:variant@impl`; the part has no `@`, no piece is empty (the site's `splitEntry`). -/
 def splitEntry (e : String) : Option (String × String × Option String) :=
@@ -163,6 +179,21 @@ def stage1 (parts : List PartFact) (presets : List PresetFact) (names : List Str
 def errorsOf (parts : List PartFact) (presets : List PresetFact) (names fw : List String) : List String :=
   finish parts (fw.foldl (applyFwEntry parts) (stage1 parts presets names))
 
+/-- The errors of the `?fwl=` entries, in order: an entry that is not `layer:c`, `layer:s` or `layer:cs`, a layer no part
+declares, a layer named twice. -/
+def layerErrors (parts : List PartFact) (fwl : List String) : List String :=
+  fwl.zipIdx.flatMap fun (e, i) =>
+    match splitLayer e with
+    | none => [s!"?fwl=: cannot parse \"{e}\" (expected layer:c, layer:s or layer:cs)"]
+    | some (l, _) =>
+      (if parts.any (·.layers.contains l) then [] else [s!"?fwl=: unknown layer \"{l}\""]) ++
+      (if (fwl.take i).any (fun x => (splitLayer x).map (·.1) == some l) then [s!"?fwl=: layer \"{l}\" is listed twice"]
+       else [])
+
+/-- Every error of a search: `errorsOf` over its presets and `?fw=` entries, then `layerErrors` over its `?fwl=` entries. -/
+def searchErrors (parts : List PartFact) (presets : List PresetFact) (ps : List (String × String)) : List String :=
+  errorsOf parts presets (valuesOf "preset" ps) (fwEntries ps) ++ layerErrors parts (fwlEntries ps)
+
 /-! ## The verdict -/
 
 /-- The accepted search in canonical form, or the reasons. -/
@@ -177,24 +208,25 @@ def lengthReason : String := "search is longer than 2000 characters"
 /-- The reason for a search with a character outside the allowlist. -/
 def charsetReason : String := "search has a character outside A-Z a-z 0-9 . : , - _ @ = & (after one leading ?)"
 
-/-- The canonical search: the preset first, then one `fw` list; empty when neither is given. -/
-def canonical (preset : Option String) (fw : List String) : String :=
+/-- The canonical search: the preset first, then one `fw` list, then one `fwl` list; empty when none is given. -/
+def canonical (preset : Option String) (fw : List String) (fwl : List String := []) : String :=
   let ps := (match preset with | some n => ["preset=" ++ n] | none => []) ++
-    (if fw.isEmpty then [] else ["fw=" ++ ",".intercalate fw])
+    (if fw.isEmpty then [] else ["fw=" ++ ",".intercalate fw]) ++
+    (if fwl.isEmpty then [] else ["fwl=" ++ ",".intercalate fwl])
   if ps.isEmpty then "" else "?" ++ "&".intercalate ps
 
 /-- The verdict for the errors of a request: no error accepts it. -/
-def verdictOf (names fw : List String) : List String → Verdict
-  | [] => .ok (canonical names.head? fw)
+def verdictOf (names fw fwl : List String) : List String → Verdict
+  | [] => .ok (canonical names.head? fw fwl)
   | es => .refused es
 
-/-- Accept a search: length, then charset, then the site's rules. -/
+/-- Accept a search: length, then charset, then the site's rules and the layer options. -/
 def validate (parts : List PartFact) (presets : List PresetFact) (search : String) : Verdict :=
   if search.length > maxLen then .refused [lengthReason]
   else if !((body search).toList.all okChar) then .refused [charsetReason]
   else
     let ps := params (body search)
-    verdictOf (valuesOf "preset" ps) (fwEntries ps) (errorsOf parts presets (valuesOf "preset" ps) (fwEntries ps))
+    verdictOf (valuesOf "preset" ps) (fwEntries ps) (fwlEntries ps) (searchErrors parts presets ps)
 
 /-! ### Theorems: the verdict, one per branch -/
 
@@ -210,31 +242,75 @@ theorem validate_charset (parts presets) (s : String) (hl : ¬ s.length > maxLen
   simp [validate, hl, h]
 
 /-- No error: the canonical search. -/
-theorem verdictOf_ok (names fw) : verdictOf names fw [] = .ok (canonical names.head? fw) := rfl
+theorem verdictOf_ok (names fw fwl) : verdictOf names fw fwl [] = .ok (canonical names.head? fw fwl) := rfl
 
 /-- Errors: refused with exactly those. -/
-theorem verdictOf_refused (names fw) (es : List String) (h : es ≠ []) : verdictOf names fw es = .refused es := by
+theorem verdictOf_refused (names fw fwl) (es : List String) (h : es ≠ []) : verdictOf names fw fwl es = .refused es := by
   cases es with
   | nil => exact absurd rfl h
   | cons a t => rfl
 
-/-- Past the charset, accepted exactly when the site's rules report no error; the answer is the canonical search. -/
+/-- Past the charset, accepted exactly when the site's rules and the layer options report no error; the answer is the
+canonical search. -/
 theorem validate_ok (parts presets) (s : String) (hl : ¬ s.length > maxLen)
-    (hc : (body s).toList.all okChar = true)
-    (h : errorsOf parts presets (valuesOf "preset" (params (body s))) (fwEntries (params (body s))) = []) :
-    validate parts presets s = .ok (canonical (valuesOf "preset" (params (body s))).head? (fwEntries (params (body s)))) := by
+    (hc : (body s).toList.all okChar = true) (h : searchErrors parts presets (params (body s)) = []) :
+    validate parts presets s =
+      .ok (canonical (valuesOf "preset" (params (body s))).head? (fwEntries (params (body s))) (fwlEntries (params (body s)))) := by
   simp [validate, hl, hc, h, verdictOf]
 
-/-- Past the charset, refused with exactly the errors the site's rules report. -/
+/-- Past the charset, refused with exactly the errors the site's rules and the layer options report. -/
 theorem validate_refused (parts presets) (s : String) (hl : ¬ s.length > maxLen)
     (hc : (body s).toList.all okChar = true) (es : List String) (hne : es ≠ [])
-    (h : errorsOf parts presets (valuesOf "preset" (params (body s))) (fwEntries (params (body s))) = es) :
+    (h : searchErrors parts presets (params (body s)) = es) :
     validate parts presets s = .refused es := by
-  simp [validate, hl, hc, h, verdictOf_refused _ _ _ hne]
+  simp [validate, hl, hc, h, verdictOf_refused _ _ _ _ hne]
+
+/-- An `fwl` entry that does not parse is an error. -/
+theorem layerErrors_unparsable (parts) (fwl : List String) (e : String) (he : e ∈ fwl) (hs : splitLayer e = none) :
+    layerErrors parts fwl ≠ [] := by
+  obtain ⟨i, hi⟩ := List.mem_iff_getElem.1 he
+  obtain ⟨hlt, rfl⟩ := hi
+  intro h
+  have hm : (fwl[i], i) ∈ fwl.zipIdx := List.mem_zipIdx_iff_getElem?.2 (by simp [hlt])
+  have := List.flatMap_eq_nil_iff.1 h _ hm
+  simp [hs] at this
+
+/-- An `fwl` entry naming a layer no part declares is an error. -/
+theorem layerErrors_unknown (parts) (fwl : List String) (e l o : String) (he : e ∈ fwl)
+    (hs : splitLayer e = some (l, o)) (hu : parts.any (·.layers.contains l) = false) : layerErrors parts fwl ≠ [] := by
+  obtain ⟨i, hi⟩ := List.mem_iff_getElem.1 he
+  obtain ⟨hlt, rfl⟩ := hi
+  intro h
+  have hm : (fwl[i], i) ∈ fwl.zipIdx := List.mem_zipIdx_iff_getElem?.2 (by simp [hlt])
+  have := List.flatMap_eq_nil_iff.1 h _ hm
+  simp only [hs, hu, Bool.false_eq_true, ↓reduceIte, List.cons_append, reduceCtorEq] at this
+
+/-- A layer named by two `fwl` entries is an error. -/
+theorem layerErrors_twice (parts) (fwl : List String) (i j : Nat) (hij : i < j) (hj : j < fwl.length) (l : String)
+    (hi : (splitLayer (fwl[i]'(by omega))).map (·.1) = some l) (hl : (splitLayer fwl[j]).map (·.1) = some l) :
+    layerErrors parts fwl ≠ [] := by
+  intro h
+  have hm : (fwl[j], j) ∈ fwl.zipIdx := List.mem_zipIdx_iff_getElem?.2 (by simp [hj])
+  have := List.flatMap_eq_nil_iff.1 h _ hm
+  obtain ⟨o, ho⟩ : ∃ o, splitLayer fwl[j] = some (l, o) := by
+    cases hs : splitLayer fwl[j] with
+    | none => simp [hs] at hl
+    | some p => simp [hs] at hl; exact ⟨p.2, by rw [← hl]⟩
+  have hany : (fwl.take j).any (fun x => (splitLayer x).map (·.1) == some l) = true := by
+    rw [List.any_eq_true]
+    exact ⟨fwl[i], List.mem_iff_getElem.2 ⟨i, by simp; omega, by simp⟩, by simp [hi]⟩
+  simp [ho, hany] at this
 
 #guard validate [] [] "" == .ok ""
 #guard validate [] [] "?" == .ok ""
 #guard validate [] [] "?a%20b" == .refused [charsetReason]
+#guard validate [{ id := "hero", variants := ["faithful"], impls := [], requires := [], conflicts := [], layers := ["hero_copy"] }] []
+    "?fwl=hero_copy:c" == .ok "?fwl=hero_copy:c"
+#guard validate [{ id := "hero", variants := ["faithful"], impls := [], requires := [], conflicts := [], layers := ["hero_copy"] }] []
+    "?fwl=hero_copy:cs,hero_copy:s" == .refused ["?fwl=: layer \"hero_copy\" is listed twice"]
+#guard validate [] [] "?fwl=hero_copy:c" == .refused ["?fwl=: unknown layer \"hero_copy\""]
+#guard validate [] [] "?fwl=hero_copy:x" == .refused ["?fwl=: cannot parse \"hero_copy:x\" (expected layer:c, layer:s or layer:cs)"]
+#guard canonical none ["a:b"] ["l:c"] == "?fw=a:b&fwl=l:c" && canonical (some "p") [] ["l:s"] == "?preset=p&fwl=l:s"
 
 /-! ### Theorems: the site's rules -/
 

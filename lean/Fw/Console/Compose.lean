@@ -796,11 +796,11 @@ theorem validate_refused_ne (parts presets) (s : String) (rs : List String)
   · split at h
     · simp at h; subst h; simp
     · dsimp only at h
-      generalize hE : errorsOf parts presets (valuesOf "preset" (params (body s))) (fwEntries (params (body s))) = es at h
+      generalize hE : searchErrors parts presets (params (body s)) = es at h
       cases es with
       | nil => cases h
       | cons a t =>
-        rw [verdictOf_refused _ _ _ (List.cons_ne_nil a t)] at h
+        rw [verdictOf_refused _ _ _ _ (List.cons_ne_nil a t)] at h
         cases h
         exact List.cons_ne_nil a t
 
