@@ -126,7 +126,7 @@ export async function waitReady(arg) {
     awaited += K.freeze().finished;
     const left = document.getAnimations().filter((a) => {
       const t = a.effect && a.effect.getComputedTiming ? a.effect.getComputedTiming() : null;
-      return t && Number.isFinite(t.iterations) && (a.playState === 'running' || a.playState === 'pending');
+      return t && a.timeline instanceof DocumentTimeline && Number.isFinite(t.iterations) && (a.playState === 'running' || a.playState === 'pending');
     }).length;
     const fw0 = window.__fw;
     return {
@@ -138,9 +138,11 @@ export async function waitReady(arg) {
   // (infinite ones, e.g. the call-to-action orbit, are ignored). Parts mount at different times (the original's people
   // card after hydration, long after the hero splash), so a transition can start after the first quiet moment: the wait
   // is repeated after the 3 frames and 300 ms until a whole pass finds none. Bounded by capMs; no tolerance anywhere.
+  // Only animations of the document timeline count (Lean Fw.Gate.Settle.runCount): a scroll or view timeline animation never finishes
+  // at a fixed scroll offset, and its effect is read through the settle signature.
   const finiteRunning = () => document.getAnimations().filter((a) => {
     const t = a.effect && a.effect.getComputedTiming ? a.effect.getComputedTiming() : null;
-    return t && Number.isFinite(t.iterations) && (a.playState === 'running' || a.playState === 'pending');
+    return t && a.timeline instanceof DocumentTimeline && Number.isFinite(t.iterations) && (a.playState === 'running' || a.playState === 'pending');
   });
   const t1 = performance.now();
   let awaited = 0;
@@ -183,7 +185,7 @@ export async function prepareInPage(arg) {
   const frame = K ? K.frame : () => Promise.race([new Promise((r) => requestAnimationFrame(() => r())), sleep(250)]);
   const running = () => document.getAnimations().filter((a) => {
     const t = a.effect && a.effect.getComputedTiming ? a.effect.getComputedTiming() : null;
-    return t && Number.isFinite(t.iterations) && a.playState !== 'finished' && a.playState !== 'idle';
+    return t && a.timeline instanceof DocumentTimeline && Number.isFinite(t.iterations) && a.playState !== 'finished' && a.playState !== 'idle';
   }).length;
   // a real frame (true) or the 250 ms keep-alive (false)
   const realFrame = K ? K.frame : () => new Promise((resolve) => {
@@ -324,6 +326,9 @@ export async function settleInPage(arg) {
   // <spent>
   const spent = (q, o) => q.timeoutMs < o.t || q.maxFrames < o.frames;
   // </spent>
+  // <counts>
+  const counts = (a) => a.onDocument && a.finite && a.state !== 'finished' && a.state !== 'idle';
+  // </counts>
   const micro = (x) => Math.round(x * 1e6);
   const els = () => {
     const seen = new Set();
@@ -339,7 +344,9 @@ export async function settleInPage(arg) {
       try { as = el.getAnimations({ subtree: true }); } catch { as = []; }
       for (const a of as) {
         const t = a.effect && a.effect.getComputedTiming ? a.effect.getComputedTiming() : null;
-        if (t && Number.isFinite(t.iterations) && a.playState !== 'finished' && a.playState !== 'idle') anims.add(a);
+        // a scroll-driven animation (ScrollTimeline, ViewTimeline) is not counted: at a fixed offset it never finishes, and its
+        // effect is already in the signature below (Lean Fw.Gate.Settle.runCount)
+        if (t && counts({ onDocument: a.timeline instanceof DocumentTimeline, finite: Number.isFinite(t.iterations), state: a.playState })) anims.add(a);
       }
     }
     const sig = [micro(window.innerWidth), micro(window.innerHeight)];

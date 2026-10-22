@@ -705,27 +705,93 @@ theorem park_settled_iff (p : Policy) (o : Obs) :
   by_cases h1 : o.running = 0 <;> by_cases h2 : p.minFrames ≤ o.frames <;> by_cases h3 : p.minStable ≤ o.stable <;>
     simp [h1, h2, h3]
 
-/-- A finite animation or transition under the probed subtree: its duration and elapsed time (ms). -/
+/-- A finite animation or transition under the probed subtree: its duration and elapsed time (ms), and whether its timeline
+is the document timeline (CSS animations, transitions and `element.animate` without a timeline) or another one (a
+`ScrollTimeline` or `ViewTimeline`, i.e. scroll-driven). -/
 structure Anim where
   dur : Nat
   elapsed : Nat
+  onDocument : Bool := true
   deriving DecidableEq, Repr
 
-/-- The number of running animations. -/
-def runCount (as : List Anim) : Nat := (as.filter (fun a => decide (a.elapsed < a.dur))).length
+/-- The number of running animations: those on the document timeline that have not run their duration.
+
+An animation on a scroll or view timeline is not counted. Its progress is the scroll offset, not time: at a fixed offset it
+stays `running` forever (it is `finished` only at the end of its range), so counting it would make every sample unsettled
+(run 39769627588, `hero.exit:threaded`). What it does to the page is already in the quiet signature: its effect values
+are read each frame (`scroll_fixed_quiet`). -/
+def runCount (as : List Anim) : Nat := (as.filter (fun a => a.onDocument && decide (a.elapsed < a.dur))).length
+
+/-- The count before `gate-settle-scroll-timeline`: every animation that has not run its duration, whatever its timeline. -/
+def runCountAll (as : List Anim) : Nat := (as.filter (fun a => decide (a.elapsed < a.dur))).length
 
 /-- `overlays.signup`: the dialog enter animation (0.4 s) is running at any elapsed time below its duration, so a sample taken
 there (scale 0.9977 at the WebKit touch probe) has `running ≥ 1` and is unsettled. -/
 theorem signup_unsettled (p : Policy) (as : List Anim) (a : Anim) (ha : a ∈ as) (he : a.elapsed < a.dur)
+    (hd : a.onDocument = true)
     (frames stable t : Nat) (hov : Bool) :
     settled p { running := runCount as, frames := frames, stable := stable, hoverInside := hov, t := t } = false := by
   have hpos : 0 < runCount as := by
     unfold runCount
     apply List.length_pos_of_mem (a := a)
-    simp [List.mem_filter, ha, he]
+    simp [List.mem_filter, ha, he, hd]
   simp only [settled]
   have : ¬ runCount as = 0 := by omega
   simp [this]
+
+/-- Document-timeline arms keep the rule: when every animation is on the document timeline, the count is the one before. -/
+theorem runCount_document (as : List Anim) (h : ∀ a ∈ as, a.onDocument = true) : runCount as = runCountAll as := by
+  unfold runCount runCountAll
+  congr 1
+  apply List.filter_congr
+  intro a ha
+  simp [h a ha]
+
+/-- One animation on a non-document timeline adds nothing to the count. -/
+theorem runCount_cons_scroll (a : Anim) (as : List Anim) (h : a.onDocument = false) : runCount (a :: as) = runCount as := by
+  simp [runCount, h]
+
+/-- The count is a sum over the animations: one on the document timeline adds one while it runs, else nothing. -/
+theorem runCount_cons_document (a : Anim) (as : List Anim) (h : a.onDocument = true) :
+    runCount (a :: as) = runCount as + (if a.elapsed < a.dur then 1 else 0) := by
+  by_cases he : a.elapsed < a.dur <;> simp [runCount, h, he]
+
+/-- Scroll-driven animations never move the settle decision: a sample with one more of them has the same verdict. -/
+theorem settled_cons_scroll (p : Policy) (a : Anim) (as : List Anim) (h : a.onDocument = false) (frames stable t : Nat) (hov : Bool) :
+    settled p { running := runCount (a :: as), frames := frames, stable := stable, hoverInside := hov, t := t }
+      = settled p { running := runCount as, frames := frames, stable := stable, hoverInside := hov, t := t } := by
+  rw [runCount_cons_scroll a as h]
+
+/-- With every animation either finished or scroll-driven the count is zero, however long the scroll-driven ones still "run". -/
+theorem runCount_zero_of_scroll_or_done (as : List Anim) (h : ∀ a ∈ as, a.onDocument = false ∨ a.dur ≤ a.elapsed) :
+    runCount as = 0 := by
+  unfold runCount
+  rw [List.length_eq_zero_iff, List.filter_eq_nil_iff]
+  intro a ha
+  rcases h a ha with h1 | h2
+  · simp [h1]
+  · have : ¬ a.elapsed < a.dur := by omega
+    simp [this]
+
+/-- The old rule blocked: one unfinished scroll-driven animation made `runCountAll` positive, so the sample could never settle.
+This is why run 39769627588 ended `unsettled` on every sample of `hero.exit:threaded`. -/
+theorem runCountAll_scroll_blocks (p : Policy) (a : Anim) (as : List Anim) (ha : a ∈ as) (he : a.elapsed < a.dur)
+    (frames stable t : Nat) (hov : Bool) :
+    settled p { running := runCountAll as, frames := frames, stable := stable, hoverInside := hov, t := t } = false := by
+  have hpos : 0 < runCountAll as := by
+    unfold runCountAll
+    apply List.length_pos_of_mem (a := a)
+    simp [List.mem_filter, ha, he]
+  simp only [settled]
+  have : ¬ runCountAll as = 0 := by omega
+  simp [this]
+
+/-- A scroll-driven animation at a fixed scroll offset cannot block settling: the other conditions hold, every other animation
+is finished, and the verdict is `settled`, whatever the scroll-driven ones do. -/
+theorem scroll_cannot_block (p : Policy) (as : List Anim) (h : ∀ a ∈ as, a.onDocument = false ∨ a.dur ≤ a.elapsed)
+    (frames stable t : Nat) (hf : p.minFrames ≤ frames) (hs : p.minStable ≤ stable) :
+    settled p { running := runCount as, frames := frames, stable := stable, hoverInside := false, t := t } = true := by
+  simp [settled, runCount_zero_of_scroll_or_done as h, hf, hs]
 
 /-- The dialog enter animation of the original (duration 400 ms) is finished only from 400 ms on. -/
 theorem signup_enter_finished (e : Nat) : runCount [{ dur := 400, elapsed := e }] = 0 ↔ 400 ≤ e := by
@@ -813,6 +879,27 @@ theorem Lerp.sample_delay_invariant (L : Lerp) (eps i j : Nat)
         Nat.mul_le_mul_left _ h3
     _ = L.a * (L.target - L.x i).natAbs + L.a * (L.target - L.x j).natAbs := Nat.mul_add _ _ _
     _ ≤ 2 * (eps * L.b) := by omega
+
+-- ---------------------------------------------------------------------------------------------------------------
+-- scroll-driven animations: their effect is a function of the scroll offset
+-- ---------------------------------------------------------------------------------------------------------------
+
+/-- The probed values a set of scroll-driven animations give at scroll offset `o`: animation `i` shows `fs[i] o`. The page
+reads them through the boxes, transform numbers and opacity of the probed elements, so they are part of the signature that
+`quiet` compares. Progress is a function of the offset alone (Scroll-driven Animations 1, `scroll-timeline-progress`;
+Chromium `scroll_snapshot_timeline.cc:64-66`, WebKit `ScrollTimeline.cpp:383-397`), never of the clock. -/
+def scrollSig (fs : List (Int → Int)) (o : Int) : List Int := fs.map (fun f => f o)
+
+/-- At a fixed scroll offset two frames read the same scroll-driven values, so the frame is quiet. -/
+theorem scroll_fixed_quiet (eps : Nat) (fs : List (Int → Int)) (o₁ o₂ : Int) (h : o₁ = o₂) :
+    quiet eps (scrollSig fs o₁) (scrollSig fs o₂) = true := by
+  subst h
+  exact quiet_refl eps _
+
+/-- And the run of quiet frames grows by one, so a scroll-driven animation at a fixed offset never resets `stable`. -/
+theorem scroll_fixed_nextStable (eps s : Nat) (fs : List (Int → Int)) (o₁ o₂ : Int) (h : o₁ = o₂) :
+    nextStable eps s (scrollSig fs o₁) (scrollSig fs o₂) = s + 1 := by
+  simp [nextStable, scroll_fixed_quiet eps fs o₁ o₂ h]
 
 -- ---------------------------------------------------------------------------------------------------------------
 -- golden vectors for the TypeScript twin
@@ -970,7 +1057,18 @@ def quietCases : List (String × Nat × List Int × List Int) :=
     ("no values at all", 100, [], []),
     ("people.deck scale mid lerp", 100, [977000], [979000]) ]
 
-/-- One golden line per case, in the order of the nine case lists: observation, wait, quiet, rendered, cell, view, fold, report, viewFor. -/
+/-- Running counts: (name, animations). Each animation is (onDocument, duration, elapsed); the count is the number on the document
+timeline that have not run their duration. -/
+def runCases : List (String × List (Bool × Nat × Nat)) :=
+  [ ("no animation", []),
+    ("document animation running", [(true, 400, 120)]),
+    ("document animation finished", [(true, 400, 400)]),
+    ("document: two running, one finished", [(true, 400, 0), (true, 1000, 999), (true, 200, 200)]),
+    ("scroll animation at a fixed offset (never finishes)", [(false, 1000000, 0)]),
+    ("hero.exit:threaded: view-timeline animations beside a finished transition", [(false, 1000000, 300000), (false, 1000000, 300000), (true, 400, 400)]),
+    ("scroll animations do not hide a running document animation", [(false, 1000000, 0), (true, 400, 120), (false, 1000000, 500000)]) ]
+
+/-- One golden line per case, in the order of the ten case lists: observation, wait, quiet, rendered, cell, view, fold, report, viewFor, running count. -/
 def goldenLines (_ : Unit := ()) : List String :=
   obsCases.map (fun (n, o) =>
     (Json.mkObj [("kind", "settled"), ("name", toJson n), ("policy", policyJson gatePolicy), ("obs", obsJson o),
@@ -1003,6 +1101,12 @@ def goldenLines (_ : Unit := ()) : List String :=
   ++ viewForCases.map (fun (n, s, e) =>
     (Json.mkObj [("kind", "viewFor"), ("name", toJson n), ("switch", toJson s), ("engine", toJson e),
       ("view", toJson (viewFor s e))]).compress)
+  ++ runCases.map (fun (n, as) =>
+    let anims := as.map (fun (d, dur, e) => ({ dur := dur, elapsed := e, onDocument := d } : Anim))
+    (Json.mkObj [("kind", "runs"), ("name", toJson n),
+      ("anims", Json.arr (as.map (fun (d, dur, e) =>
+        Json.mkObj [("onDocument", toJson d), ("dur", toJson dur), ("elapsed", toJson e)])).toArray),
+      ("running", toJson (runCount anims)), ("before", toJson (runCountAll anims))]).compress)
 
 /-- The exact bytes of `packages/contracts/golden/gate/settle.jsonl`: the lines, each newline-terminated. -/
 def goldenText (_ : Unit := ()) : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
@@ -1038,6 +1142,8 @@ def run (args : List String) : IO UInt32 := do
 #guard waitList gatePolicy [ob 0 61 3 false 1000] == .unsettled
 #guard spent gatePolicy (ob 0 61 0 false 10) == true
 #guard spent gatePolicy (ob 0 60 0 false 30000) == false
+#guard runCount [{ dur := 1000000, elapsed := 0, onDocument := false }] == 0
+#guard runCountAll [{ dur := 1000000, elapsed := 0, onDocument := false }] == 1
 #guard cell false true (.settled 1) (.settled 2) false == .notRendered
 #guard cell true true (.settled 1) (.settled 2) false == .fail
 #guard rendered [false, true, false] == false

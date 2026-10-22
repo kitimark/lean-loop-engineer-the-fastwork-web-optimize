@@ -2,6 +2,7 @@
 // against packages/contracts/golden/gate/settle.jsonl (generated from Lean; test/settle.test.mjs). The page-side loop
 // (page.mjs settleInPage) carries its own copies of `settled` and `quiet`, which the same test extracts and replays.
 //   settled   Fw.Gate.Settle.settled        nothing animates, enough real frames, enough quiet frames, pointer not in a hover target
+//   runCount  Fw.Gate.Settle.runCount      finite animations on the document timeline that have not run their duration (scroll-driven ones are not counted)
 //   quiet     Fw.Gate.Settle.quiet          same number of values, each moved by at most eps (millionths)
 //   spent     Fw.Gate.Settle.spent          the time or the frame budget is spent at an observation
 //   waitTrace Fw.Gate.Settle.wait           first settled observation inside the budget, else unsettled
@@ -29,6 +30,12 @@ export const micro = (x) => Math.round(x * 1e6);
 export function settled(p, o) {
   return o.running === 0 && p.minFrames <= o.frames && p.minStable <= o.stable && !o.hoverInside;
 }
+
+/**
+ * Fw.Gate.Settle.runCount. anims = [{ onDocument, dur, elapsed }]. An animation on a scroll or view timeline is not counted: its
+ * progress is the scroll offset, so at a fixed offset it never finishes, and its effect is already in the quiet signature.
+ */
+export const runCount = (anims) => anims.filter((a) => a.onDocument && a.elapsed < a.dur).length;
 
 /** Fw.Gate.Settle.quiet on integer millionths. */
 export function quiet(eps, u, v) {
