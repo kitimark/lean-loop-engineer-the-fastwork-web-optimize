@@ -67,7 +67,7 @@ def pathsOf (texts : List String) : List String :=
   dedup (texts.flatMap fun t => (scan t.length none t.toList).map resolve)
 
 #guard pathsOf ["see scripts/checkmap.mjs:2 and lean/Fw/Sched/Admit.lean."] == ["scripts/checkmap.mjs", "lean/Fw/Sched/Admit.lean"]
-#guard pathsOf ["../apps/runner/hooks/wait-guard.mjs@ecdc0787, x"] == ["apps/runner/hooks/wait-guard.mjs"]
+#guard pathsOf ["../apps/x/hooks/guard.mjs@ecdc0787, x"] == ["apps/x/hooks/guard.mjs"]
 #guard pathsOf ["lean-math/a.md docs/ x/scripts/y.mjs scripts/z-.mjs"] == ["lean-math/a.md", "scripts/z-.mjs"]
 #guard pathsOf ["`.github/workflows/lean.yml` and research/notes/*.md"] == [".github/workflows/lean.yml", "research/notes/*.md"]
 #guard pathsOf ["apps/a.ts apps/a.ts", "apps/a.ts@1234567"] == ["apps/a.ts"]
