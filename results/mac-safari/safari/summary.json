@@ -1,0 +1,222 @@
+[
+ {
+  "engine": "safari",
+  "window": "end",
+  "arm": "base",
+  "passes": 0,
+  "refused": {
+   "before": 2,
+   "after": 0,
+   "stale": 0,
+   "error": 0
+  },
+  "long": null,
+  "skipped": null,
+  "p50": null,
+  "p95": null,
+  "mx": null,
+  "paintHund": null,
+  "compositeN": null,
+  "eventPasses": 0,
+  "vsBaseLong": null,
+  "vsBaseSkipped": null
+ },
+ {
+  "engine": "safari",
+  "window": "end",
+  "arm": "hx",
+  "passes": 0,
+  "refused": {
+   "before": 1,
+   "after": 1,
+   "stale": 0,
+   "error": 0
+  },
+  "long": null,
+  "skipped": null,
+  "p50": null,
+  "p95": null,
+  "mx": null,
+  "paintHund": null,
+  "compositeN": null,
+  "eventPasses": 0,
+  "vsBaseLong": "insufficient",
+  "vsBaseSkipped": "insufficient"
+ },
+ {
+  "engine": "safari",
+  "window": "end",
+  "arm": "mp",
+  "passes": 0,
+  "refused": {
+   "before": 2,
+   "after": 0,
+   "stale": 0,
+   "error": 0
+  },
+  "long": null,
+  "skipped": null,
+  "p50": null,
+  "p95": null,
+  "mx": null,
+  "paintHund": null,
+  "compositeN": null,
+  "eventPasses": 0,
+  "vsBaseLong": "insufficient",
+  "vsBaseSkipped": "insufficient"
+ },
+ {
+  "engine": "safari",
+  "window": "end",
+  "arm": "orig",
+  "passes": 0,
+  "refused": {
+   "before": 2,
+   "after": 0,
+   "stale": 0,
+   "error": 0
+  },
+  "long": null,
+  "skipped": null,
+  "p50": null,
+  "p95": null,
+  "mx": null,
+  "paintHund": null,
+  "compositeN": null,
+  "eventPasses": 0,
+  "vsBaseLong": "insufficient",
+  "vsBaseSkipped": "insufficient"
+ },
+ {
+  "engine": "safari",
+  "window": "end",
+  "arm": "pf",
+  "passes": 0,
+  "refused": {
+   "before": 2,
+   "after": 0,
+   "stale": 0,
+   "error": 0
+  },
+  "long": null,
+  "skipped": null,
+  "p50": null,
+  "p95": null,
+  "mx": null,
+  "paintHund": null,
+  "compositeN": null,
+  "eventPasses": 0,
+  "vsBaseLong": "insufficient",
+  "vsBaseSkipped": "insufficient"
+ },
+ {
+  "engine": "safari",
+  "window": "hero",
+  "arm": "base",
+  "passes": 0,
+  "refused": {
+   "before": 2,
+   "after": 0,
+   "stale": 0,
+   "error": 0
+  },
+  "long": null,
+  "skipped": null,
+  "p50": null,
+  "p95": null,
+  "mx": null,
+  "paintHund": null,
+  "compositeN": null,
+  "eventPasses": 0,
+  "vsBaseLong": null,
+  "vsBaseSkipped": null
+ },
+ {
+  "engine": "safari",
+  "window": "hero",
+  "arm": "hx",
+  "passes": 0,
+  "refused": {
+   "before": 2,
+   "after": 0,
+   "stale": 0,
+   "error": 0
+  },
+  "long": null,
+  "skipped": null,
+  "p50": null,
+  "p95": null,
+  "mx": null,
+  "paintHund": null,
+  "compositeN": null,
+  "eventPasses": 0,
+  "vsBaseLong": "insufficient",
+  "vsBaseSkipped": "insufficient"
+ },
+ {
+  "engine": "safari",
+  "window": "hero",
+  "arm": "mp",
+  "passes": 0,
+  "refused": {
+   "before": 2,
+   "after": 0,
+   "stale": 0,
+   "error": 0
+  },
+  "long": null,
+  "skipped": null,
+  "p50": null,
+  "p95": null,
+  "mx": null,
+  "paintHund": null,
+  "compositeN": null,
+  "eventPasses": 0,
+  "vsBaseLong": "insufficient",
+  "vsBaseSkipped": "insufficient"
+ },
+ {
+  "engine": "safari",
+  "window": "hero",
+  "arm": "orig",
+  "passes": 0,
+  "refused": {
+   "before": 2,
+   "after": 0,
+   "stale": 0,
+   "error": 0
+  },
+  "long": null,
+  "skipped": null,
+  "p50": null,
+  "p95": null,
+  "mx": null,
+  "paintHund": null,
+  "compositeN": null,
+  "eventPasses": 0,
+  "vsBaseLong": "insufficient",
+  "vsBaseSkipped": "insufficient"
+ },
+ {
+  "engine": "safari",
+  "window": "hero",
+  "arm": "pf",
+  "passes": 0,
+  "refused": {
+   "before": 2,
+   "after": 0,
+   "stale": 0,
+   "error": 0
+  },
+  "long": null,
+  "skipped": null,
+  "p50": null,
+  "p95": null,
+  "mx": null,
+  "paintHund": null,
+  "compositeN": null,
+  "eventPasses": 0,
+  "vsBaseLong": "insufficient",
+  "vsBaseSkipped": "insufficient"
+ }
+]

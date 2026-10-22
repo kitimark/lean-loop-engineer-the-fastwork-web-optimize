@@ -1,0 +1,275 @@
+{
+ "lane": "local",
+ "xctrace": "xctrace version 27.1 (27A9275)",
+ "seconds": 6,
+ "results": [
+  {
+   "target": "mac-attach",
+   "template": "Animation Hitches",
+   "exit": 0,
+   "recorded": true,
+   "finalized": true,
+   "schemas": 56,
+   "hitchRows": 9048,
+   "hitchSchemas": [
+    "hitches-renders",
+    "hitches-framewait",
+    "hitches",
+    "hitches-updates",
+    "hitches-frame-lifetimes",
+    "hitches-gpu"
+   ],
+   "tables": {
+    "hitches-renders": 2012,
+    "hitches-framewait": 2012,
+    "hitches": 10,
+    "hitches-updates": 991,
+    "hitches-frame-lifetimes": 2012,
+    "hitches-gpu": 2011
+   },
+   "refusal": [],
+   "arm": "orig",
+   "zone": "hero"
+  },
+  {
+   "target": "mac-attach",
+   "template": "Animation Hitches",
+   "exit": 0,
+   "recorded": true,
+   "finalized": true,
+   "schemas": 56,
+   "hitchRows": 8519,
+   "hitchSchemas": [
+    "hitches-renders",
+    "hitches-framewait",
+    "hitches",
+    "hitches-updates",
+    "hitches-gpu",
+    "hitches-frame-lifetimes"
+   ],
+   "tables": {
+    "hitches-renders": 1878,
+    "hitches-framewait": 1873,
+    "hitches": 61,
+    "hitches-updates": 961,
+    "hitches-gpu": 1873,
+    "hitches-frame-lifetimes": 1873
+   },
+   "refusal": [],
+   "arm": "orig",
+   "zone": "end"
+  },
+  {
+   "target": "mac-attach",
+   "template": "Animation Hitches",
+   "exit": 0,
+   "recorded": true,
+   "finalized": true,
+   "schemas": 56,
+   "hitchRows": 9228,
+   "hitchSchemas": [
+    "hitches-renders",
+    "hitches-framewait",
+    "hitches",
+    "hitches-updates",
+    "hitches-frame-lifetimes",
+    "hitches-gpu"
+   ],
+   "tables": {
+    "hitches-renders": 2054,
+    "hitches-framewait": 2053,
+    "hitches": 1,
+    "hitches-updates": 1014,
+    "hitches-frame-lifetimes": 2053,
+    "hitches-gpu": 2053
+   },
+   "refusal": [],
+   "arm": "base",
+   "zone": "hero"
+  },
+  {
+   "target": "mac-attach",
+   "template": "Animation Hitches",
+   "exit": 0,
+   "recorded": true,
+   "finalized": true,
+   "schemas": 56,
+   "hitchRows": 8660,
+   "hitchSchemas": [
+    "hitches-renders",
+    "hitches-framewait",
+    "hitches",
+    "hitches-updates",
+    "hitches-gpu",
+    "hitches-frame-lifetimes"
+   ],
+   "tables": {
+    "hitches-renders": 1914,
+    "hitches-framewait": 1909,
+    "hitches": 46,
+    "hitches-updates": 973,
+    "hitches-gpu": 1909,
+    "hitches-frame-lifetimes": 1909
+   },
+   "refusal": [],
+   "arm": "base",
+   "zone": "end"
+  },
+  {
+   "target": "mac-attach",
+   "template": "Animation Hitches",
+   "exit": 0,
+   "recorded": true,
+   "finalized": true,
+   "schemas": 56,
+   "hitchRows": 24,
+   "hitchSchemas": [
+    "hitches-renders",
+    "hitches-framewait",
+    "hitches",
+    "hitches-updates",
+    "hitches-gpu",
+    "hitches-frame-lifetimes"
+   ],
+   "tables": {
+    "hitches-renders": 5,
+    "hitches-framewait": 4,
+    "hitches": 3,
+    "hitches-updates": 4,
+    "hitches-gpu": 4,
+    "hitches-frame-lifetimes": 4
+   },
+   "refusal": [],
+   "arm": "hx",
+   "zone": "hero"
+  },
+  {
+   "target": "mac-attach",
+   "template": "Animation Hitches",
+   "exit": 0,
+   "recorded": true,
+   "finalized": true,
+   "schemas": 56,
+   "hitchRows": 8511,
+   "hitchSchemas": [
+    "hitches-renders",
+    "hitches-framewait",
+    "hitches",
+    "hitches-updates",
+    "hitches-gpu",
+    "hitches-frame-lifetimes"
+   ],
+   "tables": {
+    "hitches-renders": 1886,
+    "hitches-framewait": 1883,
+    "hitches": 34,
+    "hitches-updates": 942,
+    "hitches-gpu": 1883,
+    "hitches-frame-lifetimes": 1883
+   },
+   "refusal": [],
+   "arm": "hx",
+   "zone": "end"
+  },
+  {
+   "target": "mac-attach",
+   "template": "Animation Hitches",
+   "exit": 0,
+   "recorded": false,
+   "finalized": true,
+   "schemas": 56,
+   "hitchRows": 0,
+   "hitchSchemas": [
+    "hitches-renders",
+    "hitches-framewait",
+    "hitches",
+    "hitches-updates",
+    "hitches-gpu",
+    "hitches-frame-lifetimes"
+   ],
+   "tables": {
+    "hitches-renders": 0,
+    "hitches-framewait": 0,
+    "hitches": 0,
+    "hitches-updates": 0,
+    "hitches-gpu": 0,
+    "hitches-frame-lifetimes": 0
+   },
+   "refusal": [],
+   "arm": "mp",
+   "zone": "hero"
+  },
+  {
+   "target": "mac-attach",
+   "template": "Animation Hitches",
+   "exit": 0,
+   "recorded": false,
+   "finalized": true,
+   "schemas": 56,
+   "hitchRows": 0,
+   "hitchSchemas": [
+    "hitches-renders",
+    "hitches-framewait",
+    "hitches",
+    "hitches-updates",
+    "hitches-gpu",
+    "hitches-frame-lifetimes"
+   ],
+   "tables": {
+    "hitches-renders": 0,
+    "hitches-framewait": 0,
+    "hitches": 0,
+    "hitches-updates": 0,
+    "hitches-gpu": 0,
+    "hitches-frame-lifetimes": 0
+   },
+   "refusal": [],
+   "arm": "mp",
+   "zone": "end"
+  },
+  {
+   "target": "mac-attach",
+   "template": "Animation Hitches",
+   "exit": 0,
+   "recorded": false,
+   "finalized": true,
+   "schemas": 56,
+   "hitchRows": 0,
+   "hitchSchemas": [
+    "hitches-framewait",
+    "hitches-renders",
+    "hitches",
+    "hitches-updates",
+    "hitches-gpu",
+    "hitches-frame-lifetimes"
+   ],
+   "tables": {
+    "hitches-framewait": 0,
+    "hitches-renders": 0,
+    "hitches": 0,
+    "hitches-updates": 0,
+    "hitches-gpu": 0,
+    "hitches-frame-lifetimes": 0
+   },
+   "refusal": [],
+   "arm": "pf",
+   "zone": "hero"
+  },
+  {
+   "target": "mac-attach",
+   "template": "Animation Hitches",
+   "exit": "timeout",
+   "recorded": false,
+   "finalized": false,
+   "schemas": 0,
+   "hitchRows": 0,
+   "hitchSchemas": [],
+   "tables": {},
+   "refusal": [
+    "Export failed: Document Missing Template Error"
+   ],
+   "arm": "pf",
+   "zone": "end"
+  }
+ ]
+}

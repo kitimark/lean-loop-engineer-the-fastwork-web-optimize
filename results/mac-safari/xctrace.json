@@ -1,0 +1,64 @@
+{
+ "lane": "local",
+ "xctrace": "xctrace version 27.1 (27A9275)",
+ "seconds": 6,
+ "results": [
+  {
+   "target": "sim",
+   "template": "Animation Hitches",
+   "exit": 2,
+   "recorded": false,
+   "finalized": false,
+   "schemas": 0,
+   "hitchRows": 0,
+   "hitchSchemas": [],
+   "refusal": [
+    "* [Error] Hitches is not supported on this platform.",
+    "Recording failed with errors. Saving output file...",
+    "Export failed: Trace is malformed - run data is missing."
+   ]
+  },
+  {
+   "target": "sim",
+   "template": "Metal System Trace",
+   "exit": 0,
+   "recorded": false,
+   "finalized": true,
+   "schemas": 81,
+   "hitchRows": 0,
+   "hitchSchemas": [],
+   "refusal": [
+    "* [Warning] Recovery Suggestion: This could be due to a missing package, or an error in a package under development."
+   ]
+  },
+  {
+   "target": "mac",
+   "template": "Animation Hitches",
+   "exit": 0,
+   "recorded": false,
+   "finalized": true,
+   "schemas": 56,
+   "hitchRows": 0,
+   "hitchSchemas": [
+    "hitches-renders",
+    "hitches-framewait",
+    "hitches",
+    "hitches-updates",
+    "hitches-gpu",
+    "hitches-frame-lifetimes"
+   ],
+   "refusal": []
+  },
+  {
+   "target": "mac",
+   "template": "Metal System Trace",
+   "exit": 0,
+   "recorded": false,
+   "finalized": true,
+   "schemas": 82,
+   "hitchRows": 0,
+   "hitchSchemas": [],
+   "refusal": []
+  }
+ ]
+}

@@ -1,0 +1,25 @@
+{
+ "engine": "sim",
+ "arm": "base",
+ "window": "end",
+ "round": 0,
+ "decision": "refuse",
+ "phase": "before",
+ "why": [
+  "load",
+  "avail",
+  "compress"
+ ],
+ "before": {
+  "time": 1792677430,
+  "load": 62.71,
+  "availMB": 187,
+  "press": 1,
+  "comprMBPerMin": 3479,
+  "swapOutMBPerMin": 0,
+  "holders": 0,
+  "queued": 0
+ },
+ "after": null,
+ "ms": 48761
+}

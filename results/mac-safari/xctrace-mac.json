@@ -1,0 +1,55 @@
+{
+ "lane": "local",
+ "xctrace": "xctrace version 27.1 (27A9275)",
+ "seconds": 6,
+ "results": [
+  {
+   "target": "mac",
+   "template": "Animation Hitches",
+   "exit": "timeout",
+   "recorded": false,
+   "finalized": true,
+   "schemas": 56,
+   "hitchRows": 0,
+   "hitchSchemas": [
+    "hitches-framewait",
+    "hitches-renders",
+    "hitches",
+    "hitches-updates",
+    "hitches-gpu",
+    "hitches-frame-lifetimes"
+   ],
+   "refusal": []
+  },
+  {
+   "target": "mac",
+   "template": "Metal System Trace",
+   "exit": "timeout",
+   "recorded": false,
+   "finalized": true,
+   "schemas": 82,
+   "hitchRows": 0,
+   "hitchSchemas": [],
+   "refusal": []
+  },
+  {
+   "target": "mac-attach",
+   "template": "Animation Hitches",
+   "exit": 0,
+   "recorded": true,
+   "finalized": true,
+   "schemas": 56,
+   "hitchRows": 3446,
+   "hitchSchemas": [
+    "hitches-renders",
+    "hitches-framewait",
+    "hitches",
+    "hitches-updates",
+    "hitches-gpu",
+    "hitches-frame-lifetimes"
+   ],
+   "refusal": [],
+   "attached": "Safari"
+  }
+ ]
+}
