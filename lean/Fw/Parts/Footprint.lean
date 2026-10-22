@@ -63,7 +63,8 @@ def Op.isWrite : Op → Bool
 /-- One extracted access. `part`: the part whose code runs it; `file`, `line`: its site under `apps/site/src/parts/`;
 `name`: the property, class, attribute, query, event or order it names; `owner`: the part id rendering the element it
 touches (`""` for a CSS read of any element, `"?"` unresolved, `"document"` the window or document, a trailing `^` an
-element's parent); `ctx`: the callback it runs in.
+element's parent); `ctx`: the callback it runs in; `variants`: the part.json variants whose files contain the site
+(all of them when the part lists no files).
 
 One golden record. -/
 structure Access where
@@ -74,6 +75,7 @@ structure Access where
   name : String
   owner : String
   ctx : String
+  variants : List String
 deriving Repr, DecidableEq, Inhabited
 
 /-- One extractor finding: an unresolved target, a dead, dynamic or templated selector, a dynamic class.
@@ -173,13 +175,13 @@ def writes (a : Access) : List String :=
 Only the seven write ops produce outputs. -/
 theorem writes_nil_of_read (a : Access) (h : a.op.isWrite = false) : writes a = [] := by
   cases a with
-  | mk part file line op name owner ctx => cases op <;> simp_all [writes, Op.isWrite]
+  | mk part file line op name owner ctx vs => cases op <;> simp_all [writes, Op.isWrite]
 
 /-- A write access feeds no read wire.
 An access is an input or an output, never both. -/
 theorem reads_nil_of_write (a : Access) (h : a.op.isWrite = true) : reads a = [] := by
   cases a with
-  | mk part file line op name owner ctx => cases op <;> simp_all [reads, Op.isWrite]
+  | mk part file line op name owner ctx vs => cases op <;> simp_all [reads, Op.isWrite]
 
 /-- Teardown reads nothing.
 An effect cleanup runs off the frame path. -/
@@ -245,7 +247,7 @@ def jstr (s : String) : String := "\"" ++ ((s.replace "\\" "\\\\").replace "\"" 
 def Access.json (a : Access) : String :=
   "{\"part\":" ++ jstr a.part ++ ",\"file\":" ++ jstr a.file ++ ",\"line\":" ++ toString a.line ++
     ",\"op\":" ++ jstr a.op.name ++ ",\"name\":" ++ jstr a.name ++ ",\"owner\":" ++ jstr a.owner ++
-    ",\"ctx\":" ++ jstr a.ctx ++ "}"
+    ",\"ctx\":" ++ jstr a.ctx ++ ",\"variants\":[" ++ ",".intercalate (a.variants.map jstr) ++ "]}"
 
 /-- One finding as its golden line.
 Keys in this order, no spaces. -/
@@ -261,7 +263,7 @@ def golden (ids : List String) (as : List Access) (fs : List Finding) : String :
     ",\n".intercalate (as.map Access.json) ++ "\n],\n\"findings\":[\n" ++
     ",\n".intercalate (fs.map Finding.json) ++ "\n]}\n"
 
-private def ex (op : Op) (name owner ctx : String) : Access := ⟨"p", "p/a.ts", 1, op, name, owner, ctx⟩
+private def ex (op : Op) (name owner ctx : String) : Access := ⟨"p", "p/a.ts", 1, op, name, owner, ctx, ["faithful"]⟩
 
 #guard phase "cleanup" == .cleanup && phase "effect" == .mount && phase "props" == .mount
 #guard phase "listener:media-change" == .resize && phase "listener:resize" == .resize
@@ -296,6 +298,8 @@ private def ex (op : Op) (name owner ctx : String) : Access := ⟨"p", "p/a.ts",
 #guard splitKind "cssVar:--x/nav" == ("cssVar", "--x/nav") && splitKind "vw" == ("vw", "")
 #guard splitKind "className:a:b/c" == ("className", "a:b/c") && joinKind ("vw", "") == "vw"
 #guard ["vw", "rect:?", "cssVar:--x/nav", "className:a:b/c"].all fun w => joinKind (splitKind w) == w
+#guard (ex .vw "" "" "x").json ==
+  "{\"part\":\"p\",\"file\":\"p/a.ts\",\"line\":1,\"op\":\"vw\",\"name\":\"\",\"owner\":\"\",\"ctx\":\"x\",\"variants\":[\"faithful\"]}"
 #guard golden ["a"] [] [] == "{\"parts\":[\"a\"],\n\"accesses\":[\n\n],\n\"findings\":[\n\n]}\n"
 
 end Fw.Parts.Footprint

@@ -1182,12 +1182,56 @@ function extractPass() {
   return out;
 }
 
-const AKEYS = ['part', 'file', 'line', 'op', 'name', 'owner', 'ctx'];
+// ---------- variant attribution ----------
+// A record belongs to the variants whose part.json `files` list its file; a file of another folder belongs to the
+// variants listing an own file whose import closure reaches it; a part without `files` lists all its variants.
+const partDefs = new Map(partIds.map((p) => {
+  const f = path.join(partsDir, p, 'part.json');
+  return [p, fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')) : null];
+}));
+const fileClosures = new Map();
+function fileClosure(abs, part) {
+  const key = `${part}|${abs}`;
+  if (fileClosures.has(key)) return fileClosures.get(key);
+  const seen = new Set([abs]);
+  const queue = abs.endsWith('.css') || !fs.existsSync(abs) ? [] : [abs];
+  while (queue.length) {
+    const f = queue.shift();
+    for (const st of loadTs(f).program.body) {
+      if (st.type !== 'ImportDeclaration' && !(st.type === 'ExportNamedDeclaration' && st.source)) continue;
+      const t = resolveImport(f, st.source.value);
+      if (!t || !inParts(t) || seen.has(t)) continue;
+      if (folderOf(t) !== part && isEntry(t)) continue;
+      seen.add(t);
+      if (!t.endsWith('.css')) queue.push(t);
+    }
+  }
+  fileClosures.set(key, seen);
+  return seen;
+}
+function variantsOf(part, file) {
+  const def = partDefs.get(part);
+  if (!def) return [];
+  const vs = Object.entries(def.variants);
+  if (!vs.some(([, v]) => v.files)) return vs.map(([k]) => k);
+  const abs = path.join(partsDir, file);
+  if (folderOf(abs) === part) {
+    const base = path.relative(path.join(partsDir, part), abs).split(path.sep).join('/');
+    return vs.filter(([, v]) => (v.files ?? []).includes(base)).map(([k]) => k);
+  }
+  return vs.filter(([, v]) => (v.files ?? []).some((g) => fileClosure(path.join(partsDir, part, g), part).has(abs))).map(([k]) => k);
+}
+const variantRows = partIds.flatMap((p) => {
+  const def = partDefs.get(p);
+  return def ? Object.entries(def.variants).map(([k, v]) => ({ part: p, variant: k, files: v.files ?? [] })) : [];
+});
+
+const AKEYS = ['part', 'file', 'line', 'op', 'name', 'owner', 'ctx', 'variants'];
 const FKEYS = ['part', 'file', 'line', 'kind', 'detail'];
 const json = (s) => JSON.stringify(s);
 function render() {
   extract();
-  const acc = [...accesses.entries()].sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0)).map((e) => e[1]);
+  const acc = [...accesses.entries()].sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0)).map((e) => ({ ...e[1], variants: variantsOf(e[1].part, e[1].file) }));
   const fin = [...findings.entries()].sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0)).map((e) => e[1]);
   const row = (o, keys) => `{${keys.map((k) => `${json(k)}:${json(o[k])}`).join(',')}}`;
   const text = `{"parts":${json(partIds)},\n"accesses":[\n${acc.map((a) => row(a, AKEYS)).join(',\n')}\n],\n"findings":[\n${fin.map((f) => row(f, FKEYS)).join(',\n')}\n]}\n`;
@@ -1205,18 +1249,24 @@ namespace Fw.Parts.FootprintData
 open Fw.Parts.Footprint
 
 `;
-  const a = acc.map((r) => `  ⟨${leanStr(r.part)}, ${leanStr(r.file)}, ${r.line}, .${r.op}, ${leanStr(r.name)}, ${leanStr(r.owner)}, ${leanStr(r.ctx)}⟩`);
+  const list = (xs) => `[${xs.map(leanStr).join(', ')}]`;
+  const a = acc.map((r) => `  ⟨${leanStr(r.part)}, ${leanStr(r.file)}, ${r.line}, .${r.op}, ${leanStr(r.name)}, ${leanStr(r.owner)}, ${leanStr(r.ctx)}, ${list(r.variants)}⟩`);
+  const v = variantRows.map((r) => `  (${leanStr(r.part)}, ${leanStr(r.variant)}, ${list(r.files)})`);
   const f = fin.map((r) => `  ⟨${leanStr(r.part)}, ${leanStr(r.file)}, ${r.line}, ${leanStr(r.kind)}, ${leanStr(r.detail)}⟩`);
   return `${head}/-- Part ids, one per folder of apps/site/src/parts, in byte order of the folder names. -/
 def partIds : List String := [${partIds.map(leanStr).join(', ')}]
 
-/-- Every extracted access, in key order: (part, file, line, op, name, owner, callback). -/
+/-- Every extracted access, in key order: (part, file, line, op, name, owner, callback, variants). -/
 def accesses : List Access := [
 ${a.join(',\n')}]
 
 /-- Extractor findings (dead, dynamic, unresolved selectors and targets): (part, file, line, kind, detail). -/
 def findings : List Finding := [
 ${f.join(',\n')}]
+
+/-- Every variant of every part.json with its \`files\` list, in part then part.json order: (part, variant, files). -/
+def variantFiles : List (String × String × List String) := [
+${v.join(',\n')}]
 
 end Fw.Parts.FootprintData
 `;
