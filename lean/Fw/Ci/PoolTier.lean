@@ -40,10 +40,7 @@ structure State where
 deriving DecidableEq, Repr
 
 def State.fb (c : Cfg) (s : State) : Fallback.State :=
-  { s.base with circleCreditsLeft := Overflow.classLeft c.base.circleCls s.ccSpent }
-
-def baseCfg (c : Cfg) (s : State) : Fallback.Cfg :=
-  if Overflow.storageClearAt s.ccStorage then c.base else { c.base with circleMacAllow := [] }
+  { s.base with circleCreditsLeft := Overflow.classLeft c.base.circleCls (s.ccSpent + Fw.Ci.Provider.storageCredits s.ccStorage) }
 
 def cmOk (c : Cfg) (r : Req) (s : State) : Bool :=
   c.cmOn && c.cmAllow.contains r.lane && !c.base.ghOnly.contains r.lane && decide (r.capMin ≤ c.cmCapMin) &&
@@ -56,7 +53,7 @@ deriving DecidableEq, Repr
 
 def route (c : Cfg) (r : Req) (s : State) : Decision :=
   if r.current && !Fallback.ghOk c.base (s.fb c) && cmOk c r s then .codemagic c.cmCls r.engine c.cmCapMin
-  else .base (Fallback.route (baseCfg c s) r (s.fb c))
+  else .base (Fallback.route c.base r (s.fb c))
 
 def Decision.via : Decision → Option Via
   | .codemagic .. => some .codemagic
@@ -69,7 +66,7 @@ def Decision.credits : Decision → Nat
 
 def State.after (c : Cfg) (s : State) : Decision → State
   | .codemagic _ _ m => { s with cmBusy := s.cmBusy + 1, cmUsed := s.cmUsed + m }
-  | .base d => { s with base := (s.fb c).after (baseCfg c s) d, ccSpent := s.ccSpent + (Decision.base d).credits }
+  | .base d => { s with base := (s.fb c).after c.base d, ccSpent := s.ccSpent + (Decision.base d).credits }
 
 def step (c : Cfg) : List Req → State → List (Req × Decision) × State
   | [], s => ([], s)
@@ -86,18 +83,6 @@ def macCap (c : Cfg) : Nat :=
 def Inv (c : Cfg) (s : State) : Prop :=
   Fallback.Inv c.base s.base ∧ s.cmBusy ≤ c.cmConc ∧ (c.base.bitriseOn = false → s.base.bitriseBusy = 0)
 
-theorem baseCfg_gh (c : Cfg) (s : State) : Fallback.ghOk (baseCfg c s) = Fallback.ghOk c.base := by
-  unfold baseCfg; split <;> rfl
-
-theorem baseCfg_macFree (c : Cfg) (s : State) : Fallback.macFree (baseCfg c s) = Fallback.macFree c.base := by
-  unfold baseCfg; split <;> rfl
-
-theorem baseCfg_inv (c : Cfg) (s : State) : Fallback.Inv (baseCfg c s) = Fallback.Inv c.base := by
-  unfold baseCfg; split <;> rfl
-
-theorem baseCfg_bitrise (c : Cfg) (s : State) : (baseCfg c s).bitriseOn = c.base.bitriseOn := by
-  unfold baseCfg; split <;> rfl
-
 theorem fb_macFree (c : Cfg) (s : State) : Fallback.macFree c.base (s.fb c) = Fallback.macFree c.base s.base := rfl
 
 theorem route_cm_iff (c : Cfg) (r : Req) (s : State) (cls : String) (e : Engine) (m : Nat) :
@@ -113,7 +98,7 @@ theorem route_cm_iff (c : Cfg) (r : Req) (s : State) (cls : String) (e : Engine)
     simp [h1, h2, h3] at h
 
 theorem route_base (c : Cfg) (r : Req) (s : State) (d : Fallback.Decision) (h : route c r s = .base d) :
-    d = Fallback.route (baseCfg c s) r (s.fb c) := by
+    d = Fallback.route c.base r (s.fb c) := by
   unfold route at h
   split at h
   · cases h
@@ -126,7 +111,7 @@ theorem github_first (c : Cfg) (r : Req) (s : State) (hd : s.base.ghDegraded = f
     unfold Fallback.ghOk
     rw [fb_macFree, hf]
     simp [State.fb, hd]
-  have := Fallback.gh_first (baseCfg c s) r (s.fb c) hd (by rw [baseCfg_macFree]; exact hf) hc
+  have := Fallback.gh_first c.base r (s.fb c) hd hf hc
   simp [route, hg, this]
 
 theorem codemagic_before_circleci (c : Cfg) (r : Req) (s : State) (hm : cmOk c r s = true) (hc : r.current = true) (t : Target)
@@ -136,7 +121,7 @@ theorem codemagic_before_circleci (c : Cfg) (r : Req) (s : State) (hm : cmOk c r
   · have hd := route_base c r s _ h
     rcases (Fallback.route_run_cases hd.symm).2 with ⟨_, rfl⟩ | ⟨hg', _⟩ | ⟨hg', _⟩ | ⟨hg', _⟩
     · cases ht
-    all_goals (rw [baseCfg_gh] at hg'; rw [hg] at hg'; cases hg')
+    all_goals (rw [hg] at hg'; cases hg')
   · have hg' : Fallback.ghOk c.base (s.fb c) = false := by simpa using hg
     simp [route, hc, hg', hm] at h
 
@@ -150,7 +135,7 @@ theorem overflow_only_past_github (c : Cfg) (r : Req) (s : State) (d : Decision)
     | run t =>
       rcases (Fallback.route_run_cases hd.symm).2 with ⟨_, rfl⟩ | ⟨hg, _⟩ | ⟨hg, _⟩ | ⟨hg, _, _, _, rfl⟩
       · simp [Decision.via] at hv; exact absurd hv.symm hn
-      all_goals (rw [baseCfg_gh] at hg; exact hg)
+      all_goals exact hg
     | wait => simp [Decision.via] at hv
     | done o => simp [Decision.via] at hv
 
@@ -160,8 +145,7 @@ theorem gh_line (c : Cfg) (r : Req) (s : State) (t : Target) (h : route c r s = 
       (Fallback.macFree c.base s.base = true ∨ ∃ w, Fallback.expWaitS c.base (s.fb c) = some w ∧ w < c.base.ghWaitMaxS) := by
   have hd := route_base c r s _ h
   have := Fallback.gh_overflow_bounded hd.symm hv ho
-  unfold baseCfg at this
-  split at this <;> exact this
+  exact this
 
 theorem cm_line (c : Cfg) (r : Req) (s : State) (cls : String) (e : Engine) (m : Nat) (h : route c r s = .codemagic cls e m) :
     s.cmUsed + m ≤ Codemagic.stopAt ∧ m ≤ Codemagic.maxCapMin ∧ s.cmBusy < c.cmConc ∧ r.capMin ≤ m := by
@@ -180,30 +164,30 @@ theorem cm_refuses_over (c : Cfg) (r : Req) (s : State) (h : Codemagic.stopAt < 
 theorem cc_credits_line (c : Cfg) (r : Req) (s : State) (t : Target) (h : route c r s = .base (.run t))
     (hv : t.via = .circleci) (hp : 0 < t.credits) :
     ∃ rt, Fw.Ci.Provider.rateOf t.cls = some rt ∧
-      t.credits + s.ccSpent + Overflow.reserveOf rt.pool ≤ Fw.Ci.Provider.poolCredits rt.pool := by
+      t.credits + (s.ccSpent + Fw.Ci.Provider.storageCredits s.ccStorage) + Overflow.reserveOf rt.pool ≤
+        Fw.Ci.Provider.poolCredits rt.pool := by
   have hd := route_base c r s _ h
   have hle := Fallback.circle_credits_le hd.symm hv
   obtain ⟨_, _, _, _, hcls, _⟩ := Fallback.circle_rule hd.symm hv
-  have hcls' : t.cls = c.base.circleCls := by rw [hcls]; unfold baseCfg; split <;> rfl
-  rw [hcls']
+  rw [hcls]
   exact Overflow.classLeft_spec hle hp
 
-theorem cc_storage_line (c : Cfg) (r : Req) (s : State) (hs : Fw.Ci.Provider.storageMaxMilli < s.ccStorage) (t : Target)
-    (hv : t.via = .circleci) : route c r s ≠ .base (.run t) := by
-  intro h
-  have hd := route_base c r s _ h
-  obtain ⟨_, _, _, _, _, _, _, _, hl, _⟩ := Fallback.circle_rule hd.symm hv
-  have hc : Overflow.storageClearAt s.ccStorage = false := by
-    cases hx : Overflow.storageClearAt s.ccStorage
-    · rfl
-    · have := (Overflow.storageClearAt_iff _).1 hx; omega
-  simp [baseCfg, hc] at hl
+theorem cc_storage_line (c : Cfg) (r : Req) (s : State) (t : Target) (h : route c r s = .base (.run t))
+    (hv : t.via = .circleci) (hp : 0 < t.credits) :
+    ∃ rt, Fw.Ci.Provider.rateOf t.cls = some rt ∧
+      Fw.Ci.Provider.storageCredits s.ccStorage + s.ccSpent + Overflow.reserveOf rt.pool < Fw.Ci.Provider.poolCredits rt.pool := by
+  obtain ⟨rt, hr, hle⟩ := cc_credits_line c r s t h hv hp
+  exact ⟨rt, hr, by omega⟩
+
+theorem fb_storage_within_allow (c : Cfg) (s : State) (h : s.ccStorage ≤ Fw.Ci.Provider.storageAllowMilli) :
+    s.fb c = { s.base with circleCreditsLeft := Overflow.classLeft c.base.circleCls s.ccSpent } := by
+  simp [State.fb, Fw.Ci.Provider.storageCredits_within_allow _ h]
 
 theorem bitrise_line (c : Cfg) (r : Req) (s : State) (hb : c.base.bitriseOn = false) (t : Target) (hv : t.via = .bitrise) :
     route c r s ≠ .base (.run t) := by
   intro h
   have hd := route_base c r s _ h
-  exact Fallback.bitrise_off_never (by rw [baseCfg_bitrise]; exact hb) hd.symm hv
+  exact Fallback.bitrise_off_never hb hd.symm hv
 
 theorem after_inv {c : Cfg} {s : State} (r : Req) (h : Inv c s) : Inv c (s.after c (route c r s)) := by
   obtain ⟨hb, hcm, hbr⟩ := h
@@ -213,9 +197,9 @@ theorem after_inv {c : Cfg} {s : State} (r : Req) (h : Inv c s) : Inv c (s.after
     exact ⟨hb, by simp only [State.after]; omega, hbr⟩
   | base d =>
     have hd' := route_base c r s d hd
-    have hfb : Fallback.Inv (baseCfg c s) (s.fb c) := by rw [baseCfg_inv]; exact hb
-    have := Fallback.after_inv (c := baseCfg c s) r hfb
-    rw [← hd', baseCfg_inv] at this
+    have hfb : Fallback.Inv c.base (s.fb c) := hb
+    have := Fallback.after_inv (c := c.base) r hfb
+    rw [← hd'] at this
     refine ⟨this, hcm, fun ho => ?_⟩
     simp only [State.after]
     cases d with
@@ -285,7 +269,11 @@ private def seven : List Req := (List.range 7).map fun i => rq "webkit-sim" i
 #guard route pool7 (rq "webkit-sim") { idle with base.ghMacBusy := 5, base.ghTotalBusy := 5 } == .codemagic "mac_mini_m2" .iosSimSafari 40
 #guard route pool7 (rq "webkit-sim") { idle with base.ghMacBusy := 5, base.ghTotalBusy := 5, cmUsed := 361 } ==
   .base (.run ⟨.circleci, .macos, "m4pro.medium", .iosSimSafari, 43, 8600⟩)
-#guard route pool7 (rq "webkit-sim") { idle with base.ghMacBusy := 5, base.ghTotalBusy := 5, cmBusy := 1, ccStorage := 1001 } ==
+#guard route pool7 (rq "webkit-sim") { idle with base.ghMacBusy := 5, base.ghTotalBusy := 5, cmBusy := 1, ccStorage := 1297 } ==
+  .base (.run ⟨.circleci, .macos, "m4pro.medium", .iosSimSafari, 43, 8600⟩)
+#guard route pool7 (rq "webkit-sim") { idle with base.ghMacBusy := 5, base.ghTotalBusy := 5, cmBusy := 1, ccSpent := 15400, ccStorage := 2000 } ==
+  .base (.run ⟨.circleci, .macos, "m4pro.medium", .iosSimSafari, 43, 8600⟩)
+#guard route pool7 (rq "webkit-sim") { idle with base.ghMacBusy := 5, base.ghTotalBusy := 5, cmBusy := 1, ccSpent := 15400, ccStorage := 2001 } ==
   .base .wait
 #guard route pool7 (rq "webkit-sim") { idle with base.ghMacBusy := 5, base.ghTotalBusy := 5, cmBusy := 1, ccSpent := 15401 } ==
   .base .wait

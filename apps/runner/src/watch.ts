@@ -1,5 +1,3 @@
-// `fw watch`: collect the team snapshot, ask fwcore `obs.health` for states and alerts, print a compact table,
-// append input+output to .fw-console/health.jsonl. No decision logic here: every state and alert code is fwcore's.
 import { begin } from "./timing.ts";
 import { execFile, spawn } from "node:child_process";
 import { appendFileSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, writeFileSync, writeSync } from "node:fs";
@@ -18,7 +16,6 @@ import {
 
 export const WATCH_USAGE = "usage: fw watch [--json] [--interval <s>] [--until-alert]   (exit 3 when a new alert appears)\n       fw watch [--interval <s>] --stream   (one OPEN/CLOSE line per alert change, never exits on an alert)\n       fw watch --keep <pid> [--note <text>] | --unkeep <pid>   (declare an intended long-runner: no proc.long)";
 
-/** `critical`: tied to a critical-path task (fwcore sorts those first). */
 export interface Alert { code: string; subject: string; detail: string; critical?: boolean }
 export interface Health {
   agents: { id: string; state: string; alerts: string[] }[]; system: { alerts: string[] };
@@ -26,12 +23,10 @@ export interface Health {
 }
 export type CoreCall = (req: Record<string, unknown>) => Promise<Record<string, unknown>>;
 
-/** Candidate fwcore binaries, first that knows obs.health wins: FW_CORE_BIN, this checkout, the main checkout,
- *  then sibling worktrees (until the op is built in the main checkout). */
 export function coreCandidates(root: string, main: string, env: NodeJS.ProcessEnv = process.env): string[] {
   const rel = "lean/.lake/build/bin/fwcore";
   const c = [env.FW_CORE_BIN, join(root, rel), join(main, rel)];
-  try { for (const w of readdirSync(join(main, ".claude/worktrees"))) c.push(join(main, ".claude/worktrees", w, rel)); } catch { /* none */ }
+  try { for (const w of readdirSync(join(main, ".claude/worktrees"))) c.push(join(main, ".claude/worktrees", w, rel)); } catch {}
   return [...new Set(c.filter((x): x is string => !!x && existsSync(x)))];
 }
 
@@ -67,8 +62,6 @@ export async function check(snap: Snapshot, core: CoreCall): Promise<Health> {
   return r as unknown as Health;
 }
 
-/** `obs.next` for the same snapshot: the facts are observed in next.ts, every action is fwcore's. Null when the op or
- *  a collector is unavailable (the watch then runs without NEXT lines). */
 export async function nextFor(paths: Paths, main: string, snap: Snapshot, h: Health, core: CoreCall): Promise<NextReply | null> {
   try {
     const facts = await collectFacts(paths, main, snap, h);
@@ -76,8 +69,6 @@ export async function nextFor(paths: Paths, main: string, snap: Snapshot, h: Hea
   } catch { return null; }
 }
 
-/** `obs.slow` for the span history: the `<tool>/<step>` subjects fwcore's Fw.Obs.Timing verdicts call slow (the latest
- *  sample of the step is slow). No threshold here. Empty when the op or the history is unavailable. */
 export async function slowFor(paths: Paths, core: CoreCall): Promise<string[]> {
   try {
     const samples = readSamples(paths);
@@ -87,7 +78,6 @@ export async function slowFor(paths: Paths, core: CoreCall): Promise<string[]> {
   } catch { return []; }
 }
 
-/** `fw next`: print the current NEXT list once. Read-only: no log line, no action. Returns the exit code. */
 export async function nextMain(args: string[], cwd: string, print: (s: string) => void = console.log, core?: CoreCall): Promise<number> {
   if (args.length) throw new UsageError("usage: fw next   (prints `NEXT <agent> <action> <args>` once; read-only)");
   const { root, main } = await repoRoots(cwd);
@@ -104,7 +94,6 @@ export async function nextMain(args: string[], cwd: string, print: (s: string) =
   return 0;
 }
 
-// ---- rendering ----
 const ORDER: Record<string, number> = { stalled: 0, active: 1, idle: 2, parked: 3, gone: 4, done: 5 };
 const KIND: Record<string, string> = { teammate: "tm", subagent: "sub", workflow: "wf" };
 const min = (ms: number) => Math.max(0, Math.round(ms / 60000));
@@ -146,18 +135,15 @@ export interface AlertKey { code: string; subject: string }
 export interface Diff { opened: Alert[]; closed: AlertKey[]; next: AlertKey[] }
 const keyList = (x: unknown): AlertKey[] => (Array.isArray(x) ? x : []).filter((k): k is AlertKey => typeof k?.code === "string" && typeof k?.subject === "string")
   .map((k) => ({ code: k.code, subject: k.subject }));
-/** fwcore `ops.watchDiff` (Fw.Ops.WatchDiff.step): the alerts opened and the keys closed against the open set `prev`. */
 export async function diffAlerts(core: CoreCall, prev: AlertKey[], alerts: Alert[]): Promise<Diff> {
   const r = await core({ op: "ops.watchDiff", prev, now: alerts.map((a) => ({ code: a.code, subject: a.subject, detail: a.detail })) });
   if (!Array.isArray(r.opened) || !Array.isArray(r.closed) || !Array.isArray(r.next)) throw new Error("fwcore ops.watchDiff: bad reply");
   const opened = keyList(r.opened).map((k, i) => ({ ...k, detail: String((r.opened as { detail?: unknown }[])[i]?.detail ?? "") }));
   return { opened, closed: keyList(r.closed), next: keyList(r.next) };
 }
-/** The alerts the previous check did not have (`--until-alert`); none on the first check (`prev` null: the baseline). */
 export async function newAlerts(core: CoreCall, prev: AlertKey[] | null, h: Health): Promise<Alert[]> {
   return prev === null ? [] : (await diffAlerts(core, prev, h.alerts)).opened;
 }
-/** fwcore `ops.watchKeep` as a `KeepDecide`. */
 export function keepDecider(core: CoreCall): KeepDecide {
   return async (entries, rows) => {
     const r = await core({ op: "ops.watchKeep", entries: entries.map((e) => ({ pid: e.pid, start: e.start })), rows });
@@ -169,11 +155,9 @@ export function keepDecider(core: CoreCall): KeepDecide {
 }
 
 const oneLine = (t: string) => t.replace(/\s+/g, " ").trim();
-/** The stream lines of one diff: `OPEN <code> <subject> <detail>` per opened alert, `CLOSE <code> <subject>` per closed key. */
 export function streamLines(d: Diff): string[] {
   return [...d.opened.map((a) => oneLine(`OPEN ${a.code} ${a.subject} ${a.detail}`)), ...d.closed.map((k) => oneLine(`CLOSE ${k.code} ${k.subject}`))];
 }
-// No reader on stdout (EPIPE): nobody can see the stream, so it stops at once (exit 141, as SIGPIPE).
 export const syncLine = (t: string) => { try { writeSync(1, t + "\n"); } catch { process.exit(141); } };
 
 export function appendLog(p: Paths, snap: Snapshot, h: Health): void {
@@ -182,7 +166,6 @@ export function appendLog(p: Paths, snap: Snapshot, h: Health): void {
 }
 
 export interface LogLine { at: number; input: Snapshot; output: Health }
-/** The last complete line of .fw-console/health.jsonl, read from the end (the file only grows); null if none parses. */
 export function readLastLog(p: Paths): LogLine | null {
   let fd: number;
   try { fd = openSync(join(p.consoleDir, "health.jsonl"), "r"); } catch { return null; }
@@ -196,7 +179,6 @@ export function readLastLog(p: Paths): LogLine | null {
       tail = buf.toString("utf8") + tail;
       end = start;
       const lines = tail.split("\n").filter((l) => l.trim());
-      // the first piece may be cut mid-line unless we reached the file start
       if (lines.length >= (start === 0 ? 1 : 2)) {
         try {
           const o = JSON.parse(lines[lines.length - 1]!);
@@ -210,7 +192,6 @@ export function readLastLog(p: Paths): LogLine | null {
 
 export interface WatchOpts {
   json: boolean; intervalS: number | null; untilAlert: boolean; stream: boolean;
-  /** declare (`--keep`) or withdraw (`--unkeep`) an intended long-runner, then exit without a check */
   keep: number | null; unkeep: number | null; note: string | null;
 }
 export function parseWatchArgs(args: string[]): WatchOpts {
@@ -245,19 +226,16 @@ export function parseWatchArgs(args: string[]): WatchOpts {
   return o;
 }
 
-/** The declarations whose process still runs (fwcore decides: same pid and same start). */
 async function liveDeclared(paths: Paths, rows: StartRow[], decide: KeepDecide): Promise<KeepEntry[]> {
   const entries = readKeep(paths);
   const { live } = await decide(entries, rows);
   return entries.filter((_, i) => live.includes(i));
 }
 
-/** `--keep`/`--unkeep`: rewrite .fw-console/keep.json (entries whose process is gone are dropped on the way).
- *  Returns the message to print. `rows` is the current `ps` table with start times. */
 export async function declareKeep(paths: Paths, o: WatchOpts, rows: StartRow[], decide: KeepDecide): Promise<string> {
   const cur = await liveDeclared(paths, rows, decide);
   if (o.unkeep !== null) {
-    writeKeep(paths, readKeep(paths).filter((e) => e.pid !== o.unkeep)); // never the ps-filtered list: a failed ps must not erase declarations
+    writeKeep(paths, readKeep(paths).filter((e) => e.pid !== o.unkeep));
     return `fw watch: pid ${o.unkeep} is no longer declared`;
   }
   const r = rows.find((x) => x.pid === o.keep);
@@ -285,17 +263,15 @@ export function repoRoots(cwd: string): Promise<{ root: string; main: string }> 
   });
 }
 
-/** Returns the exit code. `print` defaults to `console.log`, and to one synchronous write per line with `--stream`. */
 export async function watchMain(args: string[], cwd: string, print?: (s: string) => void, core?: CoreCall): Promise<number> {
   const o = parseWatchArgs(args);
   const say = print ?? (o.stream ? syncLine : console.log);
   const { root, main } = await repoRoots(cwd);
-  const paths = pathsFor(main); // the console data (.fw-console, .local) lives in the main checkout
+  const paths = pathsFor(main);
   const call = core ?? coreCaller(coreCandidates(root, main));
   const decide = keepDecider(call);
   if (o.keep !== null || o.unkeep !== null) { say(await declareKeep(paths, o, await startRows(), decide)); return 0; }
   if (o.stream) return streamMain(o, paths, main, call, decide, say);
-  // a repeating watch is itself an intended long-runner: declare it while it runs, so other checks do not flag it
   if (o.intervalS !== null) {
     try {
       const rows = await startRows();
@@ -303,12 +279,10 @@ export async function watchMain(args: string[], cwd: string, print?: (s: string)
       if (me) {
         writeKeep(paths, [...(await liveDeclared(paths, rows, decide)).filter((e) => e.pid !== me.pid),
           { pid: me.pid, start: me.start, note: "fw watch --interval" }]);
-        process.once("exit", () => { try { writeKeep(paths, readKeep(paths).filter((e) => e.pid !== me.pid)); } catch { /* best effort */ } });
+        process.once("exit", () => { try { writeKeep(paths, readKeep(paths).filter((e) => e.pid !== me.pid)); } catch {} });
       }
-    } catch { /* no fwcore keep decision: run undeclared */ }
+    } catch {}
   }
-  // the last logged check is the baseline: a relaunch after exit 3 does not re-report the alert it exited on,
-  // and a failed gh/docker collector carries that check's value forward (marked stale)
   const last = readLastLog(paths);
   let prev: AlertKey[] | null = last ? last.output.alerts.map((a) => ({ code: a.code, subject: a.subject })) : null;
   let prevSnap: Prev | null = last?.input?.system ? { at: last.at, system: last.input.system, critical: last.input.critical, ghDegraded: ghFlagged(last.output), contended: contendedFlagged(last.output) } : null;
@@ -323,33 +297,28 @@ export async function watchMain(args: string[], cwd: string, print?: (s: string)
     const prev0 = prev;
     prev = h.alerts.map((a) => ({ code: a.code, subject: a.subject }));
     prevSnap = { at: snap.now, system: snap.system, critical: snap.critical, ghDegraded: ghFlagged(h), contended: contendedFlagged(h) };
-    if (o.intervalS !== null) for (const l of reapTick(main)) if (!o.json) say(l); // reap-auto-stop: each tick stops the processes Lean selects
-    if (o.intervalS !== null && (await newAlerts(call, prev0, h)).some((a) => a.code === DISK_LOW)) for (const l of diskGcTick(main, [...CLASSES], fwcoreCall(main))) if (!o.json) say(l);
+    if (o.intervalS !== null) for (const l of reapTick(main)) if (!o.json) say(l);
+    if (o.intervalS !== null && (await newAlerts(call, prev0, h)).some((a) => a.code === DISK_LOW)) for (const l of diskGcTick(main, [...CLASSES], fwcoreCall(main), process.env, { pressure: true })) if (!o.json) say(l);
     if (o.intervalS === null) return 0;
     await new Promise((r) => setTimeout(r, o.intervalS! * 1000));
   }
 }
 
-/** The alert code whose opening runs every disk-gc class. */
 export const DISK_LOW = "sys.diskLow";
 
-/** One collection pass: snapshot, fwcore health, NEXT and slow alerts, one log line. */
 async function pass(paths: Paths, main: string, prevSnap: Prev | null, call: CoreCall, decide: KeepDecide) {
-  const endPass = begin("fw", "watch pass", main); // timing-spans: one span per collection pass
+  const endPass = begin("fw", "watch pass", main);
   const snap = await collectSnapshot(paths, Date.now(), undefined, prevSnap, undefined, decide);
   const h = await check(snap, call);
   const nx = await nextFor(paths, main, snap, h, call);
-  if (nx) h.alerts.push(...nextAlerts(nx)); // agent.held / agent.unlanded: fwcore's proposals shown as alerts
-  const slow = await slowFor(paths, call); // timing.slow: fwcore's Fw.Obs.Timing verdicts (obs.slow), never a threshold here
+  if (nx) h.alerts.push(...nextAlerts(nx));
+  const slow = await slowFor(paths, call);
   h.alerts.push(...slowAlerts(slow));
   appendLog(paths, snap, h);
   endPass(0);
   return { snap, h, nx, slow };
 }
 
-/** `--stream`: every interval, print the OPEN/CLOSE lines of fwcore's diff against the open set in
- *  the set this stream printed (in memory only, so a re-armed stream reprints every open alert). Never exits on an alert; a failed pass, a signal or any exit prints
- *  one `STREAM END <reason>` line (a SIGKILL cannot). */
 async function streamMain(o: WatchOpts, paths: Paths, main: string, call: CoreCall, decide: KeepDecide, say: (s: string) => void): Promise<number> {
   let ended = false;
   const end = (reason: string) => { if (!ended) { ended = true; say(oneLine(`STREAM END ${reason}`)); } };
@@ -357,16 +326,16 @@ async function streamMain(o: WatchOpts, paths: Paths, main: string, call: CoreCa
   for (const [sig, n] of [["SIGINT", 2], ["SIGTERM", 15], ["SIGHUP", 1]] as const) process.once(sig, () => { end(`signal ${sig}`); process.exit(128 + n); });
   const last = readLastLog(paths);
   let prevSnap: Prev | null = last?.input?.system ? { at: last.at, system: last.input.system, critical: last.input.critical, ghDegraded: ghFlagged(last.output), contended: contendedFlagged(last.output) } : null;
-  const stopPush = startPush(join(paths.consoleDir, "events.jsonl"), call, say); // console-push: user events as they are appended
-  let open: AlertKey[] = []; // each stream starts empty and prints every open alert once: nothing is persisted
+  const stopPush = startPush(join(paths.consoleDir, "events.jsonl"), call, say);
+  let open: AlertKey[] = [];
   try {
     for (;;) {
       const { snap, h } = await pass(paths, main, prevSnap, call, decide);
       const d = await diffAlerts(call, open, h.alerts);
       for (const line of streamLines(d)) say(line);
       open = d.next;
-      for (const l of reapTick(main)) say(l); // reap-auto-stop: `REAP stopped ...` and `DISKGC ...` lines are the only non-OPEN/CLOSE lines
-      if (d.opened.some((a) => a.code === DISK_LOW)) for (const l of diskGcTick(main, [...CLASSES], fwcoreCall(main))) say(l); // disk-auto-gc
+      for (const l of reapTick(main)) say(l);
+      if (d.opened.some((a) => a.code === DISK_LOW)) for (const l of diskGcTick(main, [...CLASSES], fwcoreCall(main), process.env, { pressure: true })) say(l);
       prevSnap = { at: snap.now, system: snap.system, critical: snap.critical, ghDegraded: ghFlagged(h), contended: contendedFlagged(h) };
       await new Promise((r) => setTimeout(r, o.intervalS! * 1000));
     }
