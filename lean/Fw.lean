@@ -246,3 +246,6 @@ import Fw.Ci.Pool.Key  -- pool-key-outcome: request keys, provider-tagged artifa
 import Fw.Ci.Codemagic
 import Fw.Ci.Steps  -- macos-teardown-trim: the steps allowed after the measurement step of the five macOS jobs, the lint decision
 import Fw.Oracle.Labels
+import Fw.Oracle.Expand
+import Fw.Oracle.ExpandPaired
+import Fw.Oracle.ExpandWire
