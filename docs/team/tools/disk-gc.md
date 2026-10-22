@@ -2,8 +2,8 @@
 
 `pnpm -s fw disk-gc` lists what seven cleanup classes may delete; `--delete` removes exactly that list. Each class is
 decided on its own (a candidate of one class never changes the verdict on another).
-- Spec and proofs: `lean/Fw/Ops/DiskGc.lean` (fwcore ops `ops.diskGc`, `ops.diskGcPath`).
-- Glue: `apps/runner/src/disk-gc.ts`. It gathers facts, asks fwcore, and prints or deletes. It decides nothing.
+- Spec and proofs: `lean/Fw/Ops/DiskGc.lean` (fwcore ops `ops.diskGc`, `ops.diskGcPath`, `ops.diskGcFacts`).
+- Glue: `apps/runner/src/disk-gc.ts`. It gathers facts, asks fwcore, and prints or deletes. It decides nothing. Class 4's agent, task and run facts come from the event log through `ops.diskGcFacts` (stop and resume ordered by `seq`).
 - Golden vectors: `packages/contracts/golden/ops/diskgc.jsonl` (`lean/scripts/DiskGcGolden.lean`, checked by
   `lean/scripts/check.sh`), replayed through the built fwcore by `apps/runner/test/disk-gc.test.ts`. The same test
   runs `--list` and `--delete` on a temp tree.
@@ -18,7 +18,7 @@ decided on its own (a candidate of one class never changes the verdict on anothe
 | 4 | `scratch` | `/private/tmp/claude-<uid>/<project>/<session>/scratchpad/<dir>` | a directory, no file newer than `--scratch-h` (8 h), no `scratchpad/<dir>` on main (`git grep`), name not `fable…` |
 | 5 | `sim` | Simulator devices via `xcrun simctl delete <udid>` | named `fw-…`, `Shutdown`, its name not on main in `.github`, `packages`, `apps`, `scripts`; sim lock `<main>/.local/locks/sim` absent |
 | 6 | `console` | `.fw-console/tmp/<n>`, `.fw-console/land-logs/<n>` | no file newer than `--keep-days` (7); not a symlink |
-| 7 | `usertmp` | `<user temp>/<n>` where the root is `…/folders/<a>/<b>/T` (`FW_DISK_GC_UTMP` overrides; default `realpath(tmpdir())`) | name starts `fw`, `oracle`, `ghb`, `engine-check`, `premises`, `land-base`, `lint` or `var`, or is `instruments*.ktrace`; not a symlink; no file newer than `--tmp-h` (2 h). The folder itself is never a candidate |
+| 7 | `usertmp` | `<user temp>/<n>` where the root is `…/folders/<a>/<b>/T` (`FW_DISK_GC_UTMP` overrides; default `realpath(tmpdir())`) | name starts with one of `tmpPrefixes` (`fw`, `oracle`, `ghb`, `engine-check`, `premises`, `land-base`, `lint`, `var` and the `mkdtemp` prefixes of our scripts and tests: `dryl-`, `jev`, `cm-`, `slots-`, `slotres-`, `rr-`, `replay-`, `wkrep-`, `wkraw-`, `vd-`, `compose-`, `graph-` ...), or is `instruments*.ktrace`; the symlink fact is present and false (a missing fact keeps it); no file newer than `--tmp-h` (2 h). The folder itself is never a candidate |
 
 Class 4 has three ways to qualify (`rule_scratch`), all needing a directory with no `scratchpad/<dir>` on main:
 - age: the 8 h floor above;
@@ -63,7 +63,7 @@ whose holder is gone is removed first. Every `--delete` appends one
 
 ## Triggers
 
-- After a land that ends `done` (`fw land`, `fw land --queue`): classes 1, 2, 6 in the main checkout. `DISKGC`
+- After a land that ends `done` (`fw land`, `fw land --queue`): classes 1, 2, 6, 7 in the main checkout. `DISKGC`
   lines go to stderr; the span is `fw land / disk-gc (post-land)`.
 - `fw watch --interval` and `--stream`: when `sys.diskLow` opens, all seven classes with `--pressure`; one `DISKGC …` line, with the freed GiB per class.
 - `FW_DISK_GC=0` turns both triggers off. A daily run from the fw-sup timer is a follow-up (task sup-wire).
@@ -98,5 +98,5 @@ MEASURED: 12 s for a full run. 114 GiB free.
 
 `node scripts/lint-tmpdirs.mjs` lists tracked test files that call `mkdtemp(Sync)` and never remove anything in a
 cleanup context (afterAll, finally, t.after, ...). It exits 0; `--strict` exits 1. It is a heuristic (listed TS
-stand-in) and decides no deletion. Fixing the findings is a follow-up. `fw run` now downloads into a per-call
+stand-in) and decides no deletion. Each `mkdtemp` bound to a name needs an `rm` of that name inside a cleanup window (an unbound factory falls back to any removal in one). Fixing the findings is a follow-up. The script's test runs in `lean.yml`. `fw run` now downloads into a per-call
 `mkdtemp` directory under `.fw-console/tmp` and removes it in `finally` after the ingest.

@@ -16778,7 +16778,8 @@
     "docs/team/tools/disk-gc.md",
     "docs/team/handoffs/disk-gc-tmp-followups.md"
    ],
-   "title": "Review follow-ups of disk-gc-tmp: (1) add usertmp to the post-land disk-gc list (fw-main.ts:25 runs lake, landed, console) so the temp folder no longer grows until sys.diskLow; (2) tmpPrefixes misses our own test leftovers (MEASURED: dryl* 715, jev* 679, cm* 678, slots* 306, difftest* 185, rr* 157, replay* 113, wkrep* 122, wkraw* 111, vd* 106, compose* 52, graph* 51): extend the allowlist from git grep of mkdtemp prefixes, with the usertmp_named docstring; (3) wire scripts/lint-tmpdirs.test.mjs into lean.yml's node --test line; (4) Cand.sym fails open: make it Option Bool, require some false in ruleConsole/ruleUsertmp, regenerate goldens; (5) port gatherEventFacts liveness (stop/resume ordered by seq) to Lean; (6) lint pairs each mkdtemp binding with an rm of that name."
+   "title": "Review follow-ups of disk-gc-tmp: (1) add usertmp to the post-land disk-gc list (fw-main.ts:25 runs lake, landed, console) so the temp folder no longer grows until sys.diskLow; (2) tmpPrefixes misses our own test leftovers (MEASURED: dryl* 715, jev* 679, cm* 678, slots* 306, difftest* 185, rr* 157, replay* 113, wkrep* 122, wkraw* 111, vd* 106, compose* 52, graph* 51): extend the allowlist from git grep of mkdtemp prefixes, with the usertmp_named docstring; (3) wire scripts/lint-tmpdirs.test.mjs into lean.yml's node --test line; (4) Cand.sym fails open: make it Option Bool, require some false in ruleConsole/ruleUsertmp, regenerate goldens; (5) port gatherEventFacts liveness (stop/resume ordered by seq) to Lean; (6) lint pairs each mkdtemp binding with an rm of that name.",
+   "evidence": "06b9f3d"
   },
   {
    "devices": [
