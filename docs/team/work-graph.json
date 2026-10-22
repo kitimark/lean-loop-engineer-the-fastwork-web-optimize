@@ -16014,6 +16014,53 @@
     "docs/team/handoffs/land-scope-golden-regs.md"
    ],
    "title": "Three dry lands refused at scope on 2026-10-22 for the same registration files (incident inc-golden-reg-scope): jev-retrieval-trace (graph r253), site-layer-opts (r257) and slot-span-key (r258) each needed lean/scripts/check.sh, a new lean/scripts/*Golden.lean and the read lists in apps/runner/src/land.ts (CHECK_SH_READS, PACKAGE_EXTRA_READS), lean/Fw/Console/LandSpeed.lean (checkShReads) and lean/Fw/Ci/Trigger.lean added by the lead after the build. (1) One source for the check.sh read list: LandSpeed.checkShReads and land.ts CHECK_SH_READS are a hand copy; generate the TS list from Lean (land-reads.gen.ts) with a freshness check, so a new generated file is declared once. (2) A golden registration set in Land.landScope: when a task's writes include a path under packages/contracts/golden/**, admit lean/scripts/<Name>Golden.lean and lean/scripts/check.sh, with a theorem that the set is empty for tasks with no golden write and never lifts a protected glob. (3) Goldens for landScope over the three refused write lists (each admitted after the change, the protected globs still refused). Unit: the generated read list with its check, the Lean registration set with theorems and goldens. Limits: Trigger.lean read tables stay hand-kept unless they share the same source (state which)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "site-layer-opts-followups",
+   "owner": "part-builder",
+   "stream": "site",
+   "deps": [
+    "site-layer-opts"
+   ],
+   "writes": [
+    "apps/site/src/registry/layer-opts.test.ts",
+    "apps/site/src/registry/resolve.ts",
+    "lean/Fw/Console/BuildsOpen.lean",
+    "packages/contracts/golden/console/layers-search.jsonl",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/scripts/check.sh",
+    "docs/team/handoffs/site-layer-opts-followups.md"
+   ],
+   "title": "Follow-ups of site-layer-opts (landed 2026-10-22). (1) layer-opts.test.ts compares the layers-search ok rows after .sort(): compare in URL order so the test checks an exact mirror of BuildsOpen.canonical. (2) resolve.ts reads ?fwl= through URLSearchParams (percent-decoding, + to space) while Lean BuildsOpen.validate refuses those characters before parsing: add golden vectors with an encoded layer id (e.g. ?fwl=hero%5Fcopy:c) and make the site and the console agree (decode in both or refuse in both, stated in Lean). (3) The builder saw 10 local failures in @fw/runner reap-safety and reap-stop: run them once on main (debug run, ≤ 5 min) and record whether they fail there; if they do, file the cause as a task. Unit: the order-exact test, the encoded-fwl vectors with the agreed rule, the reap-test result on main."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "slot-span-key-followups",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "slot-span-key",
+    "land-scope-golden-regs"
+   ],
+   "writes": [
+    "apps/runner/src/slot.ts",
+    "apps/runner/src/slot-span.ts",
+    "apps/runner/src/land.ts",
+    "lean/Fw/Console/LandDry.lean",
+    "apps/runner/test/slot-span.test.ts",
+    "lean/Fw/Obs/Timing.lean",
+    "lean/scripts/SlotKeyGolden.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/obs/slot-key.jsonl",
+    "packages/contracts/golden/obs/*.jsonl",
+    "docs/team/handoffs/slot-span-key-followups.md"
+   ],
+   "title": "Follow-ups of slot-span-key (accepted 2026-10-22). (1) `slot wait <kind>` spans are judged by timing.slow: a queue wait over the 30 s budget against a near-zero median alerts, which is the queue noise the task removed, under a new key; exclude wait spans from slow or give them their own Lean budget (theorem). (2) cmdKey maps `pnpm -s fw <sub>` to `pnpm fw`: treat fw as a launcher and key its subcommand. (3) The ` dry`/` cached` suffixes and the seenKeys parser live only in TS, and the 24-key cap counts the last 2 MB of timings.jsonl, so keys that scroll out free places: state the suffix and seen-set rule in Lean with goldens and make the cap per kind and window-independent. (4) slot.ts writes no run span when exec throws or the process exits on a signal: move endRun into a finally with an error exit code. (5) Mark the 16:51 test's `own` samples as synthetic. (6) `fw land/dry total` and `fw/land dry` are bimodal: about 22 s without the Lean build step and about 45 s with it (alerts of 2026-10-22 16:4x and 17:5x), so key the dry span by its Lean dry plan (with or without the lake build) and add apps/runner/src/land.ts to the writes for that. Unit: the six items with goldens and tests."
   }
  ],
  "deadline": {
