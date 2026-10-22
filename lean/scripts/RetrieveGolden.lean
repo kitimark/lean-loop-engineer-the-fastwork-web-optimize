@@ -22,7 +22,14 @@ def cases : List (String × String × Json) :=
       ("traced", strs traced)]
   let item (i : String) (s t : Nat) : Json := Json.mkObj [("id", .str i), ("sends", toJson s), ("tokens", toJson t)]
   let lines := "\n".intercalate ((List.range 12).map fun i => "line " ++ toString (i + 1))
-  [("vocab: the class ids, the exact words and the row id", "oracle.retrieveVocab", Json.mkObj [("rowId", "inc-a")]),
+  [("scope: a kept or over-cap file, or a drop for a word that is not a class id", "oracle.retrieveScope",
+      Json.mkObj [("rows", .arr #[
+        Json.mkObj [("id", "k"), ("files", .arr #[Json.mkObj [("verdict", "kept")]])],
+        Json.mkObj [("id", "o"), ("files", .arr #[Json.mkObj [("verdict", "notAllowed")], Json.mkObj [("verdict", "overCap")]])],
+        Json.mkObj [("id", "b"), ("files", .arr #[Json.mkObj [("verdict", "vocab"), ("word", "blocker")]])],
+        Json.mkObj [("id", "c"), ("files", .arr #[Json.mkObj [("verdict", "vocab"), ("word", "c-quota")]])],
+        Json.mkObj [("id", "n"), ("files", .arr #[])]])]),
+   ("vocab: the class ids, the exact words and the row id", "oracle.retrieveVocab", Json.mkObj [("rowId", "inc-a")]),
    ("tree: allowlist, no text, vocabulary in the text any case, vocabulary in the path", "oracle.retrieveTree",
       Json.mkObj [("rowId", "inc-a"), ("blobs", Json.mkObj [("apps/a.ts", "ok"), ("docs/x.md", "ok"),
         ("lean/Fw/Oracle/Labels.lean", "ok"), ("scripts/n.mjs", .null), ("scripts/c.mjs", "// C-LATE-CHECK"),
@@ -106,7 +113,7 @@ def main (args : List String) : IO UInt32 := do
   if args.contains "--check" then
     let cur ← try IO.FS.readFile p catch _ => pure ""
     if cur != text then
-      IO.println s!"oracle retrieve golden: {p} is stale (regenerate: cd lean && lake env lean --run Fw/Oracle/RetrieveGolden.lean)"
+      IO.println s!"oracle retrieve golden: {p} is stale (regenerate: cd lean && lake env lean --run scripts/RetrieveGolden.lean)"
       return 1
     IO.println s!"oracle retrieve golden: {n} lines, up to date"
     return 0

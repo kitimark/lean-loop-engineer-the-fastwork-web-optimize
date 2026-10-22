@@ -22,6 +22,13 @@ def treeVerdictJ (id p : String) (t : Option String) : List (String × Json) :=
     | some w => [("verdict", "pathVocab"), ("word", .str w)]
     | none => [("verdict", "kept")]
 
+def opScope (req : Json) : Except String Reply := do
+  let rows ← (← arrD req "rows").mapM fun r => do
+    let fs ← (← arrD r "files").mapM fun f => do
+      pure (← str f "verdict", match opt f "word" with | some (.str w) => some w | _ => none)
+    pure (← str r "id", fs)
+  pure [("ids", strsJ ((rows.filter fun (_, fs) => Retrieve.inScope fs).map Prod.fst))]
+
 def opVocab (req : Json) : Except String Reply := do
   pure [("words", strsJ (vocab (← str req "rowId")))]
 
@@ -131,12 +138,13 @@ def opAdopt (req : Json) : Except String Reply := do
     ("adopt", .bool (Retrieve.adopt a dropped traced))]
 
 def ops : List String :=
-  ["oracle.retrieveVocab", "oracle.retrieveTree", "oracle.retrieveHook", "oracle.retrieveTrace",
+  ["oracle.retrieveScope", "oracle.retrieveVocab", "oracle.retrieveTree", "oracle.retrieveHook", "oracle.retrieveTrace",
    "oracle.retrieveRanges", "oracle.retrieveEvidence", "oracle.retrievePick1", "oracle.retrievePick",
    "oracle.retrieveHybrid", "oracle.retrievePlan", "oracle.retrieveAdopt"]
 
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
   match op with
+  | "oracle.retrieveScope" => some (opScope req)
   | "oracle.retrieveVocab" => some (opVocab req)
   | "oracle.retrieveTree" => some (opTree req)
   | "oracle.retrieveHook" => some (opHook req)

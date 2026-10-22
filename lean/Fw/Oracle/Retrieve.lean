@@ -18,6 +18,18 @@ deriving Repr, DecidableEq
 
 def rcfg : RetrieveCfg := {}
 
+/-! ## The rows -/
+
+/-- A D1 row is in scope when the ablation's safe verdicts on the files it names hold a kept or over-cap file, or a
+file dropped for a word other than a class id. Each verdict is the name and the dropping word, if any. -/
+def inScope (fs : List (String × Option String)) : Bool :=
+  fs.any fun (v, w) => v == "kept" || v == "overCap" || (v == "vocab" && !(w.getD "").startsWith "c-")
+
+#guard inScope [("notAllowed", none), ("overCap", none)]
+#guard inScope [("vocab", some "blocker")]
+#guard !inScope [("vocab", some "c-quota"), ("notAllowed", none), ("noText", none)]
+#guard !inScope []
+
 /-! ## The tree -/
 
 def tree (id : String) (files : List (String × Option String)) : List (String × String) :=
