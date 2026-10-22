@@ -7,6 +7,7 @@ import { PROFILE_SECTION_SELECTOR, PROFILE_STICKY_SELECTOR } from '../nav.hitTes
 import { installNavTransitionDebug } from '../../debug/nav-transition';
 import { createNavDriver, type NavEnv } from './driver';
 import { CLASS_OF, EARN_STILL_CLASS, EARN_STILL_VARIANT, earnTransitionOn, type Sticky } from './logic';
+import { BOX_ATTR, boxVariant } from './box';
 import { matchList } from './media';
 import css from './nav.module.css';
 import { art, GenSvg } from '../../GenSvg';
@@ -122,8 +123,12 @@ export function Nav({
 
   const onOpenChange = useCallback((open: boolean) => driver.current?.setLocaleOpen(open), []);
 
+  const box = boxVariant(variant);
+  const boxClass = box === null ? '' : `${css.boxClip}${box === 'clip-box' ? '' : ` ${css.boxBar}`}${box === 'logo-3d' ? ` ${css.box3d}` : ''} `;
+  const boxProps = box === null ? undefined : { [BOX_ATTR]: 'union' };
+
   return (
-    <header ref={header} className={`${css.nav} is-hero-pill`} aria-label="Primary navigation" data-fw="nav" data-fw-layer="nav_bar">
+    <header ref={header} className={`${css.nav} ${boxClass}is-hero-pill`} aria-label="Primary navigation" data-fw="nav" data-fw-layer="nav_bar" {...boxProps}>
       <div className={css.bar}>
         <a className={css.logo} href="/" aria-label="Fastwork home">
           <GenSvg art={art('nav.wordmark')} />

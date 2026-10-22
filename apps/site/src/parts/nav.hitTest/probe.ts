@@ -8,8 +8,10 @@ import {
   SHRINKING_SELECTOR,
   skipHitTest,
   type Hit,
+  type Rect,
 } from './logic';
 import { navHeroProgress } from '../hero.exit/logic';
+import { BOX_ATTR, boxActive, clipRect } from '../nav/box';
 
 /**
  * DOM adapters over the pure logic. The faithful sequence is the original's nav callback (2.DyWL8TcE.js:12955-13007):
@@ -23,7 +25,7 @@ export type NavVariant = 'faithful' | 'hit-skip' | 'elements-skip';
 
 export interface ProbeEnv {
   doc: Pick<Document, 'elementFromPoint' | 'elementsFromPoint' | 'querySelector'>;
-  win: Pick<Window, 'getComputedStyle' | 'innerHeight'>;
+  win: Pick<Window, 'getComputedStyle' | 'innerHeight'> & Partial<Pick<Window, 'innerWidth'>>;
 }
 
 export function defaultEnv(): ProbeEnv {
@@ -60,9 +62,22 @@ export function readProfileSticky(env: ProbeEnv): boolean {
   return Number.isFinite(top) && i.top <= top + 1 && a.bottom > i.bottom + 1;
 }
 
+/**
+ * The rect the probe point is taken from. A nav with a union box (data-fw-box, flags clip-box and up) shows its pill as a
+ * clip, so its DOM rect is the union: while the box applies the pill rect is the Lean `clipRect` (NavClipBox.probe_eq).
+ * The DOM rect is still read, for the forced layout of the original's sequence.
+ */
+export function navProbeRect(nav: HTMLElement, env: ProbeEnv): Rect {
+  const dom = nav.getBoundingClientRect();
+  if (nav.getAttribute(BOX_ATTR) !== 'union' || env.win.innerWidth === undefined) return dom;
+  const m = Number.parseFloat(nav.dataset.fwMorph ?? '');
+  if (!boxActive(Number.isFinite(m) ? m : 0, nav.classList.contains('is-locale-open')) || !nav.classList.contains('is-morphing')) return dom;
+  return clipRect({ w: env.win.innerWidth, h: env.win.innerHeight }, m);
+}
+
 /** faithful F(): rect read, write `pointer-events: none` on the nav, elementFromPoint (forces style + layout), restore. */
 export function probeFaithful(nav: HTMLElement, env: ProbeEnv = defaultEnv()): boolean {
-  const { x, y } = hitPoint(nav.getBoundingClientRect());
+  const { x, y } = hitPoint(navProbeRect(nav, env));
   const prev = nav.style.pointerEvents;
   nav.style.pointerEvents = 'none';
   const el = env.doc.elementFromPoint(x, y);
@@ -77,7 +92,7 @@ export function toHits(stack: readonly Element[], nav: Element): Hit[] {
 
 /** elements-skip: rect read, elementsFromPoint, first box outside the nav or allow-listed. No style write. */
 export function probeElements(nav: HTMLElement, env: ProbeEnv = defaultEnv()): boolean {
-  const { x, y } = hitPoint(nav.getBoundingClientRect());
+  const { x, y } = hitPoint(navProbeRect(nav, env));
   const stack = env.doc.elementsFromPoint(x, y);
   const i = allowHit((h) => h.reEnabled, toHits(stack, nav));
   return classify(i < 0 ? null : (stack[i] ?? null));

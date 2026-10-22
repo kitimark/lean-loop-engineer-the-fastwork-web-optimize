@@ -68,6 +68,9 @@ import Fw.Parts.PlatformShrinkOpt
 import Fw.Parts.PlatformFade
 import Fw.Parts.PlatformFadeRun
 import Fw.Parts.MorphConstBounds
+import Fw.Parts.NavClipBox
+import Fw.Parts.NavBarFixed
+import Fw.Parts.NavBarFixedWork
 import Fw.Parts.HeroAccentOpt
 import Fw.Measure.Zones
 import Fw.Measure.Classes
@@ -134,6 +137,7 @@ import Fw.Guidance.Style
 import Fw.Guidance.Stability
 import Fw.Engine.Keys
 import Fw.Engine.WebKitImage
+import Fw.Engine.WebKitSimple
 import Fw.Ci.Wire
 import Fw.Oracle
 import Fw.Plan.Lint
