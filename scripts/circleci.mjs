@@ -153,6 +153,12 @@ export function stops(g, i) {
   return [...(c.capMs <= i.durMs ? ['cap'] : []), ...(c.queueMaxMs < i.queueMs ? ['queue'] : []), ...(c.storageStopMilli < i.storageMilli ? ['storage'] : [])];
 }
 
+/** Lean `landStops`: the reasons a land-lane wait stops on, in the order cap, queue; never storage. */
+export function landStops(g, i) {
+  const c = g.constants;
+  return [...(c.capMs <= i.durMs ? ['cap'] : []), ...(c.queueMaxMs < i.queueMs ? ['queue'] : [])];
+}
+
 /** Lean `route`: github or circleci for one lane. */
 export function route(g, i) {
   const r = g.rates.rates.find((x) => x.class === i.class);
@@ -478,11 +484,12 @@ export function creditsSoFar(ctx, now = Date.now()) {
 
 const sleepReal = (s) => new Promise((r) => setTimeout(r, s * 1000));
 
-/** The pilot stop rule over the jobs seen at one poll. Returns the Lean reasons per job; the storage input is the ledger of the
- *  earlier pilot pipelines. */
+/** The stop rule over the jobs seen at one poll. Returns the Lean reasons per job: `stops` with the ledger of the earlier pilot
+ *  pipelines as the storage input, or with `ctx.storageStop === false` (a land-lane wait) `landStops`, which reads no storage. */
 export async function pollOnce(ctx, { slug, pipelineId, now }) {
   const g = ctx.golden;
-  const stored = storageSoFar(ctx, pipelineId);
+  const land = ctx.storageStop === false;
+  const stored = land ? 0 : storageSoFar(ctx, pipelineId);
   const wfs = await listAll(ctx, urls.workflows(pipelineId));
   const jobs = [];
   for (const wf of wfs) {
@@ -498,14 +505,14 @@ export async function pollOnce(ctx, { slug, pipelineId, now }) {
         queueMs = q == null ? 0 : (s ?? now) - q;
         durMs = s == null ? 0 : (ms(d.stopped_at) ?? now) - s;
       }
-      jobs.push({ workflow: wf, name: j.name, status: j.status, number: j.job_number, stops: stops(g, { durMs, queueMs, storageMilli: stored }) });
+      jobs.push({ workflow: wf, name: j.name, status: j.status, number: j.job_number, stops: land ? landStops(g, { durMs, queueMs }) : stops(g, { durMs, queueMs, storageMilli: stored }) });
     }
   }
   return { workflows: wfs, jobs };
 }
 
-/** Wait for a pipeline: polls every `intervalS` (at least MIN_POLL_S), stops the pilot when the stop rule fires (exit 5), else the
- *  exit code is Lean `waitStep` over the workflow statuses. Exit codes in the header. */
+/** Wait for a pipeline: polls every `intervalS` (at least MIN_POLL_S), stops when the stop rule of `pollOnce` fires (exit 5), else
+ *  the exit code is Lean `waitStep` over the workflow statuses. Exit codes in the header. */
 export async function waitPipeline(ctx, { slug, pipelineId, timeoutS = 3600, intervalS = MIN_POLL_S, noWorkflowS = 300 }) {
   const log = ctx.log ?? console.log;
   const step = Math.max(intervalS, ctx.minPollS ?? MIN_POLL_S);
@@ -515,7 +522,7 @@ export async function waitPipeline(ctx, { slug, pipelineId, timeoutS = 3600, int
     const p = await pollOnce(ctx, { slug, pipelineId, now });
     for (const j of p.jobs) {
       if (j.stops.length) {
-        log(`STOP ${j.name}: ${j.stops.join(', ')} (Lean Fw.Ci.Provider.stops); cancelling its workflow`);
+        log(`STOP ${j.name}: ${j.stops.join(', ')} (Lean Fw.Ci.Provider.${ctx.storageStop === false ? 'landStops' : 'stops'}); cancelling its workflow`);
         await call(ctx, 'POST', urls.cancel(j.workflow.id));
         return { code: 5, ...p };
       }

@@ -141,6 +141,15 @@
 {"name":"storage over 1 GB-month stops","op":"stop","request":{"durMs":0,"queueMs":0,"storageMilli":1001},"response":{"reasons":["storage"],"stop":true}}
 {"name":"all three reasons are listed in order","op":"stop","request":{"durMs":3700000,"queueMs":700000,"storageMilli":2000},"response":{"reasons":["cap","queue","storage"],"stop":true}}
 {"name":"queue and storage without the cap","op":"stop","request":{"durMs":10,"queueMs":700000,"storageMilli":2000},"response":{"reasons":["queue","storage"],"stop":true}}
+{"name":"all within the limits","op":"landStop","request":{"durMs":1800000,"queueMs":60000,"storageMilli":515},"response":{"reasons":[]}}
+{"name":"a job at the 1 h cap stops","op":"landStop","request":{"durMs":3600000,"queueMs":0,"storageMilli":0},"response":{"reasons":["cap"]}}
+{"name":"a job one ms under the cap goes on","op":"landStop","request":{"durMs":3599999,"queueMs":0,"storageMilli":0},"response":{"reasons":[]}}
+{"name":"a queue wait of exactly 10 min goes on","op":"landStop","request":{"durMs":0,"queueMs":600000,"storageMilli":0},"response":{"reasons":[]}}
+{"name":"a queue wait over 10 min stops","op":"landStop","request":{"durMs":0,"queueMs":600001,"storageMilli":0},"response":{"reasons":["queue"]}}
+{"name":"storage over 1 GB-month goes on","op":"landStop","request":{"durMs":0,"queueMs":0,"storageMilli":1001},"response":{"reasons":[]}}
+{"name":"a ledger at 1297 goes on","op":"landStop","request":{"durMs":1800000,"queueMs":60000,"storageMilli":1297},"response":{"reasons":[]}}
+{"name":"cap and queue are listed in order, storage never","op":"landStop","request":{"durMs":3700000,"queueMs":700000,"storageMilli":2000},"response":{"reasons":["cap","queue"]}}
+{"name":"queue without the cap, storage never","op":"landStop","request":{"durMs":10,"queueMs":700000,"storageMilli":100000},"response":{"reasons":["queue"]}}
 {"name":"allowlisted Linux lane, free class, credits left: CircleCI","op":"route","request":{"allow":["premise-tests"],"class":"arm.medium.gen2","creditsLeft":100,"estMs":600000,"ghDegraded":false,"lane":"premise-tests","platform":"linux-arm"},"response":{"provider":"circleci"}}
 {"name":"a lane outside the allowlist stays on GitHub","op":"route","request":{"allow":["premise-tests"],"class":"arm.medium.gen2","creditsLeft":100,"estMs":600000,"ghDegraded":false,"lane":"lean","platform":"linux-arm"},"response":{"provider":"github"}}
 {"name":"an empty allowlist stays on GitHub","op":"route","request":{"allow":[],"class":"arm.medium.gen2","creditsLeft":100,"estMs":600000,"ghDegraded":false,"lane":"premise-tests","platform":"linux-arm"},"response":{"provider":"github"}}

@@ -349,6 +349,11 @@ def stops (i : StopInput) : List Stop :=
 /-- The pilot stops. -/
 def stop (i : StopInput) : Bool := !(stops i).isEmpty
 
+/-- The reasons a land-lane wait stops on, in the order cap, queue. Storage is decided before the trigger by the credit budget
+(`Fw.Ci.Overflow.budgetFits`), so the wait never reads it. -/
+def landStops (i : StopInput) : List Stop :=
+  (if capMs ≤ i.durMs then [Stop.cap] else []) ++ (if queueMaxMs < i.queueMs then [Stop.queue] else [])
+
 /-- What the routing rule reads for one lane. -/
 structure RouteInput where
   lane : String
@@ -760,6 +765,31 @@ theorem stop_iff (i : StopInput) : stop i = true ↔
     · exact stop_of_queue i h
     · exact stop_of_storage i h
 
+theorem storage_not_mem_landStops (i : StopInput) : Stop.storage ∉ landStops i := by
+  unfold landStops
+  by_cases h1 : capMs ≤ i.durMs <;> by_cases h2 : queueMaxMs < i.queueMs <;> simp [h1, h2]
+
+/-- The land-lane rule is the pilot rule without its storage reason. -/
+theorem landStops_eq_filter (i : StopInput) : landStops i = (stops i).filter (· != Stop.storage) := by
+  unfold landStops stops
+  by_cases h1 : capMs ≤ i.durMs <;> by_cases h2 : queueMaxMs < i.queueMs <;>
+    by_cases h3 : storageStopMilli < i.storageMilli <;> simp [h1, h2, h3]
+
+theorem landStops_storage_free (i : StopInput) (m : Nat) : landStops { i with storageMilli := m } = landStops i := rfl
+
+theorem mem_landStops_cap_iff (i : StopInput) : Stop.cap ∈ landStops i ↔ capMs ≤ i.durMs := by
+  unfold landStops
+  by_cases h1 : capMs ≤ i.durMs <;> by_cases h2 : queueMaxMs < i.queueMs <;> simp [h1, h2]
+
+theorem mem_landStops_queue_iff (i : StopInput) : Stop.queue ∈ landStops i ↔ queueMaxMs < i.queueMs := by
+  unfold landStops
+  by_cases h1 : capMs ≤ i.durMs <;> by_cases h2 : queueMaxMs < i.queueMs <;> simp [h1, h2]
+
+/-- Within the storage stop the land-lane rule and the pilot rule agree. -/
+theorem landStops_eq_stops (i : StopInput) (h : i.storageMilli ≤ storageStopMilli) : landStops i = stops i := by
+  unfold landStops stops
+  simp [Nat.not_lt.mpr h]
+
 theorem no_stop_within_limits (i : StopInput) (h1 : i.durMs < capMs) (h2 : i.queueMs ≤ queueMaxMs)
     (h3 : i.storageMilli ≤ storageStopMilli) : stop i = false := by
   have : ¬ stop i = true := by
@@ -1080,6 +1110,8 @@ theorem digest_missing_not_comparable (g c : Run) (hg : g.provider = .github) (h
 #guard stops ⟨3600000, 0, 0⟩ == [.cap]
 #guard stops ⟨3599999, 600000, 1000⟩ == []
 #guard stops ⟨3600000, 600001, 1001⟩ == [.cap, .queue, .storage]
+#guard landStops ⟨3600000, 600001, 1001⟩ == [.cap, .queue]
+#guard landStops ⟨0, 0, 1297⟩ == []
 #guard storageNow [⟨some 0, 1000000000, 0, 0⟩] windowMs == 500
 #guard storageNow [⟨some 0, 1000000000, 0, 0⟩] (windowMs + 1) == 0
 #guard storageNow [⟨none, 0, 0, 1000000000⟩] (windowMs + 1) == 1000

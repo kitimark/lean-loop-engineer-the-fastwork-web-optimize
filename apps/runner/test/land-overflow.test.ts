@@ -1,12 +1,12 @@
 // land-lane-circleci: GitHub first, CircleCI for the legs GitHub has no slot for. The rule is Lean Fw.Ci.Overflow (golden
 // packages/contracts/golden/ci/overflow.jsonl, replayed here through fwcore); the rest is glue, checked with fake providers.
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { describe, expect, it } from "vitest";
 import { awaitGroups, circleciAdapter, githubAdapter, legsCovered, makePusher, markerMessage, normalizeCircle, remoteDigest, runTiered, type Adapter, type CircleDeps, type CircleLane, type GhRunView, type LaneRun, type StartCtx, type Want } from "../src/land-remote.ts";
-import { ccStatusFrom, planOverflow, readSlots, type OverflowDeps } from "../src/land-overflow.ts";
+import { ccStatusFrom, loadCircleci, planOverflow, readSlots, realCircle, type OverflowDeps } from "../src/land-overflow.ts";
 import { fwcoreCall } from "../src/run.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
@@ -97,6 +97,36 @@ describe("planOverflow", () => {
   it("GitHub Actions degraded: every leg goes to CircleCI", async () => {
     const p = await planOverflow(baseDeps({ ghStatus: async () => ({ actions: "partial_outage", prevDegraded: false }) }));
     expect(p).toMatchObject({ gh: [], cc: LEGS, reason: "github-degraded" });
+  });
+});
+
+describe("the land-lane wait applies Lean landStops: no storage stop after budgetFits admitted the legs", () => {
+  it("ledger at 1297, forceFull: the legs go to CircleCI, the wait cancels nothing and returns the pipeline's code", async () => {
+    const tmp = mkdtempSync(join(tmpdir(), "fw-land-cc-"));
+    mkdirSync(join(tmp, "scripts"));
+    mkdirSync(join(tmp, ".local"));
+    writeFileSync(join(tmp, "scripts", "circleci.mjs"), `export * from ${JSON.stringify(pathToFileURL(join(root, "scripts", "circleci.mjs")).href)};\n`);
+    const m = (await loadCircleci(tmp)) as Awaited<ReturnType<typeof loadCircleci>> & {
+      loadFixture: (n: string) => { slug: string; pipelineId: string; api: { routes: Record<string, unknown> } };
+      fixtureFetch: (api: unknown) => (u: string, i?: { method?: string }) => Promise<unknown>;
+    };
+    const fx = m.loadFixture("premise-tests");
+    writeFileSync(join(tmp, ".local", "circleci.json"), JSON.stringify({ slug: fx.slug, definitionId: "def" }));
+    writeFileSync(join(tmp, ".local", "circleci-ledger.json"), JSON.stringify({ pipelines: { old: { cache: 2_594_000_000, at: Date.now() - 86_400_000 } } }));
+    const calls: string[] = [];
+    const wf = Object.keys(fx.api.routes).map((k) => /^GET \/workflow\/([^/]+)\/job$/.exec(k)?.[1]).find(Boolean);
+    const base = m.fixtureFetch({ ...fx.api, routes: { ...fx.api.routes, [`POST /workflow/${wf}/cancel`]: {} } });
+    const fetchFn = async (u: string, i?: { method?: string }) => { calls.push(`${i?.method ?? "GET"} ${u}`); return base(u, i); };
+    const cc = await realCircle(tmp, join(tmp, "out"), () => {}, { fetchFn, getToken: () => "t" });
+    expect(cc.budget().storage).toBe(1297);
+    expect(await planOverflow(baseDeps({ forceFull: true, budget: cc.budget }))).toMatchObject({ gh: [], cc: LEGS, reason: "github-full" });
+    const deps = cc.deps(call, (async () => { throw new Error("no push"); }) as never);
+    expect(await deps.wait(fx.pipelineId, 3600)).toBe(0);
+    expect(calls.some((c) => c.startsWith("POST "))).toBe(false);
+    const pilot = await (m.waitPipeline as (ctx: unknown, a: object) => Promise<{ code: number }>)(
+      { golden: m.loadGolden(), fetchFn, getToken: () => "t", sleep: async () => {}, now: Date.now, log: () => {}, ledgerPath: join(tmp, ".local", "circleci-ledger.json") },
+      { slug: fx.slug, pipelineId: fx.pipelineId });
+    expect(pilot.code).toBe(5);
   });
 });
 

@@ -39,7 +39,8 @@ structure State where
   ccStorage : Nat
 deriving DecidableEq, Repr
 
-/-- CircleCI credits left: the storage overage (`Provider.storageCredits`) is spent from the same pool as the runs. -/
+/-- CircleCI credits left: the storage overage (`Provider.storageCredits`) is spent from the same pool as the runs. No own save is
+charged (unlike `Overflow.storageCharged`): the pool's one CircleCI lane, `webkit-sim`, saves no cache (`.circleci/config.yml`). -/
 def State.fb (c : Cfg) (s : State) : Fallback.State :=
   { s.base with circleCreditsLeft := Overflow.classLeft c.base.circleCls (s.ccSpent + Fw.Ci.Provider.storageCredits s.ccStorage) }
 

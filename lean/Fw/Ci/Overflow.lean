@@ -292,6 +292,18 @@ theorem storage_over_budget_keeps_github (f : Facts)
   · simp only [decide_eq_true_eq] at this
     omega
 
+/-- With `c` run credits for `n` legs, the budget fits exactly when the run credits, the credits spent and the reserve fit the pool
+and the storage overage fits the room they leave: the converse of `storage_over_budget_keeps_github`, of which
+`budget_within_allow` is the case of no overage. -/
+theorem budgetFits_iff (f : Facts) (n c : Nat) (hc : Provider.credits ccClass (n * estLegMs) = some c) :
+    budgetFits f n = true ↔
+      c + f.spent + creditReserve ≤ Provider.poolCredits .oss ∧
+        Provider.storageCredits (storageCharged f) ≤ Provider.poolCredits .oss - (c + f.spent + creditReserve) := by
+  unfold budgetFits
+  rw [hc]
+  simp only [decide_eq_true_eq]
+  omega
+
 /-- An unreadable slot count means GitHub first: every leg stays on GitHub while Actions is not degraded, whatever the count of
 legs (up to the cap) and the state of CircleCI. -/
 theorem unknown_count_github (f : Facts) (hn : f.ghActive = none) (hf : f.forceFull = false) (hd : ghDegraded f = false)

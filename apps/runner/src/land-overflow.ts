@@ -120,13 +120,14 @@ export type RealCircle = {
 };
 
 /** The CircleCI adapter's dependencies over scripts/circleci.mjs. The token is read from the Keychain (service fw-circleci-token) inside
- *  each request there: it is never printed, never in an argument list or a file. `outDir` is where fetched artifacts go. */
-export async function realCircle(root: string, outDir: string, log: (l: string) => void = () => {}): Promise<RealCircle> {
+ *  each request there: it is never printed, never in an argument list or a file. `outDir` is where fetched artifacts go; `over`
+ *  replaces request context fields (tests pass a recorded `fetchFn` and `getToken`). */
+export async function realCircle(root: string, outDir: string, log: (l: string) => void = () => {}, over: Record<string, unknown> = {}): Promise<RealCircle> {
   const m = await loadCircleci(root);
   const cfg = m.loadConfig(root);
   const golden = m.loadGolden();
   const ledgerPath = join(root, ".local", "circleci-ledger.json");
-  const mkCtx = (extra: Record<string, unknown> = {}) => ({ golden, fetchFn: fetch, getToken: m.keychainToken, sleep: (s: number) => new Promise((r) => setTimeout(r, s * 1000)), now: Date.now, log, ledgerPath, ...extra });
+  const mkCtx = (extra: Record<string, unknown> = {}) => ({ golden, fetchFn: fetch, getToken: m.keychainToken, sleep: (s: number) => new Promise((r) => setTimeout(r, s * 1000)), now: Date.now, log, ledgerPath, ...over, ...extra });
   return {
     deps: (call, push) => ({
       call, push,
@@ -144,7 +145,8 @@ export async function realCircle(root: string, outDir: string, log: (l: string) 
           const t = setTimeout(() => { if (signal?.aborted) rej(new Error("aborted")); else res(); }, s * 1000);
           signal?.addEventListener("abort", () => { clearTimeout(t); rej(new Error("aborted")); }, { once: true });
         });
-        try { return (await m.waitPipeline(mkCtx({ sleep }), { slug: cfg.slug, pipelineId, timeoutS, intervalS: 120 })).code; }
+        // storageStop false: the wait applies Lean `landStops` (cap and queue); storage was decided by `budgetFits` before the trigger.
+        try { return (await m.waitPipeline(mkCtx({ sleep, storageStop: false }), { slug: cfg.slug, pipelineId, timeoutS, intervalS: 120 })).code; }
         catch (e) { if (signal?.aborted) return 3; throw e; }
       },
       fetch: async (pipelineId): Promise<CircleFetch> => {

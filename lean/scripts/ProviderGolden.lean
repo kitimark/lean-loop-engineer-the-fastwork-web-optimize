@@ -200,6 +200,17 @@ def stopCases : List (String × StopInput) := [
   ("all three reasons are listed in order", ⟨3700000, 700000, 2000⟩),
   ("queue and storage without the cap", ⟨10, 700000, 2000⟩)]
 
+def landStopCases : List (String × StopInput) := [
+  ("all within the limits", ⟨1800000, 60000, 515⟩),
+  ("a job at the 1 h cap stops", ⟨3600000, 0, 0⟩),
+  ("a job one ms under the cap goes on", ⟨3599999, 0, 0⟩),
+  ("a queue wait of exactly 10 min goes on", ⟨0, 600000, 0⟩),
+  ("a queue wait over 10 min stops", ⟨0, 600001, 0⟩),
+  ("storage over 1 GB-month goes on", ⟨0, 0, 1001⟩),
+  ("a ledger at 1297 goes on", ⟨1800000, 60000, 1297⟩),
+  ("cap and queue are listed in order, storage never", ⟨3700000, 700000, 2000⟩),
+  ("queue without the cap, storage never", ⟨10, 700000, 100000⟩)]
+
 def routeCases : List (String × RouteInput) := [
   ("allowlisted Linux lane, free class, credits left: CircleCI",
     ⟨"premise-tests", .linuxArm, "arm.medium.gen2", ["premise-tests"], false, 600000, 100⟩),
@@ -316,6 +327,9 @@ def text : String :=
     ++ stopCases.map (fun (n, i) =>
       line "stop" n (stopInputJson i)
         (Json.mkObj [("stop", .bool (stop i)), ("reasons", .arr ((stops i).map fun s => Json.str (stopName s)).toArray)]))
+    ++ landStopCases.map (fun (n, i) =>
+      line "landStop" n (stopInputJson i)
+        (Json.mkObj [("reasons", .arr ((landStops i).map fun s => Json.str (stopName s)).toArray)]))
     ++ routeCases.map (fun (n, i) =>
       line "route" n (routeInputJson i) (Json.mkObj [("provider", .str (providerName (route i)))]))
     ++ keyCases.map (fun (n, i) =>

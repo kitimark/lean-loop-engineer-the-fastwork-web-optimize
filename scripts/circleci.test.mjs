@@ -9,7 +9,7 @@ import { tmpdir, userInfo } from 'node:os';
 import { delimiter, dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { creditsSoFar, ledgerRows, storageCredits, storageNow, storageSoFar, landLane, landLegs, CHECKOUT_STEP, checkoutOfStatus, keyAdvice, keyCheck, keyExit, keyProceed, keyVerdict, readCloneResult, readKeyList, usableKeyKind, cachePipelineBytes, cacheSavedBytes, classOfApi, parseCacheSave, readCacheSave, savesCacheJob, API, MIN_POLL_S, ROOT, call, callBytes, comparePairs, compare, credits, digestJob, dryRun, fetchPipeline, fixtureFetch, githubDigests, githubRuns, isPilotPipeline, jobOfGithub, listAll, loadFixture, loadGolden, main, ofCircleStatus, ofGithubConclusion, parseLoose, premiseDigest, premisesArtifact, readLedger, redact, renderComparison, route, stops, storageMilli, timingsDoc, triggerRequest, urls, waitPipeline, waitStep } from './circleci.mjs';
+import { creditsSoFar, ledgerRows, storageCredits, storageNow, storageSoFar, landLane, landLegs, CHECKOUT_STEP, checkoutOfStatus, keyAdvice, keyCheck, keyExit, keyProceed, keyVerdict, readCloneResult, readKeyList, usableKeyKind, cachePipelineBytes, cacheSavedBytes, classOfApi, parseCacheSave, readCacheSave, savesCacheJob, API, MIN_POLL_S, ROOT, call, callBytes, comparePairs, compare, credits, digestJob, dryRun, fetchPipeline, fixtureFetch, githubDigests, githubRuns, isPilotPipeline, jobOfGithub, listAll, loadFixture, loadGolden, main, ofCircleStatus, ofGithubConclusion, parseLoose, premiseDigest, premisesArtifact, readLedger, redact, renderComparison, route, stops, landStops, storageMilli, timingsDoc, triggerRequest, urls, waitPipeline, waitStep } from './circleci.mjs';
 
 const g = loadGolden();
 const here = dirname(fileURLToPath(import.meta.url));
@@ -17,7 +17,7 @@ const rowsOf = (op) => g.byOp[op] ?? [];
 const toRun = (r) => ({ ...r, class: r.class });
 
 test('the golden has every op the glue replays, and no more', () => {
-  assert.deepEqual([...new Set(g.rows.map((r) => r.op))].sort(), ['cachePipeline', 'cacheSaved', 'checkoutStatus', 'circleStatus', 'classOfApi', 'compare', 'constants', 'credits', 'ghJob', 'githubConclusion', 'jobMap', 'keyCheck', 'keyKind', 'rates', 'route', 'stop', 'storage', 'storageCredits', 'storageNow', 'wait']);
+  assert.deepEqual([...new Set(g.rows.map((r) => r.op))].sort(), ['cachePipeline', 'cacheSaved', 'checkoutStatus', 'circleStatus', 'classOfApi', 'compare', 'constants', 'credits', 'ghJob', 'githubConclusion', 'jobMap', 'keyCheck', 'keyKind', 'landStop', 'rates', 'route', 'stop', 'storage', 'storageCredits', 'storageNow', 'wait']);
   assert.ok(g.rows.length >= 140);
 });
 
@@ -77,6 +77,15 @@ test('stop: every golden row', () => {
     const got = stops(g, r.request);
     assert.deepEqual(got, r.response.reasons, r.name);
     assert.equal(got.length > 0, r.response.stop, r.name);
+  }
+});
+
+test('landStop: every golden row; storage is never a reason', () => {
+  assert.ok(rowsOf('landStop').length >= 9);
+  for (const r of rowsOf('landStop')) {
+    const got = landStops(g, r.request);
+    assert.deepEqual(got, r.response.reasons, r.name);
+    assert.ok(!got.includes('storage'), r.name);
   }
 });
 
@@ -496,6 +505,11 @@ test('storage: the ledger adds cache, workspace and artifact bytes over all pilo
   const w = await waitPipeline({ ...ctx, fetchFn: async (u, i) => { calls.push(`${i?.method ?? 'GET'} ${String(u).replace(API, '')}`); return base(u, i); } }, { slug: fx.slug, pipelineId: fx.pipelineId });
   assert.equal(w.code, 5);
   assert.ok(calls.includes(`POST /workflow/${wfIdOf(fx)}/cancel`));
+  // a land-lane wait (storageStop false) on the same ledger applies Lean landStops: no cancel, the pipeline's own code
+  calls.length = 0;
+  const wl = await waitPipeline({ ...ctx, storageStop: false, fetchFn: async (u, i) => { calls.push(`${i?.method ?? 'GET'} ${String(u).replace(API, '')}`); return base(u, i); } }, { slug: fx.slug, pipelineId: fx.pipelineId });
+  assert.equal(wl.code, 0);
+  assert.ok(!calls.some((c) => c.startsWith('POST ')));
   const logs = [];
   const root = dir;
   mkdirSync(join(root, '.local'), { recursive: true });
