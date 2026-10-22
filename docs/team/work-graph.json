@@ -14553,7 +14553,8 @@
     "lean/Fw/Oracle/ReplayWire.lean",
     "results/jev-arms-clean/table.md",
     "lean/scripts/ExpandGolden.lean"
-   ]
+   ],
+   "evidence": "c3bf22b"
   },
   {
    "devices": [
