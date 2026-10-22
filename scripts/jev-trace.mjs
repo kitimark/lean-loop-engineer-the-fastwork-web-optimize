@@ -28,16 +28,13 @@ function git(args, input) {
   return execFileSync("git", ["-C", REPO, ...args], { maxBuffer: 1 << 30, input, stdio: [input ? "pipe" : "ignore", "pipe", "ignore"] });
 }
 
-/** ASCII-only lower case, as Lean's `Char.toLower`. */
 export const lowerAscii = (s) => s.replace(/[A-Z]/g, (c) => String.fromCharCode(c.charCodeAt(0) + 32));
 
-/** The first vocabulary word found in `text`, in vocabulary order, as `Fw.Oracle.Expand.hit`. */
 export function hitOf(words, text) {
   const t = lowerAscii(text);
   return words.find((w) => t.includes(lowerAscii(w))) ?? null;
 }
 
-/** The tree verdict of one file as `oracle.retrieveTree` gives it, from Lean's allowlist answer and the vocabulary. */
 export function treeVerdict(allowed, words, path, text) {
   if (!allowed) return { verdict: "notAllowed" };
   if (text === null) return { verdict: "noText" };
@@ -75,7 +72,6 @@ function catBlobs(ids) {
   return out;
 }
 
-/** The in-scope D1 rows, as Lean picks them from the ablation's records (`oracle.retrieveScope`). */
 export function scopeRows(core) {
   const inputs = JSON.parse(readFileSync(join(ABLATION, "inputs.json"), "utf8"));
   const ids = new Set(core({ op: "oracle.retrieveScope", rows: inputs.rows.map((r) => ({ id: r.id, files: r.safe.files })) }).ids);
@@ -167,7 +163,6 @@ export function traceArgs(model, system, schema, settings) {
     "--max-budget-usd", String(BUDGET_USD[model])];
 }
 
-/** The lines `[first, last]` a `Read` of `text` returns for `offset` and `limit`, and their raw bytes. */
 export function readSpan(text, offset, limit) {
   const lines = text.split("\n");
   if (lines.at(-1) === "") lines.pop();
@@ -177,7 +172,6 @@ export function readSpan(text, offset, limit) {
   return { first, last, bytes: lines.slice(first - 1, last).reduce((a, l) => a + Buffer.byteLength(l) + 1, 0) };
 }
 
-/** The `Call` a tool input gives, before Lean sees it: path as the tool gave it, glob, and the projected bytes. */
 export function callOf(root, tool, input) {
   if (tool === "Read") {
     const path = String(input.file_path ?? "");
@@ -239,7 +233,6 @@ function parseLines(text) {
   return text.split("\n").filter((l) => l.trim()).flatMap((l) => { try { return [JSON.parse(l)]; } catch { return []; } });
 }
 
-/** What one stream says: tool uses, thinking-block shape, the result envelope and the structured answer. */
 export function streamOf(events) {
   const uses = [], thinking = [];
   let result = null, init = null;
@@ -273,8 +266,6 @@ export function spawnClaude(args, cwd, prompt, timeoutMs = 600_000) {
   });
 }
 
-/** The trace Lean judges: every stream tool use but the answer and the calls the hook denied; a use the hook never saw
- * enters raw, so a hook that did not fire shows. */
 export function traceCalls(root, uses, log) {
   const by = new Map(log.filter((l) => l.id).map((l) => [l.id, l]));
   const out = [];

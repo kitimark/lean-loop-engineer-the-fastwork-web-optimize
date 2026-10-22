@@ -1,12 +1,9 @@
 import Fw.Oracle.Expand
 import Fw.Oracle.ExpandPaired
 import Fw.Oracle.Send
-/-! The traced retrieval arms: which files a traced Claude run may read, whether its trace stays in budget, which
-evidence counts, which file Jev picks, the state Jev gets, how sends split into runs, and the adopt rule. -/
 namespace Fw.Oracle.Retrieve
 open Fw.Oracle Fw.Oracle.Expand
 
-/-- The read and send budget of one row. The allowlist is `Expand.safe`'s and is not a field. -/
 structure RetrieveCfg where
   maxReads : Nat := 8
   readBytes : Nat := 32768
@@ -18,10 +15,6 @@ deriving Repr, DecidableEq
 
 def rcfg : RetrieveCfg := {}
 
-/-! ## The rows -/
-
-/-- A D1 row is in scope when the ablation's safe verdicts on the files it names hold a kept or over-cap file, or a
-file dropped for a word other than a class id. Each verdict is the name and the dropping word, if any. -/
 def inScope (fs : List (String × Option String)) : Bool :=
   fs.any fun (v, w) => v == "kept" || v == "overCap" || (v == "vocab" && !(w.getD "").startsWith "c-")
 
@@ -29,8 +22,6 @@ def inScope (fs : List (String × Option String)) : Bool :=
 #guard inScope [("vocab", some "blocker")]
 #guard !inScope [("vocab", some "c-quota"), ("notAllowed", none), ("noText", none)]
 #guard !inScope []
-
-/-! ## The tree -/
 
 def tree (id : String) (files : List (String × Option String)) : List (String × String) :=
   (kept safe id files).filter fun (p, _) => (hit id p).isNone
@@ -62,10 +53,6 @@ theorem tree_oracle (id x : String) (files : List (String × Option String)) :
 #guard tree "inc-x" [("scripts/a.mjs", some "ok"), ("scripts/c-quota.mjs", some "ok"), ("scripts/b.mjs", some "a blocker"),
   ("docs/x.md", some "ok"), ("apps/inc-x.ts", some "ok")] == [("scripts/a.mjs", "ok")]
 
-/-! ## The trace -/
-
-/-- One executed tool call: the tool, the path relative to the tree root (`""` is the root), the glob it carried and
-the bytes it returned. -/
 structure Call where
   tool : String
   path : String
@@ -85,7 +72,6 @@ def inTree (paths : List String) (c : Call) : Bool :=
   readTools.contains c.tool && globOk c.glob &&
     if c.tool == "Read" then paths.contains c.path else c.path == "" || paths.contains c.path || dirOf paths c.path
 
-/-- A tool path relative to the tree root, or `none` when it leaves the tree. -/
 def rel (root p : String) : Option String :=
   let r := if p == root then some "" else if (root ++ "/").isPrefixOf p then some (p.drop (root.length + 1)).copy
     else if p.startsWith "/" then none else some p
@@ -99,8 +85,6 @@ def rel (root p : String) : Option String :=
 #guard rel "/t" "/etc/passwd" == none && rel "/t" "/t/../x" == none && rel "/t" "/tx/a" == none
 #guard rel "/t" "apps/../../x" == none
 
-/-- A raw call (tool, path as the tool gave it, glob, bytes) against the tree root; `none` when its path leaves the
-tree. -/
 def callAt (root : String) (c : Call) : Option Call := (rel root c.path).map fun p => { c with path := p }
 
 inductive Verdict where
@@ -158,9 +142,6 @@ theorem traceVerdict_overBytes {rc : RetrieveCfg} {paths : List String} {cs : Li
     traceVerdict rc paths cs = .overBytes := by
   simp [traceVerdict, List.all_eq_true.mpr hin, Nat.not_lt.mpr hr, h]
 
-/-! ## The hook -/
-
-/-- What the hook has allowed so far in this run. -/
 structure HookSt where
   calls : Nat := 0
   bytes : Nat := 0
@@ -171,8 +152,6 @@ inductive Hook where
   | deny (why : String)
 deriving Repr, DecidableEq
 
-/-- The `PreToolUse` decision on a call whose `bytes` is the projection: the raw bytes of the lines a `Read` asks for,
-0 for `Grep` and `Glob`. -/
 def hook (rc : RetrieveCfg) (paths : List String) (st : HookSt) (c : Call) : Hook :=
   if !inTree paths c then .deny "outside"
   else if rc.maxReads ≤ st.calls then .deny "overReads"
@@ -181,7 +160,6 @@ def hook (rc : RetrieveCfg) (paths : List String) (st : HookSt) (c : Call) : Hoo
 
 def step (st : HookSt) (c : Call) : HookSt := { calls := st.calls + 1, bytes := st.bytes + c.bytes }
 
-/-- The calls the hook lets through, in order. -/
 def hookRun (rc : RetrieveCfg) (paths : List String) : HookSt → List Call → List Call
   | _, [] => []
   | st, c :: cs => if hook rc paths st c = .allow then c :: hookRun rc paths (step st c) cs else hookRun rc paths st cs
@@ -235,8 +213,6 @@ theorem traceVerdict_hookRun (rc : RetrieveCfg) (paths : List String) (cs : List
 #guard hook rcfg ["a.mjs"] { calls := 8 } { tool := "Read", path := "a.mjs", bytes := 1 } == .deny "overReads"
 #guard hook rcfg ["a.mjs"] { calls := 1, bytes := 32000 } { tool := "Read", path := "a.mjs", bytes := 769 } == .deny "overBytes"
 
-/-! ## Evidence -/
-
 structure Range where
   path : String
   first : Nat
@@ -251,7 +227,6 @@ def runs : List Nat → List (Nat × Nat)
 
 def sortNat (l : List Nat) : List Nat := (l.mergeSort fun a b => decide (a ≤ b)).eraseDups
 
-/-- The line ranges a run read, one entry per path in first-read order, overlapping reads merged. -/
 def readRanges (reads : List (String × List Nat)) : List Range :=
   (dedup (reads.map (·.1))).flatMap fun p =>
     (runs (sortNat ((reads.filter (·.1 == p)).flatMap (·.2)))).map fun (a, b) => ⟨p, a, b⟩
@@ -274,8 +249,6 @@ theorem validEvidence_read {rs es : List Range} {e : Range} (he : e ∈ validEvi
   exact ⟨r, hr, hc.1.1, by omega, by omega⟩
 
 #guard validEvidence [⟨"a", 1, 6⟩] [⟨"a", 2, 4⟩, ⟨"a", 5, 7⟩, ⟨"b", 1, 1⟩, ⟨"a", 0, 1⟩, ⟨"a", 4, 3⟩] == [⟨"a", 2, 4⟩]
-
-/-! ## J-pick -/
 
 def candidates (rc : RetrieveCfg) (ps : List String) : List String :=
   ((dedup ps).mergeSort fun a b => decide (a ≤ b)).take rc.maxPick
@@ -368,7 +341,6 @@ theorem pick_none_noop (rc : RetrieveCfg) (row : List (String × String)) (names
     bodyText incidentClass (redactState names (rowState d1 (pickRow rc row none))) =
       bodyText incidentClass (redactState names (rowState d1 row)) := rfl
 
-/-- Sends of one J-pick row: none without candidates, one when step 1 picks `none`, else two. -/
 def pickSends (cs : List String) (picked : Option String) : Nat :=
   if cs = [] then 0 else if picked.isNone then 1 else 2
 
@@ -379,8 +351,6 @@ theorem pickSends_le (cs : List String) (picked : Option String) : pickSends cs 
   · split <;> decide
 
 theorem rounds_cover : rcfg.rounds = rcfg.sendsPerRow := rfl
-
-/-! ## J-hybrid -/
 
 def rangeLabel (r : Range) : String := r.path ++ ":" ++ toString r.first ++ "-" ++ toString r.last
 
@@ -408,8 +378,6 @@ theorem hybrid_kept {row rs : List (String × String)} {x : String × String} (h
 #guard lineSlice "a\nb\nc\nd" ⟨"p", 2, 3⟩ == "b\nc"
 #guard hybridRow [("title", "t")] [("a.mjs:1-1", "x"), ("b.mjs:1-1", xs 40000)] == [("title", "t"), ("files", "file: a.mjs:1-1\nx")]
 
-/-! ## Send plan -/
-
 structure Item where
   id : String
   sends : Nat
@@ -425,8 +393,6 @@ def fits (bud : Budget) (rb : RunBudget) (r : List Item) : Bool :=
 
 def close (r : List Item) : List (List Item) := if r = [] then [] else [r]
 
-/-- Greedy split in row order: a row joins the open run while it fits, else opens the next one; the plan stops at the
-first row the day's remaining sends or a run's caps cannot take, and defers it and every row after it. -/
 def plan (bud : Budget) (rb : RunBudget) : Nat → List Item → List Item → List (List Item) × List Item
   | _, cur, [] => (close cur, [])
   | left, cur, it :: rest =>
@@ -491,9 +457,6 @@ theorem sendPlan_day (bud : Budget) (rb : RunBudget) (logged : Nat) (items : Lis
   ([[⟨"0", 2, 10⟩, ⟨"1", 2, 10⟩]], [⟨"2", 2, 10⟩, ⟨"3", 2, 10⟩, ⟨"4", 2, 10⟩])
 #guard (sendPlan defaultBudget defaultRunBudget 0 [⟨"a", 1, 500000⟩, ⟨"b", 1, 1⟩]) == ([], [⟨"a", 1, 500000⟩, ⟨"b", 1, 1⟩])
 
-/-! ## Adopt -/
-
-/-- One arm's paired flips against the clean baseline C and against the ablation X on the same model. -/
 structure ArmCmp where
   arm : String
   vsC : List Pair

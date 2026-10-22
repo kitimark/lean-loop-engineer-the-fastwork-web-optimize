@@ -100,8 +100,6 @@ theorem findingSeverity_criteria : findingSeverity.criteria.map Prod.fst = findi
 
 theorem findingSeverity_labels : findingSeverity.spec.keys.filter (· != noGrade) = Labels.exactWords := by decide
 
-/-- The J-pick step-1 question of jev-retrieval-trace: which one candidate file, named by its slot, would most help
-classify the incident, or none. -/
 def filePick : Question where
   name := "file-pick"
   instructions := "An incident from a software project's incident ledger: an agent or a script made a mistake. The " ++
