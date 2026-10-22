@@ -2734,8 +2734,8 @@
    ],
    "chromium": "unknown",
    "webkit": "no-win",
-   "visual": "Q on WebKit (webkit_not_exact: CA blur is not the software blur); equal opacity and blur values on every frame under the WAAPI premises (threaded_eq, frame_blur_eq, retarget_from_shown)",
-   "mechanism": "MEASURED (CI webkit-sim, iOS Simulator 430x775, morph pass at the page end y 5231, 130 frames with a push down and a push up, two passes per arm; base run 39731023406, flag run 39731104953): RecalculateStyles 259/259 vs 261/261, Layout 169/174 vs 178/174, Paint records 740/1159 vs 1162/1186; Composite time per frame of the open push 168-269 ms vs 134-167 ms (3-4 frames per push, close push overlaps). End-of-page scroll window y >= 4500: RecalculateStyles 92/99 vs 100/76, Layout 91/101 vs 112/64, within the pass-to-pass gap. PROVED why: recalc_same, every frame that changes the fade also changes the morph, and the tween still writes the nav --morph on that frame, so the variant schedules a style recalculation on exactly the frames the original does (writesT_sub: it drops only the section write). Breakpoint gate both engines: run 39730956361.",
+   "visual": "Not E or E1 on WebKit (webkit_not_exact: CA blur is not the software blur), so Q at best; no PathPix pixel cell measured. Equal opacity and blur values on every frame under the WAAPI premises (threaded_eq, frame_blur_eq, retarget_from_shown)",
+   "mechanism": "MEASURED (CI webkit-sim, iOS Simulator 430x775, morph pass at the page end y 5231 or 5267 (document height varies by pass), 130 frames with a push down and a push up, two passes per arm; base run 39731023406, flag run 39731104953): RecalculateStyles 259/259 vs 261/261, Layout 169/174 vs 178/174, Paint records 740/1159 vs 1162/1186; Composite time per frame of the open push 168-269 ms vs 134-167 ms (3-4 frames per push, close push overlaps). End-of-page scroll window y >= 4500: RecalculateStyles 92/99 vs 100/76, Layout 91/101 vs 112/64, within the pass-to-pass gap. PROVED in the write model (recalc_same, writesT_sub): the variant drops only the section write, and the nav --morph write still schedules a recalc on every fade frame. CONFIRMED a second cause: the running effect invalidates the section on every tick (KeyframeEffect.cpp:2128-2130, 1731-1734@862f17d), so moving the nav write alone would not remove the recalc either. Breakpoint gate both engines: run 39730956361.",
    "leanFor": [
     "Fw.Parts.PlatformFade.interp_eq",
     "Fw.Parts.PlatformFade.interp_blur",
@@ -2764,7 +2764,7 @@
    ],
    "v1Evidence": "",
    "lesson": "Moving one property of a frame to the compositor saves no style recalculation while another write on the same frame still invalidates style; count the writes per frame of every element the driver touches before expecting fewer recalcs. The possible gain of a threaded fade is paint and raster of the blurred section, which a Simulator count lane cannot show.",
-   "next": "Hold; no port task. Re-open together with a variant that also moves the nav --morph off the main thread (then recalc_same no longer binds), measured on a lane with a real GPU (mac-safari-measure or the phone).",
+   "next": "Hold; no port task. Re-open only with the nav --morph off the main thread and the effect on the threaded-animations path (no per-tick invalidate), measured on a real-GPU lane.",
    "evidence": "CI runs 39730956361, 39731023406, 39731104953; research/notes/2026/10-2x-platform-fade-threaded.md; results/platform-fade-threaded/report.json"
   }
  ],

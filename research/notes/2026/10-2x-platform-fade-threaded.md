@@ -54,7 +54,8 @@ CSS turns it into `opacity` and `filter: blur(...)` (platform.module.css:6, 12-1
 
 ## Accepted limits
 - The full-section blur layer is tiled above 1280 px.
-- Pixels on WebKit at most grade Q: CA's blur differs from the software blur (`webkit_not_exact`).
+- Pixels on WebKit at best grade Q (not E or E1), not measured: CA's blur differs from the software blur
+  (`webkit_not_exact`).
 - The iOS Simulator has no real GPU; its counts show main-thread work, not compositor cost.
 - Frame percentiles only where the lane records them.
 
@@ -67,13 +68,15 @@ CSS turns it into `opacity` and `filter: blur(...)` (platform.module.css:6, 12-1
 - MEASURED, same runs, cost-report: Composite time per frame of the open push 168-269 ms against 134-167 ms (lower,
   3-4 frames per pass); the close push and the rest after it overlap. Frame percentiles are not available in this lane
   (no RenderingFrame events).
-- PROVED why (`recalc_same`, `writesT_sub` in `PlatformFadeRun.lean`): every frame that changes the fade also changes
-  the morph, and the tween still writes the nav's `--morph` on that frame (driver.ts:129, index.tsx:48-52), so the
-  variant schedules a style recalculation on exactly the frames the original does. The variant removes one property
-  from a recalculation that runs anyway.
+- PROVED in the write model (`recalc_same`, `writesT_sub` in `PlatformFadeRun.lean`): the variant drops only the
+  section write, and the nav's `--morph` write still schedules a recalculation on every fade frame (driver.ts:129,
+  index.tsx:48-52).
+- CONFIRMED a second cause: the running effect invalidates the section on every tick. `KeyframeEffect::animationDidTick`
+  calls `invalidate()`, which calls `invalidateElement` (Source/WebCore/animation/KeyframeEffect.cpp:2128-2130,
+  1731-1734@862f17d), so moving the nav write alone would not remove the recalculation either.
 - Gate: breakpoint-gate with `platform:fade-threaded`, engines both, run 39730956361 pass.
 - Lesson: moving one property to the compositor saves no style pass while another write on the same frame still
   invalidates style; count every element's writes per frame first. What a threaded fade can save is paint and raster
   of the blurred section, which a Simulator count lane cannot show.
-- Next: hold. Re-open together with a variant that also takes the nav's `--morph` off the main thread, measured on a
-  lane with a real GPU.
+- Next: hold; no port task. Re-open only with the nav's `--morph` off the main thread and the effect on the
+  threaded-animations path (no per-tick invalidate), measured on a real-GPU lane.

@@ -165,7 +165,7 @@
               "value": 0,
               "tag": {
                 "kind": "inferred",
-                "why": "Lean recalc_same: a frame that changes the fade also changes the morph, and the tween still writes the nav --morph on it, so the variant recalculates style on the same frames"
+                "why": "Lean recalc_same, in the write model: the variant drops only the section write, and the nav --morph write still schedules a recalc on every fade frame. A second cause is CONFIRMED in WebKit KeyframeEffect: the running effect invalidates the section on every tick, so moving the nav write alone would not remove the recalc either"
               }
             }
           ]
@@ -268,6 +268,6 @@
   ],
   "recommendation": {
     "word": "hold",
-    "why": "The flag is proved to show the original fade and blur on every frame under the WAAPI premises, and every effect it starts meets the Core Animation conditions, with WebKit pixels at grade Q since the compositor blur is not the software blur. It does not cut style or layout passes: the tween still writes the nav on every frame the fade changes, so the recalculation runs anyway, and the Simulator counts of the two arms sit inside the gap between passes. The saving it could bring is paint and raster of the blurred section, which needs a lane with a real GPU. Keep the flag registered, leave it out of the preset, and measure it again together with a variant that also moves the nav write off the main thread."
+    "why": "The flag is proved to show the original fade and blur on every frame under the WAAPI premises, and every effect it starts meets the Core Animation conditions, with WebKit pixels no better than grade Q, unmeasured, since the compositor blur is not the software blur. It does not cut style or layout passes: the tween still writes the nav on every frame the fade changes, and in WebKit the running effect itself invalidates the section on every tick, so the recalculation runs anyway, and the Simulator counts of the two arms sit inside the gap between passes. The saving it could bring is paint and raster of the blurred section, which needs a lane with a real GPU. Keep the flag registered, leave it out of the preset, and re-open it only with the nav write off the main thread and the effect on the threaded-animations path, measured on a lane with a real GPU."
   }
 }
