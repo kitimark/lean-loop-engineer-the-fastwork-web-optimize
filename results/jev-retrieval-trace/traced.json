@@ -1,0 +1,101 @@
+{
+ "rule": "a gain is traced when its valid evidence lines state a fact the row lacks, not a restatement of the row or fix-describing text (research/notes/2026/10-2x-jev-retrieval.md, adopt)",
+ "rows": [],
+ "read": [
+  {
+   "arm": "t-haiku-read",
+   "mode": "renorm",
+   "id": "inc-worktree-role-as-teammate",
+   "evidence": [
+    {
+     "first": 8,
+     "last": 11,
+     "path": "lean/Fw/Ops/SpawnGuard.lean"
+    },
+    {
+     "first": 119,
+     "last": 125,
+     "path": "lean/Fw/Ops/SpawnGuard.lean"
+    }
+   ],
+   "traced": false,
+   "why": "SpawnGuard.lean 8-11 and 119-125 state that a named lead call without isolation is a teammate; the row's cause states the same rule and names the file."
+  },
+  {
+   "arm": "t-haiku-read",
+   "mode": "renorm",
+   "id": "inc-watch-unlanded-after-land",
+   "evidence": [
+    {
+     "first": 228,
+     "last": 236,
+     "path": "apps/runner/src/next.ts"
+    },
+    {
+     "first": 137,
+     "last": 139,
+     "path": "apps/runner/src/next.ts"
+    },
+    {
+     "first": 253,
+     "last": 255,
+     "path": "apps/runner/src/next.ts"
+    }
+   ],
+   "traced": false,
+   "why": "next.ts 228-236, 137-139 and 253-255 read landed from merge-base --is-ancestor on the branch; the row's cause quotes that call and names next.ts."
+  },
+  {
+   "arm": "t-haiku-read",
+   "mode": "renorm",
+   "id": "inc-prompt-premise-align",
+   "evidence": [
+    {
+     "first": 13,
+     "last": 15,
+     "path": "lean/Fw/Gate/AlignEquiv.lean"
+    }
+   ],
+   "traced": false,
+   "why": "AlignEquiv.lean 13-15 quote css-align-3 §6.2 (auto computes to the parent's align-items); the row's cause cites AlignEquiv.lean:14 and the same sentence."
+  },
+  {
+   "arm": "t-haiku-read",
+   "mode": "renorm",
+   "id": "inc-land-queue-unknown",
+   "evidence": [
+    {
+     "first": 102,
+     "last": 104,
+     "path": "apps/runner/src/land-queue.ts"
+    },
+    {
+     "first": 128,
+     "last": 134,
+     "path": "apps/runner/src/land-queue.ts"
+    }
+   ],
+   "traced": false,
+   "why": "land-queue.ts 128-134 holds line 130 `catch { kind = \"unknown\"; }`; the row's cause quotes that line with its file and line (land-queue.ts:130)."
+  },
+  {
+   "arm": "t-haiku-read",
+   "mode": "renorm",
+   "id": "inc-helper-spawn-named",
+   "evidence": [
+    {
+     "first": 29,
+     "last": 37,
+     "path": "apps/runner/hooks/spawn-guard.mjs"
+    },
+    {
+     "first": 74,
+     "last": 78,
+     "path": "apps/runner/hooks/spawn-guard.mjs"
+    }
+   ],
+   "traced": false,
+   "why": "spawn-guard.mjs 29-37 and 74-78 show the name making the call a teammate and a refusal text without 'drop name'; the row's cause states both."
+  }
+ ]
+}

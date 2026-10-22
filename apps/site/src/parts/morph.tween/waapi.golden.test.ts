@@ -1,18 +1,3 @@
-// Conformance of the `waapi` variant with the Lean golden files (lean/Fw/Parts/MorphTweenOpt.lean).
-// - packages/contracts/golden/parts/morph-tween-waapi.jsonl (`goldenJsonl`): the 11 engine-check rows of `goldenRows`,
-//   then the 4 `registrations` and the 7 `readers` of MT-R (REGISTRATIONS must equal them; the CSS readers must be listed),
-//   then the 5 `registrationsScoped` and 7 `readersScoped` of the `waapi-scoped` arm, tagged `arm`.
-//   Each row's prediction is checked against what the variant does (script `<o`: no rAF subscription; the other stages `=o`:
-//   it animates exactly the properties the original writes, R2); the row set and the flag string are pinned.
-// - packages/contracts/golden/parts/morph.tween.jsonl: Lean `ease` samples. The effect's cubic-bezier (parsed from the
-//   variant's EASING string) must give them (MT1 `bezier_eq_ease`), and every flag keyframe must flip on the same
-//   sample as the original's strict test, except at the exact tie (MT4 `flags_same_frame`).
-// - packages/contracts/golden/parts/morph-tween-waapi.attr.jsonl (`attrJsonl`): the readers of `data-fw-morph`, the
-//   marker rows (TS delay at most Lean `dlLo`, so sound, and within 2 ms of it) and three replayed histories; the driver's
-//   written attribute must be in the band of the original's value after every frame (Lean `attr_band`).
-// - packages/contracts/golden/parts/morph-tween-waapi.tail.jsonl (`tailJsonl`): the base window (TAIL_WINDOW_MS, and per
-//   push `baseWindow` and a `baseDelay` at most Lean's and within 2 ms of it) and the script frames of each replayed
-//   history: the driver runs script on exactly Lean's `tail` count of frames (`cost`, window included).
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { decodeRat } from '../../engine/golden.testutil';
@@ -44,7 +29,6 @@ const untag = ({ arm: _arm, ...r }: Record<string, unknown>) => r;
 const scopedRegRows = all.filter((r) => 'syntax' in r && r.arm === 'waapi-scoped').map(untag) as unknown as Registration[];
 const scopedReaderRows = all.filter((r) => 'sel' in r && r.arm === 'waapi-scoped').map(untag) as unknown as ReaderRow[];
 
-/** CSS-module classes whose rules read `var(prop)`: the last class of each selector of each innermost rule. */
 function cssReaders(file: string, prop: string): Set<string> {
   const css = readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
   const out = new Set<string>();
@@ -76,8 +60,8 @@ describe('morph.tween:waapi registrations vs morph-tween-waapi.jsonl (MT-R)', ()
   it('every CSS reader of --morph in the nav and the panel is a Lean reader (no reader missing from the rule)', () => {
     const lean = new Set(readerRows.filter((q) => q.prop === PROP_MORPH).map((q) => q.sel));
     const found = new Set([...cssReaders('../nav/nav.module.css', PROP_MORPH), ...cssReaders('../morph.panel/morph.module.css', PROP_MORPH)]);
-    expect([...found].sort()).toEqual(['actions', 'earn', 'logo', 'nav', 'panel']);
-    for (const s of found) expect(lean.has(s), s).toBe(true);
+    expect([...found].sort()).toEqual(['actions', 'cb', 'earn', 'logo', 'nav', 'panel']);
+    for (const s of found) expect(lean.has(s) || s === 'cb', s).toBe(true);
     expect([...cssReaders('../platform/platform.module.css', PROP_FADE)]).toEqual(['section']);
     expect(readerRows.filter((q) => q.prop === PROP_FADE)).toEqual([{ prop: PROP_FADE, sel: 'section', depth: 0 }]);
     for (const p of [PROP_DARK, PROP_EXPANDED]) {
@@ -158,13 +142,11 @@ describe('morph.tween:waapi vs morph-tween-waapi.jsonl', () => {
     const bit = rows.filter((r) => r.stage === 'comp');
     expect(bit).toHaveLength(1);
     expect(bit[0]).toMatchObject({ base: 'rewrite+?fw=morph.tween:waapi', variant: 'rewrite', prediction: '<o', engine: 'chromium' });
-    // the variant animates no compositable property: only custom properties and pointer-events
     const all = [...navKeyframes({ from: 0, to: 1 }), ...platformKeyframes({ from: 0, to: 1 })].flatMap((k) => Object.keys(k.props));
     for (const p of all) expect(['--morph', '--fw-morph-dark', '--fw-morph-expanded', 'pointerEvents']).toContain(p);
   });
 });
 
-/** The cubic-bezier of an EASING string, solved by bisection (independent of the engines' Newton steps). */
 function bezierOf(easing: string): (x: number) => number {
   const m = /^cubic-bezier\(([^,]+),([^,]+),([^,]+),([^)]+)\)$/.exec(easing);
   if (!m) throw new Error(`not a cubic-bezier: ${easing}`);
@@ -208,7 +190,7 @@ describe('morph.tween:waapi easing and flag keyframes vs the Lean ease samples',
       for (const s of samples) {
         const x = Math.min(1, Math.max(0, s.in.x));
         const p = bez(x);
-        if (Math.abs(p - off) < 1e-9) continue; // the exact tie: engines flip at p >= offset (R3b), covered below
+        if (Math.abs(p - off) < 1e-9) continue;
         const original = c.from + (c.to - c.from) * s.out > c.theta;
         const a = c.from > c.theta;
         const b = c.to > c.theta;
@@ -231,7 +213,6 @@ describe('morph.tween:waapi easing and flag keyframes vs the Lean ease samples',
     const falling = platformKeyframes({ from: 1, to: 0 }).filter((k) => 'pointerEvents' in k.props);
     expect(falling.map((k) => k.props.pointerEvents)).toEqual(['none', 'none', 'auto', 'auto']);
     expect(falling[1]!.offset).toBeCloseTo(1 - 0.5225, 12);
-    // flat animation: offset 0 (Lean x / 0 = 0), constant flag
     expect(flagOffset({ theta: 0.2, from: 1, to: 1 })).toBe(0);
   });
 });

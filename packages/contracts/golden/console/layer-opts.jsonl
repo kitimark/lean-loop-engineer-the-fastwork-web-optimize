@@ -1,0 +1,33 @@
+{"entries":[],"name":"no entries","style":""}
+{"entries":[{"layer":"nope","opts":"c"}],"name":"an undeclared layer","style":""}
+{"entries":[{"layer":"hero_copy","opts":"x"}],"name":"an undeclared option","style":""}
+{"entries":[{"layer":"hero.cue_cue","opts":"cs"},{"layer":"hero_copy","opts":"c"}],"name":"two layers keep the given order","style":"[data-fw-layer=\"hero.cue_cue\"] { will-change: opacity, filter, transform }\n[data-fw-layer=\"hero_copy\"] { will-change: opacity, filter, transform }"}
+{"entries":[{"layer":"hero_copy","opts":"s"},{"layer":"hero.cue_cue","opts":"c"}],"name":"snap alone adds nothing","style":"[data-fw-layer=\"hero.cue_cue\"] { will-change: opacity, filter, transform }"}
+{"entries":[{"layer":"hero_copy","opts":"c"},{"layer":"hero_copy","opts":"c"}],"name":"a repeated pair repeats its text","style":"[data-fw-layer=\"hero_copy\"] { will-change: opacity, filter, transform }\n[data-fw-layer=\"hero_copy\"] { will-change: opacity, filter, transform }"}
+{"entries":[{"layer":"hero_copy","opts":"c"}],"name":"hero_copy:c","style":"[data-fw-layer=\"hero_copy\"] { will-change: opacity, filter, transform }"}
+{"entries":[{"layer":"hero_copy","opts":"s"}],"name":"hero_copy:s","style":""}
+{"entries":[{"layer":"hero_copy","opts":"cs"}],"name":"hero_copy:cs","style":"[data-fw-layer=\"hero_copy\"] { will-change: opacity, filter, transform }"}
+{"entries":[{"layer":"hero.countdown_face","opts":"c"}],"name":"hero.countdown_face:c","style":"[data-fw-layer=\"hero.countdown_face\"] { will-change: opacity, filter, transform }"}
+{"entries":[{"layer":"hero.countdown_face","opts":"s"}],"name":"hero.countdown_face:s","style":""}
+{"entries":[{"layer":"hero.countdown_face","opts":"cs"}],"name":"hero.countdown_face:cs","style":"[data-fw-layer=\"hero.countdown_face\"] { will-change: opacity, filter, transform }"}
+{"entries":[{"layer":"hero.countdown_strip","opts":"c"}],"name":"hero.countdown_strip:c","style":"[data-fw-layer=\"hero.countdown_strip\"] { will-change: opacity, filter, transform }"}
+{"entries":[{"layer":"hero.countdown_strip","opts":"s"}],"name":"hero.countdown_strip:s","style":""}
+{"entries":[{"layer":"hero.countdown_strip","opts":"cs"}],"name":"hero.countdown_strip:cs","style":"[data-fw-layer=\"hero.countdown_strip\"] { will-change: opacity, filter, transform }"}
+{"entries":[{"layer":"hero.cue_cue","opts":"c"}],"name":"hero.cue_cue:c","style":"[data-fw-layer=\"hero.cue_cue\"] { will-change: opacity, filter, transform }"}
+{"entries":[{"layer":"hero.cue_cue","opts":"s"}],"name":"hero.cue_cue:s","style":""}
+{"entries":[{"layer":"hero.cue_cue","opts":"cs"}],"name":"hero.cue_cue:cs","style":"[data-fw-layer=\"hero.cue_cue\"] { will-change: opacity, filter, transform }"}
+{"entries":[{"layer":"hero.deck_article","opts":"c"}],"name":"hero.deck_article:c","style":"[data-fw-layer=\"hero.deck_article\"] { will-change: opacity, filter, transform }"}
+{"entries":[{"layer":"hero.deck_article","opts":"s"}],"name":"hero.deck_article:s","style":""}
+{"entries":[{"layer":"hero.deck_article","opts":"cs"}],"name":"hero.deck_article:cs","style":"[data-fw-layer=\"hero.deck_article\"] { will-change: opacity, filter, transform }"}
+{"entries":[{"layer":"hero.orbit_card","opts":"c"}],"name":"hero.orbit_card:c","style":"[data-fw-layer=\"hero.orbit_card\"] { will-change: opacity, filter, transform }"}
+{"entries":[{"layer":"hero.orbit_card","opts":"s"}],"name":"hero.orbit_card:s","style":""}
+{"entries":[{"layer":"hero.orbit_card","opts":"cs"}],"name":"hero.orbit_card:cs","style":"[data-fw-layer=\"hero.orbit_card\"] { will-change: opacity, filter, transform }"}
+{"entries":[{"layer":"morph.panel_panel","opts":"c"}],"name":"morph.panel_panel:c","style":"[data-fw-layer=\"morph.panel_panel\"] { will-change: opacity, filter, transform }"}
+{"entries":[{"layer":"morph.panel_panel","opts":"s"}],"name":"morph.panel_panel:s","style":""}
+{"entries":[{"layer":"morph.panel_panel","opts":"cs"}],"name":"morph.panel_panel:cs","style":"[data-fw-layer=\"morph.panel_panel\"] { will-change: opacity, filter, transform }"}
+{"entries":[{"layer":"nav_bar","opts":"c"}],"name":"nav_bar:c","style":"[data-fw-layer=\"nav_bar\"] { will-change: opacity, filter, transform }"}
+{"entries":[{"layer":"nav_bar","opts":"s"}],"name":"nav_bar:s","style":""}
+{"entries":[{"layer":"nav_bar","opts":"cs"}],"name":"nav_bar:cs","style":"[data-fw-layer=\"nav_bar\"] { will-change: opacity, filter, transform }"}
+{"entries":[{"layer":"nav_earn","opts":"c"}],"name":"nav_earn:c","style":"[data-fw-layer=\"nav_earn\"] { will-change: opacity, filter, transform }"}
+{"entries":[{"layer":"nav_earn","opts":"s"}],"name":"nav_earn:s","style":""}
+{"entries":[{"layer":"nav_earn","opts":"cs"}],"name":"nav_earn:cs","style":"[data-fw-layer=\"nav_earn\"] { will-change: opacity, filter, transform }"}

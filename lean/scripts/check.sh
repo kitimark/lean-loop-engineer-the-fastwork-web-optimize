@@ -115,6 +115,7 @@ run_group() {
   job "wkcost golden check" lake env lean --run scripts/WkCostGolden.lean --check ../packages/contracts/golden/measure/wkcost.jsonl  # the cost-counter vectors packages/measure-webkit/src/lag/cost.mjs is checked against (Fw.Measure.WkCost)
   job "census golden check" lake env lean --run scripts/CensusGolden.lean --check ../packages/contracts/golden/measure/census.jsonl  # the layer-census check vectors packages/measure-webkit/src/census-check.mjs is checked against (Fw.Measure.Census)
   job "stage golden check" lake env lean --run scripts/StageGolden.lean --check ../packages/contracts/golden/parts/stage.jsonl  # the ?only= stage plans the site is checked against (Fw.Site.Stage)
+  job "layer-opts golden check" lake env lean --run scripts/LayerOptsGolden.lean --check ../apps/site/src/registry/layer-opts.gen.ts ../packages/contracts/golden/console/layer-opts.jsonl
   job "reconcile-sched golden check" lake env lean --run scripts/ReconcileSchedGolden.lean --check  # golden/console/reconcile-sched.jsonl
   job "dormant golden check" lake env lean --run scripts/MorphDormantGolden.lean --check ../packages/contracts/golden/parts/morph.mount.dormant.jsonl
   job "headgen check" lake env lean --run HeadgenMain.lean --check ../apps/site/src/head.gen.json  # the document head table (Fw.Site.Head)
@@ -128,6 +129,7 @@ run_group() {
   job "exit scoped golden check" lake env lean --run scripts/ExitScopedGolden.lean --check ../packages/contracts/golden/parts/hero.exit.scoped.json  # hero.exit:scoped reader list, inherit chain and units (Fw.Parts.HeroExitOpt)
   job "exit threaded golden check" lake env lean --run scripts/ExitThreadedGolden.lean --check ../packages/contracts/golden/parts/hero-exit.threaded.jsonl  # hero.exit:threaded keyframes, hand-over rule, sentinel (Fw.Parts.HeroExitOpt)
   job "timing golden check" lake env lean --run scripts/TimingGolden.lean --check  # golden/obs/timing.jsonl (Fw.Obs.Timing)
+  job "slot-key golden check" lake env lean --run scripts/SlotKeyGolden.lean --check
   job "heavy golden check" lake env lean --run scripts/HeavyGolden.lean --check  # golden/sched/heavy.jsonl (Fw.Sched.Heavy), replayed by scripts/heavy-lock.test.mjs
   job "land-legs golden check" lake env lean --run scripts/LandLegsGolden.lean --check  # golden/console/land-legs.jsonl + lean/land-legs.txt (Fw.Console.LandLegs)
   job "trajectory golden check" lake env lean --run scripts/TrajectoryGolden.lean --check  # the trajectory-probe verdict vectors reduce.mjs is checked against (Fw.Gate.Trajectory)

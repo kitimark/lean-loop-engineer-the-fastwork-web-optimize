@@ -22,27 +22,24 @@
  "arms": {
   "jev": {
    "strict": {
-    "armRight": 12,
-    "baseRight": 16,
+    "armRight": 14,
+    "baseRight": 17,
     "gains": [
      "inc-watch-unlanded-queued",
-     "inc-land-dry-no-verdict",
-     "inc-land-dry-needs-console"
+     "inc-land-dry-no-verdict"
     ],
     "losses": [
      "inc-worktree-role-as-teammate",
      "inc-watch-unlanded-after-land",
      "inc-evidence-before-land",
-     "inc-land-inputs-untracked-exists",
-     "inc-console-stale-service",
      "inc-workflow-multi-unbound",
      "inc-reap-console-kill"
     ],
     "mode": "strict",
-    "net": -4,
+    "net": -3,
     "p": {
-     "den": "32",
-     "num": "11"
+     "den": "64",
+     "num": "29"
     },
     "pairs": [
      {
@@ -101,7 +98,7 @@
       "id": "inc-findings-shared-entry"
      },
      {
-      "arm": false,
+      "arm": true,
       "base": true,
       "id": "inc-land-inputs-untracked-exists"
      },
@@ -131,7 +128,7 @@
       "id": "inc-test-pid-marker"
      },
      {
-      "arm": false,
+      "arm": true,
       "base": true,
       "id": "inc-console-stale-service"
      },
@@ -157,7 +154,7 @@
      },
      {
       "arm": true,
-      "base": false,
+      "base": true,
       "id": "inc-land-dry-needs-console"
      },
      {
@@ -346,10 +343,9 @@
   "jev-naive": {
    "strict": {
     "armRight": 15,
-    "baseRight": 16,
+    "baseRight": 17,
     "gains": [
-     "inc-watch-unlanded-queued",
-     "inc-land-dry-needs-console"
+     "inc-watch-unlanded-queued"
     ],
     "losses": [
      "inc-worktree-role-as-teammate",
@@ -357,10 +353,10 @@
      "inc-evidence-before-land"
     ],
     "mode": "strict",
-    "net": -1,
+    "net": -2,
     "p": {
-     "den": "1",
-     "num": "1"
+     "den": "8",
+     "num": "5"
     },
     "pairs": [
      {
@@ -475,7 +471,7 @@
      },
      {
       "arm": true,
-      "base": false,
+      "base": true,
       "id": "inc-land-dry-needs-console"
      },
      {
@@ -660,25 +656,24 @@
   },
   "haiku": {
    "strict": {
-    "armRight": 5,
-    "baseRight": 7,
+    "armRight": 8,
+    "baseRight": 9,
     "gains": [
      "inc-wt-prep-lsp-as-build",
      "inc-test-pid-marker",
      "inc-plan-sync-manual"
     ],
     "losses": [
-     "inc-gate-scan-page-state",
      "inc-land-retry-text-match",
      "inc-land-dry-no-verdict",
      "inc-ci-skipped-false-pass",
      "inc-runner-bin-mode-flip"
     ],
     "mode": "strict",
-    "net": -2,
+    "net": -1,
     "p": {
-     "den": "128",
-     "num": "93"
+     "den": "1",
+     "num": "1"
     },
     "pairs": [
      {
@@ -717,7 +712,7 @@
       "id": "inc-evidence-before-land"
      },
      {
-      "arm": false,
+      "arm": true,
       "base": true,
       "id": "inc-gate-scan-page-state"
      },
@@ -757,8 +752,8 @@
       "id": "inc-wt-prep-lsp-as-build"
      },
      {
-      "arm": false,
-      "base": false,
+      "arm": true,
+      "base": true,
       "id": "inc-parallel-write-overlap"
      },
      {
@@ -767,8 +762,8 @@
       "id": "inc-test-pid-marker"
      },
      {
-      "arm": false,
-      "base": false,
+      "arm": true,
+      "base": true,
       "id": "inc-console-stale-service"
      },
      {
@@ -976,11 +971,10 @@
   },
   "sonnet": {
    "strict": {
-    "armRight": 12,
-    "baseRight": 14,
+    "armRight": 13,
+    "baseRight": 15,
     "gains": [
      "inc-wt-prep-lsp-as-build",
-     "inc-ci-skipped-false-pass",
      "inc-land-queue-unknown",
      "inc-runner-bin-mode-flip"
     ],
@@ -989,14 +983,13 @@
      "inc-watch-alert-during-land",
      "inc-findings-shared-entry",
      "inc-ci-run-cap-prompt",
-     "inc-test-pid-marker",
      "inc-plan-sync-manual"
     ],
     "mode": "strict",
     "net": -2,
     "p": {
-     "den": "256",
-     "num": "193"
+     "den": "128",
+     "num": "93"
     },
     "pairs": [
      {
@@ -1080,7 +1073,7 @@
       "id": "inc-parallel-write-overlap"
      },
      {
-      "arm": false,
+      "arm": true,
       "base": true,
       "id": "inc-test-pid-marker"
      },
@@ -1101,7 +1094,7 @@
      },
      {
       "arm": true,
-      "base": false,
+      "base": true,
       "id": "inc-ci-skipped-false-pass"
      },
      {
@@ -1302,26 +1295,23 @@
   "arms": [
    {
     "arm": "jev/strict",
-    "armRight": 12,
-    "baseRight": 16,
+    "armRight": 14,
+    "baseRight": 17,
     "gains": [
      "inc-watch-unlanded-queued",
-     "inc-land-dry-no-verdict",
-     "inc-land-dry-needs-console"
+     "inc-land-dry-no-verdict"
     ],
     "losses": [
      "inc-worktree-role-as-teammate",
      "inc-watch-unlanded-after-land",
      "inc-evidence-before-land",
-     "inc-land-inputs-untracked-exists",
-     "inc-console-stale-service",
      "inc-workflow-multi-unbound",
      "inc-reap-console-kill"
     ],
-    "net": -4,
+    "net": -3,
     "p": {
-     "den": "32",
-     "num": "11"
+     "den": "64",
+     "num": "29"
     },
     "rows": 27
    },
@@ -1349,24 +1339,23 @@
    },
    {
     "arm": "haiku/strict",
-    "armRight": 5,
-    "baseRight": 7,
+    "armRight": 8,
+    "baseRight": 9,
     "gains": [
      "inc-wt-prep-lsp-as-build",
      "inc-test-pid-marker",
      "inc-plan-sync-manual"
     ],
     "losses": [
-     "inc-gate-scan-page-state",
      "inc-land-retry-text-match",
      "inc-land-dry-no-verdict",
      "inc-ci-skipped-false-pass",
      "inc-runner-bin-mode-flip"
     ],
-    "net": -2,
+    "net": -1,
     "p": {
-     "den": "128",
-     "num": "93"
+     "den": "1",
+     "num": "1"
     },
     "rows": 27
    },
@@ -1389,11 +1378,10 @@
    },
    {
     "arm": "sonnet/strict",
-    "armRight": 12,
-    "baseRight": 14,
+    "armRight": 13,
+    "baseRight": 15,
     "gains": [
      "inc-wt-prep-lsp-as-build",
-     "inc-ci-skipped-false-pass",
      "inc-land-queue-unknown",
      "inc-runner-bin-mode-flip"
     ],
@@ -1402,13 +1390,12 @@
      "inc-watch-alert-during-land",
      "inc-findings-shared-entry",
      "inc-ci-run-cap-prompt",
-     "inc-test-pid-marker",
      "inc-plan-sync-manual"
     ],
     "net": -2,
     "p": {
-     "den": "256",
-     "num": "193"
+     "den": "128",
+     "num": "93"
     },
     "rows": 27
    },
@@ -1438,7 +1425,7 @@
    {
     "arm": "jev/strict",
     "kind": "netLow",
-    "net": -4
+    "net": -3
    },
    {
     "arm": "jev/strict",
@@ -1448,11 +1435,6 @@
    {
     "arm": "jev/strict",
     "id": "inc-land-dry-no-verdict",
-    "kind": "untraced"
-   },
-   {
-    "arm": "jev/strict",
-    "id": "inc-land-dry-needs-console",
     "kind": "untraced"
    },
    {
@@ -1473,7 +1455,7 @@
    {
     "arm": "haiku/strict",
     "kind": "netLow",
-    "net": -2
+    "net": -1
    },
    {
     "arm": "haiku/strict",
@@ -1503,11 +1485,6 @@
    {
     "arm": "sonnet/strict",
     "id": "inc-wt-prep-lsp-as-build",
-    "kind": "untraced"
-   },
-   {
-    "arm": "sonnet/strict",
-    "id": "inc-ci-skipped-false-pass",
     "kind": "untraced"
    },
    {
