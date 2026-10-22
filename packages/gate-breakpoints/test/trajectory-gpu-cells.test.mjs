@@ -116,6 +116,15 @@ test('carousel: the key is the frame count and only full-count vectors compare (
   assert.deepEqual(carouselCell(390, a, jit).grades, ['E']);
 });
 
+test('carousel: a recording that opens mid-swap has no whole first swap', () => {
+  const rest = [0, 0, 1000, 1000], mid = (i) => [5000 * i, 0, 1000, 1000];
+  const rows = (vs) => vs.map((v, i) => ({ t: i * 16.7, v }));
+  const open = rows([mid(1), mid(2), mid(3), ...Array(8).fill(rest), mid(1), mid(2), ...Array(8).fill(rest)]);
+  assert.equal(swapsOf(open).length, 1);
+  const whole = rows([...Array(3).fill(rest), mid(1), mid(2), ...Array(8).fill(rest)]);
+  assert.equal(swapsOf(whole).length, 1);
+});
+
 test('the report counts cells and grades and prints a unit line each', () => {
   const p = phase(std);
   const { units, lines, md } = reduceCells(raw(std, p, p));

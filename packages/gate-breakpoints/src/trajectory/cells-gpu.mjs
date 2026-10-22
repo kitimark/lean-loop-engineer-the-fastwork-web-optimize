@@ -266,6 +266,10 @@ export const CAROUSEL_GRID = [-1, -3 / 4, -1 / 2, -1 / 4, 1 / 4, 1 / 2, 3 / 4, 1
 export const FRAME_MS = rat(50, 3);
 export const CAROUSEL_MIN_COVERED = 4;
 
+const sameVec = (a, b) => a.length === b.length && a.every((x, j) => x === b[j]);
+/** A swap whole in the series starts after two equal samples; a recording that opens mid-swap (an A/A on CI did) has no start to compare. */
+const restedBefore = (rows, from) => from >= 1 && !!rows[from - 1]?.v && !!rows[from]?.v && sameVec(rows[from - 1].v, rows[from].v);
+
 /** Swaps in a rAF series of rect vectors: from the last still sample to the sample where the vector is still again for `still` frames. */
 export function swapsOf(rows, still = 6) {
   const swaps = [];
@@ -277,7 +281,7 @@ export function swapsOf(rows, still = 6) {
     if (!same && cur === null) cur = { from: i - 1, to: i };
     if (cur !== null) {
       if (same) quiet++; else { quiet = 0; cur.to = i; }
-      if (quiet >= still) { swaps.push(cur); cur = null; quiet = 0; }
+      if (quiet >= still) { if (restedBefore(rows, cur.from)) swaps.push(cur); cur = null; quiet = 0; }
     }
   }
   // The key is the frame count times one frame: the swap advances per frame, and an A/A showed the rAF timestamps jitter by 1.7 ms
