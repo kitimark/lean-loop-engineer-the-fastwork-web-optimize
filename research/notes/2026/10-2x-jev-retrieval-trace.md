@@ -34,8 +34,11 @@ The run follows the design in `research/notes/2026/10-2x-jev-retrieval.md`. Four
 - **J-hybrid is C (MEASURED, proved).** With no read ranges, `hybrid_noreads` keeps every row unchanged, so all 38
   sends replayed from the log at 0 new sends. The answers equal C row by row.
 - **Adopt is false for every arm and mode (MEASURED).** The Lean rule (`adopt_iff`) needs net ≥ 4 against C, X not
-  worse, no gain on a dropped row and every gain traced. All 8 verdicts fail on `netLowC` already, so no hand trace of
-  gains could flip them.
+  worse, no gain on a dropped row and every gain traced. 7 of the 8 verdicts fail on `netLowC`. T-haiku strict reaches
+  net 4 but fails `gainOnDropped`: one gain is on the dropped row inc-upsert-keeps-evidence. Its gains are also
+  untraced, because it read nothing. No hand trace of gains could flip any verdict.
+- **Scoring is main's after oracle-eps.** Strict mode now accepts probabilities whose sum rounds to 1 at the reply's
+  precision (`lean/Fw/Oracle/Core.lean`, `sumOk`). This changed only the strict rows of the tables below.
 
 ## Paired tables (38 rows; dropped rows: inc-workflow-unbound, inc-land-undeclared-reads, inc-upsert-keeps-evidence)
 
@@ -43,38 +46,38 @@ Against C (the clean first run of the same base model; for J arms, Jev on `d1`):
 
 | Arm | Mode | Base right | Arm right | Gains | Losses | Net | Sign p | Adopt |
 |---|---|---|---|---|---|---|---|---|
-| t-haiku | strict | 7 | 7 | 5 | 5 | 0 | 1 | false |
+| t-haiku | strict | 9 | 13 | 9 | 5 | 4 | 3473/8192 | false |
 | t-haiku | renorm | 21 | 20 | 2 | 3 | -1 | 1 | false |
-| t-sonnet | strict | 19 | 21 | 7 | 5 | 2 | 793/1024 | false |
+| t-sonnet | strict | 20 | 23 | 7 | 4 | 3 | 281/512 | false |
 | t-sonnet | renorm | 22 | 23 | 5 | 4 | 1 | 1 | false |
-| j-hybrid | strict | 18 | 18 | 0 | 0 | 0 | 1 | false |
+| j-hybrid | strict | 20 | 20 | 0 | 0 | 0 | 1 | false |
 | j-hybrid | renorm | 20 | 20 | 0 | 0 | 0 | 1 | false |
-| j-pick | strict | 18 | 17 | 4 | 5 | -1 | 1 | false |
+| j-pick | strict | 20 | 18 | 2 | 4 | -2 | 11/16 | false |
 | j-pick | renorm | 20 | 18 | 2 | 4 | -2 | 11/16 | false |
 
 Against X (the file-context ablation: the 27 expanded rows, plus C on the rest):
 
 | Arm | Mode | Base right | Arm right | Gains | Losses | Net | Sign p |
 |---|---|---|---|---|---|---|---|
-| t-haiku | strict | 5 | 7 | 4 | 2 | 2 | 11/16 |
+| t-haiku | strict | 8 | 13 | 8 | 3 | 5 | 29/128 |
 | t-haiku | renorm | 18 | 20 | 3 | 1 | 2 | 5/8 |
-| t-sonnet | strict | 17 | 21 | 7 | 3 | 4 | 11/32 |
+| t-sonnet | strict | 18 | 23 | 6 | 1 | 5 | 1/8 |
 | t-sonnet | renorm | 20 | 23 | 5 | 2 | 3 | 29/64 |
-| j-hybrid | strict | 14 | 18 | 7 | 3 | 4 | 11/32 |
+| j-hybrid | strict | 17 | 20 | 5 | 2 | 3 | 29/64 |
 | j-hybrid | renorm | 17 | 20 | 5 | 2 | 3 | 29/64 |
-| j-pick | strict | 14 | 17 | 4 | 1 | 3 | 3/8 |
+| j-pick | strict | 17 | 18 | 2 | 1 | 1 | 1 |
 | j-pick | renorm | 17 | 18 | 2 | 1 | 1 | 1 |
 
 What the tables show:
 
 - **The C-to-T swings are noise.** The T arms read nothing, so their swings against C measure what changes with the
-  new system prompt, the answer schema and resampling. T-sonnet still moved 12 rows (+7 -5). A net below 4 on 38
-  rows is inside this noise (no sign p is below 0.3).
+  new system prompt, the answer schema and resampling. In strict mode T-haiku moved 14 rows (+9 -5) and T-sonnet 11
+  (+7 -4) without one read. No sign p against C is below 0.4.
 - **The wins over X are not retrieval.** They repeat the ablation's finding that adding file text lowers scores. They
   are not a gain from reading, since J-hybrid equals C.
 - **J-pick picks f1.** Step 1 picked a file in all 36 rows with candidates, and never `none`. It chose f1 (the first
   path in sorted order) in 30 rows, f2 in 5 and f3 in 1. This suggests a position bias (INFERRED). Step 2 lost to C
-  (net -1 strict, -2 renorm).
+  (net -2 in both modes).
 - **5 of the 36 J-pick prompts replayed.** Their picked excerpt equals the X row's file text, so the prompt equals the
   X prompt (`d1-expand.jsonl`, MEASURED).
 
@@ -122,4 +125,4 @@ Before the run, 49 Jev sends were logged for 2026-10-22. Lean planned 72 more wi
   measures that prompt change as well as retrieval, and retrieval itself was 0.
 - A forced-read variant (a prompt that requires at least one read) was not run, so "would reading help" stays open.
 - J-pick's candidates are the files the row names that are in its tree. Files found by search are not offered.
-- No gain was traced by hand. None was needed, because every verdict fails `netLowC` first.
+- No gain was traced by hand. None was needed: every verdict already fails on `netLowC` or `gainOnDropped`.

@@ -36,17 +36,32 @@
     "reasons": [
      {
       "arm": "t-haiku/strict",
-      "kind": "netLowC",
-      "net": 0
-     },
-     {
-      "arm": "t-haiku/strict",
       "id": "inc-upsert-keeps-evidence",
       "kind": "gainOnDropped"
      },
      {
       "arm": "t-haiku/strict",
+      "id": "inc-retention-hides-unlanded",
+      "kind": "untraced"
+     },
+     {
+      "arm": "t-haiku/strict",
+      "id": "inc-worktree-role-as-teammate",
+      "kind": "untraced"
+     },
+     {
+      "arm": "t-haiku/strict",
+      "id": "inc-land-scope-stale-base",
+      "kind": "untraced"
+     },
+     {
+      "arm": "t-haiku/strict",
       "id": "inc-upsert-keeps-evidence",
+      "kind": "untraced"
+     },
+     {
+      "arm": "t-haiku/strict",
+      "id": "inc-wt-prep-lsp-as-build",
       "kind": "untraced"
      },
      {
@@ -71,46 +86,55 @@
      }
     ],
     "vsC": {
-     "armRight": 7,
-     "baseRight": 7,
+     "armRight": 13,
+     "baseRight": 9,
      "gains": [
+      "inc-retention-hides-unlanded",
+      "inc-worktree-role-as-teammate",
+      "inc-land-scope-stale-base",
       "inc-upsert-keeps-evidence",
+      "inc-wt-prep-lsp-as-build",
       "inc-test-pid-marker",
       "inc-mutants-red-no-task",
       "inc-main-checkout-busy-queue",
       "inc-plan-sync-manual"
      ],
      "losses": [
-      "inc-gate-scan-page-state",
       "inc-land-retry-text-match",
       "inc-land-dry-no-verdict",
-      "inc-land-dry-needs-console",
-      "inc-runner-bin-mode-flip"
+      "inc-parallel-write-overlap",
+      "inc-console-stale-service",
+      "inc-land-dry-needs-console"
      ],
-     "net": 0,
+     "net": 4,
      "p": {
-      "den": "1",
-      "num": "1"
+      "den": "8192",
+      "num": "3473"
      },
      "rows": 38
     },
     "vsX": {
-     "armRight": 7,
-     "baseRight": 5,
+     "armRight": 13,
+     "baseRight": 8,
      "gains": [
+      "inc-retention-hides-unlanded",
+      "inc-worktree-role-as-teammate",
+      "inc-land-scope-stale-base",
       "inc-upsert-keeps-evidence",
       "inc-ci-skipped-false-pass",
       "inc-mutants-red-no-task",
-      "inc-main-checkout-busy-queue"
+      "inc-main-checkout-busy-queue",
+      "inc-runner-bin-mode-flip"
      ],
      "losses": [
-      "inc-wt-prep-lsp-as-build",
+      "inc-parallel-write-overlap",
+      "inc-console-stale-service",
       "inc-land-dry-needs-console"
      ],
-     "net": 2,
+     "net": 5,
      "p": {
-      "den": "16",
-      "num": "11"
+      "den": "128",
+      "num": "29"
      },
      "rows": 38
     }
@@ -182,16 +206,16 @@
      {
       "arm": "t-sonnet/strict",
       "kind": "netLowC",
-      "net": 2
+      "net": 3
      },
      {
       "arm": "t-sonnet/strict",
-      "id": "inc-workflow-multi-unbound",
+      "id": "inc-wt-prep-lsp-as-build",
       "kind": "untraced"
      },
      {
       "arm": "t-sonnet/strict",
-      "id": "inc-ci-skipped-false-pass",
+      "id": "inc-workflow-multi-unbound",
       "kind": "untraced"
      },
      {
@@ -221,11 +245,11 @@
      }
     ],
     "vsC": {
-     "armRight": 21,
-     "baseRight": 19,
+     "armRight": 23,
+     "baseRight": 20,
      "gains": [
+      "inc-wt-prep-lsp-as-build",
       "inc-workflow-multi-unbound",
-      "inc-ci-skipped-false-pass",
       "inc-proof-of-dead-code",
       "inc-land-queue-unknown",
       "inc-helper-spawn-named",
@@ -235,38 +259,34 @@
      "losses": [
       "inc-watch-unlanded-after-land",
       "inc-watch-alert-during-land",
-      "inc-gate-scan-page-state",
       "inc-land-dry-needs-console",
       "inc-plan-sync-manual"
      ],
-     "net": 2,
+     "net": 3,
      "p": {
-      "den": "1024",
-      "num": "793"
+      "den": "512",
+      "num": "281"
      },
      "rows": 38
     },
     "vsX": {
-     "armRight": 21,
-     "baseRight": 17,
+     "armRight": 23,
+     "baseRight": 18,
      "gains": [
       "inc-findings-shared-entry",
       "inc-ci-run-cap-prompt",
-      "inc-test-pid-marker",
       "inc-workflow-multi-unbound",
       "inc-proof-of-dead-code",
       "inc-helper-spawn-named",
       "inc-trajectory-pooled-window"
      ],
      "losses": [
-      "inc-gate-scan-page-state",
-      "inc-wt-prep-lsp-as-build",
       "inc-land-dry-needs-console"
      ],
-     "net": 4,
+     "net": 5,
      "p": {
-      "den": "32",
-      "num": "11"
+      "den": "8",
+      "num": "1"
      },
      "rows": 38
     }
@@ -364,8 +384,8 @@
      }
     ],
     "vsC": {
-     "armRight": 18,
-     "baseRight": 18,
+     "armRight": 20,
+     "baseRight": 20,
      "gains": [],
      "losses": [],
      "net": 0,
@@ -376,26 +396,23 @@
      "rows": 38
     },
     "vsX": {
-     "armRight": 18,
-     "baseRight": 14,
+     "armRight": 20,
+     "baseRight": 17,
      "gains": [
       "inc-worktree-role-as-teammate",
       "inc-watch-unlanded-after-land",
       "inc-evidence-before-land",
-      "inc-land-inputs-untracked-exists",
-      "inc-console-stale-service",
       "inc-workflow-multi-unbound",
       "inc-reap-console-kill"
      ],
      "losses": [
       "inc-watch-unlanded-queued",
-      "inc-land-dry-no-verdict",
-      "inc-land-dry-needs-console"
+      "inc-land-dry-no-verdict"
      ],
-     "net": 4,
+     "net": 3,
      "p": {
-      "den": "32",
-      "num": "11"
+      "den": "64",
+      "num": "29"
      },
      "rows": 38
     }
@@ -453,7 +470,7 @@
      {
       "arm": "j-pick/strict",
       "kind": "netLowC",
-      "net": -1
+      "net": -2
      },
      {
       "arm": "j-pick/strict",
@@ -462,59 +479,44 @@
      },
      {
       "arm": "j-pick/strict",
-      "id": "inc-land-dry-needs-console",
-      "kind": "untraced"
-     },
-     {
-      "arm": "j-pick/strict",
       "id": "inc-mutants-red-no-task",
-      "kind": "untraced"
-     },
-     {
-      "arm": "j-pick/strict",
-      "id": "inc-helper-spawn-named",
       "kind": "untraced"
      }
     ],
     "vsC": {
-     "armRight": 17,
-     "baseRight": 18,
+     "armRight": 18,
+     "baseRight": 20,
      "gains": [
       "inc-land-dry-no-verdict",
-      "inc-land-dry-needs-console",
-      "inc-mutants-red-no-task",
-      "inc-helper-spawn-named"
+      "inc-mutants-red-no-task"
      ],
      "losses": [
       "inc-worktree-role-as-teammate",
       "inc-watch-unlanded-after-land",
       "inc-evidence-before-land",
-      "inc-console-stale-service",
       "inc-workflow-multi-unbound"
      ],
-     "net": -1,
+     "net": -2,
      "p": {
-      "den": "1",
-      "num": "1"
+      "den": "16",
+      "num": "11"
      },
      "rows": 38
     },
     "vsX": {
-     "armRight": 17,
-     "baseRight": 14,
+     "armRight": 18,
+     "baseRight": 17,
      "gains": [
-      "inc-land-inputs-untracked-exists",
       "inc-mutants-red-no-task",
-      "inc-helper-spawn-named",
       "inc-reap-console-kill"
      ],
      "losses": [
       "inc-watch-unlanded-queued"
      ],
-     "net": 3,
+     "net": 1,
      "p": {
-      "den": "8",
-      "num": "3"
+      "den": "1",
+      "num": "1"
      },
      "rows": 38
     }
