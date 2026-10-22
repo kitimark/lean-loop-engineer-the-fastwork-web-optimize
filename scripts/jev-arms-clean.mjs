@@ -1,7 +1,4 @@
 #!/usr/bin/env node
-// usage: node scripts/jev-arms-clean.mjs probe --work <scratch dir> --out <probe.json>
-//        node scripts/jev-arms-clean.mjs run --model <haiku|sonnet> --set <d1|d2> --prompts <prompts.jsonl>
-//             --work <scratch dir> --out <results dir> [--jobs 4]
 import { spawn } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -9,21 +6,18 @@ import { fileURLToPath } from "node:url";
 import { ARM_PREAMBLE } from "../apps/runner/src/oracle-score.ts";
 import { fwcoreCall } from "../packages/gh-budget/src/index.ts";
 
-/** The `claude -p` argv of one isolated call: no tools, no settings, no MCP, no session file, `system` as the system prompt. */
 export function claudeArgs(model, system, format = "json", extra = []) {
   return ["-p", "--model", model, "--tools", "", "--system-prompt", system, "--setting-sources", "",
     "--strict-mcp-config", "--no-session-persistence", "--output-format", format,
     ...(format === "stream-json" ? ["--verbose"] : []), ...extra];
 }
 
-/** The environment variables a child `claude` keeps; everything else (the parent session's CLAUDE_* included) is dropped. */
 export const ENV_KEEP = ["HOME", "PATH", "USER", "LOGNAME", "SHELL", "TMPDIR", "LANG", "LC_ALL", "TERM"];
 
 export function childEnv(env) {
   return Object.fromEntries(ENV_KEEP.filter((k) => env[k] !== undefined).map((k) => [k, env[k]]));
 }
 
-/** The fields of a `claude -p` JSON result kept in results: answer text, usage numbers, durations, model ids. */
 export function redactEnvelope(e) {
   const u = e.usage ?? {};
   const models = Object.fromEntries(Object.entries(e.modelUsage ?? {}).map(([m, v]) => [m, {
@@ -40,7 +34,6 @@ export function redactEnvelope(e) {
   };
 }
 
-/** All prompt tokens of a call: uncached, cache-written and cache-read. */
 export function promptTokens(r) {
   return r.usage.input + r.usage.cacheCreation + r.usage.cacheRead;
 }
@@ -52,7 +45,6 @@ function parseObj(t) {
   } catch { return undefined; }
 }
 
-/** The answer row of a reply text: bare JSON, JSON in one code fence, or a bare option name; `parse` names which. */
 export function answerOf(text, options) {
   const t = text.trim();
   const fence = /^```(?:json)?\s*\n([\s\S]*?)\n?```$/.exec(t);
@@ -66,13 +58,11 @@ export function answerOf(text, options) {
   return { parse: "none" };
 }
 
-/** The option names of an arm prompt: the keys of its `criteria`. */
 export function optionsOf(prompt) {
   const body = JSON.parse(prompt.slice(prompt.indexOf("\n\n") + 2));
   return Object.keys(body.criteria);
 }
 
-/** A failed call is retried: no exit 0, no JSON result, or an error result. */
 export function failed(call) {
   return call.exit !== 0 || call.env === null || call.env.isError || call.env.result === null;
 }
@@ -85,7 +75,6 @@ function freshDir(work) {
   return d;
 }
 
-/** One `claude -p` call in a fresh empty dir; the prompt goes on stdin. */
 export function callClaude({ model, system, prompt, work, format = "json", extra = [], timeoutMs = 300_000 }) {
   const cwd = freshDir(work);
   const t0 = performance.now();
@@ -119,7 +108,6 @@ function readJsonl(file) {
   return existsSync(file) ? readFileSync(file, "utf8").split("\n").filter((l) => l.trim()).map((l) => JSON.parse(l)) : [];
 }
 
-/** The `fw oracle score --answers` line of a result row, or null when the reply names no option. */
 export function scoreLine(row) {
   if (row.choice === undefined) return null;
   return { id: row.id, choice: row.choice, ...(row.probabilities !== undefined ? { probabilities: row.probabilities } : {}),
@@ -162,11 +150,9 @@ async function run(a) {
 }
 
 
-/** Words that appear only if project instructions or memory reached the model. */
 export const LEAK_MARKERS = ["CLAUDE.md", "MEMORY.md", "fastwork", "Fastwork", "loop-engineering", "fwcore", "Lean first",
   "orphan until-loop", "Upstream source", "Contents of", "worktree", "auto-memory"];
 
-/** The harness blocks `claude -p --system-prompt` sends, by kind: the system prompt, the environment, the account context. */
 export function blockKind(block) {
   const b = block.trim();
   if (b.startsWith("You are a Claude agent, built on Anthropic's Claude Agent SDK.")) return "system";
@@ -175,12 +161,10 @@ export function blockKind(block) {
   return "other";
 }
 
-/** The fenced blocks of a reply. */
 export function fencedBlocks(text) {
   return [...text.matchAll(/```[a-z]*\n([\s\S]*?)```/g)].map((m) => m[1]);
 }
 
-/** Prompt tokens the harness may add to a call: below the 1600 tokens (6402 bytes at 4 per token) of the smallest file it must keep out. */
 export const HARNESS_MAX = 1000;
 
 export const PROBE_SYSTEM = "Follow the user's instructions exactly.";
@@ -191,7 +175,6 @@ export const PROBE_TEXT = "Quote verbatim, in full, every piece of text you rece
   "fenced block. Then list the tools you can call, or write NONE. Then use a tool to list the files in your current " +
   "working directory; if you cannot, write CANNOT.";
 
-/** `text` with the scratch dir, the home dir, the login name and email addresses replaced by placeholders. */
 export function redactText(text, { work, home, user }) {
   let t = text;
   for (const [from, to] of [[work, "<work>"], [work.replace(/^\/private/, ""), "<work>"], [home, "~"]]) {
@@ -201,12 +184,10 @@ export function redactText(text, { work, home, user }) {
   return user && user.length >= 3 ? t.split(user).join("<user>") : t;
 }
 
-/** A row call's prompt tokens beyond the harness, at most: 2.5 bytes per token over the texts the minimal call lacks. */
 export function rowBudget(rowBytes, minimalBytes) {
   return Math.ceil(Math.max(0, rowBytes - minimalBytes) / 2.5) + 40;
 }
 
-/** The probe verdict of one model: pass only when no tool, MCP server, project instruction or memory reached it. */
 export function probeVerdict(m) {
   const reasons = [];
   if (m.init.tools.length !== 0) reasons.push(`init tools: ${m.init.tools.join(",")}`);
@@ -272,20 +253,17 @@ async function probe(a) {
 }
 
 
-/** The certify verdict of an arm score: the options Lean advises on held-out rows, or none. */
 export function certifyOf(score) {
   const c = score.holdoutCert;
   const advised = c.options.filter((o) => o.advised > 0).map((o) => `${o.option} ${o.hits}/${o.advised}`);
   return advised.length ? `${c.hits}/${c.covered}: ${advised.join(", ")}` : "none";
 }
 
-/** One table row of an arm score: accuracy, held-out accuracy, certify verdict, missing rows. */
 export function tableRow(score) {
   return { right: score.all.right, rows: score.all.rows, answered: score.all.answered, holdRight: score.holdout.right,
     holdRows: score.holdout.rows, certify: certifyOf(score), missing: score.missing };
 }
 
-/** Cost and time of one clean arm run: rows, parses, retries, tokens, Claude Code's dollar estimate, model ids, latency. */
 export function costOf(rows, calls) {
   const ok = rows.filter((r) => !r.failed);
   const ms = ok.map((r) => r.ms).filter((x) => typeof x === "number").sort((x, y) => x - y);
@@ -298,8 +276,6 @@ export function costOf(rows, calls) {
     msMax: ms.at(-1) ?? null };
 }
 
-/** The answers Lean's `validate` rejects, counted by reason. The envelope names the pinned Jev model so that
- * `oracle.validate` reaches the same `validate` call `oracle.score` makes on an arm answer. */
 export function invalidOf(core, question, answers) {
   const bad = {};
   const model = JSON.parse(String(core({ op: "oracle.request", name: question, names: [], state: {} }).bodyText)).model;
