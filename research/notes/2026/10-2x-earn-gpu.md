@@ -19,7 +19,7 @@ measured the first gate of the plan below (the `bound` arm).
 
 - **The bound arm shows no headroom.** With every earn transition switched off, main-thread work in the finish zone is
   the same as the faithful page and the same as the A/A control, on macOS and on the iOS Simulator (section "Result of
-  the bound arm"). By the plan's own gate candidate B is not built. The earn animation is not where the lag is.
+  the bound arm"). By the plan's own gate candidate B is not built.
   MEASURED, see the result section for run ids. The CI hosts have no real GPU, so a saving on the compositor or the
   GPU process could not show; this result bounds main-thread work only.
 - **Two of the three animated properties cannot run on the GPU in either engine.** `max-width` and `padding-inline`
@@ -250,7 +250,7 @@ over per-job medians, these are pooled medians):
 - The A/A spread (base − aa) is as large as the effect of removing every earn transition (base − bound), in both
   legs. macOS render work: base − aa 11.3 ms, base − bound −7.9 ms (bound is the slower one). iOS Simulator render work:
   base − aa 21.7 ms, base − bound 24.8 ms, bound − aa −3.1 ms. The iOS point estimate for bound is 11 % under base, but
-  aa is 10 % under base too, so that gap is revisit noise, which is what the A/A arm is for.
+  aa is 10 % under base too, so that gap is revisit noise.
 - Class counts of the finish zone (deterministic / stable / quarantined; kMax 4, tMax 24, three jobs per leg): mac base
   2 / 5 / 4, aa 2 / 7 / 2, bound 2 / 8 / 1; sim base 3 / 5 / 3, aa 2 / 5 / 4, bound 2 / 5 / 4. The bound arm has no
   more deterministic counts than A/A. MEASURED.
@@ -265,7 +265,7 @@ How the three runs got there (all free runners, 3 of 6 dispatches):
 | run | what | outcome |
 |---|---|---|
 | 39729682403 | all of `[earn-bound]`: mac 8 reps and sim 7 reps, 3 jobs each | mac complete. Sim jobs 1 and 2 stopped after 31 and 38 windows (the Simulator shut down, `Timeline.stop` timeouts), sim job 3 hit the 45 min limit with no artifact |
-| 39744983394 | `[sim-only]`: 4 reps per sim job | jobs complete but each arm had only 4 to 6 kept finish windows, and the verdict needs at least 5 per arm (`MIN_REPS`); base had 4 in all three jobs. A planning error: 4 reps cannot reach 5 |
+| 39744983394 | `[sim-only]`: 4 reps per sim job | jobs complete but each arm had only 4 to 6 kept finish windows, and the verdict needs at least 5 per arm (`MIN_REPS`); base had 4 in all three jobs. 4 reps cannot reach 5 |
 | 39754568950 | `[sim-only]`: 6 reps per sim job | 36 windows per job, none refused, all three jobs decisive |
 
 Pooling all eleven jobs of the three runs gives the same answer (macOS: 3 of 3 `same`; sim finish: 5 `same`, 3
@@ -275,7 +275,7 @@ What the result does not say:
 
 - No GPU or UI-process time is visible on either host (no real GPU). A compositor-run animation could still lower felt
   jank on a phone; the bound arm shows only that the main thread has nothing to gain from the earn animation. The
-  phone replay (plan step 4) stays the open check. A real iPhone is where the earn variant would have to pay.
+  phone replay (plan step 4) stays the open check.
 - `bound` keeps the `.actions` gap transition and the earn mask and sheen animations (see above); a variant that also
   removed those could save more, but that would change the look further.
 - The sim legs are scripted in-page scroll (no wheel device), so the iOS numbers say nothing about touch input.
@@ -283,7 +283,6 @@ What the result does not say:
 TS stand-ins (no new Lean was written for this task): the `base|bound` pair in `PAIRS`
 (`packages/measure-webkit/src/profile/report.mjs`) reuses the existing Lean-twin verdict functions; the go/no-go rule
 (at least 2 of 3 jobs, none disagreeing) was applied by the builder from the Lean `across` table, not computed by code.
-Both are listed in the task report.
 
 ## What this changes in the plan
 

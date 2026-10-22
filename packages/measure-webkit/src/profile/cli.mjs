@@ -1,8 +1,4 @@
 #!/usr/bin/env node
-// smoothness-webkit-cadence, leg 2 and the tables. Usage:
-//   node src/profile/cli.mjs sim --site <dist/aot> --search ?fw=... --reps 6 --out <dir>   iOS Simulator leg (writes <dir>/sim.json)
-//     [--arms base,aa,bound] runs just those arms (no --search needed); [--hold-ms 1400] holds each half of the end push that long
-//   node src/profile/cli.mjs report --runs <dir> --out <dir> [--note <file>] [--jobs <dir>]   tables from downloaded leg files
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 
@@ -23,7 +19,6 @@ if (cmd === 'sim') {
   const { writeRaws } = await import('./raw.mjs');
   writeFileSync(join(out, 'sim.json'), `${JSON.stringify(writeRaws(out, 'sim', res))}\n`);
   console.log(`webkit sim: ${res.rows.length} windows, refused=${res.refused}, incomplete=${res.incomplete ?? 'no'}, ${res.wallSeconds} s, ${res.runtime}`);
-  // a refused arm identity fails the job; an incomplete session keeps its windows read so far (the report counts them) unless none was kept
   if (res.refused || (res.incomplete && !res.rows.some((r) => r.ok))) process.exit(1);
 } else if (cmd === 'report') {
   const { reportMain } = await import('./report.mjs');

@@ -174,7 +174,6 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     "apps/site/src/registry/presets/**", "apps/site/src/parts/**",
     "research/notes/2026/10-21-webkit-lag-probe.md",
     "packages/measure-chromium/src/fwcore.mjs", "packages/gate-breakpoints/src/smooth/schedule.mjs", "packages/gate-breakpoints/src/smooth/reduce.mjs",
-    // earn-bound-arm: the sim leg imports the probe-only bound arm and the end-push hold from the macOS leg's folder
     "packages/gate-breakpoints/src/smooth/bound.mjs",
     "packages/gate-breakpoints/src/trajectory/reduce.mjs"],
   "packages/snapshot-extract": ["packages/gate-breakpoints/src/**"],

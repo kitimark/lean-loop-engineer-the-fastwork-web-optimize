@@ -1,12 +1,3 @@
-// WebKit leg 1 of the smoothness-webkit-cadence lane: Playwright WebKit on a macOS runner, one browser process for all arms, a real
-// wheel at the Chromium lane's schedule, the WebKit Timeline read per frame of each window. Glue only: the zone binning, the
-// per-frame tallies and the clock-offset rule are Lean's (lean/Fw/Measure/WebKitProfile.lean, twin measure-webkit/src/profile/reduce.mjs).
-//
-// Arms are resolved by their flags (Lean's dedup, device-arms.mjs `sessionPlan`), never by preset name: `orig` (the snapshot),
-// `base` (the faithful rewrite), `aa` (a second server of the same rewrite, the control outside the dedup), `look` (the look-change
-// flags) and `v2` only when its flags differ from the rewrite's. Each window opens a fresh page per arm; arms are interleaved per
-// rep and the order rotates (`orderFor`). Event reps run with the Timeline on; cadence reps run without it (the Timeline slows the
-// page), so the two are reported apart.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { webkit } from 'playwright-core';
@@ -24,14 +15,12 @@ import { sessionPlan } from '../../../measure-webkit/src/device-arms.mjs';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (...a) => process.stderr.write(`${a.join(' ')}\n`);
 
-/** The server-side protocol session of a Playwright WebKit page (the in-process server object, as engines.mjs `resize` reaches it). */
 function sessionOf(page) {
   const sess = page._connection?.toImpl?.(page)?.delegate?._session;
   if (!sess || typeof sess.send !== 'function' || typeof sess.on !== 'function') throw new Error('the WebKit protocol session of the page is not reachable (playwright-core internals changed)');
   return sess;
 }
 
-/** Start the WebKit Timeline on a page; `stop()` returns the raw protocol records once the closing mark has arrived. */
 async function startTimeline(page) {
   const sess = sessionOf(page);
   const recs = [];
@@ -75,7 +64,6 @@ async function openPage(browser, env, a) {
   return { context, page, frame, arm };
 }
 
-/** One window on one arm: the recorder result, the Timeline records (event reps) and the arm identity the page reported. */
 async function oneWindow(browser, env, a, win, events, end) {
   const { context, page, frame, arm } = await openPage(browser, env, a);
   try {
@@ -106,12 +94,6 @@ async function oneWindow(browser, env, a, win, events, end) {
   } finally { await context.close().catch(() => {}); }
 }
 
-/**
- * Run the leg: `events` reps with the Timeline on and `cadenceReps` reps without it, all arms interleaved, both windows, on one
- * browser at the width `width`. `lookSearch` is the look-change arm's `?fw=...` search. Returns the result object the report reads.
- * `only` (a list of arm ids, bound.mjs `parseArms`) runs just those arms and needs no look search; `bound` is the probe-only arm of task
- * earn-bound-arm (the faithful page with the earn button's transitions off, bound.mjs). `holdMs` sets each half of the end-of-page push.
- */
 export async function runWebkitCadence({ width = 390, lookSearch, reps = 6, cadenceReps = 5, only, holdMs, env = process.env }) {
   const end = endPushFor(holdMs);
   if (only?.includes('look') && !lookSearch) throw new Error('the look arm needs --search ?fw=...');

@@ -10,7 +10,7 @@ Verdict (MEASURED, Lean `across` pair base|bound, finish zone): `same` in every 
 CI runs (all on ci/earn-bound-arm, smoothness.yml; 3 of 6 dispatches used):
 - 39729682403: mac jobs 1-3 complete (8 reps, 48 windows each) = the macOS evidence. Sim jobs 1-2 died at 31/38 windows, sim job 3 hit
   the 45 min limit (no artifact). The whole run shows cancelled.
-- 39744983394: [sim-only], 4 reps: too few finish windows (MIN_REPS 5), verdict insufficient. My planning error.
+- 39744983394: [sim-only], 4 reps: too few finish windows (MIN_REPS 5), verdict insufficient.
 - 39754568950: [sim-only], 6 reps: 3 sim jobs, 36 windows each, all decisive = the iOS Simulator evidence.
 
 Files: research/notes/2026/10-2x-earn-gpu.md (note, result section), results/earn-bound/report.json (checked with fwcore

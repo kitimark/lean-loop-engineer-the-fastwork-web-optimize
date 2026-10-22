@@ -1,4 +1,3 @@
-// The probe-only bound arm and the arm subset of the WebKit smoothness legs (task earn-bound-arm).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
