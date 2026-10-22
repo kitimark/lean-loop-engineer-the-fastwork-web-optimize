@@ -34,5 +34,17 @@ export const HOLD_EXPR = `(async () => {
   return window.__wk.hold();
 })()`;
 
+/** After a scroll: wait until every image within two viewports of the fold has loaded and decoded (a lazy image the scroll started, and the fade-in it triggers, must end before the freeze pass). Bounded by frames, not timers: the page's timers are held. */
+export const NEAR_IMAGES_EXPR = `(async () => {
+  const raf = () => new Promise((r) => requestAnimationFrame(() => r()));
+  const vh = innerHeight;
+  const near = [...document.images].filter((i) => { const r = i.getBoundingClientRect(); return r.bottom > -vh && r.top < 2 * vh; });
+  const all = Promise.all(near.map((i) => (i.complete ? Promise.resolve() : new Promise((r) => { i.addEventListener('load', r, { once: true }); i.addEventListener('error', r, { once: true }); })).then(() => i.decode()).catch(() => {})));
+  const cap = (async () => { for (let i = 0; i < 600; i++) await raf(); })();
+  await Promise.race([all, cap]);
+  await raf(); await raf();
+  return near.length;
+})()`;
+
 /** True once every eager image has loaded (Chromium lane: the driver pumps frames until this holds; a lazy image below the fold may never load). */
 export const IMAGES_READY_EXPR = `[...document.images].every((i) => i.complete || i.loading === 'lazy')`;

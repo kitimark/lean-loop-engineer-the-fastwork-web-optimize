@@ -9,14 +9,14 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { withSession } from './session.mjs';
 import { loadFresh, pageInfo, scrollHold } from './page.mjs';
-import { openTab } from './wip.mjs';
+import { openTab, reconnect } from './wip.mjs';
 import { attachFresh } from './poll.mjs';
-import { T } from './timeouts.mjs';
+import { T, attempts } from './timeouts.mjs';
 import { takeCensus } from './census.mjs';
 import { findDevice, simctl, sleep } from './sim.mjs';
 import { decodePng, encodePng, cropImage } from './pathpix-png.mjs';
 import { offsets as leanOffsets } from './pathpix.mjs';
-import { BOX_EXPR, FREEZE_EXPR, HOLD_EXPR, MARK_ON, MARK_OFF, pathSearch } from './pathpix-page.mjs';
+import { BOX_EXPR, FREEZE_EXPR, HOLD_EXPR, NEAR_IMAGES_EXPR, MARK_ON, MARK_OFF, pathSearch } from './pathpix-page.mjs';
 
 /** Bounding box [x, y, w, h] of the magenta pixels of a screenshot, or null. */
 export function magentaBox(img) {
@@ -107,13 +107,32 @@ export async function runWebkitLane({ siteDir, out, run, layers: onlyLayers = nu
       const samples = {};
       for (let a = 0; a < arms.length; a++) {
         const [arm, search] = arms[a];
-        if (a > 0) await loadArm(search);
+        let rows = null;
+        // an arm is one fresh load and its frames: a stalled evaluate or a lost tab repeats the whole arm after a reconnect
+        for (let attempt = 1; !rows; attempt++) {
+          try {
+            await ctx.check?.();
+            if (a > 0 || attempt > 1) await loadArm(search);
+            rows = await captureArm(arm);
+          } catch (e) {
+            if (attempt >= attempts()) throw e;
+            log(`  arm ${arm} attempt ${attempt} failed (${e.message}); reconnecting and repeating the arm`);
+            await reconnect(ctx, { log });
+          }
+        }
+        samples[arm] = rows;
+        log(`arm ${arm}: ${rows.length} offsets captured`);
+      }
+      async function captureArm(arm) {
         const rows = [];
         for (let k = 0; k < idx.length; k++) {
           const y = offs[k];
           await scrollHold(ctx.c, y, { holdMs });
+          await ctx.c.runAsync(NEAR_IMAGES_EXPR);
           await ctx.c.evaluate(FREEZE_EXPR);
-          await sleep(200);
+          await sleep(400);
+          await ctx.c.evaluate(FREEZE_EXPR); // a transition the late frames started ends here too
+          await sleep(300);
           const census = await takeCensus(ctx.c, { paintWindowMs: 0 });
           const here = JSON.parse(await ctx.c.evaluate(BOX_EXPR));
           const files = [];
@@ -129,8 +148,7 @@ export async function runWebkitLane({ siteDir, out, run, layers: onlyLayers = nu
             layerCount: census.layerCount,
           });
         }
-        samples[arm] = rows;
-        log(`arm ${arm}: ${rows.length} offsets captured`);
+        return rows;
       }
       const manifest = {
         schema: 'fw.path-pix/1', engine: 'webkit', lane: 'ios-simulator', run, lossless: true, compositing: 'gpu-simulator (no real GPU)',

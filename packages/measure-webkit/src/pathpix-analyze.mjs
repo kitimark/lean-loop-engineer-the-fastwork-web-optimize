@@ -58,6 +58,36 @@ export function strip(a, b, del, m, { pad = 8, maxH = 800, gain = 32 } = {}) {
   return { w: W, h: ch, rgba };
 }
 
+/** Whole-frame difference of two captures: changed pixels, bounding box [x0, y0, x1, y1] (exclusive end) and largest delta. Diagnostic, not graded. */
+export function frameDiff(del, w) {
+  let changed = 0, max = 0, x0 = w, y0 = del.length, x1 = -1, y1 = -1;
+  for (let i = 0; i < del.length; i++) {
+    const d = del[i];
+    if (!d) continue;
+    changed++; if (d > max) max = d;
+    const x = i % w, y = (i - x) / w;
+    if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+  }
+  return { changed, maxDelta: max, bbox: changed ? [x0, y0, x1 + 1, y1 + 1] : null };
+}
+
+/** [A | B | amplified difference] of the whole frame, every `k`-th pixel (nearest), for diagnosing a change outside a layer. */
+export function thumb(a, b, del, k = 4, gain = 32) {
+  const cw = Math.floor(a.w / k), ch = Math.floor(a.h / k), gap = 4, W = cw * 3 + gap * 2;
+  const rgba = new Uint8Array(W * ch * 4).fill(128);
+  for (let r = 0; r < ch; r++) {
+    for (let c = 0; c < cw; c++) {
+      const s = ((r * k) * a.w + c * k) * 4;
+      let m = 0;
+      for (let dy = 0; dy < k; dy++) for (let dx = 0; dx < k; dx++) m = Math.max(m, del[(r * k + dy) * a.w + c * k + dx]);
+      const d = Math.min(255, m * gain);
+      const put = (panel, R, G, B) => { const o = (r * W + panel * (cw + gap) + c) * 4; rgba[o] = R; rgba[o + 1] = G; rgba[o + 2] = B; rgba[o + 3] = 255; };
+      put(0, a.rgba[s], a.rgba[s + 1], a.rgba[s + 2]); put(1, b.rgba[s], b.rgba[s + 1], b.rgba[s + 2]); put(2, d, d, d);
+    }
+  }
+  return { w: W, h: ch, rgba };
+}
+
 const loadImg = (dir, f) => decodePng(readFileSync(join(dir, f)));
 const sig = (s) => JSON.stringify((s.layers ?? []).filter((l) => l.layer).map((l) => [l.layer, l.boundsU, l.memory ?? null]).sort());
 const recs = (s, layer) => (s.layers ?? []).filter((l) => l.layer === layer);
@@ -66,7 +96,7 @@ const recs = (s, layer) => (s.layers ?? []).filter((l) => l.layer === layer);
 export function analyzeLane(dir, { strips = 'changed', emit = () => {} } = {}) {
   const man = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8'));
   const { frame, dpr, engine } = man;
-  const cells = [], skipped = [];
+  const cells = [], skipped = [], frames = [];
   const armA = man.samples.A, armA2 = man.samples.A2;
   if (!armA || !armA2) throw new Error('manifest lacks arm A or A2');
   const firstStrip = new Set();
@@ -76,6 +106,14 @@ export function analyzeLane(dir, { strips = 'changed', emit = () => {} } = {}) {
   for (let i = 0; i < man.offsets.length; i++) {
     cache.clear();
     for (const [armB, only] of armsB) {
+      if (armA[i] && man.samples[armB][i]) {
+        const fa = [load(armA[i].files[0]), load(armA[i].files[1])], fb = [load(man.samples[armB][i].files[0]), load(man.samples[armB][i].files[1])];
+        if (fa[0].w === frame.w && fb[0].w === frame.w) {
+          const fdel = deltas(fa[0], fb[0]), fd = frameDiff(fdel, frame.w);
+          frames.push({ arm: armB, i, y: armA[i].scrollY, sameA: sameImage(fa[0], fa[1]), sameB: sameImage(fb[0], fb[1]), ...fd });
+          if (armB === 'A2' && strips !== 'none' && fd.changed) emit(`strips/FRAME_${armB}_${i}.png`, encodePng(thumb(fa[0], fb[0], fdel)));
+        }
+      }
       for (const layer of only ? [only] : man.layers) {
         const sa = armA[i], sb = man.samples[armB][i];
         const box = sa?.boxes?.[layer];
@@ -108,7 +146,7 @@ export function analyzeLane(dir, { strips = 'changed', emit = () => {} } = {}) {
       }
     }
   }
-  return { schema: 'fw.path-pix.cells/1', engine, run: man.run, lane: man.lane, compositing: man.compositing, dpr, frame, maxY: man.maxY, offsets: man.offsets, layers: man.layers, cells, skipped };
+  return { schema: 'fw.path-pix.cells/1', engine, run: man.run, lane: man.lane, compositing: man.compositing, dpr, frame, maxY: man.maxY, offsets: man.offsets, layers: man.layers, cells, skipped, frames };
 }
 
 /** Per-kind and per-layer verdict table (Markdown). */

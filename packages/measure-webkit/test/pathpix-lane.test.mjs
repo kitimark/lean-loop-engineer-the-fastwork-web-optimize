@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { offsets } from '../src/pathpix.mjs';
-import { BOX_EXPR, FREEZE_EXPR, HOLD_EXPR, IMAGES_READY_EXPR, pathSearch } from '../src/pathpix-page.mjs';
+import { BOX_EXPR, FREEZE_EXPR, HOLD_EXPR, IMAGES_READY_EXPR, NEAR_IMAGES_EXPR, pathSearch } from '../src/pathpix-page.mjs';
 import { encodePng, decodePng, cropImage, sameImage } from '../src/pathpix-png.mjs';
 import { analyzeLane, table } from '../src/pathpix-analyze.mjs';
 import { magentaBox } from '../src/pathpix-webkit.mjs';
@@ -17,7 +17,7 @@ test('the Chromium driver computes the same offsets and arm search as the Simula
 });
 
 test('page-side expressions are well-formed scripts', () => {
-  for (const e of [BOX_EXPR, FREEZE_EXPR, HOLD_EXPR, IMAGES_READY_EXPR]) assert.doesNotThrow(() => new Function(`return ${e}`));
+  for (const e of [BOX_EXPR, FREEZE_EXPR, HOLD_EXPR, IMAGES_READY_EXPR, NEAR_IMAGES_EXPR]) assert.doesNotThrow(() => new Function(`return ${e}`));
 });
 
 test('png codec round-trips, crops and compares', () => {
@@ -61,6 +61,11 @@ test('analysis of a lane directory: equal frames are exact, a change inside the 
     const strips = [];
     const res = analyzeLane(dir, { strips: 'changed', emit: (n, b) => strips.push([n, b.length]) });
     assert.equal(res.cells.length, 2);
+    assert.equal(res.frames.length, 2);
+    assert.equal(res.frames.find((f) => f.arm === 'A2').changed, 0);
+    const pf = res.frames.find((f) => f.arm === 'P:box');
+    assert.equal(pf.changed, 1);
+    assert.deepEqual(pf.bbox, [15, 15, 16, 16]);
     const aa = res.cells.find((c) => c.kind === 'A/A'), p = res.cells.find((c) => c.kind === 'P');
     assert.equal(aa.cell.inside.changed + aa.cell.out.changed, 0);
     assert.equal(aa.cell.sameA, true);
