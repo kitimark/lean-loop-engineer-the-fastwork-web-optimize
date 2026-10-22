@@ -2,7 +2,7 @@ import { type ChildProcess, spawn, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { appendFileSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, readFileSync, readSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
-import { SLOT_SUBS, runLabel, waitStep } from "./slot-span.ts";
+import { SLOT_SUBS, WAIT_TOOL, runLabel, waitStep } from "./slot-span.ts";
 import { begin } from "./timing.ts";
 import { basename, dirname, join } from "node:path";
 import {
@@ -22,6 +22,7 @@ export const SLOT_USAGE = [
 ].join("\n");
 
 export const EXIT_REFUSED = 75;
+export const EXIT_ERROR = 70;
 
 export type State = { ctl: Ctl; holders: Entry[]; queue: Entry[]; simIdleSince: number; simIdle?: number | null; simCheckedAt?: number };
 export type Health = { time: number; live: number };
@@ -444,8 +445,8 @@ export async function run(d: Deps, kind: Kind, argv: string[], cache: boolean): 
   const label = runLabel(kind, argv, argv.includes("--dry"));
   if (d.env.FW_SLOT_HELD) {
     const end = begin("fw", label);
-    const r = (await exec(d, argv, d.env, false)).exit;
-    end(r);
+    let r = EXIT_ERROR;
+    try { r = (await exec(d, argv, d.env, false)).exit; } finally { end(r); }
     return r;
   }
   const g0 = cache ? d.git() : null;
@@ -461,17 +462,20 @@ export async function run(d: Deps, kind: Kind, argv: string[], cache: boolean): 
       return rec.exit;
     }
   }
-  const endWait = begin("fw", waitStep(kind));
-  const g = await acquire(d, kind, d.params.leaseS, null);
+  const endWait = begin(WAIT_TOOL, waitStep(kind));
+  let g: Awaited<ReturnType<typeof acquire>>;
+  try { g = await acquire(d, kind, d.params.leaseS, null); } catch (e) { endWait(EXIT_ERROR); throw e; }
   endWait(g.verdict.verdict === "admit" ? 0 : EXIT_REFUSED);
   if (g.verdict.verdict !== "admit") return EXIT_REFUSED;
   const threads = String(g.verdict.threads);
   const env = { ...d.env, FW_SLOT_HELD: "1", FW_SLOT_TOKEN: g.token, FW_SLOT_OWNER: d.owner, ...(kind === "check" ? { LAKE_SLOT_CORES: threads, LEAN_NUM_THREADS: threads } : {}) };
   const timer = setInterval(() => { renewToken(d, g.token, null); }, Math.max(1, Math.floor(d.params.leaseS / 3)) * 1000);
   const endRun = begin("fw", label);
+  let exit = EXIT_ERROR;
   try {
     const r = await exec(d, argv, env, key !== null);
-    endRun(r.exit);
+    exit = r.exit;
+    endRun(exit);
     if (key !== null && r.whole && cacheable(r.exit)) {
       const g1 = d.git();
       if (g1.tree === key.tree && g1.clean && g1.mainSha === g0?.mainSha) {
@@ -481,6 +485,7 @@ export async function run(d: Deps, kind: Kind, argv: string[], cache: boolean): 
     }
     return r.exit;
   } finally {
+    endRun(exit);
     clearInterval(timer);
     releaseToken(d, g.token);
   }
