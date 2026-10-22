@@ -1,7 +1,7 @@
 # compose-layers-lean (lean-prover)
 
 State: branch `worktree-wf_a9545149-400-1`, worktree `.claude/worktrees/wf_a9545149-400-1`, commits cf333e33..HEAD,
-round 3 fixes at 60bc8ff4 and the morph test fix after it, main 393f8223 merged at 6ba33212. No CI runs.
+round 3 fixes at 60bc8ff4 and the morph test fix after it, main e3d48ba6 merged at 69a9f6bc. No CI runs.
 Round 3: reviewer counterexample `exShared` (two picks gave `[]`) now gives `["clash"]`.
 After the merge: `part-footprint.mjs --check` clean, `ContractsGolden --diff/--rows` regenerate nothing, `--check`
 green, `sh lean/scripts/check.sh` green, site, console-api, runner and ci-paths tests green, dry land run.
