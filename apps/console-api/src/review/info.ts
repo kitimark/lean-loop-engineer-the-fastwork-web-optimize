@@ -6,7 +6,7 @@ import { isAbsolute, join, normalize, sep } from "node:path";
 import type { Hono } from "hono";
 import type { Store } from "../store.ts";
 
-/** An excerpt as Lean names it: the text of its first line and its line count. */
+/** An excerpt as Lean names it: a text only its first line holds and its line count. */
 export interface ExcerptSpec { id: string; side: string; file: string; anchor: string; span: number; note: string }
 
 /** An excerpt as the panel gets it: its range with the numbered lines, or why it is not shown. */

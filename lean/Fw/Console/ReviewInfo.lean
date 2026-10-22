@@ -177,7 +177,7 @@ def earnGains (_ : Unit := ()) : List Gain :=
 #guard shownOf 2 (some (12, 12)) (some (25, 26)) == .worse 13
 #guard shownOf 2 (some (9, 10)) (some (13, 13)) == .worse 3
 
-/-- A code range a flag changes: the file, the text of its first line (`anchor`, once in the file), its line count, and its arm. -/
+/-- A code range a flag changes: the file, a text only its first line holds (`anchor`), its line count, and its arm. -/
 structure Excerpt where
   id : String
   side : String
