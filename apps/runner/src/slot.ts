@@ -2,7 +2,8 @@ import { type ChildProcess, spawn, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { appendFileSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, readFileSync, readSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
-import { SLOT_SUBS, markReplayed } from "./slot-span.ts";
+import { SLOT_SUBS, runLabel, waitStep } from "./slot-span.ts";
+import { begin } from "./timing.ts";
 import { basename, dirname, join } from "node:path";
 import {
   DEFAULT_PARAMS, type BuildVerdict, type CacheKey, type Ctl, type Entry, type Kind, type Mem, type Params, type Sample, type Verdict,
@@ -440,26 +441,37 @@ async function exec(d: Deps, argv: string[], env: Record<string, string | undefi
 }
 
 export async function run(d: Deps, kind: Kind, argv: string[], cache: boolean): Promise<number> {
-  if (d.env.FW_SLOT_HELD) return (await exec(d, argv, d.env, false)).exit;
+  const label = runLabel(kind, argv, argv.includes("--dry"));
+  if (d.env.FW_SLOT_HELD) {
+    const end = begin("fw", label);
+    const r = (await exec(d, argv, d.env, false)).exit;
+    end(r);
+    return r;
+  }
   const g0 = cache ? d.git() : null;
   const key = g0 === null ? null : keyOf(kind, argv, g0.tree, g0.mainSha, g0.clean);
   if (key !== null) {
     const rec = readRecord(d, key);
     if (rec !== null && cacheHit(rec.key, rec.exit, key)) {
+      const endCached = begin("fw", `${label} cached`);
       d.out(rec.stdout);
       d.err(rec.stderr);
-      markReplayed();
       d.err(`slot: replayed the result recorded ${new Date(rec.at * 1000).toISOString()} for tree ${key.tree.slice(0, 12)} (same argv, clean tree)\n`);
+      endCached(rec.exit);
       return rec.exit;
     }
   }
+  const endWait = begin("fw", waitStep(kind));
   const g = await acquire(d, kind, d.params.leaseS, null);
+  endWait(g.verdict.verdict === "admit" ? 0 : EXIT_REFUSED);
   if (g.verdict.verdict !== "admit") return EXIT_REFUSED;
   const threads = String(g.verdict.threads);
   const env = { ...d.env, FW_SLOT_HELD: "1", FW_SLOT_TOKEN: g.token, FW_SLOT_OWNER: d.owner, ...(kind === "check" ? { LAKE_SLOT_CORES: threads, LEAN_NUM_THREADS: threads } : {}) };
   const timer = setInterval(() => { renewToken(d, g.token, null); }, Math.max(1, Math.floor(d.params.leaseS / 3)) * 1000);
+  const endRun = begin("fw", label);
   try {
     const r = await exec(d, argv, env, key !== null);
+    endRun(r.exit);
     if (key !== null && r.whole && cacheable(r.exit)) {
       const g1 = d.git();
       if (g1.tree === key.tree && g1.clean && g1.mainSha === g0?.mainSha) {
