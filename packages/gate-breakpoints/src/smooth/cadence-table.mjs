@@ -1,6 +1,3 @@
-// Per-window, per-arm cadence tables from the downloaded cadence runs (task smoothness-probe, part B). Reads only.
-// Layout read: <runs>/<runId>/<artifact>/cadence-<width>.json (the file src/smooth/cli.mjs `run` writes); each file is one job, one sample.
-// Every decision (bad frame, rate, spread, verdict) is reduce.mjs, the TS twin of lean/Fw/Gate/Smooth.lean; this file only groups.
 import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { acrossDecisive, agreeNeeded, armRate, decisive, HITCH_TENTHS, hitches, hitchVerdict, quantile, repOf, repRange, spread, verdict } from './reduce.mjs';
@@ -22,7 +19,6 @@ export function cellOf(runId, file, width, window) {
   }));
   const sp = spread(arms.base, arms.aa);
   const verdicts = Object.fromEntries(PAIRS.map(([a, b]) => [`${a}|${b}`, verdict(arms[a], arms[b], arms.base, arms.aa)]));
-  // Hitch counts per repeat (frames over 60 ms) and the Lean hitch verdict on them, against the same A/A pair.
   const hitchReps = Object.fromEntries(ARMS.map((a) => [a, rows.filter((r) => r.arm === a).sort((x, y) => x.rep - y.rep).map((r) => hitches(r.ivs))]));
   const hitchVerdicts = Object.fromEntries(PAIRS.map(([a, b]) => [`${a}|${b}`, hitchVerdict(hitchReps[a], hitchReps[b], hitchReps.base, hitchReps.aa)]));
   const traces = (file.traces ?? []).filter((t) => t.width === width && t.window === window);
@@ -42,7 +38,6 @@ export function cellsOf(dir) {
   for (const id of readdirSync(dir).filter((n) => /^\d+$/.test(n)).sort()) {
     for (const f of walk(join(dir, id)).filter((p) => /cadence-\d+\.json$/.test(p))) {
       const file = JSON.parse(readFileSync(f, 'utf8'));
-      // One job is one sample: the label is the run id and the artifact of the job (`smoothness-<width>-<set>`).
       const label = `${id}:${f.slice(join(dir, id).length + 1).split('/')[0]}`;
       if (file.refused || file.runs.length === 0) { skipped.push({ run: label, why: file.refused ? 'refused' : 'empty' }); continue; }
       for (const width of [...new Set(file.runs.map((r) => r.width))]) for (const window of ['hero', 'end']) cells.push(cellOf(label, file, width, window));

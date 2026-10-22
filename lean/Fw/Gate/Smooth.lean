@@ -571,7 +571,6 @@ theorem hitchVerdict_swap (a b aa1 aa2 : List Nat) : hitchVerdict b a aa1 aa2 = 
     have h' : okN a b aa1 aa2 = false := by simpa using h
     simp [hitchVerdict, h', hb, Verdict.swap]
 
-/-- Fewest decisive samples (first, second or same) before agreement means anything. -/
 def minSamples : Nat := 3
 
 def agreeNeeded (n : Nat) : Nat := (2 * n + 2) / 3
@@ -642,7 +641,6 @@ theorem across_swap (k : Nat) (vs : List Verdict) : across k (vs.map Verdict.swa
   repeat' split
   all_goals first | rfl | omega
 
-/-- The verdict over jobs: `across` with `k` two thirds of the decisive jobs, so an insufficient job counts as absent. -/
 def acrossDecisive (vs : List Verdict) : Verdict := across (agreeNeeded (decisive vs)) vs
 
 private theorem agreeNeeded_pos (n : Nat) (h : minSamples ≤ n) : 0 < agreeNeeded n := by
@@ -844,14 +842,12 @@ def goldenLines (_ : Unit := ()) : List String :=
   let ag := agreeCases.map fun n => (Json.mkObj [("op", "agreeNeeded"), ("n", Lean.toJson n), ("out", Lean.toJson (agreeNeeded n))]).compress
   [consts] ++ ms ++ ls ++ ws ++ qs ++ [med, med0] ++ reps ++ rs ++ vs ++ hs ++ hv ++ ac ++ ad ++ ag
 
-/-- The exact bytes of `packages/contracts/golden/gate/smooth.jsonl`: the lines, each newline-terminated. -/
 def goldenText (_ : Unit := ()) : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
 
 def argAfter : List String → String → Option String
   | a :: b :: rest, flag => if a == flag then some b else argAfter (b :: rest) flag
   | _, _ => none
 
-/-- Driver for `scripts/SmoothGolden.lean`: print the golden text, or with `--check <file>` exit 0 iff the file matches. -/
 def run (args : List String) : IO UInt32 := do
   match argAfter args "--check" with
   | some path =>
