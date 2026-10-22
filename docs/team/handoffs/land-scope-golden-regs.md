@@ -22,3 +22,6 @@
 - A new check.sh read of a non-golden file still needs `LandSpeed.lean` (and the Trigger row) in the task writes
   (golden case "site-layer-opts: a new check.sh read ...").
 - `lean/scripts/*Golden.lean` admits any generator script, not only the new one.
+- The goldens cover the registration files that the golden set and the generated read list now admit, not every file
+  graph r257/r258 widened: `apps/runner/src/land.ts` PACKAGE_EXTRA_READS (site-layer-opts) and `apps/runner/src/fw-main.ts`
+  (slot-span-key) still need task writes.
