@@ -16,17 +16,12 @@ import type { PartDef } from '../../registry/types';
 const partsDir = resolve(__dirname, '..');
 const leanSrc = resolve(__dirname, '../../../../../lean/Fw/Console/BuildsOpen.lean');
 
-/** The seven parts whose boxes are declared (layer-decl); other parts declare none yet. */
 const DECLARED = ['hero', 'hero.cue', 'hero.orbit', 'hero.deck', 'hero.countdown', 'nav', 'morph.panel'];
 
 const load = (id: string) => JSON.parse(readFileSync(resolve(partsDir, id, 'part.json'), 'utf8')) as PartDef;
 const parts = DECLARED.map(load);
 const allLayers = parts.flatMap((p) => (p.layers ?? []).map((l) => ({ part: p, layer: l })));
 
-/**
- * The console's search charset, read from the Lean definition `BuildsOpen.okChar` (the one source): alphanumerics
- * plus the characters of its `c == '…'` terms.
- */
 function okChars(): (c: string) => boolean {
   const src = readFileSync(leanSrc, 'utf8');
   const def = /def okChar \(c : Char\) : Bool :=\n([^\n]*)/.exec(src)?.[1] ?? '';
