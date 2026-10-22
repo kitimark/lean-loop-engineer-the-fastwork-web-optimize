@@ -15882,7 +15882,8 @@
     "results/jev-arms-clean/table.md",
     "docs/team/handoffs/oracle-eps-followups.md"
    ],
-   "title": "Follow-ups of oracle-eps (accepted 2026-10-22). (1) Re-score results/jev-file-context-ablation (d1x, d1n and the paired table) under the landed sumOk rule from the logged replies (no sends, no model calls); if any net or the adopt verdict changes, update the note's table and verdict and say so; else state that it is unchanged. (2) scripts/jev-arms-clean.mjs `table` drops the oracle-eps block of results/jev-arms-clean/table.md: make the generator emit the re-validated rows (old and new rule) so a regenerate keeps them; test. Unit: the re-scored ablation table with its verdict, the generator change with its test. Limits: no sends, no model calls."
+   "title": "Follow-ups of oracle-eps (accepted 2026-10-22). (1) Re-score results/jev-file-context-ablation (d1x, d1n and the paired table) under the landed sumOk rule from the logged replies (no sends, no model calls); if any net or the adopt verdict changes, update the note's table and verdict and say so; else state that it is unchanged. (2) scripts/jev-arms-clean.mjs `table` drops the oracle-eps block of results/jev-arms-clean/table.md: make the generator emit the re-validated rows (old and new rule) so a regenerate keeps them; test. Unit: the re-scored ablation table with its verdict, the generator change with its test. Limits: no sends, no model calls.",
+   "evidence": "1a9d0dc"
   },
   {
    "devices": [
