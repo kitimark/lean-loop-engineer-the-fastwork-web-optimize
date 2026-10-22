@@ -408,6 +408,22 @@ export function dryLintArgv(dir: string, changed: string[]): string[][] {
     existsSync(join(dir, "apps/site/scripts/part-footprint.mjs")));
 }
 
+export type DryBase = "contains" | "clean" | "conflict";
+/** Lean `Fw.Console.LandDry.Base.of`. */
+export const dryBase = (behind: boolean, mergeClean: boolean): DryBase => !behind ? "contains" : mergeClean ? "clean" : "conflict";
+/** Lean `Fw.Console.LandDry.Outcome.ofStages`. */
+export function dryOutcome(base: DryBase, f: { own: boolean; scope: boolean; merges: boolean; reads: boolean; lints: boolean }): Outcome {
+  return base === "conflict" ? outcome({ own: f.own, merges: false }) : outcome(f);
+}
+/** `git merge-tree --write-tree` of `main` and `sha` (no checkout, no index) and the paths where that tree differs from
+ * `main` (Lean `Fw.Console.LandDry.mergedDiff`); null on a conflict. */
+export function dryMerge(cwd: string, main: string, sha: string): { tree: string; changed: string[] } | null {
+  let tree: string;
+  try { tree = git(cwd, ["-c", `attr.tree=${main}`, "merge-tree", "--write-tree", main, sha]).split("\n")[0]!; }
+  catch (e) { if ((e as { status?: number }).status === 1) return null; throw e; }
+  return { tree, changed: git(cwd, ["diff", "--no-renames", "--name-only", main, tree]).split("\n").filter(Boolean) };
+}
+
 type PreResult = { kind: "done"; sha: string } | { kind: "refuse"; msg: string; k?: Kind } | { kind: "fallback"; why: string };
 const READS_FAIL_RE = /land-inputs\.test|premise land\.readsOnly/;
 
@@ -477,10 +493,18 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
   }
   const sha = git(o.cwd, ["rev-parse", `refs/heads/${branch}`]);
   const behind = !tryGit(o.cwd, ["merge-base", "--is-ancestor", main, sha]);
-  if (o.dry && behind) return fail(`${branch} does not contain ${main}: merge ${main} into it (git merge ${main}) and run the dry land again; a stale base can carry another task's diff into the scope check`, "stale", outcome({ fresh: false }));
-  if (o.dry && tryGit(o.cwd, ["merge-base", "--is-ancestor", sha, main])) {
-    const oc = outcome({ own: false });
-    return { ok: true, lines: [...lines, `dry: ${branch} has no commit of its own (already in ${main}); nothing to land`], kind: outcomeKind(oc), outcome: oc };
+  let dm: { main0: string; tree: string; changed: string[] } | null = null;
+  if (o.dry) {
+    const main0 = git(mainDir, ["rev-parse", "HEAD"]);
+    if (tryGit(o.cwd, ["merge-base", "--is-ancestor", sha, main0])) {
+      const oc = dryOutcome(dryBase(behind, true), { own: false, scope: true, merges: true, reads: true, lints: true });
+      return { ok: true, lines: [...lines, `dry: ${branch} has no commit of its own (already in ${main}); nothing to land`], kind: outcomeKind(oc), outcome: oc };
+    }
+    const m = dryMerge(mainDir, main0, sha);
+    const base = dryBase(behind, m !== null);
+    if (!m) return fail(`${main} ${main0.slice(0, 7)} cannot merge ${branch} cleanly (git merge-tree): merge ${main} into it, resolve the conflict and run the dry land again`, "conflict", dryOutcome(base, { own: true, scope: true, merges: true, reads: true, lints: true }));
+    lines.push(base === "clean" ? `dry: ${branch} is behind ${main}; git merge-tree merges it cleanly, so the checks run on that merge's diff with ${main}` : `dry: ${branch} contains ${main}`);
+    dm = { main0, ...m };
   }
   if (behind && !o.task) return fail(`${branch} is behind ${main}; a fast-forward is impossible (land it with --task for a merge commit; branches are never rebased)`);
   const rg = renderGuard(o.cwd, main, sha);
@@ -506,7 +530,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       stream = row?.stream ?? stream;
     } catch { }
   }
-  const changed = git(o.cwd, ["diff", "--name-only", `${main}...${sha}`]).split("\n").filter(Boolean);
+  const changed = dm ? dm.changed : git(o.cwd, ["diff", "--name-only", `${main}...${sha}`]).split("\n").filter(Boolean);
   const allow = o.allow ?? [];
   const sc = await o.http.post("/api/ops/land-scope", { writes, names: [o.task, task?.owner].filter(Boolean), allow, paths: changed, task: o.task ?? "", stream });
   if (sc.status !== 200) return fail(`scope check unavailable: ${sc.body.reason ?? sc.status}`);
@@ -644,13 +668,8 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     if (failedChecks.length) badKind = checkFailKind(failedChecks);
     return bad.length ? bad.join("\n\n") : null;
   };
-  if (o.dry) {
-    const main0 = git(mainDir, ["rev-parse", "HEAD"]);
-    if (tryGit(mainDir, ["merge-base", "--is-ancestor", sha, main0])) { const oc = outcome({ own: false }); return { ok: true, lines: [...lines, `dry: ${branch} has no commit of its own (already in ${main}); nothing to land`], kind: outcomeKind(oc), outcome: oc }; }
-    lines.push(`dry: ${branch} contains ${main}; scope ok`);
-    let tree: string | null = null;
-    try { tree = git(mainDir, ["-c", `attr.tree=${main0}`, "merge-tree", "--write-tree", main0, sha]).split("\n")[0]!; } catch { }
-    if (!tree) return fail(`${main} cannot merge ${branch} cleanly`, "conflict", outcome({ merges: false }));
+  if (dm) {
+    const { main0, tree } = dm;
     const slot = claimLandWt(mainDir);
     try {
       const c = git(mainDir, ["commit-tree", tree, "-p", main0, "-p", sha, "-m", `dry ${branch}`]);
