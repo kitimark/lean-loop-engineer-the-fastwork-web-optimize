@@ -86,7 +86,10 @@ def tables : List String := [
     (Json.mkObj [("rates", .arr (rates.map rateJson).toArray),
       ("pools", Json.mkObj [("oss", toJson (poolCredits .oss)), ("base", toJson (poolCredits .base))])]),
   line "constants" "the stop-rule limits" (Json.mkObj [])
-    (Json.mkObj [("capMs", toJson capMs), ("queueMaxMs", toJson queueMaxMs), ("storageMaxMilli", toJson storageMaxMilli)]),
+    (Json.mkObj [("capMs", toJson capMs), ("queueMaxMs", toJson queueMaxMs), ("storageStopMilli", toJson storageStopMilli), ("storageAllowMilli", toJson storageAllowMilli),
+      ("overageCreditsPerGbMonth", toJson overageCreditsPerGbMonth), ("windowMs", toJson windowMs),
+      ("retentionDays", Json.mkObj [("cache", toJson (retentionDays .cache)), ("workspace", toJson (retentionDays .workspace)),
+        ("artifact", toJson (retentionDays .artifact))]), ("ownSaveMilli", toJson ownSaveMilli)]),
   line "jobMap" "GitHub job against CircleCI job" (Json.mkObj [])
     (Json.mkObj [("jobs", .arr (jobMap.map fun r =>
       Json.mkObj [("lane", .str r.lane), ("github", ghNameJson r.gh), ("circleci", .str r.circleci), ("digest", .bool r.digest), ("savesCache", .bool r.savesCache)]).toArray),
@@ -106,6 +109,25 @@ def storageCases : List (String × Nat × Nat) := [
   ("nothing stored", 0, 15),
   ("exactly one GB for 30 days", 1000000000, 30),
   ("one byte for one day rounds up", 1, 1)]
+
+def rowJson (r : LedgerRow) : Json :=
+  Json.mkObj [("at", optNat r.atMs), ("cache", toJson r.cache), ("workspace", toJson r.workspace), ("artifacts", toJson r.artifacts)]
+
+def storageNowCases : List (String × List LedgerRow × Nat) := [
+  ("the ledger of 2026-10-21 as totals: 650", [ledger20261021], 1792592506000),
+  ("a cache GB fetched now: 15 days count half", [⟨some 0, 1000000000, 0, 0⟩], 0),
+  ("an artifact GB counts its 30 days", [⟨some 0, 0, 0, 1000000000⟩], 0),
+  ("a workspace GB counts 15 days", [⟨some 0, 0, 1000000000, 0⟩], 0),
+  ("at the window's end the row still counts", [⟨some 0, 1000000000, 0, 0⟩], windowMs),
+  ("one ms past the window the row counts 0", [⟨some 0, 1000000000, 0, 0⟩], windowMs + 1),
+  ("a row with no time always counts", [⟨none, 1000000000, 0, 0⟩], windowMs + 1),
+  ("one old row, one recent row", [⟨some 0, 1000000000, 0, 0⟩, ⟨some 5000000000, 400000000, 73728, 1668534⟩], 5000000000),
+  ("rounding is once over the sum", [⟨some 0, 1, 0, 0⟩, ⟨some 0, 0, 1, 0⟩, ⟨some 0, 0, 0, 1⟩], 0),
+  ("no row", [], 0)]
+
+def storageCreditCases : List (String × Nat) := [
+  ("nothing stored", 0), ("at the allowance", 2000), ("one thousandth over rounds up to a credit", 2001),
+  ("one GB-month over: 420", 3000), ("the 2026-10-21 count plus one own save", 885), ("ten GB-months", 10000)]
 
 def saveJson : CacheSave → Json
   | .absent => Json.mkObj [("kind", .str "absent")]
@@ -265,6 +287,11 @@ def text : String :=
     ++ storageCases.map (fun (n, b, d) =>
       line "storage" n (Json.mkObj [("bytes", toJson b), ("days", toJson d)])
         (Json.mkObj [("milli", toJson (storageMilli b d))]))
+    ++ storageNowCases.map (fun (n, rows, now) =>
+      line "storageNow" n (Json.mkObj [("rows", .arr (rows.map rowJson).toArray), ("now", toJson now)])
+        (Json.mkObj [("milli", toJson (storageNow rows now))]))
+    ++ storageCreditCases.map (fun (n, m) =>
+      line "storageCredits" n (Json.mkObj [("milli", toJson m)]) (Json.mkObj [("credits", toJson (storageCredits m))]))
     ++ cacheSaveCases.map (fun (n, c) =>
       line "cacheSaved" n (Json.mkObj [("save", saveJson c)]) (Json.mkObj [("bytes", toJson (cacheSavedBytes c))]))
     ++ cachePipelineCases.map (fun (n, cs) =>

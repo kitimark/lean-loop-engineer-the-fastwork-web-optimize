@@ -220,11 +220,20 @@ def capMs : Nat := 3600000
 /-- The longest queue wait the pilot tolerates, ms. -/
 def queueMaxMs : Nat := 600000
 
-/-- The storage allowance of the Free plan, in thousandths of a GB-month. -/
-def storageMaxMilli : Nat := 1000
+/-- The storage allowance of the Free plan, 2 GB-months, in thousandths of a GB-month (`research/notes/2026/10-20-circleci-free-tier.md`, Storage row). -/
+def storageAllowMilli : Nat := 2000
+
+/-- The pilot's storage stop: half of `storageAllowMilli` (policy), in thousandths of a GB-month. -/
+def storageStopMilli : Nat := 1000
+
+/-- Credits CircleCI charges per GB-month stored past the allowance (free-tier note, Storage row). -/
+def overageCreditsPerGbMonth : Nat := 420
+
+/-- Thousandths of a GB-month from byte-days (bytes times days kept), rounded up. -/
+def milliOfByteDays (byteDays : Nat) : Nat := (byteDays * 1000 + 30 * 1000000000 - 1) / (30 * 1000000000)
 
 /-- Storage of a save in thousandths of a GB-month: bytes times retention days over 30 days, rounded up. -/
-def storageMilli (bytes days : Nat) : Nat := (bytes * days * 1000 + 30 * 1000000000 - 1) / (30 * 1000000000)
+def storageMilli (bytes days : Nat) : Nat := milliOfByteDays (bytes * days)
 
 /-- What the `save_cache` step of one job left in the CircleCI cache, as its job steps record it. `absent`: the job ran no
 save step (it halted before it: the restored cache was current). `skipped`: the step found the key already stored and
@@ -245,6 +254,79 @@ def cacheSavedBytes : CacheSave → Nat
 /-- Cache bytes a pipeline added: the sum over the saves of its jobs. -/
 def cachePipelineBytes (saves : List CacheSave) : Nat := (saves.map cacheSavedBytes).sum
 
+/-- What CircleCI stores. -/
+inductive StoreKind where
+  | cache
+  | workspace
+  | artifact
+deriving DecidableEq, Repr
+
+/-- Days the Free plan keeps a stored kind (free-tier note, Retention row). -/
+def retentionDays : StoreKind → Nat
+  | .cache => 15
+  | .workspace => 15
+  | .artifact => 30
+
+/-- The window storage and credits are counted over, ms (30 days). -/
+def windowMs : Nat := 30 * 86400000
+
+/-- One pipeline of the storage ledger: bytes stored per kind and when it was fetched (`none`: no time recorded). -/
+structure LedgerRow where
+  atMs : Option Nat
+  cache : Nat
+  workspace : Nat
+  artifacts : Nat
+deriving DecidableEq, Repr
+
+def LedgerRow.bytes (r : LedgerRow) : Nat := r.cache + r.workspace + r.artifacts
+
+/-- Byte-days a row is kept at the documented retention. -/
+def LedgerRow.byteDays (r : LedgerRow) : Nat :=
+  r.cache * retentionDays .cache + r.workspace * retentionDays .workspace + r.artifacts * retentionDays .artifact
+
+/-- A row counts at `now`: fetched within the window, or with no time. -/
+def LedgerRow.inWindow (now : Nat) (r : LedgerRow) : Bool :=
+  match r.atMs with
+  | none => true
+  | some t => decide (now ≤ t + windowMs)
+
+/-- Storage at `now` in thousandths of a GB-month: the rows in the window at their retention. -/
+def storageNow (rows : List LedgerRow) (now : Nat) : Nat :=
+  milliOfByteDays (((rows.filter (LedgerRow.inWindow now)).map LedgerRow.byteDays).sum)
+
+/-- Credits charged for `milli` thousandths of a GB-month: the part past the allowance, rounded up. -/
+def storageCredits (milli : Nat) : Nat := ((milli - storageAllowMilli) * overageCreditsPerGbMonth + 999) / 1000
+
+/-- One Lake cache save of the overflow at cache retention: the largest ledger save of 2026-10-21, 448.1 MiB (`research/notes/2026/10-2x-cc-fallback-why.md`). -/
+def ownSaveMilli : Nat := storageMilli (cacheSavedBytes (.stored 4481)) (retentionDays .cache)
+
+/-- The ledger of 2026-10-21 as totals: seven pipelines, one without a time, so the row has none. -/
+def ledger20261021 : LedgerRow := ⟨none, 1294676789, 73728, 1668534⟩
+
+/-- How the Lake cache key of a CircleCI land changes: with the Lean source tree, or once per UTC day. -/
+inductive SavePolicy where
+  | perSource
+  | daily
+deriving DecidableEq, Repr
+
+def dayMs : Nat := 86400000
+
+/-- The key part after the toolchain and manifest hash: the source hash, or the UTC day of `now`. -/
+def lakeKeyTail : SavePolicy → String → Nat → String
+  | .perSource, src, _ => src
+  | .daily, _, now => "day-" ++ toString (now / dayMs)
+
+/-- Saves a day: `perSource` at the 4 of 2026-10-21 (MEASURED, cc-fallback-why note), `daily` at most 1. -/
+def savesPerDay : SavePolicy → Nat
+  | .perSource => 4
+  | .daily => 1
+
+/-- Thousandths of a GB-month a policy adds per day. -/
+def policyMilliPerDay (p : SavePolicy) : Nat := savesPerDay p * ownSaveMilli
+
+/-- Storage credits of a policy over a full window. -/
+def policyWindowCredits (p : SavePolicy) : Nat := storageCredits (31 * policyMilliPerDay p)
+
 /-- Why the pilot stops. -/
 inductive Stop where
   | cap
@@ -262,7 +344,7 @@ deriving DecidableEq, Repr
 /-- Every reason the pilot stops, in the order cap, queue, storage. -/
 def stops (i : StopInput) : List Stop :=
   (if capMs ≤ i.durMs then [Stop.cap] else []) ++ (if queueMaxMs < i.queueMs then [Stop.queue] else [])
-    ++ (if storageMaxMilli < i.storageMilli then [Stop.storage] else [])
+    ++ (if storageStopMilli < i.storageMilli then [Stop.storage] else [])
 
 /-- The pilot stops. -/
 def stop (i : StopInput) : Bool := !(stops i).isEmpty
@@ -491,7 +573,89 @@ theorem ratio_same_duration (g c : Run) (hp : 0 < g.durMs) (h : c.durMs = g.durM
 theorem storageMilli_cache : storageMilli 1030000000 15 = 515 := by decide
 
 theorem storageMilli_zero (d : Nat) : storageMilli 0 d = 0 := by
-  simp [storageMilli]
+  simp [storageMilli, milliOfByteDays]
+
+/-! ## Storage count and its credits -/
+
+theorem storageStop_le_allow : storageStopMilli ≤ storageAllowMilli := by decide
+
+theorem retention_le_30 (k : StoreKind) : retentionDays k ≤ 30 := by cases k <;> decide
+
+theorem milliOfByteDays_mono {a b : Nat} (h : a ≤ b) : milliOfByteDays a ≤ milliOfByteDays b := by
+  unfold milliOfByteDays
+  exact Nat.div_le_div_right (by omega)
+
+theorem byteDays_le (r : LedgerRow) : r.byteDays ≤ r.bytes * 30 := by
+  simp only [LedgerRow.byteDays, LedgerRow.bytes, retentionDays]
+  omega
+
+/-- The count never exceeds the old one: every byte of every row held 30 days. -/
+theorem storageNow_le_hold30 (rows : List LedgerRow) (now : Nat) :
+    storageNow rows now ≤ storageMilli ((rows.map LedgerRow.bytes).sum) 30 := by
+  unfold storageNow storageMilli
+  apply milliOfByteDays_mono
+  induction rows with
+  | nil => simp
+  | cons r rs ih =>
+    have := byteDays_le r
+    rw [List.filter_cons]
+    split <;> simp only [List.map_cons, List.sum_cons, Nat.add_mul] <;> omega
+
+/-- A row fetched before the window adds nothing. -/
+theorem storageNow_old_row (r : LedgerRow) (rows : List LedgerRow) (now t : Nat) (h : r.atMs = some t)
+    (ho : t + windowMs < now) : storageNow (r :: rows) now = storageNow rows now := by
+  have : ¬ now ≤ t + windowMs := by omega
+  simp [storageNow, LedgerRow.inWindow, h, this]
+
+/-- A row with no time counts whatever `now` is. -/
+theorem storageNow_untimed (r : LedgerRow) (rows : List LedgerRow) (now : Nat) (h : r.atMs = none) :
+    storageNow (r :: rows) now = milliOfByteDays (r.byteDays + ((rows.filter (LedgerRow.inWindow now)).map LedgerRow.byteDays).sum) := by
+  simp [storageNow, LedgerRow.inWindow, h]
+
+theorem storageCredits_within_allow (m : Nat) (h : m ≤ storageAllowMilli) : storageCredits m = 0 := by
+  simp only [storageCredits, overageCreditsPerGbMonth]
+  rw [Nat.sub_eq_zero_of_le h]
+
+theorem storageCredits_mono {a b : Nat} (h : a ≤ b) : storageCredits a ≤ storageCredits b := by
+  unfold storageCredits
+  exact Nat.div_le_div_right (by have := Nat.mul_le_mul_right overageCreditsPerGbMonth (Nat.sub_le_sub_right h storageAllowMilli); omega)
+
+theorem storageCredits_one_gb_month : storageCredits (storageAllowMilli + 1000) = 420 := by decide
+
+theorem ownSaveMilli_eq : ownSaveMilli = 235 := by decide
+
+/-- The ledger of 2026-10-21 at the documented retention: 650 thousandths, whatever `now` is. -/
+theorem storage_20261021 (now : Nat) : storageNow [ledger20261021] now = 650 := by
+  rw [storageNow_untimed _ _ _ rfl, List.filter_nil]
+  decide
+
+/-- With the overflow's own save charged, the ledger of 2026-10-21 stays under the stop. -/
+theorem storage_20261021_under_stop (now : Nat) : storageNow [ledger20261021] now + ownSaveMilli < storageStopMilli := by
+  rw [storage_20261021, ownSaveMilli_eq]
+  decide
+
+/-- The old 30-day hold read the same bytes over the stop: 1297. -/
+theorem hold30_20261021 : storageMilli ledger20261021.bytes 30 = 1297 ∧ storageStopMilli < 1297 := by decide
+
+/-- Two saves of one UTC day get one key, so the second uploads nothing (CircleCI caches are immutable). -/
+theorem daily_same_day (src src' : String) (t t' : Nat) (h : t / dayMs = t' / dayMs) :
+    lakeKeyTail .daily src t = lakeKeyTail .daily src' t' := by
+  simp [lakeKeyTail, h]
+
+/-- A save in the window falls on one of the 31 UTC days ending today, so `daily` keeps at most 31 keys in it. -/
+theorem daily_window_days (now t : Nat) (h1 : now ≤ t + windowMs) (h2 : t ≤ now) :
+    t / dayMs ≤ now / dayMs ∧ now / dayMs ≤ t / dayMs + 30 := by
+  unfold windowMs at h1
+  unfold dayMs
+  omega
+
+theorem policyMilliPerDay_daily : policyMilliPerDay .daily = 235 := by decide
+
+theorem policyMilliPerDay_perSource : policyMilliPerDay .perSource = 940 := by decide
+
+theorem policyWindowCredits_daily : policyWindowCredits .daily = 2220 := by decide
+
+theorem policyWindowCredits_perSource : policyWindowCredits .perSource = 11399 := by decide
 
 theorem savesCacheJob_engine_chromium : savesCacheJob "engine-chromium" = true := by decide
 
@@ -552,17 +716,17 @@ theorem storageMilli_old_pipeline : storageMilli (2 * 53637120) 30 = 108 := by d
 theorem mem_cap_iff (i : StopInput) : Stop.cap ∈ stops i ↔ capMs ≤ i.durMs := by
   unfold stops
   by_cases h1 : capMs ≤ i.durMs <;> by_cases h2 : queueMaxMs < i.queueMs <;>
-    by_cases h3 : storageMaxMilli < i.storageMilli <;> simp [h1, h2, h3]
+    by_cases h3 : storageStopMilli < i.storageMilli <;> simp [h1, h2, h3]
 
 theorem mem_queue_iff (i : StopInput) : Stop.queue ∈ stops i ↔ queueMaxMs < i.queueMs := by
   unfold stops
   by_cases h1 : capMs ≤ i.durMs <;> by_cases h2 : queueMaxMs < i.queueMs <;>
-    by_cases h3 : storageMaxMilli < i.storageMilli <;> simp [h1, h2, h3]
+    by_cases h3 : storageStopMilli < i.storageMilli <;> simp [h1, h2, h3]
 
-theorem mem_storage_iff (i : StopInput) : Stop.storage ∈ stops i ↔ storageMaxMilli < i.storageMilli := by
+theorem mem_storage_iff (i : StopInput) : Stop.storage ∈ stops i ↔ storageStopMilli < i.storageMilli := by
   unfold stops
   by_cases h1 : capMs ≤ i.durMs <;> by_cases h2 : queueMaxMs < i.queueMs <;>
-    by_cases h3 : storageMaxMilli < i.storageMilli <;> simp [h1, h2, h3]
+    by_cases h3 : storageStopMilli < i.storageMilli <;> simp [h1, h2, h3]
 
 theorem stop_of_cap (i : StopInput) (h : capMs ≤ i.durMs) : stop i = true := by
   have := (mem_cap_iff i).mpr h
@@ -574,13 +738,13 @@ theorem stop_of_queue (i : StopInput) (h : queueMaxMs < i.queueMs) : stop i = tr
   unfold stop
   cases hs : stops i <;> simp_all
 
-theorem stop_of_storage (i : StopInput) (h : storageMaxMilli < i.storageMilli) : stop i = true := by
+theorem stop_of_storage (i : StopInput) (h : storageStopMilli < i.storageMilli) : stop i = true := by
   have := (mem_storage_iff i).mpr h
   unfold stop
   cases hs : stops i <;> simp_all
 
 theorem stop_iff (i : StopInput) : stop i = true ↔
-    capMs ≤ i.durMs ∨ queueMaxMs < i.queueMs ∨ storageMaxMilli < i.storageMilli := by
+    capMs ≤ i.durMs ∨ queueMaxMs < i.queueMs ∨ storageStopMilli < i.storageMilli := by
   constructor
   · intro h
     unfold stop at h
@@ -597,7 +761,7 @@ theorem stop_iff (i : StopInput) : stop i = true ↔
     · exact stop_of_storage i h
 
 theorem no_stop_within_limits (i : StopInput) (h1 : i.durMs < capMs) (h2 : i.queueMs ≤ queueMaxMs)
-    (h3 : i.storageMilli ≤ storageMaxMilli) : stop i = false := by
+    (h3 : i.storageMilli ≤ storageStopMilli) : stop i = false := by
   have : ¬ stop i = true := by
     rw [stop_iff]
     omega
@@ -916,6 +1080,14 @@ theorem digest_missing_not_comparable (g c : Run) (hg : g.provider = .github) (h
 #guard stops ⟨3600000, 0, 0⟩ == [.cap]
 #guard stops ⟨3599999, 600000, 1000⟩ == []
 #guard stops ⟨3600000, 600001, 1001⟩ == [.cap, .queue, .storage]
+#guard storageNow [⟨some 0, 1000000000, 0, 0⟩] windowMs == 500
+#guard storageNow [⟨some 0, 1000000000, 0, 0⟩] (windowMs + 1) == 0
+#guard storageNow [⟨none, 0, 0, 1000000000⟩] (windowMs + 1) == 1000
+#guard storageNow [⟨some 0, 1, 0, 0⟩, ⟨some 0, 0, 1, 0⟩] 0 == 1
+#guard storageNow [] 0 == 0
+#guard storageCredits 2000 == 0 && storageCredits 2001 == 1 && storageCredits 3000 == 420 && storageCredits 0 == 0
+#guard lakeKeyTail .perSource "abc" 0 == "abc"
+#guard lakeKeyTail .daily "abc" (dayMs + 5) == "day-1" && lakeKeyTail .daily "xyz" (2 * dayMs - 1) == "day-1"
 #guard ofCircleStatus "success" == .pass
 #guard ofCircleStatus "canceled" == .notRun
 #guard ofGithubConclusion "cancelled" == .notRun
