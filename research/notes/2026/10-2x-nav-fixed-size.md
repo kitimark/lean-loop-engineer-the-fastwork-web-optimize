@@ -6,7 +6,16 @@ default config, trajectory fw=nav:clip-box), `ci/nav-fixed-size-bar` (trajectory
 
 ## Verdict
 
-RESULTS_PLACEHOLDER
+Per flag, state at tips cece43bf (clip-box), d6671674 (bar-fixed), 7de81c8d (logo-3d), code of 3b96c928.
+
+| flag | Lean theorems + goldens | CI delivered | same-look gate with the flag, both engines | layer census delta | verdict |
+|---|---|---|---|---|---|
+| clip-box | `box_eq`, `rest_same_*`, `visible_eq`, `probe_eq`, golden 100 rows | lean, default-config gate, trajectory | NOT RUN (needs `fw=` dispatch) | NOT RUN (needs dispatch) | pending: the premise (simple container) is proved in Lean, not yet measured |
+| bar-fixed | `barW_const`, `logoX_*`, `actionsX_*`, `bar_resizePaint_zero`, golden 100 rows | lean, trajectory | NOT RUN | NOT RUN | pending |
+| logo-3d | `translate_scale_order`, `logo3d_layout_*` | lean, trajectory | NOT RUN | NOT RUN | pending; 430 pixel diff goes to the look-review class if above tolerance |
+
+Nothing here is a same-look or census verdict: the push gate runs the default config (`flags.search` empty in `gate-merged-chromium/chromium.json`), so it does not
+load a flag. The per-flag runs are dispatches only the lead can start (commands under CI).
 
 ## Design
 
@@ -79,8 +88,37 @@ Premises named in the hypotheses: the bar is composited (`barComposited`), no ot
 
 ## CI
 
-CI_PLACEHOLDER
+Runs (all MEASURED, GitHub Actions). The 2026-10-22 degradation dropped or delayed the first tips; runs of tips 3 appeared 37 min late and were superseded (stale,
+skipped); the tips of checkpoint 4 (empty request commits, same code) produced the runs below.
+
+| tip | lean | trajectory-probe (inputs read from the `trajectory inputs:` step) | breakpoint-gate (default config) |
+|---|---|---|---|
+| ci/nav-fixed-size cece43bf | 39831482607 success | 39831482797 `fw=nav:clip-box engines=both` verdict run, success | 39831482665 success |
+| ci/nav-fixed-size-bar d6671674 | 39831504379 success | 39831504584 `fw=nav:bar-fixed`, success | not requested |
+| ci/nav-fixed-size-logo 7de81c8d | 39831523626 success | 39831523593 `fw=nav:logo-3d`, success | not requested |
+
+The probe workflow succeeds when it ran; the units are in its artifacts. Trajectory units against the faithful arm (new = fails here, not there):
+
+| arm | chromium (hero+morph, 4 widths) | WebKit (hero path only) |
+|---|---|---|
+| clip-box | 291 new content units, 0 coverage; 77 cleared, 7 unmeasured | 4000 ok, 0 fail |
+| bar-fixed | 391 new content units, 0 coverage | 4000 ok, 0 fail |
+| logo-3d | 629 new (545 content, 84 coverage) | 4000 ok, 0 fail |
+
+Reading (INFERRED): the new Chromium units are `nav.rect`, `nav.border-radius`, `nav.transform.shift`, `logo.rect-in-nav` (all arms) plus `logo.translate`
+(bar-fixed) and `logo.scale`/`logo.transform.*` (logo-3d) during the morph. They differ by design: the nav element is the union box with `clip-path`, so its rect and
+radius are not the pill's (`box_eq` proves the clipped region, not the element rect), and the logo moves by `translate`/`transform` from a different origin. The cell that compares
+the clipped region instead is gpu-trajectory-cells, which is not on main: the trajectory verdict stays pending. The 84 coverage units of logo-3d at 390 are one
+sample (1/62) of many properties (class and state props of a single step): a missing sample, not a value difference; rerun before reading more. WebKit's probe walks only
+the hero path here, so its CLEAN says the flags are inert before the morph, nothing about the morph.
+
+Dispatches for the lead (each is the same-look gate and the layer census for one flag, both engines, all breakpoints):
+`pnpm -s fw run --gate --engines both --fw nav:clip-box --ref ci/nav-fixed-size` (also `nav:bar-fixed` with `--ref ci/nav-fixed-size-bar`, `nav:logo-3d` with `--ref ci/nav-fixed-size-logo`),
+and the chromium-counts / webkit-sim layer census with `--target rewrite --fw nav:<flag>` against the faithful arm: the premise to read is `BarComposited` and nav `drawsContent=false`
+(`navClip_simple`); if the census refutes it the arm is a negative finding by `area_trade` (union area >= pill area, so the backing is a trade unless the nav is a simple container).
 
 ## Follow-ups and limits
 
-LIMITS_PLACEHOLDER
+- Trajectory verdicts pending on gpu-trajectory-cells (accepted limit). Safari-on-Mac numbers belong to gpu-safari-lane.
+- Same-look gate and census per flag: dispatches above. logo-3d at 430: goes to the user's look review if its pixel diff exceeds tolerance once the gate runs.
+- Resize at rest no longer eases the nav width (accepted, see Design).
