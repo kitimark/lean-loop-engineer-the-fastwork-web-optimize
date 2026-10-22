@@ -2,7 +2,7 @@ import { type ChildProcess, spawn, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { appendFileSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, readFileSync, readSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
-import { SLOT_SUBS, runLabel, waitStep } from "./slot-span.ts";
+import { SLOT_SUBS, WAIT_TOOL, runLabel, waitStep } from "./slot-span.ts";
 import { begin } from "./timing.ts";
 import { basename, dirname, join } from "node:path";
 import {
@@ -463,7 +463,7 @@ export async function run(d: Deps, kind: Kind, argv: string[], cache: boolean): 
       return rec.exit;
     }
   }
-  const endWait = begin("fw", waitStep(kind));
+  const endWait = begin(WAIT_TOOL, waitStep(kind));
   let g: Awaited<ReturnType<typeof acquire>>;
   try { g = await acquire(d, kind, d.params.leaseS, null); } catch (e) { endWait(EXIT_ERROR); throw e; }
   endWait(g.verdict.verdict === "admit" ? 0 : EXIT_REFUSED);

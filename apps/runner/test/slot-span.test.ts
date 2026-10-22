@@ -71,7 +71,7 @@ const fwcore = join(root, "lean/.lake/build/bin/fwcore");
 const params = { budgetMs: 30000, budgets: [], ceilings: [], kDen: 2, kNum: 3, loadMax: 8, nMin: 5, window: 20, stages: [] };
 const sample = (step: string, durMs: number) => ({ durMs, exit: 0, host: "local", load: 4, runKind: "", skipped: false, step, tool: "fw" });
 /** A sample made up for a test, not read from timings.jsonl: it carries `synthetic: true` (fwcore ignores the field) so no reader takes it for a measurement. */
-const synthetic = (step: string, durMs: number) => ({ ...sample(step, durMs), synthetic: true });
+const synthetic = (step: string, durMs: number, tool = "fw") => ({ ...sample(step, durMs), tool, synthetic: true });
 const lastCode = (samples: object[]): string => {
   const r = spawnSync(fwcore, [], { input: `${JSON.stringify({ id: 0, op: "obs.timing", params, samples })}\n`, encoding: "utf8", maxBuffer: 64 << 20 });
   const rows = JSON.parse(r.stdout.split("\n")[0]!) as { verdicts: { kind: string; code: string }[] };
@@ -94,12 +94,12 @@ describe.skipIf(!existsSync(fwcore))("the 2026-10-22 16:51 alert", () => {
 });
 
 describe.skipIf(!existsSync(fwcore))("queue waits are not judged by the 30 s budget", () => {
-  const hist = [100, 120, 90, 110, 100].map((d) => synthetic("slot wait check", d));
+  const hist = [100, 120, 90, 110, 100].map((d) => synthetic("slot wait check", d, "fw wait"));
   it("a 40 s wait against a near-zero median is ok, the same 40 s run is slow", () => {
-    expect(lastCode([...hist, synthetic("slot wait check", 40000)])).toBe("ok");
+    expect(lastCode([...hist, synthetic("slot wait check", 40000, "fw wait")])).toBe("ok");
     expect(lastCode([...[100, 120, 90, 110, 100].map((d) => synthetic("slot run check x", d)), synthetic("slot run check x", 40000)])).toBe("slow");
   });
-  it("a wait over the wait budget (30 min) is slow", () => expect(lastCode([...hist, synthetic("slot wait check", 1800001)])).toBe("slow"));
+  it("a wait over the wait budget (30 min) is slow", () => expect(lastCode([...hist, synthetic("slot wait check", 1800001, "fw wait")])).toBe("slow"));
 });
 
 describe("slot run writes the run span under the command key", () => {

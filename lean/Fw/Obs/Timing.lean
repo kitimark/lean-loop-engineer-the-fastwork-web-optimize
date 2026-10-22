@@ -211,16 +211,14 @@ def counts (p : Params) (s : Sample) : Bool := s.full && !contended p s
 def windowOf (p : Params) (hist : List Sample) (k : Key) : List Nat :=
   lastN p.window ((hist.filter (fun s => decide (s.key = k) && counts p s)).map (·.durMs))
 
-/-- The budget of a tool: its first override in `budgets`, else the default `B_0`. -/
-def budgetOf (p : Params) (tool : String) : Nat := (p.budgets.lookup tool).getD p.budgetMs
+/-- The tool of the queue wait spans (`slot wait <kind>`): the time between asking for a slot and the grant. -/
+def waitTool : String := "fw wait"
 
-/-- A queue wait span (`slot wait <kind>`): the time between asking for a slot and the grant. -/
-def isWait (step : String) : Bool := step.startsWith "slot wait "
-
-/-- The budget of a sample: queue waits have their own budget `waitBudgetMs` (a wait is queue noise, not work), every
-other step its tool's budget.
+/-- The budget of a tool: its first override in `budgets`, else the default `B_0`; queue waits (tool `waitTool`) default
+to their own `waitBudgetMs` (a wait is queue noise, not work).
 -/
-def sampleBudget (p : Params) (s : Sample) : Nat := if isWait s.step then p.waitBudgetMs else budgetOf p s.tool
+def budgetOf (p : Params) (tool : String) : Nat :=
+  (p.budgets.lookup tool).getD (if tool == waitTool then p.waitBudgetMs else p.budgetMs)
 
 /-- The ceiling of a step: the limit of the first entry of `ceilings` with that tool and step, if any. -/
 def ceilingOf (p : Params) (tool step : String) : Option Nat :=
@@ -237,8 +235,8 @@ def ceilingBreach (p : Params) (s : Sample) : Bool :=
 /-- The budget a sample is held to: its tool's budget, lowered to the step's ceiling when the step has one. -/
 def budgetFor (p : Params) (s : Sample) : Nat :=
   match ceilingOf p s.tool s.step with
-  | some c => min (sampleBudget p s) c
-  | none => sampleBudget p s
+  | some c => min (budgetOf p s.tool) c
+  | none => budgetOf p s.tool
 
 /-- The slow test, exact over the rationals: `d > max(B, k · b)` with `k = k_n / k_d`, cross-multiplied so no
 division happens (for `k_d ≥ 1` it is the same as `d > B ∧ d > k · b`; for `k_d = 0` the second half is
@@ -261,7 +259,7 @@ median of the window (with `n_min = 0` an empty window passes the first test and
 def codeOf (p : Params) (w : List Nat) (s : Sample) : Code :=
   if w.length < p.nMin then .noBaseline
   else if contended p s then .contended
-  else if overLimit p (sampleBudget p s) (p50 w) s.durMs then .slow
+  else if overLimit p (budgetOf p s.tool) (p50 w) s.durMs then .slow
   else .ok
 
 /-- The verdict of one sample: its index, key and duration, the code, the window size, the baseline (p50 of the
@@ -475,7 +473,7 @@ not contended, and its duration exceeds both the budget and `k` times the baseli
 -/
 theorem codeOf_slow_iff (p : Params) (w : List Nat) (s : Sample) :
     codeOf p w s = .slow ↔
-      p.nMin ≤ w.length ∧ contended p s = false ∧ sampleBudget p s < s.durMs ∧
+      p.nMin ≤ w.length ∧ contended p s = false ∧ budgetOf p s.tool < s.durMs ∧
         p.kNum * p50 w < p.kDen * s.durMs := by
   unfold codeOf overLimit
   split
@@ -506,7 +504,7 @@ enough, the sample is not contended, and its duration exceeds both the budget an
 theorem slow_iff (p : Params) (hist : List Sample) (i : Nat) (s : Sample) :
     (judge p hist i s).code = .slow ↔
       ceilingBreach p s = true ∨
-      (p.nMin ≤ (windowOf p hist s.key).length ∧ contended p s = false ∧ sampleBudget p s < s.durMs ∧
+      (p.nMin ≤ (windowOf p hist s.key).length ∧ contended p s = false ∧ budgetOf p s.tool < s.durMs ∧
         p.kNum * p50 (windowOf p hist s.key) < p.kDen * s.durMs) := by
   unfold judge
   simp only
@@ -582,41 +580,42 @@ theorem land_budget_alert (p : Params) (hp : ∃ rest, p.ceilings = landCeilings
   · exact ⟨30000, by simp [ceilingOf, hr, landCeilings, ht, hst], hd, hn⟩
   · exact ⟨5000, by simp [ceilingOf, hr, landCeilings, ht, hst], hd, hn⟩
 
-/-- A wait span is held to the wait budget, whatever its tool's budget. -/
-theorem sampleBudget_wait (p : Params) (s : Sample) (h : isWait s.step = true) : sampleBudget p s = p.waitBudgetMs := by
-  simp [sampleBudget, h]
+/-- A wait span with no override is held to the wait budget, whatever the default budget. -/
+theorem budgetOf_wait (p : Params) (h : p.budgets.lookup waitTool = none) : budgetOf p waitTool = p.waitBudgetMs := by
+  have e : waitTool == waitTool := by decide
+  simp [budgetOf, h, e]
 
-/-- Any other step is held to its tool's budget. -/
-theorem sampleBudget_work (p : Params) (s : Sample) (h : isWait s.step = false) : sampleBudget p s = budgetOf p s.tool := by
-  simp [sampleBudget, h]
+/-- Any other tool without an override is held to the default budget. -/
+theorem budgetOf_work (p : Params) (t : String) (h : p.budgets.lookup t = none) (hw : t ≠ waitTool) :
+    budgetOf p t = p.budgetMs := by
+  simp [budgetOf, h, hw]
 
 /-- A queue wait within the wait budget (and under no ceiling) is never `slow`, however small the median of earlier
 waits: the 30 s default budget no longer applies to it.
 -/
 theorem wait_within_budget_not_slow (p : Params) (hist : List Sample) (i : Nat) (s : Sample)
-    (hw : isWait s.step = true) (hc : ceilingOf p s.tool s.step = none) (hd : s.durMs ≤ p.waitBudgetMs) :
-    (judge p hist i s).code ≠ .slow := by
+    (hw : s.tool = waitTool) (hu : p.budgets.lookup waitTool = none) (hc : ceilingOf p s.tool s.step = none)
+    (hd : s.durMs ≤ p.waitBudgetMs) : (judge p hist i s).code ≠ .slow := by
   intro hs
   rcases (slow_iff p hist i s).1 hs with hb | hr
   · obtain ⟨c, hc', _⟩ := (ceilingBreach_iff p s).1 hb
     rw [hc] at hc'
     cases hc'
   · have := hr.2.2.1
-    rw [sampleBudget_wait p s hw] at this
+    rw [hw, budgetOf_wait p hu] at this
     omega
 
 /-- A queue wait over the wait budget, against a window long enough and a median below `d / k`, is `slow`: the wait
 budget is a real limit, not an exclusion.
 -/
 theorem wait_over_budget_slow (p : Params) (hist : List Sample) (i : Nat) (s : Sample)
-    (hw : isWait s.step = true) (hn : p.nMin ≤ (windowOf p hist s.key).length) (hq : contended p s = false)
-    (hB : p.waitBudgetMs < s.durMs) (hk : p.kNum * p50 (windowOf p hist s.key) < p.kDen * s.durMs) :
-    (judge p hist i s).code = .slow :=
-  (slow_iff p hist i s).2 (Or.inr ⟨hn, hq, by rw [sampleBudget_wait p s hw]; exact hB, hk⟩)
+    (hw : s.tool = waitTool) (hu : p.budgets.lookup waitTool = none) (hn : p.nMin ≤ (windowOf p hist s.key).length)
+    (hq : contended p s = false) (hB : p.waitBudgetMs < s.durMs)
+    (hk : p.kNum * p50 (windowOf p hist s.key) < p.kDen * s.durMs) : (judge p hist i s).code = .slow :=
+  (slow_iff p hist i s).2 (Or.inr ⟨hn, hq, by rw [hw, budgetOf_wait p hu]; exact hB, hk⟩)
 
-#guard isWait "slot wait check" && isWait "slot wait land" && !isWait "slot run check x" && !isWait "slot wait"
-#guard (codeOf {} [100, 100, 100, 100, 100] { tool := "fw", step := "slot wait check", durMs := 40000, host := .ci }) == .ok
-#guard (codeOf {} [100, 100, 100, 100, 100] { tool := "fw", step := "slot wait check", durMs := 1800001, host := .ci }) == .slow
+#guard (codeOf {} [100, 100, 100, 100, 100] { tool := waitTool, step := "slot wait check", durMs := 40000, host := .ci }) == .ok
+#guard (codeOf {} [100, 100, 100, 100, 100] { tool := waitTool, step := "slot wait check", durMs := 1800001, host := .ci }) == .slow
 #guard (codeOf {} [100, 100, 100, 100, 100] { tool := "fw", step := "slot run check x", durMs := 40000, host := .ci }) == .slow
 
 /-- Slow is monotone in the duration: with the same history, a sample that is `slow` stays `slow` when it takes
@@ -625,11 +624,10 @@ longer.
 theorem slow_mono_dur (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (d : Nat)
     (h : (judge p hist i s).code = .slow) (hd : s.durMs ≤ d) :
     (judge p hist i { s with durMs := d }).code = .slow := by
-  have hsb : sampleBudget p { s with durMs := d } = sampleBudget p s := rfl
   rcases (slow_iff p hist i s).1 h with hb | ⟨h1, h2, h3, h4⟩
   · obtain ⟨c, hc, hlt, hn⟩ := (ceilingBreach_iff p s).1 hb
     exact (slow_iff p hist i _).2 (Or.inl ((ceilingBreach_iff p _).2 ⟨c, hc, by simp only; omega, hn⟩))
-  · refine (slow_iff p hist i _).2 (Or.inr ⟨h1, h2, by simp only [hsb]; omega, ?_⟩)
+  · refine (slow_iff p hist i _).2 (Or.inr ⟨h1, h2, by simp only; omega, ?_⟩)
     exact Nat.lt_of_lt_of_le h4 (Nat.mul_le_mul_left _ hd)
 
 /-- The verdict is `noBaseline` exactly when the window has fewer than `n_min` samples and the sample does not
@@ -1053,7 +1051,7 @@ theorem le_p50_of_few_below (xs : List Nat) (t : Nat)
 window. If at most half of the window exceeds a level `t`, a not contended sample over budget with `k_d · d > k_n · t` is `slow` (with the p90 baseline this failed for `n ≤ 9`, where the p90 is the maximum).
 -/
 theorem no_self_mask (p : Params) (w : List Nat) (s : Sample) (t : Nat)
-    (hn : p.nMin ≤ w.length) (hq : contended p s = false) (hB : sampleBudget p s < s.durMs)
+    (hn : p.nMin ≤ w.length) (hq : contended p s = false) (hB : budgetOf p s.tool < s.durMs)
     (hfew : 2 * w.countP (fun x => decide (t < x)) ≤ w.length) (hk : p.kNum * t < p.kDen * s.durMs) :
     codeOf p w s = .slow :=
   (codeOf_slow_iff p w s).2 ⟨hn, hq, hB,
@@ -1181,7 +1179,7 @@ window has at least `n_min` values and whose duration exceeds the budget and `k`
 the contended samples around it: this is `slow_iff` read at normal load.
 -/
 theorem slow_at_normal_load (p : Params) (hist : List Sample) (i : Nat) (s : Sample)
-    (hl : s.load ≤ p.loadMax) (hn : p.nMin ≤ (windowOf p hist s.key).length) (hB : sampleBudget p s < s.durMs)
+    (hl : s.load ≤ p.loadMax) (hn : p.nMin ≤ (windowOf p hist s.key).length) (hB : budgetOf p s.tool < s.durMs)
     (hk : p.kNum * p50 (windowOf p hist s.key) < p.kDen * s.durMs) : (judge p hist i s).code = .slow :=
   (slow_iff p hist i s).2 (Or.inr ⟨hn, not_contended_of_load_le p s hl, hB, hk⟩)
 

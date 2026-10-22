@@ -3,8 +3,8 @@ Worktree: .claude/worktrees/wf_e3ff40d3-d74-1
 CI runs: none (local Lean + runner code; no CI push)
 
 State: the six follow-ups of slot-span-key, each with a Lean rule, a golden or test.
-1. Wait spans: `Fw.Obs.Timing.isWait`, `sampleBudget`, `Params.waitBudgetMs` (30 min). Theorems `sampleBudget_wait/_work`,
-   `wait_within_budget_not_slow`, `wait_over_budget_slow`; judged budget everywhere is `sampleBudget` (slow_iff etc. restated).
+1. Wait spans: tool `fw wait` (`Timing.waitTool`, TS `WAIT_TOOL`), its own default budget `Params.waitBudgetMs` (30 min) inside
+   `budgetOf`. Theorems `budgetOf_wait/_work`, `wait_within_budget_not_slow`, `wait_over_budget_slow`. Old wait samples (tool `fw`) keep the old key.
 2. `cmdKey`: `fw` is a launcher, key `pnpm fw <sub>` (`fwLauncher`, `subOf`); goldens in slot-key.jsonl.
 3. `stepKey`, `seenKeys` (suffix and seen-set rule), `kindCap` (land 8, sim 4, else 24); theorems `seenKeys_mem/_append`,
    `stepKey_prefix`, `capKey_bounded`. Golden slot-seen.jsonl. TS `seenInFile` reads the whole log in 4 MB chunks (63 ms for 27 MB).
@@ -16,6 +16,5 @@ State: the six follow-ups of slot-span-key, each with a Lean rule, a golden or t
 Verified: lake build; runner package test (slot-span 44 tests); golden check; fwcore rebuilt through the slot.
 Limits: past samples keep their old keys; the slot-run span `slot run land pnpm fw land dry` is still bimodal (the plan is known only
 inside the child). Wait budget 30 min is a chosen value, not measured.
-Writes outside the graph writes: lean/Fw/Ci/Telemetry.lean (two statements say `sampleBudget` instead of `budgetOf`),
-packages/contracts/golden/obs/dry-step.jsonl and slot-seen.jsonl (covered by obs/*.jsonl).
+Writes outside the graph writes: none beyond apps/runner/src/slot.ts etc.; new goldens dry-step.jsonl, slot-seen.jsonl are under obs/*.jsonl.
 Read first: SlotKey section of lean/Fw/Obs/Timing.lean, then apps/runner/src/slot-span.ts.

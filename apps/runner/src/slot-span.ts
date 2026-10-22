@@ -69,6 +69,8 @@ export function runStep(kind: string, seen: readonly string[], argv: string[]): 
   return k === null ? `slot run ${kind}` : `slot run ${kind} ${k}`;
 }
 
+/** Lean `Timing.waitTool`: the tool of the wait spans, which has its own budget in the timing verdict. */
+export const WAIT_TOOL = "fw wait";
 export const waitStep = (kind: string): string => `slot wait ${kind}`;
 
 const dropSuffix = (suf: string, s: string): string => (s.endsWith(suf) ? s.slice(0, s.length - suf.length) : s);
