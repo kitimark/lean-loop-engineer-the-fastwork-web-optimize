@@ -15,9 +15,6 @@ export interface PainProps {
  * hold; pulled up over the previous section by 100svh. Static markup and CSS; the sticky notes live in the canvas, which
  * is the part `pain.notes`. The empty board spacer in the column only gives the section its height.
  * Geometry spec: Lean `Fw.Parts.Pain`. The dark flip at <= 860 px is a class (`is-pain-dark`) the people part sets.
- * Variant `dark-scroll` (Lean `Fw.Parts.PainDarkScroll`): an empty dark layer behind the content (the section's `::before`) turns on with a
- * scroll-driven `steps(1)` opacity animation, its range start written once per layout; the people part then leaves the
- * class alone. Engines without the root scroll timeline stay faithful.
  */
 export function Pain({ variant, notesVariant = 'faithful' }: PainProps) {
   const ref = useRef<HTMLElement>(null);

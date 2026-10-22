@@ -40,8 +40,6 @@ export function PeopleCard({ variant, o, deck, pill }: PeopleCardProps) {
     const narrow = matchList('mq.w-le-860');
     const c860 = variant === 'mq' ? matchList('mq.c860') : null;
     const pain = () => document.querySelector<HTMLElement>(PAIN);
-    // Pain variant `dark-scroll` (Lean PainDarkScroll): where the engine runs it, the Pain layer flips by scroll
-    // timeline, so this part neither reads the header nor writes the class; other engines keep the class flip.
     const flips = () => {
       const p = pain();
       return p !== null && !layerOwnsFlip(p.getAttribute('data-fw-variant'), darkScrollSupported()) ? p : null;

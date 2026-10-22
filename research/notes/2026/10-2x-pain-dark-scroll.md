@@ -18,7 +18,7 @@ layer for the `is-pain-dark` flip), `10-2x-toolbar-throttle.md` (throttle-lift r
 - MEASURED, WebKit Simulator: the two pseudo-element layers exist with reason `animation` and no backing; the painted
   area of a whole scroll pass is 28 % and 34 % lower than the base. The price is +12.0 MB backing at the two scroll
   states that show the Pain stage (the stage's text block is promoted above the animated layer).
-- Not a clean win. The paint saving is real; WebKit pays 12 MB of backing for it and Chromium +3 layers. The toggle-step
+- Not a clean win. WebKit pays 12 MB of backing and Chromium +3 layers for the paint saving. The toggle-step
   cell in WebKit is not separable from noise (the paint spike moves between steps). Hold for the user's Safari lane
   (`gpu-safari-lane`) before a preset.
 - Look: E-s for the pixel, Q for the flip frame (below). Trajectory pain-dark cell: pending (`gpu-trajectory-cells` is
@@ -34,12 +34,12 @@ engines keep the class flip.
 
 | design | what | CI | why it failed |
 |---|---|---|---|
-| 1 | an empty child `div` in the section | gate run `39817106098` cancelled by me | the gate selects the sticky as `[data-fw="pain"] > div:first-child` (`anchors.json`); a first child shifts it |
+| 1 | an empty child `div` in the section | gate run `39817106098` cancelled | the gate selects the sticky as `[data-fw="pain"] > div:first-child` (`anchors.json`); a first child shifts it |
 | 2 | one `::before`, sticky and hold made transparent | gate `39818716087` fail, pain cells at every width | the gate compares the computed `background-color` of sticky and hold (white against transparent) |
 | 3 | two `::before` over the unchanged white surfaces, range 1 px long | gate `39822433333` pass, webkit-sim `39822439200` | WebKit accelerates only the active phase: with a 1 px range the layers were never in the layer census, so the flip there is a main-thread style change |
 | 4 (shipped) | as 3, range starts 256 px before the flip and is 32768 px long, the flip is a keyframe at 1/128 with `steps(1, jump-start)` | gate `39828600078` pass, webkit-sim `39828605244`, counts `39828614430` | none; costs below |
 
-Lesson (general): a steps animation that is idle before its flip is not accelerated before it. The flip must lie inside
+Lesson: a steps animation that is idle before its flip is not accelerated before it. The flip must lie inside
 the active phase, so the range starts earlier and the step is a keyframe, not the range start.
 
 ## Lean

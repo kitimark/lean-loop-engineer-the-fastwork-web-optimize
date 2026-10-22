@@ -31,10 +31,6 @@ const supports = block(narrow, '@supports');
 const layer = block(supports, "::before");
 const decl = (body: string, name: string): string => new RegExp(`(?:^|[;\\s])${name}:\\s*([^;]+);`).exec(body)?.[1]?.trim() ?? '';
 
-/**
- * The layer's opacity from the CSS above (test-only twin of Lean `layerOpacity`): keyframes 0% and X opacity 0, 100%
- * opacity 1, the interval from X eased by steps(1, jump-start), over the range [s, s + len], filled both ways.
- */
 function opacity(s: number, len: number, x: number, y: number): number {
   const p = y < s ? 0 : y < s + len ? (y - s) / len : 1;
   if (p < x) return 0;
