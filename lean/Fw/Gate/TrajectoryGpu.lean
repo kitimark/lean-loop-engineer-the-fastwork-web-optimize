@@ -433,11 +433,33 @@ theorem interp_first_key (k0 k1 : Rat) (v0 v1 : List Rat) (t : Series) (hk : k0 
   have h0 : (k0 - k0) / (k1 - k0) = 0 := by rw [Rat.sub_self, Rat.div_def, Rat.zero_mul]
   simp [interpAt, hk, h2, h0, lerpVec_zero v0 v1 hl]
 
+def matchStep (tols : List Rat) (ref : Series) (shift : Rat) (acc : Nat × Bool) (p : Rat × List Rat) : Nat × Bool :=
+  match interpAt ref (p.1 + shift) with
+  | some r => (acc.1 + 1, acc.2 && cellEq tols r p.2)
+  | none => acc
+
 def matchAt (tols : List Rat) (ref cand : Series) (shift : Rat) : Nat × Bool :=
-  cand.foldl (fun (n, ok) (k, v) =>
-    match interpAt ref (k + shift) with
-    | some r => (n + 1, ok && cellEq tols r v)
-    | none => (n, ok)) (0, true)
+  cand.foldl (matchStep tols ref shift) (0, true)
+
+theorem matchAt_ok_of_all (tols : List Rat) (ref cand : Series) (shift : Rat)
+    (h : ∀ p ∈ cand, ∀ r, interpAt ref (p.1 + shift) = some r → cellEq tols r p.2 = true) :
+    (matchAt tols ref cand shift).2 = true := by
+  have key : ∀ (cs : Series) (acc : Nat × Bool), acc.2 = true →
+      (∀ p ∈ cs, ∀ r, interpAt ref (p.1 + shift) = some r → cellEq tols r p.2 = true) →
+      (cs.foldl (matchStep tols ref shift) acc).2 = true := by
+    intro cs
+    induction cs with
+    | nil => intro acc ha _; exact ha
+    | cons p rest ih =>
+      intro acc ha hp
+      apply ih
+      · unfold matchStep
+        split
+        · rename_i r hr
+          simp [ha, hp p (by simp) r hr]
+        · exact ha
+      · intro q hq; exact hp q (by simp [hq])
+  exact key cand (0, true) rfl h
 
 def matchedGrade (tols grid : List Rat) (frameKey : Rat) (minCovered : Nat) (ref cand : Series) : Option Grade :=
   if !sortedKeys ref || !sortedKeys cand || (matchAt tols ref cand 0).1 < minCovered then none
@@ -483,6 +505,54 @@ def effectAt (m : Rat) : List Rat := [panelOpacity m, panelBlurPx m, panelScale 
 def readStep : Rat := 1 / 1000
 
 def effectTols (dpr side : Rat) : List Rat := [1 / 100, tolCss dpr, tolCss dpr / side + readStep]
+
+/-- Each vector minus `effectAt` of its own key. -/
+def residual (s : Series) : Series := s.map fun (k, v) => (k, List.zipWith (· - ·) v (effectAt k))
+
+theorem residual_sorted (s : Series) : sortedKeys (residual s) = sortedKeys s := by
+  have h : (residual s).Pairwise (fun a b => a.1 < b.1) ↔ s.Pairwise (fun a b => a.1 < b.1) := by
+    simp only [residual, List.pairwise_map]
+  exact Bool.eq_iff_iff.2 ((sortedKeys_iff _).trans (h.trans (sortedKeys_iff _).symm))
+
+theorem residual_model (k : Rat) : List.zipWith (· - ·) (effectAt k) (effectAt k) = [0, 0, 0] := by
+  simp [effectAt, Rat.sub_self]
+
+def ZeroSeries (s : Series) : Prop := ∀ p ∈ s, p.2 = [0, 0, 0]
+
+theorem residual_zero (s : Series) (h : ∀ p ∈ s, p.2 = effectAt p.1) : ZeroSeries (residual s) := by
+  intro q hq
+  simp only [residual, List.mem_map] at hq
+  obtain ⟨p, hp, rfl⟩ := hq
+  simp only [h p hp]
+  exact residual_model p.1
+
+theorem interpAt_zero (s : Series) (hs : ZeroSeries s) (k : Rat) (r : List Rat) (h : interpAt s k = some r) :
+    r = [0, 0, 0] := by
+  induction s with
+  | nil => simp [interpAt] at h
+  | cons p t ih =>
+    obtain ⟨k0, v0⟩ := p
+    have h0 : v0 = [0, 0, 0] := hs (k0, v0) (by simp)
+    cases t with
+    | nil =>
+      simp only [interpAt] at h
+      split at h
+      · simp only [Option.some.injEq] at h; rw [← h, h0]
+      · simp at h
+    | cons q t' =>
+      obtain ⟨k1, v1⟩ := q
+      have h1 : v1 = [0, 0, 0] := hs (k1, v1) (by simp)
+      have hrest : ZeroSeries ((k1, v1) :: t') := fun x hx => hs x (by simp_all)
+      simp only [interpAt] at h
+      split at h
+      · simp at h
+      · split at h
+        · split at h
+          · simp only [h0, h1, lerpVec, Option.map_some, Option.some.injEq] at h
+            rw [← h]
+            simp [Rat.sub_self, Rat.zero_mul, Rat.add_zero]
+          · simp at h
+        · exact ih hrest h
 
 def effClock (p : Rat) : Rat := 2 / 25 + 18 / 25 * p
 
@@ -547,8 +617,11 @@ theorem laggedKey_one (prev cur : Rat) : laggedKey 1 prev cur = prev := by
 def laggedSeries (l : Rat) (fs : Series) : Series :=
   interior ((fs.zip fs.tail).map fun (p, c) => (laggedKey l p.1 c.1, c.2))
 
+def modelGrade (tols : List Rat) (minCovered : Nat) (ref cand : Series) : Option Grade :=
+  matchedGrade tols [] 1 minCovered (residual ref) (residual cand)
+
 def shiftedGrade (tols : List Rat) (minCovered : Nat) (ref : Series) (l : Rat) (fs : Series) : Option Grade :=
-  matchedGrade tols [] 1 minCovered ref (seriesOf (laggedSeries l fs))
+  modelGrade tols minCovered ref (seriesOf (laggedSeries l fs))
 
 def panelGrade (series : Option Grade) (lag : Option Rat) (shifted : Option Grade) : Option Grade :=
   match series with
@@ -587,13 +660,29 @@ theorem matched_e_ok (tols grid : List Rat) (fk : Rat) (n : Nat) (ref cand : Ser
     · split at h <;> simp at h
 
 theorem shiftedGrade_ne_e (tols : List Rat) (n : Nat) (ref : Series) (l : Rat) (fs : Series)
-    (h : (matchAt tols ref (seriesOf (laggedSeries l fs)) 0).2 = false) : shiftedGrade tols n ref l fs ≠ some .e := by
+    (h : (matchAt tols (residual ref) (residual (seriesOf (laggedSeries l fs))) 0).2 = false) :
+    shiftedGrade tols n ref l fs ≠ some .e := by
   intro he
   have := matched_e_ok _ _ _ _ _ _ he
   simp_all
 
+theorem model_grade_e (tols : List Rat) (n : Nat) (ref cand : Series) (hl : tols.length = 3)
+    (hnn : ∀ t ∈ tols, 0 ≤ t) (hr : sortedKeys ref = true) (hc : sortedKeys cand = true)
+    (hrm : ∀ p ∈ ref, p.2 = effectAt p.1) (hcm : ∀ p ∈ cand, p.2 = effectAt p.1)
+    (hn : n ≤ (matchAt tols (residual ref) (residual cand) 0).1) : modelGrade tols n ref cand = some .e := by
+  unfold modelGrade
+  have hz := residual_zero cand hcm
+  have hzr := residual_zero ref hrm
+  apply matched_e _ _ _ _ _ _ (by rw [residual_sorted]; exact hr) (by rw [residual_sorted]; exact hc) hn
+  apply matchAt_ok_of_all
+  intro p hp r hr'
+  have h1 := hz p hp
+  have h2 := interpAt_zero _ hzr _ r hr'
+  rw [h1, h2]
+  exact cellEq_refl tols _ (by simp [hl]) hnn
+
 def panelCell (tols : List Rat) (minCovered : Nat) (ref : Series) (fs : Series) : Option Grade :=
-  let series := matchedGrade tols [] 1 minCovered ref (seriesOf (interior fs))
+  let series := modelGrade tols minCovered ref (seriesOf (interior fs))
   let lag := lagFrames (fs.map fun f => ⟨f.1, f.2.headD 0⟩)
   panelGrade series lag (lag.bind fun l => shiftedGrade tols minCovered ref l fs)
 
@@ -665,6 +754,9 @@ theorem worst_none_mem (gs : List (Option Grade)) (h : none ∈ gs) : worst gs =
 #guard worst [some .e, some .q, some .e] == some .q
 #guard worst [some .l, some .e, some .q] == some .l
 #guard worst [some .e, none] == none
+#guard worst [some .e, some .e1, some .e] == some .e1
+#guard worst [some .e, some .e1, some .q] == some .q
+#guard worst [some .e1, some .l, some .e] == some .l
 
 abbrev Row := Option (List Int)
 
@@ -737,13 +829,183 @@ theorem swapSpans_from_pos (rows : List Row) (still : Nat) (sp : Nat × Nat) (h 
 
 def frameMs : Rat := 50 / 3
 
-def swapSeries (rows : List Row) (sp : Nat × Nat) : Series :=
+def spanSeries (rows : List Row) (sp : Nat × Nat) : Series :=
   let vs := ((rows.drop sp.1).take (sp.2 + 2 - sp.1)).map (·.getD [])
   let full := vs.foldl (fun m v => max m v.length) 0
   ((List.range vs.length).zip vs |>.filter fun (_, v) => v.length == full).map fun (j, v) =>
     ((j : Rat) * frameMs, v.map fun (x : Int) => (x : Rat) / 1000)
 
+/-- Drops leading frames that equal their successor: the last rest frame before the first move stays. -/
+def dropHold : Series → Series
+  | p :: q :: r => if p.2 = q.2 then dropHold (q :: r) else p :: q :: r
+  | s => s
+
+def rebase : Series → Series
+  | [] => []
+  | (k0, v0) :: r => (0, v0) :: r.map fun (k, v) => (k - k0, v)
+
+def swapSeries (rows : List Row) (sp : Nat × Nat) : Series := rebase (dropHold (spanSeries rows sp))
+
+def holdFrames (rows : List Row) (sp : Nat × Nat) : Nat := (spanSeries rows sp).length - (dropHold (spanSeries rows sp)).length
+
+theorem dropHold_hold (p q : Rat × List Rat) (r : Series) (h : p.2 = q.2) : dropHold (p :: q :: r) = dropHold (q :: r) := by
+  simp [dropHold, h]
+
+theorem dropHold_move (p q : Rat × List Rat) (r : Series) (h : p.2 ≠ q.2) : dropHold (p :: q :: r) = p :: q :: r := by
+  simp [dropHold, h]
+
+theorem dropHold_first_moves (s : Series) (p q : Rat × List Rat) (r : Series) (h : dropHold s = p :: q :: r) :
+    p.2 ≠ q.2 := by
+  induction s with
+  | nil => simp [dropHold] at h
+  | cons a t ih =>
+    cases t with
+    | nil => simp [dropHold] at h
+    | cons b t' =>
+      by_cases hab : a.2 = b.2
+      · rw [dropHold_hold a b t' hab] at h
+        exact ih h
+      · rw [dropHold_move a b t' hab] at h
+        simp only [List.cons.injEq] at h
+        obtain ⟨rfl, rfl, -⟩ := h
+        exact hab
+
+theorem onset_hold_invariant (p q : Rat × List Rat) (r : Series) (h : p.2 = q.2) :
+    rebase (dropHold (p :: q :: r)) = rebase (dropHold (q :: r)) := by
+  rw [dropHold_hold p q r h]
+
+theorem rebase_first_key (s : Series) (p : Rat × List Rat) (r : Series) (h : rebase s = p :: r) : p.1 = 0 := by
+  cases s with
+  | nil => simp [rebase] at h
+  | cons a t =>
+    obtain ⟨k0, v0⟩ := a
+    simp only [rebase, List.cons.injEq] at h
+    rw [← h.1]
+
 def swapsOf (rows : List Row) (still : Nat := 6) : List Series := (swapSpans rows still).map (swapSeries rows)
+
+def stillFrames : Nat := 6
+
+def settleCapMs : Rat := 2200
+
+def tailCapMs : Rat := 1500
+
+structure SettleSt where
+  prev : List Int
+  moved : Bool
+  quiet : Nat
+  deriving DecidableEq, Repr
+
+def settleStep (s : SettleSt) (v : List Int) : SettleSt :=
+  if s.prev == v then ⟨v, s.moved, if s.moved then s.quiet + 1 else s.quiet⟩ else ⟨v, true, 0⟩
+
+def settleDone (still : Nat) (s : SettleSt) : Bool := s.moved && decide (still ≤ s.quiet)
+
+/-- Frames consumed before recording starts, and whether the quiet rule (not the cap) ended the wait. -/
+def settleRun (still : Nat) (cap s0 : Rat) : SettleSt → Rat → List (Rat × List Int) → Nat → Nat × Bool
+  | _, _, [], n => (n, false)
+  | s, now, (t, v) :: fs, n =>
+    if s0 + cap ≤ now then (n, false)
+    else
+      let s' := settleStep s v
+      if settleDone still s' then (n + 1, true) else settleRun still cap s0 s' t fs (n + 1)
+
+theorem settleStep_move (s : SettleSt) (v : List Int) (h : s.prev ≠ v) : settleStep s v = ⟨v, true, 0⟩ := by
+  simp [settleStep, h]
+
+theorem settleStep_rest (s : SettleSt) : settleStep s s.prev = ⟨s.prev, s.moved, if s.moved then s.quiet + 1 else s.quiet⟩ := by
+  simp [settleStep]
+
+theorem settle_unmoved_not_done (still : Nat) (v : List Int) (q : Nat) : settleDone still ⟨v, false, q⟩ = false := rfl
+
+theorem settle_waits_for_move (still : Nat) (cap s0 : Rat) (v : List Int) (q : Nat) (now : Rat)
+    (fs : List (Rat × List Int)) (n : Nat) (h : ∀ f ∈ fs, f.2 = v) :
+    (settleRun still cap s0 ⟨v, false, q⟩ now fs n).2 = false := by
+  induction fs generalizing now n with
+  | nil => simp [settleRun]
+  | cons f fs ih =>
+    obtain ⟨t, w⟩ := f
+    have hw : w = v := h (t, w) (by simp)
+    subst hw
+    have hs : settleStep ⟨w, false, q⟩ w = ⟨w, false, q⟩ := by simp [settleStep]
+    simp only [settleRun, hs]
+    split
+    · rfl
+    · rw [ite_eq_right_iff.2 (fun h => by simp [settleDone] at h)]
+      exact ih t (n + 1) (fun x hx => h x (by simp [hx]))
+
+theorem settle_quiet_after_still (still : Nat) (cap s0 t0 : Rat) (v : List Int) (ht : t0 < s0 + cap) :
+    ∀ (m q : Nat) (now : Rat) (n : Nat), q + m = still → 0 < m → now < s0 + cap →
+      settleRun still cap s0 ⟨v, true, q⟩ now (List.replicate m (t0, v)) n = (n + m, true) := by
+  intro m
+  induction m with
+  | zero => intro q now n _ h; omega
+  | succ m ih =>
+    intro q now n hq _ hn
+    have hnc : ¬ s0 + cap ≤ now := by grind
+    have hs : settleStep ⟨v, true, q⟩ v = ⟨v, true, q + 1⟩ := by simp [settleStep]
+    cases m with
+    | zero =>
+      have hd : settleDone still ⟨v, true, q + 1⟩ = true := by simp [settleDone]; omega
+      simp [List.replicate_succ, settleRun, hnc, hs, hd]
+    | succ m =>
+      have hd : settleDone still ⟨v, true, q + 1⟩ = false := by simp [settleDone]; omega
+      have := ih (q + 1) t0 (n + 1) (by omega) (by omega) ht
+      simp only [List.replicate_succ, settleRun, hnc, hs, hd] at this ⊢
+      simp only [this]
+      simp
+      omega
+
+def tailNext (prev : Option (List Int)) (v : List Int) (tail : Nat) : Nat := if prev == some v then tail + 1 else 0
+
+def tailStop (ms : Rat) (still : Nat) (t : Rat) (tail : Nat) : Bool :=
+  decide (ms + tailCapMs ≤ t) || (decide (ms ≤ t) && decide (still ≤ tail))
+
+theorem tailStop_cap (ms t : Rat) (still tail : Nat) (h : ms + tailCapMs ≤ t) : tailStop ms still t tail = true := by
+  simp [tailStop, h]
+
+theorem tailStop_quiet (ms t : Rat) (still tail : Nat) (h : ms ≤ t) (hq : still ≤ tail) : tailStop ms still t tail = true := by
+  simp [tailStop, h, hq]
+
+theorem tailStop_before_ms (ms t : Rat) (still tail : Nat) (h : t < ms) : tailStop ms still t tail = false := by
+  have h1 : ¬ ms + tailCapMs ≤ t := by unfold tailCapMs; grind
+  have h2 : ¬ ms ≤ t := by grind
+  simp [tailStop, h1, h2]
+
+theorem tailStop_waits (ms t : Rat) (still tail : Nat) (h : t < ms + tailCapMs) (hq : tail < still) :
+    tailStop ms still t tail = false := by
+  have h1 : ¬ ms + tailCapMs ≤ t := by grind
+  have h2 : ¬ still ≤ tail := by grind
+  simp [tailStop, h1, h2]
+
+/-- Rows recorded, and whether the quiet rule (not the cap) ended the recording. -/
+def tailRun (ms : Rat) (still : Nat) : Option (List Int) → Nat → List (Rat × List Int) → Nat → Nat × Bool
+  | _, _, [], n => (n, false)
+  | prev, tail, (t, v) :: fs, n =>
+    let tail' := tailNext prev v tail
+    if tailStop ms still t tail' then (n + 1, decide (t < ms + tailCapMs))
+    else tailRun ms still (some v) tail' fs (n + 1)
+
+theorem tail_quiet_after_still (ms t0 : Rat) (still : Nat) (v : List Int) (h0 : ms ≤ t0) (h1 : t0 < ms + tailCapMs) :
+    ∀ (m tail n : Nat), tail + m = still → 0 < m →
+      tailRun ms still (some v) tail (List.replicate m (t0, v)) n = (n + m, true) := by
+  intro m
+  induction m with
+  | zero => intro tail n _ h; omega
+  | succ m ih =>
+    intro tail n hq _
+    have hn : tailNext (some v) v tail = tail + 1 := by simp [tailNext]
+    cases m with
+    | zero =>
+      have hst := tailStop_quiet ms t0 still (tail + 1) h0 (by omega)
+      simp [List.replicate_succ, tailRun, hn, hst, h1]
+    | succ m =>
+      have hst := tailStop_waits ms t0 still (tail + 1) h1 (by omega)
+      have := ih (tail + 1) (n + 1) (by omega) (by omega)
+      simp only [List.replicate_succ, tailRun, hn, hst] at this ⊢
+      simp only [this]
+      simp
+      omega
 
 def carouselGrid : List Rat := [-1, -3 / 4, -1 / 2, -1 / 4, 1 / 4, 1 / 2, 3 / 4, 1]
 
@@ -843,12 +1105,16 @@ def restedCases : List (String × List Row × Nat) :=
   [("the first row", twoSwaps, 0), ("two equal rows", twoSwaps, 1), ("a change", twoSwaps, 9),
    ("an unread row before", [none, ringAt 0], 1), ("past the end", hold 0 2, 2)]
 
+def holdSwap (h : Nat) (step : Int := 5000) : List Row :=
+  hold 0 8 ++ List.replicate h (wideAt 0) ++ ((List.range 6).map fun (i : Nat) => wideAt (-step * ((i : Int) + 1))) ++ hold (-30000) 10
+
 def swapCases : List (String × List Row × Nat) :=
   [("opens at rest", twoSwaps, 6), ("opens mid-swap", twoSwaps.drop 10, 6),
    ("opens one row before a swap", twoSwaps.drop 7, 6), ("ends mid-swap", twoSwaps.take 26, 6),
    ("an unread row inside the swap", hold 0 8 ++ glide 0 30000 2 ++ [none] ++ glide 15000 30000 2 ++ hold 30000 10, 6),
    ("an entering avatar", hold 0 8 ++ ((List.range 4).map fun (i : Nat) => wideAt (-6000 * ((i : Int) + 1))) ++ hold (-30000) 10, 6),
-   ("a shorter quiet", hold 0 4 ++ glide 0 30000 3 ++ hold 30000 3 ++ glide 30000 60000 3 ++ hold 60000 3, 2)]
+   ("a shorter quiet", hold 0 4 ++ glide 0 30000 3 ++ hold 30000 3 ++ glide 30000 60000 3 ++ hold 60000 3, 2),
+   ("an entering avatar held 1 row", holdSwap 1, 6), ("an entering avatar held 4 rows", holdSwap 4, 6)]
 
 def missingSwap : List Row := hold 0 8 ++ glide 0 30000 5 ++ hold 30000 25
 
@@ -860,17 +1126,19 @@ def carouselCases : List (String × List Row × List Row) :=
   [("equal swaps in step", twoSwaps, twoSwaps), ("one swap missing", twoSwaps, missingSwap),
    ("zero swaps", twoSwaps, hold 0 38), ("a null rep among E reps", jumpSwap, jumpSwap),
    ("no swaps on either side", hold 0 20, hold 0 20), ("end position moved", twoSwaps, movedEnd),
-   ("candidate opens mid-swap", twoSwaps, twoSwaps.drop 10)]
+   ("candidate opens mid-swap", twoSwaps, twoSwaps.drop 10),
+   ("entering avatar held 2 rows against 4", holdSwap 2, holdSwap 4),
+   ("entering avatar held 4 rows against 1, steps differ", holdSwap 4, holdSwap 1 5400)]
 
 def carouselDpr : Rat := 2
 
 #guard (carouselCases.map fun (_, b, c) => (carouselCell carouselDpr b c).grade) ==
-  [some .e, some .l, some .l, none, none, some .l, some .l]
+  [some .e, some .l, some .l, none, none, some .l, some .l, some .e, some .l]
 
 #guard (carouselCell carouselDpr jumpSwap jumpSwap).reps == [some .e, none]
 
 #guard (swapCases.map fun (_, rs, st) => swapSpans rs st) ==
-  [[(7, 13), (22, 28)], [(12, 18)], [(15, 21)], [(7, 13)], [], [(7, 12)], [(3, 7), (9, 13)]]
+  [[(7, 13), (22, 28)], [(12, 18)], [(15, 21)], [(7, 13)], [], [(7, 12)], [(3, 7), (9, 13)], [(7, 15)], [(7, 18)]]
 
 def painCellCases : List (String × (List Rat × List Rat) × (List Rat × List Rat)) :=
   [("both directions flip, equal", ([1, 1, 0, 0], [1, 1, 0, 0]), ([0, 0, 1, 1], [0, 0, 1, 1])),
@@ -882,7 +1150,9 @@ def painCellCases : List (String × (List Rat × List Rat) × (List Rat × List 
 #guard (painCellCases.map fun (_, u, d) => worst (painCell u d)) == [some .e, some .q, none, none, some .l]
 
 def worstCases : List (List (Option Grade)) :=
-  [[], [some .e, some .e], [some .e, some .q, some .e], [some .l, some .e, some .q], [some .e, none], [none], [none, some .l]]
+  [[], [some .e, some .e], [some .e, some .q, some .e], [some .l, some .e, some .q], [some .e, none], [none], [none, some .l],
+   [some .e, some .e1, some .e], [some .q, some .e1], [some .e1, some .l, some .e], [some .e, some .e1, some .q], [some .invalid, some .e1],
+   [some .e1, some .invalid]]
 
 def rowsJson (rs : List Row) : Json := toJson rs
 
@@ -979,6 +1249,50 @@ def seriesCases : List (String × Series) :=
    [(0, [1]), (1, [2]), (2, [3]), (3, [4]), (4, [5])], [(0, [1]), (1, [2]), (2, [3])],
    [(0, [1]), (1, [2])], [(0, [1]), (1, [2]), (2, [3])], []]
 
+def kinkRef : Series := [(1 / 10, effectAt (1 / 10)), (3 / 10, effectAt (3 / 10)), (1 / 2, effectAt (1 / 2)), (7 / 10, effectAt (7 / 10)),
+  (9 / 10, effectAt (9 / 10))]
+
+def kinkFrames (f : List Rat → List Rat) : Series :=
+  (List.range 15).map fun (i : Nat) => (((i : Rat) + 3) / 20, f (effectAt (((i : Rat) + 3) / 20)))
+
+def kinkCases : List (String × Series) :=
+  [("sparse reference, candidate on the effect", kinkFrames id),
+   ("sparse reference, blur dropped", kinkFrames fun v => [v.getD 0 0, 0, v.getD 2 1]),
+   ("sparse reference, opacity off by 3/100", kinkFrames fun v => [v.getD 0 0 + 3 / 100, v.getD 1 0, v.getD 2 1])]
+
+#guard (kinkCases.map fun (_, fs) => matchedGrade panelCellTols [] 1 8 kinkRef fs) == [some .l, some .l, some .l]
+
+#guard (kinkCases.map fun (_, fs) => panelCell panelCellTols 8 kinkRef fs) == [some .e, some .l, some .l]
+
+def timed (vs : List (List Int)) : List (Rat × List Int) :=
+  ((List.range vs.length).zip vs).map fun (i, v) => (17 * ((i : Rat) + 1), v)
+
+def moves : List (List Int) := [[1], [2], [3], [4]]
+
+def settleCases : List (String × Nat × List Int × List (Rat × List Int)) :=
+  [("a swap then rest", 6, [0], timed (List.replicate 3 [0] ++ moves ++ List.replicate 8 [4])),
+   ("a still page never ends", 6, [0], timed (List.replicate 20 [0])),
+   ("five rests are not enough", 6, [0], timed (moves ++ List.replicate 5 [4])),
+   ("six rests are enough", 6, [0], timed (moves ++ List.replicate 6 [4])),
+   ("a flicker restarts the count", 6, [0], timed (moves ++ List.replicate 4 [4] ++ [[5]] ++ List.replicate 6 [5])),
+   ("the cap ends the wait", 6, [0], [(2000, [1]), (2100, [2]), (2200, [3]), (2300, [4])]),
+   ("two rests suffice at still 2", 2, [0], timed (moves ++ List.replicate 2 [4]))]
+
+def tailCases : List (String × Rat × Nat × List (Rat × List Int)) :=
+  [("rest after ms", 100, 6, timed ((List.range 8).map (fun (i : Nat) => [(i : Int)]) ++ List.replicate 12 [8])),
+   ("moving to the cap", 100, 6, timed ((List.range 120).map fun (i : Nat) => [(i : Int)])),
+   ("rest before ms keeps recording", 100, 6, timed (List.replicate 12 [0])),
+   ("still 1", 100, 1, timed (List.replicate 12 [0]))]
+
+#guard (settleCases.map fun (_, st, p, fs) => settleRun st settleCapMs 0 ⟨p, false, 0⟩ 0 fs 0) ==
+  [(13, true), (20, false), (9, false), (10, true), (15, true), (3, false), (6, true)]
+
+#guard (tailCases.map fun (_, ms, st, fs) => tailRun ms st none 0 fs 0) ==
+  [(15, true), (95, false), (7, true), (6, true)]
+
+def framesJson (fs : List (Rat × List Int)) : Json :=
+  toJson (fs.map fun (t, v) => Json.mkObj [("t", toJson (ratStr t)), ("v", toJson v)])
+
 def goldenLines (_ : Unit := ()) : List String :=
   let o (kvs : List (String × Json)) : String := (Json.mkObj kvs).compress
   [1, 2, 3, 3 / 2].map (fun (d : Rat) => o [("kind", "tol"), ("dpr", toJson (ratStr d)), ("tol", toJson (ratStr (tolCss d)))]) ++
@@ -1034,6 +1348,7 @@ def goldenLines (_ : Unit := ()) : List String :=
   swapCases.map (fun (n, rs, st) =>
     o [("kind", "swaps"), ("name", toJson n), ("rows", rowsJson rs), ("still", toJson st),
       ("spans", toJson ((swapSpans rs st).map fun (f, t) => [f, t])),
+      ("holds", toJson ((swapSpans rs st).map (holdFrames rs))),
       ("out", toJson ((swapSpans rs st).map fun sp => seriesJson (swapSeries rs sp)))]) ++
   carouselCases.map (fun (n, b, c) =>
     let cc := carouselCell carouselDpr b c
@@ -1041,7 +1356,20 @@ def goldenLines (_ : Unit := ()) : List String :=
       ("swaps", toJson [cc.swaps.1, cc.swaps.2]), ("reps", gradesJson cc.reps), ("grade", gradeName cc.grade)]) ++
   painCellCases.map (fun (n, (ub, uc), (db, dc)) =>
     o [("kind", "paincell"), ("name", toJson n), ("up", toJson [vecJson ub, vecJson uc]), ("down", toJson [vecJson db, vecJson dc]),
-      ("reps", gradesJson (painCell (ub, uc) (db, dc))), ("grade", gradeName (worst (painCell (ub, uc) (db, dc))))])
+      ("reps", gradesJson (painCell (ub, uc) (db, dc))), ("grade", gradeName (worst (painCell (ub, uc) (db, dc))))]) ++
+  kinkCases.map (fun (n, fs) =>
+    o [("kind", "kinkcell"), ("name", toJson n), ("tols", vecJson panelCellTols), ("minCovered", toJson 8),
+      ("ref", seriesJson kinkRef), ("frames", seriesJson fs),
+      ("plain", gradeName (matchedGrade panelCellTols [] 1 8 kinkRef fs)),
+      ("grade", gradeName (panelCell panelCellTols 8 kinkRef fs))]) ++
+  settleCases.map (fun (n, st, p, fs) =>
+    let r := settleRun st settleCapMs 0 ⟨p, false, 0⟩ 0 fs 0
+    o [("kind", "settle"), ("name", toJson n), ("still", toJson st), ("cap", toJson (ratStr settleCapMs)), ("prev", toJson p),
+      ("frames", framesJson fs), ("consumed", toJson r.1), ("quiet", toJson r.2)]) ++
+  tailCases.map (fun (n, ms, st, fs) =>
+    let r := tailRun ms st none 0 fs 0
+    o [("kind", "tail"), ("name", toJson n), ("ms", toJson (ratStr ms)), ("still", toJson st), ("cap", toJson (ratStr tailCapMs)),
+      ("frames", framesJson fs), ("rows", toJson r.1), ("quiet", toJson r.2)])
 
 def goldenText (_ : Unit := ()) : String := String.intercalate "" ((goldenLines ()).map (· ++ "\n"))
 

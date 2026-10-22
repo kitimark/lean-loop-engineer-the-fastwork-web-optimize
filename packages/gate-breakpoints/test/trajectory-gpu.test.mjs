@@ -5,7 +5,8 @@ import { fileURLToPath } from 'node:url';
 import {
   ratOf, ratStr, tolCss, cellEq, parseDec, parseLen, parseInset, expand4, readShape, shapeVec, interpAt, matchedGrade,
   effectAt, effectTols, cellsOfRaw, seriesOf, keptInterior, effClock, lagFrames, lagGrade, panelGrade, panelCell, darkness, painGrade, rat, ZERO,
-  worst, restedBefore, swapSpans, swapSeries, carouselCellAt, painCell,
+  worst, restedBefore, swapSpans, swapSeries, carouselCellAt, painCell, holdFrames,
+  settleRun, tailRun, SETTLE_CAP_MS, TAIL_CAP_MS, STILL_FRAMES,
 } from '../src/trajectory/cells-gpu.mjs';
 
 const golden = readFileSync(fileURLToPath(new URL('../../contracts/golden/gate/trajectory-gpu.jsonl', import.meta.url)), 'utf8')
@@ -19,7 +20,7 @@ const optStr = (r) => (r === null ? null : ratStr(r));
 
 test('the golden file holds every line kind', () => {
   const kinds = new Set(golden.map((l) => l.kind));
-  for (const k of ['tol', 'dec', 'len', 'inset', 'expand4', 'clip', 'cell', 'interp', 'matched', 'effect', 'lag', 'panel', 'series', 'panelcell', 'pain', 'dark', 'interior', 'worst', 'rested', 'swaps', 'carousel', 'paincell']) {
+  for (const k of ['tol', 'dec', 'len', 'inset', 'expand4', 'clip', 'cell', 'interp', 'matched', 'effect', 'lag', 'panel', 'series', 'panelcell', 'pain', 'dark', 'interior', 'worst', 'rested', 'swaps', 'carousel', 'paincell', 'kinkcell', 'settle', 'tail']) {
     assert.ok(kinds.has(k), k);
   }
 });
@@ -168,7 +169,9 @@ test('swap spans and their series at the frame clock, as Lean swapSpans and swap
     const rows = rowsOf(l.rows), spans = swapSpans(rows, l.still);
     assert.deepEqual(spans.map(({ from, to }) => [from, to]), l.spans, l.name);
     assert.deepEqual(spans.map((sp) => seriesStr(swapSeries(rows, sp))), l.out, l.name);
+    assert.deepEqual(spans.map((sp) => holdFrames(rows, sp)), l.holds, l.name);
   }
+  assert.deepEqual(cases.find((l) => l.name === 'an entering avatar held 4 rows').holds, [3]);
   const n = (name) => cases.find((l) => l.name === name).spans.length;
   assert.equal(n('opens at rest'), 2);
   assert.equal(n('opens mid-swap'), 1);
@@ -200,5 +203,43 @@ test('the pain cell grades each direction, none when its base never flips, as Le
     const reps = painCell(arm('b'), arm('c'));
     assert.deepEqual(reps, l.reps, l.name);
     assert.equal(worst(reps), l.grade, l.name);
+  }
+});
+
+test('a sparse reference against the declared effect grades by residual, as Lean panelCell', () => {
+  const cases = of('kinkcell');
+  assert.equal(cases.length, 3);
+  for (const l of cases) {
+    assert.equal(matchedGrade(vec(l.tols), [], ratOf('1/1'), l.minCovered, series(l.ref), series(l.frames)), l.plain, l.name);
+    assert.equal(panelCell(vec(l.tols), l.minCovered, series(l.ref), series(l.frames)).grade, l.grade, l.name);
+  }
+  const grade = (n) => cases.find((l) => l.name === n).grade;
+  assert.equal(grade('sparse reference, candidate on the effect'), 'E');
+  assert.equal(grade('sparse reference, opacity off by 3/100'), 'L');
+});
+
+const timed = (fs) => fs.map(({ t, v }) => ({ t: ratOf(t), v }));
+
+test('the in-page settle rule stops after 6 equal frames once moved, or at the cap, as Lean settleRun', () => {
+  const cases = of('settle');
+  assert.equal(cases.length, 7);
+  assert.equal(STILL_FRAMES, 6);
+  assert.equal(ratStr(SETTLE_CAP_MS), '2200/1');
+  for (const l of cases) {
+    assert.equal(ratStr(SETTLE_CAP_MS), l.cap, l.name);
+    const r = settleRun(l.still, SETTLE_CAP_MS, ZERO, l.prev, timed(l.frames));
+    assert.deepEqual([r.consumed, r.quiet], [l.consumed, l.quiet], l.name);
+  }
+  assert.equal(cases.find((l) => l.name === 'the cap ends the wait').quiet, false);
+});
+
+test('the tail stops after 6 equal frames past the window or at the cap, as Lean tailRun', () => {
+  const cases = of('tail');
+  assert.equal(cases.length, 4);
+  assert.equal(ratStr(TAIL_CAP_MS), '1500/1');
+  for (const l of cases) {
+    assert.equal(ratStr(TAIL_CAP_MS), l.cap, l.name);
+    const r = tailRun(ratOf(l.ms), l.still, timed(l.frames));
+    assert.deepEqual([r.rows, r.quiet], [l.rows, l.quiet], l.name);
   }
 });
