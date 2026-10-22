@@ -25,7 +25,7 @@
       "provenance": {
         "lean": "Fw.Parts.PainDarkScroll static_pixel_eq, hidden_needed, hidden_fails_390, hidden_fails_640, static_eq_base, animated_meets_costs, cover_meets, below_promotes, above_hides, owns_static",
         "ledger": "n=47",
-        "limit": "look change: at most 860 px the two pseudo-element layers are #131922 from the start and people.card never writes is-pain-dark, so the white Pain top that the original shows before the flip is dark; the premise Hidden (white state never in view) fails at 390 and 640 (MEASURED, trajectory probe run 39852164349: Pain top 398 and 871 px below the card top, 892 needed); no animated layer, so no overlap promotion and no extra backing (Lean static_eq_base)"
+        "limit": "look change: at most 860 px the two pseudo-element layers are #131922 from the start and people.card never writes is-pain-dark, so the white Pain top that the original shows before the flip is dark; the premise Hidden (white state never in view) fails at 390 and 640 (MEASURED, trajectory probe run 39852164349: Pain top 370 and 843 px below the flip offset 873, 891.5 needed (Lean hidden_fails_390, hidden_fails_640)); no animated layer, so no overlap promotion and no extra backing (Lean static_eq_base)"
       }
     }
   },

@@ -161,7 +161,7 @@ Lean layer budget (`PainDarkScroll.lean`, before any CSS):
 | `cover_meets`, `below_promotes` | a layer that paints the stage's pixels under the content covers the stage, so it meets every content layer in it, and the content is promoted |
 | `above_hides` | the other order (layer above content) shows the layer's colour over a coloured note while opaque: a look change |
 | `static_eq_base` | with no animated layer the backing equals the base |
-| `static_pixel_eq`, `hidden_needed` | a static dark pseudo-element pair has the original's pixel iff the white state is never in view (Hidden: Pain top at least one viewport and 47.5 px below the flip offset) |
+| `static_pixel_eq`, `hidden_needed` | a static dark pseudo-element pair has the original's pixel if the white state is never in view (`static_pixel_eq`); without it some seen state differs (`hidden_needed`) (Hidden: Pain top at least one viewport and 47.5 px below the flip offset) |
 | `hidden_fails_390`, `hidden_fails_640` | Hidden fails on the measured geometry |
 
 Arrangement tried: `pain:dark-static` (kept as a look-change proposal): the same two pseudo-elements, `#131922` from the start, nothing animated,
@@ -182,8 +182,8 @@ counts (`swipe-v1` x 3, run `39852245766`, base `39818749535`, HOLD `39828614430
 unchanged; HOLD -4.0 and -6.6 percent). Breakpoint gate on `pain:dark-static`, both engines: run `39852250962` pass.
 
 Result: no-win. The only arrangement that removes the backing (no animated layer under the content) also removes the
-WebKit paint saving, and it changes the look because the white state is in view at 390 and 640 (Pain top 398 and 871 px below the card
-top, 892 needed; probe run `39852164349`, the premise measured in the base arm). The other order (layer above the content) hides the
+WebKit paint saving, and it changes the look because the white state is in view at 390 and 640 (Pain top 370 and 843 px below the flip offset
+873, 891.5 needed (Lean hidden_fails_390, hidden_fails_640); probe run `39852164349`, the premise measured in the base arm). The other order (layer above the content) hides the
 coloured notes until the flip. The saving and the backing appear together in all three arms; the base repaints the full stage every 50 px
 step in the pinned band and HOLD does not, and why is not identified (INFERRED: the split-off content layers are not dirtied by what dirties the
 sticky backing). Flag stays HOLD; `pain:dark-static` is a look-change proposal for the user's visual review, not a v2-proved candidate.

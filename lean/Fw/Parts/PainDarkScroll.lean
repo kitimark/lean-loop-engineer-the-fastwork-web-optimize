@@ -271,9 +271,12 @@ theorem static_eq_base (content : List Content) (stageKpx : Nat) :
 
 def stageSpan : Span := ⟨0, 775⟩
 
-def stageContent : List Content := [⟨stageSpan, 2999⟩, ⟨stageSpan, 2999⟩]
+def stickyKpx : Nat := 3568
 
-theorem hold_backing : backingKpx [stageSpan] stageContent 2999 = baseBackingKpx stageContent 2999 + promotedKpx := by
+def stageContent : List Content := [⟨⟨0, 922⟩, stickyKpx⟩, ⟨stageSpan, promotedKpx⟩]
+
+-- Census at y=1500, webkit-sim runs 39856782689 (base sticky 430x922) and 39856789295 (HOLD canvas 430x922, .inner 430x775).
+theorem hold_backing : backingKpx [stageSpan] stageContent stickyKpx = baseBackingKpx stageContent stickyKpx + promotedKpx := by
   decide +kernel
 
 theorem animated_meets_costs (a : Span) (c : Content) (hm : a.meets c.span) (s : Nat) :
