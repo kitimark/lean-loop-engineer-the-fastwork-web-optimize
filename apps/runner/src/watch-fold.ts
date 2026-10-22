@@ -43,7 +43,7 @@ interface SumState {
 interface SigState {
   launched: { id: string; time: number }[]; ends: SigEnd[]; bounds: { time: number; start: boolean }[]; handbacks: number[];
   commands: Map<string, string>; outputs: Map<string, string>; uses: Map<string, { name: string; command: string | null }>;
-  open: Map<string, string>; newest: string | null; lastAt: number | null; // open: call id -> id of its assistant message
+  open: Map<string, string>; newest: string | null; lastAt: number | null;
   launchedIds: Set<string>; endedIds: Set<string>; // rebuilt from `launched` and `ends` on load
 }
 export interface FoldState { aux: boolean; sum: SumState; sig: SigState }
@@ -58,7 +58,6 @@ export function initFold(aux = false): FoldState {
   };
 }
 
-/** Lean `Fw.Obs.Fold.stepEv`: an assistant message voids the open calls of every older message. */
 function newestMessage<V>(open: Map<string, V>, msg: string, of: (v: V) => string): void {
   for (const [id, v] of open) if (of(v) !== msg) open.delete(id);
 }
@@ -68,7 +67,6 @@ export function stepLine(st: FoldState, line: string): void {
   let o: any;
   try { o = JSON.parse(line); } catch { return; }
   if (o === null) return; // `null.timestamp` threw in the unfolded loops (the file then counted as unreadable)
-  // The id of an assistant message: streamed copies of one message share it. A record without one is its own message.
   const msg = o.type === "assistant" && o.message ? str(o.message.id) ?? `#anon${st.sum.anon++}` : null;
   stepSum(st.sum, o, msg);
   stepSig(st, o, msg);

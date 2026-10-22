@@ -205,8 +205,7 @@ describe("the collector over the cache and the spool memo", () => {
     appendFileSync(spool, sp("aq", "PostToolUse", now - 4000) + "\n");
     expect(names()).toEqual(["aq:2"]);
     const old = new Date(now - 3600_000 * 30);
-    writeFileSync(spool, sp("aq", "PostToolUse", now - 4000) + "\n"); // same size as before? no: one line
-    utimesSync(spool, old, old);
+    writeFileSync(spool, sp("aq", "PostToolUse", now - 4000) + "\n");    utimesSync(spool, old, old);
     expect(names()).toEqual(["aq:1"]);
     rmSync(spool);
     expect(names()).toEqual([]);
@@ -225,14 +224,11 @@ describe("the collector over the cache and the spool memo", () => {
   });
 });
 
-// ---- in flight: Lean Fw.Obs.Fold `stepEv` (`assistant_clears`, `inflight_resume`), golden obs/watch-inflight.jsonl ----
 type Ev = { k: "assistant"; msg: string; calls: { id: string; tool: string; at: number }[] } | { k: "result"; id: string };
 const evLine = (e: Ev, i: number): string => e.k === "assistant"
   ? JSON.stringify({ type: "assistant", timestamp: new Date(e.calls[0]?.at ?? 1000 + i).toISOString(),
       message: { id: e.msg, role: "assistant", content: e.calls.length ? e.calls.map((c) => ({ type: "tool_use", id: c.id, name: c.tool, input: {} })) : [{ type: "text", text: "x" }] } })
   : JSON.stringify({ type: "user", timestamp: new Date(1000 + i).toISOString(), message: { role: "user", content: [{ type: "tool_result", tool_use_id: e.id, content: "ok" }] } });
-// a record takes the time of its first call, so a message of several calls with distinct times is written one record
-// per call (streamed copies share the message id)
 const evLines = (evs: Ev[]): string[] => evs.flatMap((e, i) => e.k === "assistant" && e.calls.length > 1
   ? e.calls.map((c, j) => evLine({ ...e, calls: [c] }, i * 10 + j)) : [evLine(e, i)]);
 const inflightGolden: { name: string; events: Ev[]; expect: { tool: string; since: number } | null }[] =
