@@ -17143,6 +17143,25 @@
     "docs/team/handoffs/trajectory-aa-noise.md"
    ],
    "title": "Review follow-ups of trajectory-carousel-lean: the hold-out Chromium A/A run 39852684450 (same code both arms, recordings at rest) grades carousel Q at 390 and 640 (reps Q,Q,E,E; 2 of 4 swaps match only at a sub-frame shift) and panel-effect 640 close L (reps E,Q,L). An A/A must grade E, so the recorder or the tolerances are noisy: find which (frame clock vs rAF sampling, sub-frame shift handling, scale/blur read step), fix it in Lean first with a theorem or a stated premise, and confirm with fresh A/A runs (at most 3 dispatches) that every unit grades E. Also: JS RANK lacks E1 while Lean worse ranks e1 (restrict worst to E/Q/L or add E1 with a golden case); specify the in-page settle and tail stop rules of carouselSample (6 equal frames, 2.2 s and 1.5 s caps) in Lean or list them as a stated premise; note in the gate docs that a pain-dark unit whose base never flips in one direction is now not comparable."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-exit-cli",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "land-wt-lock-drift"
+   ],
+   "writes": [
+    "apps/runner/src/fw-main.ts",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land-exit*.test.ts",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/land-exit-cli.md"
+   ],
+   "title": "Review follow-ups of land-wt-lock-drift: (1) fw-main.ts:169-172 exits early on `dry && res.kind === \"install\"` before dryRun, so a failed dry install prints only REFUSED and VERDICT install, not the stage lines land.md promises; delete that branch so the generic dry branch prints dryRun from outcome({installs:false}); (2) fw-main.ts:181-183 maps the real-land exit inline; use `process.exitCode = landExit(res)` (landExit is exported from land.ts and tested); (3) checkoutLandWt runs `git clean -fdxq -e .lake -e node_modules` twice for a reused worktree; drop the trailing one on that path. Test the CLI exit and the dry stage lines."
   }
  ],
  "deadline": {
