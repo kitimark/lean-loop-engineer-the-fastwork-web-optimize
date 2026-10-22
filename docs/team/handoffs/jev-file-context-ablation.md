@@ -1,7 +1,9 @@
 # jev-file-context-ablation handoff
 
 - Branch `worktree-wf_308f05f9-86b-1`, worktree `.claude/worktrees/wf_308f05f9-86b-1`, last sha in `git log -1`. CI runs: none.
-- State: done. Lean module, glue, all arms, paired comparison and note are committed. Adopt is false.
+- State: done (round 2 applied). Lean module, glue, all arms, paired comparison and note are committed. Adopt is false.
+- Round 2: the note names the 11 scan rows with no kept file (9 refused over the cap, 2 hold only `blocker`); the
+  scan rule reapplied to `inputs.json` gives 38. Main merged; `lean/scripts/check.sh` green; dry land rerun without --allow.
 
 ## Verified
 - `Fw.Oracle.Expand`, `Fw.Oracle.ExpandPaired`, `Fw.Oracle.ExpandWire` build; golden
@@ -15,8 +17,7 @@
 
 ## Open
 - Hand trace of the 14 untraced gains (would not change the verdict; `reject_netLow` fixes it).
-- Outside the graph writes: `lean/Fw/Oracle/Questions.lean` (`files` field), `lean/Fw/Oracle/Replay.lean` (sets
-  d1x, d1n), `lean/Fw/Wire.lean` (ops wiring).
+- `lean/Fw/Oracle/Questions.lean`, `lean/Fw/Oracle/Replay.lean` and `lean/Fw/Wire.lean` are task writes since graph r249.
 
 ## Read first
 research/notes/2026/10-2x-jev-file-context-ablation.md, lean/Fw/Oracle/Expand.lean, scripts/jev-expand.mjs.
