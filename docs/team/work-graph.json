@@ -15388,7 +15388,16 @@
    "owner": "console-builder",
    "stream": "tooling",
    "deps": [],
-   "title": "User 2026-10-22: 'when local resource is overloaded, i'd like to ask you investigate and find how to manage, optimize for improve this resource usage. likes move them to queue or make it use less resource.' Lead probe 2026-10-22 (fw slot status, ps, vm_stat): limit 1, 0 holders, queue 4 (land dry, check.sh, two runner tests) waiting 9-30 min; available 191 MB (free 179, file cache 4,443 MB under its kernel minimum 4,608 MB so it adds 0), kernel pressure level 1, compressing 0 MB/min, swap 3,276 of 4,096 MB. Each waiter is three node processes, homebrew pnpm 95 MB, pnpm 105 MB and fw.ts 102-105 MB, about 300 MB, so the four waiters held about 1.2 GB while nothing ran. Fix: a queued slot run waits in one light process (the wrapper execs node fw.ts directly, or the pnpm script resolves to node without a nested pnpm), and the measured waiter RSS goes in docs/team/tools/slot.md. Same verdicts, same queue order. Unit: one waiter process per queued run, its RSS measured before and after (MEASURED)."
+   "title": "User 2026-10-22: 'when local resource is overloaded, i'd like to ask you investigate and find how to manage, optimize for improve this resource usage. likes move them to queue or make it use less resource.' Lead probe 2026-10-22 (fw slot status, ps, vm_stat): limit 1, 0 holders, queue 4 (land dry, check.sh, two runner tests) waiting 9-30 min; available 191 MB (free 179, file cache 4,443 MB under its kernel minimum 4,608 MB so it adds 0), kernel pressure level 1, compressing 0 MB/min, swap 3,276 of 4,096 MB. Each waiter is three node processes, homebrew pnpm 95 MB, pnpm 105 MB and fw.ts 102-105 MB, about 300 MB, so the four waiters held about 1.2 GB while nothing ran. Fix: a queued slot run waits in one light process (the wrapper execs node fw.ts directly, or the pnpm script resolves to node without a nested pnpm), and the measured waiter RSS goes in docs/team/tools/slot.md. Same verdicts, same queue order. Unit: one waiter process per queued run, its RSS measured before and after (MEASURED).",
+   "writes": [
+    "apps/runner/src/fw.ts",
+    "apps/runner/src/slot-main.ts",
+    "package.json",
+    "scripts/slot-self.mjs",
+    "scripts/slot-self.test.mjs",
+    "docs/team/tools/slot.md",
+    "docs/team/handoffs/slot-waiter-light.md"
+   ]
   },
   {
    "devices": [
