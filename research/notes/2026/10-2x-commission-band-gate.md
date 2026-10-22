@@ -36,6 +36,8 @@ without any visible change?
 | `moving_run`, `moving_run_lt` | gated and moving every event: 0 writes, strictly fewer than the original |
 | `stepV_writes`, `stepC_writes` | the TS decisions `planWrite`, `planCatchup` are the model's events |
 
+Limit: the theorems cover the look (scale, radius). While the follower moves in the band, the custom properties' own computed values differ from the original's (getComputedStyle would show it); they are equal again at rest and on band exit, which is what the breakpoint gate compares.
+
 Goldens (`commission-gate.jsonl`, 70 lines): `planWrite`, `planCatchup`, `catchupPair`, `cardLook` per environment, and
 `trace` lines that `bandgate.test.ts` replays through the real driver (writes and section pair per event, both arms).
 

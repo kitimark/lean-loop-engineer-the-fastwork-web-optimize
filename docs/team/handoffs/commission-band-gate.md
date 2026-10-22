@@ -16,6 +16,6 @@ MEASURED webkit y 2500-3500: RecalculateStyles 124/127 -> 99/92. Details: resear
 Land: needs `--allow lean/Fw/Parts/FootprintData.lean --allow lean/Fw/Parts/Golden.lean --allow research/findings/ledger.json`
 (the dry with them ends `VERDICT dry commission-band-gate`; without them `VERDICT scope`).
 Outside the task writes: lean/Fw.lean, lean/Fw/Parts/Golden.lean, lean/Fw/Parts/FootprintData.lean,
-packages/contracts/golden/parts/footprint.gen.json, research/findings/ledger.json.
+packages/contracts/golden/parts/footprint.gen.json, research/findings/ledger.json, packages/contracts/golden/preset/v2-proved.decisions.jsonl (generated; member false, not a promotion).
 Open: frame-time replay of the scroll-in; unexplained WebKit saving at y 3500-4500; the commission window is INFERRED.
 Read first: the note, then `CommissionOpt.lean` section "The event sequence".
