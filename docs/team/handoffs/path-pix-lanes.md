@@ -1,11 +1,12 @@
 # path-pix-lanes handoff (measure-engineer)
 
 - Branch: `worktree-wf_b9782b57-981-1` (CI branch `ci/path-pix-lanes`); worktree `.claude/worktrees/wf_b9782b57-981-1`.
-- Last commit: 39200598 (dispatch 3, main merged in it).
-- CI runs (4 dispatches max, 3 used):
+- Last commit: 90bdc8e3 (dispatch 4, main merged).
+- CI runs (4 dispatches max, 4 used):
   - 39778557659 (d1, 1aa0944d): chromium 1+2 success; sim 2 success (27 cells, 17 L, 10 invalid); sim 1 failed (tab lost).
   - 39786950659 (d2, bf0e91d6): chromium 1+2 success (A/A 29 E; P 28 E 1 L, identical to d1); sim 1 and 2 FAILED by the 45 min step timeout, no cells (manifest was written only at the end). vm 2 got through A, A2 and 5 of 6 P arms in 45 min (runner load average 72); vm 1 lost ~20 min to two failed A attempts (simctl screenshot failed, runAsync timed out).
-  - 39797455671 (d3, 39200598): queued. Change: the two VMs split the P arms (vm1 hero.cue_cue,hero.deck_article,nav_bar; vm2 hero.countdown_face,hero_copy,nav_earn), a P arm is captured only at offsets where arm A shows its layer (`inViewPositions`, exactly the cells the analysis grades), manifest written after every arm, `--deadline-min 30` stops new P arms, timestamps in the log.
+  - 39797455671 (d3, 39200598): chromium 1+2 success (identical to d1/d2); sim 1 success: A/A 27 cells (0 E, 15 L, 12 invalid), P 13 cells (7 L, 6 invalid); sim 2 FAILED in "Tool and runner facts" (`simctl list runtimes` aborted, exit 134, CoreSimulator not up yet). Time: A 11 min (one failed attempt), A2 7 min, P arms 1-4 min each. Causes read from the FRAME_A2 strips: the headline word differs (the chain is at another phase when the timers are held: held after a 6 s settle), the avatar stack order and the demo's typed text differ (JS motion on rAF time), and screens of offsets 2 and 7 are not stable within one load (sameA and sameB false).
+  - 39805943152 (d4, 90bdc8e3, the last dispatch): queued. Changes over d3: no settle before the timer hold (headline phase), videos paused at 0, shoot until two captures agree (max 6), `tries`/`video` per row, the facts step tolerates a simctl abort, deadline 34 min.
 - Local checks: measure-webkit 335 (+ new tests) and measure-chromium 64 pass through the slot; runner test has 1 failure unrelated to this task (slot-span.test.ts "a 40 s wait against a near-zero median" came with main). Not yet run on the final commit: check.sh, runner tests, dry land.
 - Simulator lane in dispatch 1 (vm 2): A/A 27 cells 0 E, 17 L, 10 invalid (repeat captures of one load differ: P4 fails at offsets 1307, 3269+); the frame diff was not recorded. Dispatch 2 adds: wait for images near the fold, double freeze, per-arm retry after reconnect, `frames` diagnostics (whole-frame diff bbox, `strips/FRAME_A2_<i>.png` thumbnails) in cells.json.
 - Chromium lane result (run 39778557659, both jobs identical): frames 430x932 (beginFrame screenshots are in CSS px, page dpr 3), 6 declared layers, 9 offsets; A/A 29 cells all E; P 29 cells, 28 E and 1 L (hero.deck_article offset 0: 2 px inside and 1 outside differ by 1 level).
