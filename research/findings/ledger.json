@@ -3082,6 +3082,48 @@
    "lesson": "A rule that changes a property named in a transition list must keep the list; reach the same used size through a property the list does not name (min-width) and prove the declared width equals the rest width where the class is dropped.",
    "next": "Layer census on both engines, cost lane, trajectory nav clip cell.",
    "evidence": "breakpoint-gate 39848853982, trajectory-probe 39842581192; first round gates 39835303279 and 39837964273 failed on the dropped width in transition-property."
+  },
+  {
+   "id": "people.o-preview-translate",
+   "n": 53,
+   "part": "people.o",
+   "candidate": "people.o:preview-translate: move the fixed seller preview card with the translate property by the integer scroll delta instead of writing top in every scroll frame (desktop, above 860 px)",
+   "status": "partly-proved",
+   "flag": "people.o:preview-translate",
+   "flags": [
+    "people.o:preview-translate"
+   ],
+   "chromium": "unknown",
+   "webkit": "unknown",
+   "visual": "E-s: WebKit scroll offsets are integral (ScrollTypes.h:47-49, LocalDOMWindow.cpp:1466@862f17d), so the shown top and left equal the faithful ones (snap_noFlip, step_faithful); a fractional Chromium offset falls back to a rewrite (frac_counter)",
+   "mechanism": "PROVED (Fw.Parts.PeopleOPreview): the faithful card costs 1 layout pass per scroll frame (faithful_layout); the variant costs 0 on a kept frame and 1 on a flip frame, both engines, given the card has its own layer (translate_layout_kept, translate_layout_flip, translate_work_lt); layer budget 0 by definition (residentOf is the same for both variants; INFERRED: the variant adds no will-change and no 3D transform; layer_budget_zero records it). Counts not measured: the desktop Chromium load crashes the renderer (task chromium-desktop-crash).",
+   "leanFor": [
+    "Fw.Parts.PeopleOPreview.snap_noFlip",
+    "Fw.Parts.PeopleOPreview.step_faithful",
+    "Fw.Parts.PeopleOPreview.keep_translate",
+    "Fw.Parts.PeopleOPreview.keep_pixel",
+    "Fw.Parts.PeopleOPreview.translate_layout_kept",
+    "Fw.Parts.PeopleOPreview.translate_layout_flip",
+    "Fw.Parts.PeopleOPreview.translate_work_lt",
+    "Fw.Parts.PeopleOPreview.layer_budget_zero"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.PeopleOPreview.frac_counter"
+   ],
+   "missingWhy": [
+    "Layout-count delta per scroll frame not measured: every desktop-width Chromium counts run fails at the first load frame (renderer SIGSEGV), base and flag alike",
+    "The card having its own layer is INFERRED from RenderLayerCompositor.cpp:4097-4150@862f17d; without it WebKit still lays out on transform",
+    "Desktop only, so no iPhone felt gain"
+   ],
+   "premises": [
+    "CONFIRMED: a top change of a fixed box is a layout change (StyleDifference.cpp:557-565@862f17d)",
+    "INFERRED: the fixed card has its own layer (RenderLayerCompositor.cpp:4097-4150@862f17d)",
+    "CONFIRMED: WebKit main-frame scroll offsets are IntPoint"
+   ],
+   "v1Evidence": "",
+   "lesson": "A per-frame position write of a fixed box is a layout pass; a translate by the scroll delta removes it only while the box is its own layer and the delta is whole device pixels. Check the engine can load the measuring page before building the profile: a renderer crash at load blocked the count for every arm.",
+   "next": "Re-run the people-o-hover counts after chromium-desktop-crash is fixed; then decide status.",
+   "evidence": "CI gate run 39850908365 (both engines pass); counts runs blocked by the renderer crash: 39850913549, 39850930778, 39852501132, 39854385797, 39855096795, 39855102093, 39855917125, 39856570778, 39857307732, 39857312848, 39857318162, 39859911878, 39860551961, 39861279374, 39862057861; research/notes/2026/10-2x-people-o-preview-translate.md"
   }
  ],
  "notes": [
