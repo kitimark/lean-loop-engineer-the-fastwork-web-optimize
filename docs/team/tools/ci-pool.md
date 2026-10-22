@@ -40,6 +40,8 @@ Each provider's stop rule refuses on its own: GitHub never runs a 6th macOS job 
 
 `pnpm fw ci pool dispatch --branch ci/<name> --state ... --reqs ... [--go]` fills `cmUsed`, `cmBusy` (`node scripts/codemagic.mjs facts`), `ccSpent` and `ccStorage` (the CircleCI ledger) where the state leaves them out, prints one line per request, and with `--go` runs `node scripts/codemagic.mjs trigger --pool --branch B` for a Codemagic row and `node scripts/circleci.mjs trigger --lane L --branch B` for a CircleCI row. GitHub rows need no command: the push of the branch runs them. Exit 5 means a provider's own stop rule refused at trigger time.
 
+Live run, 2026-10-22, branch `ci/macos-pool-7` (MEASURED: `gh run view` job times, Codemagic `build.json`). Both dispatches had GitHub at 5 of 5 macOS slots (other branches' jobs and ours, our later jobs queued), Codemagic 46 and 66 minutes used, CircleCI 3575 credits and storage 1297 thousandths of a GB-month. Each time the route gave Codemagic one request and made the next wait: the CircleCI storage line is 1000 (`cc_storage_line`), so no CircleCI pipeline was started. At 07:01:15Z six macOS jobs ran at once: five on GitHub (three of them ours: webkit-sim run 39734101098, wktr 39734101164, wktr-fixtures 39734101121) and Codemagic build 6ad9b3b25a4232c65cf47752. The seventh slot stays closed until the CircleCI storage estimate is under the line; the ledger counts every saved byte for 30 days, an upper bound because caches expire sooner.
+
 ## Not wired yet
 
 No workflow or poller calls either route. The poller tick (ci-route), live slot reading (`ghRemainingS` from running jobs), the `ghWaitMaxS` sweep (pool-replay) and one `Provider` type with Telemetry are follow-ups.
