@@ -438,9 +438,13 @@ theorem matched_q (tols grid : List Rat) (fk : Rat) (n : Nat) (ref cand : Series
 /-- The three panel effect components at a morph value: opacity, blur in px, scale. -/
 def effectAt (m : Rat) : List Rat := [panelOpacity m, panelBlurPx m, panelScale m]
 
+/-- The step of a reading: the probe reports the scale in thousandths, and half a device px across a 390 px panel is 0.00064,
+under that step (an A/A rep read 0.9900 against an interpolated 0.9890). -/
+def readStep : Rat := 1 / 1000
+
 /-- Tolerances of the three components: an alpha step of 1/100, half a device px of blur, and half a device px across
-a panel `side` CSS px wide for the scale. -/
-def effectTols (dpr side : Rat) : List Rat := [1 / 100, tolCss dpr, tolCss dpr / side]
+a panel `side` CSS px wide plus one reading step for the scale. -/
+def effectTols (dpr side : Rat) : List Rat := [1 / 100, tolCss dpr, tolCss dpr / side + readStep]
 
 /-- The morph value at which the faithful panel has opacity `p`. -/
 def effClock (p : Rat) : Rat := 2 / 25 + 18 / 25 * p
@@ -506,20 +510,87 @@ theorem lagGrade_l (lag : Rat) (h : 1 + lagSlack < lag) : lagGrade lag = .l := b
 #guard lagGrade (21 / 20) == .q
 #guard lagGrade (6 / 5) == .l
 
-/-- The panel cell: the series grade when it is E, else the lag grade; none when no series was compared or the lag
-cannot be read. -/
-def panelGrade (series : Option Grade) (lag : Option Rat) : Option Grade :=
+/-- The key a frame's effect is read at when the panel trails the nav by `l` frames: the nav's morph value `l` of its own
+steps back, `cur - l * (cur - prev)`. -/
+def laggedKey (l prev cur : Rat) : Rat := cur - l * (cur - prev)
+
+/-- A zero lag reads at the frame's own key. -/
+theorem laggedKey_zero (prev cur : Rat) : laggedKey 0 prev cur = cur := by
+  unfold laggedKey; grind
+
+/-- One frame of lag reads at the previous frame's key. -/
+theorem laggedKey_one (prev cur : Rat) : laggedKey 1 prev cur = prev := by
+  unfold laggedKey; grind
+
+/-- The effect series at the lagged clock: each frame after the first (a pair of morph value and all three effect readings)
+re-keyed by `laggedKey`, and only its interior kept. -/
+def laggedSeries (l : Rat) (fs : Series) : Series :=
+  interior ((fs.zip fs.tail).map fun (p, c) => (laggedKey l p.1 c.1, c.2))
+
+/-- The series grade at the lagged clock: E when opacity, blur and scale all match the reference there, L when not (no
+shift grid, so no Q), none when the lagged series is unsorted or covers too little. -/
+def shiftedGrade (tols : List Rat) (minCovered : Nat) (ref : Series) (l : Rat) (fs : Series) : Option Grade :=
+  matchedGrade tols [] 1 minCovered ref (laggedSeries l fs)
+
+/-- The panel cell from the series grade at the own clock, the lag in frames, and the series grade at the lagged clock.
+
+E: the series matches at the own clock. Otherwise the lag must be readable and at most one frame (and the reading slack),
+and all three components must match at the lagged clock: that is Q, anything else L. None: no series was compared, or no
+lag can be read. -/
+def panelGrade (series : Option Grade) (lag : Option Rat) (shifted : Option Grade) : Option Grade :=
   match series with
   | none => none
   | some .e => some .e
-  | some _ => lag.map lagGrade
+  | some _ =>
+    match lag with
+    | none => none
+    | some l => if l ≤ 1 + lagSlack && shifted == some .e then some .q else some .l
 
 /-- Equal series need no lag. -/
-theorem panelGrade_e (lag : Option Rat) : panelGrade (some .e) lag = some .e := rfl
+theorem panelGrade_e (lag : Option Rat) (sh : Option Grade) : panelGrade (some .e) lag sh = some .e := rfl
 
 /-- A series that differs without a readable lag has no grade. -/
-theorem panelGrade_no_lag (g : Grade) (h : g ≠ .e) : panelGrade (some g) none = none := by
+theorem panelGrade_no_lag (g : Grade) (h : g ≠ .e) (sh : Option Grade) : panelGrade (some g) none sh = none := by
   cases g <;> simp_all [panelGrade]
+
+/-- A series that differs and matches at no shift within one frame grades L, whatever the lag. -/
+theorem panelGrade_no_match_l (g : Grade) (h : g ≠ .e) (l : Rat) (sh : Option Grade) (hs : sh ≠ some .e) :
+    panelGrade (some g) (some l) sh = some .l := by
+  cases g <;> simp_all [panelGrade]
+
+/-- A lag past one frame and the reading slack is L even when the lagged clock matches. -/
+theorem panelGrade_long_lag_l (g : Grade) (h : g ≠ .e) (l : Rat) (hl : 1 + lagSlack < l) (sh : Option Grade) :
+    panelGrade (some g) (some l) sh = some .l := by
+  have : ¬ l ≤ 1 + lagSlack := by grind
+  cases g <;> simp_all [panelGrade]
+
+/-- A differing series that matches at the lagged clock within one frame is Q. -/
+theorem panelGrade_short_lag_q (g : Grade) (h : g ≠ .e) (l : Rat) (hl : l ≤ 1 + lagSlack) :
+    panelGrade (some g) (some l) (some .e) = some .q := by
+  cases g <;> simp_all [panelGrade]
+
+/-- Only a lagged series that matched every covered sample reference-side grades E. -/
+theorem matched_e_ok (tols grid : List Rat) (fk : Rat) (n : Nat) (ref cand : Series)
+    (h : matchedGrade tols grid fk n ref cand = some .e) : (matchAt tols ref cand 0).2 = true := by
+  unfold matchedGrade at h
+  split at h
+  · simp at h
+  · split at h
+    · assumption
+    · split at h <;> simp at h
+
+/-- A lagged clock with a covered sample that differs is not E. -/
+theorem shiftedGrade_ne_e (tols : List Rat) (n : Nat) (ref : Series) (l : Rat) (fs : Series)
+    (h : (matchAt tols ref (laggedSeries l fs) 0).2 = false) : shiftedGrade tols n ref l fs ≠ some .e := by
+  intro he
+  have := matched_e_ok _ _ _ _ _ _ he
+  simp_all
+
+/-- The panel cell of a run from its frames (morph value and the effect readings in time order) against the reference. -/
+def panelCell (tols : List Rat) (minCovered : Nat) (ref : Series) (fs : Series) : Option Grade :=
+  let series := matchedGrade tols [] 1 minCovered ref (interior fs)
+  let lag := lagFrames (fs.map fun f => ⟨f.1, f.2.headD 0⟩)
+  panelGrade series lag (lag.bind fun l => shiftedGrade tols minCovered ref l fs)
 
 /-! ## The pain section's dark layer across scroll offsets -/
 
@@ -670,10 +741,36 @@ def painCases : List (String × List Rat × List Rat) :=
    ("ramp differs", [0, 1 / 2, 1], [0, 3 / 4, 1]), ("ramp inside tolerance", [0, 1 / 2, 1], [0, 501 / 1000, 1]),
    ("length differs", [0, 1], [0]), ("empty", [], []), ("reverse", [1, 1, 0, 0], [1, 0, 0, 0])]
 
-/-- Series-and-lag cases for the panel cell: name, series grade, lag. -/
-def panelCases : List (String × Option Grade × Option Rat) :=
-  [("equal", some .e, some 3), ("short lag", some .l, some 1), ("long lag", some .l, some (3 / 2)),
-   ("no lag", some .l, none), ("no series", none, some 0), ("series q", some .q, some (1 / 2))]
+/-- Series, lag and lagged-series cases for the panel grade: name, series grade, lag, series grade at the lagged clock. -/
+def panelCases : List (String × Option Grade × Option Rat × Option Grade) :=
+  [("equal", some .e, some 3, none), ("short lag", some .l, some 1, some .e),
+   ("short lag, lagged clock differs", some .l, some 1, some .l), ("short lag, lagged clock not compared", some .l, some 1, none),
+   ("long lag", some .l, some (3 / 2), some .e), ("no lag", some .l, none, some .e), ("no series", none, some 0, some .e),
+   ("series q", some .q, some (1 / 2), some .e), ("series q, lagged clock differs", some .q, some (1 / 2), some .l)]
+
+/-- The reference of the panel cell cases: the faithful effect every two-hundredth of the morph, so the kinks at 2/25 and 4/5
+lie on the grid and the straight lines between neighbours are exact. -/
+def panelRef : Series := ramp 201 (1 / 200) effectAt
+
+/-- Panel frames whose effect trails the nav by `d` twentieths of the morph, with a component overridden by `f`. -/
+def panelFrames (d : Rat) (f : List Rat → List Rat) : Series :=
+  (List.range 21).map fun (i : Nat) => ((i : Rat) / 20, f (effectAt ((i : Rat) / 20 - d / 20)))
+
+/-- Panel cell cases: name and frames. The candidate drops the blur or the scale while its opacity, and so its lag, stay as the
+faithful panel's. -/
+def panelCellCases : List (String × Series) :=
+  [("in step", panelFrames 0 id), ("one frame behind", panelFrames 1 id),
+   ("one frame behind, blur dropped", panelFrames 1 fun v => [v.getD 0 0, 0, v.getD 2 1]),
+   ("one frame behind, scale dropped", panelFrames 1 fun v => [v.getD 0 0, v.getD 1 0, 1]),
+   ("in step, blur dropped", panelFrames 0 fun v => [v.getD 0 0, 0, v.getD 2 1]),
+   ("in step, scale dropped", panelFrames 0 fun v => [v.getD 0 0, v.getD 1 0, 1]),
+   ("two frames behind", panelFrames 2 id), ("half a frame behind", panelFrames (1 / 2) id)]
+
+/-- The tolerances of the panel cell cases: a 2x screen and a panel 600 px wide. -/
+def panelCellTols : List Rat := effectTols 2 600
+
+#guard (panelCellCases.map fun (_, fs) => panelCell panelCellTols 8 panelRef fs) ==
+  [some .e, some .q, some .l, some .l, some .l, some .l, some .l, some .q]
 
 /-- The lines of `packages/contracts/golden/gate/trajectory-gpu.jsonl`. -/
 def goldenLines (_ : Unit := ()) : List String :=
@@ -711,9 +808,14 @@ def goldenLines (_ : Unit := ()) : List String :=
     o [("kind", "lag"), ("name", toJson n),
       ("frames", toJson (fs.map fun f => [ratStr f.nav, ratStr f.op])),
       ("lag", toJson ((lagFrames fs).map ratStr)), ("grade", gradeName ((lagFrames fs).map lagGrade))]) ++
-  panelCases.map (fun (n, g, l) =>
-    o [("kind", "panel"), ("name", toJson n), ("series", gradeName g), ("lag", toJson (l.map ratStr)),
-      ("grade", gradeName (panelGrade g l))]) ++
+  panelCases.map (fun (n, g, l, sh) =>
+    o [("kind", "panel"), ("name", toJson n), ("series", gradeName g), ("lag", toJson (l.map ratStr)), ("shifted", gradeName sh),
+      ("grade", gradeName (panelGrade g l sh))]) ++
+  panelCellCases.map (fun (n, fs) =>
+    o [("kind", "panelcell"), ("name", toJson n), ("tols", vecJson panelCellTols), ("minCovered", toJson 8),
+      ("ref", seriesJson panelRef), ("frames", seriesJson fs),
+      ("lag", toJson ((lagFrames (fs.map fun f => ⟨f.1, f.2.headD 0⟩)).map ratStr)),
+      ("grade", gradeName (panelCell panelCellTols 8 panelRef fs))]) ++
   painCases.map (fun (n, b, c) =>
     o [("kind", "pain"), ("name", toJson n), ("base", vecJson b), ("cand", vecJson c), ("grade", gradeName (painGrade b c))]) ++
   [(some (1 / 2 : Rat), false), (some 0, true), (none, true), (none, false)].map (fun (l, c) =>

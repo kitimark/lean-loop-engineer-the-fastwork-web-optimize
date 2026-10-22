@@ -1,39 +1,19 @@
 # gpu-trajectory-cells handoff
 
-- Round 2 (this): branch worktree-wf_9ab25dd7-9aa-1, worktree .claude/worktrees/wf_9ab25dd7-9aa-1; wiring done (TrajectoryGpuGolden.lean, check.sh stage, Fw.lean, trajectory-probe.yml step `Walk the GPU cells`, artifact cells-gpu-chromium, Trigger.lean lean.yml row input + triggers.jsonl regenerated).
-  One local debug run (390, rep 1) showed carousel A/A as L: swap keys were rAF timestamps (1.7 ms jitter) and the swap vector changes length (20 children inside, 16 at rest). Fixed in cells-gpu.mjs swapsOf (frame-count key, full-count vectors only); local debug showed E for pain and carousel (not a result).
-  Round-2 dispatches (sha 6f4aea1c, chromium A/A, all complete/pass; cells step in the probe job, widths 390 and 640, artifact cells-gpu-chromium), reduced with the final reducer (head):
-  39823047557: nav-clip E4; panel-effect E2 Q2 L0 (lag max 0.020); pain-dark E2; carousel E2.
-  39823476824: nav-clip E4; panel-effect E3 Q1 L0 (0.013); pain-dark E2; carousel E2.
-  39824100493: nav-clip E4; panel-effect E2 Q2 L0 (0.022); pain-dark E2; carousel E2.
-  The raw of 6f4aea1c showed carousel L at 640 in 39823047557 (recording opened mid-swap: a 4-sample first swap); fixed in swapsOf (restedBefore), the only carousel L seen on CI.
-  check.sh green at 6f4aea1c; Trigger.lean and ci/triggers.jsonl are outside the graph writes (the lean.yml row must list the new golden); the dry needs --allow for those two.
-  Read: `gh run download <id> -n cells-gpu-chromium -D <empty dir>`, then `node src/trajectory/cells-gpu-cli.mjs summary --in <dir>/raw-chromium.json` in packages/gate-breakpoints.
-- Branch: worktree-wf_9ab25dd7-9aa-1, worktree .claude/worktrees/wf_9ab25dd7-9aa-1 (CI branch ci/gpu-trajectory-cells, pushed tip 846e11a3 with `[ci:trajectory-probe]` `[trajectory engines=chromium]`)
-- CI runs: pushes 6bcabccc and 846e11a3 created NO run (GitHub, gh run list --branch []). Dispatched instead (`pnpm -s fw run --trajectory --engines chromium --ref ci/gpu-trajectory-cells`, sha 846e11a3, real A/A: base and cand are both the rewrite):
-  39817825181, 39818033923, 39818039961 complete/pass (calibration); 39819884506, 39819890281 hold-out for the 1/100 edge (nav-clip E 8/8 each, panel L 0, lag max 0.019/0.020; in the latter `fw ci wait` named job probe chromium 1280 not success).
-  Read: `gh run download <id> -n trajectory-chromium -D <empty dir>`, then `node src/trajectory/cells-gpu-cli.mjs summary --in <dir>/raw-chromium.json` in packages/gate-breakpoints.
-- Verified: check.sh green, dry land ok, tests pass (8 playwright files fail locally only), golden 121 lines, twins equal every kind.
-- Open: pain-dark and carousel cells have no CI hook; WebKit A/A follow-up; lead wiring (below).
+- Branch worktree-wf_9ab25dd7-9aa-1, worktree .claude/worktrees/wf_9ab25dd7-9aa-1; round 3 work on top of 21f4028f / main 45c952ee (sha of the final commit: git log -1). CI branch ci/gpu-trajectory-cells.
+- CI runs (all complete/pass, chromium A/A at 6f4aea1c, widths 390 and 640, artifact cells-gpu-chromium): 39823047557, 39823476824, 39824100493. No new dispatch this round: the three raws were re-reduced.
+  Under 6f4aea1c the CI artifacts graded carousel L at 640 in 39823047557 and at 390 in 39824100493. Every one of the 12 recordings in the three runs opens mid-swap (first swap 4-5 samples), so restedBefore drops the first swap of each; the rule has no hold-out.
+- Round-2 blocker fixed: panelGrade (Lean TrajectoryGpu.lean, twin cells-gpu.mjs) grades a differing series at the lagged clock over opacity, blur and scale (laggedSeries, shiftedGrade, panelCell), Q only when it matches there within one frame of lag; theorems panelGrade_no_match_l, panelGrade_long_lag_l, panelGrade_short_lag_q, shiftedGrade_ne_e. Golden regenerated (132 lines, kinds panel with `shifted`, new panelcell).
+- Re-reduction with the fixed reducer (per unit E/Q/L, reps in the artifact cells-chromium.md): all 12 units E in each of the 3 runs (nav-clip E4, panel-effect E4 lag max 0.020 / 0.013 / 0.022, pain-dark E2, carousel E2). Blur 0 or scale 1 on every candidate panel row of 39823476824: panel-effect L on all 4 units.
+- Why the old panel Q cases (close, 3 of 8 units) are now E: the scale tolerance (half a device px over the panel, 0.00064 at 390) was under the reading step (thousandths); `readStep` 1/1000 added to the scale tolerance (Lean effectTols, JS READ_STEP). It was not the kinks.
+- Verified: see the report (check.sh, tests, dry). Read raws: `gh run download <id> -n cells-gpu-chromium -D <empty dir>` (one id per call; in zsh `set -- $p` does not split), then `node src/trajectory/cells-gpu-cli.mjs summary --in <dir>/raw-chromium.json` in packages/gate-breakpoints.
+- Open: WebKit A/A of all cells (follow-up); the 'probe chromium 1280' job status mismatch in run 39819890281 (follow-up for fw ci wait); the dry needs --allow for Trigger.lean and ci/triggers.jsonl (outside the graph writes: the lean.yml row lists the new golden).
+- Open, TS stand-ins without a Lean twin yet: swapsOf, restedBefore, carouselCell pairing, worst, painCell's no-flip rule. Follow-up: port the carousel segmentation to Lean with swap-count mismatch graded L and null reps not comparable.
+- seriesOf (sort and drop equal keys) is reading glue before the Lean series reducers; the golden panelcell cases have rising keys.
 
 ## What exists
-- lean/Fw/Gate/TrajectoryGpu.lean: PixTol 1/2 device px, cell_eq_iff, clipRect_of_inset (+ readers), matchedGrade (E/Q/L), panel lag
-  (lagGrade Q up to 1 frame + 1/10 reading slack), painGrade; golden packages/contracts/golden/gate/trajectory-gpu.jsonl.
-  `main` is inside the namespace (a second top-level `main` clashes in the all-modules imports).
-- packages/gate-breakpoints/src/trajectory/cells-gpu.mjs: exact-rational twins, `cellsOfRaw(raw)`, `tally`.
-- cells-gpu-cli.mjs: `summary --in <raw-chromium.json or dir>` (nav-clip and panel-effect from the probe's own raw), `run` (standalone walker).
-- cells-gpu-run.mjs: walker for all four cells (needs playwright and a site build; never run, CI only).
-- registry.mjs: GPU_NODES (nav clip-path next to rect and radius) and GPU_CELLS; MORPH_NODES untouched.
+- lean/Fw/Gate/TrajectoryGpu.lean: PixTol 1/2 device px, cell_eq_iff, clipRect_of_inset, matchedGrade (E/Q/L), edge/interior 1/100, panel effect, lag, laggedKey/laggedSeries/shiftedGrade/panelGrade/panelCell, painGrade; golden packages/contracts/golden/gate/trajectory-gpu.jsonl.
+- packages/gate-breakpoints/src/trajectory/cells-gpu.mjs (twins, cellsOfRaw, tally), cells-gpu-cli.mjs (summary, run), cells-gpu-run.mjs (walker, CI only), registry.mjs GPU_NODES/GPU_CELLS.
+- Wiring (outside the task's writes): lean/scripts/TrajectoryGpuGolden.lean, check.sh stage, Fw.lean import, trajectory-probe.yml step `Walk the GPU cells`, Trigger.lean row, ci/triggers.jsonl.
 
-## A/A on CI (the 3 calibration runs, chromium, 8 units each: 4 widths x open/close)
-First reading (all rows): nav-clip L at 1280 close in 2 of 3 runs. Cause: at 1280 the nav width keeps settling (987.4 to 984.1 px) while m sits
-clamped at 0 to 3e-4, so rows there are not a function of m. Fix: Lean `edge` = 1/100 and `interior` (only 1/100 < m < 99/100 forms a series).
-After it: nav-clip E 8/8 in all three; panel-effect E 5/3/4, Q 3/5/4, L 0; lag max 0.016, 0.016, 0.020 frames. The Q cases are the pooled
-reference's straight lines across the opacity and blur kinks (m 0.08, 0.8), not a lag. The edge was fit on these 3; the 2 hold-out runs agree.
-
-## Lead wiring (outside the task's writes)
-- lean/scripts/TrajectoryGpuGolden.lean: `import Fw.Gate.TrajectoryGpu` and `def main (args : List String) : IO UInt32 := Fw.Gate.TrajectoryGpu.main args`;
-  check.sh line `job "trajectory-gpu golden check" lake env lean --run scripts/TrajectoryGpuGolden.lean --check ../packages/contracts/golden/gate/trajectory-gpu.jsonl`.
-- trajectory-probe workflow step: `node src/trajectory/cells-gpu-cli.mjs run --engine chromium --out out/cells-gpu` (cwd packages/gate-breakpoints).
-
-Read first: lean/Fw/Gate/TrajectoryGpu.lean, then cells-gpu.mjs `cellsOfRaw`.
+Read first: lean/Fw/Gate/TrajectoryGpu.lean (panelGrade section), then cells-gpu.mjs `panelCell` and `morphCells`.

@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
   ratOf, ratStr, tolCss, cellEq, parseDec, parseLen, parseInset, expand4, readShape, shapeVec, interpAt, matchedGrade,
-  effectAt, effectTols, keptInterior, effClock, lagFrames, lagGrade, panelGrade, darkness, painGrade, rat, ZERO,
+  effectAt, effectTols, cellsOfRaw, keptInterior, effClock, lagFrames, lagGrade, panelGrade, panelCell, darkness, painGrade, rat, ZERO,
 } from '../src/trajectory/cells-gpu.mjs';
 
 const golden = readFileSync(fileURLToPath(new URL('../../contracts/golden/gate/trajectory-gpu.jsonl', import.meta.url)), 'utf8')
@@ -20,7 +20,7 @@ const optStr = (r) => (r === null ? null : ratStr(r));
 
 test('the golden file holds every line kind', () => {
   const kinds = new Set(golden.map((l) => l.kind));
-  for (const k of ['tol', 'dec', 'len', 'inset', 'expand4', 'clip', 'cell', 'interp', 'matched', 'effect', 'lag', 'panel', 'pain', 'dark', 'interior']) {
+  for (const k of ['tol', 'dec', 'len', 'inset', 'expand4', 'clip', 'cell', 'interp', 'matched', 'effect', 'lag', 'panel', 'panelcell', 'pain', 'dark', 'interior']) {
     assert.ok(kinds.has(k), k);
   }
 });
@@ -85,7 +85,18 @@ test('panel lag in frames and the panel cell grade', () => {
     assert.equal(lag === null ? null : lagGrade(lag), l.grade, l.name);
   }
   for (const l of of('panel')) {
-    assert.equal(panelGrade(l.series, l.lag === null ? null : ratOf(l.lag)), l.grade, l.name);
+    assert.equal(panelGrade(l.series, l.lag === null ? null : ratOf(l.lag), l.shifted), l.grade, l.name);
+  }
+  const cells = of('panelcell');
+  assert.ok(cells.length >= 6);
+  for (const l of cells) {
+    const c = panelCell(vec(l.tols), l.minCovered, series(l.ref), series(l.frames));
+    assert.equal(optStr(c.lag), l.lag, l.name);
+    assert.equal(c.grade, l.grade, l.name);
+  }
+  // A candidate that drops the blur or the scale while keeping the faithful opacity grades L at both clocks, never Q.
+  for (const name of ['one frame behind, blur dropped', 'one frame behind, scale dropped', 'in step, blur dropped', 'in step, scale dropped']) {
+    assert.equal(cells.find((l) => l.name === name).grade, 'L', name);
   }
 });
 
@@ -101,5 +112,25 @@ test('pain darkness and grade', () => {
 });
 
 test('a division by zero is zero, as in Lean', () => {
-  assert.equal(ratStr(effectTols(rat(1), ZERO)[2]), '0/1');
+  assert.equal(ratStr(effectTols(rat(1), ZERO)[2]), '1/1000');
+});
+
+// The cells of a raw artifact: the panel rows of a base and an in-step candidate, the candidate's blur or scale then dropped.
+test('a candidate that drops the panel blur or scale grades L on a raw artifact, never Q', () => {
+  const thousandths = (r) => Number((r.n * 1000n) / r.d);
+  const row = (m, rep, drop) => {
+    const [op, blur, scale] = effectAt(rat(BigInt(m), 10000n));
+    const e = [0, 0, 0, [thousandths(op)], null, [drop === 'blur' ? 0 : thousandths(blur)], [drop === 'scale' ? 1000 : thousandths(scale)], null];
+    return { m, rep, nodes: { panel: [e] } };
+  };
+  const rowsOf = (step, drop) => Array.from({ length: Math.floor(10000 / step) + 1 }, (_, i) => row(i * step, 0, drop));
+  const raw = (drop) => ({
+    hash: 'x', baseHash: 'x',
+    runs: [{ role: 'base', width: 390, morph: { phases: { open: rowsOf(50, null) } } },
+      { role: 'cand', width: 390, morph: { phases: { open: rowsOf(500, drop) } } }],
+  });
+  const grade = (drop) => cellsOfRaw(raw(drop)).find((u) => u.cell === 'panel-effect' && u.part === 'open').grade;
+  assert.equal(grade(null), 'E');
+  assert.equal(grade('blur'), 'L');
+  assert.equal(grade('scale'), 'L');
 });

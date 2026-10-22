@@ -1,5 +1,6 @@
 // The trajectory cells of the GPU arms (task gpu-trajectory-cells): node twins of lean/Fw/Gate/TrajectoryGpu.lean on exact rationals,
 // checked against golden/gate/trajectory-gpu.jsonl (test/trajectory-gpu.test.mjs); the raw-artifact readings below hold no decision.
+// TS stand-ins without a Lean twin yet: swapsOf, restedBefore, carouselCell pairing, worst, painCell's no-flip rule.
 import { MORPH_NODES, envFor } from './registry.mjs';
 
 /* ---- exact rationals (Lean Rat; a division by zero is 0 as in Lean) ---- */
@@ -146,7 +147,8 @@ export const panelOpacity = panelProgress;
 export const panelBlurPx = (m) => mul(sub(ONE, panelProgress(m)), rat(12));
 export const panelScale = (m) => add(rat(24, 25), div(m, rat(25)));
 export const effectAt = (m) => [panelOpacity(m), panelBlurPx(m), panelScale(m)];
-export const effectTols = (dpr, side) => [rat(1, 100), tolCss(dpr), div(tolCss(dpr), side)];
+export const READ_STEP = rat(1, 1000);
+export const effectTols = (dpr, side) => [rat(1, 100), tolCss(dpr), add(div(tolCss(dpr), side), READ_STEP)];
 export const effClock = (p) => add(rat(2, 25), mul(rat(18, 25), p));
 export const lagAt = (prev, cur) => (lt(ZERO, cur.op) && lt(cur.op, ONE) && !eq(prev.nav, cur.nav)
   ? div(sub(cur.nav, effClock(cur.op)), sub(cur.nav, prev.nav)) : null);
@@ -157,7 +159,23 @@ export function lagFrames(fs) {
 }
 export const LAG_SLACK = rat(1, 10);
 export const lagGrade = (lag) => (le(lag, add(ONE, LAG_SLACK)) ? 'Q' : 'L');
-export const panelGrade = (series, lag) => (series === null ? null : series === 'E' ? 'E' : lag === null ? null : lagGrade(lag));
+/** Where a frame's effect is read when the panel trails the nav by `l` frames: `l` of the nav's own steps back (Lean `laggedKey`). */
+export const laggedKey = (l, prev, cur) => sub(cur, mul(l, sub(cur, prev)));
+/** Lean `edge` and `interior`: the samples whose key is strictly between EDGE and 1 - EDGE. */
+export const EDGE = rat(1, 100);
+export const keptInterior = (k) => lt(EDGE, k) && lt(k, sub(ONE, EDGE));
+/** Frames [{k: morph value, v: [opacity, blur, scale]}] in time order, re-keyed by `laggedKey` and cut to the interior (Lean `laggedSeries`). */
+export const laggedSeries = (l, fs) => fs.slice(1).map((c, i) => ({ k: laggedKey(l, fs[i].k, c.k), v: c.v })).filter((p) => keptInterior(p.k));
+/** The series grade at the lagged clock: E when all three components match the reference there, else L (Lean `shiftedGrade`). */
+export const shiftedGrade = (tols, minCovered, ref, l, fs) => matchedGrade(tols, [], ONE, minCovered, ref, seriesOf(laggedSeries(l, fs)));
+export const panelGrade = (series, lag, shifted) => (series === null ? null : series === 'E' ? 'E'
+  : lag === null ? null : le(lag, add(ONE, LAG_SLACK)) && shifted === 'E' ? 'Q' : 'L');
+/** The panel cell of one run from its frames, { grade, lag } (Lean `panelCell`; the sort into a series is the reading, as for the other cells). */
+export function panelCell(tols, minCovered, ref, fs) {
+  const series = matchedGrade(tols, [], ONE, minCovered, ref, seriesOf(fs.filter((p) => keptInterior(p.k))));
+  const lag = lagFrames(fs.map((f) => ({ nav: f.k, op: f.v[0] })));
+  return { grade: panelGrade(series, lag, lag === null ? null : shiftedGrade(tols, minCovered, ref, lag, fs)), lag };
+}
 
 /* ---- the pain section's dark layer ---- */
 export const darkness = (layer, cls) => (layer !== null ? layer : cls ? ONE : ZERO);
@@ -181,9 +199,6 @@ export const worst = (gs) => gs.filter((g) => g !== null).reduce((w, g) => (w ==
 
 /* ---- readings of the morph path (rows of the probe's raw artifact) ---- */
 export const MIN_COVERED = 8;
-/** Lean `edge` and `interior`: the samples whose key is strictly between EDGE and 1 - EDGE. */
-export const EDGE = rat(1, 100);
-export const keptInterior = (k) => lt(EDGE, k) && lt(k, sub(ONE, EDGE));
 
 /** The index of each property id of a node list, per node id. */
 export const layoutOf = (nodes) => Object.fromEntries(nodes.map((n) => [n.id, Object.fromEntries(n.props.map((p, i) => [p.id, i]))]));
@@ -240,11 +255,10 @@ export function morphCells({ width, base, cand, layout, phase }) {
   for (const rep of reps) {
     const rows = rowsOf(cand).filter((r) => (r.rep ?? 0) === rep);
     out.nav.push(matchedGrade(navTol, [ZERO], ONE, MIN_COVERED, refNav, seriesOf(sample(rows, (r) => navShapeOf(r, layout)))));
-    const series = matchedGrade(effTol, [ZERO], ONE, MIN_COVERED, refEff, seriesOf(sample(rows, (r) => panelEffectOf(r, layout))));
-    const frames = rows.flatMap((r) => { const m = mOf(r), e = panelEffectOf(r, layout); return m === null || e === null ? [] : [{ nav: m, op: e[0] }]; });
-    const lag = lagFrames(frames);
-    out.lag.push(lag === null ? null : ratStr(lag));
-    out.panel.push(panelGrade(series, lag));
+    const frames = rows.flatMap((r) => { const m = mOf(r), e = panelEffectOf(r, layout); return m === null || e === null ? [] : [{ k: m, v: e }]; });
+    const cell = panelCell(effTol, MIN_COVERED, refEff, frames);
+    out.lag.push(cell.lag === null ? null : ratStr(cell.lag));
+    out.panel.push(cell.grade);
   }
   return out;
 }
@@ -267,7 +281,7 @@ export const FRAME_MS = rat(50, 3);
 export const CAROUSEL_MIN_COVERED = 4;
 
 const sameVec = (a, b) => a.length === b.length && a.every((x, j) => x === b[j]);
-/** A swap whole in the series starts after two equal samples; a recording that opens mid-swap (an A/A on CI did) has no start to compare. */
+/** A swap whole in the series starts after two equal samples; a recording that opens mid-swap (all 12 Chromium recordings of runs 39823047557, 39823476824, 39824100493 did) has no start to compare. */
 const restedBefore = (rows, from) => from >= 1 && !!rows[from - 1]?.v && !!rows[from]?.v && sameVec(rows[from - 1].v, rows[from].v);
 
 /** Swaps in a rAF series of rect vectors: from the last still sample to the sample where the vector is still again for `still` frames. */
