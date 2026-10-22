@@ -16100,7 +16100,8 @@
     ".claude/workflows/build-review.js",
     "docs/team/handoffs/lead-hotfix-1022.md"
    ],
-   "title": "Lead hotfix 2026-10-22. (1) scripts/slot-self.mjs still imported slotStepEnd, which slot-span-key removed: every routed check.sh run printed its gates green and then threw 'slotStepEnd is not a function' on exit (seen by the site-layer-opts-followups review). Mirror fw.ts: `slot run` writes its own spans (writesOwnSpans), so no outer span. (2) build-review.js resume path: the dry-rerun runner was told to type <report.branch> itself and ran fw land with an empty branch (sim-step-watchdog resume, 2026-10-22); it now takes the worktree's own branch from git rev-parse."
+   "title": "Lead hotfix 2026-10-22. (1) scripts/slot-self.mjs still imported slotStepEnd, which slot-span-key removed: every routed check.sh run printed its gates green and then threw 'slotStepEnd is not a function' on exit (seen by the site-layer-opts-followups review). Mirror fw.ts: `slot run` writes its own spans (writesOwnSpans), so no outer span. (2) build-review.js resume path: the dry-rerun runner was told to type <report.branch> itself and ran fw land with an empty branch (sim-step-watchdog resume, 2026-10-22); it now takes the worktree's own branch from git rev-parse.",
+   "evidence": "2d18d65"
   },
   {
    "devices": [
