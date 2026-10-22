@@ -13,9 +13,20 @@
       "visClass": "E-s",
       "files": ["darkScroll.ts", "index.tsx", "media.ts", "pain.module.css"],
       "provenance": {
-        "lean": "Fw.Parts.PainDarkScroll pixel_eq, opacity_eq, measure_eq, wide_eq, reveal_needed, cont_needed, no_lift, toggle_free, layer_backing_zero",
+        "lean": "Fw.Parts.PainDarkScroll pixel_eq, opacity_eq, measure_eq, wide_eq, reveal_needed, cont_needed, no_lift, layer_backing_zero, promoted_cost, hold_backing; model assumptions, not measured: toggle_free (ToggleUi: the flip runs in the UI process, INFERRED; Chromium refutes it for style, chromium_style_gt, 4 to 5 recalcs, run 39828614430) and ride_exceeds (RideEveryFrame, Engine.WebKit.scroll_comp_ride)",
         "ledger": "n=21",
-        "limit": "adds two solid-colour layers (pseudo-elements) with no backing store (Lean solid_layers_le, layer_backing_zero); at most 860 px, in engines with the root scroll timeline and animation-range (elsewhere faithful); the pixel equality holds when the card reveal translation has finished at the flip offset and the original's class is current (premises: Cont INFERRED, Reveal MEASURED for the offset and INFERRED for its timing; where Reveal fails the arms differ for at most 48 px of scroll, Lean drift_window); the flip runs in the UI process (INFERRED), so its frame can differ by one from the main-thread class; WebKit promotes the stage text block above the animated layer (overlap, 12 MB more backing while the Pain stage is in view, Lean promoted_cost) and restyles the layer every scrolling frame (scroll_comp_ride)"
+        "limit": "adds two solid-colour layers (pseudo-elements) with no backing store (Lean solid_layers_le, layer_backing_zero); at most 860 px, in engines with the root scroll timeline and animation-range (elsewhere faithful); the pixel equality holds when the card reveal translation has finished at the flip offset and the original's class is current (premises: Cont INFERRED, Reveal MEASURED for the offset and INFERRED for its timing; where Reveal fails the arms differ for at most 48 px of scroll, Lean drift_window); the flip runs in the UI process (INFERRED), so its frame can differ by one from the main-thread class; WebKit promotes the stage content above the animated layer (overlap, RenderLayerCompositor.cpp:1332-1335@862f17d, 12 MB more backing while the Pain stage is in view, Lean promoted_cost, hold_backing) and restyles the layer every scrolling frame (scroll_comp_ride)"
+      }
+    },
+    "dark-static": {
+      "kind": "optimized",
+      "tier": "T0",
+      "visClass": "E-s",
+      "files": ["darkScroll.ts", "index.tsx", "media.ts", "pain.module.css"],
+      "provenance": {
+        "lean": "Fw.Parts.PainDarkScroll static_pixel_eq, hidden_needed, static_eq_base, animated_meets_costs, owns_static",
+        "ledger": "n=47",
+        "limit": "at most 860 px the two pseudo-element layers are #131922 from the start and people.card never writes is-pain-dark; pixel equal to the original only while Hidden holds (the Pain section top lies at least one viewport and 48 px below the flip offset, so the white state is never in view; MEASURED per width by the trajectory pain-dark scan, INFERRED elsewhere); no animated layer, so no overlap promotion and no extra backing (Lean static_eq_base)"
       }
     }
   },

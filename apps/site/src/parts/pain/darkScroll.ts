@@ -20,7 +20,7 @@ export function darkScrollSupported(): boolean {
 }
 
 export function layerOwnsFlip(variant: string | null, supports: boolean): boolean {
-  return variant === 'dark-scroll' && supports;
+  return (variant === 'dark-scroll' && supports) || variant === 'dark-static';
 }
 
 export const WINDOW = 256;
