@@ -19,4 +19,4 @@ What was built (task layer-decl, attributes only, no behaviour change)
 Writes outside the task list (lead adds to graph writes)
 - lean/Fw/Parts/FootprintData.lean and packages/contracts/golden/parts/footprint.gen.json (regenerated with part-footprint.mjs --write; line numbers moved).
 - apps/runner/src/land.ts: "apps/site" read list gains lean/Fw/Console/BuildsOpen.lean (land-inputs test asked for it).
-- none besides the two above.
+- That is three files; footprint.gen.json is already admitted by a graph glob, so two (FootprintData.lean, land.ts) needed --allow until the graph names them.
