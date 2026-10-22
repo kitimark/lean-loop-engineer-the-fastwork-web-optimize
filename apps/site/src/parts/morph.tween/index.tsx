@@ -11,29 +11,19 @@ import { hoverNoneOf, lockAllowed, overlayOf } from './scroll-lock.logic';
 import { createWaapiDriver, type AnimLike, type AnimTarget, type WaapiEnv } from './waapi.driver';
 import { fadeCss, PROP_MORPH, registrationsOf, type WaapiArm } from './waapi.logic';
 
-/** Where the scroll pin sits on the engine: after the nav's hit test (order 100), as the original's pin callback follows it. */
 export const MORPH_PIN_ORDER = 110;
 
 export interface MorphTweenProps {
   variant: string;
   impl?: 'mui' | 'plain';
-  /** the section whose rect arms the tween; the original's `.start-selling-platform` */
   platformSelector?: string;
-  /** the element that receives the value as `--morph` and `data-fw-morph` (read by nav.hitTest) */
   navSelector?: string;
   platformFade?: boolean;
 }
 
-/**
- * morph.tween (`faithful`): the 680 ms scroll-jacked tween of `--morph`. Renders nothing (no MUI, so `impl: plain` is
- * the same path). Wheel and touch pushes at the end of the page open and close the morph; the value is written to
- * the nav element straight from the frame (a style property, never React state). Wiring: the driver in driver.ts,
- * decisions in logic.ts (Lean `Fw.Parts.MorphTween`).
- */
 export function MorphTween({ variant, platformSelector = '.start-selling-platform, [data-fw="platform"]', navSelector = '[data-fw="nav"]', platformFade = false }: MorphTweenProps) {
   useEffect(() => {
     const root = document.documentElement;
-    // Anchor for the breakpoint parity gate: one attribute write at mount, never per frame; absent in the prerendered HTML.
     root.setAttribute('data-fw-morph-tween', '');
     const reduce = matchList('mq.rm-reduce');
     const platform = () => document.querySelector<HTMLElement>(platformSelector);
@@ -98,7 +88,6 @@ function bandEnv(env: TweenEnv, hub: TouchHub, isActive: () => boolean): () => v
   return () => hub.detach(client);
 }
 
-/** The `scroll-lock` arm's root lock, installed only when `(hover: none)` reads as not matching (Lean `hoverNoneOf`). */
 export function scrollLockOf(variant: string, root: HTMLElement): TweenEnv['lock'] {
   if (variant !== 'scroll-lock') return undefined;
   const hoverNone = matchList('mq.hover-none');
@@ -109,18 +98,15 @@ export function scrollLockOf(variant: string, root: HTMLElement): TweenEnv['lock
   };
 }
 
-/** `CSS.registerProperty` for the arm's animated properties (once; a second call throws and is ignored). */
 function registerProperties(arm: WaapiArm): void {
   for (const r of registrationsOf(arm)) {
     try {
       CSS.registerProperty({ ...r });
     } catch {
-      /* already registered */
     }
   }
 }
 
-/** The environment of a waapi arm on the window; shares the faithful variant's listener and viewport wiring. */
 function waapiEnv(base: TweenEnv, platform: () => HTMLElement | null, navSelector: string, arm: WaapiArm): WaapiEnv {
   registerProperties(arm);
   const fade = fadeCss(arm);

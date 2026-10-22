@@ -19,11 +19,6 @@ export interface HubEnv<E extends TouchLikeEvent = TouchEvent> {
   unobserve(el: Element): void;
 }
 
-/**
- * One window touch listener set for every attached part (Lean `MorphListen.hubMove`): parts get each touchstart and
- * touchmove in attach order. The touchmove listener blocks only while a part is active or an observed element lies
- * in the band (`want`), and turns passive only once no finger is down (`next`).
- */
 export function createHub<E extends TouchLikeEvent = TouchEvent>(env: HubEnv<E>) {
   const clients: TouchClient<E>[] = [];
   const bands = new Map<Element, { full: boolean; n: number }>();
@@ -104,7 +99,6 @@ export type TouchHub = ReturnType<typeof createHub<TouchEvent>>;
 
 let shared: TouchHub | undefined;
 
-/** The page's one hub on the window, created on first use. */
 export function touchHub(): TouchHub {
   if (shared) return shared;
   const callbacks = new Map<Element, (ratio: number) => void>();

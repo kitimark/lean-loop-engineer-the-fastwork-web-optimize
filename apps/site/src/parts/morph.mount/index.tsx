@@ -4,7 +4,6 @@ import { isBand } from './listen.logic';
 import { touchHub } from './listen';
 import { action, armed, IO_ROOT_MARGIN, isShift, mountNext, mountNextWarm, warmStill, WARM_QUIET_MS, MOUNT_PIN_ORDER, repin, takes, touchDelta, viewportHeight, wanted } from './logic';
 
-/** Handle given to the owner (morph.tween) so it can re-evaluate the listeners when the morph goes idle or active (`I`). */
 export interface MorphMountHandle {
   refresh(): void;
 }
@@ -12,31 +11,14 @@ export interface MorphMountHandle {
 export interface MorphMountProps {
   variant: string;
   impl?: 'mui' | 'plain';
-  /** The element the observer watches and whose rect arms a push. Default: the sentinel this part renders. */
   targetSelector?: string;
-  /** `C()`: the morph is active (tween target or value above 0.001). Owned by morph.tween. */
   isActive?: () => boolean;
-  /** A taken push: wheel `deltaY`, or touch `previous y - current y`. Starts the tween (owned by morph.tween). */
   onPush?: (delta: number) => void;
-  /** The panel should be mounted (first intersecting entry, or first taken push; `shift`: or a still moment). Called once. */
   onMount?: () => void;
-  /** The original's trigger fired (first intersecting entry, or first taken push). Called once. */
   onWake?: () => void;
   onReady?: (h: MorphMountHandle | null) => void;
 }
 
-/**
- * Mount and arm of the end-of-page morph. Observes the platform with `rootMargin: 200% 0px`; while it is near, or while
- * the morph is active, attaches the wheel / touchstart / touchmove capture listeners to the window (touchmove and wheel
- * non-passive). A push is taken when active, or when forward and the platform fills >= 45 % of the viewport with its
- * bottom within 8 px of it; a taken push prevents the default scroll and goes to `onPush`. While active the scroll
- * position is held at the y where the morph began (engine callback, the original's `L`). No React state, no CSS.
- *
- * Variant `band` hands the touch listeners to the merged hub (listen.ts, Lean `MorphListen`).
- *
- * Renders a hidden sentinel that carries the breakpoint-gate anchor and stands in for the platform until that section
- * is ported (the part restates no CSS).
- */
 export function MorphMount({ variant, targetSelector = '[data-fw="morph-mount"]', isActive = () => false, onPush, onMount, onWake, onReady }: MorphMountProps) {
   useEffect(() => {
     const target = document.querySelector<HTMLElement>(targetSelector);
@@ -126,8 +108,6 @@ export function MorphMount({ variant, targetSelector = '[data-fw="morph-mount"]'
       if (!repin(isActive(), window.scrollY, pin)) return;
       return () => window.scrollTo({ top: pin, behavior: 'instant' });
     });
-    // shift: warm the panel up at a still moment (idle callback; no scroll, push or morph in progress). Mounts once and
-    // starts no animation, timer or phase (PhaseFree), so the state at t depends only on t.
     let warmTimer: number | undefined;
     const onScrollMotion = () => {
       lastMotion = performance.now();
@@ -157,7 +137,6 @@ export function MorphMount({ variant, targetSelector = '[data-fw="morph-mount"]'
       off();
       onReady?.(null);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- callbacks are owner-stable; selector/variant changes remount
   }, [targetSelector, variant]);
   return <div data-fw="morph-mount" hidden />;
 }
