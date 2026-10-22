@@ -6,6 +6,7 @@
 {"capMin":15,"file":"trajectory-probe.yml","job":"probe-apple","kind":"cap","lane":"trajectory-probe","n":4,"p90dm":112,"source":"runs 39453181962 and 39455284967 (task trajectory-probe-speed): probe-apple width legs, successes only, linear p90 rounded up to 0.1 min","status":"MEASURED","thin":true}
 {"capMin":15,"file":"smoothness.yml","job":"webkit-mac","kind":"cap","lane":"smoothness-webkit-mac","n":3,"p90dm":111,"source":"runs 39612238445, 39617081415 and 39624728525 (task smoothness-webkit-cadence): one webkit-mac and one webkit-sim job each, wall of the job, successes only, linear p90 rounded up to 0.1 min (thin until 10 successes)","status":"MEASURED","thin":true}
 {"capMin":45,"file":"smoothness.yml","job":"webkit-sim","kind":"cap","lane":"smoothness-webkit-sim","n":3,"p90dm":342,"source":"runs 39612238445, 39617081415 and 39624728525 (task smoothness-webkit-cadence): one webkit-mac and one webkit-sim job each, wall of the job, successes only, linear p90 rounded up to 0.1 min (thin until 10 successes)","status":"MEASURED","thin":true}
+{"file":"path-pix.yml","kind":"excluded","task":"path-pix-lanes"}
 {"file":"toolbar-throttle.yml","kind":"excluded","task":"toolbar-throttle-probe"}
 {"file":"webkit-sim.yml","kind":"excluded","task":"webkit-sim-failfast"}
 {"capMin":0,"kind":"vector","p90dm":0}

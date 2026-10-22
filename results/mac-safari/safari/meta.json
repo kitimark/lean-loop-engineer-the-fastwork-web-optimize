@@ -1,0 +1,32 @@
+{
+ "lane": "local",
+ "debug": false,
+ "note": "local debug lane on one shared Mac, not a CI or phone result",
+ "startedAt": "2026-10-22T13:11:34.186Z",
+ "arms": [
+  "orig",
+  "base",
+  "hx",
+  "mp",
+  "pf"
+ ],
+ "dropped": [],
+ "passes": 3,
+ "engines": {
+  "safari": {
+   "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.0.1 Safari/605.1.15",
+   "vw": 430,
+   "rect": {
+    "y": 33,
+    "x": 0,
+    "width": 430,
+    "height": 932
+   }
+  }
+ },
+ "finishedAt": "2026-10-22T13:52:23.207Z",
+ "mac": {
+  "chip": "Apple M1 Pro",
+  "os": "27.0.1"
+ }
+}
