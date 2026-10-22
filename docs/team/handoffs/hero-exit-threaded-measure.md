@@ -14,4 +14,4 @@ backing store +2.9 MB. Recommendation hold (phone replay). Ledger note appended 
 Reduction: `lag/cli.mjs cost-report` and `report` with base r1+r3 of run 39739724461 as --original and flag r1-r3 as --rewrite/--faithful.
 
 Files: results/hero-exit-threaded-measure/report.json, research/findings/ledger.json (notes row), the note, this handoff.
-Open: `fw review ready` gate and `fw land --dry` (see the report), follow-ups: phone replay of the hero exit, base VM 2 fails twice.
+Gate: `VERDICT review-ready hero-exit-threaded-measure review`; dry: `VERDICT dry hero-exit-threaded-measure`; Lean console.report accepts the report (invalid empty). Follow-ups: phone replay of the hero exit, base VM 2 fails twice.
