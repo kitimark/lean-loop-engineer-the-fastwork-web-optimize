@@ -18,7 +18,7 @@ The run follows the design in `research/notes/2026/10-2x-jev-retrieval.md`. Four
 **Answer.**
 
 - **Thinking text is not exposed (MEASURED).** The probe row gave Haiku one thinking block with 0 characters (only
-  the signature) and gave Sonnet no thinking block. Over the T-haiku run, 40 blocks held 0 characters. Thinking is
+  the signature) and gave Sonnet no thinking block. Over the T-haiku run, 40 blocks held 0 characters, and over the T-sonnet run, 16 blocks held 0 characters. Thinking is
   therefore not recorded. The record is the read trace plus the `evidence` field.
 - **Neither model read a file (MEASURED).** Across 76 traced calls (38 rows × 2 models):
   - 0 Read, Grep or Glob calls, 0 denied, 0 unhooked; every trace verdict is `ok`.
@@ -75,9 +75,9 @@ What the tables show:
   (+7 -4) without one read. No sign p against C is below 0.4.
 - **The wins over X are not retrieval.** They repeat the ablation's finding that adding file text lowers scores. They
   are not a gain from reading, since J-hybrid equals C.
-- **J-pick picks f1.** Step 1 picked a file in all 36 rows with candidates, and never `none`. It chose f1 (the first
-  path in sorted order) in 30 rows, f2 in 5 and f3 in 1. This suggests a position bias (INFERRED). Step 2 lost to C
-  (net -2 in both modes).
+- **J-pick always picks a file.** Step 1 picked a file in all 36 rows with candidates, and never `none`. 26 of those
+  rows offer one candidate (f1). In the 10 rows with 2-3 candidates it chose f1 4 times, f2 5 and f3 1, so the run
+  shows no position bias (MEASURED, 10 rows). Step 2 lost to C (net -2 in both modes).
 - **5 of the 36 J-pick prompts replayed.** Their picked excerpt equals the X row's file text, so the prompt equals the
   X prompt (`d1-expand.jsonl`, MEASURED).
 
@@ -93,7 +93,8 @@ What the tables show:
 | j-pick step 2 (`d1p`) | 38 | 31 (7 replays) | — |
 
 Before the run, 49 Jev sends were logged for 2026-10-22. Lean planned 72 more with none deferred (`sendPlan_day`), and
-67 were sent, so the day closes at 116 of 200. Estimated Jev input tokens: 57,522 (step 1) and 341,276 (step 2).
+67 were sent, so the day closes at 116 of 200. The task title asked for sends in runs of 19 rows; the run split
+used for `d1k` and `d1p` was not recorded (deviation). Estimated Jev input tokens: 57,522 (step 1) and 341,276 (step 2).
 
 ## How it is built
 
