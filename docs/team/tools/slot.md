@@ -45,20 +45,31 @@ pnpm -s fw slot admit --kind build                       # lead, before spawning
   file pages only down to `vm_page_filecache_min` and then compresses process memory (vm_pageout.c:2211-2230,
   2620-2623@f6217f8), so file cache below the minimum adds nothing.
 - **Memory low.** `memLow` holds when available memory is under the 1 GB floor, the kernel pressure level is not
-  normal (1), swap is at least 75 % full, or the compressor takes in at least 1500 MB a minute. The rate comes from the
-  `Compressions` counter and a mark in `<dir>/vm-mark.json`: a new rate after 5 s or more, 0 after 600 s or a counter
-  reset (`vmNext`). The 75 % and 1500 MB/min thresholds are INFERRED until replayed on sampler data. A ticket admitted on a
-  sample is still admitted when only its memory reading is better (`memLow_antitone`, `verdict_antitone`).
+  normal (1), pages leave for swap at 64 MB a minute or more (`swapActive`), or the compressor takes in at least
+  1500 MB a minute (`thrash`). Both rates come from the `Compressions` and `Swapouts` counters and a mark in
+  `<dir>/vm-mark.json`: new rates after 5 s or more, 0 after 600 s or a counter reset (`vmNext`); a mark without the
+  swap fields counts as a first reading. Swap occupancy is not read: macOS adds swap files on demand and keeps stale
+  swapped pages until reboot, so on 2026-10-22 swap sat at 3,276 of 4,096 MB with 0 swap-outs in 30 s (MEASURED,
+  incident `inc-slot-stall`). The 64 MB/min and 1500 MB/min thresholds are INFERRED until replayed on sampler data. A
+  ticket admitted on a sample is still admitted when only its memory reading is better (`memLow_antitone`,
+  `verdict_antitone`).
+- **Idle head.** With no live holder, pressure level 1, no `thrash` and no `swapActive` (`idleHead`), the head of
+  its kind is admitted even under `memLow` or a footprint that does not fit (`idle_head_admitted`); waiting frees
+  nothing then, since other programs hold the memory. It runs alone: such an admit means no holder was live
+  (`idle_head_only_when_empty`), and once it holds a slot no other ticket is admitted on the same reading
+  (`idle_head_at_most_one`). With a live holder the verdict is the strict one (`verdict_unchanged_with_holder`).
+  The 2026-10-22 stall (281 MB available, file cache 4,443 MB under its 4,608 MB minimum) admits one Lean worker
+  with no holder and waits `memLow` with one (goldens).
 - **Limit.** Each poll takes one sample and steps the limit `n`. It halves on overload: 1-min load at least 16,
   `memLow`, compressor at least 40 % of RAM, or swap growing at least 512 MB a minute. It adds 1 when the load is under
   8 with 3 GB available, and otherwise holds. A change waits 30 s after the last one, and `n` stays in 1..4. The
-  growth signal never reads the swap ratio, since macOS swap stays high after a peak (`swap_static_never_trips`); only
-  `memLow` does, at 75 %.
+  growth signal never reads the swap ratio, since macOS swap stays high after a peak (`swap_static_never_trips`).
 - **Admission.** A ticket waits while one of its kind is ahead (FIFO per kind). It also waits while a ticket of
   another kind has waited 300 s ahead of it and can run itself, while `n` slots are held, or while a Simulator slot is
   held and it asks for one. A Simulator ticket stuck behind a held Simulator slot never holds back other kinds
-  (`verdict_not_older_of_sim_blocked`). It waits as `memLow` while memory is low, and an admitted ticket saw none of
-  the four signals (`admit_calm`). Otherwise it waits until the job's footprint fits above the 1 GB floor (`admit_fits`).
+  (`verdict_not_older_of_sim_blocked`). It waits as `memLow` while memory is low, and an admitted ticket saw normal
+  pressure, no `swapActive` and no `thrash`, and either the floor or no live holder (`admit_calm`). Otherwise it waits
+  until the job's footprint fits above the 1 GB floor, unless it is the idle head (`admit_fits`).
   Footprints: check is 700 MB per Lean worker, test 1600, land 1500, sim 2800, other 1000. Holders admitted in the
   last 60 s are charged, since available memory does not show them yet. After 1800 s the verdict is timeout, and the job never runs (exit 75).
 - **Simulator first.** A Simulator ticket never waits as `older` (`verdict_sim_never_older`). It waits as `drain`
