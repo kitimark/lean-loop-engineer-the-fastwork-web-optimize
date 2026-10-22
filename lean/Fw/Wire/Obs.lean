@@ -942,8 +942,6 @@ def optI (j : Json) (k : String) : Except String (Option Int) :=
     | .ok n => .ok (some n)
     | .error _ => .error s!"field {k}: expected an integer"
 
-/-- Decode the waits of a sample: `[{why, ms}]`. An entry with a name outside `WhyTag.all` is dropped (closed parse), so
-its ms stay in the judged remainder. -/
 def waitsOf (j : Json) : Except String (List (Fw.Sup.Adapt.WhyTag × Nat)) := do
   let es ← (← arrD j "waits").mapM (fun e => do pure (← str e "why", ← nat e "ms"))
   pure (es.filterMap (fun (n, ms) => (Fw.Sup.Adapt.WhyTag.ofName? n).map (·, ms)))

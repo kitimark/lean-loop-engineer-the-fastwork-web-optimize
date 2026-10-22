@@ -848,8 +848,6 @@ export function parseSamples(text: string, cap = 3000): TimingSample[] {
   }
   return rows.sort((a, b) => a.at - b.at).slice(-cap).map((r) => r.s);
 }
-/** The queue an acquire span waited in (task timing-queue-wait) as the sample's `waitMs` and `waits`; the names are parsed
- *  against the Lean tag list (`parseWaits`, unknown names dropped); Lean decides what the wait means. */
 function queueOf(q: unknown): { waitMs?: number; waits?: { why: string; ms: number }[] } {
   const o = q as { waitMs?: unknown; waits?: unknown } | null | undefined;
   if (o === null || typeof o !== "object" || typeof o.waitMs !== "number" || !(o.waitMs > 0)) return {};

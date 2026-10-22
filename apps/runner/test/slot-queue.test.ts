@@ -1,6 +1,3 @@
-// timing-queue-wait: the acquire span records the ms spent under each wait reason; parseSamples hands it to Lean as
-// waitMs/waits with a closed parse over the Lean tag list. The verdict (queued / slow / alert) is Lean's
-// (golden/obs/timing.jsonl, replayed in timing-alert.test.ts); the tag list is checked against golden/sup/adapt.jsonl.
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";

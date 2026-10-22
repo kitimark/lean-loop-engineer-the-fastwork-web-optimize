@@ -180,7 +180,6 @@ A queued run waits in one node process, not a tree (slot-waiter-light, MEASURED 
 
 - One process only via `slot-self.mjs` (check.sh, package `test`), 99 MB. The typed form `pnpm -s fw slot run` stays pnpm + node (2 processes; 3 where the pnpm shim switches to the pinned pnpm, which the lead measured as 95 + 105 + 102 MB). It gains 16 MB of node RSS (118 to 102, MEASURED).
 - `fw.ts` is a small entry: for `fw slot ...` it loads only `slot-main.ts`, for every other group it loads `fw-main.ts` (the old fw.ts body: contracts, land, ci, plan; the 120 MB part). `package.json` `fw` still starts `apps/runner/src/fw.ts`, so the Monitor command line `node apps/runner/src/fw.ts watch --interval 300 --stream` is unchanged.
-- A typed `pnpm -s fw slot run` keeps pnpm as parent and loses only the fw-main.ts weight; `slot-self.mjs` loses the whole second process.
 - A bare node with TypeScript stripping is about 46 MB idle; the waiter is 99-102 MB. Not cut further (follow-up: a precompiled JS waiter). `manage-package-manager-versions=false` would remove the shim's nested pnpm and is not set here.
 - Tests: `scripts/slot-self.test.mjs` (the waiter has no child and starts the command only after the holder releases; usage exits 64).
 

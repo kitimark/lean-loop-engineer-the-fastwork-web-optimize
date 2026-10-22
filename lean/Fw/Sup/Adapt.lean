@@ -493,13 +493,10 @@ inductive Why where
   | measureBusy
 deriving DecidableEq, Repr
 
-/-- The reason of a wait without its numbers: one constructor per `Why` constructor. It is the one canonical list of
-reason names; the timing verdict and the TS span parse read it. -/
 inductive WhyTag where
   | queued | older | full | simBusy | drain | memory | memLow | simFirst | pass | gap | unknown | measureBusy
 deriving DecidableEq, Repr
 
-/-- The tag of a reason. -/
 def Why.tag : Why → WhyTag
   | .queued _ => .queued
   | .older => .older
@@ -514,7 +511,6 @@ def Why.tag : Why → WhyTag
   | .unknown => .unknown
   | .measureBusy => .measureBusy
 
-/-- The wire name of a tag: the `why` field of a verdict. -/
 def WhyTag.name : WhyTag → String
   | .queued => "queued"
   | .older => "older"
@@ -529,11 +525,9 @@ def WhyTag.name : WhyTag → String
   | .unknown => "unknown"
   | .measureBusy => "measureBusy"
 
-/-- Every tag, once. -/
 def WhyTag.all : List WhyTag :=
   [.queued, .older, .full, .simBusy, .drain, .memory, .memLow, .simFirst, .pass, .gap, .unknown, .measureBusy]
 
-/-- The tag of a wire name, or none for an unknown name. -/
 def WhyTag.ofName? (n : String) : Option WhyTag := WhyTag.all.find? (fun t => t.name == n)
 
 theorem WhyTag.all_complete (t : WhyTag) : t ∈ WhyTag.all := by cases t <;> simp [WhyTag.all]

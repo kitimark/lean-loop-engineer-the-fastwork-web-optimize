@@ -23,13 +23,6 @@ Definitions (all durations in whole ms, `Nat`):
   (`no_self_mask`), so the counterexample is now `slow` (`site_regression_slow`).
 * Verdict of one sample, first match: `noBaseline` when the window has fewer than `n_min` samples; `contended`; `slow`
   when `d > max(B, k · b)` with `B` the step's budget and `b` the baseline; otherwise `ok`.
-* A sample may carry `waits`: the ms it spent under each wait reason (`WhyTag`, the one list of reason names in
-  `Fw.Sup.Adapt`). `holdMs` is the sum over the reasons that wait for a live holder, a queued ticket or a measure window
-  (`holderWait`, a reviewed allowlist: all but `memory` and `memLow`). When `holdMs > 0` the sample is a queue wait, not a
-  slow step: only the remainder `d - holdMs` is judged and the code is `queued` unless the remainder is `slow`. Time
-  under `memory` or `memLow` stays in the judged remainder. A waited sample never enters a window. Whether a holder
-  overstayed its lease is not decided here (task `timing-lease-overrun`); a refused acquire carries no waits and is judged
-  as any sample.
 * A **ceiling** is an absolute limit `C(tool, step)` for one step. A not contended sample above its
   ceiling is `slow` at once, with no window needed: a step that is slow from its first run (the 2-minute `fw land`)
   has no history to be slow against, so the relative rule alone never alerts for it. `landCeilings` sets 30 s for the
@@ -51,9 +44,7 @@ Proved (main results; helper lemmas below): `slow_iff`, `ceilingBreach_iff`, `la
 `lean_check_regression_through_contention`, `ci_not_contended`, `noBaseline_iff`, `noBaseline_below_nmin`,
 `ord_spec`, `ord_le_iff`, `ord_mono`, `ord_interlace`, `ord_between`, `cnt_split`, `p50_le_of_few_above`,
 `le_p50_of_few_below`, `outlier_between`, `outlier_bound`, `outlier_shift`, `structural_iff`, `noise_iff`,
-`calls_total`, `calls_given_stages`, `mem_structural`, `deterministic`, `timingVerdicts_total`, `queued_not_slow`,
-`queued_iff`, `nonholder_judge`, `rest_ge`, `wait_only_queued`, `queued_remainder_slow`, `windowOf_append_waited`,
-`contended_not_slow_Q`, `no_alert_within_budget_Q`, `judgeQ_unwaited`.
+`calls_total`, `calls_given_stages`, `mem_structural`, `deterministic`, `timingVerdicts_total`.
 
 Wire: `timingVerdicts` is the entry point (op `obs.timing`, wired by `timing-alert`); the golden is
 `packages/contracts/golden/obs/timing.jsonl`, rendered by `Fw.Wire.Obs.Timing.goldenText` at the end of this file.
@@ -70,8 +61,7 @@ deriving DecidableEq, Repr
 
 /-- One timing sample: tool, step, duration in ms, host, the floor of the 1-min load average when it ran, the run
 kind (empty when the run has none; for a CI dispatch the digest of its inputs, so runs with different inputs are
-different histories), the exit code (`none` when unknown), whether CI reported the step or job `skipped`, the ms the
-step waited in a slot queue (`waitMs`, the total, 0 when it did not) and the ms it spent under each wait reason (`waits`).
+different histories), the exit code (`none` when unknown) and whether CI reported the step or job `skipped`.
 -/
 structure Sample where
   tool    : String
@@ -219,23 +209,16 @@ def contended (p : Params) (s : Sample) : Bool := decide (s.host = .«local») &
 /-- The last `n` elements of a list (all of it when it is shorter). -/
 def lastN (n : Nat) (xs : List Nat) : List Nat := xs.drop (xs.length - n)
 
-/-- A sample waited when it spent time behind a live slot holder. -/
 def Sample.waited (s : Sample) : Bool := decide (0 < s.waitMs)
 
-/-- Whether waiting under a reason is waiting for something else: a live holder, a queued ticket or a live measure
-window. A reviewed allowlist over the tags: `memory` and `memLow` are the reasons that wait for memory, which a holder
-leaving does not explain, so they are judged. -/
 def holderWait : Fw.Sup.Adapt.WhyTag → Bool
   | .queued | .older | .full | .simBusy | .drain | .simFirst | .pass | .measureBusy | .gap | .unknown => true
   | .memory | .memLow => false
 
-/-- The ms a sample spent under the reasons that wait for a holder, a ticket or a window. -/
 def Sample.holdMs (s : Sample) : Nat := ((s.waits.filter (fun w => holderWait w.1)).map (·.2)).sum
 
-/-- The wait is explained by a holder: some time was spent under a holder reason. -/
 def queuedWithin (s : Sample) : Bool := decide (0 < s.holdMs)
 
-/-- The sample without its holder wait: the duration after the queue. Time under `memory` and `memLow` stays in it. -/
 def Sample.rest (s : Sample) : Sample := { s with durMs := s.durMs - s.holdMs, waitMs := 0, waits := [] }
 
 def counts (p : Params) (s : Sample) : Bool := s.full && !contended p s && !s.waited
@@ -316,10 +299,6 @@ def judge (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : SampleVerdi
     code := if ceilingBreach p s then .slow else codeOf p w s,
     n := w.length, baseline := p50 w, budgetMs := budgetFor p s, kind := s.kind }
 
-/-- The verdict of a sample that may have waited behind a slot holder. When it spent time under a holder reason
-(`holdMs > 0`) only the remainder (`Sample.rest`) is judged, and the code is `slow` when the remainder is, else
-`queued`. Any other sample is `judge`.
--/
 def judgeQ (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : SampleVerdict :=
   if queuedWithin s then
     let v := judge p hist i s.rest
@@ -788,8 +767,6 @@ theorem fullVerdicts_snoc (p : Params) (ss : List Sample) (x : Sample) :
   rw [sampleVerdicts_snoc, List.zip_append (by simp [sampleVerdicts])]
   cases hx : x.full <;> simp [List.filter_append, hx]
 
-/-! ## Proofs: waits behind a slot holder (task `timing-queue-wait`) -/
-
 theorem rest_contended (p : Params) (s : Sample) : contended p s.rest = contended p s := rfl
 
 theorem rest_budgetFor (p : Params) (s : Sample) : budgetFor p s.rest = budgetFor p s := rfl
@@ -804,7 +781,6 @@ theorem judgeQ_plain (p : Params) (hist : List Sample) (i : Nat) (s : Sample)
     (hq : queuedWithin s = false) : judgeQ p hist i s = judge p hist i s := by
   simp [judgeQ, hq]
 
-/-- **A sample with no holder wait is judged as before.** -/
 theorem judgeQ_unwaited (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (h : s.holdMs = 0) :
     judgeQ p hist i s = judge p hist i s :=
   judgeQ_plain p hist i s (by simp [queuedWithin, h])
@@ -1287,13 +1263,10 @@ theorem ceiling_at_normal_load (p : Params) (hist : List Sample) (i : Nat) (s : 
     (judge p hist i s).code = .slow :=
   (slow_iff p hist i s).2 (Or.inl ((ceilingBreach_iff p s).2 ⟨c, hc, hd, not_contended_of_load_le p s hl⟩))
 
-/-- **A queue wait is never `slow` unless its remainder is.** A sample with `holdMs > 0` is `slow` only when the
-remainder after the holder wait is. -/
 theorem queued_not_slow (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (hq : queuedWithin s = true)
     (hr : (judge p hist i s.rest).code ≠ .slow) : (judgeQ p hist i s).code ≠ .slow := by
   rw [judgeQ_queued p hist i s hq]; simp [hr]
 
-/-- **When a sample is `queued`.** It spent time under a holder reason and its remainder is not `slow`. -/
 theorem queued_iff (p : Params) (hist : List Sample) (i : Nat) (s : Sample) :
     (judgeQ p hist i s).code = .queued ↔
       queuedWithin s = true ∧ (judge p hist i s.rest).code ≠ .slow := by
@@ -1303,8 +1276,6 @@ theorem queued_iff (p : Params) (hist : List Sample) (i : Nat) (s : Sample) :
   · rw [judgeQ_plain p hist i s (by simpa using hq)]
     simp [hq, judge_not_queued]
 
-/-- **Waiting for memory is judged.** When every reason a sample waited under is `memory` or `memLow`, it has no
-holder wait and its verdict is `judge`: nothing is taken off its duration. -/
 theorem nonholder_judge (p : Params) (hist : List Sample) (i : Nat) (s : Sample)
     (h : ∀ w ∈ s.waits, holderWait w.1 = false) : judgeQ p hist i s = judge p hist i s := by
   apply judgeQ_unwaited
@@ -1318,35 +1289,28 @@ theorem holdMs_le_sum (ws : List (Fw.Sup.Adapt.WhyTag × Nat)) :
   | cons w r ih =>
     by_cases hw : holderWait w.1 = true <;> simp [hw] <;> omega
 
-/-- **The remainder keeps at least what the waits do not explain.** When the ms under all reasons add up to at most
-`waitMs`, the remainder is at least `durMs - waitMs`. -/
 theorem rest_ge (s : Sample) (hs : (s.waits.map (·.2)).sum ≤ s.waitMs) : s.durMs - s.waitMs ≤ (s.rest).durMs := by
   have := holdMs_le_sum s.waits
   show s.durMs - s.waitMs ≤ s.durMs - s.holdMs
   unfold Sample.holdMs
   omega
 
-/-- **A sample that only waited is `queued`.** A step that took no longer than its holder wait has the remainder 0 ms
-and is `queued` whatever the history. -/
 theorem wait_only_queued (p : Params) (hist : List Sample) (i : Nat) (s : Sample)
     (hq : queuedWithin s = true) (hd : s.durMs ≤ s.holdMs) : (judgeQ p hist i s).code = .queued := by
   refine (queued_iff p hist i s).2 ⟨hq, no_alert_within_budget p hist i s.rest ?_⟩
   show s.durMs - s.holdMs ≤ _
   omega
 
-/-- **The remainder of a queued wait is still judged.** -/
 theorem queued_remainder_slow (p : Params) (hist : List Sample) (i : Nat) (s : Sample)
     (hq : queuedWithin s = true) (hs : (judge p hist i s.rest).code = .slow) : (judgeQ p hist i s).code = .slow := by
   rw [judgeQ_queued p hist i s hq]; simp [hs]
 
-/-- **Queued samples never enter a window.** Appending samples that all waited leaves every window unchanged. -/
 theorem windowOf_append_waited (p : Params) (hist ws : List Sample) (k : Key)
     (hw : ∀ w ∈ ws, w.waited = true) : windowOf p (hist ++ ws) k = windowOf p hist k := by
   have h : ws.filter (fun s => decide (s.key = k) && counts p s) = [] :=
     List.filter_eq_nil_iff.2 (fun c hc' => by simp [counts, hw c hc'])
   simp [windowOf, List.filter_append, h]
 
-/-- **A contended sample is never `slow`, with or without a wait.** -/
 theorem contended_not_slow_Q (p : Params) (hist : List Sample) (i : Nat) (s : Sample)
     (h : contended p s = true) : (judgeQ p hist i s).code ≠ .slow := by
   have h0 := contended_not_slow p hist i s h
@@ -1355,7 +1319,6 @@ theorem contended_not_slow_Q (p : Params) (hist : List Sample) (i : Nat) (s : Sa
   · rw [judgeQ_queued p hist i s hq]; simp [hr]
   · rw [judgeQ_plain p hist i s (by simpa using hq)]; exact h0
 
-/-- **No alert within budget, with or without a wait.** -/
 theorem no_alert_within_budget_Q (p : Params) (hist : List Sample) (i : Nat) (s : Sample)
     (h : s.durMs ≤ budgetFor p s) : (judgeQ p hist i s).code ≠ .slow := by
   have h0 := no_alert_within_budget p hist i s h
@@ -1692,7 +1655,6 @@ def runK (tool step kind : String) (host : Host) (ds : List Nat) : List Sample :
 def runX (tool step : String) (host : Host) (load : Nat) (xs : List (Nat × Option Int × Bool)) : List Sample :=
   xs.map fun (d, exit, skipped) => { tool, step, durMs := d, host, load, exit, skipped }
 
-/-- A local sample of `d` ms that waited the given ms under each reason (the total wait is their sum). -/
 def waitS (tool step : String) (load d : Nat) (ws : List (Fw.Sup.Adapt.WhyTag × Nat)) : Sample :=
   { tool, step, durMs := d, host := .«local», load, waitMs := (ws.map (·.2)).sum, waits := ws }
 
