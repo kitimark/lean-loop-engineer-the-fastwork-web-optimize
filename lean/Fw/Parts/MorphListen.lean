@@ -46,12 +46,10 @@ inductive Who where
   | mount | tween
   deriving DecidableEq, Repr
 
-/-- What each part reads at a move: its active flag and its arming rect. -/
 structure Seen where
   act : Who → Bool
   geom : Who → Bool
 
-/-- Whether part `c` takes a move of delta `d`: `takes` (morph.mount) or `taken` (morph.tween). -/
 def takesBy : Who → Seen → Rat → Bool
   | .mount, s, d => MorphMount.takes (s.act .mount) d (s.geom .mount)
   | .tween, s, d => MorphTween.taken (s.act .tween) d (s.geom .tween)
@@ -62,13 +60,11 @@ inductive Ev where
   | start (y : Rat)
   | move (y : Rat) (s : Seen)
 
-/-- A part took a move with this delta: it prevented the default and acted on the push. -/
 structure Took where
   who : Who
   delta : Rat
   deriving DecidableEq, Repr
 
-/-- Attached parts in attach order, and each part's last touch y (kept across detach, as each handler keeps it). -/
 structure Win where
   order : List Who
   last : Who → Rat
@@ -79,18 +75,14 @@ def Win.detach (w : Win) (c : Who) : Win := { w with order := w.order.filter (·
 
 def Win.at (w : Win) (y : Rat) : Win := { w with last := fun c => if c ∈ w.order then y else w.last c }
 
-/-- One delivery: part `c`'s handler on a move to `y`. -/
 def answer (w : Win) (y : Rat) (s : Seen) (c : Who) : Option Took :=
   if takesBy c s (w.last c - y) then some ⟨c, w.last c - y⟩ else none
 
-/-- The base: the window calls one capture listener per attached part, in order, appending each take. -/
 def baseMove (w : Win) (y : Rat) (s : Seen) : List Took :=
   w.order.foldl (fun acc c => match answer w y s c with | some t => acc ++ [t] | none => acc) []
 
-/-- The merged listener: one window listener that hands the move to every attached part in order. -/
 def hubMove (w : Win) (y : Rat) (s : Seen) : List Took := w.order.filterMap (answer w y s)
 
-/-- Run a window over events; each move yields its takes. -/
 def run (dispatch : Win → Rat → Seen → List Took) : Win → List Ev → List (List Took)
   | _, [] => []
   | w, .attach c :: es => run dispatch (w.attach c) es
@@ -124,7 +116,6 @@ theorem hub_eq_base (w : Win) (es : List Ev) : run hubMove w es = run baseMove w
     | start y => exact ih _
     | move y s => simp [run, hubMove_eq_base, ih]
 
-/-- Whether the move's default is prevented. -/
 def prevented (ts : List Took) : Bool := !ts.isEmpty
 
 theorem hub_prevented (w : Win) (y : Rat) (s : Seen) :
@@ -136,7 +127,6 @@ theorem hub_prevented (w : Win) (y : Rat) (s : Seen) :
     simp only [List.filterMap_cons, answer, List.any_cons]
     cases takesBy c s (w.last c - y) <;> simp_all
 
-/-- Both parts attached with one last y: the merged listener prevents exactly on `takesAny`. -/
 theorem hub_prevented_both (w : Win) (y : Rat) (s : Seen) (ho : w.order = [.mount, .tween] ∨ w.order = [.tween, .mount])
     (hl : w.last .mount = w.last .tween) :
     prevented (hubMove w y s) =
@@ -144,7 +134,6 @@ theorem hub_prevented_both (w : Win) (y : Rat) (s : Seen) (ho : w.order = [.moun
   rw [hub_prevented]
   rcases ho with h | h <;> simp [h, takesBy, takesAny, hl, Bool.or_comm]
 
-/-- Window touchmove listeners: one per attached part, or one for all. -/
 def listeners (merged : Bool) (w : Win) : Nat := if merged then (if w.order.isEmpty then 0 else 1) else w.order.length
 
 theorem listeners_merged_le (w : Win) : listeners true w ≤ 1 := by
@@ -201,15 +190,11 @@ theorem next_down_take : next .take .watch true = .take := rfl
 theorem next_lifted (cur w : Mode) : next cur w false = w := by
   cases cur <;> cases w <;> rfl
 
-/-- The band edge in viewport px: the bottom of the root grown by `bandRootMargin`'s 150 %. -/
 def edge (vhIO : Rat) : Rat := vhIO * 5 / 2
 
-/-- In the band: the platform bottom is above the grown root's bottom (its top is far below the grown root's top). -/
 def inBand (bottom vhIO : Rat) : Bool := decide (bottom ≤ edge vhIO)
 
-/-- Premises, all `INFERRED`. `pan`: during one touch sequence the page moves at most one viewport height (`b0` the
-platform bottom at touchstart, `bi` at a move). `lag`: the page moves at most a quarter viewport between the band's last
-reading `bEval` and the touchstart. `vp`: the visual viewport is no taller than the observer's root. -/
+/-- Band premises, all INFERRED from the replay profiles. -/
 structure Premise (vh vhIO bEval b0 bi : Rat) : Prop where
   pan : b0 ≤ bi + vh
   lag : bEval ≤ b0 + vh / 4
@@ -224,13 +209,11 @@ theorem armed_in_band {h vh vhIO bEval b0 bi : Rat} (p : Premise vh vhIO bEval b
   simp only [inBand, edge]
   grind
 
-/-- One move of a touch sequence: the platform bottom and the push delta. -/
 structure Move where
   bottom : Rat
   delta : Rat
   deriving DecidableEq, Repr
 
-/-- morph.tween's takes over one touch sequence; a take starts the morph. -/
 def seqTakes (h vh : Rat) : Bool → List Move → List Bool
   | _, [] => []
   | a, m :: ms =>
@@ -256,12 +239,10 @@ theorem seq_quiet {h vh vhIO bEval b0 : Rat} (hout : inBand bEval vhIO = false) 
     simp only [seqTakes, ht, Bool.or_false, List.map_cons]
     exact congrArg _ (ih fun m' hm' => hp m' (by simp [hm']))
 
-/-- A take's `preventDefault` holds when the listener blocked at the touchstart (WebKit fixes the tracking at the
-touchstart and only ever raises it: WebPageProxy.cpp:5049-5089,5228-5300@862f17d). -/
+/-- A take holds iff the listener blocked at touchstart (WebPageProxy.cpp:5049-5089,5228-5300@862f17d). -/
 def honored (blocking took : Bool) : Bool := blocking && took
 
-/-- Same outcome as the base, whose listener blocks over the whole 200 % band, for every move of the sequence: at rest
-and out of the band no move is taken; otherwise the listener blocks. -/
+/-- Every move of a touch sequence keeps the base outcome. -/
 theorem band_same {h vh vhIO bEval b0 : Rat} (act : Bool) (ms : List Move)
     (hp : ∀ m ∈ ms, Premise vh vhIO bEval b0 m.bottom) :
     (seqTakes h vh act ms).map (honored (want true act (inBand bEval vhIO) == .take)) =
@@ -277,7 +258,6 @@ theorem band_same {h vh vhIO bEval b0 : Rat} (act : Bool) (ms : List Move)
 
 /-! ## Premise `pan` on the replay profiles -/
 
-/-- Largest distance of a stroke's y from its first y. -/
 def travel : List Int → Nat
   | [] => 0
   | y0 :: ys => (ys.map fun y => (y - y0).natAbs).foldl max 0
@@ -294,7 +274,6 @@ theorem travel_mirror (h : Int) (ys : List Int) : travel (ys.map (h - ·)) = tra
     rw [show h - y - (h - y0) = -(y - y0) by omega, Int.natAbs_neg]
 
 open Fw.Device.Replay in
-/-- `pan` on a recorded profile (tenth px): every swipe moves at most one viewport height. -/
 def profilePan (p : Profile) : Bool := p.swipes.all fun s => decide (travel (s.samples.map (·.y)) ≤ 10 * p.h)
 
 open Fw.Device.Replay in
@@ -309,40 +288,26 @@ theorem profilePan_mirror (p : Profile) (h10 : Int) :
 open Fw.Device.Replay in
 theorem profilePan_cold (p : Profile) : profilePan (cold p) = profilePan p := rfl
 
-/-- The strokes' y (CSS px) and the viewport height of a `packages/measure-chromium/profiles` replay profile. -/
-def strokesOf (j : Lean.Json) : Option (List (List Int) × Int) := do
-  let vh ← (j.getObjValD "viewport" |>.getObjValD "height").getInt?.toOption
-  let ss ← (j.getObjValD "input" |>.getObjValD "strokes").getArr?.toOption
-  let ys ← ss.toList.mapM fun s => do
-    let path ← (s.getObjValD "path").getArr?.toOption
-    path.toList.mapM fun pt => do (← (pt.getArrVal? 1).toOption).getInt?.toOption
+def profileRow (l : String) : Option (List (List Int) × Int) := do
+  let j ← (Lean.Json.parse l).toOption
+  let vh ← (j.getObjValD "vh").getInt?.toOption
+  let ss ← (j.getObjValD "strokes").getArr?.toOption
+  let ys ← ss.toList.mapM fun s => do (← s.getArr?.toOption).toList.mapM fun y => y.getInt?.toOption
   return (ys, vh)
 
-/-- The scripted touch profile's one stroke: `startY` up to `minY` (`swipe-touch-v1`). -/
-def scriptedOf (j : Lean.Json) : Option (List (List Int) × Int) := do
-  let vh ← (j.getObjValD "viewport" |>.getObjValD "height").getInt?.toOption
-  let i := j.getObjValD "input"
-  let a ← (i.getObjValD "startY").getInt?.toOption
-  let b ← (i.getObjValD "minY").getInt?.toOption
-  return ([[a, b]], vh)
-
-/-- Each stroke's travel and the viewport height; none when the profile does not parse. -/
-def panRows (src : String) (read : Lean.Json → Option (List (List Int) × Int)) : Option (List Nat × Int) := do
-  let j ← (Lean.Json.parse src).toOption
-  let (ys, vh) ← read j
-  return (ys.map travel, vh)
+def panRows (l : String) : Option (List Nat × Int) := (profileRow l).map fun (ys, vh) => (ys.map travel, vh)
 
 /-- `pan` on a profile: every stroke's travel is at most its viewport height. -/
 def panOk : Option (List Nat × Int) → Bool
   | some (ts, vh) => !ts.isEmpty && ts.all fun t => decide ((t : Int) ≤ vh)
   | none => false
 
-def userFixture : String := include_str "../../../packages/measure-chromium/profiles/user-fixture.json"
+/-- The stroke ys of `packages/measure-chromium/profiles`, as the site test extracts them. -/
+def profileLines : List String :=
+  ((include_str "../../../packages/contracts/golden/parts/morph-listen.profiles.jsonl").splitOn "\n").filter (· ≠ "")
 
-def swipeTouch : String := include_str "../../../packages/measure-chromium/profiles/swipe-touch-v1.json"
-
-#guard panOk (panRows userFixture strokesOf)
-#guard panOk (panRows swipeTouch scriptedOf)
+#guard profileLines.length == 2 && profileLines.all fun l => panOk (panRows l)
+#guard panOk (panRows "{\"vh\":100,\"strokes\":[[50,151]]}") == false
 
 /-! ## Golden rows (`morph-listen.jsonl`) -/
 
@@ -372,7 +337,6 @@ def modeRows : List String :=
   ([(0 : Rat), 1 / 2, 999 / 1000, 1].map fun r => line "full" [("ratio", ratJ r)] (.bool (full r))) ++
   [line "bandRootMargin" [] (.str bandRootMargin)]
 
-/-- Scripted window runs: the takes of each move, both parts handled by the merged listener. -/
 def seen (aM aT gM gT : Bool) : Seen := ⟨fun | .mount => aM | .tween => aT, fun | .mount => gM | .tween => gT⟩
 
 def evJ : Ev → Lean.Json

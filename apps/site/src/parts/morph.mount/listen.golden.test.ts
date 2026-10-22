@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { goldenConformance } from '../../engine/golden.testutil';
 import { taken } from '../morph.tween/logic';
@@ -75,6 +76,20 @@ goldenConformance('morph-listen', {
   full: (i) => L.full(i.ratio),
   bandRootMargin: () => L.BAND_ROOT_MARGIN,
   run: (i) => runCase(i.events as GoldenEv[]),
+});
+
+describe('morph-listen.profiles.jsonl', () => {
+  const read = (rel: string) => readFileSync(new URL(`../../../../../packages/${rel}`, import.meta.url), 'utf8');
+  it('holds the stroke ys of the replay profiles Lean checks the pan premise on', () => {
+    const profile = (id: string) => JSON.parse(read(`measure-chromium/profiles/${id}.json`));
+    const swipe = profile('swipe-touch-v1');
+    const user = profile('user-fixture');
+    const rows = [
+      { profile: 'swipe-touch-v1', vh: swipe.viewport.height, strokes: [[swipe.input.startY, swipe.input.minY]] },
+      { profile: 'user-fixture', vh: user.viewport.height, strokes: user.input.strokes.map((s: { path: number[][] }) => s.path.map((p) => p[1])) },
+    ];
+    expect(read('contracts/golden/parts/morph-listen.profiles.jsonl')).toBe(rows.map((r) => JSON.stringify(r)).join('\n') + '\n');
+  });
 });
 
 describe('touch hub', () => {

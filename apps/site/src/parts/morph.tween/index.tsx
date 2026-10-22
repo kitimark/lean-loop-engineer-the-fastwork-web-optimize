@@ -78,7 +78,6 @@ export function MorphTween({ variant, platformSelector = '.start-selling-platfor
   return null;
 }
 
-/** Variant `band`: the driver's touch listeners join the merged hub, which re-decides its mode at every publish. */
 function bandEnv(env: TweenEnv, hub: TouchHub, isActive: () => boolean): () => void {
   const noop = () => {};
   const client: TouchClient = { touchstart: noop, touchmove: noop, active: isActive };
