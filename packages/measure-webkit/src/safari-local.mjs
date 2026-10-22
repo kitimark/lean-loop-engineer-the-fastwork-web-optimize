@@ -1,7 +1,3 @@
-// Safari on macOS driven by safaridriver (mac-safari-measure, engine A). safaridriver speaks W3C WebDriver only: it exposes no Web
-// Inspector protocol, so this lane reads the rAF cadence (same recorder and window scripts as the Simulator lane) and no Timeline
-// events. The page clock is live (no bootstrap script can run before the page's own scripts), and the arm is picked by the URL
-// search with the matching prerendered HTML served per arm on one origin. Glue only: no decision.
 import { spawn, spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { createServer } from 'node:net';
@@ -15,10 +11,8 @@ import { cadenceOf, runCells } from './safari-local-run.mjs';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/** A free TCP port on 127.0.0.1. */
 export const freePort = () => new Promise((ok, bad) => { const s = createServer(); s.once('error', bad); s.listen(0, '127.0.0.1', () => { const p = s.address().port; s.close(() => ok(p)); }); });
 
-/** A minimal W3C WebDriver client over `fetch`. */
 export function webdriver(base) {
   let sid = null;
   const call = async (method, path, body, timeoutMs = 180000) => {
@@ -39,7 +33,6 @@ export function webdriver(base) {
     getRect: () => call('GET', s('/window/rect')),
     navigate: (url) => call('POST', s('/url'), { url }),
     sync: (script, args = []) => call('POST', s('/execute/sync'), { script, args }),
-    /** Run an expression that yields a promise; resolves with its value or throws its error. */
     async expr(expression) {
       const v = await call('POST', s('/execute/async'), { script: `const done = arguments[arguments.length - 1]; Promise.resolve(${expression}).then((v) => done({ ok: v }), (e) => done({ err: String(e) }));`, args: [] });
       if (v && v.err) throw new Error(`page: ${v.err}`);
@@ -49,7 +42,6 @@ export function webdriver(base) {
   };
 }
 
-/** One origin that serves a different prerendered tree per arm (as session.mjs does for the Simulator). */
 export async function armServer(arms) {
   const table = Object.fromEntries(arms.map((a) => {
     if (!a.tree.dir) return [a.id, { root: snapshotRoot(), rewrite: null, hash: null }];
@@ -66,10 +58,8 @@ export async function armServer(arms) {
 
 const pids = (name) => spawnSync('pgrep', ['-x', name], { encoding: 'utf8' }).stdout.split('\n').filter(Boolean).map(Number);
 
-/** The page facts a window needs: size, visibility, hydration. */
 const INFO = `return JSON.stringify({ vw: innerWidth, vh: innerHeight, dpr: devicePixelRatio, vis: document.visibilityState, ua: navigator.userAgent, ready: document.readyState, fw: window.__fw ? { configHash: window.__fw.configHash, mode: window.__fw.mode, hydrated: window.__fw.hydrated } : null })`;
 
-/** Run the macOS Safari lane: the idle floor is taken with the driver's Safari window open and idle (`takeBase({boot: null})`), passes run at that floor. Returns `{rows, baseline, ua, vw, rect}`; stops the driver and the Safari it started. */
 export async function runSafariLocal({ arms, read, takeBase, pass = null, passes, maxRounds, deadlineMs, waitMs, everyMs, onRow, settleMs = 2500, width = 430, height = 932, log = (s) => console.error(s) }) {
   const server = await armServer(arms);
   const port = await freePort();
@@ -108,8 +98,8 @@ export async function runSafariLocal({ arms, read, takeBase, pass = null, passes
     return { rows, baseline, ua, vw, rect };
   } finally {
     await wd.close();
-    try { process.kill(driver.pid); } catch { /* already gone */ }
-    for (const p of pids('Safari')) if (!safariBefore.has(p)) { try { process.kill(p); } catch { /* already gone */ } }
+    try { process.kill(driver.pid); } catch {}
+    for (const p of pids('Safari')) if (!safariBefore.has(p)) { try { process.kill(p); } catch {} }
     await server.close();
   }
 }

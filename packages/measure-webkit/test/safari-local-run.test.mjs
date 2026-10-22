@@ -54,7 +54,6 @@ test('runCells counts only accepted passes, interleaves arms by rotation and sto
   const order = [];
   let n = 0;
   const reads = [];
-  // every third machine read pair is loud: those passes are refused and run again in a later round
   const read = async () => { n++; return n % 6 === 0 ? loudR() : quietR(); };
   const rows = await runCells({
     engine: 'x', arms, windows: ['hero'], passes: 3, maxRounds: 9, read, floorCenti: 150, waitMs: 0, wait: async () => {},
@@ -116,7 +115,6 @@ const steadyR = (t, load = 340) => readingOf({ ...status(), sample: { ...status(
 
 test('takeBaseline returns the median of a steady window and keeps reading until one exists', async () => {
   let t = 1000, n = 0;
-  // the load decays 900 -> 340 over the first readings (a machine just after a boot), then holds steady
   const loads = [900, 800, 700, 600, 500, 450, 400, 350, 340, 340, 340, 340, 340, 340, 340, 340];
   const read = async () => steadyR(t, loads[Math.min(n++, loads.length - 1)]);
   const wait = async (ms) => { t += ms / 1000; };
@@ -155,7 +153,6 @@ test('a pass is refused above the measured floor plus the margin and accepted at
   assert.deepEqual(no.why, ['load']);
 });
 
-// ---- the measure slot and its pass around each window ----
 import { holdMeasureSlot } from '../src/safari-local-lease.mjs';
 
 const fakeFw = (codes = {}) => {
@@ -177,7 +174,7 @@ test('a macOS lane holds a measure slot and starts and stops a pass through fw s
   assert.match(calls[1], /^pass start --token abcd1234-ef0 --for 900 --wait 60 /);
   await l.pass.stop(45);
   assert.match(calls[2], /^pass stop --token abcd1234-ef0 --next 45 /);
-  await l.pass.stop(45); // not live: no second call
+  await l.pass.stop(45);
   assert.equal(calls.length, 3);
   await l.release();
   assert.match(calls.at(-1), /^release --token abcd1234-ef0/);

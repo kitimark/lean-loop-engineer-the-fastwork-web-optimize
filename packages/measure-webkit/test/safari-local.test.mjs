@@ -6,7 +6,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { webdriver, freePort, armServer } from '../src/safari-local.mjs';
 
-/** A stub WebDriver endpoint: records the requests, answers like safaridriver. */
 async function stub() {
   const seen = [];
   const server = http.createServer((req, res) => {

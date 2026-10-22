@@ -1,6 +1,3 @@
-// Glue of the mac-safari-measure lane (local exception (c)): the arm list, the sampler reading, the quiet wait around each window
-// and the per-cell summary. Every decision is Lean's (Fw.Sup.Measure, through safari-local-reduce.mjs, golden-checked): this file
-// reads the machine, calls the decisions and writes down what they said. It never reports a pass the quiet rule refused.
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { dedupArms } from './device-session.mjs';
@@ -11,14 +8,11 @@ import { judge, quiet, whys, availMB, stat, outcome, pct, baselineFloor, simFloo
 const exec = promisify(execFile);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/** The rewrite arms of the lane: the default and the three single-flag arms (the user's list). `orig` is the original snapshot. */
 export const ARM_SEARCH = Object.freeze({ base: '', hx: '?fw=hero.exit:threaded', mp: '?fw=morph.panel:const-bounds', pf: '?fw=platform:fade-threaded' });
 export const ARM_LABEL = Object.freeze({ orig: 'original snapshot', base: 'rewrite default', hx: 'hero.exit:threaded', mp: 'morph.panel:const-bounds', pf: 'platform:fade-threaded' });
 export const WINDOWS = Object.freeze(['hero', 'end']);
-/** The Timeline zone each window is read in. */
 export const ZONE_OF = Object.freeze({ hero: 'hero', end: 'finish' });
 
-/** Arms after Lean's `dedupArms` over the resolved flags (an arm loading the same page as an earlier one is dropped, and named). */
 export function localArms(siteDir, root) {
   const xs = Object.entries(ARM_SEARCH).map(([id, s]) => [id, resolveFlags(s, root)]);
   const keep = dedupArms(xs);
@@ -26,29 +20,20 @@ export function localArms(siteDir, root) {
   return { arms, dropped: xs.filter(([id]) => !keep.includes(id)).map(([id]) => id), flags: Object.fromEntries(xs) };
 }
 
-/** A `Reading` for Lean's `quiet`: the sampler's sample and the holders other than my own tokens. */
 export function readingOf(status, mine = []) {
   const s = status.sample;
   return { time: s.time, loadCenti: s.loadCenti, mem: s.mem, ramMB: s.ramMB, compressorMB: s.compressorMB, holders: (status.holders ?? []).filter((h) => !mine.includes(h.token)).length, queued: (status.queue ?? []).length };
 }
 
-/** The numbers of a reading worth keeping in a result file (no owners, no tokens). */
 export const brief = (r) => ({ time: r.time, load: r.loadCenti / 100, availMB: availMB(r.mem), press: r.mem.press, comprMBPerMin: r.mem.comprMBPerMin, swapOutMBPerMin: r.mem.swapOutMBPerMin, holders: r.holders, queued: r.queued ?? 0 });
 
-/** Read the sampler once (`fw slot status --json`, about 0.4 s). `cwd` is the worktree. */
 export async function readMachine({ cwd, mine = [] } = {}) {
   const { stdout } = await exec('pnpm', ['-s', 'fw', 'slot', 'status', '--json'], { cwd, maxBuffer: 8 << 20, timeout: 60000 });
   return readingOf(JSON.parse(stdout), mine);
 }
 
-/** A load ceiling needs a measured idle floor: no number, no pass. */
 const needFloor = (fl) => { if (!Number.isInteger(fl) || fl < 0) throw new Error('no idle floor: take a baseline first (takeBaseline), no pass runs without one'); return fl; };
 
-/**
- * The idle floor of the machine as it is now: readings every `everyMs` until Lean's `baselineFloor` (or `simFloor` when `boot`, the
- * seconds the Simulator finished booting, is given) accepts the last `Q.baseMinSamples` of them, or `waitMs` has passed.
- * @returns {{floorCenti:number|null, readings:object[]}} `floorCenti` null when the machine never gave a steady baseline; `readings` is the last window
- */
 export async function takeBaseline({ read, boot = null, everyMs = 10000, waitMs = 600000, wait = sleep, now = Date.now, log = () => {} }) {
   const t0 = now();
   const all = [];
@@ -62,7 +47,6 @@ export async function takeBaseline({ read, boot = null, everyMs = 10000, waitMs 
   }
 }
 
-/** Wait until the machine is quiet (Lean `quiet` at the idle floor `floorCenti`) or `waitMs` has passed; returns the last reading. */
 export async function waitQuiet({ read, floorCenti, waitMs = 120000, everyMs = 5000, wait = sleep, now = Date.now }) {
   needFloor(floorCenti);
   const t0 = now();
@@ -71,11 +55,6 @@ export async function waitQuiet({ read, floorCenti, waitMs = 120000, everyMs = 5
   return r;
 }
 
-/**
- * One pass (inside a slot `pass` when one is given: started before the first reading, stopped in a `finally`): wait for quiet, read the window, read the machine again, let Lean's `judge` decide. A window the quiet rule refuses
- * is not run when the machine never became quiet, and its values are dropped when the machine was loud during it.
- * @returns {{decision:string, phase?:string, why?:string[], before:object, after:object|null, value:any}}
- */
 export async function measurePass({ read, run, floorCenti, waitMs, everyMs, wait, now, pass = null }) {
   if (pass && !(await pass.start())) throw new Error('the slot gave no exclusive pass: other holders stayed live');
   try { return await passBody({ read, run, floorCenti, waitMs, everyMs, wait, now }); } finally { if (pass) await pass.stop(); }
@@ -90,10 +69,6 @@ async function passBody({ read, run, floorCenti, waitMs, everyMs, wait, now }) {
   return { ...d, before: brief(before), after: brief(after), value: d.decision === 'accept' ? value : null };
 }
 
-/**
- * Passes until every cell (window x arm) has `passes` accepted, arms interleaved by `orderFor` per round, at most `maxRounds` rounds
- * and until `deadlineMs`. `readWindow(arm, win, round)` returns the value; a throw is recorded as an error row and `onError` may repair.
- */
 export async function runCells({ engine, arms, windows = WINDOWS, passes = Q.minPasses, maxRounds = 3 * Q.minPasses, deadlineMs = Infinity, read, floorCenti, pass = null, readWindow, onError = async () => {}, onRow = () => {}, maxErrors = 6, waitMs, everyMs, wait, now = Date.now, log = () => {} }) {
   needFloor(floorCenti);
   const rows = [];
@@ -132,7 +107,6 @@ export async function runCells({ engine, arms, windows = WINDOWS, passes = Q.min
 const med = (l) => (l.length ? pct(50, l) : null);
 const tally = (rs) => ({ before: rs.filter((r) => r.decision === 'refuse' && r.phase === 'before').length, after: rs.filter((r) => r.decision === 'refuse' && r.phase === 'after').length, stale: rs.filter((r) => r.decision === 'stale').length, error: rs.filter((r) => r.decision === 'error').length });
 
-/** Per window x arm: accepted pass count, refusal counts and medians of the accepted passes, each verdict against `base` (Lean `outcome`). */
 export function summarize(rows, { base = 'base' } = {}) {
   const key = (r) => `${r.engine}|${r.window}|${r.arm}`;
   const cells = new Map();
@@ -156,7 +130,6 @@ export function summarize(rows, { base = 'base' } = {}) {
   return out.sort((a, b) => (a.engine + a.window).localeCompare(b.engine + b.window) || a.arm.localeCompare(b.arm));
 }
 
-/** The window value of a recorder result: the cadence stat of Lean's `stat` over the rAF intervals (tenths of ms). */
 export function cadenceOf(ts, intervals) {
   const ivs = intervals(ts);
   return { frames: ts.length, ivs, stat: stat(ts.length, ivs) };

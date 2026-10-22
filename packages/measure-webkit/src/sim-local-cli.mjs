@@ -1,8 +1,4 @@
 #!/usr/bin/env node
-// Local lane CLI (mac-safari-measure, named exception (c) of "measure on CI"): Safari on macOS and Mobile Safari in the iOS Simulator
-// on this Mac, every pass under a sim slot and Lean's quiet rule. Writes results/mac-safari/{passes/*.json, summary.json, meta.json}.
-//   node sim-local-cli.mjs --site <apps/site/dist/aot> [--engine sim|safari|both] [--passes 3] [--deadline-min 25] [--out dir]
-// A local run is never a CI result: the files say `lane: local`.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -14,7 +10,7 @@ const { values: v } = parseArgs({ options: {
   device: { type: 'string', default: 'fw-mac-safari-27' }, 'no-lease': { type: 'boolean', default: false }, 'debug-ignore-quiet': { type: 'boolean', default: false },
 } });
 if (!v.site) { console.error('usage: sim-local-cli.mjs --site <prerendered build dir> [--engine sim|safari|both]'); process.exit(2); }
-process.env.FW_SIM_NAME = v.device; // before sim.mjs is imported: DEVICE_NAME is read once
+process.env.FW_SIM_NAME = v.device;
 
 const cwd = process.cwd();
 const out = resolve(cwd, v.out);
@@ -26,16 +22,13 @@ const { holdSimSlot, holdMeasureSlot } = await import('./safari-local-lease.mjs'
 const { arms, dropped } = localArms(resolve(v.site));
 log(`arms: ${arms.map((a) => a.id).join(' ')}${dropped.length ? ` (dropped as duplicates: ${dropped.join(' ')})` : ''}`);
 
-// harness debugging only: the quiet rule is replaced by a fixed quiet reading, every row is marked `debug`, and results/ is refused
 if (v['debug-ignore-quiet'] && /(^|\/)results\//.test(v.out)) { console.error('--debug-ignore-quiet never writes under results/'); process.exit(2); }
 const calm = { time: 0, loadCenti: 0, mem: { freeMB: 9999, specMB: 0, purgMB: 0, fileMB: 0, fileMinMB: 0, swapUsedMB: 0, swapTotalMB: 0, press: 1, comprMBPerMin: 0, swapOutMBPerMin: 0 }, ramMB: 16384, compressorMB: 0, holders: 0, queued: 0 };
-// the idle floor: a steady baseline of the machine with the engine up and idle (debug: a fixed floor of 0, rows marked `debug`)
 const optsFor = (lease) => {
   const read = v['debug-ignore-quiet'] ? async () => ({ ...calm, time: Math.floor(Date.now() / 1000) }) : () => readMachine({ cwd, mine: lease.token ? [lease.token] : [] });
   const takeBase = v['debug-ignore-quiet'] ? async () => ({ floorCenti: 0, readings: [] }) : ({ boot }) => takeBaseline({ read, boot, waitMs: Number(v['base-wait-s']) * 1000, log });
   return { arms, read, takeBase, pass: lease.pass ?? null, passes: Number(v.passes), maxRounds: Number(v['max-rounds']), waitMs: Number(v['wait-s']) * 1000, everyMs: 5000, log };
 };
-// the Simulator holds a `sim` slot (the daemon shuts a booted device down 600 s after the last sim holder); macOS Safari holds a `measure` slot and takes a pass per window
 const withLease = async (kind, fn) => {
   const lease = v['no-lease'] ? { token: null, release: async () => {} } : kind === 'sim' ? await holdSimSlot({ cwd, log }) : await holdMeasureSlot({ cwd, log });
   try { return await fn(lease); } finally { await lease.release(); }

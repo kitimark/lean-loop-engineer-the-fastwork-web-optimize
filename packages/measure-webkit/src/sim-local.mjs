@@ -1,6 +1,3 @@
-// Mobile Safari in the iOS Simulator on this Mac (mac-safari-measure, engine B). The window flow is sim-cadence.mjs `readWindow`
-// (same recorder, same hero and end scripts, same Timeline zone binning); what is new is that each window runs inside the quiet
-// check of safari-local-run.mjs, on a device of its own (FW_SIM_NAME, set by sim-local-cli.mjs before this file is imported).
 import { withSession } from './session.mjs';
 import { loadFresh, pageInfo } from './page.mjs';
 import { startTimeline } from './timeline.mjs';
@@ -13,7 +10,6 @@ import { HERO_BURST, END_PUSH } from '../../gate-breakpoints/src/smooth/schedule
 import { runCheck } from '../../gate-breakpoints/src/trajectory/reduce.mjs';
 import { cadenceOf, runCells, ZONE_OF } from './safari-local-run.mjs';
 
-/** The real simctl calls `ensureDevice` makes; a test passes its own. */
 const realSim = {
   list: listDevices,
   specOf(from) {
@@ -24,11 +20,6 @@ const realSim = {
   create: (name, type, runtime) => simctl(['create', name, type, runtime]),
 };
 
-/**
- * The lane's own device, made once and kept: reused when one with this name exists, created (same type and runtime as `from`) only when none does.
- * Several with the name is an error. The lane boots and shuts it down and never deletes it: each first boot of a fresh device costs minutes of load.
- * Returns `{name, created}`.
- */
 export function ensureDevice(name, from = 'fw-iphone-27', sim = realSim) {
   const have = sim.list().filter((d) => d.name === name);
   if (have.length > 1) throw new Error(`${have.length} Simulator devices are named "${name}": delete the extra ones by hand, the lane creates one device and reuses it`);
@@ -40,7 +31,6 @@ export function ensureDevice(name, from = 'fw-iphone-27', sim = realSim) {
   return { name, created: true };
 }
 
-/** The simulator window flow of one arm and one window, from a fresh load. */
 export const simWindow = (ctx, { settleMs, log }) => async (arm, win) => {
   ctx.setArm(arm.id);
   await ctx.c.evaluate(`history.replaceState(null, '', ${JSON.stringify('/' + arm.search)}); scrollTo({ top: 0, behavior: 'instant' }); location.search`);
@@ -65,11 +55,6 @@ export const simWindow = (ctx, { settleMs, log }) => async (arm, win) => {
   };
 };
 
-/**
- * Run the Simulator lane: one session, every arm on one origin. After the boot the lane settles, takes the idle floor with the Simulator booted and idle
- * (`takeBase({boot})`, Lean `simFloor`), and runs passes under the quiet rule at that floor; no steady floor means no pass.
- * Returns `{rows, baseline, device, ua}`.
- */
 export async function runSimLocal({ arms, read, takeBase, pass = null, passes, maxRounds, deadlineMs, waitMs, everyMs, onRow, settleMs = 2500, log = (s) => console.error(s) }) {
   let ua = '', vw = null;
   const device = findDevice();

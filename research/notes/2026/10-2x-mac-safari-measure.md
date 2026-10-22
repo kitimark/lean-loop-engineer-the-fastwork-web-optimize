@@ -108,8 +108,7 @@ Why the passes were refused (MEASURED, last reading of each wait; a row keeps on
 
 Reading: on macOS Safari the lowest recorded load was 1.57 and the median 3.64 against the ceiling 2.5; 15 of 20 attempts failed the load term, 8 the memory floor, 2 had another slot holder; and one pass ran
 (`safari end hx`: before accepted, after refused, its value dropped by `kept_refused`). On the Simulator all 10 attempts failed the load term (median 32.5, max 354) and 8 the memory floor. INFERRED: the Mac is not
-quiet while the user and other agents work on it, and with the Simulator booted it cannot be; a booked quiet window or a dedicated Mac would be needed. The proved rule (`judge`) did what it is for: it refused
-every number that would have been taken next to other load.
+quiet while the user and other agents work on it, and with the Simulator booted it cannot be; a booked quiet window or a dedicated Mac would be needed.
 
 ## Harness debug run (not a result)
 

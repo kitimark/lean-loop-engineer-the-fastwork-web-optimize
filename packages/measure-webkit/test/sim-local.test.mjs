@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { simWindow, ensureDevice } from '../src/sim-local.mjs';
 import * as simLocal from '../src/sim-local.mjs';
 
-/** A fake inspector client: a reload fires the navigation and load events, scripts answer from `facts`. */
 function fakeClient({ info, rec }) {
   const handlers = [];
   const emit = (m) => handlers.forEach((h) => h(m));
@@ -54,7 +53,6 @@ test('simWindow refuses a page that is not the arm asked for', async () => {
   await assert.rejects(() => simWindow({ c, setArm: () => {}, armHash: () => 'abc' }, { settleMs: 0, log: () => {} })({ id: 'base', site: 'rewrite', search: '' }, 'hero'), /wrong page/);
 });
 
-/** A fake simctl: the devices that exist, and a record of what was created. */
 const fakeSim = (names) => {
   const made = [];
   return { made, list: () => names.map((name) => ({ name, udid: 'U-' + name, state: 'Shutdown', runtime: 'r' })), specOf: (from) => (names.includes(from) ? { type: 'T', runtime: 'R' } : null),

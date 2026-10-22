@@ -1,11 +1,8 @@
-// One xctrace recording of the local probe: record under the guard while a slot is held, export the hitch tables, and always delete what was
-// written. The yes/no is Lean's `hitchesRecorded` (through parse.mjs `verdictOf`); the bounds are Lean's `probeAct` (guard.mjs).
 import { join } from 'node:path';
 import { parseToc, countRows, errorLines, verdictOf } from './parse.mjs';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/** Record one template while `during()` runs, then export. Returns the entry for the result file; the work directory is empty afterwards. */
 export async function attempt({ guard, lease, target, template, recordArgs, during, limitS, settleMs = 2500, wait = sleep, log = () => {} }) {
   if (!lease || !lease.token) throw new Error('xctrace records only while a sim or measure slot is held');
   if (!guard.roomOk()) return { target, template, skipped: 'not enough free disk to record', recorded: false };

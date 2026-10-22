@@ -1,19 +1,10 @@
 import Lean.Data.Json
 import Fw.Sup.Adapt
 import Fw.Gate.Smooth
-/-!
-# Quiet rule and per-zone cadence of the local Safari lane (task mac-safari-measure)
-A pass counts only when the machine was quiet before and after it; the kept passes reduce to cadence statistics and a verdict against the default arm.
--/
 namespace Fw.Sup.Measure
 open Lean (Json ToJson toJson)
 open Fw.Sup.Adapt
 
-/-! ## The quiet rule -/
-
-/-- Limits of the quiet rule. The load ceiling is not a constant: it is the measured idle floor of the machine plus `loadMarginCenti`. The rest: other live slot
-holders allowed, passes a verdict needs, longest span between the two readings, readings and spread (centi) a baseline window needs, the highest idle floor
-that still counts as idle (centi, one per core of this 8-core Mac), and seconds a booted Simulator settles before its baseline is read. -/
 structure QParams where
   loadMarginCenti : Nat := 100
   holdersMax : Nat := 0
@@ -25,10 +16,8 @@ structure QParams where
   settleS : Nat := 120
 deriving DecidableEq, Repr
 
-/-- The load ceiling (centi) of a machine whose idle floor is `fl`. -/
 def ceilCenti (q : QParams) (fl : Nat) : Nat := fl + q.loadMarginCenti
 
-/-- Why a reading is not quiet. -/
 inductive Why where
   | load | avail | pressure | swapOut | compress | holders
 deriving DecidableEq, Repr
@@ -37,13 +26,11 @@ def Why.name : Why → String
   | .load => "load" | .avail => "avail" | .pressure => "pressure" | .swapOut => "swapOut" | .compress => "compress"
   | .holders => "holders"
 
-/-- A sampler reading and the number of live slot holders other than the measuring lease. -/
 structure Reading where
   s : Sample
   holders : Nat
 deriving DecidableEq, Repr
 
-/-- Every reason other than load that a reading is not quiet, in a fixed order. -/
 def whysRest (q : QParams) (p : Params) (r : Reading) : List Why :=
   (if r.s.avail < p.floorMB then [Why.avail] else []) ++
   (if r.s.mem.press ≠ 1 then [Why.pressure] else []) ++
@@ -51,7 +38,6 @@ def whysRest (q : QParams) (p : Params) (r : Reading) : List Why :=
   (if thrash p r.s.mem || cmprsHigh p r.s then [Why.compress] else []) ++
   (if q.holdersMax < r.holders then [Why.holders] else [])
 
-/-- Every reason a reading is not quiet on a machine with idle floor `fl`, in a fixed order. -/
 def whys (q : QParams) (p : Params) (fl : Nat) (r : Reading) : List Why :=
   (if ceilCenti q fl < r.s.loadCenti then [Why.load] else []) ++ whysRest q p r
 
@@ -97,11 +83,9 @@ theorem not_quiet_holders (q : QParams) (p : Params) (fl : Nat) (r : Reading) (h
     quiet q p fl r = false := by
   simp [quiet, whys, whysRest, h]
 
-/-- A quiet reading never sits above the idle floor plus the margin. -/
 theorem quiet_load_le (q : QParams) (p : Params) (fl : Nat) (r : Reading) (h : quiet q p fl r = true) :
     r.s.loadCenti ≤ fl + q.loadMarginCenti := ((quiet_iff q p fl r).1 h).1
 
-/-- A quiet reading is not an overload of the slot limit, when the quiet load ceiling is below the overload one and swap is not rising. -/
 theorem quiet_not_overloaded (q : QParams) (p : Params) (fl : Nat) (r : Reading) (prev : Option (Nat × Nat))
     (hq : quiet q p fl r = true) (hl : ceilCenti q fl < p.highCenti) (hs : swapRising p prev r.s = false) :
     overloaded p prev r.s = false := by
@@ -112,7 +96,6 @@ theorem quiet_not_overloaded (q : QParams) (p : Params) (fl : Nat) (r : Reading)
     simp [memLow, this, h3, h4, h5]; omega
   simp [overloaded, hl', hm, h6, hs]
 
-/-- A lower load never turns a quiet reading into a refused one. -/
 theorem quiet_load_antitone (q : QParams) (p : Params) (fl : Nat) (r : Reading) (c : Nat) (hq : quiet q p fl r = true)
     (hc : c ≤ r.s.loadCenti) : quiet q p fl { r with s := { r.s with loadCenti := c } } = true := by
   have := (quiet_iff q p fl r).1 hq
@@ -124,7 +107,6 @@ theorem quiet_load_antitone (q : QParams) (p : Params) (fl : Nat) (r : Reading) 
   · exact Nat.le_trans hc h1
   · simpa [cmprsHigh] using h6
 
-/-- A higher idle floor never turns a quiet reading into a refused one. -/
 theorem quiet_floor_mono (q : QParams) (p : Params) (fl fl' : Nat) (r : Reading) (hq : quiet q p fl r = true) (h : fl ≤ fl') :
     quiet q p fl' r = true := by
   have := (quiet_iff q p fl r).1 hq
@@ -134,13 +116,10 @@ theorem quiet_floor_mono (q : QParams) (p : Params) (fl fl' : Nat) (r : Reading)
   unfold ceilCenti at *
   omega
 
-/-! ## Decision on one pass -/
-
 inductive Phase where
   | before | after
 deriving DecidableEq, Repr
 
-/-- The decision on a pass from the readings taken before and after it. -/
 inductive Decision where
   | accept
   | refuse (ph : Phase) (ws : List Why)
@@ -175,7 +154,6 @@ theorem judge_accept (q : QParams) (p : Params) (fl : Nat) (b a : Reading) (hb :
   have h2' : ¬ b.s.time + q.maxGapS < a.s.time := by omega
   simp [judge, hb, ha, h1', h2']
 
-/-- A pass is accepted only when both readings are quiet. -/
 theorem judge_accept_quiet (q : QParams) (p : Params) (fl : Nat) (b a : Reading) (h : judge q p fl b a = .accept) :
     quiet q p fl b = true ∧ quiet q p fl a = true := by
   unfold judge at h
@@ -186,32 +164,24 @@ theorem judge_accept_quiet (q : QParams) (p : Params) (fl : Nat) (b a : Reading)
     · simp at hb ha
       exact ⟨hb, ha⟩
 
-/-- No accepted pass has a reading above the idle floor plus the margin, before or after the window. -/
 theorem judge_accept_load_le (q : QParams) (p : Params) (fl : Nat) (b a : Reading) (h : judge q p fl b a = .accept) :
     b.s.loadCenti ≤ fl + q.loadMarginCenti ∧ a.s.loadCenti ≤ fl + q.loadMarginCenti := by
   obtain ⟨hb, ha⟩ := judge_accept_quiet q p fl b a h
   exact ⟨quiet_load_le q p fl b hb, quiet_load_le q p fl a ha⟩
 
-/-! ## Cadence of one window -/
-
-/-- A frame interval above this many tenths of a millisecond counts as long (25 ms). -/
 def longTenths : Nat := 250
 
 def sortNat (l : List Nat) : List Nat := l.mergeSort fun a b => decide (a ≤ b)
 
-/-- Nearest-rank percentile of tenths-of-ms intervals (0 for none). -/
 def pct (k : Nat) (ivs : List Nat) : Nat :=
   (sortNat ivs).getD (max 1 ((k * ivs.length + 99) / 100) - 1) 0
 
-/-- The refresh slot in tenths of ms: 8.3 ms when the median interval is under 12.5 ms, else 16.7 ms. -/
 def slotOf (ivs : List Nat) : Nat := if pct 50 ivs < 125 then 83 else 167
 
-/-- Whole refresh slots missed over a window: each interval counts its rounded number of slots, less the one it is owed. -/
 def skipped (slot : Nat) (ivs : List Nat) : Nat := (ivs.map fun i => (2 * i + slot) / (2 * slot) - 1).sum
 
 def longCount (ivs : List Nat) : Nat := ivs.countP fun i => decide (longTenths < i)
 
-/-- The statistics of one window: frames, intervals over 25 ms, skipped slots, p50, p95 and max interval (tenths of ms). -/
 structure Stat where
   frames : Nat
   long : Nat
@@ -247,7 +217,6 @@ private theorem rank_le (k n : Nat) (hk : k ≤ 100) (hn : 0 < n) : max 1 ((k * 
     omega
   omega
 
-/-- Percentiles are ordered: a lower rank never reads a longer interval. -/
 theorem pct_mono (a b : Nat) (ivs : List Nat) (hab : a ≤ b) (hb : b ≤ 100) : pct a ivs ≤ pct b ivs := by
   unfold pct
   by_cases hn : ivs.length = 0
@@ -263,7 +232,6 @@ theorem p50_le_p95 (ivs : List Nat) : pct 50 ivs ≤ pct 95 ivs := pct_mono 50 9
 
 theorem p95_le_max (ivs : List Nat) : pct 95 ivs ≤ pct 100 ivs := pct_mono 95 100 ivs (by omega) (by omega)
 
-/-- The 100th percentile is the longest interval, and it is one of them. -/
 theorem max_mem (ivs : List Nat) (h : ivs ≠ []) : pct 100 ivs ∈ ivs := by
   unfold pct
   have hn : 0 < ivs.length := List.length_pos_iff.2 h
@@ -294,7 +262,6 @@ theorem stat_p_order (frames : Nat) (ivs : List Nat) :
 
 theorem skipped_nil (slot : Nat) : skipped slot [] = 0 := rfl
 
-/-- A window whose intervals are all under one and a half slots skipped nothing. -/
 theorem skipped_eq_zero (slot : Nat) (ivs : List Nat) (h : ∀ i ∈ ivs, 2 * i < 3 * slot) : skipped slot ivs = 0 := by
   unfold skipped
   induction ivs with
@@ -309,7 +276,6 @@ theorem skipped_eq_zero (slot : Nat) (ivs : List Nat) (h : ∀ i ∈ ivs, 2 * i 
     simp only [List.map_cons, List.sum_cons]
     omega
 
-/-- An interval of at least two slots (rounded) is a skipped slot. -/
 private theorem le_sum_of_mem (l : List Nat) (x : Nat) (h : x ∈ l) : x ≤ l.sum := by
   induction l with
   | nil => simp at h
@@ -335,13 +301,8 @@ theorem long_le_length (ivs : List Nat) : longCount ivs ≤ ivs.length := List.c
 theorem slotOf_cases (ivs : List Nat) : slotOf ivs = 83 ∨ slotOf ivs = 167 := by
   unfold slotOf; split <;> simp
 
-/-! ## The idle floor of a baseline window -/
-
-/-- The load readings (centi) of a baseline window, in order. -/
 def loads (rs : List Reading) : List Nat := rs.map fun r => r.s.loadCenti
 
-/-- The idle floor measured by a baseline window: the median load, only when the window has enough readings, every reading is quiet in all terms but load, the load
-spread (highest minus lowest) is small, and the median is at most `floorMaxCenti`. Otherwise there is no baseline and no pass may run. -/
 def baselineFloor (q : QParams) (p : Params) (rs : List Reading) : Option Nat :=
   if rs.length < q.baseMinSamples then none
   else if rs.any (fun r => !(whysRest q p r).isEmpty) then none
@@ -381,7 +342,6 @@ theorem baselineFloor_none_high (q : QParams) (p : Params) (rs : List Reading) (
       · rfl
       · simp
 
-/-- What a baseline window that yields a floor satisfies: the median, enough readings, all calm, a small spread, a floor under the cap. -/
 theorem baselineFloor_some (q : QParams) (p : Params) (rs : List Reading) (fl : Nat) (h : baselineFloor q p rs = some fl) :
     fl = pct 50 (loads rs) ∧ q.baseMinSamples ≤ rs.length ∧ (∀ r ∈ rs, whysRest q p r = []) ∧
       pct 100 (loads rs) - pct 0 (loads rs) ≤ q.baseSpreadCenti ∧ fl ≤ q.floorMaxCenti := by
@@ -403,13 +363,11 @@ theorem baselineFloor_some (q : QParams) (p : Params) (rs : List Reading) (fl : 
   refine Classical.byContradiction fun hne => this ⟨r, hr, ?_⟩
   simpa [List.isEmpty_iff] using hne
 
-/-- The floor is between the lowest and the highest load of its window. -/
 theorem baselineFloor_between (q : QParams) (p : Params) (rs : List Reading) (fl : Nat) (h : baselineFloor q p rs = some fl) :
     pct 0 (loads rs) ≤ fl ∧ fl ≤ pct 100 (loads rs) := by
   obtain ⟨rfl, -⟩ := baselineFloor_some q p rs fl h
   exact ⟨pct_mono 0 50 _ (by omega) (by omega), pct_mono 50 100 _ (by omega) (by omega)⟩
 
-/-- With a baseline that yields a floor, no accepted pass reads a load above the cap on the idle floor plus the margin, whatever the machine did. -/
 theorem accepted_load_le_cap (q : QParams) (p : Params) (rs : List Reading) (fl : Nat) (b a : Reading)
     (hf : baselineFloor q p rs = some fl) (h : judge q p fl b a = .accept) :
     b.s.loadCenti ≤ q.floorMaxCenti + q.loadMarginCenti ∧ a.s.loadCenti ≤ q.floorMaxCenti + q.loadMarginCenti := by
@@ -417,7 +375,6 @@ theorem accepted_load_le_cap (q : QParams) (p : Params) (rs : List Reading) (fl 
   have := (baselineFloor_some q p rs fl hf).2.2.2.2
   omega
 
-/-- Readings taken at least `settleS` seconds after the device booted. -/
 def settledAfter (q : QParams) (boot : Nat) (rs : List Reading) : List Reading :=
   rs.filter fun r => decide (boot + q.settleS ≤ r.s.time)
 
@@ -425,11 +382,9 @@ theorem mem_settledAfter (q : QParams) (boot : Nat) (rs : List Reading) (r : Rea
     r ∈ rs ∧ boot + q.settleS ≤ r.s.time := by
   simpa [settledAfter] using h
 
-/-- The idle floor with the Simulator booted: only readings taken after the settle period count. -/
 def simFloor (q : QParams) (p : Params) (boot : Nat) (rs : List Reading) : Option Nat :=
   baselineFloor q p (settledAfter q boot rs)
 
-/-- Readings all taken before the settle period ended give no baseline. -/
 theorem simFloor_none_unsettled (q : QParams) (p : Params) (boot : Nat) (rs : List Reading) (hq : 0 < q.baseMinSamples)
     (h : ∀ r ∈ rs, r.s.time < boot + q.settleS) : simFloor q p boot rs = none := by
   apply baselineFloor_none_few
@@ -441,12 +396,9 @@ theorem simFloor_none_unsettled (q : QParams) (p : Params) (boot : Nat) (rs : Li
     omega
   rw [this]; simpa using hq
 
-/-- A Simulator baseline that yields a floor rests on readings all taken after the settle period. -/
 theorem simFloor_some_settled (q : QParams) (p : Params) (boot : Nat) (rs : List Reading) (fl : Nat)
     (h : simFloor q p boot rs = some fl) : q.baseMinSamples ≤ (settledAfter q boot rs).length :=
   (baselineFloor_some q p _ fl h).2.1
-
-/-! ## Verdict against the default arm -/
 
 inductive Outcome where
   | better | worse | same | insufficient
@@ -455,7 +407,6 @@ deriving DecidableEq, Repr
 def Outcome.name : Outcome → String
   | .better => "better" | .worse => "worse" | .same => "same" | .insufficient => "insufficient"
 
-/-- Per-pass counts of a metric (lower is smoother) of an arm against the default's: better when every default pass is above every arm pass. -/
 def outcome (q : QParams) (arm base : List Nat) : Outcome :=
   if arm.length < q.minPasses ∨ base.length < q.minPasses then .insufficient
   else match Fw.Gate.Smooth.hitchJudge arm base with
@@ -489,7 +440,6 @@ theorem outcome_same (q : QParams) (arm base : List Nat) (ha : q.minPasses ≤ a
   have : ¬ (arm.length < q.minPasses ∨ base.length < q.minPasses) := by omega
   simp [outcome, this, Fw.Gate.Smooth.hitchJudge_same arm base h1 h2]
 
-/-- The default judged against itself is never told apart. -/
 theorem outcome_self (q : QParams) (hq : 0 < q.minPasses) (xs : List Nat) : outcome q xs xs ≠ .better ∧ outcome q xs xs ≠ .worse := by
   by_cases hn : xs = []
   · subst hn
@@ -506,7 +456,6 @@ theorem outcome_self (q : QParams) (hq : 0 < q.minPasses) (xs : List Nat) : outc
     · simp
     · simp [Fw.Gate.Smooth.hitchJudge, hno]
 
-/-- The passes kept by the quiet rule: a refused or stale pass is not in the list. -/
 def kept (xs : List (Decision × Nat)) : List Nat := xs.filterMap fun d => if d.1 = .accept then some d.2 else none
 
 theorem kept_length_le (xs : List (Decision × Nat)) : (kept xs).length ≤ xs.length := List.length_filterMap_le _ _
@@ -521,9 +470,6 @@ theorem kept_stale (v : Nat) (xs : List (Decision × Nat)) : kept ((.stale, v) :
 theorem kept_accept (v : Nat) (xs : List (Decision × Nat)) : kept ((.accept, v) :: xs) = v :: kept xs := by
   simp [kept]
 
-/-! ## The local trace probe -/
-
-/-- A trace records hitches when it finalized and its hitches table has a row. -/
 def hitchesRecorded (finalized : Bool) (rows : Nat) : Bool := finalized && decide (0 < rows)
 
 theorem hitches_not_finalized (rows : Nat) : hitchesRecorded false rows = false := rfl
@@ -532,10 +478,6 @@ theorem hitches_no_rows (fin : Bool) : hitchesRecorded fin 0 = false := by simp 
 
 theorem hitches_recorded (rows : Nat) (h : 0 < rows) : hitchesRecorded true rows = true := by simp [hitchesRecorded, h]
 
-/-! ## The recorder's bounds -/
-
-/-- Bounds of one `xctrace record`: seconds after the recording's own time limit before it is interrupted and before its process group is killed, the largest
-trace on disk it may grow to (MB; one 6-16 s recording wrote 5-7 GB of kernel trace on this Mac), and the free disk a recording needs to start (MB). -/
 structure ProbeLimits where
   graceS : Nat := 60
   hardGraceS : Nat := 120
@@ -543,7 +485,6 @@ structure ProbeLimits where
   minFreeMB : Nat := 30720
 deriving DecidableEq, Repr
 
-/-- What the probe does at one look at a running recording. -/
 inductive ProbeAct where
   | wait | interrupt | kill
 deriving DecidableEq, Repr
@@ -551,7 +492,6 @@ deriving DecidableEq, Repr
 def ProbeAct.name : ProbeAct → String
   | .wait => "wait" | .interrupt => "interrupt" | .kill => "kill"
 
-/-- One look: seconds since the recorder started, its time limit, the size of everything it wrote (MB), whether the process that started the probe is alive. -/
 structure ProbeLook where
   elapsedS : Nat
   limitS : Nat
@@ -566,7 +506,6 @@ def probeAct (l : ProbeLimits) (s : ProbeLook) : ProbeAct :=
   else if s.limitS + l.graceS ≤ s.elapsedS then .interrupt
   else .wait
 
-/-- A recording starts only when the disk has room for it. -/
 def mayRecord (l : ProbeLimits) (freeMB : Nat) : Bool := decide (l.minFreeMB ≤ freeMB)
 
 theorem probeAct_orphan (l : ProbeLimits) (s : ProbeLook) (h : s.parentAlive = false) : probeAct l s = .kill := by
@@ -594,7 +533,6 @@ theorem probeAct_wait (l : ProbeLimits) (s : ProbeLook) (hg : l.graceS ≤ l.har
   have h2 : ¬ s.limitS + l.graceS ≤ s.elapsedS := by omega
   simp [probeAct, hp, this, h1, h2]
 
-/-- A recording is never left running: with the interrupt after `graceS`, the group is killed at the latest `hardGraceS` after the limit, whatever the parent and the disk did. -/
 theorem probeAct_bounded (l : ProbeLimits) (s : ProbeLook) (h : s.limitS + l.hardGraceS ≤ s.elapsedS) : probeAct l s = .kill := by
   by_cases hp : s.parentAlive = true
   · by_cases hs : l.maxTraceMB < s.traceMB
@@ -607,8 +545,6 @@ theorem mayRecord_low (l : ProbeLimits) (freeMB : Nat) (h : freeMB < l.minFreeMB
 
 theorem mayRecord_room (l : ProbeLimits) (freeMB : Nat) (h : l.minFreeMB ≤ freeMB) : mayRecord l freeMB = true := by
   simp [mayRecord, h]
-
-/-! ## Golden vectors -/
 
 def line (name op : String) (req : List (String × Json)) (resp : Json) : String :=
   (Json.mkObj [("name", .str name), ("request", Json.mkObj (("op", .str op) :: req)), ("response", resp)]).compress
@@ -653,7 +589,6 @@ def quietLines (_ : Unit := ()) : List String :=
     case "gap of 1800 s is accepted" 150 ok (okRead 1900),
     case "gap of 1801 s is stale" 150 ok (okRead 1901) ]
 
-/-- A baseline reading at time `t` with load `c`. -/
 def baseRead (t c : Nat) : Reading := { okRead t with s := { (okRead t).s with loadCenti := c } }
 
 set_option compiler.extract_closed false in

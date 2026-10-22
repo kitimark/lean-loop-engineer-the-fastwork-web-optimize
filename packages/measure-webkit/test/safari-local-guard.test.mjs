@@ -6,10 +6,9 @@ import { join } from 'node:path';
 import { makeGuard, dirMB, assertOwnDir, sweepStale, pidAlive, userTempDir, isKtrace } from '../src/xctrace/guard.mjs';
 import { attempt } from '../src/xctrace/attempt.mjs';
 
-const own = () => mkdtempSync(join(tmpdir(), 'fw-guard-test-')); // the test's own scratch; the code under test refuses to use the temp folder itself
+const own = () => mkdtempSync(join(tmpdir(), 'fw-guard-test-'));
 const alive = (pid) => { try { process.kill(pid, 0); return true; } catch { return false; } };
 
-/** A clock 1000 times faster than real time, so the 60 s and 120 s bounds of the recorder pass in 60 ms and 120 ms. */
 const fast = () => { const t0 = Date.now(); return () => t0 + (Date.now() - t0) * 1000; };
 
 test('a child runs in its own group with TMPDIR inside the work dir, and the work dir holds all it wrote', async () => {
@@ -28,7 +27,7 @@ test('a child runs in its own group with TMPDIR inside the work dir, and the wor
 test('a child that writes into the user temp folder (the confstr dir, not TMPDIR) is counted and only its new kernel traces are wiped', async () => {
   const w = own(), u = own();
   try {
-    writeFileSync(join(u, 'instruments-old.ktrace'), 'old'); // an earlier recording's trace: never ours
+    writeFileSync(join(u, 'instruments-old.ktrace'), 'old');
     writeFileSync(join(u, 'other.txt'), 'x');
     const g = makeGuard({ workDir: join(w, 'work'), userTmp: u, everyMs: 5 });
     const script = `echo big > "${u}/instruments-new.ktrace"; mkdir "${u}/instruments-dir.ktrace"; echo y > "${u}/instruments-dir.ktrace/f"; echo z > "${u}/keep.txt"; sleep 0.1`;
@@ -65,7 +64,6 @@ test('a command that runs past its limit and the grace is killed with everything
   const w = own();
   try {
     const g = makeGuard({ workDir: join(w, 'work'), everyMs: 5, now: fast() });
-    // ignores SIGINT, and a helper in the same group
     const r = await g.exec('sh', ['-c', 'trap "" INT; sleep 300 & echo $! > helper.pid; sleep 300'], { limitS: 0 });
     assert.ok(r.interrupted, 'interrupted at the grace');
     assert.ok(r.killed, 'killed at the hard deadline');

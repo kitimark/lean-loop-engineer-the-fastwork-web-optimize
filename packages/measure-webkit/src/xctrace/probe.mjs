@@ -1,11 +1,4 @@
 #!/usr/bin/env node
-// Local xctrace probe (mac-safari-measure): does Animation Hitches and/or Metal System Trace record (a) the iOS Simulator's Safari,
-// (b) macOS Safari on this Mac? Each attempt records a few seconds while the page scrolls, then exports the table of contents and the
-// hitch tables. The answer is the exact refusal or the row count; nothing here decides (Lean `hitchesRecorded` does, through parse.mjs).
-//   node probe.mjs --site <build dir> --target sim|mac|both --out <file.json> [--seconds 6]
-// Safety (incident inc-tmp-trace-leak): a slot is held for the whole run; every xctrace runs in its own process group with a bounded
-// `--time-limit`, TMPDIR inside <out dir>/.xctrace/work-<pid>, and is killed as Lean `probeAct` says (late, over the size cap, parent gone);
-// the work directory is emptied after each attempt and removed at the end, also on a signal; a probe that loses its parent exits.
 import { spawnSync, spawn } from 'node:child_process';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -33,13 +26,13 @@ const results = [];
 const flush = () => writeFileSync(out, JSON.stringify({ lane: 'local', seconds: secs, results }, null, 1) + '\n');
 let lease = null;
 let closing = false;
-const onExit = []; // stops of helpers this run started (safaridriver)
+const onExit = [];
 const cleanup = async () => {
   if (closing) return; closing = true;
   guard.killAll();
-  for (const f of onExit) { try { f(); } catch { /* gone */ } }
+  for (const f of onExit) { try { f(); } catch {} }
   rmSync(workDir, { recursive: true, force: true });
-  try { rmSync(root, { recursive: false }); } catch { /* not empty or already gone */ }
+  try { rmSync(root, { recursive: false }); } catch {}
   await lease?.release().catch((e) => log(`release: ${e.message}`));
 };
 for (const sig of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.on(sig, () => { log(`${sig}: stopping`); cleanup().finally(() => process.exit(130)); });
@@ -48,7 +41,6 @@ guard.watchParent(() => { log('the parent process is gone: stopping'); cleanup()
 const rec = (target, template, recordArgs, during, limitS = secs) => attempt({ guard, lease, target, template, recordArgs, during, limitS, log });
 try {
   const { holdSimSlot, holdMeasureSlot } = await import('../safari-local-lease.mjs');
-  // a Simulator target needs the `sim` slot (the daemon keeps a booted device only under it); a macOS-only probe holds a `measure` slot and one exclusive pass
   if (v.target === 'mac') {
     lease = await holdMeasureSlot({ cwd: process.cwd(), leaseS: 900, renewEveryS: 120, log });
     if (!(await lease.pass.start(Math.max(300, secs * 8), 300))) throw new Error('the slot gave no exclusive pass: other holders stayed live');
@@ -100,8 +92,8 @@ try {
       }
     } finally {
       await wd.close();
-      try { process.kill(drv.pid); } catch { /* gone */ }
-      for (const p of pgrep()) if (!before.has(p)) { try { process.kill(p); } catch { /* gone */ } }
+      try { process.kill(drv.pid); } catch {}
+      for (const p of pgrep()) if (!before.has(p)) { try { process.kill(p); } catch {} }
       await server.close();
     }
   }
