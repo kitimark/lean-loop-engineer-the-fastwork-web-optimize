@@ -15973,8 +15973,8 @@
    "deps": [],
    "writes": [
     ".github/workflows/webkit-sim.yml",
-    "packages/measure/webkit/src/watchdog.mjs",
-    "packages/measure/webkit/test/watchdog.test.mjs",
+    "packages/measure-webkit/src/watchdog.mjs",
+    "packages/measure-webkit/test/watchdog.test.mjs",
     "lean/Fw/Measure/SimBound.lean",
     "docs/team/handoffs/sim-step-watchdog.md"
    ],
