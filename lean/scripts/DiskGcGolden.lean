@@ -20,7 +20,8 @@ def req (extra : List (String × Json)) (cands : List Json) : Json :=
 
 def cand (cls : Nat) (path : String) (newest : Nat) (more : List (String × Json) := []) (dir := true) : Json :=
   Json.mkObj ([("cls", toJson cls), ("path", .str path), ("bytes", toJson 100), ("uid", toJson 501),
-    ("tracked", .bool false), ("newest", toJson newest), ("dir", .bool dir)] ++ more)
+    ("tracked", .bool false), ("newest", toJson newest), ("dir", .bool dir)] ++
+    (if cls ≥ 6 && !(more.map (·.1)).contains "sym" then [("sym", .bool false)] else []) ++ more)
 
 def lakeFile (n : String) (links : Nat) : Json :=
   cand 1 s!"/h/.elan/t/lake/cache/artifacts/{n}" 0 [("lake", Json.mkObj [("name", .str n), ("file", .bool true),
@@ -43,6 +44,11 @@ def owned (d : String) (newest : Nat) : Json :=
 def sim (udid name state : String) : Json :=
   cand 5 s!"/h/Library/Developer/CoreSimulator/Devices/{udid}" 0
     [("device", Json.mkObj [("name", .str name), ("state", .str state)])]
+
+def ev (seq : Nat) (type : String) (more : List (String × String) := []) : Json :=
+  Json.mkObj ([("seq", toJson seq), ("type", .str type)] ++ more.map fun (k, v) => (k, Json.str v))
+
+def facts (es : List Json) : Json := Json.mkObj [("events", .arr es.toArray)]
 
 def u1 : String := "0a1b2c3d-0000-1111-2222-333344445555"
 
@@ -154,6 +160,32 @@ def gcCases : List (String × String × Json) := [
   ("class 4 owner: lists not gathered", "ops.diskGc", req [] [owned "a" (now - 7200)]),
   ("class 6: a symbolic link is kept", "ops.diskGc",
     req [] [cand 6 s!"{repo}/.fw-console/tmp/link" 0 [("sym", .bool true)] false]),
+  ("classes 6 and 7: a candidate without a sym fact is kept", "ops.diskGc",
+    req [] [Json.mkObj [("cls", toJson 6), ("path", .str s!"{repo}/.fw-console/tmp/nosym"), ("bytes", toJson 100),
+        ("uid", toJson 501), ("tracked", .bool false), ("newest", toJson 0), ("dir", .bool true)],
+      Json.mkObj [("cls", toJson 7), ("path", .str "/private/var/folders/ab/cd/T/fw-nosym"), ("bytes", toJson 100),
+        ("uid", toJson 501), ("tracked", .bool false), ("newest", toJson 0), ("dir", .bool true)]]),
+  ("class 7: the extended mkdtemp prefixes are listed, near misses are kept", "ops.diskGc",
+    req [] [tmp "dryl-a1", tmp "jev-x", tmp "jevd2-y", tmp "cm-test-1", tmp "slots-1", tmp "difftest-1", tmp "rr-1",
+      tmp "replay-1", tmp "wkrep-1", tmp "wkraw-1", tmp "vd-root-1", tmp "compose-1", tmp "graph-check-1",
+      tmp "dryl1", tmp "rr", tmp "graph", tmp "vdx", tmp "cm"]),
+  ("facts: a label alone is live, a stop ends it, a later spawn resumes it", "ops.diskGcFacts",
+    facts [ev 1 "agent.label" [("agent", "a"), ("name", "mid")], ev 2 "agent.label" [("agent", "b"), ("name", "gone")],
+      ev 3 "agent.stop" [("agent", "b")], ev 4 "agent.label" [("agent", "c"), ("name", "back")],
+      ev 5 "agent.stop" [("agent", "c")], ev 6 "agent.spawn" [("agent", "c")]]),
+  ("facts: events are judged by seq, not file order: a spawn newer than the stop resumes, a stop newer than the spawn ends", "ops.diskGcFacts",
+    facts [ev 2 "agent.stop" [("agent", "a")], ev 5 "agent.spawn" [("agent", "a")], ev 1 "agent.label" [("agent", "a"), ("name", "x")],
+      ev 5 "agent.spawn" [("agent", "b")], ev 7 "agent.stop" [("agent", "b")], ev 2 "agent.label" [("agent", "b"), ("name", "y")]]),
+  ("facts: a finished run ends its agents; done tasks and runs are listed once", "ops.diskGcFacts",
+    facts [ev 1 "agent.label" [("agent", "a"), ("name", "m"), ("key", "wfid-label:wf_12345678-abc:a:t")],
+      ev 2 "agent.label" [("agent", "b"), ("name", "n"), ("key", "wfid-label:wf_87654321-def:b:t")],
+      ev 3 "agent.stop" [("agent", "wf:wf_12345678-abc"), ("key", "wfr-end:wf_12345678-abc")],
+      ev 4 "agent.stop" [("agent", "z"), ("key", "wfr-end:wf_12345678-abc")], ev 5 "task.done" [("task", "t1")],
+      ev 6 "task.done" [("task", "t1")], ev 7 "task.done" [], ev 8 "agent.stop" [("key", "wfr-end:wf_")]]),
+  ("facts: a label without an agent or a name is ignored", "ops.diskGcFacts",
+    facts [ev 1 "agent.label" [("name", "x")], ev 2 "agent.label" [("agent", "a")]]),
+  ("facts: an event without a seq is refused", "ops.diskGcFacts",
+    Json.mkObj [("events", .arr #[Json.mkObj [("type", .str "agent.stop")]])]),
   ("an unknown class: refused", "ops.diskGc", req [("classes", .arr #[toJson 8])] []),
   ("cands missing: refused", "ops.diskGc", Json.mkObj base),
   ("recheck: allowed paths pass, others fail", "ops.diskGcPath",

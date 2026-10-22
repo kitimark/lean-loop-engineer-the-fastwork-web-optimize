@@ -511,6 +511,10 @@ def kindCase (k : Kind) (t : String) : Json :=
   line s!"kind {k.name}" [("op", "landVerdict.kind"), ("kind", k.name), ("task", t)]
     [("exit", toJson k.exitCode), ("ok", .bool k.ok), ("retry", .bool k.retryable), ("line", .str (verdictLine k t))]
 
+def installCase (offlineOk onlineOk : Bool) : Json :=
+  line s!"install {offlineOk} {onlineOk}" [("op", "landVerdict.install"), ("offlineOk", .bool offlineOk), ("onlineOk", .bool onlineOk)]
+    [("runsOnline", .bool (installRunsOnline offlineOk)), ("kind", match installKind offlineOk onlineOk with | some k => .str k.name | none => .null)]
+
 def flatStages (scope merges sel test own lints : Bool) : Stages :=
   ⟨fun _ _ => scope, fun _ _ => merges, fun _ _ => sel, fun _ _ => test, fun _ _ => own, fun _ _ => lints⟩
 
@@ -544,7 +548,7 @@ def ckCase (name : String) (fs : List FailedCheck) : Json :=
 
 def cases (_ : Unit := ()) : List Json :=
   Kind.all.map (kindCase · "land-dry") ++
-  [kindCase .dry "",
+  [kindCase .dry "", installCase true true, installCase true false, installCase false true, installCase false false,
    dryCase "all pass" true true true true,
    dryCase "all pass, reads not selected (test not run)" true true false true,
    dryCase "scope refuses first" false false true false,
@@ -577,7 +581,7 @@ def cases (_ : Unit := ()) : List Json :=
    ckCase "real: lint check and a plain check" [(false, ["axiom check"]), (false, [])], ckCase "real: two lint checks" [(false, ["lake build"]), (false, ["axiom check"])],
    ckCase "real: no failed check" []]
 
-#guard cases.length == 195
+#guard cases.length == 201
 
 def baseCase (behind clean : Bool) : Json :=
   line s!"base behind={behind} clean={clean}" [("op", "landDry.base"), ("behind", .bool behind), ("mergeClean", .bool clean)]

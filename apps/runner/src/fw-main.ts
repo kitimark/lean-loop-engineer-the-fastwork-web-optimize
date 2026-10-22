@@ -22,7 +22,7 @@ let spanExtra: ReturnType<typeof waitSpanExtra> & { step?: string } = {};
 if (group && group !== "watch" && group !== "timings" && group !== "run" && !(group === "slot" && rest[0] === "run")) { const end = begin("fw", spanStep(group, rest)); process.once("exit", (c) => end(c, spanExtra)); }
 async function postLandGc(mainDir: string): Promise<void> {
   const { diskGcTick } = await import("./disk-gc.ts");
-  const lines = span("fw land", "disk-gc (post-land)", () => diskGcTick(mainDir, ["lake", "landed", "console"], fwcoreCall(mainDir)));
+  const lines = span("fw land", "disk-gc (post-land)", () => diskGcTick(mainDir, ["lake", "landed", "console", "usertmp"], fwcoreCall(mainDir)));
   for (const l of lines) console.error(l);
 }
 try {
@@ -166,7 +166,11 @@ try {
       const dry = rest.includes("--dry");
       const res = await land(args[0]!, landOpts(task, allow)).catch((e: unknown): LandResult => ({ ok: false, lines: [`REFUSED: ${e instanceof Error ? e.message : String(e)}`], kind: "unknown", outcome: dry ? outcome({ threw: true }) : undefined }));
       if (dry) { const s = lastDryStep(); if (s !== null) spanExtra = { ...spanExtra, step: s.replace(/^dry total/, "land dry") }; }
-      if (dry) {
+      if (dry && res.kind === "install") {
+        for (const l of res.lines) console.error(l);
+        console.log(verdictLine("install", task ?? args[0]!));
+        process.exitCode = exitCode("install");
+      } else if (dry) {
         const oc = res.outcome ?? outcome({ threw: true });
         for (const l of res.lines) console.error(l);
         for (const l of dryRun(oc, task ?? args[0]!)) console.log(l);
