@@ -12,8 +12,8 @@ During the draw window (`.drawingOut` / `.drawingIn`, 0.9 s each, every 3.05 s) 
 - CONFIRMED premise: `drawAlpha j` is 1 for copy 0, 0 otherwise; `drawTmpl_hidden`: each copy is constant in the hidden dash
   offset or dropped by `visible`.
 - `draw_one_eq`, `drawOne_visSame`: from `HiddenPause.hidden_pause_eq` / `hiddenPause_visSame`; the visible scene is the original's
-  at every instant, in every viewport, including the frames where the class switches (the variant equals the original outside the window).
-- `drawOne_still_iff`: a copy is left still exactly when its window opacity is 0 (the decision is derived from the premise).
+  at every instant, in every viewport, including the frames where the class switches.
+- `drawOne_still_iff`: a copy is left still exactly when its window opacity is 0.
 - `animatedCount_values`: 3 animated paths per draw frame become 1; idle frames run none in either.
 - Golden `packages/contracts/golden/parts/hero.accent.drawone.jsonl` (16 rows) checked by `drawOne.test.ts`.
 

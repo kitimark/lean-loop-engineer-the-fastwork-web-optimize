@@ -792,114 +792,59 @@ theorem cr_comp_step_not_leE (ev eo : Stage → Bool)
 
 end EndPass
 
-/-! ## 7. The draw window: only the visible copy runs the stroke draw (`draw-one`)
-
-Copies 1 and 2 are opacity 0 for the whole window (`accent.module.css:76-83`); `Fw.Parts.HiddenPause.hidden_pause_eq` gives class E. -/
-
 open Fw.Parts.HiddenPause (Tmpl inst HiddenOrStill hidden_pause_eq hiddenPause_visSame)
 
-/-- The two variants of the draw window: every copy animates (the original), or only the opaque one.
-
-The faithful page or `hero.accent:draw-one`. -/
 inductive DrawVariant where
   | faithful
   | drawOne
   deriving DecidableEq, Repr
 
-/-- The accent's phase: idle (the boil) or drawing (`.drawingOut` / `.drawingIn`).
-
-The word is either at rest or being drawn. -/
 inductive Phase where
   | idle
   | drawing
   deriving DecidableEq, Repr
 
-/-- **Opacity of copy `j` during the draw window** (`accent.module.css:76-83`): copy 0 is 1, every other copy 0.
-
-Only the first scribble shows while a word is drawn. -/
 def drawAlpha (j : Nat) : Rat := if j = 0 then 1 else 0
 
-/-- **The decision**: does copy `j` run the stroke-dashoffset animation in the draw window? The original: always.
-`draw-one`: exactly when the copy is not transparent.
-
-A copy gets the draw animation only if it can be seen, or if the page is the faithful one. -/
 def animates : DrawVariant → Nat → Bool
   | .faithful, _ => true
   | .drawOne, j => decide (drawAlpha j ≠ 0)
 
-/-- **The animation exists only in the draw window.** Copy `j` runs the stroke animation in `phase` under `v`.
-
-Outside the draw window (`.idle .path` has no dash pattern) no variant runs it. -/
 def strokeAnimated (v : DrawVariant) (phase : Phase) (j : Nat) : Bool :=
   match phase with
   | .idle => false
   | .drawing => animates v j
 
-/-- **Which copies animate.** Under `draw-one` exactly copy 0 does.
-
-The decision reduces to "the first copy only". -/
 theorem drawOne_animates_iff (j : Nat) : animates .drawOne j = true ↔ j = 0 := by
   unfold animates drawAlpha
   by_cases h : j = 0 <;> simp [h]
 
-/-- **The faithful page animates every copy.**
-
-Nothing changes for the original. -/
 theorem faithful_animates (j : Nat) : animates .faithful j = true := rfl
 
-/-- **Skipped copies are exactly the transparent ones.** For any copy, `draw-one` leaves it still iff its opacity in
-the window is 0.
-
-The variant never stops the animation of a copy that paints. -/
 theorem drawOne_still_iff (j : Nat) : animates .drawOne j = false ↔ drawAlpha j = 0 := by
   unfold animates
   by_cases h : drawAlpha j = 0 <;> simp [h]
 
-/-- **Outside the draw window both variants run nothing.**
-
-Idle frames are the same in the original and `draw-one`. -/
 theorem idle_same (j : Nat) : strokeAnimated .drawOne .idle j = strokeAnimated .faithful .idle j := rfl
 
-/-- The number of the three copies that run the stroke animation in a phase.
-
-How many SVG paths the engine restyles per draw frame. -/
 def animatedCount (v : DrawVariant) (phase : Phase) : Nat :=
   ([0, 1, 2].filter fun j => strokeAnimated v phase j).length
 
-/-- **The work, as a count.** Three animated paths per draw frame become one; idle frames run none in either.
-
-The saving is two of three paths per draw frame. -/
 theorem animatedCount_values :
     animatedCount .faithful .drawing = 3 ∧ animatedCount .drawOne .drawing = 1 ∧
     animatedCount .faithful .idle = 0 ∧ animatedCount .drawOne .idle = 0 := by
   decide
 
-/-- **The saving never exceeds the original.** Per phase `draw-one` animates at most as many copies.
-
-The variant never adds work. -/
 theorem animatedCount_le (phase : Phase) : animatedCount .drawOne phase ≤ animatedCount .faithful phase := by
   cases phase <;> decide
 
-/-! ### The picture is the same -/
-
-/-- The look of copy `j` in the draw window, as a box: the same geometry for all copies, opacity `drawAlpha j`, and
-the dash offset `off` as its one paint value.
-
-What the scene holds for one scribble when its dash offset reads `off`. -/
 def copyLook (r : Rect) (j : Nat) (off : Rat) : BoxVis :=
   { box := r, ink := r, paint := [("stroke-dashoffset", toString off)], xf := ⟨1, 0, 0, 1, 0, 0⟩,
     alpha := drawAlpha j, clip := none, filter := [], order := j }
 
-/-- The draw window's scene as a template over the hidden copies' dash offset `a`. Copy 0 carries its own offset `d0`
-(both pages animate it the same way); copies 1 and 2 read `a`.
-
-The three scribbles, with the value the variant may change in the last two. -/
 def drawTmpl (r : Rect) (d0 : Rat) : Tmpl Rat :=
   [("copy0", fun _ => copyLook r 0 d0), ("copy1", fun a => copyLook r 1 a), ("copy2", fun a => copyLook r 2 a)]
 
-/-- Every box of the draw template is constant in `a` or dropped by `visible`.
-
-Copy 0 ignores the hidden copies' offset, copies 1 and 2 have opacity 0. -/
 theorem drawTmpl_hidden (vp r : Rect) (d0 : Rat) : HiddenOrStill vp (drawTmpl r d0) := by
   intro e he
   simp only [drawTmpl, List.mem_cons, List.not_mem_nil, or_false] at he
@@ -908,18 +853,10 @@ theorem drawTmpl_hidden (vp r : Rect) (d0 : Rat) : HiddenOrStill vp (drawTmpl r 
   · exact Or.inr fun a => by simp [copyLook, drawAlpha, BoxVis.drop]
   · exact Or.inr fun a => by simp [copyLook, drawAlpha, BoxVis.drop]
 
-/-- **One instant (class E).** Any two dash offsets of the hidden copies give the same visible scene.
-
-An animated and a still hidden scribble look the same, in every viewport. -/
 theorem draw_one_eq (vp r : Rect) (d0 a a' : Rat) :
     visible vp (inst (drawTmpl r d0) a) = visible vp (inst (drawTmpl r d0) a') :=
   hidden_pause_eq vp (drawTmpl r d0) (drawTmpl_hidden vp r d0) a a'
 
-/-- **Every instant, every viewport (class E).** The original shows the hidden copies' dash offset `aO env t`. The
-variant shows a still value in the draw window and the original's value elsewhere. The visible scenes are equal for
-every environment and every instant, including the frames where the class switches between drawing and idle.
-
-`draw-one` gives the original's picture at every width and every instant. -/
 theorem drawOne_visSame {Env T : Type} (vp : Env → Rect) (r : Env → T → Rect) (d0 : Env → T → Rat)
     (phase : T → Phase) (aO : Env → T → Rat) (still : Rat) :
     VisSame E vp (fun env t => inst (drawTmpl (r env t) (d0 env t)) (aO env t))
@@ -933,37 +870,24 @@ theorem drawOne_visSame {Env T : Type} (vp : Env → Rect) (r : Env → T → Re
 #guard strokeAnimated .drawOne .drawing 0 && !strokeAnimated .drawOne .idle 0
 #guard animatedCount .faithful .drawing == 3 && animatedCount .drawOne .drawing == 1
 
-/-! ### Golden rows for `hero.accent.drawone.jsonl` -/
-
-/-- A phase name on the wire. -/
 def phaseName : Phase → String
   | .idle => "idle"
   | .drawing => "drawing"
 
-/-- A variant name on the wire. -/
 def variantName : DrawVariant → String
   | .faithful => "faithful"
   | .drawOne => "draw-one"
 
-/-- One row: whether copy `j` animates, and its opacity in the draw window, for a variant and phase.
-
-`alpha` is null in the idle phase, where the boil sets the opacity. -/
 def drawRow (v : DrawVariant) (phase : Phase) (j : Nat) : Lean.Json :=
   Lean.Json.mkObj
     [("alpha", match phase with | .idle => Lean.Json.null | .drawing => Lean.Json.num (drawAlpha j).num.toNat),
      ("animated", strokeAnimated v phase j), ("copy", Lean.Json.num j), ("phase", phaseName phase),
      ("variant", variantName v)]
 
-/-- One count row: animated copies per phase and variant.
-
-The number of animated paths per draw frame the CI count is compared with. -/
 def countRow (v : DrawVariant) (phase : Phase) : Lean.Json :=
   Lean.Json.mkObj [("count", Lean.Json.num (animatedCount v phase)), ("phase", phaseName phase),
     ("variant", variantName v)]
 
-/-- The contents of `packages/contracts/golden/parts/hero.accent.drawone.jsonl`: 12 decision rows, then 4 count rows.
-
-The file text the exporter writes. -/
 def drawGoldenText : String :=
   String.join
     ((([DrawVariant.faithful, .drawOne].flatMap fun v =>
@@ -971,9 +895,6 @@ def drawGoldenText : String :=
       ([DrawVariant.faithful, .drawOne].flatMap fun v => [Phase.idle, .drawing].map fun ph => countRow v ph)).map
       fun r => r.compress ++ "\n")
 
-/-- Print the golden, or with `--check <file>` compare it byte for byte (exit 1 on a difference).
-
-Any other argument list prints the text and returns 0. -/
 def drawRun (args : List String) : IO UInt32 := do
   match args with
   | ["--check", path] =>
