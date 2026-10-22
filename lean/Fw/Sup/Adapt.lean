@@ -63,7 +63,6 @@ deriving DecidableEq, Repr
 
 def availMB (m : Mem) : Nat := m.freeMB + m.specMB + m.purgMB + (m.fileMB - m.fileMinMB)
 
-/-- Pages leave for swap at `swapOutMBPerMinMax` MB a minute or more; swap occupancy is not read. -/
 def swapActive (p : Params) (m : Mem) : Bool := decide (p.swapOutMBPerMinMax ≤ m.swapOutMBPerMin)
 
 def thrash (p : Params) (m : Mem) : Bool := decide (p.comprMBPerMinMax ≤ m.comprMBPerMin)
@@ -521,7 +520,6 @@ def yieldsToSim (p : Params) (n : Nat) (s : Sample) (hs q : List Entry) (me : En
         (decide (0 < others s.time hs) || decide (n < (prune s.time hs).length + 2) ||
           decide (s.avail < need p s hs me.kind + p.floorMB + charged p s.time hs + p.simMB))))
 
-/-- No live holder, kernel pressure normal, no thrash and no swap-out: the queue head may run under low memory. -/
 def idleHead (p : Params) (s : Sample) (hs : List Entry) : Bool :=
   (prune s.time hs).isEmpty && decide (s.mem.press = 1) && !thrash p s.mem && !swapActive p s.mem
 

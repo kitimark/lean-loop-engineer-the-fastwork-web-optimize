@@ -3896,7 +3896,7 @@
    "mistakeClass": "c-spec-gap",
    "leanVerdict": "provable",
    "leanReason": "The rule now proves its idle case: Fw.Sup.Adapt.idle_head_admitted, idle_head_only_when_empty, idle_head_at_most_one and verdict_unchanged_with_holder; memLow reads swapActive, a swap-out rate, not occupancy.",
-   "empiricalCheck": "The goldens replay the 2026-10-22 stall reading; the live queue was not re-run under the fix in this task.",
+   "empiricalCheck": "The goldens replay the 2026-10-22 stall reading; the live queue was not re-run under the fix.",
    "hardening": "slot-idle-head"
   }
  ]

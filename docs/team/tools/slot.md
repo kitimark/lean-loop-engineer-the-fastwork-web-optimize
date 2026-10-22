@@ -48,14 +48,13 @@ pnpm -s fw slot admit --kind build                       # lead, before spawning
   normal (1), pages leave for swap at 64 MB a minute or more (`swapActive`), or the compressor takes in at least
   1500 MB a minute (`thrash`). Both rates come from the `Compressions` and `Swapouts` counters and a mark in
   `<dir>/vm-mark.json`: new rates after 5 s or more, 0 after 600 s or a counter reset (`vmNext`); a mark without the
-  swap fields counts as a first reading. Swap occupancy is not read: macOS adds swap files on demand and keeps stale
-  swapped pages until reboot, so on 2026-10-22 swap sat at 3,276 of 4,096 MB with 0 swap-outs in 30 s (MEASURED,
+  swap fields counts as a first reading. Swap occupancy is not read: macOS keeps stale swapped pages, so on 2026-10-22 swap sat at 3,276 of 4,096 MB with 0 swap-outs in 30 s (MEASURED,
   incident `inc-slot-stall`). The 64 MB/min and 1500 MB/min thresholds are INFERRED until replayed on sampler data. A
   ticket admitted on a sample is still admitted when only its memory reading is better (`memLow_antitone`,
   `verdict_antitone`).
 - **Idle head.** With no live holder, pressure level 1, no `thrash` and no `swapActive` (`idleHead`), the head of
   its kind is admitted even under `memLow` or a footprint that does not fit (`idle_head_admitted`); waiting frees
-  nothing then, since other programs hold the memory. It runs alone: such an admit means no holder was live
+  nothing then, since other programs hold the memory. Such an admit means no holder was live
   (`idle_head_only_when_empty`), and once it holds a slot no other ticket is admitted on the same reading
   (`idle_head_at_most_one`). With a live holder the verdict is the strict one (`verdict_unchanged_with_holder`).
   The 2026-10-22 stall (281 MB available, file cache 4,443 MB under its 4,608 MB minimum) admits one Lean worker
@@ -81,8 +80,7 @@ pnpm -s fw slot admit --kind build                       # lead, before spawning
 - **Old lock.** A live `.local/locks/sim` directory (no pid yet, or a live pid) counts as one Simulator holder
   (`withLegacy`): a sim ticket waits `simBusy` (`verdict_legacy_blocks_sim`). `sim-lock.sh acquire` takes its
   directory, asks `fw slot held --kind sim` under the slot's state lock, and gives the directory back while a slot sim
-  holder is live. A failing check refuses the old lock; CI
-  skips the check (no slot there).
+  holder is live. A failing check refuses the old lock; CI skips it (no slot there).
 - **Lean workers.** A check gets as many Lean workers as fit the available room, at least 1 and at most the online
   cores; an admitted check's workers fit above the floor and the warming holders (`threads_fit`).
   `run` exports them as `LEAN_NUM_THREADS` and `LAKE_SLOT_CORES`.
@@ -101,8 +99,7 @@ pnpm -s fw slot admit --kind build                       # lead, before spawning
   down (`sim_shutdown_idle`); it never does so under a holder (`sim_shutdown_only_unheld`) or at a first sighting
   (`sim_first_sighting_keeps`). The decision and the shutdown run under the state lock.
 - **Builder admission.** `admit --kind build` admits when no Simulator ticket is queued, the live-agent count is known
-  and below 8, and available memory covers the floor plus 2100 MB (`admitBuild_iff`). The count is `--agents n`, else the
-  last line of `<main>/.fw-console/health.jsonl` (agents neither done nor gone), unknown when older than 900 s
+  and below 8, and available memory covers the floor plus 2100 MB (`admitBuild_iff`). The count is `--agents n`, else the last line of `<main>/.fw-console/health.jsonl` (agents neither done nor gone), unknown when older than 900 s
   (`agentsSeen`).
 - **Stop.** On TERM or INT, `run` sends TERM to the child's group, then KILL after 5 s, and only while the leader's
   pid and start time are unchanged.
