@@ -327,7 +327,7 @@ async function traceRow(core, a, p, attempt) {
   const t = traceCalls(root, s.uses, log);
   const verdict = core({ op: "oracle.retrieveTrace", root, paths, calls: t.calls });
   const ranges = core({ op: "oracle.retrieveRanges", reads: readsOf(log) }).ranges;
-  const ev = core({ op: "oracle.retrieveEvidence", ranges, evidence: evidenceOf(s.structured) });
+  const ev = core({ op: "oracle.retrieveEvidence", root, ranges, evidence: evidenceOf(s.structured) });
   const gate = core({ op: "oracle.retrieveAnswer", forced: a.forced === true, log: gateLog(log.filter((l) => l.tool !== ANSWER_TOOL)) });
   const env = s.result ? redactEnvelope(s.result) : null;
   const red = (x) => redactText(x, { work: root, home: process.env.HOME, user: process.env.USER });
@@ -339,11 +339,25 @@ async function traceRow(core, a, p, attempt) {
     trace: { verdict: verdict.verdict, calls: verdict.calls, bytes: verdict.bytes, denied: t.denied, unhooked: t.unhooked,
       hooked: log.length, reads: gate.reads, gate: gate.decision,
       answerDenied: log.filter((l) => l.tool === ANSWER_TOOL && l.decision === "deny").length },
-    log: relLog(log), ranges, evidence: { valid: ev.valid, invalid: ev.invalid },
+    log: relLog(log), ranges, evidence: { valid: ev.valid, invalid: ev.invalid.map((e) => ({ ...e, path: red(e.path) })) },
     thinking: s.thinking.map((b) => ({ type: b.type, chars: b.chars, signatureBytes: b.signatureBytes,
       ...(a.thinking && b.chars > 0 ? { text: red(b.text) } : {}) })),
     ...(answered ? { choice: st.choice, probabilities: st.probabilities } : {}),
     ...(run.exit !== 0 && !env ? { stderr: red(run.stderr) } : {}) };
+}
+
+function reevidence(a) {
+  const core = fwcoreCall(REPO);
+  const rowsFile = join(OUT, `${a.arm}.rows.jsonl`);
+  const rows = readJsonl(rowsFile).map((r) => {
+    const root = realpathSync(join(a.work, "trees", r.id));
+    const ev = core({ op: "oracle.retrieveEvidence", root, ranges: r.ranges, evidence: [...r.evidence.valid, ...r.evidence.invalid] });
+    const red = (x) => redactText(x, { work: root, home: process.env.HOME, user: process.env.USER });
+    return { ...r, evidence: { valid: ev.valid, invalid: ev.invalid.map((e) => ({ ...e, path: red(e.path) })) } };
+  });
+  writeJsonl(rowsFile, rows);
+  console.log(`jev-trace reevidence ${a.arm}: ${rows.reduce((x, r) => x + r.evidence.valid.length, 0)} valid, ` +
+    `${rows.reduce((x, r) => x + r.evidence.invalid.length, 0)} invalid evidence items over ${rows.length} rows`);
 }
 
 async function pool(items, jobs, fn) {
@@ -586,11 +600,12 @@ if (process.argv[1] && resolve(process.argv[1]) === SELF) {
   else if (sub === "pick2" && need("work")) pick2(f);
   else if (sub === "plan" && need("items")) plan(f);
   else if (sub === "position") position();
+  else if (sub === "reevidence" && need("work", "arm")) reevidence(f);
   else if (sub === "paired") paired(f);
   else {
     console.error("usage: jev-trace.mjs trees --work w | probe --work w --prompts p [--row id] | run --work w --prompts p " +
       "--model haiku|sonnet [--jobs n] [--only ids] [--thinking yes] [--forced yes] | hybrid --work w | pick1 --work w | pick2 --work w | " +
-      "plan --items json | position | paired | hook --state s");
+      "plan --items json | position | reevidence --work w --arm a | paired | hook --state s");
     process.exitCode = 64;
   }
 }

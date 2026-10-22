@@ -78,9 +78,15 @@ def opRanges (req : Json) : Except String Reply := do
     pure (← str j "path", ← (← arrD j "lines").mapM (asNat "lines"))
   pure [("ranges", .arr ((readRanges reads).map rangeJ).toArray)]
 
+def atRoot (root : Option String) (e : Range) : Range :=
+  match root.bind (rel · e.path) with
+  | some p => { e with path := p }
+  | none => e
+
 def opEvidence (req : Json) : Except String Reply := do
   let rs ← (← arrD req "ranges").mapM rangeOf
-  let es ← (← arrD req "evidence").mapM rangeOf
+  let root := match opt req "root" with | some (.str r) => some r | _ => none
+  let es := (← (← arrD req "evidence").mapM rangeOf).map (atRoot root)
   pure [("valid", .arr ((validEvidence rs es).map rangeJ).toArray),
     ("invalid", .arr ((es.filter fun e => !evidenceValid rs e).map rangeJ).toArray)]
 
@@ -201,6 +207,8 @@ def run (op : String) (r : String) : String :=
 #guard run "oracle.retrieveEvidence" "{\"ranges\":[{\"path\":\"a\",\"first\":1,\"last\":6}],\"evidence\":[{\"path\":\"a\",\"first\":2,\"last\":9}]}" ==
   "{\"invalid\":[{\"first\":2,\"last\":9,\"path\":\"a\"}],\"valid\":[]}"
 
+#guard run "oracle.retrieveEvidence" "{\"root\":\"/t\",\"ranges\":[{\"path\":\"a\",\"first\":1,\"last\":6}],\"evidence\":[{\"path\":\"/t/a\",\"first\":2,\"last\":3}]}" ==
+  "{\"invalid\":[],\"valid\":[{\"first\":2,\"last\":3,\"path\":\"a\"}]}"
 #guard run "oracle.retrieveAnswer" "{\"forced\":true,\"log\":[{\"tool\":\"Grep\",\"decision\":\"allow\"}]}" ==
   "{\"decision\":\"deny\",\"minReads\":1,\"reads\":0,\"why\":\"readFirst\"}"
 #guard run "oracle.retrievePickPos" "{\"rows\":[{\"candidates\":[\"a\"],\"pick\":\"a\"},{\"candidates\":[\"a\",\"b\"],\"pick\":\"b\"}]}" ==
