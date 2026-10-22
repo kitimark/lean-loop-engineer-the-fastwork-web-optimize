@@ -13,7 +13,6 @@ interface Ev {
   vh: number;
 }
 
-/** A driver on fake elements, one body per event (the first at mount, the others through the engine callback). */
 function rig(events: Ev[], bandGate: boolean) {
   const props = new Map<string, string>();
   let writes = 0;

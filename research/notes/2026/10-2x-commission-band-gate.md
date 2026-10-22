@@ -46,8 +46,7 @@ Goldens (`commission-gate.jsonl`, 70 lines): `planWrite`, `planCatchup`, `catchu
 | v1: skip every write in the band, catch-up body on a media change (9997b62) | FAIL, run 39836996121 | the gate compares computed custom properties at rest: original `"0"`, rewrite `"1"` (83 chromium probes); the media-change body ran a body the original does not run (runway height, title display, section height rows) |
 | v2: skip only while the follower moves; write at settle; on a media change write the follower's pair without a body (2a74101) | pass, run 39843552595 | the pair at rest equals the original's (`inl_settled`); no extra body |
 
-Lesson: a skip that leaves a computed value differing from the original in a state the gate compares fails it even when
-nothing shows. The base gate (no flag, run 39840038549) passes.
+Lesson: a skip fails the gate when it leaves a computed value different from the original, even when nothing shows. The base gate (no flag, run 39840038549) passes.
 
 ## Measurements
 
@@ -69,8 +68,8 @@ INFERRED from the class-toggle spike (element count spike at scrollY 3090 in bot
 | Commit | 1.00 1.00 1.00 | 1.00 1.00 1.00 |
 
 Layer budget 0 (layers, tiles equal). Outside scrollY 2650-3580 the 250 px bins of RecalcStyleCount and elementCount are
-equal within 1 (the saving is exactly where the follower runs). The flag's script cost (FunctionCall) is unchanged, as
-the model says: the follower and the class toggles still run.
+equal within 1 (the saving is exactly where the follower runs). The flag's FunctionCall is unchanged because the follower
+and the class toggles still run.
 
 WebKit: `fw run --target rewrite --engines webkit`, iOS Simulator 430x775, 50 px steps, 2 passes per run. Base run
 39837001915 (9997b62), flag run 39843567401 (2a74101). The v1 flag run 39837008165 failed with no artifact.
