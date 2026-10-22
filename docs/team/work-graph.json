@@ -15410,6 +15410,38 @@
     "apps/runner/src/slot-core.ts"
    ],
    "evidence": "620e726"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "seed-followups",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Console/LandSpeed.lean",
+    "packages/contracts/golden/console/land-speed.jsonl",
+    "apps/runner/test/land-seed-due.test.ts",
+    "apps/runner/src/fw.ts",
+    "docs/team/tools/land.md"
+   ],
+   "title": "land-seed-due review follow-ups (landed 801cd780): (1) the golden the TS mirror replays has no row for a .lean file outside the key globs (lean/scripts/AxiomCheck.lean), the one case where '*' vs '**' matters; add seedLagCase \"lean/scripts/*.lean is not a key path\" [\"lean/scripts/AxiomCheck.lean\", \"lean/Fw.lean\"] (lag 1), regenerate, row counts 52 and 5. (2) under fw land --queue the PUSH-DUE line goes to stderr (apps/runner/src/fw.ts:159); print it on stdout like the VERDICT line. Unit: the golden row with its TS replay; PUSH-DUE on stdout under --queue with a test; land.md."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-remote-lines-flake",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "apps/runner/test/land-remote-lines.test.ts",
+    "apps/runner/test/land-timeout.ts",
+    "docs/team/incidents/ledger.json"
+   ],
+   "title": "CI flake 2026-10-22: test/land-remote-lines.test.ts timed out at 120 s in land run 39713817057 (suites-a, branch ci/land-land-seed-due-08aafe9); the retry passed (801cd780) and it passes locally in 1.5 s; first failure in the last 15 land runs. Find where it waited (the fixture land with remote deadlineS 5 and sliceS 0.05: lock, reconcile, the local tier or the adapter poll loop), make the test bounded by its own deadline, and record the cause (incident row if it is a real hang). Unit: named cause with evidence (CI log lines or a reproduction), the bounded test, incident row or a stated 'no hang' finding."
   }
  ],
  "deadline": {
