@@ -232,6 +232,9 @@ every decisive job of both WebKit legs the verdict is `same`; no job says `secon
 | macOS Playwright WebKit, 390 px | 39729682403 (`smoothness-webkit-mac-1..3`, 8 reps per arm, 48 windows each, none refused) | 3 | 0 / 0 / 3 / 0 | same |
 | iOS Simulator, Mobile Safari, 430 px | 39754568950 (`smoothness-webkit-sim-1..3`, 6 reps, 36 windows each, none refused) | 3 | 0 / 0 / 3 / 0 | same |
 
+The Lean zone verdict (`zoneVerdict`, twin `report.mjs`) compares the per-window render work per frame of the two arms
+against the A/A pair, per job.
+
 Finish zone, 2.8 s window, median over the kept windows of three jobs (MEASURED, the same runs; the Lean verdict is
 over per-job medians, these are pooled medians):
 
