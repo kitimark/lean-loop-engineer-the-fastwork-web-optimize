@@ -2,7 +2,10 @@ import { useEffect } from 'react';
 import { getClock } from '../../engine/clock';
 import { registerScroll } from '../../engine/scroll';
 import { createThreadedFade, type FadeEl } from '../platform/fade.driver';
-import { createTweenDriver, type TweenEnv } from './driver';
+import { isBand } from '../morph.mount/listen.logic';
+import { touchHub, type TouchClient, type TouchHub } from '../morph.mount/listen';
+import { createTweenDriver, type TweenDriver, type TweenEnv } from './driver';
+import { active } from './logic';
 import { matchList } from './media';
 import { hoverNoneOf, lockAllowed, overlayOf } from './scroll-lock.logic';
 import { createWaapiDriver, type AnimLike, type AnimTarget, type WaapiEnv } from './waapi.driver';
@@ -53,9 +56,13 @@ export function MorphTween({ variant, platformSelector = '.start-selling-platfor
       lock: scrollLockOf(variant, root),
       fade: platformFade ? createThreadedFade(() => platform() as unknown as FadeEl | null) : undefined,
     };
+    let tween: TweenDriver | undefined;
+    const hub = isBand(variant) ? touchHub() : undefined;
+    const unband = hub ? bandEnv(env, hub, () => (tween ? active(tween.state()) : false)) : undefined;
     const arm: WaapiArm | null = variant === 'waapi' || variant === 'waapi-scoped' ? variant : null;
-    const driver = arm ? createWaapiDriver(waapiEnv(env, platform, navSelector, arm), arm) : createTweenDriver(env);
+    const driver = arm ? createWaapiDriver(waapiEnv(env, platform, navSelector, arm), arm) : (tween = createTweenDriver(env));
     const target = platform();
+    const stopBand = hub && target ? hub.observe(target) : undefined;
     const io = target ? new IntersectionObserver(([entry]) => driver.setNear(!!entry?.isIntersecting), { rootMargin: '200% 0px' }) : undefined;
     if (target && io) io.observe(target);
     const off = registerScroll('morph.tween', MORPH_PIN_ORDER, () => driver.pin());
@@ -63,10 +70,33 @@ export function MorphTween({ variant, platformSelector = '.start-selling-platfor
       off();
       io?.disconnect();
       driver.dispose();
+      stopBand?.();
+      unband?.();
       root.removeAttribute('data-fw-morph-tween');
     };
   }, [variant, platformSelector, navSelector, platformFade]);
   return null;
+}
+
+/** Variant `band`: the driver's touch listeners join the merged hub, which re-decides its mode at every publish. */
+function bandEnv(env: TweenEnv, hub: TouchHub, isActive: () => boolean): () => void {
+  const noop = () => {};
+  const client: TouchClient = { touchstart: noop, touchmove: noop, active: isActive };
+  const { addListener, removeListener, publish } = env;
+  env.addListener = (type, fn, passive) => {
+    if (type === 'wheel') return addListener(type, fn, passive);
+    client[type] = fn as (e: TouchEvent) => void;
+    if (type === 'touchmove') hub.attach(client);
+  };
+  env.removeListener = (type, fn) => {
+    if (type === 'wheel') return removeListener(type, fn);
+    hub.detach(client);
+  };
+  env.publish = (value) => {
+    publish(value);
+    hub.refresh();
+  };
+  return () => hub.detach(client);
 }
 
 /** The `scroll-lock` arm's root lock, installed only when `(hover: none)` reads as not matching (Lean `hoverNoneOf`). */

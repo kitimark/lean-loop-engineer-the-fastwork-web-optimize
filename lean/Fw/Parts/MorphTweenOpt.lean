@@ -5,6 +5,7 @@ import Fw.Parts.EndFlags
 import Fw.Parts.Nav
 import Fw.Parts.MorphPanel
 import Fw.Parts.NavHitTest
+import Fw.Parts.MorphListen
 
 /-!
 # morph.tween, variant `waapi`: curve, value, flags, work (MT1, MT2, MT3, MT4, MT-W)

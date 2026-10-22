@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
 import { registerScroll } from '../../engine/scroll';
+import { isBand } from './listen.logic';
+import { touchHub } from './listen';
 import { action, armed, IO_ROOT_MARGIN, isShift, mountNext, mountNextWarm, warmStill, WARM_QUIET_MS, MOUNT_PIN_ORDER, repin, takes, touchDelta, viewportHeight, wanted } from './logic';
 
 /** Handle given to the owner (morph.tween) so it can re-evaluate the listeners when the morph goes idle or active (`I`). */
@@ -29,6 +31,8 @@ export interface MorphMountProps {
  * non-passive). A push is taken when active, or when forward and the platform fills >= 45 % of the viewport with its
  * bottom within 8 px of it; a taken push prevents the default scroll and goes to `onPush`. While active the scroll
  * position is held at the y where the morph began (engine callback, the original's `L`). No React state, no CSS.
+ *
+ * Variant `band` hands the touch listeners to the merged hub (listen.ts, Lean `MorphListen`).
  *
  * Renders a hidden sentinel that carries the breakpoint-gate anchor and stands in for the platform until that section
  * is ported (the part restates no CSS).
@@ -82,19 +86,29 @@ export function MorphMount({ variant, targetSelector = '[data-fw="morph-mount"]'
       lastY = y;
       take(e, d);
     };
+    const hub = isBand(variant) ? touchHub() : undefined;
+    const client = { touchstart: onTouchStart, touchmove: onTouchMove, active: isActive };
+    const unband = hub && target ? hub.observe(target) : undefined;
     const refresh = () => {
       const a = action(attached, wanted(near, isActive()));
       if (a === 'attach') {
         attached = true;
         window.addEventListener('wheel', onWheel, { passive: false, capture: true });
-        window.addEventListener('touchstart', onTouchStart, { passive: true, capture: true });
-        window.addEventListener('touchmove', onTouchMove, { passive: false, capture: true });
+        if (hub) hub.attach(client);
+        else {
+          window.addEventListener('touchstart', onTouchStart, { passive: true, capture: true });
+          window.addEventListener('touchmove', onTouchMove, { passive: false, capture: true });
+        }
       } else if (a === 'detach') {
         attached = false;
         window.removeEventListener('wheel', onWheel, true);
-        window.removeEventListener('touchstart', onTouchStart, true);
-        window.removeEventListener('touchmove', onTouchMove, true);
+        if (hub) hub.detach(client);
+        else {
+          window.removeEventListener('touchstart', onTouchStart, true);
+          window.removeEventListener('touchmove', onTouchMove, true);
+        }
       }
+      hub?.refresh();
     };
 
     const io = target
@@ -139,6 +153,7 @@ export function MorphMount({ variant, targetSelector = '[data-fw="morph-mount"]'
       io?.disconnect();
       near = false;
       refresh();
+      unband?.();
       off();
       onReady?.(null);
     };
