@@ -176,7 +176,7 @@ export function painGrade(b, c) {
 }
 
 const RANK = { E: 0, Q: 1, L: 2 };
-export const worst = (gs) => gs.filter((g) => g !== null).reduce((w, g) => (w === null || RANK[g] > RANK[w] ? g : w), null);
+export const worst = (gs) => (gs.length === 0 || gs.includes(null) ? null : gs.reduce((w, g) => (RANK[g] > RANK[w] ? g : w)));
 
 export const MIN_COVERED = 8;
 
@@ -235,51 +235,51 @@ export function morphCells({ width, base, cand, layout, phase }) {
 
 export const painSeries = (rows) => rows.map((r) => darkness(typeof r.layer === 'number' ? ratQ(r.layer * 1000) : null, r.cls === true));
 
-export function painCell(base, cand) {
-  return ['up', 'down'].map((dir) => {
-    const b = painSeries(base?.[dir] ?? []), c = painSeries(cand?.[dir] ?? []);
-    return b.length > 0 && changes(b) === 0 ? null : painGrade(b, c);
-  });
-}
+export const painDir = (b, c) => (b.length > 0 && changes(b) === 0 ? null : painGrade(b, c));
+
+export const painCell = (base, cand) => ['up', 'down'].map((dir) => painDir(painSeries(base?.[dir] ?? []), painSeries(cand?.[dir] ?? [])));
 
 export const CAROUSEL_GRID = [-1, -3 / 4, -1 / 2, -1 / 4, 1 / 4, 1 / 2, 3 / 4, 1].map((x) => rat(Math.round(x * 4), 4));
 export const FRAME_MS = rat(50, 3);
 export const CAROUSEL_MIN_COVERED = 4;
 
 const sameVec = (a, b) => a.length === b.length && a.every((x, j) => x === b[j]);
-const restedBefore = (rows, from) => from >= 1 && !!rows[from - 1]?.v && !!rows[from]?.v && sameVec(rows[from - 1].v, rows[from].v);
+export const restedBefore = (rows, i) => i >= 1 && !!rows[i - 1]?.v && !!rows[i]?.v && sameVec(rows[i - 1].v, rows[i].v);
 
-export function swapsOf(rows, still = 6) {
-  const swaps = [];
+export function swapSpans(rows, still = 6) {
+  const spans = [];
   let cur = null, quiet = 0;
   for (let i = 1; i < rows.length; i++) {
     const a = rows[i - 1], b = rows[i];
-    if (!a || !b || !a.v || !b.v) { cur = null; quiet = 0; continue; }
-    const same = a.v.length === b.v.length && a.v.every((x, j) => x === b.v[j]);
+    if (!a?.v || !b?.v) { cur = null; quiet = 0; continue; }
+    const same = sameVec(a.v, b.v);
     if (!same && cur === null) cur = { from: i - 1, to: i };
-    if (cur !== null) {
-      if (same) quiet++; else { quiet = 0; cur.to = i; }
-      if (quiet >= still) { if (restedBefore(rows, cur.from)) swaps.push(cur); cur = null; quiet = 0; }
-    }
+    if (cur === null) continue;
+    if (same) quiet++; else { quiet = 0; cur.to = i; }
+    if (quiet >= still) { if (restedBefore(rows, cur.from)) spans.push(cur); cur = null; quiet = 0; }
   }
-  return swaps.map(({ from, to }) => {
-    const rs = rows.slice(from, Math.min(rows.length, to + 2));
-    const full = Math.max(...rs.map((r) => r.v.length));
-    return rs.map((r, j) => ({ k: mul(rat(BigInt(j)), FRAME_MS), v: r.v })).filter((p) => p.v.length === full)
-      .map((p) => ({ k: p.k, v: p.v.map(ratQ) }));
-  });
+  return spans;
 }
 
-export function carouselCell(width, base, cand) {
-  const dpr = rat(envFor(width).dpr);
-  const bs = swapsOf(base ?? []), cs = swapsOf(cand ?? []);
-  const grades = [];
-  for (let i = 0; i < Math.min(bs.length, cs.length); i++) {
-    const tols = Array(bs[i][0].v.length).fill(tolCss(dpr));
-    grades.push(matchedGrade(tols, CAROUSEL_GRID, FRAME_MS, CAROUSEL_MIN_COVERED, bs[i], cs[i]));
-  }
-  return { swaps: [bs.length, cs.length], grades };
+export function swapSeries(rows, { from, to }) {
+  const vs = rows.slice(from, Math.min(rows.length, to + 2)).map((r) => r?.v ?? []);
+  const full = vs.reduce((m, v) => Math.max(m, v.length), 0);
+  return vs.map((v, j) => ({ k: mul(rat(BigInt(j)), FRAME_MS), v })).filter((p) => p.v.length === full).map((p) => ({ k: p.k, v: p.v.map(ratQ) }));
 }
+
+export const swapsOf = (rows, still = 6) => swapSpans(rows, still).map((sp) => swapSeries(rows, sp));
+
+export const swapGrade = (dpr, b, c) => matchedGrade(Array(b[0]?.v.length ?? 0).fill(tolCss(dpr)), CAROUSEL_GRID, FRAME_MS, CAROUSEL_MIN_COVERED, b, c);
+
+export const carouselGrade = (nb, nc, reps) => (nb === nc ? worst(reps) : 'L');
+
+export function carouselCellAt(dpr, base, cand) {
+  const bs = swapsOf(base ?? []), cs = swapsOf(cand ?? []);
+  const grades = bs.slice(0, Math.min(bs.length, cs.length)).map((b, i) => swapGrade(dpr, b, cs[i]));
+  return { swaps: [bs.length, cs.length], grades, grade: carouselGrade(bs.length, cs.length, grades) };
+}
+
+export const carouselCell = (width, base, cand) => carouselCellAt(rat(envFor(width).dpr), base, cand);
 
 const roleRun = (raw, role, width) => raw.runs.find((r) => (r.role ?? (r.site === 'orig' ? 'orig' : 'cand')) === role && r.width === width);
 
@@ -303,7 +303,7 @@ export function cellsOfRaw(raw, nodes = MORPH_NODES) {
     if (base.pain && cand.pain) units.push({ width, cell: 'pain-dark', part: 'scroll', grade: worst(painCell(base.pain, cand.pain)), reps: painCell(base.pain, cand.pain) });
     if (base.carousel && cand.carousel) {
       const c = carouselCell(width, base.carousel, cand.carousel);
-      units.push({ width, cell: 'carousel', part: 'swap', grade: worst(c.grades), reps: c.grades, swaps: c.swaps });
+      units.push({ width, cell: 'carousel', part: 'swap', grade: c.grade, reps: c.grades, swaps: c.swaps, atRest: [restedBefore(base.carousel, 1), restedBefore(cand.carousel, 1)] });
     }
   }
   return units;
