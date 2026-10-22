@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
   ratOf, ratStr, tolCss, cellEq, parseDec, parseLen, parseInset, expand4, readShape, shapeVec, interpAt, matchedGrade,
-  effectAt, effectTols, cellsOfRaw, keptInterior, effClock, lagFrames, lagGrade, panelGrade, panelCell, darkness, painGrade, rat, ZERO,
+  effectAt, effectTols, cellsOfRaw, seriesOf, keptInterior, effClock, lagFrames, lagGrade, panelGrade, panelCell, darkness, painGrade, rat, ZERO,
 } from '../src/trajectory/cells-gpu.mjs';
 
 const golden = readFileSync(fileURLToPath(new URL('../../contracts/golden/gate/trajectory-gpu.jsonl', import.meta.url)), 'utf8')
@@ -20,7 +20,7 @@ const optStr = (r) => (r === null ? null : ratStr(r));
 
 test('the golden file holds every line kind', () => {
   const kinds = new Set(golden.map((l) => l.kind));
-  for (const k of ['tol', 'dec', 'len', 'inset', 'expand4', 'clip', 'cell', 'interp', 'matched', 'effect', 'lag', 'panel', 'panelcell', 'pain', 'dark', 'interior']) {
+  for (const k of ['tol', 'dec', 'len', 'inset', 'expand4', 'clip', 'cell', 'interp', 'matched', 'effect', 'lag', 'panel', 'series', 'panelcell', 'pain', 'dark', 'interior']) {
     assert.ok(kinds.has(k), k);
   }
 });
@@ -94,9 +94,24 @@ test('panel lag in frames and the panel cell grade', () => {
     assert.equal(optStr(c.lag), l.lag, l.name);
     assert.equal(c.grade, l.grade, l.name);
   }
+  // Closing runs (falling keys) grade as opening ones, and a stalled interior key keeps its first sample.
+  const grade = (n) => cells.find((l) => l.name === n).grade;
+  assert.equal(grade('closing in step'), 'E');
+  assert.equal(grade('closing one frame behind'), 'Q');
+  assert.equal(grade('closing one frame behind, blur dropped'), 'L');
+  assert.equal(grade('in step, stalled frame'), 'E');
   // A candidate that drops the blur or the scale while keeping the faithful opacity grades L at both clocks, never Q.
   for (const name of ['one frame behind, blur dropped', 'one frame behind, scale dropped', 'in step, blur dropped', 'in step, scale dropped']) {
     assert.equal(cells.find((l) => l.name === name).grade, 'L', name);
+  }
+});
+
+test('seriesOf sorts by key and keeps the first sample of an equal key, as Lean seriesOf', () => {
+  const cases = of('series');
+  assert.ok(cases.length >= 6);
+  for (const l of cases) {
+    const got = seriesOf(series(l.in)).map((p) => ({ k: ratStr(p.k), v: vecStr(p.v) }));
+    assert.deepEqual(got, l.out, l.name);
   }
 });
 

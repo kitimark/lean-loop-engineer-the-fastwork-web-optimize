@@ -352,6 +352,143 @@ theorem interior_mem (s : Series) (p : Rat × List Rat) (h : p ∈ s) (h1 : edge
   simp only [interior, List.mem_filter, Bool.and_eq_true, decide_eq_true_eq]
   exact ⟨h, h1, h2⟩
 
+/-- A sample put into a series whose keys rise: before the first larger key; dropped when its key is already there. -/
+def insertKey (p : Rat × List Rat) : Series → Series
+  | [] => [p]
+  | q :: r => if p.1 < q.1 then p :: q :: r else if p.1 = q.1 then q :: r else q :: insertKey p r
+
+/-- Samples in any order as a series whose keys rise strictly: each sample goes in from the left, so of equal keys the first
+sample in the input stays (the twin of `seriesOf` in `cells-gpu.mjs`, a stable sort that keeps the first of each run). -/
+def seriesOf (s : Series) : Series := s.foldl (fun acc p => insertKey p acc) []
+
+/-- A series sorted by `sortedKeys` has every later key above every earlier one. -/
+theorem sortedKeys_iff (l : Series) : sortedKeys l = true ↔ l.Pairwise (fun a b => a.1 < b.1) := by
+  induction l with
+  | nil => simp [sortedKeys]
+  | cons a t ih =>
+    cases t with
+    | nil => simp [sortedKeys]
+    | cons b r =>
+      simp only [sortedKeys, Bool.and_eq_true, decide_eq_true_eq, ih]
+      constructor
+      · rintro ⟨hab, hp⟩
+        refine List.pairwise_cons.2 ⟨?_, hp⟩
+        intro x hx
+        rcases List.mem_cons.1 hx with rfl | hx
+        · exact hab
+        · exact (by have := (List.pairwise_cons.1 hp).1 x hx; grind)
+      · intro h
+        exact ⟨(List.pairwise_cons.1 h).1 b (by simp), (List.pairwise_cons.1 h).2⟩
+
+/-- A sample either stays or is the new one. -/
+theorem mem_insertKey (p x : Rat × List Rat) (l : Series) (h : x ∈ insertKey p l) : x = p ∨ x ∈ l := by
+  induction l with
+  | nil => simpa [insertKey] using h
+  | cons q r ih =>
+    unfold insertKey at h
+    split at h
+    · simpa using h
+    · split at h
+      · exact Or.inr h
+      · rcases List.mem_cons.1 h with rfl | h
+        · simp
+        · rcases ih h with h | h
+          · exact Or.inl h
+          · exact Or.inr (List.mem_cons_of_mem _ h)
+
+/-- Every sample of the series stays. -/
+theorem mem_insertKey_of_mem (p x : Rat × List Rat) (l : Series) (h : x ∈ l) : x ∈ insertKey p l := by
+  induction l with
+  | nil => simp at h
+  | cons q r ih =>
+    unfold insertKey
+    split
+    · simp [h]
+    · split
+      · exact h
+      · rcases List.mem_cons.1 h with rfl | h
+        · simp
+        · exact List.mem_cons_of_mem _ (ih h)
+
+/-- The new key is in the result. -/
+theorem insertKey_key (p : Rat × List Rat) (l : Series) : ∃ y ∈ insertKey p l, y.1 = p.1 := by
+  induction l with
+  | nil => exact ⟨p, by simp [insertKey], rfl⟩
+  | cons q r ih =>
+    unfold insertKey
+    split
+    · exact ⟨p, by simp, rfl⟩
+    · rename_i h
+      split
+      · rename_i h2
+        exact ⟨q, by simp, h2.symm⟩
+      · obtain ⟨y, hy, hk⟩ := ih
+        exact ⟨y, List.mem_cons_of_mem _ hy, hk⟩
+
+/-- Inserting into a series with rising keys keeps them rising. -/
+theorem insertKey_pairwise (p : Rat × List Rat) (l : Series) (h : l.Pairwise (fun a b => a.1 < b.1)) :
+    (insertKey p l).Pairwise (fun a b => a.1 < b.1) := by
+  induction l with
+  | nil => simp [insertKey]
+  | cons q r ih =>
+    obtain ⟨hq, hr⟩ := List.pairwise_cons.1 h
+    unfold insertKey
+    split
+    · rename_i hlt
+      refine List.pairwise_cons.2 ⟨?_, h⟩
+      intro x hx
+      rcases List.mem_cons.1 hx with rfl | hx
+      · exact hlt
+      · exact (by have := hq x hx; grind)
+    · split
+      · exact h
+      · rename_i hn1 hn2
+        refine List.pairwise_cons.2 ⟨?_, ih hr⟩
+        intro x hx
+        rcases mem_insertKey p x r hx with rfl | hx
+        · grind
+        · exact hq x hx
+
+/-- What the fold has built stays a series with rising keys, and nothing but input samples enter. -/
+theorem foldInsert_props (s acc : Series) (h : acc.Pairwise (fun a b => a.1 < b.1)) :
+    (s.foldl (fun a p => insertKey p a) acc).Pairwise (fun a b => a.1 < b.1) ∧
+    (∀ x ∈ s.foldl (fun a p => insertKey p a) acc, x ∈ acc ∨ x ∈ s) ∧
+    (∀ x ∈ acc, x ∈ s.foldl (fun a p => insertKey p a) acc) ∧
+    (∀ p ∈ s, ∃ q ∈ s.foldl (fun a p => insertKey p a) acc, q.1 = p.1) := by
+  induction s generalizing acc with
+  | nil => simpa using h
+  | cons p t ih =>
+    obtain ⟨h1, h2, h3, h4⟩ := ih (insertKey p acc) (insertKey_pairwise p acc h)
+    simp only [List.foldl_cons]
+    refine ⟨h1, ?_, ?_, ?_⟩
+    · intro x hx
+      rcases h2 x hx with hx | hx
+      · rcases mem_insertKey p x acc hx with rfl | hx
+        · exact Or.inr (by simp)
+        · exact Or.inl hx
+      · exact Or.inr (List.mem_cons_of_mem _ hx)
+    · intro x hx
+      exact h3 x (mem_insertKey_of_mem p x acc hx)
+    · intro x hx
+      rcases List.mem_cons.1 hx with rfl | hx
+      · obtain ⟨y, hy, hk⟩ := insertKey_key x acc
+        exact ⟨y, h3 y hy, hk⟩
+      · exact h4 x hx
+
+/-- The keys of a `seriesOf` rise strictly. -/
+theorem seriesOf_sorted (s : Series) : sortedKeys (seriesOf s) = true :=
+  (sortedKeys_iff _).2 (foldInsert_props s [] (by simp)).1
+
+/-- Every sample of a `seriesOf` was in the input. -/
+theorem mem_seriesOf (s : Series) (p : Rat × List Rat) (h : p ∈ seriesOf s) : p ∈ s := by
+  rcases (foldInsert_props s [] (by simp)).2.1 p h with h | h
+  · simp at h
+  · exact h
+
+/-- Every key of the input is a key of the `seriesOf`. -/
+theorem seriesOf_keys (s : Series) (p : Rat × List Rat) (h : p ∈ s) : ∃ q ∈ seriesOf s, q.1 = p.1 :=
+  (foldInsert_props s [] (by simp)).2.2.2 p h
+
 /-- The series read between its samples by straight lines; none outside its first and last key. -/
 def interpAt : Series → Rat → Option (List Rat)
   | (k0, v0) :: (k1, v1) :: rest, k =>
@@ -527,10 +664,10 @@ re-keyed by `laggedKey`, and only its interior kept. -/
 def laggedSeries (l : Rat) (fs : Series) : Series :=
   interior ((fs.zip fs.tail).map fun (p, c) => (laggedKey l p.1 c.1, c.2))
 
-/-- The series grade at the lagged clock: E when opacity, blur and scale all match the reference there, L when not (no
-shift grid, so no Q), none when the lagged series is unsorted or covers too little. -/
+/-- The series grade at the lagged clock, the lagged series sorted by `seriesOf`: E when opacity, blur and scale all match the
+reference there, L when not (no shift grid, so no Q), none when the lagged series covers too little. -/
 def shiftedGrade (tols : List Rat) (minCovered : Nat) (ref : Series) (l : Rat) (fs : Series) : Option Grade :=
-  matchedGrade tols [] 1 minCovered ref (laggedSeries l fs)
+  matchedGrade tols [] 1 minCovered ref (seriesOf (laggedSeries l fs))
 
 /-- The panel cell from the series grade at the own clock, the lag in frames, and the series grade at the lagged clock.
 
@@ -581,14 +718,15 @@ theorem matched_e_ok (tols grid : List Rat) (fk : Rat) (n : Nat) (ref cand : Ser
 
 /-- A lagged series with a covered sample that differs from the reference does not grade E. -/
 theorem shiftedGrade_ne_e (tols : List Rat) (n : Nat) (ref : Series) (l : Rat) (fs : Series)
-    (h : (matchAt tols ref (laggedSeries l fs) 0).2 = false) : shiftedGrade tols n ref l fs ≠ some .e := by
+    (h : (matchAt tols ref (seriesOf (laggedSeries l fs)) 0).2 = false) : shiftedGrade tols n ref l fs ≠ some .e := by
   intro he
   have := matched_e_ok _ _ _ _ _ _ he
   simp_all
 
-/-- The panel cell of a run from its frames (morph value and the effect readings in time order) against the reference. -/
+/-- The panel cell of a run from its frames (morph value and the effect readings in time order) against the reference; the
+series is the frames' interior sorted by `seriesOf`, so a closing run (falling keys) is graded as an opening one. -/
 def panelCell (tols : List Rat) (minCovered : Nat) (ref : Series) (fs : Series) : Option Grade :=
-  let series := matchedGrade tols [] 1 minCovered ref (interior fs)
+  let series := matchedGrade tols [] 1 minCovered ref (seriesOf (interior fs))
   let lag := lagFrames (fs.map fun f => ⟨f.1, f.2.headD 0⟩)
   panelGrade series lag (lag.bind fun l => shiftedGrade tols minCovered ref l fs)
 
@@ -757,20 +895,36 @@ def panelFrames (d : Rat) (f : List Rat → List Rat) : Series :=
   (List.range 21).map fun (i : Nat) => ((i : Rat) / 20, f (effectAt ((i : Rat) / 20 - d / 20)))
 
 /-- Panel cell cases: name and frames. The candidate drops the blur or the scale while its opacity, and so its lag, stay as the
-faithful panel's. -/
+faithful panel's. The closing cases run the keys downward; the stalled case repeats a key inside the interior. -/
 def panelCellCases : List (String × Series) :=
   [("in step", panelFrames 0 id), ("one frame behind", panelFrames 1 id),
    ("one frame behind, blur dropped", panelFrames 1 fun v => [v.getD 0 0, 0, v.getD 2 1]),
    ("one frame behind, scale dropped", panelFrames 1 fun v => [v.getD 0 0, v.getD 1 0, 1]),
    ("in step, blur dropped", panelFrames 0 fun v => [v.getD 0 0, 0, v.getD 2 1]),
    ("in step, scale dropped", panelFrames 0 fun v => [v.getD 0 0, v.getD 1 0, 1]),
-   ("two frames behind", panelFrames 2 id), ("half a frame behind", panelFrames (1 / 2) id)]
+   ("two frames behind", panelFrames 2 id), ("half a frame behind", panelFrames (1 / 2) id),
+   ("closing in step", (panelFrames 0 id).reverse), ("closing one frame behind", (panelFrames (-1) id).reverse),
+   ("closing one frame behind, blur dropped", (panelFrames (-1) fun v => [v.getD 0 0, 0, v.getD 2 1]).reverse),
+   ("in step, stalled frame", (panelFrames 0 id).take 11 ++ [(1 / 2, effectAt (11 / 20))] ++ (panelFrames 0 id).drop 11)]
 
 /-- The tolerances of the panel cell cases: a 2x screen and a panel 600 px wide. -/
 def panelCellTols : List Rat := effectTols 2 600
 
 #guard (panelCellCases.map fun (_, fs) => panelCell panelCellTols 8 panelRef fs) ==
-  [some .e, some .q, some .l, some .l, some .l, some .l, some .l, some .q]
+  [some .e, some .q, some .l, some .l, some .l, some .l, some .l, some .q, some .e, some .q, some .l, some .e]
+
+/-- Series cases: name and samples in any order. -/
+def seriesCases : List (String × Series) :=
+  [("rising unique keys", [(0, [1]), (1, [2]), (2, [3])]), ("falling keys", [(2, [3]), (1, [2]), (0, [1])]),
+   ("two reps pooled, interleaved", [(0, [1]), (2, [3]), (4, [5]), (1, [2]), (3, [4])]),
+   ("an equal key, the first stays", [(0, [1]), (1, [2]), (1, [9]), (2, [3])]),
+   ("an equal key after a larger one", [(1, [2]), (0, [1]), (1, [9])]),
+   ("falling with an equal key", [(2, [3]), (1, [2]), (1, [9]), (0, [1])]), ("empty", [])]
+
+#guard (seriesCases.map fun (_, s) => seriesOf s) ==
+  [[(0, [1]), (1, [2]), (2, [3])], [(0, [1]), (1, [2]), (2, [3])],
+   [(0, [1]), (1, [2]), (2, [3]), (3, [4]), (4, [5])], [(0, [1]), (1, [2]), (2, [3])],
+   [(0, [1]), (1, [2])], [(0, [1]), (1, [2]), (2, [3])], []]
 
 /-- The lines of `packages/contracts/golden/gate/trajectory-gpu.jsonl`. -/
 def goldenLines (_ : Unit := ()) : List String :=
@@ -811,6 +965,8 @@ def goldenLines (_ : Unit := ()) : List String :=
   panelCases.map (fun (n, g, l, sh) =>
     o [("kind", "panel"), ("name", toJson n), ("series", gradeName g), ("lag", toJson (l.map ratStr)), ("shifted", gradeName sh),
       ("grade", gradeName (panelGrade g l sh))]) ++
+  seriesCases.map (fun (n, s) =>
+    o [("kind", "series"), ("name", toJson n), ("in", seriesJson s), ("out", seriesJson (seriesOf s))]) ++
   panelCellCases.map (fun (n, fs) =>
     o [("kind", "panelcell"), ("name", toJson n), ("tols", vecJson panelCellTols), ("minCovered", toJson 8),
       ("ref", seriesJson panelRef), ("frames", seriesJson fs),

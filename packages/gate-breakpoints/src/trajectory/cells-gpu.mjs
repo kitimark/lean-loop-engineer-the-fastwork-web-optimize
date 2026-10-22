@@ -170,7 +170,7 @@ export const laggedSeries = (l, fs) => fs.slice(1).map((c, i) => ({ k: laggedKey
 export const shiftedGrade = (tols, minCovered, ref, l, fs) => matchedGrade(tols, [], ONE, minCovered, ref, seriesOf(laggedSeries(l, fs)));
 export const panelGrade = (series, lag, shifted) => (series === null ? null : series === 'E' ? 'E'
   : lag === null ? null : le(lag, add(ONE, LAG_SLACK)) && shifted === 'E' ? 'Q' : 'L');
-/** The panel cell of one run from its frames, { grade, lag } (Lean `panelCell`; the sort into a series is the reading, as for the other cells). */
+/** The panel cell of one run from its frames, { grade, lag } (Lean `panelCell`; the interior frames are sorted by `seriesOf`, so closing runs have falling keys in time order). */
 export function panelCell(tols, minCovered, ref, fs) {
   const series = matchedGrade(tols, [], ONE, minCovered, ref, seriesOf(fs.filter((p) => keptInterior(p.k))));
   const lag = lagFrames(fs.map((f) => ({ nav: f.k, op: f.v[0] })));
@@ -228,7 +228,7 @@ export function panelEffectOf(row, layout) {
   return [ratQ(op[0]), blur, scale];
 }
 
-/** Rows sorted by the morph value with equal values dropped (the first stays): a series in Lean's sense, keyed by m. */
+/** Rows sorted by the morph value with equal values dropped (the first stays): a series in Lean's sense, keyed by m (Lean `seriesOf`). */
 export function seriesOf(samples) {
   const s = samples.slice().sort((a, b) => cmp(a.k, b.k));
   return s.filter((p, i) => i === 0 || lt(s[i - 1].k, p.k));
