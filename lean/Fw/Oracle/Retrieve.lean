@@ -11,6 +11,7 @@ structure RetrieveCfg where
   sendsPerRow : Nat := 2
   excerptBytes : Nat := 8192
   maxPick : Nat := 4
+  forcedReads : Nat := 1
 deriving Repr, DecidableEq
 
 def rcfg : RetrieveCfg := {}
@@ -205,6 +206,24 @@ theorem traceVerdict_hookRun (rc : RetrieveCfg) (paths : List String) (cs : List
   obtain ⟨h1, h2, h3⟩ := hookRun_bound (rc := rc) (paths := paths) {} cs (Nat.zero_le _) (Nat.zero_le _)
   exact traceVerdict_ok.mpr ⟨h1, by simpa using h2, by simpa using h3⟩
 
+def readsIn (log : List (String × String)) : Nat := (log.filter fun (t, d) => t == "Read" && d == "allow").length
+
+def answerGate (minReads : Nat) (log : List (String × String)) : Hook :=
+  if readsIn log < minReads then .deny "readFirst" else .allow
+
+theorem answerGate_allow (minReads : Nat) (log : List (String × String)) :
+    answerGate minReads log = .allow ↔ minReads ≤ readsIn log := by
+  unfold answerGate
+  split <;> simp_all <;> omega
+
+theorem answerGate_readFirst {minReads : Nat} {log : List (String × String)} (h : readsIn log < minReads) :
+    answerGate minReads log = .deny "readFirst" := by simp [answerGate, h]
+
+theorem answerGate_free (log : List (String × String)) : answerGate 0 log = .allow := by simp [answerGate]
+
+#guard answerGate rcfg.forcedReads [("Grep", "allow"), ("Read", "deny")] == .deny "readFirst"
+#guard answerGate rcfg.forcedReads [("Glob", "allow"), ("Read", "allow")] == .allow
+
 #guard hook rcfg ["a.mjs"] {} { tool := "Read", path := "a.mjs", bytes := 10 } == .allow
 #guard hook rcfg ["a.mjs"] {} { tool := "Read", path := "b.mjs", bytes := 10 } == .deny "outside"
 #guard hook rcfg ["a.mjs"] {} { tool := "Bash", path := "a.mjs", bytes := 0 } == .deny "outside"
@@ -351,6 +370,90 @@ theorem pickSends_le (cs : List String) (picked : Option String) : pickSends cs 
   · split <;> decide
 
 theorem rounds_cover : rcfg.rounds = rcfg.sendsPerRow := rfl
+
+structure PickObs where
+  cands : Nat
+  pos : Option Nat
+deriving Repr, DecidableEq
+
+def pickObs (cs : List String) (p : Option String) : PickObs := ⟨cs.length, p.bind cs.idxOf?⟩
+
+structure Multi where
+  extra : Nat
+  pos : Option (Fin (extra + 2))
+deriving Repr, DecidableEq
+
+def Multi.cands (m : Multi) : Nat := m.extra + 2
+
+def multi? (o : PickObs) : Option Multi :=
+  match o.cands with
+  | n + 2 => some ⟨n, o.pos.bind fun i => if h : i < n + 2 then some ⟨i, h⟩ else none⟩
+  | _ => none
+
+def multis (os : List PickObs) : List Multi := os.filterMap multi?
+
+def atSlot (ms : List Multi) (i : Nat) : Nat := (ms.filter fun m => m.pos.map Fin.val == some i).length
+
+def noneCount (ms : List Multi) : Nat := (ms.filter (·.pos.isNone)).length
+
+def ofRows (k : Nat) (ms : List Multi) : Rat := if ms = [] then 0 else (k : Rat) / ms.length
+
+def share (os : List PickObs) (i : Nat) : Rat := ofRows (atSlot (multis os) i) (multis os)
+
+def noneShare (os : List PickObs) : Rat := ofRows (noneCount (multis os)) (multis os)
+
+def uniformFirst (os : List PickObs) : Rat :=
+  let ms := multis os
+  if ms = [] then 0 else (ms.map fun m => (1 : Rat) / m.cands).sum / ms.length
+
+theorem multi?_two {o : PickObs} {m : Multi} (h : multi? o = some m) : 2 ≤ o.cands ∧ o.cands = m.cands := by
+  unfold multi? at h
+  split at h
+  · rename_i n hn
+    cases h
+    simp [Multi.cands, hn]
+  · cases h
+
+theorem multi?_few {o : PickObs} (h : o.cands < 2) : multi? o = none := by
+  unfold multi?
+  split
+  · omega
+  · rfl
+
+theorem multis_few {o : PickObs} (h : o.cands < 2) (os : List PickObs) : multis (o :: os) = multis os := by
+  simp [multis, multi?_few h]
+
+theorem multis_append_few {o : PickObs} (h : o.cands < 2) (os : List PickObs) : multis (os ++ [o]) = multis os := by
+  simp [multis, List.filterMap_append, multi?_few h]
+
+theorem multis_filter (os : List PickObs) : multis (os.filter fun o => 2 ≤ o.cands) = multis os := by
+  induction os with
+  | nil => rfl
+  | cons o os ih =>
+    by_cases h : 2 ≤ o.cands
+    · simp only [List.filter_cons, h, decide_true, ↓reduceIte, multis, List.filterMap_cons] at ih ⊢
+      rw [ih]
+    · simp only [List.filter_cons, h, decide_false, Bool.false_eq_true, ↓reduceIte]
+      rw [ih, multis_few (by omega)]
+
+theorem share_few {o : PickObs} (h : o.cands < 2) (os : List PickObs) (i : Nat) :
+    share (o :: os) i = share os i ∧ share (os ++ [o]) i = share os i ∧ noneShare (o :: os) = noneShare os ∧
+      uniformFirst (o :: os) = uniformFirst os := by
+  simp only [share, noneShare, uniformFirst, multis_few h, multis_append_few h, and_self]
+
+theorem share_multi (os : List PickObs) (i : Nat) :
+    share (os.filter fun o => 2 ≤ o.cands) i = share os i := by
+  simp only [share, multis_filter]
+
+theorem atSlot_le (ms : List Multi) (i : Nat) : atSlot ms i ≤ ms.length := List.length_filter_le _ _
+
+#guard pickObs ["a", "b", "c"] (some "c") == ⟨3, some 2⟩
+#guard pickObs ["a"] none == ⟨1, none⟩
+#guard multis [⟨1, some 0⟩, ⟨0, none⟩, ⟨2, some 1⟩, ⟨3, none⟩] == [⟨0, some ⟨1, by decide⟩⟩, ⟨1, none⟩]
+#guard share [⟨1, some 0⟩, ⟨1, some 0⟩, ⟨2, some 1⟩, ⟨2, some 0⟩] 0 == 1 / 2
+#guard share [⟨1, some 0⟩] 0 == 0
+#guard noneShare [⟨2, none⟩, ⟨3, some 2⟩, ⟨1, none⟩] == 1 / 2
+#guard uniformFirst [⟨2, some 0⟩, ⟨4, some 0⟩, ⟨1, some 0⟩] == 3 / 8
 
 def rangeLabel (r : Range) : String := r.path ++ ":" ++ toString r.first ++ "-" ++ toString r.last
 
