@@ -15573,6 +15573,22 @@
    ],
    "title": "User 2026-10-22 (comment on the Jev trial page): 'do we need to try to give this context for jev with automate script and prove in lean. then re measurement it ?'. Lead investigation (workflow wf_6c44d993-6ee, 4 agents, skeptic spot-checked against git) recommends no: 64/116 D1 and 88/90 D2 rows name repo paths (294 paths, median D2 row ~100 KB of files vs stateCap 32 KiB); no row needs a file for its label (labels are judgments; rows with and without paths score within ~4 points); post-incident files leak the label on 9 rows (checkmap.mjs:2 names c-late-check for inc-precommit-stale-fwcore, missed by all arms; wait-guard.mjs names c-orphan-wait; work-graph.json at c31e0848 holds the lead's later triage); a pass costs 108-206 of 200 daily sends. Write it as a negative-result note (mechanism, measured counts with the regex used, the leak list with git refs, the Lean design that would be needed: allowlist, vocab-free, escaped-byte cap vs capState keeping field tails, no-op replay, determinism; the d1-only ablation and its decision rule, not run), keeping the leak scan as scripts/jev-leak.mjs. Unit: the note with every number sourced, the script, handoff.",
    "evidence": "56712c2"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "hero-exit-threaded-measure",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "writes": [
+    "results/hero-exit-threaded-measure/**",
+    "research/notes/2026/10-2x-hero-exit-threaded-measure.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/hero-exit-threaded-measure.md"
+   ],
+   "title": "User goal 2026-10-22 (hero exit smoother on WebKit; GPU same-look route). hero.exit:threaded landed (cbd2365c: exit as view-timeline animations of accelerated properties only, Lean entrance_same, probe run 39669915362 RED only on empty-rect nodes) but has no WebKit cost or lag measurement against the base. Measure on CI webkit-sim with the cost input (cost=on, lag=true; wkcost-cost-input landed 2a938882): base vs ?fw=hero.exit:threaded, hero-exit zone Recalculate styles, Layout, rewrite skipped slots and new layers per read (the webkit-cost-counters tables), frame interval where recorded, both passes, with run ids; plus the breakpoint gate verdict already on record. Write the result as a ledger row update for the hero.exit threaded variant (MEASURED with run ids, mechanism, lesson; a no-win is a finding) and results/hero-exit-threaded-measure/report.json in the review-reports shape (recommendation text without numbers). Unit: base vs flag cost tables with run ids, ledger row, report.json, note. Limits: the Simulator has no real GPU; at most 4 dispatches; frame percentiles only where the lane records them."
   }
  ],
  "deadline": {
