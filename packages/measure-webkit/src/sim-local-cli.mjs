@@ -11,7 +11,7 @@ import { parseArgs } from 'node:util';
 const { values: v } = parseArgs({ options: {
   site: { type: 'string' }, engine: { type: 'string', default: 'both' }, passes: { type: 'string', default: '3' }, 'max-rounds': { type: 'string', default: '9' },
   'deadline-min': { type: 'string', default: '25' }, 'wait-s': { type: 'string', default: '90' }, out: { type: 'string', default: 'results/mac-safari' },
-  device: { type: 'string', default: 'fw-mac-safari-27' }, 'no-lease': { type: 'boolean', default: false },
+  device: { type: 'string', default: 'fw-mac-safari-27' }, 'no-lease': { type: 'boolean', default: false }, 'debug-ignore-quiet': { type: 'boolean', default: false },
 } });
 if (!v.site) { console.error('usage: sim-local-cli.mjs --site <prerendered build dir> [--engine sim|safari|both]'); process.exit(2); }
 process.env.FW_SIM_NAME = v.device; // before sim.mjs is imported: DEVICE_NAME is read once
@@ -27,11 +27,14 @@ const { arms, dropped } = localArms(resolve(v.site));
 log(`arms: ${arms.map((a) => a.id).join(' ')}${dropped.length ? ` (dropped as duplicates: ${dropped.join(' ')})` : ''}`);
 
 const lease = v['no-lease'] ? { token: null, release: async () => {} } : await holdSimSlot({ cwd, log });
-const read = () => readMachine({ cwd, mine: lease.token ? [lease.token] : [] });
+// harness debugging only: the quiet rule is replaced by a fixed quiet reading, every row is marked `debug`, and results/ is refused
+if (v['debug-ignore-quiet'] && /(^|\/)results\//.test(v.out)) { console.error('--debug-ignore-quiet never writes under results/'); process.exit(2); }
+const calm = { time: 0, loadCenti: 0, mem: { freeMB: 9999, specMB: 0, purgMB: 0, fileMB: 0, fileMinMB: 0, swapUsedMB: 0, swapTotalMB: 0, press: 1, comprMBPerMin: 0, swapOutMBPerMin: 0 }, ramMB: 16384, compressorMB: 0, holders: 0, queued: 0 };
+const read = v['debug-ignore-quiet'] ? async () => ({ ...calm, time: Math.floor(Date.now() / 1000) }) : () => readMachine({ cwd, mine: lease.token ? [lease.token] : [] });
 const opts = { arms, read, passes: Number(v.passes), maxRounds: Number(v['max-rounds']), waitMs: Number(v['wait-s']) * 1000, everyMs: 5000, log };
 const all = [];
-const onRow = (r) => { all.push(r); writeFileSync(join(out, 'passes', `${r.engine}-${r.window}-${r.arm}-r${r.round}.json`), JSON.stringify(r, null, 1) + '\n'); };
-const meta = { lane: 'local', note: 'local debug lane on one shared Mac, not a CI or phone result', startedAt: new Date().toISOString(), arms: arms.map((a) => a.id), dropped, passes: Number(v.passes), engines: {} };
+const onRow = (r0) => { const r = v['debug-ignore-quiet'] ? { ...r0, debug: true } : r0; all.push(r); writeFileSync(join(out, 'passes', `${r.engine}-${r.window}-${r.arm}-r${r.round}.json`), JSON.stringify(r, null, 1) + '\n'); };
+const meta = { lane: 'local', debug: v['debug-ignore-quiet'], note: 'local debug lane on one shared Mac, not a CI or phone result', startedAt: new Date().toISOString(), arms: arms.map((a) => a.id), dropped, passes: Number(v.passes), engines: {} };
 let created = false;
 try {
   if (v.engine === 'sim' || v.engine === 'both') {
