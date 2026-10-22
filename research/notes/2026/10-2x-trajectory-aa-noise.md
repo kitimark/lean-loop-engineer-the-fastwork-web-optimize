@@ -2,7 +2,7 @@
 id: 2026-10-23-trajectory-aa-noise
 kind: note
 title: "Trajectory A/A noise: the carousel hold and the panel opacity kink"
-status: draft
+status: final
 created: 2026-10-23
 authors: [agent:measure-engineer]
 topics: [measurement, trajectory-probe, gate, chromium]
@@ -61,7 +61,19 @@ engine, and both are fixed in the Lean grader (`lean/Fw/Gate/TrajectoryGpu.lean`
 
 ## Fresh A/A runs
 
-FILLED-AFTER-CI
+Three trajectory-probe runs of this branch (Chromium 156.0.8078.4, widths 390 and 640, same code both arms), each on its own
+CI jobs. MEASURED, artifact `cells-gpu-chromium` of each run:
+
+| Run | Commit | Units graded E of 12 | Carousel holds (base, cand) at 390 | at 640 |
+|---|---|---|---|---|
+| 39860085568 | 76f9a545d | 12 | 2,2,0,0 and 2,2,0,0 | 2,2,0,0 and 2,2,0,0 |
+| 39861846900 | f3b07d2ee | 12 | 2,2,0,0 and 2,2,0,0 | 1,1,0,0 and 2,2,0,0 |
+| 39863586490 | 3575e73aa | 12 | 2,2,0,0 and 2,2,0,0 | 2,2,0,0 and 2,2,0,0 |
+
+- Every unit grades E in all three runs (panel-effect close at 640 included, carousel reps E,E,E,E).
+- The hold still differs between runs and between arms (run 2 at 640: 1 row in the base arm against 2 in the cand arm; the
+  hold-out run had 4,4,2,2 against 3,3,2,2). The anchor keeps that difference out of the grade.
+- Limit: Chromium only, three runs. WebKit A/A is not measured.
 
 ## Follow-ups
 
