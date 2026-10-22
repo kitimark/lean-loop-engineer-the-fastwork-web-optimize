@@ -14992,7 +14992,8 @@
     "lean/Fw/Parts/FootprintData.lean",
     "lean/Fw/Console/ReviewInfo.lean",
     "apps/console-web/test/fixtures/review-info.earn.json"
-   ]
+   ],
+   "evidence": "61705c0"
   },
   {
    "devices": [

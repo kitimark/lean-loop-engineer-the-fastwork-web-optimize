@@ -11,7 +11,6 @@ import css from './hero.module.css';
 import { SCENE_PAUSE, bindHeroScene } from './scene';
 
 export interface HeroProps {
-  /** every registered part id -> chosen variant */
   variants: Record<string, string>;
 }
 
@@ -25,11 +24,6 @@ function CalendarIcon() {
   return <GenSvg art={art('icon.calendar')} className={css.icon} />;
 }
 
-/**
- * hero: the first section of the home page. Composes the sticky stage (hero.exit) with the ring (hero.orbit), the phone deck
- * (hero.deck), the copy (headline with the hand-drawn word, countdown, call to action) and the scroll cue (hero.cue).
- * The copy itself is static markup and CSS; the splash state arrives as the stage's `data-splash`.
- */
 export function Hero({ variants }: HeroProps) {
   const variant = v(variants, 'hero');
   const copy = useRef<HTMLElement>(null);
@@ -43,7 +37,7 @@ export function Hero({ variants }: HeroProps) {
     <HeroExit variant={v(variants, 'hero.exit')}>
       <HeroOrbit variant={v(variants, 'hero.orbit')} />
       <HeroDeck variant={v(variants, 'hero.deck')} />
-      <header ref={copy} className={css.copy} data-fw="hero" data-fw-variant={variant}>
+      <header ref={copy} className={css.copy} data-fw="hero" data-fw-layer="hero_copy" data-fw-variant={variant}>
         <div className={css.copyMain}>
           <h1 id="start-selling-heading" className={css.title}>
             <span className={css.line}>Show the world</span>{' '}
