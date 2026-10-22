@@ -1,4 +1,3 @@
-// Incident inc-land-leg-unfinished (run 39792901389): a completed success whose leg jobs GitHub had not finalised was refused as failed.
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -21,14 +20,11 @@ const line = (name: string): Golden => {
   if (!g) throw new Error(`no golden line ${name}`);
   return g;
 };
-/** Lean `rereadBound`, read from the golden line whose reads are used up. */
 const BOUND = line("run 39792901389 at land time, reads used up: unavailable, not fail").request.reads as number;
 
 type J = { status: string; conclusion: string };
 const OPEN: J = { status: "in_progress", conclusion: "" };
 const OK: J = { status: "completed", conclusion: "success" };
-/** Run 39792901389 as the land read it: the job names, order, statuses and conclusions of the record (ledger inc-land-leg-unfinished);
- *  the head sha and the `lane:` step are this test's marker and digest, so the adapter binds it. */
 const record = (legs: [J, J, J, J, J]): GhRunView => ({
   workflowName: "land", headSha: MARKER, status: "completed", conclusion: "success",
   createdAt: "2026-10-22T13:20:00Z", startedAt: "2026-10-22T13:20:10Z", updatedAt: "2026-10-22T13:58:00Z",

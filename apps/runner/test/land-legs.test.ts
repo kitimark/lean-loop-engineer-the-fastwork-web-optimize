@@ -1,5 +1,3 @@
-// Land legs (task land-lane-speed): the legs of the land lane are the Lean golden (land-legs.jsonl, Fw.Console.LandLegs); `fw checks --leg`
-// and the run-level verdict over all legs only replay it. The real fwcore binary is required (a missing build fails, it does not skip).
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
