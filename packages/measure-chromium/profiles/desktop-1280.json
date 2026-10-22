@@ -1,6 +1,6 @@
 {
   "id": "desktop-1280",
-  "about": "Desktop band, 1280x800, mouse, no touch, dpr 1. Workaround for the Chrome 156.0.8078.4 renderer crash (task chromium-desktop-crash): the page runs with text-wrap: wrap on every element, because the site's text-wrap: balance and pretty (only above 860 px) kill the renderer with SIGSEGV 0x84 in this build. Premise: line breaks of balanced and pretty text differ from the real page, so desktop counts here are counts of the page without text balancing; they are never compared with the phone or a mobile profile.",
+  "about": "Desktop band, 1280x800, mouse, no touch, dpr 1. Workaround for the Chrome 156.0.8078.4 renderer crash (task chromium-desktop-crash): the page runs with text-wrap: wrap on every element, because text-wrap: balance on the people card title (applied only above 860 px) kills the renderer with SIGSEGV 0x84 in this build. Premise: line breaks of balanced and pretty text differ from the real page, so desktop counts here are counts of the page without text balancing; they are never compared with the phone or a mobile profile.",
   "hz": 60,
   "viewport": {
     "width": 1280,

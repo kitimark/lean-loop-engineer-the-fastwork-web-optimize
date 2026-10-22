@@ -7,12 +7,15 @@ Task `chromium-desktop-crash`, branch `ci/chromium-desktop-crash`. Claims carry 
 - MEASURED: the renderer dies with SIGSEGV (`SEGV_MAPERR` at address 0x84) about 1 s after navigation on any page wider than 860 px,
   for the rewrite and for the faithful original snapshot alike. Setting `text-wrap: wrap` on every element removes the crash
   (`tw-all-off` ok, 4 of 4 jobs on 2 targets); so does a width of 860 px (`w860` ok, 4 of 4), where the site's own CSS resets
-  `text-wrap` to `unset`. So the trigger is the site's `text-wrap: balance` / `pretty`, which exist only above 860 px.
-- MEASURED: no harness setting is involved. 16 harness variants (4 jobs each, 2 per run) all still crash: no `--disable-gpu`, `--font-render-hinting`,
+  `text-wrap` to `unset` on the card title (`.card-module_title`, `@media (width<=860px)`); other balance/pretty rules stay on at 430
+  and 860 without a crash. So the trigger is `text-wrap: balance` on the people title, which applies only above 860 px.
+- MEASURED: none of 16 tested harness settings is involved. 16 harness variants (4 jobs each, 2 per run) all still crash: no `--disable-gpu`, `--font-render-hinting`,
   `--force-color-profile`, `--hide-scrollbars`, `--lang`, `--num-raster-threads`, `--disable-checker-imaging`,
   `--disable-image-animation-resync`, `--disable-new-content-rendering-timeout`, `--mute-audio`; no UA, locale or timezone
   override; no N0 census; no touch emulation; `--disable-blink-features=ScoreLineBreakerAbort`; `--disable-features=SitePerProcess`.
-  (`--run-all-compositor-stages-before-draw` cannot be dropped: the harness needs it, run exits 1 in 0.5 s.)
+  (`--run-all-compositor-stages-before-draw` cannot be dropped: the harness needs it, run exits 1 in 0.5 s.) Untested:
+  BeginFrameControl, `--run-all-compositor-stages-before-draw` (the harness needs both), and full Chrome vs Headless Shell, so
+  whether stock Chrome 156 crashes on this page is not known (INFERRED Chrome bug: a renderer SIGSEGV on valid CSS).
 - MEASURED, rewrite only (the people part): hiding `[data-fw="people"]` removes the crash, and so does `text-wrap: wrap` on
   the people title `h2` alone; `text-wrap: pretty` or `stable` on that `h2` also does not crash, and `display: inline-block` or
   `display: none` or `position: absolute` on the `o` (`[data-fw="people-o"]`) does not either. `text-wrap: wrap` on the `p` of the

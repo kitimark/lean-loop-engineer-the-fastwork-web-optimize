@@ -18,8 +18,10 @@
 | 39869000429 | original desktop-1280 runs 3 | complete, all green (52/13/2 classes) |
 
 ## Verified (MEASURED)
-- Cause: site `text-wrap: balance|pretty` (only above 860 px) crashes Chrome Headless Shell 156.0.8078.4 (SIGSEGV 0x84), rewrite and original alike;
-  no harness flag or override is involved (16 variants). In the rewrite the trigger is the people title h2 (balance) holding the inline-grid `o`.
+- Cause: `text-wrap: balance` on the people card title (applied only above 860 px) crashes Chrome Headless Shell 156.0.8078.4 (SIGSEGV 0x84), rewrite and original alike;
+  none of 16 tested harness settings is involved; untested: BeginFrameControl, `--run-all-compositor-stages-before-draw` (the harness
+  needs both), and full Chrome vs Headless Shell, so whether stock Chrome 156 crashes on this page is not known (INFERRED Chrome bug).
+  In the rewrite the trigger is the people title h2 (balance) holding the inline-grid `o`.
 - Workaround: profile `desktop-1280` sets `text-wrap: wrap` through `profile.css`; passing runs above. Note: `research/notes/2026/10-2x-chromium-desktop-crash.md`.
 - Chrome change: not made (the lane has no pin input, the Dockerfile pin would move every committed count).
 
