@@ -160,6 +160,11 @@
    "file": "apps/runner/test/watch-push.test.ts",
    "text": "expect(ms).toBeLessThan(2000)",
    "reason": "the spec deadline itself (console-push: a line within about 2 s)"
+  },
+  {
+   "file": "apps/runner/test/watch-collect.test.ts",
+   "text": "timeout: 120_000",
+   "reason": "hang catcher, not a speed assertion: a child that never answers fails the test after this cap; set well above any loaded run"
   }
  ]
 }

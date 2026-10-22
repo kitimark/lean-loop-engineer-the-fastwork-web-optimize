@@ -76,7 +76,7 @@ describe("samples and lines", () => {
     ].join("\n");
     expect(parseSamples(text)).toEqual([
       { tool: "a", step: "y", durMs: 7, host: "ci", load: 0 },
-      { tool: "b", step: "x", durMs: 5, host: "local", load: 9 },
+      { tool: "b", step: "x", durMs: 5, host: "local", load: 9, exit: 0 },
     ]);
   });
   it("prints NEXT investigate step= and one timing.slow alert per slow step", () => {

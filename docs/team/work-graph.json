@@ -14227,7 +14227,8 @@
     "codemagic.yaml",
     "docs/team/tools/codemagic.md",
     "docs/team/tools/ci-pool.md",
-    "docs/team/handoffs/macos-pool-7.md"
+    "docs/team/handoffs/macos-pool-7.md",
+    "apps/runner/src/fw-main.ts"
    ]
   },
   {
@@ -15558,8 +15559,10 @@
     "docs/team/tools/timings.md",
     "apps/runner/src/timing.ts",
     "lean/Fw/Wire/Obs.lean",
-    "apps/runner/test/timing-alert.test.ts"
-   ]
+    "apps/runner/test/timing-alert.test.ts",
+    "scripts/wallclock-allow.json"
+   ],
+   "evidence": "51b4897"
   },
   {
    "devices": [
