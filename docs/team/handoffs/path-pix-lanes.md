@@ -2,7 +2,9 @@
 
 - Branch: `worktree-wf_b9782b57-981-1` (CI branch `ci/path-pix-lanes`); worktree `.claude/worktrees/wf_b9782b57-981-1`.
 - Last commit: 1aa0944d (first CI push).
-- CI runs: 39778557659 (path-pix workflow, dispatch 1 of at most 4) in progress.
+- CI runs: 39778557659 (path-pix workflow, dispatch 1 of at most 4): guard, site, chromium 1 and 2 success; sim 1 and 2 were queued/in progress at 12:56 UTC.
+- Chromium lane result (run 39778557659, both jobs identical): frames 430x932 (beginFrame screenshots are in CSS px, page dpr 3), 6 declared layers, 9 offsets; A/A 29 cells all E; P 29 cells, 28 E and 1 L (hero.deck_article offset 0: 2 px inside and 1 outside differ by 1 level).
+- Later commits (after 1aa0944d): handoff, `apps/runner/src/land.ts` PACKAGE_EXTRA_READS (land-inputs test asked for them). Runner tests 2493 pass; measure-webkit 335 and measure-chromium 64 pass; check.sh green.
 - Verified locally: 12 node tests (`packages/measure-webkit/test/pathpix*.test.mjs`), `scripts/ci-paths.mjs --check`, `scripts/ci-paths.test.mjs` (54), steps lint, wallclock lint. Queued via slot, not yet read: measure-webkit, measure-chromium, runner tests; `lean/scripts/check.sh`.
 - Open: no Docker daemon here, so the Chromium driver (`packages/measure-chromium/src/pathpix.mjs`) has its first real run on CI; on a failure read `error.json` in the artifact `path-pix-chromium-<run>`. Calibration cells (A/A and P per lane) and the research note `research/notes/2026/10-2x-path-pix.md` are written after the run. Sim slot token 9bec9c5c-cf3 (owner path-pix-lanes) to release if still held.
 
