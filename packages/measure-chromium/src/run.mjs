@@ -185,8 +185,15 @@ const plan = [];
 if (inputMode === 'scrollTo' || inputMode === 'page') {
   let y = 0;
   for (const seg of profile.segments) {
+    // `anchor` ({selector, viewportTop}): the segment starts with the first match of the selector `viewportTop` px below the viewport top.
+    // `eval`: an expression run once, inside the segment's first frame, before that frame's scroll (a synthetic pointer event; people-o-hover).
+    if (seg.anchor) {
+      const ay = await ev(`(() => { const e = document.querySelector(${JSON.stringify(seg.anchor.selector)}); return e ? Math.round(e.getBoundingClientRect().top + scrollY - ${Number(seg.anchor.viewportTop)}) : null; })()`);
+      if (ay === null) throw new Error(`segment ${seg.name}: no element matches ${seg.anchor.selector}`);
+      y = Math.max(0, Math.min(maxScroll, ay));
+    }
     if (seg.until === 'end') { while (y < maxScroll) { y = Math.min(maxScroll, y + seg.dyPerFrame); plan.push({ phase: seg.name, y }); } }
-    else for (let i = 0; i < seg.frames; i++) { y = Math.min(maxScroll, y + (seg.dyPerFrame ?? 0)); plan.push({ phase: seg.name, y }); }
+    else for (let i = 0; i < seg.frames; i++) { y = Math.min(maxScroll, y + (seg.dyPerFrame ?? 0)); plan.push({ phase: seg.name, y, run: i === 0 ? seg.eval : undefined }); }
   }
 }
 // Touch stroke state machine: touchStart at startY, one touchMove of dyPerFrame CSS px per frame while the finger stays
@@ -245,11 +252,11 @@ const metricsNow = async () => Object.fromEntries((await c.send('Performance.get
 const warmN = inputMode === 'page' ? plan.filter((x) => x.phase === 'warm').length : 0;
 if (inputMode === 'scrollTo' || inputMode === 'page') {
   for (let n = 0; n < plan.length; n++, vt += dt) {
-    const { phase, y } = plan[n];
+    const { phase, y, run } = plan[n];
     // "page" (engine premise fixtures): the page itself acts once per frame, from its own step table (window.__fwStep(n)), inside the frame's mark window.
     const pre = inputMode === 'page'
       ? `console.timeStamp('F${n}'); ${phase === 'warm' ? `window.__fwWarm(${n})` : `window.__fwStep(${n - warmN})`}; var __fwStepResult = ${POS};`
-      : `console.timeStamp('F${n}'); window.scrollTo({ top: ${y}, left: 0, behavior: 'instant' }); var __fwStepResult = ${POS};`;
+      : `console.timeStamp('F${n}'); ${run ? `(function () { ${run} })();` : ''} window.scrollTo({ top: ${y}, left: 0, behavior: 'instant' }); var __fwStepResult = ${POS};`;
     const r = await frame(vt, pre);
     r.metrics = await metricsNow();
     record(n, phase, r.out, r);
