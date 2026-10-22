@@ -553,6 +553,6 @@
   ],
   "recommendation": {
     "word": "hold",
-    "why": "The flag is proved to show the original panel on every frame under the WAAPI premises, every effect meets the Core Animation conditions, the gate passes on both engines, and the Chromium trajectory has no content difference. It does not lower the cost: on the Simulator the open push costs more Composite per frame than the constant-bounds flag, because the blur moves from Paint to the compositor while the panel layer is still resized on every frame, and the style recalculation stays. Keep the flag registered, leave it out of the preset, and re-open it only on a constant-bounds panel measured on a lane with a real GPU."
+    "why": "The flag is proved to show the original panel on every frame under the WAAPI premises, every effect meets the Core Animation conditions, the gate passes on both engines, and the Chromium trajectory has no content difference. It does not lower the cost: on the Simulator the open push costs more Composite per frame than the constant-bounds flag, because the blur moves from Paint to the compositor on a panel whose box is already constant, and the style recalculation stays. Keep the flag registered, leave it out of the preset, and re-open it only when measured on a lane with a real GPU."
   }
 }

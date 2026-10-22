@@ -1,7 +1,7 @@
 ---
 id: 2026-10-2x-morph-panel-threaded
 kind: note
-title: "morph.panel:threaded, the panel's opacity, blur and scale as three effects per morph push"
+title: "morph.panel:threaded, the panel's opacity, blur and scale as two effects per morph push"
 status: draft
 created: 2026-10-23
 authors: [agent:part-builder]
@@ -17,8 +17,8 @@ every frame, so a frame needs no layout, property-tree or paint work for the pan
 ## What changes
 - `apps/site/src/parts/morph.panel/threaded.logic.ts`: the keyframes of one push, from Lean `MorphPanelThreaded.track`
   (golden `morph-panel-threaded.jsonl`, 210 lines, checked by `threaded.test.ts`).
-- `morph.tween/driver.ts` (`createPanelEffects`): the tween owns the animate calls, so the per-frame panel writes are
-  skipped and the effects start at push time with `startTime` set to the push time.
+- `morph.tween/driver.ts` (`createPanelEffects`): the tween owns the animate calls, the CSS values computed from --morph stay, the effects
+  override them, and the effects start at push time with `startTime` set to the push time.
 - Flag read from `window.__fw.config.variants['morph.panel']` in `morph.tween/index.tsx`.
 - Consequence for the footprint: the tween now writes morph.panel, so morph.panel is no longer isolated; the Lean
   literals of `Bridge.lean` (isolated 13 to 12, chain pairs) and `FootprintRows.lean` were regenerated.
@@ -106,20 +106,19 @@ r3 was not read. The table holds the passes of r1 and r2 read from their artifac
 ## Verdict (negative on cost)
 - The flag shows the same panel (look: `interp_eq`, `threaded_eq`, panel-effect E) and meets the Core Animation
   conditions (`ca_accepts`), but on the Simulator the open push costs more Composite per frame than the const-bounds
-  arm, and nothing less elsewhere.
+  arm, and nothing less elsewhere. The bundle arm runs the same panel flag and overlaps const-bounds on every cell,
+  so the rise does not reproduce across arms; read it as no win, not as a confirmed cost (n = 4 passes per arm).
 - Why (PROVED in the stage model, INFERRED for the cost): `variant_drops` removes layout, props and paint from the
   frame, and `variant_stages` keeps style, so the model says "less main-thread work". The model has no Composite stage:
-  the blur moves from Paint to the compositor, which on the Simulator (no GPU) runs on the CPU. The panel box still
-  grows with m (`Fw.Parts.MorphConstBounds.orig_resizes_h`, `orig_resizes_w`; the threaded flag does not touch the
-  box), so the blurred layer is resized on every frame, and each resize re-renders the blur in the compositor. The
-  const-bounds flag removes that resize and measured 100-148 ms against 176-181 ms in its own task.
-- Lesson: a stage that leaves the main thread is not a saving when the work it did lands in Composite on a lane
-  without a GPU; and moving the blur cannot beat removing the resize that drives it. A variant that removes both
-  (effects on a constant-bounds panel) needs a new variant of one part, since flags of one part are exclusive; not
-  built here.
+  the blur moves from Paint to the compositor, which on the Simulator (no GPU) runs on the CPU. The threaded arm already holds the const-bounds box (index.tsx:44 adds css.cb), so a box resize
+  cannot explain the difference. The cause of the open-push Composite rise is UNKNOWN; candidates are the CA blur
+  running on the CPU compositor in the Simulator and a new layer per push (close push: 100 against 0 new layers per
+  100 reads).
+- Lesson: a stage that leaves the main thread is not a saving when its work lands in Composite on a lane without a
+  GPU; measure a compositor move on a lane with a real GPU before calling it a cost or a win.
 
 ## Accepted limits and follow-ups
 - Safari on this Mac (real GPU, `gpu-safari-lane`) and the PathPix cell are follow-ups.
 - Linux WebKit trajectory walks the hero path only (4000 of 4000 clean), no panel rows.
 - Run 39846909558 ends `failure` (vm r3 infrastructure); only its r1 and r2 artifacts are used.
-- Workflow edit outside the task's writes: `.github/workflows/trajectory-probe.yml`, the GPU cells step passes the search.
+- Workflow edit `.github/workflows/trajectory-probe.yml` (in the writes since graph r295): the GPU cells step passes the search.
