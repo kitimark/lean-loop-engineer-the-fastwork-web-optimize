@@ -67,6 +67,7 @@ import Fw.Parts.PeopleCardOpt
 import Fw.Parts.PlatformShrinkOpt
 import Fw.Parts.PlatformFade
 import Fw.Parts.PlatformFadeRun
+import Fw.Parts.MorphConstBounds
 import Fw.Parts.HeroAccentOpt
 import Fw.Measure.Zones
 import Fw.Measure.Classes
