@@ -41,8 +41,12 @@ panel is a direct child selected by its `data-fw="morph-panel"` hook.
 Phone logo: the original writes `translate` then `scale` as two properties, so the translation is outside the scale. `transform: translate3d() scale()`
 keeps that order; the property `scale` plus a `transform` would scale the translation (`translate_scale_order`).
 
-Width transition at rest: the original `transition` lists end with `width`. Left alone, the union width would animate back to the pill when `is-morphing`
-leaves. The flag lists drop `width` at rest (`transition-property` only). Consequence, accepted: a viewport resize at rest no longer eases the nav width (0.68 s).
+Width transition at rest: the original `transition` lists end with `width`. They stay as they are (the first CI version dropped `width` from them; the
+breakpoint gate failed on the changed `transition-property` on both engines, runs 39835303279 and 39837964273, and the hero-pill to bar width change at the
+hero exit lost its 0.68 s ease). Instead the rule declares `width: var(--pill-w)` and reaches the union through `min-width: var(--panel-w)`. The declared width
+is constant in the morph, `min-width` is not in the lists, and at `m = 0` the declared width equals the rest width (`decl_eq_rest_zero`; for `0 < m <= cut`
+within `cut * (panelW - pillW)`, `decl_close_rest`), so dropping `.is-morphing` starts no width transition. `usedW_eq_unionW`: used width = max(width, min-width)
+= union width; `used_eq_rest_one` covers the end at 1 (the class stays on). `layout_only_at_endpoints`: boxes at two morph values differ only if one is at or below the cut.
 
 ## Lean
 

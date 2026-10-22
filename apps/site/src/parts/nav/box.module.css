@@ -1,25 +1,19 @@
 /* Variants clip-box, bar-fixed, logo-3d (Lean: Fw.Parts.NavClipBox, NavBarFixed; golden nav-clip-box.jsonl, nav-bar-fixed.jsonl).
    While the nav morphs with its locale menu closed it keeps the union of its boxes (panel width; top and height reach the
    highest top and lowest bottom of the morph) and the pill is a clip-path inset with the original's corner radius. The
-   rest and locale-open states keep the original rules. The `width` entry of the transition lists is dropped at rest: it
-   would animate the union width back to the pill when the morph ends. The rules sit in their own module (nav.module.css
-   is the original's rules); the nav's elements are named by data-fw hooks because a class of another module cannot be
+   rest and locale-open states keep the original rules, transition lists included. The union width comes from `min-width`
+   over a `width` held at the pill width, so the declared width is constant in the morph and equals the rest width where
+   the morph ends (Lean: usedW_eq_unionW, decl_eq_rest_zero): no width transition starts when `.is-morphing` is dropped.
+   The rules sit in their own module (nav.module.css is the original's rules); the nav's elements are named by data-fw hooks because a class of another module cannot be
    written here. Every override beats the original by specificity, so the order of the two sheets does not matter. */
 @layer parts {
-  :global([data-fw='nav']).boxClip:not(:global(.is-morphing), :global(.is-scroll-hidden)) {
-    transition-property: background, opacity, transform, visibility;
-  }
-  @media (width>600px) {
-    :global([data-fw='nav']).boxClip:global(.is-hero-pill):global(.is-hero-chrome-ready) {
-      transition-property: background, opacity, transform;
-    }
-  }
   .boxClip:global(.is-morphing):not(:global(.is-locale-open)) {
     --box-ix: calc((var(--panel-w) - var(--pill-w)) * (1 - var(--morph)) / 2);
     --box-it: calc(4px * var(--morph));
     --box-ib: calc((var(--panel-h) - var(--pill-h) + 4px) * (1 - var(--morph)));
     top: 16px;
-    width: var(--panel-w);
+    width: var(--pill-w);
+    min-width: var(--panel-w);
     height: calc(var(--panel-h) + 4px);
     border-radius: 0;
     clip-path: inset(var(--box-it) var(--box-ix) var(--box-ib) var(--box-ix) round calc(32px - 12px * var(--morph)));

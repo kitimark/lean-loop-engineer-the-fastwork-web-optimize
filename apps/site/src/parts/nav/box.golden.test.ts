@@ -132,7 +132,8 @@ describe('nav clip-box: the CSS evaluates to the Lean rows', () => {
       if (phone) for (const [k, v] of clipPhone) rule.set(k, v);
       const at = (e: string) => px(e, env, vw, vh);
       expect(at(rule.get('top')!)).toBeCloseTo(r.unionT as number, 9);
-      expect(at(rule.get('width')!)).toBeCloseTo(r.unionW as number, 9);
+      expect(Math.max(at(rule.get('width')!), at(rule.get('min-width')!))).toBeCloseTo(r.unionW as number, 9);
+      expect(at(rule.get('width')!)).toBeCloseTo(at('var(--pill-w)'), 9);
       expect(at(rule.get('height')!)).toBeCloseTo(r.unionH as number, 9);
       expect(rule.get('border-radius')).toBe('0');
       expect(at('var(--box-ix)')).toBeCloseTo(r.insetX as number, 9);
@@ -148,6 +149,9 @@ describe('nav clip-box: the CSS evaluates to the Lean rows', () => {
       expect((r.unionL as number) + at('var(--box-ix)')).toBeCloseTo(r.origL as number, 9);
       expect((r.unionT as number) + at('var(--box-it)')).toBeCloseTo(r.origT as number, 9);
     }
+  });
+  it('keeps the original transition lists: the sheet names no transition', () => {
+    expect(css).not.toMatch(/transition/);
   });
   it('moves the logo and the actions by the Lean translations', () => {
     for (const r of barRows.filter((q) => (q.m as number) > 0.001)) {
