@@ -321,7 +321,8 @@
     "Fw.Parts.HeroCountdownOpt.strip_frame_ltE",
     "Fw.Engine.WebKit.face_reattach",
     "Fw.Engine.WebKit.strip_no_reattach",
-    "Fw.Engine.WebKit.reattachPaint_rise"
+    "Fw.Engine.WebKit.reattachPaint_rise",
+    "Fw.Parts.HeroCountdownOpt.strip_still_eq"
    ],
    "leanAgainst": [
     "strip_passes_eq",
@@ -338,7 +339,7 @@
     "will-change composites under WebKit Normal and is dropped under Conservative: CONFIRMED (Fw.Engine.WebKit willChange_dropped)",
     "full-layer backing rule (each layer backs its whole box): INFERRED",
     "face re-entry repaint caused by backing detach: INFERRED (pin detach rule CONFIRMED, repaint cause from v1 on another branch)",
-    "TS strip flag also moves the clock to a shared per-frame subscriber (index.tsx:103-108): CONFIRMED in code, OPEN in the model"
+    "Shared-loop scheduling delta: gone, the TS strip runs startFaithful (index.tsx:100, scheduling.test.ts; strip_still_eq): CONFIRMED"
    ],
    "v1Evidence": "v1 fixes/cd-strip (KD#12): layers 48->16, re-entry paint 53.5->21, menu-centre redraws per open 196->11; Simulator hero-clock Paint records 13->0 per 4 s; WebKit memory up because the whole strip is backed (../fastwork-com-web-optimize/research/gpu-props/README.md:286-297,396-424). v2 local Simulator debug run, not a result (packages/measure-webkit/README.md:267-290): Paint 166->154, but FireAnimationFrame 222->296 and FunctionCall 296->370, caused by the bundled subscriber.",
    "lesson": "Fewer layers is a resident win, not a per-frame win: passes stay equal and only a census can see it, and any growth in backing makes it a trade. A layer variant must not also change scheduling.",
@@ -804,14 +805,14 @@
    "n": 13,
    "part": "morph.countdown",
    "candidate": "strip (10 will-change faces per digit -> one 12-entry strip), reused from hero.countdown (KD#12, cd-strip)",
-   "status": "partly-proved",
+   "status": "proved",
    "flags": [
     "morph.countdown:strip"
    ],
    "chromium": "trade",
-   "webkit": "trade",
-   "visual": "E at scene level for every env/instant (strip_visSame). Pixel E is open: v1 found delta-1 pixel classes in fractional fades (Chrome 0.9, Simulator 50 %). Changing which boxes share a layer under an ancestor with opacity in (0,1) changes where 8-bit rounding happens, and Visual.PathPremises does not model that.",
-   "mechanism": "Saving is resident only. Every stage runs equally often per frame (strip_passes_eq); only transform-write units fall 10r -> r. Layers drop 80 -> 8, but backing grows 10 -> 12 cells per digit, so the label is trade (strip_backing_gt, strip_label_fullLayer). For morph.countdown the closed panel forces will-change:auto, so both arms have 0 clock layers (paused_same). The gain exists only while the menu is open. CI: Chromium census.layers sees it; per-frame det counters cannot. On WebKit under the Conservative policy both arms are equal.",
+   "webkit": "win",
+   "visual": "E at scene level for every env/instant (strip_visSame) and pixel E under every panel opacity, fractional included: faces and strips carry opacity 1, and an opacity-1 layer never changes an 8-bit pixel (strip_px_eq, stackPx_filter). Strip entries are top-aligned in their cell, so a glyph sits where the face puts it for every cell and line box (entry_start); centred entries sat 0.09-0.2 px higher at font 24/28 px (entry_center_iff), seen in a local Chromium layout check (not a result); v1's delta-1 classes (opacity-1 identity, delta only under fades) are not explained by placement under this model and are INFERRED to come from v1's different layer partition.",
+   "mechanism": "Saving is resident only. Every stage runs equally often per frame (strip_passes_eq); only transform-write units fall 10r -> r. Layers drop 80 -> 8, but backing grows 10 -> 12 cells per digit, so Core's resident label is trade (strip_backing_gt, strip_label_fullLayer); the webkit field is win by the task's measured criterion (morph-open new layers 81-83 -> 9-11 per pass, resident 128-129 -> 52-56, backing +14 %; notes row morph-strip-webkit), not by a Lean claim. For morph.countdown the closed panel forces will-change:auto, so both arms have 0 clock layers (paused_same). The gain exists only while the menu is open. CI: Chromium census.layers sees it; per-frame det counters cannot. On WebKit under the Conservative policy both arms are equal.",
    "leanFor": [
     "Fw.Parts.HeroCountdownOpt.strip_visSame",
     "Fw.Parts.HeroCountdownOpt.strip_units",
@@ -821,7 +822,11 @@
     "Fw.Engine.double_round_whole",
     "Fw.Engine.shown_eq5",
     "Fw.Parts.HeroCountdownOpt.strip_frame_leE",
-    "Fw.Parts.HeroCountdownOpt.strip_frame_ltE"
+    "Fw.Parts.HeroCountdownOpt.strip_frame_ltE",
+    "Fw.Parts.HeroCountdownOpt.strip_px_eq",
+    "Fw.Parts.HeroCountdownOpt.stackPx_filter",
+    "Fw.Parts.HeroCountdownOpt.entry_start",
+    "Fw.Parts.HeroCountdownOpt.strip_still_eq"
    ],
    "leanAgainst": [
     "Fw.Parts.HeroCountdownOpt.strip_passes_eq",
@@ -836,13 +841,13 @@
    "missingWhy": [],
    "premises": [
     "Backing rule for small composited layers (whole border box): INFERRED",
-    "Shared-loop scheduling delta of the TS strip moves roll frames: OPEN, not modelled",
+    "Shared-loop scheduling delta: gone, the TS strip runs startFaithful (index.tsx:100, scheduling.test.ts; strip_still_eq): CONFIRMED",
     "Safari Normal compositing policy honours will-change: CONFIRMED (Fw.Engine.WebKit.composites)",
-    "Pixel parity at fractional ancestor opacity: OPEN (v1 OBSERVED delta-1)"
+    "Pixel parity at fractional ancestor opacity: proved (strip_px_eq) given that a glyph raster depends only on its device-pixel position and layer origins differ by whole device pixels (cell = whole CSS px, integer DPR); the glyph is in a composited layer in both arms or in neither (same scene-pause rule), and the panel opacity is applied once to the group in both arms (render surface / CA group opacity), backdrop blend not modelled: INFERRED"
    ],
    "v1Evidence": "../fastwork-com-web-optimize/fixes/cd-strip/README.md:6-16,499,716: re-entry digit Paint records 54 -> 21, but painted area unchanged (4.19 vs 4.09/4.21 Mpx); backing 48 -> 16 layers; the user accepted delta-1 pixel classes in fades; inline style writes off screen went up.",
-   "lesson": "Fewer layers with the same per-frame stages changes only resident state. If the new layers are larger, it is a trade. A drop in paint-record count does not mean less painted area.",
-   "next": "Push census.layers golden rows on a ci/ branch (rewrite base). Add the C4 layer-partition premise and its rounding counterexample to Fw.Engine.Visual."
+   "lesson": "Fewer layers with the same per-frame stages changes only resident state. If the new layers are larger, it is a trade. A drop in paint-record count does not mean less painted area. Under one layer partition, a pixel identical at opacity 1 stays identical under any group opacity (strip_px_eq); a fade-only difference points to a partition change, not to placement.",
+   "next": "Chromium C3 (UpdateLayoutTree.elementCount 11264 -> 22445) is not re-judged here; a Chromium-only exclusion needs a per-engine arm."
   },
   {
    "n": 14,
@@ -2861,6 +2866,47 @@
    "lesson": "A steps animation that is idle before its flip is not accelerated before it: the flip must lie inside the active phase (range starts earlier, the step is a keyframe). And a layer placed under content makes the content overlap-promote in WebKit, so the layer budget of \"solid, 0 MB\" must include the layers the overlap forces.",
    "next": "Judge on the Safari lane (gpu-safari-lane) with the trajectory pain-dark cell; try an arrangement that does not put content above the animated layer to remove the 12 MB.",
    "evidence": "CI runs 39817106098 (cancelled), 39818716087 (gate fail), 39822433333, 39822439200, 39828600078 (gate pass), 39828605244, 39818734599, 39828614430, 39818749535; research/notes/2026/10-2x-pain-dark-scroll.md; results/pain-dark-scroll/report.json"
+  },
+  {
+   "id": "morph.touch-band",
+   "n": 46,
+   "part": "morph.mount",
+   "candidate": "morph.mount:band + morph.tween:band: one window touch listener for both morph parts, non-passive only while the platform section is in the band or a morph runs, passive elsewhere, so a pan far from the end of the page does not wait for the web main thread",
+   "status": "partly-proved",
+   "flag": "morph.mount:band",
+   "flags": [
+    "morph.mount:band",
+    "morph.tween:band"
+   ],
+   "chromium": "unknown",
+   "webkit": "unknown",
+   "visual": "E: the merged listener gives each part the same events in the same order as its own listener (hub_eq_base) and prevents default exactly when a part takes the move (hub_prevented); in the band the behaviour is the per-part one (band_same); wheel is unchanged",
+   "mechanism": "PROVED (Fw.Parts.MorphListen): the merged listener equals the two per-part listeners on every event sequence (hub_eq_base) with one listener in place of two (listeners_merged_le); the listener stays non-passive while a finger is down and turns passive only after it lifts (next_down_take, next_lifted); under the band premise every move a part takes falls in the band (armed_in_band, seq_quiet). Trajectory probes: morph.tween:band 39779781978 CLEAN on both engines; morph.mount:band 39779755536 webkit CLEAN, chromium RED on 42 coverage rows at w=390 (open push 1, no rewrite sample in an interior bucket; the probe drives the morph by wheel); the rerun 39781320030 moved the same 42-row open@1 coverage miss to w=641 while the faithful arm missed it at w=640 (both=42), so it reads as a sampling miss of the first open push, not the flag (INFERRED). Not measured: the WebKit touch-to-first-scroll gain.",
+   "leanFor": [
+    "Fw.Parts.MorphListen.hub_eq_base",
+    "Fw.Parts.MorphListen.hub_prevented",
+    "Fw.Parts.MorphListen.listeners_merged_le",
+    "Fw.Parts.MorphListen.band_same",
+    "Fw.Parts.MorphListen.seq_quiet",
+    "Fw.Parts.MorphListen.armed_in_band",
+    "Fw.Parts.MorphListen.next_down_take",
+    "Fw.Parts.MorphListen.next_lifted",
+    "Fw.Parts.MorphListen.takesAny_disj"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "WebKit touch-to-first-scroll base vs flag has no lane: packages/measure-webkit needs a probe mode (passive touchstart timeStamp to the first frame with a scrollY change)",
+    "The two flags together cannot be gated or probed: the gate and probe builds prerender no multi-flag search",
+    "The band premise (every pan a part takes starts inside the band) is INFERRED from two replay profiles (swipe-touch-v1, user-fixture), not from the phone"
+   ],
+   "premises": [
+    "CONFIRMED: a window-level non-passive touchmove listener makes the WebKit pan start wait for the web main thread (research/notes/2026/10-22-webkit-render-cost.md F16: Source/WebKit/UIProcess/WebPageProxy.cpp:5049-5075)",
+    "INFERRED: no morph-taking pan starts outside the band (MorphListen premise, checked on the replay profiles in packages/contracts/golden/parts/morph-listen.profiles.jsonl)"
+   ],
+   "v1Evidence": "",
+   "lesson": "A blocking touch listener can be scoped by an IntersectionObserver band and a finger-down hold without changing what any part sees; the cost moves to one more observer, and the win is only in WebKit pan-start latency, which the current lanes do not measure.",
+   "next": "Add a touch-to-first-scroll probe to packages/measure-webkit and multi-flag prerender to the gate build, then measure base vs both flags (>= 3 runs) and gate them together.",
+   "evidence": "CI runs 39778906252 (failed: multi-flag search not prerendered), 39779755536, 39779781978, 39781320030; docs/team/handoffs/morph-touch-band.md"
   }
  ],
  "notes": [
@@ -3163,6 +3209,18 @@
    "task": "hero-exit-threaded-measure",
    "field": "mechanism",
    "text": "hero-exit-threaded-measure (WebKit cost lane, MEASURED): webkit-sim dispatches with lag=true cost=on target=rewrite vms=3 on the iOS Simulator 430x775 (no real GPU), base against ?fw=hero.exit:threaded, zone hero exit (scroll A), per scroll step: base run 39739724461 (VMs r1 and r3, 4 passes; r2 lost its page target and the Simulator shut down), flag run 39731192687 (r1 r2 r3, 6 passes). requestAnimationFrame callbacks 6.88 to 5.88 (every pass, deterministic), Layout events 7.80 to 6.51, Recalculate styles events 7.52 to 6.46, each with the per-pass ranges separated (Lean WebKitLag.verdict); adding the 2 passes of run 39731185714 to the base changes no per-step verdict. Recalculate styles time relative to each arm's calm baseline is lower with the flag: ratio 1.89 (1.78-2.02) against 1.27 (1.15-1.54), FunctionCall time 1.55 (1.30-1.67) against 1.13 (0.99-1.28), both separated (FunctionCall time overlaps with the 6 base passes); per-step InvalidateLayout 7.95 to 5.95, ScheduleStyleRecalculation 7.42 to 6.42, FireAnimationFrame 6.69 to 5.75 also separated; the calm baselines are equal (12,735 and 12,935 us) and flag r3 alone on the base's runner image gives the same verdicts. Absolute per-step Recalculate styles time, Layout time, FunctionCall, Paint, skipped display slots (78.9 against 81.8 per 100 frames), frames over 50 ms, Paint and Composite per frame, new and resized layers per read: ranges overlap, no difference shown. Backing store 51.6 against 54.5 MB at scroll state 2, layer count overlaps. Mechanism: INFERRED that the exit script and its forced track-rect layout and style pass are the removed events (the counts are MEASURED); the remaining style events (6.46 per step) equal the same arm's calm-scroll baseline (6.45), and WebKit still restyles scroll-timeline targets once per rendering update when accelerated (note wktr-p1p4), so one event out of about seven per step does not show in the absolute per-step time, where the Simulator passes spread, and shows only against the calm baseline. Result: one script callback, one layout and one style pass fewer per step and a lower style time relative to the calm scroll; absolute times and cadence do not separate in this lane; the felt effect is open (phone replay). Lesson: read a zone against the same arm's calm baseline as well as in absolute cells; a removed main-thread event is never proof of smoother frames, so judge the feel on the phone. Open: the page is 36 px longer with the flag (maxY 5231 against 5267), check it in the phone replay. Note research/notes/2026/10-2x-hero-exit-threaded-measure.md; limits: no real GPU, one width, runner images differ between arms (same-image check: flag r3), entrance not sampled (Lean entrance_same and unit tests)."
+  },
+  {
+   "entry": "strip (10 will-change faces per digit -> one 12-entry strip), reused from hero.countdown (KD#12, cd-strip)",
+   "task": "morph-strip-webkit",
+   "field": "mechanism",
+   "text": "MEASURED on WebKit (iOS Simulator, webkit-cost-counters lane, runs 39775174615, 39776549128 (base: default rewrite) and 39775198022, 39776554155 (flag: ?fw=hero.countdown:strip,morph.countdown:strip); base 5 VMs / 10 passes, flag 4 VMs / 8 passes (one Simulator job per run failed)): new layer ids at morph open 81-83 (base) -> 9-11 (flag) per pass, new layers / 100 reads 2075-4050 -> 220-900 (lower); resident layers before the push 128-129 -> 52-56; paint records 0-500 ms after the open 0-165 -> 28-51 (overlap; 95-165 on the 8 base passes that recorded paints, run 39776549128 r3 recorded 0 in both passes). Frame cadence, Composite us/frame and close/rest zones overlap. The 80 new 18x38 face layers become 8 new 18x434 strip layers: clock backing 54720 -> 62496 CSS px2 (+14 %, strip_backing_gt). UI-process work at morph start is INFERRED lower: each composited layer is one UIView created on the UI main thread (research/notes/2026/10-22-webkit-render-cost.md:72); the Simulator has no real GPU, so GPU cost is INFERRED from layer counts only."
+  },
+  {
+   "entry": "strip (cd-strip, KD#12): 10 will-change faces per digit -> one 12-entry strip",
+   "task": "morph-strip-webkit",
+   "field": "mechanism",
+   "text": "MEASURED on WebKit (runs 39775174615, 39776549128 (base: default rewrite) and 39775198022, 39776554155 (flag: ?fw=hero.countdown:strip,morph.countdown:strip)): with both strips the page holds 52-56 composited layers before the morph push against 128 with faces (72 hero face layers fewer); see the n=13 strip row for the morph-open counts."
   }
  ]
 }

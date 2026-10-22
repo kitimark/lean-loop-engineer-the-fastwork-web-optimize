@@ -153,7 +153,7 @@ structure Lane where
 `trajectory-probe` runs its macOS leg on a push only when the head commit carries `[frames:` or the commit line has a `debug=` key;
 `smoothness` runs its two WebKit legs only when the head commit carries `[webkit-cadence]`). -/
 def macosFiles : List String :=
-  ["engine-premises.yml", "sim-speed.yml", "smoothness.yml", "toolbar-throttle.yml", "trajectory-probe.yml", "webkit-sim.yml", "wktr-fixtures.yml", "wktr.yml"]
+  ["engine-premises.yml", "path-pix.yml", "sim-speed.yml", "smoothness.yml", "toolbar-throttle.yml", "trajectory-probe.yml", "webkit-sim.yml", "wktr-fixtures.yml", "wktr.yml"]
 
 /-- The default lanes, which start on a push with no intent: only the Lean proofs, on ubuntu. -/
 def defaultFiles : List String := ["lean.yml"]
