@@ -42,6 +42,15 @@ export async function genOutputs(root: string): Promise<string[]> {
   return [...table.workflows.map((w) => `.github/workflows/${w.file}`), m.LAKE_GEN as string];
 }
 
+/** Generator-owned paths of the checkout and of the branch's worktree: a branch may add a workflow row the main checkout's
+ *  golden lacks, and a file the branch's generator owns is never edited (Lean `gen_never_edited`). The branch's own table is
+ *  read when it loads; a failure there leaves the main checkout's set. */
+export async function genOwned(gen: (root: string) => Promise<string[]>, root: string, dir: string): Promise<string[]> {
+  const base = await gen(root);
+  if (dir === root) return base;
+  try { return [...new Set([...base, ...(await gen(dir))])]; } catch { return base; }
+}
+
 const lines = (s: string) => s.split("\n").map((l) => l.trim()).filter((l) => l !== "");
 
 function coreOf(cwd: string, deps: Deps, git: NonNullable<Deps["git"]>): CoreCall {
@@ -78,7 +87,7 @@ export async function polishCli(argv: string[], cwd: string, deps: Deps = {}): P
     if (!dir) throw new Error(`no worktree has branch ${flags.branch}`);
     const paths = lines(staged ? git(dir, ["diff", "--cached", "--name-only"]) : git(dir, ["diff", "--name-only", `main...${flags.branch}`]));
     const heads = paths.map((p) => ({ path: p, head: (read(join(dir, p)) ?? "").split("\n", 1)[0]!.slice(0, 300) }));
-    const gen = await (deps.gen ?? genOutputs)(root);
+    const gen = await genOwned(deps.gen ?? genOutputs, root, dir);
     const call = coreOf(cwd, deps, git);
     const edited = verb === "commit" ? lines(git(dir, ["diff", "--name-only", "HEAD"])) : [];
     const plan = (await call({ op: "plan.polishPlan", gen, heads, paths, edited })) as unknown as Plan;
