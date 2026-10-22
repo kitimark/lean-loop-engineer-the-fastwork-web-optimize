@@ -1,7 +1,3 @@
-// `fw polish plan|cuts|commit|staged` (task polish-in-flow): the Polish stage of the build-review workflow and of the lead's
-// own commits. Classes, stages, scopes, kept paths and cut verdicts are Lean (`Fw.Plan.Polish`, fwcore ops
-// `plan.polishPlan` and `plan.polishCuts`); this file reads git and files, calls fwcore, writes what fwcore returns and
-// prints one `VERDICT` line (last) that a script routes on.
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { isAbsolute, join, relative } from "node:path";
@@ -35,16 +31,12 @@ export interface Deps {
 const realGit = (cwd: string, args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", maxBuffer: 64 << 20 });
 const realRead = (p: string) => { try { return readFileSync(p, "utf8"); } catch { return null; } };
 
-/** Paths whose text a generator writes: the workflow files `scripts/ci-paths.mjs --write` reconciles, and its Lean file. */
 export async function genOutputs(root: string): Promise<string[]> {
   const m = await import(pathToFileURL(join(root, "scripts/ci-paths.mjs")).href);
   const { table } = m.loadGolden(root) as { table: { workflows: { file: string }[] } };
   return [...table.workflows.map((w) => `.github/workflows/${w.file}`), m.LAKE_GEN as string];
 }
 
-/** Generator-owned paths of the checkout and of the branch's worktree: a branch may add a workflow row the main checkout's
- *  golden lacks, and a file the branch's generator owns is never edited (Lean `gen_never_edited`). The branch's own table is
- *  read when it loads; a failure there leaves the main checkout's set. */
 export async function genOwned(gen: (root: string) => Promise<string[]>, root: string, dir: string): Promise<string[]> {
   const base = await gen(root);
   if (dir === root) return base;

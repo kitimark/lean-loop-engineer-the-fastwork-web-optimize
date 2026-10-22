@@ -1,6 +1,3 @@
-// fw polish: golden vectors of fwcore `plan.polishPlan` and `plan.polishCuts` (Fw.Plan.Polish) and the CLI around them. The
-// golden responses come from the fwcore binary; regenerate with
-//   FW_WRITE_POLISH_GOLDEN=1 pnpm --filter ./apps/runner exec vitest run test/polish.test.ts
 import { execFileSync, spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";

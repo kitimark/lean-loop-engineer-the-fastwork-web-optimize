@@ -10,5 +10,5 @@ Fix: `genOwned` in apps/runner/src/polish.ts unions the main checkout's set with
 rule (`gen_never_edited`, `skip_never_edited`, `classify`) is unchanged and takes the union as its `gen` data. Tests in
 apps/runner/test/polish.test.ts: a branch-only workflow row is restored on commit and planned as none; genOwned union and fallback.
 
-Open: the other two lost docstrings (MorphListen.lean, guard.mjs) are comment judgement, out of this task.
-Not done: no post-edit `ci-paths --check` revert pass (the identity rule makes it unneeded for table-listed files).
+Open: the other two lost docstrings (MorphListen.lean, guard.mjs) are comment judgement, out of scope.
+Not done: no post-edit `ci-paths --check` revert pass (the identity rule covers table-listed files).
