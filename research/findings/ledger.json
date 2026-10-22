@@ -2820,7 +2820,7 @@
   },
   {
    "id": "pain.dark-scroll",
-   "n": 46,
+   "n": 47,
    "part": "pain",
    "candidate": "pain:dark-scroll: at most 860 px, replace the is-pain-dark class flip (section restyle and background repaint) with two empty solid layers whose opacity runs on the root scroll timeline with steps(1, jump-start), range start 256 px before the flip written once per layout; people.card stops toggling the class where the engine runs it (continues n=21)",
    "status": "partly-proved",
@@ -2830,7 +2830,7 @@
    ],
    "chromium": "trade",
    "webkit": "trade",
-   "visual": "E-s under Reveal and Cont (Fw.Parts.PainDarkScroll pixel_eq, opacity_eq: opacity is exactly 0 or 1, no ramp); where Reveal fails (a quick swipe beats the 0.9 s card reveal) the original is the later arm by at most 48 px of scroll (drift_window); flip-frame timing Q (the original flips in a rAF after the scroll callback, the layer in the UI process, INFERRED)",
+   "visual": "E-s under Reveal and Cont (Fw.Parts.PainDarkScroll pixel_eq, opacity_eq: opacity is exactly 0 or 1, no ramp); where Reveal fails (a quick swipe beats the 0.9 s card reveal) the original is the later arm by at most 48 px of scroll (drift_window); flip-frame timing Q (the original flips in a rAF after the scroll callback, the layer in the UI process, INFERRED) The gate compares the pre-flip state only (anchors.json excludes is-pain-dark and the people flip; cells are read at scroll 0); the post-flip look rests on Lean pixel_eq and the pending trajectory pain-dark cell.",
    "mechanism": "MEASURED (CI chromium-counts, 430x932 dpr 3, swipe-v1, 3 identical runs; base 39818749535, flag 39828614430): in the toggle frame (scroll 970) the invalidated paint area falls 3,413,963 to 3,013,203 px (one viewport) and raster tasks 26 to 20; over the swipe invalidation area falls 4.0 percent, tiles 6.6 percent; price +3 layers in every frame (two solid pseudo-elements and an INFERRED host, no tiles) and +14 style recalcs. MEASURED (CI webkit-sim, iOS Simulator 430x775, 2 passes per arm; base 39818734599, flag 39828605244): the two pseudo-element layers exist with reason animation and no backing; the painted area of a scroll pass is 28 and 34 percent lower; price +12.0 MB backing at the two scroll states showing the Pain stage, because the stage text block is promoted above the animated layer (reason overlap; cause INFERRED); the toggle-step paint spike moves between steps and is not separable from noise. Breakpoint gate both engines on the final design: run 39828600078 pass. Three designs failed first: a child div (the gate selects the sticky as first child), transparent sticky and hold (the gate compares their computed background-color; run 39818716087), and a 1 px range (WebKit accelerates only the active phase, so the layers never appeared in the census and the flip stays on the main thread; run 39822439200).",
    "leanFor": [
     "Fw.Parts.PainDarkScroll.pixel_eq",

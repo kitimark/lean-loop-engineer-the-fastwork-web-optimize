@@ -15,7 +15,7 @@
       "provenance": {
         "lean": "Fw.Parts.PainDarkScroll pixel_eq, opacity_eq, measure_eq, wide_eq, reveal_needed, cont_needed, no_lift, toggle_free, layer_backing_zero",
         "ledger": "n=21",
-        "limit": "adds two solid-colour layers (pseudo-elements) with no backing store (Lean solid_layers_le, layer_backing_zero); at most 860 px, in engines with the root scroll timeline and animation-range (elsewhere faithful); the pixel equality holds when the card reveal translation has finished at the flip offset and the original's class is current (premises, measured on CI); the flip runs in the UI process (INFERRED), so its frame can differ by one from the main-thread class; WebKit promotes the stage text block above the animated layer (overlap, 12 MB more backing while the Pain stage is in view, Lean promoted_cost) and restyles the layer every scrolling frame (scroll_comp_ride)"
+        "limit": "adds two solid-colour layers (pseudo-elements) with no backing store (Lean solid_layers_le, layer_backing_zero); at most 860 px, in engines with the root scroll timeline and animation-range (elsewhere faithful); the pixel equality holds when the card reveal translation has finished at the flip offset and the original's class is current (premises: Cont INFERRED, Reveal MEASURED for the offset and INFERRED for its timing; where Reveal fails the arms differ for at most 48 px of scroll, Lean drift_window); the flip runs in the UI process (INFERRED), so its frame can differ by one from the main-thread class; WebKit promotes the stage text block above the animated layer (overlap, 12 MB more backing while the Pain stage is in view, Lean promoted_cost) and restyles the layer every scrolling frame (scroll_comp_ride)"
       }
     }
   },

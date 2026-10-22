@@ -10,7 +10,7 @@ layer for the `is-pain-dark` flip), `10-2x-toolbar-throttle.md` (throttle-lift r
   exactly 1 from it on (`opacity_eq`, `layer_flip`); the written range start is the encoded one at any scroll offset and
   reveal state (`measure_eq`); above 860 px both arms are dark (`wide_eq`).
 - CONFIRMED (CI): breakpoint gate, both engines, all breakpoints, final design: run `39828600078` pass (the pain and
-  people.card rows pass in every cell; the `UNREACHABLE` cells are the standing excused ones).
+  people.card rows pass in every cell; the `UNREACHABLE` cells are the standing excused ones). The gate compares the pre-flip state only (anchors.json excludes is-pain-dark and the people flip; cells are read at scroll 0); the post-flip look rests on Lean pixel_eq and the pending trajectory pain-dark cell.
 - MEASURED, Chromium (counts, 430x932 dpr 3, swipe-v1, 3 runs, identical across runs): in the toggle frame the
   invalidated paint area falls by one viewport (400,760 px) and the raster tasks fall 26 to 20; over the whole swipe the
   invalidated area falls 4.0 % and tiles 6.6 %; the price is +3 layers in every frame (solid, no tiles) and +14 style
