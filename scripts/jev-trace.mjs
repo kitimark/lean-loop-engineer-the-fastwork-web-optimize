@@ -133,9 +133,14 @@ function trees(f) {
     `${Math.max(...manifest.map((m) => m.kept))} files per row, ${manifest.reduce((a, m) => a + m.leanChecked, 0)} files checked by Lean`);
 }
 
-export function traceSystem() {
-  return ARM_PREAMBLE + " Files of the project at the incident's time are in the working directory. You may read them " +
-    "with Read, Grep and Glob, using paths relative to the working directory: at most 8 calls and 32 KiB of file text in " +
+export const armName = (model, forced) => `t-${model}${forced ? "-read" : ""}`;
+
+export function traceSystem(forced = false) {
+  const how = forced
+    ? "Before you answer, read at least one file with Read; an answer given before a Read is refused. Use Read, Grep and Glob"
+    : "You may read them with Read, Grep and Glob";
+  return ARM_PREAMBLE + " Files of the project at the incident's time are in the working directory. " + how +
+    ", using paths relative to the working directory: at most 8 calls and 32 KiB of file text in " +
     "all. Your reply also has `evidence`: at most 4 items {\"path\": <file path>, \"lines\": \"<first>-<last>\"} naming " +
     "lines you read that support your choice; an empty list if none.";
 }
@@ -197,7 +202,10 @@ function withLock(lock, fn) {
 }
 
 const HELP = { outside: "outside: use Read, Grep or Glob on a file or directory of the working directory, with relative paths and no '..'",
-  overReads: "overReads: the 8 calls are used; answer now", overBytes: "overBytes: this read passes 32 KiB; read fewer lines with offset and limit" };
+  overReads: "overReads: the 8 calls are used; answer now", overBytes: "overBytes: this read passes 32 KiB; read fewer lines with offset and limit",
+  readFirst: "readFirst: read at least one file of the working directory with Read before you answer" };
+
+export const gateLog = (log) => log.map((l) => ({ tool: l.tool, decision: l.decision }));
 
 function hook(f) {
   const input = JSON.parse(readFileSync(0, "utf8"));
@@ -209,9 +217,10 @@ function hook(f) {
       const st = JSON.parse(readFileSync(f.state, "utf8"));
       const entry = { id: input.tool_use_id ?? null, tool, at: Date.now() };
       if (tool === ANSWER_TOOL) {
-        st.log.push({ ...entry, decision: "answer" });
+        const g = fwcoreCall(REPO)({ op: "oracle.retrieveAnswer", forced: st.forced === true, log: gateLog(st.log) });
+        st.log.push({ ...entry, decision: g.decision === "allow" ? "answer" : "deny", why: g.why ?? null, reads: g.reads });
         writeFileSync(f.state, JSON.stringify(st));
-        return ["allow", "the answer"];
+        return g.decision === "allow" ? ["allow", "the answer"] : ["deny", HELP[g.why] ?? String(g.why)];
       }
       const paths = JSON.parse(readFileSync(st.pathsFile, "utf8"));
       const c = callOf(st.root, tool, input.tool_input ?? {});
@@ -301,14 +310,15 @@ const relLog = (log) => log.map((l) => ({ tool: l.tool, decision: l.decision, wh
 async function traceRow(core, a, p, attempt) {
   const root = realpathSync(join(a.work, "trees", p.id));
   const pathsFile = join(a.work, "trees", `${p.id}.paths.json`);
-  const stDir = join(a.work, "state", a.model);
+  const arm = armName(a.model, a.forced);
+  const stDir = join(a.work, "state", arm);
   mkdirSync(stDir, { recursive: true });
   const statePath = join(stDir, `${p.id}.${attempt}.json`);
-  writeFileSync(statePath, JSON.stringify({ root, pathsFile, calls: 0, bytes: 0, log: [] }));
+  writeFileSync(statePath, JSON.stringify({ root, pathsFile, forced: a.forced === true, calls: 0, bytes: 0, log: [] }));
   const options = optionsOf(p.prompt);
   const settings = hookSettings(statePath, a.thinking ? { showThinkingSummaries: true } : {});
-  const run = await spawnClaude(traceArgs(a.model, traceSystem(), answerSchema(options), settings), root, p.prompt);
-  const rawDir = join(a.work, "raw", a.model);
+  const run = await spawnClaude(traceArgs(a.model, traceSystem(a.forced), answerSchema(options), settings), root, p.prompt);
+  const rawDir = join(a.work, "raw", arm);
   mkdirSync(rawDir, { recursive: true });
   writeFileSync(join(rawDir, `${p.id}.${attempt}.jsonl`), run.out);
   const s = streamOf(parseLines(run.out));
@@ -317,7 +327,8 @@ async function traceRow(core, a, p, attempt) {
   const t = traceCalls(root, s.uses, log);
   const verdict = core({ op: "oracle.retrieveTrace", root, paths, calls: t.calls });
   const ranges = core({ op: "oracle.retrieveRanges", reads: readsOf(log) }).ranges;
-  const ev = core({ op: "oracle.retrieveEvidence", ranges, evidence: evidenceOf(s.structured) });
+  const ev = core({ op: "oracle.retrieveEvidence", root, ranges, evidence: evidenceOf(s.structured) });
+  const gate = core({ op: "oracle.retrieveAnswer", forced: a.forced === true, log: gateLog(log.filter((l) => l.tool !== ANSWER_TOOL)) });
   const env = s.result ? redactEnvelope(s.result) : null;
   const red = (x) => redactText(x, { work: root, home: process.env.HOME, user: process.env.USER });
   const st = s.structured;
@@ -326,12 +337,27 @@ async function traceRow(core, a, p, attempt) {
     isError: env?.isError ?? null, numTurns: env?.numTurns ?? null, costUsd: env?.costUsd ?? null, usage: env?.usage ?? null,
     models: Object.keys(env?.models ?? {}), durationApiMs: env?.durationApiMs ?? null,
     trace: { verdict: verdict.verdict, calls: verdict.calls, bytes: verdict.bytes, denied: t.denied, unhooked: t.unhooked,
-      hooked: log.length },
-    log: relLog(log), ranges, evidence: { valid: ev.valid, invalid: ev.invalid },
+      hooked: log.length, reads: gate.reads, gate: gate.decision,
+      answerDenied: log.filter((l) => l.tool === ANSWER_TOOL && l.decision === "deny").length },
+    log: relLog(log), ranges, evidence: { valid: ev.valid, invalid: ev.invalid.map((e) => ({ ...e, path: red(e.path) })) },
     thinking: s.thinking.map((b) => ({ type: b.type, chars: b.chars, signatureBytes: b.signatureBytes,
       ...(a.thinking && b.chars > 0 ? { text: red(b.text) } : {}) })),
     ...(answered ? { choice: st.choice, probabilities: st.probabilities } : {}),
     ...(run.exit !== 0 && !env ? { stderr: red(run.stderr) } : {}) };
+}
+
+function reevidence(a) {
+  const core = fwcoreCall(REPO);
+  const rowsFile = join(OUT, `${a.arm}.rows.jsonl`);
+  const rows = readJsonl(rowsFile).map((r) => {
+    const root = realpathSync(join(a.work, "trees", r.id));
+    const ev = core({ op: "oracle.retrieveEvidence", root, ranges: r.ranges, evidence: [...r.evidence.valid, ...r.evidence.invalid] });
+    const red = (x) => redactText(x, { work: root, home: process.env.HOME, user: process.env.USER });
+    return { ...r, evidence: { valid: ev.valid, invalid: ev.invalid.map((e) => ({ ...e, path: red(e.path) })) } };
+  });
+  writeJsonl(rowsFile, rows);
+  console.log(`jev-trace reevidence ${a.arm}: ${rows.reduce((x, r) => x + r.evidence.valid.length, 0)} valid, ` +
+    `${rows.reduce((x, r) => x + r.evidence.invalid.length, 0)} invalid evidence items over ${rows.length} rows`);
 }
 
 async function pool(items, jobs, fn) {
@@ -341,14 +367,15 @@ async function pool(items, jobs, fn) {
   }));
 }
 
-export const answerLine = (r) => (r.choice !== undefined && r.trace.verdict === "ok"
+export const answerLine = (r) => (r.choice !== undefined && r.trace.verdict === "ok" && (r.trace.gate ?? "allow") === "allow"
   ? { id: r.id, choice: r.choice, probabilities: r.probabilities } : null);
 
 async function runArm(a) {
   const core = fwcoreCall(REPO);
   const ids = new Set(scopeRows(core).rows.map((r) => r.id));
   const prompts = readJsonl(a.prompts).filter((p) => ids.has(p.id) && (!a.only || a.only.split(",").includes(p.id)));
-  const rowsFile = join(OUT, `t-${a.model}.rows.jsonl`);
+  const arm = armName(a.model, a.forced);
+  const rowsFile = join(OUT, `${arm}.rows.jsonl`);
   mkdirSync(OUT, { recursive: true });
   const have = new Set(readJsonl(rowsFile).map((r) => r.id));
   const todo = prompts.filter((p) => !have.has(p.id));
@@ -362,13 +389,15 @@ async function runArm(a) {
     appendFileSync(rowsFile, JSON.stringify(r) + "\n");
   });
   const rows = readJsonl(rowsFile);
-  writeJsonl(join(OUT, `t-${a.model}.answers.jsonl`), rows.map(answerLine).filter((l) => l !== null));
+  writeJsonl(join(OUT, `${arm}.answers.jsonl`), rows.map(answerLine).filter((l) => l !== null));
   const cost = rows.reduce((s, r) => s + (r.costUsd ?? 0), 0);
-  appendFileSync(join(OUT, "runs.jsonl"), JSON.stringify({ arm: `t-${a.model}`, asked: todo.length,
+  appendFileSync(join(OUT, "runs.jsonl"), JSON.stringify({ arm, asked: todo.length,
     wallMs: Math.round(performance.now() - t0), costUsd: cost }) + "\n");
   const by = (k) => rows.filter((r) => r.trace.verdict === k).length;
-  console.log(`jev-trace run ${a.model}: ${rows.length}/${prompts.length} rows, ${rows.filter((r) => answerLine(r)).length} answered ` +
-    `in trace, verdicts ok ${by("ok")} outside ${by("outside")} overReads ${by("overReads")} overBytes ${by("overBytes")}, ` +
+  const reads = rows.reduce((x, r) => x + (r.trace.reads ?? 0), 0);
+  console.log(`jev-trace run ${arm}: ${rows.length}/${prompts.length} rows, ${rows.filter((r) => answerLine(r)).length} answered ` +
+    `in trace, ${reads} reads over ${rows.filter((r) => (r.trace.reads ?? 0) > 0).length} rows, ` +
+    `verdicts ok ${by("ok")} outside ${by("outside")} overReads ${by("overReads")} overBytes ${by("overBytes")}, ` +
     `cost $${cost.toFixed(3)}`);
 }
 
@@ -379,7 +408,7 @@ async function probe(a) {
   const out = {};
   for (const model of ["haiku", "sonnet"]) {
     const r = await traceRow(core, { ...a, model, thinking: true }, p, 0);
-    const raw = parseLines(readFileSync(join(a.work, "raw", model, `${id}.0.jsonl`), "utf8"));
+    const raw = parseLines(readFileSync(join(a.work, "raw", armName(model, false), `${id}.0.jsonl`), "utf8"));
     const s = streamOf(raw);
     out[model] = { row: id, exit: r.exit, subtype: r.subtype, numTurns: r.numTurns, costUsd: r.costUsd,
       initTools: s.init?.tools ?? null, structured: s.structured !== null, answered: r.choice !== undefined,
@@ -468,6 +497,18 @@ function pick2(a) {
     `${rec.filter((x) => !x.candidates.length).length} without candidates`);
 }
 
+export const pickPosRows = (rows) => rows.map((r) => ({ candidates: r.candidates, pick: r.pick ?? null }));
+
+function position() {
+  const core = fwcoreCall(REPO);
+  const rows = JSON.parse(readFileSync(join(OUT, "pick.json"), "utf8")).rows;
+  const r = core({ op: "oracle.retrievePickPos", rows: pickPosRows(rows) });
+  writeJson(join(OUT, "position.json"), { source: "pick.json", op: "oracle.retrievePickPos", ...r });
+  const q = (x) => `${x.num}/${x.den}`;
+  console.log(`jev-trace position: ${r.multi} rows with 2+ candidates of ${r.rows} (${r.single} single, ${r.empty} empty); ` +
+    r.slots.map((x) => `${x.slot} ${x.count} (${q(x.share)})`).join(", ") + `, none ${r.none.count}; uniform f1 share ${q(r.uniformFirst)}`);
+}
+
 function plan(a) {
   const core = fwcoreCall(REPO);
   const day = new Date().toISOString().slice(0, 10);
@@ -492,12 +533,16 @@ export function armsOf(core, dir, rowIds) {
     c: { jev: jev("d1"), haiku: file(join(CLEAN, "d1-haiku.answers.jsonl")), sonnet: file(join(CLEAN, "d1-sonnet.answers.jsonl")) },
     x: { jev: jev("d1x"), haiku: xOf("haiku"), sonnet: xOf("sonnet") },
     t: { "t-haiku": file(join(OUT, "t-haiku.answers.jsonl")), "t-sonnet": file(join(OUT, "t-sonnet.answers.jsonl")),
+      "t-haiku-read": file(join(OUT, "t-haiku-read.answers.jsonl")), "t-sonnet-read": file(join(OUT, "t-sonnet-read.answers.jsonl")),
       "j-hybrid": existsSync(join(dir, "d1-hybrid.jsonl")) ? jev("d1h") : [],
       "j-pick": existsSync(join(dir, "d1-pick.jsonl")) ? jev("d1p") : [] },
   };
 }
 
-export const BASE_OF = { "t-haiku": "haiku", "t-sonnet": "sonnet", "j-hybrid": "jev", "j-pick": "jev" };
+export const BASE_OF = { "t-haiku": "haiku", "t-sonnet": "sonnet", "t-haiku-read": "haiku", "t-sonnet-read": "sonnet",
+  "j-hybrid": "jev", "j-pick": "jev" };
+
+export const UNFORCED_OF = { "t-haiku-read": "t-haiku", "t-sonnet-read": "t-sonnet" };
 
 function paired(a) {
   const core = fwcoreCall(REPO);
@@ -506,7 +551,7 @@ function paired(a) {
   const ids = new Set(sc.rows.map((r) => r.id));
   const arms = armsOf(core, dir, ids);
   const traced = existsSync(join(OUT, "traced.json")) ? JSON.parse(readFileSync(join(OUT, "traced.json"), "utf8")).rows : [];
-  const out = { question: arms.question, rows: arms.replay.length, dropped: sc.dropped, answered: {}, arms: {} };
+  const out = { question: arms.question, rows: arms.replay.length, dropped: sc.dropped, answered: {}, arms: {}, vsT: {} };
   for (const [arm, ans] of Object.entries(arms.t)) {
     if (ans.length === 0) continue;
     const b = BASE_OF[arm];
@@ -516,12 +561,21 @@ function paired(a) {
     out.arms[arm] = Object.fromEntries(["strict", "renorm"].map((mode) => [mode, core({ op: "oracle.retrieveAdopt",
       arm: `${arm}/${mode}`, vsC: vsC[mode].pairs, vsX: vsX[mode].pairs, dropped: sc.dropped,
       traced: traced.filter((t) => t.arm === arm).map((t) => t.id) })]));
+    const u = UNFORCED_OF[arm];
+    if (u && arms.t[u].length) {
+      const vsT = pairedOf(core, arms.question, arms.replay, arms.t[u], ans);
+      out.vsT[arm] = Object.fromEntries(["strict", "renorm"].map((mode) => {
+        const { pairs, ...flips } = vsT[mode];
+        return [mode, { base: u, ...flips }];
+      }));
+    }
   }
   writeJson(join(OUT, "paired.json"), out);
   for (const [arm, m] of Object.entries(out.arms)) for (const mode of ["strict", "renorm"]) {
     const r = m[mode];
     const f = (x) => `${x.armRight}/${x.rows} vs ${x.baseRight}, +${x.gains.length} -${x.losses.length} net ${x.net}, p ${x.p.num}/${x.p.den}`;
-    console.log(`${arm} ${mode}: vs C ${f(r.vsC)}; vs X ${f(r.vsX)}; adopt ${r.adopt} (${r.reasons.map((w) => w.kind).join(",") || "-"})`);
+    console.log(`${arm} ${mode}: vs C ${f(r.vsC)}; vs X ${f(r.vsX)}; adopt ${r.adopt} (${r.reasons.map((w) => w.kind).join(",") || "-"})` +
+      (out.vsT[arm] ? `; vs ${out.vsT[arm][mode].base} ${f(out.vsT[arm][mode])}` : ""));
   }
 }
 
@@ -538,16 +592,20 @@ if (process.argv[1] && resolve(process.argv[1]) === SELF) {
   if (sub === "hook" && need("state")) hook(f);
   else if (sub === "trees" && need("work")) trees(f);
   else if (sub === "probe" && need("work", "prompts")) await probe(f);
-  else if (sub === "run" && need("work", "prompts", "model") && BUDGET_USD[f.model]) await runArm({ ...f, thinking: f.thinking === "yes" });
+  else if (sub === "run" && need("work", "prompts", "model") && BUDGET_USD[f.model]) {
+    await runArm({ ...f, thinking: f.thinking === "yes", forced: f.forced === "yes" });
+  }
   else if (sub === "hybrid" && need("work")) hybrid(f);
   else if (sub === "pick1" && need("work")) pick1(f);
   else if (sub === "pick2" && need("work")) pick2(f);
   else if (sub === "plan" && need("items")) plan(f);
+  else if (sub === "position") position();
+  else if (sub === "reevidence" && need("work", "arm")) reevidence(f);
   else if (sub === "paired") paired(f);
   else {
     console.error("usage: jev-trace.mjs trees --work w | probe --work w --prompts p [--row id] | run --work w --prompts p " +
-      "--model haiku|sonnet [--jobs n] [--only ids] [--thinking yes] | hybrid --work w | pick1 --work w | pick2 --work w | " +
-      "plan --items json | paired | hook --state s");
+      "--model haiku|sonnet [--jobs n] [--only ids] [--thinking yes] [--forced yes] | hybrid --work w | pick1 --work w | pick2 --work w | " +
+      "plan --items json | position | reevidence --work w --arm a | paired | hook --state s");
     process.exitCode = 64;
   }
 }
