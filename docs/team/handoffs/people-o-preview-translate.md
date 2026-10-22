@@ -1,10 +1,12 @@
 Branch: worktree-wf_2ffa3f6a-227-1 (CI branch ci/people-o-preview-translate)
 Worktree: .claude/worktrees/wf_2ffa3f6a-227-1 (under the repo root)
-Last commit: the CI branch tip dbd9567ab at checkpoint 2 (later commits follow)
-CI runs: gate 39850908365 SUCCESS (both engines, flagged config 08b2ef03265b7880, people.o row all pass). Counts people-o-hover
-(1280x800, mobile:false): 39850913549 base FAILED, 39850930778 flag FAILED, 39852501132 FAILED, 39854385797 FAILED; every run hangs
-on the first load frame (Runtime.evaluate timeout, main thread unresponsive; the base fails too, so not the flag). Running: profiles
-people-o-hover-m (mobile+touch) and people-o-hover-t (touch) to find which emulation setting hangs. Then flag vs base counts.
+Last commit: the CI branch tip 95ce7ae5f at checkpoint 3 (later commits follow)
+CI runs: gate 39850908365 SUCCESS (both engines, flagged config 08b2ef03265b7880, people.o row all pass). Chromium counts on every
+desktop-width profile FAIL at the first load frame, base and flag alike (39850913549, 39850930778, 39852501132, 39854385797,
+39855096795, 39855102093, 39855917125, 39856570778, 39857307732, 39857312848, 39857318162, 39859911878, 39860551961, 39861279374,
+39862057861): the renderer crashes (SIGSEGV, SEGV_MAPERR 0x84, a recursive tree walk, run 39862057861 chrome.log) 0.5 s after the
+first frame of any rewrite page wider than 860 px (900 wide dpr 3 mobile as well). swipe-v1 (430 wide) passes on this branch
+(39859057574), so it is not the flag. Running: flag-drop bisect profiles people-o-hover-d1..d4 (run.mjs profile.dropFlags).
 
 # people-o-preview-translate: handoff
 

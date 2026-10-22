@@ -1,9 +1,9 @@
 {
-  "id": "people-o-hover-d3",
+  "id": "people-o-hover-w641",
   "about": "Desktop band (1280x800, mouse, no touch). The page is scrolled so the first face of the people 'o' sits 140 px below the viewport top, left idle until the row has opened (1420 ms of virtual time), then a synthetic mouseover on that face opens the seller preview (the stand-in for a pointer, which the headless run does not have); after 12 idle frames the page scrolls 10 CSS px per frame for 40 frames with the card open (programmatic scrollTo, as swipe-v1). The recorded question is the Layout count per frame of the 'scroll' phase: people.o:preview-translate writes left/top once and sets translate per frame, the base writes top every frame.",
   "hz": 60,
   "viewport": {
-    "width": 900,
+    "width": 641,
     "height": 932,
     "dpr": 3,
     "mobile": true,
@@ -55,9 +55,5 @@
       "dyPerFrame": 0,
       "frames": 10
     }
-  ],
-  "dropFlags": [
-    "--disable-new-content-rendering-timeout",
-    "--num-raster-threads"
   ]
 }
