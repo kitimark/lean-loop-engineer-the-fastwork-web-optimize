@@ -2,7 +2,8 @@
 
 - Round 2 (this): branch worktree-wf_9ab25dd7-9aa-1, worktree .claude/worktrees/wf_9ab25dd7-9aa-1; wiring done (TrajectoryGpuGolden.lean, check.sh stage, Fw.lean, trajectory-probe.yml step `Walk the GPU cells`, artifact cells-gpu-chromium, Trigger.lean lean.yml row input + triggers.jsonl regenerated).
   One local debug run (390, rep 1) showed carousel A/A as L: swap keys were rAF timestamps (1.7 ms jitter) and the swap vector changes length (20 children inside, 16 at rest). Fixed in cells-gpu.mjs swapsOf (frame-count key, full-count vectors only); local debug showed E for pain and carousel (not a result).
-  Round-2 CI runs: see the list below once dispatched.
+  Round-2 dispatches (sha 6f4aea1c, chromium A/A, cells step in the probe job 390, artifact cells-gpu-chromium): 39823047557, 39823476824, 39824100493 (all queued at 17:36Z, GitHub degraded). Local check.sh green at 6f4aea1c.
+  Read: `gh run download <id> -n cells-gpu-chromium -D <empty dir>`, then `node src/trajectory/cells-gpu-cli.mjs summary --in <dir>/raw-chromium.json` in packages/gate-breakpoints.
 - Branch: worktree-wf_9ab25dd7-9aa-1, worktree .claude/worktrees/wf_9ab25dd7-9aa-1 (CI branch ci/gpu-trajectory-cells, pushed tip 846e11a3 with `[ci:trajectory-probe]` `[trajectory engines=chromium]`)
 - CI runs: pushes 6bcabccc and 846e11a3 created NO run (GitHub, gh run list --branch []). Dispatched instead (`pnpm -s fw run --trajectory --engines chromium --ref ci/gpu-trajectory-cells`, sha 846e11a3, real A/A: base and cand are both the rewrite):
   39817825181, 39818033923, 39818039961 complete/pass (calibration); 39819884506, 39819890281 hold-out for the 1/100 edge (nav-clip E 8/8 each, panel L 0, lag max 0.019/0.020; in the latter `fw ci wait` named job probe chromium 1280 not success).
