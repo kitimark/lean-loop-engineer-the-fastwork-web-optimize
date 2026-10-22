@@ -83,9 +83,9 @@ theorem both_maps_once (l : Layer) (f i : String) (hf : l.fw = some f) (hl : l.l
 def undeclared (ls : List Layer) : List Box :=
   ls.filterMap fun l => if l.ident = .free then some ⟨l.name, l.bounds⟩ else none
 
-/-- Box-name prefixes of the page's own free-running animations (word rotation, scroll cue, typing); their layers come and go with the animation phase. -/
+/-- Box-name prefixes of the page's own free-running animations (word rotation, scroll cue, typing) and of the root layer, whose height is the page height of one load; their layers come and go or resize with the animation phase. -/
 def runnerStems : List String :=
-  ["span.accent-module_frame_", "svg.accent-module_svg_", "div.typing-module_visual_", "div.typing-module_beat_",
+  ["#document", "span.accent-module_frame_", "svg.accent-module_svg_", "div.typing-module_visual_", "div.typing-module_beat_",
    "span.frame.", "svg.accent-svg.", "button.scroll-cue."]
 
 def varying (name : String) : Bool := runnerStems.any fun s => name.startsWith s
@@ -537,6 +537,7 @@ private def checks : List (String × Want × Want × Arm × Arm) :=
    ("snapOnlyDeclared", wA, wB, arm [smp 0 [root, hero, navAt 500000 0], smp 1500 [root, hero, nav]], arm base),
    ("loadVarianceBase", wA, wB, arm [smp 0 [root, hero, nav, frameA, idleSvg, idleSvg, typingVisual], smp 1500 [root, hero, nav, origCue, goneNode]],
      arm [smp 0 [root, hero, nav, goneNode, goneNamed], smp 1500 [root, hero, nav, frameB, { idleSvg with bounds := ⟨0, -1000000, 43000000, 47000000⟩ }, origFrame]]),
+   ("rootHeightDiffers", wA, wB, arm [smp 0 [Lr "#document" ["root"] ⟨0, 0, 390000000, 6006000000⟩, hero, nav]], arm [smp 0 [Lr "#document" ["root"] ⟨0, 0, 390000000, 6042000000⟩, hero, nav]]),
    ("varyingCountNotTolerated", wA, wB, arm [smp 0 [root, hero, nav]], arm [smp 0 ([root, hero, nav] ++ List.replicate 9 frameA ++ List.replicate 9 goneNode)]),
    ("goneAndVaryingBeside", wA, wB, arm [smp 0 [root, hero, nav, extra, frameA]], arm [smp 0 [root, hero, nav, goneNode, extra, frameB]]),
    ("unlistedBesideVarying", wA, wB, arm [smp 0 [root, hero, nav, frameA]], arm [smp 0 [root, hero, nav, extra, goneNode]]),
@@ -556,7 +557,7 @@ private def identCases : List (Option String × Option String) :=
 private def varyingCases : List String :=
   ["span.accent-module_frame_0z18R8", "svg.accent-module_svg_HwEYD1.accent-module_idleFrame_f6M8wO", "div.typing-module_visual_YdYZxz",
    "div.typing-module_beat_xRahAp.typing-module_scrollingOut_2jKdD5", "span.frame.svelte-1fn2go6", "svg.accent-svg.is-idle-frame",
-   "button.scroll-cue.svelte-1p2vpne", "span.accent-module_frame", "div.typing-module_visualX_1", "div.nav-module_bar_4ex1vU",
+   "button.scroll-cue.svelte-1p2vpne", "#document", "span.accent-module_frame", "div.typing-module_visualX_1", "div.nav-module_bar_4ex1vU",
    "div.morph-module_track_CO8LmY", "?", "", "span.frame", "svg.accent-svg"]
 
 private def gridCases : List (Nat × Int) :=

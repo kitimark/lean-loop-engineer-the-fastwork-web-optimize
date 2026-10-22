@@ -13,6 +13,9 @@ import { COUNT_TYPES, TOL, classify, symDiff, zones, layerKey } from './reduce.m
 /** Resolve `max` in a state list against the page's maxY. */
 export const resolveStates = (spec, maxY) => String(spec).split(',').map((s) => (s.trim() === 'max' ? maxY : Number(s))).filter((n) => Number.isFinite(n));
 
+/** The offsets pass 1 read, as a state list for the later passes: `max` is the page height of one load, and that height differs between loads. */
+export const pinStates = (pass) => pass.census.map((c) => c.requestedY).join(',');
+
 /**
  * Scroll to the top and let the page see it before a reload: a reload restores the saved scroll position, and a page that
  * loads deep mounts its scroll-mounted parts (the morph panel) and keeps them after the census scrolls back up.

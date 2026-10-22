@@ -9,12 +9,14 @@ listed different undeclared layers. Which boxes differ, and why?
 
 ## Cause (MEASURED on runs 39760288475 original, 39763719675 rewrite; mechanism INFERRED until the fix run below)
 
-Two separate causes. Sample sizes: one session (2 passes) per arm, 6 y positions each.
+Three separate causes (the third found by the fix run 39775866606). Sample sizes: one session (2 passes) per arm, 6 y positions each.
 
 | # | cause | boxes (rewrite / original) | where |
 |---|---|---|---|
 | 1 | pass 1 loads deep, pass 2 loads at the top | nav bar `div.nav-module_bar` / `div.start-selling-top-nav-bar`; morph `div.morph-module_backdrop`, 3 x `div.morph-module_col`, 3 x `div.morph-module_track` (2.5 MB each), `div.morph-module_veil`, `div.morph-module_center`, `footer.morph-module_footer` / the `start-selling-*` set plus `div.start-selling-morph-panel` | pass 1 has them at y=0 and 1500, pass 2 only from y=3000 |
 | 2 | the page's own free-running animations | `span.accent-module_frame_*`, `svg.accent-module_svg_*...idleFrame` (bounds 60, 85 or 101 wide by word), `div.typing-module_visual_*`, `div.typing-module_beat_*` / `span.frame.svelte-*`, `svg.accent-svg.is-idle-frame`, `button.scroll-cue.svelte-*` | any y; present, absent or resized between passes |
+
+| 3 | page height of one load: `max` resolves to 5231 in pass 1 and 5267 in pass 2 (docH 6006 vs 6042), so the sample offsets differ (`samples` refusal); the `#document` root layer is 430x6006 vs 430x6042 at y=0 | root layer `#document`, last offset | run 39775866606 |
 
 Also: layers whose reasons read `["(gone)"]` (including nodes named `?`) are torn down between the layer list and the
 reasons read. The declared nav box `header.nav-module_nav` carried `is-hero-chrome-read` in pass 1 and `is-hero-pill` in
@@ -36,9 +38,12 @@ The runner was loaded (load1 482 to 313), which widens the phase spread but is n
 
 1. `onePass` scrolls to 0 (`atTop`, `determinism.mjs`) before `loadFresh`, so both passes start at scroll 0, and logs
    `scroll position after the load`. TS glue, not Lean-checked (listed as a stand-in).
-2. The census rule in Lean (`Fw.Measure.Census`): the undeclared comparison reads `stable`, the layers that are not
+2. `pinStates` (`determinism.mjs`, `cli.mjs`): passes after the first read the offsets pass 1 resolved, so `max` is
+   resolved once per session. TS glue, not Lean-checked (stand-in); the `samples` refusal stays and still refuses
+   two arms with different offsets.
+3. The census rule in Lean (`Fw.Measure.Census`): the undeclared comparison reads `stable`, the layers that are not
    declared, not `(gone)`, and not on the allowlist `runnerStems`:
-   `span.accent-module_frame_`, `svg.accent-module_svg_`, `div.typing-module_visual_`, `div.typing-module_beat_`,
+   `#document` (the root layer, whose height is the page height of one load), `span.accent-module_frame_`, `svg.accent-module_svg_`, `div.typing-module_visual_`, `div.typing-module_beat_`,
    `span.frame.`, `svg.accent-svg.`, `button.scroll-cue.`. A name is free-running iff it starts with a stem
    (`varying`). Theorems: `stable_perm`, `stable_cons_gone`, `stable_cons_varying`, `stable_cons_declared`,
    `stable_cons_kept`, `stable_replicate_varying`, `stable_replicate_gone` (any count of such layers is ignored, no
@@ -46,9 +51,9 @@ The runner was loaded (load1 482 to 313), which widens the phase spread but is n
    `undeclaredAt_cons_kept` (a kept layer without its twin is refused), `undeclaredRefusals_eq_nil_iff`,
    `refusals_ok_iff`, `refusals_self`. Goldens (`census.jsonl`): `varying` lines and the checks `loadVarianceBase`,
    `varyingCountNotTolerated`, `goneAndVaryingBeside` (accepted), `unlistedBesideVarying`, `nearStemRefused`,
-   `nearStemRefused2` (refused), `goneDeclaredNotUndeclared` (accepted). The JS twin (`census-check.mjs`) reads the same
+   `nearStemRefused2` (refused), `goneDeclaredNotUndeclared` (accepted), `rootHeightDiffers` (accepted). The JS twin (`census-check.mjs`) reads the same
    goldens.
-3. The census of declared layers and the declared table counts are unchanged (`undeclared` is kept for them).
+4. The census of declared layers and the declared table counts are unchanged (`undeclared` is kept for them).
 
 Cost of the allowlist. A real regression that adds a layer named like a stem is hidden; a stem is a prefix of a
 hashed CSS-module or Svelte class, so a rename of the part changes the stem and the box is refused until it is added.

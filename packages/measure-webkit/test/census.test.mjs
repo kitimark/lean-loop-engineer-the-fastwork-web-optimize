@@ -4,7 +4,7 @@ import { EventEmitter } from 'node:events';
 import { takeCensus, INFO_FN as WK_INFO, RENDERED_EXPR as WK_RENDERED } from '../src/census.mjs';
 import { INFO_FN as CR_INFO, RENDERED_EXPR as CR_RENDERED, sampleAt, collectCensus, layerRecord, sampleYs } from '../../measure-chromium/src/census.mjs';
 import { checkPair } from '../src/census-check.mjs';
-import { atTop } from '../src/determinism.mjs';
+import { atTop, pinStates, resolveStates } from '../src/determinism.mjs';
 
 test('both engines run byte-identical page-side code', () => {
   assert.equal(WK_INFO, CR_INFO);
@@ -134,4 +134,9 @@ test('a pass scrolls to the top before its reload so the load does not restore a
   const c = { runAsync: async (src) => { calls.push(src); return 0; }, evaluate: async (e) => { calls.push(e); return 0; } };
   assert.equal(await atTop(c), 0);
   assert.match(calls[0], /top: 0, behavior: 'instant'/);
+});
+
+test('later passes read the offsets pass 1 resolved, not their own page height', () => {
+  const first = { census: [0, 1500, 5231].map((requestedY) => ({ requestedY })) };
+  assert.deepEqual(resolveStates(pinStates(first), 5267), [0, 1500, 5231]);
 });

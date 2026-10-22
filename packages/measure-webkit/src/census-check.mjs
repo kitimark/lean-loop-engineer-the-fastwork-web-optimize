@@ -15,7 +15,7 @@ export const nBox = (id, layers) => layers.filter((l) => { const i = layerIdent(
 
 export const undeclared = (layers) => layers.filter((l) => layerIdent(l).kind === 'free').map((l) => ({ name: l.name, bounds: l.bounds }));
 
-export const RUNNER_STEMS = ['span.accent-module_frame_', 'svg.accent-module_svg_', 'div.typing-module_visual_', 'div.typing-module_beat_', 'span.frame.', 'svg.accent-svg.', 'button.scroll-cue.'];
+export const RUNNER_STEMS = ['#document', 'span.accent-module_frame_', 'svg.accent-module_svg_', 'div.typing-module_visual_', 'div.typing-module_beat_', 'span.frame.', 'svg.accent-svg.', 'button.scroll-cue.'];
 export const varying = (name) => RUNNER_STEMS.some((s) => name.startsWith(s));
 export const gone = (l) => l.reasons?.length === 1 && l.reasons[0] === '(gone)';
 export const stable = (layers) => layers.filter((l) => layerIdent(l).kind === 'free' && !gone(l) && !varying(l.name)).map((l) => ({ name: l.name, bounds: l.bounds }));
