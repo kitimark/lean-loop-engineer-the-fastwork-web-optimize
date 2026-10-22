@@ -15259,7 +15259,8 @@
     "docs/team/handoffs/wkcost-cost-input.md",
     "packages/measure-webkit/src/lag/costmode.mjs",
     "lean/Fw/Store/Layout.lean"
-   ]
+   ],
+   "evidence": "3b2fd91"
   },
   {
    "devices": [
@@ -15311,7 +15312,9 @@
    "writes": [
     ".claude/workflows/build-review.js",
     "docs/team/incidents/ledger.json",
-    "docs/team/handoffs/builder-checkpoint.md"
+    "docs/team/handoffs/builder-checkpoint.md",
+    "scripts/build-review.test.mjs",
+    ".github/workflows/lean.yml"
    ]
   },
   {
@@ -15376,10 +15379,18 @@
    "id": "run-span-split",
    "owner": "console-builder",
    "stream": "tooling",
-   "deps": [],
+   "deps": [
+    "slot-waiter-light",
+    "slot-main-code"
+   ],
    "title": "fw watch timing.slow fw/run 2026-10-22 (lead check of .fw-console/timings.jsonl): the three latest fw/run spans are 1,029 s, 2,190 s and 3,068 s against 113-136 s before; all three started within 0.3 s, one per builder that dispatched a CI run and waited on it (apps/runner/src/fw.ts:26 names the span by group only, run.ts runCli dispatches and waits). The span pools local dispatch work with GitHub run time, so Fw.Obs.Timing flags CI queue and job length as local slowness. Fix: fw run writes two spans, `run dispatch` (local work up to the run id) and `run wait` (carrying the run id and the ci-wait-lag phases like `fw ci wait`), and obs.slow judges `run wait` by its own history; Lean golden for the step naming if Fw.Obs.Timing keys on it; tests; docs/team/tools/timings.md. Same class, 2026-10-22 timing.slow fw/slot: fw.ts SUBS lacks \"slot\", so `slot admit` (46-50 ms) and `slot run --kind check -- <cmd>` (18.7 s, 153 s) share one step; add slot to SUBS and key `slot run` spans by kind (the wrapped command has its own span). Third case, 2026-10-22 timing.slow fw/polish: `polish plan|cuts` (101-160 ms) and `polish commit` (9.3 s, 32.8 s, it runs a dry land) share one step; so the rule is general: every fw group with subcommands is named group + subcommand (SUBS derived from the CLI table, not a hand list), and a Lean test or golden fails when a group with subcommands is missing. Fourth case, 2026-10-22 timing.slow fw land/total and fw/land: dry lands (27.7 s, 29.6 s) and real lands (283 s, of which the remote lane 256 s, faster than the 340-372 s before main was pushed) write the same `total` step; a dry land writes `dry total` (and fw/land `land --dry`). Unit: two spans per fw run with goldens/tests, the alert no longer fires on CI length.",
    "writes": [
-    "apps/runner/src/land.ts"
+    "apps/runner/src/land.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/src/fw-main.ts",
+    "apps/runner/src/run.ts",
+    "apps/runner/src/timing.ts",
+    "docs/team/tools/timings.md"
    ]
   },
   {
@@ -15400,7 +15411,8 @@
     "docs/team/tools/slot.md",
     "docs/team/handoffs/slot-waiter-light.md",
     "apps/runner/src/fw-main.ts"
-   ]
+   ],
+   "evidence": "88f8ca1"
   },
   {
    "devices": [
@@ -15430,7 +15442,9 @@
    "id": "seed-followups",
    "owner": "lean-prover",
    "stream": "tooling",
-   "deps": [],
+   "deps": [
+    "slot-main-code"
+   ],
    "writes": [
     "lean/Fw/Console/LandSpeed.lean",
     "packages/contracts/golden/console/land-speed.jsonl",
