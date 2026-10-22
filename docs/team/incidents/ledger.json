@@ -4176,6 +4176,16 @@
      "kind": "file",
      "ref": "apps/runner/src/land-remote.ts",
      "note": "legResults lines 65-67"
+    },
+    {
+     "kind": "status",
+     "ref": "githubstatus.com",
+     "note": "21:2x +07:00 fw watch reported Actions degraded_performance: Incident with Actions Results, the cause of the lagging job status"
+    },
+    {
+     "kind": "ci",
+     "ref": "39795088412",
+     "note": "second refusal of the same land on retry: run completed/success, 4 jobs in_progress with empty conclusion"
     }
    ],
    "repro": "Land a branch while GitHub lags in finalising job status after the run completes: the land reads conclusion empty and refuses.",
