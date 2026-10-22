@@ -2870,8 +2870,8 @@
    ],
    "chromium": "trade",
    "webkit": "trade",
-   "visual": "E-s under Reveal and Cont (Fw.Parts.PainDarkScroll pixel_eq, opacity_eq: opacity is exactly 0 or 1, no ramp); where Reveal fails (a quick swipe beats the 0.9 s card reveal) the original is the later arm by at most 48 px of scroll (drift_window); flip-frame timing Q (the original flips in a rAF after the scroll callback, the layer in the UI process, INFERRED) The gate compares the pre-flip state only (anchors.json excludes is-pain-dark and the people flip; cells are read at scroll 0); the post-flip look rests on Lean pixel_eq and the pending trajectory pain-dark cell.",
-   "mechanism": "MEASURED (CI chromium-counts, 430x932 dpr 3, swipe-v1, 3 identical runs; base 39818749535, flag 39828614430): in the toggle frame (scroll 970) the invalidated paint area falls 3,413,963 to 3,013,203 px (one viewport) and raster tasks 26 to 20; over the swipe invalidation area falls 4.0 percent, tiles 6.6 percent; price +3 layers in every frame (two solid pseudo-elements and an INFERRED host, no tiles) and +14 style recalcs. MEASURED (CI webkit-sim, iOS Simulator 430x775, 2 passes per arm; base 39818734599, flag 39828605244): the two pseudo-element layers exist with reason animation and no backing; the painted area of a scroll pass is 28 and 34 percent lower; price +12.0 MB backing at the two scroll states showing the Pain stage, because the stage text block is promoted above the animated layer (reason overlap; cause INFERRED); the toggle-step paint spike moves between steps and is not separable from noise. Breakpoint gate both engines on the final design: run 39828600078 pass. Three designs failed first: a child div (the gate selects the sticky as first child), transparent sticky and hold (the gate compares their computed background-color; run 39818716087), and a 1 px range (WebKit accelerates only the active phase, so the layers never appeared in the census and the flip stays on the main thread; run 39822439200).",
+   "visual": "E-s under Reveal and Cont (Fw.Parts.PainDarkScroll pixel_eq, opacity_eq: opacity is exactly 0 or 1, no ramp); where Reveal fails (a quick swipe beats the 0.9 s card reveal) the original is the later arm by at most 48 px of scroll (drift_window); flip-frame timing Q (the original flips in a rAF after the scroll callback, the layer in the UI process, INFERRED) The gate compares the pre-flip state only (anchors.json excludes is-pain-dark and the people flip; cells are read at scroll 0); post-flip look MEASURED (trajectory probe run 39852164349, fw=pain:dark-scroll): the pain-dark cell is E in both scroll directions on Chromium 156 and Linux WebKit 27.2 at 390 and 640, layer engaged on both, flip at the same 4 px step in both arms (flip-frame lag inside a step stays Q, not gated).",
+   "mechanism": "MEASURED (CI chromium-counts, 430x932 dpr 3, swipe-v1, 3 identical runs; base 39818749535, flag 39828614430): in the toggle frame (scroll 970) the invalidated paint area falls 3,413,963 to 3,013,203 px (one viewport) and raster tasks 26 to 20; over the swipe invalidation area falls 4.0 percent, tiles 6.6 percent; price +3 layers in every frame (two solid pseudo-elements and an INFERRED host, no tiles) and +14 style recalcs. MEASURED (CI webkit-sim, iOS Simulator 430x775, 2 passes per arm; base 39818734599, flag 39828605244): the two pseudo-element layers exist with reason animation and no backing; the painted area of a scroll pass is 28 and 34 percent lower; price +12.0 MB backing at the two scroll states showing the Pain stage, because the stage text block is promoted above the animated layer (reason overlap; cause INFERRED); the toggle-step paint spike moves between steps and is not separable from noise. Breakpoint gate both engines on the final design: run 39828600078 pass. Three designs failed first: a child div (the gate selects the sticky as first child), transparent sticky and hold (the gate compares their computed background-color; run 39818716087), and a 1 px range (WebKit accelerates only the active phase, so the layers never appeared in the census and the flip stays on the main thread; run 39822439200). Backing-free arrangement tried (pain-dark-followups): pain:dark-static (same pseudo-elements dark from the start, nothing animated, look-change proposal) has +0 MB backing and the same layers as the base, keeps the Chromium toggle-frame saving (3,413,963 to 3,013,203 px, raster tasks 26 to 20, style recalcs 4 to 3, counts run 39852245766) but not the WebKit paint saving (pinned band y 1500 to 3000 paints 26.5 and 25.2 M px squared against 26.9 and 24.8 M for the base and 10.1 and 9.9 M for pain:dark-scroll; full-stage repaints 53 and 50, 54 and 49, 5 and 5; same-ref webkit-sim runs 39852256714, 39856782689, 39856789295), and the white Pain top is in view at 390 and 640 (Hidden fails, probe run 39852164349), so it changes the look. Gate on pain:dark-static, both engines: run 39852250962 pass.",
    "leanFor": [
     "Fw.Parts.PainDarkScroll.pixel_eq",
     "Fw.Parts.PainDarkScroll.opacity_eq",
@@ -2881,31 +2881,41 @@
     "Fw.Parts.PainDarkScroll.drift_window",
     "Fw.Parts.PainDarkScroll.dark_accelerated",
     "Fw.Parts.PainDarkScroll.no_lift",
-    "Fw.Parts.PainDarkScroll.toggle_free",
-    "Fw.Parts.PainDarkScroll.layer_backing_zero"
+    "Fw.Parts.PainDarkScroll.layer_backing_zero",
+    "Fw.Parts.PainDarkScroll.chromium_paint_lt",
+    "Fw.Parts.PainDarkScroll.static_eq_base"
    ],
    "leanAgainst": [
     "Fw.Parts.PainDarkScroll.reveal_needed",
     "Fw.Parts.PainDarkScroll.cont_needed",
     "Fw.Parts.PainDarkScroll.promoted_cost",
-    "Fw.Parts.PainDarkScroll.ride_exceeds"
+    "Fw.Parts.PainDarkScroll.hold_backing",
+    "Fw.Parts.PainDarkScroll.animated_meets_costs",
+    "Fw.Parts.PainDarkScroll.cover_meets",
+    "Fw.Parts.PainDarkScroll.below_promotes",
+    "Fw.Parts.PainDarkScroll.above_hides",
+    "Fw.Parts.PainDarkScroll.chromium_style_gt",
+    "Fw.Parts.PainDarkScroll.hidden_fails_390",
+    "Fw.Parts.PainDarkScroll.hidden_fails_640"
    ],
    "missingWhy": [
     "Running the flip in the UI process is INFERRED (UIProcess sources are not in the clone); the census shows the layers with reason animation, which is the precondition",
-    "The WebKit overlap promotion of the stage text block (12 MB) is INFERRED from the layer list, not from RenderLayerCompositor source; an arrangement that avoids it is not tried",
+    "Why the base repaints the whole 430x775 stage on every 50 px step in the pinned band while pain:dark-scroll does not (and pain:dark-static does, like the base) is not identified; the saving and the 12 MB backing appear together in all three arms (INFERRED: one mechanism, the stage content split off the sticky backing)",
     "Toggle-frame duration is not measured (the counts lane has no durations; the Simulator pass is too noisy at two passes per arm)",
-    "Trajectory pain-dark cell is pending (gpu-trajectory-cells is not on main); Safari-on-Mac numbers belong to gpu-safari-lane"
+    "Safari-on-Mac numbers belong to gpu-safari-lane; the pain-dark cell was read on Linux WebKit, not Safari"
    ],
    "premises": [
+    "MODEL ASSUMPTION ToggleUi (Lean toggle_free, INFERRED, not measured): the flip runs in the UI process, so the toggle frame adds no style or paint; Chromium refutes it for style (chromium_style_gt: 4 to 5 recalcs, run 39828614430)",
+    "MODEL ASSUMPTION RideEveryFrame (Lean ride_exceeds): each updating scroll frame adds one style unit, from the proved WebKit model Engine.WebKit.scroll_comp_ride",
     "Reveal: the card reveal translation has finished at the flip offset. Fails for a swipe averaging over about 530 px/s between the reveal point (0.72 of the exit range) and the flip (INFERRED from REVEAL_AT, the 0.9 s transition and cubic-bezier(.16,1,.3,1))",
     "Cont: the original class is current at the offset. INFERRED false by up to one frame (rAF after the scroll callback)",
     "CONFIRMED: ThreadedScrollDrivenAnimationsEnabled is stable and on by default (UnifiedWebPreferences.yaml:8518-8531@862f17d); steps are allowed on the threaded branch (KeyframeEffect.cpp:2001-2004@862f17d)",
     "CONFIRMED: a progress-based timeline lifts the scroll throttle only when an effect is not completely accelerated (AnimationTimelinesController.cpp:267-279@862f17d); this effect animates opacity only"
    ],
    "v1Evidence": "none (n=21 was not-tried)",
-   "lesson": "A steps animation that is idle before its flip is not accelerated before it: the flip must lie inside the active phase (range starts earlier, the step is a keyframe). And a layer placed under content makes the content overlap-promote in WebKit, so the layer budget of \"solid, 0 MB\" must include the layers the overlap forces.",
-   "next": "Judge on the Safari lane (gpu-safari-lane) with the trajectory pain-dark cell; try an arrangement that does not put content above the animated layer to remove the 12 MB.",
-   "evidence": "CI runs 39817106098 (cancelled), 39818716087 (gate fail), 39822433333, 39822439200, 39828600078 (gate pass), 39828605244, 39818734599, 39828614430, 39818749535; research/notes/2026/10-2x-pain-dark-scroll.md; results/pain-dark-scroll/report.json"
+   "lesson": "WebKit paints content above an animated layer it meets into its own backing (RenderLayerCompositor.cpp:1332-1335@862f17d), so the stage text and notes cost one stage of backing; in the measured arms that split coincides with the removal of the per-step stage repaint (cause INFERRED), and the arrangement without it (no animated layer) neither costs the backing nor saves the paint, and shows dark where the original is still white. A steps animation that is idle before its flip is not accelerated before it: the flip must lie inside the active phase (range starts earlier, the step is a keyframe). And a layer placed under content makes the content overlap-promote in WebKit, so the layer budget of \"solid, 0 MB\" must include the layers the overlap forces.",
+   "next": "Judge on the Safari lane (gpu-safari-lane); find why the base repaints the whole stage every step (a paint-record attribution by layer) before another arrangement; pain:dark-static waits for the user's visual review as a look-change proposal.",
+   "evidence": "CI runs 39817106098 (cancelled), 39818716087 (gate fail), 39822433333, 39822439200, 39828600078 (gate pass), 39828605244, 39818734599, 39828614430, 39818749535, 39852164349 (probe), 39852250962 (gate, static), 39852245766 (counts, static), 39852256714, 39856782689, 39856789295 (webkit-sim, static, base, HOLD); research/notes/2026/10-2x-pain-dark-scroll.md; results/pain-dark-scroll/report.json"
   },
   {
    "id": "morph.touch-band",
@@ -3094,6 +3104,48 @@
    "lesson": "A stage that leaves the main thread is not a saving when its work lands in Composite on a lane without a GPU; moving the blur to the compositor cannot beat removing the resize that drives it. Price the Composite stage in the model before building a variant that moves paint work there.",
    "next": "Hold; no port task. Re-open when measured on a lane with a real GPU (gpu-safari-lane); the cause of the open-push Composite rise is UNKNOWN.",
    "evidence": "CI runs 39846842455, 39846814254, 39855506403, 39851664186, 39851674587, 39846941236, 39846909558, 39846948148; research/notes/2026/10-2x-morph-panel-threaded.md; results/morph-panel-threaded/report.json"
+  },
+  {
+   "id": "people.o-preview-translate",
+   "n": 53,
+   "part": "people.o",
+   "candidate": "people.o:preview-translate: move the fixed seller preview card with the translate property by the integer scroll delta instead of writing top in every scroll frame (desktop, above 860 px)",
+   "status": "partly-proved",
+   "flag": "people.o:preview-translate",
+   "flags": [
+    "people.o:preview-translate"
+   ],
+   "chromium": "unknown",
+   "webkit": "unknown",
+   "visual": "E-s: WebKit scroll offsets are integral (ScrollTypes.h:47-49, LocalDOMWindow.cpp:1466@862f17d), so the shown top and left equal the faithful ones (snap_noFlip, step_faithful); a fractional Chromium offset falls back to a rewrite (frac_counter)",
+   "mechanism": "PROVED (Fw.Parts.PeopleOPreview): the faithful card costs 1 layout pass per scroll frame (faithful_layout); the variant costs 0 on a kept frame and 1 on a flip frame, both engines, given the card has its own layer (translate_layout_kept, translate_layout_flip, translate_work_lt); layer budget 0 by definition (residentOf is the same for both variants; INFERRED: the variant adds no will-change and no 3D transform; layer_budget_zero records it). Counts not measured: the desktop Chromium load crashes the renderer (task chromium-desktop-crash).",
+   "leanFor": [
+    "Fw.Parts.PeopleOPreview.snap_noFlip",
+    "Fw.Parts.PeopleOPreview.step_faithful",
+    "Fw.Parts.PeopleOPreview.keep_translate",
+    "Fw.Parts.PeopleOPreview.keep_pixel",
+    "Fw.Parts.PeopleOPreview.translate_layout_kept",
+    "Fw.Parts.PeopleOPreview.translate_layout_flip",
+    "Fw.Parts.PeopleOPreview.translate_work_lt",
+    "Fw.Parts.PeopleOPreview.layer_budget_zero"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.PeopleOPreview.frac_counter"
+   ],
+   "missingWhy": [
+    "Layout-count delta per scroll frame not measured: every desktop-width Chromium counts run fails at the first load frame (renderer SIGSEGV), base and flag alike",
+    "The card having its own layer is INFERRED from RenderLayerCompositor.cpp:4097-4150@862f17d; without it WebKit still lays out on transform",
+    "Desktop only, so no iPhone felt gain"
+   ],
+   "premises": [
+    "CONFIRMED: a top change of a fixed box is a layout change (StyleDifference.cpp:557-565@862f17d)",
+    "INFERRED: the fixed card has its own layer (RenderLayerCompositor.cpp:4097-4150@862f17d)",
+    "CONFIRMED: WebKit main-frame scroll offsets are IntPoint"
+   ],
+   "v1Evidence": "",
+   "lesson": "A per-frame position write of a fixed box is a layout pass; a translate by the scroll delta removes it only while the box is its own layer and the delta is whole device pixels. Check the engine can load the measuring page before building the profile: a renderer crash at load blocked the count for every arm.",
+   "next": "Re-run the people-o-hover counts after chromium-desktop-crash is fixed; then decide status.",
+   "evidence": "CI gate run 39850908365 (both engines pass); counts runs blocked by the renderer crash: 39850913549, 39850930778, 39852501132, 39854385797, 39855096795, 39855102093, 39855917125, 39856570778, 39857307732, 39857312848, 39857318162, 39859911878, 39860551961, 39861279374, 39862057861; research/notes/2026/10-2x-people-o-preview-translate.md"
   }
  ],
  "notes": [

@@ -1,2 +1,3 @@
 {"flag":"morph.tween:scroll-lock","kind":"proposal","member":false,"userDecision":null,"visClass":"L"}
 {"flag":"nav:earn-no-transition","kind":"proposal","member":false,"userDecision":{"date":"2026-10-21","decision":"kept","material":{"chromium":{"artifact":"frames-chromium","expires":"2026-11-19","run":"39473950464","state":"ready"},"webkit":{"artifact":"frames-apple-390, frames-apple-1280","expires":"2026-11-20","run":"39530106935","state":"ready"}},"review":"pending"},"visClass":"L"}
+{"flag":"pain:dark-static","kind":"proposal","member":false,"userDecision":null,"visClass":"L"}

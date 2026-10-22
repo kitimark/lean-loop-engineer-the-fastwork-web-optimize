@@ -1,8 +1,3 @@
-/**
- * pain `dark-scroll`: the range start of the dark layer's scroll animation. Spec and proofs:
- * lean/Fw/Parts/PainDarkScroll.lean (`measuredStart`, `measure_eq`); golden vectors:
- * packages/contracts/golden/parts/pain-dark-scroll.jsonl (darkScroll.test.ts).
- */
 import { mediaCondition } from '../../breakpoints';
 import { DARK_TOP } from '../people.card/logic';
 
@@ -20,7 +15,7 @@ export function darkScrollSupported(): boolean {
 }
 
 export function layerOwnsFlip(variant: string | null, supports: boolean): boolean {
-  return variant === 'dark-scroll' && supports;
+  return (variant === 'dark-scroll' && supports) || variant === 'dark-static';
 }
 
 export const WINDOW = 256;
