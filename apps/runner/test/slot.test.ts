@@ -78,7 +78,7 @@ function answer(r: Record<string, unknown> & { op: string }): Record<string, unk
 
 describe("slot-core replays the Fw.Sup.Adapt golden vectors", () => {
   it(`${cases.length} cases, every op covered`, () => {
-    expect(new Set(cases.map((c) => c.request.op)).size).toBe(32);
+    expect(new Set(cases.map((c) => c.request.op)).size).toBe(33);
     for (const c of cases) expect(answer(c.request), c.name).toEqual(c.response);
   });
 });
