@@ -190,6 +190,110 @@ theorem decide_resume_iff (e : Entry) (n : Now) (a : Bool) :
   by_cases h1 : e.schema = n.schema <;> by_cases h2 : e.code = n.code <;> by_cases h3 : n.size < e.offset <;>
     by_cases h4 : e.ino = n.ino <;> cases a <;> simp [*] <;> omega
 
+/-! ### Open tool calls: a call is in flight only while its assistant message is the newest -/
+
+/-- A tool call that has no result yet: its id, the id of the assistant message that made it, the tool, the time (ms). -/
+structure Call where
+  id : String
+  msg : String
+  tool : String
+  ts : Nat
+deriving DecidableEq, Repr
+
+/-- What the fold keeps of the calls: the newest assistant message and the calls still open. -/
+structure Open where
+  newest : Option String := none
+  calls : List Call := []
+deriving DecidableEq, Repr
+
+/-- A transcript record as far as calls go: an assistant message (id, new calls) or a call's result. -/
+inductive Ev where
+  | assistant (msg : String) (calls : List (String × String × Nat))
+  | result (id : String)
+deriving DecidableEq, Repr
+
+/-- An assistant message makes every call of an older message void (the API takes a new assistant turn only after
+each call of the last one has its result) and opens its own; copies of one message share its id and add up. A result closes its call. -/
+def stepEv (s : Open) : Ev → Open
+  | .assistant m cs => ⟨some m, s.calls.filter (·.msg == m) ++ cs.map (fun x => ⟨x.1, m, x.2.1, x.2.2⟩)⟩
+  | .result i => { s with calls := s.calls.filter (·.id != i) }
+
+/-- The call `fw watch` shows as in flight: the newest of the open ones (the later on a tie). -/
+def inflightOf (s : Open) : Option Call :=
+  s.calls.foldl (fun r c => match r with | none => some c | some p => if p.ts ≤ c.ts then some c else some p) none
+
+/-- A later assistant message clears every older open call: all calls left belong to it. -/
+theorem assistant_clears (s : Open) (m : String) (cs : List (String × String × Nat)) :
+    ∀ c ∈ (stepEv s (.assistant m cs)).calls, c.msg = m := by
+  intro c hc
+  simp only [stepEv, List.mem_append, List.mem_filter, List.mem_map] at hc
+  rcases hc with ⟨_, h⟩ | ⟨⟨_, _, _⟩, _, rfl⟩
+  · simpa using h
+  · rfl
+
+/-- In particular a call of an older message (another id) is gone, with or without its result. -/
+theorem older_call_gone (s : Open) (m : String) (cs : List (String × String × Nat)) (c : Call) (h : c.msg ≠ m) :
+    c ∉ (stepEv s (.assistant m cs)).calls := fun hc => h (assistant_clears s m cs c hc)
+
+/-- A message with no calls (the agent's closing text) leaves nothing in flight. -/
+theorem assistant_nocalls (s : Open) (m : String) (h : ∀ c ∈ s.calls, c.msg ≠ m) :
+    inflightOf (stepEv s (.assistant m [])) = none := by
+  have : (stepEv s (.assistant m [])).calls = [] := by
+    simp only [stepEv, List.map_nil, List.append_nil]
+    exact List.filter_eq_nil_iff.mpr fun c hc => by simpa using h c hc
+  simp [inflightOf, this]
+
+/-- Parallel calls: records of one message add up and all stay open until their results. -/
+theorem same_msg_keeps (s : Open) (m : String) (cs : List (String × String × Nat)) (c : Call)
+    (hc : c ∈ s.calls) (hm : c.msg = m) : c ∈ (stepEv s (.assistant m cs)).calls := by
+  simp only [stepEv, List.mem_append, List.mem_filter]
+  exact Or.inl ⟨hc, by simp [hm]⟩
+
+/-- Resume: the state after the earlier records, read on with the appended ones, is the state of all of them. -/
+theorem inflight_resume (a b : List Ev) :
+    inflightOf (b.foldl stepEv (a.foldl stepEv {})) = inflightOf ((a ++ b).foldl stepEv {}) := by
+  rw [List.foldl_append]
+
+/-- The same through the line fold: for any reading `rd` of a line as a record, `pass_eq_full` carries over to the open calls. -/
+theorem open_pass_eq_full (rd : List Nat → Ev) {a : List Nat} (ha : Complete a) (b : List Nat) :
+    feed (fun s l => stepEv s (rd l)) (feed (fun s l => stepEv s (rd l)) (feed (fun s l => stepEv s (rd l)) {} a) (cut b).1) (cut b).2
+      = feed (fun s l => stepEv s (rd l)) {} (a ++ b) :=
+  pass_eq_full _ _ ha b
+
+/-- Cases: name, records, the expected in-flight call (tool, time). -/
+def inflightCases : List (String × List Ev × Option (String × Nat)) :=
+  let u (m i t : String) (a : Nat) : Ev := .assistant m [(i, t, a)]
+  [("no records", [], none),
+   ("one call open", [u "m1" "c1" "Bash" 10], some ("Bash", 10)),
+   ("call closed by its result", [u "m1" "c1" "Bash" 10, .result "c1"], none),
+   ("missing result: the next assistant message clears it", [u "m1" "c1" "Bash" 10, u "m2" "c2" "Read" 20, .result "c2"], none),
+   ("missing result: the next message's own call is the one in flight", [u "m1" "c1" "Bash" 10, u "m2" "c2" "Read" 20], some ("Read", 20)),
+   ("missing result: a closing text message clears it", [u "m1" "c1" "Bash" 10, .assistant "m2" []], none),
+   ("parallel calls of one message stay open together", [.assistant "m1" [("c1", "Bash", 10), ("c2", "Read", 12)]], some ("Read", 12)),
+   ("parallel calls: one result leaves the other open", [.assistant "m1" [("c1", "Bash", 10), ("c2", "Read", 12)], .result "c2"], some ("Bash", 10)),
+   ("streamed copies of one message share its id and add up", [u "m1" "c1" "Bash" 10, u "m1" "c2" "Read" 11], some ("Read", 11)),
+   ("results out of order", [.assistant "m1" [("c1", "Bash", 10), ("c2", "Read", 12)], .result "c1", .result "c2"], none),
+   ("an unknown result changes nothing", [u "m1" "c1" "Bash" 10, .result "zz"], some ("Bash", 10)),
+   ("tie in time: the later call", [.assistant "m1" [("c1", "Bash", 10), ("c2", "Read", 10)]], some ("Read", 10))]
+
+#guard inflightCases.all fun (_, evs, e) =>
+  (inflightOf (evs.foldl stepEv {})).map (fun c => (c.tool, c.ts)) == e
+
+/-- The golden line of a record. -/
+def evJson : Ev → Json
+  | .assistant m cs => Json.mkObj [("k", .str "assistant"), ("msg", .str m),
+      ("calls", Json.arr (cs.toArray.map fun (i, t, a) => Json.mkObj [("id", .str i), ("tool", .str t), ("at", toJson a)]))]
+  | .result i => Json.mkObj [("k", .str "result"), ("id", .str i)]
+
+/-- The in-flight golden file (`watch-inflight.jsonl`). -/
+def inflightGoldenText : String :=
+  String.join (inflightCases.map fun (name, evs, e) =>
+    (Json.mkObj [("name", .str name), ("events", Json.arr (evs.toArray.map evJson)),
+      ("expect", match e with | none => Json.null | some (t, a) => Json.mkObj [("tool", .str t), ("since", toJson a)])]).compress ++ "\n")
+
+/-- The in-flight golden file, relative to `lean/`. -/
+def inflightGoldenPath : System.FilePath := ".." / "packages" / "contracts" / "golden" / "obs" / "watch-inflight.jsonl"
+
 /-! ### Golden vectors (`packages/contracts/golden/obs/watch-fold.jsonl`) -/
 
 /-- The UTF-8 bytes of a text, as the file holds them. -/
