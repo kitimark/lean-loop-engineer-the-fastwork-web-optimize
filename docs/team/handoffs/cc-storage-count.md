@@ -12,7 +12,7 @@
 - Earlier: `storageNow`, `storageCredits`, `ownSaveMilli`, `budgetFits` with storage overage, `State.fb` charge, wire field `ccStorageCredits`.
 
 ## Open
-- Files outside the graph writes (lead adds): `lean/Fw/Ci/PoolTierWire.lean`, `lean/scripts/{Provider,Overflow,Pool}Golden.lean`, `docs/team/tools/{ci-pool,land,circleci}.md`. `land-remote.ts` is unchanged.
+- All changed files are in the graph writes (r282); `land-remote.ts` is unchanged.
 - Follow-ups: re-route a pending leg during a GitHub incident; `.circleci/config.yml` Lake save policy; CircleCI on an empty free pool UNKNOWN (reserve covers it); "overage draws from the free pool" INFERRED.
 
 ## Read first
