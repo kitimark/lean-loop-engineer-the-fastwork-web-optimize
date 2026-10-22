@@ -190,6 +190,92 @@ theorem decide_resume_iff (e : Entry) (n : Now) (a : Bool) :
   by_cases h1 : e.schema = n.schema <;> by_cases h2 : e.code = n.code <;> by_cases h3 : n.size < e.offset <;>
     by_cases h4 : e.ino = n.ino <;> cases a <;> simp [*] <;> omega
 
+structure Call where
+  id : String
+  msg : String
+  tool : String
+  ts : Nat
+deriving DecidableEq, Repr
+
+structure Open where
+  newest : Option String := none
+  calls : List Call := []
+deriving DecidableEq, Repr
+
+inductive Ev where
+  | assistant (msg : String) (calls : List (String × String × Nat))
+  | result (id : String)
+deriving DecidableEq, Repr
+
+def stepEv (s : Open) : Ev → Open
+  | .assistant m cs => ⟨some m, s.calls.filter (·.msg == m) ++ cs.map (fun x => ⟨x.1, m, x.2.1, x.2.2⟩)⟩
+  | .result i => { s with calls := s.calls.filter (·.id != i) }
+
+def inflightOf (s : Open) : Option Call :=
+  s.calls.foldl (fun r c => match r with | none => some c | some p => if p.ts ≤ c.ts then some c else some p) none
+
+theorem assistant_clears (s : Open) (m : String) (cs : List (String × String × Nat)) :
+    ∀ c ∈ (stepEv s (.assistant m cs)).calls, c.msg = m := by
+  intro c hc
+  simp only [stepEv, List.mem_append, List.mem_filter, List.mem_map] at hc
+  rcases hc with ⟨_, h⟩ | ⟨⟨_, _, _⟩, _, rfl⟩
+  · simpa using h
+  · rfl
+
+theorem older_call_gone (s : Open) (m : String) (cs : List (String × String × Nat)) (c : Call) (h : c.msg ≠ m) :
+    c ∉ (stepEv s (.assistant m cs)).calls := fun hc => h (assistant_clears s m cs c hc)
+
+theorem assistant_nocalls (s : Open) (m : String) (h : ∀ c ∈ s.calls, c.msg ≠ m) :
+    inflightOf (stepEv s (.assistant m [])) = none := by
+  have : (stepEv s (.assistant m [])).calls = [] := by
+    simp only [stepEv, List.map_nil, List.append_nil]
+    exact List.filter_eq_nil_iff.mpr fun c hc => by simpa using h c hc
+  simp [inflightOf, this]
+
+theorem same_msg_keeps (s : Open) (m : String) (cs : List (String × String × Nat)) (c : Call)
+    (hc : c ∈ s.calls) (hm : c.msg = m) : c ∈ (stepEv s (.assistant m cs)).calls := by
+  simp only [stepEv, List.mem_append, List.mem_filter]
+  exact Or.inl ⟨hc, by simp [hm]⟩
+
+theorem inflight_resume (a b : List Ev) :
+    inflightOf (b.foldl stepEv (a.foldl stepEv {})) = inflightOf ((a ++ b).foldl stepEv {}) := by
+  rw [List.foldl_append]
+
+theorem open_pass_eq_full (rd : List Nat → Ev) {a : List Nat} (ha : Complete a) (b : List Nat) :
+    feed (fun s l => stepEv s (rd l)) (feed (fun s l => stepEv s (rd l)) (feed (fun s l => stepEv s (rd l)) {} a) (cut b).1) (cut b).2
+      = feed (fun s l => stepEv s (rd l)) {} (a ++ b) :=
+  pass_eq_full _ _ ha b
+
+def inflightCases : List (String × List Ev × Option (String × Nat)) :=
+  let u (m i t : String) (a : Nat) : Ev := .assistant m [(i, t, a)]
+  [("no records", [], none),
+   ("one call open", [u "m1" "c1" "Bash" 10], some ("Bash", 10)),
+   ("call closed by its result", [u "m1" "c1" "Bash" 10, .result "c1"], none),
+   ("missing result: the next assistant message clears it", [u "m1" "c1" "Bash" 10, u "m2" "c2" "Read" 20, .result "c2"], none),
+   ("missing result: the next message's own call is the one in flight", [u "m1" "c1" "Bash" 10, u "m2" "c2" "Read" 20], some ("Read", 20)),
+   ("missing result: a closing text message clears it", [u "m1" "c1" "Bash" 10, .assistant "m2" []], none),
+   ("parallel calls of one message stay open together", [.assistant "m1" [("c1", "Bash", 10), ("c2", "Read", 12)]], some ("Read", 12)),
+   ("parallel calls: one result leaves the other open", [.assistant "m1" [("c1", "Bash", 10), ("c2", "Read", 12)], .result "c2"], some ("Bash", 10)),
+   ("streamed copies of one message share its id and add up", [u "m1" "c1" "Bash" 10, u "m1" "c2" "Read" 11], some ("Read", 11)),
+   ("results out of order", [.assistant "m1" [("c1", "Bash", 10), ("c2", "Read", 12)], .result "c1", .result "c2"], none),
+   ("an unknown result changes nothing", [u "m1" "c1" "Bash" 10, .result "zz"], some ("Bash", 10)),
+   ("tie in time: the later call", [.assistant "m1" [("c1", "Bash", 10), ("c2", "Read", 10)]], some ("Read", 10))]
+
+#guard inflightCases.all fun (_, evs, e) =>
+  (inflightOf (evs.foldl stepEv {})).map (fun c => (c.tool, c.ts)) == e
+
+def evJson : Ev → Json
+  | .assistant m cs => Json.mkObj [("k", .str "assistant"), ("msg", .str m),
+      ("calls", Json.arr (cs.toArray.map fun (i, t, a) => Json.mkObj [("id", .str i), ("tool", .str t), ("at", toJson a)]))]
+  | .result i => Json.mkObj [("k", .str "result"), ("id", .str i)]
+
+def inflightGoldenText : String :=
+  String.join (inflightCases.map fun (name, evs, e) =>
+    (Json.mkObj [("name", .str name), ("events", Json.arr (evs.toArray.map evJson)),
+      ("expect", match e with | none => Json.null | some (t, a) => Json.mkObj [("tool", .str t), ("since", toJson a)])]).compress ++ "\n")
+
+def inflightGoldenPath : System.FilePath := ".." / "packages" / "contracts" / "golden" / "obs" / "watch-inflight.jsonl"
+
 /-! ### Golden vectors (`packages/contracts/golden/obs/watch-fold.jsonl`) -/
 
 /-- The UTF-8 bytes of a text, as the file holds them. -/

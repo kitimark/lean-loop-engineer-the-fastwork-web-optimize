@@ -205,8 +205,7 @@ describe("the collector over the cache and the spool memo", () => {
     appendFileSync(spool, sp("aq", "PostToolUse", now - 4000) + "\n");
     expect(names()).toEqual(["aq:2"]);
     const old = new Date(now - 3600_000 * 30);
-    writeFileSync(spool, sp("aq", "PostToolUse", now - 4000) + "\n"); // same size as before? no: one line
-    utimesSync(spool, old, old);
+    writeFileSync(spool, sp("aq", "PostToolUse", now - 4000) + "\n");    utimesSync(spool, old, old);
     expect(names()).toEqual(["aq:1"]);
     rmSync(spool);
     expect(names()).toEqual([]);
@@ -223,4 +222,61 @@ describe("the collector over the cache and the spool memo", () => {
     expect(b.tr.toolUses).toBe(a.tr.toolUses + 1);
     expect(JSON.stringify([b.tr, b.sig])).toBe(JSON.stringify([finishInfo(st, null, null), finishSignals("zz", st).facts]));
   });
+});
+
+type Ev = { k: "assistant"; msg: string; calls: { id: string; tool: string; at: number }[] } | { k: "result"; id: string };
+const evLine = (e: Ev, i: number): string => e.k === "assistant"
+  ? JSON.stringify({ type: "assistant", timestamp: new Date(e.calls[0]?.at ?? 1000 + i).toISOString(),
+      message: { id: e.msg, role: "assistant", content: e.calls.length ? e.calls.map((c) => ({ type: "tool_use", id: c.id, name: c.tool, input: {} })) : [{ type: "text", text: "x" }] } })
+  : JSON.stringify({ type: "user", timestamp: new Date(1000 + i).toISOString(), message: { role: "user", content: [{ type: "tool_result", tool_use_id: e.id, content: "ok" }] } });
+const evLines = (evs: Ev[]): string[] => evs.flatMap((e, i) => e.k === "assistant" && e.calls.length > 1
+  ? e.calls.map((c, j) => evLine({ ...e, calls: [c] }, i * 10 + j)) : [evLine(e, i)]);
+const inflightGolden: { name: string; events: Ev[]; expect: { tool: string; since: number } | null }[] =
+  readFileSync(join(root, "packages/contracts/golden/obs/watch-inflight.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
+
+describe("the Lean in-flight golden vectors", () => {
+  it("has the cases", () => expect(inflightGolden.length).toBeGreaterThan(8));
+  for (const c of inflightGolden) {
+    it(`inflight: ${c.name}`, () => {
+      const text = evLines(c.events).join("\n") + "\n";
+      const st = foldText(initFold(false), text);
+      const info = finishInfo(st, null);
+      expect(info.inflight ? { tool: info.inflight.tool, since: info.inflight.since } : null).toEqual(c.expect);
+      expect(finishSignals("a", st).openCall).toBe(c.expect !== null);
+    });
+    it(`inflight resumes at every line cut: ${c.name}`, () => {
+      const ls = evLines(c.events).map((l) => l + "\n"), whole = foldText(initFold(false), ls.join(""));
+      for (let k = 0; k <= ls.length; k++) {
+        const st = loadFold(JSON.parse(JSON.stringify(saveFold(foldText(initFold(false), ls.slice(0, k).join(""))))))!;
+        expect(view(foldText(st, ls.slice(k).join("")))).toBe(view(whole));
+      }
+    });
+  }
+});
+
+describe("a tool_use with no tool_result record (inc-orphan-tool-call)", () => {
+  const T = Date.parse("2026-01-01T00:00:00Z");
+  const at = (s: number) => new Date(T + s * 1000).toISOString();
+  const asst = (s: number, id: string, content: object[]) => rec({ type: "assistant", timestamp: at(s), message: { id, role: "assistant", content } });
+  const bash = (s: number, id: string, call: string) => asst(s, id, [{ type: "tool_use", id: call, name: "Bash", input: {} }]);
+  const back = (s: number, call: string) => rec({ type: "user", timestamp: at(s), message: { role: "user", content: [{ type: "tool_result", tool_use_id: call, content: "ok" }] } });
+  const run = (ls: string[]) => finishInfo(foldText(initFold(false), ls.join("\n") + "\n"), null);
+  it("holds in flight until the agent's next assistant message, then not", () => {
+    const orphan = [bash(0, "m1", "c1")];
+    expect(run(orphan).inflight).toEqual({ tool: "Bash", verb: null, since: T });
+    expect(run([...orphan, bash(337, "m2", "c2"), back(338, "c2")]).inflight).toBeNull();
+    expect(run([...orphan, bash(337, "m2", "c2")]).inflight).toEqual({ tool: "Bash", verb: null, since: T + 337000 });
+  });
+  it("a closing text message ends the turn though the orphan never got a result", () => {
+    const i = run([bash(0, "m1", "c1"), rec({ type: "assistant", timestamp: at(5), message: { id: "m2", role: "assistant", stop_reason: "end_turn", content: [{ type: "text", text: "done" }] } })]);
+    expect(i.inflight).toBeNull();
+    expect(i.endedTurn).toBe(true);
+  });
+  it("parallel calls of one message stay open together, each until its own result", () => {
+    const par = [asst(0, "m1", [{ type: "tool_use", id: "p1", name: "Bash", input: {} }, { type: "tool_use", id: "p2", name: "Read", input: {} }])];
+    expect(run(par).inflight?.tool).toBe("Read");
+    expect(run([...par, back(1, "p2")]).inflight?.tool).toBe("Bash");
+    expect(run([...par, back(1, "p2"), back(2, "p1")]).inflight).toBeNull();
+  });
+  it("FOLD_SCHEMA moved with the saved shape", () => expect(FOLD_SCHEMA).toBe(2));
 });
