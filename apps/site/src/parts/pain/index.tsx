@@ -1,6 +1,8 @@
+import { useEffect, useRef } from 'react';
 import { PAIN_BODY, PAIN_HEADING } from '../pain.notes/data';
 import { PainNotes } from '../pain.notes';
 import css from './pain.module.css';
+import { installRangeStart } from './darkScroll';
 
 export interface PainProps {
   variant: string;
@@ -15,8 +17,15 @@ export interface PainProps {
  * Geometry spec: Lean `Fw.Parts.Pain`. The dark flip at <= 860 px is a class (`is-pain-dark`) the people part sets.
  */
 export function Pain({ variant, notesVariant = 'faithful' }: PainProps) {
+  const ref = useRef<HTMLElement>(null);
+  const darkScroll = variant === 'dark-scroll';
+  useEffect(() => {
+    const el = ref.current;
+    if (!darkScroll || !el) return;
+    return installRangeStart(el);
+  }, [darkScroll]);
   return (
-    <section className={css.pain} aria-labelledby="pain-heading" data-fw="pain" data-fw-variant={variant}>
+    <section ref={ref} className={css.pain} aria-labelledby="pain-heading" data-fw="pain" data-fw-variant={variant}>
       <div className={css.sticky}>
         <PainNotes variant={notesVariant} />
         <div className={css.inner}>

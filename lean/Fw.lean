@@ -68,6 +68,7 @@ import Fw.Parts.PlatformShrinkOpt
 import Fw.Parts.PlatformFade
 import Fw.Parts.PlatformFadeRun
 import Fw.Parts.MorphConstBounds
+import Fw.Parts.PainDarkScroll
 import Fw.Parts.HeroAccentOpt
 import Fw.Measure.Zones
 import Fw.Measure.Classes
@@ -203,6 +204,7 @@ import Fw.Gate.ShardObs
 import Fw.Gate.Search
 import Fw.Gate.Trajectory
 import Fw.Gate.Trajectory.Dispatch
+import Fw.Gate.TrajectoryGpu
 import Fw.Gate.Colour
 import Fw.Gate.RunPerm
 import Fw.Gate.Frames

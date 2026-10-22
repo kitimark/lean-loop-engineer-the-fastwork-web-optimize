@@ -8,7 +8,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync } from "n
 import { loadavg } from "node:os";
 import { dirname, join, resolve } from "node:path";
 
-export type Span = { tool: string; step: string; startMs: number; durMs: number; exit: number | null; commit: string; load: number; host: "local" | "ci"; runId?: number;
+export type Span = { tool: string; step: string; startMs: number; durMs: number; exit: number | null; commit: string; load: number; host: "local" | "ci"; runId?: number; queue?: { kind: string; waitMs: number; waits: { why: string; ms: number }[] };
   /** the run kind (Lean `Fw.Obs.Timing.Sample.kind`): for a CI run dispatched by `fw run`, the digest of its workflow inputs; "" and absent for every other span */
   kind?: string;
   skipped?: true;
