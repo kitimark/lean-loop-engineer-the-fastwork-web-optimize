@@ -3898,6 +3898,30 @@
    "leanReason": "The rule now proves its idle case: Fw.Sup.Adapt.idle_head_admitted, idle_head_only_when_empty, idle_head_at_most_one and verdict_unchanged_with_holder; memLow reads swapActive, a swap-out rate, not occupancy.",
    "empiricalCheck": "The goldens replay the 2026-10-22 stall reading; the live queue was not re-run under the fix.",
    "hardening": "slot-idle-head"
+  },
+  {
+   "id": "inc-slot-branch-code",
+   "at": "2026-10-22T10:26+07:00",
+   "title": "A slot waiter ran old slot code from a worktree on an older branch against the shared queue",
+   "symptom": "0 holders and 3 land tickets queued; the head waiter ran from .claude/worktrees/wf_64810607-67c-1 whose slot-core.ts had no idleHead, so it kept waiting memLow. The lead merged main into two worktrees to unblock it.",
+   "cause": "CONFIRMED (apps/runner/src/fw.ts and scripts/slot-self.mjs before slot-main-code): both imported slot-main.ts relative to their own file, so the caller's branch decided against the main checkout's .fw-console/slot/state.json.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "docs/team/handoffs/slot-waiter-light.md",
+     "note": "the routing that resolved slot-main.ts inside the caller's worktree"
+    }
+   ],
+   "repro": "A worktree whose slot-main.ts differs from main's: before the fix its verdict ran; after it, resolveSlotMain returns the main checkout's file (apps/runner/test/slot-resolve.test.ts).",
+   "fix": {
+    "task": "slot-main-code"
+   },
+   "regression": "apps/runner/test/slot-resolve.test.ts builds a fixture repo with a worktree and checks the resolver picks the main checkout's slot-main.ts, and falls back to the local one when main's is missing.",
+   "mistakeClass": "c-spec-gap",
+   "leanVerdict": "not-lean",
+   "leanReason": "File resolution is I/O glue; the slot decision itself stays in Lean-checked slot-core.",
+   "empiricalCheck": "Fixture test only; a waiter already running keeps the code it loaded.",
+   "hardening": "slot-main-code"
   }
  ]
 }

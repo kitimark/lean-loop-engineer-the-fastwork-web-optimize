@@ -162,3 +162,9 @@ A queued run waits in one node process, not a tree (slot-waiter-light, MEASURED 
 - `pnpm` stays the parent of a typed `pnpm -s fw slot run`, so that form only loses the fw-main.ts weight; `slot-self.mjs` waits in-process and loses the whole second process.
 - A bare node with TypeScript stripping is about 46 MB idle; the waiter is 99-102 MB. Not cut further (follow-up: a precompiled JS waiter). `manage-package-manager-versions=false` would remove the shim's nested pnpm and is not set here.
 - Verdicts, queue order and the lease are unchanged (same `slot.ts`). Tests: `scripts/slot-self.test.mjs` (the waiter has no child and starts the command only after the holder releases; usage exits 64).
+
+## Main's slot code
+
+`fw slot ...` (apps/runner/src/fw.ts) and `scripts/slot-self.mjs` load `slot-main.ts` from the main checkout (the parent of the shared repo dir, see `apps/runner/src/slot-resolve.ts`), so a worktree on an older branch decides with main's slot code against the shared queue. They fall back to their own file only when main's is missing. The Node pin guard and the Monitor line `node apps/runner/src/fw.ts watch --interval 300 --stream` are unchanged.
+- Limits: a run already waiting keeps the code it loaded; main's code must stay compatible with older callers' `state.json` writes.
+- Test: `apps/runner/test/slot-resolve.test.ts` (fixture repo with a worktree). Incident: `inc-slot-branch-code`.
