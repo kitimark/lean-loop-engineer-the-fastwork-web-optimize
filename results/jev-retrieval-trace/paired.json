@@ -1,0 +1,582 @@
+{
+ "question": "incident-class",
+ "rows": 38,
+ "dropped": [
+  "inc-workflow-unbound",
+  "inc-land-undeclared-reads",
+  "inc-upsert-keeps-evidence"
+ ],
+ "answered": {
+  "t-haiku": {
+   "arm": 38,
+   "c": 38,
+   "x": 38
+  },
+  "t-sonnet": {
+   "arm": 38,
+   "c": 38,
+   "x": 38
+  },
+  "j-hybrid": {
+   "arm": 38,
+   "c": 38,
+   "x": 38
+  },
+  "j-pick": {
+   "arm": 38,
+   "c": 38,
+   "x": 38
+  }
+ },
+ "arms": {
+  "t-haiku": {
+   "strict": {
+    "adopt": false,
+    "arm": "t-haiku/strict",
+    "reasons": [
+     {
+      "arm": "t-haiku/strict",
+      "kind": "netLowC",
+      "net": 0
+     },
+     {
+      "arm": "t-haiku/strict",
+      "id": "inc-upsert-keeps-evidence",
+      "kind": "gainOnDropped"
+     },
+     {
+      "arm": "t-haiku/strict",
+      "id": "inc-upsert-keeps-evidence",
+      "kind": "untraced"
+     },
+     {
+      "arm": "t-haiku/strict",
+      "id": "inc-test-pid-marker",
+      "kind": "untraced"
+     },
+     {
+      "arm": "t-haiku/strict",
+      "id": "inc-mutants-red-no-task",
+      "kind": "untraced"
+     },
+     {
+      "arm": "t-haiku/strict",
+      "id": "inc-main-checkout-busy-queue",
+      "kind": "untraced"
+     },
+     {
+      "arm": "t-haiku/strict",
+      "id": "inc-plan-sync-manual",
+      "kind": "untraced"
+     }
+    ],
+    "vsC": {
+     "armRight": 7,
+     "baseRight": 7,
+     "gains": [
+      "inc-upsert-keeps-evidence",
+      "inc-test-pid-marker",
+      "inc-mutants-red-no-task",
+      "inc-main-checkout-busy-queue",
+      "inc-plan-sync-manual"
+     ],
+     "losses": [
+      "inc-gate-scan-page-state",
+      "inc-land-retry-text-match",
+      "inc-land-dry-no-verdict",
+      "inc-land-dry-needs-console",
+      "inc-runner-bin-mode-flip"
+     ],
+     "net": 0,
+     "p": {
+      "den": "1",
+      "num": "1"
+     },
+     "rows": 38
+    },
+    "vsX": {
+     "armRight": 7,
+     "baseRight": 5,
+     "gains": [
+      "inc-upsert-keeps-evidence",
+      "inc-ci-skipped-false-pass",
+      "inc-mutants-red-no-task",
+      "inc-main-checkout-busy-queue"
+     ],
+     "losses": [
+      "inc-wt-prep-lsp-as-build",
+      "inc-land-dry-needs-console"
+     ],
+     "net": 2,
+     "p": {
+      "den": "16",
+      "num": "11"
+     },
+     "rows": 38
+    }
+   },
+   "renorm": {
+    "adopt": false,
+    "arm": "t-haiku/renorm",
+    "reasons": [
+     {
+      "arm": "t-haiku/renorm",
+      "kind": "netLowC",
+      "net": -1
+     },
+     {
+      "arm": "t-haiku/renorm",
+      "id": "inc-worktree-role-as-teammate",
+      "kind": "untraced"
+     },
+     {
+      "arm": "t-haiku/renorm",
+      "id": "inc-helper-spawn-named",
+      "kind": "untraced"
+     }
+    ],
+    "vsC": {
+     "armRight": 20,
+     "baseRight": 21,
+     "gains": [
+      "inc-worktree-role-as-teammate",
+      "inc-helper-spawn-named"
+     ],
+     "losses": [
+      "inc-land-dry-no-verdict",
+      "inc-ci-run-cap-prompt",
+      "inc-proof-of-dead-code"
+     ],
+     "net": -1,
+     "p": {
+      "den": "1",
+      "num": "1"
+     },
+     "rows": 38
+    },
+    "vsX": {
+     "armRight": 20,
+     "baseRight": 18,
+     "gains": [
+      "inc-worktree-role-as-teammate",
+      "inc-land-retry-text-match",
+      "inc-helper-spawn-named"
+     ],
+     "losses": [
+      "inc-proof-of-dead-code"
+     ],
+     "net": 2,
+     "p": {
+      "den": "8",
+      "num": "5"
+     },
+     "rows": 38
+    }
+   }
+  },
+  "t-sonnet": {
+   "strict": {
+    "adopt": false,
+    "arm": "t-sonnet/strict",
+    "reasons": [
+     {
+      "arm": "t-sonnet/strict",
+      "kind": "netLowC",
+      "net": 2
+     },
+     {
+      "arm": "t-sonnet/strict",
+      "id": "inc-workflow-multi-unbound",
+      "kind": "untraced"
+     },
+     {
+      "arm": "t-sonnet/strict",
+      "id": "inc-ci-skipped-false-pass",
+      "kind": "untraced"
+     },
+     {
+      "arm": "t-sonnet/strict",
+      "id": "inc-proof-of-dead-code",
+      "kind": "untraced"
+     },
+     {
+      "arm": "t-sonnet/strict",
+      "id": "inc-land-queue-unknown",
+      "kind": "untraced"
+     },
+     {
+      "arm": "t-sonnet/strict",
+      "id": "inc-helper-spawn-named",
+      "kind": "untraced"
+     },
+     {
+      "arm": "t-sonnet/strict",
+      "id": "inc-runner-bin-mode-flip",
+      "kind": "untraced"
+     },
+     {
+      "arm": "t-sonnet/strict",
+      "id": "inc-trajectory-pooled-window",
+      "kind": "untraced"
+     }
+    ],
+    "vsC": {
+     "armRight": 21,
+     "baseRight": 19,
+     "gains": [
+      "inc-workflow-multi-unbound",
+      "inc-ci-skipped-false-pass",
+      "inc-proof-of-dead-code",
+      "inc-land-queue-unknown",
+      "inc-helper-spawn-named",
+      "inc-runner-bin-mode-flip",
+      "inc-trajectory-pooled-window"
+     ],
+     "losses": [
+      "inc-watch-unlanded-after-land",
+      "inc-watch-alert-during-land",
+      "inc-gate-scan-page-state",
+      "inc-land-dry-needs-console",
+      "inc-plan-sync-manual"
+     ],
+     "net": 2,
+     "p": {
+      "den": "1024",
+      "num": "793"
+     },
+     "rows": 38
+    },
+    "vsX": {
+     "armRight": 21,
+     "baseRight": 17,
+     "gains": [
+      "inc-findings-shared-entry",
+      "inc-ci-run-cap-prompt",
+      "inc-test-pid-marker",
+      "inc-workflow-multi-unbound",
+      "inc-proof-of-dead-code",
+      "inc-helper-spawn-named",
+      "inc-trajectory-pooled-window"
+     ],
+     "losses": [
+      "inc-gate-scan-page-state",
+      "inc-wt-prep-lsp-as-build",
+      "inc-land-dry-needs-console"
+     ],
+     "net": 4,
+     "p": {
+      "den": "32",
+      "num": "11"
+     },
+     "rows": 38
+    }
+   },
+   "renorm": {
+    "adopt": false,
+    "arm": "t-sonnet/renorm",
+    "reasons": [
+     {
+      "arm": "t-sonnet/renorm",
+      "kind": "netLowC",
+      "net": 1
+     },
+     {
+      "arm": "t-sonnet/renorm",
+      "id": "inc-wt-prep-lsp-as-build",
+      "kind": "untraced"
+     },
+     {
+      "arm": "t-sonnet/renorm",
+      "id": "inc-proof-of-dead-code",
+      "kind": "untraced"
+     },
+     {
+      "arm": "t-sonnet/renorm",
+      "id": "inc-land-queue-unknown",
+      "kind": "untraced"
+     },
+     {
+      "arm": "t-sonnet/renorm",
+      "id": "inc-helper-spawn-named",
+      "kind": "untraced"
+     },
+     {
+      "arm": "t-sonnet/renorm",
+      "id": "inc-trajectory-pooled-window",
+      "kind": "untraced"
+     }
+    ],
+    "vsC": {
+     "armRight": 23,
+     "baseRight": 22,
+     "gains": [
+      "inc-wt-prep-lsp-as-build",
+      "inc-proof-of-dead-code",
+      "inc-land-queue-unknown",
+      "inc-helper-spawn-named",
+      "inc-trajectory-pooled-window"
+     ],
+     "losses": [
+      "inc-watch-unlanded-after-land",
+      "inc-watch-alert-during-land",
+      "inc-land-dry-needs-console",
+      "inc-plan-sync-manual"
+     ],
+     "net": 1,
+     "p": {
+      "den": "1",
+      "num": "1"
+     },
+     "rows": 38
+    },
+    "vsX": {
+     "armRight": 23,
+     "baseRight": 20,
+     "gains": [
+      "inc-ci-run-cap-prompt",
+      "inc-workflow-multi-unbound",
+      "inc-proof-of-dead-code",
+      "inc-helper-spawn-named",
+      "inc-trajectory-pooled-window"
+     ],
+     "losses": [
+      "inc-land-dry-needs-console",
+      "inc-plan-sync-manual"
+     ],
+     "net": 3,
+     "p": {
+      "den": "64",
+      "num": "29"
+     },
+     "rows": 38
+    }
+   }
+  },
+  "j-hybrid": {
+   "strict": {
+    "adopt": false,
+    "arm": "j-hybrid/strict",
+    "reasons": [
+     {
+      "arm": "j-hybrid/strict",
+      "kind": "netLowC",
+      "net": 0
+     }
+    ],
+    "vsC": {
+     "armRight": 18,
+     "baseRight": 18,
+     "gains": [],
+     "losses": [],
+     "net": 0,
+     "p": {
+      "den": "1",
+      "num": "1"
+     },
+     "rows": 38
+    },
+    "vsX": {
+     "armRight": 18,
+     "baseRight": 14,
+     "gains": [
+      "inc-worktree-role-as-teammate",
+      "inc-watch-unlanded-after-land",
+      "inc-evidence-before-land",
+      "inc-land-inputs-untracked-exists",
+      "inc-console-stale-service",
+      "inc-workflow-multi-unbound",
+      "inc-reap-console-kill"
+     ],
+     "losses": [
+      "inc-watch-unlanded-queued",
+      "inc-land-dry-no-verdict",
+      "inc-land-dry-needs-console"
+     ],
+     "net": 4,
+     "p": {
+      "den": "32",
+      "num": "11"
+     },
+     "rows": 38
+    }
+   },
+   "renorm": {
+    "adopt": false,
+    "arm": "j-hybrid/renorm",
+    "reasons": [
+     {
+      "arm": "j-hybrid/renorm",
+      "kind": "netLowC",
+      "net": 0
+     }
+    ],
+    "vsC": {
+     "armRight": 20,
+     "baseRight": 20,
+     "gains": [],
+     "losses": [],
+     "net": 0,
+     "p": {
+      "den": "1",
+      "num": "1"
+     },
+     "rows": 38
+    },
+    "vsX": {
+     "armRight": 20,
+     "baseRight": 17,
+     "gains": [
+      "inc-worktree-role-as-teammate",
+      "inc-watch-unlanded-after-land",
+      "inc-evidence-before-land",
+      "inc-workflow-multi-unbound",
+      "inc-reap-console-kill"
+     ],
+     "losses": [
+      "inc-watch-unlanded-queued",
+      "inc-land-dry-no-verdict"
+     ],
+     "net": 3,
+     "p": {
+      "den": "64",
+      "num": "29"
+     },
+     "rows": 38
+    }
+   }
+  },
+  "j-pick": {
+   "strict": {
+    "adopt": false,
+    "arm": "j-pick/strict",
+    "reasons": [
+     {
+      "arm": "j-pick/strict",
+      "kind": "netLowC",
+      "net": -1
+     },
+     {
+      "arm": "j-pick/strict",
+      "id": "inc-land-dry-no-verdict",
+      "kind": "untraced"
+     },
+     {
+      "arm": "j-pick/strict",
+      "id": "inc-land-dry-needs-console",
+      "kind": "untraced"
+     },
+     {
+      "arm": "j-pick/strict",
+      "id": "inc-mutants-red-no-task",
+      "kind": "untraced"
+     },
+     {
+      "arm": "j-pick/strict",
+      "id": "inc-helper-spawn-named",
+      "kind": "untraced"
+     }
+    ],
+    "vsC": {
+     "armRight": 17,
+     "baseRight": 18,
+     "gains": [
+      "inc-land-dry-no-verdict",
+      "inc-land-dry-needs-console",
+      "inc-mutants-red-no-task",
+      "inc-helper-spawn-named"
+     ],
+     "losses": [
+      "inc-worktree-role-as-teammate",
+      "inc-watch-unlanded-after-land",
+      "inc-evidence-before-land",
+      "inc-console-stale-service",
+      "inc-workflow-multi-unbound"
+     ],
+     "net": -1,
+     "p": {
+      "den": "1",
+      "num": "1"
+     },
+     "rows": 38
+    },
+    "vsX": {
+     "armRight": 17,
+     "baseRight": 14,
+     "gains": [
+      "inc-land-inputs-untracked-exists",
+      "inc-mutants-red-no-task",
+      "inc-helper-spawn-named",
+      "inc-reap-console-kill"
+     ],
+     "losses": [
+      "inc-watch-unlanded-queued"
+     ],
+     "net": 3,
+     "p": {
+      "den": "8",
+      "num": "3"
+     },
+     "rows": 38
+    }
+   },
+   "renorm": {
+    "adopt": false,
+    "arm": "j-pick/renorm",
+    "reasons": [
+     {
+      "arm": "j-pick/renorm",
+      "kind": "netLowC",
+      "net": -2
+     },
+     {
+      "arm": "j-pick/renorm",
+      "id": "inc-land-dry-no-verdict",
+      "kind": "untraced"
+     },
+     {
+      "arm": "j-pick/renorm",
+      "id": "inc-mutants-red-no-task",
+      "kind": "untraced"
+     }
+    ],
+    "vsC": {
+     "armRight": 18,
+     "baseRight": 20,
+     "gains": [
+      "inc-land-dry-no-verdict",
+      "inc-mutants-red-no-task"
+     ],
+     "losses": [
+      "inc-worktree-role-as-teammate",
+      "inc-watch-unlanded-after-land",
+      "inc-evidence-before-land",
+      "inc-workflow-multi-unbound"
+     ],
+     "net": -2,
+     "p": {
+      "den": "16",
+      "num": "11"
+     },
+     "rows": 38
+    },
+    "vsX": {
+     "armRight": 18,
+     "baseRight": 17,
+     "gains": [
+      "inc-mutants-red-no-task",
+      "inc-reap-console-kill"
+     ],
+     "losses": [
+      "inc-watch-unlanded-queued"
+     ],
+     "net": 1,
+     "p": {
+      "den": "1",
+      "num": "1"
+     },
+     "rows": 38
+    }
+   }
+  }
+ }
+}
