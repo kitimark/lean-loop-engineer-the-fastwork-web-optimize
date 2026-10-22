@@ -14729,7 +14729,8 @@
     ".github/workflows/smoothness*.yml",
     "research/notes/2026/10-2x-earn-gpu.md",
     "results/earn-bound/**",
-    "docs/team/handoffs/earn-bound-arm.md"
+    "docs/team/handoffs/earn-bound-arm.md",
+    "apps/runner/src/land.ts"
    ]
   },
   {
@@ -16037,7 +16038,8 @@
     "lean/scripts/check.sh",
     "docs/team/handoffs/site-layer-opts-followups.md"
    ],
-   "title": "Follow-ups of site-layer-opts (landed 2026-10-22). (1) layer-opts.test.ts compares the layers-search ok rows after .sort(): compare in URL order so the test checks an exact mirror of BuildsOpen.canonical. (2) resolve.ts reads ?fwl= through URLSearchParams (percent-decoding, + to space) while Lean BuildsOpen.validate refuses those characters before parsing: add golden vectors with an encoded layer id (e.g. ?fwl=hero%5Fcopy:c) and make the site and the console agree (decode in both or refuse in both, stated in Lean). (3) The builder saw 10 local failures in @fw/runner reap-safety and reap-stop: run them once on main (debug run, ≤ 5 min) and record whether they fail there; if they do, file the cause as a task. Unit: the order-exact test, the encoded-fwl vectors with the agreed rule, the reap-test result on main."
+   "title": "Follow-ups of site-layer-opts (landed 2026-10-22). (1) layer-opts.test.ts compares the layers-search ok rows after .sort(): compare in URL order so the test checks an exact mirror of BuildsOpen.canonical. (2) resolve.ts reads ?fwl= through URLSearchParams (percent-decoding, + to space) while Lean BuildsOpen.validate refuses those characters before parsing: add golden vectors with an encoded layer id (e.g. ?fwl=hero%5Fcopy:c) and make the site and the console agree (decode in both or refuse in both, stated in Lean). (3) The builder saw 10 local failures in @fw/runner reap-safety and reap-stop: run them once on main (debug run, ≤ 5 min) and record whether they fail there; if they do, file the cause as a task. Unit: the order-exact test, the encoded-fwl vectors with the agreed rule, the reap-test result on main.",
+   "evidence": "feb81c5"
   },
   {
    "devices": [
@@ -16064,6 +16066,58 @@
     "docs/team/handoffs/slot-span-key-followups.md"
    ],
    "title": "Follow-ups of slot-span-key (accepted 2026-10-22). (1) `slot wait <kind>` spans are judged by timing.slow: a queue wait over the 30 s budget against a near-zero median alerts, which is the queue noise the task removed, under a new key; exclude wait spans from slow or give them their own Lean budget (theorem). (2) cmdKey maps `pnpm -s fw <sub>` to `pnpm fw`: treat fw as a launcher and key its subcommand. (3) The ` dry`/` cached` suffixes and the seenKeys parser live only in TS, and the 24-key cap counts the last 2 MB of timings.jsonl, so keys that scroll out free places: state the suffix and seen-set rule in Lean with goldens and make the cap per kind and window-independent. (4) slot.ts writes no run span when exec throws or the process exits on a signal: move endRun into a finally with an error exit code. (5) Mark the 16:51 test's `own` samples as synthetic. (6) `fw land/dry total` and `fw/land dry` are bimodal: about 22 s without the Lean build step and about 45 s with it (alerts of 2026-10-22 16:4x and 17:5x), so key the dry span by its Lean dry plan (with or without the lake build) and add apps/runner/src/land.ts to the writes for that. Unit: the six items with goldens and tests."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "console-session-persist",
+   "owner": "console-builder",
+   "stream": "console",
+   "deps": [],
+   "writes": [
+    "apps/console-api/src/preview/owner.ts",
+    "apps/console-api/src/preview/session-store.ts",
+    "apps/console-api/src/main.ts",
+    "apps/console-api/test/owner-session-persist.test.ts",
+    "lean/Fw/Console/PreviewOwner.lean",
+    "packages/contracts/golden/console/owner-session*.jsonl",
+    ".gitignore",
+    "docs/team/handoffs/console-session-persist.md"
+   ],
+   "title": "User 2026-10-22: 'when you restart the console, i need to re-login ... make it no need to re-login everytime.' Cause (CONFIRMED, apps/console-api/src/preview/owner.ts:51): OwnerAuth keeps owner sessions in an in-memory Map, so every console restart (the lead restarts it after each land) drops them; the browser still holds its token in localStorage and the new server refuses it. Fix: sessions survive restarts. (1) Lean first in Fw.Console.PreviewOwner: a persisted session record holds only SHA-256 digests of the owner token and of the preview-cookie value plus the expiry; restore keeps only unexpired records; theorems: a restored store admits owner rights only for a bearer whose digest matches an unexpired record (no record yields rights without the token), expired records never restore, logout removes the record from the persisted set; the existing owner_requires_bearer / cookie_never_owner keep holding. Goldens the TS replays. (2) session-store.ts: write the digest records to a gitignored local file (under .local/, mode 0600, atomic rename), never a token, never under .fw-console or any file the console logs; load on start. (3) The preview cookie keeps working after a restart (its digest is in the record). (4) Test: issue a session, restart OwnerAuth from the store, the same bearer works and the same cookie opens preview; a wrong or expired token is refused; the file contains no token (grep). Unit: the Lean rule with goldens, the store, the restart test. Limits: the 8 h session lifetime is unchanged (a longer or sliding lifetime is a separate user decision); a same-user process that reads the file learns only digests."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "lead-hotfix-1022",
+   "owner": "lead",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "scripts/slot-self.mjs",
+    ".claude/workflows/build-review.js",
+    "docs/team/handoffs/lead-hotfix-1022.md"
+   ],
+   "title": "Lead hotfix 2026-10-22. (1) scripts/slot-self.mjs still imported slotStepEnd, which slot-span-key removed: every routed check.sh run printed its gates green and then threw 'slotStepEnd is not a function' on exit (seen by the site-layer-opts-followups review). Mirror fw.ts: `slot run` writes its own spans (writesOwnSpans), so no outer span. (2) build-review.js resume path: the dry-rerun runner was told to type <report.branch> itself and ran fw land with an empty branch (sim-step-watchdog resume, 2026-10-22); it now takes the worktree's own branch from git rev-parse."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "dry-merge-tree",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Console/LandDry.lean",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land-dry.test.ts",
+    "packages/contracts/golden/console/land-dry*.jsonl",
+    "docs/team/handoffs/dry-merge-tree.md"
+   ],
+   "title": "Five resumed reviews on 2026-10-22 (slot-span-key, site-layer-opts, morph-constant-bounds, land-scope-golden-regs, sim-step-watchdog) got VERDICT stale from fw land --dry only because main gained unrelated commits (graph edits, ledger records, other lands) after the branch's last merge; each cost a merge, a dry rerun and a resumed review. The stale rule exists so a stale base cannot carry another task's diff into the scope check (land.ts:480). Replace it with a closed check: when the branch does not contain main, compute the merge with git merge-tree (no checkout); a conflict stays a refusal (conflict); a clean merge runs the scope and read checks on the diff between that merged tree and main, which contains only the branch's own changes. Lean first in Fw.Console.LandDry: dryKind takes the merge-tree outcome; theorems: a clean merge-tree never yields stale; the scope paths of the merged diff are exactly the branch's own changed paths (no path main changed alone); a conflict still refuses. Goldens the TS replays; a test with a branch behind main by an unrelated commit gives VERDICT dry. Unit: the Lean rule with goldens, land.ts using merge-tree, the test. Limits: the real land still merges main itself as today."
   }
  ],
  "deadline": {
