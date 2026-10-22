@@ -308,6 +308,6 @@
   ],
   "recommendation": {
     "word": "hold",
-    "why": "The threaded exit removes the exit script, its forced layout and a style pass from every scrolled step in this lane. The new-layer counters do not separate from the base, and the backing store is a little larger. Frame cadence, skipped slots and the per-frame times do not separate on a Simulator without a GPU, so a smoother feel is not shown. Hold until a phone replay of the hero exit says whether it feels smoother; the entrance is covered by Lean and unit tests, not by this lane."
+    "why": "The threaded exit leaves one script callback, one layout and one style pass fewer per scrolled step in this lane; style time relative to the calm scroll is lower; absolute times and frame cadence do not separate. The new-layer counters do not separate from the base, and the backing store is a little larger. Skipped slots and the per-frame times do not separate on a Simulator without a GPU, so a smoother feel is not shown. Hold until a phone replay of the hero exit says whether it feels smoother; the entrance is covered by Lean and unit tests, not by this lane."
   }
 }
