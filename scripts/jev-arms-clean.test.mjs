@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { test } from "node:test";
-import { answerOf, blockKind, certifyOf, childEnv, claudeArgs, costOf, failed, fencedBlocks, optionsOf, probeVerdict, redactEnvelope,
-  redactText, scoreLine } from "./jev-arms-clean.mjs";
+import { fileURLToPath } from "node:url";
+import { fwcoreBin, fwcoreCall } from "../packages/gh-budget/src/core.ts";
+import { answerOf, blockKind, certifyOf, childEnv, claudeArgs, costOf, EPS_BEGIN, EPS_END, epsBlock, epsInvalid, failed,
+  fencedBlocks, optionsOf, probeVerdict, redactEnvelope, redactText, scoreLine, table } from "./jev-arms-clean.mjs";
 
 test("claudeArgs isolates the call: no tools, no setting sources, strict MCP, no session file, JSON out", () => {
   const a = claudeArgs("haiku", "SYS");
@@ -105,3 +110,41 @@ test("certifyOf names advised options or none; costOf sums ok rows and counts re
   assert.deepEqual(c, { rows: 3, parses: { json: 1, none: 1, failed: 1 }, calls: 4, retried: 1, inputTokens: 30,
     outputTokens: 6, costUsd: 0.75, models: ["m"], msMedian: 9, msMax: 9 });
 });
+
+const epsRun = (o) => ({ rows: 116, answers: 116, right: { old: 69, new: 69 }, valid: { old: 101, new: 114 },
+  validRight: { old: 57, new: 68 }, certify: { old: "none", new: "none" },
+  invalid: { old: { "sum eps": 15 }, new: { "sum rounding": 2 } }, ...o });
+
+test("epsBlock writes one row per re-validated run between the markers, with both rules", () => {
+  const md = epsBlock({ "d1:haiku:first": epsRun(), "d2:jev:recorded": epsRun({ rows: 83, answers: 83,
+    right: { old: 39, new: 40 }, valid: { old: 83, new: 83 }, validRight: { old: 40, new: 40 } }) });
+  assert.equal(md[0], EPS_BEGIN);
+  assert.equal(md.at(-1), EPS_END);
+  assert.deepEqual(md.slice(5, 7), ["| d1 | haiku | first | 116 | 101 | 114 | 57 | 68 | 69 / 116 | none | none |",
+    "| d2 | jev | recorded | 83 | 83 | 83 | 40 | 40 | 39 → 40 / 83 | none | none |"]);
+});
+
+test("epsInvalid keeps the old-rule counts only while fwcore still gives the file's sumOk counts", () => {
+  const eps = { runs: { "d1:haiku:first": epsRun({ invalid: { old: { a: 1, b: 2 }, new: { a: 1, c: 3 } } }) } };
+  assert.deepEqual(epsInvalid("d1:haiku:first", { c: 3, a: 1 }, eps), { a: 1, b: 2 });
+  assert.throws(() => epsInvalid("d1:haiku:first", { a: 1, c: 4 }, eps), /stale/);
+  assert.throws(() => epsInvalid("d1:haiku:first", { a: 1 }, eps), /stale/);
+  assert.throws(() => epsInvalid("d1:sonnet:first", { a: 1, c: 3 }, eps), /no row/);
+});
+
+let core = null;
+try { core = existsSync(fwcoreBin(process.cwd())) ? fwcoreCall(process.cwd()) : null; } catch { core = null; }
+
+test("table regenerates the committed table.md and table.json, the oracle-eps block included",
+  { skip: core ? false : "fwcore not built" }, () => {
+    const committed = fileURLToPath(new URL("../results/jev-arms-clean", import.meta.url));
+    const eps = JSON.parse(readFileSync(new URL("../results/jev/eps-rescore.json", import.meta.url), "utf8"));
+    const out = mkdtempSync(join(tmpdir(), "jev-arms-table-"));
+    try {
+      cpSync(committed, out, { recursive: true });
+      table({ out, old: join(out, "first-run"), core, eps, quiet: true });
+      for (const f of ["table.md", "table.json"]) {
+        assert.equal(readFileSync(join(out, f), "utf8"), readFileSync(join(committed, f), "utf8"), f);
+      }
+    } finally { rmSync(out, { recursive: true, force: true }); }
+  });
