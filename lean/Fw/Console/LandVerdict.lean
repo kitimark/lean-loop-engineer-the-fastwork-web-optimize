@@ -96,21 +96,9 @@ theorem installKind_refusal (a b : Bool) (k : Kind) (h : installKind a b = some 
   cases a <;> cases b <;> simp [installKind] at h
   subst h; exact ⟨rfl, rfl⟩
 
-/-! ### The lockfile stamp
-
-A reused land worktree (`.claude/land-wt/N`) keeps its `node_modules` between lands. Without a stamp it installs only
-when the land's own diff touches a lockfile, so a lockfile that main changed in between leaves the checks running on stale
-`node_modules` (incident `inc-land-wt-lock-drift`). The stamp is the lockfile hash recorded at the worktree's last
-successful install; it lives in `node_modules`, outside git. -/
-
-/-- Does the worktree install before the checks? A new worktree always does; a reused one does when its stamp is missing
-or differs from the lockfile hash at the checked-out commit. -/
 def installNeeded (known : Bool) (lock : String) (stamp : Option String) : Bool :=
   !known || stamp != some lock
 
-/-- The install step with the stamp: the refusal (if any) and the stamp after the step. `lock` is `none` when the commit has no
-lockfile (nothing to install). The stamp names only an install known to be complete: it is cleared before an install, written
-after a success and left empty after a refusal (a failed install may have rewritten `node_modules`). -/
 def installStep (known : Bool) (lock : Option String) (stamp : Option String) (offlineOk onlineOk : Bool) :
     Option Kind × Option String :=
   match lock with
@@ -120,8 +108,6 @@ def installStep (known : Bool) (lock : Option String) (stamp : Option String) (o
       (if installKind offlineOk onlineOk = none then (none, some h) else (some .install, none))
     else (none, stamp)
 
-/-- **No check runs on a stale stamp.** When the install step does not refuse, the stamp afterwards equals the lockfile hash
-(whenever there is a lockfile): the checks run on `node_modules` installed from the checked-out lockfile. -/
 theorem installStep_checks_see_current_stamp (known : Bool) (h : String) (stamp : Option String) (a b : Bool)
     (hn : (installStep known (some h) stamp a b).1 = none) : (installStep known (some h) stamp a b).2 = some h := by
   unfold installStep installNeeded at *
@@ -135,7 +121,6 @@ theorem installStep_checks_see_current_stamp (known : Bool) (h : String) (stamp 
     simp only [Bool.or_eq_false_iff, Bool.not_eq_false', bne_eq_false_iff_eq] at hk
     simp [hk.2]
 
-/-- A refusal of the install step is `install`, and no stamp is left: the failed install may have changed `node_modules`. -/
 theorem installStep_refusal (known : Bool) (h : String) (stamp : Option String) (a b : Bool) (k : Kind)
     (hr : (installStep known (some h) stamp a b).1 = some k) :
     k = .install ∧ (installStep known (some h) stamp a b).2 = none := by
@@ -145,36 +130,28 @@ theorem installStep_refusal (known : Bool) (h : String) (stamp : Option String) 
     cases a <;> cases b <;> simp [installKind] at hr ⊢ <;> simp [hr]
   · simp [hk] at hr
 
-/-- A reused worktree whose stamp equals the lockfile hash does not install. -/
 theorem installNeeded_reused_current (h : String) : installNeeded true h (some h) = false := by
   simp [installNeeded]
 
-/-- A reused worktree behind main's lockfile (stamp of an older hash) installs. -/
 theorem installNeeded_reused_behind (h s : String) (hne : s ≠ h) : installNeeded true h (some s) = true := by
   simp [installNeeded, hne]
 
-/-- A reused worktree with no stamp installs. -/
 theorem installNeeded_reused_unstamped (h : String) : installNeeded true h none = true := by
   simp [installNeeded]
 
-/-- A new worktree installs whatever its stamp. -/
 theorem installNeeded_new (h : String) (s : Option String) : installNeeded false h s = true := by
   simp [installNeeded]
 
-/-- **After a refused install the next land installs, whatever its lockfile is.** The stamp left by a refusal is empty, so a
-later land (on lockfile `h2`, even the one the stamp had named before) does not reuse the half-installed `node_modules`. -/
 theorem installStep_refused_next_land_installs (known : Bool) (h h2 : String) (stamp : Option String) (a b : Bool) (k : Kind)
     (hr : (installStep known (some h) stamp a b).1 = some k) :
     installNeeded true h2 (installStep known (some h) stamp a b).2 = true := by
   rw [(installStep_refusal known h stamp a b k hr).2]
   exact installNeeded_reused_unstamped h2
 
-/-- Both installs failing on a stale reused worktree refuses with `install`, exit 19, and leaves no stamp. -/
 theorem installStep_behind_both_fail :
     installStep true (some "new") (some "old") false false = (some .install, none) := by
   decide
 
-/-- A stale reused worktree whose offline install works ends stamped with the new hash and does not refuse. -/
 theorem installStep_behind_offline_ok :
     installStep true (some "new") (some "old") true false = (none, some "new") := by
   decide

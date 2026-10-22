@@ -518,7 +518,6 @@ def installCase (offlineOk onlineOk : Bool) : Json :=
 
 def stampJson : Option String → Json | some h => .str h | none => .null
 
-/-- A golden row of the lockfile-stamp install step (`installStep`). -/
 def stampCase (name : String) (known : Bool) (lock stamp : Option String) (offlineOk onlineOk : Bool) : Json :=
   line s!"stamp {name}" [("op", "landVerdict.installStamp"), ("known", .bool known), ("lock", stampJson lock), ("stamp", stampJson stamp),
       ("offlineOk", .bool offlineOk), ("onlineOk", .bool onlineOk)]

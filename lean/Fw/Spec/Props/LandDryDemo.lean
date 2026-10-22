@@ -3,40 +3,6 @@ import Fw.Spec.Incidents
 import Fw.Search
 /-!
 # Worked example: properties first for `fw land --dry` (incident `inc-land-dry-no-verdict`)
-
-The incident: on a branch with no commits of its own, `fw land --dry` printed a path and no `VERDICT` line, so a
-script reading the verdict found none. This module replays the property-first workflow on that decision
-(docs/team/tools/lean-first.md walks through it):
-
-1. **Signature.** `Fw.Spec.LandDrySig.DryImpl := Outcome → String → Out`: stage outcomes and task in, stdout lines
-   and exit code out; `Fw.Spec.Incidents.Sig.landDry` names it for the registry.
-2. **Properties over the signature** (no implementation needed): `NoSilentExit` (exactly one `VERDICT` line) and
-   `TruthfulVerdict` (the last line is the verdict of the first failing stage, and the exit code is that kind's code).
-3. **The registered incident and its replay** live in `Fw.Spec.Incidents` (the one registry), not here: row
-   `incLandDryNoVerdict` with incident inputs `emptyIncident` (an empty branch) and replay `emptyNoVerdict` (on an
-   empty branch it prints only a path line). This module only checks the replay against the real run
-   (`landDryRegistry_faithful`). Two extra mutants, not registered incidents: `exnNoVerdict` (a top-level catch
-   prints the error and exits 1) and `emptyDone` (the empty branch says `done`).
-4. **Search before proof.** Pointwise checks `qOneVerdict`, `qTruthful` with `*_sound` lemmas; `#guard`s run the
-   search over all 256 outcomes (`𝔹^8`, exhaustive) and find the bug in each bad implementation. The
-   `emptyDone` guard shows that `NoSilentExit` alone is blind to that bug, which is why `TruthfulVerdict` exists.
-5. **Kill witnesses** against the registered replay, `P_rejects_inc_land_dry_no_verdict : ¬ P
-   incLandDryNoVerdict.replay`, proved by running the search (`Fw.Search.refutes_of_search`), and so
-   `Kills .landDry P` (`*_kills`). The mutants get `¬ P bad` theorems too, but those are not kills.
-6. **Proof of the real implementation** `dryOut` (`NoSilentExit_impl`, `TruthfulVerdict_impl`), from
-   `Fw.Console.LandDry.dryRun_one_verdict`, and the whole convention `Convention .landDry dryOut P`
-   (`*_convention`). The lint `lean/scripts/PropsLint.lean` checks that neither property mentions `dryOut` or a name
-   it unfolds to outside `Fw.Spec.Incidents.vocab .landDry`.
-   **6b. The kills are on the incident** (`*_on_incident`, from `Fw.Spec.Props.failures_on_incident` and
-   `fails_on_incident`): the replay fails each check only on incident inputs, and on at least one. The search
-   result holds for every task name, not only `"x"` (`emptyNoVerdict_search`, `exnNoVerdict_search`).
-   **6c. An unrelated property is not a kill.** `Silly` (the exit code is at most 100) holds of `dryOut` and rejects a
-   made-up bad (`sillyBad`), but it passes the registered replay (`Silly_passes_replay`), so it kills no registered
-   incident (`Silly_not_kill`) and does not meet the convention (`Silly_not_convention`). A kill still only means
-   "separates `dryOut` from the replay"; that the math of `NoSilentExit` matches the ledger's `leanReason`
-   (`|lines_VERDICT| = 1`) is the reviewer's check.
-7. **Premise visible**: `stdout_one_verdict` carries `Assume` for the step Lean cannot see, that `land.ts` prints
-   `dryOut`'s lines verbatim.
 -/
 namespace Fw.Spec.Props.LandDryDemo
 open Fw.Console.LandVerdict Fw.Console.LandDry Fw.Search Fw.Spec.Props Fw.Spec.LandDrySig Fw.Spec.Incidents
@@ -85,7 +51,6 @@ theorem landDryRegistry_faithful : Faithful .landDry dryOut := fun i hi => by
 
 /-! ## Step 4: pointwise checks and the search, before any proof -/
 
-/-- All 256 stage outcomes, through `𝔹^8`. -/
 instance instEnumAllOutcome : EnumAll Outcome :=
   EnumAll.ofEquiv (β := Bool × Bool × Bool × Bool × Bool × Bool × Bool × Bool)
     (fun ⟨a, b, c, d, e, f, g, h⟩ => ⟨a, b, c, d, e, f, g, h⟩)
@@ -120,7 +85,6 @@ check at that task on every outcome. -/
 theorem qTruthful_sound (run : DryImpl) (t : String) : TruthfulVerdict run → ∀ o, qTruthful run t o = true :=
   fun h => (TruthfulVerdict_iff run).mp h t
 
--- the search over all 256 outcomes, task `x`: clean on the real run, a counterexample for each bad run
 #guard (EnumAll.all : List Outcome).length == 256
 #guard (search EnumAll.all (qOneVerdict dryOut "x")).isNone
 #guard (search EnumAll.all (qTruthful dryOut "x")).isNone

@@ -359,10 +359,8 @@ export function checkoutLandWt(mainDir: string, dir: string, commit: string, pre
   return refusal;
 }
 
-/** One install attempt: `ok`, and the tail of its stderr when it failed. A plain boolean is accepted (tests). */
 export type InstallResult = boolean | { ok: boolean; tail?: string };
 export type InstallExec = (argv: string[], cwd: string) => InstallResult;
-/** The install timeout (accepted limit: fixed). */
 export const INSTALL_TIMEOUT_MS = 10 * 60_000;
 const tailOf = (text: string, n = 6) => text.split("\n").map((l) => l.trimEnd()).filter((l) => l !== "").slice(-n).join(" | ");
 const installExec: InstallExec = (argv, cwd) => {
@@ -374,7 +372,6 @@ const installExec: InstallExec = (argv, cwd) => {
   }
 };
 const resultOf = (r: InstallResult) => (typeof r === "boolean" ? { ok: r, tail: "" } : { ok: r.ok, tail: r.tail ?? "" });
-/** The process exit code of a finished land: the kind of the result (done or unknown when it has none) through the exit table. */
 export const landExit = (res: { ok: boolean; kind?: Kind }): number => exitCode(res.kind ?? (res.ok ? "done" : "unknown"));
 export function landInstall(dir: string, exec: InstallExec = installExec): string | null {
   const off = resultOf(exec(["pnpm", "install", "--offline", "--frozen-lockfile"], dir));
@@ -383,7 +380,6 @@ export function landInstall(dir: string, exec: InstallExec = installExec): strin
   return `install failed in ${dir}: offline and online \`pnpm install --frozen-lockfile\` both failed (no network, or a bad lockfile?)\n  offline stderr: ${off.tail || "(none)"}\n  online stderr: ${on.tail || "(none)"}`;
 }
 
-/** The lockfile stamp: the sha256 of pnpm-lock.yaml at the worktree's last successful install, kept in node_modules (outside git). */
 export type StampFs = { lockHash(dir: string): string | null; readStamp(dir: string): string | null; writeStamp(dir: string, hash: string): void; clearStamp(dir: string): void };
 export const STAMP_FILE = "node_modules/.fw-lock-stamp";
 export const realStampFs: StampFs = {
@@ -392,7 +388,6 @@ export const realStampFs: StampFs = {
   writeStamp: (dir, hash) => { mkdirSync(join(dir, "node_modules"), { recursive: true }); writeFileSync(join(dir, STAMP_FILE), `${hash}\n`); },
   clearStamp: (dir) => { rmSync(join(dir, STAMP_FILE), { force: true }); },
 };
-/** Follows Lean `installStep`: install when the worktree is new or its stamp differs from the checked-out lockfile; the stamp is cleared before the install and written only after a success. */
 export function landInstallStamped(dir: string, known: boolean, exec: InstallExec = installExec, fs: StampFs = realStampFs): string | null {
   const lock = fs.lockHash(dir);
   const stamp = fs.readStamp(dir);

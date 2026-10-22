@@ -7,7 +7,6 @@ export const EXIT: Record<Kind, number> = { busy: 10, dirty: 11, scope: 12, read
 export const installRunsOnline = (offlineOk: boolean): boolean => !offlineOk;
 export const installKind = (offlineOk: boolean, onlineOk: boolean): Kind | null => (offlineOk || onlineOk ? null : "install");
 export const installNeeded = (known: boolean, lock: string, stamp: string | null): boolean => !known || stamp !== lock;
-/** TS stand-in for Lean `installStep` (golden op `landVerdict.installStamp`); marked for replacement by an fwcore op. */
 export function installStep(known: boolean, lock: string | null, stamp: string | null, offlineOk: boolean, onlineOk: boolean): { kind: Kind | null; stampAfter: string | null } {
   if (lock === null || !installNeeded(known, lock, stamp)) return { kind: null, stampAfter: stamp };
   return installKind(offlineOk, onlineOk) === null ? { kind: null, stampAfter: lock } : { kind: "install", stampAfter: null };

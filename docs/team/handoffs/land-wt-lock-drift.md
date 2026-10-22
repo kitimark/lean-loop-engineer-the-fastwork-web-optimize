@@ -1,10 +1,10 @@
 # land-wt-lock-drift handoff
 
 Branch: worktree-wf_ba3bf2ed-e75-1. Worktree: .claude/worktrees/wf_ba3bf2ed-e75-1. CI runs: none (no CI push needed; local gates only).
-Last code commit: a1319b4da (check the branch tip for the handoff commit).
+Last code commit: a1319b4da.
 
 ## Round 2
-Stamp is cleared before every install (`clearStamp` in StampFs); Lean `installStep` refusal returns `(some .install, none)`; theorems `installStep_refusal` (.2 = none), `installStep_refused_next_land_installs`; golden row stampAfter null; `landExit(res)` in land.ts maps result to exit (used by fw-main); tests: A/B/A, clear-before-install, exit 19 via landExit, no land-logs file in the real both-fail land. CI runs: none.
+Stamp is cleared before every install (`clearStamp` in StampFs); Lean `installStep` refusal returns `(some .install, none)`; theorems `installStep_refusal` (.2 = none), `installStep_refused_next_land_installs`; golden row stampAfter null; `landExit(res)` in land.ts maps result to exit (used by fw-main); tests: A/B/A, clear-before-install, exit 19 via landExit, no land-logs file in the real both-fail land.
 
 ## Done
 - Lean `LandVerdict.lean`: `installNeeded`, `installStep` (lockfile stamp), theorems `installStep_checks_see_current_stamp`, `installStep_refusal`, `installNeeded_reused_*`, `installNeeded_new`, `installStep_behind_*`.
