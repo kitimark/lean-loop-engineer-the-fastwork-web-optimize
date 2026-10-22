@@ -29,7 +29,7 @@ export const textOf = (c: unknown): string =>
   typeof c === "string" ? c : Array.isArray(c) ? c.map((x: any) => (typeof x === "string" ? x : typeof x?.text === "string" ? x.text : textOf(x?.content))).join("\n") : "";
 
 /** Bump when the shape or meaning of `FoldState` changes (the code hash of the cache covers the rest). */
-export const FOLD_SCHEMA = 1;
+export const FOLD_SCHEMA = 2;
 
 type Usage = [number, number, number, number]; // input, output, cache read, cache write
 /** What `summarizeTranscript` reads: everything except the meta file, which `finishInfo` adds. */
@@ -37,13 +37,13 @@ interface SumState {
   model: string | null; firstAt: number | null; lastAt: number | null; toolUses: number; toolErrors: number;
   lastTool: string | null; lastToolAt: number | null; agentCalls: string[]; bgTasks: string[];
   usage: Map<string, Usage>; n: number; ctx: number | null; endedTurn: boolean; structDone: boolean;
-  open: Map<string, { tool: string; at: number }>;
+  open: Map<string, { tool: string; at: number; msg: string }>; newest: string | null; anon: number;
 }
 /** What `signalsOf` reads. `commands` and `outputs` are only filled when `aux`. */
 interface SigState {
   launched: { id: string; time: number }[]; ends: SigEnd[]; bounds: { time: number; start: boolean }[]; handbacks: number[];
   commands: Map<string, string>; outputs: Map<string, string>; uses: Map<string, { name: string; command: string | null }>;
-  open: Set<string>; lastAt: number | null;
+  open: Map<string, string>; newest: string | null; lastAt: number | null;
   launchedIds: Set<string>; endedIds: Set<string>; // rebuilt from `launched` and `ends` on load
 }
 export interface FoldState { aux: boolean; sum: SumState; sig: SigState }
@@ -52,10 +52,14 @@ export function initFold(aux = false): FoldState {
   return {
     aux,
     sum: { model: null, firstAt: null, lastAt: null, toolUses: 0, toolErrors: 0, lastTool: null, lastToolAt: null, agentCalls: [], bgTasks: [],
-      usage: new Map(), n: 0, ctx: null, endedTurn: false, structDone: false, open: new Map() },
-    sig: { launched: [], ends: [], bounds: [], handbacks: [], commands: new Map(), outputs: new Map(), uses: new Map(), open: new Set(),
+      usage: new Map(), n: 0, ctx: null, endedTurn: false, structDone: false, open: new Map(), newest: null, anon: 0 },
+    sig: { launched: [], ends: [], bounds: [], handbacks: [], commands: new Map(), outputs: new Map(), uses: new Map(), open: new Map(), newest: null,
       lastAt: null, launchedIds: new Set(), endedIds: new Set() },
   };
+}
+
+function newestMessage<V>(open: Map<string, V>, msg: string, of: (v: V) => string): void {
+  for (const [id, v] of open) if (of(v) !== msg) open.delete(id);
 }
 
 /** One non-empty line. A line that is not JSON changes nothing. */
@@ -63,11 +67,12 @@ export function stepLine(st: FoldState, line: string): void {
   let o: any;
   try { o = JSON.parse(line); } catch { return; }
   if (o === null) return; // `null.timestamp` threw in the unfolded loops (the file then counted as unreadable)
-  stepSum(st.sum, o);
-  stepSig(st, o);
+  const msg = o.type === "assistant" && o.message ? str(o.message.id) ?? `#anon${st.sum.anon++}` : null;
+  stepSum(st.sum, o, msg);
+  stepSig(st, o, msg);
 }
 
-function stepSum(s: SumState, o: any): void {
+function stepSum(s: SumState, o: any, msg: string | null): void {
   const at = typeof o.timestamp === "string" ? Date.parse(o.timestamp) : NaN;
   if (Number.isFinite(at)) { s.firstAt ??= at; s.lastAt = Math.max(s.lastAt ?? 0, at); }
   const m = o.message;
@@ -83,11 +88,12 @@ function stepSum(s: SumState, o: any): void {
   }
   if ((o.type === "assistant" || o.type === "user") && Array.isArray(m?.content)) {
     let hasUse = false;
+    if (msg !== null) { s.newest = msg; newestMessage(s.open, msg, (v) => v.msg); }
     for (const c of m.content) {
       if (c?.type === "tool_use" && typeof c.id === "string") {
         hasUse = true; s.toolUses++;
         const tool = String(c.name ?? "?"), t = Number.isFinite(at) ? at : 0;
-        s.open.set(c.id, { tool, at: t });
+        s.open.set(c.id, { tool, at: t, msg: s.newest ?? "" });
         if (s.lastToolAt === null || t >= s.lastToolAt) { s.lastTool = tool; s.lastToolAt = t; }
         if (o.type === "assistant" && (tool === "Agent" || tool === "Task")) s.agentCalls.push(c.id); // a child's meta.toolUseId
       }
@@ -104,7 +110,7 @@ function stepSum(s: SumState, o: any): void {
   }
 }
 
-function stepSig(st: FoldState, o: any): void {
+function stepSig(st: FoldState, o: any, msg: string | null): void {
   const s = st.sig;
   const t0 = typeof o.timestamp === "string" ? Date.parse(o.timestamp) : NaN;
   if (!Number.isFinite(t0)) return;
@@ -127,10 +133,11 @@ function stepSig(st: FoldState, o: any): void {
     }
   }
   if ((o.type === "assistant" || o.type === "user") && Array.isArray(m?.content)) {
+    if (msg !== null) { s.newest = msg; newestMessage(s.open, msg, (v) => v); }
     for (const c of m.content) {
       if (c?.type === "tool_use" && typeof c.id === "string") {
         s.uses.set(c.id, { name: String(c.name ?? ""), command: st.aux && typeof c.input?.command === "string" ? c.input.command : null });
-        s.open.add(c.id);
+        s.open.set(c.id, s.newest ?? "");
       } else if (c?.type === "tool_result" && typeof c.tool_use_id === "string") {
         s.open.delete(c.tool_use_id);
         const u = s.uses.get(c.tool_use_id);
@@ -198,7 +205,7 @@ export function saveFold(st: FoldState): Json {
   const s = st.sum, g = st.sig;
   return {
     sum: { ...s, usage: [...s.usage], open: [...s.open] },
-    sig: { launched: g.launched, ends: g.ends, bounds: g.bounds, handbacks: g.handbacks, uses: [...g.uses].map(([k, v]) => [k, v.name]), open: [...g.open], lastAt: g.lastAt },
+    sig: { launched: g.launched, ends: g.ends, bounds: g.bounds, handbacks: g.handbacks, uses: [...g.uses].map(([k, v]) => [k, v.name]), open: [...g.open], newest: g.newest, lastAt: g.lastAt },
   };
 }
 /** The state saved by `saveFold`, or null when the shape does not fit (the caller then reads the whole file). */
@@ -209,7 +216,7 @@ export function loadFold(j: any): FoldState | null {
     Object.assign(st.sum, s, { usage: new Map(s.usage), open: new Map(s.open) });
     st.sig.launched = g.launched; st.sig.ends = g.ends; st.sig.bounds = g.bounds; st.sig.handbacks = g.handbacks;
     st.sig.uses = new Map((g.uses as [string, string][]).map(([k, name]) => [k, { name, command: null }]));
-    st.sig.open = new Set(g.open); st.sig.lastAt = g.lastAt;
+    st.sig.open = new Map(g.open); st.sig.newest = g.newest ?? null; st.sig.lastAt = g.lastAt;
     st.sig.launchedIds = new Set(st.sig.launched.map((x) => x.id)); st.sig.endedIds = new Set(st.sig.ends.map((x) => x.id));
     if (typeof st.sum.toolUses !== "number" || !Array.isArray(st.sig.launched) || !Array.isArray(st.sig.ends) || !Array.isArray(st.sum.agentCalls)) return null;
     return st;
