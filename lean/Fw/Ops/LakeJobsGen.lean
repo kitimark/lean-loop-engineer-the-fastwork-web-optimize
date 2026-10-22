@@ -13,6 +13,7 @@ def rows : List (String × String × Bool × List String) := [
   ("land.yml", "land", false, ["fwcore"]),
   ("lean.yml", "lean", true, ["Fw", "fwcore", "mathview", "breakgen", "propslint"]),
   ("mutants.yml", "shard", false, ["Fw", "FwTest.Mutants.Kill", "fwcore", "mathview", "breakgen", "propslint"]),
+  ("path-pix.yml", "site", false, ["breakgen"]),
   ("preview-e2e.yml", "engine", false, ["fwcore"]),
   ("smoothness.yml", "site", false, ["breakgen"]),
   ("snapshot-extract.yml", "site", false, ["breakgen"]),
