@@ -12,6 +12,9 @@ name: smoothness
 # `cadence` job is then skipped): `webkit-mac` (Playwright WebKit on macos-26, a real wheel) and `webkit-sim` (Mobile Safari in the iOS
 # Simulator on xcode-27, scripted scroll). Each runs every arm in one job and records the WebKit Timeline per frame and zone
 # (lean/Fw/Measure/WebKitProfile.lean, twin packages/measure-webkit/src/profile/reduce.mjs); both have a cap row in Fw.Ci.Pool.Caps.
+# A head commit that also carries `[earn-bound]` (task earn-bound-arm) runs only `base`, `aa` and the probe-only `bound` arm (the faithful page with
+# the earn button's transitions off, packages/gate-breakpoints/src/smooth/bound.mjs) with each half of the end push held 1400 ms; no candidate search.
+# `[sim-only]` (with `[earn-bound]`) skips the macOS leg and runs 6 reps per simulator job (36 windows; a job needs 5 kept finish windows per arm to decide, and the Simulator tends to die after about 30 to 40 windows).
 # Tables: `node packages/measure-webkit/src/profile/cli.mjs report` over the downloaded artifacts smoothness-webkit-mac-N / -sim-N (N = the matrix job, 1 to 3).
 # Inputs of a ci/* push: the `[trajectory ...]` line of the head commit, parsed by the Lean-checked parser .github/scripts/trajectory-line.mjs
 # (preset or fw picks the candidate, widths the legs; empty widths = 390 and 1280; the engines key is ignored).
@@ -252,7 +255,7 @@ jobs:
   # agreement over jobs need three separate jobs; each job writes its raw windows (`mac.raw.json.gz`) beside the leg file.
   webkit-mac:
     needs: [site]
-    if: ${{ contains(github.event.head_commit.message, '[webkit-cadence]') }}
+    if: ${{ contains(github.event.head_commit.message, '[webkit-cadence]') && !contains(github.event.head_commit.message, '[sim-only]') }}
     concurrency:
       group: ci-lane:smoothness:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:webkit-mac:${{ strategy.job-index }}
     runs-on: macos-26
@@ -300,14 +303,18 @@ jobs:
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
           # Timeline-on repeats (the profile) and Timeline-off repeats (the cadence, reported apart).
-          REPS: 6
+          REPS: ${{ contains(github.event.head_commit.message, '[earn-bound]') && '8' || '6' }}
           CADENCE_REPS: 5
+          # `[earn-bound]` (task earn-bound-arm): base, aa and the probe-only bound arm only, end-push halves held 1400 ms (no candidate search needed);
+          # two more Timeline repeats than usual so a refused window leaves the five the Lean verdict needs.
+          ARMS: ${{ contains(github.event.head_commit.message, '[earn-bound]') && 'base,aa,bound' || '' }}
+          HOLD_MS: ${{ contains(github.event.head_commit.message, '[earn-bound]') && '1400' || '' }}
         working-directory: packages/gate-breakpoints
         run: |
           set -euo pipefail
           mkdir -p out/smoothness-webkit
           { sw_vers; sysctl -n machdep.cpu.brand_string; sysctl -n hw.ncpu; } > out/smoothness-webkit/mac-tools.txt 2>&1 || true
-          node src/smooth/cli.mjs webkit --width 390 --search "$SEARCH" --reps "$REPS" --cadence-reps "$CADENCE_REPS" --out out/smoothness-webkit
+          node src/smooth/cli.mjs webkit --width 390 --search "$SEARCH" --reps "$REPS" --cadence-reps "$CADENCE_REPS" ${ARMS:+--arms "$ARMS"} ${HOLD_MS:+--hold-ms "$HOLD_MS"} --out out/smoothness-webkit
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
         with:
@@ -399,14 +406,17 @@ jobs:
           SEARCH: ${{ needs.site.outputs.search }}
           SITE_DIR: ${{ runner.temp }}/site
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
-          REPS: 5
+          REPS: ${{ contains(github.event.head_commit.message, '[sim-only]') && '6' || contains(github.event.head_commit.message, '[earn-bound]') && '7' || '5' }}
           # The runner boots Safari several times slower than a Mac: every wait in packages/measure-webkit is scaled (counts do not depend on waits).
           FW_WK_TIMEOUT_SCALE: '8'
           FW_WK_ATTEMPTS: '3'
+          # `[earn-bound]`: see the macOS leg.
+          ARMS: ${{ contains(github.event.head_commit.message, '[earn-bound]') && 'base,aa,bound' || '' }}
+          HOLD_MS: ${{ contains(github.event.head_commit.message, '[earn-bound]') && '1400' || '' }}
         working-directory: packages/measure-webkit
         run: |
           set -euo pipefail
-          node src/profile/cli.mjs sim --site "$SITE_DIR" --search "$SEARCH" --reps "$REPS" --out "$RUNNER_TEMP/result" 2> >(tee "$RUNNER_TEMP/result/sim.log" >&2)
+          node src/profile/cli.mjs sim --site "$SITE_DIR" --search "$SEARCH" --reps "$REPS" ${ARMS:+--arms "$ARMS"} ${HOLD_MS:+--hold-ms "$HOLD_MS"} --out "$RUNNER_TEMP/result" 2> >(tee "$RUNNER_TEMP/result/sim.log" >&2)
       - name: Keep host state
         if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
         timeout-minutes: 3

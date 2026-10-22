@@ -1,7 +1,4 @@
 #!/usr/bin/env node
-// smoothness-webkit-cadence, leg 2 and the tables. Usage:
-//   node src/profile/cli.mjs sim --site <dist/aot> --search ?fw=... --reps 6 --out <dir>   iOS Simulator leg (writes <dir>/sim.json)
-//   node src/profile/cli.mjs report --runs <dir> --out <dir> [--note <file>] [--jobs <dir>]   tables from downloaded leg files
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 
@@ -13,14 +10,15 @@ if (cmd === 'sim') {
   const { runSimCadence } = await import('./sim-cadence.mjs');
   const site = flag('--site');
   const search = flag('--search');
-  if (!site || !search) { console.error('sim needs --site <dir> --search ?fw=...'); process.exit(2); }
+  const { parseArms } = await import('../../../gate-breakpoints/src/smooth/bound.mjs');
+  const only = parseArms(flag('--arms'));
+  if (!site || (!search && !only)) { console.error('sim needs --site <dir> and --search ?fw=... (or --arms base,aa,bound)'); process.exit(2); }
   const out = flag('--out') ?? 'out/smoothness-webkit';
-  const res = await runSimCadence({ siteDir: resolve(site), lookSearch: search, reps: Number(flag('--reps') ?? 6), settleMs: Number(flag('--settle') ?? 2500) });
+  const res = await runSimCadence({ siteDir: resolve(site), lookSearch: search, reps: Number(flag('--reps') ?? 6), only, holdMs: flag('--hold-ms'), settleMs: Number(flag('--settle') ?? 2500) });
   mkdirSync(out, { recursive: true });
   const { writeRaws } = await import('./raw.mjs');
   writeFileSync(join(out, 'sim.json'), `${JSON.stringify(writeRaws(out, 'sim', res))}\n`);
   console.log(`webkit sim: ${res.rows.length} windows, refused=${res.refused}, incomplete=${res.incomplete ?? 'no'}, ${res.wallSeconds} s, ${res.runtime}`);
-  // a refused arm identity fails the job; an incomplete session keeps its windows read so far (the report counts them) unless none was kept
   if (res.refused || (res.incomplete && !res.rows.some((r) => r.ok))) process.exit(1);
 } else if (cmd === 'report') {
   const { reportMain } = await import('./report.mjs');
