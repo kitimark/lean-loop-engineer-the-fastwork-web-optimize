@@ -3866,7 +3866,7 @@
    "id": "inc-slot-stall",
    "at": "2026-10-22T08:30+07:00",
    "title": "The local slot queue stalled about 2 h: limit 1, 0 holders, 5 tickets queued, every one waiting memLow",
-   "symptom": "fw slot status showed limit 1, 0 holders and 5 queued (land dry, check.sh, runner tests) for about 2 h; available 194 MB, kernel pressure level 1, compressing 0 MB/min, swap 3,276 of 4,096 MB. vm_stat over 30 s showed 0 swapouts, 0 pageouts and 4 swapins. Each ticket would only have timed out after maxWaitS 1,800 s.",
+   "symptom": "fw slot status showed limit 1, 0 holders and 5 queued (land dry, check.sh, runner tests) for about 2 h; available 194 MB, kernel pressure level 1, compressing 0 MB/min, swap 3,276 of 4,096 MB. vm_stat over 30 s showed 0 swapouts, 0 pageouts and 4 swapins. Each ticket would only have timed out after maxWaitS 1,800 s. The vm_stat reading replayed as stallSample (free 179, speculative 17, purgeable 85 MB; file 4,443 MB under its 4,608 MB minimum) gives 281 MB; slot status read 194 MB at another moment.",
    "cause": "CONFIRMED (lean/Fw/Sup/Adapt.lean memLow and verdict before slot-idle-head): slot-mem-avail made availMB exclude file cache under its kernel minimum (4,443 MB under 4,608 MB added 0), and swapFull read swap occupancy, which stays high after idle swap-outs since macOS keeps stale swapped pages and adds swap files on demand. memLow therefore held with 0 holders, and verdict waited memLow even though no job of ours held the memory and waiting could not free it.",
    "evidence": [
     {

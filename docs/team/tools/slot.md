@@ -53,7 +53,8 @@ pnpm -s fw slot admit --kind build                       # lead, before spawning
   ticket admitted on a sample is still admitted when only its memory reading is better (`memLow_antitone`,
   `verdict_antitone`).
 - **Idle head.** With no live holder, pressure level 1, no `thrash` and no `swapActive` (`idleHead`), the head of
-  its kind is admitted even under `memLow` or a footprint that does not fit (`idle_head_admitted`); waiting frees
+  its kind is admitted even under `memLow` or a footprint that does not fit, unless an older ticket of another kind
+  is starved or a sim ticket goes first (`idle_head_admitted`); waiting frees
   nothing then, since other programs hold the memory. Such an admit means no holder was live
   (`idle_head_only_when_empty`), and once it holds a slot no other ticket is admitted on the same reading
   (`idle_head_at_most_one`). With a live holder the verdict is the strict one (`verdict_unchanged_with_holder`).
