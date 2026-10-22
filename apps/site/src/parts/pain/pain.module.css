@@ -81,6 +81,20 @@
     font-weight: 400;
     line-height: 24px;
   }
+  /* 0.78125% = 256 / 32768 of the range (Lean offsetX): the flip. The second interval's steps(1, jump-start) makes the
+     opacity 1 from that offset on, and 0 before it. */
+  @keyframes painDark {
+    0% {
+      opacity: 0;
+    }
+    0.78125% {
+      opacity: 0;
+      animation-timing-function: steps(1, jump-start);
+    }
+    100% {
+      opacity: 1;
+    }
+  }
   @media (prefers-reduced-motion: no-preference) {
     .sticky {
       position: sticky;
@@ -128,6 +142,38 @@
     }
     .board {
       display: none;
+    }
+    /* Variant `dark-scroll` (Lean Fw.Parts.PainDarkScroll): the white section, stage and hold stay as they are; two empty
+       #131922 layers lie over them (the hold region, and the stage above its own background) and turn on at the flip
+       offset: a range on the root scroll timeline that starts 256px before it, `--fw-pain-dark-t` (written by
+       darkScroll.ts), and is 32768px long, so the animation is already running when the scroll crosses the flip.
+       They are pseudo-elements, so no element is added or restyled. The people part leaves the class alone only
+       where this @supports holds. */
+    @supports ((animation-timeline: scroll(root)) and (animation-range-start: 1px)) {
+      .pain[data-fw-variant='dark-scroll']::before,
+      .pain[data-fw-variant='dark-scroll'] .sticky::before {
+        content: '';
+        pointer-events: none;
+        background: #131922;
+        opacity: 0;
+        animation-name: painDark;
+        animation-duration: auto;
+        animation-timing-function: linear;
+        animation-fill-mode: both;
+        animation-timeline: scroll(root block);
+        animation-range-start: var(--fw-pain-dark-t, 100000000px);
+        animation-range-end: calc(var(--fw-pain-dark-t, 100000000px) + 32768px);
+        position: absolute;
+      }
+      .pain[data-fw-variant='dark-scroll']::before {
+        z-index: 0;
+        height: 200svh;
+        inset: auto 0 0;
+      }
+      .pain[data-fw-variant='dark-scroll'] .sticky::before {
+        z-index: -1;
+        inset: 0;
+      }
     }
   }
 }
