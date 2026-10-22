@@ -1,8 +1,8 @@
 # oracle-eps handoff
 
-- Branch `worktree-wf_dbb77429-5d3-1`, worktree `.claude/worktrees/wf_dbb77429-5d3-1`; main merged at d79a1a88
+- Branch `worktree-wf_dbb77429-5d3-1`, worktree `.claude/worktrees/wf_dbb77429-5d3-1`; main merged at 76f51b05
   (round 2). Last commit: see `git log -1` (round-2 commit "oracle-eps: round 2 ...").
-- No CI runs (Lean check, tests and the dry land ran locally through `fw slot`).
+- No CI runs. Local: check.sh green at 787d9ba9 (Lean unchanged since), ci-paths 54/54, land-inputs 56/56, dry `VERDICT dry oracle-eps`.
 
 ## State
 - `lean/Fw/Oracle/Core.lean`: `sumOk` = `sumEps` (old rule) or `roundOk` at the reply's `precision` (≤ 9 decimals,
