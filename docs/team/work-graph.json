@@ -16727,7 +16727,8 @@
     "lean/Fw/Sup/AdaptGolden.lean",
     "packages/contracts/golden/sup/adapt.jsonl"
    ],
-   "title": "fw watch raised timing.slow for 'fw/slot acquire sim' at 1521 s (2026-10-22): the acquire waited behind another sim holder (locks.jsonl: one sim lease held 1826 s), i.e. a queue wait, not a slow step. Fw.Obs.Timing judges contention by load only (contendedLoad 8), so a lock wait at load 4 reads as slow. Closed rule by identity: the acquire span records the holder it waited behind (slot.ts: kind, owner, waitMs from the queue); Timing gives a sample that waited behind a live holder the verdict queued (never slow, never in a window) and judges only the remaining non-wait time; theorem queued_not_slow plus the existing windowOf properties. A queue wait longer than the holder's lease plus grace stays an alert (lease expiry is the real fault). Golden vectors from Lean; slot.ts and the timing reader checked against them."
+   "title": "fw watch raised timing.slow for 'fw/slot acquire sim' at 1521 s (2026-10-22): the acquire waited behind another sim holder (locks.jsonl: one sim lease held 1826 s), i.e. a queue wait, not a slow step. Fw.Obs.Timing judges contention by load only (contendedLoad 8), so a lock wait at load 4 reads as slow. Closed rule by identity: the acquire span records the holder it waited behind (slot.ts: kind, owner, waitMs from the queue); Timing gives a sample that waited behind a live holder the verdict queued (never slow, never in a window) and judges only the remaining non-wait time; theorem queued_not_slow plus the existing windowOf properties. A queue wait longer than the holder's lease plus grace stays an alert (lease expiry is the real fault). Golden vectors from Lean; slot.ts and the timing reader checked against them.",
+   "evidence": "beaa8b0"
   },
   {
    "devices": [

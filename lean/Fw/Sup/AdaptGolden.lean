@@ -523,7 +523,9 @@ def windowLines (_ : Unit := ()) : List String :=
 
 set_option compiler.extract_closed false in
 def goldenLines (_ : Unit := ()) : List String :=
-  [line "default parameters" "adapt.params" [] (paramsJson {})] ++ stepLines ++ verdictLines ++ threadsLines ++ memLines ++
+  [line "default parameters" "adapt.params" [] (paramsJson {}),
+    line "reason names (WhyTag.all): the closed parse list of the timing spans" "adapt.whyTags" []
+      (Json.mkObj [("names", .arr (WhyTag.all.map (fun t => Json.str t.name)).toArray)])] ++ stepLines ++ verdictLines ++ threadsLines ++ memLines ++
     leaseLines ++ simLines ++ buildLines ++ holdLines ++ stopLines ++ cacheLines ++ windowLines ()
 
 def genPath : System.FilePath := "../packages/contracts/golden/sup/adapt.jsonl"
