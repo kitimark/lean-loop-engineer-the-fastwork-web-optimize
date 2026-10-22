@@ -373,7 +373,6 @@ const installExec: InstallExec = (argv, cwd) => {
 };
 const resultOf = (r: InstallResult) => (typeof r === "boolean" ? { ok: r, tail: "" } : { ok: r.ok, tail: r.tail ?? "" });
 export const landExit = (res: { ok: boolean; kind?: Kind }): number => exitCode(res.kind ?? (res.ok ? "done" : "unknown"));
-/** The dry land's CLI output: stderr lines, the stdout log from the Lean `dryRun`, and the exit code from `exitCode`. */
 export const dryLandReport = (res: Pick<LandResult, "lines" | "outcome">, task: string): { err: string[]; out: string[]; code: number } => {
   const oc = res.outcome ?? outcome({ threw: true });
   return { err: res.lines, out: dryRun(oc, task), code: exitCode(outcomeKind(oc)) };
