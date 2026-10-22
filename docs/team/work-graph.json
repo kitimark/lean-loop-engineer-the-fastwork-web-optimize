@@ -15408,7 +15408,8 @@
     "docs/team/tools/slot.md",
     "docs/team/handoffs/slot-waiter-light.md",
     "apps/runner/src/fw-main.ts"
-   ]
+   ],
+   "evidence": "88f8ca1"
   },
   {
    "devices": [
