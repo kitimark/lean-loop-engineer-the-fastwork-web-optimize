@@ -14987,7 +14987,9 @@
     "apps/site/src/parts/hero.countdown/**",
     "apps/site/src/parts/nav/**",
     "apps/site/src/parts/morph.panel/**",
-    "docs/team/handoffs/layer-decl.md"
+    "docs/team/handoffs/layer-decl.md",
+    "apps/runner/src/land.ts",
+    "lean/Fw/Parts/FootprintData.lean"
    ]
   },
   {
@@ -15000,7 +15002,7 @@
    "deps": [
     "layer-decl"
    ],
-   "title": "User 2026-10-22 approved the Layer Composer design (review page answers: design Approve; Q4 text layers are a look change until the user sees their strips; Q5 Core Animation blur measured only, shown as Q; snap off by default, on per layer after the user approves its strip; headline = B vs the page as it runs today, frame time p50/p90/p99 ms with fps at the same quantiles, compositor frames on Chromium only; a cell measured within 1 level with no proved bound is Q). Original ask: 'i could pick which layers/component by myself ... some change may effective multiple layer, part or components'. Design text: lead scratch layer-composer/design-checked.md (path in the build prompt). Task 2: Lean Fw.Console.Layers (design §3): clash over the whole expanded page (write/write incl. composite as will-change, write-or-clear vs read, I1/I2/I4) coupled only with a Change's combined theorem, else refused; expansion never overrides (refuse + fix closed under requires); look grade E < E1 < Q < L with hypotheses, only E composes (lego_swap_visible_set); premises per arm (P1-P4, S1, C1, C2, C5, C6, T1); canonical search with `fwl` (BuildsOpen.validate learns fwl; link_resolves holds); closed refusal list with goldens; footprints extracted per variant (part-footprint.mjs variant field, clears derived), never declared by hand. FootprintData.lean regenerated at land, never edited by hand.",
+   "title": "User 2026-10-22 approved the Layer Composer design (review page answers: design Approve; Q4 text layers are a look change until the user sees their strips; Q5 Core Animation blur measured only, shown as Q; snap off by default, on per layer after the user approves its strip; headline = B vs the page as it runs today, frame time p50/p90/p99 ms with fps at the same quantiles, compositor frames on Chromium only; a cell measured within 1 level with no proved bound is Q). Original ask: 'i could pick which layers/component by myself ... some change may effective multiple layer, part or components'. Design text: lead scratch layer-composer/design-checked.md (path in the build prompt). Task 2: Lean Fw.Console.Layers (design §3): clash over the whole expanded page (write/write incl. composite as will-change, write-or-clear vs read, I1/I2/I4) coupled only with a Change's combined theorem, else refused; expansion never overrides (refuse + fix closed under requires); look grade E < E1 < Q < L with hypotheses, only E composes (lego_swap_visible_set); premises per arm (P1-P4, S1, C1, C2, C5, C6, T1); canonical search with `fwl` (BuildsOpen.validate learns fwl; link_resolves holds); closed refusal list with goldens; footprints extracted per variant (part-footprint.mjs variant field, clears derived), never declared by hand. FootprintData.lean regenerated at land, never edited by hand. `files` (layer-decl convention, landed with layer-decl): each variant lists every non-test source file of its part folder that it runs; a variant's own files = files(v) \\ files(faithful); a footprint record's variants = the variants whose `files` list its file. Variants that differ from faithful only by a branch inside a shared file (hero.countdown strip and one-chain: hero.countdown/index.tsx:67, driver.ts:63; nav earn-no-transition: nav/index.tsx:85) have no own file: attribute them at branch level or refuse them as not extractable, never equal to faithful. Once BuildsOpen.validate learns fwl, replace the okChar regex over BuildsOpen.lean source in apps/site/src/parts/hero/layers.component.test.ts with a Lean-generated golden (each declared layer id passes validate on ?fwl=<id>:c), and extend that DOM test to render every listed variant (hero:scene-pause, hero.countdown:hidden-pause and one-chain, nav:earn-no-transition) with the real morph fwId 'morph-countdown-clock'.",
    "writes": [
     "lean/Fw/Console/Layers*.lean",
     "lean/Fw/Console/Compose.lean",
@@ -15015,7 +15017,8 @@
     "packages/contracts/golden/console/console.compose.jsonl",
     "packages/contracts/golden/console/layers*.jsonl",
     "packages/contracts/golden/parts/footprint*.gen.json",
-    "docs/team/handoffs/compose-layers-lean.md"
+    "docs/team/handoffs/compose-layers-lean.md",
+    "apps/site/src/parts/hero/layers.component.test.ts"
    ]
   },
   {
@@ -15109,7 +15112,7 @@
     "layer-decl",
     "compose-layers-lean"
    ],
-   "title": "User 2026-10-22 approved the Layer Composer design (review page answers: design Approve; Q4 text layers are a look change until the user sees their strips; Q5 Core Animation blur measured only, shown as Q; snap off by default, on per layer after the user approves its strip; headline = B vs the page as it runs today, frame time p50/p90/p99 ms with fps at the same quantiles, compositor frames on Chromium only; a cell measured within 1 level with no proved bound is Q). Original ask: 'i could pick which layers/component by myself ... some change may effective multiple layer, part or components'. Design text: lead scratch layer-composer/design-checked.md (path in the build prompt). Task 7: layer census by data-fw / data-fw-layer at pinned samples (WebKit layersForNode with reasons and bytes; Chromium layer list), undeclared multiset equal across arms, S1 device-pixel grid check, Lean check; refuses the run naming the box. One short Simulator debug run under the sim slot.",
+   "title": "User 2026-10-22 approved the Layer Composer design (review page answers: design Approve; Q4 text layers are a look change until the user sees their strips; Q5 Core Animation blur measured only, shown as Q; snap off by default, on per layer after the user approves its strip; headline = B vs the page as it runs today, frame time p50/p90/p99 ms with fps at the same quantiles, compositor frames on Chromium only; a cell measured within 1 level with no proved bound is Q). Original ask: 'i could pick which layers/component by myself ... some change may effective multiple layer, part or components'. Design text: lead scratch layer-composer/design-checked.md (path in the build prompt). Task 7: layer census by data-fw / data-fw-layer at pinned samples (WebKit layersForNode with reasons and bytes; Chromium layer list), undeclared multiset equal across arms, S1 device-pixel grid check, Lean check; refuses the run naming the box. One short Simulator debug run under the sim slot. A root box carries both data-fw and data-fw-layer (layer-decl): map such a node to its data-fw-layer id once.",
    "writes": [
     "packages/measure-webkit/src/census*.mjs",
     "packages/measure-chromium/src/census*.mjs",
