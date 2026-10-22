@@ -15,6 +15,7 @@ never fail or slow the step. `pnpm fw timings` only displays; Lean (task timing-
 | `load` | 1-minute loadavg (0 for CI spans) |
 | `host` | `local` or `ci` |
 | `runId` | CI spans only: the GitHub run id (the dedupe key) |
+| `skipped` | CI spans only: `true` when the job or step conclusion was `skipped` (written from 2026-10-22 on); absent otherwise |
 
 No paths, no user names. The `fw land` total is the `fw` span with `step=land`.
 
@@ -58,6 +59,27 @@ p90. Job spans contain their step spans, so compare within a level. Raw lines: `
 `fw watch` turns the latest slow sample per `<tool>/<step>` (Lean `Fw.Obs.Next.slowSteps`, from `Fw.Obs.Timing`) into
 `timing.slow` and `NEXT investigate step=<tool/step>`; replay test: apps/runner/test/timing-alert.test.ts against
 packages/contracts/golden/obs/timing.jsonl.
+
+## Full runs only (task ci-span-skipped)
+A sample is judged only when it is a full run (Lean `Fw.Obs.Timing.fullRun`): not `skipped`, and `exit` 0 or unknown
+(absent or null). Any other sample gets no verdict, never enters a window and never names a CI job of the auto stages;
+`timingVerdicts_indep` proves the output equals the output on the full samples alone (up to input index), and
+`judge_insert_other` that inserting such samples anywhere changes no verdict. Decision in Lean only: `ciSpans` writes
+`skipped`, `parseSamples` passes `exit` and `skipped` through as recorded.
+
+MEASURED (`.fw-console/timings.jsonl`, 2026-10-22):
+- land run 39722879593: the gate-engine and browser-suite steps of legs check-sh, suites-a and suites-b were skipped
+  (0 s, an `if:` in `.github/workflows/land.yml`); before this task they were written as exit-0 samples of 0 s. Keys are
+  per leg, so they never shared a window with the chromium leg; its 33 s step is slow under both rules (median 21 s over
+  the full steps), a real outlier, not this bug.
+- local `fw land --dry`: early refusals (exit 1, 2, 12, 16; 12-256 ms) shared the window of full dry lands (19-32 s); the
+  32.1 s dry land was slow against a median of 256 ms. Now it has 4 full runs before it and is `noBaseline`.
+- replay of all CI step histories with the 0 s samples removed (INFERRED skipped: old lines have no conclusion): 39 slow
+  verdicts over 15 keys turn ok (e.g. `gate-gaps/judge`, `webkit-sim/site`, `land/land (chromium)/fwcore build`).
+
+Accepted limits: old lines keep their fields (no rewrite), so their skipped 0 s samples still count until they leave the
+20-sample window; a step that runs and exits early with success counts as full (the collector sees only GitHub's
+conclusion); a failed or cancelled run over a ceiling (the 30 s `fw land`) no longer alerts; thresholds unchanged.
 
 ## Contended samples and the heavy-job lock
 A span recorded while the 1-min load average is above `Fw.Obs.Timing.contendedLoad` (8) has code `contended`: it is not
