@@ -15399,7 +15399,7 @@
     "docs/team/incidents/ledger.json",
     "lean/Fw/Sup/Adapt.lean",
     "lean/Fw/Sup/AdaptGolden.lean",
-    "packages/contracts/golden/sched/**",
+    "packages/contracts/golden/sup/**",
     "apps/runner/src/slot.ts",
     "apps/runner/test/slot.test.ts",
     "docs/team/tools/slot.md"
