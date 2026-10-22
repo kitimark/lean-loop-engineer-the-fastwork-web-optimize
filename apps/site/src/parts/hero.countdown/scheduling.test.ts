@@ -7,8 +7,6 @@ import { digitAt, remainingSeconds, springStep, unitsFromSeconds } from './logic
 const TARGET = Date.parse('2026-11-02T12:00:00+07:00');
 const node = (): Writable => ({ style: { transform: '' } });
 
-// The original (nodes/2.DyWL8TcE.js:3828-3840 and 3932-3936): one setInterval(1000); per digit one rAF chain, restarted
-// when the digit's target changes and ended when the spring settles. Modelled below directly on the same ClockEnv.
 const mkEnv = () => {
   const raf = new Map<number, (t: number) => void>();
   const timers = new Map<number, () => void>();
@@ -49,7 +47,7 @@ const original = (env: ClockEnv, nowRef: { v: number }, n: number, perf: () => n
         spring[i] = r.state;
         chain[i] = r.done ? 0 : env.raf(loop);
       };
-      last[i] = perf(); // performance.now() at effect start
+      last[i] = perf();
       chain[i] = env.raf(loop);
     }
   };
@@ -71,7 +69,7 @@ describe('faithful scheduling counts vs the original structure', () => {
     startFaithful({ clock: createRafClock(a.env), driver, perfNow: () => clk.t });
     original(b.env, nowB, N, () => clk.t);
     expect(counts(a)).toEqual(counts(b));
-    expect(counts(a)).toEqual({ raf: N, timers: 1 }); // one chain per digit, one setInterval
+    expect(counts(a)).toEqual({ raf: N, timers: 1 });
     expect(rafRegistrationsPerFrame(0, N)).toBe(N);
     expect(timerRegistrations(1)).toBe(1);
 
@@ -81,9 +79,9 @@ describe('faithful scheduling counts vs the original structure', () => {
       b.frame(t);
       expect(a.raf.size).toBe(b.raf.size);
     }
-    expect(counts(a)).toEqual({ raf: 0, timers: 1 }); // mount chains settled in one frame
+    expect(counts(a)).toEqual({ raf: 0, timers: 1 });
 
-    // the second changes: the timers fire; only the ones digit's target changes, so one chain starts
+
     nowA.v += 1000;
     nowB.v += 1000;
     a.timers.forEach((cb) => cb());
@@ -100,7 +98,7 @@ describe('faithful scheduling counts vs the original structure', () => {
   });
 
   it('a tens carry restarts two chains in both', () => {
-    const nowA = { v: TARGET - 20000 }; // 20 s left, then 19: both digits change
+    const nowA = { v: TARGET - 20000 };
     const nowB = { v: TARGET - 20000 };
     const a = mkEnv();
     const b = mkEnv();
@@ -118,13 +116,38 @@ describe('faithful scheduling counts vs the original structure', () => {
     expect(b.raf.size).toBe(2);
   });
 
-  it('the shared loop (strip) is one registration however many digits', () => {
-    const e = mkEnv();
-    const nowRef = { v: TARGET - 5000 };
-    const driver = createCountdownDriver({ variant: 'strip', digits: digits(3), dateNow: () => nowRef.v, reduced: () => false });
-    createRafClock(e.env).subscribe((t) => driver.tick(t));
-    expect(counts(e)).toEqual({ raf: 1, timers: 0 });
-    expect(rafRegistrationsPerFrame(1, 0)).toBe(1);
+  it('strip runs the faithful scheduling: no rAF callback in a still frame, same registrations as the original', () => {
+    const nowA = { v: TARGET - 15000 };
+    const nowB = { v: TARGET - 15000 };
+    const a = mkEnv();
+    const b = mkEnv();
+    const strips = Array.from({ length: 2 }, (_, k) => ({ unit: 3, place: 10 ** (1 - k), nodes: [node()] }));
+    const driver = createCountdownDriver({ variant: 'strip', digits: strips, dateNow: () => nowA.v, reduced: () => false });
+    driver.setCell(0, 38);
+    driver.setCell(1, 38);
+    startFaithful({ clock: createRafClock(a.env), driver, perfNow: () => clk.t });
+    original(b.env, nowB, 2, () => clk.t);
+    expect(counts(a)).toEqual(counts(b));
+    let t = 0;
+    for (let f = 0; f < 3; f++) {
+      a.frame((t = clk.t = t + 16));
+      b.frame(t);
+      expect(a.raf.size).toBe(b.raf.size);
+    }
+    expect(counts(a)).toEqual({ raf: 0, timers: 1 });
+    nowA.v += 1000;
+    nowB.v += 1000;
+    a.timers.forEach((cb) => cb());
+    b.timers.forEach((cb) => cb());
+    expect(a.raf.size).toBe(1);
+    const before = strips[1]!.nodes[0]!.style.transform;
+    for (let f = 0; f < 200 && (a.raf.size || b.raf.size); f++) {
+      a.frame((t = clk.t = t + 16.667));
+      b.frame(t);
+      expect(a.raf.size).toBe(b.raf.size);
+    }
+    expect(counts(a)).toEqual({ raf: 0, timers: 1 });
+    expect(strips[1]!.nodes[0]!.style.transform).not.toBe(before);
   });
 
   it('cleanup cancels the interval and every chain', () => {
