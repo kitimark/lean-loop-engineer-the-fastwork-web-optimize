@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { cleansUp, finding, lint, makes, run } from './lint-tmpdirs.mjs';
+import { bindingOf, cleansUp, finding, lint, makes, removesName, run } from './lint-tmpdirs.mjs';
 
 const leak = `import { mkdtempSync } from 'node:fs';\nconst d = mkdtempSync(join(tmpdir(), 'fw-x-'));\ntest('a', () => {});\n`;
 const clean = `const d = mkdtempSync(join(tmpdir(), 'fw-x-'));\nafterAll(() => { rmSync(d, { recursive: true, force: true }); });\n`;
@@ -47,4 +47,35 @@ test('lint reports the flagged files only', () => {
   const texts = { 'a.test.ts': leak, 'b.test.ts': clean };
   assert.deepEqual(lint(['a.test.ts', 'b.test.ts', 'gone.ts'], (f) => { if (!(f in texts)) throw new Error('x'); return texts[f]; }),
     [{ file: 'a.test.ts', lines: [2] }]);
+});
+
+test('each binding needs an rm of its own name in a cleanup window', () => {
+  const two = `const a = mkdtempSync(p);\nconst b = mkdtempSync(p);\nafterAll(() => { rmSync(a, { recursive: true }); });\n`;
+  assert.deepEqual(finding(two), [2]);
+  const both = `const a = mkdtempSync(p);\nconst b = realpathSync(mkdtempSync(p));\nafterAll(() => { rmSync(a); rmSync(join(b, 'x')); });\n`;
+  assert.deepEqual(finding(both), []);
+  const prefix = `const d = mkdtempSync(p);\nafterAll(() => { rmSync(dd); rmSync(d2); });\n`;
+  assert.deepEqual(finding(prefix), [1]);
+});
+
+test('bindingOf: const, let, assignment; null for a factory, a destructuring or a bare call', () => {
+  const at = (src) => bindingOf(src, src.indexOf('mkdtemp'));
+  assert.equal(at('const d = mkdtempSync(p)'), 'd');
+  assert.equal(at('let $t: string = realpathSync(mkdtempSync(p))'), '$t');
+  assert.equal(at('  base = mkdtempSync(p)'), 'base');
+  assert.equal(at('const tmp = (p) => mkdtempSync(p)'), null);
+  assert.equal(at('const { a } = mkdtempSync(p)'), null);
+  assert.equal(at('use(mkdtempSync(p))'), null);
+});
+
+test('removesName only counts removals inside a cleanup window', () => {
+  assert.equal(removesName('afterAll(() => rmSync(d))', 'd'), true);
+  assert.equal(removesName('rmSync(d);\n', 'd'), false);
+  assert.equal(removesName('afterAll(() => rmSync(other))', 'd'), false);
+});
+
+test('an unbound factory falls back to the file-level cleanup rule', () => {
+  const factory = `const tmp = (p) => mkdtempSync(join(tmpdir(), p));\nafterAll(() => { for (const d of dirs) rmSync(d); });\n`;
+  assert.deepEqual(finding(factory), []);
+  assert.deepEqual(finding(`const tmp = (p) => mkdtempSync(p);\n`), [1]);
 });
