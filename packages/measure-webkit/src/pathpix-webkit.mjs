@@ -88,8 +88,8 @@ export async function runWebkitLane({ siteDir, out, run, layers: onlyLayers = nu
         ctx.url = url;
         // the page's own timers (the headline's word cycle) are held as soon as it has hydrated and its fonts are in, so every
         // arm starts from the same state and a frame does not change under the camera (Fw.Gate.Freeze covers the animations)
-        await loadFresh(ctx.c, { clock: 'pinned', settleMs, timers: 'hold' }); // settleMs is 0: HOLD_EXPR holds the timers at hydration
-        await ctx.c.runAsync(HOLD_EXPR);
+        await loadFresh(ctx.c, { clock: 'pinned', settleMs, timers: 'hold' }); // settleMs is 0: no settle before the hold
+        log(`  timers held ${await ctx.c.runAsync(HOLD_EXPR)}`);
         await ctx.c.evaluate(FREEZE_EXPR);
       };
       const place = async (info) => {

@@ -24,21 +24,20 @@ export const MARK_OFF = `(() => { const d = document.getElementById('fw-pp-mark'
 export const pathSearch = (layer) => `?fwl=${encodeURIComponent(layer).replace(/%2C/gi, ',')}:c`;
 
 /**
- * Hold the page's timers (page.mjs TIMER_HOLD_SRC) the frame after it has hydrated, then wait for fonts and eager images (promises and
- * frame counts only: a timer made now is held and would never fire). The hold comes first because the hero headline's word chain runs
- * on timers from hydration (first change after 2200 ms): holding later puts the chain at a phase that depends on how long the load took.
+ * Wait for hydration and fonts, then hold the page's timers (page.mjs TIMER_HOLD_SRC): nothing the page scheduled fires by itself after this.
+ * The hero headline's word chain runs on timers from hydration (first change after 2200 ms), so the later this runs the more its phase
+ * depends on the load's speed; the loader therefore does not settle first. Returns JSON {at: ms since navigation start, word}.
  */
 export const HOLD_EXPR = `(async () => {
   const raf = () => new Promise((r) => requestAnimationFrame(() => r()));
   for (let i = 0; i < 200 && !(window.__fw && window.__fw.hydrated); i++) await raf();
-  await raf();
-  const held = window.__wk.hold();
   await document.fonts.ready;
   const eager = [...document.images].filter((i) => i.loading !== 'lazy');
-  const cap = (async () => { for (let i = 0; i < 600; i++) await raf(); })();
-  await Promise.race([Promise.all(eager.map((i) => (i.complete ? Promise.resolve() : new Promise((r) => { i.addEventListener('load', r, { once: true }); i.addEventListener('error', r, { once: true }); })).then(() => i.decode()).catch(() => {}))), cap]);
+  await Promise.race([Promise.all(eager.map((i) => (i.complete ? Promise.resolve() : new Promise((r) => { i.addEventListener('load', r, { once: true }); i.addEventListener('error', r, { once: true }); })).then(() => i.decode()).catch(() => {}))), new Promise((r) => setTimeout(r, 4000))]);
   await raf(); await raf();
-  return held;
+  window.__wk.hold();
+  const em = document.querySelector('[data-fw="hero-accent"]');
+  return JSON.stringify({ at: Math.round(performance.now()), word: em ? em.getAttribute('aria-label') : null });
 })()`;
 
 /** Pause every video on its first frame (the page autoplays muted loops), wait for the seek, and report [readyState, paused, currentTime] of each. */
