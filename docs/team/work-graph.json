@@ -16037,7 +16037,8 @@
     "lean/scripts/check.sh",
     "docs/team/handoffs/site-layer-opts-followups.md"
    ],
-   "title": "Follow-ups of site-layer-opts (landed 2026-10-22). (1) layer-opts.test.ts compares the layers-search ok rows after .sort(): compare in URL order so the test checks an exact mirror of BuildsOpen.canonical. (2) resolve.ts reads ?fwl= through URLSearchParams (percent-decoding, + to space) while Lean BuildsOpen.validate refuses those characters before parsing: add golden vectors with an encoded layer id (e.g. ?fwl=hero%5Fcopy:c) and make the site and the console agree (decode in both or refuse in both, stated in Lean). (3) The builder saw 10 local failures in @fw/runner reap-safety and reap-stop: run them once on main (debug run, ≤ 5 min) and record whether they fail there; if they do, file the cause as a task. Unit: the order-exact test, the encoded-fwl vectors with the agreed rule, the reap-test result on main."
+   "title": "Follow-ups of site-layer-opts (landed 2026-10-22). (1) layer-opts.test.ts compares the layers-search ok rows after .sort(): compare in URL order so the test checks an exact mirror of BuildsOpen.canonical. (2) resolve.ts reads ?fwl= through URLSearchParams (percent-decoding, + to space) while Lean BuildsOpen.validate refuses those characters before parsing: add golden vectors with an encoded layer id (e.g. ?fwl=hero%5Fcopy:c) and make the site and the console agree (decode in both or refuse in both, stated in Lean). (3) The builder saw 10 local failures in @fw/runner reap-safety and reap-stop: run them once on main (debug run, ≤ 5 min) and record whether they fail there; if they do, file the cause as a task. Unit: the order-exact test, the encoded-fwl vectors with the agreed rule, the reap-test result on main.",
+   "evidence": "feb81c5"
   },
   {
    "devices": [
