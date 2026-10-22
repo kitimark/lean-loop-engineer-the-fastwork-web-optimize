@@ -308,7 +308,7 @@ export async function reportMain({ runs, out, note, jobsDir, classify }) {
     const byRun = {};
     for (const f of readdirSync(jobsDir).filter((n) => /^\d+\.json$/.test(n))) byRun[f.replace('.json', '')] = JSON.parse(readFileSync(join(jobsDir, f), 'utf8'));
     minutes = minutesOf(byRun);
-  } catch { /* none recorded */ }
+  } catch { }
   const blocks = blocksOf(summary, files, minutes);
   mkdirSync(out, { recursive: true });
   writeFileSync(join(out, 'summary.json'), `${JSON.stringify({ skipped, jobs: files.map((f) => f.label), summary }, null, 1)}\n`);

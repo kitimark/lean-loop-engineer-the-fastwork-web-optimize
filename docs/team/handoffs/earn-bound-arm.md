@@ -1,5 +1,5 @@
 branch: worktree-wf_67501544-66c-1 (CI branch ci/earn-bound-arm)
-worktree: .claude/worktrees/wf_67501544-66c-1 (under the main checkout)
+worktree: .claude/worktrees/wf_67501544-66c-1
 last commit: see `git log -1` on the branch (main merged at d75ce5b8f; land.ts conflict resolved as the union of both read lists)
 
 # earn-bound-arm: done, verdict NO-GO for candidate B
@@ -26,5 +26,5 @@ Open / follow-ups:
 - iOS Simulator leg: most hero windows read insufficient (frames land in the wrong zone in some windows); only the finish zone decides.
   Cause not investigated. The Simulator dies after about 30-40 windows; keep sim reps at 6 or fewer per job.
 - TS stand-ins: PAIRS entry base|bound (reuses Lean-twin verdict fns); the go/no-go rule was applied by hand from the across table.
-- Continue round: report.json was never invalid (`"invalid":[]` is the accepted answer); negative result written into the note
+- report.json was never invalid (`"invalid":[]` is the accepted answer); negative result written into the note
   (section "Why the bound arm reads same") ; the ledger notes row for nav.earn.noTransition is outside the writes, the lead adds it (text in the note, Report paragraph).

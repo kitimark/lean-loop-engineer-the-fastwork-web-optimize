@@ -17,11 +17,11 @@ measured the first gate of the plan below (the `bound` arm).
 
 ## Answer
 
-- **The earn transitions are not where the main-thread lag is (the mask and sheen animations stayed on).** With every earn transition switched off, main-thread work in the finish zone is
+- **The earn transitions are not where the main-thread lag is.** With every earn transition switched off, main-thread work in the finish zone is
   the same as the faithful page and the same as the A/A control, on macOS and on the iOS Simulator (section "Result of
   the bound arm"). By the plan's own gate candidate B is not built.
   MEASURED, see the result section for run ids. The CI hosts have no real GPU, so a saving on the compositor or the
-  GPU process could not show; this result bounds main-thread work only.
+  GPU process could not show.
 - **Two of the three animated properties cannot run on the GPU in either engine.** `max-width` and `padding-inline`
   are layout properties. `opacity` already runs composited. Its transition restarts on every frame while `--morph`
   changes, so it gives no main-thread saving during the morph. CONFIRMED (table Q1).
@@ -39,7 +39,7 @@ measured the first gate of the plan below (the `bound` arm).
   two-segment keyframes with a subdivided Bezier, so it is equal only up to float precision. It needs 4 or more new
   layers. Not recommended.
 
-**Recommendation:** keep the faithful animation (the default arm is already the faithful one). Do not build a GPU
+**Recommendation:** keep the faithful animation. Do not build a GPU
 variant: the lower bound of any variant of the earn transitions is no better than A/A on the CI hosts. If the user still wants a cheaper
 look-change instead, the closest option is A with affine (one-segment) transitions, class L (text path off by up to about
 15 px mid-collapse at desktop). Whether a real iPhone feels the earn animation stays open: it needs the phone replay
@@ -280,8 +280,7 @@ What the result does not say:
 - No GPU or UI-process time is visible on either host (no real GPU). A compositor-run animation could still lower felt
   jank on a phone; the bound arm shows only that the main thread has nothing to gain from the earn animation. The
   phone replay (plan step 4) stays the open check.
-- `bound` keeps the `.actions` gap transition and the earn mask and sheen animations (see above); a variant that also
-  removed those could save more, but that would change the look further.
+- A variant that also removed the `.actions` gap transition and the earn mask and sheen animations could save more but would change the look further.
 - The sim legs are scripted in-page scroll (no wheel device), so the iOS numbers say nothing about touch input.
 
 TS stand-ins (no new Lean was written for this task): the `base|bound` pair in `PAIRS`
