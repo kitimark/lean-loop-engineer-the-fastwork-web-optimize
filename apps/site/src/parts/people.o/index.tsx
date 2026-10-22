@@ -7,6 +7,7 @@ import { after, ORDER } from '../people/shared';
 import { createOpener, type OFlags } from './driver';
 import { cardLeft, cardTop, cardWidth, THRESHOLD } from './logic';
 import { matchList } from './media';
+import { keep as keepHeld, regime, type Held } from './preview';
 import css from './o.module.css';
 
 export interface PeopleOProps {
@@ -34,12 +35,27 @@ export function PeopleO({ variant, standalone = false, onGetStarted }: PeopleOPr
   const rootRef = useRef<HTMLSpanElement>(null);
   const hideRef = useRef<(() => void) | null>(null);
   const narrowRef = useRef<MediaQueryList | null>(null);
+  const heldRef = useRef<Held | null>(null);
+  const translateFlag = variant === 'preview-translate';
 
   const place = () => {
     const a = anchorRef.current;
     const p = previewRef.current;
     if (!a || !p) return;
     const r = a.getBoundingClientRect();
+    if (translateFlag) {
+      const y = window.scrollY;
+      const input: Held = { vw: window.innerWidth, vh: window.innerHeight, x: r.left, s: r.width, t: r.top, b: r.bottom, y0: y };
+      const held = heldRef.current;
+      const d = window.devicePixelRatio || 1;
+      if (held && keepHeld({ d, held, input, y })) {
+        const tr = regime(held) === 'aboveClamped' ? 0 : held.y0 - y;
+        p.style.translate = tr === 0 ? '' : `0 ${tr}px`;
+        return;
+      }
+      heldRef.current = input;
+      p.style.translate = '';
+    }
     p.style.left = `${cardLeft({ vw: window.innerWidth, x: r.left, s: r.width })}px`;
     p.style.top = `${cardTop({ vh: window.innerHeight, y: r.top, z: r.bottom })}px`;
     p.style.width = `${cardWidth({ vw: window.innerWidth })}px`;
@@ -97,8 +113,8 @@ export function PeopleO({ variant, standalone = false, onGetStarted }: PeopleOPr
     hideRef.current = null;
   };
 
-  // position the card as soon as it is mounted for a face
   useEffect(() => {
+    heldRef.current = null;
     if (hover !== null) place();
   }, [hover]);
 
