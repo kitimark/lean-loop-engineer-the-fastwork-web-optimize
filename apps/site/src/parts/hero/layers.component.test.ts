@@ -14,29 +14,12 @@ import type { Impl, PartDef } from '../../registry/types';
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const partsDir = resolve(__dirname, '..');
-const searchGolden = resolve(__dirname, '../../../../../packages/contracts/golden/console/layers-search.jsonl');
 
 const DECLARED = ['hero', 'hero.cue', 'hero.orbit', 'hero.deck', 'hero.countdown', 'nav', 'morph.panel'];
 
 const load = (id: string) => JSON.parse(readFileSync(resolve(partsDir, id, 'part.json'), 'utf8')) as PartDef;
 const parts = DECLARED.map(load);
 const allLayers = parts.flatMap((p) => (p.layers ?? []).map((l) => ({ part: p, layer: l })));
-
-interface SearchCase {
-  name: string;
-  request: { search: string };
-  response: { ok: boolean; canonical: string | null };
-}
-
-/** The `declared layer <id>` cases of the Lean golden: the search reply for `?fwl=<id>:c`, by layer id. */
-function declaredSearches(): Map<string, SearchCase['response']> {
-  const cases = readFileSync(searchGolden, 'utf8')
-    .split('\n')
-    .filter((l) => l.trim() !== '')
-    .map((l) => JSON.parse(l) as SearchCase)
-    .filter((c) => c.name.startsWith('declared layer '));
-  return new Map(cases.map((c) => [c.name.slice('declared layer '.length), c.response]));
-}
 
 describe('part.json layers (schema)', () => {
   it('declares layers for exactly the named parts it owns', () => {
@@ -54,15 +37,6 @@ describe('part.json layers (schema)', () => {
       expect(layer.id.slice(cut + 1), layer.id).not.toBe('');
       expect(seen.has(layer.id), `duplicate ${layer.id}`).toBe(false);
       seen.add(layer.id);
-    }
-  });
-
-  it('the Lean search golden covers exactly the declared layers and accepts each as ?fwl=<id>:c', () => {
-    const golden = declaredSearches();
-    expect([...golden.keys()].sort()).toEqual(allLayers.map((x) => x.layer.id).sort());
-    for (const [id, reply] of golden) {
-      expect(reply.ok, id).toBe(true);
-      expect(reply.canonical, id).toBe(`?fwl=${id}:c`);
     }
   });
 

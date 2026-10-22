@@ -14,9 +14,9 @@ Done:
 - Extractor `apps/site/scripts/part-footprint.mjs`: per-record `variants`, `variantFiles`, `layerDecls` in FootprintData.
 - Wire: `lean/Fw/Wire/Layers.lean` (`console.compose` with `arms`; reply without `arms` unchanged), registry `layers`
   for `console.buildsSearch`. Goldens `golden/console/layers.jsonl`, `layers-search.jsonl` (from `Fw.Ops.Golden`).
-- Site test `layers.component.test.ts` reads the `declared layer <id>` cases of `layers-search.jsonl` instead of
-  parsing Lean source, renders every listed variant with every impl, uses fwId `morph-countdown-clock`.
-- Outside the allowed list: `apps/runner/src/land.ts` apps/site reads swap BuildsOpen.lean for layers-search.jsonl.
+- okChar: `declaredLayerErrors` (`#guard ... == []`) checks every extracted `layerDecls` id with `validate`; the site
+  test no longer parses Lean source (`footprint.test.ts` keeps `layerDecls` equal to the part.json files).
+- Site test `layers.component.test.ts` renders every listed variant with every impl, uses fwId `morph-countdown-clock`.
 
 Accepted limits: no site change, no CI measurement, Q/L cells unmeasured; `hero.countdown:*` (branch in a shared
 file) and `hero.exit:threaded` (no files listed) are refused as not extractable.

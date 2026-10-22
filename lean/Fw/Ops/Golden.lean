@@ -1210,7 +1210,7 @@ def declReg : Json :=
     ("layers", Json.arr ((Fw.Parts.FootprintData.layerDecls.filter (·.1 == p)).map (Json.str ·.2.1)).toArray)]).toArray)]
 
 /-- `console.buildsSearch` over registry parts that declare layers: `?fwl=` entries are read and kept canonical, and every
-layer id the extractor read from a `part.json` is accepted (the site's layer test reads these cases). -/
+layer id the extractor read from a `part.json` is accepted. -/
 def layersSearchCases : List (String × Json) :=
   let reg := lit r#"{"parts":[{"id":"hero","variants":["faithful","scene-pause"],"impls":["plain"],"layers":["hero_copy"]},{"id":"hero.countdown","variants":["faithful","hidden-pause"],"impls":["mui","plain"]}],"presets":[]}"#
   let s (q : String) : Json := Json.mkObj [("registry", reg), ("search", .str q)]

@@ -1,6 +1,7 @@
 import Fw.Console.Compose
 import Fw.Parts.Footprint
 import Fw.Engine.Compose
+import Fw.Parts.FootprintData
 /-!
 # Layer composer: units, clash, expansion, look grade and premises of an arm
 
@@ -865,6 +866,19 @@ def registryErrors (pg : Page) : List String :=
     if x.1 != y.1 && clash pg (pickUnit pg x) (pickUnit pg y) && !declared pg x y then
       some s!"undeclared conflict: {key x} and {key y} clash ({why pg (pickUnit pg x) (pickUnit pg y)}), and part.json conflicts lists neither"
     else none)
+
+/-- The layer ids of the `part.json` files (as the extractor read them) whose `?fwl=<id>:c` the search does not accept
+as written, over a registry declaring exactly those layers. -/
+def declaredLayerErrors : List String :=
+  let decls := Fw.Parts.FootprintData.layerDecls
+  let facts : List PartFact := (decls.map (·.1)).eraseDups.map fun p =>
+    { id := p, variants := ["faithful"], impls := [], requires := [], conflicts := [],
+      layers := (decls.filter (·.1 == p)).map (·.2.1) }
+  decls.filterMap fun (_, l, _) =>
+    if validate facts [] s!"?fwl={l}:c" == .ok s!"?fwl={l}:c" then none else some l
+
+#guard declaredLayerErrors == []
+#guard Fw.Parts.FootprintData.layerDecls.length > 0
 
 
 /-! ## Examples
