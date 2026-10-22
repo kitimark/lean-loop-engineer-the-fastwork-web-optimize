@@ -14,7 +14,8 @@ Three separate causes (the third found by the fix run 39775866606). Sample sizes
 | # | cause | boxes (rewrite / original) | where |
 |---|---|---|---|
 | 1 | pass 1 loads deep, pass 2 loads at the top | nav bar `div.nav-module_bar` / `div.start-selling-top-nav-bar`; morph `div.morph-module_backdrop`, 3 x `div.morph-module_col`, 3 x `div.morph-module_track` (2.5 MB each), `div.morph-module_veil`, `div.morph-module_center`, `footer.morph-module_footer` / the `start-selling-*` set plus `div.start-selling-morph-panel` | pass 1 has them at y=0 and 1500, pass 2 only from y=3000 |
-| 2 | the page's own free-running animations | `span.accent-module_frame_*`, `svg.accent-module_svg_*...idleFrame` (bounds 60, 85 or 101 wide by word), `div.typing-module_visual_*`, `div.typing-module_beat_*` / `span.frame.svelte-*`, `svg.accent-svg.is-idle-frame`, `button.scroll-cue.svelte-*` | any y; present, absent or resized between passes |
+| 2a | timer-run animations of the page (INFERRED) | `span.accent-module_frame_*`, `svg.accent-module_svg_*...idleFrame` (bounds 60, 85 or 101 wide by word), `div.typing-module_visual_*`, `div.typing-module_beat_*` / `span.frame.svelte-*`, `svg.accent-svg.is-idle-frame`, `button.scroll-cue.svelte-*` | any y; present, absent or resized between passes |
+| 2b | listed after a refusal, mechanism not found (cause 3 mechanism: not found; co-occurs with the commission section layer in 39795650433, whose state is scroll-driven and rAF-eased, not timer-run) | `span.typing-module_avatar_*`, `section.commission.*`, `div.fee-visual*`, `div.body.svelte-ty4hd7` | runs 39794304091, 39795650433, 39807770579 |
 
 | 3 | page height of one load: `max` resolves to 5231 in pass 1 and 5267 in pass 2 (docH 6006 vs 6042), so the sample offsets differ (`samples` refusal); the `#document` root layer is 430x6006 vs 430x6042 at y=0 | root layer `#document`, last offset | run 39775866606 |
 
@@ -44,7 +45,8 @@ The runner was loaded (load1 482 to 313), which widens the phase spread but is n
 3. The census rule in Lean (`Fw.Measure.Census`): the undeclared comparison reads `stable`, the layers that are not
    declared, not `(gone)`, and not on the allowlist `runnerStems`:
    `#document` (the root layer, whose height is the page height of one load), `span.accent-module_frame_`, `svg.accent-module_svg_`, `div.typing-module_visual_`, `div.typing-module_beat_`,
-   `span.frame.`, `svg.accent-svg.`, `button.scroll-cue.`. A name is free-running iff it starts with a stem
+   `span.typing-module_avatar_`, `span.frame.`, `svg.accent-svg.`, `button.scroll-cue.`, `section.commission.`, `div.fee-visual`,
+   `div.body.svelte-ty4hd7` (12 stems, as in `census-check.mjs` and `Census.lean`). A name is free-running iff it starts with a stem
    (`varying`). Theorems: `stable_perm`, `stable_cons_gone`, `stable_cons_varying`, `stable_cons_declared`,
    `stable_cons_kept`, `stable_replicate_varying`, `stable_replicate_gone` (any count of such layers is ignored, no
    tolerance), `stable_mem_free`, `varying_of_stem`, `undeclaredAt_cons_gone`, `undeclaredAt_cons_varying`,
