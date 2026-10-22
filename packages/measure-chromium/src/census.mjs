@@ -62,7 +62,7 @@ export async function sampleAt(c, { ev, pump, y, tries = 12, settleFrames = 3, w
   const onTree = (e) => { tree = e.layers ?? []; };
   c.on('LayerTree.layerTreeDidChange', onTree);
   try {
-    await ev(`window.scrollTo(0, ${Number(y)})`);
+    await ev(`window.scrollTo({ top: ${Number(y)}, left: 0, behavior: 'instant' })`); // instant: the page may set scroll-behavior: smooth
     for (let i = 0; i < settleFrames; i++) await pump();
     rec.scrollY = Math.round(await ev('scrollY'));
     const seen = JSON.parse(await ev(RENDERED_EXPR));

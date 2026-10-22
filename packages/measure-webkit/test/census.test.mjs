@@ -78,7 +78,8 @@ class FakeCdp extends EventEmitter {
   }
 }
 const fakeEnv = (c, { y = 0 } = {}) => ({
-  ev: async (e) => (e === RENDERED_CR ? JSON.stringify({ dprMilli: 3000, rendered: ['hero_copy'] }) : e === 'scrollY' ? y : null),
+  exprs: (c.exprs = []),
+  ev: async (e) => (c.exprs.push(e), e === RENDERED_CR ? JSON.stringify({ dprMilli: 3000, rendered: ['hero_copy'] }) : e === 'scrollY' ? y : null),
   pump: async () => { c.pumps++; if (c.enabled && c.pumps > c.delay) c.emit('LayerTree.layerTreeDidChange', { layers: c.tree }); },
 });
 const RENDERED_CR = CR_RENDERED;
@@ -97,6 +98,7 @@ test('Chromium sample normalises layers to micro px, ids to reasons, nodes to id
   assert.deepEqual([hero.fw, hero.layer, hero.origin, hero.boundsU, hero.reasons, hero.memory], ['hero', 'hero_copy', [0, 80000000], [500000, 80000000, 390000000, 300250000], ['activeTransformAnimation', 'willChange'], null]);
   assert.equal(c.listenerCount('LayerTree.layerTreeDidChange'), 0);
   assert.equal(c.calls.at(-1), 'LayerTree.disable');
+  assert.ok(c.exprs.some((e) => e.includes('top: 1500') && e.includes("behavior: 'instant'")), 'the scroll is instant (a smooth-scrolling page would still be moving)');
 });
 
 test('Chromium sample waits for the tree across frames, and records an error when it never comes', async () => {
