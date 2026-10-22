@@ -1,0 +1,891 @@
+{
+  "file": "d1-naive.jsonl",
+  "labeled": 116,
+  "leaking": 0,
+  "question": "incident-class",
+  "sampled": false,
+  "selected": 116,
+  "set": "d1n",
+  "unknownLabel": 0,
+  "arms": {
+    "jev": {
+      "all": {
+        "accuracy": {
+          "den": "116",
+          "num": "63"
+        },
+        "answered": 116,
+        "options": [
+          {
+            "chosen": 5,
+            "labeled": 6,
+            "option": "c-orphan-wait",
+            "precision": {
+              "den": "1",
+              "num": "1"
+            },
+            "recall": {
+              "den": "6",
+              "num": "5"
+            },
+            "right": 5
+          },
+          {
+            "chosen": 9,
+            "labeled": 16,
+            "option": "c-order-derived",
+            "precision": {
+              "den": "9",
+              "num": "4"
+            },
+            "recall": {
+              "den": "4",
+              "num": "1"
+            },
+            "right": 4
+          },
+          {
+            "chosen": 10,
+            "labeled": 10,
+            "option": "c-shared-no-lock",
+            "precision": {
+              "den": "10",
+              "num": "9"
+            },
+            "recall": {
+              "den": "10",
+              "num": "9"
+            },
+            "right": 9
+          },
+          {
+            "chosen": 6,
+            "labeled": 7,
+            "option": "c-quota",
+            "precision": {
+              "den": "3",
+              "num": "2"
+            },
+            "recall": {
+              "den": "7",
+              "num": "4"
+            },
+            "right": 4
+          },
+          {
+            "chosen": 6,
+            "labeled": 7,
+            "option": "c-proxy-verdict",
+            "precision": {
+              "den": "3",
+              "num": "1"
+            },
+            "recall": {
+              "den": "7",
+              "num": "2"
+            },
+            "right": 2
+          },
+          {
+            "chosen": 7,
+            "labeled": 8,
+            "option": "c-identity-heuristic",
+            "precision": {
+              "den": "7",
+              "num": "3"
+            },
+            "recall": {
+              "den": "8",
+              "num": "3"
+            },
+            "right": 3
+          },
+          {
+            "chosen": 6,
+            "labeled": 14,
+            "option": "c-late-check",
+            "precision": {
+              "den": "1",
+              "num": "1"
+            },
+            "recall": {
+              "den": "7",
+              "num": "3"
+            },
+            "right": 6
+          },
+          {
+            "chosen": 4,
+            "labeled": 9,
+            "option": "c-unearned-claim",
+            "precision": {
+              "den": "2",
+              "num": "1"
+            },
+            "recall": {
+              "den": "9",
+              "num": "2"
+            },
+            "right": 2
+          },
+          {
+            "chosen": 12,
+            "labeled": 5,
+            "option": "c-sample-validity",
+            "precision": {
+              "den": "3",
+              "num": "1"
+            },
+            "recall": {
+              "den": "5",
+              "num": "4"
+            },
+            "right": 4
+          },
+          {
+            "chosen": 18,
+            "labeled": 16,
+            "option": "c-env-assume",
+            "precision": {
+              "den": "3",
+              "num": "2"
+            },
+            "recall": {
+              "den": "4",
+              "num": "3"
+            },
+            "right": 12
+          },
+          {
+            "chosen": 19,
+            "labeled": 14,
+            "option": "c-spec-gap",
+            "precision": {
+              "den": "19",
+              "num": "8"
+            },
+            "recall": {
+              "den": "7",
+              "num": "4"
+            },
+            "right": 8
+          },
+          {
+            "chosen": 6,
+            "labeled": 2,
+            "option": "c-handcopy",
+            "precision": {
+              "den": "3",
+              "num": "1"
+            },
+            "recall": {
+              "den": "1",
+              "num": "1"
+            },
+            "right": 2
+          },
+          {
+            "chosen": 4,
+            "labeled": 2,
+            "option": "c-policy-prose",
+            "precision": {
+              "den": "2",
+              "num": "1"
+            },
+            "recall": {
+              "den": "1",
+              "num": "1"
+            },
+            "right": 2
+          },
+          {
+            "chosen": 4,
+            "labeled": 0,
+            "option": "none",
+            "precision": {
+              "den": "1",
+              "num": "0"
+            },
+            "recall": null,
+            "right": 0
+          }
+        ],
+        "right": 63,
+        "rows": 116
+      },
+      "arm": "jev",
+      "choose": {
+        "covered": 0,
+        "hits": 0,
+        "options": [
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "c-orphan-wait"
+          },
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "c-order-derived"
+          },
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "c-shared-no-lock"
+          },
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "c-quota"
+          },
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "c-proxy-verdict"
+          },
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "c-identity-heuristic"
+          },
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "c-late-check"
+          },
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "c-unearned-claim"
+          },
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "c-sample-validity"
+          },
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "c-env-assume"
+          },
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "c-spec-gap"
+          },
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "c-handcopy"
+          },
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "c-policy-prose"
+          }
+        ]
+      },
+      "confusion": {
+        "columns": [
+          "c-orphan-wait",
+          "c-order-derived",
+          "c-shared-no-lock",
+          "c-quota",
+          "c-proxy-verdict",
+          "c-identity-heuristic",
+          "c-late-check",
+          "c-unearned-claim",
+          "c-sample-validity",
+          "c-env-assume",
+          "c-spec-gap",
+          "c-handcopy",
+          "c-policy-prose",
+          "none",
+          "failed"
+        ],
+        "rows": [
+          {
+            "counts": [
+              5,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "label": "c-orphan-wait"
+          },
+          {
+            "counts": [
+              0,
+              4,
+              0,
+              1,
+              1,
+              2,
+              0,
+              0,
+              1,
+              3,
+              1,
+              1,
+              0,
+              2,
+              0
+            ],
+            "label": "c-order-derived"
+          },
+          {
+            "counts": [
+              0,
+              1,
+              9,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "label": "c-shared-no-lock"
+          },
+          {
+            "counts": [
+              0,
+              0,
+              0,
+              4,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              1,
+              1,
+              0,
+              0
+            ],
+            "label": "c-quota"
+          },
+          {
+            "counts": [
+              0,
+              0,
+              0,
+              0,
+              2,
+              0,
+              0,
+              1,
+              2,
+              0,
+              2,
+              0,
+              0,
+              0,
+              0
+            ],
+            "label": "c-proxy-verdict"
+          },
+          {
+            "counts": [
+              0,
+              0,
+              0,
+              0,
+              1,
+              3,
+              0,
+              1,
+              1,
+              0,
+              1,
+              0,
+              1,
+              0,
+              0
+            ],
+            "label": "c-identity-heuristic"
+          },
+          {
+            "counts": [
+              0,
+              0,
+              1,
+              0,
+              1,
+              1,
+              6,
+              0,
+              1,
+              1,
+              3,
+              0,
+              0,
+              0,
+              0
+            ],
+            "label": "c-late-check"
+          },
+          {
+            "counts": [
+              0,
+              2,
+              0,
+              0,
+              0,
+              0,
+              0,
+              2,
+              1,
+              1,
+              2,
+              1,
+              0,
+              0,
+              0
+            ],
+            "label": "c-unearned-claim"
+          },
+          {
+            "counts": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              4,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "label": "c-sample-validity"
+          },
+          {
+            "counts": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              1,
+              12,
+              1,
+              1,
+              0,
+              0,
+              0
+            ],
+            "label": "c-env-assume"
+          },
+          {
+            "counts": [
+              0,
+              1,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              1,
+              1,
+              8,
+              0,
+              0,
+              2,
+              0
+            ],
+            "label": "c-spec-gap"
+          },
+          {
+            "counts": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              2,
+              0,
+              0,
+              0
+            ],
+            "label": "c-handcopy"
+          },
+          {
+            "counts": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              2,
+              0,
+              0
+            ],
+            "label": "c-policy-prose"
+          },
+          {
+            "counts": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "label": "none"
+          }
+        ]
+      },
+      "dollars": {
+        "den": "390625",
+        "num": "4347"
+      },
+      "holdout": {
+        "accuracy": {
+          "den": "33",
+          "num": "17"
+        },
+        "answered": 33,
+        "options": [
+          {
+            "chosen": 3,
+            "labeled": 3,
+            "option": "c-orphan-wait",
+            "precision": {
+              "den": "1",
+              "num": "1"
+            },
+            "recall": {
+              "den": "1",
+              "num": "1"
+            },
+            "right": 3
+          },
+          {
+            "chosen": 2,
+            "labeled": 5,
+            "option": "c-order-derived",
+            "precision": {
+              "den": "1",
+              "num": "0"
+            },
+            "recall": {
+              "den": "1",
+              "num": "0"
+            },
+            "right": 0
+          },
+          {
+            "chosen": 0,
+            "labeled": 1,
+            "option": "c-shared-no-lock",
+            "precision": null,
+            "recall": {
+              "den": "1",
+              "num": "0"
+            },
+            "right": 0
+          },
+          {
+            "chosen": 2,
+            "labeled": 4,
+            "option": "c-quota",
+            "precision": {
+              "den": "1",
+              "num": "1"
+            },
+            "recall": {
+              "den": "2",
+              "num": "1"
+            },
+            "right": 2
+          },
+          {
+            "chosen": 1,
+            "labeled": 1,
+            "option": "c-proxy-verdict",
+            "precision": {
+              "den": "1",
+              "num": "0"
+            },
+            "recall": {
+              "den": "1",
+              "num": "0"
+            },
+            "right": 0
+          },
+          {
+            "chosen": 3,
+            "labeled": 5,
+            "option": "c-identity-heuristic",
+            "precision": {
+              "den": "3",
+              "num": "2"
+            },
+            "recall": {
+              "den": "5",
+              "num": "2"
+            },
+            "right": 2
+          },
+          {
+            "chosen": 2,
+            "labeled": 3,
+            "option": "c-late-check",
+            "precision": {
+              "den": "1",
+              "num": "1"
+            },
+            "recall": {
+              "den": "3",
+              "num": "2"
+            },
+            "right": 2
+          },
+          {
+            "chosen": 2,
+            "labeled": 3,
+            "option": "c-unearned-claim",
+            "precision": {
+              "den": "2",
+              "num": "1"
+            },
+            "recall": {
+              "den": "3",
+              "num": "1"
+            },
+            "right": 1
+          },
+          {
+            "chosen": 3,
+            "labeled": 1,
+            "option": "c-sample-validity",
+            "precision": {
+              "den": "3",
+              "num": "1"
+            },
+            "recall": {
+              "den": "1",
+              "num": "1"
+            },
+            "right": 1
+          },
+          {
+            "chosen": 7,
+            "labeled": 5,
+            "option": "c-env-assume",
+            "precision": {
+              "den": "7",
+              "num": "5"
+            },
+            "recall": {
+              "den": "1",
+              "num": "1"
+            },
+            "right": 5
+          },
+          {
+            "chosen": 3,
+            "labeled": 1,
+            "option": "c-spec-gap",
+            "precision": {
+              "den": "1",
+              "num": "0"
+            },
+            "recall": {
+              "den": "1",
+              "num": "0"
+            },
+            "right": 0
+          },
+          {
+            "chosen": 1,
+            "labeled": 1,
+            "option": "c-handcopy",
+            "precision": {
+              "den": "1",
+              "num": "1"
+            },
+            "recall": {
+              "den": "1",
+              "num": "1"
+            },
+            "right": 1
+          },
+          {
+            "chosen": 2,
+            "labeled": 0,
+            "option": "c-policy-prose",
+            "precision": {
+              "den": "1",
+              "num": "0"
+            },
+            "recall": null,
+            "right": 0
+          },
+          {
+            "chosen": 2,
+            "labeled": 0,
+            "option": "none",
+            "precision": {
+              "den": "1",
+              "num": "0"
+            },
+            "recall": null,
+            "right": 0
+          }
+        ],
+        "right": 17,
+        "rows": 33
+      },
+      "holdoutCert": {
+        "covered": 0,
+        "hits": 0,
+        "options": [
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "c-orphan-wait"
+          },
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "c-order-derived"
+          },
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "c-shared-no-lock"
+          },
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "c-quota"
+          },
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "c-proxy-verdict"
+          },
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "c-identity-heuristic"
+          },
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "c-late-check"
+          },
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "c-unearned-claim"
+          },
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "c-sample-validity"
+          },
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "c-env-assume"
+          },
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "c-spec-gap"
+          },
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "c-handcopy"
+          },
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "c-policy-prose"
+          }
+        ]
+      },
+      "inputTokens": 264960,
+      "labeled": 116,
+      "minHoldout": 25,
+      "missing": 0,
+      "msMax": 883,
+      "msMean": {
+        "den": "29",
+        "num": "10348"
+      },
+      "msMedian": 317,
+      "outputTokens": 19546,
+      "question": "incident-class",
+      "thresholds": {
+        "c-env-assume": null,
+        "c-handcopy": null,
+        "c-identity-heuristic": null,
+        "c-late-check": null,
+        "c-order-derived": null,
+        "c-orphan-wait": null,
+        "c-policy-prose": null,
+        "c-proxy-verdict": null,
+        "c-quota": null,
+        "c-sample-validity": null,
+        "c-shared-no-lock": null,
+        "c-spec-gap": null,
+        "c-unearned-claim": null
+      }
+    }
+  }
+}

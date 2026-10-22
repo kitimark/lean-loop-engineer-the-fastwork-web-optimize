@@ -150,6 +150,19 @@ function paired(f) {
   console.log(`adopt: ${out.adopt.adopt} (${out.adopt.reasons.length} reasons)`);
 }
 
+/** Per replay set: its rows and how many the answer log already answers, so the sends a run needs are known first. */
+function status(f) {
+  const core = fwcoreCall(REPO);
+  const dir = f.dir ?? datasetsDir(REPO);
+  const names = redactNames(REPO);
+  for (const set of ["d1", "d1x", "d1n"]) {
+    const p = pickedRows(core, set, dir);
+    if (typeof p === "string") { console.log(`${set}: ${p}`); continue; }
+    const a = jevAnswers(core, p.question, names, p.rows, logPathFor(REPO));
+    console.log(`${set}: ${p.rows.length} rows, ${a.length} in the answer log, ${p.rows.length - a.length} to send`);
+  }
+}
+
 /** The prompts of the expanded rows only, for scripts/jev-arms-clean.mjs. */
 function prompts(f) {
   const ids = new Set(JSON.parse(readFileSync(join(OUT, "inputs.json"), "utf8")).expandedIds);
@@ -169,6 +182,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const f = flags(rest);
   if (sub === "build") build(f);
   else if (sub === "paired") paired(f);
+  else if (sub === "status") status(f);
   else if (sub === "prompts" && f.in && f.out) prompts(f);
-  else { console.error("usage: jev-expand.mjs build [--dir d] [--src sha] | paired [--dir d] | prompts --in <all.jsonl> --out <expanded.jsonl>"); process.exitCode = 64; }
+  else { console.error("usage: jev-expand.mjs build [--dir d] [--src sha] | paired [--dir d] | status [--dir d] | prompts --in <all.jsonl> --out <expanded.jsonl>"); process.exitCode = 64; }
 }
