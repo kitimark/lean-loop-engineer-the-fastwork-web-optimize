@@ -16,7 +16,7 @@ Results (MEASURED on CI)
   `--composite all` refuses naming it; `--snap all` also names off-grid origins (hero.deck_article, hero.cue_cue, hero_copy, morph.panel_panel, nav_earn).
 - WebKit Simulator (no real GPU): original pass 2 vs pass 1 refuses at y=0,1500 (start-selling nav/morph layers, 1 vs 0); rewrite pass 2 vs 1 refuses
   at all five y naming div.nav-module_bar (y 0,1500) and span.accent-module_frame (y 3000+). The undeclared layer set is not stable between loads.
-  Rewrite declared table: countdown_face 80/80 layers, deck_article 4/4, hero_copy 1/1, nav_bar 1/1, nav_earn 1/0; bytes only where backed (y=0 hero).
+  Rewrite declared table: countdown_face 80/80 layers, deck_article 4/4, hero_copy 1/1, nav_bar 1/1, nav_earn 1/0; bytes: hero layers (countdown_face 591096, deck_article 4178511, hero_copy 6541018) are non-zero only at y=0; nav_bar is 745056 at every y; cue_cue, morph.panel_panel and nav_earn are 0.
 
 Conventions
 - data-fw-layer wins over data-fw; empty attr = none. Origins are viewport micro CSS px read in page; dpr in thousandths.
