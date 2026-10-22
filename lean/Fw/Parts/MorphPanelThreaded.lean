@@ -148,7 +148,7 @@ theorem chain_offs (f t : Rat) : Chain f t (offs f t) := by
     · have m1 := at_mem_up f t kA ha.1 ha.2
       have m2 := at_mem_up f t kB hb.1 hb.2
       have lt := at_lt_up f t kA kB hft hA
-      simp only [ha, hb, and_self, ite_true, List.cons_append, List.nil_append, List.append_nil, Chain, SameZone, at_mAt f t _ hne,
+      simp only [ha, hb, and_self, ite_true, List.cons_append, List.nil_append, Chain, SameZone, at_mAt f t _ hne,
         mAt_zero, mAt_one]
       refine ⟨by grind, ?_, by grind, ?_, by grind, ?_, trivial⟩ <;> unfold kA kB at * <;> grind
     · have m1 := at_mem_up f t kA ha.1 ha.2
@@ -156,10 +156,10 @@ theorem chain_offs (f t : Rat) : Chain f t (offs f t) := by
         mAt_zero, mAt_one]
       refine ⟨by grind, ?_, by grind, ?_, trivial⟩ <;> unfold kA kB at * <;> grind
     · have m2 := at_mem_up f t kB hb.1 hb.2
-      simp only [ha, hb, and_self, ite_true, ite_false, List.cons_append, List.nil_append, List.append_nil, Chain, SameZone, at_mAt f t _ hne,
+      simp only [ha, hb, and_self, ite_true, ite_false, List.cons_append, List.nil_append, Chain, SameZone, at_mAt f t _ hne,
         mAt_zero, mAt_one]
       refine ⟨by grind, ?_, by grind, ?_, trivial⟩ <;> unfold kA kB at * <;> grind
-    · simp only [ha, hb, and_self, ite_false, List.nil_append, List.cons_append, Chain, SameZone, mAt_zero, mAt_one]
+    · simp only [ha, hb, ite_false, List.nil_append, Chain, SameZone, mAt_zero, mAt_one]
       refine ⟨by grind, ?_, trivial⟩ <;> unfold kA kB at * <;> grind
   · have hne : f ≠ t ∨ f = t := by grind
     simp only [offs, inner, hft, ite_false]
@@ -168,12 +168,12 @@ theorem chain_offs (f t : Rat) : Chain f t (offs f t) := by
       have m1 := at_mem_down f t kA ha.1 ha.2
       have m2 := at_mem_down f t kB hb.1 hb.2
       have lt := at_lt_down f t kA kB (by grind) hA
-      simp only [ha, hb, and_self, ite_true, List.cons_append, List.nil_append, List.append_nil, Chain, SameZone, at_mAt f t _ hne,
+      simp only [ha, hb, and_self, ite_true, List.cons_append, List.nil_append, Chain, SameZone, at_mAt f t _ hne,
         mAt_zero, mAt_one]
       refine ⟨by grind, ?_, by grind, ?_, by grind, ?_, trivial⟩ <;> unfold kA kB at * <;> grind
     · have hne : f ≠ t := by grind
       have m1 := at_mem_down f t kA ha.1 ha.2
-      simp only [ha, hb, and_self, ite_true, ite_false, List.cons_append, List.nil_append, List.append_nil, Chain, SameZone, at_mAt f t _ hne,
+      simp only [ha, hb, and_self, ite_true, ite_false, List.cons_append, List.nil_append, Chain, SameZone, at_mAt f t _ hne,
         mAt_zero, mAt_one]
       refine ⟨by grind, ?_, by grind, ?_, trivial⟩ <;> unfold kA kB at * <;> grind
     · have hne : f ≠ t := by grind
@@ -181,7 +181,7 @@ theorem chain_offs (f t : Rat) : Chain f t (offs f t) := by
       simp only [ha, hb, and_self, ite_true, ite_false, List.cons_append, List.nil_append, List.append_nil, Chain, SameZone, at_mAt f t _ hne,
         mAt_zero, mAt_one]
       refine ⟨by grind, ?_, by grind, ?_, trivial⟩ <;> unfold kA kB at * <;> grind
-    · simp only [ha, hb, and_self, ite_false, List.nil_append, List.cons_append, Chain, SameZone, mAt_zero, mAt_one]
+    · simp only [ha, hb, ite_false, List.nil_append, Chain, SameZone, mAt_zero, mAt_one]
       refine ⟨by grind, ?_, trivial⟩ <;> unfold kA kB at * <;> grind
 
 theorem progress_form (m : Rat) : (m - 2 / 25) / (18 / 25) = 25 / 18 * m - 1 / 9 := by grind
@@ -305,39 +305,39 @@ def writesO (a b : Rat) : List (Tgt × String) :=
     (if panelBlurPx a = panelBlurPx b then [] else [(.panel .filter, "filter")]) ++
     (if panelScale a = panelScale b then [] else [(.panel .transform, "transform")])
 
-def writesP (a b : Rat) : List (Tgt × String) :=
+def writesPlat (a b : Rat) : List (Tgt × String) :=
   (if a = b then [] else [(.nav, "--morph")]) ++ (if fade a = fade b then [] else [(.platform, "--morph-fade")])
 
-def writesB (a b : Rat) : List (Tgt × String) := if a = b then [] else [(.nav, "--morph")]
+def writesT (a b : Rat) : List (Tgt × String) := if a = b then [] else [(.nav, "--morph")]
 
 def recalc (w : List (Tgt × String)) : Bool := !w.isEmpty
 
 #guard writesO 0 (1 / 2) ==
   [(.nav, "--morph"), (.platform, "--morph-fade"), (.panel .opacity, "opacity"), (.panel .filter, "filter"),
     (.panel .transform, "transform")]
-#guard writesP 0 (1 / 2) == [(.nav, "--morph"), (.platform, "--morph-fade")]
-#guard writesB 0 (1 / 2) == [(.nav, "--morph")] && writesB (1 / 2) (1 / 2) == []
+#guard writesPlat 0 (1 / 2) == [(.nav, "--morph"), (.platform, "--morph-fade")]
+#guard writesT 0 (1 / 2) == [(.nav, "--morph")] && writesT (1 / 2) (1 / 2) == []
 
-theorem writesP_sub (a b : Rat) : writesP a b = (writesO a b).filter fun w => w.1 = .nav ∨ w.1 = .platform := by
-  unfold writesP writesO
+theorem writesPlat_sub (a b : Rat) : writesPlat a b = (writesO a b).filter fun w => w.1 = .nav ∨ w.1 = .platform := by
+  unfold writesPlat writesO
   by_cases h : a = b <;> by_cases hf : fade a = fade b <;>
     by_cases h1 : panelOpacity a = panelOpacity b <;> by_cases h2 : panelBlurPx a = panelBlurPx b <;>
     by_cases h3 : panelScale a = panelScale b <;> simp [h, hf, h1, h2, h3]
 
-theorem writesB_sub (a b : Rat) : writesB a b = (writesO a b).filter (·.1 = .nav) := by
-  unfold writesB writesO
+theorem writesT_sub (a b : Rat) : writesT a b = (writesO a b).filter (·.1 = .nav) := by
+  unfold writesT writesO
   by_cases h : a = b <;> by_cases hf : fade a = fade b <;>
     by_cases h1 : panelOpacity a = panelOpacity b <;> by_cases h2 : panelBlurPx a = panelBlurPx b <;>
     by_cases h3 : panelScale a = panelScale b <;> simp [h, hf, h1, h2, h3]
 
-theorem recalc_same (a b : Rat) : recalc (writesP a b) = recalc (writesO a b) := by
-  unfold recalc writesP writesO
+theorem recalc_same (a b : Rat) : recalc (writesPlat a b) = recalc (writesO a b) := by
+  unfold recalc writesPlat writesO
   by_cases h : a = b
   · subst h; simp
   · simp [h]
 
-theorem recalc_same_bundle (a b : Rat) : recalc (writesB a b) = recalc (writesO a b) := by
-  unfold recalc writesB writesO
+theorem recalc_same_bundle (a b : Rat) : recalc (writesT a b) = recalc (writesO a b) := by
+  unfold recalc writesT writesO
   by_cases h : a = b
   · subst h; simp
   · simp [h]
