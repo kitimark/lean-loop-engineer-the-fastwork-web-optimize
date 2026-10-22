@@ -75,6 +75,7 @@ import Fw.Measure.Quiet
 import Fw.Measure.Tolerance
 import Fw.Measure.WebKit
 import Fw.Measure.WkCost
+import Fw.Measure.Census
 import Fw.Measure.WebKitLag
 import Fw.Device.Session
 import Fw.Device.StillRuns

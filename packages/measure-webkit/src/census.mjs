@@ -10,11 +10,15 @@
 import { sleep } from './sim.mjs';
 import { scrollHold } from './page.mjs';
 
-const DESCRIBE_FN = `function () {
-  if (this.nodeType !== 1) return this.nodeName;
+export const INFO_FN = `function () {
+  if (this.nodeType !== 1) return { name: this.nodeName, fw: null, layer: null, origin: null };
   const cls = typeof this.className === 'string' ? this.className : (this.className && this.className.baseVal) || '';
-  return this.tagName.toLowerCase() + (this.id ? '#' + this.id : '') + (cls.trim() ? '.' + cls.trim().split(/\\s+/).slice(0, 2).join('.') : '');
+  const name = this.tagName.toLowerCase() + (this.id ? '#' + this.id : '') + (cls.trim() ? '.' + cls.trim().split(/\\s+/).slice(0, 2).join('.') : '');
+  const r = this.getBoundingClientRect();
+  return { name, fw: this.getAttribute('data-fw'), layer: this.getAttribute('data-fw-layer'), origin: [Math.round(r.left * 1e6), Math.round(r.top * 1e6)] };
 }`;
+
+export const RENDERED_EXPR = `JSON.stringify({ dprMilli: Math.round(devicePixelRatio * 1000), rendered: Array.from(document.querySelectorAll('[data-fw-layer]')).filter((e) => e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden').map((e) => e.getAttribute('data-fw-layer')).filter(Boolean) })`;
 
 async function layersOf(c) {
   const doc = (await c.send('DOM.getDocument', { depth: 0 })).root.nodeId;
@@ -29,14 +33,21 @@ async function reasonsOf(c, layerId) {
   }
 }
 
+const NO_INFO = { fw: null, layer: null, origin: null };
+
 async function describe(c, nodeId) {
-  if (!nodeId) return '(no node)';
+  if (!nodeId) return { name: '(no node)', ...NO_INFO };
   try {
     const o = await c.send('DOM.resolveNode', { nodeId, objectGroup: 'wk-census' });
-    const v = await c.send('Runtime.callFunctionOn', { objectId: o.object.objectId, functionDeclaration: DESCRIBE_FN, returnByValue: true });
-    return v.result?.value ?? '?';
-  } catch { return '?'; }
+    const v = await c.send('Runtime.callFunctionOn', { objectId: o.object.objectId, functionDeclaration: INFO_FN, returnByValue: true });
+    return v.result?.value ?? { name: '?', ...NO_INFO };
+  } catch { return { name: '?', ...NO_INFO }; }
 }
+
+const microRect = (key) => {
+  const p = key ? key.split(',').map(Number) : [];
+  return p.length === 4 && p.every(Number.isFinite) ? p.map((n) => Math.round(n * 1e6)) : null;
+};
 
 const sortedKeys = (o) => Object.keys(o || {}).filter((k) => o[k]).sort();
 const rectKey = (r) => (r ? `${r.x},${r.y},${r.width},${r.height}` : '');
@@ -55,10 +66,11 @@ export async function takeCensus(c, { paintWindowMs = 2000, withReasons = true, 
   const paintBefore = new Map(a.map((l) => [l.layerId, l.paintCount]));
   const layers = [];
   for (const l of b) {
+    const info = withNames ? await describe(c, l.nodeId) : { name: null, ...NO_INFO };
     const d = {
-      name: withNames ? await describe(c, l.nodeId) : null,
+      name: info.name, fw: info.fw, layer: info.layer, origin: info.origin,
       pseudo: l.pseudoElement || null,
-      bounds: rectKey(l.bounds), compositedBounds: rectKey(l.compositedBounds),
+      bounds: rectKey(l.bounds), compositedBounds: rectKey(l.compositedBounds), boundsU: microRect(rectKey(l.compositedBounds)),
       memory: l.memory, paintCount: l.paintCount,
       paintDelta: paintBefore.has(l.layerId) ? l.paintCount - paintBefore.get(l.layerId) : null, // null: layer is new in the window
       reasons: withReasons ? await reasonsOf(c, l.layerId) : [],
@@ -71,11 +83,13 @@ export async function takeCensus(c, { paintWindowMs = 2000, withReasons = true, 
   // leave no LayerTree/DOM tracking behind: a later reload and a timed window should not pay for it
   await c.disable('LayerTree');
   await c.disable('DOM');
+  const seen = typeof c.evaluate === 'function' ? JSON.parse(await c.evaluate(RENDERED_EXPR)) : { dprMilli: null, rendered: [] };
   const reasonCounts = {};
   for (const l of layers) for (const r of l.reasons) reasonCounts[r] = (reasonCounts[r] || 0) + 1;
   const sum = (f) => layers.reduce((s, l) => s + f(l), 0);
   return {
     layerCount: layers.length,
+    dprMilli: seen.dprMilli, rendered: seen.rendered,
     layersAtFirstRead: a.length,
     memoryBytes: sum((l) => l.memory),
     paintCountTotal: sum((l) => l.paintCount),
