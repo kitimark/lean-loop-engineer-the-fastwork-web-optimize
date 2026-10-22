@@ -100,7 +100,8 @@ await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `globalThis.__FW
 // The real frame size: the native innerWidth/innerHeight getters, captured before any page script can pin them (a stage page pins
 // both to its stage environment). The viewport gate decides on these (Lean Fw.Site.StageMode.gateSize).
 await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `(() => { const g = (k) => { const d = Object.getOwnPropertyDescriptor(window, k); return d && typeof d.get === 'function' ? d.get : null; }; const w = g('innerWidth'), h = g('innerHeight'); Object.defineProperty(window, '__fwRealSize', { value: () => (w && h ? { w: w.call(window), h: h.call(window) } : null) }); })();` });
-// profile.css (crash-probe only): rules added to the page at document start, to take one rule or part out of a bisect.
+// profile.css: rules added to the page at document start. Two uses: a crash-probe variant takes one rule or part out of a bisect, and the
+// desktop-1280 profile sets text-wrap: wrap (workaround for the Chrome 156.0.8078.4 text-wrap renderer crash, research/notes/2026/10-2x-chromium-desktop-crash.md).
 if (profile.css) await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `(() => { const add = () => { const s = document.createElement('style'); s.textContent = ${JSON.stringify(profile.css)}; document.documentElement.appendChild(s); }; if (document.documentElement) add(); else new MutationObserver((_, o) => { if (document.documentElement) { o.disconnect(); add(); } }).observe(document, { childList: true }); })();` });
 if (N0_ON) await c.send('Page.addScriptToEvaluateOnNewDocument', { source: readFileSync('/driver/n0-census.js', 'utf8') }); // after the shim: it stamps events with the virtual clock
 
