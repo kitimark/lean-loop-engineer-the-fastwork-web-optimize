@@ -299,15 +299,12 @@ windows, insufficient), with the Lean `across` verdict `same` for the pair `base
   style and layout work while `--morph` moves is spent mostly on what else changes in those frames (nav width, actions
   gap, hero and platform parts); the earn button is one box with two pseudo-elements among them. That the earn share is
   small is INFERRED from the table; the measured fact is only that it sits inside the repeat-to-repeat spread.
-- **Lean why (CONFIRMED, `lean/Fw/Gate/Smooth.lean`, `Fw.Measure.WebKitProfile.zoneVerdict` = `hitchVerdict`).** A job
-  says `second` only when every repeat of base has more render work per frame than every repeat of bound
+- **Lean why (CONFIRMED, `lean/Fw/Gate/Smooth.lean`, `Fw.Measure.WebKitProfile.zoneVerdict` = `hitchVerdict`).** By the definition of hitchJudge, a job
+  says `second` exactly when every repeat of base has more render work per frame than every repeat of bound
   (`hitchJudge_second` :597, `above`), and only if the A/A pair is not itself told apart; otherwise it says `same`
   (`hitchJudge_same` :602 when the two ranges overlap, `hitchVerdict_noisy` :652 when the A/A pair separates). The jobs
   then go through `across k` with `k = agreeNeeded 3 = 2` (:697): a verdict over 3 jobs needs 2 of them to say
-  `second` and none `first`; with 0 `second` the branch is `across_same` (:735). The median shift of bound against base
-  (macOS −1 %, Simulator 11 %) is no larger than the A/A gap against base (2 % and 10 %), so the repeat ranges are not
-  disjoint and the premise of `second` is absent in every job. Which of the two `same` branches (overlap or noisy A/A) fired in each job is not recorded in the report
-  (INFERRED: overlap, from the pooled table). The theorems say why a `second` needs separated ranges, not why the earn
+  `second` and none `first`; with 0 `second` the branch is `across_same` (:735). Per-frame render work per repeat (the verdict input) overlaps between base and bound in every job (us, base/bound: macOS 6523-9304/5922-11277, 6939-9678/7065-8155, 6350-11230/6695-7499; Simulator 3125-9374/2794-8342, 2932-7615/2886-6965, 2848-12713/2923-12120). base and aa also overlap in every job, so the A/A check passes and hitchJudge_same (:602) is the branch that fired in all six jobs; hitchVerdict_noisy did not fire. MEASURED (summary.json zones.finish.cells, reviewer re-reduction of runs 39729682403 and 39754568950). The theorems say why a `second` needs separated ranges, not why the earn
   work is small; that is the mechanism above.
 - **Lesson.** Measure the bound of a candidate (all of its work removed) before building it: a candidate cannot win
   more than its bound. A bound that stays inside the A/A spread ends the candidate on that metric and host, and the

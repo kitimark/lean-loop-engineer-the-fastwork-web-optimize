@@ -9,7 +9,7 @@ Verdict (MEASURED, Lean `across` pair base|bound, finish zone): `same` in every 
 
 CI runs (all on ci/earn-bound-arm, smoothness.yml; 3 of 6 dispatches used):
 - 39729682403: mac jobs 1-3 complete (8 reps, 48 windows each) = the macOS evidence. Sim jobs 1-2 died at 31/38 windows, sim job 3 hit
-  the 45 min limit (no artifact). fw ci state gives the run as failed (sim job 3 cancelled, the other jobs succeeded).
+  the 45 min limit (no artifact). GitHub conclusion cancelled (sim job 3 hit the limit; mac jobs 1-3 succeeded); fw ci state prints unknown for all three runs, GitHub gives 39744983394 and 39754568950 success.
 - 39744983394: [sim-only], 4 reps: too few finish windows (MIN_REPS 5), verdict insufficient.
 - 39754568950: [sim-only], 6 reps: 3 sim jobs, 36 windows each, all decisive = the iOS Simulator evidence.
 

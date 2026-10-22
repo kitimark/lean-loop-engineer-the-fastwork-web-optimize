@@ -66,7 +66,7 @@
           ]
         },
         {
-          "metric": "jobs where Lean across tells bound apart from base (of 3)",
+          "metric": "jobs where the Lean zone verdict tells bound apart from base (of 3)",
           "unit": "jobs",
           "cells": [
             { "arm": "bound", "value": 0, "tag": { "kind": "measured", "run": "39729682403" } }
@@ -133,7 +133,7 @@
           ]
         },
         {
-          "metric": "jobs where Lean across tells bound apart from base (of 3)",
+          "metric": "jobs where the Lean zone verdict tells bound apart from base (of 3)",
           "unit": "jobs",
           "cells": [
             { "arm": "bound", "value": 0, "tag": { "kind": "measured", "run": "39754568950" } }
