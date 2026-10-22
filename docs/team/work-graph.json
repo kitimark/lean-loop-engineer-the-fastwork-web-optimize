@@ -16352,7 +16352,8 @@
     "apps/runner/test/land-remote*.test.ts",
     "docs/team/handoffs/land-leg-pending.md"
    ],
-   "title": "Incident inc-land-leg-unfinished (2026-10-22): the gate-settle-scroll-timeline land was refused 'github:fail' on run 39792901389 whose record said status completed / conclusion success while four jobs still read status in_progress with conclusion '' (all their steps had succeeded; GitHub had not finalised the jobs). legResults (land-remote.ts:65) treats '' as a string, so an unfinished job counts as a failed leg. Lean first (LandRemote laneState / LandLegs): a leg whose job status is not completed is pending, never failed; a completed run with a pending leg is re-read (bounded) before any verdict; theorem: no fail verdict from a leg without a completed status; goldens including this record; TS follows."
+   "title": "Incident inc-land-leg-unfinished (2026-10-22): the gate-settle-scroll-timeline land was refused 'github:fail' on run 39792901389 whose record said status completed / conclusion success while four jobs still read status in_progress with conclusion '' (all their steps had succeeded; GitHub had not finalised the jobs). legResults (land-remote.ts:65) treats '' as a string, so an unfinished job counts as a failed leg. Lean first (LandRemote laneState / LandLegs): a leg whose job status is not completed is pending, never failed; a completed run with a pending leg is re-read (bounded) before any verdict; theorem: no fail verdict from a leg without a completed status; goldens including this record; TS follows.",
+   "evidence": "5fd2c06"
   },
   {
    "devices": [
