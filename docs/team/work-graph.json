@@ -16835,7 +16835,8 @@
     ".claude/agents/comment-sicko.md",
     "docs/team/handoffs/polish-skip-generated.md"
    ],
-   "title": "The build-review Polish stage (comment-sicko) deleted the guard comment that scripts/ci-paths.mjs generates in .github/workflows/path-pix.yml; the land dry then refused with VERDICT lint (ci-paths --check: 'the comment above the guard job differs'), costing a land cycle (2026-10-23). Closed rule by identity: fw polish never edits lines a generator owns; ask each generator (ci-paths --check, the golden writers) after the polish edits and revert any hunk the check refuses, or pass the generator-owned paths/blocks to comment-sicko as read-only. Test: a polish run over a workflow file keeps the generated guard comment."
+   "title": "The build-review Polish stage (comment-sicko) deleted the guard comment that scripts/ci-paths.mjs generates in .github/workflows/path-pix.yml; the land dry then refused with VERDICT lint (ci-paths --check: 'the comment above the guard job differs'), costing a land cycle (2026-10-23). Closed rule by identity: fw polish never edits lines a generator owns; ask each generator (ci-paths --check, the golden writers) after the polish edits and revert any hunk the check refuses, or pass the generator-owned paths/blocks to comment-sicko as read-only. Test: a polish run over a workflow file keeps the generated guard comment.",
+   "evidence": "f0909d2"
   }
  ],
  "deadline": {
