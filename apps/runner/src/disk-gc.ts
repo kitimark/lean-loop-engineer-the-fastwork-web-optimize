@@ -1,7 +1,3 @@
-// fw disk-gc (task disk-auto-gc, disk-gc-tmp): gathers the facts of seven cleanup classes, asks fwcore (ops.diskGc,
-// lean/Fw/Ops/DiskGc.lean, golden packages/contracts/golden/ops/diskgc.jsonl) which candidates to delete, and prints or
-// deletes exactly that list. Every path is checked again (realpath, owner, ops.diskGcPath) right before it is deleted.
-// Docs: docs/team/tools/disk-gc.md.
 import { spawnSync } from "node:child_process";
 import { appendFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statfsSync, unlinkSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
@@ -32,7 +28,6 @@ export type Call = (req: Record<string, unknown>) => Record<string, unknown>;
 export type Mode = "summary" | "list" | "json" | "delete";
 export type Args = { mode: Mode; classes: Cls[]; idleH?: number; scratchH?: number; keepDays?: number; tmpH?: number; pressure?: boolean };
 
-/** The facts a run reads from the machine, replaceable in tests. `null`: not gathered (Lean then keeps what it guards). */
 export type Io = {
   opens: () => string[] | null;
   procs: () => { pid: number; start: string }[] | null;
@@ -85,7 +80,6 @@ function run(cmd: string, args: string[], cwd?: string): { status: number | null
 
 const git = (cwd: string, args: string[]) => run("git", ["--no-optional-locks", ...args], cwd);
 
-/** Size on disk (blocks) and newest mtime of a tree, without following symlinks; a hard-linked inode counts once. */
 export function walk(p: string): { bytes: number; newest: number } {
   const seen = new Set<string>();
   let bytes = 0, newest = 0;
@@ -97,32 +91,28 @@ export function walk(p: string): { bytes: number; newest: number } {
     newest = Math.max(newest, secs(s.mtimeMs));
     const id = `${s.dev}:${s.ino}`;
     if (!seen.has(id)) { seen.add(id); bytes += s.blocks * 512; }
-    if (s.isDirectory()) { try { for (const n of readdirSync(q)) stack.push(join(q, n)); } catch { /* unreadable */ } }
+    if (s.isDirectory()) { try { for (const n of readdirSync(q)) stack.push(join(q, n)); } catch {} }
   }
   return { bytes, newest };
 }
 
-/** `du -sk` of a tree in bytes (0 when du fails). */
 export function duBytes(p: string): number {
   const r = run("du", ["-sk", p]);
   const k = Number(/^(\d+)/.exec(r.out)?.[1] ?? "0");
   return k * 1024;
 }
 
-/** The owner's uid, or `null` when lstat fails (a vanished path): Lean keeps a candidate of unknown owner. */
 const ownerOf = (p: string): number | null => { try { return lstatSync(p).uid; } catch { return null; } };
 const isLink = (p: string): boolean => { try { return lstatSync(p).isSymbolicLink(); } catch { return false; } };
 const isDir = (p: string): boolean => { try { return lstatSync(p).isDirectory(); } catch { return false; } };
 const listDir = (p: string): string[] => { try { return readdirSync(p).sort(); } catch { return []; } };
 
-/** The open files and working directories of every process (`lsof -n -F n`), each an absolute path. */
 export function gatherOpens(): string[] | null {
   const r = run("lsof", ["-n", "-w", "-Fn"]);
   if (!r.out) return null;
   return r.out.split("\n").filter((l) => l.startsWith("n/")).map((l) => l.slice(1));
 }
 
-/** pid and `ps` start time (`LC_ALL=C`, as `git worktree lock` reasons quote it) of every process. */
 export function gatherStarts(): { pid: number; start: string }[] | null {
   const r = run("ps", ["-axo", "pid=,lstart="]);
   if (r.status !== 0) return null;
@@ -134,7 +124,6 @@ export function gatherStarts(): { pid: number; start: string }[] | null {
   return out;
 }
 
-/** The Simulator devices (`xcrun simctl list devices -j`). */
 export function gatherDevices(): Device[] | null {
   const r = run("xcrun", ["simctl", "list", "devices", "-j"]);
   if (r.status !== 0) return null;
@@ -153,8 +142,6 @@ export const realIo: Io = {
   lakeRoot: (repo) => { try { return realpathSync(artifactsRoot(repo)); } catch { return null; } },
 };
 
-/** The default roots of the main checkout `repo` (a real path): Lake's artifact cache, this user's Claude scratch
- *  directory of the project, and the Simulator devices directory. */
 export function defaultRoots(repo: string, io: Io, env: Record<string, string | undefined> = process.env): Roots {
   const tmp = (() => { try { return realpathSync("/tmp"); } catch { return "/tmp"; } })();
   const uid = process.getuid?.() ?? 0;
@@ -169,7 +156,6 @@ export function defaultRoots(repo: string, io: Io, env: Record<string, string | 
 
 type Wt = { path: string; branch: string; lock: Lock };
 
-/** The worktrees `git worktree list --porcelain` names, with their branch and lock. */
 export function worktrees(repo: string): Wt[] | null {
   const r = git(repo, ["worktree", "list", "--porcelain"]);
   if (r.status !== 0) return null;
@@ -190,8 +176,6 @@ export function worktrees(repo: string): Wt[] | null {
   return out;
 }
 
-/** The branch is landed: it has a commit of its own (its tip differs from the commit its reflog was created at) and
- *  main contains its tip. `null` when git cannot tell. */
 export function landedOf(repo: string, branch: string): boolean | null {
   const tip = git(repo, ["rev-parse", "--verify", "-q", `refs/heads/${branch}`]).out.trim();
   const log = git(repo, ["reflog", "show", "--format=%H", `refs/heads/${branch}`]);
@@ -202,18 +186,16 @@ export function landedOf(repo: string, branch: string): boolean | null {
   return a === 0 ? true : a === 1 ? false : null;
 }
 
-/** Uncommitted or untracked (not ignored) changes, and the newest of the HEAD commit time and their mtimes. */
 export function wtState(wt: string): { dirty: boolean | null; newest: number } {
   const st = git(wt, ["status", "--porcelain", "-z", "--untracked-files=normal"]);
   const head = Number(git(wt, ["log", "-1", "--format=%ct"]).out.trim() || "0");
   if (st.status !== 0) return { dirty: null, newest: Number.MAX_SAFE_INTEGER };
   const files = st.out.split("\0").filter(Boolean).filter((e) => /^.. /.test(e)).map((e) => e.slice(3));
   let newest = head;
-  for (const f of files) { try { newest = Math.max(newest, secs(lstatSync(join(wt, f)).mtimeMs)); } catch { /* gone */ } }
+  for (const f of files) { try { newest = Math.max(newest, secs(lstatSync(join(wt, f)).mtimeMs)); } catch {} }
   return { dirty: files.length > 0, newest };
 }
 
-/** The tracked files under `rel` of the checkout `top` (`null`: git failed). */
 function trackedUnder(top: string, rel: string): Set<string> | null {
   const r = git(top, ["ls-files", "-z", "--", rel]);
   return r.status === 0 ? new Set(r.out.split("\0").filter(Boolean)) : null;
@@ -222,7 +204,6 @@ function trackedUnder(top: string, rel: string): Set<string> | null {
 const trackedIn = (set: Set<string> | null, rel: string): boolean =>
   set === null || [...set].some((f) => f === rel || f.startsWith(`${rel}/`));
 
-/** Every `scratchpad/<dir>` a file on main mentions (also without trailing dots, which end sentences). */
 export function gatherCited(repo: string): string[] | null {
   const r = git(repo, ["grep", "-h", "-o", "-E", "scratchpad/[A-Za-z0-9._-]+", "refs/heads/main"]);
   if (r.status !== 0 && r.status !== 1) return null;
@@ -234,7 +215,6 @@ export function gatherCited(repo: string): string[] | null {
   return [...out];
 }
 
-/** Every `fw-…` name a workflow, package, app or script on main mentions. */
 export function gatherNamed(repo: string): string[] | null {
   const r = git(repo, ["grep", "-h", "-o", "-E", "fw-[A-Za-z0-9._-]+", "refs/heads/main", "--", ".github", "packages", "apps", "scripts"]);
   if (r.status !== 0 && r.status !== 1) return null;
@@ -243,9 +223,6 @@ export function gatherNamed(repo: string): string[] | null {
 
 export type EventFacts = { liveAgents: string[]; landedTasks: string[]; finishedRuns: string[] };
 
-/** From the append-only event log: the names of agents that were labelled and have not stopped (their workflow run
- *  has not ended either), the tasks that are done on main (`task.done`), and the workflow runs that ended
- *  (`wfr-end:<run>`). An agent with no stop event counts as running, which keeps its directory. `null`: unreadable. */
 export function gatherEventFacts(repo: string): EventFacts | null {
   let text: string;
   try { text = readFileSync(join(repo, ".fw-console", "events.jsonl"), "utf8"); } catch { return null; }
@@ -273,7 +250,6 @@ export function gatherEventFacts(repo: string): EventFacts | null {
   return { liveAgents: [...live], landedTasks: [...done], finishedRuns: [...runs] };
 }
 
-/** The `.fw-owner` marker of a scratch directory: `{"task": …, "run": …}` (`null`: none or malformed). */
 export function ownerMarker(dir: string): { task: string; run: string } | null {
   try {
     const j = JSON.parse(readFileSync(join(dir, ".fw-owner"), "utf8").slice(0, 2000)) as { task?: unknown; run?: unknown };
@@ -283,8 +259,6 @@ export function ownerMarker(dir: string): { task: string; run: string } | null {
 
 export type Facts = { req: Record<string, unknown>; cands: Cand[]; lazy: Map<string, () => number>; outputs: () => string[] | null };
 
-/** The request facts and candidates of the enabled classes. Byte counts of whole worktrees, rebuildable folders and
- *  devices are filled in later, only for what Lean selects (`lazy`). */
 export function gather(roots: Roots, a: Args, io: Io, now: number, uid: number): Facts {
   const on = (c: Cls) => a.classes.includes(c);
   const cands: Cand[] = [];
@@ -310,7 +284,7 @@ export function gather(roots: Roots, a: Args, io: Io, now: number, uid: number):
         const s = lstatSync(path);
         cands.push({ cls: "lake", path, bytes: s.blocks * 512, uid: s.uid, tracked: false, newest: secs(s.mtimeMs), dir: s.isDirectory(),
           lake: { name, file: s.isFile(), links: s.nlink, mtime: secs(s.mtimeMs), ctime: secs(s.ctimeMs), size: s.size } });
-      } catch { /* removed meanwhile */ }
+      } catch {}
     }
   }
 
@@ -400,8 +374,6 @@ const candJson = (c: Cand): Record<string, unknown> => {
   return j;
 };
 
-/** Ask Lean: once for the selection; again with outputs when class 1 needs Lake's outputs map; and once more with
- *  the byte counts of the selected worktrees, folders and devices filled in. */
 export function decide(call: Call, f: Facts): Reply {
   const ask = () => call({ op: "ops.diskGc", ...f.req, cands: f.cands.map(candJson) }) as unknown as Reply;
   let r = ask();
@@ -418,13 +390,10 @@ export function decide(call: Call, f: Facts): Reply {
 
 const gib = (n: number) => (n / 2 ** 30).toFixed(2);
 
-/** Free bytes of the volume holding `p` (null when unknown). */
 export function freeBytes(p: string): number | null {
   try { const s = statfsSync(p); return Number(s.bavail) * Number(s.bsize); } catch { return null; }
 }
 
-/** Delete one selected item. The path must still be its own real path and owned by `uid`; worktrees go through
- *  `git worktree remove` (never forced: git refuses a dirty one), devices through `simctl delete`. */
 export function deleteItem(item: { cls: Cls; path: string }, repo: string, uid: number, io: Io, lock?: Lock | null): string | null {
   let real: string;
   try { real = realpathSync(item.path); } catch (e) { return isMissing(e) ? null : (e as Error).message; }
@@ -450,7 +419,6 @@ export type RunResult = { reply: Reply; lines: string[]; ok: boolean; freeBefore
 
 export type RunOpts = { repo: string; args: Args; call: Call; io?: Io; roots?: Roots; now?: number; uid?: number; env?: Record<string, string | undefined> };
 
-/** One run: gather, decide, then print (or delete) the list; with `--delete`, record one `diskgc.run` event. */
 export function diskGc(o: RunOpts): RunResult {
   const io = o.io ?? realIo, env = o.env ?? process.env;
   const uid = o.uid ?? process.getuid?.() ?? 0;
@@ -489,31 +457,26 @@ export function diskGc(o: RunOpts): RunResult {
   return res;
 }
 
-/** Append one `diskgc.run` event to `<main>/.fw-console/disk-gc.jsonl`. */
 export function record(repo: string, a: Args, r: RunResult, now: number): void {
   try {
     const p = join(repo, ".fw-console", "disk-gc.jsonl");
     mkdirSync(dirname(p), { recursive: true });
     appendFileSync(p, JSON.stringify({ type: "diskgc.run", at: now, mode: a.mode, classes: r.reply.classes, deleted: r.deleted,
       failed: r.failed, freed: r.freed, freeBefore: r.freeBefore, freeAfter: r.freeAfter }) + "\n");
-  } catch { /* the log is advisory */ }
+  } catch {}
 }
 
-/** The main checkout of `cwd` (a real path). */
 export function mainOf(cwd: string): string {
   const r = git(cwd, ["rev-parse", "--path-format=absolute", "--git-common-dir"]);
   return realpathSync(dirname(r.out.trim()));
 }
 
-/** `fw disk-gc`: exit 0, or 1 when a deletion failed. */
 export function diskGcCli(argv: string[], cwd: string, call: Call, print: (s: string) => void = console.log): number {
   const r = diskGc({ repo: mainOf(cwd), args: parseArgs(argv), call });
   for (const l of r.lines) print(l);
   return r.ok ? 0 : 1;
 }
 
-/** A trigger's run (post-land: classes 1, 2, 6; `sys.diskLow`: all): `DISKGC` lines, never a throw.
- *  `FW_DISK_GC=0` turns the triggers off. */
 export function diskGcTick(repo: string, classes: Cls[], call: Call, env: Record<string, string | undefined> = process.env,
   opts: Partial<RunOpts> & { pressure?: boolean } = {}): string[] {
   if (env.FW_DISK_GC === "0") return [];

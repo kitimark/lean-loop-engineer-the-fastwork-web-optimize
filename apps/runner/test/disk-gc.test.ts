@@ -47,8 +47,6 @@ const UDID = "0a1b2c3d-0000-1111-2222-333344445555";
 const temps: string[] = [];
 afterAll(() => { for (const t of temps) rmSync(t, { recursive: true, force: true }); });
 
-/** A main checkout with a landed worktree, an unlanded idle one, a scratch root, console entries, a Lake artifacts dir
- *  and a devices dir, all under one temp directory. */
 function tree() {
   const t = realpathSync(mkdtempSync(join(tmpdir(), "diskgc")));
   temps.push(t);

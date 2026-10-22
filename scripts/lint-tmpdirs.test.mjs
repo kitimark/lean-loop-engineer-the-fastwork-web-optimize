@@ -1,4 +1,3 @@
-// Tests of scripts/lint-tmpdirs.mjs: which texts are flagged, and that the run reports without failing unless --strict.
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { cleansUp, finding, lint, makes, run } from './lint-tmpdirs.mjs';
