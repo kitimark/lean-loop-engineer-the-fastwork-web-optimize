@@ -78,6 +78,7 @@ test('a child that ignores SIGINT and SIGTERM, with a child of its own, is kille
   const pg = Number(/process group (\d+)/.exec(lines[0])[1]);
   assert.equal(groupAlive(pg), false);
   assert.match(readFileSync(join(dir, 'e.log'), 'utf8'), /SIGTERM ignored/, 'the stderr file keeps what the child said');
+  assert.match(readFileSync(join(dir, 'e.log'), 'utf8'), /\nwatchdog: session 1: .*group gone\n$/, 'and the watchdog line');
   assert.match(readFileSync(join(dir, 'o.md'), 'utf8'), /grandchild \d+/);
 });
 

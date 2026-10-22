@@ -81,7 +81,7 @@ export function groupAlive(pgid, kill = process.kill) {
  */
 export async function endGroup(pgid, { graceMs, killWaitMs = BOUNDS.killWaitMs, kill = process.kill, alive = (g) => groupAlive(g, kill), pollMs = 50 } = {}) {
   const out = { termSent: false, killSent: false, gone: false };
-  const waitGone = async (ms) => { for (let t = 0; t < ms && alive(pgid); t += pollMs) await sleep(pollMs); return !alive(pgid); };
+  const waitGone = async (ms) => { const end = Date.now() + ms; while (alive(pgid) && Date.now() < end) await sleep(pollMs); return !alive(pgid); };  // real time: a loaded host stretches each sleep
   try { kill(-pgid, 'SIGTERM'); out.termSent = true; } catch { /* the group is already gone */ }
   if (await waitGone(graceMs)) { out.gone = true; return out; }
   try { kill(-pgid, 'SIGKILL'); out.killSent = true; } catch { /* gone between the check and the signal */ }
@@ -102,7 +102,9 @@ export function watchdogLine({ label, elapsedS, budgetS, pass, lastLine, pgid, e
  */
 export async function runBounded({ cmd, args = [], label, deadlineMs, startMs = Date.now(), graceMs, killWaitMs = BOUNDS.killWaitMs, stdoutFile, stderrFile, say = (s) => process.stderr.write(`${s}\n`), echoOut = (b) => process.stdout.write(b), echoErr = (b) => process.stderr.write(b), now = Date.now }) {
   const budgetS = Math.round((deadlineMs - startMs) / 1000);
-  const fire = (pgid, pass, lastLine, ended) => say(watchdogLine({ label, elapsedS: Math.round((now() - startMs) / 1000), budgetS, pass, lastLine, pgid, ended }));
+  // the line also goes to the stderr file, so the kept log says why the command ended
+  const withFile = (line) => { if (stderrFile) appendFileSync(stderrFile, `${line}\n`); return line; };
+  const fire = (pgid, pass, lastLine, ended) => say(withFile(watchdogLine({ label, elapsedS: Math.round((now() - startMs) / 1000), budgetS, pass, lastLine, pgid, ended })));
   for (const f of [stdoutFile, stderrFile]) if (f) writeFileSync(f, '');
   if (deadlineMs - now() <= 0) { fire(null, null, null, null); return { code: WATCHDOG_EXIT, fired: true }; }
   const child = spawn(cmd, args, { detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
