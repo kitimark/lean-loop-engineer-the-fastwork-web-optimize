@@ -4,6 +4,7 @@ import { EventEmitter } from 'node:events';
 import { takeCensus, INFO_FN as WK_INFO, RENDERED_EXPR as WK_RENDERED } from '../src/census.mjs';
 import { INFO_FN as CR_INFO, RENDERED_EXPR as CR_RENDERED, sampleAt, collectCensus, layerRecord, sampleYs } from '../../measure-chromium/src/census.mjs';
 import { checkPair } from '../src/census-check.mjs';
+import { atTop, pinStates, resolveStates } from '../src/determinism.mjs';
 
 test('both engines run byte-identical page-side code', () => {
   assert.equal(WK_INFO, CR_INFO);
@@ -126,4 +127,16 @@ test('Chromium census takes the five pinned offsets and its records go through t
   r2.samples[3].layers.push(layerRecord({ offsetX: 1, offsetY: 2, width: 3, height: 4 }, { name: 'canvas', fw: null, layer: null, origin: null }, []));
   const v = checkPair(r1.samples, r2.samples);
   assert.deepEqual(v.refusals.map((r) => [r.code, r.y, r.box]), [['undeclared', 4500, 'canvas']]);
+});
+
+test('a pass scrolls to the top before its reload so the load does not restore a deep position', async () => {
+  const calls = [];
+  const c = { runAsync: async (src) => { calls.push(src); return 0; }, evaluate: async (e) => { calls.push(e); return 0; } };
+  assert.equal(await atTop(c), 0);
+  assert.match(calls[0], /top: 0, behavior: 'instant'/);
+});
+
+test('later passes read the offsets pass 1 resolved, not their own page height', () => {
+  const first = { census: [0, 1500, 5231].map((requestedY) => ({ requestedY })) };
+  assert.deepEqual(resolveStates(pinStates(first), 5267), [0, 1500, 5231]);
 });

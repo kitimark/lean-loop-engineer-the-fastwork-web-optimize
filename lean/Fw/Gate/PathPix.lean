@@ -657,7 +657,110 @@ def premiseCases : List (String × Engine × Claim) :=
    ("backdrop-filter on WebKit, not composited", .webkit, ⟨[.backdropFilter], false, false, false, false, false, none⟩),
    ("rotate", .chromium, ⟨[.rotate], false, false, false, true, true, none⟩)]
 
-/-- The lines of `packages/contracts/golden/gate/path-pix.jsonl`. -/
+def offsetAt (maxY i : Nat) : Nat := i * maxY / 8
+
+def offsets (maxY : Nat) : List Nat := (List.range 9).map (offsetAt maxY)
+
+theorem offsets_length (maxY : Nat) : (offsets maxY).length = 9 := by simp [offsets]
+
+theorem offsetAt_zero (maxY : Nat) : offsetAt maxY 0 = 0 := by simp [offsetAt]
+
+theorem offsetAt_last (maxY : Nat) : offsetAt maxY 8 = maxY := by unfold offsetAt; omega
+
+theorem offsetAt_mono (maxY i j : Nat) (h : i ≤ j) : offsetAt maxY i ≤ offsetAt maxY j :=
+  Nat.div_le_div_right (Nat.mul_le_mul_right maxY h)
+
+theorem offsetAt_le (maxY i : Nat) (h : i ≤ 8) : offsetAt maxY i ≤ maxY := by
+  have := Nat.mul_le_mul_right maxY h
+  unfold offsetAt; omega
+
+def clampN (n : Nat) (v : Int) : Nat := (max 0 (min (n : Int) v)).toNat
+
+def span (dpr n : Nat) (lo : Int) (len : Nat) : Nat × Nat :=
+  (clampN n (lo * dpr / 1000000 - 1), clampN n (-((-((lo + len) * dpr)) / 1000000) + 1))
+
+def Hit (dpr : Nat) (lo : Int) (len : Nat) (d : Int) : Prop :=
+  d * 1000000 < (lo + len) * dpr ∧ lo * dpr < (d + 1) * 1000000
+
+theorem span_le (dpr n : Nat) (lo : Int) (len : Nat) : (span dpr n lo len).1 ≤ (span dpr n lo len).2 := by
+  unfold span clampN
+  have h : 0 ≤ (len : Int) * dpr := Int.mul_nonneg (by omega) (by omega)
+  have : (lo + len) * dpr = lo * dpr + len * dpr := by rw [Int.add_mul]
+  generalize lo * dpr = a at *
+  generalize (len : Int) * dpr = c at *
+  omega
+
+theorem span_le_n (dpr n : Nat) (lo : Int) (len : Nat) : (span dpr n lo len).2 ≤ n := by
+  unfold span clampN; omega
+
+theorem span_covers (dpr n : Nat) (lo : Int) (len : Nat) (c d : Nat) (hd : Hit dpr lo len d) (hc : c < n)
+    (hn : (d : Int) ≤ c + 1) (hp : (c : Int) ≤ d + 1) :
+    (span dpr n lo len).1 ≤ c ∧ c < (span dpr n lo len).2 := by
+  obtain ⟨h1, h2⟩ := hd
+  unfold span clampN
+  have : (lo + len) * dpr = lo * dpr + len * dpr := by rw [Int.add_mul]
+  generalize lo * dpr = a at *
+  generalize (len : Int) * dpr = e at *
+  generalize (lo + len) * dpr = b at *
+  omega
+
+structure Box where
+  x : Int
+  y : Int
+  w : Nat
+  h : Nat
+deriving DecidableEq, Repr
+
+def mask (dpr fw fh : Nat) (b : Box) : (Nat × Nat) × (Nat × Nat) := (span dpr fw b.x b.w, span dpr fh b.y b.h)
+
+def inMask (m : (Nat × Nat) × (Nat × Nat)) (c r : Nat) : Bool :=
+  decide (m.1.1 ≤ c && c < m.1.2 && m.2.1 ≤ r && r < m.2.2)
+
+def rawOf (px : List Nat) : Raw := ⟨(px.filter (· != 0)).length, px.foldl max 0⟩
+
+theorem rawOf_ok (px : List Nat) (h : ∀ d ∈ px, d ≤ 255) : (rawOf px).ok = true := by
+  have hmax : ∀ (l : List Nat) (a : Nat), (∀ d ∈ l, d ≤ 255) → a ≤ 255 → l.foldl max a ≤ 255 := by
+    intro l; induction l with
+    | nil => intro a _ ha; simpa using ha
+    | cons x t ih =>
+      intro a hl ha
+      simp only [List.foldl_cons]
+      exact ih _ (fun d hd => hl d (List.mem_cons_of_mem _ hd)) (by
+        have := hl x (List.mem_cons_self ..); omega)
+  have hz : ∀ (l : List Nat) (a : Nat), l.foldl max a = 0 ↔ a = 0 ∧ ∀ d ∈ l, d = 0 := by
+    intro l; induction l with
+    | nil => intro a; simp
+    | cons x t ih =>
+      intro a
+      simp only [List.foldl_cons, ih, List.mem_cons, forall_eq_or_imp]
+      have : max a x = 0 ↔ a = 0 ∧ x = 0 := by omega
+      rw [this]; exact and_assoc
+  have hc : (px.filter (· != 0)).length = 0 ↔ ∀ d ∈ px, d = 0 := by
+    simp [List.filter_eq_nil_iff]
+  have h1 := hmax px 0 h (by omega)
+  have h2 := hz px 0
+  have e : ((px.filter (· != 0)).length == 0) = (px.foldl max 0 == 0) := by
+    apply Bool.eq_iff_iff.mpr
+    simp only [beq_iff_eq]
+    rw [hc, h2]
+    simp
+  unfold rawOf Raw.ok
+  rw [e]
+  simp [h1]
+
+def offsetCases : List Nat := [0, 1, 7, 8, 100, 4626, 5000]
+
+def maskCases : List (String × Nat × Nat × Nat × Box) :=
+  [("interior box, dpr 3", 3, 1170, 2532, ⟨10000000, 20500000, 100000000, 40000000⟩),
+   ("box past the top and left edges", 3, 1170, 2532, ⟨-5000000, -2000000, 50000000, 30000000⟩),
+   ("box past the bottom and right edges", 3, 1170, 2532, ⟨380000000, 800000000, 100000000, 100000000⟩),
+   ("fractional edges, dpr 3", 3, 1170, 2532, ⟨100000, 333333, 1000000, 1000000⟩),
+   ("on the device grid, dpr 2", 2, 780, 1688, ⟨5000000, 5000000, 10000000, 10000000⟩),
+   ("empty box", 3, 1170, 2532, ⟨30000000, 30000000, 0, 0⟩),
+   ("box fully off screen", 3, 1170, 2532, ⟨0, 900000000, 100000000, 10000000⟩)]
+
+def rawCases : List (List Nat) := [[], [0, 0, 0], [0, 1, 0, 1], [3, 0, 255, 2], [16, 4], [0, 256]]
+
 def goldenLines (_ : Unit := ()) : List String :=
   gradeCases.map (fun (n, c) =>
     (Json.mkObj [("kind", "grade"), ("name", toJson n), ("cell", c.json), ("s1", toJson c.s1),
@@ -667,12 +770,20 @@ def goldenLines (_ : Unit := ()) : List String :=
       ("accelerated", toJson (accelerated ps))]).compress) ++
   premiseCases.map (fun (n, e, c) =>
     (Json.mkObj [("kind", "premises"), ("name", toJson n), ("engine", toJson e.name), ("claim", c.json),
-      ("premises", toJson ((premises e c).map Premise.name))]).compress)
+      ("premises", toJson ((premises e c).map Premise.name))]).compress) ++
+  offsetCases.map (fun m =>
+    (Json.mkObj [("kind", "offsets"), ("maxY", toJson m), ("offsets", toJson (offsets m))]).compress) ++
+  maskCases.map (fun (n, dpr, fw, fh, b) =>
+    let m := mask dpr fw fh b
+    (Json.mkObj [("kind", "mask"), ("name", toJson n), ("dpr", toJson dpr), ("fw", toJson fw), ("fh", toJson fh),
+      ("box", toJson [b.x, b.y, (b.w : Int), (b.h : Int)]),
+      ("mask", toJson [m.1.1, m.1.2, m.2.1, m.2.2])]).compress) ++
+  rawCases.map (fun px =>
+    let r := rawOf px
+    (Json.mkObj [("kind", "raw"), ("pixels", toJson px), ("raw", r.json), ("ok", toJson r.ok)]).compress)
 
-/-- The exact bytes of `packages/contracts/golden/gate/path-pix.jsonl`: the lines, each newline-terminated. -/
 def goldenText (_ : Unit := ()) : String := String.intercalate "" ((goldenLines ()).map (· ++ "\n"))
 
-/-- Print the golden text, or with `--check <file>` exit 0 iff the file holds exactly these bytes. -/
 def run (args : List String) : IO UInt32 := do
   match args with
   | ["--check", path] =>
@@ -697,6 +808,9 @@ def run (args : List String) : IO UInt32 := do
    ["P1", "P2", "P3", "P4", "C1", "C5"], ["P1", "P2", "P3", "P4", "S1", "T1"],
    ["P1", "P2", "P3", "P4", "S1", "T1", "C1", "C2"], ["P1", "P2", "P3", "P4", "C6"], ["P1", "P2", "P3", "P4"],
    ["P2", "P3", "P4"], ["P1", "P2", "P3", "P4", "C2"]]
+#guard (offsets 4626) == [0, 578, 1156, 1734, 2313, 2891, 3469, 4047, 4626]
+#guard (mask 3 1170 2532 ⟨10000000, 20500000, 100000000, 40000000⟩) == ((29, 331), (60, 183))
+#guard (rawOf [3, 0, 255, 2]) == ⟨3, 255⟩ && (rawOf [0, 256]).ok == false
 #guard (accelCases.map accelerated) ==
   [true, true, true, true, false, false, false, false, false, false, false, false]
 
