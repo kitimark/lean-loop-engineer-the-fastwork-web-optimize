@@ -15944,7 +15944,12 @@
     "apps/runner/test/slot-span.test.ts",
     "lean/Fw/Obs/Timing.lean",
     "packages/contracts/golden/obs/*.jsonl",
-    "docs/team/handoffs/slot-span-key.md"
+    "docs/team/handoffs/slot-span-key.md",
+    "apps/runner/src/fw.ts",
+    "apps/runner/src/fw-main.ts",
+    "apps/runner/test/span-names.test.ts",
+    "lean/scripts/SlotKeyGolden.lean",
+    "lean/scripts/check.sh"
    ],
    "title": "timing.slow on `fw/slot run check` is noise (2026-10-22): the key `slot run <kind>` pools every command run under a slot (56 samples from 0.2 s to 370 s, p50 90 s; a 38.7 s run alerted because the last 20 mixed 1 s and 290 s commands), and the span starts before the slot wait, so queue time counts as run time. (1) Key the span by command identity: `slot run <kind> <cmd>` with <cmd> = the command's script or tool name plus its first non-flag arg (e.g. `vitest test/land-inputs.test.ts`, `lake build`), with a cap on distinct keys (fall back to the kind). (2) Split the span: `slot wait <kind>` (acquire to grant) and `slot run <kind> <cmd>` (grant to exit). (3) If the key rule decides anything (cap, fallback), state it in Lean (Fw.Obs.Timing or a sibling) with golden vectors the TS replays. Unit: the split keys and spans, a test replaying the 56 recorded samples' commands to their new keys, and a statement that the alert of 2026-10-22 16:51 would not fire. Limits: past samples keep their old key (no rewrite of timings.jsonl)."
   },
@@ -15987,6 +15992,26 @@
     "docs/team/handoffs/sim-step-watchdog.md"
    ],
    "title": "The Lean sim bound is not enforced on the runner (incident inc-sim-step-unbounded, 2026-10-22): run 39751427150 planned step_min=35, job_min=53 (Fw.Measure.SimBound), but `Determinism sessions` ran 56 min without the step timeout firing; GitHub killed the job at 53 min and Keep logs, Host state on failure, upload-artifact and telemetry never ran, so no log or artifact exists. (1) An in-script watchdog: the session commands run under a wrapper that kills their whole process group (TERM, grace, KILL) at step_min minus a Lean margin, writes a `watchdog` line naming the last session and pass, and exits non-zero so the always() steps run inside the job budget. (2) Lean: the margin and the order setup + watchdog + log tail ≤ job_min as a theorem in SimBound (watchdog fires before both GitHub limits). (3) A fault-input proof run: a dispatch with fault=hang shows the watchdog line, the kept logs and the uploaded artifact. Unit: the wrapper with a unit test (a child that ignores SIGINT is killed), the Lean theorem, the fault run id. Limits: a VM that freezes completely stays unobservable (state it); free runners only."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-scope-golden-regs",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Console/Land.lean",
+    "lean/Fw/Console/LandSpeed.lean",
+    "apps/runner/src/land.ts",
+    "apps/runner/src/land-reads.gen.ts",
+    "packages/contracts/golden/console/land-scope*.jsonl",
+    "lean/scripts/LandReadsGen.lean",
+    "apps/runner/test/land-scope.test.ts",
+    "docs/team/handoffs/land-scope-golden-regs.md"
+   ],
+   "title": "Three dry lands refused at scope on 2026-10-22 for the same registration files (incident inc-golden-reg-scope): jev-retrieval-trace (graph r253), site-layer-opts (r257) and slot-span-key (r258) each needed lean/scripts/check.sh, a new lean/scripts/*Golden.lean and the read lists in apps/runner/src/land.ts (CHECK_SH_READS, PACKAGE_EXTRA_READS), lean/Fw/Console/LandSpeed.lean (checkShReads) and lean/Fw/Ci/Trigger.lean added by the lead after the build. (1) One source for the check.sh read list: LandSpeed.checkShReads and land.ts CHECK_SH_READS are a hand copy; generate the TS list from Lean (land-reads.gen.ts) with a freshness check, so a new generated file is declared once. (2) A golden registration set in Land.landScope: when a task's writes include a path under packages/contracts/golden/**, admit lean/scripts/<Name>Golden.lean and lean/scripts/check.sh, with a theorem that the set is empty for tasks with no golden write and never lifts a protected glob. (3) Goldens for landScope over the three refused write lists (each admitted after the change, the protected globs still refused). Unit: the generated read list with its check, the Lean registration set with theorems and goldens. Limits: Trigger.lean read tables stay hand-kept unless they share the same source (state which)."
   }
  ],
  "deadline": {
