@@ -1,0 +1,4 @@
+{"set":"d1","model":"haiku","jobs":4,"asked":116,"wallMs":140337}
+{"set":"d2","model":"haiku","jobs":4,"asked":90,"wallMs":104886}
+{"set":"d1","model":"sonnet","jobs":4,"asked":116,"wallMs":156831}
+{"set":"d2","model":"sonnet","jobs":4,"asked":90,"wallMs":107734}
