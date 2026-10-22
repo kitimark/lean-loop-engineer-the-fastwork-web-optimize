@@ -1,7 +1,7 @@
-# Handoff: morph-strip-webkit
+# Handoff
 
 Branch `worktree-wf_446b6a96-5b3-1` (CI copy `ci/morph-strip-webkit`), worktree
-`.claude/worktrees/wf_446b6a96-5b3-1`. Last commit: `git log -1` (decision commit before the main merge).
+`.claude/worktrees/wf_446b6a96-5b3-1`. Last commit: `git log -1`.
 
 CI runs (webkit-sim, `gh workflow run webkit-sim.yml --ref ci/morph-strip-webkit -f lag=true -f target=rewrite -f vms=3
 -f cost=on [-f fw=hero.countdown:strip,morph.countdown:strip] -f nonce=<n>`):
