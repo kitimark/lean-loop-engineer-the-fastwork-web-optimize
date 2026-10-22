@@ -247,6 +247,7 @@ import Fw.Sup.AdaptGolden
 import Fw.Sup.MeasureWindow
 import Fw.Wire.Sup
 import Fw.Sup.Route
+import Fw.Sup.Measure
 import Fw.Ci.Pool.Key
 import Fw.Ci.Codemagic
 import Fw.Ci.Steps

@@ -1,0 +1,28 @@
+{
+ "lane": "local",
+ "debug": false,
+ "note": "local debug lane on one shared Mac, not a CI or phone result",
+ "startedAt": "2026-10-22T13:52:52.312Z",
+ "arms": [
+  "orig",
+  "base",
+  "hx",
+  "mp",
+  "pf"
+ ],
+ "dropped": [],
+ "passes": 3,
+ "engines": {
+  "sim": {
+   "device": "iOS Simulator (iPhone 15 Pro Max type)",
+   "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+   "ua": "",
+   "vw": null
+  }
+ },
+ "finishedAt": "2026-10-22T14:02:05.556Z",
+ "mac": {
+  "chip": "Apple M1 Pro",
+  "os": "27.0.1"
+ }
+}

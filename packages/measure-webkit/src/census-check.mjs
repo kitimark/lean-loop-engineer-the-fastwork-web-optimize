@@ -15,6 +15,11 @@ export const nBox = (id, layers) => layers.filter((l) => { const i = layerIdent(
 
 export const undeclared = (layers) => layers.filter((l) => layerIdent(l).kind === 'free').map((l) => ({ name: l.name, bounds: l.bounds }));
 
+export const RUNNER_STEMS = ['#document', 'span.accent-module_frame_', 'svg.accent-module_svg_', 'div.typing-module_visual_', 'div.typing-module_beat_', 'span.typing-module_avatar_', 'span.frame.', 'svg.accent-svg.', 'button.scroll-cue.', 'section.commission.', 'div.fee-visual', 'div.body.svelte-ty4hd7'];
+export const varying = (name) => RUNNER_STEMS.some((s) => name.startsWith(s));
+export const gone = (l) => l.reasons?.length === 1 && l.reasons[0] === '(gone)';
+export const stable = (layers) => layers.filter((l) => layerIdent(l).kind === 'free' && !gone(l) && !varying(l.name)).map((l) => ({ name: l.name, bounds: l.bounds }));
+
 const boxKey = (b) => `${b.name}\u0000${b.bounds ? b.bounds.join(',') : ''}`;
 const countOf = (list, b) => list.reduce((n, x) => n + (boxKey(x) === boxKey(b) ? 1 : 0), 0);
 
@@ -61,7 +66,7 @@ function undeclaredRefusals(a, b) {
   a.samples.forEach((sa, i) => {
     const sb = b.samples[i];
     if (!sb) return;
-    const ua = undeclared(sa.layers), ub = undeclared(sb.layers);
+    const ua = stable(sa.layers), ub = stable(sb.layers);
     const x = firstDiff(ua, ub);
     if (x) out.push({ code: 'undeclared', y: sa.y, box: x.name, bounds: x.bounds, inA: countOf(ua, x), inB: countOf(ub, x) });
   });
