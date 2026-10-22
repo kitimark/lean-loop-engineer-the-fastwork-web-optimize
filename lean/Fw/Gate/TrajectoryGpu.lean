@@ -569,7 +569,7 @@ theorem panelGrade_short_lag_q (g : Grade) (h : g ≠ .e) (l : Rat) (hl : l ≤ 
     panelGrade (some g) (some l) (some .e) = some .q := by
   cases g <;> simp_all [panelGrade]
 
-/-- Only a lagged series that matched every covered sample reference-side grades E. -/
+/-- A series graded E matched the reference at every covered sample. -/
 theorem matched_e_ok (tols grid : List Rat) (fk : Rat) (n : Nat) (ref cand : Series)
     (h : matchedGrade tols grid fk n ref cand = some .e) : (matchAt tols ref cand 0).2 = true := by
   unfold matchedGrade at h
@@ -579,7 +579,7 @@ theorem matched_e_ok (tols grid : List Rat) (fk : Rat) (n : Nat) (ref cand : Ser
     · assumption
     · split at h <;> simp at h
 
-/-- A lagged clock with a covered sample that differs is not E. -/
+/-- A lagged series with a covered sample that differs from the reference does not grade E. -/
 theorem shiftedGrade_ne_e (tols : List Rat) (n : Nat) (ref : Series) (l : Rat) (fs : Series)
     (h : (matchAt tols ref (laggedSeries l fs) 0).2 = false) : shiftedGrade tols n ref l fs ≠ some .e := by
   intro he
