@@ -1,101 +1,57 @@
 import Fw.Wire
 import Fw.Console.PreviewTable
 import Fw.Ops.LeanFirstSearch
-/-!
-# Golden vectors of the `ops.*` ops
-
-`packages/contracts/golden/ops/<op>.jsonl`: one line per case, `{"name", "request", "response"}`,
-where `request` carries its `op` and `response` is what `fwcore` replies (without the `id`).
-The same format, from `extra`: `golden/plan/plan.trailers.jsonl` (reconciler `git.ts`) and
-`golden/console/console.{landReadiness,actor}.jsonl` (console-api's own actors), `golden/lint/lint.context.jsonl`
-(`scripts/context-lint.mjs`). From `named` (file stem not the op): `golden/ops/lean-first.jsonl` (`ops.leanFirst`,
-the lean-first land gate over the single faults of the grid of `Fw.Ops.LeanFirstSearch`, at the deployed stage),
-`golden/land/render-guard.jsonl` (`console.landRenderGuard`).
-Generated from Lean, never by hand:
-
-```
-cd lean && lake env lean --run scripts/OpsGolden.lean           # write the files
-cd lean && lake env lean --run scripts/OpsGolden.lean --check   # fail if a file is stale
-```
-
-`lake test` runs the same check. Consumers: the hooks agent (`emit.mjs`, `spawn-guard.mjs`:
-`ops.hook`, `ops.spawn`; `cap.mjs`: `ops.actor`, `ops.cap`), console-api's capability door (`cap.ts`
-`actorFor`: `ops.actor`; `openDoor`: `ops.door`), the land agent (`fw land`: `ops.pathCheck`) and console-api's usage
-meter (`ops.usage`, `ops.meter`), `fw watch` (`ops.watchDiff`, `ops.watchKeep`).
--/
 namespace Fw.Wire.Ops.Golden
 open Lean
 
-/-- Parse a literal request (a parse error becomes a visible bad case). -/
 def lit (s : String) : Json := (Json.parse s).toOption.getD (Json.mkObj [("unparsable", .str s)])
 
-/-- Registry facts for the `console.buildsSearch` and `console.buildsOpen` cases: the shape of the site registry, with the parts and
-variants the long search uses, one `requires` (the site's own) and one `conflicts` (synthetic: the site has none yet), and presets with
-`extends`, a cycle and an `@impl` entry. -/
 def searchRegistry : Json := lit "{\"parts\":[{\"id\":\"hero.countdown\",\"variants\":[\"faithful\",\"strip\",\"hidden-pause\",\"one-chain\"],\"impls\":[\"mui\",\"plain\"]},{\"id\":\"hero.exit\",\"variants\":[\"faithful\",\"scoped\"],\"impls\":[\"plain\"]},{\"id\":\"morph.countdown\",\"variants\":[\"faithful\",\"strip\",\"hidden-pause\"],\"impls\":[\"mui\",\"plain\"],\"requires\":{\"morph.countdown:strip\":[\"hero.countdown:strip\"]}},{\"id\":\"morph.mount\",\"variants\":[\"faithful\",\"shift\",\"shift-dormant\"],\"impls\":[\"mui\",\"plain\"]},{\"id\":\"morph.tween\",\"variants\":[\"faithful\",\"waapi\",\"waapi-scoped\"],\"impls\":[\"mui\",\"plain\"]},{\"id\":\"pain.notes\",\"variants\":[\"faithful\",\"visible\",\"visible-idem\"],\"impls\":[\"plain\"]},{\"id\":\"engine.scroll\",\"variants\":[\"faithful\",\"batched\"],\"impls\":[\"mui\",\"plain\"]},{\"id\":\"nav.hitTest\",\"variants\":[\"faithful\",\"hit-skip\",\"elements-skip\"],\"impls\":[\"mui\",\"plain\"],\"requires\":{},\"conflicts\":{\"nav.hitTest:hit-skip\":[\"engine.scroll:batched\"]}}],\"presets\":[{\"name\":\"original\",\"fw\":{}},{\"name\":\"strip-demo\",\"extends\":\"original\",\"fw\":{\"hero.countdown\":\"strip\"}},{\"name\":\"v2-proved\",\"extends\":\"original\",\"fw\":{\"engine.scroll\":\"batched\",\"morph.mount\":\"shift\",\"morph.tween\":\"waapi\",\"pain.notes\":\"visible\"}},{\"name\":\"loop-a\",\"extends\":\"loop-b\",\"fw\":{}},{\"name\":\"loop-b\",\"extends\":\"loop-a\",\"fw\":{}},{\"name\":\"plain-impl\",\"fw\":{\"hero.countdown\":\"one-chain@plain\"}},{\"name\":\"bad-impl\",\"fw\":{\"hero.exit\":\"scoped@mui\"}}]}"
 
-/-- A `console.buildsSearch` request. -/
 def srch (s : String) : Json := Json.mkObj [("registry", searchRegistry), ("search", .str s)]
 
-/-- A `console.buildsOpen` request in search mode, with extra top-level fields from a JSON object text. -/
 def openS (s extra : String) : Json :=
   let base := Json.mkObj [("mode", "search"), ("main", "m9"), ("search", .str s), ("registry", searchRegistry)]
   match lit extra with
   | .obj kvs => kvs.toList.foldl (fun j kv => j.setObjVal! kv.1 kv.2) base
   | _ => base
 
-/-- The roles table the spawn cases use (a slice of PLAN §8.2). -/
 def roles : String :=
   "[{\"name\":\"lean-prover\",\"runsAs\":\"worktree\",\"edits\":true},{\"name\":\"researcher\",\"runsAs\":\"teammate\",\"edits\":true},{\"name\":\"reviewer\",\"runsAs\":\"subagent\",\"edits\":false},{\"name\":\"Explore\",\"runsAs\":\"subagent\",\"edits\":false}]"
 
-/-- Facts for the `console.compose` cases: parts of three regions (the list is given out of page order), one `requires`, one `conflicts`
-(synthetic), a look-change variant, a refuted one, an unrated one, and presets (one resolving to a refuted pick). -/
 def cmpReg : Json := lit "{\"parts\":[{\"id\":\"morph.tween\",\"slot\":\"morph\",\"impls\":[\"plain\"],\"variants\":[{\"name\":\"faithful\",\"kind\":\"faithful\"},{\"name\":\"waapi\",\"kind\":\"optimized\"},{\"name\":\"waapi-scoped\",\"kind\":\"optimized\"}]},{\"id\":\"hero.countdown\",\"slot\":\"hero\",\"impls\":[\"mui\",\"plain\"],\"variants\":[{\"name\":\"faithful\",\"kind\":\"faithful\"},{\"name\":\"strip\",\"kind\":\"optimized\"},{\"name\":\"one-chain\",\"kind\":\"optimized\",\"limit\":\"look change: the second chain is dropped\"}]},{\"id\":\"morph.countdown\",\"slot\":\"morph\",\"impls\":[\"plain\"],\"variants\":[{\"name\":\"faithful\",\"kind\":\"faithful\"},{\"name\":\"strip\",\"kind\":\"optimized\"}],\"requires\":{\"morph.countdown:strip\":[\"hero.countdown:strip\"]}},{\"id\":\"nav.hitTest\",\"slot\":\"nav\",\"impls\":[\"plain\"],\"variants\":[{\"name\":\"faithful\",\"kind\":\"faithful\"},{\"name\":\"hit-skip\",\"kind\":\"optimized\"}],\"conflicts\":{\"nav.hitTest:hit-skip\":[\"engine.scroll:batched\"]}},{\"id\":\"engine.scroll\",\"slot\":\"engine\",\"impls\":[\"plain\"],\"variants\":[{\"name\":\"faithful\",\"kind\":\"faithful\"},{\"name\":\"batched\",\"kind\":\"optimized\"}]},{\"id\":\"pain.notes\",\"slot\":\"pain\",\"impls\":[\"plain\"],\"variants\":[{\"name\":\"faithful\",\"kind\":\"faithful\"},{\"name\":\"visible\",\"kind\":\"optimized\"}]}],\"presets\":[{\"name\":\"original\",\"fw\":{}},{\"name\":\"strip-demo\",\"extends\":\"original\",\"fw\":{\"hero.countdown\":\"strip\"}},{\"name\":\"v2-proved\",\"extends\":\"original\",\"fw\":{\"engine.scroll\":\"batched\",\"pain.notes\":\"visible\"}},{\"name\":\"bad\",\"extends\":\"original\",\"fw\":{\"morph.tween\":\"waapi\"}},{\"name\":\"loop\",\"extends\":\"loop\",\"fw\":{}}]}"
 
-/-- The ledger rows of the `console.compose` cases. -/
 def cmpLedger : String :=
   "[{\"part\":\"engine.scroll\",\"candidate\":\"engine.scroll `batched`\",\"status\":\"measured\",\"flags\":[\"engine.scroll:batched\"],\"flag\":\"engine.scroll:batched\"},{\"part\":\"pain.notes\",\"candidate\":\"pain.notes `visible`\",\"status\":\"measured\",\"flags\":[\"pain.notes:visible\"],\"flag\":\"pain.notes:visible\"},{\"part\":\"morph.tween\",\"candidate\":\"morph.tween `waapi`\",\"status\":\"refuted\",\"flags\":[\"morph.tween:waapi\"],\"flag\":\"morph.tween:waapi\"},{\"part\":\"hero.countdown\",\"candidate\":\"hero.countdown `strip`\",\"status\":\"measured\",\"flags\":[\"hero.countdown:strip\"]},{\"part\":\"hero.countdown\",\"candidate\":\"hero.countdown `one-chain`\",\"status\":\"measured\",\"flags\":[\"hero.countdown:one-chain\"]},{\"part\":\"nav.hitTest\",\"candidate\":\"nav.hitTest, another idea\",\"status\":\"open\",\"flags\":[]}]"
 
-/-- The ledger rows above with the refuting `morph.tween:waapi` row superseded by a later proved row about the same flag. -/
 def cmpLedgerFixed : String :=
   "[{\"part\":\"engine.scroll\",\"candidate\":\"engine.scroll `batched`\",\"status\":\"measured\",\"flags\":[\"engine.scroll:batched\"],\"flag\":\"engine.scroll:batched\"},{\"part\":\"pain.notes\",\"candidate\":\"pain.notes `visible`\",\"status\":\"measured\",\"flags\":[\"pain.notes:visible\"],\"flag\":\"pain.notes:visible\"},{\"part\":\"morph.tween\",\"candidate\":\"morph.tween `waapi`\",\"status\":\"refuted\",\"flags\":[\"morph.tween:waapi\"],\"flag\":\"morph.tween:waapi\",\"id\":\"tw.falsified\",\"supersededBy\":\"tw.fixed\"},{\"part\":\"hero.countdown\",\"candidate\":\"hero.countdown `strip`\",\"status\":\"measured\",\"flags\":[\"hero.countdown:strip\"]},{\"part\":\"hero.countdown\",\"candidate\":\"hero.countdown `one-chain`\",\"status\":\"measured\",\"flags\":[\"hero.countdown:one-chain\"]},{\"part\":\"nav.hitTest\",\"candidate\":\"nav.hitTest, another idea\",\"status\":\"open\",\"flags\":[]},{\"part\":\"morph.tween\",\"candidate\":\"the fixed driver\",\"status\":\"proved\",\"flags\":[\"morph.tween:waapi\"],\"id\":\"tw.fixed\"}]"
 
-/-- A second registry and ledger for the `console.compose` classes: rows about two parts, `ledger-proved`, and `@impl` presets. -/
 def cmpReg2 : Json := lit "{\"parts\":[{\"id\":\"morph.columns\",\"slot\":\"morph\",\"impls\":[\"mui\",\"plain\"],\"variants\":[{\"name\":\"faithful\",\"kind\":\"faithful\"},{\"name\":\"hidden-pause\",\"kind\":\"optimized\"}]},{\"id\":\"morph.countdown\",\"slot\":\"morph\",\"impls\":[\"mui\",\"plain\"],\"variants\":[{\"name\":\"faithful\",\"kind\":\"faithful\"},{\"name\":\"hidden-pause\",\"kind\":\"optimized\"}]},{\"id\":\"engine.scroll\",\"slot\":\"engine\",\"impls\":[\"mui\",\"plain\"],\"variants\":[{\"name\":\"faithful\",\"kind\":\"faithful\"},{\"name\":\"batched\",\"kind\":\"optimized\"}]},{\"id\":\"pain.notes\",\"slot\":\"pain\",\"impls\":[\"mui\",\"plain\"],\"variants\":[{\"name\":\"faithful\",\"kind\":\"faithful\"},{\"name\":\"visible\",\"kind\":\"optimized\"}]}],\"presets\":[{\"name\":\"original\",\"fw\":{}},{\"name\":\"mui-impl\",\"extends\":\"original\",\"fw\":{\"engine.scroll\":\"batched@mui\"}},{\"name\":\"plain-impl\",\"extends\":\"original\",\"fw\":{\"engine.scroll\":\"batched@plain\"}}]}"
 
-/-- The ledger rows of the second registry (the text and flags of ledger rows 19, 41 and 43). -/
 def cmpLedger2 : String :=
   "[{\"part\":\"morph.columns\",\"candidate\":\"columns as a still picture while the menu is closed (g0.0h keep-phase = hidden-pause of the marquee)\",\"status\":\"partly-proved\",\"flags\":[\"morph.columns:hidden-pause\"]},{\"part\":\"engine.scene\",\"candidate\":\"hidden pause of compositor marquees (morph.columns at m <= 0.08, scene off-screen), HiddenPause.lean\",\"status\":\"proved\",\"flags\":[\"morph.columns:hidden-pause\"]},{\"part\":\"engine.scene\",\"candidate\":\"morph.countdown hidden: keep the spring integrating, skip the 16 face writes per digit (HiddenPause skipWrites)\",\"status\":\"proved\",\"flags\":[\"morph.countdown:hidden-pause\"]},{\"part\":\"engine.scroll\",\"candidate\":\"engine.scroll `batched`\",\"status\":\"proved\",\"flags\":[\"engine.scroll:batched\"]},{\"part\":\"pain.notes\",\"candidate\":\"pain.notes `visible`\",\"status\":\"proved\",\"flags\":[\"pain.notes:visible\"]},{\"part\":\"pain.notes\",\"candidate\":\"pain.notes `visible`, second measurement\",\"status\":\"measured\",\"flags\":[\"pain.notes:visible\"]}]"
 
-/-- A `console.compose` request over the second registry. -/
 def cmp2 (picks : String) : Json :=
   lit s!"\{\"registry\":{cmpReg2.compress},\"picks\":{picks},\"ledger\":{cmpLedger2}}"
 
-/-- A `console.compose` request over the registry above with the given picks (a JSON array text) and ledger. -/
 def cmp (picks : String) (ledger : String := cmpLedger) : Json :=
   lit s!"\{\"registry\":{cmpReg.compress},\"picks\":{picks},\"ledger\":{ledger}}"
 
-/-- A `console.compose` request over today's registry and the identity columns of the real findings ledger (2026-10-21, 70
-rows): the rows each variant gets by `flags` are the rows the text rules gave before the field existed. -/
 def cmpReal : Json := lit r#"{"registry":{"parts":[{"id":"commission","slot":"commission","impls":["plain"],"requires":{},"conflicts":{},"variants":[{"name":"faithful","kind":"faithful","limit":""}]},{"id":"commission.typing","slot":"commission","impls":["plain"],"requires":{},"conflicts":{},"variants":[{"name":"faithful","kind":"faithful","limit":""}]},{"id":"engine.scene","slot":"engine","impls":["plain"],"requires":{},"conflicts":{},"variants":[{"name":"faithful","kind":"faithful","limit":""},{"name":"hidden-pause","kind":"optimized","limit":""}]},{"id":"engine.scroll","slot":"engine","impls":["mui","plain"],"requires":{},"conflicts":{},"variants":[{"name":"faithful","kind":"faithful","limit":""},{"name":"batched","kind":"optimized","limit":""}]},{"id":"hero","slot":"hero","impls":["plain"],"requires":{},"conflicts":{},"variants":[{"name":"faithful","kind":"faithful","limit":""}]},{"id":"hero.accent","slot":"hero","impls":["plain"],"requires":{},"conflicts":{},"variants":[{"name":"faithful","kind":"faithful","limit":""},{"name":"steps","kind":"optimized","limit":""}]},{"id":"hero.countdown","slot":"hero","impls":["mui","plain"],"requires":{},"conflicts":{},"variants":[{"name":"faithful","kind":"faithful","limit":""},{"name":"strip","kind":"optimized","limit":""},{"name":"hidden-pause","kind":"optimized","limit":"under reduced motion hero.exit writes 1, so the gate never closes and the variant saves nothing there (Lean hidden_iff_exit)"},{"name":"one-chain","kind":"optimized","limit":"saves rAF callbacks only in frames where 2 or more digits roll, or 1 digit rolls while another part shares the loop (Lean oneChain_raf, page_lt_shared); equal otherwise (oneChain_raf_eq, page_eq_still)"}]},{"id":"hero.cue","slot":"hero","impls":["plain"],"requires":{},"conflicts":{},"variants":[{"name":"faithful","kind":"faithful","limit":""}]},{"id":"hero.deck","slot":"hero","impls":["plain"],"requires":{},"conflicts":{},"variants":[{"name":"faithful","kind":"faithful","limit":""}]},{"id":"hero.exit","slot":"hero","impls":["plain"],"requires":{},"conflicts":{},"variants":[{"name":"faithful","kind":"faithful","limit":""},{"name":"scoped","kind":"optimized","limit":"the win is in UpdateLayoutTree.elementCount, a quarantined counter; WebKit is source-only (Lean wk_units)"}]},{"id":"hero.orbit","slot":"hero","impls":["plain"],"requires":{},"conflicts":{},"variants":[{"name":"faithful","kind":"faithful","limit":""}]},{"id":"morph.columns","slot":"morph","impls":["plain"],"requires":{},"conflicts":{},"variants":[{"name":"faithful","kind":"faithful","limit":""},{"name":"hidden-pause","kind":"optimized","limit":""}]},{"id":"morph.countdown","slot":"morph","impls":["mui","plain"],"requires":{"morph.countdown:strip":["hero.countdown:strip"]},"conflicts":{},"variants":[{"name":"faithful","kind":"faithful","limit":""},{"name":"strip","kind":"optimized","limit":""},{"name":"hidden-pause","kind":"optimized","limit":""}]},{"id":"morph.mount","slot":"morph","impls":["mui","plain"],"requires":{},"conflicts":{},"variants":[{"name":"faithful","kind":"faithful","limit":""},{"name":"shift","kind":"optimized","limit":""},{"name":"shift-dormant","kind":"optimized","limit":""}]},{"id":"morph.panel","slot":"morph","impls":["mui","plain"],"requires":{},"conflicts":{},"variants":[{"name":"faithful","kind":"faithful","limit":""}]},{"id":"morph.tween","slot":"morph","impls":["mui","plain"],"requires":{},"conflicts":{},"variants":[{"name":"faithful","kind":"faithful","limit":""},{"name":"waapi","kind":"optimized","limit":""},{"name":"waapi-scoped","kind":"optimized","limit":""}]},{"id":"nav","slot":"nav","impls":["plain"],"requires":{},"conflicts":{},"variants":[{"name":"faithful","kind":"faithful","limit":""},{"name":"earn-no-transition","kind":"proposal","limit":"look change (L) while the nav morphs: the earn button follows --morph without its 0.68 s lag; VisSame only at settled frames"}]},{"id":"nav.hitTest","slot":"nav","impls":["mui","plain"],"requires":{},"conflicts":{},"variants":[{"name":"faithful","kind":"faithful","limit":""},{"name":"hit-skip","kind":"optimized","limit":""},{"name":"elements-skip","kind":"optimized","limit":""}]},{"id":"nav.langMenu","slot":"nav","impls":["plain"],"requires":{},"conflicts":{},"variants":[{"name":"faithful","kind":"faithful","limit":""}]},{"id":"overlays.drawer","slot":"overlays","impls":["plain"],"requires":{},"conflicts":{},"variants":[{"name":"faithful","kind":"faithful","limit":""}]},{"id":"overlays.signup","slot":"overlays","impls":["plain"],"requires":{},"conflicts":{},"variants":[{"name":"faithful","kind":"faithful","limit":""}]},{"id":"pain","slot":"pain","impls":["plain"],"requires":{},"conflicts":{},"variants":[{"name":"faithful","kind":"faithful","limit":""}]},{"id":"pain.notes","slot":"pain","impls":["plain"],"requires":{},"conflicts":{},"variants":[{"name":"faithful","kind":"faithful","limit":""},{"name":"visible","kind":"optimized","limit":""},{"name":"visible-idem","kind":"optimized","limit":"a covered frame after a note move still commits once, as in the original; skipping on empty extras alone is not E (Lean naive_not_E)"}]},{"id":"people.card","slot":"people","impls":["plain"],"requires":{},"conflicts":{},"variants":[{"name":"faithful","kind":"faithful","limit":""},{"name":"mq","kind":"optimized","limit":"Lean premise P1 (the c860 band is fixed per load) is not enforced: outside P1, a resize across c860 shows a multi-frame visible lerp of scale and radius from the stale frozen value (INFERRED)"}]},{"id":"people.carousel","slot":"people","impls":["plain"],"requires":{},"conflicts":{},"variants":[{"name":"faithful","kind":"faithful","limit":""}]},{"id":"people.deck","slot":"people","impls":["plain"],"requires":{},"conflicts":{},"variants":[{"name":"faithful","kind":"faithful","limit":""}]},{"id":"people.o","slot":"people","impls":["plain"],"requires":{},"conflicts":{},"variants":[{"name":"faithful","kind":"faithful","limit":""}]},{"id":"platform","slot":"platform","impls":["mui","plain"],"requires":{},"conflicts":{},"variants":[{"name":"faithful","kind":"faithful","limit":""}]},{"id":"platform.entries","slot":"platform","impls":["mui","plain"],"requires":{},"conflicts":{},"variants":[{"name":"faithful","kind":"faithful","limit":""}]},{"id":"platform.glint","slot":"platform","impls":["mui","plain"],"requires":{},"conflicts":{},"variants":[{"name":"faithful","kind":"faithful","limit":""}]},{"id":"platform.marquee","slot":"platform","impls":["mui","plain"],"requires":{},"conflicts":{},"variants":[{"name":"faithful","kind":"faithful","limit":""}]},{"id":"platform.stageBg","slot":"platform","impls":["mui","plain"],"requires":{},"conflicts":{},"variants":[{"name":"faithful","kind":"faithful","limit":""}]},{"id":"platform.sweep","slot":"platform","impls":["mui","plain"],"requires":{},"conflicts":{},"variants":[{"name":"faithful","kind":"faithful","limit":""}]}],"presets":[{"name":"original","fw":{}},{"name":"strip-demo","extends":"original","fw":{"hero.countdown":"strip"}},{"name":"v2-proved","extends":"original","fw":{}}]},"picks":[],"ledger":[{"part":"engine.scroll","candidate":"batched (all reads, then all returned writes, one pass per frame)","status":"proved","flags":["engine.scroll:batched"]},{"part":"engine.scroll","candidate":"observers (KD#1): replace per-frame rect reads with IntersectionObserver/ResizeObserver","status":"not-tried","flags":[]},{"part":"nav.hitTest","candidate":"hit-skip (skip the probe while morph > 0.2)","status":"proved","flags":["nav.hitTest:hit-skip"]},{"part":"nav.hitTest","candidate":"elements-skip (elementsFromPoint with an allow-list, no pointer-events write)","status":"proved","flags":["nav.hitTest:elements-skip"]},{"part":"nav.hitTest","candidate":"write-on-change (toggle is-on-dark only when it changes)","status":"proved","flags":[]},{"part":"hero.exit","candidate":"hero-exit-threaded (v6, KD#2): JS --exit-opacity writer → per-consumer CSS scroll-driven animations, plus an IO sentinel for pointer-events","status":"partly-proved","flags":[]},{"part":"hero.countdown (+ morph.countdown)","candidate":"strip (cd-strip, KD#12): 10 will-change faces per digit -> one 12-entry strip","status":"proved","flags":["hero.countdown:strip","morph.countdown:strip"]},{"part":"hero.countdown","candidate":"cd-roll-ca: spring roll replaced by a WAAPI transform animation with sampled keyframes","status":"partly-proved","flags":[]},{"part":"hero.countdown","candidate":"clock-aligned timer (KD#19): setInterval(1000) replaced by a timeout chain aimed at T0 + k*1000","status":"proved","flags":[]},{"part":"hero.countdown / morph.countdown","candidate":"hidden-skip: skip face writes while the clock is not visible; the spring keeps integrating","status":"proved","flags":["hero.countdown:hidden-pause","morph.countdown:hidden-pause"]},{"part":"morph.tween","candidate":"g0.0b: the rAF tween replaced by one WAAPI animation on a registered --morph with cubic-bezier(1/3,1,2/3,1)","status":"proved","flags":["morph.tween:waapi"]},{"part":"morph.tween","candidate":"CM / compositor-morph (PR-030): transforms on a scroll timeline, rounded box from 4 corner clippers","status":"not-proved","flags":[]},{"part":"morph.panel (platform panel)","candidate":"blur(0) -> filter:none at rest (MorphPanelOpt rest variant)","status":"proved","flags":[]},{"part":"morph.panel (end-of-page glass)","candidate":"constant glass (g0.0k): the animated backdrop blur replaced by a constant 20 px one","status":"not-proved","flags":[]},{"part":"morph.panel (end-of-page bar)","candidate":"g0.0f: the bar's colour from two flat GPU layers plus a clip shape (Safari only)","status":"not-tried","flags":[]},{"part":"morph.panel (platform panel)","candidate":"own layer during the blur fade (MorphPanelOpt sub-claim 2; v1 g0.1b)","status":"proved","flags":[]},{"part":"morph.mount","candidate":"warm-up: mount the panel at a still moment near the end (v14, D1 always-built card)","status":"proved","flags":["morph.mount:shift"]},{"part":"morph.countdown","candidate":"own clock layer: the clock wrapper in the menu centre composited while the menu is open (KD#12 menuClock.ownLayer; v1 panel-clock-layer and g0.0i)","status":"not-proved","flags":[]},{"part":"morph.countdown","candidate":"strip (10 will-change faces per digit -> one 12-entry strip), reused from hero.countdown (KD#12, cd-strip)","status":"partly-proved","flags":["morph.countdown:strip"]},{"part":"morph.columns","candidate":"columns as a still picture while the menu is closed (g0.0h keep-phase = hidden-pause of the marquee)","status":"partly-proved","flags":["morph.columns:hidden-pause"]},{"part":"morph.columns","candidate":"dprSized images (KD#16: five 1282x1282 PNGs in ~138 px columns resized to drawn size x 1.2)","status":"not-proved","flags":[]},{"part":"hero.accent","candidate":"accent-wipe (v1): stroke-dashoffset draw -> counter-translated clip wipe","status":"not-proved","flags":[]},{"part":"hero.accent","candidate":"boil variant `steps`: chain of zero-duration fill-forwards opacity steps (v2 Lean variant)","status":"proved","flags":["hero.accent:steps"]},{"part":"hero.accent","candidate":"boil-ca (v1): step-end -> keyword linear with 0.01 % jumps, so the timing is CA-acceptable","status":"not-proved","flags":[]},{"part":"people.card","candidate":"MQ-gated shrink (KD#3): skip the --future-shrink write and the rAF re-request in the c860 band","status":"proved","flags":["people.card:mq"]},{"part":"people.card","candidate":"PR-041 instant reveal: skip the blur/opacity fade after a fast flick","status":"not-proved","flags":[]},{"part":"people.card","candidate":"blur tail cut 1.6 s -> 0.9 s via a 17-stop linear() resample, then snap to none (KD#15, large-area-blur)","status":"not-proved","flags":[]},{"part":"people.card","candidate":"g0.0m pre-painted card: visibility visible and will-change opacity at opacity 0 on touch screens","status":"partly-proved","flags":[]},{"part":"people.o","candidate":"FLIP (people-gpu, PR-031): set the final grid size once, slide the parts with WAAPI translate","status":"not-proved","flags":[]},{"part":"people.carousel","candidate":"keep the 5 slots mounted and update src in place (st5)","status":"not-proved","flags":[]},{"part":"people.carousel","candidate":"rest at opacity 0.999 and scale(1) so no presence flip happens (st6, KD#8)","status":"not-proved","flags":[]},{"part":"people.carousel","candidate":"st6 slide geometry: width/flex-basis/margin shrink of the leaver -> clip-path ellipse crop + translate; followers translate (layout-animations)","status":"not-proved","flags":[]},{"part":"people.deck","candidate":"cqiFormula sizing (g0.0j): aspect-ratio + height:auto -> container-type:inline-size + height:calc(100cqi*764/353)","status":"partly-proved","flags":[]},{"part":"pain.notes","candidate":"arm the 3 s rotation interval only while visible (armed = inView and not narrow and not covered)","status":"proved","flags":["pain.notes:visible"]},{"part":"pain.notes","candidate":"solid-colour composited layer for the is-pain-dark background flip (n10-d)","status":"not-tried","flags":[]},{"part":"commission.typing","candidate":"commission-forced-layout: cached matchMedia, line count via ResizeObserver, compact-band snap, write-on-change","status":"partly-proved","flags":[]},{"part":"commission.typing","candidate":"no container-type above per-frame text (platform.containers off)","status":"not-tried","flags":[]},{"part":"commission.typing","candidate":"typing-chunks: 2 characters per step (bubble, agents query), count-up written every 48 ms","status":"proved","flags":[]},{"part":"platform.sweep","candidate":"sweep-exact G3: background-position sweep -> ::after band moved by translateX under -webkit-mask-clip:text (illusion-sweep: darken-blend variant)","status":"partly-proved","flags":[]},{"part":"platform.glint","candidate":"glint-ca G1: SMIL x1/x2 on a linearGradient -> clip-path:path() span with a gradient strip moved by transform","status":"not-proved","flags":[]},{"part":"engine.scene","candidate":"covered pause (hero under the 0.999-opacity People card, KD#18 hero-covered-pause)","status":"not-proved","flags":[]},{"part":"engine.scene","candidate":"hidden pause of compositor marquees (morph.columns at m <= 0.08, scene off-screen), HiddenPause.lean","status":"proved","flags":["morph.columns:hidden-pause","engine.scene:hidden-pause"]},{"part":"engine.scene","candidate":"hysteresis and idle pre-warm for the scene/deferral gate (KD#10)","status":"partly-proved","flags":[]},{"part":"engine.scene","candidate":"morph.countdown hidden: keep the spring integrating, skip the 16 face writes per digit (HiddenPause skipWrites)","status":"proved","flags":["morph.countdown:hidden-pause"]},{"part":"engine.scene","candidate":"pause per element instead of the section-wide :where(*) animation-play-state rule (KD#10)","status":"partly-proved","flags":[]},{"part":"premise","candidate":"premise cv.auto-margin: a node under a content-visibility-skipped subtree reports unresolved auto margins","status":"refuted","id":"premise.cv.auto-margin","flags":[]},{"part":"premise","candidate":"premise anim.list: getAnimations lists every running CSS animation and transition and no rAF lerp","status":"intermittent","id":"premise.anim.list","flags":[]},{"part":"gate.page-root","candidate":"page-root gate anchor scrollWidth <= innerWidth, modelled with innerWidth fixed at the requested viewport (Fw.Gate.PageRoot, faithful-checks-rerun round 1)","status":"refuted","id":"gate.pageRoot.fixedInnerWidth","flags":[]},{"part":"hero.exit","candidate":"hero.exit:scoped (exit-scoped-var): register --exit-opacity and --exit-scatter with inherits: false and re-inherit them only on the 7 classes between the stage and the 16 readers","status":"partly-proved","id":"hero.exit.scoped","supersededBy":"hero.exit.scoped.inline","flags":["hero.exit:scoped"]},{"part":"hero.countdown","candidate":"hero.countdown:one-chain (countdown-one-chain): run every rolling digit's rAF chain from one subscriber of the shared loop instead of one rAF callback per digit; faces, setInterval(1000) and transform writes unchanged","status":"partly-proved","id":"hero.countdown.oneChain","flags":["hero.countdown:one-chain"]},{"part":"morph.tween","candidate":"morph.tween:waapi-scoped (tween-platform-scope): the WAAPI tween with a non-inherited --platform-morph, so the platform subtree leaves every tween frame","status":"partly-proved","id":"morph.tween.waapiScoped","flags":["morph.tween:waapi-scoped"]},{"part":"morph.mount","candidate":"morph.mount:shift-dormant (morph-layers): keep shift's early mount but keep the panel's timed state asleep (marquee tracks animation-name: none, no countdown driver) until the original trigger","status":"partly-proved","id":"morph.mount.shiftDormant","flags":["morph.mount:shift-dormant"]},{"part":"morph.mount","candidate":"morph.mount idle-none (morph-layers, rejected): animation-name: none on the paused end scene to drop its layers","status":"not-tried","id":"morph.mount.idleNone","flags":[]},{"part":"pain.notes","candidate":"pain.notes:visible-idem (notes-scroll-idem): skip the covered-frame commit that writes nothing","status":"proved","id":"pain.notes.visibleIdem","flags":["pain.notes:visible-idem"]},{"part":"nav.morph","candidate":"contain the fixed nav's relayout with a containment boundary (nav-oof-root-finding)","status":"refuted","id":"nav.oofRoot.containment","flags":[]},{"part":"premise","candidate":"premise cv.used-margin-fresh: getComputedStyle reads the used auto margin of a node in a content-visibility-skipped subtree fresh at stop 0 (commission-margin-recur)","status":"refuted","id":"premise.cv.used-margin-fresh","flags":[]},{"part":"premise","candidate":"premise cv.margin-typed-om: computedStyleMap margin reads give the computed value, not the used one (cmr-margin-typed-om)","status":"proved","id":"premise.cv.margin-typed-om","flags":[]},{"part":"gate.margin","candidate":"margin rule: when both arms are non-fixed (auto or percent), decide the margin cell by its rect cell (cmr-margin-rect-rule)","status":"proved","id":"gate.margin.rectRule","flags":[]},{"part":"premise","candidate":"premise: Playwright's context screen survives a live resize (gate-green-baseline)","status":"refuted","id":"premise.webkit.screen-kept","flags":[]},{"part":"load.bundle","candidate":"named import of the breakpoint conditions so the bundler drops matrix, edgePairs and backingTheorems (breakpoints-named-import)","status":"partly-proved","id":"load.breakpoints.namedImport","flags":[]},{"part":"tooling.land","candidate":"land: build fwcore once in a prep job and share it with the land legs instead of one parallel build per leg (land-fwcore-once, reverted)","status":"refuted","id":"tooling.land.fwcoreOnce","flags":[]},{"part":"tooling.land","candidate":"land: split the lane into parallel legs (land-lane-speed)","status":"proved","id":"tooling.land.legs","flags":[]},{"part":"tooling.fwcore","candidate":"fwcore: build its tables lazily instead of at startup (fwcore-startup)","status":"proved","id":"tooling.fwcore.lazyTables","flags":[]},{"part":"tooling.ci","candidate":"run some CI jobs on CircleCI's free tier (circleci-pilot)","status":"partly-proved","id":"tooling.ci.circleciPilot","flags":[]},{"part":"morph.tween","candidate":"morph.tween:waapi falsified on real devices: the nav classes stay stale for the whole morph, so the logo stays static and then jumps","status":"refuted","flag":"morph.tween:waapi","id":"morph.tween.waapi.falsified","flags":["morph.tween:waapi"]},{"part":"morph.tween","candidate":"morph.tween:waapi-scoped falsified on real devices: it shares the waapi driver, so the nav classes stay stale for the whole morph","status":"refuted","flag":"morph.tween:waapi-scoped","id":"morph.tween.waapiScoped.falsified","flags":["morph.tween:waapi-scoped"]},{"part":"hero.exit","candidate":"hero.exit:scoped falsified on WebKit: the hero readers keep a stale cached style while --exit-opacity changes","status":"refuted","flag":"hero.exit:scoped","id":"hero.exit.scoped.falsified","supersededBy":"hero.exit.scoped.inline","flags":["hero.exit:scoped"]},{"part":"nav","candidate":"nav:earn-no-transition: the earn button's max-width, padding-inline and opacity transitions are off while the nav morphs, so they follow --morph instead of retargeting every frame","status":"look-change","flag":"nav:earn-no-transition","id":"nav.earn.noTransition","flags":["nav:earn-no-transition"]},{"part":"morph.panel","candidate":"C1 final-size: lay the panel, backdrop and columns out once at the final panel size, centred in the nav and clipped by its overflow: hidden (panel-final-size)","status":"refuted","id":"morph.panel.finalSize.visual","flags":[]},{"part":"hero.exit","candidate":"hero.exit:scoped with inline reader writes (task exit-scoped-inline): the writer sets --exit-opacity and --exit-scatter inline on each of the 16 readers in the frame it writes the stage","status":"proved","id":"hero.exit.scoped.inline","flags":["hero.exit:scoped"]}]}"#
 
-/-- A spawn request with the roles above, the given alive list, extra top-level fields and call. -/
 def spawn (alive extra call : String) : Json :=
   lit s!"\{\"alive\":{alive},\"roles\":{roles},\"now\":1000{extra},\"req\":{call}}"
 
-/-- `n` alive agents named `<p>0..` of one role and kind. -/
 def aliveN (p role kind : String) (n : Nat) : String :=
   "[" ++ ",".intercalate ((List.range n).map fun k =>
     s!"\{\"name\":\"{p}{k}\",\"role\":\"{role}\",\"kind\":\"{kind}\"}") ++ "]"
 
-/-- An `ops.wait` request for one Bash command, with optional `caps` (a JSON text). -/
 def wait' (cmd : String) (caps : String) : Json :=
   Json.mkObj [("cmd", .str cmd), ("caps", lit caps)]
 
-/-- An `ops.wait` request for one Bash command. -/
 def wait (cmd : String) : Json := Json.mkObj [("cmd", .str cmd)]
 
-/-- The cases, per op file: (file stem, [(name, request without op)]). -/
 def cases (_ : Unit := ()) : List (String × List (String × Json)) := [
   ("ops.spawn", [
     ("named worktree subagent with isolation: allow", spawn "[]" "" "{\"name\":\"lean-ops\",\"role\":\"lean-prover\",\"isolation\":\"worktree\",\"spawner\":\"lead\",\"depth\":0}"),
@@ -413,17 +369,13 @@ def cases (_ : Unit := ()) : List (String × List (String × Json)) := [
     ("the lead Monitor stream is kept without a declaration; other intervals are not", lit "{\"rows\":[{\"pid\":9,\"start\":1,\"args\":\"node apps/runner/src/fw.ts watch --interval 300 --stream\"},{\"pid\":10,\"start\":1,\"args\":\"node apps/runner/src/fw.ts watch --interval 60 --stream\"}]}"),
     ("a non-integer start is refused", lit "{\"entries\":[{\"pid\":7,\"start\":1.5}]}")])]
 
-/-- One file of a `lint.context` request. -/
 def lintFile (path : String) (bytes : Nat) (lines : List String) : Json :=
   Json.mkObj [("path", .str path), ("bytes", toJson bytes), ("lines", .arr (lines.toArray.map .str))]
 
-/-- A `lint.context` request for these files. -/
 def lintFiles (fs : List Json) : Json := Json.mkObj [("files", .arr fs.toArray)]
 
-/-- `n` numbered lines. -/
 def numbered (n : Nat) : List String := (List.range n).map fun k => s!"line {k}"
 
-/-- The `lint.context` cases (Fw.Lint.Context); consumer `scripts/context-lint.mjs`. -/
 def lintCases : List (String × Json) := [
   ("handoff: 30 lines is ok, 31 is over the line budget",
     lintFiles [lintFile "docs/team/handoffs/a.md" 300 (numbered 30), lintFile "docs/team/handoffs/b.md" 310 (numbered 31)]),
@@ -446,7 +398,6 @@ def lintCases : List (String × Json) := [
   ("a file without lines: refused",
     Json.mkObj [("files", .arr #[Json.mkObj [("path", .str "CLAUDE.md"), ("bytes", toJson 1)]])])]
 
-/-- Golden files outside `ops/`: (directory under `packages/contracts/golden`, op, cases). -/
 def extra (_ : Unit := ()) : List (String × String × List (String × Json)) := [
   ("lint", "lint.context", lintCases),
   ("plan", "plan.trailers", [
@@ -880,22 +831,16 @@ def extra (_ : Unit := ()) : List (String × String × List (String × Json)) :=
     ("unknown source is refused", lit "{\"source\":\"lead\"}")])]
 
 open Fw.Ops.LeanFirst in
-/-- An `ops.leanFirst` request: the encoded facts. -/
 def leanFirstReq (F : Facts) : Json := lfFactsJson F
 
-/-- A JSON object with one more field (other JSON unchanged). -/
 def withField (k : String) (v : Json) : Json → Json
   | .obj kvs => .obj (kvs.insert k v)
   | j => j
 
 open Fw.Ops.LeanFirst in
-/-- The constructor name of a fault of the lean-first grid. -/
 def faultName (f : Fault) : String := ((reprStr f).splitOn ".").getLastD ""
 
 open Fw.Ops.LeanFirst in
-/-- The `ops.leanFirst` cases, all judged at the deployed constant `stage` (a request cannot choose it): the base
-facts (all rules met), each single fault of the grid, the binding, decision-path and read-at-main cases, a request
-`stage` field (ignored), and the decoder edge cases. -/
 def leanFirstCases (_ : Unit := ()) : List (String × Json) :=
   let at_ := s!"at the deployed stage {stage.name}"
   [(s!"all rules met {at_}", leanFirstReq base)] ++
@@ -925,10 +870,8 @@ def leanFirstCases (_ : Unit := ()) : List (String × Json) :=
      lit "{\"signoffs\":[{\"decl\":\"P\",\"stmtHash\":\"h\",\"role\":\"lead\",\"agree\":true}]}"),
    ("registry row without a status is refused", lit "{\"registry\":[{\"id\":\"p\"}]}")]
 
-/-- A `console.landRenderGuard` request over log tokens. -/
 def rgReq (ts : List String) : Json := Json.mkObj [("tokens", .arr (ts.toArray.map Json.str))]
 
-/-- The `console.landRenderGuard` cases. -/
 def renderGuardCases (_ : Unit := ()) : List (String × Json) := [
   ("no commit: nothing refused", rgReq [""]),
   ("source and docs only: passes", rgReq ["commit c1", "\nA", "apps/site/src/a.ts", "M", "docs/team/tools/land.md", ""]),
@@ -952,11 +895,9 @@ def renderGuardCases (_ : Unit := ()) : List (String × Json) := [
   ("a directory with a dot and a file without one: passes", rgReq ["commit c1", "\nA", "a.png/Makefile", ""]),
   ("missing tokens: refused", Json.mkObj [])]
 
-/-- A `console.review` request: the decision rows, the board steps and an optional answer, from JSON texts. -/
 def rv (looks steps : String) (answer : String := "null") : Json :=
   Json.mkObj [("looks", lit looks), ("steps", lit steps), ("answer", lit answer)]
 
-/-- The `console.review` cases. -/
 def reviewCases (_ : Unit := ()) : List (String × Json) :=
   let mat := "{\"chromium\":{\"state\":\"ready\",\"run\":\"1\",\"artifact\":\"frames-chromium\",\"expires\":\"2026-11-19\"},\"webkit\":{\"state\":\"pending\",\"task\":\"t\"}}"
   let row (f d dec rev : String) := s!"\{\"flag\":\"{f}\",\"date\":\"{d}\",\"decision\":\"{dec}\",\"review\":\"{rev}\"}"
@@ -988,11 +929,9 @@ def reviewCases (_ : Unit := ()) : List (String × Json) :=
    ("a decision word that is unknown is refused", rv "[{\"flag\":\"nav:a\",\"date\":\"d\",\"decision\":\"yes\",\"review\":\"pending\"}]" "[]"),
    ("without looks the rows are Fw.Preset.Gen.lookDecisions", Json.mkObj [("steps", lit "[]")])]
 
-/-- A `console.reviewPreview` request: the decision rows, the board steps, the accepted preview events and an optional click. -/
 def rpv (looks steps events : String) (ask : String := "null") (extra : List (String × Json) := []) : Json :=
   Json.mkObj ([("looks", lit looks), ("steps", lit steps), ("events", lit events), ("ask", lit ask)] ++ extra)
 
-/-- The `console.reviewPreview` cases. -/
 def reviewPreviewCases (_ : Unit := ()) : List (String × Json) :=
   let pend := "[{\"flag\":\"nav:earn-no-transition\",\"date\":\"2026-10-21\",\"decision\":\"kept\",\"review\":\"pending\"}]"
   let st (id : String) (ans : String) (o : String) := s!"\{\"id\":\"{id}\",\"answer\":{ans},\"open\":{o}}"
@@ -1033,11 +972,9 @@ def reviewPreviewCases (_ : Unit := ()) : List (String × Json) :=
    ("an unknown view is refused", rpv pend open_ "[]" (ask "original" 390)),
    ("a bad flag key is refused", rpv pend open_ "[]" "{\"flag\":\"nocolon\",\"view\":\"flag\",\"width\":390}")]
 
-/-- A `console.reviewFeedback` request: the feedback events of the log and an optional flag. -/
 def rfb (events : String) (flag : Option String := none) : Json :=
   Json.mkObj ([("events", lit events)] ++ (match flag with | some f => [("flag", Json.str f)] | none => []))
 
-/-- The `console.reviewFeedback` cases. -/
 def reviewFeedbackCases (_ : Unit := ()) : List (String × Json) :=
   let p (f i t : String) (ts : Nat) := s!"\{\"type\":\"review.feedback\",\"flag\":\"{f}\",\"id\":\"{i}\",\"text\":\"{t}\",\"ts\":{ts}}"
   let r (f to t : String) (ts : Nat) := s!"\{\"type\":\"review.feedback.reply\",\"flag\":\"{f}\",\"to\":\"{to}\",\"text\":\"{t}\",\"ts\":{ts}}"
@@ -1055,7 +992,6 @@ def reviewFeedbackCases (_ : Unit := ()) : List (String × Json) :=
    ("two flags are two threads, in the order of the first comment", rfb s!"[{p b "fb-1" "hero" 100},{p a "fb-2" "nav" 110}]"),
    ("with a flag only that thread", rfb s!"[{p b "fb-1" "hero" 100},{p a "fb-2" "nav" 110}]" (some a)),
    ("a flag with no comment gets an empty thread", rfb "[]" (some a)),
-   -- the cap counts characters (code points), not UTF-16 units: 2000 astral characters are 4000 units and are accepted, 2001 are refused
    ("a text of 2000 astral characters (the cap) is accepted", rfb s!"[{p a "fb-1" (String.ofList (List.replicate 2000 '😀')) 100}]"),
    ("a text of 2001 astral characters (one over the cap) is ignored", rfb s!"[{p a "fb-1" (String.ofList (List.replicate 2001 '😀')) 100}]")]
 
@@ -1091,14 +1027,10 @@ def stepTopicsCases (_ : Unit := ()) : List (String × Json) :=
    ("threads: step and topic subjects only, in the order of the first comment; review flags are left out",
     stp s!"[{tp "a" "A" "one" 100},{q "nav:x" "fb-1" "review" 200},{q "step:s1" "fb-2" "why" 210},{q "topic:a" "fb-3" "how" 220},{r "step:s1" "fb-2" "because" 230}]" s!"[{st "s1" (some "a") "waiting" "user" 500}]")]
 
-/-- A MEASURED tag with a run id. -/
 def rpM (run : String) : Json := Json.mkObj [("kind", "measured"), ("run", run)]
 
-/-- An INFERRED tag with its reason. -/
 def rpI (why : String) : Json := Json.mkObj [("kind", "inferred"), ("why", why)]
 
-/-- A report with the knobs the cases turn: the id, the tag and value of one cell, a layer verdict and its tag, the strips link,
-the second arm's name and search, and the recommendation word and reason. -/
 def rpt (id : String := "hero-exit") (tag : Option Json := some (rpM "39634194664")) (value : String := "34.0")
     (layer : Option (String × Option Json) := none) (strips : Option String := some "https://github.com/OWNER/REPO/actions/runs/39634194664")
     (arm2 : String := "rewrite") (search2 : String := "?fw=hero:exit") (word : String := "adopt") (why : String := "Layout time falls 29 times") : Json :=
@@ -1116,11 +1048,9 @@ def rpt (id : String := "hero-exit") (tag : Option Json := some (rpM "3963419466
     ("recommendation", Json.mkObj [("word", Json.str word), ("why", Json.str why)])] ++
     (match strips with | some u => [("strips", Json.str u)] | none => []))
 
-/-- A `console.report` request. -/
 def rq (reports : List Json) (steps : String := "[]") (answer : String := "null") : Json :=
   Json.mkObj [("reports", Json.arr reports.toArray), ("steps", lit steps), ("answer", lit answer)]
 
-/-- The `console.report` cases. -/
 def reportCases (_ : Unit := ()) : List (String × Json) :=
   let st (id : String) (ans : String) (o : String) := s!"\{\"id\":\"{id}\",\"answer\":{ans},\"open\":{o}}"
   let open_ := s!"[{st "report-hero-exit" "null" "true"}]"
@@ -1157,7 +1087,61 @@ def reportCases (_ : Unit := ()) : List (String × Json) :=
    ("an answer for a report that is not shown is refused", rq [rpt (tag := none)] open_ (ans "approve" "")),
    ("a comment over the feedback cap is refused", rq [rpt] open_ (ans "approve" (String.ofList (List.replicate 2001 'x'))))]
 
-/-- Golden files whose name is not their op: (directory under `packages/contracts/golden`, file stem, op, cases). -/
+def armsReg (changes : String) : String :=
+  r#"{"parts":[{"id":"hero","slot":"hero","impls":["plain"],"variants":[{"name":"faithful","kind":"faithful"},{"name":"scene-pause","kind":"optimized","visClass":"E","lean":"Fw.Parts.HeroScenePause"}]},"# ++
+  r#"{"id":"hero.exit","slot":"hero","impls":["plain"],"variants":[{"name":"faithful","kind":"faithful"},{"name":"threaded","kind":"optimized","lean":"Fw.Parts.HeroExitOpt"}]},"# ++
+  r#"{"id":"hero.countdown","slot":"hero","impls":["mui","plain"],"variants":[{"name":"faithful","kind":"faithful"},{"name":"strip","kind":"optimized"},{"name":"hidden-pause","kind":"optimized","lean":"Fw.Parts.HeroCountdownHidden"},{"name":"one-chain","kind":"optimized","lean":"Fw.Parts.HeroCountdownOneChain"}]},"# ++
+  r#"{"id":"nav","slot":"nav","impls":["plain"],"variants":[{"name":"faithful","kind":"faithful"},{"name":"earn-no-transition","kind":"proposal","visClass":"L","lean":"Fw.Parts.NavEarnOpt"}]}],"# ++
+  r#""presets":[],"changes":"# ++ changes ++ "}"
+
+def armsReq (arms : String) (changes : String := "[]") : Json :=
+  lit ("{\"registry\":" ++ armsReg changes ++ ",\"ledger\":[],\"arms\":" ++ arms ++ "}")
+
+def heroPause : String :=
+  r#"[{"id":"hero-pause","label":"pause the hero","picks":[{"part":"hero","variant":"scene-pause"},{"part":"hero.countdown","variant":"hidden-pause"}]}]"#
+
+def layersCases : List (String × Json) := [
+  ("an empty arm and the original arm open the default page", armsReq r#"[{},{"original":true}]"#),
+  ("scene-pause is E with its proof module as hypothesis", armsReq r#"[{"picks":[{"part":"hero","variant":"scene-pause"}]}]"#),
+  ("hidden-pause has no visClass, so the arm is Q", armsReq r#"[{"picks":[{"part":"hero.countdown","variant":"hidden-pause"}]}]"#),
+  ("two independent pauses compose into one link in page order",
+    armsReq r#"[{"picks":[{"part":"hero.countdown","variant":"hidden-pause"},{"part":"hero","variant":"scene-pause"}]}]"#),
+  ("a Change by id expands to its picks", armsReq r#"[{"changes":["hero-pause"]}]"# heroPause),
+  ("an unknown Change id is refused", armsReq r#"[{"changes":["nope"]}]"#),
+  ("strip is a branch inside a shared file: not extractable", armsReq r#"[{"picks":[{"part":"hero.countdown","variant":"strip"}]}]"#),
+  ("a variant whose part lists no files is not extractable", armsReq r#"[{"picks":[{"part":"hero.exit","variant":"threaded"}]}]"#),
+  ("a proposal with visClass L is graded L and not extractable", armsReq r#"[{"picks":[{"part":"nav","variant":"earn-no-transition"}]}]"#),
+  ("an unknown part or variant is refused", armsReq r#"[{"picks":[{"part":"hero","variant":"nope"}]},{"picks":[{"part":"nope","variant":"x"}]}]"#),
+  ("two variants of one part are refused: set twice, and they clash",
+    armsReq r#"[{"picks":[{"part":"hero.countdown","variant":"hidden-pause"},{"part":"hero.countdown","variant":"one-chain"}]}]"#),
+  ("a pick on a part a Change sets is refused, and the fix drops the pick",
+    armsReq r#"[{"changes":["hero-pause"],"picks":[{"part":"hero","variant":"faithful"}]}]"# heroPause),
+  ("the original arm with a pick is refused", armsReq r#"[{"original":true,"picks":[{"part":"hero","variant":"scene-pause"}]}]"#),
+  ("the composite option of hero_copy opens an fwl link, graded L", armsReq r#"[{"layers":[{"layer":"hero_copy","opts":"c"}]}]"#),
+  ("an option the layer does not offer is refused", armsReq r#"[{"layers":[{"layer":"hero_copy","opts":"s"}]}]"#),
+  ("an unknown layer is refused", armsReq r#"[{"layers":[{"layer":"nope","opts":"c"}]}]"#),
+  ("a composite layer next to a pick in its part clashes",
+    armsReq r#"[{"picks":[{"part":"hero","variant":"scene-pause"}],"layers":[{"layer":"hero_copy","opts":"c"}]}]"#),
+  ("a registry whose Change fails alone is refused as a whole",
+    armsReq "[{}]" r#"[{"id":"strip","picks":[{"part":"hero.countdown","variant":"strip"}]}]"#)]
+
+def declReg : Json :=
+  let ids := (Fw.Parts.FootprintData.layerDecls.map (·.1)).eraseDups
+  Json.mkObj [("presets", Json.arr #[]), ("parts", Json.arr (ids.map fun p => Json.mkObj [("id", .str p),
+    ("variants", Json.arr #["faithful"]), ("impls", Json.arr #["plain"]),
+    ("layers", Json.arr ((Fw.Parts.FootprintData.layerDecls.filter (·.1 == p)).map (Json.str ·.2.1)).toArray)]).toArray)]
+
+def layersSearchCases : List (String × Json) :=
+  let reg := lit r#"{"parts":[{"id":"hero","variants":["faithful","scene-pause"],"impls":["plain"],"layers":["hero_copy"]},{"id":"hero.countdown","variants":["faithful","hidden-pause"],"impls":["mui","plain"]}],"presets":[]}"#
+  let s (q : String) : Json := Json.mkObj [("registry", reg), ("search", .str q)]
+  [("a declared layer option is accepted", s "?fwl=hero_copy:c"),
+   ("fw and fwl together, fw first in the canonical form", s "?fwl=hero_copy:c&fw=hero:scene-pause"),
+   ("an unknown layer is refused", s "?fwl=nope:c"),
+   ("a layer entry without options is refused", s "?fwl=hero_copy"),
+   ("a layer id with a character outside okChar is refused", s "?fwl=hero_c/py:c")] ++
+  Fw.Parts.FootprintData.layerDecls.map fun (_, l, _) =>
+    (s!"declared layer {l}", Json.mkObj [("registry", declReg), ("search", .str s!"?fwl={l}:c")])
+
 def named (_ : Unit := ()) : List (String × String × String × List (String × Json)) := [
   ("ops", "lean-first", "ops.leanFirst", leanFirstCases),
   ("console", "reviewFeedback", "console.reviewFeedback", reviewFeedbackCases),
@@ -1165,29 +1149,26 @@ def named (_ : Unit := ()) : List (String × String × String × List (String ×
   ("land", "render-guard", "console.landRenderGuard", renderGuardCases),
   ("console", "review", "console.review", reviewCases),
   ("console", "report", "console.report", reportCases),
-  ("console", "reviewPreview", "console.reviewPreview", reviewPreviewCases)]
+  ("console", "reviewPreview", "console.reviewPreview", reviewPreviewCases),
+  ("console", "layers", "console.compose", layersCases),
+  ("console", "layers-search", "console.buildsSearch", layersSearchCases)]
 
-/-- The request with its `op` field set. -/
 def withOp (op : String) : Json → Json
   | .obj kvs => .obj (kvs.insert "op" (.str op))
   | j => j
 
-/-- The reply to a request as a JSON object without the id. -/
 def respond (op : String) (req : Json) : Json :=
   match Json.parse (Fw.Wire.handleLine (withOp op req).compress) with
   | .ok (.obj kvs) => .obj (kvs.erase "id")
   | .ok j => j
   | .error e => Json.mkObj [("error", .str s!"reply is not JSON: {e}")]
 
-/-- The text of one golden file. -/
 def fileText (op : String) (cs : List (String × Json)) : String :=
   String.join (cs.map fun (name, req) =>
     (Json.mkObj [("name", .str name), ("request", withOp op req), ("response", respond op req)]).compress ++ "\n")
 
-/-- The golden directory, relative to `lean/`. -/
 def dir : System.FilePath := ".." / "packages" / "contracts" / "golden" / "ops"
 
-/-- Compare (or write) every golden file; returns the number of stale files. -/
 def run (root : System.FilePath) (write : Bool) : IO Nat := do
   let mut stale := 0
   for (sub, stem, op, cs) in cases.map (fun (op, cs) => ("ops", op, op, cs)) ++
