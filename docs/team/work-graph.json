@@ -16482,7 +16482,14 @@
     "packages/contracts/golden/parts/nav-bar-fixed*.jsonl",
     "research/notes/2026/10-2x-nav-fixed-size.md",
     "results/nav-fixed-size/**",
-    "docs/team/handoffs/nav-fixed-size.md"
+    "docs/team/handoffs/nav-fixed-size.md",
+    "lean/Fw.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json",
+    "packages/contracts/golden/preset/v2-proved.decisions.jsonl",
+    "research/findings/ledger.json"
    ],
    "title": "GPU route (user 2026-10-22: \"experiment then measure and do lean prove ... navbar and the end-of-page\"; design workflow gpu-route-design, lead scratch gpu-route-tasks.json rank 1). Nav fixed size (C8u + C14 + translate3d logo): while .is-morphing:not(.is-locale-open) the nav box is the union box (phone 406x908 top 12; desktop panelW x panelH+4 top 16) and the pill is clip-path: inset(...) round navRadius(m) with border-radius 0; the bar keeps the union width (C14); logo moves by one translate3d(X(m),0,0) calc of --morph; actions by translateX = -(unionW - navW(m))/2; nav.hitTest probes the Lean box, not getBoundingClientRect. Background rides along: radius 0 on the box may make the nav a simple container (colour as CA contents, no nav raster). Flags in nav/part.json: nav:clip-box, nav:bar-fixed (requires clip-box), nav:logo-3d (requires bar-fixed); arms measured cumulatively. Rows: nav box, background, bar, logo, actions, hitTest. Source answers gap (a): the clip-path mask sits on the backdrop structural layer (GraphicsLayerCA.cpp:3353-3364@862f17d), so the backdrop is clipped to the pill; L case 1 is refuted in source, Safari pixels only confirm. Cite Chromium kBackdropFilter at compositing_reason_finder.cc:456-457@f842f52 and the RecompositeLayer decision at RenderElement.cpp:321-326@862f17d (verification corrections). F9/F11 engine lines are unverified: re-check in WebKit source before claiming them. Flag: Same look E-s for geometry; Q at the mask's curved edge and for logo-3d at 430 (CA downsamples the 3x raster at scale 0.75): logo-3d goes to the user's look-review class if the pixel diff exceeds tolerance. logo-3d saves only under the Normal policy (Conservative drops translate3d). Raster area during the morph is a trade (+31 % mean on phone, +34 % at 1280x800) unless the simple-container premise (BarComposited, nav drawsContent false) holds in the layer census. Write overlap to sequence: morph-nav-scope (not started) also lists nav/nav.module.css. Layer budget: +1 CAShapeLayer mask (no backing), +1 logo layer 0.17 MB RGB10A8 only while morphing; nav backing pinned at 16.6 MB/buffer during the morph (0 if simple container); bar backing constant or 0.. Lean: New Fw.Parts.NavClipBox over Nav.Vp, per breakpoint band and m in [0,1]: box_eq (clip rect of the union box with insets v m = navLeft/navTop/navWidth/navHeight, clipR m = navRadius m; reuses Nav.lean:244-254, navWidth_expand_irrel), insets_nonneg (why the union box), union_const above morphingCut, rest_same (no rule at m <= morphingCut or localeOpen), probe_eq (hitPoint Lean box = hitPoint original rect). Fw.Parts.NavBarFixed: barW_const, logoX_eq (Rat identity, quadratic in m, Nav.logoLeft), actionsX_eq (affine), gap untouched. Fw.Engine.WebKitSimple: simpleContainer_backing (no radius/border/filter/painted descendant -> residentKpx 0, resizePaint 0; extends simple_layer WebKit.lean:1126) with BarComposited as a stated premise. Work: wk_allocs_push (nav resize allocations per push = 2 < frames for >= 3 frames), bar resizePaint = 0, logo layout units -1 per frame under Normal; writer_unchanged (same --morph sequence, trajectory proofs reuse MorphTween.tween); raster area stated as >= (trade) unless simpleContainer. Layer budget stated as a theorem over the census rows. Measure: (1) Breakpoint gate, both engines, all breakpoints: rest unchanged. (2) WebKit Simulator cost lane (webkit-cost-counters) per arm: IOSurface creations and nav/bar Paint records per morph frame, Layout object count, Composite minus nested Paint, RecalculateStyles (expected equal, no win claimed). (3) Layer census: nav and bar drawsContent, mask layer, logo layer present only while morphing. (4) Trajectory: nav clip rect and radius per frame vs the Lean box; logo and actions rects; is-on-dark rows (cells from gpu-trajectory-cells). (5) Local Safari lane via gpu-safari-lane: pixels at m in {0.1, 0.5, 0.9}, glass colour at {0.25, 0.5, 0.75}, logo at 430."
   },
@@ -16504,7 +16511,9 @@
     ".github/workflows/trajectory-probe.yml",
     "lean/scripts/TrajectoryGpuGolden.lean",
     "lean/scripts/check.sh",
-    "lean/Fw.lean"
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl"
    ],
    "title": "GPU route (user 2026-10-22: \"experiment then measure and do lean prove ... navbar and the end-of-page\"; design workflow gpu-route-design, lead scratch gpu-route-tasks.json rank 2). Trajectory cells for the GPU arms, specified in Lean first: (a) nav clip cell: read the computed clip-path inset/round on the nav (flag on) or the border box (flag off) and reduce both to one rect + radius per frame; (b) panel effect cell: opacity, filter blur, transform scale per frame at matched tween progress, including the CA-clock vs rAF lead/lag in frames; (c) pain dark cell: the solid-colour layer's opacity vs the faithful class per scroll offset; (d) carousel avatar rects per frame. The reduction (clip -> rect, tolerance, lag in frames) is a Lean function with golden vectors the JS is checked against. Flag: Blocker for the verdicts of nav-fixed-size, morph-panel-threaded, pain-dark-scroll and people-carousel-crop; start it now. No site code.. Lean: Fw.Gate.TrajectoryGpu: clipRect_of_inset (inset + box -> rect, exact on Rat), cell_eq_iff within PixTol 1/2 device px, lagFrames (panel vs nav) with lag <= 1 -> Q else L; goldens for each reducer. Measure: Unit goldens only; first CI run on faithful (A/A) to calibrate the cells."
   },
@@ -16694,7 +16703,16 @@
     "apps/runner/src/timing.ts",
     "apps/runner/test/slot*.test.ts",
     "apps/runner/test/timing*.test.ts",
-    "docs/team/handoffs/timing-queue-wait.md"
+    "docs/team/handoffs/timing-queue-wait.md",
+    "lean/Fw/Obs/Next.lean",
+    "lean/Fw/Ci/Telemetry.lean",
+    "lean/Fw/Wire/Obs.lean",
+    "apps/runner/src/slot-queue.ts",
+    "apps/runner/src/watch-collect.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/slot-queue.test.ts",
+    "apps/runner/test/slot.test.ts",
+    "docs/team/tools/slot.md"
    ],
    "title": "fw watch raised timing.slow for 'fw/slot acquire sim' at 1521 s (2026-10-22): the acquire waited behind another sim holder (locks.jsonl: one sim lease held 1826 s), i.e. a queue wait, not a slow step. Fw.Obs.Timing judges contention by load only (contendedLoad 8), so a lock wait at load 4 reads as slow. Closed rule by identity: the acquire span records the holder it waited behind (slot.ts: kind, owner, waitMs from the queue); Timing gives a sample that waited behind a live holder the verdict queued (never slow, never in a window) and judges only the remaining non-wait time; theorem queued_not_slow plus the existing windowOf properties. A queue wait longer than the holder's lease plus grace stays an alert (lease expiry is the real fault). Golden vectors from Lean; slot.ts and the timing reader checked against them."
   },
@@ -16800,6 +16818,22 @@
     "docs/team/handoffs/census-allowlist-close.md"
    ],
    "title": "Review follow-ups of census-load-variance: the runnerStems allowlist is not closed (3 of the last 4 runs each added a stem; only run 39812409397 is fresh on the final list). Closed design: replace prefix stems for non-timer boxes by identity (data-fw ids on the commission section, fee visual, hero feed body and typing avatar in the rewrite, declared layers) or find their load-state cause as for cause 1 (commission section co-occurs with page height 6006 vs 6042 in 39795650433); 'div.fee-visual' without separator hides the steady box too; the rewrite twin section.commission-module_commission_* is not listed (arms unequal). Lean theorem: allowlist monotonicity (accepted under s implies accepted under s' ⊇ s). Check scrollY == requestedY per sample (determinism.mjs pinStates). Then a series of >= 3 fresh base-vs-base runs per arm on the final list before WebKit A/B uses the census."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "polish-skip-generated",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "apps/runner/src/polish*.ts",
+    "apps/runner/test/polish*.test.ts",
+    ".claude/agents/comment-sicko.md",
+    "docs/team/handoffs/polish-skip-generated.md"
+   ],
+   "title": "The build-review Polish stage (comment-sicko) deleted the guard comment that scripts/ci-paths.mjs generates in .github/workflows/path-pix.yml; the land dry then refused with VERDICT lint (ci-paths --check: 'the comment above the guard job differs'), costing a land cycle (2026-10-23). Closed rule by identity: fw polish never edits lines a generator owns; ask each generator (ci-paths --check, the golden writers) after the polish edits and revert any hunk the check refuses, or pass the generator-owned paths/blocks to comment-sicko as read-only. Test: a polish run over a workflow file keeps the generated guard comment."
   }
  ],
  "deadline": {
