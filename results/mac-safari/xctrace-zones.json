@@ -1,0 +1,217 @@
+{
+ "lane": "local",
+ "xctrace": "xctrace version 27.1 (27A9275)",
+ "seconds": 6,
+ "results": [
+  {
+   "target": "mac",
+   "template": "Animation Hitches",
+   "exit": 0,
+   "recorded": true,
+   "finalized": true,
+   "schemas": 56,
+   "hitchRows": 3700,
+   "hitchSchemas": [
+    "hitches-renders",
+    "hitches-framewait",
+    "hitches",
+    "hitches-updates",
+    "hitches-frame-lifetimes",
+    "hitches-gpu"
+   ],
+   "tables": {
+    "hitches-renders": 773,
+    "hitches-framewait": 773,
+    "hitches": 3,
+    "hitches-updates": 605,
+    "hitches-frame-lifetimes": 773,
+    "hitches-gpu": 773
+   },
+   "refusal": []
+  },
+  {
+   "target": "mac",
+   "template": "Metal System Trace",
+   "exit": 0,
+   "recorded": false,
+   "finalized": true,
+   "schemas": 82,
+   "hitchRows": 0,
+   "hitchSchemas": [],
+   "tables": {},
+   "refusal": []
+  },
+  {
+   "target": "mac-attach",
+   "template": "Animation Hitches",
+   "exit": "timeout",
+   "recorded": false,
+   "finalized": false,
+   "schemas": 0,
+   "hitchRows": 0,
+   "hitchSchemas": [],
+   "tables": {},
+   "refusal": [
+    "Export failed: Document Missing Template Error"
+   ],
+   "arm": "orig",
+   "zone": "hero"
+  },
+  {
+   "target": "mac-attach",
+   "template": "Animation Hitches",
+   "exit": "timeout",
+   "recorded": false,
+   "finalized": false,
+   "schemas": 0,
+   "hitchRows": 0,
+   "hitchSchemas": [],
+   "tables": {},
+   "refusal": [
+    "Export failed: Document Missing Template Error"
+   ],
+   "arm": "orig",
+   "zone": "end"
+  },
+  {
+   "target": "mac-attach",
+   "template": "Animation Hitches",
+   "exit": 0,
+   "recorded": true,
+   "finalized": true,
+   "schemas": 56,
+   "hitchRows": 8818,
+   "hitchSchemas": [
+    "hitches-renders",
+    "hitches",
+    "hitches-framewait",
+    "hitches-updates",
+    "hitches-gpu",
+    "hitches-frame-lifetimes"
+   ],
+   "tables": {
+    "hitches-renders": 1959,
+    "hitches": 13,
+    "hitches-framewait": 1957,
+    "hitches-updates": 976,
+    "hitches-gpu": 1956,
+    "hitches-frame-lifetimes": 1957
+   },
+   "refusal": [],
+   "arm": "base",
+   "zone": "hero"
+  },
+  {
+   "target": "mac-attach",
+   "template": "Animation Hitches",
+   "exit": "timeout",
+   "recorded": false,
+   "finalized": false,
+   "schemas": 0,
+   "hitchRows": 0,
+   "hitchSchemas": [],
+   "tables": {},
+   "refusal": [
+    "Export failed: Document Missing Template Error"
+   ],
+   "arm": "base",
+   "zone": "end"
+  },
+  {
+   "target": "mac-attach",
+   "template": "Animation Hitches",
+   "exit": "timeout",
+   "recorded": false,
+   "finalized": false,
+   "schemas": 0,
+   "hitchRows": 0,
+   "hitchSchemas": [],
+   "tables": {},
+   "refusal": [
+    "Export failed: Document Missing Template Error"
+   ],
+   "arm": "hx",
+   "zone": "hero"
+  },
+  {
+   "target": "mac-attach",
+   "template": "Animation Hitches",
+   "exit": "timeout",
+   "recorded": false,
+   "finalized": false,
+   "schemas": 0,
+   "hitchRows": 0,
+   "hitchSchemas": [],
+   "tables": {},
+   "refusal": [
+    "Export failed: Document Missing Template Error"
+   ],
+   "arm": "hx",
+   "zone": "end"
+  },
+  {
+   "target": "mac-attach",
+   "template": "Animation Hitches",
+   "exit": "timeout",
+   "recorded": false,
+   "finalized": false,
+   "schemas": 0,
+   "hitchRows": 0,
+   "hitchSchemas": [],
+   "tables": {},
+   "refusal": [
+    "Export failed: Document Missing Template Error"
+   ],
+   "arm": "mp",
+   "zone": "hero"
+  },
+  {
+   "target": "mac-attach",
+   "template": "Animation Hitches",
+   "exit": "timeout",
+   "recorded": false,
+   "finalized": false,
+   "schemas": 0,
+   "hitchRows": 0,
+   "hitchSchemas": [],
+   "tables": {},
+   "refusal": [
+    "Export failed: Document Missing Template Error"
+   ],
+   "arm": "mp",
+   "zone": "end"
+  },
+  {
+   "target": "mac-attach",
+   "template": "Animation Hitches",
+   "exit": "timeout",
+   "recorded": false,
+   "finalized": false,
+   "schemas": 0,
+   "hitchRows": 0,
+   "hitchSchemas": [],
+   "tables": {},
+   "refusal": [
+    "Export failed: Document Missing Template Error"
+   ],
+   "arm": "pf",
+   "zone": "hero"
+  },
+  {
+   "target": "mac-attach",
+   "template": "Animation Hitches",
+   "exit": "timeout",
+   "recorded": false,
+   "finalized": false,
+   "schemas": 0,
+   "hitchRows": 0,
+   "hitchSchemas": [],
+   "tables": {},
+   "refusal": [
+    "Export failed: Document Missing Template Error"
+   ],
+   "arm": "pf",
+   "zone": "end"
+  }
+ ]
+}
