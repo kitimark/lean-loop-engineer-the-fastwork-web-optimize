@@ -127,9 +127,15 @@ describe('data-fw-layer in the rendered DOM', () => {
     }
   });
 
-  it('the morph.countdown instance (fwId morph-countdown-clock) carries no layer attribute', async () => {
-    const host = await client(createElement(HeroCountdown, { variant: 'faithful', impl: 'plain', fwId: 'morph-countdown-clock' }));
-    expect(host.querySelectorAll('[data-face]').length).toBeGreaterThan(0);
-    expect(host.querySelectorAll('[data-fw-layer]').length).toBe(0);
+  it('the morph.countdown instance (inverse, fwId morph-countdown-clock) carries no layer attribute in any variant or impl', async () => {
+    const p = load('hero.countdown');
+    for (const variant of Object.keys(p.variants)) {
+      for (const impl of p.impls) {
+        const host = await client(createElement(HeroCountdown, { variant, impl, inverse: true, fwId: 'morph-countdown-clock' }));
+        const at = `hero.countdown:${variant}@${impl} in morph.countdown`;
+        expect(host.querySelectorAll('[data-face]').length, `${at} renders no face`).toBeGreaterThan(0);
+        expect(host.querySelectorAll('[data-fw-layer]').length, `${at} carries a layer attribute`).toBe(0);
+      }
+    }
   });
 });

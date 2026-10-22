@@ -256,8 +256,9 @@ def Unit.writes (pg : Page) (u : Unit) : List String :=
   | some (_, pid, o) => if composite o then ["cssVar:will-change/" ++ pid] else []
   | none => []
 
-/-- The wires a unit's own records read. -/
-def Unit.reads (pg : Page) (u : Unit) : List String := u.picks.flatMap fun e => (own pg e).flatMap Fw.Parts.Footprint.reads
+/-- The wires a unit reads: every record of each picked variant, shared files included. -/
+def Unit.reads (pg : Page) (u : Unit) : List String :=
+  u.picks.flatMap fun e => (pg.accesses.filter fun r => r.part == e.1 && r.variants.contains e.2).flatMap Fw.Parts.Footprint.reads
 
 /-- The parts owning the elements a unit writes or clears (resolved owners only). -/
 def Unit.targets (pg : Page) (u : Unit) : List String :=
@@ -532,13 +533,13 @@ theorem fix_closed_requires (pg : Page) (a : Arm) :
 
 /-! ## Look grade of an arm -/
 
-/-- The grade a variant claims: `L` for a look change, `E` for class `E` or `E-s` with a theorem, `E1` for class `E1`,
-`Q` otherwise; the default is `E`. -/
+/-- The grade a variant claims: `L` for a look change, `E` for class `E` or `E-s` with a theorem, `E1` for class `E1`
+with a theorem, `Q` otherwise; the default is `E`. -/
 def varGrade (v : VarL) : Grade :=
   if v.kind == "faithful" then .E
   else if lookChange v.limit || v.visClass == "L" then .L
   else if (v.visClass == "E" || v.visClass == "E-s") && v.lean != "" then .E
-  else if v.visClass == "E1" then .E1
+  else if v.visClass == "E1" && v.lean != "" then .E1
   else .Q
 
 /-- The grade of a unit: an option is `L` on a text layer composited without snap (C1 pending), `Q` otherwise; a pick
@@ -911,7 +912,7 @@ def exPage : Page where
                              { path := "js", variant := "hidden-pause", composited := false }] }] },
     { id := "hero.accent",
       variants := [{ name := "faithful", kind := "faithful", files := ["accent.ts"] },
-        { name := "steps", visClass := "E1", files := ["steps.ts"] },
+        { name := "steps", visClass := "E1", lean := "Fw.Demo.steps_within_one", files := ["steps.ts"] },
         { name := "gone", refuted := "refuted by its run", files := ["gone.ts"] }],
       layers := [{ id := "hero.accent_mark", text := false,
                    paths := [{ path := "steps", variant := "faithful", composited := true }] }] },
@@ -941,6 +942,13 @@ def exPage : Page where
     exAccess "demo.b" "b-fast.ts" .cssVar "--strip" "" ["fast"],
     exAccess "demo.c" "c.ts" .cssVar "--strip" "" ["faithful"],
     exAccess "demo.c" "c.ts" .cssVar "--exit-opacity" "" ["faithful"]]
+
+/-- `exPage` with a variant `alt` of `demo.c` that keeps the shared file `c.ts` and adds `c-alt.ts`. -/
+def exShared : Page := { exPage with
+  parts := exPage.parts.map fun p => if p.id == "demo.c" then
+      { p with variants := [{ name := "faithful", kind := "faithful", files := ["c.ts"] },
+        { name := "alt", files := ["c.ts", "c-alt.ts"] }] } else p
+  accesses := exPage.accesses.map fun a => if a.part == "demo.c" then { a with variants := ["faithful", "alt"] } else a }
 
 /-- The refusal codes of an example arm. -/
 def exCodes (a : Arm) : List String := (reasonsOf exPage a).map (·.code)
@@ -982,6 +990,8 @@ def exCodes (a : Arm) : List String := (reasonsOf exPage a).map (·.code)
 -- A branch-only variant and a refuted one.
 #guard exCodes { picks := [("hero.countdown", "strip")] } = ["not-extractable"]
 #guard exCodes { picks := [("hero.accent", "gone")] } = ["refuted"]
+-- Class `E1` without a theorem is graded `Q`.
+#guard varGrade { name := "steps", visClass := "E1" } = .Q
 -- A part set twice: the fix drops the user pick.
 #guard exCodes { changes := ["strip-pair-proved"], picks := [("demo.a", "fast")] } =
   ["set-twice", "clash", "uncovered-reader", "shared-reader"]
@@ -992,6 +1002,9 @@ def exCodes (a : Arm) : List String := (reasonsOf exPage a).map (·.code)
 -- A faithful reader outside every proof, and one reading two units.
 #guard exCodes { picks := [("demo.a", "fast")] } = ["uncovered-reader"]
 #guard exCodes { picks := [("hero.exit", "threaded"), ("demo.a", "fast")] } = ["uncovered-reader", "shared-reader"]
+-- A set part whose chosen variant still runs a shared file: its shared records are read, so the pick clashes.
+#guard (reasonsOf exShared { picks := [("demo.a", "fast"), ("demo.c", "alt")] }).map (·.code) = ["clash"]
+#guard (reasonsOf exShared { picks := [("demo.a", "fast")] }).map (·.code) = ["uncovered-reader"]
 -- The site's own rules: demo.b:fast requires demo.a:fast.
 #guard exCodes { changes := ["a-slow"], picks := [("demo.b", "fast")] } = ["rule"]
 -- The original arm.

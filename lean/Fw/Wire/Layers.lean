@@ -5,17 +5,17 @@ import Fw.Parts.FootprintData
 # JSON for composed arms (`console.compose` with `arms`)
 
 `console.compose` keeps its reply for a request without `arms`. With `arms` it also reads, per registry part, the
-variant fields `visClass`, `lean` and `files` and the part's `layers`, and the registry's `changes`; it fails on any
+variant fields `visClass` and `lean` and the part's `layers`, and the registry's `changes`; it fails on any
 `registryErrors` entry and adds `arms`, one decision per requested arm (`Fw.Console.Layers.decideArm`).
 
 | field | request | reply |
 |---|---|---|
-| `registry.parts[].variants[]` | `visClass`?, `lean`?, `files`? (absent: the extractor's `variantFiles`) | |
+| `registry.parts[].variants[]` | `visClass`?, `lean`? | |
 | `registry.parts[].layers`? | [{id, text, props?, paths? [{path, variant, composited}]}] (absent: the extractor's `layerDecls`) | |
 | `registry.changes`? | [{id, label?, picks [{part, variant}], lean?}] | |
 | `arms` | [{original?, changes? [id], picks? [{part, variant}], layers? [{layer, opts}]}] | `arms` [{ok, link, reasons [{code, text}], units [{id, kind, picks, proof}], grade, verdict, hyps, notes, premises [{scope, premises}], fix [{part, variant}]}] |
 
-A variant's `refuted` text is its refusal in `Fw.Console.Compose.table` over the request's ledger; the accesses are
+A variant's files are the extractor's `variantFiles`; a variant's `refuted` text is its refusal in `Fw.Console.Compose.table` over the request's ledger; the accesses are
 the extractor's (`Fw.Parts.FootprintData.accesses`).
 -/
 namespace Fw.Wire.Layers
@@ -53,7 +53,7 @@ def page (req : Json) (rows : List LRow) (presets : List PresetFact) (infos : Li
       let name ← str v "name"
       pure ({ name, kind := ← strD v "kind" "optimized", limit := ← strD v "limit" "", visClass := ← strD v "visClass" "",
               lean := ← strD v "lean" "", refuted := refusal id name,
-              files := (← strsOpt v "files").getD (filesOf id name) } : VarL)
+              files := filesOf id name } : VarL)
     let layers ← match opt p "layers" with
       | none => pure (layersOf id)
       | some (.arr a) => a.toList.mapM layer
