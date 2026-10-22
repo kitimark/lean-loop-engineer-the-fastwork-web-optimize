@@ -66,3 +66,12 @@ compared with the baseline, and it does not become the baseline (measured: the s
 than below 4; props lint 16.8 s vs 22.7 s). `sys.contended` reports the load once. `lean/scripts/check.sh` runs inside
 `scripts/heavy-lock.mjs` (Lean `Fw.Sched.Heavy`: a FIFO queue, at most `cap` holders, free memory for the job plus a reserve,
 swap below 60 percent; an idle machine always admits). `FW_HEAVY_LOCK=off` skips it. The lock files are in `<git dir>/fw-heavy/`.
+
+## Startup cost of the verb-list imports (MEASURED, Node 24.22.0, median of 5, `/usr/bin/time -l`)
+
+| command | main wall | branch wall | main RSS | branch RSS |
+|---|---|---|---|---|
+| `fw plan show` | 0.16 s | 0.17 s | 123.9 MB | 123.7 MB |
+| `fw slot status` | 0.16 s | 0.17 s | 123.6 MB | 122.4 MB |
+
+The slot path (fw.ts -> timing.ts, slot-span.ts, slot.ts, slot-main.ts) has a static import closure that does not contain fw-groups.ts or any module that exports a verb list; the light waiter stays light.
