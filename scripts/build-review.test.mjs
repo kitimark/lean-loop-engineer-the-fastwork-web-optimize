@@ -62,6 +62,16 @@ test('resume path: no build stage; runner reruns the dry; its last VERDICT line 
   assert.equal(out[0].gate, 'returnToBuilder')
 })
 
+test('resume path: a later refusal line wins over an earlier VERDICT dry line', async () => {
+  const out = await run(async (p, o) => {
+    if (o.label.startsWith('resume-dry')) return { report, line: 'VERDICT dry demo-task\nREFUSED: scope x\nVERDICT scope demo-task' }
+    if (o.label.startsWith('gate')) return { line: 'VERDICT review-ready demo-task returnToBuilder' }
+    throw new Error('unexpected ' + o.label)
+  }, { task: resumeTask })
+  assert.equal(out[0].build.dry, 'VERDICT scope demo-task')
+  assert.equal(out[0].gate, 'returnToBuilder')
+})
+
 test('resume path: runner without a report returns the no-result record', async () => {
   const out = await run(async () => null, { task: resumeTask })
   assert.equal(out[0].state, 'no-result')

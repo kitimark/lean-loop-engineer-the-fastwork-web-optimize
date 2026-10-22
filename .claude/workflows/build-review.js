@@ -1,7 +1,7 @@
 export const meta = {
   name: 'build-review',
   description: 'Build one task (own worktree or a named one), then its adversarial review, with the fixed team preamble',
-  whenToUse: 'Every build task the lead starts, one run per task so each finishes (and lands) on its own: args = { task: { id, role, prompt, lean?, worktree?, unit?, limits?, findings? }, voice? }',
+  whenToUse: 'Every build task the lead starts, one run per task so each finishes (and lands) on its own: args = { task: { id, role, prompt, lean?, worktree?, unit?, limits?, findings?, report? }, voice? } (report + worktree: lead resume path, docs/team/tools/build-review.md)',
   phases: [{ title: 'Build' }, { title: 'Review' }, { title: 'Polish' }],
 }
 
@@ -55,16 +55,16 @@ const scope = (t) => [
 ].filter(Boolean).join('\n')
 
 // Lead resume path (task build-review-report-resume): args.task.report (a builder report JSON path) with args.task.worktree skips the build
-// stage. One runner agent reads the report and reruns the dry land in the worktree; the exact last `VERDICT dry` line replaces the report's dry field.
+// stage. One runner agent reads the report and reruns the dry land in the worktree; the exact last VERDICT line (any kind) replaces the report's dry field.
 const RESUME = { type: 'object', properties: { report: BUILD, line: { type: 'string' } }, required: ['report', 'line'] }
 const resumeDry = (r) => {
-  const ms = r && typeof r.line === 'string' ? [...r.line.matchAll(/VERDICT dry [^\n]*/g)] : []
+  const ms = r && typeof r.line === 'string' ? [...r.line.matchAll(/VERDICT \S+ [^\n]*/g)] : []
   return ms.length ? ms[ms.length - 1][0].trim() : (r && typeof r.line === 'string' ? r.line : '')
 }
 const resumed = async () => {
   const r = await agent(`Resume of task ${t.id}: no build round. Run in the worktree ${t.worktree} (never cd outside it) with PATH="$HOME/.nvm/versions/node/v24.22.0/bin:$PATH", logging to your scratchpad file resume-${t.id}.log (agents/runner.md).
 Step 1: read the builder report JSON at ${t.report} and return it unchanged as report (branch, commit, summary, files, open, items, runs, dry).
-Step 2: from the worktree run exactly: pnpm -s fw slot run --kind land --cache -- pnpm -s fw land <report.branch> --task ${t.id} --dry (no --allow). Return the last VERDICT dry line it printed, verbatim and whole, as line; do not edit, shorten or interpret it.`,
+Step 2: from the worktree run exactly: pnpm -s fw slot run --kind land --cache -- pnpm -s fw land <report.branch> --task ${t.id} --dry (no --allow). Return the last VERDICT line it printed (any kind), verbatim and whole, as line; do not edit, shorten or interpret it.`,
     { label: `resume-dry:${t.id}`, phase: 'Build', agentType: 'runner', schema: RESUME })
   return r && r.report && typeof r.report === 'object' ? { ...r.report, dry: resumeDry(r) } : null
 }
