@@ -45,7 +45,7 @@ Width transition at rest: the original `transition` lists end with `width`. They
 breakpoint gate failed on the changed `transition-property` on both engines, runs 39835303279 and 39837964273, and the hero-pill to bar width change at the
 hero exit lost its 0.68 s ease). Instead the rule declares `width: var(--pill-w)` and reaches the union through `min-width: var(--panel-w)`. The declared width
 is constant in the morph, `min-width` is not in the lists, and at `m = 0` the declared width equals the rest width (`decl_eq_rest_zero`; for `0 < m <= cut`
-within `cut * (panelW - pillW)`, `decl_close_rest`), so dropping `.is-morphing` starts no width transition. `usedW_eq_unionW`: used width = max(width, min-width)
+within `cut * (panelW - pillW)`, `decl_close_rest`), so dropping `.is-morphing` at m = 0 starts no width transition, and above 0 only one under 0.42 px. `usedW_eq_unionW`: used width = max(width, min-width)
 = union width; `used_eq_rest_one` covers the end at 1 (the class stays on). `layout_only_at_endpoints`: boxes at two morph values differ only if one is at or below the cut.
 
 ## Lean

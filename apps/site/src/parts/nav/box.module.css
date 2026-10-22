@@ -3,7 +3,8 @@
    highest top and lowest bottom of the morph) and the pill is a clip-path inset with the original's corner radius. The
    rest and locale-open states keep the original rules, transition lists included. The union width comes from `min-width`
    over a `width` held at the pill width, so the declared width is constant in the morph and equals the rest width where
-   the morph ends (Lean: usedW_eq_unionW, decl_eq_rest_zero): no width transition starts when `.is-morphing` is dropped.
+   morph 0 (Lean: usedW_eq_unionW, decl_eq_rest_zero); a drop between 0 and the cut starts a width transition under 0.42 px
+   (decl_close_rest).
    The rules sit in their own module (nav.module.css is the original's rules); the nav's elements are named by data-fw hooks because a class of another module cannot be
    written here. Every override beats the original by specificity, so the order of the two sheets does not matter. */
 @layer parts {
