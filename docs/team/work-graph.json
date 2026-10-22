@@ -15875,6 +15875,43 @@
     "docs/team/handoffs/oracle-eps-followups.md"
    ],
    "title": "Follow-ups of oracle-eps (accepted 2026-10-22). (1) Re-score results/jev-file-context-ablation (d1x, d1n and the paired table) under the landed sumOk rule from the logged replies (no sends, no model calls); if any net or the adopt verdict changes, update the note's table and verdict and say so; else state that it is unchanged. (2) scripts/jev-arms-clean.mjs `table` drops the oracle-eps block of results/jev-arms-clean/table.md: make the generator emit the re-validated rows (old and new rule) so a regenerate keeps them; test. Unit: the re-scored ablation table with its verdict, the generator change with its test. Limits: no sends, no model calls."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "compose-layers-followups",
+   "owner": "lean-prover",
+   "stream": "console",
+   "deps": [
+    "compose-layers-lean"
+   ],
+   "writes": [
+    "lean/Fw/Console/Layers.lean",
+    "lean/Fw/Wire/Layers.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "packages/contracts/golden/console/layers*.jsonl",
+    "docs/team/handoffs/compose-layers-followups.md"
+   ],
+   "title": "Follow-ups of compose-layers-lean (accepted 2026-10-22). (1) Single source for layers: console.compose takes a part's layers only from layersOf (the extractor's layerDecls), the request field goes (same fix as files in round 3), or prove request layers = layersOf. (2) varGrade gives E/E1 when the lean string is non-empty without checking it names a declaration: add a registryErrors entry when a variant's lean name is not a declaration in the fwcore environment (the example page's Fw.Demo.steps_within_one does not exist). (3) look_E_sound takes hcover and hfoot as premises: add the lemma tying coverReasons = [] and no clash to Indep under a footprint-soundness premise, or list hcover in hyps. (4) layers.jsonl rows for every refusal code (coupled, unit-unit clash, uncovered-reader, shared-reader, refuted, path-no-variant, snap-leaves-compositor, rule) with request-level Changes or a synthetic registry. (5) fix_allowed theorem (two Changes or two user picks on one part). Unit: the five items with goldens. Limits: no site change."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "polish-commit-report",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    ".claude/workflows/build-review.js",
+    "scripts/build-review.test.mjs",
+    "apps/runner/src/polish*.ts",
+    "apps/runner/test/polish*.test.ts",
+    "docs/team/tools/build-review.md",
+    "docs/team/handoffs/polish-commit-report.md"
+   ],
+   "title": "The build-review Polish stage reported `commit: error` three times on 2026-10-22 although the commit existed (macos-pool-7 2494ecf1, compose-layers-lean 8cc7d92e) or the cuts were staged but not committed (build-review-report-resume, staged only). The lead had to inspect each worktree by hand. Make the polish commit step report from git facts: after `git commit`, the stage reads `git rev-parse HEAD` and `git status --porcelain` and returns committed <sha> | nothing-to-commit | staged-not-committed (with the paths) | error <message>; a staged-not-committed state commits or unstages, never leaves the index dirty. Stub test for each state. Unit: the git-fact report, the four states tested. Limits: the cut decisions (Lean Fw.Plan.Polish) are unchanged."
   }
  ],
  "deadline": {
