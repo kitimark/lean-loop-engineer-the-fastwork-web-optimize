@@ -10,26 +10,14 @@ export type PanelWriter = ReturnType<typeof createPanelWriter>;
 
 export interface MorphPanelProps {
   variant: string;
-  /** `mui` (default) uses MUI Typography/ButtonBase; `plain` bare elements. Same CSS Module and driver. */
   impl?: 'mui' | 'plain';
-  /** the first morph value the attributes are written for (the host's `--morph`); the tween owns later values */
   initialMorph?: number;
-  /** receives the attribute writer (set in an effect): `writerRef.current?.apply(morph)` per tween frame, no React state */
   writerRef?: MutableRefObject<PanelWriter | null>;
-  /** the image columns inside the backdrop (morph.columns) */
   backdrop?: ReactNode;
-  /** the countdown inside the centre (morph.countdown) */
   countdown?: ReactNode;
-  /** the call-to-action's click (the page opens the signup overlay) */
   onAction?: () => void;
 }
 
-/**
- * morph.panel: the expanded end-of-page panel, faithful: backdrop, veil, centre (title, countdown slot, call-to-action
- * stack), footer. Text and links are the original's English copy (content.ts). The panel is absolutely positioned and fills its host, which carries
- * `--morph` (the nav in the original). Rendered as a child of the nav, which hosts it. Mounting it
- * lazily is morph.mount's job, tweening `--morph` morph.tween's, the columns and the countdown their parts'.
- */
 export function MorphPanel({ variant, impl = 'mui', initialMorph = 0, writerRef, backdrop, countdown, onAction }: MorphPanelProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const ctaRef = useRef<HTMLButtonElement>(null);
@@ -44,8 +32,6 @@ export function MorphPanel({ variant, impl = 'mui', initialMorph = 0, writerRef,
     return () => {
       if (writerRef) writerRef.current = null;
     };
-    // initialMorph is the first value only
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const mui = impl === 'mui';
@@ -54,6 +40,7 @@ export function MorphPanel({ variant, impl = 'mui', initialMorph = 0, writerRef,
         ref={panelRef}
         className={css.panel}
         data-fw="morph-panel"
+        data-fw-layer="morph.panel_panel"
         data-fw-variant={variant}
         data-start-selling-scene="paused"
         aria-hidden="true"
@@ -114,7 +101,6 @@ export function MorphPanel({ variant, impl = 'mui', initialMorph = 0, writerRef,
   );
 }
 
-/** The original's "bell" and "calendar" glyphs, read from the snapshot. */
 function BellIcon() {
   return <GenSvg art={art('icon.bell')} className={css.ctaIcon} />;
 }
