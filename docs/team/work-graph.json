@@ -15256,7 +15256,8 @@
     ".github/workflows/webkit-sim.yml",
     "packages/measure-webkit/src/lag/cli.mjs",
     "packages/measure-webkit/test/lag-cli*.test.mjs",
-    "docs/team/handoffs/wkcost-cost-input.md"
+    "docs/team/handoffs/wkcost-cost-input.md",
+    "packages/measure-webkit/src/lag/costmode.mjs"
    ]
   },
   {
