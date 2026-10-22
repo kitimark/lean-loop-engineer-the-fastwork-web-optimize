@@ -1,0 +1,677 @@
+{
+ "rows": [
+  {
+   "id": "inc-claim-order",
+   "candidates": [
+    "apps/console-api/src/spool/drain.ts"
+   ],
+   "step1": {
+    "choice": "f1",
+    "probabilities": {
+     "f4": 0,
+     "f1": 0.99,
+     "f3": 0,
+     "f2": 0,
+     "none": 0.01
+    }
+   },
+   "pick": "apps/console-api/src/spool/drain.ts",
+   "sends": 2
+  },
+  {
+   "id": "inc-retention-hides-unlanded",
+   "candidates": [
+    "apps/runner/src/watch-collect.ts"
+   ],
+   "step1": {
+    "choice": "f1",
+    "probabilities": {
+     "f4": 0,
+     "f1": 1,
+     "f3": 0,
+     "f2": 0,
+     "none": 0
+    }
+   },
+   "pick": "apps/runner/src/watch-collect.ts",
+   "sends": 2
+  },
+  {
+   "id": "inc-worktree-role-as-teammate",
+   "candidates": [
+    "lean/Fw/Ops/SpawnGuard.lean"
+   ],
+   "step1": {
+    "choice": "f1",
+    "probabilities": {
+     "none": 0.01,
+     "f1": 0.99,
+     "f2": 0,
+     "f3": 0,
+     "f4": 0
+    }
+   },
+   "pick": "lean/Fw/Ops/SpawnGuard.lean",
+   "sends": 2
+  },
+  {
+   "id": "inc-workflow-unbound",
+   "candidates": [],
+   "step1": null,
+   "pick": null,
+   "sends": 0
+  },
+  {
+   "id": "inc-watch-unlanded-after-land",
+   "candidates": [
+    "apps/runner/src/next.ts",
+    "lean/Fw/Obs/Next.lean"
+   ],
+   "step1": {
+    "choice": "f1",
+    "probabilities": {
+     "f1": 0.61,
+     "f2": 0.37,
+     "f3": 0,
+     "f4": 0,
+     "none": 0.02
+    }
+   },
+   "pick": "apps/runner/src/next.ts",
+   "sends": 2
+  },
+  {
+   "id": "inc-watch-alert-during-land",
+   "candidates": [
+    "apps/runner/hooks/land-guard.mjs",
+    "lean/Fw/Obs/Next.lean"
+   ],
+   "step1": {
+    "choice": "f2",
+    "probabilities": {
+     "none": 0.02,
+     "f3": 0,
+     "f2": 0.5,
+     "f1": 0.48,
+     "f4": 0
+    }
+   },
+   "pick": "lean/Fw/Obs/Next.lean",
+   "sends": 2
+  },
+  {
+   "id": "inc-watch-unlanded-queued",
+   "candidates": [
+    "apps/runner/src/next.ts",
+    "lean/Fw/Obs/Next.lean"
+   ],
+   "step1": {
+    "choice": "f2",
+    "probabilities": {
+     "none": 0.03,
+     "f4": 0,
+     "f1": 0.22,
+     "f3": 0,
+     "f2": 0.75
+    }
+   },
+   "pick": "lean/Fw/Obs/Next.lean",
+   "sends": 2
+  },
+  {
+   "id": "inc-land-undeclared-reads",
+   "candidates": [
+    "apps/runner/test/land-inputs.test.ts"
+   ],
+   "step1": {
+    "choice": "f1",
+    "probabilities": {
+     "f4": 0,
+     "f1": 0.97,
+     "f2": 0,
+     "f3": 0,
+     "none": 0.03
+    }
+   },
+   "pick": "apps/runner/test/land-inputs.test.ts",
+   "sends": 2
+  },
+  {
+   "id": "inc-land-scope-stale-base",
+   "candidates": [
+    "apps/runner/src/land.ts"
+   ],
+   "step1": {
+    "choice": "f1",
+    "probabilities": {
+     "f2": 0,
+     "f3": 0,
+     "f1": 0.99,
+     "f4": 0,
+     "none": 0.01
+    }
+   },
+   "pick": "apps/runner/src/land.ts",
+   "sends": 2
+  },
+  {
+   "id": "inc-evidence-before-land",
+   "candidates": [
+    "lean/Fw/Plan/Lint.lean"
+   ],
+   "step1": {
+    "choice": "f1",
+    "probabilities": {
+     "f4": 0,
+     "f1": 0.99,
+     "f3": 0,
+     "f2": 0,
+     "none": 0.01
+    }
+   },
+   "pick": "lean/Fw/Plan/Lint.lean",
+   "sends": 2
+  },
+  {
+   "id": "inc-gate-scan-page-state",
+   "candidates": [
+    "packages/gate-breakpoints/src/run.mjs"
+   ],
+   "step1": {
+    "choice": "f1",
+    "probabilities": {
+     "f3": 0,
+     "f2": 0,
+     "f1": 0.99,
+     "f4": 0,
+     "none": 0.01
+    }
+   },
+   "pick": "packages/gate-breakpoints/src/run.mjs",
+   "sends": 2
+  },
+  {
+   "id": "inc-ci-verdict-needs-api",
+   "candidates": [
+    "apps/runner/src/fw.ts",
+    "apps/runner/src/lib.ts"
+   ],
+   "step1": {
+    "choice": "f1",
+    "probabilities": {
+     "f4": 0,
+     "f3": 0,
+     "f2": 0.02,
+     "f1": 0.98,
+     "none": 0
+    }
+   },
+   "pick": "apps/runner/src/fw.ts",
+   "sends": 2
+  },
+  {
+   "id": "inc-prompt-premise-align",
+   "candidates": [
+    "lean/Fw/Gate/AlignEquiv.lean"
+   ],
+   "step1": {
+    "choice": "f1",
+    "probabilities": {
+     "none": 0.14,
+     "f2": 0,
+     "f3": 0,
+     "f1": 0.86,
+     "f4": 0
+    }
+   },
+   "pick": "lean/Fw/Gate/AlignEquiv.lean",
+   "sends": 2
+  },
+  {
+   "id": "inc-land-retry-text-match",
+   "candidates": [
+    "apps/runner/src/land.ts",
+    "lean/Fw/Spec/DeviceQueue.lean"
+   ],
+   "step1": {
+    "choice": "f1",
+    "probabilities": {
+     "f4": 0,
+     "f1": 0.89,
+     "f2": 0.11,
+     "f3": 0,
+     "none": 0
+    }
+   },
+   "pick": "apps/runner/src/land.ts",
+   "sends": 2
+  },
+  {
+   "id": "inc-upsert-keeps-evidence",
+   "candidates": [],
+   "step1": null,
+   "pick": null,
+   "sends": 0
+  },
+  {
+   "id": "inc-findings-shared-entry",
+   "candidates": [
+    "scripts/merge-ledger.mjs"
+   ],
+   "step1": {
+    "choice": "f1",
+    "probabilities": {
+     "f4": 0,
+     "f2": 0,
+     "f3": 0,
+     "f1": 0.99,
+     "none": 0.01
+    }
+   },
+   "pick": "scripts/merge-ledger.mjs",
+   "sends": 2
+  },
+  {
+   "id": "inc-land-inputs-untracked-exists",
+   "candidates": [
+    "apps/runner/test/land-inputs.test.ts"
+   ],
+   "step1": {
+    "choice": "f1",
+    "probabilities": {
+     "f4": 0,
+     "f1": 0.98,
+     "f2": 0,
+     "f3": 0,
+     "none": 0.02
+    }
+   },
+   "pick": "apps/runner/test/land-inputs.test.ts",
+   "sends": 2
+  },
+  {
+   "id": "inc-land-dry-no-verdict",
+   "candidates": [
+    "apps/runner/src/land-verdict.ts"
+   ],
+   "step1": {
+    "choice": "f1",
+    "probabilities": {
+     "f2": 0,
+     "f3": 0,
+     "f1": 1,
+     "f4": 0,
+     "none": 0
+    }
+   },
+   "pick": "apps/runner/src/land-verdict.ts",
+   "sends": 2
+  },
+  {
+   "id": "inc-ci-run-cap-prompt",
+   "candidates": [
+    "apps/runner/src/ci.ts"
+   ],
+   "step1": {
+    "choice": "f1",
+    "probabilities": {
+     "none": 0.01,
+     "f1": 0.99,
+     "f2": 0,
+     "f3": 0,
+     "f4": 0
+    }
+   },
+   "pick": "apps/runner/src/ci.ts",
+   "sends": 2
+  },
+  {
+   "id": "inc-wt-prep-lsp-as-build",
+   "candidates": [
+    "scripts/wt-prep.sh"
+   ],
+   "step1": {
+    "choice": "f1",
+    "probabilities": {
+     "none": 0,
+     "f4": 0,
+     "f2": 0,
+     "f3": 0,
+     "f1": 1
+    }
+   },
+   "pick": "scripts/wt-prep.sh",
+   "sends": 2
+  },
+  {
+   "id": "inc-parallel-write-overlap",
+   "candidates": [
+    "lean/Fw/Sched/Admit.lean",
+    "packages/measure-wktr/src/cli.mjs"
+   ],
+   "step1": {
+    "choice": "f1",
+    "probabilities": {
+     "f4": 0,
+     "f2": 0.05,
+     "f3": 0,
+     "f1": 0.95,
+     "none": 0
+    }
+   },
+   "pick": "lean/Fw/Sched/Admit.lean",
+   "sends": 2
+  },
+  {
+   "id": "inc-test-pid-marker",
+   "candidates": [
+    "apps/runner/test/land-hardening.test.ts"
+   ],
+   "step1": {
+    "choice": "f1",
+    "probabilities": {
+     "none": 0,
+     "f4": 0,
+     "f3": 0,
+     "f2": 0,
+     "f1": 1
+    }
+   },
+   "pick": "apps/runner/test/land-hardening.test.ts",
+   "sends": 2
+  },
+  {
+   "id": "inc-console-stale-service",
+   "candidates": [
+    "apps/console-api/src/spool/drain.ts"
+   ],
+   "step1": {
+    "choice": "f1",
+    "probabilities": {
+     "none": 0.02,
+     "f4": 0,
+     "f3": 0,
+     "f2": 0,
+     "f1": 0.98
+    }
+   },
+   "pick": "apps/console-api/src/spool/drain.ts",
+   "sends": 2
+  },
+  {
+   "id": "inc-workflow-multi-unbound",
+   "candidates": [
+    "lean/Fw/Plan/Workflow.lean"
+   ],
+   "step1": {
+    "choice": "f1",
+    "probabilities": {
+     "f1": 1,
+     "f2": 0,
+     "f3": 0,
+     "f4": 0,
+     "none": 0
+    }
+   },
+   "pick": "lean/Fw/Plan/Workflow.lean",
+   "sends": 2
+  },
+  {
+   "id": "inc-obs-silent-drop",
+   "candidates": [
+    "apps/console-api/src/spool/drain.ts",
+    "apps/runner/hooks/emit.mjs",
+    "packages/contracts/src/obs.ts"
+   ],
+   "step1": {
+    "choice": "f3",
+    "probabilities": {
+     "f4": 0,
+     "f1": 0.24,
+     "f2": 0.14,
+     "f3": 0.61,
+     "none": 0.01
+    }
+   },
+   "pick": "packages/contracts/src/obs.ts",
+   "sends": 2
+  },
+  {
+   "id": "inc-ci-skipped-false-pass",
+   "candidates": [
+    "packages/gh-budget/src/wait.ts"
+   ],
+   "step1": {
+    "choice": "f1",
+    "probabilities": {
+     "f1": 1,
+     "f2": 0,
+     "f3": 0,
+     "f4": 0,
+     "none": 0
+    }
+   },
+   "pick": "packages/gh-budget/src/wait.ts",
+   "sends": 2
+  },
+  {
+   "id": "inc-proof-of-dead-code",
+   "candidates": [
+    "lean/Fw/Wire/Sched.lean"
+   ],
+   "step1": {
+    "choice": "f1",
+    "probabilities": {
+     "f3": 0,
+     "f2": 0,
+     "f1": 0.97,
+     "f4": 0,
+     "none": 0.03
+    }
+   },
+   "pick": "lean/Fw/Wire/Sched.lean",
+   "sends": 2
+  },
+  {
+   "id": "inc-spawn-patcher-unreachable",
+   "candidates": [
+    "apps/runner/hooks/spawn-guard.mjs",
+    "lean/Fw/Ops/SpawnGuard.lean"
+   ],
+   "step1": {
+    "choice": "f2",
+    "probabilities": {
+     "none": 0.01,
+     "f2": 0.54,
+     "f3": 0,
+     "f1": 0.45,
+     "f4": 0
+    }
+   },
+   "pick": "lean/Fw/Ops/SpawnGuard.lean",
+   "sends": 2
+  },
+  {
+   "id": "inc-land-dry-needs-console",
+   "candidates": [
+    "apps/runner/src/fw.ts",
+    "apps/runner/src/lib.ts"
+   ],
+   "step1": {
+    "choice": "f2",
+    "probabilities": {
+     "none": 0.02,
+     "f4": 0,
+     "f2": 0.53,
+     "f3": 0,
+     "f1": 0.45
+    }
+   },
+   "pick": "apps/runner/src/lib.ts",
+   "sends": 2
+  },
+  {
+   "id": "inc-mutants-red-no-task",
+   "candidates": [
+    "lean/Fw/Ops/SpawnGuard.lean"
+   ],
+   "step1": {
+    "choice": "f1",
+    "probabilities": {
+     "f1": 0.81,
+     "f2": 0,
+     "f3": 0,
+     "f4": 0,
+     "none": 0.19
+    }
+   },
+   "pick": "lean/Fw/Ops/SpawnGuard.lean",
+   "sends": 2
+  },
+  {
+   "id": "inc-land-queue-unknown",
+   "candidates": [
+    "apps/runner/src/land-queue.ts"
+   ],
+   "step1": {
+    "choice": "f1",
+    "probabilities": {
+     "none": 0,
+     "f4": 0,
+     "f3": 0,
+     "f2": 0,
+     "f1": 1
+    }
+   },
+   "pick": "apps/runner/src/land-queue.ts",
+   "sends": 2
+  },
+  {
+   "id": "inc-main-checkout-busy-queue",
+   "candidates": [
+    "apps/runner/src/land.ts"
+   ],
+   "step1": {
+    "choice": "f1",
+    "probabilities": {
+     "f3": 0,
+     "f2": 0,
+     "f1": 0.99,
+     "f4": 0,
+     "none": 0.01
+    }
+   },
+   "pick": "apps/runner/src/land.ts",
+   "sends": 2
+  },
+  {
+   "id": "inc-plan-sync-manual",
+   "candidates": [
+    "apps/runner/hooks/cap.mjs"
+   ],
+   "step1": {
+    "choice": "f1",
+    "probabilities": {
+     "f2": 0,
+     "f3": 0,
+     "f1": 0.99,
+     "f4": 0,
+     "none": 0.01
+    }
+   },
+   "pick": "apps/runner/hooks/cap.mjs",
+   "sends": 2
+  },
+  {
+   "id": "inc-helper-spawn-named",
+   "candidates": [
+    "lean/Fw/Ops/SpawnGuard.lean"
+   ],
+   "step1": {
+    "choice": "f1",
+    "probabilities": {
+     "none": 0.02,
+     "f1": 0.98,
+     "f3": 0,
+     "f2": 0,
+     "f4": 0
+    }
+   },
+   "pick": "lean/Fw/Ops/SpawnGuard.lean",
+   "sends": 2
+  },
+  {
+   "id": "inc-dispatch-push-runs",
+   "candidates": [
+    "lean/Fw/Ci/Trigger.lean"
+   ],
+   "step1": {
+    "choice": "f1",
+    "probabilities": {
+     "none": 0.03,
+     "f4": 0,
+     "f1": 0.97,
+     "f2": 0,
+     "f3": 0
+    }
+   },
+   "pick": "lean/Fw/Ci/Trigger.lean",
+   "sends": 2
+  },
+  {
+   "id": "inc-runner-bin-mode-flip",
+   "candidates": [
+    "apps/runner/src/fw.ts",
+    "apps/runner/src/land.ts"
+   ],
+   "step1": {
+    "choice": "f2",
+    "probabilities": {
+     "none": 0.11,
+     "f3": 0,
+     "f2": 0.57,
+     "f1": 0.32,
+     "f4": 0
+    }
+   },
+   "pick": "apps/runner/src/land.ts",
+   "sends": 2
+  },
+  {
+   "id": "inc-trajectory-pooled-window",
+   "candidates": [
+    "lean/Fw/Gate/Trajectory.lean"
+   ],
+   "step1": {
+    "choice": "f1",
+    "probabilities": {
+     "none": 0.05,
+     "f1": 0.95,
+     "f2": 0,
+     "f3": 0,
+     "f4": 0
+    }
+   },
+   "pick": "lean/Fw/Gate/Trajectory.lean",
+   "sends": 2
+  },
+  {
+   "id": "inc-reap-console-kill",
+   "candidates": [
+    "lean/Fw/Ops/Reap.lean"
+   ],
+   "step1": {
+    "choice": "f1",
+    "probabilities": {
+     "none": 0.01,
+     "f4": 0,
+     "f1": 0.99,
+     "f3": 0,
+     "f2": 0
+    }
+   },
+   "pick": "lean/Fw/Ops/Reap.lean",
+   "sends": 2
+  }
+ ]
+}

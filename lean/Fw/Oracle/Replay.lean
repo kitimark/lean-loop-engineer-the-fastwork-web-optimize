@@ -204,6 +204,14 @@ def d1x : ReplaySet := { d1 with name := "d1x", file := "d1-expand.jsonl" }
 
 def d1n : ReplaySet := { d1 with name := "d1n", file := "d1-naive.jsonl" }
 
+def d1h : ReplaySet := { d1 with name := "d1h", file := "d1-hybrid.jsonl" }
+
+def d1p : ReplaySet := { d1 with name := "d1p", file := "d1-pick.jsonl" }
+
+def d1k : ReplaySet :=
+  { name := "d1k", file := "d1-pick1.jsonl", question := filePick, sampled := false,
+    fields := [("title", "title"), ("symptom", "symptom"), ("cause", "cause"), ("candidates", "candidates")] }
+
 /-- D2: review findings, sent as the stratified sample. -/
 def d2 : ReplaySet :=
   { name := "d2", file := "d2.jsonl", question := findingSeverity, sampled := true,
@@ -211,14 +219,14 @@ def d2 : ReplaySet :=
       ("limits", "limits")] }
 
 /-- The registered replay sets. -/
-def sets : List ReplaySet := [d1, d2, d1x, d1n]
+def sets : List ReplaySet := [d1, d2, d1x, d1n, d1h, d1p, d1k]
 
 /-- The registered set with this name, if any. -/
 def replaySet (x : String) : Option ReplaySet := sets.find? (·.name == x)
 
 theorem sets_fields : ∀ r ∈ sets, r.fields.map Prod.fst ++ r.extra.map Prod.fst = r.question.fields := by
   simp only [sets, List.mem_cons, List.not_mem_nil, or_false, forall_eq_or_imp, forall_eq]
-  exact ⟨rfl, rfl, rfl, rfl⟩
+  exact ⟨rfl, rfl, rfl, rfl, rfl, rfl, rfl⟩
 
 theorem d2_labels : d2.question.spec.keys = Labels.exactWords ++ [noGrade] := by decide
 

@@ -1,0 +1,270 @@
+{
+ "rows": [
+  {
+   "id": "inc-claim-order",
+   "ranges": 0,
+   "kept": [],
+   "cut": [],
+   "esc": 453
+  },
+  {
+   "id": "inc-retention-hides-unlanded",
+   "ranges": 0,
+   "kept": [],
+   "cut": [],
+   "esc": 444
+  },
+  {
+   "id": "inc-worktree-role-as-teammate",
+   "ranges": 0,
+   "kept": [],
+   "cut": [],
+   "esc": 650
+  },
+  {
+   "id": "inc-workflow-unbound",
+   "ranges": 0,
+   "kept": [],
+   "cut": [],
+   "esc": 571
+  },
+  {
+   "id": "inc-watch-unlanded-after-land",
+   "ranges": 0,
+   "kept": [],
+   "cut": [],
+   "esc": 574
+  },
+  {
+   "id": "inc-watch-alert-during-land",
+   "ranges": 0,
+   "kept": [],
+   "cut": [],
+   "esc": 479
+  },
+  {
+   "id": "inc-watch-unlanded-queued",
+   "ranges": 0,
+   "kept": [],
+   "cut": [],
+   "esc": 803
+  },
+  {
+   "id": "inc-land-undeclared-reads",
+   "ranges": 0,
+   "kept": [],
+   "cut": [],
+   "esc": 753
+  },
+  {
+   "id": "inc-land-scope-stale-base",
+   "ranges": 0,
+   "kept": [],
+   "cut": [],
+   "esc": 671
+  },
+  {
+   "id": "inc-evidence-before-land",
+   "ranges": 0,
+   "kept": [],
+   "cut": [],
+   "esc": 720
+  },
+  {
+   "id": "inc-gate-scan-page-state",
+   "ranges": 0,
+   "kept": [],
+   "cut": [],
+   "esc": 621
+  },
+  {
+   "id": "inc-ci-verdict-needs-api",
+   "ranges": 0,
+   "kept": [],
+   "cut": [],
+   "esc": 643
+  },
+  {
+   "id": "inc-prompt-premise-align",
+   "ranges": 0,
+   "kept": [],
+   "cut": [],
+   "esc": 571
+  },
+  {
+   "id": "inc-land-retry-text-match",
+   "ranges": 0,
+   "kept": [],
+   "cut": [],
+   "esc": 686
+  },
+  {
+   "id": "inc-upsert-keeps-evidence",
+   "ranges": 0,
+   "kept": [],
+   "cut": [],
+   "esc": 578
+  },
+  {
+   "id": "inc-findings-shared-entry",
+   "ranges": 0,
+   "kept": [],
+   "cut": [],
+   "esc": 668
+  },
+  {
+   "id": "inc-land-inputs-untracked-exists",
+   "ranges": 0,
+   "kept": [],
+   "cut": [],
+   "esc": 604
+  },
+  {
+   "id": "inc-land-dry-no-verdict",
+   "ranges": 0,
+   "kept": [],
+   "cut": [],
+   "esc": 453
+  },
+  {
+   "id": "inc-ci-run-cap-prompt",
+   "ranges": 0,
+   "kept": [],
+   "cut": [],
+   "esc": 407
+  },
+  {
+   "id": "inc-wt-prep-lsp-as-build",
+   "ranges": 0,
+   "kept": [],
+   "cut": [],
+   "esc": 421
+  },
+  {
+   "id": "inc-parallel-write-overlap",
+   "ranges": 0,
+   "kept": [],
+   "cut": [],
+   "esc": 513
+  },
+  {
+   "id": "inc-test-pid-marker",
+   "ranges": 0,
+   "kept": [],
+   "cut": [],
+   "esc": 611
+  },
+  {
+   "id": "inc-console-stale-service",
+   "ranges": 0,
+   "kept": [],
+   "cut": [],
+   "esc": 678
+  },
+  {
+   "id": "inc-workflow-multi-unbound",
+   "ranges": 0,
+   "kept": [],
+   "cut": [],
+   "esc": 590
+  },
+  {
+   "id": "inc-obs-silent-drop",
+   "ranges": 0,
+   "kept": [],
+   "cut": [],
+   "esc": 886
+  },
+  {
+   "id": "inc-ci-skipped-false-pass",
+   "ranges": 0,
+   "kept": [],
+   "cut": [],
+   "esc": 711
+  },
+  {
+   "id": "inc-proof-of-dead-code",
+   "ranges": 0,
+   "kept": [],
+   "cut": [],
+   "esc": 676
+  },
+  {
+   "id": "inc-spawn-patcher-unreachable",
+   "ranges": 0,
+   "kept": [],
+   "cut": [],
+   "esc": 655
+  },
+  {
+   "id": "inc-land-dry-needs-console",
+   "ranges": 0,
+   "kept": [],
+   "cut": [],
+   "esc": 803
+  },
+  {
+   "id": "inc-mutants-red-no-task",
+   "ranges": 0,
+   "kept": [],
+   "cut": [],
+   "esc": 545
+  },
+  {
+   "id": "inc-land-queue-unknown",
+   "ranges": 0,
+   "kept": [],
+   "cut": [],
+   "esc": 473
+  },
+  {
+   "id": "inc-main-checkout-busy-queue",
+   "ranges": 0,
+   "kept": [],
+   "cut": [],
+   "esc": 761
+  },
+  {
+   "id": "inc-plan-sync-manual",
+   "ranges": 0,
+   "kept": [],
+   "cut": [],
+   "esc": 1275
+  },
+  {
+   "id": "inc-helper-spawn-named",
+   "ranges": 0,
+   "kept": [],
+   "cut": [],
+   "esc": 512
+  },
+  {
+   "id": "inc-dispatch-push-runs",
+   "ranges": 0,
+   "kept": [],
+   "cut": [],
+   "esc": 1167
+  },
+  {
+   "id": "inc-runner-bin-mode-flip",
+   "ranges": 0,
+   "kept": [],
+   "cut": [],
+   "esc": 1600
+  },
+  {
+   "id": "inc-trajectory-pooled-window",
+   "ranges": 0,
+   "kept": [],
+   "cut": [],
+   "esc": 1120
+  },
+  {
+   "id": "inc-reap-console-kill",
+   "ranges": 0,
+   "kept": [],
+   "cut": [],
+   "esc": 1277
+  }
+ ]
+}
