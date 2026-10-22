@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -8,7 +8,6 @@ import { UsageError } from "../src/lib.ts";
 import { titleOf } from "../src/run-pick.ts";
 
 const SHA = "0123456789abcdef0123456789abcdef01234567";
-/** The waiting side of RunDeps: a stub that decides every wait at once as run 55 (the shared poller is tested in packages/gh-budget). */
 const waits: Target[] = [];
 const base = () => ({ nonce: () => "n0nce1234", now: () => 1_800_000_000, wait: async (t: Target) => { waits.push(t); return { code: 0 as const, lines: ["run 55 chromium-counts success"] }; } });
 
@@ -123,11 +122,10 @@ describe.skipIf(!hasCore)("planRun and runMain against fwcore", () => {
     const logs: string[] = [];
     expect(await runMain(args, { ...base(), call, gh, store, sha: SHA, branch: "main", tmp, log: (l) => logs.push(l) })).toBe(0);
     expect(calls.some((c) => c[0] === "workflow")).toBe(true);
-    // the run is found and awaited by the shared poller (one branch wait), not by gh polling or `gh run watch`
     expect(waits.at(-1)).toMatchObject({ kind: "branch", branch: "ci/t", sha: SHA });
     expect(calls.some((c) => c[1] === "watch")).toBe(false);
     expect(calls.map((c) => c.slice(0, 2).join(" "))).toEqual(["workflow run", "run view", "run download"]);
-    // the run is selected by the dispatch's nonce (Lean Fw.Ci.Dispatch.select), not as the newest run
+    expect(readdirSync(tmp)).toEqual([]);
     expect(waits.at(-1)).toMatchObject({ want: { kind: "dispatch", workflow: "chromium-counts", nonce: "n0nce1234" } });
     const planned = planRun(call, args, SHA, store);
     const key = planned.reply.jobs[0]!.key as [string, string][];
@@ -136,7 +134,6 @@ describe.skipIf(!hasCore)("planRun and runMain against fwcore", () => {
     expect(m.entries.map((e: { name: string }) => e.name)).toEqual(["counts-run1.json", "trace/run1.json"]);
     expect(m.target).toBe("original");
     expect(calls.find((c) => c[0] === "workflow")).toContain("target=original");
-    // the rewrite of the same configuration is not the filed run
     expect(planRun(call, { ...args, target: "rewrite" }, SHA, store).reply.jobs[0]!.cache).toBe("miss");
     expect(existsSync(join(store, "objects", sha256("{}").slice(0, 2), sha256("{}").slice(2)))).toBe(true);
     expect(planned.reply.jobs[0]!.cache).toBe("hit");
@@ -221,7 +218,6 @@ describe("trajectory-probe lane", () => {
   });
 });
 
-// The trajectory dispatch is matched by its nonce (Lean Fw.Ci.Dispatch.pick); a stub fwcore answers the plan, so nothing here is skipped.
 describe("fw run --trajectory finds its run by nonce", () => {
   const call: FwCall = () => ({ fw: [], job: { blocked: null, inputs: { engines: "chromium", fw: "", preset: "", widths: "390" }, workflow: "trajectory-probe.yml" }, problems: [] });
   const mk = () => mkdtempSync(join(tmpdir(), "fw-run-"));
@@ -234,7 +230,6 @@ describe("fw run --trajectory finds its run by nonce", () => {
     const calls: string[][] = [];
     const waited: Target[] = [];
     const logs: string[] = [];
-    // a skipped push run is the newest, then the other parallel dispatch, then ours
     const gh: Gh = async (a) => { calls.push(a); if (a[1] === "list") return JSON.stringify([{ databaseId: 900, displayTitle: "ci: x", event: "push" }, row(899, "zzzz9999"), row(898, "abcd1234")]); if (a[1] === "view") return JSON.stringify({ headSha: SHA }); return ""; };
     expect(await runMain(args(), deps(gh, logs, "abcd1234", waited))).toBe(0);
     expect(calls.find((c) => c[0] === "workflow")).toEqual(["workflow", "run", "trajectory-probe.yml", "--ref", "ci/t", "-f", "engines=chromium", "-f", "fw=", "-f", "preset=", "-f", "widths=390", "-f", "diagnostic=true", "-f", "nonce=abcd1234"]);
@@ -256,8 +251,6 @@ describe("fw run --trajectory finds its run by nonce", () => {
   });
 });
 
-// A ref whose copy of the workflow file declares no `nonce` input cannot be sent one (`gh workflow run` answers 422): the dispatch
-// goes without it and the run is the old pick; the log says so. A stub fwcore answers the plan, so nothing here is skipped.
 describe("fw run on a ref whose workflow file has no nonce input", () => {
   const OLD = "name: trajectory-probe\non:\n  workflow_dispatch:\n    inputs:\n      engines:\n        type: string\n      widths:\n        type: string\n";
   const NEW = OLD + "      nonce:\n        type: string\n";
@@ -265,7 +258,6 @@ describe("fw run on a ref whose workflow file has no nonce input", () => {
     expect(declaresNonce(NEW)).toBe(true);
     expect(declaresNonce(OLD)).toBe(false);
     expect(declaresNonce("on:\n  push:\n    paths: [a]\n")).toBe(false);
-    // a `nonce:` key elsewhere (an env or a step input) is not an input of the dispatch
     expect(declaresNonce(OLD + "env:\n  nonce: x\njobs:\n  a:\n    steps:\n      - with:\n          nonce: y\n")).toBe(false);
     expect(declaresNonce("on:\n  workflow_dispatch:\n    inputs:\n      # nonce:\n      other:\n        type: string\n")).toBe(false);
   });
@@ -305,8 +297,6 @@ describe("fw run on a ref whose workflow file has no nonce input", () => {
   });
 });
 
-// Dispatch args per lane, replayed from the Lean-generated goldens (packages/contracts/golden/store): every input a job
-// would send is declared by its workflow file (an independent TS parse of the same file the Lean check reads).
 describe("goldens: dispatch args per lane", () => {
   const root = join(process.cwd(), "..", "..");
   const gold = (stem: string) => readFileSync(join(root, "packages", "contracts", "golden", "store", `${stem}.jsonl`), "utf8").trim().split("\n").map((l) => JSON.parse(l) as { name: string; response: { jobs?: { workflow: string; inputs: Record<string, string>; blocked: string | null }[]; job?: { workflow: string; inputs: Record<string, string>; blocked: string | null } | null } });
