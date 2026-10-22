@@ -1,8 +1,4 @@
 #!/usr/bin/env node
-// node src/lag/cli.mjs run [--site dir --search q] [--out file] [--passes 2]   one Simulator session of the lag probe
-// node src/lag/cli.mjs cost-report --original a.json,b.json --rewrite c.json,d.json [--preset e.json] [--json file]   the per-zone cost-counter tables
-// node src/lag/cli.mjs report --original a.json,b.json --faithful c.json,d.json [--json file] [--note file]   the ranked attribution
-//   --note file replaces the block between the lag-report markers of a Markdown file with the report
 import { parseArgs } from 'node:util';
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
@@ -13,6 +9,7 @@ import { lagSession } from './probe.mjs';
 import { analyzeArm, reportMd } from './report.mjs';
 import { fillBlock } from './note.mjs';
 import { collectArm, costMd } from './costreport.mjs';
+import { parseCost } from './costmode.mjs';
 
 const argv = process.argv.slice(2).filter((a) => a !== '--');
 const [cmd, ...rest] = argv;
@@ -32,8 +29,9 @@ const read = (list) => list.split(',').map((f) => JSON.parse(readFileSync(resolv
 async function main() {
   switch (cmd) {
     case 'run': {
+      const costMode = parseCost(v.cost);
       const res = await withSession((ctx) => lagSession(ctx, {
-        passes: Number(v.passes), clock: v.clock, settleMs: Number(v.settle), step: Number(v.step), framesPerStep: Number(v.frames), log, cost: v.cost !== 'off', costOnly: v.cost === 'only',
+        passes: Number(v.passes), clock: v.clock, settleMs: Number(v.settle), step: Number(v.step), framesPerStep: Number(v.frames), log, ...costMode,
       }), { keep: v.keep, vendors: v.vendors, site: v.site ? { dir: v.site, search: v.search } : null });
       const file = resolve(v.out ?? 'out/lag.json');
       mkdirSync(dirname(file), { recursive: true });
