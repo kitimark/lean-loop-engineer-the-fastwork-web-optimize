@@ -1,6 +1,8 @@
 # Handoff: morph-touch-band
 
 Branch `worktree-wf_75b957a6-e11-1`, worktree `.claude/worktrees/wf_75b957a6-e11-1`, CI branch `ci/morph-touch-band`.
+Ledger row `morph.touch-band` (n 46, partly-proved, both flags) in `research/findings/ledger.json` (outside the
+task globs; the console compose test needs a row for every optimized variant).
 Last measured shas: de61db3a (`ci/morph-touch-band`), 7fd7c482 (`ci/morph-touch-band-tween`), empty probe commits.
 
 CI runs:
@@ -9,7 +11,9 @@ CI runs:
 - trajectory-probe 39779755536 (6fa2cec5, fw=morph.mount:band): webkit CLEAN 4000/4000; chromium RED, 42 rows all
   `w=390 morph <prop> NEW open@1=coverage` (no rewrite sample in an interior bucket of push 1; the probe drives the
   morph by wheel, so the touch hub is not on that path)
-- trajectory-probe on de61db3a (fw=morph.mount:band): rerun of the above to check the 390 coverage miss for a flake
+- trajectory-probe 39781320030 (de61db3a, fw=morph.mount:band, rerun): webkit CLEAN 4000/4000; chromium RED with the
+  same 42-row open@1 coverage miss, now at w=641, while the faithful arm missed it at w=640 (both=42): a sampling
+  miss of the first open push that moves between widths, not the flag (INFERRED)
 - trajectory-probe 39779781978 (7fd7c482, fw=morph.tween:band): CLEAN on both engines (chromium fail=0, webkit 4000/4000)
 
 Verified:
