@@ -288,6 +288,39 @@ TS stand-ins (no new Lean was written for this task): the `base|bound` pair in `
 (`packages/measure-webkit/src/profile/report.mjs`) reuses the existing Lean-twin verdict functions; the go/no-go rule
 (at least 2 of 3 jobs, none disagreeing) was applied by the builder from the Lean `across` table, not computed by code.
 
+## Why the bound arm reads `same` (negative result: mechanism, Lean why, lesson)
+
+Pinned unit: the NO-GO for candidate B, runs 39729682403 (macOS), 39754568950 (iOS Simulator), 39744983394 (too few
+windows, insufficient), with the Lean `across` verdict `same` for the pair `base|bound` in the finish zone.
+
+- **Mechanism (MEASURED numbers, INFERRED cause).** Removing every earn transition removes only the work of the earn
+  button's own restarted transitions. The finish-zone medians above move by less than the A/A spread (macOS render work:
+  base − aa 11.3 ms against base − bound −7.9 ms; Simulator: 21.7 against 24.8 ms), and the layout and style counts fall
+  only a few percent (macOS Layout records 188 to 176, RecalculateStyles 505 to 499 ms). The main thread's per-frame
+  style and layout work while `--morph` moves is spent mostly on what else changes in those frames (nav width, actions
+  gap, hero and platform parts); the earn button is one box with two pseudo-elements among them. That the earn share is
+  small is INFERRED from the table; the measured fact is only that it sits inside the repeat-to-repeat spread.
+- **Lean why (CONFIRMED, `lean/Fw/Gate/Smooth.lean`, `Fw.Measure.WebKitProfile.zoneVerdict` = `hitchVerdict`).** A job
+  says `second` only when every repeat of base has more render work per frame than every repeat of bound
+  (`hitchJudge_second` :597, `above`), and only if the A/A pair is not itself told apart; otherwise it says `same`
+  (`hitchJudge_same` :602 when the two ranges overlap, `hitchVerdict_noisy` :652 when the A/A pair separates). The jobs
+  then go through `across k` with `k = agreeNeeded 3 = 2` (:697): a verdict over 3 jobs needs 2 of them to say
+  `second` and none `first`; with 0 `second` the branch is `across_same` (:735). The median shift of bound against base
+  (macOS −1 %, Simulator 11 %) is no larger than the A/A gap against base (2 % and 10 %), so the repeat ranges are not
+  disjoint and the premise of `second` is absent in every job. Which of the two `same` branches (overlap or noisy A/A) fired in each job is not recorded in the report
+  (INFERRED: overlap, from the pooled table). The theorems say why a `second` needs separated ranges, not why the earn
+  work is small; that is the mechanism above.
+- **Lesson.** Measure the bound of a candidate (all of its work removed) before building it: a candidate cannot win
+  more than its bound. A bound that stays inside the A/A spread ends the candidate on that metric and host, and the
+  A/A spread sets the smallest effect a CI job can show. A candidate whose gain would sit on the compositor or GPU
+  needs an instrument that sees that thread (the phone), because a VM without a GPU reads `same` for it by
+  construction.
+
+Report: `results/earn-bound/report.json` is valid. `fwcore` `console.report` answers `"invalid":[]` (an empty
+`invalid` list is the accepted case, not a refusal) and one item "Review the report earn-bound-webkit" with state
+`unposted`; it is not posted. Ledger: a notes row for `nav.earn.noTransition` (task earn-bound-arm) in
+`research/findings/ledger.json`.
+
 ## What this changes in the plan
 
 - PLAN §6.2 / look-change rows (`nav:earn-no-transition`): add "GPU variants: no class E variant exists. B

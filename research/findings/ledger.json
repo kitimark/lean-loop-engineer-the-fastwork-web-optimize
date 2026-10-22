@@ -3172,6 +3172,12 @@
    "task": "morph-strip-webkit",
    "field": "mechanism",
    "text": "MEASURED on WebKit (runs 39775174615, 39776549128 (base: default rewrite) and 39775198022, 39776554155 (flag: ?fw=hero.countdown:strip,morph.countdown:strip)): with both strips the page holds 52-56 composited layers before the morph push against 128 with faces (72 hero face layers fewer); see the n=13 strip row for the morph-open counts."
+  },
+  {
+   "entry": "nav:earn-no-transition: the earn button's max-width, padding-inline and opacity transitions are off while the nav morphs, so they follow --morph instead of retargeting every frame",
+   "task": "earn-bound-arm",
+   "field": "mechanism",
+   "text": "earn-bound-arm (MEASURED, WebKit, finish zone; runs 39729682403 macOS, 39754568950 iOS Simulator, 39744983394 too few windows): a bound arm that switches every earn transition off at all times (transition: none on the button and its pseudo-elements; the earn-unmask and sheen animations stay) does not beat the faithful page, and the A/A copy is as far from base as bound is: Lean across (pair base|bound) says same in 3 of 3 jobs on macOS and 3 of 3 on the Simulator, never second. So the main-thread saving of this candidate on WebKit is inside the A/A spread; the earn transitions are not where the main-thread lag is, and the GPU variant B (@property scalar plus translates) is not built (NO-GO). Lean why (CONFIRMED): second needs every repeat of base above every repeat of bound (Fw.Gate.Smooth.hitchJudge_second) and an A/A pair that is not itself told apart (hitchVerdict_noisy); across_same follows when fewer than agreeNeeded 3 = 2 jobs say second. Neither VM has a real GPU, so GPU and UI-process time is not measured; the phone replay stays open. Lesson: measure a candidate's bound (all its work removed) before building it; a bound inside the A/A spread ends the candidate on that metric and host. Note research/notes/2026/10-2x-earn-gpu.md."
   }
  ]
 }
