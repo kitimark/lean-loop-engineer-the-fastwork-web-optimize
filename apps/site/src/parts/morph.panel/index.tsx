@@ -6,6 +6,8 @@ import { createPanelWriter } from './driver';
 import { PANEL } from './content';
 import css from './morph.module.css';
 
+export const CONST_BOUNDS = 'const-bounds';
+
 export type PanelWriter = ReturnType<typeof createPanelWriter>;
 
 export interface MorphPanelProps {
@@ -38,7 +40,7 @@ export function MorphPanel({ variant, impl = 'mui', initialMorph = 0, writerRef,
   return (
       <div
         ref={panelRef}
-        className={css.panel}
+        className={variant === CONST_BOUNDS ? `${css.panel} ${css.cb}` : css.panel}
         data-fw="morph-panel"
         data-fw-layer="morph.panel_panel"
         data-fw-variant={variant}
