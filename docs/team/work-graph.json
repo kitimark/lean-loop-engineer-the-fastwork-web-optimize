@@ -13561,7 +13561,10 @@
     "packages/measure-webkit/test/safari-local*.test.mjs",
     "research/notes/2026/10-2x-mac-safari-measure.md",
     "results/mac-safari/**",
-    "docs/team/handoffs/mac-safari-measure.md"
+    "docs/team/handoffs/mac-safari-measure.md",
+    "packages/measure-webkit/src/sim-local*.mjs",
+    "packages/measure-webkit/test/sim-local*.test.mjs",
+    "packages/measure-webkit/src/xctrace/**"
    ]
   },
   {
