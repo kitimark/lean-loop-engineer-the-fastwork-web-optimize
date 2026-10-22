@@ -15540,6 +15540,21 @@
    "stream": "tooling",
    "deps": [],
    "title": "fw watch timing.slow land/land (chromium)/Run ./.github/actions/gate-engine 2026-10-22: in land run 39722879593 that step has samples of 0 s on most legs and 27 s / 33 s on the legs that run it, so a normal 30 s run is judged slow against the 0 s ones (same family as run-span-split). Fix: the CI step collector records no sample for a step that did not run (GitHub conclusion skipped, or a gate that exits before work, marked by the step itself), or keys it by leg so each leg is judged against its own history; if Fw.Obs.Timing needs the change, Lean first with goldens. Unit: skipped/no-op steps leave no sample (or per-leg keys) with a test on a recorded job JSON; timings.md."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "jev-file-context-note",
+   "owner": "researcher",
+   "stream": "research",
+   "deps": [],
+   "writes": [
+    "research/notes/2026/10-2x-jev-file-context.md",
+    "scripts/jev-leak.mjs",
+    "docs/team/handoffs/jev-file-context-note.md"
+   ],
+   "title": "User 2026-10-22 (comment on the Jev trial page): 'do we need to try to give this context for jev with automate script and prove in lean. then re measurement it ?'. Lead investigation (workflow wf_6c44d993-6ee, 4 agents, skeptic spot-checked against git) recommends no: 64/116 D1 and 88/90 D2 rows name repo paths (294 paths, median D2 row ~100 KB of files vs stateCap 32 KiB); no row needs a file for its label (labels are judgments; rows with and without paths score within ~4 points); post-incident files leak the label on 9 rows (checkmap.mjs:2 names c-late-check for inc-precommit-stale-fwcore, missed by all arms; wait-guard.mjs names c-orphan-wait; work-graph.json at c31e0848 holds the lead's later triage); a pass costs 108-206 of 200 daily sends. Write it as a negative-result note (mechanism, measured counts with the regex used, the leak list with git refs, the Lean design that would be needed: allowlist, vocab-free, escaped-byte cap vs capState keeping field tails, no-op replay, determinism; the d1-only ablation and its decision rule, not run), keeping the leak scan as scripts/jev-leak.mjs. Unit: the note with every number sourced, the script, handoff."
   }
  ],
  "deadline": {
