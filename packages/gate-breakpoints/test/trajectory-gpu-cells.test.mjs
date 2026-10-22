@@ -48,6 +48,12 @@ test('a run against itself grades E for the nav clip and the panel effect', () =
   assert.deepEqual(grades(units, 'panel-effect'), ['E', 'E']);
 });
 
+test('a settling tail clamped at m 0 does not make a run against itself L', () => {
+  const tail = (shift) => phase(std, { row: (m, i) => ({ rect: [100 - 50 * m + (m < 0.01 ? shift + i : 0), 10, 200 + 400 * m, 60] }) });
+  const units = cellsOfRaw(raw(std, tail(0), tail(7)), MORPH_NODES);
+  assert.deepEqual(grades(units, 'nav-clip'), ['E', 'E']);
+});
+
 test('a panel clock one frame behind is Q, two frames behind is L', () => {
   const base = phase(gpu);
   const behind = (k) => phase(gpu, { row: (m) => ({ pm: Math.max(0, m - 0.05 * k) }) });

@@ -181,6 +181,9 @@ export const worst = (gs) => gs.filter((g) => g !== null).reduce((w, g) => (w ==
 
 /* ---- readings of the morph path (rows of the probe's raw artifact) ---- */
 export const MIN_COVERED = 8;
+/** Lean `edge` and `interior`: the samples whose key is strictly between EDGE and 1 - EDGE. */
+export const EDGE = rat(1, 100);
+export const keptInterior = (k) => lt(EDGE, k) && lt(k, sub(ONE, EDGE));
 
 /** The index of each property id of a node list, per node id. */
 export const layoutOf = (nodes) => Object.fromEntries(nodes.map((n) => [n.id, Object.fromEntries(n.props.map((p, i) => [p.id, i]))]));
@@ -225,7 +228,9 @@ const mOf = (row) => (typeof row.m === 'number' ? rat(BigInt(Math.round(row.m)),
 export function morphCells({ width, base, cand, layout, phase }) {
   const env = envFor(width), dpr = rat(env.dpr), side = rat(width);
   const rowsOf = (arm) => (arm?.morph?.phases?.[phase] ?? []);
-  const sample = (rows, fn) => rows.flatMap((r) => { const m = mOf(r), v = m === null ? null : fn(r); return v === null ? [] : [{ k: m, v }]; });
+  // Only the interior of the morph forms a series (Lean `interior`): m is clamped at its ends while the settled page keeps moving
+  // a little (the 1280 close tail), so the rows there are not a function of m; the end states are the existing cells' business.
+  const sample = (rows, fn) => rows.flatMap((r) => { const m = mOf(r), v = m === null || !keptInterior(m) ? null : fn(r); return v === null ? [] : [{ k: m, v }]; });
   const navTol = Array(5).fill(tolCss(dpr));
   const effTol = effectTols(dpr, side);
   const refNav = seriesOf(sample(rowsOf(base), (r) => navShapeOf(r, layout)));

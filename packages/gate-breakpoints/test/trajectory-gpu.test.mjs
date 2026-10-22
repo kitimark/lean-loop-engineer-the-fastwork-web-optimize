@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
   ratOf, ratStr, tolCss, cellEq, parseDec, parseLen, parseInset, expand4, readShape, shapeVec, interpAt, matchedGrade,
-  effectAt, effectTols, effClock, lagFrames, lagGrade, panelGrade, darkness, painGrade, rat, ZERO,
+  effectAt, effectTols, keptInterior, effClock, lagFrames, lagGrade, panelGrade, darkness, painGrade, rat, ZERO,
 } from '../src/trajectory/cells-gpu.mjs';
 
 const golden = readFileSync(fileURLToPath(new URL('../../contracts/golden/gate/trajectory-gpu.jsonl', import.meta.url)), 'utf8')
@@ -20,7 +20,7 @@ const optStr = (r) => (r === null ? null : ratStr(r));
 
 test('the golden file holds every line kind', () => {
   const kinds = new Set(golden.map((l) => l.kind));
-  for (const k of ['tol', 'dec', 'len', 'inset', 'expand4', 'clip', 'cell', 'interp', 'matched', 'effect', 'lag', 'panel', 'pain', 'dark']) {
+  for (const k of ['tol', 'dec', 'len', 'inset', 'expand4', 'clip', 'cell', 'interp', 'matched', 'effect', 'lag', 'panel', 'pain', 'dark', 'interior']) {
     assert.ok(kinds.has(k), k);
   }
 });
@@ -87,6 +87,10 @@ test('panel lag in frames and the panel cell grade', () => {
   for (const l of of('panel')) {
     assert.equal(panelGrade(l.series, l.lag === null ? null : ratOf(l.lag)), l.grade, l.name);
   }
+});
+
+test('the interior of the morph keeps only the keys strictly between the edges', () => {
+  for (const l of of('interior')) assert.equal(keptInterior(ratOf(l.k)), l.kept, l.k);
 });
 
 test('pain darkness and grade', () => {

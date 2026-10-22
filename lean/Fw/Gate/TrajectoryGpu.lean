@@ -333,6 +333,25 @@ def sortedKeys : Series → Bool
   | a :: b :: r => decide (a.1 < b.1) && sortedKeys (b :: r)
   | _ => true
 
+/-- The ends of the morph value, where the page keeps settling while the value stays clamped (A/A on the 1280 close: the nav
+width moves 3 px with the value at 0), so the rows there are not a function of the value. -/
+def edge : Rat := 1 / 100
+
+/-- The interior of a series: the samples whose key is strictly between `edge` and `1 - edge`. -/
+def interior (s : Series) : Series := s.filter fun p => decide (edge < p.1) && decide (p.1 < 1 - edge)
+
+/-- Every kept sample lies inside the interval and was in the series. -/
+theorem mem_interior (s : Series) (p : Rat × List Rat) (h : p ∈ interior s) :
+    p ∈ s ∧ edge < p.1 ∧ p.1 < 1 - edge := by
+  simp only [interior, List.mem_filter, Bool.and_eq_true, decide_eq_true_eq] at h
+  exact ⟨h.1, h.2.1, h.2.2⟩
+
+/-- A sample inside the interval is kept. -/
+theorem interior_mem (s : Series) (p : Rat × List Rat) (h : p ∈ s) (h1 : edge < p.1) (h2 : p.1 < 1 - edge) :
+    p ∈ interior s := by
+  simp only [interior, List.mem_filter, Bool.and_eq_true, decide_eq_true_eq]
+  exact ⟨h, h1, h2⟩
+
 /-- The series read between its samples by straight lines; none outside its first and last key. -/
 def interpAt : Series → Rat → Option (List Rat)
   | (k0, v0) :: (k1, v1) :: rest, k =>
@@ -682,6 +701,9 @@ def goldenLines (_ : Unit := ()) : List String :=
     o [("kind", "matched"), ("name", toJson n), ("tols", vecJson t), ("grid", vecJson g), ("frameKey", toJson (ratStr fk)),
       ("minCovered", toJson mc), ("ref", seriesJson r), ("cand", seriesJson c),
       ("grade", gradeName (matchedGrade t g fk mc r c))]) ++
+  [0, 1 / 200, 1 / 100, 1 / 50, 1 / 2, 49 / 50, 99 / 100, 199 / 200, 1].map (fun (k : Rat) =>
+    o [("kind", "interior"), ("k", toJson (ratStr k)),
+      ("kept", toJson (!(interior [(k, [])]).isEmpty))]) ++
   [0, 1 / 25, 2 / 25, 11 / 25, 4 / 5, 1].map (fun (m : Rat) =>
     o [("kind", "effect"), ("m", toJson (ratStr m)), ("out", vecJson (effectAt m)),
       ("tols", vecJson (effectTols 2 600)), ("clock", toJson (ratStr (effClock (panelOpacity m))))]) ++
