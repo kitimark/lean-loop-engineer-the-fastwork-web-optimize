@@ -354,7 +354,6 @@ export function checkoutLandWt(mainDir: string, dir: string, commit: string, pre
 
 export type InstallExec = (argv: string[], cwd: string) => boolean;
 const installExec: InstallExec = (argv, cwd) => { try { execFileSync(argv[0]!, argv.slice(1), { cwd, stdio: "ignore" }); return true; } catch { return false; } };
-/** The install step of a land worktree (Lean `installKind`): offline first, the online install only after an offline failure; both failing refuses. */
 export function landInstall(dir: string, exec: InstallExec = installExec): string | null {
   const offlineOk = exec(["pnpm", "install", "--offline", "--frozen-lockfile"], dir);
   const onlineOk = installRunsOnline(offlineOk) ? exec(["pnpm", "install", "--frozen-lockfile"], dir) : false;

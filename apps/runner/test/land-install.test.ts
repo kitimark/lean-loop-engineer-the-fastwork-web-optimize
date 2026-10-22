@@ -1,6 +1,3 @@
-// Task land-install-fallback (Lean Fw.Console.LandVerdict.installKind): the land worktree's offline install falls back to the
-// online install; both failing refuses the land with VERDICT install (exit 19). The decision is checked against the Lean golden
-// in land-verdict.test.ts; here the glue runs with a stubbed exec.
 import "./land-timeout.ts";
 import { existsSync } from "node:fs";
 import { join } from "node:path";

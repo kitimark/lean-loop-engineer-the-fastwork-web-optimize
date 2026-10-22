@@ -79,24 +79,19 @@ theorem verdictLine_prefix (k : Kind) (t : String) :
 /-- Does the land worktree's offline install need the online retry? Only when the offline install failed. -/
 def installRunsOnline (offlineOk : Bool) : Bool := !offlineOk
 
-/-- The refusal the install step decides: nothing when the offline install worked or, failing that, the online install did;
-`install` when both failed (no retry beyond the one online run). -/
+/-- The install step's refusal: `install` when both installs failed, else none. -/
 def installKind (offlineOk onlineOk : Bool) : Option Kind :=
   if offlineOk || onlineOk then none else some .install
 
-/-- Offline install ok: the land continues, and the online install is not run. -/
 theorem installKind_offline_ok (onlineOk : Bool) : installKind true onlineOk = none ∧ installRunsOnline true = false := by
   simp [installKind, installRunsOnline]
 
-/-- Offline install failed, online install ok: the land continues. -/
 theorem installKind_online_ok : installKind false true = none ∧ installRunsOnline false = true := by
   simp [installKind, installRunsOnline]
 
-/-- Both installs failed: the land is refused with kind `install` (exit 19). -/
 theorem installKind_both_fail : installKind false false = some .install ∧ Kind.exitCode .install = 19 := by
   simp [installKind, Kind.exitCode]
 
-/-- The install step refuses only with `install`, and that is a refusal. -/
 theorem installKind_refusal (a b : Bool) (k : Kind) (h : installKind a b = some k) : k = .install ∧ k.ok = false := by
   cases a <;> cases b <;> simp [installKind] at h
   subst h; exact ⟨rfl, rfl⟩
