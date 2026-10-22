@@ -2,6 +2,9 @@
 
 - Branch `worktree-wf_dac48000-f0e-1`, worktree `.claude/worktrees/wf_dac48000-f0e-1`; work commit b744d823, main
   merged after it (see `git log -1`). CI runs: none (local re-validation only, no sends, no model calls).
+- Dry land: `VERDICT dry oracle-eps-followups`; review ready: `VERDICT review-ready oracle-eps-followups review`.
+  The dry land needed a worktree fwcore (the main binary lacked a newer op); built via `fw slot run --kind check
+  -- sh scripts/fwcore-build.sh`, and `paired` rerun on it left `paired.json` unchanged.
 
 ## Verified (MEASURED)
 - fwcore: the main checkout binary, record tree = tree of `e96b2ea5` (oracle-eps land); `lean/Fw/Oracle`,
