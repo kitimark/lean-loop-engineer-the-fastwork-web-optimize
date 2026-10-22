@@ -12,16 +12,18 @@ topics: [jev, oracle, leakage, negative-result, evaluation, lean]
 The run answers the design in `research/notes/2026/10-2x-jev-file-context.md`. Adding the leak-safe code files a D1
 row names to its state lowers the score of every arm on the 27 rows that changed (MEASURED). The adopt rule says
 false: every arm and mode has net below 4, and all six nets are negative. File context stays out of the Jev state.
+The table is re-scored under the landed `sumOk` rule (task oracle-eps-followups): three strict nets moved by one, and
+the verdict is unchanged (see "Re-score under sumOk").
 
 | Arm | Mode | Base right | Arm right | Gains | Losses | Net | Sign p |
 |---|---|---|---|---|---|---|---|
-| jev | strict | 16 | 12 | 3 | 7 | -4 | 11/32 |
+| jev | strict | 17 | 14 | 2 | 5 | -3 | 29/64 |
 | jev | renorm | 17 | 14 | 2 | 5 | -3 | 29/64 |
-| haiku | strict | 7 | 5 | 3 | 5 | -2 | 93/128 |
+| haiku | strict | 9 | 8 | 3 | 4 | -1 | 1 |
 | haiku | renorm | 15 | 12 | 0 | 3 | -3 | 1/4 |
-| sonnet | strict | 14 | 12 | 4 | 6 | -2 | 193/256 |
+| sonnet | strict | 15 | 13 | 3 | 5 | -2 | 93/128 |
 | sonnet | renorm | 17 | 15 | 2 | 4 | -2 | 11/16 |
-| jev-naive | strict | 16 | 15 | 2 | 3 | -1 | 1 |
+| jev-naive | strict | 17 | 15 | 1 | 3 | -2 | 5/8 |
 | jev-naive | renorm | 17 | 15 | 1 | 3 | -2 | 5/8 |
 
 All counts are out of 27 paired rows (MEASURED, `results/jev-file-context-ablation/paired.json`). No single
@@ -96,13 +98,35 @@ d1n 63. On the 27 rows: Haiku 13 and Sonnet 15. Files: `results/jev-file-context
 
 ## Paired rule (MEASURED, `node scripts/jev-expand.mjs paired`)
 
-Each row counts as right when the answer validates and its pick is the label. Strict validates the answer as given.
-Renorm first divides the probabilities by their sum, because oracle-eps has not landed, and an answer that sums to 1.1
-fails strict. A failure or a missing answer counts as wrong. The baselines are the D1 replies in the answer log for
+Each row counts as right when the answer validates and its pick is the label. Strict validates the answer as given,
+under `Fw.Oracle.Core.sumOk` since oracle-eps landed. Renorm first divides the probabilities by their sum; it was
+added while the old `eps` rule failed an answer that sums to 1.1, and it stays as a contrast. A failure or a missing
+answer counts as wrong. The baselines are the D1 replies in the answer log for
 Jev and `results/jev-arms-clean/d1-{haiku,sonnet}.answers.jsonl` for the isolated arms.
 
-`oracle.adopt` returns false with 20 reasons: `netLow` for all six arm-modes, plus 14 `untraced` gains. The hand trace
-was not done. `reject_netLow` already fixes the verdict, so a trace could not change it.
+`oracle.adopt` returns false with 18 reasons: `netLow` for all six arm-modes, plus 12 `untraced` gains (14 under the
+old rule). The hand trace was not done. `reject_netLow` already fixes the verdict, so a trace could not change it.
+
+## Re-score under sumOk (MEASURED, task oracle-eps-followups)
+
+The logged replies were validated again through the fwcore built from the oracle-eps land (`e96b2ea5`), with no sends
+and no model calls: `node scripts/jev-expand.mjs paired`, and `pnpm fw oracle score` for `d1x.json` and `d1n.json`.
+
+| Arm | Mode | Base right | Arm right | Gains | Losses | Net | Sign p |
+|---|---|---|---|---|---|---|---|
+| jev | strict | 16 → 17 | 12 → 14 | 3 → 2 | 7 → 5 | -4 → -3 | 11/32 → 29/64 |
+| haiku | strict | 7 → 9 | 5 → 8 | 3 | 5 → 4 | -2 → -1 | 93/128 → 1 |
+| sonnet | strict | 14 → 15 | 12 → 13 | 4 → 3 | 6 → 5 | -2 | 193/256 → 93/128 |
+| jev-naive | strict | 16 → 17 | 15 | 2 → 1 | 3 | -1 → -2 | 1 → 5/8 |
+
+- Only strict moves. The four renorm rows are unchanged, and Jev strict now equals Jev renorm.
+- Nine pairs flip, all from invalid to valid: base side `inc-land-dry-needs-console` (Jev, naive),
+  `inc-parallel-write-overlap` and `inc-console-stale-service` (Haiku, both sides), `inc-ci-skipped-false-pass`
+  (Sonnet); arm side `inc-land-inputs-untracked-exists` and `inc-console-stale-service` (Jev),
+  `inc-gate-scan-page-state` (Haiku), `inc-test-pid-marker` (Sonnet).
+- The adopt verdict is unchanged: false, with every net still negative and the smallest p still 1/4.
+- `d1x.json` and `d1n.json` are byte-identical after the re-score. `oracle score` takes the pick leniently and
+  does not depend on the sum rule, so the scores 62, 63, 13 and 15 stand.
 
 ## Mechanism (INFERRED from a hand read of the losses)
 
@@ -139,5 +163,11 @@ paired run on the changed rows before any full re-measure. That run cost 49 Jev 
 - The fit measures escaped bytes before redaction. A redaction that lengthens a line could push a row past the cap;
   this was not checked.
 - The path scan is a Lean port of `PATH_RE`; a broader scan would name more files.
-- The hand trace of the 14 gains is not done.
-- Both modes are reported because oracle-eps has not landed; the verdict is the same in each.
+- The hand trace of the 12 gains is not done.
+- Both modes are reported; the verdict is the same in each, under the old rule and under `sumOk`.
+
+## What this changes in the plan
+
+- Jev file context: no change. The re-score keeps adopt false, so file context stays out of the Jev state.
+- Paired runs after oracle-eps: strict under `sumOk` agrees with renorm for Jev, so renorm is only a contrast for
+  the isolated arms, whose base answers still fail on keys and sums.

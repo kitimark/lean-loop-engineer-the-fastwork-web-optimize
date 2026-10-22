@@ -15098,7 +15098,15 @@
     "apps/site/src/registry/layer-opts*.ts",
     "apps/site/src/registry/*.test.ts",
     "packages/contracts/golden/console/layer-opts*.jsonl",
-    "docs/team/handoffs/site-layer-opts.md"
+    "docs/team/handoffs/site-layer-opts.md",
+    "apps/runner/src/land.ts",
+    "apps/site/src/entry-client.tsx",
+    "apps/site/src/registry/types.ts",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Console/LandSpeed.lean",
+    "lean/Fw/Site/LayerOpts.lean",
+    "lean/scripts/LayerOptsGolden.lean",
+    "lean/scripts/check.sh"
    ]
   },
   {
@@ -15882,7 +15890,8 @@
     "results/jev-arms-clean/table.md",
     "docs/team/handoffs/oracle-eps-followups.md"
    ],
-   "title": "Follow-ups of oracle-eps (accepted 2026-10-22). (1) Re-score results/jev-file-context-ablation (d1x, d1n and the paired table) under the landed sumOk rule from the logged replies (no sends, no model calls); if any net or the adopt verdict changes, update the note's table and verdict and say so; else state that it is unchanged. (2) scripts/jev-arms-clean.mjs `table` drops the oracle-eps block of results/jev-arms-clean/table.md: make the generator emit the re-validated rows (old and new rule) so a regenerate keeps them; test. Unit: the re-scored ablation table with its verdict, the generator change with its test. Limits: no sends, no model calls."
+   "title": "Follow-ups of oracle-eps (accepted 2026-10-22). (1) Re-score results/jev-file-context-ablation (d1x, d1n and the paired table) under the landed sumOk rule from the logged replies (no sends, no model calls); if any net or the adopt verdict changes, update the note's table and verdict and say so; else state that it is unchanged. (2) scripts/jev-arms-clean.mjs `table` drops the oracle-eps block of results/jev-arms-clean/table.md: make the generator emit the re-validated rows (old and new rule) so a regenerate keeps them; test. Unit: the re-scored ablation table with its verdict, the generator change with its test. Limits: no sends, no model calls.",
+   "evidence": "1a9d0dc"
   },
   {
    "devices": [
@@ -15961,6 +15970,23 @@
     "docs/team/handoffs/jev-retrieval-followups.md"
    ],
    "title": "Follow-ups of jev-retrieval-trace (landed 2026-10-22). (1) Position statistic in Lean: a pick-position share defined only over rows with at least 2 candidates (single-candidate rows excluded by type), with a theorem that a 1-candidate row adds nothing to it; jev-trace computes the share through fwcore, never by hand (hardening for the refuted 'f1 in 30 of 36' claim, incident inc-pick-position). (2) Forced-read variant: T-haiku and T-sonnet with a system prompt that requires at least one Read before answering, every read recorded; paired verdict against C with the Lean adopt rule (Claude calls only, no Jev sends). (3) Record the Jev run split used for d1k and d1p, or state the deviation from runs of 19 rows. Unit: the Lean statistic with goldens, the forced-read paired table, the note update. Limits: D1 only; Claude cost within the per-call caps; a shuffled-slot J-pick stays optional (no bias seen over 10 rows)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "sim-step-watchdog",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "writes": [
+    ".github/workflows/webkit-sim.yml",
+    "packages/measure-webkit/src/watchdog.mjs",
+    "packages/measure-webkit/test/watchdog.test.mjs",
+    "lean/Fw/Measure/SimBound.lean",
+    "docs/team/handoffs/sim-step-watchdog.md"
+   ],
+   "title": "The Lean sim bound is not enforced on the runner (incident inc-sim-step-unbounded, 2026-10-22): run 39751427150 planned step_min=35, job_min=53 (Fw.Measure.SimBound), but `Determinism sessions` ran 56 min without the step timeout firing; GitHub killed the job at 53 min and Keep logs, Host state on failure, upload-artifact and telemetry never ran, so no log or artifact exists. (1) An in-script watchdog: the session commands run under a wrapper that kills their whole process group (TERM, grace, KILL) at step_min minus a Lean margin, writes a `watchdog` line naming the last session and pass, and exits non-zero so the always() steps run inside the job budget. (2) Lean: the margin and the order setup + watchdog + log tail ≤ job_min as a theorem in SimBound (watchdog fires before both GitHub limits). (3) A fault-input proof run: a dispatch with fault=hang shows the watchdog line, the kept logs and the uploaded artifact. Unit: the wrapper with a unit test (a child that ignores SIGINT is killed), the Lean theorem, the fault run id. Limits: a VM that freezes completely stays unobservable (state it); free runners only."
   }
  ],
  "deadline": {
