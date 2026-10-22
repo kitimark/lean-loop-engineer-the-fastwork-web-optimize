@@ -2687,6 +2687,51 @@
    "lesson": "A write that is skipped only where the original never writes saves nothing; check that the original does the work in the measured window before porting a skip. Here the original's shrink is dead code on a plain scroll at phone and desktop width alike (the card is the last section in the original too), so platform:mq cannot win on any end-of-page window.",
    "next": "Hold; no port task. Re-open only if the snapshot changes, or to measure rubber-band overscroll at the page end (the only path where the original computes a nonzero shrink; INFERRED, unmeasured).",
    "evidence": "CI runs 39680952848, 39680958629, 39680964944, 39685930205; research/notes/2026/10-2x-platform-shrink-mq.md; results/platform-shrink-mq/report.json"
+  },
+  {
+   "id": "platform.fade-threaded",
+   "n": 43,
+   "part": "platform",
+   "candidate": "platform:fade-threaded: run the section fade of a morph push as one opacity and blur Web Animation per push (Core Animation on WebKit) instead of writing --morph-fade every frame",
+   "status": "partly-proved",
+   "flag": "platform:fade-threaded",
+   "flags": [
+    "platform:fade-threaded"
+   ],
+   "chromium": "unknown",
+   "webkit": "no-win",
+   "visual": "Q on WebKit (webkit_not_exact: CA blur is not the software blur); equal opacity and blur values on every frame under the WAAPI premises (threaded_eq, frame_blur_eq, retarget_from_shown)",
+   "mechanism": "MEASURED (CI webkit-sim, iOS Simulator 430x775, morph pass at the page end y 5231, 130 frames with a push down and a push up, two passes per arm; base run 39731023406, flag run 39731104953): RecalculateStyles 259/259 vs 261/261, Layout 169/174 vs 178/174, Paint records 740/1159 vs 1162/1186; Composite time per frame of the open push 168-269 ms vs 134-167 ms (3-4 frames per push, close push overlaps). End-of-page scroll window y >= 4500: RecalculateStyles 92/99 vs 100/76, Layout 91/101 vs 112/64, within the pass-to-pass gap. PROVED why: recalc_same, every frame that changes the fade also changes the morph, and the tween still writes the nav --morph on that frame, so the variant schedules a style recalculation on exactly the frames the original does (writesT_sub: it drops only the section write). Breakpoint gate both engines: run 39730956361.",
+   "leanFor": [
+    "Fw.Parts.PlatformFade.interp_eq",
+    "Fw.Parts.PlatformFade.interp_blur",
+    "Fw.Parts.PlatformFade.frame_eq",
+    "Fw.Parts.PlatformFade.frame_blur_eq",
+    "Fw.Parts.PlatformFade.threaded_eq",
+    "Fw.Parts.PlatformFade.retarget_from_shown",
+    "Fw.Parts.PlatformFade.props_accelerated",
+    "Fw.Parts.PlatformFade.ca_accepts"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.PlatformFade.recalc_same",
+    "Fw.Parts.PlatformFade.webkit_not_exact"
+   ],
+   "missingWhy": [
+    "Paint records during a push (about 95 per frame in both arms) are not modelled by element, so the section repaint saved by the effect is not separated from the rest",
+    "Compositor cost is not measured: the Simulator has no real GPU, and the open-push Composite drop rests on 3-4 frames per pass",
+    "Chromium not measured: Blink refuses to composite a pixel-moving filter effect, so the blur stays on the main thread there (INFERRED no saving)"
+   ],
+   "premises": [
+    "CONFIRMED: GraphicsLayerCA accepts the effect (rate 1, forward, nonzero duration, two or more keyframes, no steps, curve in [0, 1]) (Source/WebCore/platform/graphics/ca/GraphicsLayerCA.cpp:1169-1196@862f17d) and supports filter animations (:289@862f17d)",
+    "CONFIRMED: opacity and filter are accelerated without the threaded-animations setting (Source/WebCore/css/CSSProperties.json:7114, 10263@862f17d)",
+    "CONFIRMED: Blink marks a filter effect with a pixel-moving filter as not compositable (third_party/blink/renderer/core/animation/compositor_animations.cc:408-416@f842f52)",
+    "CONFIRMED: the tween writes the nav --morph and data-fw-morph on every tick (apps/site/src/parts/morph.tween/driver.ts:129, index.tsx:48-52)",
+    "WaapiPremises (Fw.Parts.MorphTweenOpt): linear number interpolation, an exact timing curve, one timeline offset for frames and start reads"
+   ],
+   "v1Evidence": "",
+   "lesson": "Moving one property of a frame to the compositor saves no style recalculation while another write on the same frame still invalidates style; count the writes per frame of every element the driver touches before expecting fewer recalcs. The possible gain of a threaded fade is paint and raster of the blurred section, which a Simulator count lane cannot show.",
+   "next": "Hold; no port task. Re-open together with a variant that also moves the nav --morph off the main thread (then recalc_same no longer binds), measured on a lane with a real GPU (mac-safari-measure or the phone).",
+   "evidence": "CI runs 39730956361, 39731023406, 39731104953; research/notes/2026/10-2x-platform-fade-threaded.md; results/platform-fade-threaded/report.json"
   }
  ],
  "notes": [

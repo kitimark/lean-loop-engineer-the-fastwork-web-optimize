@@ -223,4 +223,41 @@ theorem webkit_not_exact (c : Fw.Gate.PathPix.Cell) (h : c.claim = claim) (he : 
     Fw.Gate.PathPix.grade c ≠ .e ∧ Fw.Gate.PathPix.grade c ≠ .e1 :=
   Fw.Gate.PathPix.ca_blur_not_e c (by rw [h, he]; rfl)
 
+/-! ## Why style and layout counts stay -/
+
+/-- An element the tween writes inline on a frame. -/
+inductive Tgt where
+  | nav
+  | platform
+  deriving DecidableEq, Repr
+
+/-- The original's inline writes on a frame from morph `a` to `b`: the nav's `--morph`, the section's `--morph-fade`. -/
+def writesO (a b : Rat) : List (Tgt × String) :=
+  (if a = b then [] else [(.nav, "--morph")]) ++ (if fade a = fade b then [] else [(.platform, "--morph-fade")])
+
+/-- The variant's inline writes on that frame: only the nav's `--morph`. -/
+def writesT (a b : Rat) : List (Tgt × String) := if a = b then [] else [(.nav, "--morph")]
+
+/-- A frame with an inline write schedules a style recalculation. -/
+def recalc (w : List (Tgt × String)) : Bool := !w.isEmpty
+
+#guard writesO 0 (1 / 2) = [(.nav, "--morph"), (.platform, "--morph-fade")]
+#guard writesO (3 / 5) (4 / 5) = [(.nav, "--morph")]
+#guard writesT 0 (1 / 2) = [(.nav, "--morph")]
+#guard writesT (1 / 2) (1 / 2) = []
+#guard recalc (writesT 0 (1 / 2)) && !recalc (writesO 1 1)
+
+/-- **No recalculation saved.** A frame recalculates style in the variant exactly when it does in the original: a
+fade change needs a morph change, which writes the nav. -/
+theorem recalc_same (a b : Rat) : recalc (writesT a b) = recalc (writesO a b) := by
+  unfold recalc writesT writesO
+  by_cases h : a = b
+  · subst h; simp
+  · simp [h]
+
+/-- The variant drops exactly the section's write. -/
+theorem writesT_sub (a b : Rat) : writesT a b = (writesO a b).filter (·.1 = .nav) := by
+  unfold writesT writesO
+  by_cases h : a = b <;> by_cases hf : fade a = fade b <;> simp [h, hf]
+
 end Fw.Parts.PlatformFade
