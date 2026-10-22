@@ -1,10 +1,3 @@
-// land-wait-final: the two incidents where `fw land` refused a lane that was running or green.
-//   (1) 2026-10-20, run 39576215019: refused ("remote-lane-failed") while the run was still going.
-//   (2) 2026-10-21, run 39612772041: log "lane still running", then "verdict refuse reason=remote-lane-failed (github:fail)" 16 s after the
-//       run concluded success. Cause (INFERRED: neither waiter output was recovered): the waiter child (`pnpm -s fw ci wait`) exited 1
-//       without judging the run (a crash after or before its verdict), and `waitState 1` was `fail`; the run's own record, which said
-//       success, was not asked.
-// Fake provider: the waiter and gh are scripted; Lean (fwcore) decides.
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -21,10 +14,9 @@ const want: Want = { sha: SHA, laneId: "land", laneDigest: DIGEST };
 const LEGS = ["check-sh", "suites-a", "suites-b", "chromium", "playwright-webkit"];
 
 const job = (leg: string, conclusion: string, bind = false) => ({
-  name: `land (${leg})`, conclusion,
+  name: `land (${leg})`, status: conclusion === "" ? "in_progress" : "completed", conclusion,
   steps: bind ? [{ name: `lane: sha=${SHA} digest=${DIGEST}`, conclusion: "success" }] : [],
 });
-/** A `gh run view` record of the lane: `conclusions` per leg in LEGS order. */
 const view = (status: string, conclusion: string, conclusions: string[]): GhRunView => ({
   workflowName: "land", headSha: MARKER, status, conclusion: conclusion === "" ? null : conclusion,
   createdAt: "2026-10-21T13:59:00Z", startedAt: "2026-10-21T14:05:30Z", updatedAt: "2026-10-21T14:09:07Z",
@@ -33,7 +25,6 @@ const view = (status: string, conclusion: string, conclusions: string[]): GhRunV
 const ALL_OK = ["success", "success", "success", "success", "success"];
 
 type Wait = { code: number; out: string };
-/** Scripted waiter and gh: the nth `fw ci wait` returns waits[n] (the last repeats); `gh run view` returns views[n] of the views read so far. */
 function deps(waits: Wait[], views: (GhRunView | Error)[]): { d: GithubDeps; polls: () => number; views: () => number } {
   let w = 0, v = 0;
   const d: GithubDeps = {
@@ -155,7 +146,7 @@ describe("CircleCI refusal names the pipeline, the failed legs and their checks"
 describe("golden rows are served by fwcore (console.landLaneState)", () => {
   const st = (o: Record<string, unknown>) => (call({ op: "console.landLaneState", ...o }) as { state: string }).state;
   it("all jobs success, waiter exit 1: pass; in progress, exit 1: running; no record, unsaid exit 1: running", () => {
-    expect(st({ exit: 1, status: "completed", conclusion: "success", saidFail: false, jobs: [true, true] })).toBe("pass");
+    expect(st({ exit: 1, status: "completed", conclusion: "success", saidFail: false, jobs: [{ status: "completed", conclusion: "success" }, { status: "completed", conclusion: "success" }] })).toBe("pass");
     expect(st({ exit: 1, status: "in_progress", conclusion: "", saidFail: false })).toBe("running");
     expect(st({ exit: 1, status: "", conclusion: "", saidFail: false })).toBe("running");
     expect(st({ exit: 137, status: "", conclusion: "", saidFail: false })).toBe("unavailable");

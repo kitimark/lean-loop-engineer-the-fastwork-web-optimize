@@ -1,15 +1,15 @@
 import "./land-timeout.ts";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dryRun, exitCode, outcome, outcomeKind, parseVerdict } from "../src/land-verdict.ts";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { createApp } from "../../console-api/src/app.ts";
 import { selectCore } from "../../console-api/src/core/index.ts";
 import { Reconciler } from "../../console-api/src/reconcile/reconciler.ts";
 import { Store } from "../../console-api/src/store.ts";
 import { makeRepo } from "../../console-api/test/reconcile-fixture.ts";
-import { dryLintArgv, land, type Http } from "../src/land.ts";
+import { dryBase, dryLintArgv, dryMerge, dryOutcome, land, type DryBase, type Http } from "../src/land.ts";
 import { lockFile } from "../hooks/land-guard.mjs";
 
 let stores: Store[] = [];
@@ -108,12 +108,38 @@ describe("fw land --dry", () => {
     const skipped = await land(BR, { ...opts, dry: true, ...reads(["false"], false) });
     expect(skipped.kind, text(skipped)).toBe("dry");
   });
-  it("stale: a branch that lacks main is refused as stale (the stale base that carried another task's diff)", async () => {
-    const { fx, wt, opts } = await setup();
+  it("behind main by one unrelated commit: git merge-tree merges cleanly, the scope sees only the branch's path, VERDICT dry", async () => {
+    const { fx, wt, opts, snap } = await setup();
     fx.commit(wt, "src/a.ts");
     fx.commit(fx.root, "docs/other.md");
-    const r = await land(BR, { ...opts, dry: true, ...reads(["true"]) });
-    expect(r.kind, text(r)).toBe("stale");
+    const before = snap();
+    const r = await land(BR, { ...opts, dry: true, ...reads(["true"]), dryLints: [] });
+    expect(r.kind, text(r)).toBe("dry");
+    expect(text(r)).toContain("scope ok (1 files)");
+    expect(dryRun(r.outcome!, "t1").at(-1)).toBe("VERDICT dry t1");
+    expect(snap()).toEqual(before);
+  });
+  it("behind main, both sides made the same change to a path outside the writes: VERDICT scope, as the real land", async () => {
+    const { fx, wt, opts, snap } = await setup();
+    fx.commit(wt, "src/a.ts");
+    fx.commit(wt, "docs/same.md", "same\n");
+    fx.commit(fx.root, "docs/same.md", "same\n");
+    const before = snap();
+    const r = await land(BR, { ...opts, dry: true, ...reads(["true"]), dryLints: [] });
+    expect(r.kind, text(r)).toBe("scope");
+    expect(snap()).toEqual(before);
+  });
+  it("behind main with a conflicting change to one file: VERDICT conflict, main untouched", async () => {
+    const { fx, wt, opts, snap } = await setup();
+    fx.commit(fx.root, "src/a.ts", "base\n");
+    fx.git(wt, "merge", "-q", "main");
+    fx.commit(wt, "src/a.ts", "branch\n");
+    fx.commit(fx.root, "src/a.ts", "main\n");
+    const before = snap();
+    const r = await land(BR, { ...opts, dry: true, ...reads(["true"]), dryLints: [] });
+    expect(r.kind, text(r)).toBe("conflict");
+    expect(dryRun(r.outcome!, "t1").at(-1)).toBe("VERDICT conflict t1");
+    expect(snap()).toEqual(before);
   });
   it("empty: a branch with no commit of its own is `empty`, a success (exit 0), and it prints one VERDICT line", async () => {
     const { opts } = await setup();
@@ -206,5 +232,45 @@ describe("kinds of real-land refusals", () => {
     fx.commit(wt, "src/a.ts");
     const r = await land(BR, { ...opts, checks: [["false"]] });
     expect(r.kind, text(r)).toBe("checks");
+  });
+});
+
+type MergeRow = { name: string; request: Record<string, unknown> & { op: string }; response: Record<string, unknown> };
+const mergeRows: MergeRow[] = readFileSync(join(dirname(new URL(import.meta.url).pathname), "../../../packages/contracts/golden/console/land-dry-merge.jsonl"), "utf8")
+  .trim().split("\n").map((l) => JSON.parse(l));
+
+function writeTree(fx: ReturnType<typeof makeRepo>, dir: string, files: Record<string, string>, all: string[]) {
+  for (const p of all) {
+    if (p in files) writeFileSync(join(dir, p), `${p}:${files[p]}\n`);
+    else if (existsSync(join(dir, p))) rmSync(join(dir, p));
+  }
+  fx.git(dir, "add", "-A");
+  fx.git(dir, "commit", "-q", "--allow-empty", "-m", "tree");
+}
+
+describe("the dry land's merge vs the Lean golden (land-dry-merge.jsonl)", () => {
+  it("has base, kind and merge-tree rows", () => {
+    for (const op of ["landDry.base", "landDry.baseKind", "landDry.mergeTree"]) expect(mergeRows.some((r) => r.request.op === op), op).toBe(true);
+  });
+  for (const g of mergeRows) it(g.name, () => {
+    const q = g.request;
+    if (q.op === "landDry.base") expect(g.response).toEqual({ base: dryBase(q.behind as boolean, q.mergeClean as boolean) });
+    else if (q.op === "landDry.baseKind") {
+      const oc = dryOutcome(q.base as DryBase, { own: q.own as boolean, scope: q.scope as boolean, merges: q.merges as boolean, reads: !(q.readsSelected as boolean) || (q.readsTest as boolean), lints: q.lints as boolean });
+      expect(g.response).toEqual({ kind: outcomeKind(oc), outcome: oc });
+    } else if (q.op === "landDry.mergeTree") {
+      const [b, m, t] = [q.base, q.main, q.branch] as Record<string, string>[];
+      const all = [...new Set([...Object.keys(b!), ...Object.keys(m!), ...Object.keys(t!)])];
+      const fx = makeRepo();
+      writeTree(fx, fx.root, b!, all);
+      const wt = fx.worktree(BR);
+      writeTree(fx, fx.root, m!, all);
+      writeTree(fx, wt, t!, all);
+      const mainSha = fx.git(fx.root, "rev-parse", "main");
+      const r = dryMerge(fx.root, mainSha, fx.git(fx.root, "rev-parse", BR));
+      expect({ clean: r !== null, changed: r?.changed ?? [], dryBase: dryBase(true, r !== null) }).toEqual({ clean: g.response.clean, changed: g.response.changed, dryBase: g.response.dryBase });
+      expect(fx.git(fx.root, "rev-parse", "main")).toBe(mainSha);
+      expect(fx.git(fx.root, "status", "--porcelain")).toBe("");
+    } else throw new Error(`unknown op ${q.op}`);
   });
 });
