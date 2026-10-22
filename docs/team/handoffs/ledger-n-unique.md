@@ -1,7 +1,7 @@
 # ledger-n-unique handoff
 Branch: worktree-wf_5c5931a4-08f-1. Worktree: .claude/worktrees/wf_5c5931a4-08f-1. No CI runs pushed (local-only task).
 
-State: nav.clip-box (landed later, 2026-10-23 03:51 vs 02:04) renumbered 48 -> 52 in research/findings/ledger.json.
+State: nav.clip-box (landed later: 209ace6ee 04:12 vs 685dc82a9 04:05 +0700) renumbered 48 -> 52 in research/findings/ledger.json.
 Rule: candidate rows (id + candidate text) have pairwise distinct n from n >= 26 (floor); legacy ids at n 6, 9, 12 share
 their parent's n and stay allowed (accepted limit). No Lean model of the findings ledger rows' n existed
 (Fw.Ops.LedgerMerge is the merge model; Console.Compose.LRow has no n), so a new small module was added.
