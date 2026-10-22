@@ -4178,8 +4178,8 @@
      "note": "legResults lines 65-67"
     },
     {
-     "kind": "status",
-     "ref": "githubstatus.com",
+     "kind": "event",
+     "ref": "sys.ghDegraded",
      "note": "21:2x +07:00 fw watch reported Actions degraded_performance: Incident with Actions Results, the cause of the lagging job status"
     },
     {
