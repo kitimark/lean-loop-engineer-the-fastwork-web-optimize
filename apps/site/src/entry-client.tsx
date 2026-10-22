@@ -4,6 +4,7 @@ import { createClientCache } from './emotion';
 import { ErrorPage } from './ErrorPage';
 import { installFw } from './fw';
 import { resolveSearch } from './registry';
+import { installLayerStyle } from './registry/layer-opts';
 import { parseOnly } from './registry/only';
 import { Root } from './Root';
 import { PartStage, pinEnv } from './stage';
@@ -23,6 +24,7 @@ if (!resolved.ok || only.kind === 'err') {
   window.__fw.hydrated = true;
   createRoot(rootEl).render(<ErrorPage errors={errors} />);
 } else {
+  installLayerStyle(document, resolved.layerOpts);
   // The static HTML was prerendered for one config. Same hash: hydrate. Different: render on the client
   // (hydrating other markup would mismatch). `mode` is recorded so a run can refuse client-render builds.
   // A stage page (`?only=`) is never hydrated: the static shell is the home page, so it renders on the client.
