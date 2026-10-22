@@ -19,7 +19,7 @@ through hardlinks and APFS clones, so removing a tree can free far less than its
 
 0. **`fw disk-gc` first ([disk-gc.md](disk-gc.md)).** It covers steps 1 and 2, the idle `node_modules` and
    `lean/.lake` of unlanded worktrees, old scratch directories, unused `fw-*` Simulator devices and old
-   `.fw-console/tmp` and `land-logs` entries. Each class is decided and proved in `lean/Fw/Ops/DiskGc.lean`.
+   `.fw-console/tmp` and `land-logs` entries, and our own `fw*`, `oracle*` and `instruments*.ktrace` entries in the user temp folder (class 7). Each class is decided and proved in `lean/Fw/Ops/DiskGc.lean`.
    `fw watch` already runs all classes when `sys.diskLow` opens, and every `done` land runs classes 1, 2 and 6. By hand:
    `pnpm -s fw disk-gc` (summary), `--list`, then `--delete [--class …]`. The steps below are for what it leaves.
 1. **Lake artifact cache (largest win: 37.5 GB on 2026-10-18).** `pnpm -s fw lake-gc` lists the artifacts no

@@ -1,5 +1,5 @@
 {"name":"the price list the pilot meets","op":"rates","request":{},"response":{"pools":{"base":30000,"oss":400000},"rates":[{"class":"arm.medium","creditsPerMin":10,"free":true,"platform":"linux-arm","pool":"oss","source":"https://circleci.com/pricing/price-list/"},{"class":"arm.large","creditsPerMin":20,"free":true,"platform":"linux-arm","pool":"oss","source":"https://circleci.com/pricing/price-list/"},{"class":"arm.medium.gen2","creditsPerMin":6,"free":true,"platform":"linux-arm","pool":"oss","source":"https://circleci.com/pricing/price-list/"},{"class":"arm.large.gen2","creditsPerMin":12,"free":true,"platform":"linux-arm","pool":"oss","source":"https://circleci.com/pricing/price-list/"},{"class":"m4pro.medium","creditsPerMin":200,"free":true,"platform":"macos","pool":"base","source":"https://circleci.com/pricing/price-list/"},{"class":"m4pro.large","creditsPerMin":400,"free":false,"platform":"macos","pool":"base","source":"https://circleci.com/pricing/price-list/"}]}}
-{"name":"the stop-rule limits","op":"constants","request":{},"response":{"capMs":3600000,"queueMaxMs":600000,"storageMaxMilli":1000}}
+{"name":"the stop-rule limits","op":"constants","request":{},"response":{"capMs":3600000,"overageCreditsPerGbMonth":420,"ownSaveMilli":235,"queueMaxMs":600000,"retentionDays":{"artifact":30,"cache":15,"workspace":15},"storageAllowMilli":2000,"storageStopMilli":1000,"windowMs":2592000000}}
 {"name":"GitHub job against CircleCI job","op":"jobMap","request":{},"response":{"jobs":[{"circleci":"engine-chromium","digest":true,"github":{"exact":"engine (chromium)"},"lane":"premise-tests","savesCache":true},{"circleci":"engine-playwright-webkit","digest":true,"github":{"exact":"engine (playwright-webkit)"},"lane":"premise-tests","savesCache":true},{"circleci":"verdict","digest":false,"github":{"exact":"verdict"},"lane":"premise-tests","savesCache":false},{"circleci":"webkit-sim","digest":false,"github":{"prefix":"sim (original,","suffix":", v1)","vm":"v1"},"lane":"webkit-sim","savesCache":false}],"landJobs":["land-check-sh","land-suites-a","land-suites-b","land-chromium","land-playwright-webkit"]}}
 {"name":"one minute of arm.medium.gen2 costs its rate","op":"credits","request":{"class":"arm.medium.gen2","durMs":60000},"response":{"credits":6}}
 {"name":"one minute of arm.large.gen2 costs its rate","op":"credits","request":{"class":"arm.large.gen2","durMs":60000},"response":{"credits":12}}
@@ -12,6 +12,22 @@
 {"name":"nothing stored","op":"storage","request":{"bytes":0,"days":15},"response":{"milli":0}}
 {"name":"exactly one GB for 30 days","op":"storage","request":{"bytes":1000000000,"days":30},"response":{"milli":1000}}
 {"name":"one byte for one day rounds up","op":"storage","request":{"bytes":1,"days":1},"response":{"milli":1}}
+{"name":"the ledger of 2026-10-21 as totals: 650","op":"storageNow","request":{"now":1792592506000,"rows":[{"artifacts":1668534,"at":null,"cache":1294676789,"workspace":73728}]},"response":{"milli":650}}
+{"name":"a cache GB fetched now: 15 days count half","op":"storageNow","request":{"now":0,"rows":[{"artifacts":0,"at":0,"cache":1000000000,"workspace":0}]},"response":{"milli":500}}
+{"name":"an artifact GB counts its 30 days","op":"storageNow","request":{"now":0,"rows":[{"artifacts":1000000000,"at":0,"cache":0,"workspace":0}]},"response":{"milli":1000}}
+{"name":"a workspace GB counts 15 days","op":"storageNow","request":{"now":0,"rows":[{"artifacts":0,"at":0,"cache":0,"workspace":1000000000}]},"response":{"milli":500}}
+{"name":"at the window's end the row still counts","op":"storageNow","request":{"now":2592000000,"rows":[{"artifacts":0,"at":0,"cache":1000000000,"workspace":0}]},"response":{"milli":500}}
+{"name":"one ms past the window the row counts 0","op":"storageNow","request":{"now":2592000001,"rows":[{"artifacts":0,"at":0,"cache":1000000000,"workspace":0}]},"response":{"milli":0}}
+{"name":"a row with no time always counts","op":"storageNow","request":{"now":2592000001,"rows":[{"artifacts":0,"at":null,"cache":1000000000,"workspace":0}]},"response":{"milli":500}}
+{"name":"one old row, one recent row","op":"storageNow","request":{"now":5000000000,"rows":[{"artifacts":0,"at":0,"cache":1000000000,"workspace":0},{"artifacts":1668534,"at":5000000000,"cache":400000000,"workspace":73728}]},"response":{"milli":202}}
+{"name":"rounding is once over the sum","op":"storageNow","request":{"now":0,"rows":[{"artifacts":0,"at":0,"cache":1,"workspace":0},{"artifacts":0,"at":0,"cache":0,"workspace":1},{"artifacts":1,"at":0,"cache":0,"workspace":0}]},"response":{"milli":1}}
+{"name":"no row","op":"storageNow","request":{"now":0,"rows":[]},"response":{"milli":0}}
+{"name":"nothing stored","op":"storageCredits","request":{"milli":0},"response":{"credits":0}}
+{"name":"at the allowance","op":"storageCredits","request":{"milli":2000},"response":{"credits":0}}
+{"name":"one thousandth over rounds up to a credit","op":"storageCredits","request":{"milli":2001},"response":{"credits":1}}
+{"name":"one GB-month over: 420","op":"storageCredits","request":{"milli":3000},"response":{"credits":420}}
+{"name":"the 2026-10-21 count plus one own save","op":"storageCredits","request":{"milli":885},"response":{"credits":0}}
+{"name":"ten GB-months","op":"storageCredits","request":{"milli":10000},"response":{"credits":3360}}
 {"name":"no save step ran (the restored cache was current)","op":"cacheSaved","request":{"save":{"kind":"absent"}},"response":{"bytes":0}}
 {"name":"the step found the key stored and uploaded nothing","op":"cacheSaved","request":{"save":{"kind":"skipped"}},"response":{"bytes":0}}
 {"name":"the 9.3 MiB archive of the first Arm pipeline","op":"cacheSaved","request":{"save":{"kind":"stored","tenthsMiB":93}},"response":{"bytes":9856615}}
@@ -125,6 +141,15 @@
 {"name":"storage over 1 GB-month stops","op":"stop","request":{"durMs":0,"queueMs":0,"storageMilli":1001},"response":{"reasons":["storage"],"stop":true}}
 {"name":"all three reasons are listed in order","op":"stop","request":{"durMs":3700000,"queueMs":700000,"storageMilli":2000},"response":{"reasons":["cap","queue","storage"],"stop":true}}
 {"name":"queue and storage without the cap","op":"stop","request":{"durMs":10,"queueMs":700000,"storageMilli":2000},"response":{"reasons":["queue","storage"],"stop":true}}
+{"name":"all within the limits","op":"landStop","request":{"durMs":1800000,"queueMs":60000,"storageMilli":515},"response":{"reasons":[]}}
+{"name":"a job at the 1 h cap stops","op":"landStop","request":{"durMs":3600000,"queueMs":0,"storageMilli":0},"response":{"reasons":["cap"]}}
+{"name":"a job one ms under the cap goes on","op":"landStop","request":{"durMs":3599999,"queueMs":0,"storageMilli":0},"response":{"reasons":[]}}
+{"name":"a queue wait of exactly 10 min goes on","op":"landStop","request":{"durMs":0,"queueMs":600000,"storageMilli":0},"response":{"reasons":[]}}
+{"name":"a queue wait over 10 min stops","op":"landStop","request":{"durMs":0,"queueMs":600001,"storageMilli":0},"response":{"reasons":["queue"]}}
+{"name":"storage over 1 GB-month goes on","op":"landStop","request":{"durMs":0,"queueMs":0,"storageMilli":1001},"response":{"reasons":[]}}
+{"name":"a ledger at 1297 goes on","op":"landStop","request":{"durMs":1800000,"queueMs":60000,"storageMilli":1297},"response":{"reasons":[]}}
+{"name":"cap and queue are listed in order, storage never","op":"landStop","request":{"durMs":3700000,"queueMs":700000,"storageMilli":2000},"response":{"reasons":["cap","queue"]}}
+{"name":"queue without the cap, storage never","op":"landStop","request":{"durMs":10,"queueMs":700000,"storageMilli":100000},"response":{"reasons":["queue"]}}
 {"name":"allowlisted Linux lane, free class, credits left: CircleCI","op":"route","request":{"allow":["premise-tests"],"class":"arm.medium.gen2","creditsLeft":100,"estMs":600000,"ghDegraded":false,"lane":"premise-tests","platform":"linux-arm"},"response":{"provider":"circleci"}}
 {"name":"a lane outside the allowlist stays on GitHub","op":"route","request":{"allow":["premise-tests"],"class":"arm.medium.gen2","creditsLeft":100,"estMs":600000,"ghDegraded":false,"lane":"lean","platform":"linux-arm"},"response":{"provider":"github"}}
 {"name":"an empty allowlist stays on GitHub","op":"route","request":{"allow":[],"class":"arm.medium.gen2","creditsLeft":100,"estMs":600000,"ghDegraded":false,"lane":"premise-tests","platform":"linux-arm"},"response":{"provider":"github"}}

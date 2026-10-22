@@ -13564,7 +13564,12 @@
     "docs/team/handoffs/mac-safari-measure.md",
     "packages/measure-webkit/src/sim-local*.mjs",
     "packages/measure-webkit/test/sim-local*.test.mjs",
-    "packages/measure-webkit/src/xctrace/**"
+    "packages/measure-webkit/src/xctrace/**",
+    "apps/runner/src/land.ts",
+    "lean/scripts/check.sh",
+    "packages/measure-webkit/src/xctrace/guard.mjs",
+    "packages/measure-webkit/src/xctrace/attempt.mjs",
+    "packages/measure-webkit/test/safari-local-guard.test.mjs"
    ]
   },
   {
@@ -14674,7 +14679,20 @@
     "packages/measure-webkit/test/pathpix*.test.mjs",
     ".github/workflows/path-pix.yml",
     "research/notes/2026/10-2x-path-pix.md",
-    "docs/team/handoffs/path-pix-lanes.md"
+    "docs/team/handoffs/path-pix-lanes.md",
+    "apps/runner/src/land.ts",
+    "lean/Fw/Ci/Intent.lean",
+    "lean/Fw/Ci/Overflow.lean",
+    "lean/Fw/Ci/Pool/Caps.lean",
+    "lean/Fw/Ci/Steps.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Ops/LakeJobsGen.lean",
+    "lean/Fw/Gate/PathPix.lean",
+    "packages/contracts/golden/ci/intent.jsonl",
+    "packages/contracts/golden/ci/pool-caps.jsonl",
+    "packages/contracts/golden/ci/steps.jsonl",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "scripts/ci-paths.test.mjs"
    ]
   },
   {
@@ -16200,9 +16218,13 @@
     "lean/Fw/Measure/Census.lean",
     "packages/contracts/golden/measure/census.jsonl",
     "research/notes/2026/10-2x-census-load-variance.md",
-    "docs/team/handoffs/census-load-variance.md"
+    "docs/team/handoffs/census-load-variance.md",
+    "packages/measure-webkit/src/census-check.mjs",
+    "packages/measure-webkit/test/census-check.test.mjs",
+    "packages/measure-webkit/src/cli.mjs"
    ],
-   "title": "Follow-up of layer-census-check (2026-10-22): on the iOS Simulator the undeclared layer set differs between two loads of the same page at y=0 (original 124 vs 106 layers, rewrite 118 vs 110; runs 39760288475, 39763719675), so the base census refuses and no WebKit A/B census can accept. Find the cause (load timing, hold length, the running page's own animations, or the Simulator) with at most 3 dispatches; then state in Lean which undeclared boxes may vary between loads (a settle rule or an allowlist keyed by identity, never a count tolerance) so base vs base accepts, with goldens. Also amend design text section 2.4 / S1 so path-pix-core's S1 premise names the in-page node origin (InspectorLayerTreeAgent.cpp:189-191@862f17d gives integer CSS px bounds). Unit: the cause with run ids, the Lean rule, base vs base accepted on CI."
+   "title": "Follow-up of layer-census-check (2026-10-22): on the iOS Simulator the undeclared layer set differs between two loads of the same page at y=0 (original 124 vs 106 layers, rewrite 118 vs 110; runs 39760288475, 39763719675), so the base census refuses and no WebKit A/B census can accept. Find the cause (load timing, hold length, the running page's own animations, or the Simulator) with at most 3 dispatches; then state in Lean which undeclared boxes may vary between loads (a settle rule or an allowlist keyed by identity, never a count tolerance) so base vs base accepts, with goldens. Also amend design text section 2.4 / S1 so path-pix-core's S1 premise names the in-page node origin (InspectorLayerTreeAgent.cpp:189-191@862f17d gives integer CSS px bounds). Unit: the cause with run ids, the Lean rule, base vs base accepted on CI.",
+   "evidence": "ec36cb8"
   },
   {
    "devices": [
@@ -16411,7 +16433,8 @@
     "docs/team/tools/land.md",
     "docs/team/tools/circleci.md"
    ],
-   "title": "User 2026-10-22: 'github actions was degraded. why our system is not fallback to circle ci?' Research research/notes/2026/10-2x-cc-fallback-why.md: the second gate-settle land (21:21) overflowed all 5 legs but CircleCI was refused on storage: ledger 1297 vs stop 1000, while the real figure is about 650 and the Free allowance 2000. Lean rule changes: (1) storage counts caches and workspaces at CircleCI Free retention 15 days, artifacts at 30, only saves of the last 30 days (window like credits); (2) rename the stop storageStopMilli (half the allowance, documented) and add storageAllowMilli := 2000, no behaviour change; (3) charge the overflow's own Lake cache save (~153) before deciding; theorems: today's ledger row set yields < stop; storage_stop_keeps_github still holds; goldens; scripts/circleci.mjs storageSoFar follows. Follow-up (not this task): re-route a leg that stays pending to CircleCI while Actions is degraded (after land-leg-pending). USER 2026-10-22 ('we can store more than 2 GB, they just charge credits?'): yes, overage is 420 credits per GB-month from the free 30k pool (price CONFIRMED, pool INFERRED). So (4) the storage gate becomes a credit gate: storage past the 2 GB-month allowance is charged at 420 credits per GB-month into the same monthly budget as run credits; the overflow is refused only when run credits + storage overage + the reserve exceed the pool (theorem: no refusal on storage alone while the budget fits); (5) a Lake cache save policy on CircleCI that bounds storage (save on cache-key change only, or a shorter retention), stated in Lean with its expected GB-month per day."
+   "title": "User 2026-10-22: 'github actions was degraded. why our system is not fallback to circle ci?' Research research/notes/2026/10-2x-cc-fallback-why.md: the second gate-settle land (21:21) overflowed all 5 legs but CircleCI was refused on storage: ledger 1297 vs stop 1000, while the real figure is about 650 and the Free allowance 2000. Lean rule changes: (1) storage counts caches and workspaces at CircleCI Free retention 15 days, artifacts at 30, only saves of the last 30 days (window like credits); (2) rename the stop storageStopMilli (half the allowance, documented) and add storageAllowMilli := 2000, no behaviour change; (3) charge the overflow's own Lake cache save (~153) before deciding; theorems: today's ledger row set yields < stop; storage_stop_keeps_github still holds; goldens; scripts/circleci.mjs storageSoFar follows. Follow-up (not this task): re-route a leg that stays pending to CircleCI while Actions is degraded (after land-leg-pending). USER 2026-10-22 ('we can store more than 2 GB, they just charge credits?'): yes, overage is 420 credits per GB-month from the free 30k pool (price CONFIRMED, pool INFERRED). So (4) the storage gate becomes a credit gate: storage past the 2 GB-month allowance is charged at 420 credits per GB-month into the same monthly budget as run credits; the overflow is refused only when run credits + storage overage + the reserve exceed the pool (theorem: no refusal on storage alone while the budget fits); (5) a Lake cache save policy on CircleCI that bounds storage (save on cache-key change only, or a shorter retention), stated in Lean with its expected GB-month per day.",
+   "evidence": "65c3ed7"
   },
   {
    "devices": [
@@ -16436,7 +16459,8 @@
     "docs/team/tools/disk-cleanup.md",
     "docs/team/handoffs/disk-gc-tmp.md"
    ],
-   "title": "User 2026-10-22: 'delete it and investigate why it doesn't automatically gc?' then the disk filled (incident inc-tmp-trace-leak: 161 GB in the macOS user temp folder, ~140 GB of instruments*.ktrace from the xctrace probe plus ~103k fw* test temp dirs; ENOSPC stopped 3 builders). Investigation (workflow disk-gc-gaps, result in the lead scratch disk-gc-gaps-result.json): F1 a vanished candidate (lstat fails -> uid -1) aborts the whole Lean request ('field uid: expected a non-negative integer'): uid becomes Option, unknown owner is kept, never fatal; F2a under sys.diskLow the scratch age floor drops 8 h -> 2 h (theorem pressure_only_lowers, guards unchanged); F2b scratch dirs of a landed task by identity; F3 fw run leaks .fw-console/tmp/<engine>-<runId> (run.ts:286-289, no rmSync; ci.ts and ci-telemetry.ts remove theirs in finally). New: a Lean class for the user temp folder (DARWIN_USER_TEMP_DIR): owned entries whose name matches our prefix allowlist (fw*, oracle*, ghb*, engine-check*, premises*, land-base*, lint*, var*, instruments*.ktrace) older than a floor and not open (lsof, fails closed); never the folder itself, never other names; theorem deletes_subset_allowlist extends to it. A lint (scripts/lint-tmpdirs.mjs) that flags test mkdtemp without a matching rm in afterAll/finally. Report freed bytes per class."
+   "title": "User 2026-10-22: 'delete it and investigate why it doesn't automatically gc?' then the disk filled (incident inc-tmp-trace-leak: 161 GB in the macOS user temp folder, ~140 GB of instruments*.ktrace from the xctrace probe plus ~103k fw* test temp dirs; ENOSPC stopped 3 builders). Investigation (workflow disk-gc-gaps, result in the lead scratch disk-gc-gaps-result.json): F1 a vanished candidate (lstat fails -> uid -1) aborts the whole Lean request ('field uid: expected a non-negative integer'): uid becomes Option, unknown owner is kept, never fatal; F2a under sys.diskLow the scratch age floor drops 8 h -> 2 h (theorem pressure_only_lowers, guards unchanged); F2b scratch dirs of a landed task by identity; F3 fw run leaks .fw-console/tmp/<engine>-<runId> (run.ts:286-289, no rmSync; ci.ts and ci-telemetry.ts remove theirs in finally). New: a Lean class for the user temp folder (DARWIN_USER_TEMP_DIR): owned entries whose name matches our prefix allowlist (fw*, oracle*, ghb*, engine-check*, premises*, land-base*, lint*, var*, instruments*.ktrace) older than a floor and not open (lsof, fails closed); never the folder itself, never other names; theorem deletes_subset_allowlist extends to it. A lint (scripts/lint-tmpdirs.mjs) that flags test mkdtemp without a matching rm in afterAll/finally. Report freed bytes per class.",
+   "evidence": "6b2cd76"
   },
   {
    "devices": [
@@ -16474,7 +16498,11 @@
     "packages/gate-breakpoints/test/trajectory-gpu*.mjs",
     "lean/Fw/Gate/TrajectoryGpu*.lean",
     "packages/contracts/golden/gate/trajectory-gpu*.jsonl",
-    "docs/team/handoffs/gpu-trajectory-cells.md"
+    "docs/team/handoffs/gpu-trajectory-cells.md",
+    ".github/workflows/trajectory-probe.yml",
+    "lean/scripts/TrajectoryGpuGolden.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw.lean"
    ],
    "title": "GPU route (user 2026-10-22: \"experiment then measure and do lean prove ... navbar and the end-of-page\"; design workflow gpu-route-design, lead scratch gpu-route-tasks.json rank 2). Trajectory cells for the GPU arms, specified in Lean first: (a) nav clip cell: read the computed clip-path inset/round on the nav (flag on) or the border box (flag off) and reduce both to one rect + radius per frame; (b) panel effect cell: opacity, filter blur, transform scale per frame at matched tween progress, including the CA-clock vs rAF lead/lag in frames; (c) pain dark cell: the solid-colour layer's opacity vs the faithful class per scroll offset; (d) carousel avatar rects per frame. The reduction (clip -> rect, tolerance, lag in frames) is a Lean function with golden vectors the JS is checked against. Flag: Blocker for the verdicts of nav-fixed-size, morph-panel-threaded, pain-dark-scroll and people-carousel-crop; start it now. No site code.. Lean: Fw.Gate.TrajectoryGpu: clipRect_of_inset (inset + box -> rect, exact on Rat), cell_eq_iff within PixTol 1/2 device px, lagFrames (panel vs nav) with lag <= 1 -> Q else L; goldens for each reducer. Measure: Unit goldens only; first CI run on faithful (A/A) to calibrate the cells."
   },
@@ -16643,9 +16671,11 @@
     "packages/contracts/golden/obs/watch-inflight*.jsonl",
     "apps/runner/src/watch-fold.ts",
     "apps/runner/test/watch-fold.test.ts",
-    "docs/team/handoffs/watch-orphan-call.md"
+    "docs/team/handoffs/watch-orphan-call.md",
+    "lean/Fw/Obs/Golden.lean"
    ],
-   "title": "Incident inc-orphan-tool-call: fw watch raised agent.toolHang 'Bash running for 38 min' for census-load-variance's builder while it was making fresh calls. Its transcript holds a Bash tool_use (15:04:44Z) with no tool_result record; the agent's next assistant message came at 15:10:21Z. watch-fold.ts keeps every tool_use id in `open` until its tool_result arrives, and finishInfo takes the newest open id as inflight, so one missing result record pins inflight forever. Closed rule by identity: a tool call is in flight only while its assistant message (message.id) is the agent's newest assistant message, because the API takes a new assistant turn only after every tool_use of the previous turn has its result; parallel calls share one message.id and stay open together. State the rule in Lean (Fw.Obs: inflight is a function of the newest message's open calls; theorem: a later assistant message clears every older open call; the existing pass_eq_full resume property still holds), generate golden vectors, check watch-fold.ts against them. Regression: replay of a transcript with a missing tool_result gives inflight none after the next assistant message and no toolHang."
+   "title": "Incident inc-orphan-tool-call: fw watch raised agent.toolHang 'Bash running for 38 min' for census-load-variance's builder while it was making fresh calls. Its transcript holds a Bash tool_use (15:04:44Z) with no tool_result record; the agent's next assistant message came at 15:10:21Z. watch-fold.ts keeps every tool_use id in `open` until its tool_result arrives, and finishInfo takes the newest open id as inflight, so one missing result record pins inflight forever. Closed rule by identity: a tool call is in flight only while its assistant message (message.id) is the agent's newest assistant message, because the API takes a new assistant turn only after every tool_use of the previous turn has its result; parallel calls share one message.id and stay open together. State the rule in Lean (Fw.Obs: inflight is a function of the newest message's open calls; theorem: a later assistant message clears every older open call; the existing pass_eq_full resume property still holds), generate golden vectors, check watch-fold.ts against them. Regression: replay of a transcript with a missing tool_result gives inflight none after the next assistant message and no toolHang.",
+   "evidence": "9af690f"
   },
   {
    "devices": [
@@ -16685,6 +16715,89 @@
     "docs/team/handoffs/land-leg-pending-followups.md"
    ],
    "title": "Review follow-ups of land-leg-pending (landed 9824f535): (1) legState now maps a completed 'skipped' leg to ok; a guard-skipped land run is safe only because normalizeGithub binds an unbound pass to '' (land-remote.ts:104-110), which has no theorem: either drop the skipped->ok branch (with its #guard and golden rows) or prove that a guard-skipped run normalizes to an unbound run and never accepts a land, and record the change in inc-land-leg-unfinished; (2) delete legsPass / LandLegs.legsVeto (no caller; they disagree with legState on skipped and pending) so one leg rule exists; (3) a multi-run corollary of verdict_pending_leg_no_refuse (a land with several runs, one pending, is not refused)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "slot-measure-followups",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Sup/MeasureWindow.lean",
+    "packages/contracts/golden/sup/adapt.jsonl",
+    "apps/runner/src/slot.ts",
+    "apps/runner/src/slot-core.ts",
+    "apps/runner/test/slot*.test.ts",
+    "docs/team/tools/slot.md",
+    "docs/team/handoffs/slot-measure-followups.md"
+   ],
+   "title": "Review follow-ups of slot-measure-exclusive (landed a1c72e74): (1) passStartCli: `want` closes the gap (next := now) before passStart; when the pass exits on --wait with VERDICT wait (exit 75) the gap stays closed, so every non-measure ticket waits as `gap` until pass stop/release or the 5400 s deadline, and times out first at maxWaitS 1800: reopen the gap on a refused start (Lean: theorem refused_start_reopens) and document it in slot.md; (2) admitBuild ignores the measure window: gate build admission on passLive (Lean rule, golden); (3) measure tickets get no sim-like priority (decide in Lean)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "disk-gc-tmp-followups",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Ops/DiskGc.lean",
+    "lean/scripts/DiskGcGolden.lean",
+    "packages/contracts/golden/ops/diskgc.jsonl",
+    "apps/runner/src/fw-main.ts",
+    "apps/runner/src/disk-gc.ts",
+    "apps/runner/test/disk-gc.test.ts",
+    "scripts/lint-tmpdirs.mjs",
+    "scripts/lint-tmpdirs.test.mjs",
+    ".github/workflows/lean.yml",
+    "docs/team/tools/disk-gc.md",
+    "docs/team/handoffs/disk-gc-tmp-followups.md"
+   ],
+   "title": "Review follow-ups of disk-gc-tmp: (1) add usertmp to the post-land disk-gc list (fw-main.ts:25 runs lake, landed, console) so the temp folder no longer grows until sys.diskLow; (2) tmpPrefixes misses our own test leftovers (MEASURED: dryl* 715, jev* 679, cm* 678, slots* 306, difftest* 185, rr* 157, replay* 113, wkrep* 122, wkraw* 111, vd* 106, compose* 52, graph* 51): extend the allowlist from git grep of mkdtemp prefixes, with the usertmp_named docstring; (3) wire scripts/lint-tmpdirs.test.mjs into lean.yml's node --test line; (4) Cand.sym fails open: make it Option Bool, require some false in ruleConsole/ruleUsertmp, regenerate goldens; (5) port gatherEventFacts liveness (stop/resume ordered by seq) to Lean; (6) lint pairs each mkdtemp binding with an rm of that name."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "cc-pool-wait-stops",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Ci/Provider.lean",
+    "packages/contracts/golden/ci/provider.jsonl",
+    "scripts/circleci.mjs",
+    "scripts/circleci.test.mjs",
+    "apps/runner/src/ci-pool-tier.ts",
+    "docs/team/tools/circleci.md",
+    "docs/team/handoffs/cc-pool-wait-stops.md"
+   ],
+   "title": "Review follow-up of cc-storage-count: a pool run on CircleCI (ci-pool-tier.ts:44 starts it through the CLI) waited on with `fw ci wait --provider circleci` still applies the pilot stops including ledger storage, so above 1000 that wait cancels the run (code 5), while circleci.md:44 says the pool route does not stop on storage. Use Provider.landStops for pool runs too (a --land-stops flag or the pool tier passing it), with a theorem that a pool-route wait never stops on storage, and a test at ledger 1297."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "census-allowlist-close",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "census-load-variance"
+   ],
+   "writes": [
+    "lean/Fw/Measure/Census.lean",
+    "packages/contracts/golden/measure/census.jsonl",
+    "packages/measure-webkit/src/census-check.mjs",
+    "packages/measure-webkit/src/determinism.mjs",
+    "packages/measure-webkit/test/census*.test.mjs",
+    "apps/site/src/parts/commission/**",
+    "research/notes/2026/10-2x-census-allowlist-close.md",
+    "docs/team/handoffs/census-allowlist-close.md"
+   ],
+   "title": "Review follow-ups of census-load-variance: the runnerStems allowlist is not closed (3 of the last 4 runs each added a stem; only run 39812409397 is fresh on the final list). Closed design: replace prefix stems for non-timer boxes by identity (data-fw ids on the commission section, fee visual, hero feed body and typing avatar in the rewrite, declared layers) or find their load-state cause as for cause 1 (commission section co-occurs with page height 6006 vs 6042 in 39795650433); 'div.fee-visual' without separator hides the steady box too; the rewrite twin section.commission-module_commission_* is not listed (arms unequal). Lean theorem: allowlist monotonicity (accepted under s implies accepted under s' ⊇ s). Check scrollY == requestedY per sample (determinism.mjs pinStates). Then a series of >= 3 fresh base-vs-base runs per arm on the final list before WebKit A/B uses the census."
   }
  ],
  "deadline": {
