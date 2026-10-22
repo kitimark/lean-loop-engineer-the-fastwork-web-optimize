@@ -138,3 +138,4 @@ read 2026-10-22): Haiku 5.5 $0.10 in / $0.50 out, Sonnet 5.5 $2 / $10 per Mtok.
 - 7 D2 rows wait for the next UTC day (daily cap 200).
 - One model version, one run per row: no repeat runs, so no variance across calls.
 - The prompt text and the arm-input writer are TS (`oracle-score.ts`); the bodies they quote are Lean's.
+- The first-run Claude arms read only their prompt chunks; their thinking is signature-only (see `10-2x-jev-retrieval.md`).
