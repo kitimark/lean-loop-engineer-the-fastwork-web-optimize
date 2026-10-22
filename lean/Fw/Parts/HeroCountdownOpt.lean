@@ -216,6 +216,7 @@ theorem stackPx_filter (c : Rat) (as : List Rat) : stackPx c as = stackPx c (as.
     · subst h; simp only [List.foldl_cons, Rat.one_mul, roundQ_int, List.filter_cons]; simpa using ih v
     · simp [h, ih]
 
+/-- Premise not stated by the theorem: the glyph is in a composited layer in both arms or in neither (same scene-pause rule), and the panel opacity is applied once to the group in both arms (render surface / CA group opacity), backdrop blend not modelled: INFERRED. -/
 theorem strip_px_eq (c α : Rat) (strip faces outer : List Rat) (hs : ∀ a ∈ strip, a = 1)
     (hf : ∀ a ∈ faces, a = 1) : stackPx c (strip ++ α :: outer) = stackPx c (faces ++ α :: outer) := by
   have e : ∀ l : List Rat, (∀ a ∈ l, a = 1) → l.filter (· ≠ 1) = [] := fun l h =>

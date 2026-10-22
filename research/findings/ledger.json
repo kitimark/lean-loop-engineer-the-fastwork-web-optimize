@@ -321,7 +321,8 @@
     "Fw.Parts.HeroCountdownOpt.strip_frame_ltE",
     "Fw.Engine.WebKit.face_reattach",
     "Fw.Engine.WebKit.strip_no_reattach",
-    "Fw.Engine.WebKit.reattachPaint_rise"
+    "Fw.Engine.WebKit.reattachPaint_rise",
+    "Fw.Parts.HeroCountdownOpt.strip_still_eq"
    ],
    "leanAgainst": [
     "strip_passes_eq",
@@ -338,7 +339,7 @@
     "will-change composites under WebKit Normal and is dropped under Conservative: CONFIRMED (Fw.Engine.WebKit willChange_dropped)",
     "full-layer backing rule (each layer backs its whole box): INFERRED",
     "face re-entry repaint caused by backing detach: INFERRED (pin detach rule CONFIRMED, repaint cause from v1 on another branch)",
-    "TS strip flag also moves the clock to a shared per-frame subscriber (index.tsx:103-108): CONFIRMED in code, OPEN in the model"
+    "Shared-loop scheduling delta: gone, the TS strip runs startFaithful (index.tsx:100, scheduling.test.ts; strip_still_eq): CONFIRMED"
    ],
    "v1Evidence": "v1 fixes/cd-strip (KD#12): layers 48->16, re-entry paint 53.5->21, menu-centre redraws per open 196->11; Simulator hero-clock Paint records 13->0 per 4 s; WebKit memory up because the whole strip is backed (../fastwork-com-web-optimize/research/gpu-props/README.md:286-297,396-424). v2 local Simulator debug run, not a result (packages/measure-webkit/README.md:267-290): Paint 166->154, but FireAnimationFrame 222->296 and FunctionCall 296->370, caused by the bundled subscriber.",
    "lesson": "Fewer layers is a resident win, not a per-frame win: passes stay equal and only a census can see it, and any growth in backing makes it a trade. A layer variant must not also change scheduling.",
@@ -810,8 +811,8 @@
    ],
    "chromium": "trade",
    "webkit": "win",
-   "visual": "E at scene level for every env/instant (strip_visSame) and pixel E under every panel opacity, fractional included: faces and strips carry opacity 1, and an opacity-1 layer never changes an 8-bit pixel (strip_px_eq, stackPx_filter). Strip entries are top-aligned in their cell, so a glyph sits where the face puts it for every cell and line box (entry_start); centred entries sat 0.09-0.2 px higher at font 24/28 px (entry_center_iff), the INFERRED source of the v1 delta-1 classes.",
-   "mechanism": "Saving is resident only. Every stage runs equally often per frame (strip_passes_eq); only transform-write units fall 10r -> r. Layers drop 80 -> 8, but backing grows 10 -> 12 cells per digit, so the label is trade (strip_backing_gt, strip_label_fullLayer). For morph.countdown the closed panel forces will-change:auto, so both arms have 0 clock layers (paused_same). The gain exists only while the menu is open. CI: Chromium census.layers sees it; per-frame det counters cannot. On WebKit under the Conservative policy both arms are equal.",
+   "visual": "E at scene level for every env/instant (strip_visSame) and pixel E under every panel opacity, fractional included: faces and strips carry opacity 1, and an opacity-1 layer never changes an 8-bit pixel (strip_px_eq, stackPx_filter). Strip entries are top-aligned in their cell, so a glyph sits where the face puts it for every cell and line box (entry_start); centred entries sat 0.09-0.2 px higher at font 24/28 px (entry_center_iff), seen in a local Chromium layout check (not a result); v1's delta-1 classes (opacity-1 identity, delta only under fades) are not explained by placement under this model and are INFERRED to come from v1's different layer partition.",
+   "mechanism": "Saving is resident only. Every stage runs equally often per frame (strip_passes_eq); only transform-write units fall 10r -> r. Layers drop 80 -> 8, but backing grows 10 -> 12 cells per digit, so Core's resident label is trade (strip_backing_gt, strip_label_fullLayer); the webkit field is win by the task's measured criterion (morph-open new layers 81-83 -> 9-11 per pass, resident 128-129 -> 52-56, backing +14 %; notes row morph-strip-webkit), not by a Lean claim. For morph.countdown the closed panel forces will-change:auto, so both arms have 0 clock layers (paused_same). The gain exists only while the menu is open. CI: Chromium census.layers sees it; per-frame det counters cannot. On WebKit under the Conservative policy both arms are equal.",
    "leanFor": [
     "Fw.Parts.HeroCountdownOpt.strip_visSame",
     "Fw.Parts.HeroCountdownOpt.strip_units",
@@ -842,10 +843,10 @@
     "Backing rule for small composited layers (whole border box): INFERRED",
     "Shared-loop scheduling delta: gone, the TS strip runs startFaithful (index.tsx:100, scheduling.test.ts; strip_still_eq): CONFIRMED",
     "Safari Normal compositing policy honours will-change: CONFIRMED (Fw.Engine.WebKit.composites)",
-    "Pixel parity at fractional ancestor opacity: proved (strip_px_eq) given that a glyph raster depends only on its device-pixel position and layer origins differ by whole device pixels (cell = whole CSS px, integer DPR): INFERRED"
+    "Pixel parity at fractional ancestor opacity: proved (strip_px_eq) given that a glyph raster depends only on its device-pixel position and layer origins differ by whole device pixels (cell = whole CSS px, integer DPR); the glyph is in a composited layer in both arms or in neither (same scene-pause rule), and the panel opacity is applied once to the group in both arms (render surface / CA group opacity), backdrop blend not modelled: INFERRED"
    ],
    "v1Evidence": "../fastwork-com-web-optimize/fixes/cd-strip/README.md:6-16,499,716: re-entry digit Paint records 54 -> 21, but painted area unchanged (4.19 vs 4.09/4.21 Mpx); backing 48 -> 16 layers; the user accepted delta-1 pixel classes in fades; inline style writes off screen went up.",
-   "lesson": "Fewer layers with the same per-frame stages changes only resident state. If the new layers are larger, it is a trade. A drop in paint-record count does not mean less painted area. A sub-pixel offset between two layouts of the same glyph (centring a line box in a cell rounded to whole pixels) reads as a rounding difference under a fade; prove the placement before blaming layer partition.",
+   "lesson": "Fewer layers with the same per-frame stages changes only resident state. If the new layers are larger, it is a trade. A drop in paint-record count does not mean less painted area. Under one layer partition, a pixel identical at opacity 1 stays identical under any group opacity (strip_px_eq); a fade-only difference points to a partition change, not to placement.",
    "next": "Chromium C3 (UpdateLayoutTree.elementCount 11264 -> 22445) is not re-judged here; a Chromium-only exclusion needs a per-engine arm."
   },
   {
@@ -3123,7 +3124,7 @@
    "entry": "strip (10 will-change faces per digit -> one 12-entry strip), reused from hero.countdown (KD#12, cd-strip)",
    "task": "morph-strip-webkit",
    "field": "mechanism",
-   "text": "MEASURED on WebKit (iOS Simulator, webkit-cost-counters lane, runs 39775174615, 39776549128 (base: default rewrite) and 39775198022, 39776554155 (flag: ?fw=hero.countdown:strip,morph.countdown:strip); 3 VM sessions and 6 passes per arm, more VMs in the runs may add rows): new layer ids at morph open 81-83 (base) -> 9-11 (flag) per pass, new layers / 100 reads 2075-4050 -> 220-900 (lower); resident layers before the push 128 -> 52-56; paint records 0-500 ms after the open 95-110 -> 28-51 (lower). Frame cadence, Composite us/frame and close/rest zones overlap. The 80 new 18x38 face layers become 8 new 18x434 strip layers: clock backing 54720 -> 62496 CSS px2 (+14 %, strip_backing_gt). UI-process work at morph start is INFERRED lower: each composited layer is one UIView created on the UI main thread (research/notes/2026/10-22-webkit-render-cost.md:72); the Simulator has no real GPU, so GPU cost is INFERRED from layer counts only."
+   "text": "MEASURED on WebKit (iOS Simulator, webkit-cost-counters lane, runs 39775174615, 39776549128 (base: default rewrite) and 39775198022, 39776554155 (flag: ?fw=hero.countdown:strip,morph.countdown:strip); base 5 VMs / 10 passes, flag 4 VMs / 8 passes (one Simulator job per run failed)): new layer ids at morph open 81-83 (base) -> 9-11 (flag) per pass, new layers / 100 reads 2075-4050 -> 220-900 (lower); resident layers before the push 128-129 -> 52-56; paint records 0-500 ms after the open 0-165 -> 28-51 (overlap; 95-165 on the 8 base passes that recorded paints, run 39776549128 r3 recorded 0 in both passes). Frame cadence, Composite us/frame and close/rest zones overlap. The 80 new 18x38 face layers become 8 new 18x434 strip layers: clock backing 54720 -> 62496 CSS px2 (+14 %, strip_backing_gt). UI-process work at morph start is INFERRED lower: each composited layer is one UIView created on the UI main thread (research/notes/2026/10-22-webkit-render-cost.md:72); the Simulator has no real GPU, so GPU cost is INFERRED from layer counts only."
   },
   {
    "entry": "strip (cd-strip, KD#12): 10 will-change faces per digit -> one 12-entry strip",
