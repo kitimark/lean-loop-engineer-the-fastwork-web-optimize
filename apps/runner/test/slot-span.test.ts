@@ -123,8 +123,8 @@ describe("slot run writes the run span under the command key", () => {
     const file = join(dir, "timings.jsonl");
     process.env.FW_TIMINGS_FILE = file;
     try {
-      const d = { env: { FW_SLOT_HELD: "1", PATH: process.env.PATH }, out: () => { throw new Error("sink closed"); }, err: () => {} } as never;
-      await expect(run(d, "check", ["sh", "-c", "echo x"], false)).rejects.toThrow();
+      const d = { env: { FW_SLOT_HELD: "1", PATH: process.env.PATH }, out: () => {}, err: () => {} } as never;
+      await expect(run(d, "check", ["sh\0x"], false)).rejects.toThrow(); // a NUL byte in the program makes spawn throw
       const rows = readFileSync(file, "utf8").trim().split("\n").map((l) => JSON.parse(l) as { step: string; exit: number });
       expect(rows.map((r) => [r.step, r.exit])).toEqual([["slot run check", EXIT_ERROR]]);
     } finally {
