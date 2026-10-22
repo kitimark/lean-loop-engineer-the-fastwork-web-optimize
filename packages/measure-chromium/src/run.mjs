@@ -126,6 +126,7 @@ async function networkBarrier(r0) {
 // A load frame whose evaluate does not answer: the main thread is busy. Record the V8 CPU profile for a few seconds through the
 // browser-side Tracing domain (it needs no renderer answer), print the dearest functions, then fail. Diagnostic for a hung load.
 async function hangProfile(frameNo) {
+  try { console.error('chrome.log tail:\n' + readFileSync('/tmp/chrome.log', 'utf8').slice(-3000)); } catch (e) { console.error('no chrome.log', String(e)); }
   await c.send('Tracing.start', { transferMode: 'ReturnAsStream', traceConfig: { recordMode: 'recordAsMuchAsPossible', includedCategories: ['disabled-by-default-v8.cpu_profiler', 'devtools.timeline', 'cc', 'viz', 'blink', 'headless', 'toplevel'] } });
   await sleep(8000);
   const done = new Promise((res) => c.once('Tracing.tracingComplete', res));
