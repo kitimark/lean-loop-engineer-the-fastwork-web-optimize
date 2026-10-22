@@ -1,6 +1,6 @@
 branch: worktree-wf_67501544-66c-1 (CI branch ci/earn-bound-arm)
 worktree: .claude/worktrees/wf_67501544-66c-1 (under the main checkout)
-last commit: see `git log -1` on the branch (code in ac8932ee; workflow tokens in the commits after it)
+last commit: see `git log -1` on the branch (main merged at d75ce5b8f; land.ts conflict resolved as the union of both read lists)
 
 # earn-bound-arm: done, verdict NO-GO for candidate B
 
@@ -13,8 +13,8 @@ CI runs (all on ci/earn-bound-arm, smoothness.yml; 3 of 6 dispatches used):
 - 39744983394: [sim-only], 4 reps: too few finish windows (MIN_REPS 5), verdict insufficient.
 - 39754568950: [sim-only], 6 reps: 3 sim jobs, 36 windows each, all decisive = the iOS Simulator evidence.
 
-Files: research/notes/2026/10-2x-earn-gpu.md (note, result section), results/earn-bound/report.json (checked with fwcore
-`console.report`: invalid empty; not posted), packages/gate-breakpoints/src/smooth/bound.mjs (+ webkit-cadence.mjs, cli.mjs),
+Files: research/notes/2026/10-2x-earn-gpu.md (note, result section), results/earn-bound/report.json (fwcore `console.report`: `invalid:[]` = accepted,
+item unposted; not posted), packages/gate-breakpoints/src/smooth/bound.mjs (+ webkit-cadence.mjs, cli.mjs),
 packages/measure-webkit/src/profile/{sim-cadence,cli,report}.mjs, smoothness.yml tokens [earn-bound] and [sim-only].
 Writes outside the graph: measure-webkit profile files and test, gate-breakpoints test/smooth-bound.test.mjs, apps/runner/src/land.ts
 (one declared read of bound.mjs for packages/measure-webkit).
@@ -26,5 +26,5 @@ Open / follow-ups:
 - iOS Simulator leg: most hero windows read insufficient (frames land in the wrong zone in some windows); only the finish zone decides.
   Cause not investigated. The Simulator dies after about 30-40 windows; keep sim reps at 6 or fewer per job.
 - TS stand-ins: PAIRS entry base|bound (reuses Lean-twin verdict fns); the go/no-go rule was applied by hand from the across table.
-- No checker corrections for the earn-gpu note existed (earn-r1-findings.md is the older earn drift task); self-checked the CSS line
-  cites (mask is none in the hero pill :195-196, mask on in the other states :224-225).
+- Continue round: report.json was never invalid (`"invalid":[]` is the accepted answer); negative result written into the note
+  (section "Why the bound arm reads same") and a notes row for nav.earn.noTransition in research/findings/ledger.json (outside the graph writes).
