@@ -137,17 +137,15 @@
     .board {
       display: none;
     }
-    /* Variant `dark-scroll` (Lean Fw.Parts.PainDarkScroll): the three backgrounds stay clear and an empty #131922 layer (the
-       section's ::before, so the DOM keeps its children) turns on at the flip offset, `--fw-pain-dark-t` (written by darkScroll.ts), with steps(1, jump-start) on the root
-       scroll timeline over a 1px range. The people part leaves the class alone only where this @supports holds. */
+    /* Variant `dark-scroll` (Lean Fw.Parts.PainDarkScroll): the white section, stage and hold stay as they are; two empty
+       #131922 layers lie over them (the hold region, and the stage above its own background) and turn on at the flip
+       offset, `--fw-pain-dark-t` (written by darkScroll.ts), with steps(1, jump-start) on the root scroll timeline over a
+       1px range. They are pseudo-elements, so no element is added or restyled. The people part leaves the class alone
+       only where this @supports holds. */
     @supports ((animation-timeline: scroll(root)) and (animation-range-start: 1px)) {
-      .pain[data-fw-variant='dark-scroll'] .sticky,
-      .pain[data-fw-variant='dark-scroll'] .hold {
-        background: transparent;
-      }
-      .pain[data-fw-variant='dark-scroll']::before {
+      .pain[data-fw-variant='dark-scroll']::before,
+      .pain[data-fw-variant='dark-scroll'] .sticky::before {
         content: '';
-        z-index: 0;
         pointer-events: none;
         background: #131922;
         opacity: 0;
@@ -159,6 +157,14 @@
         animation-range-start: var(--fw-pain-dark-t, 100000000px);
         animation-range-end: calc(var(--fw-pain-dark-t, 100000000px) + 1px);
         position: absolute;
+      }
+      .pain[data-fw-variant='dark-scroll']::before {
+        z-index: 0;
+        height: 200svh;
+        inset: auto 0 0;
+      }
+      .pain[data-fw-variant='dark-scroll'] .sticky::before {
+        z-index: -1;
         inset: 0;
       }
     }

@@ -14,8 +14,9 @@ const rows = readFileSync(resolve(__dirname, '../../../../../packages/contracts/
 const css = readFileSync(resolve(__dirname, 'pain.module.css'), 'utf8');
 const flat = css.replace(/\s+/g, ' ');
 
-function block(text: string, open: string): string {
-  const at = text.indexOf(open);
+function block(text: string, open: string, nth = 0): string {
+  let at = text.indexOf(open);
+  for (let k = 0; k < nth && at >= 0; k++) at = text.indexOf(open, at + 1);
   if (at < 0) throw new Error(`no block ${open}`);
   let depth = 0;
   for (let i = text.indexOf('{', at); i < text.length; i++) {
@@ -71,14 +72,22 @@ describe('pain dark-scroll CSS', () => {
     expect(narrow).toContain('@supports');
     expect(css.match(/@supports\s*\(/g)?.length).toBe(1);
   });
-  it('keeps the section and the stage clear and the layer dark, behind the content, with no children', () => {
-    const sticky = block(supports, ".pain[data-fw-variant='dark-scroll'] .sticky");
-    expect(decl(sticky, 'background')).toBe('transparent');
+  it('leaves every existing background alone: two dark pseudo-elements, no element and no restyle', () => {
+    expect(supports).not.toMatch(/transparent/);
     expect(decl(layer, 'background')).toBe('#131922');
-    expect(decl(layer, 'z-index')).toBe('0');
-    expect(decl(layer, 'inset')).toBe('0');
     expect(decl(layer, 'position')).toBe('absolute');
     expect(decl(layer, 'pointer-events')).toBe('none');
+    expect(narrow).toContain('background: #fff;');
+  });
+  it('covers the hold under the stage and the stage above its own background, both behind the content', () => {
+    const hold = block(supports, ".pain[data-fw-variant='dark-scroll']::before {");
+    expect(decl(hold, 'height')).toBe('200svh');
+    expect(decl(hold, 'inset')).toBe('auto 0 0');
+    expect(decl(hold, 'z-index')).toBe('0');
+    const stage = block(supports, ".pain[data-fw-variant='dark-scroll'] .sticky::before {", 1);
+    expect(decl(stage, 'inset')).toBe('0');
+    expect(decl(stage, 'z-index')).toBe('-1');
+    expect(flat).toContain('height: 200svh;');
   });
   it('animates opacity only, steps(1, jump-start), on the root scroll timeline, filled both ways', () => {
     expect(decl(layer, 'animation-timing-function')).toBe('steps(1, jump-start)');
@@ -91,10 +100,11 @@ describe('pain dark-scroll CSS', () => {
     expect(decl(layer, 'animation-range-start')).toBe(`var(${RANGE_VAR}, 100000000px)`);
     expect(decl(layer, 'animation-range-end')).toBe(`calc(var(${RANGE_VAR}, 100000000px) + 1px)`);
   });
-  it('exists only inside the band and the @supports, as the section pseudo-element (no child is added)', () => {
-    expect(css.match(/\]::before/g)?.length).toBe(1);
+  it('exists only inside the band and the @supports, as pseudo-elements (no child is added)', () => {
+    expect(css.match(/\](?: \.sticky)?::before/g)?.length).toBe(4);
     expect(decl(layer, 'content')).toBe("''");
     expect(supports).toContain(".pain[data-fw-variant='dark-scroll']::before");
+    expect(supports).toContain(".pain[data-fw-variant='dark-scroll'] .sticky::before");
   });
 });
 

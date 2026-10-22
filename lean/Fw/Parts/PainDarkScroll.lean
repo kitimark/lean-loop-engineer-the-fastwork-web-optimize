@@ -10,10 +10,10 @@ Original (`snapshot/site-pretty/_app/immutable/nodes/2.DyWL8TcE.js`, `Fw.Parts.P
 860 px the people card driver adds `is-pain-dark` to the Pain section once the People header's top is at or above
 `0.5` px, which swaps the white section, stage and hold backgrounds for `#131922`.
 
-Variant: the three backgrounds stay transparent in the band and an empty `#131922` layer behind the content has its
-opacity animated from 0 to 1 on the root scroll timeline with `steps(1, jump-start)`, range start `T = H - 1/2` (`H` the
-header's document top, written once per layout), range length `len > 0`, fill both. Above 860 px the layer is hidden and
-the base CSS is dark in both arms.
+Variant: the white backgrounds stay and two empty `#131922` layers lie over them behind the content (over the hold, and
+over the stage's own background); each has its opacity animated from 0 to 1 on the root scroll timeline with
+`steps(1, jump-start)`, range start `T = H - 1/2` (`H` the header's document top, written once per layout), range length
+`len > 0`, fill both. Above 860 px the layers do not exist and the base CSS is dark in both arms.
 -/
 namespace Fw.Parts.PainDarkScroll
 open Fw.Parts.PeopleCard
@@ -238,8 +238,8 @@ def liftsThrottle (effects : List (List Fw.Engine.WebKit.CssProp)) : Bool :=
 /-- **The variant does not lift the scroll throttle**: its only effect is completely accelerated. -/
 theorem no_lift : liftsThrottle [darkProps] = false := by decide
 
-/-- The layer count the variant adds, at most 3 (one per site section kept; this build uses one). -/
-def solidLayers : Nat := 1
+/-- The layers the variant adds: one over the hold, one over the stage (at most 3). -/
+def solidLayers : Nat := 2
 
 theorem solid_layers_le : solidLayers ≤ 3 := by decide
 
