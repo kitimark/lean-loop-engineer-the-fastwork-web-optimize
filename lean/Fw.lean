@@ -201,6 +201,7 @@ import Fw.Obs.FeedbackAlert
 import Fw.Console.LandPool
 import Fw.Land.RenderGuard
 import Fw.Ops.LedgerMerge
+import Fw.Console.LedgerUnique
 import Fw.Ops.Cache
 import Fw.Ops.LakeCache
 import Fw.Ops.Rebuild
