@@ -13570,7 +13570,8 @@
     "packages/measure-webkit/src/xctrace/guard.mjs",
     "packages/measure-webkit/src/xctrace/attempt.mjs",
     "packages/measure-webkit/test/safari-local-guard.test.mjs"
-   ]
+   ],
+   "evidence": "d432964"
   },
   {
    "devices": [

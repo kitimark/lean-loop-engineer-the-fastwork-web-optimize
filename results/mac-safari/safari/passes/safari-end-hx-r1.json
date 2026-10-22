@@ -1,0 +1,32 @@
+{
+ "engine": "safari",
+ "arm": "hx",
+ "window": "end",
+ "round": 1,
+ "decision": "refuse",
+ "phase": "after",
+ "why": [
+  "avail"
+ ],
+ "before": {
+  "time": 1792676393,
+  "load": 2.46,
+  "availMB": 1237,
+  "press": 1,
+  "comprMBPerMin": 0,
+  "swapOutMBPerMin": 0,
+  "holders": 0,
+  "queued": 0
+ },
+ "after": {
+  "time": 1792676401,
+  "load": 2.42,
+  "availMB": 479,
+  "press": 1,
+  "comprMBPerMin": 0,
+  "swapOutMBPerMin": 0,
+  "holders": 0,
+  "queued": 0
+ },
+ "ms": 93482
+}
