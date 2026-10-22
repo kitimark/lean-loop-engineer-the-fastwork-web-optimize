@@ -2,7 +2,7 @@ import Lean.Data.Json
 import Fw.Gate.PathPix
 import Fw.Parts.MorphPanel
 /-!
-# GPU trajectory cells: clip rect, matched cell, panel lag, pain flip
+# GPU trajectory cells: clip rect, matched cell, panel lag, pain flip, carousel swaps
 Spec of the reducers in `packages/gate-breakpoints/src/trajectory/cells-gpu.mjs`, checked against `golden/gate/trajectory-gpu.jsonl`.
 -/
 namespace Fw.Gate.TrajectoryGpu
@@ -642,6 +642,170 @@ theorem painGrade_length (b c : List Rat) (h : b.length ≠ c.length) : painGrad
 #guard painGrade [0, 1 / 2, 1] [0, 3 / 4, 1] == some .l
 #guard painGrade [0, 1] [0] == none
 
+def worse (a b : Grade) : Grade := if a.rank.getD 0 < b.rank.getD 0 then b else a
+
+def worst (gs : List (Option Grade)) : Option Grade :=
+  match gs.mapM id with
+  | some (g :: rest) => some (rest.foldl worse g)
+  | _ => none
+
+theorem mapM_id_none : ∀ (gs : List (Option Grade)), none ∈ gs → gs.mapM id = none
+  | [], h => by simp at h
+  | none :: _, _ => by simp [List.mapM_cons]
+  | some _ :: rest, h => by
+    have : none ∈ rest := by simpa using h
+    simp [List.mapM_cons, mapM_id_none rest this]
+
+theorem worst_nil : worst [] = none := rfl
+
+theorem worst_none_mem (gs : List (Option Grade)) (h : none ∈ gs) : worst gs = none := by
+  simp [worst, mapM_id_none gs h]
+
+#guard worst [some .e, some .e] == some .e
+#guard worst [some .e, some .q, some .e] == some .q
+#guard worst [some .l, some .e, some .q] == some .l
+#guard worst [some .e, none] == none
+
+abbrev Row := Option (List Int)
+
+def restedBefore (rows : List Row) (i : Nat) : Bool :=
+  0 < i && match rows[i - 1]?, rows[i]? with
+    | some (some a), some (some b) => a == b
+    | _, _ => false
+
+theorem restedBefore_zero (rows : List Row) : restedBefore rows 0 = false := rfl
+
+structure Scan where
+  cur : Option (Nat × Nat)
+  quiet : Nat
+  spans : List (Nat × Nat)
+
+def settle (rows : List Row) (still : Nat) (sp : Nat × Nat) (q : Nat) (spans : List (Nat × Nat)) : Scan :=
+  if still ≤ q then ⟨none, 0, if restedBefore rows sp.1 then spans ++ [sp] else spans⟩ else ⟨some sp, q, spans⟩
+
+def scanStep (rows : List Row) (still : Nat) (s : Scan) (i : Nat) : Scan :=
+  match rows[i - 1]?, rows[i]? with
+  | some (some a), some (some b) =>
+    match (if a != b && s.cur.isNone then some (i - 1, i) else s.cur) with
+    | none => s
+    | some (f, t) => settle rows still (f, if a == b then t else i) (if a == b then s.quiet + 1 else 0) s.spans
+  | _, _ => ⟨none, 0, s.spans⟩
+
+def swapSpans (rows : List Row) (still : Nat) : List (Nat × Nat) :=
+  ((List.range' 1 (rows.length - 1)).foldl (scanStep rows still) ⟨none, 0, []⟩).spans
+
+theorem settle_rested (rows : List Row) (still : Nat) (sp : Nat × Nat) (q : Nat) (spans : List (Nat × Nat))
+    (h : ∀ x ∈ spans, restedBefore rows x.1 = true) :
+    ∀ x ∈ (settle rows still sp q spans).spans, restedBefore rows x.1 = true := by
+  intro x hx
+  unfold settle at hx
+  split at hx
+  · split at hx
+    · simp only [List.mem_append, List.mem_singleton] at hx
+      rcases hx with hx | rfl
+      · exact h x hx
+      · assumption
+    · exact h x hx
+  · exact h x hx
+
+theorem scanStep_rested (rows : List Row) (still : Nat) (s : Scan) (i : Nat)
+    (h : ∀ sp ∈ s.spans, restedBefore rows sp.1 = true) :
+    ∀ sp ∈ (scanStep rows still s i).spans, restedBefore rows sp.1 = true := by
+  unfold scanStep
+  split
+  · split
+    · exact h
+    · exact settle_rested _ _ _ _ _ h
+  · exact h
+
+theorem foldScan_rested (rows : List Row) (still : Nat) (is : List Nat) (s : Scan)
+    (h : ∀ sp ∈ s.spans, restedBefore rows sp.1 = true) :
+    ∀ sp ∈ (is.foldl (scanStep rows still) s).spans, restedBefore rows sp.1 = true := by
+  induction is generalizing s with
+  | nil => exact h
+  | cons i rest ih => exact ih _ (scanStep_rested rows still s i h)
+
+theorem swapSpans_rested (rows : List Row) (still : Nat) (sp : Nat × Nat) (h : sp ∈ swapSpans rows still) :
+    restedBefore rows sp.1 = true :=
+  foldScan_rested rows still _ ⟨none, 0, []⟩ (by simp) sp h
+
+theorem swapSpans_from_pos (rows : List Row) (still : Nat) (sp : Nat × Nat) (h : sp ∈ swapSpans rows still) :
+    0 < sp.1 := by
+  have := swapSpans_rested rows still sp h
+  simp only [restedBefore, Bool.and_eq_true, decide_eq_true_eq] at this
+  exact this.1
+
+def frameMs : Rat := 50 / 3
+
+def swapSeries (rows : List Row) (sp : Nat × Nat) : Series :=
+  let vs := ((rows.drop sp.1).take (sp.2 + 2 - sp.1)).map (·.getD [])
+  let full := vs.foldl (fun m v => max m v.length) 0
+  ((List.range vs.length).zip vs |>.filter fun (_, v) => v.length == full).map fun (j, v) =>
+    ((j : Rat) * frameMs, v.map fun (x : Int) => (x : Rat) / 1000)
+
+def swapsOf (rows : List Row) (still : Nat := 6) : List Series := (swapSpans rows still).map (swapSeries rows)
+
+def carouselGrid : List Rat := [-1, -3 / 4, -1 / 2, -1 / 4, 1 / 4, 1 / 2, 3 / 4, 1]
+
+def carouselMinCovered : Nat := 4
+
+def swapGrade (dpr : Rat) (b c : Series) : Option Grade :=
+  matchedGrade (List.replicate ((b.head?.map (·.2.length)).getD 0) (tolCss dpr)) carouselGrid frameMs carouselMinCovered b c
+
+def carouselReps (dpr : Rat) (bs cs : List Series) : List (Option Grade) := (bs.zip cs).map fun (b, c) => swapGrade dpr b c
+
+def carouselGrade (nb nc : Nat) (reps : List (Option Grade)) : Option Grade := if nb = nc then worst reps else some .l
+
+structure CarouselCell where
+  swaps : Nat × Nat
+  reps : List (Option Grade)
+  grade : Option Grade
+
+def carouselCell (dpr : Rat) (base cand : List Row) : CarouselCell :=
+  let bs := swapsOf base
+  let cs := swapsOf cand
+  let reps := carouselReps dpr bs cs
+  ⟨(bs.length, cs.length), reps, carouselGrade bs.length cs.length reps⟩
+
+theorem carouselGrade_mismatch (nb nc : Nat) (reps : List (Option Grade)) (h : nb ≠ nc) :
+    carouselGrade nb nc reps = some .l := by
+  simp [carouselGrade, h]
+
+theorem carouselCell_mismatch (dpr : Rat) (base cand : List Row) (h : (swapsOf base).length ≠ (swapsOf cand).length) :
+    (carouselCell dpr base cand).grade = some .l :=
+  carouselGrade_mismatch _ _ _ h
+
+theorem carouselCell_zero_swaps (dpr : Rat) (base cand : List Row) (hb : swapsOf base ≠ []) (hc : swapsOf cand = []) :
+    (carouselCell dpr base cand).grade = some .l := by
+  apply carouselCell_mismatch
+  rw [hc]
+  simpa using hb
+
+theorem carouselCell_null_rep (dpr : Rat) (base cand : List Row)
+    (hn : (swapsOf base).length = (swapsOf cand).length) (h : none ∈ (carouselCell dpr base cand).reps) :
+    (carouselCell dpr base cand).grade = none := by
+  simp only [carouselCell, carouselGrade, hn, ite_true]
+  exact worst_none_mem _ h
+
+def painDir (b c : List Rat) : Option Grade := if !b.isEmpty && changes b == 0 then none else painGrade b c
+
+theorem painDir_no_flip (b c : List Rat) (hb : b ≠ []) (h : changes b = 0) : painDir b c = none := by
+  have : b.isEmpty = false := by cases b <;> simp_all
+  simp [painDir, this, h]
+
+theorem painDir_flips (b c : List Rat) (h : changes b ≠ 0) : painDir b c = painGrade b c := by
+  simp [painDir, h]
+
+def painCell (up down : List Rat × List Rat) : List (Option Grade) := [painDir up.1 up.2, painDir down.1 down.2]
+
+theorem painCell_no_flip_up (up down : List Rat × List Rat) (hb : up.1 ≠ []) (h : changes up.1 = 0) :
+    worst (painCell up down) = none :=
+  worst_none_mem _ (by simp [painCell, painDir_no_flip up.1 up.2 hb h])
+
+theorem painCell_no_flip_down (up down : List Rat × List Rat) (hb : down.1 ≠ []) (h : changes down.1 = 0) :
+    worst (painCell up down) = none :=
+  worst_none_mem _ (by simp [painCell, painDir_no_flip down.1 down.2 hb h])
+
 def ratStr (r : Rat) : String := s!"{r.num}/{r.den}"
 
 def vecJson (v : List Rat) : Json := toJson (v.map ratStr)
@@ -663,6 +827,66 @@ def seriesJson (s : Series) : Json := toJson (s.map fun (k, v) => Json.mkObj [("
 def ramp (n : Nat) (step : Rat) (f : Rat → List Rat) : Series := (List.range n).map fun (i : Nat) => ((i : Rat) * step, f ((i : Rat) * step))
 
 def gradeName (g : Option Grade) : Json := toJson (g.map Grade.name)
+
+def ringAt (x : Int) : Row := some [x, 0, 32000, 32000]
+
+def hold (x : Int) (n : Nat) : List Row := List.replicate n (ringAt x)
+
+def glide (x0 x1 : Int) (n : Nat) : List Row :=
+  (List.range n).map fun (i : Nat) => ringAt (x0 + (x1 - x0) * ((i : Int) + 1) / ((n : Int) + 1))
+
+def wideAt (x : Int) : Row := some [x, 0, 32000, 32000, x + 24000, 0, 32000, 32000]
+
+def twoSwaps : List Row := hold 0 8 ++ glide 0 30000 5 ++ hold 30000 10 ++ glide 30000 60000 5 ++ hold 60000 10
+
+def restedCases : List (String × List Row × Nat) :=
+  [("the first row", twoSwaps, 0), ("two equal rows", twoSwaps, 1), ("a change", twoSwaps, 9),
+   ("an unread row before", [none, ringAt 0], 1), ("past the end", hold 0 2, 2)]
+
+def swapCases : List (String × List Row × Nat) :=
+  [("opens at rest", twoSwaps, 6), ("opens mid-swap", twoSwaps.drop 10, 6),
+   ("opens one row before a swap", twoSwaps.drop 7, 6), ("ends mid-swap", twoSwaps.take 26, 6),
+   ("an unread row inside the swap", hold 0 8 ++ glide 0 30000 2 ++ [none] ++ glide 15000 30000 2 ++ hold 30000 10, 6),
+   ("an entering avatar", hold 0 8 ++ ((List.range 4).map fun (i : Nat) => wideAt (-6000 * ((i : Int) + 1))) ++ hold (-30000) 10, 6),
+   ("a shorter quiet", hold 0 4 ++ glide 0 30000 3 ++ hold 30000 3 ++ glide 30000 60000 3 ++ hold 60000 3, 2)]
+
+def missingSwap : List Row := hold 0 8 ++ glide 0 30000 5 ++ hold 30000 25
+
+def jumpSwap : List Row := hold 0 8 ++ glide 0 30000 5 ++ hold 30000 10 ++ hold 60000 10
+
+def movedEnd : List Row := hold 0 8 ++ glide 0 30000 5 ++ hold 30000 10 ++ glide 30000 61000 5 ++ hold 61000 10
+
+def carouselCases : List (String × List Row × List Row) :=
+  [("equal swaps in step", twoSwaps, twoSwaps), ("one swap missing", twoSwaps, missingSwap),
+   ("zero swaps", twoSwaps, hold 0 38), ("a null rep among E reps", jumpSwap, jumpSwap),
+   ("no swaps on either side", hold 0 20, hold 0 20), ("end position moved", twoSwaps, movedEnd),
+   ("candidate opens mid-swap", twoSwaps, twoSwaps.drop 10)]
+
+def carouselDpr : Rat := 2
+
+#guard (carouselCases.map fun (_, b, c) => (carouselCell carouselDpr b c).grade) ==
+  [some .e, some .l, some .l, none, none, some .l, some .l]
+
+#guard (carouselCell carouselDpr jumpSwap jumpSwap).reps == [some .e, none]
+
+#guard (swapCases.map fun (_, rs, st) => swapSpans rs st) ==
+  [[(7, 13), (22, 28)], [(12, 18)], [(15, 21)], [(7, 13)], [], [(7, 12)], [(3, 7), (9, 13)]]
+
+def painCellCases : List (String × (List Rat × List Rat) × (List Rat × List Rat)) :=
+  [("both directions flip, equal", ([1, 1, 0, 0], [1, 1, 0, 0]), ([0, 0, 1, 1], [0, 0, 1, 1])),
+   ("down flips one step late", ([1, 1, 0, 0], [1, 1, 0, 0]), ([0, 0, 1, 1], [0, 0, 0, 1])),
+   ("up base never flips", ([1, 1, 1, 1], [1, 1, 1, 1]), ([0, 0, 1, 1], [0, 0, 1, 1])),
+   ("up base empty", ([], []), ([0, 0, 1, 1], [0, 0, 1, 1])),
+   ("up flicker", ([1, 1, 0, 0], [1, 0, 1, 0]), ([0, 0, 1, 1], [0, 0, 1, 1]))]
+
+#guard (painCellCases.map fun (_, u, d) => worst (painCell u d)) == [some .e, some .q, none, none, some .l]
+
+def worstCases : List (List (Option Grade)) :=
+  [[], [some .e, some .e], [some .e, some .q, some .e], [some .l, some .e, some .q], [some .e, none], [none], [none, some .l]]
+
+def rowsJson (rs : List Row) : Json := toJson rs
+
+def gradesJson (gs : List (Option Grade)) : Json := toJson (gs.map gradeName)
 
 def clipCases : List (String × Box × Rat × String) :=
   [("none keeps the border box", ⟨0, 0, 100, 40⟩, 20, "none"),
@@ -803,7 +1027,21 @@ def goldenLines (_ : Unit := ()) : List String :=
   painCases.map (fun (n, b, c) =>
     o [("kind", "pain"), ("name", toJson n), ("base", vecJson b), ("cand", vecJson c), ("grade", gradeName (painGrade b c))]) ++
   [(some (1 / 2 : Rat), false), (some 0, true), (none, true), (none, false)].map (fun (l, c) =>
-    o [("kind", "dark"), ("layer", toJson (l.map ratStr)), ("class", toJson c), ("out", toJson (ratStr (darkness l c)))])
+    o [("kind", "dark"), ("layer", toJson (l.map ratStr)), ("class", toJson c), ("out", toJson (ratStr (darkness l c)))]) ++
+  worstCases.map (fun gs => o [("kind", "worst"), ("in", gradesJson gs), ("out", gradeName (worst gs))]) ++
+  restedCases.map (fun (n, rs, i) =>
+    o [("kind", "rested"), ("name", toJson n), ("rows", rowsJson rs), ("i", toJson i), ("out", toJson (restedBefore rs i))]) ++
+  swapCases.map (fun (n, rs, st) =>
+    o [("kind", "swaps"), ("name", toJson n), ("rows", rowsJson rs), ("still", toJson st),
+      ("spans", toJson ((swapSpans rs st).map fun (f, t) => [f, t])),
+      ("out", toJson ((swapSpans rs st).map fun sp => seriesJson (swapSeries rs sp)))]) ++
+  carouselCases.map (fun (n, b, c) =>
+    let cc := carouselCell carouselDpr b c
+    o [("kind", "carousel"), ("name", toJson n), ("dpr", toJson (ratStr carouselDpr)), ("base", rowsJson b), ("cand", rowsJson c),
+      ("swaps", toJson [cc.swaps.1, cc.swaps.2]), ("reps", gradesJson cc.reps), ("grade", gradeName cc.grade)]) ++
+  painCellCases.map (fun (n, (ub, uc), (db, dc)) =>
+    o [("kind", "paincell"), ("name", toJson n), ("up", toJson [vecJson ub, vecJson uc]), ("down", toJson [vecJson db, vecJson dc]),
+      ("reps", gradesJson (painCell (ub, uc) (db, dc))), ("grade", gradeName (worst (painCell (ub, uc) (db, dc))))])
 
 def goldenText (_ : Unit := ()) : String := String.intercalate "" ((goldenLines ()).map (· ++ "\n"))
 
