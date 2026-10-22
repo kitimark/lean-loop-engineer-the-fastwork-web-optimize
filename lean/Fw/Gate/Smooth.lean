@@ -696,43 +696,61 @@ def minSamples : Nat := 3
 /-- The agreement asked of `n` samples: two thirds, rounded up (5 of 7, 7 of 10). -/
 def agreeNeeded (n : Nat) : Nat := (2 * n + 2) / 3
 
+/-- The samples that came to a verdict: first, second or same. -/
+def decisive (vs : List Verdict) : Nat := vs.count .first + vs.count .second + vs.count .same
+
 /-- The verdict over samples: `first` when at least `k` say first and none says second, `second` the other way, `same` otherwise;
-`insufficient` below `minSamples` samples or for `k = 0`. -/
+`insufficient` below `minSamples` decisive samples or for `k = 0`. -/
 def across (k : Nat) (vs : List Verdict) : Verdict :=
-  if vs.length < minSamples ∨ k = 0 then .insufficient
+  if decisive vs < minSamples ∨ k = 0 then .insufficient
   else if k ≤ vs.count .first ∧ vs.count .second = 0 then .first
   else if k ≤ vs.count .second ∧ vs.count .first = 0 then .second
   else .same
 
+private theorem decisive_le (vs : List Verdict) : decisive vs ≤ vs.length := by
+  induction vs with
+  | nil => simp [decisive]
+  | cons x xs ih =>
+    simp only [decisive, List.count_cons, List.length_cons] at ih ⊢
+    cases x <;> simp (config := { decide := true }) only [ite_true, ite_false] <;> omega
+
 /-- **Too few samples is never a verdict.** -/
 theorem across_few (k : Nat) (vs : List Verdict) (h : vs.length < minSamples) : across k vs = .insufficient := by
+  have hd : decisive vs ≤ vs.length := decisive_le vs
+  unfold across
+  repeat' split
+  all_goals first | rfl | omega
+
+/-- **Undecided samples are never a verdict.** Below `minSamples` first, second or same samples, `across` is `insufficient`
+however many `insufficient` samples come with them. -/
+theorem across_insufficient (k : Nat) (vs : List Verdict) (h : decisive vs < minSamples) : across k vs = .insufficient := by
   unfold across
   repeat' split
   all_goals first | rfl | omega
 
 /-- The branch where at least `k` samples say first and none says second. -/
-theorem across_first (k : Nat) (vs : List Verdict) (hk : 0 < k) (hn : minSamples ≤ vs.length)
+theorem across_first (k : Nat) (vs : List Verdict) (hk : 0 < k) (hn : minSamples ≤ decisive vs)
     (hf : k ≤ vs.count .first) (hs : vs.count .second = 0) : across k vs = .first := by
   unfold across
   repeat' split
   all_goals first | rfl | omega
 
 /-- The branch where at least `k` samples say second and none says first. -/
-theorem across_second (k : Nat) (vs : List Verdict) (hk : 0 < k) (hn : minSamples ≤ vs.length)
+theorem across_second (k : Nat) (vs : List Verdict) (hk : 0 < k) (hn : minSamples ≤ decisive vs)
     (hs : k ≤ vs.count .second) (hf : vs.count .first = 0) : across k vs = .second := by
   unfold across
   repeat' split
   all_goals first | rfl | omega
 
 /-- **One disagreeing sample blocks the claim.** Any sample for each side gives `same`. -/
-theorem across_split (k : Nat) (vs : List Verdict) (hk : 0 < k) (hn : minSamples ≤ vs.length)
+theorem across_split (k : Nat) (vs : List Verdict) (hk : 0 < k) (hn : minSamples ≤ decisive vs)
     (hf : 0 < vs.count .first) (hs : 0 < vs.count .second) : across k vs = .same := by
   unfold across
   repeat' split
   all_goals first | rfl | omega
 
 /-- The branch where too few samples agree and none disagrees: same. -/
-theorem across_same (k : Nat) (vs : List Verdict) (hk : 0 < k) (hn : minSamples ≤ vs.length)
+theorem across_same (k : Nat) (vs : List Verdict) (hk : 0 < k) (hn : minSamples ≤ decisive vs)
     (hf : vs.count .first < k) (hs : vs.count .second < k) : across k vs = .same := by
   unfold across
   repeat' split
@@ -749,8 +767,9 @@ private theorem count_swap (vs : List Verdict) (v : Verdict) : (vs.map Verdict.s
 theorem across_swap (k : Nat) (vs : List Verdict) : across k (vs.map Verdict.swap) = (across k vs).swap := by
   have hf : (vs.map Verdict.swap).count .first = vs.count .second := count_swap vs .second
   have hs : (vs.map Verdict.swap).count .second = vs.count .first := count_swap vs .first
-  unfold across
-  rw [List.length_map, hf, hs]
+  have he : (vs.map Verdict.swap).count .same = vs.count .same := count_swap vs .same
+  unfold across decisive
+  rw [hf, hs, he]
   repeat' split
   all_goals first | rfl | omega
 
@@ -835,7 +854,11 @@ def acrossCases : List (Nat × List Verdict) := [
   (0, [.first, .first, .first, .first, .first]),
   (2, [.first, .first, .insufficient]),
   (5, []),
-  (3, [.second, .second, .second, .insufficient, .same])]
+  (3, [.second, .second, .second, .insufficient, .same]),
+  (4, [.insufficient, .insufficient, .insufficient, .insufficient, .insufficient]),
+  (4, [.first, .same, .insufficient, .insufficient, .insufficient]),
+  (3, [.first, .first, .first, .insufficient, .insufficient]),
+  (4, [.first, .first, .same, .insufficient, .insufficient])]
 
 /-- Sample counts for the agreement asked. -/
 def agreeCases : List Nat := [0, 1, 3, 4, 7, 10]
@@ -910,7 +933,7 @@ def run (args : List String) : IO UInt32 := do
 #guard (metrics (ramp 1000 10 [0, 0, 0, 0, 0, 0, 600, 700, 800, 900, 1000])).stalls == 5
 #guard (metrics (ramp 1000 10 [0, 0, 0, 0, 0, 0, 600, 700, 800, 900, 1000])).jumps == 1
 #guard (metrics (frames [(0, 0, 0), (160, 400, 400), (320, 800, 800), (480, 1000, 1000), (640, 1000, 1030), (800, 1000, 1050), (960, 1000, 1050)])).tailSteps == 2
-#guard goldenLines.length == 61 + 6 + 9 + 9 + 6
+#guard goldenLines.length == 61 + 6 + 9 + 13 + 6
 #guard (verdict (armOf 5 [1, 2, 1]) (armOf 5 [9, 11, 10]) (armOf 5 [3, 4, 3]) (armOf 5 [3, 3, 4])) == .first
 #guard (verdict (armOf 4 [1]) (armOf 5 [9]) (armOf 5 [3]) (armOf 5 [3])) == .insufficient
 #guard hitches [167, 600, 601, 1000] == 2
@@ -918,5 +941,8 @@ def run (args : List String) : IO UInt32 := do
 #guard hitchVerdict [1, 1, 0, 1, 1] [0, 0, 0, 0, 0] [1, 1, 1, 1, 1] [1, 1, 1, 1, 1] == .same
 #guard across 5 [.first, .first, .first, .first, .first, .same, .same] == .first
 #guard across 5 [.first, .first, .first, .first, .first, .second] == .same
+#guard across 3 [.insufficient, .insufficient, .insufficient, .insufficient] == .insufficient
+#guard across 2 [.first, .first, .insufficient, .insufficient] == .insufficient
+#guard across 2 [.first, .first, .same, .insufficient] == .first
 
 end Fw.Gate.Smooth

@@ -129,10 +129,11 @@ export const hitchVerdict = (a, b, aa1, aa2) =>
 /** The agreement asked of n samples: two thirds, rounded up (Lean `agreeNeeded`). */
 export const agreeNeeded = (n) => Math.floor((2 * n + 2) / 3);
 
-/** The verdict over per-sample verdicts: 'first' when at least k say first and none says second, 'second' the other way, else 'same'; 'insufficient' under MIN_SAMPLES samples or k = 0 (Lean `across`). */
+/** The verdict over per-sample verdicts: 'first' when at least k say first and none says second, 'second' the other way, else 'same'; 'insufficient' under MIN_SAMPLES decisive (first, second or same) samples or k = 0 (Lean `across`). */
 export function across(k, vs) {
-  if (vs.length < MIN_SAMPLES || k === 0) return 'insufficient';
   const f = vs.filter((v) => v === 'first').length;
   const s = vs.filter((v) => v === 'second').length;
+  const same = vs.filter((v) => v === 'same').length;
+  if (f + s + same < MIN_SAMPLES || k === 0) return 'insufficient';
   return k <= f && s === 0 ? 'first' : k <= s && f === 0 ? 'second' : 'same';
 }
