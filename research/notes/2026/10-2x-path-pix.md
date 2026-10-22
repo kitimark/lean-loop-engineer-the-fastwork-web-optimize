@@ -9,18 +9,18 @@ Tags: MEASURED (a CI run id named), INFERRED (reasoned, not seen), CONFIRMED (so
 
 | lane | what it is | A/A cells | P cells | verdict of the lane |
 |---|---|---|---|---|
-| Linux Chromium, begin-frame screenshots | software compositing (`--disable-gpu`), secondary | 29 of 29 E | 28 E, 1 L | quiet and reproducible (3 runs x 2 jobs identical) |
+| Linux Chromium, begin-frame screenshots | software compositing (`--disable-gpu`), secondary | 29 of 29 E | 28 E, 1 L | quiet and reproducible (4 runs x 2 jobs identical) |
 | iOS 27 Simulator, `simctl io screenshot` | the verdict lane; the Simulator has no real GPU | 0 E, 21 L, 6 invalid of 27 | 1 E, 8 L, 4 invalid of 13 | not quiet: the page itself changes between loads (below) |
 
-- MEASURED, Chromium: runs 39778557659, 39786950659, 39797455671 (jobs `chromium (1)` and `(2)` of each), frame 430x932 CSS px
+- MEASURED, Chromium: runs 39778557659, 39786950659, 39797455671, 39805943152 (jobs `chromium (1)` and `(2)` of each), frame 430x932 CSS px
   (the page runs at dpr 3, a begin-frame screenshot is in CSS px), 6 declared layers, 9 offsets. The one L cell is
   `hero.deck_article` P at offset 0: 2 pixels inside the mask and 1 outside differ by 1 level (max delta 1). It is the same
-  cell in all six jobs. Chromium is software compositing here, so it says nothing about GPU compositing (accepted limit).
+  cell in all eight jobs. Chromium is software compositing here, so it says nothing about GPU compositing (accepted limit).
 - MEASURED, Simulator: run 39805943152 `sim (1)` (the final harness, commit 90bdc8e3) and run 39797455671 `sim (1)` (commit 39200598).
   The other Simulator jobs failed before a cell: 39797455671 `sim (2)` (`simctl list runtimes` aborted, exit 134, CoreSimulator not
   up), 39805943152 `sim (2)` (Safari never listed a tab in 240 s, twice), 39786950659 both (the 45 min step timeout; the old
-  harness wrote its manifest only at the end), 39778557659 `sim (1)` (Safari tab lost). One Simulator job per run produced cells, so the
-  Simulator calibration has two runs (39797455671, 39805943152), not three; the Chromium one has three.
+  harness wrote its manifest only at the end), 39778557659 `sim (1)` (Safari tab lost). Run 39778557659 sim (2) (first harness, 1aa0944d, all six P layers) also produced cells: A/A 27 (17 L, 10 invalid), P 27 (1 E nav_bar@1,
+  1 Q nav_bar@4, 14 L, 11 invalid); three runs have Simulator cells. The Chromium calibration has four.
 
 ## Simulator cells (run 39805943152, vm 1, frame 1290x2325 device px, offsets 0,658,1316,1975,2633,3291,3950,4608,5267)
 
@@ -39,7 +39,7 @@ Offsets are indices 0-8. A P arm is captured only where arm A shows its layer, s
 | nav_earn | A/A | 0:L 1:L 2:L 3:L 4:L 5:invalid 6:L 7:invalid 8:invalid |
 
 `hero.countdown_face`, `hero_copy` and `nav_earn` have no P cells here: vm 2 never got a tab (run 39805943152) and vm 2 of the
-earlier run failed before the capture. They are not measured on the Simulator.
+earlier run failed before the capture. They are measured only in run 39778557659 sim (2), first harness.
 
 ## Why the Simulator A/A is not E (MEASURED strips, INFERRED causes)
 
@@ -83,7 +83,8 @@ difference of A and A2 shows content that moved, not rendering that differs:
 ## Follow-ups (outside the unit)
 
 1. Hold the page timers one frame after hydration, before waiting for fonts and images, so the headline chain starts from the same
-   phase in every load. Needs a check that no image fade-in then stays hidden (a timer made after the hold never fires).
+   phase in every load. Needs a check that no image fade-in then stays hidden (a timer made after the hold never fires). Tried in 3fd97967 and reverted in 90bdc8e3 before a dispatch (never measured on CI);
+   90bdc8e3 went back to the hold after hydration and fonts and logs the hold time and headline word, and its message states no other reason.
 2. Pin the rAF timestamp the page sees (a constant, or a virtual clock stepped by the harness) so JS motion (avatar rotation, demo
    typing, chat bubbles) does not advance between loads. Without it the Simulator A/A stays L.
 3. A second Simulator job per run keeps failing at start (CoreSimulator abort, no Safari tab); a retry of the job, or a start probe
