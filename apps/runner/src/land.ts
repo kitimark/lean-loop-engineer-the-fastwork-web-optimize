@@ -10,6 +10,7 @@ import { begin as rawBegin, record as rawRecord, span as rawSpan } from "./timin
 let stepPrefix = "";
 export const dryTotalStep = (plan: string[][], fwcoreBuild: boolean): string => (plan.some((a) => a.join("\0") === LINT_ARGV.axioms.join("\0")) || fwcoreBuild ? "dry total lake" : "dry total");
 let dryStep: string | null = null;
+export const lastDryStep = (): string | null => dryStep;
 const begin: typeof rawBegin = (tool, step, cwd) => rawBegin(tool, stepPrefix + step, cwd);
 const record: typeof rawRecord = (s, cwd) => rawRecord({ ...s, step: stepPrefix + s.step }, cwd);
 const span: typeof rawSpan = (tool, step, fn, exitOf) => rawSpan(tool, stepPrefix + step, fn, exitOf);
