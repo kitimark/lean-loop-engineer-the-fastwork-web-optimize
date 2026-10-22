@@ -15408,7 +15408,11 @@
     "apps/runner/src/task.ts",
     "apps/runner/src/step.ts",
     "apps/runner/src/plan.ts",
-    "apps/runner/src/ci.ts"
+    "apps/runner/src/ci.ts",
+    "apps/runner/src/lib.ts",
+    "apps/runner/src/review-ready.ts",
+    "apps/runner/src/slot.ts",
+    "apps/runner/src/step-threads.ts"
    ]
   },
   {
