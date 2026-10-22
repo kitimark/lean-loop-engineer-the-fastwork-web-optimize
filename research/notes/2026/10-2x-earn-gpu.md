@@ -17,7 +17,7 @@ measured the first gate of the plan below (the `bound` arm).
 
 ## Answer
 
-- **The bound arm shows no headroom.** With every earn transition switched off, main-thread work in the finish zone is
+- **The earn transitions are not where the main-thread lag is (the mask and sheen animations stayed on).** With every earn transition switched off, main-thread work in the finish zone is
   the same as the faithful page and the same as the A/A control, on macOS and on the iOS Simulator (section "Result of
   the bound arm"). By the plan's own gate candidate B is not built.
   MEASURED, see the result section for run ids. The CI hosts have no real GPU, so a saving on the compositor or the
@@ -40,7 +40,7 @@ measured the first gate of the plan below (the `bound` arm).
   layers. Not recommended.
 
 **Recommendation:** keep the faithful animation (the default arm is already the faithful one). Do not build a GPU
-variant: the lower bound of any earn variant is no better than A/A on the CI hosts. If the user still wants a cheaper
+variant: the lower bound of any variant of the earn transitions is no better than A/A on the CI hosts. If the user still wants a cheaper
 look-change instead, the closest option is A with affine (one-segment) transitions, class L (text path off by up to about
 15 px mid-collapse at desktop). Whether a real iPhone feels the earn animation stays open: it needs the phone replay
 (plan step 4), which the VMs cannot replace.
@@ -199,7 +199,8 @@ Arm `bound`: the faithful page of `base` (same configuration hash, so the arm-id
 stylesheet that sets `transition: none !important` on `[data-fw="nav-earn"]` and its two pseudo-elements, added after the
 load and before the recorder starts (`packages/gate-breakpoints/src/smooth/bound.mjs`). The arm checks that the
 button's computed `transition-duration` is `0s` and refuses the window otherwise. The button then shows the computed
-value on every frame, which is the least main-thread work any variant of the earn animation can leave: a lower bound
+value on every frame, which is the least main-thread work any variant of the earn transitions can leave (the earn-unmask and sheen
+animations stay on): a lower bound
 for the earn's layout and style work, never a candidate. It never enters a preset or the shipped site (a test pins
 that the nav part has no `bound` variant).
 
@@ -235,7 +236,7 @@ every decisive job of both WebKit legs the verdict is `same`; no job says `secon
 The Lean zone verdict (`zoneVerdict`, twin `report.mjs`) compares the per-window render work per frame of the two arms
 against the A/A pair, per job.
 
-Finish zone, 2.8 s window, median over the kept windows of three jobs (MEASURED, the same runs; the Lean verdict is
+Finish zone (macOS: end windows, 2.8 s; Simulator: end windows plus the hero windows that ran at the page end), median over the kept windows of three jobs (MEASURED, the same runs; the Lean verdict is
 over per-job medians, these are pooled medians):
 
 | metric | mac base | mac aa | mac bound | sim base | sim aa | sim bound |
@@ -257,8 +258,11 @@ over per-job medians, these are pooled medians):
 - The hero and rest zones agree on macOS (`same` in 3 of 3 jobs for both). On the iOS Simulator they cannot decide: most
   hero windows have fewer than 5 kept frames in the hero zone (some windows put all their frames into the finish zone;
   the cause was not investigated), so those zones read `insufficient` and only the finish zone carries the sim verdict.
-  Finish-zone windows of the sim legs therefore include a few frames that came from hero windows; this affects every
-  arm alike (INFERRED from the rotation of the arm order).
+  In the sim leg most hero windows ran at the page end, so all their frames count in the finish zone: 12 of 18 hero
+  windows for base, 13 for aa and 17 for bound (MEASURED, run 39754568950). This mix favours bound, because those
+  windows cost about half the per-frame work of an end window. With end windows only, bound still does not beat A/A:
+  render work per window base 239.49, aa 240.49, bound 233.32 ms (MEASURED, same run, reviewer re-reduction). Why hero
+  windows start at the page end was not investigated.
 
 How the three runs got there (all free runners, 3 of 6 dispatches):
 

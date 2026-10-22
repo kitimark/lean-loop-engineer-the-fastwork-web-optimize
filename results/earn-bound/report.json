@@ -76,7 +76,7 @@
       "layers": []
     },
     {
-      "name": "iOS Simulator 430, finish zone, 3 jobs (no real GPU)",
+      "name": "iOS Simulator 430, finish zone incl. hero windows run at the page end, 3 jobs (no real GPU)",
       "rows": [
         {
           "metric": "render work per window (median)",
