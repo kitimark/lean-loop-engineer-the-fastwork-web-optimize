@@ -3965,18 +3965,18 @@
    "evidence": [
     {
      "kind": "file",
-     "ref": ".fw-console/land-logs/layer-decl-0970389.log",
-     "note": "local-only land log with the footprint.test failure"
+     "ref": "lean/Fw/Console/LandDry.lean",
+     "note": "lintPlan: the dry fast lints are ci-paths and the axiom check only"
     },
     {
-     "kind": "commit",
-     "ref": "cf2c1859",
-     "note": "polish comment cuts in part sources"
+     "kind": "file",
+     "ref": "apps/site/src/footprint.test.ts",
+     "note": "the full site test that refused the first land on a stale footprint.gen.json"
     },
     {
      "kind": "ci",
      "ref": "39736189293",
-     "note": "console-api review-info excerpt anchor test failed"
+     "note": "console-api review-info excerpt anchor test failed in the second land"
     }
    ],
    "repro": "Edit a comment line in apps/site/src/parts/nav/index.tsx on a branch with a fresh footprint, run fw land --dry: VERDICT dry; the real land refuses on footprint.test.",
@@ -3985,9 +3985,10 @@
    },
    "regression": "Lean goldens for lintPlan with a part-source change (selects the footprint check) and without (old plan).",
    "mistakeClass": "c-late-check",
-   "leanVerdict": "yes",
+   "leanVerdict": "provable",
    "leanReason": "Which lints a dry runs is the pure Lean lintPlan; the generator-input selection is a path rule provable as gen_selected.",
-   "empiricalCheck": "The next land whose polish stage edits part sources refuses at dry, not at the real land."
+   "empiricalCheck": "The next land whose polish stage edits part sources refuses at dry, not at the real land.",
+   "hardening": "dry-gen-fresh"
   }
  ]
 }
