@@ -10,9 +10,10 @@ import {
   admitBuild, agentsSeen, availMB, cacheHit, expired, grant, heldOf, keyOf, leanThreads, leaseOr, prune, release, renew, signal, simAction, simBoot,
   simDue, simIdleNext, simQueued, step, stopAct, swapActive, thrash, memLow, verdict, vmNext, withLegacy,
 } from "../src/slot-core.ts";
+import { noteQueue, queueExtra } from "../src/slot-queue.ts";
 import {
   type Deps, type GitFacts, EXIT_REFUSED, SlotUsage, lastHealth, legacyLive, markNext, memOf, parseCompressorMB, parseSysctl, parseVmStat, recoverStale,
-  slotCli, spanRows, startOf, withState, SLOT_MAIN_REL, mainCheckout, resolveSlotMain,
+  acquire, releaseToken, slotCli, spanRows, startOf, withState, SLOT_MAIN_REL, mainCheckout, resolveSlotMain,
 } from "../src/slot.ts";
 
 const golden = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "packages", "contracts", "golden", "sup", "adapt.jsonl");
@@ -315,6 +316,22 @@ describe("fw slot run", () => {
     expect(await slotCli(fargv, fail.d)).toBe(1);
     expect(readdirSync(fail.d.dir).includes("state.json")).toBe(true);
     expect(() => readdirSync(fail.d.cacheDir)).toThrow();
+  });
+});
+
+describe("acquire behind a live holder", () => {
+  it("waits for the sim holder, records it on the grant and on the span extras with its tenure", async () => {
+    const { d } = deps();
+    const first = await acquire(d, "sim", 900, 0);
+    expect(first.verdict.verdict).toBe("admit");
+    expect(first.queue).toBeUndefined();
+    setTimeout(() => { releaseToken(d, first.token); }, 1500);
+    const second = await acquire(d, "sim", 900, null);
+    expect(second.verdict.verdict).toBe("admit");
+    expect(second.queue).toMatchObject({ kind: "sim", owner: "wt-a", leaseMs: 900000 });
+    expect(second.queue!.waitMs).toBeGreaterThanOrEqual(1000);
+    expect(queueExtra()).toEqual({ queue: second.queue });
+    noteQueue(null);
   });
 });
 

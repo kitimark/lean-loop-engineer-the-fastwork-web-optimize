@@ -5,7 +5,7 @@ import type { Entry } from "../src/slot-core.ts";
 import { behindOf, blockers, mergeBehind, noteQueue, queueExtra, queueOf } from "../src/slot-queue.ts";
 import { parseSamples } from "../src/watch-collect.ts";
 
-const e = (owner: string, kind: Entry["kind"], leaseS: number): Entry => ({ owner, token: owner, kind, since: 0, till: 100, foot: 0, leaseS });
+const e = (owner: string, kind: Entry["kind"], leaseS: number, till = leaseS): Entry => ({ owner, token: owner, kind, since: 0, till, foot: 0, leaseS });
 const live = [e("a", "check", 600), e("m", "measure", 1800), e("s", "sim", 900)];
 
 describe("blocker selection", () => {
@@ -16,7 +16,14 @@ describe("blocker selection", () => {
   it("anything else is behind the live holder with the longest lease", () => {
     expect(behindOf("full", live)).toEqual({ kind: "measure", owner: "m", leaseS: 1800 });
     expect(behindOf("queued", [])).toBeNull();
+    expect(behindOf("memLow", live)).toBeNull();
     expect(behindOf("pass", [e("a", "check", 600)])).toBeNull();
+  });
+  it("records the renewed tenure (till - since), not the per-renewal lease", () => {
+    const renewed = e("r", "sim", 60, 600);
+    expect(behindOf("simBusy", [renewed])).toEqual({ kind: "sim", owner: "r", leaseS: 600 });
+    expect(behindOf("full", [e("a", "check", 600), renewed, e("legacy", "sim", 0, 300)])?.owner).toBe("a");
+    expect(behindOf("simBusy", [e("legacy", "sim", 0, 300)])?.leaseS).toBe(300);
   });
   it("keeps the longer lease across polls", () => {
     const a = { kind: "check" as const, owner: "a", leaseS: 600 }, b = { kind: "measure" as const, owner: "m", leaseS: 1800 };

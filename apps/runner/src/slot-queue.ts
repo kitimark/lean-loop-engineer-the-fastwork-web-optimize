@@ -9,20 +9,22 @@ export type Behind = { kind: Kind; owner: string; leaseS: number };
 type WaitWhy = Exclude<Verdict, { verdict: "admit" }>["why"];
 
 /** The live holders a waiting ticket is behind, by the reason it waits: a measure window or pass is held by the measure
- *  lease, a Simulator ticket by the Simulator lease, anything else by any live holder. */
+ *  lease, a Simulator ticket by the Simulator lease, memory pressure from outside the queue by no holder, anything else by any live holder. */
 export function blockers(why: WaitWhy, live: readonly Entry[]): Entry[] {
   switch (why) {
     case "pass": case "gap": case "unknown": case "measureBusy": return live.filter((h) => h.kind === "measure");
     case "simBusy": return live.filter((h) => h.kind === "sim");
+    case "memLow": return [];
     default: return [...live];
   }
 }
 
-/** The blocking holder with the longest lease (the first of equals), or null when none blocks. */
+/** The blocking holder with the longest tenure (the first of equals), or null when none blocks. The tenure is till - since,
+ *  not Entry.leaseS: a renewal moves till and keeps since, while leaseS is only the length of one renewal. */
 export function behindOf(why: WaitWhy, live: readonly Entry[]): Behind | null {
   let best: Entry | null = null;
-  for (const h of blockers(why, live)) if (best === null || h.leaseS > best.leaseS) best = h;
-  return best === null ? null : { kind: best.kind, owner: best.owner, leaseS: best.leaseS };
+  for (const h of blockers(why, live)) if (best === null || h.till - h.since > best.till - best.since) best = h;
+  return best === null ? null : { kind: best.kind, owner: best.owner, leaseS: best.till - best.since };
 }
 
 /** Keep the holder with the longer lease (the earlier one on a tie). */

@@ -1307,10 +1307,10 @@ theorem ceiling_at_normal_load (p : Params) (hist : List Sample) (i : Nat) (s : 
     (judge p hist i s).code = .slow :=
   (slow_iff p hist i s).2 (Or.inl ((ceilingBreach_iff p s).2 ⟨c, hc, hd, not_contended_of_load_le p s hl⟩))
 
-/-- **`queued` is never `slow`.** -/
-theorem queued_not_slow (p : Params) (hist : List Sample) (i : Nat) (s : Sample)
-    (h : (judgeQ p hist i s).code = .queued) : (judgeQ p hist i s).code ≠ .slow := by
-  rw [h]; intro h'; cases h'
+/-- **A wait within the holder's lease plus grace is never `slow` unless its remainder is.** -/
+theorem queued_not_slow (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (hq : queuedWithin p s = true)
+    (hr : (judge p hist i s.rest).code ≠ .slow) : (judgeQ p hist i s).code ≠ .slow := by
+  rw [judgeQ_queued p hist i s hq]; simp [hr]
 
 /-- **When a sample is `queued`.** Its wait is within the holder's lease plus grace and its remainder is not `slow`. -/
 theorem queued_iff (p : Params) (hist : List Sample) (i : Nat) (s : Sample) :
@@ -1321,7 +1321,7 @@ theorem queued_iff (p : Params) (hist : List Sample) (i : Nat) (s : Sample) :
     by_cases hs : (judge p hist i s.rest).code = .slow <;> simp [hq, hs]
   · by_cases ho : waitOverrun p s = true
     · rw [judgeQ_overrun p hist i s ho]
-      simp only [hq, false_and, iff_false]
+      simp only [hq]
       have := judge_not_queued p hist i s
       by_cases hc : (decide (budgetFor p s < s.durMs) && !contended p s) = true <;> simp [hc, this]
     · rw [judgeQ_plain p hist i s (by simpa using ho) (by simpa using hq)]
@@ -1800,9 +1800,12 @@ def cases : List (String × Params × List Sample) :=
       {}, runX "fw" "land dry" .«local» 3 ((List.replicate 5 (20000, some 0, false)) ++ [(45000, some 0, false), (100, some 16, false)])),
    ("unknown exit (null) counts as a full run: 45 s after five 20 s runs with no exit code is slow",
       {}, runX "fw" "land dry" .«local» 3 ((List.replicate 5 (20000, none, false)) ++ [(45000, none, false)])),
-   ("2026-10-22 fw/slot acquire sim: 1523 s of which 1521 s behind a sim holder with an 1800 s lease after five 2 s acquires is queued (it was a slow alert before: 1523 s > 3/2 of 2 s and over the 30 s budget)",
+   ("2026-10-22 fw/slot acquire sim: 1523 s of which 1521 s behind a sim holder with an assumed 1800 s lease (slot.md --lease 1800) after five 2 s acquires is queued (it was a slow alert before: 1523 s > 3/2 of 2 s and over the 30 s budget)",
       {}, run "fw" "slot acquire sim" .«local» 3 [2000, 2000, 2000, 2000, 2000] ++
         [waitS "fw" "slot acquire sim" 3 1523000 1521000 1800000]),
+   ("a 300 s wait behind a holder renewed to a 600 s tenure (lease 60 s per renewal) is queued",
+      {}, run "fw" "slot acquire sim" .«local» 3 [2000, 2000, 2000, 2000, 2000] ++
+        [waitS "fw" "slot acquire sim" 3 302000 300000 600000]),
    ("a wait of 1900 s behind a holder with an 1800 s lease (grace 60 s) outlived it: slow, whatever the window",
       {}, run "fw" "slot acquire sim" .«local» 3 [2000, 2000, 2000, 2000, 2000] ++
         [waitS "fw" "slot acquire sim" 3 1902000 1900000 1800000]),
@@ -1829,7 +1832,7 @@ def lastCode (p : Params) (ss : List Sample) : Option Code :=
   [some .ok, some .slow, some .noBaseline, some .ok, some .slow, some .ok, some .slow, some .ok, some .slow, some .slow,
    some .slow, some .ok, some .slow, some .ok, some .slow, some .contended, some .slow, some .slow, some .ok, some .ok,
    some .noBaseline, some .noBaseline, some .slow, some .slow, some .ok, some .ok, some .slow, some .slow, some .slow,
-   some .queued, some .slow, some .slow, some .ok, some .contended]
+   some .queued, some .queued, some .slow, some .slow, some .ok, some .contended]
 #guard (fullVerdicts {} (runX "fw" "land dry" .«local» 3 landDry)).map (fun v => (v.durMs, v.code)) ==
   [(19140, .noBaseline), (20226, .noBaseline), (20710, .noBaseline), (20102, .noBaseline), (32103, .noBaseline),
    (28484, .ok), (879, .ok)]
