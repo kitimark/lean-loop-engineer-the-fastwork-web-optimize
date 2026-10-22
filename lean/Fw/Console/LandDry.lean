@@ -276,6 +276,31 @@ theorem gen_stale_refuses (w : Stages) (ch : String → String → List String) 
   simp_all
 
 
+def runsLakeBuild (plan : List Lint) (fwcoreBuild : Bool) : Bool := plan.contains .axioms || fwcoreBuild
+
+def dryTotalStep (plan : List Lint) (fwcoreBuild : Bool) : String :=
+  if runsLakeBuild plan fwcoreBuild then "dry total lake" else "dry total"
+
+theorem runsLakeBuild_iff (plan : List Lint) (b : Bool) : runsLakeBuild plan b = true ↔ Lint.axioms ∈ plan ∨ b = true := by
+  simp [runsLakeBuild]
+
+theorem lean_change_keyed_lake (P : List String) (a g : Bool) (b : Bool) (p : String) (hp : p ∈ P)
+    (hl : p.startsWith "lean/" = true) : dryTotalStep (lintPlan P a true g) b = "dry total lake" := by
+  have h := (axioms_mem_plan P a true g).2 ⟨rfl, p, hp, hl⟩
+  simp [dryTotalStep, runsLakeBuild, h]
+
+theorem no_lean_plain_key (P : List String) (a v g : Bool) (h : ∀ p ∈ P, p.startsWith "lean/" = false) :
+    dryTotalStep (lintPlan P a v g) false = "dry total" := by
+  have := no_axioms_without_lean P a v g h
+  simp [dryTotalStep, runsLakeBuild, this]
+
+theorem fwcore_build_keyed_lake (plan : List Lint) : dryTotalStep plan true = "dry total lake" := by
+  simp [dryTotalStep, runsLakeBuild]
+
+theorem dryTotalStep_ne (plan : List Lint) (b b' : Bool) (h : runsLakeBuild plan b = true) (h' : runsLakeBuild plan b' = false) :
+    dryTotalStep plan b ≠ dryTotalStep plan b' := by
+  simp [dryTotalStep, h, h']
+
 def lintStages : List String := ["lake build", "axiom check"]
 
 abbrev FailedCheck := Bool × List String

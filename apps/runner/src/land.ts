@@ -8,13 +8,16 @@ import { branchCard } from "../../console-api/src/reconcile/naming.ts";
 import { begin as rawBegin, record as rawRecord, span as rawSpan } from "./timing.ts";
 
 let stepPrefix = "";
+export const dryTotalStep = (plan: string[][], fwcoreBuild: boolean): string => (plan.some((a) => a.join("\0") === LINT_ARGV.axioms.join("\0")) || fwcoreBuild ? "dry total lake" : "dry total");
+let dryStep: string | null = null;
+export const lastDryStep = (): string | null => dryStep;
 const begin: typeof rawBegin = (tool, step, cwd) => rawBegin(tool, stepPrefix + step, cwd);
 const record: typeof rawRecord = (s, cwd) => rawRecord({ ...s, step: stepPrefix + s.step }, cwd);
 const span: typeof rawSpan = (tool, step, fn, exitOf) => rawSpan(tool, stepPrefix + step, fn, exitOf);
 import { cachedLaneView, circleciAdapter, DEFAULT_ALLOW, githubAdapter, makePusher, BUILD_ARGV, runTiered, spawnWait, type Adapter, type OverflowPlan, type Provider } from "./land-remote.ts";
 import { ccStatusFrom, forceFullFromEnv, ghStatusOnce, overflowFor, readSlots, realCircle } from "./land-overflow.ts";
 import { askCore, dropLock, lockFacts, lockFile, readLock, takeLock } from "../hooks/land-guard.mjs";
-import { FWCORE_STALE_REASON, checkFailKind, failedStages, fwcoreStale, lintPlan, outcome, outcomeKind, type Kind, type Outcome } from "./land-verdict.ts";
+import { FWCORE_STALE_REASON, checkFailKind, failedStages, fwcoreStale, LINT_ARGV, lintPlan, outcome, outcomeKind, type Kind, type Outcome } from "./land-verdict.ts";
 import { consoleSecret } from "./lib.ts";
 import { CHECK_SH_READS } from "./land-reads.gen.ts";
 import { ConsoleUnreachable } from "./land-queue.ts";
@@ -441,7 +444,9 @@ export async function land(branch: string, o: LandOptions, via?: string): Promis
   const before = stepPrefix;
   if (!via) stepPrefix = o.dry ? "dry " : "";
   const end = via ? () => {} : begin("fw land", "total");
-  try { const r = await landRun(branch, o, via); end(r.ok ? 0 : 1); return r; } catch (e) { end(1); throw e; } finally { stepPrefix = before; }
+  if (!via) dryStep = null;
+  const named = (code: number) => end(code, dryStep === null ? {} : { step: dryStep });
+  try { const r = await landRun(branch, o, via); named(r.ok ? 0 : 1); return r; } catch (e) { named(1); throw e; } finally { stepPrefix = before; }
 }
 
 async function landRun(branch: string, o: LandOptions, via?: string): Promise<LandResult> {
@@ -672,6 +677,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       let lints = true;
       if (reads) {
         const lintArgv = o.dryLints ?? dryLintArgv(slot.dir, changed);
+        dryStep = dryTotalStep(lintArgv, false);
         if (lintArgv.length) {
           const bad = await runChecks(slot.dir, lintArgv);
           lints = bad === null; detail = bad ?? "";
@@ -680,7 +686,9 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       if (reads && lints) {
         const local = (o.dryLocal ?? LOCAL_TESTS).filter((t) => selectChecks([t], changed).length > 0);
         if (local.length) {
-          const argv = [...(!o.dryLocal && (phase1Build(changed) || !existsSync(join(slot.dir, FWCORE_BIN))) ? [["sh", "scripts/fwcore-build.sh"]] : []), ...local.map((t) => t.argv)];
+          const needsBuild = !o.dryLocal && (phase1Build(changed) || !existsSync(join(slot.dir, FWCORE_BIN)));
+          dryStep = dryTotalStep(o.dryLints ?? dryLintArgv(slot.dir, changed), needsBuild);
+          const argv = [...(needsBuild ? [["sh", "scripts/fwcore-build.sh"]] : []), ...local.map((t) => t.argv)];
           const bad = await runChecks(slot.dir, argv);
           lints = bad === null; detail = bad ?? "";
           if (lints) lines.push(`dry: local tests ok (${local.map((t) => t.id).join(", ")})`);

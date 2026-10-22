@@ -154,6 +154,7 @@ structure Params where
   kDen     : Nat := 2
   budgetMs : Nat := 30000
   budgets  : List (String × Nat) := []
+  waitBudgetMs : Nat := 1800000
   ceilings : List (String × String × Nat) := []
   loadMax  : Nat := contendedLoad
   stages   : List Stage := []
@@ -210,8 +211,10 @@ def counts (p : Params) (s : Sample) : Bool := s.full && !contended p s
 def windowOf (p : Params) (hist : List Sample) (k : Key) : List Nat :=
   lastN p.window ((hist.filter (fun s => decide (s.key = k) && counts p s)).map (·.durMs))
 
-/-- The budget of a tool: its first override in `budgets`, else the default `B_0`. -/
-def budgetOf (p : Params) (tool : String) : Nat := (p.budgets.lookup tool).getD p.budgetMs
+def waitTool : String := "fw wait"
+
+def budgetOf (p : Params) (tool : String) : Nat :=
+  (p.budgets.lookup tool).getD (if tool == waitTool then p.waitBudgetMs else p.budgetMs)
 
 /-- The ceiling of a step: the limit of the first entry of `ceilings` with that tool and step, if any. -/
 def ceilingOf (p : Params) (tool step : String) : Option Nat :=
@@ -572,6 +575,36 @@ theorem land_budget_alert (p : Params) (hp : ∃ rest, p.ceilings = landCeilings
   rcases hs with ⟨ht, hst, hd⟩ | ⟨ht, hst, hd⟩
   · exact ⟨30000, by simp [ceilingOf, hr, landCeilings, ht, hst], hd, hn⟩
   · exact ⟨5000, by simp [ceilingOf, hr, landCeilings, ht, hst], hd, hn⟩
+
+theorem budgetOf_wait (p : Params) (h : p.budgets.lookup waitTool = none) : budgetOf p waitTool = p.waitBudgetMs := by
+  have e : waitTool == waitTool := by decide
+  simp [budgetOf, h, e]
+
+theorem budgetOf_work (p : Params) (t : String) (h : p.budgets.lookup t = none) (hw : t ≠ waitTool) :
+    budgetOf p t = p.budgetMs := by
+  simp [budgetOf, h, hw]
+
+theorem wait_within_budget_not_slow (p : Params) (hist : List Sample) (i : Nat) (s : Sample)
+    (hw : s.tool = waitTool) (hu : p.budgets.lookup waitTool = none) (hc : ceilingOf p s.tool s.step = none)
+    (hd : s.durMs ≤ p.waitBudgetMs) : (judge p hist i s).code ≠ .slow := by
+  intro hs
+  rcases (slow_iff p hist i s).1 hs with hb | hr
+  · obtain ⟨c, hc', _⟩ := (ceilingBreach_iff p s).1 hb
+    rw [hc] at hc'
+    cases hc'
+  · have := hr.2.2.1
+    rw [hw, budgetOf_wait p hu] at this
+    omega
+
+theorem wait_over_budget_slow (p : Params) (hist : List Sample) (i : Nat) (s : Sample)
+    (hw : s.tool = waitTool) (hu : p.budgets.lookup waitTool = none) (hn : p.nMin ≤ (windowOf p hist s.key).length)
+    (hq : contended p s = false) (hB : p.waitBudgetMs < s.durMs)
+    (hk : p.kNum * p50 (windowOf p hist s.key) < p.kDen * s.durMs) : (judge p hist i s).code = .slow :=
+  (slow_iff p hist i s).2 (Or.inr ⟨hn, hq, by rw [hw, budgetOf_wait p hu]; exact hB, hk⟩)
+
+#guard (codeOf {} [100, 100, 100, 100, 100] { tool := waitTool, step := "slot wait check", durMs := 40000, host := .ci }) == .ok
+#guard (codeOf {} [100, 100, 100, 100, 100] { tool := waitTool, step := "slot wait check", durMs := 1800001, host := .ci }) == .slow
+#guard (codeOf {} [100, 100, 100, 100, 100] { tool := "fw", step := "slot run check x", durMs := 40000, host := .ci }) == .slow
 
 /-- Slow is monotone in the duration: with the same history, a sample that is `slow` stays `slow` when it takes
 longer.
@@ -1178,12 +1211,12 @@ alert themselves nor lift the baseline.
 theorem lean_check_regression_through_contention :
     (judge {} ((List.replicate 5 (checkStage 20000 4)) ++ List.replicate 10 (checkStage 120000 20)) 15
       (checkStage 40000 4)).code = .slow := by
-  decide
+  decide +kernel
 
 /-- The contended runs of that case are themselves not `slow`. -/
 theorem lean_check_contended_burst_not_slow :
     (judge {} (List.replicate 5 (checkStage 20000 4)) 5 (checkStage 120000 20)).code = .contended := by
-  decide
+  decide +kernel
 
 /-! ## Proofs: structural verdicts -/
 
@@ -1634,14 +1667,20 @@ def core (h : String) (args : List String) : List String :=
   let (_, first, _) := scan none args
   [base h] ++ (first.map tidy).toList
 
+def fwLauncher : String := "fw"
+
+def subOf (args : List String) : Option String := (args.find? fun a => !a.startsWith "-").map tidy
+
 def cmdKey : List String → Option String
   | [] => none
   | h :: args =>
     let (filt, first, rest) := scan none args
     let parts :=
       match first, rest with
-      | some w, p :: more => if launchWords.contains w then [base h] ++ (filt.map base).toList ++ core p more else
-          [base h] ++ (filt.map base).toList ++ [tidy w]
+      | some w, p :: more =>
+        if launchWords.contains w then [base h] ++ (filt.map base).toList ++ core p more
+        else if w == fwLauncher then [base h] ++ (filt.map base).toList ++ [w] ++ (subOf (p :: more)).toList
+        else [base h] ++ (filt.map base).toList ++ [tidy w]
       | some w, [] => [base h] ++ (filt.map base).toList ++ [tidy w]
       | none, _ => [base h] ++ (filt.map base).toList
     if parts.all okTok then some (" ".intercalate parts) else none
@@ -1651,14 +1690,45 @@ def capKey (seen : List String) (cap : Nat) (k : Option String) : Option String 
   | some x => if seen.contains x || decide (seen.length < cap) then some x else none
   | none => none
 
-def keyCap : Nat := 24
+def kindCap (kind : String) : Nat := if kind == "land" then 8 else if kind == "sim" then 4 else 24
 
 def runStep (kind : String) (seen : List String) (argv : List String) : String :=
-  match capKey seen keyCap (cmdKey argv) with
+  match capKey seen (kindCap kind) (cmdKey argv) with
   | some k => s!"slot run {kind} {k}"
   | none => s!"slot run {kind}"
 
-def waitStep (kind : String) : String := s!"slot wait {kind}"
+def dropSuffix (suf s : String) : String := if s.endsWith suf then (s.dropEnd suf.length).toString else s
+
+def stepKey (kind step : String) : Option String :=
+  let pre := s!"slot run {kind} "
+  if step.startsWith pre then
+    let k := dropSuffix " dry" (dropSuffix " cached" (step.drop pre.length).toString)
+    if k == "" || k == "dry" || k == "cached" then none else some k
+  else none
+
+def seenKeys (kind : String) (steps : List String) : List String := (steps.filterMap (stepKey kind)).eraseDups
+
+theorem seenKeys_mem (kind : String) (steps : List String) (k : String) :
+    k ∈ seenKeys kind steps ↔ ∃ s ∈ steps, stepKey kind s = some k := by
+  simp [seenKeys, List.mem_eraseDups, List.mem_filterMap]
+
+theorem seenKeys_append (kind : String) (a b : List String) (k : String) :
+    k ∈ seenKeys kind (a ++ b) ↔ k ∈ seenKeys kind a ∨ k ∈ seenKeys kind b := by
+  simp only [seenKeys_mem, List.mem_append]
+  constructor
+  · rintro ⟨s, hs | hs, h⟩
+    · exact Or.inl ⟨s, hs, h⟩
+    · exact Or.inr ⟨s, hs, h⟩
+  · rintro (⟨s, hs, h⟩ | ⟨s, hs, h⟩)
+    · exact ⟨s, Or.inl hs, h⟩
+    · exact ⟨s, Or.inr hs, h⟩
+
+theorem stepKey_prefix (kind step k : String) (h : stepKey kind step = some k) :
+    step.startsWith s!"slot run {kind} " = true := by
+  by_cases hp : step.startsWith s!"slot run {kind} " = true
+  · exact hp
+  · exfalso
+    simp [stepKey, hp] at h
 
 theorem cmdKey_nil : cmdKey [] = none := rfl
 
@@ -1684,6 +1754,14 @@ theorem capKey_some (seen : List String) (cap : Nat) (k : Option String) (x : St
     · exfalso
       simp [capKey] at h
       grind
+
+theorem capKey_bounded (seen : List String) (cap : Nat) (k : Option String) (x : String) (hs : seen.length ≤ cap)
+    (h : capKey seen cap k = some x) : (if x ∈ seen then seen else x :: seen).length ≤ cap := by
+  rcases capKey_some seen cap k x h with hx | hl
+  · simp [hx, hs]
+  · by_cases hx : x ∈ seen <;> simp [hx] <;> omega
+
+def waitStep (kind : String) : String := s!"slot wait {kind}"
 
 theorem wait_ne_run (kind : String) (seen : List String) (argv : List String) : waitStep kind ≠ runStep kind seen argv := by
   unfold waitStep runStep
@@ -1714,13 +1792,34 @@ def cases : List (String × String × List String × List String) :=
    ("empty argv", "check", [], []),
    ("seen key at the cap", "check", (List.range 24).map (fun i => s!"k{i}") ++ ["sh lean/scripts/check.sh"], ["sh", "lean/scripts/check.sh"]),
    ("new key at the cap", "check", (List.range 24).map (fun i => s!"k{i}"), ["sh", "lean/scripts/check.sh"]),
-   ("new key one below the cap", "check", (List.range 23).map (fun i => s!"k{i}"), ["sh", "lean/scripts/check.sh"])]
+   ("new key one below the cap", "check", (List.range 23).map (fun i => s!"k{i}"), ["sh", "lean/scripts/check.sh"]),
+   ("fw subcommand after flags", "check", [], ["pnpm", "-s", "fw", "--json", "ci", "wait", "--branch", "b"]),
+   ("fw without a subcommand", "check", [], ["pnpm", "fw"]),
+   ("fw with flags only", "check", [], ["pnpm", "fw", "--json"]),
+   ("fw subcommand outside the token set", "check", [], ["pnpm", "fw", "a b"]),
+   ("land kind new key at its cap of 8", "land", (List.range 8).map (fun i => s!"k{i}"), ["pnpm", "fw", "land"]),
+   ("land kind new key one below its cap", "land", (List.range 7).map (fun i => s!"k{i}"), ["pnpm", "fw", "land"]),
+   ("check kind with 8 keys is under its cap of 24", "check", (List.range 8).map (fun i => s!"k{i}"), ["pnpm", "fw", "land"]),
+   ("sim kind new key at its cap of 4", "sim", (List.range 4).map (fun i => s!"k{i}"), ["pnpm", "fw", "slot"])]
 
 #guard cases.map (fun (_, k, seen, a) => runStep k seen a) ==
   ["slot run check sh lean/scripts/check.sh", "slot run test pnpm runner vitest test/land-inputs.test.ts", "slot run test pnpm runner test",
-   "slot run test pnpm console-api test", "slot run land pnpm fw", "slot run check lake", "slot run check lake build",
+   "slot run test pnpm console-api test", "slot run land pnpm fw land", "slot run check lake", "slot run check lake build",
    "slot run check env check.sh", "slot run check", "slot run check", "slot run check",
-   "slot run check sh lean/scripts/check.sh", "slot run check", "slot run check sh lean/scripts/check.sh"]
+   "slot run check sh lean/scripts/check.sh", "slot run check", "slot run check sh lean/scripts/check.sh",
+   "slot run check pnpm fw ci", "slot run check pnpm fw", "slot run check pnpm fw", "slot run check",
+   "slot run land", "slot run land pnpm fw land", "slot run check pnpm fw land", "slot run sim"]
+
+def seenCases : List (String × String × List String) :=
+  [("keys, suffixes and repeats", "check",
+    ["slot run check sh a.sh", "slot run check sh a.sh cached", "slot run check", "slot run check cached", "slot run check dry",
+     "slot run check dry cached", "slot run check pnpm fw land dry", "slot run check pnpm fw land dry cached", "slot run land pnpm fw land dry",
+     "slot run test pnpm x test", "slot wait check", "slot run checks y", "slot run check sh a.sh"]),
+   ("other kind", "land", ["slot run land pnpm fw land dry", "slot run land pnpm fw land", "slot run check sh a.sh"]),
+   ("empty", "test", [])]
+
+#guard seenCases.map (fun (_, k, st) => seenKeys k st) ==
+  [["sh a.sh", "pnpm fw land"], ["pnpm fw land"], []]
 
 end Fw.Obs.Timing.SlotKey
 
@@ -1737,8 +1836,17 @@ def goldenText (_ : Unit := ()) : String :=
 
 def goldenPath : System.FilePath := "../packages/contracts/golden/obs/slot-key.jsonl"
 
-def writeGolden : IO Unit := IO.FS.writeFile goldenPath goldenText
+def seenJson (n k : String) (steps : List String) : Json :=
+  Json.mkObj [("name", n), ("request", Json.mkObj [("kind", k), ("steps", toJson steps)]),
+    ("response", Json.mkObj [("seen", toJson (seenKeys k steps))])]
 
-def checkGolden : IO Bool := do return (← IO.FS.readFile goldenPath) == goldenText
+def seenText (_ : Unit := ()) : String :=
+  String.join (seenCases.map fun (n, k, st) => (seenJson n k st).compress ++ "\n")
+
+def seenPath : System.FilePath := "../packages/contracts/golden/obs/slot-seen.jsonl"
+
+def writeGolden : IO Unit := do IO.FS.writeFile goldenPath goldenText; IO.FS.writeFile seenPath seenText
+
+def checkGolden : IO Bool := do return (← IO.FS.readFile goldenPath) == goldenText && (← IO.FS.readFile seenPath) == seenText
 
 end Fw.Wire.Obs.SlotKey
