@@ -18,7 +18,6 @@ Files: research/notes/2026/10-2x-earn-gpu.md (note, result section), results/ear
 packages/measure-webkit/src/profile/{sim-cadence,cli,report}.mjs, smoothness.yml tokens [earn-bound] and [sim-only].
 Writes outside the graph: measure-webkit profile files and test, gate-breakpoints test/smooth-bound.test.mjs, apps/runner/src/land.ts
 (one declared read of bound.mjs for packages/measure-webkit).
-
 How to read the numbers again: download smoothness-webkit-mac-N / -sim-N into <dir>/<runId>/<artifact>/ and run
 `node packages/measure-webkit/src/profile/cli.mjs report --runs <dir> --out <dir2>`.
 
