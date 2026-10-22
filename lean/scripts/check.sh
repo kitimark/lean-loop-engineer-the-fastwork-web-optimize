@@ -89,7 +89,7 @@ run_group() {
   job "sup-health golden check" lake env lean --run scripts/SupHealthGolden.lean --check  # golden/obs/sup-health.jsonl (Fw.Obs.Health.Res), read by apps/runner/src/watch-collect.ts
   job "sup wire golden check" sh -c "printf 'import Fw.Wire.Sup\\n#eval Fw.Wire.Sup.Golden.gen [\"--check\"]\\n' | lake env lean --stdin"  # golden/sup/wire.jsonl, each line replayed through Json.parse, decode and encode (Fw.Wire.Sup)
   job "land-speed golden check" sh -c 'printf "import Fw.Console.LandSpeed\ndef main : IO UInt32 := do\n  if (← Fw.Console.LandSpeed.checkGolden) then return 0\n  IO.eprintln \042land-speed.jsonl differs from Fw.Console.LandSpeed.goldenText (regenerate with writeGolden)\042\n  return 1\n" > "$1/LandSpeedCheck.lean" && lake env lean --run "$1/LandSpeedCheck.lean"' _ "$tmp"  # golden/console/land-speed.jsonl (Fw.Console.LandSpeed)
-  job "ops golden check"lake env lean --run scripts/OpsGolden.lean --check  # golden/ops/*.jsonl incl. the obs life cases (Fw.Ops.Obs)
+  job "ops golden check" lake env lean --run scripts/OpsGolden.lean --check  # golden/ops/*.jsonl incl. the obs life cases (Fw.Ops.Obs)
   job "oracle golden check" lake env lean --run scripts/OracleGolden.lean --check  # golden/oracle/wire.jsonl and fixtures.jsonl (Fw.Wire.Oracle.Golden)
   job "lane inputs check" lake env lean --run scripts/LaneInputs.lean --check  # Fw.Store.Lane.inputs equal the workflow_dispatch inputs of chromium-counts, webkit-sim, breakpoint-gate
   job "engine goldens check" lake env lean --run scripts/EngineGoldens.lean  # golden/engine/*.jsonl equal the Lean generators, one generator per file
