@@ -15042,7 +15042,8 @@
     "packages/contracts/golden/parts/footprint*.gen.json",
     "docs/team/handoffs/compose-layers-lean.md",
     "apps/site/src/parts/hero/layers.component.test.ts"
-   ]
+   ],
+   "evidence": "862e77b"
   },
   {
    "devices": [
