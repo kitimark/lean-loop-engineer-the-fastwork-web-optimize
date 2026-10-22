@@ -2766,6 +2766,52 @@
    "lesson": "Moving one property of a frame to the compositor saves no style recalculation while another write on the same frame still invalidates style; count the writes per frame of every element the driver touches before expecting fewer recalcs. The possible gain of a threaded fade is paint and raster of the blurred section, which a Simulator count lane cannot show.",
    "next": "Hold; no port task. Re-open only with the nav --morph off the main thread and the effect on the threaded-animations path (no per-tick invalidate), measured on a real-GPU lane.",
    "evidence": "CI runs 39730956361, 39731023406, 39731104953; research/notes/2026/10-2x-platform-fade-threaded.md; results/platform-fade-threaded/report.json"
+  },
+  {
+   "id": "morph.panel-const-bounds",
+   "n": 45,
+   "part": "morph.panel",
+   "candidate": "morph.panel:const-bounds: while the nav morphs, keep the panel layer at the nav's final box and inset every child onto the nav box, so the blur-backed panel layer is not resized on any morph frame",
+   "status": "partly-proved",
+   "flag": "morph.panel:const-bounds",
+   "flags": [
+    "morph.panel:const-bounds"
+   ],
+   "chromium": "unknown",
+   "webkit": "unknown",
+   "visual": "E under P1-P4 (paint_eq, visible_iff: every child point is painted where the original paints it at every scale; inset_width_eq, backdrop_eq: every child keeps its width; varBox_rest: no rule at rest); fractional offsets may snap to the device grid differently (INFERRED, at most 1/2 device px)",
+   "mechanism": "PROVED (Fw.Parts.MorphConstBounds): the panel box is constant for every m above the is-morphing cut (varBox_const) while the original grows with m (orig_resizes_h, orig_resizes_w); children keep their boxes and so their layout inputs. Not removed: the nav resize, the column tracks (colW_mono: widths change; pitch_scaled_ne: a scaled final layout would change the 12 px gap pitch, so not the same look) and the blur outset of the panel layer while the fade runs (INFERRED). Breakpoint gate both engines on the final design: run 39747969466 pass; the first design (a wrapper element) failed the gate, run 39744563175, because the gate counts direct children of the panel and compares the panel insets at rest. MEASURED, CI webkit-sim of the first design (wrapper, not shipped; base run 39744614747, flag run 39744653093, 2 passes per arm, iOS Simulator 430x775): every morph-zone cell overlaps the base (frame cadence, Composite and Paint per frame, paint records after the tween); the Simulator has no GPU and does not log IOSurface creations, so allocation cost stays INFERRED. The final design has no webkit-sim run yet (dispatch pending).",
+   "leanFor": [
+    "Fw.Parts.MorphConstBounds.paint_eq",
+    "Fw.Parts.MorphConstBounds.visible_iff",
+    "Fw.Parts.MorphConstBounds.pivot_same",
+    "Fw.Parts.MorphConstBounds.inset_width_eq",
+    "Fw.Parts.MorphConstBounds.backdrop_eq",
+    "Fw.Parts.MorphConstBounds.varBox_rest",
+    "Fw.Parts.MorphConstBounds.varBox_const",
+    "Fw.Parts.MorphConstBounds.end_same",
+    "Fw.Parts.MorphConstBounds.off_nonneg"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.MorphConstBounds.colW_mono",
+    "Fw.Parts.MorphConstBounds.pitch_scaled_ne"
+   ],
+   "missingWhy": [
+    "Allocation and raster cost of a resized layer is INFERRED from the engine source (render-cost note F3); the Simulator has no real GPU and the lane records no IOSurface creations",
+    "The blur outset of the panel layer changes while the fade runs (m from 0.08 to 0.8), which can still resize the layer; unread in WebKit and unmeasured",
+    "The final design has no webkit-sim base-against-flag run: the dispatch cap was spent on the first design",
+    "PathPix has no lane code, so the pixel grade of the fractional offsets is not measured"
+   ],
+   "premises": [
+    "CONFIRMED: a WebKit composited layer is sized by its renderer box; a change gives new buffers and a full raster (render-cost note F3: Source/WebKit/WebProcess/WebPage/RemoteLayerTree/PlatformCALayerRemote.mm:333-355@862f17d)",
+    "CONFIRMED: the nav clips with overflow: hidden (apps/site/src/parts/nav/nav.module.css .nav)",
+    "CONFIRMED: the panel paints nothing itself (apps/site/src/parts/morph.panel/morph.module.css .panel)",
+    "CONFIRMED: is-morphing is set exactly while the morph value is above 1/1000 (Fw.Parts.Nav.morphingCut; JS nodes/2.DyWL8TcE.js:12899)"
+   ],
+   "v1Evidence": "",
+   "lesson": "A variant that adds a wrapper element or changes the panel insets at rest fails the breakpoint gate, which counts direct children and compares insets at rest; restricting the new geometry to the morphing state and moving each child with its own inset keeps the DOM and the rest state identical.",
+   "next": "Dispatch the webkit-sim base-against-flag run for the final design (command in the report), then judge on a real-GPU lane (mac-safari-measure or the phone); the nav resize (C8) and the tracks are separate candidates.",
+   "evidence": "CI runs 39744563175, 39747969466, 39744614747, 39744653093; research/notes/2026/10-2x-morph-constant-bounds.md; results/morph-constant-bounds/report.json"
   }
  ],
  "notes": [
