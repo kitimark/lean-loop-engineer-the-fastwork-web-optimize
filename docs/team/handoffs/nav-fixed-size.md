@@ -1,9 +1,7 @@
-branch: worktree-wf_fab081fd-3ca-1 (CI branches ci/nav-fixed-size, ci/nav-fixed-size-bar, ci/nav-fixed-size-logo)
+branch: worktree-wf_fab081fd-3ca-1 (CI branches ci/nav-fixed-size f22e9fdbb, ci/nav-fixed-size-bar 0345da658, ci/nav-fixed-size-logo a4029ea02)
 worktree: .claude/worktrees/wf_fab081fd-3ca-1 (repo-relative)
-last commit: see `git log -1`; CI tips (checkpoint 4, 2026-10-22 18:25Z): ci/nav-fixed-size cece43bf, ci/nav-fixed-size-bar d6671674, ci/nav-fixed-size-logo 7de81c8d (same code as 3b96c928; tips 3 got NO runs at all, the pushes were dropped; `fw ci push` rewrites the tip message, so the tips were pushed with plain branch -f + git push)
-CI runs (checkpoint 4 tips, all success): lean 39831482607/39831504379/39831523626; trajectory-probe 39831482797 (clip-box), 39831504584 (bar-fixed), 39831523593 (logo-3d); breakpoint-gate default config 39831482665. Per-flag gate and census: not run (lead dispatch). Note written: research/notes/2026/10-2x-nav-fixed-size.md.
-  Superseded (stale, old CSS location): lean 39822710985 success (13954230), breakpoint-gate 39822711037, trajectory-probe 39822710976, lean 39822861544 (7b361731), trajectory-probe 39822861643.
-  Current tips: run ids not yet created when this was written; list with `gh run list --branch <b>`.
+Round 2 (checkpoint 6): fix for the gate failure (transition-property lost `width`): box.module.css no longer names any transition; the union width is `width: var(--pill-w)` + `min-width: var(--panel-w)` while morphing, so the declared width equals the rest width at morph end. Lean: NavClipBox usedW_eq_unionW, decl_eq_rest_zero, decl_close_rest, used_eq_rest_one, layout_only_at_endpoints.
+CI runs for round 2: pushed, run ids to list with `gh run list --branch <b>`; per-flag gates to dispatch with `pnpm -s fw run --gate --engines both --fw nav:<flag> --ref ci/<branch>`. Earlier failed gates: 39835303279, 39837964273.
 
 ## Verified (local, not results)
 - Lean: Fw.Parts.NavClipBox, NavBarFixed, NavBarFixedWork, Fw.Engine.WebKitSimple build with no sorry; goldens nav-clip-box.jsonl and nav-bar-fixed.jsonl (100 rows each, `#guard include_str`); contracts golden (FootprintRows.lean, footprint-diff.gen.json) regenerated, `--check` up to date.
