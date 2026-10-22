@@ -1,23 +1,28 @@
-# census-load-variance handoff (checkpoint 2)
+# census-load-variance handoff (checkpoint 3)
 
 Branch: worktree-wf_105a3643-a4a-1 (CI branch ci/census-load-variance). Worktree: .claude/worktrees/wf_105a3643-a4a-1
-Last pushed commit: 5db37d95. Local work after it is uncommitted until the golden is regenerated.
+Last pushed commit: 1a8f396e. Main merged locally at 6fe61cb5's parent chain (clean merge).
 
-## CI runs
-| run | what | state |
+## CI runs (webkit-sim, 1 VM, 1 session, 2 passes each)
+| run | arm | state / pass-2-vs-pass-1 verdict |
 |---|---|---|
-| 39760288475 | original, before fix (diagnosis) | complete |
-| 39763719675 | rewrite, before fix (diagnosis) | complete |
-| 39775833487 | push, original arm with atTop fix | failed: seek stalled 741 s on the Simulator after pass 1 census (scroll after load 0, 5 census states read) |
-| 39775866606 | dispatch, rewrite arm with atTop fix (dispatch 1 of 3) | complete: both loads at scroll 0, morph/nav layers gone; refused only for `samples` (maxY 5231 vs 5267, docH 6006 vs 6042) and `#document` root height at y=0 |
+| 39760288475, 39763719675 | original, rewrite before fix | complete, refused (morph/nav layers only in pass 1) |
+| 39775833487 | original 5db37d95 | failed: Simulator seek stalled 741 s |
+| 39775866606 | rewrite 5db37d95 (dispatch 1) | complete, refused on `samples` (maxY 5231 vs 5267) |
+| 39785816004, 39791097329 | original 2107815b | complete, accepted |
+| 39785868145 | rewrite 2107815b (dispatch 2) | complete, accepted |
+| 39794304091 | rewrite 2107815b (dispatch 3) | complete, refused on typing avatar (re-eval with the stem: accepted) |
+| 39795650433 | original d8ae1db5 | complete, refused on commission section, fee visual (re-eval: accepted) |
+| 39807770579 | original 6fe61cb5 | complete, refused on `div.body.svelte-ty4hd7` hero feed (re-eval: accepted) |
+| (pending) | original 1a8f396e | push run with the final list |
 
 ## Verified
-- Cause 1 (deep load) fixed by atTop; cause 3 (page height differs per load) found: fix pinStates + `#document` stem (uncommitted, golden not yet regenerated: the slot was held by a sim lease).
-- Local node --test of the two test files pass; `pnpm --filter @fw/measure-webkit test` passed once at 5db37d95.
+- Lean Census.lean green; golden regenerated (64 lines); check.sh green at 2107815b (rerun at the final commit still due).
+- Dispatches used: 3 of 3 (all rewrite). Original arm runs are pushes.
 ## Open
-- Regenerate golden (lake build Fw.Measure.Census, then CensusGolden.lean > census.jsonl), commit, push, rerun original and rewrite for 3 runs per arm, accepted base-vs-base pair.
-- check.sh, merge main, dry land, review ready.
+- Allowlist is not closed: each original run so far exposed one more animated box. Follow-up: declare them (data-fw ids) or drive from a second layer-list read.
 - Out-of-list edits: census-check.mjs, census-check.test.mjs, cli.mjs (pinStates).
 - Design file layer-composer/design-checked.md is lead scratch; the S1 amendment is in research/notes/2026/10-2x-census-load-variance.md.
+- Shared scratchpad collision: another agent also writes scratchpad/*.log; use scratchpad/census-lv/ only.
 ## Read first
 research/notes/2026/10-2x-census-load-variance.md, lean/Fw/Measure/Census.lean (stable, runnerStems).

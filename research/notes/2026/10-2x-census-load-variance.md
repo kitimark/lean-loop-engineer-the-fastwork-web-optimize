@@ -86,12 +86,16 @@ Rule column: which version of the rule the stored artifact is judged by. "CI" is
 | 39785868145 | rewrite | 2107815b | CI accepted | |
 | 39794304091 | rewrite | 2107815b | CI refused on `span.typing-module_avatar_*`; re-eval accepted with the avatar stem | |
 | 39795650433 | original | d8ae1db5 | CI refused on `section.commission.compact`, `div.fee-visual`; re-eval accepted with those stems | doc height 6042 vs 6006 |
+| 39807770579 | original | 6fe61cb5 | CI refused on `div.body.svelte-ty4hd7` (hero feed, masked); re-eval accepted with that stem | |
+| 39812409397 | original | 1a8f396e (final list) | CI accepted | scroll after load 0, docH 6042 both |
 
-Net: after the scroll-to-top fix the morph and nav layers no longer differ in any of the four post-fix runs (MEASURED).
-What remains are the page's own animation phases; each new run so far has shown one more animated box, so the allowlist
-is not closed: 5 post-fix runs, 3 accepted by the CI rule of their own commit, 2 accepted only after the list grew.
-A stem added after a refusal is judged on the run that caused it, which is not independent evidence; the runs after the
-last stem change (below) are.
+Net (MEASURED): after the scroll-to-top fix the morph and nav layers no longer differ in any of the eight post-fix runs.
+What remains are the page's own animation phases. Of the 8 post-fix runs that finished, 4 were accepted by the rule of
+their own commit (39785816004, 39791097329, 39785868145, 39812409397) and 4 were refused: 1 on the sample offsets (fixed by `pinStates`) and 3 on one more animated box each
+(typing avatar, commission section and fee visual, hero feed body); each of those box lists was then added. A stem
+added after a refusal is judged on the run that caused it only by re-evaluation (the same `checkPair` the golden pins),
+which is not independent evidence. The one run after the last stem change (39812409397) is: accepted. The allowlist is
+therefore not shown closed; the rate of one new box per refused run is the number to watch.
 
 ## Accepted limits
 
