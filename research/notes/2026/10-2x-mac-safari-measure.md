@@ -15,7 +15,8 @@ PROVED (Lean theorem named here), INFERRED (reading of MEASURED data). Nothing h
 
 - **The lane exists and is proved, but this shared Mac never gave it a quiet pass: 0 accepted passes of 30 attempted (macOS Safari 20, Simulator 10). There is no
   cadence verdict, so there is no arm ranking from this lane.** Every row is a refusal by Lean `Fw.Sup.Measure.judge` (PROVED `judge_refuse_before`,
-  `judge_accept_quiet`): the machine was not quiet before the pass. The rule was not weakened. MEASURED, `results/mac-safari/safari/` and `results/mac-safari/sim/`.
+  `judge_accept_quiet`): the machine was not quiet before the pass. **Cause (INFERRED from the baseline below): the fixed ceiling `loadMax 2.5` of those 30 attempts was below this Mac's idle floor** (1-minute load 3.2-4.3 with no builder running),
+  so no pass could be accepted however calm the Mac was; the Simulator then added load 300-500 on top. Round 2 replaces the fixed ceiling by a measured floor (next section). The rule was not weakened to get a pass. MEASURED, `results/mac-safari/safari/` and `results/mac-safari/sim/`.
 - **macOS Safari (safaridriver): drivable with no admin step, cadence only.** `safaridriver` opens a 430 x 932 window and runs the same recorder, hero burst and end push
   as the Simulator lane; it exposes no Inspector protocol, so there are no Timeline events (no Paint, no Composite). MEASURED (harness debug run, below).
 - **iOS Simulator: the Simulator itself makes the Mac not quiet.** A freshly created device booted with Safari launched and no page raised the 1-minute load
@@ -27,22 +28,40 @@ PROVED (Lean theorem named here), INFERRED (reading of MEASURED data). Nothing h
   no hitch table. macOS: `--all-processes` records hitch rows in 1 of 3 tries; `--attach <Safari pid>` gives hitch rows in 8 of 21 recordings (table below). MEASURED, `results/mac-safari/xctrace*.json`.
   Per-zone hitch counts are obtainable but were not added to the lane: no pass was accepted to carry them, the recordings cover the whole 16 s and not the zone, and the counts are not stable (below).
 
+## Round 2 fixes (review of the first round)
+
+- **Quiet ceiling = measured idle floor + margin (PROVED).** `ceilCenti q fl = fl + loadMarginCenti` (margin 1.00). The floor `fl` is `baselineFloor`: the median load of 8 readings taken 10 s apart, defined only when
+  every reading is calm in all non-load terms (memory, pressure, swap, thrash, compression, no other slot holder), the spread (max - min) is at most 1.50 and the median at most 8.00; otherwise there is no floor and no pass starts
+  (`baselineFloor_none_few|loud|spread|high`, `baselineFloor_some`, `baselineFloor_between`). `quiet_load_le`: a quiet reading is at most floor + margin; `accepted_load_le_cap`: any accepted pass is at most 8.00 + 1.00 whatever the baseline.
+  `judge` takes the floor; goldens `measure.floor`, `measure.judge` (with `floorCenti`) are replayed by the twin (`baselineFloor`, `judge(b, a, fl)`), and a sweep test checks that `quiet` never accepts a load above floor + margin.
+- **Simulator settle.** `simFloor q p boot rs` uses only readings at least `settleS` (120 s) after boot, so the heavy first seconds of a boot are not read as the floor (`simFloor_none_unsettled`, `simFloor_some_settled`).
+  The sliding window of `takeBaseline` waits until the last 8 readings are steady, up to `--base-wait-s` (600 s), and gives no floor otherwise.
+- **Debug run on this Mac (read-only, no Simulator, no slot, 156 s, not a result).** 8 readings, 10 s apart: load 4.27, 4.31, 4.18, 4.30, 3.79, 3.52, 3.35, 3.22 with one other slot holder live. The rule refused ("no steady idle floor"):
+  every reading had a live holder (`holdersMax` 0); the load spread (1.09) alone was within 1.50. This confirms both causes of the first round: the old ceiling 2.5 sat under every one of these readings, and the new rule still refuses a Mac that is not idle.
+- **Simulator device reuse.** `ensureDevice` finds `fw-mac-safari-27` by name and creates it only when none exists (it throws on several of that name or a missing template); the lane only boots and shuts down. `removeDevice` is gone, and
+  `meta.device.createdThisRun` records the one creation. Per-run creation had caused the first-boot load of 93-551 and a MobileCal 0x8BADF00D crash. Tests: reuse, create once over four runs, duplicates refused.
+- **xctrace safety (incident `inc-tmp-trace-leak`: about 27 kernel traces of 5-8 GB, about 140 GB, in the user temp folder; an orphan ran 41 minutes).** The probe now: records with `--time-limit` (Lean `ProbeLimits`, `probeAct`:
+  wait, SIGINT at the limit + 60 s, SIGKILL at +120 s, the same for an orphan or a trace over 12 GB; PROVED `probeAct_orphan|oversize|late|interrupt|wait|bounded`); runs each child in its own process group with `TMPDIR` inside
+  `<out dir>/.xctrace/work-<pid>` and refuses a work dir inside the temp folder (`assertOwnDir`); starts a recording only with 30 GB free (`mayRecord_low|room`); deletes the trace files after the export in a `finally` (`attempt`);
+  holds the sim slot from before the first recording to the cleanup (`attempt` throws without a lease token); dies with its parent (`watchParent` and the per-child orphan check); sweeps stale `work-<pid>` dirs of dead probes.
+  Tests (`safari-local-guard.test.mjs`, 12): own group and TMPDIR, no file outside the work dir, temp-folder refusal, deadline kill of a child that ignores SIGINT with its group, size cap, parent loss, `killAll`, `dirMB`, `sweepStale`, no record without a slot,
+  wipe on error, no record without disk room, `--time-limit` always present. No new xctrace recording was taken this round.
+
 ## Method
 
 - **Machine.** Apple M1 Pro, 8 cores, 16 GB, macOS 27.0.1, Safari 27.0.1, xctrace 27.1, iPhone 15 Pro Max Simulator type on iOS 27.0. The Mac is shared: other agents and the user's apps run.
 - **Zones and arms.** Hero exit and end of page (`hero`, `end`), five arms deduplicated by `dedupArms` (none dropped): the original snapshot `orig`, the rewrite default `base`,
   `hx` = `?fw=hero.exit:threaded`, `mp` = `?fw=morph.panel:const-bounds`, `pf` = `?fw=platform:fade-threaded`. Rounds interleave the arms (`orderFor` of `gate-breakpoints/src/smooth/schedule.mjs`).
-- **Quiet rule (Lean, `lean/Fw/Sup/Measure.lean`).** A reading is quiet when load is at most 2.5, available memory at least 1024 MB, memory pressure level 1, no swap-out, no thrash, no
+- **Quiet rule (Lean, `lean/Fw/Sup/Measure.lean`).** A reading is quiet when load is at most the floor plus 1.00 (see Round 2), available memory at least 1024 MB, memory pressure level 1, no swap-out, no thrash, no
   high compression and no other slot holder (`quiet_iff`; each failing reason is a theorem, `not_quiet_load` ... `not_quiet_holders`). A pass is read before and after; `judge` accepts it
   only when both are quiet and in order within the span (`judge_accept`, `judge_stale_order`, `judge_stale_gap`); a refused or stale pass keeps no value (`kept_refused`, `kept_stale`).
-  The readings come from the slot daemon's sampler (`fw slot status --json`). The lane holds a `sim` slot for its whole run; the slot daemon has no `measure` kind, so Lean's `holders` reason
-  (`not_quiet_holders`) refuses a pass while another builder is live. 38 golden rows (`packages/contracts/golden/sup/measure.jsonl`) are replayed by the TS twin
-  `safari-local-reduce.mjs` (7 tests).
+  The readings come from the slot daemon's sampler (`fw slot status --json`). The lane holds a `sim` slot for its whole run; the slot daemon on main has no `measure` kind yet (task `slot-measure-exclusive`), so Lean's `holders` reason
+  (`not_quiet_holders`) refuses a pass while another builder is live. The golden rows (`packages/contracts/golden/sup/measure.jsonl`, 55) are replayed by the TS twin `safari-local-reduce.mjs`.
 - **Per cell reduction (Lean).** rAF intervals in tenths of ms: skipped slots (`skipped`, slot 8.3 ms or 16.7 ms from the median, `slotOf_cases`), count over 25 ms (`longCount`), p50, p95, max
   (`stat_p_order`, `max_ge`). A verdict against `base` needs at least 3 accepted passes on both sides; `better` or `worse` only when every pass of the arm beats (loses to) every pass of the base,
   otherwise `same` (`outcome_better`, `outcome_worse`, `outcome_same`; `outcome_self`: an arm never beats itself).
 - **Engines.** (A) `safaridriver -p <free port>` (detached, its pid and the Safari pids it started are stopped at the end), one origin serving each arm's tree; (B) MobileSafari in an own
-  device `fw-mac-safari-27` (same type and runtime as the CI device, created for the run and deleted after), reached through `ios_webkit_debug_proxy`; the sim-cadence flow and the `profileWindow` reducer are reused.
+  device `fw-mac-safari-27` (same type and runtime as the CI device, created once and reused), reached through `ios_webkit_debug_proxy`; the sim-cadence flow and the `profileWindow` reducer are reused.
 - **Limits of the lane.** There is no A/A arm. The page clock is live on macOS Safari (not pinned). The Simulator is not iPhone hardware: its numbers would rank arms, not predict the phone.
 
 ## Quiet-checked passes (the pinned unit: zone x arm x engine, at least 3 accepted passes)
@@ -163,12 +182,12 @@ clock; a local number from this lane could not be put next to it without the sam
 ## TS stand-ins (glue, no decision)
 
 The sampler reading (`readMachine`, `readingOf`), the wait loop (`waitQuiet`), the window scripts (the recorder, hero burst, end push), the W3C WebDriver client, the pgrep-based cleanup of the Safari the lane started,
-the live clock on macOS Safari, the xctrace probe (process control and XML counting) and the markdown table printer hold no decision; the decisions are Lean (`quiet`, `judge`, `kept`, `outcome`, `stat`, `hitchesRecorded`).
+the live clock on macOS Safari, the xctrace probe (process control and XML counting) and the markdown table printer hold no decision; the decisions are Lean (`quiet`, `baselineFloor`, `simFloor`, `judge`, `kept`, `outcome`, `stat`, `hitchesRecorded`, `probeAct`, `mayRecord`).
 
 ## Accepted limits and open items
 
-- No accepted pass: the unit "at least 3 quiet-checked passes with a verdict" is not met on either engine. It needs a quiet Mac (a booked window), and for the Simulator a quiet rule that accounts for the Simulator's own services
-  (the CI note's finding, now MEASURED here too). Any change of the Lean thresholds is a separate task with Lean, goldens and twin together.
-- The slot daemon has no `measure` kind; a follow-up should add one so the lease itself says "exclusive".
+- No accepted pass: the unit "at least 3 quiet-checked passes with a verdict" is not met on either engine, and this round took none. It needs a Mac whose baseline is steady (a booked window), measured by the new floor rule.
+  The first real Simulator run creates `fw-mac-safari-27` once; its first boot is heavy and the settle period and sliding baseline wait it out.
+- Task `slot-measure-exclusive` (not on main when this round was built) adds `fw slot acquire --kind measure` and `fw slot pass start|stop`; then `safari-local-lease.mjs` switches from the `sim` kind to them.
 - `lean/scripts/check.sh` gained one stage line ("sup-measure golden check"), outside the task's file list.
 - macOS Safari has no Timeline events through safaridriver; Paint and Composite exist only in the Simulator lane (Paint has a covered time, Composite is a count, Lean `isTimed`).
