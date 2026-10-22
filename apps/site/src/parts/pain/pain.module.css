@@ -81,9 +81,6 @@
     font-weight: 400;
     line-height: 24px;
   }
-  .darkLayer {
-    display: none;
-  }
   @keyframes painDark {
     from {
       opacity: 0;
@@ -140,15 +137,16 @@
     .board {
       display: none;
     }
-    /* Variant `dark-scroll` (Lean Fw.Parts.PainDarkScroll): the three backgrounds stay clear and an empty #131922 layer
-       turns on at the flip offset, `--fw-pain-dark-t` (written by darkScroll.ts), with steps(1, jump-start) on the root
+    /* Variant `dark-scroll` (Lean Fw.Parts.PainDarkScroll): the three backgrounds stay clear and an empty #131922 layer (the
+       section's ::before, so the DOM keeps its children) turns on at the flip offset, `--fw-pain-dark-t` (written by darkScroll.ts), with steps(1, jump-start) on the root
        scroll timeline over a 1px range. The people part leaves the class alone only where this @supports holds. */
     @supports ((animation-timeline: scroll(root)) and (animation-range-start: 1px)) {
       .pain[data-fw-variant='dark-scroll'] .sticky,
       .pain[data-fw-variant='dark-scroll'] .hold {
         background: transparent;
       }
-      .darkLayer {
+      .pain[data-fw-variant='dark-scroll']::before {
+        content: '';
         z-index: 0;
         pointer-events: none;
         background: #131922;
@@ -160,7 +158,6 @@
         animation-timeline: scroll(root block);
         animation-range-start: var(--fw-pain-dark-t, 100000000px);
         animation-range-end: calc(var(--fw-pain-dark-t, 100000000px) + 1px);
-        display: block;
         position: absolute;
         inset: 0;
       }

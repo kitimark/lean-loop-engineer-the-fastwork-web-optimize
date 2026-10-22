@@ -27,7 +27,7 @@ function block(text: string, open: string): string {
 
 const narrow = block(css, `@media ${mediaCondition('mq.w-le-860')}`);
 const supports = block(narrow, '@supports');
-const layer = block(supports, '.darkLayer');
+const layer = block(supports, "::before");
 const decl = (body: string, name: string): string => new RegExp(`(?:^|[;\\s])${name}:\\s*([^;]+);`).exec(body)?.[1]?.trim() ?? '';
 
 /** CSS Easing steps(1, jump-start) on the scroll progress of the layer's animation (test-only twin of Lean `layerOpacity`). */
@@ -91,8 +91,10 @@ describe('pain dark-scroll CSS', () => {
     expect(decl(layer, 'animation-range-start')).toBe(`var(${RANGE_VAR}, 100000000px)`);
     expect(decl(layer, 'animation-range-end')).toBe(`calc(var(${RANGE_VAR}, 100000000px) + 1px)`);
   });
-  it('is hidden by default and above the band', () => {
-    expect(decl(block(css, '.darkLayer'), 'display')).toBe('none');
+  it('exists only inside the band and the @supports, as the section pseudo-element (no child is added)', () => {
+    expect(css.match(/\]::before/g)?.length).toBe(1);
+    expect(decl(layer, 'content')).toBe("''");
+    expect(supports).toContain(".pain[data-fw-variant='dark-scroll']::before");
   });
 });
 
