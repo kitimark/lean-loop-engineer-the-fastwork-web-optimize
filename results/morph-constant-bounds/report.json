@@ -1,0 +1,497 @@
+{
+  "id": "morph-constant-bounds",
+  "proposal": "morph-constant-bounds",
+  "title": "Phone: keep the morph panel layer at the nav's final size while the nav morphs (flag morph.panel:const-bounds), end of page, iOS Simulator, first design",
+  "arms": [
+    {
+      "name": "base",
+      "search": ""
+    },
+    {
+      "name": "morph.panel:const-bounds (first design)",
+      "search": "?fw=morph.panel:const-bounds"
+    },
+    {
+      "name": "morph.panel:const-bounds",
+      "search": "?fw=morph.panel:const-bounds"
+    }
+  ],
+  "lanes": [
+    {
+      "name": "iOS Simulator 430x775, morph push down and up at the page end, two passes, first design (wrapper element, not the shipped flag)",
+      "rows": [
+        {
+          "metric": "RecalculateStyles records in the morph pass, pass 1",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 3004,
+              "tag": {
+                "kind": "measured",
+                "run": "39744614747"
+              }
+            },
+            {
+              "arm": "morph.panel:const-bounds (first design)",
+              "value": 470,
+              "tag": {
+                "kind": "measured",
+                "run": "39744653093"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "RecalculateStyles records in the morph pass, pass 2",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 656,
+              "tag": {
+                "kind": "measured",
+                "run": "39744614747"
+              }
+            },
+            {
+              "arm": "morph.panel:const-bounds (first design)",
+              "value": 422,
+              "tag": {
+                "kind": "measured",
+                "run": "39744653093"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "Layout records in the morph pass, pass 1",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 1719,
+              "tag": {
+                "kind": "measured",
+                "run": "39744614747"
+              }
+            },
+            {
+              "arm": "morph.panel:const-bounds (first design)",
+              "value": 294,
+              "tag": {
+                "kind": "measured",
+                "run": "39744653093"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "Layout records in the morph pass, pass 2",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 401,
+              "tag": {
+                "kind": "measured",
+                "run": "39744614747"
+              }
+            },
+            {
+              "arm": "morph.panel:const-bounds (first design)",
+              "value": 230,
+              "tag": {
+                "kind": "measured",
+                "run": "39744653093"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "Paint records in the morph pass, pass 1",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 6500,
+              "tag": {
+                "kind": "measured",
+                "run": "39744614747"
+              }
+            },
+            {
+              "arm": "morph.panel:const-bounds (first design)",
+              "value": 1515,
+              "tag": {
+                "kind": "measured",
+                "run": "39744653093"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "Paint records in the morph pass, pass 2",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 1916,
+              "tag": {
+                "kind": "measured",
+                "run": "39744614747"
+              }
+            },
+            {
+              "arm": "morph.panel:const-bounds (first design)",
+              "value": 1322,
+              "tag": {
+                "kind": "measured",
+                "run": "39744653093"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "Composite records in the morph pass, pass 1",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 1502,
+              "tag": {
+                "kind": "measured",
+                "run": "39744614747"
+              }
+            },
+            {
+              "arm": "morph.panel:const-bounds (first design)",
+              "value": 235,
+              "tag": {
+                "kind": "measured",
+                "run": "39744653093"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "Composite records in the morph pass, pass 2",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 328,
+              "tag": {
+                "kind": "measured",
+                "run": "39744614747"
+              }
+            },
+            {
+              "arm": "morph.panel:const-bounds (first design)",
+              "value": 211,
+              "tag": {
+                "kind": "measured",
+                "run": "39744653093"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "rAF deltas over 33 ms in the morph pass (count), pass 1",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 45,
+              "tag": {
+                "kind": "measured",
+                "run": "39744614747"
+              }
+            },
+            {
+              "arm": "morph.panel:const-bounds (first design)",
+              "value": 40,
+              "tag": {
+                "kind": "measured",
+                "run": "39744653093"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "rAF deltas over 33 ms in the morph pass (count), pass 2",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 42,
+              "tag": {
+                "kind": "measured",
+                "run": "39744614747"
+              }
+            },
+            {
+              "arm": "morph.panel:const-bounds (first design)",
+              "value": 38,
+              "tag": {
+                "kind": "measured",
+                "run": "39744653093"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "rAF deltas in the morph pass (count), pass 1",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 46,
+              "tag": {
+                "kind": "measured",
+                "run": "39744614747"
+              }
+            },
+            {
+              "arm": "morph.panel:const-bounds (first design)",
+              "value": 52,
+              "tag": {
+                "kind": "measured",
+                "run": "39744653093"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "rAF deltas in the morph pass (count), pass 2",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 53,
+              "tag": {
+                "kind": "measured",
+                "run": "39744614747"
+              }
+            },
+            {
+              "arm": "morph.panel:const-bounds (first design)",
+              "value": 43,
+              "tag": {
+                "kind": "measured",
+                "run": "39744653093"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "Composite us per frame, open and close pushes, pass 1",
+          "unit": "us",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 192569,
+              "tag": {
+                "kind": "measured",
+                "run": "39744614747"
+              }
+            },
+            {
+              "arm": "morph.panel:const-bounds (first design)",
+              "value": 168077,
+              "tag": {
+                "kind": "measured",
+                "run": "39744653093"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "Composite us per frame, open and close pushes, pass 2",
+          "unit": "us",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 149485,
+              "tag": {
+                "kind": "measured",
+                "run": "39744614747"
+              }
+            },
+            {
+              "arm": "morph.panel:const-bounds (first design)",
+              "value": 173603,
+              "tag": {
+                "kind": "measured",
+                "run": "39744653093"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "iOS Simulator 430x775, morph push down and up at the page end, two passes, FINAL design (no wrapper; the shipped flag); ranges over the two passes, cost-report of base 39744614747 against 39760667274",
+      "rows": [
+        {
+          "metric": "Composite us per frame, morph open (push down), min of pass range",
+          "unit": "us",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 176345,
+              "tag": {
+                "kind": "measured",
+                "run": "39744614747"
+              }
+            },
+            {
+              "arm": "morph.panel:const-bounds",
+              "value": 100214,
+              "tag": {
+                "kind": "measured",
+                "run": "39760667274"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "Composite us per frame, morph open (push down), max of pass range",
+          "unit": "us",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 180949,
+              "tag": {
+                "kind": "measured",
+                "run": "39744614747"
+              }
+            },
+            {
+              "arm": "morph.panel:const-bounds",
+              "value": 148161,
+              "tag": {
+                "kind": "measured",
+                "run": "39760667274"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "Composite us per frame, morph close (push up), min of pass range",
+          "unit": "us",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 124313,
+              "tag": {
+                "kind": "measured",
+                "run": "39744614747"
+              }
+            },
+            {
+              "arm": "morph.panel:const-bounds",
+              "value": 101424,
+              "tag": {
+                "kind": "measured",
+                "run": "39760667274"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "Composite us per frame, morph close (push up), max of pass range",
+          "unit": "us",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 214201,
+              "tag": {
+                "kind": "measured",
+                "run": "39744614747"
+              }
+            },
+            {
+              "arm": "morph.panel:const-bounds",
+              "value": 148892,
+              "tag": {
+                "kind": "measured",
+                "run": "39760667274"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "Paint us per frame, morph open, max of pass range",
+          "unit": "us",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 7747,
+              "tag": {
+                "kind": "measured",
+                "run": "39744614747"
+              }
+            },
+            {
+              "arm": "morph.panel:const-bounds",
+              "value": 7607,
+              "tag": {
+                "kind": "measured",
+                "run": "39760667274"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "Resized layers per 100 layer-tree reads, morph open, min of pass range",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 833,
+              "tag": {
+                "kind": "measured",
+                "run": "39744614747"
+              }
+            },
+            {
+              "arm": "morph.panel:const-bounds",
+              "value": 1250,
+              "tag": {
+                "kind": "measured",
+                "run": "39760667274"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "Resized layers per 100 layer-tree reads, morph open, max of pass range",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 1250,
+              "tag": {
+                "kind": "measured",
+                "run": "39744614747"
+              }
+            },
+            {
+              "arm": "morph.panel:const-bounds",
+              "value": 1300,
+              "tag": {
+                "kind": "measured",
+                "run": "39760667274"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "recommendation": {
+    "word": "hold",
+    "why": "The shipped flag keeps the panel layer at the final size on every morph frame, shows every child where the original shows it (Lean paint_eq, inset_width_eq) and passes the breakpoint gate on both engines. The measured counts belong to a first design with a wrapper element, which failed the gate; they show no difference from the base beyond the pass-to-pass spread, which is expected since layout inputs are unchanged, and the Simulator has no GPU and logs no surface allocations. The final design run 39760667274 (the 5th dispatch, 39751427150, hung and was cancelled) shows morph-open Composite per frame lower (100214-148161 us against 176345-180949 us, cells do not overlap) and the close push overlapping the base; resized layers per read do not fall (1250-1300 against 833-1250 per 100 reads), so the panel layer is not told apart by id and the saving is not shown. The nav resize and the column tracks still change size on every frame. Hold until a lane with a real GPU judges it."
+  }
+}

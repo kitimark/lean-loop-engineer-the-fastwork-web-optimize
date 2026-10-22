@@ -186,6 +186,46 @@
     height: 1px;
     display: block;
   }
+  /* Variant const-bounds (Lean Fw.Parts.MorphConstBounds). While the nav morphs (`is-morphing`) the panel keeps the
+     nav's final box (--panel-w by --panel-h, centred on the nav, clipped by the nav's overflow) and every child is
+     inset by the offset of the nav box inside it, so each child keeps the box, and the layout, it has in the original
+     while no panel layer changes size. --cb-w and --cb-h restate the nav's width and height rules; a test evaluates
+     them against the Lean rows. At rest no rule applies. */
+  :global(.is-morphing) .cb {
+    --cb-w: calc(
+      var(--hero-pill-w) + (var(--pill-w) - var(--hero-pill-w)) * var(--nav-expand) + (var(--panel-w) - var(--pill-w)) * var(--morph)
+    );
+    --cb-h: calc(var(--pill-h) + (var(--panel-h) - var(--pill-h)) * var(--morph));
+    --cb-x: calc((var(--panel-w) - var(--cb-w)) / 2);
+    --cb-y: calc((var(--panel-h) - var(--cb-h)) / 2);
+    inset: auto;
+    left: calc(var(--cb-x) * -1);
+    top: calc(var(--cb-y) * -1);
+    width: var(--panel-w);
+    height: var(--panel-h);
+  }
+  :global(.is-morphing) .cb > .backdrop {
+    inset: auto;
+    left: calc(var(--cb-x) - 0.03 * var(--cb-w));
+    top: var(--cb-y);
+    width: calc(1.06 * var(--cb-w));
+    height: var(--cb-h);
+  }
+  :global(.is-morphing) .cb > .veil {
+    inset: auto;
+    left: var(--cb-x);
+    top: var(--cb-y);
+    width: var(--cb-w);
+    height: var(--cb-h);
+  }
+  :global(.is-morphing) .cb > .center {
+    width: var(--cb-w);
+  }
+  :global(.is-morphing) .cb > .footer {
+    left: var(--cb-x);
+    right: var(--cb-x);
+    bottom: var(--cb-y);
+  }
   @media (width<=1000px) {
     .title {
       font-size: 36px;
