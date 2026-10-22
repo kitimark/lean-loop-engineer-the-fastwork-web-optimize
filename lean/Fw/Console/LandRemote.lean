@@ -4,7 +4,8 @@ import Fw.Console.LandLegs
 /-!
 # Land remote verdict: the combined land verdict over the local tier and normalized lane runs of any CI provider
 
-Golden: `packages/contracts/golden/console/land-remote.jsonl`; ops `console.landRemote`, `console.landDigest` (`Fw.Wire.Console`).
+Golden: `packages/contracts/golden/console/land-remote.jsonl`; ops `console.landRemote`, `console.landLaneState`, `console.landLegStates`,
+`console.landDigest` (`Fw.Wire.Console`).
 -/
 namespace Fw.Console.LandRemote
 open Lean
@@ -137,21 +138,61 @@ action_required, startup_failure, ...). It stays a refusal. -/
 def completedUnknown (status conclusion : String) : Bool :=
   (status == "completed" || status == "") && conclusion != "" && !["success", "failure", "cancelled", "skipped"].contains conclusion
 
-/-- A run that completed with conclusion `success` whose waiter did not say pass or cancelled: the per-job conclusions are the evidence. -/
+/-- A run that completed with conclusion `success` whose waiter did not say pass or cancelled: the per-job records are the evidence. -/
 def jobsDecide (code : Nat) (timedOut : Bool) (status conclusion : String) : Bool :=
   conclusion == "success" && (status == "completed" || status == "") && code != 4 && !(code == 3 && timedOut)
 
-/-- The state of a lane run. Identity (the run's own record, its per-job conclusions) over inference (an exit code):
+/-- Where one leg (one job of a lane run) is. -/
+inductive LegState where
+  | pending
+  | ok
+  | fail
+deriving DecidableEq, Repr
+
+/-- The word printed for a leg state. -/
+def LegState.name : LegState → String
+  | .pending => "pending" | .ok => "ok" | .fail => "fail"
+
+/-- One job of a run record: its status and its conclusion as `gh run view` prints them (`""` for a conclusion GitHub has not set). -/
+structure Job where
+  status : String
+  conclusion : String
+deriving DecidableEq, Repr
+
+/-- A leg from its job record: a job whose status is not `completed` is `pending` whatever its conclusion; a completed `success` or
+`skipped` is `ok`; any other completed conclusion is `fail`. -/
+def legState (j : Job) : LegState :=
+  if j.status != "completed" then .pending
+  else if j.conclusion == "success" || j.conclusion == "skipped" then .ok else .fail
+
+/-- Some leg has not completed. -/
+def anyPending (js : List Job) : Bool := js.any fun j => legState j == .pending
+
+/-- How many times a completed run with a pending leg is read again, one read per poll slice, before it counts as `unavailable`. -/
+def rereadBound : Nat := 3
+
+/-- The jobs decide the run and one of them is pending: the record is read again instead of decided. -/
+def rereads (code : Nat) (timedOut : Bool) (status conclusion : String) : Option (List Job) → Bool
+  | some js => jobsDecide code timedOut status conclusion && !js.isEmpty && anyPending js
+  | none => false
+
+/-- The state of a lane run. Identity (the run's own record, its per-job records) over inference (an exit code):
 1. a completed failure, or a completed conclusion not known here, is `fail` whatever the waiter returned;
 2. a run whose status says it has not finished is `running`, whatever the waiter returned (an error exit or a crash of the waiter included);
-3. a completed success whose waiter did not say pass or cancelled, with the per-job conclusions (`jobs`, one bool per leg, `none` when the
-   record has none), is `pass` when every leg passed and `fail` when one did not;
+3. a completed success whose waiter did not say pass or cancelled, with the per-job records (`jobs`, one per leg, `none` when the record
+   has none): a pending leg makes it `running` while `reads` (the earlier reads that saw a pending leg) is under `rereadBound` and
+   `unavailable` after; with no pending leg it is `pass` when every leg is ok and `fail` when one is not;
 4. otherwise the waiter's outcome stands (`waitState`). -/
-def laneState (code : Nat) (timedOut : Bool) (status conclusion : String) (saidFail : Bool) (jobs : Option (List Bool)) : RunState :=
+def laneState (code : Nat) (timedOut : Bool) (status conclusion : String) (saidFail : Bool) (jobs : Option (List Job))
+    (reads : Nat := 0) : RunState :=
   if completedFailure status conclusion || completedUnknown status conclusion then .fail
   else if going status then .running
   else match jobs with
-    | some rs => if jobsDecide code timedOut status conclusion && !rs.isEmpty then (if LandLegs.legsOk rs then .pass else .fail) else waitState code timedOut saidFail
+    | some js =>
+      if jobsDecide code timedOut status conclusion && !js.isEmpty then
+        if anyPending js then (if reads < rereadBound then .running else .unavailable)
+        else if LandLegs.legsOk (js.map fun j => legState j == .ok) then .pass else .fail
+      else waitState code timedOut saidFail
     | none => waitState code timedOut saidFail
 
 /-- The reason word on the `VERDICT` line. -/
@@ -466,20 +507,20 @@ theorem verdict_degraded_named (a : List Provider) (w : Want) (k : Nat) (rs : Li
       subst this
       exact Or.inr (Or.inr ⟨_, verdict_run_local a w rs hf hp hq hall⟩)
 
-/-- Branch 1, one failure: a completed run with conclusion failure is `fail`, for every waiter exit, output and job list. -/
-theorem laneState_completed_failure (code : Nat) (t s : Bool) (status conclusion : String) (jobs : Option (List Bool))
-    (h : completedFailure status conclusion = true) : laneState code t status conclusion s jobs = .fail := by
+/-- Branch 1, one failure: a completed run with conclusion failure is `fail`, for every waiter exit, output, job list and read count. -/
+theorem laneState_completed_failure (code : Nat) (t s : Bool) (status conclusion : String) (jobs : Option (List Job)) (n : Nat)
+    (h : completedFailure status conclusion = true) : laneState code t status conclusion s jobs n = .fail := by
   simp [laneState, h]
 
 /-- Branch 1, unknown: a completed conclusion this decision does not know is `fail` (a refusal), for every waiter exit. -/
-theorem laneState_completed_unknown (code : Nat) (t s : Bool) (status conclusion : String) (jobs : Option (List Bool))
-    (h : completedUnknown status conclusion = true) : laneState code t status conclusion s jobs = .fail := by
+theorem laneState_completed_unknown (code : Nat) (t s : Bool) (status conclusion : String) (jobs : Option (List Job)) (n : Nat)
+    (h : completedUnknown status conclusion = true) : laneState code t status conclusion s jobs n = .fail := by
   simp [laneState, h]
 
 /-- Branch 2, in progress and wait error: a run whose status says it has not finished is `running`, whatever the waiter returned
 (exit 1 included, which is what a crashed waiter returns). -/
-theorem laneState_in_progress (code : Nat) (t s : Bool) (status conclusion : String) (jobs : Option (List Bool))
-    (h : going status = true) : laneState code t status conclusion s jobs = .running := by
+theorem laneState_in_progress (code : Nat) (t s : Bool) (status conclusion : String) (jobs : Option (List Job)) (n : Nat)
+    (h : going status = true) : laneState code t status conclusion s jobs n = .running := by
   have hf : completedFailure status conclusion = false := by
     simp only [going, Bool.and_eq_true, bne_iff_ne, ne_eq] at h
     simp [completedFailure, h.1, h.2]
@@ -488,32 +529,132 @@ theorem laneState_in_progress (code : Nat) (t s : Bool) (status conclusion : Str
     simp [completedUnknown, h.1, h.2]
   simp [laneState, hf, hu, h]
 
-/-- Branch 3, all success: a completed success the waiter did not call cancelled, whose legs all passed, is `pass`, also when the waiter
-exited 1 (a crash after the verdict). -/
-theorem laneState_all_success (code : Nat) (t s : Bool) (rs : List Bool) (hc : code ≠ 4) (hne : rs ≠ [])
-    (ht : ¬(code = 3 ∧ t = true)) (hall : ∀ r ∈ rs, r = true) :
-    laneState code t "completed" "success" s (some rs) = .pass := by
-  have hj : jobsDecide code t "completed" "success" = true := by
-    simp only [jobsDecide]
-    have h3 : (code == 3 && t) = false := by
-      by_cases h : code = 3 <;> by_cases h' : t = true <;> simp_all
-    simp [h3, hc]
-  have hok : LandLegs.legsOk rs = true := LandLegs.legsOk_all_pass rs hne hall
-  have hrs : rs.isEmpty = false := by cases rs <;> simp_all
-  simp [laneState, completedFailure, completedUnknown, going, hj, hrs, hok]
+/-- A job whose status is not `completed` is a pending leg, whatever its conclusion says. -/
+theorem legState_pending (j : Job) (h : j.status ≠ "completed") : legState j = .pending := by
+  simp [legState, h]
 
-/-- Branch 3, one failure: a completed success whose legs are not all passing is `fail`, whatever the waiter said (apart from cancelled and
-a run going). -/
-theorem laneState_one_failure (code : Nat) (t s : Bool) (rs : List Bool) (hc : code ≠ 4) (ht : ¬(code = 3 ∧ t = true)) (hf : false ∈ rs) :
-    laneState code t "completed" "success" s (some rs) = .fail := by
-  have hj : jobsDecide code t "completed" "success" = true := by
-    simp only [jobsDecide]
-    have h3 : (code == 3 && t) = false := by
-      by_cases h : code = 3 <;> by_cases h' : t = true <;> simp_all
-    simp [h3, hc]
-  have hrs : rs.isEmpty = false := by cases rs <;> simp_all
-  have hok : LandLegs.legsOk rs = false := LandLegs.legsOk_fail_wins rs hf
-  simp [laneState, completedFailure, completedUnknown, going, hj, hrs, hok]
+/-- A completed job with conclusion `success` or `skipped` is an ok leg. -/
+theorem legState_ok (j : Job) (h : j.status = "completed") (hc : j.conclusion = "success" ∨ j.conclusion = "skipped") :
+    legState j = .ok := by
+  rcases hc with hc | hc <;> simp [legState, h, hc]
+
+/-- A completed job with any other conclusion is a failed leg. -/
+theorem legState_fail (j : Job) (h : j.status = "completed") (hs : j.conclusion ≠ "success") (hk : j.conclusion ≠ "skipped") :
+    legState j = .fail := by
+  simp [legState, h, hs, hk]
+
+/-- A failed leg is a completed job. -/
+theorem legState_fail_completed (j : Job) (h : legState j = .fail) : j.status = "completed" := by
+  by_cases hn : j.status = "completed"
+  · exact hn
+  · rw [legState_pending j hn] at h
+    cases h
+
+/-- A completed success whose waiter did not say cancelled or run out of time: the jobs decide it. -/
+theorem jobsDecide_success (code : Nat) (t : Bool) (hc : code ≠ 4) (ht : ¬(code = 3 ∧ t = true)) :
+    jobsDecide code t "completed" "success" = true := by
+  simp only [jobsDecide]
+  have h3 : (code == 3 && t) = false := by
+    by_cases h : code = 3 <;> by_cases h' : t = true <;> simp_all
+  simp [h3, hc]
+
+/-- When the jobs decide, branches 1 and 2 do not apply: the pending legs, then the legs' verdict, decide. -/
+theorem laneState_of_jobsDecide (code : Nat) (t s : Bool) (status conclusion : String) (js : List Job) (n : Nat)
+    (h : jobsDecide code t status conclusion = true) (hne : js ≠ []) :
+    laneState code t status conclusion s (some js) n =
+      if anyPending js then (if n < rereadBound then .running else .unavailable)
+      else if LandLegs.legsOk (js.map fun j => legState j == .ok) then .pass else .fail := by
+  have hc : conclusion = "success" := by
+    simp only [jobsDecide, Bool.and_eq_true, beq_iff_eq] at h; exact h.1.1.1
+  have hs : status = "completed" ∨ status = "" := by
+    simp only [jobsDecide, Bool.and_eq_true, Bool.or_eq_true, beq_iff_eq] at h; exact h.1.1.2
+  have hf : completedFailure status conclusion = false := by simp [completedFailure, hc]
+  have hu : completedUnknown status conclusion = false := by simp [completedUnknown, hc]
+  have hg : going status = false := by rcases hs with hs | hs <;> simp [going, hs]
+  have he : js.isEmpty = false := by cases js <;> simp_all
+  simp [laneState, hf, hu, hg, h, he]
+
+/-- Branch 3, all ok: a completed success the waiter did not call cancelled, whose legs are all ok, is `pass`, also when the waiter
+exited 1 (a crash after the verdict). -/
+theorem laneState_all_success (code : Nat) (t s : Bool) (js : List Job) (n : Nat) (hc : code ≠ 4) (hne : js ≠ [])
+    (ht : ¬(code = 3 ∧ t = true)) (hall : ∀ j ∈ js, legState j = .ok) :
+    laneState code t "completed" "success" s (some js) n = .pass := by
+  have hp : anyPending js = false := by
+    simp only [anyPending, List.any_eq_false, beq_iff_eq]
+    intro j hj e; rw [hall j hj] at e; cases e
+  have hok : LandLegs.legsOk (js.map fun j => legState j == .ok) = true := by
+    apply LandLegs.legsOk_all_pass
+    · simpa using hne
+    · intro r hr
+      obtain ⟨j, hj, rfl⟩ := List.mem_map.1 hr
+      simp [hall j hj]
+  rw [laneState_of_jobsDecide code t s _ _ js n (jobsDecide_success code t hc ht) hne]
+  simp [hp, hok]
+
+/-- Branch 3, one failure: a completed success with no pending leg and one failed leg is `fail`, whatever the waiter said (apart from
+cancelled and a run going). -/
+theorem laneState_one_failure (code : Nat) (t s : Bool) (js : List Job) (n : Nat) (hc : code ≠ 4) (ht : ¬(code = 3 ∧ t = true))
+    (hp : anyPending js = false) (hf : ∃ j ∈ js, legState j = .fail) :
+    laneState code t "completed" "success" s (some js) n = .fail := by
+  obtain ⟨j, hj, hjf⟩ := hf
+  have hne : js ≠ [] := by intro e; subst e; cases hj
+  have hok : LandLegs.legsOk (js.map fun j => legState j == .ok) = false :=
+    LandLegs.legsOk_fail_wins _ (List.mem_map.2 ⟨j, hj, by simp [hjf]⟩)
+  rw [laneState_of_jobsDecide code t s _ _ js n (jobsDecide_success code t hc ht) hne]
+  simp [hp, hok]
+
+/-- Branch 3, pending: when the jobs decide and one leg has not completed, the run is `running` (read again) while reads are left. -/
+theorem laneState_pending_reread (code : Nat) (t s : Bool) (status conclusion : String) (js : List Job) (n : Nat)
+    (h : jobsDecide code t status conclusion = true) (hp : anyPending js = true) (hn : n < rereadBound) :
+    laneState code t status conclusion s (some js) n = .running := by
+  have hne : js ≠ [] := by intro e; subst e; simp [anyPending] at hp
+  rw [laneState_of_jobsDecide code t s _ _ js n h hne]
+  simp [hp, hn]
+
+/-- Branch 3, pending after the bound: a record that never settled is `unavailable`, not `fail`. -/
+theorem laneState_pending_exhausted (code : Nat) (t s : Bool) (status conclusion : String) (js : List Job) (n : Nat)
+    (h : jobsDecide code t status conclusion = true) (hp : anyPending js = true) (hn : rereadBound ≤ n) :
+    laneState code t status conclusion s (some js) n = .unavailable := by
+  have hne : js ≠ [] := by intro e; subst e; simp [anyPending] at hp
+  rw [laneState_of_jobsDecide code t s _ _ js n h hne]
+  simp [hp, Nat.not_lt.2 hn]
+
+/-- No fail verdict from a leg that has not completed: when the jobs decide, a `fail` state means every leg's job status is
+`completed`. -/
+theorem laneState_fail_legs_completed (code : Nat) (t s : Bool) (status conclusion : String) (js : List Job) (n : Nat)
+    (h : jobsDecide code t status conclusion = true) (hf : laneState code t status conclusion s (some js) n = .fail) :
+    ∀ j ∈ js, j.status = "completed" := by
+  intro j hj
+  have hne : js ≠ [] := by intro e; subst e; cases hj
+  rw [laneState_of_jobsDecide code t s _ _ js n h hne] at hf
+  have hp : anyPending js = false := by
+    cases e : anyPending js
+    · rfl
+    · simp only [e, ite_true] at hf; split at hf <;> cases hf
+  by_cases hn : j.status = "completed"
+  · exact hn
+  · have : anyPending js = true := List.any_eq_true.2 ⟨j, hj, by simp [legState_pending j hn]⟩
+    rw [hp] at this; cases this
+
+/-- A completed success with a pending leg is never `fail`, whatever the waiter returned or said and however often it was read. -/
+theorem laneState_success_pending_not_fail (code : Nat) (t s : Bool) (js : List Job) (n : Nat) (hp : anyPending js = true) :
+    laneState code t "completed" "success" s (some js) n ≠ .fail := by
+  by_cases hj : jobsDecide code t "completed" "success" = true
+  · intro hf
+    obtain ⟨j, hj', hjp⟩ := List.any_eq_true.1 hp
+    have hc := laneState_fail_legs_completed code t s _ _ js n hj hf j hj'
+    simp [legState, hc] at hjp
+    split at hjp <;> simp at hjp
+  · have hw : laneState code t "completed" "success" s (some js) n = waitState code t s := by
+      simp [laneState, completedFailure, completedUnknown, going, hj]
+    rw [hw]
+    have : code = 4 ∨ (code = 3 ∧ t = true) := by
+      by_cases h4 : code = 4
+      · exact Or.inl h4
+      · by_cases h3 : code = 3 ∧ t = true
+        · exact Or.inr h3
+        · exact absurd (jobsDecide_success code t h4 h3) hj
+    rcases this with rfl | ⟨rfl, rfl⟩ <;> simp [waitState]
 
 /-- Branch 4, wait error: with no run record, a waiter that did not say `fail` never yields `fail`: exit 1 without the line, exit 2 and
 exit 3 are `running` (the land keeps waiting); every exit but 0 to 4 is `unavailable`. -/
@@ -531,6 +672,18 @@ theorem laneState_wait_error_running (code : Nat) (t : Bool) (h : code = 1 ∨ c
 theorem laneState_waiter (code : Nat) (t s : Bool) : laneState code t "" "" s none = waitState code t s := by
   simp [laneState, completedFailure, completedUnknown, going]
 
+/-- The record is read again exactly in the pending branch: the state is then `running` or `unavailable`, never `fail`. -/
+theorem rereads_state (code : Nat) (t s : Bool) (status conclusion : String) (jobs : Option (List Job)) (n : Nat)
+    (h : rereads code t status conclusion jobs = true) :
+    laneState code t status conclusion s jobs n = .running ∨ laneState code t status conclusion s jobs n = .unavailable := by
+  cases jobs with
+  | none => simp [rereads] at h
+  | some js =>
+    simp only [rereads, Bool.and_eq_true] at h
+    by_cases hn : n < rereadBound
+    · exact Or.inl (laneState_pending_reread code t s _ _ js n h.1.1 h.2 hn)
+    · exact Or.inr (laneState_pending_exhausted code t s _ _ js n h.1.1 h.2 (Nat.not_lt.1 hn))
+
 /-- Timeout: runs of the lane that are only `timeout` never refuse the land as failed; the verdict is the timeout verdict of `fallback`. -/
 theorem verdict_timeout_not_fail (a : List Provider) (w : Want) (k : Nat) (rs : List Run)
     (h : ∀ r ∈ rs.filter w.binds, r.state = .timeout) : verdict true true a w k rs ≠ .refuse .remoteFail := by
@@ -543,16 +696,46 @@ theorem verdict_timeout_not_fail (a : List Provider) (w : Want) (k : Nat) (rs : 
   unfold fallback at e
   split at e <;> (try split at e) <;> cases e
 
-/-- The run record a lane run yields, bound to the sha and digest it printed. -/
-def laneRun (p : Provider) (sha laneId digest : String) (code : Nat) (t s : Bool) (status conclusion : String) (jobs : Option (List Bool)) : Run :=
-  { provider := p, sha := sha, laneId := laneId, laneDigest := digest, state := laneState code t status conclusion s jobs }
+/-- The run record a lane run yields, bound to the sha and digest it printed (`reads`: the earlier reads that saw a pending leg). -/
+def laneRun (p : Provider) (sha laneId digest : String) (code : Nat) (t s : Bool) (status conclusion : String) (jobs : Option (List Job))
+    (reads : Nat := 0) : Run :=
+  { provider := p, sha := sha, laneId := laneId, laneDigest := digest, state := laneState code t status conclusion s jobs reads }
 
 /-- A completed bound failed lane run refuses the land, whatever exit code the waiter returned and whatever the other runs say. -/
 theorem verdict_completed_failure_refuses (a : List Provider) (w : Want) (k : Nat) (rs : List Run) (p : Provider)
-    (code : Nat) (t sf : Bool) (status conclusion : String) (jobs : Option (List Bool)) (hc : completedFailure status conclusion = true)
-    (hm : laneRun p w.sha w.laneId w.laneDigest code t sf status conclusion jobs ∈ rs) :
+    (code : Nat) (t sf : Bool) (status conclusion : String) (jobs : Option (List Job)) (n : Nat)
+    (hc : completedFailure status conclusion = true)
+    (hm : laneRun p w.sha w.laneId w.laneDigest code t sf status conclusion jobs n ∈ rs) :
     verdict true true a w k rs = .refuse .remoteFail :=
-  verdict_fail a w k rs ⟨_, hm, by simp [Want.binds, laneRun], laneState_completed_failure code t sf status conclusion jobs hc⟩
+  verdict_fail a w k rs ⟨_, hm, by simp [Want.binds, laneRun], laneState_completed_failure code t sf status conclusion jobs n hc⟩
+
+/-- Without a bound failed run the land is never refused as a remote failure. -/
+theorem verdict_no_fail_no_refuse (l n : Bool) (a : List Provider) (w : Want) (k : Nat) (rs : List Run)
+    (h : ∀ r ∈ rs.filter w.binds, r.state ≠ .fail) : verdict l n a w k rs ≠ .refuse .remoteFail := by
+  have hf : hasFail (rs.filter w.binds) = false := hasFail_false _ h
+  intro e
+  simp only [verdict, hf, Bool.false_eq_true, ite_false] at e
+  split at e
+  · cases e
+  split at e
+  · cases e
+  split at e
+  · cases e
+  split at e
+  · cases e
+  unfold fallback at e
+  split at e <;> (try split at e) <;> cases e
+
+/-- A land whose only bound run is a completed success with a pending leg is not refused as a remote failure, whatever the waiter said
+and however often the record was read (incident inc-land-leg-unfinished, run 39792901389). -/
+theorem verdict_pending_leg_no_refuse (l n : Bool) (a : List Provider) (w : Want) (k : Nat) (p : Provider) (code : Nat) (t s : Bool)
+    (js : List Job) (m : Nat) (hp : anyPending js = true) :
+    verdict l n a w k [laneRun p w.sha w.laneId w.laneDigest code t s "completed" "success" (some js) m] ≠ .refuse .remoteFail := by
+  apply verdict_no_fail_no_refuse
+  intro r hr
+  rw [List.mem_filter, List.mem_singleton] at hr
+  rw [hr.1]
+  exact laneState_success_pending_not_fail code t s js m hp
 
 /-- A bound lane run whose waiter errored with no record and no fail line (exit 1, 2 or 3) keeps the land waiting, not run locally and not
 a new provider, when nothing else decided: the wait lasts until the deadline turns the run into `timeout`. -/
@@ -570,12 +753,23 @@ theorem verdict_wait_error_waits (a : List Provider) (w : Want) (k : Nat) (p : P
 
 /-- A fallback to the local tier is impossible while a completed bound failed run is among the runs. -/
 theorem verdict_no_local_after_failure (a : List Provider) (w : Want) (k : Nat) (rs : List Run) (p : Provider)
-    (code : Nat) (t sf : Bool) (status conclusion : String) (jobs : Option (List Bool)) (hc : completedFailure status conclusion = true)
-    (hm : laneRun p w.sha w.laneId w.laneDigest code t sf status conclusion jobs ∈ rs) (y : LocalWhy) :
+    (code : Nat) (t sf : Bool) (status conclusion : String) (jobs : Option (List Job)) (n : Nat)
+    (hc : completedFailure status conclusion = true)
+    (hm : laneRun p w.sha w.laneId w.laneDigest code t sf status conclusion jobs n ∈ rs) (y : LocalWhy) :
     verdict true true a w k rs ≠ .runLocal y := by
-  rw [verdict_completed_failure_refuses a w k rs p code t sf status conclusion jobs hc hm]
+  rw [verdict_completed_failure_refuses a w k rs p code t sf status conclusion jobs n hc hm]
   intro h; cases h
 
+#guard legState ⟨"in_progress", ""⟩ == .pending
+#guard legState ⟨"queued", "failure"⟩ == .pending
+#guard legState ⟨"completed", "success"⟩ == .ok
+#guard legState ⟨"completed", "skipped"⟩ == .ok
+#guard legState ⟨"completed", "cancelled"⟩ == .fail
+#guard legState ⟨"completed", ""⟩ == .fail
+#guard laneState 0 false "completed" "success" false (some [⟨"completed", "success"⟩, ⟨"in_progress", ""⟩]) == .running
+#guard laneState 0 false "completed" "success" false (some [⟨"completed", "success"⟩, ⟨"in_progress", ""⟩]) rereadBound == .unavailable
+#guard rereads 1 false "completed" "success" (some [⟨"in_progress", ""⟩])
+#guard !rereads 4 false "completed" "success" (some [⟨"in_progress", ""⟩])
 #guard laneDigest .onCi ["apps/runner", "packages/gh-budget"] == "remote:apps/runner,packages/gh-budget"
 #guard laneDigest .onCi [] == "remote:"
 #guard LandTier.remoteIds.all (fun i => !i.contains ',')
@@ -647,16 +841,46 @@ def cases : List Json :=
    line "unavailable beats timeout in the reason" true true both gw 0 [run .github .timeout, run .circleci .unavailable],
    line "cancelled run of another sha leaves no reason" true true gh gw 0 [run .github .cancelled "bbbb222"]]
 
-/-- One lane-state golden line. `jobs`: one bool per leg of the run record, `none` when the record has none. -/
-def stateLine (name : String) (code : Nat) (t : Bool) (status conclusion : String) (said : Bool := true) (jobs : Option (List Bool) := none) : Json :=
+/-- The request JSON of one job record. -/
+def jobJson (j : Job) : Json := Json.mkObj [("status", .str j.status), ("conclusion", .str j.conclusion)]
+
+/-- One lane-state golden line. `jobs`: one record per leg of the run record, `none` when the record has none; `reads`: the earlier reads
+that saw a pending leg. -/
+def stateLine (name : String) (code : Nat) (t : Bool) (status conclusion : String) (said : Bool := true) (jobs : Option (List Job) := none)
+    (reads : Nat := 0) : Json :=
   Json.mkObj [("name", .str name),
     ("request", Json.mkObj ([("op", .str "console.landLaneState"), ("exit", .num code), ("timedOut", .bool t),
       ("status", .str status), ("conclusion", .str conclusion), ("saidFail", .bool said)] ++
-      (match jobs with | none => [("jobs", .null)] | some rs => [("jobs", .arr (rs.map Json.bool).toArray)]))),
-    ("response", Json.mkObj [("state", .str (laneState code t status conclusion said jobs).name)])]
+      (match jobs with | none => [("jobs", .null)] | some js => [("jobs", .arr (js.map jobJson).toArray)]) ++ [("reads", .num reads)])),
+    ("response", Json.mkObj [("state", .str (laneState code t status conclusion said jobs reads).name),
+      ("reread", .bool (rereads code t status conclusion jobs))])]
 
-/-- The lane-state golden cases: each waiter exit next to a completed failure; then the six decision cases (in progress, wait error, timeout,
-all success, one failure, unknown), the incidents of 2026-10-21 and 2026-10-19 among them. -/
+/-- One leg-state golden line. -/
+def legsLine (name : String) (js : List Job) : Json :=
+  Json.mkObj [("name", .str name), ("request", Json.mkObj [("op", .str "console.landLegStates"), ("jobs", .arr (js.map jobJson).toArray)]),
+    ("response", Json.mkObj [("legs", .arr (js.map fun j => Json.str (legState j).name).toArray)])]
+
+/-- A completed job that succeeded. -/
+def okJob : Job := ⟨"completed", "success"⟩
+
+/-- A completed job that failed. -/
+def failJob : Job := ⟨"completed", "failure"⟩
+
+/-- A job GitHub has not finalised: status `in_progress`, no conclusion. -/
+def openJob : Job := ⟨"in_progress", ""⟩
+
+/-- Jobs from one bool per leg: `true` a completed success, `false` a completed failure. -/
+def jobsOf (bs : List Bool) : List Job := bs.map fun b => if b then okJob else failJob
+
+/-- The leg jobs of run 39792901389 as the land read them (incident inc-land-leg-unfinished): playwright-webkit, check-sh, chromium,
+suites-a, suites-b; only check-sh had completed. -/
+def run39792901389 : List Job := [openJob, okJob, openJob, openJob, openJob]
+
+/-- The same legs once GitHub finalised them. -/
+def run39792901389Final : List Job := [okJob, okJob, okJob, okJob, okJob]
+
+/-- The lane-state golden cases: each waiter exit next to a completed failure; then the decision cases (in progress, wait error, timeout,
+all success, one failure, pending legs, unknown), the incidents of 2026-10-22, 2026-10-21 and 2026-10-19 among them. -/
 def stateCases : List Json :=
   [0, 1, 2, 3, 4, 5].map (fun c => stateLine s!"completed failure, waiter exit {c}: fail" c false "completed" "failure") ++
   [stateLine "completed failure, exit 3 timed out: fail" 3 true "completed" "failure",
@@ -683,24 +907,44 @@ def stateCases : List Json :=
    -- timeout of the slice
    stateLine "slice timeout: exit 3 timed out, no record: running" 3 true "" "",
    -- all success
-   stateLine "all jobs success, waiter exit 1 (crash after the verdict): pass" 1 false "completed" "success" false (some [true, true, true, true, true]),
-   stateLine "all jobs success, waiter exit 1 said fail: pass" 1 false "completed" "success" true (some [true, true, true]),
-   stateLine "all jobs success, waiter exit 2: pass" 2 false "completed" "success" false (some [true, true]),
-   stateLine "all jobs success, waiter exit 0: pass" 0 false "completed" "success" false (some [true, true]),
-   stateLine "all jobs success, exit 4 (guard skipped): cancelled" 4 false "completed" "success" false (some [true, true]),
-   stateLine "success without job conclusions, waiter exit 1 said fail: fail" 1 false "completed" "success" true none,
+   stateLine "all jobs success, waiter exit 1 (crash after the verdict): pass" 1 false "completed" "success" false (some (jobsOf [true, true, true, true, true])),
+   stateLine "all jobs success, waiter exit 1 said fail: pass" 1 false "completed" "success" true (some (jobsOf [true, true, true])),
+   stateLine "all jobs success, waiter exit 2: pass" 2 false "completed" "success" false (some (jobsOf [true, true])),
+   stateLine "all jobs success, waiter exit 0: pass" 0 false "completed" "success" false (some (jobsOf [true, true])),
+   stateLine "all jobs success, exit 4 (guard skipped): cancelled" 4 false "completed" "success" false (some (jobsOf [true, true])),
+   stateLine "one job skipped, the others success: pass" 0 false "completed" "success" false (some [okJob, ⟨"completed", "skipped"⟩]),
+   stateLine "success without job records, waiter exit 1 said fail: fail" 1 false "completed" "success" true none,
    stateLine "success with no legs, waiter exit 1 crashed: running" 1 false "completed" "success" false (some []),
    -- one failure
-   stateLine "one job failed, run success, waiter exit 0: fail" 0 false "completed" "success" false (some [true, false, true]),
-   stateLine "one job failed, run success, waiter exit 1: fail" 1 false "completed" "success" true (some [true, false, true]),
+   stateLine "one job failed, run success, waiter exit 0: fail" 0 false "completed" "success" false (some (jobsOf [true, false, true])),
+   stateLine "one job failed, run success, waiter exit 1: fail" 1 false "completed" "success" true (some (jobsOf [true, false, true])),
+   stateLine "one job cancelled, run success: fail" 0 false "completed" "success" false (some [okJob, ⟨"completed", "cancelled"⟩]),
+   -- pending legs: a job not completed is never a failed leg
+   stateLine "run 39792901389 at land time, waiter exit 0: running, read again" 0 false "completed" "success" false (some run39792901389),
+   stateLine "run 39792901389 at land time, waiter exit 1 said fail: running, read again" 1 false "completed" "success" true (some run39792901389),
+   stateLine "run 39792901389 at land time, second read: running" 0 false "completed" "success" false (some run39792901389) 1,
+   stateLine "run 39792901389 at land time, last read under the bound: running" 0 false "completed" "success" false (some run39792901389) (rereadBound - 1),
+   stateLine "run 39792901389 at land time, reads used up: unavailable, not fail" 0 false "completed" "success" false (some run39792901389) rereadBound,
+   stateLine "run 39792901389 once finalised: pass" 0 false "completed" "success" false (some run39792901389Final) 1,
+   stateLine "a failed leg next to a pending leg: running, read again" 0 false "completed" "success" false (some [failJob, openJob]),
+   stateLine "a queued job with a failure conclusion is pending" 0 false "completed" "success" false (some [okJob, ⟨"queued", "failure"⟩]),
+   stateLine "pending leg, exit 4: cancelled, no re-read" 4 false "completed" "success" false (some run39792901389),
    -- unknown
    stateLine "unknown conclusion timed_out: fail" 0 false "completed" "timed_out" false none,
    stateLine "unknown conclusion action_required, exit 2: fail" 2 false "completed" "action_required" false none,
-   stateLine "unknown conclusion neutral, jobs all success: fail" 0 false "completed" "neutral" false (some [true])]
+   stateLine "unknown conclusion neutral, jobs all success: fail" 0 false "completed" "neutral" false (some (jobsOf [true]))]
+
+/-- The leg-state golden cases: one per branch of `legState`, then run 39792901389 as the land read it. -/
+def legCases : List Json :=
+  [legsLine "pending, ok, ok, fail" [openJob, okJob, ⟨"completed", "skipped"⟩, failJob],
+   legsLine "a queued job with a conclusion is pending" [⟨"queued", "failure"⟩],
+   legsLine "a completed job with no conclusion is failed" [⟨"completed", ""⟩],
+   legsLine "run 39792901389 at land time" run39792901389,
+   legsLine "no jobs" []]
 
 /-- The golden file text. -/
 def goldenText : String :=
-  String.join ((cases ++ stateCases ++ [digestLine "two suites" ["apps/runner", "packages/gh-budget"], digestLine "no suites" [],
+  String.join ((cases ++ stateCases ++ legCases ++ [digestLine "two suites" ["apps/runner", "packages/gh-budget"], digestLine "no suites" [],
     digestLine "order is kept" ["packages/gh-budget", "apps/runner"]]).map fun c => c.compress ++ "\n")
 
 /-- The golden file, relative to `lean/`. -/
