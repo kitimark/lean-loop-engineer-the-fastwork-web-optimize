@@ -152,15 +152,40 @@ theorem reveal_needed : ∃ w h y len : Rat, 0 < len ∧ varPixel w h len y ≠ 
   refine ⟨390, 1000, 1000, 1, by grind, ?_⟩
   decide +kernel
 
-/-- Cont is needed: an original one frame behind (class from `lastY < y`) differs from the layer. -/
-theorem cont_needed : ∃ w h y lastY len : Rat, 0 < len ∧ varPixel w h len y ≠ origPixel w h 0 lastY := by
-  refine ⟨390, 1000, 1000, 900, 1, by grind, ?_⟩
-  decide +kernel
-
 /-- Above 860 px both arms are dark at every offset and in every state. -/
 theorem wide_eq (w h tr y len : Rat) (hw : 860 < w) : varPixel w h len y = origPixel w h tr y := by
   have : ¬ w ≤ 860 := by grind
   simp [varPixel, origPixel, this, painDark]
+
+/-- **Where Reveal fails the looks differ only inside a window of at most 48 px of scroll.** The reveal translation
+`tr` runs from 48 px (`translateY(48px)`, card.module.css) down to 0; with a current class and a layer of positive
+range length, the two arms differ at `y` only in the band and only while `flipAt h <= y < flipAt h + tr`, the original
+being the later one. -/
+theorem drift_window (w h tr lastY y len : Rat) (hl : 0 < len) (hc : Cont lastY y) (h0 : 0 ≤ tr) (h48 : tr ≤ 48)
+    (hne : varPixel w h len y ≠ origPixel w h tr lastY) :
+    w ≤ 860 ∧ flipAt h ≤ y ∧ y < flipAt h + 48 := by
+  unfold Cont at hc
+  subst hc
+  by_cases hw : w ≤ 860
+  · refine ⟨hw, ?_⟩
+    unfold varPixel origPixel at hne
+    simp only [hw, ite_true, opacity_eq _ _ _ hl, painDark, decide_true, Bool.not_true, Bool.false_or, headerTop,
+      flipAt] at hne
+    by_cases ha : h - darkTop ≤ lastY
+    · by_cases hb : h + tr - lastY ≤ darkTop
+      · simp [ha, hb, over_one] at hne
+      · have : lastY < h - darkTop + 48 := by grind
+        exact ⟨ha, by unfold flipAt; grind⟩
+    · by_cases hb : h + tr - lastY ≤ darkTop
+      · exfalso; grind
+      · simp [ha, hb, over_zero] at hne
+  · exfalso
+    exact hne (wide_eq w h tr lastY len (by grind))
+
+/-- Cont is needed: an original one frame behind (class from `lastY < y`) differs from the layer. -/
+theorem cont_needed : ∃ w h y lastY len : Rat, 0 < len ∧ varPixel w h len y ≠ origPixel w h 0 lastY := by
+  refine ⟨390, 1000, 1000, 900, 1, by grind, ?_⟩
+  decide +kernel
 
 #guard varPixel 390 1000 1 999 == light && varPixel 390 1000 1 999.5 == darkRgb && varPixel 390 1000 1 5000 == darkRgb
 #guard layerOpacity 100 1 99 == 0 && layerOpacity 100 1 100 == 1 && layerOpacity 100 1 100.5 == 1 && layerOpacity 100 1 101 == 1
