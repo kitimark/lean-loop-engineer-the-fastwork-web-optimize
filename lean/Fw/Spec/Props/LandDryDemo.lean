@@ -18,7 +18,7 @@ script reading the verdict found none. This module replays the property-first wo
    (`landDryRegistry_faithful`). Two extra mutants, not registered incidents: `exnNoVerdict` (a top-level catch
    prints the error and exits 1) and `emptyDone` (the empty branch says `done`).
 4. **Search before proof.** Pointwise checks `qOneVerdict`, `qTruthful` with `*_sound` lemmas; `#guard`s run the
-   search over all 128 outcomes (`𝔹^7`, exhaustive) and find the bug in each bad implementation. The
+   search over all 256 outcomes (`𝔹^8`, exhaustive) and find the bug in each bad implementation. The
    `emptyDone` guard shows that `NoSilentExit` alone is blind to that bug, which is why `TruthfulVerdict` exists.
 5. **Kill witnesses** against the registered replay, `P_rejects_inc_land_dry_no_verdict : ¬ P
    incLandDryNoVerdict.replay`, proved by running the search (`Fw.Search.refutes_of_search`), and so
@@ -85,11 +85,11 @@ theorem landDryRegistry_faithful : Faithful .landDry dryOut := fun i hi => by
 
 /-! ## Step 4: pointwise checks and the search, before any proof -/
 
-/-- All 128 stage outcomes, through `𝔹^7`. -/
+/-- All 256 stage outcomes, through `𝔹^8`. -/
 instance instEnumAllOutcome : EnumAll Outcome :=
-  EnumAll.ofEquiv (β := Bool × Bool × Bool × Bool × Bool × Bool × Bool)
-    (fun ⟨a, b, c, d, e, f, g⟩ => ⟨a, b, c, d, e, f, g⟩)
-    (fun o => (o.threw, o.fresh, o.own, o.scope, o.merges, o.reads, o.lints)) (fun _ => rfl)
+  EnumAll.ofEquiv (β := Bool × Bool × Bool × Bool × Bool × Bool × Bool × Bool)
+    (fun ⟨a, b, c, d, e, f, g, h⟩ => ⟨a, b, c, d, e, f, g, h⟩)
+    (fun o => (o.threw, o.fresh, o.own, o.scope, o.merges, o.installs, o.reads, o.lints)) (fun _ => rfl)
 
 /-- The pointwise check of `NoSilentExit` at task `t` and outcome `O`. -/
 def qOneVerdict (run : DryImpl) (t : String) (o : Outcome) : Bool := verdictCount (run o t).lines == 1
@@ -120,8 +120,8 @@ check at that task on every outcome. -/
 theorem qTruthful_sound (run : DryImpl) (t : String) : TruthfulVerdict run → ∀ o, qTruthful run t o = true :=
   fun h => (TruthfulVerdict_iff run).mp h t
 
--- the search over all 128 outcomes, task `x`: clean on the real run, a counterexample for each bad run
-#guard (EnumAll.all : List Outcome).length == 128
+-- the search over all 256 outcomes, task `x`: clean on the real run, a counterexample for each bad run
+#guard (EnumAll.all : List Outcome).length == 256
 #guard (search EnumAll.all (qOneVerdict dryOut "x")).isNone
 #guard (search EnumAll.all (qTruthful dryOut "x")).isNone
 #guard (search EnumAll.all (qOneVerdict emptyNoVerdict "x")).isSome
@@ -291,14 +291,14 @@ theorem qOneVerdict_exnNoVerdict (t : String) (o : Outcome) :
 /-- **The search finds the empty branch, on every task.** For every task `t`, the first outcome on which the
 `NoSilentExit` check of `emptyNoVerdict` fails is the empty branch with every later stage false. -/
 theorem emptyNoVerdict_search (t : String) :
-    search EnumAll.all (qOneVerdict emptyNoVerdict t) = some ⟨false, true, false, false, false, false, false⟩ := by
+    search EnumAll.all (qOneVerdict emptyNoVerdict t) = some ⟨false, true, false, false, false, false, false, false⟩ := by
   rw [show qOneVerdict emptyNoVerdict t = fun o => !isEmptyBranch o from funext (qOneVerdict_emptyNoVerdict t)]
   rfl
 
 /-- **The search finds an exception, on every task.** For every task `t`, the first outcome on which the
 `NoSilentExit` check of `exnNoVerdict` fails is the one that threw with every other stage false. -/
 theorem exnNoVerdict_search (t : String) :
-    search EnumAll.all (qOneVerdict exnNoVerdict t) = some ⟨true, false, false, false, false, false, false⟩ := by
+    search EnumAll.all (qOneVerdict exnNoVerdict t) = some ⟨true, false, false, false, false, false, false, false⟩ := by
   rw [show qOneVerdict exnNoVerdict t = fun o => !o.threw from funext (qOneVerdict_exnNoVerdict t)]
   rfl
 
@@ -322,7 +322,7 @@ theorem Silly_impl : Silly dryOut := by
 
 /-- `Silly` rejects the made-up bad implementation, which counted as a kill in round 2 and counts for nothing now. -/
 theorem Silly_rejects_sillyBad : ¬ Silly sillyBad := fun h => by
-  have := h ⟨false, true, false, false, false, false, false⟩ "x"
+  have := h ⟨false, true, false, false, false, false, false, false⟩ "x"
   simp [sillyBad, isEmptyBranch] at this
 
 /-- **`Silly` passes the registered replay**: it is not a kill witness for `inc-land-dry-no-verdict` (the replay
