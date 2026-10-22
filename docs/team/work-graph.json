@@ -16064,6 +16064,26 @@
     "docs/team/handoffs/slot-span-key-followups.md"
    ],
    "title": "Follow-ups of slot-span-key (accepted 2026-10-22). (1) `slot wait <kind>` spans are judged by timing.slow: a queue wait over the 30 s budget against a near-zero median alerts, which is the queue noise the task removed, under a new key; exclude wait spans from slow or give them their own Lean budget (theorem). (2) cmdKey maps `pnpm -s fw <sub>` to `pnpm fw`: treat fw as a launcher and key its subcommand. (3) The ` dry`/` cached` suffixes and the seenKeys parser live only in TS, and the 24-key cap counts the last 2 MB of timings.jsonl, so keys that scroll out free places: state the suffix and seen-set rule in Lean with goldens and make the cap per kind and window-independent. (4) slot.ts writes no run span when exec throws or the process exits on a signal: move endRun into a finally with an error exit code. (5) Mark the 16:51 test's `own` samples as synthetic. (6) `fw land/dry total` and `fw/land dry` are bimodal: about 22 s without the Lean build step and about 45 s with it (alerts of 2026-10-22 16:4x and 17:5x), so key the dry span by its Lean dry plan (with or without the lake build) and add apps/runner/src/land.ts to the writes for that. Unit: the six items with goldens and tests."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "console-session-persist",
+   "owner": "console-builder",
+   "stream": "console",
+   "deps": [],
+   "writes": [
+    "apps/console-api/src/preview/owner.ts",
+    "apps/console-api/src/preview/session-store.ts",
+    "apps/console-api/src/main.ts",
+    "apps/console-api/test/owner-session-persist.test.ts",
+    "lean/Fw/Console/PreviewOwner.lean",
+    "packages/contracts/golden/console/owner-session*.jsonl",
+    ".gitignore",
+    "docs/team/handoffs/console-session-persist.md"
+   ],
+   "title": "User 2026-10-22: 'when you restart the console, i need to re-login ... make it no need to re-login everytime.' Cause (CONFIRMED, apps/console-api/src/preview/owner.ts:51): OwnerAuth keeps owner sessions in an in-memory Map, so every console restart (the lead restarts it after each land) drops them; the browser still holds its token in localStorage and the new server refuses it. Fix: sessions survive restarts. (1) Lean first in Fw.Console.PreviewOwner: a persisted session record holds only SHA-256 digests of the owner token and of the preview-cookie value plus the expiry; restore keeps only unexpired records; theorems: a restored store admits owner rights only for a bearer whose digest matches an unexpired record (no record yields rights without the token), expired records never restore, logout removes the record from the persisted set; the existing owner_requires_bearer / cookie_never_owner keep holding. Goldens the TS replays. (2) session-store.ts: write the digest records to a gitignored local file (under .local/, mode 0600, atomic rename), never a token, never under .fw-console or any file the console logs; load on start. (3) The preview cookie keeps working after a restart (its digest is in the record). (4) Test: issue a session, restart OwnerAuth from the store, the same bearer works and the same cookie opens preview; a wrong or expired token is refused; the file contains no token (grep). Unit: the Lean rule with goldens, the store, the restart test. Limits: the 8 h session lifetime is unchanged (a longer or sliding lifetime is a separate user decision); a same-user process that reads the file learns only digests."
   }
  ],
  "deadline": {
