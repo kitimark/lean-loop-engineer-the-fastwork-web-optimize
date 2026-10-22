@@ -1,12 +1,7 @@
-// `fw run --target original|rewrite --fw <part:variant,...> --preset <name> --engines chromium,webkit [--dry]` (PLAN 10.1).
-// CI-first: this never measures on this machine. It asks fwcore (`store.plan`) for the jobs, prints them (--dry), or
-// dispatches each GitHub Actions workflow with `gh`, waits for the run on the shared poller (`fw ci wait`), downloads its artifacts and files them in the
-// content-addressed store (`.fw-console/store/`). Every rule (which jobs, what is blocked, whether a manifest is valid,
-// the object paths, the verdict) is Lean's (lean/Fw/Store); the only TS stand-in here is sha256 and file I/O.
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { ghCharged, realEnv, titleFor, waitFor, type Env, type Target, type Waited } from "@fw/gh-budget";
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { GateReply, ManifestReply, PlanReply, ReduceReply, type PlanJob, type RunManifest } from "@fw/contracts";
 import { UsageError } from "./lib.ts";
@@ -17,11 +12,8 @@ import { dispatchIn, enginesOf, legsOf, newNonce, parseRunRows, pickRun, refusal
 export type RunArgs = {
   target: string; preset: string; fw: string[]; engines: string[]; profile?: string; runs?: number; dry: boolean;
   ref?: string; sha?: string; images: Record<string, string>; fromRun: Record<string, string>;
-  /** `--gate`: dispatch breakpoint-gate.yml instead of the count workflows; `--engines` then takes one gate value. */
   gate?: boolean; presetGiven?: boolean;
-  /** `--trajectory`: dispatch trajectory-probe.yml (the same inputs as `--gate`, plus `--widths`). */
   trajectory?: boolean; widths?: string;
-  /** `--diagnostic`: the run is read by hand, never stored or judged, so `--widths` may be a subset (default: a verdict run, all four widths). */
   diagnostic?: boolean;
 };
 
@@ -31,11 +23,6 @@ export const RUN_USAGE = "usage: fw run --target original|rewrite [--preset <nam
   "              [--profile <id>] [--runs 2..10]\n" +
   "              [--ref <pushed branch>] [--sha <git sha>] [--image engine=sha256:...] [--from-run engine=<run id>] [--dry]";
 
-/**
- * argv after `run` -> RunArgs. `--target` and `--engines` are required (the target is part of the store key, and an
- * original run must not file under a rewrite key); `--fw` may repeat and take commas; `--image` and `--from-run` take
- * `engine=value`. Whether the target name is valid and fits the preset and flags is fwcore's (`store.plan` problems).
- */
 export function parseRunArgs(argv: string[]): RunArgs {
   const a: RunArgs = { target: "", preset: "original", fw: [], engines: [], dry: false, images: {}, fromRun: {} };
   const val = (i: number, flag: string) => {
@@ -85,7 +72,6 @@ export function parseRunArgs(argv: string[]): RunArgs {
   return a;
 }
 
-// ---- fwcore ----------------------------------------------------------------------------------------------------------
 export type FwCall = (req: Record<string, unknown>) => Record<string, unknown>;
 
 function fwcoreBin(cwd: string): string {
@@ -98,7 +84,6 @@ function fwcoreBin(cwd: string): string {
   return bin;
 }
 
-/** One request to fwcore, one reply. An `error` reply throws. */
 export function fwcoreCall(cwd: string): FwCall {
   const bin = fwcoreBin(cwd);
   return (req) => {
@@ -110,13 +95,10 @@ export function fwcoreCall(cwd: string): FwCall {
   };
 }
 
-// ---- the store -----------------------------------------------------------------------------------------------------------
 export const sha256 = (b: Buffer | string) => createHash("sha256").update(b).digest("hex");
 
-/** The run key: sha256 of the canonical JSON of the key pairs fwcore returned (L3: sha256 has no collisions here). */
 export const keyDigest = (key: [string, string][]) => sha256(JSON.stringify(key));
 
-/** Digests of the runs already in the store (one directory per run under runs/). */
 export function presentRuns(store: string): string[] {
   const d = join(store, "runs");
   return existsSync(d) ? readdirSync(d).filter((n) => existsSync(join(d, n, "manifest.json"))) : [];
@@ -127,10 +109,6 @@ const walk = (dir: string): string[] =>
 
 export type Ingest = { manifest: RunManifest; path: string; objects: number; reused: number; digest: string; unchanged?: boolean };
 
-/**
- * File a downloaded CI run: hash every file, copy it to its content-addressed object (fwcore gives the path), build the
- * manifest and have fwcore validate it before it is written. Throws, naming the problems, when fwcore refuses.
- */
 export function ingest(call: FwCall, store: string, dir: string, job: PlanJob, meta: { target: string; preset: string; fw: string[]; profile: string; gitSha: string; runId: string }, opts: { keepSameRun?: boolean } = {}): Ingest {
   const files = walk(dir).map((p) => ({ p, name: relative(dir, p).split("\\").join("/") })).sort((x, y) => (x.name < y.name ? -1 : x.name > y.name ? 1 : 0));
   const entries = files.map(({ p, name }) => { const b = readFileSync(p); return { name, digest: sha256(b), bytes: b.length, p }; });
@@ -143,7 +121,6 @@ export function ingest(call: FwCall, store: string, dir: string, job: PlanJob, m
   const digest = keyDigest(checked.key as [string, string][]);
   const mpath = join(store, "runs", digest, "manifest.json");
   if (opts.keepSameRun && existsSync(mpath)) {
-    // `fw ci`: the key is already filed. The same run again changes nothing; another run of the same key is not ours to overwrite.
     const old = JSON.parse(readFileSync(mpath, "utf8")) as RunManifest;
     if (old.runId !== manifest.runId) throw new UsageError(`key ${digest.slice(0, 12)} is already stored from run ${old.runId}; run ${manifest.runId} has the same key (not overwritten)`);
     return { manifest: old, path: mpath, objects: 0, reused: entries.length, digest, unchanged: true };
@@ -160,16 +137,9 @@ export function ingest(call: FwCall, store: string, dir: string, job: PlanJob, m
   return { manifest, path: mpath, objects: entries.length - reused, reused, digest };
 }
 
-// ---- gh (CI) ---------------------------------------------------------------------------------------------------------------
-// Every gh call goes through `ghCharged` (packages/gh-budget): fwcore's `ci.budget.reserve` decides whether it runs, and a
-// wait or stop means gh is not started. Waiting for a run is `waitFor` (the same engine as `fw ci wait`): the shared poller
-// makes the list calls, however many waiters there are.
-/** Bounds of one gh call: `deadline` (epoch second) ends a budget wait, an aborted `signal` stops the call before it starts. */
 export type GhOpts = { deadline?: number; signal?: AbortSignal };
 export type Gh = (args: string[], o?: GhOpts) => Promise<string>;
 
-/** Requests one gh command costs (research/notes/2026/10-18-gh-rate-budget.md §1; the budget arithmetic itself is fwcore's).
- *  A download is booked at an upper bound: 1 listing plus the artifacts of one run. */
 export function ghCost(args: string[]): number {
   const [a, b] = args;
   if (a === "run" && b === "list") return args.includes("--workflow") ? 2 : 3;
@@ -179,7 +149,6 @@ export function ghCost(args: string[]): number {
   return 1;
 }
 
-/** A `Gh` that books each call with the budget and sleeps while fwcore says wait. A stop or a gh failure throws. */
 export function chargedGh(env: Env): Gh {
   return async (args, o) => {
     const what = args.slice(0, 3).join(" ");
@@ -191,32 +160,27 @@ export function chargedGh(env: Env): Gh {
   };
 }
 
-/** One bounded wait on the shared poller (`waitFor`), `timeoutS` at most. */
 export type WaitFn = (t: Target, timeoutS: number) => Promise<Waited>;
 
-const WAIT_SLICE_S = 540; // one `fw ci wait` slice; fits a Bash tool call
+const WAIT_SLICE_S = 540;
 const WAIT_CAP_S = 4 * 3600;
 
-/** Wait until the target's runs are decided: repeats a timed-out slice, throws when the poller stopped or `capS` passed. */
 export async function waitDecided(wait: WaitFn, t: Target, now: () => number, capS = WAIT_CAP_S): Promise<Waited> {
   const start = now();
   for (;;) {
     const t0 = now();
     const w = await wait(t, WAIT_SLICE_S);
     if (w.code !== 3) return w;
-    if (now() - t0 < WAIT_SLICE_S) throw new Error(w.lines.join("; ")); // returned early: the poller stopped, it was not a timeout
+    if (now() - t0 < WAIT_SLICE_S) throw new Error(w.lines.join("; "));
     if (now() - start >= capS) throw new Error(`gave up waiting after ${capS} s: ${w.lines.join("; ")}`);
   }
 }
 
-/** `gh workflow run` arguments of a job. */
 export const dispatchArgs = (job: Pick<PlanJob, "workflow" | "inputs">, ref: string): string[] =>
   ["workflow", "run", job.workflow, "--ref", ref, ...Object.entries(job.inputs).flatMap(([k, v]) => ["-f", `${k}=${v}`])];
 
-// ---- the plan ----------------------------------------------------------------------------------------------------------------------
 export type Planned = { reply: PlanReply; sha: string; args: RunArgs };
 
-/** Ask fwcore for the plan; the cache column comes from the digests of the job keys against the store. */
 export function planRun(call: FwCall, args: RunArgs, sha: string, store: string): Planned {
   const base = { op: "store.plan", target: args.target, preset: args.preset, fw: args.fw, engines: args.engines, sha, images: args.images,
     ...(args.profile ? { profile: args.profile } : {}), ...(args.runs !== undefined ? { runs: args.runs } : {}) };
@@ -240,27 +204,19 @@ export function renderPlan(p: Planned, dry: boolean): string[] {
 
 export type RunDeps = {
   call: FwCall; gh: Gh; wait: WaitFn; store: string; sha: string; branch: string; tmp: string; log: (l: string) => void;
-  /** Epoch seconds. */
   now: () => number;
-  /** The display name of a workflow file, when it can be read locally (used when the workflow has no earlier run). */
   workflowName?: (file: string) => string | undefined;
-  /** The commit of a pushed branch (`--ref`), so a base ref is measured and keyed under its own sha; absent = the checkout's. */
   refSha?: (ref: string) => string | undefined;
-  /** Remember the inputs of a run this command dispatched (the timing kind of its spans, timing.ts `recordRunKind`). */
   recordKind?: (runId: number, inputs: PlanJob["inputs"]) => void;
   capS?: number;
-  /** The text of a workflow file at a ref (`git show <ref>:.github/workflows/<file>`); absent = every ref declares the nonce input. */
   refWorkflowText?: (ref: string, file: string) => string | undefined;
-  /** The nonce of a dispatch (`--trajectory`); a fresh random one when absent. */
   nonce?: () => string;
-  /** Wait between two looks at the run list, seconds; real time when absent. */
   sleep?: (seconds: number) => Promise<void>;
 };
 
 const epoch = (iso: string) => Math.floor(Date.parse(iso) / 1000);
 const runLine = /^run (\d+) /;
 
-/** The whole command. Returns the exit code: 0 ok, 2 refused (problems, blocked job). */
 export async function runMain(args: RunArgs, d: RunDeps): Promise<number> {
   const sha = refShaOf(args, d);
   if (args.gate) return runGate(args, d, sha);
@@ -283,22 +239,22 @@ export async function runMain(args: RunArgs, d: RunDeps): Promise<number> {
     }
     const head = (JSON.parse(await d.gh(["run", "view", runId, "--json", "headSha"])) as { headSha: string }).headSha;
     if (head !== sha) throw new UsageError(`${j.engine}: run ${runId} measured ${head.slice(0, 7)}, not ${sha.slice(0, 7)}`);
-    const dir = join(d.tmp, `${j.engine}-${runId}`);
-    mkdirSync(dir, { recursive: true });
-    await d.gh(["run", "download", runId, "-D", dir]);
-    const r = ingest(d.call, d.store, dir, j, { target: args.target, preset: args.preset, fw: planned.reply.fw, profile: args.profile ?? "swipe-v1", gitSha: sha, runId });
+    mkdirSync(d.tmp, { recursive: true });
+    const dir = mkdtempSync(join(d.tmp, `${j.engine}-${runId}-`));
+    let r: ReturnType<typeof ingest>;
+    try {
+      await d.gh(["run", "download", runId, "-D", dir]);
+      r = ingest(d.call, d.store, dir, j, { target: args.target, preset: args.preset, fw: planned.reply.fw, profile: args.profile ?? "swipe-v1", gitSha: sha, runId });
+    } finally { rmSync(dir, { recursive: true, force: true }); }
     d.log(`${j.engine}: run ${runId} filed, ${r.manifest.entries.length} artifacts (${r.objects} new, ${r.reused} already stored) -> ${relative(d.store, r.path)}`);
   }
   return 0;
 }
 
-/** Whether the `workflow_dispatch` of a workflow file declares the input `nonce` (the text of the file at the ref). `gh workflow run`
- *  refuses an input the ref's file does not declare (HTTP 422), so a ref older than the nonce inputs must not be sent one. */
 export function declaresNonce(text: string): boolean {
   return declaresInput(text, "nonce");
 }
 
-/** Whether the `workflow_dispatch` of a workflow file declares the input `name`. */
 export function declaresInput(text: string, name: string): boolean {
   const lines = text.split("\n");
   const ind = (l: string) => l.length - l.trimStart().length;
@@ -317,18 +273,12 @@ export function declaresInput(text: string, name: string): boolean {
   return false;
 }
 
-/** Whether a dispatch of this workflow on this ref can carry a nonce: the ref's copy of the file declares the input. */
 function refDeclaresNonce(d: RunDeps, workflow: string, ref: string): boolean {
   if (!d.refWorkflowText) return true;
   const t = d.refWorkflowText(ref, workflow);
   return t !== undefined && declaresNonce(t);
 }
 
-/** Dispatch a count or gate workflow with a fresh nonce and wait for the run that carries it. Identity, not recency: the
- *  workflow's `run-name` echoes the nonce and the wait selects that dispatch (Lean `Fw.Ci.Dispatch.select`, `.dispatch`),
- *  on any head sha; the caller checks the head sha of the run it got. When the ref's copy of the workflow file declares no
- *  `nonce` input (a ref older than the nonce inputs), the dispatch goes without it and the run is the old pick (the newest run
- *  of the workflow on the ref created after the dispatch): not identity, and the log says so. */
 async function dispatchAndWait(d: RunDeps, job: Pick<PlanJob, "workflow" | "inputs">, ref: string, sha: string, label: string): Promise<Waited> {
   const stem = job.workflow.replace(/\.ya?ml$/, "");
   if (!refDeclaresNonce(d, job.workflow, ref)) {
@@ -347,7 +297,6 @@ async function dispatchAndWait(d: RunDeps, job: Pick<PlanJob, "workflow" | "inpu
   return waitDecided(d.wait, { kind: "branch", branch: ref, workflow: name, sha, since: d.now() - 60, want: { kind: "dispatch", workflow: stem, nonce } }, d.now, d.capS);
 }
 
-/** The sha a run is measured at: `--sha`, else the tip of `--ref` (when the caller can resolve it), else the checkout's. */
 function refShaOf(args: RunArgs, d: RunDeps): string {
   if (args.sha) return args.sha;
   if (args.ref && d.refSha) {
@@ -358,15 +307,12 @@ function refShaOf(args: RunArgs, d: RunDeps): string {
   return d.sha;
 }
 
-/** The dispatch of the breakpoint gate: fwcore (`store.gate`) decides the inputs and whether the workflow can express them. */
 export function planGate(call: FwCall, args: RunArgs, lane: "gate" | "trajectory" = "gate"): GateReply {
   return GateReply.parse(call({ op: lane === "gate" ? "store.gate" : "store.trajectory", ...(args.engines[0] ? { engines: args.engines[0] } : {}),
     ...(args.presetGiven ? { preset: args.preset } : {}), ...(args.fw.length ? { fw: args.fw } : {}),
     ...(lane === "trajectory" && args.widths !== undefined ? { widths: args.widths } : {}) }));
 }
 
-/** `fw run --gate` or `--trajectory`: dispatch breakpoint-gate.yml or trajectory-probe.yml on the ref and wait for the run. The
- *  lane files nothing in the store; its tables are artifacts of the run (`gh run download <id>`). Exit 0 ok, 2 refused. */
 async function runGate(args: RunArgs, d: RunDeps, sha: string, lane: "gate" | "trajectory" = "gate"): Promise<number> {
   if (lane === "trajectory") {
     const mark = args.diagnostic ? "diagnostic" : "verdict";
@@ -376,8 +322,6 @@ async function runGate(args: RunArgs, d: RunDeps, sha: string, lane: "gate" | "t
     d.log(`fw run: trajectory ${mark}, widths ${decision.widths.join(",")}, legs ${legs}`);
   }
   const reply = planGate(d.call, args, lane);
-  // The workflow's `diagnostic` input carries the mark (it checks the same Lean rule in its first step); a verdict dispatch sends none.
-  // A ref older than the input has no such rule to satisfy and `gh workflow run` would answer 422, so it is sent none (the log says so).
   const refText = reply.job ? d.refWorkflowText?.(args.ref ?? d.branch, reply.job.workflow) : undefined;
   const sendMark = !!args.diagnostic && lane === "trajectory" && (!d.refWorkflowText || (refText !== undefined && declaresInput(refText, "diagnostic")));
   if (args.diagnostic && lane === "trajectory" && !sendMark) d.log(`trajectory: ${args.ref ?? d.branch} has no diagnostic input in trajectory-probe.yml (a ref older than the mark rule); dispatching without it`);
@@ -391,7 +335,6 @@ async function runGate(args: RunArgs, d: RunDeps, sha: string, lane: "gate" | "t
   const ref = args.ref ?? d.branch;
   let runId = args.fromRun[lane];
   if (!runId && lane === "trajectory" && refDeclaresNonce(d, job.workflow, ref)) {
-    // identity, not recency: the dispatch carries a nonce, the run title echoes it (Lean Fw.Ci.Dispatch.pick)
     const nonce = d.nonce?.() ?? newNonce();
     await d.gh(dispatchArgs({ workflow: job.workflow, inputs: { ...job.inputs, nonce } }, ref));
     d.log(`${lane}: dispatched ${job.workflow} on ${ref} with nonce ${nonce} (run title "${titleOf(nonce)}"); looking for the run`);
@@ -409,11 +352,9 @@ async function runGate(args: RunArgs, d: RunDeps, sha: string, lane: "gate" | "t
   return 0;
 }
 
-const FIND_EVERY_S = 120; // CI polls are at least 120 s apart (shared GitHub token); a dispatch run appears within seconds
+const FIND_EVERY_S = 120;
 const FIND_TRIES = 5;
 
-/** The id of the run a dispatch created, found by its nonce in the run title (Lean `Fw.Ci.Dispatch.pick`); an absent run is
- *  looked for again every 120 s, an ambiguous one is an error (never a guess). */
 export async function findDispatched(d: Pick<RunDeps, "gh" | "sleep">, workflow: string, ref: string, nonce: string): Promise<string> {
   const sleep = d.sleep ?? ((s: number) => new Promise<void>((res) => setTimeout(res, s * 1000)));
   for (let i = 0; i < FIND_TRIES; i++) {
@@ -429,14 +370,11 @@ export async function findDispatched(d: Pick<RunDeps, "gh" | "sleep">, workflow:
 
 export type LatestRun = { id: string; createdAt: string; workflowName: string };
 
-/** The newest run of a workflow on a ref, or null when it has none. */
 export async function latestRun(gh: Gh, workflow: string, ref: string): Promise<LatestRun | null> {
   const rows = JSON.parse(await gh(["run", "list", "--workflow", workflow, "--branch", ref, "--limit", "1", "--json", "databaseId,createdAt,workflowName"])) as { databaseId: number; createdAt?: string; workflowName?: string }[];
   return rows[0] ? { id: String(rows[0].databaseId), createdAt: rows[0].createdAt ?? "", workflowName: rows[0].workflowName ?? "" } : null;
 }
 
-/** The run id of a decided wait; a run that did not pass (fwcore `ci.verdict`) stops the command (like `gh run watch
- *  --exit-status`): a failure, and also a run whose guard skipped (exit 4, not run), which GitHub calls `success`. */
 function decided(engine: string, w: Waited): string {
   const id = runLine.exec(w.lines[0] ?? "")?.[1];
   if (w.code === 0 && id) return id;
@@ -444,7 +382,6 @@ function decided(engine: string, w: Waited): string {
   throw new Error(`${engine}: ${why}${w.lines.join("; ")}`);
 }
 
-/** Count reduction and verdict: base and var runs per engine -> fwcore's `store.reduce`. */
 export function reduceArms(call: FwCall, arms: { engine: string; base: unknown[]; var: unknown[] }[], kMax = 4, tMax = 24): ReduceReply {
   return ReduceReply.parse(call({ op: "store.reduce", kMax, tMax, arms }));
 }
@@ -452,14 +389,13 @@ export function reduceArms(call: FwCall, arms: { engine: string; base: unknown[]
 export const storeDir = (consoleDir: string) => join(consoleDir, "store");
 export const isDir = (p: string) => existsSync(p) && statSync(p).isDirectory();
 
-/** `fw run ...` from the shell. Needs no console-api. */
 export async function runCli(argv: string[], cwd: string, env: Record<string, string | undefined> = process.env, begin: typeof beginSpan = beginSpan): Promise<number> {
   const vcs = (...a: string[]) => spawnSync("git", a, { cwd, encoding: "utf8" }).stdout.trim();
   const ph = runPhases(begin, argv.includes("--dry"));  let code = 1;
   try {
   const args = parseRunArgs(argv);
   const consoleDir = env.FW_CONSOLE_DIR ?? join(dirname(vcs("rev-parse", "--path-format=absolute", "--git-common-dir")), ".fw-console");
-  const genv = args.dry ? null : realEnv(cwd); // --dry makes no gh call and needs no budget state
+  const genv = args.dry ? null : realEnv(cwd);
   const unused = (): never => { throw new Error("no gh call in --dry"); };
   code = await runMain(args, {
     call: fwcoreCall(cwd), gh: genv ? ph.gh(chargedGh(genv)) : unused, wait: genv ? ph.wait((t, timeoutS) => waitFor(genv, t, { timeoutS })) : unused,
