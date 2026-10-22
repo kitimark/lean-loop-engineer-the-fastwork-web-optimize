@@ -15194,7 +15194,7 @@
    "owner": "part-builder",
    "stream": "parts",
    "deps": [],
-   "title": "User 2026-10-22 approved the 'go' and 'measure first' GPU proposals (GPU Part Proposals page): accent draw-one. During the hero accent draw, only the visible copy (frame0) runs the stroke-dashoffset draw; the two copies that are opacity 0 for the whole draw window (accent.module.css:76-83) get no animation while transparent. Lean first: theorem in Fw.Parts.HeroAccentOpt from HiddenPause.hidden_pause_eq (HiddenPause.lean:81), premise the copies are opacity 0 across the draw window, goldens; class E. Register flag hero.accent:draw-one; one WebKit count run on CI (webkit-sim: SVG path layouts per draw frame, Layout, frame interval p50/p90/p99 vs base) with run ids; post the report to the Reviews tab (review-reports) when it has landed, else write results/accent-draw-one/report.json for the lead to post.",
+   "title": "User 2026-10-22 approved the 'go' and 'measure first' GPU proposals (GPU Part Proposals page): accent draw-one. During the hero accent draw, only the visible copy (frame0) runs the stroke-dashoffset draw; the two copies that are opacity 0 for the whole draw window (accent.module.css:79-86) get no animation while transparent. Lean first: theorem in Fw.Parts.HeroAccentOpt from HiddenPause.hidden_pause_eq (HiddenPause.lean:81), premise the copies are opacity 0 across the draw window, goldens; class E. Register flag hero.accent:draw-one; one WebKit count run on CI (webkit-sim: SVG path layouts per draw frame, Layout, frame interval p50/p90/p99 vs base) with run ids; post the report to the Reviews tab (review-reports) when it has landed, else write results/accent-draw-one/report.json for the lead to post.",
    "writes": [
     "apps/site/src/parts/hero.accent/**",
     "apps/site/src/flags/**",
@@ -15203,7 +15203,16 @@
     "packages/contracts/golden/parts/hero.accent*.jsonl",
     "research/notes/2026/10-2x-accent-draw-one.md",
     "results/accent-draw-one/**",
-    "docs/team/handoffs/accent-draw-one.md"
+    "docs/team/handoffs/accent-draw-one.md",
+    "lean/scripts/AccentDrawOneGolden.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Parts/FootprintData.lean",
+    "research/findings/ledger.json",
+    "lean/Fw/Ci/Trigger.lean",
+    "apps/runner/src/land.ts",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/preset/v2-proved.decisions.jsonl"
    ]
   },
   {
