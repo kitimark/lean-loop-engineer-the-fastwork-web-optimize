@@ -14548,7 +14548,10 @@
     "packages/contracts/golden/oracle/**",
     "results/jev/**",
     "research/notes/2026/10-2x-jev-replay.md",
-    "docs/team/handoffs/oracle-eps.md"
+    "docs/team/handoffs/oracle-eps.md",
+    "lean/Fw/Oracle/Golden.lean",
+    "lean/Fw/Oracle/ReplayWire.lean",
+    "results/jev-arms-clean/table.md"
    ]
   },
   {
