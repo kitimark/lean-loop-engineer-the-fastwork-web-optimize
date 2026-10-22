@@ -2,7 +2,8 @@
 
 - Branch: worktree-wf_9ab25dd7-9aa-1 (CI branch ci/gpu-trajectory-cells, pushed tip 846e11a3 with `[ci:trajectory-probe]` `[trajectory engines=chromium]`)
 - Worktree: .claude/worktrees/wf_9ab25dd7-9aa-1 (under the main checkout)
-- CI runs: none created by GitHub for the pushes 6bcabccc and 846e11a3 after 20+ min (gh run list --branch shows []); first wait timed out (exit 3)
+- CI runs: pushes 6bcabccc and 846e11a3 created NO run (gh run list --branch []). Dispatched instead (`pnpm -s fw run --trajectory --engines chromium --ref ci/gpu-trajectory-cells`, sha 846e11a3):
+  39817825181, 39818033923, 39818039961 (trajectory-probe, chromium; in_progress at 16:56 UTC). Read: `pnpm fw ci <id>`, artifact trajectory-chromium, then `node src/trajectory/cells-gpu-cli.mjs summary --in raw-chromium.json` in packages/gate-breakpoints.
 - Verified: check.sh green (rc 0), dry land `VERDICT dry gpu-trajectory-cells`, package tests (only the 8 files needing playwright-core fail locally),
   golden up to date (112 lines), node twins equal every golden kind, offline A/A on a real probe raw (see below).
 - Open: CI A/A runs (>= 3); pain-dark and carousel cells have no CI hook; WebKit A/A follow-up; lead wiring (below).
