@@ -188,6 +188,26 @@ theorem verdictOf_refused (names fw fwl) (es : List String) (h : es ≠ []) : ve
   | nil => exact absurd rfl h
   | cons a t => rfl
 
+theorem okChar_percent : okChar '%' = false := by decide
+
+theorem okChar_plus : okChar '+' = false := by decide
+
+theorem validate_percent (parts presets) (s : String) (hl : ¬ s.length > maxLen) (hm : '%' ∈ (body s).toList) :
+    validate parts presets s = .refused [charsetReason] :=
+  validate_charset parts presets s hl (by
+    cases h : (body s).toList.all okChar
+    · rfl
+    · have := List.all_eq_true.1 h '%' hm
+      simp [okChar_percent] at this)
+
+theorem validate_plus (parts presets) (s : String) (hl : ¬ s.length > maxLen) (hm : '+' ∈ (body s).toList) :
+    validate parts presets s = .refused [charsetReason] :=
+  validate_charset parts presets s hl (by
+    cases h : (body s).toList.all okChar
+    · rfl
+    · have := List.all_eq_true.1 h '+' hm
+      simp [okChar_plus] at this)
+
 theorem validate_ok (parts presets) (s : String) (hl : ¬ s.length > maxLen)
     (hc : (body s).toList.all okChar = true) (h : searchErrors parts presets (params (body s)) = []) :
     validate parts presets s =

@@ -4096,6 +4096,40 @@
    "leanReason": "landScope is a pure Lean function; the golden registration set and its no-lift property are theorems over write lists.",
    "empiricalCheck": "The next Lean task with a new golden reaches VERDICT dry without a lead graph edit.",
    "hardening": "land-scope-golden-regs"
+  },
+  {
+   "id": "inc-land-misses-script-tests",
+   "at": "2026-10-22T18:28+07:00",
+   "title": "A lead hotfix landed green and broke main's lean workflow: the land runs no check that covers scripts/build-review.test.mjs",
+   "symptom": "lead-hotfix-1022 changed the resume-runner text in .claude/workflows/build-review.js. fw land reported verdict accept reason=remote-pass, then the lean workflow on ci/land-lead-hotfix-1022-9fbf421 (run 39770576911) failed: scripts/build-review.test.mjs:59 matches the old text \"--dry (no --allow)\".",
+   "cause": "CONFIRMED (.github/workflows/lean.yml:105 runs node --test scripts/heavy-lock.test.mjs scripts/fwcore-build.test.mjs scripts/build-review.test.mjs; no land check declares .claude/workflows/** among its reads): the land selected no check that runs the script tests, and the lead edited a test-asserted string without running its test first.",
+   "evidence": [
+    {
+     "kind": "ci",
+     "ref": "39770576911",
+     "note": "lean workflow failed: the build-review test regex /--task demo-task --dry \\(no --allow\\)/ did not match"
+    },
+    {
+     "kind": "commit",
+     "ref": "9fbf4210",
+     "note": "land of lead-hotfix-1022 (accepted by the remote lanes)"
+    },
+    {
+     "kind": "file",
+     "ref": ".github/workflows/lean.yml",
+     "note": "line 105: the only place scripts/build-review.test.mjs runs"
+    }
+   ],
+   "repro": "Change any text in .claude/workflows/build-review.js that scripts/build-review.test.mjs asserts; fw land --dry and the land pass; the lean workflow on the pushed ci branch fails.",
+   "fix": {
+    "task": "land-script-tests"
+   },
+   "regression": "A land check that runs the workflow script tests with .claude/workflows/** in its reads, and a selection golden: a change to build-review.js selects it.",
+   "mistakeClass": "c-late-check",
+   "leanVerdict": "provable",
+   "leanReason": "Check selection is the pure Lean read-list rule (LandSpeed checks, selectChecks); that a build-review.js change selects the script-test check is a golden or theorem over it.",
+   "empiricalCheck": "The next change to build-review.js runs scripts/build-review.test.mjs inside the land.",
+   "hardening": "land-script-tests"
   }
  ]
 }

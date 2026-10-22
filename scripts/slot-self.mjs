@@ -24,9 +24,11 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const { slotMainPath } = await import(pathToFileURL(join(here, "..", "apps", "runner", "src", "slot.ts")).href);
     const { slotMain } = await import(pathToFileURL(slotMainPath(SLOT_MAIN, process.cwd())).href).catch(() => import(pathToFileURL(SLOT_MAIN).href));
     const { begin } = await import(pathToFileURL(join(here, "..", "apps", "runner", "src", "timing.ts")).href);
-    const { slotStep, slotStepEnd } = await import(pathToFileURL(join(here, "..", "apps", "runner", "src", "slot-span.ts")).href);
-    const end = begin("fw", slotStep(p.slot));
-    process.once("exit", (c) => end(c, { step: slotStepEnd(p.slot) }));
+    const { slotStep, writesOwnSpans } = await import(pathToFileURL(join(here, "..", "apps", "runner", "src", "slot-span.ts")).href);
+    if (!writesOwnSpans(p.slot)) {
+      const end = begin("fw", slotStep(p.slot));
+      process.once("exit", (c) => end(c));
+    }
     process.exitCode = await slotMain(p.slot, process.cwd());
   } else {
     const child = spawn(p.argv[0], p.argv.slice(1), { stdio: "inherit" });

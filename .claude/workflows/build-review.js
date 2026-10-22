@@ -64,7 +64,7 @@ const resumeDry = (r) => {
 const resumed = async () => {
   const r = await agent(`Resume of task ${t.id}: no build round. Run in the worktree ${t.worktree} (never cd outside it) with PATH="$HOME/.nvm/versions/node/v24.22.0/bin:$PATH", logging to your scratchpad file resume-${t.id}.log (agents/runner.md).
 Step 1: read the builder report JSON at ${t.report} and return it unchanged as report (branch, commit, summary, files, open, items, runs, dry).
-Step 2: from the worktree run exactly: pnpm -s fw slot run --kind land --cache -- pnpm -s fw land <report.branch> --task ${t.id} --dry (no --allow). Return the last VERDICT line it printed (any kind), verbatim and whole, as line; do not edit, shorten or interpret it.`,
+Step 2: from the worktree run exactly: pnpm -s fw slot run --kind land --cache -- pnpm -s fw land "$(git rev-parse --abbrev-ref HEAD)" --task ${t.id} --dry (no --allow). The branch is the worktree's own, from git rev-parse; never type it by hand. Return the last VERDICT line it printed (any kind), verbatim and whole, as line; do not edit, shorten or interpret it.`,
     { label: `resume-dry:${t.id}`, phase: 'Build', agentType: 'runner', schema: RESUME })
   return r && r.report && typeof r.report === 'object' ? { ...r.report, dry: resumeDry(r) } : null
 }
