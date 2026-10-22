@@ -69,6 +69,9 @@ import Fw.Parts.CommissionOpt
 import Fw.Parts.PlatformFade
 import Fw.Parts.PlatformFadeRun
 import Fw.Parts.MorphConstBounds
+import Fw.Parts.MorphPanelThreaded
+import Fw.Parts.MorphPanelThreadedRun
+import Fw.Parts.MorphPanelThreadedGolden
 import Fw.Parts.NavClipBox
 import Fw.Parts.NavBarFixed
 import Fw.Parts.NavBarFixedWork

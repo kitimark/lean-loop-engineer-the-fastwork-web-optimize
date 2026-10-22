@@ -3044,6 +3044,54 @@
    "lesson": "A rule that changes a property named in a transition list must keep the list; reach the same used size through a property the list does not name (min-width) and prove the declared width equals the rest width where the class is dropped.",
    "next": "Layer census on both engines, cost lane, trajectory nav clip cell.",
    "evidence": "breakpoint-gate 39848853982, trajectory-probe 39842581192; first round gates 39835303279 and 39837964273 failed on the dropped width in transition-property."
+  },
+  {
+   "id": "morph.panel-threaded",
+   "n": 51,
+   "part": "morph.panel",
+   "candidate": "morph.panel:threaded: run the panel's opacity, blur and scale of a morph push as two Web Animation effects (opacity with scale, and blur alone) instead of three style writes per frame",
+   "status": "partly-proved",
+   "flag": "morph.panel:threaded",
+   "flags": [
+    "morph.panel:threaded"
+   ],
+   "chromium": "unknown",
+   "webkit": "no-win",
+   "visual": "Equal opacity, blur and scale on every frame under the WAAPI premises (interp_eq, threaded_eq, retarget_from_shown). MEASURED (Chromium trajectory, run 39846814254): 0 content differences in 152 panel steps; the 84 new units are first-frame coverage. MEASURED (GPU cells, run 39855506403): panel-effect E in 3 of 4 units, lag at most 0.013 frame; the fourth (640 close) is L in 2 of 3 reps because the cell compares with a chord across the kink at m 0.8 (both arms read within 0.0013 of the Lean model). Pixels on WebKit not measured: compositor blur is not the software blur, so Q at best",
+   "mechanism": "MEASURED (CI webkit-sim, iOS Simulator 430x775, lag and cost passes; reference const-bounds run 39846941236, flag run 39846909558, bundle with platform:fade-threaded run 39846948148): Composite per frame on the open push 236-552 ms against 151-213 ms (cost-report: higher, ranges do not overlap); close push 142-250 against 107-148 ms (overlap); Paint per frame, frames and resized layers overlap; new layers per 100 reads on the close push 100 against 0. The bundle overlaps the reference on every cell. Chromium counts (swipe-v1, runs 39851664186 and 39851674587) are equal because the profile never opens the panel. PROVED (Fw.Parts.MorphPanelThreaded): the variant's tick costs style only (variant_stages, variant_drops) and keeps the nav write (recalc_same), adds no layer when the panel is composited (layer_budget); the stage model has no Composite stage. INFERRED: the blur moves from Paint to the compositor, which runs on the CPU in the Simulator, on a panel whose box is already constant (const-bounds class), so the rise is UNKNOWN",
+   "leanFor": [
+    "Fw.Parts.MorphPanelThreaded.interp_eq",
+    "Fw.Parts.MorphPanelThreaded.chain_offs",
+    "Fw.Parts.MorphPanelThreaded.variant_drops",
+    "Fw.Parts.MorphPanelThreaded.props_accelerated",
+    "Fw.Parts.MorphPanelThreaded.layer_budget",
+    "Fw.Parts.MorphPanelThreaded.bands_equal",
+    "Fw.Parts.MorphPanelThreaded.bands_only_reduced",
+    "Fw.Parts.MorphPanelThreaded.threaded_eq",
+    "Fw.Parts.MorphPanelThreaded.frame_eq",
+    "Fw.Parts.MorphPanelThreaded.retarget_from_shown",
+    "Fw.Parts.MorphPanelThreaded.ca_accepts",
+    "Fw.Parts.MorphPanelThreaded.ease_err"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.MorphPanelThreaded.recalc_same",
+    "Fw.Parts.MorphPanelThreaded.recalc_same_bundle"
+   ],
+   "missingWhy": [
+    "Composite cost is not in the stage model (Fw.Engine.WebKit stages end at paint), so the Composite rise on the open push has no Lean theorem; the cause is UNKNOWN",
+    "Compositor cost is not measured on a real GPU: the Simulator has none, and the open push has only 2-4 frames per pass",
+    "Chromium push not measured: the count profile never opens the panel, and Blink refuses to composite a pixel-moving filter effect (INFERRED no saving)"
+   ],
+   "premises": [
+    "CONFIRMED: GraphicsLayerCA accepts the effect (rate 1, forward, nonzero duration, two or more keyframes, no steps, curve in [0, 1]) (Source/WebCore/platform/graphics/ca/GraphicsLayerCA.cpp:1169-1196@862f17d) and supports filter animations (:289@862f17d)",
+    "CONFIRMED: Blink marks a filter effect with a pixel-moving filter as not compositable (third_party/blink/renderer/core/animation/compositor_animations.cc:408-416@f842f52)",
+    "CONFIRMED: a running effect invalidates style on every tick (Source/WebCore/animation/KeyframeEffect.cpp:2128-2130@862f17d)",
+    "WaapiPremises (Fw.Parts.MorphTweenOpt): linear number interpolation, an exact timing curve, one timeline offset for frames and start reads"
+   ],
+   "v1Evidence": "",
+   "lesson": "A stage that leaves the main thread is not a saving when its work lands in Composite on a lane without a GPU; moving the blur to the compositor cannot beat removing the resize that drives it. Price the Composite stage in the model before building a variant that moves paint work there.",
+   "next": "Hold; no port task. Re-open when measured on a lane with a real GPU (gpu-safari-lane); the cause of the open-push Composite rise is UNKNOWN.",
+   "evidence": "CI runs 39846842455, 39846814254, 39855506403, 39851664186, 39851674587, 39846941236, 39846909558, 39846948148; research/notes/2026/10-2x-morph-panel-threaded.md; results/morph-panel-threaded/report.json"
   }
  ],
  "notes": [

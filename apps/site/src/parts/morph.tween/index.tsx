@@ -4,7 +4,8 @@ import { registerScroll } from '../../engine/scroll';
 import { createThreadedFade, type FadeEl } from '../platform/fade.driver';
 import { isBand } from '../morph.mount/listen.logic';
 import { touchHub, type TouchClient, type TouchHub } from '../morph.mount/listen';
-import { createTweenDriver, type TweenDriver, type TweenEnv } from './driver';
+import { THREADED } from '../morph.panel/threaded.logic';
+import { createPanelEffects, createTweenDriver, type PanelEl, type TweenDriver, type TweenEnv } from './driver';
 import { active } from './logic';
 import { matchList } from './media';
 import { hoverNoneOf, lockAllowed, overlayOf } from './scroll-lock.logic';
@@ -45,6 +46,10 @@ export function MorphTween({ variant, platformSelector = '.start-selling-platfor
       },
       lock: scrollLockOf(variant, root),
       fade: platformFade ? createThreadedFade(() => platform() as unknown as FadeEl | null) : undefined,
+      panel:
+        window.__fw?.config.variants['morph.panel'] === THREADED
+          ? createPanelEffects(() => document.querySelector<HTMLElement>('[data-fw="morph-panel"]') as unknown as PanelEl | null)
+          : undefined,
     };
     let tween: TweenDriver | undefined;
     const hub = isBand(variant) ? touchHub() : undefined;

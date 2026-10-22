@@ -336,6 +336,7 @@ jobs:
         if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' && matrix.engine == 'chromium' && strategy.job-index == 0 }}
         continue-on-error: true
         env:
+          SEARCH: ${{ needs.site.outputs.search }}
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
           SEARCH: ${{ needs.site.outputs.search }}
