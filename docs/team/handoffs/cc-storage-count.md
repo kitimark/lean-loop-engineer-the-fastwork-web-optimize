@@ -1,19 +1,19 @@
 # cc-storage-count handoff
 
-- Branch `worktree-wf_34bfd889-b9c-1`, worktree `.claude/worktrees/wf_34bfd889-b9c-1`; commits 05b7d8ae (Lean), d5d399fa (TS), merge of main, docs + this note.
+- Branch `worktree-wf_34bfd889-b9c-1`, worktree `.claude/worktrees/wf_34bfd889-b9c-1`; round 2 commit 8d6ed7d3 (landStops + wait flag), merge of main b7bd725b, then this note.
 - CI runs: none (the unit is Lean + TS + goldens; no CI lane needed).
-- Verified at the merge of main 357d2f5 (check.sh rerun there): `sh lean/scripts/check.sh` green via the slot (provider 175, overflow 53, pool-tier 20 golden lines up to date; axiom check 0 failing); `pnpm --filter runner test` 2556 passed; `pnpm --filter contracts test` 11 passed; `node --test scripts/ci-paths.test.mjs scripts/circleci.test.mjs` 125 passed.
+- Verified at the merge of main 623bcf1c: `sh lean/scripts/check.sh` green via the slot (provider 184, overflow 53 golden lines up to date; axiom check 0 failing); `pnpm --filter runner test` 2581 passed (tsc included); `pnpm --filter contracts test` 11 passed; `node --test scripts/circleci.test.mjs scripts/ci-paths.test.mjs` 126 passed.
 
 ## State
-- Lean `Fw.Ci.Provider`: `storageNow` (rows in the 30-day window, caches/workspaces 15 days, artifacts 30), `storageAllowMilli` 2000, `storageStopMilli` 1000 (in-job stop only), `storageCredits` (420 per GB-month past the allowance), `ownSaveMilli` 235, `SavePolicy` with `policyWindowCredits`. `storage_20261021`: the 2026-10-21 ledger gives 650.
-- `Fw.Ci.Overflow.budgetFits` charges run credits + spent + storage overage (with the own save) + reserve against the pool; `storage_alone_never_refuses`, `reason_not_storage`, `storage_over_budget_keeps_github`, `overflow_20261021` (all legs to CircleCI).
-- `Fw.Ci.PoolTier`: `State.fb` subtracts the storage overage from credits left; `cc_storage_line`, `fb_storage_within_allow`; wire field `ccStorageCredits` replaces `ccStorageClear`.
-- TS: `scripts/circleci.mjs` `storageNow`/`storageCredits`/`ledgerRows` follow Lean; `apps/runner/src/land-overflow.ts` passes storage as `storageNow`.
+- Round 1 blocker fixed: Lean `Fw.Ci.Provider.landStops` (cap and queue only) with `storage_not_mem_landStops`, `landStops_eq_filter`, `landStops_storage_free`, `landStops_eq_stops`, cap/queue iff; golden op `landStop` (9 rows, one at 1297).
+- `scripts/circleci.mjs` `landStops` follows Lean; `pollOnce` applies it and reads no ledger when `ctx.storageStop === false`; `realCircle.wait` passes `storageStop: false` (`apps/runner/src/land-overflow.ts`).
+- Test `apps/runner/test/land-overflow.test.ts` "the land-lane wait applies Lean landStops": ledger at 1297, forceFull, legs to CircleCI, wait returns 0 with no POST; the pilot wait on the same ledger returns 5. Fails with the flag removed (checked).
+- `Fw.Ci.Overflow.budgetFits_iff` (exact room for the storage overage); `PoolTier.State.fb` docstring says why no own save is charged (webkit-sim saves no cache).
+- Earlier: `storageNow`, `storageCredits`, `ownSaveMilli`, `budgetFits` with storage overage, `State.fb` charge, wire field `ccStorageCredits`.
 
 ## Open
-- Dry land: `VERDICT scope cc-storage-count` (exit 12) only for the files below; with `--allow 'docs/team/tools/*.md' --allow lean/Fw/Ci/PoolTierWire.lean` it is `VERDICT dry` at main 357d2f5. The lead adds them to the graph writes.
-- Files outside the graph writes: `lean/Fw/Ci/PoolTierWire.lean`, `lean/scripts/{Provider,Overflow,Pool}Golden.lean`, `docs/team/tools/{ci-pool,land,circleci}.md`.
-- Follow-ups: re-route a pending leg to CircleCI during a GitHub incident (after land-leg-pending); `.circleci/config.yml` Lake save policy (Lean `SavePolicy` exists, config not changed); whether CircleCI stops builds on an empty free pool is UNKNOWN (reserve covers it); "overage draws from the free pool" is INFERRED.
+- Files outside the graph writes (lead adds): `lean/Fw/Ci/PoolTierWire.lean`, `lean/scripts/{Provider,Overflow,Pool}Golden.lean`, `docs/team/tools/{ci-pool,land,circleci}.md`. `land-remote.ts` is unchanged.
+- Follow-ups: re-route a pending leg during a GitHub incident; `.circleci/config.yml` Lake save policy; CircleCI on an empty free pool UNKNOWN (reserve covers it); "overage draws from the free pool" INFERRED.
 
 ## Read first
-`lean/Fw/Ci/Provider.lean` (storage section near `storageAllowMilli`), `lean/Fw/Ci/Overflow.lean` `budgetFits`, `research/notes/2026/10-2x-cc-fallback-why.md`.
+`lean/Fw/Ci/Provider.lean` (`landStops`, storage section), `lean/Fw/Ci/Overflow.lean` `budgetFits`, `scripts/circleci.mjs` `pollOnce`.
