@@ -1,17 +1,10 @@
 import Fw.Parts.MorphTween
 
-/-! platform, variant `fade-threaded`: the platform card's opacity and blur as one time-based effect per push, equal
-to the original's per-frame `--morph-fade` at every frame (task platform-fade-threaded). -/
-
 namespace Fw.Parts.PlatformFade
 open Fw.Parts.MorphTween
 
-/-! ## The fade, piecewise -/
-
-/-- Blur radius in px at fade 0 (`platform.module.css` `.section` filter). -/
 def blurMax : Rat := 12
 
-/-- The blur radius in px the section shows at fade `v`. -/
 def blurOf (v : Rat) : Rat := (1 - v) * blurMax
 
 theorem fade_lo (m : Rat) (h : m ≤ fadeEnd) : fade m = 1 - m * (20 / 11) := by
@@ -20,32 +13,25 @@ theorem fade_lo (m : Rat) (h : m ≤ fadeEnd) : fade m = 1 - m * (20 / 11) := by
 theorem fade_hi (m : Rat) (h : fadeEnd ≤ m) : fade m = 0 := by
   unfold fade fadeEnd at *; grind
 
-/-- One keyframe of the effect: offset in eased progress and the fade there. -/
 structure Kf where
   off : Rat
   val : Rat
 deriving Repr, DecidableEq
 
-/-- The value of a keyframe list at eased progress `p`, interpolated by `ι` in the interval that holds `p`. -/
 def interpKf (ι : Rat → Rat → Rat → Rat) : List Kf → Rat → Rat
   | [], _ => 0
   | [a], _ => a.val
   | a :: b :: rest, p =>
     if p ≤ b.off then ι a.val b.val ((p - a.off) / (b.off - a.off)) else interpKf ι (b :: rest) p
 
-/-- Linear interpolation from `a` to `b` at `p`. -/
 def lerp (a b p : Rat) : Rat := a + (b - a) * p
 
-/-- Eased progress at which a push from `f` to `t` reaches the fade end (0 when `f = t`). -/
 def kink (f t : Rat) : Rat := (fadeEnd - f) / (t - f)
 
-/-- The effect easing `cubic-bezier(x1, y1, x2, y2)`: the morph's ease `1 - (1 - x)^3`. -/
 def easing : Rat × Rat × Rat × Rat := (1 / 3, 1, 2 / 3, 1)
 
-/-- Whether the push crosses the fade end strictly inside the effect. -/
 def crosses (f t : Rat) : Bool := decide (0 < kink f t) && decide (kink f t < 1)
 
-/-- The effect's keyframes for a push from `f` to `t`: the two ends, plus the kink when the push crosses it. -/
 def keyframes (f t : Rat) : List Kf :=
   if crosses f t then [⟨0, fade f⟩, ⟨kink f t, 0⟩, ⟨1, fade t⟩] else [⟨0, fade f⟩, ⟨1, fade t⟩]
 
@@ -65,8 +51,6 @@ theorem keyframes_head (f t : Rat) : (keyframes f t).head? = some ⟨0, fade f�
 
 theorem keyframes_last (f t : Rat) : (keyframes f t).getLast? = some ⟨1, fade t⟩ := by
   unfold keyframes; split <;> rfl
-
-/-! ## The keyframes are the fade -/
 
 theorem interp_two (f t p : Rat) (hp1 : p ≤ 1) (hc : crosses f t = false) :
     interpKf lerp (keyframes f t) p = fade f + (fade t - fade f) * p := by
@@ -149,15 +133,12 @@ theorem three_eq (f t p : Rat) (hp0 : 0 ≤ p) (hp1 : p ≤ 1) (hc : crosses f t
       unfold fadeEnd at hkm
       grind
 
-/-- **The keyframes are the fade.** At every eased progress `p ∈ [0, 1]`, linear interpolation of `keyframes f t`
-equals the original's fade of the morph value `f + (t - f) p`. -/
 theorem interp_eq (f t p : Rat) (hp0 : 0 ≤ p) (hp1 : p ≤ 1) :
     interpKf lerp (keyframes f t) p = fade (f + (t - f) * p) := by
   cases hc : crosses f t
   · rw [interp_two f t p hp1 hc]; exact two_eq f t p hp0 hp1 hc
   · exact three_eq f t p hp0 hp1 hc
 
-/-- The effect's `filter` keyframes: the blur radius of each fade keyframe. -/
 def blurKfs (ks : List Kf) : List Kf := ks.map fun k => ⟨k.off, blurOf k.val⟩
 
 theorem interp_blur (ks : List Kf) (h : ks ≠ []) (p : Rat) :

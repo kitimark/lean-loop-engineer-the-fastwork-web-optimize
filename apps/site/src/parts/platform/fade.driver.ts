@@ -10,20 +10,12 @@ export interface FadeEl {
   style: { setProperty(name: string, value: string): void };
 }
 
-/** The sink morph.tween's driver feeds instead of writing `--morph-fade` every frame. */
 export interface FadeSink {
-  /** A push from `from` to `to` whose tween started at `start` (ms, the origin of `document.timeline`). */
   push(from: number, to: number, start: number): void;
-  /** The tween settled at `m` or jumped there (reduced motion): write its fade inline and drop the effect. */
   settle(m: number): void;
   dispose(): void;
 }
 
-/**
- * Variant `fade-threaded` (Lean `PlatformFade.stepF`): one opacity and blur effect per push on the section, keyframed
- * in eased progress (`keyframes`), eased by the morph's curve and started at the tween's start, so every frame shows the
- * original's `--morph-fade` (Lean `threaded_eq`, `frame_blur_eq`). The inline `--morph-fade` changes only at a settle.
- */
 export function createThreadedFade(el: () => FadeEl | null): FadeSink {
   let anim: FadeAnim | null = null;
   const drop = () => {

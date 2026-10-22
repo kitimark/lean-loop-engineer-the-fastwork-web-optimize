@@ -18,7 +18,6 @@ export interface MorphTweenProps {
   platformSelector?: string;
   /** the element that receives the value as `--morph` and `data-fw-morph` (read by nav.hitTest) */
   navSelector?: string;
-  /** platform's variant is `fade-threaded`: the section's fade runs as one effect per push (`createThreadedFade`). */
   platformFade?: boolean;
 }
 

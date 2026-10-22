@@ -5,7 +5,6 @@ import { ease } from '../morph.tween/logic';
 import { createThreadedFade, type FadeAnim, type FadeEl } from './fade.driver';
 import { blurOf, constants, EASING_CSS, keyframes } from './fade.logic';
 
-/** Golden vectors of Lean `PlatformFade` (`platform-fade.jsonl`, from `PlatformGolden.fadeLines`). */
 goldenConformance('platform-fade', {
   const: () => constants(),
   keyframes: (i) => keyframes(i.from as number, i.to as number),
@@ -17,7 +16,6 @@ interface Anim extends FadeAnim {
   cancelled: boolean;
 }
 
-/** The browser under the Lean premises: effect time from `startTime`, the effect easing as `ease`, linear keyframes. */
 function sample(a: Anim, T: number): { opacity: number; blur: number } {
   const p = ease({ x: Math.min(1, Math.max(0, (T - (a.startTime ?? T)) / a.opts.duration)) });
   const i = Math.max(0, a.kfs.findIndex((k) => p <= k.offset) - 1);
@@ -29,7 +27,6 @@ function sample(a: Anim, T: number): { opacity: number; blur: number } {
 
 type Ev = { wheel: number } | { frame: number } | { reduced: boolean };
 
-/** One driver on a fake window; with `threaded` the section's fade goes through `createThreadedFade`. */
 function rig(threaded: boolean) {
   let now = 0;
   let reduced = false;
@@ -61,7 +58,6 @@ function rig(threaded: boolean) {
   };
   const d = createTweenDriver(env);
   d.setNear(true);
-  /** The section's fade and blur on the frame at `T`: the live effect, else the inline `--morph-fade` (CSS default 1). */
   const shown = (T: number) => {
     const live = anims.filter((a) => !a.cancelled).at(-1);
     if (live) return sample(live, T);
@@ -81,7 +77,6 @@ function rig(threaded: boolean) {
 
 const ticks = (from: number, to: number) => Array.from({ length: Math.floor((to - from) / 16) + 1 }, (_, k) => ({ frame: from + 16 * k }));
 
-/** Each event at its time: a push reads `now` at the event, a frame is its own time. */
 function play(events: Array<[number, Ev]>) {
   const base = rig(false);
   const thr = rig(true);

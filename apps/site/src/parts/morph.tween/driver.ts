@@ -34,8 +34,6 @@ export interface TweenEnv {
   onActivate?(): void;
   /** The `scroll-lock` arm's root lock (Lean `MorphTweenOpt.stepR`); absent in the original and unless `lockAllowed`. */
   lock?: { overlay(): boolean; set(on: boolean): void };
-  /** Variant `platform:fade-threaded` (Lean `PlatformFade.stepF`): the section's fade runs as one effect per push, and
-   * the driver writes no `--morph-fade` per frame. */
   fade?: { push(from: number, to: number, start: number): void; settle(m: number): void; dispose(): void };
 }
 

@@ -8,17 +8,7 @@ import Fw.Parts.PlatformScene
 import Fw.Parts.HiddenPausePlatform
 import Fw.Parts.PlatformShrinkOpt
 import Fw.Parts.PlatformFade
-/-!
-# Golden vectors for the platform parts
 
-`PlatformGolden.files` is the list of `(file name, lines)` that `Golden.lean` writes into
-`packages/contracts/golden/parts/`: `platform.jsonl`, `platform.sweep.jsonl`, `platform.glint.jsonl`,
-`platform.marquee.jsonl`, `platform.entries.jsonl`, `platform.scene.jsonl`, `engine.scene.jsonl` (the hidden-pause
-variant's clock on the platform section), `platform-shrink.jsonl` and `platform-fade.jsonl`. Same line format and
-encodings as `Fw/Parts/Golden.lean`
-(`Rat` inputs as exact JSON decimals, `Rat` outputs in the wire form `{"num","den"}`).
-The `const` lines carry the constants the CSS Modules restate; a TS test checks the CSS text against them.
--/
 namespace Fw.Parts.PlatformGolden
 open Lean
 
@@ -240,10 +230,6 @@ def shrinkMqLines : List String :=
         (Json.mkObj [("scale", ratWire (look env v).1), ("radius", ratWire (look env v).2)]))
 
 open Fw.Parts.PlatformFade in
-/-- Lines of `platform-fade.jsonl` (variant `fade-threaded`): the constants the effect restates, the keyframes per push
-(offset, fade and blur px).
-
-`keyframes` in `fade.logic.ts` is checked against these lines (`fade.test.ts`). -/
 def fadeLines (_ : Unit := ()) : List String :=
   let ends : List Rat := [0, 1 / 5, 1 / 4, 1 / 2, 11 / 20, 3 / 5, 3 / 4, 1]
   [line "const" [] (Json.mkObj [("blurMax", ratWire blurMax), ("duration", ratWire Fw.Parts.MorphTween.duration),
@@ -254,10 +240,7 @@ def fadeLines (_ : Unit := ()) : List String :=
       (Json.arr ((keyframes f t).map fun k =>
         Json.mkObj [("off", ratWire k.off), ("fade", ratWire k.val), ("blur", ratWire (blurOf k.val))]).toArray))
 
-/-- The nine golden files of the platform parts and the engine.scene variant on the platform: name and lines, in this
-order.
-
-Nine files, each written whole. -/
+/-- The golden files of the platform parts: name and lines, in this order. -/
 def files (_ : Unit := ()) : List (String × List String) :=
   [("platform.jsonl", platformLines), ("platform.sweep.jsonl", sweepLines), ("platform.glint.jsonl", glintLines),
    ("platform.marquee.jsonl", marqueeLines), ("platform.entries.jsonl", entriesLines),
