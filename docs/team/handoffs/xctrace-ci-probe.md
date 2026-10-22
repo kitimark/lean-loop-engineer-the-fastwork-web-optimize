@@ -15,7 +15,7 @@ no lane). The code is in commits fc46ae97 and e1a1f84d if someone wants it back;
 trigger row in Lean (Fw/Ci/Trigger) and regenerated goldens.
 
 Open / follow-ups (none started):
-1. Host xctrace with a kdebug filter for class 0x1f subclass 0xFF (WebKit signposts gate, SystemTracing.h:316-326@862f17d).
+1. Host xctrace with a kdebug filter for class 0x21 (DBG_APPS) subclass 0xFF (WebKit signposts gate, SystemTracing.h:316-326@862f17d).
 2. Scrolling-performance testing on in the Simulator UI process (ScrollingPerformanceTest* Always signposts).
 3. Real-GPU Mac Safari (task mac-safari-measure) for Animation Hitches.
 

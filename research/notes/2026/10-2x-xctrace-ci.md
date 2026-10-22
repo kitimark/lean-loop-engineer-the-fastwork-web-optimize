@@ -71,15 +71,16 @@ Host recording (the Simulator runs as host processes, so `xctrace` on the host s
   MEASURED.
 - The signposts are `SwapPresent` intervals and `frameReady` events from `SimRenderServer` and `SimFramebufferServer`:
   the Simulator's host-side frame presentation on a VM. There are 0 WebKit-subsystem signposts. The kdebug rows are class
-  0x1f (DBG_APPS) subclass 0x5 only (88,072) plus TRACE (4,842); WebContent emitted 26 events, WebKit.GPU 8, MobileSafari
+  0x1f (DBG_DYLD) subclass 0x5 (DBG_DYLD_UUID, dyld image-map events) only (88,072) plus TRACE (4,842); 0 rows of class
+  0x21 (DBG_APPS) (CONFIRMED, xnu `bsd/sys/kdebug.h`: DBG_DYLD 31, DBG_APPS 33, DBG_DYLD_UUID 5); WebContent emitted 26 events, WebKit.GPU 8, MobileSafari
   4. MEASURED.
 - Why no WebKit rows: WebKit's gated signposts are emitted only when
   `kdebug_is_enabled(KDBG_EVENTID(DBG_APPS, DBG_APPS_WEBKIT_MISC, 0))` holds, with `DBG_APPS_WEBKIT_MISC = 0xFF`
-  (`Source/WTF/wtf/SystemTracing.h:316-326` and `:44@862f17d`). The os_signpost instrument enabled subclass 5 only.
+  (`Source/WTF/wtf/SystemTracing.h:316-326` and `:44@862f17d`). The recording held no DBG_APPS (0x21) events at all, so nothing shows the WebKit gate was on.
   CONFIRMED (source), the link to our empty result INFERRED. `slowFrame` at
   `Source/WebKit/UIProcess/RemoteLayerTree/RemoteLayerTreeDrawingAreaProxy.mm:435@862f17d` is a gated signpost, so it
   was off. The `*Always` macros (`SystemTracing.h:346-347@862f17d`) skip the gate, but the scrolling ones
-  (`ScrollingTreeScrollingNodeDelegateIOS.mm:111,180@862f17d`) run only when scrolling-performance testing is enabled in the
+  (`Source/WebKit/UIProcess/RemoteLayerTree/ios/ScrollingTreeScrollingNodeDelegateIOS.mm:111,180@862f17d`) run only when scrolling-performance testing is enabled in the
   UI process. CONFIRMED (source); not tried.
 - A/A: run 39693161181 vm 1 started the same recording after 28.6 s, never exported, and the step hit its 10-minute
   limit. Runs 39683465909 vm 1 and vm 2: the 90 s SIGKILL left a malformed trace ("Document Missing Template Error").
@@ -126,7 +127,7 @@ Host Animation Hitches: no. Run 39693161181 vm 2: "Reached specified time limit"
 
 ## Follow-ups (none started)
 
-1. Host `xctrace` with a kdebug filter that turns on class 0x1f subclass 0xFF, then count WebKit signposts per zone.
+1. Host `xctrace` with a kdebug filter that turns on class 0x21 (DBG_APPS) subclass 0xFF, then count WebKit signposts per zone.
 2. Turn on scrolling-performance testing in the Simulator's UI process to get the `ScrollingPerformanceTest*` intervals.
 3. Mac Safari on a real GPU (task mac-safari-measure) for Animation Hitches.
 4. If a trace is recorded on CI again: use the time-limit stop with a long finalize wait on one VM, and treat a trace that does
