@@ -136,19 +136,26 @@ read 2026-10-22): Haiku 5.5 $0.10 in / $0.50 out, Sonnet 5.5 $2 / $10 per Mtok.
 
 `Fw.Oracle.Core.sumOk` accepts a reply when its sum is within `eps` of 1 (the old rule), or when its values have at
 most 9 decimals (up to a binary-float noise of 10⁻¹²) and lie within half a unit in that last place of some
-distribution that sums to 1. `results/jev/rescore-eps.ts` runs `oracle.validate` on every logged reply with the old
-and the new `fwcore`.
+distribution that sums to 1. `results/jev/rescore-eps.ts` runs `oracle.validate` and `oracle.score` on every logged
+Jev reply and every Claude-arm answer file (first run and clean run) with the old and the new `fwcore`; the same
+rows are in `results/jev-arms-clean/table.md`. No arm was re-run.
 
-| answers | replies | valid, old rule | valid, new rule | old valid, now rejected |
-|---|---|---|---|---|
-| Jev D1 | 116 | 106 | 115 | 0 |
-| Jev D1 holdout | 33 | 31 | 33 | 0 |
-| Jev D2 | 83 | 83 | 83 | 0 |
-| Haiku D1 (not re-run) | 116 | 37 | 53 | 0 |
-| Sonnet D1 (not re-run) | 116 | 87 | 95 | 0 |
-| Haiku, Sonnet D2 | 90, 89 | 90, 89 | 90, 89 | 0 |
+| set | arm | run | answers | valid, old eps | valid, sumOk | right of valid, old eps | right of valid, sumOk | right / rows |
+|---|---|---|---|---|---|---|---|---|
+| D1 | Jev | recorded | 116 | 106 | 115 | 61 | 65 | 65 / 116 |
+| D1 | Haiku | first | 116 | 101 | 114 | 57 | 68 | 69 / 116 |
+| D1 | Haiku | clean | 116 | 37 | 53 | 16 | 23 | 64 / 116 |
+| D1 | Sonnet | first | 116 | 29 | 34 | 17 | 20 | 78 / 116 |
+| D1 | Sonnet | clean | 116 | 87 | 95 | 56 | 58 | 75 / 116 |
+| D2 | Jev | recorded | 83 | 83 | 83 | 40 | 40 | 40 / 83 |
+| D2 | Haiku | first, clean | 90, 90 | 90, 90 | 90, 90 | 38, 43 | 38, 43 | 38, 43 / 90 |
+| D2 | Sonnet | first, clean | 90, 89 | 90, 89 | 90, 89 | 39, 44 | 39, 44 | 39 / 90, 44 / 89 |
 
-- The rejections were not Jev's only: the Claude arms on D1 lost 78 (Haiku) and 16 (Sonnet) answers to `eps`.
+- Jev D1 holdout: valid 31 → 33 of 33. No answer valid under the old rule is rejected now, in any arm or run.
+- Right / rows and certify (none) are the same under both rules: an invalid answer is scored by its choice, and no
+  arm reaches a certified option either way.
+- The rejections were not Jev's only: the Claude arms on D1 lost 78 (Haiku) and 16 (Sonnet) clean-run answers to
+  `eps`, and 15 (Haiku) and 10 (Sonnet) first-run answers.
 - 62 Haiku D1 answers stay rejected: most write values at three decimals and sum to 1.01 to 1.04, while 14 values
   rounded to 0.001 are off by at most 0.007 in total. 8 Sonnet answers stay rejected for the sum, 13 for missing keys.
 

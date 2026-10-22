@@ -159,72 +159,343 @@
       "rejectedNow": 0
     }
   },
-  "claudeArms": {
-    "d1-haiku": {
-      "file": "results/jev-arms-clean/d1-haiku.answers.jsonl",
+  "runs": {
+    "d1:jev:recorded": {
+      "file": "logged Jev replies",
+      "rows": 116,
       "answers": 116,
-      "withProbabilities": 116,
-      "old": {
-        "valid": 37,
-        "invalid": {
-          "probabilities: the sum is not 1 within eps": 78,
-          "probabilities: the keys differ from the question's": 1
+      "right": {
+        "old": 65,
+        "new": 65
+      },
+      "holdoutRight": {
+        "old": 18,
+        "new": 18
+      },
+      "holdoutRows": 33,
+      "valid": {
+        "old": 106,
+        "new": 115
+      },
+      "validRight": {
+        "old": 61,
+        "new": 65
+      },
+      "certify": {
+        "old": "none",
+        "new": "none"
+      },
+      "invalid": {
+        "old": {
+          "probabilities: the sum is not 1 within eps": 9,
+          "choice: the pick is not the highest-probability option": 1
+        },
+        "new": {
+          "choice: the pick is not the highest-probability option": 1
         }
       },
-      "new": {
-        "valid": 53,
-        "invalid": {
+      "rejectedNow": 0
+    },
+    "d1:haiku:first": {
+      "file": "results/jev-arms-clean/first-run/d1-haiku.jsonl",
+      "rows": 116,
+      "answers": 116,
+      "right": {
+        "old": 69,
+        "new": 69
+      },
+      "holdoutRight": {
+        "old": 20,
+        "new": 20
+      },
+      "holdoutRows": 33,
+      "valid": {
+        "old": 101,
+        "new": 114
+      },
+      "validRight": {
+        "old": 57,
+        "new": 68
+      },
+      "certify": {
+        "old": "none",
+        "new": "none"
+      },
+      "invalid": {
+        "old": {
+          "probabilities: the sum is not 1 within eps": 15
+        },
+        "new": {
+          "probabilities: the sum is not 1 up to rounding": 2
+        }
+      },
+      "rejectedNow": 0
+    },
+    "d1:haiku:clean": {
+      "file": "results/jev-arms-clean/d1-haiku.answers.jsonl",
+      "rows": 116,
+      "answers": 116,
+      "right": {
+        "old": 64,
+        "new": 64
+      },
+      "holdoutRight": {
+        "old": 17,
+        "new": 17
+      },
+      "holdoutRows": 33,
+      "valid": {
+        "old": 37,
+        "new": 53
+      },
+      "validRight": {
+        "old": 16,
+        "new": 23
+      },
+      "certify": {
+        "old": "none",
+        "new": "none"
+      },
+      "invalid": {
+        "old": {
+          "probabilities: the sum is not 1 within eps": 78,
+          "probabilities: the keys differ from the question's": 1
+        },
+        "new": {
           "probabilities: the sum is not 1 up to rounding": 62,
           "probabilities: the keys differ from the question's": 1
         }
       },
       "rejectedNow": 0
     },
-    "d1-sonnet": {
-      "file": "results/jev-arms-clean/d1-sonnet.answers.jsonl",
+    "d1:sonnet:first": {
+      "file": "results/jev-arms-clean/first-run/d1-sonnet.jsonl",
+      "rows": 116,
       "answers": 116,
-      "withProbabilities": 116,
-      "old": {
-        "valid": 87,
-        "invalid": {
-          "probabilities: the sum is not 1 within eps": 16,
-          "probabilities: the keys differ from the question's": 13
+      "right": {
+        "old": 78,
+        "new": 78
+      },
+      "holdoutRight": {
+        "old": 19,
+        "new": 19
+      },
+      "holdoutRows": 33,
+      "valid": {
+        "old": 29,
+        "new": 34
+      },
+      "validRight": {
+        "old": 17,
+        "new": 20
+      },
+      "certify": {
+        "old": "none",
+        "new": "none"
+      },
+      "invalid": {
+        "old": {
+          "choice: the pick is not the highest-probability option": 1,
+          "probabilities: the keys differ from the question's": 76,
+          "probabilities: the sum is not 1 within eps": 10
+        },
+        "new": {
+          "choice: the pick is not the highest-probability option": 1,
+          "probabilities: the keys differ from the question's": 76,
+          "probabilities: the sum is not 1 up to rounding": 5
         }
       },
-      "new": {
-        "valid": 95,
-        "invalid": {
+      "rejectedNow": 0
+    },
+    "d1:sonnet:clean": {
+      "file": "results/jev-arms-clean/d1-sonnet.answers.jsonl",
+      "rows": 116,
+      "answers": 116,
+      "right": {
+        "old": 75,
+        "new": 75
+      },
+      "holdoutRight": {
+        "old": 20,
+        "new": 20
+      },
+      "holdoutRows": 33,
+      "valid": {
+        "old": 87,
+        "new": 95
+      },
+      "validRight": {
+        "old": 56,
+        "new": 58
+      },
+      "certify": {
+        "old": "none",
+        "new": "none"
+      },
+      "invalid": {
+        "old": {
+          "probabilities: the sum is not 1 within eps": 16,
+          "probabilities: the keys differ from the question's": 13
+        },
+        "new": {
           "probabilities: the sum is not 1 up to rounding": 8,
           "probabilities: the keys differ from the question's": 13
         }
       },
       "rejectedNow": 0
     },
-    "d2-haiku": {
-      "file": "results/jev-arms-clean/d2-haiku.answers.jsonl",
-      "answers": 90,
-      "withProbabilities": 90,
-      "old": {
-        "valid": 90,
-        "invalid": {}
+    "d2:jev:recorded": {
+      "file": "logged Jev replies",
+      "rows": 83,
+      "answers": 83,
+      "right": {
+        "old": 40,
+        "new": 40
       },
-      "new": {
-        "valid": 90,
-        "invalid": {}
+      "holdoutRight": {
+        "old": 34,
+        "new": 34
+      },
+      "holdoutRows": 73,
+      "valid": {
+        "old": 83,
+        "new": 83
+      },
+      "validRight": {
+        "old": 40,
+        "new": 40
+      },
+      "certify": {
+        "old": "none",
+        "new": "none"
+      },
+      "invalid": {
+        "old": {},
+        "new": {}
       },
       "rejectedNow": 0
     },
-    "d2-sonnet": {
-      "file": "results/jev-arms-clean/d2-sonnet.answers.jsonl",
-      "answers": 89,
-      "withProbabilities": 89,
-      "old": {
-        "valid": 89,
-        "invalid": {}
+    "d2:haiku:first": {
+      "file": "results/jev-arms-clean/first-run/d2-haiku.jsonl",
+      "rows": 90,
+      "answers": 90,
+      "right": {
+        "old": 38,
+        "new": 38
       },
-      "new": {
-        "valid": 89,
-        "invalid": {}
+      "holdoutRight": {
+        "old": 32,
+        "new": 32
+      },
+      "holdoutRows": 75,
+      "valid": {
+        "old": 90,
+        "new": 90
+      },
+      "validRight": {
+        "old": 38,
+        "new": 38
+      },
+      "certify": {
+        "old": "none",
+        "new": "none"
+      },
+      "invalid": {
+        "old": {},
+        "new": {}
+      },
+      "rejectedNow": 0
+    },
+    "d2:haiku:clean": {
+      "file": "results/jev-arms-clean/d2-haiku.answers.jsonl",
+      "rows": 90,
+      "answers": 90,
+      "right": {
+        "old": 43,
+        "new": 43
+      },
+      "holdoutRight": {
+        "old": 36,
+        "new": 36
+      },
+      "holdoutRows": 75,
+      "valid": {
+        "old": 90,
+        "new": 90
+      },
+      "validRight": {
+        "old": 43,
+        "new": 43
+      },
+      "certify": {
+        "old": "none",
+        "new": "none"
+      },
+      "invalid": {
+        "old": {},
+        "new": {}
+      },
+      "rejectedNow": 0
+    },
+    "d2:sonnet:first": {
+      "file": "results/jev-arms-clean/first-run/d2-sonnet.jsonl",
+      "rows": 90,
+      "answers": 90,
+      "right": {
+        "old": 39,
+        "new": 39
+      },
+      "holdoutRight": {
+        "old": 34,
+        "new": 34
+      },
+      "holdoutRows": 75,
+      "valid": {
+        "old": 90,
+        "new": 90
+      },
+      "validRight": {
+        "old": 39,
+        "new": 39
+      },
+      "certify": {
+        "old": "none",
+        "new": "none"
+      },
+      "invalid": {
+        "old": {},
+        "new": {}
+      },
+      "rejectedNow": 0
+    },
+    "d2:sonnet:clean": {
+      "file": "results/jev-arms-clean/d2-sonnet.answers.jsonl",
+      "rows": 89,
+      "answers": 89,
+      "right": {
+        "old": 44,
+        "new": 44
+      },
+      "holdoutRight": {
+        "old": 39,
+        "new": 39
+      },
+      "holdoutRows": 74,
+      "valid": {
+        "old": 89,
+        "new": 89
+      },
+      "validRight": {
+        "old": 44,
+        "new": 44
+      },
+      "certify": {
+        "old": "none",
+        "new": "none"
+      },
+      "invalid": {
+        "old": {},
+        "new": {}
       },
       "rejectedNow": 0
     }

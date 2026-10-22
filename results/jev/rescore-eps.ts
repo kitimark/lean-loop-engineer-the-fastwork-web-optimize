@@ -83,7 +83,7 @@ for (const set of ["d1", "d2"]) {
     const so = scoreArm(oldCore, q, arm, picked.rows, answers as Json[]) as Score;
     const sn = scoreArm(newCore, q, arm, picked.rows, answers as Json[]) as Score;
     runs[`${set}:${arm}:${run}`] = {
-      file: file ?? "logged Jev replies", rows: picked.rows.length, answers: scored.length,
+      file: file ?? "logged Jev replies", rows: sn.all.rows, answers: scored.length,
       right: { old: so.all.right, new: sn.all.right }, holdoutRight: { old: so.holdout.right, new: sn.holdout.right },
       holdoutRows: sn.holdout.rows,
       valid: { old: vs.filter((v) => v.old.ok).length, new: vs.filter((v) => v.now.ok).length },
