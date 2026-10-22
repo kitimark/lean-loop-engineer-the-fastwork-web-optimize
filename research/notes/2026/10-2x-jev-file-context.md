@@ -11,14 +11,14 @@ topics: [jev, oracle, leakage, negative-result, evaluation, lean-design]
 
 **Answer.** No. Do not build the expansion and do not re-measure with it.
 
-- No row needs a file to reach its label. D1 labels are the ledger's own class and D2 labels are the reviewer's own
+- No row needs a file to reach its label (INFERRED). D1 labels are the ledger's own class and D2 labels are the reviewer's own
   grade: both are judgments about text the row already holds. Rows that name files score like rows that do not
   (MEASURED, gap at most 5.9 points in either direction, table below).
 - The signal the files do carry is the label itself. 9 rows name a file that holds their label, a decoy label or the
   lead's later triage (MEASURED). The one row all five arm runs missed, `inc-precommit-stale-fwcore`, names
   `scripts/checkmap.mjs`, whose line 2 states its class `c-late-check` (CONFIRMED,
   `scripts/checkmap.mjs:2@ecdc0787`). A re-measure would score that leak as a gain.
-- The files are too large for the state. The median D2 row names 95.5 KiB of files against `stateCap` 32768 bytes
+- The files are too large for the state. The median D2 row with a file names 95.5 KiB of files against `stateCap` 32768 bytes
   (MEASURED; `lean/Fw/Oracle/Redact.lean:195@7e676da5`).
 
 Every count below comes from one run of the committed scan (MEASURED, 2026-10-22, script at 11d7ec4a):
