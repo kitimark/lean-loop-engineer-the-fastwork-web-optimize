@@ -1,8 +1,9 @@
 // `fw land --task` on a plain (non-card) agent branch: file scope from the task's writes (Lean console.landScope),
 // marker check, failing checks, dirty/locked worktrees, merge-never-rebase, safe cleanup.
 import "./land-timeout.ts";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { createApp } from "../../console-api/src/app.ts";
 import { selectCore } from "../../console-api/src/core/index.ts";
@@ -10,6 +11,7 @@ import { Reconciler } from "../../console-api/src/reconcile/reconciler.ts";
 import { Store } from "../../console-api/src/store.ts";
 import { makeRepo } from "../../console-api/test/reconcile-fixture.ts";
 import { checksFor, land, LOCAL_TESTS, READS_SCAN_ARGV, type Http } from "../src/land.ts";
+import { askCore, coreBin } from "../hooks/land-guard.mjs";
 
 let stores: Store[] = [];
 afterEach(() => { stores.forEach((s) => s.close()); stores = []; });
@@ -206,5 +208,24 @@ describe("checksFor", () => {
   it("installs first when a dependency changes", () => {
     expect(checksFor("/nonexistent", ["pnpm-lock.yaml"])).toEqual([["pnpm", "install", "--frozen-lockfile"], READS_SCAN_ARGV]);
     expect(checksFor("/nonexistent", ["packages/x/package.json"])[0]).toEqual(["pnpm", "install", "--frozen-lockfile"]);
+  });
+});
+
+describe("golden registration set: the write lists of incident inc-golden-reg-scope", () => {
+  const file = join(dirname(fileURLToPath(import.meta.url)), "../../../packages/contracts/golden/console/land-scope-regs.jsonl");
+  const rows = readFileSync(file, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l));
+  it("has an admitted and a protected row for each refused task", () => {
+    for (const t of ["jev-retrieval-trace", "site-layer-opts", "slot-span-key"]) {
+      expect(rows.some((r) => r.request.task === t && r.response.ok)).toBe(true);
+      expect(rows.some((r) => r.request.task === t && r.request.paths.includes(".git/config") && !r.response.ok)).toBe(true);
+    }
+  });
+  it("fwcore reproduces every row", () => {
+    expect(existsSync(coreBin())).toBe(true);
+    for (const row of rows) {
+      const got = askCore("console.landScope", row.request);
+      expect(got, row.name).not.toBeNull();
+      for (const [k, v] of Object.entries(row.response as Record<string, unknown>)) expect(got![k], `${row.name} .${k}`).toEqual(v);
+    }
   });
 });
