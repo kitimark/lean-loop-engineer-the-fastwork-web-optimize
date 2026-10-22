@@ -15153,7 +15153,9 @@
     "packages/measure-webkit/test/census*.test.mjs",
     "lean/Fw/Measure/Census*.lean",
     "packages/contracts/golden/measure/census*.jsonl",
-    "docs/team/handoffs/layer-census-check.md"
+    "docs/team/handoffs/layer-census-check.md",
+    "apps/runner/src/land.ts",
+    "lean/Fw/Ci/Trigger.lean"
    ]
   },
   {
@@ -16160,6 +16162,27 @@
     "docs/team/handoffs/land-script-tests.md"
    ],
    "title": "fw land misses the node:test suites that only the lean workflow runs (incident inc-land-misses-script-tests): lead-hotfix-1022 changed .claude/workflows/build-review.js, the land selected no check that runs scripts/build-review.test.mjs (it runs only in .github/workflows/lean.yml:105 with heavy-lock and fwcore-build tests), the land passed and main's lean run 39770576911 failed after it. (1) Declare a land check for the script tests of lean.yml:105 (and any other node --test line a workflow runs on scripts/*.test.mjs) with their reads (.claude/workflows/**, scripts/heavy-lock.mjs, scripts/fwcore-build.sh, the tested scripts), in the one Lean source (LandSpeed checks and the generated read list). (2) Theorem or golden: a change to .claude/workflows/build-review.js selects that check. (3) Also admit lean/Fw/Ops/Golden.lean in Land.goldenRegs when a write is under packages/contracts/golden/console/ (console-session-persist needed it, 2026-10-22). Unit: the check, the selection golden, the registration. Limits: workflows that need a macOS runner stay CI-only."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "census-load-variance",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "layer-census-check"
+   ],
+   "writes": [
+    "packages/measure-webkit/src/census.mjs",
+    "packages/measure-webkit/src/determinism.mjs",
+    "packages/measure-webkit/test/census.test.mjs",
+    "lean/Fw/Measure/Census.lean",
+    "packages/contracts/golden/measure/census.jsonl",
+    "research/notes/2026/10-2x-census-load-variance.md",
+    "docs/team/handoffs/census-load-variance.md"
+   ],
+   "title": "Follow-up of layer-census-check (2026-10-22): on the iOS Simulator the undeclared layer set differs between two loads of the same page at y=0 (original 124 vs 106 layers, rewrite 118 vs 110; runs 39760288475, 39763719675), so the base census refuses and no WebKit A/B census can accept. Find the cause (load timing, hold length, the running page's own animations, or the Simulator) with at most 3 dispatches; then state in Lean which undeclared boxes may vary between loads (a settle rule or an allowlist keyed by identity, never a count tolerance) so base vs base accepts, with goldens. Also amend design text section 2.4 / S1 so path-pix-core's S1 premise names the in-page node origin (InspectorLayerTreeAgent.cpp:189-191@862f17d gives integer CSS px bounds). Unit: the cause with run ids, the Lean rule, base vs base accepted on CI."
   }
  ],
  "deadline": {
