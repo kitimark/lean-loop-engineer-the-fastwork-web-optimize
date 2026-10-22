@@ -80,9 +80,13 @@
 {"k":5,"op":"across","out":"second","vs":["second","second","second","second","second","second","second"]}
 {"k":3,"op":"across","out":"insufficient","vs":["first","first"]}
 {"k":0,"op":"across","out":"insufficient","vs":["first","first","first","first","first"]}
-{"k":2,"op":"across","out":"first","vs":["first","first","insufficient"]}
+{"k":2,"op":"across","out":"insufficient","vs":["first","first","insufficient"]}
 {"k":5,"op":"across","out":"insufficient","vs":[]}
 {"k":3,"op":"across","out":"second","vs":["second","second","second","insufficient","same"]}
+{"k":4,"op":"across","out":"insufficient","vs":["insufficient","insufficient","insufficient","insufficient","insufficient"]}
+{"k":4,"op":"across","out":"insufficient","vs":["first","same","insufficient","insufficient","insufficient"]}
+{"k":3,"op":"across","out":"first","vs":["first","first","first","insufficient","insufficient"]}
+{"k":4,"op":"across","out":"same","vs":["first","first","same","insufficient","insufficient"]}
 {"n":0,"op":"agreeNeeded","out":0}
 {"n":1,"op":"agreeNeeded","out":1}
 {"n":3,"op":"agreeNeeded","out":2}
