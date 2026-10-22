@@ -159,6 +159,12 @@ A queued run waits in one node process, not a tree (slot-waiter-light, MEASURED 
 
 - One process only via `slot-self.mjs` (check.sh, package `test`), 99 MB. The typed form `pnpm -s fw slot run` stays pnpm + node (2 processes; 3 where the pnpm shim switches to the pinned pnpm, which the lead measured as 95 + 105 + 102 MB). It gains 16 MB of node RSS (118 to 102, MEASURED).
 - `fw.ts` is now a small entry: for `fw slot ...` it loads only `slot-main.ts`, for every other group it loads `fw-main.ts` (the old fw.ts body: contracts, land, ci, plan; the 120 MB part). `package.json` `fw` still starts `apps/runner/src/fw.ts`, so the Monitor command line `node apps/runner/src/fw.ts watch --interval 300 --stream` is unchanged.
-- `pnpm` stays the parent of a typed `pnpm -s fw slot run`, so that form only loses the fw-main.ts weight; `slot-self.mjs` waits in-process and loses the whole second process.
+- A typed `pnpm -s fw slot run` keeps pnpm as parent and loses only the fw-main.ts weight; `slot-self.mjs` loses the whole second process.
 - A bare node with TypeScript stripping is about 46 MB idle; the waiter is 99-102 MB. Not cut further (follow-up: a precompiled JS waiter). `manage-package-manager-versions=false` would remove the shim's nested pnpm and is not set here.
-- Verdicts, queue order and the lease are unchanged (same `slot.ts`). Tests: `scripts/slot-self.test.mjs` (the waiter has no child and starts the command only after the holder releases; usage exits 64).
+- Tests: `scripts/slot-self.test.mjs` (the waiter has no child and starts the command only after the holder releases; usage exits 64).
+
+## Main's slot code
+
+`fw slot ...` (apps/runner/src/fw.ts) and `scripts/slot-self.mjs` load `slot-main.ts` from the main checkout (the parent of the shared repo dir, see `apps/runner/src/slot.ts`), so a worktree on an older branch decides with main's slot code. They fall back to their own file when main's is missing or fails to import (for example a conflicted main checkout during a land merge). The Node pin guard and the Monitor line `node apps/runner/src/fw.ts watch --interval 300 --stream` are unchanged.
+- Limits: a run already waiting keeps the code it loaded; main's code must stay compatible with older callers' `state.json` writes; a worktree cut before slot-main-code still runs its own slot code until it merges main; a branch that changes slot code tests it through the unit tests, since `fw slot` runs main's code.
+- Test: `apps/runner/test/slot.test.ts` (fixture repo with a worktree). Incident: `inc-slot-branch-code`.

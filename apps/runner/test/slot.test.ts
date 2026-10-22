@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -11,7 +11,7 @@ import {
 } from "../src/slot-core.ts";
 import {
   type Deps, type GitFacts, EXIT_REFUSED, SlotUsage, lastHealth, legacyLive, markNext, memOf, parseCompressorMB, parseSysctl, parseVmStat, recoverStale,
-  slotCli, startOf, withState,
+  slotCli, startOf, withState, SLOT_MAIN_REL, mainCheckout, resolveSlotMain,
 } from "../src/slot.ts";
 
 const golden = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "packages", "contracts", "golden", "sup", "adapt.jsonl");
@@ -413,5 +413,35 @@ describe("fw slot admit --kind build", () => {
     const line = (at: number, counts: object) => `${JSON.stringify({ at, input: {}, output: { counts } })}\n`;
     writeFileSync(f, line(1000, { active: 1 }) + line(2_000_500, { active: 4, done: 45, gone: 1, idle: 1, parked: 1, stalled: 0 }));
     expect(lastHealth(f)).toEqual({ time: 2000, live: 6 });
+  });
+});
+
+const resDirs: string[] = [];
+afterEach(() => { for (const d of resDirs.splice(0)) rmSync(d, { recursive: true, force: true }); });
+const runIn = (cwd: string, ...a: string[]) => spawnSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", ...a], { cwd, stdio: "ignore" });
+
+describe("resolveSlotMain: callers run the main checkout's slot code", () => {
+  it("prefers the main checkout's file", () => {
+    expect(resolveSlotMain("/wt/slot-main.ts", "/main", () => true)).toBe(join("/main", SLOT_MAIN_REL));
+  });
+  it("falls back to the local file when main's is missing or there is no main", () => {
+    expect(resolveSlotMain("/wt/slot-main.ts", "/main", () => false)).toBe("/wt/slot-main.ts");
+    expect(resolveSlotMain("/wt/slot-main.ts", null, () => true)).toBe("/wt/slot-main.ts");
+  });
+  it("a worktree on an older branch resolves to the main checkout's file", () => {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), "slotres-")));
+    resDirs.push(root);
+    const main = join(root, "main");
+    mkdirSync(join(main, "apps/runner/src"), { recursive: true });
+    writeFileSync(join(main, SLOT_MAIN_REL), "// new\n");
+    runIn(main, "init", "-q", "-b", "main");
+    runIn(main, "add", ".");
+    runIn(main, "commit", "-qm", "a");
+    const wt = join(root, "wt");
+    runIn(main, "worktree", "add", "-q", "-b", "old", wt);
+    writeFileSync(join(wt, SLOT_MAIN_REL), "// old\n");
+    expect(mainCheckout(wt)).toBe(main);
+    expect(resolveSlotMain(join(wt, SLOT_MAIN_REL), mainCheckout(wt))).toBe(join(main, SLOT_MAIN_REL));
+    expect(mainCheckout(root)).toBeNull();
   });
 });

@@ -147,6 +147,23 @@ function gitIn(cwd: string, args: string[]): string {
   return r.status === 0 ? r.stdout.trim() : "";
 }
 
+export const SLOT_MAIN_REL = join("apps", "runner", "src", "slot-main.ts");
+
+export function mainCheckout(cwd: string): string | null {
+  const out = gitIn(cwd, ["rev-parse", "--path-format=absolute", "--git-common-dir"]);
+  return out === "" ? null : dirname(out);
+}
+
+export function resolveSlotMain(local: string, main: string | null, exists: (p: string) => boolean = existsSync): string {
+  if (main === null) return local;
+  const shared = join(main, SLOT_MAIN_REL);
+  return exists(shared) ? shared : local;
+}
+
+export function slotMainPath(local: string, cwd: string): string {
+  return resolveSlotMain(local, mainCheckout(cwd));
+}
+
 export function gitFacts(cwd: string): GitFacts {
   const st = spawnSync("git", ["status", "--porcelain"], { cwd, encoding: "utf8" });
   return { tree: gitIn(cwd, ["rev-parse", "HEAD^{tree}"]), clean: st.status === 0 && st.stdout.trim() === "", mainSha: gitIn(cwd, ["rev-parse", "refs/heads/main"]) };
