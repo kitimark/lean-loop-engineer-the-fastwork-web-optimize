@@ -1,5 +1,5 @@
 import "./land-timeout.ts";
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { makeRepo } from "../../console-api/test/reconcile-fixture.ts";
@@ -46,5 +46,14 @@ describe("checkoutLandWt clean count (item 3)", () => {
     expect(existsSync(join(dir, "prep-out.txt"))).toBe(false);
     checkoutLandWt(fx.root, dir, head, prep);
     expect(existsSync(join(dir, "prep-out.txt"))).toBe(true);
+  });
+});
+
+describe("fw land CLI wiring", () => {
+  const src = readFileSync(new URL("../src/fw-main.ts", import.meta.url), "utf8");
+  it("real land exit goes through landExit, dry through dryLandReport, no install special case", () => {
+    expect(src).toContain("process.exitCode = landExit(res)");
+    expect(src).toContain("dryLandReport(res,");
+    expect(src).not.toMatch(/dry && res\.kind === "install"/);
   });
 });
