@@ -110,8 +110,8 @@ async function networkBarrier(r0) {
 // A load frame whose evaluate does not answer: the main thread is busy. Record the V8 CPU profile for a few seconds through the
 // browser-side Tracing domain (it needs no renderer answer), print the dearest functions, then fail. Diagnostic for a hung load.
 async function hangProfile(frameNo) {
-  await c.send('Tracing.start', { transferMode: 'ReturnAsStream', traceConfig: { recordMode: 'recordAsMuchAsPossible', includedCategories: ['disabled-by-default-v8.cpu_profiler', 'devtools.timeline'] } });
-  await sleep(6000);
+  await c.send('Tracing.start', { transferMode: 'ReturnAsStream', traceConfig: { recordMode: 'recordAsMuchAsPossible', includedCategories: ['disabled-by-default-v8.cpu_profiler', 'devtools.timeline', 'cc', 'viz', 'blink', 'headless', 'toplevel'] } });
+  await sleep(8000);
   const done = new Promise((res) => c.once('Tracing.tracingComplete', res));
   await c.send('Tracing.end');
   const { stream } = await done;
@@ -128,6 +128,10 @@ async function hangProfile(frameNo) {
   }
   const top = [...hits.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12).map(([id, n]) => { const f = frames.get(id) ?? {}; return `${n} ${f.functionName || '(anon)'} ${f.url ?? ''}:${(f.lineNumber ?? 0) + 1}:${(f.columnNumber ?? 0) + 1}`; });
   const longs = events.filter((e) => e.ph === 'X' && e.dur > 500000).slice(0, 8).map((e) => `${e.name} ${Math.round(e.dur / 1000)}ms ${JSON.stringify(e.args?.data ?? {}).slice(0, 160)}`);
+  const byName = new Map();
+  for (const e of events) { const k = `${e.cat}/${e.name}`; const a = byName.get(k) ?? { n: 0, dur: 0 }; a.n++; a.dur += e.dur ?? 0; byName.set(k, a); }
+  const names = [...byName.entries()].sort((a, b) => b[1].n - a[1].n).slice(0, 25).map(([k, v]) => `${v.n}x ${Math.round(v.dur / 1000)}ms ${k}`);
+  console.error(`hang trace names:\n  ${names.join('\n  ')}`);
   throw new Error(`load hang at frame ${frameNo}: ${events.length} trace events\n top samples:\n  ${top.join('\n  ') || '(none)'}\n long tasks:\n  ${longs.join('\n  ') || '(none)'}`);
 }
 let loaded = false; // set once the page is loaded: from then on an unanswered BeginFrame is a hang, not a navigation commit
