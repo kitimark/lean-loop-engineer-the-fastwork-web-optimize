@@ -184,7 +184,7 @@ let quiet = 0, loadFrames = 0;
 for (; loadFrames < profile.load.maxFrames && quiet < profile.load.quietFrames; loadFrames++) {
   vt = loadFrames * dt;
   await frame(vt);
-  if (process.env.FW_LOAD_TRACE || String(profile.id).startsWith('people-o')) console.error(`load frame ${loadFrames} vt ${vt.toFixed(1)} inflight ${srv.inflight()} requests ${srv.requests()}`);
+  if (process.env.FW_LOAD_TRACE) console.error(`load frame ${loadFrames} vt ${vt.toFixed(1)} inflight ${srv.inflight()} requests ${srv.requests()}`);
   let hangTimer;
   const st = await Promise.race([
     ev(`document.readyState + ',' + (document.fonts ? document.fonts.status : 'loaded') + ',' + document.images.length + ',' + [...document.images].filter((i) => !i.complete).length`),

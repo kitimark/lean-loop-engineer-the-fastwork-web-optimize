@@ -34,7 +34,7 @@ offsets (fractional zoom); there the variant does not rely on it: `keep` require
 | flip, viewport and clamp: the shown top and left equal the faithful ones from any held state | `step_faithful` |
 | kept frame: no write; translate `y0 - y` (clamped regime: 0), whole device pixels | `keep_no_write`, `keep_translate`, `keep_clamped`, `keep_whole`, `keep_pixel` |
 | layout passes: faithful 1 per scroll frame; variant 0 on a kept frame, 1 on a flip frame; both engines, own layer | `faithful_layout`, `translate_layout_kept`, `translate_layout_flip`, `translate_work_lt` |
-| layer budget 0 (no `will-change`, the card is already a layer) | `layer_budget_zero` |
+| layer budget 0 by definition (`residentOf` is the same for both variants; INFERRED: the variant adds no `will-change` and no 3D transform) | `layer_budget_zero` records it |
 
 ## Measured
 
