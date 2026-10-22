@@ -1,7 +1,10 @@
 # compose-layers-lean (lean-prover)
 
-State: branch `worktree-wf_a9545149-400-1`, commits cf333e33..HEAD on base e715dcdc. `sh lean/scripts/check.sh` green;
-site, console-api and runner tests green; `#print axioms` on every Layers theorem shows standard axioms only.
+State: branch `worktree-wf_a9545149-400-1`, worktree `.claude/worktrees/wf_a9545149-400-1`, commits cf333e33..HEAD,
+main 76f51b05 merged at 538ade8f. No CI runs (none in scope). Round 2 (report only): after the merge
+`part-footprint.mjs --write` and `ContractsGolden --diff/--rows/--check` regenerated nothing; `sh lean/scripts/check.sh`
+green; site, console-api and runner tests green; `fw land --dry` ends `VERDICT dry compose-layers-lean`.
+`#print axioms` on every Layers theorem shows standard axioms only.
 
 Done:
 - `lean/Fw/Console/Layers.lean`: units (pick, change, layer option), `clash` (I1-I4 links, `clash_symm`), expansion
