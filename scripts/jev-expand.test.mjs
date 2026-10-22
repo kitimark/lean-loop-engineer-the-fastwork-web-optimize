@@ -1,5 +1,3 @@
-// Replays the Lean-written golden (packages/contracts/golden/oracle/expand.jsonl) through fwcore, and checks the glue of
-// scripts/jev-expand.mjs on fakes.
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
@@ -23,7 +21,6 @@ test("the golden covers every op of the module", () => {
     ["oracle.adopt", "oracle.expand", "oracle.expandPaths", "oracle.paired"]);
 });
 
-/** A fake git over a map from `sha:path` to a Buffer, and from `rev-list` dates to commits. */
 function fakeGit(objects, revs = {}) {
   return (args) => {
     const [cmd, ...rest] = args;

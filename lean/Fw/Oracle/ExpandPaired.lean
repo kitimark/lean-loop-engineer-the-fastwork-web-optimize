@@ -1,25 +1,19 @@
 import Fw.Oracle.Core
-/-! The paired comparison of an expanded arm against its own run without the files, the exact sign test, and the adopt
-rule of research/notes/2026/10-2x-jev-file-context.md. -/
 namespace Fw.Oracle.Expand
 open Fw.Oracle
 
-/-- One row of one arm: right without the files (`base`) and right with them (`arm`). -/
 structure Pair where
   id : String
   base : Bool
   arm : Bool
 deriving Repr, DecidableEq
 
-/-- The rows that flipped into correct. -/
 def gains (ps : List Pair) : List String := (ps.filter fun p => !p.base && p.arm).map (·.id)
 
-/-- The rows that flipped out of correct. -/
 def losses (ps : List Pair) : List String := (ps.filter fun p => p.base && !p.arm).map (·.id)
 
 def net (ps : List Pair) : Int := (gains ps).length - (losses ps).length
 
-/-- Row `n` of Pascal's triangle. -/
 def pascal : Nat → List Nat
   | 0 => [1]
   | n + 1 => let r := pascal n; List.zipWith (· + ·) (0 :: r) (r ++ [0])
@@ -29,8 +23,6 @@ def binom (n k : Nat) : Nat := (pascal n).getD k 0
 #guard (List.range 6).map (binom 5) == [1, 5, 10, 10, 5, 1]
 #guard binom 3 7 == 0
 
-/-- The two-sided exact sign test of `a` flips one way and `b` the other: twice the binomial tail at one half up to the
-smaller count, at most 1. -/
 def signP (a b : Nat) : Rat :=
   let n := a + b
   let tail := ((List.range (min a b + 1)).map (binom n)).sum
@@ -53,16 +45,13 @@ theorem signP_le_one (a b : Nat) : signP a b ≤ 1 := by
 #guard signP 6 1 == 1 / 8
 #guard signP 3 3 == 1
 
-/-- One arm's pairs. -/
 structure ArmPairs where
   arm : String
   pairs : List Pair
 deriving Repr, DecidableEq
 
-/-- The least net gain every arm needs. -/
 def minNet : Int := 4
 
-/-- Why the expansion is not adopted. -/
 inductive Why where
   | noArm
   | netLow (arm : String) (net : Int)
@@ -70,8 +59,6 @@ inductive Why where
   | untraced (arm id : String)
 deriving Repr, DecidableEq
 
-/-- Every reason against adopting: no arm, an arm under `minNet`, a gain on a row where a file was dropped for a
-vocabulary word, a gain no hand read traced to a fact the row lacks. -/
 def reasons (arms : List ArmPairs) (dropped traced : List String) : List Why :=
   (if arms.isEmpty then [Why.noArm] else []) ++
     arms.flatMap fun a =>
@@ -79,7 +66,6 @@ def reasons (arms : List ArmPairs) (dropped traced : List String) : List Why :=
         ((gains a.pairs).filter dropped.contains).map (Why.gainOnDropped a.arm) ++
         ((gains a.pairs).filter fun i => !traced.contains i).map (Why.untraced a.arm)
 
-/-- Adopt the expansion only when nothing speaks against it. -/
 def adopt (arms : List ArmPairs) (dropped traced : List String) : Bool := (reasons arms dropped traced).isEmpty
 
 theorem adopt_iff (arms : List ArmPairs) (dropped traced : List String) :
@@ -124,9 +110,6 @@ theorem reject_untraced {arms : List ArmPairs} {dropped traced : List String} {a
   · rfl
   · exact absurd ((((adopt_iff _ _ _).mp hb).2 a ha).2 i hi).2 ht
 
-/-! ## Renormalised replies -/
-
-/-- The reply's probabilities divided by their sum (unchanged when the sum is 0). -/
 def renorm (r : Raw) : Raw :=
   let s := (r.probs.map (·.2)).sum
   if s = 0 then r else { r with probs := r.probs.map fun (k, v) => (k, v / s) }

@@ -491,7 +491,7 @@ def ops : List String :=
   ++ Fw.Wire.CheckMap.ops -- check-map-lean: ops.checkMap, ops.checkVerdict
   ++ Fw.Wire.Oracle.ops
   ++ Fw.Wire.OracleReplay.ops
-  ++ Fw.Wire.OracleExpand.ops -- jev-file-context-ablation: oracle.expandPaths, oracle.expand, oracle.paired, oracle.adopt
+  ++ Fw.Wire.OracleExpand.ops
   ++ Fw.Wire.Lint.ops -- context-slop: lint.context
   ++ Fw.Wire.LakeGc.ops -- lean-bin-slim: ops.lakeGc
   ++ Fw.Wire.DiskGc.ops -- disk-auto-gc: ops.diskGc, ops.diskGcPath
@@ -553,7 +553,7 @@ def handleCore (req : Json) : Except String Reply := do
     match Fw.Wire.OracleReplay.handle other req with  -- jev-replay: oracle.replay, oracle.preRun, oracle.score
     | some r => r
     | none =>
-    match Fw.Wire.OracleExpand.handle other req with  -- jev-file-context-ablation
+    match Fw.Wire.OracleExpand.handle other req with
     | some r => r
     | none =>
     match Fw.Wire.Lint.handle other req with  -- context-slop: lint.context

@@ -1,7 +1,4 @@
 #!/usr/bin/env node
-// Glue of the D1 file-context ablation (research/notes/2026/10-2x-jev-file-context-ablation.md). Lean decides
-// (fwcore oracle.expandPaths, oracle.expand, oracle.paired, oracle.adopt); this file reads git blobs and the answer
-// files and writes the datasets and results.
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -23,7 +20,6 @@ function gitOut(args) {
   catch { return null; }
 }
 
-/** The text of `path` at `sha`, or null when it is no blob, too large or binary; with its blob id. */
 export function blobAt(git, sha, path) {
   const id = git(["rev-parse", "--verify", "-q", `${sha}:${path}`])?.toString().trim() || null;
   if (!id || git(["cat-file", "-t", id])?.toString().trim() !== "blob") return { id: null, text: null };
@@ -33,15 +29,12 @@ export function blobAt(git, sha, path) {
   return { id, text: buf.toString("utf8") };
 }
 
-/** The last commit of `src` before the incident time `at` (committer date). */
 export const pinOf = (git, src, at) => git(["rev-list", "-1", `--before=${at}`, src])?.toString().trim() || null;
 
-/** The row of a dataset file with the expansion's `files` text; any other result leaves the row as it was. */
 export function withFiles(row, result) {
   return result?.result === "expanded" ? { ...row, files: result.filesText } : row;
 }
 
-/** The texts and blob ids at `sha` of the paths `cfg` allows. */
 function blobsOf(core, git, sha, cfg, row) {
   const blobs = {}, ids = {};
   for (const p of core({ op: "oracle.expandPaths", cfg, row }).paths.filter((x) => x.allowed)) {
@@ -52,8 +45,6 @@ function blobsOf(core, git, sha, cfg, row) {
   return { blobs, ids };
 }
 
-/** One D1 row and each config's result: the safe config reads the files at the row's pin, the naive one at the dataset
-commit `src`, as a reader who opens today's files would. */
 export function expandOne(core, git, src, at, row) {
   const pick = { title: row.title, symptom: row.symptom, cause: row.cause };
   const pin = at ? pinOf(git, src, at) : null;
@@ -65,14 +56,12 @@ export function expandOne(core, git, src, at, row) {
   return { id: row.id, label: row.label, at: at ?? null, pin, src, safe: run("safe", pin), naive: run("naive", pin ? src : null) };
 }
 
-/** The committed record of one row: no file text, only paths, verdicts, sizes and blob ids. */
 export function recordOf(x) {
   const strip = (r) => ({ result: r.result, ...(r.esc !== undefined ? { esc: r.esc } : {}),
     files: r.files.map((f) => ({ ...f, blob: r.ids[f.path] ?? null })) });
   return { id: x.id, label: x.label, at: x.at, pin: x.pin, safe: strip(x.safe), naive: strip(x.naive) };
 }
 
-/** The datasets: `d1-expand` gets the safe files on its expanded rows; `d1-naive` gets the naive files on the same rows. */
 export function datasets(rows, results) {
   const by = new Map(results.map((x) => [x.id, x]));
   const expanded = (id) => by.get(id)?.safe.result === "expanded";
@@ -106,11 +95,9 @@ function build(f) {
   console.log(`jev-expand build: ${JSON.stringify({ ...summary, dropped: summary.dropped.length, expandedIds: d.ids.length })}`);
 }
 
-/** The expanded rows where a file was dropped for a vocabulary word. */
 export const droppedIds = (results) => results.filter((x) => x.safe.result === "expanded" && x.safe.files.some((f) => f.verdict === "vocab"))
   .map((x) => x.id);
 
-/** The paired requests of one arm: base and arm answers on the expanded rows, in both modes. */
 export function pairedOf(core, question, replay, base, arm) {
   return Object.fromEntries(["strict", "renorm"].map((mode) =>
     [mode, core({ op: "oracle.paired", name: question, mode, replay, base, arm })]));
@@ -150,7 +137,6 @@ function paired(f) {
   console.log(`adopt: ${out.adopt.adopt} (${out.adopt.reasons.length} reasons)`);
 }
 
-/** Per replay set: its rows and how many the answer log already answers, so the sends a run needs are known first. */
 function status(f) {
   const core = fwcoreCall(REPO);
   const dir = f.dir ?? datasetsDir(REPO);
@@ -163,7 +149,6 @@ function status(f) {
   }
 }
 
-/** The prompts of the expanded rows only, for scripts/jev-arms-clean.mjs. */
 function prompts(f) {
   const ids = new Set(JSON.parse(readFileSync(join(OUT, "inputs.json"), "utf8")).expandedIds);
   const kept = readJsonl(f.in).filter((p) => ids.has(p.id));

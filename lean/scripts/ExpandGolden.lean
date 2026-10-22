@@ -1,9 +1,6 @@
 import Lean.Data.Json
 import Fw.Oracle.ExpandWire
 
-/-! Write (or with `--check`, verify) `packages/contracts/golden/oracle/expand.jsonl` (Fw.Wire.OracleExpand), the
-vectors scripts/jev-expand.test.mjs replays through fwcore. -/
-
 open Lean Fw.Wire.OracleExpand
 
 def big : String := String.ofList (List.replicate 40000 'x')

@@ -186,8 +186,7 @@ theorem scrubWf_clean (l : List Char) : noWfId (scrubWf l) = true := by
 
 /-! ## The sets -/
 
-/-- A replay set: name, file, question, the row key of each state field, the optional fields (present only when
-the row has the key), and whether it is sampled. -/
+/-- A replay set: name, file, question, the row key of each state field, and whether it is sampled. -/
 structure ReplaySet where
   name : String
   file : String
@@ -201,10 +200,8 @@ def d1 : ReplaySet :=
   { name := "d1", file := "d1.jsonl", question := incidentClass, sampled := false,
     fields := [("title", "title"), ("symptom", "symptom"), ("cause", "cause")], extra := [("files", "files")] }
 
-/-- D1 with the named repo files of `Fw.Oracle.Expand` (leak-safe: per-row pin, vocabulary drop). -/
 def d1x : ReplaySet := { d1 with name := "d1x", file := "d1-expand.jsonl" }
 
-/-- D1 with the naive expansion (files at main HEAD, no vocabulary drop): shows the leak, not adoption evidence. -/
 def d1n : ReplaySet := { d1 with name := "d1n", file := "d1-naive.jsonl" }
 
 /-- D2: review findings, sent as the stratified sample. -/
@@ -225,10 +222,8 @@ theorem sets_fields : ∀ r ∈ sets, r.fields.map Prod.fst ++ r.extra.map Prod.
 
 theorem d2_labels : d2.question.spec.keys = Labels.exactWords ++ [noGrade] := by decide
 
-/-- The lines of one text: run ids scrubbed, cut into lines. -/
 def fieldLines (t : String) : List String := textLines (String.ofList (scrubWf t.toList))
 
-/-- The state of one row: each field's lines, then each optional field the row has. -/
 def rowState (r : ReplaySet) (row : List (String × String)) : State :=
   r.fields.map (fun (f, k) => (f, fieldLines ((row.lookup k).getD ""))) ++
     r.extra.filterMap fun (f, k) => (row.lookup k).map fun t => (f, fieldLines t)

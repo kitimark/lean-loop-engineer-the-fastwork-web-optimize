@@ -2,8 +2,6 @@ import Lean.Data.Json
 import Fw.Oracle.Expand
 import Fw.Oracle.ExpandPaired
 import Fw.Oracle.ReplayWire
-/-! Ops of `Fw.Oracle.Expand`: `oracle.expandPaths`, `oracle.expand`, `oracle.paired`, `oracle.adopt`; golden vectors in
-packages/contracts/golden/oracle/expand.jsonl. -/
 namespace Fw.Wire.OracleExpand
 open Lean Fw.Oracle Fw.Oracle.Expand
 open Fw.Wire.Ops (Reply field opt asStr str arrD)
@@ -16,10 +14,8 @@ def cfgOf (req : Json) : Except String Cfg :=
   | some (.str "naive") => pure naive
   | some _ => throw "cfg: not safe or naive"
 
-/-- The texts of a D1 row the paths are read from: title, symptom, cause. -/
 def rowTexts (row : List (String × String)) : List String := d1.fields.map fun (_, k) => (row.lookup k).getD ""
 
-/-- The blob texts by path; `null` for a path with no text blob. -/
 def blobsOf (req : Json) : Except String (List (String × Option String)) :=
   match opt req "blobs" with
   | none => pure []
@@ -29,21 +25,17 @@ def blobsOf (req : Json) : Except String (List (String × Option String)) :=
     | _ => throw s!"blobs: {k} is not a text or null"
   | some _ => throw "blobs: not an object"
 
-/-- A file's verdict; a kept file left out by the fit is `overCap`. -/
 def verdictJ (fitted : Bool) : Except Drop String → List (String × Json)
   | .ok t => [("verdict", if fitted then "kept" else "overCap"), ("bytes", toJson (bytes t)), ("esc", toJson (escBytes t))]
   | .error .notAllowed => [("verdict", "notAllowed")]
   | .error .noText => [("verdict", "noText")]
   | .error (.vocab w) => [("verdict", "vocab"), ("word", .str w)]
 
-/-- `oracle.expandPaths`: the paths a row names, each with whether the allowlist takes it. -/
 def opPaths (req : Json) : Except String Reply := do
   let c ← cfgOf req
   let ps := pathsOf (rowTexts (textsOf (← field req "row")))
   pure [("paths", .arr (ps.map fun p => Json.mkObj [("path", .str p), ("allowed", .bool (allowed c p))]).toArray)]
 
-/-- `oracle.expand` (`rowId` names the row, `id` is the wire's): each named file's verdict and the row's result
-(`same`, `expanded` with the `files` text of the files that fit, or `refused` when not one fits). -/
 def opExpand (req : Json) : Except String Reply := do
   let c ← cfgOf req
   let id ← str req "rowId"
@@ -59,7 +51,6 @@ def opExpand (req : Json) : Except String Reply := do
     | .expanded fs n => [("result", "expanded"), ("esc", toJson n), ("filesText", .str (filesText fs))]
     | .refused n => [("result", "refused"), ("esc", toJson n)]
 
-/-- The raw answer of an arm answer: a Jev reply text, or a choice with probabilities; none for a failure. -/
 def rawAnswer (q : Question) (a : Json) : Option Raw :=
   match opt a "failure", opt a "reply", opt a "choice" with
   | some _, _, _ => none
@@ -71,7 +62,6 @@ def rawAnswer (q : Question) (a : Json) : Option Raw :=
     some { type := "choice", pick := some c, probs }
   | _, _, _ => none
 
-/-- The answer validates (after renormalising when `re`) and its pick is the label. -/
 def rightIn (q : Question) (re : Bool) (label : String) (a : Json) : Bool :=
   match rawAnswer q a with
   | none => false
@@ -93,8 +83,6 @@ def flipsJ (ps : List Pair) : Reply :=
    ("baseRight", toJson (ps.filter (·.base)).length), ("armRight", toJson (ps.filter (·.arm)).length),
    ("rows", toJson ps.length), ("p", ratJ (signP (gains ps).length (losses ps).length))]
 
-/-- `oracle.paired`: per replay row, whether the base and the arm answer are right under `mode` (`strict`: as
-validated; `renorm`: probabilities divided by their sum first), and the flips. -/
 def opPaired (req : Json) : Except String Reply := do
   let q ← questionOf req
   let mode ← str req "mode"
@@ -118,7 +106,6 @@ def whyJ : Why → Json
   | .gainOnDropped a i => Json.mkObj [("kind", "gainOnDropped"), ("arm", .str a), ("id", .str i)]
   | .untraced a i => Json.mkObj [("kind", "untraced"), ("arm", .str a), ("id", .str i)]
 
-/-- `oracle.adopt`: the adopt rule over every arm's pairs, the vocabulary-dropped rows and the hand-traced rows. -/
 def opAdopt (req : Json) : Except String Reply := do
   let arms ← (← arrD req "arms").mapM fun j => do
     pure (⟨← str j "arm", ← (← arrD j "pairs").mapM pairOf⟩ : ArmPairs)
@@ -130,7 +117,6 @@ def opAdopt (req : Json) : Except String Reply := do
 
 def ops : List String := ["oracle.expandPaths", "oracle.expand", "oracle.paired", "oracle.adopt"]
 
-/-- Dispatch an op of this module (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
   match op with
   | "oracle.expandPaths" => some (opPaths req)
@@ -139,7 +125,6 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "oracle.adopt" => some (opAdopt req)
   | _ => none
 
-/-- Run an op on a literal request (for the guards and the golden). -/
 def run (op : String) (r : String) : String :=
   match Json.parse r with
   | .ok j => match handle op j with

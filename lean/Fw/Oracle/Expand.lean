@@ -1,13 +1,8 @@
 import Lean.Data.Json
 import Fw.Oracle.Replay
-/-! The D1 row with the repo files it names: allowlisted code files only, a file holding a label word dropped whole,
-whole files kept in path order while the state fits its cap, never cut. Design: research/notes/2026/10-2x-jev-file-context.md. -/
 namespace Fw.Oracle.Expand
 open Fw.Oracle
 
-/-! ## Paths a row names -/
-
-/-- The top-level repo directories a path may start with, in the order the scan tries them. -/
 def tops : List String :=
   ["research", "docs", "lean", "lean-math", "apps", "packages", "scripts", ".github", ".claude", ".circleci", "refs",
    "results", "snapshot", ".cache", ".local"]
@@ -16,16 +11,13 @@ def bodyChar (c : Char) : Bool := c.isAlphanum || "_.@*{}<>,/+-".toList.contains
 
 def endChar (c : Char) : Bool := c.isAlphanum || "_*}>".toList.contains c
 
-/-- A path may start after this character (or at the start of the text). -/
 def headOk : Option Char → Bool
   | none => true
   | some c => !(c.isAlphanum || "_./-".toList.contains c)
 
-/-- The longest run of path characters that ends on an end character. -/
 def tailRun (l : List Char) : List Char :=
   ((l.takeWhile bodyChar).reverse.dropWhile (!endChar ·)).reverse
 
-/-- A top directory, a slash and a nonempty tail at the head of `l`: the first top that matches. -/
 def topMatch (l : List Char) : Option (List Char) :=
   tops.findSome? fun t =>
     let p := t.toList ++ ['/']
@@ -37,11 +29,9 @@ def topMatch (l : List Char) : Option (List Char) :=
 
 def upDir : List Char := "../".toList
 
-/-- The path at the head of `l`, with a leading `../` when one matches. -/
 def matchAt (l : List Char) : Option (List Char) :=
   (if upDir.isPrefixOf l then (topMatch (l.drop 3)).map (upDir ++ ·) else none) <|> topMatch l
 
-/-- Every path in a text, left to right, a match never overlapping the one before. -/
 def scan : Nat → Option Char → List Char → List (List Char)
   | 0, _, _ => []
   | _, _, [] => []
@@ -52,17 +42,14 @@ def scan : Nat → Option Char → List Char → List (List Char)
 
 def isHex (c : Char) : Bool := c.isDigit || (decide ('a' ≤ c) && decide (c ≤ 'f'))
 
-/-- A path as a repo path: no leading `../`, no trailing `@<sha>` of 7 to 40 hex digits. -/
 def resolve (l : List Char) : String :=
   let l := if upDir.isPrefixOf l then l.drop 3 else l
   let tail := (l.reverse.takeWhile (· != '@')).reverse
   let sha := tail.length < l.length && 7 ≤ tail.length && tail.length ≤ 40 && tail.all isHex
   String.ofList (if sha then l.take (l.length - tail.length - 1) else l)
 
-/-- The list without repeats, each kept at its first place. -/
 def dedup (l : List String) : List String := l.foldl (fun acc x => if acc.contains x then acc else acc ++ [x]) []
 
-/-- The repo paths the texts name, in first-seen order. -/
 def pathsOf (texts : List String) : List String :=
   dedup (texts.flatMap fun t => (scan t.length none t.toList).map resolve)
 
@@ -72,10 +59,6 @@ def pathsOf (texts : List String) : List String :=
 #guard pathsOf ["`.github/workflows/lean.yml` and research/notes/*.md"] == [".github/workflows/lean.yml", "research/notes/*.md"]
 #guard pathsOf ["apps/a.ts apps/a.ts", "apps/a.ts@1234567"] == ["apps/a.ts"]
 
-/-! ## Which files are kept -/
-
-/-- Where a kept file may live and what it may be: path prefixes, refused prefixes, extensions; and whether a file
-holding a vocabulary word is dropped. -/
 structure Cfg where
   prefixes : List String
   deny : List String
@@ -83,17 +66,14 @@ structure Cfg where
   dropVocab : Bool
 deriving Repr, DecidableEq
 
-/-- The leak-safe arm: code only, never `lean/Fw/Oracle/`, vocabulary dropped. -/
 def safe : Cfg :=
   { prefixes := ["apps/", "packages/", "scripts/", "lean/Fw/"], deny := ["lean/Fw/Oracle/"],
     exts := [".lean", ".ts", ".tsx", ".mjs", ".js", ".sh", ".yaml"], dropVocab := true }
 
-/-- The naive contrast arm: every text file the row names, under any top directory, no vocabulary drop. -/
 def naive : Cfg := { prefixes := tops.map (· ++ "/"), deny := [], exts := [""], dropVocab := false }
 
 def isPattern (p : List Char) : Bool := p.any ("*{}<>".toList.contains ·)
 
-/-- The path is on the allowlist: a prefix, no refused prefix, an extension, no glob character. -/
 def allowed (c : Cfg) (p : String) : Bool :=
   let l := p.toList
   c.prefixes.any (·.toList.isPrefixOf l) && !c.deny.any (·.toList.isPrefixOf l) &&
@@ -107,24 +87,20 @@ theorem allowed_checkmap : allowed safe "scripts/checkmap.mjs" = true := by deci
 theorem allowed_naive_graph : allowed naive "docs/team/work-graph.json" = true := by decide
 theorem allowed_naive_pattern : allowed naive "research/notes/*.md" = false := by decide
 
-/-- The label vocabulary of a row: every mistake class, every written grade word, and the row id. -/
 def vocab (id : String) : List String := Labels.mistakeClasses ++ Labels.exactWords ++ [id]
 
 def lower (s : String) : List Char := s.toList.map Char.toLower
 
-/-- The first vocabulary word the text holds, ignoring case. -/
 def hit (id text : String) : Option String :=
   let t := lower text
   (vocab id).find? fun w => occurs (lower w) t
 
-/-- Why a named file is not kept. -/
 inductive Drop where
   | notAllowed
   | noText
   | vocab (word : String)
 deriving Repr, DecidableEq
 
-/-- A named file's verdict: its text, kept whole, or why it is dropped. -/
 def verdict (c : Cfg) (id p : String) : Option String → Except Drop String
   | none => if allowed c p then .error .noText else .error .notAllowed
   | some t =>
@@ -135,7 +111,6 @@ def verdict (c : Cfg) (id p : String) : Option String → Except Drop String
       | none => .ok t
     else .ok t
 
-/-- The kept files with their texts, in path order. -/
 def kept (c : Cfg) (id : String) (files : List (String × Option String)) : List (String × String) :=
   files.filterMap fun (p, t) => (verdict c id p t).toOption.map (p, ·)
 
@@ -195,51 +170,39 @@ theorem naive_keeps {id p x : String} (h : allowed naive p = true) : verdict nai
   | .error (.vocab "follow-up") => true
   | _ => false
 
-/-! ## The expanded row and the cap -/
-
-/-- The `files` text: a header line per kept file, then the file whole. -/
 def filesText (ks : List (String × String)) : String :=
   "\n".intercalate (ks.map fun (p, t) => "file: " ++ p ++ "\n" ++ t)
 
-/-- The row with a `files` field holding `ks`, or the row itself when `ks` is empty. -/
 def withFiles (row : List (String × String)) : List (String × String) → List (String × String)
   | [] => row
   | ks => row ++ [("files", filesText ks)]
 
-/-- The row with every kept file. -/
 def expandRow (c : Cfg) (id : String) (row : List (String × String)) (files : List (String × Option String)) :
     List (String × String) :=
   withFiles row (kept c id files)
 
-/-- The bytes JSON escaping adds to a character (Lean's `Json.escape`: `\"`, `\\`, `\n`, `\r`, other controls `\uXXXX`). -/
 def escExtra (c : Char) : Nat :=
   if c == '"' || c == '\\' || c == '\n' || c == '\r' then 1 else if c.toNat < 0x20 then 5 else 0
 
 def escBytes (s : String) : Nat := (s.toList.map fun c => c.utf8Size + escExtra c).sum
 
-/-- The JSON-escaped bytes of the lines of a state. -/
 def stateEsc (S : State) : Nat := (S.map fun kl => (kl.2.map escBytes).sum).sum
 
 #guard ["a\"b\\c", "tab\there", "ü日\r\n", "\x01"].all fun s =>
   escBytes s + 2 == ((Lean.Json.str s).compress.toList.map Char.utf8Size).sum
 
-/-- The escaped state size of the row with `ks`. -/
 def sizeWith (row : List (String × String)) (ks : List (String × String)) : Nat := stateEsc (rowState d1 (withFiles row ks))
 
-/-- Whole-file fit: walk the files in path order and keep each one the row still fits `stateCap` with. -/
 def fit (row : List (String × String)) : List (String × String) → List (String × String) → List (String × String)
   | acc, [] => acc
   | acc, f :: fs => if sizeWith row (acc ++ [f]) ≤ stateCap then fit row (acc ++ [f]) fs else fit row acc fs
 
-/-- The result of expanding one row: the files that fit and the escaped size, or the size with every kept file when not
-one fits. -/
 inductive Result where
   | same
   | expanded (files : List (String × String)) (esc : Nat)
   | refused (esc : Nat)
 deriving Repr, DecidableEq
 
-/-- Expand a row: unchanged when nothing is kept, else the files that fit `stateCap`, else refused. -/
 def expand (c : Cfg) (id : String) (row : List (String × String)) (paths : List String)
     (blob : String → Option String) : Result :=
   let ks := kept c id (paths.map fun p => (p, blob p))
@@ -284,7 +247,6 @@ theorem fit_ne_nil {row : List (String × String)} : ∀ {acc fs : List (String 
     · exact fit_ne_nil (by simp)
     · exact fit_ne_nil h
 
-/-- Not one file fits alone when the fit from nothing keeps nothing. -/
 theorem fit_nil {row : List (String × String)} : ∀ {fs : List (String × String)}, fit row [] fs = [] →
     ∀ f ∈ fs, stateCap < sizeWith row [f]
   | [], _ => by simp
@@ -326,7 +288,6 @@ theorem expand_expanded {c : Cfg} {id : String} {row : List (String × String)} 
         · exact absurd h0 hne
         · exact h0
 
-/-- Every file of an expanded row is allowed, whole, and (with `dropVocab`) holds no vocabulary word. -/
 theorem expand_files {c : Cfg} {id : String} {row : List (String × String)} {paths : List String}
     {blob : String → Option String} {fs : List (String × String)} {n : Nat} (h : expand c id row paths blob = .expanded fs n)
     {p x : String} (hx : (p, x) ∈ fs) : allowed c p = true ∧ (p, some x) ∈ paths.map (fun p => (p, blob p)) ∧
@@ -354,8 +315,6 @@ theorem expand_local {c : Cfg} {id : String} {row : List (String × String)} {pa
   have : (paths.map fun p => (p, b₁ p)) = paths.map fun p => (p, b₂ p) :=
     List.map_congr_left fun p hp => by rw [h p hp]
   simp only [expand, this]
-
-/-! ### Nothing is cut -/
 
 theorem bytes_le_esc (s : String) : bytes s ≤ escBytes s := by
   unfold bytes escBytes
@@ -397,7 +356,6 @@ theorem expand_uncut {c : Cfg} {id : String} {row : List (String × String)} {pa
   have hb : stateBytes (rowState d1 (withFiles row fs)) ≤ stateCap := Nat.le_trans (stateBytes_le_esc _) he
   exact ⟨hb, capState_of_le _ _ hb⟩
 
-/-- A row whose kept list is empty keeps the D1 state of the plain row, so its body is the D1 body. -/
 theorem expand_noop_state {c : Cfg} {id : String} {row : List (String × String)} {files : List (String × Option String)}
     (h : kept c id files = []) : rowState d1 (expandRow c id row files) = rowState d1 row := by
   rw [expandRow_noop h]
