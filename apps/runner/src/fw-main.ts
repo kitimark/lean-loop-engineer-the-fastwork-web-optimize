@@ -19,7 +19,7 @@ import { backfill, ingestRuns, lagCli, runIdsOf, waitSpanExtra } from "./timing-
 
 const [group, ...rest] = process.argv.slice(2);
 let spanExtra: ReturnType<typeof waitSpanExtra> = {};
-if (group && group !== "watch" && group !== "timings" && group !== "run") { const end = begin("fw", spanStep(group, rest)); process.once("exit", (c) => end(c, spanExtra)); }
+if (group && group !== "watch" && group !== "timings" && group !== "run" && !(group === "slot" && rest[0] === "run")) { const end = begin("fw", spanStep(group, rest)); process.once("exit", (c) => end(c, spanExtra)); }
 async function postLandGc(mainDir: string): Promise<void> {
   const { diskGcTick } = await import("./disk-gc.ts");
   const lines = span("fw land", "disk-gc (post-land)", () => diskGcTick(mainDir, ["lake", "landed", "console"], fwcoreCall(mainDir)));

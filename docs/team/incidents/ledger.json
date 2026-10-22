@@ -3994,6 +3994,108 @@
    "leanReason": "Which lints a dry runs is the pure Lean lintPlan; the generator-input selection is a path rule provable as gen_selected.",
    "empiricalCheck": "The next land whose polish stage edits part sources refuses at dry, not at the real land.",
    "hardening": "dry-gen-fresh"
+  },
+  {
+   "id": "inc-sim-step-unbounded",
+   "at": "2026-10-22T17:05+07:00",
+   "title": "webkit-sim Determinism sessions ran past its Lean step bound; the job hit its time limit with no logs or artifact",
+   "symptom": "Run 39751427150 (morph-constant-bounds final design) planned step_min=35 and job_min=53 from Fw.Measure.SimBound. Determinism sessions started 08:59:35Z and was still running when GitHub cancelled the job at 09:55:56Z (annotation: exceeded the maximum execution time of 53m0s). Keep logs, Host state on failure, upload-artifact and telemetry never ran; the job log is not available. One macOS dispatch (the 5th of the task) was spent with no data.",
+   "cause": "INFERRED: the step-level timeout-minutes did not end the session process tree (it ran 21 min past it), and nothing inside the step bounds its own commands, so the job limit fired first and cancelled the always() steps with it. Why the session hung is unknown because no log survived. The Lean bound was taken as enforced without a run that showed the runner enforcing it.",
+   "evidence": [
+    {
+     "kind": "ci",
+     "ref": "39751427150",
+     "note": "step_min=35 job_min=53 in the plan log; sim step ran 08:59:35Z to 09:55:56Z; annotation: exceeded the maximum execution time of 53m0s"
+    },
+    {
+     "kind": "file",
+     "ref": "lean/Fw/Measure/SimBound.lean",
+     "note": "stepMin determinism 1 = 35, jobMin = 53 (#guard at line 54)"
+    },
+    {
+     "kind": "file",
+     "ref": ".github/workflows/webkit-sim.yml",
+     "note": "Determinism sessions timeout-minutes from the plan; no in-step bound on the session commands"
+    }
+   ],
+   "repro": "Dispatch webkit-sim with a session command that ignores SIGINT and never exits: the step outlives step_min and the job ends at job_min with no kept logs.",
+   "fix": {
+    "task": "sim-step-watchdog"
+   },
+   "regression": "A watchdog unit test (a child that ignores SIGINT is killed with its group), a SimBound theorem that the watchdog fires before both GitHub limits, and a fault=hang dispatch that keeps logs and uploads the artifact.",
+   "mistakeClass": "c-env-assume",
+   "leanVerdict": "partly",
+   "leanReason": "The bound arithmetic (setup + watchdog + tail <= job_min) is provable in SimBound; whether the runner actually kills a process tree is runtime behaviour Lean cannot see, so the fault-input run is the empirical check.",
+   "empiricalCheck": "A fault=hang dispatch shows the watchdog line, kept logs and an uploaded artifact inside job_min.",
+   "hardening": "sim-step-watchdog"
+  },
+  {
+   "id": "inc-pick-position",
+   "at": "2026-10-22T16:45+07:00",
+   "title": "jev-retrieval-trace reported a J-pick position bias that the per-row candidate counts refute",
+   "symptom": "The note and handoff said step 1 chose f1 in 30 of 36 rows and called it a position bias (INFERRED); the lead relayed that to the user. The review recount: 26 of the 36 rows had one candidate, and over the 10 multi-candidate rows step 1 chose f1 4, f2 5, f3 1.",
+   "cause": "CONFIRMED (results/jev-retrieval-trace/pick.json rows[].candidates and step1.choice): the share was computed over all rows, including single-candidate rows where f1 was the only option, and no definition fixed which rows a position statistic may count. The lead relayed the builder claim before the review had run.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "results/jev-retrieval-trace/pick.json",
+     "note": "26 single-candidate rows; multi-candidate choices f1 4, f2 5, f3 1"
+    },
+    {
+     "kind": "file",
+     "ref": "research/notes/2026/10-2x-jev-retrieval-trace.md",
+     "note": "corrected bullet: J-pick always picks a file, no position bias seen over 10 rows"
+    }
+   ],
+   "repro": "Compute the f1 share of J-pick step-1 choices over every row with candidates: 30 of 36; over rows with at least 2 candidates: 4 of 10.",
+   "fix": {
+    "task": "jev-retrieval-followups"
+   },
+   "regression": "A Lean pick-position share defined over rows with at least 2 candidates, a theorem that a 1-candidate row adds nothing to it, goldens, and jev-trace computing the share through fwcore.",
+   "mistakeClass": "c-unearned-claim",
+   "leanVerdict": "provable",
+   "leanReason": "The statistic is a pure function of the recorded rows; restricting its domain to rows with at least 2 candidates is a Lean definition with a theorem.",
+   "empiricalCheck": "The next J-pick run reports the share from fwcore only.",
+   "hardening": "jev-retrieval-followups"
+  },
+  {
+   "id": "inc-golden-reg-scope",
+   "at": "2026-10-22T17:30+07:00",
+   "title": "Three dry lands in one day refused at scope for the same golden-registration files the lead left out of the task writes",
+   "symptom": "jev-retrieval-trace, site-layer-opts and slot-span-key each built green, then fw land --dry printed VERDICT scope for lean/scripts/check.sh, a new lean/scripts/*Golden.lean and read-list lines in apps/runner/src/land.ts, lean/Fw/Console/LandSpeed.lean or lean/Fw/Ci/Trigger.lean. Each cost a lead graph edit (r253, r257, r258), a dry rerun and a resumed review.",
+   "cause": "CONFIRMED (lean/Fw/Console/Land.lean:72 registrations; :163 kindRegs): the always-admitted registrations cover wire modules, Fw.lean, the test main and fw.ts, but not the golden-check script or a new golden generator; and the check.sh read list is kept twice by hand (land.ts CHECK_SH_READS, LandSpeed.checkShReads), so a new generated file must be declared in both. The lead wrote each task write list by hand without that set.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "cb6a40a3",
+     "note": "graph r253: jev-retrieval-trace writes added after its build"
+    },
+    {
+     "kind": "commit",
+     "ref": "0d6413e2",
+     "note": "graph r257: site-layer-opts writes added after VERDICT scope"
+    },
+    {
+     "kind": "commit",
+     "ref": "416702af",
+     "note": "graph r258: slot-span-key writes added after VERDICT scope"
+    },
+    {
+     "kind": "file",
+     "ref": "lean/Fw/Console/Land.lean",
+     "note": "registrations and kindRegs: no golden registration set"
+    }
+   ],
+   "repro": "Draft a Lean task whose writes name lean/Fw/X.lean and packages/contracts/golden/x.jsonl only; the builder adds lean/scripts/XGolden.lean and a check.sh line; fw land --dry refuses at scope.",
+   "fix": {
+    "task": "land-scope-golden-regs"
+   },
+   "regression": "landScope goldens over the three refused write lists (admitted after the change, protected globs still refused) and a theorem that the golden registration set is empty without a golden write.",
+   "mistakeClass": "c-handcopy",
+   "leanVerdict": "provable",
+   "leanReason": "landScope is a pure Lean function; the golden registration set and its no-lift property are theorems over write lists.",
+   "empiricalCheck": "The next Lean task with a new golden reaches VERDICT dry without a lead graph edit.",
+   "hardening": "land-scope-golden-regs"
   }
  ]
 }

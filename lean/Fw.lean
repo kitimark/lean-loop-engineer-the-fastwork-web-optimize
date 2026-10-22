@@ -19,6 +19,7 @@ import Fw.Site.BreakpointFacts
 import Fw.Site.BreakpointMatrix
 import Fw.Site.BreakpointGen
 import Fw.Site.Reference
+import Fw.Site.LayerOpts
 import Fw.Parts.EngineScroll
 import Fw.Parts.Contract
 import Fw.Parts.NavHitTest
