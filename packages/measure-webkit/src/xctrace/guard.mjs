@@ -75,6 +75,7 @@ export function makeGuard({ workDir, ppid = process.ppid, getPpid = () => proces
     const child = spawn(cmd, args, { detached: true, cwd: workDir, env: { ...process.env, TMPDIR: tmpDir }, stdio: ['ignore', 'pipe', 'pipe'] });
     live.add(child.pid);
     let exited = false;
+    // helpers the command left behind die at the leader's exit: their group keeps the leader's id, and POSIX reuses no pid while a group with that id exists
     child.on('exit', () => { exited = true; group(child.pid, 'SIGKILL'); live.delete(child.pid); });
     let out = '', err = '', interrupted = false, killed = null, maxMB = 0;
     child.stdout.on('data', (d) => { out += d; });

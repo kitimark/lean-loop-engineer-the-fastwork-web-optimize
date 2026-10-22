@@ -31,7 +31,7 @@ const cleanup = async () => {
   if (closing) return; closing = true;
   guard.killAll();
   for (const f of onExit) { try { f(); } catch {} }
-  rmSync(workDir, { recursive: true, force: true });
+  guard.wipe(); rmSync(workDir, { recursive: true, force: true });
   try { rmSync(root, { recursive: false }); } catch {}
   await lease?.release().catch((e) => log(`release: ${e.message}`));
 };

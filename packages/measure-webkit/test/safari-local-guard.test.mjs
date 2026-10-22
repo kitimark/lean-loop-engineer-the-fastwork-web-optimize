@@ -39,6 +39,20 @@ test('a child that writes into the user temp folder (the confstr dir, not TMPDIR
   } finally { rmSync(w, { recursive: true, force: true }); rmSync(u, { recursive: true, force: true }); }
 });
 
+test('when the parent is lost, the orphan cleanup wipes the new kernel trace in the user temp folder', async () => {
+  const w = own(), u = own();
+  try {
+    let ppid = 1000;
+    const g = makeGuard({ workDir: join(w, 'work'), userTmp: u, everyMs: 5, ppid: 1000, getPpid: () => ppid });
+    await g.exec('sh', ['-c', `echo x > "${u}/instruments-x.ktrace"`], { limitS: 5 });
+    assert.deepEqual(readdirSync(u), ['instruments-x.ktrace']);
+    const done = new Promise((res) => g.watchParent(() => { g.wipe(); res(); }, 5));
+    ppid = 1;
+    await done;
+    assert.deepEqual(readdirSync(u), []);
+  } finally { rmSync(w, { recursive: true, force: true }); rmSync(u, { recursive: true, force: true }); }
+});
+
 test('kernel traces in the user temp folder count toward the size cap', async () => {
   const w = own(), u = own();
   try {
