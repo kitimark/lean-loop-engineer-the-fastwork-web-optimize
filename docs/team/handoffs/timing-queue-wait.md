@@ -24,3 +24,9 @@ Open / accepted limits
 - Historical spans without `queue` keep their verdicts (no backfill); CI samples unaffected.
 - Blocker selection and `queue` parsing are TS glue, covered by tests and the goldens, not proved.
 - Read first: the header of `lean/Fw/Obs/Timing.lean`, then `apps/runner/src/slot-queue.ts`.
+
+Round 2 (review fixes)
+- behindOf records the holder's tenure (till - since) and picks the blocker by it; memLow has no blocker.
+- queued_not_slow replaced by the non-tautological statement; golden for a 300 s wait behind a holder renewed to 600 s;
+  2026-10-22 case reworded; unused simp args dropped; slot.test.ts drives acquire() through a real wait.
+- check.sh green, @fw/runner test 2609 green; dry land prints VERDICT scope (r286 writes not on main yet).
