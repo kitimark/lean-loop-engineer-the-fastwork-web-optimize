@@ -9,7 +9,7 @@
     "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:13040-13089" } },
     "shift": { "kind": "optimized", "tier": "T0", "provenance": { "lean": "Fw.Parts.MorphMountOpt" } },
     "shift-dormant": { "kind": "optimized", "tier": "T0", "provenance": { "lean": "Fw.Parts.MorphMountDormant" } },
-    "band": { "kind": "optimized", "tier": "T0", "provenance": { "lean": "Fw.Parts.MorphListen hub_eq_base, hub_prevented, band_same, seq_quiet, armed_in_band", "limit": "band premise (pan, IO lag) INFERRED from replay profiles only; the merged touch listener is passive while the platform is out of the band" } }
+    "band": { "kind": "optimized", "tier": "T0", "provenance": { "lean": "Fw.Parts.MorphListen hub_eq_base, hub_prevented, band_same, seq_quiet, armed_in_band", "limit": "band premises: pan checked on the replay profiles, IO lag INFERRED; inBand models only the 150% bottom edge of BAND_ROOT_MARGIN; the 1000% top edge is assumed never crossed while armed (page below the platform shorter than 10 viewports, INFERRED, unchecked); the merged touch listener is passive while the platform is out of the band" } }
   },
   "requires": {},
   "conflicts": {}

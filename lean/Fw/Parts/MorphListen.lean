@@ -177,8 +177,11 @@ theorem next_lifted (cur w : Mode) : next cur w false = w := by
 
 def edge (vhIO : Rat) : Rat := vhIO * 5 / 2
 
+/-- `inBand` models only the 150% bottom edge of `BAND_ROOT_MARGIN`; the 1000% top edge is assumed never crossed while armed
+(page below the platform shorter than 10 viewports, INFERRED, unchecked). -/
 def inBand (bottom vhIO : Rat) : Bool := decide (bottom ≤ edge vhIO)
 
+/-- Band premises: `pan` checked on the replay profiles (`#guard` on `profileLines`); `lag`, `vp`, `tall` INFERRED, unchecked. -/
 structure Premise (vh vhIO bEval b0 bi : Rat) : Prop where
   pan : b0 ≤ bi + vh
   lag : bEval ≤ b0 + vh / 4
