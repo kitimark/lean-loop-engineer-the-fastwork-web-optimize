@@ -6,7 +6,7 @@
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { ghCharged, realEnv, titleFor, waitFor, type Env, type Target, type Waited } from "@fw/gh-budget";
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { GateReply, ManifestReply, PlanReply, ReduceReply, type PlanJob, type RunManifest } from "@fw/contracts";
 import { UsageError } from "./lib.ts";
@@ -283,10 +283,13 @@ export async function runMain(args: RunArgs, d: RunDeps): Promise<number> {
     }
     const head = (JSON.parse(await d.gh(["run", "view", runId, "--json", "headSha"])) as { headSha: string }).headSha;
     if (head !== sha) throw new UsageError(`${j.engine}: run ${runId} measured ${head.slice(0, 7)}, not ${sha.slice(0, 7)}`);
-    const dir = join(d.tmp, `${j.engine}-${runId}`);
-    mkdirSync(dir, { recursive: true });
-    await d.gh(["run", "download", runId, "-D", dir]);
-    const r = ingest(d.call, d.store, dir, j, { target: args.target, preset: args.preset, fw: planned.reply.fw, profile: args.profile ?? "swipe-v1", gitSha: sha, runId });
+    mkdirSync(d.tmp, { recursive: true });
+    const dir = mkdtempSync(join(d.tmp, `${j.engine}-${runId}-`)); // own dir per call: two calls for one run never remove each other's
+    let r: ReturnType<typeof ingest>;
+    try {
+      await d.gh(["run", "download", runId, "-D", dir]);
+      r = ingest(d.call, d.store, dir, j, { target: args.target, preset: args.preset, fw: planned.reply.fw, profile: args.profile ?? "swipe-v1", gitSha: sha, runId });
+    } finally { rmSync(dir, { recursive: true, force: true }); } // the store holds every file (disk-gc-tmp F3)
     d.log(`${j.engine}: run ${runId} filed, ${r.manifest.entries.length} artifacts (${r.objects} new, ${r.reused} already stored) -> ${relative(d.store, r.path)}`);
   }
   return 0;

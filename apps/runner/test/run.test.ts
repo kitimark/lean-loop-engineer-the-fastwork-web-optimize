@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -127,6 +127,8 @@ describe.skipIf(!hasCore)("planRun and runMain against fwcore", () => {
     expect(waits.at(-1)).toMatchObject({ kind: "branch", branch: "ci/t", sha: SHA });
     expect(calls.some((c) => c[1] === "watch")).toBe(false);
     expect(calls.map((c) => c.slice(0, 2).join(" "))).toEqual(["workflow run", "run view", "run download"]);
+    // the download directory is removed after the ingest (task disk-gc-tmp): nothing is left in tmp
+    expect(readdirSync(tmp)).toEqual([]);
     // the run is selected by the dispatch's nonce (Lean Fw.Ci.Dispatch.select), not as the newest run
     expect(waits.at(-1)).toMatchObject({ want: { kind: "dispatch", workflow: "chromium-counts", nonce: "n0nce1234" } });
     const planned = planRun(call, args, SHA, store);

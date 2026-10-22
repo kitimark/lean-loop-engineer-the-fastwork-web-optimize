@@ -324,7 +324,7 @@ export async function watchMain(args: string[], cwd: string, print?: (s: string)
     prev = h.alerts.map((a) => ({ code: a.code, subject: a.subject }));
     prevSnap = { at: snap.now, system: snap.system, critical: snap.critical, ghDegraded: ghFlagged(h), contended: contendedFlagged(h) };
     if (o.intervalS !== null) for (const l of reapTick(main)) if (!o.json) say(l); // reap-auto-stop: each tick stops the processes Lean selects
-    if (o.intervalS !== null && (await newAlerts(call, prev0, h)).some((a) => a.code === DISK_LOW)) for (const l of diskGcTick(main, [...CLASSES], fwcoreCall(main))) if (!o.json) say(l);
+    if (o.intervalS !== null && (await newAlerts(call, prev0, h)).some((a) => a.code === DISK_LOW)) for (const l of diskGcTick(main, [...CLASSES], fwcoreCall(main), process.env, { pressure: true })) if (!o.json) say(l);
     if (o.intervalS === null) return 0;
     await new Promise((r) => setTimeout(r, o.intervalS! * 1000));
   }
@@ -366,7 +366,7 @@ async function streamMain(o: WatchOpts, paths: Paths, main: string, call: CoreCa
       for (const line of streamLines(d)) say(line);
       open = d.next;
       for (const l of reapTick(main)) say(l); // reap-auto-stop: `REAP stopped ...` and `DISKGC ...` lines are the only non-OPEN/CLOSE lines
-      if (d.opened.some((a) => a.code === DISK_LOW)) for (const l of diskGcTick(main, [...CLASSES], fwcoreCall(main))) say(l); // disk-auto-gc
+      if (d.opened.some((a) => a.code === DISK_LOW)) for (const l of diskGcTick(main, [...CLASSES], fwcoreCall(main), process.env, { pressure: true })) say(l); // disk-auto-gc
       prevSnap = { at: snap.now, system: snap.system, critical: snap.critical, ghDegraded: ghFlagged(h), contended: contendedFlagged(h) };
       await new Promise((r) => setTimeout(r, o.intervalS! * 1000));
     }
