@@ -145,6 +145,7 @@ run_group() {
   job "hero-scene-pause golden check" lake env lean --run scripts/HeroScenePauseGolden.lean --check ../packages/contracts/golden/parts/hero-scene-pause.jsonl  # the hero scene vectors hero/scene.golden.test.ts is checked against (Fw.Parts.HeroScenePause)
   job "nav-earn golden check" lake env lean --run scripts/NavEarnGolden.lean --check ../packages/contracts/golden/parts/nav-earn.jsonl  # the earn-no-transition vectors nav/earn.golden.test.ts is checked against (Fw.Parts.NavEarnOpt)
   job "accent draw-one golden check" lake env lean --run scripts/AccentDrawOneGolden.lean --check ../packages/contracts/golden/parts/hero.accent.drawone.jsonl
+  job "people-o preview golden check" lake env lean --run scripts/PeopleOPreviewGolden.lean --check ../packages/contracts/golden/parts/people-o-preview.jsonl  # the preview-translate vectors people.o/preview.golden.test.ts is checked against (Fw.Parts.PeopleOPreview)
   job "image-arm golden check" lake env lean --run scripts/ImageArmGolden.lean --check ../packages/contracts/golden/gate/image-arm.jsonl  # per-part drawn-size copy decisions (Fw.Measure.ImageArm)
   job "steps golden check" lake env lean --run scripts/StepsGolden.lean --check  # golden/ci/steps.jsonl (Fw.Ci.Steps), read by scripts/ci-steps-lint.mjs
   job "oracle labels golden check" lake env lean --run scripts/OracleLabelsGolden.lean --check  # golden/oracle/labels.jsonl (Fw.Oracle.Labels), read by scripts/jev-datasets.mjs
