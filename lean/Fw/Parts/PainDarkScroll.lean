@@ -176,7 +176,6 @@ theorem cont_needed : ∃ w h y lastY : Rat, varPixel w h y ≠ origPixel w h 0 
 #guard layerOpacity 0 100 (1 / 2) 49 == 0 && layerOpacity 0 100 (1 / 2) 50 == 1 && layerOpacity 0 100 (1 / 2) 100 == 1
   && layerOpacity 0 100 (1 / 2) (-1) == 0 && layerOpacity 0 100 (1 / 2) 101 == 1
 
-/-- Toggle-frame work: main-thread style units and invalidated paint area. -/
 structure Work where
   styleUnits : Nat
   paintKpx : Nat
@@ -184,8 +183,6 @@ deriving Repr, DecidableEq
 
 def origToggle (n a : Nat) : Work := ⟨n, a⟩
 
-/-- MODEL ASSUMPTION `ToggleUi` (INFERRED): the flip runs in the UI process, so the toggle frame adds no style or paint.
-Chromium refutes it for style (`chromium_style_gt`). -/
 def varToggle : Work := ⟨0, 0⟩
 
 theorem toggle_free : varToggle.styleUnits = 0 ∧ varToggle.paintKpx = 0 := ⟨rfl, rfl⟩
@@ -194,7 +191,6 @@ theorem toggle_cost (n a : Nat) (hn : 0 < n) (ha : 0 < a) :
     varToggle.styleUnits < (origToggle n a).styleUnits ∧ varToggle.paintKpx < (origToggle n a).paintKpx :=
   ⟨hn, ha⟩
 
-/-- Chromium toggle frame (scroll 970, swipe-v1, 430x932 dpr 3), px: base run 39818749535, flag run 39828614430. -/
 def chromiumBasePx : Nat := 3413963
 
 def chromiumVarPx : Nat := 3013203
@@ -211,8 +207,6 @@ theorem chromium_style_gt : chromiumBase.styleUnits < chromiumVar.styleUnits := 
 
 theorem chromium_not_toggle_free : chromiumVar.styleUnits ≠ varToggle.styleUnits := by decide
 
-/-- MODEL ASSUMPTION `RideEveryFrame`: each updating scroll frame adds one style unit
-(`Fw.Engine.WebKit.scroll_comp_ride`, proved for the WebKit model). -/
 def varRide (f : Nat) : Nat := f
 
 theorem ride_exceeds (f n : Nat) (h : n < f) : n < varRide f := h
@@ -257,7 +251,7 @@ structure Content where
   span : Span
   kpx : Nat
 
--- RenderLayerCompositor.cpp:1332-1335@862f17d: a later layer composites iff it meets an earlier composited layer.
+-- RenderLayerCompositor.cpp:1332-1335@862f17d
 def promoted (animated : List Span) (c : Content) : Bool := animated.any fun a => decide (a.meets c.span)
 
 def backingKpx (animated : List Span) (content : List Content) (stageKpx : Nat) : Nat :=

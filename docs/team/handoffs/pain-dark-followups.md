@@ -1,6 +1,6 @@
 # pain-dark-followups (part-builder) handoff, final
 
-- Branch worktree-wf_27e8c82d-469-1, worktree .claude/worktrees/wf_27e8c82d-469-1, CI branch ci/pain-dark-followups at 9597ea656 (the measured code; later commits change Lean theorems, part.json kind, docs, golden, merge of main). Last commit: `git log -1`.
+- Branch worktree-wf_27e8c82d-469-1, worktree .claude/worktrees/wf_27e8c82d-469-1, CI branch ci/pain-dark-followups at 9597ea656 (the measured code). Last commit: `git log -1`.
 - CI runs, all complete:
   - 39852164349 trajectory-probe push, fw=pain:dark-scroll, verdict run: pain-dark cell E (both directions) on Chromium 156 and Linux WebKit 27.2 at 390 and 640, layer engaged, same flip step in both arms. Artifacts cells-gpu-chromium, cells-gpu-playwright-webkit-390/-640.
   - 39852250962 breakpoint-gate, both engines, fw=pain:dark-static: pass.

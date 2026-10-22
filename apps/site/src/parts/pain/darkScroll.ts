@@ -1,8 +1,3 @@
-/**
- * pain `dark-scroll`: the range start of the dark layer's scroll animation. Spec and proofs:
- * lean/Fw/Parts/PainDarkScroll.lean (`measuredStart`, `measure_eq`); golden vectors:
- * packages/contracts/golden/parts/pain-dark-scroll.jsonl (darkScroll.test.ts).
- */
 import { mediaCondition } from '../../breakpoints';
 import { DARK_TOP } from '../people.card/logic';
 

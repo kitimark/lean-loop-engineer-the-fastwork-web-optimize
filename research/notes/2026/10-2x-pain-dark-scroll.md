@@ -115,7 +115,7 @@ Gate: run `39828600078`, both engines (Chrome Headless Shell 156 and Playwright 
 - Flip-frame timing may differ by one frame (Q); reported, not gated.
 - Safari-on-Mac numbers: `gpu-safari-lane`.
 - Chromium shows +3 layers where the Lean count is 2 solid plus 1 host (the host is INFERRED).
-- Follow-up left: a toggle-frame duration lane. The overlap-promotion follow-up is the next section.
+- Open: a toggle-frame duration lane.
 
 ## Follow-ups (task pain-dark-followups)
 
@@ -137,7 +137,7 @@ Linux WebKit legs 390 and 640 (`--only pain`).
 
 ### 2. toggle_free and ride_exceeds
 
-Relabelled, and tied where a count exists. `toggle_free` is the model assumption ToggleUi (the flip runs in the UI process,
+`toggle_free` is the model assumption ToggleUi (the flip runs in the UI process,
 INFERRED) and `ride_exceeds` the assumption RideEveryFrame (`Engine.WebKit.scroll_comp_ride`, proved for the WebKit model).
 Chromium's toggle frame refutes `toggle_free` for style: Lean `chromium_style_gt` (4 to 5 recalcs, runs `39818749535` and
 `39828614430`), `chromium_paint_lt` and `chromium_paint_drop` (3,413,963 minus 3,013,203 is 430 x 932, one viewport). Both labels are in
@@ -181,7 +181,7 @@ counts (`swipe-v1` x 3, run `39852245766`, base `39818749535`, HOLD `39828614430
 3,413,963 to 3,013,203 px, raster tasks 26 to 20, style recalcs 4 to 3, layers +0), but not the whole-swipe saving (area -0.4 percent, tiles
 unchanged; HOLD -4.0 and -6.6 percent). Breakpoint gate on `pain:dark-static`, both engines: run `39852250962` pass.
 
-Result: a no-win, with a mechanism. The only arrangement that removes the backing (no animated layer under the content) also removes the
+Result: no-win. The only arrangement that removes the backing (no animated layer under the content) also removes the
 WebKit paint saving, and it changes the look because the white state is in view at 390 and 640 (Pain top 398 and 871 px below the card
 top, 892 needed; probe run `39852164349`, the premise measured in the base arm). The other order (layer above the content) hides the
 coloured notes until the flip. The saving and the backing appear together in all three arms; the base repaints the full stage every 50 px
