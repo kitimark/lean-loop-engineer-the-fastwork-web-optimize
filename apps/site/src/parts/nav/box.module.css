@@ -1,0 +1,70 @@
+/* Variants clip-box, bar-fixed, logo-3d (Lean: Fw.Parts.NavClipBox, NavBarFixed; golden nav-clip-box.jsonl, nav-bar-fixed.jsonl).
+   While the nav morphs with its locale menu closed it keeps the union of its boxes (panel width; top and height reach the
+   highest top and lowest bottom of the morph) and the pill is a clip-path inset with the original's corner radius. The
+   rest and locale-open states keep the original rules, transition lists included. The union width comes from `min-width`
+   over a `width` held at the pill width, so the declared width is constant in the morph and equals the rest width where
+   morph 0 (Lean: usedW_eq_unionW, decl_eq_rest_zero); a drop between 0 and the cut starts a width transition under 0.42 px
+   (decl_close_rest).
+   The rules sit in their own module (nav.module.css is the original's rules); the nav's elements are named by data-fw hooks because a class of another module cannot be
+   written here. Every override beats the original by specificity, so the order of the two sheets does not matter. */
+@layer parts {
+  .boxClip:global(.is-morphing):not(:global(.is-locale-open)) {
+    --box-ix: calc((var(--panel-w) - var(--pill-w)) * (1 - var(--morph)) / 2);
+    --box-it: calc(4px * var(--morph));
+    --box-ib: calc((var(--panel-h) - var(--pill-h) + 4px) * (1 - var(--morph)));
+    top: 16px;
+    width: var(--pill-w);
+    min-width: var(--panel-w);
+    height: calc(var(--panel-h) + 4px);
+    border-radius: 0;
+    clip-path: inset(var(--box-it) var(--box-ix) var(--box-ib) var(--box-ix) round calc(32px - 12px * var(--morph)));
+    will-change: clip-path, background;
+  }
+  .boxClip:global(.is-morphing):not(:global(.is-locale-open)) > :global([data-fw-box-role='bar']) {
+    top: var(--box-it);
+    right: var(--box-ix);
+    left: var(--box-ix);
+  }
+  .boxClip:global(.is-morphing):not(:global(.is-locale-open)) > :global([data-fw='morph-panel']) {
+    inset: var(--box-it) var(--box-ix) var(--box-ib) var(--box-ix);
+    width: auto;
+    height: auto;
+  }
+  .boxBar:global(.is-morphing):not(:global(.is-locale-open)) > :global([data-fw-box-role='bar']) {
+    --logo-x: calc(
+      (var(--panel-w) - var(--pill-w)) / 2 +
+        ((var(--pill-w) - (var(--panel-w) - var(--pill-w))) / 2 - var(--nav-bar-inset-x)) * var(--morph) +
+        (var(--panel-w) - var(--pill-w)) / 2 * var(--morph) * var(--morph)
+    );
+    --actions-x: calc((var(--panel-w) - var(--pill-w)) / 2 * (var(--morph) - 1));
+    top: 0;
+    right: 0;
+    left: 0;
+    translate: 0 var(--box-it);
+    will-change: transform;
+  }
+  .boxBar:global(.is-morphing):not(:global(.is-locale-open)) :global([data-fw-box-role='logo']) {
+    left: var(--nav-bar-inset-x);
+    translate: calc(var(--logo-x) - 50% * var(--morph)) 0;
+  }
+  .boxBar:global(.is-morphing):not(:global(.is-locale-open)) :global([data-fw='nav-actions']) {
+    translate: var(--actions-x) -50%;
+  }
+  .box3d:global(.is-morphing):not(:global(.is-locale-open)) :global([data-fw-box-role='logo']) {
+    --logo-s: 1;
+    translate: none;
+    scale: none;
+    transform: translate3d(calc(var(--logo-x) - 50% * var(--morph)), 0, 0) scale(var(--logo-s));
+  }
+  @media (width<=640px) {
+    .boxClip:global(.is-morphing):not(:global(.is-locale-open)) {
+      --box-it: calc(4px * (1 - var(--morph)));
+      --box-ib: calc((var(--panel-h) - var(--pill-h) - 4px) * (1 - var(--morph)));
+      top: 12px;
+      height: var(--panel-h);
+    }
+    .box3d:global(.is-morphing):not(:global(.is-locale-open)) :global([data-fw-box-role='logo']) {
+      --logo-s: 0.75;
+    }
+  }
+}

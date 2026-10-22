@@ -71,20 +71,36 @@ const painScan = async ({ sec, trig, cls, step }) => {
   return { down, up };
 };
 
-const carouselSample = async ({ scene, cont, ms }) => {
+const carouselSample = async ({ scene, cont, ms, still = 6, settleMs = 2200, tailMs = 1500 }) => {
   const raf = () => new Promise((r) => requestAnimationFrame(() => r()));
   const sc = document.querySelector(scene), c = document.querySelector(cont);
   if (!sc || !c) return null;
-  sc.scrollIntoView({ block: 'center', behavior: 'instant' });
-  await raf(); await raf();
-  const rows = [];
-  const t0 = performance.now();
-  while (performance.now() - t0 < ms) {
-    await raf();
+  const read = () => {
     const cr = c.getBoundingClientRect();
     const v = [];
     for (const k of Array.from(c.children)) { const r = k.getBoundingClientRect(); v.push(r.x - cr.x, r.y - cr.y, r.width, r.height); }
-    rows.push({ t: Math.round((performance.now() - t0) * 10) / 10, v: v.map((x) => Math.round(x * 1000)) });
+    return v.map((x) => Math.round(x * 1000));
+  };
+  const same = (a, b) => a.length === b.length && a.every((x, j) => x === b[j]);
+  sc.scrollIntoView({ block: 'center', behavior: 'instant' });
+  await raf(); await raf();
+  let prev = read(), moved = false, quiet = 0;
+  const s0 = performance.now();
+  while (!(moved && quiet >= still) && performance.now() - s0 < settleMs) {
+    await raf();
+    const v = read();
+    if (!same(prev, v)) { moved = true; quiet = 0; } else if (moved) quiet++;
+    prev = v;
+  }
+  const rows = [];
+  const t0 = performance.now();
+  let tail = 0;
+  for (;;) {
+    await raf();
+    const t = performance.now() - t0, v = read();
+    tail = rows.length > 0 && same(rows[rows.length - 1].v, v) ? tail + 1 : 0;
+    rows.push({ t: Math.round(t * 10) / 10, v });
+    if (t >= ms + tailMs || (t >= ms && tail >= still)) break;
   }
   return rows;
 };
