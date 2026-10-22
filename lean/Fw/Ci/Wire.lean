@@ -5,6 +5,7 @@ import Fw.Ci.Attempt
 import Fw.Ci.Intent
 import Fw.Ci.Overflow
 import Fw.Ci.Pool.FallbackWire
+import Fw.Ci.PoolTierWire
 import Fw.Ops.Wire
 /-!
 # JSON codecs and the ops `ci.budget.*` (the GitHub request budget of the CI poller)
@@ -32,6 +33,7 @@ and passes it to the next call.
 | `ci.overflowCombine` | `kinds` [verdict kind] | `kind` (the deciding kind, null for none; `Fw.Ci.Overflow.pickKind`) |
 | `ci.overflowSettle` | `gh` [leg], `cc` [leg], `ccStarted` (bool) | `gh`, `cc`, `again` [leg]: a CircleCI group that could not start hands its legs to a second GitHub run (`again`; `Fw.Ci.Overflow.settle`) |
 | `ci.poolRoute`, `ci.poolConsts` | see `Fw.Wire.CiPool` | the macOS fallback route (`Fw.Ci.Pool.Fallback`) |
+| `ci.poolTier`, `ci.poolTierConsts` | see `Fw.Wire.CiPoolTier` | the three-tier macOS pool (`Fw.Ci.PoolTier`) |
 
 Facts: `{guard, steps:[{name, conclusion}], jobs:[conclusion], heavySteps:[{name, conclusion}]}` (`heavySteps`: the
 steps of every non-guard job, read for the tip re-check's `stale:` step).
@@ -413,7 +415,7 @@ def opOverflowSettle (req : Json) : Except String Reply := do
 def ops : List String :=
   ["ci.budget.reserve", "ci.budget.next", "ci.budget.observe", "ci.budget.step", "ci.budget.status", "ci.budget.limits",
     "ci.verdict", "ci.required", "ci.attempt", "ci.overflow", "ci.overflowCombine", "ci.overflowSettle"] ++
-    Fw.Wire.CiPool.ops
+    Fw.Wire.CiPool.ops ++ Fw.Wire.CiPoolTier.ops
 
 /-- Dispatch a `ci.budget.*` op (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -430,7 +432,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "ci.overflow" => some (opOverflow req)
   | "ci.overflowCombine" => some (opOverflowCombine req)
   | "ci.overflowSettle" => some (opOverflowSettle req)
-  | _ => Fw.Wire.CiPool.handle op req
+  | _ => (Fw.Wire.CiPool.handle op req).orElse fun _ => Fw.Wire.CiPoolTier.handle op req
 
 /-! ## Examples -/
 

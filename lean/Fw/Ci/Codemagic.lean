@@ -107,8 +107,34 @@ theorem fresh_month (month : String) (rows : List Row) (h : ∀ r ∈ rows, r.mo
     have := ih (fun x hx => h x (by simp [hx]))
     simp [usedIn, hr, this]
 
+def poolRefusals (used cap : Nat) : List Refusal :=
+  (if stopAt < used + cap then [.minutes] else []) ++ (if maxCapMin < cap then [.cap] else [])
 
-/-- The `YYYY-MM` (UTC) of a Unix time in milliseconds. -/
+def poolOk (used cap : Nat) : Bool := (poolRefusals used cap).isEmpty
+
+theorem poolOk_iff (used cap : Nat) : poolOk used cap = true ↔ used + cap ≤ stopAt ∧ cap ≤ maxCapMin := by
+  simp only [poolOk, poolRefusals]
+  by_cases h1 : stopAt < used + cap <;> by_cases h3 : maxCapMin < cap <;> simp [h1, h3] <;> omega
+
+theorem pool_no_over (used cap : Nat) (h : stopAt < used + cap) : poolOk used cap = false := by
+  simp [poolOk, poolRefusals, h]
+
+theorem pool_no_cap (used cap : Nat) (h : maxCapMin < cap) : poolOk used cap = false := by
+  simp [poolOk, poolRefusals, h]
+
+theorem pool_within_plan {used cap : Nat} (h : poolOk used cap = true) : used + cap ≤ freeMinutes := by
+  have := ((poolOk_iff used cap).1 h).1
+  unfold stopAt at this; unfold freeMinutes; omega
+
+theorem trigger_pool (month : String) (rows : List Row) (cap : Nat) (h : mayTrigger month rows cap = true) :
+    poolOk (usedIn month rows) cap = true := by
+  obtain ⟨h1, _, h3⟩ := (trigger_iff month rows cap).1 h
+  exact (poolOk_iff _ _).2 ⟨h1, h3⟩
+
+#guard poolOk 360 40 && !poolOk 361 40 && !poolOk 0 41 && poolOk 46 40
+#guard (poolRefusals 390 41).map Refusal.name == ["minutes", "cap"]
+
+
 def monthOf (ms : Nat) : String :=
   let z := ms / 86400000 + 719468
   let era := z / 146097
@@ -128,7 +154,6 @@ def monthOf (ms : Nat) : String :=
 #guard monthOf 1798761600000 == "2027-01"
 
 
-/-- The exit code of a wait at a build status. -/
 def exitOf : String → Option Nat
   | "finished" => some 0
   | "failed" => some 1
@@ -137,7 +162,6 @@ def exitOf : String → Option Nat
   | "skipped" => some 4
   | _ => none
 
-/-- Every status the API names. -/
 def statuses : List String :=
   ["initializing", "queued", "preparing", "fetching", "testing", "building", "publishing", "finishing", "finished",
    "failed", "canceled", "timeout", "skipped"]
@@ -167,7 +191,6 @@ def monthVectors : List Nat := [0, 951782400000, 1004572799999, 1004572800000, 1
 
 private def rowJson (r : Row) : Json := Json.mkObj [("id", r.id), ("month", r.month), ("minutes", r.minutes)]
 
-/-- The golden `packages/contracts/golden/ci/codemagic.jsonl`. -/
 def goldenText : String :=
   let lines : List Json :=
     [Json.mkObj [("kind", "constants"), ("freeMinutes", freeMinutes), ("stopAt", stopAt), ("maxCapMin", maxCapMin), ("maxBuilds", maxBuilds),
@@ -177,6 +200,9 @@ def goldenText : String :=
     ++ triggerCases.map (fun (n, m, rs, c) => Json.mkObj [("kind", "trigger"), ("name", n), ("month", m), ("rows", Json.arr (rs.map rowJson).toArray),
          ("cap", c), ("used", usedIn m rs), ("refusals", Json.arr ((refusals m rs c).map (fun x => Json.str x.name)).toArray),
          ("mayTrigger", mayTrigger m rs c)])
+    ++ triggerCases.map (fun (n, m, rs, c) => Json.mkObj [("kind", "poolTrigger"), ("name", n), ("month", m), ("rows", Json.arr (rs.map rowJson).toArray),
+         ("cap", c), ("used", usedIn m rs), ("refusals", Json.arr ((poolRefusals (usedIn m rs) c).map (fun x => Json.str x.name)).toArray),
+         ("poolOk", poolOk (usedIn m rs) c)])
     ++ statuses.map (fun (s : String) => Json.mkObj [("kind", "status"), ("status", s), ("exit", match exitOf s with | some n => Json.num n | none => Json.null)])
   String.join (lines.map (·.compress ++ "\n"))
 

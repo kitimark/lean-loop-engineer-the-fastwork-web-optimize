@@ -147,6 +147,7 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     ".github/workflows/**", ".github/actions/setup-lean/action.yml", ".github/scripts/changed-inputs.mjs", ".github/scripts/changed-inputs.test.mjs", "scripts/ci-paths.mjs", "scripts/ci-paths.test.mjs",
     "scripts/ci-push.mjs", "scripts/ci-push.test.mjs", "scripts/hooks/**",
     "scripts/circleci.mjs", "scripts/circleci.test.mjs", "scripts/circleci-fixtures/**", ".circleci/**",
+    "scripts/codemagic.mjs", "scripts/codemagic.test.mjs", "codemagic.yaml",
     "research/notes/2026/10-2x-macos-telemetry.md",
     "scripts/lake-slot.sh", "scripts/lake-slot-lib.sh", "scripts/lake-slot.test.mjs",
     "scripts/sim-lock.sh",
