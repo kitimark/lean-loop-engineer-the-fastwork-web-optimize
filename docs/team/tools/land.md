@@ -252,3 +252,5 @@ flag variant in a `part.json` with no row in `research/findings/ledger.json` (cl
   `test/compose.test.ts`). Test: `apps/runner/test/land-tier.test.ts`.
 - Limits: a test with undeclared reads stays on the CI tier only; read sets are written by hand.
   TS stand-ins: the dry land's local-test step (Lean `lintPlan` does not list it; the real land reports the same failure as `checks`).
+
+The CLI prints a dry land through `dryLandReport` (`land.ts`, Lean `dryRun` plus `exitCode`): a failed dry install shows the stage lines up to `dry: conflict ok` and then `VERDICT install` (no special branch), and the real land's exit is `landExit(res)`. A reused land worktree is cleaned once (after checkout, before prep); a new one once after prep.
