@@ -1,6 +1,6 @@
 # land-scope-golden-regs
 
-- Branch `worktree-wf_86e5c32d-062-1`, worktree `.claude/worktrees/wf_86e5c32d-062-1`. No CI runs (the unit needs none).
+- Branch `worktree-wf_86e5c32d-062-1`, worktree `.claude/worktrees/wf_86e5c32d-062-1`. No CI runs.
 - State: Lean + TS done, main merged, `check.sh` green, `@fw/runner` and contracts tests green, `ci-paths.test.mjs` green.
 
 ## What landed
@@ -9,7 +9,7 @@
   `goldenRegs_eq_nil_iff`, `goldenRegs_incl` (never an exclusion), `goldenRegs_mem_landScope`, `landScope_no_golden`
   (no golden write: the old scope). The protected suffix and `protected_refused` were re-proved with the new set.
 - `generated` now holds `apps/runner/src/land-reads.gen.ts`, so a regenerated read list never needs a write.
-- One source for the check.sh reads: `LandSpeed.checkShReads` -> `readsTs` -> `apps/runner/src/land-reads.gen.ts`;
+- One source for the check.sh reads: `LandSpeed.checkShReads` feeds `readsTs`, which writes `apps/runner/src/land-reads.gen.ts`;
   `land.ts` re-exports `CHECK_SH_READS` from it. `LandSpeed.checkGolden` (run by the existing check.sh job
   "land-speed golden check") now checks land-speed.jsonl, land-reads.gen.ts and land-scope-regs.jsonl.
 - Regenerate all three: `cd lean && lake env lean --run scripts/LandReadsGen.lean --write` (`--check` to verify).

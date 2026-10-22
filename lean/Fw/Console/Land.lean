@@ -124,15 +124,10 @@ theorem testGlob_eq_some (w g : String) :
     rw [hs]
     rcases hp with rfl | rfl <;> simp [hn, hg]
 
-/-! ### The golden registration set -/
-
-/-- A write glob under `packages/contracts/golden/`. -/
 def goldenWrite (w : String) : Bool := w.startsWith "packages/contracts/golden/"
 
-/-- The files a new golden registers in: its generator `lean/scripts/<Name>Golden.lean` and the check script. -/
 def goldenRegSet : List String := ["lean/scripts/*Golden.lean", "lean/scripts/check.sh"]
 
-/-- The golden registration set of a write list: `goldenRegSet` when some write is a golden, else empty. -/
 def goldenRegs (writes : List String) : List String :=
   if writes.any goldenWrite then goldenRegSet else []
 
@@ -145,18 +140,15 @@ def goldenRegs (writes : List String) : List String :=
 #guard goldenRegs ["lean/Fw/X.lean", "lean/scripts/XGolden.lean"] == []
 #guard goldenRegs [] == []
 
-/-- Without a golden write the set is empty. -/
 theorem goldenRegs_nil (writes : List String) (h : ∀ w ∈ writes, goldenWrite w = false) : goldenRegs writes = [] := by
   have : writes.any goldenWrite = false := List.any_eq_false.mpr fun w hw => by simp [h w hw]
   simp [goldenRegs, this]
 
-/-- With a golden write the set is `goldenRegSet`. -/
 theorem goldenRegs_of_golden (writes : List String) (w : String) (hw : w ∈ writes) (h : goldenWrite w = true) :
     goldenRegs writes = goldenRegSet := by
   have : writes.any goldenWrite = true := List.any_eq_true.mpr ⟨w, hw, h⟩
   simp [goldenRegs, this]
 
-/-- The set is empty exactly when no write is a golden. -/
 theorem goldenRegs_eq_nil_iff (writes : List String) :
     goldenRegs writes = [] ↔ ∀ w ∈ writes, goldenWrite w = false := by
   constructor
@@ -166,7 +158,6 @@ theorem goldenRegs_eq_nil_iff (writes : List String) :
     · rw [goldenRegs_of_golden writes w hw hg] at h; cases h
   · exact goldenRegs_nil writes
 
-/-- Every glob of the set is an include, never an exclusion. -/
 theorem goldenRegs_incl (writes : List String) : ∀ g ∈ goldenRegs writes, g.startsWith "!" = false := by
   unfold goldenRegs
   split
@@ -232,9 +223,6 @@ theorem landScope_mem_tests (writes names allow : List String) (task stream : St
   unfold landScope
   simp [h]
 
-/-- The protected globs stay last, so no addition (tests, registrations, golden and kind sets, `--allow`) can lift
-them: the scope always ends with `P`.
--/
 theorem landScope_protected_suffix (writes names allow : List String) (task stream : String) :
     ∃ x, landScope writes names allow task stream = x ++ protectedGlobs :=
   ⟨writes ++ testGlobs writes ++ handoffs names ++ generated ++ registrations ++ goldenRegs writes ++
@@ -251,14 +239,10 @@ theorem mem_landScope_iff (writes names allow : List String) (task stream g : St
       g ∈ goldenRegs writes ∨ g ∈ kindRegs (taskKind task stream) ∨ g ∈ allow ∨ g ∈ protectedGlobs := by
   simp only [landScope, List.mem_append, or_assoc]
 
-/-- The golden registration set is in the scope: a task with a golden write needs no hand-written write or `--allow`
-for its generator script and the check script.
--/
 theorem goldenRegs_mem_landScope (writes names allow : List String) (task stream g : String)
     (h : g ∈ goldenRegs writes) : g ∈ landScope writes names allow task stream :=
   (mem_landScope_iff _ _ _ _ _ _).mpr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inl h))))))
 
-/-- Without a golden write the scope is the scope without the golden set: such a task gains nothing. -/
 theorem landScope_no_golden (writes names allow : List String) (task stream : String)
     (h : ∀ w ∈ writes, goldenWrite w = false) :
     landScope writes names allow task stream =
@@ -355,9 +339,6 @@ theorem landVerdict_ok_iff (w n a paths : List String) :
     | nil => simp
     | cons y ys => cases hv : violations (landScope [] n (y :: ys)) paths <;> simp [hv]
 
-/-! ### Regression cases of incident `inc-golden-reg-scope` -/
-
-/-- A landing of the regression goldens: a task's write list and names, its id and stream, and the changed paths. -/
 structure RegCase where
   name : String
   writes : List String
@@ -366,41 +347,31 @@ structure RegCase where
   stream : String
   paths : List String
 
-/-- The paths no landing may change, one per protected glob. -/
 def protectedPaths : List String := [".fw-console/events.jsonl", ".git/config", ".claude/settings.json", "lean/.lake/x"]
 
-/-- The write list of `jev-retrieval-trace` before graph r253 widened it. -/
 def jevWrites : List String :=
   ["lean/Fw/Oracle/Retrieve*.lean", "lean/Fw.lean", "packages/contracts/golden/oracle/retrieve*.jsonl",
     "scripts/jev-trace.mjs", "scripts/jev-trace.test.mjs", "results/jev-retrieval-trace/**",
     "research/notes/2026/10-2x-jev-retrieval-trace.md", "docs/team/handoffs/jev-retrieval-trace.md",
     "research/notes/2026/10-2x-jev-replay.md"]
 
-/-- The write list of `site-layer-opts` before graph r257 widened it. -/
 def layerOptsWrites : List String :=
   ["apps/site/src/registry/resolve.ts", "apps/site/src/registry/layer-opts*.ts", "apps/site/src/registry/*.test.ts",
     "packages/contracts/golden/console/layer-opts*.jsonl", "docs/team/handoffs/site-layer-opts.md"]
 
-/-- The write list of `slot-span-key` before graph r258 widened it. -/
 def slotKeyWrites : List String :=
   ["apps/runner/src/slot-span.ts", "apps/runner/src/slot.ts", "apps/runner/test/slot-span.test.ts",
     "lean/Fw/Obs/Timing.lean", "packages/contracts/golden/obs/*.jsonl", "docs/team/handoffs/slot-span-key.md"]
 
-/-- The registration files each refused landing needed beyond its writes. -/
 def jevRegs : List String := ["lean/scripts/RetrieveGolden.lean", "lean/scripts/check.sh", "lean/Fw/Wire.lean"]
 
-/-- The registration files `site-layer-opts` needed, with the generated read list in place of `land.ts`. -/
 def layerOptsRegs : List String :=
   ["lean/scripts/LayerOptsGolden.lean", "lean/scripts/check.sh", "apps/runner/src/land-reads.gen.ts"]
 
-/-- The registration files `slot-span-key` needed. -/
 def slotKeyRegs : List String :=
   ["lean/scripts/SlotKeyGolden.lean", "lean/scripts/check.sh", "apps/runner/src/fw.ts",
     "apps/runner/test/span-names.test.ts"]
 
-/-- The regression cases: each refused write list admits its registration files and still refuses the protected
-paths; the golden set is empty without a golden write; a new check.sh read of a non-golden file stays a write.
--/
 def regCases : List RegCase := [
   ⟨"jev-retrieval-trace: the golden generator and check.sh land", jevWrites, ["jev-retrieval-trace", "lean-prover"],
     "jev-retrieval-trace", "oracle", jevRegs ++ ["packages/contracts/golden/oracle/retrieve.jsonl"]⟩,
@@ -423,7 +394,6 @@ def regCases : List RegCase := [
   ⟨"no golden write: the generator and check.sh stay refused", ["lean/Fw/X.lean"], ["x"], "x", "lean",
     ["lean/Fw/X.lean", "lean/scripts/XGolden.lean", "lean/scripts/check.sh"]⟩]
 
-/-- The verdict of a regression case. -/
 def RegCase.verdict (c : RegCase) : Verdict := landVerdict c.writes c.names [] c.paths c.task c.stream
 
 #guard regCases.map RegCase.verdict ==
