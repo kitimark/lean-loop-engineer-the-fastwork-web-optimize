@@ -412,14 +412,10 @@ export function dryLintArgv(dir: string, changed: string[]): string[][] {
 }
 
 export type DryBase = "contains" | "clean" | "conflict";
-/** Lean `Fw.Console.LandDry.Base.of`. */
 export const dryBase = (behind: boolean, mergeClean: boolean): DryBase => !behind ? "contains" : mergeClean ? "clean" : "conflict";
-/** Lean `Fw.Console.LandDry.Outcome.ofStages`. */
 export function dryOutcome(base: DryBase, f: { own: boolean; scope: boolean; merges: boolean; reads: boolean; lints: boolean }): Outcome {
   return base === "conflict" ? outcome({ own: f.own, merges: false }) : outcome(f);
 }
-/** `git merge-tree --write-tree` of `main` and `sha` (no checkout, no index) and the paths where that tree differs from
- * `main` (Lean `Fw.Console.LandDry.mergedDiff`); null on a conflict. */
 export function dryMerge(cwd: string, main: string, sha: string): { tree: string; changed: string[] } | null {
   let tree: string;
   try { tree = git(cwd, ["-c", `attr.tree=${main}`, "merge-tree", "--write-tree", main, sha]).split("\n")[0]!; }
