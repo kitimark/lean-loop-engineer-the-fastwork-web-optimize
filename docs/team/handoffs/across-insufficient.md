@@ -22,7 +22,7 @@ Verified:
   rest, the Simulator finish zone and every cadence row stay `same`. The note's table (finish zone only) does not change,
   so research/notes/2026/10-2x-earn-gpu.md is not edited.
 
-Open (follow-ups, outside the writes):
+Open (outside the writes):
 - research/notes/2026/10-2x-earn-gpu.md:307 cites `across_same` at `:735`; it is now at `:752`.
 - `k` stays `agreeNeeded` of all jobs, insufficient ones included; whether it should be two thirds of the decisive jobs is
   not decided here.
