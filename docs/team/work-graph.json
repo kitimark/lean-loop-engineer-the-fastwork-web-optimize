@@ -15662,6 +15662,70 @@
     "docs/team/handoffs/dry-gen-fresh.md"
    ],
    "title": "Incident inc-dry-gen-stale (2026-10-22): layer-decl's dry land printed VERDICT dry, then the real land refused on apps/site footprint.test 'footprint.gen.json is fresh': the build-review polish stage cut comments in part index.tsx files after the builder regenerated the footprint, and the dry's fast lints (Lean Fw.Console.LandDry.lintPlan: ci-paths, axiom check) do not check generated files. Extend lintPlan with a generated-file freshness lint: `node apps/site/scripts/part-footprint.mjs --check` (about 1 s) selected when the change touches any input of the footprint generator (apps/site/src/parts/**, apps/site/scripts/part-footprint.mjs, lean/Fw/Parts/FootprintData.lean, packages/contracts/golden/parts/footprint.gen.json), skipped when the tree lacks the script, in the Outcome.first order after reads. Theorems: gen_selected (a change to a generator input selects its check), lintPlan_old (a change touching no generator input gives the old plan), and the dry_refusal_is_land_refusal / dry_pass_land_pass statements still hold with the new lint. Goldens; TS land-verdict.ts checked against them; land.md. Second case in the same land: the console review excerpt js-apply (lean/Fw/Console/ReviewInfo.lean earnExcerpts, first/last line numbers into apps/site/src/parts/nav/index.tsx) went 20 lines stale and only the remote console-api suite caught it (run 39736189293). Close it by identity, not by another lint: the console locates each excerpt by its anchor (the range starts at the anchor line found in the file, the span length is kept in Lean), so a line move cannot break it; Lean stores anchor and span, not absolute lines; the fixture apps/console-web/test/fixtures/review-info.earn.json is regenerated from fwcore. Unit: the Lean lint rule with its theorems and goldens, the TS mirror, the anchor-located excerpts (Lean, console-api route, fixture), land.md, the incident record. Limits: only generators with a --check mode; ci-paths already covered; an anchor that occurs twice in a file is refused by name."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "jev-file-context-ablation",
+   "owner": "lean-prover",
+   "stream": "oracle",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Oracle/Expand*.lean",
+    "lean/Fw.lean",
+    "lean/scripts/ExpandGolden.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/oracle/expand*.jsonl",
+    "lean/Fw/Wire/**",
+    "scripts/jev-expand.mjs",
+    "scripts/jev-expand.test.mjs",
+    "scripts/jev-arms-clean.mjs",
+    "results/jev-file-context-ablation/**",
+    "research/notes/2026/10-2x-jev-file-context-ablation.md",
+    "research/notes/2026/10-2x-jev-file-context.md",
+    "docs/team/handoffs/jev-file-context-ablation.md"
+   ],
+   "title": "User 2026-10-22 (comment on the Jev trial artifact, after the lead recommended not to): 'let's re-run the for measurement and compare with this experiment as well. is it improve if we put more context about the related files'. Run the designed D1 ablation of research/notes/2026/10-2x-jev-file-context.md (section 'The D1-only ablation and its decision rule'). Lean first: Fw.Oracle.Expand builds the expanded state from a row: allowlisted paths only (prefixes apps/ packages/ scripts/ lean/Fw/ minus lean/Fw/Oracle/, the note's extensions), each file read at the row's pin (a main commit before the incident), any file containing a mistake-class id, incident id or label word dropped (the label vocabulary from Fw.Oracle), an escaped-byte cap equal to the state cap that refuses a row by name instead of cutting it, rows with nothing kept stay byte-identical (0 sends), determinism; theorems for each, goldens; the TS/mjs expander checked against them. Arms on the identical expanded states, one isolated call per row, no tools, no project context (the jev-arms-clean harness): Jev via `pnpm fw oracle send`, Haiku, Sonnet. Contrast arm (shows leakage, not adoption evidence): Jev only on the same rows with naive expansion (files at main HEAD, no vocabulary drop). Compare paired per row against the clean baseline (results/jev-arms-clean and the recorded Jev D1 replies): flips into and out of correct per arm, the note's adopt rule (every arm +4 net, no gain on a vocabulary-dropped row, each gain hand-traced to a fact the row lacks). Score every arm with the same Lean scorer; if oracle-eps (rounded replies summing to 0.99) has not landed when scoring, report strict and renormalised scores for every arm alike. Jev sends: about 38 + 38 within the 200 per UTC day cap (count before sending; stop at the cap). Results under results/jev-file-context-ablation/, a note with paired tables (MEASURED with send counts), the file-context note's 'designed, not run' lines updated to point at it. Unit: Fw.Oracle.Expand with its theorems and goldens, the three leak-safe arms plus the Jev naive arm on the same rows, the paired comparison with the adopt verdict, the note. Limits: D1 only (D2 files hold later triage and exceed the cap); about 38 rows, so small effects are within noise (state the paired sign-test p); the hand trace is a judgment, stated per gain."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "jev-retrieval-research",
+   "owner": "researcher",
+   "stream": "oracle",
+   "deps": [],
+   "writes": [
+    "research/notes/2026/10-2x-jev-retrieval.md",
+    "scripts/jev-trace-forensics.mjs",
+    "results/jev-retrieval-research/**",
+    "docs/team/handoffs/jev-retrieval-research.md"
+   ],
+   "title": "User 2026-10-22: 'can you research tracing back to haiku and sonnet model. they can read the related source by the reasoning ? i'd like to know about what they read before decided the answer. so we might give the jev to make it more reasoning. or maybe can we put the question of jev that returns refernece something that request more file to read before decided.' Research only, no Jev sends and no new model runs. (1) Forensics of what the Claude arms read and how they reasoned: the first Jev-trial run (Claude Code workflow agents with tools; 42 agent logs: every tool call, path, bytes, order relative to the answer) and the clean run (claude -p, no tools: what the reply text cites). Whether reasoning or thinking text is recorded at all, and where. (2) Feasibility of a traced arm: claude -p (or the Agent SDK) with Read/Grep/Glob only, cwd a read-only checkout at the row's pin, the leak-safe allowlist of jev-file-context-ablation enforced by a tool permission rule, stream-json capture of every tool call and of thinking blocks (cite the Claude Code docs: what stream-json and --verbose expose, whether thinking text is summarised or full, permission rules for path allowlists); cost per row. (3) Jev side: what the Jev API accepts (docs, packages/oracle client, research/notes/2026/10-18-jev-decision-model.md, docs pages at api.typesafe.ai docs only): any tool, retrieval, multi-turn or rationale field; whether a two-step question works (step 1: Jev picks needed files from an allowlisted candidate list, options = files + none; step 2: the expanded state), and a hybrid where Claude's traced reads become Jev's state. (4) A design for the measured follow-up (graph task jev-retrieval-trace): arms, rows (the ablation's 38 D1 rows), leak controls, Lean decision rules to specify first (Fw.Oracle.Retrieve: allowlist, read budget, rounds, sends per row), send and token budget, adopt rule paired against the clean baseline and the ablation. Note with CONFIRMED/INFERRED tags and file:line citations; unit: forensics tables, feasibility answers with doc citations, Jev capability answer, the follow-up design. Limits: no runs, no sends; Jev internals beyond its docs stay INFERRED."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "jev-retrieval-trace",
+   "owner": "lean-prover",
+   "stream": "oracle",
+   "deps": [
+    "jev-retrieval-research",
+    "jev-file-context-ablation"
+   ],
+   "writes": [
+    "lean/Fw/Oracle/Retrieve*.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/oracle/retrieve*.jsonl",
+    "scripts/jev-trace.mjs",
+    "scripts/jev-trace.test.mjs",
+    "results/jev-retrieval-trace/**",
+    "research/notes/2026/10-2x-jev-retrieval-trace.md",
+    "docs/team/handoffs/jev-retrieval-trace.md"
+   ],
+   "title": "Measured follow-up of jev-retrieval-research (user 2026-10-22: what Haiku and Sonnet read before deciding; give Jev that context or let Jev request files). Build and run the design that research note recommends: Lean Fw.Oracle.Retrieve first (allowlist, read budget, rounds, sends per row, theorems and goldens), the traced Claude arms (every read recorded with path and bytes), the Jev retrieval arm(s), paired against the clean baseline and the jev-file-context-ablation arms on the same rows. Unit and limits are fixed by the research note's design section; refine this title when the note lands."
   }
  ],
  "deadline": {
