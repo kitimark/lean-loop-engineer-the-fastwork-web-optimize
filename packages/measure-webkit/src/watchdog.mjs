@@ -15,6 +15,7 @@ import { spawn } from 'node:child_process';
 import { appendFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { timeoutScale } from './timeouts.mjs';
+import { BOUNDS } from './inspector.mjs';
 
 /** Default stall limit: 90 s of silence, scaled like every other wait (12 min at FW_WK_TIMEOUT_SCALE 8); FW_WK_STALL_MS overrides (the workflow passes Lean's `stallMs`, the same 12 min). */
 export const defaultStallMs = (env = process.env) => {
@@ -64,8 +65,8 @@ export function watch({ stallMs = defaultStallMs(), graceMs = 15000, exitMs = 20
   };
 }
 
-/** Exit code of a command the watchdog ended: Lean's `Fw.Measure.SimBound.watchdogExit` (checked by test/watchdog.test.mjs). */
-export const WATCHDOG_EXIT = 6;
+/** Exit code of a command the watchdog ended: Lean's `Fw.Measure.SimBound.watchdogExit` (the BOUNDS table is checked against measure.simBounds.jsonl by test/fwcore.test.mjs). */
+export const WATCHDOG_EXIT = BOUNDS.watchdogExit;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -78,7 +79,7 @@ export function groupAlive(pgid, kill = process.kill) {
  * End a whole process group: SIGTERM, wait up to `graceMs` for it to be gone, SIGKILL, wait up to `killWaitMs`.
  * Returns { termSent, killSent, gone } (`gone` false = something survived the KILL).
  */
-export async function endGroup(pgid, { graceMs, killWaitMs = 5000, kill = process.kill, alive = (g) => groupAlive(g, kill), pollMs = 50 } = {}) {
+export async function endGroup(pgid, { graceMs, killWaitMs = BOUNDS.killWaitMs, kill = process.kill, alive = (g) => groupAlive(g, kill), pollMs = 50 } = {}) {
   const out = { termSent: false, killSent: false, gone: false };
   const waitGone = async (ms) => { for (let t = 0; t < ms && alive(pgid); t += pollMs) await sleep(pollMs); return !alive(pgid); };
   try { kill(-pgid, 'SIGTERM'); out.termSent = true; } catch { /* the group is already gone */ }
@@ -99,7 +100,7 @@ export function watchdogLine({ label, elapsedS, budgetS, pass, lastLine, pgid, e
  * appended to the files. Resolves { code, fired }: the command's own exit code, or WATCHDOG_EXIT when the watchdog ended it.
  * @param {{cmd:string,args?:string[],label:string,deadlineMs:number,startMs?:number,graceMs:number,killWaitMs?:number,stdoutFile?:string,stderrFile?:string,say?:(s:string)=>void,echoOut?:(s:string|Buffer)=>void,echoErr?:(s:string|Buffer)=>void,now?:()=>number}} o
  */
-export async function runBounded({ cmd, args = [], label, deadlineMs, startMs = Date.now(), graceMs, killWaitMs = 5000, stdoutFile, stderrFile, say = (s) => process.stderr.write(`${s}\n`), echoOut = (b) => process.stdout.write(b), echoErr = (b) => process.stderr.write(b), now = Date.now }) {
+export async function runBounded({ cmd, args = [], label, deadlineMs, startMs = Date.now(), graceMs, killWaitMs = BOUNDS.killWaitMs, stdoutFile, stderrFile, say = (s) => process.stderr.write(`${s}\n`), echoOut = (b) => process.stdout.write(b), echoErr = (b) => process.stderr.write(b), now = Date.now }) {
   const budgetS = Math.round((deadlineMs - startMs) / 1000);
   const fire = (pgid, pass, lastLine, ended) => say(watchdogLine({ label, elapsedS: Math.round((now() - startMs) / 1000), budgetS, pass, lastLine, pgid, ended }));
   for (const f of [stdoutFile, stderrFile]) if (f) writeFileSync(f, '');

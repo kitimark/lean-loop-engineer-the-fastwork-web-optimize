@@ -49,9 +49,9 @@ test('a stall (no output) is reported with the last line and ends the process', 
 import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { spawn } from 'node:child_process';
+import { BOUNDS } from '../src/inspector.mjs';
 import { runBounded, endGroup, groupAlive, watchdogLine, WATCHDOG_EXIT } from '../src/watchdog.mjs';
 
-const BOUNDS = JSON.parse(readFileSync(join(MOD, '../../../contracts/golden/measure/measure.simBounds.jsonl'), 'utf8').trim().split('\n')[0]).response;
 const alive = (pid) => { try { process.kill(pid, 0); return true; } catch { return false; } };
 const cli = (args, opts = {}) => new Promise((resolve) => {
   const c = spawn(process.execPath, [MOD, 'run', ...args], { stdio: ['ignore', 'pipe', 'pipe'], ...opts });
@@ -62,8 +62,8 @@ const cli = (args, opts = {}) => new Promise((resolve) => {
 
 test("the exit code and the kill wait are Lean's (Fw.Measure.SimBound via measure.simBounds)", () => {
   assert.equal(WATCHDOG_EXIT, BOUNDS.watchdogExit);
-  const src = readFileSync(MOD, 'utf8');
-  assert.match(src, new RegExp(`killWaitMs = ${BOUNDS.killWaitMs}`));
+  assert.equal(BOUNDS.watchdogExit, 6);
+  assert.equal(BOUNDS.killWaitMs, 5000);
 });
 
 test('a child that ignores SIGINT and SIGTERM, with a child of its own, is killed with its group; one watchdog line names session and pass', async () => {
