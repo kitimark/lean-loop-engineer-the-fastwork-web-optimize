@@ -11,17 +11,9 @@ import css from './commission.module.css';
 
 export interface CommissionProps {
   variant: string;
-  /** variant of the part `commission.typing` rendered in the second row */
   typingVariant?: string;
 }
 
-/**
- * commission (P4): a rounded white card that shrinks in from the pain section and out to the platform section, with a
- * hand-drawn underline on the heading and two rows (bring your own client, a client from us). The shrink is the Lean
- * `frame` run by `driver.ts` on the scroll engine; the typing visual in the second row is the part `commission.typing`.
- * Plain elements and a CSS Module; pictures bundled from the snapshot. The "why bring a client" link opens the drawer of
- * overlays.drawer (`openDrawer`, a discrete flag).
- */
 export function Commission({ variant, typingVariant = 'faithful' }: CommissionProps) {
   const section = useRef<HTMLElement>(null);
   const card = useRef<HTMLDivElement>(null);
@@ -71,6 +63,10 @@ export function Commission({ variant, typingVariant = 'faithful' }: CommissionPr
           reduce?.addEventListener('change', cb);
           return () => reduce?.removeEventListener('change', cb);
         },
+        onCompactChange: (cb) => {
+          compact?.addEventListener('change', cb);
+          return () => compact?.removeEventListener('change', cb);
+        },
         observe: (target, opts, cb) => {
           const io = new IntersectionObserver((entries) => {
             for (const e of entries) cb(e);
@@ -89,7 +85,7 @@ export function Commission({ variant, typingVariant = 'faithful' }: CommissionPr
           return r.getClientRects().length;
         },
       },
-    });
+    }, { bandGate: variant === 'band-gate' });
   }, []);
 
   return (
