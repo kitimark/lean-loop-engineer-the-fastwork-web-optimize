@@ -15315,7 +15315,8 @@
     "docs/team/handoffs/builder-checkpoint.md",
     "scripts/build-review.test.mjs",
     ".github/workflows/lean.yml"
-   ]
+   ],
+   "evidence": "b2a96ea"
   },
   {
    "devices": [
