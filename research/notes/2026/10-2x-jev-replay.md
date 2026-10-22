@@ -160,7 +160,7 @@ rows are in `results/jev-arms-clean/table.md`. No arm was re-run.
   1.04, while 14 values rounded to 0.001 are off by at most 0.007 in total. 8 Sonnet clean-run answers (5 first-run)
   stay rejected for the sum, 13 clean-run (76 first-run) for missing keys.
 - Whole-number replies are judged at one decimal: `1, 1, 0, 0` and `0, 0, 0, 0` stay schema failures. No logged
-  reply is whole-number off-sum, so the tables are the same as under the rounding at the reply's own precision.
+  reply is whole-number off-sum.
 
 ## Limits
 
@@ -168,3 +168,4 @@ rows are in `results/jev-arms-clean/table.md`. No arm was re-run.
 - 7 D2 rows wait for the next UTC day (daily cap 200).
 - One model version, one run per row: no repeat runs, so no variance across calls.
 - The prompt text and the arm-input writer are TS (`oracle-score.ts`); the bodies they quote are Lean's.
+- The first-run Claude arms read only their prompt chunks; their thinking is signature-only (see `10-2x-jev-retrieval.md`).

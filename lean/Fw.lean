@@ -251,3 +251,5 @@ import Fw.Oracle.Labels
 import Fw.Oracle.Expand
 import Fw.Oracle.ExpandPaired
 import Fw.Oracle.ExpandWire
+import Fw.Oracle.Retrieve
+import Fw.Oracle.RetrieveWire
