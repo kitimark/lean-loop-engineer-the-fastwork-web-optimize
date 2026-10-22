@@ -2,12 +2,12 @@
 
 Status: MEASURED 2026-10-22 local (2026-10-21 UTC, the answer log's day) with `jev-1.13.0`; rows from the local
 datasets of task jev-datasets (`.cache/jev`, gitignored). Numbers come from `results/jev/d1.json` and `d2.json`
-(`pnpm fw oracle score`, Lean's `oracle.score`). The Haiku and Sonnet arms are not run yet; the lead runs them with
-the prompt below.
+(`pnpm fw oracle score`, Lean's `oracle.score`). Validity counts: re-scored 2026-10-22 from the logged replies
+after task oracle-eps, no new sends (`results/jev/eps-rescore.json`). The Haiku and Sonnet arms ran
+(`results/jev-arms-clean/`).
 
 **Answer.** Jev is not yet useful as an advisor on either question. On D1 (incident class, 14 options) it is right
-on 65 of 116 incidents (56.0 %; 61 of 116, 52.6 %, if the 9 replies rejected only for rounding count as
-wrong). On D2 (finding severity, 3 grades) it is right on 40 of the 83 sampled findings
+on 65 of 116 incidents (56.0 %); 115 of its 116 replies pass validation. On D2 (finding severity, 3 grades) it is right on 40 of the 83 sampled findings
 answered so far (48.2 %); one grade in three would be right by chance. Lean certifies no option on either set: no
 option reaches precision 9/10 with 5 right on the choose part. The whole run cost under one cent: Jev bills only
 input tokens. A Jev call took 0.3 s median.
@@ -40,8 +40,8 @@ input tokens. A Jev call took 0.3 s median.
 
 | part | rows | valid answers | right | accuracy |
 |---|---|---|---|---|
-| all | 116 | 106 | 65 | 56.0 % |
-| holdout | 33 | 31 | 18 | 54.5 % |
+| all | 116 | 115 | 65 | 56.0 % |
+| holdout | 33 | 33 | 18 | 54.5 % |
 
 | class | labeled | chosen | right | precision | recall |
 |---|---|---|---|---|---|
@@ -62,13 +62,12 @@ input tokens. A Jev call took 0.3 s median.
 
 - The confusion matrix is in `results/jev/d1.json` (`arms.jev.confusion`). The largest mix-ups: c-late-check
   answered as c-spec-gap (3), c-order-derived as c-env-assume (3).
-- 10 replies fail validation and are scored by their choice, the rule for every arm (`pickOf`). 9 have 14
-  probabilities that sum to 0.99: Jev rounds each to two decimals, and `Core.eps` = 1/1000 rejects that. 1 picks an
-  option that is not the most probable (wrong either way). 4 of the 9 rejected replies pick the labeled class (1 held
-  out); counted as wrong, D1 is 61 of 116 (52.6 %), holdout 17 of 33. That lower count is set by eps, not by Jev's
-  choices. A rejected reply still cannot be certified (`certify` reads valid answers only). Finding: with
-  n options rounded to 0.01 the sum can be off by up to n·0.005, so `eps` should depend on n, or Jev's sums should
-  be renormalized before validation (follow-up; `Fw.Oracle.Core` is outside this task).
+- 1 reply fails validation: it picks an option that is not the most probable (wrong either way). It is scored by
+  its choice, the rule for every arm (`pickOf`), and cannot be certified (`certify` reads valid answers only).
+- Before task oracle-eps, 9 more replies failed: their 14 probabilities sum to 0.99 because Jev rounds each to two
+  decimals, and the old rule (sum within `Core.eps` = 1/1000) rejected that. 2 of the 9 also carry binary-float
+  noise (`0.15000000000000002`). The sum rule now also accepts a sum that is 1 up to rounding at the reply's own
+  precision (see the re-score below). 4 of the 9 pick the labeled class, so right stays 65 of 116.
 - Certification: none. A class has at most 5 held-out rows, under the 25 any certificate needs, so D1 measures
   accuracy only.
 
@@ -129,8 +128,39 @@ read 2026-10-22): Haiku 5.5 $0.10 in / $0.50 out, Sonnet 5.5 $2 / $10 per Mtok.
    "ms": n}`. A reply that is not valid JSON: keep `choice` only if it names an option, else omit the row.
 4. `pnpm fw oracle score --set d1 --arm haiku --answers <file>` (and `sonnet`, and `d2`) adds the arm to
    `results/jev/<set>.json`. Lean validates each answer as it does Jev's; an answer that fails validation (no
-   probabilities, or a sum off by more than `Core.eps`) is scored by its choice, as a Jev reply is, but cannot be
+   probabilities, or a sum that is 1 neither within `Core.eps` nor up to rounding at the answer's precision,
+   `Core.sumOk`) is scored by its choice, as a Jev reply is, but cannot be
    certified.
+
+## Re-score after oracle-eps (MEASURED, logged replies)
+
+`Fw.Oracle.Core.sumOk` accepts a reply when its sum is within `eps` of 1 (the old rule), or when its values have at
+most 9 decimals (up to a binary-float noise of 10⁻¹²) and lie within half a unit in that last place, at least one
+decimal, of some distribution that sums to 1. `results/jev/rescore-eps.ts` runs `oracle.validate` and `oracle.score` on every logged
+Jev reply and every Claude-arm answer file (first run and clean run) with the old and the new `fwcore`; the same
+rows are in `results/jev-arms-clean/table.md`. No arm was re-run.
+
+| set | arm | run | answers | valid, old eps | valid, sumOk | right of valid, old eps | right of valid, sumOk | right / rows |
+|---|---|---|---|---|---|---|---|---|
+| D1 | Jev | recorded | 116 | 106 | 115 | 61 | 65 | 65 / 116 |
+| D1 | Haiku | first | 116 | 101 | 114 | 57 | 68 | 69 / 116 |
+| D1 | Haiku | clean | 116 | 37 | 53 | 16 | 23 | 64 / 116 |
+| D1 | Sonnet | first | 116 | 29 | 34 | 17 | 20 | 78 / 116 |
+| D1 | Sonnet | clean | 116 | 87 | 95 | 56 | 58 | 75 / 116 |
+| D2 | Jev | recorded | 83 | 83 | 83 | 40 | 40 | 40 / 83 |
+| D2 | Haiku | first, clean | 90, 90 | 90, 90 | 90, 90 | 38, 43 | 38, 43 | 38, 43 / 90 |
+| D2 | Sonnet | first, clean | 90, 89 | 90, 89 | 90, 89 | 39, 44 | 39, 44 | 39 / 90, 44 / 89 |
+
+- Jev D1 holdout: valid 31 → 33 of 33. No answer valid under the old rule is rejected now, in any arm or run.
+- Right / rows and certify (none) are the same under both rules: an invalid answer is scored by its choice, and no
+  arm reaches a certified option either way.
+- The rejections were not Jev's only: the Claude arms on D1 lost 78 (Haiku) and 16 (Sonnet) clean-run answers to
+  `eps`, and 15 (Haiku) and 10 (Sonnet) first-run answers.
+- 62 Haiku D1 clean-run answers (2 first-run) stay rejected: most write values at three decimals and sum to 1.01 to
+  1.04, while 14 values rounded to 0.001 are off by at most 0.007 in total. 8 Sonnet clean-run answers (5 first-run)
+  stay rejected for the sum, 13 clean-run (76 first-run) for missing keys.
+- Whole-number replies are judged at one decimal: `1, 1, 0, 0` and `0, 0, 0, 0` stay schema failures. No logged
+  reply is whole-number off-sum.
 
 ## Limits
 
@@ -138,3 +168,4 @@ read 2026-10-22): Haiku 5.5 $0.10 in / $0.50 out, Sonnet 5.5 $2 / $10 per Mtok.
 - 7 D2 rows wait for the next UTC day (daily cap 200).
 - One model version, one run per row: no repeat runs, so no variance across calls.
 - The prompt text and the arm-input writer are TS (`oracle-score.ts`); the bodies they quote are Lean's.
+- The first-run Claude arms read only their prompt chunks; their thinking is signature-only (see `10-2x-jev-retrieval.md`).
