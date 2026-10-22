@@ -11,6 +11,8 @@ import Fw.Spec.ArtifactKey
 import Fw.Console
 import Fw.Board
 import Fw.Wire
+import Fw.Console.Layers
+import Fw.Wire.Layers
 import Fw.Serve
 import Fw.Site.Breakpoints
 import Fw.Site.BreakpointFacts

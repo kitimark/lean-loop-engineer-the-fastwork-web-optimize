@@ -13,6 +13,7 @@ import Fw.Console.PreviewCache
 import Fw.Console.Builds
 import Fw.Console.BuildsOpen
 import Fw.Wire.Compose
+import Fw.Wire.Layers
 import Fw.Wire.Review
 import Fw.Wire.ReviewPreview
 import Fw.Wire.ReviewFeedback
@@ -56,9 +57,9 @@ imports it, so it decodes the card fields it needs itself).
 | `console.previewGrant` | `kind` (`issue`: may a grant be issued, from `lan`; `redeem`: a grant token is presented, with `known`, `used`, `issuedAt`, `now` (ms)), `lan` | `allow`, `verdict` (redeem: `ok`/`lan`/`unknown`/`used`/`expired`), `ttlMs` (issue), `cookieMs` (`Fw.Console.Preview.Owner.issueAllowed`, `redeem`) |
 | `console.ownerAction` | `kind` (`owner`: an owner action, needs the bearer token and an Origin; `command`: any other non-GET route, an Origin if present; `login`: an Origin, no token), `bearer` (a valid owner token in the Authorization header), `origin`? ({host, port} or null: none sent), `host`? (the origin of the Host header when it names this console, else null), `extra` [{host, port}] (configured web origins), `previewPort`? (null = unset: nothing is trusted) | `allow`, `trusted` (the computed trusted origins, none on the preview port) (`Fw.Console.Preview.Owner.ownerAction`, `commandOk`, `loginOk`, `trustedOrigins`) |
 | `console.lanStart` | `want` (LAN mode was asked for), `hasAddr` (a private address was found), `hasPass` (the keychain item was read), `passLen` (its length in characters; never echoed) | `result` (`off`/`noAddress`/`noPassphrase`/`shortPassphrase`/`start`), `start` (`Fw.Console.Preview.Owner.lanStart`) |
-| `console.buildsSearch` | `registry` {parts [{id, variants [names, head = default], impls, requires {key: [keys]}, conflicts {key: [keys]}}], presets [{name, extends?, fw {part: variant or variant@impl}}]}, `search` | `ok`, `canonical` (when ok), `reasons` (when refused: the site `resolve` errors, or the length or charset reason) (`Fw.Console.BuildsOpen.validate`) |
+| `console.buildsSearch` | `registry` {parts [{id, variants [names, head = default], impls, requires {key: [keys]}, conflicts {key: [keys]}, layers? [ids]}], presets [{name, extends?, fw {part: variant or variant@impl}}]}, `search` | `ok`, `canonical` (when ok), `reasons` (when refused: the site `resolve` errors, or the length or charset reason) (`Fw.Console.BuildsOpen.validate`) |
 | `console.buildsOpen` | `mode` (`row`: `slot`, `sha`, `search` of a Builds row; `search`: `main`, `search`, `registry` as above), `arm`? (`r` or `compare`), `previews` [{id, slot, sha, serving}], `lan`?, `lanAddr`?, `port`? | `ok`, `reasons`, `canonical`, `act` (`reuse`/`wait`/`rebuild`/`start`), `preview` (the id acted on or null), `slot`, `sha`, `path` and `url` (with `reuse` only; `url` is the link to copy: LAN address when LAN is on, else loopback) (`Fw.Console.BuildsOpen.openSearch`, `openRow`, `path`, `fullUrl`) |
-| `console.compose` | `registry` {parts [{id, slot, impls, variants [{name, kind, limit?}], requires, conflicts}], presets}, `ledger` [{part, candidate, status, flag?}], `picks`? [{part, variant}] | `regions`, `parts` (variants with class, why, ledger rows, refusal), `presets` (each with its decision), `decision` for `picks` (`link` only when allowed), `rules` (`Fw.Console.Compose.table`, `decide`; see `Fw.Wire.Compose`) |
+| `console.compose` | `registry` {parts [{id, slot, impls, variants [{name, kind, limit?}], requires, conflicts}], presets}, `ledger` [{part, candidate, status, flag?}], `picks`? [{part, variant}] | `regions`, `parts` (variants with class, why, ledger rows, refusal), `presets` (each with its decision), `decision` for `picks` (`link` only when allowed), `rules` (`Fw.Console.Compose.table`, `decide`; see `Fw.Wire.Compose`); with `arms`, also `arms`, one decision per arm (`Fw.Console.Layers.decideArm`; see `Fw.Wire.Layers`) |
 | `console.review` | `looks`? [{flag, date, words}], `steps` [{id, answer?}], `answer`? {flag, word} | `items` (pending look reviews with state open, keep or reject), `open`, `options`, `answer` (`Fw.Console.Review`; see `Fw.Wire.Review`) |
 | `console.reviewPreview` | `looks`?, `steps` as `console.review`, `events` [{flag, device, key?}] (an item counts only the events whose key names its round; no key = first round), `ask`? {flag, view, width}, `names`? {search, flag} | `items` (per review: previewed on desktop and phone, missing devices, ask lines), `plan` (the arm, search, device, event and `carries` of a Preview click), `names` (whether the search names the flag by a whole entry; `Fw.Console.ReviewPreview`; see `Fw.Wire.ReviewPreview`) |
 | `console.stepTopics` | `events` of the log, `steps` of the board | `groups`, `threads` (`Fw.Console.Steps.view`; see `Fw.Wire.Steps`) |
@@ -714,7 +715,8 @@ def registryOf (j : Json) : Except String (List PartFact × List PresetFact) := 
     pure ({ id := ← str p "id", variants := ← (← arrD p "variants").mapM (asStr "variants"),
             impls := ← (← arrD p "impls").mapM (asStr "impls"),
             requires := ← (match opt p "requires" with | none => pure [] | some v => strListPairs "requires" v),
-            conflicts := ← (match opt p "conflicts" with | none => pure [] | some v => strListPairs "conflicts" v) } : PartFact)
+            conflicts := ← (match opt p "conflicts" with | none => pure [] | some v => strListPairs "conflicts" v),
+            layers := ← (← arrD p "layers").mapM (asStr "layers") } : PartFact)
   let presets ← (← arrD r "presets").mapM fun p => do
     pure ({ name := ← str p "name",
             base := (match opt p "extends" with | some (.str b) => some b | _ => none),
@@ -840,7 +842,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "console.buildsPicker" => some (opBuildsPicker req)
   | "console.buildsSearch" => some (opBuildsSearch req)
   | "console.buildsOpen" => some (opBuildsOpen req)
-  | "console.compose" => some (Fw.Wire.Compose.opCompose req)
+  | "console.compose" => some (Fw.Wire.Layers.opComposeArms req)
   | "console.review" => some (Fw.Wire.Review.opReview req)
   | "console.reviewPreview" => some (Fw.Wire.ReviewPreview.opReviewPreview req)
   | "console.reviewFeedback" => some (Fw.Wire.ReviewFeedback.opReviewFeedback req)

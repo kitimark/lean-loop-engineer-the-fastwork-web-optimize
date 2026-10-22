@@ -10,7 +10,8 @@ The same format, from `extra`: `golden/plan/plan.trailers.jsonl` (reconciler `gi
 `golden/console/console.{landReadiness,actor}.jsonl` (console-api's own actors), `golden/lint/lint.context.jsonl`
 (`scripts/context-lint.mjs`). From `named` (file stem not the op): `golden/ops/lean-first.jsonl` (`ops.leanFirst`,
 the lean-first land gate over the single faults of the grid of `Fw.Ops.LeanFirstSearch`, at the deployed stage),
-`golden/land/render-guard.jsonl` (`console.landRenderGuard`).
+`golden/land/render-guard.jsonl` (`console.landRenderGuard`), `golden/console/layers.jsonl` (`console.compose` with `arms`)
+and `golden/console/layers-search.jsonl` (`console.buildsSearch` with `?fwl=`).
 Generated from Lean, never by hand:
 
 ```
@@ -1157,6 +1158,59 @@ def reportCases (_ : Unit := ()) : List (String × Json) :=
    ("an answer for a report that is not shown is refused", rq [rpt (tag := none)] open_ (ans "approve" "")),
    ("a comment over the feedback cap is refused", rq [rpt] open_ (ans "approve" (String.ofList (List.replicate 2001 'x'))))]
 
+/-- Registry facts for the `arms` cases of `console.compose`: four of today's parts with the variant fields of their `part.json`
+(`visClass`, `lean`; files and layers come from the extractor) and the given `changes` (a JSON array text). -/
+def armsReg (changes : String) : String :=
+  r#"{"parts":[{"id":"hero","slot":"hero","impls":["plain"],"variants":[{"name":"faithful","kind":"faithful"},{"name":"scene-pause","kind":"optimized","visClass":"E","lean":"Fw.Parts.HeroScenePause"}]},"# ++
+  r#"{"id":"hero.exit","slot":"hero","impls":["plain"],"variants":[{"name":"faithful","kind":"faithful"},{"name":"threaded","kind":"optimized","lean":"Fw.Parts.HeroExitOpt"}]},"# ++
+  r#"{"id":"hero.countdown","slot":"hero","impls":["mui","plain"],"variants":[{"name":"faithful","kind":"faithful"},{"name":"strip","kind":"optimized"},{"name":"hidden-pause","kind":"optimized","lean":"Fw.Parts.HeroCountdownHidden"},{"name":"one-chain","kind":"optimized","lean":"Fw.Parts.HeroCountdownOneChain"}]},"# ++
+  r#"{"id":"nav","slot":"nav","impls":["plain"],"variants":[{"name":"faithful","kind":"faithful"},{"name":"earn-no-transition","kind":"proposal","visClass":"L","lean":"Fw.Parts.NavEarnOpt"}]}],"# ++
+  r#""presets":[],"changes":"# ++ changes ++ "}"
+
+/-- A `console.compose` request with `arms` (a JSON array text) over `armsReg changes` and an empty ledger. -/
+def armsReq (arms : String) (changes : String := "[]") : Json :=
+  lit ("{\"registry\":" ++ armsReg changes ++ ",\"ledger\":[],\"arms\":" ++ arms ++ "}")
+
+/-- The Change of the `arms` cases: both hero pauses as one named arm. -/
+def heroPause : String :=
+  r#"[{"id":"hero-pause","label":"pause the hero","picks":[{"part":"hero","variant":"scene-pause"},{"part":"hero.countdown","variant":"hidden-pause"}]}]"#
+
+/-- `console.compose` with `arms` (`Fw.Wire.Layers`): one case per refusal the registry above can reach, the grades and
+links of the accepted arms, a Change by id, and a registry whose Change fails alone. -/
+def layersCases : List (String × Json) := [
+  ("an empty arm and the original arm open the default page", armsReq r#"[{},{"original":true}]"#),
+  ("scene-pause is E with its proof module as hypothesis", armsReq r#"[{"picks":[{"part":"hero","variant":"scene-pause"}]}]"#),
+  ("hidden-pause has no visClass, so the arm is Q", armsReq r#"[{"picks":[{"part":"hero.countdown","variant":"hidden-pause"}]}]"#),
+  ("two independent pauses compose into one link in page order",
+    armsReq r#"[{"picks":[{"part":"hero.countdown","variant":"hidden-pause"},{"part":"hero","variant":"scene-pause"}]}]"#),
+  ("a Change by id expands to its picks", armsReq r#"[{"changes":["hero-pause"]}]"# heroPause),
+  ("an unknown Change id is refused", armsReq r#"[{"changes":["nope"]}]"#),
+  ("strip is a branch inside a shared file: not extractable", armsReq r#"[{"picks":[{"part":"hero.countdown","variant":"strip"}]}]"#),
+  ("a variant whose part lists no files is not extractable", armsReq r#"[{"picks":[{"part":"hero.exit","variant":"threaded"}]}]"#),
+  ("a proposal with visClass L is graded L and not extractable", armsReq r#"[{"picks":[{"part":"nav","variant":"earn-no-transition"}]}]"#),
+  ("an unknown part or variant is refused", armsReq r#"[{"picks":[{"part":"hero","variant":"nope"}]},{"picks":[{"part":"nope","variant":"x"}]}]"#),
+  ("two variants of one part are refused: set twice, and they clash",
+    armsReq r#"[{"picks":[{"part":"hero.countdown","variant":"hidden-pause"},{"part":"hero.countdown","variant":"one-chain"}]}]"#),
+  ("a pick on a part a Change sets is refused, and the fix drops the pick",
+    armsReq r#"[{"changes":["hero-pause"],"picks":[{"part":"hero","variant":"faithful"}]}]"# heroPause),
+  ("the original arm with a pick is refused", armsReq r#"[{"original":true,"picks":[{"part":"hero","variant":"scene-pause"}]}]"#),
+  ("the composite option of hero_copy opens an fwl link, graded L", armsReq r#"[{"layers":[{"layer":"hero_copy","opts":"c"}]}]"#),
+  ("an option the layer does not offer is refused", armsReq r#"[{"layers":[{"layer":"hero_copy","opts":"s"}]}]"#),
+  ("an unknown layer is refused", armsReq r#"[{"layers":[{"layer":"nope","opts":"c"}]}]"#),
+  ("a composite layer next to a pick in its part clashes",
+    armsReq r#"[{"picks":[{"part":"hero","variant":"scene-pause"}],"layers":[{"layer":"hero_copy","opts":"c"}]}]"#),
+  ("a registry whose Change fails alone is refused as a whole",
+    armsReq "[{}]" r#"[{"id":"strip","picks":[{"part":"hero.countdown","variant":"strip"}]}]"#)]
+
+/-- `console.buildsSearch` over registry parts that declare layers: `?fwl=` entries are read and kept canonical. -/
+def layersSearchCases : List (String × Json) :=
+  let reg := lit r#"{"parts":[{"id":"hero","variants":["faithful","scene-pause"],"impls":["plain"],"layers":["hero_copy"]},{"id":"hero.countdown","variants":["faithful","hidden-pause"],"impls":["mui","plain"]}],"presets":[]}"#
+  let s (q : String) : Json := Json.mkObj [("registry", reg), ("search", .str q)]
+  [("a declared layer option is accepted", s "?fwl=hero_copy:c"),
+   ("fw and fwl together, fw first in the canonical form", s "?fwl=hero_copy:c&fw=hero:scene-pause"),
+   ("an unknown layer is refused", s "?fwl=nope:c"),
+   ("a layer entry without options is refused", s "?fwl=hero_copy")]
+
 /-- Golden files whose name is not their op: (directory under `packages/contracts/golden`, file stem, op, cases). -/
 def named (_ : Unit := ()) : List (String × String × String × List (String × Json)) := [
   ("ops", "lean-first", "ops.leanFirst", leanFirstCases),
@@ -1165,7 +1219,9 @@ def named (_ : Unit := ()) : List (String × String × String × List (String ×
   ("land", "render-guard", "console.landRenderGuard", renderGuardCases),
   ("console", "review", "console.review", reviewCases),
   ("console", "report", "console.report", reportCases),
-  ("console", "reviewPreview", "console.reviewPreview", reviewPreviewCases)]
+  ("console", "reviewPreview", "console.reviewPreview", reviewPreviewCases),
+  ("console", "layers", "console.compose", layersCases),
+  ("console", "layers-search", "console.buildsSearch", layersSearchCases)]
 
 /-- The request with its `op` field set. -/
 def withOp (op : String) : Json → Json
