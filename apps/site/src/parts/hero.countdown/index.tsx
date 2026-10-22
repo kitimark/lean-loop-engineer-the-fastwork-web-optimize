@@ -8,26 +8,19 @@ import { digitPlaces, remainingSeconds, unitsFromSeconds } from './logic';
 import { matchList } from './media';
 import css from './hero.module.css';
 
-/** Unit labels, as the original shows them. */
 const LABELS = ['days', 'hours', 'mins', 'seconds'] as const;
 
 export interface HeroCountdownProps {
   variant: string;
-  /** `mui` (default) uses MUI components for the wrapper and labels; `plain` uses bare elements. Same CSS Module and driver. */
   impl?: 'mui' | 'plain';
   inverse?: boolean;
-  /** `data-fw` anchor of the root (default `hero-countdown`); morph.countdown passes its own so each anchor has one clock. */
   fwId?: string;
-  /**
-   * While true the clock sets its digit shape but starts no driver, interval or observer; they start when it turns
-   * false, as at a fresh mount. morph.countdown sets it while morph.mount is dormant.
-   */
   hold?: boolean;
 }
 
 const cls = (...c: (string | false | undefined)[]) => c.filter(Boolean).join(' ');
 
-function Digits({ n, strip }: { n: number; strip: boolean }) {
+function Digits({ n, strip, layer }: { n: number; strip: boolean; layer: boolean }) {
   return (
     <span className={css.number} data-value>
       {Array.from({ length: n }, (_, k) => (
@@ -36,7 +29,7 @@ function Digits({ n, strip }: { n: number; strip: boolean }) {
             0
           </span>
           {strip ? (
-            <span className={css.strip} aria-hidden="true" data-strip>
+            <span className={css.strip} aria-hidden="true" data-strip data-fw-layer={layer ? 'hero.countdown_strip' : undefined}>
               {Array.from({ length: 12 }, (_, j) => (
                 <span key={j} className={css.entry}>
                   {(j + 9) % 10}
@@ -45,7 +38,7 @@ function Digits({ n, strip }: { n: number; strip: boolean }) {
             </span>
           ) : (
             Array.from({ length: 10 }, (_, f) => (
-              <span key={f} className={css.face} aria-hidden="true" data-face>
+              <span key={f} className={css.face} aria-hidden="true" data-face data-fw-layer={layer ? 'hero.countdown_face' : undefined}>
                 {f}
               </span>
             ))
@@ -56,12 +49,6 @@ function Digits({ n, strip }: { n: number; strip: boolean }) {
   );
 }
 
-/**
- * hero.countdown. Server and first client render show the original's hidden placeholders ("0", "00"); after mount the
- * digit shape is set once (a discrete flip) and from then on only the driver writes transforms on the clock.
- * Variant `hidden-pause` (hero instance only): the face writes go through `installHiddenGate` (Lean
- * `Fw.Parts.HeroCountdownHidden`).
- */
 export function HeroCountdown({ variant, impl = 'mui', inverse = false, fwId = 'hero-countdown', hold = false }: HeroCountdownProps) {
   const strip = variant === 'strip';
   const hiddenPause = gatedInstance(variant, fwId);
@@ -96,7 +83,6 @@ export function HeroCountdown({ variant, impl = 'mui', inverse = false, fwId = '
       dateNow: Date.now,
       reduced: () => reduce?.matches ?? false,
     });
-    // the original binds the spacer's offsetHeight (a ResizeObserver) so the cell follows the CSS font size
     const ro = new ResizeObserver((entries) => {
       for (const e of entries) {
         const i = nodes.indexOf((e.target as HTMLElement).parentElement as HTMLElement);
@@ -115,7 +101,6 @@ export function HeroCountdown({ variant, impl = 'mui', inverse = false, fwId = '
       const off = getClock().subscribe((now) => {
         if (driver.tick(now)) onRefresh(true);
       });
-      // the original also re-reads the time on every visibilitychange (N2:3938)
       const unlisten = onVisibilityChange(document, () => {
         if (driver.tick(performance.now())) onRefresh(true);
       });
@@ -124,7 +109,6 @@ export function HeroCountdown({ variant, impl = 'mui', inverse = false, fwId = '
         unlisten();
       };
     };
-    // faithful: setInterval(1 s) plus one rAF spring per digit; strip: one shared-loop subscriber
     const unsub = strip
       ? stripSubscribe()
       : startFaithful({ clock: variant === 'one-chain' ? oneChainClock(getClock()) : getClock(), driver, perfNow: () => performance.now(), onRefresh });
@@ -147,7 +131,7 @@ export function HeroCountdown({ variant, impl = 'mui', inverse = false, fwId = '
       {LABELS.map((label, i) => (
         <div key={label} className={css.unit} aria-hidden="true">
           <span className={css.value}>
-            {shape ? <Digits n={shape[i]!} strip={strip} /> : <span className={css.placeholder}>{i > 0 ? '00' : '0'}</span>}
+            {shape ? <Digits n={shape[i]!} strip={strip} layer={fwId === 'hero-countdown'} /> : <span className={css.placeholder}>{i > 0 ? '00' : '0'}</span>}
           </span>
           <Label>{label}</Label>
         </div>
