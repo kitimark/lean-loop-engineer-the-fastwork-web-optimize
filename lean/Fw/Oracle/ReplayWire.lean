@@ -254,7 +254,7 @@ def run (op : String) (r : String) : String :=
   "\"question\":\"finding-severity\",\"thresholds\":{\"blocker\":null,\"fix-before-land\":null,\"follow-up\":null}}"
 #guard
   let probs := Json.mkObj [("blocker", .num ⟨60, 2⟩), ("fix-before-land", .num ⟨20, 2⟩),
-    ("follow-up", .num ⟨10, 2⟩), ("unclear", .num ⟨9, 2⟩)]
+    ("follow-up", .num ⟨10, 2⟩), ("unclear", .num ⟨3, 2⟩)]
   let jevAns := Json.mkObj [("type", .str "choice"), ("choice", .str "blocker"), ("probabilities", probs),
     ("confidence", .num ⟨5, 1⟩)]
   let reply := Json.mkObj [("model", .str model), ("answers", Json.mkObj [("finding-severity", jevAns)])]
