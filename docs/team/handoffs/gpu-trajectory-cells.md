@@ -2,7 +2,12 @@
 
 - Round 2 (this): branch worktree-wf_9ab25dd7-9aa-1, worktree .claude/worktrees/wf_9ab25dd7-9aa-1; wiring done (TrajectoryGpuGolden.lean, check.sh stage, Fw.lean, trajectory-probe.yml step `Walk the GPU cells`, artifact cells-gpu-chromium, Trigger.lean lean.yml row input + triggers.jsonl regenerated).
   One local debug run (390, rep 1) showed carousel A/A as L: swap keys were rAF timestamps (1.7 ms jitter) and the swap vector changes length (20 children inside, 16 at rest). Fixed in cells-gpu.mjs swapsOf (frame-count key, full-count vectors only); local debug showed E for pain and carousel (not a result).
-  Round-2 dispatches (sha 6f4aea1c, chromium A/A, cells step in the probe job 390, artifact cells-gpu-chromium): 39823047557, 39823476824, 39824100493 (all queued at 17:36Z, GitHub degraded). Local check.sh green at 6f4aea1c.
+  Round-2 dispatches (sha 6f4aea1c, chromium A/A, all complete/pass; cells step in the probe job, widths 390 and 640, artifact cells-gpu-chromium), reduced with the final reducer (head):
+  39823047557: nav-clip E4; panel-effect E2 Q2 L0 (lag max 0.020); pain-dark E2; carousel E2.
+  39823476824: nav-clip E4; panel-effect E3 Q1 L0 (0.013); pain-dark E2; carousel E2.
+  39824100493: nav-clip E4; panel-effect E2 Q2 L0 (0.022); pain-dark E2; carousel E2.
+  The raw of 6f4aea1c showed carousel L at 640 in 39823047557 (recording opened mid-swap: a 4-sample first swap); fixed in swapsOf (restedBefore), the only carousel L seen on CI.
+  check.sh green at 6f4aea1c; Trigger.lean and ci/triggers.jsonl are outside the graph writes (the lean.yml row must list the new golden); the dry needs --allow for those two.
   Read: `gh run download <id> -n cells-gpu-chromium -D <empty dir>`, then `node src/trajectory/cells-gpu-cli.mjs summary --in <dir>/raw-chromium.json` in packages/gate-breakpoints.
 - Branch: worktree-wf_9ab25dd7-9aa-1, worktree .claude/worktrees/wf_9ab25dd7-9aa-1 (CI branch ci/gpu-trajectory-cells, pushed tip 846e11a3 with `[ci:trajectory-probe]` `[trajectory engines=chromium]`)
 - CI runs: pushes 6bcabccc and 846e11a3 created NO run (GitHub, gh run list --branch []). Dispatched instead (`pnpm -s fw run --trajectory --engines chromium --ref ci/gpu-trajectory-cells`, sha 846e11a3, real A/A: base and cand are both the rewrite):
