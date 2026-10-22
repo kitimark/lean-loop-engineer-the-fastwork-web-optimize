@@ -72,7 +72,6 @@ export type LandOptions = {
   after?: (mainDir: string) => Promise<string[]>;
   /** run after a worktree removal: stops the processes Lean selects (TERM, grace, KILL of unchanged survivors; `reapStopLines`) and returns the report lines; tests inject a stub */
   reap?: (mainDir: string) => Promise<string[]>;
-  /** the post-land lag behind origin (`PUSH-DUE`); default `unpushedLag`, tests inject a stub */
   unpushedLag?: (mainDir: string, head: string, main: string) => number | null;
   /** console-api base URL, only used to print the commands for steps that failed after the commit */
   base?: string;
@@ -276,15 +275,10 @@ export type Digest = string | null;
 /** Lean `binMoved`, checked against the `landSpeed.select2` golden. */
 export const binMoved = (changed: string[], d0: Digest, d1: Digest): boolean =>
   changed.some((c) => inScope(FWCORE_BUILD_READS, c)) && (d0 === null || d1 === null || d0 !== d1);
-/** Lean `Fw.Console.LandSpeed.seedReads`: the paths the Lake cache key of `.github/actions/setup-lean/action.yml` hashes. */
 export const SEED_READS = ["lean/lean-toolchain", "lean/lake-manifest.json", "lean/lakefile.toml", "lean/*.lean", "lean/Fw/**", "lean/FwTest/**"];
-/** Lean `seedThreshold`. */
 export const SEED_THRESHOLD = 5;
-/** Lean `seedLag`: how many changed paths the cache key hashes. */
 export const seedLag = (changed: string[]): number => changed.filter((p) => inScope(SEED_READS, p)).length;
-/** Lean `seedDue`. */
 export const seedDue = (lag: number): boolean => lag > SEED_THRESHOLD;
-/** `seedLag` of `git diff origin/<main> <head>`; null without a remote-tracking ref. */
 export function unpushedLag(mainDir: string, head: string, main: string): number | null {
   try { return seedLag(git(mainDir, ["diff", "--name-only", "--no-renames", `refs/remotes/origin/${main}`, head]).split("\n").filter(Boolean)); } catch { return null; }
 }

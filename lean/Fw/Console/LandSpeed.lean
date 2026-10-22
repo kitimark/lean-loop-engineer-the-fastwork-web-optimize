@@ -836,22 +836,15 @@ theorem verdict_fail_final (expected : List String) (done more : List (String ×
 #guard verdict [] [] == .pass
 #guard verdict ["lint"] [("other", false)] == .pending ["lint"]
 
-/-! ## (e) Seed due: when main's unpushed Lean drift makes every land leg rebuild fwcore -/
-
-/-- The paths hashed into the Lake cache key of `.github/actions/setup-lean/action.yml` (land.ts `SEED_READS`). -/
 def seedReads : List String :=
   ["lean/lean-toolchain", "lean/lake-manifest.json", "lean/lakefile.toml", "lean/*.lean", "lean/Fw/**", "lean/FwTest/**"]
 
-/-- Is the path one the Lake cache key hashes? -/
 def seedPath (x : String) : Bool := inScope (parseScope seedReads) x
 
-/-- The push threshold: the approved initial value. -/
 def seedThreshold : Nat := 5
 
-/-- The lag: how many paths of `git diff --name-only origin/main main` the cache key hashes. -/
 def seedLag (changed : List String) : Nat := (changed.filter seedPath).length
 
-/-- Is a push of main due, so that `lean.yml` saves a Lake cache the land legs restore by exact key? -/
 def seedDue (lag : Nat) : Bool := decide (seedThreshold < lag)
 
 theorem seedDue_iff (lag : Nat) : seedDue lag = true ↔ seedThreshold < lag := by
@@ -989,13 +982,11 @@ def cacheCase (name : String) (S : Store Bool) (d : Nat) : Json :=
       ("digest", toJson d)]
     [("hit", .bool (cacheHit S d).isSome), ("verdict", match cacheHit S d with | some b => .bool b | none => .null)]
 
-/-- A `landSpeed.seedLag` case: the reply is `seedLag`, `seedDue` of it, and the counted paths. -/
 def seedLagCase (name : String) (changed : List String) : Json :=
   line name [("op", "landSpeed.seedLag"), ("changed", strs changed)]
     [("lag", toJson (seedLag changed)), ("due", .bool (seedDue (seedLag changed))),
       ("counted", strs (changed.filter seedPath))]
 
-/-- A `landSpeed.seedDue` case: the reply is `seedDue`. -/
 def seedDueCase (lag : Nat) : Json :=
   line s!"lag {lag}" [("op", "landSpeed.seedDue"), ("lag", toJson lag)] [("due", .bool (seedDue lag))]
 
@@ -1004,8 +995,6 @@ def premiseCase (p : PremiseRow) : Json :=
   line s!"premise {p.id}" [("op", "landSpeed.premise"), ("id", .str p.id)]
     [("statement", .str p.statement), ("theorems", strs p.theorems), ("test", .str p.test)]
 
-/-- Every golden case: 11 select, 6 prelock, 6 verdict, 4 cache, 9 select2, 3 seedDue and 4 seedLag cases, then one
-row per premise. -/
 def cases (_ : Unit := ()) : List Json :=
   [selectCase "golden-only change selects check.sh (P5 mutation)" sampleDecls
       ["packages/contracts/golden/obs/timing.jsonl"],

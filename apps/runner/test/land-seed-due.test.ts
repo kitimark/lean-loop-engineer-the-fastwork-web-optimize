@@ -1,5 +1,3 @@
-// Post-land PUSH-DUE line (Lean Fw.Console.LandSpeed.seedDue, seedLag): replayed against the land-speed golden and
-// printed by a real land in a throwaway repo when main is more than 5 Lake-key paths ahead of origin/main.
 import "./land-timeout.ts";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
