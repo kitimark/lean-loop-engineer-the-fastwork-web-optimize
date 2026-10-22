@@ -111,15 +111,23 @@ def stepO (e : Ev) (st : St) : St :=
   let f := e.frame st
   ⟨⟨f.n, f.r⟩, (f.n, f.shrink), st.writes + 2, (f.entering, f.shrinking)⟩
 
-/-- The variant's event: with the gate on, the follower and the classes advance and nothing is written; with the gate off it
-is the original's event.
+/-- The variant's event: with the gate on and the follower still moving, the follower and the classes advance and nothing is
+written; with the gate off, or with the follower settled, it is the original's event.
 
-What the driver's body does under `commission:band-gate`. -/
+What the driver's body does under `commission:band-gate`. The settled write keeps the section's pair equal to the
+original's at rest, which the breakpoint gate compares. -/
 def stepV (e : Ev) (st : St) : St :=
-  if e.gate then
+  if e.gate && (e.frame st).more then
     let f := e.frame st
     { st with fol := ⟨f.n, f.r⟩, cls := (f.entering, f.shrinking) }
   else stepO e st
+
+/-- The media-change event: with the gate off, write the follower's current pair (the one the original wrote last); with the
+gate on, nothing. It does not run the frame body.
+
+What the driver does on a `mq.c1000` change under the variant, so that a change without a resize repairs the stale pair. -/
+def stepC (g : Bool) (st : St) : St :=
+  if g then st else { st with inl := (st.fol.n, max st.fol.n st.fol.r), writes := st.writes + 2 }
 
 /-- The original's state after `k` events.
 
@@ -145,17 +153,41 @@ theorem fol_cls_agree (ev : Nat → Ev) (k : Nat) :
   | succ k ih =>
     have hf : (ev k).frame (stV ev k) = (ev k).frame (stO ev k) := by
       simp [Ev.frame, ih.1]
-    cases hg : (ev k).gate <;> simp [stV, stO, stepV, stepO, hg, hf]
+    simp only [stV, stO, stepV, stepO, hf]
+    split <;> simp
+
+/-- The frames of the two arms are equal at every event.
+
+The one fact the other proofs rewrite with. -/
+theorem frame_agree (ev : Nat → Ev) (k : Nat) : (ev k).frame (stV ev k) = (ev k).frame (stO ev k) := by
+  simp [Ev.frame, (fol_cls_agree ev k).1]
+
+/-- **A writing event writes the original's pair.** After an event that is not (gated and moving), the variant holds the
+pair the original holds.
+
+The stale pair is repaired by any event the variant writes in. -/
+theorem inl_written (ev : Nat → Ev) (k : Nat) (h : ¬ ((ev k).gate = true ∧ ((ev k).frame (stO ev k)).more = true)) :
+    (stV ev (k + 1)).inl = (stO ev (k + 1)).inl := by
+  have hf := frame_agree ev k
+  have hc : ((ev k).gate && ((ev k).frame (stO ev k)).more) = false := by
+    cases hg : (ev k).gate <;> cases hm : ((ev k).frame (stO ev k)).more <;> simp_all
+  simp [stV, stO, stepV, stepO, hf, hc]
 
 /-- **A leaving event writes the original's pair.** After an event whose gate is off, the variant holds the pair the original
 holds.
 
 Leaving the band (or being outside it) repairs the stale pair at once, in the frame that reads the gate off, before paint. -/
 theorem inl_ungated (ev : Nat → Ev) (k : Nat) (h : (ev k).gate = false) :
-    (stV ev (k + 1)).inl = (stO ev (k + 1)).inl := by
-  have hf : (ev k).frame (stV ev k) = (ev k).frame (stO ev k) := by
-    simp [Ev.frame, (fol_cls_agree ev k).1]
-  simp [stV, stO, stepV, stepO, h, hf]
+    (stV ev (k + 1)).inl = (stO ev (k + 1)).inl :=
+  inl_written ev k (by simp [h])
+
+/-- **A settled event writes the original's pair.** In the band, an event whose follower has settled leaves the variant
+holding the pair the original holds.
+
+At rest in the band the section carries the faithful pair, which is what the breakpoint gate reads. -/
+theorem inl_settled (ev : Nat → Ev) (k : Nat) (h : ((ev k).frame (stO ev k)).more = false) :
+    (stV ev (k + 1)).inl = (stO ev (k + 1)).inl :=
+  inl_written ev k (by simp [h])
 
 /-- **The exit catch-up.** An event with the gate off leaves the variant holding exactly the faithful pair
 `(n, max n r)` of that frame, whatever the events before it.
@@ -166,6 +198,24 @@ theorem exit_catchup (ev : Nat → Ev) (k : Nat) (h : (ev k).gate = false) :
   rw [inl_ungated ev k h]
   simp [stO, stepO]
 
+/-- **The original's pair is always the follower's.** The section holds `(n, max n r)` of the follower after every event.
+
+The invariant behind the media-change catch-up. -/
+theorem inl_orig (ev : Nat → Ev) (k : Nat) :
+    (stO ev k).inl = ((stO ev k).fol.n, max (stO ev k).fol.n (stO ev k).fol.r) := by
+  cases k with
+  | zero =>
+    have h10 : max (1 : Rat) 0 = 1 := by decide +kernel
+    simp [stO, St.init, pair0, h10]
+  | succ k => simp [stO, stepO, Frame.shrink]
+
+/-- **The media-change catch-up.** With the gate off, the catch-up leaves the variant holding the original's pair.
+
+A change of `mq.c1000` without a resize still repairs the pair before paint. -/
+theorem media_catchup (ev : Nat → Ev) (k : Nat) : (stepC false (stV ev k)).inl = (stO ev k).inl := by
+  rw [inl_orig ev k]
+  simp [stepC, (fol_cls_agree ev k).1]
+
 /-- **The look agrees after every event.** With the gate read from the environment in force at the event, the card's look
 under the variant equals the original's, in the band (nothing shows) and outside it (same pair).
 
@@ -175,6 +225,16 @@ theorem look_agree (envs : Nat → Env) (ev : Nat → Ev) (hg : ∀ k, (ev k).ga
   have h := hg k
   cases hc : c1000.eval (envs k)
   · rw [inl_ungated ev k (by rw [h, hc])]
+  · rw [look_gated _ _ hc, look_gated _ _ hc]
+
+/-- **The look agrees after a media-change catch-up.** With the gate the environment gives, the card's look under the variant
+after the catch-up equals the original's.
+
+A change without a resize shows no stale pair. -/
+theorem media_look_agree (env : Env) (ev : Nat → Ev) (k : Nat) :
+    look env (stepC (c1000.eval env) (stV ev k)).inl = look env (stO ev k).inl := by
+  cases hc : c1000.eval env
+  · rw [media_catchup ev k]
   · rw [look_gated _ _ hc, look_gated _ _ hc]
 
 /-- **Vision, class E (commission).** For every environment trajectory and event, the original's and the variant's visible
@@ -201,12 +261,16 @@ theorem writes_orig (ev : Nat → Ev) (k : Nat) : (stO ev k).writes = 2 * k := b
   | zero => simp [stO, St.init]
   | succ k ih => simp [stO, stepO, ih]; omega
 
-/-- **The variant writes only on ungated events.** Its count grows by two with the gate off and by nothing with it on.
+/-- **The variant writes only on events that are not (gated and moving).** Its count grows by two on those and by nothing on
+the others.
 
 The count step. -/
 theorem writes_step (ev : Nat → Ev) (k : Nat) :
-    (stV ev (k + 1)).writes = (stV ev k).writes + (if (ev k).gate then 0 else 2) := by
-  cases hg : (ev k).gate <;> simp [stV, stepV, stepO, hg]
+    (stV ev (k + 1)).writes =
+      (stV ev k).writes + (if (ev k).gate = true ∧ ((ev k).frame (stO ev k)).more = true then 0 else 2) := by
+  have hf := frame_agree ev k
+  simp only [stV, stepV, hf]
+  split <;> simp_all [stepO]
 
 /-- **The variant never writes more.** After every event the variant has written at most as often as the original.
 
@@ -220,39 +284,58 @@ theorem writes_le (ev : Nat → Ev) (k : Nat) : (stV ev k).writes ≤ (stO ev k)
     have := writes_orig ev k
     split <;> omega
 
-/-- **A run in the band writes nothing.** While every event is gated the variant has written nothing and holds the CSS `1, 1`.
+/-- **A moving run in the band writes nothing.** While every event is gated and its follower still moves, the variant has
+written nothing and holds the CSS `1, 1`.
 
-The whole saving, in the compact band. -/
-theorem gated_run (ev : Nat → Ev) (k : Nat) (h : ∀ j, j < k → (ev j).gate = true) :
+The whole saving, in the compact band, while the card follows the scroll. -/
+theorem moving_run (ev : Nat → Ev) (k : Nat)
+    (h : ∀ j, j < k → (ev j).gate = true ∧ ((ev j).frame (stO ev j)).more = true) :
     (stV ev k).writes = 0 ∧ (stV ev k).inl = (1, 1) := by
   induction k with
   | zero => simp [stV, St.init]
   | succ k ih =>
     have := ih (fun j hj => h j (Nat.lt_succ_of_lt hj))
     have hk := h k (Nat.lt_succ_self k)
-    simp [stV, stepV, hk, this]
+    have hf := frame_agree ev k
+    simp [stV, stepV, hk.1, hf, hk.2, this]
 
-/-- **Strictly less in the band.** If a run stays in the band for at least one event, the variant writes strictly less.
+/-- **Strictly less in the band.** If a run stays in the band with a moving follower for at least one event, the variant
+writes strictly less.
 
-Unlike a platform shrink value, the follower frame writes on every event, so the saving exists for every frame in the band. -/
-theorem gated_run_lt (ev : Nat → Ev) (k : Nat) (hk : 0 < k) (h : ∀ j, j < k → (ev j).gate = true) :
+Unlike a platform shrink value, the follower frame writes on every event, so the saving exists for every moving frame. -/
+theorem moving_run_lt (ev : Nat → Ev) (k : Nat) (hk : 0 < k)
+    (h : ∀ j, j < k → (ev j).gate = true ∧ ((ev j).frame (stO ev j)).more = true) :
     (stV ev k).writes < (stO ev k).writes := by
-  rw [(gated_run ev k h).1, writes_orig]; omega
+  rw [(moving_run ev k h).1, writes_orig]; omega
 
 /-! ## Decision and goldens -/
 
-/-- **The write decision** the TS driver mirrors: write both properties exactly when the gate is off.
+/-- **The write decision** the TS driver mirrors: write both properties unless the gate is on and the follower still moves.
 
-No write in the band, a write outside it, which includes the first frame after the band is left. -/
-def writeNow (gate : Bool) : Bool := !gate
+No write in the band while the card follows the scroll, a write outside it (which includes the first frame after the band is
+left) and a write when the follower settles in the band. -/
+def writeNow (gate more : Bool) : Bool := !(gate && more)
 
-#guard writeNow false && !writeNow true
+/-- The media-change decision: write the follower's pair exactly when the gate is off.
+
+A change out of the band repairs the pair before paint. -/
+def catchupNow (gate : Bool) : Bool := !gate
+
+#guard writeNow false true && writeNow false false && writeNow true false && !writeNow true true
+#guard catchupNow false && !catchupNow true
 
 /-- The decision agrees with the model: the variant's event adds `2` writes exactly when `writeNow` says so.
 
 The TS decision is the model's event. -/
 theorem stepV_writes (e : Ev) (st : St) :
-    (stepV e st).writes = st.writes + (if writeNow e.gate then 2 else 0) := by
-  cases hg : e.gate <;> simp [stepV, stepO, writeNow, hg]
+    (stepV e st).writes = st.writes + (if writeNow e.gate (e.frame st).more then 2 else 0) := by
+  cases hg : e.gate <;> cases hm : (e.frame st).more <;> simp [stepV, stepO, writeNow, hg, hm]
+
+/-- The media-change decision agrees with the model.
+
+The TS catch-up is the model's event. -/
+theorem stepC_writes (g : Bool) (st : St) :
+    (stepC g st).writes = st.writes + (if catchupNow g then 2 else 0) := by
+  cases g <;> simp [stepC, catchupNow]
 
 end Fw.Parts.CommissionOpt

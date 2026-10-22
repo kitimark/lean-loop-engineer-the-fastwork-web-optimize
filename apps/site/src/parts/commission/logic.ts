@@ -88,10 +88,17 @@ export const ulTimer = (u: Ul): Ul => (u === 'enter' ? 'idle' : u);
 export const sceneActive = (top: number, bottom: number, h: number): boolean => -h <= bottom && top <= 2 * h;
 
 /**
- * The `band-gate` write decision (Lean `CommissionOpt.writeNow`): write the two custom properties exactly when the gate
- * (`mq.c1000`) is off. The first frame that reads the gate off writes the current pair (`exit_catchup`).
+ * The `band-gate` write decision (Lean `CommissionOpt.writeNow`): write the two custom properties unless the gate (`mq.c1000`)
+ * is on and the follower still moves. A write outside the band includes the first frame after the band is left
+ * (`exit_catchup`); a write when the follower settles in the band keeps the section's pair equal to the original's at rest.
  */
-export const planWrite = (gated: boolean): boolean => !gated;
+export const planWrite = (gated: boolean, moving: boolean): boolean => !(gated && moving);
+
+/** The media-change decision (Lean `CommissionOpt.catchupNow`): write the follower's pair exactly when the gate is off. */
+export const planCatchup = (gated: boolean): boolean => !gated;
+
+/** The pair a catch-up writes (Lean `stepC`): `--commission-enter-shrink` and `--commission-shrink` of a follower pair. */
+export const catchupPair = (p: Pair): { enter: number; shrink: number } => ({ enter: p.n, shrink: Math.max(p.n, p.r) });
 
 /**
  * The card's look at the inline pair (Lean `CommissionOpt.look`): scale and radius in px, given whether `mq.c1000` matches.

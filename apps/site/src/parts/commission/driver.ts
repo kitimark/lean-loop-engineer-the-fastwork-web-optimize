@@ -1,4 +1,4 @@
-import { frame, PAIR0, planWrite, sceneActive, titleWrapped, ulFire, ulStart, ulTimer, UL_DELAY, type Pair, type Ul } from './logic';
+import { catchupPair, frame, PAIR0, planCatchup, planWrite, sceneActive, titleWrapped, ulFire, ulStart, ulTimer, UL_DELAY, type Pair, type Ul } from './logic';
 
 /** Order on the scroll engine (after the hero, before the nav: hero.exit 10, nav 13090 in the original). */
 export const COMMISSION_ORDER = 50;
@@ -61,7 +61,7 @@ export interface Env {
   compact(): boolean;
   /** reduced motion changed (the original's `change` listener on the list). */
   onReducedChange(cb: () => void): () => void;
-  /** `mq.c1000` changed (the `band-gate` variant runs a frame to write the current pair when the band is left). */
+  /** `mq.c1000` changed (the `band-gate` variant writes the follower's pair when the band is left). */
   onCompactChange?(cb: () => void): () => void;
   /** IntersectionObserver with a root margin and thresholds; returns disconnect. */
   observe(target: unknown, opts: { rootMargin?: string; threshold?: number[] }, cb: (e: IoEntry) => void): () => void;
@@ -118,6 +118,12 @@ export function mountCommission({ els, classes, engine, clock, env }: Deps, opts
     body();
   }
 
+  const writePair = () => {
+    const w = catchupPair(pair);
+    els.section.style.setProperty('--commission-enter-shrink', String(w.enter));
+    els.section.style.setProperty('--commission-shrink', String(w.shrink));
+  };
+
   const measureWrap = () => {
     const wrapped = compactNow && titleWrapped(compactNow, env.lineBoxes(els.muted));
     els.title.classList.toggle(classes.titleWrapped, wrapped);
@@ -133,10 +139,7 @@ export function mountCommission({ els, classes, engine, clock, env }: Deps, opts
     pair = { n: f.n, r: f.r };
     // variant band-gate (Lean CommissionOpt): in the c1000 band the CSS pins scale 1 and radius 0, so the pair is not read;
     // the first frame that reads the band off writes the current pair, in the same rAF before paint
-    if (planWrite(opts.bandGate === true && compactNow)) {
-      els.section.style.setProperty('--commission-enter-shrink', String(f.n));
-      els.section.style.setProperty('--commission-shrink', String(Math.max(f.n, f.r)));
-    }
+    if (planWrite(opts.bandGate === true && compactNow, f.more)) writePair();
     els.section.classList.toggle(classes.entering, f.entering);
     els.section.classList.toggle(classes.shrinking, f.shrinking);
     els.section.toggleAttribute('data-fw-shrinking', f.shrinking);
@@ -215,7 +218,12 @@ export function mountCommission({ els, classes, engine, clock, env }: Deps, opts
   }));
   request(); // the scheduler asks for a frame when a scene registers (rE())
   cleanups.push(env.onReducedChange(request));
-  if (opts.bandGate === true && env.onCompactChange) cleanups.push(env.onCompactChange(request));
+  // band-gate: a change of mq.c1000 out of the band writes the follower's pair at once (no body: the original has none then)
+  if (opts.bandGate === true && env.onCompactChange) {
+    cleanups.push(env.onCompactChange(() => {
+      if (planCatchup(env.compact())) writePair();
+    }));
+  }
 
   return () => {
     cancelOwn?.();

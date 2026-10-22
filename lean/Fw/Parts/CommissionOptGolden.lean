@@ -43,7 +43,12 @@ def traceLine (tr : List Ev) : String :=
 /-- Lines of `commission-gate.jsonl`: the write decision, the card's look per environment (the boolean `c1000` is Lean's
 evaluation of the generated condition at that environment) and inline pair, and the traces. -/
 def gateLines (_ : Unit := ()) : List String :=
-  (([false, true] : List Bool).map fun g => line "planWrite" [("gated", .bool g)] (.bool (writeNow g))) ++
+  (([false, true] : List Bool).flatMap fun g => ([false, true] : List Bool).map fun m =>
+    line "planWrite" [("gated", .bool g), ("moving", .bool m)] (.bool (writeNow g m))) ++
+  (([false, true] : List Bool).map fun g => line "planCatchup" [("gated", .bool g)] (.bool (catchupNow g))) ++
+  (([(1, 0), (0, 0), (1/2, 1/4), (1/4, 1/2), (0, 1)] : List (Rat × Rat)).map fun p =>
+    line "catchupPair" [("n", rin p.1), ("r", rin p.2)]
+      (pairWire (stepC false ⟨⟨p.1, p.2⟩, (0, 0), 0, (false, false)⟩).inl)) ++
   (([(430, 430, true, false), (500, 500, false, false), (800, 800, false, false), (1000, 1000, false, false),
      (1001, 1001, false, false), (1001, 500, false, false), (1001, 501, false, false), (1200, 1200, true, true),
      (1201, 1201, true, true), (1280, 1280, false, false), (1280, 400, false, false)] :

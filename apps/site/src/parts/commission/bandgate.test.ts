@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { goldenConformance } from '../../engine/golden.testutil';
 import { mountCommission, type Clock, type Env } from './driver';
-import { cardLook, planWrite } from './logic';
+import { cardLook, catchupPair, planCatchup, planWrite } from './logic';
 
 interface Ev {
   gate: boolean;
@@ -41,11 +41,13 @@ function rig(events: Ev[], bandGate: boolean) {
     reduced: () => cur.rm,
     compact: () => cur.gate,
     onReducedChange: () => () => undefined,
+    onCompactChange: (f) => ((onCompact = f), () => undefined),
     observe: () => () => undefined,
     observeResize: () => () => undefined,
     lineBoxes: () => 1,
   };
   let cb: (() => void) | null = null;
+  let onCompact: (() => void) | null = null;
   const off = mountCommission(
     {
       els: { section, card: { getBoundingClientRect: () => ({ top: cur.top, bottom: 0 }) }, runway: stub, header: {}, title: stub, muted: {}, underline: stub },
@@ -66,17 +68,31 @@ function rig(events: Ev[], bandGate: boolean) {
     cb!();
     out.push(snap());
   }
-  off();
-  return out;
+  const media = (gate: boolean) => {
+    cur = { ...cur, gate };
+    onCompact?.();
+    out.push(snap());
+  };
+  return { out, media, off };
 }
 
+const run = (events: Ev[], bandGate: boolean) => {
+  const r = rig(events, bandGate);
+  const first = r.out.length;
+  void first;
+  r.off();
+  return r.out;
+};
+
 goldenConformance('commission-gate', {
-  planWrite: (i) => planWrite(i.gated as boolean),
+  planWrite: (i) => planWrite(i.gated as boolean, i.moving as boolean),
+  planCatchup: (i) => planCatchup(i.gated as boolean),
+  catchupPair: (i) => catchupPair({ n: i.n as number, r: i.r as number }),
   cardLook: (i) => cardLook(i.c1000 as boolean, i.enter as number, i.shrink as number),
   trace: (i) => {
     const events = i.events as Ev[];
-    const v = rig(events, true);
-    const o = rig(events, false);
+    const v = run(events, true);
+    const o = run(events, false);
     return {
       variantInl: v.map((s) => s.inl),
       variantWrites: v.map((s) => s.writes),
@@ -89,22 +105,49 @@ goldenConformance('commission-gate', {
 describe('commission variant band-gate (Lean CommissionOpt)', () => {
   const ev = (gate: boolean, bottom: number): Ev => ({ gate, rm: false, top: 0, bottom, vh: 1000 });
   it('outside the band it is the faithful driver (two writes per event)', () => {
-    const run = [ev(false, 850), ev(false, 600), ev(false, 500)];
-    expect(rig(run, true)).toEqual(rig(run, false));
+    const evs = [ev(false, 850), ev(false, 600), ev(false, 500)];
+    expect(run(evs, true)).toEqual(run(evs, false));
   });
-  it('in the band: no write, the CSS pair is held (gated_run)', () => {
-    const s = rig([ev(true, 850), ev(true, 600), ev(true, 500)], true);
+  it('in the band, while the follower moves: no write, the CSS pair is held (moving_run)', () => {
+    const s = run([ev(true, 850), ev(true, 600), ev(true, 500)], true);
     expect(s.map((x) => x.writes)).toEqual([0, 0, 0]);
     expect(s[2]!.inl).toEqual({ enter: 1, shrink: 1 });
   });
+  it('in the band, once the follower settles: the faithful pair is written (inl_settled)', () => {
+    const evs = Array.from({ length: 80 }, () => ev(true, 900));
+    const v = run(evs, true);
+    const o = run(evs, false);
+    expect(v[79]!.inl).toEqual(o[79]!.inl);
+    expect(v[79]!.writes).toBeLessThan(o[79]!.writes);
+    expect(v[10]!.writes).toBe(0);
+  });
   it('leaving the band writes the faithful pair on the very next event (exit_catchup)', () => {
-    const run = [ev(true, 850), ev(true, 600), ev(false, 600), ev(false, 500)];
-    const v = rig(run, true);
-    const o = rig(run, false);
+    const evs = [ev(true, 850), ev(true, 600), ev(false, 600), ev(false, 500)];
+    const v = run(evs, true);
+    const o = run(evs, false);
     expect(v[2]!.inl).toEqual(o[2]!.inl);
     expect(v[2]!.writes).toBe(2);
     expect(v[3]!.inl).toEqual(o[3]!.inl);
     expect(o[3]!.writes).toBe(8);
+  });
+  it('a change of the band without a body writes the pair and only that (media_catchup)', () => {
+    const evs = [ev(true, 850), ev(true, 600)];
+    const r = rig(evs, true);
+    const o = rig(evs, false);
+    r.media(false);
+    o.media(false);
+    r.off();
+    o.off();
+    expect(r.out[2]!.inl).toEqual(o.out[1]!.inl);
+    expect(r.out[2]!.writes).toBe(2);
+    expect(o.out[2]!.writes).toBe(o.out[1]!.writes);
+  });
+  it('a change into the band writes nothing', () => {
+    const r = rig([ev(false, 850)], true);
+    const before = r.out[0]!.writes;
+    r.media(true);
+    r.off();
+    expect(r.out[1]!.writes).toBe(before);
   });
 });
 

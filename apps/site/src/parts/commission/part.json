@@ -11,8 +11,8 @@
       "kind": "optimized",
       "tier": "T0",
       "provenance": {
-        "lean": "Fw.Parts.CommissionOpt look_gated, look_const_iff, exit_catchup, commission_visSame, writes_le, gated_run",
-        "limit": "style-only saving: skips the two custom-property writes while mq.c1000 matches and writes the current pair on the first frame that reads the band off; the follower, the classes and the frame requests are unchanged"
+        "lean": "Fw.Parts.CommissionOpt look_gated, look_const_iff, exit_catchup, inl_settled, media_catchup, commission_visSame, writes_le, moving_run",
+        "limit": "style-only saving: skips the two custom-property writes while mq.c1000 matches and the follower still moves; writes the current pair when the follower settles, on the first frame that reads the band off and on a band change without a frame; the follower, the classes and the frame requests are unchanged"
       }
     }
   },
