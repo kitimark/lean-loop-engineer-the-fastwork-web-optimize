@@ -16133,7 +16133,8 @@
     "docs/team/handoffs/dry-merge-tree.md",
     "docs/team/tools/land.md"
    ],
-   "title": "Five resumed reviews on 2026-10-22 (slot-span-key, site-layer-opts, morph-constant-bounds, land-scope-golden-regs, sim-step-watchdog) got VERDICT stale from fw land --dry only because main gained unrelated commits (graph edits, ledger records, other lands) after the branch's last merge; each cost a merge, a dry rerun and a resumed review. The stale rule exists so a stale base cannot carry another task's diff into the scope check (land.ts:480). Replace it with a closed check: when the branch does not contain main, compute the merge with git merge-tree (no checkout); a conflict stays a refusal (conflict); a clean merge runs the scope and read checks on the diff between that merged tree and main, which contains only the branch's own changes. Lean first in Fw.Console.LandDry: dryKind takes the merge-tree outcome; theorems: a clean merge-tree never yields stale; the scope paths of the merged diff are exactly the branch's own changed paths (no path main changed alone); a conflict still refuses. Goldens the TS replays; a test with a branch behind main by an unrelated commit gives VERDICT dry. Unit: the Lean rule with goldens, land.ts using merge-tree, the test. Limits: the real land still merges main itself as today."
+   "title": "Five resumed reviews on 2026-10-22 (slot-span-key, site-layer-opts, morph-constant-bounds, land-scope-golden-regs, sim-step-watchdog) got VERDICT stale from fw land --dry only because main gained unrelated commits (graph edits, ledger records, other lands) after the branch's last merge; each cost a merge, a dry rerun and a resumed review. The stale rule exists so a stale base cannot carry another task's diff into the scope check (land.ts:480). Replace it with a closed check: when the branch does not contain main, compute the merge with git merge-tree (no checkout); a conflict stays a refusal (conflict); a clean merge runs the scope and read checks on the diff between that merged tree and main, which contains only the branch's own changes. Lean first in Fw.Console.LandDry: dryKind takes the merge-tree outcome; theorems: a clean merge-tree never yields stale; the scope paths of the merged diff are exactly the branch's own changed paths (no path main changed alone); a conflict still refuses. Goldens the TS replays; a test with a branch behind main by an unrelated commit gives VERDICT dry. Unit: the Lean rule with goldens, land.ts using merge-tree, the test. Limits: the real land still merges main itself as today.",
+   "evidence": "e64ef10"
   },
   {
    "devices": [
@@ -16280,6 +16281,29 @@
     "docs/team/handoffs/compose-gpu-pill.md"
    ],
    "title": "User 2026-10-22: 'add the gpu pill in compose for mark which ones is optimization by gpu'. One canonical source in Lean (Fw.Parts.Gpu): the list of (part, variant, mechanism, ledger n) whose optimization moves per-frame work to the compositor/GPU (threaded animation of transform/opacity/filter, a layer that stops changing bounds, fewer composited layers); each entry cites its ledger row; theorem/#guard that every entry names a registered variant (registry golden). console.compose carries a gpu field per variant (Wire + golden), console-api passes it, Compose shows a GPU pill beside the class badge with the mechanism as its tooltip/text."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "slot-measure-exclusive",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "mac-safari-measure"
+   ],
+   "writes": [
+    "lean/Fw/Sup/Adapt.lean",
+    "lean/Fw/Sup/AdaptGolden.lean",
+    "packages/contracts/golden/sup/adapt.jsonl",
+    "apps/runner/src/slot.ts",
+    "apps/runner/src/slot-core.ts",
+    "apps/runner/test/slot*.test.ts",
+    "packages/measure-webkit/src/safari-local-lease.mjs",
+    "docs/team/tools/slot.md",
+    "docs/team/handoffs/slot-measure-exclusive.md"
+   ],
+   "title": "User 2026-10-22 asked to measure Safari (macOS + iPhone Simulator) on this Mac first. The sim kind drains other holders before it starts (slot.ts why=drain), but once it holds, the adaptive limit (1 -> 2 when memory frees) admits other checks beside it, and Fw.Sup.Measure's quiet rule (holdersMax 0) then refuses every pass: observed 20:15, mac-safari-measure held sim while gate-settle-scroll-timeline held check (lean at 100% CPU). Add a measure kind (or a measure flag on sim) in Lean Fw.Sup.Adapt: while a measure holder is live nothing else is admitted (theorem: measure_live -> admit = wait for every other kind) and it drains like sim before it starts; goldens; slot.ts/slot-core.ts follow the Lean verdict; safari-local-lease.mjs takes the measure kind."
   }
  ],
  "deadline": {
