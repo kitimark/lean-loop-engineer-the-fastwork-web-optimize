@@ -75,6 +75,14 @@ const ev = async (expression) => {
 };
 // Network.enable makes BeginFrame hang at navigation commit (observed), so in-flight requests are counted by the
 // static server instead (every request that can succeed goes through it; external hosts are unresolvable by design).
+// Load diagnostics (stderr, capped): a JS dialog blocks the renderer without a profile sample, so it is answered and logged; page errors are logged.
+{
+  let logged = 0;
+  const say = (...a) => { if (logged++ < 40) console.error('page:', ...a); };
+  c.on('Page.javascriptDialogOpening', (e) => { say('DIALOG', e.type, JSON.stringify(e.message).slice(0, 200)); c.send('Page.handleJavaScriptDialog', { accept: true }).catch(() => {}); });
+  c.on('Runtime.exceptionThrown', (e) => say('EXCEPTION', (e.exceptionDetails?.exception?.description ?? e.exceptionDetails?.text ?? '').slice(0, 300)));
+  c.on('Runtime.consoleAPICalled', (e) => { if (e.type === 'error' || e.type === 'warning' || e.type === 'assert') say(e.type, e.args.map((x) => x.value ?? x.description ?? '').join(' ').slice(0, 300)); });
+}
 await c.send('Page.enable'); await c.send('Runtime.enable'); await c.send('Performance.enable');
 await c.send('Emulation.setDeviceMetricsOverride', { width: profile.viewport.width, height: profile.viewport.height, deviceScaleFactor: profile.viewport.dpr, mobile: profile.viewport.mobile, screenWidth: profile.viewport.width, screenHeight: profile.viewport.height });
 if (!process.env.FW_NOTOUCH) await c.send('Emulation.setTouchEmulationEnabled', { enabled: profile.viewport.touch, maxTouchPoints: 5 });
