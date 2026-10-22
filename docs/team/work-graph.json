@@ -16541,7 +16541,15 @@
     "packages/contracts/golden/parts/morph-panel-threaded*.jsonl",
     "research/notes/2026/10-2x-morph-panel-threaded.md",
     "results/morph-panel-threaded/**",
-    "docs/team/handoffs/morph-panel-threaded.md"
+    "docs/team/handoffs/morph-panel-threaded.md",
+    ".github/workflows/trajectory-probe.yml",
+    "lean/Fw/Parts/Bridge.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "research/findings/ledger.json",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json",
+    "packages/contracts/golden/preset/v2-proved.decisions.jsonl"
    ],
    "title": "GPU route (user 2026-10-22: \"experiment then measure and do lean prove ... navbar and the end-of-page\"; design workflow gpu-route-design, lead scratch gpu-route-tasks.json rank 3). morph.panel:threaded on top of const-bounds: one WAAPI effect per push on opacity + filter + transform (all in the WebKit 'always' list), keyframes from the Lean tween at the 0.08 and 0.8 kinks, easing cubic-bezier(1/3,1,2/3,1), legacy CA path. The rAF tween keeps writing --morph and data-fw-morph so nav classes stay fresh (avoids the morph.tween:waapi staleness). Not installed under reduced motion. Measured alone and in one bundle arm with platform:fade-threaded (URL flag combination, no platform writes). Dep morph-touch-band because the push start hook lives in morph.tween. Verification correction: the panel backing is one untiled 1170x2460 device px backing (tiling compares CSS px x pageScale with 1280/1024), 14.4 MB RGB10A8 per buffer. Flag: Look Q: PathPix grades any CA blur as not E (ca_blur_not_e, premise c6 open); the PathPix cell needs path-pix-lanes. L if the trajectory shows the CA-clocked blur/scale more than 1 frame off the nav clip: then it goes to the user's look-review class. Expected win is Composite per frame only; RecalculateStyles stays (recalc_same is the proved limit). Chromium: split the filter into its own effect or the pixel-moving blur demotes the whole animation. Write overlap to sequence: morph-nav-scope (not started) lists morph.panel/morph.module.css and morph.tween/index.tsx. Layer budget: 0 added.. Lean: New Fw.Parts.MorphPanelThreaded on PlatformFade (keyframes, interp_eq, ca_accepts, retarget_from_shown): for every push f -> t (f != t) and eased p in [0,1], interpKf (panelKfs f t) p = (panelOpacity m, panelBlurPx m, panelScale m) with m = f+(t-f)p; Bezier ease_err <= 3/2^41. Bands: no media rule other than reduced motion sets the three properties, and under reduced motion no effect exists, so the look is equal in every band; pivot_same from MorphConstBounds. Work: props_accelerated, CA timing accepted (rate 1, forwards, >= 2 keyframes, no steps, y in [0,1]); wkStages(variant) = wkStages(orig) minus the panel Layout(outset) and prop units; recalc_same stated. Bundle: writesT drops (.platform, --morph-fade) and the panel's three diffs, (.nav, --morph) remains. Layer budget 0 (own_robust). Measure: WebKit Simulator cost lane: Composite per frame on open and close push, Layout, Paint records, RecalculateStyles expected equal; arms faithful, panel-threaded, panel-threaded + platform:fade-threaded. Breakpoint gate both engines. Trajectory panel cell (gpu-trajectory-cells) at matched progress, lag in frames. PathPix pixel cell after path-pix-lanes. Local Safari lane via gpu-safari-lane (saving expected in Composite and the render server)."
   },
@@ -17030,7 +17038,8 @@
     "apps/runner/test/land-verdict.test.ts",
     "packages/contracts/golden/console/land-dry-merge.jsonl"
    ],
-   "title": "Real cause of the morph-touch-band land refusal (incident inc-land-wt-lock-drift; land-install-fallback review forensics): a reused land worktree (.claude/land-wt/N, checkoutLandWt known branch, land.ts:341-352) runs no install unless the land's own diff touches pnpm-lock.yaml or a package.json, so its node_modules drift behind main's lockfile (land-wt/1 created 10-18, jsdom added 10-20). Fix through the Lean installKind rule: stamp the lockfile hash at each install (or read node_modules/.modules.yaml) and install when the checked-out lockfile differs; golden case for a reused worktree behind main. Also the land-install-fallback follow-ups: an end-to-end both-fail test through land() (injectable exec, VERDICT install, exit 19), the stderr tail in the REFUSED line and an execFileSync timeout, and an install stage in the Lean dryRun outcome."
+   "title": "Real cause of the morph-touch-band land refusal (incident inc-land-wt-lock-drift; land-install-fallback review forensics): a reused land worktree (.claude/land-wt/N, checkoutLandWt known branch, land.ts:341-352) runs no install unless the land's own diff touches pnpm-lock.yaml or a package.json, so its node_modules drift behind main's lockfile (land-wt/1 created 10-18, jsdom added 10-20). Fix through the Lean installKind rule: stamp the lockfile hash at each install (or read node_modules/.modules.yaml) and install when the checked-out lockfile differs; golden case for a reused worktree behind main. Also the land-install-fallback follow-ups: an end-to-end both-fail test through land() (injectable exec, VERDICT install, exit 19), the stderr tail in the REFUSED line and an execFileSync timeout, and an install stage in the Lean dryRun outcome.",
+   "evidence": "8ae6f82"
   },
   {
    "devices": [
@@ -17142,6 +17151,25 @@
     "docs/team/handoffs/trajectory-aa-noise.md"
    ],
    "title": "Review follow-ups of trajectory-carousel-lean: the hold-out Chromium A/A run 39852684450 (same code both arms, recordings at rest) grades carousel Q at 390 and 640 (reps Q,Q,E,E; 2 of 4 swaps match only at a sub-frame shift) and panel-effect 640 close L (reps E,Q,L). An A/A must grade E, so the recorder or the tolerances are noisy: find which (frame clock vs rAF sampling, sub-frame shift handling, scale/blur read step), fix it in Lean first with a theorem or a stated premise, and confirm with fresh A/A runs (at most 3 dispatches) that every unit grades E. Also: JS RANK lacks E1 while Lean worse ranks e1 (restrict worst to E/Q/L or add E1 with a golden case); specify the in-page settle and tail stop rules of carouselSample (6 equal frames, 2.2 s and 1.5 s caps) in Lean or list them as a stated premise; note in the gate docs that a pain-dark unit whose base never flips in one direction is now not comparable."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-exit-cli",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "land-wt-lock-drift"
+   ],
+   "writes": [
+    "apps/runner/src/fw-main.ts",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land-exit*.test.ts",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/land-exit-cli.md"
+   ],
+   "title": "Review follow-ups of land-wt-lock-drift: (1) fw-main.ts:169-172 exits early on `dry && res.kind === \"install\"` before dryRun, so a failed dry install prints only REFUSED and VERDICT install, not the stage lines land.md promises; delete that branch so the generic dry branch prints dryRun from outcome({installs:false}); (2) fw-main.ts:181-183 maps the real-land exit inline; use `process.exitCode = landExit(res)` (landExit is exported from land.ts and tested); (3) checkoutLandWt runs `git clean -fdxq -e .lake -e node_modules` twice for a reused worktree; drop the trailing one on that path. Test the CLI exit and the dry stage lines."
   }
  ],
  "deadline": {
