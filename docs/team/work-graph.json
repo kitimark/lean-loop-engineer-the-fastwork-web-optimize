@@ -15769,6 +15769,32 @@
     "docs/team/handoffs/pool-dispatch-poller.md"
    ],
    "title": "Follow-up of macos-pool-7: no poller calls `fw ci pool dispatch` yet, so a queued macOS job never overflows to Codemagic on its own and the GitHub busy count was read by hand. Wire the existing Lean route (Fw.Ci.PoolTier, landed) into the watch loop or the dispatch path: read GitHub busy macOS jobs with gh run list (the gh rate-limit rules: list not view, >= 120 s), call the route, dispatch overflow, record each decision as an event. No decision logic in TS (the route is Lean). Also record Codemagic build startedAt/finishedAt (redacted) in the ledger so overlap claims are provable (review follow-up). Unit: the poller glue with tests, decision events, Codemagic build times recorded. Limits: free tiers only; CircleCI stays closed until circleci-storage-measured lands."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-constant-bounds",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Parts/MorphConstBounds*.lean",
+    "lean/Fw.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/morph-const-bounds*.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "apps/site/src/parts/morph.panel/**",
+    "apps/site/src/parts/morph.tween/**",
+    "apps/site/src/parts/nav/**",
+    "research/findings/ledger.json",
+    "results/morph-constant-bounds/**",
+    "research/notes/2026/10-2x-morph-constant-bounds.md",
+    "docs/team/handoffs/morph-constant-bounds.md"
+   ],
+   "title": "User goal 2026-10-22 (end of page smoother on WebKit; GPU same-look route). The GPU-vs-overall comparison (lead, 2026-10-22) shows the end-of-page morph now holds 262 of 480 skipped slots (55 %) and 23 of 24 intervals over 50 ms on the phone, unchanged from the original (results/phone/2026-10-21/summary-v2.md:17-18), while no task covers the render-cost note's top same-look candidate. C1 of research/notes/2026/10-22-webkit-render-cost.md: constant layer bounds, lay the panel, backdrop and columns out once at the final size, clipped by the nav, so no backed layer except the nav changes size per morph frame (removes F3 per-frame IOSurface allocation and full raster, F4 tile reallocation, the panel-subtree relayout). Lean first: the visible region of the clipped final-size layout equals the original's per-frame layout at every morph progress m (same look, E-class under stated premises; text boxes keep their glyph positions), and bounds are constant over m for every backed layer but the nav; goldens; then the flag variant (register, ledger row, preset regenerated). Gate: breakpoint gate both engines; PathPix same-look at Lean-chosen m values. Measure on CI webkit-sim with cost=on lag=true, base vs flag, the end-of-page morph pass: Composite per frame, Recalculate styles, Layout, Paint, layer and backing counts where the lane records them (IOSurface creations if observable, else say so), the share of 33 ms rAF deltas (count), with run ids; report.json (review-reports shape; recommendation without numbers). Unit: Lean same-look and constant-bounds theorems with goldens, the flag, gate both engines, one webkit-sim base vs flag measurement, ledger row, report. Limits: the Simulator has no real GPU (allocation cost INFERRED from counts); at most 4 dispatches; the nav still resizes (C8 is a separate candidate); a no-win is a finding."
   }
  ],
  "deadline": {
