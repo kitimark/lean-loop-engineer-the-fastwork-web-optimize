@@ -185,7 +185,7 @@ final list. -/
 def checkShReads : List String :=
   ["lean/**", "packages/contracts/golden/**", "apps/site/src/breakpoints.gen.json",
     "apps/site/src/sweeps.gen.json", "apps/site/src/head.gen.json", "packages/gate-breakpoints/src/scope.gen.json", ".github/workflows/**",
-    "scripts/span.sh", "scripts/fwcore-build.sh", "scripts/fwcore-record-rule.sh", "scripts/lake-slot.sh", "scripts/lake-slot-lib.sh", "scripts/heavy-lock.mjs", "docs/team/incidents/ledger.json", "research/findings/ledger.json",
+    "scripts/span.sh", "scripts/fwcore-build.sh", "scripts/fwcore-record-rule.sh", "scripts/lake-slot.sh", "scripts/lake-slot-lib.sh", "scripts/heavy-lock.mjs", "scripts/slot-self.mjs", "docs/team/incidents/ledger.json", "research/findings/ledger.json",
     "apps/site/src/parts/**", "apps/site/src/registry/presets/v2-proved.json",
     "packages/measure-chromium/scenarios.gen.json"]
 
@@ -214,7 +214,7 @@ def sampleDecls : List Decl :=
 theorem parseScope_checkShReads : parseScope checkShReads =
     ⟨[["lean", "**"], ["packages", "contracts", "golden", "**"], ["apps", "site", "src", "breakpoints.gen.json"],
       ["apps", "site", "src", "sweeps.gen.json"], ["apps", "site", "src", "head.gen.json"], ["packages", "gate-breakpoints", "src", "scope.gen.json"],
-      [".github", "workflows", "**"], ["scripts", "span.sh"], ["scripts", "fwcore-build.sh"], ["scripts", "fwcore-record-rule.sh"], ["scripts", "lake-slot.sh"], ["scripts", "lake-slot-lib.sh"], ["scripts", "heavy-lock.mjs"],
+      [".github", "workflows", "**"], ["scripts", "span.sh"], ["scripts", "fwcore-build.sh"], ["scripts", "fwcore-record-rule.sh"], ["scripts", "lake-slot.sh"], ["scripts", "lake-slot-lib.sh"], ["scripts", "heavy-lock.mjs"], ["scripts", "slot-self.mjs"],
       ["docs", "team", "incidents", "ledger.json"],
       ["research", "findings", "ledger.json"], ["apps", "site", "src", "parts", "**"],
       ["apps", "site", "src", "registry", "presets", "v2-proved.json"],

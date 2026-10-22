@@ -2680,11 +2680,12 @@
     "The arms differ by 36 px of document height, so the window sits differently from the page end"
    ],
    "premises": [
-    "The platform card is the last section of the rewrite page (apps/site/src/App.tsx); whether the original snapshot also ends there is open"
+    "CONFIRMED: the original also ends at the platform card at every width (research/notes/2026/10-2x-platform-end-premise.md; snapshot nodes/2.DyWL8TcE.js byte 364831, index.html 93894-93911)",
+    "Media-query change listeners run inside the rendering update before rAF callbacks: CONFIRMED (WebKit Page.cpp:2298-2300@862f17d, MediaQueryList.cpp:108)"
    ],
    "v1Evidence": "",
-   "lesson": "A write that is skipped only where the original never writes saves nothing; check that the original does the work in the measured window before porting a skip.",
-   "next": "Hold: keep the flag registered, out of the preset; re-measure in the Simulator replay of the end of page, or if a section is added below the card.",
+   "lesson": "A write that is skipped only where the original never writes saves nothing; check that the original does the work in the measured window before porting a skip. Here the original's shrink is dead code on a plain scroll at phone and desktop width alike (the card is the last section in the original too), so platform:mq cannot win on any end-of-page window.",
+   "next": "Hold; no port task. Re-open only if the snapshot changes, or to measure rubber-band overscroll at the page end (the only path where the original computes a nonzero shrink; INFERRED, unmeasured).",
    "evidence": "CI runs 39680952848, 39680958629, 39680964944, 39685930205; research/notes/2026/10-2x-platform-shrink-mq.md; results/platform-shrink-mq/report.json"
   },
   {
