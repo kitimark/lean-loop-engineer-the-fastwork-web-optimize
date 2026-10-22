@@ -10,6 +10,8 @@
 - Site: vitest `src/parts/pain` green, typecheck green. Footprint, rows, diff, v2-proved decisions and Bridge tables regenerated (people.card to pain edge, 314 chain pairs; `Bridge.lean` is outside the graph writes).
 
 ## Open
+- Dry land without --allow ends `VERDICT scope pain-dark-scroll`: the graph writes lack `lean/Fw/Parts/Bridge.lean`, `lean/Fw/Parts/FootprintData.lean`, `lean/Fw/Parts/FootprintRows.lean` (regenerated from the new footprint; Bridge tables by hand from `#eval`) and `research/findings/ledger.json` (row n=46, which the console-api compose test needs). With `--allow` for those four: `VERDICT dry pain-dark-scroll`. The lead adds them to the task's writes or lands with `--allow`.
+- Not delivered: toggle-frame duration, trajectory pain cell (pending gpu-trajectory-cells), Safari-on-Mac (gpu-safari-lane), a toolbar-throttle arm for the flag.
 - See the report's `open`; the note is `research/notes/2026/10-2x-pain-dark-scroll.md`, numbers in `results/pain-dark-scroll/report.json`.
 
 ## Conventions
