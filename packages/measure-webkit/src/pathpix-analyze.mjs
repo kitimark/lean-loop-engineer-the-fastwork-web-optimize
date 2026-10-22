@@ -1,23 +1,15 @@
-// Path-pix analysis, shared by both lanes: a lane directory (manifest.json + shots/*.png written by pathpix-webkit.mjs or
-// packages/measure-chromium/src/pathpix.mjs) becomes cells (Lean Fw.Gate.PathPix.Cell JSON), grades by the twin of the Lean
-// decision (pathpix.mjs) and strips (arm A | arm B | 32x amplified difference).
-//   node src/pathpix-analyze.mjs <laneDir> [--strips all|changed|none] [--out <dir>]
-// A cell compares arm A (the page as it is) with arm B: A2 (a second load of the same page: the A/A cell) or P:<layer> (the
-// same page with only that layer forced onto its own compositing layer by `?fwl=<layer>:c`: the path-only cell).
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { decodePng, encodePng, cropImage, sameImage } from './pathpix-png.mjs';
 import { mask, maskEmpty, inMask, rawOf, grade, premises, cellS1 } from './pathpix.mjs';
 
 const gcd = (a, b) => (b === 0n ? (a < 0n ? -a : a) : gcd(b, a % b));
-/** micro px integer -> the golden rational string "n" or "n/d". */
 export function microRat(u) {
   const n = BigInt(Math.round(u)), d = 1000000n, g = gcd(n, d) || 1n;
   const [a, b] = [n / g, d / g];
   return b === 1n ? `${a}` : `${a}/${b}`;
 }
 
-/** The per-pixel largest channel difference (0 when equal) of two equally sized images. */
 export function deltas(a, b) {
   const n = a.w * a.h, out = new Uint8Array(n), p = a.rgba, q = b.rgba;
   for (let i = 0; i < n; i++) {
@@ -29,7 +21,6 @@ export function deltas(a, b) {
 
 const bucket = (d) => (d === 1 ? 'b1' : d <= 3 ? 'b2_3' : d <= 15 ? 'b4_15' : 'b16_255');
 
-/** Raw counts inside and outside a mask, and a histogram of the inside deltas (buckets of 1, 2-3, 4-15, 16-255). */
 export function split(del, w, m) {
   const inside = [], out = [], hist = { b1: 0, b2_3: 0, b4_15: 0, b16_255: 0 };
   for (let i = 0; i < del.length; i++) {
@@ -39,7 +30,6 @@ export function split(del, w, m) {
   return { inside: rawOf(inside), out: rawOf(out), hist };
 }
 
-/** Strip: [A | B | amplified difference] around the mask, one pixel gap of grey between panels. */
 export function strip(a, b, del, m, { pad = 8, maxH = 800, gain = 32 } = {}) {
   const x0 = Math.max(0, m[0] - pad), x1 = Math.min(a.w, m[1] + pad), y0 = Math.max(0, m[2] - pad), y1 = Math.min(a.h, Math.min(m[3] + pad, m[2] - pad + maxH));
   const cw = x1 - x0, ch = y1 - y0, gap = 6, W = cw * 3 + gap * 2;
@@ -52,13 +42,12 @@ export function strip(a, b, del, m, { pad = 8, maxH = 800, gain = 32 } = {}) {
       put(1, b.rgba[s], b.rgba[s + 1], b.rgba[s + 2]);
       const v = Math.min(255, del[(y0 + r) * a.w + x0 + c] * gain);
       const inM = inMask(m, x0 + c, y0 + r);
-      put(2, v, inM ? v : 0, inM ? v : 0); // difference outside the mask shows red
+      put(2, v, inM ? v : 0, inM ? v : 0);
     }
   }
   return { w: W, h: ch, rgba };
 }
 
-/** Whole-frame difference of two captures: changed pixels, bounding box [x0, y0, x1, y1] (exclusive end) and largest delta. Diagnostic, not graded. */
 export function frameDiff(del, w) {
   let changed = 0, max = 0, x0 = w, y0 = del.length, x1 = -1, y1 = -1;
   for (let i = 0; i < del.length; i++) {
@@ -71,7 +60,6 @@ export function frameDiff(del, w) {
   return { changed, maxDelta: max, bbox: changed ? [x0, y0, x1 + 1, y1 + 1] : null };
 }
 
-/** [A | B | amplified difference] of the whole frame, every `k`-th pixel (nearest), for diagnosing a change outside a layer. */
 export function thumb(a, b, del, k = 4, gain = 32) {
   const cw = Math.floor(a.w / k), ch = Math.floor(a.h / k), gap = 4, W = cw * 3 + gap * 2;
   const rgba = new Uint8Array(W * ch * 4).fill(128);
@@ -92,7 +80,6 @@ const loadImg = (dir, f) => decodePng(readFileSync(join(dir, f)));
 const sig = (s) => JSON.stringify((s.layers ?? []).filter((l) => l.layer).map((l) => [l.layer, l.boundsU, l.memory ?? null]).sort());
 const recs = (s, layer) => (s.layers ?? []).filter((l) => l.layer === layer);
 
-/** All cells of a lane directory. `emit(name, png)` receives each strip. */
 export function analyzeLane(dir, { strips = 'changed', emit = () => {} } = {}) {
   const man = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8'));
   const { frame, dpr, engine } = man;
@@ -150,7 +137,6 @@ export function analyzeLane(dir, { strips = 'changed', emit = () => {} } = {}) {
   return { schema: 'fw.path-pix.cells/1', engine, run: man.run, lane: man.lane, compositing: man.compositing, dpr, frame, maxY: man.maxY, offsets: man.offsets, layers: man.layers, pLayers: man.pLayers ?? man.layers, cut: man.cut ?? [], cells, skipped, frames };
 }
 
-/** Per-kind and per-layer verdict table (Markdown). */
 export function table(res) {
   const out = [`### path-pix ${res.lane ?? res.engine} (run ${res.run}, ${res.compositing ?? '?'} compositing)`, ''];
   const kinds = ['A/A', 'P'];

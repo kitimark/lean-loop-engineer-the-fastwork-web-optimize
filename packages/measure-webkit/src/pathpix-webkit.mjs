@@ -1,9 +1,3 @@
-// Path-pix lane, iOS Simulator (Mobile Safari, the verdict lane): pinned frames of the faithful rewrite at the Lean-chosen scroll
-// offsets, for the page as it is (arm A, loaded twice: A and A2) and for the page with one declared layer forced onto its own
-// compositing layer (arm P:<layer>, `?fwl=<layer>:c`). Every frame is a device screenshot (`simctl io screenshot`, the
-// Simulator's composited screen) cropped to the layout viewport; each frame is captured twice (P4). The output directory is
-// read by pathpix-analyze.mjs. No timing is taken: the page is frozen (Fw.Gate.Freeze) and scrolled with instant scrollTo.
-//   node src/pathpix-cli.mjs --site <apps/site/dist/aot> --out <dir> [--layers a,b] [--offsets 0,4,8] [--run ID]
 import { mkdirSync, writeFileSync, readFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -19,11 +13,6 @@ import { offsets as leanOffsets } from './pathpix.mjs';
 import { BOX_EXPR, FREEZE_EXPR, HOLD_EXPR, NEAR_IMAGES_EXPR, VIDEO_EXPR, MARK_ON, MARK_OFF, pathSearch } from './pathpix-page.mjs';
 import { mask, maskEmpty } from './pathpix.mjs';
 
-/**
- * Positions (indices into the captured offsets) at which arm A shows `layer`, i.e. where the analysis cuts a cell for it. The analysis
- * masks the box of arm A (pathpix-analyze.mjs), so a P frame at any other position would never be read: it is not captured.
- * TS composition of the golden-checked mask / maskEmpty, no new rule.
- */
 export function inViewPositions(rowsA, layer, dpr, frame) {
   const ks = [];
   rowsA.forEach((row, k) => {
@@ -33,7 +22,6 @@ export function inViewPositions(rowsA, layer, dpr, frame) {
   return ks;
 }
 
-/** Bounding box [x, y, w, h] of the magenta pixels of a screenshot, or null. */
 export function magentaBox(img) {
   let x0 = img.w, y0 = img.h, x1 = -1, y1 = -1;
   for (let y = 0; y < img.h; y++) {
@@ -47,7 +35,6 @@ export function magentaBox(img) {
   return x1 < 0 ? null : [x0, y0, x1 - x0 + 1, y1 - y0 + 1];
 }
 
-/** wip.mjs navigateTab with a microtask instead of setTimeout: the page's timers are held, so its setTimeout never fires. */
 async function navigateHeld(c, url, log) {
   await c.evaluate(`window.__fwNav = 1; queueMicrotask(() => { location.href = ${JSON.stringify(url)}; }); 'nav'`);
   await c.close();
@@ -66,7 +53,6 @@ function screenshot(udid, file) {
   return readFileSync(file);
 }
 
-/** Pin the status bar so the clock and battery cannot differ between frames (the crop leaves it out anyway). */
 function pinStatusBar(udid, log) {
   const r = simctl(['status_bar', udid, 'override', '--time', '9:41', '--batteryState', 'charged', '--batteryLevel', '100', '--cellularBars', '4', '--wifiBars', '3']);
   if (r.status !== 0) log(`status_bar override failed (the crop leaves the bar out): ${(r.stderr || '').trim().slice(0, 120)}`);
@@ -81,14 +67,12 @@ export async function runWebkitLane({ siteDir, out, run, layers: onlyLayers = nu
   try {
     return await withSession(async (ctx) => {
       pinStatusBar(dev.udid, log);
-      let content = null; // [x, y, w, h] of the layout viewport in the device screenshot
+      let content = null;
       const loadArm = async (search) => {
         const url = `${ctx.base}/${search}`;
         ctx.setClient(await navigateHeld(ctx.c, url, log));
         ctx.url = url;
-        // the page's own timers (the headline's word cycle) are held as soon as it has hydrated and its fonts are in, so every
-        // arm starts from the same state and a frame does not change under the camera (Fw.Gate.Freeze covers the animations)
-        await loadFresh(ctx.c, { clock: 'pinned', settleMs, timers: 'hold' }); // settleMs is 0: no settle before the hold
+        await loadFresh(ctx.c, { clock: 'pinned', settleMs, timers: 'hold' });
         log(`  timers held ${await ctx.c.runAsync(HOLD_EXPR)}`);
         await ctx.c.evaluate(FREEZE_EXPR);
       };
@@ -105,7 +89,6 @@ export async function runWebkitLane({ siteDir, out, run, layers: onlyLayers = nu
         return [box[0], box[1], want[0], want[1]];
       };
 
-      // arm A: declared layers, frame and range come from this load
       await loadArm('');
       const info = await pageInfo(ctx.c);
       const dpr = info.dpr;
@@ -120,8 +103,6 @@ export async function runWebkitLane({ siteDir, out, run, layers: onlyLayers = nu
       const offs = idx.map((i) => all[i]);
       log(`lane webkit: dpr ${dpr}, viewport ${info.vw}x${info.vh}, frame ${frame.w}x${frame.h} at ${content.slice(0, 2).join(',')}, maxY ${info.maxY}, offsets ${offs.join(',')}, layers ${layers.join(', ')}`);
 
-      // A and A2 cover every layer's A/A cells; the P arms are the layers named in pLayers (one VM measures some of them), each only
-      // at the positions where arm A shows the layer
       const pOnly = pLayers ? layers.filter((l) => pLayers.includes(l)) : layers;
       const arms = [['A', '', null], ['A2', '', null], ...pOnly.map((l) => [`P:${l}`, pathSearch(l), l])];
       const samples = {};
@@ -140,7 +121,6 @@ export async function runWebkitLane({ siteDir, out, run, layers: onlyLayers = nu
         if (a > 1 && Date.now() - t0 > deadlineMs) { cut.push(arm); log(`arm ${arm} not run: past the ${Math.round(deadlineMs / 60000)} min deadline`); continue; }
         const ks = only ? inViewPositions(samples.A, only, dpr, frame) : idx.map((_, k) => k);
         let rows = null;
-        // an arm is one fresh load and its frames: a stalled evaluate or a lost tab repeats the whole arm after a reconnect
         for (let attempt = 1; !rows; attempt++) {
           try {
             await ctx.check?.();
@@ -148,7 +128,7 @@ export async function runWebkitLane({ siteDir, out, run, layers: onlyLayers = nu
             rows = await captureArm(arm, ks);
           } catch (e) {
             if (attempt >= attempts()) {
-              if (a < 2) throw e; // without A and A2 there is no cell at all
+              if (a < 2) throw e;
               cut.push(`${arm} (failed: ${e.message})`);
               log(`  arm ${arm} given up after ${attempt} attempts: ${e.message}`);
               break;
@@ -171,12 +151,10 @@ export async function runWebkitLane({ siteDir, out, run, layers: onlyLayers = nu
           const video = await ctx.c.runAsync(VIDEO_EXPR);
           await ctx.c.evaluate(FREEZE_EXPR);
           await sleep(400);
-          await ctx.c.evaluate(FREEZE_EXPR); // a transition the late frames started ends here too
+          await ctx.c.evaluate(FREEZE_EXPR);
           await sleep(300);
           const census = await takeCensus(ctx.c, { paintWindowMs: 0 });
           const here = JSON.parse(await ctx.c.evaluate(BOX_EXPR));
-          // two captures of one load (P4). The screen may still be settling (an image's decode at its final size): shoot until two
-          // consecutive captures are equal, at most 6 times; the last two are kept, so a screen that never settles stays visible as unequal
           const files = [];
           let prev = null, tries = 0;
           for (let rep = 0; rep < 6; rep++) {

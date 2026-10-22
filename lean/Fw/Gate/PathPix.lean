@@ -657,12 +657,8 @@ def premiseCases : List (String × Engine × Claim) :=
    ("backdrop-filter on WebKit, not composited", .webkit, ⟨[.backdropFilter], false, false, false, false, false, none⟩),
    ("rotate", .chromium, ⟨[.rotate], false, false, false, true, true, none⟩)]
 
-/-! ## Samples, masks and count reduction (task path-pix-lanes) -/
-
-/-- Pinned scroll offset `i` of 8 equal steps over a scroll range `maxY` (integer CSS px, rounded down). -/
 def offsetAt (maxY i : Nat) : Nat := i * maxY / 8
 
-/-- The 9 pinned scroll offsets of a lane run: from the top to the end of the page. -/
 def offsets (maxY : Nat) : List Nat := (List.range 9).map (offsetAt maxY)
 
 theorem offsets_length (maxY : Nat) : (offsets maxY).length = 9 := by simp [offsets]
@@ -678,15 +674,11 @@ theorem offsetAt_le (maxY i : Nat) (h : i ≤ 8) : offsetAt maxY i ≤ maxY := b
   have := Nat.mul_le_mul_right maxY h
   unfold offsetAt; omega
 
-/-- Clamp an integer to `[0, n]`. -/
 def clampN (n : Nat) (v : Int) : Nat := (max 0 (min (n : Int) v)).toNat
 
-/-- The device-pixel columns `[lo, hi)` of a CSS interval (start `lo` and length `len` in micro CSS px, `dpr` device
-pixels per CSS px) on a frame `n` device pixels wide, grown by one pixel on each side and clipped to the frame. -/
 def span (dpr n : Nat) (lo : Int) (len : Nat) : Nat × Nat :=
   (clampN n (lo * dpr / 1000000 - 1), clampN n (-((-((lo + len) * dpr)) / 1000000) + 1))
 
-/-- A device pixel column `d` is hit by the interval: its pixel `[d, d+1)` overlaps `[lo, lo+len)`. -/
 def Hit (dpr : Nat) (lo : Int) (len : Nat) (d : Int) : Prop :=
   d * 1000000 < (lo + len) * dpr ∧ lo * dpr < (d + 1) * 1000000
 
@@ -701,7 +693,6 @@ theorem span_le (dpr n : Nat) (lo : Int) (len : Nat) : (span dpr n lo len).1 ≤
 theorem span_le_n (dpr n : Nat) (lo : Int) (len : Nat) : (span dpr n lo len).2 ≤ n := by
   unfold span clampN; omega
 
-/-- Every frame column within one pixel of a hit column lies in the grown, clipped span. -/
 theorem span_covers (dpr n : Nat) (lo : Int) (len : Nat) (c d : Nat) (hd : Hit dpr lo len d) (hc : c < n)
     (hn : (d : Int) ≤ c + 1) (hp : (c : Int) ≤ d + 1) :
     (span dpr n lo len).1 ≤ c ∧ c < (span dpr n lo len).2 := by
@@ -713,7 +704,6 @@ theorem span_covers (dpr n : Nat) (lo : Int) (len : Nat) (c d : Nat) (hd : Hit d
   generalize (lo + len) * dpr = b at *
   omega
 
-/-- A layer's box in micro CSS px (viewport coordinates, 1e-6 px) with its size. -/
 structure Box where
   x : Int
   y : Int
@@ -721,15 +711,11 @@ structure Box where
   h : Nat
 deriving DecidableEq, Repr
 
-/-- The device-pixel mask of a box: columns `[x0, x1)` and rows `[y0, y1)`, grown by one device pixel, clipped to a
-`fw x fh` frame. -/
 def mask (dpr fw fh : Nat) (b : Box) : (Nat × Nat) × (Nat × Nat) := (span dpr fw b.x b.w, span dpr fh b.y b.h)
 
-/-- Whether the pixel at column `c`, row `r` lies in a mask. -/
 def inMask (m : (Nat × Nat) × (Nat × Nat)) (c r : Nat) : Bool :=
   decide (m.1.1 ≤ c && c < m.1.2 && m.2.1 ≤ r && r < m.2.2)
 
-/-- One pixel's difference: the largest of its channel differences (0 when equal). -/
 def rawOf (px : List Nat) : Raw := ⟨(px.filter (· != 0)).length, px.foldl max 0⟩
 
 theorem rawOf_ok (px : List Nat) (h : ∀ d ∈ px, d ≤ 255) : (rawOf px).ok = true := by
@@ -762,10 +748,8 @@ theorem rawOf_ok (px : List Nat) (h : ∀ d ∈ px, d ≤ 255) : (rawOf px).ok =
   rw [e]
   simp [h1]
 
-/-- The golden `offsets` cases (scroll ranges). -/
 def offsetCases : List Nat := [0, 1, 7, 8, 100, 4626, 5000]
 
-/-- The golden mask cases: a name, dpr, frame width and height in device px, and a box. -/
 def maskCases : List (String × Nat × Nat × Nat × Box) :=
   [("interior box, dpr 3", 3, 1170, 2532, ⟨10000000, 20500000, 100000000, 40000000⟩),
    ("box past the top and left edges", 3, 1170, 2532, ⟨-5000000, -2000000, 50000000, 30000000⟩),
@@ -775,10 +759,8 @@ def maskCases : List (String × Nat × Nat × Nat × Box) :=
    ("empty box", 3, 1170, 2532, ⟨30000000, 30000000, 0, 0⟩),
    ("box fully off screen", 3, 1170, 2532, ⟨0, 900000000, 100000000, 10000000⟩)]
 
-/-- The golden `rawOf` cases: per-pixel largest channel differences. -/
 def rawCases : List (List Nat) := [[], [0, 0, 0], [0, 1, 0, 1], [3, 0, 255, 2], [16, 4], [0, 256]]
 
-/-- The lines of `packages/contracts/golden/gate/path-pix.jsonl`. -/
 def goldenLines (_ : Unit := ()) : List String :=
   gradeCases.map (fun (n, c) =>
     (Json.mkObj [("kind", "grade"), ("name", toJson n), ("cell", c.json), ("s1", toJson c.s1),
@@ -800,10 +782,8 @@ def goldenLines (_ : Unit := ()) : List String :=
     let r := rawOf px
     (Json.mkObj [("kind", "raw"), ("pixels", toJson px), ("raw", r.json), ("ok", toJson r.ok)]).compress)
 
-/-- The exact bytes of `packages/contracts/golden/gate/path-pix.jsonl`: the lines, each newline-terminated. -/
 def goldenText (_ : Unit := ()) : String := String.intercalate "" ((goldenLines ()).map (· ++ "\n"))
 
-/-- Print the golden text, or with `--check <file>` exit 0 iff the file holds exactly these bytes. -/
 def run (args : List String) : IO UInt32 := do
   match args with
   | ["--check", path] =>

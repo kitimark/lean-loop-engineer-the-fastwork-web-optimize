@@ -1,5 +1,3 @@
-// Minimal PNG reader and writer for the path-pix lanes (8-bit, non-interlaced; colour types 0, 2, 3, 4 and 6 are read,
-// RGBA is written). Written from the public PNG specification (RFC 2083 / ISO 15948) with node:zlib; no dependency.
 import { inflateSync, deflateSync, crc32 } from 'node:zlib';
 
 const SIG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -9,7 +7,6 @@ function paeth(a, b, c) {
   return pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
 }
 
-/** Decode a PNG buffer to { w, h, rgba: Uint8Array } (alpha 255 when the file has none). */
 export function decodePng(buf) {
   if (buf.length < 8 || !buf.subarray(0, 8).equals(SIG)) throw new Error('not a PNG');
   let off = 8, w = 0, h = 0, depth = 0, ctype = 0, interlace = 0;
@@ -65,7 +62,6 @@ function chunk(type, data) {
   return Buffer.concat([head.subarray(0, 4), body, tail]);
 }
 
-/** Encode { w, h, rgba } as an 8-bit RGBA PNG (filter 0, so the bytes depend on the pixels only). */
 export function encodePng({ w, h, rgba }) {
   const ihdr = Buffer.alloc(13);
   ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4); ihdr[8] = 8; ihdr[9] = 6;
@@ -77,14 +73,12 @@ export function encodePng({ w, h, rgba }) {
   return Buffer.concat([SIG, chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw, { level: 6 })), chunk('IEND', Buffer.alloc(0))]);
 }
 
-/** The sub-image [x, x+cw) x [y, y+ch) of an image (callers keep it inside the image). */
 export function cropImage(img, x, y, cw, ch) {
   const out = new Uint8Array(cw * ch * 4);
   for (let r = 0; r < ch; r++) out.set(img.rgba.subarray(((y + r) * img.w + x) * 4, ((y + r) * img.w + x + cw) * 4), r * cw * 4);
   return { w: cw, h: ch, rgba: out };
 }
 
-/** Whether two images hold the same pixels. */
 export function sameImage(a, b) {
   if (a.w !== b.w || a.h !== b.h) return false;
   const p = a.rgba, q = b.rgba;

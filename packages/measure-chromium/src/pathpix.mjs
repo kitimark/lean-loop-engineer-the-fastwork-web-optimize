@@ -1,14 +1,3 @@
-// In-container driver of the path-pix lane, Chromium arm (software compositing, secondary: --disable-gpu, so pixels come
-// from the software compositor; the iOS Simulator lane is the verdict lane). Same job as measure-webkit's pathpix-webkit.mjs:
-// pinned frames of the faithful rewrite at the Lean-chosen scroll offsets for the page as it is (arms A and A2, two loads)
-// and for the page with one declared layer forced onto its own compositing layer (arm P:<layer>, `?fwl=<layer>:c`).
-// A frame is one HeadlessExperimental.beginFrame with a PNG screenshot (BeginFrameControl, native requestAnimationFrame,
-// no animation seek); each frame is captured twice (P4). The virtual clock is never advanced after the load, so no page
-// timer fires between frames; the animations are frozen by the Fw.Gate.Freeze pass.
-// The page-side text (box probe, freeze pass) is read from /exprs/page.json, which the host writes from measure-webkit's
-// pathpix-page.mjs: one source for both engines. Writes /out/manifest.json and /out/shots/*.png (layout read by
-// measure-webkit/src/pathpix-analyze.mjs); on a failure /out/error.json. Mounts: /driver (this dir, ro), /profiles (ro),
-// /site (ro), /exprs (ro), /out (rw).
 import { spawn } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync, openSync } from 'node:fs';
 import puppeteer from 'puppeteer-core';
@@ -26,7 +15,7 @@ const ONLY_LAYERS = args.layers && args.layers !== true ? args.layers.split(',')
 const OFFSET_IDX = args.offsets && args.offsets !== true ? args.offsets.split(',').map(Number) : null;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const dt = 1000 / profile.hz;
-const T0 = 5_000_000; // BeginFrame tick base (ms), far ahead of the container clock so no deadline fires (run.mjs)
+const T0 = 5_000_000;
 const EPOCH_MS = Date.parse(profile.pinnedDate);
 const srv = await startServer('/site');
 const CHROME_ARGS = [
@@ -47,9 +36,8 @@ async function main() {
   const browser = await puppeteer.connect({ browserURL: 'http://127.0.0.1:9222', defaultViewport: null, protocolTimeout: 60000 });
   const bs = await browser.target().createCDPSession();
   const shim = readFileSync('/driver/clock-shim.js', 'utf8');
-  let tick = 0; // BeginFrame ticks only grow, across pages
+  let tick = 0;
 
-  /** A fresh page (own target) on the profile's viewport, with the virtual clock shim; returns { c, ev, pump, shot, close }. */
   async function openPage() {
     const { targetId } = await bs.send('Target.createTarget', { url: 'about:blank', enableBeginFrameControl: true, width: profile.viewport.width, height: profile.viewport.height });
     const page = await (await browser.waitForTarget((t) => t._targetId === targetId)).page();
@@ -66,7 +54,6 @@ async function main() {
     await c.send('Emulation.setLocaleOverride', { locale: profile.locale });
     await c.send('Emulation.setUserAgentOverride', { userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36', acceptLanguage: profile.locale });
     await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `globalThis.__FW_CFG = ${JSON.stringify({ epochMs: EPOCH_MS, seed: profile.seed })};\n${shim}` });
-    /** One frame; with `png` it returns the reply with the screenshot. The virtual clock does not move, so no page timer fires. */
     const beginFrame = async (png) => {
       let bf = null;
       for (let attempt = 0; attempt < 20 && !bf; attempt++) {
@@ -86,7 +73,6 @@ async function main() {
     return { c, ev, pump, shot, close };
   }
 
-  /** Frames until no request is in flight or new for four checks in a row (a lazy image or chunk the scroll started must land first). */
   async function quietNet(p) {
     let last = -1, stable = 0;
     for (let i = 0; i < 150 && stable < 4; i++) {
@@ -97,7 +83,6 @@ async function main() {
     }
   }
 
-  /** Load `search`, pump frames until the page is quiet (complete, fonts, eager images, hydrated, no request in flight), freeze it. */
   async function loadArm(search) {
     const p = await openPage();
     const { c, ev, pump } = p;
@@ -106,7 +91,7 @@ async function main() {
     let vt = 0, quiet = 0, frames = 0;
     for (; frames < profile.load.maxFrames && quiet < profile.load.quietFrames; frames++) {
       vt = frames * dt;
-      await ev(`__fwclock.advanceTo(${vt})`).catch(() => {}); // the first frames may precede the commit of the new document
+      await ev(`__fwclock.advanceTo(${vt})`).catch(() => {});
       await pump(1);
       await sleep(20);
       const st = await ev(`document.readyState + ',' + (document.fonts ? document.fonts.status : 'loaded') + ',' + (${exprs.imagesReady} ? 1 : 0) + ',' + (window.__fw ? (window.__fw.hydrated ? 1 : 0) : 1)`).catch(() => 'loading,x,0,0');
@@ -134,7 +119,6 @@ async function main() {
   const all = laneOffsets(maxY);
   const idx = OFFSET_IDX ?? all.map((_, i) => i);
   const offs = idx.map((i) => all[i]);
-  // The frame is what the screenshot is: its size decides the pixel scale (the page reports devicePixelRatio, the screenshot the truth).
   const png0 = await pa.shot();
   const frame = { w: png0.readUInt32BE(16), h: png0.readUInt32BE(20) };
   const dpr = frame.w / info.vw;

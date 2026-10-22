@@ -1,19 +1,12 @@
-// Path-pix cell decisions in JS: the twin of Lean Fw.Gate.PathPix (grade, premises, offsets, masks, count reduction),
-// checked line by line against packages/contracts/golden/gate/path-pix.jsonl in test/pathpix.test.mjs. Rules only:
-// the lanes (pathpix-webkit.mjs, packages/measure-chromium/src/pathpix.mjs) capture, pathpix-analyze.mjs cuts cells.
 
-// ---- samples (Lean offsetAt, offsets)
 export const offsetAt = (maxY, i) => Math.floor((i * maxY) / 8);
 export const offsets = (maxY) => Array.from({ length: 9 }, (_, i) => offsetAt(maxY, i));
 
-// ---- masks (Lean clampN, span, mask, inMask)
 const clampN = (n, v) => Math.max(0, Math.min(n, v));
 const fdiv = (a, d) => Math.floor(a / d);
-/** Device columns [lo, hi) of a CSS interval (micro px) on a frame n device px wide, grown by 1 px, clipped. */
 export function span(dpr, n, lo, len) {
   return [clampN(n, fdiv(lo * dpr, 1000000) - 1), clampN(n, -fdiv(-((lo + len) * dpr), 1000000) + 1)];
 }
-/** [x0, x1, y0, y1] of a box [x, y, w, h] in micro CSS px. */
 export function mask(dpr, fw, fh, box) {
   const [x0, x1] = span(dpr, fw, box[0], box[2]);
   const [y0, y1] = span(dpr, fh, box[1], box[3]);
@@ -22,7 +15,6 @@ export function mask(dpr, fw, fh, box) {
 export const maskEmpty = (m) => m[0] >= m[1] || m[2] >= m[3];
 export const inMask = (m, c, r) => m[0] <= c && c < m[1] && m[2] <= r && r < m[3];
 
-// ---- count reduction (Lean rawOf)
 export function rawOf(px) {
   let changed = 0, maxDelta = 0;
   for (const d of px) { if (d !== 0) changed++; if (d > maxDelta) maxDelta = d; }
@@ -30,7 +22,6 @@ export function rawOf(px) {
 }
 export const rawOk = (r) => (r.changed === 0) === (r.maxDelta === 0) && r.maxDelta <= 255;
 
-// ---- premises and grade (Lean premises, Cell.*, grade)
 const has = (c, names) => c.props.some((p) => names.includes(p));
 const translates = (c) => has(c, ['transform', 'translate', 'offset']);
 const resamples = (c) => c.scales || has(c, ['scale', 'rotate']);
@@ -48,17 +39,15 @@ export function premises(engine, c) {
   ];
 }
 
-// exact rationals for S1: "n" or "n/d" strings (BigInt), the census origin times the device pixel ratio
 function rat(s) {
   const [n, d = '1'] = String(s).split('/');
   return [BigInt(n), BigInt(d)];
 }
-const GRID = [1n, 10000n]; // Lean gridDelta
-/** Lean onGrid: |x - round x| <= 1/10000 with round x = floor(x + 1/2). */
+const GRID = [1n, 10000n];
 function onGrid([n, d]) {
   const fl = (a, b) => { const q = a / b; return a % b !== 0n && (a < 0n) !== (b < 0n) ? q - 1n : q; };
-  const r = fl(2n * n + d, 2n * d); // floor((n/d) + 1/2)
-  const diff = n - r * d; // (x - r) * d
+  const r = fl(2n * n + d, 2n * d);
+  const diff = n - r * d;
   const ad = diff < 0n ? -diff : diff;
   return ad * GRID[1] <= GRID[0] * d;
 }
@@ -86,7 +75,6 @@ const near1Backed = (c) => c.claim.bound !== null && covers(c.claim.bound, c.cla
 const textHold = (c) => premises(c.engine, c.claim).includes('C1') && !c.stripsAccepted;
 const withinNoise = (c) => c.control !== null && c.inside.changed <= c.control.raw.changed && c.inside.maxDelta <= c.control.raw.maxDelta;
 
-/** The cell decision: 'E' | 'E1' | 'Q' | 'L' | 'invalid'. */
 export function grade(c) {
   if (!cellValid(c)) return 'invalid';
   if (c.out.changed !== 0) return 'L';
@@ -98,6 +86,5 @@ export function grade(c) {
   return 'L';
 }
 
-/** The compositing-property names (Lean `always`): the seven properties WebKit always accelerates. */
 export const ALWAYS = ['opacity', 'filter', 'backdrop-filter', 'transform', 'translate', 'scale', 'rotate'];
 export const accelerated = (ps) => ps.every((p) => ALWAYS.includes(p));

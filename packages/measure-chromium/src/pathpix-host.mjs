@@ -1,7 +1,3 @@
-// Host-side launcher of the path-pix lane, Chromium arm: runs the in-container driver (pathpix.mjs) on the rewrite's prerendered
-// site, then analyses the captured frames with the shared analysis (measure-webkit/src/pathpix-analyze.mjs).
-//   node src/pathpix-host.mjs --site ../../apps/site/dist/aot --out out/path-pix-chromium [--layers a,b] [--offsets 0,4,8] [--run ID] [--strips all|changed|none] [--rebuild]
-// Needs Docker and the image fw-measure-chromium:1. Software compositing (--disable-gpu): a secondary lane next to the iOS Simulator.
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';

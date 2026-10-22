@@ -1,12 +1,5 @@
 name: path-pix
 
-# The path-pix lanes (task path-pix-lanes): for each declared layer of the faithful rewrite, is the page byte-for-byte the same
-# when only that layer is forced onto its own compositing layer (`?fwl=<layer>:c`, site-layer-opts)? Frames are captured at the nine
-# scroll offsets Lean chooses (lean/Fw/Gate/PathPix.lean, golden packages/contracts/golden/gate/path-pix.jsonl, twin
-# packages/measure-webkit/src/pathpix.mjs), twice each. Two lanes: the iOS Simulator (Mobile Safari, `simctl io screenshot`; the verdict
-# lane; the Simulator has no real GPU) and Linux Chromium on BeginFrameControl (software compositing, --disable-gpu: secondary).
-# Calibration runs on the page as it is (arm A against a second load A2: the A/A cells) and with one layer forced (arm P). The cells,
-# grades and strips come from packages/measure-webkit/src/pathpix-analyze.mjs. Nothing measured here is phone time.
 on:
   push:
     branches: ['ci/**']
@@ -15,11 +8,6 @@ permissions:
   contents: read
 
 jobs:
-  # Guard (Lean Fw.Ci.Intent + Fw.Ci.Trigger, scripts/ci-paths.mjs). On a ci/* push it, and so every job, is skipped unless
-  # the head commit asks for this lane (`[ci:<lane>]`; the default lane lean always); then it runs the workflow only if
-  # the commit is the branch tip, is not on main yet, and (lean: always) some file that differs from main on the whole
-  # branch is an input. A main push starts no run; dispatches always run. Fails open.
-  # Every other job re-checks the tip first (`stale:` fails it) and has its own group, never cancelled on ci/*.
   guard:
     if: ${{ github.event_name != 'push' || !startsWith(github.ref, 'refs/heads/ci/') || contains(github.event.head_commit.message, '[ci:path-pix]') }}
     runs-on: ubuntu-24.04-arm
@@ -49,7 +37,6 @@ jobs:
         if: steps.g.outputs.run != 'true'
         run: 'true'
 
-  # The rewrite, built once. The default page and the page with the flag are both prerendered (every single flag is).
   site:
     needs: [guard]
     if: ${{ needs.guard.outputs.run == 'true' }}
@@ -134,7 +121,6 @@ jobs:
         if: ${{ steps.tip.outputs.tip == 'false' }}
         shell: bash
         run: exit 1
-      # Fail fast: the pin check is the first step after the checkout, before brew or anything that costs minutes.
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
@@ -150,7 +136,6 @@ jobs:
           mode: start
           label: sim-${{ matrix.vm }}
 
-      # Inspector bridge to the Simulator's webinspectord socket (not pinned by brew: formula version = the tap's; recorded in the artifact).
       - name: Tool (ios_webkit_debug_proxy)
         shell: bash
         run: |
@@ -170,14 +155,12 @@ jobs:
           mkdir -p "$RUNNER_TEMP/result"
           sh .github/scripts/runner-info.sh "$RUNNER_TEMP/result/runner.json"
           {
-            # facts only: a simctl abort right after the runner started (CoreSimulator not up yet) must not end the job
             sw_vers || true
             xcodebuild -version || true
             xcrun simctl list runtimes || true
             brew list --versions ios-webkit-debug-proxy || true
           } | tee "$RUNNER_TEMP/result/tools.txt"
 
-      # Boot once and keep it booted; bootDevice() is idempotent and the probe passes --keep.
       - name: Boot the Simulator (kept booted for the whole job)
         run: |
           set -euo pipefail
@@ -191,13 +174,9 @@ jobs:
         env:
           SITE_DIR: ${{ runner.temp }}/site
           VM: ${{ matrix.vm }}
-          # The runner (3 vCPU) boots Safari several times slower than a Mac: every wait in packages/measure-webkit is multiplied by this
-          # (the frames do not depend on waits), and a load step may retry twice after a reconnect.
           FW_WK_TIMEOUT_SCALE: '8'
           FW_WK_ATTEMPTS: '3'
           FW_WK_STALL_MS: '300000'
-          # The two VMs split the P arms (A and A2 run on both, so the A/A calibration is measured twice); a P arm is captured only
-          # at the offsets where its layer is in view. No P arm starts after 34 minutes: the analysis then reads what was captured.
           P_LAYERS: ${{ matrix.vm == 1 && 'hero.cue_cue,hero.deck_article,nav_bar' || 'hero.countdown_face,hero_copy,nav_earn' }}
         working-directory: packages/measure-webkit
         run: |
@@ -207,8 +186,6 @@ jobs:
           node src/pathpix-cli.mjs --site "$SITE_DIR" --out "out/$VM-path-pix-webkit" --run "$GITHUB_RUN_ID" --p-layers "$P_LAYERS" --deadline-min 34 2> >(tee "out/$VM-path-pix.log" >&2)
           ls -l out
 
-      # Steps after the measurement step are the Lean allowlist (Fw.Ci.Steps, scripts/ci-steps-lint.mjs). The VM is discarded
-      # after the job, so the Simulator is neither shut down nor deleted. Kept when a session failed; no step has a timeout.
       - name: Keep logs
         if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
         working-directory: packages/measure-webkit
@@ -223,7 +200,6 @@ jobs:
             cp -R "$d/manifest.json" "$d/cells.json" "$d/summary.md" "$d/strips" "$RUNNER_TEMP/result/$VM-path-pix-webkit/" 2>/dev/null || true
           fi
 
-      # Host state, only after a failure: where a slow start stalled. Each Simulator command is bounded by an alarm.
       - name: Host state on failure
         if: ${{ failure() && steps.stale.outcome == 'skipped' }}
         continue-on-error: true
@@ -247,8 +223,6 @@ jobs:
           mode: finish
           label: sim-${{ matrix.vm }}
 
-  # Linux Chromium, BeginFrameControl, software compositing (the secondary lane). The image is built here (chromium-counts.yml builds
-  # the same one); the driver runs in the container, the analysis on the host.
   chromium:
     needs: [guard, site]
     if: ${{ needs.guard.outputs.run == 'true' }}
@@ -330,7 +304,6 @@ jobs:
           mode: finish
           label: chromium-${{ matrix.run }}
 
-  # The cells of both lanes in the step summary (the artifacts are the record; the grades are Lean's).
   report:
     needs: [guard, sim, chromium]
     if: ${{ !cancelled() && needs.guard.outputs.run == 'true' && (needs.sim.result != 'skipped' || needs.chromium.result != 'skipped') }}

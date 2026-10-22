@@ -1,8 +1,5 @@
-// Page-side code of the path-pix lanes. The same text runs in both engines (the Chromium lane keeps a byte-identical copy in
-// packages/measure-chromium/src/pathpix.mjs, checked in test/pathpix-lane.test.mjs). The page only reports what it sees.
 import { freezeAnimations } from '../../gate-breakpoints/src/page.mjs';
 
-/** JSON of the viewport, the scroll offset and the viewport box [x, y, w, h] of every rendered `data-fw-layer` in micro CSS px. */
 export const BOX_EXPR = `(() => {
   const boxes = {};
   for (const e of document.querySelectorAll('[data-fw-layer]')) {
@@ -13,21 +10,13 @@ export const BOX_EXPR = `(() => {
   return JSON.stringify({ dpr: devicePixelRatio, vw: innerWidth, vh: innerHeight, scrollY: Math.round(scrollY), boxes });
 })()`;
 
-/** The freeze pass of the frozen-clock gate (Lean Fw.Gate.Freeze.freezeAct): finite animations jump to their end, infinite ones pause mid first iteration. */
 export const FREEZE_EXPR = `(${freezeAnimations.toString()})()`;
 
-/** Cover the layout viewport with one opaque magenta box (its pixels give the viewport's place in a device screenshot). */
 export const MARK_ON = `(() => { const d = document.createElement('div'); d.id = 'fw-pp-mark'; d.style.cssText = 'position:fixed;left:0;top:0;width:100vw;height:100vh;background:#ff00ff;z-index:2147483647;margin:0;padding:0'; document.body.appendChild(d); return 1; })()`;
 export const MARK_OFF = `(() => { const d = document.getElementById('fw-pp-mark'); if (d) d.remove(); return 1; })()`;
 
-/** Search of the path-only arm: only `layer` forced onto its own compositing layer (site-layer-opts: `?fwl=<layer>:c`). */
 export const pathSearch = (layer) => `?fwl=${encodeURIComponent(layer).replace(/%2C/gi, ',')}:c`;
 
-/**
- * Wait for hydration and fonts, then hold the page's timers (page.mjs TIMER_HOLD_SRC): nothing the page scheduled fires by itself after this.
- * The hero headline's word chain runs on timers from hydration (first change after 2200 ms), so the later this runs the more its phase
- * depends on the load's speed; the loader therefore does not settle first. Returns JSON {at: ms since navigation start, word}.
- */
 export const HOLD_EXPR = `(async () => {
   const raf = () => new Promise((r) => requestAnimationFrame(() => r()));
   for (let i = 0; i < 200 && !(window.__fw && window.__fw.hydrated); i++) await raf();
@@ -40,7 +29,6 @@ export const HOLD_EXPR = `(async () => {
   return JSON.stringify({ at: Math.round(performance.now()), word: em ? em.getAttribute('aria-label') : null });
 })()`;
 
-/** Pause every video on its first frame (the page autoplays muted loops), wait for the seek, and report [readyState, paused, currentTime] of each. */
 export const VIDEO_EXPR = `(async () => {
   const raf = () => new Promise((r) => requestAnimationFrame(() => r()));
   const vs = [...document.querySelectorAll('video')];
@@ -50,7 +38,6 @@ export const VIDEO_EXPR = `(async () => {
   return JSON.stringify(vs.map((v) => [v.readyState, v.paused, v.currentTime]));
 })()`;
 
-/** After a scroll: wait until every image within two viewports of the fold has loaded and decoded (a lazy image the scroll started, and the fade-in it triggers, must end before the freeze pass). Bounded by frames, not timers: the page's timers are held. */
 export const NEAR_IMAGES_EXPR = `(async () => {
   const raf = () => new Promise((r) => requestAnimationFrame(() => r()));
   const vh = innerHeight;
@@ -62,5 +49,4 @@ export const NEAR_IMAGES_EXPR = `(async () => {
   return near.length;
 })()`;
 
-/** True once every eager image has loaded (Chromium lane: the driver pumps frames until this holds; a lazy image below the fold may never load). */
 export const IMAGES_READY_EXPR = `[...document.images].every((i) => i.complete || i.loading === 'lazy')`;

@@ -39,7 +39,6 @@ test('magentaBox finds the marker rectangle', () => {
   assert.equal(magentaBox({ w: 2, h: 2, rgba: new Uint8Array(16).fill(255) }), null);
 });
 
-/** A synthetic lane directory: a 100x100 frame at dpr 1, one layer, arms A, A2 and P:box, one offset. */
 function fakeLane(dir, pixels) {
   mkdirSync(join(dir, 'shots'), { recursive: true });
   const base = () => { const rgba = new Uint8Array(100 * 100 * 4).fill(255); return { w: 100, h: 100, rgba }; };
