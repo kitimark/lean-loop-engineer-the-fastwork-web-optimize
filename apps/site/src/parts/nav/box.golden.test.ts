@@ -151,7 +151,7 @@ describe('nav clip-box: the CSS evaluates to the Lean rows', () => {
     }
   });
   it('keeps the original transition lists: the sheet names no transition', () => {
-    expect(css).not.toMatch(/transition/);
+    expect(css.replace(/\/\*[\s\S]*?\*\//g, '')).not.toMatch(/transition/);
   });
   it('moves the logo and the actions by the Lean translations', () => {
     for (const r of barRows.filter((q) => (q.m as number) > 0.001)) {
