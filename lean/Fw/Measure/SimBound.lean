@@ -25,6 +25,9 @@ def silenceMaxS : Nat := 491
 /-- Other long silences of green runs, seconds: runs 39357736128 (318), 39447981526 (266), 39435518921 (259). -/
 def silenceOtherS : List Nat := [318, 266, 259]
 
+/-- Longest healthy determinism session, seconds: 31.1 min, MEASURED over 56 green jobs (the figure behind `perSessionMin`). -/
+def sessionMaxS : Nat := 1866
+
 /-- Slowest Simulator boot step, seconds (run 39444758495). -/
 def bootS : Nat := 305
 
@@ -640,5 +643,114 @@ theorem cellsAfter_sub (cells : List String) (failed : String) : ∀ c ∈ cells
   intro c hc
   simp [cellsAfter] at hc
   exact hc
+
+/-! ## The watchdog inside the measuring step (task `sim-step-watchdog`, incident `inc-sim-step-unbounded`)
+
+Run 39751427150 showed that GitHub's step timeout did not end the session processes: the step ran 21 minutes past `stepMin`
+and the job limit then cancelled the log and upload steps too. The step now runs each session command under
+`packages/measure-webkit/src/watchdog.mjs run`, which ends the command's whole process group at `watchdogMin` after the step
+started (TERM, `termGraceMs`, KILL), prints one `watchdog` line and exits `watchdogExit`, so the steps after it run.
+A VM that freezes completely cannot run the watchdog either; that case stays unobservable. -/
+
+/-- Minutes before `stepMin` at which the watchdog fires. -/
+def marginMin : Nat := 2
+
+/-- Milliseconds between the group's TERM and its KILL. -/
+def termGraceMs : Nat := 20000
+
+/-- Milliseconds the watchdog waits for the group to be gone after the KILL before it reports and exits. -/
+def killWaitMs : Nat := 5000
+
+/-- Minutes the kill takes, rounded up: `termGraceMs` plus `killWaitMs`. -/
+def killMin : Nat := 1
+
+/-- Minutes the steps after the measuring step need: keep the logs, the host state (four commands, each under a 20 s alarm),
+upload the artifact, send the telemetry. INFERRED; the fault run reports the time they took. -/
+def logTailMin : Nat := 5
+
+/-- Exit code of a command the watchdog ended (the stall watchdog uses 3, the dead inspector 4, a lost target 5). -/
+def watchdogExit : Nat := 6
+
+/-- The watchdog's deadline in minutes after the measuring step started. -/
+def watchdogMin (experiment : String) (sessions : Nat) : Nat := stepMin experiment sessions - marginMin
+
+#guard watchdogMin "determinism" 1 == 33 && watchdogMin "determinism" 2 == 68 && watchdogMin "quiet" 3 == 48
+
+/-- **The watchdog deadline of a determinism step.** -/
+theorem watchdogMin_determinism (k : Nat) : watchdogMin "determinism" k = k * perSessionMin - marginMin := by
+  simp [watchdogMin, stepMin]
+
+/-- **The watchdog deadline of the quiet experiment.** -/
+theorem watchdogMin_quiet (k : Nat) : watchdogMin "quiet" k = quietStepMin - marginMin := by
+  simp [watchdogMin, stepMin]
+
+/-- **The kill fits its minutes.** TERM grace and KILL wait are within `killMin`. -/
+theorem kill_fits : termGraceMs + killWaitMs ≤ killMin * 60000 := by decide
+
+/-- **The group is gone before GitHub's step timeout, determinism branch.** From one session on. -/
+theorem watchdog_before_step_determinism {k : Nat} (hk : 1 ≤ k) :
+    watchdogMin "determinism" k + killMin < stepMin "determinism" k := by
+  simp only [watchdogMin, stepMin, perSessionMin, marginMin, killMin]
+  simp
+  omega
+
+/-- **The group is gone before GitHub's step timeout, quiet branch.** -/
+theorem watchdog_before_step_quiet (k : Nat) : watchdogMin "quiet" k + killMin < stepMin "quiet" k := by
+  simp [watchdogMin, stepMin, quietStepMin, marginMin, killMin]
+
+/-- **The watchdog and its kill end before GitHub's step limit.** Whatever the experiment, from one session on. -/
+theorem watchdog_before_step_limit (e : String) {k : Nat} (hk : 1 ≤ k) :
+    watchdogMin e k + killMin < stepMin e k := by
+  by_cases h : e = "quiet"
+  · subst h; exact watchdog_before_step_quiet k
+  · have : (e == "quiet") = false := by simpa using h
+    have hd : stepMin e k = k * perSessionMin := by simp [stepMin, this]
+    have hw : watchdogMin e k = k * perSessionMin - marginMin := by simp [watchdogMin, hd]
+    rw [hw, hd]
+    simp only [perSessionMin, marginMin, killMin]
+    omega
+
+/-- **Setup, watchdog, kill and the log tail fit the job limit, determinism branch.** -/
+theorem watchdog_before_job_determinism {k : Nat} (hk : 1 ≤ k) :
+    setupMin + watchdogMin "determinism" k + killMin + logTailMin ≤ jobMin "determinism" k := by
+  simp only [watchdogMin, jobMin, stepMin, setupMin, tailMin, perSessionMin, marginMin, killMin, logTailMin]
+  simp
+  omega
+
+/-- **Setup, watchdog, kill and the log tail fit the job limit, quiet branch.** -/
+theorem watchdog_before_job_quiet (k : Nat) :
+    setupMin + watchdogMin "quiet" k + killMin + logTailMin ≤ jobMin "quiet" k := by
+  simp [watchdogMin, jobMin, stepMin, setupMin, tailMin, quietStepMin, marginMin, killMin, logTailMin]
+
+/-- **The watchdog fires before the job limit with its log tail still to run.** `setupMin + watchdogMin + killMin +
+logTailMin ≤ jobMin`: the keep-logs, host-state, upload and telemetry steps start inside the job budget, for either
+experiment, from one session on. -/
+theorem watchdog_before_job_limit (e : String) {k : Nat} (hk : 1 ≤ k) :
+    setupMin + watchdogMin e k + killMin + logTailMin ≤ jobMin e k := by
+  by_cases h : e = "quiet"
+  · subst h; exact watchdog_before_job_quiet k
+  · have : (e == "quiet") = false := by simpa using h
+    have hd : stepMin e k = k * perSessionMin := by simp [stepMin, this]
+    have hw : watchdogMin e k = k * perSessionMin - marginMin := by simp [watchdogMin, hd]
+    have hj : jobMin e k = setupMin + k * perSessionMin + tailMin := by simp [jobMin, hd]
+    rw [hw, hj]
+    simp only [perSessionMin, marginMin, killMin, setupMin, tailMin, logTailMin]
+    omega
+
+/-- **Slack for a slow setup.** The tail minutes beyond the kill and the log steps: a setup that overruns `setupMin` by up to
+this many minutes still leaves the log tail inside the job. -/
+theorem setup_slack : tailMin - killMin - logTailMin = 4 := by decide
+
+/-- **A healthy run is not cut.** `k` healthy sessions (`Seen.sessionMaxS` each) end before the watchdog deadline. -/
+theorem healthy_sessions_fit {k : Nat} (hk : 1 ≤ k) :
+    k * Seen.sessionMaxS ≤ 60 * watchdogMin "determinism" k := by
+  simp only [watchdogMin, stepMin, perSessionMin, marginMin, Seen.sessionMaxS]
+  simp
+  omega
+
+/-- **The watchdog's exit code is its own.** It differs from the codes of the stall watchdog (3), the dead inspector (4), the
+lost target (5) and a plain failure (1). -/
+theorem watchdog_exit_distinct :
+    watchdogExit ≠ 1 ∧ watchdogExit ≠ 3 ∧ watchdogExit ≠ deadExit ∧ watchdogExit ≠ targetLostExit := by decide
 
 end Fw.Measure.SimBound

@@ -17,13 +17,14 @@ export function planRequest(env) {
   };
 }
 
-/** The workflow outputs of an accepted reply: `matrix` ({include: [...]} of the cells), `search`, `original`, `rewrite`, `both`, and the time bounds `step_min`, `job_min`, `stall_ms`. */
+/** The workflow outputs of an accepted reply: `matrix` ({include: [...]} of the cells), `search`, `original`, `rewrite`, `both`, and the time bounds `step_min`, `job_min`, `stall_ms`, and the watchdog's `watchdog_min` and `term_grace_ms`. */
 export function outputsOf(reply) {
   return {
     matrix: JSON.stringify({ include: reply.matrix }),
     search: reply.search,
     original: String(reply.original), rewrite: String(reply.rewrite), both: String(reply.both),
     step_min: String(reply.stepTimeoutMin), job_min: String(reply.jobTimeoutMin), stall_ms: String(reply.stallMs),
+    watchdog_min: String(reply.watchdogMin), term_grace_ms: String(reply.termGraceMs),
   };
 }
 

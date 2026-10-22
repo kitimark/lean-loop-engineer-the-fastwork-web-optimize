@@ -51,8 +51,10 @@ test("outputs are Lean's reply; a refusal throws with the problems", async () =>
       assert.equal(o.step_min, String(c.response.stepTimeoutMin));
       assert.equal(o.job_min, String(c.response.jobTimeoutMin));
       assert.equal(o.stall_ms, String(c.response.stallMs));
+      assert.equal(o.watchdog_min, String(c.response.watchdogMin));
+      assert.equal(o.term_grace_ms, String(c.response.termGraceMs));
     }
   }
-  assert.deepStrictEqual(outputsOf({ matrix: [], search: '', original: true, rewrite: false, both: false, stepTimeoutMin: 35, jobTimeoutMin: 45, stallMs: 720000 }),
-    { matrix: '{"include":[]}', search: '', original: 'true', rewrite: 'false', both: 'false', step_min: '35', job_min: '45', stall_ms: '720000' });
+  assert.deepStrictEqual(outputsOf({ matrix: [], search: '', original: true, rewrite: false, both: false, stepTimeoutMin: 35, jobTimeoutMin: 45, stallMs: 720000, watchdogMin: 33, termGraceMs: 20000 }),
+    { matrix: '{"include":[]}', search: '', original: 'true', rewrite: 'false', both: 'false', step_min: '35', job_min: '45', stall_ms: '720000', watchdog_min: '33', term_grace_ms: '20000' });
 });

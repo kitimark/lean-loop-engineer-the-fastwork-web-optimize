@@ -48,9 +48,9 @@ tolerances are read as exact decimals (`JsonNumber` = mantissa · 10^(−exponen
 | `measure.retry` | `error` (a simctl failure text), `attempt` (≥ 1, attempts made so far), `max` (limit, naturals) | `class` (`transient`, `permanent`), `retry`, `delayMs` (the wait before the next attempt, 0 when not retrying) |
 | `measure.retryPlan` | `errors` (strings: the error of attempt 1, 2, …; the attempt after the last works), `max` | `classes`, `delays` (ms, one per retry), `retries`, `outcome` (`succeeded`, `exhausted`, `permanent`) |
 | `measure.viewport` | `profile`, `observed` ({w, h} naturals, CSS px) | `faithful` (`Fw.Measure.Viewport.viewportFaithful`: the page reports exactly the profile viewport), `widthDiffers`, `heightDiffers` |
-| `measure.simPlan` | `target` (`original`, `rewrite`, `both`), `vms`, `sessions` (decimal strings), `preset`, `fw` (`part:variant,...`, may be empty), `experiment` (`determinism`, `quiet`), `sha` (40 hex) | `problems` (empty = accepted), `search` (the query the rewrite is served with), `matrix` [{vm, arm, idx, sha, bp, search}] (empty when refused), `original`, `rewrite`, `both` (whether the matrix has those arms), `stepTimeoutMin`, `jobTimeoutMin`, `stallMs` (`Fw.Measure.SimBound`) |
+| `measure.simPlan` | `target` (`original`, `rewrite`, `both`), `vms`, `sessions` (decimal strings), `preset`, `fw` (`part:variant,...`, may be empty), `experiment` (`determinism`, `quiet`), `sha` (40 hex) | `problems` (empty = accepted), `search` (the query the rewrite is served with), `matrix` [{vm, arm, idx, sha, bp, search}] (empty when refused), `original`, `rewrite`, `both` (whether the matrix has those arms), `stepTimeoutMin`, `jobTimeoutMin`, `stallMs`, `watchdogMin`, `termGraceMs` (`Fw.Measure.SimBound`) |
 | `measure.inspector` | `relaunched` (bool: Safari was already relaunched), `fails` (naturals: failed probes in a row before this one), `socket`, `proxy`, `page` (bools: what this probe saw) | `ok` (the probe found all three), `fails` (the count after it), `dead`, `action` (`proceed`, `relaunch`, `giveUp`), `exitCode`, and `afterRelaunch` (`proceed` for a working relaunch, `giveUp` for a failed one) when the request has the optional `relaunchOk` (bool: whether the relaunch worked) |
-| `measure.simBounds` | (none) | the time constants of the dead-inspector and lost-target paths in ms (`targetWaitMs`, `targetAfterMs`, `targetEndMs`, and `tickMs`, `probeMs`, `failLimit`, `detectMs`, `terminateMs`, `launchMs`, `socketMs`, `proxyMs`, `tabMs`, `askMs`, `connectMs`, `stopMs`, `lsofMs`, `proxyStartMs`, `repairMs`, `relaunchMs`, `exitMs`, `stallMs`, `deadEndMs`) and `deadExit`, `targetLostExit`, `setupMin`, `tailMin` (`Fw.Measure.SimBound`) |
+| `measure.simBounds` | (none) | the time constants of the dead-inspector and lost-target paths in ms (`targetWaitMs`, `targetAfterMs`, `targetEndMs`, and `tickMs`, `probeMs`, `failLimit`, `detectMs`, `terminateMs`, `launchMs`, `socketMs`, `proxyMs`, `tabMs`, `askMs`, `connectMs`, `stopMs`, `lsofMs`, `proxyStartMs`, `repairMs`, `relaunchMs`, `exitMs`, `stallMs`, `deadEndMs`) and `deadExit`, `targetLostExit`, `setupMin`, `tailMin`, `watchdogExit`, `killWaitMs` (`Fw.Measure.SimBound`) |
 | `measure.targetLost` | `relaunched` (bool: Safari was already relaunched for a lost page target), `elapsedMs` (naturals: ms into the wait), `found` (bool: a page target answers), optional `relaunchOk` (bool: whether the relaunch worked) | `action` (`connect`, `wait`, `relaunch`, `failSession`), `limitMs` (the wait bound of the stretch), `capMs` (the longest a poll may take), `exitCode`, and `afterRelaunch` (`wait` or `failSession`) when the request has `relaunchOk` (`Fw.Measure.SimBound`) |
 | `measure.snapshotCounts` | `snapshot` (`args.snapshot` of `LayerTreeHostImpl:snapshot`; a non-object is empty) | `counts` {census.\*, raster.\*} |
 -/
@@ -757,7 +757,9 @@ def opSimPlan (req : Json) : Except String Reply := do
         ("both", .bool (has (·.arm == .original) && has (·.arm == .rewrite))),
         ("stepTimeoutMin", toJson (Fw.Measure.SimBound.stepMin r.experiment (Fw.Measure.SimBound.sessionsOf r.sessions))),
         ("jobTimeoutMin", toJson (Fw.Measure.SimBound.jobMin r.experiment (Fw.Measure.SimBound.sessionsOf r.sessions))),
-        ("stallMs", toJson Fw.Measure.SimBound.stallMs)]
+        ("stallMs", toJson Fw.Measure.SimBound.stallMs),
+        ("watchdogMin", toJson (Fw.Measure.SimBound.watchdogMin r.experiment (Fw.Measure.SimBound.sessionsOf r.sessions))),
+        ("termGraceMs", toJson Fw.Measure.SimBound.termGraceMs)]
 
 /-- `measure.inspector`: one probe and the failure count before it → the count after it and the action (rule:
 `Fw.Measure.SimBound`). -/
@@ -795,7 +797,8 @@ def opSimBounds (_req : Json) : Except String Reply :=
         ("stopMs", toJson stopMs), ("lsofMs", toJson lsofMs), ("proxyStartMs", toJson proxyStartMs), ("repairMs", toJson repairMs),
         ("relaunchMs", toJson relaunchMs), ("exitMs", toJson exitMs), ("stallMs", toJson stallMs), ("deadEndMs", toJson deadEndMs),
         ("deadExit", toJson deadExit), ("targetWaitMs", toJson targetWaitMs), ("targetAfterMs", toJson targetAfterMs),
-        ("targetEndMs", toJson targetEndMs), ("targetLostExit", toJson targetLostExit), ("setupMin", toJson setupMin), ("tailMin", toJson tailMin)]
+        ("targetEndMs", toJson targetEndMs), ("targetLostExit", toJson targetLostExit), ("setupMin", toJson setupMin), ("tailMin", toJson tailMin),
+        ("watchdogExit", toJson watchdogExit), ("killWaitMs", toJson killWaitMs)]
 
 /-! ## F6 composition check (Fw.Measure.Compose) -/
 

@@ -61,9 +61,9 @@ on:
         type: string
         default: ''
       fault:
-        description: Fault injection for the fail-fast proof, off by default. kill-safari or kill-proxy starts killing Safari or the inspector proxy 120 s into the session and keeps killing; the run must end with exit 4 within the Lean bound (Fw.Measure.SimBound). A ci/* push sets it with a commit token (fault:kill-safari or fault:kill-proxy in square brackets)
+        description: Fault injection for the fail-fast proof, off by default. kill-safari or kill-proxy starts killing Safari or the inspector proxy 120 s into the session and keeps killing; the run must end with exit 4 within the Lean bound (Fw.Measure.SimBound). hang replaces the session commands by one that ignores SIGINT and SIGTERM and never exits, with a 120 s deadline instead of the Lean one; the watchdog must end its process group (exit 6), and the logs and the artifact must still be kept (task sim-step-watchdog). A ci/* push sets it with a commit token (fault:kill-safari, fault:kill-proxy or fault:hang in square brackets)
         type: choice
-        options: ['', kill-safari, kill-proxy]
+        options: ['', kill-safari, kill-proxy, hang]
         default: ''
       nonce:
         description: >-
@@ -165,6 +165,8 @@ jobs:
       step_min: ${{ steps.m.outputs.step_min }}
       job_min: ${{ steps.m.outputs.job_min }}
       stall_ms: ${{ steps.m.outputs.stall_ms }}
+      watchdog_min: ${{ steps.m.outputs.watchdog_min }}
+      term_grace_ms: ${{ steps.m.outputs.term_grace_ms }}
     steps:
       - name: 'tip re-check'
         id: tip
@@ -420,22 +422,38 @@ jobs:
           # stall watchdog: Lean's Fw.Measure.SimBound.stallMs via the plan; it is main's limit, checked against the silences in Fw.Measure.SimBound.Seen
           FW_WK_STALL_MS: ${{ needs.plan.outputs.stall_ms }}
           # fail-fast proof: the fault input, or the commit token of a ci/* push (a push carries no inputs); empty = no fault
-          FW_WK_FAULT: ${{ inputs.fault || (contains(github.event.head_commit.message, '[fault:kill-safari]') && 'kill-safari') || (contains(github.event.head_commit.message, '[fault:kill-proxy]') && 'kill-proxy') || '' }}
+          FW_WK_FAULT: ${{ inputs.fault || (contains(github.event.head_commit.message, '[fault:kill-safari]') && 'kill-safari') || (contains(github.event.head_commit.message, '[fault:kill-proxy]') && 'kill-proxy') || (contains(github.event.head_commit.message, '[fault:hang]') && 'hang') || '' }}
+          # in-script watchdog: Lean's Fw.Measure.SimBound.watchdogMin and termGraceMs via the plan. GitHub's step timeout above did not end
+          # the session processes in run 39751427150, so every session command runs under `watchdog.mjs run`, which ends its process group
+          WATCHDOG_MIN: ${{ needs.plan.outputs.watchdog_min }}
+          TERM_GRACE_MS: ${{ needs.plan.outputs.term_grace_ms }}
         working-directory: packages/measure-webkit
         run: |
           set -euo pipefail
           mkdir -p out
+          # the step's clock: the watchdog deadline of every command below is WATCHDOG_MIN after this second
+          start=$(date +%s)
+          # wd <session label> <stderr file> <stdout file or ''> <command...>: the command in its own process group, ended at the deadline
+          wd() {
+            local label=$1 err=$2 outf=$3; shift 3
+            local o=(); if [ -n "$outf" ]; then o=(--stdout-file "$outf"); fi
+            node src/watchdog.mjs run --label "$label" --start-s "$start" --budget-min "$WATCHDOG_MIN" --grace-ms "$TERM_GRACE_MS" --stderr-file "$err" ${o[@]+"${o[@]}"} -- "$@"
+          }
+          # fault=hang: a command that ignores SIGINT and SIGTERM and never exits, under a 120 s deadline (the fault's own clock, not the Lean bound)
+          if [ "$FW_WK_FAULT" = hang ]; then
+            node src/watchdog.mjs run --label "fault hang $VM" --start-s "$start" --budget-s "${FW_WK_FAULT_AFTER_S:-120}" --grace-ms "$TERM_GRACE_MS" --stderr-file "out/$VM-session-1.log" --stdout-file "out/$VM-session-1.md" -- node src/watchdog.mjs hang
+          fi
           # rewrite arm: --site serves the prerendered build at the planned query (empty = default config) instead of the snapshot
           site=()
           if [ "$ARM" = rewrite ]; then site=(--site "$SITE_DIR" --search "$SEARCH"); fi
           if [ "$EXPERIMENT" = quiet ]; then
-            node src/cli.mjs quiet --arms "$ARMS" --reps "$REPS" --keep --out "out/$VM-quiet.json" 2> >(tee "out/$VM-quiet.log" >&2)
+            wd "quiet $VM" "out/$VM-quiet.log" '' node src/cli.mjs quiet --arms "$ARMS" --reps "$REPS" --keep --out "out/$VM-quiet.json"
             ls -l out
             exit 0
           fi
           if [ "$LAG" != yes ] && [ "$COST" != off ]; then echo "::error::cost=$COST needs lag=true"; exit 2; fi
           if [ "$LAG" = yes ]; then
-            node src/lag/cli.mjs run --passes 2 --cost "$COST" --keep ${site[@]+"${site[@]}"} --out "out/$VM-lag.json" 2> >(tee "out/$VM-lag.log" >&2)
+            wd "lag $VM" "out/$VM-lag.log" '' node src/lag/cli.mjs run --passes 2 --cost "$COST" --keep ${site[@]+"${site[@]}"} --out "out/$VM-lag.json"
             ls -l out
             exit 0
           fi
@@ -443,7 +461,7 @@ jobs:
             keep=--keep
             # fresh_boot: no --keep, so each session ends with the device shut down and the next one boots it again
             if [ "$FRESH" = yes ]; then keep=; fi
-            node src/cli.mjs determinism --runs 2 $keep ${site[@]+"${site[@]}"} --out "out/$VM-session-$s.json" 2> >(tee "out/$VM-session-$s.log" >&2) | tee "out/$VM-session-$s.md"
+            wd "session $s of $SESSIONS ($VM)" "out/$VM-session-$s.log" "out/$VM-session-$s.md" node src/cli.mjs determinism --runs 2 $keep ${site[@]+"${site[@]}"} --out "out/$VM-session-$s.json"
           done
           ls -l out
 
