@@ -2947,6 +2947,93 @@
    "lesson": "A blocking touch listener can be scoped by an IntersectionObserver band and a finger-down hold without changing what any part sees; the cost moves to one more observer, and the win is only in WebKit pan-start latency, which the current lanes do not measure.",
    "next": "Add a touch-to-first-scroll probe to packages/measure-webkit and multi-flag prerender to the gate build, then measure base vs both flags (>= 3 runs) and gate them together.",
    "evidence": "CI runs 39778906252 (failed: multi-flag search not prerendered), 39779755536, 39779781978, 39781320030; docs/team/handoffs/morph-touch-band.md"
+  },
+  {
+   "id": "nav.clip-box",
+   "n": 48,
+   "part": "nav",
+   "candidate": "nav:clip-box: while the nav morphs the box is the union of its boxes at constant size and the pill is a clip-path inset, so the morph writes no width, height, top or border-radius and lays out nothing per frame",
+   "status": "partly-proved",
+   "flag": "nav:clip-box",
+   "flags": [
+    "nav:clip-box"
+   ],
+   "chromium": "unknown",
+   "webkit": "unknown",
+   "visual": "E: same-look breakpoint gate passes on chromium and webkit with the flag (run 39842609609); transition lists unchanged",
+   "mechanism": "PROVED (Fw.Parts.NavClipBox): clip rect equals the original nav rect (box_eq), no change at rest or with the locale menu open, the box is constant above the morphing cut (union_const) so layout happens only at the endpoints (layout_only_at_endpoints); the union width is width: pill-w plus min-width: panel-w, equal to the rest width at morph end (usedW_eq_unionW, decl_eq_rest_zero), so the original transition lists stay untouched and no width transition starts. Breakpoint gate on both engines with the flag: run 39842609609 PASS. Trajectory probe (verdict run) 39842561544.",
+   "leanFor": [
+    "Fw.Parts.NavClipBox.box_eq",
+    "Fw.Parts.NavClipBox.union_const",
+    "Fw.Parts.NavClipBox.layout_only_at_endpoints",
+    "Fw.Parts.NavClipBox.usedW_eq_unionW",
+    "Fw.Parts.NavClipBox.decl_eq_rest_zero"
+   ],
+   "leanAgainst": [],
+   "missingWhy": "Layer census and cost lane not run; the trajectory nav clip cell is pending on gpu-trajectory-cells.",
+   "premises": "The pill is drawn by clip-path on a box of constant size; the gate loads at rest, so mid-morph looks rest on the Lean rows and the trajectory probe.",
+   "v1Evidence": "",
+   "lesson": "A rule that changes a property named in a transition list must keep the list; reach the same used size through a property the list does not name (min-width) and prove the declared width equals the rest width where the class is dropped.",
+   "next": "Layer census on both engines, cost lane, trajectory nav clip cell.",
+   "evidence": "breakpoint-gate 39842609609, trajectory-probe 39842561544; first round gates 39835303279 and 39837964273 failed on the dropped width in transition-property."
+  },
+  {
+   "id": "nav.bar-fixed",
+   "n": 49,
+   "part": "nav",
+   "candidate": "nav:bar-fixed (includes clip-box): the bar keeps its union width and moves by translate, the logo and actions by closed-form translations, so the morph writes no layout property on the bar",
+   "status": "partly-proved",
+   "flag": "nav:bar-fixed",
+   "flags": [
+    "nav:bar-fixed"
+   ],
+   "chromium": "unknown",
+   "webkit": "unknown",
+   "visual": "E: same-look breakpoint gate passes on chromium and webkit with the flag (run 39846092556); transition lists unchanged",
+   "mechanism": "PROVED (Fw.Parts.NavBarFixed, NavBarFixedWork): bar width constant (barW_const) where the original grows; logo and actions translations are closed forms of the Lean rows; the union box of clip-box underlies it. Breakpoint gate on both engines with the flag: run 39846092556 PASS. Trajectory probe (verdict run) 39842569267.",
+   "leanFor": [
+    "Fw.Parts.NavClipBox.box_eq",
+    "Fw.Parts.NavClipBox.union_const",
+    "Fw.Parts.NavClipBox.layout_only_at_endpoints",
+    "Fw.Parts.NavClipBox.usedW_eq_unionW",
+    "Fw.Parts.NavClipBox.decl_eq_rest_zero"
+   ],
+   "leanAgainst": [],
+   "missingWhy": "Layer census and cost lane not run; the trajectory nav clip cell is pending on gpu-trajectory-cells.",
+   "premises": "The pill is drawn by clip-path on a box of constant size; the gate loads at rest, so mid-morph looks rest on the Lean rows and the trajectory probe.",
+   "v1Evidence": "",
+   "lesson": "A rule that changes a property named in a transition list must keep the list; reach the same used size through a property the list does not name (min-width) and prove the declared width equals the rest width where the class is dropped.",
+   "next": "Layer census on both engines, cost lane, trajectory nav clip cell.",
+   "evidence": "breakpoint-gate 39846092556, trajectory-probe 39842569267; first round gates 39835303279 and 39837964273 failed on the dropped width in transition-property."
+  },
+  {
+   "id": "nav.logo-3d",
+   "n": 50,
+   "part": "nav",
+   "candidate": "nav:logo-3d (includes bar-fixed): the logo moves by translate3d and scale in one transform so it composites instead of repainting",
+   "status": "partly-proved",
+   "flag": "nav:logo-3d",
+   "flags": [
+    "nav:logo-3d"
+   ],
+   "chromium": "unknown",
+   "webkit": "unknown",
+   "visual": "E: same-look breakpoint gate passes on chromium and webkit with the flag (run 39848853982); transition lists unchanged",
+   "mechanism": "PROVED (Fw.Parts.NavBarFixed): translate3d then scale keeps the original translate-then-scale order (translate_scale_order). Breakpoint gate on both engines with the flag: run 39848853982 PASS. Trajectory probe (verdict run) 39842581192.",
+   "leanFor": [
+    "Fw.Parts.NavClipBox.box_eq",
+    "Fw.Parts.NavClipBox.union_const",
+    "Fw.Parts.NavClipBox.layout_only_at_endpoints",
+    "Fw.Parts.NavClipBox.usedW_eq_unionW",
+    "Fw.Parts.NavClipBox.decl_eq_rest_zero"
+   ],
+   "leanAgainst": [],
+   "missingWhy": "Layer census and cost lane not run; the trajectory nav clip cell is pending on gpu-trajectory-cells.",
+   "premises": "The pill is drawn by clip-path on a box of constant size; the gate loads at rest, so mid-morph looks rest on the Lean rows and the trajectory probe.",
+   "v1Evidence": "",
+   "lesson": "A rule that changes a property named in a transition list must keep the list; reach the same used size through a property the list does not name (min-width) and prove the declared width equals the rest width where the class is dropped.",
+   "next": "Layer census on both engines, cost lane, trajectory nav clip cell.",
+   "evidence": "breakpoint-gate 39848853982, trajectory-probe 39842581192; first round gates 39835303279 and 39837964273 failed on the dropped width in transition-property."
   }
  ],
  "notes": [

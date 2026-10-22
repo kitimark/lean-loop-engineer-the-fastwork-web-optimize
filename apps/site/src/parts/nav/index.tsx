@@ -7,7 +7,9 @@ import { PROFILE_SECTION_SELECTOR, PROFILE_STICKY_SELECTOR } from '../nav.hitTes
 import { installNavTransitionDebug } from '../../debug/nav-transition';
 import { createNavDriver, type NavEnv } from './driver';
 import { CLASS_OF, EARN_STILL_CLASS, EARN_STILL_VARIANT, earnTransitionOn, type Sticky } from './logic';
+import { boxVariant } from './box';
 import { matchList } from './media';
+import boxCss from './box.module.css';
 import css from './nav.module.css';
 import { art, GenSvg } from '../../GenSvg';
 
@@ -122,10 +124,15 @@ export function Nav({
 
   const onOpenChange = useCallback((open: boolean) => driver.current?.setLocaleOpen(open), []);
 
+  const box = boxVariant(variant);
+  const boxClass = box === null ? '' : `${boxCss.boxClip}${box === 'clip-box' ? '' : ` ${boxCss.boxBar}`}${box === 'logo-3d' ? ` ${boxCss.box3d}` : ''} `;
+  const boxAttr = box === null ? undefined : 'union';
+  const roleAttr = (role: string) => (box === null ? undefined : role);
+
   return (
-    <header ref={header} className={`${css.nav} is-hero-pill`} aria-label="Primary navigation" data-fw="nav" data-fw-layer="nav_bar">
-      <div className={css.bar}>
-        <a className={css.logo} href="/" aria-label="Fastwork home">
+    <header ref={header} className={`${css.nav} ${boxClass}is-hero-pill`} aria-label="Primary navigation" data-fw="nav" data-fw-layer="nav_bar" data-fw-box={boxAttr}>
+      <div className={css.bar} data-fw-box-role={roleAttr('bar')}>
+        <a className={css.logo} href="/" aria-label="Fastwork home" data-fw-box-role={roleAttr('logo')}>
           <GenSvg art={art('nav.wordmark')} />
         </a>
         <div className={css.actions} data-fw="nav-actions">
