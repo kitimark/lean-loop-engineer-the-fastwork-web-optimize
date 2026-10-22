@@ -56,19 +56,11 @@ def linkTable : List (Flag × List Key) :=
    (⟨"people.card", "mq"⟩, [k16]),
    (⟨"hero.exit", "scoped"⟩, [k6i])]
 
-/-- **The curated exclusions**: flags kept out of the arm whatever the ledger says, each with its reason. `hero.accent`
-has no link; the two strips share the row `k_7` and leave by the C3 decision (`research/notes/2026/10-19-c3-decision.md`). -/
+/-- **The curated exclusions**: flags kept out of the arm whatever the ledger says, each with its reason. -/
 def curated : List (Flag × String) :=
   [(⟨"hero.accent", "steps"⟩,
     "ledger n = 15: a trade on Chromium and no win on WebKit (INFERRED); a follow-up makes the generator require an \
-      engine-win field"),
-   (⟨"hero.countdown", "strip"⟩,
-    "C3 decision (research/notes/2026/10-19-c3-decision.md): modelled, not proved. Its only prediction (census.layers \
-      below the original) is unchecked, and the strip arm MEASURED more pipeline work (UpdateLayoutTree.elementCount \
-      11264 -> 22445, runs 39257533380, 39259074927)"),
-   (⟨"morph.countdown", "strip"⟩,
-    "C3 decision (research/notes/2026/10-19-c3-decision.md): requires hero.countdown:strip and rests on its row k7, \
-      both out of the arm")]
+      engine-win field")]
 
 /-- The reason a flag is curated out, `none` when it is not. -/
 def reasonOf (f : Flag) : Option String := (curated.find? (·.1 == f)).map (·.2)
@@ -650,15 +642,16 @@ def record (args : List String) : IO Unit := do
     ("conflicts", Json.mkObj [])])).toOption.map fun rs => rs.map fun r => (r.flag.key, r.requires.map (·.key)))
   == some [("m:faithful", []), ("m:s", ["h:s"])]
 #guard presetText [⟨"b", "x"⟩, ⟨"a", "y"⟩] == "{\"extends\":\"original\",\"fw\":{\"a\":\"y\",\"b\":\"x\"},\"name\":\"v2-proved\"}\n"
-#guard (reasonOf ⟨"hero.countdown", "strip"⟩).isSome
-#guard (reasonOf ⟨"morph.countdown", "strip"⟩).isSome
+#guard (reasonOf ⟨"hero.countdown", "strip"⟩).isNone
+#guard (reasonOf ⟨"morph.countdown", "strip"⟩).isNone
 #guard (reasonOf ⟨"hero.accent", "steps"⟩).isSome
 #guard (reasonOf ⟨"morph.countdown", "hidden-pause"⟩).isNone
 #guard (reasonOf ⟨"hero.countdown", "hidden-pause"⟩).isNone
 #guard links.map (·.1.key) == ["engine.scroll:batched", "nav.hitTest:elements-skip", "nav.hitTest:hit-skip",
-  "morph.countdown:hidden-pause", "morph.columns:hidden-pause", "engine.scene:hidden-pause", "morph.mount:shift",
+  "hero.countdown:strip", "morph.countdown:strip", "morph.countdown:hidden-pause", "morph.columns:hidden-pause", "engine.scene:hidden-pause", "morph.mount:shift",
   "morph.tween:waapi", "pain.notes:visible", "people.card:mq", "hero.exit:scoped"]
-#guard ((verdictJson [] ⟨"hero.countdown", "strip"⟩).getObjValAs? String "verdict").toOption == some "excluded"
+#guard ((verdictJson [] ⟨"hero.accent", "steps"⟩).getObjValAs? String "verdict").toOption == some "excluded"
+#guard ((verdictJson [] ⟨"hero.countdown", "strip"⟩).getObjValAs? String "verdict").toOption == some "row-count"
 #guard ((verdictJson [] ⟨"morph.countdown", "hidden-pause"⟩).getObjValAs? String "verdict").toOption == some "row-count"
 #guard presetText [] == "{\"extends\":\"original\",\"fw\":{},\"name\":\"v2-proved\"}\n"
 #guard (parseVisClass "L").toOption == some .l
