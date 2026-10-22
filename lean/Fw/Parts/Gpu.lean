@@ -9,7 +9,7 @@ deriving Repr, DecidableEq
 
 def entries : List Entry := [
   ⟨"hero.exit", "threaded", "scroll-driven CSS animations of opacity and transform replace a per-frame main-thread write of --exit-opacity", 6⟩,
-  ⟨"platform", "fade-threaded", "the section fade is one opacity and blur Web Animation per push (compositor) instead of a per-frame custom property write", 44⟩,
+  ⟨"platform", "fade-threaded", "the section fade is one opacity and blur Web Animation per push instead of a per-frame custom property write; WebKit threads it (Core Animation), Chromium keeps it on main because blur moves pixels", 44⟩,
   ⟨"morph.panel", "const-bounds", "the blur-backed panel layer keeps a constant box, so the compositor never resizes it on a morph frame", 45⟩,
   ⟨"hero.countdown", "strip", "one 12-entry strip per digit replaces 10 will-change faces: 80 composited layers become 8", 7⟩,
   ⟨"morph.countdown", "strip", "one 12-entry strip per digit replaces 10 will-change faces: 80 composited layers become 8", 13⟩,
