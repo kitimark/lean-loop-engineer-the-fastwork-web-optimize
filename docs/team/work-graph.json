@@ -16138,7 +16138,8 @@
     "scripts/build-review.test.mjs",
     "docs/team/handoffs/lead-hotfix-1022b.md"
    ],
-   "title": "lead-hotfix-1022 changed the resume-runner text '(no --allow)' that scripts/build-review.test.mjs:59 matches; the land passed (its lanes do not run that test) and the lean workflow on ci/land-lead-hotfix-1022-9fbf421 (run 39770576911) failed. Restore the asserted text, keep the git rev-parse branch, and assert it in the test (incident inc-land-misses-script-tests)."
+   "title": "lead-hotfix-1022 changed the resume-runner text '(no --allow)' that scripts/build-review.test.mjs:59 matches; the land passed (its lanes do not run that test) and the lean workflow on ci/land-lead-hotfix-1022-9fbf421 (run 39770576911) failed. Restore the asserted text, keep the git rev-parse branch, and assert it in the test (incident inc-land-misses-script-tests).",
+   "evidence": "2a96b45"
   },
   {
    "devices": [
