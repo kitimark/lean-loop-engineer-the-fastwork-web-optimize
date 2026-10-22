@@ -6,7 +6,7 @@ export type Params = {
   nMin: number; nMax: number; targetCenti: number; highCenti: number; floorMB: number; headroomMB: number; cmprsPct: number;
   swapRiseMBPerMin: number; holdS: number; leanProcMB: number; testMB: number; landMB: number; simMB: number; otherMB: number;
   warmS: number; ageS: number; maxWaitS: number; leaseS: number; leaseMaxS: number; simIdleS: number; graceMs: number;
-  simPollS: number; buildMB: number; agentsMax: number; agentsAgeS: number; swapPct: number; comprMBPerMinMax: number;
+  simPollS: number; buildMB: number; agentsMax: number; agentsAgeS: number; swapOutMBPerMinMax: number; comprMBPerMinMax: number;
   rateMinS: number; rateMaxS: number;
 };
 
@@ -14,12 +14,12 @@ export const DEFAULT_PARAMS: Params = {
   nMin: 1, nMax: 4, targetCenti: 800, highCenti: 1600, floorMB: 1024, headroomMB: 2048, cmprsPct: 40, swapRiseMBPerMin: 512,
   holdS: 30, leanProcMB: 700, testMB: 1600, landMB: 1500, simMB: 2800, otherMB: 1000, warmS: 60, ageS: 300, maxWaitS: 1800,
   leaseS: 60, leaseMaxS: 3600, simIdleS: 600, graceMs: 5000, simPollS: 30, buildMB: 2100, agentsMax: 8, agentsAgeS: 900,
-  swapPct: 75, comprMBPerMinMax: 1500, rateMinS: 5, rateMaxS: 600,
+  swapOutMBPerMinMax: 64, comprMBPerMinMax: 1500, rateMinS: 5, rateMaxS: 600,
 };
 
 export type Mem = {
   freeMB: number; specMB: number; purgMB: number; fileMB: number; fileMinMB: number; swapUsedMB: number; swapTotalMB: number;
-  press: number; comprMBPerMin: number;
+  press: number; comprMBPerMin: number; swapOutMBPerMin: number;
 };
 export type Sample = { time: number; loadCenti: number; mem: Mem; ramMB: number; compressorMB: number; cores: number };
 export type Prev = { time: number; swapUsedMB: number } | null;
@@ -31,18 +31,21 @@ const div = (a: number, b: number): number => (b === 0 ? 0 : Math.floor(a / b));
 
 export const availMB = (m: Mem): number => m.freeMB + m.specMB + m.purgMB + sub(m.fileMB, m.fileMinMB);
 export const avail = (s: Sample): number => availMB(s.mem);
-export const swapFull = (p: Params, m: Mem): boolean => m.swapTotalMB > 0 && p.swapPct * m.swapTotalMB <= 100 * m.swapUsedMB;
+export const swapActive = (p: Params, m: Mem): boolean => p.swapOutMBPerMinMax <= m.swapOutMBPerMin;
 export const thrash = (p: Params, m: Mem): boolean => p.comprMBPerMinMax <= m.comprMBPerMin;
-export const memLow = (p: Params, m: Mem): boolean => availMB(m) < p.floorMB || m.press !== 1 || swapFull(p, m) || thrash(p, m);
+export const memLow = (p: Params, m: Mem): boolean => availMB(m) < p.floorMB || m.press !== 1 || swapActive(p, m) || thrash(p, m);
 
-export type VmMark = { time: number; count: number; rate: number };
-export function vmNext(p: Params, prev: VmMark | null, now: number, count: number, pageB: number): VmMark {
-  if (prev === null) return { time: now, count, rate: 0 };
+export type VmMark = { time: number; count: number; rate: number; swapCount: number; swapRate: number };
+export const mbPerMin = (dt: number, c0: number, c1: number, pageB: number): number =>
+  (c0 <= c1 ? div((c1 - c0) * pageB * 60, dt * 1048576) : 0);
+export function vmNext(p: Params, prev: VmMark | null, now: number, count: number, swapCount: number, pageB: number): VmMark {
+  if (prev === null) return { time: now, count, rate: 0, swapCount, swapRate: 0 };
   if (now < prev.time + p.rateMinS) return prev;
-  if (now <= prev.time + p.rateMaxS && prev.count <= count) {
-    return { time: now, count, rate: div((count - prev.count) * pageB * 60, (now - prev.time) * 1048576) };
+  if (now <= prev.time + p.rateMaxS) {
+    const dt = now - prev.time;
+    return { time: now, count, rate: mbPerMin(dt, prev.count, count, pageB), swapCount, swapRate: mbPerMin(dt, prev.swapCount, swapCount, pageB) };
   }
-  return { time: now, count, rate: 0 };
+  return { time: now, count, rate: 0, swapCount, swapRate: 0 };
 }
 
 export const loadHigh = (p: Params, s: Sample): boolean => p.highCenti <= s.loadCenti;
@@ -139,7 +142,10 @@ export function yieldsToSim(p: Params, n: number, s: Sample, hs: Entry[], q: Ent
   );
 }
 
-export function verdict(p: Params, n: number, s: Sample, hs: Entry[], q: Entry[], me: Entry, waited: number): Verdict {
+export const idleHead = (p: Params, s: Sample, hs: Entry[]): boolean =>
+  prune(s.time, hs).length === 0 && s.mem.press === 1 && !thrash(p, s.mem) && !swapActive(p, s.mem);
+
+export function verdictWith(idle: boolean, p: Params, n: number, s: Sample, hs: Entry[], q: Entry[], me: Entry, waited: number): Verdict {
   const running = prune(s.time, hs).length;
   const ahead = aheadSame(q, me);
   if (ahead > 0) return waitOr(p, waited, { why: "queued", ahead });
@@ -147,12 +153,15 @@ export function verdict(p: Params, n: number, s: Sample, hs: Entry[], q: Entry[]
   if (n <= running) return waitOr(p, waited, { why: "full", running, limit: n });
   if (me.kind === "sim" && simHeld(s.time, hs)) return waitOr(p, waited, { why: "simBusy" });
   if (me.kind === "sim" && 1 < others(s.time, hs)) return waitOr(p, waited, { why: "drain", others: others(s.time, hs) });
-  if (memLow(p, s.mem)) return waitOr(p, waited, { why: "memLow", availMB: avail(s) });
+  if (memLow(p, s.mem) && !idle) return waitOr(p, waited, { why: "memLow", availMB: avail(s) });
   const needMB = need(p, s, hs, me.kind);
-  if (avail(s) < needMB + p.floorMB + charged(p, s.time, hs)) return waitOr(p, waited, { why: "memory", needMB, roomMB: room(p, s, hs) });
+  if (avail(s) < needMB + p.floorMB + charged(p, s.time, hs) && !idle) return waitOr(p, waited, { why: "memory", needMB, roomMB: room(p, s, hs) });
   if (yieldsToSim(p, n, s, hs, q, me)) return waitOr(p, waited, { why: "simFirst" });
   return { verdict: "admit", threads: threadsFor(p, s, hs), footMB: needMB };
 }
+
+export const verdict = (p: Params, n: number, s: Sample, hs: Entry[], q: Entry[], me: Entry, waited: number): Verdict =>
+  verdictWith(idleHead(p, s, hs), p, n, s, hs, q, me, waited);
 
 export const legacyEntry = (now: number): Entry => ({ owner: "sim-lock", token: "sim-lock", kind: "sim", since: 0, till: now + 1, foot: 0, leaseS: 0 });
 export const withLegacy = (now: number, legacy: boolean, hs: Entry[]): Entry[] => (legacy ? [...hs, legacyEntry(now)] : hs);

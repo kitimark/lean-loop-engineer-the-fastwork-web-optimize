@@ -19,7 +19,8 @@ equal to the slow one, and the empirical premises it relies on.
   every job passed (`verdict_jobs_pass_iff`).
 
 Golden vectors: `packages/contracts/golden/console/land-speed.jsonl` (`goldenText`; ops `landSpeed.select`,
-`landSpeed.prelock`, `landSpeed.verdict`, `landSpeed.cache`, and the premise rows `landSpeed.premise`).
+`landSpeed.prelock`, `landSpeed.verdict`, `landSpeed.cache`, `landSpeed.seedDue`, `landSpeed.seedLag`, and the
+premise rows `landSpeed.premise`).
 Write or check with `lake env lean --run` on a two-line script calling `writeGolden` / `checkGolden` from `lean/`.
 
 The empirical premises are listed in `premises` (id, statement, theorems, test).
@@ -835,6 +836,70 @@ theorem verdict_fail_final (expected : List String) (done more : List (String ×
 #guard verdict [] [] == .pass
 #guard verdict ["lint"] [("other", false)] == .pending ["lint"]
 
+def seedReads : List String :=
+  ["lean/lean-toolchain", "lean/lake-manifest.json", "lean/lakefile.toml", "lean/*.lean", "lean/Fw/**", "lean/FwTest/**"]
+
+def seedPath (x : String) : Bool := inScope (parseScope seedReads) x
+
+def seedThreshold : Nat := 5
+
+def seedLag (changed : List String) : Nat := (changed.filter seedPath).length
+
+def seedDue (lag : Nat) : Bool := decide (seedThreshold < lag)
+
+theorem seedDue_iff (lag : Nat) : seedDue lag = true ↔ seedThreshold < lag := by
+  simp [seedDue]
+
+theorem seedDue_false_iff (lag : Nat) : seedDue lag = false ↔ lag ≤ seedThreshold := by
+  simp [seedDue]
+
+theorem seedDue_mono (a b : Nat) (hab : a ≤ b) (ha : seedDue a = true) : seedDue b = true := by
+  rw [seedDue_iff] at *; omega
+
+theorem seedDue_zero : seedDue 0 = false := by decide
+
+theorem seedDue_five : seedDue 5 = false := by decide
+
+theorem seedDue_six : seedDue 6 = true := by decide
+
+theorem seedLag_le (changed : List String) : seedLag changed ≤ changed.length :=
+  List.length_filter_le _ _
+
+theorem seedLag_eq_zero_iff (changed : List String) :
+    seedLag changed = 0 ↔ ∀ x ∈ changed, seedPath x = false := by
+  simp [seedLag, List.filter_eq_nil_iff]
+
+theorem seedLag_cons_key (x : String) (r : List String) (hx : seedPath x = true) :
+    seedLag (x :: r) = seedLag r + 1 := by
+  simp [seedLag, hx]
+
+theorem seedLag_cons_other (x : String) (r : List String) (hx : seedPath x = false) :
+    seedLag (x :: r) = seedLag r := by
+  simp [seedLag, hx]
+
+theorem seedLag_append (a b : List String) : seedLag (a ++ b) = seedLag a + seedLag b := by
+  simp [seedLag, List.filter_append]
+
+#guard seedPath "lean/Fw/Console/Land.lean"
+#guard seedPath "lean/FwTest/Main.lean"
+#guard seedPath "lean/Fw.lean"
+#guard seedPath "lean/lakefile.toml"
+#guard seedPath "lean/lake-manifest.json"
+#guard seedPath "lean/lean-toolchain"
+#guard !seedPath "lean/scripts/check.sh"
+#guard !seedPath "lean/land-legs.txt"
+#guard !seedPath "lean/math.lock.json"
+#guard !seedPath "lean/scripts/LandLegsGolden.lean"
+#guard !seedPath "docs/team/tools/land.md"
+#guard !seedPath "../lean/Fw.lean"
+#guard seedLag [] == 0
+#guard seedLag ["lean/Fw/A.lean", "lean/scripts/x.sh", "docs/x.md", "lean/Fw.lean"] == 2
+#guard seedDue 0 == false
+#guard seedDue 5 == false
+#guard seedDue 6 == true
+#guard seedDue (seedLag ["lean/Fw/A.lean", "lean/Fw/B.lean", "lean/Fw/C.lean", "lean/Fw/D.lean", "lean/Fw/E.lean",
+  "lean/Fw/F.lean"]) == true
+
 /-! ## Empirical premises (registry rows; ids to be merged into `Fw.Ops.Premise` once it is on main) -/
 
 /-- A premise row: id, statement, the theorems that assume it, and the test that asserts it. -/
@@ -917,12 +982,19 @@ def cacheCase (name : String) (S : Store Bool) (d : Nat) : Json :=
       ("digest", toJson d)]
     [("hit", .bool (cacheHit S d).isSome), ("verdict", match cacheHit S d with | some b => .bool b | none => .null)]
 
+def seedLagCase (name : String) (changed : List String) : Json :=
+  line name [("op", "landSpeed.seedLag"), ("changed", strs changed)]
+    [("lag", toJson (seedLag changed)), ("due", .bool (seedDue (seedLag changed))),
+      ("counted", strs (changed.filter seedPath))]
+
+def seedDueCase (lag : Nat) : Json :=
+  line s!"lag {lag}" [("op", "landSpeed.seedDue"), ("lag", toJson lag)] [("due", .bool (seedDue lag))]
+
 /-- A `landSpeed.premise` row: the premise id in the request, its statement, theorems and test in the reply. -/
 def premiseCase (p : PremiseRow) : Json :=
   line s!"premise {p.id}" [("op", "landSpeed.premise"), ("id", .str p.id)]
     [("statement", .str p.statement), ("theorems", strs p.theorems), ("test", .str p.test)]
 
-/-- Every golden case: 11 select, 6 prelock, 6 verdict, 4 cache and 9 select2 cases, then one row per premise. -/
 def cases (_ : Unit := ()) : List Json :=
   [selectCase "golden-only change selects check.sh (P5 mutation)" sampleDecls
       ["packages/contracts/golden/obs/timing.jsonl"],
@@ -961,9 +1033,19 @@ def cases (_ : Unit := ()) : List Json :=
     select2Case "no build read changed: unknown digests select no fwcore user" binDecls ["apps/site/src/x.ts"] none none,
     select2Case "build script change, equal digest: no fwcore user" binDecls ["scripts/fwcore-build.sh"] (some "a") (some "a"),
     select2Case "build script change, digests differ: every fwcore user" binDecls ["scripts/fwcore-build.sh"] (some "a") (some "b"),
-    select2Case "docs-only change selects nothing" binDecls ["docs/team/handoffs/x.md"] none none] ++ premises.map premiseCase
+    select2Case "docs-only change selects nothing" binDecls ["docs/team/handoffs/x.md"] none none,
+    seedDueCase 0, seedDueCase 5, seedDueCase 6,
+    seedLagCase "no change: lag 0" [],
+    seedLagCase "only build-free lean paths and docs: lag 0"
+      ["lean/scripts/check.sh", "lean/land-legs.txt", "lean/math.lock.json", "docs/team/tools/land.md"],
+    seedLagCase "five key paths: not due"
+      ["lean/Fw/A.lean", "lean/FwTest/B.lean", "lean/Fw.lean", "lean/lakefile.toml", "lean/scripts/x.sh",
+        "lean/lean-toolchain"],
+    seedLagCase "six key paths: due"
+      ["lean/Fw/A.lean", "lean/FwTest/B.lean", "lean/Fw.lean", "lean/lakefile.toml", "lean/lake-manifest.json",
+        "lean/lean-toolchain", "docs/x.md"]] ++ premises.map premiseCase
 
-#guard cases.length == 44
+#guard cases.length == 51
 
 /-- The golden file text: one compressed JSON line per case. -/
 def goldenText (_ : Unit := ()) : String := String.join (cases.map fun c => c.compress ++ "\n")
