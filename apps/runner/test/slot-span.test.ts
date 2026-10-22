@@ -49,7 +49,7 @@ const fwcore = join(root, "lean/.lake/build/bin/fwcore");
 const params = { budgetMs: 30000, budgets: [], ceilings: [], kDen: 2, kNum: 3, loadMax: 8, nMin: 5, window: 20, stages: [] };
 const sample = (step: string, durMs: number) => ({ durMs, exit: 0, host: "local", load: 4, runKind: "", skipped: false, step, tool: "fw" });
 const lastCode = (samples: object[]): string => {
-  const r = spawnSync(fwcore, [], { input: `${JSON.stringify({ id: 0, op: "obs.timing", params, samples })}\n`, encoding: "utf8", timeout: 120_000, maxBuffer: 64 << 20 });
+  const r = spawnSync(fwcore, [], { input: `${JSON.stringify({ id: 0, op: "obs.timing", params, samples })}\n`, encoding: "utf8", maxBuffer: 64 << 20 });
   const rows = JSON.parse(r.stdout.split("\n")[0]!) as { verdicts: { kind: string; code: string }[] };
   return rows.verdicts.filter((v) => v.kind === "sample").at(-1)!.code;
 };
