@@ -13,7 +13,7 @@ YAML 1.1 reads bare `off` and `on` as booleans: GitHub refused `cost=on` (HTTP 4
 ## The dispatch
 - `gh workflow run webkit-sim.yml --ref ci/wkcost-cost-input -f lag=true -f target=both -f vms=3 -f cost=on -f nonce=wkcostin1`
 - Run 39696054101: failure, because sim job v3 (original arm, VM 3) lost its Safari tab during the pass 1 cost passes (page target lost, relaunch ETIMEDOUT, exit 5). v1, v2, r1, r2, r3 succeeded.
-- Cost tables DO appear: the `webkit-sim-*` artifacts hold the cost passes (original 4/4 passes, rewrite 6/6 with cost counters); `lag/cli.mjs cost-report` on them prints all five tables (cadence, histogram, paint vs composite, layers, paint after morph). The `webkit-lag-report` artifact (lag ranking) holds no cost tables; use cost-report on the per-VM JSON.
+- Cost tables appear: the `webkit-sim-*` artifacts hold the cost passes (original 4/4 passes, rewrite 6/6 with cost counters); `lag/cli.mjs cost-report` on them prints all five tables (cadence, histogram, paint vs composite, layers, paint after morph). The `webkit-lag-report` artifact holds no cost tables; run cost-report on the per-VM JSON.
 
 ## Open items (follow-ups, outside the unit)
 - v3 original job lost its page target in the cost passes (same family as the rewrite-arm failures in webkit-cost-counters).

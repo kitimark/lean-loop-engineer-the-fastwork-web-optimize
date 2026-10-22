@@ -1,8 +1,4 @@
 #!/usr/bin/env node
-// node src/lag/cli.mjs run [--site dir --search q] [--out file] [--passes 2]   one Simulator session of the lag probe
-// node src/lag/cli.mjs cost-report --original a.json,b.json --rewrite c.json,d.json [--preset e.json] [--json file]   the per-zone cost-counter tables
-// node src/lag/cli.mjs report --original a.json,b.json --faithful c.json,d.json [--json file] [--note file]   the ranked attribution
-//   --note file replaces the block between the lag-report markers of a Markdown file with the report
 import { parseArgs } from 'node:util';
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';

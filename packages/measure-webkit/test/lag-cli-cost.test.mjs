@@ -1,4 +1,3 @@
-// The --cost flag of lag/cli.mjs run accepts only off|on|only.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
