@@ -24,7 +24,7 @@ pass. Status words: MEASURED (run cited), INFERRED, CONFIRMED.
 | flag `hero.exit:threaded` | 39731192687 | r1, r2, r3 | 6 (cost ok in all) | all three VMs succeeded |
 
 3 of at most 4 dispatches used. The primary table is run 39739724461 against run 39731192687, so every cell has one run
-id. Adding the 2 passes of run 39731185714 to the base (6 passes) changes no verdict (section 2, last column).
+id. Adding the 2 passes of run 39731185714 to the base (6 passes) changes no per-step verdict; of the ratios, Recalculate styles time stays separated (1.83 (1.68-2.02) against 1.27) and FunctionCall time does not (1.48 (1.25-1.67) against 1.13 (0.99-1.28), overlap).
 
 ## 2. The hero-exit zone, per scroll step (mean of the per-pass values; range over passes)
 
@@ -39,9 +39,9 @@ id. Adding the 2 passes of run 39731185714 to the base (6 passes) changes no ver
 | Layout time (us) | 7718 (4579-10774) | 4662 (3632-5312) | overlap | overlap |
 | FunctionCall events | 27.5 (21.7-33.8) | 21.9 (20.3-23.2) | overlap | overlap |
 | Paint events | 17.9 (17.4-19.1) | 22.4 (19.1-26.9) | overlap | overlap |
-| InvalidateLayout events | 7.95 | 5.95 | flag lower | not reduced |
-| ScheduleStyleRecalculation events | 7.42 | 6.42 | flag lower | not reduced |
-| FireAnimationFrame events | 6.69 | 5.75 | flag lower | not reduced |
+| InvalidateLayout events | 7.95 | 5.95 | flag lower | flag lower |
+| ScheduleStyleRecalculation events | 7.42 | 6.42 | flag lower | flag lower |
+| FireAnimationFrame events | 6.69 | 5.75 | flag lower | flag lower |
 
 Relative to each arm's own calm-scroll baseline (the same pass's calm steps; `lag/cli.mjs report`, Region A, ratio column; mean of the per-pass ratios, range over passes; "separated" is the Lean verdict on the ratio). The calm baselines are equal (Recalculate styles 12,735 us base, 12,935 us flag), so the lower ratio is a drop inside the zone (MEASURED, rerun on the artifacts of runs 39739724461 and 39731192687):
 
@@ -54,7 +54,7 @@ Relative to each arm's own calm-scroll baseline (the same pass's calm steps; `la
 | Layout time (us) | 2.31 (1.76-2.65) | 1.81 (1.55-2.25) | overlap |
 | InvalidateLayout events | 1.77 (1.41-1.97) | 1.42 (1.21-1.64) | overlap (the per-step value is lower, table above) |
 
-The ratio of FireAnimationFrame is 0.99 against 1.00 (both arms' baselines fall with it); its per-step value is lower. Flag r3 alone, which ran on the same runner image as the base, gives the same separated verdicts (Recalculate styles us ratio 1.89 against 1.23, FunctionCall us 1.55 against 1.10, InvalidateLayout per step lower).
+The ratio of FireAnimationFrame is 0.99 against 1.00, which the tool marks flag higher: the calm baseline drops by the same one callback per step (6.77 against 5.77), so the removed rAF callback runs on every scrolled step, not only in the zone; its per-step value in the zone is lower (6.69 against 5.75). Flag r3 alone, which ran on the same runner image as the base, gives the same separated verdicts (Recalculate styles us ratio 1.89 against 1.23, FunctionCall us 1.55 against 1.10, InvalidateLayout per step lower).
 
 Page length: the scroll range maxY is 5231 px in the base and 5267 px in the flag arm, so the page is 36 px longer with the flag (possibly the IO sentinel; not explained here). The zone has 16 steps in both arms. Open item: check the length in the phone replay.
 
