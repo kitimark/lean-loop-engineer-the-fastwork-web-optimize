@@ -6,16 +6,16 @@ default config, trajectory fw=nav:clip-box), `ci/nav-fixed-size-bar` (trajectory
 
 ## Verdict
 
-Per flag, state at tips cece43bf (clip-box), d6671674 (bar-fixed), 7de81c8d (logo-3d), code of 3b96c928.
+Round 2 (original transition lists kept). Same-look breakpoint gate with the flag, both engines, all PASS; trajectory-probe verdict runs; lean runs green.
 
-| flag | Lean theorems + goldens | CI delivered | same-look gate with the flag, both engines | layer census delta | verdict |
+| flag | Lean | same-look gate (both engines) | trajectory-probe | layer census | verdict |
 |---|---|---|---|---|---|
-| clip-box | `box_eq`, `rest_same_*`, `visible_eq`, `probe_eq`, golden 100 rows | lean, default-config gate, trajectory | NOT RUN (needs `fw=` dispatch) | NOT RUN (needs dispatch) | pending: the premise (simple container) is proved in Lean, not yet measured |
-| bar-fixed | `barW_const`, `logoX_*`, `actionsX_*`, `bar_resizePaint_zero`, golden 100 rows | lean, trajectory | NOT RUN | NOT RUN | pending |
-| logo-3d | `translate_scale_order`, `logo3d_layout_*` | lean, trajectory | NOT RUN | NOT RUN | pending; 430 pixel diff goes to the look-review class if above tolerance |
+| clip-box | `box_eq`, `rest_same_*`, `visible_eq`, `probe_eq`, `union_const`, `layout_only_at_endpoints`, `usedW_eq_unionW`, `decl_eq_rest_zero`, `decl_close_rest`, `used_eq_rest_one`, golden 100 rows | run 39842609609 pass | 39842561544 | not run | partly-proved: same look and layout claim proved; cost not measured |
+| bar-fixed | `barW_const`, `logoX_*`, `actionsX_*`, `bar_resizePaint_zero`, golden 100 rows | run 39846092556 pass | 39842569267 | not run | partly-proved |
+| logo-3d | `translate_scale_order`, `logo3d_layout_*` | run 39848853982 pass | 39842581192 | not run | partly-proved |
 
-Nothing here is a same-look or census verdict: the push gate runs the default config (`flags.search` empty in `gate-merged-chromium/chromium.json`), so it does not
-load a flag. The per-flag runs are dispatches only the lead can start (commands under CI).
+Round 1 gates (39835303279, 39837964273) failed on `transition-property` losing `width`; fixed as described under Design. The nav clip trajectory cell stays
+pending on gpu-trajectory-cells; layer census and cost lane are follow-ups.
 
 ## Design
 
