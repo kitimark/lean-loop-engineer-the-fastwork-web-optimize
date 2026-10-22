@@ -17121,6 +17121,27 @@
     "docs/team/handoffs/nav-fixed-followups.md"
    ],
    "title": "Review follow-ups of nav-fixed-size (landed): (1) ledger rows nav.clip-box/bar-fixed/logo-3d: the clip-box candidate says the morph 'lays out nothing per frame' and the mechanism 'no width transition starts', both refuted (bar and panel insets are placed per frame; a width transition under 0.42 px starts for 0 < m <= cut); bar-fixed and logo-3d leanFor lists only NavClipBox theorems, add their own (barW_const, logoX_eq, translate_scale_order, logo3d_layout_normal); (2) restW fixes heroPill = false while the hero pill can come on in the same frame .is-morphing drops (logic.ts:63): make restW take h : Bool and state decl_eq_rest_zero for every h; (3) post-land: rerun the three per-flag gates on main (the main merge changed morph.tween/index.tsx, which publishes --morph to the nav) and the trajectory nav clip cell (gpu-trajectory-cells is on main); (4) the layer census and cost lane (webkit-sim --target rewrite --fw nav:<flag>, chromium-counts) with ledger numbers."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "trajectory-aa-noise",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "trajectory-carousel-lean"
+   ],
+   "writes": [
+    "lean/Fw/Gate/TrajectoryGpu*.lean",
+    "packages/contracts/golden/gate/trajectory-gpu*.jsonl",
+    "packages/gate-breakpoints/src/trajectory/**",
+    "packages/gate-breakpoints/test/trajectory-gpu*.mjs",
+    "docs/team/tools/gate.md",
+    "research/notes/2026/10-2x-trajectory-aa-noise.md",
+    "docs/team/handoffs/trajectory-aa-noise.md"
+   ],
+   "title": "Review follow-ups of trajectory-carousel-lean: the hold-out Chromium A/A run 39852684450 (same code both arms, recordings at rest) grades carousel Q at 390 and 640 (reps Q,Q,E,E; 2 of 4 swaps match only at a sub-frame shift) and panel-effect 640 close L (reps E,Q,L). An A/A must grade E, so the recorder or the tolerances are noisy: find which (frame clock vs rAF sampling, sub-frame shift handling, scale/blur read step), fix it in Lean first with a theorem or a stated premise, and confirm with fresh A/A runs (at most 3 dispatches) that every unit grades E. Also: JS RANK lacks E1 while Lean worse ranks e1 (restrict worst to E/Q/L or add E1 with a golden case); specify the in-page settle and tail stop rules of carouselSample (6 equal frames, 2.2 s and 1.5 s caps) in Lean or list them as a stated premise; note in the gate docs that a pain-dark unit whose base never flips in one direction is now not comparable."
   }
  ],
  "deadline": {
