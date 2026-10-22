@@ -196,7 +196,7 @@ def table (_ : Unit := ()) : List Wf := [
   ⟨"lean.yml", ciMain, [
     "lean/**", "apps/site/src/breakpoints.gen.json", "apps/site/src/sweeps.gen.json", "apps/site/src/head.gen.json", "scripts/span.sh",
     "scripts/fwcore-build.sh", "scripts/fwcore-record-rule.sh", "scripts/fwcore-build.test.mjs", "apps/console-api/src/core/build-base.ts", "scripts/lake-slot.sh", "scripts/lake-slot-lib.sh", "scripts/heavy-lock.mjs", "scripts/heavy-lock.test.mjs", "scripts/slot-self.mjs", "scripts/slot-self.test.mjs", "scripts/lake-slot.test.mjs", "packages/contracts/golden/sched/lake-slot.gen.sh",
-    "packages/contracts/golden/console/land-dry.jsonl", "packages/contracts/golden/gate/sweeps.jsonl", "packages/contracts/golden/gate/exit.jsonl", "packages/contracts/golden/gate/webkit-screen.jsonl", "packages/contracts/golden/gate/path-pix.jsonl", "packages/contracts/golden/device/session.jsonl", "packages/contracts/golden/device/replay.jsonl", "packages/contracts/golden/measure/webkit-lag.jsonl", "packages/contracts/golden/measure/wkcost.jsonl", "packages/contracts/golden/measure/webkit-profile.jsonl", "packages/contracts/golden/gate/search.jsonl", "packages/contracts/golden/device/stillruns.jsonl",
+    "packages/contracts/golden/console/land-dry.jsonl", "packages/contracts/golden/gate/sweeps.jsonl", "packages/contracts/golden/gate/exit.jsonl", "packages/contracts/golden/gate/webkit-screen.jsonl", "packages/contracts/golden/gate/path-pix.jsonl", "packages/contracts/golden/device/session.jsonl", "packages/contracts/golden/device/replay.jsonl", "packages/contracts/golden/measure/webkit-lag.jsonl", "packages/contracts/golden/measure/wkcost.jsonl", "packages/contracts/golden/measure/census.jsonl","packages/contracts/golden/measure/webkit-profile.jsonl", "packages/contracts/golden/gate/search.jsonl", "packages/contracts/golden/device/stillruns.jsonl",
     "packages/contracts/golden/gate/smooth.jsonl", "packages/contracts/golden/gate/trajectory-colour.jsonl", "packages/gate-breakpoints/src/scope.gen.json", "packages/contracts/golden/parts/contracts.gen.json",
     "packages/contracts/golden/gate/run-perm.jsonl", "packages/contracts/golden/gate/run-perm-cells.jsonl",
     "packages/contracts/golden/parts/stage.jsonl", "packages/contracts/golden/parts/stage-mode.jsonl",
@@ -219,6 +219,11 @@ def table (_ : Unit := ()) : List Wf := [
     "lean/Fw/Ops/SpawnGuard.lean", "lean/Fw/Ops/Usage.lean", "lean/Fw/Ops/Wire.lean", "lean/Fw/Spec/DeviceQueue.lean",
     "lean/Fw/Wire.lean", "lean/FwTest/Mutants/**", "lean/scripts/mutants.sh", ".github/scripts/changed-inputs.mjs",
     ".github/actions/setup-lean/**", ".node-version", own "mutants.yml"], []⟩,
+  ⟨"path-pix.yml", ciAll, [
+    "packages/measure-webkit/**", "packages/measure-chromium/**", "packages/gate-breakpoints/**", "apps/site/**", "@breakgen",
+    "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/check-simulator.sh", ".github/scripts/runner-info.sh",
+    ".github/scripts/changed-inputs.mjs", "packages/contracts/golden/gate/path-pix.jsonl", ".github/actions/setup-lean/**",
+    ".github/actions/setup-pnpm/**", ".github/actions/telemetry/**", "scripts/ci-telemetry/**", ".node-version", own "path-pix.yml"], []⟩,
   ⟨"premise-tests.yml", ciMain, [
     "packages/premise-tests/**", "packages/contracts/golden/ops/premise.jsonl", "lean/Fw/Ops/Premise.lean",
     "apps/runner/src/premises.ts", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml",
@@ -299,11 +304,11 @@ def run (diff merged : List String) : List String :=
 #guard run ["lean/Fw/Wire.lean"] [] == ["breakpoint-gate.yml", "chromium-counts.yml", "difftest.yml", "gate-gaps.yml", "land.yml", "lean.yml", "mutants.yml", "preview-e2e.yml", "wktr-fixtures.yml", "wktr.yml"]
 #guard run ["lean/Fw/Parts/HeroExit.lean"] [] == ["land.yml", "lean.yml"]
 -- the site builder (breakgen) cone starts the lanes that build the site; a pixel golden starts the visual diff only
-#guard run ["lean/Fw/Site/Breakpoints.lean"] [] == ["breakpoint-gate.yml", "chromium-counts.yml", "gate-gaps.yml", "land.yml", "lean.yml", "smoothness.yml", "toolbar-throttle.yml", "trajectory-probe.yml", "visual-diff.yml"]
+#guard run ["lean/Fw/Site/Breakpoints.lean"] [] == ["breakpoint-gate.yml", "chromium-counts.yml", "gate-gaps.yml", "land.yml", "lean.yml", "path-pix.yml", "smoothness.yml", "toolbar-throttle.yml", "trajectory-probe.yml", "visual-diff.yml"]
 #guard run ["packages/contracts/golden/gate/pixel.jsonl"] [] == ["land.yml", "visual-diff.yml"]
 #guard run ["docs/team/handoffs/x.md"] [] == []
 -- a change of the Node pin starts every lane that sets up Node (task node-pin)
-#guard run [".node-version"] [] == ["breakpoint-gate.yml", "chromium-counts.yml", "device-replay.yml", "difftest.yml", "engine-premises.yml", "gate-gaps.yml", "land.yml", "lean-math.yml", "lean.yml", "linux-webkit-probe.yml", "mutants.yml", "premise-tests.yml", "preview-e2e.yml", "sim-speed.yml", "smoothness.yml", "snapshot-extract.yml", "toolbar-throttle.yml", "trajectory-probe.yml", "visual-diff.yml", "webkit-sim.yml", "wktr-fixtures.yml", "wktr.yml"]
+#guard run [".node-version"] [] == ["breakpoint-gate.yml", "chromium-counts.yml", "device-replay.yml", "difftest.yml", "engine-premises.yml", "gate-gaps.yml", "land.yml", "lean-math.yml", "lean.yml", "linux-webkit-probe.yml", "mutants.yml", "path-pix.yml", "premise-tests.yml", "preview-e2e.yml", "sim-speed.yml", "smoothness.yml", "snapshot-extract.yml", "toolbar-throttle.yml", "trajectory-probe.yml", "visual-diff.yml", "webkit-sim.yml", "wktr-fixtures.yml", "wktr.yml"]
 -- a merge of main changes lean/ and apps/site but starts nothing
 #guard run ["lean/Fw/Wire.lean", "apps/site/src/a.ts"] ["lean/Fw/Wire.lean", "apps/site/src/a.ts"] == []
 #guard run ["packages/measure-wktr/src/a.mjs", "lean/Fw/Wire.lean"] ["lean/Fw/Wire.lean"] == ["engine-premises.yml", "land.yml", "wktr-fixtures.yml", "wktr.yml"]
@@ -450,7 +455,7 @@ theorem branches_split : ∀ w ∈ table, w.branches = ciPart w.branches ++ (if 
 theorem ci_triggers : table.map (fun w => (w.file, ciPart w.branches)) = [
     ("breakpoint-gate.yml", ["ci/**"]), ("chromium-counts.yml", ["ci/**"]), ("device-replay.yml", ["ci/device-replay"]), ("difftest.yml", ["ci/**"]),
     ("engine-premises.yml", ["ci/**"]), ("gate-gaps.yml", ["ci/**"]), ("land.yml", ["ci/land-*"]), ("lean-math.yml", ["ci/**"]),
-    ("lean.yml", ["ci/**"]), ("linux-webkit-probe.yml", ["ci/linux-webkit-probe"]), ("mutants.yml", ["ci/**"]), ("premise-tests.yml", ["ci/**"]), ("preview-e2e.yml", ["ci/**"]), ("sim-speed.yml", ["ci/sim-speed"]),
+    ("lean.yml", ["ci/**"]), ("linux-webkit-probe.yml", ["ci/linux-webkit-probe"]), ("mutants.yml", ["ci/**"]), ("path-pix.yml", ["ci/**"]), ("premise-tests.yml", ["ci/**"]), ("preview-e2e.yml", ["ci/**"]), ("sim-speed.yml", ["ci/sim-speed"]),
     ("smoothness.yml", ["ci/**"]), ("snapshot-extract.yml", ["ci/**"]), ("toolbar-throttle.yml", ["ci/**"]), ("trajectory-probe.yml", ["ci/**"]), ("visual-diff.yml", ["ci/**"]), ("webkit-sim.yml", ["ci/**"]),
     ("wktr-fixtures.yml", ["ci/**"]), ("wktr.yml", ["ci/**"])] := by decide
 
@@ -694,7 +699,7 @@ def filtered (diff : List String) : List String :=
   (table.filter fun w => selected (pushPaths w) diff).map (·.file)
 
 -- the coarse filter passes a new module under lean/Fw for every fwcore user; the guard then starts only lean.yml
-#guard filtered ["lean/Fw/New.lean"] == ["breakpoint-gate.yml", "chromium-counts.yml", "difftest.yml", "gate-gaps.yml", "land.yml", "lean.yml", "preview-e2e.yml", "smoothness.yml", "toolbar-throttle.yml", "trajectory-probe.yml", "visual-diff.yml", "wktr-fixtures.yml", "wktr.yml"]
+#guard filtered ["lean/Fw/New.lean"] == ["breakpoint-gate.yml", "chromium-counts.yml", "difftest.yml", "gate-gaps.yml", "land.yml", "lean.yml", "path-pix.yml", "preview-e2e.yml", "smoothness.yml", "toolbar-throttle.yml", "trajectory-probe.yml", "visual-diff.yml", "wktr-fixtures.yml", "wktr.yml"]
 #guard run ["lean/Fw/New.lean"] [] == ["land.yml", "lean.yml"]
 -- a test module is outside every coarse fwcore glob
 #guard filtered ["lean/FwTest/Lease.lean"] == ["land.yml", "lean.yml"]

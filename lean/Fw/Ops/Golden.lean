@@ -1138,7 +1138,13 @@ def layersSearchCases : List (String × Json) :=
    ("fw and fwl together, fw first in the canonical form", s "?fwl=hero_copy:c&fw=hero:scene-pause"),
    ("an unknown layer is refused", s "?fwl=nope:c"),
    ("a layer entry without options is refused", s "?fwl=hero_copy"),
-   ("a layer id with a character outside okChar is refused", s "?fwl=hero_c/py:c")] ++
+   ("a layer id with a character outside okChar is refused", s "?fwl=hero_c/py:c"),
+   ("a percent-encoded layer id is refused, not decoded", s "?fwl=hero%5Fcopy:c"),
+   ("an encoded fwl key is refused, not decoded", s "?f%77l=hero_copy:c"),
+   ("an encoded fwl key and value are refused", s "?%66wl=hero%5Fcopy:c"),
+   ("two layers keep URL order in the canonical form", Json.mkObj [("registry", declReg), ("search", .str "?fwl=nav_earn:s,hero_copy:c")]),
+   ("a plus in a layer id is refused, not read as a space", s "?fwl=hero+copy:c"),
+   ("an encoded fw entry next to a good fwl is refused whole", s "?fw=hero:scene%2Dpause&fwl=hero_copy:c")] ++
   Fw.Parts.FootprintData.layerDecls.map fun (_, l, _) =>
     (s!"declared layer {l}", Json.mkObj [("registry", declReg), ("search", .str s!"?fwl={l}:c")])
 

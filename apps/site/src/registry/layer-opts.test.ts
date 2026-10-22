@@ -62,10 +62,10 @@ describe('?fwl= against the console search golden (Fw.Console.BuildsOpen)', () =
         expect(r.ok).toBe(true);
         const canon = new URLSearchParams(want.canonical!).get('fwl') ?? '';
         const got = r.ok ? r.layerOpts.map((e) => `${e.layer}:${e.opts}`) : [];
-        expect(got.slice().sort()).toEqual(canon.split(',').filter((x) => x !== '').sort());
+        expect(got).toEqual(canon.split(',').filter((x) => x !== ''));
       } else {
         expect(r.ok).toBe(false);
-        if (fwlReasons.length > 0) expect(r.ok ? [] : r.errors).toEqual(want.reasons);
+        if (fwlReasons.length > 0 || want.reasons.some((x) => x.startsWith('search '))) expect(r.ok ? [] : r.errors).toEqual(want.reasons);
       }
     });
   }

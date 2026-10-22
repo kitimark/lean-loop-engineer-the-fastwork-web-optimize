@@ -3,13 +3,13 @@ builder admission, the stop rule and the result cache. -/
 namespace Fw.Sup.Adapt
 
 inductive Kind where
-  | check | test | land | sim | other
+  | check | test | land | sim | other | measure
 deriving DecidableEq, Repr
 
 def Kind.name : Kind → String
-  | .check => "check" | .test => "test" | .land => "land" | .sim => "sim" | .other => "other"
+  | .check => "check" | .test => "test" | .land => "land" | .sim => "sim" | .other => "other" | .measure => "measure"
 
-def Kind.all : List Kind := [.check, .test, .land, .sim, .other]
+def Kind.all : List Kind := [.check, .test, .land, .sim, .other, .measure]
 
 def Kind.ofName? (s : String) : Option Kind := Kind.all.find? (·.name == s)
 
@@ -46,6 +46,7 @@ structure Params where
   comprMBPerMinMax : Nat := 1500
   rateMinS : Nat := 5
   rateMaxS : Nat := 600
+  measureMB : Nat := 2800
 deriving DecidableEq, Repr
 
 structure Mem where
@@ -466,6 +467,7 @@ def foot (p : Params) (threads : Nat) : Kind → Nat
   | .land => p.landMB
   | .sim => p.simMB
   | .other => p.otherMB
+  | .measure => p.measureMB
 
 def charged (p : Params) (now : Nat) (hs : List Entry) : Nat :=
   ((prune now hs).filter (fun h => decide (now < h.since + p.warmS))).foldr (fun h a => h.foot + a) 0
@@ -485,7 +487,52 @@ inductive Why where
   | memory (needMB roomMB : Nat)
   | memLow (availMB : Nat)
   | simFirst
+  | pass
+  | gap (needS leftS : Nat)
+  | unknown
+  | measureBusy
 deriving DecidableEq, Repr
+
+inductive WhyTag where
+  | queued | older | full | simBusy | drain | memory | memLow | simFirst | pass | gap | unknown | measureBusy
+deriving DecidableEq, Repr
+
+def Why.tag : Why → WhyTag
+  | .queued _ => .queued
+  | .older => .older
+  | .full _ _ => .full
+  | .simBusy => .simBusy
+  | .drain _ => .drain
+  | .memory _ _ => .memory
+  | .memLow _ => .memLow
+  | .simFirst => .simFirst
+  | .pass => .pass
+  | .gap _ _ => .gap
+  | .unknown => .unknown
+  | .measureBusy => .measureBusy
+
+def WhyTag.name : WhyTag → String
+  | .queued => "queued"
+  | .older => "older"
+  | .full => "full"
+  | .simBusy => "simBusy"
+  | .drain => "drain"
+  | .memory => "memory"
+  | .memLow => "memLow"
+  | .simFirst => "simFirst"
+  | .pass => "pass"
+  | .gap => "gap"
+  | .unknown => "unknown"
+  | .measureBusy => "measureBusy"
+
+def WhyTag.all : List WhyTag :=
+  [.queued, .older, .full, .simBusy, .drain, .memory, .memLow, .simFirst, .pass, .gap, .unknown, .measureBusy]
+
+def WhyTag.ofName? (n : String) : Option WhyTag := WhyTag.all.find? (fun t => t.name == n)
+
+theorem WhyTag.all_complete (t : WhyTag) : t ∈ WhyTag.all := by cases t <;> simp [WhyTag.all]
+
+theorem WhyTag.ofName_name (t : WhyTag) : WhyTag.ofName? t.name = some t := by cases t <;> decide
 
 inductive Verdict where
   | admit (threads footMB : Nat)

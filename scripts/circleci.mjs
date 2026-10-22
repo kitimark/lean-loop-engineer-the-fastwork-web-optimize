@@ -105,6 +105,18 @@ export function storageMilli(bytes, days) {
   return Number((BigInt(bytes) * BigInt(days) * 1000n + 30n * 1000000000n - 1n) / (30n * 1000000000n));
 }
 
+export function storageNow(g, rows, now) {
+  const { windowMs, retentionDays: d } = g.constants;
+  const byteDays = rows.filter((r) => r.at == null || now <= r.at + windowMs)
+    .reduce((n, r) => n + BigInt(r.cache) * BigInt(d.cache) + BigInt(r.workspace) * BigInt(d.workspace) + BigInt(r.artifacts) * BigInt(d.artifact), 0n);
+  return Number((byteDays * 1000n + 30n * 1000000000n - 1n) / (30n * 1000000000n));
+}
+
+export function storageCredits(g, milli) {
+  const c = g.constants;
+  return Math.floor((Math.max(0, milli - c.storageAllowMilli) * c.overageCreditsPerGbMonth + 999) / 1000);
+}
+
 /** Lean `verdictEq`: equal conclusions and, when both sides carry a digest, equal digests. */
 export const verdictEq = (a, b) => a.conclusion === b.conclusion && (a.digest == null || b.digest == null || a.digest === b.digest);
 
@@ -135,7 +147,12 @@ export const cachePipelineBytes = (saves) => saves.reduce((n, s) => n + cacheSav
 /** Lean `stops`: every reason the pilot stops, in the order cap, queue, storage. */
 export function stops(g, i) {
   const c = g.constants;
-  return [...(c.capMs <= i.durMs ? ['cap'] : []), ...(c.queueMaxMs < i.queueMs ? ['queue'] : []), ...(c.storageMaxMilli < i.storageMilli ? ['storage'] : [])];
+  return [...(c.capMs <= i.durMs ? ['cap'] : []), ...(c.queueMaxMs < i.queueMs ? ['queue'] : []), ...(c.storageStopMilli < i.storageMilli ? ['storage'] : [])];
+}
+
+export function landStops(g, i) {
+  const c = g.constants;
+  return [...(c.capMs <= i.durMs ? ['cap'] : []), ...(c.queueMaxMs < i.queueMs ? ['queue'] : [])];
 }
 
 /** Lean `route`: github or circleci for one lane. */
@@ -439,18 +456,17 @@ export function readLedger(path) {
 
 export const ledgerBytes = (ledger, exceptId = '') => Object.entries(ledger.pipelines ?? {}).filter(([id]) => id !== exceptId).reduce((n, [, b]) => n + (b.artifacts ?? 0) + (b.cache ?? 0) + (b.workspace ?? 0), 0);
 
-/** Retention assumed for every stored byte: 30 days (an upper bound: caches and workspaces expire sooner). */
-export const RETENTION_DAYS = 30;
+export const ledgerRows = (ledger, exceptId = '') => Object.entries(ledger.pipelines ?? {}).filter(([id]) => id !== exceptId)
+  .map(([, b]) => ({ at: typeof b.at === 'number' && Number.isFinite(b.at) ? b.at : null, cache: b.cache ?? 0, workspace: b.workspace ?? 0, artifacts: b.artifacts ?? 0 }));
 
-/** Thousandths of a GB-month stored by every pilot pipeline of the ledger except `exceptId` (0 without a ledger path). */
-export const storageSoFar = (ctx, exceptId = '') => (ctx.ledgerPath ? storageMilli(ledgerBytes(readLedger(ctx.ledgerPath), exceptId), RETENTION_DAYS) : 0);
+export const WINDOW_DAYS = 30;
 
-/** Credits the fetched pilot pipelines of the ledger spent in the last RETENTION_DAYS days (a rolling month: it counts more than a
- *  calendar month does early in the month, the safe side). A pipeline that was never fetched, and every pipeline fetched before the
- *  ledger kept credits, counts 0. */
+export const storageSoFar = (ctx, exceptId = '', now = ctx.now?.() ?? Date.now()) =>
+  (ctx.ledgerPath ? storageNow(ctx.golden ?? loadGolden(), ledgerRows(readLedger(ctx.ledgerPath), exceptId), now) : 0);
+
 export function creditsSoFar(ctx, now = Date.now()) {
   if (!ctx.ledgerPath) return 0;
-  const since = now - RETENTION_DAYS * 86400000;
+  const since = now - WINDOW_DAYS * 86400000;
   return Object.values(readLedger(ctx.ledgerPath).pipelines ?? {}).reduce((n, b) => n + (Number(b.at) >= since ? Number(b.credits) || 0 : 0), 0);
 }
 
@@ -458,16 +474,13 @@ export function creditsSoFar(ctx, now = Date.now()) {
 
 const sleepReal = (s) => new Promise((r) => setTimeout(r, s * 1000));
 
-/** The pilot stop rule over the jobs seen at one poll. Returns the Lean reasons per job; the storage input is the ledger of the
- *  earlier pilot pipelines. */
 export async function pollOnce(ctx, { slug, pipelineId, now }) {
   const g = ctx.golden;
-  const stored = storageSoFar(ctx, pipelineId);
+  const land = ctx.storageStop === false;
+  const stored = land ? 0 : storageSoFar(ctx, pipelineId);
   const wfs = await listAll(ctx, urls.workflows(pipelineId));
   const jobs = [];
   for (const wf of wfs) {
-    // A workflow the pipeline listing has just created answers 404 on its job list for a moment (seen on the first poll right after a
-    // trigger, pipeline of task land-lane-circleci); that is "no jobs yet", and the workflow status still decides the exit code.
     let list = [];
     try { list = await listAll(ctx, urls.jobs(wf.id)); } catch (e) { if (!/HTTP 404/.test(String(e?.message))) throw e; }
     for (const j of list) {
@@ -478,14 +491,12 @@ export async function pollOnce(ctx, { slug, pipelineId, now }) {
         queueMs = q == null ? 0 : (s ?? now) - q;
         durMs = s == null ? 0 : (ms(d.stopped_at) ?? now) - s;
       }
-      jobs.push({ workflow: wf, name: j.name, status: j.status, number: j.job_number, stops: stops(g, { durMs, queueMs, storageMilli: stored }) });
+      jobs.push({ workflow: wf, name: j.name, status: j.status, number: j.job_number, stops: land ? landStops(g, { durMs, queueMs }) : stops(g, { durMs, queueMs, storageMilli: stored }) });
     }
   }
   return { workflows: wfs, jobs };
 }
 
-/** Wait for a pipeline: polls every `intervalS` (at least MIN_POLL_S), stops the pilot when the stop rule fires (exit 5), else the
- *  exit code is Lean `waitStep` over the workflow statuses. Exit codes in the header. */
 export async function waitPipeline(ctx, { slug, pipelineId, timeoutS = 3600, intervalS = MIN_POLL_S, noWorkflowS = 300 }) {
   const log = ctx.log ?? console.log;
   const step = Math.max(intervalS, ctx.minPollS ?? MIN_POLL_S);
@@ -495,7 +506,7 @@ export async function waitPipeline(ctx, { slug, pipelineId, timeoutS = 3600, int
     const p = await pollOnce(ctx, { slug, pipelineId, now });
     for (const j of p.jobs) {
       if (j.stops.length) {
-        log(`STOP ${j.name}: ${j.stops.join(', ')} (Lean Fw.Ci.Provider.stops); cancelling its workflow`);
+        log(`STOP ${j.name}: ${j.stops.join(', ')} (Lean Fw.Ci.Provider.${ctx.storageStop === false ? 'landStops' : 'stops'}); cancelling its workflow`);
         await call(ctx, 'POST', urls.cancel(j.workflow.id));
         return { code: 5, ...p };
       }
@@ -567,8 +578,8 @@ export async function fetchPipeline(ctx, { slug, pipelineId, out }) {
     writeFileSync(ctx.ledgerPath, `${JSON.stringify(ledger, null, 2)}\n`);
   }
   const all = ctx.ledgerPath ? ledgerBytes(ledger) : total;
-  const milli = storageMilli(all, RETENTION_DAYS);
-  const doc = { schema: 'fw.circleci-run/1', pipelineId, sha, runs, lanes, spans, storage: { ...bytes, cacheSaves, bytes: total, ledgerBytes: all, days: RETENTION_DAYS, milli, stops: stops(g, { durMs: 0, queueMs: 0, storageMilli: milli }) } };
+  const milli = storageNow(g, ctx.ledgerPath ? ledgerRows(ledger) : [{ at: null, ...bytes }], ctx.now?.() ?? Date.now());
+  const doc = { schema: 'fw.circleci-run/1', pipelineId, sha, runs, lanes, spans, storage: { ...bytes, cacheSaves, bytes: total, ledgerBytes: all, milli, stops: stops(g, { durMs: 0, queueMs: 0, storageMilli: milli }) } };
   writeFileSync(join(out, 'run.json'), `${JSON.stringify(doc, null, 2)}\n`);
   return doc;
 }

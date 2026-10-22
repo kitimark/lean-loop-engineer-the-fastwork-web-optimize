@@ -113,6 +113,7 @@ run_group() {
   job "device-replay golden check" lake env lean --run scripts/DeviceReplayGolden.lean --check ../packages/contracts/golden/device/replay.jsonl  # the W3C action, replay-check and profile-generator vectors packages/measure-webkit/src/device-replay.mjs is checked against (Fw.Device.Replay)
   job "webkit-lag golden check" lake env lean --run scripts/WebkitLagGolden.lean --check ../packages/contracts/golden/measure/webkit-lag.jsonl  # the lag-region, paint-attribution and ranking vectors packages/measure-webkit/src/lag/reduce.mjs is checked against (Fw.Measure.WebKitLag)
   job "wkcost golden check" lake env lean --run scripts/WkCostGolden.lean --check ../packages/contracts/golden/measure/wkcost.jsonl  # the cost-counter vectors packages/measure-webkit/src/lag/cost.mjs is checked against (Fw.Measure.WkCost)
+  job "census golden check" lake env lean --run scripts/CensusGolden.lean --check ../packages/contracts/golden/measure/census.jsonl
   job "stage golden check" lake env lean --run scripts/StageGolden.lean --check ../packages/contracts/golden/parts/stage.jsonl  # the ?only= stage plans the site is checked against (Fw.Site.Stage)
   job "layer-opts golden check" lake env lean --run scripts/LayerOptsGolden.lean --check ../apps/site/src/registry/layer-opts.gen.ts ../packages/contracts/golden/console/layer-opts.jsonl
   job "reconcile-sched golden check" lake env lean --run scripts/ReconcileSchedGolden.lean --check  # golden/console/reconcile-sched.jsonl
@@ -139,7 +140,7 @@ run_group() {
   job "lake-slot golden check" sh -c "printf 'import Fw.Sched.LakeSlot\\n#eval Fw.Sched.LakeSlot.gen [\"--check\"]\\n' | lake env lean --stdin"  # golden/sched/lake-slot.gen.sh, sourced by scripts/lake-slot-lib.sh
   job "sup-route golden check" sh -c "printf 'import Fw.Sup.Route\\n#eval Fw.Sup.Route.gen [\"--check\"]\\n' | lake env lean --stdin"  # golden/sup/route.jsonl (Fw.Sup.Route.routeOf)
   job "sup-adapt golden check" sh -c "printf 'import Fw.Sup.AdaptGolden\\n#eval Fw.Sup.Adapt.gen [\"--check\"]\\n' | lake env lean --stdin"  # golden/sup/adapt.jsonl (Fw.Sup.Adapt)
-  job "node-budget golden check" lake env lean --run scripts/NodeBudgetGolden.lean --check  # golden/sched/node-budget.gen.json (read by the vitest configs, the package node --test scripts and fw land) + node-budget.jsonl (Fw.Sched.NodeBudget)
+  job "sup-measure golden check" sh -c "printf 'import Fw.Sup.Measure\\n#eval Fw.Sup.Measure.gen [\"--check\"]\\n' | lake env lean --stdin"  job "node-budget golden check" lake env lean --run scripts/NodeBudgetGolden.lean --check  # golden/sched/node-budget.gen.json (read by the vitest configs, the package node --test scripts and fw land) + node-budget.jsonl (Fw.Sched.NodeBudget)
   job "tap golden check" lake env lean --run scripts/MorphTapGolden.lean --check ../packages/contracts/golden/parts/morph-mount-tap.jsonl
   job "hero-scene-pause golden check" lake env lean --run scripts/HeroScenePauseGolden.lean --check ../packages/contracts/golden/parts/hero-scene-pause.jsonl  # the hero scene vectors hero/scene.golden.test.ts is checked against (Fw.Parts.HeroScenePause)
   job "nav-earn golden check" lake env lean --run scripts/NavEarnGolden.lean --check ../packages/contracts/golden/parts/nav-earn.jsonl  # the earn-no-transition vectors nav/earn.golden.test.ts is checked against (Fw.Parts.NavEarnOpt)

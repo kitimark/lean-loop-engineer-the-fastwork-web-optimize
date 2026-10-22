@@ -1,0 +1,8 @@
+{"name":"site change only","request":{"changed":["apps/site/src/main.tsx"],"fwcoreBuild":false,"hasAxioms":true,"hasCiPaths":true,"hasFootprint":true},"response":{"step":"dry total"}}
+{"name":"lean change","request":{"changed":["lean/Fw/X.lean"],"fwcoreBuild":false,"hasAxioms":true,"hasCiPaths":true,"hasFootprint":true},"response":{"step":"dry total lake"}}
+{"name":"lean change, no axiom-check script","request":{"changed":["lean/Fw/X.lean"],"fwcoreBuild":false,"hasAxioms":false,"hasCiPaths":true,"hasFootprint":true},"response":{"step":"dry total"}}
+{"name":"no lean change, fwcore build","request":{"changed":["apps/runner/src/land.ts"],"fwcoreBuild":true,"hasAxioms":true,"hasCiPaths":true,"hasFootprint":true},"response":{"step":"dry total lake"}}
+{"name":"lean change and fwcore build","request":{"changed":["lean/Fw/X.lean","scripts/fwcore-build.sh"],"fwcoreBuild":true,"hasAxioms":true,"hasCiPaths":true,"hasFootprint":true},"response":{"step":"dry total lake"}}
+{"name":"lean-like prefix is not lean","request":{"changed":["leanx/a"],"fwcoreBuild":false,"hasAxioms":true,"hasCiPaths":true,"hasFootprint":true},"response":{"step":"dry total"}}
+{"name":"nothing changed","request":{"changed":[],"fwcoreBuild":false,"hasAxioms":true,"hasCiPaths":true,"hasFootprint":true},"response":{"step":"dry total"}}
+{"name":"footprint input only","request":{"changed":["apps/site/src/App.tsx"],"fwcoreBuild":false,"hasAxioms":true,"hasCiPaths":true,"hasFootprint":true},"response":{"step":"dry total"}}

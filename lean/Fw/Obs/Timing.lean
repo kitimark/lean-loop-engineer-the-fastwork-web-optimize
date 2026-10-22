@@ -1,4 +1,5 @@
 import Lean.Data.Json
+import Fw.Sup.Adapt
 /-!
 # Timing: when an automation step took too long
 
@@ -71,6 +72,8 @@ structure Sample where
   kind    : String := ""
   exit    : Option Int := none
   skipped : Bool := false
+  waitMs  : Nat := 0
+  waits   : List (Fw.Sup.Adapt.WhyTag × Nat) := []
 deriving DecidableEq, Repr
 
 def fullRun (exit : Option Int) (skipped : Bool) : Bool := !skipped && (exit == none || exit == some 0)
@@ -154,6 +157,7 @@ structure Params where
   kDen     : Nat := 2
   budgetMs : Nat := 30000
   budgets  : List (String × Nat) := []
+  waitBudgetMs : Nat := 1800000
   ceilings : List (String × String × Nat) := []
   loadMax  : Nat := contendedLoad
   stages   : List Stage := []
@@ -205,13 +209,29 @@ def contended (p : Params) (s : Sample) : Bool := decide (s.host = .«local») &
 /-- The last `n` elements of a list (all of it when it is shorter). -/
 def lastN (n : Nat) (xs : List Nat) : List Nat := xs.drop (xs.length - n)
 
-def counts (p : Params) (s : Sample) : Bool := s.full && !contended p s
+/-- A sample waited when its acquire waited under any reason (`waitMs > 0`, memory included). Such a sample stays out of
+    the windows (`counts`). -/
+def Sample.waited (s : Sample) : Bool := decide (0 < s.waitMs)
+
+def holderWait : Fw.Sup.Adapt.WhyTag → Bool
+  | .queued | .older | .full | .simBusy | .drain | .simFirst | .pass | .measureBusy | .gap | .unknown => true
+  | .memory | .memLow => false
+
+def Sample.holdMs (s : Sample) : Nat := ((s.waits.filter (fun w => holderWait w.1)).map (·.2)).sum
+
+def queuedWithin (s : Sample) : Bool := decide (0 < s.holdMs)
+
+def Sample.rest (s : Sample) : Sample := { s with durMs := s.durMs - s.holdMs, waitMs := 0, waits := [] }
+
+def counts (p : Params) (s : Sample) : Bool := s.full && !contended p s && !s.waited
 
 def windowOf (p : Params) (hist : List Sample) (k : Key) : List Nat :=
   lastN p.window ((hist.filter (fun s => decide (s.key = k) && counts p s)).map (·.durMs))
 
-/-- The budget of a tool: its first override in `budgets`, else the default `B_0`. -/
-def budgetOf (p : Params) (tool : String) : Nat := (p.budgets.lookup tool).getD p.budgetMs
+def waitTool : String := "fw wait"
+
+def budgetOf (p : Params) (tool : String) : Nat :=
+  (p.budgets.lookup tool).getD (if tool == waitTool then p.waitBudgetMs else p.budgetMs)
 
 /-- The ceiling of a step: the limit of the first entry of `ceilings` with that tool and step, if any. -/
 def ceilingOf (p : Params) (tool step : String) : Option Nat :=
@@ -244,6 +264,7 @@ inductive Code where
   | contended
   | ok
   | slow
+  | queued
 deriving DecidableEq, Repr
 
 /-- The code of sample `s` against window `w`, first match: too short a window, contended, slow, ok. The baseline is the
@@ -280,9 +301,15 @@ def judge (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : SampleVerdi
     code := if ceilingBreach p s then .slow else codeOf p w s,
     n := w.length, baseline := p50 w, budgetMs := budgetFor p s, kind := s.kind }
 
+def judgeQ (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : SampleVerdict :=
+  if queuedWithin s then
+    let v := judge p hist i s.rest
+    { v with durMs := s.durMs, code := if v.code = .slow then .slow else .queued }
+  else judge p hist i s
+
 /-- One verdict per sample, in input order; sample `i` is judged against the samples before it. -/
 def sampleVerdicts (p : Params) (ss : List Sample) : List SampleVerdict :=
-  ss.mapIdx (fun i s => judge p (ss.take i) i s)
+  ss.mapIdx (fun i s => judgeQ p (ss.take i) i s)
 
 /-! ## Structural verdicts -/
 
@@ -525,7 +552,7 @@ theorem no_alert_within_budget (p : Params) (hist : List Sample) (i : Nat) (s : 
 
 theorem mem_sample_full (p : Params) (hist : List Sample) (v : SampleVerdict)
     (h : Verdict.sample v ∈ timingVerdicts p hist) :
-    ∃ i, ∃ hi : i < hist.length, hist[i].full = true ∧ v = judge p (hist.take i) i hist[i] := by
+    ∃ i, ∃ hi : i < hist.length, hist[i].full = true ∧ v = judgeQ p (hist.take i) i hist[i] := by
   simp only [timingVerdicts, List.mem_append, List.mem_map] at h
   rcases h with ⟨w, hw, he⟩ | ⟨w, _, he⟩
   · cases he
@@ -540,17 +567,9 @@ theorem mem_sample_full (p : Params) (hist : List Sample) (v : SampleVerdict)
 
 theorem mem_sample (p : Params) (hist : List Sample) (v : SampleVerdict)
     (h : Verdict.sample v ∈ timingVerdicts p hist) :
-    ∃ i, ∃ hi : i < hist.length, v = judge p (hist.take i) i hist[i] := by
+    ∃ i, ∃ hi : i < hist.length, v = judgeQ p (hist.take i) i hist[i] := by
   obtain ⟨i, hi, _, he⟩ := mem_sample_full p hist v h
   exact ⟨i, hi, he⟩
-
-/-- No alert within budget, over the whole output: a sample verdict whose duration is at most its budget is not
-`slow`.
--/
-theorem no_alert_within_budget_list (p : Params) (hist : List Sample) (v : SampleVerdict)
-    (h : Verdict.sample v ∈ timingVerdicts p hist) (hb : v.durMs ≤ v.budgetMs) : v.code ≠ .slow := by
-  obtain ⟨i, hi, rfl⟩ := mem_sample p hist v h
-  exact no_alert_within_budget p _ i _ hb
 
 /-- The ceilings of `fw land`, from the land-speed research targets (a Lean-touching land under 20 s p50, the lock
 held under 5 s): 30 s for the whole land (step `total`) and 5 s for the time its lock is held (step `lock held`).
@@ -572,6 +591,36 @@ theorem land_budget_alert (p : Params) (hp : ∃ rest, p.ceilings = landCeilings
   rcases hs with ⟨ht, hst, hd⟩ | ⟨ht, hst, hd⟩
   · exact ⟨30000, by simp [ceilingOf, hr, landCeilings, ht, hst], hd, hn⟩
   · exact ⟨5000, by simp [ceilingOf, hr, landCeilings, ht, hst], hd, hn⟩
+
+theorem budgetOf_wait (p : Params) (h : p.budgets.lookup waitTool = none) : budgetOf p waitTool = p.waitBudgetMs := by
+  have e : waitTool == waitTool := by decide
+  simp [budgetOf, h, e]
+
+theorem budgetOf_work (p : Params) (t : String) (h : p.budgets.lookup t = none) (hw : t ≠ waitTool) :
+    budgetOf p t = p.budgetMs := by
+  simp [budgetOf, h, hw]
+
+theorem wait_within_budget_not_slow (p : Params) (hist : List Sample) (i : Nat) (s : Sample)
+    (hw : s.tool = waitTool) (hu : p.budgets.lookup waitTool = none) (hc : ceilingOf p s.tool s.step = none)
+    (hd : s.durMs ≤ p.waitBudgetMs) : (judge p hist i s).code ≠ .slow := by
+  intro hs
+  rcases (slow_iff p hist i s).1 hs with hb | hr
+  · obtain ⟨c, hc', _⟩ := (ceilingBreach_iff p s).1 hb
+    rw [hc] at hc'
+    cases hc'
+  · have := hr.2.2.1
+    rw [hw, budgetOf_wait p hu] at this
+    omega
+
+theorem wait_over_budget_slow (p : Params) (hist : List Sample) (i : Nat) (s : Sample)
+    (hw : s.tool = waitTool) (hu : p.budgets.lookup waitTool = none) (hn : p.nMin ≤ (windowOf p hist s.key).length)
+    (hq : contended p s = false) (hB : p.waitBudgetMs < s.durMs)
+    (hk : p.kNum * p50 (windowOf p hist s.key) < p.kDen * s.durMs) : (judge p hist i s).code = .slow :=
+  (slow_iff p hist i s).2 (Or.inr ⟨hn, hq, by rw [hw, budgetOf_wait p hu]; exact hB, hk⟩)
+
+#guard (codeOf {} [100, 100, 100, 100, 100] { tool := waitTool, step := "slot wait check", durMs := 40000, host := .ci }) == .ok
+#guard (codeOf {} [100, 100, 100, 100, 100] { tool := waitTool, step := "slot wait check", durMs := 1800001, host := .ci }) == .slow
+#guard (codeOf {} [100, 100, 100, 100, 100] { tool := "fw", step := "slot run check x", durMs := 40000, host := .ci }) == .slow
 
 /-- Slow is monotone in the duration: with the same history, a sample that is `slow` stays `slow` when it takes
 longer.
@@ -647,12 +696,12 @@ theorem timingVerdicts_all_full (p : Params) (ss : List Sample) (hf : ∀ s ∈ 
   rw [timingVerdicts, fullVerdicts_all_full p ss hf]
 
 theorem windowOf_all_full (p : Params) (hist : List Sample) (k : Key) (hf : ∀ s ∈ hist, s.full = true) :
-    windowOf p hist k = lastN p.window ((hist.filter (fun s => decide (s.key = k) && !contended p s)).map (·.durMs)) := by
+    windowOf p hist k = lastN p.window ((hist.filter (fun s => decide (s.key = k) && !contended p s && !s.waited)).map (·.durMs)) := by
   unfold windowOf
   congr 2
   apply List.filter_congr
   intro x hx
-  simp [counts, hf x hx]
+  simp [counts, hf x hx, Bool.and_assoc]
 
 theorem jobKeys_all_full (ss : List Sample) (hf : ∀ s ∈ ss, s.full = true) :
     jobKeys ss = ((ss.filter isJob).map Sample.key).eraseDups := by
@@ -665,7 +714,7 @@ theorem jobKeys_all_full (ss : List Sample) (hf : ∀ s ∈ ss, s.full = true) :
 theorem timingVerdicts_total (p : Params) (hist : List Sample) (hf : ∀ s ∈ hist, s.full = true) :
     (timingVerdicts p hist).length = hist.length + (structuralVerdicts p hist).length ∧
       ∀ i (hi : i < hist.length),
-        (timingVerdicts p hist)[i]? = some (.sample (judge p (hist.take i) i hist[i])) := by
+        (timingVerdicts p hist)[i]? = some (.sample (judgeQ p (hist.take i) i hist[i])) := by
   rw [timingVerdicts_all_full p hist hf]
   refine ⟨by simp [sampleVerdicts], ?_⟩
   intro i hi
@@ -701,7 +750,7 @@ def Verdict.unindexed : Verdict → Verdict
   | .structural v => .structural v
 
 theorem sampleVerdicts_snoc (p : Params) (ss : List Sample) (x : Sample) :
-    sampleVerdicts p (ss ++ [x]) = sampleVerdicts p ss ++ [judge p ss ss.length x] := by
+    sampleVerdicts p (ss ++ [x]) = sampleVerdicts p ss ++ [judgeQ p ss ss.length x] := by
   apply List.ext_getElem
   · simp [sampleVerdicts]
   · intro n h1 h2
@@ -715,10 +764,78 @@ theorem sampleVerdicts_snoc (p : Params) (ss : List Sample) (x : Sample) :
       simp
 
 theorem fullVerdicts_snoc (p : Params) (ss : List Sample) (x : Sample) :
-    fullVerdicts p (ss ++ [x]) = fullVerdicts p ss ++ (if x.full then [judge p ss ss.length x] else []) := by
+    fullVerdicts p (ss ++ [x]) = fullVerdicts p ss ++ (if x.full then [judgeQ p ss ss.length x] else []) := by
   unfold fullVerdicts
   rw [sampleVerdicts_snoc, List.zip_append (by simp [sampleVerdicts])]
   cases hx : x.full <;> simp [List.filter_append, hx]
+
+theorem rest_contended (p : Params) (s : Sample) : contended p s.rest = contended p s := rfl
+
+theorem rest_budgetFor (p : Params) (s : Sample) : budgetFor p s.rest = budgetFor p s := rfl
+
+theorem judgeQ_queued (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (hq : queuedWithin s = true) :
+    judgeQ p hist i s = { (judge p hist i s.rest) with
+      durMs := s.durMs
+      code :=(if (judge p hist i s.rest).code = Code.slow then Code.slow else Code.queued) } := by
+  simp [judgeQ, hq]
+
+theorem judgeQ_plain (p : Params) (hist : List Sample) (i : Nat) (s : Sample)
+    (hq : queuedWithin s = false) : judgeQ p hist i s = judge p hist i s := by
+  simp [judgeQ, hq]
+
+theorem judgeQ_unwaited (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (h : s.holdMs = 0) :
+    judgeQ p hist i s = judge p hist i s :=
+  judgeQ_plain p hist i s (by simp [queuedWithin, h])
+
+theorem judge_not_queued (p : Params) (hist : List Sample) (i : Nat) (s : Sample) :
+    (judge p hist i s).code ≠ .queued := by
+  unfold judge codeOf
+  simp only
+  repeat' split
+  all_goals simp
+
+theorem judgeQ_durMs (p : Params) (hist : List Sample) (i : Nat) (s : Sample) :
+    (judgeQ p hist i s).durMs = s.durMs := by
+  by_cases hq : queuedWithin s = true
+  · simp [judgeQ_queued p hist i s hq]
+  · rw [judgeQ_plain p hist i s (by simpa using hq)]; simp [judge]
+
+theorem judgeQ_budgetMs (p : Params) (hist : List Sample) (i : Nat) (s : Sample) :
+    (judgeQ p hist i s).budgetMs = budgetFor p s := by
+  by_cases hq : queuedWithin s = true
+  · simp [judgeQ_queued p hist i s hq, judge, rest_budgetFor]
+  · rw [judgeQ_plain p hist i s (by simpa using hq)]; simp [judge]
+
+theorem judgeQ_tool (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : (judgeQ p hist i s).tool = s.tool := by
+  by_cases hq : queuedWithin s = true
+  · simp [judgeQ_queued p hist i s hq, judge, Sample.rest]
+  · rw [judgeQ_plain p hist i s (by simpa using hq)]; simp [judge]
+
+theorem judgeQ_step (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : (judgeQ p hist i s).step = s.step := by
+  by_cases hq : queuedWithin s = true
+  · simp [judgeQ_queued p hist i s hq, judge, Sample.rest]
+  · rw [judgeQ_plain p hist i s (by simpa using hq)]; simp [judge]
+
+theorem judgeQ_kind (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : (judgeQ p hist i s).kind = s.kind := by
+  by_cases hq : queuedWithin s = true
+  · simp [judgeQ_queued p hist i s hq, judge, Sample.rest]
+  · rw [judgeQ_plain p hist i s (by simpa using hq)]; simp [judge]
+
+theorem judge_idx (p : Params) (h : List Sample) (i j : Nat) (s : Sample) :
+    judge p h i s = { judge p h j s with idx := i } := rfl
+
+theorem judgeQ_unindexed (p : Params) (h h' : List Sample) (i j : Nat) (s : Sample)
+    (hh : h.filter Sample.full = h'.filter Sample.full) :
+    (judgeQ p h i s).unindexed = (judgeQ p h' j s).unindexed := by
+  have key : ∀ s', judge p h i s' = { judge p h' j s' with idx := i } := by
+    intro s'
+    rw [judge_filter_full p h, judge_filter_full p h', hh]
+    rfl
+  by_cases hq : queuedWithin s = true
+  · rw [judgeQ_queued p h i s hq, judgeQ_queued p h' j s hq, key]
+    simp [SampleVerdict.unindexed]
+  · rw [judgeQ_plain p h i s (by simpa using hq), judgeQ_plain p h' j s (by simpa using hq), key]
+    simp [SampleVerdict.unindexed]
 
 theorem fullVerdicts_unindexed (p : Params) (ss : List Sample) :
     (fullVerdicts p ss).map SampleVerdict.unindexed =
@@ -732,7 +849,8 @@ theorem fullVerdicts_unindexed (p : Params) (ss : List Sample) :
     cases hx : x.full
     · simp [hx, ih]
     · simp only [hx, ite_true, List.filter_cons, List.filter_nil, List.map_append, ih, sampleVerdicts_snoc]
-      simp only [judge, ← windowOf_filter_full, List.map_cons, List.map_nil, SampleVerdict.unindexed]
+      simp only [List.map_cons, List.map_nil]
+      rw [judgeQ_unindexed p _ (r.reverse.filter Sample.full) _ _ x (by simp [List.filter_filter])]
 
 theorem jobKeys_filter_full (ss : List Sample) : jobKeys (ss.filter Sample.full) = jobKeys ss := by
   unfold jobKeys
@@ -1063,12 +1181,13 @@ the series are within the factor `k` (`k_d · d_s ≤ k_n · d_t`), no sample ve
 -/
 theorem stable_never_slow (p : Params) (ss : List Sample) (h1 : 1 ≤ p.nMin)
     (hb : ∀ s ∈ ss, ceilingBreach p s = false)
-    (ht : ∀ s ∈ ss, ∀ t ∈ ss, p.kDen * s.durMs ≤ p.kNum * t.durMs) :
+    (ht : ∀ s ∈ ss, ∀ t ∈ ss, p.kDen * s.durMs ≤ p.kNum * t.durMs) (hw : ∀ s ∈ ss, s.holdMs = 0) :
     ∀ v ∈ sampleVerdicts p ss, v.code ≠ .slow := by
   intro v hv
   obtain ⟨i, hi, he⟩ := List.mem_iff_getElem.1 hv
   have hi' : i < ss.length := by simpa [sampleVerdicts, List.length_mapIdx] using hi
-  have hv' : v = judge p (ss.take i) i ss[i] := by rw [← he]; simp [sampleVerdicts, List.getElem_mapIdx]
+  have hv' : v = judge p (ss.take i) i ss[i] := by
+    rw [← he]; simp [sampleVerdicts, List.getElem_mapIdx, judgeQ_unwaited p _ i _ (hw _ (List.getElem_mem hi'))]
   subst hv'
   intro hs
   rcases (slow_iff p _ i _).1 hs with hbr | ⟨hn, _, _, hk⟩
@@ -1146,6 +1265,79 @@ theorem ceiling_at_normal_load (p : Params) (hist : List Sample) (i : Nat) (s : 
     (judge p hist i s).code = .slow :=
   (slow_iff p hist i s).2 (Or.inl ((ceilingBreach_iff p s).2 ⟨c, hc, hd, not_contended_of_load_le p s hl⟩))
 
+theorem queued_not_slow (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (hq : queuedWithin s = true)
+    (hr : (judge p hist i s.rest).code ≠ .slow) : (judgeQ p hist i s).code ≠ .slow := by
+  rw [judgeQ_queued p hist i s hq]; simp [hr]
+
+theorem queued_iff (p : Params) (hist : List Sample) (i : Nat) (s : Sample) :
+    (judgeQ p hist i s).code = .queued ↔
+      queuedWithin s = true ∧ (judge p hist i s.rest).code ≠ .slow := by
+  by_cases hq : queuedWithin s = true
+  · rw [judgeQ_queued p hist i s hq]
+    by_cases hs : (judge p hist i s.rest).code = .slow <;> simp [hq, hs]
+  · rw [judgeQ_plain p hist i s (by simpa using hq)]
+    simp [hq, judge_not_queued]
+
+theorem nonholder_judge (p : Params) (hist : List Sample) (i : Nat) (s : Sample)
+    (h : ∀ w ∈ s.waits, holderWait w.1 = false) : judgeQ p hist i s = judge p hist i s := by
+  apply judgeQ_unwaited
+  have : s.waits.filter (fun w => holderWait w.1) = [] := List.filter_eq_nil_iff.2 (fun w hw => by simp [h w hw])
+  simp [Sample.holdMs, this]
+
+theorem holdMs_le_sum (ws : List (Fw.Sup.Adapt.WhyTag × Nat)) :
+    ((ws.filter (fun w => holderWait w.1)).map (·.2)).sum ≤ (ws.map (·.2)).sum := by
+  induction ws with
+  | nil => simp
+  | cons w r ih =>
+    by_cases hw : holderWait w.1 = true <;> simp [hw] <;> omega
+
+theorem rest_ge (s : Sample) (hs : (s.waits.map (·.2)).sum ≤ s.waitMs) : s.durMs - s.waitMs ≤ (s.rest).durMs := by
+  have := holdMs_le_sum s.waits
+  show s.durMs - s.waitMs ≤ s.durMs - s.holdMs
+  unfold Sample.holdMs
+  omega
+
+theorem wait_only_queued (p : Params) (hist : List Sample) (i : Nat) (s : Sample)
+    (hq : queuedWithin s = true) (hd : s.durMs ≤ s.holdMs) : (judgeQ p hist i s).code = .queued := by
+  refine (queued_iff p hist i s).2 ⟨hq, no_alert_within_budget p hist i s.rest ?_⟩
+  show s.durMs - s.holdMs ≤ _
+  omega
+
+theorem queued_remainder_slow (p : Params) (hist : List Sample) (i : Nat) (s : Sample)
+    (hq : queuedWithin s = true) (hs : (judge p hist i s.rest).code = .slow) : (judgeQ p hist i s).code = .slow := by
+  rw [judgeQ_queued p hist i s hq]; simp [hs]
+
+theorem windowOf_append_waited (p : Params) (hist ws : List Sample) (k : Key)
+    (hw : ∀ w ∈ ws, w.waited = true) : windowOf p (hist ++ ws) k = windowOf p hist k := by
+  have h : ws.filter (fun s => decide (s.key = k) && counts p s) = [] :=
+    List.filter_eq_nil_iff.2 (fun c hc' => by simp [counts, hw c hc'])
+  simp [windowOf, List.filter_append, h]
+
+theorem contended_not_slow_Q (p : Params) (hist : List Sample) (i : Nat) (s : Sample)
+    (h : contended p s = true) : (judgeQ p hist i s).code ≠ .slow := by
+  have h0 := contended_not_slow p hist i s h
+  have hr := contended_not_slow p hist i s.rest (by rw [rest_contended]; exact h)
+  by_cases hq : queuedWithin s = true
+  · rw [judgeQ_queued p hist i s hq]; simp [hr]
+  · rw [judgeQ_plain p hist i s (by simpa using hq)]; exact h0
+
+theorem no_alert_within_budget_Q (p : Params) (hist : List Sample) (i : Nat) (s : Sample)
+    (h : s.durMs ≤ budgetFor p s) : (judgeQ p hist i s).code ≠ .slow := by
+  have h0 := no_alert_within_budget p hist i s h
+  have hr := no_alert_within_budget p hist i s.rest (by rw [rest_budgetFor]; show s.durMs - s.holdMs ≤ _; omega)
+  by_cases hq : queuedWithin s = true
+  · rw [judgeQ_queued p hist i s hq]; simp [hr]
+  · rw [judgeQ_plain p hist i s (by simpa using hq)]; exact h0
+
+/-- No alert within budget, over the whole output: a sample verdict whose duration is at most its budget is not
+`slow`.
+-/
+theorem no_alert_within_budget_list (p : Params) (hist : List Sample) (v : SampleVerdict)
+    (h : Verdict.sample v ∈ timingVerdicts p hist) (hb : v.durMs ≤ v.budgetMs) : v.code ≠ .slow := by
+  obtain ⟨i, hi, rfl⟩ := mem_sample p hist v h
+  rw [judgeQ_durMs, judgeQ_budgetMs] at hb
+  exact no_alert_within_budget_Q p _ i _ hb
+
 /-- **Contended samples never enter a window.** Appending samples that are all contended to the history leaves every
 window unchanged.
 -/
@@ -1178,12 +1370,12 @@ alert themselves nor lift the baseline.
 theorem lean_check_regression_through_contention :
     (judge {} ((List.replicate 5 (checkStage 20000 4)) ++ List.replicate 10 (checkStage 120000 20)) 15
       (checkStage 40000 4)).code = .slow := by
-  decide
+  decide +kernel
 
 /-- The contended runs of that case are themselves not `slow`. -/
 theorem lean_check_contended_burst_not_slow :
     (judge {} (List.replicate 5 (checkStage 20000 4)) 5 (checkStage 120000 20)).code = .contended := by
-  decide
+  decide +kernel
 
 /-! ## Proofs: structural verdicts -/
 
@@ -1379,6 +1571,7 @@ def codeStr : Code → String
   | .contended => "contended"
   | .ok => "ok"
   | .slow => "slow"
+  | .queued => "queued"
 
 def callStr : Call → String
   | .structural => "structural"
@@ -1392,7 +1585,9 @@ def keyJson (k : Key) : Json :=
 def sampleJson (s : Sample) : Json :=
   Json.mkObj [("tool", .str s.tool), ("step", .str s.step), ("durMs", toJson s.durMs),
     ("host", .str (hostStr s.host)), ("load", toJson s.load), ("runKind", .str s.kind),
-    ("exit", (s.exit.map toJson).getD .null), ("skipped", toJson s.skipped)]
+    ("exit", (s.exit.map toJson).getD .null), ("skipped", toJson s.skipped),
+    ("waitMs", toJson s.waitMs),
+    ("waits", .arr (s.waits.map (fun (t, ms) => Json.mkObj [("why", .str t.name), ("ms", toJson ms)])).toArray)]
 
 def paramsJson (p : Params) : Json :=
   Json.mkObj [("nMin", toJson p.nMin), ("window", toJson p.window), ("kNum", toJson p.kNum),
@@ -1461,6 +1656,9 @@ def runK (tool step kind : String) (host : Host) (ds : List Nat) : List Sample :
 
 def runX (tool step : String) (host : Host) (load : Nat) (xs : List (Nat × Option Int × Bool)) : List Sample :=
   xs.map fun (d, exit, skipped) => { tool, step, durMs := d, host, load, exit, skipped }
+
+def waitS (tool step : String) (load d : Nat) (ws : List (Fw.Sup.Adapt.WhyTag × Nat)) : Sample :=
+  { tool, step, durMs := d, host := .«local», load, waitMs := (ws.map (·.2)).sum, waits := ws }
 
 def landDry : List (Nat × Option Int × Bool) :=
   [(256, some 12, false), (19140, some 0, false), (213, some 12, false), (20226, some 0, false),
@@ -1553,7 +1751,42 @@ def cases : List (String × Params × List Sample) :=
    ("a slow full dry land followed by an early refusal: the refusal gets no verdict, so the slow verdict stays the latest of its key",
       {}, runX "fw" "land dry" .«local» 3 ((List.replicate 5 (20000, some 0, false)) ++ [(45000, some 0, false), (100, some 16, false)])),
    ("unknown exit (null) counts as a full run: 45 s after five 20 s runs with no exit code is slow",
-      {}, runX "fw" "land dry" .«local» 3 ((List.replicate 5 (20000, none, false)) ++ [(45000, none, false)]))]
+      {}, runX "fw" "land dry" .«local» 3 ((List.replicate 5 (20000, none, false)) ++ [(45000, none, false)])),
+   ("2026-10-22 fw/slot acquire sim (reasons INFERRED: the span of that day carried no per-reason ms; read as simBusy): 1523 s of which 1521 s under simBusy after five 2 s acquires is queued (it was a slow alert before: 1523 s > 3/2 of 2 s and over the 30 s budget)",
+      {}, run "fw" "slot acquire sim" .«local» 3 [2000, 2000, 2000, 2000, 2000] ++
+        [waitS "fw" "slot acquire sim" 3 1523000 [(.simBusy, 1521000)]]),
+   ("the same 1523 s wait read as 1480 s under simBusy and 41 s under memory: the 43 s remainder is judged and is slow (30 s budget); this shows the limit, memory wait time stays judged",
+      {}, run "fw" "slot acquire sim" .«local» 3 [2000, 2000, 2000, 2000, 2000] ++
+        [waitS "fw" "slot acquire sim" 3 1523000 [(.simBusy, 1480000), (.memory, 41000)]]),
+   ("a serial wait, 100 s under simBusy then 200 s under queued, with 2 s of its own work: queued",
+      {}, run "fw" "slot acquire sim" .«local» 3 [2000, 2000, 2000, 2000, 2000] ++
+        [waitS "fw" "slot acquire sim" 3 302000 [(.simBusy, 100000), (.queued, 200000)]]),
+   ("the legacy sim-lock (no lease) held for 300 s: 300 s under simBusy, queued",
+      {}, run "fw" "slot acquire sim" .«local» 3 [2000, 2000, 2000, 2000, 2000] ++
+        [waitS "fw" "slot acquire sim" 3 302000 [(.simBusy, 300000)]]),
+   ("a wait for a live measure window, 120 s under gap: queued",
+      {}, run "fw" "slot acquire sim" .«local» 3 [2000, 2000, 2000, 2000, 2000] ++
+        [waitS "fw" "slot acquire measure" 3 122000 [(.gap, 120000)]]),
+   ("a wait of 100 s under memLow only is judged as before: slow",
+      {}, run "fw" "slot acquire sim" .«local» 3 [2000, 2000, 2000, 2000, 2000] ++
+        [waitS "fw" "slot acquire sim" 3 102000 [(.memLow, 100000)]]),
+   ("waitMs 100 s with no waits (an old span or only unknown reasons) is judged as before: slow",
+      {}, run "fw" "slot acquire sim" .«local» 3 [2000, 2000, 2000, 2000, 2000] ++
+        [{ tool := "fw", step := "slot acquire sim", durMs := 102000, host := .«local», load := 3, waitMs := 100000 }]),
+   ("no wait (waitMs 0): unchanged, 2.5 s after five 2 s acquires is ok",
+      {}, run "fw" "slot acquire sim" .«local» 3 [2000, 2000, 2000, 2000, 2000, 2500]),
+   ("a refused acquire after maxWaitS (1800 s, no queue field) is judged plain: slow, the alert path for a holder that never leaves",
+      {}, run "fw" "slot acquire sim" .«local» 3 [2000, 2000, 2000, 2000, 2000] ++
+        run "fw" "slot acquire sim" .«local» 3 [1800000]),
+   ("a 100 s wait under simBusy and then 60 s of its own work (median 2 s): the remainder is judged, slow",
+      {}, run "fw" "slot acquire sim" .«local» 3 [2000, 2000, 2000, 2000, 2000] ++
+        [waitS "fw" "slot acquire sim" 3 160000 [(.simBusy, 100000)]]),
+   ("a queued sample stays out of the window: five 2 s acquires, one 400 s acquire with a 390 s simBusy wait, then 3 s is ok against the median 2 s",
+      {}, run "fw" "slot acquire sim" .«local» 3 [2000, 2000, 2000, 2000, 2000] ++
+        [waitS "fw" "slot acquire sim" 3 400000 [(.simBusy, 390000)]] ++ run "fw" "slot acquire sim" .«local» 3 [3000]),
+   ("a contended local sample (load 24) that waited 1900 s under simBusy is not slow: queued (the remainder is contended)",
+      {}, run "fw" "slot acquire sim" .«local» 3 [2000, 2000, 2000, 2000, 2000] ++
+        [waitS "fw" "slot acquire sim" 24 1902000 [(.simBusy, 1900000)]])]
 
 /-- The last verdict code of each case's samples, and the structural groups: the expected outcomes. -/
 def lastCode (p : Params) (ss : List Sample) : Option Code :=
@@ -1567,7 +1800,9 @@ def lastCode (p : Params) (ss : List Sample) : Option Code :=
 #guard (cases.drop 1).map (fun (_, p, ss) => lastCode p ss) ==
   [some .ok, some .slow, some .noBaseline, some .ok, some .slow, some .ok, some .slow, some .ok, some .slow, some .slow,
    some .slow, some .ok, some .slow, some .ok, some .slow, some .contended, some .slow, some .slow, some .ok, some .ok,
-   some .noBaseline, some .noBaseline, some .slow, some .slow, some .ok, some .ok, some .slow, some .slow, some .slow]
+   some .noBaseline, some .noBaseline, some .slow, some .slow, some .ok, some .ok, some .slow, some .slow, some .slow,
+   some .queued, some .slow, some .queued, some .queued, some .queued, some .slow, some .slow, some .ok, some .slow,
+   some .slow, some .ok, some .queued]
 #guard (fullVerdicts {} (runX "fw" "land dry" .«local» 3 landDry)).map (fun v => (v.durMs, v.code)) ==
   [(19140, .noBaseline), (20226, .noBaseline), (20710, .noBaseline), (20102, .noBaseline), (32103, .noBaseline),
    (28484, .ok), (879, .ok)]
@@ -1634,14 +1869,20 @@ def core (h : String) (args : List String) : List String :=
   let (_, first, _) := scan none args
   [base h] ++ (first.map tidy).toList
 
+def fwLauncher : String := "fw"
+
+def subOf (args : List String) : Option String := (args.find? fun a => !a.startsWith "-").map tidy
+
 def cmdKey : List String → Option String
   | [] => none
   | h :: args =>
     let (filt, first, rest) := scan none args
     let parts :=
       match first, rest with
-      | some w, p :: more => if launchWords.contains w then [base h] ++ (filt.map base).toList ++ core p more else
-          [base h] ++ (filt.map base).toList ++ [tidy w]
+      | some w, p :: more =>
+        if launchWords.contains w then [base h] ++ (filt.map base).toList ++ core p more
+        else if w == fwLauncher then [base h] ++ (filt.map base).toList ++ [w] ++ (subOf (p :: more)).toList
+        else [base h] ++ (filt.map base).toList ++ [tidy w]
       | some w, [] => [base h] ++ (filt.map base).toList ++ [tidy w]
       | none, _ => [base h] ++ (filt.map base).toList
     if parts.all okTok then some (" ".intercalate parts) else none
@@ -1651,14 +1892,45 @@ def capKey (seen : List String) (cap : Nat) (k : Option String) : Option String 
   | some x => if seen.contains x || decide (seen.length < cap) then some x else none
   | none => none
 
-def keyCap : Nat := 24
+def kindCap (kind : String) : Nat := if kind == "land" then 8 else if kind == "sim" then 4 else 24
 
 def runStep (kind : String) (seen : List String) (argv : List String) : String :=
-  match capKey seen keyCap (cmdKey argv) with
+  match capKey seen (kindCap kind) (cmdKey argv) with
   | some k => s!"slot run {kind} {k}"
   | none => s!"slot run {kind}"
 
-def waitStep (kind : String) : String := s!"slot wait {kind}"
+def dropSuffix (suf s : String) : String := if s.endsWith suf then (s.dropEnd suf.length).toString else s
+
+def stepKey (kind step : String) : Option String :=
+  let pre := s!"slot run {kind} "
+  if step.startsWith pre then
+    let k := dropSuffix " dry" (dropSuffix " cached" (step.drop pre.length).toString)
+    if k == "" || k == "dry" || k == "cached" then none else some k
+  else none
+
+def seenKeys (kind : String) (steps : List String) : List String := (steps.filterMap (stepKey kind)).eraseDups
+
+theorem seenKeys_mem (kind : String) (steps : List String) (k : String) :
+    k ∈ seenKeys kind steps ↔ ∃ s ∈ steps, stepKey kind s = some k := by
+  simp [seenKeys, List.mem_eraseDups, List.mem_filterMap]
+
+theorem seenKeys_append (kind : String) (a b : List String) (k : String) :
+    k ∈ seenKeys kind (a ++ b) ↔ k ∈ seenKeys kind a ∨ k ∈ seenKeys kind b := by
+  simp only [seenKeys_mem, List.mem_append]
+  constructor
+  · rintro ⟨s, hs | hs, h⟩
+    · exact Or.inl ⟨s, hs, h⟩
+    · exact Or.inr ⟨s, hs, h⟩
+  · rintro (⟨s, hs, h⟩ | ⟨s, hs, h⟩)
+    · exact ⟨s, Or.inl hs, h⟩
+    · exact ⟨s, Or.inr hs, h⟩
+
+theorem stepKey_prefix (kind step k : String) (h : stepKey kind step = some k) :
+    step.startsWith s!"slot run {kind} " = true := by
+  by_cases hp : step.startsWith s!"slot run {kind} " = true
+  · exact hp
+  · exfalso
+    simp [stepKey, hp] at h
 
 theorem cmdKey_nil : cmdKey [] = none := rfl
 
@@ -1684,6 +1956,14 @@ theorem capKey_some (seen : List String) (cap : Nat) (k : Option String) (x : St
     · exfalso
       simp [capKey] at h
       grind
+
+theorem capKey_bounded (seen : List String) (cap : Nat) (k : Option String) (x : String) (hs : seen.length ≤ cap)
+    (h : capKey seen cap k = some x) : (if x ∈ seen then seen else x :: seen).length ≤ cap := by
+  rcases capKey_some seen cap k x h with hx | hl
+  · simp [hx, hs]
+  · by_cases hx : x ∈ seen <;> simp [hx] <;> omega
+
+def waitStep (kind : String) : String := s!"slot wait {kind}"
 
 theorem wait_ne_run (kind : String) (seen : List String) (argv : List String) : waitStep kind ≠ runStep kind seen argv := by
   unfold waitStep runStep
@@ -1714,13 +1994,34 @@ def cases : List (String × String × List String × List String) :=
    ("empty argv", "check", [], []),
    ("seen key at the cap", "check", (List.range 24).map (fun i => s!"k{i}") ++ ["sh lean/scripts/check.sh"], ["sh", "lean/scripts/check.sh"]),
    ("new key at the cap", "check", (List.range 24).map (fun i => s!"k{i}"), ["sh", "lean/scripts/check.sh"]),
-   ("new key one below the cap", "check", (List.range 23).map (fun i => s!"k{i}"), ["sh", "lean/scripts/check.sh"])]
+   ("new key one below the cap", "check", (List.range 23).map (fun i => s!"k{i}"), ["sh", "lean/scripts/check.sh"]),
+   ("fw subcommand after flags", "check", [], ["pnpm", "-s", "fw", "--json", "ci", "wait", "--branch", "b"]),
+   ("fw without a subcommand", "check", [], ["pnpm", "fw"]),
+   ("fw with flags only", "check", [], ["pnpm", "fw", "--json"]),
+   ("fw subcommand outside the token set", "check", [], ["pnpm", "fw", "a b"]),
+   ("land kind new key at its cap of 8", "land", (List.range 8).map (fun i => s!"k{i}"), ["pnpm", "fw", "land"]),
+   ("land kind new key one below its cap", "land", (List.range 7).map (fun i => s!"k{i}"), ["pnpm", "fw", "land"]),
+   ("check kind with 8 keys is under its cap of 24", "check", (List.range 8).map (fun i => s!"k{i}"), ["pnpm", "fw", "land"]),
+   ("sim kind new key at its cap of 4", "sim", (List.range 4).map (fun i => s!"k{i}"), ["pnpm", "fw", "slot"])]
 
 #guard cases.map (fun (_, k, seen, a) => runStep k seen a) ==
   ["slot run check sh lean/scripts/check.sh", "slot run test pnpm runner vitest test/land-inputs.test.ts", "slot run test pnpm runner test",
-   "slot run test pnpm console-api test", "slot run land pnpm fw", "slot run check lake", "slot run check lake build",
+   "slot run test pnpm console-api test", "slot run land pnpm fw land", "slot run check lake", "slot run check lake build",
    "slot run check env check.sh", "slot run check", "slot run check", "slot run check",
-   "slot run check sh lean/scripts/check.sh", "slot run check", "slot run check sh lean/scripts/check.sh"]
+   "slot run check sh lean/scripts/check.sh", "slot run check", "slot run check sh lean/scripts/check.sh",
+   "slot run check pnpm fw ci", "slot run check pnpm fw", "slot run check pnpm fw", "slot run check",
+   "slot run land", "slot run land pnpm fw land", "slot run check pnpm fw land", "slot run sim"]
+
+def seenCases : List (String × String × List String) :=
+  [("keys, suffixes and repeats", "check",
+    ["slot run check sh a.sh", "slot run check sh a.sh cached", "slot run check", "slot run check cached", "slot run check dry",
+     "slot run check dry cached", "slot run check pnpm fw land dry", "slot run check pnpm fw land dry cached", "slot run land pnpm fw land dry",
+     "slot run test pnpm x test", "slot wait check", "slot run checks y", "slot run check sh a.sh"]),
+   ("other kind", "land", ["slot run land pnpm fw land dry", "slot run land pnpm fw land", "slot run check sh a.sh"]),
+   ("empty", "test", [])]
+
+#guard seenCases.map (fun (_, k, st) => seenKeys k st) ==
+  [["sh a.sh", "pnpm fw land"], ["pnpm fw land"], []]
 
 end Fw.Obs.Timing.SlotKey
 
@@ -1737,8 +2038,17 @@ def goldenText (_ : Unit := ()) : String :=
 
 def goldenPath : System.FilePath := "../packages/contracts/golden/obs/slot-key.jsonl"
 
-def writeGolden : IO Unit := IO.FS.writeFile goldenPath goldenText
+def seenJson (n k : String) (steps : List String) : Json :=
+  Json.mkObj [("name", n), ("request", Json.mkObj [("kind", k), ("steps", toJson steps)]),
+    ("response", Json.mkObj [("seen", toJson (seenKeys k steps))])]
 
-def checkGolden : IO Bool := do return (← IO.FS.readFile goldenPath) == goldenText
+def seenText (_ : Unit := ()) : String :=
+  String.join (seenCases.map fun (n, k, st) => (seenJson n k st).compress ++ "\n")
+
+def seenPath : System.FilePath := "../packages/contracts/golden/obs/slot-seen.jsonl"
+
+def writeGolden : IO Unit := do IO.FS.writeFile goldenPath goldenText; IO.FS.writeFile seenPath seenText
+
+def checkGolden : IO Bool := do return (← IO.FS.readFile goldenPath) == goldenText && (← IO.FS.readFile seenPath) == seenText
 
 end Fw.Wire.Obs.SlotKey

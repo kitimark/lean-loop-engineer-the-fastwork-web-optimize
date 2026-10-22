@@ -19,12 +19,9 @@
 {"name":"conflict refuses before reads","request":{"containsMain":true,"lints":true,"merges":false,"op":"landDry.verdict","own":true,"readsSelected":true,"readsTest":false,"scope":true},"response":{"kind":"conflict"}}
 {"name":"reads refuses","request":{"containsMain":true,"lints":true,"merges":true,"op":"landDry.verdict","own":true,"readsSelected":true,"readsTest":false,"scope":true},"response":{"kind":"reads"}}
 {"name":"reads failing but not selected passes","request":{"containsMain":true,"lints":true,"merges":true,"op":"landDry.verdict","own":true,"readsSelected":false,"readsTest":false,"scope":true},"response":{"kind":"dry"}}
-{"name":"stale beats scope","request":{"containsMain":false,"lints":true,"merges":true,"op":"landDry.verdict","own":true,"readsSelected":true,"readsTest":true,"scope":false},"response":{"kind":"stale"}}
-{"name":"stale though all stages pass","request":{"containsMain":false,"lints":true,"merges":true,"op":"landDry.verdict","own":true,"readsSelected":true,"readsTest":true,"scope":true},"response":{"kind":"stale"}}
 {"name":"scope and reads both fail: scope first","request":{"containsMain":true,"lints":true,"merges":true,"op":"landDry.verdict","own":true,"readsSelected":true,"readsTest":false,"scope":false},"response":{"kind":"scope"}}
 {"name":"no own commits: empty","request":{"containsMain":true,"lints":true,"merges":true,"op":"landDry.verdict","own":false,"readsSelected":true,"readsTest":true,"scope":true},"response":{"kind":"empty"}}
 {"name":"no own commits beats a failing scope","request":{"containsMain":true,"lints":true,"merges":false,"op":"landDry.verdict","own":false,"readsSelected":true,"readsTest":false,"scope":false},"response":{"kind":"empty"}}
-{"name":"stale beats empty","request":{"containsMain":false,"lints":true,"merges":true,"op":"landDry.verdict","own":false,"readsSelected":true,"readsTest":true,"scope":true},"response":{"kind":"stale"}}
 {"name":"fast lint fails after all stages pass","request":{"containsMain":true,"lints":false,"merges":true,"op":"landDry.verdict","own":true,"readsSelected":true,"readsTest":true,"scope":true},"response":{"kind":"lint"}}
 {"name":"reads refuses before lint","request":{"containsMain":true,"lints":false,"merges":true,"op":"landDry.verdict","own":true,"readsSelected":true,"readsTest":false,"scope":true},"response":{"kind":"reads"}}
 {"name":"lint fails though reads not selected","request":{"containsMain":true,"lints":false,"merges":true,"op":"landDry.verdict","own":true,"readsSelected":false,"readsTest":false,"scope":true},"response":{"kind":"lint"}}

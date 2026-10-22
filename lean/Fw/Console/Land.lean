@@ -66,7 +66,8 @@ def protectedGlobs : List String := ["!.fw-console/", "!.git/", "!.claude/settin
 
 /-- Generated outputs that any task may regenerate. -/
 def generated : List String :=
-  ["**/*.gen.json", "packages/contracts/golden/**", "lean/golden/**", "lean/math.lock.json"]
+  ["**/*.gen.json", "packages/contracts/golden/**", "lean/golden/**", "lean/math.lock.json",
+    "apps/runner/src/land-reads.gen.ts"]
 
 /-- The registrations every new module needs: the wire modules, the library root, the test main and the CLI entry point. -/
 def registrations : List String :=
@@ -123,6 +124,46 @@ theorem testGlob_eq_some (w g : String) :
     rw [hs]
     rcases hp with rfl | rfl <;> simp [hn, hg]
 
+def goldenWrite (w : String) : Bool := w.startsWith "packages/contracts/golden/"
+
+def goldenRegSet : List String := ["lean/scripts/*Golden.lean", "lean/scripts/check.sh"]
+
+def goldenRegs (writes : List String) : List String :=
+  if writes.any goldenWrite then goldenRegSet else []
+
+#guard goldenWrite "packages/contracts/golden/obs/*.jsonl"
+#guard goldenWrite "packages/contracts/golden/**"
+#guard !goldenWrite "packages/contracts/golden"
+#guard !goldenWrite "packages/contracts/src/a.ts"
+#guard !goldenWrite "lean/golden/a.jsonl"
+#guard goldenRegs ["lean/Fw/X.lean", "packages/contracts/golden/x.jsonl"] == goldenRegSet
+#guard goldenRegs ["lean/Fw/X.lean", "lean/scripts/XGolden.lean"] == []
+#guard goldenRegs [] == []
+
+theorem goldenRegs_nil (writes : List String) (h : ∀ w ∈ writes, goldenWrite w = false) : goldenRegs writes = [] := by
+  have : writes.any goldenWrite = false := List.any_eq_false.mpr fun w hw => by simp [h w hw]
+  simp [goldenRegs, this]
+
+theorem goldenRegs_of_golden (writes : List String) (w : String) (hw : w ∈ writes) (h : goldenWrite w = true) :
+    goldenRegs writes = goldenRegSet := by
+  have : writes.any goldenWrite = true := List.any_eq_true.mpr ⟨w, hw, h⟩
+  simp [goldenRegs, this]
+
+theorem goldenRegs_eq_nil_iff (writes : List String) :
+    goldenRegs writes = [] ↔ ∀ w ∈ writes, goldenWrite w = false := by
+  constructor
+  · intro h w hw
+    cases hg : goldenWrite w
+    · rfl
+    · rw [goldenRegs_of_golden writes w hw hg] at h; cases h
+  · exact goldenRegs_nil writes
+
+theorem goldenRegs_incl (writes : List String) : ∀ g ∈ goldenRegs writes, g.startsWith "!" = false := by
+  unfold goldenRegs
+  split
+  · decide +kernel
+  · simp
+
 /-! ### Task kinds and their registration sets -/
 
 /-- What a task is, from its id and stream: a port of site part `part` (`port-<part>`), a proof of part `part`
@@ -169,11 +210,12 @@ def kindRegs : TaskKind → List String
 
 /-- The scope of a landing of task `t` of stream `s` with write globs `w`, names `N` (task id, owner), and explicit
 `--allow` globs `a`: the writes, the test globs, the handoffs, the generated outputs, the always-needed
-registrations, the registration set of the task's kind, `--allow`, and last the protected exclusions.
+registrations, the golden registration set, the registration set of the task's kind, `--allow`, and last the
+protected exclusions.
 -/
 def landScope (writes names allow : List String) (task stream : String := "") : List String :=
-  writes ++ testGlobs writes ++ handoffs names ++ generated ++ registrations ++ kindRegs (taskKind task stream) ++ allow ++
-    protectedGlobs
+  writes ++ testGlobs writes ++ handoffs names ++ generated ++ registrations ++ goldenRegs writes ++
+    kindRegs (taskKind task stream) ++ allow ++ protectedGlobs
 
 /-- Every test glob is in the scope of the landing. -/
 theorem landScope_mem_tests (writes names allow : List String) (task stream : String) (g : String)
@@ -181,29 +223,39 @@ theorem landScope_mem_tests (writes names allow : List String) (task stream : St
   unfold landScope
   simp [h]
 
-/-- The protected globs stay last, so no addition (tests, registrations, kind sets, `--allow`) can lift them: the
-scope always ends with `P`.
--/
 theorem landScope_protected_suffix (writes names allow : List String) (task stream : String) :
     ∃ x, landScope writes names allow task stream = x ++ protectedGlobs :=
-  ⟨writes ++ testGlobs writes ++ handoffs names ++ generated ++ registrations ++ kindRegs (taskKind task stream) ++ allow,
+  ⟨writes ++ testGlobs writes ++ handoffs names ++ generated ++ registrations ++ goldenRegs writes ++
+      kindRegs (taskKind task stream) ++ allow,
     by simp [landScope]⟩
 
 /-- The admitted globs are exactly the task's writes (with their tests), its handoffs, the generated and always-needed
-registrations, the registration set of its kind, the explicit `--allow`, and the protected exclusions; nothing else.
+registrations, the golden registration set, the registration set of its kind, the explicit `--allow`, and the
+protected exclusions; nothing else.
 -/
 theorem mem_landScope_iff (writes names allow : List String) (task stream g : String) :
     g ∈ landScope writes names allow task stream ↔
       g ∈ writes ∨ g ∈ testGlobs writes ∨ g ∈ handoffs names ∨ g ∈ generated ∨ g ∈ registrations ∨
-      g ∈ kindRegs (taskKind task stream) ∨ g ∈ allow ∨ g ∈ protectedGlobs := by
+      g ∈ goldenRegs writes ∨ g ∈ kindRegs (taskKind task stream) ∨ g ∈ allow ∨ g ∈ protectedGlobs := by
   simp only [landScope, List.mem_append, or_assoc]
+
+theorem goldenRegs_mem_landScope (writes names allow : List String) (task stream g : String)
+    (h : g ∈ goldenRegs writes) : g ∈ landScope writes names allow task stream :=
+  (mem_landScope_iff _ _ _ _ _ _).mpr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inl h))))))
+
+theorem landScope_no_golden (writes names allow : List String) (task stream : String)
+    (h : ∀ w ∈ writes, goldenWrite w = false) :
+    landScope writes names allow task stream =
+      writes ++ testGlobs writes ++ handoffs names ++ generated ++ registrations ++ kindRegs (taskKind task stream) ++
+        allow ++ protectedGlobs := by
+  simp [landScope, goldenRegs_nil writes h]
 
 /-- The registration set of a kind is in the scope: a port, proof or measurement task needs no hand-written `--allow`
 for its own registration files.
 -/
 theorem kindRegs_mem_landScope (writes names allow : List String) (task stream g : String)
     (h : g ∈ kindRegs (taskKind task stream)) : g ∈ landScope writes names allow task stream :=
-  (mem_landScope_iff _ _ _ _ _ _).mpr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inl h))))))
+  (mem_landScope_iff _ _ _ _ _ _).mpr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inl h)))))))
 
 /-- A task of no known kind (not a port, a proof or a measurement) has an empty registration set, so it gains nothing
 over the old scope.
@@ -269,7 +321,7 @@ theorem protected_refused (writes names allow : List String) (task stream : Stri
     (hg : g ∈ protectedGlobs) (hm : matchesPath (segs (g.drop 1).toString) (segs x) = true) :
     x ∈ violations (landScope writes names allow task stream) [x] :=
   excluded_refused _ x g
-    ((mem_landScope_iff _ _ _ _ _ _).mpr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inr hg))))))))
+    ((mem_landScope_iff _ _ _ _ _ _).mpr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inr hg)))))))))
     (protectedGlobs_excl g hg) hm
 
 /-- No writes and no `--allow`: the landing is refused, whatever the paths. -/
@@ -286,6 +338,68 @@ theorem landVerdict_ok_iff (w n a paths : List String) :
     cases a with
     | nil => simp
     | cons y ys => cases hv : violations (landScope [] n (y :: ys)) paths <;> simp [hv]
+
+structure RegCase where
+  name : String
+  writes : List String
+  names : List String
+  task : String
+  stream : String
+  paths : List String
+
+def protectedPaths : List String := [".fw-console/events.jsonl", ".git/config", ".claude/settings.json", "lean/.lake/x"]
+
+def jevWrites : List String :=
+  ["lean/Fw/Oracle/Retrieve*.lean", "lean/Fw.lean", "packages/contracts/golden/oracle/retrieve*.jsonl",
+    "scripts/jev-trace.mjs", "scripts/jev-trace.test.mjs", "results/jev-retrieval-trace/**",
+    "research/notes/2026/10-2x-jev-retrieval-trace.md", "docs/team/handoffs/jev-retrieval-trace.md",
+    "research/notes/2026/10-2x-jev-replay.md"]
+
+def layerOptsWrites : List String :=
+  ["apps/site/src/registry/resolve.ts", "apps/site/src/registry/layer-opts*.ts", "apps/site/src/registry/*.test.ts",
+    "packages/contracts/golden/console/layer-opts*.jsonl", "docs/team/handoffs/site-layer-opts.md"]
+
+def slotKeyWrites : List String :=
+  ["apps/runner/src/slot-span.ts", "apps/runner/src/slot.ts", "apps/runner/test/slot-span.test.ts",
+    "lean/Fw/Obs/Timing.lean", "packages/contracts/golden/obs/*.jsonl", "docs/team/handoffs/slot-span-key.md"]
+
+def jevRegs : List String := ["lean/scripts/RetrieveGolden.lean", "lean/scripts/check.sh", "lean/Fw/Wire.lean"]
+
+def layerOptsRegs : List String :=
+  ["lean/scripts/LayerOptsGolden.lean", "lean/scripts/check.sh", "apps/runner/src/land-reads.gen.ts"]
+
+def slotKeyRegs : List String :=
+  ["lean/scripts/SlotKeyGolden.lean", "lean/scripts/check.sh", "apps/runner/src/fw.ts",
+    "apps/runner/test/span-names.test.ts"]
+
+def regCases : List RegCase := [
+  ⟨"jev-retrieval-trace: the golden generator and check.sh land", jevWrites, ["jev-retrieval-trace", "lean-prover"],
+    "jev-retrieval-trace", "oracle", jevRegs ++ ["packages/contracts/golden/oracle/retrieve.jsonl"]⟩,
+  ⟨"jev-retrieval-trace: protected paths stay refused", jevWrites, ["jev-retrieval-trace", "lean-prover"],
+    "jev-retrieval-trace", "oracle", jevRegs ++ protectedPaths⟩,
+  ⟨"site-layer-opts: the golden generator, check.sh and the generated read list land", layerOptsWrites,
+    ["site-layer-opts", "part-builder"], "site-layer-opts", "site",
+    layerOptsRegs ++ ["packages/contracts/golden/console/layer-opts.jsonl"]⟩,
+  ⟨"site-layer-opts: protected paths stay refused", layerOptsWrites, ["site-layer-opts", "part-builder"],
+    "site-layer-opts", "site", layerOptsRegs ++ protectedPaths⟩,
+  ⟨"site-layer-opts: a new check.sh read of a non-golden file is still a write (LandSpeed, Trigger)", layerOptsWrites,
+    ["site-layer-opts", "part-builder"], "site-layer-opts", "site",
+    layerOptsRegs ++ ["lean/Fw/Console/LandSpeed.lean", "lean/Fw/Ci/Trigger.lean"]⟩,
+  ⟨"slot-span-key: the golden generator and check.sh land", slotKeyWrites, ["slot-span-key", "console-builder"],
+    "slot-span-key", "tooling", slotKeyRegs ++ ["packages/contracts/golden/obs/timing.jsonl"]⟩,
+  ⟨"slot-span-key: protected paths stay refused", slotKeyWrites, ["slot-span-key", "console-builder"],
+    "slot-span-key", "tooling", slotKeyRegs ++ protectedPaths⟩,
+  ⟨"a Lean module with a new golden lands its generator and check.sh", ["lean/Fw/X.lean", "packages/contracts/golden/x.jsonl"],
+    ["x"], "x", "lean", ["lean/Fw/X.lean", "lean/scripts/XGolden.lean", "lean/scripts/check.sh"]⟩,
+  ⟨"no golden write: the generator and check.sh stay refused", ["lean/Fw/X.lean"], ["x"], "x", "lean",
+    ["lean/Fw/X.lean", "lean/scripts/XGolden.lean", "lean/scripts/check.sh"]⟩]
+
+def RegCase.verdict (c : RegCase) : Verdict := landVerdict c.writes c.names [] c.paths c.task c.stream
+
+#guard regCases.map RegCase.verdict ==
+  [.ok, .outOfScope protectedPaths, .ok, .outOfScope protectedPaths,
+    .outOfScope ["lean/Fw/Console/LandSpeed.lean", "lean/Fw/Ci/Trigger.lean"], .ok, .outOfScope protectedPaths, .ok,
+    .outOfScope ["lean/scripts/XGolden.lean", "lean/scripts/check.sh"]]
 
 /-! ## The land lock: nothing else commits on main while a land holds its merge open
 

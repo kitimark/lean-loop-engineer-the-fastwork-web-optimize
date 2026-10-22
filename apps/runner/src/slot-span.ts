@@ -11,7 +11,7 @@ export function slotStep(rest: string[]): string {
 
 export const writesOwnSpans = (rest: string[]): boolean => rest[0] === "run";
 
-export const SLOT_SUBS = ["run", "acquire", "renew", "release", "status", "sim", "held", "admit"] as const;
+export const SLOT_SUBS = ["run", "acquire", "renew", "release", "pass", "status", "sim", "held", "admit"] as const;
 
 function slotStepBase(rest: string[]): string {
   const sub = rest[0];
@@ -27,7 +27,8 @@ const VALUE_FLAGS = ["--filter", "-F", "-C", "--dir", "--kind"];
 const FILTER_FLAGS = ["--filter", "-F"];
 const LAUNCH_WORDS = ["exec", "dlx"];
 const SKIP_WORDS = ["run"];
-export const KEY_CAP = 24;
+export const FW_LAUNCHER = "fw";
+export const kindCap = (kind: string): number => (kind === "land" ? 8 : kind === "sim" ? 4 : 24);
 
 const lastSeg = (t: string): string => t.split("/").at(-1) ?? t;
 const okTok = (t: string): boolean => t.length > 0 && t.length <= 60 && /^[A-Za-z0-9._/-]*$/.test(t);
@@ -54,6 +55,9 @@ export function cmdKey(argv: string[]): string | null {
   if (first !== null && LAUNCH_WORDS.includes(first) && rest.length > 0) {
     const inner = scan(rest.slice(1));
     parts = [...head, lastSeg(rest[0]!), ...(inner.first === null ? [] : [tidy(inner.first)])];
+  } else if (first === FW_LAUNCHER && rest.length > 0) {
+    const sub = rest.find((a) => !a.startsWith("-"));
+    parts = [...head, first, ...(sub === undefined ? [] : [tidy(sub)])];
   } else parts = [...head, ...(first === null ? [] : [tidy(first)])];
   return parts.every(okTok) ? parts.join(" ") : null;
 }
@@ -61,41 +65,57 @@ export function cmdKey(argv: string[]): string | null {
 export const capKey = (seen: readonly string[], cap: number, k: string | null): string | null => (k !== null && (seen.includes(k) || seen.length < cap) ? k : null);
 
 export function runStep(kind: string, seen: readonly string[], argv: string[]): string {
-  const k = capKey(seen, KEY_CAP, cmdKey(argv));
+  const k = capKey(seen, kindCap(kind), cmdKey(argv));
   return k === null ? `slot run ${kind}` : `slot run ${kind} ${k}`;
 }
 
+export const WAIT_TOOL = "fw wait";
 export const waitStep = (kind: string): string => `slot wait ${kind}`;
 
-export function seenKeys(chunk: string, kind: string): string[] {
+const dropSuffix = (suf: string, s: string): string => (s.endsWith(suf) ? s.slice(0, s.length - suf.length) : s);
+
+export function stepKey(kind: string, step: string): string | null {
   const pre = `slot run ${kind} `;
-  const out = new Set<string>();
-  for (const m of chunk.matchAll(/"step":"([^"]*)"/g)) {
-    const s = m[1]!;
-    if (!s.startsWith(pre)) continue;
-    const k = s.slice(pre.length).replace(/ cached$/, "").replace(/ dry$/, "");
-    if (k !== "" && k !== "dry" && k !== "cached") out.add(k);
-  }
-  return [...out];
+  if (!step.startsWith(pre)) return null;
+  const k = dropSuffix(" dry", dropSuffix(" cached", step.slice(pre.length)));
+  return k === "" || k === "dry" || k === "cached" ? null : k;
 }
 
-const TAIL_BYTES = 2 << 20;
+export function seenKeys(chunk: string, kind: string, into: Set<string> = new Set()): string[] {
+  for (const m of chunk.matchAll(/"step":"([^"]*)"/g)) {
+    const k = stepKey(kind, m[1]!);
+    if (k !== null) into.add(k);
+  }
+  return [...into];
+}
+
+const CHUNK_BYTES = 4 << 20;
+
+export function seenInFile(f: string, kind: string): string[] {
+  const fd = openSync(f, "r");
+  const seen = new Set<string>();
+  try {
+    const size = fstatSync(fd).size;
+    let pos = 0, carry = "";
+    while (pos < size) {
+      const len = Math.min(CHUNK_BYTES, size - pos);
+      const buf = Buffer.alloc(len);
+      readSync(fd, buf, 0, len, pos);
+      pos += len;
+      const text = carry + buf.toString("utf8");
+      const cut = text.lastIndexOf("\n");
+      if (pos < size && cut >= 0) { seenKeys(text.slice(0, cut), kind, seen); carry = text.slice(cut + 1); } else { seenKeys(text, kind, seen); carry = ""; }
+    }
+  } finally { closeSync(fd); }
+  return [...seen];
+}
 
 export function runLabel(kind: string, argv: string[], dry: boolean, cwd: string = process.cwd()): string {
-  let chunk = "";
+  let seen: string[] = [];
   try {
     const f = timingsFile(cwd);
-    if (f) {
-      const fd = openSync(f, "r");
-      try {
-        const size = fstatSync(fd).size;
-        const len = Math.min(size, TAIL_BYTES);
-        const buf = Buffer.alloc(len);
-        readSync(fd, buf, 0, len, size - len);
-        chunk = buf.toString("utf8");
-      } finally { closeSync(fd); }
-    }
+    if (f) seen = seenInFile(f, kind);
   } catch { }
-  const s = runStep(kind, seenKeys(chunk, kind), argv);
+  const s = runStep(kind, seen, argv);
   return dry ? `${s} dry` : s;
 }

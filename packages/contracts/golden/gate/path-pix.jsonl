@@ -52,3 +52,23 @@
 {"claim":{"bound":null,"compA":false,"compB":true,"props":["filter"],"scales":false,"snap":false,"text":false},"engine":"chromium","kind":"premises","name":"filter on Chromium","premises":["P1","P2","P3","P4"]}
 {"claim":{"bound":null,"compA":false,"compB":false,"props":["backdrop-filter"],"scales":false,"snap":false,"text":false},"engine":"webkit","kind":"premises","name":"backdrop-filter on WebKit, not composited","premises":["P2","P3","P4"]}
 {"claim":{"bound":null,"compA":true,"compB":true,"props":["rotate"],"scales":false,"snap":false,"text":false},"engine":"chromium","kind":"premises","name":"rotate","premises":["P1","P2","P3","P4","C2"]}
+{"kind":"offsets","maxY":0,"offsets":[0,0,0,0,0,0,0,0,0]}
+{"kind":"offsets","maxY":1,"offsets":[0,0,0,0,0,0,0,0,1]}
+{"kind":"offsets","maxY":7,"offsets":[0,0,1,2,3,4,5,6,7]}
+{"kind":"offsets","maxY":8,"offsets":[0,1,2,3,4,5,6,7,8]}
+{"kind":"offsets","maxY":100,"offsets":[0,12,25,37,50,62,75,87,100]}
+{"kind":"offsets","maxY":4626,"offsets":[0,578,1156,1734,2313,2891,3469,4047,4626]}
+{"kind":"offsets","maxY":5000,"offsets":[0,625,1250,1875,2500,3125,3750,4375,5000]}
+{"box":[10000000,20500000,100000000,40000000],"dpr":3,"fh":2532,"fw":1170,"kind":"mask","mask":[29,331,60,183],"name":"interior box, dpr 3"}
+{"box":[-5000000,-2000000,50000000,30000000],"dpr":3,"fh":2532,"fw":1170,"kind":"mask","mask":[0,136,0,85],"name":"box past the top and left edges"}
+{"box":[380000000,800000000,100000000,100000000],"dpr":3,"fh":2532,"fw":1170,"kind":"mask","mask":[1139,1170,2399,2532],"name":"box past the bottom and right edges"}
+{"box":[100000,333333,1000000,1000000],"dpr":3,"fh":2532,"fw":1170,"kind":"mask","mask":[0,5,0,5],"name":"fractional edges, dpr 3"}
+{"box":[5000000,5000000,10000000,10000000],"dpr":2,"fh":1688,"fw":780,"kind":"mask","mask":[9,31,9,31],"name":"on the device grid, dpr 2"}
+{"box":[30000000,30000000,0,0],"dpr":3,"fh":2532,"fw":1170,"kind":"mask","mask":[89,91,89,91],"name":"empty box"}
+{"box":[0,900000000,100000000,10000000],"dpr":3,"fh":2532,"fw":1170,"kind":"mask","mask":[0,301,2532,2532],"name":"box fully off screen"}
+{"kind":"raw","ok":true,"pixels":[],"raw":{"changed":0,"maxDelta":0}}
+{"kind":"raw","ok":true,"pixels":[0,0,0],"raw":{"changed":0,"maxDelta":0}}
+{"kind":"raw","ok":true,"pixels":[0,1,0,1],"raw":{"changed":2,"maxDelta":1}}
+{"kind":"raw","ok":true,"pixels":[3,0,255,2],"raw":{"changed":3,"maxDelta":255}}
+{"kind":"raw","ok":true,"pixels":[16,4],"raw":{"changed":2,"maxDelta":16}}
+{"kind":"raw","ok":false,"pixels":[0,256],"raw":{"changed":1,"maxDelta":256}}

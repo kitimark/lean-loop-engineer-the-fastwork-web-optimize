@@ -2,7 +2,7 @@
 {"name":"vitest file","request":{"argv":["pnpm","--filter","./apps/runner","exec","vitest","run","test/land-inputs.test.ts"],"kind":"test","seen":[]},"response":{"step":"slot run test pnpm runner vitest test/land-inputs.test.ts","wait":"slot wait test"}}
 {"name":"pnpm test of a package","request":{"argv":["pnpm","--filter","./apps/runner","test"],"kind":"test","seen":[]},"response":{"step":"slot run test pnpm runner test","wait":"slot wait test"}}
 {"name":"pnpm test of another package","request":{"argv":["pnpm","-F","console-api","test"],"kind":"test","seen":[]},"response":{"step":"slot run test pnpm console-api test","wait":"slot wait test"}}
-{"name":"dry land","request":{"argv":["pnpm","-s","fw","land","b","--task","t","--dry"],"kind":"land","seen":[]},"response":{"step":"slot run land pnpm fw","wait":"slot wait land"}}
+{"name":"dry land","request":{"argv":["pnpm","-s","fw","land","b","--task","t","--dry"],"kind":"land","seen":[]},"response":{"step":"slot run land pnpm fw land","wait":"slot wait land"}}
 {"name":"flags only","request":{"argv":["lake","--quiet"],"kind":"check","seen":[]},"response":{"step":"slot run check lake","wait":"slot wait check"}}
 {"name":"lake build","request":{"argv":["lake","build"],"kind":"check","seen":[]},"response":{"step":"slot run check lake build","wait":"slot wait check"}}
 {"name":"absolute program and script","request":{"argv":["/usr/bin/env","/opt/x/check.sh"],"kind":"check","seen":[]},"response":{"step":"slot run check env check.sh","wait":"slot wait check"}}
@@ -12,3 +12,11 @@
 {"name":"seen key at the cap","request":{"argv":["sh","lean/scripts/check.sh"],"kind":"check","seen":["k0","k1","k2","k3","k4","k5","k6","k7","k8","k9","k10","k11","k12","k13","k14","k15","k16","k17","k18","k19","k20","k21","k22","k23","sh lean/scripts/check.sh"]},"response":{"step":"slot run check sh lean/scripts/check.sh","wait":"slot wait check"}}
 {"name":"new key at the cap","request":{"argv":["sh","lean/scripts/check.sh"],"kind":"check","seen":["k0","k1","k2","k3","k4","k5","k6","k7","k8","k9","k10","k11","k12","k13","k14","k15","k16","k17","k18","k19","k20","k21","k22","k23"]},"response":{"step":"slot run check","wait":"slot wait check"}}
 {"name":"new key one below the cap","request":{"argv":["sh","lean/scripts/check.sh"],"kind":"check","seen":["k0","k1","k2","k3","k4","k5","k6","k7","k8","k9","k10","k11","k12","k13","k14","k15","k16","k17","k18","k19","k20","k21","k22"]},"response":{"step":"slot run check sh lean/scripts/check.sh","wait":"slot wait check"}}
+{"name":"fw subcommand after flags","request":{"argv":["pnpm","-s","fw","--json","ci","wait","--branch","b"],"kind":"check","seen":[]},"response":{"step":"slot run check pnpm fw ci","wait":"slot wait check"}}
+{"name":"fw without a subcommand","request":{"argv":["pnpm","fw"],"kind":"check","seen":[]},"response":{"step":"slot run check pnpm fw","wait":"slot wait check"}}
+{"name":"fw with flags only","request":{"argv":["pnpm","fw","--json"],"kind":"check","seen":[]},"response":{"step":"slot run check pnpm fw","wait":"slot wait check"}}
+{"name":"fw subcommand outside the token set","request":{"argv":["pnpm","fw","a b"],"kind":"check","seen":[]},"response":{"step":"slot run check","wait":"slot wait check"}}
+{"name":"land kind new key at its cap of 8","request":{"argv":["pnpm","fw","land"],"kind":"land","seen":["k0","k1","k2","k3","k4","k5","k6","k7"]},"response":{"step":"slot run land","wait":"slot wait land"}}
+{"name":"land kind new key one below its cap","request":{"argv":["pnpm","fw","land"],"kind":"land","seen":["k0","k1","k2","k3","k4","k5","k6"]},"response":{"step":"slot run land pnpm fw land","wait":"slot wait land"}}
+{"name":"check kind with 8 keys is under its cap of 24","request":{"argv":["pnpm","fw","land"],"kind":"check","seen":["k0","k1","k2","k3","k4","k5","k6","k7"]},"response":{"step":"slot run check pnpm fw land","wait":"slot wait check"}}
+{"name":"sim kind new key at its cap of 4","request":{"argv":["pnpm","fw","slot"],"kind":"sim","seen":["k0","k1","k2","k3"]},"response":{"step":"slot run sim","wait":"slot wait sim"}}

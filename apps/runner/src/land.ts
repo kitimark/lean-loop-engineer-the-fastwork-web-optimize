@@ -8,14 +8,18 @@ import { branchCard } from "../../console-api/src/reconcile/naming.ts";
 import { begin as rawBegin, record as rawRecord, span as rawSpan } from "./timing.ts";
 
 let stepPrefix = "";
+export const dryTotalStep = (plan: string[][], fwcoreBuild: boolean): string => (plan.some((a) => a.join("\0") === LINT_ARGV.axioms.join("\0")) || fwcoreBuild ? "dry total lake" : "dry total");
+let dryStep: string | null = null;
+export const lastDryStep = (): string | null => dryStep;
 const begin: typeof rawBegin = (tool, step, cwd) => rawBegin(tool, stepPrefix + step, cwd);
 const record: typeof rawRecord = (s, cwd) => rawRecord({ ...s, step: stepPrefix + s.step }, cwd);
 const span: typeof rawSpan = (tool, step, fn, exitOf) => rawSpan(tool, stepPrefix + step, fn, exitOf);
 import { cachedLaneView, circleciAdapter, DEFAULT_ALLOW, githubAdapter, makePusher, BUILD_ARGV, runTiered, spawnWait, type Adapter, type OverflowPlan, type Provider } from "./land-remote.ts";
 import { ccStatusFrom, forceFullFromEnv, ghStatusOnce, overflowFor, readSlots, realCircle } from "./land-overflow.ts";
 import { askCore, dropLock, lockFacts, lockFile, readLock, takeLock } from "../hooks/land-guard.mjs";
-import { FWCORE_STALE_REASON, checkFailKind, failedStages, fwcoreStale, lintPlan, outcome, outcomeKind, type Kind, type Outcome } from "./land-verdict.ts";
+import { FWCORE_STALE_REASON, checkFailKind, failedStages, fwcoreStale, LINT_ARGV, lintPlan, outcome, outcomeKind, type Kind, type Outcome } from "./land-verdict.ts";
 import { consoleSecret } from "./lib.ts";
+import { CHECK_SH_READS } from "./land-reads.gen.ts";
 import { ConsoleUnreachable } from "./land-queue.ts";
 import { chargedGh, fwcoreCall, ghCost } from "./run.ts";
 import { chargedOnce, realEnv, type Env } from "@fw/gh-budget";
@@ -129,8 +133,7 @@ export function inScope(globs: string[], path: string): boolean {
 export const selectChecks = (ds: { id: string; reads: string[] }[], changed: string[]) =>
   ds.filter((d) => changed.some((c) => inScope(d.reads, c))).map((d) => d.id);
 
-export const CHECK_SH_READS = ["lean/**", "packages/contracts/golden/**", "apps/site/src/breakpoints.gen.json", "apps/site/src/sweeps.gen.json", "apps/site/src/head.gen.json", "packages/gate-breakpoints/src/scope.gen.json", ".github/workflows/**", "scripts/span.sh", "scripts/fwcore-build.sh", "scripts/fwcore-record-rule.sh", "scripts/lake-slot.sh", "scripts/lake-slot-lib.sh", "scripts/heavy-lock.mjs", "scripts/slot-self.mjs", "docs/team/incidents/ledger.json",
-  "research/findings/ledger.json", "apps/site/src/parts/**", "apps/site/src/registry/presets/v2-proved.json", "apps/site/src/registry/layer-opts.gen.ts", "packages/measure-chromium/scenarios.gen.json"];
+export { CHECK_SH_READS };
 export const INSTALL_READS = ["pnpm-lock.yaml", "**/package.json"];
 export function siteAssetReads(manifestPath = join(new URL(import.meta.url).pathname, "../../../site/assets.manifest.json")): string[] {
   const m = JSON.parse(readFileSync(manifestPath, "utf8")) as { files: { src: string }[]; bundled?: string[] };
@@ -159,7 +162,7 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     "packages/contracts/golden/port/**", "scripts/port/**", "packages/visual-diff/src/engines.mjs", "packages/visual-diff/src/fonts.mjs", "snapshot/site/index.html", "snapshot/site/_app/**", ...siteAssetReads()],
   "packages/measure-wktr": ["packages/measure-chromium/src/fwcore.mjs", "packages/measure-webkit/src/page.mjs", "packages/measure-webkit/src/serve.mjs"],
   "packages/measure-chromium": ["lean/Fw/Store/Layout.lean", "lean/Fw/Faithful/Measured.lean", "packages/contracts/golden/measure/**", "packages/contracts/golden/faithful/**", "packages/contracts/golden/parts/stage-mode.jsonl", ".github/workflows/chromium-counts.yml", "results/baselines/chromium/**",
-    "packages/contracts/golden/device/**"],
+    "packages/contracts/golden/device/**", "packages/measure-webkit/src/pathpix*.mjs"],
   "packages/gate-breakpoints": ["lean/**", "packages/measure-webkit/src/device.mjs", "scripts/sim-lock.sh", "apps/site/src/breakpoints.gen.json", "apps/site/src/parts/**",
     "packages/contracts/golden/gate/**", "packages/contracts/golden/parts/**",
     "packages/measure-webkit/src/images/arm.mjs", "apps/site/src/flags/images/drawn.json",
@@ -169,13 +172,14 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
   "packages/engine-check": ["packages/contracts/golden/measure/**"],
   "packages/difftest": ["apps/console-api/src/cap/cap.ts", "apps/runner/hooks/cap.mjs", "packages/measure-chromium/src/n0.mjs",
     "packages/measure-chromium/src/trace.mjs", "packages/measure-webkit/src/quietsteps.mjs", "packages/measure-webkit/src/reduce.mjs"],
-  "packages/measure-webkit": ["packages/contracts/golden/measure/**", "apps/site/src/flags/images/drawn.json",
-    "packages/contracts/golden/device/**", "packages/measure-chromium/src/profile.mjs", "packages/measure-chromium/profiles/**",
+  "packages/measure-webkit": ["packages/contracts/golden/measure/**", "packages/contracts/golden/sup/**", "apps/site/src/flags/images/drawn.json",
+    "packages/contracts/golden/device/**", "packages/measure-chromium/src/profile.mjs", "packages/measure-chromium/src/census.mjs", "packages/measure-chromium/profiles/**",
     "apps/site/src/registry/presets/**", "apps/site/src/parts/**",
     "research/notes/2026/10-21-webkit-lag-probe.md",
     "packages/measure-chromium/src/fwcore.mjs", "packages/gate-breakpoints/src/smooth/schedule.mjs", "packages/gate-breakpoints/src/smooth/reduce.mjs",
     "packages/gate-breakpoints/src/smooth/bound.mjs",
-    "packages/gate-breakpoints/src/trajectory/reduce.mjs"],
+    "packages/gate-breakpoints/src/trajectory/reduce.mjs", "packages/gate-breakpoints/src/page.mjs",
+    "packages/measure-chromium/src/pathpix*.mjs", "packages/contracts/golden/gate/path-pix.jsonl"],
   "packages/snapshot-extract": ["packages/gate-breakpoints/src/**"],
   "packages/visual-diff": ["packages/gate-breakpoints/src/**", "apps/site/src/breakpoints.gen.json", "packages/contracts/golden/gate/**", "scripts/port/**", "packages/contracts/golden/port/**"],
 };
@@ -409,6 +413,18 @@ export function dryLintArgv(dir: string, changed: string[]): string[][] {
     existsSync(join(dir, "apps/site/scripts/part-footprint.mjs")));
 }
 
+export type DryBase = "contains" | "clean" | "conflict";
+export const dryBase = (behind: boolean, mergeClean: boolean): DryBase => !behind ? "contains" : mergeClean ? "clean" : "conflict";
+export function dryOutcome(base: DryBase, f: { own: boolean; scope: boolean; merges: boolean; reads: boolean; lints: boolean }): Outcome {
+  return base === "conflict" ? outcome({ own: f.own, merges: false }) : outcome(f);
+}
+export function dryMerge(cwd: string, main: string, sha: string): { tree: string; changed: string[] } | null {
+  let tree: string;
+  try { tree = git(cwd, ["-c", `attr.tree=${main}`, "merge-tree", "--write-tree", main, sha]).split("\n")[0]!; }
+  catch (e) { if ((e as { status?: number }).status === 1) return null; throw e; }
+  return { tree, changed: git(cwd, ["diff", "--no-renames", "--name-only", main, tree]).split("\n").filter(Boolean) };
+}
+
 type PreResult = { kind: "done"; sha: string } | { kind: "refuse"; msg: string; k?: Kind } | { kind: "fallback"; why: string };
 const READS_FAIL_RE = /land-inputs\.test|premise land\.readsOnly/;
 
@@ -442,7 +458,9 @@ export async function land(branch: string, o: LandOptions, via?: string): Promis
   const before = stepPrefix;
   if (!via) stepPrefix = o.dry ? "dry " : "";
   const end = via ? () => {} : begin("fw land", "total");
-  try { const r = await landRun(branch, o, via); end(r.ok ? 0 : 1); return r; } catch (e) { end(1); throw e; } finally { stepPrefix = before; }
+  if (!via) dryStep = null;
+  const named = (code: number) => end(code, dryStep === null ? {} : { step: dryStep });
+  try { const r = await landRun(branch, o, via); named(r.ok ? 0 : 1); return r; } catch (e) { named(1); throw e; } finally { stepPrefix = before; }
 }
 
 async function landRun(branch: string, o: LandOptions, via?: string): Promise<LandResult> {
@@ -478,10 +496,18 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
   }
   const sha = git(o.cwd, ["rev-parse", `refs/heads/${branch}`]);
   const behind = !tryGit(o.cwd, ["merge-base", "--is-ancestor", main, sha]);
-  if (o.dry && behind) return fail(`${branch} does not contain ${main}: merge ${main} into it (git merge ${main}) and run the dry land again; a stale base can carry another task's diff into the scope check`, "stale", outcome({ fresh: false }));
-  if (o.dry && tryGit(o.cwd, ["merge-base", "--is-ancestor", sha, main])) {
-    const oc = outcome({ own: false });
-    return { ok: true, lines: [...lines, `dry: ${branch} has no commit of its own (already in ${main}); nothing to land`], kind: outcomeKind(oc), outcome: oc };
+  let dm: { main0: string; tree: string; changed: string[] } | null = null;
+  if (o.dry) {
+    const main0 = git(mainDir, ["rev-parse", "HEAD"]);
+    if (tryGit(o.cwd, ["merge-base", "--is-ancestor", sha, main0])) {
+      const oc = dryOutcome(dryBase(behind, true), { own: false, scope: true, merges: true, reads: true, lints: true });
+      return { ok: true, lines: [...lines, `dry: ${branch} has no commit of its own (already in ${main}); nothing to land`], kind: outcomeKind(oc), outcome: oc };
+    }
+    const m = dryMerge(mainDir, main0, sha);
+    const base = dryBase(behind, m !== null);
+    if (!m) return fail(`${main} ${main0.slice(0, 7)} cannot merge ${branch} cleanly (git merge-tree): merge ${main} into it, resolve the conflict and run the dry land again`, "conflict", dryOutcome(base, { own: true, scope: true, merges: true, reads: true, lints: true }));
+    lines.push(base === "clean" ? `dry: ${branch} is behind ${main}; git merge-tree merges it cleanly, so the checks run on that merge's diff with ${main}` : `dry: ${branch} contains ${main}`);
+    dm = { main0, ...m };
   }
   if (behind && !o.task) return fail(`${branch} is behind ${main}; a fast-forward is impossible (land it with --task for a merge commit; branches are never rebased)`);
   const rg = renderGuard(o.cwd, main, sha);
@@ -507,7 +533,9 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       stream = row?.stream ?? stream;
     } catch { }
   }
-  const changed = git(o.cwd, ["diff", "--name-only", `${main}...${sha}`]).split("\n").filter(Boolean);
+  const own3 = git(o.cwd, ["diff", "--no-renames", "--name-only", `${main}...${sha}`]).split("\n").filter(Boolean);
+  // the merged diff misses a path main and the branch changed alike; the real land's three-dot list still has it
+  const changed = dm ? [...new Set([...dm.changed, ...own3])] : own3;
   const allow = o.allow ?? [];
   const sc = await o.http.post("/api/ops/land-scope", { writes, names: [o.task, task?.owner].filter(Boolean), allow, paths: changed, task: o.task ?? "", stream });
   if (sc.status !== 200) return fail(`scope check unavailable: ${sc.body.reason ?? sc.status}`);
@@ -645,13 +673,8 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     if (failedChecks.length) badKind = checkFailKind(failedChecks);
     return bad.length ? bad.join("\n\n") : null;
   };
-  if (o.dry) {
-    const main0 = git(mainDir, ["rev-parse", "HEAD"]);
-    if (tryGit(mainDir, ["merge-base", "--is-ancestor", sha, main0])) { const oc = outcome({ own: false }); return { ok: true, lines: [...lines, `dry: ${branch} has no commit of its own (already in ${main}); nothing to land`], kind: outcomeKind(oc), outcome: oc }; }
-    lines.push(`dry: ${branch} contains ${main}; scope ok`);
-    let tree: string | null = null;
-    try { tree = git(mainDir, ["-c", `attr.tree=${main0}`, "merge-tree", "--write-tree", main0, sha]).split("\n")[0]!; } catch { }
-    if (!tree) return fail(`${main} cannot merge ${branch} cleanly`, "conflict", outcome({ merges: false }));
+  if (dm) {
+    const { main0, tree } = dm;
     const slot = claimLandWt(mainDir);
     try {
       const c = git(mainDir, ["commit-tree", tree, "-p", main0, "-p", sha, "-m", `dry ${branch}`]);
@@ -673,6 +696,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       let lints = true;
       if (reads) {
         const lintArgv = o.dryLints ?? dryLintArgv(slot.dir, changed);
+        dryStep = dryTotalStep(lintArgv, false);
         if (lintArgv.length) {
           const bad = await runChecks(slot.dir, lintArgv);
           lints = bad === null; detail = bad ?? "";
@@ -681,7 +705,9 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       if (reads && lints) {
         const local = (o.dryLocal ?? LOCAL_TESTS).filter((t) => selectChecks([t], changed).length > 0);
         if (local.length) {
-          const argv = [...(!o.dryLocal && (phase1Build(changed) || !existsSync(join(slot.dir, FWCORE_BIN))) ? [["sh", "scripts/fwcore-build.sh"]] : []), ...local.map((t) => t.argv)];
+          const needsBuild = !o.dryLocal && (phase1Build(changed) || !existsSync(join(slot.dir, FWCORE_BIN)));
+          dryStep = dryTotalStep(o.dryLints ?? dryLintArgv(slot.dir, changed), needsBuild);
+          const argv = [...(needsBuild ? [["sh", "scripts/fwcore-build.sh"]] : []), ...local.map((t) => t.argv)];
           const bad = await runChecks(slot.dir, argv);
           lints = bad === null; detail = bad ?? "";
           if (lints) lines.push(`dry: local tests ok (${local.map((t) => t.id).join(", ")})`);

@@ -97,14 +97,14 @@ GitHub Actions runs every leg of the land lane unless it has no free job slot fo
   workflow file (the heaviest set of jobs no two of which are ancestor and descendant, each job at most its matrix size, its `max-parallel` and
   5 on macOS; a `fromJSON` matrix at the largest its planner allows) by `apps/runner/test/land-overflow-widths.test.ts`, which fails when a
   matrix, a job or a workflow grows past its row, and when a row is not the derived value. The first legs that fit stay on GitHub, in matrix order; the rest go to CircleCI
-  only if CircleCI is usable (status fresh and healthy, a checkout key, credits and storage under the reserve). Theorems: `github_first`
+  only if CircleCI is usable (status fresh and healthy, a checkout key, and the legs' credits, the credits spent, the storage overage past 2 GB-month at 420 credits per GB-month, counted with the overflow's own Lake cache save, and the reserve fit the pool: `budgetFits`). Storage alone never refuses while the budget fits (`storage_alone_never_refuses`, `reason_not_storage`; `budgetFits_iff` gives the exact room), and the wait on CircleCI legs stops only on the 1 h cap or a 10 min queue (Lean `landStops`, which holds no storage reason: `storage_not_mem_landStops`). Theorems: `github_first`
   (no overflow while GitHub has room), `overflow_only_when_full`, `never_both` (a leg is on one provider), `verdict_same` (one bound pass is
   judged alike on either provider). A degraded Actions status moves every leg (`github-degraded`). `reason` says which branch decided.
 - **Facts (`apps/runner/src/land-overflow.ts`).** The slot count is one `gh run list --limit 100` (never `gh api`), cached in the gh-budget
   directory for 120 s, no retry on a refusal (unreadable means GitHub first). It is up to 120 s old, reads **this repository only** and sees only
   **the newest 100 runs**, so a run of another repository of the account and an older run still going are not counted: the slot count can
   under-count (named limits; the account-wide use of the 20 job slots is not visible to it). The CircleCI facts are read only when the first answer moves a leg: the console's
-  `/api/ci-status`, the key check and the credit and storage ledger of `scripts/circleci.mjs`. The test flag `FW_LAND_FORCE_FULL=1` marks GitHub full.
+  `/api/ci-status`, the key check and the credit and storage ledger of `scripts/circleci.mjs` (storage is Lean `storageNow`: saves of the last 30 days, caches and workspaces at 15 days, artifacts at 30). The test flag `FW_LAND_FORCE_FULL=1` marks GitHub full.
 - **One marker, two lanes.** Both providers use the same `ci/land-<task>-<sha7>` branch and marker commit (pushed once, `makePusher`). A
   land with legs on both says which GitHub gets in the marker message (`[legs:a,b]`); `land.yml`'s guard turns that into a matrix `exclude`.
   A land with no leg on GitHub leaves out `[ci:land]`, so GitHub starts nothing. The GitHub adapter passes a partial land only if the run has
@@ -133,11 +133,11 @@ GitHub Actions runs every leg of the land lane unless it has no free job slot fo
 
 Hand-back rule: before an agent hands a branch back it merges `main` into it and runs `pnpm fw land <branch> --task <id>
 [--allow <glob>]... --dry`, and hands back only when the last line is `VERDICT dry <id>` (exit 0). Other kinds are fixed
-first: `stale` = merge main again (or, when the REFUSED line starts with `fwcore-stale:`, run `sh scripts/fwcore-build.sh` in the main checkout; the branch is fine), `scope` = declare the write or pass `--allow`, `reads` = declare the read in the
+first: `stale` = only a REFUSED line starting with `fwcore-stale:` (a branch behind main no longer gives it): run `sh scripts/fwcore-build.sh` in the main checkout; the branch is fine, `scope` = declare the write or pass `--allow`, `reads` = declare the read in the
 premise, `conflict` = resolve. Lean `handback_pass_land_pass`: if the dry land passes and main has not moved, the real
 land's scope, merge and reads stages pass.
 
-`pnpm fw land <branch> --task <id> --dry` runs the real land's cheap stages on the same merge-tree commit: stale base (the branch must contain main), scope, merge and conflict markers, and the static reads test (`land-inputs.test.ts`) when the change selects the `reads-scan` check (its own cheap check, `vitest run test/land-inputs.test.ts`; selected by any change to a path any check declares as input, Lean `LandSpeed.scan_selected`). It takes no lock, writes no queue entry and never moves main; the checks run in a land worktree slot (a pid claim). Lean: `Fw.Console.LandDry` (`dry_pass_land_pass`, `dry_refusal_is_land_refusal`, `handback_pass_land_pass`).
+`pnpm fw land <branch> --task <id> --dry` runs the real land's cheap stages on the same merge-tree commit: a branch behind main is merged with `git merge-tree --write-tree` (no checkout; clean = checked on the merged diff, conflict = `VERDICT conflict`; Lean `LandDry.never_stale`), scope, merge and conflict markers, and the static reads test (`land-inputs.test.ts`) when the change selects the `reads-scan` check (its own cheap check, `vitest run test/land-inputs.test.ts`; selected by any change to a path any check declares as input, Lean `LandSpeed.scan_selected`). It takes no lock, writes no queue entry and never moves main; the checks run in a land worktree slot (a pid claim). Lean: `Fw.Console.LandDry` (`dry_pass_land_pass`, `dry_refusal_is_land_refusal`, `handback_pass_land_pass`).
 
 Every `fw land` prints a last line `VERDICT <kind> <task>` and exits with a code per kind (Lean `Fw.Console.LandVerdict`):
 

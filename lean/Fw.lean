@@ -75,6 +75,7 @@ import Fw.Measure.Quiet
 import Fw.Measure.Tolerance
 import Fw.Measure.WebKit
 import Fw.Measure.WkCost
+import Fw.Measure.Census
 import Fw.Measure.WebKitLag
 import Fw.Device.Session
 import Fw.Device.StillRuns
@@ -243,8 +244,10 @@ import Fw.Ci.Pool
 import Fw.Sup.Props
 import Fw.Sup.Adapt
 import Fw.Sup.AdaptGolden
+import Fw.Sup.MeasureWindow
 import Fw.Wire.Sup
 import Fw.Sup.Route
+import Fw.Sup.Measure
 import Fw.Ci.Pool.Key
 import Fw.Ci.Codemagic
 import Fw.Ci.Steps

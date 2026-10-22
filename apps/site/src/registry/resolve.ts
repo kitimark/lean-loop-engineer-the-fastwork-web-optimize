@@ -3,7 +3,6 @@ import type { FwConfig, Impl, LayerOptEntry, PartDef, PresetDef, ResolveResult }
 
 export const DEFAULT_IMPL: Impl = 'mui';
 
-/** Canonical text of a config: sorted "part:variant@impl" lines. */
 export function canonicalConfig(config: FwConfig): string {
   return Object.keys(config.variants)
     .sort()
@@ -16,7 +15,6 @@ export function hashConfig(config: FwConfig): string {
 }
 
 function splitEntry(entry: string): { id: string; variant: string; impl?: string } | null {
-  // "part.id:variant" or "part.id:variant@impl"
   const m = /^([^:@]+):([^:@]+)(?:@([^:@]+))?$/.exec(entry.trim());
   return m ? { id: m[1]!, variant: m[2]!, impl: m[3] } : null;
 }
@@ -63,25 +61,27 @@ function presetEntries(
   return { ...base, ...p.fw };
 }
 
-/**
- * Resolution order (PLAN 6.3): URL `?fw=` over `?preset=` over the registry default `faithful`.
- * Mirrors Lean `Fw.Flags.resolve` (defaults = head variant, overrides applied in order, last wins, then
- * `Config.ok`). The `?preset=`, `@impl` and URL syntax are TS-only extras with no Lean spec yet.
- * Unknown ids, unknown variants and violated `requires`/`conflicts` are errors, never fallbacks.
- */
+const FWL_MAX_LEN = 2000;
+const FWL_CHARSET = /^[A-Za-z0-9.:,\-_@=&]*$/;
+const FWL_CHARSET_REASON = 'search has a character outside A-Z a-z 0-9 . : , - _ @ = & (after one leading ?)';
+
 export function resolve(
   search: string,
   parts: PartDef[],
   presets: Record<string, PresetDef>,
 ): ResolveResult {
   const errors: string[] = [];
+  if (new URLSearchParams(search).has('fwl')) {
+    if (search.length > FWL_MAX_LEN) return { ok: false, errors: ['search is longer than 2000 characters'] };
+    if (!FWL_CHARSET.test(search.startsWith('?') ? search.slice(1) : search))
+      return { ok: false, errors: [FWL_CHARSET_REASON] };
+  }
   const params = new URLSearchParams(search);
   const byId = new Map(parts.map((p) => [p.id, p]));
 
   const variants: Record<string, string> = {};
   const impl: Record<string, Impl> = {};
   for (const p of parts) {
-    // Lean `defaults`: the head of the registered variants (first key of part.json `variants`).
     variants[p.id] = Object.keys(p.variants)[0] ?? 'faithful';
     impl[p.id] = DEFAULT_IMPL;
   }

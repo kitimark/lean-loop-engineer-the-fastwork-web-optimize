@@ -1,0 +1,3 @@
+{"name":"keys, suffixes and repeats","request":{"kind":"check","steps":["slot run check sh a.sh","slot run check sh a.sh cached","slot run check","slot run check cached","slot run check dry","slot run check dry cached","slot run check pnpm fw land dry","slot run check pnpm fw land dry cached","slot run land pnpm fw land dry","slot run test pnpm x test","slot wait check","slot run checks y","slot run check sh a.sh"]},"response":{"seen":["sh a.sh","pnpm fw land"]}}
+{"name":"other kind","request":{"kind":"land","steps":["slot run land pnpm fw land dry","slot run land pnpm fw land","slot run check sh a.sh"]},"response":{"seen":["pnpm fw land"]}}
+{"name":"empty","request":{"kind":"test","steps":[]},"response":{"seen":[]}}

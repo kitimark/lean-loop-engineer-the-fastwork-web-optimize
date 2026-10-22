@@ -75,6 +75,8 @@ def rows : List Row := [
     [⟨"Keep logs", .collect, .notCancelled⟩, ⟨"Host state on failure", .hostState, .failure⟩, up .notCancelled, tel]⟩,
   ⟨"toolbar-throttle.yml", "sim", "Touch probe (three arms, rotated per round)",
     [⟨"Keep logs", .collect, .notCancelled⟩, ⟨"Host state on failure", .hostState, .failure⟩, up .notCancelled, tel]⟩,
+  ⟨"path-pix.yml", "sim", "Path-pix capture (all arms, all offsets)",
+    [⟨"Keep logs", .collect, .notCancelled⟩, ⟨"Host state on failure", .hostState, .failure⟩, up .notCancelled, tel]⟩,
   ⟨"wktr.yml", "wktr", "WKTR, fresh process per pass, per variant",
     [⟨"Delete the Simulator device", .teardown, .always⟩, up .always]⟩,
   ⟨"wktr-fixtures.yml", "fixtures", "WKTR fixtures, fresh process per pass and cell",
