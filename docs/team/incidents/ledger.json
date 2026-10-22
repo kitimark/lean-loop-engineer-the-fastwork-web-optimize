@@ -4130,6 +4130,35 @@
    "leanReason": "Check selection is the pure Lean read-list rule (LandSpeed checks, selectChecks); that a build-review.js change selects the script-test check is a golden or theorem over it.",
    "empiricalCheck": "The next change to build-review.js runs scripts/build-review.test.mjs inside the land.",
    "hardening": "land-script-tests"
+  },
+  {
+   "id": "inc-step-title-only",
+   "at": "2026-10-22T19:40+07:00",
+   "title": "Console step cards carry only a title, so a user ask posted as a card lost its content; and a lead step post was refused unseen",
+   "symptom": "The user commented on step ask-free-memory: \"why the your steps section contain only title. where is the description?\" The card read \"Free memory for Simulator tests (2 small steps)\"; the two steps were only in chat. Separately the lead posted step safari-remote-automation with a cd/PATH prefix, the capability hook minted nothing, the console refused it, and the lead piped the output through tail -2, so the refusal was not seen and the lead told the user the card was posted.",
+   "cause": "CONFIRMED (apps/runner/src/lib.ts:46-47: step.post takes --title only; packages/contracts Command step.post has no description field; apps/console-api/src/cap/routes.ts:23 refuses a fw call without a capability, which the hook mints only for a bare pnpm fw call): the step model has no body, and the lead used a non-bare fw call and truncated its output.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "apps/runner/src/lib.ts",
+     "note": "stepCommand: step.post carries title, kind, options; no description"
+    },
+    {
+     "kind": "file",
+     "ref": "apps/console-api/src/cap/routes.ts",
+     "note": "line 23: no valid, unused capability -> 403"
+    }
+   ],
+   "repro": "Post a step with a multi-part ask: only the title reaches the console. Run a fw command with a cd prefix and pipe through tail: the refusal line is cut.",
+   "fix": {
+    "task": "step-description"
+   },
+   "regression": "step.post requires a description (Lean wire field, golden); fw exits non-zero and prints the refusal on stderr when the console refuses, so a pipe cannot hide it.",
+   "mistakeClass": "c-spec-gap",
+   "leanVerdict": "partly",
+   "leanReason": "The wire shape (step.post has a non-empty description) is a Lean Wire field and golden; the lead truncating output is a process slip that only the non-zero exit makes visible.",
+   "empiricalCheck": "The next user ask posted as a step shows its description under the title in the console; a refused fw call exits non-zero.",
+   "hardening": "step-description"
   }
  ]
 }
