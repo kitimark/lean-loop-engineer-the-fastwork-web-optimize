@@ -3977,13 +3977,18 @@
      "kind": "ci",
      "ref": "39736189293",
      "note": "console-api review-info excerpt anchor test failed in the second land"
+    },
+    {
+     "kind": "file",
+     "ref": "lean/Fw/Console/ReviewInfo.lean",
+     "note": "earnExcerpts held absolute first/last lines; now anchor and span, placed by Lean locate (op console.reviewExcerpt) in the console route"
     }
    ],
    "repro": "Edit a comment line in apps/site/src/parts/nav/index.tsx on a branch with a fresh footprint, run fw land --dry: VERDICT dry; the real land refuses on footprint.test.",
    "fix": {
     "task": "dry-gen-fresh"
    },
-   "regression": "Lean goldens for lintPlan with a part-source change (selects the footprint check) and without (old plan).",
+   "regression": "Lean goldens for lintPlan with a part-source change (selects the footprint check) and without (old plan): packages/contracts/golden/console/land-dry.jsonl (plan: cases), theorems gen_selected, lintPlan_old, gen_stale_refuses; apps/runner/test/land-dry.test.ts runs the default plan on a fixture part edit (VERDICT lint). Excerpts: Lean stores anchor and span, the range starts at the one anchor line (locate_at, locate_shift); an anchor on no line or on two lines is refused by name (locate_missing, locate_twice; apps/console-api/test/review-info.test.ts).",
    "mistakeClass": "c-late-check",
    "leanVerdict": "provable",
    "leanReason": "Which lints a dry runs is the pure Lean lintPlan; the generator-input selection is a path rule provable as gen_selected.",
