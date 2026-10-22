@@ -18,7 +18,7 @@ engine, and both are fixed in the Lean grader (`lean/Fw/Gate/TrajectoryGpu.lean`
 
 - MEASURED (raw of 39852684450): the swap series starts at the container insertion row, where the children vector grows
   from 16 to 20 entries (the new avatar is about 10 by 11 px and invisible). The first motion row comes a whole number
-  of frames later. Hold from insertion to onset, per swap:
+  of frames later. Rows from insertion to first motion, per swap:
 
 | Width | Arm | Swap 1 | Swap 2 | Swap 3 | Swap 4 |
 |---|---|---|---|---|---|
@@ -27,16 +27,21 @@ engine, and both are fixed in the Lean grader (`lean/Fw/Gate/TrajectoryGpu.lean`
 | 640 | base | 4 | 4 | 2 | 2 |
 | 640 | cand | 3 | 3 | 2 | 2 |
 
+- MEASURED: holdFrames (the `holds` field, frames dropped before the last rest frame) for 39852684450: base 2,2,0,0, cand 1,1,0,0.
 - MEASURED: after onset the two arms agree within 0.02 px. Swaps 1 and 2 match only at a shift of exactly +1 frame,
   swaps 3 and 4 at 0; no quarter-frame shift matches. The earlier reading "two of four swaps match only at a sub-frame
   shift" is refuted.
 - MEASURED (older runs 39823047557, 39823476824, 39824100493, before the settle rule): holds 4,4,2 in both arms, graded E.
 - INFERRED: the longer holds of the first swaps are warm-up or scheduling after the start-selling avatar template swap
   mounts a fresh image. Not confirmed.
-- Premise (stated in Lean): the hold is not graded. It varies by 2 frames inside one recording, more than the one-frame
-  limit. `dropHold` and `rebase` anchor each swap series at the last rest frame before the first move
-  (`onset_hold_invariant`, `dropHold_first_moves`); `holdFrames` reports the hold and the carousel unit carries it as `holds`.
+- Premise (stated in Lean, `holdTol`): the hold varies by 2 frames inside one recording, but between the arms of one
+  recording it differs by at most one frame (holdFrames: 39852684450 2 vs 1, 39861846900 at 640 1 vs 2). The motion match
+  anchors each swap series at the last rest frame before the first move (`dropHold`, `rebase`, `onset_hold_invariant`,
+  `dropHold_first_moves`). The hold is graded apart: `holdGrade` is E iff the base and cand holds of a swap pair differ by
+  at most 1 frame, else L, and the swap rep grade is `worse` of the motion grade and the hold grade (`repGrade`). The unit
+  carries both arms' holds as `holds`.
 - MEASURED: offline re-reduction of 39852684450 with the anchor grades E E E E at 390 and at 640; the three older runs stay E.
+- MEASURED: offline re-reduction with `holdGrade` of the four A/A raws (artifact cells-gpu-chromium), 12 of 12 units E in each: 39852684450, 39860085568, 39861846900, 39863586490; carousel reps E,E,E,E at 390 and 640 in each.
 
 ## Panel effect 640 close: the opacity kink
 
@@ -71,12 +76,12 @@ CI jobs. MEASURED, artifact `cells-gpu-chromium` of each run:
 | 39863586490 | 3575e73aa | 12 | 2,2,0,0 and 2,2,0,0 | 2,2,0,0 and 2,2,0,0 |
 
 - Every unit grades E in all three runs (panel-effect close at 640 included, carousel reps E,E,E,E).
-- The hold still differs between runs and between arms (run 2 at 640: 1 row in the base arm against 2 in the cand arm; the
-  hold-out run had 4,4,2,2 against 3,3,2,2). The anchor keeps that difference out of the grade.
+- Between arms the hold differs by at most one frame in every run (holdFrames: 39852684450 2 vs 1, 39861846900 at 640 1 vs 2).
+  The hold gate (`holdGrade`) keeps that spread E; a longer difference grades L (golden case "entering avatar held 2 rows
+  against 4").
 - Limit: Chromium only, three runs. WebKit A/A is not measured.
 
 ## Follow-ups
 
 - WebKit A/A (Chromium only here).
-- A gate on the hold itself (`holds`), once the cause of the long early holds is known.
 - Find why the first swaps hold 3 to 4 rows (INFERRED above).

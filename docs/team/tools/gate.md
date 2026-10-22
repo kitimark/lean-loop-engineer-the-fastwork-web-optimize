@@ -19,9 +19,10 @@ Specification: `lean/Fw/Gate/TrajectoryGpu.lean`. Golden: `packages/contracts/go
 
 ## Carousel swaps
 
-- A swap series starts at the last frame before the first motion (`dropHold`, `rebase`). The frames between the avatar
-  insertion and the first motion (the hold) are not graded. In A/A runs the hold varies by 1 to 2 frames (2 to 4 rows),
-  which is more than the one-frame limit. The hold is reported per swap as `holds` and is a follow-up gate.
+- A swap series starts at the last frame before the first motion (`dropHold`, `rebase`) for the motion match. The hold
+  (frames between the avatar insertion and the first motion, `holds`) is graded apart: `holdGrade` is E iff the base and
+  cand holds of a swap pair differ by at most 1 frame, else L (A/A spread 1 frame: runs 39852684450, 39861846900); the
+  swap rep grade is the worse of the motion and the hold grade.
 - Settle and tail stop rules of the recorder (`carouselSample`): wait for a swap, then 6 equal frames, cap 2.2 s;
   after `ms`, record on until 6 equal frames, cap 1.5 s. Lean: `settleRun`, `tailRun`, golden kinds `settle`, `tail`.
   A test drives the page function with a scripted clock against those vectors.
