@@ -106,6 +106,15 @@ describe("GET /api/compose over the real registry and ledger", () => {
     expect(ledger.findings.every((x) => Array.isArray(x.flags))).toBe(true);
   });
 
+  it("the gpu field carries the Lean mechanism for GPU variants and null for the rest", async () => {
+    const r = await composeReply(ROOT, core, []) as any;
+    const gpu = r.parts.flatMap((p: any) => p.variants.map((x: any) => [`${p.id}:${x.name}`, x.gpu])) as [string, string | null][];
+    expect(gpu.filter(([, g]) => g !== null).map(([k]) => k).sort()).toEqual(
+      ["hero.countdown:strip", "hero.exit:threaded", "hero:scene-pause", "morph.countdown:strip", "morph.panel:const-bounds", "platform:fade-threaded"]);
+    for (const [, g] of gpu) expect(g === null || (typeof g === "string" && g.length > 0)).toBe(true);
+    expect(gpu.find(([k]) => k === "hero.countdown:faithful")![1]).toBeNull();
+  });
+
   it("a refuted variant is classed refuted, cites its ledger row, and a pick of it is refused", async () => {
     const r = await composeReply(ROOT, core, [{ part: "morph.tween", variant: "waapi" }]) as any;
     const tween = r.parts.find((p: any) => p.id === "morph.tween");

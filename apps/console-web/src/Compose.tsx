@@ -8,7 +8,7 @@ import { answersNow, copyKnown, newestWins, openSearch, pickQuery, type Picks } 
 
 // Rendering only. The classes, the why-lines, the allowed combinations and the generated search are Lean `console.compose` (console-api
 // `GET /api/compose`); the explanations are the findings ledger's own words, attached by row index. Opening goes through the Builds open path.
-export type CVar = { name: string; kind: string; isDefault: boolean; class: string; why: string; rows: number[]; refusal: string | null };
+export type CVar = { name: string; kind: string; isDefault: boolean; class: string; why: string; rows: number[]; refusal: string | null; gpu?: string | null };
 export type CPart = { id: string; slot: string; group: string; pageLevel: boolean; variants: CVar[]; other: number[] };
 export type CRow = {
   index: number; candidate: string; status: string; chromium: string; webkit: string; visual: string; mechanism: string;
@@ -81,14 +81,18 @@ export function PartCard({ part, chosen, rows, rules, onPick, reviewPending = []
             <span className="flex flex-wrap items-center gap-2">
               <span className="font-mono">{v.name}</span>
               <Badge variant={BADGE[v.class] ?? "outline"}>{v.class}</Badge>
+              {v.gpu ? <Badge variant="secondary" data-testid="gpu-pill">GPU</Badge> : null}
               {reviewPending.includes(`${part.id}:${v.name}`) ? <Badge variant="secondary" data-testid="review-pending">look change, review pending</Badge> : null}
               {v.isDefault ? <span className="text-muted-foreground">default</span> : null}
             </span>
-            <span className="min-w-0 break-words text-muted-foreground">{v.refusal ?? v.why}</span>
+            <span className="min-w-0 break-words text-muted-foreground">
+              {v.refusal ?? v.why}
+              {v.gpu ? <span className="block" data-testid="gpu-mechanism">GPU: {v.gpu}</span> : null}
+            </span>
           </button>
         ))}
       </div>
-      <p className="break-words text-xs" data-testid="why">{rules[cur.class] ?? cur.why}</p>
+      <p className="break-words text-xs" data-testid="why">{rules[cur.class] ?? cur.why}{cur.gpu ? ` GPU: ${cur.gpu}` : ""}</p>
       {shown.length > 0 ? (
         <div>
           <Button size="sm" variant="ghost" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? "Hide the explanation" : "Show the explanation"}</Button>
