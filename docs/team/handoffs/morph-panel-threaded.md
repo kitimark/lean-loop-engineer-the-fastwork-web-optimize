@@ -4,14 +4,16 @@ Branch `worktree-wf_65d039ea-8f9-1`, worktree `.claude/worktrees/wf_65d039ea-8f9
 
 CI runs (all on ci/morph-panel-threaded @ f0273f680):
 - breakpoint-gate 39846842455 (`--gate --engines both --fw morph.panel:threaded`): running
-- trajectory-probe 39846814254 (push run, `fw=morph.panel:threaded`, all four widths): running
-- lean 39846814246 (push): running
+- trajectory-probe 39846814254 (push run, `fw=morph.panel:threaded`, all four widths, inputs read from the run): success; chromium RED with
+  84 `new` units, all coverage (`open@1` at w=390 and w=641, 42 each; faithful misses w=640), 0 content; panel rows pass 149 of 152;
+  linux webkit CLEAN 4000/4000 but walks the hero path only (no panel rows)
+- lean 39846814246 (push): failed on the init cost lint (golden lines at start), fixed in 7d920e0f3, not pushed yet; local check.sh green after it
 - webkit-sim cost lane (`lag=true cost=on vms=3`): 39846909558 threaded alone, 39846941236 const-bounds, 39846948148 bundle
   (threaded + platform:fade-threaded): running; ids from creation order, confirm with the run's inputs
 - chromium-counts (swipe-wheel-v1, 3 runs) const-bounds and threaded: dispatched by `fw run`, logs in the scratchpad, ids pending
 
-Verified: `sh lean/scripts/check.sh` not yet run at this sha; Lean files compile alone (`lake env lean`), site tests of
-morph.panel, morph.tween and platform pass, `tsc --noEmit` clean, golden `morph-panel-threaded.jsonl` equals the Lean output.
+Verified (local, branch tip): `sh lean/scripts/check.sh` green, `pnpm --filter @fw/site test` 116 files green, `tsc --noEmit` clean,
+ci-paths test 54 pass, runner land-inputs test 56 pass, golden equals the Lean output.
 
 Open: results of the runs above; ledger row, note, results/morph-panel-threaded/**; full check.sh, site package test,
 ci-paths and land-inputs tests; dry land.
