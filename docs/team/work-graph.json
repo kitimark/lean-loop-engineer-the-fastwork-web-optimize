@@ -16212,6 +16212,30 @@
     "docs/team/handoffs/gate-settle-scroll-timeline.md"
    ],
    "title": "(S) Settle probe counts scroll-driven animations as running forever (page.mjs:342 keeps any finite non-finished animation; a ScrollTimeline/ViewTimeline animation never finishes), so every arm with hero.exit:threaded ends UNSETTLED (run 39769627588: 155 unsettled samples, 0 fail readings, merge red). Rule: an animation on a non-document timeline is settled when its timeline's scroll offset is stable; its effect is already in the stable signature. Read the spec and Chromium/WebKit source for scroll-timeline playState/currentTime at a fixed offset (cite file:line@sha), state the rule in Lean Settle (running counts document-timeline animations only; theorem: a scroll-timeline animation at a fixed offset leaves the signature constant), golden vectors, page.mjs change, then rerun the full gate for fw=hero.exit:threaded on both engines and report whether the merge verdict turns pass."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "step-description",
+   "owner": "console-builder",
+   "stream": "console",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Wire.lean",
+    "lean/Fw/Console.lean",
+    "lean/Fw/Console/**",
+    "packages/contracts/src/index.ts",
+    "packages/contracts/golden/console/**",
+    "apps/runner/src/lib.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/**",
+    "apps/console-web/src/**",
+    "apps/console-api/src/spool/**",
+    "apps/console-api/test/**",
+    "docs/team/handoffs/step-description.md"
+   ],
+   "title": "User 2026-10-22 on step ask-free-memory: 'why the your steps section contain only title. where is the description?' Step cards carry only a title (lib.ts stepCommand; Command step.post). Add a required description to step.post (Lean Wire field + golden first; CLI --detail <text>, refused when empty), render it under the title in the console-web Your steps card (plain text, line breaks kept), keep old title-only events readable. Also: fw exits non-zero and prints the refusal on stderr when the console refuses a command (incident inc-step-title-only: a refused step post was hidden by a pipe). After land the lead re-posts open steps with descriptions."
   }
  ],
  "deadline": {
