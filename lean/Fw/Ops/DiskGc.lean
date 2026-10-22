@@ -4,11 +4,13 @@ import Fw.Ops.Wire
 
 /-!
 # Which local files `fw disk-gc` may delete (task `disk-auto-gc`)
-Six classes, each decided on its own over a closed allowlist of path shapes under fixed roots.
+Seven classes, each decided on its own over a closed allowlist of path shapes under fixed roots. Task `disk-gc-tmp`
+adds class 7 (the user temp folder), an unknown owner that keeps a candidate, a disk-pressure floor for class 4 and
+class 4 for the scratch of a landed task.
 -/
 namespace Fw.Ops.DiskGc
 
-/-- The six cleanup classes, numbered 1 to 6 in this order. -/
+/-- The seven cleanup classes, numbered 1 to 7 in this order. -/
 inductive Cls where
   | lake
   | landed
@@ -16,9 +18,10 @@ inductive Cls where
   | scratch
   | sim
   | console
+  | usertmp
 deriving Repr, DecidableEq
 
-/-- The number of a class, 1 to 6. -/
+/-- The number of a class, 1 to 7. -/
 def Cls.num : Cls → Nat
   | .lake => 1
   | .landed => 2
@@ -26,6 +29,7 @@ def Cls.num : Cls → Nat
   | .scratch => 4
   | .sim => 5
   | .console => 6
+  | .usertmp => 7
 
 /-- The name of a class. -/
 def Cls.name : Cls → String
@@ -35,9 +39,10 @@ def Cls.name : Cls → String
   | .scratch => "scratch"
   | .sim => "sim"
   | .console => "console"
+  | .usertmp => "usertmp"
 
 /-- Every class, by number. -/
-def Cls.all : List Cls := [.lake, .landed, .idle, .scratch, .sim, .console]
+def Cls.all : List Cls := [.lake, .landed, .idle, .scratch, .sim, .console, .usertmp]
 
 /-- The class with number or name `s`. -/
 def Cls.parse (s : String) : Option Cls := Cls.all.find? fun c => toString c.num == s || c.name == s
@@ -57,12 +62,14 @@ structure Proc where
 deriving Repr, DecidableEq
 
 /-- The allowed roots: the main checkout, the Lake artifacts directory, the project's session scratch directory
-(`<tmp>/claude-<uid>/<project>`) and the CoreSimulator devices directory. -/
+(`<tmp>/claude-<uid>/<project>`), the CoreSimulator devices directory and the user temp folder
+(`…/folders/<a>/<b>/T`, empty when not given). -/
 structure Roots where
   repo : String
   lake : String
   scratch : String
   devices : String
+  utmp : String := ""
 deriving Repr
 
 /-- One candidate as the glue reads it; an absent class fact keeps it. -/
@@ -71,13 +78,17 @@ structure Cand where
   /-- The resolved absolute path. -/
   path : String
   bytes : Nat
-  /-- The owner's uid. -/
-  uid : Nat
+  /-- The owner's uid; `none` when it could not be read (a vanished path), which keeps the candidate. -/
+  uid : Option Nat
   tracked : Bool
   /-- The newest modification time it holds (epoch seconds); for class 3, that of its worktree's other files. -/
   newest : Nat
   /-- A directory (lstat, so not a symlink). -/
   dir : Bool
+  /-- A symbolic link (lstat). -/
+  sym : Bool := false
+  /-- The task and workflow run a scratch directory's `.fw-owner` marker names (class 4). -/
+  owner : Option (String × String) := none
   /-- The Lake cache fact (class 1). -/
   lake : Option LakeGc.Fact := none
   /-- The worktree's branch (classes 2 and 3; empty when detached). -/
@@ -90,6 +101,9 @@ structure Cand where
   /-- The device name and state (class 5). -/
   device : Option (String × String) := none
 deriving Repr
+
+/-- The default age floor of class 7: 2 hours. -/
+def defaultTmpH : Nat := 2
 
 /-- The run's inputs besides the candidates; a fact family that is `none` was not gathered and keeps what it guards. -/
 structure Config where
@@ -117,6 +131,16 @@ structure Config where
   named : Option (List String)
   /-- The Simulator lock is held. -/
   simLock : Option Bool
+  /-- The age floor of class 7 (hours). -/
+  tmpH : Nat := defaultTmpH
+  /-- The run is a response to low disk (`sys.diskLow`): class 4 uses the pressure floor. -/
+  pressure : Bool := false
+  /-- The names of the agents that are running (fails closed when not gathered). -/
+  liveAgents : Option (List String) := none
+  /-- The tasks whose branch has a commit contained in main. -/
+  landedTasks : Option (List String) := none
+  /-- The workflow runs that have finished. -/
+  finishedRuns : Option (List String) := none
 deriving Repr
 
 /-- The default idle floor of class 3: 24 hours. -/
@@ -127,6 +151,12 @@ def defaultScratchH : Nat := 8
 
 /-- The default age floor of class 6: 7 days. -/
 def defaultKeepDays : Nat := 7
+
+/-- The age floor of class 4 under disk pressure: 2 hours. -/
+def pressureScratchH : Nat := 2
+
+/-- The age of a scratch directory whose task has landed and whose run has finished: 1 hour. -/
+def ownerFloorS : Nat := 3600
 
 /-! ## Paths -/
 
@@ -151,11 +181,18 @@ def classRoot (r : Roots) : Cls → String
   | .scratch => r.scratch
   | .sim => r.devices
   | .console => consoleRoot r
+  | .usertmp => r.utmp
 
 /-- A scratch root: allowed, and its parent directory is named `claude-…`. -/
 def scratchRootOk (s : String) : Bool :=
   absOk s && match (rootSegs s).reverse with
     | _ :: p :: _ => p.startsWith "claude-"
+    | _ => false
+
+/-- A user temp root: allowed, and it is `…/folders/<a>/<b>/T`. -/
+def utmpRootOk (s : String) : Bool :=
+  absOk s && match (rootSegs s).reverse with
+    | "T" :: _ :: _ :: "folders" :: _ => true
     | _ => false
 
 /-- The root of a class is allowed. -/
@@ -164,6 +201,7 @@ def rootOk (r : Roots) : Cls → Bool
   | .landed | .idle | .console => absOk r.repo
   | .scratch => scratchRootOk r.scratch
   | .sim => absOk r.devices && r.devices.endsWith "/CoreSimulator/Devices"
+  | .usertmp => utmpRootOk r.utmp
 
 /-- A hex digit. -/
 def hexChar (x : Char) : Bool := x.isDigit || ('A' ≤ x && x ≤ 'F') || ('a' ≤ x && x ≤ 'f')
@@ -171,6 +209,14 @@ def hexChar (x : Char) : Bool := x.isDigit || ('A' ≤ x && x ≤ 'F') || ('a' �
 /-- A device UDID: five groups of 8, 4, 4, 4 and 12 hex digits joined by `-`. -/
 def udidOk (u : String) : Bool :=
   (u.splitOn "-").map String.length == [8, 4, 4, 4, 12] && (u.splitOn "-").all (·.all hexChar)
+
+/-- The name prefixes of our own temp entries in the user temp folder. -/
+def tmpPrefixes : List String := ["fw", "oracle", "ghb", "engine-check", "premises", "land-base", "lint", "var"]
+
+/-- An entry of the user temp folder we may delete: an allowed name that starts with one of `tmpPrefixes`, or an
+Instruments kernel trace `instruments….ktrace`. -/
+def tmpNameOk (n : String) : Bool :=
+  LakeGc.nameOk n && (tmpPrefixes.any (fun p => n.startsWith p) || (n.startsWith "instruments" && n.endsWith ".ktrace"))
 
 /-- The segments below the root a class allows. -/
 def shape : Cls → List String → Bool
@@ -184,6 +230,7 @@ def shape : Cls → List String → Bool
   | .sim, [u] => udidOk u
   | .console, ["tmp", n] => LakeGc.nameOk n
   | .console, ["land-logs", n] => LakeGc.nameOk n
+  | .usertmp, [n] => tmpNameOk n
   | _, _ => false
 
 /-- The segments of `p` below `root`, when `p` starts with `root/`. -/
@@ -268,8 +315,31 @@ def ruleLanded (x : Cand) : Bool := x.dir && x.branch != "" && x.merged == some 
 def ruleIdle (cfg : Config) (x : Cand) : Bool :=
   x.dir && x.branch != "" && x.merged == some false && olderThan cfg x (cfg.idleH * 3600)
 
-/-- Class 4: a scratch directory no committed file cites, with no file newer than `scratchH` hours. -/
-def ruleScratch (cfg : Config) (x : Cand) : Bool := x.dir && !cited cfg x && olderThan cfg x (cfg.scratchH * 3600)
+/-- An agent of this name is running (fails closed when not gathered). -/
+def agentLive (cfg : Config) (x : Cand) : Bool :=
+  match cfg.liveAgents with
+  | none => true
+  | some l => l.contains (lastSeg x.path)
+
+/-- Class 4, by age: no file newer than `scratchH` hours. -/
+def scratchAge (cfg : Config) (x : Cand) : Bool := olderThan cfg x (cfg.scratchH * 3600)
+
+/-- Class 4, under disk pressure: no running agent has the directory's name, and no file is newer than
+`pressureScratchH` hours. -/
+def scratchPressure (cfg : Config) (x : Cand) : Bool :=
+  cfg.pressure && !agentLive cfg x && olderThan cfg x (pressureScratchH * 3600)
+
+/-- Class 4, by identity: the directory's `.fw-owner` marker names a task whose branch has landed and a workflow run
+that has finished, and no file is newer than `ownerFloorS` seconds. -/
+def scratchOwner (cfg : Config) (x : Cand) : Bool :=
+  match x.owner, cfg.landedTasks, cfg.finishedRuns with
+  | some (t, r), some lt, some fr => lt.contains t && fr.contains r && olderThan cfg x ownerFloorS
+  | _, _, _ => false
+
+/-- Class 4: a scratch directory no committed file cites that is old (`scratchAge`), idle under pressure
+(`scratchPressure`) or finished (`scratchOwner`). -/
+def ruleScratch (cfg : Config) (x : Cand) : Bool :=
+  x.dir && !cited cfg x && (scratchAge cfg x || scratchPressure cfg x || scratchOwner cfg x)
 
 /-- Class 5: a shut-down device named `fw-…` that no workflow or package names, with the Simulator lock free. -/
 def ruleSim (cfg : Config) (x : Cand) : Bool :=
@@ -277,8 +347,12 @@ def ruleSim (cfg : Config) (x : Cand) : Bool :=
   | some (n, st) => n.startsWith "fw-" && st == "Shutdown" && !named cfg n && cfg.simLock == some false
   | none => false
 
-/-- Class 6: an entry older than `keepDays` days. -/
-def ruleConsole (cfg : Config) (x : Cand) : Bool := olderThan cfg x (cfg.keepDays * 86400)
+/-- Class 6: an entry that is not a symbolic link and is older than `keepDays` days. -/
+def ruleConsole (cfg : Config) (x : Cand) : Bool := !x.sym && olderThan cfg x (cfg.keepDays * 86400)
+
+/-- Class 7: an entry that is not a symbolic link, with no file newer than `tmpH` hours. Its name is in the allowlist
+by `shape`. -/
+def ruleUsertmp (cfg : Config) (x : Cand) : Bool := !x.sym && olderThan cfg x (cfg.tmpH * 3600)
 
 /-- The rule of the candidate's class. -/
 def rule (cfg : Config) (x : Cand) : Bool :=
@@ -289,10 +363,11 @@ def rule (cfg : Config) (x : Cand) : Bool :=
   | .scratch => ruleScratch cfg x
   | .sim => ruleSim cfg x
   | .console => ruleConsole cfg x
+  | .usertmp => ruleUsertmp cfg x
 
 /-- What every class requires besides being enabled: an allowed path, owned by the user, not tracked, not in use. -/
 def guard (cfg : Config) (x : Cand) : Bool :=
-  pathOk cfg.roots x.cls x.path && x.uid == cfg.uid && !x.tracked && !live cfg x
+  pathOk cfg.roots x.cls x.path && x.uid == some cfg.uid && !x.tracked && !live cfg x
 
 /-- One candidate, decided alone: its class is enabled, it passes the guard and its class rule. -/
 def chosen (cfg : Config) (x : Cand) : Bool := cfg.classes.contains x.cls && guard cfg x && rule cfg x
@@ -322,7 +397,8 @@ def selectFast (cfg : Config) (xs : List Cand) : List Cand := xs.filter (chosenI
 
 /-- Roots for the examples. -/
 def exRoots : Roots :=
-  ⟨"/u/r", "/u/.elan/c/artifacts", "/private/tmp/claude-1/-u-r", "/u/Library/Developer/CoreSimulator/Devices"⟩
+  ⟨"/u/r", "/u/.elan/c/artifacts", "/private/tmp/claude-1/-u-r", "/u/Library/Developer/CoreSimulator/Devices",
+    "/private/var/folders/ab/cd/T"⟩
 
 /-- A config for the examples: every class, every fact gathered, nothing open, queued, cited or named. -/
 def exCfg : Config :=
@@ -332,7 +408,7 @@ def exCfg : Config :=
 
 /-- A scratch directory candidate. -/
 def exScratch (d : String) (newest : Nat) : Cand :=
-  { cls := .scratch, path := s!"/private/tmp/claude-1/-u-r/s1/scratchpad/{d}", bytes := 10, uid := 1, tracked := false,
+  { cls := .scratch, path := s!"/private/tmp/claude-1/-u-r/s1/scratchpad/{d}", bytes := 10, uid := some 1, tracked := false,
     newest, dir := true }
 
 #guard chosen exCfg (exScratch "old" 0)
@@ -344,21 +420,21 @@ def exScratch (d : String) (newest : Nat) : Cand :=
 #guard !chosen { exCfg with opens := none } (exScratch "old" 0)
 #guard !chosen exCfg { exScratch "old" 0 with path := "/private/tmp/claude-1/-u-r/s1/scratchpad/../x" }
 #guard !chosen exCfg { exScratch "old" 0 with path := "/private/tmp/claude-1/-u-r/s1/scratchpad/a/b" }
-#guard !chosen exCfg { exScratch "old" 0 with uid := 2 }
+#guard !chosen exCfg { exScratch "old" 0 with uid := some 2 }
 #guard !chosen { exCfg with classes := [.lake] } (exScratch "old" 0)
 /-- A worktree candidate of class `c` at `rel` below the worktrees root, merged or not, with lock `k`. -/
 def exWt (c : Cls) (rel : String) (merged : Bool) (k : Lock) : Cand :=
-  { cls := c, path := s!"/u/r/.claude/worktrees/{rel}", bytes := 1, uid := 1, tracked := false, newest := 0,
+  { cls := c, path := s!"/u/r/.claude/worktrees/{rel}", bytes := 1, uid := some 1, tracked := false, newest := 0,
     dir := true, branch := "b", merged := some merged, dirty := some false, lock := k }
 
 /-- A device candidate named `n`. -/
 def exSim (n : String) : Cand :=
   { cls := .sim, path := "/u/Library/Developer/CoreSimulator/Devices/0a1b2c3d-0000-1111-2222-333344445555",
-    bytes := 1, uid := 1, tracked := false, newest := 0, dir := true, device := some (n, "Shutdown") }
+    bytes := 1, uid := some 1, tracked := false, newest := 0, dir := true, device := some (n, "Shutdown") }
 
 /-- A console candidate at `rel` below `.fw-console`. -/
 def exConsole (rel : String) : Cand :=
-  { cls := .console, path := s!"/u/r/.fw-console/{rel}", bytes := 1, uid := 1, tracked := false, newest := 0,
+  { cls := .console, path := s!"/u/r/.fw-console/{rel}", bytes := 1, uid := some 1, tracked := false, newest := 0,
     dir := false }
 
 #guard chosen exCfg (exWt .landed "w1" true .free)
@@ -378,7 +454,61 @@ def exConsole (rel : String) : Cand :=
 #guard chosen exCfg (exConsole "land-logs/t-abc1234.log")
 #guard chosen exCfg (exConsole "tmp/chromium-1")
 #guard !chosen exCfg (exConsole "events.jsonl")
-#guard Cls.parse "4" == some .scratch && Cls.parse "sim" == some .sim && Cls.parse "7" == none
+#guard Cls.parse "4" == some .scratch && Cls.parse "sim" == some .sim && Cls.parse "7" == some .usertmp &&
+  Cls.parse "8" == none
+#guard !chosen exCfg { exScratch "old" 0 with uid := none }
+#guard !chosen exCfg { exConsole "tmp/chromium-1" with sym := true }
+
+/-- A scratch directory of a task `t1` run `r1`. -/
+def exOwned (d : String) (newest : Nat) : Cand := { exScratch d newest with owner := some ("t1", "r1") }
+
+/-- The pressure floor: 2 h instead of 8 h, and only when no agent of that name runs. -/
+def exPress : Config := { exCfg with pressure := true, liveAgents := some ["busy"] }
+
+#guard !chosen exCfg (exScratch "mid" (1000000 - 3 * 3600))
+#guard chosen exPress (exScratch "mid" (1000000 - 3 * 3600))
+#guard !chosen exPress (exScratch "busy" (1000000 - 3 * 3600))
+#guard !chosen { exPress with liveAgents := none } (exScratch "mid" (1000000 - 3 * 3600))
+#guard !chosen exPress (exScratch "young" (1000000 - 3600))
+#guard !chosen exPress { exScratch "mid" (1000000 - 3 * 3600) with dir := false }
+#guard !chosen { exPress with cited := some ["scratchpad/mid"] } (exScratch "mid" (1000000 - 3 * 3600))
+#guard !chosen { exPress with opens := some ["/private/tmp/claude-1/-u-r/s1/scratchpad/mid"] } (exScratch "mid" (1000000 - 3 * 3600))
+#guard chosen { exCfg with landedTasks := some ["t1"], finishedRuns := some ["r1"] } (exOwned "m" (1000000 - 7200))
+#guard !chosen { exCfg with landedTasks := some ["t1"], finishedRuns := some ["r1"] } (exOwned "m" (1000000 - 60))
+#guard !chosen { exCfg with landedTasks := some ["t2"], finishedRuns := some ["r1"] } (exOwned "m" (1000000 - 7200))
+#guard !chosen { exCfg with landedTasks := some ["t1"], finishedRuns := some ["r2"] } (exOwned "m" (1000000 - 7200))
+#guard !chosen { exCfg with landedTasks := none, finishedRuns := some ["r1"] } (exOwned "m" (1000000 - 7200))
+#guard !chosen { exCfg with landedTasks := some ["t1"], finishedRuns := none } (exOwned "m" (1000000 - 7200))
+#guard !chosen { exCfg with landedTasks := some ["t1"], finishedRuns := some ["r1"] } (exScratch "m" (1000000 - 7200))
+
+/-- A user temp candidate named `n`. -/
+def exTmp (n : String) : Cand :=
+  { cls := .usertmp, path := s!"/private/var/folders/ab/cd/T/{n}", bytes := 1, uid := some 1, tracked := false,
+    newest := 0, dir := true }
+
+#guard chosen exCfg (exTmp "fw-land-abc")
+#guard chosen exCfg (exTmp "oracle1")
+#guard chosen exCfg (exTmp "engine-check-x")
+#guard chosen exCfg { exTmp "instruments-1.ktrace" with dir := false }
+#guard !chosen exCfg (exTmp "instruments-1.trace")
+#guard !chosen exCfg (exTmp "com.apple.x")
+#guard !chosen exCfg (exTmp "xfw")
+#guard !chosen exCfg (exTmp ".fw")
+#guard !chosen exCfg { exTmp "fw1" with path := "/private/var/folders/ab/cd/T" }
+#guard !chosen exCfg { exTmp "fw1" with path := "/private/var/folders/ab/cd/T/" }
+#guard !chosen exCfg { exTmp "fw1" with path := "/private/var/folders/ab/cd/T/fw1/x" }
+#guard !chosen exCfg { exTmp "fw1" with path := "/private/var/folders/ab/cd/T/../fw1" }
+#guard !chosen exCfg { exTmp "fw1" with sym := true }
+#guard !chosen exCfg { exTmp "fw1" with uid := some 2 }
+#guard !chosen exCfg { exTmp "fw1" with uid := none }
+#guard !chosen exCfg { exTmp "fw1" with newest := 1000000 - 3600 }
+#guard chosen exCfg { exTmp "fw1" with newest := 1000000 - 7200 }
+#guard !chosen { exCfg with opens := some ["/private/var/folders/ab/cd/T/fw1/f"] } (exTmp "fw1")
+#guard !chosen { exCfg with opens := none } (exTmp "fw1")
+#guard !chosen { exCfg with roots := { exRoots with utmp := "/private/var/folders/ab/T" } } (exTmp "fw1")
+#guard !chosen { exCfg with roots := { exRoots with utmp := "/private/tmp/ab/cd/T" } } (exTmp "fw1")
+#guard !chosen { exCfg with roots := { exRoots with utmp := "" } } (exTmp "fw1")
+#guard !chosen { exCfg with classes := [.scratch] } (exTmp "fw1")
 
 /-! ## Theorems -/
 
@@ -393,7 +523,7 @@ theorem mem_select (cfg : Config) (xs : List Cand) (x : Cand) : x ∈ select cfg
 
 /-- The guard, field by field. -/
 theorem guard_iff (cfg : Config) (x : Cand) : guard cfg x = true ↔
-    pathOk cfg.roots x.cls x.path = true ∧ x.uid = cfg.uid ∧ x.tracked = false ∧ live cfg x = false := by
+    pathOk cfg.roots x.cls x.path = true ∧ x.uid = some cfg.uid ∧ x.tracked = false ∧ live cfg x = false := by
   simp [guard, and_assoc]
 
 /-- A selected candidate's class is enabled. -/
@@ -436,8 +566,12 @@ theorem never_tracked (cfg : Config) (xs : List Cand) (x : Cand) (h : x ∈ sele
   ((guard_iff cfg x).1 (selected_guard cfg xs x h)).2.2.1
 
 /-- **Never deletes what the user does not own.** -/
-theorem owned_only (cfg : Config) (xs : List Cand) (x : Cand) (h : x ∈ select cfg xs) : x.uid = cfg.uid :=
+theorem owned_only (cfg : Config) (xs : List Cand) (x : Cand) (h : x ∈ select cfg xs) : x.uid = some cfg.uid :=
   ((guard_iff cfg x).1 (selected_guard cfg xs x h)).2.1
+
+/-- **An unknown owner keeps the candidate.** A candidate whose uid could not be read is never selected. -/
+theorem unknown_owner_kept (cfg : Config) (xs : List Cand) (x : Cand) (h : x ∈ select cfg xs) : x.uid ≠ none := by
+  rw [owned_only cfg xs x h]; simp
 
 /-- **Never deletes anything live.** A selected candidate holds no open file and no process's working directory, has
 no live worktree lock, and no land is queued for its branch. -/
@@ -539,18 +673,76 @@ theorem rule_idle (cfg : Config) (xs : List Cand) (x : Cand) (h : x ∈ select c
   have hr := selected_rule cfg xs x h
   simpa [rule, hc, ruleIdle, olderThan, and_assoc] using hr
 
-/-- **Class 4 deletes only uncited, quiet scratch directories.** -/
+/-- **Class 4 deletes only uncited directories that are old, idle under pressure, or finished.** -/
 theorem rule_scratch (cfg : Config) (xs : List Cand) (x : Cand) (h : x ∈ select cfg xs) (hc : x.cls = .scratch) :
     x.dir = true ∧ (∃ l, cfg.cited = some l ∧ ("scratchpad/" ++ lastSeg x.path) ∉ l) ∧
-      x.newest + cfg.scratchH * 3600 ≤ cfg.now := by
+      (scratchAge cfg x = true ∨ scratchPressure cfg x = true ∨ scratchOwner cfg x = true) := by
   have hr := selected_rule cfg xs x h
-  simp only [rule, hc, ruleScratch, olderThan, Bool.and_eq_true, Bool.not_eq_true', decide_eq_true_eq] at hr
-  refine ⟨hr.1.1, ?_, hr.2⟩
+  simp only [rule, hc, ruleScratch, Bool.and_eq_true, Bool.not_eq_true', Bool.or_eq_true] at hr
+  refine ⟨hr.1.1, ?_, by rcases hr.2 with (h1 | h1) | h1 <;> simp [h1]⟩
   have hn := hr.1.2
   unfold cited at hn
   cases hl : cfg.cited with
   | none => rw [hl] at hn; exact absurd hn (by simp)
   | some l => rw [hl] at hn; exact ⟨l, rfl, by simpa using hn⟩
+
+/-- **Branch 1 of class 4: the age floor.** No file is newer than `scratchH` hours. -/
+theorem scratchAge_spec (cfg : Config) (x : Cand) (h : scratchAge cfg x = true) :
+    x.newest + cfg.scratchH * 3600 ≤ cfg.now := by
+  simpa [scratchAge, olderThan] using h
+
+/-- **Branch 2 of class 4: pressure.** The run is a response to low disk, no running agent has the directory's name
+(the list was gathered), and no file is newer than `pressureScratchH` hours. -/
+theorem scratchPressure_spec (cfg : Config) (x : Cand) (h : scratchPressure cfg x = true) :
+    cfg.pressure = true ∧ (∃ l, cfg.liveAgents = some l ∧ lastSeg x.path ∉ l) ∧
+      x.newest + pressureScratchH * 3600 ≤ cfg.now := by
+  simp only [scratchPressure, Bool.and_eq_true, Bool.not_eq_true', olderThan, decide_eq_true_eq] at h
+  refine ⟨h.1.1, ?_, h.2⟩
+  have hn := h.1.2
+  unfold agentLive at hn
+  cases hl : cfg.liveAgents with
+  | none => rw [hl] at hn; exact absurd hn (by simp)
+  | some l => rw [hl] at hn; exact ⟨l, rfl, by simpa using hn⟩
+
+/-- **Branch 3 of class 4: identity.** The marker names a task in the landed list and a run in the finished list
+(both gathered), and no file is newer than `ownerFloorS` seconds. -/
+theorem scratchOwner_spec (cfg : Config) (x : Cand) (h : scratchOwner cfg x = true) :
+    ∃ t r lt fr, x.owner = some (t, r) ∧ cfg.landedTasks = some lt ∧ cfg.finishedRuns = some fr ∧ t ∈ lt ∧ r ∈ fr ∧
+      x.newest + ownerFloorS ≤ cfg.now := by
+  unfold scratchOwner at h
+  split at h
+  · rename_i t r lt fr hx hl hf
+    simp only [Bool.and_eq_true, olderThan, decide_eq_true_eq, List.contains_iff_mem] at h
+    exact ⟨t, r, lt, fr, hx, hl, hf, h.1.1, h.1.2, h.2⟩
+  · exact absurd h (by simp)
+
+/-- **Without pressure the pressure branch is off.** -/
+theorem no_pressure_no_branch (cfg : Config) (x : Cand) (h : cfg.pressure = false) : scratchPressure cfg x = false := by
+  simp [scratchPressure, h]
+
+/-- **Pressure only lowers the floor.** Whatever a run without pressure selects, the same run with pressure selects:
+the guard does not read `pressure`, and the pressure branch only adds a candidate. -/
+theorem pressure_only_lowers (cfg : Config) (x : Cand) (h : chosen { cfg with pressure := false } x = true) :
+    chosen { cfg with pressure := true } x = true := by
+  have hg : guard { cfg with pressure := true } x = guard { cfg with pressure := false } x := rfl
+  have hr : rule { cfg with pressure := true } x = true := by
+    have h' := ((chosen_iff _ x).1 h).2.2
+    cases hc : x.cls
+    case scratch =>
+      have e1 : scratchAge { cfg with pressure := true } x = scratchAge { cfg with pressure := false } x := rfl
+      have e2 : scratchOwner { cfg with pressure := true } x = scratchOwner { cfg with pressure := false } x := rfl
+      have e3 : cited { cfg with pressure := true } x = cited { cfg with pressure := false } x := rfl
+      simp only [rule, hc, ruleScratch, e1, e2, e3,
+        no_pressure_no_branch { cfg with pressure := false } x rfl] at h' ⊢
+      generalize x.dir = a at h' ⊢
+      generalize cited { cfg with pressure := false } x = c at h' ⊢
+      generalize scratchAge { cfg with pressure := false } x = g at h' ⊢
+      generalize scratchOwner { cfg with pressure := false } x = o at h' ⊢
+      generalize scratchPressure { cfg with pressure := true } x = p at h' ⊢
+      cases a <;> cases c <;> cases g <;> cases o <;> cases p <;> simp_all
+    all_goals (simp only [rule, hc] at h' ⊢; exact h')
+  rw [chosen_iff] at h ⊢
+  exact ⟨h.1, hg ▸ h.2.1, hr⟩
 
 /-- **Class 4 never deletes a `fable…` directory.** -/
 theorem never_fable (cfg : Config) (xs : List Cand) (x : Cand) (h : x ∈ select cfg xs) (hc : x.cls = .scratch) :
@@ -583,11 +775,40 @@ theorem rule_sim (cfg : Config) (xs : List Cand) (x : Cand) (h : x ∈ select cf
     | none => rw [hl] at hn; exact absurd hn (by simp)
     | some l => rw [hl] at hn; exact ⟨l, rfl, by simpa using hn⟩
 
-/-- **Class 6 deletes only entries older than `keepDays`.** -/
+/-- **Class 6 deletes only entries that are not symbolic links and are older than `keepDays`.** -/
 theorem rule_console (cfg : Config) (xs : List Cand) (x : Cand) (h : x ∈ select cfg xs) (hc : x.cls = .console) :
-    x.newest + cfg.keepDays * 86400 ≤ cfg.now := by
+    x.sym = false ∧ x.newest + cfg.keepDays * 86400 ≤ cfg.now := by
   have hr := selected_rule cfg xs x h
   simpa [rule, hc, ruleConsole, olderThan] using hr
+
+/-- **Class 7 deletes only old, non-link entries.** No file in the entry is newer than `tmpH` hours. -/
+theorem rule_usertmp (cfg : Config) (xs : List Cand) (x : Cand) (h : x ∈ select cfg xs) (hc : x.cls = .usertmp) :
+    x.sym = false ∧ x.newest + cfg.tmpH * 3600 ≤ cfg.now := by
+  have hr := selected_rule cfg xs x h
+  simpa [rule, hc, ruleUsertmp, olderThan] using hr
+
+/-- **Class 7 deletes only our own names, one level below the user temp folder.** A selected class 7 candidate is the
+folder, `/` and one allowed name: an `fw…`, `oracle…`, `ghb…`, `engine-check…`, `premises…`, `land-base…`, `lint…` or
+`var…` entry, or an `instruments….ktrace` file. It is never the folder itself, and the folder is `…/folders/<a>/<b>/T`. -/
+theorem usertmp_named (cfg : Config) (xs : List Cand) (x : Cand) (h : x ∈ select cfg xs) (hc : x.cls = .usertmp) :
+    ∃ n, x.path = cfg.roots.utmp ++ "/" ++ n ∧ tmpNameOk n = true ∧ n ≠ "" ∧ x.path ≠ cfg.roots.utmp ∧
+      utmpRootOk cfg.roots.utmp = true := by
+  obtain ⟨-, -, hr, ss, hp, hs, -⟩ := deletes_subset_allowlist cfg xs x h
+  rw [hc] at hp hs hr
+  simp only [classRoot] at hp
+  match ss, hs, hp with
+  | [n], hs, hp =>
+    simp only [shape, tmpNameOk] at hs
+    have hne : n ≠ "" := by
+      intro e; subst e; simp [LakeGc.nameOk] at hs
+    have hp' : x.path = cfg.roots.utmp ++ "/" ++ n := by simpa using hp
+    refine ⟨n, hp', by simpa [tmpNameOk] using hs, hne, ?_, by simpa [rootOk] using hr⟩
+    intro e
+    have : (cfg.roots.utmp ++ "/" ++ n).length = cfg.roots.utmp.length := by
+      rw [← hp', e]
+    have hlen : n.length ≠ 0 := fun z => hne (String.length_eq_zero_iff.1 z)
+    simp [String.length_append] at this
+    omega
 
 /-- **The run's selection is the spec's.** -/
 theorem selectFast_eq (cfg : Config) (xs : List Cand) : selectFast cfg xs = select cfg xs := by
@@ -617,9 +838,9 @@ def clsOf (j : Json) : Except String Cls :=
   | some c => .ok c
   | none => .error s!"unknown class {j.compress}"
 
-/-- The roots from JSON: `repo`, `lake`, `scratch`, `devices`, all required. -/
+/-- The roots from JSON: `repo`, `lake`, `scratch`, `devices` required, `utmp` (empty: class 7 refused). -/
 def rootsOf (j : Json) : Except String Roots := do
-  pure ⟨← str j "repo", ← str j "lake", ← str j "scratch", ← str j "devices"⟩
+  pure ⟨← str j "repo", ← str j "lake", ← str j "scratch", ← str j "devices", ← strD j "utmp" ""⟩
 
 /-- A worktree lock from JSON: absent (`unknown` for classes 2 and 3, else `free`), `"free"`, `{pid, start}`, or any
 other value (`unknown`). -/
@@ -636,7 +857,16 @@ def optBool (j : Json) (k : String) : Except String (Option Bool) :=
   | none => pure none
   | some v => some <$> asBool k v
 
-/-- One candidate from JSON: `cls`, `path`, `bytes`, `uid`, `tracked`, `newest`, `dir` required; `lake`? (a
+/-- An optional non-negative integer: absent, null, negative or not a number is `none`. -/
+def optNat (j : Json) (k : String) : Option Nat :=
+  match opt j k with
+  | some v => match v.getNat? with
+    | .ok n => some n
+    | .error _ => none
+  | none => none
+
+/-- One candidate from JSON: `cls`, `path`, `bytes`, `tracked`, `newest`, `dir` required, `uid`? (`none` when absent or
+not a non-negative integer: the candidate is kept), `sym`?, `owner`? {task, run}; `lake`? (a
 `ops.lakeGc` fact), `branch`?, `merged`?, `dirty`?, `lock`?, `device`? {name, state}. -/
 def candOf (j : Json) : Except String Cand := do
   let c ← clsOf (← field j "cls")
@@ -646,10 +876,13 @@ def candOf (j : Json) : Except String Cand := do
   let device ← match opt j "device" with
     | none => pure none
     | some v => do pure (some (← str v "name", ← str v "state"))
+  let owner ← match opt j "owner" with
+    | none => pure none
+    | some v => do pure (some (← str v "task", ← str v "run"))
   pure {
-    cls := c, path := ← str j "path", bytes := ← nat j "bytes", uid := ← nat j "uid",
+    cls := c, path := ← str j "path", bytes := ← nat j "bytes", uid := optNat j "uid",
     tracked := ← asBool "tracked" (← field j "tracked"), newest := ← nat j "newest",
-    dir := ← asBool "dir" (← field j "dir"), lake, branch := ← strD j "branch" "", merged := ← optBool j "merged",
+    dir := ← asBool "dir" (← field j "dir"), sym := (← optBool j "sym").getD false, owner, lake, branch := ← strD j "branch" "", merged := ← optBool j "merged",
     dirty := ← optBool j "dirty", lock := ← lockOf c j, device }
 
 /-- A process from JSON: `pid`, `start`. -/
@@ -678,10 +911,14 @@ def configOf (req : Json) : Except String Config := do
     procs := ← Fw.Wire.LakeGc.optList req "procs" procOf,
     queued := ← Fw.Wire.LakeGc.optList req "queued" (asStr "queued"),
     cited := ← Fw.Wire.LakeGc.optList req "cited" (asStr "cited"),
-    named := ← Fw.Wire.LakeGc.optList req "named" (asStr "named"), simLock := ← optBool req "simLock" }
+    named := ← Fw.Wire.LakeGc.optList req "named" (asStr "named"), simLock := ← optBool req "simLock",
+    tmpH := ← natD req "tmpH" defaultTmpH, pressure := (← optBool req "pressure").getD false,
+    liveAgents := ← Fw.Wire.LakeGc.optList req "liveAgents" (asStr "liveAgents"),
+    landedTasks := ← Fw.Wire.LakeGc.optList req "landedTasks" (asStr "landedTasks"),
+    finishedRuns := ← Fw.Wire.LakeGc.optList req "finishedRuns" (asStr "finishedRuns") }
 
 /-- `ops.diskGc`: `roots` {repo, lake, scratch, devices}, `classes` [number or name], `uid`, `now`, `idleH`?,
-`scratchH`?, `keepDays`?, `lake`? {ageFloor?, checkouts?, procs?, outputs?}, `opens`?, `procs`? [{pid, start}],
+`scratchH`?, `keepDays`?, `tmpH`?, `pressure`?, `liveAgents`?, `landedTasks`?, `finishedRuns`?, `lake`? {ageFloor?, checkouts?, procs?, outputs?}, `opens`?, `procs`? [{pid, start}],
 `queued`?, `cited`?, `named`?, `simLock`?, `cands` [candidate] → `items` [{cls, num, path, bytes}] (`select`, in input
 order), `classes` [{cls, num, count, bytes}] (one per enabled class), `kept` (candidates not selected), `rootsOk`
 [{cls, num, ok}], `lakeFallback` (`Fw.Ops.LakeGc.fallback` of class 1, or null). -/
