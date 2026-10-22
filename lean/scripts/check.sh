@@ -145,6 +145,7 @@ run_group() {
   job "image-arm golden check" lake env lean --run scripts/ImageArmGolden.lean --check ../packages/contracts/golden/gate/image-arm.jsonl  # per-part drawn-size copy decisions (Fw.Measure.ImageArm)
   job "steps golden check" lake env lean --run scripts/StepsGolden.lean --check  # golden/ci/steps.jsonl (Fw.Ci.Steps), read by scripts/ci-steps-lint.mjs
   job "oracle labels golden check" lake env lean --run scripts/OracleLabelsGolden.lean --check  # golden/oracle/labels.jsonl (Fw.Oracle.Labels), read by scripts/jev-datasets.mjs
+  job "oracle expand golden check" lake env lean --run scripts/ExpandGolden.lean --check
   job "breakgen check site" sh -c "$bin/breakgen --check ../apps/site/src/breakpoints.gen.json || echo 'check: WARNING apps/site/src/breakpoints.gen.json is not the Lean output yet'"
   job "sweepsgen sweeps golden" $bin/fwcore sweepsgen --sweeps-golden --check ../packages/contracts/golden/gate/sweeps.jsonl
   job "breakgen check lean" $bin/breakgen --check Fw/Site/breakpoints.gen.json

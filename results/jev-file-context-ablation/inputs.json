@@ -1,0 +1,3106 @@
+{
+ "src": "ecdc0787",
+ "rows": [
+  {
+   "id": "inc-orphan-wait-loop",
+   "label": "c-orphan-wait",
+   "at": "2026-10-18T03:00+07:00",
+   "pin": "58343a4784f430af010c1f97ea605c9f95359dc2",
+   "safe": {
+    "result": "same",
+    "files": [
+     {
+      "path": "research/notes/2026/10-18-transcript-signals.md",
+      "verdict": "notAllowed",
+      "blob": null
+     }
+    ]
+   },
+   "naive": {
+    "result": "refused",
+    "esc": 36297,
+    "files": [
+     {
+      "bytes": 35554,
+      "esc": 35789,
+      "path": "research/notes/2026/10-18-transcript-signals.md",
+      "verdict": "overCap",
+      "blob": "b60694efb47fb25b122b3732cda68d0203719722"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-unlanded-handback",
+   "label": "c-order-derived",
+   "at": "2026-10-18T01:23+07:00",
+   "pin": "66debaa7ecfb7cdc60622e875f97522a719533f6",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-claim-order",
+   "label": "c-order-derived",
+   "at": "2026-10-18T03:03+07:00",
+   "pin": "f6544e3faaa53d85f1d1b6ac0466c908beabf66e",
+   "safe": {
+    "result": "expanded",
+    "esc": 9223,
+    "files": [
+     {
+      "bytes": 8782,
+      "esc": 9033,
+      "path": "apps/console-api/src/spool/drain.ts",
+      "verdict": "kept",
+      "blob": "fe0748518082dfc660d802d826cae162a72fc496"
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 23146,
+    "files": [
+     {
+      "bytes": 22812,
+      "esc": 23370,
+      "path": "apps/console-api/src/spool/drain.ts",
+      "verdict": "kept",
+      "blob": "1a7d55969d9237c3ee21727bbaba84e5726b59ac"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-plan-sync-on-land-only",
+   "label": "c-order-derived",
+   "at": "2026-10-18T03:30+07:00",
+   "pin": "0cee322373c514fa75ebc30fd78f19c3cf245955",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-land-post-commit-throw",
+   "label": "c-order-derived",
+   "at": "2026-10-18T02:46+07:00",
+   "pin": "ddf45fe79b786f5190e4ac8ce49b0549009b49d2",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-commit-during-land",
+   "label": "c-shared-no-lock",
+   "at": "2026-10-18T03:40+07:00",
+   "pin": "7ceb81ca982174c1f90b43c281b047174b0e8bc3",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-land-scope-registrations",
+   "label": "c-order-derived",
+   "at": "2026-10-18T03:20+07:00",
+   "pin": "b2e5ff16ffc7dd669128953cd44a100b9201992d",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-agent-on-ci-branch",
+   "label": "c-order-derived",
+   "at": "2026-10-18T03:25+07:00",
+   "pin": "e42b7be40284390b542426ab6315a0f755ae1ff0",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-fw-lean-import-conflict",
+   "label": "c-shared-no-lock",
+   "at": "2026-10-18T03:00+07:00",
+   "pin": "58343a4784f430af010c1f97ea605c9f95359dc2",
+   "safe": {
+    "result": "same",
+    "files": [
+     {
+      "path": "lean/Fw.lean",
+      "verdict": "notAllowed",
+      "blob": null
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 14080,
+    "files": [
+     {
+      "bytes": 14083,
+      "esc": 14311,
+      "path": "lean/Fw.lean",
+      "verdict": "kept",
+      "blob": "6466228328d3afa3a0406f6f97ff56f576f9fd52"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-gh-rate-limit",
+   "label": "c-quota",
+   "at": "2026-10-18T01:07+07:00",
+   "pin": "39ce9a1cc11bc6675342d1871a7bd6dee4202547",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-next-false-positives",
+   "label": "c-order-derived",
+   "at": "2026-10-18T03:30+07:00",
+   "pin": "0cee322373c514fa75ebc30fd78f19c3cf245955",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-retention-hides-unlanded",
+   "label": "c-order-derived",
+   "at": "2026-10-18T03:30+07:00",
+   "pin": "0cee322373c514fa75ebc30fd78f19c3cf245955",
+   "safe": {
+    "result": "refused",
+    "esc": 34182,
+    "files": [
+     {
+      "bytes": 33894,
+      "esc": 34892,
+      "path": "apps/runner/src/watch-collect.ts",
+      "verdict": "overCap",
+      "blob": "c754990029dcfbdf1dd60024a99475ec34bddbe0"
+     }
+    ]
+   },
+   "naive": {
+    "result": "refused",
+    "esc": 67213,
+    "files": [
+     {
+      "bytes": 66897,
+      "esc": 68931,
+      "path": "apps/runner/src/watch-collect.ts",
+      "verdict": "overCap",
+      "blob": "4124920b7e70531b7d2de29e99ccca8e141e6b26"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-variant-gate-flags-off",
+   "label": "c-proxy-verdict",
+   "at": "2026-10-18T04:30+07:00",
+   "pin": "94b8a971a7978c4b6e5a274b3c27e6d58f7a4582",
+   "safe": {
+    "result": "same",
+    "files": [
+     {
+      "path": ".github/workflows/breakpoint-gate.yml",
+      "verdict": "notAllowed",
+      "blob": null
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 19579,
+    "files": [
+     {
+      "bytes": 19292,
+      "esc": 19881,
+      "path": ".github/workflows/breakpoint-gate.yml",
+      "verdict": "kept",
+      "blob": "6436d4c7d37969eeef3c48c595e364c562dc1fa5"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-silent-stdin-bg",
+   "label": "c-orphan-wait",
+   "at": "2026-10-18T00:54+07:00",
+   "pin": "64857cbcc6613b1679581d387d89274562fecc6e",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-worktree-role-as-teammate",
+   "label": "c-identity-heuristic",
+   "at": "2026-10-18T01:56+07:00",
+   "pin": "a0e5185268e668825764b24b3d0c2aa447590d03",
+   "safe": {
+    "result": "expanded",
+    "esc": 28196,
+    "files": [
+     {
+      "bytes": 27149,
+      "esc": 28601,
+      "path": "lean/Fw/Ops/SpawnGuard.lean",
+      "verdict": "kept",
+      "blob": "91c898b1845b395954ea4f0687cb0e376b285f44"
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 29586,
+    "files": [
+     {
+      "bytes": 29105,
+      "esc": 30099,
+      "path": "lean/Fw/Ops/SpawnGuard.lean",
+      "verdict": "kept",
+      "blob": "88f8e5ca86e6dbbc980c4a3eb809178b4832dbe3"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-workflow-unbound",
+   "label": "c-order-derived",
+   "at": "2026-10-18T04:40+07:00",
+   "pin": "0f5cdb714622a15b75b3d0d8c966af4dd7659ed4",
+   "safe": {
+    "result": "same",
+    "files": [
+     {
+      "path": "lean/Fw/Plan/Core.lean",
+      "verdict": "vocab",
+      "word": "blocker",
+      "blob": "c0f786f5e56d7547d9bf35a66b0b43a64da2bd50"
+     },
+     {
+      "path": "docs/team/tools/spawn-guard.md",
+      "verdict": "notAllowed",
+      "blob": null
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 4138,
+    "files": [
+     {
+      "bytes": 131710,
+      "esc": 135566,
+      "path": "lean/Fw/Plan/Core.lean",
+      "verdict": "overCap",
+      "blob": "7a2a670f80f3f89a8218f273c3123d8751308aa3"
+     },
+     {
+      "bytes": 3560,
+      "esc": 3625,
+      "path": "docs/team/tools/spawn-guard.md",
+      "verdict": "kept",
+      "blob": "04f25f9b3fde7fd47c0ef07845fd469bde99ddc4"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-slow-land",
+   "label": "c-late-check",
+   "at": "2026-10-18T12:00+07:00",
+   "pin": "fb6fd9328377a749fd851e007d4b383eeccda646",
+   "safe": {
+    "result": "same",
+    "files": [
+     {
+      "path": "research/notes/2026/10-18-land-speed.md",
+      "verdict": "notAllowed",
+      "blob": null
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 16797,
+    "files": [
+     {
+      "bytes": 15852,
+      "esc": 16111,
+      "path": "research/notes/2026/10-18-land-speed.md",
+      "verdict": "kept",
+      "blob": "a2fa6e9e05f3b9ad498075467e278dfa787ffc6a"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-watch-unlanded-after-land",
+   "label": "c-order-derived",
+   "at": "2026-10-18T05:00+07:00",
+   "pin": "35ea874ea40787a49746d2d1a9d0c3842137248f",
+   "safe": {
+    "result": "expanded",
+    "esc": 18217,
+    "files": [
+     {
+      "bytes": 17700,
+      "esc": 18222,
+      "path": "apps/runner/src/next.ts",
+      "verdict": "kept",
+      "blob": "84c8f424a4913f02212b7ff024bd86b2f94ff921"
+     },
+     {
+      "bytes": 70351,
+      "esc": 73176,
+      "path": "lean/Fw/Obs/Next.lean",
+      "verdict": "overCap",
+      "blob": "7b000c3141bb402326c3511e08f757f45b79ed7d"
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 26416,
+    "files": [
+     {
+      "bytes": 25955,
+      "esc": 26685,
+      "path": "apps/runner/src/next.ts",
+      "verdict": "kept",
+      "blob": "028423c91fe40e95195d313d921226cbf7f0da46"
+     },
+     {
+      "bytes": 81863,
+      "esc": 83772,
+      "path": "lean/Fw/Obs/Next.lean",
+      "verdict": "overCap",
+      "blob": "d5b7f14eb43b7cb5d13c19dade7ad8ad29e20d1d"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-watch-alert-during-land",
+   "label": "c-order-derived",
+   "at": "2026-10-18T05:00+07:00",
+   "pin": "35ea874ea40787a49746d2d1a9d0c3842137248f",
+   "safe": {
+    "result": "expanded",
+    "esc": 6145,
+    "files": [
+     {
+      "bytes": 70351,
+      "esc": 73176,
+      "path": "lean/Fw/Obs/Next.lean",
+      "verdict": "overCap",
+      "blob": "7b000c3141bb402326c3511e08f757f45b79ed7d"
+     },
+     {
+      "bytes": 5642,
+      "esc": 5830,
+      "path": "apps/runner/hooks/land-guard.mjs",
+      "verdict": "kept",
+      "blob": "1c7ab71e6c8d9f110efc09f21cc55534ebda3383"
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 6390,
+    "files": [
+     {
+      "bytes": 81863,
+      "esc": 83772,
+      "path": "lean/Fw/Obs/Next.lean",
+      "verdict": "overCap",
+      "blob": "d5b7f14eb43b7cb5d13c19dade7ad8ad29e20d1d"
+     },
+     {
+      "bytes": 5888,
+      "esc": 6077,
+      "path": "apps/runner/hooks/land-guard.mjs",
+      "verdict": "kept",
+      "blob": "3a4575fee656195515c611084d652b80dcd3323e"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-ci-trigger-drift",
+   "label": "c-quota",
+   "at": "2026-10-18T13:00+07:00",
+   "pin": "37513bc237d89154b2600895f501e594d0b9d140",
+   "safe": {
+    "result": "same",
+    "files": [
+     {
+      "path": "lean/**",
+      "verdict": "notAllowed",
+      "blob": null
+     }
+    ]
+   },
+   "naive": {
+    "result": "same",
+    "files": [
+     {
+      "path": "lean/**",
+      "verdict": "notAllowed",
+      "blob": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-watch-bg-ampersand",
+   "label": "c-orphan-wait",
+   "at": "2026-10-18T13:00+07:00",
+   "pin": "37513bc237d89154b2600895f501e594d0b9d140",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-watch-unlanded-queued",
+   "label": "c-order-derived",
+   "at": "2026-10-18T14:15+07:00",
+   "pin": "5b0f967d6cc5db45c9c8852e3f899e7fea50a537",
+   "safe": {
+    "result": "expanded",
+    "esc": 26620,
+    "files": [
+     {
+      "bytes": 101172,
+      "esc": 105174,
+      "path": "lean/Fw/Obs/Next.lean",
+      "verdict": "overCap",
+      "blob": "5b8ceeb1c8052f2e1cf08571c55ceedf24675c62"
+     },
+     {
+      "bytes": 25930,
+      "esc": 26660,
+      "path": "apps/runner/src/next.ts",
+      "verdict": "kept",
+      "blob": "9cabda9bfc22bdd25cd7e4b4bcba3927b489230e"
+     },
+     {
+      "path": "docs/team/handoffs/integrate-ports.md",
+      "verdict": "notAllowed",
+      "blob": null
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 26645,
+    "files": [
+     {
+      "bytes": 81863,
+      "esc": 83772,
+      "path": "lean/Fw/Obs/Next.lean",
+      "verdict": "overCap",
+      "blob": "d5b7f14eb43b7cb5d13c19dade7ad8ad29e20d1d"
+     },
+     {
+      "bytes": 25955,
+      "esc": 26685,
+      "path": "apps/runner/src/next.ts",
+      "verdict": "kept",
+      "blob": "028423c91fe40e95195d313d921226cbf7f0da46"
+     },
+     {
+      "bytes": 6895,
+      "esc": 6936,
+      "path": "docs/team/handoffs/integrate-ports.md",
+      "verdict": "overCap",
+      "blob": "04453fe2cbd8c78587b75854fd3a454bbdf212de"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-land-undeclared-reads",
+   "label": "c-late-check",
+   "at": "2026-10-18T13:18+07:00",
+   "pin": "51751fa65ff582fa6cfdb4c3d69094028bcf0f68",
+   "safe": {
+    "result": "expanded",
+    "esc": 14409,
+    "files": [
+     {
+      "bytes": 13467,
+      "esc": 14030,
+      "path": "apps/runner/test/land-inputs.test.ts",
+      "verdict": "kept",
+      "blob": "ad73efc73b55d49c096461632d0a23688cd69f13"
+     },
+     {
+      "path": "apps/runner/src/land.ts",
+      "verdict": "vocab",
+      "word": "inc-land-undeclared-reads",
+      "blob": "ae3ffe7062affa3b51210967586095ca66788b5e"
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 23568,
+    "files": [
+     {
+      "bytes": 22565,
+      "esc": 23425,
+      "path": "apps/runner/test/land-inputs.test.ts",
+      "verdict": "kept",
+      "blob": "73f0406745fd9012431ba5cfc0a57c4ec445cf22"
+     },
+     {
+      "bytes": 79888,
+      "esc": 82554,
+      "path": "apps/runner/src/land.ts",
+      "verdict": "overCap",
+      "blob": "fe8845c8d9ee4333df40440a6a9ce0ec2be152a8"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-land-scope-stale-base",
+   "label": "c-late-check",
+   "at": "2026-10-18T14:10+07:00",
+   "pin": "39ffb4a91a92b8c36d29e3c225144ad4be116c1e",
+   "safe": {
+    "result": "refused",
+    "esc": 57735,
+    "files": [
+     {
+      "path": "docs/team/handoffs/visual-diff.md",
+      "verdict": "notAllowed",
+      "blob": null
+     },
+     {
+      "bytes": 56684,
+      "esc": 58665,
+      "path": "apps/runner/src/land.ts",
+      "verdict": "overCap",
+      "blob": "5e2fea93d3d7b68cb9214dc836954f7903e037be"
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 3101,
+    "files": [
+     {
+      "bytes": 2419,
+      "esc": 2451,
+      "path": "docs/team/handoffs/visual-diff.md",
+      "verdict": "kept",
+      "blob": "13e2bd73b3b7863ea67ceca56eaa3513438677fb"
+     },
+     {
+      "bytes": 79888,
+      "esc": 82554,
+      "path": "apps/runner/src/land.ts",
+      "verdict": "overCap",
+      "blob": "fe8845c8d9ee4333df40440a6a9ce0ec2be152a8"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-evidence-before-land",
+   "label": "c-unearned-claim",
+   "at": "2026-10-18T13:34+07:00",
+   "pin": "15b7afd5a2d8f64c82bc52230fee20b747d2231a",
+   "safe": {
+    "result": "expanded",
+    "esc": 17723,
+    "files": [
+     {
+      "bytes": 16714,
+      "esc": 17619,
+      "path": "lean/Fw/Plan/Lint.lean",
+      "verdict": "kept",
+      "blob": "9f386f6ef9ea408c6e12d14d0b6c98a00fd42f22"
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 11507,
+    "files": [
+     {
+      "bytes": 10876,
+      "esc": 11225,
+      "path": "lean/Fw/Plan/Lint.lean",
+      "verdict": "kept",
+      "blob": "298cd54307eea9faeffc66517e67dfbf66818a38"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-premise-unmeasured-goldens",
+   "label": "c-unearned-claim",
+   "at": "2026-10-18T13:36+07:00",
+   "pin": "230a399b4219286b41ee3ee861d2b48a5c66fbbf",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-gate-scan-page-state",
+   "label": "c-sample-validity",
+   "at": "2026-10-18T13:40+07:00",
+   "pin": "6286db251a1494bf14701d778709ee35cf0b2d40",
+   "safe": {
+    "result": "expanded",
+    "esc": 12478,
+    "files": [
+     {
+      "path": "docs/team/handoffs/gate-speed-ci.md",
+      "verdict": "notAllowed",
+      "blob": null
+     },
+     {
+      "bytes": 12010,
+      "esc": 12238,
+      "path": "packages/gate-breakpoints/src/run.mjs",
+      "verdict": "kept",
+      "blob": "3524dc98e989f0d5d4255a22189c30493360c24b"
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 4043,
+    "files": [
+     {
+      "bytes": 3407,
+      "esc": 3441,
+      "path": "docs/team/handoffs/gate-speed-ci.md",
+      "verdict": "kept",
+      "blob": "64f8d8c46a6c54dc06d78fa6dd706c8d8cc42ce9"
+     },
+     {
+      "bytes": 30339,
+      "esc": 30800,
+      "path": "packages/gate-breakpoints/src/run.mjs",
+      "verdict": "overCap",
+      "blob": "fdc5c4220ef473db32de0c3e2d6cb766467fb342"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-land-waiters-pgrep",
+   "label": "c-identity-heuristic",
+   "at": "2026-10-18T13:52+07:00",
+   "pin": "481e6cee4f869cc73a2ac27cf08dba031a9936ea",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-ci-verdict-needs-api",
+   "label": "c-env-assume",
+   "at": "2026-10-18T14:04+07:00",
+   "pin": "898c416d0db28851b85a22d1346b4d637fac391d",
+   "safe": {
+    "result": "expanded",
+    "esc": 17075,
+    "files": [
+     {
+      "bytes": 10475,
+      "esc": 10815,
+      "path": "apps/runner/src/fw.ts",
+      "verdict": "kept",
+      "blob": "c8dd9f533c0163e39c1bad81a8129f82b7a5a351"
+     },
+     {
+      "bytes": 5850,
+      "esc": 6074,
+      "path": "apps/runner/src/lib.ts",
+      "verdict": "kept",
+      "blob": "6dea6ae75eef8b4dfd78e2ffa802c79e15bdd6fb"
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 27566,
+    "files": [
+     {
+      "bytes": 17464,
+      "esc": 18049,
+      "path": "apps/runner/src/fw.ts",
+      "verdict": "kept",
+      "blob": "645fe3c553587ed23b966a0f6ba3214973945bfc"
+     },
+     {
+      "bytes": 9202,
+      "esc": 9545,
+      "path": "apps/runner/src/lib.ts",
+      "verdict": "kept",
+      "blob": "8725481dd2c120d6d03229f7e05531ab5f1714ac"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-prompt-premise-align",
+   "label": "c-unearned-claim",
+   "at": "2026-10-18T13:34+07:00",
+   "pin": "15b7afd5a2d8f64c82bc52230fee20b747d2231a",
+   "safe": {
+    "result": "refused",
+    "esc": 43302,
+    "files": [
+     {
+      "bytes": 42211,
+      "esc": 44373,
+      "path": "lean/Fw/Gate/AlignEquiv.lean",
+      "verdict": "overCap",
+      "blob": "9aef43626505876c04b8bf78cbbbba03ba43c81f"
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 32306,
+    "files": [
+     {
+      "bytes": 31893,
+      "esc": 33179,
+      "path": "lean/Fw/Gate/AlignEquiv.lean",
+      "verdict": "kept",
+      "blob": "edf66b51a0cacfec2653293d824c7b08440cef4f"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-land-retry-text-match",
+   "label": "c-identity-heuristic",
+   "at": "2026-10-18T13:54+07:00",
+   "pin": "7efeb69f287b99ccdd56a9e508fa595e27e9fedc",
+   "safe": {
+    "result": "expanded",
+    "esc": 18045,
+    "files": [
+     {
+      "path": "packages/contracts/golden/gate/exit.jsonl",
+      "verdict": "notAllowed",
+      "blob": null
+     },
+     {
+      "bytes": 17216,
+      "esc": 18028,
+      "path": "lean/Fw/Spec/DeviceQueue.lean",
+      "verdict": "kept",
+      "blob": "423b32e1f4857d68115a8309a38c7dc919f8a6c0"
+     },
+     {
+      "bytes": 56684,
+      "esc": 58665,
+      "path": "apps/runner/src/land.ts",
+      "verdict": "overCap",
+      "blob": "5e2fea93d3d7b68cb9214dc836954f7903e037be"
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 12741,
+    "files": [
+     {
+      "bytes": 34922,
+      "esc": 39730,
+      "path": "packages/contracts/golden/gate/exit.jsonl",
+      "verdict": "overCap",
+      "blob": "bc9ed6c704fce3115f932281c3d2d7409e8e626a"
+     },
+     {
+      "bytes": 12309,
+      "esc": 12598,
+      "path": "lean/Fw/Spec/DeviceQueue.lean",
+      "verdict": "kept",
+      "blob": "316a0020b2303fe98cc17a480ad8deffa242209c"
+     },
+     {
+      "bytes": 79888,
+      "esc": 82554,
+      "path": "apps/runner/src/land.ts",
+      "verdict": "overCap",
+      "blob": "fe8845c8d9ee4333df40440a6a9ce0ec2be152a8"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-upsert-keeps-evidence",
+   "label": "c-order-derived",
+   "at": "2026-10-18T13:49+07:00",
+   "pin": "24821994604d65ccd8e1248795eb33eba19a2658",
+   "safe": {
+    "result": "same",
+    "files": [
+     {
+      "path": "docs/team/work-graph.json",
+      "verdict": "notAllowed",
+      "blob": null
+     },
+     {
+      "path": "lean/Fw/Plan/Core.lean",
+      "verdict": "vocab",
+      "word": "blocker",
+      "blob": "f7eead82aca6917b7cbc9bd72af8c542f9f27076"
+     },
+     {
+      "path": "lean/Fw/Plan/Golden.lean",
+      "verdict": "vocab",
+      "word": "blocker",
+      "blob": "07527106cf4e0e694e5ba9effea229e4e75d462b"
+     }
+    ]
+   },
+   "naive": {
+    "result": "refused",
+    "esc": 756646,
+    "files": [
+     {
+      "bytes": 575192,
+      "esc": 619558,
+      "path": "docs/team/work-graph.json",
+      "verdict": "overCap",
+      "blob": "82d2dfe7fdb855e0bc5e9e815d9b1ce1b601a9e0"
+     },
+     {
+      "bytes": 131710,
+      "esc": 135566,
+      "path": "lean/Fw/Plan/Core.lean",
+      "verdict": "overCap",
+      "blob": "7a2a670f80f3f89a8218f273c3123d8751308aa3"
+     },
+     {
+      "bytes": 33144,
+      "esc": 36148,
+      "path": "lean/Fw/Plan/Golden.lean",
+      "verdict": "overCap",
+      "blob": "3c643c70615268f7ca367a717d9aa36ae784a23a"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-findings-shared-entry",
+   "label": "c-shared-no-lock",
+   "at": "2026-10-18T13:55+07:00",
+   "pin": "7efeb69f287b99ccdd56a9e508fa595e27e9fedc",
+   "safe": {
+    "result": "expanded",
+    "esc": 9647,
+    "files": [
+     {
+      "path": "research/findings/ledger.json",
+      "verdict": "notAllowed",
+      "blob": null
+     },
+     {
+      "bytes": 9002,
+      "esc": 9331,
+      "path": "scripts/merge-ledger.mjs",
+      "verdict": "kept",
+      "blob": "dba11f3831c790ec119911918e9d1182272719f9"
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 9647,
+    "files": [
+     {
+      "bytes": 269885,
+      "esc": 280392,
+      "path": "research/findings/ledger.json",
+      "verdict": "overCap",
+      "blob": "2407dec64305eda675f684d87015f67cd89e8c84"
+     },
+     {
+      "bytes": 9002,
+      "esc": 9331,
+      "path": "scripts/merge-ledger.mjs",
+      "verdict": "kept",
+      "blob": "dba11f3831c790ec119911918e9d1182272719f9"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-ci-rerun-partial-arms",
+   "label": "c-sample-validity",
+   "at": "2026-10-18T12:46+07:00",
+   "pin": "b35b54191b68082746652a074465c3a20c57b871",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-land-inputs-untracked-exists",
+   "label": "c-env-assume",
+   "at": "2026-10-18T12:46+07:00",
+   "pin": "b35b54191b68082746652a074465c3a20c57b871",
+   "safe": {
+    "result": "expanded",
+    "esc": 14260,
+    "files": [
+     {
+      "path": "apps/site/dist/aot",
+      "verdict": "notAllowed",
+      "blob": null
+     },
+     {
+      "bytes": 13467,
+      "esc": 14030,
+      "path": "apps/runner/test/land-inputs.test.ts",
+      "verdict": "kept",
+      "blob": "ad73efc73b55d49c096461632d0a23688cd69f13"
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 23419,
+    "files": [
+     {
+      "path": "apps/site/dist/aot",
+      "verdict": "noText",
+      "blob": null
+     },
+     {
+      "bytes": 22565,
+      "esc": 23425,
+      "path": "apps/runner/test/land-inputs.test.ts",
+      "verdict": "kept",
+      "blob": "73f0406745fd9012431ba5cfc0a57c4ec445cf22"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-worktree-force-untracked",
+   "label": "c-late-check",
+   "at": "2026-10-18T12:46+07:00",
+   "pin": "b35b54191b68082746652a074465c3a20c57b871",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-zsh-colon-modifier",
+   "label": "c-env-assume",
+   "at": "2026-10-18T12:46+07:00",
+   "pin": "b35b54191b68082746652a074465c3a20c57b871",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-handback-without-check",
+   "label": "c-late-check",
+   "at": "2026-10-18T12:46+07:00",
+   "pin": "b35b54191b68082746652a074465c3a20c57b871",
+   "safe": {
+    "result": "same",
+    "files": [
+     {
+      "path": "lean/scripts/check.sh",
+      "verdict": "notAllowed",
+      "blob": null
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 17890,
+    "files": [
+     {
+      "bytes": 17169,
+      "esc": 17695,
+      "path": "lean/scripts/check.sh",
+      "verdict": "kept",
+      "blob": "af9d8f4cdd471cf2f6f13d3956cf60b2928ffff8"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-land-dry-no-verdict",
+   "label": "c-spec-gap",
+   "at": "2026-10-18T12:46+07:00",
+   "pin": "b35b54191b68082746652a074465c3a20c57b871",
+   "safe": {
+    "result": "expanded",
+    "esc": 3448,
+    "files": [
+     {
+      "bytes": 2918,
+      "esc": 3036,
+      "path": "apps/runner/src/land-verdict.ts",
+      "verdict": "kept",
+      "blob": "ffa9df7cd70851476c7450853a18a3110cd51691"
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 10505,
+    "files": [
+     {
+      "bytes": 9970,
+      "esc": 10273,
+      "path": "apps/runner/src/land-verdict.ts",
+      "verdict": "kept",
+      "blob": "740bc38cd78ee5b4d6c3c2c2b0e0c859871af256"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-part-scope-breakpoint-gap",
+   "label": "c-proxy-verdict",
+   "at": "2026-10-18T12:46+07:00",
+   "pin": "b35b54191b68082746652a074465c3a20c57b871",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-ci-run-cap-prompt",
+   "label": "c-quota",
+   "at": "2026-10-18T12:46+07:00",
+   "pin": "b35b54191b68082746652a074465c3a20c57b871",
+   "safe": {
+    "result": "expanded",
+    "esc": 8546,
+    "files": [
+     {
+      "bytes": 8099,
+      "esc": 8328,
+      "path": "apps/runner/src/ci.ts",
+      "verdict": "kept",
+      "blob": "e89fce7f5c87bb242e3dacd8a48c42fc55f4d68e"
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 10168,
+    "files": [
+     {
+      "bytes": 9708,
+      "esc": 9996,
+      "path": "apps/runner/src/ci.ts",
+      "verdict": "kept",
+      "blob": "df351578aaec95d7239280f70697a1c49b30e04b"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-obs-matrix-context-commission",
+   "label": "c-sample-validity",
+   "at": "2026-10-18T12:46+07:00",
+   "pin": "b35b54191b68082746652a074465c3a20c57b871",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-handoff-write-refused",
+   "label": "c-spec-gap",
+   "at": "2026-10-18T12:46+07:00",
+   "pin": "b35b54191b68082746652a074465c3a20c57b871",
+   "safe": {
+    "result": "same",
+    "files": [
+     {
+      "path": "docs/team/handoffs/<name>.md",
+      "verdict": "notAllowed",
+      "blob": null
+     }
+    ]
+   },
+   "naive": {
+    "result": "same",
+    "files": [
+     {
+      "path": "docs/team/handoffs/<name>.md",
+      "verdict": "notAllowed",
+      "blob": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-wt-prep-lsp-as-build",
+   "label": "c-identity-heuristic",
+   "at": "2026-10-18T12:46+07:00",
+   "pin": "b35b54191b68082746652a074465c3a20c57b871",
+   "safe": {
+    "result": "expanded",
+    "esc": 3425,
+    "files": [
+     {
+      "bytes": 2963,
+      "esc": 3084,
+      "path": "scripts/wt-prep.sh",
+      "verdict": "kept",
+      "blob": "35b1b825064602d3f314c0b06393a57b81c4029d"
+     },
+     {
+      "path": "lean/.lake",
+      "verdict": "notAllowed",
+      "blob": null
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 3425,
+    "files": [
+     {
+      "bytes": 2963,
+      "esc": 3084,
+      "path": "scripts/wt-prep.sh",
+      "verdict": "kept",
+      "blob": "35b1b825064602d3f314c0b06393a57b81c4029d"
+     },
+     {
+      "path": "lean/.lake",
+      "verdict": "noText",
+      "blob": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-settings-edit-commit",
+   "label": "c-env-assume",
+   "at": "2026-10-18T12:46+07:00",
+   "pin": "b35b54191b68082746652a074465c3a20c57b871",
+   "safe": {
+    "result": "same",
+    "files": [
+     {
+      "path": ".claude/settings.json",
+      "verdict": "notAllowed",
+      "blob": null
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 7163,
+    "files": [
+     {
+      "bytes": 6310,
+      "esc": 7005,
+      "path": ".claude/settings.json",
+      "verdict": "kept",
+      "blob": "80dd7fb41f670e034d1c13a09e706e503bf19dfa"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-wait-guard-while-read-fp",
+   "label": "c-spec-gap",
+   "at": "2026-10-18T12:46+07:00",
+   "pin": "b35b54191b68082746652a074465c3a20c57b871",
+   "safe": {
+    "result": "same",
+    "files": [
+     {
+      "path": "apps/runner/hooks/wait-guard.mjs",
+      "verdict": "vocab",
+      "word": "c-orphan-wait",
+      "blob": "ac349d4e00ba5fcc2066763db1e4a931864a0227"
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 6257,
+    "files": [
+     {
+      "bytes": 5705,
+      "esc": 5888,
+      "path": "apps/runner/hooks/wait-guard.mjs",
+      "verdict": "kept",
+      "blob": "2a78014d8dcf6e0f0b4b340e941b15f1d8765a42"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-parallel-write-overlap",
+   "label": "c-shared-no-lock",
+   "at": "2026-10-18T12:46+07:00",
+   "pin": "b35b54191b68082746652a074465c3a20c57b871",
+   "safe": {
+    "result": "expanded",
+    "esc": 7168,
+    "files": [
+     {
+      "bytes": 6719,
+      "esc": 6828,
+      "path": "packages/measure-wktr/src/cli.mjs",
+      "verdict": "kept",
+      "blob": "39f38ef21c89e576acd4e77932d94520f869a627"
+     },
+     {
+      "path": "packages/measure-wktr/**",
+      "verdict": "notAllowed",
+      "blob": null
+     },
+     {
+      "bytes": 86424,
+      "esc": 90189,
+      "path": "lean/Fw/Sched/Admit.lean",
+      "verdict": "overCap",
+      "blob": "d6a70982c947dd151e6581b59ebeafb3cc79359f"
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 7168,
+    "files": [
+     {
+      "bytes": 6719,
+      "esc": 6828,
+      "path": "packages/measure-wktr/src/cli.mjs",
+      "verdict": "kept",
+      "blob": "39f38ef21c89e576acd4e77932d94520f869a627"
+     },
+     {
+      "path": "packages/measure-wktr/**",
+      "verdict": "notAllowed",
+      "blob": null
+     },
+     {
+      "bytes": 84040,
+      "esc": 86101,
+      "path": "lean/Fw/Sched/Admit.lean",
+      "verdict": "overCap",
+      "blob": "55361a9a2cf3d664aa95a5145161102f8ad621f2"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-disk-scratch-growth",
+   "label": "c-quota",
+   "at": "2026-10-18T12:46+07:00",
+   "pin": "b35b54191b68082746652a074465c3a20c57b871",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-ci-shared-job-red",
+   "label": "c-late-check",
+   "at": "2026-10-18T12:46+07:00",
+   "pin": "b35b54191b68082746652a074465c3a20c57b871",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-test-pid-marker",
+   "label": "c-shared-no-lock",
+   "at": "2026-10-18T12:55+07:00",
+   "pin": "ab734529fb8f409234ca60d2fe52a216599fc1ae",
+   "safe": {
+    "result": "expanded",
+    "esc": 18091,
+    "files": [
+     {
+      "bytes": 17184,
+      "esc": 18065,
+      "path": "apps/runner/test/land-hardening.test.ts",
+      "verdict": "kept",
+      "blob": "2c17728e0ff3fca79bb83f352155dc32b7708e89"
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 18695,
+    "files": [
+     {
+      "bytes": 17789,
+      "esc": 18691,
+      "path": "apps/runner/test/land-hardening.test.ts",
+      "verdict": "kept",
+      "blob": "f18c370c3e8b3299b190ce21a27abe4282fd44bd"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-ci-hardcoded-expect",
+   "label": "c-handcopy",
+   "at": "2026-10-18T12:52+07:00",
+   "pin": "e93453427d64a03dfa483234b055c7a7bc69ce45",
+   "safe": {
+    "result": "same",
+    "files": [
+     {
+      "path": ".github/workflows/lean.yml",
+      "verdict": "notAllowed",
+      "blob": null
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 6731,
+    "files": [
+     {
+      "bytes": 6166,
+      "esc": 6335,
+      "path": ".github/workflows/lean.yml",
+      "verdict": "kept",
+      "blob": "9d90357cc04fa04210f32ef5af99547d8d9483f2"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-landed-runs-queued",
+   "label": "c-quota",
+   "at": "2026-10-18T13:18+07:00",
+   "pin": "51751fa65ff582fa6cfdb4c3d69094028bcf0f68",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-console-stale-service",
+   "label": "c-env-assume",
+   "at": "2026-10-18T13:25+07:00",
+   "pin": "64ab8a0891a768ab8a6a286dde9b4244c00a89a1",
+   "safe": {
+    "result": "expanded",
+    "esc": 10792,
+    "files": [
+     {
+      "bytes": 10140,
+      "esc": 10425,
+      "path": "apps/console-api/src/spool/drain.ts",
+      "verdict": "kept",
+      "blob": "00cd1902c7ddf201b6b0ee8482634e7bb385c63d"
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 23371,
+    "files": [
+     {
+      "bytes": 22812,
+      "esc": 23370,
+      "path": "apps/console-api/src/spool/drain.ts",
+      "verdict": "kept",
+      "blob": "1a7d55969d9237c3ee21727bbaba84e5726b59ac"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-workflow-multi-unbound",
+   "label": "c-order-derived",
+   "at": "2026-10-18T13:24+07:00",
+   "pin": "64ab8a0891a768ab8a6a286dde9b4244c00a89a1",
+   "safe": {
+    "result": "expanded",
+    "esc": 15000,
+    "files": [
+     {
+      "bytes": 14346,
+      "esc": 14906,
+      "path": "lean/Fw/Plan/Workflow.lean",
+      "verdict": "kept",
+      "blob": "d279e8745e735f4e5f35859d97c4981b8de0f2c4"
+     }
+    ]
+   },
+   "naive": {
+    "result": "refused",
+    "esc": 34906,
+    "files": [
+     {
+      "bytes": 34922,
+      "esc": 35660,
+      "path": "lean/Fw/Plan/Workflow.lean",
+      "verdict": "overCap",
+      "blob": "7ca207c56971ff5da67fb8ea7ef1c0988429b05b"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-folded-land-not-done",
+   "label": "c-order-derived",
+   "at": "2026-10-18T13:25+07:00",
+   "pin": "64ab8a0891a768ab8a6a286dde9b4244c00a89a1",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-red-on-main-by-design",
+   "label": "c-proxy-verdict",
+   "at": "2026-10-18T13:25+07:00",
+   "pin": "64ab8a0891a768ab8a6a286dde9b4244c00a89a1",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-obs-silent-drop",
+   "label": "c-proxy-verdict",
+   "at": "2026-10-18T13:38+07:00",
+   "pin": "a6b651b6bcab90fefe78d02c67510145298e3917",
+   "safe": {
+    "result": "expanded",
+    "esc": 18509,
+    "files": [
+     {
+      "bytes": 4535,
+      "esc": 4759,
+      "path": "apps/runner/hooks/emit.mjs",
+      "verdict": "kept",
+      "blob": "8b2cfa2b77e098cb34916c6375c84447bd11e243"
+     },
+     {
+      "bytes": 2902,
+      "esc": 2963,
+      "path": "packages/contracts/src/obs.ts",
+      "verdict": "kept",
+      "blob": "229050960709aab799baa78be527be5c3f5756da"
+     },
+     {
+      "bytes": 10140,
+      "esc": 10425,
+      "path": "apps/console-api/src/spool/drain.ts",
+      "verdict": "kept",
+      "blob": "00cd1902c7ddf201b6b0ee8482634e7bb385c63d"
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 11826,
+    "files": [
+     {
+      "bytes": 6727,
+      "esc": 7026,
+      "path": "apps/runner/hooks/emit.mjs",
+      "verdict": "kept",
+      "blob": "8dcef116d66b8625591c1ae808ae468154acbed8"
+     },
+     {
+      "bytes": 4172,
+      "esc": 4245,
+      "path": "packages/contracts/src/obs.ts",
+      "verdict": "kept",
+      "blob": "355d5be411bcf21300dce439e2f74d517465da9f"
+     },
+     {
+      "bytes": 22812,
+      "esc": 23370,
+      "path": "apps/console-api/src/spool/drain.ts",
+      "verdict": "overCap",
+      "blob": "1a7d55969d9237c3ee21727bbaba84e5726b59ac"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-workflow-agent-stall",
+   "label": "c-orphan-wait",
+   "at": "2026-10-18T14:03+07:00",
+   "pin": "140697ad2926c02eee4f8ef6fc6c44b8d76a8772",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-ci-skipped-false-pass",
+   "label": "c-proxy-verdict",
+   "at": "2026-10-18T14:50+07:00",
+   "pin": "cc742ada1f0f483117c51d0922066b1326e137d9",
+   "safe": {
+    "result": "expanded",
+    "esc": 8004,
+    "files": [
+     {
+      "bytes": 7335,
+      "esc": 7549,
+      "path": "packages/gh-budget/src/wait.ts",
+      "verdict": "kept",
+      "blob": "3193bb3db713eb7ed83a9a2917a282e00a6f1d33"
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 27140,
+    "files": [
+     {
+      "bytes": 26616,
+      "esc": 27247,
+      "path": "packages/gh-budget/src/wait.ts",
+      "verdict": "kept",
+      "blob": "5341875f45a8ad8604b1914ee0c8097c141a6e6b"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-proof-of-dead-code",
+   "label": "c-unearned-claim",
+   "at": "2026-10-18T14:20+07:00",
+   "pin": "f76d48680c77ffdc6c25ba37057111c2cb396e83",
+   "safe": {
+    "result": "refused",
+    "esc": 32849,
+    "files": [
+     {
+      "bytes": 31533,
+      "esc": 33352,
+      "path": "lean/Fw/Wire/Sched.lean",
+      "verdict": "overCap",
+      "blob": "8a35ed976d239ce4c0e026a4f5e77211ff216c9a"
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 31255,
+    "files": [
+     {
+      "bytes": 30017,
+      "esc": 31704,
+      "path": "lean/Fw/Wire/Sched.lean",
+      "verdict": "kept",
+      "blob": "4d2caba61d2a91ecc64de659626eddc64449c92f"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-precommit-stale-fwcore",
+   "label": "c-late-check",
+   "at": "2026-10-18T14:26+07:00",
+   "pin": "05830427c17c27950f050ed446ce5ae3cefcf95d",
+   "safe": {
+    "result": "same",
+    "files": [
+     {
+      "path": "scripts/hooks/pre-commit",
+      "verdict": "notAllowed",
+      "blob": null
+     },
+     {
+      "path": "scripts/checkmap.mjs",
+      "verdict": "vocab",
+      "word": "c-late-check",
+      "blob": "503305880477f4d89f4de04e941661f503ed6e9d"
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 12925,
+    "files": [
+     {
+      "bytes": 1033,
+      "esc": 1060,
+      "path": "scripts/hooks/pre-commit",
+      "verdict": "kept",
+      "blob": "c2a96eac79e1c97916651b70e2266ebe29d93f6f"
+     },
+     {
+      "bytes": 11134,
+      "esc": 11596,
+      "path": "scripts/checkmap.mjs",
+      "verdict": "kept",
+      "blob": "fa20554a0e212a1f41ca91e8afb0d4246c536972"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-spawn-patcher-unreachable",
+   "label": "c-identity-heuristic",
+   "at": "2026-10-18T14:37+07:00",
+   "pin": "394772893094fa347534a8f6df65f02616188420",
+   "safe": {
+    "result": "expanded",
+    "esc": 7983,
+    "files": [
+     {
+      "bytes": 7223,
+      "esc": 7531,
+      "path": "apps/runner/hooks/spawn-guard.mjs",
+      "verdict": "kept",
+      "blob": "c5ce5d6d65672bbe37caf899665c2e94986ca293"
+     },
+     {
+      "bytes": 35317,
+      "esc": 37160,
+      "path": "lean/Fw/Ops/SpawnGuard.lean",
+      "verdict": "overCap",
+      "blob": "fb81d45553274c4cb74e742fd3ff3ada0bfda977"
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 8135,
+    "files": [
+     {
+      "bytes": 7371,
+      "esc": 7683,
+      "path": "apps/runner/hooks/spawn-guard.mjs",
+      "verdict": "kept",
+      "blob": "7508d608bedca0a75e9c5f6df6f3ce4950d80b98"
+     },
+     {
+      "bytes": 29105,
+      "esc": 30099,
+      "path": "lean/Fw/Ops/SpawnGuard.lean",
+      "verdict": "overCap",
+      "blob": "88f8e5ca86e6dbbc980c4a3eb809178b4832dbe3"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-proof-of-typed-expectation",
+   "label": "c-handcopy",
+   "at": "2026-10-18T14:08+07:00",
+   "pin": "a114e566285121f7cc308f2d56dde76873c60cef",
+   "safe": {
+    "result": "same",
+    "files": [
+     {
+      "path": "lean/Fw/Console/PreviewTable.lean",
+      "verdict": "noText",
+      "blob": null
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 7147,
+    "files": [
+     {
+      "bytes": 6247,
+      "esc": 6534,
+      "path": "lean/Fw/Console/PreviewTable.lean",
+      "verdict": "kept",
+      "blob": "e10f08a7e6ea8dca753a62385049ab57f9cec90d"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-review-loop",
+   "label": "c-spec-gap",
+   "at": "2026-10-18T14:43+07:00",
+   "pin": "9e23e150bf79ff8ee0f80a01b534487b9c169c90",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-workflow-null-result",
+   "label": "c-spec-gap",
+   "at": "2026-10-18T14:55+07:00",
+   "pin": "27b708fdb0b002a9885554fe874c8a2361bf86fb",
+   "safe": {
+    "result": "same",
+    "files": [
+     {
+      "path": ".claude/workflows/build-review.js",
+      "verdict": "notAllowed",
+      "blob": null
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 12506,
+    "files": [
+     {
+      "bytes": 11350,
+      "esc": 11469,
+      "path": ".claude/workflows/build-review.js",
+      "verdict": "kept",
+      "blob": "ce0c753573d4b906547305d3abd85b69eac6a279"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-lead-adhoc-glue",
+   "label": "c-env-assume",
+   "at": "2026-10-18T15:00+07:00",
+   "pin": "f9a2a99ff93580498c19f7471b6df95724fc0d6c",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-lean-lane-no-math-review",
+   "label": "c-spec-gap",
+   "at": "2026-10-18T16:00+07:00",
+   "pin": "9d47aeafc37a64308e8b0b3d5ed058898eb574ed",
+   "safe": {
+    "result": "same",
+    "files": [
+     {
+      "path": "lean/Fw/Site/Head.lean",
+      "verdict": "noText",
+      "blob": null
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 8260,
+    "files": [
+     {
+      "bytes": 7195,
+      "esc": 7655,
+      "path": "lean/Fw/Site/Head.lean",
+      "verdict": "kept",
+      "blob": "6b9cb2db4a0a34ddea0a5102169649d599f2df7e"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-land-dry-needs-console",
+   "label": "c-env-assume",
+   "at": "2026-10-18T15:45+07:00",
+   "pin": "2fd90ba4d673055395df06e9d79a5a84638f272d",
+   "safe": {
+    "result": "expanded",
+    "esc": 17235,
+    "files": [
+     {
+      "bytes": 5850,
+      "esc": 6074,
+      "path": "apps/runner/src/lib.ts",
+      "verdict": "kept",
+      "blob": "6dea6ae75eef8b4dfd78e2ffa802c79e15bdd6fb"
+     },
+     {
+      "bytes": 10475,
+      "esc": 10815,
+      "path": "apps/runner/src/fw.ts",
+      "verdict": "kept",
+      "blob": "c8dd9f533c0163e39c1bad81a8129f82b7a5a351"
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 27726,
+    "files": [
+     {
+      "bytes": 9202,
+      "esc": 9545,
+      "path": "apps/runner/src/lib.ts",
+      "verdict": "kept",
+      "blob": "8725481dd2c120d6d03229f7e05531ab5f1714ac"
+     },
+     {
+      "bytes": 17464,
+      "esc": 18049,
+      "path": "apps/runner/src/fw.ts",
+      "verdict": "kept",
+      "blob": "645fe3c553587ed23b966a0f6ba3214973945bfc"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-gate-pass-uncompared",
+   "label": "c-proxy-verdict",
+   "at": "2026-10-18T15:35+07:00",
+   "pin": "0cc1dfa2eba200b5b3720e6cc923f96c385370d0",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-watch-not-live",
+   "label": "c-orphan-wait",
+   "at": "2026-10-18T17:00+07:00",
+   "pin": "7600df66c6e7785cb5ad8989665bf03ab9db065e",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-graph-hand-edit",
+   "label": "c-late-check",
+   "at": "2026-10-18T19:00+07:00",
+   "pin": "09da61fd3f0254f193f6cb265bd2ad87c34f4b26",
+   "safe": {
+    "result": "same",
+    "files": [
+     {
+      "path": "scripts/wallclock-allow.json",
+      "verdict": "notAllowed",
+      "blob": null
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 8101,
+    "files": [
+     {
+      "bytes": 6933,
+      "esc": 7424,
+      "path": "scripts/wallclock-allow.json",
+      "verdict": "kept",
+      "blob": "47b99cd88512307d41373e109560b72c086dc494"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-design-clause-unmapped",
+   "label": "c-spec-gap",
+   "at": "2026-10-18T16:00+07:00",
+   "pin": "9d47aeafc37a64308e8b0b3d5ed058898eb574ed",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-land-load-flake",
+   "label": "c-env-assume",
+   "at": "2026-10-18T20:30+07:00",
+   "pin": "2666f526f946fefc996f815e10d6e18e707f82a9",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-number-from-memory",
+   "label": "c-unearned-claim",
+   "at": "2026-10-18T20:00+07:00",
+   "pin": "ba671b8eec1dcbf7a25204b99dd4d5248f20911f",
+   "safe": {
+    "result": "same",
+    "files": [
+     {
+      "path": "lean/.lake",
+      "verdict": "notAllowed",
+      "blob": null
+     }
+    ]
+   },
+   "naive": {
+    "result": "same",
+    "files": [
+     {
+      "path": "lean/.lake",
+      "verdict": "noText",
+      "blob": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-provenance-by-existence",
+   "label": "c-identity-heuristic",
+   "at": "2026-10-18T17:30+07:00",
+   "pin": "712c9668e5259c2f5cb900310c7a9ee631f92915",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-stated-limit-unread",
+   "label": "c-unearned-claim",
+   "at": "2026-10-18T18:10+07:00",
+   "pin": "c0bb618e21760b58979d556701aba49a2c89f7d4",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-relayed-user-voice",
+   "label": "c-env-assume",
+   "at": "2026-10-18T20:00+07:00",
+   "pin": "ba671b8eec1dcbf7a25204b99dd4d5248f20911f",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-merge-drops-measured-change",
+   "label": "c-late-check",
+   "at": "2026-10-18T18:20+07:00",
+   "pin": "09f31e66e8984726b3ce6ea77a55b7e5596d7af9",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-mutants-red-no-task",
+   "label": "c-late-check",
+   "at": "2026-10-18T17:33+07:00",
+   "pin": "acc2a0064b2aa4e4ae3dbe33e480b59356315f66",
+   "safe": {
+    "result": "refused",
+    "esc": 42095,
+    "files": [
+     {
+      "bytes": 40815,
+      "esc": 43021,
+      "path": "lean/Fw/Ops/SpawnGuard.lean",
+      "verdict": "overCap",
+      "blob": "7f9929e90f20e26bea719ef51da7493f59e025d1"
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 29481,
+    "files": [
+     {
+      "bytes": 29105,
+      "esc": 30099,
+      "path": "lean/Fw/Ops/SpawnGuard.lean",
+      "verdict": "kept",
+      "blob": "88f8e5ca86e6dbbc980c4a3eb809178b4832dbe3"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-console-web-stale-dist",
+   "label": "c-env-assume",
+   "at": "2026-10-18T17:30+07:00",
+   "pin": "712c9668e5259c2f5cb900310c7a9ee631f92915",
+   "safe": {
+    "result": "same",
+    "files": [
+     {
+      "path": "apps/console-web/dist",
+      "verdict": "notAllowed",
+      "blob": null
+     }
+    ]
+   },
+   "naive": {
+    "result": "same",
+    "files": [
+     {
+      "path": "apps/console-web/dist",
+      "verdict": "noText",
+      "blob": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-preview-port-collision",
+   "label": "c-shared-no-lock",
+   "at": "2026-10-18T18:30+07:00",
+   "pin": "e05e9ded329c7b7f5405279a622a12c8513067a3",
+   "safe": {
+    "result": "same",
+    "files": [
+     {
+      "path": "apps/console-api",
+      "verdict": "notAllowed",
+      "blob": null
+     }
+    ]
+   },
+   "naive": {
+    "result": "same",
+    "files": [
+     {
+      "path": "apps/console-api",
+      "verdict": "noText",
+      "blob": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-land-queue-unknown",
+   "label": "c-spec-gap",
+   "at": "2026-10-18T21:30+07:00",
+   "pin": "6694e1a3b1559287eaf7a6790bfb1a4a1aad04d3",
+   "safe": {
+    "result": "expanded",
+    "esc": 8206,
+    "files": [
+     {
+      "bytes": 7752,
+      "esc": 7980,
+      "path": "apps/runner/src/land-queue.ts",
+      "verdict": "kept",
+      "blob": "33f9820e20a281014862dc32cec71413ad09ee8d"
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 16749,
+    "files": [
+     {
+      "bytes": 16347,
+      "esc": 16767,
+      "path": "apps/runner/src/land-queue.ts",
+      "verdict": "kept",
+      "blob": "be3be9c09fedc2e7735c8e598503fed15f572775"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-lead-cd-cwd",
+   "label": "c-policy-prose",
+   "at": "2026-10-18T21:35+07:00",
+   "pin": "2945e493b1e4285ec4bc45f667c987978aebde4d",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-ci-push-blocked",
+   "label": "c-env-assume",
+   "at": "2026-10-18T23:00+07:00",
+   "pin": "90337d4c4d4d28c10c7ec30ecf08d99f0312659d",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-ui-steps-unchecked",
+   "label": "c-unearned-claim",
+   "at": "2026-10-18T22:58+07:00",
+   "pin": "eebcc49100d6779b7f31edd0c4ef3fdc2490a2d8",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-verify-below-land",
+   "label": "c-late-check",
+   "at": "2026-10-19T00:20+07:00",
+   "pin": "44d9ebaa1b4776edaa4082d0f3c34d9654743ecc",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-main-checkout-busy-queue",
+   "label": "c-shared-no-lock",
+   "at": "2026-10-19T01:15+07:00",
+   "pin": "897ab68459567387363dfd385a0e4e73e0a06c07",
+   "safe": {
+    "result": "refused",
+    "esc": 58660,
+    "files": [
+     {
+      "path": "docs/team/work-graph.json",
+      "verdict": "notAllowed",
+      "blob": null
+     },
+     {
+      "path": ".claude/settings.json",
+      "verdict": "notAllowed",
+      "blob": null
+     },
+     {
+      "bytes": 57509,
+      "esc": 59516,
+      "path": "apps/runner/src/land.ts",
+      "verdict": "overCap",
+      "blob": "d1810e25cef5c6712f28073e03940e451512e936"
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 7311,
+    "files": [
+     {
+      "bytes": 575192,
+      "esc": 619558,
+      "path": "docs/team/work-graph.json",
+      "verdict": "overCap",
+      "blob": "82d2dfe7fdb855e0bc5e9e815d9b1ce1b601a9e0"
+     },
+     {
+      "bytes": 6310,
+      "esc": 7005,
+      "path": ".claude/settings.json",
+      "verdict": "kept",
+      "blob": "80dd7fb41f670e034d1c13a09e706e503bf19dfa"
+     },
+     {
+      "bytes": 79888,
+      "esc": 82554,
+      "path": "apps/runner/src/land.ts",
+      "verdict": "overCap",
+      "blob": "fe8845c8d9ee4333df40440a6a9ce0ec2be152a8"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-readsonly-selection",
+   "label": "c-late-check",
+   "at": "2026-10-19T08:50+07:00",
+   "pin": "c514f4359ba2ea924d5b69a4cbe0d3fafe98b6fe",
+   "safe": {
+    "result": "same",
+    "files": [
+     {
+      "path": "apps/runner",
+      "verdict": "notAllowed",
+      "blob": null
+     }
+    ]
+   },
+   "naive": {
+    "result": "same",
+    "files": [
+     {
+      "path": "apps/runner",
+      "verdict": "noText",
+      "blob": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-local-lane-overload",
+   "label": "c-quota",
+   "at": "2026-10-19T10:12+07:00",
+   "pin": "6c6a39ccce1c65d6f53cc75b9b39c1a549074a18",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-until-grep-finished-output",
+   "label": "c-orphan-wait",
+   "at": "2026-10-19T09:30+07:00",
+   "pin": "8866cebfb4bc8f96e49df72bc477d57c2ea881fc",
+   "safe": {
+    "result": "same",
+    "files": [
+     {
+      "path": "apps/runner/hooks/wait-guard.mjs",
+      "verdict": "vocab",
+      "word": "c-orphan-wait",
+      "blob": "2a78014d8dcf6e0f0b4b340e941b15f1d8765a42"
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 6794,
+    "files": [
+     {
+      "bytes": 5705,
+      "esc": 5888,
+      "path": "apps/runner/hooks/wait-guard.mjs",
+      "verdict": "kept",
+      "blob": "2a78014d8dcf6e0f0b4b340e941b15f1d8765a42"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-fix-round-item-drift",
+   "label": "c-spec-gap",
+   "at": "2026-10-19T09:35+07:00",
+   "pin": "3caf41e6a2c35e1321fd9bf07c5153da1434d2f9",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-graph-edit-in-branch",
+   "label": "c-spec-gap",
+   "at": "2026-10-19T12:58+07:00",
+   "pin": "4187b24172d4d1d41b8b5257dd16faf935f5dde6",
+   "safe": {
+    "result": "same",
+    "files": [
+     {
+      "path": "docs/team/work-graph.json",
+      "verdict": "notAllowed",
+      "blob": null
+     }
+    ]
+   },
+   "naive": {
+    "result": "refused",
+    "esc": 591364,
+    "files": [
+     {
+      "bytes": 575192,
+      "esc": 619558,
+      "path": "docs/team/work-graph.json",
+      "verdict": "overCap",
+      "blob": "82d2dfe7fdb855e0bc5e9e815d9b1ce1b601a9e0"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-manifest-append-conflict",
+   "label": "c-shared-no-lock",
+   "at": "2026-10-19T14:40+07:00",
+   "pin": "42bbaed6531f86d6f4cc93e64c0317bd40354500",
+   "safe": {
+    "result": "same",
+    "files": [
+     {
+      "path": "apps/site/assets.manifest.json",
+      "verdict": "notAllowed",
+      "blob": null
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 13437,
+    "files": [
+     {
+      "bytes": 12582,
+      "esc": 13788,
+      "path": "apps/site/assets.manifest.json",
+      "verdict": "kept",
+      "blob": "fb027e816c425aa2f6fcd957ddf4afed8410fc17"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-hidden-pause-unfaithful-port",
+   "label": "c-unearned-claim",
+   "at": "2026-10-19T15:30+07:00",
+   "pin": "43f7e6bdd060ef025b7537c733c86e58c437d7da",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-overflow-unchecked-at-land",
+   "label": "c-late-check",
+   "at": "2026-10-19T16:00+07:00",
+   "pin": "d7b1d30e8dd36704bcc06608f55e94b6badfd1d6",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-rule-before-enforcer",
+   "label": "c-spec-gap",
+   "at": "2026-10-19T16:39+07:00",
+   "pin": "37612c6580b85f5ef521cd193354631cb994ce1b",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-plan-sync-manual",
+   "label": "c-order-derived",
+   "at": "2026-10-18T22:58+07:00",
+   "pin": "eebcc49100d6779b7f31edd0c4ef3fdc2490a2d8",
+   "safe": {
+    "result": "expanded",
+    "esc": 9133,
+    "files": [
+     {
+      "bytes": 7831,
+      "esc": 8111,
+      "path": "apps/runner/hooks/cap.mjs",
+      "verdict": "kept",
+      "blob": "d9250bf748136e6475388fdeb426268ad5edf29d"
+     },
+     {
+      "path": "docs/team/handoffs/console-reconcile-speed.md",
+      "verdict": "notAllowed",
+      "blob": null
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 11367,
+    "files": [
+     {
+      "bytes": 7831,
+      "esc": 8111,
+      "path": "apps/runner/hooks/cap.mjs",
+      "verdict": "kept",
+      "blob": "d9250bf748136e6475388fdeb426268ad5edf29d"
+     },
+     {
+      "bytes": 2219,
+      "esc": 2245,
+      "path": "docs/team/handoffs/console-reconcile-speed.md",
+      "verdict": "kept",
+      "blob": "6907ae53ab7d67088a11bbc392154e1428aff179"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-land-order-overlap",
+   "label": "c-shared-no-lock",
+   "at": "2026-10-19T22:10+07:00",
+   "pin": "7e5cff2fa98b40a2b280127421d0ca25c7d3e190",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-decision-from-narrowed-run",
+   "label": "c-sample-validity",
+   "at": "2026-10-19T22:15+07:00",
+   "pin": "7e5cff2fa98b40a2b280127421d0ca25c7d3e190",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-preview-csp-rewrite",
+   "label": "c-env-assume",
+   "at": "2026-10-19T22:45+07:00",
+   "pin": "2d0ac41be2fe28ab32e83b14b4352d292e78f52c",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-helper-spawn-named",
+   "label": "c-identity-heuristic",
+   "at": "2026-10-19T23:05+07:00",
+   "pin": "bd90522f85e539639b5043ce256514e61f67e497",
+   "safe": {
+    "result": "refused",
+    "esc": 42062,
+    "files": [
+     {
+      "bytes": 40815,
+      "esc": 43021,
+      "path": "lean/Fw/Ops/SpawnGuard.lean",
+      "verdict": "overCap",
+      "blob": "7f9929e90f20e26bea719ef51da7493f59e025d1"
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 29448,
+    "files": [
+     {
+      "bytes": 29105,
+      "esc": 30099,
+      "path": "lean/Fw/Ops/SpawnGuard.lean",
+      "verdict": "kept",
+      "blob": "88f8e5ca86e6dbbc980c4a3eb809178b4832dbe3"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-dispatch-push-runs",
+   "label": "c-quota",
+   "at": "2026-10-19T23:04+07:00",
+   "pin": "bd90522f85e539639b5043ce256514e61f67e497",
+   "safe": {
+    "result": "refused",
+    "esc": 61417,
+    "files": [
+     {
+      "path": ".github/workflows/mutants.yml",
+      "verdict": "notAllowed",
+      "blob": null
+     },
+     {
+      "bytes": 58975,
+      "esc": 61879,
+      "path": "lean/Fw/Ci/Trigger.lean",
+      "verdict": "overCap",
+      "blob": "1f81ba4e1002ef5a211398e423c4eb0e6889fa04"
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 12618,
+    "files": [
+     {
+      "bytes": 11485,
+      "esc": 11916,
+      "path": ".github/workflows/mutants.yml",
+      "verdict": "kept",
+      "blob": "d531b8adefc81eebd13f11a858114c996a0744aa"
+     },
+     {
+      "bytes": 101002,
+      "esc": 105267,
+      "path": "lean/Fw/Ci/Trigger.lean",
+      "verdict": "overCap",
+      "blob": "e151f5ef9b3ece06d24b500c085782c3ce240f50"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-ci-status-misread",
+   "label": "c-env-assume",
+   "at": "2026-10-19T23:50+07:00",
+   "pin": "e25e6f97925b0123596a40cac00fc04a6ade3f63",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-preset-change-stale-counts",
+   "label": "c-sample-validity",
+   "at": "2026-10-20T02:30+07:00",
+   "pin": "3fe64cf386494dbe8532c69305a60f9d7482dd73",
+   "safe": {
+    "result": "same",
+    "files": [
+     {
+      "path": "docs/report/v2-report.md",
+      "verdict": "notAllowed",
+      "blob": null
+     }
+    ]
+   },
+   "naive": {
+    "result": "refused",
+    "esc": 100819,
+    "files": [
+     {
+      "bytes": 101201,
+      "esc": 102318,
+      "path": "docs/report/v2-report.md",
+      "verdict": "overCap",
+      "blob": "6f0f9868c5b4429699e034c1a6a240b70c6bd3f2"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-runner-bin-mode-flip",
+   "label": "c-env-assume",
+   "at": "2026-10-19T10:46+07:00",
+   "pin": "09cbdbfaad8ecfa26e76832671e583309117b4b7",
+   "safe": {
+    "result": "expanded",
+    "esc": 13325,
+    "files": [
+     {
+      "bytes": 11639,
+      "esc": 12020,
+      "path": "apps/runner/src/fw.ts",
+      "verdict": "kept",
+      "blob": "96648a78a82c76cc84fda35981c7feda1ef47db9"
+     },
+     {
+      "path": "apps/runner/package.json",
+      "verdict": "notAllowed",
+      "blob": null
+     },
+     {
+      "path": "packages/engine-check/package.json",
+      "verdict": "notAllowed",
+      "blob": null
+     },
+     {
+      "path": "packages/engine-check/node_modules/.bin/fw",
+      "verdict": "notAllowed",
+      "blob": null
+     },
+     {
+      "bytes": 59198,
+      "esc": 61251,
+      "path": "apps/runner/src/land.ts",
+      "verdict": "overCap",
+      "blob": "0944863896ee011e8c0da117fc052cb80d9a8523"
+     },
+     {
+      "path": "apps/runner",
+      "verdict": "notAllowed",
+      "blob": null
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 20324,
+    "files": [
+     {
+      "bytes": 17464,
+      "esc": 18049,
+      "path": "apps/runner/src/fw.ts",
+      "verdict": "kept",
+      "blob": "645fe3c553587ed23b966a0f6ba3214973945bfc"
+     },
+     {
+      "bytes": 408,
+      "esc": 480,
+      "path": "apps/runner/package.json",
+      "verdict": "kept",
+      "blob": "20457e3cf84d79d26917c5dd09c46b84b4d17202"
+     },
+     {
+      "bytes": 522,
+      "esc": 578,
+      "path": "packages/engine-check/package.json",
+      "verdict": "kept",
+      "blob": "d9ea0694d5c1468c34f48b7968a0404b2232d9bf"
+     },
+     {
+      "path": "packages/engine-check/node_modules/.bin/fw",
+      "verdict": "noText",
+      "blob": null
+     },
+     {
+      "bytes": 79888,
+      "esc": 82554,
+      "path": "apps/runner/src/land.ts",
+      "verdict": "overCap",
+      "blob": "fe8845c8d9ee4333df40440a6a9ce0ec2be152a8"
+     },
+     {
+      "path": "apps/runner",
+      "verdict": "noText",
+      "blob": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-trajectory-pooled-window",
+   "label": "c-spec-gap",
+   "at": "2026-10-20T20:00+07:00",
+   "pin": "65f4e791c91070730187a493a4e4ffbf04863185",
+   "safe": {
+    "result": "refused",
+    "esc": 64941,
+    "files": [
+     {
+      "bytes": 64309,
+      "esc": 66333,
+      "path": "lean/Fw/Gate/Trajectory.lean",
+      "verdict": "overCap",
+      "blob": "c28bee9d0e3d63a828b30d2e9c6165124047084c"
+     }
+    ]
+   },
+   "naive": {
+    "result": "refused",
+    "esc": 274825,
+    "files": [
+     {
+      "bytes": 276348,
+      "esc": 283747,
+      "path": "lean/Fw/Gate/Trajectory.lean",
+      "verdict": "overCap",
+      "blob": "4e75651e3f950cf793b0a2274e3e0e77e713b163"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-reap-console-kill",
+   "label": "c-spec-gap",
+   "at": "2026-10-21T11:15+07:00",
+   "pin": "162673221e40e72dd4a00c43fe27c13da1d262b2",
+   "safe": {
+    "result": "expanded",
+    "esc": 13359,
+    "files": [
+     {
+      "bytes": 12297,
+      "esc": 12667,
+      "path": "lean/Fw/Ops/Reap.lean",
+      "verdict": "kept",
+      "blob": "fcba7a048c224cc0c033bdc4aa18ba99b48de390"
+     }
+    ]
+   },
+   "naive": {
+    "result": "refused",
+    "esc": 41508,
+    "files": [
+     {
+      "bytes": 40916,
+      "esc": 41996,
+      "path": "lean/Fw/Ops/Reap.lean",
+      "verdict": "overCap",
+      "blob": "96cc6b042d0784bd13d35217109b2454980e3219"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-lan-click-silent",
+   "label": "c-env-assume",
+   "at": "2026-10-21T12:30+07:00",
+   "pin": "0a251e05c883b73b19d639b06f54da17d42880e0",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-site-test-unrun",
+   "label": "c-late-check",
+   "at": "2026-10-21T14:20+07:00",
+   "pin": "8eb4560e8c8799927a41dd80175ff0cb114b2be8",
+   "safe": {
+    "result": "same",
+    "files": [
+     {
+      "path": "apps/site",
+      "verdict": "notAllowed",
+      "blob": null
+     }
+    ]
+   },
+   "naive": {
+    "result": "same",
+    "files": [
+     {
+      "path": "apps/site",
+      "verdict": "noText",
+      "blob": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-footprint-correction",
+   "label": "c-unearned-claim",
+   "at": "2026-10-21T19:30+07:00",
+   "pin": "409ad8e415f8a122a685b0132c465e6c952fc736",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-spec-data-before-land",
+   "label": "c-spec-gap",
+   "at": "2026-10-21T20:10+07:00",
+   "pin": "7c6f2251d723da6269e831f1b730f2aa0f545a54",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-land-waiter-false-refuse",
+   "label": "c-proxy-verdict",
+   "at": "2026-10-21T21:30+07:00",
+   "pin": "1d26f3bef67e193834aac4ce35ee113471d162fc",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-lead-dirty-main",
+   "label": "c-shared-no-lock",
+   "at": "2026-10-21T22:00+07:00",
+   "pin": "7f27fa250b2f6b98859a965e6c6afac05d87edf6",
+   "safe": {
+    "result": "same",
+    "files": [
+     {
+      "path": ".claude/workflows/build-review.js",
+      "verdict": "notAllowed",
+      "blob": null
+     }
+    ]
+   },
+   "naive": {
+    "result": "expanded",
+    "esc": 11729,
+    "files": [
+     {
+      "bytes": 11350,
+      "esc": 11469,
+      "path": ".claude/workflows/build-review.js",
+      "verdict": "kept",
+      "blob": "ce0c753573d4b906547305d3abd85b69eac6a279"
+     }
+    ]
+   }
+  },
+  {
+   "id": "inc-gate-last-line",
+   "label": "c-identity-heuristic",
+   "at": "2026-10-21T22:10+07:00",
+   "pin": "c4f143181459c3257acf40b907f8124ed837bccb",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-ask-chat-only",
+   "label": "c-policy-prose",
+   "at": "2026-10-22T01:30+07:00",
+   "pin": "ecdc0787e27352da83c9f3147ef1f96fe2dc9331",
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  },
+  {
+   "id": "inc-sim-lock-ppid",
+   "label": "c-env-assume",
+   "at": null,
+   "pin": null,
+   "safe": {
+    "result": "same",
+    "files": []
+   },
+   "naive": {
+    "result": "same",
+    "files": []
+   }
+  }
+ ],
+ "pinned": 115,
+ "safe": {
+  "expanded": 27,
+  "refused": 9,
+  "same": 80
+ },
+ "naive": {
+  "expanded": 25,
+  "refused": 2
+ },
+ "dropped": [
+  "inc-land-undeclared-reads"
+ ],
+ "expandedIds": [
+  "inc-claim-order",
+  "inc-worktree-role-as-teammate",
+  "inc-watch-unlanded-after-land",
+  "inc-watch-alert-during-land",
+  "inc-watch-unlanded-queued",
+  "inc-land-undeclared-reads",
+  "inc-evidence-before-land",
+  "inc-gate-scan-page-state",
+  "inc-ci-verdict-needs-api",
+  "inc-land-retry-text-match",
+  "inc-findings-shared-entry",
+  "inc-land-inputs-untracked-exists",
+  "inc-land-dry-no-verdict",
+  "inc-ci-run-cap-prompt",
+  "inc-wt-prep-lsp-as-build",
+  "inc-parallel-write-overlap",
+  "inc-test-pid-marker",
+  "inc-console-stale-service",
+  "inc-workflow-multi-unbound",
+  "inc-obs-silent-drop",
+  "inc-ci-skipped-false-pass",
+  "inc-spawn-patcher-unreachable",
+  "inc-land-dry-needs-console",
+  "inc-land-queue-unknown",
+  "inc-plan-sync-manual",
+  "inc-runner-bin-mode-flip",
+  "inc-reap-console-kill"
+ ]
+}
