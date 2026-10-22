@@ -1,0 +1,95 @@
+{
+ "settings": {
+  "showThinkingSummaries": true
+ },
+ "maxTurns": 10,
+ "budgetUsd": {
+  "haiku": 0.05,
+  "sonnet": 0.6
+ },
+ "thinkingExposed": false,
+ "models": {
+  "haiku": {
+   "row": "inc-claim-order",
+   "exit": 0,
+   "subtype": "success",
+   "numTurns": 3,
+   "costUsd": 0.0015320300000000002,
+   "initTools": [
+    "Glob",
+    "Grep",
+    "Read",
+    "StructuredOutput"
+   ],
+   "structured": true,
+   "answered": true,
+   "hookFired": true,
+   "answerToolHooked": true,
+   "trace": {
+    "verdict": "ok",
+    "calls": 0,
+    "bytes": 0,
+    "denied": 0,
+    "unhooked": 0,
+    "hooked": 1
+   },
+   "thinkingBlocks": 1,
+   "thinkingWithText": 0,
+   "thinkingChars": 0,
+   "evidence": {
+    "valid": [],
+    "invalid": []
+   },
+   "log": [
+    {
+     "tool": "StructuredOutput",
+     "decision": "answer",
+     "why": null,
+     "path": null,
+     "bytes": 0
+    }
+   ]
+  },
+  "sonnet": {
+   "row": "inc-claim-order",
+   "exit": 0,
+   "subtype": "success",
+   "numTurns": 2,
+   "costUsd": 0.026262,
+   "initTools": [
+    "Glob",
+    "Grep",
+    "Read",
+    "StructuredOutput"
+   ],
+   "structured": true,
+   "answered": true,
+   "hookFired": true,
+   "answerToolHooked": true,
+   "trace": {
+    "verdict": "ok",
+    "calls": 0,
+    "bytes": 0,
+    "denied": 0,
+    "unhooked": 0,
+    "hooked": 1
+   },
+   "thinkingBlocks": 0,
+   "thinkingWithText": 0,
+   "thinkingChars": 0,
+   "evidence": {
+    "valid": [],
+    "invalid": []
+   },
+   "log": [
+    {
+     "tool": "StructuredOutput",
+     "decision": "answer",
+     "why": null,
+     "path": null,
+     "bytes": 0
+    }
+   ]
+  }
+ }
+}

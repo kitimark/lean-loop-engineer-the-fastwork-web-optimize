@@ -1,6 +1,3 @@
-// review-info: the information panel of a look-change review. The tables, ranges and formulas are Lean (`console.reviewInfo`,
-// Fw.Console.ReviewInfo); these tests check them against their sources (the golden, the research note, the ledger, the code
-// ranges) so none of them can drift, and check the route glue.
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -10,7 +7,7 @@ import { selectCore } from "../src/core/index.ts";
 import { Store } from "../src/store.ts";
 import { OwnerAuth } from "../src/preview/owner.ts";
 import { LoginGuard } from "../src/preview/login.ts";
-import { readExcerpt, type ExcerptSpec } from "../src/review/info.ts";
+import { fileLines, readExcerpt, type ExcerptSpec, type Ops } from "../src/review/info.ts";
 
 const ROOT = join(import.meta.dirname, "../../..");
 const FLAG = "nav:earn-no-transition";
@@ -51,7 +48,7 @@ describe("GET /api/reviews/:flag/info", () => {
   it("the console-web fixture is the Lean reply (regenerate it from fwcore when this fails)", async () => {
     const j = await info();
     const fx = JSON.parse(readFileSync(join(ROOT, "apps/console-web/test/fixtures/review-info.earn.json"), "utf8"));
-    const strip = ({ id: _id, ...x }: any) => ({ ...x, excerpts: x.excerpts.map(({ ok: _o, lines: _l, reason: _r, ...e }: any) => e) });
+    const strip = ({ id: _id, ...x }: any) => ({ ...x, excerpts: x.excerpts.map(({ ok: _o, first: _f, last: _z, lines: _l, reason: _r, ...e }: any) => e) });
     expect(strip(j)).toEqual(strip(fx));
   });
 
@@ -144,13 +141,21 @@ describe("GET /api/reviews/:flag/info", () => {
     expect(wk.every((g: any) => g.status.kind === "unknown" && g.before === null)).toBe(true);
   });
 
-  it("every code excerpt is read from its range and still holds its anchor", async () => {
+  it("every code excerpt starts at the one line holding its anchor and holds its span", async () => {
     const j = await info();
     expect(j.excerpts.every((e: any) => e.ok === true)).toBe(true);
-    const rule = j.excerpts.find((e: any) => e.id === "css-rule");
-    expect(rule.lines[0].n).toBe(167);
-    expect(rule.lines.map((l: any) => l.text).join("\n")).toContain("max-width 0.68s");
-    expect(j.excerpts.find((e: any) => e.id === "css-flag").lines.map((l: any) => l.text).join("\n")).toContain("transition: none");
+    for (const e of j.excerpts) {
+      const lines = readFileSync(join(ROOT, e.file), "utf8").split("\n");
+      const at = lines.flatMap((l, i) => (l.includes(e.anchor) ? [i + 1] : []));
+      expect(at, `${e.id} anchor "${e.anchor}"`).toEqual([e.first]);
+      expect(e.lines).toHaveLength(e.span);
+      expect(e.last).toBe(e.first + e.span - 1);
+    }
+    const text = (id: string) => j.excerpts.find((e: any) => e.id === id).lines.map((l: any) => l.text).join("\n");
+    expect(text("css-rule")).toContain("max-width 0.68s");
+    expect(text("css-flag")).toContain("transition: none");
+    expect(text("js-decision")).toContain("return !(flag && morphing)");
+    expect(text("js-apply")).toContain("earnTransitionOn(");
   });
 
   it("every formula names a Lean declaration that is on its line", async () => {
@@ -186,26 +191,46 @@ describe("GET /api/reviews/:flag/info", () => {
 });
 
 describe("readExcerpt", () => {
-  const spec = (over: Partial<ExcerptSpec> = {}): ExcerptSpec => ({ id: "x", side: "flag", file: "a/b.txt", first: 2, last: 3, anchor: "beta", note: "", ...over });
-  function checkout() {
+  const APPLY = "apps/site/src/parts/nav/index.tsx";
+  const spec = (over: Partial<ExcerptSpec> = {}): ExcerptSpec => ({ id: "js-apply", side: "flag", file: APPLY, anchor: "nav.classList.toggle(EARN_STILL_CLASS", span: 1, note: "", ...over });
+  function checkout(lines: string[]) {
     const root = mkdtempSync(join(tmpdir(), "fw-exc-"));
-    mkdirSync(join(root, "a"));
-    writeFileSync(join(root, "a/b.txt"), "alpha\nbeta\ngamma\ndelta\n");
+    mkdirSync(join(root, "apps/site/src/parts/nav"), { recursive: true });
+    writeFileSync(join(root, APPLY), lines.join("\n"));
     return root;
   }
-  it("returns the numbered lines when the anchor is inside", () => {
-    const r = readExcerpt(checkout(), spec());
-    expect(r.ok).toBe(true);
-    if (r.ok) expect(r.lines).toEqual([{ n: 2, text: "beta" }, { n: 3, text: "gamma" }]);
+  const apply = "    nav.classList.toggle(EARN_STILL_CLASS, !on);";
+  async function core(): Promise<Ops> { const { store } = await rig(); return (op, f) => store.core.ops(op, f); }
+  it("finds the anchor line, and a line move above it moves the range with it", async () => {
+    const ops = await core();
+    const r = await readExcerpt(ops, checkout(["a", "b", apply, "c"]), FLAG, spec());
+    expect(r).toMatchObject({ ok: true, first: 3, last: 3, lines: [{ n: 3, text: apply }] });
+    const moved = await readExcerpt(ops, checkout([...Array.from({ length: 20 }, (_, i) => `// ${i}`), "a", "b", apply, "c"]), FLAG, spec());
+    expect(moved).toMatchObject({ ok: true, first: 23, last: 23, lines: [{ n: 23, text: apply }] });
   });
-  it("refuses a range whose anchor moved, a range past the end, a missing file and a path outside the checkout", () => {
-    const root = checkout();
-    const moved = readExcerpt(root, spec({ first: 3, last: 4 }));
-    expect(moved.ok).toBe(false);
-    if (!moved.ok) expect(moved.reason).toContain("no longer in");
-    expect(readExcerpt(root, spec({ last: 99 })).ok).toBe(false);
-    expect(readExcerpt(root, spec({ file: "a/none.txt" })).ok).toBe(false);
-    expect(readExcerpt(root, spec({ file: "../etc/passwd" })).ok).toBe(false);
-    expect(readExcerpt(root, spec({ file: "/etc/passwd" })).ok).toBe(false);
+  it("refuses by name an anchor on two lines, on no line, a span past the end, an unknown excerpt", async () => {
+    const ops = await core();
+    const twice = await readExcerpt(ops, checkout(["a", apply, "b", apply]), FLAG, spec());
+    expect(twice.ok).toBe(false);
+    if (!twice.ok) expect(twice.reason).toBe(`the anchor "nav.classList.toggle(EARN_STILL_CLASS" is on 2 lines of ${APPLY} (2, 4); the Lean excerpt needs an anchor that occurs once`);
+    const missing = await readExcerpt(ops, checkout(["a", "b"]), FLAG, spec());
+    if (!missing.ok) expect(missing.reason).toBe(`the anchor "nav.classList.toggle(EARN_STILL_CLASS" is on no line of ${APPLY}; the Lean excerpt needs a new anchor`);
+    expect(missing.ok).toBe(false);
+    const css = "apps/site/src/parts/nav/nav.module.css";
+    const root = checkout([]);
+    writeFileSync(join(root, css), "x\n  .nav:global(.is-earn-still) .btn.earn {\n    transition: none;");
+    const past = await readExcerpt(ops, root, FLAG, spec({ id: "css-flag", file: css, anchor: ".nav:global(.is-earn-still) .btn.earn {", span: 3 }));
+    expect(past.ok).toBe(false);
+    if (!past.ok) expect(past.reason).toContain(`do not fit the file (3 lines)`);
+    const unknown = await readExcerpt(ops, checkout([apply]), FLAG, spec({ id: "nope" }));
+    if (!unknown.ok) expect(unknown.reason).toBe(`${FLAG} has no excerpt nope`);
+    expect(unknown.ok).toBe(false);
+  });
+  it("refuses a missing file and a path outside the checkout before asking the core", async () => {
+    const root = checkout([apply]);
+    const never: Ops = async () => { throw new Error("not asked"); };
+    expect(fileLines(root, "a/none.txt")).toEqual({ reason: "a/none.txt does not exist in the checkout" });
+    expect(await readExcerpt(never, root, FLAG, spec({ file: "../etc/passwd" }))).toMatchObject({ ok: false, reason: "the file is outside the checkout" });
+    expect(await readExcerpt(never, root, FLAG, spec({ file: "/etc/passwd" }))).toMatchObject({ ok: false, reason: "the file is outside the checkout" });
   });
 });

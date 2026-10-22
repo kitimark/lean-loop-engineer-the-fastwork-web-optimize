@@ -65,7 +65,7 @@ def incidentClass : Question where
   criteria := incidentClasses ++ [(noClass, "None of the other classes fits this incident.")]
   target := 9 / 10
   perOption := 5
-  fields := ["title", "symptom", "cause"]
+  fields := ["title", "symptom", "cause", "files"]
 
 theorem incidentClass_wf : incidentClass.spec.wf = true := by decide
 
@@ -100,8 +100,27 @@ theorem findingSeverity_criteria : findingSeverity.criteria.map Prod.fst = findi
 
 theorem findingSeverity_labels : findingSeverity.spec.keys.filter (· != noGrade) = Labels.exactWords := by decide
 
+def filePick : Question where
+  name := "file-pick"
+  instructions := "An incident from a software project's incident ledger: an agent or a script made a mistake. The " ++
+    "state holds its title, the symptom seen, the cause found, and the project's candidate source files at the " ++
+    "incident's time, one per line as slot: path. A later question classifies the incident by the kind of mistake " ++
+    "that caused it and sees the start of one file you pick here. Pick the one file whose text would most help that " ++
+    "classification, or none if no file would help."
+  spec := .choice ["f1", "f2", "f3", "f4", noClass] noClass
+  criteria := [("f1", "The candidate file listed as f1."), ("f2", "The candidate file listed as f2."),
+    ("f3", "The candidate file listed as f3."), ("f4", "The candidate file listed as f4."),
+    (noClass, "No candidate file would help classify the incident.")]
+  target := 9 / 10
+  perOption := 5
+  fields := ["title", "symptom", "cause", "candidates"]
+
+theorem filePick_wf : filePick.spec.wf = true := by decide
+
+theorem filePick_criteria : filePick.criteria.map Prod.fst = filePick.spec.keys := by decide
+
 /-- The registered questions. -/
-def questions : List Question := [ciTriage, incidentClass, findingSeverity]
+def questions : List Question := [ciTriage, incidentClass, findingSeverity, filePick]
 
 /-- The registered question with this name, if any. -/
 def question (x : String) : Option Question := questions.find? (·.name == x)
@@ -127,7 +146,7 @@ theorem shuffle_perm (seed : Nat) (os : List String) : (shuffle seed os).Perm os
 #guard (question "ci-triage").map (·.name) == some "ci-triage"
 #guard (question "ci-triage").map (·.perOption) == some 5
 #guard (question "nope").isNone
-#guard (question "incident-class").map (·.fields) == some ["title", "symptom", "cause"]
+#guard (question "incident-class").map (·.fields) == some ["title", "symptom", "cause", "files"]
 #guard (incidentClass.spec.keys.length, findingSeverity.spec.keys.length) == (14, 4)
 
 end Fw.Oracle

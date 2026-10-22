@@ -11,12 +11,15 @@ import Fw.Spec.ArtifactKey
 import Fw.Console
 import Fw.Board
 import Fw.Wire
+import Fw.Console.Layers
+import Fw.Wire.Layers
 import Fw.Serve
 import Fw.Site.Breakpoints
 import Fw.Site.BreakpointFacts
 import Fw.Site.BreakpointMatrix
 import Fw.Site.BreakpointGen
 import Fw.Site.Reference
+import Fw.Site.LayerOpts
 import Fw.Parts.EngineScroll
 import Fw.Parts.Contract
 import Fw.Parts.NavHitTest
@@ -62,17 +65,19 @@ import Fw.Parts.MorphPanelOpt
 import Fw.Parts.PeopleDeckOpt
 import Fw.Parts.PeopleCardOpt
 import Fw.Parts.PlatformShrinkOpt
+import Fw.Parts.PlatformFade
+import Fw.Parts.PlatformFadeRun
 import Fw.Parts.HeroAccentOpt
 import Fw.Measure.Zones
 import Fw.Measure.Classes
 import Fw.Measure.Quiet
 import Fw.Measure.Tolerance
 import Fw.Measure.WebKit
-import Fw.Measure.WkCost  -- webkit-cost-counters: skipped slots, Paint against Composite, new layers, paints after a morph
-import Fw.Measure.WebKitLag  -- webkit-lag-probe: scroll regions, paint attribution to parts, counter ranking
-import Fw.Device.Session  -- device-lag-recorder: phone-session zones, frame intervals, felt marks, comparison, replay export
-import Fw.Device.StillRuns  -- toolbar-throttle-probe: still runs of scrollY under the toolbar-collapse throttle, the lift verdict
-import Fw.Measure.WebKitProfile  -- smoothness-webkit-cadence: WebKit Timeline records on the page clock, binned to zones, per-frame render work
+import Fw.Measure.WkCost
+import Fw.Measure.WebKitLag
+import Fw.Device.Session
+import Fw.Device.StillRuns
+import Fw.Measure.WebKitProfile
 import Fw.Device.Replay
 import Fw.Device.ReplayProfiles
 import Fw.Device.ReplayGolden
@@ -81,7 +86,7 @@ import Fw.Measure.Viewport
 import Fw.Measure.SimPlan
 import Fw.Measure.SimBound
 import Fw.Measure.Compose
-import Fw.Measure.ImageArm  -- image-arm-v2: 1:1 reach of a drawn-size copy, the per-part decision, decoded saving
+import Fw.Measure.ImageArm
 import Fw.Measure.Wire
 import Fw.Ops.SpawnGuard
 import Fw.Ops.Wait
@@ -93,11 +98,11 @@ import Fw.Ops.Premise
 import Fw.Ops.EnginePremise
 import Fw.Ops.Identity
 import Fw.Ops.Wire
-import Fw.Ops.Salvage  -- workflow-salvage: a builder exit without a result (decide, golden text)
+import Fw.Ops.Salvage
 import Fw.Sched.Admit
 import Fw.Sched.ParMetrics
-import Fw.Sched.LakeSlot  -- lake-build-slots: slot pools and the thread bound of scripts/lake-slot.sh
-import Fw.Sched.NodeBudget  -- node-worker-budget: Node test workers per run from the room
+import Fw.Sched.LakeSlot
+import Fw.Sched.NodeBudget
 import Fw.Wire.Sched
 import Fw.Wire.SchedJson
 import Fw.Store.Layout
@@ -109,137 +114,142 @@ import Fw.Gate.Compare
 import Fw.Gate.Items
 import Fw.Gate.State
 import Fw.Gate.Coverage
-import Fw.Gate.Settle  -- gate-settle: when a gate sample is settled
-import Fw.Gate.Freeze  -- gate-shard-balance r2: the settle wait under a frozen clock
+import Fw.Gate.Settle
+import Fw.Gate.Freeze
 import Fw.Gate.AlignEquiv
 import Fw.Gate.Pixel
 import Fw.Wire.Gate
 import Fw.Wire.GateDeclared
 import Fw.Engine
-import Fw.Engine.Compose  -- compose-lean: units compose over parts, passes do not; Lego swap
+import Fw.Engine.Compose
 import Fw.Engine.Restyle
-import Fw.Parts.Bridge  -- indep-bridge: Independent rows to Flow-Indep, Lego swaps on isolated rows, S3 passes
+import Fw.Parts.Bridge
 import Fw.Guidance.Basic
 import Fw.Guidance.Motion
 import Fw.Guidance.Scroll
 import Fw.Guidance.Tasks
 import Fw.Guidance.Style
 import Fw.Guidance.Stability
-import Fw.Engine.Keys  -- model-checks: faithful run keys; a +search run never answers for the base
-import Fw.Engine.WebKitImage  -- image-audit: decode policy and the natural-pixels-times-repaints cost term
-import Fw.Ci.Wire  -- ghb-lean: Fw.Ci.Budget and the ci.budget.* ops
+import Fw.Engine.Keys
+import Fw.Engine.WebKitImage
+import Fw.Ci.Wire
 import Fw.Oracle
-import Fw.Plan.Lint  -- pa-evidence-lint: plan.lint
-import Fw.Obs.Next  -- obs-next-lean: next action per agent (obs.next)
-import Fw.Obs.GhStatus -- gh-status: GitHub Actions degraded flag and incident naming
-import Fw.Obs.CiStatus -- circleci-status: CircleCI Linux Arm / macOS health verdict and router input
-import Fw.Obs.Stale  -- console-stale: a service whose inputs changed on main after it started is stale
-import Fw.Obs.Signals -- obs-signals: agent state from transcript signals (obs.signals)
-import Fw.Obs.Fold  -- watch-incremental: transcript summaries as a fold, resume from saved state
-import Fw.Plan.Incident  -- incident-lint: plan.incidentLint
-import Fw.Plan.Overlap  -- spawn-write-overlap: plan.overlap
-import Fw.Plan.ReviewReady  -- review-flow-v2: plan.reviewReady, plan.reviewVerdict
-import Fw.Plan.Workflow  -- workflow-claim: workflow runs as agent events
-import Fw.Obs.Timing  -- timing-lean: slow / structural verdicts over timing samples
-import Fw.Obs.Backoff  -- alert-rules-fix: wait or restart when an fwcore call misses its deadline
-import Fw.Ci.Trigger  -- ci-trigger-lean: which workflows a push starts
-import Fw.Ci.Intent  -- ci-own-trigger: a ci/* push starts only the lanes its head commit asks for
-import Fw.Ci.Verdict  -- ci-own-trigger: a run passes only if its guard ran and some heavy job ran and all passed
-import Fw.Ci.Attempt  -- ci-wait-lag: a cached fact answers for a run only at the attempt it was recorded at
-import Fw.Ci.Lag  -- ci-wait-lag: the partition of a wait's lag into phases
-import Fw.Ci.Cancel  -- ci-own-trigger: no concurrency group is shared on ci/**, so nothing cancels a ci/** run
-import Fw.Ci.Provider  -- circleci-pilot: pair verdict, credits, stop rule and routing rule of the CircleCI pilot
-import Fw.Ci.Overflow  -- land-lane-circleci: which land legs overflow from GitHub Actions to CircleCI
-import Fw.Ci.Telemetry  -- ci-telemetry: the CI job telemetry record and its slow verdicts (ci.telemetry)
-import Fw.Obs.MacTelemetry  -- macos-telemetry: macOS job classes, matched time, billing, queue, sample, grouped sums, ranked cuts
-import Fw.Obs.MacTelemetryWire  -- macos-telemetry: ops obs.macSample, obs.macReduce, obs.macMatched, obs.macIs
-import Fw.Gate.Exit  -- gate-exit-verdict: the summary exit code from the merged engine verdicts
-import Fw.Gate.WebkitScreen  -- gate-green-baseline: the device width of a Playwright WebKit live resize
-import Fw.Spec.AxReach  -- mathview-axreach: shared-memo axiom reachability, exact on cycles
-import Fw.Spec.ConeMiss  -- mathview-ci-fix: expected module-cache misses after an edit (dependents)
-import Fw.Console.LandSpeed  -- land-speed-lean: result cache, pre-lock land, check verdict
-import Fw.Console.Preview  -- task-preview: preview target, admission, ports, expiry
-import Fw.Console.PreviewCache  -- preview-speed: cache policy of preview files
-import Fw.Console.PreviewArm  -- preview-proxy-direct: one origin per preview arm, route and gate
-import Fw.Console.PreviewReturn  -- preview-login-return: the login return link, allowlist and landing
-import Fw.Console.Daemon  -- console-daemon: verified console, start/stop/restart plan, log admission, rotation
-import Fw.Console.Builds  -- console-builds-tab: Builds tab rows, targets, picker searches
-import Fw.Console.PreviewFacts  -- task-preview: GENERATED facts of the 25 tasks (apps/console-api/scripts/gen-preview-facts.ts)
-import Fw.Console.PreviewTable -- task-preview: the 25-task target table, checked
-import Fw.Console.LandVerdict  -- land-dry: VERDICT kinds, exit codes, retry rule
-import Fw.Console.LandDry  -- land-dry: dry land stages and hand-back rule
-import Fw.Console.WallClock  -- land-wallclock-off-gate: which literal ms bounds in land-selected tests the lint refuses
-import Fw.Console.LandQueue  -- land-queue: FIFO land queue, bounded retry, runner identity
-import Fw.Console.LandLegs  -- land-lane-speed: the land lane's parallel legs (console.landLeg, console.landLegs, console.landLegsVeto)
-import Fw.Console.LandTier  -- land-lane: which checks run on the CI land lane (console.landTier)
-import Fw.Console.LandRemote  -- land-wait: provider-neutral remote land verdict (console.landRemote)
-import Fw.Console.ReconcileSched  -- console-reconcile-speed: reconcile request coalescing
-import Fw.Console.JournalFold  -- console-idle-cpu: journal cache, settled runs, safety tick
-import Fw.Console.Review  -- user-review-queue: pending look-change reviews as user steps
-import Fw.Console.ReviewPreview  -- review-preview-devices: Preview arms, URLs and the device class of a look-change review
-import Fw.Console.ReviewFeedback  -- review-feedback: feedback threads on the review cards
-import Fw.Console.Report  -- review-reports: experiment reports in the Reviews tab (tagged numbers, approve/hold/reject)
-import Fw.Console.ReviewFeedbackLaws  -- review-feedback: what the reducer guarantees about the threads
+import Fw.Plan.Lint
+import Fw.Obs.Next
+import Fw.Obs.GhStatus
+import Fw.Obs.CiStatus
+import Fw.Obs.Stale
+import Fw.Obs.Signals
+import Fw.Obs.Fold
+import Fw.Plan.Incident
+import Fw.Plan.Overlap
+import Fw.Plan.ReviewReady
+import Fw.Plan.Workflow
+import Fw.Obs.Timing
+import Fw.Obs.Backoff
+import Fw.Ci.Trigger
+import Fw.Ci.Intent
+import Fw.Ci.Verdict
+import Fw.Ci.Attempt
+import Fw.Ci.Lag
+import Fw.Ci.Cancel
+import Fw.Ci.Provider
+import Fw.Ci.Overflow
+import Fw.Ci.Telemetry
+import Fw.Obs.MacTelemetry
+import Fw.Obs.MacTelemetryWire
+import Fw.Gate.Exit
+import Fw.Gate.WebkitScreen
+import Fw.Spec.AxReach
+import Fw.Spec.ConeMiss
+import Fw.Console.LandSpeed
+import Fw.Console.Preview
+import Fw.Console.PreviewCache
+import Fw.Console.PreviewArm
+import Fw.Console.PreviewReturn
+import Fw.Console.Daemon
+import Fw.Console.Builds
+import Fw.Console.PreviewFacts
+import Fw.Console.PreviewTable
+import Fw.Console.LandVerdict
+import Fw.Console.LandDry
+import Fw.Console.WallClock
+import Fw.Console.LandQueue
+import Fw.Console.LandLegs
+import Fw.Console.LandTier
+import Fw.Console.LandRemote
+import Fw.Console.ReconcileSched
+import Fw.Console.JournalFold
+import Fw.Console.Review
+import Fw.Console.ReviewPreview
+import Fw.Console.ReviewFeedback
+import Fw.Console.Report
+import Fw.Console.ReviewFeedbackLaws
 import Fw.Console.Steps
-import Fw.Obs.FeedbackAlert  -- review-feedback: the watch alert for open feedback
-import Fw.Console.LandPool -- land-pool-fair: fair-share floor under poolSize, wired into land.ts by console.landPool and console.landRetry
-import Fw.Land.RenderGuard  -- land-render-guard: refuse a land whose history writes a media file outside snapshot/ (console.landRenderGuard)
-import Fw.Ops.LedgerMerge  -- ledger-merge-driver: three-way id merge of the JSON ledgers (scripts/merge-ledger.mjs)
-import Fw.Ops.Cache  -- gate-speed-ci: cache soundness (cache_sound, key_complete)
-import Fw.Ops.LakeCache  -- site-build-cache: one Lake cache writer (cache_complete, rebuild_mono, table_complete)
-import Fw.Ops.Rebuild  -- fwcore-rebuild-fanout: the rebuild set of a stale Lake entry and its critical path
-import Fw.Site.GenRoute  -- site-build-cache: breakgen / sweepsgen split (split_agrees)
+import Fw.Obs.FeedbackAlert
+import Fw.Console.LandPool
+import Fw.Land.RenderGuard
+import Fw.Ops.LedgerMerge
+import Fw.Ops.Cache
+import Fw.Ops.LakeCache
+import Fw.Ops.Rebuild
+import Fw.Site.GenRoute
 import Fw.Site.Head
-import Fw.Gate.Schedule  -- gate-speed-ci: Graham bound and the gate job split
-import Fw.Gate.Shard  -- gate-shard-balance: LPT shard plan over measured unit costs
-import Fw.Gate.ShardObs  -- gate-shard-balance: observed jobs of a CI run, reduced to the cost table (ShardCosts)
-import Fw.Gate.Search  -- gate-preset-input: the search string of the gate rewrite arm from its fw and preset inputs
-import Fw.Gate.Trajectory  -- trajectory-probe: per-unit verdict of the rewrite against the original along a scroll path
-import Fw.Gate.Trajectory.Dispatch  -- trajectory dispatch scope: verdict runs walk all four widths, diagnostic runs any nonempty subset
-import Fw.Gate.Colour  -- kit-colour-space: every trajectory colour reading in sRGB x1000, the error budget the judge allows
-import Fw.Gate.RunPerm  -- scoped-gap-did: run-level permutation test of the close gap g, statistic and exact p
-import Fw.Gate.Frames  -- earn-look-review-webkit: when a frame strip is usable (>= 10 shots per arm)
-import Fw.Gate.PathPix  -- path-pix-core: one pinned-frame pixel cell graded E, E1, Q, L or invalid
-import Fw.Gate.Smooth  -- smoothness-probe: motion continuity along a push (stalls, jumps, tail) and the bad-frame cadence verdict
-import Fw.Wire.ShardGolden  -- gate-shard-balance: golden/gate/shards.jsonl
-import Fw.Measure.WktrLayout  -- wktr-fixture-speed: lane layout, premise gate, fixture assertions
-import Fw.Measure.WktrVariance  -- wktr-serial-baseline: run-to-run variance of class kinds, findings, verdict
-import Fw.Gate.PageOffset  -- fix-page-offset: page-level top-of-part check (proposal)
-import Fw.Gate.PageRoot  -- gate-page-root-anchor: the page-root anchor scrollWidth <= requested width
-import Fw.Spec.Props  -- lfg-props-shape: property-over-impl convention, Assume premise marker, kill-witness naming
-import Fw.Search  -- lfg-props-shape: Enum, bounded counterexample search, link to properties
-import Fw.Spec.LandDrySig  -- lfg-props-shape: the dry-run implementation signature (Out, DryImpl)
-import Fw.Spec.Incidents  -- lfg-props-shape: the one incident registry (rows, Sig, registryFor, Convention)
-import Fw.Spec.Props.LandDryDemo  -- lfg-props-shape: worked example (inc-land-dry-no-verdict)
-import Fw.Ops.LeanFirst  -- lfg-spec: the lean-first land gate (Facts, reasons, stages, gate, out)
-import Fw.Ops.LeanFirstProps  -- lfg-spec: the gate properties of section 7 over Gate/Render
-import Fw.Ops.LeanFirstDecision  -- lfg-spec: the gate's decision-code test equals the allowlist rule
-import Fw.Ops.LeanFirstSearch  -- lfg-spec: Enum Facts, fault grid, pointwise checks, search guards
-import Fw.Ops.LeanFirstProofs  -- lfg-spec: proofs of every lean-first gate property (`<P>_impl`)
-import Fw.Spec.Reach  -- lfg-mathview-facts: the closure/reach helpers shared by the props lint and the math-view facts
-import Fw.Spec.MathFacts  -- lfg-mathview-facts: per-theorem facts (head, impl arg, assumes, kill, class, reach, wire)
-import Fw.Spec.MathFactsGuards  -- lfg-mathview-facts: #guards of the facts on real declarations
-import Fw.Preset.Gen  -- preset-v2-proved: the v2-proved arm from the findings ledger (V2Proved decides, Gen writes)
+import Fw.Gate.Schedule
+import Fw.Gate.Shard
+import Fw.Gate.ShardObs
+import Fw.Gate.Search
+import Fw.Gate.Trajectory
+import Fw.Gate.Trajectory.Dispatch
+import Fw.Gate.Colour
+import Fw.Gate.RunPerm
+import Fw.Gate.Frames
+import Fw.Gate.PathPix
+import Fw.Gate.Smooth
+import Fw.Wire.ShardGolden
+import Fw.Measure.WktrLayout
+import Fw.Measure.WktrVariance
+import Fw.Gate.PageOffset
+import Fw.Gate.PageRoot
+import Fw.Spec.Props
+import Fw.Search
+import Fw.Spec.LandDrySig
+import Fw.Spec.Incidents
+import Fw.Spec.Props.LandDryDemo
+import Fw.Ops.LeanFirst
+import Fw.Ops.LeanFirstProps
+import Fw.Ops.LeanFirstDecision
+import Fw.Ops.LeanFirstSearch
+import Fw.Ops.LeanFirstProofs
+import Fw.Spec.Reach
+import Fw.Spec.MathFacts
+import Fw.Spec.MathFactsGuards
+import Fw.Preset.Gen
 import Fw.Faithful.Band
 import Fw.Faithful.Comparable
 import Fw.Faithful.Zone
 import Fw.Faithful.Wire
 import Fw.Faithful.Golden
 import Fw.Faithful.Measured
-import Fw.Port.Sections  -- port-completeness-gate: section roots, exclusions, multiset difference
-import Fw.Port.Text  -- port-completeness-gate: check 1, text digest
-import Fw.Port.Attrs  -- port-completeness-gate: check 2, attribute multiset
-import Fw.Site.Assets  -- port-completeness-gate: check 3, asset subset
-import Fw.Port.Svg  -- port-completeness-gate: check 4, svg skeleton
-import Fw.Port.Fonts  -- port-fonts-check: check 5, fonts per leaf and loaded faces
-import Fw.Parts.NavOofRoot  -- nav-oof-root-finding: no boundary scopes the relayout of a dirty fixed box whose containing block is the view (negative finding)
-import Fw.Ci.Pool  -- pool-caps: per-lane macOS job time caps from measured p90 walls
-import Fw.Sup.Props  -- sup-model: supervisor daemon state machine, invariant and lease, queue, stop and reply theorems
+import Fw.Port.Sections
+import Fw.Port.Text
+import Fw.Port.Attrs
+import Fw.Site.Assets
+import Fw.Port.Svg
+import Fw.Port.Fonts
+import Fw.Parts.NavOofRoot
+import Fw.Ci.Pool
+import Fw.Sup.Props
 import Fw.Sup.Adapt
 import Fw.Sup.AdaptGolden
 import Fw.Wire.Sup
 import Fw.Sup.Route
-import Fw.Ci.Pool.Key  -- pool-key-outcome: request keys, provider-tagged artifact names, one terminal row per planned unit
+import Fw.Ci.Pool.Key
 import Fw.Ci.Codemagic
-import Fw.Ci.Steps  -- macos-teardown-trim: the steps allowed after the measurement step of the five macOS jobs, the lint decision
+import Fw.Ci.Steps
 import Fw.Oracle.Labels
+import Fw.Oracle.Expand
+import Fw.Oracle.ExpandPaired
+import Fw.Oracle.ExpandWire
+import Fw.Oracle.Retrieve
+import Fw.Oracle.RetrieveWire

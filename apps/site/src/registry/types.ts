@@ -3,44 +3,54 @@ export type Impl = 'mui' | 'plain';
 export interface VariantDef {
   kind: 'faithful' | 'optimized' | 'ablation' | 'proposal';
   tier?: string;
-  /** A probe arm that answers a question and never ships; it is `ablation` and never enters a preset. */
   diagnostic?: boolean;
-  /** Look class while the part moves (PLAN 4.7); `L` is a look change, never in `v2-proved`. */
   visClass?: 'E' | 'E-s' | 'Q' | 'L';
   layerBudget?: number;
+  files?: string[];
   provenance?: Record<string, string>;
 }
 
-/** Static `part.json`, the single source of truth for one part (PLAN 6.2). */
+export interface LayerDef {
+  id: string;
+  label: string;
+  text: boolean;
+}
+
 export interface PartDef {
   id: string;
   slot: string;
   anchors: string[];
   experiment: boolean;
   impls: Impl[];
-  /** ownerState values the AOT census must render (S2). */
   muiStates: string[];
   variants: Record<string, VariantDef>;
-  /** "part:variant" -> list of "part:variant" that must also be selected. */
+  layers?: LayerDef[];
   requires: Record<string, string[]>;
-  /** "part:variant" -> list of "part:variant" that must not be selected together with it (Lean Rule.conflicts). */
   conflicts: Record<string, string[]>;
 }
 
 export interface PresetDef {
   name: string;
   extends?: string;
-  /** part id -> variant, optionally "variant@impl". */
   fw: Record<string, string>;
 }
 
 export interface FwConfig {
-  /** every registered part id -> chosen variant */
   variants: Record<string, string>;
-  /** every registered part id -> chosen implementation */
   impl: Record<string, Impl>;
 }
 
+export interface LayerOptEntry {
+  layer: string;
+  opts: string;
+}
+
 export type ResolveResult =
-  | { ok: true; config: FwConfig; configHash: string; source: 'url-fw' | 'url-preset' | 'default' }
+  | {
+      ok: true;
+      config: FwConfig;
+      configHash: string;
+      source: 'url-fw' | 'url-preset' | 'default';
+      layerOpts: LayerOptEntry[];
+    }
   | { ok: false; errors: string[] };

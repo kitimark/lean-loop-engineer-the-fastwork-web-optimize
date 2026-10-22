@@ -1,0 +1,924 @@
+{
+ "pins": 29,
+ "rows": 38,
+ "dropped": [
+  "inc-workflow-unbound",
+  "inc-land-undeclared-reads",
+  "inc-upsert-keeps-evidence"
+ ],
+ "expanded": [
+  "inc-claim-order",
+  "inc-worktree-role-as-teammate",
+  "inc-watch-unlanded-after-land",
+  "inc-watch-alert-during-land",
+  "inc-watch-unlanded-queued",
+  "inc-land-undeclared-reads",
+  "inc-evidence-before-land",
+  "inc-gate-scan-page-state",
+  "inc-ci-verdict-needs-api",
+  "inc-land-retry-text-match",
+  "inc-findings-shared-entry",
+  "inc-land-inputs-untracked-exists",
+  "inc-land-dry-no-verdict",
+  "inc-ci-run-cap-prompt",
+  "inc-wt-prep-lsp-as-build",
+  "inc-parallel-write-overlap",
+  "inc-test-pid-marker",
+  "inc-console-stale-service",
+  "inc-workflow-multi-unbound",
+  "inc-obs-silent-drop",
+  "inc-ci-skipped-false-pass",
+  "inc-spawn-patcher-unreachable",
+  "inc-land-dry-needs-console",
+  "inc-land-queue-unknown",
+  "inc-plan-sync-manual",
+  "inc-runner-bin-mode-flip",
+  "inc-reap-console-kill"
+ ],
+ "manifest": [
+  {
+   "id": "inc-claim-order",
+   "label": "c-order-derived",
+   "pin": "f6544e3faaa53d85f1d1b6ac0466c908beabf66e",
+   "files": 1218,
+   "allowed": 340,
+   "kept": 328,
+   "vocab": 12,
+   "pathVocab": 0,
+   "noText": 0,
+   "keptBytes": 3215172,
+   "keptSha256": "54a468645d7ee36af3f31b5baa6af58b99b351fbb9a13b53441a6886159de325",
+   "named": [
+    {
+     "path": "apps/console-api/src/spool/drain.ts",
+     "inTree": true
+    }
+   ],
+   "leanChecked": 4
+  },
+  {
+   "id": "inc-retention-hides-unlanded",
+   "label": "c-order-derived",
+   "pin": "0cee322373c514fa75ebc30fd78f19c3cf245955",
+   "files": 1324,
+   "allowed": 401,
+   "kept": 388,
+   "vocab": 13,
+   "pathVocab": 0,
+   "noText": 0,
+   "keptBytes": 3827716,
+   "keptSha256": "9990a79e77c5bc301524c55c5e55f88a64b13b820ad2c1aad1347f0a9b03d5d0",
+   "named": [
+    {
+     "path": "apps/runner/src/watch-collect.ts",
+     "inTree": true
+    }
+   ],
+   "leanChecked": 4
+  },
+  {
+   "id": "inc-worktree-role-as-teammate",
+   "label": "c-identity-heuristic",
+   "pin": "a0e5185268e668825764b24b3d0c2aa447590d03",
+   "files": 1178,
+   "allowed": 325,
+   "kept": 315,
+   "vocab": 10,
+   "pathVocab": 0,
+   "noText": 0,
+   "keptBytes": 2972686,
+   "keptSha256": "3db0ac79dea153dc79c5fa94f11626844bd2c274e7d125e0274cc7b8255f0310",
+   "named": [
+    {
+     "path": "lean/Fw/Ops/SpawnGuard.lean",
+     "inTree": true
+    }
+   ],
+   "leanChecked": 4
+  },
+  {
+   "id": "inc-workflow-unbound",
+   "label": "c-order-derived",
+   "pin": "0f5cdb714622a15b75b3d0d8c966af4dd7659ed4",
+   "files": 1506,
+   "allowed": 534,
+   "kept": 521,
+   "vocab": 13,
+   "pathVocab": 0,
+   "noText": 0,
+   "keptBytes": 4371996,
+   "keptSha256": "7732ae055e792adeb7803defa1084c790a2d0ca8bb54c274e096249679ca084d",
+   "named": [
+    {
+     "path": "lean/Fw/Plan/Core.lean",
+     "inTree": false
+    },
+    {
+     "path": "docs/team/tools/spawn-guard.md",
+     "inTree": false
+    }
+   ],
+   "leanChecked": 7
+  },
+  {
+   "id": "inc-watch-unlanded-after-land",
+   "label": "c-order-derived",
+   "pin": "35ea874ea40787a49746d2d1a9d0c3842137248f",
+   "files": 1389,
+   "allowed": 430,
+   "kept": 417,
+   "vocab": 13,
+   "pathVocab": 0,
+   "noText": 0,
+   "keptBytes": 4387472,
+   "keptSha256": "e27aa004487a0d357673d9c215831d457accf06c71cfe748430c34fd5223ff21",
+   "named": [
+    {
+     "path": "apps/runner/src/next.ts",
+     "inTree": true
+    },
+    {
+     "path": "lean/Fw/Obs/Next.lean",
+     "inTree": true
+    }
+   ],
+   "leanChecked": 5
+  },
+  {
+   "id": "inc-watch-alert-during-land",
+   "label": "c-order-derived",
+   "pin": "35ea874ea40787a49746d2d1a9d0c3842137248f",
+   "files": 1389,
+   "allowed": 430,
+   "kept": 417,
+   "vocab": 13,
+   "pathVocab": 0,
+   "noText": 0,
+   "keptBytes": 4387472,
+   "keptSha256": "e27aa004487a0d357673d9c215831d457accf06c71cfe748430c34fd5223ff21",
+   "named": [
+    {
+     "path": "lean/Fw/Obs/Next.lean",
+     "inTree": true
+    },
+    {
+     "path": "apps/runner/hooks/land-guard.mjs",
+     "inTree": true
+    }
+   ],
+   "leanChecked": 5
+  },
+  {
+   "id": "inc-watch-unlanded-queued",
+   "label": "c-order-derived",
+   "pin": "5b0f967d6cc5db45c9c8852e3f899e7fea50a537",
+   "files": 1655,
+   "allowed": 546,
+   "kept": 527,
+   "vocab": 19,
+   "pathVocab": 0,
+   "noText": 0,
+   "keptBytes": 6023985,
+   "keptSha256": "6ec194f4ac4caaecd30d3b4392d3b3e46171f5b024cc86719f0f1d5f1e382e43",
+   "named": [
+    {
+     "path": "lean/Fw/Obs/Next.lean",
+     "inTree": true
+    },
+    {
+     "path": "apps/runner/src/next.ts",
+     "inTree": true
+    },
+    {
+     "path": "docs/team/handoffs/integrate-ports.md",
+     "inTree": false
+    }
+   ],
+   "leanChecked": 6
+  },
+  {
+   "id": "inc-land-undeclared-reads",
+   "label": "c-late-check",
+   "pin": "51751fa65ff582fa6cfdb4c3d69094028bcf0f68",
+   "files": 1652,
+   "allowed": 546,
+   "kept": 525,
+   "vocab": 21,
+   "pathVocab": 0,
+   "noText": 0,
+   "keptBytes": 5881618,
+   "keptSha256": "66bac5281ed32e810128b1b5a84fb3f02d2d157d5800cc4ab6e9ccc5aa1a7931",
+   "named": [
+    {
+     "path": "apps/runner/test/land-inputs.test.ts",
+     "inTree": true
+    },
+    {
+     "path": "apps/runner/src/land.ts",
+     "inTree": false
+    }
+   ],
+   "leanChecked": 6
+  },
+  {
+   "id": "inc-land-scope-stale-base",
+   "label": "c-late-check",
+   "pin": "39ffb4a91a92b8c36d29e3c225144ad4be116c1e",
+   "files": 1655,
+   "allowed": 546,
+   "kept": 527,
+   "vocab": 19,
+   "pathVocab": 0,
+   "noText": 0,
+   "keptBytes": 6002714,
+   "keptSha256": "696bb73834ecb7369e28e5a5e7a09df702f9a506cfd8d5530381fb5d91802e68",
+   "named": [
+    {
+     "path": "docs/team/handoffs/visual-diff.md",
+     "inTree": false
+    },
+    {
+     "path": "apps/runner/src/land.ts",
+     "inTree": true
+    }
+   ],
+   "leanChecked": 6
+  },
+  {
+   "id": "inc-evidence-before-land",
+   "label": "c-unearned-claim",
+   "pin": "15b7afd5a2d8f64c82bc52230fee20b747d2231a",
+   "files": 1651,
+   "allowed": 546,
+   "kept": 528,
+   "vocab": 18,
+   "pathVocab": 0,
+   "noText": 0,
+   "keptBytes": 5952444,
+   "keptSha256": "f149a372ce423e19d42a1210d4c9f1776571c3cd6ad688c114903fbd1117ad02",
+   "named": [
+    {
+     "path": "lean/Fw/Plan/Lint.lean",
+     "inTree": true
+    }
+   ],
+   "leanChecked": 6
+  },
+  {
+   "id": "inc-gate-scan-page-state",
+   "label": "c-sample-validity",
+   "pin": "6286db251a1494bf14701d778709ee35cf0b2d40",
+   "files": 1666,
+   "allowed": 554,
+   "kept": 533,
+   "vocab": 21,
+   "pathVocab": 0,
+   "noText": 0,
+   "keptBytes": 6022961,
+   "keptSha256": "f075b089aa8f03fe785c2f5113ed75547482c663956ec17fab51cadfb0feff4e",
+   "named": [
+    {
+     "path": "docs/team/handoffs/gate-speed-ci.md",
+     "inTree": false
+    },
+    {
+     "path": "packages/gate-breakpoints/src/run.mjs",
+     "inTree": true
+    }
+   ],
+   "leanChecked": 6
+  },
+  {
+   "id": "inc-ci-verdict-needs-api",
+   "label": "c-env-assume",
+   "pin": "898c416d0db28851b85a22d1346b4d637fac391d",
+   "files": 1655,
+   "allowed": 546,
+   "kept": 528,
+   "vocab": 18,
+   "pathVocab": 0,
+   "noText": 0,
+   "keptBytes": 6042055,
+   "keptSha256": "e8a5244f9eddf1b602ccc88a6d4850c2d9632ec75e2ceb8f48389d05591b0aa2",
+   "named": [
+    {
+     "path": "apps/runner/src/fw.ts",
+     "inTree": true
+    },
+    {
+     "path": "apps/runner/src/lib.ts",
+     "inTree": true
+    }
+   ],
+   "leanChecked": 6
+  },
+  {
+   "id": "inc-prompt-premise-align",
+   "label": "c-unearned-claim",
+   "pin": "15b7afd5a2d8f64c82bc52230fee20b747d2231a",
+   "files": 1651,
+   "allowed": 546,
+   "kept": 528,
+   "vocab": 18,
+   "pathVocab": 0,
+   "noText": 0,
+   "keptBytes": 5952444,
+   "keptSha256": "f149a372ce423e19d42a1210d4c9f1776571c3cd6ad688c114903fbd1117ad02",
+   "named": [
+    {
+     "path": "lean/Fw/Gate/AlignEquiv.lean",
+     "inTree": true
+    }
+   ],
+   "leanChecked": 6
+  },
+  {
+   "id": "inc-land-retry-text-match",
+   "label": "c-identity-heuristic",
+   "pin": "7efeb69f287b99ccdd56a9e508fa595e27e9fedc",
+   "files": 1662,
+   "allowed": 550,
+   "kept": 527,
+   "vocab": 23,
+   "pathVocab": 0,
+   "noText": 0,
+   "keptBytes": 5995165,
+   "keptSha256": "b5fa522731474ec85851fc77be6a0cec0ffe11ddcc222b16e0a32592fce6851a",
+   "named": [
+    {
+     "path": "packages/contracts/golden/gate/exit.jsonl",
+     "inTree": false
+    },
+    {
+     "path": "lean/Fw/Spec/DeviceQueue.lean",
+     "inTree": true
+    },
+    {
+     "path": "apps/runner/src/land.ts",
+     "inTree": true
+    }
+   ],
+   "leanChecked": 6
+  },
+  {
+   "id": "inc-upsert-keeps-evidence",
+   "label": "c-order-derived",
+   "pin": "24821994604d65ccd8e1248795eb33eba19a2658",
+   "files": 1654,
+   "allowed": 546,
+   "kept": 528,
+   "vocab": 18,
+   "pathVocab": 0,
+   "noText": 0,
+   "keptBytes": 6038174,
+   "keptSha256": "a255066e23fc4dea8c619e9a29d93e5bf747f1807eb610ce16f257aa4d1de630",
+   "named": [
+    {
+     "path": "docs/team/work-graph.json",
+     "inTree": false
+    },
+    {
+     "path": "lean/Fw/Plan/Core.lean",
+     "inTree": false
+    },
+    {
+     "path": "lean/Fw/Plan/Golden.lean",
+     "inTree": false
+    }
+   ],
+   "leanChecked": 6
+  },
+  {
+   "id": "inc-findings-shared-entry",
+   "label": "c-shared-no-lock",
+   "pin": "7efeb69f287b99ccdd56a9e508fa595e27e9fedc",
+   "files": 1662,
+   "allowed": 550,
+   "kept": 527,
+   "vocab": 23,
+   "pathVocab": 0,
+   "noText": 0,
+   "keptBytes": 5975149,
+   "keptSha256": "e85d8eaa7dac9d7c5c52abe7a0efe904031c2c1d2d4dde468e93bb2728a1bd9a",
+   "named": [
+    {
+     "path": "research/findings/ledger.json",
+     "inTree": false
+    },
+    {
+     "path": "scripts/merge-ledger.mjs",
+     "inTree": true
+    }
+   ],
+   "leanChecked": 6
+  },
+  {
+   "id": "inc-land-inputs-untracked-exists",
+   "label": "c-env-assume",
+   "pin": "b35b54191b68082746652a074465c3a20c57b871",
+   "files": 1854,
+   "allowed": 687,
+   "kept": 669,
+   "vocab": 18,
+   "pathVocab": 0,
+   "noText": 0,
+   "keptBytes": 6684446,
+   "keptSha256": "a4aedc09e6236a065721dfdd9abff95d19d0138ed5c5a2eeb65a0b50807c7bf8",
+   "named": [
+    {
+     "path": "apps/site/dist/aot",
+     "inTree": false
+    },
+    {
+     "path": "apps/runner/test/land-inputs.test.ts",
+     "inTree": true
+    }
+   ],
+   "leanChecked": 8
+  },
+  {
+   "id": "inc-land-dry-no-verdict",
+   "label": "c-spec-gap",
+   "pin": "b35b54191b68082746652a074465c3a20c57b871",
+   "files": 1854,
+   "allowed": 687,
+   "kept": 669,
+   "vocab": 18,
+   "pathVocab": 0,
+   "noText": 0,
+   "keptBytes": 6684446,
+   "keptSha256": "a4aedc09e6236a065721dfdd9abff95d19d0138ed5c5a2eeb65a0b50807c7bf8",
+   "named": [
+    {
+     "path": "apps/runner/src/land-verdict.ts",
+     "inTree": true
+    }
+   ],
+   "leanChecked": 8
+  },
+  {
+   "id": "inc-ci-run-cap-prompt",
+   "label": "c-quota",
+   "pin": "b35b54191b68082746652a074465c3a20c57b871",
+   "files": 1854,
+   "allowed": 687,
+   "kept": 669,
+   "vocab": 18,
+   "pathVocab": 0,
+   "noText": 0,
+   "keptBytes": 6684446,
+   "keptSha256": "a4aedc09e6236a065721dfdd9abff95d19d0138ed5c5a2eeb65a0b50807c7bf8",
+   "named": [
+    {
+     "path": "apps/runner/src/ci.ts",
+     "inTree": true
+    }
+   ],
+   "leanChecked": 8
+  },
+  {
+   "id": "inc-wt-prep-lsp-as-build",
+   "label": "c-identity-heuristic",
+   "pin": "b35b54191b68082746652a074465c3a20c57b871",
+   "files": 1854,
+   "allowed": 687,
+   "kept": 669,
+   "vocab": 18,
+   "pathVocab": 0,
+   "noText": 0,
+   "keptBytes": 6684446,
+   "keptSha256": "a4aedc09e6236a065721dfdd9abff95d19d0138ed5c5a2eeb65a0b50807c7bf8",
+   "named": [
+    {
+     "path": "scripts/wt-prep.sh",
+     "inTree": true
+    },
+    {
+     "path": "lean/.lake",
+     "inTree": false
+    }
+   ],
+   "leanChecked": 8
+  },
+  {
+   "id": "inc-parallel-write-overlap",
+   "label": "c-shared-no-lock",
+   "pin": "b35b54191b68082746652a074465c3a20c57b871",
+   "files": 1854,
+   "allowed": 687,
+   "kept": 669,
+   "vocab": 18,
+   "pathVocab": 0,
+   "noText": 0,
+   "keptBytes": 6684446,
+   "keptSha256": "a4aedc09e6236a065721dfdd9abff95d19d0138ed5c5a2eeb65a0b50807c7bf8",
+   "named": [
+    {
+     "path": "packages/measure-wktr/src/cli.mjs",
+     "inTree": true
+    },
+    {
+     "path": "packages/measure-wktr/**",
+     "inTree": false
+    },
+    {
+     "path": "lean/Fw/Sched/Admit.lean",
+     "inTree": true
+    }
+   ],
+   "leanChecked": 8
+  },
+  {
+   "id": "inc-test-pid-marker",
+   "label": "c-shared-no-lock",
+   "pin": "ab734529fb8f409234ca60d2fe52a216599fc1ae",
+   "files": 1649,
+   "allowed": 545,
+   "kept": 527,
+   "vocab": 18,
+   "pathVocab": 0,
+   "noText": 0,
+   "keptBytes": 5942442,
+   "keptSha256": "e2eb6700a66237543a147efa2fda114c68c6937fbe289e4e4f8be14624e83044",
+   "named": [
+    {
+     "path": "apps/runner/test/land-hardening.test.ts",
+     "inTree": true
+    }
+   ],
+   "leanChecked": 6
+  },
+  {
+   "id": "inc-console-stale-service",
+   "label": "c-env-assume",
+   "pin": "64ab8a0891a768ab8a6a286dde9b4244c00a89a1",
+   "files": 1651,
+   "allowed": 546,
+   "kept": 528,
+   "vocab": 18,
+   "pathVocab": 0,
+   "noText": 0,
+   "keptBytes": 5952444,
+   "keptSha256": "f149a372ce423e19d42a1210d4c9f1776571c3cd6ad688c114903fbd1117ad02",
+   "named": [
+    {
+     "path": "apps/console-api/src/spool/drain.ts",
+     "inTree": true
+    }
+   ],
+   "leanChecked": 6
+  },
+  {
+   "id": "inc-workflow-multi-unbound",
+   "label": "c-order-derived",
+   "pin": "64ab8a0891a768ab8a6a286dde9b4244c00a89a1",
+   "files": 1651,
+   "allowed": 546,
+   "kept": 528,
+   "vocab": 18,
+   "pathVocab": 0,
+   "noText": 0,
+   "keptBytes": 5952444,
+   "keptSha256": "f149a372ce423e19d42a1210d4c9f1776571c3cd6ad688c114903fbd1117ad02",
+   "named": [
+    {
+     "path": "lean/Fw/Plan/Workflow.lean",
+     "inTree": true
+    }
+   ],
+   "leanChecked": 6
+  },
+  {
+   "id": "inc-obs-silent-drop",
+   "label": "c-proxy-verdict",
+   "pin": "a6b651b6bcab90fefe78d02c67510145298e3917",
+   "files": 1656,
+   "allowed": 549,
+   "kept": 531,
+   "vocab": 18,
+   "pathVocab": 0,
+   "noText": 0,
+   "keptBytes": 5973793,
+   "keptSha256": "fd34207592bbb871eaea2d83b581e94b46a2338fd48c3c46f770dfe74a7f76b4",
+   "named": [
+    {
+     "path": "apps/runner/hooks/emit.mjs",
+     "inTree": true
+    },
+    {
+     "path": "packages/contracts/src/obs.ts",
+     "inTree": true
+    },
+    {
+     "path": "apps/console-api/src/spool/drain.ts",
+     "inTree": true
+    }
+   ],
+   "leanChecked": 6
+  },
+  {
+   "id": "inc-ci-skipped-false-pass",
+   "label": "c-proxy-verdict",
+   "pin": "cc742ada1f0f483117c51d0922066b1326e137d9",
+   "files": 1685,
+   "allowed": 560,
+   "kept": 535,
+   "vocab": 25,
+   "pathVocab": 0,
+   "noText": 0,
+   "keptBytes": 6116632,
+   "keptSha256": "ca8a5f987fc3509c4b5e05162338711c9fba4b5ec5c1bbfc82e9c7e2753aaf63",
+   "named": [
+    {
+     "path": "packages/gh-budget/src/wait.ts",
+     "inTree": true
+    }
+   ],
+   "leanChecked": 6
+  },
+  {
+   "id": "inc-proof-of-dead-code",
+   "label": "c-unearned-claim",
+   "pin": "f76d48680c77ffdc6c25ba37057111c2cb396e83",
+   "files": 1681,
+   "allowed": 562,
+   "kept": 541,
+   "vocab": 21,
+   "pathVocab": 0,
+   "noText": 0,
+   "keptBytes": 6193828,
+   "keptSha256": "fefbc79e99f8771fc337fedc3407bfa68636d01bd6cb28a9c1ecb81839abb999",
+   "named": [
+    {
+     "path": "lean/Fw/Wire/Sched.lean",
+     "inTree": true
+    }
+   ],
+   "leanChecked": 6
+  },
+  {
+   "id": "inc-spawn-patcher-unreachable",
+   "label": "c-identity-heuristic",
+   "pin": "394772893094fa347534a8f6df65f02616188420",
+   "files": 1681,
+   "allowed": 561,
+   "kept": 540,
+   "vocab": 21,
+   "pathVocab": 0,
+   "noText": 0,
+   "keptBytes": 6203972,
+   "keptSha256": "48ae0924c4a4a4c8829b0d50eafa6488caa0e3948f723fb4c29c846f26318dc1",
+   "named": [
+    {
+     "path": "apps/runner/hooks/spawn-guard.mjs",
+     "inTree": true
+    },
+    {
+     "path": "lean/Fw/Ops/SpawnGuard.lean",
+     "inTree": true
+    }
+   ],
+   "leanChecked": 6
+  },
+  {
+   "id": "inc-land-dry-needs-console",
+   "label": "c-env-assume",
+   "pin": "2fd90ba4d673055395df06e9d79a5a84638f272d",
+   "files": 1720,
+   "allowed": 580,
+   "kept": 555,
+   "vocab": 25,
+   "pathVocab": 0,
+   "noText": 0,
+   "keptBytes": 6415102,
+   "keptSha256": "5751e4aec92f591ab2151a47a44035a29c40b99c0b1204c60a9ff283318d5407",
+   "named": [
+    {
+     "path": "apps/runner/src/lib.ts",
+     "inTree": true
+    },
+    {
+     "path": "apps/runner/src/fw.ts",
+     "inTree": true
+    }
+   ],
+   "leanChecked": 6
+  },
+  {
+   "id": "inc-mutants-red-no-task",
+   "label": "c-late-check",
+   "pin": "acc2a0064b2aa4e4ae3dbe33e480b59356315f66",
+   "files": 1772,
+   "allowed": 609,
+   "kept": 584,
+   "vocab": 25,
+   "pathVocab": 0,
+   "noText": 0,
+   "keptBytes": 6815282,
+   "keptSha256": "6e959504e4ffb2daa5794fd9f6230041ce1f377863c72223886cc1f1465424f7",
+   "named": [
+    {
+     "path": "lean/Fw/Ops/SpawnGuard.lean",
+     "inTree": true
+    }
+   ],
+   "leanChecked": 6
+  },
+  {
+   "id": "inc-land-queue-unknown",
+   "label": "c-spec-gap",
+   "pin": "6694e1a3b1559287eaf7a6790bfb1a4a1aad04d3",
+   "files": 1837,
+   "allowed": 638,
+   "kept": 612,
+   "vocab": 26,
+   "pathVocab": 0,
+   "noText": 0,
+   "keptBytes": 7561836,
+   "keptSha256": "5fe40a0c9b362b35f04b93955b528cfb85634c2c900c7a7deabec556c7d00bc3",
+   "named": [
+    {
+     "path": "apps/runner/src/land-queue.ts",
+     "inTree": true
+    }
+   ],
+   "leanChecked": 6
+  },
+  {
+   "id": "inc-main-checkout-busy-queue",
+   "label": "c-shared-no-lock",
+   "pin": "897ab68459567387363dfd385a0e4e73e0a06c07",
+   "files": 2088,
+   "allowed": 796,
+   "kept": 770,
+   "vocab": 26,
+   "pathVocab": 0,
+   "noText": 0,
+   "keptBytes": 8452239,
+   "keptSha256": "20ae3f82e85f3ada7f2e0a83443a0d92cc6f4c2504f77c9e9fdb42c3bc11243d",
+   "named": [
+    {
+     "path": "docs/team/work-graph.json",
+     "inTree": false
+    },
+    {
+     "path": ".claude/settings.json",
+     "inTree": false
+    },
+    {
+     "path": "apps/runner/src/land.ts",
+     "inTree": true
+    }
+   ],
+   "leanChecked": 9
+  },
+  {
+   "id": "inc-plan-sync-manual",
+   "label": "c-order-derived",
+   "pin": "eebcc49100d6779b7f31edd0c4ef3fdc2490a2d8",
+   "files": 1870,
+   "allowed": 655,
+   "kept": 629,
+   "vocab": 26,
+   "pathVocab": 0,
+   "noText": 0,
+   "keptBytes": 7728500,
+   "keptSha256": "c5ea5d2ee92ddb15d8da3d74faffe3077735664ce89c586b018a3912b2e61d94",
+   "named": [
+    {
+     "path": "apps/runner/hooks/cap.mjs",
+     "inTree": true
+    },
+    {
+     "path": "docs/team/handoffs/console-reconcile-speed.md",
+     "inTree": false
+    }
+   ],
+   "leanChecked": 6
+  },
+  {
+   "id": "inc-helper-spawn-named",
+   "label": "c-identity-heuristic",
+   "pin": "bd90522f85e539639b5043ce256514e61f67e497",
+   "files": 2413,
+   "allowed": 903,
+   "kept": 872,
+   "vocab": 31,
+   "pathVocab": 0,
+   "noText": 0,
+   "keptBytes": 9827668,
+   "keptSha256": "6b1703587c1996c7ccccf0b17cd752265a5dc5a22cc9b42fb69eeedd419ce9ec",
+   "named": [
+    {
+     "path": "lean/Fw/Ops/SpawnGuard.lean",
+     "inTree": true
+    }
+   ],
+   "leanChecked": 9
+  },
+  {
+   "id": "inc-dispatch-push-runs",
+   "label": "c-quota",
+   "pin": "bd90522f85e539639b5043ce256514e61f67e497",
+   "files": 2413,
+   "allowed": 903,
+   "kept": 872,
+   "vocab": 31,
+   "pathVocab": 0,
+   "noText": 0,
+   "keptBytes": 9827668,
+   "keptSha256": "6b1703587c1996c7ccccf0b17cd752265a5dc5a22cc9b42fb69eeedd419ce9ec",
+   "named": [
+    {
+     "path": ".github/workflows/mutants.yml",
+     "inTree": false
+    },
+    {
+     "path": "lean/Fw/Ci/Trigger.lean",
+     "inTree": true
+    }
+   ],
+   "leanChecked": 9
+  },
+  {
+   "id": "inc-runner-bin-mode-flip",
+   "label": "c-env-assume",
+   "pin": "09cbdbfaad8ecfa26e76832671e583309117b4b7",
+   "files": 2195,
+   "allowed": 833,
+   "kept": 804,
+   "vocab": 29,
+   "pathVocab": 0,
+   "noText": 0,
+   "keptBytes": 9047325,
+   "keptSha256": "b309b70daeda10508fcf86e5284ca0bccd25808ebbef76c41cf683e8be81f743",
+   "named": [
+    {
+     "path": "apps/runner/src/fw.ts",
+     "inTree": true
+    },
+    {
+     "path": "apps/runner/package.json",
+     "inTree": false
+    },
+    {
+     "path": "packages/engine-check/package.json",
+     "inTree": false
+    },
+    {
+     "path": "packages/engine-check/node_modules/.bin/fw",
+     "inTree": false
+    },
+    {
+     "path": "apps/runner/src/land.ts",
+     "inTree": true
+    },
+    {
+     "path": "apps/runner",
+     "inTree": false
+    }
+   ],
+   "leanChecked": 9
+  },
+  {
+   "id": "inc-trajectory-pooled-window",
+   "label": "c-spec-gap",
+   "pin": "65f4e791c91070730187a493a4e4ffbf04863185",
+   "files": 2697,
+   "allowed": 999,
+   "kept": 966,
+   "vocab": 33,
+   "pathVocab": 0,
+   "noText": 0,
+   "keptBytes": 9742073,
+   "keptSha256": "932c314ea3beb7e4bf238b72e7dd6878d3dc287f6eb5202d898ca07d10c5b93d",
+   "named": [
+    {
+     "path": "lean/Fw/Gate/Trajectory.lean",
+     "inTree": true
+    }
+   ],
+   "leanChecked": 10
+  },
+  {
+   "id": "inc-reap-console-kill",
+   "label": "c-spec-gap",
+   "pin": "162673221e40e72dd4a00c43fe27c13da1d262b2",
+   "files": 2919,
+   "allowed": 1110,
+   "kept": 1076,
+   "vocab": 34,
+   "pathVocab": 0,
+   "noText": 0,
+   "keptBytes": 11148919,
+   "keptSha256": "5e76988b889a40338a7114200529a5aea5231ee425a3c5620a749c0e0b065422",
+   "named": [
+    {
+     "path": "lean/Fw/Ops/Reap.lean",
+     "inTree": true
+    }
+   ],
+   "leanChecked": 11
+  }
+ ]
+}

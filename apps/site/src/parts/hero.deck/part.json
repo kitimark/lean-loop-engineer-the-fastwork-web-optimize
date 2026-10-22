@@ -5,8 +5,11 @@
   "experiment": true,
   "impls": ["plain"],
   "muiStates": [],
+  "layers": [
+    { "id": "hero.deck_article", "label": "deck card", "text": true }
+  ],
   "variants": {
-    "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:3464-3468,4291-4310; assets/2.gBuqKVzi.css:1962-1964,2053-2127" } }
+    "faithful": { "kind": "faithful", "files": ["deck.module.css", "index.tsx", "media.ts"], "tier": "T1", "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:3464-3468,4291-4310; assets/2.gBuqKVzi.css:1962-1964,2053-2127" } }
   },
   "requires": {},
   "conflicts": {}

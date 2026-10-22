@@ -288,7 +288,37 @@ export function invalidOf(core, question, answers) {
   return bad;
 }
 
-function table(a) {
+export const EPS_BEGIN = "<!-- oracle-eps re-validation: node results/jev/rescore-eps.ts <old fwcore> --write -->";
+export const EPS_END = "<!-- /oracle-eps -->";
+
+export function epsBlock(runs) {
+  const md = [EPS_BEGIN,
+    "Re-validated under `Fw.Oracle.Core.sumOk` (task oracle-eps) from the answer files above, no re-runs and no sends; " +
+    "the invalid column of the first table is the old `eps` rule.", "",
+    "| set | arm | run | answers | valid, old eps | valid, sumOk | right of valid, old eps | right of valid, sumOk | " +
+    "right / rows (both rules) | certify, old eps | certify, sumOk |",
+    "|---|---|---|---|---|---|---|---|---|---|---|"];
+  for (const [k, v] of Object.entries(runs)) {
+    const [set, arm, run] = k.split(":");
+    const right = v.right.old === v.right.new ? `${v.right.new} / ${v.rows}` : `${v.right.old} → ${v.right.new} / ${v.rows}`;
+    md.push(`| ${set} | ${arm} | ${run} | ${v.answers} | ${v.valid.old} | ${v.valid.new} | ${v.validRight.old} | ` +
+      `${v.validRight.new} | ${right} | ${v.certify.old} | ${v.certify.new} |`);
+  }
+  md.push(EPS_END);
+  return md;
+}
+
+const sameCounts = (x, y) => JSON.stringify(Object.entries(x).sort()) === JSON.stringify(Object.entries(y).sort());
+
+export function epsInvalid(key, live, eps) {
+  const run = eps.runs[key];
+  if (!run) throw new Error(`eps-rescore has no row ${key}: rerun results/jev/rescore-eps.ts`);
+  if (!sameCounts(live, run.invalid.new)) throw new Error(`eps-rescore row ${key} is stale: fwcore now gives ` +
+    `${JSON.stringify(live)}, the file ${JSON.stringify(run.invalid.new)}; rerun results/jev/rescore-eps.ts`);
+  return run.invalid.old;
+}
+
+export function table(a) {
   const pct = (n, d) => (d ? `${((100 * n) / d).toFixed(1)} %` : "-");
   const out = { sets: {} };
   const md = ["| set | arm | run | right / rows | accuracy | held-out right / rows | held-out accuracy | certify | missing | " +
@@ -304,7 +334,8 @@ function table(a) {
         const r = tableRow(sc);
         const answers = run === "first" ? readJsonl(join(a.old, `${set}-${arm}.jsonl`))
           : run === "clean" ? readJsonl(join(a.out, `${set}-${arm}.rows.jsonl`)).filter((x) => x.choice !== undefined) : null;
-        r.invalid = answers ? invalidOf(a.core, clean.question, answers) : null;
+        const live = answers ? invalidOf(a.core, clean.question, answers) : null;
+        r.invalid = live && a.eps ? epsInvalid(`${set}:${arm}:${run}`, live, a.eps) : live;
         out.sets[set].arms[`${arm}:${run}`] = r;
         const inv = r.invalid ? Object.entries(r.invalid).map(([k, v]) => `${v} ${k}`).join("; ") || "0" : "-";
         md.push(`| ${set} | ${arm} | ${run} | ${r.right} / ${r.rows} | ${pct(r.right, r.rows)} | ${r.holdRight} / ${r.holdRows} | ` +
@@ -327,9 +358,10 @@ function table(a) {
       `${c.calls} (${c.retried}) | ${c.inputTokens} | ${c.outputTokens} | ${c.costUsd} | ${c.models.join(",")} | ` +
       `${c.msMedian} / ${c.msMax} | ${(c.wallMs / 1000).toFixed(0)} | ${c.changedVsFirst} |`);
   }
+  if (a.eps) md.push("", ...epsBlock(a.eps.runs));
   writeFileSync(join(a.out, "table.json"), JSON.stringify(out, null, 2) + "\n");
   writeFileSync(join(a.out, "table.md"), md.join("\n") + "\n");
-  console.log(md.join("\n"));
+  if (!a.quiet) console.log(md.join("\n"));
 }
 
 function flags(argv) {
@@ -342,8 +374,12 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const [sub, ...rest] = process.argv.slice(2);
   const f = flags(rest);
   if (sub === "probe" && f.work && f.out && f.prompts) process.exitCode = await probe({ work: resolve(f.work), out: resolve(f.out), prompts: f.prompts });
-  else if (sub === "table" && f.out && f.old) table({ out: resolve(f.out), old: resolve(f.old), core: fwcoreCall(process.cwd()) });
+  else if (sub === "table" && f.out && f.old) {
+    const eps = resolve(f.eps ?? join(f.out, "..", "jev", "eps-rescore.json"));
+    table({ out: resolve(f.out), old: resolve(f.old), core: fwcoreCall(process.cwd()),
+      eps: existsSync(eps) ? JSON.parse(readFileSync(eps, "utf8")) : null });
+  }
   else if (sub === "run" && f.model && f.set && f.prompts && f.work && f.out) {
     await run({ model: f.model, set: f.set, prompts: f.prompts, work: resolve(f.work), out: resolve(f.out), jobs: Math.min(4, Number(f.jobs ?? 4)) });
-  } else { console.error("usage: jev-arms-clean.mjs probe --work <dir> --prompts <file> --out <file> | run --model m --set s --prompts <file> --work <dir> --out <dir> [--jobs n]"); process.exitCode = 64; }
+  } else { console.error("usage: jev-arms-clean.mjs probe --work <dir> --prompts <file> --out <file> | table --out <dir> --old <dir> [--eps <eps-rescore.json>] | run --model m --set s --prompts <file> --work <dir> --out <dir> [--jobs n]"); process.exitCode = 64; }
 }

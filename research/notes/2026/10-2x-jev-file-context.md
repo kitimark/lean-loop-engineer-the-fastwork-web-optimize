@@ -9,7 +9,9 @@ topics: [jev, oracle, leakage, negative-result, evaluation, lean-design]
 
 # Expanding named repo files into the Jev state
 
-**Answer.** No. Do not build the expansion and do not re-measure with it.
+**Answer.** No. Do not re-measure with the expansion. The D1 ablation built it and confirms the answer: with
+leak-safe code files, Jev, Haiku and Sonnet each lose 2 to 4 net rows of 27 (MEASURED,
+`research/notes/2026/10-2x-jev-file-context-ablation.md`).
 
 - No row needs a file to reach its label (INFERRED). D1 labels are the ledger's own class and D2 labels are the reviewer's own
   grade: both are judgments about text the row already holds. Rows that name files score like rows that do not
@@ -116,9 +118,10 @@ rows name no path.
   judgment, extra context from the same organisation's later records is a leak channel, and a time pin only closes
   it when the leaking text was written after the event. Filter by label vocabulary, not by date.
 
-## Lean design that would be needed (described, not written)
+## Lean design
 
-A module `Fw.Oracle.Expand`, pure, with git as I/O only:
+Built as `lean/Fw/Oracle/Expand.lean`; the theorems as written are listed in
+`research/notes/2026/10-2x-jev-file-context-ablation.md`. The design was:
 
 - **Allowlist, not deny-list.** `ExpandCfg` holds path prefixes and extensions (code only; no `docs/`, `research/`,
   `.claude/`, `.cache/`, `lean/Fw/Oracle/`). Theorem `expand_allowed`: every emitted header path passes `allowed`, and
@@ -136,7 +139,10 @@ A module `Fw.Oracle.Expand`, pure, with git as I/O only:
 - **Determinism.** Theorem `expand_local`: two blob maps that agree on the row's planned paths give the same output;
   the TS glue records the commit and blob id per path.
 
-## The D1-only ablation and its decision rule (designed, not run)
+## The D1-only ablation and its decision rule
+
+Run on 2026-10-22: 27 rows expanded, every arm lost net rows, and adopt is false
+(`research/notes/2026/10-2x-jev-file-context-ablation.md`). The design was:
 
 - Rows: D1 rows that keep at least one allowlisted, vocab-free file at the per-row pin: 38 (MEASURED by the scan,
   `optionA`, prefixes `apps/ packages/ scripts/ lean/Fw/` minus `lean/Fw/Oracle/`, extensions `.lean .ts .tsx .mjs
@@ -162,7 +168,7 @@ the allowlist.
 
 ## Limits
 
-- The ablation is designed, not run; `Fw.Oracle.Expand` is described, not written (accepted limits).
+- The ablation ran on D1 only (`research/notes/2026/10-2x-jev-file-context-ablation.md`); D2 was not expanded.
 - Every count depends on the path regex above. A broader regex (bare file names, `:N` suffixes) moves the row
   counts by a few rows.
 - D2 files are read at `c31e0848`, not at each review's time; the reviewed branch may differ from main.

@@ -1,0 +1,320 @@
+{
+ "agentLogs": 42,
+ "firstRun": [
+  {
+   "arm": "haiku",
+   "set": "d1",
+   "agents": 12,
+   "rows": 116,
+   "reads": 23,
+   "readsPerAgent": [
+    1,
+    2
+   ],
+   "distinctFiles": 12,
+   "scratchpad": 23,
+   "repo": 0,
+   "home": 0,
+   "other": 0,
+   "readBytes": 414615,
+   "truncationNotices": 11,
+   "fullCoverage": 12,
+   "bash": 0,
+   "other_tools": 0,
+   "callsAfterAnswer": 0,
+   "answerKeys": [
+    "choice",
+    "id",
+    "probabilities"
+   ],
+   "thinkingBlocks": 25,
+   "thinkingWithText": 0,
+   "attachmentTypes": [
+    "auto_mode",
+    "credential_org",
+    "date",
+    "deferred_tools_delta",
+    "environment",
+    "instructions",
+    "mcp_instructions_delta",
+    "model",
+    "prompt_snapshot",
+    "read_truncation_notice",
+    "remote_session_change",
+    "session_context",
+    "skill_listing",
+    "structured_output",
+    "total_tokens_reminder"
+   ],
+   "thinkingTextChars": 0,
+   "signatureBytes": 146472,
+   "outputTokens": 65364,
+   "visibleOutputBytes": 46170,
+   "medianAnswerMs": 28391,
+   "models": [
+    "claude-haiku-5-5"
+   ],
+   "effort": [
+    "low"
+   ],
+   "thinkingDisplay": [
+    "updates"
+   ]
+  },
+  {
+   "arm": "haiku",
+   "set": "d2",
+   "agents": 9,
+   "rows": 90,
+   "reads": 19,
+   "readsPerAgent": [
+    2,
+    3
+   ],
+   "distinctFiles": 9,
+   "scratchpad": 19,
+   "repo": 0,
+   "home": 0,
+   "other": 0,
+   "readBytes": 273477,
+   "truncationNotices": 9,
+   "fullCoverage": 9,
+   "bash": 0,
+   "other_tools": 0,
+   "callsAfterAnswer": 0,
+   "answerKeys": [
+    "choice",
+    "id",
+    "probabilities"
+   ],
+   "thinkingBlocks": 20,
+   "thinkingWithText": 0,
+   "attachmentTypes": [
+    "auto_mode",
+    "credential_org",
+    "date",
+    "deferred_tools_delta",
+    "environment",
+    "instructions",
+    "mcp_instructions_delta",
+    "model",
+    "prompt_snapshot",
+    "read_truncation_notice",
+    "remote_session_change",
+    "session_context",
+    "skill_listing",
+    "structured_output",
+    "total_tokens_reminder"
+   ],
+   "thinkingTextChars": 0,
+   "signatureBytes": 72000,
+   "outputTokens": 28386,
+   "visibleOutputBytes": 17350,
+   "medianAnswerMs": 17528,
+   "models": [
+    "claude-haiku-5-5"
+   ],
+   "effort": [
+    "low"
+   ],
+   "thinkingDisplay": [
+    "updates"
+   ]
+  },
+  {
+   "arm": "sonnet",
+   "set": "d1",
+   "agents": 12,
+   "rows": 116,
+   "reads": 26,
+   "readsPerAgent": [
+    1,
+    3
+   ],
+   "distinctFiles": 12,
+   "scratchpad": 26,
+   "repo": 0,
+   "home": 0,
+   "other": 0,
+   "readBytes": 414608,
+   "truncationNotices": 11,
+   "fullCoverage": 12,
+   "bash": 1,
+   "other_tools": 0,
+   "callsAfterAnswer": 0,
+   "answerKeys": [
+    "choice",
+    "id",
+    "probabilities"
+   ],
+   "thinkingBlocks": 18,
+   "thinkingWithText": 0,
+   "attachmentTypes": [
+    "auto_mode",
+    "credential_org",
+    "date",
+    "deferred_tools_delta",
+    "environment",
+    "instructions",
+    "mcp_instructions_delta",
+    "model",
+    "prompt_snapshot",
+    "read_truncation_notice",
+    "remote_session_change",
+    "session_context",
+    "skill_listing",
+    "structured_output",
+    "total_tokens_reminder"
+   ],
+   "thinkingTextChars": 0,
+   "signatureBytes": 20864,
+   "outputTokens": 22821,
+   "visibleOutputBytes": 32321,
+   "medianAnswerMs": 21286,
+   "models": [
+    "claude-sonnet-5-5"
+   ],
+   "effort": [
+    "low"
+   ],
+   "thinkingDisplay": [
+    "updates"
+   ]
+  },
+  {
+   "arm": "sonnet",
+   "set": "d2",
+   "agents": 9,
+   "rows": 90,
+   "reads": 20,
+   "readsPerAgent": [
+    2,
+    3
+   ],
+   "distinctFiles": 9,
+   "scratchpad": 20,
+   "repo": 0,
+   "home": 0,
+   "other": 0,
+   "readBytes": 273476,
+   "truncationNotices": 9,
+   "fullCoverage": 9,
+   "bash": 0,
+   "other_tools": 0,
+   "callsAfterAnswer": 0,
+   "answerKeys": [
+    "choice",
+    "id",
+    "probabilities"
+   ],
+   "thinkingBlocks": 11,
+   "thinkingWithText": 0,
+   "attachmentTypes": [
+    "auto_mode",
+    "credential_org",
+    "date",
+    "deferred_tools_delta",
+    "environment",
+    "instructions",
+    "mcp_instructions_delta",
+    "model",
+    "prompt_snapshot",
+    "read_truncation_notice",
+    "remote_session_change",
+    "session_context",
+    "skill_listing",
+    "structured_output",
+    "total_tokens_reminder"
+   ],
+   "thinkingTextChars": 0,
+   "signatureBytes": 13912,
+   "outputTokens": 13381,
+   "visibleOutputBytes": 17658,
+   "medianAnswerMs": 19407,
+   "models": [
+    "claude-sonnet-5-5"
+   ],
+   "effort": [
+    "low"
+   ],
+   "thinkingDisplay": [
+    "updates"
+   ]
+  }
+ ],
+ "clean": [
+  {
+   "arm": "haiku",
+   "set": "d1",
+   "rows": 116,
+   "replies": 116,
+   "parse": {
+    "json": 116
+   },
+   "withProse": 0,
+   "namingFile": 0,
+   "numTurns": [
+    1
+   ],
+   "medianReplyBytes": 370,
+   "medianOutputTokens": 472,
+   "replyBytes": 42590,
+   "outputTokens": 54406
+  },
+  {
+   "arm": "sonnet",
+   "set": "d1",
+   "rows": 116,
+   "replies": 116,
+   "parse": {
+    "json": 116
+   },
+   "withProse": 0,
+   "namingFile": 0,
+   "numTurns": [
+    1
+   ],
+   "medianReplyBytes": 338,
+   "medianOutputTokens": 356,
+   "replyBytes": 38945,
+   "outputTokens": 41942
+  },
+  {
+   "arm": "haiku",
+   "set": "d2",
+   "rows": 90,
+   "replies": 90,
+   "parse": {
+    "json": 90
+   },
+   "withProse": 0,
+   "namingFile": 0,
+   "numTurns": [
+    1
+   ],
+   "medianReplyBytes": 118,
+   "medianOutputTokens": 331,
+   "replyBytes": 10853,
+   "outputTokens": 34087
+  },
+  {
+   "arm": "sonnet",
+   "set": "d2",
+   "rows": 90,
+   "replies": 90,
+   "parse": {
+    "json": 89,
+    "none": 1
+   },
+   "withProse": 1,
+   "namingFile": 0,
+   "numTurns": [
+    1
+   ],
+   "medianReplyBytes": 115,
+   "medianOutputTokens": 217,
+   "replyBytes": 10663,
+   "outputTokens": 19196
+  }
+ ]
+}

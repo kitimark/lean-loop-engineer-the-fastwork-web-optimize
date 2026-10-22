@@ -19,7 +19,7 @@ import { backfill, ingestRuns, lagCli, runIdsOf, waitSpanExtra } from "./timing-
 
 const [group, ...rest] = process.argv.slice(2);
 let spanExtra: ReturnType<typeof waitSpanExtra> = {};
-if (group && group !== "watch" && group !== "timings" && group !== "run") { const end = begin("fw", spanStep(group, rest)); process.once("exit", (c) => end(c, spanExtra)); }
+if (group && group !== "watch" && group !== "timings" && group !== "run" && !(group === "slot" && rest[0] === "run")) { const end = begin("fw", spanStep(group, rest)); process.once("exit", (c) => end(c, spanExtra)); }
 async function postLandGc(mainDir: string): Promise<void> {
   const { diskGcTick } = await import("./disk-gc.ts");
   const lines = span("fw land", "disk-gc (post-land)", () => diskGcTick(mainDir, ["lake", "landed", "console"], fwcoreCall(mainDir)));
@@ -39,6 +39,10 @@ try {
   } else if (group === "ci" && (rest[0] === "circleci" || (rest[0] === "wait" && rest[rest.indexOf("--provider") + 1] === "circleci"))) {
     const script = new URL("../../../scripts/circleci.mjs", import.meta.url).pathname;
     process.exitCode = spawnSync(process.execPath, [script, ...(rest[0] === "circleci" ? rest.slice(1) : rest)], { cwd: process.cwd(), stdio: "inherit" }).status ?? 1;
+  } else if (group === "ci" && (rest[0] === "codemagic" || (rest[0] === "wait" && rest[rest.indexOf("--provider") + 1] === "codemagic"))) {
+    const script = new URL("../../../scripts/codemagic.mjs", import.meta.url).pathname;
+    const args = rest[0] === "codemagic" ? rest.slice(1) : rest.filter((a, i) => a !== "--provider" && rest[i - 1] !== "--provider");
+    process.exitCode = spawnSync(process.execPath, [script, ...args], { cwd: process.cwd(), stdio: "inherit" }).status ?? 1;
   } else if (group === "ci" && (rest[0] === "wait" || rest[0] === "budget")) {
     const seen: string[] = []; const log = console.log;
     if (rest[0] === "wait") console.log = (...a: unknown[]) => { seen.push(String(a[0])); log(...a); };

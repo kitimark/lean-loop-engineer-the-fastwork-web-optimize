@@ -14227,8 +14227,12 @@
     "codemagic.yaml",
     "docs/team/tools/codemagic.md",
     "docs/team/tools/ci-pool.md",
-    "docs/team/handoffs/macos-pool-7.md"
-   ]
+    "docs/team/handoffs/macos-pool-7.md",
+    "apps/runner/src/fw-main.ts",
+    "lean/scripts/check.sh",
+    "packages/measure-webkit/src/sim.mjs"
+   ],
+   "evidence": "7efdb1c"
   },
   {
    "devices": [
@@ -14544,8 +14548,13 @@
     "packages/contracts/golden/oracle/**",
     "results/jev/**",
     "research/notes/2026/10-2x-jev-replay.md",
-    "docs/team/handoffs/oracle-eps.md"
-   ]
+    "docs/team/handoffs/oracle-eps.md",
+    "lean/Fw/Oracle/Golden.lean",
+    "lean/Fw/Oracle/ReplayWire.lean",
+    "results/jev-arms-clean/table.md",
+    "lean/scripts/ExpandGolden.lean"
+   ],
+   "evidence": "c3bf22b"
   },
   {
    "devices": [
@@ -14673,8 +14682,20 @@
     "apps/site/src/flags/**",
     "packages/contracts/golden/parts/platform-fade*.jsonl",
     "research/notes/2026/10-2x-platform-fade-threaded.md",
-    "docs/team/handoffs/platform-fade-threaded.md"
-   ]
+    "docs/team/handoffs/platform-fade-threaded.md",
+    "apps/site/src/App.tsx",
+    "apps/site/src/parts/morph.tween/driver.ts",
+    "apps/site/src/parts/morph.tween/index.tsx",
+    "lean/Fw.lean",
+    "lean/Fw/Parts/PlatformGolden.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json",
+    "packages/contracts/golden/preset/v2-proved.decisions.jsonl",
+    "research/findings/ledger.json",
+    "results/platform-fade-threaded/report.json"
+   ],
+   "evidence": "07b97a3"
   },
   {
    "devices": [
@@ -14986,8 +15007,13 @@
     "apps/site/src/parts/hero.countdown/**",
     "apps/site/src/parts/nav/**",
     "apps/site/src/parts/morph.panel/**",
-    "docs/team/handoffs/layer-decl.md"
-   ]
+    "docs/team/handoffs/layer-decl.md",
+    "apps/runner/src/land.ts",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Console/ReviewInfo.lean",
+    "apps/console-web/test/fixtures/review-info.earn.json"
+   ],
+   "evidence": "4e3ead7"
   },
   {
    "devices": [
@@ -14999,7 +15025,7 @@
    "deps": [
     "layer-decl"
    ],
-   "title": "User 2026-10-22 approved the Layer Composer design (review page answers: design Approve; Q4 text layers are a look change until the user sees their strips; Q5 Core Animation blur measured only, shown as Q; snap off by default, on per layer after the user approves its strip; headline = B vs the page as it runs today, frame time p50/p90/p99 ms with fps at the same quantiles, compositor frames on Chromium only; a cell measured within 1 level with no proved bound is Q). Original ask: 'i could pick which layers/component by myself ... some change may effective multiple layer, part or components'. Design text: lead scratch layer-composer/design-checked.md (path in the build prompt). Task 2: Lean Fw.Console.Layers (design §3): clash over the whole expanded page (write/write incl. composite as will-change, write-or-clear vs read, I1/I2/I4) coupled only with a Change's combined theorem, else refused; expansion never overrides (refuse + fix closed under requires); look grade E < E1 < Q < L with hypotheses, only E composes (lego_swap_visible_set); premises per arm (P1-P4, S1, C1, C2, C5, C6, T1); canonical search with `fwl` (BuildsOpen.validate learns fwl; link_resolves holds); closed refusal list with goldens; footprints extracted per variant (part-footprint.mjs variant field, clears derived), never declared by hand. FootprintData.lean regenerated at land, never edited by hand.",
+   "title": "User 2026-10-22 approved the Layer Composer design (review page answers: design Approve; Q4 text layers are a look change until the user sees their strips; Q5 Core Animation blur measured only, shown as Q; snap off by default, on per layer after the user approves its strip; headline = B vs the page as it runs today, frame time p50/p90/p99 ms with fps at the same quantiles, compositor frames on Chromium only; a cell measured within 1 level with no proved bound is Q). Original ask: 'i could pick which layers/component by myself ... some change may effective multiple layer, part or components'. Design text: lead scratch layer-composer/design-checked.md (path in the build prompt). Task 2: Lean Fw.Console.Layers (design §3): clash over the whole expanded page (write/write incl. composite as will-change, write-or-clear vs read, I1/I2/I4) coupled only with a Change's combined theorem, else refused; expansion never overrides (refuse + fix closed under requires); look grade E < E1 < Q < L with hypotheses, only E composes (lego_swap_visible_set); premises per arm (P1-P4, S1, C1, C2, C5, C6, T1); canonical search with `fwl` (BuildsOpen.validate learns fwl; link_resolves holds); closed refusal list with goldens; footprints extracted per variant (part-footprint.mjs variant field, clears derived), never declared by hand. FootprintData.lean regenerated at land, never edited by hand. `files` (layer-decl convention, landed with layer-decl): each variant lists every non-test source file of its part folder that it runs; a variant's own files = files(v) \\ files(faithful); a footprint record's variants = the variants whose `files` list its file. Variants that differ from faithful only by a branch inside a shared file (hero.countdown strip and one-chain: hero.countdown/index.tsx:67, driver.ts:63; nav earn-no-transition: nav/index.tsx:85) have no own file: attribute them at branch level or refuse them as not extractable, never equal to faithful. Once BuildsOpen.validate learns fwl, replace the okChar regex over BuildsOpen.lean source in apps/site/src/parts/hero/layers.component.test.ts with a Lean-generated golden (each declared layer id passes validate on ?fwl=<id>:c), and extend that DOM test to render every listed variant (hero:scene-pause, hero.countdown:hidden-pause and one-chain, nav:earn-no-transition) with the real morph fwId 'morph-countdown-clock'.",
    "writes": [
     "lean/Fw/Console/Layers*.lean",
     "lean/Fw/Console/Compose.lean",
@@ -15014,8 +15040,10 @@
     "packages/contracts/golden/console/console.compose.jsonl",
     "packages/contracts/golden/console/layers*.jsonl",
     "packages/contracts/golden/parts/footprint*.gen.json",
-    "docs/team/handoffs/compose-layers-lean.md"
-   ]
+    "docs/team/handoffs/compose-layers-lean.md",
+    "apps/site/src/parts/hero/layers.component.test.ts"
+   ],
+   "evidence": "862e77b"
   },
   {
    "devices": [
@@ -15070,8 +15098,17 @@
     "apps/site/src/registry/layer-opts*.ts",
     "apps/site/src/registry/*.test.ts",
     "packages/contracts/golden/console/layer-opts*.jsonl",
-    "docs/team/handoffs/site-layer-opts.md"
-   ]
+    "docs/team/handoffs/site-layer-opts.md",
+    "apps/runner/src/land.ts",
+    "apps/site/src/entry-client.tsx",
+    "apps/site/src/registry/types.ts",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Console/LandSpeed.lean",
+    "lean/Fw/Site/LayerOpts.lean",
+    "lean/scripts/LayerOptsGolden.lean",
+    "lean/scripts/check.sh"
+   ],
+   "evidence": "341d9ad"
   },
   {
    "devices": [
@@ -15108,7 +15145,7 @@
     "layer-decl",
     "compose-layers-lean"
    ],
-   "title": "User 2026-10-22 approved the Layer Composer design (review page answers: design Approve; Q4 text layers are a look change until the user sees their strips; Q5 Core Animation blur measured only, shown as Q; snap off by default, on per layer after the user approves its strip; headline = B vs the page as it runs today, frame time p50/p90/p99 ms with fps at the same quantiles, compositor frames on Chromium only; a cell measured within 1 level with no proved bound is Q). Original ask: 'i could pick which layers/component by myself ... some change may effective multiple layer, part or components'. Design text: lead scratch layer-composer/design-checked.md (path in the build prompt). Task 7: layer census by data-fw / data-fw-layer at pinned samples (WebKit layersForNode with reasons and bytes; Chromium layer list), undeclared multiset equal across arms, S1 device-pixel grid check, Lean check; refuses the run naming the box. One short Simulator debug run under the sim slot.",
+   "title": "User 2026-10-22 approved the Layer Composer design (review page answers: design Approve; Q4 text layers are a look change until the user sees their strips; Q5 Core Animation blur measured only, shown as Q; snap off by default, on per layer after the user approves its strip; headline = B vs the page as it runs today, frame time p50/p90/p99 ms with fps at the same quantiles, compositor frames on Chromium only; a cell measured within 1 level with no proved bound is Q). Original ask: 'i could pick which layers/component by myself ... some change may effective multiple layer, part or components'. Design text: lead scratch layer-composer/design-checked.md (path in the build prompt). Task 7: layer census by data-fw / data-fw-layer at pinned samples (WebKit layersForNode with reasons and bytes; Chromium layer list), undeclared multiset equal across arms, S1 device-pixel grid check, Lean check; refuses the run naming the box. One short Simulator debug run under the sim slot. A root box carries both data-fw and data-fw-layer (layer-decl): map such a node to its data-fw-layer id once.",
    "writes": [
     "packages/measure-webkit/src/census*.mjs",
     "packages/measure-chromium/src/census*.mjs",
@@ -15555,8 +15592,13 @@
     "packages/contracts/golden/obs/**",
     "apps/runner/src/watch-collect.ts",
     "apps/runner/test/watch-collect.test.ts",
-    "docs/team/tools/timings.md"
-   ]
+    "docs/team/tools/timings.md",
+    "apps/runner/src/timing.ts",
+    "lean/Fw/Wire/Obs.lean",
+    "apps/runner/test/timing-alert.test.ts",
+    "scripts/wallclock-allow.json"
+   ],
+   "evidence": "51b4897"
   },
   {
    "devices": [
@@ -15573,6 +15615,453 @@
    ],
    "title": "User 2026-10-22 (comment on the Jev trial page): 'do we need to try to give this context for jev with automate script and prove in lean. then re measurement it ?'. Lead investigation (workflow wf_6c44d993-6ee, 4 agents, skeptic spot-checked against git) recommends no: 64/116 D1 and 88/90 D2 rows name repo paths (294 paths, median D2 row ~100 KB of files vs stateCap 32 KiB); no row needs a file for its label (labels are judgments; rows with and without paths score within ~4 points); post-incident files leak the label on 9 rows (checkmap.mjs:2 names c-late-check for inc-precommit-stale-fwcore, missed by all arms; wait-guard.mjs names c-orphan-wait; work-graph.json at c31e0848 holds the lead's later triage); a pass costs 108-206 of 200 daily sends. Write it as a negative-result note (mechanism, measured counts with the regex used, the leak list with git refs, the Lean design that would be needed: allowlist, vocab-free, escaped-byte cap vs capState keeping field tails, no-op replay, determinism; the d1-only ablation and its decision rule, not run), keeping the leak scan as scripts/jev-leak.mjs. Unit: the note with every number sourced, the script, handoff.",
    "evidence": "56712c2"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "hero-exit-threaded-measure",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "writes": [
+    "results/hero-exit-threaded-measure/**",
+    "research/notes/2026/10-2x-hero-exit-threaded-measure.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/hero-exit-threaded-measure.md"
+   ],
+   "title": "User goal 2026-10-22 (hero exit smoother on WebKit; GPU same-look route). hero.exit:threaded landed (cbd2365c: exit as view-timeline animations of accelerated properties only, Lean entrance_same, probe run 39669915362 RED only on empty-rect nodes) but has no WebKit cost or lag measurement against the base. Measure on CI webkit-sim with the cost input (cost=on, lag=true; wkcost-cost-input landed 2a938882): base vs ?fw=hero.exit:threaded, hero-exit zone Recalculate styles, Layout, rewrite skipped slots and new layers per read (the webkit-cost-counters tables), frame interval where recorded, both passes, with run ids; plus the breakpoint gate verdict already on record. Write the result as a ledger row update for the hero.exit threaded variant (MEASURED with run ids, mechanism, lesson; a no-win is a finding) and results/hero-exit-threaded-measure/report.json in the review-reports shape (recommendation text without numbers). Unit: base vs flag cost tables with run ids, ledger row, report.json, note. Limits: the Simulator has no real GPU; at most 4 dispatches; frame percentiles only where the lane records them.",
+   "evidence": "eedcc11"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-telemetry-fullrun",
+   "owner": "lean-prover",
+   "stream": "obs",
+   "deps": [
+    "ci-span-skipped"
+   ],
+   "writes": [
+    "lean/Fw/Ci/Telemetry.lean",
+    "lean/Fw/Obs/Timing.lean",
+    "packages/contracts/golden/obs/**",
+    "packages/contracts/golden/ci/**",
+    "apps/runner/src/timing.ts",
+    "apps/runner/test/**",
+    "docs/team/tools/timings.md",
+    "docs/team/handoffs/ci-telemetry-fullrun.md"
+   ],
+   "title": "Follow-ups of ci-span-skipped review (2026-10-22). (1) lean/Fw/Ci/Telemetry.lean Record.spans/judged build each Sample without the command's exit (Command.exit dropped) and judge every span, so failed CI commands still enter windows there: pass exit (and skipped) through and apply Fw.Obs.Timing.fullRun, with a theorem that the telemetry verdicts equal timingVerdicts on the same samples. (2) Keep the ceiling check for every exit class: a failed, cancelled or killed run over its ceiling (a hung fw land killed by a timeout) alerts again (ceiling verdict independent of fullRun; the window rule stays full-runs only); prove the ceiling verdict is the same for any exit. (3) timings.md replay figures state the log cutoff (last startMs or line count) they came from. Goldens; TS checked against them. Unit: the exit pass-through with its theorem, the any-exit ceiling rule with its theorem, goldens, the doc cutoff. Limits: old log lines are not rewritten."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "dry-gen-fresh",
+   "owner": "lean-prover",
+   "stream": "console",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Console/LandDry.lean",
+    "lean/Fw/Console/ReviewInfo.lean",
+    "apps/console-api/src/**",
+    "apps/console-api/test/review-info.test.ts",
+    "apps/console-web/test/fixtures/review-info.earn.json",
+    "packages/contracts/golden/console/land-dry.jsonl",
+    "apps/runner/src/land-verdict.ts",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land-verdict*.test.ts",
+    "apps/runner/test/land-dry*.test.ts",
+    "docs/team/tools/land.md",
+    "docs/team/incidents/ledger.json",
+    "docs/team/handoffs/dry-gen-fresh.md",
+    "lean/Fw/Wire/ReviewInfo.lean",
+    "lean/Fw/Wire/Console.lean"
+   ],
+   "title": "Incident inc-dry-gen-stale (2026-10-22): layer-decl's dry land printed VERDICT dry, then the real land refused on apps/site footprint.test 'footprint.gen.json is fresh': the build-review polish stage cut comments in part index.tsx files after the builder regenerated the footprint, and the dry's fast lints (Lean Fw.Console.LandDry.lintPlan: ci-paths, axiom check) do not check generated files. Extend lintPlan with a generated-file freshness lint: `node apps/site/scripts/part-footprint.mjs --check` (about 1 s) selected when the change touches any input of the footprint generator (apps/site/src/parts/**, apps/site/scripts/part-footprint.mjs, lean/Fw/Parts/FootprintData.lean, packages/contracts/golden/parts/footprint.gen.json), skipped when the tree lacks the script, in the Outcome.first order after reads. Theorems: gen_selected (a change to a generator input selects its check), lintPlan_old (a change touching no generator input gives the old plan), and the dry_refusal_is_land_refusal / dry_pass_land_pass statements still hold with the new lint. Goldens; TS land-verdict.ts checked against them; land.md. Second case in the same land: the console review excerpt js-apply (lean/Fw/Console/ReviewInfo.lean earnExcerpts, first/last line numbers into apps/site/src/parts/nav/index.tsx) went 20 lines stale and only the remote console-api suite caught it (run 39736189293). Close it by identity, not by another lint: the console locates each excerpt by its anchor (the range starts at the anchor line found in the file, the span length is kept in Lean), so a line move cannot break it; Lean stores anchor and span, not absolute lines; the fixture apps/console-web/test/fixtures/review-info.earn.json is regenerated from fwcore. Unit: the Lean lint rule with its theorems and goldens, the TS mirror, the anchor-located excerpts (Lean, console-api route, fixture), land.md, the incident record. Limits: only generators with a --check mode; ci-paths already covered; an anchor that occurs twice in a file is refused by name.",
+   "evidence": "2510f91"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "jev-file-context-ablation",
+   "owner": "lean-prover",
+   "stream": "oracle",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Oracle/Expand*.lean",
+    "lean/Fw.lean",
+    "lean/scripts/ExpandGolden.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/oracle/expand*.jsonl",
+    "lean/Fw/Wire/**",
+    "scripts/jev-expand.mjs",
+    "scripts/jev-expand.test.mjs",
+    "scripts/jev-arms-clean.mjs",
+    "results/jev-file-context-ablation/**",
+    "research/notes/2026/10-2x-jev-file-context-ablation.md",
+    "research/notes/2026/10-2x-jev-file-context.md",
+    "docs/team/handoffs/jev-file-context-ablation.md",
+    "lean/Fw/Oracle/Questions.lean",
+    "lean/Fw/Oracle/Replay.lean",
+    "lean/Fw/Wire.lean"
+   ],
+   "title": "User 2026-10-22 (comment on the Jev trial artifact, after the lead recommended not to): 'let's re-run the for measurement and compare with this experiment as well. is it improve if we put more context about the related files'. Run the designed D1 ablation of research/notes/2026/10-2x-jev-file-context.md (section 'The D1-only ablation and its decision rule'). Lean first: Fw.Oracle.Expand builds the expanded state from a row: allowlisted paths only (prefixes apps/ packages/ scripts/ lean/Fw/ minus lean/Fw/Oracle/, the note's extensions), each file read at the row's pin (a main commit before the incident), any file containing a mistake-class id, incident id or label word dropped (the label vocabulary from Fw.Oracle), an escaped-byte cap equal to the state cap that refuses a row by name instead of cutting it, rows with nothing kept stay byte-identical (0 sends), determinism; theorems for each, goldens; the TS/mjs expander checked against them. Arms on the identical expanded states, one isolated call per row, no tools, no project context (the jev-arms-clean harness): Jev via `pnpm fw oracle send`, Haiku, Sonnet. Contrast arm (shows leakage, not adoption evidence): Jev only on the same rows with naive expansion (files at main HEAD, no vocabulary drop). Compare paired per row against the clean baseline (results/jev-arms-clean and the recorded Jev D1 replies): flips into and out of correct per arm, the note's adopt rule (every arm +4 net, no gain on a vocabulary-dropped row, each gain hand-traced to a fact the row lacks). Score every arm with the same Lean scorer; if oracle-eps (rounded replies summing to 0.99) has not landed when scoring, report strict and renormalised scores for every arm alike. Jev sends: about 38 + 38 within the 200 per UTC day cap (count before sending; stop at the cap). Results under results/jev-file-context-ablation/, a note with paired tables (MEASURED with send counts), the file-context note's 'designed, not run' lines updated to point at it. Unit: Fw.Oracle.Expand with its theorems and goldens, the three leak-safe arms plus the Jev naive arm on the same rows, the paired comparison with the adopt verdict, the note. Limits: D1 only (D2 files hold later triage and exceed the cap); about 38 rows, so small effects are within noise (state the paired sign-test p); the hand trace is a judgment, stated per gain.",
+   "evidence": "df4c9b2"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "jev-retrieval-research",
+   "owner": "researcher",
+   "stream": "oracle",
+   "deps": [],
+   "writes": [
+    "research/notes/2026/10-2x-jev-retrieval.md",
+    "scripts/jev-trace-forensics.mjs",
+    "results/jev-retrieval-research/**",
+    "docs/team/handoffs/jev-retrieval-research.md"
+   ],
+   "title": "User 2026-10-22: 'can you research tracing back to haiku and sonnet model. they can read the related source by the reasoning ? i'd like to know about what they read before decided the answer. so we might give the jev to make it more reasoning. or maybe can we put the question of jev that returns refernece something that request more file to read before decided.' Research only, no Jev sends and no new model runs. (1) Forensics of what the Claude arms read and how they reasoned: the first Jev-trial run (Claude Code workflow agents with tools; 42 agent logs: every tool call, path, bytes, order relative to the answer) and the clean run (claude -p, no tools: what the reply text cites). Whether reasoning or thinking text is recorded at all, and where. (2) Feasibility of a traced arm: claude -p (or the Agent SDK) with Read/Grep/Glob only, cwd a read-only checkout at the row's pin, the leak-safe allowlist of jev-file-context-ablation enforced by a tool permission rule, stream-json capture of every tool call and of thinking blocks (cite the Claude Code docs: what stream-json and --verbose expose, whether thinking text is summarised or full, permission rules for path allowlists); cost per row. (3) Jev side: what the Jev API accepts (docs, packages/oracle client, research/notes/2026/10-18-jev-decision-model.md, docs pages at api.typesafe.ai docs only): any tool, retrieval, multi-turn or rationale field; whether a two-step question works (step 1: Jev picks needed files from an allowlisted candidate list, options = files + none; step 2: the expanded state), and a hybrid where Claude's traced reads become Jev's state. (4) A design for the measured follow-up (graph task jev-retrieval-trace): arms, rows (the ablation's 38 D1 rows), leak controls, Lean decision rules to specify first (Fw.Oracle.Retrieve: allowlist, read budget, rounds, sends per row), send and token budget, adopt rule paired against the clean baseline and the ablation. Note with CONFIRMED/INFERRED tags and file:line citations; unit: forensics tables, feasibility answers with doc citations, Jev capability answer, the follow-up design. Limits: no runs, no sends; Jev internals beyond its docs stay INFERRED.",
+   "evidence": "e425e3d"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "jev-retrieval-trace",
+   "owner": "lean-prover",
+   "stream": "oracle",
+   "deps": [
+    "jev-retrieval-research",
+    "jev-file-context-ablation"
+   ],
+   "writes": [
+    "lean/Fw/Oracle/Retrieve*.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/oracle/retrieve*.jsonl",
+    "scripts/jev-trace.mjs",
+    "scripts/jev-trace.test.mjs",
+    "results/jev-retrieval-trace/**",
+    "research/notes/2026/10-2x-jev-retrieval-trace.md",
+    "docs/team/handoffs/jev-retrieval-trace.md",
+    "research/notes/2026/10-2x-jev-replay.md",
+    "lean/Fw/Oracle/Questions.lean",
+    "lean/Fw/Oracle/Replay.lean",
+    "lean/Fw/Wire.lean",
+    "lean/scripts/RetrieveGolden.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Oracle/RetrieveWire.lean"
+   ],
+   "title": "Measured follow-up of jev-retrieval-research (user 2026-10-22: what Haiku and Sonnet read before deciding; give Jev that context or let Jev request files). The design is research/notes/2026/10-2x-jev-retrieval.md section 'What this changes in the plan' (the spec; read it in full). Forensics there: the first-run Claude arms read only their prompt chunks (0 repo reads) and their thinking is signature-only, so no prior trace exists. Rows: the ablation's 38 D1 rows. Arms: C clean baseline and X ablation (existing answers, 0 calls); T-haiku and T-sonnet traced claude -p with Read/Grep/Glob only, cwd the filtered tree at the row pin (--restricted, PreToolUse hook), stream-json capture, answer schema with `evidence` line ranges (76 calls, --max-turns 10, --max-budget-usd Haiku 0.05 Sonnet 0.60, <= $25); J-hybrid Jev on the line ranges T-sonnet read (<= 38 sends); J-pick two-step Jev (step 1 choice over the row's kept files plus none, step 2 the picked excerpt <= 8 KiB; none replays with 0 sends; <= 76 sends). Lean first, Fw.Oracle.Retrieve: RetrieveCfg reusing Fw.Oracle.Expand's allowlist (one source), maxReads 8, readBytes 32768, rounds 2, sendsPerRow 2; tree_allowed, traceVerdict_ok, evidenceValid (valid evidence within lines read), pick_mem, pick_none_noop, hybridState (no cut under cap, no reads gives the clean body), sendPlan (per run <= runCap sends and <= 400,000 estimated tokens, day total <= dailyCap minus logged sends), adopt per arm (net +4 vs C, net >= 0 vs X on the same model, no gain on a vocabulary-dropped row, hand-traced gains); goldens; scripts/jev-trace.mjs checked against them. First one probe call per model: does showThinkingSummaries give thinking text under -p (record yes or no). Also add to research/notes/2026/10-2x-jev-replay.md Limits one line: 'the first-run Claude arms read only their prompt chunks; their thinking is signature-only (see 10-2x-jev-retrieval.md)'. Unit: Fw.Oracle.Retrieve with theorems and goldens, the T, J-hybrid and J-pick runs, one paired verdict table per arm, the note. Limits: D1 38 rows only (state the paired sign-test p); Jev <= 114 sends in runs of 19 rows within the daily cap together with any same-day ablation sends; Claude dollar figures are total_cost_usd.",
+   "evidence": "f751bea"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "circleci-storage-measured",
+   "owner": "lean-prover",
+   "stream": "ci",
+   "deps": [
+    "macos-pool-7"
+   ],
+   "writes": [
+    "lean/Fw/Ci/Overflow.lean",
+    "lean/Fw/Ci/PoolTier.lean",
+    "packages/contracts/golden/ci/**",
+    "scripts/circleci.mjs",
+    "scripts/circleci.test.mjs",
+    "docs/team/tools/ci-pool.md",
+    "docs/team/tools/circleci.md",
+    "docs/team/handoffs/circleci-storage-measured.md"
+   ],
+   "title": "Follow-up of macos-pool-7 (landed 9d2155f3): the 7th macOS slot (CircleCI m4pro) stays closed because scripts/circleci.mjs estimates storage at 1297 of the 1000 line (thousandths of a GB-month) by counting every saved byte for 30 days, while caches and artifacts expire sooner. Replace the estimate with the measured figure (CircleCI usage or plan API read-only, documented) or a per-save retention (cache 15 days, artifacts and workspaces per the project settings, cited) in Lean Fw.Ci.Overflow with a theorem that the estimate is never below the measured usage (stays a safe stop), goldens, TS checked. Unit: the retention-aware estimate with its safety theorem, goldens, docs. Limits: free credits only; no CircleCI run is needed to land."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "pool-dispatch-poller",
+   "owner": "console-builder",
+   "stream": "ci",
+   "deps": [
+    "macos-pool-7"
+   ],
+   "writes": [
+    "apps/runner/src/ci-pool-tier.ts",
+    "apps/runner/src/watch*.ts",
+    "apps/runner/test/ci-pool-tier*.test.ts",
+    "apps/runner/test/watch*.test.ts",
+    "docs/team/tools/ci-pool.md",
+    "docs/team/handoffs/pool-dispatch-poller.md"
+   ],
+   "title": "Follow-up of macos-pool-7: no poller calls `fw ci pool dispatch` yet, so a queued macOS job never overflows to Codemagic on its own and the GitHub busy count was read by hand. Wire the existing Lean route (Fw.Ci.PoolTier, landed) into the watch loop or the dispatch path: read GitHub busy macOS jobs with gh run list (the gh rate-limit rules: list not view, >= 120 s), call the route, dispatch overflow, record each decision as an event. No decision logic in TS (the route is Lean). Also record Codemagic build startedAt/finishedAt (redacted) in the ledger so overlap claims are provable (review follow-up). Unit: the poller glue with tests, decision events, Codemagic build times recorded. Limits: free tiers only; CircleCI stays closed until circleci-storage-measured lands."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-constant-bounds",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Parts/MorphConstBounds*.lean",
+    "lean/Fw.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/morph-const-bounds*.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "apps/site/src/parts/morph.panel/**",
+    "apps/site/src/parts/morph.tween/**",
+    "apps/site/src/parts/nav/**",
+    "research/findings/ledger.json",
+    "results/morph-constant-bounds/**",
+    "research/notes/2026/10-2x-morph-constant-bounds.md",
+    "docs/team/handoffs/morph-constant-bounds.md"
+   ],
+   "title": "User goal 2026-10-22 (end of page smoother on WebKit; GPU same-look route). The GPU-vs-overall comparison (lead, 2026-10-22) shows the end-of-page morph now holds 262 of 480 skipped slots (55 %) and 23 of 24 intervals over 50 ms on the phone, unchanged from the original (results/phone/2026-10-21/summary-v2.md:17-18), while no task covers the render-cost note's top same-look candidate. C1 of research/notes/2026/10-22-webkit-render-cost.md: constant layer bounds, lay the panel, backdrop and columns out once at the final size, clipped by the nav, so no backed layer except the nav changes size per morph frame (removes F3 per-frame IOSurface allocation and full raster, F4 tile reallocation, the panel-subtree relayout). Lean first: the visible region of the clipped final-size layout equals the original's per-frame layout at every morph progress m (same look, E-class under stated premises; text boxes keep their glyph positions), and bounds are constant over m for every backed layer but the nav; goldens; then the flag variant (register, ledger row, preset regenerated). Gate: breakpoint gate both engines; PathPix same-look at Lean-chosen m values. Measure on CI webkit-sim with cost=on lag=true, base vs flag, the end-of-page morph pass: Composite per frame, Recalculate styles, Layout, Paint, layer and backing counts where the lane records them (IOSurface creations if observable, else say so), the share of 33 ms rAF deltas (count), with run ids; report.json (review-reports shape; recommendation without numbers). Unit: Lean same-look and constant-bounds theorems with goldens, the flag, gate both engines, one webkit-sim base vs flag measurement, ledger row, report. Limits: the Simulator has no real GPU (allocation cost INFERRED from counts); at most 4 dispatches; the nav still resizes (C8 is a separate candidate); a no-win is a finding."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "review-anchor-followups",
+   "owner": "lean-prover",
+   "stream": "console",
+   "deps": [
+    "dry-gen-fresh"
+   ],
+   "writes": [
+    "lean/Fw/Console/ReviewInfo.lean",
+    "lean/Fw/Console/LandDry.lean",
+    "lean/Fw/Wire/ReviewInfo.lean",
+    "packages/contracts/golden/console/**",
+    "apps/runner/src/land-verdict.ts",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land-*.test.ts",
+    "apps/console-api/src/review/**",
+    "apps/console-api/test/review-info.test.ts",
+    "apps/console-web/src/ReviewInfo.tsx",
+    "apps/console-web/test/review-info.test.tsx",
+    "apps/console-web/test/fixtures/review-info.earn.json",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/review-anchor-followups.md"
+   ],
+   "title": "Follow-ups of dry-gen-fresh review (accepted 2026-10-22). (1) apps/console-web/src/ReviewInfo.tsx still types first/last on every excerpt: a refused excerpt (ok:false) renders file:undefined; type it as a union on ok, render the line suffix only when ok, fixture test n: 1. (2) ReviewInfo earnMechanism prose and the formulas' `line` fields still cite absolute lines (nav.module.css:173-175 and others): locate them by anchor like the excerpts (one canonical locate). (3) LandDry dry_kind_is_real_kind docstring claims a lint failure is lint in both, but a stale footprint is `lint` at dry and `checks` at the real land: model the footprint lint's real counterpart or narrow the statement. (4) The ContractsGolden --check outputs (footprint-diff.gen.json, FootprintRows.lean) join the dry generated-file lint (selected by the same inputs). (5) The dry footprint lint needs pnpm install in the dry worktree: make a failed install a distinct refusal kind, not a lint refusal. Unit: the five items with goldens and tests. Limits: no change to the full suites."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "build-review-report-resume",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    ".claude/workflows/build-review.js",
+    "scripts/build-review.test.mjs",
+    "docs/team/tools/build-review.md",
+    "docs/team/handoffs/build-review-report-resume.md"
+   ],
+   "title": "Process cost seen 3 times on 2026-10-22 (macos-pool-7, oracle-eps, jev-file-context-ablation): a builder's dry land needed --allow for files outside the graph writes, it reported `VERDICT dry <id> (with --allow ...)`, the Lean review gate (Fw.Plan.ReviewReady.dryOk, exact line) returned it, and a whole builder round (about 10 min, about 90k tokens) ran only to rerun the dry after the lead added the writes. Add a lead resume path to .claude/workflows/build-review.js: args.task.report (a builder report JSON path) with args.task.worktree skips the build stage, reruns `fw land --dry` itself in the worktree (one runner agent, the exact VERDICT line replaces the report's dry field), then the gate and the review as usual. Also make the builder preamble say: report `dry` exactly as the last VERDICT line printed without --allow, and list out-of-list files in `open`. Test in scripts/build-review.test.mjs with a stub agent (resume path skips the builder; the dry line comes from the runner, not the report). Unit: the resume path, the preamble line, the test, the doc. Limits: the gate rule is unchanged (exact dry line). Second defect, same file (2026-10-22, compose-layers-lean run wf_a9545149-400): a builder that ends without calling StructuredOutput makes agent({schema}) throw, so the whole workflow fails instead of returning the builder-checkpoint no-result record (the null path covers only a null return). Catch that error in the build stage and return the no-result record with the worktree, branch and handoff path; extend the stub-agent test with a throwing agent.",
+   "evidence": "1ad8c4c"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "oracle-eps-followups",
+   "owner": "researcher",
+   "stream": "oracle",
+   "deps": [
+    "oracle-eps"
+   ],
+   "writes": [
+    "results/jev-file-context-ablation/**",
+    "research/notes/2026/10-2x-jev-file-context-ablation.md",
+    "scripts/jev-arms-clean.mjs",
+    "scripts/jev-arms-clean.test.mjs",
+    "results/jev-arms-clean/table.md",
+    "docs/team/handoffs/oracle-eps-followups.md"
+   ],
+   "title": "Follow-ups of oracle-eps (accepted 2026-10-22). (1) Re-score results/jev-file-context-ablation (d1x, d1n and the paired table) under the landed sumOk rule from the logged replies (no sends, no model calls); if any net or the adopt verdict changes, update the note's table and verdict and say so; else state that it is unchanged. (2) scripts/jev-arms-clean.mjs `table` drops the oracle-eps block of results/jev-arms-clean/table.md: make the generator emit the re-validated rows (old and new rule) so a regenerate keeps them; test. Unit: the re-scored ablation table with its verdict, the generator change with its test. Limits: no sends, no model calls.",
+   "evidence": "1a9d0dc"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "compose-layers-followups",
+   "owner": "lean-prover",
+   "stream": "console",
+   "deps": [
+    "compose-layers-lean"
+   ],
+   "writes": [
+    "lean/Fw/Console/Layers.lean",
+    "lean/Fw/Wire/Layers.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "packages/contracts/golden/console/layers*.jsonl",
+    "docs/team/handoffs/compose-layers-followups.md"
+   ],
+   "title": "Follow-ups of compose-layers-lean (accepted 2026-10-22). (1) Single source for layers: console.compose takes a part's layers only from layersOf (the extractor's layerDecls), the request field goes (same fix as files in round 3), or prove request layers = layersOf. (2) varGrade gives E/E1 when the lean string is non-empty without checking it names a declaration: add a registryErrors entry when a variant's lean name is not a declaration in the fwcore environment (the example page's Fw.Demo.steps_within_one does not exist). (3) look_E_sound takes hcover and hfoot as premises: add the lemma tying coverReasons = [] and no clash to Indep under a footprint-soundness premise, or list hcover in hyps. (4) layers.jsonl rows for every refusal code (coupled, unit-unit clash, uncovered-reader, shared-reader, refuted, path-no-variant, snap-leaves-compositor, rule) with request-level Changes or a synthetic registry. (5) fix_allowed theorem (two Changes or two user picks on one part). Unit: the five items with goldens. Limits: no site change."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "polish-commit-report",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    ".claude/workflows/build-review.js",
+    "scripts/build-review.test.mjs",
+    "apps/runner/src/polish*.ts",
+    "apps/runner/test/polish*.test.ts",
+    "docs/team/tools/build-review.md",
+    "docs/team/handoffs/polish-commit-report.md"
+   ],
+   "title": "The build-review Polish stage reported `commit: error` three times on 2026-10-22 although the commit existed (macos-pool-7 2494ecf1, compose-layers-lean 8cc7d92e) or the cuts were staged but not committed (build-review-report-resume, staged only). The lead had to inspect each worktree by hand. Make the polish commit step report from git facts: after `git commit`, the stage reads `git rev-parse HEAD` and `git status --porcelain` and returns committed <sha> | nothing-to-commit | staged-not-committed (with the paths) | error <message>; a staged-not-committed state commits or unstages, never leaves the index dirty. Stub test for each state. Unit: the git-fact report, the four states tested. Limits: the cut decisions (Lean Fw.Plan.Polish) are unchanged."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "slot-span-key",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "apps/runner/src/slot-span.ts",
+    "apps/runner/src/slot.ts",
+    "apps/runner/test/slot-span.test.ts",
+    "lean/Fw/Obs/Timing.lean",
+    "packages/contracts/golden/obs/*.jsonl",
+    "docs/team/handoffs/slot-span-key.md",
+    "apps/runner/src/fw.ts",
+    "apps/runner/src/fw-main.ts",
+    "apps/runner/test/span-names.test.ts",
+    "lean/scripts/SlotKeyGolden.lean",
+    "lean/scripts/check.sh"
+   ],
+   "title": "timing.slow on `fw/slot run check` is noise (2026-10-22): the key `slot run <kind>` pools every command run under a slot (56 samples from 0.2 s to 370 s, p50 90 s; a 38.7 s run alerted because the last 20 mixed 1 s and 290 s commands), and the span starts before the slot wait, so queue time counts as run time. (1) Key the span by command identity: `slot run <kind> <cmd>` with <cmd> = the command's script or tool name plus its first non-flag arg (e.g. `vitest test/land-inputs.test.ts`, `lake build`), with a cap on distinct keys (fall back to the kind). (2) Split the span: `slot wait <kind>` (acquire to grant) and `slot run <kind> <cmd>` (grant to exit). (3) If the key rule decides anything (cap, fallback), state it in Lean (Fw.Obs.Timing or a sibling) with golden vectors the TS replays. Unit: the split keys and spans, a test replaying the 56 recorded samples' commands to their new keys, and a statement that the alert of 2026-10-22 16:51 would not fire. Limits: past samples keep their old key (no rewrite of timings.jsonl).",
+   "evidence": "baae92e"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "jev-retrieval-followups",
+   "owner": "lean-prover",
+   "stream": "research",
+   "deps": [
+    "jev-retrieval-trace"
+   ],
+   "writes": [
+    "lean/Fw/Oracle/Retrieve.lean",
+    "lean/Fw/Oracle/RetrieveWire.lean",
+    "lean/scripts/RetrieveGolden.lean",
+    "packages/contracts/golden/oracle/retrieve.jsonl",
+    "scripts/jev-trace.mjs",
+    "scripts/jev-trace.test.mjs",
+    "results/jev-retrieval-trace/**",
+    "research/notes/2026/10-2x-jev-retrieval-trace.md",
+    "docs/team/handoffs/jev-retrieval-followups.md"
+   ],
+   "title": "Follow-ups of jev-retrieval-trace (landed 2026-10-22). (1) Position statistic in Lean: a pick-position share defined only over rows with at least 2 candidates (single-candidate rows excluded by type), with a theorem that a 1-candidate row adds nothing to it; jev-trace computes the share through fwcore, never by hand (hardening for the refuted 'f1 in 30 of 36' claim, incident inc-pick-position). (2) Forced-read variant: T-haiku and T-sonnet with a system prompt that requires at least one Read before answering, every read recorded; paired verdict against C with the Lean adopt rule (Claude calls only, no Jev sends). (3) Record the Jev run split used for d1k and d1p, or state the deviation from runs of 19 rows. Unit: the Lean statistic with goldens, the forced-read paired table, the note update. Limits: D1 only; Claude cost within the per-call caps; a shuffled-slot J-pick stays optional (no bias seen over 10 rows).",
+   "evidence": "2361e10"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "sim-step-watchdog",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "writes": [
+    ".github/workflows/webkit-sim.yml",
+    "packages/measure-webkit/src/watchdog.mjs",
+    "packages/measure-webkit/test/watchdog.test.mjs",
+    "lean/Fw/Measure/SimBound.lean",
+    "docs/team/handoffs/sim-step-watchdog.md"
+   ],
+   "title": "The Lean sim bound is not enforced on the runner (incident inc-sim-step-unbounded, 2026-10-22): run 39751427150 planned step_min=35, job_min=53 (Fw.Measure.SimBound), but `Determinism sessions` ran 56 min without the step timeout firing; GitHub killed the job at 53 min and Keep logs, Host state on failure, upload-artifact and telemetry never ran, so no log or artifact exists. (1) An in-script watchdog: the session commands run under a wrapper that kills their whole process group (TERM, grace, KILL) at step_min minus a Lean margin, writes a `watchdog` line naming the last session and pass, and exits non-zero so the always() steps run inside the job budget. (2) Lean: the margin and the order setup + watchdog + log tail ≤ job_min as a theorem in SimBound (watchdog fires before both GitHub limits). (3) A fault-input proof run: a dispatch with fault=hang shows the watchdog line, the kept logs and the uploaded artifact. Unit: the wrapper with a unit test (a child that ignores SIGINT is killed), the Lean theorem, the fault run id. Limits: a VM that freezes completely stays unobservable (state it); free runners only."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-scope-golden-regs",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Console/Land.lean",
+    "lean/Fw/Console/LandSpeed.lean",
+    "apps/runner/src/land.ts",
+    "apps/runner/src/land-reads.gen.ts",
+    "packages/contracts/golden/console/land-scope*.jsonl",
+    "lean/scripts/LandReadsGen.lean",
+    "apps/runner/test/land-scope.test.ts",
+    "docs/team/handoffs/land-scope-golden-regs.md"
+   ],
+   "title": "Three dry lands refused at scope on 2026-10-22 for the same registration files (incident inc-golden-reg-scope): jev-retrieval-trace (graph r253), site-layer-opts (r257) and slot-span-key (r258) each needed lean/scripts/check.sh, a new lean/scripts/*Golden.lean and the read lists in apps/runner/src/land.ts (CHECK_SH_READS, PACKAGE_EXTRA_READS), lean/Fw/Console/LandSpeed.lean (checkShReads) and lean/Fw/Ci/Trigger.lean added by the lead after the build. (1) One source for the check.sh read list: LandSpeed.checkShReads and land.ts CHECK_SH_READS are a hand copy; generate the TS list from Lean (land-reads.gen.ts) with a freshness check, so a new generated file is declared once. (2) A golden registration set in Land.landScope: when a task's writes include a path under packages/contracts/golden/**, admit lean/scripts/<Name>Golden.lean and lean/scripts/check.sh, with a theorem that the set is empty for tasks with no golden write and never lifts a protected glob. (3) Goldens for landScope over the three refused write lists (each admitted after the change, the protected globs still refused). Unit: the generated read list with its check, the Lean registration set with theorems and goldens. Limits: Trigger.lean read tables stay hand-kept unless they share the same source (state which)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "site-layer-opts-followups",
+   "owner": "part-builder",
+   "stream": "site",
+   "deps": [
+    "site-layer-opts"
+   ],
+   "writes": [
+    "apps/site/src/registry/layer-opts.test.ts",
+    "apps/site/src/registry/resolve.ts",
+    "lean/Fw/Console/BuildsOpen.lean",
+    "packages/contracts/golden/console/layers-search.jsonl",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/scripts/check.sh",
+    "docs/team/handoffs/site-layer-opts-followups.md"
+   ],
+   "title": "Follow-ups of site-layer-opts (landed 2026-10-22). (1) layer-opts.test.ts compares the layers-search ok rows after .sort(): compare in URL order so the test checks an exact mirror of BuildsOpen.canonical. (2) resolve.ts reads ?fwl= through URLSearchParams (percent-decoding, + to space) while Lean BuildsOpen.validate refuses those characters before parsing: add golden vectors with an encoded layer id (e.g. ?fwl=hero%5Fcopy:c) and make the site and the console agree (decode in both or refuse in both, stated in Lean). (3) The builder saw 10 local failures in @fw/runner reap-safety and reap-stop: run them once on main (debug run, ≤ 5 min) and record whether they fail there; if they do, file the cause as a task. Unit: the order-exact test, the encoded-fwl vectors with the agreed rule, the reap-test result on main."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "slot-span-key-followups",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "slot-span-key",
+    "land-scope-golden-regs"
+   ],
+   "writes": [
+    "apps/runner/src/slot.ts",
+    "apps/runner/src/slot-span.ts",
+    "apps/runner/src/land.ts",
+    "lean/Fw/Console/LandDry.lean",
+    "apps/runner/test/slot-span.test.ts",
+    "lean/Fw/Obs/Timing.lean",
+    "lean/scripts/SlotKeyGolden.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/obs/slot-key.jsonl",
+    "packages/contracts/golden/obs/*.jsonl",
+    "docs/team/handoffs/slot-span-key-followups.md"
+   ],
+   "title": "Follow-ups of slot-span-key (accepted 2026-10-22). (1) `slot wait <kind>` spans are judged by timing.slow: a queue wait over the 30 s budget against a near-zero median alerts, which is the queue noise the task removed, under a new key; exclude wait spans from slow or give them their own Lean budget (theorem). (2) cmdKey maps `pnpm -s fw <sub>` to `pnpm fw`: treat fw as a launcher and key its subcommand. (3) The ` dry`/` cached` suffixes and the seenKeys parser live only in TS, and the 24-key cap counts the last 2 MB of timings.jsonl, so keys that scroll out free places: state the suffix and seen-set rule in Lean with goldens and make the cap per kind and window-independent. (4) slot.ts writes no run span when exec throws or the process exits on a signal: move endRun into a finally with an error exit code. (5) Mark the 16:51 test's `own` samples as synthetic. (6) `fw land/dry total` and `fw/land dry` are bimodal: about 22 s without the Lean build step and about 45 s with it (alerts of 2026-10-22 16:4x and 17:5x), so key the dry span by its Lean dry plan (with or without the lake build) and add apps/runner/src/land.ts to the writes for that. Unit: the six items with goldens and tests."
   }
  ],
  "deadline": {

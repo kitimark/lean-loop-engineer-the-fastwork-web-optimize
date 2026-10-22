@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { SUBCOMMANDS, spanStep } from "../src/fw-groups.ts";
-import { slotStep, slotStepEnd, markReplayed } from "../src/slot-span.ts";
+import { slotStep, writesOwnSpans } from "../src/slot-span.ts";
 import { runPhases } from "../src/run-phases.ts";
 import { runCli } from "../src/run.ts";
 
@@ -69,16 +69,13 @@ describe("slot span names", () => {
   });
 });
 
-describe("slot spans keep dry and cached apart", () => {
-  it("a wrapped --dry argv adds dry; a cache replay adds cached at the end", () => {
+describe("slot spans keep dry apart", () => {
+  it("a wrapped --dry argv adds dry; slot run writes its own spans", () => {
     expect(slotStep(["run", "--kind", "land", "--cache", "--", "pnpm", "-s", "fw", "land", "b", "--dry"])).toBe("slot run land dry");
     expect(slotStep(["run", "--kind", "land", "--", "pnpm", "-s", "fw", "land", "b"])).toBe("slot run land");
     expect(slotStep(["status", "--dry"])).toBe("slot status");
-    const rest = ["run", "--kind", "test", "--cache", "--", "pnpm", "test"];
-    expect(slotStepEnd(rest)).toBe("slot run test");
-    markReplayed();
-    expect(slotStepEnd(rest)).toBe("slot run test cached");
-    delete (globalThis as Record<string, unknown>).__fwSlotReplayed;
+    expect(writesOwnSpans(["run", "--kind", "test", "--", "pnpm", "test"])).toBe(true);
+    expect(writesOwnSpans(["acquire", "--kind", "sim"])).toBe(false);
   });
 });
 

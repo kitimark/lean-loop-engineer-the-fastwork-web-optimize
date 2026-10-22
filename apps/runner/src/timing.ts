@@ -11,6 +11,7 @@ import { dirname, join, resolve } from "node:path";
 export type Span = { tool: string; step: string; startMs: number; durMs: number; exit: number | null; commit: string; load: number; host: "local" | "ci"; runId?: number;
   /** the run kind (Lean `Fw.Obs.Timing.Sample.kind`): for a CI run dispatched by `fw run`, the digest of its workflow inputs; "" and absent for every other span */
   kind?: string;
+  skipped?: true;
   /** `fw ci wait` spans only (task ci-wait-lag): the runs the verdict covers (key `runIds`, never `runId`: `seenRuns` dedupes CI spans on `"runId":`) and the phase times of the wait (`WaitPhases`, epoch ms). */
   runIds?: number[]; phases?: Record<string, number | string | boolean> };
 
@@ -107,7 +108,7 @@ export function ciSpans(runId: number, run: GhRun, load = 0, kind = ""): Span[] 
   const mk = (step: string, a?: string, b?: string, c?: string): void => {
     const s = Date.parse(a ?? ""), e = Date.parse(b ?? "");
     if (!Number.isFinite(s) || !Number.isFinite(e) || s <= 0) return; // gh prints 0001-01-01 for steps that never ran
-    out.push({ tool: run.workflowName, step, startMs: s, durMs: Math.max(0, e - s), exit: exitOfConclusion(c), commit: (run.headSha ?? "").slice(0, 7), load, host: "ci", runId, ...(kind ? { kind } : {}) });
+    out.push({ tool: run.workflowName, step, startMs: s, durMs: Math.max(0, e - s), exit: exitOfConclusion(c), commit: (run.headSha ?? "").slice(0, 7), load, host: "ci", runId, ...(kind ? { kind } : {}), ...(c === "skipped" ? { skipped: true as const } : {}) });
   };
   for (const j of run.jobs ?? []) {
     mk(j.name, j.startedAt, j.completedAt, j.conclusion);

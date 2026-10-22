@@ -1,0 +1,5 @@
+{"arm":"t-haiku","asked":38,"wallMs":69611,"costUsd":0.061812520000000024}
+{"arm":"t-sonnet","asked":38,"wallMs":86976,"costUsd":1.1093790000000001}
+{"arm":"t-haiku-read","asked":1,"wallMs":9118,"costUsd":0.0021015}
+{"arm":"t-haiku-read","asked":37,"wallMs":121554,"costUsd":0.08655188000000003}
+{"arm":"t-sonnet-read","asked":38,"wallMs":216524,"costUsd":0.9869006}

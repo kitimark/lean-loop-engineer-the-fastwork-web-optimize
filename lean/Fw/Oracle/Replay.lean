@@ -192,12 +192,25 @@ structure ReplaySet where
   file : String
   question : Question
   fields : List (String × String)
+  extra : List (String × String) := []
   sampled : Bool
 
 /-- **D1**: the incident ledger, every labeled row. -/
 def d1 : ReplaySet :=
   { name := "d1", file := "d1.jsonl", question := incidentClass, sampled := false,
-    fields := [("title", "title"), ("symptom", "symptom"), ("cause", "cause")] }
+    fields := [("title", "title"), ("symptom", "symptom"), ("cause", "cause")], extra := [("files", "files")] }
+
+def d1x : ReplaySet := { d1 with name := "d1x", file := "d1-expand.jsonl" }
+
+def d1n : ReplaySet := { d1 with name := "d1n", file := "d1-naive.jsonl" }
+
+def d1h : ReplaySet := { d1 with name := "d1h", file := "d1-hybrid.jsonl" }
+
+def d1p : ReplaySet := { d1 with name := "d1p", file := "d1-pick.jsonl" }
+
+def d1k : ReplaySet :=
+  { name := "d1k", file := "d1-pick1.jsonl", question := filePick, sampled := false,
+    fields := [("title", "title"), ("symptom", "symptom"), ("cause", "cause"), ("candidates", "candidates")] }
 
 /-- D2: review findings, sent as the stratified sample. -/
 def d2 : ReplaySet :=
@@ -206,35 +219,54 @@ def d2 : ReplaySet :=
       ("limits", "limits")] }
 
 /-- The registered replay sets. -/
-def sets : List ReplaySet := [d1, d2]
+def sets : List ReplaySet := [d1, d2, d1x, d1n, d1h, d1p, d1k]
 
 /-- The registered set with this name, if any. -/
 def replaySet (x : String) : Option ReplaySet := sets.find? (·.name == x)
 
-theorem sets_fields : ∀ r ∈ sets, r.fields.map Prod.fst = r.question.fields := by
+theorem sets_fields : ∀ r ∈ sets, r.fields.map Prod.fst ++ r.extra.map Prod.fst = r.question.fields := by
   simp only [sets, List.mem_cons, List.not_mem_nil, or_false, forall_eq_or_imp, forall_eq]
-  exact ⟨rfl, rfl⟩
+  exact ⟨rfl, rfl, rfl, rfl, rfl, rfl, rfl⟩
 
 theorem d2_labels : d2.question.spec.keys = Labels.exactWords ++ [noGrade] := by decide
 
-/-- The state of one row: each field's text with run ids scrubbed, cut into lines. -/
+def fieldLines (t : String) : List String := textLines (String.ofList (scrubWf t.toList))
+
 def rowState (r : ReplaySet) (row : List (String × String)) : State :=
-  r.fields.map fun (f, k) => (f, textLines (String.ofList (scrubWf ((row.lookup k).getD "").toList)))
+  r.fields.map (fun (f, k) => (f, fieldLines ((row.lookup k).getD ""))) ++
+    r.extra.filterMap fun (f, k) => (row.lookup k).map fun t => (f, fieldLines t)
+
+theorem rowState_no_extra (r : ReplaySet) (row : List (String × String)) (h : ∀ fk ∈ r.extra, row.lookup fk.2 = none) :
+    rowState r row = r.fields.map fun (f, k) => (f, fieldLines ((row.lookup k).getD "")) := by
+  have : r.extra.filterMap (fun (f, k) => (row.lookup k).map fun t => (f, fieldLines t)) = [] := by
+    rw [List.filterMap_eq_nil_iff]
+    intro fk hfk
+    simp [h fk hfk]
+  simp [rowState, this]
 
 theorem rowState_declared (r : ReplaySet) (hr : r ∈ sets) (row : List (String × String)) :
     declared r.question (rowState r row) = true := by
   have hf := sets_fields r hr
-  simp only [declared, rowState, List.all_eq_true, List.mem_map, Prod.exists]
-  rintro p ⟨f, key, hm, rfl⟩
+  simp only [declared, rowState, List.all_eq_true]
+  intro p hp
   rw [← hf]
-  exact List.contains_iff_mem.mpr (List.mem_map.mpr ⟨(f, key), hm, rfl⟩)
+  apply List.contains_iff_mem.mpr
+  rcases List.mem_append.mp hp with h | h
+  · obtain ⟨⟨f, k⟩, hm, rfl⟩ := List.mem_map.mp h
+    exact List.mem_append_left _ (List.mem_map.mpr ⟨(f, k), hm, rfl⟩)
+  · obtain ⟨⟨f, k⟩, hm, he⟩ := List.mem_filterMap.mp h
+    obtain ⟨t, _, rfl⟩ := Option.map_eq_some_iff.mp he
+    exact List.mem_append_right _ (List.mem_map.mpr ⟨(f, k), hm, rfl⟩)
 
 theorem rowState_lines (r : ReplaySet) (row : List (String × String)) :
     ∀ p ∈ rowState r row, ∀ x ∈ p.2, x.length ≤ lineWidth := by
   intro p hp x hx
-  simp only [rowState, List.mem_map] at hp
-  obtain ⟨_, _, rfl⟩ := hp
-  exact textLines_le _ x hx
+  rcases List.mem_append.mp hp with h | h
+  · obtain ⟨_, _, rfl⟩ := List.mem_map.mp h
+    exact textLines_le _ x hx
+  · obtain ⟨_, _, he⟩ := List.mem_filterMap.mp h
+    obtain ⟨t, _, rfl⟩ := Option.map_eq_some_iff.mp he
+    exact textLines_le _ x hx
 
 /-- A text names a grade (a grade word anywhere, or an old grade word first). -/
 def namesGrade (text : String) : Bool :=

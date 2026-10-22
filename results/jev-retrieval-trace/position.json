@@ -1,0 +1,53 @@
+{
+ "source": "pick.json",
+ "op": "oracle.retrievePickPos",
+ "empty": 2,
+ "multi": 10,
+ "none": {
+  "count": 0,
+  "share": {
+   "den": "1",
+   "num": "0"
+  }
+ },
+ "rows": 38,
+ "single": 26,
+ "slots": [
+  {
+   "count": 4,
+   "share": {
+    "den": "5",
+    "num": "2"
+   },
+   "slot": "f1"
+  },
+  {
+   "count": 5,
+   "share": {
+    "den": "2",
+    "num": "1"
+   },
+   "slot": "f2"
+  },
+  {
+   "count": 1,
+   "share": {
+    "den": "10",
+    "num": "1"
+   },
+   "slot": "f3"
+  },
+  {
+   "count": 0,
+   "share": {
+    "den": "1",
+    "num": "0"
+   },
+   "slot": "f4"
+  }
+ ],
+ "uniformFirst": {
+  "den": "60",
+  "num": "29"
+ }
+}
