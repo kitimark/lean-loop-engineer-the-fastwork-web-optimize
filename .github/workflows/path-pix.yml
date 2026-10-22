@@ -195,12 +195,15 @@ jobs:
           FW_WK_TIMEOUT_SCALE: '8'
           FW_WK_ATTEMPTS: '3'
           FW_WK_STALL_MS: '300000'
+          # The two VMs split the P arms (A and A2 run on both, so the A/A calibration is measured twice); a P arm is captured only
+          # at the offsets where its layer is in view. No P arm starts after 30 minutes: the analysis then reads what was captured.
+          P_LAYERS: ${{ matrix.vm == 1 && 'hero.cue_cue,hero.deck_article,nav_bar' || 'hero.countdown_face,hero_copy,nav_earn' }}
         working-directory: packages/measure-webkit
         run: |
           set -euo pipefail
           node --test test/pathpix.test.mjs test/pathpix-lane.test.mjs
           mkdir -p out
-          node src/pathpix-cli.mjs --site "$SITE_DIR" --out "out/$VM-path-pix-webkit" --run "$GITHUB_RUN_ID" 2> >(tee "out/$VM-path-pix.log" >&2)
+          node src/pathpix-cli.mjs --site "$SITE_DIR" --out "out/$VM-path-pix-webkit" --run "$GITHUB_RUN_ID" --p-layers "$P_LAYERS" --deadline-min 30 2> >(tee "out/$VM-path-pix.log" >&2)
           ls -l out
 
       # Steps after the measurement step are the Lean allowlist (Fw.Ci.Steps, scripts/ci-steps-lint.mjs). The VM is discarded

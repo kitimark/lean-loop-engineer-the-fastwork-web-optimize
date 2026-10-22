@@ -7,7 +7,7 @@ import { offsets } from '../src/pathpix.mjs';
 import { BOX_EXPR, FREEZE_EXPR, HOLD_EXPR, IMAGES_READY_EXPR, NEAR_IMAGES_EXPR, pathSearch } from '../src/pathpix-page.mjs';
 import { encodePng, decodePng, cropImage, sameImage } from '../src/pathpix-png.mjs';
 import { analyzeLane, table } from '../src/pathpix-analyze.mjs';
-import { magentaBox } from '../src/pathpix-webkit.mjs';
+import { magentaBox, inViewPositions } from '../src/pathpix-webkit.mjs';
 import { pathSearch as chromiumPathSearch, laneOffsets } from '../../measure-chromium/src/pathpix-pure.mjs';
 
 test('the Chromium driver computes the same offsets and arm search as the Simulator lane', () => {
@@ -77,6 +77,28 @@ test('analysis of a lane directory: equal frames are exact, a change inside the 
     assert.match(table(res), /hero|box/);
     writeFileSync(join(dir, 'cells.json'), JSON.stringify(res));
     assert.equal(JSON.parse(readFileSync(join(dir, 'cells.json'), 'utf8')).schema, 'fw.path-pix.cells/1');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a P arm is captured only where arm A shows the layer, and the analysis reads a hole as not captured', () => {
+  const frame = { w: 100, h: 100 };
+  const rowsA = [{ boxes: { box: [10e6, 10e6, 20e6, 20e6] } }, { boxes: { box: [10e6, 500e6, 20e6, 20e6] } }, { boxes: {} }, null, { boxes: { box: [10e6, 90e6, 20e6, 20e6] } }];
+  assert.deepEqual(inViewPositions(rowsA, 'box', 1, frame), [0, 4]);
+  assert.deepEqual(inViewPositions(rowsA, 'other', 1, frame), []);
+  const dir = mkdtempSync(join(tmpdir(), 'fw-pp-test-'));
+  try {
+    fakeLane(dir, { a2: null, p: null });
+    const man = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8'));
+    man.samples['P:box'] = [null];
+    man.cut = ['P:other (failed: x)'];
+    writeFileSync(join(dir, 'manifest.json'), JSON.stringify(man));
+    const res = analyzeLane(dir, { strips: 'none' });
+    assert.equal(res.cells.filter((c) => c.kind === 'P').length, 0);
+    assert.ok(res.skipped.some((x) => x.kind === 'P' && /not captured/.test(x.why)));
+    assert.deepEqual(res.cut, ['P:other (failed: x)']);
+    assert.match(table(res), /arms cut short/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

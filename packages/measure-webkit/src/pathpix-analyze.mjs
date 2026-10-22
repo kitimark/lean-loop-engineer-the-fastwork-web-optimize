@@ -118,9 +118,10 @@ export function analyzeLane(dir, { strips = 'changed', emit = () => {} } = {}) {
         const sa = armA[i], sb = man.samples[armB][i];
         const box = sa?.boxes?.[layer];
         const kind = only ? 'P' : 'A/A';
-        if (!sa || !sb || !box) { skipped.push({ layer, i, kind, why: 'no box (layer not rendered)' }); continue; }
+        if (!sa || !box) { skipped.push({ layer, i, kind, why: 'no box (layer not rendered)' }); continue; }
         const m = mask(dpr, frame.w, frame.h, box);
         if (maskEmpty(m)) { skipped.push({ layer, i, kind, why: 'off screen at this offset' }); continue; }
+        if (!sb) { skipped.push({ layer, i, kind, why: 'not captured (the arm stopped early)' }); continue; }
         const [a0, a1, b0, b1] = [load(sa.files[0]), load(sa.files[1]), load(sb.files[0]), load(sb.files[1])];
         if (a0.w !== frame.w || a0.h !== frame.h || b0.w !== frame.w || b0.h !== frame.h) throw new Error(`capture size ${a0.w}x${a0.h} / ${b0.w}x${b0.h} is not the frame ${frame.w}x${frame.h}`);
         const del = deltas(a0, b0);
@@ -146,7 +147,7 @@ export function analyzeLane(dir, { strips = 'changed', emit = () => {} } = {}) {
       }
     }
   }
-  return { schema: 'fw.path-pix.cells/1', engine, run: man.run, lane: man.lane, compositing: man.compositing, dpr, frame, maxY: man.maxY, offsets: man.offsets, layers: man.layers, cells, skipped, frames };
+  return { schema: 'fw.path-pix.cells/1', engine, run: man.run, lane: man.lane, compositing: man.compositing, dpr, frame, maxY: man.maxY, offsets: man.offsets, layers: man.layers, pLayers: man.pLayers ?? man.layers, cut: man.cut ?? [], cells, skipped, frames };
 }
 
 /** Per-kind and per-layer verdict table (Markdown). */
@@ -167,6 +168,7 @@ export function table(res) {
     const sum = (f) => cs.reduce((s, c) => s + f(c), 0);
     out.push(`| ${l} | ${k} | ${cs.length} | ${Object.entries(g).map(([a, b]) => `${a}:${b}`).join(' ')} | ${sum((c) => c.cell.inside.changed)} | ${Math.max(...cs.map((c) => c.cell.inside.maxDelta))} | ${sum((c) => c.cell.out.changed)} | ${Math.max(...cs.map((c) => c.cell.out.maxDelta))} | ${cs.filter((c) => c.cell.p1).length}/${cs.length} | ${cs.filter((c) => !c.cell.sameA || !c.cell.sameB).length} |`);
   }
+  if (res.cut?.length) out.push('', `arms cut short: ${res.cut.join('; ')}`);
   out.push('', `skipped cells: ${res.skipped.length} (${[...new Set(res.skipped.map((s) => s.why))].join('; ')})`);
   return out.join('\n');
 }

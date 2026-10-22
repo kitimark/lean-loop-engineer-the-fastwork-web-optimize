@@ -17,6 +17,21 @@ import { findDevice, simctl, sleep } from './sim.mjs';
 import { decodePng, encodePng, cropImage } from './pathpix-png.mjs';
 import { offsets as leanOffsets } from './pathpix.mjs';
 import { BOX_EXPR, FREEZE_EXPR, HOLD_EXPR, NEAR_IMAGES_EXPR, MARK_ON, MARK_OFF, pathSearch } from './pathpix-page.mjs';
+import { mask, maskEmpty } from './pathpix.mjs';
+
+/**
+ * Positions (indices into the captured offsets) at which arm A shows `layer`, i.e. where the analysis cuts a cell for it. The analysis
+ * masks the box of arm A (pathpix-analyze.mjs), so a P frame at any other position would never be read: it is not captured.
+ * TS composition of the golden-checked mask / maskEmpty, no new rule.
+ */
+export function inViewPositions(rowsA, layer, dpr, frame) {
+  const ks = [];
+  rowsA.forEach((row, k) => {
+    const box = row?.boxes?.[layer];
+    if (box && !maskEmpty(mask(dpr, frame.w, frame.h, box))) ks.push(k);
+  });
+  return ks;
+}
 
 /** Bounding box [x, y, w, h] of the magenta pixels of a screenshot, or null. */
 export function magentaBox(img) {
@@ -57,7 +72,9 @@ function pinStatusBar(udid, log) {
   if (r.status !== 0) log(`status_bar override failed (the crop leaves the bar out): ${(r.stderr || '').trim().slice(0, 120)}`);
 }
 
-export async function runWebkitLane({ siteDir, out, run, layers: onlyLayers = null, offsetIdx = null, settleMs = 6000, holdMs = 800, log = (s) => console.error(s) }) {
+export async function runWebkitLane({ siteDir, out, run, layers: onlyLayers = null, pLayers = null, offsetIdx = null, settleMs = 6000, holdMs = 800, deadlineMs = Infinity, log: log0 = (s) => console.error(s) }) {
+  const t0 = Date.now();
+  const log = (m) => { const s = Math.round((Date.now() - t0) / 1000); log0(`[${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}] ${m}`); };
   const tmp = mkdtempSync(join(tmpdir(), 'fw-pathpix-'));
   mkdirSync(join(out, 'shots'), { recursive: true });
   const dev = findDevice();
@@ -103,29 +120,51 @@ export async function runWebkitLane({ siteDir, out, run, layers: onlyLayers = nu
       const offs = idx.map((i) => all[i]);
       log(`lane webkit: dpr ${dpr}, viewport ${info.vw}x${info.vh}, frame ${frame.w}x${frame.h} at ${content.slice(0, 2).join(',')}, maxY ${info.maxY}, offsets ${offs.join(',')}, layers ${layers.join(', ')}`);
 
-      const arms = [['A', ''], ['A2', ''], ...layers.map((l) => [`P:${l}`, pathSearch(l)])];
+      // A and A2 cover every layer's A/A cells; the P arms are the layers named in pLayers (one VM measures some of them), each only
+      // at the positions where arm A shows the layer
+      const pOnly = pLayers ? layers.filter((l) => pLayers.includes(l)) : layers;
+      const arms = [['A', '', null], ['A2', '', null], ...pOnly.map((l) => [`P:${l}`, pathSearch(l), l])];
       const samples = {};
+      const cut = [];
+      const writeManifest = () => {
+        const manifest = {
+          schema: 'fw.path-pix/1', engine: 'webkit', lane: 'ios-simulator', run, lossless: true, compositing: 'gpu-simulator (no real GPU)',
+          ua: info.ua, dpr, vw: info.vw, vh: info.vh, frame, content, maxY: info.maxY, offsets: offs, offsetIndex: idx, layers,
+          pLayers: pOnly, cut, arms: arms.map(([arm, search]) => ({ arm, search })), samples,
+        };
+        writeFileSync(join(out, 'manifest.json'), JSON.stringify(manifest) + '\n');
+        return manifest;
+      };
       for (let a = 0; a < arms.length; a++) {
-        const [arm, search] = arms[a];
+        const [arm, search, only] = arms[a];
+        if (a > 1 && Date.now() - t0 > deadlineMs) { cut.push(arm); log(`arm ${arm} not run: past the ${Math.round(deadlineMs / 60000)} min deadline`); continue; }
+        const ks = only ? inViewPositions(samples.A, only, dpr, frame) : idx.map((_, k) => k);
         let rows = null;
         // an arm is one fresh load and its frames: a stalled evaluate or a lost tab repeats the whole arm after a reconnect
         for (let attempt = 1; !rows; attempt++) {
           try {
             await ctx.check?.();
             if (a > 0 || attempt > 1) await loadArm(search);
-            rows = await captureArm(arm);
+            rows = await captureArm(arm, ks);
           } catch (e) {
-            if (attempt >= attempts()) throw e;
+            if (attempt >= attempts()) {
+              if (a < 2) throw e; // without A and A2 there is no cell at all
+              cut.push(`${arm} (failed: ${e.message})`);
+              log(`  arm ${arm} given up after ${attempt} attempts: ${e.message}`);
+              break;
+            }
             log(`  arm ${arm} attempt ${attempt} failed (${e.message}); reconnecting and repeating the arm`);
             await reconnect(ctx, { log });
           }
         }
+        if (!rows) { writeManifest(); continue; }
         samples[arm] = rows;
-        log(`arm ${arm}: ${rows.length} offsets captured`);
+        log(`arm ${arm}: ${rows.filter(Boolean).length} of ${idx.length} offsets captured`);
+        writeManifest();
       }
-      async function captureArm(arm) {
-        const rows = [];
-        for (let k = 0; k < idx.length; k++) {
+      async function captureArm(arm, ks) {
+        const rows = idx.map(() => null);
+        for (const k of ks) {
           const y = offs[k];
           await scrollHold(ctx.c, y, { holdMs });
           await ctx.c.runAsync(NEAR_IMAGES_EXPR);
@@ -142,21 +181,15 @@ export async function runWebkitLane({ siteDir, out, run, layers: onlyLayers = nu
             writeFileSync(join(out, f), encodePng(cropImage(png, content[0], content[1], frame.w, frame.h)));
             files.push(f);
           }
-          rows.push({
+          rows[k] = {
             i: idx[k], y, scrollY: here.scrollY, boxes: here.boxes, files, dprMilli: census.dprMilli,
             layers: census.layers.filter((l) => l.layer).map((l) => ({ layer: l.layer, boundsU: l.boundsU, compositedBounds: l.compositedBounds, memory: l.memory, reasons: l.reasons })),
             layerCount: census.layerCount,
-          });
+          };
         }
         return rows;
       }
-      const manifest = {
-        schema: 'fw.path-pix/1', engine: 'webkit', lane: 'ios-simulator', run, lossless: true, compositing: 'gpu-simulator (no real GPU)',
-        ua: info.ua, dpr, vw: info.vw, vh: info.vh, frame, content, maxY: info.maxY, offsets: offs, offsetIndex: idx, layers,
-        arms: arms.map(([arm, search]) => ({ arm, search })), samples,
-      };
-      writeFileSync(join(out, 'manifest.json'), JSON.stringify(manifest) + '\n');
-      return manifest;
+      return writeManifest();
     }, { keep: true, site: { dir: siteDir, search: '' }, log });
   } finally {
     rmSync(tmp, { recursive: true, force: true });
