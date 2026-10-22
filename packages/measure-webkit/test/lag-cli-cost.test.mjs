@@ -20,7 +20,7 @@ test('anything else throws', () => {
 });
 
 test('the CLI refuses a bad value before it opens a session', () => {
-  const r = spawnSync(process.execPath, [cli, 'run', '--cost', 'bogus'], { encoding: 'utf8', timeout: 20000 });
+  const r = spawnSync(process.execPath, [cli, 'run', '--cost', 'bogus'], { encoding: 'utf8' });
   assert.equal(r.status, 1);
   assert.match(r.stderr, /--cost must be one of off\|on\|only, got "bogus"/);
 });

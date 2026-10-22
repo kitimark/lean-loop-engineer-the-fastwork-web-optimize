@@ -425,7 +425,7 @@ def Lane.file : Lane → String
 -/
 def Lane.inputs : Lane → List String
   | .chromiumCounts => ["profile", "runs", "target", "preset", "fw", "only", "image_run", "nonce"]
-  | .webkitSim => ["vms", "sessions", "fresh_boot", "experiment", "arms", "reps", "lag", "target", "preset", "fw", "fault", "nonce"]
+  | .webkitSim => ["vms", "sessions", "fresh_boot", "experiment", "arms", "reps", "lag", "cost", "target", "preset", "fw", "fault", "nonce"]
   | .breakpointGate => ["engines", "runs", "free", "times", "fw", "preset", "parts", "nonce"]
   | .trajectory => ["engines", "fw", "preset", "widths", "diagnostic", "nonce"]
 
