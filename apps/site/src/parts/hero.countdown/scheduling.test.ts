@@ -118,13 +118,38 @@ describe('faithful scheduling counts vs the original structure', () => {
     expect(b.raf.size).toBe(2);
   });
 
-  it('the shared loop (strip) is one registration however many digits', () => {
-    const e = mkEnv();
-    const nowRef = { v: TARGET - 5000 };
-    const driver = createCountdownDriver({ variant: 'strip', digits: digits(3), dateNow: () => nowRef.v, reduced: () => false });
-    createRafClock(e.env).subscribe((t) => driver.tick(t));
-    expect(counts(e)).toEqual({ raf: 1, timers: 0 });
-    expect(rafRegistrationsPerFrame(1, 0)).toBe(1);
+  it('strip runs the faithful scheduling: no rAF callback in a still frame, same registrations as the original', () => {
+    const nowA = { v: TARGET - 15000 };
+    const nowB = { v: TARGET - 15000 };
+    const a = mkEnv();
+    const b = mkEnv();
+    const strips = Array.from({ length: 2 }, (_, k) => ({ unit: 3, place: 10 ** (1 - k), nodes: [node()] }));
+    const driver = createCountdownDriver({ variant: 'strip', digits: strips, dateNow: () => nowA.v, reduced: () => false });
+    driver.setCell(0, 38);
+    driver.setCell(1, 38);
+    startFaithful({ clock: createRafClock(a.env), driver, perfNow: () => clk.t });
+    original(b.env, nowB, 2, () => clk.t);
+    expect(counts(a)).toEqual(counts(b));
+    let t = 0;
+    for (let f = 0; f < 3; f++) {
+      a.frame((t = clk.t = t + 16));
+      b.frame(t);
+      expect(a.raf.size).toBe(b.raf.size);
+    }
+    expect(counts(a)).toEqual({ raf: 0, timers: 1 });
+    nowA.v += 1000;
+    nowB.v += 1000;
+    a.timers.forEach((cb) => cb());
+    b.timers.forEach((cb) => cb());
+    expect(a.raf.size).toBe(1);
+    const before = strips[1]!.nodes[0]!.style.transform;
+    for (let f = 0; f < 200 && (a.raf.size || b.raf.size); f++) {
+      a.frame((t = clk.t = t + 16.667));
+      b.frame(t);
+      expect(a.raf.size).toBe(b.raf.size);
+    }
+    expect(counts(a)).toEqual({ raf: 0, timers: 1 });
+    expect(strips[1]!.nodes[0]!.style.transform).not.toBe(before);
   });
 
   it('cleanup cancels the interval and every chain', () => {
