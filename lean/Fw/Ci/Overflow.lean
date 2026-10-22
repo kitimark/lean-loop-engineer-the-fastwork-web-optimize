@@ -293,8 +293,8 @@ theorem storage_over_budget_keeps_github (f : Facts)
     omega
 
 /-- With `c` run credits for `n` legs, the budget fits exactly when the run credits, the credits spent and the reserve fit the pool
-and the storage overage fits the room they leave: the converse of `storage_over_budget_keeps_github`, of which
-`budget_within_allow` is the case of no overage. -/
+and the storage overage fits the room they leave. `budget_within_allow` is the case without overage;
+`storage_over_budget_keeps_github` is the case where the overage alone leaves no room. -/
 theorem budgetFits_iff (f : Facts) (n c : Nat) (hc : Provider.credits ccClass (n * estLegMs) = some c) :
     budgetFits f n = true ↔
       c + f.spent + creditReserve ≤ Provider.poolCredits .oss ∧
