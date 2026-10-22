@@ -15944,7 +15944,12 @@
     "apps/runner/test/slot-span.test.ts",
     "lean/Fw/Obs/Timing.lean",
     "packages/contracts/golden/obs/*.jsonl",
-    "docs/team/handoffs/slot-span-key.md"
+    "docs/team/handoffs/slot-span-key.md",
+    "apps/runner/src/fw.ts",
+    "apps/runner/src/fw-main.ts",
+    "apps/runner/test/span-names.test.ts",
+    "lean/scripts/SlotKeyGolden.lean",
+    "lean/scripts/check.sh"
    ],
    "title": "timing.slow on `fw/slot run check` is noise (2026-10-22): the key `slot run <kind>` pools every command run under a slot (56 samples from 0.2 s to 370 s, p50 90 s; a 38.7 s run alerted because the last 20 mixed 1 s and 290 s commands), and the span starts before the slot wait, so queue time counts as run time. (1) Key the span by command identity: `slot run <kind> <cmd>` with <cmd> = the command's script or tool name plus its first non-flag arg (e.g. `vitest test/land-inputs.test.ts`, `lake build`), with a cap on distinct keys (fall back to the kind). (2) Split the span: `slot wait <kind>` (acquire to grant) and `slot run <kind> <cmd>` (grant to exit). (3) If the key rule decides anything (cap, fallback), state it in Lean (Fw.Obs.Timing or a sibling) with golden vectors the TS replays. Unit: the split keys and spans, a test replaying the 56 recorded samples' commands to their new keys, and a statement that the alert of 2026-10-22 16:51 would not fire. Limits: past samples keep their old key (no rewrite of timings.jsonl)."
   },
