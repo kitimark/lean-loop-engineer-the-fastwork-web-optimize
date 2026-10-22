@@ -2,7 +2,8 @@
 
 - Branch worktree-wf_7179b1a5-eff-1, worktree .claude/worktrees/wf_7179b1a5-eff-1, last commit 76f9a545d (probe commit).
 - CI runs (branch ci/trajectory-aa-noise, workflow trajectory-probe, engines=chromium widths=390,640 diagnostic):
-  - 39860085568 of 76f9a545d: queued (dispatch 1 of 3).
+  - 39860085568 of 76f9a545d: complete, success. All 12 units E (MEASURED, artifact cells-gpu-chromium): carousel E at 390 and 640 (reps E,E,E,E), panel-effect close E,E,E at both widths. Holds this run: 2,2,0,0 per arm at both widths (the earlier run had 4,4,2,2 / 3,3,2,2).
+  - dispatch 2 of 3: pushed with the next commit.
 - Hold-out raw being fixed: run 39852684450 (A/A, Chromium 156.0.8078.4); older raws 39823047557, 39823476824, 39824100493.
 - Verified (MEASURED on the raw files, offline re-reduction): carousel hold anchor gives E E E E at 390 and 640 on 39852684450 and all E on the three older runs; panel-effect 640 close reps Q,L become E with residual grading, all other units stay E.
 - Lean: `lake build Fw.Gate.TrajectoryGpu` green, golden regenerated (198 lines) and `--check` ok; @fw/gate-breakpoints trajectory tests pass (22 + 14 + 3).
