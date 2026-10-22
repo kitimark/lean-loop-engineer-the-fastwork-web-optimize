@@ -15536,10 +15536,17 @@
     "local"
    ],
    "id": "ci-span-skipped",
-   "owner": "console-builder",
+   "owner": "lean-prover",
    "stream": "tooling",
    "deps": [],
-   "title": "fw watch timing.slow land/land (chromium)/Run ./.github/actions/gate-engine 2026-10-22: in land run 39722879593 that step has samples of 0 s on most legs and 27 s / 33 s on the legs that run it, so a normal 30 s run is judged slow against the 0 s ones (same family as run-span-split). Fix: the CI step collector records no sample for a step that did not run (GitHub conclusion skipped, or a gate that exits before work, marked by the step itself), or keys it by leg so each leg is judged against its own history; if Fw.Obs.Timing needs the change, Lean first with goldens. Unit: skipped/no-op steps leave no sample (or per-leg keys) with a test on a recorded job JSON; timings.md."
+   "title": "fw watch timing.slow land/land (chromium)/Run ./.github/actions/gate-engine 2026-10-22: in land run 39722879593 that step has samples of 0 s on most legs and 27 s / 33 s on the legs that run it, so a normal 30 s run is judged slow against the 0 s ones (same family as run-span-split). Fix: the CI step collector records no sample for a step that did not run (GitHub conclusion skipped, or a gate that exits before work, marked by the step itself), or keys it by leg so each leg is judged against its own history; if Fw.Obs.Timing needs the change, Lean first with goldens. Same family, local, after run-span-split landed (15262b28): `fw/land dry`, `slot run land dry` and `fw land/dry total` mix early exits (0-1 s, exit 1 = refused, exit 16 = stale) with full dry runs (20-33 s, exit 0), so a 32 s exit-0 dry land was judged slow at 05:15. Fix in Lean first (Fw.Obs.Timing): the slow verdict compares a sample only with earlier samples of the same exit class (exit 0 vs non-zero), or ignores non-zero exits; theorem + goldens; TS mirror. Unit: skipped/no-op steps leave no sample (or per-leg keys) with a test on a recorded job JSON; timings.md.",
+   "writes": [
+    "lean/Fw/Obs/Timing.lean",
+    "packages/contracts/golden/obs/**",
+    "apps/runner/src/watch-collect.ts",
+    "apps/runner/test/watch-collect.test.ts",
+    "docs/team/tools/timings.md"
+   ]
   },
   {
    "devices": [
