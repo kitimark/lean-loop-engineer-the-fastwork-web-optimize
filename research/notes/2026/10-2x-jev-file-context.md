@@ -35,7 +35,7 @@ were written; D2 has no ledger commit).
 
 **Path regex** (every count depends on it): a top-level repo dir (`research docs lean lean-math apps packages scripts
 .github .claude .circleci refs results snapshot .cache .local`), a slash, then the characters `A-Za-z0-9_.@*{}<>,/+-`,
-ending on a letter, digit, `_`, `*`, `}` or `>`, with no path character before it (`PATH_RE`,
+ending on a letter, digit, `_`, `*`, `}` or `>`, not preceded by a letter, digit, `_`, `.`, `/` or `-`; an optional leading `../` is matched and dropped to resolve (`PATH_RE`,
 `scripts/jev-leak.mjs:25`). It runs over every string of the row's state. Trailing `.` and `,` are stripped, `:N` line
 suffixes are not captured, and bare file names with no directory are not counted. A path with `*{}<>` counts as a
 pattern.
@@ -147,7 +147,7 @@ A module `Fw.Oracle.Expand`, pure, with git as I/O only:
   lacks rather than fix-describing text. Otherwise record it as a negative result.
 
 **Sends.** `dailyCap` is 200 per UTC day (`lean/Fw/Oracle/Send.lean:9@7e676da5`, CONFIRMED). A pass that changes only
-rows with a kept file needs 94 sends (38 D1, 49 D2 at `c31e0848`, 7 D2 rows Jev never answered); a pass that changes
+rows with a kept file needs 88 sends (38 D1; 49 D2 with a kept file at `c31e0848`, 6 of them never answered by Jev; 1 more D2 row Jev never answered); a pass that changes
 every body needs 206 (MEASURED, scan). The investigation estimated 108 with a narrower allowlist; the count moves with
 the allowlist.
 
@@ -155,10 +155,10 @@ the allowlist.
 
 | Claim in the investigation | Scan |
 |---|---|
-| 108 sends for the changed-rows pass | 94 (allowlist above) |
+| 108 sends for the changed-rows pass | 88 (allowlist above) |
 | Gap within about 4 points | Within 5.9 points once the clean arms are added |
 | D2 median row about 100 KB | 95.5 KiB raw, 97.7 KiB escaped |
-| Pinning before the incident removes most leaks | It keeps 2 of the 3 own-class-id leaks |
+| Rule 1 of 3: read each file at a commit before the incident | Alone it keeps 2 of the 3 own-class-id leaks; rule 2 (strip class ids) is what closes them |
 
 ## Limits
 

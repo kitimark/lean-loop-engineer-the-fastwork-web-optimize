@@ -176,14 +176,14 @@ for (const set of ['d1', 'd2']) {
 
 const d1 = out.sets.d1, d2 = out.sets.d2;
 const union = new Set([...d1.distinct, ...d2.distinct]);
-const optA = d1.rowsOut.filter(r => r.optionA).length + d2.rowsOut.filter(r => r.optionA).length;
+const optA = d1.rowsOut.filter(r => r.optionA).length + d2.rowsOut.filter(r => r.optionA || r.right.jev === null).length;
 const pending = d2.rowsOut.filter(r => r.right.jev === null).length;
 say('== both ==');
 say(`distinct paths in both sets: ${union.size}`);
 const sig = [d1.rowsOut.filter(r => r.labelLeak.length).length, d1.rowsOut.filter(r => r.decoys.length && !r.labelLeak.length).length,
   d2.rowsOut.filter(r => r.triage.length).length];
 say(`rows with label signal in a named file: ${sig[0] + sig[1] + sig[2]} (d1 own class id ${sig[0]}, d1 decoy only ${sig[1]}, d2 triage record ${sig[2]})`);
-say(`sends, Option A (changed rows only, + ${pending} pending d2): ${optA + pending}; Option B (every body changes): ${d1.rows + d2.rows}`);
+say(`sends, Option A (changed rows plus d2 rows Jev never answered, each once; ${pending} pending d2): ${optA}; Option B (every body changes): ${d1.rows + d2.rows}`);
 
 console.log(lines.join('\n'));
 if (args.json) {
