@@ -119,6 +119,16 @@ describe("fw land --dry", () => {
     expect(dryRun(r.outcome!, "t1").at(-1)).toBe("VERDICT dry t1");
     expect(snap()).toEqual(before);
   });
+  it("behind main, both sides made the same change to a path outside the writes: VERDICT scope, as the real land", async () => {
+    const { fx, wt, opts, snap } = await setup();
+    fx.commit(wt, "src/a.ts");
+    fx.commit(wt, "docs/same.md", "same\n");
+    fx.commit(fx.root, "docs/same.md", "same\n");
+    const before = snap();
+    const r = await land(BR, { ...opts, dry: true, ...reads(["true"]), dryLints: [] });
+    expect(r.kind, text(r)).toBe("scope");
+    expect(snap()).toEqual(before);
+  });
   it("behind main with a conflicting change to one file: VERDICT conflict, main untouched", async () => {
     const { fx, wt, opts, snap } = await setup();
     fx.commit(fx.root, "src/a.ts", "base\n");
