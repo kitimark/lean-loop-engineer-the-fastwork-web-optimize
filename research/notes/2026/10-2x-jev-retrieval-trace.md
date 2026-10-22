@@ -112,7 +112,7 @@ What the tables show:
 - **J-pick always picks a file.** Step 1 picked a file in all 36 rows with candidates, and never `none`. Step 2 lost
   to C (net -2 in both modes).
 - **J-pick shows no first-slot bias (MEASURED, 10 rows).** The position share counts only rows with 2 or more
-  candidates (`Multi`, theorem `share_few`: a row with 0 or 1 candidate changes no share). fwcore
+  candidates (`Multi`, theorems `share_few` and `share_multi`: a row with 0 or 1 candidate changes no share). fwcore
   (`oracle.retrievePickPos`, `results/jev-retrieval-trace/position.json`) counts 10 such rows of 38, with 26 single
   and 2 empty rows left out. Over the 10 it gives f1 4 (2/5), f2 5 (1/2), f3 1 (1/10) and `none` 0. A uniform pick over
   each row's candidates would give f1 a share of 29/60.

@@ -76,7 +76,7 @@
     }
    ],
    "traced": false,
-   "why": "land-queue.ts 125 is `catch { kind = \"unknown\"; }`; the row's cause quotes that line with its file and line."
+   "why": "land-queue.ts 128-134 holds line 130 `catch { kind = \"unknown\"; }`; the row's cause quotes that line with its file and line (land-queue.ts:130)."
   },
   {
    "arm": "t-haiku-read",
