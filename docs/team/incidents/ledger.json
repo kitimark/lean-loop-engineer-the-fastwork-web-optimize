@@ -3861,6 +3861,43 @@
    "leanReason": "Selection of a test from its declared read set is Fw.Console.LandTier.selects_reader; the read set is declared by hand.",
    "empiricalCheck": "Not run on a real unrated variant. apps/runner/test/land-dry.test.ts injects a failing local test and checks the refusal names test/compose.test.ts; apps/runner/test/land-tier.test.ts checks that a changed part.json selects console-api:compose; CI runs 39674287486, 39685526491, 39688115785 show compose.test.ts refusing an unrated variant.",
    "hardening": "land-tier-compose-test"
+  },
+  {
+   "id": "inc-slot-stall",
+   "at": "2026-10-22T08:30+07:00",
+   "title": "The local slot queue stalled about 2 h: limit 1, 0 holders, 5 tickets queued, every one waiting memLow",
+   "symptom": "fw slot status showed limit 1, 0 holders and 5 queued (land dry, check.sh, runner tests) for about 2 h; available 194 MB, kernel pressure level 1, compressing 0 MB/min, swap 3,276 of 4,096 MB. vm_stat over 30 s showed 0 swapouts, 0 pageouts and 4 swapins. Each ticket would only have timed out after maxWaitS 1,800 s. The vm_stat reading replayed as stallSample (free 179, speculative 17, purgeable 85 MB; file 4,443 MB under its 4,608 MB minimum) gives 281 MB; slot status read 194 MB at another moment.",
+   "cause": "CONFIRMED (lean/Fw/Sup/Adapt.lean memLow and verdict before slot-idle-head): slot-mem-avail made availMB exclude file cache under its kernel minimum (4,443 MB under 4,608 MB added 0), and swapFull read swap occupancy, which stays high after idle swap-outs since macOS keeps stale swapped pages and adds swap files on demand. memLow therefore held with 0 holders, and verdict waited memLow even though no job of ours held the memory and waiting could not free it.",
+   "evidence": [
+    {
+     "kind": "proc",
+     "ref": "fw slot status 2026-10-22",
+     "note": "limit 1, 0 holders, 5 queued about 2 h; available 194 MB; swap 3,276/4,096 MB"
+    },
+    {
+     "kind": "proc",
+     "ref": "vm_stat 30 s delta 2026-10-22 08:30",
+     "note": "0 swapouts, 0 pageouts, 4 swapins; pressure level 1; compressing 0 MB/min"
+    },
+    {
+     "kind": "file",
+     "ref": "packages/contracts/golden/sup/adapt.jsonl",
+     "note": "the stall sample admits the queue head with 0 holders and waits memLow with 1"
+    }
+   ],
+   "repro": "verdict {} 2 stallSample [] [check] before slot-idle-head: wait memLow 281 with no holder; after it: admit 1 700 (Fw.Sup.Adapt #guard).",
+   "fix": {
+    "task": "slot-idle-head",
+    "also": [
+     "slot-waiter-light"
+    ]
+   },
+   "regression": "apps/runner/test/slot.test.ts replays golden/sup/adapt.jsonl: the stall sample admits with 0 holders and waits memLow with 1; a 64 MB/min swap-out waits memLow; swap 75 percent full with no swap-out admits.",
+   "mistakeClass": "c-spec-gap",
+   "leanVerdict": "provable",
+   "leanReason": "The rule now proves its idle case: Fw.Sup.Adapt.idle_head_admitted, idle_head_only_when_empty, idle_head_at_most_one and verdict_unchanged_with_holder; memLow reads swapActive, a swap-out rate, not occupancy.",
+   "empiricalCheck": "The goldens replay the 2026-10-22 stall reading; the live queue was not re-run under the fix.",
+   "hardening": "slot-idle-head"
   }
  ]
 }

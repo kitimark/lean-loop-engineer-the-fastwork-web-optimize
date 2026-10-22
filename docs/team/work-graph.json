@@ -13066,7 +13066,8 @@
     "apps/runner/test/land*.test.ts",
     "docs/team/tools/land.md",
     "docs/team/handoffs/land-seed-due.md"
-   ]
+   ],
+   "evidence": "1c9e3b0"
   },
   {
    "devices": [
@@ -15374,7 +15375,93 @@
    "owner": "console-builder",
    "stream": "tooling",
    "deps": [],
-   "title": "fw watch timing.slow fw/run 2026-10-22 (lead check of .fw-console/timings.jsonl): the three latest fw/run spans are 1,029 s, 2,190 s and 3,068 s against 113-136 s before; all three started within 0.3 s, one per builder that dispatched a CI run and waited on it (apps/runner/src/fw.ts:26 names the span by group only, run.ts runCli dispatches and waits). The span pools local dispatch work with GitHub run time, so Fw.Obs.Timing flags CI queue and job length as local slowness. Fix: fw run writes two spans, `run dispatch` (local work up to the run id) and `run wait` (carrying the run id and the ci-wait-lag phases like `fw ci wait`), and obs.slow judges `run wait` by its own history; Lean golden for the step naming if Fw.Obs.Timing keys on it; tests; docs/team/tools/timings.md. Same class, 2026-10-22 timing.slow fw/slot: fw.ts SUBS lacks \"slot\", so `slot admit` (46-50 ms) and `slot run --kind check -- <cmd>` (18.7 s, 153 s) share one step; add slot to SUBS and key `slot run` spans by kind (the wrapped command has its own span). Unit: two spans per fw run with goldens/tests, the alert no longer fires on CI length."
+   "title": "fw watch timing.slow fw/run 2026-10-22 (lead check of .fw-console/timings.jsonl): the three latest fw/run spans are 1,029 s, 2,190 s and 3,068 s against 113-136 s before; all three started within 0.3 s, one per builder that dispatched a CI run and waited on it (apps/runner/src/fw.ts:26 names the span by group only, run.ts runCli dispatches and waits). The span pools local dispatch work with GitHub run time, so Fw.Obs.Timing flags CI queue and job length as local slowness. Fix: fw run writes two spans, `run dispatch` (local work up to the run id) and `run wait` (carrying the run id and the ci-wait-lag phases like `fw ci wait`), and obs.slow judges `run wait` by its own history; Lean golden for the step naming if Fw.Obs.Timing keys on it; tests; docs/team/tools/timings.md. Same class, 2026-10-22 timing.slow fw/slot: fw.ts SUBS lacks \"slot\", so `slot admit` (46-50 ms) and `slot run --kind check -- <cmd>` (18.7 s, 153 s) share one step; add slot to SUBS and key `slot run` spans by kind (the wrapped command has its own span). Third case, 2026-10-22 timing.slow fw/polish: `polish plan|cuts` (101-160 ms) and `polish commit` (9.3 s, 32.8 s, it runs a dry land) share one step; so the rule is general: every fw group with subcommands is named group + subcommand (SUBS derived from the CLI table, not a hand list), and a Lean test or golden fails when a group with subcommands is missing. Fourth case, 2026-10-22 timing.slow fw land/total and fw/land: dry lands (27.7 s, 29.6 s) and real lands (283 s, of which the remote lane 256 s, faster than the 340-372 s before main was pushed) write the same `total` step; a dry land writes `dry total` (and fw/land `land --dry`). Unit: two spans per fw run with goldens/tests, the alert no longer fires on CI length.",
+   "writes": [
+    "apps/runner/src/land.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "slot-waiter-light",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "User 2026-10-22: 'when local resource is overloaded, i'd like to ask you investigate and find how to manage, optimize for improve this resource usage. likes move them to queue or make it use less resource.' Lead probe 2026-10-22 (fw slot status, ps, vm_stat): limit 1, 0 holders, queue 4 (land dry, check.sh, two runner tests) waiting 9-30 min; available 191 MB (free 179, file cache 4,443 MB under its kernel minimum 4,608 MB so it adds 0), kernel pressure level 1, compressing 0 MB/min, swap 3,276 of 4,096 MB. Each waiter is three node processes, homebrew pnpm 95 MB, pnpm 105 MB and fw.ts 102-105 MB, about 300 MB, so the four waiters held about 1.2 GB while nothing ran. Fix: a queued slot run waits in one light process (the wrapper execs node fw.ts directly, or the pnpm script resolves to node without a nested pnpm), and the measured waiter RSS goes in docs/team/tools/slot.md. Same verdicts, same queue order. Unit: one waiter process per queued run, its RSS measured before and after (MEASURED)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "slot-idle-head",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "title": "User 2026-10-22: 'when local resource is overloaded, i'd like to ask you investigate and find how to manage, optimize for improve this resource usage. likes move them to queue or make it use less resource.' Lead probe 2026-10-22 (fw slot status, ps, vm_stat): limit 1, 0 holders, queue 4 (land dry, check.sh, two runner tests) waiting 9-30 min; available 191 MB (free 179, file cache 4,443 MB under its kernel minimum 4,608 MB so it adds 0), kernel pressure level 1, compressing 0 MB/min, swap 3,276 of 4,096 MB. Fw.Sup.Adapt verdict waits on memLow (availMB < floorMB 1,024) even with 0 holders, so the queue sits until maxWaitS 1,800 s times out while the memory is held by other programs our waiting cannot free. Fix in Lean first: with 0 holders the queue head (one, never more) may run when the kernel pressure level is 1, compression is under its thrash rate and swap is not ACTIVE; every other memLow case still waits. Lead probe 08:30: swapFull (swapPct 75 of occupancy, Adapt.lean:65) is true at 3,276/4,096 MB while vm_stat shows 0 swapouts, 0 pageouts and 4 swapins in 30 s; macOS adds swap files on demand (4 files now) and stale swapped pages stay until reboot, so occupancy keeps the gate shut for good. Fix: a swap-rate signal (swapouts per minute from vm_stat deltas, kept in the vm mark like comprMBPerMin) with swapActive replacing swapFull in memLow, and the idle head admitted under memLow only when press = 1, not thrash, not swapActive. Incident row inc-slot-stall in docs/team/incidents/ledger.json (0 holders, 5 queued, 2 h stalled on 2026-10-22). Theorems: idle_head_at_most_one (it never admits a second holder under memLow), idle_head_only_when_empty, verdict unchanged when a holder exists; goldens; TS mirror slot.ts checked against them; slot.md. Unit: the Lean rule with its theorems and goldens, the TS mirror, slot.md. Limit: the thrash and swap-full guards stay as they are.",
+   "writes": [
+    "docs/team/incidents/ledger.json",
+    "lean/Fw/Sup/Adapt.lean",
+    "lean/Fw/Sup/AdaptGolden.lean",
+    "packages/contracts/golden/sup/**",
+    "apps/runner/src/slot.ts",
+    "apps/runner/test/slot.test.ts",
+    "docs/team/tools/slot.md",
+    "apps/runner/src/slot-core.ts"
+   ],
+   "evidence": "620e726"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "seed-followups",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Console/LandSpeed.lean",
+    "packages/contracts/golden/console/land-speed.jsonl",
+    "apps/runner/test/land-seed-due.test.ts",
+    "apps/runner/src/fw.ts",
+    "docs/team/tools/land.md"
+   ],
+   "title": "land-seed-due review follow-ups (landed 801cd780): (1) the golden the TS mirror replays has no row for a .lean file outside the key globs (lean/scripts/AxiomCheck.lean), the one case where '*' vs '**' matters; add seedLagCase \"lean/scripts/*.lean is not a key path\" [\"lean/scripts/AxiomCheck.lean\", \"lean/Fw.lean\"] (lag 1), regenerate, row counts 52 and 5. (2) under fw land --queue the PUSH-DUE line goes to stderr (apps/runner/src/fw.ts:159); print it on stdout like the VERDICT line. Unit: the golden row with its TS replay; PUSH-DUE on stdout under --queue with a test; land.md."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-remote-lines-flake",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "apps/runner/test/land-remote-lines.test.ts",
+    "apps/runner/test/land-timeout.ts",
+    "docs/team/incidents/ledger.json"
+   ],
+   "title": "CI flake 2026-10-22: test/land-remote-lines.test.ts timed out at 120 s in land run 39713817057 (suites-a, branch ci/land-land-seed-due-08aafe9); the retry passed (801cd780) and it passes locally in 1.5 s; first failure in the last 15 land runs. Find where it waited (the fixture land with remote deadlineS 5 and sliceS 0.05: lock, reconcile, the local tier or the adapter poll loop), make the test bounded by its own deadline, and record the cause (incident row if it is a real hang). Unit: named cause with evidence (CI log lines or a reproduction), the bounded test, incident row or a stated 'no hang' finding."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "slot-main-code",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "slot-waiter-light"
+   ],
+   "writes": [
+    "apps/runner/src/fw.ts",
+    "apps/runner/src/slot.ts",
+    "scripts/slot-self.mjs",
+    "apps/runner/test/slot.test.ts",
+    "docs/team/tools/slot.md",
+    "docs/team/incidents/ledger.json"
+   ],
+   "title": "Lead probe 2026-10-22 10:26 after slot-idle-head landed (e962a0f2 09:20): queue stalled again with 0 holders and 3 land tickets; the TS verdict on main's code gives the head ticket admit (idleHead true), but the head waiter (pid cwd .claude/worktrees/wf_64810607-67c-1) runs `node apps/runner/src/fw.ts slot run` from its own worktree, whose slot-core.ts has no idleHead (branch cut before the land). The queue state lives in the main checkout (.fw-console/slot/state.json) but every caller decides with its branch's code, so one stale branch blocks every newer waiter behind it (same-kind queue order). Fix: `fw slot` (run, acquire, renew, release, admit) always executes the main checkout's fw.ts/slot code (re-exec from a worktree to <main>/apps/runner/src/fw.ts, like realDeps already resolves the state dir from main), with a test that a worktree caller runs main's verdict; slot.md; incident row inc-slot-branch-code. Unit: worktree callers run main's slot code (test), slot.md, incident row."
   }
  ],
  "deadline": {

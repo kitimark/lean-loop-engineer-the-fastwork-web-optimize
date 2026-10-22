@@ -177,6 +177,25 @@ Finding (task land-fwcore-once, closed): a prep job that builds fwcore once for 
 - Lean: `Fw.Console.LandQueue.afterLand` with one theorem per branch (`afterLand_noRebuild`, `afterLand_noLeanChange`, `afterLand_notDone`, `afterLand_rebuilt`, `afterLand_rebuilt_fresh` (over `RebuildOut`/`rebuildOk`: exit 0 and the record names main; the runner checks the weaker conclusion, exit 0 and a non-stale preflight), `afterLand_stop`, `stopKind_rebuild`); golden op `landQueue.afterLand`; TS `afterLand` in `apps/runner/src/land-verdict.ts` is checked against it; the glue is the `head`/`diff`/`rebuild` options of `runQueue`.
 - Rebuild glue: ok = exit 0 and `fwcorePreflight(main)` finds no refusal (a build that exits 0 without recording is kind `rebuild`); `git diff --no-renames`; a diff error counts as a core change; a failed rebuild with nothing pending still prints the REFUSED line.
 
+## PUSH-DUE: push main when the land legs would rebuild fwcore (task land-seed-due)
+- Land legs restore the Lake cache that `lean.yml` saved on the last main push (`land.yml` never saves). When main drifts
+  from origin/main, every leg rebuilds fwcore: 155-173 s per leg at 64 unpushed first-parent commits, 0-1 s with the
+  exact key (MEASURED, runs 39692711054, 39695811244, 39696729476 against 39369095720).
+- After a land that moved main, `fw land` computes the lag: the paths of `git diff --name-only --no-renames origin/main
+  main` that the cache key in `.github/actions/setup-lean/action.yml` hashes (`lean/lean-toolchain`,
+  `lean/lake-manifest.json`, `lean/lakefile.toml`, `lean/*.lean`, `lean/Fw/**`, `lean/FwTest/**`). When the lag is
+  over 5, the last result lines are a prose line and `PUSH-DUE <n>`. Without an `origin/main` ref no line is printed.
+  The line never changes the verdict or the exit code. Under `--queue` the result lines go to stderr; a direct land
+  prints them to stdout before the `VERDICT` line.
+- On `PUSH-DUE` the lead scans `origin/main..main` for personal data, then runs `git push origin main`. Agents never
+  push main.
+- Lean: `Fw.Console.LandSpeed.seedDue` (`seedDue_iff`, `seedDue_false_iff`, `seedDue_mono`, `seedDue_zero`,
+  `seedDue_five`, `seedDue_six`) and `seedLag` (`seedLag_eq_zero_iff`, `seedLag_cons_key`, `seedLag_cons_other`,
+  `seedLag_append`, `seedLag_le`); golden ops `landSpeed.seedDue` (lags 0, 5, 6) and `landSpeed.seedLag`, checked by
+  the `land-speed golden check` stage of `lean/scripts/check.sh`. The TS mirror (`seedLag`, `seedDue`, `SEED_READS` in
+  `apps/runner/src/land.ts`) replays the golden in `apps/runner/test/land-seed-due.test.ts`, which also asserts that
+  `SEED_READS` equals the key's `hashFiles` globs.
+
 ## The render guard refuses media outside snapshot/ in the branch history (task land-render-guard)
 - Incident 2026-10-21: a branch committed Fastwork page renders (PNG, one with a person's photo) under `results/`, then `git rm`-ed them. `fw land` lands by merge commit, so the blobs would have reached main's history and the public push.
 - Now every `fw land` (real and `--dry`), after the stale and empty checks and before the scope check and any check, pins the branch tip as `sha` and reads every commit of `main..sha` with `git log -z --no-renames --name-status --diff-merges=first-parent --format='commit %H'` and asks fwcore `console.landRenderGuard`. A path is refused when its commit stores a blob there (every status but `D`; an unknown letter counts), its extension is in the one media table (image, font, video, audio) and it is neither under `snapshot/` nor on `Fw.Land.RenderGuard.allowlist`. The refusal is kind `scope` (exit 12), one `REFUSED: render guard:` line listing `<path> (<media>) in <commit>` per hit. A failing `git log` or an fwcore without the op refuses too (kind `unknown`).

@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   DEFAULT_PARAMS, type CacheKey, type Ctl, type Entry, type Mem, type Params, type Sample, type VmMark,
   admitBuild, agentsSeen, availMB, cacheHit, expired, grant, heldOf, keyOf, leanThreads, leaseOr, prune, release, renew, signal, simAction, simBoot,
-  simDue, simIdleNext, simQueued, step, stopAct, swapFull, thrash, memLow, verdict, vmNext, withLegacy,
+  simDue, simIdleNext, simQueued, step, stopAct, swapActive, thrash, memLow, verdict, vmNext, withLegacy,
 } from "../src/slot-core.ts";
 import {
   type Deps, type GitFacts, EXIT_REFUSED, SlotUsage, lastHealth, legacyLive, markNext, memOf, parseCompressorMB, parseSysctl, parseVmStat, recoverStale,
@@ -44,9 +44,10 @@ function answer(r: Record<string, unknown> & { op: string }): Record<string, unk
     case "adapt.admitBuild": return admitBuild(p, r.simWaits as boolean, r.availMB as number, r.agents as number | null);
     case "adapt.memLow": {
       const m = r.mem as Mem;
-      return { availMB: availMB(m), swapFull: swapFull(p, m), thrash: thrash(p, m), memLow: memLow(p, m) };
+      return { availMB: availMB(m), swapActive: swapActive(p, m), thrash: thrash(p, m), memLow: memLow(p, m) };
     }
-    case "adapt.vmNext": return { mark: vmNext(p, r.prev as VmMark | null, r.now as number, r.count as number, r.pageB as number) };
+    case "adapt.vmNext":
+      return { mark: vmNext(p, r.prev as VmMark | null, r.now as number, r.count as number, r.swapCount as number, r.pageB as number) };
     case "adapt.agentsSeen": return { agents: agentsSeen(p, r.now as number, r.reading as { time: number; live: number } | null) };
     case "adapt.simQueued": return { queued: simQueued(r.now as number, r.queue as Entry[]) };
     case "adapt.withLegacy": return { holders: withLegacy(r.now as number, r.legacy as boolean, r.holders as Entry[]) };
@@ -72,7 +73,7 @@ const busySysctl = "vm.vm_page_filecache_min: 233999\nkern.memorystatus_vm_press
 describe("probe parsers", () => {
   it("reads vm_stat, sysctl and the compressor footprint", () => {
     expect(parseVmStat(fixture("vm_stat-busy.txt"))).toEqual({
-      pageB: 16384, free: 13944, spec: 7683, purg: 5581, file: 319116, occupied: 192199, compressions: 1701467470,
+      pageB: 16384, free: 13944, spec: 7683, purg: 5581, file: 319116, occupied: 192199, compressions: 1701467470, swapouts: 13043114,
     });
     expect(parseSysctl(busySysctl)).toEqual({ fileMinPages: 233999, press: 1, swapUsedMB: 3046, swapTotalMB: 4096 });
     expect(parseSysctl("")).toEqual({ fileMinPages: null, press: null, swapUsedMB: null, swapTotalMB: null });
@@ -85,12 +86,15 @@ describe("probe parsers", () => {
     const dir = mkdtempSync(join(tmpdir(), "fw-vm-"));
     try {
       const a = parseVmStat(fixture("vm_stat-busy.txt"))!, b = parseVmStat(fixture("vm_stat-busy-next.txt"))!;
-      expect(markNext(dir, DEFAULT_PARAMS, 1792613925, a)).toEqual({ time: 1792613925, count: 1701467470, rate: 0 });
-      const rate = markNext(dir, DEFAULT_PARAMS, 1792613936, b).rate;
-      expect(rate).toBe(5309);
-      const m = memOf(a, parseSysctl(busySysctl), rate);
+      expect(markNext(dir, DEFAULT_PARAMS, 1792613925, a))
+        .toEqual({ time: 1792613925, count: 1701467470, rate: 0, swapCount: 13043114, swapRate: 0 });
+      const mark = markNext(dir, DEFAULT_PARAMS, 1792613936, b);
+      expect(mark.rate).toBe(5309);
+      expect(mark.swapRate).toBe(0);
+      const m = memOf(a, parseSysctl(busySysctl), mark);
       expect(m).toEqual({
         freeMB: 217, specMB: 120, purgMB: 87, fileMB: 4986, fileMinMB: 3656, swapUsedMB: 3046, swapTotalMB: 4096, press: 1, comprMBPerMin: 5309,
+        swapOutMBPerMin: 0,
       });
       expect(availMB(m)).toBe(1754);
       expect(memLow(DEFAULT_PARAMS, m)).toBe(true);
@@ -101,19 +105,30 @@ describe("probe parsers", () => {
   });
 
   it("an idle reading on this Mac and a missing pressure level", () => {
-    const m = memOf(parseVmStat(fixture("vm_stat-idle.txt"))!, parseSysctl("vm.vm_page_filecache_min: 276653\n"), 0);
+    const m = memOf(parseVmStat(fixture("vm_stat-idle.txt"))!, parseSysctl("vm.vm_page_filecache_min: 276653\n"), { rate: 0, swapRate: 0 });
     expect(availMB(m)).toBe(2536);
     expect(m.press).toBe(1);
     expect(memLow(DEFAULT_PARAMS, m)).toBe(false);
   });
 
   it("an unread file-cache minimum counts no file cache", () => {
-    expect(availMB(memOf(parseVmStat(fixture("vm_stat-busy.txt"))!, parseSysctl(""), 0))).toBe(424);
+    expect(availMB(memOf(parseVmStat(fixture("vm_stat-busy.txt"))!, parseSysctl(""), { rate: 0, swapRate: 0 }))).toBe(424);
+  });
+
+  it("a mark written before swap-out was read counts as a first reading", () => {
+    const dir = mkdtempSync(join(tmpdir(), "fw-vm-"));
+    try {
+      writeFileSync(join(dir, "vm-mark.json"), JSON.stringify({ time: 1792613900, count: 1701000000, rate: 4000 }));
+      expect(markNext(dir, DEFAULT_PARAMS, 1792613925, parseVmStat(fixture("vm_stat-busy.txt"))!))
+        .toEqual({ time: 1792613925, count: 1701467470, rate: 0, swapCount: 13043114, swapRate: 0 });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 
 const mem = (freeMB: number): Mem =>
-  ({ freeMB, specMB: 0, purgMB: 0, fileMB: 0, fileMinMB: 0, swapUsedMB: 0, swapTotalMB: 0, press: 1, comprMBPerMin: 0 });
+  ({ freeMB, specMB: 0, purgMB: 0, fileMB: 0, fileMinMB: 0, swapUsedMB: 0, swapTotalMB: 0, press: 1, comprMBPerMin: 0, swapOutMBPerMin: 0 });
 const quiet = (): Sample => ({ time: Math.floor(Date.now() / 1000), loadCenti: 100, mem: mem(12000), ramMB: 16384, compressorMB: 0, cores: 8 });
 const tmps: string[] = [];
 afterEach(() => { for (const t of tmps.splice(0)) rmSync(t, { recursive: true, force: true }); });

@@ -15,13 +15,14 @@ def paramsJson (p : Params) : Json :=
     ("maxWaitS", toJson p.maxWaitS), ("leaseS", toJson p.leaseS), ("leaseMaxS", toJson p.leaseMaxS),
     ("simIdleS", toJson p.simIdleS), ("graceMs", toJson p.graceMs), ("simPollS", toJson p.simPollS),
     ("buildMB", toJson p.buildMB), ("agentsMax", toJson p.agentsMax), ("agentsAgeS", toJson p.agentsAgeS),
-    ("swapPct", toJson p.swapPct), ("comprMBPerMinMax", toJson p.comprMBPerMinMax), ("rateMinS", toJson p.rateMinS),
+    ("swapOutMBPerMinMax", toJson p.swapOutMBPerMinMax), ("comprMBPerMinMax", toJson p.comprMBPerMinMax), ("rateMinS", toJson p.rateMinS),
     ("rateMaxS", toJson p.rateMaxS)]
 
 def memJson (m : Mem) : Json :=
   Json.mkObj [("freeMB", toJson m.freeMB), ("specMB", toJson m.specMB), ("purgMB", toJson m.purgMB),
     ("fileMB", toJson m.fileMB), ("fileMinMB", toJson m.fileMinMB), ("swapUsedMB", toJson m.swapUsedMB),
-    ("swapTotalMB", toJson m.swapTotalMB), ("press", toJson m.press), ("comprMBPerMin", toJson m.comprMBPerMin)]
+    ("swapTotalMB", toJson m.swapTotalMB), ("press", toJson m.press), ("comprMBPerMin", toJson m.comprMBPerMin),
+    ("swapOutMBPerMin", toJson m.swapOutMBPerMin)]
 
 def sampleJson (s : Sample) : Json :=
   Json.mkObj [("time", toJson s.time), ("loadCenti", toJson s.loadCenti), ("mem", memJson s.mem),
@@ -29,7 +30,8 @@ def sampleJson (s : Sample) : Json :=
 
 def markJson : Option VmMark → Json
   | none => .null
-  | some m => Json.mkObj [("time", toJson m.time), ("count", toJson m.count), ("rate", toJson m.rate)]
+  | some m => Json.mkObj [("time", toJson m.time), ("count", toJson m.count), ("rate", toJson m.rate),
+    ("swapCount", toJson m.swapCount), ("swapRate", toJson m.swapRate)]
 
 def prevJson : Option (Nat × Nat) → Json
   | none => .null
@@ -109,8 +111,10 @@ def stepCases : List (String × Bool × Ctl × Sample) :=
     ("below nMin (old state): clamped up on hold", false, { n := 0, lastChange := 0 }, { okSample with loadCenti := 1000 }),
     ("no window, nMax 6: +1 at once", true, { n := 5, lastChange := 999 }, okSample),
     ("pressure level warning: halve", false, { n := 4, lastChange := 0 }, okSample.withMem { okSample.mem with press := 2 }),
-    ("swap 75 percent full: halve", false, { n := 4, lastChange := 0 },
+    ("swap 75 percent full, nothing swapped out: +1", false, { n := 2, lastChange := 0 },
       okSample.withMem { okSample.mem with swapUsedMB := 6144 }),
+    ("swapping out 64 MB a minute: halve", false, { n := 4, lastChange := 0 },
+      okSample.withMem { okSample.mem with swapOutMBPerMin := 64 }),
     ("compressing 1500 MB a minute: halve", false, { n := 4, lastChange := 0 },
       okSample.withMem { okSample.mem with comprMBPerMin := 1500 }),
     ("file cache above its minimum counts as headroom: +1", false, { n := 2, lastChange := 0 },
@@ -126,11 +130,14 @@ def stepLines : List String :=
 def liveH (o t : String) (k : Kind) (since foot : Nat) : Entry :=
   { owner := o, token := t, kind := k, since := since, till := 5000, foot := foot }
 
+def oldTest : Entry := liveH "q" "7" .test 0 0
+
 def verdictCases : List (String × Nat × Sample × List Entry × List Entry × Entry × Nat) :=
   let me := tk "a" "1" .check 990
+  let sim := tk "s" "5" .sim 995
   [ ("idle machine, check: threads from free memory", 2, okSample, [], [me], me, 0),
     ("check with little room: one Lean worker", 2, (okSample.withFree 1800), [], [me], me, 0),
-    ("check, one worker does not fit: memory", 2, (okSample.withFree 1700), [], [me], me, 0),
+    ("check, one worker does not fit, a job runs: memory", 2, (okSample.withFree 1700), [oldTest], [me], me, 0),
     ("check, room for exactly one worker", 2, (okSample.withFree 1724), [], [me], me, 0),
     ("16 GB free on 8 cores: threads capped at the cores", 2, (okSample.withFree 16000), [], [me], me, 0),
     ("same kind ahead: queued", 2, okSample, [], [tk "b" "2" .check 980, me], me, 0),
@@ -151,13 +158,15 @@ def verdictCases : List (String × Nat × Sample × List Entry × List Entry × 
       [tk "a" "1" .sim 990], tk "a" "1" .sim 990, 0),
     ("sim asked, expired sim holder: admit", 3, okSample, [{ liveH "x" "9" .sim 0 2800 with till := 999 }],
       [tk "a" "1" .sim 990], tk "a" "1" .sim 990, 0),
-    ("sim needs 2800 MB plus the floor", 3, (okSample.withFree 3823), [], [tk "a" "1" .sim 990], tk "a" "1" .sim 990, 0),
+    ("sim needs 2800 MB plus the floor, a job runs: memory", 3, (okSample.withFree 3823), [oldTest],
+      [tk "a" "1" .sim 990], tk "a" "1" .sim 990, 0),
     ("sim exactly fits", 3, (okSample.withFree 3824), [], [tk "a" "1" .sim 990], tk "a" "1" .sim 990, 0),
     ("test beside a warming check holder is charged", 3, (okSample.withFree 6000), [liveH "x" "9" .check 980 4200],
       [tk "a" "1" .test 990], tk "a" "1" .test 990, 0),
     ("test beside a warm (old) check holder is not charged", 3, (okSample.withFree 6000), [liveH "x" "9" .check 900 4200],
       [tk "a" "1" .test 990], tk "a" "1" .test 990, 0),
-    ("land needs 1500 MB", 3, (okSample.withFree 2523), [], [tk "a" "1" .land 990], tk "a" "1" .land 990, 0),
+    ("land needs 1500 MB, a job runs: memory", 3, (okSample.withFree 2523), [oldTest], [tk "a" "1" .land 990],
+      tk "a" "1" .land 990, 0),
     ("other needs 1000 MB", 3, (okSample.withFree 2024), [], [tk "a" "1" .other 990], tk "a" "1" .other 990, 0),
     ("waited just below the limit: wait", 1, okSample, [liveH "x" "9" .test 0 0], [me], me, 1799),
     ("waited the limit: timeout, never run", 1, okSample, [liveH "x" "9" .test 0 0], [me], me, 1800),
@@ -173,12 +182,30 @@ def verdictCases : List (String × Nat × Sample × List Entry × List Entry × 
       [me, tk "s" "5" .sim 995], me, 0),
     ("sim pending: another job already runs: simFirst", 4, (okSample.withFree 12000), [liveH "x" "9" .test 0 0],
       [me, tk "s" "5" .sim 995], me, 0),
-    ("sim pending, plain memory short: memory first", 4, (okSample.withFree 1700), [], [me, tk "s" "5" .sim 995], me, 0),
+    ("sim pending, plain memory short, a job runs: memory first", 4, (okSample.withFree 1700), [oldTest],
+      [me, tk "s" "5" .sim 995], me, 0),
     ("pressure level warning: memLow", 2, okSample.withMem { okSample.mem with press := 2 }, [], [me], me, 0),
-    ("swap 75 percent full: memLow", 2, okSample.withMem { okSample.mem with swapUsedMB := 6144 }, [], [me], me, 0),
-    ("swap just under 75 percent: admit", 2, okSample.withMem { okSample.mem with swapUsedMB := 6143 }, [], [me], me, 0),
+    ("swap 75 percent full, nothing swapped out: admit", 2, okSample.withMem { okSample.mem with swapUsedMB := 6144 }, [],
+      [me], me, 0),
+    ("swapping out 64 MB a minute: memLow", 2, okSample.withMem { okSample.mem with swapOutMBPerMin := 64 }, [], [me], me,
+      0),
     ("compressing 1500 MB a minute: memLow", 2, okSample.withMem { okSample.mem with comprMBPerMin := 1500 }, [], [me], me, 0),
-    ("available just under the floor: memLow", 2, okSample.withFree 1023, [], [me], me, 0),
+    ("available just under the floor, a job runs: memLow", 2, okSample.withFree 1023, [oldTest], [me], me, 0),
+    ("the stall of 2026-10-22, no holder: the queue head runs one Lean worker", 2, stallSample, [], [me], me, 0),
+    ("the stall of 2026-10-22, one holder: memLow", 2, stallSample, [oldTest], [me], me, 0),
+    ("the stall, the second ticket of the same kind: queued", 2, stallSample, [], [me, tk "b" "2" .check 991],
+      tk "b" "2" .check 991, 0),
+    ("the stall, expired holder does not count: the head runs", 2, stallSample, [{ oldTest with till := 1000 }], [me], me, 0),
+    ("the stall, swapping out 64 MB a minute: memLow", 2, stallSample.withMem { stallMem with swapOutMBPerMin := 64 }, [],
+      [me], me, 0),
+    ("the stall, pressure level warning: memLow", 2, stallSample.withMem { stallMem with press := 2 }, [], [me], me, 0),
+    ("the stall, compressing 1500 MB a minute: memLow", 2, stallSample.withMem { stallMem with comprMBPerMin := 1500 }, [],
+      [me], me, 0),
+    ("the stall, a sim ticket behind the check: simFirst", 4, stallSample, [], [me, sim], me, 0),
+    ("the stall, that sim ticket: the head of its kind runs", 4, stallSample, [], [me, sim], sim, 0),
+    ("no holder, sim short of memory: the head runs", 3, (okSample.withFree 3823), [], [tk "a" "1" .sim 990],
+      tk "a" "1" .sim 990, 0),
+    ("available just under the floor, no holder: the head runs", 2, okSample.withFree 1023, [], [me], me, 0),
     ("a sim ticket under pressure waits memLow", 3, okSample.withMem { okSample.mem with press := 4 }, [],
       [tk "a" "1" .sim 990], tk "a" "1" .sim 990, 0),
     ("busy window (MEASURED, 03:18:44): memLow on compression, not 8 workers", 2, busyWindow, [], [me], me, 0),
@@ -219,26 +246,33 @@ def idleMem : Mem :=
 def memLines : List String :=
   let av := fun (nm : String) (m : Mem) =>
     line nm "adapt.memLow" [("mem", memJson m)]
-      (Json.mkObj [("availMB", toJson (availMB m)), ("swapFull", .bool (swapFull {} m)), ("thrash", .bool (thrash {} m)),
+      (Json.mkObj [("availMB", toJson (availMB m)), ("swapActive", .bool (swapActive {} m)), ("thrash", .bool (thrash {} m)),
         ("memLow", .bool (memLow {} m))])
-  let vn := fun (nm : String) (prev : Option VmMark) (now count pageB : Nat) =>
-    line nm "adapt.vmNext" [("prev", markJson prev), ("now", toJson now), ("count", toJson count), ("pageB", toJson pageB)]
-      (Json.mkObj [("mark", markJson (some (vmNext {} prev now count pageB)))])
+  let vn := fun (nm : String) (prev : Option VmMark) (now count swapCount pageB : Nat) =>
+    line nm "adapt.vmNext" [("prev", markJson prev), ("now", toJson now), ("count", toJson count),
+      ("swapCount", toJson swapCount), ("pageB", toJson pageB)]
+      (Json.mkObj [("mark", markJson (some (vmNext {} prev now count swapCount pageB)))])
   [ av "busy window: 1754 MB available, thrashing" busyWindow.mem,
     av "file cache under its minimum adds nothing" { freeMB := 100, fileMB := 2000, fileMinMB := 3000 },
     av "idle: free, speculative, purgeable and file cache above its minimum" idleMem,
-    av "no swap file: never full" { freeMB := 4000, swapUsedMB := 10, swapTotalMB := 0 },
-    av "swap exactly 75 percent full" { freeMB := 4000, swapUsedMB := 3072, swapTotalMB := 4096 },
+    av "no swap file" { freeMB := 4000, swapUsedMB := 10, swapTotalMB := 0 },
+    av "swap 75 percent full, nothing swapped out: not low" { freeMB := 4000, swapUsedMB := 3072, swapTotalMB := 4096 },
+    av "swapping out 64 MB a minute" { freeMB := 4000, swapOutMBPerMin := 64 },
+    av "swapping out 63 MB a minute" { freeMB := 4000, swapOutMBPerMin := 63 },
+    av "the stall of 2026-10-22: 281 MB available, low" stallMem,
     av "pressure critical" { freeMB := 4000, press := 4 },
     av "pressure unread (0) counts as not normal" { freeMB := 4000, press := 0 },
     av "available exactly the floor" { freeMB := 1000, specMB := 24 },
-    vn "first reading: rate 0" none 100 5 16384,
-    vn "11 s later: growth per minute" (some ⟨100, 1701467470, 0⟩) 111 1701529764 16384,
-    vn "4 s later: mark and rate kept" (some ⟨100, 10, 7⟩) 104 99999 16384,
-    vn "exactly rateMinS later: new rate" (some ⟨100, 10, 7⟩) 105 74 16384,
-    vn "older than rateMaxS: rate 0" (some ⟨100, 10, 7⟩) 701 99999 16384,
-    vn "exactly rateMaxS later: new rate" (some ⟨100, 10, 7⟩) 700 6410 16384,
-    vn "counter went back (reboot): rate 0" (some ⟨100, 500, 7⟩) 160 10 16384 ]
+    vn "first reading: rates 0" none 100 5 7 16384,
+    vn "11 s later: growth per minute" (some ⟨100, 1701467470, 0, 13043114, 0⟩) 111 1701529764 13043114 16384,
+    vn "30 s later: 2048 pages swapped out, 64 MB a minute" (some ⟨100, 10, 7, 0, 0⟩) 130 10 2048 16384,
+    vn "the stall of 2026-10-22: no swap-out in 30 s" (some ⟨100, 10, 0, 13043114, 0⟩) 130 10 13043114 16384,
+    vn "4 s later: mark and rates kept" (some ⟨100, 10, 7, 3, 9⟩) 104 99999 99 16384,
+    vn "exactly rateMinS later: new rates" (some ⟨100, 10, 7, 3, 9⟩) 105 74 67 16384,
+    vn "older than rateMaxS: rates 0" (some ⟨100, 10, 7, 3, 9⟩) 701 99999 99 16384,
+    vn "exactly rateMaxS later: new rates" (some ⟨100, 10, 7, 3, 9⟩) 700 6410 6403 16384,
+    vn "counters went back (reboot): rates 0" (some ⟨100, 500, 7, 500, 9⟩) 160 10 10 16384,
+    vn "only the swap counter went back: swap rate 0" (some ⟨100, 10, 7, 500, 9⟩) 160 74 10 16384 ]
 
 def holdB : Entry := { owner := "b", token := "t2", kind := .test, since := 0, till := 60, leaseS := 60 }
 
