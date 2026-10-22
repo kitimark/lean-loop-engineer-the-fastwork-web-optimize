@@ -79,9 +79,9 @@ export function resolve(
   presets: Record<string, PresetDef>,
 ): ResolveResult {
   const errors: string[] = [];
-  // Mirrors Lean `Fw.Console.BuildsOpen.validate_encoded_fwl`: with `?fwl=` present, a search outside the
+  // Mirrors Lean `Fw.Console.BuildsOpen.validate_encoded_fwl`: with an `fwl` key present (after URLSearchParams decoding, so an encoded key counts), a search outside the
   // console charset is refused whole (no percent-decoding, no + to space), as the console refuses it.
-  if (/(^|[?&])fwl=/.test(search)) {
+  if (new URLSearchParams(search).has('fwl')) {
     if (search.length > FWL_MAX_LEN) return { ok: false, errors: ['search is longer than 2000 characters'] };
     if (!FWL_CHARSET.test(search.startsWith('?') ? search.slice(1) : search))
       return { ok: false, errors: [FWL_CHARSET_REASON] };

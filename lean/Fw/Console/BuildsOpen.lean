@@ -194,10 +194,24 @@ theorem okChar_percent : okChar '%' = false := by decide
 
 theorem okChar_plus : okChar '+' = false := by decide
 
-theorem validate_encoded_fwl (parts presets) :
-    validate parts presets "?fwl=hero%5Fcopy:c" = .refused [charsetReason] := by
-  simp [validate, maxLen, body, okChar]
-  decide
+/-- Any search of allowed length whose body holds a `%` is refused whole with `charsetReason`: no percent-decoding,
+whatever key carries it (including an encoded `fwl` key). -/
+theorem validate_percent (parts presets) (s : String) (hl : ¬ s.length > maxLen) (hm : '%' ∈ (body s).toList) :
+    validate parts presets s = .refused [charsetReason] :=
+  validate_charset parts presets s hl (by
+    cases h : (body s).toList.all okChar
+    · rfl
+    · have := List.all_eq_true.1 h '%' hm
+      simp [okChar_percent] at this)
+
+/-- The same for a `+` (not read as a space). -/
+theorem validate_plus (parts presets) (s : String) (hl : ¬ s.length > maxLen) (hm : '+' ∈ (body s).toList) :
+    validate parts presets s = .refused [charsetReason] :=
+  validate_charset parts presets s hl (by
+    cases h : (body s).toList.all okChar
+    · rfl
+    · have := List.all_eq_true.1 h '+' hm
+      simp [okChar_plus] at this)
 
 theorem validate_ok (parts presets) (s : String) (hl : ¬ s.length > maxLen)
     (hc : (body s).toList.all okChar = true) (h : searchErrors parts presets (params (body s)) = []) :
