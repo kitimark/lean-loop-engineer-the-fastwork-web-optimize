@@ -1,6 +1,3 @@
-// review-info: the information panel of a look-change review. The tables, ranges and formulas are Lean (`console.reviewInfo`,
-// Fw.Console.ReviewInfo); these tests check them against their sources (the golden, the research note, the ledger, the code
-// ranges) so none of them can drift, and check the route glue.
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

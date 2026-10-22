@@ -1,5 +1,3 @@
-// `fw land --dry` (task land-dry; Lean Fw.Console.LandDry: dry_pass_land_pass, dry_refusal_is_land_refusal, handback_pass_land_pass).
-// A dry land runs the real land's scope, merge and reads stages and nothing else: no lock, no queue, main untouched.
 import "./land-timeout.ts";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -136,7 +134,6 @@ describe("fw land --dry", () => {
     expect(snap()).toEqual(before);
     const ok = await land(BR, { ...opts, dry: true, ...reads(["true"]), dryLints: [["true"], ["true"]] });
     expect(ok.kind, text(ok)).toBe("dry");
-    // reads refuses before lint
     const both = await land(BR, { ...opts, dry: true, ...reads(["sh", "-c", "echo land-inputs.test; exit 1"]), dryLints: [["false"]] });
     expect(both.kind, text(both)).toBe("reads");
   });
@@ -173,8 +170,8 @@ describe("fw land --dry", () => {
     const { fx, wt, opts } = await setup();
     fx.commit(wt, "other/b.ts");
     const results = [
-      await land(BR, { ...opts, dry: true, ...reads(["true"]) }), // scope
-      await land("no-such-branch", { ...opts, dry: true }), // outside the modelled stages: threw
+      await land(BR, { ...opts, dry: true, ...reads(["true"]) }),
+      await land("no-such-branch", { ...opts, dry: true }),
     ];
     for (const r of results) {
       expect(r.outcome, text(r)).toBeDefined();

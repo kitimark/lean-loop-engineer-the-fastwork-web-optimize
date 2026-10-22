@@ -11,18 +11,15 @@ import Fw.Console.ReviewInfo
 namespace Fw.Wire.ReviewInfo
 open Lean Fw.Wire.Ops Fw.Console.ReviewInfo
 
-/-- A range as JSON. -/
 def rangeJson : Option (Nat × Nat) → Json
   | some (lo, hi) => .arr #[toJson lo, toJson hi]
   | none => .null
 
-/-- The status of a row as JSON. -/
 def statusJson : Status → Json
   | .measured runs aa => Json.mkObj [("kind", "measured"), ("runs", toJson runs), ("aa", toJson aa)]
   | .modelled t g => Json.mkObj [("kind", "modelled"), ("theorem", t), ("golden", g)]
   | .unknown w => Json.mkObj [("kind", "unknown"), ("why", w)]
 
-/-- What a row shows, as JSON: the kind, the count and the words the panel prints. -/
 def shownJson : Shown → Json
   | .gain n => Json.mkObj [("kind", "gain"), ("n", toJson n), ("text", s!"{n} fewer")]
   | .noSaving => Json.mkObj [("kind", "noSaving"), ("text", "no saving")]
@@ -31,25 +28,20 @@ def shownJson : Shown → Json
   | .worse n => Json.mkObj [("kind", "worse"), ("n", toJson n), ("text", s!"{n} more")]
   | .unknown => Json.mkObj [("kind", "unknown"), ("text", "unknown")]
 
-/-- A gain row as JSON. -/
 def gainJson (g : Gain) : Json :=
   Json.mkObj [("metric", g.metric), ("engine", g.engine), ("push", g.push), ("viewport", g.viewport),
     ("before", rangeJson g.before), ("after", rangeJson g.after), ("noise", toJson g.noise), ("unit", g.unit),
     ("status", statusJson g.status), ("shown", shownJson g.shown)]
 
-/-- An excerpt as JSON. -/
 def excerptJson (e : Excerpt) : Json :=
   Json.mkObj [("id", e.id), ("side", e.side), ("file", e.file), ("anchor", e.anchor), ("span", toJson e.span), ("note", e.note)]
 
-/-- A source as JSON. -/
 def sourceJson (s : Source) : Json := Json.mkObj [("claim", s.claim), ("status", s.status), ("cite", s.cite)]
 
-/-- A formula as JSON. -/
 def formulaJson (f : Formula) : Json :=
   Json.mkObj [("id", f.id), ("tex", f.tex), ("says", f.says), ("decl", f.decl), ("file", f.file), ("line", toJson f.line),
     ("kind", f.kind)]
 
-/-- `console.reviewInfo` (`Fw.Console.ReviewInfo.infoFor`). -/
 def opReviewInfo (req : Json) : Except String Reply := do
   let flag ← str req "flag"
   match infoFor flag with
@@ -60,7 +52,6 @@ def opReviewInfo (req : Json) : Except String Reply := do
       ("mechanism", toJson mechanism), ("sources", .arr (sources.map sourceJson).toArray),
       ("formulas", .arr (formulas.map formulaJson).toArray)]
 
-/-- `console.reviewExcerpt`: the range of excerpt `excerpt` of `flag` in the given file lines (`locate`). -/
 def opReviewExcerpt (req : Json) : Except String Reply := do
   let flag ← str req "flag"
   let id ← str req "excerpt"
