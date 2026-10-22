@@ -3,7 +3,7 @@
 - Branch `worktree-wf_966da1fd-1d2-1`, worktree `.claude/worktrees/wf_966da1fd-1d2-1`, CI branch `ci/morph-constant-bounds`.
 - Final design commit b4cd0105 (pushed to the CI branch); results commit 3157d260; then a merge of main.
 - 5th dispatch: webkit-sim final design 39751427150 FAILED: cancelled at 60 min, hung in Determinism sessions, no artifact; last sha 41929a89.
-- 6th dispatch (final design, branch sha 9e62cdd8): webkit-sim 39760667274 started 10:07Z, RUNNING. If it hangs/fails: no 7th, final design unmeasured (blocked on sim-step-watchdog).
+- 6th dispatch (final design, branch sha 9e62cdd8): webkit-sim 39760667274 started 10:07Z, PASSED. Reduced against base 39744614747 (cost-report): Composite/frame on the open push lower (100-148 ms vs 176-181 ms), all other cells overlap. Note, ledger, report.json updated.
 - Runs (4 of 4 dispatches used): breakpoint-gate first design 39744563175 FAIL (wrapper element); webkit-sim base
   39744614747 pass; webkit-sim first design 39744653093 pass; breakpoint-gate final design 39747969466 pass.
 
@@ -16,7 +16,7 @@
 - Gate both engines on the final design: pass. Ledger n=45, preset, footprint, note, `results/morph-constant-bounds/report.json`.
 
 ## Open
-- The final design has no webkit-sim data (5th dispatch hung; no dispatch left). Command:
+- Final design measured by run 39760667274 (5th, 39751427150, hung). No dispatch left. Command used:
   `gh workflow run webkit-sim.yml --ref ci/morph-constant-bounds -f target=rewrite -f lag=true -f cost=on -f fw=morph.panel:const-bounds`
   (base 39744614747 is valid for it); reduce both with `packages/measure-webkit/src/lag/cli.mjs cost-report`.
 - PathPix has no lane code; IOSurface creations are not recorded by the lane.

@@ -10,9 +10,8 @@ Task `morph-constant-bounds`. Branch `worktree-wf_966da1fd-1d2-1`, CI branch `ci
   where the original paints it at every scale (`paint_eq`, `visible_iff`, `pivot_same`) with the original width
   (`inset_width_eq`, `backdrop_eq`). At rest no rule applies (`varBox_rest`).
 - CONFIRMED (CI): breakpoint gate, both engines, final design: run 39747969466 pass.
-- MEASURED, first design only: webkit-sim base 39744614747 against 39744653093, counts overlap (below). The final
-  design has no webkit-sim run: the dispatch cap (4) went to the first design, which failed the gate (run 39744563175).
-  The command is in the report's `open`.
+- MEASURED: webkit-sim base 39744614747 against the final design 39760667274 (the 5th dispatch 39751427150 hung): only
+  Composite per frame on the open push is lower; the other cells overlap (below). First design 39744653093: overlap.
 - Not delivered: IOSurface creations (the Simulator lane does not record them), PathPix pixels (no lane code), the
   tracks and the nav resize.
 
@@ -88,14 +87,28 @@ CI webkit-sim, iOS Simulator 430x775, lag and cost passes, two passes per arm, b
 Reading: no win on the main thread, as the proof says (children keep their layout inputs, `inset_width_eq`). The saving
 sits in the GPU process (F3) and in the F4 tiles, which the Simulator does not show. INFERRED, not measured.
 
-## Measurement (final design): not delivered
+## Measurement (final design)
 
-The 5th dispatch, webkit-sim run 39751427150 (target=rewrite, lag=true, cost=on, fw=morph.panel:const-bounds, branch tip
-b4cd0105), booted the Simulator at 08:59:35Z and then sat in the step `Determinism sessions` with no step output until
-GitHub cancelled the job at the 60 min limit (09:55:56Z). No pass completed, no artifact was uploaded, so there are no
-final-design numbers. The first-design numbers above stay recorded as a separate row; they belong to the wrapper design
-that failed the gate. Cause of the hang: unknown (the job log is not served for a cancelled step; INFERRED a lost page
-target, as the lead anticipated). No dispatch is left in this task.
+The 5th dispatch (webkit-sim run 39751427150) hung in `Determinism sessions` and was cancelled at 60 min with no artifact
+(incident inc-sim-step-unbounded, fix task sim-step-watchdog). The 6th dispatch, webkit-sim run 39760667274 (branch tip
+9e62cdd8, target=rewrite, lag=true, cost=on, fw=morph.panel:const-bounds), passed. `lag/cli.mjs cost-report` of the base
+run 39744614747 against it, two passes per arm (ranges over the passes):
+
+- Composite per frame, morph open (push down): 176345-180949 us (base) against 100214-148161 us; the ranges do not
+  overlap (MEASURED, cost-report says lower). Close push: 124313-214201 against 101424-148892 us, overlap.
+- Paint per frame, open: 5389-7747 against 3884-7607 us, overlap. Morph rest: Composite 41644-57246 against
+  35719-37026 us (lower), but 31-36 against 49-50 frames, so the zone lengths differ.
+- Frame cadence (skipped slots, slots lost, rAF histogram), every other zone: overlap, except morph rest "lower".
+- Resized layers per 100 layer-tree reads, open: 833-1250 against 1250-1300; the panel layer cannot be told apart by id,
+  so the count does not show whether it stops resizing (the nav, tracks and other layers still resize).
+- Paint records after the tween end, early: 96 (base) against 105-109 (higher), close overlaps.
+- RecalculateStyles and Layout record counts were not re-derived for the final design.
+
+Reading: the one cell that moves is Composite per frame on the open push, with two passes per arm and large pass-to-pass
+spread in the base (close push 124-214 ms), so a single such cell is weak evidence. The layout inputs are unchanged
+(`inset_width_eq`), so no main-thread win is expected. The saving sits in GPU allocation (F3) and tiles (F4), which the
+Simulator does not show (INFERRED). The first-design numbers above (run 39744653093) stay a separate row; they belong to
+the wrapper design that failed the gate.
 
 ## Limits
 

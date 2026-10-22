@@ -2799,7 +2799,7 @@
    "missingWhy": [
     "Allocation and raster cost of a resized layer is INFERRED from the engine source (render-cost note F3); the Simulator has no real GPU and the lane records no IOSurface creations",
     "The blur outset of the panel layer changes while the fade runs (m from 0.08 to 0.8), which can still resize the layer; unread in WebKit and unmeasured",
-    "The final design has no webkit-sim base-against-flag run: the dispatch cap was spent on the first design",
+    "The final design webkit-sim run 39760667274 (6th dispatch; the 5th, 39751427150, hung) shows morph-zone counts overlapping the base, as the proof says: the saving is in the GPU process and tiles, which the Simulator does not show",
     "PathPix has no lane code, so the pixel grade of the fractional offsets is not measured"
    ],
    "premises": [
@@ -2810,8 +2810,8 @@
    ],
    "v1Evidence": "",
    "lesson": "A variant that adds a wrapper element or changes the panel insets at rest fails the breakpoint gate, which counts direct children and compares insets at rest; restricting the new geometry to the morphing state and moving each child with its own inset keeps the DOM and the rest state identical.",
-   "next": "Dispatch the webkit-sim base-against-flag run for the final design (command in the report), then judge on a real-GPU lane (mac-safari-measure or the phone); the nav resize (C8) and the tracks are separate candidates.",
-   "evidence": "CI runs 39744563175, 39747969466, 39744614747, 39744653093; research/notes/2026/10-2x-morph-constant-bounds.md; results/morph-constant-bounds/report.json"
+   "next": "Judge on a real-GPU lane (mac-safari-measure or the phone); the nav resize (C8) and the tracks are separate candidates.",
+   "evidence": "CI runs 39744563175, 39747969466, 39744614747, 39744653093, 39751427150 (hung), 39760667274; research/notes/2026/10-2x-morph-constant-bounds.md; results/morph-constant-bounds/report.json"
   }
  ],
  "notes": [
