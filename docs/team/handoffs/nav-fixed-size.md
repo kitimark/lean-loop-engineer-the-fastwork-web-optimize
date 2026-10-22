@@ -1,7 +1,7 @@
 branch: worktree-wf_fab081fd-3ca-1 (CI branches ci/nav-fixed-size, ci/nav-fixed-size-bar, ci/nav-fixed-size-logo)
 worktree: .claude/worktrees/wf_fab081fd-3ca-1 (repo-relative)
-last commit: see `git log -1` (updated at each checkpoint); CI tips: ci/nav-fixed-size ce20d627, ci/nav-fixed-size-bar 60c9829a, ci/nav-fixed-size-logo 76377c79 (final site and Lean code of checkpoint 3)
-CI runs: GitHub Actions was degraded 2026-10-22 from 15:28Z (githubstatus); the push runs of the first pushes (16:50Z) appeared about 50 min late.
+last commit: see `git log -1`; CI tips (checkpoint 4, 2026-10-22 18:25Z): ci/nav-fixed-size cece43bf, ci/nav-fixed-size-bar d6671674, ci/nav-fixed-size-logo 7de81c8d (same code as 3b96c928; tips 3 got NO runs at all, the pushes were dropped; `fw ci push` rewrites the tip message, so the tips were pushed with plain branch -f + git push)
+CI runs: none listed yet for the checkpoint-4 tips; list with `gh run list --commit <sha>`. Trajectory lines are in each tip message.
   Superseded (stale, old CSS location): lean 39822710985 success (13954230), breakpoint-gate 39822711037, trajectory-probe 39822710976, lean 39822861544 (7b361731), trajectory-probe 39822861643.
   Current tips: run ids not yet created when this was written; list with `gh run list --branch <b>`.
 
