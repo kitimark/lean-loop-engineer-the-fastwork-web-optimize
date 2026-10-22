@@ -17021,7 +17021,13 @@
     "lean/Fw/Console/LandVerdict.lean",
     "packages/contracts/golden/console/land-dry.jsonl",
     "docs/team/tools/land.md",
-    "docs/team/handoffs/land-wt-lock-drift.md"
+    "docs/team/handoffs/land-wt-lock-drift.md",
+    "apps/runner/src/land-verdict.ts",
+    "lean/Fw/Console/LandDry.lean",
+    "lean/Fw/Spec/Incidents.lean",
+    "lean/Fw/Spec/Props/LandDryDemo.lean",
+    "apps/runner/test/land-verdict.test.ts",
+    "packages/contracts/golden/console/land-dry-merge.jsonl"
    ],
    "title": "Real cause of the morph-touch-band land refusal (incident inc-land-wt-lock-drift; land-install-fallback review forensics): a reused land worktree (.claude/land-wt/N, checkoutLandWt known branch, land.ts:341-352) runs no install unless the land's own diff touches pnpm-lock.yaml or a package.json, so its node_modules drift behind main's lockfile (land-wt/1 created 10-18, jsdom added 10-20). Fix through the Lean installKind rule: stamp the lockfile hash at each install (or read node_modules/.modules.yaml) and install when the checked-out lockfile differs; golden case for a reused worktree behind main. Also the land-install-fallback follow-ups: an end-to-end both-fail test through land() (injectable exec, VERDICT install, exit 19), the stderr tail in the REFUSED line and an execFileSync timeout, and an install stage in the Lean dryRun outcome."
   },
@@ -17093,6 +17099,27 @@
     "docs/team/handoffs/commission-band-followups.md"
    ],
    "title": "Review follow-ups of commission-band-gate: (1) visSame covers bodies only; model events as Ev ⊕ media change and prove look agreement over the merged trajectory; (2) premise P1 (the media-query change event fires before paint, in the same rendering update as the rAF body) is a hypothesis: cite the HTML 'update the rendering' order and the WebKit and Chromium source (file:line@commit) and mark it CONFIRMED; (3) state the Chromium window bound convention in the note so the figures reproduce (inclusive 3070 <= scrollY <= 3530 gives 47 frames per run, RecalcStyleCount 5.02 -> 3.09, elementCount 127.1 -> 60.6; the note says 46, 3.07, 60.1)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "nav-fixed-followups",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [
+    "nav-fixed-size",
+    "gpu-trajectory-cells"
+   ],
+   "writes": [
+    "lean/Fw/Parts/NavClipBox.lean",
+    "lean/Fw/Parts/NavBarFixed*.lean",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-nav-fixed-size.md",
+    "results/nav-fixed-size/**",
+    "docs/team/handoffs/nav-fixed-followups.md"
+   ],
+   "title": "Review follow-ups of nav-fixed-size (landed): (1) ledger rows nav.clip-box/bar-fixed/logo-3d: the clip-box candidate says the morph 'lays out nothing per frame' and the mechanism 'no width transition starts', both refuted (bar and panel insets are placed per frame; a width transition under 0.42 px starts for 0 < m <= cut); bar-fixed and logo-3d leanFor lists only NavClipBox theorems, add their own (barW_const, logoX_eq, translate_scale_order, logo3d_layout_normal); (2) restW fixes heroPill = false while the hero pill can come on in the same frame .is-morphing drops (logic.ts:63): make restW take h : Bool and state decl_eq_rest_zero for every h; (3) post-land: rerun the three per-flag gates on main (the main merge changed morph.tween/index.tsx, which publishes --morph to the nav) and the trajectory nav clip cell (gpu-trajectory-cells is on main); (4) the layer census and cost lane (webkit-sim --target rewrite --fw nav:<flag>, chromium-counts) with ledger numbers."
   }
  ],
  "deadline": {
