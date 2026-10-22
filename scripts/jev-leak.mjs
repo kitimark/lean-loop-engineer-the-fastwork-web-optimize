@@ -1,12 +1,4 @@
 #!/usr/bin/env node
-// Leak scan for the Jev trial rows (task jev-file-context-note). Measures what expanding the repo files a row names
-// would add to its state: how many rows name a path, how large the files are against the oracle caps, which files carry
-// the row's own label (a leak) or another label (a decoy), and whether a row scores differently when it names files.
-// The rows are read from a path argument and never copied here; the files are read from git at fixed commits.
-//
-// Usage: node scripts/jev-leak.mjs --rows <dir with rows-d1.json, rows-d2.json> [--clean <dir>] [--json <out>]
-//   --clean: a results/jev-arms-clean directory; its d1/d2 Haiku and Sonnet answers are scored as extra arms.
-// Read-only: no Jev send, no claude -p call, no write except --json.
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -14,18 +6,13 @@ import { fileURLToPath } from 'node:url';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-// Source commits. d1: the ledger commit the D1 rows were built from. d2: main when the trial counts were written; D2
-// rows come from review journals, which have no ledger commit.
 export const SRC = { d1: 'ecdc0787', d2: 'c31e0848' };
 
-// A repo path: a top-level repo dir, a slash, then path characters. ':' is not a path character, so a `:N` line
-// suffix is cut off. Trailing '.' and ',' are stripped; a leading '../' is kept in the count and dropped to resolve.
 const TOPS = ['research', 'docs', 'lean', 'lean-math', 'apps', 'packages', 'scripts', '\\.github', '\\.claude',
   '\\.circleci', 'refs', 'results', 'snapshot', '\\.cache', '\\.local'];
 export const PATH_RE = new RegExp(
   `(?<![A-Za-z0-9_./-])(?:\\.\\./)?(?:${TOPS.join('|')})/[A-Za-z0-9_.@*{}<>,/+-]*[A-Za-z0-9_*}>]`, 'g');
 
-// The code-only allowlist used to count the rows a pinned expansion would change (Option A).
 const CODE_PREFIXES = ['apps/', 'packages/', 'scripts/', 'lean/Fw/'];
 const CODE_DENY = ['lean/Fw/Oracle/'];
 const CODE_EXTS = ['.lean', '.ts', '.tsx', '.mjs', '.js', '.sh', '.yaml'];
@@ -49,7 +36,6 @@ const pct = (xs, q) => { const s = [...xs].sort((a, b) => a - b); return s.lengt
 const kb = n => `${(n / 1024).toFixed(1)} KiB`;
 
 const objCache = new Map();
-/** {kind: blob|tree|missing|pattern, bytes, text, escaped} for path p at commit sha. */
 function obj(sha, p) {
   const key = `${sha}:${p}`;
   if (objCache.has(key)) return objCache.get(key);
@@ -117,7 +103,6 @@ for (const set of ['d1', 'd2']) {
     const row = { id: r.id, label: r.label, paths: [...ps], blobs: blobs.length,
       raw: blobs.reduce((s, f) => s + f.bytes, 0), escaped: text.reduce((s, f) => s + f.escaped, 0) };
     if (set === 'd1') {
-      // D1 labels are class ids, so a file holding one is a leak (own label) or a decoy (another class).
       row.labelLeak = text.filter(f => f.text.includes(r.label)).map(f => f.rp);
       row.decoys = text.flatMap(f => vocab.filter(c => c !== r.label && f.text.includes(c)).map(c => `${f.rp}=${c}`));
       row.idLeak = text.filter(f => f.text.includes(r.id)).map(f => f.rp);
@@ -132,7 +117,6 @@ for (const set of ['d1', 'd2']) {
       row.optionA = pinned.some(f => isCode(f.rp)
         && !vocab.some(w => f.text.toLowerCase().includes(w)) && !f.text.includes(r.id));
     } else {
-      // D2 labels are common words; the label signal is the lead's later triage record of the reviewed task.
       const triage = `${taskOf(r.id)} review follow-up`;
       row.triage = text.filter(f => f.text.includes(triage)).map(f => f.rp);
       row.refusedHandoff = text.filter(f => f.rp.startsWith('docs/team/handoffs/')
