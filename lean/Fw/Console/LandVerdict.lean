@@ -96,6 +96,66 @@ theorem installKind_refusal (a b : Bool) (k : Kind) (h : installKind a b = some 
   cases a <;> cases b <;> simp [installKind] at h
   subst h; exact ⟨rfl, rfl⟩
 
+def installNeeded (known : Bool) (lock : String) (stamp : Option String) : Bool :=
+  !known || stamp != some lock
+
+def installStep (known : Bool) (lock : Option String) (stamp : Option String) (offlineOk onlineOk : Bool) :
+    Option Kind × Option String :=
+  match lock with
+  | none => (none, stamp)
+  | some h =>
+    if installNeeded known h stamp then
+      (if installKind offlineOk onlineOk = none then (none, some h) else (some .install, none))
+    else (none, stamp)
+
+theorem installStep_checks_see_current_stamp (known : Bool) (h : String) (stamp : Option String) (a b : Bool)
+    (hn : (installStep known (some h) stamp a b).1 = none) : (installStep known (some h) stamp a b).2 = some h := by
+  unfold installStep installNeeded at *
+  by_cases hk : (!known || stamp != some h) = true
+  · simp only [hk, ite_true] at hn ⊢
+    by_cases hi : installKind a b = none
+    · simp [hi]
+    · simp [hi] at hn
+  · simp only [Bool.not_eq_true] at hk
+    simp only [hk]
+    simp only [Bool.or_eq_false_iff, Bool.not_eq_false', bne_eq_false_iff_eq] at hk
+    simp [hk.2]
+
+theorem installStep_refusal (known : Bool) (h : String) (stamp : Option String) (a b : Bool) (k : Kind)
+    (hr : (installStep known (some h) stamp a b).1 = some k) :
+    k = .install ∧ (installStep known (some h) stamp a b).2 = none := by
+  unfold installStep at *
+  by_cases hk : installNeeded known h stamp = true
+  · simp only [hk, ite_true] at hr ⊢
+    cases a <;> cases b <;> simp [installKind] at hr ⊢ <;> simp [hr]
+  · simp [hk] at hr
+
+theorem installNeeded_reused_current (h : String) : installNeeded true h (some h) = false := by
+  simp [installNeeded]
+
+theorem installNeeded_reused_behind (h s : String) (hne : s ≠ h) : installNeeded true h (some s) = true := by
+  simp [installNeeded, hne]
+
+theorem installNeeded_reused_unstamped (h : String) : installNeeded true h none = true := by
+  simp [installNeeded]
+
+theorem installNeeded_new (h : String) (s : Option String) : installNeeded false h s = true := by
+  simp [installNeeded]
+
+theorem installStep_refused_next_land_installs (known : Bool) (h h2 : String) (stamp : Option String) (a b : Bool) (k : Kind)
+    (hr : (installStep known (some h) stamp a b).1 = some k) :
+    installNeeded true h2 (installStep known (some h) stamp a b).2 = true := by
+  rw [(installStep_refusal known h stamp a b k hr).2]
+  exact installNeeded_reused_unstamped h2
+
+theorem installStep_behind_both_fail :
+    installStep true (some "new") (some "old") false false = (some .install, none) := by
+  decide
+
+theorem installStep_behind_offline_ok :
+    installStep true (some "new") (some "old") true false = (none, some "new") := by
+  decide
+
 #guard Kind.all.length == 15
 #guard (Kind.all.map Kind.name).eraseDups.length == 15
 #guard ((Kind.all.filter (fun k => !k.ok)).map Kind.exitCode).eraseDups.length == 11

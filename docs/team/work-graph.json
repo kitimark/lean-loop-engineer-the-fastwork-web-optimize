@@ -17030,7 +17030,8 @@
     "apps/runner/test/land-verdict.test.ts",
     "packages/contracts/golden/console/land-dry-merge.jsonl"
    ],
-   "title": "Real cause of the morph-touch-band land refusal (incident inc-land-wt-lock-drift; land-install-fallback review forensics): a reused land worktree (.claude/land-wt/N, checkoutLandWt known branch, land.ts:341-352) runs no install unless the land's own diff touches pnpm-lock.yaml or a package.json, so its node_modules drift behind main's lockfile (land-wt/1 created 10-18, jsdom added 10-20). Fix through the Lean installKind rule: stamp the lockfile hash at each install (or read node_modules/.modules.yaml) and install when the checked-out lockfile differs; golden case for a reused worktree behind main. Also the land-install-fallback follow-ups: an end-to-end both-fail test through land() (injectable exec, VERDICT install, exit 19), the stderr tail in the REFUSED line and an execFileSync timeout, and an install stage in the Lean dryRun outcome."
+   "title": "Real cause of the morph-touch-band land refusal (incident inc-land-wt-lock-drift; land-install-fallback review forensics): a reused land worktree (.claude/land-wt/N, checkoutLandWt known branch, land.ts:341-352) runs no install unless the land's own diff touches pnpm-lock.yaml or a package.json, so its node_modules drift behind main's lockfile (land-wt/1 created 10-18, jsdom added 10-20). Fix through the Lean installKind rule: stamp the lockfile hash at each install (or read node_modules/.modules.yaml) and install when the checked-out lockfile differs; golden case for a reused worktree behind main. Also the land-install-fallback follow-ups: an end-to-end both-fail test through land() (injectable exec, VERDICT install, exit 19), the stderr tail in the REFUSED line and an execFileSync timeout, and an install stage in the Lean dryRun outcome.",
+   "evidence": "8ae6f82"
   },
   {
    "devices": [

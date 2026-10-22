@@ -31,10 +31,10 @@ open Fw.Console.LandVerdict Fw.Console.LandDry Fw.Spec.LandDrySig
 /-- Does the outcome describe an empty branch: no exception, the branch contains main, and it has no commit of its own? -/
 def isEmptyBranch (o : Outcome) : Bool := !o.threw && o.fresh && !o.own
 
-#guard isEmptyBranch ⟨false, true, false, false, false, false, false⟩
-#guard !isEmptyBranch ⟨true, true, false, false, false, false, false⟩
-#guard !isEmptyBranch ⟨false, false, false, false, false, false, false⟩
-#guard !isEmptyBranch ⟨false, true, true, true, true, true, true⟩
+#guard isEmptyBranch ⟨false, true, false, false, false, false, false, false⟩
+#guard !isEmptyBranch ⟨true, true, false, false, false, false, false, false⟩
+#guard !isEmptyBranch ⟨false, false, false, false, false, false, false, false⟩
+#guard !isEmptyBranch ⟨false, true, true, true, true, true, true, true⟩
 
 /-- The incident inputs of `inc-land-dry-no-verdict`: the outcome is an empty branch. The ledger says only "a branch
 with no own commits"; the `fresh` conjunct (the branch contains main) is INFERRED from the stage order of
@@ -55,13 +55,13 @@ records. -/
 def emptyNoVerdict : DryImpl := fun o t =>
   if isEmptyBranch o then ⟨[pathLine], o.kind.exitCode⟩ else ⟨dryRun o t, o.kind.exitCode⟩
 
-#guard (emptyNoVerdict ⟨false, true, false, false, false, false, false⟩ "x").lines == [pathLine]
-#guard (emptyNoVerdict ⟨false, true, true, true, true, true, true⟩ "x").lines ==
-  dryRun ⟨false, true, true, true, true, true, true⟩ "x"
+#guard (emptyNoVerdict ⟨false, true, false, false, false, false, false, false⟩ "x").lines == [pathLine]
+#guard (emptyNoVerdict ⟨false, true, true, true, true, true, true, true⟩ "x").lines ==
+  dryRun ⟨false, true, true, true, true, true, true, true⟩ "x"
 
 /-- **The incident predicate is strict**: some outcome (every stage false) is not an empty branch. -/
 theorem emptyIncident_strict : Strict emptyIncident :=
-  ⟨⟨false, false, false, false, false, false, false⟩, by unfold emptyIncident; decide⟩
+  ⟨⟨false, false, false, false, false, false, false, false⟩, by unfold emptyIncident; decide⟩
 
 /-- **The registry row of `inc-land-dry-no-verdict`** (docs/team/incidents/ledger.json): incident inputs
 `E_empty` (ledger `leanPred`), replay `emptyNoVerdict` (ledger `leanReplay`). -/

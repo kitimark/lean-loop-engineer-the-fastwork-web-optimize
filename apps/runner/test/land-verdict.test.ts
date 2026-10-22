@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { checkFailKind, dryKind, dryRun, exitCode, failedStages, installKind, installRunsOnline, handbackAllowed, lintPlan, outcomeKind, parseVerdict, retryable, isOk, verdictLine, type Kind, type Outcome } from "../src/land-verdict.ts";
+import { checkFailKind, dryKind, dryRun, exitCode, failedStages, installKind, installRunsOnline, installNeeded, installStep, handbackAllowed, lintPlan, outcomeKind, parseVerdict, retryable, isOk, verdictLine, type Kind, type Outcome } from "../src/land-verdict.ts";
 
 const file = join(dirname(new URL(import.meta.url).pathname), "../../../packages/contracts/golden/console/land-dry.jsonl");
 type G = { name: string; request: Record<string, unknown> & { op: string }; response: Record<string, unknown> };
@@ -19,7 +19,7 @@ describe("land verdict vs Lean golden", () => {
     } else if (q.op === "landDry.handback") {
       expect(g.response).toEqual({ allowed: handbackAllowed(q.kind as Kind) });
     } else if (q.op === "landDry.run") {
-      const oc = { threw: q.threw, fresh: q.fresh, own: q.own, scope: q.scope, merges: q.merges, reads: q.reads, lints: q.lints } as Outcome;
+      const oc = { threw: q.threw, fresh: q.fresh, own: q.own, scope: q.scope, merges: q.merges, installs: q.installs, reads: q.reads, lints: q.lints } as Outcome;
       const lines = dryRun(oc, q.task as string);
       expect(g.response).toEqual({ lines, kind: outcomeKind(oc), exit: exitCode(outcomeKind(oc)) });
       expect(lines.filter((l) => l.startsWith("VERDICT ")).length).toBe(1);
@@ -29,6 +29,10 @@ describe("land verdict vs Lean golden", () => {
       expect(g.response).toEqual({ kind: checkFailKind(q.failed as { reads: boolean; stages: string[] }[]) });
     } else if (q.op === "landVerdict.install") {
       expect(g.response).toEqual({ runsOnline: installRunsOnline(q.offlineOk as boolean), kind: installKind(q.offlineOk as boolean, q.onlineOk as boolean) });
+    } else if (q.op === "landVerdict.installStamp") {
+      const lock = q.lock as string | null, stamp = q.stamp as string | null, known = q.known as boolean;
+      const st = installStep(known, lock, stamp, q.offlineOk as boolean, q.onlineOk as boolean);
+      expect(g.response).toEqual({ needed: lock === null ? false : installNeeded(known, lock, stamp), kind: st.kind, stampAfter: st.stampAfter });
     } else throw new Error(`unknown op ${q.op}`);
   });
   it("failedStages reads the check.sh stage names (parsing only)", () => {
