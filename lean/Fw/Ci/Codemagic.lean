@@ -107,16 +107,9 @@ theorem fresh_month (month : String) (rows : List Row) (h : ∀ r ∈ rows, r.mo
     have := ih (fun x hx => h x (by simp [hx]))
     simp [usedIn, hr, this]
 
-/-! ## The pool rule: the minutes line and the cap, no build count
-
-The macOS pool (`Fw.Ci.PoolTier`) sends Codemagic one build at a time for as long as the month's minutes allow; the pilot's
-three-build limit does not apply to it. -/
-
-/-- Every reason the pool refuses a Codemagic build of `cap` minutes when `used` minutes of the month are spent. -/
 def poolRefusals (used cap : Nat) : List Refusal :=
   (if stopAt < used + cap then [.minutes] else []) ++ (if maxCapMin < cap then [.cap] else [])
 
-/-- The pool may send Codemagic a build of `cap` minutes. -/
 def poolOk (used cap : Nat) : Bool := (poolRefusals used cap).isEmpty
 
 theorem poolOk_iff (used cap : Nat) : poolOk used cap = true ↔ used + cap ≤ stopAt ∧ cap ≤ maxCapMin := by
@@ -133,7 +126,6 @@ theorem pool_within_plan {used cap : Nat} (h : poolOk used cap = true) : used + 
   have := ((poolOk_iff used cap).1 h).1
   unfold stopAt at this; unfold freeMinutes; omega
 
-/-- The pilot rule is the pool rule plus the build count. -/
 theorem trigger_pool (month : String) (rows : List Row) (cap : Nat) (h : mayTrigger month rows cap = true) :
     poolOk (usedIn month rows) cap = true := by
   obtain ⟨h1, _, h3⟩ := (trigger_iff month rows cap).1 h
@@ -143,7 +135,6 @@ theorem trigger_pool (month : String) (rows : List Row) (cap : Nat) (h : mayTrig
 #guard (poolRefusals 390 41).map Refusal.name == ["minutes", "cap"]
 
 
-/-- The `YYYY-MM` (UTC) of a Unix time in milliseconds. -/
 def monthOf (ms : Nat) : String :=
   let z := ms / 86400000 + 719468
   let era := z / 146097
@@ -163,7 +154,6 @@ def monthOf (ms : Nat) : String :=
 #guard monthOf 1798761600000 == "2027-01"
 
 
-/-- The exit code of a wait at a build status. -/
 def exitOf : String → Option Nat
   | "finished" => some 0
   | "failed" => some 1
@@ -172,7 +162,6 @@ def exitOf : String → Option Nat
   | "skipped" => some 4
   | _ => none
 
-/-- Every status the API names. -/
 def statuses : List String :=
   ["initializing", "queued", "preparing", "fetching", "testing", "building", "publishing", "finishing", "finished",
    "failed", "canceled", "timeout", "skipped"]
@@ -202,7 +191,6 @@ def monthVectors : List Nat := [0, 951782400000, 1004572799999, 1004572800000, 1
 
 private def rowJson (r : Row) : Json := Json.mkObj [("id", r.id), ("month", r.month), ("minutes", r.minutes)]
 
-/-- The golden `packages/contracts/golden/ci/codemagic.jsonl`. -/
 def goldenText : String :=
   let lines : List Json :=
     [Json.mkObj [("kind", "constants"), ("freeMinutes", freeMinutes), ("stopAt", stopAt), ("maxCapMin", maxCapMin), ("maxBuilds", maxBuilds),

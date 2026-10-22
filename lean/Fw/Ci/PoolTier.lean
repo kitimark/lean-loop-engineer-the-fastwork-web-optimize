@@ -1,22 +1,12 @@
 import Fw.Ci.Pool.Fallback
 import Fw.Ci.Codemagic
 import Fw.Ci.Overflow
-/-!
-# The three-tier macOS pool: GitHub first, then Codemagic, then CircleCI
-
-A macOS request goes to GitHub while a GitHub macOS slot is free or its wait is short (`Fw.Ci.Pool.Fallback.ghOk`). Past that it
-goes to Codemagic (one build at a time, under the month's minutes line `Fw.Ci.Codemagic.poolOk`), and only then to the fallback
-route of `Fw.Ci.Pool.Fallback`, whose CircleCI branch reads the credits and storage stop rules of `Fw.Ci.Overflow`. With
-`pool7` at most 5 + 1 + 1 = 7 macOS jobs run at once. Task `macos-pool-7`; golden `packages/contracts/golden/ci/pool-tier.jsonl`;
-ops `ci.poolTier`, `ci.poolTierConsts` (`Fw.Wire.CiPoolTier`).
--/
 namespace Fw.Ci.PoolTier
 
 open Fw.Ci.Pool
 open Fw.Ci.Pool.Fallback (Req Target Engine)
 open Fw.Ci.Pool.Key (Key Outcome)
 
-/-- The provider a macOS job runs on. -/
 inductive Via where
   | github
   | codemagic
@@ -24,7 +14,6 @@ inductive Via where
   | bitrise
 deriving DecidableEq, Repr
 
-/-- The pool's constants: the fallback route's and the Codemagic tier's. -/
 structure Cfg where
   base : Fallback.Cfg
   cmOn : Bool
@@ -34,8 +23,6 @@ structure Cfg where
   cmAllow : List String
 deriving DecidableEq, Repr
 
-/-- Seven macOS slots: GitHub 5, Codemagic 1, CircleCI 1 for the webkit-sim lane (m4pro cap 40 min INFERRED from the Codemagic
-cap; the CircleCI stop rule `Fw.Ci.Provider.capMs` is 60 min). -/
 def pool7 : Cfg where
   base := { Fallback.phase1 with circleMacAllow := ["webkit-sim"], circleCaps := [("webkit-sim", 40)], circleShortMaxMin := 40 }
   cmOn := true
@@ -44,9 +31,6 @@ def pool7 : Cfg where
   cmCapMin := Codemagic.maxCapMin
   cmAllow := ["webkit-sim"]
 
-/-- The fallback state plus what the two extra tiers read: Codemagic builds running and minutes used this month (a pending
-build counted at its cap), CircleCI credits spent this month and stored thousandths of the storage allowance. The fallback
-state's `circleCreditsLeft` is not read: the pool derives it from `ccSpent`. -/
 structure State where
   base : Fallback.State
   cmBusy : Nat
@@ -55,48 +39,38 @@ structure State where
   ccStorage : Nat
 deriving DecidableEq, Repr
 
-/-- The fallback state the pool hands on: CircleCI credits left by `Fw.Ci.Overflow.classLeft`. -/
 def State.fb (c : Cfg) (s : State) : Fallback.State :=
   { s.base with circleCreditsLeft := Overflow.classLeft c.base.circleCls s.ccSpent }
 
-/-- The fallback constants the pool hands on: no CircleCI lane while the storage stop rule fires. -/
 def baseCfg (c : Cfg) (s : State) : Fallback.Cfg :=
   if Overflow.storageClearAt s.ccStorage then c.base else { c.base with circleMacAllow := [] }
 
-/-- Codemagic takes the request. -/
 def cmOk (c : Cfg) (r : Req) (s : State) : Bool :=
   c.cmOn && c.cmAllow.contains r.lane && !c.base.ghOnly.contains r.lane && decide (r.capMin ≤ c.cmCapMin) &&
     decide (s.cmBusy < c.cmConc) && Codemagic.poolOk s.cmUsed c.cmCapMin
 
-/-- The pool's answer: a Codemagic build (class, engine, `max_build_duration` in minutes) or the fallback route's answer. -/
 inductive Decision where
   | codemagic (cls : String) (engine : Engine) (capMin : Nat)
   | base (d : Fallback.Decision)
 deriving DecidableEq, Repr
 
-/-- The pool route: a current request GitHub does not take goes to Codemagic when it may, else to the fallback route. -/
 def route (c : Cfg) (r : Req) (s : State) : Decision :=
   if r.current && !Fallback.ghOk c.base (s.fb c) && cmOk c r s then .codemagic c.cmCls r.engine c.cmCapMin
   else .base (Fallback.route (baseCfg c s) r (s.fb c))
 
-/-- The provider a decision runs on, if it runs. -/
 def Decision.via : Decision → Option Via
   | .codemagic .. => some .codemagic
   | .base (.run t) => some (match t.via with | .github => .github | .circleci => .circleci | .bitrise => .bitrise)
   | .base _ => none
 
-/-- Credits a decision reserves on CircleCI. -/
 def Decision.credits : Decision → Nat
   | .base (.run t) => t.credits
   | _ => 0
 
-/-- The state after a decision: a Codemagic build takes its slot and its cap in minutes, a fallback decision moves the
-fallback state, and CircleCI credits are counted as spent. -/
 def State.after (c : Cfg) (s : State) : Decision → State
   | .codemagic _ _ m => { s with cmBusy := s.cmBusy + 1, cmUsed := s.cmUsed + m }
   | .base d => { s with base := (s.fb c).after (baseCfg c s) d, ccSpent := s.ccSpent + (Decision.base d).credits }
 
-/-- Route the requests in order, each against the state the earlier ones left. -/
 def step (c : Cfg) : List Req → State → List (Req × Decision) × State
   | [], s => ([], s)
   | r :: rs, s =>
@@ -104,18 +78,13 @@ def step (c : Cfg) : List Req → State → List (Req × Decision) × State
     let o := step c rs (s.after c d)
     ((r, d) :: o.1, o.2)
 
-/-- macOS jobs running now on every provider. -/
 def inflight (s : State) : Nat := s.base.ghMacBusy + s.cmBusy + s.base.circleBusy + s.base.bitriseBusy
 
-/-- The most macOS jobs the constants allow at once. -/
 def macCap (c : Cfg) : Nat :=
   c.base.ghMacCap + c.cmConc + c.base.circleMacConc + (if c.base.bitriseOn then c.base.bitriseConc else 0)
 
-/-- The slot caps hold, and Bitrise runs nothing while it is off. -/
 def Inv (c : Cfg) (s : State) : Prop :=
   Fallback.Inv c.base s.base ∧ s.cmBusy ≤ c.cmConc ∧ (c.base.bitriseOn = false → s.base.bitriseBusy = 0)
-
-/-! ## Order: GitHub first, Codemagic before CircleCI -/
 
 theorem baseCfg_gh (c : Cfg) (s : State) : Fallback.ghOk (baseCfg c s) = Fallback.ghOk c.base := by
   unfold baseCfg; split <;> rfl
@@ -150,7 +119,6 @@ theorem route_base (c : Cfg) (r : Req) (s : State) (d : Fallback.Decision) (h : 
   · cases h
   · injection h with h; exact h.symm
 
-/-- GitHub first: while GitHub is not degraded and a GitHub macOS slot is free, a current request goes to GitHub. -/
 theorem github_first (c : Cfg) (r : Req) (s : State) (hd : s.base.ghDegraded = false)
     (hf : Fallback.macFree c.base s.base = true) (hc : r.current = true) :
     route c r s = .base (.run ⟨.github, .macos, r.image, r.engine, r.capMin, 0⟩) := by
@@ -161,7 +129,6 @@ theorem github_first (c : Cfg) (r : Req) (s : State) (hd : s.base.ghDegraded = f
   have := Fallback.gh_first (baseCfg c s) r (s.fb c) hd (by rw [baseCfg_macFree]; exact hf) hc
   simp [route, hg, this]
 
-/-- Codemagic before CircleCI: a current request Codemagic may take never goes to CircleCI. -/
 theorem codemagic_before_circleci (c : Cfg) (r : Req) (s : State) (hm : cmOk c r s = true) (hc : r.current = true) (t : Target)
     (ht : t.via = .circleci) : route c r s ≠ .base (.run t) := by
   intro h
@@ -173,7 +140,6 @@ theorem codemagic_before_circleci (c : Cfg) (r : Req) (s : State) (hm : cmOk c r
   · have hg' : Fallback.ghOk c.base (s.fb c) = false := by simpa using hg
     simp [route, hc, hg', hm] at h
 
-/-- Every run decision is GitHub, Codemagic, CircleCI or Bitrise, and a non-GitHub one only when GitHub does not take it. -/
 theorem overflow_only_past_github (c : Cfg) (r : Req) (s : State) (d : Decision) (v : Via) (h : route c r s = d)
     (hv : d.via = some v) (hn : v ≠ .github) : Fallback.ghOk c.base (s.fb c) = false := by
   cases d with
@@ -188,9 +154,6 @@ theorem overflow_only_past_github (c : Cfg) (r : Req) (s : State) (d : Decision)
     | wait => simp [Decision.via] at hv
     | done o => simp [Decision.via] at hv
 
-/-! ## Stop rules: each provider refuses on its own line -/
-
-/-- GitHub's line: a GitHub macOS job only while GitHub is not degraded and a slot is free or its wait is short. -/
 theorem gh_line (c : Cfg) (r : Req) (s : State) (t : Target) (h : route c r s = .base (.run t)) (hv : t.via = .github)
     (ho : t.os = .macos) :
     s.base.ghDegraded = false ∧
@@ -200,8 +163,6 @@ theorem gh_line (c : Cfg) (r : Req) (s : State) (t : Target) (h : route c r s = 
   unfold baseCfg at this
   split at this <;> exact this
 
-/-- Codemagic's line: a Codemagic build only when one more build at the cap stays under the month's stop line, the cap is the
-pilot's, and its one slot is free. -/
 theorem cm_line (c : Cfg) (r : Req) (s : State) (cls : String) (e : Engine) (m : Nat) (h : route c r s = .codemagic cls e m) :
     s.cmUsed + m ≤ Codemagic.stopAt ∧ m ≤ Codemagic.maxCapMin ∧ s.cmBusy < c.cmConc ∧ r.capMin ≤ m := by
   obtain ⟨_, _, hm, _, _, rfl⟩ := (route_cm_iff c r s cls e m).1 h
@@ -209,7 +170,6 @@ theorem cm_line (c : Cfg) (r : Req) (s : State) (cls : String) (e : Engine) (m :
   have := (Codemagic.poolOk_iff _ _).1 hm.2
   exact ⟨this.1, this.2, hm.1.2, hm.1.1.2⟩
 
-/-- Codemagic refuses past the stop line. -/
 theorem cm_refuses_over (c : Cfg) (r : Req) (s : State) (h : Codemagic.stopAt < s.cmUsed + c.cmCapMin) (cls : String)
     (e : Engine) (m : Nat) : route c r s ≠ .codemagic cls e m := by
   intro hr
@@ -217,7 +177,6 @@ theorem cm_refuses_over (c : Cfg) (r : Req) (s : State) (h : Codemagic.stopAt < 
   have := (cm_line c r s cls e _ hr).1
   omega
 
-/-- CircleCI's credits line: the charge, the credits spent and the class pool's reserve fit the class's free pool. -/
 theorem cc_credits_line (c : Cfg) (r : Req) (s : State) (t : Target) (h : route c r s = .base (.run t))
     (hv : t.via = .circleci) (hp : 0 < t.credits) :
     ∃ rt, Fw.Ci.Provider.rateOf t.cls = some rt ∧
@@ -229,7 +188,6 @@ theorem cc_credits_line (c : Cfg) (r : Req) (s : State) (t : Target) (h : route 
   rw [hcls']
   exact Overflow.classLeft_spec hle hp
 
-/-- CircleCI's storage line: while the storage stop rule fires, no request goes to CircleCI. -/
 theorem cc_storage_line (c : Cfg) (r : Req) (s : State) (hs : Fw.Ci.Provider.storageMaxMilli < s.ccStorage) (t : Target)
     (hv : t.via = .circleci) : route c r s ≠ .base (.run t) := by
   intro h
@@ -241,14 +199,11 @@ theorem cc_storage_line (c : Cfg) (r : Req) (s : State) (hs : Fw.Ci.Provider.sto
     · have := (Overflow.storageClearAt_iff _).1 hx; omega
   simp [baseCfg, hc] at hl
 
-/-- Bitrise's line: off, it takes nothing. -/
 theorem bitrise_line (c : Cfg) (r : Req) (s : State) (hb : c.base.bitriseOn = false) (t : Target) (hv : t.via = .bitrise) :
     route c r s ≠ .base (.run t) := by
   intro h
   have hd := route_base c r s _ h
   exact Fallback.bitrise_off_never (by rw [baseCfg_bitrise]; exact hb) hd.symm hv
-
-/-! ## Seven at once -/
 
 theorem after_inv {c : Cfg} {s : State} (r : Req) (h : Inv c s) : Inv c (s.after c (route c r s)) := by
   obtain ⟨hb, hcm, hbr⟩ := h
@@ -286,13 +241,9 @@ theorem inflight_le (c : Cfg) (s : State) (h : Inv c s) : inflight s ≤ macCap 
 
 theorem macCap_pool7 : macCap pool7 = 7 := by decide
 
-/-- Seven at once: from a state inside the caps, every tick of `pool7` keeps at most seven macOS jobs running. -/
 theorem cap_7 (rs : List Req) (s : State) (h : Inv pool7 s) : inflight (step pool7 rs s).2 ≤ 7 :=
   macCap_pool7 ▸ inflight_le pool7 _ (step_inv pool7 rs s h)
 
-/-! ## Results count whichever provider ran them -/
-
-/-- One result row of a pool job. -/
 structure Res where
   key : Key
   leg : Nat
@@ -301,10 +252,8 @@ structure Res where
   outcome : Outcome
 deriving DecidableEq, Repr
 
-/-- Results a key has: rows of that key whose outcome is `result`, whatever provider and class ran them. -/
 def counted (rs : List Res) (k : Key) : Nat := (rs.filter fun x => x.key == k && x.outcome == .result).length
 
-/-- A row's provider and class do not change the count: relabelling every row's provider and class keeps every key's count. -/
 theorem counted_relabel (rs : List Res) (k : Key) (f : Res → Via) (g : Res → String) :
     counted (rs.map fun x => { x with via := f x, cls := g x }) k = counted rs k := by
   induction rs with
@@ -316,12 +265,9 @@ theorem counted_relabel (rs : List Res) (k : Key) (f : Res → Via) (g : Res →
     · simp only [hx, ite_true, List.length_cons, ih]
     · simp only [hx, ite_false, Bool.false_eq_true, ih]
 
-/-- A result from any provider counts once for its key. -/
 theorem result_counts_any_provider (rs : List Res) (x : Res) (hx : x.outcome = .result) :
     counted (rs ++ [x]) x.key = counted rs x.key + 1 := by
   simp [counted, List.filter_append, hx]
-
-/-! ## Examples -/
 
 private def sha1 : String := "0123456789abcdef0123456789abcdef01234567"
 private def cfg1 : String := "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"

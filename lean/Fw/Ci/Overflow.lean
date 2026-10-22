@@ -385,21 +385,15 @@ theorem settle_nodup (gh cc : List Leg) (st : Bool) (nd : (gh ++ cc).Nodup) :
 /-- The CircleCI land jobs of `Provider.landJobs` (the jobs that save the Lake cache) are the legs of the lane, in matrix order, each as `land-<leg>`. -/
 theorem landJobs_eq_legs : Provider.landJobs = legs.map fun l => "land-" ++ l.name := by decide
 
-/-! ## The stop rules per class (the macOS pool reads them too) -/
-
-/-- Credits kept back from a pool: a month's 20 %, the rule `creditReserve` applies to the OSS pool. -/
 def reserveOf (p : Provider.Pool) : Nat := Provider.poolCredits p / 5
 
 theorem creditReserve_eq : creditReserve = reserveOf .oss := by decide
 
-/-- Credits a class may still spend this month: its free pool less the reserve and the credits spent; 0 for a class not in the
-price list. -/
 def classLeft (cls : String) (spent : Nat) : Nat :=
   match Provider.rateOf cls with
   | none => 0
   | some r => Provider.poolCredits r.pool - reserveOf r.pool - spent
 
-/-- The storage stop rule does not fire at `storage` thousandths of the monthly allowance. -/
 def storageClearAt (storage : Nat) : Bool := !(Provider.stops ⟨0, 0, storage⟩).contains .storage
 
 theorem storageClear_eq (f : Facts) : storageClear f = storageClearAt f.storage := rfl
@@ -408,7 +402,6 @@ theorem storageClearAt_iff (storage : Nat) : storageClearAt storage = true ↔ s
   unfold storageClearAt Provider.stops
   by_cases h : Provider.storageMaxMilli < storage <;> simp [h, Provider.capMs, Provider.queueMaxMs] <;> omega
 
-/-- A charge that fits `classLeft` keeps the spent credits and the reserve inside the class's free pool. -/
 theorem classLeft_spec {cls : String} {spent c : Nat} (h : c ≤ classLeft cls spent) (hc : 0 < c) :
     ∃ r, Provider.rateOf cls = some r ∧ c + spent + reserveOf r.pool ≤ Provider.poolCredits r.pool := by
   unfold classLeft at h

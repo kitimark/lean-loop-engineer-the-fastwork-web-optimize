@@ -1,8 +1,6 @@
 #!/usr/bin/env node
 //   node scripts/codemagic.mjs check                          read-only: the token works and the app id is one of the account's apps (GET /apps)
-//   node scripts/codemagic.mjs trigger --branch ci/<name> [--workflow webkit-sim] [--pool] [--dry]   (cap = codemagic.yaml max_build_duration;
-//                                                             --pool: the macOS pool's rule, no build count)
-//   node scripts/codemagic.mjs facts                         the pool facts as JSON: month, minutes used, builds not yet fetched
+//   node scripts/codemagic.mjs trigger --branch ci/<name> [--workflow webkit-sim] [--pool] [--dry]   (cap = codemagic.yaml max_build_duration)
 //   node scripts/codemagic.mjs wait --build ID [--timeout S] [--interval S>=120] [--out DIR]
 //   node scripts/codemagic.mjs fetch --build ID --out DIR     build.json, steps.json, artifacts/, ledger row with the minutes the build billed
 //   node scripts/codemagic.mjs compare --github DIR --codemagic DIR [--json]   (each DIR holds v1-session-1.md, the class table)
@@ -43,7 +41,6 @@ export function refusals(c, month, rows, cap) {
 }
 export const mayTrigger = (c, month, rows, cap) => refusals(c, month, rows, cap).length === 0;
 
-/** Lean `Fw.Ci.Codemagic.poolRefusals`: the macOS pool's rule, the minutes line and the cap without the pilot's build count. */
 export function poolRefusals(c, used, cap) {
   return [...(c.stopAt < used + cap ? ['minutes'] : []), ...(c.maxCapMin < cap ? ['cap'] : [])];
 }
@@ -240,7 +237,6 @@ export function triggerDecision(g, ledgerPath, cap, now, pool = false) {
   return { month, used, builds: rows.length, cap, rule: pool ? 'poolRefusals' : 'refusals', refusals: pool ? poolRefusals(g.constants, used, cap) : refusals(g.constants, month, rows, cap) };
 }
 
-/** The pool facts of the ledger: minutes used this month (a build not yet fetched counts at its cap) and builds not yet fetched. */
 export function poolFacts(ledgerPath, now) {
   const month = monthOf(now), builds = readLedger(ledgerPath).builds ?? {};
   return { month, used: usedIn(month, ledgerRows({ builds })), busy: Object.values(builds).filter((b) => b.pending).length };

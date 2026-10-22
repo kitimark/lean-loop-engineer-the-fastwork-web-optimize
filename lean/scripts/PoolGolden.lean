@@ -1,21 +1,16 @@
 import Lean.Data.Json
 import Fw.Ci.PoolTierWire
 
-/-! Write (`--check`: verify) `packages/contracts/golden/ci/pool-tier.jsonl`, rows `{op, name, request, response}` of
-`ci.poolTier` and `ci.poolTierConsts`; consumer `apps/runner/test/ci-pool-tier.test.ts`. -/
-
 open Lean
 
 def sha : String := "0123456789abcdef0123456789abcdef01234567"
 def cfgD : String := "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
 
-/-- A webkit-sim request (cap 40 min) with the fields of `over` added or replaced. -/
 def rq (rep : Nat := 0) (over : List (String × Json) := []) : Json :=
   let base : List (String × Json) := [("sha", sha), ("lane", "webkit-sim"), ("cfg", cfgD), ("rep", rep),
     ("engine", "iosSimSafari"), ("image", "xcode-27"), ("capMin", (40 : Nat))]
   Json.mkObj (base.filter (fun kv => !over.any (·.1 == kv.1)) ++ over)
 
-/-- A pool state: GitHub macOS busy, Codemagic minutes used, CircleCI credits spent, with the fields of `over` added. -/
 def st (mac cmUsed ccSpent : Nat) (over : List (String × Json) := []) : Json :=
   Json.mkObj ([("ghMacBusy", toJson mac), ("ghTotalBusy", toJson mac), ("ghRemainingS", .null), ("cmUsed", toJson cmUsed),
     ("ccSpent", toJson ccSpent), ("ccStorage", (30 : Nat))] ++ over)

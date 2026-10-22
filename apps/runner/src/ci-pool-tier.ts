@@ -13,7 +13,6 @@ const USAGE = [
 
 const BRANCH = /^ci\/[A-Za-z0-9._/-]+$/;
 
-/** The fwcore request of `fw ci pool tier` and `tier-consts`. */
 export function tierRequest(argv: string[], cwd: string): Record<string, unknown> {
   const [verb, ...rest] = argv;
   const { pos, flags } = parseFlags(rest.filter((a) => a !== "--json" && a !== "--go"));
@@ -25,10 +24,8 @@ export function tierRequest(argv: string[], cwd: string): Record<string, unknown
   return { op: "ci.poolTier", ...base, state: jsonArg(flags.state, cwd, "state"), reqs: jsonArg(flags.reqs, cwd, "reqs") };
 }
 
-/** The ledger facts the route reads for the two extra tiers. */
 export type TierFacts = { cmUsed: number; cmBusy: number; ccSpent: number; ccStorage: number };
 
-/** The state with each tier fact the caller left out taken from the ledgers. */
 export function fillFacts(state: Record<string, unknown>, facts: TierFacts): Record<string, unknown> {
   const out = { ...state };
   for (const [k, v] of Object.entries(facts)) if (out[k] === undefined) out[k] = v;
@@ -38,10 +35,8 @@ export function fillFacts(state: Record<string, unknown>, facts: TierFacts): Rec
 type Target = { via: string; os: string; cls: string; engine: string; timeoutMin: number; credits: number };
 type Row = { lane: string; rep: number; attempt: number; via: string | null; decision: string; outcome?: string; target?: Target };
 
-/** One dispatch step: the provider and the command that starts it (none for GitHub, which the push starts, and for a row that does not run). */
 export type Step = { lane: string; rep: number; via: string | null; decision: string; cmd: string[] | null; note: string };
 
-/** The dispatch plan of a `ci.poolTier` reply for the jobs of `branch`. */
 export function dispatchPlan(log: Row[], branch: string): Step[] {
   return log.map((r) => {
     const head = { lane: r.lane, rep: r.rep, via: r.via, decision: r.decision };
@@ -52,10 +47,8 @@ export function dispatchPlan(log: Row[], branch: string): Step[] {
   });
 }
 
-/** The printed line of a step. */
 export const stepLine = (s: Step): string => `${s.lane} rep ${s.rep}: ${s.note}${s.cmd ? ` -> node ${s.cmd.join(" ")}` : ""}`;
 
-/** Codemagic minutes used and builds not yet fetched (`codemagic.mjs facts`), CircleCI credits and storage (`circleci.mjs` ledger). */
 export async function readFacts(root: string): Promise<TierFacts> {
   const r = spawnSync(process.execPath, [join(root, "scripts/codemagic.mjs"), "facts"], { cwd: root, encoding: "utf8" });
   if (r.status !== 0) throw new Error(`codemagic facts failed: ${r.stderr.trim()}`);
