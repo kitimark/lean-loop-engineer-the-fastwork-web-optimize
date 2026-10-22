@@ -15324,6 +15324,46 @@
     "docs/team/handoffs/platform-end-premise.md"
    ],
    "evidence": "bc76ad8"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-cache-scope",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "fw watch timing.slow fw land/total 2026-10-22 (lead probe, scratch land-speed/breakdown.md, checked): lean.yml saves a 790 MB Lake cache entry on every ci/land-* branch that no other branch can read; repo cache use 10.5 GB is over the 10 GB limit, so main's entry (the one every land leg restores) can be evicted. Fix: lean.yml saves its cache only on main and on non-land ci/* branches (Lean CI decision row with a golden in Fw.Ci, not a YAML-only condition); ci-paths and the trigger golden regenerated. Unit: the save rule. MEASURED before/after: repo cache size (gh cache list) and one land's fwcore step seconds. Limits: existing ci/land-* entries age out by GitHub's 7-day rule (no deletion by agents).",
+   "writes": [
+    ".github/workflows/lean.yml",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Ci/Steps.lean",
+    "packages/contracts/golden/ci/**",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/land-cache-scope.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-leg-split",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "land-seed-due"
+   ],
+   "title": "fw watch timing.slow fw land/total 2026-10-22 (lead probe, scratch land-speed/breakdown.md, checked): after the Lake cache is warm the critical leg is suites-a (apps/runner vitest 112 s, job 119555887761) and playwright-webkit (9 control loads 57.5 s in a row, run 39696729476). Split both: LandLegs gets sub-ids (apps/runner#1..#k, browser-suite#1..#k) with an AND adapter so each sub-id runs on exactly one leg (keep shards_perm, shards_nodup over sub-ids; theorem and_adapter_same_verdict: the land verdict over sub-ids equals the verdict over the whole check). Expected about 55 s on the critical path (INFERRED). Unit: the Lean sub-id model, the adapter, land.yml legs. MEASURED: two lands before/after with run ids. Limits: lands that pick no browser suite gain nothing from the webkit split.",
+   "writes": [
+    "lean/Fw/Console/LandLegs.lean",
+    "packages/contracts/golden/console/land-legs*.jsonl",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land*.test.ts",
+    ".github/workflows/land.yml",
+    "apps/runner/vitest.config.ts",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/land-leg-split.md"
+   ]
   }
  ],
  "deadline": {
