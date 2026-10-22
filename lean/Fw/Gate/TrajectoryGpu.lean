@@ -701,7 +701,7 @@ def goldenLines (_ : Unit := ()) : List String :=
 def goldenText (_ : Unit := ()) : String := String.intercalate "" ((goldenLines ()).map (· ++ "\n"))
 
 /-- Print the golden text, or with `--check <file>` exit 0 iff the file holds exactly these bytes. -/
-def run (args : List String) : IO UInt32 := do
+def main (args : List String) : IO UInt32 := do
   match args with
   | ["--check", path] =>
     let cur ← IO.FS.readBinFile path
@@ -718,6 +718,3 @@ def run (args : List String) : IO UInt32 := do
     return 2
 
 end Fw.Gate.TrajectoryGpu
-
-/-- Golden generator entry: `lake env lean --run Fw/Gate/TrajectoryGpu.lean [--check <file>]`. -/
-def main (args : List String) : IO UInt32 := Fw.Gate.TrajectoryGpu.run args
