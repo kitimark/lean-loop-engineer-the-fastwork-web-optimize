@@ -15740,7 +15740,13 @@
     "results/jev-retrieval-trace/**",
     "research/notes/2026/10-2x-jev-retrieval-trace.md",
     "docs/team/handoffs/jev-retrieval-trace.md",
-    "research/notes/2026/10-2x-jev-replay.md"
+    "research/notes/2026/10-2x-jev-replay.md",
+    "lean/Fw/Oracle/Questions.lean",
+    "lean/Fw/Oracle/Replay.lean",
+    "lean/Fw/Wire.lean",
+    "lean/scripts/RetrieveGolden.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Oracle/RetrieveWire.lean"
    ],
    "title": "Measured follow-up of jev-retrieval-research (user 2026-10-22: what Haiku and Sonnet read before deciding; give Jev that context or let Jev request files). The design is research/notes/2026/10-2x-jev-retrieval.md section 'What this changes in the plan' (the spec; read it in full). Forensics there: the first-run Claude arms read only their prompt chunks (0 repo reads) and their thinking is signature-only, so no prior trace exists. Rows: the ablation's 38 D1 rows. Arms: C clean baseline and X ablation (existing answers, 0 calls); T-haiku and T-sonnet traced claude -p with Read/Grep/Glob only, cwd the filtered tree at the row pin (--restricted, PreToolUse hook), stream-json capture, answer schema with `evidence` line ranges (76 calls, --max-turns 10, --max-budget-usd Haiku 0.05 Sonnet 0.60, <= $25); J-hybrid Jev on the line ranges T-sonnet read (<= 38 sends); J-pick two-step Jev (step 1 choice over the row's kept files plus none, step 2 the picked excerpt <= 8 KiB; none replays with 0 sends; <= 76 sends). Lean first, Fw.Oracle.Retrieve: RetrieveCfg reusing Fw.Oracle.Expand's allowlist (one source), maxReads 8, readBytes 32768, rounds 2, sendsPerRow 2; tree_allowed, traceVerdict_ok, evidenceValid (valid evidence within lines read), pick_mem, pick_none_noop, hybridState (no cut under cap, no reads gives the clean body), sendPlan (per run <= runCap sends and <= 400,000 estimated tokens, day total <= dailyCap minus logged sends), adopt per arm (net +4 vs C, net >= 0 vs X on the same model, no gain on a vocabulary-dropped row, hand-traced gains); goldens; scripts/jev-trace.mjs checked against them. First one probe call per model: does showThinkingSummaries give thinking text under -p (record yes or no). Also add to research/notes/2026/10-2x-jev-replay.md Limits one line: 'the first-run Claude arms read only their prompt chunks; their thinking is signature-only (see 10-2x-jev-retrieval.md)'. Unit: Fw.Oracle.Retrieve with theorems and goldens, the T, J-hybrid and J-pick runs, one paired verdict table per arm, the note. Limits: D1 38 rows only (state the paired sign-test p); Jev <= 114 sends in runs of 19 rows within the daily cap together with any same-day ablation sends; Claude dollar figures are total_cost_usd."
   },
