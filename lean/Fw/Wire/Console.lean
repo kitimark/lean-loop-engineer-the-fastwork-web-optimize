@@ -66,6 +66,7 @@ imports it, so it decodes the card fields it needs itself).
 | `console.reviewFeedback` | `events` [{type, flag, id or to, text, ts}] of the log, `flag`? | `threads` [{flag, open, comments [{id, text, at, status, reply}]}] (`Fw.Console.ReviewFeedback.thread`; see `Fw.Wire.ReviewFeedback`) |
 | `console.report` | `reports` [report], `steps` [{id, answer?, open}], `answer`? {id, word, comment?} | `items`, `invalid`, `options`, `answer` (experiment reports; `Fw.Console.Report`; see `Fw.Wire.Report`) |
 | `console.reviewInfo` | `flag` | `ok`, `summary`, `gains`, `excerpts`, `mechanism`, `sources`, `formulas` for a look-change flag with a table (`Fw.Console.ReviewInfo`; see `Fw.Wire.ReviewInfo`) |
+| `console.reviewExcerpt` | `flag`, `excerpt`, `lines` | `ok`, `first`, `last` or `reason`: where an excerpt's anchor puts its range in the file lines (`Fw.Console.ReviewInfo.locate`; see `Fw.Wire.ReviewInfo`) |
 | `console.daemon` | `kind`: `start` (`recorded`? pid in api.json, `answered`? pid the health request reported, `alive`? whether the recorded pid exists), `stop` (same), `restart` (same), `rotate` (`size`, `limit`? default 5 MiB) | start: `allow`, `verified` (pid or null), `reason` (`ok`/`running`/`unverifiedAlive`); stop: `target` (the only pid to signal, or null), `reason` (`ok`/`notRunning`); restart: `steps` [{step: `stop`+`pid` / `start`}]; rotate: `rotate`, `limit`, `warn` (size above 50 MiB), `warnLimit` (`Fw.Console.Daemon.startAllowed`, `stopTarget`, `restartPlan`, `rotate`, `logWarns`) |
 | `console.previewSweep` | `now`, `live` [{id, task, rp, op, started, seen? (last proxied request, default started)}] | `keep` [ids], `kill` [ids], `why` [{id, why: `ttl`/`idle`}], `idle` (ms) (`Fw.Console.Preview.Owner.sweep`, `reaped`) |
 | `console.landTier` | `ids` [check ids], `built`? (a fwcore build already ran, default false) | `local` [ids], `remote` [ids] (`Fw.Console.LandTier.pick`, order kept), `browser` (`browserRuns`: the selection holds the e2e-preview check), `build` (`needsBuild`: the local plan starts with the fwcore build) |
@@ -796,7 +797,7 @@ def opDaemon (req : Json) : Except String Reply := do
 def ops : List String := ["console.landReadiness", "console.actor", "console.alert", "console.landScope", "console.landLock", "console.landGuard",
   "console.landCommit", "console.landPick", "console.landPool", "console.landRetry", "console.landTier", "console.landLeg", "console.landLegs", "console.landLegsVeto", "console.landLane", "console.landRemote", "console.landLaneState", "console.landDigest", "console.landRenderGuard", "plan.trailers", "plan.lint",
   "console.previewTarget", "console.previewAdmit", "console.previewTick", "console.previewStop", "console.previewFail", "console.previewReap", "console.previewLink",
-  "console.ownerLogin", "console.ownerGate", "console.previewGrant", "console.ownerAction", "console.previewArm", "console.loginReturn", "console.lanStart", "console.previewSweep", "console.previewCache", "console.builds", "console.buildsPicker", "console.buildsSearch", "console.buildsOpen", "console.compose", "console.review", "console.reviewPreview", "console.reviewFeedback", "console.report", "console.stepTopics", "console.reviewInfo", "console.daemon"]
+  "console.ownerLogin", "console.ownerGate", "console.previewGrant", "console.ownerAction", "console.previewArm", "console.loginReturn", "console.lanStart", "console.previewSweep", "console.previewCache", "console.builds", "console.buildsPicker", "console.buildsSearch", "console.buildsOpen", "console.compose", "console.review", "console.reviewPreview", "console.reviewFeedback", "console.report", "console.stepTopics", "console.reviewInfo", "console.reviewExcerpt", "console.daemon"]
 
 /-- Dispatch one of these ops (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -849,6 +850,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "console.report" => some (Fw.Wire.Report.opReport req)
   | "console.stepTopics" => some (Fw.Wire.Steps.opStepTopics req)
   | "console.reviewInfo" => some (Fw.Wire.ReviewInfo.opReviewInfo req)
+  | "console.reviewExcerpt" => some (Fw.Wire.ReviewInfo.opReviewExcerpt req)
   | "console.daemon" => some (opDaemon req)
   | _ => none
 

@@ -1,5 +1,3 @@
-// land-verdict.ts (TS stand-in) against the Lean golden packages/contracts/golden/console/land-dry.jsonl
-// (Fw.Console.LandVerdict, Fw.Console.LandDry). Marked for replacement by an fwcore op.
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -21,13 +19,12 @@ describe("land verdict vs Lean golden", () => {
     } else if (q.op === "landDry.handback") {
       expect(g.response).toEqual({ allowed: handbackAllowed(q.kind as Kind) });
     } else if (q.op === "landDry.run") {
-      // the whole dry output as a function of the seven stage outcomes: lines, kind, exit code (Lean `dryRun`)
       const oc = { threw: q.threw, fresh: q.fresh, own: q.own, scope: q.scope, merges: q.merges, reads: q.reads, lints: q.lints } as Outcome;
       const lines = dryRun(oc, q.task as string);
       expect(g.response).toEqual({ lines, kind: outcomeKind(oc), exit: exitCode(outcomeKind(oc)) });
       expect(lines.filter((l) => l.startsWith("VERDICT ")).length).toBe(1);
     } else if (q.op === "landDry.lintPlan") {
-      expect(g.response).toEqual({ argv: lintPlan(q.changed as string[], q.hasCiPaths as boolean, q.hasAxioms as boolean) });
+      expect(g.response).toEqual({ argv: lintPlan(q.changed as string[], q.hasCiPaths as boolean, q.hasAxioms as boolean, q.hasFootprint as boolean) });
     } else if (q.op === "landDry.checkKind") {
       expect(g.response).toEqual({ kind: checkFailKind(q.failed as { reads: boolean; stages: string[] }[]) });
     } else throw new Error(`unknown op ${q.op}`);

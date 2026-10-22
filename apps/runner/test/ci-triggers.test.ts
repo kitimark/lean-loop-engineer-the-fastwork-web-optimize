@@ -19,7 +19,7 @@ describe("CI push triggers equal the Lean decision", () => {
     expect(r.ok).toBe(true);
   });
   it("the replay cases, the lint's own tests and the build-slot wrapper's tests pass", () => {
-    const r = node("--test", "scripts/ci-paths.test.mjs", ".github/scripts/changed-inputs.test.mjs", "scripts/ci-push.test.mjs", "scripts/circleci.test.mjs", "scripts/lake-slot.test.mjs");
+    const r = node("--test", "scripts/ci-paths.test.mjs", ".github/scripts/changed-inputs.test.mjs", "scripts/ci-push.test.mjs", "scripts/circleci.test.mjs", "scripts/codemagic.test.mjs", "scripts/lake-slot.test.mjs");
     expect(r.out).toMatch(/fail 0/);
     expect(r.ok).toBe(true);
   });

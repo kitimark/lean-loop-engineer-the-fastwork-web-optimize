@@ -1,5 +1,3 @@
-// `fw land --dry` (task land-dry; Lean Fw.Console.LandDry: dry_pass_land_pass, dry_refusal_is_land_refusal, handback_pass_land_pass).
-// A dry land runs the real land's scope, merge and reads stages and nothing else: no lock, no queue, main untouched.
 import "./land-timeout.ts";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -136,7 +134,6 @@ describe("fw land --dry", () => {
     expect(snap()).toEqual(before);
     const ok = await land(BR, { ...opts, dry: true, ...reads(["true"]), dryLints: [["true"], ["true"]] });
     expect(ok.kind, text(ok)).toBe("dry");
-    // reads refuses before lint
     const both = await land(BR, { ...opts, dry: true, ...reads(["sh", "-c", "echo land-inputs.test; exit 1"]), dryLints: [["false"]] });
     expect(both.kind, text(both)).toBe("reads");
   });
@@ -149,13 +146,32 @@ describe("fw land --dry", () => {
     const withLean = dryLintArgv(dir, ["apps/x.ts", "lean/Fw/X.lean"]);
     expect(withLean).toHaveLength(2);
     expect(withLean[1]!.join(" ")).toContain("axiom-check.sh");
+    const part = "apps/site/src/parts/nav/index.tsx";
+    expect(dryLintArgv(dir, [part])).toEqual([["node", "scripts/ci-paths.mjs", "--check"]]);
+    mkdirSync(join(dir, "apps/site/scripts"), { recursive: true }); writeFileSync(join(dir, "apps/site/scripts/part-footprint.mjs"), "");
+    expect(dryLintArgv(dir, [part])).toEqual([["node", "scripts/ci-paths.mjs", "--check"], ["node", "apps/site/scripts/part-footprint.mjs", "--check"]]);
+    expect(dryLintArgv(dir, ["apps/site/src/main.tsx"])).toEqual([["node", "scripts/ci-paths.mjs", "--check"]]);
+  });
+  it("the default plan runs the footprint check on a part edit and refuses a stale footprint as lint (incident inc-dry-gen-stale)", async () => {
+    const { fx, wt, opts } = await setup(["apps/site/src/**"]);
+    const stub = "import fs from 'node:fs';\nif (fs.readFileSync('apps/site/src/parts/nav/index.tsx', 'utf8') !== 'fresh') { console.error('part-footprint: footprint.gen.json differs from the extraction (run --write)'); process.exit(1); }\n";
+    fx.commit(fx.root, "apps/site/scripts/part-footprint.mjs", stub);
+    fx.commit(fx.root, "apps/site/src/parts/nav/index.tsx", "fresh");
+    fx.git(wt, "merge", "-q", "main");
+    const base = { ...opts, dry: true, ...reads(["true"]), dryLocal: [] };
+    fx.commit(wt, "apps/site/src/main.tsx", "x");
+    expect((await land(BR, base)).kind).toBe("dry");
+    fx.commit(wt, "apps/site/src/parts/nav/index.tsx", "comment cut");
+    const stale = await land(BR, base);
+    expect(stale.kind, text(stale)).toBe("lint");
+    expect(text(stale)).toContain("footprint.gen.json differs");
   });
   it("every dry result carries its stage outcome, its kind is the outcome's kind, and dryRun prints exactly one VERDICT line", async () => {
     const { fx, wt, opts } = await setup();
     fx.commit(wt, "other/b.ts");
     const results = [
-      await land(BR, { ...opts, dry: true, ...reads(["true"]) }), // scope
-      await land("no-such-branch", { ...opts, dry: true }), // outside the modelled stages: threw
+      await land(BR, { ...opts, dry: true, ...reads(["true"]) }),
+      await land("no-such-branch", { ...opts, dry: true }),
     ];
     for (const r of results) {
       expect(r.outcome, text(r)).toBeDefined();
