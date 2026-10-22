@@ -1,15 +1,10 @@
 import Lean.Data.Json
 import Fw.Gate.PathPix
 
-/-! Fw.Measure.Census: the layer-census check of the layer composer (task layer-census-check). -/
-
 namespace Fw.Measure.Census
 open Lean
 open Fw.Gate.PathPix (onGrid gridDelta)
 
-/-! ## Records -/
-
-/-- A box in micro CSS px (one millionth of a CSS px): origin and size. -/
 structure Rect where
   x : Int
   y : Int
@@ -17,14 +12,11 @@ structure Rect where
   h : Int
 deriving DecidableEq, Repr
 
-/-- An undeclared layer as the arms are compared: node description and composited bounds. -/
 structure Box where
   name : String
   bounds : Rect
 deriving DecidableEq, Repr
 
-/-- One compositing layer: its node's description, `data-fw` and `data-fw-layer` values, composited bounds, the node's
-document origin (declared boxes only), compositing reasons and backing bytes (WebKit only). -/
 structure Layer where
   name : String
   fw : Option String
@@ -35,53 +27,42 @@ structure Layer where
   bytes : Option Nat
 deriving DecidableEq, Repr
 
-/-- One pinned sample: scroll offset, the `data-fw-layer` ids of the rendered nodes (one entry per node), the layers. -/
 structure Sample where
   y : Int
   rendered : List String
   layers : List Layer
 deriving DecidableEq, Repr
 
-/-- One arm's census: device pixel ratio in thousandths and the samples in order. -/
 structure Arm where
   dpr : Nat
   samples : List Sample
 deriving DecidableEq, Repr
 
-/-- What an arm asks of its layers: composited ids, and ids whose origin must sit on the device-pixel grid. -/
 structure Want where
   composite : List String
   snap : List String
 deriving DecidableEq, Repr
 
-/-! ## Identity -/
-
-/-- An empty attribute value is no attribute. -/
 def norm : Option String → Option String
   | some "" => none
   | s => s
 
-/-- What a node's attributes name: a layer box, a part root, or nothing (undeclared). -/
 inductive Ident where
   | box (id : String)
   | part (id : String)
   | free
 deriving DecidableEq, Repr
 
-/-- `data-fw-layer` wins over `data-fw`: a root carrying both maps once, to its layer id. -/
 def identOf (fw layer : Option String) : Ident :=
   match norm layer, norm fw with
   | some l, _ => .box l
   | none, some p => .part p
   | none, none => .free
 
-/-- The identity of a layer's node. -/
 def Layer.ident (l : Layer) : Ident := identOf l.fw l.layer
 
-/-- The layers of a census that map to layer id `id`. -/
 def nBox (id : String) (ls : List Layer) : Nat := ls.countP fun l => l.ident == .box id
 
-/-- The layers of a census that map to part id `id`. -/
 def nPart (id : String) (ls : List Layer) : Nat := ls.countP fun l => l.ident == .part id
 
 theorem identOf_both (f l : String) (h : l ≠ "") : identOf (some f) (some l) = .box l := by
@@ -99,13 +80,9 @@ theorem both_maps_once (l : Layer) (f i : String) (hf : l.fw = some f) (hl : l.l
   have : l.ident = .box i := by simp [Layer.ident, hf, hl, identOf_both _ _ h]
   simp [nBox, nPart, this]
 
-/-! ## The undeclared multiset -/
-
-/-- The undeclared layers as boxes. -/
 def undeclared (ls : List Layer) : List Box :=
   ls.filterMap fun l => if l.ident = .free then some ⟨l.name, l.bounds⟩ else none
 
-/-- The first box, in `a ++ b` order, whose number of copies differs between `a` and `b`. -/
 def firstDiff (a b : List Box) : Option Box := (a ++ b).find? fun x => a.count x != b.count x
 
 theorem firstDiff_none_iff (a b : List Box) : firstDiff a b = none ↔ a.isPerm b = true := by
@@ -135,14 +112,10 @@ theorem firstDiff_self (a : List Box) : firstDiff a a = none := by
 theorem undeclared_perm (a b : List Layer) (h : a.Perm b) : (undeclared a).Perm (undeclared b) :=
   h.filterMap _
 
-/-! ## The refusal -/
-
-/-- Which arm a refusal speaks of. -/
 inductive Side where
   | a | b
 deriving DecidableEq, Repr
 
-/-- The closed list of reasons to refuse a run; each names the box or id it found. -/
 inductive Refusal where
   | viewport (a b : Nat)
   | samples (a b : List Int)
@@ -152,13 +125,11 @@ inductive Refusal where
   | offGrid (side : Side) (y : Int) (id : String) (axis : String)
 deriving DecidableEq, Repr
 
-/-- The name a refusal gives the box: node description for an undeclared box, the layer id otherwise. -/
 def Refusal.box : Refusal → String
   | .viewport .. | .samples .. => ""
   | .undeclared _ b .. => b.name
   | .notComposited _ _ id .. | .noOrigin _ _ id | .offGrid _ _ id _ => id
 
-/-- A device-pixel origin: the micro CSS px offset times the ratio (thousandths) lies on the S1 grid. -/
 def gridOk (dpr : Nat) (o : Int) : Bool := onGrid ((o : Rat) * dpr / 1000000000)
 
 theorem gridOk_exact (dpr : Nat) (o z : Int) (h : o * dpr = z * 1000000000) : gridOk dpr o = true := by
@@ -178,14 +149,12 @@ theorem gridOk_sound (dpr : Nat) (o : Int) (h : gridOk dpr o = true) :
 
 theorem gridOk_zero (dpr : Nat) : gridOk dpr 0 = true := gridOk_exact dpr 0 0 (by simp)
 
-/-- The rendered ids of a sample that are not matched by enough layers: one refusal per id asked to composite. -/
 def compositeRefusals (side : Side) (w : Want) (s : Sample) : List Refusal :=
   (w.composite ++ w.snap).filterMap fun id =>
     let n := s.rendered.count id
     let k := nBox id s.layers
     if n = 0 ∨ k < n then some (.notComposited side s.y id k n) else none
 
-/-- Layers of snapped ids whose origin is missing or off the grid. -/
 def gridRefusals (side : Side) (w : Want) (dpr : Nat) (s : Sample) : List Refusal :=
   s.layers.flatMap fun l =>
     match l.ident with
@@ -198,24 +167,20 @@ def gridRefusals (side : Side) (w : Want) (dpr : Nat) (s : Sample) : List Refusa
       else []
     | _ => []
 
-/-- All composite and grid refusals of one arm. -/
 def armRefusals (side : Side) (w : Want) (arm : Arm) : List Refusal :=
   arm.samples.flatMap fun s => compositeRefusals side w s ++ gridRefusals side w arm.dpr s
 
-/-- One refusal per aligned sample whose undeclared multisets differ. -/
 def undeclaredRefusals (a b : Arm) : List Refusal :=
   (a.samples.zip b.samples).filterMap fun (sa, sb) =>
     let ua := undeclared sa.layers
     let ub := undeclared sb.layers
     (firstDiff ua ub).map fun x => .undeclared sa.y x (ua.count x) (ub.count x)
 
-/-- The census check of two arms: ratio, sample list, undeclared multisets, composite ids, grid. `[]` = run. -/
 def refusals (wa wb : Want) (a b : Arm) : List Refusal :=
   if a.dpr ≠ b.dpr then [.viewport a.dpr b.dpr]
   else if a.samples.map (·.y) ≠ b.samples.map (·.y) then [.samples (a.samples.map (·.y)) (b.samples.map (·.y))]
   else undeclaredRefusals a b ++ armRefusals .a wa a ++ armRefusals .b wb b
 
-/-- The run is refused iff some refusal exists; the first one names the box. -/
 def verdict (wa wb : Want) (a b : Arm) : Option Refusal := (refusals wa wb a b).head?
 
 theorem refusals_viewport (wa wb : Want) (a b : Arm) (h : a.dpr ≠ b.dpr) :
@@ -375,19 +340,14 @@ theorem gridRefusals_names_id (side : Side) (w : Want) (dpr : Nat) (s : Sample) 
       simp only [hs] at hr
       simp at hr
 
-/-! ## The declared table -/
-
-/-- A declared id of one sample with its number of layers and backing bytes. -/
 structure Row where
   ident : Ident
   n : Nat
   bytes : Nat
 deriving DecidableEq, Repr
 
-/-- The declared identities of a census, each once, in first-seen order. -/
 def idents (ls : List Layer) : List Ident := (ls.map Layer.ident |>.filter (· ≠ .free)).eraseDups
 
-/-- One row per declared identity: how many layers map to it and their summed backing bytes. -/
 def rows (ls : List Layer) : List Row :=
   (idents ls).map fun i =>
     ⟨i, ls.countP (·.ident == i), ((ls.filter (·.ident == i)).map fun l => l.bytes.getD 0).sum⟩
@@ -406,8 +366,6 @@ theorem rows_n_pos (ls : List Layer) (r : Row) (h : r ∈ rows ls) : 0 < r.n := 
   simp only [List.mem_filter, List.mem_map] at this
   obtain ⟨⟨l, hl, rfl⟩, _⟩ := this
   exact List.countP_pos_iff.2 ⟨l, hl, by simp⟩
-
-/-! ## Golden vectors -/
 
 private def rj (r : Rect) : Json := Json.arr #[toJson r.x, toJson r.y, toJson r.w, toJson r.h]
 private def oj (o : Option (Int × Int)) : Json := match o with
@@ -511,10 +469,8 @@ private def goldenLines (_ : Unit) : List String :=
     (Json.mkObj [("kind", "check"), ("name", n), ("wantA", wj wa), ("wantB", wj wb), ("a", aj a), ("b", aj b),
       ("refusals", Json.arr ((refusals wa wb a b).map refJ).toArray)]).compress)
 
-/-- The bytes of `packages/contracts/golden/measure/census.jsonl`. -/
 def goldenText (_ : Unit) : String := String.intercalate "\n" (goldenLines ()) ++ "\n"
 
-/-- Print the golden, or with `--check <file>` compare its bytes; exit 1 when they differ. -/
 def run (args : List String) : IO UInt32 := do
   match args with
   | "--check" :: path :: _ =>

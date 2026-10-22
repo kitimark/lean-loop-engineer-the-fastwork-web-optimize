@@ -1,9 +1,5 @@
-// Offline census check over saved runs: `census-check <file>... [--composite all|ids] [--snap all|ids]`.
-// A file is a `determinism` output (passes[].census), a Chromium counts.json (meta.layerCensus.samples) or a bare layer-census record.
-// Every run after the first is checked against the first (as `determinism` does for its passes); this file only reads and prints.
 import { checkPair, declaredTable } from './census-check.mjs';
 
-/** The runs of one parsed file: [{label, samples}]. */
 export function runsOf(name, json) {
   if (Array.isArray(json?.passes)) return json.passes.map((p, i) => ({ label: `${name} pass ${i + 1}`, samples: p.census }));
   const rec = json?.meta?.layerCensus ?? (json?.schema === 'fw.layer-census/1' ? json : null);
@@ -11,7 +7,6 @@ export function runsOf(name, json) {
   return [];
 }
 
-/** Table of what the page declares per sample: ids with rendered nodes, layers, backing bytes. */
 export function declaredMarkdown(label, table) {
   const out = [`### declared layers, ${label}`, '', '| y | id | rendered | layers | bytes |', '|---|---|---|---|---|'];
   for (const s of table) {
@@ -21,7 +16,6 @@ export function declaredMarkdown(label, table) {
   return out.join('\n');
 }
 
-/** Lines for a list of runs: the verdict of each run against the first, then the declared table of the first. */
 export function reportRuns(runs, opts) {
   if (!runs.length) return { state: 'unavailable', lines: ['no census in the files'] };
   const lines = [];

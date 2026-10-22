@@ -1,13 +1,5 @@
-// Layer census over CDP at pinned scroll offsets, taken after the profile and the trace so no count is touched.
-// CONFIRMED (devtools-protocol 0.0.1696802): `LayerTree.layerTreeDidChange {layers}` carries Layer {layerId, backendNodeId?, offsetX,
-// offsetY, width, height, paintCount, ...}; `LayerTree.compositingReasons(layerId)` returns `compositingReasonIds`. The offsets are
-// parent-relative and there is no backing-store size, so `boundsU` is the layer's own box and `memory` is null; both arms are read the
-// same way. INFERRED (Chromium source not read): the tree is sent on `enable` and after the next frame, so the collector pumps frames
-// and waits, and a sample that never gets a tree is recorded as an error, never as an empty page.
-// The two page-side strings below are byte copies of packages/measure-webkit/src/census.mjs (test/census.test.mjs compares them).
 import { setTimeout as sleep } from 'node:timers/promises';
 
-/** Page side, run on a layer's node: its description (the layer `name`), `data-fw`, `data-fw-layer` and viewport origin in micro CSS px. */
 export const INFO_FN = `function () {
   if (this.nodeType !== 1) return { name: this.nodeName, fw: null, layer: null, origin: null };
   const cls = typeof this.className === 'string' ? this.className : (this.className && this.className.baseVal) || '';
@@ -16,15 +8,12 @@ export const INFO_FN = `function () {
   return { name, fw: this.getAttribute('data-fw'), layer: this.getAttribute('data-fw-layer'), origin: [Math.round(r.left * 1e6), Math.round(r.top * 1e6)] };
 }`;
 
-/** Page side: the pixel ratio in thousandths and the `data-fw-layer` ids of the nodes that have a box now (one entry per node). */
 export const RENDERED_EXPR = `JSON.stringify({ dprMilli: Math.round(devicePixelRatio * 1000), rendered: Array.from(document.querySelectorAll('[data-fw-layer]')).filter((e) => e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden').map((e) => e.getAttribute('data-fw-layer')).filter(Boolean) })`;
 
-/** The pinned scroll offsets, as the WebKit census takes them (`max` = the last scroll offset). */
 export const sampleYs = (maxScroll) => [0, 1500, 3000, 4500, maxScroll];
 
 const micro = (v) => Math.round(Number(v) * 1e6);
 
-/** A CDP layer with its node's info and reasons, in the census record shape of the WebKit collector. */
 export function layerRecord(l, info, reasons) {
   const i = info ?? { name: l.backendNodeId ? '?' : '(no node)', fw: null, layer: null, origin: null };
   return {
@@ -52,17 +41,13 @@ async function reasonsOf(c, layerId) {
   } catch { return ['(gone)']; }
 }
 
-/**
- * One sample at scroll offset y: scroll, settle, enable LayerTree, wait for a tree, read reasons and node info, disable.
- * `ev(expr)` evaluates in the page, `pump()` renders one frame; neither may end the process.
- */
 export async function sampleAt(c, { ev, pump, y, tries = 12, settleFrames = 3, waitMs = 40 }) {
   const rec = { requestedY: y, scrollY: null, dprMilli: null, rendered: [], layerCount: 0, layers: [] };
   let tree = null;
   const onTree = (e) => { tree = e.layers ?? []; };
   c.on('LayerTree.layerTreeDidChange', onTree);
   try {
-    await ev(`window.scrollTo({ top: ${Number(y)}, left: 0, behavior: 'instant' })`); // instant: the page may set scroll-behavior: smooth
+    await ev(`window.scrollTo({ top: ${Number(y)}, left: 0, behavior: 'instant' })`);
     for (let i = 0; i < settleFrames; i++) await pump();
     rec.scrollY = Math.round(await ev('scrollY'));
     const seen = JSON.parse(await ev(RENDERED_EXPR));
@@ -72,7 +57,7 @@ export async function sampleAt(c, { ev, pump, y, tries = 12, settleFrames = 3, w
     await c.send('LayerTree.enable');
     for (let i = 0; i < tries && tree === null; i++) { await pump(); if (tree === null) await sleep(waitMs); }
     if (tree === null) { rec.error = 'no LayerTree.layerTreeDidChange after enable'; return rec; }
-    await pump(); // a later tree (the first one may predate the commit) replaces the first
+    await pump();
     const layers = tree;
     for (const l of layers) rec.layers.push(layerRecord(l, await infoOf(c, l.backendNodeId), await reasonsOf(c, l.layerId)));
     rec.layers.sort((a, b) => (layerSortKey(a) < layerSortKey(b) ? -1 : layerSortKey(a) > layerSortKey(b) ? 1 : 0));
@@ -88,7 +73,6 @@ export async function sampleAt(c, { ev, pump, y, tries = 12, settleFrames = 3, w
   }
 }
 
-/** The census record of a run (`meta.layerCensus`): the samples in order; every sample carries its own error when it could not be read. */
 export async function collectCensus(c, { ev, pump, maxScroll, ys = sampleYs(maxScroll), ...opts }) {
   const samples = [];
   for (const y of ys) samples.push(await sampleAt(c, { ev, pump, y, ...opts }));

@@ -10,7 +10,6 @@
 import { sleep } from './sim.mjs';
 import { scrollHold } from './page.mjs';
 
-/** Page side, run on a layer's node: its description (the layer `name`), `data-fw`, `data-fw-layer` and viewport origin in micro CSS px. */
 export const INFO_FN = `function () {
   if (this.nodeType !== 1) return { name: this.nodeName, fw: null, layer: null, origin: null };
   const cls = typeof this.className === 'string' ? this.className : (this.className && this.className.baseVal) || '';
@@ -19,7 +18,6 @@ export const INFO_FN = `function () {
   return { name, fw: this.getAttribute('data-fw'), layer: this.getAttribute('data-fw-layer'), origin: [Math.round(r.left * 1e6), Math.round(r.top * 1e6)] };
 }`;
 
-/** Page side: the pixel ratio in thousandths and the `data-fw-layer` ids of the nodes that have a box now (one entry per node). */
 export const RENDERED_EXPR = `JSON.stringify({ dprMilli: Math.round(devicePixelRatio * 1000), rendered: Array.from(document.querySelectorAll('[data-fw-layer]')).filter((e) => e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden').map((e) => e.getAttribute('data-fw-layer')).filter(Boolean) })`;
 
 async function layersOf(c) {
@@ -46,7 +44,6 @@ async function describe(c, nodeId) {
   } catch { return { name: '?', ...NO_INFO }; }
 }
 
-/** `x,y,w,h` (integer CSS px) as micro CSS px, or null. */
 const microRect = (key) => {
   const p = key ? key.split(',').map(Number) : [];
   return p.length === 4 && p.every(Number.isFinite) ? p.map((n) => Math.round(n * 1e6)) : null;

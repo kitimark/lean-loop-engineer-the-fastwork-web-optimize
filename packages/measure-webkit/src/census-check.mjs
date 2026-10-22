@@ -1,13 +1,7 @@
-// Twin of lean/Fw/Measure/Census.lean (layer-census check); test/census-check.test.mjs runs it on golden/measure/census.jsonl.
-// An arm is {dpr (thousandths), samples: [{y, rendered: [ids], layers: [{name, fw, layer, bounds: [x,y,w,h], origin: [x,y]|null,
-// reasons, bytes|null}]}]}, lengths in micro CSS px. `armOf` turns a saved census (either engine) into one; the rest is the Lean check.
-
 const MICRO_DEN = 1000000000n;
 
-/** An empty attribute value is no attribute (Lean `norm`). */
 const norm = (s) => (s === '' || s === undefined ? null : s);
 
-/** What a node's attributes name: {kind: 'box'|'part'|'free', id}; `data-fw-layer` wins over `data-fw` (Lean `identOf`). */
 export function identOf(fw, layer) {
   const l = norm(layer), f = norm(fw);
   if (l !== null && l !== undefined) return { kind: 'box', id: l };
@@ -19,23 +13,20 @@ const identKey = (i) => `${i.kind}:${i.id}`;
 export const layerIdent = (l) => identOf(l.fw, l.layer);
 export const nBox = (id, layers) => layers.filter((l) => { const i = layerIdent(l); return i.kind === 'box' && i.id === id; }).length;
 
-/** The undeclared layers as boxes {name, bounds} (Lean `undeclared`). */
 export const undeclared = (layers) => layers.filter((l) => layerIdent(l).kind === 'free').map((l) => ({ name: l.name, bounds: l.bounds }));
 
 const boxKey = (b) => `${b.name}\u0000${b.bounds ? b.bounds.join(',') : ''}`;
 const countOf = (list, b) => list.reduce((n, x) => n + (boxKey(x) === boxKey(b) ? 1 : 0), 0);
 
-/** The first box, in `a ++ b` order, whose number of copies differs between `a` and `b` (Lean `firstDiff`). */
 export function firstDiff(a, b) {
   return [...a, ...b].find((x) => countOf(a, x) !== countOf(b, x)) ?? null;
 }
 
 const floorDiv = (n, d) => { const q = n / d; return (n % d !== 0n && (n < 0n) !== (d < 0n)) ? q - 1n : q; };
 
-/** The micro-px offset times the ratio (thousandths) lies within 1/10000 device px of an integer (Lean `gridOk`, exact in BigInt). */
 export function gridOk(dpr, o) {
   const n = BigInt(o) * BigInt(dpr);
-  const r = floorDiv(2n * n + MICRO_DEN, 2n * MICRO_DEN); // round half up
+  const r = floorDiv(2n * n + MICRO_DEN, 2n * MICRO_DEN);
   const e = n - r * MICRO_DEN;
   return (e < 0n ? -e : e) * 10000n <= MICRO_DEN;
 }
@@ -77,7 +68,6 @@ function undeclaredRefusals(a, b) {
   return out;
 }
 
-/** The census check of two arms: ratio, sample list, undeclared multisets, composite ids, grid. [] = the run is accepted (Lean `refusals`). */
 export function refusals(wantA, wantB, a, b) {
   if (a.dpr !== b.dpr) return [{ code: 'viewport', a: a.dpr, b: b.dpr }];
   const ya = a.samples.map((s) => s.y), yb = b.samples.map((s) => s.y);
@@ -86,7 +76,6 @@ export function refusals(wantA, wantB, a, b) {
   return [...undeclaredRefusals({ samples: a.samples.slice(0, n) }, { samples: b.samples.slice(0, n) }), ...armRefusals('a', wantA, a), ...armRefusals('b', wantB, b)];
 }
 
-/** One row per declared identity of a census: layers mapping to it and their summed backing bytes (Lean `rows`). */
 export function rows(layers) {
   const seen = new Map();
   for (const l of layers) {
@@ -100,7 +89,6 @@ export function rows(layers) {
   return [...seen.values()];
 }
 
-/** One line naming what the run was refused for. */
 export function describeRefusal(r) {
   switch (r.code) {
     case 'viewport': return `pixel ratio differs (${r.a} vs ${r.b} thousandths)`;
@@ -113,9 +101,6 @@ export function describeRefusal(r) {
   }
 }
 
-// ---- glue: saved census records -> Lean shape (no decision logic) ----
-
-/** A saved sample (WebKit pass census entry or Chromium `meta.layerCensus.samples[]`) is usable when it carries a pixel ratio and no error. */
 export const sampleUsable = (c) => !c.error && Number.isFinite(c.dprMilli);
 
 const layerOf = (l) => ({
@@ -123,23 +108,17 @@ const layerOf = (l) => ({
   reasons: l.reasons ?? [], bytes: Number.isFinite(l.memory) ? l.memory : null,
 });
 
-/** The arm of one run's saved samples. */
 export const armOf = (samples) => ({
   dpr: samples[0]?.dprMilli ?? null,
   samples: samples.map((c) => ({ y: c.requestedY, rendered: c.rendered ?? [], layers: (c.layers ?? []).map(layerOf) })),
 });
 
-/** `none`, `all` (every id rendered in the arm) or a comma list. */
 export function wantOf(spec, arm) {
   if (!spec || spec === 'none') return [];
   if (spec === 'all') return [...new Set(arm.samples.flatMap((s) => s.rendered))].sort();
   return String(spec).split(',').map((s) => s.trim()).filter(Boolean);
 }
 
-/**
- * Verdict on a pair of runs' samples. `unavailable` lists samples a collector could not read (not a property of the page, so
- * not a Lean refusal); with any, the pair is neither accepted nor refused.
- */
 export function checkPair(samplesA, samplesB, { composite = 'none', snap = 'none' } = {}) {
   const unavailable = [...samplesA.map((c, i) => ['a', i, c]), ...samplesB.map((c, i) => ['b', i, c])]
     .filter(([, , c]) => !sampleUsable(c)).map(([side, i, c]) => ({ side, index: i, error: c.error ?? 'no pixel ratio' }));
@@ -150,7 +129,6 @@ export function checkPair(samplesA, samplesB, { composite = 'none', snap = 'none
   return { state: rs.length ? 'refused' : 'accepted', unavailable: [], refusals: rs, lines: rs.map(describeRefusal) };
 }
 
-/** Per sample, per declared id: rendered nodes, layers, backing bytes (the report of what the page declares and composites). */
 export function declaredTable(samples) {
   return samples.filter(sampleUsable).map((c) => {
     const layers = (c.layers ?? []).map(layerOf);
@@ -161,7 +139,6 @@ export function declaredTable(samples) {
   });
 }
 
-/** Passes of one session pairwise against pass 1 (pass i vs pass 1): the base verdict `determinism` prints and saves. */
 export function censusVerdict(passes, opts) {
   const samples = passes.map((p) => p.census);
   const pairs = samples.slice(1).map((s, i) => ({ pair: `pass ${i + 2} vs pass 1`, ...checkPair(samples[0], s, opts) }));

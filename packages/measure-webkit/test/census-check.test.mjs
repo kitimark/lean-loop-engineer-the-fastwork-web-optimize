@@ -1,4 +1,3 @@
-// The JS twin of the layer-census check agrees with the Lean golden (Fw.Measure.Census, golden/measure/census.jsonl).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -38,8 +37,6 @@ test('every refusal that is not about the viewport or the sample list names a bo
     assert.ok(describeRefusal(r).includes(r.box) || r.code === 'undeclared', g.name);
   }
 });
-
-// ---- saved-record glue ----
 
 const rec = (name, { fw = null, layer = null, boundsU = [0, 0, 1e6, 1e6], origin = null, memory = 4096 } = {}) =>
   ({ name, fw, layer, boundsU, origin, reasons: ['willChange'], memory });

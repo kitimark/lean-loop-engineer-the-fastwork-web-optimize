@@ -1,4 +1,3 @@
-// The two collectors (WebKit inspector, Chromium CDP) against scripted protocol transcripts, and their shared page-side code.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
@@ -17,8 +16,6 @@ test('page-side code reads the attributes and the origin, and keeps the old desc
   assert.deepEqual(fn.call(node), { name: 'div#x.a.b', fw: 'hero', layer: 'hero_copy', origin: [333333, 12000000] });
   assert.deepEqual(fn.call({ nodeType: 9, nodeName: '#document' }), { name: '#document', fw: null, layer: null, origin: null });
 });
-
-// ---- WebKit ----
 
 function fakeWebKit(layers, infos, seen) {
   const log = [];
@@ -62,8 +59,6 @@ test('WebKit census of a node that cannot be resolved keeps a name and no identi
   const cen = await takeCensus(c, { paintWindowMs: 0 });
   assert.deepEqual([cen.layers[0].name, cen.layers[0].fw, cen.layers[0].layer, cen.layers[0].origin], ['(no node)', null, null, null]);
 });
-
-// ---- Chromium ----
 
 class FakeCdp extends EventEmitter {
   constructor({ tree, delay = 0, infos = {}, reasons = {} }) { super(); Object.assign(this, { tree, delay, infos, reasons, calls: [], pumps: 0, enabled: false }); }

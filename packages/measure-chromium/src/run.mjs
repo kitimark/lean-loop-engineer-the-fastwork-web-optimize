@@ -322,7 +322,6 @@ if (N0_ON) {
   n0 = { enabled: true, keys: N0_KEYS, load: total(win.load), preroll: total(win.preroll), profile: total(n0Frames.flat()), after: total(win.after), shapeAtProfileStart: n0Start.shape, shapeAtEnd: n0End.shape, firstProfileEvents: n0Frames.flat().slice(0, 10) };
 }
 
-// Layer census (src/census.mjs) after the trace, so no count is touched. Its own frame pump: bounded, never ends the process.
 const censusPump = async () => {
   vt += dt;
   await ev(`__fwclock.advanceTo(${vt})`);
