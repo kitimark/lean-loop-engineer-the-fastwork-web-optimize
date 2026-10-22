@@ -1,6 +1,7 @@
 import Lean.Data.Json
 import Fw.Engine
 import Fw.Parts.EndFlags
+import Fw.Parts.HiddenPause
 /-!
 # hero.accent boil, variant `steps`: E per sample on the 60 Hz grid, and work per engine
 
@@ -790,5 +791,121 @@ theorem cr_comp_step_not_leE (ev eo : Stage → Bool)
   frameE_not_le_of_dirty _ ev eo hv ho cr_comp_step_not_le.2.2
 
 end EndPass
+
+open Fw.Parts.HiddenPause (Tmpl inst HiddenOrStill hidden_pause_eq hiddenPause_visSame)
+
+inductive DrawVariant where
+  | faithful
+  | drawOne
+  deriving DecidableEq, Repr
+
+inductive Phase where
+  | idle
+  | drawing
+  deriving DecidableEq, Repr
+
+def drawAlpha (j : Nat) : Rat := if j = 0 then 1 else 0
+
+def animates : DrawVariant → Nat → Bool
+  | .faithful, _ => true
+  | .drawOne, j => decide (drawAlpha j ≠ 0)
+
+def strokeAnimated (v : DrawVariant) (phase : Phase) (j : Nat) : Bool :=
+  match phase with
+  | .idle => false
+  | .drawing => animates v j
+
+theorem drawOne_animates_iff (j : Nat) : animates .drawOne j = true ↔ j = 0 := by
+  unfold animates drawAlpha
+  by_cases h : j = 0 <;> simp [h]
+
+theorem faithful_animates (j : Nat) : animates .faithful j = true := rfl
+
+theorem drawOne_still_iff (j : Nat) : animates .drawOne j = false ↔ drawAlpha j = 0 := by
+  unfold animates
+  by_cases h : drawAlpha j = 0 <;> simp [h]
+
+theorem idle_same (j : Nat) : strokeAnimated .drawOne .idle j = strokeAnimated .faithful .idle j := rfl
+
+def animatedCount (v : DrawVariant) (phase : Phase) : Nat :=
+  ([0, 1, 2].filter fun j => strokeAnimated v phase j).length
+
+theorem animatedCount_values :
+    animatedCount .faithful .drawing = 3 ∧ animatedCount .drawOne .drawing = 1 ∧
+    animatedCount .faithful .idle = 0 ∧ animatedCount .drawOne .idle = 0 := by
+  decide
+
+theorem animatedCount_le (phase : Phase) : animatedCount .drawOne phase ≤ animatedCount .faithful phase := by
+  cases phase <;> decide
+
+def copyLook (r : Rect) (j : Nat) (off : Rat) : BoxVis :=
+  { box := r, ink := r, paint := [("stroke-dashoffset", toString off)], xf := ⟨1, 0, 0, 1, 0, 0⟩,
+    alpha := drawAlpha j, clip := none, filter := [], order := j }
+
+def drawTmpl (r : Rect) (d0 : Rat) : Tmpl Rat :=
+  [("copy0", fun _ => copyLook r 0 d0), ("copy1", fun a => copyLook r 1 a), ("copy2", fun a => copyLook r 2 a)]
+
+theorem drawTmpl_hidden (vp r : Rect) (d0 : Rat) : HiddenOrStill vp (drawTmpl r d0) := by
+  intro e he
+  simp only [drawTmpl, List.mem_cons, List.not_mem_nil, or_false] at he
+  rcases he with rfl | rfl | rfl
+  · exact Or.inl fun _ _ => rfl
+  · exact Or.inr fun a => by simp [copyLook, drawAlpha, BoxVis.drop]
+  · exact Or.inr fun a => by simp [copyLook, drawAlpha, BoxVis.drop]
+
+theorem draw_one_eq (vp r : Rect) (d0 a a' : Rat) :
+    visible vp (inst (drawTmpl r d0) a) = visible vp (inst (drawTmpl r d0) a') :=
+  hidden_pause_eq vp (drawTmpl r d0) (drawTmpl_hidden vp r d0) a a'
+
+theorem drawOne_visSame {Env T : Type} (vp : Env → Rect) (r : Env → T → Rect) (d0 : Env → T → Rat)
+    (phase : T → Phase) (aO : Env → T → Rat) (still : Env → T → Rat) :
+    VisSame E vp (fun env t => inst (drawTmpl (r env t) (d0 env t)) (aO env t))
+      (fun env t => inst (drawTmpl (r env t) (d0 env t)) (if phase t = .drawing then still env t else aO env t)) :=
+  hiddenPause_visSame vp (fun env t => drawTmpl (r env t) (d0 env t)) aO
+    (fun env t => if phase t = .drawing then still env t else aO env t) (fun _ t => phase t = .drawing)
+    (fun env t _ => drawTmpl_hidden (vp env) (r env t) (d0 env t))
+    (fun _ t h => by simp [h])
+
+#guard animates .drawOne 0 && !animates .drawOne 1 && !animates .drawOne 2 && animates .faithful 2
+#guard strokeAnimated .drawOne .drawing 0 && !strokeAnimated .drawOne .idle 0
+#guard animatedCount .faithful .drawing == 3 && animatedCount .drawOne .drawing == 1
+
+def phaseName : Phase → String
+  | .idle => "idle"
+  | .drawing => "drawing"
+
+def variantName : DrawVariant → String
+  | .faithful => "faithful"
+  | .drawOne => "draw-one"
+
+def drawRow (v : DrawVariant) (phase : Phase) (j : Nat) : Lean.Json :=
+  Lean.Json.mkObj
+    [("alpha", match phase with | .idle => Lean.Json.null | .drawing => Lean.Json.num (drawAlpha j).num.toNat),
+     ("animated", strokeAnimated v phase j), ("copy", Lean.Json.num j), ("phase", phaseName phase),
+     ("variant", variantName v)]
+
+def countRow (v : DrawVariant) (phase : Phase) : Lean.Json :=
+  Lean.Json.mkObj [("count", Lean.Json.num (animatedCount v phase)), ("phase", phaseName phase),
+    ("variant", variantName v)]
+
+def drawGoldenText : String :=
+  String.join
+    ((([DrawVariant.faithful, .drawOne].flatMap fun v =>
+        [Phase.idle, .drawing].flatMap fun ph => [0, 1, 2].map fun j => drawRow v ph j) ++
+      ([DrawVariant.faithful, .drawOne].flatMap fun v => [Phase.idle, .drawing].map fun ph => countRow v ph)).map
+      fun r => r.compress ++ "\n")
+
+def drawRun (args : List String) : IO UInt32 := do
+  match args with
+  | ["--check", path] =>
+    let cur ← IO.FS.readFile path
+    if cur == drawGoldenText then
+      IO.eprintln s!"accent draw-one golden: {path} is up to date"
+      return 0
+    IO.eprintln s!"accent draw-one golden: {path} differs from the generated text"
+    return 1
+  | _ =>
+    IO.print drawGoldenText
+    return 0
 
 end Fw.Parts.HeroAccentOpt
