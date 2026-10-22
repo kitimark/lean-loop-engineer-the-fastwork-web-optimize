@@ -15507,6 +15507,16 @@
     "docs/team/handoffs/jev-arms-clean.md"
    ],
    "title": "User 2026-10-22 (artifact comment on the Jev trial page, then choice 'claude -p, isolated'): the Haiku/Sonnet arms of the Jev comparison (workflow wf_da4dba4b-5e4, 42 agents, 21 chunks x 2 models) were not like for like with Jev: they saw the Claude Code system prompt, CLAUDE.md and the MEMORY.md index (which names 'orphan until-loop held an agent 3 h', a hint for row inc-orphan-wait-loop), had tools (only a prose ban), and answered 10 rows per conversation; research/notes/2026/10-2x-jev-replay.md:120 asked for one prompt per row with no tools and no system prompt. Re-run both arms clean: one headless `claude -p --model <haiku|sonnet> --tools \"\" --system-prompt <ARM_PREAMBLE> --setting-sources \"\" --strict-mcp-config --no-session-persistence --output-format json` call per row, cwd an empty temp dir, the row prompt from `fw oracle arm-input` (same bytes as the first run), bounded concurrency; first a probe proving no CLAUDE.md, memory or tool list reaches the model (e.g. ask it to list its tools and quote any project instructions; check the JSON usage input tokens against the prompt size), and stop if it fails. Score with the existing oracle scoring (fw oracle score path / oracle-score.ts) against the same labels and held-out split; write per-row results, the old-vs-clean table per arm and question (accuracy, held-out accuracy, certify verdict), cost and wall time. Unit: probe verdict, clean per-row results for both arms on every question set, the comparison table, note, handoff."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-span-skipped",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "fw watch timing.slow land/land (chromium)/Run ./.github/actions/gate-engine 2026-10-22: in land run 39722879593 that step has samples of 0 s on most legs and 27 s / 33 s on the legs that run it, so a normal 30 s run is judged slow against the 0 s ones (same family as run-span-split). Fix: the CI step collector records no sample for a step that did not run (GitHub conclusion skipped, or a gate that exits before work, marked by the step itself), or keys it by leg so each leg is judged against its own history; if Fw.Obs.Timing needs the change, Lean first with goldens. Unit: skipped/no-op steps leave no sample (or per-leg keys) with a test on a recorded job JSON; timings.md."
   }
  ],
  "deadline": {
