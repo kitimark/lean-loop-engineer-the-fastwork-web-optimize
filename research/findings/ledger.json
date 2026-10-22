@@ -2960,7 +2960,7 @@
    ],
    "chromium": "unknown",
    "webkit": "unknown",
-   "visual": "E: same-look breakpoint gate passes on chromium and webkit with the flag (run 39842609609); transition lists unchanged",
+   "visual": "E: same-look breakpoint gate on main (flag ci/nav-fixed-followups 6f35ba8), both engines, PASS run 39857031808; transition lists unchanged",
    "mechanism": "PROVED (Fw.Parts.NavClipBox): clip rect equals the original nav rect (box_eq), no change at rest or with the locale menu open, the box is constant above the morphing cut (union_const) so layout happens only at the endpoints (layout_only_at_endpoints); the union width is width: pill-w plus min-width: panel-w, equal to the rest width at morph end (usedW_eq_unionW, decl_eq_rest_zero), so the original transition lists stay untouched. Dropping .is-morphing at m = 0 starts no width transition (decl_eq_rest_zero for every hero-pill state), but for 0 < m <= cut one starts, under 0.42 px (decl_close_rest): a stated limit. Breakpoint gate on both engines with the flag: run 39842609609 PASS. Trajectory probe (verdict run) 39842561544.",
    "leanFor": [
     "Fw.Parts.NavClipBox.box_eq",
@@ -2972,12 +2972,12 @@
     "Fw.Parts.NavClipBox.used_eq_rest_one"
    ],
    "leanAgainst": [],
-   "missingWhy": "Layer census and cost lane not run; the trajectory nav clip cell is pending on gpu-trajectory-cells.",
+   "missingWhy": "MEASURED no cost number moves: webkit-sim census run 39865298847 failed (simulator lost Safari at 430, not the flag); not measured; chromium-counts not measured (dispatch budget). The trajectory nav-clip cell cannot grade the flag: the cells step on main runs without --search, so run 39856949244 graded the default rewrite (search=(default), E at 390 and 640). Lag and cost passes (webkit-sim lag=true cost=on, target both) need inputs fw run cannot send.",
    "premises": "The pill is drawn by clip-path on a box of constant size; the gate loads at rest, so mid-morph looks rest on the Lean rows and the trajectory probe.",
    "v1Evidence": "",
-   "lesson": "A rule that changes a property named in a transition list must keep the list; reach the same used size through a property the list does not name (min-width) and prove the declared width equals the rest width where the class is dropped.",
-   "next": "Layer census on both engines, cost lane, trajectory nav clip cell.",
-   "evidence": "breakpoint-gate 39842609609, trajectory-probe 39842561544; first round gates 39835303279 and 39837964273 failed on the dropped width in transition-property."
+   "lesson": "A rule that changes a property named in a transition list must keep the list; reach the same used size through a property the list does not name (min-width) and prove the declared width equals the rest width where the class is dropped. The Chromium layout counts do not see a nav that still places its bar and panel per frame (layout_only_at_endpoints speaks of the nav box only); the cost a flag removes is only visible in a lane that counts the layout units of the bar and logo (WebKit Normal compositing, logo3d_layout_normal).",
+   "next": "Pass --search to the cells step of trajectory-probe.yml and rerun the nav-clip cell per flag; dispatch webkit-sim lag=true cost=on target both for the three flags (lead); the felt hero-exit gain needs the phone or gpu-safari-lane (CI VMs have no real GPU).",
+   "evidence": "breakpoint-gate 39842609609, trajectory-probe 39842561544; follow-up gates 39857031808, trajectory-probe 39856949244; webkit-sim base 39864122924, chromium-counts base 39865294590; docs/team/handoffs/nav-fixed-followups.md"
   },
   {
    "id": "nav.bar-fixed",
@@ -2991,7 +2991,7 @@
    ],
    "chromium": "unknown",
    "webkit": "unknown",
-   "visual": "E: same-look breakpoint gate passes on chromium and webkit with the flag (run 39846092556); transition lists unchanged",
+   "visual": "E: same-look breakpoint gate on main (flag ci/nav-fixed-followups 6f35ba8), both engines, PASS run 39860402069; transition lists unchanged",
    "mechanism": "PROVED (Fw.Parts.NavBarFixed, NavBarFixedWork): bar width constant (barW_const) where the original grows; logo and actions translations are closed forms of the Lean rows; the union box of clip-box underlies it. Breakpoint gate on both engines with the flag: run 39846092556 PASS. Trajectory probe (verdict run) 39842569267.",
    "leanFor": [
     "Fw.Parts.NavBarFixed.barW_const",
@@ -3005,12 +3005,12 @@
     "Fw.Parts.NavClipBox.decl_eq_rest_zero"
    ],
    "leanAgainst": [],
-   "missingWhy": "Layer census and cost lane not run; the trajectory nav clip cell is pending on gpu-trajectory-cells.",
+   "missingWhy": "MEASURED no cost number moves: webkit-sim census run 39865290039: census layers and backing bytes equal the default rewrite at every state of the same page-height variant (end state 124 to 128 layers, 105794658 bytes at 5231 and 97868898 at 5267, both also in default runs); no change measurable; chromium-counts not measured (dispatch budget). The trajectory nav-clip cell cannot grade the flag: the cells step on main runs without --search, so run 39856971788 graded the default rewrite (search=(default), E at 390 and 640). Lag and cost passes (webkit-sim lag=true cost=on, target both) need inputs fw run cannot send.",
    "premises": "The pill is drawn by clip-path on a box of constant size; the gate loads at rest, so mid-morph looks rest on the Lean rows and the trajectory probe.",
    "v1Evidence": "",
-   "lesson": "A rule that changes a property named in a transition list must keep the list; reach the same used size through a property the list does not name (min-width) and prove the declared width equals the rest width where the class is dropped.",
-   "next": "Layer census on both engines, cost lane, trajectory nav clip cell.",
-   "evidence": "breakpoint-gate 39846092556, trajectory-probe 39842569267; first round gates 39835303279 and 39837964273 failed on the dropped width in transition-property."
+   "lesson": "A rule that changes a property named in a transition list must keep the list; reach the same used size through a property the list does not name (min-width) and prove the declared width equals the rest width where the class is dropped. The Chromium layout counts do not see a nav that still places its bar and panel per frame (layout_only_at_endpoints speaks of the nav box only); the cost a flag removes is only visible in a lane that counts the layout units of the bar and logo (WebKit Normal compositing, logo3d_layout_normal).",
+   "next": "Pass --search to the cells step of trajectory-probe.yml and rerun the nav-clip cell per flag; dispatch webkit-sim lag=true cost=on target both for the three flags (lead); the felt hero-exit gain needs the phone or gpu-safari-lane (CI VMs have no real GPU).",
+   "evidence": "breakpoint-gate 39846092556, trajectory-probe 39842569267; follow-up gates 39860402069, trajectory-probe 39856971788; webkit-sim base 39864122924, chromium-counts base 39865294590; docs/team/handoffs/nav-fixed-followups.md"
   },
   {
    "id": "nav.logo-3d",
@@ -3024,7 +3024,7 @@
    ],
    "chromium": "unknown",
    "webkit": "unknown",
-   "visual": "E: same-look breakpoint gate passes on chromium and webkit with the flag (run 39848853982); transition lists unchanged",
+   "visual": "E: same-look breakpoint gate on main (flag ci/nav-fixed-followups 6f35ba8), both engines, PASS run 39862686589; transition lists unchanged",
    "mechanism": "PROVED (Fw.Parts.NavBarFixed): translate3d then scale keeps the original translate-then-scale order (translate_scale_order). Breakpoint gate on both engines with the flag: run 39848853982 PASS. Trajectory probe (verdict run) 39842581192.",
    "leanFor": [
     "Fw.Parts.NavBarFixed.translate_scale_order",
@@ -3040,12 +3040,12 @@
     "Fw.Parts.NavClipBox.decl_eq_rest_zero"
    ],
    "leanAgainst": [],
-   "missingWhy": "Layer census and cost lane not run; the trajectory nav clip cell is pending on gpu-trajectory-cells.",
+   "missingWhy": "MEASURED no cost number moves: webkit-sim census run 39865284565: census equal to the default rewrite at the same page-height variant (end state 124 to 128 layers); no change measurable; chromium-counts run 39865303675 against default run 39865294590, swipe-v1 x3: LayoutCount, RecalcStyleCount, Layout.dirtyObjects (173), RasterTask, raster invalidation area equal in every scroll zone (hero exit under 700 px included); no win. The trajectory nav-clip cell cannot grade the flag: the cells step on main runs without --search, so run 39856990203 graded the default rewrite (search=(default), E at 390 and 640). Lag and cost passes (webkit-sim lag=true cost=on, target both) need inputs fw run cannot send.",
    "premises": "The pill is drawn by clip-path on a box of constant size; the gate loads at rest, so mid-morph looks rest on the Lean rows and the trajectory probe.",
    "v1Evidence": "",
-   "lesson": "A rule that changes a property named in a transition list must keep the list; reach the same used size through a property the list does not name (min-width) and prove the declared width equals the rest width where the class is dropped.",
-   "next": "Layer census on both engines, cost lane, trajectory nav clip cell.",
-   "evidence": "breakpoint-gate 39848853982, trajectory-probe 39842581192; first round gates 39835303279 and 39837964273 failed on the dropped width in transition-property."
+   "lesson": "A rule that changes a property named in a transition list must keep the list; reach the same used size through a property the list does not name (min-width) and prove the declared width equals the rest width where the class is dropped. The Chromium layout counts do not see a nav that still places its bar and panel per frame (layout_only_at_endpoints speaks of the nav box only); the cost a flag removes is only visible in a lane that counts the layout units of the bar and logo (WebKit Normal compositing, logo3d_layout_normal).",
+   "next": "Pass --search to the cells step of trajectory-probe.yml and rerun the nav-clip cell per flag; dispatch webkit-sim lag=true cost=on target both for the three flags (lead); the felt hero-exit gain needs the phone or gpu-safari-lane (CI VMs have no real GPU).",
+   "evidence": "breakpoint-gate 39848853982, trajectory-probe 39842581192; follow-up gates 39862686589, trajectory-probe 39856990203; webkit-sim base 39864122924, chromium-counts base 39865294590; docs/team/handoffs/nav-fixed-followups.md"
   }
  ],
  "notes": [

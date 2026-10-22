@@ -10,7 +10,7 @@ Round 2 (original transition lists kept). Same-look breakpoint gate with the fla
 
 | flag | Lean | same-look gate (both engines) | trajectory-probe | layer census | verdict |
 |---|---|---|---|---|---|
-| clip-box | `box_eq`, `rest_same_*`, `visible_eq`, `probe_eq`, `union_const`, `layout_only_at_endpoints`, `usedW_eq_unionW`, `decl_eq_rest_zero`, `decl_close_rest`, `used_eq_rest_one`, golden 100 rows | run 39842609609 pass | 39842561544 | not run | partly-proved: same look and layout claim proved; cost not measured |
+| clip-box | `box_eq`, `rest_same_*`, `visible_eq`, `probe_eq`, `union_const`, `layout_only_at_endpoints`, `usedW_eq_unionW`, `decl_eq_rest_zero`, `decl_close_rest`, `used_eq_rest_one`, golden 100 rows | run 39842609609 pass | 39842561544 | no change measurable (Follow-ups) | partly-proved: same look and layout claim proved; no cost win measured |
 | bar-fixed | `barW_const`, `logoX_*`, `actionsX_*`, `bar_resizePaint_zero`, golden 100 rows | run 39846092556 pass | 39842569267 | not run | partly-proved |
 | logo-3d | `translate_scale_order`, `logo3d_layout_*` | run 39848853982 pass | 39842581192 | not run | partly-proved |
 
@@ -126,3 +126,31 @@ and the chromium-counts / webkit-sim layer census with `--target rewrite --fw na
 - Trajectory verdicts pending on gpu-trajectory-cells (accepted limit). Safari-on-Mac numbers belong to gpu-safari-lane.
 - Same-look gate and census per flag: dispatches above. logo-3d at 430: goes to the user's look review if its pixel diff exceeds tolerance once the gate runs.
 - Resize at rest no longer eases the nav width (accepted, see Design).
+
+## Follow-ups (task nav-fixed-followups, branch ci/nav-fixed-followups at 6f35ba8, cut from main)
+
+Lean: `restW v h m` takes the hero-pill flag; `decl_eq_rest_zero`, `decl_close_rest` and `used_eq_rest_one` hold for every `h` (the `heroPill` term cancels:
+`navWidth` adds `(pillW - pillW) * expand h`). Ledger rows nav.clip-box, nav.bar-fixed, nav.logo-3d corrected: the morph lays out no width, height, top or radius on the nav
+but the bar and the panel are still placed per frame by the insets, and a width transition under `cut * (panelW - pillW)` (under 0.42 px) starts for `0 < m <= cut`
+(stated limit); `leanFor` of bar-fixed and logo-3d now names `barW_const`, `logoX_eq`, `translate_scale_order`, `logo3d_layout_normal`.
+
+| claim | status | evidence |
+|---|---|---|
+| per-flag same-look gate on main code, both engines, all breakpoints: clip-box, bar-fixed, logo-3d PASS | MEASURED | runs 39857031808, 39860402069, 39862686589 (ci/nav-fixed-followups 6f35ba8) |
+| trajectory-probe (verdict runs, both engines, inputs `fw=nav:<flag>` read back from `trajectory-inputs`) | MEASURED | clip-box 39856949244, bar-fixed 39856971788, logo-3d 39856990203; Chromium new units 370 / 415 / 659, WebKit hero path CLEAN (4000 ok) x3 |
+| the nav-clip cell cannot grade a flag on main | MEASURED | the cells step runs `cells-gpu-cli.mjs run` with no `--search`; all three runs print `search=(default)`, nav-clip E at 390 and 640: that grades the default rewrite. Per-flag nav-clip grade: not delivered |
+| Chromium swipe-v1 x3, default vs nav:logo-3d (top arm): no count moves | MEASURED | runs 39865294590 (default) and 39865303675 (logo-3d), `results/nav-fixed-size/chromium-counts-swipe-v1-base-vs-logo3d.txt`: zone hero exit (scrollY < 700, 69 frames) LayoutCount 80/80, RecalcStyle 283/283, RasterTask 106/106, invalidation area 7134233/7134233; end zone Layout.dirtyObjects 173/173, RasterTask 116/116 |
+| WebKit sim census (430 x 775, 2 passes), default vs bar-fixed vs logo-3d: no change beyond the lane's own spread | MEASURED | runs 39864122924, 39865290039, 39865284565, `results/nav-fixed-size/webkit-sim-census-base-bar-logo.txt`; y=0..4500 layer counts and backing bytes equal or inside the base's own spread (112 to 118 layers at 1500, 106 to 112 at 0); the end state memory 97868898 vs 105794658 is the sim's page-height variant (docH 6042 vs 6006), seen in default runs too (39775866606, 39794304091) |
+| webkit-sim for nav:clip-box | failed, infrastructure | run 39865298847: `simctl launch Safari ... Shutdown` at 430; not the flag. No dispatch left in the budget of 9 |
+| lag and cost passes per flag | not delivered | `fw run` sends no `lag` or `cost` input (`webkit-sim.yml` inputs); needs the lead's dispatch |
+
+Reading. The nav-fixed arms are no-wins on the lanes that could run: on Chromium the layout counts are passes and dirty objects, and the morph still places the bar, the panel and
+(clip-box, bar-fixed) the logo per frame (`bar_layout_conservative`, `logo_translate_layout`), so the count lanes see the same layouts. The gain `bar_layout_normal`,
+`logo3d_layout_normal` and `bar_resizePaint_zero` state is per frame in WebKit's Normal compositing mode and shows on the phone or the lag/cost passes, not in a 5-state census
+(INFERRED; the Lean statements hold, the measurement for them is open). Hero exit: the hero zone numbers are equal because `.is-morphing` is off there (`rest_same_morph`): the rules are
+inert, which is the proved same look.
+
+Dispatches for the lead (each needs a workflow input `fw run` cannot send):
+`webkit-sim` with `lag=true cost=on target=both fw=nav:<flag> vms=3` for clip-box, bar-fixed, logo-3d on `ci/nav-fixed-followups`; webkit-sim `--fw nav:clip-box` again (the failed run) and
+`pnpm -s fw run --target rewrite --engines chromium --profile swipe-v1 --runs 3 --fw nav:clip-box|nav:bar-fixed --ref ci/nav-fixed-followups`; a one-line change of `trajectory-probe.yml`
+(`--search "$SEARCH"` on the cells step) before the nav-clip cell grades a flag.
