@@ -2,60 +2,12 @@ import Fw.Engine
 import Fw.Parts.HeroCountdown
 import Fw.Parts.EndFlags
 
-/-!
-# hero.countdown and morph.countdown, variant `strip`: same picture, fewer layers (CD-W, PLAN rev 10)
-
-The `strip` variant replaces the 10 `.face` spans of each digit (each `will-change: transform`, moved by
-`translateY(faceDelta(k, a) · c)`) by one 12-entry strip per digit (`will-change: transform`, moved by
-`translateY(stripOffsetCells(a) · c)`). morph.countdown renders the same component (`MorphCountdown` →
-`HeroCountdown inverse`, `apps/site/src/parts/morph.countdown/index.tsx:18-21`), so every theorem here covers both
-clocks. Design: `research/notes/2026/10-18-engine-proof-design.md` §2-§3 and §4.2 rank 5.
-
-* **Visual** (`strip_visSame`): `VisSame E` for every environment (every width band, touch, hover, DPR) and every
-  instant, from `HeroCountdown.strip_shows_same`. The scene lists glyph boxes, named by the digit slot and the glyph
-  they show (strip entries 0 and 10 both show 9, entries 1 and 11 both show 0; at most one of each pair is ever kept).
-  The strip container and the digit wrapper paint nothing of their own and are not scene entries; glyphs of one
-  digit share the digit's paint order (they sit whole cells apart, so they never overlap with positive area).
-* **Per-frame work** (`strip_passes_eq`, `strip_units`, over any engine whose stages for the transform write do not
-  depend on the element; instances `cr_*` for `chromiumAt m` and `wk_*` for `webkitAt m`): every stage runs exactly
-  as often (`=o`, the counts CI measures), the units drop from `10r` to `r` for `r` rolling digits. So Core's
-  `claim` is **not** a resident-only label: with a rolling digit the screen says `dominates` (via units), and
-  `run_claim` gives `dominates` or `trade` by the resident order (`strip_claim`); with no rolling digit the runs are
-  equal and `claim` is `noClaim`.
-* **Resident** (`strip_layers_lt`, `hero_layers`): layers `10n → n` per clock of `n` digits; `n = 8` while the
-  days have two digits, so 80 → 8. 80 is `layerBudget` of `faithful` (`part.json`), 16 the `layerBudget` of `strip`:
-  a bound (8 ≤ 16), not the model's count. Backing area, under the full-layer rule (each composited layer backs its
-  whole border box, INFERRED), grows from 10 to 12 cells per digit (`strip_backing_gt`), so Core's label is
-  **trade**, not dominates (`strip_label_fullLayer`).
-* **WebKit** (`wk_owns`): the faces' `translateY` is a static 2D transform and never composites
-  (`WebKit.static2D_not_own`); the 80 layers come only from `will-change`, which composites under the Normal policy
-  (Safari default) and is dropped under Conservative. Under Conservative both variants have 0 clock layers: no
-  resident difference (`wk_conservative_same`). The paused morph panel (`will-change: auto !important`,
-  `morph.module.css:14-17`) has 0 clock layers on both engines (`paused_same`).
-
-Sources: `apps/site/src/parts/hero.countdown/index.tsx:24-50` (10 faces or one 12-entry strip per digit),
-`hero.module.css:71-86` (`will-change: transform` on `.face` and `.strip`), `driver.ts:62-69` (one transform per
-face, or one per strip, per frame of a rolling digit); Chromium `compositing_reason_finder.cc:76-137`@f842f52
-(`will-change: transform` is a direct reason) and `:535-546` (a transform composites only with a 3D operation),
-CONFIRMED; WebKit as in `Fw.Engine.WebKit.composites`.
-
-The TS `strip` also moves the clock from the original's `setInterval(1000)` plus one rAF chain per digit to one
-shared-loop subscriber (`index.tsx:103-108`, `driver.ts:43-47`), which moves roll starts across frames. That
-scheduling delta is not modelled here (both variants get the same frame inputs), so the golden rows predict only the
-layer census (`goldenJsonl`, base `rewrite`, whose census class is deterministic, so a frame-exact `<o` is usable);
-per-frame det rows would test the scheduling delta, not this theorem.
--/
+/-! hero.countdown and morph.countdown `strip`: same picture, fewer layers. -/
 namespace Fw.Parts.HeroCountdownOpt
 
 open Fw.Engine
 open Fw.Parts.HeroCountdown
 
-/-! ## Visual: glyph scenes -/
-
-/-- Geometry of one digit window in viewport px: its slot (identity), top-left corner, cell width and height, and
-its paint order.
-
-Where one digit of the clock sits on screen and how big its cell is. -/
 structure DigitGeo where
   slot  : Nat
   x     : Rat
@@ -65,10 +17,6 @@ structure DigitGeo where
   order : Nat
 deriving Repr, DecidableEq
 
-/-- One glyph box: digit `k` drawn `o` cells below the window (negative: above). Box and ink are the cell; the
-transform moves it to the window plus `o · c`; the clip is the window in the glyph's local coordinates.
-
-The cell that shows digit `k` at offset `o`, as the renderer gets it. -/
 def glyph (g : DigitGeo) (k : Int) (o : Rat) : BoxVis where
   box := ⟨0, 0, g.w, g.c⟩
   ink := ⟨0, 0, g.w, g.c⟩
@@ -79,53 +27,29 @@ def glyph (g : DigitGeo) (k : Int) (o : Rat) : BoxVis where
   filter := []
   order := g.order
 
-/-- The scene id of a glyph: the digit slot and the glyph shown.
-
-A name for "digit `k` in this window", shared by both variants. -/
 def glyphId (g : DigitGeo) (k : Int) : BoxId := s!"cd{g.slot}.g{k}"
 
-/-- **Faithful digit**: face `k = 0..9` at offset `faceDelta(k, a)`.
-
-The ten faces of one digit when its spring is at `a`. -/
 def facesDigit (g : DigitGeo) (a : Rat) : Scene :=
   (List.range 10).map fun (k : Nat) => (glyphId g k, glyph g k (faceDelta k a))
 
-/-- The strip entries that show digit `k` (entries `0..11` read `9, 0, 1, ..., 9, 0`).
-
-Where digit `k` is printed on the strip; 0 and 9 are printed twice. -/
 def stripEntries (k : Int) : List Int := if k = 0 then [1, 11] else if k = 9 then [0, 10] else [k + 1]
 
 #guard (List.range 10).all fun (k : Nat) =>
   stripEntries k == ((List.range 12).map Int.ofNat).filter (fun j => stripEntryDigit j == k)
 
-/-- The entries of digit `k` are exactly the strip positions printing `k`.
-
-The list names every place on the strip where the digit is printed, and no other. -/
 theorem mem_stripEntries (k j : Int) (hk0 : 0 ≤ k) (hk1 : k < 10) :
     j ∈ stripEntries k ↔ 0 ≤ j ∧ j < 12 ∧ stripEntryDigit j = k := by
   unfold stripEntries stripEntryDigit
   by_cases h0 : k = 0 <;> by_cases h9 : k = 9 <;> simp [h0, h9] <;> omega
 
-/-- **Strip digit**: for each glyph `k = 0..9`, its strip entries `j` at offset `j + stripOffsetCells(a)`.
-
-The twelve strip cells of one digit when its spring is at `a`, listed by the glyph they show. -/
 def stripDigit (g : DigitGeo) (a : Rat) : Scene :=
   (List.range 10).flatMap fun (k : Nat) =>
     (stripEntries k).map fun (j : Int) => (glyphId g k, glyph g k ((j : Rat) + stripOffsetCells a))
 
-/-- The faithful clock: every digit's faces, digit by digit.
-
-All faces of all digits. -/
 def facesClock (ds : List (DigitGeo × Rat)) : Scene := ds.flatMap fun d => facesDigit d.1 d.2
 
-/-- The strip clock: every digit's strip, digit by digit.
-
-All strip cells of all digits. -/
 def stripClock (ds : List (DigitGeo × Rat)) : Scene := ds.flatMap fun d => stripDigit d.1 d.2
 
-/-- A kept glyph is inside the window: its offset lies strictly between `-1` and `1` cell.
-
-Only a glyph that overlaps the digit window can survive `visible`. -/
 theorem glyph_kept_window (vp : Rect) (g : DigitGeo) (k : Int) (o : Rat)
     (h : (glyph g k o).drop vp = false) : -1 < o ∧ o < 1 := by
   simp only [BoxVis.drop, glyph, Rect.meets, Bool.or_eq_false_iff, Bool.not_eq_false',
@@ -143,10 +67,6 @@ theorem glyph_kept_window (vp : Rect) (g : DigitGeo) (k : Int) (o : Rat)
     have := Rat.mul_nonneg hn' (Rat.le_of_lt hc)
     grind
 
-/-- A filter-of-map lemma: if every kept image is `b`, `b` kept has a preimage, and no two elements are both kept,
-the filtered images are the filtered singleton.
-
-At most one element survives, and it is `b`, exactly when `b` survives. -/
 theorem filter_map_unique {α β : Type} (P : β → Bool) (f : α → β) (b : β) :
     ∀ (L : List α), (∀ x ∈ L, P (f x) = true → f x = b) → (P b = true → ∃ x ∈ L, f x = b) →
       L.Pairwise (fun x y => P (f x) = true → P (f y) = false) →
@@ -175,10 +95,6 @@ theorem filter_map_unique {α β : Type} (P : β → Bool) (f : α → β) (b : 
       rw [← hxb]
       simp [hx, hnil]
 
-/-- **One glyph, both variants.** For glyph `k ∈ {0..9}` of one digit, the kept strip entries are the kept
-faithful face.
-
-Whatever the viewport, digit `k` is visible in the strip exactly where, and only where, the face `k` is. -/
 theorem strip_glyph_same (vp : Rect) (g : DigitGeo) (a : Rat) (k : Int) (hk0 : 0 ≤ k) (hk1 : k < 10) :
     ((stripEntries k).map fun (j : Int) => (glyphId g k, glyph g k ((j : Rat) + stripOffsetCells a))).filter
         (fun e => !(e.2.drop vp)) =
@@ -219,9 +135,6 @@ theorem strip_glyph_same (vp : Rect) (g : DigitGeo) (a : Rat) (k : Int) (hk0 : 0
       · rw [ite_eq_right_of_eq_false _ _ (eq_false h0), ite_eq_right_of_eq_false _ _ (eq_false h9)]
         exact List.pairwise_singleton _ _
 
-/-- `flatMap` respects pointwise equality on the list's members.
-
-Equal pieces give equal concatenations. -/
 theorem flatMap_congr' {α β : Type} {l : List α} {f g : α → List β} (h : ∀ x ∈ l, f x = g x) :
     l.flatMap f = l.flatMap g := by
   induction l with
@@ -230,9 +143,6 @@ theorem flatMap_congr' {α β : Type} {l : List α} {f g : α → List β} (h : 
     rw [List.flatMap_cons, List.flatMap_cons, h x List.mem_cons_self,
       ih (fun y hy => h y (List.mem_cons_of_mem _ hy))]
 
-/-- **One digit, both variants.** The visible part of a strip digit is the visible part of the faithful digit.
-
-For any spring value, window geometry and viewport, the strip and the ten faces show the same boxes. -/
 theorem strip_digit_same (vp : Rect) (g : DigitGeo) (a : Rat) :
     visible vp (stripDigit g a) = visible vp (facesDigit g a) := by
   have hf : facesDigit g a =
@@ -250,11 +160,6 @@ theorem strip_digit_same (vp : Rect) (g : DigitGeo) (a : Rat) :
   have hk' := List.mem_range.mp hk
   exact strip_glyph_same vp g a k (by omega) (by omega)
 
-/-- **`strip_visSame`: the strip shows the same picture, class E, for every environment and instant.** The page
-around the clock (`pre`, `post`) and the digit windows and spring values (`ds`) are arbitrary functions of the
-environment (every width band, touch, hover, DPR) and of time; both variants share them.
-
-At every width and every moment the visible scene with strips equals the visible scene with faces. -/
 theorem strip_visSame {Env T : Type} (vp : Env → Rect) (pre post : Env → T → Scene)
     (ds : Env → T → List (DigitGeo × Rat)) :
     VisSame E vp (fun env t => pre env t ++ facesClock (ds env t) ++ post env t)
@@ -267,30 +172,71 @@ theorem strip_visSame {Env T : Type} (vp : Env → Rect) (pre post : Env → T �
   intro d _
   exact (strip_digit_same (vp env) d.1 d.2).symm
 
-/-! ## Per-frame work -/
+inductive Align where
+  | center
+  | start
+deriving Repr, DecidableEq
+
+def lineTop : Align → Rat → Rat → Rat
+  | .center, h, l => (h - l) / 2
+  | .start, _, _ => 0
+
+#guard lineTop .center (312 / 10) (312 / 10) == 0
+#guard lineTop .center 31 (312 / 10) == -(1 / 10)
+#guard lineTop .center 36 (364 / 10) == -(1 / 5)
+#guard lineTop .center 52 52 == 0
+#guard lineTop .start 31 (312 / 10) == 0
+
+theorem face_top (l : Rat) : lineTop .center l l = 0 := by
+  simp only [lineTop]; grind
+
+theorem entry_center_iff (h l : Rat) : lineTop .center h l = lineTop .center l l ↔ h = l := by
+  simp only [lineTop]; grind
+
+theorem entry_start (h l : Rat) : lineTop .start h l = lineTop .center l l := by
+  simp only [lineTop]; grind
+
+def stackPx (c : Rat) (as : List Rat) : Int := as.foldl (fun v a => roundQ (a * v)) (roundQ c)
+
+#guard stackPx (3 / 10 * 255) [1 / 2] == 39
+#guard stackPx (3 / 10 * 255) [1, 1 / 2] == 39
+#guard stackPx (3 / 10 * 255) [1 / 2, 1] == 39
+#guard stackPx 255 [] == 255
+
+theorem stackPx_one (c : Rat) (l r : List Rat) : stackPx c (l ++ 1 :: r) = stackPx c (l ++ r) := by
+  simp only [stackPx, List.foldl_append, List.foldl_cons, Rat.one_mul, roundQ_int]
+
+theorem stackPx_filter (c : Rat) (as : List Rat) : stackPx c as = stackPx c (as.filter (· ≠ 1)) := by
+  unfold stackPx
+  generalize roundQ c = v
+  induction as generalizing v with
+  | nil => rfl
+  | cons a as ih =>
+    by_cases h : a = 1
+    · subst h; simp only [List.foldl_cons, Rat.one_mul, roundQ_int, List.filter_cons]; simpa using ih v
+    · simp [h, ih]
+
+/-- Premise not stated by the theorem: the glyph is in a composited layer in both arms or in neither (same scene-pause rule), and the panel opacity is applied once to the group in both arms (render surface / CA group opacity), backdrop blend not modelled: INFERRED. -/
+theorem strip_px_eq (c α : Rat) (strip faces outer : List Rat) (hs : ∀ a ∈ strip, a = 1)
+    (hf : ∀ a ∈ faces, a = 1) : stackPx c (strip ++ α :: outer) = stackPx c (faces ++ α :: outer) := by
+  have e : ∀ l : List Rat, (∀ a ∈ l, a = 1) → l.filter (· ≠ 1) = [] := fun l h =>
+    List.filter_eq_nil_iff.mpr (by simpa using h)
+  rw [stackPx_filter, stackPx_filter c (faces ++ _), List.filter_append, List.filter_append, e _ hs, e _ hf]
+
+#guard stackPx (3 / 10 * 255) ([1, 1] ++ [1 / 2]) == stackPx (3 / 10 * 255) ([1] ++ [1 / 2])
+#guard stackPx (3 / 10 * 255) [1 / 2] != stackPx (1 / 2 * (3 / 10) * 255) []
 
 section Work
 variable {P M : Type}
 
-/-- The faithful writes of one frame: for every rolling digit slot `d`, one transform write on each of its 10 faces.
-
-What the original's springs write in a frame where the digits `ds` roll. -/
 def faceWrites (p : P) (ℓ : LayerState) (ds : List Nat) : List (Change P) :=
   ds.flatMap fun d => (List.range 10).map fun k => ⟨10 * d + k, p, ℓ⟩
 
-/-- The strip writes of one frame: for every rolling digit slot `d`, one transform write on its strip.
-
-What the strip variant writes in the same frame. -/
 def stripWrites (p : P) (ℓ : LayerState) (ds : List Nat) : List (Change P) :=
   ds.map fun d => ⟨10 * d, p, ℓ⟩
 
-/-- A frame of the page with the clock's writes appended; everything else (script callbacks, forced passes, hits,
-other changes, compositor animations) is the shared frame `f`.
-
-The same page frame, plus the digit writes of one variant. -/
 def withWrites (f : FrameIn P) (ws : List (Change P)) : FrameIn P := { f with changes := f.changes ++ ws }
 
-/-- Stages of the face writes: those of the transform write when a digit rolls, none otherwise. -/
 theorem faceWrites_stages (E : Engine P M) (p : P) (ℓ : LayerState) (S : List Stage)
     (hS : ∀ e, E.stagesOf ⟨e, p, ℓ⟩ = S) (ds : List Nat) (s : Stage) :
     s ∈ (faceWrites p ℓ ds).flatMap E.stagesOf ↔ ds ≠ [] ∧ s ∈ S := by
@@ -304,7 +250,6 @@ theorem faceWrites_stages (E : Engine P M) (p : P) (ℓ : LayerState) (S : List 
     obtain ⟨d, hd⟩ := List.exists_mem_of_ne_nil ds hne
     exact ⟨_, ⟨d, hd, 0, by omega, rfl⟩, by rw [hS]; exact hs⟩
 
-/-- Stages of the strip writes: those of the transform write when a digit rolls, none otherwise. -/
 theorem stripWrites_stages (E : Engine P M) (p : P) (ℓ : LayerState) (S : List Stage)
     (hS : ∀ e, E.stagesOf ⟨e, p, ℓ⟩ = S) (ds : List Nat) (s : Stage) :
     s ∈ (stripWrites p ℓ ds).flatMap E.stagesOf ↔ ds ≠ [] ∧ s ∈ S := by
@@ -318,17 +263,14 @@ theorem stripWrites_stages (E : Engine P M) (p : P) (ℓ : LayerState) (S : List
     obtain ⟨d, hd⟩ := List.exists_mem_of_ne_nil ds hne
     exact ⟨_, ⟨d, hd, rfl⟩, by rw [hS]; exact hs⟩
 
-/-- The face writes are empty exactly when no digit rolls. -/
 theorem faceWrites_isEmpty (p : P) (ℓ : LayerState) (ds : List Nat) :
     (faceWrites p ℓ ds).isEmpty = ds.isEmpty := by
   cases ds <;> simp [faceWrites, List.range_succ]
 
-/-- The strip writes are empty exactly when no digit rolls. -/
 theorem stripWrites_isEmpty (p : P) (ℓ : LayerState) (ds : List Nat) :
     (stripWrites p ℓ ds).isEmpty = ds.isEmpty := by
   cases ds <;> simp [stripWrites]
 
-/-- Every stage of the write counts 10 face writes per rolling digit, any other stage none. -/
 theorem faceWrites_count (E : Engine P M) (p : P) (ℓ : LayerState) (S : List Stage)
     (hS : ∀ e, E.stagesOf ⟨e, p, ℓ⟩ = S) (ds : List Nat) (s : Stage) :
     (faceWrites p ℓ ds).countP (fun c => decide (s ∈ E.stagesOf c)) =
@@ -341,7 +283,6 @@ theorem faceWrites_count (E : Engine P M) (p : P) (ℓ : LayerState) (S : List S
     simp only [List.countP_map, Function.comp_def, hS, List.length_cons]
     by_cases h : s ∈ S <;> simp [h] <;> grind
 
-/-- Every stage of the write counts 1 strip write per rolling digit, any other stage none. -/
 theorem stripWrites_count (E : Engine P M) (p : P) (ℓ : LayerState) (S : List Stage)
     (hS : ∀ e, E.stagesOf ⟨e, p, ℓ⟩ = S) (ds : List Nat) (s : Stage) :
     (stripWrites p ℓ ds).countP (fun c => decide (s ∈ E.stagesOf c)) = ds.length * (if s ∈ S then 1 else 0) := by
@@ -349,9 +290,6 @@ theorem stripWrites_count (E : Engine P M) (p : P) (ℓ : LayerState) (S : List 
   simp only [List.countP_map, Function.comp_def, hS]
   by_cases h : s ∈ S <;> simp [h]
 
-/-- Touching is decided by the writes' stage union and emptiness: two write lists with the same both give the same
-touched stages.
--/
 theorem touched_congr (E : Engine P M) (f : FrameIn P) (w1 w2 : List (Change P))
     (hs : ∀ s, s ∈ w1.flatMap E.stagesOf ↔ s ∈ w2.flatMap E.stagesOf) (he : w1.isEmpty = w2.isEmpty)
     (s : Stage) : s ∈ touched E (withWrites f w1) ↔ s ∈ touched E (withWrites f w2) := by
@@ -363,10 +301,6 @@ theorem touched_congr (E : Engine P M) (f : FrameIn P) (w1 w2 : List (Change P))
   rw [hu]
   simp only [withWrites, List.flatMap_append, List.mem_append, hs s]; exact Iff.rfl
 
-/-- **Per-frame passes are equal (`=o`).** For an engine whose stages for the clock's transform write do not depend
-on the element, every stage runs equally often with strips as with faces, in every frame.
-
-Strips never add or remove a pipeline pass. -/
 theorem strip_passes_eq (E : Engine P M) (p : P) (ℓ : LayerState) (S : List Stage)
     (hS : ∀ e, E.stagesOf ⟨e, p, ℓ⟩ = S) (f : FrameIn P) (ds : List Nat) (s : Stage) :
     (frameWork E (withWrites f (stripWrites p ℓ ds))).passes s =
@@ -378,9 +312,6 @@ theorem strip_passes_eq (E : Engine P M) (p : P) (ℓ : LayerState) (S : List St
   by_cases ht : s ∈ touched E { f with changes := f.changes ++ faceWrites p ℓ ds } <;>
     simp_all
 
-/-- **Per-frame units: faces cost `9r` more on every stage of the write**, for `r` rolling digits.
-
-Ten writes per rolling digit become one. -/
 theorem strip_units (E : Engine P M) (p : P) (ℓ : LayerState) (S : List Stage)
     (hS : ∀ e, E.stagesOf ⟨e, p, ℓ⟩ = S) (f : FrameIn P) (ds : List Nat) (s : Stage) :
     (frameWork E (withWrites f (faceWrites p ℓ ds))).units s =
@@ -389,7 +320,6 @@ theorem strip_units (E : Engine P M) (p : P) (ℓ : LayerState) (S : List Stage)
     faceWrites_count E p ℓ S hS, stripWrites_count E p ℓ S hS]
   by_cases h : s ∈ S <;> simp [h] <;> omega
 
-/-- **Frame order.** Every frame with strips is at most the same frame with faces. -/
 theorem strip_frame_le (E : Engine P M) (p : P) (ℓ : LayerState) (S : List Stage)
     (hS : ∀ e, E.stagesOf ⟨e, p, ℓ⟩ = S) (f : FrameIn P) (ds : List Nat) :
     (frameWork E (withWrites f (stripWrites p ℓ ds))).le (frameWork E (withWrites f (faceWrites p ℓ ds))) := by
@@ -397,9 +327,6 @@ theorem strip_frame_le (E : Engine P M) (p : P) (ℓ : LayerState) (S : List Sta
   · rw [strip_passes_eq E p ℓ S hS]; exact Nat.le_refl _
   · rw [strip_units E p ℓ S hS]; exact Nat.le_add_right _ _
 
-/-- **Strict in a rolling frame.** If some digit rolls and the write touches some stage, the strip frame is strictly
-below the faces frame (in units).
--/
 theorem strip_frame_lt (E : Engine P M) (p : P) (ℓ : LayerState) (S : List Stage)
     (hS : ∀ e, E.stagesOf ⟨e, p, ℓ⟩ = S) (hS0 : S ≠ []) (f : FrameIn P) (ds : List Nat) (hd : ds ≠ []) :
     (frameWork E (withWrites f (stripWrites p ℓ ds))).lt (frameWork E (withWrites f (faceWrites p ℓ ds))) := by
@@ -410,18 +337,14 @@ theorem strip_frame_lt (E : Engine P M) (p : P) (ℓ : LayerState) (S : List Sta
   have : 0 < ds.length := List.length_pos_iff.mpr hd
   simp [hs]; omega
 
-/-- The faithful run: one work value per frame, each frame being a shared page frame and its rolling digit slots. -/
 def facesRun (E : Engine P M) (p : P) (ℓ : LayerState) (fs : List (FrameIn P × List Nat)) : List Work :=
   fs.map fun x => frameWork E (withWrites x.1 (faceWrites p ℓ x.2))
 
-/-- The strip run over the same frames. -/
 def stripRun (E : Engine P M) (p : P) (ℓ : LayerState) (fs : List (FrameIn P × List Nat)) : List Work :=
   fs.map fun x => frameWork E (withWrites x.1 (stripWrites p ℓ x.2))
 
-/-- Some frame of the run has a rolling digit. -/
 def rolls (fs : List (FrameIn P × List Nat)) : Bool := fs.any fun x => !x.2.isEmpty
 
-/-- Every strip frame is at most its faces frame. -/
 theorem strip_leAll (E : Engine P M) (p : P) (ℓ : LayerState) (S : List Stage)
     (hS : ∀ e, E.stagesOf ⟨e, p, ℓ⟩ = S) :
     ∀ fs : List (FrameIn P × List Nat), leAll (stripRun E p ℓ fs) (facesRun E p ℓ fs) = true
@@ -430,7 +353,6 @@ theorem strip_leAll (E : Engine P M) (p : P) (ℓ : LayerState) (S : List Stage)
     simp only [stripRun, facesRun, List.map_cons, leAll, Bool.and_eq_true]
     exact ⟨(Work.leb_iff _ _).mpr (strip_frame_le E p ℓ S hS x.1 x.2), strip_leAll E p ℓ S hS xs⟩
 
-/-- A run with a rolling frame has a strictly cheaper strip frame. -/
 theorem strip_someLt (E : Engine P M) (p : P) (ℓ : LayerState) (S : List Stage)
     (hS : ∀ e, E.stagesOf ⟨e, p, ℓ⟩ = S) (hS0 : S ≠ []) :
     ∀ fs : List (FrameIn P × List Nat), rolls fs = true → someLt (stripRun E p ℓ fs) (facesRun E p ℓ fs) = true
@@ -444,7 +366,6 @@ theorem strip_someLt (E : Engine P M) (p : P) (ℓ : LayerState) (S : List Stage
     · right
       exact strip_someLt E p ℓ S hS hS0 xs h
 
-/-- With no rolling digit the two runs are the same list. -/
 theorem strip_run_eq_of_still (E : Engine P M) (p : P) (ℓ : LayerState) :
     ∀ fs : List (FrameIn P × List Nat), rolls fs = false → stripRun E p ℓ fs = facesRun E p ℓ fs
   | [], _ => rfl
@@ -455,11 +376,6 @@ theorem strip_run_eq_of_still (E : Engine P M) (p : P) (ℓ : LayerState) :
     congr 1
     exact strip_run_eq_of_still E p ℓ xs h.2
 
-/-- **`strip_claim`: Core's label for the strip, exactly.** With a rolling digit somewhere in the run, the screen
-says "dominates" (through units) and the claim is `dominates` or `trade` by the resident order; with no rolling digit
-the runs are equal, the screen says "equal" and the claim is `noClaim`.
-
-A per-frame win exists only while a digit rolls; the resident state then decides between dominates and trade. -/
 theorem strip_claim (E : Engine P M) (p : P) (ℓ : LayerState) (S : List Stage)
     (hS : ∀ e, E.stagesOf ⟨e, p, ℓ⟩ = S) (hS0 : S ≠ []) (fs : List (FrameIn P × List Nat)) (rv ro : Resident) :
     claim (Screen.screen (toRun (facesRun E p ℓ fs)) (toRun (stripRun E p ℓ fs))) rv ro =
@@ -472,13 +388,7 @@ theorem strip_claim (E : Engine P M) (p : P) (ℓ : LayerState) (S : List Stage)
 
 end Work
 
-/-! ## The two engine instances -/
-
 open Fw.Engine.Chromium in
-/-- **Chromium: passes `=o`, and Core's claim label** (the units win is `strip_units`), in every run mode and layer state. The transform write
-dirties the same stages on every element (`crStagesOf` reads only the property and the layer state), and at least one.
-
-The Chromium instance of `strip_claim` and `strip_passes_eq`. -/
 theorem cr_strip (m : CrMode) (ℓ : LayerState) (fs : List (FrameIn CrProp × List Nat)) (rv ro : Resident) :
     claim (Screen.screen (toRun (facesRun (chromiumAt m) (.css .transform) ℓ fs))
         (toRun (stripRun (chromiumAt m) (.css .transform) ℓ fs))) rv ro =
@@ -493,11 +403,6 @@ theorem cr_strip (m : CrMode) (ℓ : LayerState) (fs : List (FrameIn CrProp × L
   exact ⟨strip_claim _ _ _ _ hS hS0 fs rv ro, strip_passes_eq _ _ _ _ hS⟩
 
 open Fw.Engine.WebKit in
-/-- **WebKit: passes `=o`, and Core's claim label** (the units win is `strip_units`), in every mode and layer state. `wkDiff` reads only the
-property and the layer state, and a transform write dirties at least one stage (own: recomposite; paint layer:
-overflow; none: layout).
-
-The WebKit instance of `strip_claim` and `strip_passes_eq`. -/
 theorem wk_strip (m : WkMode) (ℓ : LayerState) (fs : List (FrameIn WkProp × List Nat)) (rv ro : Resident) :
     claim (Screen.screen (toRun (facesRun (webkitAt m) .transform ℓ fs))
         (toRun (stripRun (webkitAt m) .transform ℓ fs))) rv ro =
@@ -512,70 +417,43 @@ theorem wk_strip (m : WkMode) (ℓ : LayerState) (fs : List (FrameIn WkProp × L
     cases ℓ <;> decide
   exact ⟨strip_claim _ _ _ _ hS hS0 fs rv ro, strip_passes_eq _ _ _ _ hS⟩
 
-/-! ## Resident state: layers and backing per clock -/
-
-/-- The engine (and WebKit's compositing policy) a clock is composited by. -/
 inductive Host where
   | chromium
   | webkit (pol : WebKit.Policy)
 deriving Repr, DecidableEq
 
-/-- Whether a face (or strip) box owns a composited layer. Its reasons are a static 2D `translateY` (always) and
-`will-change: transform` (unless the panel is paused). Chromium: `will-change: transform` is a direct reason
-(`compositing_reason_finder.cc:116-119`@f842f52), a transform only with a 3D operation (`:535-546`), CONFIRMED.
-WebKit: `composites` of either reason (`Fw.Engine.WebKit`).
-
-Whether one moving box of the clock gets its own layer. -/
+-- Chromium compositing_reason_finder.cc:116-119@f842f52 (will-change: transform is a direct reason), :535-546 (a transform needs a 3D operation)
 def owns : Host → Bool → Bool
   | .chromium, wc => wc
   | .webkit pol, wc => (wc && WebKit.composites pol .willChange) || WebKit.composites pol .transform2D
 
-/-- **WebKit: the layers exist only through `will-change`, and only under Normal.** The `translateY` alone never
-composites (`static2D_not_own`).
-
-On Safari's default policy the faces are layers, as in Chromium; under memory pressure neither variant has any. -/
 theorem wk_owns (pol : WebKit.Policy) (wc : Bool) :
     owns (.webkit pol) wc = (wc && decide (pol = .normal)) := by
   cases pol <;> cases wc <;> simp [owns, WebKit.composites]
 
-/-- Resident state of a faithful clock with `n` digits: 10 boxes per digit, each one cell (`a` kpx of backing) under
-the full-layer rule (a composited layer backs its whole border box, INFERRED for small untiled layers).
--/
 def facesResident (h : Host) (wc : Bool) (n a : Nat) : Resident :=
   if owns h wc then ⟨10 * n, 10 * n * a⟩ else ⟨0, 0⟩
 
-/-- Resident state of a strip clock with `n` digits: 1 box per digit, 12 cells tall, under the same rule. -/
 def stripResident (h : Host) (wc : Bool) (n a : Nat) : Resident :=
   if owns h wc then ⟨n, 12 * n * a⟩ else ⟨0, 0⟩
 
-/-- Digits shown by one clock `secs` seconds before the target: days unpadded, hours, minutes and seconds padded
-to 2 (`index.tsx:63`, `HeroCountdown.digitPlaces`).
--/
 def clockDigits (secs : Nat) : Nat :=
   ((unitsFromSeconds secs).zipIdx.map fun x => (digitPlaces (x.1 : Rat) (decide (0 < x.2))).length).sum
 
--- 2026-10-18T00:00Z: 15 days left, 8 digits; 2026-10-30T00:00Z: 3 days left, 7 digits.
 #guard clockDigits (remainingSeconds 1792281600000 targetMs) == 8
 #guard clockDigits (remainingSeconds 1793318400000 targetMs) == 7
 #guard clockDigits (10 * 86400) == 8 && clockDigits (99 * 86400 + 86399) == 8 && clockDigits (100 * 86400) == 9
 #guard clockDigits 0 == 7
 
-/-- **Layers: `10n → n` per clock.** With the boxes composited, the strip has a tenth of the layers. -/
 theorem strip_layers_lt (h : Host) (wc : Bool) (n a : Nat) (ho : owns h wc = true) (hn : 0 < n) :
     (stripResident h wc n a).layers = n ∧ n < 10 * n ∧ (facesResident h wc n a).layers = 10 * n := by
   simp [stripResident, facesResident, ho]; omega
 
-/-- **The hero clock's numbers: 80 → 8, inside both budgets.** With 8 digits (days 10-99) on a composited host:
-80 face layers (`layerBudget` 80 of `faithful`) and 8 strip layers, below the strip's `layerBudget` 16.
--/
 theorem hero_layers (h : Host) (wc : Bool) (a : Nat) (ho : owns h wc = true) :
     (facesResident h wc 8 a).layers = 80 ∧ (stripResident h wc 8 a).layers = 8 ∧
       (stripResident h wc 8 a).layers ≤ 16 := by
   simp [stripResident, facesResident, ho]
 
-/-- **Backing grows: 10 cells → 12 cells per digit** under the full-layer rule, whenever the boxes are composited and
-a cell has area.
--/
 theorem strip_backing_gt (h : Host) (wc : Bool) (n a : Nat) (ho : owns h wc = true) (hn : 0 < n) (ha : 0 < a) :
     (facesResident h wc n a).backingKpx = 10 * n * a ∧ 10 * n * a < 12 * n * a ∧
       (stripResident h wc n a).backingKpx = 12 * n * a := by
@@ -583,10 +461,6 @@ theorem strip_backing_gt (h : Host) (wc : Bool) (n a : Nat) (ho : owns h wc = tr
   have : 0 < n * a := Nat.mul_pos hn ha
   rw [Nat.mul_assoc, Nat.mul_assoc]; omega
 
-/-- **Core's label under the full-layer rule is `trade`.** Fewer layers, but more backing area, so the strip's
-resident state is not below the faces'; with a rolling digit `claim` says `trade` on both engines (via `cr_strip`,
-`wk_strip`).
--/
 theorem strip_label_fullLayer (h : Host) (wc : Bool) (n a : Nat) (ho : owns h wc = true) (hn : 0 < n)
     (ha : 0 < a) :
     ¬ (stripResident h wc n a).le (facesResident h wc n a) ∧
@@ -596,23 +470,17 @@ theorem strip_label_fullLayer (h : Host) (wc : Bool) (n a : Nat) (ho : owns h wc
     intro hle; have := hle.2; omega
   exact ⟨hnle, by simp [claim, hnle]⟩
 
-/-- **Not composited, no resident difference.** WebKit under Conservative, or the paused morph panel
-(`will-change: auto`) on either engine: both variants have no clock layer, so the resident states are equal and a
-rolling run is labelled `dominates` (by units alone).
--/
 theorem uncomposited_same (h : Host) (wc : Bool) (n a : Nat) (ho : owns h wc = false) :
     stripResident h wc n a = ⟨0, 0⟩ ∧ facesResident h wc n a = ⟨0, 0⟩ ∧
       claim (.ok .dominates) (stripResident h wc n a) (facesResident h wc n a) = .dominates := by
   simp [stripResident, facesResident, ho, claim, Resident.le]
 
-/-- WebKit under Conservative: no clock layers in either variant, so no resident win to claim there. -/
 theorem wk_conservative_same (wc : Bool) (n a : Nat) :
     stripResident (.webkit .conservative) wc n a = ⟨0, 0⟩ ∧
       facesResident (.webkit .conservative) wc n a = ⟨0, 0⟩ :=
   let h := uncomposited_same (.webkit .conservative) wc n a (by rw [wk_owns]; simp)
   ⟨h.1, h.2.1⟩
 
-/-- The paused morph panel (`will-change: auto !important`): no clock layers on any host. -/
 theorem paused_same (h : Host) (n a : Nat) :
     stripResident h false n a = ⟨0, 0⟩ ∧ facesResident h false n a = ⟨0, 0⟩ := by
   have ho : owns h false = false := by
@@ -621,30 +489,18 @@ theorem paused_same (h : Host) (n a : Nat) :
     | webkit pol => rw [wk_owns]; simp
   exact ⟨(uncomposited_same h false n a ho).1, (uncomposited_same h false n a ho).2.1⟩
 
-/-- On Safari's default policy the faces are 80 layers (8 digits), as the v1 Simulator census saw
-(`fixes/cd-strip/README.md:369` in the v1 repo, MEASURED there), and the strip has 8.
--/
 theorem wk_normal_layers (a : Nat) :
     (facesResident (.webkit .normal) true 8 a).layers = 80 ∧
       (stripResident (.webkit .normal) true 8 a).layers = 8 := by
   have := hero_layers (.webkit .normal) true a (by rw [wk_owns]; rfl)
   exact ⟨this.1, this.2.1⟩
 
-/-! ## Golden rows for `pnpm fw engine-check` -/
-
-/-- The prediction for the layer census from the two layer counts: `<o` when the strip has fewer, `=o` when equal,
-`any` otherwise.
--/
 def layersPred (v o : Nat) : String := if v < o then "<o" else if v = o then "=o" else "any"
 
 #guard layersPred 8 80 == "<o" && layersPred 0 0 == "=o" && layersPred 12 10 == "any"
 
-/-- The variant and base names of a run (`engine-check.ts:67-74`: `target+search`; default variant of a part is the
-head of its `variants`, i.e. `faithful`).
--/
 def variantName : String := "rewrite+?fw=hero.countdown:strip,morph.countdown:strip"
 
-/-- One golden row, keys sorted. -/
 def goldenRow (scenario : String) : String :=
   "{\"base\":\"rewrite\",\"countType\":\"census.layers\",\"engine\":\"chromium\",\"prediction\":\"" ++
     layersPred (stripResident .chromium true 8 1).layers (facesResident .chromium true 8 1).layers ++
@@ -657,28 +513,15 @@ def goldenJsonl : String := goldenRow "swipe-v1" ++ "\n" ++ goldenRow "swipe-tou
 #guard (goldenRow "swipe-v1").startsWith "{\"base\":\"rewrite\",\"countType\":\"census.layers\""
 #guard ((goldenRow "swipe-v1").splitOn "\"prediction\":\"<o\"").length == 2
 
-/-! ## Under the frame-end pass (`frameWorkE`, ledger n=1)
-
-Strips and faces write the same stages at the same point of the same frame and add no read, so the stage flags end
-the same way under both: one common end-flag assignment `e`. The verdicts carry over unchanged (`=o` passes, fewer
-units). -/
-
 section EndPass
 
 open Fw.Parts.EndFlags
 
-/-- **Frame order under `frameWorkE`.** For every common end-flag assignment, strips are at most faces.
-
-The end pass is paid the same way by both. -/
 theorem strip_frame_leE {P M : Type} (E : Engine P M) (p : P) (ℓ : LayerState) (S : List Stage)
     (hS : ∀ e, E.stagesOf ⟨e, p, ℓ⟩ = S) (f : FrameIn P) (ds : List Nat) (e : Stage → Bool) :
     (frameWorkE E (withWrites f (stripWrites p ℓ ds)) e).le (frameWorkE E (withWrites f (faceWrites p ℓ ds)) e) :=
   frameE_le_of_same_forced E e (fun s => by cases s <;> rfl) (strip_frame_le E p ℓ S hS f ds)
 
-/-- **Strict under `frameWorkE`.** If some digit rolls and the write touches some stage, strips stay strictly below
-faces for every common end-flag assignment.
-
-The saved units do not depend on end flags. -/
 theorem strip_frame_ltE {P M : Type} (E : Engine P M) (p : P) (ℓ : LayerState) (S : List Stage)
     (hS : ∀ e, E.stagesOf ⟨e, p, ℓ⟩ = S) (hS0 : S ≠ []) (f : FrameIn P) (ds : List Nat) (hd : ds ≠ [])
     (e : Stage → Bool) :
@@ -695,24 +538,10 @@ theorem strip_frame_ltE {P M : Type} (E : Engine P M) (p : P) (ℓ : LayerState)
 
 end EndPass
 
-/-! ## Scheduling: a per-frame subscriber is worse (ledger n=7, n=8)
-
-The TS strip first ran its springs from a shared per-frame loop. That loop calls back in every frame, also in the
-frames where no digit rolls, where the original runs nothing. One extra callback is one extra `script` unit, so
-those frames are not `⪯` the original's, whatever the end flags, and the run cannot dominate: the confound, not the
-strip, decides the screen. The aimed timer (n=8) runs one callback per second, as the original's interval does, so
-both arms have the same run and Core's claim is `noClaim`. -/
-
 section Schedule
 
-/-- A frame with `k` extra script callbacks.
-
-The page frame plus a subscriber's callbacks. -/
 def addScript {P : Type} (f : FrameIn P) (k : Nat) : FrameIn P := { f with script := f.script + k }
 
-/-- **A still frame with a subscriber is not `⪯` the original's**, in every engine and for all end flags.
-
-The callback costs a script unit the original does not pay. -/
 theorem sub_still_not_le {P M : Type} (E : Engine P M) (p : P) (ℓ : LayerState) (f : FrameIn P) (k : Nat)
     (hk : 0 < k) (ev eo : Stage → Bool) :
     ¬ (frameWorkE E (withWrites (addScript f k) (stripWrites p ℓ [])) ev).le
@@ -723,9 +552,11 @@ theorem sub_still_not_le {P M : Type} (E : Engine P M) (p : P) (ℓ : LayerState
     List.flatMap_nil, List.append_nil, ↓reduceIte] at hu
   omega
 
-/-- **The aimed timer has no claim.** Two arms with the same per-frame work get `noClaim`, for every resident state.
+theorem strip_still_eq {P M : Type} (E : Engine P M) (p : P) (ℓ : LayerState) (f : FrameIn P) (e : Stage → Bool) :
+    frameWorkE E (withWrites (addScript f 0) (stripWrites p ℓ [])) e =
+      frameWorkE E (withWrites f (faceWrites p ℓ [])) e := by
+  simp [addScript, stripWrites, faceWrites]
 
-One callback per second against one callback per second is no work order (Lesson `resident_only_noClaim`). -/
 theorem same_run_noClaim (ws : List Work) (rv ro : Resident) :
     claim (Screen.screen (toRun ws) (toRun ws)) rv ro = .noClaim :=
   resident_only_noClaim ws ws rv ro rfl
