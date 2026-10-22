@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { getClock } from '../../engine/clock';
 import { startAccentChain } from './driver';
+import { drawAttr } from './drawOne';
 import { createBoil, type BoilTarget } from './boil';
 import { artOf, BASE_ART, strokePath } from './data';
 import { BASE_WIDTH, widthOf, type AccentState } from './logic';
@@ -97,6 +98,7 @@ export function HeroAccent({ variant }: HeroAccentProps) {
       className={`${css.accent} ${css.idle}`}
       data-fw="hero-accent"
       data-fw-variant={variant}
+      data-fw-draw={drawAttr(variant)}
       aria-label={BASE_ART.label}
       style={{ width: widthCalc(BASE_WIDTH), height: 'calc(74 / 64 * 1em)' }}
     >
