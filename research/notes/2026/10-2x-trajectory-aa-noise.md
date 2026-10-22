@@ -66,8 +66,7 @@ engine, and both are fixed in the Lean grader (`lean/Fw/Gate/TrajectoryGpu.lean`
 
 ## Fresh A/A runs
 
-Three trajectory-probe runs of this branch (Chromium 156.0.8078.4, widths 390 and 640, same code both arms), each on its own
-CI jobs. MEASURED, artifact `cells-gpu-chromium` of each run:
+Three trajectory-probe runs of this branch (Chromium 156.0.8078.4, widths 390 and 640, same code both arms). MEASURED, artifact `cells-gpu-chromium` of each run:
 
 | Run | Commit | Units graded E of 12 | Carousel holds (base, cand) at 390 | at 640 |
 |---|---|---|---|---|
@@ -76,12 +75,11 @@ CI jobs. MEASURED, artifact `cells-gpu-chromium` of each run:
 | 39863586490 | 3575e73aa | 12 | 2,2,0,0 and 2,2,0,0 | 2,2,0,0 and 2,2,0,0 |
 
 - Every unit grades E in all three runs (panel-effect close at 640 included, carousel reps E,E,E,E).
-- Between arms the hold differs by at most one frame in every run (holdFrames: 39852684450 2 vs 1, 39861846900 at 640 1 vs 2).
-  The hold gate (`holdGrade`) keeps that spread E; a longer difference grades L (golden case "entering avatar held 2 rows
+- Between arms the hold differs by at most one frame in every run (39852684450 2 vs 1, 39861846900 at 640 1 vs 2), which `holdGrade` keeps E; a longer difference grades L (golden case "entering avatar held 2 rows
   against 4").
 - Limit: Chromium only, three runs. WebKit A/A is not measured.
 
 ## Follow-ups
 
-- WebKit A/A (Chromium only here).
+- WebKit A/A.
 - Find why the first swaps hold 3 to 4 rows (INFERRED above).

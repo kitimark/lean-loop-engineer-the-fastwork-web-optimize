@@ -8,10 +8,10 @@
   - Dispatches used: 3 of 3.
 - Hold-out raw analysed: run 39852684450 (A/A, Chromium 156.0.8078.4); holdFrames base 2,2,0,0, cand 1,1,0,0. Older raws 39823047557, 39823476824, 39824100493.
 - Hold gate (round 3): Lean `holdGrade`/`repGrade`/`holdTol` = 1 frame per swap pair (premise: between arms the hold differs by at most one frame; 39852684450 2 vs 1, 39861846900 at 640 1 vs 2). Offline re-reduction of the four raws 39852684450, 39860085568, 39861846900, 39863586490 with holdGrade: 12 of 12 units E each, carousel reps E,E,E,E. Goldens regenerated (199 lines), JS twin in cells-gpu.mjs.
-- Verified (MEASURED on the raw files, offline re-reduction): carousel hold anchor gives E E E E at 390 and 640 on 39852684450 and all E on the three older runs; panel-effect 640 close reps Q,L become E with residual grading, all other units stay E.
+- Verified (MEASURED, offline re-reduction): carousel hold anchor gives E E E E at 390 and 640 on 39852684450, all E on the three older runs; panel-effect 640 close reps Q,L become E, other units stay E.
 - Checks on the merged tree: check.sh green, @fw/gate-breakpoints 643/643, @fw/contracts test+typecheck, ci-paths 54/54, runner land-inputs 56/56 (before the merge), dry land VERDICT ok.
 - Lean: `lake build Fw.Gate.TrajectoryGpu` green, golden regenerated (198 lines) and `--check` ok; @fw/gate-breakpoints trajectory tests pass (22 + 14 + 3).
-- Open (follow-ups): WebKit A/A; why the first swaps hold 3 to 4 rows (INFERRED, unconfirmed). Writes outside the task graph: cells-gpu-run.mjs now imports carouselSample from the new cells-gpu-page.mjs (both under trajectory/**); none outside.
+- Open (follow-ups): WebKit A/A; why the first swaps hold 3 to 4 rows (INFERRED, unconfirmed). Writes outside the task graph: cells-gpu-run.mjs now imports carouselSample from the new cells-gpu-page.mjs (both under trajectory/**).
 
 ## Causes
 - Carousel (MEASURED): not sub-frame. Rows from container insertion to the first motion are 4,4,2,2 in the base arm and 3,3,2,2 in the cand arm (holdFrames 2,2,0,0 against 1,1,0,0); the motion after onset matches within 0.02 px. Swaps 1 and 2 match only at a whole-frame shift. Why the early holds are longer is INFERRED (warm-up after the start-selling avatar template swap mounts a fresh image).

@@ -506,7 +506,6 @@ def readStep : Rat := 1 / 1000
 
 def effectTols (dpr side : Rat) : List Rat := [1 / 100, tolCss dpr, tolCss dpr / side + readStep]
 
-/-- Each vector minus `effectAt` of its own key. -/
 def residual (s : Series) : Series := s.map fun (k, v) => (k, List.zipWith (· - ·) v (effectAt k))
 
 theorem residual_sorted (s : Series) : sortedKeys (residual s) = sortedKeys s := by
@@ -835,7 +834,6 @@ def spanSeries (rows : List Row) (sp : Nat × Nat) : Series :=
   ((List.range vs.length).zip vs |>.filter fun (_, v) => v.length == full).map fun (j, v) =>
     ((j : Rat) * frameMs, v.map fun (x : Int) => (x : Rat) / 1000)
 
-/-- Drops leading frames that equal their successor: the last rest frame before the first move stays. -/
 def dropHold : Series → Series
   | p :: q :: r => if p.2 = q.2 then dropHold (q :: r) else p :: q :: r
   | s => s
@@ -901,7 +899,6 @@ def settleStep (s : SettleSt) (v : List Int) : SettleSt :=
 
 def settleDone (still : Nat) (s : SettleSt) : Bool := s.moved && decide (still ≤ s.quiet)
 
-/-- Frames consumed before recording starts, and whether the quiet rule (not the cap) ended the wait. -/
 def settleRun (still : Nat) (cap s0 : Rat) : SettleSt → Rat → List (Rat × List Int) → Nat → Nat × Bool
   | _, _, [], n => (n, false)
   | s, now, (t, v) :: fs, n =>
@@ -978,7 +975,6 @@ theorem tailStop_waits (ms t : Rat) (still tail : Nat) (h : t < ms + tailCapMs) 
   have h2 : ¬ still ≤ tail := by grind
   simp [tailStop, h1, h2]
 
-/-- Rows recorded, and whether the quiet rule (not the cap) ended the recording. -/
 def tailRun (ms : Rat) (still : Nat) : Option (List Int) → Nat → List (Rat × List Int) → Nat → Nat × Bool
   | _, _, [], n => (n, false)
   | prev, tail, (t, v) :: fs, n =>
@@ -1014,10 +1010,8 @@ def carouselMinCovered : Nat := 4
 def swapGrade (dpr : Rat) (b c : Series) : Option Grade :=
   matchedGrade (List.replicate ((b.head?.map (·.2.length)).getD 0) (tolCss dpr)) carouselGrid frameMs carouselMinCovered b c
 
-/-- Between-arm hold difference (frames) that is still E; premise from the A/A spread in runs 39852684450 and 39861846900 (at most 1). -/
 def holdTol : Nat := 1
 
-/-- E iff the two holds differ by at most `holdTol` frames, else L. -/
 def holdGrade (hb hc : Nat) : Grade := if hb ≤ hc + holdTol ∧ hc ≤ hb + holdTol then .e else .l
 
 theorem holdGrade_e_le (hb hc : Nat) (h : hb ≤ hc + holdTol) (h' : hc ≤ hb + holdTol) : holdGrade hb hc = .e := by
@@ -1043,7 +1037,6 @@ theorem holdGrade_refl (h : Nat) : holdGrade h h = .e := holdGrade_e_le h h (by 
 #guard holdGrade 3 1 == .l
 #guard holdGrade 0 4 == .l
 
-/-- The swap rep grade: the motion grade or the hold grade, whichever is worse; no motion grade stays none. -/
 def repGrade (motion : Option Grade) (hb hc : Nat) : Option Grade := motion.map fun g => worse g (holdGrade hb hc)
 
 theorem repGrade_hold_l (motion : Option Grade) (g : Grade) (hm : motion = some g) (hb hc : Nat) (h : holdGrade hb hc = .l) :
@@ -1057,7 +1050,6 @@ theorem repGrade_hold_e (g : Grade) (hb hc : Nat) (h : holdGrade hb hc = .e) :
 
 theorem repGrade_none (hb hc : Nat) : repGrade none hb hc = none := rfl
 
-/-- Holds (frames) of each swap of a recording. -/
 def holdsOf (rows : List Row) (still : Nat := 6) : List Nat := (swapSpans rows still).map (holdFrames rows)
 
 def carouselReps (dpr : Rat) (bs cs : List Series) (hbs hcs : List Nat) : List (Option Grade) :=

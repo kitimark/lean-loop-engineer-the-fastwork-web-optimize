@@ -10,7 +10,6 @@ const golden = readFileSync(fileURLToPath(new URL('../../contracts/golden/gate/t
 const of = (k) => golden.filter((l) => l.kind === k);
 const num = (s) => Number(ratOf(s).n) / Number(ratOf(s).d);
 
-// Frame j of the scripted page fires at times[j] and the container then reads reads[j] (milli-px width); frames past the script tick on at 17 ms and keep moving.
 async function drive({ reads, times, args }) {
   let j = -1, now = times[0];
   const at = (a) => (j < a.length ? a[Math.max(j, 0)] : 1e6 + j);
