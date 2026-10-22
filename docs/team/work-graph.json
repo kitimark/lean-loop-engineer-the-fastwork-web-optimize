@@ -15098,7 +15098,15 @@
     "apps/site/src/registry/layer-opts*.ts",
     "apps/site/src/registry/*.test.ts",
     "packages/contracts/golden/console/layer-opts*.jsonl",
-    "docs/team/handoffs/site-layer-opts.md"
+    "docs/team/handoffs/site-layer-opts.md",
+    "apps/runner/src/land.ts",
+    "apps/site/src/entry-client.tsx",
+    "apps/site/src/registry/types.ts",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Console/LandSpeed.lean",
+    "lean/Fw/Site/LayerOpts.lean",
+    "lean/scripts/LayerOptsGolden.lean",
+    "lean/scripts/check.sh"
    ]
   },
   {
