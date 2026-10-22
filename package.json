@@ -12,7 +12,7 @@
     "lint": "node scripts/lint-wallclock.mjs && node scripts/ci-steps-lint.mjs",
     "typecheck": "pnpm -r --if-present typecheck",
     "build": "pnpm -r --if-present build",
-    "fw": "node apps/runner/src/fw-entry.ts"
+    "fw": "node apps/runner/src/fw.ts"
   },
   "devDependencies": {
     "katex": "0.16.11"

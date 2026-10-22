@@ -52,7 +52,7 @@ test("waiter: one node process, no second fw process, starts only after the hold
   const dir = mkdtempSync(join(tmpdir(), "slot-wait-"));
   const env = { ...process.env, FW_SLOT_DIR: dir, FW_LOCK_EVENTS: "off", FW_SLOT_OWNER: "wait-test" };
   delete env.FW_SLOT_HELD; delete env.CI; delete env.FW_SLOT_SELF;
-  const fw = join(top, "apps", "runner", "src", "fw-entry.ts");
+  const fw = join(top, "apps", "runner", "src", "fw.ts");
   const held = spawnSync(process.execPath, [fw, "slot", "acquire", "--kind", "test", "--lease", "120"], { env: { ...env, FW_SLOT_OWNER: "holder" }, encoding: "utf8", cwd: top });
   assert.equal(held.status, 0, held.stderr);
   const token = held.stdout.trim();
@@ -74,8 +74,8 @@ test("waiter: one node process, no second fw process, starts only after the hold
   assert.match(out, /started/);
 });
 
-test("fw-entry slot: usage error exits 64 with the usage text, like fw.ts", () => {
-  const fw = join(top, "apps", "runner", "src", "fw-entry.ts");
+test("fw.ts slot: usage error exits 64 with the usage text, like fw-main.ts", () => {
+  const fw = join(top, "apps", "runner", "src", "fw.ts");
   const r = spawnSync(process.execPath, [fw, "slot", "run", "--kind", "test"], { encoding: "utf8", cwd: top, env: { ...process.env, FW_LOCK_EVENTS: "off" } });
   assert.equal(r.status, 64);
   assert.match(r.stderr, /usage: fw slot run/);
