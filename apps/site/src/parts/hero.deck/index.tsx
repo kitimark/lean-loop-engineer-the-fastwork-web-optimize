@@ -17,6 +17,7 @@ export function HeroDeck({ variant }: HeroDeckProps) {
       {DECK.map((d) => (
         <HeroCard
           key={d.slot}
+          data-fw-layer="hero.deck_article"
           className={css[d.slot]}
           name={CARDS[d.piece]!.name}
           role={CARDS[d.piece]!.role}

@@ -145,14 +145,14 @@ export function Nav({
   const onOpenChange = useCallback((open: boolean) => driver.current?.setLocaleOpen(open), []);
 
   return (
-    <header ref={header} className={`${css.nav} is-hero-pill`} aria-label="Primary navigation" data-fw="nav">
+    <header ref={header} className={`${css.nav} is-hero-pill`} aria-label="Primary navigation" data-fw="nav" data-fw-layer="nav_bar">
       <div className={css.bar}>
         <a className={css.logo} href="/" aria-label="Fastwork home">
           <GenSvg art={art('nav.wordmark')} />
         </a>
         <div className={css.actions} data-fw="nav-actions">
           <LangMenu variant="faithful" locale={locale} onSelect={onSelectLocale} onOpenChange={onOpenChange} />
-          <button className={`${css.btn} ${css.earn}`} type="button" tabIndex={-1} aria-hidden="true" data-fw="nav-earn" onClick={onJoin}>
+          <button className={`${css.btn} ${css.earn}`} type="button" tabIndex={-1} aria-hidden="true" data-fw="nav-earn" data-fw-layer="nav_earn" onClick={onJoin}>
             Join waitlist
           </button>
         </div>

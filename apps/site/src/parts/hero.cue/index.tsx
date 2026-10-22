@@ -17,7 +17,7 @@ function scrollNext() {
  */
 export function HeroCue({ variant }: HeroCueProps) {
   return (
-    <button type="button" className={css.cue} data-fw="hero-cue" data-fw-variant={variant} onClick={scrollNext}>
+    <button type="button" className={css.cue} data-fw="hero-cue" data-fw-layer="hero.cue_cue" data-fw-variant={variant} onClick={scrollNext}>
       <span className={css.float}>
         <span className={css.label}>Scroll down</span>{' '}
         <GenSvg art={art('hero.cue')} />

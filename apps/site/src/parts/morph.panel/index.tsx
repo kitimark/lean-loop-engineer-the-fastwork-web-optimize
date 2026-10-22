@@ -54,6 +54,7 @@ export function MorphPanel({ variant, impl = 'mui', initialMorph = 0, writerRef,
         ref={panelRef}
         className={css.panel}
         data-fw="morph-panel"
+        data-fw-layer="morph.panel_panel"
         data-fw-variant={variant}
         data-start-selling-scene="paused"
         aria-hidden="true"

@@ -43,7 +43,7 @@ export function Hero({ variants }: HeroProps) {
     <HeroExit variant={v(variants, 'hero.exit')}>
       <HeroOrbit variant={v(variants, 'hero.orbit')} />
       <HeroDeck variant={v(variants, 'hero.deck')} />
-      <header ref={copy} className={css.copy} data-fw="hero" data-fw-variant={variant}>
+      <header ref={copy} className={css.copy} data-fw="hero" data-fw-layer="hero_copy" data-fw-variant={variant}>
         <div className={css.copyMain}>
           <h1 id="start-selling-heading" className={css.title}>
             <span className={css.line}>Show the world</span>{' '}

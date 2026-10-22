@@ -5,8 +5,11 @@
   "experiment": true,
   "impls": ["plain"],
   "muiStates": [],
+  "layers": [
+    { "id": "hero.cue_cue", "label": "scroll cue", "text": true }
+  ],
   "variants": {
-    "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:4130-4133; assets/2.gBuqKVzi.css:1905-1990,2056-2060,2128-2160" } }
+    "faithful": { "kind": "faithful", "files": ["cue.module.css", "index.tsx", "media.ts"], "tier": "T1", "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:4130-4133; assets/2.gBuqKVzi.css:1905-1990,2056-2060,2128-2160" } }
   },
   "requires": {},
   "conflicts": {}

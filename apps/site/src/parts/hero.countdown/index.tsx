@@ -27,7 +27,8 @@ export interface HeroCountdownProps {
 
 const cls = (...c: (string | false | undefined)[]) => c.filter(Boolean).join(' ');
 
-function Digits({ n, strip }: { n: number; strip: boolean }) {
+/** `layer` marks the hero instance's boxes with their layer ids; morph.countdown's instance carries none. */
+function Digits({ n, strip, layer }: { n: number; strip: boolean; layer: boolean }) {
   return (
     <span className={css.number} data-value>
       {Array.from({ length: n }, (_, k) => (
@@ -36,7 +37,7 @@ function Digits({ n, strip }: { n: number; strip: boolean }) {
             0
           </span>
           {strip ? (
-            <span className={css.strip} aria-hidden="true" data-strip>
+            <span className={css.strip} aria-hidden="true" data-strip data-fw-layer={layer ? 'hero.countdown_strip' : undefined}>
               {Array.from({ length: 12 }, (_, j) => (
                 <span key={j} className={css.entry}>
                   {(j + 9) % 10}
@@ -45,7 +46,7 @@ function Digits({ n, strip }: { n: number; strip: boolean }) {
             </span>
           ) : (
             Array.from({ length: 10 }, (_, f) => (
-              <span key={f} className={css.face} aria-hidden="true" data-face>
+              <span key={f} className={css.face} aria-hidden="true" data-face data-fw-layer={layer ? 'hero.countdown_face' : undefined}>
                 {f}
               </span>
             ))
@@ -147,7 +148,7 @@ export function HeroCountdown({ variant, impl = 'mui', inverse = false, fwId = '
       {LABELS.map((label, i) => (
         <div key={label} className={css.unit} aria-hidden="true">
           <span className={css.value}>
-            {shape ? <Digits n={shape[i]!} strip={strip} /> : <span className={css.placeholder}>{i > 0 ? '00' : '0'}</span>}
+            {shape ? <Digits n={shape[i]!} strip={strip} layer={fwId === 'hero-countdown'} /> : <span className={css.placeholder}>{i > 0 ? '00' : '0'}</span>}
           </span>
           <Label>{label}</Label>
         </div>

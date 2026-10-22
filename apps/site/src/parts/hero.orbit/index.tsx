@@ -103,6 +103,7 @@ export function HeroOrbit({ variant }: HeroOrbitProps) {
               role={CARDS[i]!.role}
               cover={CARDS[i]!.cover}
               avatar={CARDS[i]!.avatar}
+              data-fw-layer="hero.orbit_card"
               data-orbit-id={p.id}
               data-orbit-side={p.left / CANVAS_W * 100 < 50 ? 'left' : 'right'}
               data-piece={p.id}
