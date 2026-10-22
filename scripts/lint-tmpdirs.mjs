@@ -21,15 +21,12 @@ export function cleansUp(text) {
   return false;
 }
 
-/** The name a mkdtemp call at `index` is bound to (`const d = mkdtempSync(..)`, `d = realpathSync(mkdtempSync(..))`),
- *  or null: no binding, a destructuring, or a factory (`const tmp = (p) => mkdtempSync(..)`). */
 export function bindingOf(text, index) {
   const seg = text.slice(Math.max(text.lastIndexOf('\n', index - 1), text.lastIndexOf(';', index - 1)) + 1, index);
   const m = /(?:^|[\s(,{])(?:(?:const|let|var)\s+)?([A-Za-z_$][\w$]*)\s*(?::[^=;]+)?=(?![=>])([^=]*)$/.exec(seg);
   return m && !m[2].includes('=>') ? m[1] : null;
 }
 
-/** True when some cleanup window (a cleanup keyword and the next CLEANUP_WINDOW characters) removes `name`. */
 export function removesName(text, name) {
   const esc = name.replace(/\$/g, '\\$');
   const rm = new RegExp(`\\b(rmSync|rmdirSync|rm|rmdir|rimraf)\\s*\\([^)]*(?<![\\w$])${esc}(?![\\w$])`);
@@ -37,8 +34,6 @@ export function removesName(text, name) {
   return false;
 }
 
-/** The lines of mkdtemp calls with no matching removal: a bound call needs an rm of its own name inside a cleanup
- *  window; an unbound one (factory, destructuring) falls back to any removal inside a cleanup window of the file. */
 export function finding(text) {
   const out = [];
   for (const m of text.matchAll(MAKE)) {

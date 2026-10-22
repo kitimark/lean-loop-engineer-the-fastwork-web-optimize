@@ -637,9 +637,6 @@ theorem rule_usertmp (cfg : Config) (xs : List Cand) (x : Cand) (h : x ∈ selec
   have hr := selected_rule cfg xs x h
   simpa [rule, hc, ruleUsertmp, olderThan] using hr
 
-/-- A listed `usertmp` entry sits directly under the user temp folder, and its name passes `tmpNameOk`: it starts with
-one of `tmpPrefixes` (the `mkdtemp` prefixes of our own scripts and tests, plus `fw`, `oracle` and the like) or is an
-`instruments*.ktrace` file. -/
 theorem usertmp_named (cfg : Config) (xs : List Cand) (x : Cand) (h : x ∈ select cfg xs) (hc : x.cls = .usertmp) :
     ∃ n, x.path = cfg.roots.utmp ++ "/" ++ n ∧ tmpNameOk n = true ∧ n ≠ "" ∧ x.path ≠ cfg.roots.utmp ∧
       utmpRootOk cfg.roots.utmp = true := by
@@ -670,15 +667,6 @@ theorem selectFast_eq (cfg : Config) (xs : List Cand) : selectFast cfg xs = sele
     cases cfg.lake <;> cases x.lake <;> simp [LakeGc.okFast_eq]
   · simp [h]
 
-/-! ### Event liveness for class 4 (task `disk-gc-tmp-followups`)
-
-The facts `liveAgents`, `landedTasks` and `finishedRuns` come from the event log, read in file order. An agent is
-stopped when some `agent.stop` of it has a `seq` at or after every `agent.spawn` of it, so a spawn after the last
-stop resumes it (`resume_not_stopped`) and a stop after the last spawn ends it (`stop_ends`). A run ends by the
-`agent.stop` keyed `wfr-end:<run>` and never resumes. A name is live when an agent labelled with it is neither
-stopped nor in a finished run (`liveAgents_spec`). -/
-
-/-- One event of the log with the fields the facts read; absent text fields are `""`. -/
 structure Ev where
   seq : Nat
   type : String
@@ -694,17 +682,14 @@ def spawnSeqs (es : List Ev) (a : String) : List Nat :=
 def stopSeqs (es : List Ev) (a : String) : List Nat :=
   (es.filter fun e => e.type == "agent.stop" && e.agent == a).map (·.seq)
 
-/-- An agent is stopped when a stop of it is at or after every spawn of it, by `seq`. -/
 def stopped (es : List Ev) (a : String) : Bool :=
   (stopSeqs es a).any fun q => (spawnSeqs es a).all fun p => decide (p ≤ q)
 
-/-- The run id of a label key `wfid-label:<run>:<rest>`, with `<run>` of the form `wf_` and at least one character. -/
 def runOfLabel (key : String) : Option String :=
   match key.splitOn ":" with
   | "wfid-label" :: r :: _ :: _ => if r.startsWith "wf_" && 3 < r.length then some r else none
   | _ => none
 
-/-- The run id of an end key `wfr-end:<run>`: `wf_` and the longest run of letters, digits, `_` and `-` after it. -/
 def runOfEnd (key : String) : Option String :=
   if key.startsWith "wfr-end:" then
     let r := ((key.drop 8).takeWhile fun c => c.isAlphanum || c == '_' || c == '-').toString
@@ -714,15 +699,12 @@ def runOfEnd (key : String) : Option String :=
 def labelled (es : List Ev) : List Ev :=
   es.filter fun e => e.type == "agent.label" && e.agent != "" && e.name != ""
 
-/-- The runs that ended, in log order. -/
 def finishedRuns (es : List Ev) : List String :=
   ((es.filter (·.type == "agent.stop")).filterMap fun e => runOfEnd e.key).eraseDups
 
-/-- The tasks marked done, in log order. -/
 def landedTasks (es : List Ev) : List String :=
   ((es.filter fun e => e.type == "task.done" && e.task != "").map (·.task)).eraseDups
 
-/-- The run an agent belongs to: the one in its newest `wfid-label` key. -/
 def runOf (es : List Ev) (a : String) : Option String :=
   (((labelled es).filter (·.agent == a)).filterMap fun e => runOfLabel e.key).getLast?
 
@@ -731,11 +713,9 @@ def agentsOf (es : List Ev) : List String := ((labelled es).map (·.agent)).eras
 def namesOf (es : List Ev) (a : String) : List String :=
   (((labelled es).filter (·.agent == a)).map (·.name)).eraseDups
 
-/-- An agent counts as running: not stopped and not in a finished run. -/
 def running (es : List Ev) (a : String) : Bool :=
   !stopped es a && !((runOf es a).any fun r => (finishedRuns es).contains r)
 
-/-- The names of the running agents, in label order. -/
 def liveAgents (es : List Ev) : List String :=
   (((agentsOf es).filter (running es)).flatMap (namesOf es)).eraseDups
 
@@ -766,7 +746,6 @@ theorem resume_not_stopped (es : List Ev) (a : String) (p : Nat) (hp : p ∈ spa
     have := h q hq
     omega
 
-/-- A name is live only through an agent that is neither stopped nor in a finished run. -/
 theorem liveAgents_spec (es : List Ev) (n : String) (h : n ∈ liveAgents es) :
     ∃ a, a ∈ agentsOf es ∧ n ∈ namesOf es a ∧ stopped es a = false ∧
       ∀ r, runOf es a = some r → r ∉ finishedRuns es := by
@@ -782,7 +761,6 @@ theorem liveAgents_spec (es : List Ev) (n : String) (h : n ∈ liveAgents es) :
   have := hr.2
   simp [hr', hmem] at this
 
-/-- A run in `finishedRuns` has an `agent.stop` keyed `wfr-end:` for it. -/
 theorem finishedRuns_spec (es : List Ev) (r : String) (h : r ∈ finishedRuns es) :
     ∃ e ∈ es, e.type = "agent.stop" ∧ runOfEnd e.key = some r := by
   unfold finishedRuns at h
@@ -791,7 +769,6 @@ theorem finishedRuns_spec (es : List Ev) (r : String) (h : r ∈ finishedRuns es
   rw [List.mem_filter] at he
   exact ⟨e, he.1, by simpa using he.2, hr⟩
 
-/-- A task in `landedTasks` has a `task.done` event for it. -/
 theorem landedTasks_spec (es : List Ev) (t : String) (h : t ∈ landedTasks es) :
     ∃ e ∈ es, e.type = "task.done" ∧ e.task = t := by
   unfold landedTasks at h

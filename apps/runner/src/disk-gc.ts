@@ -223,9 +223,6 @@ export function gatherNamed(repo: string): string[] | null {
 
 export type EventFacts = { liveAgents: string[]; landedTasks: string[]; finishedRuns: string[] };
 
-/** Reads the event log lines the facts need and asks Lean (`ops.diskGcFacts`, `Fw.Ops.DiskGc.liveAgents`) for the
- *  facts; null (not gathered, so class 4 keeps everything) when there is no log, a relevant line lacks its `seq`,
- *  or fwcore refuses. The TS here only parses lines; the liveness and the run ends are decided in Lean. */
 export function gatherEventFacts(repo: string, call: Call): EventFacts | null {
   let text: string;
   try { text = readFileSync(join(repo, ".fw-console", "events.jsonl"), "utf8"); } catch { return null; }
