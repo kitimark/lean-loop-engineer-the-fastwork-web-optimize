@@ -112,8 +112,7 @@ the wrapper design that failed the gate.
 
 ## Limits
 
-- PathPix pixel cells wait for task path-pix-lanes; a fractional offset caps the grade at Q (accepted limit).
-
+- PathPix pixel cells wait for task path-pix-lanes.
 - The nav still resizes (C8) and so do the column tracks (`pitch_scaled_ne`).
 - The panel layer's blur outset changes while the fade runs (m from 0.08 to 0.8), which may still resize it; WebKit's
   filter-outset path is unread (INFERRED).

@@ -16,7 +16,7 @@
 - Gate both engines on the final design: pass. Ledger n=45, preset, footprint, note, `results/morph-constant-bounds/report.json`.
 
 ## Open
-- Final design measured by run 39760667274 (5th, 39751427150, hung). No dispatch left. Command used:
+- No dispatch left (final design run 39760667274; 5th, 39751427150, hung). Command used:
   `gh workflow run webkit-sim.yml --ref ci/morph-constant-bounds -f target=rewrite -f lag=true -f cost=on -f fw=morph.panel:const-bounds`
   (base 39744614747 is valid for it); reduce both with `packages/measure-webkit/src/lag/cli.mjs cost-report`.
 - PathPix has no lane code; IOSurface creations are not recorded by the lane.

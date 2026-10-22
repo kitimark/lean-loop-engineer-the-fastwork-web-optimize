@@ -6,7 +6,6 @@ import { createPanelWriter } from './driver';
 import { PANEL } from './content';
 import css from './morph.module.css';
 
-/** The variant that keeps the panel box at the nav's final size while the nav morphs (Lean `Fw.Parts.MorphConstBounds`). */
 export const CONST_BOUNDS = 'const-bounds';
 
 export type PanelWriter = ReturnType<typeof createPanelWriter>;

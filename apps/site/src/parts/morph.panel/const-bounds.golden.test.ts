@@ -29,7 +29,6 @@ const veil = decls(panelCss, `${MORPHING} > .veil`);
 const center = decls(panelCss, `${MORPHING} > .center`);
 const footer = decls(panelCss, `${MORPHING} > .footer`);
 
-/** Evaluate a restated CSS length (calc, min, var, vw, vh, px, %) to px; `pct` is what 100% means. */
 function px(expr: string, env: Map<string, string>, vw: number, vh: number, pct: number): number {
   let e = expr;
   for (let i = 0; i < 20 && /var\(/.test(e); i++) {
