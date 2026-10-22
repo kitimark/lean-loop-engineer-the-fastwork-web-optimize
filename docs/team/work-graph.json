@@ -15442,6 +15442,26 @@
     "docs/team/incidents/ledger.json"
    ],
    "title": "CI flake 2026-10-22: test/land-remote-lines.test.ts timed out at 120 s in land run 39713817057 (suites-a, branch ci/land-land-seed-due-08aafe9); the retry passed (801cd780) and it passes locally in 1.5 s; first failure in the last 15 land runs. Find where it waited (the fixture land with remote deadlineS 5 and sliceS 0.05: lock, reconcile, the local tier or the adapter poll loop), make the test bounded by its own deadline, and record the cause (incident row if it is a real hang). Unit: named cause with evidence (CI log lines or a reproduction), the bounded test, incident row or a stated 'no hang' finding."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "slot-main-code",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "slot-waiter-light"
+   ],
+   "writes": [
+    "apps/runner/src/fw.ts",
+    "apps/runner/src/slot.ts",
+    "scripts/slot-self.mjs",
+    "apps/runner/test/slot.test.ts",
+    "docs/team/tools/slot.md",
+    "docs/team/incidents/ledger.json"
+   ],
+   "title": "Lead probe 2026-10-22 10:26 after slot-idle-head landed (e962a0f2 09:20): queue stalled again with 0 holders and 3 land tickets; the TS verdict on main's code gives the head ticket admit (idleHead true), but the head waiter (pid cwd .claude/worktrees/wf_64810607-67c-1) runs `node apps/runner/src/fw.ts slot run` from its own worktree, whose slot-core.ts has no idleHead (branch cut before the land). The queue state lives in the main checkout (.fw-console/slot/state.json) but every caller decides with its branch's code, so one stale branch blocks every newer waiter behind it (same-kind queue order). Fix: `fw slot` (run, acquire, renew, release, admit) always executes the main checkout's fw.ts/slot code (re-exec from a worktree to <main>/apps/runner/src/fw.ts, like realDeps already resolves the state dir from main), with a test that a worktree caller runs main's verdict; slot.md; incident row inc-slot-branch-code. Unit: worktree callers run main's slot code (test), slot.md, incident row."
   }
  ],
  "deadline": {
