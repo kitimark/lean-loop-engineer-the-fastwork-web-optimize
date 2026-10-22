@@ -1,30 +1,16 @@
-/-! Code footprint of the parts: the access records `apps/site/scripts/part-footprint.mjs` extracts from each part
-folder's TS and CSS, the rule that sorts an access into a phase, and the signal wires a read or write carries.
-`Fw.Parts.Contract` diffs these wires against its rows; the extractor's data is `Fw.Parts.FootprintData`. -/
-
 namespace Fw.Parts.Footprint
 
-/-- Kind of an extracted access. Reads: box (`rect`), viewport, scroll offset, clock, media query, event listener,
-scroll-list registration, hit test, computed style, attribute, class, and the CSS reads `var()`, `[attr]`,
-`:global(.c)`, `:has()` and a custom property defined from another. Writes: custom property, inline style, class,
-CSS-module class, attribute, scroll offset, element content (text or child nodes).
-
-The constructor names are the `op` strings of the footprint golden. -/
 inductive Op
   | rect | vw | vh | scrollY | clock | media | listen | register | hitTest | styleRead | attrRead | classRead
   | cssVar | cssAttr | cssClass | cssHas | cssAlias
   | setVar | setStyle | setClass | setModuleClass | setAttr | scroll | setContent
 deriving Repr, DecidableEq, Inhabited
 
-/-- Every op, in constructor order.
-Each constructor once. -/
 def Op.all : List Op :=
   [.rect, .vw, .vh, .scrollY, .clock, .media, .listen, .register, .hitTest, .styleRead, .attrRead, .classRead,
    .cssVar, .cssAttr, .cssClass, .cssHas, .cssAlias, .setVar, .setStyle, .setClass, .setModuleClass, .setAttr, .scroll,
    .setContent]
 
-/-- Golden name of an op.
-The `op` field of a footprint record. -/
 def Op.name : Op → String
   | .rect => "rect" | .vw => "vw" | .vh => "vh" | .scrollY => "scrollY" | .clock => "clock" | .media => "media"
   | .listen => "listen" | .register => "register" | .hitTest => "hitTest" | .styleRead => "styleRead"
@@ -33,40 +19,23 @@ def Op.name : Op → String
   | .setStyle => "setStyle" | .setClass => "setClass" | .setModuleClass => "setModuleClass" | .setAttr => "setAttr"
   | .scroll => "scroll" | .setContent => "setContent"
 
-/-- Op of a golden name, the first op in `Op.all` carrying it.
-Inverse of `Op.name`. -/
 def Op.ofName (s : String) : Option Op := Op.all.find? (·.name == s)
 
-/-- Reading back a golden name gives the op.
-So distinct ops have distinct names. -/
 theorem Op.ofName_name : ∀ o : Op, Op.ofName o.name = some o := by
   intro o; cases o <;> decide
 
-/-- The golden names tell the ops apart.
-So the golden's `op` field determines the op. -/
 theorem Op.name_injective (a b : Op) (h : a.name = b.name) : a = b := by
   have hb := Op.ofName_name b
   rw [← h, Op.ofName_name] at hb
   exact Option.some.inj hb
 
-/-- `Op.all` lists every op.
-The enumeration is complete. -/
 theorem Op.mem_all : ∀ o : Op, o ∈ Op.all := by
   intro o; cases o <;> decide
 
-/-- A write op: it changes a property, class, attribute, the scroll offset or an element's content.
-Every other op reads. -/
 def Op.isWrite : Op → Bool
   | .setVar | .setStyle | .setClass | .setModuleClass | .setAttr | .scroll | .setContent => true
   | _ => false
 
-/-- One extracted access. `part`: the part whose code runs it; `file`, `line`: its site under `apps/site/src/parts/`;
-`name`: the property, class, attribute, query, event or order it names; `owner`: the part id rendering the element it
-touches (`""` for a CSS read of any element, `"?"` unresolved, `"document"` the window or document, a trailing `^` an
-element's parent); `ctx`: the callback it runs in; `variants`: the part.json variants whose files contain the site
-(all of them when the part lists no files).
-
-One golden record. -/
 structure Access where
   part : String
   file : String
@@ -78,8 +47,6 @@ structure Access where
   variants : List String
 deriving Repr, DecidableEq, Inhabited
 
-/-- One extractor finding: an unresolved target, a dead, dynamic or templated selector, a dynamic class.
-One golden record. -/
 structure Finding where
   part : String
   file : String
@@ -88,33 +55,20 @@ structure Finding where
   detail : String
 deriving Repr, DecidableEq, Inhabited
 
-/-- When an access runs. `frame`: scroll, wheel, touch, pointer-move, clock, timer, observer and render callbacks and
-CSS; `event`: click, key and other handlers; `hover`: enter, leave, focus and blur; `mount`: effects, module code,
-props, refs and page show; `resize`: window resize and media-query change; `cleanup`: effect teardown.
-
-The contract counts frame writes as outputs and event writes as `onEvent`. -/
 inductive Phase | frame | event | hover | mount | resize | cleanup
 deriving Repr, DecidableEq
 
-/-- Callback tags that run on hover or focus.
-React handler and DOM listener spellings. -/
 def hoverCtx : List String :=
   ["jsx:onPointerEnter", "jsx:onPointerLeave", "jsx:onMouseEnter", "jsx:onMouseLeave", "jsx:onFocus", "jsx:onBlur",
    "listener:pointerenter", "listener:pointerleave", "listener:mouseenter", "listener:mouseleave", "listener:focus",
    "listener:blur", "listener:focusin", "listener:focusout"]
 
-/-- Callback tags that run once per mount. `props`: a JSX value computed only from props, imports and module constants. -/
 def mountCtx : List String := ["effect", "module", "props", "ref", "listener:pageshow"]
 
-/-- DOM listeners that fire at frame time.
-Any other `listener:` tag is an event, hover or mount tag. -/
 def frameListeners : List String :=
   ["listener:scroll", "listener:scrollend", "listener:wheel", "listener:touchstart", "listener:touchmove",
    "listener:touchend", "listener:pointerdown", "listener:pointermove", "listener:pointerup", "listener:pointercancel"]
 
-/-- Phase of a callback tag, first match.
-
-`⊑` is "is a prefix of"; an unknown tag counts as frame. -/
 def phase (ctx : String) : Phase :=
   if ctx == "cleanup" then .cleanup
   else if mountCtx.contains ctx then .mount
@@ -123,20 +77,12 @@ def phase (ctx : String) : Phase :=
   else if ctx.startsWith "jsx:" || (ctx.startsWith "listener:" && !frameListeners.contains ctx) then .event
   else .frame
 
-/-- Listener types that carry pointer, wheel or touch input.
-Contract signal `pointer`. -/
 def pointerTypes : List String :=
   ["pointerdown", "pointermove", "pointerup", "pointercancel", "wheel", "touchstart", "touchmove", "touchend",
    "mousedown", "mousemove"]
 
-/-- Text after the last `#` (the local class of `file#local`).
-The whole string when it has no `#`. -/
 def localName (s : String) : String := (s.splitOn "#").getLastD s
 
-/-- Wires a read access feeds, as `Signal.wire` strings; owner `*` is a CSS read of any element.
-
-`n` is the access name; the first matching case applies, so every case after the first assumes
-`φ(a.ctx) ≠ cleanup`. -/
 def reads (a : Access) : List String :=
   if phase a.ctx == .cleanup then [] else
   let w := if a.owner == "" then "*" else a.owner
@@ -157,11 +103,6 @@ def reads (a : Access) : List String :=
   | .cssVar => ["cssVar:" ++ a.name ++ "/*"]
   | _ => []
 
-/-- Wire a write access sets, as a `Signal.wire` string.
-
-Inline style properties share the `cssVar` wire with custom properties, as the contract rows do; an element's own
-scroll offset is not the page scroll position; new text or child nodes change the owner's box, and a content write
-to an unresolved element feeds no wire (its `unresolved-target` finding records it). -/
 def writes (a : Access) : List String :=
   match a.op with
   | .setVar | .setStyle => ["cssVar:" ++ a.name ++ "/" ++ a.owner]
@@ -171,41 +112,27 @@ def writes (a : Access) : List String :=
   | .setContent => if a.owner == "" || a.owner == "?" then [] else ["rect:" ++ a.owner]
   | _ => []
 
-/-- A read access sets no wire.
-Only the seven write ops produce outputs. -/
 theorem writes_nil_of_read (a : Access) (h : a.op.isWrite = false) : writes a = [] := by
   cases a with
   | mk part file line op name owner ctx vs => cases op <;> simp_all [writes, Op.isWrite]
 
-/-- A write access feeds no read wire.
-An access is an input or an output, never both. -/
 theorem reads_nil_of_write (a : Access) (h : a.op.isWrite = true) : reads a = [] := by
   cases a with
   | mk part file line op name owner ctx vs => cases op <;> simp_all [reads, Op.isWrite]
 
-/-- Teardown reads nothing.
-An effect cleanup runs off the frame path. -/
 theorem reads_cleanup (a : Access) (h : phase a.ctx = .cleanup) : reads a = [] := by
   simp [reads, h]
 
-/-- Name and owner of a wire: the text before and after its last `/`; owner `""` when it has none.
-A trailing `/` gives owner `""`. -/
 def splitOwner (w : String) : String × String :=
   match (w.splitOn "/").reverse with
   | o :: rest@(_ :: _) => ("/".intercalate rest.reverse, o)
   | _ => (w, "")
 
-/-- Kind and name of a wire: the text before and after its first `:`; name `""` when it has none.
-The name keeps any later `:`. -/
 def splitKind (w : String) : String × String :=
   match w.splitOn ":" with
   | k :: n :: rest => (k, ":".intercalate (n :: rest))
   | _ => (w, "")
 
-/-- Do two wires name the same signal, up to an owner the extractor left open (`*` any element, `?` unresolved) and a
-name it could not read (`?`, a dynamic property, class or attribute)?
-
-A wire with an empty owner (no `/` or a trailing one) matches only itself. -/
 def same (u v : String) : Bool :=
   u == v ||
     let (pu, ou) := splitOwner u
@@ -215,21 +142,13 @@ def same (u v : String) : Bool :=
     ou != "" && ov != "" && (ou == ov || ou == "*" || ou == "?" || ov == "*" || ov == "?") &&
       (pu == pv || (ku == kv && (nu == "?" || nv == "?")))
 
-/-- A wire pair back as text. The inverse of `splitKind` on the wires `reads` and `writes` produce. -/
 def joinKind (w : String × String) : String := if w.2 == "" then w.1 else w.1 ++ ":" ++ w.2
 
-/-- An access the extractor could not fully resolve: its name or its owner is `?`.
-Such an access couples through the wildcard of `same`, or not at all for a box read. -/
 def Access.isOpen (a : Access) : Bool := a.name == "?" || a.owner == "?"
 
-/-- Some finding sits at the access's site.
-False for an empty finding list. -/
 def flagged (fs : List Finding) (a : Access) : Bool :=
   fs.any fun f => f.part == a.part && f.file == a.file && f.line == a.line
 
-/-- One part's contract fields as the code shows them, signals as (kind, name) wire pairs.
-`in`, `out` and `ev` are the code inputs and the frame and event cross-part writes; `T` the frame write owners; `O`
-the scroll-list orders. -/
 structure Row where
   id : String
   inputs : List (String × String)
@@ -239,25 +158,17 @@ structure Row where
   order : List Nat
 deriving Repr
 
-/-- JSON string literal.
-`esc` escapes only backslash and double quote; the extractor writes no control characters. -/
 def jstr (s : String) : String := "\"" ++ ((s.replace "\\" "\\\\").replace "\"" "\\\"") ++ "\""
 
-/-- One access as its golden line. Keys in this order, no spaces. -/
 def Access.json (a : Access) : String :=
   "{\"part\":" ++ jstr a.part ++ ",\"file\":" ++ jstr a.file ++ ",\"line\":" ++ toString a.line ++
     ",\"op\":" ++ jstr a.op.name ++ ",\"name\":" ++ jstr a.name ++ ",\"owner\":" ++ jstr a.owner ++
     ",\"ctx\":" ++ jstr a.ctx ++ ",\"variants\":[" ++ ",".intercalate (a.variants.map jstr) ++ "]}"
 
-/-- One finding as its golden line.
-Keys in this order, no spaces. -/
 def Finding.json (f : Finding) : String :=
   "{\"part\":" ++ jstr f.part ++ ",\"file\":" ++ jstr f.file ++ ",\"line\":" ++ toString f.line ++
     ",\"kind\":" ++ jstr f.kind ++ ",\"detail\":" ++ jstr f.detail ++ "}"
 
-/-- Text of `packages/contracts/golden/parts/footprint.gen.json`.
-
-One record per line, newline-terminated; an empty list renders as `[` newline newline `]`, as the extractor writes it. -/
 def golden (ids : List String) (as : List Access) (fs : List Finding) : String :=
   "{\"parts\":[" ++ ",".intercalate (ids.map jstr) ++ "],\n\"accesses\":[\n" ++
     ",\n".intercalate (as.map Access.json) ++ "\n],\n\"findings\":[\n" ++

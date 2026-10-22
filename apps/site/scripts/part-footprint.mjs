@@ -1,7 +1,4 @@
 #!/usr/bin/env node
-// Static footprint of the parts: each DOM, viewport, clock and CSS access in src/parts, its element owner and callback.
-// Lean (lean/Fw/Parts/Footprint.lean) classifies the accesses. Usage: [--print | --write | --check]; --write writes
-// packages/contracts/golden/parts/footprint.gen.json and lean/Fw/Parts/FootprintData.lean, --check compares both.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -22,7 +19,6 @@ const partAt = (file) => (DRIVERS.has(folderOf(file.abs)) ? folderOf(file.abs) :
 const rel = (f) => path.relative(partsDir, f).split(path.sep).join('/');
 const folderOf = (f) => (f === appFile ? 'app' : rel(f).split('/')[0]);
 
-// ---------- source files ----------
 const files = new Map();
 function lineStarts(text) {
   const s = [0];
@@ -60,7 +56,6 @@ function resolveImport(from, spec) {
 const isEntry = (abs) => path.basename(abs) === 'index.tsx' || path.basename(abs) === 'index.ts';
 const inParts = (abs) => abs.startsWith(partsDir + path.sep);
 
-// ---------- AST helpers ----------
 const SKIPKEYS = new Set(['type', 'start', 'end', 'range', 'loc', 'typeAnnotation', 'returnType', 'typeParameters', 'typeArguments', 'decorators']);
 function children(node) {
   const out = [];
@@ -81,7 +76,6 @@ function strip(n) {
 const propName = (m) => (m.computed ? (m.property.type === 'Literal' ? String(m.property.value) : null) : m.property.name);
 const kebab = (s) => s.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
 
-// ---------- values ----------
 const UNKNOWN = { k: 'unknown' };
 const el = (owners, sel) => ({ k: 'el', owners: [...new Set(owners)].sort(), sel });
 function union(a, b) {
@@ -95,7 +89,6 @@ function union(a, b) {
   return a;
 }
 
-// ---------- element inventory (JSX) ----------
 const elements = [];
 function jsxAttrValue(a) {
   if (!a.value) return { lit: '' };
@@ -179,7 +172,6 @@ function addRuntimeElements(acc) {
   return runtimeKeys.size !== before;
 }
 
-// ---------- selectors ----------
 function splitTop(s, seps) {
   const out = [];
   let depth = 0;
@@ -244,7 +236,6 @@ function matchElement(sel, e) {
   }
   return true;
 }
-/** Owners of the elements a selector can match; dead alternatives are reported. */
 function literalMatch(sel, e) {
   if (sel.id && e.attrs.get('id') == null) return false;
   return sel.attrs.every((a) => a.op !== '=' || e.attrs.get(a.name) != null);
@@ -280,7 +271,6 @@ function resolveSelector(s, site) {
   return el(owners, s);
 }
 
-// ---------- output ----------
 const accesses = new Map();
 const findings = new Map();
 let cur = null;
@@ -315,7 +305,6 @@ function emitOn(node, op, name, v, ctxTag) {
   }
 }
 
-// ---------- scopes and evaluation ----------
 class Scope {
   constructor(parent, file) { this.parent = parent; this.file = file; this.vars = new Map(); }
   lookup(name) {
@@ -396,7 +385,6 @@ function exportOf(abs, name) {
 }
 const ELEMENT_PROPS = new Set(['parentElement', 'parentNode', 'firstElementChild', 'lastElementChild', 'nextElementSibling', 'previousElementSibling', 'offsetParent']);
 const OBSERVERS = new Set(['IntersectionObserver', 'ResizeObserver', 'MutationObserver']);
-/** Side-effect free value of an expression. */
 function valueOf(n, scope) {
   n = strip(n);
   if (!n) return UNKNOWN;
@@ -525,7 +513,6 @@ function returnValue(f, args, callerScope) {
     retDepth.n--;
   }
 }
-/** A ref created by useRef resolves to the elements whose JSX `ref={x}` names it, in the same file. */
 function refTarget(call, scope) {
   const f = scope.file;
   let name = null;
@@ -614,7 +601,6 @@ function componentFolder(tag, f) {
   return null;
 }
 
-// ---------- access walk ----------
 const done = new Set();
 const pending = [];
 const fallback = [];
@@ -640,10 +626,6 @@ const CONTENT_CALLS = new Set(['append', 'prepend', 'after', 'before', 'remove',
 const DIALOG_CALLS = new Set(['showModal', 'show', 'close']);
 const ANIM_TIME = new Set(['currentTime', 'startTime', 'playbackRate']);
 const ANIM_CALLS = new Set(['cancel', 'finish', 'pause', 'play', 'reverse', 'updatePlaybackRate', 'commitStyles', 'persist']);
-/** The closed allowlist: every member the extractor models on an element (`el`), element list (`els`), animation
- * (`anim`) or an element's `style` / `classList`, as a call, an assignment or a read. Each other member on a resolved
- * receiver of these kinds emits finding `unmodelled-api`. Members marked path yield the value a later access is taken
- * on and emit no access themselves. */
 const MODELLED = {
   call: {
     el: new Set(['addEventListener', 'removeEventListener', 'setAttribute', 'removeAttribute', 'toggleAttribute', 'getAttribute', 'hasAttribute', 'matches', 'getBoundingClientRect', 'getClientRects', 'scrollTo', 'scrollBy', 'scrollIntoView', 'animate', 'getAnimations', ...QUERIES, ...CONTENT_CALLS, ...DIALOG_CALLS]),
@@ -710,7 +692,6 @@ function sig(v) {
 }
 const analyzedFns = new Set();
 
-/** Tag of a function literal from its syntactic position. */
 function callbackTag(call, argIndex, scope) {
   const c = strip(call.callee);
   const name = c.type === 'Identifier' ? c.name : c.type === 'MemberExpression' ? propName(c) : null;
@@ -814,9 +795,7 @@ function walkCall(n, scope, ctxTag, fnVal) {
   const c = strip(n.callee);
   const name = c.type === 'Identifier' ? c.name : c.type === 'MemberExpression' ? propName(c) : null;
   const recv = c.type === 'MemberExpression' ? valueOf(c.object, scope) : null;
-  // receivers and arguments first
   if (c.type === 'MemberExpression') walk(c.object, scope, ctxTag, fnVal);
-  // clock and scheduling reads
   if (c.type === 'Identifier' && ['requestAnimationFrame', 'setInterval', 'setTimeout', 'after'].includes(name)) emit(n, 'clock', name, '', ctxTag);
   if (c.type === 'MemberExpression' && ['subscribe', 'interval', 'every'].includes(name) && (recv.k === 'clock' || /clock/i.test(c.object.type === 'Identifier' ? c.object.name : c.object.type === 'MemberExpression' ? propName(c.object) ?? '' : ''))) emit(n, 'clock', name, '', ctxTag);
   if (c.type === 'MemberExpression' && ['now'].includes(name) && c.object.type === 'Identifier' && ['Date', 'performance'].includes(c.object.name)) emit(n, 'clock', `${c.object.name}.now`, '', ctxTag);
@@ -894,7 +873,6 @@ function walkCall(n, scope, ctxTag, fnVal) {
   }
   if (name === 'push' && recv && recv.k === 'arr') for (const a of n.arguments) recv.item = union(recv.item.k === 'unknown' ? null : recv.item, valueOf(a, scope));
   if (c.type === 'Identifier' && name === 'getComputedStyle') emitOn(n, 'styleRead', '', valueOf(n.arguments[0], scope), ctxTag);
-  // arguments: callbacks and inline calls
   const fv = valueOf(c, scope);
   n.arguments.forEach((a, i) => {
     const s = strip(a);
@@ -904,9 +882,8 @@ function walkCall(n, scope, ctxTag, fnVal) {
         analyzeFn(v, ctxTag, null, scope, recv.k === 'els' ? el(recv.owners, recv.sel) : recv.item);
       } else analyzeLater(v, callbackTag(n, i, scope), null, scope);
     } else if (!isFn(s)) walk(a, scope, ctxTag, fnVal);
-    else if (fv.k === 'fn') { /* a function literal passed to a known function: analyzed through the callee */ }
+    else if (fv.k === 'fn') { }
   });
-  // inline call into a known function: its body runs in this context with the arguments bound
   if (fv.k === 'fn') {
     analyzeFn(fv, ctxTag, n.arguments, scope);
     n.arguments.forEach((a) => {
@@ -963,7 +940,6 @@ function walkRead(n, scope, ctxTag) {
   } else if (strip(n.object).type === 'MemberExpression' && propName(strip(n.object)) === 'dataset') {
     emitOn(n, 'attrRead', `data-${kebab(p ?? '?')}`, valueOf(strip(n.object).object, scope), ctxTag);
   } else if (n.object.type === 'Identifier' && (n.object.name === 'innerWidth' || n.object.name === 'innerHeight')) {
-    // bare global reads are handled in Identifier position below
   }
 }
 const STATEFUL = new Set(['state', 'stateVal', 'ref', 'unknown']);
@@ -1032,7 +1008,6 @@ function walkJsx(n, scope, ctxTag) {
   }
 }
 
-// ---------- CSS ----------
 function cssReads(abs, part) {
   const text = fs.readFileSync(abs, 'utf8');
   const lines = lineStarts(text);
@@ -1040,7 +1015,6 @@ function cssReads(abs, part) {
   const clean = text.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '));
   const out = [];
   const owner = folderOf(abs);
-  // selectors: text before each `{` back to the previous `;`, `{` or `}`
   const re = /([^{};]+)\{/g;
   let m;
   while ((m = re.exec(clean))) {
@@ -1075,7 +1049,6 @@ function cssReads(abs, part) {
   return out.map((r) => ({ part, file: rel(abs), ...r, ctx: 'style' }));
 }
 
-// ---------- driver ----------
 function partFiles(part) {
   const dir = path.join(partsDir, part);
   return fs.readdirSync(dir).filter((n) => /\.(tsx?|css)$/.test(n) && !SKIP.test(n)).sort().map((n) => path.join(dir, n));
@@ -1158,7 +1131,6 @@ function extractPass() {
       }
       drain();
     }
-    // functions of the part's own files that no root reached: analysed once with unbound parameters
     for (const f of own) {
       if (f.endsWith('.css')) continue;
       const src = loadTs(f);
@@ -1182,9 +1154,6 @@ function extractPass() {
   return out;
 }
 
-// ---------- variant attribution ----------
-// A record belongs to the variants whose part.json `files` list its file; a file of another folder belongs to the
-// variants listing an own file whose import closure reaches it; a part without `files` lists all its variants.
 const partDefs = new Map(partIds.map((p) => {
   const f = path.join(partsDir, p, 'part.json');
   return [p, fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')) : null];

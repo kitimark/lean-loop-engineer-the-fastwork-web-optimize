@@ -1,10 +1,10 @@
 # compose-layers-lean (lean-prover)
 
 State: branch `worktree-wf_a9545149-400-1`, worktree `.claude/worktrees/wf_a9545149-400-1`, commits cf333e33..HEAD,
-round 3 fixes at 60bc8ff4 and the morph test fix after it, main 393f8223 merged at 6ba33212. No CI runs (none in scope).
-Round 3: reviewer counterexample (`exShared`, two picks gave `[]`) reproduced with `lake env lean`, now `["clash"]`.
+round 3 fixes at 60bc8ff4 and the morph test fix after it, main 393f8223 merged at 6ba33212. No CI runs.
+Round 3: reviewer counterexample `exShared` (two picks gave `[]`) now gives `["clash"]`.
 After the merge: `part-footprint.mjs --check` clean, `ContractsGolden --diff/--rows` regenerate nothing, `--check`
-green; `sh lean/scripts/check.sh` green; site, console-api, runner and ci-paths tests green; dry land run.
+green, `sh lean/scripts/check.sh` green, site, console-api, runner and ci-paths tests green, dry land run.
 
 Done:
 - `lean/Fw/Console/Layers.lean`: units, `clash` (I1-I4, `clash_symm`); `Unit.reads` covers every record of each
@@ -22,10 +22,8 @@ Done:
 
 Accepted limits: no site change, no CI measurement, Q/L cells unmeasured; `hero.countdown:*` and `hero.exit:threaded`
 refused as not extractable.
-
 Open (follow-ups): review findings 5 (lemma tying `coverReasons = []` and no clash to `Indep` in `look_E_sound`),
 6 (JSONL rows for every refusal code), 7 (`fix_allowed`); console-api glue for `arms`, ledger `changes` column, CSS
 extraction, branch-level attribution, files for the other parts, site reading `?fwl=`.
 
-Read first: `lean/Fw/Console/Layers.lean` header, then `lean/Fw/Wire/Layers.lean`, then `layersCases` in
-`lean/Fw/Ops/Golden.lean`.
+Read first: `lean/Fw/Console/Layers.lean` header, `lean/Fw/Wire/Layers.lean`, `layersCases` in `lean/Fw/Ops/Golden.lean`.
