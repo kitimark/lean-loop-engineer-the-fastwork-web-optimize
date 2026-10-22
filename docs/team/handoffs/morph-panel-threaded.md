@@ -12,7 +12,7 @@ CI runs:
 - webkit-sim cost (lag=true cost=on): threaded 39846909558, const-bounds 39846941236 (r1, r2 read; r3 still running when read), bundle 39846948148 (complete).
   Result: open push Composite per frame higher than const-bounds (236-552 vs 151-213 ms), close overlaps. Negative finding.
 
-Done: note research/notes/2026/10-2x-morph-panel-threaded.md, ledger row n=48, results/morph-panel-threaded/report.json, merge of main (Bridge.lean, FootprintRows.lean,
+Done: note research/notes/2026/10-2x-morph-panel-threaded.md, ledger row n=51, results/morph-panel-threaded/report.json, merge of main (Bridge.lean, FootprintRows.lean,
 footprint-diff regenerated), `check.sh` green, `@fw/site` test green.
 Outside the task's writes: .github/workflows/trajectory-probe.yml (GPU cells step passes `--search`), the regenerated Lean/golden footprint files.
 Open: webkit-sim r3 jobs of 39846909558 and 39846941236; Safari lane and PathPix cell (follow-ups); a variant of effects on a constant-bounds panel (new variant, flags of one part are exclusive).

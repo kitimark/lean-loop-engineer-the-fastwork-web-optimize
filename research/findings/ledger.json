@@ -2910,7 +2910,7 @@
   },
   {
    "id": "morph.panel-threaded",
-   "n": 48,
+   "n": 51,
    "part": "morph.panel",
    "candidate": "morph.panel:threaded: run the panel's opacity, blur and scale of a morph push as two Web Animation effects (opacity with scale, and blur alone) instead of three style writes per frame",
    "status": "partly-proved",
