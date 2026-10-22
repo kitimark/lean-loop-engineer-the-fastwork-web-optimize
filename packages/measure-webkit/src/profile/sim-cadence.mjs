@@ -1,12 +1,3 @@
-// Leg 2 of smoothness-webkit-cadence: Mobile Safari in the iOS Simulator, one session, every arm on one origin, the WebKit Timeline read
-// per frame of each window. Glue only: the zone binning and the clock-offset rule are Lean's (reduce.mjs); the arm identity check is
-// the gate's (`runCheck`); the arm list is Lean's dedup of the flags (`sessionPlan`).
-//
-// The Simulator has no wheel device, so the windows are scripted inside the page (recorder.mjs `heroJs`, `endJs`), on the same
-// schedule as the macOS leg. The Timeline is on in every window, so the cadence read here is labelled "Timeline on". The A/A arm is
-// the faithful rewrite visited a second time on the same tree (one origin per tab): that bounds revisit noise, not server noise.
-// A window that errors (a Timeline.stop that never answers) is retried from a fresh load after a reconnect; a session that still
-// fails keeps the windows read so far (`incomplete`), so the artifact is never empty.
 import { withSession } from '../session.mjs';
 import { loadFresh, pageInfo } from '../page.mjs';
 import { startTimeline } from '../timeline.mjs';
@@ -16,26 +7,34 @@ import { reconnect } from '../wip.mjs';
 import { attempts, T } from '../timeouts.mjs';
 import { RECORDER_SRC, TO_END_JS, heroJs, endJs, pageOf, intervalsOf } from './recorder.mjs';
 import { profileWindow, toHundredths } from './reduce.mjs';
-import { orderFor, HERO_BURST, END_PUSH } from '../../../gate-breakpoints/src/smooth/schedule.mjs';
+import { orderFor, HERO_BURST } from '../../../gate-breakpoints/src/smooth/schedule.mjs';
+import { BOUND_JS, endPushFor } from '../../../gate-breakpoints/src/smooth/bound.mjs';
 import { hitches } from '../../../gate-breakpoints/src/smooth/reduce.mjs';
 import { runCheck } from '../../../gate-breakpoints/src/trajectory/reduce.mjs';
 
-/** The arms of the session as `withSession` wants them, and the identity each must show (`want`: the config hash, null for the original). */
-export function simArms(plan, siteDir, lookSearch) {
+export function simArms(plan, siteDir, lookSearch, only) {
   const out = [
     { id: 'orig', site: 'orig', tree: { dir: null }, search: '' },
     { id: 'base', site: 'rewrite', tree: { dir: siteDir, search: '' }, search: '' },
     { id: 'aa', site: 'rewrite', tree: { dir: siteDir, search: '' }, search: '' },
   ];
+  if (only?.includes('bound')) out.push({ id: 'bound', site: 'rewrite', tree: { dir: siteDir, search: '' }, search: '' });
+  if (only) {
+    if (only.includes('look') && lookSearch) out.push({ id: 'look', site: 'rewrite', tree: { dir: siteDir, search: lookSearch }, search: lookSearch });
+    if (only.includes('v2')) out.push({ id: 'v2', site: 'rewrite', tree: { dir: siteDir, search: '?preset=v2-proved' }, search: '?preset=v2-proved' });
+    const missing = only.filter((id) => !out.some((a) => a.id === id));
+    if (missing.length) throw new Error(`arms not available: ${missing.join(', ')}`);
+    return out.filter((a) => only.includes(a.id));
+  }
   if (plan.kept.includes('look')) out.push({ id: 'look', site: 'rewrite', tree: { dir: siteDir, search: lookSearch }, search: lookSearch });
   if (plan.kept.includes('v2')) out.push({ id: 'v2', site: 'rewrite', tree: { dir: siteDir, search: '?preset=v2-proved' }, search: '?preset=v2-proved' });
   return out;
 }
 
-/** Run the leg. Returns the result object the report reads (same shape as the macOS leg's, `leg: 'sim'`). */
-export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 2500, log = (s) => console.error(s) }) {
-  const plan = sessionPlan(lookSearch);
-  const arms = simArms(plan, siteDir, lookSearch);
+export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 2500, only, holdMs, log = (s) => console.error(s) }) {
+  const end = endPushFor(holdMs);
+  const plan = only ? { kept: [], dropped: [], flags: {} } : sessionPlan(lookSearch);
+  const arms = simArms(plan, siteDir, lookSearch, only);
   const device = findDevice();
   const started = Date.now();
   const rows = [];
@@ -44,10 +43,8 @@ export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 
   let error = null;
   let ua = '';
 
-  /** One window on one arm from a fresh load: the finished row, or `{refused: row}` when the page is not the arm asked for. */
   const readWindow = async (ctx, a, win, rep) => {
     ctx.setArm(a.id);
-    // the page reads its configuration from location.search and the reload keeps the tab's URL and scroll position: put the arm's query on the URL and go to the top first
     await ctx.c.evaluate(`history.replaceState(null, '', ${JSON.stringify('/' + a.search)}); scrollTo({ top: 0, behavior: 'instant' }); location.search`);
     await loadFresh(ctx.c, { clock: 'pinned', settleMs });
     const info = await pageInfo(ctx.c);
@@ -58,10 +55,14 @@ export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 
       log(`webkit sim ${a.id} ${win}: REFUSED config (${JSON.stringify(info.fw)})`);
       return { refused: { ...row, ok: false, reason: 'refused:config', profiles: null } };
     }
+    if (a.id === 'bound') {
+      const dur = await ctx.c.evaluate(BOUND_JS);
+      if (dur === null || !/^0s(, 0s)*$/.test(dur)) throw new Error(`bound arm: the earn button is missing or still has transitions (transition-duration ${JSON.stringify(dur)})`);
+    }
     await ctx.c.evaluate(RECORDER_SRC);
     if (win === 'end') await ctx.c.runAsync(TO_END_JS);
     const tl = await startTimeline(ctx.c, { stopMs: T(7500) });
-    const rec = await ctx.c.runAsync(win === 'hero' ? heroJs(HERO_BURST) : endJs(END_PUSH), { pollMs: 250 });
+    const rec = await ctx.c.runAsync(win === 'hero' ? heroJs(HERO_BURST) : endJs(end), { pollMs: 250 });
     await tl.stop();
     const pw = profileWindow(pageOf(rec, toHundredths), tl.top);
     raws.push({ arm: a.id, window: win, rep, raw: pw.raw });
@@ -100,6 +101,6 @@ export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 
   return {
     leg: 'sim', engine: 'mobile-safari', runtime: device.runtime, device: device.name, ua, width: 430, search: lookSearch, reps, cadenceReps: 0,
     plan: { kept: plan.kept, dropped: plan.dropped, flags: plan.flags }, arms: arms.map((a) => a.id),
-    hero: HERO_BURST, end: END_PUSH, refused, incomplete: error, wallSeconds: Math.round((Date.now() - started) / 1000), rows, raws,
+    hero: HERO_BURST, end, refused, incomplete: error, wallSeconds: Math.round((Date.now() - started) / 1000), rows, raws,
   };
 }

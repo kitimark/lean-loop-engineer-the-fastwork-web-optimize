@@ -177,6 +177,7 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     "apps/site/src/registry/presets/**", "apps/site/src/parts/**",
     "research/notes/2026/10-21-webkit-lag-probe.md",
     "packages/measure-chromium/src/fwcore.mjs", "packages/gate-breakpoints/src/smooth/schedule.mjs", "packages/gate-breakpoints/src/smooth/reduce.mjs",
+    "packages/gate-breakpoints/src/smooth/bound.mjs",
     "packages/gate-breakpoints/src/trajectory/reduce.mjs", "packages/gate-breakpoints/src/page.mjs",
     "packages/measure-chromium/src/pathpix*.mjs", "packages/contracts/golden/gate/path-pix.jsonl"],
   "packages/snapshot-extract": ["packages/gate-breakpoints/src/**"],
@@ -542,7 +543,6 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     } catch { }
   }
   const own3 = git(o.cwd, ["diff", "--no-renames", "--name-only", `${main}...${sha}`]).split("\n").filter(Boolean);
-  // the merged diff misses a path main and the branch changed alike; the real land's three-dot list still has it
   const changed = dm ? [...new Set([...dm.changed, ...own3])] : own3;
   const allow = o.allow ?? [];
   const sc = await o.http.post("/api/ops/land-scope", { writes, names: [o.task, task?.owner].filter(Boolean), allow, paths: changed, task: o.task ?? "", stream });

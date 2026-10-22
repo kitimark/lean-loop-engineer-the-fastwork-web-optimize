@@ -1,5 +1,3 @@
-// The tables of the smoothness-webkit-cadence lane (src/profile/report.mjs) on synthetic leg files; the decisions under them are
-// golden-checked in profile.test.mjs.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
@@ -130,10 +128,22 @@ test('ratioTable: computed from the pooled medians, orig over base and base over
   assert.match(ratioTable(leg), /\| Composite n \| 0 \| 0 \| 0 \| - \| - \|/);
 });
 
-// ---- pooling over jobs: every value cell is one statistic over the concatenated windows of all loaded jobs ----
+test('bound arm (task earn-bound-arm): base|bound is judged against the A/A pair; the ratio column shows only when the arm ran', () => {
+  const less = fileOf({ base: 200, aa: 200, bound: 100 });
+  assert.equal(jobVerdicts(less, 'hero')['base|bound'], 'second');
+  const noise = fileOf({ base: 200, aa: 100, bound: 100 });
+  assert.equal(jobVerdicts(noise, 'hero')['base|bound'], 'same');
+  const jobs = ['1:a', '2:a', '3:a'].map((label) => ({ label, leg: 'mac', file: fileOf({ base: 200, aa: 200, bound: 100 }) }));
+  const leg = legSummary(jobs, () => ({}));
+  assert.equal(leg.zones.hero.verdicts['base|bound'].verdict, 'second');
+  assert.match(ratioTable(leg), /\| metric \| base \| aa \| bound \| orig \/ base \| base \/ aa \| bound \/ base \|/);
+  assert.match(ratioTable(leg), /\| render work us \/ frame \| 202 \| 202 \| 102 \| - \| 1\.0 \| 0\.5 \|/);
+  const none = legSummary(['1:a', '2:a', '3:a'].map((label) => ({ label, leg: 'mac', file: fileOf({ orig: 400, base: 100, aa: 100 }) })), () => ({}));
+  assert.doesNotMatch(ratioTable(none), /bound/);
+});
+
 
 const golden = readFileSync(new URL('../../contracts/golden/measure/webkit-profile.jsonl', import.meta.url), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
-/** A mac job file whose arm `base` has one hero window per value, the window's work per frame being that value. */
 const fileOfValues = (values) => ({
   leg: 'mac', engine: 'x', version: '1', arms: ['base'], plan: { kept: ['base'], dropped: [], flags: {} }, wallSeconds: 1,
   rows: values.map((v, rep) => ({ arm: 'base', window: 'hero', rep, mode: 'events', ok: true, ivs: [160], hitches: 0, profiles: { hero: prof(30, v, 4), rest: empty(), finish: empty() } })),
@@ -176,7 +186,6 @@ test('headlineTable, kindTable, ratioTable: a cell with 4 pooled windows prints 
 
 test('cadenceTable: p50 and p95 are quantiles over all intervals of all jobs\' repeats, not the median of per-job quantiles', () => {
   const job = (label, ivs, n) => ({ label, leg: 'mac', file: { leg: 'mac', arms: ['base'], plan: { kept: ['base'], dropped: [], flags: {} }, rows: Array.from({ length: n }, (_, rep) => ({ arm: 'base', window: 'hero', rep, mode: 'events', ok: true, ivs, hitches: ivs.filter((x) => x > 600).length })) } });
-  // job a: 5 repeats of [100, 100, 100, 100]; job b: 1 repeat of [900, 900, 900, 900] -> pooled 24 intervals, 20 of 100 and 4 of 900
   const leg = legSummary([job('a', [100, 100, 100, 100], 5), job('b', [900, 900, 900, 900], 1)], () => ({}));
   const row = cadenceTable(leg).split('\n').find((l) => l.startsWith('| hero | on | base'));
   assert.match(row, /\| 6 \(5\+1\) \| 0 \| 10\.0 \| 90\.0 \| 90\.0 \|/);

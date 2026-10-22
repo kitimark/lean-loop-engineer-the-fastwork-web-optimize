@@ -1,12 +1,3 @@
-// WebKit leg 1 of the smoothness-webkit-cadence lane: Playwright WebKit on a macOS runner, one browser process for all arms, a real
-// wheel at the Chromium lane's schedule, the WebKit Timeline read per frame of each window. Glue only: the zone binning, the
-// per-frame tallies and the clock-offset rule are Lean's (lean/Fw/Measure/WebKitProfile.lean, twin measure-webkit/src/profile/reduce.mjs).
-//
-// Arms are resolved by their flags (Lean's dedup, device-arms.mjs `sessionPlan`), never by preset name: `orig` (the snapshot),
-// `base` (the faithful rewrite), `aa` (a second server of the same rewrite, the control outside the dedup), `look` (the look-change
-// flags) and `v2` only when its flags differ from the rewrite's. Each window opens a fresh page per arm; arms are interleaved per
-// rep and the order rotates (`orderFor`). Event reps run with the Timeline on; cadence reps run without it (the Timeline slows the
-// page), so the two are reported apart.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { webkit } from 'playwright-core';
@@ -14,7 +5,8 @@ import { PIN_SRC, waitReady } from '../page.mjs';
 import { startServer, snapshotRoot, siteDist, rewriteFor } from '../serve.mjs';
 import { envFor } from '../trajectory/registry.mjs';
 import { runCheck } from '../trajectory/reduce.mjs';
-import { HERO_BURST, END_PUSH, orderFor } from './schedule.mjs';
+import { HERO_BURST, orderFor } from './schedule.mjs';
+import { BOUND_JS, endPushFor } from './bound.mjs';
 import { hitches } from './reduce.mjs';
 import { RECORDER_SRC, TO_END_JS, pageOf, intervalsOf } from '../../../measure-webkit/src/profile/recorder.mjs';
 import { profileWindow, toHundredths } from '../../../measure-webkit/src/profile/reduce.mjs';
@@ -23,14 +15,12 @@ import { sessionPlan } from '../../../measure-webkit/src/device-arms.mjs';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (...a) => process.stderr.write(`${a.join(' ')}\n`);
 
-/** The server-side protocol session of a Playwright WebKit page (the in-process server object, as engines.mjs `resize` reaches it). */
 function sessionOf(page) {
   const sess = page._connection?.toImpl?.(page)?.delegate?._session;
   if (!sess || typeof sess.send !== 'function' || typeof sess.on !== 'function') throw new Error('the WebKit protocol session of the page is not reachable (playwright-core internals changed)');
   return sess;
 }
 
-/** Start the WebKit Timeline on a page; `stop()` returns the raw protocol records once the closing mark has arrived. */
 async function startTimeline(page) {
   const sess = sessionOf(page);
   const recs = [];
@@ -66,12 +56,15 @@ async function openPage(browser, env, a) {
   const frame = page.mainFrame();
   await frame.evaluate(waitReady, { site: a.site, capMs: 20000 });
   const arm = await frame.evaluate(() => (window.__fw ? { config: window.__fw.configHash ?? null, mode: window.__fw.mode ?? null } : { config: null, mode: null }));
+  if (a.id === 'bound') {
+    const dur = await frame.evaluate(BOUND_JS);
+    if (dur === null || !/^0s(, 0s)*$/.test(dur)) throw new Error(`bound arm: the earn button is missing or still has transitions (transition-duration ${JSON.stringify(dur)})`);
+  }
   await frame.evaluate(RECORDER_SRC);
   return { context, page, frame, arm };
 }
 
-/** One window on one arm: the recorder result, the Timeline records (event reps) and the arm identity the page reported. */
-async function oneWindow(browser, env, a, win, events) {
+async function oneWindow(browser, env, a, win, events, end) {
   const { context, page, frame, arm } = await openPage(browser, env, a);
   try {
     const cx = env.width / 2;
@@ -90,10 +83,10 @@ async function oneWindow(browser, env, a, win, events) {
       }
       await sleep(HERO_BURST.tailMs);
     } else {
-      await page.mouse.wheel(0, END_PUSH.dy);
-      await sleep(END_PUSH.holdMs);
-      await page.mouse.wheel(0, -END_PUSH.dy);
-      await sleep(END_PUSH.holdMs);
+      await page.mouse.wheel(0, end.dy);
+      await sleep(end.holdMs);
+      await page.mouse.wheel(0, -end.dy);
+      await sleep(end.holdMs);
     }
     const rec = await frame.evaluate(() => window.__pr.stop());
     const records = tl ? await tl.stop() : null;
@@ -101,12 +94,10 @@ async function oneWindow(browser, env, a, win, events) {
   } finally { await context.close().catch(() => {}); }
 }
 
-/**
- * Run the leg: `events` reps with the Timeline on and `cadenceReps` reps without it, all arms interleaved, both windows, on one
- * browser at the width `width`. `lookSearch` is the look-change arm's `?fw=...` search. Returns the result object the report reads.
- */
-export async function runWebkitCadence({ width = 390, lookSearch, reps = 6, cadenceReps = 5, env = process.env }) {
-  const plan = sessionPlan(lookSearch);
+export async function runWebkitCadence({ width = 390, lookSearch, reps = 6, cadenceReps = 5, only, holdMs, env = process.env }) {
+  const end = endPushFor(holdMs);
+  if (only?.includes('look') && !lookSearch) throw new Error('the look arm needs --search ?fw=...');
+  const plan = only ? { kept: [], dropped: [], flags: {} } : sessionPlan(lookSearch);
   const configs = JSON.parse(readFileSync(join(siteDist(env), 'configs.json'), 'utf8'));
   const baseHash = configs.bySearch[''];
   const hashOf = (search) => (search ? rewriteFor(siteDist(env), { ...env, FW_SEARCH: search }).hash : baseHash);
@@ -116,16 +107,22 @@ export async function runWebkitCadence({ width = 390, lookSearch, reps = 6, cade
   const faithful = await serve(siteDist(env));
   const second = await serve(siteDist(env));
   const searchOf = { base: '', look: lookSearch, v2: '?preset=v2-proved' };
-  const arms = [
+  let arms = [
     { id: 'orig', site: 'orig', search: '', want: null, origin: origin.origin },
     { id: 'base', site: 'rewrite', search: '', want: baseHash, origin: faithful.origin },
     { id: 'aa', site: 'rewrite', search: '', want: baseHash, origin: second.origin },
   ];
+  if (only?.includes('bound')) arms.push({ id: 'bound', site: 'rewrite', search: '', want: baseHash, origin: (await serve(siteDist(env))).origin });
   for (const [kept, id] of [['look', 'look'], ['v2', 'v2']]) {
-    if (!plan.kept.includes(kept)) continue;
+    if (only ? !only.includes(id) : !plan.kept.includes(kept)) continue;
     const v = rewriteFor(siteDist(env), { ...env, FW_SEARCH: searchOf[id] });
     const srv = await serve(siteDist(env), v.rewrite);
     arms.push({ id, site: 'rewrite', search: searchOf[id], want: hashOf(searchOf[id]), origin: srv.origin });
+  }
+  if (only) {
+    const missing = only.filter((id) => !arms.some((a) => a.id === id));
+    if (missing.length) throw new Error(`arms not available: ${missing.join(', ')}`);
+    arms = arms.filter((a) => only.includes(a.id));
   }
   const e = envFor(width);
   const browser = await webkit.launch();
@@ -141,7 +138,7 @@ export async function runWebkitCadence({ width = 390, lookSearch, reps = 6, cade
       for (const a of orderFor(arms, k)) {
         for (const win of ['hero', 'end']) {
           const t0 = Date.now();
-          const r = await oneWindow(browser, e, a, win, events);
+          const r = await oneWindow(browser, e, a, win, events, end);
           const base = { arm: a.id, window: win, rep, mode: events ? 'events' : 'cadence', config: r.arm.config, fwMode: r.arm.mode };
           const ivs = intervalsOf(r.rec.ts);
           const row = { ...base, frames: r.rec.ts.length, hitches: hitches(ivs), ivs };
@@ -163,7 +160,7 @@ export async function runWebkitCadence({ width = 390, lookSearch, reps = 6, cade
     return {
       leg: 'mac', engine: 'playwright-webkit', version: browser.version(), width, search: lookSearch, baseHash, reps, cadenceReps,
       plan: { kept: plan.kept, dropped: plan.dropped, flags: plan.flags }, arms: arms.map((a) => a.id),
-      hero: HERO_BURST, end: END_PUSH, refused, wallSeconds: Math.round((Date.now() - started) / 1000), rows, raws,
+      hero: HERO_BURST, end, refused, wallSeconds: Math.round((Date.now() - started) / 1000), rows, raws,
     };
   } finally {
     await browser.close().catch(() => {});
