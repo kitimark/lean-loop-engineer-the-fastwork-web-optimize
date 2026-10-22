@@ -186,6 +186,39 @@
     height: 1px;
     display: block;
   }
+  /* Variant const-bounds (Lean Fw.Parts.MorphConstBounds): the panel keeps the nav's final box (--panel-w by --panel-h,
+     centred on the nav, clipped by the nav's overflow) and a frame of the nav's own width and height carries the
+     content, so the content is laid out as in the original while no panel layer changes size. The two --cb-* lists
+     restate the nav's width and height rules; a test evaluates them against the Lean rows. */
+  .cb {
+    inset: auto;
+    left: calc((100% - var(--panel-w, 100%)) / 2);
+    top: calc((100% - var(--panel-h, 100%)) / 2);
+    width: var(--panel-w, 100%);
+    height: var(--panel-h, 100%);
+  }
+  .frame {
+    --cb-w: calc(
+      var(--hero-pill-w) + (var(--pill-w) - var(--hero-pill-w)) * var(--nav-expand) + (var(--panel-w) - var(--pill-w)) * var(--morph)
+    );
+    --cb-h: calc(var(--pill-h) + (var(--panel-h) - var(--pill-h)) * var(--morph));
+    position: absolute;
+    left: calc((100% - var(--cb-w)) / 2);
+    top: calc((100% - var(--cb-h)) / 2);
+    width: var(--cb-w);
+    height: var(--cb-h);
+  }
+  /* the nav stops clipping while its language menu is open: the panel takes the original box then */
+  :global(.is-locale-open) .cb {
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+  :global(.is-locale-open) .cb .frame {
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
   @media (width<=1000px) {
     .title {
       font-size: 36px;

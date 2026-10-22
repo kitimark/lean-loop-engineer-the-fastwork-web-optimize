@@ -76,8 +76,9 @@ describe('morph.tween:waapi registrations vs morph-tween-waapi.jsonl (MT-R)', ()
   it('every CSS reader of --morph in the nav and the panel is a Lean reader (no reader missing from the rule)', () => {
     const lean = new Set(readerRows.filter((q) => q.prop === PROP_MORPH).map((q) => q.sel));
     const found = new Set([...cssReaders('../nav/nav.module.css', PROP_MORPH), ...cssReaders('../morph.panel/morph.module.css', PROP_MORPH)]);
-    expect([...found].sort()).toEqual(['actions', 'earn', 'logo', 'nav', 'panel']);
-    for (const s of found) expect(lean.has(s), s).toBe(true);
+    // `frame` is the morph.panel:const-bounds frame, a reader below the nav; --morph inherits in every arm, so no registration changes
+    expect([...found].sort()).toEqual(['actions', 'earn', 'frame', 'logo', 'nav', 'panel']);
+    for (const s of found) expect(lean.has(s) || s === 'frame', s).toBe(true);
     expect([...cssReaders('../platform/platform.module.css', PROP_FADE)]).toEqual(['section']);
     expect(readerRows.filter((q) => q.prop === PROP_FADE)).toEqual([{ prop: PROP_FADE, sel: 'section', depth: 0 }]);
     for (const p of [PROP_DARK, PROP_EXPANDED]) {
