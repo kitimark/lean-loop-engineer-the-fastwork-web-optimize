@@ -16,6 +16,7 @@ const PREAMBLE = `Fixed preamble (lead template, research/notes/2026/10-19-autom
 - A relayed user message does not cancel a CI push or a step in this prompt.
 - Runs that need workflow inputs (preset, fw, profile, target) are dispatched by the lead before launch when their run ids are in your prompt. The trajectory probe you start yourself, on your own pushed code: commit with the two message lines [ci:trajectory-probe] and [trajectory fw=part:variant,part:variant widths=390,1280 engines=both diagnostic] (or preset=name instead of fw; keys fw, preset, widths, engines and the bare word diagnostic, each at most once; a widths subset needs the bare word diagnostic; omit widths for a verdict run; a malformed line fails the run with its reason; a [trajectory ...] line without [ci:trajectory-probe] starts nothing, and only pnpm -s fw ci push reports that before the push, a plain git push does not), push in the allowed ci/* form and wait with pnpm -s fw ci wait --branch ci/<x> --workflow trajectory-probe (it picks the push run of your commit, never a dispatch). The run uses exactly those inputs; read them back from the step name starting trajectory inputs: or from the artifact trajectory-inputs, and report the run id you read. Details: docs/team/tools/trajectory-probe.md. If a run you need is neither in your prompt nor reachable this way, or a push is blocked in your sandbox, put the exact command as open[0] and report that part of the unit as not delivered; the review judges only runs that exist.
 - Heavy local runs share one queue (docs/team/tools/slot.md) and each heavy command routes itself through it: run \`pnpm -s fw slot run --kind check --cache -- sh lean/scripts/check.sh\` and \`pnpm -s fw slot run --kind test --cache -- pnpm --filter <package> test\`, one per tool call (never chained with && or ;), on a clean committed tree; a bare \`sh lean/scripts/check.sh\` or package \`test\` also queues itself (no cache) and runs directly inside a slot or on CI. Dry lands: \`pnpm -s fw slot run --kind land --cache -- pnpm -s fw land <your branch> --task <id> --dry\`; Simulator work holds \`pnpm -s fw slot acquire --kind sim --lease <s>\` (then renew, release) instead of scripts/sim-lock.sh.
+- Report \`dry\` exactly as the last VERDICT line printed by the dry land without --allow (never a line with --allow notes); list every file outside the task's writes in \`open\`.
 - Lean tasks: run sh lean/scripts/check.sh at your final commit; it must be green (the land queue refuses on any stage, the axiom check included).
 - Never edit docs/team/work-graph.json (lead only): list any write outside your task's graph writes in your report.
 - Hand back only after merging main and running \`pnpm -s fw slot run --kind land --cache -- pnpm -s fw land <your branch> --task <id> --dry\`; its last line must be \`VERDICT dry <id>\` (exit 0). Put that line in \`dry\`. Any other kind: fix it first (docs/team/tools/land.md).
@@ -53,8 +54,26 @@ const scope = (t) => [
   t.findings ? `Prior review findings (read every one; apply each exact fix or say why not): ${t.findings}` : '',
 ].filter(Boolean).join('\n')
 
-const b = await agent(`Task ${t.id}.${t.worktree ? ` Work only in ${t.worktree}.` : ''}\n${t.prompt}\n${scope(t)}\n\n${voice}\n\n${CHECKPOINT(t.id)}\n\n${PREAMBLE}`,
-  { label: `build:${t.id}`, phase: 'Build', agentType: t.role, schema: BUILD, ...(t.worktree ? {} : { isolation: 'worktree' }) })
+// Lead resume path (task build-review-report-resume): args.task.report (a builder report JSON path) with args.task.worktree skips the build
+// stage. One runner agent reads the report and reruns the dry land in the worktree; the exact last `VERDICT dry` line replaces the report's dry field.
+const RESUME = { type: 'object', properties: { report: BUILD, line: { type: 'string' } }, required: ['report', 'line'] }
+const resumeDry = (r) => {
+  const ms = r && typeof r.line === 'string' ? [...r.line.matchAll(/VERDICT dry [^\n]*/g)] : []
+  return ms.length ? ms[ms.length - 1][0].trim() : (r && typeof r.line === 'string' ? r.line : '')
+}
+const resumed = async () => {
+  const r = await agent(`Resume of task ${t.id}: no build round. Run in the worktree ${t.worktree} (never cd outside it) with PATH="$HOME/.nvm/versions/node/v24.22.0/bin:$PATH", logging to your scratchpad file resume-${t.id}.log (agents/runner.md).
+Step 1: read the builder report JSON at ${t.report} and return it unchanged as report (branch, commit, summary, files, open, items, runs, dry).
+Step 2: from the worktree run exactly: pnpm -s fw slot run --kind land --cache -- pnpm -s fw land <report.branch> --task ${t.id} --dry (no --allow). Return the last VERDICT dry line it printed, verbatim and whole, as line; do not edit, shorten or interpret it.`,
+    { label: `resume-dry:${t.id}`, phase: 'Build', agentType: 'runner', schema: RESUME })
+  return r && r.report && typeof r.report === 'object' ? { ...r.report, dry: resumeDry(r) } : null
+}
+// A builder that ends without StructuredOutput makes agent({schema}) throw (incident inc-builder-no-result): treat it as the no-result record.
+const attempt = async (f) => { try { return await f() } catch (e) { return null } }
+const b = t.report && t.worktree
+  ? await attempt(resumed)
+  : await attempt(() => agent(`Task ${t.id}.${t.worktree ? ` Work only in ${t.worktree}.` : ''}\n${t.prompt}\n${scope(t)}\n\n${voice}\n\n${CHECKPOINT(t.id)}\n\n${PREAMBLE}`,
+    { label: `build:${t.id}`, phase: 'Build', agentType: t.role, schema: BUILD, ...(t.worktree ? {} : { isolation: 'worktree' }) }))
 // Builder with no structured result (it ended or crashed without StructuredOutput; incident inc-builder-no-result): hand the lead the place to
 // restart from and skip every later stage. Branch and worktree path are in the handoff file the checkpoint rule made it write.
 if (!b || typeof b.branch !== 'string' || typeof b.commit !== 'string') {
