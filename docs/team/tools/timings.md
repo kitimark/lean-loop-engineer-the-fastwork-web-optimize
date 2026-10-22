@@ -19,6 +19,19 @@ Lean (task timing-lean), not by this file or the TS quantiles.
 
 No paths, no user names. The `fw land` total is the `fw` span with `step=land`.
 
+### Step names of the `fw` tool (task run-span-split)
+One name per cost, so no history pools unlike work:
+- Every group with subcommands is `group sub` (`ci wait`, `polish plan`, `polish staged`, ...). The groups and subcommands are
+  the table `SUBCOMMANDS` in `apps/runner/src/fw-groups.ts`; `apps/runner/test/span-names.test.ts` reads `fw-main.ts` and fails
+  when a dispatch branch reads `rest[0]` for a group not in the table, or names a subcommand the table lacks.
+- `fw run` writes `run dispatch` (plan and the dispatch call), `run wait` (the CI wait; carries `runId`), `run file` (download
+  and ingest), or `run dry` for `--dry`; there is no `run` span (`apps/runner/src/run-phases.ts`).
+- `fw slot` is `slot run <kind>`, `slot acquire <kind>`, `slot held <kind>`, `slot admit`, `slot status`, ... from both entries
+  (`fw.ts` and `scripts/slot-self.mjs`, through `apps/runner/src/slot-span.ts`).
+- A dry land is `land dry` (tool `fw`), and its `fw land` spans carry a `dry ` prefix (`dry total`, `dry merge`, ...), so the 30 s
+  ceiling of `fw land`/`total` judges real lands only.
+Older lines keep the old names (`run`, `slot`, `land`, `total`); a new step starts its own history.
+
 ## Writers
 
 - `apps/runner/src/timing.ts`: `span(tool, step, fn, exitOf?)`, `begin(tool, step)(exit)`. One O_APPEND write per line;

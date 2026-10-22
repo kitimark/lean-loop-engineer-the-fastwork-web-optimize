@@ -3,7 +3,7 @@
 import { Actor, Command } from "@fw/contracts";
 import { UsageError, parseFlags } from "./lib.ts";
 
-const DEFAULT_ACTOR: Record<string, Actor> = { open: "owner", approve: "lead", screen: "script", review: "reviewer", swipe: "script", request: "lead" };
+export const DEFAULT_ACTOR: Record<string, Actor> = { open: "owner", approve: "lead", screen: "script", review: "reviewer", swipe: "script", request: "lead" };
 const need = (v: string | undefined, what: string): string => {
   if (!v) throw new UsageError(`missing ${what}`);
   return v;

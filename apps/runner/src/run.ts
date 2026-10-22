@@ -10,7 +10,8 @@ import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSyn
 import { dirname, join, relative } from "node:path";
 import { GateReply, ManifestReply, PlanReply, ReduceReply, type PlanJob, type RunManifest } from "@fw/contracts";
 import { UsageError } from "./lib.ts";
-import { recordRunKind } from "./timing.ts";
+import { begin as beginSpan, recordRunKind } from "./timing.ts";
+import { runPhases } from "./run-phases.ts";
 import { dispatchIn, enginesOf, legsOf, newNonce, parseRunRows, pickRun, refusalText, titleOf } from "./run-pick.ts";
 
 export type RunArgs = {
@@ -458,8 +459,10 @@ export async function runCli(argv: string[], cwd: string, env: Record<string, st
   const consoleDir = env.FW_CONSOLE_DIR ?? join(dirname(vcs("rev-parse", "--path-format=absolute", "--git-common-dir")), ".fw-console");
   const genv = args.dry ? null : realEnv(cwd); // --dry makes no gh call and needs no budget state
   const unused = (): never => { throw new Error("no gh call in --dry"); };
-  return runMain(args, {
-    call: fwcoreCall(cwd), gh: genv ? chargedGh(genv) : unused, wait: genv ? (t, timeoutS) => waitFor(genv, t, { timeoutS }) : unused,
+  const ph = runPhases(beginSpan, args.dry);
+  let code = 1;
+  try { code = await runMain(args, {
+    call: fwcoreCall(cwd), gh: genv ? ph.gh(chargedGh(genv)) : unused, wait: genv ? ph.wait((t, timeoutS) => waitFor(genv, t, { timeoutS })) : unused,
     now: genv ? genv.now : () => Math.floor(Date.now() / 1000),
     recordKind: (id, inputs) => { recordRunKind(id, inputs, cwd); },
     refSha: (r) => vcs("rev-parse", "--verify", "--quiet", `refs/remotes/origin/${r}^{commit}`) || vcs("rev-parse", "--verify", "--quiet", `refs/heads/${r}^{commit}`) || undefined,
@@ -467,5 +470,5 @@ export async function runCli(argv: string[], cwd: string, env: Record<string, st
     workflowName: (f) => { try { return /^name:\s*["']?([^"'\n#]+?)["']?\s*(?:#.*)?$/m.exec(readFileSync(join(cwd, ".github", "workflows", f), "utf8"))?.[1]; } catch { return undefined; } },
     store: storeDir(consoleDir), sha: vcs("rev-parse", "HEAD"), branch: vcs("rev-parse", "--abbrev-ref", "HEAD"),
     tmp: join(consoleDir, "tmp"), log: (l) => console.log(l),
-  });
+  }); return code; } finally { ph.finish(code); }
 }
