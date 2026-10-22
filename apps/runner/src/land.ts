@@ -17,7 +17,7 @@ const span: typeof rawSpan = (tool, step, fn, exitOf) => rawSpan(tool, stepPrefi
 import { cachedLaneView, circleciAdapter, DEFAULT_ALLOW, githubAdapter, makePusher, BUILD_ARGV, runTiered, spawnWait, type Adapter, type OverflowPlan, type Provider } from "./land-remote.ts";
 import { ccStatusFrom, forceFullFromEnv, ghStatusOnce, overflowFor, readSlots, realCircle } from "./land-overflow.ts";
 import { askCore, dropLock, lockFacts, lockFile, readLock, takeLock } from "../hooks/land-guard.mjs";
-import { FWCORE_STALE_REASON, checkFailKind, failedStages, fwcoreStale, LINT_ARGV, lintPlan, outcome, outcomeKind, type Kind, type Outcome } from "./land-verdict.ts";
+import { FWCORE_STALE_REASON, checkFailKind, failedStages, fwcoreStale, installKind, installRunsOnline, LINT_ARGV, lintPlan, outcome, outcomeKind, type Kind, type Outcome } from "./land-verdict.ts";
 import { consoleSecret } from "./lib.ts";
 import { CHECK_SH_READS } from "./land-reads.gen.ts";
 import { ConsoleUnreachable } from "./land-queue.ts";
@@ -339,21 +339,30 @@ export function claimLandWt(mainDir: string): { dir: string; free: () => void } 
   }
 }
 
-export function checkoutLandWt(mainDir: string, dir: string, commit: string, prep?: (dir: string) => void): void {
+export function checkoutLandWt(mainDir: string, dir: string, commit: string, prep?: (dir: string) => string | null | void): string | null {
+  let refusal: string | null = null;
   const known = existsSync(dir) && worktrees(mainDir).some((w) => existsSync(w.dir) && realpathSync(w.dir) === realpathSync(dir));
   if (!known) {
     tryGit(mainDir, ["worktree", "prune"]);
     rmSync(dir, { recursive: true, force: true });
     git(mainDir, ["worktree", "add", "--detach", "--force", dir, commit]);
-    prep?.(dir);
+    refusal = prep?.(dir) ?? null;
   } else git(dir, ["checkout", "--detach", "--force", commit]);
   git(dir, ["clean", "-fdxq", "-e", ".lake", "-e", "node_modules"]);
+  return refusal;
 }
 
-const prepLandWt = (dir: string) => {
-  if (!existsSync(join(dir, "scripts/wt-prep.sh"))) return;
+export type InstallExec = (argv: string[], cwd: string) => boolean;
+const installExec: InstallExec = (argv, cwd) => { try { execFileSync(argv[0]!, argv.slice(1), { cwd, stdio: "ignore" }); return true; } catch { return false; } };
+export function landInstall(dir: string, exec: InstallExec = installExec): string | null {
+  const offlineOk = exec(["pnpm", "install", "--offline", "--frozen-lockfile"], dir);
+  const onlineOk = installRunsOnline(offlineOk) ? exec(["pnpm", "install", "--frozen-lockfile"], dir) : false;
+  return installKind(offlineOk, onlineOk) === null ? null : `install failed in ${dir}: offline and online \`pnpm install --frozen-lockfile\` both failed (no network, or a bad lockfile?)`;
+}
+const prepLandWt = (dir: string): string | null => {
+  if (!existsSync(join(dir, "scripts/wt-prep.sh"))) return null;
   try { execFileSync("sh", ["scripts/wt-prep.sh"], { cwd: dir, stdio: "ignore" }); } catch { }
-  if (existsSync(join(dir, "pnpm-lock.yaml"))) { try { execFileSync("pnpm", ["install", "--offline", "--frozen-lockfile"], { cwd: dir, stdio: "ignore" }); } catch { } }
+  return existsSync(join(dir, "pnpm-lock.yaml")) ? landInstall(dir) : null;
 };
 
 export function binDigest(dir: string): Digest {
@@ -466,7 +475,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
   const lines: string[] = via ? [`${via} has nothing to land; landing ${branch}, which is ahead of it and contains it`] : [];
   const fail = (m: string, kind: Kind = "unknown", out?: Outcome): LandResult => {
     lines.push(`REFUSED: ${m}`);
-    if (!o.dry) return { ok: false, lines, kind };
+    if (!o.dry || kind === "install") return { ok: false, lines, kind };
     const oc = out ?? outcome({ threw: true });
     return { ok: false, lines, kind: outcomeKind(oc), outcome: oc };
   };
@@ -677,7 +686,8 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     const slot = claimLandWt(mainDir);
     try {
       const c = git(mainDir, ["commit-tree", tree, "-p", main0, "-p", sha, "-m", `dry ${branch}`]);
-      checkoutLandWt(mainDir, slot.dir, c, o.dryReads ? undefined : prepLandWt);
+      const instDry = checkoutLandWt(mainDir, slot.dir, c, o.dryReads ? undefined : prepLandWt);
+      if (instDry) return fail(instDry, "install");
       if (writeEvidence(slot.dir, o.task!, sha.slice(0, 7)) === "failed") return fail("could not write the evidence into docs/team/work-graph.json");
       let marks = "";
       try { marks = git(slot.dir, ["grep", "-n", "-E", MARKER_RE]); } catch { }
@@ -734,7 +744,8 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
         catch { return { kind: "fallback", why: `${main} cannot merge ${branch} cleanly` }; }
         const mk = (t: string) => git(mainDir, ["commit-tree", t, "-p", main0, "-p", sha, "-m", `land ${branch}`, "-m", trailer]);
         let c = mk(tree);
-        checkoutLandWt(mainDir, slot.dir, c, o.checks ? undefined : prepLandWt);
+        const inst = checkoutLandWt(mainDir, slot.dir, c, o.checks ? undefined : prepLandWt);
+        if (inst) return { kind: "refuse", msg: inst, k: "install" };
         const ev = writeEvidence(slot.dir, o.task!, sha.slice(0, 7));
         if (ev === "failed") return { kind: "refuse", msg: "could not write the evidence into docs/team/work-graph.json" };
         if (ev === "written") { c = mk(git(slot.dir, ["write-tree"])); if (attempt === 0) lines.push(`evidence ${sha.slice(0, 7)} written into docs/team/work-graph.json (in the merge commit)`); }

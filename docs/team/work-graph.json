@@ -16875,7 +16875,8 @@
     "apps/runner/src/fw-main.ts",
     "apps/runner/test/land-verdict.test.ts"
    ],
-   "title": "fw land refused morph-touch-band on 2026-10-23 with 'check FAILED: pnpm --filter ./apps/site test': the land worktree .claude/land-wt/1 lacked jsdom (vitest: Cannot find package 'jsdom'; 37 packages missing). land.ts:356 runs `pnpm install --offline --frozen-lockfile` in the land worktree and swallows any failure (catch {}), so a package absent from the local store leaves node_modules incomplete and the land fails later with an unrelated-looking test error (the lead's `pnpm install --frozen-lockfile` there added 37 packages and fixed it). Fix: on an offline install failure, run the online `pnpm install --frozen-lockfile`; if that fails too, refuse the land with a named reason (VERDICT install) instead of continuing; test both paths with a stubbed exec; doc in land.md."
+   "title": "fw land refused morph-touch-band on 2026-10-23 with 'check FAILED: pnpm --filter ./apps/site test': the land worktree .claude/land-wt/1 lacked jsdom (vitest: Cannot find package 'jsdom'; 37 packages missing). land.ts:356 runs `pnpm install --offline --frozen-lockfile` in the land worktree and swallows any failure (catch {}), so a package absent from the local store leaves node_modules incomplete and the land fails later with an unrelated-looking test error (the lead's `pnpm install --frozen-lockfile` there added 37 packages and fixed it). Fix: on an offline install failure, run the online `pnpm install --frozen-lockfile`; if that fails too, refuse the land with a named reason (VERDICT install) instead of continuing; test both paths with a stubbed exec; doc in land.md.",
+   "evidence": "a2e70dc"
   },
   {
    "devices": [

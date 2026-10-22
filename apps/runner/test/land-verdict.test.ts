@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { checkFailKind, dryKind, dryRun, exitCode, failedStages, handbackAllowed, lintPlan, outcomeKind, parseVerdict, retryable, isOk, verdictLine, type Kind, type Outcome } from "../src/land-verdict.ts";
+import { checkFailKind, dryKind, dryRun, exitCode, failedStages, installKind, installRunsOnline, handbackAllowed, lintPlan, outcomeKind, parseVerdict, retryable, isOk, verdictLine, type Kind, type Outcome } from "../src/land-verdict.ts";
 
 const file = join(dirname(new URL(import.meta.url).pathname), "../../../packages/contracts/golden/console/land-dry.jsonl");
 type G = { name: string; request: Record<string, unknown> & { op: string }; response: Record<string, unknown> };
@@ -27,6 +27,8 @@ describe("land verdict vs Lean golden", () => {
       expect(g.response).toEqual({ argv: lintPlan(q.changed as string[], q.hasCiPaths as boolean, q.hasAxioms as boolean, q.hasFootprint as boolean) });
     } else if (q.op === "landDry.checkKind") {
       expect(g.response).toEqual({ kind: checkFailKind(q.failed as { reads: boolean; stages: string[] }[]) });
+    } else if (q.op === "landVerdict.install") {
+      expect(g.response).toEqual({ runsOnline: installRunsOnline(q.offlineOk as boolean), kind: installKind(q.offlineOk as boolean, q.onlineOk as boolean) });
     } else throw new Error(`unknown op ${q.op}`);
   });
   it("failedStages reads the check.sh stage names (parsing only)", () => {
