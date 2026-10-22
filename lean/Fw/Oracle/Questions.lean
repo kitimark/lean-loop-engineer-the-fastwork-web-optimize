@@ -100,8 +100,29 @@ theorem findingSeverity_criteria : findingSeverity.criteria.map Prod.fst = findi
 
 theorem findingSeverity_labels : findingSeverity.spec.keys.filter (· != noGrade) = Labels.exactWords := by decide
 
+/-- The J-pick step-1 question of jev-retrieval-trace: which one candidate file, named by its slot, would most help
+classify the incident, or none. -/
+def filePick : Question where
+  name := "file-pick"
+  instructions := "An incident from a software project's incident ledger: an agent or a script made a mistake. The " ++
+    "state holds its title, the symptom seen, the cause found, and the project's candidate source files at the " ++
+    "incident's time, one per line as slot: path. A later question classifies the incident by the kind of mistake " ++
+    "that caused it and sees the start of one file you pick here. Pick the one file whose text would most help that " ++
+    "classification, or none if no file would help."
+  spec := .choice ["f1", "f2", "f3", "f4", noClass] noClass
+  criteria := [("f1", "The candidate file listed as f1."), ("f2", "The candidate file listed as f2."),
+    ("f3", "The candidate file listed as f3."), ("f4", "The candidate file listed as f4."),
+    (noClass, "No candidate file would help classify the incident.")]
+  target := 9 / 10
+  perOption := 5
+  fields := ["title", "symptom", "cause", "candidates"]
+
+theorem filePick_wf : filePick.spec.wf = true := by decide
+
+theorem filePick_criteria : filePick.criteria.map Prod.fst = filePick.spec.keys := by decide
+
 /-- The registered questions. -/
-def questions : List Question := [ciTriage, incidentClass, findingSeverity]
+def questions : List Question := [ciTriage, incidentClass, findingSeverity, filePick]
 
 /-- The registered question with this name, if any. -/
 def question (x : String) : Option Question := questions.find? (·.name == x)
