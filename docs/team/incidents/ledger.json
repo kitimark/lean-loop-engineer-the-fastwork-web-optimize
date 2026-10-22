@@ -4232,6 +4232,33 @@
    "leanReason": "Which temp items are ours and deletable is a pure Lean rule (prefix allowlist, owner, age, not open); that each test removes its temp dir is a lint, not a proof.",
    "empiricalCheck": "After a day of runs the temp folder stays under a stated bound and sys.diskLow does not open.",
    "hardening": "disk-gc-tmp"
+  },
+  {
+   "id": "inc-orphan-tool-call",
+   "at": "2026-10-22T22:50+07:00",
+   "title": "fw watch reported a 38-minute Bash hang for an agent that was working: one tool call in its transcript has no result record",
+   "symptom": "agent.toolHang and agent.toolSlow opened for the census-load-variance builder (Bash running for 38 min) while its transcript showed a new tool call every few seconds.",
+   "cause": "CONFIRMED (workflow wf_105a3643-a4a transcript: Bash tool_use at 15:04:44Z, written twice by streaming, has no tool_result; the next assistant message is at 15:10:21Z; apps/runner/src/watch-fold.ts:90-100 keeps an id open until its tool_result and finishInfo picks the newest open id as inflight). Why the result record is missing is INFERRED: the disk was nearly full in that window (inc-tmp-trace-leak) and the agent ran lake-gc right after.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "apps/runner/src/watch-fold.ts",
+     "note": "open set cleared only by tool_result; finishInfo inflight = newest open id"
+    },
+    {
+     "kind": "event",
+     "ref": "agent.toolHang",
+     "note": "Bash running for 38 min while the agent made fresh calls"
+    }
+   ],
+   "repro": "Fold a transcript in which one tool_use has no tool_result and a later assistant message follows: inflight stays on the orphan call and toolHang opens after 30 min.",
+   "fix": {
+    "task": "watch-orphan-call"
+   },
+   "regression": "Lean rule: a call is in flight only while its assistant message is the newest; golden vectors include a transcript with a missing tool_result.",
+   "leanVerdict": "provable",
+   "leanReason": "The inflight choice is a pure function of the folded lines: a later assistant message clears every older open call, so a missing result record cannot pin inflight.",
+   "hardening": "watch-orphan-call"
   }
  ]
 }
