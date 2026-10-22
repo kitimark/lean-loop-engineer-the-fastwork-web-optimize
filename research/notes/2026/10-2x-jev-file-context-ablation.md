@@ -73,7 +73,7 @@ script is not in git). The other 11 rows keep no file under `Fw.Oracle.Expand` f
 | Reason | Rows |
 |---|---|
 | Every kept file alone exceeds the cap, so the row is refused rather than cut (9) | `inc-retention-hides-unlanded`, `inc-prompt-premise-align`, `inc-proof-of-dead-code`, `inc-mutants-red-no-task`, `inc-helper-spawn-named`, `inc-trajectory-pooled-window`, `inc-land-scope-stale-base`, `inc-main-checkout-busy-queue`, `inc-dispatch-push-runs` |
-| Every allowlisted file holds the exact word `blocker`, which the scan did not check (2) | `inc-workflow-unbound`, `inc-upsert-keeps-evidence` |
+| Every allowlisted file holds `blocker` (a `Labels.exactWords` entry, matched as a case-insensitive substring, so `blockers` counts), which the scan did not check (2) | `inc-workflow-unbound`, `inc-upsert-keeps-evidence` |
 
 The row-id drop removes `apps/runner/src/land.ts` from `inc-land-undeclared-reads`, which still expands with
 another file, so it changes no count.
