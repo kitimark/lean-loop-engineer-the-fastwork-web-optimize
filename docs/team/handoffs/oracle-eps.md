@@ -1,9 +1,10 @@
 # oracle-eps handoff
 
-- Branch `worktree-wf_dbb77429-5d3-1`, worktree `.claude/worktrees/wf_dbb77429-5d3-1`; main merged at 393f8223
-  (round 3). Last code commit 0a23ac7a; this handoff is the commit after it.
+- Branch `worktree-wf_dbb77429-5d3-1`, worktree `.claude/worktrees/wf_dbb77429-5d3-1`; main merged at e3d48ba6
+  (round 3). Last code commit 0a23ac7a; the handoff and the main merge follow it.
 - No CI runs. Local at 0a23ac7a: check.sh green (axioms included), contracts 11/11, ci-paths + jev-expand 79/79,
-  land-inputs 56/56; dry land: see the report's `dry`.
+  land-inputs 56/56. Dry land needs `--allow lean/scripts/ExpandGolden.lean` (outside the graph writes):
+  `VERDICT dry oracle-eps`; without it `VERDICT scope oracle-eps`.
 
 ## State
 - `lean/Fw/Oracle/Core.lean`: `sumOk` = `sumEps` (old rule) or `roundOk (max d 1)` at the reply's `precision` d
