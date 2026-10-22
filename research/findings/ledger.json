@@ -2819,6 +2819,46 @@
    "evidence": "CI runs 39744563175, 39747969466, 39744614747, 39744653093, 39751427150 (hung), 39760667274; research/notes/2026/10-2x-morph-constant-bounds.md; results/morph-constant-bounds/report.json"
   },
   {
+   "id": "commission.band-gate",
+   "n": 48,
+   "part": "commission",
+   "candidate": "commission:band-gate: in the c1000 band skip the two custom-property writes (--commission-enter-shrink, --commission-shrink) every follower frame, since the CSS pins scale 1 and radius 0 there; write the current pair on the first frame that reads the band off",
+   "status": "partly-proved",
+   "flag": "commission:band-gate",
+   "flags": [
+    "commission:band-gate"
+   ],
+   "chromium": "win",
+   "webkit": "win",
+   "visual": "E (commission_visSame: visible scenes equal across band changes; look_gated: the band look is independent of the pair; exit_catchup, inl_settled, media_catchup: the pair is the original's on the first ungated body, at rest and after a band change) Limit: the theorems cover the look (scale, radius). While the follower moves in the band, the custom properties' own computed values differ from the original's (getComputedStyle would show it); they are equal again at rest and on band exit, which is what the breakpoint gate compares.",
+   "mechanism": "PROVED (Fw.Parts.CommissionOpt): the original writes two properties on every body (writes_orig); the variant writes none while the gate holds and the follower moves (moving_run), never more than the original (writes_le), and the follower and class bits are unchanged (fol_cls_agree). MEASURED, CI chromium-counts swipe-v1 x3 (430x932, base run 39837044649, flag run 39843560957), window scrollY 3070-3530 (commission bottom 0.85h..0.35h, INFERRED from the class-toggle spike): RecalcStyleCount 5.02 -> 3.07 per frame, elements recalculated 127.3 -> 60.1 per frame, in all three runs; FunctionCall 9.50, Layout 0.57, census layers 66.4, tiles 121.1 and Commit 1.00 per frame equal. MEASURED, CI webkit-sim (iOS Simulator 430x775, 50 px steps, 2 passes; base run 39837001915, flag run 39843567401), y 2500-3500: RecalculateStyles 124/127 -> 99/92, Composite 40/40 -> 40/40, Layout and Paint overlap, FunctionCall is noisy (282/299 against 379/294). Breakpoint gate both engines: run 39843552595 pass (the first design, which skipped every write, failed it: run 39836996121). Not a GPU route.",
+   "leanFor": [
+    "Fw.Parts.CommissionOpt.look_gated",
+    "Fw.Parts.CommissionOpt.look_const_iff",
+    "Fw.Parts.CommissionOpt.exit_catchup",
+    "Fw.Parts.CommissionOpt.inl_settled",
+    "Fw.Parts.CommissionOpt.media_catchup",
+    "Fw.Parts.CommissionOpt.commission_visSame",
+    "Fw.Parts.CommissionOpt.writes_le",
+    "Fw.Parts.CommissionOpt.moving_run"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "No frame-time percentiles: the count lanes record no frame times; a Simulator or phone replay of the scroll-in is a follow-up",
+    "The WebKit saving also shows at y 3500-4500 (RecalculateStyles 152/154 -> 106/101) where the model predicts no moving follower; the mechanism there is not explained",
+    "The commission window is derived from Chromium class-toggle spikes, not from a measured section rect"
+   ],
+   "premises": [
+    "CONFIRMED: commission is not the last section (platform follows), unlike platform.mq",
+    "CONFIRMED: the two properties are read only by the shrink scale and the card radius (commission.module.css lines 9, 48), pinned by the band at 438-446 (bandgate.test.ts)",
+    "INFERRED: a changed inherited custom property restyles every descendant (elementCount delta 67 per frame)"
+   ],
+   "v1Evidence": "",
+   "lesson": "A skip that leaves a computed value differing from the original in a state the gate compares fails the gate even when nothing shows: the first design failed on the section's custom properties at rest and on a media-change body the original does not run. Writing at settle and writing the follower's pair (not running a body) on a band change kept the saving and the gate.",
+   "next": "Lead decides promotion to the v2-proved preset (status stays partly-proved until a frame-time replay). Follow-up: Simulator or phone replay of the scroll-in for frame times.",
+   "evidence": "CI runs 39843527891 (lean), 39843552595 (gate), 39837044649, 39843560957 (chromium-counts), 39837001915, 39843567401 (webkit-sim); research/notes/2026/10-2x-commission-band-gate.md"
+  },
+  {
    "id": "pain.dark-scroll",
    "n": 47,
    "part": "pain",

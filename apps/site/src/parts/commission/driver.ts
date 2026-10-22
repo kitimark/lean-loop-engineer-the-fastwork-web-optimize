@@ -1,6 +1,5 @@
-import { frame, PAIR0, sceneActive, titleWrapped, ulFire, ulStart, ulTimer, UL_DELAY, type Pair, type Ul } from './logic';
+import { catchupPair, frame, PAIR0, planCatchup, planWrite, sceneActive, titleWrapped, ulFire, ulStart, ulTimer, UL_DELAY, type Pair, type Ul } from './logic';
 
-/** Order on the scroll engine (after the hero, before the nav: hero.exit 10, nav 13090 in the original). */
 export const COMMISSION_ORDER = 50;
 
 export interface Rect {
@@ -19,18 +18,12 @@ export interface StyleEl {
 }
 
 export interface Els {
-  /** `section.commission`: gets the custom properties, the classes and the scene attributes. */
   section: El & StyleEl;
-  /** `.commission-card`: its top drives the enter band. */
   card: El;
-  /** `.commission-runway`: its height is 6 % of the viewport on desktop. */
   runway: StyleEl;
-  /** `.commission-header`: observed for the underline. */
   header: unknown;
-  /** the `h2`, and its muted span whose line boxes decide `title-wrapped`. */
   title: StyleEl;
   muted: unknown;
-  /** the underline span. */
   underline: StyleEl;
 }
 
@@ -55,17 +48,12 @@ export interface IoEntry {
 }
 export interface Env {
   vh(): number;
-  /** `(prefers-reduced-motion: reduce)` now. */
   reduced(): boolean;
-  /** `mq.c1000` now (the original's `A()`). */
   compact(): boolean;
-  /** reduced motion changed (the original's `change` listener on the list). */
   onReducedChange(cb: () => void): () => void;
-  /** IntersectionObserver with a root margin and thresholds; returns disconnect. */
+  onCompactChange?(cb: () => void): () => void;
   observe(target: unknown, opts: { rootMargin?: string; threshold?: number[] }, cb: (e: IoEntry) => void): () => void;
-  /** ResizeObserver; returns disconnect. */
   observeResize(target: unknown, cb: () => void): () => void;
-  /** `Range.getClientRects().length` over the node's contents. */
   lineBoxes(target: unknown): number;
 }
 
@@ -77,7 +65,6 @@ export interface Deps {
   env: Env;
 }
 
-/** Run `fn` once, `n` frames from now (own rAF registrations); returns the cancel. */
 export function afterFrames(clock: Clock, n: number, fn: () => void): () => void {
   let left = n;
   let off: (() => void) | null = null;
@@ -94,13 +81,7 @@ export function afterFrames(clock: Clock, n: number, fn: () => void): () => void
   };
 }
 
-/**
- * The section driver (JS 3092-3141 + the scene scheduler `dE`). One frame body reads the card and section rects, runs the
- * Lean `frame`, writes two custom properties on the section, two classes, the runway height and the title-wrap class, and
- * asks for another frame while the follower has not settled. The frame is requested by the engine callback (a scroll or
- * resize while the scene is active), by reduced-motion changes and by the scene turning active.
- */
-export function mountCommission({ els, classes, engine, clock, env }: Deps): () => void {
+export function mountCommission({ els, classes, engine, clock, env }: Deps, opts: { bandGate?: boolean } = {}): () => void {
   let pair: Pair = PAIR0;
   let cancelOwn: (() => void) | null = null;
   let active = false;
@@ -116,6 +97,12 @@ export function mountCommission({ els, classes, engine, clock, env }: Deps): () 
     body();
   }
 
+  const writePair = () => {
+    const w = catchupPair(pair);
+    els.section.style.setProperty('--commission-enter-shrink', String(w.enter));
+    els.section.style.setProperty('--commission-shrink', String(w.shrink));
+  };
+
   const measureWrap = () => {
     const wrapped = compactNow && titleWrapped(compactNow, env.lineBoxes(els.muted));
     els.title.classList.toggle(classes.titleWrapped, wrapped);
@@ -129,8 +116,7 @@ export function mountCommission({ els, classes, engine, clock, env }: Deps): () 
     const section = els.section.getBoundingClientRect();
     const f = frame(pair, card.top, section.bottom, vh, reduced, compactNow);
     pair = { n: f.n, r: f.r };
-    els.section.style.setProperty('--commission-enter-shrink', String(f.n));
-    els.section.style.setProperty('--commission-shrink', String(Math.max(f.n, f.r)));
+    if (planWrite(opts.bandGate === true && compactNow, f.more)) writePair();
     els.section.classList.toggle(classes.entering, f.entering);
     els.section.classList.toggle(classes.shrinking, f.shrinking);
     els.section.toggleAttribute('data-fw-shrinking', f.shrinking);
@@ -139,7 +125,6 @@ export function mountCommission({ els, classes, engine, clock, env }: Deps): () 
     if (f.more) request();
   }
 
-  // scene scheduler: active while the section is within one viewport above / two below (initial) or per observer
   let renderCancel: (() => void) | null = null;
   const setRender = (on: boolean) => {
     renderCancel?.();
@@ -167,7 +152,6 @@ export function mountCommission({ els, classes, engine, clock, env }: Deps): () 
     if (on) request();
   };
 
-  // underline: fires once when the heading is at least 45 % visible
   let ul: Ul = 'hidden';
   const paintUl = () => {
     els.underline.classList.toggle(classes.enter, ul === 'enter');
@@ -192,14 +176,13 @@ export function mountCommission({ els, classes, engine, clock, env }: Deps): () 
   });
 
   cleanups.push(env.observeResize(els.title, measureWrap));
-  body(); // the original runs the body once at mount
+  body();
   const sec = els.section.getBoundingClientRect();
   active = sceneActive(sec.top, sec.bottom, env.vh());
   els.section.setAttribute('data-scene', active ? 'active' : 'paused');
   setRender(active);
   cleanups.push(env.observe(els.section, { rootMargin: '100% 0px' }, (e) => setActive(e.isIntersecting)));
   cleanups.push(engine.register('commission', COMMISSION_ORDER, () => {
-    // the original's `iE` runs the callback inside the same animation frame as the scroll/resize (no extra frame)
     if (active) {
       cancelOwn?.();
       cancelOwn = null;
@@ -207,8 +190,13 @@ export function mountCommission({ els, classes, engine, clock, env }: Deps): () 
     }
     return undefined;
   }));
-  request(); // the scheduler asks for a frame when a scene registers (rE())
+  request();
   cleanups.push(env.onReducedChange(request));
+  if (opts.bandGate === true && env.onCompactChange) {
+    cleanups.push(env.onCompactChange(() => {
+      if (planCatchup(env.compact())) writePair();
+    }));
+  }
 
   return () => {
     cancelOwn?.();
