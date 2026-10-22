@@ -39,11 +39,9 @@ face, or one per strip, per frame of a rolling digit); Chromium `compositing_rea
 (`will-change: transform` is a direct reason) and `:535-546` (a transform composites only with a 3D operation),
 CONFIRMED; WebKit as in `Fw.Engine.WebKit.composites`.
 
-The TS `strip` also moves the clock from the original's `setInterval(1000)` plus one rAF chain per digit to one
-shared-loop subscriber (`index.tsx:103-108`, `driver.ts:43-47`), which moves roll starts across frames. That
-scheduling delta is not modelled here (both variants get the same frame inputs), so the golden rows predict only the
-layer census (`goldenJsonl`, base `rewrite`, whose census class is deterministic, so a frame-exact `<o` is usable);
-per-frame det rows would test the scheduling delta, not this theorem.
+The TS `strip` runs the original's clock (`startFaithful`, `index.tsx:100`: `setInterval(1000)` plus one rAF chain
+per rolling digit), so both variants get the same frame inputs (`strip_still_eq`); the golden rows predict the layer
+census (`goldenJsonl`, base `rewrite`, whose census class is deterministic, so a frame-exact `<o` is usable).
 -/
 namespace Fw.Parts.HeroCountdownOpt
 
@@ -266,6 +264,75 @@ theorem strip_visSame {Env T : Type} (vp : Env → Rect) (pre post : Env → T �
   apply flatMap_congr'
   intro d _
   exact (strip_digit_same (vp env) d.1 d.2).symm
+
+/-! ## Glyph placement inside a cell -/
+
+/-- How a flex cell places its line box on the block axis. -/
+inductive Align where
+  | center
+  | start
+deriving Repr, DecidableEq
+
+/-- The top of a line box of height `l` inside a flex cell of height `h`. -/
+def lineTop : Align → Rat → Rat → Rat
+  | .center, h, l => (h - l) / 2
+  | .start, _, _ => 0
+
+#guard lineTop .center (312 / 10) (312 / 10) == 0
+#guard lineTop .center 31 (312 / 10) == -(1 / 10)
+#guard lineTop .center 36 (364 / 10) == -(1 / 5)
+#guard lineTop .center 52 52 == 0
+#guard lineTop .start 31 (312 / 10) == 0
+
+/-- A face fills its digit, whose height is the line box, so a centred glyph starts at the face top. -/
+theorem face_top (l : Rat) : lineTop .center l l = 0 := by
+  simp only [lineTop]; grind
+
+/-- A centred strip entry places the glyph at the face's height only when the cell equals the line box. -/
+theorem entry_center_iff (h l : Rat) : lineTop .center h l = lineTop .center l l ↔ h = l := by
+  simp only [lineTop]; grind
+
+/-- A top-aligned strip entry places the glyph at the face's height for every cell and line box. -/
+theorem entry_start (h l : Rat) : lineTop .start h l = lineTop .center l l := by
+  simp only [lineTop]; grind
+
+/-! ## Pixels under the panel's opacity -/
+
+/-- The 8-bit value of one glyph pixel: rastered once into its own layer, then each enclosing composited layer,
+innermost first, applies its opacity and rounds. -/
+def stackPx (c : Rat) (as : List Rat) : Int := as.foldl (fun v a => roundQ (a * v)) (roundQ c)
+
+#guard stackPx (3 / 10 * 255) [1 / 2] == 39
+#guard stackPx (3 / 10 * 255) [1, 1 / 2] == 39
+#guard stackPx (3 / 10 * 255) [1 / 2, 1] == 39
+#guard stackPx 255 [] == 255
+
+/-- An opacity-1 layer anywhere in the stack leaves every pixel unchanged. -/
+theorem stackPx_one (c : Rat) (l r : List Rat) : stackPx c (l ++ 1 :: r) = stackPx c (l ++ r) := by
+  simp only [stackPx, List.foldl_append, List.foldl_cons, Rat.one_mul, roundQ_int]
+
+/-- Only the opacities other than 1 decide a pixel. -/
+theorem stackPx_filter (c : Rat) (as : List Rat) : stackPx c as = stackPx c (as.filter (· ≠ 1)) := by
+  unfold stackPx
+  generalize roundQ c = v
+  induction as generalizing v with
+  | nil => rfl
+  | cons a as ih =>
+    by_cases h : a = 1
+    · subst h; simp only [List.foldl_cons, Rat.one_mul, roundQ_int, List.filter_cons]; simpa using ih v
+    · simp [h, ih]
+
+/-- **Pixel E under any panel opacity.** A glyph's pixel is the same under any two stacks of opacity-1 layers
+between it and the panel, so faces and strips (opacity 1, composited or not) give the same pixel for every panel
+opacity `α` and every stack `outer` above the panel. -/
+theorem strip_px_eq (c α : Rat) (strip faces outer : List Rat) (hs : ∀ a ∈ strip, a = 1)
+    (hf : ∀ a ∈ faces, a = 1) : stackPx c (strip ++ α :: outer) = stackPx c (faces ++ α :: outer) := by
+  have e : ∀ l : List Rat, (∀ a ∈ l, a = 1) → l.filter (· ≠ 1) = [] := fun l h =>
+    List.filter_eq_nil_iff.mpr (by simpa using h)
+  rw [stackPx_filter, stackPx_filter c (faces ++ _), List.filter_append, List.filter_append, e _ hs, e _ hf]
+
+#guard stackPx (3 / 10 * 255) ([1, 1] ++ [1 / 2]) == stackPx (3 / 10 * 255) ([1] ++ [1 / 2])
+#guard stackPx (3 / 10 * 255) [1 / 2] != stackPx (1 / 2 * (3 / 10) * 255) []
 
 /-! ## Per-frame work -/
 
@@ -701,7 +768,7 @@ The TS strip first ran its springs from a shared per-frame loop. That loop calls
 frames where no digit rolls, where the original runs nothing. One extra callback is one extra `script` unit, so
 those frames are not `⪯` the original's, whatever the end flags, and the run cannot dominate: the confound, not the
 strip, decides the screen. The aimed timer (n=8) runs one callback per second, as the original's interval does, so
-both arms have the same run and Core's claim is `noClaim`. -/
+both arms have the same run and Core's claim is `noClaim`. The strip now runs the faithful clock (`k = 0`). -/
 
 section Schedule
 
@@ -722,6 +789,12 @@ theorem sub_still_not_le {P M : Type} (E : Engine P M) (p : P) (ℓ : LayerState
   simp only [frameWorkE, stageUnits, withWrites, addScript, stripWrites, faceWrites, List.map_nil,
     List.flatMap_nil, List.append_nil, ↓reduceIte] at hu
   omega
+
+/-- **Without a subscriber a still strip frame is the original's**, in every engine and for every end flag. -/
+theorem strip_still_eq {P M : Type} (E : Engine P M) (p : P) (ℓ : LayerState) (f : FrameIn P) (e : Stage → Bool) :
+    frameWorkE E (withWrites (addScript f 0) (stripWrites p ℓ [])) e =
+      frameWorkE E (withWrites f (faceWrites p ℓ [])) e := by
+  simp [addScript, stripWrites, faceWrites]
 
 /-- **The aimed timer has no claim.** Two arms with the same per-frame work get `noClaim`, for every resident state.
 
