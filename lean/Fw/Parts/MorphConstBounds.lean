@@ -161,7 +161,7 @@ private def jrat (q : Rat) : Json := Json.mkObj [("num", .str (toString q.num)),
 
 open Lean in
 /-- Rows `box`: the boxes and offsets of both arms at one viewport and morph value. -/
-def boxRows : List String :=
+def boxRows (_ : Unit := ()) : List String :=
   viewports.flatMap fun (w, h) => samples.map fun m =>
     let v : Vp := ⟨w, h⟩
     (Json.mkObj [("kind", .str "box"), ("vw", jrat w), ("vh", jrat h), ("m", jrat m),
@@ -172,7 +172,7 @@ def boxRows : List String :=
 
 open Lean in
 /-- Rows `paint`: where the content's left, centre and right edges are painted by both arms, at the panel scale. -/
-def paintRows : List String :=
+def paintRows (_ : Unit := ()) : List String :=
   viewports.flatMap fun (w, h) => samples.map fun m =>
     let v : Vp := ⟨w, h⟩
     let nw := navWidth v false m
@@ -182,10 +182,10 @@ def paintRows : List String :=
       ("new", Json.arr (pts.map fun p => jrat (newPos (panelW v) nw (panelScale m) p)).toArray)]).compress
 
 /-- The contents of `packages/contracts/golden/parts/morph-const-bounds.jsonl`. -/
-def boundsJsonl : String := String.join ((boxRows ++ paintRows).map (· ++ "\n"))
+def boundsJsonl (_ : Unit := ()) : String := String.join ((boxRows () ++ paintRows ()).map (· ++ "\n"))
 
-#guard (paintRows.length, boxRows.length) == (72, 72)
+#guard ((paintRows ()).length, (boxRows ()).length) == (72, 72)
 
-#guard boundsJsonl == include_str "../../../packages/contracts/golden/parts/morph-const-bounds.jsonl"
+#guard boundsJsonl () == include_str "../../../packages/contracts/golden/parts/morph-const-bounds.jsonl"
 
 end Fw.Parts.MorphConstBounds

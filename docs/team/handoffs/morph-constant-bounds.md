@@ -19,5 +19,5 @@
 
 ## Conventions
 - Golden regen: copy MorphConstBounds.lean without the `include_str` line into the scratchpad, add
-  `def main := IO.print boundsJsonl`, `lake env lean --run`.
+  `def main := IO.print (boundsJsonl ())`, `lake env lean --run`.
 - Tracks (columns) are not made constant: `pitch_scaled_ne` shows scaling the final layout changes the gap pitch.
