@@ -16083,7 +16083,10 @@
     "lean/Fw/Console/PreviewOwner.lean",
     "packages/contracts/golden/console/owner-session*.jsonl",
     ".gitignore",
-    "docs/team/handoffs/console-session-persist.md"
+    "docs/team/handoffs/console-session-persist.md",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw/Wire/Console.lean",
+    "packages/contracts/golden/console/console.ownerSession.jsonl"
    ],
    "title": "User 2026-10-22: 'when you restart the console, i need to re-login ... make it no need to re-login everytime.' Cause (CONFIRMED, apps/console-api/src/preview/owner.ts:51): OwnerAuth keeps owner sessions in an in-memory Map, so every console restart (the lead restarts it after each land) drops them; the browser still holds its token in localStorage and the new server refuses it. Fix: sessions survive restarts. (1) Lean first in Fw.Console.PreviewOwner: a persisted session record holds only SHA-256 digests of the owner token and of the preview-cookie value plus the expiry; restore keeps only unexpired records; theorems: a restored store admits owner rights only for a bearer whose digest matches an unexpired record (no record yields rights without the token), expired records never restore, logout removes the record from the persisted set; the existing owner_requires_bearer / cookie_never_owner keep holding. Goldens the TS replays. (2) session-store.ts: write the digest records to a gitignored local file (under .local/, mode 0600, atomic rename), never a token, never under .fw-console or any file the console logs; load on start. (3) The preview cookie keeps working after a restart (its digest is in the record). (4) Test: issue a session, restart OwnerAuth from the store, the same bearer works and the same cookie opens preview; a wrong or expired token is refused; the file contains no token (grep). Unit: the Lean rule with goldens, the store, the restart test. Limits: the 8 h session lifetime is unchanged (a longer or sliding lifetime is a separate user decision); a same-user process that reads the file learns only digests."
   },
@@ -16100,7 +16103,8 @@
     ".claude/workflows/build-review.js",
     "docs/team/handoffs/lead-hotfix-1022.md"
    ],
-   "title": "Lead hotfix 2026-10-22. (1) scripts/slot-self.mjs still imported slotStepEnd, which slot-span-key removed: every routed check.sh run printed its gates green and then threw 'slotStepEnd is not a function' on exit (seen by the site-layer-opts-followups review). Mirror fw.ts: `slot run` writes its own spans (writesOwnSpans), so no outer span. (2) build-review.js resume path: the dry-rerun runner was told to type <report.branch> itself and ran fw land with an empty branch (sim-step-watchdog resume, 2026-10-22); it now takes the worktree's own branch from git rev-parse."
+   "title": "Lead hotfix 2026-10-22. (1) scripts/slot-self.mjs still imported slotStepEnd, which slot-span-key removed: every routed check.sh run printed its gates green and then threw 'slotStepEnd is not a function' on exit (seen by the site-layer-opts-followups review). Mirror fw.ts: `slot run` writes its own spans (writesOwnSpans), so no outer span. (2) build-review.js resume path: the dry-rerun runner was told to type <report.branch> itself and ran fw land with an empty branch (sim-step-watchdog resume, 2026-10-22); it now takes the worktree's own branch from git rev-parse.",
+   "evidence": "2d18d65"
   },
   {
    "devices": [
@@ -16118,6 +16122,43 @@
     "docs/team/handoffs/dry-merge-tree.md"
    ],
    "title": "Five resumed reviews on 2026-10-22 (slot-span-key, site-layer-opts, morph-constant-bounds, land-scope-golden-regs, sim-step-watchdog) got VERDICT stale from fw land --dry only because main gained unrelated commits (graph edits, ledger records, other lands) after the branch's last merge; each cost a merge, a dry rerun and a resumed review. The stale rule exists so a stale base cannot carry another task's diff into the scope check (land.ts:480). Replace it with a closed check: when the branch does not contain main, compute the merge with git merge-tree (no checkout); a conflict stays a refusal (conflict); a clean merge runs the scope and read checks on the diff between that merged tree and main, which contains only the branch's own changes. Lean first in Fw.Console.LandDry: dryKind takes the merge-tree outcome; theorems: a clean merge-tree never yields stale; the scope paths of the merged diff are exactly the branch's own changed paths (no path main changed alone); a conflict still refuses. Goldens the TS replays; a test with a branch behind main by an unrelated commit gives VERDICT dry. Unit: the Lean rule with goldens, land.ts using merge-tree, the test. Limits: the real land still merges main itself as today."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "lead-hotfix-1022b",
+   "owner": "lead",
+   "stream": "tooling",
+   "deps": [
+    "lead-hotfix-1022"
+   ],
+   "writes": [
+    ".claude/workflows/build-review.js",
+    "scripts/build-review.test.mjs",
+    "docs/team/handoffs/lead-hotfix-1022b.md"
+   ],
+   "title": "lead-hotfix-1022 changed the resume-runner text '(no --allow)' that scripts/build-review.test.mjs:59 matches; the land passed (its lanes do not run that test) and the lean workflow on ci/land-lead-hotfix-1022-9fbf421 (run 39770576911) failed. Restore the asserted text, keep the git rev-parse branch, and assert it in the test (incident inc-land-misses-script-tests)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-script-tests",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Console/LandSpeed.lean",
+    "lean/Fw/Console/Land.lean",
+    "apps/runner/src/land.ts",
+    "apps/runner/src/land-reads.gen.ts",
+    "apps/runner/test/land-inputs.test.ts",
+    "packages/contracts/golden/console/land-speed.jsonl",
+    "lean/scripts/LandReadsGen.lean",
+    "docs/team/handoffs/land-script-tests.md"
+   ],
+   "title": "fw land misses the node:test suites that only the lean workflow runs (incident inc-land-misses-script-tests): lead-hotfix-1022 changed .claude/workflows/build-review.js, the land selected no check that runs scripts/build-review.test.mjs (it runs only in .github/workflows/lean.yml:105 with heavy-lock and fwcore-build tests), the land passed and main's lean run 39770576911 failed after it. (1) Declare a land check for the script tests of lean.yml:105 (and any other node --test line a workflow runs on scripts/*.test.mjs) with their reads (.claude/workflows/**, scripts/heavy-lock.mjs, scripts/fwcore-build.sh, the tested scripts), in the one Lean source (LandSpeed checks and the generated read list). (2) Theorem or golden: a change to .claude/workflows/build-review.js selects that check. (3) Also admit lean/Fw/Ops/Golden.lean in Land.goldenRegs when a write is under packages/contracts/golden/console/ (console-session-persist needed it, 2026-10-22). Unit: the check, the selection golden, the registration. Limits: workflows that need a macOS runner stay CI-only."
   }
  ],
  "deadline": {
