@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { makeGuard, dirMB, assertOwnDir, sweepStale, pidAlive } from '../src/xctrace/guard.mjs';
+import { makeGuard, dirMB, assertOwnDir, sweepStale, pidAlive, userTempDir, isKtrace } from '../src/xctrace/guard.mjs';
 import { attempt } from '../src/xctrace/attempt.mjs';
 
 const own = () => mkdtempSync(join(tmpdir(), 'fw-guard-test-')); // the test's own scratch; the code under test refuses to use the temp folder itself
@@ -23,6 +23,36 @@ test('a child runs in its own group with TMPDIR inside the work dir, and the wor
     g.wipe();
     assert.deepEqual(readdirSync(g.tmpDir), []);
   } finally { rmSync(w, { recursive: true, force: true }); }
+});
+
+test('a child that writes into the user temp folder (the confstr dir, not TMPDIR) is counted and only its new kernel traces are wiped', async () => {
+  const w = own(), u = own();
+  try {
+    writeFileSync(join(u, 'instruments-old.ktrace'), 'old'); // an earlier recording's trace: never ours
+    writeFileSync(join(u, 'other.txt'), 'x');
+    const g = makeGuard({ workDir: join(w, 'work'), userTmp: u, everyMs: 5 });
+    const script = `echo big > "${u}/instruments-new.ktrace"; mkdir "${u}/instruments-dir.ktrace"; echo y > "${u}/instruments-dir.ktrace/f"; echo z > "${u}/keep.txt"; sleep 0.1`;
+    await g.exec('sh', ['-c', script], { limitS: 5 });
+    assert.deepEqual(g.leaked().map((p) => p.slice(u.length + 1)).sort(), ['instruments-dir.ktrace', 'instruments-new.ktrace']);
+    g.wipe();
+    assert.deepEqual(readdirSync(u).sort(), ['instruments-old.ktrace', 'keep.txt', 'other.txt']);
+    assert.deepEqual(g.leaked(), []);
+  } finally { rmSync(w, { recursive: true, force: true }); rmSync(u, { recursive: true, force: true }); }
+});
+
+test('kernel traces in the user temp folder count toward the size cap', async () => {
+  const w = own(), u = own();
+  try {
+    const g = makeGuard({ workDir: join(w, 'work'), userTmp: u, everyMs: 5, sizeMB: (p) => (p.endsWith('.ktrace') ? 13000 : 0) });
+    const r = await g.exec('sh', ['-c', `echo x > "${u}/instruments-1.ktrace"; sleep 300`], { limitS: 600 });
+    assert.ok(r.killed && r.killed.traceMB > 12288, 'killed on the user-folder trace alone');
+  } finally { rmSync(w, { recursive: true, force: true }); rmSync(u, { recursive: true, force: true }); }
+});
+
+test('the user temp folder is read from getconf, and a kernel trace is told by its name', () => {
+  assert.equal(userTempDir(() => '/var/folders/x/T/\n'), '/var/folders/x/T/');
+  assert.equal(userTempDir(() => { throw new Error('no getconf'); }), null);
+  assert.ok(isKtrace('instruments5ab.ktrace') && !isKtrace('foo.ktrace') && !isKtrace('instruments.trace'));
 });
 
 test('the work dir may not be inside the temp folder', () => {

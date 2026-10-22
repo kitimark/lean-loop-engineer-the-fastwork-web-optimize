@@ -2,7 +2,7 @@
 // the user temp folder and ran on for 41 minutes after its parent had gone). Every child runs in its own process group with TMPDIR inside the
 // probe's own work directory, is looked at every `everyMs`, and is interrupted or killed as Lean's `probeAct` says (time past the recording's
 // own limit, trace bytes over the cap, the parent process gone). Glue only: the decisions are Lean (Fw.Sup.Measure.probeAct, mayRecord).
-import { spawn as nodeSpawn } from 'node:child_process';
+import { spawn as nodeSpawn, execFileSync } from 'node:child_process';
 import { lstatSync, mkdirSync, readdirSync, rmSync, statfsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
@@ -11,6 +11,7 @@ import { probeAct, mayRecord } from '../safari-local-reduce.mjs';
 /** Size in MB (rounded up) of everything under `dir`; 0 when it does not exist. */
 export function dirMB(dir) {
   let bytes = 0;
+  try { const st = lstatSync(dir); if (!st.isDirectory()) return Math.ceil(st.size / 1048576); } catch { return 0; }
   const walk = (d) => {
     let names;
     try { names = readdirSync(d); } catch { return; }
@@ -23,6 +24,23 @@ export function dirMB(dir) {
   };
   walk(dir);
   return Math.ceil(bytes / 1048576);
+}
+
+/**
+ * The Darwin user temp folder. Foundation (so xctrace) asks `confstr(_CS_DARWIN_USER_TEMP_DIR)` first and reads TMPDIR only when that fails
+ * (swift-foundation String+Path.swift:491-510@9539423), so the recorder's kernel traces land here whatever TMPDIR says. Null off Darwin.
+ */
+export function userTempDir(run = execFileSync) {
+  try { const d = String(run('getconf', ['DARWIN_USER_TEMP_DIR'], { encoding: 'utf8', timeout: 5000 })).trim(); return d || null; } catch { return null; }
+}
+
+/** The kernel traces the recorder writes (`instruments*.ktrace`, files or directories). */
+export const isKtrace = (name) => /^instruments.*\.ktrace$/.test(name);
+
+/** Names of the kernel traces now in `dir` (empty when it cannot be read). */
+export function listKtraces(dir) {
+  if (!dir) return [];
+  try { return readdirSync(dir).filter(isKtrace); } catch { return []; }
 }
 
 /** Free MB of the volume holding `dir`. */
@@ -52,13 +70,24 @@ export function sweepStale(root, alive = pidAlive) {
 
 /**
  * A guard over the work directory `workDir`. `ppid` is the parent the probe started under; `getPpid` is read at every look.
+ * `userTmp` is the Darwin user temp folder (null: none); the kernel traces that appear there after the last `mark()` (guard creation or the last
+ * wipe) and were not there before count toward the size cap, and `wipe()` deletes exactly those, never an older trace and never another name.
  * @returns {{workDir:string, tmpDir:string, exec:Function, killAll:Function, wipe:Function, roomOk:Function, alive:Function, watchParent:Function}}
  */
-export function makeGuard({ workDir, ppid = process.ppid, getPpid = () => process.ppid, spawn = nodeSpawn, kill = process.kill.bind(process), everyMs = 2000, now = Date.now, sizeMB = dirMB, free = freeMB }) {
+export function makeGuard({ workDir, ppid = process.ppid, getPpid = () => process.ppid, spawn = nodeSpawn, kill = process.kill.bind(process), everyMs = 2000, now = Date.now, sizeMB = dirMB, free = freeMB, userTmp = userTempDir(), list = listKtraces, clockMs = Date.now }) {
   const tmpDir = join(workDir, 'tmp');
   mkdirSync(tmpDir, { recursive: true });
   const live = new Set();
   const alive = () => getPpid() === ppid;
+  let seen = new Set(list(userTmp)); // kernel traces that were already in the user temp folder
+  let since = clockMs() - 1000;
+  const mark = () => { seen = new Set(list(userTmp)); since = clockMs() - 1000; };
+  /** The kernel traces of this recording in the user temp folder: not in the snapshot and born after it. */
+  const mine = () => list(userTmp).filter((n) => {
+    if (seen.has(n)) return false;
+    try { return lstatSync(join(userTmp, n)).birthtimeMs >= since; } catch { return false; }
+  }).map((n) => join(userTmp, n));
+  const userMB = () => mine().reduce((a, p) => a + sizeMB(p), 0);
   const group = (pid, sig) => { try { kill(-pid, sig); } catch { /* the group is gone */ } };
 
   /**
@@ -69,12 +98,16 @@ export function makeGuard({ workDir, ppid = process.ppid, getPpid = () => proces
     if (!alive()) throw new Error('the parent process is gone: nothing is started');
     const child = spawn(cmd, args, { detached: true, cwd: workDir, env: { ...process.env, TMPDIR: tmpDir }, stdio: ['ignore', 'pipe', 'pipe'] });
     live.add(child.pid);
+    let exited = false;
+    // helpers the command left behind die with the leader's exit, while the group id is still the leader's (a pid is not reused before it is reaped)
+    child.on('exit', () => { exited = true; group(child.pid, 'SIGKILL'); live.delete(child.pid); });
     let out = '', err = '', interrupted = false, killed = null, maxMB = 0;
     child.stdout.on('data', (d) => { out += d; });
     child.stderr.on('data', (d) => { err += d; });
     const t0 = now();
     const look = () => {
-      const traceMB = sizeMB(workDir);
+      if (exited) return;
+      const traceMB = sizeMB(workDir) + userMB();
       maxMB = Math.max(maxMB, traceMB);
       const s = { elapsedS: Math.floor((now() - t0) / 1000), limitS, traceMB, parentAlive: alive() };
       const act = probeAct(s);
@@ -84,7 +117,6 @@ export function makeGuard({ workDir, ppid = process.ppid, getPpid = () => proces
     const timer = setInterval(look, everyMs);
     const code = await new Promise((res) => { child.on('close', (c, sig) => res(c ?? sig)); child.on('error', (e) => { err += e.message; res('error'); }); });
     clearInterval(timer);
-    group(child.pid, 'SIGKILL'); // helpers the command left behind
     live.delete(child.pid);
     return { code, out, err, interrupted, killed, maxMB };
   }
@@ -92,8 +124,14 @@ export function makeGuard({ workDir, ppid = process.ppid, getPpid = () => proces
   return {
     workDir, tmpDir, exec, alive,
     killAll: () => { for (const pid of live) group(pid, 'SIGKILL'); live.clear(); },
-    /** Delete everything the probe wrote (traces, kernel traces in TMPDIR) and make the empty TMPDIR again. */
-    wipe: () => { rmSync(workDir, { recursive: true, force: true }); mkdirSync(tmpDir, { recursive: true }); },
+    /** Delete everything the probe wrote (traces, kernel traces in TMPDIR and the new ones in the user temp folder) and make the empty TMPDIR again. */
+    wipe: () => {
+      for (const p of mine()) rmSync(p, { recursive: true, force: true });
+      rmSync(workDir, { recursive: true, force: true }); mkdirSync(tmpDir, { recursive: true });
+      mark();
+    },
+    /** Kernel traces of this recording in the user temp folder (for a final check). */
+    leaked: mine,
     roomOk: () => mayRecord(free(workDir)),
     /** Call `onOrphan` once when the probe's parent is gone. Returns the stop function. */
     watchParent(onOrphan, ms = everyMs) {
