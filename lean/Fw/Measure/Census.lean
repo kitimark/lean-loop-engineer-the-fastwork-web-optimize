@@ -83,7 +83,6 @@ theorem both_maps_once (l : Layer) (f i : String) (hf : l.fw = some f) (hl : l.l
 def undeclared (ls : List Layer) : List Box :=
   ls.filterMap fun l => if l.ident = .free then some ⟨l.name, l.bounds⟩ else none
 
-/-- Box-name prefixes of the page's own free-running animations (word rotation, scroll cue, typing or fee visual, the hero feed, and the commission section that follows them) and of the root layer, whose height is the page height of one load; their layers come and go or resize with the animation phase. -/
 def runnerStems : List String :=
   ["#document", "span.accent-module_frame_", "svg.accent-module_svg_", "div.typing-module_visual_", "div.typing-module_beat_", "span.typing-module_avatar_",
    "span.frame.", "svg.accent-svg.", "button.scroll-cue.", "section.commission.", "div.fee-visual", "div.body.svelte-ty4hd7"]
@@ -94,10 +93,8 @@ theorem varying_of_stem (s t : String) (h : s ∈ runnerStems) : varying (s ++ t
   simp only [varying, List.any_eq_true]
   exact ⟨s, h, by simp⟩
 
-/-- A layer torn down between the layer list and its reasons read. -/
 def Layer.gone (l : Layer) : Bool := l.reasons == ["(gone)"]
 
-/-- An undeclared layer the pass-to-pass comparison looks at: not torn down at read time, not a free-running box. -/
 def Layer.keeps (l : Layer) : Bool := l.ident == .free && !l.gone && !varying l.name
 
 def stable (ls : List Layer) : List Box := (ls.filter Layer.keeps).map fun l => ⟨l.name, l.bounds⟩
