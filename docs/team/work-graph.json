@@ -15490,6 +15490,23 @@
    ],
    "title": "Lead probe 2026-10-22 10:26 after slot-idle-head landed (e962a0f2 09:20): queue stalled again with 0 holders and 3 land tickets; the TS verdict on main's code gives the head ticket admit (idleHead true), but the head waiter (pid cwd .claude/worktrees/wf_64810607-67c-1) runs `node apps/runner/src/fw.ts slot run` from its own worktree, whose slot-core.ts has no idleHead (branch cut before the land). The queue state lives in the main checkout (.fw-console/slot/state.json) but every caller decides with its branch's code, so one stale branch blocks every newer waiter behind it (same-kind queue order). Fix: `fw slot` (run, acquire, renew, release, admit) always executes the main checkout's fw.ts/slot code (re-exec from a worktree to <main>/apps/runner/src/fw.ts, like realDeps already resolves the state dir from main), with a test that a worktree caller runs main's verdict; slot.md; incident row inc-slot-branch-code. Unit: worktree callers run main's slot code (test), slot.md, incident row.",
    "evidence": "0f834a7"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "jev-arms-clean",
+   "owner": "researcher",
+   "stream": "research",
+   "deps": [],
+   "writes": [
+    "scripts/jev-arms-clean.mjs",
+    "scripts/jev-arms-clean.test.mjs",
+    "results/jev-arms-clean/**",
+    "research/notes/2026/10-2x-jev-arms-clean.md",
+    "docs/team/handoffs/jev-arms-clean.md"
+   ],
+   "title": "User 2026-10-22 (artifact comment on the Jev trial page, then choice 'claude -p, isolated'): the Haiku/Sonnet arms of the Jev comparison (workflow wf_da4dba4b-5e4, 42 agents, 21 chunks x 2 models) were not like for like with Jev: they saw the Claude Code system prompt, CLAUDE.md and the MEMORY.md index (which names 'orphan until-loop held an agent 3 h', a hint for row inc-orphan-wait-loop), had tools (only a prose ban), and answered 10 rows per conversation; research/notes/2026/10-2x-jev-replay.md:120 asked for one prompt per row with no tools and no system prompt. Re-run both arms clean: one headless `claude -p --model <haiku|sonnet> --tools \"\" --system-prompt <ARM_PREAMBLE> --setting-sources \"\" --strict-mcp-config --no-session-persistence --output-format json` call per row, cwd an empty temp dir, the row prompt from `fw oracle arm-input` (same bytes as the first run), bounded concurrency; first a probe proving no CLAUDE.md, memory or tool list reaches the model (e.g. ask it to list its tools and quote any project instructions; check the JSON usage input tokens against the prompt size), and stop if it fails. Score with the existing oracle scoring (fw oracle score path / oracle-score.ts) against the same labels and held-out split; write per-row results, the old-vs-clean table per arm and question (accuracy, held-out accuracy, certify verdict), cost and wall time. Unit: probe verdict, clean per-row results for both arms on every question set, the comparison table, note, handoff."
   }
  ],
  "deadline": {
