@@ -1,10 +1,4 @@
 #!/usr/bin/env node
-// Forensics of what the Claude arms of the Jev trial read before they answered, and whether their reasoning was
-// recorded. Reads agent transcripts as data and writes aggregates only: paths are normalised to <scratchpad>/,
-// <repo>/, <home> or <other>, and no message text, tool result text or thinking text is copied out.
-//
-//   node scripts/jev-trace-forensics.mjs --dir <workflow transcript dir> --clean results/jev-arms-clean \
-//     --out results/jev-retrieval-research
 import fs from "node:fs";
 import path from "node:path";
 
@@ -33,7 +27,6 @@ export function linesSeen(text) {
   return text.split("\n").map((s) => (s.match(/^\s*(\d+)[\t→]/) ?? [])[1]).filter(Boolean).map(Number);
 }
 
-/** One agent transcript, reduced to call order, path classes, byte counts and thinking-block shape. */
 export function agentTrace(events, { home, description }) {
   const cwd = events.find((e) => typeof e.cwd === "string")?.cwd;
   const t0 = Date.parse(events.find((e) => e.timestamp)?.timestamp ?? 0);
@@ -136,7 +129,6 @@ export function armTable(agents) {
   });
 }
 
-/** A file-like token: at least one directory segment and an extension. */
 export const FILE_RE = /(?:^|[^A-Za-z0-9_./-])((?:[A-Za-z0-9_.@-]+\/)+[A-Za-z0-9_.@-]+\.[A-Za-z0-9]{1,6})(?![A-Za-z0-9])/g;
 
 export function proseBytes(text) {
