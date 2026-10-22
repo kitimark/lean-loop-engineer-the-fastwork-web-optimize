@@ -3,7 +3,7 @@ Branch `worktree-wf_72a277bd-458-1` (CI copy `ci/gate-settle-scroll-timeline`), 
 Last commit before the gate run: ff8c8cd1 (`git log -1` for the tip).
 
 CI runs:
-- 39774976109 breakpoint-gate, workflow_dispatch, `fw=hero.exit:threaded`, engines both, ref ci/gate-settle-scroll-timeline: running (dispatched by `pnpm -s fw run --gate --engines both --fw hero.exit:threaded --ref ci/gate-settle-scroll-timeline`).
+- 39774976109 breakpoint-gate, workflow_dispatch, `fw=hero.exit:threaded`, engines both, ref ci/gate-settle-scroll-timeline: complete, merge job red (Chromium pass 0 unsettled, WebKit fail 147 readings 0 unsettled; before: 155 unsettled per engine) (dispatched by `pnpm -s fw run --gate --engines both --fw hero.exit:threaded --ref ci/gate-settle-scroll-timeline`).
 - 39774945083 lean (push): success. All other push runs: skipped by their guards (breakpoint-gate push 39774945049 skipped).
 - Reference (before the fix): 39769627588 (same inputs): 155 unsettled samples, 0 fail readings, merge red.
 
@@ -11,6 +11,7 @@ Done and verified locally (not a result): Lean `Fw.Gate.Settle` builds (`lake bu
 Rule: `runCount` counts document-timeline animations only; page.mjs: 3 filters + `counts` predicate in `settleInPage` use `a.timeline instanceof DocumentTimeline`.
 Note: `research/notes/2026/10-2x-gate-settle-scroll-timeline.md` (section 4 result to fill from the gate run).
 
-Open: read run 39774976109 (merge job, unsettled count per engine vs 155), fill note section 4, full package test + `lean/scripts/check.sh` via slot, ci-paths test, runner land-inputs test, dry land, `fw review ready`.
+Result (note section 4): unsettled 155 -> 0 on both engines; WebKit fails are `translate` of hero.orbit/hero.deck cards (rewrite -0.000022px vs 0px), a finding for hero-exit-threaded.
+Open: full package test + `lean/scripts/check.sh` via slot, ci-paths test, runner land-inputs test, dry land, `fw review ready`.
 A gate verdict that turns from unsettled into a real fail on hero.exit:threaded cells is a finding for hero-exit-threaded, not a defect here.
 Conventions: BSD sed needs `sed -i ''`; the worktree needs `pnpm install --offline --frozen-lockfile` before a push (pre-push hook).

@@ -55,6 +55,21 @@ Lean: `lean/Fw/Gate/Settle.lean` (`runCount`, `runCountAll`, `runCount_document`
 - If this unblocks the cells and a real parity difference appears on `hero.exit:threaded`, that is a finding for
   `hero-exit-threaded`, not a defect here.
 
-## 4. Result
+## 4. Result (MEASURED)
 
-Filled in from the gate run of this branch (section 5 of the handoff `docs/team/handoffs/gate-settle-scroll-timeline.md`).
+Run 39774976109, breakpoint-gate dispatched on `ci/gate-settle-scroll-timeline` (tip ff8c8cd1) with `fw=hero.exit:threaded`, engines both,
+against run 39769627588 (same inputs, before the fix; both read from the merge job log).
+
+| | run 39769627588 (before) | run 39774976109 (after) |
+|---|---|---|
+| Chromium: unsettled samples | 155 | 0 |
+| Chromium verdict | unsettled (1476 pass, 0 fail, 431 cells not ok) | pass (504 cells, 7049 pass, 0 fail, 7 excused) |
+| WebKit (Playwright, Linux): unsettled samples | 155 | 0 |
+| WebKit verdict | unsettled (1476 pass, 0 fail, 360 cells not ok) | fail (6618 pass, 147 fail, 291 excused, 17 cells not ok) |
+| Settle wait, arm samples waited in total (Chromium / WebKit) | 556704 ms / 610352 ms | 195104 ms / 166672 ms |
+
+The unsettled samples are gone on both engines, and the merge verdict is no longer decided by them. The WebKit verdict now
+shows what the unsettled samples were hiding: 147 failing readings, all of one item: `translate` of the `card` role of `hero.orbit`
+(1060 probes, first `desk-601`) and `hero.deck` (164 probes, first `desk-319`); original `0px`, rewrite `-0.000022px -0.000015px`
+(`-0.00001px -0.000008px` on the deck). This is a scroll-driven value that is not exactly zero at scroll offset 0 on WebKit with
+the flag; it is a finding for `hero-exit-threaded` (accepted limit of this task), not a settle defect. Chromium has no such reading.
