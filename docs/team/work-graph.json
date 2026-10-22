@@ -15391,7 +15391,24 @@
     "apps/runner/src/fw-main.ts",
     "apps/runner/src/run.ts",
     "apps/runner/src/timing.ts",
-    "docs/team/tools/timings.md"
+    "docs/team/tools/timings.md",
+    "apps/runner/src/card.ts",
+    "apps/runner/src/fw-groups.ts",
+    "apps/runner/src/run-phases.ts",
+    "apps/runner/src/slot-span.ts",
+    "scripts/slot-self.mjs",
+    "apps/runner/test/span-names.test.ts",
+    "apps/runner/test/land-dry.test.ts",
+    "apps/runner/src/polish.ts",
+    "apps/runner/src/oracle.ts",
+    "apps/runner/src/console.ts",
+    "apps/runner/src/incidents.ts",
+    "apps/runner/src/preview.ts",
+    "apps/runner/src/review.ts",
+    "apps/runner/src/task.ts",
+    "apps/runner/src/step.ts",
+    "apps/runner/src/plan.ts",
+    "apps/runner/src/ci.ts"
    ]
   },
   {
