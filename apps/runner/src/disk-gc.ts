@@ -223,31 +223,28 @@ export function gatherNamed(repo: string): string[] | null {
 
 export type EventFacts = { liveAgents: string[]; landedTasks: string[]; finishedRuns: string[] };
 
-export function gatherEventFacts(repo: string): EventFacts | null {
+/** Reads the event log lines the facts need and asks Lean (`ops.diskGcFacts`, `Fw.Ops.DiskGc.liveAgents`) for the
+ *  facts; null (not gathered, so class 4 keeps everything) when there is no log, a relevant line lacks its `seq`,
+ *  or fwcore refuses. The TS here only parses lines; the liveness and the run ends are decided in Lean. */
+export function gatherEventFacts(repo: string, call: Call): EventFacts | null {
   let text: string;
   try { text = readFileSync(join(repo, ".fw-console", "events.jsonl"), "utf8"); } catch { return null; }
-  const names = new Map<string, Set<string>>(), ended = new Set<string>(), agentRun = new Map<string, string>();
-  const done = new Set<string>(), runs = new Set<string>();
+  const events: Record<string, unknown>[] = [];
   for (const l of text.split("\n")) {
     if (!l.includes('"type":"agent.') && !l.includes('"type":"task.done"')) continue;
-    let e: { type?: string; key?: string; agent?: string; name?: string; task?: string };
+    let e: { seq?: unknown; type?: unknown; key?: unknown; agent?: unknown; name?: unknown; task?: unknown };
     try { e = JSON.parse(l); } catch { continue; }
-    const key = e.key ?? "";
-    if (e.type === "task.done" && e.task) done.add(e.task);
-    else if (e.type === "agent.label" && e.agent && e.name) {
-      if (!names.has(e.agent)) names.set(e.agent, new Set());
-      names.get(e.agent)!.add(e.name);
-      const m = /^wfid-label:(wf_[^:]+):/.exec(key);
-      if (m) agentRun.set(e.agent, m[1]!);
-    } else if (e.type === "agent.stop") {
-      if (e.agent) ended.add(e.agent);
-      const m = /^wfr-end:(wf_[A-Za-z0-9_-]+)/.exec(key);
-      if (m) runs.add(m[1]!);
-    }
+    if (typeof e.seq !== "number" || typeof e.type !== "string") return null;
+    const o: Record<string, unknown> = { seq: e.seq, type: e.type };
+    for (const k of ["key", "agent", "name", "task"] as const) if (typeof e[k] === "string") o[k] = e[k];
+    events.push(o);
   }
-  const live = new Set<string>();
-  for (const [id, ns] of names) if (!ended.has(id) && !runs.has(agentRun.get(id) ?? "")) for (const n of ns) live.add(n);
-  return { liveAgents: [...live], landedTasks: [...done], finishedRuns: [...runs] };
+  try {
+    const r = call({ op: "ops.diskGcFacts", events });
+    const strs = (v: unknown): string[] | null => Array.isArray(v) && v.every((x) => typeof x === "string") ? (v as string[]) : null;
+    const liveAgents = strs(r.liveAgents), landedTasks = strs(r.landedTasks), finishedRuns = strs(r.finishedRuns);
+    return liveAgents && landedTasks && finishedRuns ? { liveAgents, landedTasks, finishedRuns } : null;
+  } catch { return null; }
 }
 
 export function ownerMarker(dir: string): { task: string; run: string } | null {
@@ -259,7 +256,7 @@ export function ownerMarker(dir: string): { task: string; run: string } | null {
 
 export type Facts = { req: Record<string, unknown>; cands: Cand[]; lazy: Map<string, () => number>; outputs: () => string[] | null };
 
-export function gather(roots: Roots, a: Args, io: Io, now: number, uid: number): Facts {
+export function gather(roots: Roots, a: Args, io: Io, now: number, uid: number, call: Call): Facts {
   const on = (c: Cls) => a.classes.includes(c);
   const cands: Cand[] = [];
   const lazy = new Map<string, () => number>();
@@ -316,7 +313,7 @@ export function gather(roots: Roots, a: Args, io: Io, now: number, uid: number):
 
   if (on("scratch")) {
     req.cited = gatherCited(roots.repo);
-    const ev = gatherEventFacts(roots.repo);
+    const ev = gatherEventFacts(roots.repo, call);
     if (ev) { req.liveAgents = ev.liveAgents; req.landedTasks = ev.landedTasks; req.finishedRuns = ev.finishedRuns; }
     for (const s of listDir(roots.scratch)) {
       const pad = join(roots.scratch, s, "scratchpad");
@@ -425,7 +422,7 @@ export function diskGc(o: RunOpts): RunResult {
   const roots = o.roots ?? defaultRoots(o.repo, io, env);
   const now = o.now ?? secs(Date.now());
   const freeBefore = freeBytes(roots.repo);
-  const f = gather(roots, o.args, io, now, uid);
+  const f = gather(roots, o.args, io, now, uid, o.call);
   const reply = decide(o.call, f);
   const lines: string[] = [];
   let deleted = 0, failed = 0;

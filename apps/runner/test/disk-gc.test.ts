@@ -14,7 +14,7 @@ const cases = readFileSync(join(root, "packages", "contracts", "golden", "ops", 
 describe("ops.diskGc golden vectors replay through fwcore", () => {
   const call = fwcoreCall(root);
   it("covers both ops and every class", () => {
-    expect(new Set(cases.map((c) => c.request.op))).toEqual(new Set(["ops.diskGc", "ops.diskGcPath"]));
+    expect(new Set(cases.map((c) => c.request.op))).toEqual(new Set(["ops.diskGc", "ops.diskGcPath", "ops.diskGcFacts"]));
     const listed = new Set(cases.flatMap((c) => ((c.response.items ?? []) as { num?: number }[]).map((i) => i.num)));
     expect([...listed].sort()).toEqual([1, 2, 3, 4, 5, 6, 7]);
   });
@@ -204,26 +204,40 @@ describe("fw disk-gc on a temp tree", () => {
     expect(num(["--list", "--class", "4"])).toEqual(["old"]);
     expect(num(["--list", "--class", "4", "--pressure"])).toEqual(["old"]);
     const events = [
-      { type: "agent.label", agent: "a1", name: "mid", key: "wfid-label:wf_9:a1" },
-      { type: "agent.label", agent: "a2", name: "other", key: "wfid-label:wf_9:a2" },
+      { seq: 1, type: "agent.label", agent: "a1", name: "mid", key: "wfid-label:wf_9:a1" },
+      { seq: 2, type: "agent.label", agent: "a2", name: "other", key: "wfid-label:wf_9:a2" },
     ].map((e) => JSON.stringify(e)).join("\n") + "\n";
     mkdirSync(x.croot, { recursive: true });
     writeFileSync(join(x.croot, "events.jsonl"), events);
-    expect(gatherEventFacts(x.repo)!.liveAgents.sort()).toEqual(["mid", "other"]);
+    expect(gatherEventFacts(x.repo, call)!.liveAgents.sort()).toEqual(["mid", "other"]);
     expect(num(["--list", "--class", "4", "--pressure"])).toEqual(["old", "owned"]);
-    writeFileSync(join(x.croot, "events.jsonl"), JSON.stringify({ type: "agent.label", agent: "a2", name: "other", key: "wfid-label:wf_9:a2" }) + "\n");
+    writeFileSync(join(x.croot, "events.jsonl"), JSON.stringify({ seq: 2, type: "agent.label", agent: "a2", name: "other", key: "wfid-label:wf_9:a2" }) + "\n");
     expect(num(["--list", "--class", "4"])).toEqual(["old"]);
     expect(num(["--list", "--class", "4", "--pressure"])).toEqual(["mid", "old", "owned"]);
     writeFileSync(join(x.croot, "events.jsonl"), [
-      { type: "task.done", task: "t1", key: "td:t1" },
-      { type: "agent.stop", agent: "a3", key: "wfr-end:wf_1" },
+      { seq: 3, type: "task.done", task: "t1", key: "td:t1" },
+      { seq: 4, type: "agent.stop", agent: "a3", key: "wfr-end:wf_1" },
     ].map((e) => JSON.stringify(e)).join("\n") + "\n");
-    expect(gatherEventFacts(x.repo)).toEqual({ liveAgents: [], landedTasks: ["t1"], finishedRuns: ["wf_1"] });
+    expect(gatherEventFacts(x.repo, call)).toEqual({ liveAgents: [], landedTasks: ["t1"], finishedRuns: ["wf_1"] });
     expect(num(["--list", "--class", "4"])).toEqual(["old", "owned"]);
   });
 
   it("gatherEventFacts is null without an event log", () => {
     const x = tree();
-    expect(gatherEventFacts(x.repo)).toBeNull();
+    expect(gatherEventFacts(x.repo, call)).toBeNull();
+  });
+
+  it("gatherEventFacts orders stop and resume by seq, and fails closed on a line without seq or a refusing fwcore", () => {
+    const x = tree();
+    mkdirSync(x.croot, { recursive: true });
+    const log = (es: object[]) => writeFileSync(join(x.croot, "events.jsonl"), es.map((e) => JSON.stringify(e)).join("\n") + "\n");
+    log([{ seq: 7, type: "agent.spawn", agent: "a" }, { seq: 1, type: "agent.stop", agent: "a" }, { seq: 2, type: "agent.label", agent: "a", name: "n" }]);
+    expect(gatherEventFacts(x.repo, call)!.liveAgents).toEqual(["n"]);
+    log([{ seq: 7, type: "agent.stop", agent: "a" }, { seq: 1, type: "agent.spawn", agent: "a" }, { seq: 2, type: "agent.label", agent: "a", name: "n" }]);
+    expect(gatherEventFacts(x.repo, call)!.liveAgents).toEqual([]);
+    log([{ type: "agent.stop", agent: "a" }]);
+    expect(gatherEventFacts(x.repo, call)).toBeNull();
+    log([{ seq: 1, type: "agent.stop", agent: "a" }]);
+    expect(gatherEventFacts(x.repo, () => { throw new Error("no fwcore"); })).toBeNull();
   });
 });
