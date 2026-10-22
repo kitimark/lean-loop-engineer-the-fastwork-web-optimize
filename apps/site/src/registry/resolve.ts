@@ -21,7 +21,6 @@ function splitEntry(entry: string): { id: string; variant: string; impl?: string
   return m ? { id: m[1]!, variant: m[2]!, impl: m[3] } : null;
 }
 
-/** Mirrors Lean `BuildsOpen.layerOpts` and `splitLayer`: `layer:opts` with opts one of c, s, cs. */
 const LAYER_OPTS = ['c', 's', 'cs'];
 
 function splitLayer(entry: string): LayerOptEntry | null {
@@ -29,7 +28,6 @@ function splitLayer(entry: string): LayerOptEntry | null {
   return f.length === 2 && f[0] !== '' && LAYER_OPTS.includes(f[1]!) ? { layer: f[0]!, opts: f[1]! } : null;
 }
 
-/** Mirrors Lean `BuildsOpen.layerErrors`: unparsable, unknown and repeated layers, in entry order. */
 function layerEntries(entries: string[], parts: PartDef[], errors: string[]): LayerOptEntry[] {
   const out: LayerOptEntry[] = [];
   const known = new Set(parts.flatMap((p) => (p.layers ?? []).map((l) => l.id)));
@@ -68,7 +66,7 @@ function presetEntries(
 /**
  * Resolution order (PLAN 6.3): URL `?fw=` over `?preset=` over the registry default `faithful`.
  * Mirrors Lean `Fw.Flags.resolve` (defaults = head variant, overrides applied in order, last wins, then
- * `Config.ok`). `?fwl=` entries are validated as Lean `BuildsOpen.layerErrors` does and listed in URL order. The `?preset=`, `@impl` and URL syntax are TS-only extras with no Lean spec yet.
+ * `Config.ok`). The `?preset=`, `@impl` and URL syntax are TS-only extras with no Lean spec yet.
  * Unknown ids, unknown variants and violated `requires`/`conflicts` are errors, never fallbacks.
  */
 export function resolve(

@@ -40,7 +40,6 @@ export interface FwConfig {
   impl: Record<string, Impl>;
 }
 
-/** One `?fwl=layer:opts` entry, in URL order. */
 export interface LayerOptEntry {
   layer: string;
   opts: string;

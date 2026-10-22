@@ -24,7 +24,6 @@ if (!resolved.ok || only.kind === 'err') {
   window.__fw.hydrated = true;
   createRoot(rootEl).render(<ErrorPage errors={errors} />);
 } else {
-  // `?fwl=` layer options become one unlayered <style> in the head (Lean-generated text), once, before first render.
   installLayerStyle(document, resolved.layerOpts);
   // The static HTML was prerendered for one config. Same hash: hydrate. Different: render on the client
   // (hydrating other markup would mismatch). `mode` is recorded so a run can refuse client-render builds.
