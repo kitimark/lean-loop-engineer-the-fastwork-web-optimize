@@ -30,7 +30,7 @@ describe("slot span keys against the Lean golden", () => {
 describe("seenKeys reads the keys of a kind from span lines", () => {
   it("strips dry and cached, ignores the old pooled label and other kinds", () => {
     const chunk = ['{"step":"slot run check sh a.sh"}', '{"step":"slot run check sh a.sh cached"}', '{"step":"slot run check"}',
-      '{"step":"slot run check cached"}', '{"step":"slot run land pnpm fw dry"}', '{"step":"slot run test pnpm x test"}'].join("\n");
+      '{"step":"slot run check cached"}', '{"step":"slot run land pnpm fw dry"}', '{"step":"slot run land pnpm fw dry cached"}', '{"step":"slot run test pnpm x test"}'].join("\n");
     expect(seenKeys(chunk, "check")).toEqual(["sh a.sh"]);
     expect(seenKeys(chunk, "land")).toEqual(["pnpm fw"]);
   });

@@ -73,7 +73,7 @@ export function seenKeys(chunk: string, kind: string): string[] {
   for (const m of chunk.matchAll(/"step":"([^"]*)"/g)) {
     const s = m[1]!;
     if (!s.startsWith(pre)) continue;
-    const k = s.slice(pre.length).replace(/ (dry|cached)$/, "");
+    const k = s.slice(pre.length).replace(/ cached$/, "").replace(/ dry$/, "");
     if (k !== "" && k !== "dry" && k !== "cached") out.add(k);
   }
   return [...out];
