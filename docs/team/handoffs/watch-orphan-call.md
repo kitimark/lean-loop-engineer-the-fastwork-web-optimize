@@ -1,6 +1,6 @@
 Branch: worktree-wf_c64abe11-ec7-1
 Worktree: .claude/worktrees/wf_c64abe11-ec7-1
-Last commit: see `git log -1` (WIP committed with this file)
+Last commit: 083b33ac (polish 3cc0eb94).
 CI runs: none pushed (the unit is Lean + a TS unit test; no CI trigger needed)
 
 State
@@ -12,5 +12,5 @@ State
   key when it has none) voids calls of other messages in both `sum.open` and `sig.open`. FOLD_SCHEMA goes from 1 to 2, which drops
   cache entries of the old shape. Tests: apps/runner/test/watch-fold.test.ts (golden, resume at every cut,
   synthetic missing-result transcript, parallel calls).
-Verified: Fold.lean compiles, obs golden --check passes. Runner test run: see report.
+Verified: check.sh green, runner tests 2605/2605 pass.
 Open: bgTasks end detection unchanged (accepted limit). Cause of the missing result record is INFERRED.
