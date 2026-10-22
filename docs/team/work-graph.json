@@ -14766,7 +14766,8 @@
     "docs/team/handoffs/earn-bound-arm.md",
     "apps/runner/src/land.ts",
     "research/findings/ledger.json"
-   ]
+   ],
+   "evidence": "95ac2f2"
   },
   {
    "devices": [
