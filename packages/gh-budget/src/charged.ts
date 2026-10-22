@@ -4,6 +4,7 @@
 // The glue never reads or prints a token and never calls `gh api`.
 import { spawnSync } from "node:child_process";
 import type { Env, GhOut, Json } from "./core.ts";
+import { LockBusy } from "./lock.ts";
 import { loadState, locked, saveState } from "./state.ts";
 
 /** Response header lines worth keeping from a GH_DEBUG=api trace (httpretty prints response headers as `< Name: value`). */
@@ -31,13 +32,27 @@ export type Ran = {
 };
 export type NotRan =
   | { ran: false; decision: "wait"; until: number; reason: string }
-  | { ran: false; decision: "stop"; reason: string };
+  | { ran: false; decision: "stop"; reason: string }
+  | { ran: false; decision: "busy"; reason: string };
 export type Charged = Ran | NotRan;
 
 export type Decide = (state: Json | null, now: number) => Json;
 
-/** One attempt: decide, and run gh only on `issue`. Holds the state lock from decision to observation. */
-export function chargedOnce(env: Env, decide: Decide, buildArgs: (reply: Json) => string[], timeoutMs = 60_000): Charged {
+/**
+ * One attempt: decide, and run gh only on `issue`. Holds the state lock from decision to observation.
+ * `lockWaitMs` bounds the wait for the lock: when another process still holds it after that, the result is `busy` (no gh call, nothing
+ * booked) instead of a thrown error after 120 s. `timeoutMs` kills a gh process that hangs (the lock is held that long).
+ */
+export function chargedOnce(env: Env, decide: Decide, buildArgs: (reply: Json) => string[], timeoutMs = 60_000, lockWaitMs = 120_000): Charged {
+  try {
+    return chargedLocked(env, decide, buildArgs, timeoutMs, lockWaitMs);
+  } catch (e) {
+    if (e instanceof LockBusy) return { ran: false, decision: "busy", reason: `the gh budget lock stayed held by another fw process for ${lockWaitMs / 1000} s` };
+    throw e;
+  }
+}
+
+function chargedLocked(env: Env, decide: Decide, buildArgs: (reply: Json) => string[], timeoutMs: number, lockWaitMs: number): Charged {
   return locked(env, () => {
     const s = loadState(env.dir);
     const r = decide(s, env.now());
@@ -51,7 +66,8 @@ export function chargedOnce(env: Env, decide: Decide, buildArgs: (reply: Json) =
     });
     const stderr = String(out.stderr ?? ""); // the trace: filtered below, then dropped
     const lines = traceLines(stderr);
-    const error = out.status === 0 ? undefined : errorSummary(stderr, out.status);
+    const timedOut = (out as { error?: NodeJS.ErrnoException }).error?.code === "ETIMEDOUT";
+    const error = out.status === 0 ? undefined : timedOut ? `gh timed out after ${timeoutMs / 1000} s and was killed` : errorSummary(stderr, out.status);
     const o = env.core({ op: "ci.budget.observe", now: env.now(), state: r.state, lines });
     saveState(env.dir, o.state as Json);
     const h = o.headers as { status?: number | null } | undefined;
@@ -59,7 +75,7 @@ export function chargedOnce(env: Env, decide: Decide, buildArgs: (reply: Json) =
       ran: true, kind: String(r.kind), cost: Number(r.cost), code: out.status, status: h?.status ?? null,
       stdout: String(out.stdout ?? ""), lines, ...(error ? { error } : {}), now: env.now(), reply: r, state: o.state as Json,
     };
-  });
+  }, lockWaitMs);
 }
 
 export type Opts = {
@@ -69,13 +85,17 @@ export type Opts = {
   block?: boolean;
   /** Epoch second after which a blocking call returns the wait it last got. */
   deadline?: number;
+  /** Kill the gh process after this many ms (default 60000). */
+  timeoutMs?: number;
+  /** Give up waiting for the shared lock after this many ms and return `busy` (default 120000). */
+  lockWaitMs?: number;
 };
 
 /** `chargedOnce`, repeated on wait when `block` is set. A `stop` is always returned. */
 export async function chargedCall(env: Env, decide: Decide, buildArgs: (reply: Json) => string[], o: Opts = {}): Promise<Charged> {
   for (;;) {
-    const res = chargedOnce(env, decide, buildArgs);
-    if (res.ran || res.decision === "stop" || !o.block) return res;
+    const res = chargedOnce(env, decide, buildArgs, o.timeoutMs, o.lockWaitMs);
+    if (res.ran || res.decision === "stop" || res.decision === "busy" || !o.block) return res;
     if (o.deadline !== undefined && res.until >= o.deadline) return res;
     await env.sleepUntil(res.until);
   }

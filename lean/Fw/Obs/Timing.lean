@@ -743,6 +743,72 @@ theorem judge_insert_other (p : Params) (a cs b : List Sample) (i : Nat) (s : Sa
   have h : cs.filter Sample.full = [] := List.filter_eq_nil_iff.2 (fun c h' => by simp [hc c h'])
   simp only [List.filter_append, h, List.append_nil]
 
+/-- A sample of another key in the history changes neither the window of `k` nor any verdict against it. -/
+theorem windowOf_insert_key (p : Params) (a b : List Sample) (x : Sample) (k : Key) (h : x.key ≠ k) :
+    windowOf p (a ++ x :: b) k = windowOf p (a ++ b) k := by
+  simp [windowOf, List.filter_append, h]
+
+theorem judge_insert_key (p : Params) (a b : List Sample) (x : Sample) (i : Nat) (s : Sample) (h : x.key ≠ s.key) :
+    judge p (a ++ x :: b) i s = judge p (a ++ b) i s := by
+  simp only [judge, windowOf_insert_key p a b x s.key h]
+
+/-- The span steps of one `fw run` (task dispatch-latency): the plan, the three parts of the `gh workflow run` call (the wait for the
+shared gh-budget lock with the fwcore decision, the sleep after a budget `wait`, the gh process), then the CI wait and the filing.
+The writer is `apps/runner/src/run-phases.ts` (`stepOf`); before the split the first four were one step, `run dispatch`.
+-/
+def runSteps : List String :=
+  ["run plan", "run dispatch lock", "run dispatch backoff", "run dispatch call", "run wait", "run file"]
+
+/-- The span steps of one `fw watch` pass: the whole pass, the time its gh call waited for the lock, the gh process, the sleep after a
+budget wait, and the rest of the pass (writer: `passParts` in `run-phases.ts`).
+-/
+def passSteps : List String :=
+  ["watch pass", "watch pass gh lock", "watch pass gh call", "watch pass gh backoff", "watch pass other"]
+
+theorem runSteps_nodup : runSteps.Nodup := by decide
+
+theorem passSteps_nodup : passSteps.Nodup := by decide
+
+/-! The bounds of the gh calls that hold the shared gh-budget lock (writers: `DISPATCH_LIMITS` in `apps/runner/src/run.ts`,
+`WATCH_LOCK_WAIT_MS` in `apps/runner/src/watch-collect.ts`; a test compares them with these numbers). Before, a hung gh held the lock for
+the 60 s process timeout and a caller waited up to 120 s for it. -/
+
+/-- The longest a `gh workflow run` waits for the lock before it is refused by name. -/
+def dispatchLockWaitMs : Nat := 60000
+
+/-- The longest a `gh workflow run` process lives (it took 2.2-2.7 s in the measured dispatches). -/
+def dispatchCallTimeoutMs : Nat := 20000
+
+/-- The longest a watch pass waits for the lock before it skips its gh call. -/
+def watchLockWaitMs : Nat := 3000
+
+/-- The longest the gh process of a watch pass lives (the collector's own call timeout). -/
+def watchCallTimeoutMs : Nat := 10000
+
+/-- The limits before the task: the lock wait of `locked` and the process timeout of `chargedOnce`. -/
+def oldLockWaitMs : Nat := 120000
+
+def oldCallTimeoutMs : Nat := 60000
+
+theorem dispatch_limits_lighter : dispatchLockWaitMs < oldLockWaitMs ∧ dispatchCallTimeoutMs < oldCallTimeoutMs := by decide
+
+theorem watch_limits_lighter : watchLockWaitMs < oldLockWaitMs ∧ watchCallTimeoutMs < oldCallTimeoutMs := by decide
+
+/-- The last of three dispatches that start together waits behind two calls, and is not refused while they stay within their timeout. -/
+theorem three_dispatches_fit : 2 * dispatchCallTimeoutMs ≤ dispatchLockWaitMs := by decide
+
+/-- A watch pass blocks on gh for at most the lock wait plus its own call timeout. -/
+theorem watch_gh_block_bound : watchLockWaitMs + watchCallTimeoutMs = 13000 := by decide
+
+/-- A sample of another step leaves the verdict unchanged: each part of a `fw run` (`runSteps`) and of
+a `watch pass` (`passSteps`, distinct names by the two `_nodup` theorems) is judged on the history of its own step only.
+-/
+theorem judge_insert_step (p : Params) (a b : List Sample) (x s : Sample) (i : Nat)
+    (hne : x.step ≠ s.step) : judge p (a ++ x :: b) i s = judge p (a ++ b) i s := by
+  apply judge_insert_key
+  intro e
+  exact hne (congrArg Key.step e)
+
 def SampleVerdict.unindexed (v : SampleVerdict) : SampleVerdict := { v with idx := 0 }
 
 def Verdict.unindexed : Verdict → Verdict
@@ -1786,7 +1852,24 @@ def cases : List (String × Params × List Sample) :=
         [waitS "fw" "slot acquire sim" 3 400000 [(.simBusy, 390000)]] ++ run "fw" "slot acquire sim" .«local» 3 [3000]),
    ("a contended local sample (load 24) that waited 1900 s under simBusy is not slow: queued (the remainder is contended)",
       {}, run "fw" "slot acquire sim" .«local» 3 [2000, 2000, 2000, 2000, 2000] ++
-        [waitS "fw" "slot acquire sim" 24 1902000 [(.simBusy, 1900000)]])]
+        [waitS "fw" "slot acquire sim" 24 1902000 [(.simBusy, 1900000)]]),
+   ("run split: a dispatch lock wait of 31 s after five 1 s waits is slow while the plan and the gh call history are steady (timings of 2026-10-23: dispatches took 31-35 s when 2-3 started in the same second)",
+      {}, run "fw" "run dispatch lock" .«local» 3 [1000, 1000, 1000, 1000, 1000] ++
+        run "fw" "run dispatch call" .«local» 3 [2000, 2000, 2000, 2000, 2000] ++ run "fw" "run plan" .«local» 3 [500, 500, 500, 500, 500] ++
+        run "fw" "run dispatch lock" .«local» 3 [31000]),
+   ("run split: the gh call of that same slow dispatch (2.5 s after five 2 s calls) is ok: a slow lock does not slow the call part",
+      {}, run "fw" "run dispatch lock" .«local» 3 [1000, 1000, 1000, 1000, 1000, 31000] ++
+        run "fw" "run dispatch call" .«local» 3 [2000, 2000, 2000, 2000, 2000, 2500]),
+   ("run split: a plan of 31 s after five 500 ms plans is slow (the fwcore plan and the checks, not the dispatch call)",
+      {}, run "fw" "run plan" .«local» 3 [500, 500, 500, 500, 500] ++ run "fw" "run dispatch call" .«local» 3 [2000, 2000, 2000, 2000, 2000, 2000] ++
+        run "fw" "run plan" .«local» 3 [31000]),
+   ("run split: a watch pass gh lock wait of 115 s after five 1 s waits is slow while the rest of the pass (8 s after five 8 s) is ok",
+      {}, run "fw" "watch pass gh lock" .«local» 3 [1000, 1000, 1000, 1000, 1000, 115000] ++
+        run "fw" "watch pass other" .«local» 3 [8000, 8000, 8000, 8000, 8000, 8000]),
+   ("run split: a 115 s watch pass gh lock wait after five 1 s waits, judged on its own, is slow",
+      {}, run "fw" "watch pass gh lock" .«local» 3 [1000, 1000, 1000, 1000, 1000, 115000]),
+   ("run split: the first sample of a new split step has no history of its own, so the old run dispatch history does not judge it: noBaseline",
+      {}, run "fw" "run dispatch" .«local» 3 [5000, 5000, 5000, 5000, 5000] ++ run "fw" "run dispatch lock" .«local» 3 [20000])]
 
 /-- The last verdict code of each case's samples, and the structural groups: the expected outcomes. -/
 def lastCode (p : Params) (ss : List Sample) : Option Code :=
@@ -1802,7 +1885,8 @@ def lastCode (p : Params) (ss : List Sample) : Option Code :=
    some .slow, some .ok, some .slow, some .ok, some .slow, some .contended, some .slow, some .slow, some .ok, some .ok,
    some .noBaseline, some .noBaseline, some .slow, some .slow, some .ok, some .ok, some .slow, some .slow, some .slow,
    some .queued, some .slow, some .queued, some .queued, some .queued, some .slow, some .slow, some .ok, some .slow,
-   some .slow, some .ok, some .queued]
+   some .slow, some .ok, some .queued,
+   some .slow, some .ok, some .slow, some .ok, some .slow, some .noBaseline]
 #guard (fullVerdicts {} (runX "fw" "land dry" .«local» 3 landDry)).map (fun v => (v.durMs, v.code)) ==
   [(19140, .noBaseline), (20226, .noBaseline), (20710, .noBaseline), (20102, .noBaseline), (32103, .noBaseline),
    (28484, .ok), (879, .ok)]

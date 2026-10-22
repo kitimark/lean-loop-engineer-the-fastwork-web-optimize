@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { Env } from "@fw/gh-budget";
 import { GhClock, passParts, phasedEnv, runPhases, stepOf } from "../src/run-phases.ts";
-import { runCli } from "../src/run.ts";
+import { readFileSync } from "node:fs";
+import { DISPATCH_LIMITS, runCli } from "../src/run.ts";
+import { WATCH_LOCK_WAIT_MS } from "../src/watch-collect.ts";
 
 const rec = () => {
   const out: { step: string; exit: number | null | undefined; extra?: object }[] = [];
@@ -109,5 +111,19 @@ describe("the parts of a dispatch call", () => {
     expect(e.core({ op: "ci.budget.reserve" })).toEqual({ op: "ci.budget.reserve", decision: "issue" });
     e.core({ op: "ci.budget.observe" });
     expect(seen).toEqual(["issue", "ghEnd"]);
+  });
+});
+
+describe("the gh call bounds equal the Lean numbers", () => {
+  const lean = readFileSync(new URL("../../../lean/Fw/Obs/Timing.lean", import.meta.url), "utf8");
+  const num = (name: string) => Number(new RegExp(`def ${name} : Nat := (\\d+)`).exec(lean)?.[1]);
+  it("dispatch and watch", () => {
+    expect(DISPATCH_LIMITS).toEqual({ timeoutMs: num("dispatchCallTimeoutMs"), lockWaitMs: num("dispatchLockWaitMs") });
+    expect(WATCH_LOCK_WAIT_MS).toBe(num("watchLockWaitMs"));
+  });
+  it("the step names equal the Lean lists", () => {
+    const list = (name: string) => [...(new RegExp(`def ${name} : List String :=\\s*\\[([^\\]]*)\\]`).exec(lean)?.[1] ?? "").matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+    expect(list("runSteps")).toEqual((["plan", "lock", "backoff", "call", "wait", "file"] as const).map((p) => stepOf(p)));
+    expect(list("passSteps").slice(1)).toEqual(passParts({ ms: { lock: 1, call: 1, backoff: 1 }, calls: 1 }, 9).map((p) => p.step));
   });
 });

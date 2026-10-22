@@ -517,6 +517,9 @@ const run: Runner = (cmd, args, timeout, cwd, anyExit = false) =>
   });
 const text = (r: RunOut): string | null => (typeof r === "string" ? r : null);
 
+/** How long a watch pass waits for the shared gh-budget lock before it skips its gh call (TS stand-in for Lean `RunSplit.watchLockWaitMs`). */
+export const WATCH_LOCK_WAIT_MS = 3000;
+
 /** Wraps a Runner so every `gh` call is booked with the request budget (`ghCharged`, fwcore decides). Other programs pass
  *  through. A wait or stop from the budget, a gh failure, or an unavailable budget (no fwcore) is a failed call (`null`):
  *  the caller carries the previous value forward. The collector never blocks on the budget. `getEnv` is lazy and cached. */
@@ -525,7 +528,7 @@ export function chargedRunner(base: Runner, getEnv: () => Env): Runner {
     if (cmd !== "gh") return base(cmd, args, timeout, cwd, anyExit);
     try {
       watchGh.start();
-      const res = await ghCharged(getEnv(), args, { cost: args.includes("--workflow") ? 2 : 3 }).finally(() => watchGh.end());
+      const res = await ghCharged(getEnv(), args, { cost: args.includes("--workflow") ? 2 : 3, timeoutMs: timeout, lockWaitMs: WATCH_LOCK_WAIT_MS }).finally(() => watchGh.end());
       return res.ran && res.code === 0 ? res.stdout : null;
     } catch { return null; }
   };

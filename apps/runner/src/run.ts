@@ -149,11 +149,20 @@ export function ghCost(args: string[]): number {
   return 1;
 }
 
+/**
+ * The bounds of the `gh workflow run` call (task dispatch-latency; TS stand-in for Lean `Fw.Obs.Timing.RunSplit.dispatchLockWaitMs` and
+ * `dispatchCallTimeoutMs`): the call takes 2.2-2.7 s (MEASURED), and it holds the shared gh-budget lock all that time, so a hung gh blocked every
+ * other dispatch and watch pass for up to the 60 s default timeout. Past 20 s the gh process is killed; a caller that cannot get the lock in 60 s
+ * (three calls at the call limit) gets a named refusal instead of the 120 s thrown error.
+ */
+export const DISPATCH_LIMITS = { timeoutMs: 20_000, lockWaitMs: 60_000 } as const;
+
 export function chargedGh(env: Env): Gh {
   return async (args, o) => {
     const what = args.slice(0, 3).join(" ");
     if (o?.signal?.aborted) throw new Error(`gh ${what} not made: aborted`);
-    const res = await ghCharged(env, args, { cost: ghCost(args), block: true, ...(o?.deadline !== undefined ? { deadline: o.deadline } : {}) });
+    const res = await ghCharged(env, args, { cost: ghCost(args), block: true, ...(o?.deadline !== undefined ? { deadline: o.deadline } : {}), ...(args[0] === "workflow" && args[1] === "run" ? DISPATCH_LIMITS : {}) });
+    if (!res.ran && res.decision === "busy") throw new Error(`gh ${what} not made: ${res.reason}; nothing was dispatched, run it again`);
     if (!res.ran) throw new Error(`gh ${what} not made: the request budget says ${res.decision} (${res.reason}); see \`fw ci budget\``);
     if (res.code !== 0) throw new Error(`gh ${what} failed: ${res.error ?? "unknown"}`);
     return res.stdout;
