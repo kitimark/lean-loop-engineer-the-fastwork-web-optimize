@@ -11,6 +11,7 @@ import { collectGh, type GhFetch, type GhSnap } from "./watch-gh.ts";
 import { collectSvcs, type Svc } from "./watch-svc.ts";
 import { foldFile, sweepCache } from "./watch-cache.ts";
 import { BG_TEXT, finishInfo, finishSignals, foldText, initFold, parseNotifications, waitingNote } from "./watch-fold.ts";
+import { parseWaits } from "./slot-queue.ts";
 export { parseNotifications, waitingNote };
 
 export interface SpoolEvent {
@@ -832,7 +833,7 @@ export async function collectSnapshot(p: Paths, now = Date.now(), params: Record
 
 // ---- timing samples (timing-alert): the spans of .fw-console/timings.jsonl as the samples of `obs.slow` ----
 /** A `Fw.Obs.Timing.Sample` on the wire. */
-export interface TimingSample { tool: string; step: string; durMs: number; host: "local" | "ci"; load: number; runKind?: string; exit?: number; skipped?: true; waitMs?: number; leaseMs?: number }
+export interface TimingSample { tool: string; step: string; durMs: number; host: "local" | "ci"; load: number; runKind?: string; exit?: number; skipped?: true; waitMs?: number; waits?: { why: string; ms: number }[] }
 /** Spans in time order -> samples (the last `cap` ones: a bound on the input size, not a threshold; the verdict is Lean's).
  *  Lines that do not parse or lack a field are skipped. `load` is the floor of the 1-min load average; an optional span `kind` (the dispatch input digest) is the run kind of the history. */
 export function parseSamples(text: string, cap = 3000): TimingSample[] {
@@ -847,11 +848,12 @@ export function parseSamples(text: string, cap = 3000): TimingSample[] {
   }
   return rows.sort((a, b) => a.at - b.at).slice(-cap).map((r) => r.s);
 }
-/** The holder an acquire span waited behind (task timing-queue-wait) as the sample's `waitMs` and `leaseMs`; Lean decides what the wait means. */
-function queueOf(q: unknown): { waitMs?: number; leaseMs?: number } {
-  const o = q as { waitMs?: unknown; leaseMs?: unknown } | null | undefined;
-  if (o === null || typeof o !== "object" || typeof o.waitMs !== "number" || !(o.waitMs > 0) || typeof o.leaseMs !== "number" || !(o.leaseMs >= 0)) return {};
-  return { waitMs: Math.round(o.waitMs), leaseMs: Math.round(o.leaseMs) };
+/** The queue an acquire span waited in (task timing-queue-wait) as the sample's `waitMs` and `waits`; the names are parsed
+ *  against the Lean tag list (`parseWaits`, unknown names dropped); Lean decides what the wait means. */
+function queueOf(q: unknown): { waitMs?: number; waits?: { why: string; ms: number }[] } {
+  const o = q as { waitMs?: unknown; waits?: unknown } | null | undefined;
+  if (o === null || typeof o !== "object" || typeof o.waitMs !== "number" || !(o.waitMs > 0)) return {};
+  return { waitMs: Math.round(o.waitMs), waits: parseWaits(o.waits) };
 }
 /** The samples of the console's timings file (empty when there is none). */
 export function readSamples(p: Paths): TimingSample[] {

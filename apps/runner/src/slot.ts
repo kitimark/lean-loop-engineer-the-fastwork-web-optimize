@@ -3,7 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { appendFileSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, readFileSync, readSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import { SLOT_SUBS, WAIT_TOOL, runLabel, waitStep } from "./slot-span.ts";
-import { type Behind, type Queue, behindOf, mergeBehind, noteQueue, queueOf } from "./slot-queue.ts";
+import { type Queue, type WaitMs, addWait, noteQueue, queueOf } from "./slot-queue.ts";
 import { begin, timingsFile } from "./timing.ts";
 import { basename, dirname, join } from "node:path";
 import {
@@ -393,7 +393,8 @@ export async function acquire(d: Deps, kind: Kind, leaseS: number, waitS: number
   const t0 = nowS();
   withState(d, (st) => { st.queue.push({ owner: d.owner, token, kind, since: t0, till: t0 + d.params.leaseS, foot: 0, leaseS: d.params.leaseS }); });
   let last = "";
-  let behind: Behind | null = null;
+  let waits: WaitMs[] = [];
+  let prev = t0;
   for (;;) {
     const s = d.probe();
     const g = withState(d, (st): Grant => {
@@ -409,14 +410,15 @@ export async function acquire(d: Deps, kind: Kind, leaseS: number, waitS: number
       const held = grant(d.params, me, s.time, opened === null ? leaseS : capLease(opened, s.time, leaseS), v.verdict === "admit" ? v.footMB : 0);
       if (v.verdict === "admit") st.holders.push(held);
       if (opened !== null) st.window = opened;
-      if (v.verdict === "wait") behind = mergeBehind(behind, behindOf(v.why, hs.filter((h) => s.time < h.till)));
       return { token, owner: d.owner, kind, till: held.till, verdict: v };
     });
+    if (g.verdict.verdict === "wait") waits = addWait(waits, g.verdict.why, (s.time - prev) * 1000);
+    prev = s.time;
     const line = describe(g.verdict);
     if (line !== last) { d.err(`slot ${kind}: ${line}\n`); last = line; }
     for (const l of simCheck(d, s.time, true, false)) d.err(`${l}\n`);
     if (g.verdict.verdict === "admit") {
-      const queue = queueOf(behind, (s.time - t0) * 1000);
+      const queue = queueOf(kind, waits, (s.time - t0) * 1000);
       noteQueue(queue);
       event(d, "acquire", kind, { waitMs: (s.time - t0) * 1000 });
       return queue === null ? g : { ...g, queue };
