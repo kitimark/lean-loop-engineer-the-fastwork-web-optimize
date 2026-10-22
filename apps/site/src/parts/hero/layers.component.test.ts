@@ -5,16 +5,16 @@ import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
 import { afterEach, describe, expect, it } from 'vitest';
-import { Hero } from '../parts/hero';
-import { HeroCountdown } from '../parts/hero.countdown';
-import { MorphPanel } from '../parts/morph.panel';
-import { Nav } from '../parts/nav';
-import type { PartDef } from './types';
+import { Hero } from './index';
+import { HeroCountdown } from '../hero.countdown';
+import { MorphPanel } from '../morph.panel';
+import { Nav } from '../nav';
+import type { PartDef } from '../../registry/types';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const partsDir = resolve(__dirname, '../parts');
-const leanSrc = resolve(__dirname, '../../../../lean/Fw/Console/BuildsOpen.lean');
+const partsDir = resolve(__dirname, '..');
+const leanSrc = resolve(__dirname, '../../../../../lean/Fw/Console/BuildsOpen.lean');
 
 /** The seven parts whose boxes are declared (layer-decl); other parts declare none yet. */
 const DECLARED = ['hero', 'hero.cue', 'hero.orbit', 'hero.deck', 'hero.countdown', 'nav', 'morph.panel'];

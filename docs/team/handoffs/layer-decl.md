@@ -14,9 +14,9 @@ What was built (task layer-decl, attributes only, no behaviour change)
   nav_bar, nav_earn, morph.panel_panel. Roots carry both data-fw and data-fw-layer (refinement of the design, which kept data-fw only on roots).
 - Refinement: hero.countdown_strip added (the strip variant has no face box). The morph.countdown instance of HeroCountdown carries no layer attribute (layer={fwId === 'hero-countdown'}).
 - Registry types: LayerDef, PartDef.layers?, VariantDef.files? (apps/site/src/registry/types.ts).
-- Test: apps/site/src/registry/layers.component.test.ts (schema: unique ids, okChar parsed from lean/Fw/Console/BuildsOpen.lean, files exist and cover the folder; DOM: every data-fw-layer declared, every layer found, text flag).
+- Test: apps/site/src/parts/hero/layers.component.test.ts (schema: unique ids, okChar parsed from lean/Fw/Console/BuildsOpen.lean, files exist and cover the folder; DOM: every data-fw-layer declared, every layer found, text flag).
 
 Writes outside the task list (lead adds to graph writes)
 - lean/Fw/Parts/FootprintData.lean and packages/contracts/golden/parts/footprint.gen.json (regenerated with part-footprint.mjs --write; line numbers moved).
 - apps/runner/src/land.ts: "apps/site" read list gains lean/Fw/Console/BuildsOpen.lean (land-inputs test asked for it).
-- apps/site/src/registry/layers.component.test.ts (new test, inside registry/).
+- none besides the two above (the test sits in the hero folder, in scope).
