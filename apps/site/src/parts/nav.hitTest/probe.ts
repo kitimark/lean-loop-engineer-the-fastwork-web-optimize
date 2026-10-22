@@ -11,7 +11,7 @@ import {
   type Rect,
 } from './logic';
 import { navHeroProgress } from '../hero.exit/logic';
-import { BOX_ATTR, boxActive, clipRect } from '../nav/box';
+import { boxActive, clipRect } from '../nav/box';
 
 /**
  * DOM adapters over the pure logic. The faithful sequence is the original's nav callback (2.DyWL8TcE.js:12955-13007):
@@ -63,21 +63,21 @@ export function readProfileSticky(env: ProbeEnv): boolean {
 }
 
 /**
- * The rect the probe point is taken from. A nav with a union box (data-fw-box, flags clip-box and up) shows its pill as a
- * clip, so its DOM rect is the union: while the box applies the pill rect is the Lean `clipRect` (NavClipBox.probe_eq).
- * The DOM rect is still read, for the forced layout of the original's sequence.
+ * The rect the probe point is taken from. A nav with a union box (`box`, flags clip-box and up) shows its pill as a clip, so
+ * its DOM rect is the union: while the box applies the pill rect is the Lean `clipRect` (NavClipBox.probe_eq). The DOM rect is
+ * always read, for the forced layout of the original's sequence; without `box` nothing else is read.
  */
-export function navProbeRect(nav: HTMLElement, env: ProbeEnv): Rect {
+export function navProbeRect(nav: HTMLElement, env: ProbeEnv, box = false): Rect {
   const dom = nav.getBoundingClientRect();
-  if (nav.getAttribute(BOX_ATTR) !== 'union' || env.win.innerWidth === undefined) return dom;
+  if (!box || env.win.innerWidth === undefined || !nav.classList.contains('is-morphing')) return dom;
   const m = Number.parseFloat(nav.dataset.fwMorph ?? '');
-  if (!boxActive(Number.isFinite(m) ? m : 0, nav.classList.contains('is-locale-open')) || !nav.classList.contains('is-morphing')) return dom;
+  if (!boxActive(Number.isFinite(m) ? m : 0, nav.classList.contains('is-locale-open'))) return dom;
   return clipRect({ w: env.win.innerWidth, h: env.win.innerHeight }, m);
 }
 
 /** faithful F(): rect read, write `pointer-events: none` on the nav, elementFromPoint (forces style + layout), restore. */
-export function probeFaithful(nav: HTMLElement, env: ProbeEnv = defaultEnv()): boolean {
-  const { x, y } = hitPoint(navProbeRect(nav, env));
+export function probeFaithful(nav: HTMLElement, env: ProbeEnv = defaultEnv(), box = false): boolean {
+  const { x, y } = hitPoint(navProbeRect(nav, env, box));
   const prev = nav.style.pointerEvents;
   nav.style.pointerEvents = 'none';
   const el = env.doc.elementFromPoint(x, y);
@@ -91,8 +91,8 @@ export function toHits(stack: readonly Element[], nav: Element): Hit[] {
 }
 
 /** elements-skip: rect read, elementsFromPoint, first box outside the nav or allow-listed. No style write. */
-export function probeElements(nav: HTMLElement, env: ProbeEnv = defaultEnv()): boolean {
-  const { x, y } = hitPoint(navProbeRect(nav, env));
+export function probeElements(nav: HTMLElement, env: ProbeEnv = defaultEnv(), box = false): boolean {
+  const { x, y } = hitPoint(navProbeRect(nav, env, box));
   const stack = env.doc.elementsFromPoint(x, y);
   const i = allowHit((h) => h.reEnabled, toHits(stack, nav));
   return classify(i < 0 ? null : (stack[i] ?? null));
@@ -114,11 +114,11 @@ export interface NavFrameResult {
 }
 
 /** One nav callback in the original's access order; the variant picks the hit-test step. */
-export function navFrame(variant: NavVariant, nav: HTMLElement, morph: number, env: ProbeEnv = defaultEnv()): NavFrameResult {
+export function navFrame(variant: NavVariant, nav: HTMLElement, morph: number, env: ProbeEnv = defaultEnv(), box = false): NavFrameResult {
   const profileSticky = readProfileSticky(env);
   let hit: boolean | null;
   if (variant === 'hit-skip' && skipHitTest(morph)) hit = null;
-  else if (variant === 'elements-skip') hit = probeElements(nav, env);
-  else hit = probeFaithful(nav, env);
+  else if (variant === 'elements-skip') hit = probeElements(nav, env, box);
+  else hit = probeFaithful(nav, env, box);
   return { hit, profileSticky, hero: readHeroProgress(env) };
 }

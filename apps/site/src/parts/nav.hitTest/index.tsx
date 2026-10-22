@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { registerScroll } from '../../engine/scroll';
 import { changed, isOnDark, NAV_HIT_ORDER, NAV_SELECTOR } from './logic';
+import { BOX_ATTR } from '../nav/box';
 import { navFrame, type NavVariant } from './probe';
 
 /** Class the nav carries over a dark section (same name as the original's). */
@@ -38,6 +39,7 @@ export function NavHitTest({ variant, navSelector = NAV_SELECTOR }: { variant: s
     const nav = document.querySelector<HTMLElement>(navSelector);
     if (!nav) return;
     const v = parseVariant(variant);
+    const box = nav.getAttribute(BOX_ATTR) === 'union';
     let hit = false; // last known hit answer (stale while skipped)
     let current = nav.classList.contains(ON_DARK_CLASS);
     // The morph signal of the original's class directive: the nav part's tween writes `data-fw-morph` once per frame.
@@ -50,7 +52,7 @@ export function NavHitTest({ variant, navSelector = NAV_SELECTOR }: { variant: s
     mo.observe(nav, { attributes: true, attributeFilter: ['data-fw-morph'] });
     const offScroll = registerScroll('nav.hitTest', NAV_HIT_ORDER, () => {
       const morph = readMorph(nav);
-      const r = navFrame(v, nav, morph);
+      const r = navFrame(v, nav, morph, undefined, box);
       if (r.hit !== null) hit = r.hit;
       const next = isOnDark(hit, morph);
       if (!changed(current, next)) return;

@@ -11,39 +11,41 @@ const golden = (name: string): Row[] =>
     .map((l) => decodeRat(JSON.parse(l)) as Row);
 const clipRows = golden('nav-clip-box');
 const barRows = golden('nav-bar-fixed');
-const css = readFileSync(new URL('./nav.module.css', import.meta.url), 'utf8');
+const navCss = readFileSync(new URL('./nav.module.css', import.meta.url), 'utf8');
+const css = readFileSync(new URL('./box.module.css', import.meta.url), 'utf8');
 
-function decls(sel: string, from = 0): Map<string, string> {
-  const at = css.indexOf(`${sel} {`, from);
+function decls(sel: string, from = 0, sheet = css): Map<string, string> {
+  const at = sheet.indexOf(`${sel} {`, from);
   if (at < 0) throw new Error(`no rule ${sel}`);
-  const open = css.indexOf('{', at);
+  const open = sheet.indexOf('{', at);
   let depth = 0;
   let end = open;
-  for (; end < css.length; end++) {
-    if (css[end] === '{') depth++;
-    if (css[end] === '}' && --depth === 0) break;
+  for (; end < sheet.length; end++) {
+    if (sheet[end] === '{') depth++;
+    if (sheet[end] === '}' && --depth === 0) break;
   }
-  const body = css.slice(open + 1, end);
+  const body = sheet.slice(open + 1, end);
   const out = new Map<string, string>();
   for (const m of body.matchAll(/(--[\w-]+|[a-z-]+):\s*([^;]*?);/gs)) out.set(m[1]!, m[2]!.replace(/\s+/g, ' ').trim());
   return out;
 }
 
-const firstPhone = css.indexOf('@media (width<=640px)');
+const navPhoneAt = navCss.indexOf('@media (width<=640px)');
+const boxPhoneAt = css.indexOf('@media (width<=640px)');
 const MORPH = ':global(.is-morphing):not(:global(.is-locale-open))';
-const navBase = decls('.nav');
-const navPhone = decls('.nav', firstPhone);
-const barBase = decls('.bar');
-const barPhone = decls('.bar', firstPhone);
+const navBase = decls('.nav', 0, navCss);
+const navPhone = decls('.nav', navPhoneAt, navCss);
+const barBase = decls('.bar', 0, navCss);
+const barPhone = decls('.bar', navPhoneAt, navCss);
 const clipBase = decls(`.boxClip${MORPH}`);
-const clipPhone = decls(`.boxClip${MORPH}`, firstPhone);
-const clipBar = decls(`.boxClip${MORPH} > .bar`);
-const clipPanel = decls(`.boxClip${MORPH} > :global([data-fw="morph-panel"])`);
-const fixedBar = decls(`.boxBar${MORPH} > .bar`);
-const fixedLogo = decls(`.boxBar${MORPH} .logo`);
-const fixedActions = decls(`.boxBar${MORPH} .actions`);
-const logo3d = decls(`.box3d${MORPH} .logo`);
-const logo3dPhone = decls(`.box3d${MORPH} .logo`, firstPhone);
+const clipPhone = decls(`.boxClip${MORPH}`, boxPhoneAt);
+const clipBar = decls(`.boxClip${MORPH} > :global([data-fw-box-role='bar'])`);
+const clipPanel = decls(`.boxClip${MORPH} > :global([data-fw='morph-panel'])`);
+const fixedBar = decls(`.boxBar${MORPH} > :global([data-fw-box-role='bar'])`);
+const fixedLogo = decls(`.boxBar${MORPH} :global([data-fw-box-role='logo'])`);
+const fixedActions = decls(`.boxBar${MORPH} :global([data-fw='nav-actions'])`);
+const logo3d = decls(`.box3d${MORPH} :global([data-fw-box-role='logo'])`);
+const logo3dPhone = decls(`.box3d${MORPH} :global([data-fw-box-role='logo'])`, boxPhoneAt);
 
 function px(expr: string, env: Map<string, string>, vw: number, vh: number): number {
   let e = expr;
@@ -119,7 +121,7 @@ describe('nav clip-box: the CSS evaluates to the Lean rows', () => {
   it('applies only while the nav morphs with its locale menu closed', () => {
     expect(morphing.length).toBeGreaterThan(0);
     expect(css).not.toMatch(/^\s*\.box(Clip|Bar|3d)\s*\{/m);
-    for (const sel of [`.boxClip${MORPH}`, `.boxBar${MORPH} > .bar`, `.box3d${MORPH} .logo`]) expect(css).toContain(`${sel} {`);
+    for (const sel of [`.boxClip${MORPH}`, `.boxBar${MORPH} > :global([data-fw-box-role='bar'])`, `.box3d${MORPH} :global([data-fw-box-role='logo'])`]) expect(css).toContain(`${sel} {`);
   });
   it('lays the nav out as the union box and clips the pill', () => {
     for (const r of morphing) {

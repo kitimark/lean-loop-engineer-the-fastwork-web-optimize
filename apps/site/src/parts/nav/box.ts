@@ -24,6 +24,9 @@ export type BoxVariant = (typeof BOX_VARIANTS)[number];
 /** The attribute the nav carries when its box is the union box (read by nav.hitTest). */
 export const BOX_ATTR = 'data-fw-box';
 
+/** Marks the bar and the logo of a union-box nav for box.module.css (a class of nav.module.css cannot be named there). */
+export const BOX_ROLE_ATTR = 'data-fw-box-role';
+
 export function boxVariant(variant: string): BoxVariant | null {
   return (BOX_VARIANTS as readonly string[]).includes(variant) ? (variant as BoxVariant) : null;
 }

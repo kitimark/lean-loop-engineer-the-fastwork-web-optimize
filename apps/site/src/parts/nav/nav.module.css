@@ -88,9 +88,6 @@
         transform 0.32s cubic-bezier(0.16, 1, 0.3, 1),
         width 0.68s cubic-bezier(0.33, 0, 0.2, 1);
     }
-    .boxClip:global(.is-hero-pill):global(.is-hero-chrome-ready) {
-      transition-property: background, opacity, transform;
-    }
   }
   .bar {
     --nav-bar-inset-x: 24px;
@@ -222,61 +219,6 @@
     inset: 0;
     transform: translate(-130%);
   }
-  /* Variants clip-box, bar-fixed, logo-3d (Lean: Fw.Parts.NavClipBox, NavBarFixed; golden nav-clip-box.jsonl, nav-bar-fixed.jsonl).
-     While the nav morphs with its locale menu closed it keeps the union of its boxes (panel width; top and height reach the
-     highest top and lowest bottom of the morph) and the pill is a clip-path inset with the original's corner radius. The
-     rest and locale-open states keep the original rules. The `width` entry of the transition lists is dropped at rest: it
-     would animate the union width back to the pill when the morph ends. */
-  .boxClip:not(:global(.is-morphing), :global(.is-scroll-hidden)) {
-    transition-property: background, opacity, transform, visibility;
-  }
-  .boxClip:global(.is-morphing):not(:global(.is-locale-open)) {
-    --box-ix: calc((var(--panel-w) - var(--pill-w)) * (1 - var(--morph)) / 2);
-    --box-it: calc(4px * var(--morph));
-    --box-ib: calc((var(--panel-h) - var(--pill-h) + 4px) * (1 - var(--morph)));
-    top: 16px;
-    width: var(--panel-w);
-    height: calc(var(--panel-h) + 4px);
-    border-radius: 0;
-    clip-path: inset(var(--box-it) var(--box-ix) var(--box-ib) var(--box-ix) round calc(32px - 12px * var(--morph)));
-    will-change: clip-path, background;
-  }
-  .boxClip:global(.is-morphing):not(:global(.is-locale-open)) > .bar {
-    top: var(--box-it);
-    right: var(--box-ix);
-    left: var(--box-ix);
-  }
-  .boxClip:global(.is-morphing):not(:global(.is-locale-open)) > :global([data-fw="morph-panel"]) {
-    inset: var(--box-it) var(--box-ix) var(--box-ib) var(--box-ix);
-    width: auto;
-    height: auto;
-  }
-  .boxBar:global(.is-morphing):not(:global(.is-locale-open)) > .bar {
-    --logo-x: calc(
-      (var(--panel-w) - var(--pill-w)) / 2 +
-        ((var(--pill-w) - (var(--panel-w) - var(--pill-w))) / 2 - var(--nav-bar-inset-x)) * var(--morph) +
-        (var(--panel-w) - var(--pill-w)) / 2 * var(--morph) * var(--morph)
-    );
-    --actions-x: calc((var(--panel-w) - var(--pill-w)) / 2 * (var(--morph) - 1));
-    top: 0;
-    right: 0;
-    left: 0;
-    translate: 0 var(--box-it);
-    will-change: transform;
-  }
-  .boxBar:global(.is-morphing):not(:global(.is-locale-open)) .logo {
-    left: var(--nav-bar-inset-x);
-    translate: calc(var(--logo-x) - 50% * var(--morph)) 0;
-  }
-  .boxBar:global(.is-morphing):not(:global(.is-locale-open)) .actions {
-    translate: var(--actions-x) -50%;
-  }
-  .box3d:global(.is-morphing):not(:global(.is-locale-open)) .logo {
-    --logo-s: 1;
-    translate: none;
-    scale: none;
-    transform: translate3d(calc(var(--logo-x) - 50% * var(--morph)), 0, 0) scale(var(--logo-s));
-  }
   @media (prefers-reduced-motion: no-preference) {
     .nav:not(:global(.is-hero-pill)) .btn.earn {
       -webkit-mask-image: var(--nav-earn-mask);
@@ -342,15 +284,6 @@
     .btn.earn {
       max-width: calc(var(--earn-layout) * 9.5rem);
       padding-inline: calc(var(--earn-layout) * 16px);
-    }
-    .boxClip:global(.is-morphing):not(:global(.is-locale-open)) {
-      --box-it: calc(4px * (1 - var(--morph)));
-      --box-ib: calc((var(--panel-h) - var(--pill-h) - 4px) * (1 - var(--morph)));
-      top: 12px;
-      height: var(--panel-h);
-    }
-    .box3d:global(.is-morphing):not(:global(.is-locale-open)) .logo {
-      --logo-s: 0.75;
     }
   }
   @media (prefers-reduced-motion: reduce) {

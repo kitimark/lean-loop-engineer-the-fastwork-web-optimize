@@ -4,7 +4,6 @@ import { hitPoint } from './logic';
 import { navProbeRect, probeFaithful, type ProbeEnv } from './probe';
 
 interface Fake {
-  attrs: Record<string, string>;
   classes: Set<string>;
   morph: string;
   rect: { left: number; top: number; width: number; height: number };
@@ -12,7 +11,6 @@ interface Fake {
 
 function nav(f: Fake): HTMLElement {
   return {
-    getAttribute: (k: string) => f.attrs[k] ?? null,
     dataset: { fwMorph: f.morph },
     classList: { contains: (c: string) => f.classes.has(c) },
     style: { pointerEvents: '' },
@@ -36,29 +34,28 @@ function env(w: number, h: number, seen: { x: number; y: number }[]): ProbeEnv {
 
 const vp = { w: 390, h: 844 };
 const union = unionRect(vp);
-const base = (): Fake => ({ attrs: { 'data-fw-box': 'union' }, classes: new Set(['is-morphing']), morph: '0.5', rect: union });
+const base = (): Fake => ({ classes: new Set(['is-morphing']), morph: '0.5', rect: union });
 
 describe('nav.hitTest probes the Lean box of a union-box nav', () => {
   it('uses the clip rect while the box applies', () => {
-    expect(navProbeRect(nav(base()), env(vp.w, vp.h, []))).toEqual(clipRect(vp, 0.5));
+    expect(navProbeRect(nav(base()), env(vp.w, vp.h, []), true)).toEqual(clipRect(vp, 0.5));
   });
   it('probes the point of the original pill, not of the union box', () => {
     const seen: { x: number; y: number }[] = [];
-    probeFaithful(nav(base()), env(vp.w, vp.h, seen));
+    probeFaithful(nav(base()), env(vp.w, vp.h, seen), true);
     const want = hitPoint(clipRect(vp, 0.5));
     expect(seen).toEqual([want]);
     expect(want).not.toEqual(hitPoint(union));
   });
-  it('reads the DOM rect at rest, with the locale menu open, and without the union attribute', () => {
+  it('reads the DOM rect at rest, with the locale menu open, and without the union box', () => {
     const e = env(vp.w, vp.h, []);
     const rest = base();
     rest.classes.clear();
-    expect(navProbeRect(nav(rest), e)).toBe(rest.rect);
+    expect(navProbeRect(nav(rest), e, true)).toBe(rest.rect);
     const locale = base();
     locale.classes.add('is-locale-open');
-    expect(navProbeRect(nav(locale), e)).toBe(locale.rect);
+    expect(navProbeRect(nav(locale), e, true)).toBe(locale.rect);
     const faithful = base();
-    faithful.attrs = {};
-    expect(navProbeRect(nav(faithful), e)).toBe(faithful.rect);
+    expect(navProbeRect(nav(faithful), e, false)).toBe(faithful.rect);
   });
 });
