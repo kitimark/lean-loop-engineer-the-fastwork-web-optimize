@@ -14,9 +14,9 @@ import { attachFresh } from './poll.mjs';
 import { T, attempts } from './timeouts.mjs';
 import { takeCensus } from './census.mjs';
 import { findDevice, simctl, sleep } from './sim.mjs';
-import { decodePng, encodePng, cropImage } from './pathpix-png.mjs';
+import { decodePng, encodePng, cropImage, sameImage } from './pathpix-png.mjs';
 import { offsets as leanOffsets } from './pathpix.mjs';
-import { BOX_EXPR, FREEZE_EXPR, HOLD_EXPR, NEAR_IMAGES_EXPR, MARK_ON, MARK_OFF, pathSearch } from './pathpix-page.mjs';
+import { BOX_EXPR, FREEZE_EXPR, HOLD_EXPR, NEAR_IMAGES_EXPR, VIDEO_EXPR, MARK_ON, MARK_OFF, pathSearch } from './pathpix-page.mjs';
 import { mask, maskEmpty } from './pathpix.mjs';
 
 /**
@@ -88,7 +88,7 @@ export async function runWebkitLane({ siteDir, out, run, layers: onlyLayers = nu
         ctx.url = url;
         // the page's own timers (the headline's word cycle) are held as soon as it has hydrated and its fonts are in, so every
         // arm starts from the same state and a frame does not change under the camera (Fw.Gate.Freeze covers the animations)
-        await loadFresh(ctx.c, { clock: 'pinned', settleMs, timers: 'hold' });
+        await loadFresh(ctx.c, { clock: 'pinned', settleMs, timers: 'hold' }); // settleMs is 0: HOLD_EXPR holds the timers at hydration
         await ctx.c.runAsync(HOLD_EXPR);
         await ctx.c.evaluate(FREEZE_EXPR);
       };
@@ -168,21 +168,33 @@ export async function runWebkitLane({ siteDir, out, run, layers: onlyLayers = nu
           const y = offs[k];
           await scrollHold(ctx.c, y, { holdMs });
           await ctx.c.runAsync(NEAR_IMAGES_EXPR);
+          const video = await ctx.c.runAsync(VIDEO_EXPR);
           await ctx.c.evaluate(FREEZE_EXPR);
           await sleep(400);
           await ctx.c.evaluate(FREEZE_EXPR); // a transition the late frames started ends here too
           await sleep(300);
           const census = await takeCensus(ctx.c, { paintWindowMs: 0 });
           const here = JSON.parse(await ctx.c.evaluate(BOX_EXPR));
+          // two captures of one load (P4). The screen may still be settling (an image's decode at its final size): shoot until two
+          // consecutive captures are equal, at most 6 times; the last two are kept, so a screen that never settles stays visible as unequal
           const files = [];
-          for (let rep = 0; rep < 2; rep++) {
-            const png = decodePng(screenshot(dev.udid, join(tmp, 'shot.png')));
-            const f = `shots/${arm.replace(/[^\w.-]/g, '_')}_${idx[k]}_${rep}.png`;
-            writeFileSync(join(out, f), encodePng(cropImage(png, content[0], content[1], frame.w, frame.h)));
-            files.push(f);
+          let prev = null, tries = 0;
+          for (let rep = 0; rep < 6; rep++) {
+            const png = cropImage(decodePng(screenshot(dev.udid, join(tmp, 'shot.png'))), content[0], content[1], frame.w, frame.h);
+            tries++;
+            if (prev && (sameImage(prev, png) || rep === 5)) {
+              for (const [n, img] of [[0, prev], [1, png]]) {
+                const f = `shots/${arm.replace(/[^\w.-]/g, '_')}_${idx[k]}_${n}.png`;
+                writeFileSync(join(out, f), encodePng(img));
+                files.push(f);
+              }
+              break;
+            }
+            prev = png;
+            await sleep(500);
           }
           rows[k] = {
-            i: idx[k], y, scrollY: here.scrollY, boxes: here.boxes, files, dprMilli: census.dprMilli,
+            i: idx[k], y, scrollY: here.scrollY, boxes: here.boxes, files, tries, video: typeof video === 'string' ? JSON.parse(video) : video, dprMilli: census.dprMilli,
             layers: census.layers.filter((l) => l.layer).map((l) => ({ layer: l.layer, boundsU: l.boundsU, compositedBounds: l.compositedBounds, memory: l.memory, reasons: l.reasons })),
             layerCount: census.layerCount,
           };

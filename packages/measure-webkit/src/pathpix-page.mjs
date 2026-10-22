@@ -23,15 +23,32 @@ export const MARK_OFF = `(() => { const d = document.getElementById('fw-pp-mark'
 /** Search of the path-only arm: only `layer` forced onto its own compositing layer (site-layer-opts: `?fwl=<layer>:c`). */
 export const pathSearch = (layer) => `?fwl=${encodeURIComponent(layer).replace(/%2C/gi, ',')}:c`;
 
-/** Wait for hydration and fonts, then hold the page's timers (page.mjs TIMER_HOLD_SRC): nothing the page scheduled fires by itself after this. */
+/**
+ * Hold the page's timers (page.mjs TIMER_HOLD_SRC) the frame after it has hydrated, then wait for fonts and eager images (promises and
+ * frame counts only: a timer made now is held and would never fire). The hold comes first because the hero headline's word chain runs
+ * on timers from hydration (first change after 2200 ms): holding later puts the chain at a phase that depends on how long the load took.
+ */
 export const HOLD_EXPR = `(async () => {
   const raf = () => new Promise((r) => requestAnimationFrame(() => r()));
   for (let i = 0; i < 200 && !(window.__fw && window.__fw.hydrated); i++) await raf();
+  await raf();
+  const held = window.__wk.hold();
   await document.fonts.ready;
   const eager = [...document.images].filter((i) => i.loading !== 'lazy');
-  await Promise.race([Promise.all(eager.map((i) => (i.complete ? Promise.resolve() : new Promise((r) => { i.addEventListener('load', r, { once: true }); i.addEventListener('error', r, { once: true }); })).then(() => i.decode()).catch(() => {}))), new Promise((r) => setTimeout(r, 4000))]);
+  const cap = (async () => { for (let i = 0; i < 600; i++) await raf(); })();
+  await Promise.race([Promise.all(eager.map((i) => (i.complete ? Promise.resolve() : new Promise((r) => { i.addEventListener('load', r, { once: true }); i.addEventListener('error', r, { once: true }); })).then(() => i.decode()).catch(() => {}))), cap]);
   await raf(); await raf();
-  return window.__wk.hold();
+  return held;
+})()`;
+
+/** Pause every video on its first frame (the page autoplays muted loops), wait for the seek, and report [readyState, paused, currentTime] of each. */
+export const VIDEO_EXPR = `(async () => {
+  const raf = () => new Promise((r) => requestAnimationFrame(() => r()));
+  const vs = [...document.querySelectorAll('video')];
+  for (const v of vs) { v.pause(); if (v.currentTime !== 0) { try { v.currentTime = 0; } catch (e) {} } }
+  for (let i = 0; i < 300 && vs.some((v) => v.seeking); i++) await raf();
+  await raf(); await raf();
+  return JSON.stringify(vs.map((v) => [v.readyState, v.paused, v.currentTime]));
 })()`;
 
 /** After a scroll: wait until every image within two viewports of the fold has loaded and decoded (a lazy image the scroll started, and the fade-in it triggers, must end before the freeze pass). Bounded by frames, not timers: the page's timers are held. */

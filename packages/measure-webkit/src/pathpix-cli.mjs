@@ -14,7 +14,7 @@ const { values: v } = parseArgs({
   args: process.argv.slice(2).filter((a) => a !== '--'),
   options: {
     site: { type: 'string' }, out: { type: 'string' }, layers: { type: 'string' }, 'p-layers': { type: 'string' }, 'deadline-min': { type: 'string' }, offsets: { type: 'string' }, run: { type: 'string' },
-    strips: { type: 'string', default: 'changed' }, settle: { type: 'string', default: '6000' }, hold: { type: 'string', default: '800' },
+    strips: { type: 'string', default: 'changed' }, settle: { type: 'string', default: '0' }, hold: { type: 'string', default: '800' },
     'analyze-only': { type: 'boolean', default: false },
   },
 });
