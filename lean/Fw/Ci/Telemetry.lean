@@ -127,7 +127,7 @@ def spansOf (rs : List Record) : List Span := (byStart rs).flatMap Record.spans
 
 /-- Each span with the Timing verdict against the spans before it. -/
 def judged (p : Params) (ts : List Span) : List (Span × SampleVerdict) :=
-  ts.mapIdx fun i t => (t, Fw.Obs.Timing.judge p ((ts.map (·.sample)).take i) i t.sample)
+  ts.mapIdx fun i t => (t, Fw.Obs.Timing.judgeQ p ((ts.map (·.sample)).take i) i t.sample)
 
 /-- Spans whose verdict is slow: the investigate items. -/
 def slowItems (p : Params) (ts : List Span) : List (Span × SampleVerdict) :=

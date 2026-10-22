@@ -945,7 +945,8 @@ def optI (j : Json) (k : String) : Except String (Option Int) :=
 def sampleOf (j : Json) : Except String Fw.Obs.Timing.Sample := do
   pure { tool := ← str j "tool", step := ← str j "step", durMs := ← nat j "durMs",
          host := ← hostOf "host" (← field j "host"), load := ← natD j "load" 0,
-         kind := ← Fw.Wire.Ops.strD j "runKind" "", exit := ← optI j "exit", skipped := ← boolD j "skipped" false }
+         kind := ← Fw.Wire.Ops.strD j "runKind" "", exit := ← optI j "exit", skipped := ← boolD j "skipped" false,
+         waitMs := ← natD j "waitMs" 0, leaseMs := ← natD j "leaseMs" 0 }
 
 /-- Decode a group. -/
 def groupOf (j : Json) : Except String Fw.Obs.Timing.Group := do
@@ -962,7 +963,7 @@ def paramsOf (j : Json) : Except String Fw.Obs.Timing.Params := do
          kDen := ← natD j "kDen" d.kDen, budgetMs := ← natD j "budgetMs" d.budgetMs,
          budgets := ← (← arrD j "budgets").mapM (fun b => do pure (← str b "tool", ← nat b "ms")),
          ceilings := ← (← arrD j "ceilings").mapM (fun c => do pure (← str c "tool", ← str c "step", ← nat c "ms")),
-         loadMax := ← natD j "loadMax" d.loadMax, stages := ← (← arrD j "stages").mapM stageOf }
+         loadMax := ← natD j "loadMax" d.loadMax, graceMs := ← natD j "graceMs" d.graceMs, stages := ← (← arrD j "stages").mapM stageOf }
 
 /-- Decode a request body: `params` (optional) and `samples` (time order). -/
 def reqOf (j : Json) : Except String (Fw.Obs.Timing.Params × List Fw.Obs.Timing.Sample) := do

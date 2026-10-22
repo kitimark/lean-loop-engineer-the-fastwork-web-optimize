@@ -1470,10 +1470,11 @@ theorem slowSteps_uncontended (p : Timing.Params) (ss : List Timing.Sample) (s :
       x.tool ++ "/" ++ x.step ++ (if x.kind == "" then "" else "#" ++ x.kind) = s := by
   obtain ⟨v, hv, hc, hn⟩ := slowLatest_sound _ s ((mem_dedupL _ s).1 h)
   obtain ⟨i, hi, rfl⟩ := Timing.mem_sample p ss v hv
+  simp only [stepName, Timing.judgeQ_tool, Timing.judgeQ_step, Timing.judgeQ_kind] at hn
   refine ⟨ss[i], List.getElem_mem hi, ?_, hn⟩
   cases hq : Timing.contended p ss[i]
   · rfl
-  · exact absurd hc (Timing.contended_not_slow p _ i _ hq)
+  · exact absurd hc (Timing.contended_not_slow_Q p _ i _ hq)
 
 /-- A later sample of the same history is found by `laterSame`. -/
 theorem laterSame_of_mem (v : Timing.SampleVerdict) (rest : List Timing.Verdict)
