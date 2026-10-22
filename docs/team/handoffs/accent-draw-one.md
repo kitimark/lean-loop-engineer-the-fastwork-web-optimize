@@ -1,5 +1,13 @@
 # accent-draw-one handoff
 
+**Round 2 (fresh builder):** worktree `.claude/worktrees/wf_a734f517-d47-1`, branch `worktree-wf_a734f517-d47-1`, fixes at
+3e8e97d3, main merged after it. No new CI runs (check.sh green locally through the slot). Applied the four round-1
+fix-before-land findings: `drawOne_visSame` binder `still : Env → T → Rat`; premise cite `accent.module.css:79-86`
+(the two Lean doc cites were already deleted by the polish commit dd7551d0; the work-graph title is lead-only); ledger
+mechanism/lesson split PROVED (3 to 1 paths) / MEASURED (run ids) / INFERRED; report.json recommendation and metric
+labels without numbers. Verified: `lake build Fw.Parts.HeroAccentOpt`, accent golden up to date, check.sh green, site
+tests 5719 pass, ci-paths 54 pass.
+
 **State:** branch `worktree-wf_a734f517-d47-1`, pushed as `ci/accent-draw-one` (commit f87e89c2 first push). Flag
 `hero.accent:draw-one` registered (`apps/site/src/parts/hero.accent/part.json`, T0). Class E.
 
