@@ -2687,6 +2687,40 @@
    "lesson": "A write that is skipped only where the original never writes saves nothing; check that the original does the work in the measured window before porting a skip. Here the original's shrink is dead code on a plain scroll at phone and desktop width alike (the card is the last section in the original too), so platform:mq cannot win on any end-of-page window.",
    "next": "Hold; no port task. Re-open only if the snapshot changes, or to measure rubber-band overscroll at the page end (the only path where the original computes a nonzero shrink; INFERRED, unmeasured).",
    "evidence": "CI runs 39680952848, 39680958629, 39680964944, 39685930205; research/notes/2026/10-2x-platform-shrink-mq.md; results/platform-shrink-mq/report.json"
+  },
+  {
+   "id": "accent.draw-one",
+   "n": 43,
+   "part": "hero.accent",
+   "candidate": "hero.accent:draw-one: in the draw window run the stroke-dashoffset animation on the visible copy (frame0) only; the two copies at opacity 0 (accent.module.css:79-86) get no animation",
+   "status": "proved",
+   "flag": "hero.accent:draw-one",
+   "flags": [
+    "hero.accent:draw-one"
+   ],
+   "chromium": "unknown",
+   "webkit": "no-win",
+   "visual": "E (drawOne_visSame: visible scenes equal at every instant and width; drawTmpl_hidden: the premise, copies 1 and 2 have opacity 0 for the whole window)",
+   "mechanism": "MEASURED (CI webkit-sim, iPhone 430x775 Simulator, 107-step scroll, 2 passes per arm; base run 39694385829, flag run 39699740380): Layout events over the whole scroll 612 and 627 (base) against 612 and 612 (flag); in the hero band (y <= 775, where the accent draws) Layout 108 and 116 against 107 and 109, Layout time 60.4 and 126.2 ms against 63.8 and 60.3 ms; RecalculateStyles 654 and 681 against 650 and 641. Base pass 2 ran slow (scroll wall 14.4 s against 7.3 to 7.5 s in the other three), so the like-for-like passes are the first of each arm: 60.4 against 63.8 ms, no effect. The lane records no per-SVG layout and no RenderingFrame events, so the proposal's 'SVG path layouts per draw frame' (3 to 1) is the Lean count animatedCount_values (PROVED), not a CI reading. PROVED: 3 to 1 animated paths per draw frame (animatedCount_values) with the same picture (drawOne_visSame). INFERRED why (StyleDifference.cpp:157-163@862f17d: a dash-offset change needs layout): the visible copy still needs layout in every draw frame, so the layout pass count stays the same and only two of three small path boxes leave it (the saved share is below this lane's pass-to-pass spread). Breakpoint gate, both engines, flag hero.accent:draw-one: run 39694389914 success. Lean CI: run 39694357292 success.",
+   "leanFor": [
+    "Fw.Parts.HeroAccentOpt.drawOne_visSame",
+    "Fw.Parts.HeroAccentOpt.draw_one_eq",
+    "Fw.Parts.HeroAccentOpt.drawOne_still_iff",
+    "Fw.Parts.HeroAccentOpt.animatedCount_values",
+    "Fw.Parts.HiddenPause.hidden_pause_eq"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "No frame-time percentiles and no per-SVG layout counts: the webkit-sim count lane records no RenderingFrame events and does not separate draw windows from the rest of the scroll (the draw runs on wall-clock timers, the scroll is 7 s)",
+    "No Chromium count run: the card's expectation is a WebKit one (StyleDifference.cpp:157-163@862f17d)"
+   ],
+   "premises": [
+    "Copies 1 and 2 are opacity 0 for the whole draw window (accent.module.css:79-86); pinned by apps/site/src/parts/hero.accent/drawOne.test.ts"
+   ],
+   "v1Evidence": "",
+   "lesson": "Removing work from objects nobody sees helps only if the engine pays per object; INFERRED: WebKit pays one Layout pass per frame whatever the number of dirty SVG paths, so cutting 3 animated paths to 1 leaves the pass count unchanged and the saved part is too small to read.",
+   "next": "Hold: keep the flag registered and out of the preset (class E, exact). Re-measure only with a lane that records per-frame time inside the draw windows (Simulator replay with RenderingFrame events, or the phone).",
+   "evidence": "CI runs 39694357292 (lean), 39694389914 (breakpoint gate), 39694385829 (webkit-sim base), 39699740380 (webkit-sim flag); failed attempt 39694397870 (Simulator Runtime.evaluate timeout, not a result); research/notes/2026/10-2x-accent-draw-one.md; results/accent-draw-one/report.json"
   }
  ],
  "notes": [
