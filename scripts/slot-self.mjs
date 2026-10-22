@@ -22,7 +22,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const { enforceNodePin } = await import(pathToFileURL(join(here, "..", "apps", "runner", "src", "node-guard.ts")).href);
     enforceNodePin();
     const { slotMainPath } = await import(pathToFileURL(join(here, "..", "apps", "runner", "src", "slot.ts")).href);
-    const { slotMain } = await import(pathToFileURL(slotMainPath(SLOT_MAIN, process.cwd())).href);
+    const { slotMain } = await import(pathToFileURL(slotMainPath(SLOT_MAIN, process.cwd())).href).catch(() => import(pathToFileURL(SLOT_MAIN).href));
     const { begin } = await import(pathToFileURL(join(here, "..", "apps", "runner", "src", "timing.ts")).href);
     const end = begin("fw", "slot");
     process.once("exit", (c) => end(c));

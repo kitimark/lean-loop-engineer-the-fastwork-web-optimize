@@ -7,9 +7,9 @@ if (process.argv[2] === "slot") {
   const end = begin("fw", "slot");
   process.once("exit", (c) => end(c));
   const { slotMainPath } = await import("./slot.ts");
-  const { pathToFileURL } = await import("node:url");
-  const local = new URL("./slot-main.ts", import.meta.url).pathname;
-  const { slotMain } = await import(pathToFileURL(slotMainPath(local, process.cwd())).href);
+  const { fileURLToPath, pathToFileURL } = await import("node:url");
+  const local = fileURLToPath(new URL("./slot-main.ts", import.meta.url));
+  const { slotMain } = await import(pathToFileURL(slotMainPath(local, process.cwd())).href).catch(() => import(pathToFileURL(local).href));
   process.exitCode = await slotMain(process.argv.slice(3), process.cwd());
 } else {
   await import("./fw-main.ts");
