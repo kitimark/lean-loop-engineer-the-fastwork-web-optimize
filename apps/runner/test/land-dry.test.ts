@@ -1,7 +1,7 @@
 // `fw land --dry` (task land-dry; Lean Fw.Console.LandDry: dry_pass_land_pass, dry_refusal_is_land_refusal, handback_pass_land_pass).
 // A dry land runs the real land's scope, merge and reads stages and nothing else: no lock, no queue, main untouched.
 import "./land-timeout.ts";
-import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dryRun, exitCode, outcome, outcomeKind, parseVerdict } from "../src/land-verdict.ts";
 import { join } from "node:path";
@@ -45,6 +45,16 @@ const text = (r: { lines: string[] }) => r.lines.join("\n");
 const reads = (argv: string[], selected = true) => ({ dryReads: { argv, selected } });
 
 describe("fw land --dry", () => {
+  it("writes its spans under a dry prefix (dry total), apart from the real land's history", async () => {
+    const { fx, wt, opts } = await setup();
+    fx.commit(wt, "src/a.ts");
+    const file = join(mkdtempSync(join(tmpdir(), "fw-dry-span-")), "timings.jsonl");
+    process.env.FW_TIMINGS_FILE = file;
+    try { await land(BR, { ...opts, dry: true, ...reads(["true"]), dryLints: [] }); } finally { delete process.env.FW_TIMINGS_FILE; }
+    const steps = readFileSync(file, "utf8").split("\n").filter(Boolean).map((l) => (JSON.parse(l) as { tool: string; step: string }));
+    expect(steps.filter((x) => x.tool === "fw land").map((x) => x.step)).toContain("dry total");
+    expect(steps.filter((x) => x.tool === "fw land" && !x.step.startsWith("dry "))).toEqual([]);
+  });
   it("a selected local test that fails refuses with its name; one that passes or is not selected does not (task land-tier-compose-test)", async () => {
     const { fx, wt, opts } = await setup();
     fx.commit(wt, "src/a.ts");

@@ -2,6 +2,7 @@ import { type ChildProcess, spawn, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { appendFileSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, readFileSync, readSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
+import { SLOT_SUBS, markReplayed } from "./slot-span.ts";
 import { basename, dirname, join } from "node:path";
 import {
   DEFAULT_PARAMS, type BuildVerdict, type CacheKey, type Ctl, type Entry, type Kind, type Mem, type Params, type Sample, type Verdict,
@@ -447,6 +448,7 @@ export async function run(d: Deps, kind: Kind, argv: string[], cache: boolean): 
     if (rec !== null && cacheHit(rec.key, rec.exit, key)) {
       d.out(rec.stdout);
       d.err(rec.stderr);
+      markReplayed();
       d.err(`slot: replayed the result recorded ${new Date(rec.at * 1000).toISOString()} for tree ${key.tree.slice(0, 12)} (same argv, clean tree)\n`);
       return rec.exit;
     }
@@ -529,6 +531,7 @@ export async function slotCli(argv: string[], deps: Deps): Promise<number> {
   const dash = argv.indexOf("--");
   const args = dash < 0 ? argv : argv.slice(0, dash);
   const d = { ...deps, owner: flag(args, "--owner") ?? deps.owner };
+  if (!(SLOT_SUBS as readonly string[]).includes(args[0] ?? "")) throw new SlotUsage(SLOT_USAGE);
   switch (args[0]) {
     case "run": {
       const cmdv = dash < 0 ? [] : argv.slice(dash + 1);

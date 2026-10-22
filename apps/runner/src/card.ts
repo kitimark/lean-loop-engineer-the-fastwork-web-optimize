@@ -3,7 +3,7 @@
 import { Actor, Command } from "@fw/contracts";
 import { UsageError, parseFlags } from "./lib.ts";
 
-const DEFAULT_ACTOR: Record<string, Actor> = { open: "owner", approve: "lead", screen: "script", review: "reviewer", swipe: "script", request: "lead" };
+export const DEFAULT_ACTOR: Record<string, Actor> = { open: "owner", approve: "lead", screen: "script", review: "reviewer", swipe: "script", request: "lead" };
 const need = (v: string | undefined, what: string): string => {
   if (!v) throw new UsageError(`missing ${what}`);
   return v;
@@ -16,9 +16,11 @@ const bool = (v: string | undefined, what: string): boolean => {
 
 export const CARD_USAGE = "usage: fw card open <card> --owner <o> [--device true] | approve <card> | screen <card> <sha> --pass true|false | review <card> <sha> --by <who> --accept true|false | swipe <card> <sha> --better true|false | request <card> <sha>";
 
+export const CARD_VERBS = Object.keys(DEFAULT_ACTOR);
+
 export function cardCommand(argv: string[], env: Record<string, string | undefined>): Command {
   const [verb, ...rest] = argv;
-  if (!verb || !(verb in DEFAULT_ACTOR)) throw new UsageError(CARD_USAGE);
+  if (!verb || !CARD_VERBS.includes(verb)) throw new UsageError(CARD_USAGE);
   const { pos, flags } = parseFlags(rest);
   const actor = Actor.parse(flags.as ?? env.FW_ACTOR ?? DEFAULT_ACTOR[verb]);
   const card = need(pos[0], "<card>");
