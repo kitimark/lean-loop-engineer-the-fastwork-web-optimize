@@ -29,8 +29,9 @@ def blobsOf (req : Json) : Except String (List (String × Option String)) :=
     | _ => throw s!"blobs: {k} is not a text or null"
   | some _ => throw "blobs: not an object"
 
-def verdictJ : Except Drop String → List (String × Json)
-  | .ok t => [("verdict", "kept"), ("bytes", toJson (bytes t)), ("esc", toJson (escBytes t))]
+/-- A file's verdict; a kept file left out by the fit is `overCap`. -/
+def verdictJ (fitted : Bool) : Except Drop String → List (String × Json)
+  | .ok t => [("verdict", if fitted then "kept" else "overCap"), ("bytes", toJson (bytes t)), ("esc", toJson (escBytes t))]
   | .error .notAllowed => [("verdict", "notAllowed")]
   | .error .noText => [("verdict", "noText")]
   | .error (.vocab w) => [("verdict", "vocab"), ("word", .str w)]
@@ -41,19 +42,21 @@ def opPaths (req : Json) : Except String Reply := do
   let ps := pathsOf (rowTexts (textsOf (← field req "row")))
   pure [("paths", .arr (ps.map fun p => Json.mkObj [("path", .str p), ("allowed", .bool (allowed c p))]).toArray)]
 
-/-- `oracle.expand`: each named file's verdict and the row's result (`same`, `expanded` with its `files` text, or
-`refused`). -/
+/-- `oracle.expand` (`rowId` names the row, `id` is the wire's): each named file's verdict and the row's result
+(`same`, `expanded` with the `files` text of the files that fit, or `refused` when not one fits). -/
 def opExpand (req : Json) : Except String Reply := do
   let c ← cfgOf req
-  let id ← str req "id"
+  let id ← str req "rowId"
   let row := textsOf (← field req "row")
   let blobs ← blobsOf req
   let blob := fun p => (blobs.lookup p).join
   let ps := pathsOf (rowTexts row)
-  let files := ps.map fun p => Json.mkObj ([("path", .str p)] ++ verdictJ (verdict c id p (blob p)))
-  pure <| [("id", .str id), ("files", .arr files.toArray)] ++ match expand c id row ps blob with
+  let r := expand c id row ps blob
+  let fitted : List String := match r with | .expanded fs _ => fs.map Prod.fst | _ => []
+  let files := ps.map fun p => Json.mkObj ([("path", .str p)] ++ verdictJ (fitted.contains p) (verdict c id p (blob p)))
+  pure <| [("rowId", .str id), ("files", .arr files.toArray)] ++ match r with
     | .same => [("result", "same")]
-    | .expanded row' n => [("result", "expanded"), ("esc", toJson n), ("filesText", .str ((row'.lookup "files").getD ""))]
+    | .expanded fs n => [("result", "expanded"), ("esc", toJson n), ("filesText", .str (filesText fs))]
     | .refused n => [("result", "refused"), ("esc", toJson n)]
 
 /-- The raw answer of an arm answer: a Jev reply text, or a choice with probabilities; none for a failure. -/
@@ -147,11 +150,11 @@ def run (op : String) (r : String) : String :=
 
 #guard run "oracle.expandPaths" "{\"row\":{\"cause\":\"docs/team/work-graph.json and scripts/a.mjs\"}}" ==
   "{\"paths\":[{\"allowed\":false,\"path\":\"docs/team/work-graph.json\"},{\"allowed\":true,\"path\":\"scripts/a.mjs\"}]}"
-#guard run "oracle.expand" ("{\"id\":\"i\",\"row\":{\"title\":\"t\",\"cause\":\"scripts/a.mjs scripts/b.mjs\"}," ++
+#guard run "oracle.expand" ("{\"rowId\":\"i\",\"row\":{\"title\":\"t\",\"cause\":\"scripts/a.mjs scripts/b.mjs\"}," ++
   "\"blobs\":{\"scripts/a.mjs\":\"x\",\"scripts/b.mjs\":\"c-quota\"}}") ==
   "{\"esc\":48,\"files\":[{\"bytes\":1,\"esc\":1,\"path\":\"scripts/a.mjs\",\"verdict\":\"kept\"}," ++
   "{\"path\":\"scripts/b.mjs\",\"verdict\":\"vocab\",\"word\":\"c-quota\"}],\"filesText\":\"file: scripts/a.mjs\\nx\"," ++
-  "\"id\":\"i\",\"result\":\"expanded\"}"
+  "\"result\":\"expanded\",\"rowId\":\"i\"}"
 #guard run "oracle.paired" ("{\"name\":\"incident-class\",\"mode\":\"strict\",\"replay\":[{\"id\":\"a\",\"label\":\"c-quota\"}]," ++
   "\"base\":[],\"arm\":[{\"id\":\"a\",\"choice\":\"c-quota\"}]}") ==
   "{\"armRight\":0,\"baseRight\":0,\"gains\":[],\"losses\":[],\"mode\":\"strict\",\"net\":0,\"p\":{\"den\":\"1\",\"num\":\"1\"}," ++

@@ -1,7 +1,7 @@
 import Lean.Data.Json
 import Fw.Oracle.Replay
 /-! The D1 row with the repo files it names: allowlisted code files only, a file holding a label word dropped whole,
-the row refused over the state cap, never cut. Design: research/notes/2026/10-2x-jev-file-context.md. -/
+whole files kept in path order while the state fits its cap, never cut. Design: research/notes/2026/10-2x-jev-file-context.md. -/
 namespace Fw.Oracle.Expand
 open Fw.Oracle
 
@@ -88,8 +88,8 @@ def safe : Cfg :=
   { prefixes := ["apps/", "packages/", "scripts/", "lean/Fw/"], deny := ["lean/Fw/Oracle/"],
     exts := [".lean", ".ts", ".tsx", ".mjs", ".js", ".sh", ".yaml"], dropVocab := true }
 
-/-- The naive contrast arm: the same paths, no vocabulary drop. -/
-def naive : Cfg := { safe with dropVocab := false }
+/-- The naive contrast arm: every text file the row names, under any top directory, no vocabulary drop. -/
+def naive : Cfg := { prefixes := tops.map (· ++ "/"), deny := [], exts := [""], dropVocab := false }
 
 def isPattern (p : List Char) : Bool := p.any ("*{}<>".toList.contains ·)
 
@@ -104,6 +104,8 @@ theorem allowed_graph : allowed safe "docs/team/work-graph.json" = false := by d
 theorem allowed_labels : allowed safe "lean/Fw/Oracle/Labels.lean" = false := by decide
 theorem allowed_research : allowed safe "research/notes/2026/10-2x-jev-file-context.md" = false := by decide
 theorem allowed_checkmap : allowed safe "scripts/checkmap.mjs" = true := by decide
+theorem allowed_naive_graph : allowed naive "docs/team/work-graph.json" = true := by decide
+theorem allowed_naive_pattern : allowed naive "research/notes/*.md" = false := by decide
 
 /-- The label vocabulary of a row: every mistake class, every written grade word, and the row id. -/
 def vocab (id : String) : List String := Labels.mistakeClasses ++ Labels.exactWords ++ [id]
@@ -199,12 +201,15 @@ theorem naive_keeps {id p x : String} (h : allowed naive p = true) : verdict nai
 def filesText (ks : List (String × String)) : String :=
   "\n".intercalate (ks.map fun (p, t) => "file: " ++ p ++ "\n" ++ t)
 
-/-- The row with a `files` field when a file is kept, else the row itself. -/
-def expandRow (c : Cfg) (id : String) (row : List (String × String)) (files : List (String × Option String)) :
-    List (String × String) :=
-  match kept c id files with
+/-- The row with a `files` field holding `ks`, or the row itself when `ks` is empty. -/
+def withFiles (row : List (String × String)) : List (String × String) → List (String × String)
   | [] => row
   | ks => row ++ [("files", filesText ks)]
+
+/-- The row with every kept file. -/
+def expandRow (c : Cfg) (id : String) (row : List (String × String)) (files : List (String × Option String)) :
+    List (String × String) :=
+  withFiles row (kept c id files)
 
 /-- The bytes JSON escaping adds to a character (Lean's `Json.escape`: `\"`, `\\`, `\n`, `\r`, other controls `\uXXXX`). -/
 def escExtra (c : Char) : Nat :=
@@ -218,27 +223,80 @@ def stateEsc (S : State) : Nat := (S.map fun kl => (kl.2.map escBytes).sum).sum
 #guard ["a\"b\\c", "tab\there", "ü日\r\n", "\x01"].all fun s =>
   escBytes s + 2 == ((Lean.Json.str s).compress.toList.map Char.utf8Size).sum
 
-/-- The result of expanding one row. -/
+/-- The escaped state size of the row with `ks`. -/
+def sizeWith (row : List (String × String)) (ks : List (String × String)) : Nat := stateEsc (rowState d1 (withFiles row ks))
+
+/-- Whole-file fit: walk the files in path order and keep each one the row still fits `stateCap` with. -/
+def fit (row : List (String × String)) : List (String × String) → List (String × String) → List (String × String)
+  | acc, [] => acc
+  | acc, f :: fs => if sizeWith row (acc ++ [f]) ≤ stateCap then fit row (acc ++ [f]) fs else fit row acc fs
+
+/-- The result of expanding one row: the files that fit and the escaped size, or the size with every kept file when not
+one fits. -/
 inductive Result where
   | same
-  | expanded (row : List (String × String)) (esc : Nat)
+  | expanded (files : List (String × String)) (esc : Nat)
   | refused (esc : Nat)
 deriving Repr, DecidableEq
 
-/-- Expand a row: unchanged when nothing is kept, else the expanded row when its escaped state fits `stateCap`, else
-refused with its size. -/
+/-- Expand a row: unchanged when nothing is kept, else the files that fit `stateCap`, else refused. -/
 def expand (c : Cfg) (id : String) (row : List (String × String)) (paths : List String)
     (blob : String → Option String) : Result :=
-  let files := paths.map fun p => (p, blob p)
-  if kept c id files = [] then .same
-  else
-    let row' := expandRow c id row files
-    let n := stateEsc (rowState d1 row')
-    if n ≤ stateCap then .expanded row' n else .refused n
+  let ks := kept c id (paths.map fun p => (p, blob p))
+  if ks = [] then .same
+  else match fit row [] ks with
+    | [] => .refused (sizeWith row ks)
+    | fs => .expanded fs (sizeWith row fs)
 
 theorem expandRow_noop {c : Cfg} {id : String} {row : List (String × String)} {files : List (String × Option String)}
     (h : kept c id files = []) : expandRow c id row files = row := by
-  simp [expandRow, h]
+  simp [expandRow, withFiles, h]
+
+theorem fit_mem {row : List (String × String)} : ∀ {acc fs : List (String × String)} {x : String × String},
+    x ∈ fit row acc fs → x ∈ acc ∨ x ∈ fs
+  | _, [], _, h => .inl h
+  | acc, f :: fs, x, h => by
+    unfold fit at h
+    split at h
+    · rcases fit_mem h with h | h
+      · rcases List.mem_append.mp h with h | h
+        · exact .inl h
+        · exact .inr (by simp_all)
+      · exact .inr (List.mem_cons_of_mem _ h)
+    · rcases fit_mem h with h | h
+      · exact .inl h
+      · exact .inr (List.mem_cons_of_mem _ h)
+
+theorem fit_fits {row : List (String × String)} : ∀ {acc fs : List (String × String)},
+    (acc = [] ∨ sizeWith row acc ≤ stateCap) → fit row acc fs = [] ∨ sizeWith row (fit row acc fs) ≤ stateCap
+  | _, [], h => h
+  | acc, f :: fs, h => by
+    unfold fit
+    split
+    · exact fit_fits (.inr (by assumption))
+    · exact fit_fits h
+
+theorem fit_ne_nil {row : List (String × String)} : ∀ {acc fs : List (String × String)}, acc ≠ [] → fit row acc fs ≠ []
+  | _, [], h => h
+  | acc, f :: fs, h => by
+    unfold fit
+    split
+    · exact fit_ne_nil (by simp)
+    · exact fit_ne_nil h
+
+/-- Not one file fits alone when the fit from nothing keeps nothing. -/
+theorem fit_nil {row : List (String × String)} : ∀ {fs : List (String × String)}, fit row [] fs = [] →
+    ∀ f ∈ fs, stateCap < sizeWith row [f]
+  | [], _ => by simp
+  | f :: fs, h => by
+    unfold fit at h
+    split at h
+    · exact absurd h (fit_ne_nil (by simp))
+    · rename_i hf
+      intro g hg
+      rcases List.mem_cons.mp hg with rfl | hg
+      · simpa using hf
+      · exact fit_nil h g hg
 
 theorem expand_same {c : Cfg} {id : String} {row : List (String × String)} {paths : List String}
     {blob : String → Option String} : expand c id row paths blob = .same ↔ kept c id (paths.map fun p => (p, blob p)) = [] := by
@@ -248,32 +306,47 @@ theorem expand_same {c : Cfg} {id : String} {row : List (String × String)} {pat
   · simp only [h, ↓reduceIte, iff_false]
     split <;> simp
 
-theorem expand_expanded {c : Cfg} {id : String} {row row' : List (String × String)} {paths : List String}
-    {blob : String → Option String} {n : Nat} (h : expand c id row paths blob = .expanded row' n) :
-    kept c id (paths.map fun p => (p, blob p)) ≠ [] ∧ row' = expandRow c id row (paths.map fun p => (p, blob p)) ∧
-      n = stateEsc (rowState d1 row') ∧ n ≤ stateCap := by
+theorem expand_expanded {c : Cfg} {id : String} {row : List (String × String)} {paths : List String}
+    {blob : String → Option String} {fs : List (String × String)} {n : Nat} (h : expand c id row paths blob = .expanded fs n) :
+    fs ≠ [] ∧ (∀ x ∈ fs, x ∈ kept c id (paths.map fun p => (p, blob p))) ∧ n = sizeWith row fs ∧ n ≤ stateCap := by
   unfold expand at h
   by_cases hk : kept c id (paths.map fun p => (p, blob p)) = []
   · simp [hk] at h
   · simp only [hk, ↓reduceIte] at h
     split at h
-    · simp only [Result.expanded.injEq] at h
-      obtain ⟨rfl, rfl⟩ := h
-      exact ⟨hk, rfl, rfl, by assumption⟩
     · simp at h
+    · rename_i _ hne
+      simp only [Result.expanded.injEq] at h
+      obtain ⟨rfl, rfl⟩ := h
+      refine ⟨hne, fun x hx => ?_, rfl, ?_⟩
+      · rcases fit_mem hx with hx | hx
+        · simp at hx
+        · exact hx
+      · rcases fit_fits (row := row) (fs := kept c id (paths.map fun p => (p, blob p))) (.inl rfl) with h0 | h0
+        · exact absurd h0 hne
+        · exact h0
+
+/-- Every file of an expanded row is allowed, whole, and (with `dropVocab`) holds no vocabulary word. -/
+theorem expand_files {c : Cfg} {id : String} {row : List (String × String)} {paths : List String}
+    {blob : String → Option String} {fs : List (String × String)} {n : Nat} (h : expand c id row paths blob = .expanded fs n)
+    {p x : String} (hx : (p, x) ∈ fs) : allowed c p = true ∧ (p, some x) ∈ paths.map (fun p => (p, blob p)) ∧
+      (c.dropVocab = true → ∀ w ∈ vocab id, ¬ ∃ u v, lower x = u ++ lower w ++ v) := by
+  have hk := (expand_expanded h).2.1 _ hx
+  exact ⟨kept_allowed hk, kept_whole hk, fun hc => kept_vocabFree hc hk⟩
 
 theorem expand_refused {c : Cfg} {id : String} {row : List (String × String)} {paths : List String}
     {blob : String → Option String} {n : Nat} (h : expand c id row paths blob = .refused n) :
-    n = stateEsc (rowState d1 (expandRow c id row (paths.map fun p => (p, blob p)))) ∧ stateCap < n := by
+    n = sizeWith row (kept c id (paths.map fun p => (p, blob p))) ∧
+      ∀ f ∈ kept c id (paths.map fun p => (p, blob p)), stateCap < sizeWith row [f] := by
   unfold expand at h
   by_cases hk : kept c id (paths.map fun p => (p, blob p)) = []
   · simp [hk] at h
   · simp only [hk, ↓reduceIte] at h
     split at h
+    · rename_i hg
+      simp only [Result.refused.injEq] at h
+      exact ⟨h.symm, fit_nil hg⟩
     · simp at h
-    · simp only [Result.refused.injEq] at h
-      subst h
-      exact ⟨rfl, by omega⟩
 
 theorem expand_local {c : Cfg} {id : String} {row : List (String × String)} {paths : List String}
     {b₁ b₂ : String → Option String} (h : ∀ p ∈ paths, b₁ p = b₂ p) :
@@ -315,11 +388,13 @@ theorem capState_of_le : ∀ (b : Nat) (S : State), stateBytes S ≤ b → capSt
     have := capState_of_le (b - linesBytes L) S (by simp only [stateBytes]; omega)
     simp [capState, hk, this]
 
-theorem expand_uncut {c : Cfg} {id : String} {row row' : List (String × String)} {paths : List String}
-    {blob : String → Option String} {n : Nat} (h : expand c id row paths blob = .expanded row' n) :
-    stateBytes (rowState d1 row') ≤ stateCap ∧ capState stateCap (rowState d1 row') = rowState d1 row' := by
+theorem expand_uncut {c : Cfg} {id : String} {row : List (String × String)} {paths : List String}
+    {blob : String → Option String} {fs : List (String × String)} {n : Nat} (h : expand c id row paths blob = .expanded fs n) :
+    stateBytes (rowState d1 (withFiles row fs)) ≤ stateCap ∧
+      capState stateCap (rowState d1 (withFiles row fs)) = rowState d1 (withFiles row fs) := by
   obtain ⟨_, _, hn, hc⟩ := expand_expanded h
-  have hb : stateBytes (rowState d1 row') ≤ stateCap := Nat.le_trans (stateBytes_le_esc _) (hn ▸ hc)
+  have he : stateEsc (rowState d1 (withFiles row fs)) ≤ stateCap := by unfold sizeWith at hn; omega
+  have hb : stateBytes (rowState d1 (withFiles row fs)) ≤ stateCap := Nat.le_trans (stateBytes_le_esc _) he
   exact ⟨hb, capState_of_le _ _ hb⟩
 
 /-- A row whose kept list is empty keeps the D1 state of the plain row, so its body is the D1 body. -/
@@ -327,10 +402,13 @@ theorem expand_noop_state {c : Cfg} {id : String} {row : List (String × String)
     (h : kept c id files = []) : rowState d1 (expandRow c id row files) = rowState d1 row := by
   rw [expandRow_noop h]
 
+def xs (n : Nat) : String := String.ofList (List.replicate n 'x')
+
 #guard expand safe "i" [("title", "t")] ["scripts/a.mjs"] (fun _ => some "c-quota") == .same
-#guard expand safe "i" [("title", "t")] ["scripts/a.mjs"] (fun _ => some "x") ==
-  .expanded [("title", "t"), ("files", "file: scripts/a.mjs\nx")] 21
-#guard expand safe "i" [("title", "t")] ["scripts/a.mjs"] (fun _ => some (String.ofList (List.replicate 40000 'x'))) ==
-  .refused 40020
+#guard expand safe "i" [("title", "t")] ["scripts/a.mjs"] (fun _ => some "x") == .expanded [("scripts/a.mjs", "x")] 21
+#guard expand safe "i" [("title", "t")] ["scripts/a.mjs"] (fun _ => some (xs 40000)) == .refused 40020
+#guard expand safe "i" [("title", "t")] ["scripts/a.mjs", "scripts/b.mjs", "scripts/c.mjs"]
+    (fun p => if p == "scripts/b.mjs" then some (xs 40000) else some "y") ==
+  .expanded [("scripts/a.mjs", "y"), ("scripts/c.mjs", "y")] 41
 
 end Fw.Oracle.Expand

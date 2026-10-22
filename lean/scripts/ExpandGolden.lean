@@ -11,7 +11,7 @@ def big : String := String.ofList (List.replicate 40000 'x')
 def cases : List (String × String × Json) :=
   let row (c : String) : Json := Json.mkObj [("title", "t"), ("symptom", "s"), ("cause", .str c)]
   let ex (cfg id c : String) (blobs : List (String × Json)) : Json :=
-    Json.mkObj [("cfg", .str cfg), ("id", .str id), ("row", row c), ("blobs", Json.mkObj blobs)]
+    Json.mkObj [("cfg", .str cfg), ("rowId", .str id), ("row", row c), ("blobs", Json.mkObj blobs)]
   let ans (i c : String) (ps : List (String × Json)) : Json :=
     Json.mkObj [("id", .str i), ("choice", .str c), ("probabilities", Json.mkObj ps)]
   let paired (mode : String) (base arm : List Json) : Json :=
@@ -37,8 +37,8 @@ def cases : List (String × String × Json) :=
       Json.mkObj [("row", row "../scripts/a.mjs@ecdc0787 then apps/b.ts. Again scripts/a.mjs")]),
    ("paths: the allowlist refuses docs, research, oracle code, patterns", "oracle.expandPaths",
       Json.mkObj [("row", row "docs/team/work-graph.json research/x.md lean/Fw/Oracle/Labels.lean scripts/*.mjs lean/Fw/A.lean")]),
-   ("paths: naive takes the same allowlist", "oracle.expandPaths",
-      Json.mkObj [("cfg", "naive"), ("row", row "docs/team/work-graph.json scripts/a.mjs")]),
+   ("paths: naive takes every top directory, no pattern", "oracle.expandPaths",
+      Json.mkObj [("cfg", "naive"), ("row", row "docs/team/work-graph.json scripts/a.mjs research/*.md")]),
    ("expand: no path, same row", "oracle.expand", ex "safe" "inc-a" "no path here" []),
    ("expand: only refused paths, same row", "oracle.expand", ex "safe" "inc-a" "docs/team/work-graph.json" []),
    ("expand: one kept file", "oracle.expand", ex "safe" "inc-a" "scripts/a.mjs" [("scripts/a.mjs", "line one\nline \"two\"")]),
@@ -48,9 +48,13 @@ def cases : List (String × String × Json) :=
       ex "safe" "inc-a" "scripts/b.mjs" [("scripts/b.mjs", "a follow-up later")]),
    ("expand: the row id drops the file", "oracle.expand", ex "safe" "inc-a" "scripts/b.mjs" [("scripts/b.mjs", "see inc-a")]),
    ("expand: no text blob", "oracle.expand", ex "safe" "inc-a" "scripts/b.mjs" [("scripts/b.mjs", .null)]),
-   ("expand: naive keeps the vocabulary file", "oracle.expand",
-      ex "naive" "inc-a" "scripts/b.mjs" [("scripts/b.mjs", "// hardens c-late-check")]),
+   ("expand: naive keeps the vocabulary file and the work graph", "oracle.expand",
+      ex "naive" "inc-a" "scripts/b.mjs docs/team/work-graph.json"
+        [("scripts/b.mjs", "// hardens c-late-check"), ("docs/team/work-graph.json", "{\"id\": \"inc-a\"}")]),
    ("expand: over the state cap, refused", "oracle.expand", ex "safe" "inc-a" "scripts/a.mjs" [("scripts/a.mjs", .str big)]),
+   ("expand: the fit leaves out the file over the cap and keeps the next", "oracle.expand",
+      ex "safe" "inc-a" "scripts/a.mjs scripts/b.mjs scripts/c.mjs"
+        [("scripts/a.mjs", "a"), ("scripts/b.mjs", .str big), ("scripts/c.mjs", "c")]),
    ("paired strict: a Jev reply text counts, sums 1.1 fail, a failure is wrong", "oracle.paired",
       paired "strict" [reply "a" "c-quota" exact] [ans "a" "c-quota" over, Json.mkObj [("id", "b"), ("failure", Json.mkObj [])]]),
    ("paired renorm: sums 1.1 count after dividing, b gained", "oracle.paired",
