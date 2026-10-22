@@ -138,10 +138,26 @@ pnpm -s fw slot admit --kind build                       # lead, before spawning
 Heavy entry points queue themselves.
 - `lean/scripts/check.sh`, `lean:build` (root) and every package `test` script run `node scripts/slot-self.mjs <check|test> -- <cmd>`.
   The package scripts keep their old body as `test:run`.
-- Not held: the helper runs `fw slot run --kind <kind> -- <cmd>` and waits in the queue.
+- Not held: the helper itself runs `slot run --kind <kind> -- <cmd>` (apps/runner/src/slot-main.ts, in its own process) and waits in the queue.
 - Held (`FW_SLOT_HELD` set, the nested rule above), on CI (`CI` set) or with `FW_SLOT_SELF=off`: the command runs
   directly, so a nested call starts at once and CI behaves as before. The helper decides nothing else (no Lean).
 - Tests: `node --test scripts/slot-self.test.mjs` (plan table, nested start, bare call goes through the slot).
 - Not covered: one-off `lake build <target>`,
   `lake env lean --run/--stdin`, `npx vitest`.
 - A `fw slot acquire --kind sim` holder does not get `FW_SLOT_HELD` in its shell: export `FW_SLOT_HELD=1` before running a self-routing script (check.sh, a package `test`), or it queues behind its own slot.
+
+## Light waiter
+
+A queued run waits in one node process, not a tree (slot-waiter-light, MEASURED on this Mac, `ps -o rss` of the waiter's process group, node 24.22.0, one run each):
+
+| waiter | processes | tree RSS |
+|---|---|---|
+| before, `slot-self.mjs` + `fw.ts slot run` | 2 | 168 MB |
+| after, `slot-self.mjs` (waits itself) | 1 | 99 MB |
+| before, `node fw.ts slot run` under `pnpm -s fw` | pnpm + 1 | 129 + 118 = 247 MB |
+| after, `node fw-entry.ts slot run` under `pnpm -s fw` | pnpm + 1 | 129 + 101 = 230 MB |
+
+- `pnpm -s fw` now starts `apps/runner/src/fw-entry.ts`, which loads only `slot-main.ts` for `fw slot ...` and `fw.ts` for every other group (fw.ts is the 120 MB part: contracts, land, ci, plan).
+- Why this option: the wait loop cannot run before the `pnpm` wrapper when an agent types `pnpm -s fw slot run` (pnpm is the parent and stays alive), so that form can only lose the fw.ts weight. The routed scripts (check.sh, package `test`) lose the whole second process because `slot-self.mjs` waits in-process.
+- A bare node with TypeScript stripping is about 46 MB idle; the waiter is 99-101 MB. Not cut further (follow-up). A pnpm shim that switches to the pinned pnpm adds a third process; `manage-package-manager-versions=false` would remove it and is not set here.
+- Verdicts, queue order and the lease are unchanged (same `slot.ts`). Tests: `scripts/slot-self.test.mjs` (the waiter has no child and starts the command only after the holder releases; usage exits 64).
