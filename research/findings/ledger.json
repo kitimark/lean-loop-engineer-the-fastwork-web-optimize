@@ -2817,6 +2817,47 @@
    "lesson": "A variant that adds a wrapper element or changes the panel insets at rest fails the breakpoint gate, which counts direct children and compares insets at rest; restricting the new geometry to the morphing state and moving each child with its own inset keeps the DOM and the rest state identical.",
    "next": "Judge on a real-GPU lane (mac-safari-measure or the phone); the nav resize (C8) and the tracks are separate candidates.",
    "evidence": "CI runs 39744563175, 39747969466, 39744614747, 39744653093, 39751427150 (hung), 39760667274; research/notes/2026/10-2x-morph-constant-bounds.md; results/morph-constant-bounds/report.json"
+  },
+  {
+   "id": "morph.touch-band",
+   "n": 46,
+   "part": "morph.mount",
+   "candidate": "morph.mount:band + morph.tween:band: one window touch listener for both morph parts, non-passive only while the platform section is in the band or a morph runs, passive elsewhere, so a pan far from the end of the page does not wait for the web main thread",
+   "status": "partly-proved",
+   "flag": "morph.mount:band",
+   "flags": [
+    "morph.mount:band",
+    "morph.tween:band"
+   ],
+   "chromium": "unknown",
+   "webkit": "unknown",
+   "visual": "E: the merged listener gives each part the same events in the same order as its own listener (hub_eq_base) and prevents default exactly when a part takes the move (hub_prevented); in the band the behaviour is the per-part one (band_same); wheel is unchanged",
+   "mechanism": "PROVED (Fw.Parts.MorphListen): the merged listener equals the two per-part listeners on every event sequence (hub_eq_base) with one listener in place of two (listeners_merged_le); the listener stays non-passive while a finger is down and turns passive only after it lifts (next_down_take, next_lifted); under the band premise every move a part takes falls in the band (armed_in_band, seq_quiet). Trajectory probes: morph.tween:band 39779781978 CLEAN on both engines; morph.mount:band 39779755536 webkit CLEAN, chromium RED on 42 coverage rows at w=390 (open push 1, no rewrite sample in an interior bucket; the probe drives the morph by wheel); the rerun 39781320030 moved the same 42-row open@1 coverage miss to w=641 while the faithful arm missed it at w=640 (both=42), so it reads as a sampling miss of the first open push, not the flag (INFERRED). Not measured: the WebKit touch-to-first-scroll gain.",
+   "leanFor": [
+    "Fw.Parts.MorphListen.hub_eq_base",
+    "Fw.Parts.MorphListen.hub_prevented",
+    "Fw.Parts.MorphListen.listeners_merged_le",
+    "Fw.Parts.MorphListen.band_same",
+    "Fw.Parts.MorphListen.seq_quiet",
+    "Fw.Parts.MorphListen.armed_in_band",
+    "Fw.Parts.MorphListen.next_down_take",
+    "Fw.Parts.MorphListen.next_lifted",
+    "Fw.Parts.MorphListen.takesAny_disj"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "WebKit touch-to-first-scroll base vs flag has no lane: packages/measure-webkit needs a probe mode (passive touchstart timeStamp to the first frame with a scrollY change)",
+    "The two flags together cannot be gated or probed: the gate and probe builds prerender no multi-flag search",
+    "The band premise (every pan a part takes starts inside the band) is INFERRED from two replay profiles (swipe-touch-v1, user-fixture), not from the phone"
+   ],
+   "premises": [
+    "CONFIRMED: a window-level non-passive touchmove listener makes the WebKit pan start wait for the web main thread (research/notes/2026/10-22-webkit-render-cost.md F16: Source/WebKit/UIProcess/WebPageProxy.cpp:5049-5075)",
+    "INFERRED: no morph-taking pan starts outside the band (MorphListen premise, checked on the replay profiles in packages/contracts/golden/parts/morph-listen.profiles.jsonl)"
+   ],
+   "v1Evidence": "",
+   "lesson": "A blocking touch listener can be scoped by an IntersectionObserver band and a finger-down hold without changing what any part sees; the cost moves to one more observer, and the win is only in WebKit pan-start latency, which the current lanes do not measure.",
+   "next": "Add a touch-to-first-scroll probe to packages/measure-webkit and multi-flag prerender to the gate build, then measure base vs both flags (>= 3 runs) and gate them together.",
+   "evidence": "CI runs 39778906252 (failed: multi-flag search not prerendered), 39779755536, 39779781978, 39781320030; docs/team/handoffs/morph-touch-band.md"
   }
  ],
  "notes": [
