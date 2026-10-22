@@ -7,16 +7,8 @@ import Fw.Parts.PlatformEntries
 import Fw.Parts.PlatformScene
 import Fw.Parts.HiddenPausePlatform
 import Fw.Parts.PlatformShrinkOpt
-/-!
-# Golden vectors for the platform parts
+import Fw.Parts.PlatformFade
 
-`PlatformGolden.files` is the list of `(file name, lines)` that `Golden.lean` writes into
-`packages/contracts/golden/parts/`: `platform.jsonl`, `platform.sweep.jsonl`, `platform.glint.jsonl`,
-`platform.marquee.jsonl`, `platform.entries.jsonl`, `platform.scene.jsonl`, and `engine.scene.jsonl` (the hidden-pause
-variant's clock on the platform section). Same line format and encodings as `Fw/Parts/Golden.lean`
-(`Rat` inputs as exact JSON decimals, `Rat` outputs in the wire form `{"num","den"}`).
-The `const` lines carry the constants the CSS Modules restate; a TS test checks the CSS text against them.
--/
 namespace Fw.Parts.PlatformGolden
 open Lean
 
@@ -237,13 +229,22 @@ def shrinkMqLines : List String :=
         ("le720", .bool (wLe720.eval env)), ("v", rin v)]
         (Json.mkObj [("scale", ratWire (look env v).1), ("radius", ratWire (look env v).2)]))
 
-/-- The eight golden files of the platform parts and the engine.scene variant on the platform: name and lines, in this
-order.
+open Fw.Parts.PlatformFade in
+def fadeLines (_ : Unit := ()) : List String :=
+  let ends : List Rat := [0, 1 / 5, 1 / 4, 1 / 2, 11 / 20, 3 / 5, 3 / 4, 1]
+  [line "const" [] (Json.mkObj [("blurMax", ratWire blurMax), ("duration", ratWire Fw.Parts.MorphTween.duration),
+      ("fadeEnd", ratWire Fw.Parts.MorphTween.fadeEnd),
+      ("easing", Json.arr #[ratWire easing.1, ratWire easing.2.1, ratWire easing.2.2.1, ratWire easing.2.2.2])])] ++
+  (ends.flatMap fun f => ends.map fun t =>
+    line "keyframes" [("from", rin f), ("to", rin t)]
+      (Json.arr ((keyframes f t).map fun k =>
+        Json.mkObj [("off", ratWire k.off), ("fade", ratWire k.val), ("blur", ratWire (blurOf k.val))]).toArray))
 
-Eight files, each written whole. -/
+/-- The golden files of the platform parts: name and lines, in this order. -/
 def files (_ : Unit := ()) : List (String × List String) :=
   [("platform.jsonl", platformLines), ("platform.sweep.jsonl", sweepLines), ("platform.glint.jsonl", glintLines),
    ("platform.marquee.jsonl", marqueeLines), ("platform.entries.jsonl", entriesLines),
-   ("platform.scene.jsonl", sceneLines), ("engine.scene.jsonl", syncLines), ("platform-shrink.jsonl", shrinkMqLines)]
+   ("platform.scene.jsonl", sceneLines), ("engine.scene.jsonl", syncLines), ("platform-shrink.jsonl", shrinkMqLines),
+   ("platform-fade.jsonl", fadeLines ())]
 
 end Fw.Parts.PlatformGolden

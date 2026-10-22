@@ -14686,7 +14686,8 @@
     "packages/contracts/golden/preset/v2-proved.decisions.jsonl",
     "research/findings/ledger.json",
     "results/platform-fade-threaded/report.json"
-   ]
+   ],
+   "evidence": "07b97a3"
   },
   {
    "devices": [
