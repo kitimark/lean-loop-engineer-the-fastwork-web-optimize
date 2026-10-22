@@ -631,7 +631,8 @@ def decisionJson : Decision → Json
 def okRead (t : Nat) : Reading :=
   { s := { time := t, loadCenti := 120, mem := { freeMB := 3000 }, ramMB := 16384, compressorMB := 800, cores := 8 }, holders := 0 }
 
-def quietLines : List String :=
+set_option compiler.extract_closed false in
+def quietLines (_ : Unit := ()) : List String :=
   let case := fun (nm : String) (fl : Nat) (b a : Reading) =>
     line nm "measure.judge" [("floorCenti", toJson fl), ("before", readingJson b), ("after", readingJson a)] (decisionJson (judge {} {} fl b a))
   let ok := okRead 100
@@ -655,7 +656,8 @@ def quietLines : List String :=
 /-- A baseline reading at time `t` with load `c`. -/
 def baseRead (t c : Nat) : Reading := { okRead t with s := { (okRead t).s with loadCenti := c } }
 
-def floorLines : List String :=
+set_option compiler.extract_closed false in
+def floorLines (_ : Unit := ()) : List String :=
   let steady := [330, 340, 335, 345, 330, 350, 340, 335].zipIdx.map fun (c, i) => baseRead (1000 + 10 * i) c
   let rsJson := fun (rs : List Reading) => Json.arr (rs.map readingJson).toArray
   let optJson := fun (o : Option Nat) => match o with | some n => toJson n | none => Json.null
@@ -679,7 +681,8 @@ def floorLines : List String :=
     sim "readings up to 119 s after the boot are all left out" 1000 ((List.range 8).map fun i => baseRead (1112 + i) (330 + i)),
     sim "settle ends exactly 120 s after the boot" 1000 ((List.range 8).map fun i => baseRead (1120 + i) (330 + i)) ]
 
-def cadenceLines : List String :=
+set_option compiler.extract_closed false in
+def cadenceLines (_ : Unit := ()) : List String :=
   let case := fun (nm : String) (frames : Nat) (ivs : List Nat) =>
     let s := stat frames ivs
     line nm "measure.stat" [("frames", toJson frames), ("ivs", toJson ivs)]
@@ -695,7 +698,8 @@ def cadenceLines : List String :=
     case "25 ms is not long, 25.1 is" 5 [250, 251, 167, 167],
     case "tenth-ms jitter around 120 Hz" 8 [83, 90, 76, 83, 124, 83, 126] ]
 
-def outcomeLines : List String :=
+set_option compiler.extract_closed false in
+def outcomeLines (_ : Unit := ()) : List String :=
   let case := fun (nm : String) (arm base : List Nat) =>
     line nm "measure.outcome" [("arm", toJson arm), ("base", toJson base)] (Json.mkObj [("outcome", .str (outcome {} arm base).name)])
   [ case "every default pass above every arm pass" [0, 1, 1] [2, 3, 4],
@@ -707,7 +711,8 @@ def outcomeLines : List String :=
     case "no passes" [] [],
     case "touching ranges are the same" [1, 2, 3] [3, 4, 5] ]
 
-def keptLines : List String :=
+set_option compiler.extract_closed false in
+def keptLines (_ : Unit := ()) : List String :=
   let d := fun (n : String) => match n with
     | "a" => Decision.accept | "s" => Decision.stale
     | "rb" => Decision.refuse .before [Why.load] | _ => Decision.refuse .after [Why.holders]
@@ -716,12 +721,14 @@ def keptLines : List String :=
     line nm "measure.kept" [("decisions", toJson names), ("values", toJson (xs.map (·.2)))] (Json.mkObj [("kept", toJson (kept xs))])
   [ case "all accepted" ["a", "a", "a"], case "refused and stale left out" ["a", "rb", "s", "a", "ra", "a"], case "none" [] ]
 
-def traceLines : List String :=
+set_option compiler.extract_closed false in
+def traceLines (_ : Unit := ()) : List String :=
   let case := fun (nm : String) (fin : Bool) (rows : Nat) =>
     line nm "measure.trace" [("finalized", .bool fin), ("rows", toJson rows)] (Json.mkObj [("recorded", .bool (hitchesRecorded fin rows))])
   [ case "finalized with rows" true 42, case "finalized, empty table" true 0, case "never finalized" false 42 ]
 
-def probeLines : List String :=
+set_option compiler.extract_closed false in
+def probeLines (_ : Unit := ()) : List String :=
   let l : ProbeLimits := {}
   let look := fun (nm : String) (e lim mb : Nat) (alive : Bool) =>
     line nm "measure.probeAct" [("elapsedS", toJson e), ("limitS", toJson lim), ("traceMB", toJson mb), ("parentAlive", .bool alive)]
@@ -751,7 +758,7 @@ def paramsLine : String :=
 
 set_option compiler.extract_closed false in
 def goldenLines (_ : Unit := ()) : List String :=
-  [paramsLine] ++ quietLines ++ floorLines ++ cadenceLines ++ outcomeLines ++ keptLines ++ traceLines ++ probeLines
+  [paramsLine] ++ quietLines () ++ floorLines () ++ cadenceLines () ++ outcomeLines () ++ keptLines () ++ traceLines () ++ probeLines ()
 
 def genPath : System.FilePath := "../packages/contracts/golden/sup/measure.jsonl"
 
