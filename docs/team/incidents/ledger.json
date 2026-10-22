@@ -4286,6 +4286,33 @@
    "leanVerdict": "provable",
    "leanReason": "Whether to install is a pure function of (worktree known, lockfile hash now, stamped hash); 'no install while hashes differ' is a stated, checkable property.",
    "hardening": "land-wt-lock-drift"
+  },
+  {
+   "id": "inc-resume-report-echo",
+   "at": "2026-10-23T09:00+07:00",
+   "title": "Two build-review lead-resume misuses: a findings round sent through the resume path reviewed an unchanged commit, and a runner echoing a resume report dropped its 14 items",
+   "symptom": "trajectory-aa-noise round 2 (wf_362ba514) was refused for findings the builder never saw: no commits since round 1. pain-dark-followups (wf_8aa275ef) was returned by the gate with items: the report lists none, although the report file held 14 items.",
+   "cause": "CONFIRMED (.claude/workflows/build-review.js resume path): task.report with task.worktree skips the build stage, so a round meant to change code has no builder; the lead chose that path for a findings round. The resume runner (Haiku) was asked to return a large report unchanged and returned items: []. Lesson for the lead: the resume path is review-only; a findings round uses worktree + findings. A copy made by an agent is not identity: pass the canonical object.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "8e923db89",
+     "note": "report may be passed inline and is used as is; docs say the resume path never builds"
+    },
+    {
+     "kind": "file",
+     "ref": "docs/team/tools/build-review.md",
+     "note": "Lead resume path section"
+    }
+   ],
+   "repro": "Run build-review with task.report (path) and task.worktree after a refused review: no builder runs; or pass a report with many items: the runner may echo it with fewer.",
+   "fix": {
+    "task": "lead"
+   },
+   "regression": "build-review takes the report object inline (no echo); a findings round on the resume path could be refused by the script (task.findings with task.report).",
+   "leanVerdict": "not-applicable",
+   "leanReason": "Workflow orchestration choice and an LLM echo; the inline report removes the echo, the path choice is a lead rule.",
+   "hardening": "8e923db89"
   }
  ]
 }

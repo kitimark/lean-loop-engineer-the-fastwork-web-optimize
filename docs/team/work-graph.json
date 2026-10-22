@@ -17024,7 +17024,17 @@
     "packages/contracts/golden/parts/pain-dark-scroll.jsonl",
     "research/notes/2026/10-2x-pain-dark-scroll.md",
     "results/pain-dark-scroll/**",
-    "docs/team/handoffs/pain-dark-followups.md"
+    "docs/team/handoffs/pain-dark-followups.md",
+    ".github/workflows/trajectory-probe.yml",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/gate-breakpoints/src/trajectory/cells-gpu-cli.mjs",
+    "packages/gate-breakpoints/src/trajectory/cells-gpu-run.mjs",
+    "research/findings/ledger.json",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json",
+    "packages/contracts/golden/preset/look-change.candidates.jsonl",
+    "packages/contracts/golden/preset/v2-proved.decisions.jsonl"
    ],
    "title": "Review follow-ups of pain-dark-scroll (landed HOLD): (1) the breakpoint gate compares only the pre-flip state (anchors.json excludes is-pain-dark; cells at scroll 0), so add a post-flip check on both engines (opacity or pixel at flipAt-1 and flipAt+1), or the trajectory pain-dark cell once gpu-trajectory-cells lands; (2) toggle_free and ride_exceeds hold by definition (varToggle, varRide), so tie the toggle-frame Work model to the measured counts (Chromium toggle-frame recalcs 4 -> 5) or relabel them as model assumptions in part.json provenance and the ledger leanFor; (3) a backing-free arrangement for WebKit: the overlap promotion of the stage text block adds 12.0 MB (run 39828605244); find the arrangement that keeps the paint saving (-28 to -34% per pass) without the backing, Lean layer budget first."
   },
@@ -17220,9 +17230,13 @@
     "apps/console-api/test/ledger*.test.ts",
     "lean/Fw/Console/Ledger*.lean",
     "packages/contracts/golden/console/ledger*.jsonl",
-    "docs/team/handoffs/ledger-n-unique.md"
+    "docs/team/handoffs/ledger-n-unique.md",
+    "apps/runner/src/land.ts",
+    "lean/Fw.lean",
+    "lean/FwTestMain.lean"
    ],
-   "title": "Ledger candidate numbers collide: two parallel lands both took the next free n (commission.band-gate and nav.clip-box are both n 48 on main; pain.dark-scroll and morph.touch-band collided at 46 earlier and a review caught it). Candidate rows (those with an id and a candidate text) must have unique n. Renumber the later row, then make the rule a check: find where the console reads the ledger (grep ledger.json apps/console-api), state the uniqueness rule in Lean with the existing ledger model if there is one (else a TS check with a test, listed as a stand-in), and fail the land checks on a duplicate so the second land must renumber after merging main."
+   "title": "Ledger candidate numbers collide: two parallel lands both took the next free n (commission.band-gate and nav.clip-box are both n 48 on main; pain.dark-scroll and morph.touch-band collided at 46 earlier and a review caught it). Candidate rows (those with an id and a candidate text) must have unique n. Renumber the later row, then make the rule a check: find where the console reads the ledger (grep ledger.json apps/console-api), state the uniqueness rule in Lean with the existing ledger model if there is one (else a TS check with a test, listed as a stand-in), and fail the land checks on a duplicate so the second land must renumber after merging main.",
+   "evidence": "daf541c"
   },
   {
    "devices": [
@@ -17239,6 +17253,46 @@
     "docs/team/handoffs/chromium-desktop-crash.md"
    ],
    "title": "Found by people-o-preview-translate (2026-10-23): in the chromium-counts lane the Chrome renderer crashes (SIGSEGV, SEGV_MAPERR 0x84, a recursive tree walk in chrome.log of run 39862057861) about 0.5 s after the first frame of any rewrite page wider than 860 px (also 900 wide dpr 3 mobile), base and flag alike (runs 39850913549 ... 39863413335 on ci/people-o-preview-translate, incl. flag-drop bisect profiles people-o-hover-d1..d4 and width bisect 640/641/860/861); swipe-v1 at 430 wide passes. This blocks every desktop-band Chromium count. Find the cause: does it reproduce on main with the faithful (original) target and with the default rewrite, which width threshold, which part (bisect by part via the flag registry or by removing parts), Chrome version and launch flags (BeginFrameControl, headless shell), and whether the stack names a Blink/cc function (symbolize if possible; read Chromium source at the pinned commit). Fix it if the cause is ours (site or harness), or work around it with a stated premise if it is a Chrome bug (cite the bug). Measure on CI only (push ci/chromium-desktop-crash). Note with run ids."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ledger-unique-followups",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "ledger-n-unique"
+   ],
+   "writes": [
+    "lean/Fw/Console/Ledger*.lean",
+    "packages/contracts/golden/console/ledger*.jsonl",
+    "apps/console-api/src/ledger*.ts",
+    "apps/console-api/test/ledger*.test.ts",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/ledger-unique-followups.md"
+   ],
+   "title": "Review follow-ups of ledger-n-unique (landed d0347d17c): (1) a golden case with two different duplicated n values in one ledger (e.g. [41,40,41,40]) so the Lean rule names both; (2) replace the position-based floor n >= 26 with an explicit parent field for sub-findings (legacy related groups at 6, 9, 12 carry parent, the rule then has no floor), stated in Lean with goldens; (3) retire the TS stand-in in the console-api land check if fwcore can run the rule, else list it."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-rebuild-flake",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "apps/runner/src/land.ts",
+    "apps/runner/src/land-verdict.ts",
+    "apps/runner/test/land*.test.ts",
+    "scripts/fwcore-build.sh",
+    "lean/Fw/Console/Land*.lean",
+    "packages/contracts/golden/console/land*.jsonl",
+    "research/notes/2026/10-2x-land-rebuild-flake.md",
+    "docs/team/handoffs/land-rebuild-flake.md"
+   ],
+   "title": "Found landing ledger-n-unique (2026-10-23): the land printed REFUSED fwcore-rebuild-failed (land-verdict.ts REBUILD_REASON) after merging, yet VERDICT done, and the same sh scripts/fwcore-build.sh run right after by the lead's post-land step passed. The land log kept only Lean linter suggestion lines (if_false -> ite_false, List.find?_cons), not the failing command's output or exit code. Find the cause with forensics before naming it (INFERRED candidates: a concurrent lake build in lean/ from another process, the build reading a half-written .olean, a timeout): keep the full rebuild output and exit code in the land log, reproduce, then fix so the rebuild after a land is reliable or retried once with a named reason; state the retry/refusal rule in Lean with goldens. Also decide whether REFUSED after the merge should still print VERDICT done (state it in the Lean land verdict)."
   }
  ],
  "deadline": {
