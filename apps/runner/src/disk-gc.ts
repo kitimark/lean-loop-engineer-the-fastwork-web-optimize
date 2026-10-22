@@ -1,27 +1,24 @@
-// fw disk-gc (task disk-auto-gc): gathers the facts of six cleanup classes, asks fwcore (ops.diskGc,
-// lean/Fw/Ops/DiskGc.lean, golden packages/contracts/golden/ops/diskgc.jsonl) which candidates to delete, and prints or
-// deletes exactly that list. Every path is checked again (realpath, owner, ops.diskGcPath) right before it is deleted.
-// Docs: docs/team/tools/disk-gc.md.
 import { spawnSync } from "node:child_process";
-import { appendFileSync, existsSync, lstatSync, mkdirSync, readdirSync, realpathSync, rmSync, statfsSync, unlinkSync } from "node:fs";
-import { homedir } from "node:os";
+import { appendFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statfsSync, unlinkSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { artifactsRoot, gatherCheckouts, gatherOutputs, gatherProcs, type Checkout, type Fact, type Proc as LakeProc } from "./lake-gc.ts";
 import { queuedBranches } from "./land-queue.ts";
 
 export const DISK_GC_USAGE =
-  "usage: fw disk-gc [--list | --json | --delete] [--class <n|name>[,...]]... [--idle-h N] [--scratch-h N] [--keep-days N]\n" +
-  "  classes: 1 lake, 2 landed, 3 idle, 4 scratch, 5 sim, 6 console (default: all)\n" +
+  "usage: fw disk-gc [--list | --json | --delete] [--class <n|name>[,...]]... [--idle-h N] [--scratch-h N] [--keep-days N] [--tmp-h N] [--pressure]\n" +
+  "  classes: 1 lake, 2 landed, 3 idle, 4 scratch, 5 sim, 6 console, 7 usertmp (default: all)\n" +
   "  (no flag) per-class count and bytes   --list  the listed paths   --json  the Lean reply   --delete  delete them";
 
-export const CLASSES = ["lake", "landed", "idle", "scratch", "sim", "console"] as const;
+export const CLASSES = ["lake", "landed", "idle", "scratch", "sim", "console", "usertmp"] as const;
 export type Cls = (typeof CLASSES)[number];
 export type Lock = "free" | "unknown" | { pid: number; start: string };
 export type Cand = {
-  cls: Cls; path: string; bytes: number; uid: number; tracked: boolean; newest: number; dir: boolean;
+  cls: Cls; path: string; bytes: number; uid: number | null; tracked: boolean; newest: number; dir: boolean; sym?: boolean;
+  owner?: { task: string; run: string } | null;
   lake?: Fact; branch?: string; merged?: boolean | null; dirty?: boolean | null; lock?: Lock | null; device?: { name: string; state: string };
 };
-export type Roots = { repo: string; lake: string; scratch: string; devices: string };
+export type Roots = { repo: string; lake: string; scratch: string; devices: string; utmp?: string };
 export type Device = { udid: string; name: string; state: string };
 export type Reply = {
   items: { cls: Cls; num: number; path: string; bytes: number }[]; classes: { cls: Cls; num: number; count: number; bytes: number }[];
@@ -29,9 +26,8 @@ export type Reply = {
 };
 export type Call = (req: Record<string, unknown>) => Record<string, unknown>;
 export type Mode = "summary" | "list" | "json" | "delete";
-export type Args = { mode: Mode; classes: Cls[]; idleH?: number; scratchH?: number; keepDays?: number };
+export type Args = { mode: Mode; classes: Cls[]; idleH?: number; scratchH?: number; keepDays?: number; tmpH?: number; pressure?: boolean };
 
-/** The facts a run reads from the machine, replaceable in tests. `null`: not gathered (Lean then keeps what it guards). */
 export type Io = {
   opens: () => string[] | null;
   procs: () => { pid: number; start: string }[] | null;
@@ -48,7 +44,7 @@ const isMissing = (e: unknown) => ["ENOENT", "ENOTDIR"].includes((e as NodeJS.Er
 
 export function clsOf(s: string): Cls | null {
   const n = Number(s);
-  if (Number.isInteger(n) && n >= 1 && n <= 6) return CLASSES[n - 1]!;
+  if (Number.isInteger(n) && n >= 1 && n <= CLASSES.length) return CLASSES[n - 1]!;
   return (CLASSES as readonly string[]).includes(s) ? (s as Cls) : null;
 }
 
@@ -69,6 +65,8 @@ export function parseArgs(argv: string[]): Args {
     } else if (x === "--idle-h") { a.idleH = num(i); i++; }
     else if (x === "--scratch-h") { a.scratchH = num(i); i++; }
     else if (x === "--keep-days") { a.keepDays = num(i); i++; }
+    else if (x === "--tmp-h") { a.tmpH = num(i); i++; }
+    else if (x === "--pressure") a.pressure = true;
     else throw new DiskGcUsage(`unknown or incomplete argument: ${x}\n${DISK_GC_USAGE}`);
   }
   if (a.classes.length === 0) a.classes = [...CLASSES];
@@ -82,7 +80,6 @@ function run(cmd: string, args: string[], cwd?: string): { status: number | null
 
 const git = (cwd: string, args: string[]) => run("git", ["--no-optional-locks", ...args], cwd);
 
-/** Size on disk (blocks) and newest mtime of a tree, without following symlinks; a hard-linked inode counts once. */
 export function walk(p: string): { bytes: number; newest: number } {
   const seen = new Set<string>();
   let bytes = 0, newest = 0;
@@ -94,30 +91,28 @@ export function walk(p: string): { bytes: number; newest: number } {
     newest = Math.max(newest, secs(s.mtimeMs));
     const id = `${s.dev}:${s.ino}`;
     if (!seen.has(id)) { seen.add(id); bytes += s.blocks * 512; }
-    if (s.isDirectory()) { try { for (const n of readdirSync(q)) stack.push(join(q, n)); } catch { /* unreadable */ } }
+    if (s.isDirectory()) { try { for (const n of readdirSync(q)) stack.push(join(q, n)); } catch {} }
   }
   return { bytes, newest };
 }
 
-/** `du -sk` of a tree in bytes (0 when du fails). */
 export function duBytes(p: string): number {
   const r = run("du", ["-sk", p]);
   const k = Number(/^(\d+)/.exec(r.out)?.[1] ?? "0");
   return k * 1024;
 }
 
-const ownerOf = (p: string): number => { try { return lstatSync(p).uid; } catch { return -1; } };
+const ownerOf = (p: string): number | null => { try { return lstatSync(p).uid; } catch { return null; } };
+const isLink = (p: string): boolean => { try { return lstatSync(p).isSymbolicLink(); } catch { return false; } };
 const isDir = (p: string): boolean => { try { return lstatSync(p).isDirectory(); } catch { return false; } };
 const listDir = (p: string): string[] => { try { return readdirSync(p).sort(); } catch { return []; } };
 
-/** The open files and working directories of every process (`lsof -n -F n`), each an absolute path. */
 export function gatherOpens(): string[] | null {
   const r = run("lsof", ["-n", "-w", "-Fn"]);
   if (!r.out) return null;
   return r.out.split("\n").filter((l) => l.startsWith("n/")).map((l) => l.slice(1));
 }
 
-/** pid and `ps` start time (`LC_ALL=C`, as `git worktree lock` reasons quote it) of every process. */
 export function gatherStarts(): { pid: number; start: string }[] | null {
   const r = run("ps", ["-axo", "pid=,lstart="]);
   if (r.status !== 0) return null;
@@ -129,7 +124,6 @@ export function gatherStarts(): { pid: number; start: string }[] | null {
   return out;
 }
 
-/** The Simulator devices (`xcrun simctl list devices -j`). */
 export function gatherDevices(): Device[] | null {
   const r = run("xcrun", ["simctl", "list", "devices", "-j"]);
   if (r.status !== 0) return null;
@@ -148,8 +142,6 @@ export const realIo: Io = {
   lakeRoot: (repo) => { try { return realpathSync(artifactsRoot(repo)); } catch { return null; } },
 };
 
-/** The default roots of the main checkout `repo` (a real path): Lake's artifact cache, this user's Claude scratch
- *  directory of the project, and the Simulator devices directory. */
 export function defaultRoots(repo: string, io: Io, env: Record<string, string | undefined> = process.env): Roots {
   const tmp = (() => { try { return realpathSync("/tmp"); } catch { return "/tmp"; } })();
   const uid = process.getuid?.() ?? 0;
@@ -158,12 +150,12 @@ export function defaultRoots(repo: string, io: Io, env: Record<string, string | 
     lake: io.lakeRoot(repo) ?? "",
     scratch: env.FW_DISK_GC_SCRATCH ?? join(tmp, `claude-${uid}`, repo.replace(/[^A-Za-z0-9-]/g, "-")),
     devices: env.FW_DISK_GC_DEVICES ?? join(homedir(), "Library", "Developer", "CoreSimulator", "Devices"),
+    utmp: env.FW_DISK_GC_UTMP ?? (() => { try { return realpathSync(tmpdir()); } catch { return ""; } })(),
   };
 }
 
 type Wt = { path: string; branch: string; lock: Lock };
 
-/** The worktrees `git worktree list --porcelain` names, with their branch and lock. */
 export function worktrees(repo: string): Wt[] | null {
   const r = git(repo, ["worktree", "list", "--porcelain"]);
   if (r.status !== 0) return null;
@@ -184,8 +176,6 @@ export function worktrees(repo: string): Wt[] | null {
   return out;
 }
 
-/** The branch is landed: it has a commit of its own (its tip differs from the commit its reflog was created at) and
- *  main contains its tip. `null` when git cannot tell. */
 export function landedOf(repo: string, branch: string): boolean | null {
   const tip = git(repo, ["rev-parse", "--verify", "-q", `refs/heads/${branch}`]).out.trim();
   const log = git(repo, ["reflog", "show", "--format=%H", `refs/heads/${branch}`]);
@@ -196,18 +186,16 @@ export function landedOf(repo: string, branch: string): boolean | null {
   return a === 0 ? true : a === 1 ? false : null;
 }
 
-/** Uncommitted or untracked (not ignored) changes, and the newest of the HEAD commit time and their mtimes. */
 export function wtState(wt: string): { dirty: boolean | null; newest: number } {
   const st = git(wt, ["status", "--porcelain", "-z", "--untracked-files=normal"]);
   const head = Number(git(wt, ["log", "-1", "--format=%ct"]).out.trim() || "0");
   if (st.status !== 0) return { dirty: null, newest: Number.MAX_SAFE_INTEGER };
   const files = st.out.split("\0").filter(Boolean).filter((e) => /^.. /.test(e)).map((e) => e.slice(3));
   let newest = head;
-  for (const f of files) { try { newest = Math.max(newest, secs(lstatSync(join(wt, f)).mtimeMs)); } catch { /* gone */ } }
+  for (const f of files) { try { newest = Math.max(newest, secs(lstatSync(join(wt, f)).mtimeMs)); } catch {} }
   return { dirty: files.length > 0, newest };
 }
 
-/** The tracked files under `rel` of the checkout `top` (`null`: git failed). */
 function trackedUnder(top: string, rel: string): Set<string> | null {
   const r = git(top, ["ls-files", "-z", "--", rel]);
   return r.status === 0 ? new Set(r.out.split("\0").filter(Boolean)) : null;
@@ -216,7 +204,6 @@ function trackedUnder(top: string, rel: string): Set<string> | null {
 const trackedIn = (set: Set<string> | null, rel: string): boolean =>
   set === null || [...set].some((f) => f === rel || f.startsWith(`${rel}/`));
 
-/** Every `scratchpad/<dir>` a file on main mentions (also without trailing dots, which end sentences). */
 export function gatherCited(repo: string): string[] | null {
   const r = git(repo, ["grep", "-h", "-o", "-E", "scratchpad/[A-Za-z0-9._-]+", "refs/heads/main"]);
   if (r.status !== 0 && r.status !== 1) return null;
@@ -228,17 +215,50 @@ export function gatherCited(repo: string): string[] | null {
   return [...out];
 }
 
-/** Every `fw-…` name a workflow, package, app or script on main mentions. */
 export function gatherNamed(repo: string): string[] | null {
   const r = git(repo, ["grep", "-h", "-o", "-E", "fw-[A-Za-z0-9._-]+", "refs/heads/main", "--", ".github", "packages", "apps", "scripts"]);
   if (r.status !== 0 && r.status !== 1) return null;
   return [...new Set(r.out.split("\n").filter(Boolean).map((l) => l.slice(l.indexOf("fw-"))))];
 }
 
+export type EventFacts = { liveAgents: string[]; landedTasks: string[]; finishedRuns: string[] };
+
+export function gatherEventFacts(repo: string): EventFacts | null {
+  let text: string;
+  try { text = readFileSync(join(repo, ".fw-console", "events.jsonl"), "utf8"); } catch { return null; }
+  const names = new Map<string, Set<string>>(), ended = new Set<string>(), agentRun = new Map<string, string>();
+  const done = new Set<string>(), runs = new Set<string>();
+  for (const l of text.split("\n")) {
+    if (!l.includes('"type":"agent.') && !l.includes('"type":"task.done"')) continue;
+    let e: { type?: string; key?: string; agent?: string; name?: string; task?: string };
+    try { e = JSON.parse(l); } catch { continue; }
+    const key = e.key ?? "";
+    if (e.type === "task.done" && e.task) done.add(e.task);
+    else if (e.type === "agent.label" && e.agent && e.name) {
+      if (!names.has(e.agent)) names.set(e.agent, new Set());
+      names.get(e.agent)!.add(e.name);
+      const m = /^wfid-label:(wf_[^:]+):/.exec(key);
+      if (m) agentRun.set(e.agent, m[1]!);
+    } else if (e.type === "agent.stop") {
+      if (e.agent) ended.add(e.agent);
+      const m = /^wfr-end:(wf_[A-Za-z0-9_-]+)/.exec(key);
+      if (m) runs.add(m[1]!);
+    }
+  }
+  const live = new Set<string>();
+  for (const [id, ns] of names) if (!ended.has(id) && !runs.has(agentRun.get(id) ?? "")) for (const n of ns) live.add(n);
+  return { liveAgents: [...live], landedTasks: [...done], finishedRuns: [...runs] };
+}
+
+export function ownerMarker(dir: string): { task: string; run: string } | null {
+  try {
+    const j = JSON.parse(readFileSync(join(dir, ".fw-owner"), "utf8").slice(0, 2000)) as { task?: unknown; run?: unknown };
+    return typeof j.task === "string" && typeof j.run === "string" ? { task: j.task, run: j.run } : null;
+  } catch { return null; }
+}
+
 export type Facts = { req: Record<string, unknown>; cands: Cand[]; lazy: Map<string, () => number>; outputs: () => string[] | null };
 
-/** The request facts and candidates of the enabled classes. Byte counts of whole worktrees, rebuildable folders and
- *  devices are filled in later, only for what Lean selects (`lazy`). */
 export function gather(roots: Roots, a: Args, io: Io, now: number, uid: number): Facts {
   const on = (c: Cls) => a.classes.includes(c);
   const cands: Cand[] = [];
@@ -247,6 +267,8 @@ export function gather(roots: Roots, a: Args, io: Io, now: number, uid: number):
   if (a.idleH !== undefined) req.idleH = a.idleH;
   if (a.scratchH !== undefined) req.scratchH = a.scratchH;
   if (a.keepDays !== undefined) req.keepDays = a.keepDays;
+  if (a.tmpH !== undefined) req.tmpH = a.tmpH;
+  if (a.pressure) req.pressure = true;
   const base = (cls: Cls, path: string, extra: Partial<Cand> = {}): Cand =>
     ({ cls, path, bytes: 0, uid: ownerOf(path), tracked: false, newest: 0, dir: isDir(path), ...extra });
   let outputs: () => string[] | null = () => null;
@@ -262,7 +284,7 @@ export function gather(roots: Roots, a: Args, io: Io, now: number, uid: number):
         const s = lstatSync(path);
         cands.push({ cls: "lake", path, bytes: s.blocks * 512, uid: s.uid, tracked: false, newest: secs(s.mtimeMs), dir: s.isDirectory(),
           lake: { name, file: s.isFile(), links: s.nlink, mtime: secs(s.mtimeMs), ctime: secs(s.ctimeMs), size: s.size } });
-      } catch { /* removed meanwhile */ }
+      } catch {}
     }
   }
 
@@ -294,12 +316,15 @@ export function gather(roots: Roots, a: Args, io: Io, now: number, uid: number):
 
   if (on("scratch")) {
     req.cited = gatherCited(roots.repo);
+    const ev = gatherEventFacts(roots.repo);
+    if (ev) { req.liveAgents = ev.liveAgents; req.landedTasks = ev.landedTasks; req.finishedRuns = ev.finishedRuns; }
     for (const s of listDir(roots.scratch)) {
       const pad = join(roots.scratch, s, "scratchpad");
       for (const d of listDir(pad)) {
         const p = join(pad, d);
-        const w = isDir(p) ? walk(p) : { bytes: 0, newest: 0 };
-        cands.push(base("scratch", p, { bytes: w.bytes, newest: w.newest }));
+        const dir = isDir(p);
+        const w = dir ? walk(p) : { bytes: 0, newest: 0 };
+        cands.push(base("scratch", p, { bytes: w.bytes, newest: w.newest, ...(dir ? { owner: ownerMarker(p) } : {}) }));
       }
     }
   }
@@ -322,12 +347,20 @@ export function gather(roots: Roots, a: Args, io: Io, now: number, uid: number):
       for (const n of listDir(join(croot, sub))) {
         const p = join(croot, sub, n);
         const w = walk(p);
-        cands.push(base("console", p, { bytes: w.bytes, newest: w.newest, tracked: trackedIn(tracked, `.fw-console/${sub}/${n}`) }));
+        cands.push(base("console", p, { bytes: w.bytes, newest: w.newest, sym: isLink(p), tracked: trackedIn(tracked, `.fw-console/${sub}/${n}`) }));
       }
     }
   }
 
-  const prefixes = [roots.lake, roots.repo, roots.scratch, roots.devices].filter(Boolean);
+  if (on("usertmp") && roots.utmp) {
+    for (const n of listDir(roots.utmp)) {
+      const p = join(roots.utmp, n);
+      const w = walk(p);
+      cands.push(base("usertmp", p, { bytes: w.bytes, newest: w.newest, sym: isLink(p) }));
+    }
+  }
+
+  const prefixes = [roots.lake, roots.repo, roots.scratch, roots.devices, roots.utmp ?? ""].filter(Boolean);
   const opens = io.opens();
   req.opens = opens === null ? null : [...new Set(opens.filter((o) => prefixes.some((r) => o === r || o.startsWith(`${r}/`))))];
   req.procs = io.procs();
@@ -341,8 +374,6 @@ const candJson = (c: Cand): Record<string, unknown> => {
   return j;
 };
 
-/** Ask Lean: once for the selection; again with outputs when class 1 needs Lake's outputs map; and once more with
- *  the byte counts of the selected worktrees, folders and devices filled in. */
 export function decide(call: Call, f: Facts): Reply {
   const ask = () => call({ op: "ops.diskGc", ...f.req, cands: f.cands.map(candJson) }) as unknown as Reply;
   let r = ask();
@@ -359,13 +390,10 @@ export function decide(call: Call, f: Facts): Reply {
 
 const gib = (n: number) => (n / 2 ** 30).toFixed(2);
 
-/** Free bytes of the volume holding `p` (null when unknown). */
 export function freeBytes(p: string): number | null {
   try { const s = statfsSync(p); return Number(s.bavail) * Number(s.bsize); } catch { return null; }
 }
 
-/** Delete one selected item. The path must still be its own real path and owned by `uid`; worktrees go through
- *  `git worktree remove` (never forced: git refuses a dirty one), devices through `simctl delete`. */
 export function deleteItem(item: { cls: Cls; path: string }, repo: string, uid: number, io: Io, lock?: Lock | null): string | null {
   let real: string;
   try { real = realpathSync(item.path); } catch (e) { return isMissing(e) ? null : (e as Error).message; }
@@ -387,11 +415,10 @@ export function deleteItem(item: { cls: Cls; path: string }, repo: string, uid: 
   } catch (e) { return isMissing(e) ? null : (e as Error).message; }
 }
 
-export type RunResult = { reply: Reply; lines: string[]; ok: boolean; freeBefore: number | null; freeAfter: number | null; deleted: number; failed: number };
+export type RunResult = { reply: Reply; lines: string[]; ok: boolean; freeBefore: number | null; freeAfter: number | null; deleted: number; failed: number; freed: { cls: Cls; num: number; bytes: number }[] };
 
 export type RunOpts = { repo: string; args: Args; call: Call; io?: Io; roots?: Roots; now?: number; uid?: number; env?: Record<string, string | undefined> };
 
-/** One run: gather, decide, then print (or delete) the list; with `--delete`, record one `diskgc.run` event. */
 export function diskGc(o: RunOpts): RunResult {
   const io = o.io ?? realIo, env = o.env ?? process.env;
   const uid = o.uid ?? process.getuid?.() ?? 0;
@@ -402,6 +429,7 @@ export function diskGc(o: RunOpts): RunResult {
   const reply = decide(o.call, f);
   const lines: string[] = [];
   let deleted = 0, failed = 0;
+  const freed = new Map<Cls, number>();
   if (o.args.mode === "json") lines.push(JSON.stringify(reply));
   else if (o.args.mode === "list") for (const i of reply.items) lines.push(`${i.num} ${i.cls} ${i.bytes} ${i.path}`);
   else {
@@ -414,51 +442,49 @@ export function diskGc(o: RunOpts): RunResult {
     const locks = new Map(f.cands.map((c) => [`${c.cls} ${c.path}`, c.lock]));
     for (const [k, i] of reply.items.entries()) {
       const err = ok[k] === true ? deleteItem(i, roots.repo, uid, io, locks.get(`${i.cls} ${i.path}`)) : "path refused by ops.diskGcPath";
-      if (err === null) deleted++;
+      if (err === null) { deleted++; freed.set(i.cls, (freed.get(i.cls) ?? 0) + i.bytes); }
       else { failed++; lines.push(`disk-gc: kept ${i.path}: ${err}`); }
     }
   }
   const freeAfter = o.args.mode === "delete" ? freeBytes(roots.repo) : freeBefore;
+  const freedBy = [...freed].map(([cls, b]) => ({ cls, num: CLASSES.indexOf(cls) + 1, bytes: b }));
+  if (o.args.mode === "delete") for (const f of freedBy) lines.push(`disk-gc: freed class ${f.num} ${f.cls}: ${gib(f.bytes)} GiB`);
   const free = (n: number | null) => (n === null ? "?" : gib(n));
   if (o.args.mode === "delete") lines.push(`disk-gc: deleted ${deleted}, failed ${failed}; free ${free(freeBefore)} GiB before, ${free(freeAfter)} GiB after`);
   else if (o.args.mode === "summary") lines.push(`disk-gc: free ${free(freeBefore)} GiB${reply.items.length ? "; to delete: pnpm -s fw disk-gc --delete" : ""}`);
-  const res = { reply, lines, ok: failed === 0, freeBefore, freeAfter, deleted, failed };
+  const res = { reply, lines, ok: failed === 0, freeBefore, freeAfter, deleted, failed, freed: freedBy };
   if (o.args.mode === "delete") record(roots.repo, o.args, res, now);
   return res;
 }
 
-/** Append one `diskgc.run` event to `<main>/.fw-console/disk-gc.jsonl`. */
 export function record(repo: string, a: Args, r: RunResult, now: number): void {
   try {
     const p = join(repo, ".fw-console", "disk-gc.jsonl");
     mkdirSync(dirname(p), { recursive: true });
     appendFileSync(p, JSON.stringify({ type: "diskgc.run", at: now, mode: a.mode, classes: r.reply.classes, deleted: r.deleted,
-      failed: r.failed, freeBefore: r.freeBefore, freeAfter: r.freeAfter }) + "\n");
-  } catch { /* the log is advisory */ }
+      failed: r.failed, freed: r.freed, freeBefore: r.freeBefore, freeAfter: r.freeAfter }) + "\n");
+  } catch {}
 }
 
-/** The main checkout of `cwd` (a real path). */
 export function mainOf(cwd: string): string {
   const r = git(cwd, ["rev-parse", "--path-format=absolute", "--git-common-dir"]);
   return realpathSync(dirname(r.out.trim()));
 }
 
-/** `fw disk-gc`: exit 0, or 1 when a deletion failed. */
 export function diskGcCli(argv: string[], cwd: string, call: Call, print: (s: string) => void = console.log): number {
   const r = diskGc({ repo: mainOf(cwd), args: parseArgs(argv), call });
   for (const l of r.lines) print(l);
   return r.ok ? 0 : 1;
 }
 
-/** A trigger's run (post-land: classes 1, 2, 6; `sys.diskLow`: all): `DISKGC` lines, never a throw.
- *  `FW_DISK_GC=0` turns the triggers off. */
 export function diskGcTick(repo: string, classes: Cls[], call: Call, env: Record<string, string | undefined> = process.env,
-  opts: Partial<RunOpts> = {}): string[] {
+  opts: Partial<RunOpts> & { pressure?: boolean } = {}): string[] {
   if (env.FW_DISK_GC === "0") return [];
   try {
-    const r = diskGc({ ...opts, repo, args: { mode: "delete", classes }, call, env });
+    const { pressure, ...rest } = opts;
+    const r = diskGc({ ...rest, repo, args: { mode: "delete", classes, ...(pressure ? { pressure: true } : {}) }, call, env });
     const by = r.reply.classes.filter((c) => c.count > 0).map((c) => `${c.num} ${c.cls} ${c.count} (${gib(c.bytes)} GiB)`).join(", ");
-    return [`DISKGC classes ${classes.map((c) => CLASSES.indexOf(c) + 1).join(",")}: ${by || "nothing to delete"}; deleted ${r.deleted}, failed ${r.failed}`];
+    return [`DISKGC classes ${classes.map((c) => CLASSES.indexOf(c) + 1).join(",")}: ${by || "nothing to delete"}; deleted ${r.deleted}, failed ${r.failed}${r.freed.length ? `; freed ${r.freed.map((f) => `${f.num} ${gib(f.bytes)} GiB`).join(", ")}` : ""}`];
   } catch (e) {
     return [`DISKGC error ${e instanceof Error ? e.message.split("\n")[0] : String(e)}`];
   }
