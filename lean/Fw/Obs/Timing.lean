@@ -58,18 +58,36 @@ inductive Host where
   | ci
 deriving DecidableEq, Repr
 
-/-- One timing sample: tool, step, duration in ms, host, the floor of the 1-min load average when it ran, and the run
+/-- One timing sample: tool, step, duration in ms, host, the floor of the 1-min load average when it ran, the run
 kind (empty when the run has none; for a CI dispatch the digest of its inputs, so runs with different inputs are
-different histories).
+different histories), the exit code (`none` when unknown) and whether CI reported the step or job `skipped`.
 -/
 structure Sample where
-  tool  : String
-  step  : String
-  durMs : Nat
-  host  : Host
-  load  : Nat := 0
-  kind  : String := ""
+  tool    : String
+  step    : String
+  durMs   : Nat
+  host    : Host
+  load    : Nat := 0
+  kind    : String := ""
+  exit    : Option Int := none
+  skipped : Bool := false
 deriving DecidableEq, Repr
+
+def fullRun (exit : Option Int) (skipped : Bool) : Bool := !skipped && (exit == none || exit == some 0)
+
+def Sample.full (s : Sample) : Bool := fullRun s.exit s.skipped
+
+#guard fullRun none false && fullRun (some 0) false && !fullRun (some 1) false && !fullRun (some 16) false
+#guard !fullRun (some (-1)) false && !fullRun (some 0) true && !fullRun none true
+
+theorem fullRun_none : fullRun none false = true := rfl
+
+theorem fullRun_zero : fullRun (some 0) false = true := rfl
+
+theorem fullRun_skipped (e : Option Int) : fullRun e true = false := rfl
+
+theorem fullRun_nonzero (n : Int) (b : Bool) (h : n ≠ 0) : fullRun (some n) b = false := by
+  simp [fullRun, h]
 
 /-- The history a sample belongs to: same tool, same step, same host, same run kind. -/
 structure Key where
@@ -187,11 +205,10 @@ def contended (p : Params) (s : Sample) : Bool := decide (s.host = .«local») &
 /-- The last `n` elements of a list (all of it when it is shorter). -/
 def lastN (n : Nat) (xs : List Nat) : List Nat := xs.drop (xs.length - n)
 
-/-- The window of key `k` in a history: the durations of the last `N` samples of `hist` with key `k` that are not
-contended, oldest first.
--/
+def counts (p : Params) (s : Sample) : Bool := s.full && !contended p s
+
 def windowOf (p : Params) (hist : List Sample) (k : Key) : List Nat :=
-  lastN p.window ((hist.filter (fun s => decide (s.key = k) && !contended p s)).map (·.durMs))
+  lastN p.window ((hist.filter (fun s => decide (s.key = k) && counts p s)).map (·.durMs))
 
 /-- The budget of a tool: its first override in `budgets`, else the default `B_0`. -/
 def budgetOf (p : Params) (tool : String) : Nat := (p.budgets.lookup tool).getD p.budgetMs
@@ -345,8 +362,7 @@ def isJob (s : Sample) : Bool := decide (s.host = .ci) && !s.step.contains '/'
 -/
 def family (step : String) : String := (step.splitOn " (").headD step
 
-/-- The keys of the job-level CI samples, first occurrence order, without repeats. -/
-def jobKeys (ss : List Sample) : List Key := ((ss.filter isJob).map Sample.key).eraseDups
+def jobKeys (ss : List Sample) : List Key := ((ss.filter (fun s => isJob s && s.full)).map Sample.key).eraseDups
 
 /-- The stages derived from the samples when the caller gives none: one stage per CI workflow (tool) that has at
 least two job families, with one group per family (named by the family, holding that family's job keys), in first
@@ -374,11 +390,14 @@ inductive Verdict where
   | structural (v : StructVerdict)
 deriving DecidableEq, Repr
 
-/-- The entry point (wire op `obs.timing`): the samples in time order give one verdict each, in order, followed by
-the structural verdicts.
+def fullVerdicts (p : Params) (ss : List Sample) : List SampleVerdict :=
+  ((ss.zip (sampleVerdicts p ss)).filter (fun x => x.1.full)).map (·.2)
+
+/-- The entry point (wire op `obs.timing`): the full samples in time order give one verdict each, in order, followed
+by the structural verdicts.
 -/
 def timingVerdicts (p : Params) (ss : List Sample) : List Verdict :=
-  (sampleVerdicts p ss).map .sample ++ (structuralVerdicts p ss).map .structural
+  (fullVerdicts p ss).map .sample ++ (structuralVerdicts p ss).map .structural
 
 /-- A local key for the examples below. -/
 private def lk : Key := { tool := "t", step := "s", host := .«local» }
@@ -504,19 +523,26 @@ theorem no_alert_within_budget (p : Params) (hist : List Sample) (i : Nat) (s : 
     | none => rw [hc] at h; simp only at h; omega
     | some c => rw [hc] at h; simp only at h; omega
 
-/-- Every sample verdict of the entry point is `judge` of its sample against the samples before it. -/
-theorem mem_sample (p : Params) (hist : List Sample) (v : SampleVerdict)
+theorem mem_sample_full (p : Params) (hist : List Sample) (v : SampleVerdict)
     (h : Verdict.sample v ∈ timingVerdicts p hist) :
-    ∃ i, ∃ hi : i < hist.length, v = judge p (hist.take i) i hist[i] := by
+    ∃ i, ∃ hi : i < hist.length, hist[i].full = true ∧ v = judge p (hist.take i) i hist[i] := by
   simp only [timingVerdicts, List.mem_append, List.mem_map] at h
   rcases h with ⟨w, hw, he⟩ | ⟨w, _, he⟩
   · cases he
-    obtain ⟨i, hi, he⟩ := List.mem_iff_getElem.1 hw
-    have hi' : i < hist.length := by simpa [sampleVerdicts, List.length_mapIdx] using hi
-    refine ⟨i, hi', ?_⟩
-    rw [← he]
-    simp [sampleVerdicts, List.getElem_mapIdx]
+    simp only [fullVerdicts, List.mem_map, List.mem_filter] at hw
+    obtain ⟨x, ⟨hx, hf⟩, rfl⟩ := hw
+    obtain ⟨i, hi, he⟩ := List.mem_iff_getElem.1 hx
+    have hl : i < hist.length := by simp [sampleVerdicts] at hi; omega
+    refine ⟨i, hl, ?_, ?_⟩
+    · rw [← he] at hf; simpa using hf
+    · rw [← he]; simp [sampleVerdicts, List.getElem_mapIdx]
   · cases he
+
+theorem mem_sample (p : Params) (hist : List Sample) (v : SampleVerdict)
+    (h : Verdict.sample v ∈ timingVerdicts p hist) :
+    ∃ i, ∃ hi : i < hist.length, v = judge p (hist.take i) i hist[i] := by
+  obtain ⟨i, hi, _, he⟩ := mem_sample_full p hist v h
+  exact ⟨i, hi, he⟩
 
 /-- No alert within budget, over the whole output: a sample verdict whose duration is at most its budget is not
 `slow`.
@@ -580,7 +606,7 @@ theorem noBaseline_iff (p : Params) (hist : List Sample) (i : Nat) (s : Sample) 
 theorem window_length (p : Params) (hist : List Sample) (k : Key) :
     (windowOf p hist k).length ≤ p.window ∧
       (windowOf p hist k).length ≤ hist.countP (fun s => decide (s.key = k)) := by
-  have hc : (hist.filter (fun s => decide (s.key = k) && !contended p s)).length ≤
+  have hc : (hist.filter (fun s => decide (s.key = k) && counts p s)).length ≤
       hist.countP (fun s => decide (s.key = k)) := by
     rw [← List.countP_eq_length_filter]
     exact List.countP_mono_left (by intro x _ hx; simp only [Bool.and_eq_true] at hx; exact hx.1)
@@ -609,18 +635,143 @@ theorem deterministic (p : Params) (hist : List Sample) (i : Nat) (s : Sample) :
     cases decide (x.key = s.key) <;> simp
   simp only [judge, this]
 
-/-- Total: the output holds one verdict per sample, in input order (sample `i` judged against the samples before
-it), followed by the structural verdicts.
--/
-theorem timingVerdicts_total (p : Params) (hist : List Sample) :
+theorem fullVerdicts_all_full (p : Params) (ss : List Sample) (hf : ∀ s ∈ ss, s.full = true) :
+    fullVerdicts p ss = sampleVerdicts p ss := by
+  have hl : (sampleVerdicts p ss).length ≤ ss.length := by simp [sampleVerdicts]
+  unfold fullVerdicts
+  rw [List.filter_eq_self.2 (fun x hx => hf x.1 (List.of_mem_zip hx).1)]
+  exact List.map_snd_zip hl
+
+theorem timingVerdicts_all_full (p : Params) (ss : List Sample) (hf : ∀ s ∈ ss, s.full = true) :
+    timingVerdicts p ss = (sampleVerdicts p ss).map .sample ++ (structuralVerdicts p ss).map .structural := by
+  rw [timingVerdicts, fullVerdicts_all_full p ss hf]
+
+theorem windowOf_all_full (p : Params) (hist : List Sample) (k : Key) (hf : ∀ s ∈ hist, s.full = true) :
+    windowOf p hist k = lastN p.window ((hist.filter (fun s => decide (s.key = k) && !contended p s)).map (·.durMs)) := by
+  unfold windowOf
+  congr 2
+  apply List.filter_congr
+  intro x hx
+  simp [counts, hf x hx]
+
+theorem jobKeys_all_full (ss : List Sample) (hf : ∀ s ∈ ss, s.full = true) :
+    jobKeys ss = ((ss.filter isJob).map Sample.key).eraseDups := by
+  unfold jobKeys
+  congr 2
+  apply List.filter_congr
+  intro x hx
+  simp [hf x hx]
+
+theorem timingVerdicts_total (p : Params) (hist : List Sample) (hf : ∀ s ∈ hist, s.full = true) :
     (timingVerdicts p hist).length = hist.length + (structuralVerdicts p hist).length ∧
       ∀ i (hi : i < hist.length),
         (timingVerdicts p hist)[i]? = some (.sample (judge p (hist.take i) i hist[i])) := by
-  refine ⟨by simp [timingVerdicts, sampleVerdicts], ?_⟩
+  rw [timingVerdicts_all_full p hist hf]
+  refine ⟨by simp [sampleVerdicts], ?_⟩
   intro i hi
   have hl : i < ((sampleVerdicts p hist).map Verdict.sample).length := by simpa [sampleVerdicts] using hi
-  rw [timingVerdicts, List.getElem?_append_left hl]
+  rw [List.getElem?_append_left hl]
   simp [sampleVerdicts, hi]
+
+theorem windowOf_filter_full (p : Params) (hist : List Sample) (k : Key) :
+    windowOf p hist k = windowOf p (hist.filter Sample.full) k := by
+  simp only [windowOf, List.filter_filter]
+  congr 3
+  funext x
+  cases hx : x.full <;> simp [counts, hx]
+
+theorem judge_filter_full (p : Params) (hist : List Sample) (i : Nat) (s : Sample) :
+    judge p hist i s = judge p (hist.filter Sample.full) i s := by
+  simp only [judge, ← windowOf_filter_full]
+
+theorem judge_indep (p : Params) (hist hist' : List Sample) (i : Nat) (s : Sample)
+    (h : hist.filter Sample.full = hist'.filter Sample.full) : judge p hist i s = judge p hist' i s := by
+  rw [judge_filter_full p hist, judge_filter_full p hist', h]
+
+theorem judge_insert_other (p : Params) (a cs b : List Sample) (i : Nat) (s : Sample)
+    (hc : ∀ c ∈ cs, c.full = false) : judge p (a ++ cs ++ b) i s = judge p (a ++ b) i s := by
+  apply judge_indep
+  have h : cs.filter Sample.full = [] := List.filter_eq_nil_iff.2 (fun c h' => by simp [hc c h'])
+  simp only [List.filter_append, h, List.append_nil]
+
+def SampleVerdict.unindexed (v : SampleVerdict) : SampleVerdict := { v with idx := 0 }
+
+def Verdict.unindexed : Verdict → Verdict
+  | .sample v => .sample v.unindexed
+  | .structural v => .structural v
+
+theorem sampleVerdicts_snoc (p : Params) (ss : List Sample) (x : Sample) :
+    sampleVerdicts p (ss ++ [x]) = sampleVerdicts p ss ++ [judge p ss ss.length x] := by
+  apply List.ext_getElem
+  · simp [sampleVerdicts]
+  · intro n h1 h2
+    simp only [sampleVerdicts, List.getElem_mapIdx, List.length_append, List.length_cons, List.length_nil,
+      List.length_mapIdx] at h1 ⊢
+    rw [List.getElem_append]
+    by_cases hn : n < ss.length
+    · simp [hn, List.take_append_of_le_length (Nat.le_of_lt hn)]
+    · have he : n = ss.length := by omega
+      subst he
+      simp
+
+theorem fullVerdicts_snoc (p : Params) (ss : List Sample) (x : Sample) :
+    fullVerdicts p (ss ++ [x]) = fullVerdicts p ss ++ (if x.full then [judge p ss ss.length x] else []) := by
+  unfold fullVerdicts
+  rw [sampleVerdicts_snoc, List.zip_append (by simp [sampleVerdicts])]
+  cases hx : x.full <;> simp [List.filter_append, hx]
+
+theorem fullVerdicts_unindexed (p : Params) (ss : List Sample) :
+    (fullVerdicts p ss).map SampleVerdict.unindexed =
+      (sampleVerdicts p (ss.filter Sample.full)).map SampleVerdict.unindexed := by
+  rw [← List.reverse_reverse ss]
+  generalize ss.reverse = r
+  induction r with
+  | nil => simp [fullVerdicts, sampleVerdicts]
+  | cons x r ih =>
+    rw [List.reverse_cons, fullVerdicts_snoc, List.filter_append]
+    cases hx : x.full
+    · simp [hx, ih]
+    · simp only [hx, ite_true, List.filter_cons, List.filter_nil, List.map_append, ih, sampleVerdicts_snoc]
+      simp only [judge, ← windowOf_filter_full, List.map_cons, List.map_nil, SampleVerdict.unindexed]
+
+theorem jobKeys_filter_full (ss : List Sample) : jobKeys (ss.filter Sample.full) = jobKeys ss := by
+  unfold jobKeys
+  rw [List.filter_filter]
+  congr 2
+  apply List.filter_congr
+  intro x _
+  cases x.full <;> simp
+
+theorem groupBaseline_filter_full (p : Params) (ss : List Sample) :
+    groupBaseline p (ss.filter Sample.full) = groupBaseline p ss := by
+  have hf : finalBaseline p (ss.filter Sample.full) = finalBaseline p ss := by
+    funext k
+    simp [finalBaseline, ← windowOf_filter_full]
+  funext g
+  simp only [groupBaseline, hf]
+
+theorem structuralVerdicts_filter_full (p : Params) (ss : List Sample) :
+    structuralVerdicts p (ss.filter Sample.full) = structuralVerdicts p ss := by
+  have hs : stagesOf p (ss.filter Sample.full) = stagesOf p ss := by
+    simp only [stagesOf, autoStages, jobKeys_filter_full]
+  have hv : stageVerdict p (ss.filter Sample.full) = stageVerdict p ss := by
+    funext st g
+    unfold stageVerdict callOf siblings
+    rw [groupBaseline_filter_full]
+  simp only [structuralVerdicts, hs, hv]
+
+theorem timingVerdicts_indep (p : Params) (ss : List Sample) :
+    (timingVerdicts p ss).map Verdict.unindexed = (timingVerdicts p (ss.filter Sample.full)).map Verdict.unindexed := by
+  have hf : ∀ s ∈ ss.filter Sample.full, s.full = true := fun s hs => (List.mem_filter.1 hs).2
+  rw [timingVerdicts_all_full p _ hf, timingVerdicts, structuralVerdicts_filter_full]
+  simp only [List.map_append, List.map_map]
+  have hc : (Verdict.unindexed ∘ Verdict.sample) = Verdict.sample ∘ SampleVerdict.unindexed := rfl
+  rw [hc, ← List.map_map, ← List.map_map (g := Verdict.sample), fullVerdicts_unindexed]
+
+theorem timingVerdicts_same_full (p : Params) (ss ss' : List Sample)
+    (h : ss.filter Sample.full = ss'.filter Sample.full) :
+    (timingVerdicts p ss).map Verdict.unindexed = (timingVerdicts p ss').map Verdict.unindexed := by
+  rw [timingVerdicts_indep p ss, timingVerdicts_indep p ss', h]
 
 /-! ## Proofs: the order statistic and the outlier bound -/
 
@@ -1000,8 +1151,8 @@ window unchanged.
 -/
 theorem windowOf_append_contended (p : Params) (hist cs : List Sample) (k : Key)
     (hc : ∀ c ∈ cs, contended p c = true) : windowOf p (hist ++ cs) k = windowOf p hist k := by
-  have h : cs.filter (fun s => decide (s.key = k) && !contended p s) = [] :=
-    List.filter_eq_nil_iff.2 (fun c hc' => by simp [hc c hc'])
+  have h : cs.filter (fun s => decide (s.key = k) && counts p s) = [] :=
+    List.filter_eq_nil_iff.2 (fun c hc' => by simp [counts, hc c hc'])
   simp [windowOf, List.filter_append, h]
 
 /-- **Contended samples do not change any verdict.** The code of a sample against a history followed by contended
@@ -1240,7 +1391,8 @@ def keyJson (k : Key) : Json :=
 
 def sampleJson (s : Sample) : Json :=
   Json.mkObj [("tool", .str s.tool), ("step", .str s.step), ("durMs", toJson s.durMs),
-    ("host", .str (hostStr s.host)), ("load", toJson s.load), ("runKind", .str s.kind)]
+    ("host", .str (hostStr s.host)), ("load", toJson s.load), ("runKind", .str s.kind),
+    ("exit", (s.exit.map toJson).getD .null), ("skipped", toJson s.skipped)]
 
 def paramsJson (p : Params) : Json :=
   Json.mkObj [("nMin", toJson p.nMin), ("window", toJson p.window), ("kNum", toJson p.kNum),
@@ -1306,6 +1458,23 @@ def run (tool step : String) (host : Host) (load : Nat) (ds : List Nat) : List S
 
 def runK (tool step kind : String) (host : Host) (ds : List Nat) : List Sample :=
   ds.map fun d => { tool, step, durMs := d, host, kind }
+
+def runX (tool step : String) (host : Host) (load : Nat) (xs : List (Nat × Option Int × Bool)) : List Sample :=
+  xs.map fun (d, exit, skipped) => { tool, step, durMs := d, host, load, exit, skipped }
+
+def landDry : List (Nat × Option Int × Bool) :=
+  [(256, some 12, false), (19140, some 0, false), (213, some 12, false), (20226, some 0, false),
+   (20710, some 0, false), (75, some 16, false), (20102, some 0, false), (12, some 1, false), (72, some 16, false),
+   (32103, some 0, false), (103, some 16, false), (28484, some 0, false), (124, some 2, false), (879, some 0, false)]
+
+def gateGapsJudge : List (Nat × Option Int × Bool) :=
+  [(44000, some 0, false), (79000, some 0, false), (74000, some 0, false)] ++
+    List.replicate 7 (0, some 0, true) ++
+    [(82000, some 0, false), (88000, some 0, false), (91000, some 0, false), (76000, some 0, false)]
+
+def gateEngine : List (Nat × Option Int × Bool) :=
+  ([18000, 31000, 23000, 18000, 20000, 22000, 19000, 22000, 18000, 22000, 0, 24000, 21000, 20000, 23000, 26000, 0,
+    19000, 18000, 0, 33000].map fun d => (d, some 0, decide (d = 0)))
 
 /-- A check.sh history around 2 min (handoffs report 117 s and up to 136 s for check.sh). -/
 def checkHist : List Nat := [117000, 124000, 131000, 119000, 136000, 122000]
@@ -1374,11 +1543,21 @@ def cases : List (String × Params × List Sample) :=
    ("contended burst then regression (lean_check_regression_through_contention): props lint 20 s x5 at load 4, 120 s x10 at load 20 (contended, no window entry, no alert), then 40 s at load 4 is slow (median 20 s)",
       {}, run "lean/check" "props lint" .«local» 4 [20000, 20000, 20000, 20000, 20000] ++
         run "lean/check" "props lint" .«local» 20 [120000, 120000, 120000, 120000, 120000, 120000, 120000, 120000, 120000, 120000] ++
-        run "lean/check" "props lint" .«local» 4 [40000])]
+        run "lean/check" "props lint" .«local» 4 [40000]),
+   ("fw land dry 2026-10-22: early refusals (exit 1, 2, 12, 16) get no verdict and stay out of windows; the 32.1 s dry land has 4 full runs before it (noBaseline; pooled with the refusals its median was 256 ms and it was slow), the last is ok",
+      {}, runX "fw" "land dry" .«local» 3 landDry),
+   ("gate-gaps judge: 7 skipped 0 s jobs get no verdict and stay out of windows; 82 and 88 s are noBaseline, 91 s is ok (median 79 s; pooled with the skipped jobs the median was 0 s and all four were slow)",
+      {}, runX "gate-gaps" "judge" .ci 0 gateGapsJudge),
+   ("run 39722879593: land (chromium) gate-engine 33 s after 17 full and 3 skipped steps is slow (median 21 s over the full steps)",
+      {}, runX "land" "land (chromium)/Run ./.github/actions/gate-engine" .ci 0 gateEngine),
+   ("a slow full dry land followed by an early refusal: the refusal gets no verdict, so the slow verdict stays the latest of its key",
+      {}, runX "fw" "land dry" .«local» 3 ((List.replicate 5 (20000, some 0, false)) ++ [(45000, some 0, false), (100, some 16, false)])),
+   ("unknown exit (null) counts as a full run: 45 s after five 20 s runs with no exit code is slow",
+      {}, runX "fw" "land dry" .«local» 3 ((List.replicate 5 (20000, none, false)) ++ [(45000, none, false)]))]
 
 /-- The last verdict code of each case's samples, and the structural groups: the expected outcomes. -/
 def lastCode (p : Params) (ss : List Sample) : Option Code :=
-  ((sampleVerdicts p ss).getLast?).map (·.code)
+  ((fullVerdicts p ss).getLast?).map (·.code)
 
 #guard (structuralVerdicts gateParams gateRun).map (fun v => (v.stage, v.group, v.call, v.baseline, v.siblingMax)) ==
   [("breakpoint-gate:test", "gate", .noise, 147000, 345000), ("breakpoint-gate:test", "sweeps", .structural, 345000, 147000),
@@ -1388,7 +1567,16 @@ def lastCode (p : Params) (ss : List Sample) : Option Code :=
 #guard (cases.drop 1).map (fun (_, p, ss) => lastCode p ss) ==
   [some .ok, some .slow, some .noBaseline, some .ok, some .slow, some .ok, some .slow, some .ok, some .slow, some .slow,
    some .slow, some .ok, some .slow, some .ok, some .slow, some .contended, some .slow, some .slow, some .ok, some .ok,
-   some .noBaseline, some .noBaseline, some .slow, some .slow]
+   some .noBaseline, some .noBaseline, some .slow, some .slow, some .ok, some .ok, some .slow, some .slow, some .slow]
+#guard (fullVerdicts {} (runX "fw" "land dry" .«local» 3 landDry)).map (fun v => (v.durMs, v.code)) ==
+  [(19140, .noBaseline), (20226, .noBaseline), (20710, .noBaseline), (20102, .noBaseline), (32103, .noBaseline),
+   (28484, .ok), (879, .ok)]
+#guard ((sampleVerdicts {} ((runX "fw" "land dry" .«local» 3 landDry).map fun s => { s with exit := none })).map
+    (·.code))[9]? == some .slow
+#guard (fullVerdicts {} (runX "gate-gaps" "judge" .ci 0 gateGapsJudge)).map (·.code) ==
+  [.noBaseline, .noBaseline, .noBaseline, .noBaseline, .noBaseline, .ok, .ok]
+#guard ((sampleVerdicts {} ((runX "gate-gaps" "judge" .ci 0 gateGapsJudge).map fun s => { s with skipped := false })).map
+    (·.code)).drop 10 == [.slow, .slow, .slow, .slow]
 #guard (sampleVerdicts {} (run "ci:w" "build" .ci 0
     [2000, 2000, 2000, 2000, 50000, 50000, 50000, 50000, 50000, 50000, 50000])).map (·.code) ==
   [.noBaseline, .noBaseline, .noBaseline, .noBaseline, .noBaseline, .slow, .slow, .slow, .slow, .ok, .ok]
