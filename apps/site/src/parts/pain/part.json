@@ -6,7 +6,7 @@
   "impls": ["plain"],
   "muiStates": [],
   "variants": {
-    "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "original": "_app/immutable/assets/2.gBuqKVzi.css:2166-2250,2299-2357; nodes/2.DyWL8TcE.js:4407-4410,4749-4825" } },
+    "faithful": { "kind": "faithful", "files": ["index.tsx", "media.ts", "pain.module.css"], "tier": "T1", "provenance": { "original": "_app/immutable/assets/2.gBuqKVzi.css:2166-2250,2299-2357; nodes/2.DyWL8TcE.js:4407-4410,4749-4825" } },
     "dark-scroll": {
       "kind": "optimized",
       "tier": "T0",
