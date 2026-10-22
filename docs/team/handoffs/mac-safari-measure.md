@@ -3,7 +3,7 @@ branch `worktree-wf_f4a6ed0e-0c6-1`, worktree `.claude/worktrees/wf_f4a6ed0e-0c6
 (`probeAct`, `mayRecord`); golden `golden/sup/measure.jsonl` (55 rows) replayed by `safari-local-reduce.mjs`. Glue: `safari-local-run.mjs` (`takeBaseline`, cells, summary), `sim-local.mjs`
 (`ensureDevice` reuses `fw-mac-safari-27`, never deletes), `safari-local.mjs`, `sim-local-cli.mjs` (`--base-wait-s`), `safari-local-lease.mjs` (sim slot), `xctrace/{guard,attempt,probe,parse}.mjs`.
 **Result:** 0 accepted passes of 30 (round 1, old fixed ceiling 2.5 below this Mac's idle floor 3.2-4.3). Round 2 debug run (read-only, 156 s): baseline refused, a slot holder was live. No cadence verdict.
-**Verified:** Lean builds; golden `--check`; `pnpm --filter @fw/measure-webkit test` (376 pass, incl. 12 guard tests); see the report for check.sh, ci-paths, land-inputs, dry land.
+**Verified:** Lean builds; golden `--check`; `pnpm --filter @fw/measure-webkit test` (379 pass, incl. 12 guard tests); check.sh green; ci-paths 54; land-inputs 56; dry land needs `--allow apps/runner/src/land.ts` (declared sup goldens as reads of measure-webkit, outside the graph writes).
 **xctrace safety:** `--time-limit`, own process group, TMPDIR in `<out>/.xctrace/work-<pid>`, wipe in `finally`, sim slot held while recording, dies with parent, 30 GB free gate, 12 GB trace cap.
 **Run:** build the site, then `node packages/measure-webkit/src/sim-local-cli.mjs --site apps/site/dist/aot --engine safari|sim|both --out results/mac-safari/<engine>`; `--debug-ignore-quiet` is harness debugging only.
 Re-reduce: `node packages/measure-webkit/src/sim-local-summary.mjs <dir> --write`. xctrace: `node packages/measure-webkit/src/xctrace/probe.mjs --site apps/site/dist/aot --target sim|mac|both --out <file>`.
