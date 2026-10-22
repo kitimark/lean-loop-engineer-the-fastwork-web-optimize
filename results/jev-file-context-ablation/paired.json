@@ -1,0 +1,1540 @@
+{
+ "question": "incident-class",
+ "rows": 27,
+ "answered": {
+  "jev": {
+   "base": 27,
+   "arm": 27
+  },
+  "jev-naive": {
+   "base": 27,
+   "arm": 27
+  },
+  "haiku": {
+   "base": 27,
+   "arm": 27
+  },
+  "sonnet": {
+   "base": 27,
+   "arm": 27
+  }
+ },
+ "arms": {
+  "jev": {
+   "strict": {
+    "armRight": 12,
+    "baseRight": 16,
+    "gains": [
+     "inc-watch-unlanded-queued",
+     "inc-land-dry-no-verdict",
+     "inc-land-dry-needs-console"
+    ],
+    "losses": [
+     "inc-worktree-role-as-teammate",
+     "inc-watch-unlanded-after-land",
+     "inc-evidence-before-land",
+     "inc-land-inputs-untracked-exists",
+     "inc-console-stale-service",
+     "inc-workflow-multi-unbound",
+     "inc-reap-console-kill"
+    ],
+    "mode": "strict",
+    "net": -4,
+    "p": {
+     "den": "32",
+     "num": "11"
+    },
+    "pairs": [
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-claim-order"
+     },
+     {
+      "arm": false,
+      "base": true,
+      "id": "inc-worktree-role-as-teammate"
+     },
+     {
+      "arm": false,
+      "base": true,
+      "id": "inc-watch-unlanded-after-land"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-watch-alert-during-land"
+     },
+     {
+      "arm": true,
+      "base": false,
+      "id": "inc-watch-unlanded-queued"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-land-undeclared-reads"
+     },
+     {
+      "arm": false,
+      "base": true,
+      "id": "inc-evidence-before-land"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-gate-scan-page-state"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-ci-verdict-needs-api"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-land-retry-text-match"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-findings-shared-entry"
+     },
+     {
+      "arm": false,
+      "base": true,
+      "id": "inc-land-inputs-untracked-exists"
+     },
+     {
+      "arm": true,
+      "base": false,
+      "id": "inc-land-dry-no-verdict"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-ci-run-cap-prompt"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-wt-prep-lsp-as-build"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-parallel-write-overlap"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-test-pid-marker"
+     },
+     {
+      "arm": false,
+      "base": true,
+      "id": "inc-console-stale-service"
+     },
+     {
+      "arm": false,
+      "base": true,
+      "id": "inc-workflow-multi-unbound"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-obs-silent-drop"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-ci-skipped-false-pass"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-spawn-patcher-unreachable"
+     },
+     {
+      "arm": true,
+      "base": false,
+      "id": "inc-land-dry-needs-console"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-land-queue-unknown"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-plan-sync-manual"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-runner-bin-mode-flip"
+     },
+     {
+      "arm": false,
+      "base": true,
+      "id": "inc-reap-console-kill"
+     }
+    ],
+    "rows": 27
+   },
+   "renorm": {
+    "armRight": 14,
+    "baseRight": 17,
+    "gains": [
+     "inc-watch-unlanded-queued",
+     "inc-land-dry-no-verdict"
+    ],
+    "losses": [
+     "inc-worktree-role-as-teammate",
+     "inc-watch-unlanded-after-land",
+     "inc-evidence-before-land",
+     "inc-workflow-multi-unbound",
+     "inc-reap-console-kill"
+    ],
+    "mode": "renorm",
+    "net": -3,
+    "p": {
+     "den": "64",
+     "num": "29"
+    },
+    "pairs": [
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-claim-order"
+     },
+     {
+      "arm": false,
+      "base": true,
+      "id": "inc-worktree-role-as-teammate"
+     },
+     {
+      "arm": false,
+      "base": true,
+      "id": "inc-watch-unlanded-after-land"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-watch-alert-during-land"
+     },
+     {
+      "arm": true,
+      "base": false,
+      "id": "inc-watch-unlanded-queued"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-land-undeclared-reads"
+     },
+     {
+      "arm": false,
+      "base": true,
+      "id": "inc-evidence-before-land"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-gate-scan-page-state"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-ci-verdict-needs-api"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-land-retry-text-match"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-findings-shared-entry"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-land-inputs-untracked-exists"
+     },
+     {
+      "arm": true,
+      "base": false,
+      "id": "inc-land-dry-no-verdict"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-ci-run-cap-prompt"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-wt-prep-lsp-as-build"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-parallel-write-overlap"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-test-pid-marker"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-console-stale-service"
+     },
+     {
+      "arm": false,
+      "base": true,
+      "id": "inc-workflow-multi-unbound"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-obs-silent-drop"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-ci-skipped-false-pass"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-spawn-patcher-unreachable"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-land-dry-needs-console"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-land-queue-unknown"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-plan-sync-manual"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-runner-bin-mode-flip"
+     },
+     {
+      "arm": false,
+      "base": true,
+      "id": "inc-reap-console-kill"
+     }
+    ],
+    "rows": 27
+   }
+  },
+  "jev-naive": {
+   "strict": {
+    "armRight": 15,
+    "baseRight": 16,
+    "gains": [
+     "inc-watch-unlanded-queued",
+     "inc-land-dry-needs-console"
+    ],
+    "losses": [
+     "inc-worktree-role-as-teammate",
+     "inc-watch-unlanded-after-land",
+     "inc-evidence-before-land"
+    ],
+    "mode": "strict",
+    "net": -1,
+    "p": {
+     "den": "1",
+     "num": "1"
+    },
+    "pairs": [
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-claim-order"
+     },
+     {
+      "arm": false,
+      "base": true,
+      "id": "inc-worktree-role-as-teammate"
+     },
+     {
+      "arm": false,
+      "base": true,
+      "id": "inc-watch-unlanded-after-land"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-watch-alert-during-land"
+     },
+     {
+      "arm": true,
+      "base": false,
+      "id": "inc-watch-unlanded-queued"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-land-undeclared-reads"
+     },
+     {
+      "arm": false,
+      "base": true,
+      "id": "inc-evidence-before-land"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-gate-scan-page-state"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-ci-verdict-needs-api"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-land-retry-text-match"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-findings-shared-entry"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-land-inputs-untracked-exists"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-land-dry-no-verdict"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-ci-run-cap-prompt"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-wt-prep-lsp-as-build"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-parallel-write-overlap"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-test-pid-marker"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-console-stale-service"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-workflow-multi-unbound"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-obs-silent-drop"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-ci-skipped-false-pass"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-spawn-patcher-unreachable"
+     },
+     {
+      "arm": true,
+      "base": false,
+      "id": "inc-land-dry-needs-console"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-land-queue-unknown"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-plan-sync-manual"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-runner-bin-mode-flip"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-reap-console-kill"
+     }
+    ],
+    "rows": 27
+   },
+   "renorm": {
+    "armRight": 15,
+    "baseRight": 17,
+    "gains": [
+     "inc-watch-unlanded-queued"
+    ],
+    "losses": [
+     "inc-worktree-role-as-teammate",
+     "inc-watch-unlanded-after-land",
+     "inc-evidence-before-land"
+    ],
+    "mode": "renorm",
+    "net": -2,
+    "p": {
+     "den": "8",
+     "num": "5"
+    },
+    "pairs": [
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-claim-order"
+     },
+     {
+      "arm": false,
+      "base": true,
+      "id": "inc-worktree-role-as-teammate"
+     },
+     {
+      "arm": false,
+      "base": true,
+      "id": "inc-watch-unlanded-after-land"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-watch-alert-during-land"
+     },
+     {
+      "arm": true,
+      "base": false,
+      "id": "inc-watch-unlanded-queued"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-land-undeclared-reads"
+     },
+     {
+      "arm": false,
+      "base": true,
+      "id": "inc-evidence-before-land"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-gate-scan-page-state"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-ci-verdict-needs-api"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-land-retry-text-match"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-findings-shared-entry"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-land-inputs-untracked-exists"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-land-dry-no-verdict"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-ci-run-cap-prompt"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-wt-prep-lsp-as-build"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-parallel-write-overlap"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-test-pid-marker"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-console-stale-service"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-workflow-multi-unbound"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-obs-silent-drop"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-ci-skipped-false-pass"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-spawn-patcher-unreachable"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-land-dry-needs-console"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-land-queue-unknown"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-plan-sync-manual"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-runner-bin-mode-flip"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-reap-console-kill"
+     }
+    ],
+    "rows": 27
+   }
+  },
+  "haiku": {
+   "strict": {
+    "armRight": 5,
+    "baseRight": 7,
+    "gains": [
+     "inc-wt-prep-lsp-as-build",
+     "inc-test-pid-marker",
+     "inc-plan-sync-manual"
+    ],
+    "losses": [
+     "inc-gate-scan-page-state",
+     "inc-land-retry-text-match",
+     "inc-land-dry-no-verdict",
+     "inc-ci-skipped-false-pass",
+     "inc-runner-bin-mode-flip"
+    ],
+    "mode": "strict",
+    "net": -2,
+    "p": {
+     "den": "128",
+     "num": "93"
+    },
+    "pairs": [
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-claim-order"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-worktree-role-as-teammate"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-watch-unlanded-after-land"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-watch-alert-during-land"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-watch-unlanded-queued"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-land-undeclared-reads"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-evidence-before-land"
+     },
+     {
+      "arm": false,
+      "base": true,
+      "id": "inc-gate-scan-page-state"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-ci-verdict-needs-api"
+     },
+     {
+      "arm": false,
+      "base": true,
+      "id": "inc-land-retry-text-match"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-findings-shared-entry"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-land-inputs-untracked-exists"
+     },
+     {
+      "arm": false,
+      "base": true,
+      "id": "inc-land-dry-no-verdict"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-ci-run-cap-prompt"
+     },
+     {
+      "arm": true,
+      "base": false,
+      "id": "inc-wt-prep-lsp-as-build"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-parallel-write-overlap"
+     },
+     {
+      "arm": true,
+      "base": false,
+      "id": "inc-test-pid-marker"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-console-stale-service"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-workflow-multi-unbound"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-obs-silent-drop"
+     },
+     {
+      "arm": false,
+      "base": true,
+      "id": "inc-ci-skipped-false-pass"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-spawn-patcher-unreachable"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-land-dry-needs-console"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-land-queue-unknown"
+     },
+     {
+      "arm": true,
+      "base": false,
+      "id": "inc-plan-sync-manual"
+     },
+     {
+      "arm": false,
+      "base": true,
+      "id": "inc-runner-bin-mode-flip"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-reap-console-kill"
+     }
+    ],
+    "rows": 27
+   },
+   "renorm": {
+    "armRight": 12,
+    "baseRight": 15,
+    "gains": [],
+    "losses": [
+     "inc-land-retry-text-match",
+     "inc-land-dry-no-verdict",
+     "inc-ci-run-cap-prompt"
+    ],
+    "mode": "renorm",
+    "net": -3,
+    "p": {
+     "den": "4",
+     "num": "1"
+    },
+    "pairs": [
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-claim-order"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-worktree-role-as-teammate"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-watch-unlanded-after-land"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-watch-alert-during-land"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-watch-unlanded-queued"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-land-undeclared-reads"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-evidence-before-land"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-gate-scan-page-state"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-ci-verdict-needs-api"
+     },
+     {
+      "arm": false,
+      "base": true,
+      "id": "inc-land-retry-text-match"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-findings-shared-entry"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-land-inputs-untracked-exists"
+     },
+     {
+      "arm": false,
+      "base": true,
+      "id": "inc-land-dry-no-verdict"
+     },
+     {
+      "arm": false,
+      "base": true,
+      "id": "inc-ci-run-cap-prompt"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-wt-prep-lsp-as-build"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-parallel-write-overlap"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-test-pid-marker"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-console-stale-service"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-workflow-multi-unbound"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-obs-silent-drop"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-ci-skipped-false-pass"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-spawn-patcher-unreachable"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-land-dry-needs-console"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-land-queue-unknown"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-plan-sync-manual"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-runner-bin-mode-flip"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-reap-console-kill"
+     }
+    ],
+    "rows": 27
+   }
+  },
+  "sonnet": {
+   "strict": {
+    "armRight": 12,
+    "baseRight": 14,
+    "gains": [
+     "inc-wt-prep-lsp-as-build",
+     "inc-ci-skipped-false-pass",
+     "inc-land-queue-unknown",
+     "inc-runner-bin-mode-flip"
+    ],
+    "losses": [
+     "inc-watch-unlanded-after-land",
+     "inc-watch-alert-during-land",
+     "inc-findings-shared-entry",
+     "inc-ci-run-cap-prompt",
+     "inc-test-pid-marker",
+     "inc-plan-sync-manual"
+    ],
+    "mode": "strict",
+    "net": -2,
+    "p": {
+     "den": "256",
+     "num": "193"
+    },
+    "pairs": [
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-claim-order"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-worktree-role-as-teammate"
+     },
+     {
+      "arm": false,
+      "base": true,
+      "id": "inc-watch-unlanded-after-land"
+     },
+     {
+      "arm": false,
+      "base": true,
+      "id": "inc-watch-alert-during-land"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-watch-unlanded-queued"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-land-undeclared-reads"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-evidence-before-land"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-gate-scan-page-state"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-ci-verdict-needs-api"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-land-retry-text-match"
+     },
+     {
+      "arm": false,
+      "base": true,
+      "id": "inc-findings-shared-entry"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-land-inputs-untracked-exists"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-land-dry-no-verdict"
+     },
+     {
+      "arm": false,
+      "base": true,
+      "id": "inc-ci-run-cap-prompt"
+     },
+     {
+      "arm": true,
+      "base": false,
+      "id": "inc-wt-prep-lsp-as-build"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-parallel-write-overlap"
+     },
+     {
+      "arm": false,
+      "base": true,
+      "id": "inc-test-pid-marker"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-console-stale-service"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-workflow-multi-unbound"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-obs-silent-drop"
+     },
+     {
+      "arm": true,
+      "base": false,
+      "id": "inc-ci-skipped-false-pass"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-spawn-patcher-unreachable"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-land-dry-needs-console"
+     },
+     {
+      "arm": true,
+      "base": false,
+      "id": "inc-land-queue-unknown"
+     },
+     {
+      "arm": false,
+      "base": true,
+      "id": "inc-plan-sync-manual"
+     },
+     {
+      "arm": true,
+      "base": false,
+      "id": "inc-runner-bin-mode-flip"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-reap-console-kill"
+     }
+    ],
+    "rows": 27
+   },
+   "renorm": {
+    "armRight": 15,
+    "baseRight": 17,
+    "gains": [
+     "inc-wt-prep-lsp-as-build",
+     "inc-land-queue-unknown"
+    ],
+    "losses": [
+     "inc-watch-unlanded-after-land",
+     "inc-watch-alert-during-land",
+     "inc-ci-run-cap-prompt",
+     "inc-workflow-multi-unbound"
+    ],
+    "mode": "renorm",
+    "net": -2,
+    "p": {
+     "den": "16",
+     "num": "11"
+    },
+    "pairs": [
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-claim-order"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-worktree-role-as-teammate"
+     },
+     {
+      "arm": false,
+      "base": true,
+      "id": "inc-watch-unlanded-after-land"
+     },
+     {
+      "arm": false,
+      "base": true,
+      "id": "inc-watch-alert-during-land"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-watch-unlanded-queued"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-land-undeclared-reads"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-evidence-before-land"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-gate-scan-page-state"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-ci-verdict-needs-api"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-land-retry-text-match"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-findings-shared-entry"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-land-inputs-untracked-exists"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-land-dry-no-verdict"
+     },
+     {
+      "arm": false,
+      "base": true,
+      "id": "inc-ci-run-cap-prompt"
+     },
+     {
+      "arm": true,
+      "base": false,
+      "id": "inc-wt-prep-lsp-as-build"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-parallel-write-overlap"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-test-pid-marker"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-console-stale-service"
+     },
+     {
+      "arm": false,
+      "base": true,
+      "id": "inc-workflow-multi-unbound"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-obs-silent-drop"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-ci-skipped-false-pass"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-spawn-patcher-unreachable"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-land-dry-needs-console"
+     },
+     {
+      "arm": true,
+      "base": false,
+      "id": "inc-land-queue-unknown"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-plan-sync-manual"
+     },
+     {
+      "arm": true,
+      "base": true,
+      "id": "inc-runner-bin-mode-flip"
+     },
+     {
+      "arm": false,
+      "base": false,
+      "id": "inc-reap-console-kill"
+     }
+    ],
+    "rows": 27
+   }
+  }
+ },
+ "adopt": {
+  "adopt": false,
+  "arms": [
+   {
+    "arm": "jev/strict",
+    "armRight": 12,
+    "baseRight": 16,
+    "gains": [
+     "inc-watch-unlanded-queued",
+     "inc-land-dry-no-verdict",
+     "inc-land-dry-needs-console"
+    ],
+    "losses": [
+     "inc-worktree-role-as-teammate",
+     "inc-watch-unlanded-after-land",
+     "inc-evidence-before-land",
+     "inc-land-inputs-untracked-exists",
+     "inc-console-stale-service",
+     "inc-workflow-multi-unbound",
+     "inc-reap-console-kill"
+    ],
+    "net": -4,
+    "p": {
+     "den": "32",
+     "num": "11"
+    },
+    "rows": 27
+   },
+   {
+    "arm": "jev/renorm",
+    "armRight": 14,
+    "baseRight": 17,
+    "gains": [
+     "inc-watch-unlanded-queued",
+     "inc-land-dry-no-verdict"
+    ],
+    "losses": [
+     "inc-worktree-role-as-teammate",
+     "inc-watch-unlanded-after-land",
+     "inc-evidence-before-land",
+     "inc-workflow-multi-unbound",
+     "inc-reap-console-kill"
+    ],
+    "net": -3,
+    "p": {
+     "den": "64",
+     "num": "29"
+    },
+    "rows": 27
+   },
+   {
+    "arm": "haiku/strict",
+    "armRight": 5,
+    "baseRight": 7,
+    "gains": [
+     "inc-wt-prep-lsp-as-build",
+     "inc-test-pid-marker",
+     "inc-plan-sync-manual"
+    ],
+    "losses": [
+     "inc-gate-scan-page-state",
+     "inc-land-retry-text-match",
+     "inc-land-dry-no-verdict",
+     "inc-ci-skipped-false-pass",
+     "inc-runner-bin-mode-flip"
+    ],
+    "net": -2,
+    "p": {
+     "den": "128",
+     "num": "93"
+    },
+    "rows": 27
+   },
+   {
+    "arm": "haiku/renorm",
+    "armRight": 12,
+    "baseRight": 15,
+    "gains": [],
+    "losses": [
+     "inc-land-retry-text-match",
+     "inc-land-dry-no-verdict",
+     "inc-ci-run-cap-prompt"
+    ],
+    "net": -3,
+    "p": {
+     "den": "4",
+     "num": "1"
+    },
+    "rows": 27
+   },
+   {
+    "arm": "sonnet/strict",
+    "armRight": 12,
+    "baseRight": 14,
+    "gains": [
+     "inc-wt-prep-lsp-as-build",
+     "inc-ci-skipped-false-pass",
+     "inc-land-queue-unknown",
+     "inc-runner-bin-mode-flip"
+    ],
+    "losses": [
+     "inc-watch-unlanded-after-land",
+     "inc-watch-alert-during-land",
+     "inc-findings-shared-entry",
+     "inc-ci-run-cap-prompt",
+     "inc-test-pid-marker",
+     "inc-plan-sync-manual"
+    ],
+    "net": -2,
+    "p": {
+     "den": "256",
+     "num": "193"
+    },
+    "rows": 27
+   },
+   {
+    "arm": "sonnet/renorm",
+    "armRight": 15,
+    "baseRight": 17,
+    "gains": [
+     "inc-wt-prep-lsp-as-build",
+     "inc-land-queue-unknown"
+    ],
+    "losses": [
+     "inc-watch-unlanded-after-land",
+     "inc-watch-alert-during-land",
+     "inc-ci-run-cap-prompt",
+     "inc-workflow-multi-unbound"
+    ],
+    "net": -2,
+    "p": {
+     "den": "16",
+     "num": "11"
+    },
+    "rows": 27
+   }
+  ],
+  "reasons": [
+   {
+    "arm": "jev/strict",
+    "kind": "netLow",
+    "net": -4
+   },
+   {
+    "arm": "jev/strict",
+    "id": "inc-watch-unlanded-queued",
+    "kind": "untraced"
+   },
+   {
+    "arm": "jev/strict",
+    "id": "inc-land-dry-no-verdict",
+    "kind": "untraced"
+   },
+   {
+    "arm": "jev/strict",
+    "id": "inc-land-dry-needs-console",
+    "kind": "untraced"
+   },
+   {
+    "arm": "jev/renorm",
+    "kind": "netLow",
+    "net": -3
+   },
+   {
+    "arm": "jev/renorm",
+    "id": "inc-watch-unlanded-queued",
+    "kind": "untraced"
+   },
+   {
+    "arm": "jev/renorm",
+    "id": "inc-land-dry-no-verdict",
+    "kind": "untraced"
+   },
+   {
+    "arm": "haiku/strict",
+    "kind": "netLow",
+    "net": -2
+   },
+   {
+    "arm": "haiku/strict",
+    "id": "inc-wt-prep-lsp-as-build",
+    "kind": "untraced"
+   },
+   {
+    "arm": "haiku/strict",
+    "id": "inc-test-pid-marker",
+    "kind": "untraced"
+   },
+   {
+    "arm": "haiku/strict",
+    "id": "inc-plan-sync-manual",
+    "kind": "untraced"
+   },
+   {
+    "arm": "haiku/renorm",
+    "kind": "netLow",
+    "net": -3
+   },
+   {
+    "arm": "sonnet/strict",
+    "kind": "netLow",
+    "net": -2
+   },
+   {
+    "arm": "sonnet/strict",
+    "id": "inc-wt-prep-lsp-as-build",
+    "kind": "untraced"
+   },
+   {
+    "arm": "sonnet/strict",
+    "id": "inc-ci-skipped-false-pass",
+    "kind": "untraced"
+   },
+   {
+    "arm": "sonnet/strict",
+    "id": "inc-land-queue-unknown",
+    "kind": "untraced"
+   },
+   {
+    "arm": "sonnet/strict",
+    "id": "inc-runner-bin-mode-flip",
+    "kind": "untraced"
+   },
+   {
+    "arm": "sonnet/renorm",
+    "kind": "netLow",
+    "net": -2
+   },
+   {
+    "arm": "sonnet/renorm",
+    "id": "inc-wt-prep-lsp-as-build",
+    "kind": "untraced"
+   },
+   {
+    "arm": "sonnet/renorm",
+    "id": "inc-land-queue-unknown",
+    "kind": "untraced"
+   }
+  ]
+ }
+}

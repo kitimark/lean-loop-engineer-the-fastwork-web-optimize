@@ -65,7 +65,7 @@ def incidentClass : Question where
   criteria := incidentClasses ++ [(noClass, "None of the other classes fits this incident.")]
   target := 9 / 10
   perOption := 5
-  fields := ["title", "symptom", "cause"]
+  fields := ["title", "symptom", "cause", "files"]
 
 theorem incidentClass_wf : incidentClass.spec.wf = true := by decide
 
@@ -127,7 +127,7 @@ theorem shuffle_perm (seed : Nat) (os : List String) : (shuffle seed os).Perm os
 #guard (question "ci-triage").map (·.name) == some "ci-triage"
 #guard (question "ci-triage").map (·.perOption) == some 5
 #guard (question "nope").isNone
-#guard (question "incident-class").map (·.fields) == some ["title", "symptom", "cause"]
+#guard (question "incident-class").map (·.fields) == some ["title", "symptom", "cause", "files"]
 #guard (incidentClass.spec.keys.length, findingSeverity.spec.keys.length) == (14, 4)
 
 end Fw.Oracle
