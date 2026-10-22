@@ -16618,6 +16618,24 @@
     "docs/team/handoffs/gpu-negative-findings.md"
    ],
    "title": "GPU route (user 2026-10-22: \"experiment then measure and do lean prove ... navbar and the end-of-page\"; design workflow gpu-route-design, lead scratch gpu-route-tasks.json rank 10). Record every no-route row as a finding with mechanism + Lean why: translate3d_no_gain (composites p .transform3DFlat = composites p .willChange, hero and morph countdown), ca_accepts_alternate (add direction to the CA acceptance predicate; alternate is forwards per GraphicsLayerAnimation.h:80@862f17d; corrects the old table), subset_congr (nav backdrop radius stages are a subset of the clip-path change stages on the same layer and frame), earnClip_not_Q (filter-then-clip != clip-then-filter on the bleed band), crossfade_ne_lerp (logo/switch colour), width_reflows (hero.accent), lerp_not_offset_fn (people.card desktop shrink), rot_raster_ne (pain.notes drag), scrollPort_accel (engine.scroll gate: every scroll-driven port effect is completely accelerated, else reject as a throttle lift), plus #guard classification rows for the already-composited animations (langMenu menuIn/out, chevron, scroll-hide, cue float, cta hover, card reveal, drawer, signup, deck profileFade/feedPanelIn/vinylSpin, marquee, entrances). Flag: Proof only, no site code, no lanes. Ledger rows are added by the lead at land (ledger.json is held by running tasks).. Lean: Theorems listed in the title, each with its WebKit/Chromium cite file:line@commit in the note; translate3d_no_gain by cases p <;> rfl; scrollPort_accel as a decidable gate other route-(a) ports reuse. Measure: None (proof only)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "watch-orphan-call",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Obs/Fold.lean",
+    "lean/Fw/Obs/Health.lean",
+    "packages/contracts/golden/obs/watch-inflight*.jsonl",
+    "apps/runner/src/watch-fold.ts",
+    "apps/runner/test/watch-fold.test.ts",
+    "docs/team/handoffs/watch-orphan-call.md"
+   ],
+   "title": "Incident inc-orphan-tool-call: fw watch raised agent.toolHang 'Bash running for 38 min' for census-load-variance's builder while it was making fresh calls. Its transcript holds a Bash tool_use (15:04:44Z) with no tool_result record; the agent's next assistant message came at 15:10:21Z. watch-fold.ts keeps every tool_use id in `open` until its tool_result arrives, and finishInfo takes the newest open id as inflight, so one missing result record pins inflight forever. Closed rule by identity: a tool call is in flight only while its assistant message (message.id) is the agent's newest assistant message, because the API takes a new assistant turn only after every tool_use of the previous turn has its result; parallel calls share one message.id and stay open together. State the rule in Lean (Fw.Obs: inflight is a function of the newest message's open calls; theorem: a later assistant message clears every older open call; the existing pass_eq_full resume property still holds), generate golden vectors, check watch-fold.ts against them. Regression: replay of a transcript with a missing tool_result gives inflight none after the next assistant message and no toolHang."
   }
  ],
  "deadline": {
