@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { parseFlags, UsageError } from "./lib.ts";
 import { fwcoreCall, type FwCall } from "./run.ts";
 
-const USAGE = "usage: fw ci pool route --state <json|@file> --reqs <json|@file> [--cfg phase1|enterprise] [--over <json|@file>] [--json]\n       fw ci pool consts [--cfg phase1|enterprise] [--over <json|@file>]";
+const USAGE = "usage: fw ci pool route --state <json|@file> --reqs <json|@file> [--cfg phase1|enterprise] [--over <json|@file>] [--json]\n       fw ci pool consts [--cfg phase1|enterprise] [--over <json|@file>]\n       fw ci pool tier | tier-consts | dispatch (the three-tier pool, Fw.Ci.PoolTier)";
 
 /** A flag value as JSON: inline, or `@path` read relative to `cwd`. */
 export function jsonArg(v: string, cwd: string, what: string): unknown {
@@ -46,5 +46,6 @@ export function poolMain(argv: string[], cwd: string, call: FwCall, log: (l: str
 }
 
 export async function poolCli(argv: string[], cwd: string): Promise<number> {
+  if (["tier", "tier-consts", "dispatch"].includes(argv[0] ?? "")) return (await import("./ci-pool-tier.ts")).tierCli(argv, cwd);
   return poolMain(argv, cwd, fwcoreCall(cwd), (l) => console.log(l));
 }

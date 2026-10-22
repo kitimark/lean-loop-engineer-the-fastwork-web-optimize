@@ -23,6 +23,15 @@
 {"cap":40,"kind":"trigger","mayTrigger":true,"month":"2026-11","name":"last month does not count","refusals":[],"rows":[{"id":"a","minutes":390,"month":"2026-10"}],"used":0}
 {"cap":40,"kind":"trigger","mayTrigger":false,"month":"2026-11","name":"last month still counts toward builds","refusals":["builds"],"rows":[{"id":"a","minutes":150,"month":"2026-10"},{"id":"b","minutes":150,"month":"2026-10"},{"id":"c","minutes":90,"month":"2026-10"}],"used":0}
 {"cap":41,"kind":"trigger","mayTrigger":false,"month":"2026-10","name":"all three refusals","refusals":["minutes","builds","cap"],"rows":[{"id":"a","minutes":150,"month":"2026-10"},{"id":"b","minutes":150,"month":"2026-10"},{"id":"c","minutes":90,"month":"2026-10"}],"used":390}
+{"cap":40,"kind":"poolTrigger","month":"2026-10","name":"fresh","poolOk":true,"refusals":[],"rows":[],"used":0}
+{"cap":40,"kind":"poolTrigger","month":"2026-10","name":"two builds, 80 used","poolOk":true,"refusals":[],"rows":[{"id":"a","minutes":38,"month":"2026-10"},{"id":"b","minutes":42,"month":"2026-10"}],"used":80}
+{"cap":40,"kind":"poolTrigger","month":"2026-10","name":"stop line exact: 360 + 40","poolOk":true,"refusals":[],"rows":[{"id":"a","minutes":180,"month":"2026-10"},{"id":"b","minutes":180,"month":"2026-10"}],"used":360}
+{"cap":40,"kind":"poolTrigger","month":"2026-10","name":"over by one: 361 + 40","poolOk":false,"refusals":["minutes"],"rows":[{"id":"a","minutes":180,"month":"2026-10"},{"id":"b","minutes":181,"month":"2026-10"}],"used":361}
+{"cap":41,"kind":"poolTrigger","month":"2026-10","name":"cap 41","poolOk":false,"refusals":["cap"],"rows":[],"used":0}
+{"cap":40,"kind":"poolTrigger","month":"2026-10","name":"three builds done","poolOk":true,"refusals":[],"rows":[{"id":"a","minutes":5,"month":"2026-10"},{"id":"b","minutes":5,"month":"2026-10"},{"id":"c","minutes":5,"month":"2026-10"}],"used":15}
+{"cap":40,"kind":"poolTrigger","month":"2026-11","name":"last month does not count","poolOk":true,"refusals":[],"rows":[{"id":"a","minutes":390,"month":"2026-10"}],"used":0}
+{"cap":40,"kind":"poolTrigger","month":"2026-11","name":"last month still counts toward builds","poolOk":true,"refusals":[],"rows":[{"id":"a","minutes":150,"month":"2026-10"},{"id":"b","minutes":150,"month":"2026-10"},{"id":"c","minutes":90,"month":"2026-10"}],"used":0}
+{"cap":41,"kind":"poolTrigger","month":"2026-10","name":"all three refusals","poolOk":false,"refusals":["minutes","cap"],"rows":[{"id":"a","minutes":150,"month":"2026-10"},{"id":"b","minutes":150,"month":"2026-10"},{"id":"c","minutes":90,"month":"2026-10"}],"used":390}
 {"exit":null,"kind":"status","status":"initializing"}
 {"exit":null,"kind":"status","status":"queued"}
 {"exit":null,"kind":"status","status":"preparing"}

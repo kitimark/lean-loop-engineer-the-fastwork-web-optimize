@@ -212,6 +212,8 @@
       "Edit(/CLAUDE.md)"
     ],
     "deny": [
+      "Bash(find / *)",
+      "Bash(find /Users *)",
       "Bash(git push*:*main*)",
       "Bash(git push*main *)",
       "Bash(git push*--force*)",

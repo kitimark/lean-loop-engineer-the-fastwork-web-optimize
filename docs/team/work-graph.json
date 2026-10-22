@@ -14231,7 +14231,8 @@
     "apps/runner/src/fw-main.ts",
     "lean/scripts/check.sh",
     "packages/measure-webkit/src/sim.mjs"
-   ]
+   ],
+   "evidence": "7efdb1c"
   },
   {
    "devices": [
@@ -15726,6 +15727,74 @@
     "docs/team/handoffs/jev-retrieval-trace.md"
    ],
    "title": "Measured follow-up of jev-retrieval-research (user 2026-10-22: what Haiku and Sonnet read before deciding; give Jev that context or let Jev request files). Build and run the design that research note recommends: Lean Fw.Oracle.Retrieve first (allowlist, read budget, rounds, sends per row, theorems and goldens), the traced Claude arms (every read recorded with path and bytes), the Jev retrieval arm(s), paired against the clean baseline and the jev-file-context-ablation arms on the same rows. Unit and limits are fixed by the research note's design section; refine this title when the note lands."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "circleci-storage-measured",
+   "owner": "lean-prover",
+   "stream": "ci",
+   "deps": [
+    "macos-pool-7"
+   ],
+   "writes": [
+    "lean/Fw/Ci/Overflow.lean",
+    "lean/Fw/Ci/PoolTier.lean",
+    "packages/contracts/golden/ci/**",
+    "scripts/circleci.mjs",
+    "scripts/circleci.test.mjs",
+    "docs/team/tools/ci-pool.md",
+    "docs/team/tools/circleci.md",
+    "docs/team/handoffs/circleci-storage-measured.md"
+   ],
+   "title": "Follow-up of macos-pool-7 (landed 9d2155f3): the 7th macOS slot (CircleCI m4pro) stays closed because scripts/circleci.mjs estimates storage at 1297 of the 1000 line (thousandths of a GB-month) by counting every saved byte for 30 days, while caches and artifacts expire sooner. Replace the estimate with the measured figure (CircleCI usage or plan API read-only, documented) or a per-save retention (cache 15 days, artifacts and workspaces per the project settings, cited) in Lean Fw.Ci.Overflow with a theorem that the estimate is never below the measured usage (stays a safe stop), goldens, TS checked. Unit: the retention-aware estimate with its safety theorem, goldens, docs. Limits: free credits only; no CircleCI run is needed to land."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "pool-dispatch-poller",
+   "owner": "console-builder",
+   "stream": "ci",
+   "deps": [
+    "macos-pool-7"
+   ],
+   "writes": [
+    "apps/runner/src/ci-pool-tier.ts",
+    "apps/runner/src/watch*.ts",
+    "apps/runner/test/ci-pool-tier*.test.ts",
+    "apps/runner/test/watch*.test.ts",
+    "docs/team/tools/ci-pool.md",
+    "docs/team/handoffs/pool-dispatch-poller.md"
+   ],
+   "title": "Follow-up of macos-pool-7: no poller calls `fw ci pool dispatch` yet, so a queued macOS job never overflows to Codemagic on its own and the GitHub busy count was read by hand. Wire the existing Lean route (Fw.Ci.PoolTier, landed) into the watch loop or the dispatch path: read GitHub busy macOS jobs with gh run list (the gh rate-limit rules: list not view, >= 120 s), call the route, dispatch overflow, record each decision as an event. No decision logic in TS (the route is Lean). Also record Codemagic build startedAt/finishedAt (redacted) in the ledger so overlap claims are provable (review follow-up). Unit: the poller glue with tests, decision events, Codemagic build times recorded. Limits: free tiers only; CircleCI stays closed until circleci-storage-measured lands."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-constant-bounds",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Parts/MorphConstBounds*.lean",
+    "lean/Fw.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/morph-const-bounds*.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "apps/site/src/parts/morph.panel/**",
+    "apps/site/src/parts/morph.tween/**",
+    "apps/site/src/parts/nav/**",
+    "research/findings/ledger.json",
+    "results/morph-constant-bounds/**",
+    "research/notes/2026/10-2x-morph-constant-bounds.md",
+    "docs/team/handoffs/morph-constant-bounds.md"
+   ],
+   "title": "User goal 2026-10-22 (end of page smoother on WebKit; GPU same-look route). The GPU-vs-overall comparison (lead, 2026-10-22) shows the end-of-page morph now holds 262 of 480 skipped slots (55 %) and 23 of 24 intervals over 50 ms on the phone, unchanged from the original (results/phone/2026-10-21/summary-v2.md:17-18), while no task covers the render-cost note's top same-look candidate. C1 of research/notes/2026/10-22-webkit-render-cost.md: constant layer bounds, lay the panel, backdrop and columns out once at the final size, clipped by the nav, so no backed layer except the nav changes size per morph frame (removes F3 per-frame IOSurface allocation and full raster, F4 tile reallocation, the panel-subtree relayout). Lean first: the visible region of the clipped final-size layout equals the original's per-frame layout at every morph progress m (same look, E-class under stated premises; text boxes keep their glyph positions), and bounds are constant over m for every backed layer but the nav; goldens; then the flag variant (register, ledger row, preset regenerated). Gate: breakpoint gate both engines; PathPix same-look at Lean-chosen m values. Measure on CI webkit-sim with cost=on lag=true, base vs flag, the end-of-page morph pass: Composite per frame, Recalculate styles, Layout, Paint, layer and backing counts where the lane records them (IOSurface creations if observable, else say so), the share of 33 ms rAF deltas (count), with run ids; report.json (review-reports shape; recommendation without numbers). Unit: Lean same-look and constant-bounds theorems with goldens, the flag, gate both engines, one webkit-sim base vs flag measurement, ledger row, report. Limits: the Simulator has no real GPU (allocation cost INFERRED from counts); at most 4 dispatches; the nav still resizes (C8 is a separate candidate); a no-win is a finding."
   }
  ],
  "deadline": {
