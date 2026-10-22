@@ -126,8 +126,8 @@ export async function launchSafari(udid, { log = () => {} } = {}) {
   await waitSocket();
 }
 
-export const openUrl = (udid, url, { timeoutMs = T(120000), max = 2 } = {}) => {
-  const r = simctlRetry(['openurl', udid, url], { timeoutMs }, { max }); // blocked 77 s once on a loaded runner
+export const openUrl = (udid, url, { timeoutMs = T(120000), max = 4, log = (l) => process.stderr.write(`${l}\n`) } = {}) => {
+  const r = simctlRetry(['openurl', udid, url], { timeoutMs }, { max, log });
   if (r.status !== 0) throw new Error(`simctl openurl failed: ${tail(r)}`);
 };
 

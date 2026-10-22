@@ -385,4 +385,32 @@ theorem settle_nodup (gh cc : List Leg) (st : Bool) (nd : (gh ++ cc).Nodup) :
 /-- The CircleCI land jobs of `Provider.landJobs` (the jobs that save the Lake cache) are the legs of the lane, in matrix order, each as `land-<leg>`. -/
 theorem landJobs_eq_legs : Provider.landJobs = legs.map fun l => "land-" ++ l.name := by decide
 
+def reserveOf (p : Provider.Pool) : Nat := Provider.poolCredits p / 5
+
+theorem creditReserve_eq : creditReserve = reserveOf .oss := by decide
+
+def classLeft (cls : String) (spent : Nat) : Nat :=
+  match Provider.rateOf cls with
+  | none => 0
+  | some r => Provider.poolCredits r.pool - reserveOf r.pool - spent
+
+def storageClearAt (storage : Nat) : Bool := !(Provider.stops ⟨0, 0, storage⟩).contains .storage
+
+theorem storageClear_eq (f : Facts) : storageClear f = storageClearAt f.storage := rfl
+
+theorem storageClearAt_iff (storage : Nat) : storageClearAt storage = true ↔ storage ≤ Provider.storageMaxMilli := by
+  unfold storageClearAt Provider.stops
+  by_cases h : Provider.storageMaxMilli < storage <;> simp [h, Provider.capMs, Provider.queueMaxMs] <;> omega
+
+theorem classLeft_spec {cls : String} {spent c : Nat} (h : c ≤ classLeft cls spent) (hc : 0 < c) :
+    ∃ r, Provider.rateOf cls = some r ∧ c + spent + reserveOf r.pool ≤ Provider.poolCredits r.pool := by
+  unfold classLeft at h
+  cases hr : Provider.rateOf cls with
+  | none => simp [hr] at h; omega
+  | some r => simp only [hr] at h; exact ⟨r, rfl, by omega⟩
+
+#guard reserveOf .oss == 80000 && reserveOf .base == 6000
+#guard classLeft "m4pro.medium" 3575 == 20425 && classLeft "m4pro.medium" 30000 == 0 && classLeft "none" 0 == 0
+#guard storageClearAt 1000 && !storageClearAt 1001
+
 end Fw.Ci.Overflow
