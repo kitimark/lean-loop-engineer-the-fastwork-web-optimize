@@ -161,6 +161,18 @@ After the reads stage the dry land runs, in the merge-tree worktree (never the m
 lint, dry (`kind_spec`: the kind is the first failing stage in that order); `dry_pass_all`: dry means every one of them passed. A real
 land prints `lint` too when a failed check reports only the `check.sh` stages `lake build` / `axiom check` (Lean `checkFailKind`,
 `dry_kind_is_real_kind`); the real land has no `ci-paths` check, so a `ci-paths` failure has no real counterpart. Glue: `dryLintArgv` in `apps/runner/src/land.ts`; tests inject `dryLints`.
+
+Generated-file freshness (task `dry-gen-fresh`, incident `inc-dry-gen-stale`): when the change touches an input of the part footprint
+generator (Lean `footprintInput`: `apps/site/src/parts/**`, `apps/site/src/App.tsx`, `apps/site/scripts/part-footprint.mjs`,
+`lean/Fw/Parts/FootprintData.lean`, `packages/contracts/golden/parts/footprint.gen.json`) and the tree has the script, the lint stage
+also runs `node apps/site/scripts/part-footprint.mjs --check` (about 1 s), between `ci-paths` and the axiom check. Proved:
+`gen_selected` (a generator input selects the check), `lintPlan_old` and `lintPlan_noScript` (no generator input, or no script: the
+plan before this task), `gen_stale_refuses` (a failing footprint check is never `dry`), and `dry_pass_land_pass_planned` /
+`dry_refusal_is_land_refusal_planned` (both guarantees with the planned lint stage). The real land reports the same failure as
+`checks` (`pnpm --filter ./apps/site test`, `footprint.test.ts`). Fix: `node apps/site/scripts/part-footprint.mjs --write`, then
+regenerate the Lean outputs that read `FootprintData` (`lake env lean --run scripts/ContractsGolden.lean --check ...` in `check.sh`
+also compares `footprint-diff.gen.json` and `Fw/Parts/FootprintRows.lean`). Limits: only generators with a `--check` mode; `ci-paths`
+was already a lint.
 Cost: see the handoff note `docs/team/handoffs/land-dry-full.md`. TS stand-in `apps/runner/src/land-verdict.ts`, checked against `packages/contracts/golden/console/land-dry.jsonl`.
 
 
