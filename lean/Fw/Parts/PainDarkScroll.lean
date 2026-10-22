@@ -293,6 +293,17 @@ def hostLayers : Nat := 1
 
 theorem solid_layers_le : solidLayers + hostLayers ≤ 3 := by decide
 
+/-- Area in kpx of the stage's text block (430 x 775 css px at dpr 3), which WebKit promotes to a layer of its own
+because it paints above and overlaps the animated layer (reason `overlap`; MEASURED, CI run 39828605244: 12.0 MB more
+backing at the two scroll states that show the Pain stage, 0 elsewhere; the cause is INFERRED from the layer list). -/
+def promotedKpx : Nat := 2999
+
+/-- **The promoted block costs its whole area in resident backing; the solid layers cost none.** So the layer budget of
+the variant is 0 MB for the layers it adds and `promotedKpx` for the layer it forces. -/
+theorem promoted_cost :
+    Fw.Engine.WebKit.residentKpx true false promotedKpx - Fw.Engine.WebKit.residentKpx false false promotedKpx = promotedKpx := by
+  simp [Fw.Engine.WebKit.residentKpx, Fw.Engine.WebKit.usesBacking]
+
 /-- **The solid layer has no backing store** (no content, no display delegation). -/
 theorem layer_backing_zero (areaKpx : Nat) :
     Fw.Engine.WebKit.residentKpx false false areaKpx = 0 :=
