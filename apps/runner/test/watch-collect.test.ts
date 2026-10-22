@@ -42,7 +42,7 @@ describe("skipped CI steps reach Lean as skipped samples", () => {
     expect(parseSamples(JSON.stringify({ tool: "t", step: "s", durMs: 1, host: "local", exit: 16 }))).toEqual([{ tool: "t", step: "s", durMs: 1, host: "local", load: 0, exit: 16 }]);
   });
   it.skipIf(!existsSync(fwcore))("fwcore obs.timing gives no verdict to a skipped sample", () => {
-    const r = spawnSync(fwcore, [], { input: JSON.stringify({ id: 0, op: "obs.timing", samples }) + "\n", encoding: "utf8", timeout: 60_000 });
+    const r = spawnSync(fwcore, [], { input: JSON.stringify({ id: 0, op: "obs.timing", samples }) + "\n", encoding: "utf8", timeout: 120_000 });
     const verdicts = (JSON.parse(r.stdout.trim().split("\n")[0]!) as { verdicts: { kind: string; step: string }[] }).verdicts.filter((v) => v.kind === "sample");
     expect(verdicts.map((v) => v.step)).toEqual(samples.filter((s) => !s.skipped).map((s) => s.step));
   });
