@@ -145,6 +145,35 @@ theorem logo3d_layout_conservative : layoutUnits (logo3dFrame .conservative) = 1
 theorem logo_translate_layout : layoutUnits ⟨0, 0, 0, 0, [⟨1, .transform, .layer⟩], 0⟩ = 1 := by
   decide +kernel
 
+/-! ## Composited bar -/
+
+/-- Whether `will-change: transform` on the bar composites it under a policy (`RenderLayerCompositor.cpp:3997-4018`, `composites`). -/
+def barComposited (p : Policy) : Bool := composites p .willChange
+
+/-- The bar premise of the simple container holds under the Normal policy and fails under the Conservative one. -/
+theorem bar_normal_only : barComposited .normal = true ∧ barComposited .conservative = false := by decide
+
+/-- Under the Conservative policy the bar is not composited, so the nav keeps painting its descendants (no simple container). -/
+theorem conservative_not_simple (b : Box) (h : b.barComposited = barComposited .conservative) : drawsContent b = true :=
+  bar_premise_needed b (h.trans bar_normal_only.2)
+
+/-! ## Bar layout units per frame -/
+
+/-- The bar frame under `nav:clip-box`: `left`, `right` and `top` move an absolute box. -/
+def barInsetFrame : FrameIn WkProp := ⟨0, 0, 0, 0, [⟨1, .insetAbs, .layer⟩], 0⟩
+
+/-- The bar frame under `nav:bar-fixed`: a `translate` of a bar whose layer is own iff `will-change` composites it. -/
+def barTranslateFrame (p : Policy) : FrameIn WkProp :=
+  ⟨0, 0, 0, 0, [⟨1, .transform, if barComposited p then .own else .layer⟩], 0⟩
+
+/-- Under the Normal policy the bar-fixed frame has no layout unit; the clip-box frame has one. -/
+theorem bar_layout_normal : layoutUnits barInsetFrame = 1 ∧ layoutUnits (barTranslateFrame .normal) = 0 := by
+  decide +kernel
+
+/-- Under the Conservative policy `will-change` is dropped and the bar-fixed frame keeps its layout unit: no saving. -/
+theorem bar_layout_conservative : layoutUnits (barTranslateFrame .conservative) = 1 := by
+  decide +kernel
+
 /-! ## Raster area -/
 
 /-- Area in px² of a box. -/
@@ -168,18 +197,6 @@ theorem area_trade (v : Vp) (m : Rat) (h0 : 0 ≤ m) (h1 : m ≤ 1) (hv : pillH 
   have e1 := Rat.mul_le_mul_of_nonneg_left hle wpos
   have e2 := Rat.mul_le_mul_of_nonneg_left wle (show 0 ≤ unionH v by grind)
   grind
-
-/-! ## Composited bar -/
-
-/-- Whether `will-change: transform` on the bar composites it under a policy (`RenderLayerCompositor.cpp:3997-4018`, `composites`). -/
-def barComposited (p : Policy) : Bool := composites p .willChange
-
-/-- The bar premise of the simple container holds under the Normal policy and fails under the Conservative one. -/
-theorem bar_normal_only : barComposited .normal = true ∧ barComposited .conservative = false := by decide
-
-/-- Under the Conservative policy the bar is not composited, so the nav keeps painting its descendants (no simple container). -/
-theorem conservative_not_simple (b : Box) (h : b.barComposited = barComposited .conservative) : drawsContent b = true :=
-  bar_premise_needed b (h.trans bar_normal_only.2)
 
 /-! ## Layer budget -/
 

@@ -1,7 +1,8 @@
 branch: worktree-wf_fab081fd-3ca-1 (CI branches ci/nav-fixed-size, ci/nav-fixed-size-bar, ci/nav-fixed-size-logo)
 worktree: .claude/worktrees/wf_fab081fd-3ca-1 (repo-relative)
 last commit: see `git log -1` (updated at each checkpoint)
-CI runs: none pushed yet
+CI pushes (2026-10-22 16:50Z): ci/nav-fixed-size 13954230 (lean, breakpoint-gate default config, trajectory fw=nav:clip-box), ci/nav-fixed-size-bar 8e0d2148 (trajectory fw=nav:bar-fixed), ci/nav-fixed-size-logo 7b361731 (trajectory fw=nav:logo-3d)
+CI runs: none created by GitHub for these pushes 35 min after the push (gh run list --branch/--commit empty, other branches' push runs appear); waiting
 
 ## Verified (local, not results)
 - Lean builds: Fw.Parts.NavClipBox, NavBarFixed, NavBarFixedWork, Fw.Engine.WebKitSimple (lake build, no sorry); goldens nav-clip-box.jsonl and nav-bar-fixed.jsonl (100 rows each, `#guard include_str`).
