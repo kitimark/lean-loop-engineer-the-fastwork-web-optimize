@@ -14551,8 +14551,10 @@
     "docs/team/handoffs/oracle-eps.md",
     "lean/Fw/Oracle/Golden.lean",
     "lean/Fw/Oracle/ReplayWire.lean",
-    "results/jev-arms-clean/table.md"
-   ]
+    "results/jev-arms-clean/table.md",
+    "lean/scripts/ExpandGolden.lean"
+   ],
+   "evidence": "c3bf22b"
   },
   {
    "devices": [
@@ -15618,7 +15620,8 @@
     "research/findings/ledger.json",
     "docs/team/handoffs/hero-exit-threaded-measure.md"
    ],
-   "title": "User goal 2026-10-22 (hero exit smoother on WebKit; GPU same-look route). hero.exit:threaded landed (cbd2365c: exit as view-timeline animations of accelerated properties only, Lean entrance_same, probe run 39669915362 RED only on empty-rect nodes) but has no WebKit cost or lag measurement against the base. Measure on CI webkit-sim with the cost input (cost=on, lag=true; wkcost-cost-input landed 2a938882): base vs ?fw=hero.exit:threaded, hero-exit zone Recalculate styles, Layout, rewrite skipped slots and new layers per read (the webkit-cost-counters tables), frame interval where recorded, both passes, with run ids; plus the breakpoint gate verdict already on record. Write the result as a ledger row update for the hero.exit threaded variant (MEASURED with run ids, mechanism, lesson; a no-win is a finding) and results/hero-exit-threaded-measure/report.json in the review-reports shape (recommendation text without numbers). Unit: base vs flag cost tables with run ids, ledger row, report.json, note. Limits: the Simulator has no real GPU; at most 4 dispatches; frame percentiles only where the lane records them."
+   "title": "User goal 2026-10-22 (hero exit smoother on WebKit; GPU same-look route). hero.exit:threaded landed (cbd2365c: exit as view-timeline animations of accelerated properties only, Lean entrance_same, probe run 39669915362 RED only on empty-rect nodes) but has no WebKit cost or lag measurement against the base. Measure on CI webkit-sim with the cost input (cost=on, lag=true; wkcost-cost-input landed 2a938882): base vs ?fw=hero.exit:threaded, hero-exit zone Recalculate styles, Layout, rewrite skipped slots and new layers per read (the webkit-cost-counters tables), frame interval where recorded, both passes, with run ids; plus the breakpoint gate verdict already on record. Write the result as a ledger row update for the hero.exit threaded variant (MEASURED with run ids, mechanism, lesson; a no-win is a finding) and results/hero-exit-threaded-measure/report.json in the review-reports shape (recommendation text without numbers). Unit: base vs flag cost tables with run ids, ledger row, report.json, note. Limits: the Simulator has no real GPU; at most 4 dispatches; frame percentiles only where the lane records them.",
+   "evidence": "eedcc11"
   },
   {
    "devices": [
@@ -15850,7 +15853,65 @@
     "docs/team/tools/build-review.md",
     "docs/team/handoffs/build-review-report-resume.md"
    ],
-   "title": "Process cost seen 3 times on 2026-10-22 (macos-pool-7, oracle-eps, jev-file-context-ablation): a builder's dry land needed --allow for files outside the graph writes, it reported `VERDICT dry <id> (with --allow ...)`, the Lean review gate (Fw.Plan.ReviewReady.dryOk, exact line) returned it, and a whole builder round (about 10 min, about 90k tokens) ran only to rerun the dry after the lead added the writes. Add a lead resume path to .claude/workflows/build-review.js: args.task.report (a builder report JSON path) with args.task.worktree skips the build stage, reruns `fw land --dry` itself in the worktree (one runner agent, the exact VERDICT line replaces the report's dry field), then the gate and the review as usual. Also make the builder preamble say: report `dry` exactly as the last VERDICT line printed without --allow, and list out-of-list files in `open`. Test in scripts/build-review.test.mjs with a stub agent (resume path skips the builder; the dry line comes from the runner, not the report). Unit: the resume path, the preamble line, the test, the doc. Limits: the gate rule is unchanged (exact dry line). Second defect, same file (2026-10-22, compose-layers-lean run wf_a9545149-400): a builder that ends without calling StructuredOutput makes agent({schema}) throw, so the whole workflow fails instead of returning the builder-checkpoint no-result record (the null path covers only a null return). Catch that error in the build stage and return the no-result record with the worktree, branch and handoff path; extend the stub-agent test with a throwing agent."
+   "title": "Process cost seen 3 times on 2026-10-22 (macos-pool-7, oracle-eps, jev-file-context-ablation): a builder's dry land needed --allow for files outside the graph writes, it reported `VERDICT dry <id> (with --allow ...)`, the Lean review gate (Fw.Plan.ReviewReady.dryOk, exact line) returned it, and a whole builder round (about 10 min, about 90k tokens) ran only to rerun the dry after the lead added the writes. Add a lead resume path to .claude/workflows/build-review.js: args.task.report (a builder report JSON path) with args.task.worktree skips the build stage, reruns `fw land --dry` itself in the worktree (one runner agent, the exact VERDICT line replaces the report's dry field), then the gate and the review as usual. Also make the builder preamble say: report `dry` exactly as the last VERDICT line printed without --allow, and list out-of-list files in `open`. Test in scripts/build-review.test.mjs with a stub agent (resume path skips the builder; the dry line comes from the runner, not the report). Unit: the resume path, the preamble line, the test, the doc. Limits: the gate rule is unchanged (exact dry line). Second defect, same file (2026-10-22, compose-layers-lean run wf_a9545149-400): a builder that ends without calling StructuredOutput makes agent({schema}) throw, so the whole workflow fails instead of returning the builder-checkpoint no-result record (the null path covers only a null return). Catch that error in the build stage and return the no-result record with the worktree, branch and handoff path; extend the stub-agent test with a throwing agent.",
+   "evidence": "1ad8c4c"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "oracle-eps-followups",
+   "owner": "researcher",
+   "stream": "oracle",
+   "deps": [
+    "oracle-eps"
+   ],
+   "writes": [
+    "results/jev-file-context-ablation/**",
+    "research/notes/2026/10-2x-jev-file-context-ablation.md",
+    "scripts/jev-arms-clean.mjs",
+    "scripts/jev-arms-clean.test.mjs",
+    "results/jev-arms-clean/table.md",
+    "docs/team/handoffs/oracle-eps-followups.md"
+   ],
+   "title": "Follow-ups of oracle-eps (accepted 2026-10-22). (1) Re-score results/jev-file-context-ablation (d1x, d1n and the paired table) under the landed sumOk rule from the logged replies (no sends, no model calls); if any net or the adopt verdict changes, update the note's table and verdict and say so; else state that it is unchanged. (2) scripts/jev-arms-clean.mjs `table` drops the oracle-eps block of results/jev-arms-clean/table.md: make the generator emit the re-validated rows (old and new rule) so a regenerate keeps them; test. Unit: the re-scored ablation table with its verdict, the generator change with its test. Limits: no sends, no model calls."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "compose-layers-followups",
+   "owner": "lean-prover",
+   "stream": "console",
+   "deps": [
+    "compose-layers-lean"
+   ],
+   "writes": [
+    "lean/Fw/Console/Layers.lean",
+    "lean/Fw/Wire/Layers.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "packages/contracts/golden/console/layers*.jsonl",
+    "docs/team/handoffs/compose-layers-followups.md"
+   ],
+   "title": "Follow-ups of compose-layers-lean (accepted 2026-10-22). (1) Single source for layers: console.compose takes a part's layers only from layersOf (the extractor's layerDecls), the request field goes (same fix as files in round 3), or prove request layers = layersOf. (2) varGrade gives E/E1 when the lean string is non-empty without checking it names a declaration: add a registryErrors entry when a variant's lean name is not a declaration in the fwcore environment (the example page's Fw.Demo.steps_within_one does not exist). (3) look_E_sound takes hcover and hfoot as premises: add the lemma tying coverReasons = [] and no clash to Indep under a footprint-soundness premise, or list hcover in hyps. (4) layers.jsonl rows for every refusal code (coupled, unit-unit clash, uncovered-reader, shared-reader, refuted, path-no-variant, snap-leaves-compositor, rule) with request-level Changes or a synthetic registry. (5) fix_allowed theorem (two Changes or two user picks on one part). Unit: the five items with goldens. Limits: no site change."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "polish-commit-report",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    ".claude/workflows/build-review.js",
+    "scripts/build-review.test.mjs",
+    "apps/runner/src/polish*.ts",
+    "apps/runner/test/polish*.test.ts",
+    "docs/team/tools/build-review.md",
+    "docs/team/handoffs/polish-commit-report.md"
+   ],
+   "title": "The build-review Polish stage reported `commit: error` three times on 2026-10-22 although the commit existed (macos-pool-7 2494ecf1, compose-layers-lean 8cc7d92e) or the cuts were staged but not committed (build-review-report-resume, staged only). The lead had to inspect each worktree by hand. Make the polish commit step report from git facts: after `git commit`, the stage reads `git rev-parse HEAD` and `git status --porcelain` and returns committed <sha> | nothing-to-commit | staged-not-committed (with the paths) | error <message>; a staged-not-committed state commits or unstages, never leaves the index dirty. Stub test for each state. Unit: the git-fact report, the four states tested. Limits: the cut decisions (Lean Fw.Plan.Polish) are unchanged."
   }
  ],
  "deadline": {
