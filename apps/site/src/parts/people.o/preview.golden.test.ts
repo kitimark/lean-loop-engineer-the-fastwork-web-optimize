@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { decodeRat, diff, readGolden } from '../../engine/golden.testutil';
 import * as P from './preview';
 
-/** `people.o:preview-translate` against packages/contracts/golden/parts/people-o-preview.jsonl (Fw.Parts.PeopleOPreview). */
 const golden = readGolden('people-o-preview', 'main');
 
 describe('people.o:preview-translate golden', () => {

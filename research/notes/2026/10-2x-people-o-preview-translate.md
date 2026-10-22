@@ -39,7 +39,7 @@ offsets (fractional zoom); there the variant does not rely on it: `keep` require
 ## Measured
 
 - Breakpoint gate, both engines, flag `people.o:preview-translate`: run 39850908365 at dce0985, success. Config 08b2ef03265b7880
-  (the flagged page, read from the loaded page), chromium and playwright-webkit, row `people.o`: all cells pass except the two WebKit cells
+ , chromium and playwright-webkit, row `people.o`: all cells pass except the two WebKit cells
   that cannot be built on that engine (UNREACHABLE: primary-pair, whole-width), no FAIL. MEASURED. The gate cells do not hover, so
   the card is closed in them: this shows the closed page is unchanged, not the open card (the open card is the Lean theorem above).
 - Chromium counts, profile `people-o-hover` (1280 x 800, synthetic mouseover): BLOCKED, no number. Every desktop-width run, base and flag
@@ -47,4 +47,4 @@ offsets (fractional zoom); there the variant does not rely on it: `keep` require
   39862057861) about 0.5 s after the first frame of any rewrite page wider than 860 px. A 430 px profile passes on the same branch
   (swipe-v1, run 39859057574), so the flag is not the cause. Runs: 39850913549, 39850930778, 39852501132, 39854385797, 39855096795,
   39855102093, 39855917125, 39856570778, 39857307732, 39857312848, 39857318162, 39859911878, 39860551961, 39861279374, 39862057861.
-  The crash is task chromium-desktop-crash; it re-runs this count after the fix. The bisect profiles of this task were removed.
+  The crash is task chromium-desktop-crash; it re-runs this count after the fix.

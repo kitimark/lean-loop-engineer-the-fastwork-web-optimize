@@ -75,7 +75,6 @@ const ev = async (expression) => {
 };
 // Network.enable makes BeginFrame hang at navigation commit (observed), so in-flight requests are counted by the
 // static server instead (every request that can succeed goes through it; external hosts are unresolvable by design).
-// Load diagnostics (stderr, capped): a JS dialog blocks the renderer without a profile sample, so it is answered and logged; page errors are logged.
 {
   let logged = 0;
   const say = (...a) => { if (logged++ < 40) console.error('page:', ...a); };
@@ -123,8 +122,6 @@ async function networkBarrier(r0) {
     await sleep(5);
   }
 }
-// A load frame whose evaluate does not answer: the main thread is busy. Record the V8 CPU profile for a few seconds through the
-// browser-side Tracing domain (it needs no renderer answer), print the dearest functions, then fail. Diagnostic for a hung load.
 async function hangProfile(frameNo) {
   try { const lg = readFileSync('/tmp/chrome.log', 'utf8'); const at = lg.indexOf('Received signal'); console.error('chrome.log crash:\n' + (at >= 0 ? lg.slice(Math.max(0, at - 300), at + 2600) : lg.slice(-3000))); } catch (e) { console.error('no chrome.log', String(e)); }
   await c.send('Tracing.start', { transferMode: 'ReturnAsStream', traceConfig: { recordMode: 'recordAsMuchAsPossible', includedCategories: ['disabled-by-default-v8.cpu_profiler', 'devtools.timeline', 'cc', 'viz', 'blink', 'headless', 'toplevel'] } });
@@ -234,8 +231,6 @@ const plan = [];
 if (inputMode === 'scrollTo' || inputMode === 'page') {
   let y = 0;
   for (const seg of profile.segments) {
-    // `anchor` ({selector, viewportTop}): the segment starts with the first match of the selector `viewportTop` px below the viewport top.
-    // `eval`: an expression run once, inside the segment's first frame, before that frame's scroll (a synthetic pointer event; people-o-hover).
     if (seg.anchor) {
       const ay = await ev(`(() => { const e = document.querySelector(${JSON.stringify(seg.anchor.selector)}); return e ? Math.round(e.getBoundingClientRect().top + scrollY - ${Number(seg.anchor.viewportTop)}) : null; })()`);
       if (ay === null) throw new Error(`segment ${seg.name}: no element matches ${seg.anchor.selector}`);

@@ -44,7 +44,6 @@ export function PeopleO({ variant, standalone = false, onGetStarted }: PeopleOPr
     if (!a || !p) return;
     const r = a.getBoundingClientRect();
     if (translateFlag) {
-      // preview-translate: left/top/width are written at open and at a flip; in between the card follows its face by `translate`
       const y = window.scrollY;
       const input: Held = { vw: window.innerWidth, vh: window.innerHeight, x: r.left, s: r.width, t: r.top, b: r.bottom, y0: y };
       const held = heldRef.current;
@@ -114,7 +113,6 @@ export function PeopleO({ variant, standalone = false, onGetStarted }: PeopleOPr
     hideRef.current = null;
   };
 
-  // position the card as soon as it is mounted for a face
   useEffect(() => {
     heldRef.current = null;
     if (hover !== null) place();

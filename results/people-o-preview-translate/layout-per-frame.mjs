@@ -1,7 +1,4 @@
 #!/usr/bin/env node
-// Layout passes per frame of the `scroll` phase of profile people-o-hover, from chromium-counts artifacts.
-// usage: node layout-per-frame.mjs <label>=<counts.json> [<label>=<counts.json> ...]   (one counts.json per determinism run)
-// prints, per label and run, the frames of the phase, the sum of trace.Layout, trace.UpdateLayoutTree, trace.Paint and the max per frame.
 import { readFileSync } from 'node:fs';
 
 const KEYS = ['trace.Layout', 'trace.UpdateLayoutTree', 'trace.Paint', 'trace.Layout.dirtyObjects'];
