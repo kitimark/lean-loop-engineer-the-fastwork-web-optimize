@@ -36,7 +36,8 @@ export function remoteDigest(call: FwCall, ids: string[]): string {
 
 // ---- GitHub: `gh run view --json ...` of the land run, normalized ------------------------------------------------------
 export type GhStep = { name: string; conclusion?: string | null };
-export type GhJob = { name: string; conclusion?: string | null; steps?: GhStep[] };
+/** `status` is `completed` once GitHub finalised the job; until then its conclusion is empty and says nothing (a pending leg). */
+export type GhJob = { name: string; status?: string | null; conclusion?: string | null; steps?: GhStep[] };
 export type GhRunView = { workflowName?: string; headSha: string; conclusion: string | null; status?: string; createdAt?: string; startedAt?: string; updatedAt?: string; jobs?: GhJob[] };
 export const RUN_VIEW_FIELDS = "workflowName,headSha,conclusion,status,createdAt,startedAt,updatedAt,jobs";
 
@@ -51,25 +52,35 @@ export function laneBind(view: GhRunView): { sha: string; digest: string } | nul
 
 /** fwcore `console.landLaneState` (Lean `Fw.Console.LandRemote.laneState`): the state of a lane run from the run's own record first and the
  *  `fw ci wait` result second. Record: a completed failure or an unknown conclusion is `fail`; a status that is not `completed` is `running`
- *  whatever the waiter said (a crashed waiter exits 1); a completed success is decided by its per-job conclusions (`legResults`).
- *  Waiter (no record decides): 0 pass, 1 fail only when its output had a `-> fail` line (else a wait error, `unavailable`), 3 `running`
- *  only when the output says `timed out after`, 4 not run, else `unavailable`. */
+ *  whatever the waiter said (a crashed waiter exits 1); a completed success is decided by its per-job records (`legRecords`): a job not
+ *  completed is a pending leg, which makes the run `running` (`reread`: read the record again) for `rereadBound` reads and `unavailable`
+ *  after, never `fail`. Waiter (no record decides): 0 pass, 1 fail only when its output had a `-> fail` line (else a wait error,
+ *  `unavailable`), 3 `running` only when the output says `timed out after`, 4 not run, else `unavailable`. `reads`: the earlier reads of
+ *  this run that saw a pending leg. */
+export function laneRead(call: FwCall, code: number, out = "", view: GhRunView | null = null, reads = 0): { state: RunState; reread: boolean } {
+  return call({ op: "console.landLaneState", exit: code, timedOut: /timed out after/.test(out), saidFail: SAID_FAIL.test(out), status: view?.status ?? "", conclusion: view?.conclusion ?? "", jobs: legRecords(view), reads }) as { state: RunState; reread: boolean };
+}
+/** `laneRead` of a first read: the state only. */
 export function laneStateOf(call: FwCall, code: number, out = "", view: GhRunView | null = null): RunState {
-  return (call({ op: "console.landLaneState", exit: code, timedOut: /timed out after/.test(out), saidFail: SAID_FAIL.test(out), status: view?.status ?? "", conclusion: view?.conclusion ?? "", jobs: legResults(view) }) as { state: RunState }).state;
+  return laneRead(call, code, out, view).state;
 }
 /** The waiter prints `run <id> <workflow> <conclusion> -> fail (<reason>)` for a run it judged failed (packages/gh-budget wait.ts `verdictOf`). */
 export const SAID_FAIL = /-> fail\b/;
 
-/** The per-job conclusions of a run record as bools (job concluded `success`), the guard left out; `null` when some job has no
- *  conclusion string (the poller's cached facts), which says nothing. Lean decides what they mean (`laneState`, `LandLegs.legsOk`). */
-export function legResults(view: GhRunView | null): boolean[] | null {
+export type JobRecord = { status: string; conclusion: string };
+/** The per-job records (status, conclusion) of a run record, the guard left out; `null` when some job has no status string (the
+ *  poller's cached facts), which says nothing. Lean decides what they mean (`laneState`, `legState`). */
+export function legRecords(view: GhRunView | null): JobRecord[] | null {
   const legs = (view?.jobs ?? []).filter((j) => j.name !== "guard");
-  return legs.every((j) => typeof j.conclusion === "string") ? legs.map((j) => j.conclusion === "success") : null;
+  return legs.every((j) => typeof j.status === "string") ? legs.map((j) => ({ status: j.status!, conclusion: j.conclusion ?? "" })) : null;
 }
 
-/** The facts a refusal names: the run id, each failed leg (job) and the check ids that leg runs (Lean `console.landLeg`, `LandLegs.pickFor`). */
+/** The facts a refusal names: the run id, each failed leg (job) and the check ids that leg runs (Lean `console.landLeg`, `LandLegs.pickFor`).
+ *  A failed leg is one Lean `legState` calls `fail` (op `console.landLegStates`); a job without a status counts as not completed. */
 export function failureDetail(call: FwCall, id: string | undefined, view: GhRunView | null, checks: string[]): string {
-  const bad = (view?.jobs ?? []).filter((j) => j.name !== "guard" && typeof j.conclusion === "string" && j.conclusion !== "success" && j.conclusion !== "skipped");
+  const jobs = (view?.jobs ?? []).filter((j) => j.name !== "guard");
+  const states = (call({ op: "console.landLegStates", jobs: jobs.map((j) => ({ status: j.status ?? "", conclusion: j.conclusion ?? "" })) }) as { legs: string[] }).legs;
+  const bad = jobs.filter((_, k) => states[k] === "fail");
   const legs = bad.map((j) => {
     const leg = /^land \((.+)\)$/.exec(j.name)?.[1];
     const ids = leg ? (call({ op: "console.landLeg", leg, ids: checks }) as { ids: string[] }).ids : [];
@@ -114,7 +125,7 @@ export function runTimes(view: GhRunView): { startMs: number; queueMs: number; l
 }
 
 // ---- adapters ------------------------------------------------------------------------------------------------------
-export type Handle = { provider: Provider; branch: string; marker: string; /** CircleCI: the pipeline the trigger started */ pipelineId?: string };
+export type Handle = { provider: Provider; branch: string; marker: string; /** CircleCI: the pipeline the trigger started */ pipelineId?: string; /** GitHub: the reads of a completed run record that saw a pending leg (Lean `rereadBound`) */ reads?: number };
 /** The legs of the land lane (lean/land-legs.txt) and the split of them between the providers (fwcore `ci.overflow`). */
 export type LegSplit = { all: string[]; gh: string[]; cc: string[] };
 /** `legs` is absent for a land that runs wholly on GitHub (the marker and the matrix are then what they always were). */
@@ -213,7 +224,7 @@ export function githubAdapter(d: GithubDeps, push: Pusher = makePusher(d)): Adap
         id = /\brun (\d+)\b/.exec(w.out)?.[1];
         // Cached facts first (no budget): a completed failed record, or a record whose jobs show the bind, is enough.
         const hit = d.cache?.(h, id) ?? null;
-        if (hit && (hit.conclusion === "failure" || (!partial && laneBind(hit) && (w.code === 0 || legResults(hit) !== null)))) view = hit; // a non-pass waiter on a record without job conclusions reads the full `gh run view`
+        if (hit && (hit.conclusion === "failure" || (!partial && laneBind(hit) && (w.code === 0 || legRecords(hit) !== null)))) view = hit; // a non-pass waiter on a record without job conclusions reads the full `gh run view`
         else {
           const o = { deadline: Math.ceil((d.now?.() ?? Date.now()) / 1000 + sliceS), ...(signal ? { signal } : {}) };
           try {
@@ -231,12 +242,14 @@ export function githubAdapter(d: GithubDeps, push: Pusher = makePusher(d)): Adap
           }
         }
       }
-      let state = laneStateOf(d.call, w.code, w.out, view);
+      const read = laneRead(d.call, w.code, w.out, view, h.reads ?? 0);
+      let state = read.state;
+      if (read.reread) { h.reads = (h.reads ?? 0) + 1; note = `${note ? `${note}; ` : ""}run ${id ?? "?"} completed with a leg GitHub has not finalised (read ${h.reads})${state === "running" ? "; the record is read again after this slice" : "; the reads are used up, the run counts as unavailable"}`; }
       if (partial && state === "pass" && !legsCovered(view, c.legs!.gh)) { state = "fail"; note = `${note ? `${note}; ` : ""}the run has no job for every leg given to GitHub (${c.legs!.gh.join(",")})`; }
       let detail: string | undefined;
       if (state === "fail") {
         let dv = view;
-        if (id && legResults(view) === null) { // a cached record has no per-job conclusions: one view names the failed legs (a failure is rare)
+        if (id && legRecords(view) === null) { // a cached record has no per-job records: one view names the failed legs (a failure is rare)
           try { const v = JSON.parse(await d.gh(["run", "view", id, "--json", RUN_VIEW_FIELDS], { deadline: Math.ceil((d.now?.() ?? Date.now()) / 1000 + sliceS), ...(signal ? { signal } : {}) })) as GhRunView; if (v.workflowName === LANE_ID) dv = v; } catch { /* the detail is best effort */ }
         }
         detail = failureDetail(d.call, id, dv, c.checks ?? []);

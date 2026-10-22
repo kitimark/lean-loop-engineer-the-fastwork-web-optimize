@@ -21,7 +21,7 @@ const want: Want = { sha: SHA, laneId: "land", laneDigest: DIGEST };
 const LEGS = ["check-sh", "suites-a", "suites-b", "chromium", "playwright-webkit"];
 
 const job = (leg: string, conclusion: string, bind = false) => ({
-  name: `land (${leg})`, conclusion,
+  name: `land (${leg})`, status: conclusion === "" ? "in_progress" : "completed", conclusion,
   steps: bind ? [{ name: `lane: sha=${SHA} digest=${DIGEST}`, conclusion: "success" }] : [],
 });
 /** A `gh run view` record of the lane: `conclusions` per leg in LEGS order. */
@@ -155,7 +155,7 @@ describe("CircleCI refusal names the pipeline, the failed legs and their checks"
 describe("golden rows are served by fwcore (console.landLaneState)", () => {
   const st = (o: Record<string, unknown>) => (call({ op: "console.landLaneState", ...o }) as { state: string }).state;
   it("all jobs success, waiter exit 1: pass; in progress, exit 1: running; no record, unsaid exit 1: running", () => {
-    expect(st({ exit: 1, status: "completed", conclusion: "success", saidFail: false, jobs: [true, true] })).toBe("pass");
+    expect(st({ exit: 1, status: "completed", conclusion: "success", saidFail: false, jobs: [{ status: "completed", conclusion: "success" }, { status: "completed", conclusion: "success" }] })).toBe("pass");
     expect(st({ exit: 1, status: "in_progress", conclusion: "", saidFail: false })).toBe("running");
     expect(st({ exit: 1, status: "", conclusion: "", saidFail: false })).toBe("running");
     expect(st({ exit: 137, status: "", conclusion: "", saidFail: false })).toBe("unavailable");

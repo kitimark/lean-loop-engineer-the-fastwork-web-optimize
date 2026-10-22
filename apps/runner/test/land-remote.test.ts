@@ -21,7 +21,7 @@ const recorded = (name: string): GhRunView => JSON.parse(readFileSync(join(root,
 const passView = (sha = SHA, digest = DIGEST): GhRunView => ({
   headSha: MARKER, conclusion: "success", status: "completed",
   createdAt: "2026-10-20T10:00:00Z", startedAt: "2026-10-20T10:00:10Z", updatedAt: "2026-10-20T10:05:10Z",
-  jobs: [{ name: "land", conclusion: "success", steps: [{ name: "suites (the remote tier of the Lean-selected checks)", conclusion: "success" }, { name: `lane: sha=${sha} digest=${digest}`, conclusion: "success" }] }],
+  jobs: [{ name: "land", status: "completed", conclusion: "success", steps: [{ name: "suites (the remote tier of the Lean-selected checks)", conclusion: "success" }, { name: `lane: sha=${sha} digest=${digest}`, conclusion: "success" }] }],
 });
 /** normalize a run the way the adapter does: the lane state is fwcore's (waiter exit + the run's own conclusion). */
 const norm = (code: number, view: GhRunView | null, c: { marker: string; want: Want }, out = "") => normalizeGithub(laneStateOf(call, code, out, view), view, c);

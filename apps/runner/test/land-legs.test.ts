@@ -84,7 +84,7 @@ describe("fw checks --leg", () => {
 describe("the verdict over all legs (Lean legsOk) vetoes a pass", () => {
   const view = (conclusions: (string | null)[], over: Partial<GhRunView> = {}): GhRunView => ({
     headSha: "a".repeat(40), status: "completed", conclusion: "success", ...over,
-    jobs: [{ name: "guard", conclusion: "success" }, ...conclusions.map((c, i) => ({ name: `land (${legNames[i] ?? i})`, conclusion: c }))],
+    jobs: [{ name: "guard", conclusion: "success" }, ...conclusions.map((c, i) => ({ name: `land (${legNames[i] ?? i})`, conclusion: c, ...(c === null ? {} : { status: "completed" }) }))],
   });
   it("all legs passed: the run passes", () => {
     expect(legsPass(core, view(["success", "success", "success", "success"]))).toBe(true);
