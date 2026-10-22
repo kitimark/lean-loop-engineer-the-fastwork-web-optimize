@@ -13,7 +13,6 @@ const goldenQueries = readFileSync(new URL('../../../../../packages/contracts/go
   .map((l) => (JSON.parse(l) as { in: { query: string } }).in.query);
 const ANIMATED = ['opacity', 'filter', 'transform'] as const;
 
-/** Which of the three animated properties each `.panel` rule declares, per media query (`base` outside any query). */
 function declaredBands(src: string): Record<string, Record<(typeof ANIMATED)[number], boolean>> {
   const out: Record<string, Record<(typeof ANIMATED)[number], boolean>> = {};
   const blank = () => ({ opacity: false, filter: false, transform: false });

@@ -8,7 +8,7 @@ authors: [agent:part-builder]
 topics: [morph, panel, webkit, compositor, flags, negative-result]
 ---
 
-# morph.panel:threaded (task morph-panel-threaded)
+# morph.panel:threaded
 
 Question: while the nav morphs, the tween writes the panel's opacity, `filter: blur()` and `transform: scale()` on every
 frame. Can one Web Animation per push (two effects: opacity with transform, and filter alone) show the same panel on
@@ -103,7 +103,7 @@ factor of 3 inside one arm, so these are no evidence either way. The third vm (r
 Simulator (Safari page target lost, simctl launch timed out), so its merge and report jobs were skipped; the const-bounds
 r3 was not read. The table holds the passes of r1 and r2 read from their artifacts.
 
-## Verdict (negative on cost, with its Lean why)
+## Verdict (negative on cost)
 - The flag shows the same panel (look: `interp_eq`, `threaded_eq`, panel-effect E) and meets the Core Animation
   conditions (`ca_accepts`), but on the Simulator the open push costs more Composite per frame than the const-bounds
   arm, and nothing less elsewhere.

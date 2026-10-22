@@ -36,7 +36,6 @@ export interface TweenEnv {
   /** The `scroll-lock` arm's root lock (Lean `MorphTweenOpt.stepR`); absent in the original and unless `lockAllowed`. */
   lock?: { overlay(): boolean; set(on: boolean): void };
   fade?: EffectSink;
-  /** Variant `morph.panel:threaded` (Lean `MorphPanelThreaded.stepP`): the panel's opacity, blur and scale run as effects per push. */
   panel?: EffectSink;
 }
 

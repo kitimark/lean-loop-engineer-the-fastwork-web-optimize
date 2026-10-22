@@ -16,7 +16,6 @@ def mAt (f t o : Rat) : Rat := f + (t - f) * o
 
 def at_ (f t c : Rat) : Rat := (c - f) / (t - f)
 
-/-- The morph values where the panel's progress bends, as offsets strictly inside a push `f -> t`, in time order. -/
 def inner (f t : Rat) : List Rat :=
   if f < t then
     (if f < kA ∧ kA < t then [at_ f t kA] else []) ++ (if f < kB ∧ kB < t then [at_ f t kB] else [])
@@ -238,7 +237,6 @@ def Band.query : Band → String
   | .w640 => "(width<=640px)"
   | .w600 => "(width<=600px)"
 
-/-- Which of the three animated properties the `.panel` rule of a band declares. -/
 def declared : Band → List Anim3
   | .always => [.opacity, .filter, .transform]
   | .reduced => [.filter]
@@ -348,7 +346,6 @@ def layersOf (p : Policy) (rs : List (List CompReason)) : Nat :=
 theorem animation_composites (p : Policy) : composites p .animation = true :=
   (own_robust .animation).2 (by simp [robust]) p
 
-/-- Layer budget: the effect adds the `animation` reason to the panel. If the panel already has a layer, no layer is added. -/
 theorem layer_budget (p : Policy) (others : List (List CompReason)) (rs : List CompReason)
     (h : rs.any (composites p) = true) :
     layersOf p (others ++ [.animation :: rs]) = layersOf p (others ++ [rs]) := by

@@ -157,7 +157,6 @@ theorem ca_accepts (f t : Rat) : caAccepts (caOf f t) = true := by
 
 #guard caAccepts (caOf 0 1) && caAccepts (caOf 1 0) && caAccepts (caOf (1 / 2) 0) && caAccepts (caOf 0 (1 / 25))
 
-/-- The effects of one push: the pixel-moving blur sits alone, so a Chromium refusal of it leaves the other effect. -/
 def effects : List (List Anim3) := [[.opacity, .transform], [.filter]]
 
 theorem effects_cover (a : Anim3) : (effects.flatten.count a = 1) := by
@@ -177,7 +176,6 @@ theorem by_panel (s : Rat) (h0 : 0 ≤ s) (h1 : s ≤ 1) : Fw.Parts.Bezier.by' p
   unfold Fw.Parts.Bezier.by' Fw.Parts.Bezier.coord panelBez Fw.Parts.MorphTween.ease Fw.Parts.MorphTween.clamp01
   grind
 
-/-- The engines' bisection solves the easing to within `3 / 2^41` of the exact cubic `1 - (1 - t)^3` on `0 < t < 1`. -/
 theorem ease_err (t : Rat) (ht0 : 0 < t) (ht1 : t < 1) :
     (Fw.Parts.Bezier.ease panelBez t - Fw.Parts.MorphTween.ease t) * 2 ^ 41 ≤ 3 ∧
       (Fw.Parts.MorphTween.ease t - Fw.Parts.Bezier.ease panelBez t) * 2 ^ 41 ≤ 3 := by
