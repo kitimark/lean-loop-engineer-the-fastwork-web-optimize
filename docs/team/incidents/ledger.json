@@ -3918,7 +3918,7 @@
    },
    "regression": "apps/runner/test/slot-resolve.test.ts builds a fixture repo with a worktree and checks the resolver picks the main checkout's slot-main.ts, and falls back to the local one when main's is missing.",
    "mistakeClass": "c-spec-gap",
-   "leanVerdict": "not-lean",
+   "leanVerdict": "no",
    "leanReason": "File resolution is I/O glue; the slot decision itself stays in Lean-checked slot-core.",
    "empiricalCheck": "Fixture test only; a waiter already running keeps the code it loaded.",
    "hardening": "slot-main-code"
