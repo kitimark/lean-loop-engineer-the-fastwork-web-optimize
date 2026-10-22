@@ -157,8 +157,8 @@ A queued run waits in one node process, not a tree (slot-waiter-light, MEASURED 
 | before, `node fw.ts slot run` under `pnpm -s fw` | pnpm + 1 | 129 + 118 = 247 MB |
 | after, `node fw.ts slot run` under `pnpm -s fw` | pnpm + 1 | 129 + 102 = 231 MB |
 
-- Which route is one process: only `slot-self.mjs` (check.sh, package `test`), 99 MB. The typed form `pnpm -s fw slot run` stays pnpm + node (2 processes; 3 where the pnpm shim switches to the pinned pnpm, which the lead measured as 95 + 105 + 102 MB). Its gain is 16 MB of node RSS (118 to 102, MEASURED, one run, this Mac); the pnpm part stays.
+- One process only via `slot-self.mjs` (check.sh, package `test`), 99 MB. The typed form `pnpm -s fw slot run` stays pnpm + node (2 processes; 3 where the pnpm shim switches to the pinned pnpm, which the lead measured as 95 + 105 + 102 MB). It gains 16 MB of node RSS (118 to 102, MEASURED).
 - `fw.ts` is now a small entry: for `fw slot ...` it loads only `slot-main.ts`, for every other group it loads `fw-main.ts` (the old fw.ts body: contracts, land, ci, plan; the 120 MB part). `package.json` `fw` still starts `apps/runner/src/fw.ts`, so the Monitor command line `node apps/runner/src/fw.ts watch --interval 300 --stream` is unchanged.
-- Why this option: the wait loop cannot run before the `pnpm` wrapper when an agent types `pnpm -s fw slot run` (pnpm is the parent and stays alive), so that form can only lose the fw-main.ts weight. The routed scripts lose the whole second process because `slot-self.mjs` waits in-process.
+- `pnpm` stays the parent of a typed `pnpm -s fw slot run`, so that form only loses the fw-main.ts weight; `slot-self.mjs` waits in-process and loses the whole second process.
 - A bare node with TypeScript stripping is about 46 MB idle; the waiter is 99-102 MB. Not cut further (follow-up: a precompiled JS waiter). `manage-package-manager-versions=false` would remove the shim's nested pnpm and is not set here.
 - Verdicts, queue order and the lease are unchanged (same `slot.ts`). Tests: `scripts/slot-self.test.mjs` (the waiter has no child and starts the command only after the holder releases; usage exits 64).

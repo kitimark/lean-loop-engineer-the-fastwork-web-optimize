@@ -7,9 +7,6 @@ const here = dirname(fileURLToPath(import.meta.url));
 const KINDS = new Set(["check", "test"]);
 const SLOT_MAIN = join(here, "..", "apps", "runner", "src", "slot-main.ts");
 
-/** What to do for `slot-self.mjs <kind> -- <cmd...>`. Routed: `slot` holds the `fw slot run` arguments, which this
- *  process runs itself (slot-waiter-light: the wait loop lives in this one node process, no second fw process).
- *  Direct (held, CI, FW_SLOT_SELF=off): `argv` is the command. */
 export function plan(env, args) {
   const [kind, sep, ...cmd] = args;
   if (!KINDS.has(kind) || sep !== "--" || cmd.length === 0) return { error: "usage: slot-self.mjs <check|test> -- <cmd...>" };
@@ -24,9 +21,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   if (p.routed) {
     const { slotMain } = await import(pathToFileURL(SLOT_MAIN).href);
     const { begin } = await import(pathToFileURL(join(here, "..", "apps", "runner", "src", "timing.ts")).href);
-    const end = begin("fw", "slot"); // the span `fw slot run` wrote before
+    const end = begin("fw", "slot");
     process.once("exit", (c) => end(c));
-    process.exitCode = await slotMain(p.slot, process.cwd()); // exitCode, not exit(): piped output flushes
+    process.exitCode = await slotMain(p.slot, process.cwd());
   } else {
     const child = spawn(p.argv[0], p.argv.slice(1), { stdio: "inherit" });
     for (const s of ["SIGINT", "SIGTERM"]) process.on(s, () => child.kill(s));
