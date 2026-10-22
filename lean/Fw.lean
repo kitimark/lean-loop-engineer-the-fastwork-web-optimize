@@ -68,6 +68,9 @@ import Fw.Parts.PlatformShrinkOpt
 import Fw.Parts.PlatformFade
 import Fw.Parts.PlatformFadeRun
 import Fw.Parts.MorphConstBounds
+import Fw.Parts.MorphPanelThreaded
+import Fw.Parts.MorphPanelThreadedRun
+import Fw.Parts.MorphPanelThreadedGolden
 import Fw.Parts.HeroAccentOpt
 import Fw.Measure.Zones
 import Fw.Measure.Classes

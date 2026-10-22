@@ -18,8 +18,17 @@
         "lean": "Fw.Parts.MorphConstBounds paint_eq, visible_iff, nav_origin, pivot_same, inset_width_eq, backdrop_eq, varBox_rest, varBox_const, orig_resizes_h, orig_resizes_w, end_same, off_nonneg",
         "limit": "while the nav morphs (is-morphing) the panel box keeps the nav's final size and each child is inset onto the nav box; the nav and the column tracks still change size every frame (colW_mono, pitch_scaled_ne), the children are still laid out per frame, and the panel layer's blur outset still varies while the fade runs (INFERRED)"
       }
+    },
+    "threaded": {
+      "kind": "optimized",
+      "tier": "T0",
+      "files": ["content.ts", "driver.ts", "index.tsx", "logic.ts", "media.ts", "morph.module.css", "threaded.logic.ts"],
+      "provenance": {
+        "lean": "Fw.Parts.MorphPanelThreaded interp_eq, bands_equal, reduced_no_effect, props_accelerated, variant_drops, recalc_same, layer_budget; Fw.Parts.MorphPanelThreadedRun frame_eq, threaded_eq, retarget_from_shown, ca_accepts, ease_err, filter_alone",
+        "limit": "const-bounds plus one opacity and scale effect and one blur effect per push; the nav still writes --morph on every frame, so RecalculateStyles stays (recalc_same); CA's blur is not the software blur (pixels at most Q on WebKit); Chromium keeps the blur effect on the main thread"
+      }
     }
   },
   "requires": {},
-  "conflicts": {}
+  "conflicts": { "morph.panel:threaded": ["morph.tween:waapi", "morph.tween:waapi-scoped"] }
 }

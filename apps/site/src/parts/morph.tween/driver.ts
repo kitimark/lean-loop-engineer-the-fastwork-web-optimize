@@ -1,4 +1,5 @@
-import { active, armed, dir, fade, frame, pointerNone, push, REST, taken, type St } from './logic';
+import { EASING_CSS as PANEL_EASING_CSS, effects as panelEffects } from '../morph.panel/threaded.logic';
+import { active, armed, dir, DURATION_MS, fade, frame, pointerNone, push, REST, taken, type St } from './logic';
 import { lockWrite, readsAt } from './scroll-lock.logic';
 
 export interface PlatformEl {
@@ -34,7 +35,44 @@ export interface TweenEnv {
   onActivate?(): void;
   /** The `scroll-lock` arm's root lock (Lean `MorphTweenOpt.stepR`); absent in the original and unless `lockAllowed`. */
   lock?: { overlay(): boolean; set(on: boolean): void };
-  fade?: { push(from: number, to: number, start: number): void; settle(m: number): void; dispose(): void };
+  fade?: EffectSink;
+  /** Variant `morph.panel:threaded` (Lean `MorphPanelThreaded.stepP`): the panel's opacity, blur and scale run as effects per push. */
+  panel?: EffectSink;
+}
+
+export interface EffectSink {
+  push(from: number, to: number, start: number): void;
+  settle(m: number): void;
+  dispose(): void;
+}
+
+export interface PanelAnim {
+  startTime: number | null;
+  cancel(): void;
+}
+export interface PanelEl {
+  animate(kfs: object[], opts: { duration: number; easing: string; fill: 'both' }): PanelAnim;
+}
+
+export function createPanelEffects(el: () => PanelEl | null): EffectSink {
+  let live: PanelAnim[] = [];
+  const drop = () => {
+    for (const a of live) a.cancel();
+    live = [];
+  };
+  return {
+    push(from, to, start) {
+      drop();
+      const p = el();
+      if (!p) return;
+      const fx = panelEffects(from, to);
+      const opts = { duration: DURATION_MS, easing: PANEL_EASING_CSS, fill: 'both' } as const;
+      live = [p.animate(fx.main, opts), p.animate(fx.blur, opts)];
+      for (const a of live) a.startTime = start;
+    },
+    settle: drop,
+    dispose: drop,
+  };
 }
 
 /**
@@ -123,6 +161,7 @@ export function createTweenDriver(env: TweenEnv) {
       cancelFrame?.();
       cancelFrame = null;
       env.fade?.settle(st.value);
+      env.panel?.settle(st.value);
     }
     env.publish(st.value);
     updateFade();
@@ -144,12 +183,14 @@ export function createTweenDriver(env: TweenEnv) {
       cancelFrame?.();
       cancelFrame = null;
       env.fade?.settle(st.value);
+      env.panel?.settle(st.value);
       env.publish(st.value);
       updateFade();
       if (!isActive()) arm();
       return;
     }
     env.fade?.push(st.from, st.to, st.start);
+    env.panel?.push(st.from, st.to, st.start);
     cancelFrame?.();
     cancelFrame = env.clock.subscribe(tick, { own: true });
   }
@@ -171,6 +212,7 @@ export function createTweenDriver(env: TweenEnv) {
       cancelFrame?.();
       cancelFrame = null;
       env.fade?.dispose();
+      env.panel?.dispose();
       if (locked) {
         locked = false;
         env.lock?.set(false);
