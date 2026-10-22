@@ -14351,7 +14351,9 @@
     "apps/site/src/parts/morph.countdown/**",
     "apps/site/src/parts/hero.countdown/**",
     "research/findings/ledger.json",
-    "docs/team/handoffs/morph-strip-webkit.md"
+    "docs/team/handoffs/morph-strip-webkit.md",
+    "lean/Fw/Parts/FootprintData.lean",
+    "packages/contracts/golden/parts/footprint.gen.json"
    ]
   },
   {
@@ -14370,7 +14372,14 @@
     "packages/contracts/golden/parts/morph-listen*.jsonl",
     "apps/site/src/parts/morph.mount/**",
     "apps/site/src/parts/morph.tween/**",
-    "docs/team/handoffs/morph-touch-band.md"
+    "docs/team/handoffs/morph-touch-band.md",
+    "research/findings/ledger.json",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/Fw/Parts/MorphTweenOpt.lean",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json",
+    "packages/contracts/golden/preset/v2-proved.decisions.jsonl"
    ]
   },
   {
@@ -16133,7 +16142,8 @@
     "docs/team/handoffs/dry-merge-tree.md",
     "docs/team/tools/land.md"
    ],
-   "title": "Five resumed reviews on 2026-10-22 (slot-span-key, site-layer-opts, morph-constant-bounds, land-scope-golden-regs, sim-step-watchdog) got VERDICT stale from fw land --dry only because main gained unrelated commits (graph edits, ledger records, other lands) after the branch's last merge; each cost a merge, a dry rerun and a resumed review. The stale rule exists so a stale base cannot carry another task's diff into the scope check (land.ts:480). Replace it with a closed check: when the branch does not contain main, compute the merge with git merge-tree (no checkout); a conflict stays a refusal (conflict); a clean merge runs the scope and read checks on the diff between that merged tree and main, which contains only the branch's own changes. Lean first in Fw.Console.LandDry: dryKind takes the merge-tree outcome; theorems: a clean merge-tree never yields stale; the scope paths of the merged diff are exactly the branch's own changed paths (no path main changed alone); a conflict still refuses. Goldens the TS replays; a test with a branch behind main by an unrelated commit gives VERDICT dry. Unit: the Lean rule with goldens, land.ts using merge-tree, the test. Limits: the real land still merges main itself as today."
+   "title": "Five resumed reviews on 2026-10-22 (slot-span-key, site-layer-opts, morph-constant-bounds, land-scope-golden-regs, sim-step-watchdog) got VERDICT stale from fw land --dry only because main gained unrelated commits (graph edits, ledger records, other lands) after the branch's last merge; each cost a merge, a dry rerun and a resumed review. The stale rule exists so a stale base cannot carry another task's diff into the scope check (land.ts:480). Replace it with a closed check: when the branch does not contain main, compute the merge with git merge-tree (no checkout); a conflict stays a refusal (conflict); a clean merge runs the scope and read checks on the diff between that merged tree and main, which contains only the branch's own changes. Lean first in Fw.Console.LandDry: dryKind takes the merge-tree outcome; theorems: a clean merge-tree never yields stale; the scope paths of the merged diff are exactly the branch's own changed paths (no path main changed alone); a conflict still refuses. Goldens the TS replays; a test with a branch behind main by an unrelated commit gives VERDICT dry. Unit: the Lean rule with goldens, land.ts using merge-tree, the test. Limits: the real land still merges main itself as today.",
+   "evidence": "e64ef10"
   },
   {
    "devices": [
@@ -16280,6 +16290,49 @@
     "docs/team/handoffs/compose-gpu-pill.md"
    ],
    "title": "User 2026-10-22: 'add the gpu pill in compose for mark which ones is optimization by gpu'. One canonical source in Lean (Fw.Parts.Gpu): the list of (part, variant, mechanism, ledger n) whose optimization moves per-frame work to the compositor/GPU (threaded animation of transform/opacity/filter, a layer that stops changing bounds, fewer composited layers); each entry cites its ledger row; theorem/#guard that every entry names a registered variant (registry golden). console.compose carries a gpu field per variant (Wire + golden), console-api passes it, Compose shows a GPU pill beside the class badge with the mechanism as its tooltip/text."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "slot-measure-exclusive",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Sup/Adapt.lean",
+    "lean/Fw/Sup/AdaptGolden.lean",
+    "packages/contracts/golden/sup/adapt.jsonl",
+    "apps/runner/src/slot.ts",
+    "apps/runner/src/slot-core.ts",
+    "apps/runner/test/slot*.test.ts",
+    "docs/team/tools/slot.md",
+    "docs/team/handoffs/slot-measure-exclusive.md",
+    "lean/Fw/Sup/MeasureWindow.lean",
+    "lean/Fw.lean"
+   ],
+   "title": "User 2026-10-22: 'our daemon could handle these lean slots: agents that want to test while we measure wait until the measure is done, or manage it by resource calculation.' Observed 20:15: mac-safari-measure held sim, the adaptive limit rose 1 -> 2, gate-settle-scroll-timeline's check ran beside it (lean 100% CPU) and Fw.Sup.Measure's quiet rule (holdersMax 0) refused passes. Lean first (Fw.Sup.Adapt + new Fw.Sup.MeasureWindow): a measure lease with pass windows. (1) During a live pass window nothing else is admitted (theorem: passLive -> every other request waits). (2) Between passes a queued job is admitted only if its predicted duration plus settle time (per-kind spans and memory from sup-baseline / Fw.Obs.Timing, a stated percentile) ends before the next pass start and its memory fits; else it waits (theorem: an admitted gap job cannot overlap the next pass under the prediction premise; the premise is INFERRED and the pass's quiet check still guards it). (3) Bounded wait: the measure lease has a hard deadline and sup-fairness's starvation bound still holds for queued kinds (theorem). Goldens; slot.ts / slot-core.ts follow the Lean verdict; fw slot status shows the measure window and why each ticket waits. The lead switches packages/measure-webkit/src/safari-local-lease.mjs to the measure kind after both land."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "touch-first-scroll-probe",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "morph-touch-band"
+   ],
+   "writes": [
+    "packages/measure-webkit/src/lag/**",
+    "packages/measure-webkit/test/lag-*.test.mjs",
+    "lean/Fw/Measure/TouchStart*.lean",
+    "packages/contracts/golden/measure/touch-start*.jsonl",
+    ".github/workflows/webkit-lag-probe.yml",
+    "research/notes/2026/10-2x-touch-first-scroll.md",
+    "docs/team/handoffs/touch-first-scroll-probe.md"
+   ],
+   "title": "Split from morph-touch-band (item webkit-touch-to-first-scroll undelivered: no lane). A WebKit probe of touch-to-first-scroll at the end of page (real touches via XCUITest on the iOS Simulator, as toolbar-throttle-probe did): time from touchstart to the first scrollY change and pan-start delay, per pan crossing the morph band, base vs ?fw=morph.mount:band,morph.tween:band (multi-flag prerender), >= 3 jobs. Also count scrollY still runs (5-6 frames, the toolbar throttle) over the end-of-page range for original, rewrite and ?fw=engine.scroll:throttle-lift, answering the user's 2026-10-22 question whether end-of-page lag is page cost or scroll-event limiting. Lean: the counted predicates and reduction with goldens first."
   }
  ],
  "deadline": {
