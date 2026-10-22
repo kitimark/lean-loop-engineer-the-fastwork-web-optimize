@@ -127,7 +127,7 @@
      ]
     },
     {
-     "metric": "Layout time, hero band, pass 2 (base pass 2 ran slow: scroll 14.4 s against 7.3 to 7.5 s)",
+     "metric": "Layout time, hero band, pass 2 (base pass 2 ran slow)",
      "unit": "ms",
      "cells": [
       {
@@ -220,6 +220,6 @@
  ],
  "recommendation": {
   "word": "hold",
-  "why": "The picture is proved identical at every instant and width (Lean drawOne_visSame, from hidden_pause_eq; the two skipped copies are opacity 0 for the whole draw window), the breakpoint gate passes in both engines, and the animated paths per draw frame go from 3 to 1. But the saving is not visible on CI: the visible copy still forces a Layout every draw frame, so Layout and RecalculateStyles counts are equal within the pass-to-pass spread of the base, and the Layout time of the first passes is 60.4 against 63.8 ms. The lane records no per-SVG layout counts and no frame intervals, so p50, p90 and p99 are not available. Keep the flag registered and out of the preset; measure it again where frame time inside the draw windows is recorded."
+  "why": "The picture is proved identical at every instant and width (Lean drawOne_visSame, from hidden_pause_eq), the breakpoint gate passes in both engines, and Lean counts fewer animated paths per draw frame. CI shows no saving: Layout and RecalculateStyles counts and hero-band Layout time stay within the base pass-to-pass spread. The lane records no per-SVG layout and no frame intervals. Keep the flag registered and out of the preset; measure again where frame time inside the draw windows is recorded."
  }
 }

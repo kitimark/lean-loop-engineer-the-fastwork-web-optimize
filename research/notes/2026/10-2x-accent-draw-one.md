@@ -5,7 +5,7 @@ Flag `hero.accent:draw-one`, class E (exact). Task accent-draw-one, ledger row n
 ## Change
 During the draw window (`.drawingOut` / `.drawingIn`, 0.9 s each, every 3.05 s) the accent's three SVG copies all run the
 `strokeIn` / `strokeOut` dash-offset animation (`accent.module.css:52-61`), while copies 1 and 2 are opacity 0 for the whole window
-(`:76-83`). The variant adds one rule that sets `animation: none` on the path of every copy except `frame0` while the host has
+(`:79-86`). The variant adds one rule that sets `animation: none` on the path of every copy except `frame0` while the host has
 `data-fw-draw="one"`. The idle boil and the faithful page are untouched.
 
 ## Proof (Lean `Fw.Parts.HeroAccentOpt`, section 7)

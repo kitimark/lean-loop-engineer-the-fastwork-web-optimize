@@ -13,7 +13,7 @@ drawing/idle switch via `hsync`). Golden `packages/contracts/golden/parts/hero.a
 `.accent[data-fw-draw='one']:is(.drawingIn,.drawingOut) .idleFrame:not(.frame0) .path {animation:none}`, `index.tsx`
 writes `data-fw-draw`. No per-frame state. TS stand-ins: the CSS selector (pinned by `drawOne.test.ts`, not derived from Lean).
 
-**Premise:** copies 1, 2 opacity 0 for the whole draw window (`accent.module.css:76-83`); test pins the two rules.
+**Premise:** copies 1, 2 opacity 0 for the whole draw window (`accent.module.css:79-86`); test pins the two rules.
 
 **Runs (all on ci/accent-draw-one, `fw run`):** lean 39694357292 pass; breakpoint gate (both engines, flag) 39694389914 success;
 webkit-sim base 39694385829, flag 39699740380 (first flag run 39694397870 failed: Simulator timeout). Result: no visible effect

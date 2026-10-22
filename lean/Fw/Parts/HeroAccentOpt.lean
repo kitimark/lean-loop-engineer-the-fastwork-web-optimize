@@ -858,11 +858,11 @@ theorem draw_one_eq (vp r : Rect) (d0 a a' : Rat) :
   hidden_pause_eq vp (drawTmpl r d0) (drawTmpl_hidden vp r d0) a a'
 
 theorem drawOne_visSame {Env T : Type} (vp : Env → Rect) (r : Env → T → Rect) (d0 : Env → T → Rat)
-    (phase : T → Phase) (aO : Env → T → Rat) (still : Rat) :
+    (phase : T → Phase) (aO : Env → T → Rat) (still : Env → T → Rat) :
     VisSame E vp (fun env t => inst (drawTmpl (r env t) (d0 env t)) (aO env t))
-      (fun env t => inst (drawTmpl (r env t) (d0 env t)) (if phase t = .drawing then still else aO env t)) :=
+      (fun env t => inst (drawTmpl (r env t) (d0 env t)) (if phase t = .drawing then still env t else aO env t)) :=
   hiddenPause_visSame vp (fun env t => drawTmpl (r env t) (d0 env t)) aO
-    (fun env t => if phase t = .drawing then still else aO env t) (fun _ t => phase t = .drawing)
+    (fun env t => if phase t = .drawing then still env t else aO env t) (fun _ t => phase t = .drawing)
     (fun env t _ => drawTmpl_hidden (vp env) (r env t) (d0 env t))
     (fun _ t h => by simp [h])
 
