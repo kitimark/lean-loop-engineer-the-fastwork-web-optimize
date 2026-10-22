@@ -6,8 +6,9 @@ if (process.argv[2] === "slot") {
   const { begin } = await import("./timing.ts");
   const { slotStep, writesOwnSpans } = await import("./slot-span.ts");
   if (!writesOwnSpans(process.argv.slice(3))) {
+    const { queueExtra } = await import("./slot-queue.ts");
     const end = begin("fw", slotStep(process.argv.slice(3)));
-    process.once("exit", (c) => end(c));
+    process.once("exit", (c) => end(c, queueExtra()));
   }
   const { slotMainPath } = await import("./slot.ts");
   const { fileURLToPath, pathToFileURL } = await import("node:url");

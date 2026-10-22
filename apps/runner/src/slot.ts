@@ -3,6 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { appendFileSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, readFileSync, readSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import { SLOT_SUBS, WAIT_TOOL, runLabel, waitStep } from "./slot-span.ts";
+import { type Queue, type WaitMs, addWait, noteQueue, queueOf } from "./slot-queue.ts";
 import { begin, timingsFile } from "./timing.ts";
 import { basename, dirname, join } from "node:path";
 import {
@@ -379,7 +380,7 @@ export function describeBuild(v: BuildVerdict): string {
   }
 }
 
-export type Grant = { token: string; owner: string; kind: Kind; till: number; verdict: Verdict };
+export type Grant = { token: string; owner: string; kind: Kind; till: number; verdict: Verdict; queue?: Queue };
 
 export function predictor(d: Deps): (k: Kind) => number | null {
   let rows: Row[] | null = null;
@@ -392,6 +393,8 @@ export async function acquire(d: Deps, kind: Kind, leaseS: number, waitS: number
   const t0 = nowS();
   withState(d, (st) => { st.queue.push({ owner: d.owner, token, kind, since: t0, till: t0 + d.params.leaseS, foot: 0, leaseS: d.params.leaseS }); });
   let last = "";
+  let waits: WaitMs[] = [];
+  let prev = t0;
   for (;;) {
     const s = d.probe();
     const g = withState(d, (st): Grant => {
@@ -409,10 +412,17 @@ export async function acquire(d: Deps, kind: Kind, leaseS: number, waitS: number
       if (opened !== null) st.window = opened;
       return { token, owner: d.owner, kind, till: held.till, verdict: v };
     });
+    if (g.verdict.verdict === "wait") waits = addWait(waits, g.verdict.why, (s.time - prev) * 1000);
+    prev = s.time;
     const line = describe(g.verdict);
     if (line !== last) { d.err(`slot ${kind}: ${line}\n`); last = line; }
     for (const l of simCheck(d, s.time, true, false)) d.err(`${l}\n`);
-    if (g.verdict.verdict === "admit") { event(d, "acquire", kind, { waitMs: (s.time - t0) * 1000 }); return g; }
+    if (g.verdict.verdict === "admit") {
+      const queue = queueOf(kind, waits, (s.time - t0) * 1000);
+      noteQueue(queue);
+      event(d, "acquire", kind, { waitMs: (s.time - t0) * 1000 });
+      return queue === null ? g : { ...g, queue };
+    }
     if (g.verdict.verdict === "timeout" || (waitS !== null && s.time - t0 >= waitS)) {
       withState(d, (st) => { st.queue = st.queue.filter((e) => e.token !== token); });
       event(d, "refuse", kind, { waitMs: (s.time - t0) * 1000 });
@@ -561,7 +571,7 @@ export async function run(d: Deps, kind: Kind, argv: string[], cache: boolean): 
   const endWait = begin(WAIT_TOOL, waitStep(kind));
   let g: Awaited<ReturnType<typeof acquire>>;
   try { g = await acquire(d, kind, d.params.leaseS, null); } catch (e) { endWait(EXIT_ERROR); throw e; }
-  endWait(g.verdict.verdict === "admit" ? 0 : EXIT_REFUSED);
+  endWait(g.verdict.verdict === "admit" ? 0 : EXIT_REFUSED, g.queue ? { queue: g.queue } : {});
   if (g.verdict.verdict !== "admit") return EXIT_REFUSED;
   const threads = String(g.verdict.threads);
   const env = { ...d.env, FW_SLOT_HELD: "1", FW_SLOT_TOKEN: g.token, FW_SLOT_OWNER: d.owner, ...(kind === "check" ? { LAKE_SLOT_CORES: threads, LEAN_NUM_THREADS: threads } : {}) };
