@@ -1,4 +1,4 @@
-# commission:band-gate (ledger row 46)
+# commission:band-gate (ledger row 48)
 
 Status: CONFIRMED for the Lean statements and the CSS premise, MEASURED for the counts, INFERRED where marked.
 Code: `lean/Fw/Parts/CommissionOpt.lean`, `apps/site/src/parts/commission/` (driver, logic, `bandgate.test.ts`), goldens
@@ -95,4 +95,4 @@ Gate: breakpoint-gate `--fw commission:band-gate` both engines, run 39843552595 
 
 Win on style recalculation in both engines (Chromium 5.02 to 3.07 recalcs and 127 to 60 elements per frame in the
 scroll-in window; WebKit RecalculateStyles minus 20-28 %), same look by proof and by the gate, layer budget 0. Not
-measured: frame times, the phone. Ledger row 46 is `partly-proved`; promotion to the v2-proved preset is the lead's call.
+measured: frame times, the phone. Ledger row 48 is `partly-proved`; promotion to the v2-proved preset is the lead's call.

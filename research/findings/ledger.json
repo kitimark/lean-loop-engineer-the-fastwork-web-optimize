@@ -2820,7 +2820,7 @@
   },
   {
    "id": "commission.band-gate",
-   "n": 46,
+   "n": 48,
    "part": "commission",
    "candidate": "commission:band-gate: in the c1000 band skip the two custom-property writes (--commission-enter-shrink, --commission-shrink) every follower frame, since the CSS pins scale 1 and radius 0 there; write the current pair on the first frame that reads the band off",
    "status": "partly-proved",
