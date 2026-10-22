@@ -103,7 +103,7 @@ export function duBytes(p: string): number {
 }
 
 const ownerOf = (p: string): number | null => { try { return lstatSync(p).uid; } catch { return null; } };
-const isLink = (p: string): boolean => { try { return lstatSync(p).isSymbolicLink(); } catch { return false; } };
+export const isLink = (p: string): boolean | undefined => { try { return lstatSync(p).isSymbolicLink(); } catch { return undefined; } };
 const isDir = (p: string): boolean => { try { return lstatSync(p).isDirectory(); } catch { return false; } };
 const listDir = (p: string): string[] => { try { return readdirSync(p).sort(); } catch { return []; } };
 

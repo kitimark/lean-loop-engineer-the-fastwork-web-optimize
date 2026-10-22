@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
-import { clsOf, diskGc, diskGcTick, DiskGcUsage, gatherEventFacts, ownerMarker, parseArgs, worktrees, type Io, type Roots } from "../src/disk-gc.ts";
+import { clsOf, diskGc, diskGcTick, DiskGcUsage, gatherEventFacts, isLink, ownerMarker, parseArgs, worktrees, type Io, type Roots } from "../src/disk-gc.ts";
 import { fwcoreCall } from "../src/run.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
@@ -239,5 +239,12 @@ describe("fw disk-gc on a temp tree", () => {
     expect(gatherEventFacts(x.repo, call)).toBeNull();
     log([{ seq: 1, type: "agent.stop", agent: "a" }]);
     expect(gatherEventFacts(x.repo, () => { throw new Error("no fwcore"); })).toBeNull();
+  });
+});
+
+describe("isLink", () => {
+  it("gives no fact when lstat fails, so the candidate carries no sym and is kept", () => {
+    expect(isLink("/nonexistent/fw-disk-gc-missing")).toBeUndefined();
+    expect(JSON.stringify({ sym: isLink("/nonexistent/fw-disk-gc-missing") })).toBe("{}");
   });
 });

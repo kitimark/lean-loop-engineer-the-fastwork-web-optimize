@@ -149,7 +149,7 @@ def udidOk (u : String) : Bool :=
 
 def tmpPrefixes : List String :=
   ["fw", "oracle", "ghb", "engine-check", "premises", "land-base", "lint", "var",
-   "dryl-", "jev", "cm-", "slots-", "slot-", "difftest-", "rr-", "replay-", "wkrep-", "wkraw-", "wktr-", "vd-",
+   "dryl-", "jev", "cm-", "slots-", "slot-", "slotres-", "difftest-", "rr-", "replay-", "wkrep-", "wkraw-", "wktr-", "vd-",
    "compose-", "graph-", "checkmap-", "changed-inputs-", "ci-intent-", "ci-paths-", "ci-pool-", "ci-push-",
    "exitgen-", "freezegen-", "gate-", "jt-", "lake-slot-", "ledger-merge-", "math-pending-", "nodepin-",
    "port-assets-", "port-fonts-", "reap-", "run-cite-", "runname-", "scopegen-", "scrub-", "settlegen-",
@@ -374,6 +374,7 @@ def exTmp (n : String) : Cand :=
 #guard chosen exCfg (exTmp "fw-land-abc")
 #guard chosen exCfg (exTmp "oracle1")
 #guard chosen exCfg (exTmp "engine-check-x")
+#guard chosen exCfg (exTmp "slotres-1")
 #guard chosen exCfg { exTmp "instruments-1.ktrace" with dir := false }
 #guard !chosen exCfg (exTmp "instruments-1.trace")
 #guard !chosen exCfg (exTmp "com.apple.x")
