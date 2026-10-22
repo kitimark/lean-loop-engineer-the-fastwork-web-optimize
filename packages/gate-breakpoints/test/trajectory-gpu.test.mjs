@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import {
   ratOf, ratStr, tolCss, cellEq, parseDec, parseLen, parseInset, expand4, readShape, shapeVec, interpAt, matchedGrade,
   effectAt, effectTols, cellsOfRaw, seriesOf, keptInterior, effClock, lagFrames, lagGrade, panelGrade, panelCell, darkness, painGrade, rat, ZERO,
+  worst, restedBefore, swapSpans, swapSeries, carouselCellAt, painCell,
 } from '../src/trajectory/cells-gpu.mjs';
 
 const golden = readFileSync(fileURLToPath(new URL('../../contracts/golden/gate/trajectory-gpu.jsonl', import.meta.url)), 'utf8')
@@ -18,7 +19,7 @@ const optStr = (r) => (r === null ? null : ratStr(r));
 
 test('the golden file holds every line kind', () => {
   const kinds = new Set(golden.map((l) => l.kind));
-  for (const k of ['tol', 'dec', 'len', 'inset', 'expand4', 'clip', 'cell', 'interp', 'matched', 'effect', 'lag', 'panel', 'series', 'panelcell', 'pain', 'dark', 'interior']) {
+  for (const k of ['tol', 'dec', 'len', 'inset', 'expand4', 'clip', 'cell', 'interp', 'matched', 'effect', 'lag', 'panel', 'series', 'panelcell', 'pain', 'dark', 'interior', 'worst', 'rested', 'swaps', 'carousel', 'paincell']) {
     assert.ok(kinds.has(k), k);
   }
 });
@@ -143,4 +144,61 @@ test('a candidate that drops the panel blur or scale grades L on a raw artifact,
   assert.equal(grade(null), 'E');
   assert.equal(grade('blur'), 'L');
   assert.equal(grade('scale'), 'L');
+});
+
+const rowsOf = (rs) => rs.map((v, i) => ({ t: i, v }));
+const seriesStr = (s) => s.map((p) => ({ k: ratStr(p.k), v: vecStr(p.v) }));
+
+test('worst of the reps: none when a rep is not comparable or there are no reps, as Lean worst', () => {
+  const cases = of('worst');
+  assert.ok(cases.some((l) => l.in.includes(null) && l.in.some((g) => g !== null) && l.out === null));
+  for (const l of cases) assert.equal(worst(l.in), l.out, JSON.stringify(l.in));
+});
+
+test('restedBefore reads two equal rows before the index, as Lean restedBefore', () => {
+  const cases = of('rested');
+  assert.ok(cases.length >= 5);
+  for (const l of cases) assert.equal(restedBefore(rowsOf(l.rows), l.i), l.out, l.name);
+});
+
+test('swap spans and their series at the frame clock, as Lean swapSpans and swapSeries', () => {
+  const cases = of('swaps');
+  assert.ok(cases.length >= 6);
+  for (const l of cases) {
+    const rows = rowsOf(l.rows), spans = swapSpans(rows, l.still);
+    assert.deepEqual(spans.map(({ from, to }) => [from, to]), l.spans, l.name);
+    assert.deepEqual(spans.map((sp) => seriesStr(swapSeries(rows, sp))), l.out, l.name);
+  }
+  const n = (name) => cases.find((l) => l.name === name).spans.length;
+  assert.equal(n('opens at rest'), 2);
+  assert.equal(n('opens mid-swap'), 1);
+});
+
+test('the carousel cell pairs swaps by order; a count mismatch is L and a null rep makes the unit not comparable, as Lean carouselCell', () => {
+  const cases = of('carousel');
+  assert.ok(cases.length >= 6);
+  for (const l of cases) {
+    const c = carouselCellAt(ratOf(l.dpr), rowsOf(l.base), rowsOf(l.cand));
+    assert.deepEqual(c.swaps, l.swaps, l.name);
+    assert.deepEqual(c.grades, l.reps, l.name);
+    assert.equal(c.grade, l.grade, l.name);
+  }
+  const grade = (name) => cases.find((l) => l.name === name).grade;
+  assert.equal(grade('equal swaps in step'), 'E');
+  assert.equal(grade('one swap missing'), 'L');
+  assert.equal(grade('zero swaps'), 'L');
+  assert.equal(grade('a null rep among E reps'), null);
+});
+
+test('the pain cell grades each direction, none when its base never flips, as Lean painCell', () => {
+  const cases = of('paincell');
+  assert.ok(cases.length >= 4);
+  const dir = ([b, c]) => ({ b: vec(b), c: vec(c) });
+  for (const l of cases) {
+    const up = dir(l.up), down = dir(l.down);
+    const arm = (k) => ({ up: up[k].map((x) => ({ layer: Number(x.n) / Number(x.d), cls: false })), down: down[k].map((x) => ({ layer: Number(x.n) / Number(x.d), cls: false })) });
+    const reps = painCell(arm('b'), arm('c'));
+    assert.deepEqual(reps, l.reps, l.name);
+    assert.equal(worst(reps), l.grade, l.name);
+  }
 });

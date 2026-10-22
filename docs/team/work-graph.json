@@ -16944,7 +16944,8 @@
     "packages/gate-breakpoints/test/trajectory-gpu*.mjs",
     "docs/team/handoffs/trajectory-carousel-lean.md"
    ],
-   "title": "Review follow-up of gpu-trajectory-cells: the carousel and pain reducers are TS stand-ins (swapsOf, restedBefore, carouselCell pairing by order over min(bs,cs), worst dropping null reps, painCell's no-flip rule). A candidate with fewer or zero swaps grades only min pairs (zero swaps gives null, not L), and worst([E,null]) = E, so a stopped carousel is not flagged; restedBefore has no hold-out (all 12 Chromium recordings open mid-swap). Port the segmentation and pairing to Lean with goldens; swap-count mismatch grades L; a null rep among defined ones makes the unit not comparable; then a fresh hold-out A/A on a recording that starts at rest."
+   "title": "Review follow-up of gpu-trajectory-cells: the carousel and pain reducers are TS stand-ins (swapsOf, restedBefore, carouselCell pairing by order over min(bs,cs), worst dropping null reps, painCell's no-flip rule). A candidate with fewer or zero swaps grades only min pairs (zero swaps gives null, not L), and worst([E,null]) = E, so a stopped carousel is not flagged; restedBefore has no hold-out (all 12 Chromium recordings open mid-swap). Port the segmentation and pairing to Lean with goldens; swap-count mismatch grades L; a null rep among defined ones makes the unit not comparable; then a fresh hold-out A/A on a recording that starts at rest.",
+   "evidence": "d09e46a"
   },
   {
    "devices": [

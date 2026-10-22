@@ -100,6 +100,7 @@ test('carousel: swaps are cut out of the series and graded at the swap clock', (
   const moved = rows([[0, 0, 1000, 1000], ...still, [5000, 0, 1000, 1000], [30000, 0, 1000, 1000], ...Array(10).fill([45000, 0, 1000, 1000])]);
   assert.deepEqual(carouselCell(390, a, moved).grades, ['L']);
   assert.equal(carouselCell(390, a, rows(still)).swaps[1], 0);
+  assert.equal(carouselCell(390, a, rows(still)).grade, 'L');
 });
 
 test('carousel: the key is the frame count and only full-count vectors compare (rAF jitter and the entering avatar are not motion)', () => {
