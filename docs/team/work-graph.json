@@ -17056,7 +17056,8 @@
     "packages/gate-breakpoints/test/smooth*.test.mjs",
     "docs/team/handoffs/across-insufficient.md"
    ],
-   "title": "Review follow-up of earn-bound-arm: Lean `across` (lean/Fw/Gate/Smooth.lean:701) returns `same` when every sample is `insufficient` (length >= minSamples and no first/second counts fall through to same), so re-reduced Simulator tables print hero|rest 'same' over 0 decisive jobs. Hardening: across returns insufficient when fewer than minSamples samples are decisive; theorem across_insufficient and a golden case; JS twins follow."
+   "title": "Review follow-up of earn-bound-arm: Lean `across` (lean/Fw/Gate/Smooth.lean:701) returns `same` when every sample is `insufficient` (length >= minSamples and no first/second counts fall through to same), so re-reduced Simulator tables print hero|rest 'same' over 0 decisive jobs. Hardening: across returns insufficient when fewer than minSamples samples are decisive; theorem across_insufficient and a golden case; JS twins follow.",
+   "evidence": "db8e92a"
   },
   {
    "devices": [
