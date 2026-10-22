@@ -1604,28 +1604,20 @@ end Fw.Wire.Obs.Timing
 
 namespace Fw.Obs.Timing.SlotKey
 
-/-- Flags whose next token is their value, not the command's first argument. -/
 def valueFlags : List String := ["--filter", "-F", "-C", "--dir", "--kind"]
 
-/-- The value flags that name a package. -/
 def filterFlags : List String := ["--filter", "-F"]
 
-/-- The last path segment (`./apps/runner` is `runner`, `/a/b/c.sh` is `c.sh`). -/
 def base (t : String) : String := (t.splitOn "/").getLast?.getD t
 
-/-- A token a key may hold: 1 to 60 characters of letters, digits, `.`, `_`, `-` and `/`. -/
 def okTok (t : String) : Bool :=
   decide (0 < t.length) && decide (t.length ≤ 60) &&
     t.all fun c => c.isAlphanum || c == '.' || c == '_' || c == '-' || c == '/'
 
-/-- Words that hand the rest of the argv to another program (`pnpm exec vitest ...`). -/
 def launchWords : List String := ["exec", "dlx"]
 
-/-- Words skipped when they stand where the first argument would (`vitest run FILE`, `pnpm run test`). -/
 def skipWords : List String := ["run"]
 
-/-- Walk the arguments after the program: the package named by a filter flag, the first argument that is no flag
-(skipping `skipWords`), and the arguments after it. -/
 def scan (filt : Option String) : List String → Option String × Option String × List String
   | [] => (filt, none, [])
   | [t] => if t.startsWith "-" || skipWords.contains t then (filt, none, []) else (filt, some t, [])
@@ -1636,17 +1628,12 @@ def scan (filt : Option String) : List String → Option String × Option String
     else (filt, some t, v :: r)
 termination_by l => l.length
 
-/-- Keep an absolute path's last segment only. -/
 def tidy (a : String) : String := if a.startsWith "/" then base a else a
 
-/-- The parts of a command key: program, the first non-flag argument. -/
 def core (h : String) (args : List String) : List String :=
   let (_, first, _) := scan none args
   [base h] ++ (first.map tidy).toList
 
-/-- The command key of an argv: program name, the filter package if any, the first non-flag argument; after
-`exec` or `dlx` the program that follows takes the argument's place. Absolute paths keep only their last segment.
-No key (`none`) for an empty argv or a token outside `okTok`. -/
 def cmdKey : List String → Option String
   | [] => none
   | h :: args =>
@@ -1659,42 +1646,34 @@ def cmdKey : List String → Option String
       | none, _ => [base h] ++ (filt.map base).toList
     if parts.all okTok then some (" ".intercalate parts) else none
 
-/-- The cap: a key not yet seen is kept only while fewer than `cap` distinct keys are known; otherwise no key. -/
 def capKey (seen : List String) (cap : Nat) (k : Option String) : Option String :=
   match k with
   | some x => if seen.contains x || decide (seen.length < cap) then some x else none
   | none => none
 
-/-- The distinct-key cap. -/
 def keyCap : Nat := 24
 
-/-- The run span label: `slot run <kind>` plus the command key, or the kind alone as fallback. -/
 def runStep (kind : String) (seen : List String) (argv : List String) : String :=
   match capKey seen keyCap (cmdKey argv) with
   | some k => s!"slot run {kind} {k}"
   | none => s!"slot run {kind}"
 
-/-- The queue span label: acquire to grant. -/
 def waitStep (kind : String) : String := s!"slot wait {kind}"
 
 theorem cmdKey_nil : cmdKey [] = none := rfl
 
 theorem capKey_none (seen : List String) (cap : Nat) : capKey seen cap none = none := rfl
 
-/-- Known keys stay whatever the cap. -/
 theorem capKey_seen (seen : List String) (cap : Nat) (x : String) (h : x ∈ seen) : capKey seen cap (some x) = some x := by
   simp [capKey, h]
 
-/-- At the cap a new key falls back to the kind. -/
 theorem capKey_full (seen : List String) (cap : Nat) (x : String) (h : x ∉ seen) (hc : cap ≤ seen.length) :
     capKey seen cap (some x) = none := by
   simp [capKey, h, Nat.not_lt.2 hc]
 
-/-- Below the cap a new key is kept. -/
 theorem capKey_room (seen : List String) (cap : Nat) (x : String) (hc : seen.length < cap) : capKey seen cap (some x) = some x := by
   simp [capKey, hc]
 
-/-- A kept key was either known or fits under the cap. -/
 theorem capKey_some (seen : List String) (cap : Nat) (k : Option String) (x : String) (h : capKey seen cap k = some x) :
     x ∈ seen ∨ seen.length < cap := by
   cases k with
@@ -1706,7 +1685,6 @@ theorem capKey_some (seen : List String) (cap : Nat) (k : Option String) (x : St
       simp [capKey] at h
       grind
 
-/-- The queue span and the run span never share a label. -/
 theorem wait_ne_run (kind : String) (seen : List String) (argv : List String) : waitStep kind ≠ runStep kind seen argv := by
   unfold waitStep runStep
   intro h
@@ -1722,7 +1700,6 @@ theorem wait_ne_run (kind : String) (seen : List String) (argv : List String) : 
     simp only [String.toList_append, List.getElem?_append_left l1, List.getElem?_append_left l2, e1, e2] at this
     exact absurd this (by decide)
 
-/-- Cases of the key rule: name, kind, keys already seen, argv after `--`. -/
 def cases : List (String × String × List String × List String) :=
   [("check.sh", "check", [], ["sh", "lean/scripts/check.sh"]),
    ("vitest file", "test", [], ["pnpm", "--filter", "./apps/runner", "exec", "vitest", "run", "test/land-inputs.test.ts"]),

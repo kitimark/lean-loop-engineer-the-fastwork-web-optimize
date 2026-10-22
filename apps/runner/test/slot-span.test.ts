@@ -1,7 +1,3 @@
-// slot-span-key: the span keys of `fw slot run` / the queue wait are decided by Fw.Obs.Timing.SlotKey (lean/Fw/Obs/Timing.lean);
-// the TS port is replayed against packages/contracts/golden/obs/slot-key.jsonl. The samples recorded in
-// .fw-console/timings.jsonl carry no command, so they cannot be replayed to keys; the 2026-10-22 16:51 alert is replayed
-// through fwcore instead (old key alerts, new key has no history).
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -40,7 +36,6 @@ describe("seenKeys reads the keys of a kind from span lines", () => {
   });
 });
 
-// the 53 full local `slot run check` samples (exit 0, load at most 8) of .fw-console/timings.jsonl on 2026-10-22, oldest first, ms; the last is the 16:51 alert
 const POOLED = [87823, 89931, 1898, 94518, 106347, 105730, 102091, 1034, 2091, 795, 115010, 154518, 35271, 89530, 8676, 281, 3887, 882, 111717, 116460, 1471,
   216518, 232769, 249554, 370230, 224826, 90376, 162599, 250562, 100284, 145990, 129470, 3581, 7775, 4334, 130449, 160033, 89825, 25397, 1314, 196958,
   288499, 260119, 2067, 3592, 134824, 92421, 583, 1811, 101369, 37045, 14988, 38697];

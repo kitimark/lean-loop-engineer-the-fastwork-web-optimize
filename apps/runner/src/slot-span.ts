@@ -9,7 +9,6 @@ export function slotStep(rest: string[]): string {
   return rest[0] === "run" && dash >= 0 && rest.slice(dash + 1).includes("--dry") ? `${base} dry` : base;
 }
 
-/** `slot run` writes its own spans (`slot wait <kind>`, `slot run <kind> <cmd>`), so no whole-process span wraps it. */
 export const writesOwnSpans = (rest: string[]): boolean => rest[0] === "run";
 
 export const SLOT_SUBS = ["run", "acquire", "renew", "release", "status", "sim", "held", "admit"] as const;
@@ -24,7 +23,6 @@ function slotStepBase(rest: string[]): string {
   return `slot ${sub}`;
 }
 
-// `Fw.Obs.Timing.SlotKey` (lean/Fw/Obs/Timing.lean), replayed against packages/contracts/golden/obs/slot-key.jsonl.
 const VALUE_FLAGS = ["--filter", "-F", "-C", "--dir", "--kind"];
 const FILTER_FLAGS = ["--filter", "-F"];
 const LAUNCH_WORDS = ["exec", "dlx"];
@@ -47,7 +45,6 @@ function scan(args: string[]): { filt: string | null; first: string | null; rest
   return { filt, first: null, rest: [] };
 }
 
-/** `cmdKey`: program, the filter package, the first non-flag argument (after `exec`/`dlx` the next program); null when no key. */
 export function cmdKey(argv: string[]): string | null {
   const [h, ...args] = argv;
   if (h === undefined) return null;
@@ -61,19 +58,15 @@ export function cmdKey(argv: string[]): string | null {
   return parts.every(okTok) ? parts.join(" ") : null;
 }
 
-/** `capKey`: a new key is kept only while fewer than `cap` distinct keys are known. */
 export const capKey = (seen: readonly string[], cap: number, k: string | null): string | null => (k !== null && (seen.includes(k) || seen.length < cap) ? k : null);
 
-/** `runStep` (kind, keys seen, argv after `--`). */
 export function runStep(kind: string, seen: readonly string[], argv: string[]): string {
   const k = capKey(seen, KEY_CAP, cmdKey(argv));
   return k === null ? `slot run ${kind}` : `slot run ${kind} ${k}`;
 }
 
-/** `waitStep`. */
 export const waitStep = (kind: string): string => `slot wait ${kind}`;
 
-/** The command keys of `slot run <kind>` spans in a chunk of a timings file. */
 export function seenKeys(chunk: string, kind: string): string[] {
   const pre = `slot run ${kind} `;
   const out = new Set<string>();
@@ -88,7 +81,6 @@ export function seenKeys(chunk: string, kind: string): string[] {
 
 const TAIL_BYTES = 2 << 20;
 
-/** The label of a `slot run` span: the keys seen are read from the last 2 MB of the timings file (none under vitest). */
 export function runLabel(kind: string, argv: string[], dry: boolean, cwd: string = process.cwd()): string {
   let chunk = "";
   try {
@@ -103,7 +95,7 @@ export function runLabel(kind: string, argv: string[], dry: boolean, cwd: string
         chunk = buf.toString("utf8");
       } finally { closeSync(fd); }
     }
-  } catch { /* no history: every key is new */ }
+  } catch { }
   const s = runStep(kind, seenKeys(chunk, kind), argv);
   return dry ? `${s} dry` : s;
 }
