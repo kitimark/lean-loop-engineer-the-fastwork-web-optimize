@@ -1,5 +1,5 @@
 import { fnv1a64 } from './hash';
-import type { FwConfig, Impl, PartDef, PresetDef, ResolveResult } from './types';
+import type { FwConfig, Impl, LayerOptEntry, PartDef, PresetDef, ResolveResult } from './types';
 
 export const DEFAULT_IMPL: Impl = 'mui';
 
@@ -19,6 +19,31 @@ function splitEntry(entry: string): { id: string; variant: string; impl?: string
   // "part.id:variant" or "part.id:variant@impl"
   const m = /^([^:@]+):([^:@]+)(?:@([^:@]+))?$/.exec(entry.trim());
   return m ? { id: m[1]!, variant: m[2]!, impl: m[3] } : null;
+}
+
+/** Mirrors Lean `BuildsOpen.layerOpts` and `splitLayer`: `layer:opts` with opts one of c, s, cs. */
+const LAYER_OPTS = ['c', 's', 'cs'];
+
+function splitLayer(entry: string): LayerOptEntry | null {
+  const f = entry.split(':');
+  return f.length === 2 && f[0] !== '' && LAYER_OPTS.includes(f[1]!) ? { layer: f[0]!, opts: f[1]! } : null;
+}
+
+/** Mirrors Lean `BuildsOpen.layerErrors`: unparsable, unknown and repeated layers, in entry order. */
+function layerEntries(entries: string[], parts: PartDef[], errors: string[]): LayerOptEntry[] {
+  const out: LayerOptEntry[] = [];
+  const known = new Set(parts.flatMap((p) => (p.layers ?? []).map((l) => l.id)));
+  for (const raw of entries) {
+    const e = splitLayer(raw);
+    if (!e) {
+      errors.push(`?fwl=: cannot parse "${raw}" (expected layer:c, layer:s or layer:cs)`);
+      continue;
+    }
+    if (!known.has(e.layer)) errors.push(`?fwl=: unknown layer "${e.layer}"`);
+    if (out.some((x) => x.layer === e.layer)) errors.push(`?fwl=: layer "${e.layer}" is listed twice`);
+    out.push(e);
+  }
+  return out;
 }
 
 function presetEntries(
@@ -43,7 +68,7 @@ function presetEntries(
 /**
  * Resolution order (PLAN 6.3): URL `?fw=` over `?preset=` over the registry default `faithful`.
  * Mirrors Lean `Fw.Flags.resolve` (defaults = head variant, overrides applied in order, last wins, then
- * `Config.ok`). The `?preset=`, `@impl` and URL syntax are TS-only extras with no Lean spec yet.
+ * `Config.ok`). `?fwl=` entries are validated as Lean `BuildsOpen.layerErrors` does and listed in URL order. The `?preset=`, `@impl` and URL syntax are TS-only extras with no Lean spec yet.
  * Unknown ids, unknown variants and violated `requires`/`conflicts` are errors, never fallbacks.
  */
 export function resolve(
@@ -96,6 +121,16 @@ export function resolve(
     else apply(e.id, e.variant, e.impl, '?fw=');
   }
 
+  const layerErrs: string[] = [];
+  const layerOpts = layerEntries(
+    params
+      .getAll('fwl')
+      .flatMap((v) => v.split(','))
+      .filter((s) => s !== ''),
+    parts,
+    layerErrs,
+  );
+
   if (errors.length === 0) {
     const selected = new Set(Object.entries(variants).map(([id, v]) => `${id}:${v}`));
     for (const part of parts) {
@@ -107,8 +142,9 @@ export function resolve(
     }
   }
 
+  errors.push(...layerErrs);
   if (errors.length > 0) return { ok: false, errors };
   const config: FwConfig = { variants, impl };
   const source = fwEntries.length > 0 ? 'url-fw' : presetName !== undefined ? 'url-preset' : 'default';
-  return { ok: true, config, configHash: hashConfig(config), source };
+  return { ok: true, config, configHash: hashConfig(config), source, layerOpts };
 }

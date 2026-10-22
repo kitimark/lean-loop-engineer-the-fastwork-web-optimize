@@ -40,6 +40,18 @@ export interface FwConfig {
   impl: Record<string, Impl>;
 }
 
+/** One `?fwl=layer:opts` entry, in URL order. */
+export interface LayerOptEntry {
+  layer: string;
+  opts: string;
+}
+
 export type ResolveResult =
-  | { ok: true; config: FwConfig; configHash: string; source: 'url-fw' | 'url-preset' | 'default' }
+  | {
+      ok: true;
+      config: FwConfig;
+      configHash: string;
+      source: 'url-fw' | 'url-preset' | 'default';
+      layerOpts: LayerOptEntry[];
+    }
   | { ok: false; errors: string[] };
