@@ -8,6 +8,7 @@ import { isAbsolute, join, relative, resolve } from "node:path";
 import { UsageError, apiBase } from "./lib.ts";
 import { coreCandidates, coreCaller, type CoreCall } from "./watch.ts";
 
+export const INCIDENTS_SUBS = ["lint"] as const;
 export const INCIDENTS_USAGE = "usage: fw incidents lint [docs/team/incidents/ledger.json]   (exit 1 on any error)";
 export const LEDGER = "docs/team/incidents/ledger.json";
 export const MISTAKES = "research/mistakes/ledger.json";
@@ -88,7 +89,7 @@ async function boardTasks(): Promise<{ id: string; evidence?: string | null; age
 
 /** `fw incidents lint [file]`: exit 1 when fwcore finds an error. */
 export async function incidentsCli(args: string[], cwd: string, deps: Deps = {}): Promise<number> {
-  if (args[0] !== "lint" || args.length > 2) throw new UsageError(INCIDENTS_USAGE);
+  if (!(INCIDENTS_SUBS as readonly string[]).includes(args[0] ?? "") || args.length > 2) throw new UsageError(INCIDENTS_USAGE);
   const root = execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd, encoding: "utf8" }).trim();
   const common = execFileSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd, encoding: "utf8" }).trim();
   const file = args[1] ? resolve(cwd, args[1]) : join(root, LEDGER);

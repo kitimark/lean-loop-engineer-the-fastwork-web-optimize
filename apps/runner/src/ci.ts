@@ -130,6 +130,8 @@ export async function ciMain(args: CiArgs, d: CiDeps): Promise<number> {
   } finally { rmSync(dl, { recursive: true, force: true }); }
 }
 
+export const CI_SUBS = ["wait", "budget", "circleci", "push", "telemetry", "pool", "state"] as const;
+
 export async function ciCli(argv: string[], cwd: string, env: Record<string, string | undefined> = process.env): Promise<number> {
   const args = parseCiArgs(argv);
   const common = spawnSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd, encoding: "utf8" }).stdout.trim();

@@ -237,8 +237,11 @@ export async function logsConsole(d: ConsoleDeps, args: string[]): Promise<numbe
   return 0;
 }
 
+export const CONSOLE_SUBS = ["start", "stop", "restart", "status", "logs"] as const;
+
 export async function consoleCli(args: string[], d: ConsoleDeps): Promise<number> {
   const [sub, ...rest] = args;
+  if (!(CONSOLE_SUBS as readonly string[]).includes(sub ?? "")) throw new UsageError(CONSOLE_USAGE);
   switch (sub) {
     case "start": return startConsole(d, rest);
     case "stop": if (rest.length) throw new UsageError(CONSOLE_USAGE); return stopConsole(d);
