@@ -1,0 +1,3971 @@
+[
+ {
+  "arm": "haiku",
+  "set": "d1",
+  "chunk": 0,
+  "models": [
+   "claude-haiku-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [
+   "updates"
+  ],
+  "requests": 3,
+  "usage": {
+   "input": 6,
+   "cacheRead": 85307,
+   "cacheCreation": 52928,
+   "output": 4409
+  },
+  "visibleOutputBytes": 3721,
+  "thinking": {
+   "blocks": 2,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 7920
+  },
+  "truncationNotices": 1,
+  "fileLines": 11,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "read_truncation_notice": 1,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 2,
+   "structured_output": 1
+  },
+  "linesCovered": 11,
+  "answerSeq": 3,
+  "answerMs": 20285,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 2350,
+    "path": "<scratchpad>/jev-arms/d1-chunk-00",
+    "class": "scratchpad",
+    "resultBytes": 19951,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     6
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "Read",
+    "ms": 5157,
+    "path": "<scratchpad>/jev-arms/d1-chunk-00",
+    "class": "scratchpad",
+    "offset": 7,
+    "limit": 6,
+    "resultBytes": 12841,
+    "beforeAnswer": true,
+    "lineRange": [
+     7,
+     11
+    ]
+   },
+   {
+    "seq": 3,
+    "tool": "StructuredOutput",
+    "ms": 20285,
+    "rows": 10,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "haiku",
+  "set": "d1",
+  "chunk": 1,
+  "models": [
+   "claude-haiku-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [
+   "updates"
+  ],
+  "requests": 3,
+  "usage": {
+   "input": 6,
+   "cacheRead": 102142,
+   "cacheCreation": 36250,
+   "output": 6368
+  },
+  "visibleOutputBytes": 4057,
+  "thinking": {
+   "blocks": 2,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 12652
+  },
+  "truncationNotices": 1,
+  "fileLines": 11,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "read_truncation_notice": 1,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 2,
+   "structured_output": 1
+  },
+  "linesCovered": 11,
+  "answerSeq": 3,
+  "answerMs": 29317,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 2820,
+    "path": "<scratchpad>/jev-arms/d1-chunk-01",
+    "class": "scratchpad",
+    "resultBytes": 17013,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     5
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "Read",
+    "ms": 5504,
+    "path": "<scratchpad>/jev-arms/d1-chunk-01",
+    "class": "scratchpad",
+    "offset": 6,
+    "limit": 6,
+    "resultBytes": 18475,
+    "beforeAnswer": true,
+    "lineRange": [
+     6,
+     11
+    ]
+   },
+   {
+    "seq": 3,
+    "tool": "StructuredOutput",
+    "ms": 29317,
+    "rows": 10,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "haiku",
+  "set": "d1",
+  "chunk": 2,
+  "models": [
+   "claude-haiku-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [
+   "updates"
+  ],
+  "requests": 3,
+  "usage": {
+   "input": 6,
+   "cacheRead": 102681,
+   "cacheCreation": 36502,
+   "output": 4384
+  },
+  "visibleOutputBytes": 3967,
+  "thinking": {
+   "blocks": 2,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 7064
+  },
+  "truncationNotices": 1,
+  "fileLines": 11,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "read_truncation_notice": 1,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 2,
+   "structured_output": 1
+  },
+  "linesCovered": 11,
+  "answerSeq": 3,
+  "answerMs": 22711,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 2769,
+    "path": "<scratchpad>/jev-arms/d1-chunk-02",
+    "class": "scratchpad",
+    "resultBytes": 18955,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     5
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "Read",
+    "ms": 5552,
+    "path": "<scratchpad>/jev-arms/d1-chunk-02",
+    "class": "scratchpad",
+    "offset": 6,
+    "limit": 6,
+    "resultBytes": 17753,
+    "beforeAnswer": true,
+    "lineRange": [
+     6,
+     11
+    ]
+   },
+   {
+    "seq": 3,
+    "tool": "StructuredOutput",
+    "ms": 22711,
+    "rows": 10,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "haiku",
+  "set": "d1",
+  "chunk": 3,
+  "models": [
+   "claude-haiku-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [
+   "updates"
+  ],
+  "requests": 3,
+  "usage": {
+   "input": 6,
+   "cacheRead": 102284,
+   "cacheCreation": 35782,
+   "output": 5997
+  },
+  "visibleOutputBytes": 3952,
+  "thinking": {
+   "blocks": 2,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 12000
+  },
+  "truncationNotices": 1,
+  "fileLines": 11,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "read_truncation_notice": 1,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 2,
+   "structured_output": 1
+  },
+  "linesCovered": 11,
+  "answerSeq": 3,
+  "answerMs": 28391,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 3113,
+    "path": "<scratchpad>/jev-arms/d1-chunk-03",
+    "class": "scratchpad",
+    "resultBytes": 17631,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     5
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "Read",
+    "ms": 5963,
+    "path": "<scratchpad>/jev-arms/d1-chunk-03",
+    "class": "scratchpad",
+    "offset": 6,
+    "limit": 6,
+    "resultBytes": 17028,
+    "beforeAnswer": true,
+    "lineRange": [
+     6,
+     11
+    ]
+   },
+   {
+    "seq": 3,
+    "tool": "StructuredOutput",
+    "ms": 28391,
+    "rows": 10,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "haiku",
+  "set": "d1",
+  "chunk": 4,
+  "models": [
+   "claude-haiku-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [
+   "updates"
+  ],
+  "requests": 3,
+  "usage": {
+   "input": 6,
+   "cacheRead": 103297,
+   "cacheCreation": 35608,
+   "output": 5413
+  },
+  "visibleOutputBytes": 4047,
+  "thinking": {
+   "blocks": 2,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 10728
+  },
+  "truncationNotices": 1,
+  "fileLines": 11,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "read_truncation_notice": 1,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 2,
+   "structured_output": 1
+  },
+  "linesCovered": 11,
+  "answerSeq": 3,
+  "answerMs": 26983,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 3079,
+    "path": "<scratchpad>/jev-arms/d1-chunk-04",
+    "class": "scratchpad",
+    "resultBytes": 20440,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     6
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "Read",
+    "ms": 5956,
+    "path": "<scratchpad>/jev-arms/d1-chunk-04",
+    "class": "scratchpad",
+    "offset": 7,
+    "limit": 6,
+    "resultBytes": 13692,
+    "beforeAnswer": true,
+    "lineRange": [
+     7,
+     11
+    ]
+   },
+   {
+    "seq": 3,
+    "tool": "StructuredOutput",
+    "ms": 26983,
+    "rows": 10,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "haiku",
+  "set": "d1",
+  "chunk": 5,
+  "models": [
+   "claude-haiku-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [
+   "updates"
+  ],
+  "requests": 3,
+  "usage": {
+   "input": 6,
+   "cacheRead": 102273,
+   "cacheCreation": 36286,
+   "output": 7591
+  },
+  "visibleOutputBytes": 4041,
+  "thinking": {
+   "blocks": 3,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 17808
+  },
+  "truncationNotices": 1,
+  "fileLines": 11,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "read_truncation_notice": 1,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 2,
+   "structured_output": 1
+  },
+  "linesCovered": 11,
+  "answerSeq": 3,
+  "answerMs": 34801,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 2844,
+    "path": "<scratchpad>/jev-arms/d1-chunk-05",
+    "class": "scratchpad",
+    "resultBytes": 17488,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     5
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "Read",
+    "ms": 6080,
+    "path": "<scratchpad>/jev-arms/d1-chunk-05",
+    "class": "scratchpad",
+    "offset": 6,
+    "limit": 6,
+    "resultBytes": 18064,
+    "beforeAnswer": true,
+    "lineRange": [
+     6,
+     11
+    ]
+   },
+   {
+    "seq": 3,
+    "tool": "StructuredOutput",
+    "ms": 34801,
+    "rows": 10,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "haiku",
+  "set": "d1",
+  "chunk": 6,
+  "models": [
+   "claude-haiku-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [
+   "updates"
+  ],
+  "requests": 3,
+  "usage": {
+   "input": 6,
+   "cacheRead": 102775,
+   "cacheCreation": 37191,
+   "output": 4815
+  },
+  "visibleOutputBytes": 3808,
+  "thinking": {
+   "blocks": 2,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 8900
+  },
+  "truncationNotices": 1,
+  "fileLines": 11,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "read_truncation_notice": 1,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 2,
+   "structured_output": 1
+  },
+  "linesCovered": 10,
+  "answerSeq": 3,
+  "answerMs": 21618,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 2301,
+    "path": "<scratchpad>/jev-arms/d1-chunk-06",
+    "class": "scratchpad",
+    "resultBytes": 18703,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     5
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "Read",
+    "ms": 4894,
+    "path": "<scratchpad>/jev-arms/d1-chunk-06",
+    "class": "scratchpad",
+    "offset": 6,
+    "limit": 5,
+    "resultBytes": 19232,
+    "beforeAnswer": true,
+    "lineRange": [
+     6,
+     10
+    ]
+   },
+   {
+    "seq": 3,
+    "tool": "StructuredOutput",
+    "ms": 21618,
+    "rows": 10,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "haiku",
+  "set": "d1",
+  "chunk": 7,
+  "models": [
+   "claude-haiku-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [
+   "updates"
+  ],
+  "requests": 3,
+  "usage": {
+   "input": 6,
+   "cacheRead": 102756,
+   "cacheCreation": 36697,
+   "output": 6877
+  },
+  "visibleOutputBytes": 4054,
+  "thinking": {
+   "blocks": 2,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 14620
+  },
+  "truncationNotices": 1,
+  "fileLines": 11,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "read_truncation_notice": 1,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 2,
+   "structured_output": 1
+  },
+  "linesCovered": 11,
+  "answerSeq": 3,
+  "answerMs": 28776,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 2057,
+    "path": "<scratchpad>/jev-arms/d1-chunk-07",
+    "class": "scratchpad",
+    "resultBytes": 18736,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     5
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "Read",
+    "ms": 4504,
+    "path": "<scratchpad>/jev-arms/d1-chunk-07",
+    "class": "scratchpad",
+    "offset": 6,
+    "limit": 6,
+    "resultBytes": 18177,
+    "beforeAnswer": true,
+    "lineRange": [
+     6,
+     11
+    ]
+   },
+   {
+    "seq": 3,
+    "tool": "StructuredOutput",
+    "ms": 28776,
+    "rows": 10,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "haiku",
+  "set": "d1",
+  "chunk": 8,
+  "models": [
+   "claude-haiku-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [
+   "updates"
+  ],
+  "requests": 3,
+  "usage": {
+   "input": 6,
+   "cacheRead": 102423,
+   "cacheCreation": 36676,
+   "output": 7579
+  },
+  "visibleOutputBytes": 4017,
+  "thinking": {
+   "blocks": 2,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 16132
+  },
+  "truncationNotices": 1,
+  "fileLines": 11,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "read_truncation_notice": 1,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 2,
+   "structured_output": 1
+  },
+  "linesCovered": 10,
+  "answerSeq": 3,
+  "answerMs": 32401,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 2364,
+    "path": "<scratchpad>/jev-arms/d1-chunk-08",
+    "class": "scratchpad",
+    "resultBytes": 17836,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     5
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "Read",
+    "ms": 5113,
+    "path": "<scratchpad>/jev-arms/d1-chunk-08",
+    "class": "scratchpad",
+    "offset": 6,
+    "limit": 5,
+    "resultBytes": 18856,
+    "beforeAnswer": true,
+    "lineRange": [
+     6,
+     10
+    ]
+   },
+   {
+    "seq": 3,
+    "tool": "StructuredOutput",
+    "ms": 32401,
+    "rows": 10,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "haiku",
+  "set": "d1",
+  "chunk": 9,
+  "models": [
+   "claude-haiku-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [
+   "updates"
+  ],
+  "requests": 3,
+  "usage": {
+   "input": 6,
+   "cacheRead": 102269,
+   "cacheCreation": 36291,
+   "output": 338
+  },
+  "visibleOutputBytes": 4069,
+  "thinking": {
+   "blocks": 2,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 14548
+  },
+  "truncationNotices": 1,
+  "fileLines": 11,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "read_truncation_notice": 1,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 2,
+   "structured_output": 1
+  },
+  "linesCovered": 11,
+  "answerSeq": 3,
+  "answerMs": 30652,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 2056,
+    "path": "<scratchpad>/jev-arms/d1-chunk-09",
+    "class": "scratchpad",
+    "resultBytes": 17571,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     5
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "Read",
+    "ms": 4740,
+    "path": "<scratchpad>/jev-arms/d1-chunk-09",
+    "class": "scratchpad",
+    "offset": 6,
+    "limit": 6,
+    "resultBytes": 18261,
+    "beforeAnswer": true,
+    "lineRange": [
+     6,
+     11
+    ]
+   },
+   {
+    "seq": 3,
+    "tool": "StructuredOutput",
+    "ms": 30652,
+    "rows": 10,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "haiku",
+  "set": "d1",
+  "chunk": 10,
+  "models": [
+   "claude-haiku-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [
+   "updates"
+  ],
+  "requests": 3,
+  "usage": {
+   "input": 6,
+   "cacheRead": 103132,
+   "cacheCreation": 37309,
+   "output": 7728
+  },
+  "visibleOutputBytes": 4069,
+  "thinking": {
+   "blocks": 2,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 15548
+  },
+  "truncationNotices": 1,
+  "fileLines": 11,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "read_truncation_notice": 1,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 2,
+   "structured_output": 1
+  },
+  "linesCovered": 10,
+  "answerSeq": 3,
+  "answerMs": 31491,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 2630,
+    "path": "<scratchpad>/jev-arms/d1-chunk-10",
+    "class": "scratchpad",
+    "resultBytes": 19006,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     5
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "Read",
+    "ms": 5529,
+    "path": "<scratchpad>/jev-arms/d1-chunk-10",
+    "class": "scratchpad",
+    "offset": 6,
+    "limit": 5,
+    "resultBytes": 18937,
+    "beforeAnswer": true,
+    "lineRange": [
+     6,
+     10
+    ]
+   },
+   {
+    "seq": 3,
+    "tool": "StructuredOutput",
+    "ms": 31491,
+    "rows": 10,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "haiku",
+  "set": "d1",
+  "chunk": 11,
+  "models": [
+   "claude-haiku-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [
+   "updates"
+  ],
+  "requests": 2,
+  "usage": {
+   "input": 4,
+   "cacheRead": 55090,
+   "cacheCreation": 29944,
+   "output": 3865
+  },
+  "visibleOutputBytes": 2368,
+  "thinking": {
+   "blocks": 2,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 8552
+  },
+  "truncationNotices": 0,
+  "fileLines": null,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 1,
+   "structured_output": 1
+  },
+  "linesCovered": 7,
+  "answerSeq": 2,
+  "answerMs": 17221,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 2212,
+    "path": "<scratchpad>/jev-arms/d1-chunk-11",
+    "class": "scratchpad",
+    "resultBytes": 19969,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     7
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "StructuredOutput",
+    "ms": 17221,
+    "rows": 6,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "haiku",
+  "set": "d2",
+  "chunk": 0,
+  "models": [
+   "claude-haiku-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [
+   "updates"
+  ],
+  "requests": 4,
+  "usage": {
+   "input": 8,
+   "cacheRead": 156897,
+   "cacheCreation": 36629,
+   "output": 3229
+  },
+  "visibleOutputBytes": 2099,
+  "thinking": {
+   "blocks": 3,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 8268
+  },
+  "truncationNotices": 1,
+  "fileLines": 11,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "read_truncation_notice": 1,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 3,
+   "structured_output": 1
+  },
+  "linesCovered": 11,
+  "answerSeq": 4,
+  "answerMs": 18936,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 2198,
+    "path": "<scratchpad>/jev-arms/d2-chunk-00",
+    "class": "scratchpad",
+    "resultBytes": 17359,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     5
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "Read",
+    "ms": 4706,
+    "path": "<scratchpad>/jev-arms/d2-chunk-00",
+    "class": "scratchpad",
+    "offset": 6,
+    "limit": 5,
+    "resultBytes": 15950,
+    "beforeAnswer": true,
+    "lineRange": [
+     6,
+     10
+    ]
+   },
+   {
+    "seq": 3,
+    "tool": "Read",
+    "ms": 8206,
+    "path": "<scratchpad>/jev-arms/d2-chunk-00",
+    "class": "scratchpad",
+    "offset": 11,
+    "limit": 1,
+    "resultBytes": 3,
+    "beforeAnswer": true,
+    "lineRange": [
+     11,
+     11
+    ]
+   },
+   {
+    "seq": 4,
+    "tool": "StructuredOutput",
+    "ms": 18936,
+    "rows": 10,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "haiku",
+  "set": "d2",
+  "chunk": 1,
+  "models": [
+   "claude-haiku-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [
+   "updates"
+  ],
+  "requests": 3,
+  "usage": {
+   "input": 6,
+   "cacheRead": 103247,
+   "cacheCreation": 37437,
+   "output": 3356
+  },
+  "visibleOutputBytes": 1883,
+  "thinking": {
+   "blocks": 2,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 8252
+  },
+  "truncationNotices": 1,
+  "fileLines": 11,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "read_truncation_notice": 1,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 2,
+   "structured_output": 1
+  },
+  "linesCovered": 11,
+  "answerSeq": 3,
+  "answerMs": 18199,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 2301,
+    "path": "<scratchpad>/jev-arms/d2-chunk-01",
+    "class": "scratchpad",
+    "resultBytes": 18859,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     5
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "Read",
+    "ms": 4828,
+    "path": "<scratchpad>/jev-arms/d2-chunk-01",
+    "class": "scratchpad",
+    "offset": 6,
+    "limit": 6,
+    "resultBytes": 17121,
+    "beforeAnswer": true,
+    "lineRange": [
+     6,
+     11
+    ]
+   },
+   {
+    "seq": 3,
+    "tool": "StructuredOutput",
+    "ms": 18199,
+    "rows": 10,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "haiku",
+  "set": "d2",
+  "chunk": 2,
+  "models": [
+   "claude-haiku-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [
+   "updates"
+  ],
+  "requests": 3,
+  "usage": {
+   "input": 6,
+   "cacheRead": 102690,
+   "cacheCreation": 36662,
+   "output": 4096
+  },
+  "visibleOutputBytes": 1913,
+  "thinking": {
+   "blocks": 2,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 10888
+  },
+  "truncationNotices": 1,
+  "fileLines": 11,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "read_truncation_notice": 1,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 2,
+   "structured_output": 1
+  },
+  "linesCovered": 11,
+  "answerSeq": 3,
+  "answerMs": 20752,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 2162,
+    "path": "<scratchpad>/jev-arms/d2-chunk-02",
+    "class": "scratchpad",
+    "resultBytes": 17663,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     5
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "Read",
+    "ms": 4621,
+    "path": "<scratchpad>/jev-arms/d2-chunk-02",
+    "class": "scratchpad",
+    "offset": 6,
+    "limit": 6,
+    "resultBytes": 17021,
+    "beforeAnswer": true,
+    "lineRange": [
+     6,
+     11
+    ]
+   },
+   {
+    "seq": 3,
+    "tool": "StructuredOutput",
+    "ms": 20752,
+    "rows": 10,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "haiku",
+  "set": "d2",
+  "chunk": 3,
+  "models": [
+   "claude-haiku-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [
+   "updates"
+  ],
+  "requests": 3,
+  "usage": {
+   "input": 6,
+   "cacheRead": 102239,
+   "cacheCreation": 34734,
+   "output": 3440
+  },
+  "visibleOutputBytes": 1874,
+  "thinking": {
+   "blocks": 2,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 8656
+  },
+  "truncationNotices": 1,
+  "fileLines": 11,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "read_truncation_notice": 1,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 2,
+   "structured_output": 1
+  },
+  "linesCovered": 11,
+  "answerSeq": 3,
+  "answerMs": 17878,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 1990,
+    "path": "<scratchpad>/jev-arms/d2-chunk-03",
+    "class": "scratchpad",
+    "resultBytes": 16153,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     6
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "Read",
+    "ms": 4423,
+    "path": "<scratchpad>/jev-arms/d2-chunk-03",
+    "class": "scratchpad",
+    "offset": 7,
+    "limit": 6,
+    "resultBytes": 13190,
+    "beforeAnswer": true,
+    "lineRange": [
+     7,
+     11
+    ]
+   },
+   {
+    "seq": 3,
+    "tool": "StructuredOutput",
+    "ms": 17878,
+    "rows": 10,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "haiku",
+  "set": "d2",
+  "chunk": 4,
+  "models": [
+   "claude-haiku-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [
+   "updates"
+  ],
+  "requests": 3,
+  "usage": {
+   "input": 6,
+   "cacheRead": 102254,
+   "cacheCreation": 35756,
+   "output": 2971
+  },
+  "visibleOutputBytes": 1924,
+  "thinking": {
+   "blocks": 2,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 7680
+  },
+  "truncationNotices": 1,
+  "fileLines": 11,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "read_truncation_notice": 1,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 2,
+   "structured_output": 1
+  },
+  "linesCovered": 11,
+  "answerSeq": 3,
+  "answerMs": 16834,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 2390,
+    "path": "<scratchpad>/jev-arms/d2-chunk-04",
+    "class": "scratchpad",
+    "resultBytes": 16271,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     5
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "Read",
+    "ms": 4800,
+    "path": "<scratchpad>/jev-arms/d2-chunk-04",
+    "class": "scratchpad",
+    "offset": 6,
+    "limit": 6,
+    "resultBytes": 16037,
+    "beforeAnswer": true,
+    "lineRange": [
+     6,
+     11
+    ]
+   },
+   {
+    "seq": 3,
+    "tool": "StructuredOutput",
+    "ms": 16834,
+    "rows": 10,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "haiku",
+  "set": "d2",
+  "chunk": 5,
+  "models": [
+   "claude-haiku-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [
+   "updates"
+  ],
+  "requests": 3,
+  "usage": {
+   "input": 6,
+   "cacheRead": 102769,
+   "cacheCreation": 34291,
+   "output": 3035
+  },
+  "visibleOutputBytes": 1885,
+  "thinking": {
+   "blocks": 2,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 7684
+  },
+  "truncationNotices": 1,
+  "fileLines": 11,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "read_truncation_notice": 1,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 2,
+   "structured_output": 1
+  },
+  "linesCovered": 11,
+  "answerSeq": 3,
+  "answerMs": 17003,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 2548,
+    "path": "<scratchpad>/jev-arms/d2-chunk-05",
+    "class": "scratchpad",
+    "resultBytes": 17125,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     6
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "Read",
+    "ms": 5223,
+    "path": "<scratchpad>/jev-arms/d2-chunk-05",
+    "class": "scratchpad",
+    "offset": 7,
+    "limit": 6,
+    "resultBytes": 11088,
+    "beforeAnswer": true,
+    "lineRange": [
+     7,
+     11
+    ]
+   },
+   {
+    "seq": 3,
+    "tool": "StructuredOutput",
+    "ms": 17003,
+    "rows": 10,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "haiku",
+  "set": "d2",
+  "chunk": 6,
+  "models": [
+   "claude-haiku-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [
+   "updates"
+  ],
+  "requests": 3,
+  "usage": {
+   "input": 6,
+   "cacheRead": 103035,
+   "cacheCreation": 32419,
+   "output": 2500
+  },
+  "visibleOutputBytes": 1913,
+  "thinking": {
+   "blocks": 3,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 6696
+  },
+  "truncationNotices": 1,
+  "fileLines": 11,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "read_truncation_notice": 1,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 2,
+   "structured_output": 1
+  },
+  "linesCovered": 11,
+  "answerSeq": 3,
+  "answerMs": 13550,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 2074,
+    "path": "<scratchpad>/jev-arms/d2-chunk-06",
+    "class": "scratchpad",
+    "resultBytes": 18536,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     8
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "Read",
+    "ms": 4729,
+    "path": "<scratchpad>/jev-arms/d2-chunk-06",
+    "class": "scratchpad",
+    "offset": 9,
+    "limit": 3,
+    "resultBytes": 5275,
+    "beforeAnswer": true,
+    "lineRange": [
+     9,
+     11
+    ]
+   },
+   {
+    "seq": 3,
+    "tool": "StructuredOutput",
+    "ms": 13550,
+    "rows": 10,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "haiku",
+  "set": "d2",
+  "chunk": 7,
+  "models": [
+   "claude-haiku-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [
+   "updates"
+  ],
+  "requests": 3,
+  "usage": {
+   "input": 6,
+   "cacheRead": 103649,
+   "cacheCreation": 33578,
+   "output": 2499
+  },
+  "visibleOutputBytes": 1957,
+  "thinking": {
+   "blocks": 2,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 5740
+  },
+  "truncationNotices": 1,
+  "fileLines": 11,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "read_truncation_notice": 1,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 2,
+   "structured_output": 1
+  },
+  "linesCovered": 11,
+  "answerSeq": 3,
+  "answerMs": 13724,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 2198,
+    "path": "<scratchpad>/jev-arms/d2-chunk-07",
+    "class": "scratchpad",
+    "resultBytes": 19795,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     7
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "Read",
+    "ms": 4839,
+    "path": "<scratchpad>/jev-arms/d2-chunk-07",
+    "class": "scratchpad",
+    "offset": 8,
+    "limit": 4,
+    "resultBytes": 6596,
+    "beforeAnswer": true,
+    "lineRange": [
+     8,
+     11
+    ]
+   },
+   {
+    "seq": 3,
+    "tool": "StructuredOutput",
+    "ms": 13724,
+    "rows": 10,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "haiku",
+  "set": "d2",
+  "chunk": 8,
+  "models": [
+   "claude-haiku-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [
+   "updates"
+  ],
+  "requests": 3,
+  "usage": {
+   "input": 6,
+   "cacheRead": 103642,
+   "cacheCreation": 34717,
+   "output": 3260
+  },
+  "visibleOutputBytes": 1902,
+  "thinking": {
+   "blocks": 2,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 8136
+  },
+  "truncationNotices": 1,
+  "fileLines": 11,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "read_truncation_notice": 1,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 2,
+   "structured_output": 1
+  },
+  "linesCovered": 11,
+  "answerSeq": 3,
+  "answerMs": 17528,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 2325,
+    "path": "<scratchpad>/jev-arms/d2-chunk-08",
+    "class": "scratchpad",
+    "resultBytes": 19694,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     6
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "Read",
+    "ms": 4815,
+    "path": "<scratchpad>/jev-arms/d2-chunk-08",
+    "class": "scratchpad",
+    "offset": 7,
+    "limit": 6,
+    "resultBytes": 9741,
+    "beforeAnswer": true,
+    "lineRange": [
+     7,
+     11
+    ]
+   },
+   {
+    "seq": 3,
+    "tool": "StructuredOutput",
+    "ms": 17528,
+    "rows": 10,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "sonnet",
+  "set": "d1",
+  "chunk": 0,
+  "models": [
+   "claude-sonnet-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [
+   "updates"
+  ],
+  "requests": 3,
+  "usage": {
+   "input": 6,
+   "cacheRead": 85282,
+   "cacheCreation": 52926,
+   "output": 2515
+  },
+  "visibleOutputBytes": 3851,
+  "thinking": {
+   "blocks": 1,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 804
+  },
+  "truncationNotices": 1,
+  "fileLines": 11,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "read_truncation_notice": 1,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 2,
+   "structured_output": 1
+  },
+  "linesCovered": 11,
+  "answerSeq": 3,
+  "answerMs": 17770,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 3065,
+    "path": "<scratchpad>/jev-arms/d1-chunk-00",
+    "class": "scratchpad",
+    "resultBytes": 19951,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     6
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "Read",
+    "ms": 6113,
+    "path": "<scratchpad>/jev-arms/d1-chunk-00",
+    "class": "scratchpad",
+    "offset": 7,
+    "limit": 6,
+    "resultBytes": 12841,
+    "beforeAnswer": true,
+    "lineRange": [
+     7,
+     11
+    ]
+   },
+   {
+    "seq": 3,
+    "tool": "StructuredOutput",
+    "ms": 17770,
+    "rows": 10,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "sonnet",
+  "set": "d1",
+  "chunk": 1,
+  "models": [
+   "claude-sonnet-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [
+   "updates"
+  ],
+  "requests": 4,
+  "usage": {
+   "input": 8,
+   "cacheRead": 156026,
+   "cacheCreation": 36416,
+   "output": 1868
+  },
+  "visibleOutputBytes": 2288,
+  "thinking": {
+   "blocks": 2,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 2596
+  },
+  "truncationNotices": 1,
+  "fileLines": 11,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "read_truncation_notice": 1,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 3,
+   "structured_output": 1
+  },
+  "linesCovered": 11,
+  "answerSeq": 4,
+  "answerMs": 27797,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 7187,
+    "path": "<scratchpad>/jev-arms/d1-chunk-01",
+    "class": "scratchpad",
+    "resultBytes": 17013,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     5
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "Read",
+    "ms": 14718,
+    "path": "<scratchpad>/jev-arms/d1-chunk-01",
+    "class": "scratchpad",
+    "offset": 6,
+    "limit": 5,
+    "resultBytes": 18471,
+    "beforeAnswer": true,
+    "lineRange": [
+     6,
+     10
+    ]
+   },
+   {
+    "seq": 3,
+    "tool": "Read",
+    "ms": 18923,
+    "path": "<scratchpad>/jev-arms/d1-chunk-01",
+    "class": "scratchpad",
+    "offset": 11,
+    "limit": 2,
+    "resultBytes": 3,
+    "beforeAnswer": true,
+    "lineRange": [
+     11,
+     11
+    ]
+   },
+   {
+    "seq": 4,
+    "tool": "StructuredOutput",
+    "ms": 27797,
+    "rows": 10,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "sonnet",
+  "set": "d1",
+  "chunk": 2,
+  "models": [
+   "claude-sonnet-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [
+   "updates"
+  ],
+  "requests": 4,
+  "usage": {
+   "input": 8,
+   "cacheRead": 156969,
+   "cacheCreation": 36788,
+   "output": 1546
+  },
+  "visibleOutputBytes": 2177,
+  "thinking": {
+   "blocks": 1,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 1068
+  },
+  "truncationNotices": 1,
+  "fileLines": 11,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "read_truncation_notice": 1,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 3,
+   "structured_output": 1
+  },
+  "linesCovered": 11,
+  "answerSeq": 4,
+  "answerMs": 22392,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 4658,
+    "path": "<scratchpad>/jev-arms/d1-chunk-02",
+    "class": "scratchpad",
+    "resultBytes": 18955,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     5
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "Read",
+    "ms": 11405,
+    "path": "<scratchpad>/jev-arms/d1-chunk-02",
+    "class": "scratchpad",
+    "offset": 6,
+    "limit": 5,
+    "resultBytes": 17749,
+    "beforeAnswer": true,
+    "lineRange": [
+     6,
+     10
+    ]
+   },
+   {
+    "seq": 3,
+    "tool": "Read",
+    "ms": 14931,
+    "path": "<scratchpad>/jev-arms/d1-chunk-02",
+    "class": "scratchpad",
+    "offset": 11,
+    "limit": 1,
+    "resultBytes": 3,
+    "beforeAnswer": true,
+    "lineRange": [
+     11,
+     11
+    ]
+   },
+   {
+    "seq": 4,
+    "tool": "StructuredOutput",
+    "ms": 22392,
+    "rows": 10,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "sonnet",
+  "set": "d1",
+  "chunk": 3,
+  "models": [
+   "claude-sonnet-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [
+   "updates"
+  ],
+  "requests": 3,
+  "usage": {
+   "input": 6,
+   "cacheRead": 102257,
+   "cacheCreation": 35794,
+   "output": 2844
+  },
+  "visibleOutputBytes": 4052,
+  "thinking": {
+   "blocks": 2,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 2488
+  },
+  "truncationNotices": 1,
+  "fileLines": 11,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "read_truncation_notice": 1,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 2,
+   "structured_output": 1
+  },
+  "linesCovered": 11,
+  "answerSeq": 3,
+  "answerMs": 28274,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 3513,
+    "path": "<scratchpad>/jev-arms/d1-chunk-03",
+    "class": "scratchpad",
+    "resultBytes": 17631,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     5
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "Read",
+    "ms": 13033,
+    "path": "<scratchpad>/jev-arms/d1-chunk-03",
+    "class": "scratchpad",
+    "offset": 6,
+    "limit": 6,
+    "resultBytes": 17028,
+    "beforeAnswer": true,
+    "lineRange": [
+     6,
+     11
+    ]
+   },
+   {
+    "seq": 3,
+    "tool": "StructuredOutput",
+    "ms": 28274,
+    "rows": 10,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "sonnet",
+  "set": "d1",
+  "chunk": 4,
+  "models": [
+   "claude-sonnet-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [
+   "updates"
+  ],
+  "requests": 3,
+  "usage": {
+   "input": 6,
+   "cacheRead": 103272,
+   "cacheCreation": 35621,
+   "output": 1287
+  },
+  "visibleOutputBytes": 1932,
+  "thinking": {
+   "blocks": 1,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 844
+  },
+  "truncationNotices": 1,
+  "fileLines": 11,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "read_truncation_notice": 1,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 2,
+   "structured_output": 1
+  },
+  "linesCovered": 11,
+  "answerSeq": 3,
+  "answerMs": 17807,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 3002,
+    "path": "<scratchpad>/jev-arms/d1-chunk-04",
+    "class": "scratchpad",
+    "resultBytes": 20440,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     6
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "Read",
+    "ms": 7313,
+    "path": "<scratchpad>/jev-arms/d1-chunk-04",
+    "class": "scratchpad",
+    "offset": 7,
+    "limit": 5,
+    "resultBytes": 13692,
+    "beforeAnswer": true,
+    "lineRange": [
+     7,
+     11
+    ]
+   },
+   {
+    "seq": 3,
+    "tool": "StructuredOutput",
+    "ms": 17807,
+    "rows": 10,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "sonnet",
+  "set": "d1",
+  "chunk": 5,
+  "models": [
+   "claude-sonnet-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [
+   "updates"
+  ],
+  "requests": 3,
+  "usage": {
+   "input": 6,
+   "cacheRead": 102233,
+   "cacheCreation": 36483,
+   "output": 1659
+  },
+  "visibleOutputBytes": 2048,
+  "thinking": {
+   "blocks": 2,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 2304
+  },
+  "truncationNotices": 1,
+  "fileLines": 11,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "read_truncation_notice": 1,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 2,
+   "structured_output": 1
+  },
+  "linesCovered": 11,
+  "answerSeq": 4,
+  "answerMs": 16423,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 3635,
+    "path": "<scratchpad>/jev-arms/d1-chunk-05",
+    "class": "scratchpad",
+    "resultBytes": 17488,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     5
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "Read",
+    "ms": 8603,
+    "path": "<scratchpad>/jev-arms/d1-chunk-05",
+    "class": "scratchpad",
+    "offset": 6,
+    "limit": 5,
+    "resultBytes": 18060,
+    "beforeAnswer": true,
+    "lineRange": [
+     6,
+     10
+    ]
+   },
+   {
+    "seq": 3,
+    "tool": "Read",
+    "ms": 9143,
+    "path": "<scratchpad>/jev-arms/d1-chunk-05",
+    "class": "scratchpad",
+    "offset": 11,
+    "limit": 5,
+    "resultBytes": 3,
+    "beforeAnswer": true,
+    "lineRange": [
+     11,
+     11
+    ]
+   },
+   {
+    "seq": 4,
+    "tool": "StructuredOutput",
+    "ms": 16423,
+    "rows": 10,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "sonnet",
+  "set": "d1",
+  "chunk": 6,
+  "models": [
+   "claude-sonnet-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [
+   "updates"
+  ],
+  "requests": 3,
+  "usage": {
+   "input": 6,
+   "cacheRead": 102751,
+   "cacheCreation": 37173,
+   "output": 2956
+  },
+  "visibleOutputBytes": 4079,
+  "thinking": {
+   "blocks": 2,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 2700
+  },
+  "truncationNotices": 1,
+  "fileLines": 11,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "read_truncation_notice": 1,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 2,
+   "structured_output": 1
+  },
+  "linesCovered": 10,
+  "answerSeq": 3,
+  "answerMs": 29629,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 3044,
+    "path": "<scratchpad>/jev-arms/d1-chunk-06",
+    "class": "scratchpad",
+    "resultBytes": 18703,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     5
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "Read",
+    "ms": 11176,
+    "path": "<scratchpad>/jev-arms/d1-chunk-06",
+    "class": "scratchpad",
+    "offset": 6,
+    "limit": 5,
+    "resultBytes": 19232,
+    "beforeAnswer": true,
+    "lineRange": [
+     6,
+     10
+    ]
+   },
+   {
+    "seq": 3,
+    "tool": "StructuredOutput",
+    "ms": 29629,
+    "rows": 10,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "sonnet",
+  "set": "d1",
+  "chunk": 7,
+  "models": [
+   "claude-sonnet-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [
+   "updates"
+  ],
+  "requests": 3,
+  "usage": {
+   "input": 6,
+   "cacheRead": 102741,
+   "cacheCreation": 36710,
+   "output": 1638
+  },
+  "visibleOutputBytes": 2028,
+  "thinking": {
+   "blocks": 2,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 2552
+  },
+  "truncationNotices": 1,
+  "fileLines": 11,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "read_truncation_notice": 1,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 2,
+   "structured_output": 1
+  },
+  "linesCovered": 10,
+  "answerSeq": 3,
+  "answerMs": 21286,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 5953,
+    "path": "<scratchpad>/jev-arms/d1-chunk-07",
+    "class": "scratchpad",
+    "resultBytes": 18736,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     5
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "Read",
+    "ms": 9264,
+    "path": "<scratchpad>/jev-arms/d1-chunk-07",
+    "class": "scratchpad",
+    "offset": 6,
+    "limit": 5,
+    "resultBytes": 18173,
+    "beforeAnswer": true,
+    "lineRange": [
+     6,
+     10
+    ]
+   },
+   {
+    "seq": 3,
+    "tool": "StructuredOutput",
+    "ms": 21286,
+    "rows": 10,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "sonnet",
+  "set": "d1",
+  "chunk": 8,
+  "models": [
+   "claude-sonnet-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [
+   "updates"
+  ],
+  "requests": 4,
+  "usage": {
+   "input": 8,
+   "cacheRead": 156754,
+   "cacheCreation": 37018,
+   "output": 1496
+  },
+  "visibleOutputBytes": 2603,
+  "thinking": {
+   "blocks": 2,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 1780
+  },
+  "truncationNotices": 1,
+  "fileLines": 11,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "read_truncation_notice": 1,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 3,
+   "structured_output": 1
+  },
+  "linesCovered": 10,
+  "answerSeq": 4,
+  "answerMs": 21842,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 4306,
+    "path": "<scratchpad>/jev-arms/d1-chunk-08",
+    "class": "scratchpad",
+    "resultBytes": 17836,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     5
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "Read",
+    "ms": 9454,
+    "path": "<scratchpad>/jev-arms/d1-chunk-08",
+    "class": "scratchpad",
+    "offset": 6,
+    "limit": 5,
+    "resultBytes": 18856,
+    "beforeAnswer": true,
+    "lineRange": [
+     6,
+     10
+    ]
+   },
+   {
+    "seq": 3,
+    "tool": "Bash",
+    "ms": 14221,
+    "program": "wc",
+    "commandBytes": 329,
+    "resultBytes": 155,
+    "beforeAnswer": true
+   },
+   {
+    "seq": 4,
+    "tool": "StructuredOutput",
+    "ms": 21842,
+    "rows": 10,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "sonnet",
+  "set": "d1",
+  "chunk": 9,
+  "models": [
+   "claude-sonnet-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [
+   "updates"
+  ],
+  "requests": 3,
+  "usage": {
+   "input": 6,
+   "cacheRead": 102254,
+   "cacheCreation": 36309,
+   "output": 1334
+  },
+  "visibleOutputBytes": 2022,
+  "thinking": {
+   "blocks": 1,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 844
+  },
+  "truncationNotices": 1,
+  "fileLines": 11,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "read_truncation_notice": 1,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 2,
+   "structured_output": 1
+  },
+  "linesCovered": 11,
+  "answerSeq": 3,
+  "answerMs": 13423,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 2665,
+    "path": "<scratchpad>/jev-arms/d1-chunk-09",
+    "class": "scratchpad",
+    "resultBytes": 17571,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     5
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "Read",
+    "ms": 6597,
+    "path": "<scratchpad>/jev-arms/d1-chunk-09",
+    "class": "scratchpad",
+    "offset": 6,
+    "limit": 6,
+    "resultBytes": 18261,
+    "beforeAnswer": true,
+    "lineRange": [
+     6,
+     11
+    ]
+   },
+   {
+    "seq": 3,
+    "tool": "StructuredOutput",
+    "ms": 13423,
+    "rows": 10,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "sonnet",
+  "set": "d1",
+  "chunk": 10,
+  "models": [
+   "claude-sonnet-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [
+   "updates"
+  ],
+  "requests": 3,
+  "usage": {
+   "input": 6,
+   "cacheRead": 103050,
+   "cacheCreation": 37256,
+   "output": 2941
+  },
+  "visibleOutputBytes": 4083,
+  "thinking": {
+   "blocks": 2,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 2884
+  },
+  "truncationNotices": 1,
+  "fileLines": 11,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "read_truncation_notice": 1,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 2,
+   "structured_output": 1
+  },
+  "linesCovered": 10,
+  "answerSeq": 3,
+  "answerMs": 39697,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 3704,
+    "path": "<scratchpad>/jev-arms/d1-chunk-10",
+    "class": "scratchpad",
+    "resultBytes": 19006,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     5
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "Read",
+    "ms": 6492,
+    "path": "<scratchpad>/jev-arms/d1-chunk-10",
+    "class": "scratchpad",
+    "offset": 6,
+    "limit": 5,
+    "resultBytes": 18937,
+    "beforeAnswer": true,
+    "lineRange": [
+     6,
+     10
+    ]
+   },
+   {
+    "seq": 3,
+    "tool": "StructuredOutput",
+    "ms": 39697,
+    "rows": 10,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "sonnet",
+  "set": "d1",
+  "chunk": 11,
+  "models": [
+   "claude-sonnet-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [],
+  "requests": 2,
+  "usage": {
+   "input": 4,
+   "cacheRead": 55093,
+   "cacheCreation": 29921,
+   "output": 737
+  },
+  "visibleOutputBytes": 1158,
+  "thinking": {
+   "blocks": 0,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 0
+  },
+  "truncationNotices": 0,
+  "fileLines": null,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 1,
+   "structured_output": 1
+  },
+  "linesCovered": 7,
+  "answerSeq": 2,
+  "answerMs": 7643,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 2672,
+    "path": "<scratchpad>/jev-arms/d1-chunk-11",
+    "class": "scratchpad",
+    "resultBytes": 19969,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     7
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "StructuredOutput",
+    "ms": 7643,
+    "rows": 6,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "sonnet",
+  "set": "d2",
+  "chunk": 0,
+  "models": [
+   "claude-sonnet-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [
+   "updates"
+  ],
+  "requests": 4,
+  "usage": {
+   "input": 8,
+   "cacheRead": 156863,
+   "cacheCreation": 36614,
+   "output": 1481
+  },
+  "visibleOutputBytes": 2101,
+  "thinking": {
+   "blocks": 2,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 1776
+  },
+  "truncationNotices": 1,
+  "fileLines": 11,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "read_truncation_notice": 1,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 3,
+   "structured_output": 1
+  },
+  "linesCovered": 11,
+  "answerSeq": 4,
+  "answerMs": 22427,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 3800,
+    "path": "<scratchpad>/jev-arms/d2-chunk-00",
+    "class": "scratchpad",
+    "resultBytes": 17359,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     5
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "Read",
+    "ms": 9396,
+    "path": "<scratchpad>/jev-arms/d2-chunk-00",
+    "class": "scratchpad",
+    "offset": 6,
+    "limit": 5,
+    "resultBytes": 15950,
+    "beforeAnswer": true,
+    "lineRange": [
+     6,
+     10
+    ]
+   },
+   {
+    "seq": 3,
+    "tool": "Read",
+    "ms": 14073,
+    "path": "<scratchpad>/jev-arms/d2-chunk-00",
+    "class": "scratchpad",
+    "offset": 11,
+    "limit": 5,
+    "resultBytes": 3,
+    "beforeAnswer": true,
+    "lineRange": [
+     11,
+     11
+    ]
+   },
+   {
+    "seq": 4,
+    "tool": "StructuredOutput",
+    "ms": 22427,
+    "rows": 10,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "sonnet",
+  "set": "d2",
+  "chunk": 1,
+  "models": [
+   "claude-sonnet-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [
+   "updates"
+  ],
+  "requests": 3,
+  "usage": {
+   "input": 6,
+   "cacheRead": 103224,
+   "cacheCreation": 37471,
+   "output": 1718
+  },
+  "visibleOutputBytes": 1913,
+  "thinking": {
+   "blocks": 2,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 2996
+  },
+  "truncationNotices": 1,
+  "fileLines": 11,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "read_truncation_notice": 1,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 2,
+   "structured_output": 1
+  },
+  "linesCovered": 11,
+  "answerSeq": 3,
+  "answerMs": 20063,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 3449,
+    "path": "<scratchpad>/jev-arms/d2-chunk-01",
+    "class": "scratchpad",
+    "resultBytes": 18859,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     5
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "Read",
+    "ms": 10035,
+    "path": "<scratchpad>/jev-arms/d2-chunk-01",
+    "class": "scratchpad",
+    "offset": 6,
+    "limit": 6,
+    "resultBytes": 17121,
+    "beforeAnswer": true,
+    "lineRange": [
+     6,
+     11
+    ]
+   },
+   {
+    "seq": 3,
+    "tool": "StructuredOutput",
+    "ms": 20063,
+    "rows": 10,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "sonnet",
+  "set": "d2",
+  "chunk": 2,
+  "models": [
+   "claude-sonnet-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [
+   "updates"
+  ],
+  "requests": 3,
+  "usage": {
+   "input": 6,
+   "cacheRead": 102649,
+   "cacheCreation": 36669,
+   "output": 1620
+  },
+  "visibleOutputBytes": 1943,
+  "thinking": {
+   "blocks": 2,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 2664
+  },
+  "truncationNotices": 1,
+  "fileLines": 11,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "read_truncation_notice": 1,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 2,
+   "structured_output": 1
+  },
+  "linesCovered": 11,
+  "answerSeq": 3,
+  "answerMs": 25692,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 4812,
+    "path": "<scratchpad>/jev-arms/d2-chunk-02",
+    "class": "scratchpad",
+    "resultBytes": 17663,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     5
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "Read",
+    "ms": 13430,
+    "path": "<scratchpad>/jev-arms/d2-chunk-02",
+    "class": "scratchpad",
+    "offset": 6,
+    "limit": 6,
+    "resultBytes": 17021,
+    "beforeAnswer": true,
+    "lineRange": [
+     6,
+     11
+    ]
+   },
+   {
+    "seq": 3,
+    "tool": "StructuredOutput",
+    "ms": 25692,
+    "rows": 10,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "sonnet",
+  "set": "d2",
+  "chunk": 3,
+  "models": [
+   "claude-sonnet-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [
+   "updates"
+  ],
+  "requests": 3,
+  "usage": {
+   "input": 6,
+   "cacheRead": 102214,
+   "cacheCreation": 34706,
+   "output": 1442
+  },
+  "visibleOutputBytes": 1890,
+  "thinking": {
+   "blocks": 1,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 1368
+  },
+  "truncationNotices": 1,
+  "fileLines": 11,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "read_truncation_notice": 1,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 2,
+   "structured_output": 1
+  },
+  "linesCovered": 11,
+  "answerSeq": 3,
+  "answerMs": 29095,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 16402,
+    "path": "<scratchpad>/jev-arms/d2-chunk-03",
+    "class": "scratchpad",
+    "resultBytes": 16153,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     6
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "Read",
+    "ms": 21455,
+    "path": "<scratchpad>/jev-arms/d2-chunk-03",
+    "class": "scratchpad",
+    "offset": 7,
+    "limit": 6,
+    "resultBytes": 13190,
+    "beforeAnswer": true,
+    "lineRange": [
+     7,
+     11
+    ]
+   },
+   {
+    "seq": 3,
+    "tool": "StructuredOutput",
+    "ms": 29095,
+    "rows": 10,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "sonnet",
+  "set": "d2",
+  "chunk": 4,
+  "models": [
+   "claude-sonnet-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [
+   "updates"
+  ],
+  "requests": 4,
+  "usage": {
+   "input": 8,
+   "cacheRead": 155782,
+   "cacheCreation": 36019,
+   "output": 1486
+  },
+  "visibleOutputBytes": 2112,
+  "thinking": {
+   "blocks": 1,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 896
+  },
+  "truncationNotices": 1,
+  "fileLines": 11,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "read_truncation_notice": 1,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 3,
+   "structured_output": 1
+  },
+  "linesCovered": 11,
+  "answerSeq": 4,
+  "answerMs": 19407,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 3568,
+    "path": "<scratchpad>/jev-arms/d2-chunk-04",
+    "class": "scratchpad",
+    "resultBytes": 16271,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     5
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "Read",
+    "ms": 7448,
+    "path": "<scratchpad>/jev-arms/d2-chunk-04",
+    "class": "scratchpad",
+    "offset": 6,
+    "limit": 5,
+    "resultBytes": 16033,
+    "beforeAnswer": true,
+    "lineRange": [
+     6,
+     10
+    ]
+   },
+   {
+    "seq": 3,
+    "tool": "Read",
+    "ms": 12388,
+    "path": "<scratchpad>/jev-arms/d2-chunk-04",
+    "class": "scratchpad",
+    "offset": 11,
+    "limit": 5,
+    "resultBytes": 3,
+    "beforeAnswer": true,
+    "lineRange": [
+     11,
+     11
+    ]
+   },
+   {
+    "seq": 4,
+    "tool": "StructuredOutput",
+    "ms": 19407,
+    "rows": 10,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "sonnet",
+  "set": "d2",
+  "chunk": 5,
+  "models": [
+   "claude-sonnet-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [],
+  "requests": 3,
+  "usage": {
+   "input": 6,
+   "cacheRead": 102684,
+   "cacheCreation": 34203,
+   "output": 1235
+  },
+  "visibleOutputBytes": 1906,
+  "thinking": {
+   "blocks": 0,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 0
+  },
+  "truncationNotices": 1,
+  "fileLines": 11,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "read_truncation_notice": 1,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 2,
+   "structured_output": 1
+  },
+  "linesCovered": 11,
+  "answerSeq": 3,
+  "answerMs": 14438,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 2603,
+    "path": "<scratchpad>/jev-arms/d2-chunk-05",
+    "class": "scratchpad",
+    "resultBytes": 17125,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     6
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "Read",
+    "ms": 6800,
+    "path": "<scratchpad>/jev-arms/d2-chunk-05",
+    "class": "scratchpad",
+    "offset": 7,
+    "limit": 6,
+    "resultBytes": 11088,
+    "beforeAnswer": true,
+    "lineRange": [
+     7,
+     11
+    ]
+   },
+   {
+    "seq": 3,
+    "tool": "StructuredOutput",
+    "ms": 14438,
+    "rows": 10,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "sonnet",
+  "set": "d2",
+  "chunk": 6,
+  "models": [
+   "claude-sonnet-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [
+   "updates"
+  ],
+  "requests": 3,
+  "usage": {
+   "input": 6,
+   "cacheRead": 103007,
+   "cacheCreation": 32391,
+   "output": 1255
+  },
+  "visibleOutputBytes": 1930,
+  "thinking": {
+   "blocks": 1,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 812
+  },
+  "truncationNotices": 1,
+  "fileLines": 11,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "read_truncation_notice": 1,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 2,
+   "structured_output": 1
+  },
+  "linesCovered": 11,
+  "answerSeq": 3,
+  "answerMs": 18635,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 2461,
+    "path": "<scratchpad>/jev-arms/d2-chunk-06",
+    "class": "scratchpad",
+    "resultBytes": 18536,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     8
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "Read",
+    "ms": 5893,
+    "path": "<scratchpad>/jev-arms/d2-chunk-06",
+    "class": "scratchpad",
+    "offset": 9,
+    "limit": 3,
+    "resultBytes": 5275,
+    "beforeAnswer": true,
+    "lineRange": [
+     9,
+     11
+    ]
+   },
+   {
+    "seq": 3,
+    "tool": "StructuredOutput",
+    "ms": 18635,
+    "rows": 10,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "sonnet",
+  "set": "d2",
+  "chunk": 7,
+  "models": [
+   "claude-sonnet-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [
+   "updates"
+  ],
+  "requests": 3,
+  "usage": {
+   "input": 6,
+   "cacheRead": 103620,
+   "cacheCreation": 33522,
+   "output": 1498
+  },
+  "visibleOutputBytes": 1928,
+  "thinking": {
+   "blocks": 1,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 1440
+  },
+  "truncationNotices": 1,
+  "fileLines": 11,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "read_truncation_notice": 1,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 2,
+   "structured_output": 1
+  },
+  "linesCovered": 11,
+  "answerSeq": 3,
+  "answerMs": 14564,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 4128,
+    "path": "<scratchpad>/jev-arms/d2-chunk-07",
+    "class": "scratchpad",
+    "resultBytes": 19795,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     7
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "Read",
+    "ms": 7050,
+    "path": "<scratchpad>/jev-arms/d2-chunk-07",
+    "class": "scratchpad",
+    "offset": 8,
+    "limit": 7,
+    "resultBytes": 6596,
+    "beforeAnswer": true,
+    "lineRange": [
+     8,
+     11
+    ]
+   },
+   {
+    "seq": 3,
+    "tool": "StructuredOutput",
+    "ms": 14564,
+    "rows": 10,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ },
+ {
+  "arm": "sonnet",
+  "set": "d2",
+  "chunk": 8,
+  "models": [
+   "claude-sonnet-5-5"
+  ],
+  "effort": [
+   "low"
+  ],
+  "thinkingDisplay": [
+   "updates"
+  ],
+  "requests": 3,
+  "usage": {
+   "input": 6,
+   "cacheRead": 103589,
+   "cacheCreation": 34661,
+   "output": 1646
+  },
+  "visibleOutputBytes": 1935,
+  "thinking": {
+   "blocks": 1,
+   "withText": 0,
+   "textChars": 0,
+   "signatureBytes": 1960
+  },
+  "truncationNotices": 1,
+  "fileLines": 11,
+  "attachments": {
+   "deferred_tools_delta": 2,
+   "environment": 1,
+   "model": 1,
+   "skill_listing": 1,
+   "instructions": 1,
+   "session_context": 1,
+   "date": 1,
+   "credential_org": 1,
+   "remote_session_change": 1,
+   "prompt_snapshot": 2,
+   "read_truncation_notice": 1,
+   "mcp_instructions_delta": 1,
+   "auto_mode": 1,
+   "total_tokens_reminder": 2,
+   "structured_output": 1
+  },
+  "linesCovered": 11,
+  "answerSeq": 3,
+  "answerMs": 15259,
+  "calls": [
+   {
+    "seq": 1,
+    "tool": "Read",
+    "ms": 2887,
+    "path": "<scratchpad>/jev-arms/d2-chunk-08",
+    "class": "scratchpad",
+    "resultBytes": 19694,
+    "beforeAnswer": true,
+    "lineRange": [
+     1,
+     6
+    ]
+   },
+   {
+    "seq": 2,
+    "tool": "Read",
+    "ms": 5547,
+    "path": "<scratchpad>/jev-arms/d2-chunk-08",
+    "class": "scratchpad",
+    "offset": 7,
+    "limit": 6,
+    "resultBytes": 9741,
+    "beforeAnswer": true,
+    "lineRange": [
+     7,
+     11
+    ]
+   },
+   {
+    "seq": 3,
+    "tool": "StructuredOutput",
+    "ms": 15259,
+    "rows": 10,
+    "keys": [
+     "choice",
+     "id",
+     "probabilities"
+    ],
+    "resultBytes": 39,
+    "beforeAnswer": false
+   }
+  ]
+ }
+]
