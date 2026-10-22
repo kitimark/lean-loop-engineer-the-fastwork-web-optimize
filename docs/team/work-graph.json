@@ -14228,7 +14228,9 @@
     "docs/team/tools/codemagic.md",
     "docs/team/tools/ci-pool.md",
     "docs/team/handoffs/macos-pool-7.md",
-    "apps/runner/src/fw-main.ts"
+    "apps/runner/src/fw-main.ts",
+    "lean/scripts/check.sh",
+    "packages/measure-webkit/src/sim.mjs"
    ]
   },
   {
