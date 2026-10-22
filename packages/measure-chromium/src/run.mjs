@@ -79,6 +79,14 @@ const ev = async (expression) => {
 {
   let logged = 0;
   const say = (...a) => { if (logged++ < 40) console.error('page:', ...a); };
+  c.on('Inspector.targetCrashed', () => say('TARGET CRASHED'));
+  c.on('Inspector.detached', (e) => say('DETACHED', e.reason));
+  bs.on('Target.targetCrashed', (e) => say('BROWSER: targetCrashed', e.status, e.errorCode));
+  bs.send('Target.setDiscoverTargets', { discover: true }).catch(() => {});
+  bs.on('Target.targetInfoChanged', (e) => say('target', e.targetInfo.type, e.targetInfo.url.slice(0, 60)));
+  bs.on('Target.targetDestroyed', (e) => say('target destroyed', e.targetId));
+  c.on('Page.frameNavigated', (e) => say('navigated', e.frame.url.slice(0, 60)));
+  c.on('Page.lifecycleEvent', (e) => say('lifecycle', e.name));
   c.on('Page.javascriptDialogOpening', (e) => { say('DIALOG', e.type, JSON.stringify(e.message).slice(0, 200)); c.send('Page.handleJavaScriptDialog', { accept: true }).catch(() => {}); });
   c.on('Runtime.exceptionThrown', (e) => say('EXCEPTION', (e.exceptionDetails?.exception?.description ?? e.exceptionDetails?.text ?? '').slice(0, 300)));
   c.on('Runtime.consoleAPICalled', (e) => { if (e.type === 'error' || e.type === 'warning' || e.type === 'assert') say(e.type, e.args.map((x) => x.value ?? x.description ?? '').join(' ').slice(0, 300)); });
@@ -178,7 +186,7 @@ let quiet = 0, loadFrames = 0;
 for (; loadFrames < profile.load.maxFrames && quiet < profile.load.quietFrames; loadFrames++) {
   vt = loadFrames * dt;
   await frame(vt);
-  if (process.env.FW_LOAD_TRACE || profile.viewport.mobile === false) console.error(`load frame ${loadFrames} vt ${vt.toFixed(1)} inflight ${srv.inflight()} requests ${srv.requests()}`);
+  if (process.env.FW_LOAD_TRACE || String(profile.id).startsWith('people-o')) console.error(`load frame ${loadFrames} vt ${vt.toFixed(1)} inflight ${srv.inflight()} requests ${srv.requests()}`);
   let hangTimer;
   const st = await Promise.race([
     ev(`document.readyState + ',' + (document.fonts ? document.fonts.status : 'loaded') + ',' + document.images.length + ',' + [...document.images].filter((i) => !i.complete).length`),
