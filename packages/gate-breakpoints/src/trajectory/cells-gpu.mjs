@@ -1,6 +1,5 @@
-// The trajectory cells of the GPU arms (task gpu-trajectory-cells): nav clip, panel effect and lag, pain dark, carousel avatar rects.
-// Every reducer here is the node twin of lean/Fw/Gate/TrajectoryGpu.lean on exact rationals (BigInt pairs) and is checked against
-// packages/contracts/golden/gate/trajectory-gpu.jsonl (test/trajectory-gpu.test.mjs). The page-side readings are glue: they hold no decision.
+// The trajectory cells of the GPU arms (task gpu-trajectory-cells): node twins of lean/Fw/Gate/TrajectoryGpu.lean on exact rationals,
+// checked against golden/gate/trajectory-gpu.jsonl (test/trajectory-gpu.test.mjs); the raw-artifact readings below hold no decision.
 import { MORPH_NODES, envFor } from './registry.mjs';
 
 /* ---- exact rationals (Lean Rat; a division by zero is 0 as in Lean) ---- */
@@ -334,7 +333,9 @@ export function tally(engine, units) {
   for (const cell of cells) {
     const us = units.filter((u) => u.cell === cell);
     const n = (g) => us.filter((u) => u.grade === g).length;
-    lines.push(`CELLS ${engine} ${cell}: units ${us.length}, E ${n('E')}, Q ${n('Q')}, L ${n('L')}, not comparable ${n(null)}`);
+    const lags = us.flatMap((u) => u.lag ?? []).filter((l) => l !== null).map((l) => Number(ratOf(l).n) / Number(ratOf(l).d));
+    const lag = lags.length === 0 ? '' : `, lag max ${Math.max(...lags).toFixed(3)} frames`;
+    lines.push(`CELLS ${engine} ${cell}: units ${us.length}, E ${n('E')}, Q ${n('Q')}, L ${n('L')}, not comparable ${n(null)}${lag}`);
   }
   return lines;
 }
