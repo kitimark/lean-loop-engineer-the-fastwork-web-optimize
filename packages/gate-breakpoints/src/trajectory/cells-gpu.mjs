@@ -1,9 +1,5 @@
-// The trajectory cells of the GPU arms (task gpu-trajectory-cells): node twins of lean/Fw/Gate/TrajectoryGpu.lean on exact rationals,
-// checked against golden/gate/trajectory-gpu.jsonl (test/trajectory-gpu.test.mjs); the raw-artifact readings below hold no decision.
-// TS stand-ins without a Lean twin yet: swapsOf, restedBefore, carouselCell pairing, worst, painCell's no-flip rule.
 import { MORPH_NODES, envFor } from './registry.mjs';
 
-/* ---- exact rationals (Lean Rat; a division by zero is 0 as in Lean) ---- */
 const gcd = (a, b) => { a = a < 0n ? -a : a; b = b < 0n ? -b : b; while (b) [a, b] = [b, a % b]; return a; };
 export const rat = (n, d = 1n) => {
   n = BigInt(n); d = BigInt(d);
@@ -27,16 +23,13 @@ export const min = (a, b) => (lt(a, b) ? a : b);
 export const abs = (a) => (a.n < 0n ? neg(a) : a);
 export const ratStr = (r) => `${r.n}/${r.d}`;
 export const ratOf = (s) => { const [n, d] = String(s).split('/'); return rat(BigInt(n), BigInt(d ?? '1')); };
-/** A reading in thousandths (the kit's `q`) as a rational. */
 export const ratQ = (x) => rat(BigInt(Math.round(x)), 1000n);
 
-/* ---- tolerance and the cell ---- */
 export const PIX_TOL = rat(1, 2);
 export const tolCss = (dpr) => div(PIX_TOL, dpr);
 export const within = (t, x, y) => le(sub(x, t), y) && le(y, add(x, t));
 export const cellEq = (ts, a, b) => ts.length === a.length && a.length === b.length && ts.every((t, i) => within(t, a[i], b[i]));
 
-/* ---- clip-path inset to one rect and radius ---- */
 export const resolveLen = (l, side) => (l.k === 'px' ? l.v : div(mul(l.v, side), rat(100)));
 export const expand4 = (l) => {
   if (l.length === 1) return [l[0], l[0], l[0], l[0]];
@@ -105,8 +98,6 @@ export const readShape = (box, radius, clip) => {
 };
 export const shapeVec = (s) => [s.rect.x, s.rect.y, s.rect.w, s.rect.h, s.r];
 
-/* ---- one series against another at a matched clock ---- */
-/** A series is [{k: rat, v: [rat]}] with strictly rising keys. */
 export const lerpVec = (f, a, b) => (a.length !== b.length ? null : a.map((x, i) => add(x, mul(sub(b[i], x), f))));
 export const sortedKeys = (s) => s.every((p, i) => i === 0 || lt(s[i - 1].k, p.k));
 export function interpAt(s, k) {
@@ -126,7 +117,6 @@ export const matchAt = (tols, ref, cand, shift) => {
   }
   return { n, ok };
 };
-/** 'E' | 'Q' | 'L' | null, Lean `matchedGrade`: E is equality within the tolerances at the same clock, not byte equality. */
 export function matchedGrade(tols, grid, frameKey, minCovered, ref, cand) {
   if (!sortedKeys(ref) || !sortedKeys(cand)) return null;
   const m0 = matchAt(tols, ref, cand, ZERO);
@@ -140,7 +130,6 @@ export function matchedGrade(tols, grid, frameKey, minCovered, ref, cand) {
   return q ? 'Q' : 'L';
 }
 
-/* ---- the panel effect and its clock ---- */
 const clamp01 = (x) => max(ZERO, min(ONE, x));
 export const panelProgress = (m) => clamp01(div(sub(m, rat(2, 25)), rat(18, 25)));
 export const panelOpacity = panelProgress;
@@ -159,25 +148,19 @@ export function lagFrames(fs) {
 }
 export const LAG_SLACK = rat(1, 10);
 export const lagGrade = (lag) => (le(lag, add(ONE, LAG_SLACK)) ? 'Q' : 'L');
-/** Where a frame's effect is read when the panel trails the nav by `l` frames: `l` of the nav's own steps back (Lean `laggedKey`). */
 export const laggedKey = (l, prev, cur) => sub(cur, mul(l, sub(cur, prev)));
-/** Lean `edge` and `interior`: the samples whose key is strictly between EDGE and 1 - EDGE. */
 export const EDGE = rat(1, 100);
 export const keptInterior = (k) => lt(EDGE, k) && lt(k, sub(ONE, EDGE));
-/** Frames [{k: morph value, v: [opacity, blur, scale]}] in time order, re-keyed by `laggedKey` and cut to the interior (Lean `laggedSeries`). */
 export const laggedSeries = (l, fs) => fs.slice(1).map((c, i) => ({ k: laggedKey(l, fs[i].k, c.k), v: c.v })).filter((p) => keptInterior(p.k));
-/** The series grade at the lagged clock: E when all three components match the reference there, else L (Lean `shiftedGrade`). */
 export const shiftedGrade = (tols, minCovered, ref, l, fs) => matchedGrade(tols, [], ONE, minCovered, ref, seriesOf(laggedSeries(l, fs)));
 export const panelGrade = (series, lag, shifted) => (series === null ? null : series === 'E' ? 'E'
   : lag === null ? null : le(lag, add(ONE, LAG_SLACK)) && shifted === 'E' ? 'Q' : 'L');
-/** The panel cell of one run from its frames, { grade, lag } (Lean `panelCell`; the interior frames are sorted by `seriesOf`, so closing runs have falling keys in time order). */
 export function panelCell(tols, minCovered, ref, fs) {
   const series = matchedGrade(tols, [], ONE, minCovered, ref, seriesOf(fs.filter((p) => keptInterior(p.k))));
   const lag = lagFrames(fs.map((f) => ({ nav: f.k, op: f.v[0] })));
   return { grade: panelGrade(series, lag, lag === null ? null : shiftedGrade(tols, minCovered, ref, lag, fs)), lag };
 }
 
-/* ---- the pain section's dark layer ---- */
 export const darkness = (layer, cls) => (layer !== null ? layer : cls ? ONE : ZERO);
 const changes = (l) => { let n = 0; for (let i = 1; i < l.length; i++) if (!eq(l[i - 1], l[i])) n++; return n; };
 export function painGrade(b, c) {
@@ -192,20 +175,15 @@ export function painGrade(b, c) {
   return changes(b) === changes(c) && idx.every((i) => same(i) || slip(i)) ? 'Q' : 'L';
 }
 
-/* ---- ranking ---- */
 const RANK = { E: 0, Q: 1, L: 2 };
-/** The worst of the defined grades; null when none is defined. */
 export const worst = (gs) => gs.filter((g) => g !== null).reduce((w, g) => (w === null || RANK[g] > RANK[w] ? g : w), null);
 
-/* ---- readings of the morph path (rows of the probe's raw artifact) ---- */
 export const MIN_COVERED = 8;
 
-/** The index of each property id of a node list, per node id. */
 export const layoutOf = (nodes) => Object.fromEntries(nodes.map((n) => [n.id, Object.fromEntries(n.props.map((p, i) => [p.id, i]))]));
 
 const num = (x) => (Array.isArray(x) && typeof x[0] === 'number' ? x : null);
 
-/** The nav's shape (x, y, width, height, radius) of a row, or null; a node list without a clip-path reading is read as `none`. */
 export function navShapeOf(row, layout) {
   const e = row.nodes?.nav?.[0], ix = layout.nav;
   if (!e || !ix) return null;
@@ -216,7 +194,6 @@ export function navShapeOf(row, layout) {
   return s === null ? null : shapeVec(s);
 }
 
-/** The panel's effect (opacity, blur px, scale) of a row, or null. Scale is the first entry of the transform matrix. */
 export function panelEffectOf(row, layout) {
   const e = row.nodes?.panel?.[0], ix = layout.panel;
   if (!e || !ix) return null;
@@ -228,7 +205,6 @@ export function panelEffectOf(row, layout) {
   return [ratQ(op[0]), blur, scale];
 }
 
-/** Rows sorted by the morph value with equal values dropped (the first stays): a series in Lean's sense, keyed by m (Lean `seriesOf`). */
 export function seriesOf(samples) {
   const s = samples.slice().sort((a, b) => cmp(a.k, b.k));
   return s.filter((p, i) => i === 0 || lt(s[i - 1].k, p.k));
@@ -236,15 +212,9 @@ export function seriesOf(samples) {
 
 const mOf = (row) => (typeof row.m === 'number' ? rat(BigInt(Math.round(row.m)), 10000n) : null);
 
-/**
- * The nav-clip and panel-effect cells of one width and phase: the candidate's rows against the base's, each candidate rep on its own
- * against the pooled base reps, at the same morph value. Returns { nav: [grade|null per rep], panel: [grade|null per rep], lag: [lag|null per rep] }.
- */
 export function morphCells({ width, base, cand, layout, phase }) {
   const env = envFor(width), dpr = rat(env.dpr), side = rat(width);
   const rowsOf = (arm) => (arm?.morph?.phases?.[phase] ?? []);
-  // Only the interior of the morph forms a series (Lean `interior`): m is clamped at its ends while the settled page keeps moving
-  // a little (the 1280 close tail), so the rows there are not a function of m; the end states are the existing cells' business.
   const sample = (rows, fn) => rows.flatMap((r) => { const m = mOf(r), v = m === null || !keptInterior(m) ? null : fn(r); return v === null ? [] : [{ k: m, v }]; });
   const navTol = Array(5).fill(tolCss(dpr));
   const effTol = effectTols(dpr, side);
@@ -263,11 +233,8 @@ export function morphCells({ width, base, cand, layout, phase }) {
   return out;
 }
 
-/* ---- pain dark ---- */
-/** Rows of one scroll pass { layer: number|null, cls: boolean } as darkness values. */
 export const painSeries = (rows) => rows.map((r) => darkness(typeof r.layer === 'number' ? ratQ(r.layer * 1000) : null, r.cls === true));
 
-/** The pain cell of one width: the grade per scroll direction, and null where the base never flips (nothing to compare). */
 export function painCell(base, cand) {
   return ['up', 'down'].map((dir) => {
     const b = painSeries(base?.[dir] ?? []), c = painSeries(cand?.[dir] ?? []);
@@ -275,16 +242,13 @@ export function painCell(base, cand) {
   });
 }
 
-/* ---- carousel avatar rects ---- */
 export const CAROUSEL_GRID = [-1, -3 / 4, -1 / 2, -1 / 4, 1 / 4, 1 / 2, 3 / 4, 1].map((x) => rat(Math.round(x * 4), 4));
 export const FRAME_MS = rat(50, 3);
 export const CAROUSEL_MIN_COVERED = 4;
 
 const sameVec = (a, b) => a.length === b.length && a.every((x, j) => x === b[j]);
-/** A swap whole in the series starts after two equal samples; a recording that opens mid-swap (all 12 Chromium recordings of runs 39823047557, 39823476824, 39824100493 did) has no start to compare. */
 const restedBefore = (rows, from) => from >= 1 && !!rows[from - 1]?.v && !!rows[from]?.v && sameVec(rows[from - 1].v, rows[from].v);
 
-/** Swaps in a rAF series of rect vectors: from the last still sample to the sample where the vector is still again for `still` frames. */
 export function swapsOf(rows, still = 6) {
   const swaps = [];
   let cur = null, quiet = 0;
@@ -298,10 +262,6 @@ export function swapsOf(rows, still = 6) {
       if (quiet >= still) { if (restedBefore(rows, cur.from)) swaps.push(cur); cur = null; quiet = 0; }
     }
   }
-  // The key is the frame count times one frame: the swap advances per frame, and an A/A showed the rAF timestamps jitter by 1.7 ms
-  // while the rects of frame i agree within 0.025 px, so a timestamp key made equal swaps L. Only samples with the swap's full child
-  // count compare: the avatar that enters or leaves changes the count at the ends (20 children inside, 16 at rest), and a vector of
-  // another length is a DOM change, not a motion.
   return swaps.map(({ from, to }) => {
     const rs = rows.slice(from, Math.min(rows.length, to + 2));
     const full = Math.max(...rs.map((r) => r.v.length));
@@ -310,7 +270,6 @@ export function swapsOf(rows, still = 6) {
   });
 }
 
-/** The carousel cell of one width: grades of the candidate's swaps against the base's, paired by order. */
 export function carouselCell(width, base, cand) {
   const dpr = rat(envFor(width).dpr);
   const bs = swapsOf(base ?? []), cs = swapsOf(cand ?? []);
@@ -322,14 +281,8 @@ export function carouselCell(width, base, cand) {
   return { swaps: [bs.length, cs.length], grades };
 }
 
-/* ---- the report of a raw artifact ---- */
 const roleRun = (raw, role, width) => raw.runs.find((r) => (r.role ?? (r.site === 'orig' ? 'orig' : 'cand')) === role && r.width === width);
 
-/**
- * Cells of a raw artifact (raw-<engine>.json of the probe, or of cells-gpu-run.mjs): one unit per (width, cell, phase or direction),
- * { width, cell, part, grade, reps }. The nav-clip cell of a raw artifact without clip-path readings is only comparable when the
- * candidate is the faithful page (A/A): any other candidate returns `note` instead of a grade.
- */
 export function cellsOfRaw(raw, nodes = MORPH_NODES) {
   const layout = raw.layout ?? layoutOf(nodes);
   const hasClip = layout.nav?.['clip-path'] !== undefined;
@@ -356,7 +309,6 @@ export function cellsOfRaw(raw, nodes = MORPH_NODES) {
   return units;
 }
 
-/** Counts per cell and grade, and the VERDICT-style lines for a log. */
 export function tally(engine, units) {
   const cells = [...new Set(units.map((u) => u.cell))];
   const lines = [];

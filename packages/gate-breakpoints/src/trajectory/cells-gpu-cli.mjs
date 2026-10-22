@@ -1,10 +1,3 @@
-// The command line of the GPU cells (task gpu-trajectory-cells; Lean Fw.Gate.TrajectoryGpu, twin cells-gpu.mjs).
-//   node src/trajectory/cells-gpu-cli.mjs summary --in <raw-<engine>.json | dir with raw-*.json> [--out <dir>]
-//        reduces the nav-clip and panel-effect cells (and the pain and carousel cells when the raw holds them) of a trajectory raw
-//        artifact: the probe's own raw-<engine>.json feeds the first two, a `run` artifact all four
-//   node src/trajectory/cells-gpu-cli.mjs run --engine chromium|playwright-webkit --out <dir> [--widths 390,640] [--search ...] [--reps 1..5]
-//        walks base and candidate (cells-gpu-run.mjs) and writes raw-<engine>.json, then reduces it as `summary` does
-// Prints `CELLS` count lines and one `CELL` line per unit; exit 0 always (a grade is a result), 1 on a bad argument.
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -17,7 +10,6 @@ function rawFiles(input) {
   return [input];
 }
 
-/** Units, count lines and the markdown of one raw artifact. */
 export function reduceCells(raw) {
   const units = cellsOfRaw(raw);
   const lines = tally(raw.engine, units);
@@ -55,7 +47,7 @@ export async function main(argv) {
     const reps = Number(arg(argv, '--reps', '3'));
     if (!Number.isInteger(reps) || reps < 1 || reps > 5) { console.error('cells-gpu: reps must be 1 to 5'); return 1; }
     const dir = out === '' ? 'out/cells-gpu' : out;
-    const { runCells } = await import('./cells-gpu-run.mjs'); // lazy: summary runs with plain node (no playwright installed)
+    const { runCells } = await import('./cells-gpu-run.mjs');
     const raw = await runCells({ engineName: arg(argv, '--engine', 'chromium'), widths, search: arg(argv, '--search'), reps, env: process.env });
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, `raw-${raw.engine}.json`), JSON.stringify(raw));

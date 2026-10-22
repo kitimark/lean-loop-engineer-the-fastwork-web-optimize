@@ -1,6 +1,3 @@
-// The page-side readings of the GPU cells (src/trajectory/cells-gpu.mjs) on synthetic raw artifacts: a run against itself (A/A) is
-// E, a panel clock one frame behind is Q, two frames behind is L, a clipped border box reads as its clip, and the pain and
-// carousel cells grade a flip one step late and a moved avatar. The grades themselves are Lean's (trajectory-gpu.test.mjs).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { MORPH_NODES, GPU_NODES, GPU_CELLS } from '../src/trajectory/registry.mjs';
@@ -11,7 +8,6 @@ const q = (x) => Math.round(x * 1000);
 const gpu = layoutOf(GPU_NODES);
 const std = layoutOf(MORPH_NODES);
 
-/** One sampled frame: the nav as [rect, radius, clip] and the panel from the faithful effect at `pm` (its own clock). */
 const row = (layout, m, rep, { rect = [100 - 50 * m, 10, 200 + 400 * m, 60], radius = 30, clip = 'none', pm = m } = {}) => {
   const nav = Array(Object.keys(layout.nav).length).fill(null);
   nav[layout.nav.rect] = rect.map(q);
@@ -25,7 +21,6 @@ const row = (layout, m, rep, { rect = [100 - 50 * m, 10, 200 + 400 * m, 60], rad
   return { tag: 'open', m: Math.round(m * 10000), rep, nodes: { nav: [nav], panel: [panel] } };
 };
 
-/** Three reps of 21 frames 0.05 apart, each offset by a hundredth of a morph step, as the pooled reps of a push are. */
 const phase = (layout, fn = {}) => [0, 1, 2].flatMap((rep) => Array.from({ length: 21 }, (_, i) => {
   const m = Math.min(1, i * 0.05 + rep * 0.01);
   return row(layout, m, rep, fn.row ? fn.row(m, i, rep) : {});

@@ -1,5 +1,3 @@
-// The node twins of lean/Fw/Gate/TrajectoryGpu.lean (src/trajectory/cells-gpu.mjs) against the vectors Lean generates
-// (packages/contracts/golden/gate/trajectory-gpu.jsonl): every line kind, exact rationals.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -94,13 +92,11 @@ test('panel lag in frames and the panel cell grade', () => {
     assert.equal(optStr(c.lag), l.lag, l.name);
     assert.equal(c.grade, l.grade, l.name);
   }
-  // Closing runs (falling keys) grade as opening ones, and a stalled interior key keeps its first sample.
   const grade = (n) => cells.find((l) => l.name === n).grade;
   assert.equal(grade('closing in step'), 'E');
   assert.equal(grade('closing one frame behind'), 'Q');
   assert.equal(grade('closing one frame behind, blur dropped'), 'L');
   assert.equal(grade('in step, stalled frame'), 'E');
-  // A candidate that drops the blur or the scale while keeping the faithful opacity grades L at both clocks, never Q.
   for (const name of ['one frame behind, blur dropped', 'one frame behind, scale dropped', 'in step, blur dropped', 'in step, scale dropped']) {
     assert.equal(cells.find((l) => l.name === name).grade, 'L', name);
   }
@@ -130,7 +126,6 @@ test('a division by zero is zero, as in Lean', () => {
   assert.equal(ratStr(effectTols(rat(1), ZERO)[2]), '1/1000');
 });
 
-// The cells of a raw artifact: the panel rows of a base and an in-step candidate, the candidate's blur or scale then dropped.
 test('a candidate that drops the panel blur or scale grades L on a raw artifact, never Q', () => {
   const thousandths = (r) => Number((r.n * 1000n) / r.d);
   const row = (m, rep, drop) => {

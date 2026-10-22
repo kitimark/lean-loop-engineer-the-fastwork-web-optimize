@@ -1,6 +1,3 @@
-// The walker of the GPU cells (task gpu-trajectory-cells): per width the faithful rewrite (role base) and the candidate walk the
-// end-of-page push with the nav's clip-path read, a scroll pass over the people card for the pain section's dark class, and the
-// avatar carousel at rest. Native rAF and timers, real time. Glue only: the cells are decided in cells-gpu.mjs (Lean TrajectoryGpu).
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { LAUNCHERS } from '../engines.mjs';
@@ -17,7 +14,6 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (...a) => process.stderr.write(a.join(' ') + '\n');
 const PHASES = PUSH_PHASES.filter((p) => p.phase === 'open' || p.phase === 'close');
 
-/** The selector of a (part, role) in the rewrite; a missing entry is a bug of the registry. */
 function selOf(anchors, { part, role }) {
   const r = anchors.parts[part]?.roles?.find((x) => x.role === role);
   if (!r) throw new Error(`cells-gpu: no role ${part}:${role} in anchors.json`);
@@ -31,7 +27,6 @@ async function openPage(engine, env, origin, search) {
   return { s, ready, arm };
 }
 
-/** Phases open and close of the push with the GPU node list; rows carry the nav's morph value `m` and the rep. */
 async function morphPass(engine, env, origin, search) {
   const { s, arm } = await openPage(engine, env, origin, search);
   try {
@@ -52,7 +47,6 @@ async function morphPass(engine, env, origin, search) {
   } finally { await s.close().catch(() => {}); }
 }
 
-/** The people card scrolled past in `stepPx` steps, down and then up, reading the pain section's class after two frames at each. */
 const painScan = async ({ sec, trig, cls, step }) => {
   const raf = () => new Promise((r) => requestAnimationFrame(() => r()));
   const el = document.querySelector(trig), pain = document.querySelector(sec);
@@ -77,7 +71,6 @@ const painScan = async ({ sec, trig, cls, step }) => {
   return { down, up };
 };
 
-/** Every child of the avatar container as x, y, width, height (x1000) relative to the container, once per frame. */
 const carouselSample = async ({ scene, cont, ms }) => {
   const raf = () => new Promise((r) => requestAnimationFrame(() => r()));
   const sc = document.querySelector(scene), c = document.querySelector(cont);
@@ -101,11 +94,6 @@ async function pagePass(engine, env, origin, search, fn, arg) {
   try { await sleep(1500); return await s.evaluate(fn, arg); } finally { await s.close().catch(() => {}); }
 }
 
-/**
- * Walks the faithful rewrite (`base`) and the candidate (`cand`, `search`) at each width. `reps` fresh pages per pass; the morph rows
- * of the reps are pooled with a `rep` on each row (as run.mjs does), the pain and carousel readings are the first rep's.
- * Returns { engine, version, search, hash, baseHash, reps, layout, runs: [{ width, site, role, search, want, morph, pain, carousel }] }.
- */
 export async function runCells({ engineName, widths, search = '', reps = 3, env = process.env }) {
   const variant = rewriteFor(siteDist(env), { ...env, FW_SEARCH: search });
   const configs = JSON.parse(readFileSync(join(siteDist(env), 'configs.json'), 'utf8'));

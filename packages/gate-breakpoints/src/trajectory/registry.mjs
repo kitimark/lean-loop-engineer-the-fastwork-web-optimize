@@ -76,10 +76,6 @@ export const MORPH_NODES = [
   // zero-sized sentinel (anchors.json), so there is nothing there to read.
 ];
 
-/**
- * The nav and the panel as the GPU arms' cells read them (task gpu-trajectory-cells): the nav's clip-path next to its rect and
- * radius, the panel's opacity, blur and scale. Separate from MORPH_NODES so the standard verdicts judge the same properties as before.
- */
 export const GPU_NODES = [
   { id: 'nav', part: 'nav', role: 'nav', props: [
     P('rect', 'geometry', 'rect'), P('border-radius', 'geometry', 'lens', { css: 'border-top-left-radius' }),
@@ -88,35 +84,23 @@ export const GPU_NODES = [
     P('opacity', 'unit', 'num', { css: 'opacity' }), P('filter.num', 'unit', 'fnnum', { css: 'filter' }), P('transform.lin', 'unit', 'tlin')] },
 ];
 
-/**
- * The page parts the pain-dark and carousel cells look at, each a (part, role) of anchors.json. The pain cell reads the class on the
- * pain section while the people card scrolls by, only at widths where the original flips it (at most 860 px); the carousel cell
- * reads every child of the avatar container relative to the container.
- */
 export const GPU_CELLS = {
   pain: { section: { part: 'pain', role: 'section' }, trigger: { part: 'people.card', role: 'section' }, cls: 'is-pain-dark', maxWidth: 860, stepPx: 4 },
   carousel: { scene: { part: 'people.card', role: 'section' }, container: { part: 'people.carousel', role: 'avatars' }, sampleMs: 4200 },
 };
 
-/** The page itself: its height must be the same in both arms for the same scroll position to mean the same thing. */
 export const PAGE_PROPS = [P('scroll-height', 'geometry', 'scrollHeight')];
 
-/**
- * The hero path, in fractions of the viewport height; "mid" is the middle of the page. A step with `dwellMs` rests that long
- * before its reading instead of the usual rest.
- */
 export const HERO_STEPS = [
   { id: 's0', at: 0 }, { id: 's25', at: 0.25 }, { id: 's50', at: 0.5 }, { id: 's90', at: 0.9 }, { id: 's200', at: 2 },
   { id: 'mid', at: 'mid' }, { id: 'hold', at: 'mid', dwellMs: 1200 }, { id: 'b50', at: 0.5 }, { id: 'b25', at: 0.25 }, { id: 'b0', at: 0 },
 ];
 
-/** The widths of the lane and the environment each is loaded in (the gate's setup: viewport and screen set apart, DPR). */
 export const WIDTHS = [390, 640, 641, 1280];
 const TOUCH = { height: 844, dpr: 2, hover: 'none', pointer: 'coarse', reducedMotion: 'no-preference', colorScheme: 'light' };
 const DESK = { height: 900, dpr: 1, hover: 'hover', pointer: 'fine', reducedMotion: 'no-preference', colorScheme: 'light' };
 export const envFor = (width) => ({ ...(width <= 640 ? TOUCH : DESK), width, deviceWidth: width, deviceHeight: width <= 640 ? 844 : 900 });
 
-/** Selectors of one node in both arms, from anchors.json. A node without an entry is a bug of this registry, not of a page. */
 export function resolveNodes(nodes, anchors = loadAnchors()) {
   return nodes.map((n) => {
     const role = anchors.parts[n.part]?.roles?.find((r) => r.role === n.role);
