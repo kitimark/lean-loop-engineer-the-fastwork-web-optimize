@@ -7,7 +7,7 @@ created: 2026-10-22
 topics: [jev, oracle, claude-arms, retrieval, tracing, negative-result, lean]
 ---
 
-# Traced retrieval on D1 (task jev-retrieval-trace)
+# Traced retrieval on D1
 
 The run follows the design in `research/notes/2026/10-2x-jev-retrieval.md`. Six arms ran on the 38 in-scope D1 rows:
 
@@ -31,7 +31,6 @@ The run follows the design in `research/notes/2026/10-2x-jev-retrieval.md`. Six 
     (`apps/runner/src/oracle-score.ts:49-53`), and reading is optional ("You may read them",
     `scripts/jev-trace.mjs:140-145`).
   - The state already holds the row's own text, and both models answer from it in 2-4 turns.
-  - The forced-read arms below make the models read.
 - **J-hybrid is C (MEASURED, proved).** With no read ranges, `hybrid_noreads` keeps every row unchanged, so all 38
   sends replayed from the log at 0 new sends. The answers equal C row by row.
 - **Forced to read, every row read exactly one file (MEASURED).** Over 76 calls (38 rows × 2 models), each row has one
@@ -174,7 +173,7 @@ sends from 09:26:57 to 09:27:15 UTC with at most 0.75 s between sends. Both runs
 - The T arms answer a different system prompt from C (the read permission and the evidence field). So T against C
   measures that prompt change as well as retrieval, and retrieval itself was 0.
 - The forced-read arms change the prompt as well as the reads, so their swing against C mixes both. Against the
-  unforced T arm only the read requirement differs, and Haiku's +5 -0 there has sign p 1/16 over 38 rows.
+  unforced T arm only the read requirement differs (Haiku +5 -0, sign p 1/16, 38 rows).
 - Grep output counts 0 bytes in the trace budget. Only Read spans count.
 - J-pick's candidates are the files the row names that are in its tree. Files found by search are not offered.
-- Only T-haiku-read renorm needed a hand trace. Its 5 gains were read by hand (`traced.json`), and none was traced.
+- Only T-haiku-read renorm needed a hand trace (`traced.json`); none of its 5 gains was traced.
