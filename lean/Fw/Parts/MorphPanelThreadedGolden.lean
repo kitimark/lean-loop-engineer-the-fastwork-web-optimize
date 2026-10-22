@@ -16,7 +16,7 @@ def ends : List Rat := [0, 1 / 25, 2 / 25, 1 / 5, 2 / 5, 1 / 2, 3 / 4, 4 / 5, 9 
 
 def bands : List Band := [.always, .w1000, .w720, .reduced, .w640, .w600]
 
-def goldenLines : List String :=
+def goldenLines (_ : Unit := ()) : List String :=
   [line "const" [] (Json.mkObj
       [("kA", ratWire kA), ("kB", ratWire kB), ("blurMax", ratWire 12), ("duration", ratWire duration),
        ("easing", Json.arr #[ratWire easing.1, ratWire easing.2.1, ratWire easing.2.2.1, ratWire easing.2.2.2])])] ++
@@ -38,10 +38,10 @@ def goldenLines : List String :=
    line "effects" [] (Json.arr (effects.map fun e =>
      Json.arr (e.map fun a => Json.str (match a with | .opacity => "opacity" | .filter => "filter" | .transform => "transform")).toArray).toArray)]
 
-def jsonl : String := String.join (goldenLines.map (· ++ "\n"))
+def jsonl (_ : Unit := ()) : String := String.join ((goldenLines ()).map (· ++ "\n"))
 
-#guard goldenLines.length == 1 + 100 + 100 + 6 + 3
+#guard (goldenLines ()).length == 1 + 100 + 100 + 6 + 3
 
-#guard jsonl == include_str "../../../packages/contracts/golden/parts/morph-panel-threaded.jsonl"
+#guard jsonl () == include_str "../../../packages/contracts/golden/parts/morph-panel-threaded.jsonl"
 
 end Fw.Parts.MorphPanelThreaded
