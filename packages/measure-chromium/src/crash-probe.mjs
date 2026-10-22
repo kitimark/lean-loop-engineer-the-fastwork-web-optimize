@@ -1,8 +1,3 @@
-// In-container crash bisect (task chromium-desktop-crash). Runs run.mjs once per variant of a profile's `probe.variants`, each in a fresh
-// Chrome, up to the end of the pre-roll (FW_LOAD_ONLY=1), and writes one row per variant: ok, crash (run.mjs exit 76: the renderer died),
-// hang (75) or other. A variant changes the viewport (width, height), adds page CSS (css), drops Chrome flags by prefix (dropFlags) or
-// leaves a harness override out (skip: ua, locale, tz; env: extra environment such as FW_NO_N0=1). Diagnostics only: it records
-// no count, so its result is never a measurement. Mounts and arguments are those of run.mjs (--target, --search, --profile).
 import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 
@@ -36,7 +31,6 @@ for (const v of variants) {
   const err = r.stderr ?? '';
   const status = r.status === 0 && /FW_LOAD_OK/.test(err) ? 'ok' : r.status === 76 ? 'crash' : r.status === 75 ? 'hang' : r.signal ? `timeout(${r.signal})` : `other(${r.status})`;
   const sig = /Received signal (\d+) (\w+) ([0-9a-f]+)/.exec(err);
-  // The frames of the crash block as "+0xOFFSET" (module offsets), the first 12 and the whole count.
   const frames = [...err.matchAll(/#\d+ 0x[0-9a-f]+ \([^)]*\+0x([0-9a-f]+)\)/g)].map((m) => m[1]);
   const row = { id: v.id, status, wallMs: Date.now() - t0, signal: sig ? `${sig[1]} ${sig[2]} ${sig[3]}` : null, frameCount: frames.length, frames: frames.slice(0, 12), tail: status === 'ok' ? null : err.split('\n').filter((l) => l && !/^\s*#\d+ 0x/.test(l)).slice(-4).join(' | ').slice(0, 300) };
   rows.push(row);
