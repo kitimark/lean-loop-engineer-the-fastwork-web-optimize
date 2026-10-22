@@ -25,6 +25,8 @@ import { byArm, armsTable, devCorrelation } from './quietreport.mjs';
 import { onePassRetrying, classifyPasses, markdownTable, resolveStates } from './determinism.mjs';
 import { mergeSessions, unpairedTable } from './mergerows.mjs';
 import { COUNT_TYPES, zones, summarize } from './reduce.mjs';
+import { censusVerdict } from './census-check.mjs';
+import { runsOf, reportRuns } from './census-check-cli.mjs';
 
 const OUT = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'out');
 const argv = process.argv.slice(2).filter((a) => a !== '--');
@@ -54,6 +56,8 @@ const OPTS = {
   cols: { type: 'string' }, // handoff: comma list of count types forming the vector (default all 12)
   types: { type: 'string', default: 'RecalculateStyles,Layout,Paint,Composite' }, // align: count types printed as tables
   'zone-px': { type: 'string', default: '500' }, // align: zone height
+  composite: { type: 'string', default: 'none' }, // census check: layer ids that must be composited (all | none | a,b)
+  snap: { type: 'string', default: 'none' }, // census check: layer ids whose origin must sit on the device-pixel grid
 };
 const { values: v, positionals } = parseArgs({ args: rest, options: OPTS, allowPositionals: true, allowNegative: true });
 const num = (s) => Number(s);
@@ -126,9 +130,20 @@ async function main() {
         return ps;
       }, sessionOpts);
       const rows = classifyPasses(passes);
+      const layerCensus = censusVerdict(passes, { composite: v.composite, snap: v.snap }); // Lean Fw.Measure.Census, pass i against pass 1
       // site: what was served (the rewrite arm: the query and the prerendered config's hash); null = the snapshot
-      save('determinism', { runs, clock: v.clock, states, site: sessionOpts.site ? { search: v.search, configHash: sessionOpts.site.configHash ?? null } : null, rows, summary: summarize(rows), passes });
+      save('determinism', { runs, clock: v.clock, states, site: sessionOpts.site ? { search: v.search, configHash: sessionOpts.site.configHash ?? null } : null, rows, summary: summarize(rows), layerCensus, passes });
       console.log(markdownTable(rows));
+      console.log(`layer census: ${layerCensus.state}`);
+      for (const p of layerCensus.pairs) for (const l of [`${p.pair}: ${p.state}`, ...p.lines.map((s) => `  ${s}`)]) console.log(l);
+      break;
+    }
+    case 'census-check': {
+      // census-check <file>...: the layer-census check over saved runs, each against the first
+      const runs = positionals.flatMap((f) => runsOf(f.split('/').pop(), JSON.parse(readFileSync(resolve(f), 'utf8'))));
+      const rep = reportRuns(runs, { composite: v.composite, snap: v.snap });
+      console.log(`layer census: ${rep.state}`);
+      console.log(rep.lines.join('\n'));
       break;
     }
     case 'quiet': {
