@@ -1,7 +1,9 @@
 Branch: worktree-wf_2ffa3f6a-227-1 (CI branch ci/people-o-preview-translate)
 Worktree: .claude/worktrees/wf_2ffa3f6a-227-1 (under the repo root)
-Last commit: dce0985e8 (first CI push; later commits follow in git log)
-CI runs: none dispatched yet (checkpoint 1: pushed, dispatching gate + counts next)
+Last commit: see git log (first CI push dce0985e8; the dispatches ran on that sha)
+CI runs: gate 39850908365 running; counts base 39850913549 FAILED; counts flag 39850930778 FAILED (both: Runtime.evaluate timed out
+in the load loop, run.mjs:146, desktop profile people-o-hover; the base fails too, so the profile or viewport hangs, not the flag).
+Next: diagnostic hangReport (Debugger.pause) added, base counts re-dispatched.
 
 # people-o-preview-translate: handoff
 
