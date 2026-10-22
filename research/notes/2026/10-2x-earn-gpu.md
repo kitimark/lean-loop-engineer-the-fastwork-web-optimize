@@ -333,7 +333,8 @@ second or same), not of all jobs. An `insufficient` job counts as absent.
 - What still guards it: fewer than `minSamples = 3` decisive jobs give `insufficient` (`acrossDecisive_insufficient`
   :652). A `first` needs at least 3 decisive jobs, at least two thirds of them `first` and no `second`
   (`acrossDecisive_first_two_thirds` :673; `second` mirrored in :680), so never fewer than 2 agreeing jobs. The
-  branch theorems are `acrossDecisive_first` / `_second` / `_split` / `_same` (:656-671); `acrossDecisive_swap` :700.
+  branch theorems are `acrossDecisive_first` / `_second` / `_split` / `_same` (:656-671); `acrossDecisive_swap` :700. The title's example (no `second` from fewer than `minSamples` seconds) does not hold: 2 of 3
+  decisive seconds give `second`, as before with 3 jobs.
 - Goldens: op `acrossDecisive` in `packages/contracts/golden/gate/smooth.jsonl` (8 cases, all four outcomes). Twins:
   `acrossDecisive` in `packages/gate-breakpoints/src/smooth/reduce.mjs`, used by `acrossJobs` in
   `packages/measure-webkit/src/profile/report.mjs` (new field `need`) and by `summary` in
@@ -347,7 +348,7 @@ Re-reduction under the new rule, offline, no new dispatch (MEASURED):
 | `results/smoothness-webkit/summary.json` (run 39634194664, from the per-pair counts) | 36 | 15 | 0 |
 | `results/smoothness-probe/cadence.table.json` (runs 39580977630, 39583122954, 39585007706, 39589237987) | 24 | 0 | 0 |
 
-The pair `base|bound` keeps its verdicts: macOS `same` (0/0/3/0, `k` 2) in every zone; Simulator finish over the eleven
+The pair `base|bound` keeps its verdicts: macOS `same` (0/0/3/0, `k` 2) in every zone; Simulator finish over its eight
 jobs `same` (0/0/5/3, `k` 4 where the old rule used 6); Simulator hero and rest `insufficient` (0/0/0/8). Every
 verdict with an `insufficient` job either has fewer than 3 decisive jobs or no `first` and `second` at all, so no
 recorded verdict or ledger entry changes. INFERRED: the rule matters once a leg loses a job and the rest agree.
