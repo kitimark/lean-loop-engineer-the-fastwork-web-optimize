@@ -307,6 +307,20 @@ theorem hidden_needed : ∃ w h tr y p vh : Rat, Seen p vh y ∧ staticPixel ≠
   · unfold Seen; decide +kernel
   · decide +kernel
 
+theorem hidden_fails_390 : ¬ Hidden 873 1243 844 := by unfold Hidden darkTop; decide +kernel
+
+theorem hidden_fails_640 : ¬ Hidden 873 1716 844 := by unfold Hidden darkTop; decide +kernel
+
+theorem cover_meets (a stage c : Span) (hcov : a.top ≤ stage.top ∧ stage.bot ≤ a.bot)
+    (hin : stage.top ≤ c.top ∧ c.bot ≤ stage.bot) (hne : c.top < c.bot) : a.meets c := by
+  unfold Span.meets; omega
+
+theorem below_promotes (a : Span) (c : Content) (hm : a.meets c.span) : promoted [a] c = true := by
+  simp [promoted, hm]
+
+theorem above_hides (c : Rgb) (hc : c ≠ light) : over c light 1 ≠ c := by
+  rw [over_one]; exact fun h => hc h.symm
+
 def ownsFlip (variant : String) (supports : Bool) : Bool :=
   (variant == "dark-scroll" && supports) || variant == "dark-static"
 
