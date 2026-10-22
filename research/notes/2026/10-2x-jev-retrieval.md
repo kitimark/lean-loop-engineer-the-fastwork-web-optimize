@@ -59,7 +59,8 @@ All of the above is MEASURED with the script.
 - **What each read was.** Each agent read one distinct file, its chunk file. The Read tool cut each chunk at 8,000
   tokens and sent a `read_truncation_notice` saying not to answer from the first page. The agents then re-read with
   an offset, so every agent saw every line before answering (column "agents seeing every line" in `tables.md`: 42 of
-  42).
+  42; the Read tool numbers the empty line after the final newline, the script allows that one line, and it counts
+  the 2 agents whose single read had no truncation notice as full).
 - **The prompt rule.** The workflow prompt told each agent to read its chunk file and "Do not use any other tool,
   file, search or prior knowledge of this project" (CONFIRMED, the computed prompt in each log, read as data).
 - **Context injected without a tool call.** Every log has `instructions` (CLAUDE.md and MEMORY.md), `environment`,
@@ -128,8 +129,9 @@ All Claude Code facts below are CONFIRMED from the docs fetched on 2026-10-22, u
 **Cost per row (INFERRED, measure in the follow-up).** Measured clean-run cost per row: Haiku $0.0006, Sonnet $0.0102
 (`10-2x-jev-arms-clean.md:111-112@2e723b9e`, MEASURED there). A traced row resends a growing context on each turn,
 mostly from cache. At ≤ 8 reads, ≤ 32 KiB read and ≤ 10 turns, that is about 10 to 50 times the clean tokens:
-Haiku ≤ $0.03 and Sonnet ≤ $0.50 per row worst case, or ≤ $21 for 38 rows on both models. Cap it with
-`--max-budget-usd` per call (Haiku 0.05, Sonnet 0.60). The dollar figure is Claude Code's `total_cost_usd`; the real
+Haiku ≤ $0.03 and Sonnet ≤ $0.51 per row worst case, or ≤ $21 for 38 rows on both models. Cap it with
+`--max-budget-usd` per call (Haiku 0.05, Sonnet 0.60); the caps bound it at 38 × ($0.05 + $0.60) = $24.70, and spend
+can pass a cap (cli-reference, `--max-budget-usd`). The dollar figure is Claude Code's `total_cost_usd`; the real
 cost is plan quota, as in the clean run.
 
 ## 3. Jev capability
@@ -222,7 +224,7 @@ are read at one commit, not at each review's time.
 - Jev: ≤ 114 sends, split into runs of 19 rows (≤ 38 sends, ≤ about 200,000 estimated tokens per run). With the
   ablation's 38 that is ≤ 152 on one day, under `dailyCap` 200. Input is ≤ about 1 M tokens, about $0.04 at $0.042
   per M.
-- Claude: 76 traced calls, each capped by `--max-turns 10` and `--max-budget-usd`, at ≤ $21 worst case (INFERRED).
+- Claude: 76 traced calls, each capped by `--max-turns 10` and `--max-budget-usd`, at ≤ $21 expected worst case and ≤ $25 under the per-call caps (INFERRED).
 - First, one probe call per model: does `showThinkingSummaries` give thinking text under `-p`? Record yes or no;
   either way the evidence field is the reasoning record.
 
