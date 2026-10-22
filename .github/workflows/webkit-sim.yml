@@ -433,6 +433,7 @@ jobs:
             ls -l out
             exit 0
           fi
+          if [ "$LAG" != yes ] && [ "$COST" != off ]; then echo "::error::cost=$COST needs lag=true"; exit 2; fi
           if [ "$LAG" = yes ]; then
             node src/lag/cli.mjs run --passes 2 --cost "$COST" --keep ${site[@]+"${site[@]}"} --out "out/$VM-lag.json" 2> >(tee "out/$VM-lag.log" >&2)
             ls -l out
