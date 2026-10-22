@@ -13,11 +13,6 @@ export interface HeroOrbitProps {
 
 const RING = ringIndex(PIECES);
 
-/**
- * Inline variables of a card at server render (the original's `L`, N2:4101-4120): position in percent of the canvas, size,
- * design left and right gaps, rest rotation, start rotation and offset on the ring, start scale, entrance delay, scatter.
- * Computed from the Lean-checked functions; the driver rewrites the three start variables during the splash.
- */
 export function cardStyle(p: Piece, ring: number): CSSProperties {
   const leftPct = (p.left / CANVAS_W) * 100;
   const topPct = (p.top / CANVAS_H) * 100;
@@ -43,18 +38,12 @@ export function cardStyle(p: Piece, ring: number): CSSProperties {
   } as CSSProperties;
 }
 
-/** A hovered card comes to the front: its z-index becomes one above the highest card's (N2:4121-4129). */
 function raise(e: React.PointerEvent<HTMLElement>) {
   const cards = [...e.currentTarget.parentElement!.children] as HTMLElement[];
   const top = Math.max(1, ...cards.map((c) => Number(c.style.zIndex || 1)));
   e.currentTarget.style.zIndex = String(top + 1);
 }
 
-/**
- * hero.orbit: the ring of ten cards and its load splash. Server render: hero in `prep`, cards at their start offsets. After
- * mount the driver (Lean `HeroOrbit`) runs the splash on the clock, then sets `data-done`; under reduced motion or at
- * width <= 600 the splash is skipped.
- */
 export function HeroOrbit({ variant }: HeroOrbitProps) {
   const orbitRef = useRef<HTMLDivElement>(null);
 
@@ -103,6 +92,7 @@ export function HeroOrbit({ variant }: HeroOrbitProps) {
               role={CARDS[i]!.role}
               cover={CARDS[i]!.cover}
               avatar={CARDS[i]!.avatar}
+              data-fw-layer="hero.orbit_card"
               data-orbit-id={p.id}
               data-orbit-side={p.left / CANVAS_W * 100 < 50 ? 'left' : 'right'}
               data-piece={p.id}

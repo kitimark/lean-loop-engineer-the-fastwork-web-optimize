@@ -1,49 +1,44 @@
 {
  "excerpts": [
   {
-   "anchor": "max-width 0.68s",
+   "anchor": "--earn-out: clamp(",
    "file": "apps/site/src/parts/nav/nav.module.css",
-   "first": 167,
    "id": "css-rule",
-   "last": 185,
    "note": "Both arms. The three properties are functions of --morph and carry a 680 ms transition (opacity 320 ms after a 120 ms delay).",
-   "side": "faithful"
+   "side": "faithful",
+   "span": 18
   },
   {
-   "anchor": "transition: none",
+   "anchor": ".nav:global(.is-earn-still) .btn.earn {",
    "file": "apps/site/src/parts/nav/nav.module.css",
-   "first": 201,
    "id": "css-flag",
-   "last": 203,
    "note": "Flag only: while the nav carries is-earn-still, the button has no transition, so it shows the computed value.",
-   "side": "flag"
+   "side": "flag",
+   "span": 3
   },
   {
-   "anchor": "return !(flag && morphing)",
+   "anchor": "export function earnTransitionOn(",
    "file": "apps/site/src/parts/nav/logic.ts",
-   "first": 92,
    "id": "js-decision",
-   "last": 95,
    "note": "The decision (Lean transitionsOn): transitions run unless the flag is on and the nav is morphing.",
-   "side": "flag"
+   "side": "flag",
+   "span": 3
   },
   {
    "anchor": "m > MORPHING_CUT",
    "file": "apps/site/src/parts/nav/logic.ts",
-   "first": 63,
    "id": "js-morphing",
-   "last": 63,
    "note": "The nav counts as morphing above m = 0.001.",
-   "side": "both"
+   "side": "both",
+   "span": 1
   },
   {
-   "anchor": "EARN_STILL_CLASS",
+   "anchor": "nav.classList.toggle(EARN_STILL_CLASS",
    "file": "apps/site/src/parts/nav/index.tsx",
-   "first": 104,
    "id": "js-apply",
-   "last": 104,
    "note": "Each frame the class is set from the decision. Without the flag the call is always true, so the class is never set.",
-   "side": "flag"
+   "side": "flag",
+   "span": 1
   }
  ],
  "flag": "nav:earn-no-transition",

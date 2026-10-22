@@ -1,24 +1,14 @@
 import Fw.Parts.NavEarnOpt
 import Fw.Preset.Gen
-/-!
-# What a look change gives, what it changes, and why
-
-The information panel of a look-change review card: a gain table per flag (each row with its status), the code ranges the
-flag changes, the mechanism and the formulas with their Lean sources. The model rows are computed from `NavEarnOpt.countFor`
-(the same function that writes `golden/parts/nav-earn.jsonl`), so they cannot differ from it. The measured rows are those of
-`research/notes/2026/10-20-earn-transition-retarget.md`.
--/
 namespace Fw.Console.ReviewInfo
 open Fw.Parts
 
-/-- Where a row's numbers come from. A gain is never listed without one. -/
 inductive Status
   | measured (runs aa : List String)
   | modelled (thm golden : String)
   | unknown (why : String)
 deriving DecidableEq, Repr
 
-/-- One row of the gain table. `before` and `after` are ranges (low, high) of a count; the unit says what is counted. -/
 structure Gain where
   metric : String
   engine : String
@@ -31,7 +21,6 @@ structure Gain where
   status : Status
 deriving DecidableEq, Repr
 
-/-- What a row shows as its delta. `overlap`: the two ranges share a count, so no difference is shown. -/
 inductive Shown
   | gain (n : Nat)
   | noSaving
@@ -41,19 +30,12 @@ inductive Shown
   | unknown
 deriving DecidableEq, Repr
 
-/-- The cautious delta of a gain: the lowest `before` minus the highest `after` (the least the flag can have saved). -/
 def gainLow (b a : Nat × Nat) : Int := (b.1 : Int) - a.2
 
-/-- The cautious delta of a loss: the highest `before` minus the lowest `after` (the least the flag can have cost; negative
-when the flag did cost). -/
 def lossHigh (b a : Nat × Nat) : Int := (b.2 : Int) - a.1
 
-/-- The ranges share a count. -/
 def overlaps (b a : Nat × Nat) : Bool := decide (a.1 ≤ b.2 ∧ b.1 ≤ a.2)
 
-/-- What a row shows. A gain shows only when its cautious bound beats the noise; a loss shows only when its cautious bound
-(the other end of each range) is worse than minus the noise; overlapping ranges show no difference; a delta inside the noise
-is not shown. -/
 def shownOf (noise : Nat) (b a : Option (Nat × Nat)) : Shown :=
   match b, a with
   | some b, some a =>
@@ -64,7 +46,6 @@ def shownOf (noise : Nat) (b a : Option (Nat × Nat)) : Shown :=
     else .inNoise
   | _, _ => .unknown
 
-/-- A gain is shown only when its cautious bound is larger than the noise. -/
 theorem gain_beats_noise (noise : Nat) (b a : Option (Nat × Nat)) (n : Nat) (h : shownOf noise b a = .gain n) :
     ∃ x y, b = some x ∧ a = some y ∧ (noise : Int) < gainLow x y := by
   unfold shownOf at h
@@ -75,7 +56,6 @@ theorem gain_beats_noise (noise : Nat) (b a : Option (Nat × Nat)) (n : Nat) (h 
     · split at h <;> (try split at h) <;> (try split at h) <;> simp at h
   · simp at h
 
-/-- A loss is shown only when its cautious bound (highest before minus lowest after) is below minus the noise. -/
 theorem worse_beats_noise (noise : Nat) (b a : Option (Nat × Nat)) (n : Nat) (h : shownOf noise b a = .worse n) :
     ∃ x y, b = some x ∧ a = some y ∧ lossHigh x y < -(noise : Int) := by
   unfold shownOf at h
@@ -88,7 +68,6 @@ theorem worse_beats_noise (noise : Nat) (b a : Option (Nat × Nat)) (n : Nat) (h
       · split at h <;> (try split at h) <;> simp at h
   · simp at h
 
-/-- Overlapping ranges are never a gain or a loss, whatever the noise. -/
 theorem overlap_no_difference (noise : Nat) (b a : Nat × Nat) (h : overlaps b a = true) :
     shownOf noise (some b) (some a) = .noSaving ∨ shownOf noise (some b) (some a) = .overlap := by
   unfold overlaps at h
@@ -101,7 +80,6 @@ theorem overlap_no_difference (noise : Nat) (b a : Nat × Nat) (h : overlaps b a
   · simp [hn]
   · simp [hn, overlaps, h]
 
-/-- A delta inside the noise (and a noise above zero) is `inNoise` or `overlap`, never a gain or a loss. -/
 theorem in_noise_hidden (noise : Nat) (b a : Nat × Nat) (hn : 0 < noise) (h1 : gainLow b a ≤ noise)
     (h2 : -(noise : Int) ≤ lossHigh b a) :
     shownOf noise (some b) (some a) = .inNoise ∨ shownOf noise (some b) (some a) = .overlap := by
@@ -112,10 +90,8 @@ theorem in_noise_hidden (noise : Nat) (b a : Nat × Nat) (hn : 0 < noise) (h1 : 
   simp only [a1, a2, c, ite_false]
   split <;> simp
 
-/-- What a row shows. -/
 def Gain.shown (g : Gain) : Shown := shownOf g.noise g.before g.after
 
-/-- An unknown row has no delta. -/
 theorem unknown_no_delta (noise : Nat) (a : Option (Nat × Nat)) : shownOf noise none a = .unknown := by
   simp [shownOf]
 
@@ -123,7 +99,6 @@ private def earnRuns : List String := ["39463486725", "39464309993"]
 private def earnAA : List String := ["39464294630", "39464322751"]
 private def vpWord : String := "1440 and 390 (same)"
 
-/-- The work count of a property of the earn button on one push at both viewports, from the model that writes the golden. -/
 def modelCount (n : String) (a b : Rat) : Option (Nat × Nat) :=
   match NavEarnOpt.countFor ⟨1440, 900⟩ a b n, NavEarnOpt.countFor ⟨390, 844⟩ a b n with
   | some d, some p => if d == p then some (d.faithful, d.arm) else none
@@ -136,9 +111,6 @@ private def model (metric n push : String) (a b : Rat) : Gain :=
   | none => { metric := metric, engine := "model (both engines)", push := push, viewport := vpWord, before := none, after := none, noise := 0,
                       unit := "frames", status := .unknown "the model gives different counts at the two viewports" }
 
-/-- The A/A noise of a measured row, in the row's own metric: the largest cautious delta (gain bound or loss bound, either sign)
-between the `base` and `cand` arms of the two A/A runs `earnAA`, over the widths 390, 640, 641, 1280 and both pushes. MEASURED:
-`research/notes/2026/10-20-earn-transition-retarget.md`, table "A/A value changes". Opacity 2, max-width 4. -/
 def aaNoise (metric : String) : Nat := if metric == "earn opacity changes" then 2 else 4
 
 private def meas (metric push viewport : String) (b a : Nat × Nat) : Gain :=
@@ -149,7 +121,6 @@ private def webkit (push : String) : Gain :=
   { metric := "earn value changes", engine := "webkit", push, viewport := "390 and 1280", before := none, after := none, noise := 0,
     unit := "-", status := .unknown "playwright-webkit on Linux samples 3 to 9 frames per push, too few to count changes; WebKit paint and composite counters are a follow-up" }
 
-/-- The gain table of `nav:earn-no-transition`. -/
 def earnGains (_ : Unit := ()) : List Gain :=
   [ model "earn max-width" "maxW" "open" 0 1, model "earn padding-inline" "pad" "open" 0 1, model "earn opacity" "opacity" "open" 0 1,
     model "earn max-width" "maxW" "close" 1 0, model "earn padding-inline" "pad" "close" 1 0, model "earn opacity" "opacity" "close" 1 0,
@@ -161,52 +132,160 @@ def earnGains (_ : Unit := ()) : List Gain :=
     meas "earn max-width changes" "open" "641" (29, 30) (1, 2), meas "earn opacity changes" "open" "641" (11, 12) (1, 2),
     webkit "open", webkit "close" ]
 
--- the model rows are the golden counts (research note: open 43 to 3, 43 to 3, 29 to 3; close 65, 65, 51 unchanged)
 #guard ((earnGains ()).take 6).map (fun g => (g.before, g.after)) ==
   [(some (43, 43), some (3, 3)), (some (43, 43), some (3, 3)), (some (29, 29), some (3, 3)),
    (some (65, 65), some (65, 65)), (some (65, 65), some (65, 65)), (some (51, 51), some (51, 51))]
 #guard ((earnGains ()).take 6).map (fun g => g.shown) == [.gain 40, .gain 40, .gain 26, .noSaving, .noSaving, .noSaving]
--- measured, in the order of the 390 and 1280 rows: open gains beat the noise; 390 close max-width overlaps (38-40 and 40-41), 390 close
--- opacity (12 against 25-26) is a loss of 13 by the cautious bound, 1280 close max-width overlaps, 1280 close opacity (9-10 against 13) a loss of 3
 #guard ((earnGains ()).drop 6 |>.take 8).map (fun g => g.shown) ==
   [.gain 37, .gain 14, .gain 14, .gain 3, .overlap, .worse 13, .overlap, .worse 3]
 #guard ((earnGains ()).drop 14 |>.take 4).map (fun g => g.shown) == [.gain 25, .gain 7, .gain 27, .gain 9]
 #guard ((earnGains ()).drop 18).map (fun g => g.shown) == [.unknown, .unknown]
--- the same rule on the three cases the review named
 #guard shownOf 4 (some (38, 40)) (some (40, 41)) == .overlap
 #guard shownOf 2 (some (12, 12)) (some (25, 26)) == .worse 13
 #guard shownOf 2 (some (9, 10)) (some (13, 13)) == .worse 3
 
-/-- A code range a flag changes: the file, the lines, an anchor that must still be inside them, and which arm it belongs to. -/
 structure Excerpt where
   id : String
   side : String
   file : String
-  first : Nat
-  last : Nat
   anchor : String
+  span : Nat
   note : String
 deriving DecidableEq, Repr
 
-/-- The code the flag changes (restated from the repository at request time by the console, never copied here). -/
 def earnExcerpts : List Excerpt :=
-  [ { id := "css-rule", side := "faithful", file := "apps/site/src/parts/nav/nav.module.css", first := 167, last := 185,
-      anchor := "max-width 0.68s",
+  [ { id := "css-rule", side := "faithful", file := "apps/site/src/parts/nav/nav.module.css",
+      anchor := "--earn-out: clamp(", span := 18,
       note := "Both arms. The three properties are functions of --morph and carry a 680 ms transition (opacity 320 ms after a 120 ms delay)." },
-    { id := "css-flag", side := "flag", file := "apps/site/src/parts/nav/nav.module.css", first := 201, last := 203,
-      anchor := "transition: none",
+    { id := "css-flag", side := "flag", file := "apps/site/src/parts/nav/nav.module.css",
+      anchor := ".nav:global(.is-earn-still) .btn.earn {", span := 3,
       note := "Flag only: while the nav carries is-earn-still, the button has no transition, so it shows the computed value." },
-    { id := "js-decision", side := "flag", file := "apps/site/src/parts/nav/logic.ts", first := 92, last := 95,
-      anchor := "return !(flag && morphing)",
+    { id := "js-decision", side := "flag", file := "apps/site/src/parts/nav/logic.ts",
+      anchor := "export function earnTransitionOn(", span := 3,
       note := "The decision (Lean transitionsOn): transitions run unless the flag is on and the nav is morphing." },
-    { id := "js-morphing", side := "both", file := "apps/site/src/parts/nav/logic.ts", first := 63, last := 63,
-      anchor := "m > MORPHING_CUT",
+    { id := "js-morphing", side := "both", file := "apps/site/src/parts/nav/logic.ts",
+      anchor := "m > MORPHING_CUT", span := 1,
       note := "The nav counts as morphing above m = 0.001." },
-    { id := "js-apply", side := "flag", file := "apps/site/src/parts/nav/index.tsx", first := 104, last := 104,
-      anchor := "EARN_STILL_CLASS",
+    { id := "js-apply", side := "flag", file := "apps/site/src/parts/nav/index.tsx",
+      anchor := "nav.classList.toggle(EARN_STILL_CLASS", span := 1,
       note := "Each frame the class is set from the decision. Without the flag the call is always true, so the class is never set." } ]
 
-/-- A step of the mechanism, in plain words. -/
+#guard earnExcerpts.all fun e => e.anchor != "" && e.span ≥ 1
+
+def anchorLinesFrom (a : String) : Nat → List String → List Nat
+  | _, [] => []
+  | n, l :: ls => if l.contains a then n :: anchorLinesFrom a (n + 1) ls else anchorLinesFrom a (n + 1) ls
+
+def anchorLines (ls : List String) (a : String) : List Nat := anchorLinesFrom a 1 ls
+
+inductive Located
+  | at (first last : Nat)
+  | missing
+  | twice (lines : List Nat)
+  | outside (first span total : Nat)
+deriving DecidableEq, Repr
+
+def locate (ls : List String) (a : String) (span : Nat) : Located :=
+  match anchorLines ls a with
+  | [] => .missing
+  | [n] => if 1 ≤ span ∧ n + span - 1 ≤ ls.length then .at n (n + span - 1) else .outside n span ls.length
+  | ns => .twice ns
+
+#guard locate ["a", "beta", "c", "d"] "beta" 2 == .at 2 3
+#guard locate ["a", "beta", "c"] "zeta" 1 == .missing
+#guard locate ["beta", "x", "alphabeta"] "beta" 1 == .twice [1, 3]
+#guard locate ["a", "beta"] "beta" 2 == .outside 2 2 2
+#guard locate ["a", "beta"] "beta" 0 == .outside 2 0 2
+#guard locate ["new", "lines", "a", "beta", "c"] "beta" 2 == .at 4 5
+
+def Located.reason (file anchor : String) : Located → Option String
+  | .at _ _ => none
+  | .missing => some s!"the anchor \"{anchor}\" is on no line of {file}; the Lean excerpt needs a new anchor"
+  | .twice ns => some s!"the anchor \"{anchor}\" is on {ns.length} lines of {file} ({", ".intercalate (ns.map toString)}); the Lean excerpt needs an anchor that occurs once"
+  | .outside n k t => some s!"{k} lines from the anchor \"{anchor}\" at {file}:{n} do not fit the file ({t} lines); the Lean span needs an update"
+
+theorem locate_at (ls : List String) (a : String) (k f l : Nat) :
+    locate ls a k = .at f l ↔ anchorLines ls a = [f] ∧ 1 ≤ k ∧ f + k - 1 ≤ ls.length ∧ l = f + k - 1 := by
+  unfold locate
+  rcases hA : anchorLines ls a with _ | ⟨n, _ | ⟨m, rest⟩⟩
+  · simp
+  · dsimp only
+    split
+    · rename_i hc
+      simp only [Located.at.injEq, List.cons.injEq, and_true]
+      constructor
+      · rintro ⟨rfl, rfl⟩; exact ⟨rfl, hc.1, hc.2, rfl⟩
+      · rintro ⟨rfl, -, -, rfl⟩; exact ⟨rfl, rfl⟩
+    · rename_i hc
+      simp only [reduceCtorEq, false_iff, List.cons.injEq, and_true]
+      rintro ⟨rfl, h2, h3, -⟩; exact hc ⟨h2, h3⟩
+  · simp
+
+theorem locate_missing (ls : List String) (a : String) (k : Nat) : locate ls a k = .missing ↔ anchorLines ls a = [] := by
+  unfold locate
+  rcases hA : anchorLines ls a with _ | ⟨n, _ | ⟨m, rest⟩⟩
+  · simp
+  · dsimp only; split <;> simp
+  · simp
+
+theorem locate_twice (ls : List String) (a : String) (k : Nat) (ns : List Nat) :
+    locate ls a k = .twice ns ↔ anchorLines ls a = ns ∧ 2 ≤ ns.length := by
+  unfold locate
+  rcases hA : anchorLines ls a with _ | ⟨n, _ | ⟨m, rest⟩⟩
+  · simp only [reduceCtorEq, false_iff, not_and]; rintro rfl; simp
+  · dsimp only
+    split <;> simp only [reduceCtorEq, false_iff, not_and] <;> rintro rfl <;> simp
+  · simp only [Located.twice.injEq]
+    constructor
+    · rintro rfl; simp
+    · rintro ⟨rfl, -⟩; rfl
+
+theorem locate_outside (ls : List String) (a : String) (k f t : Nat) :
+    locate ls a k = .outside f k t ↔ anchorLines ls a = [f] ∧ ¬(1 ≤ k ∧ f + k - 1 ≤ ls.length) ∧ t = ls.length := by
+  unfold locate
+  rcases hA : anchorLines ls a with _ | ⟨n, _ | ⟨m, rest⟩⟩
+  · simp
+  · dsimp only
+    split
+    · rename_i hc
+      simp only [reduceCtorEq, false_iff, List.cons.injEq, and_true, not_and]
+      rintro rfl h2; exact (h2 hc.1 hc.2).elim
+    · rename_i hc
+      simp only [Located.outside.injEq, List.cons.injEq, and_true, true_and]
+      constructor
+      · rintro ⟨rfl, rfl⟩; exact ⟨rfl, hc, rfl⟩
+      · rintro ⟨rfl, -, rfl⟩; exact ⟨rfl, rfl⟩
+  · simp
+
+theorem anchorLinesFrom_shift (a : String) (ls : List String) (n k : Nat) :
+    anchorLinesFrom a (n + k) ls = (anchorLinesFrom a n ls).map (· + k) := by
+  induction ls generalizing n with
+  | nil => rfl
+  | cons l ls ih =>
+    simp only [anchorLinesFrom]
+    have := ih (n + 1)
+    rw [show n + k + 1 = n + 1 + k by omega, this]
+    split <;> simp [Nat.add_comm]
+
+theorem anchorLinesFrom_prefix (a : String) (pre ls : List String) (n : Nat) (h : ∀ l ∈ pre, l.contains a = false) :
+    anchorLinesFrom a n (pre ++ ls) = anchorLinesFrom a (n + pre.length) ls := by
+  induction pre generalizing n with
+  | nil => rfl
+  | cons l pre ih =>
+    simp only [List.cons_append, anchorLinesFrom, h l (by simp), List.length_cons]
+    rw [ih (n + 1) (fun x hx => h x (by simp [hx]))]
+    exact congrArg (anchorLinesFrom a · ls) (by omega)
+
+theorem locate_shift (pre ls : List String) (a : String) (k f l : Nat) (h : ∀ x ∈ pre, x.contains a = false)
+    (hl : locate ls a k = .at f l) : locate (pre ++ ls) a k = .at (f + pre.length) (l + pre.length) := by
+  obtain ⟨h1, h2, h3, h4⟩ := (locate_at ls a k f l).mp hl
+  have hA : anchorLines (pre ++ ls) a = [f + pre.length] := by
+    simp only [anchorLines] at h1 ⊢
+    rw [anchorLinesFrom_prefix a pre ls 1 h, anchorLinesFrom_shift, h1]; simp
+  refine (locate_at _ a k _ _).mpr ⟨hA, h2, ?_, ?_⟩
+  · simp; omega
+  · omega
+
 def earnMechanism : List String :=
   [ "Each frame --morph changes, so the computed max-width, padding-inline and opacity of the earn button change (nav.module.css:173-175).",
     "The same rule lists transitions: 680 ms for max-width and padding-inline, 320 ms after a 120 ms delay for opacity (nav.module.css:179-182).",
@@ -217,14 +296,12 @@ def earnMechanism : List String :=
     "A row that says 'N more' counts value changes, not restyle work. On the close push the faithful opacity is held at 0 by the restarting 120 ms delay, so it changes on fewer frames, yet the faithful arm restyles the button on as many frames as the flag arm (modelled work 51 against 51 of 91, golden nav-earn.jsonl fn=work); the flag arm's opacity follows the morph and so changes value more often.",
     "A delta uses the cautious bound of its direction: a gain is the lowest faithful count minus the highest flag count, a loss is the highest faithful count minus the lowest flag count; ranges that share a count show no difference. A gain is shown only when its bound is greater than the noise, a loss only when its bound is below minus the noise ('N more' is minus the loss bound). A delta inside the A/A noise of the same metric is not shown. The 640 and 641 close rows are left out: the research note's value-change table has only their open rows." ]
 
-/-- An engine source line that supports the mechanism. -/
 structure Source where
   claim : String
   status : String
   cite : String
 deriving DecidableEq, Repr
 
-/-- The engine sources of the mechanism (research note, table "Engine source"). -/
 def earnSources : List Source :=
   [ { claim := "WebKit: a computed-value change of a listed property while a transition runs cancels it and starts a new one from the current value, with the full duration and delay",
       status := "CONFIRMED", cite := "WebKit@862f17d Source/WebCore/style/Styleable.cpp:743-756" },
@@ -235,8 +312,6 @@ def earnSources : List Source :=
     { claim := "Chromium: active transitions on properties that are no longer listed are cancelled",
       status := "CONFIRMED", cite := "Chromium@f842f52 css_animations.cc:3175-3182" } ]
 
-/-- A formula, written from a Lean statement. `kind` is `theorem`, `def` or `guard` (a `#guard` witness); `line` is where the Lean
-declaration starts (a test checks that the name is on that line). -/
 structure Formula where
   id : String
   tex : String
@@ -249,8 +324,6 @@ deriving DecidableEq, Repr
 
 private def nf : String := "lean/Fw/Parts/NavEarnOpt.lean"
 
-/-- The formulas of the earn flag. Notation: `g_k` the computed value at frame `k`, `t_k` the time of frame `k`, `\delta` and `d`
-the delay and duration of the transition, `\mathrm{on}_k` whether the property is listed. -/
 def earnFormulas : List Formula :=
   [ { id := "on", tex := "\\mathrm{on}(f,m)=\\lnot(f\\wedge m)", says := "Transitions are listed unless the flag is on and the nav is morphing.",
       decl := "transitionsOn", file := nf, line := 16, kind := "def" },
@@ -285,11 +358,9 @@ def earnFormulas : List Formula :=
       says := "The morph stops at frame 41; 41 more frames (683 ms) cover the longest delay plus duration, 41 frames are witnessed for both pushes at both viewports (NavEarnOpt.lean:448-451); that 40 do not is witnessed for desktop open only (:452).",
       decl := "settled3B", file := nf, line := 448, kind := "guard" } ]
 
-/-- The info of a flag: `none` when no table is written for it. -/
 def infoFor (key : String) : Option (List Gain × List Excerpt × List String × List Source × List Formula) :=
   if key == "nav:earn-no-transition" then some (earnGains (), earnExcerpts, earnMechanism, earnSources, earnFormulas) else none
 
-/-- The summary line, computed from the table. -/
 def earnSummary (_ : Unit := ()) : String :=
   let gs := earnGains ()
   let n (g : Gain) := match g.shown with | .gain k => k | .worse k => k | _ => 0

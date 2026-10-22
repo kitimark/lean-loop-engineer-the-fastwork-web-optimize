@@ -2721,6 +2721,51 @@
    "lesson": "Removing work from objects nobody sees helps only if the engine pays per object; INFERRED: WebKit pays one Layout pass per frame whatever the number of dirty SVG paths, so cutting 3 animated paths to 1 leaves the pass count unchanged and the saved part is too small to read.",
    "next": "Hold: keep the flag registered and out of the preset (class E, exact). Re-measure only with a lane that records per-frame time inside the draw windows (Simulator replay with RenderingFrame events, or the phone).",
    "evidence": "CI runs 39694357292 (lean), 39694389914 (breakpoint gate), 39694385829 (webkit-sim base), 39699740380 (webkit-sim flag); failed attempt 39694397870 (Simulator Runtime.evaluate timeout, not a result); research/notes/2026/10-2x-accent-draw-one.md; results/accent-draw-one/report.json"
+  },
+  {
+   "id": "platform.fade-threaded",
+   "n": 44,
+   "part": "platform",
+   "candidate": "platform:fade-threaded: run the section fade of a morph push as one opacity and blur Web Animation per push (Core Animation on WebKit) instead of writing --morph-fade every frame",
+   "status": "partly-proved",
+   "flag": "platform:fade-threaded",
+   "flags": [
+    "platform:fade-threaded"
+   ],
+   "chromium": "unknown",
+   "webkit": "no-win",
+   "visual": "Not E or E1 on WebKit (webkit_not_exact: CA blur is not the software blur), so Q at best; no PathPix pixel cell measured. Equal opacity and blur values on every frame under the WAAPI premises (threaded_eq, frame_blur_eq, retarget_from_shown)",
+   "mechanism": "MEASURED (CI webkit-sim, iOS Simulator 430x775, morph pass at the page end y 5231 or 5267 (document height varies by pass), 130 frames with a push down and a push up, two passes per arm; base run 39731023406, flag run 39731104953): RecalculateStyles 259/259 vs 261/261, Layout 169/174 vs 178/174, Paint records 740/1159 vs 1162/1186; Composite time per frame of the open push 168-269 ms vs 134-167 ms (3-4 frames per push, close push overlaps). End-of-page scroll window y >= 4500: RecalculateStyles 92/99 vs 100/76, Layout 91/101 vs 112/64, within the pass-to-pass gap. PROVED in the write model (recalc_same, writesT_sub): the variant drops only the section write, and the nav --morph write still schedules a recalc on every fade frame. CONFIRMED a second cause: the running effect invalidates the section on every tick (KeyframeEffect.cpp:2128-2130, 1731-1734@862f17d), so moving the nav write alone would not remove the recalc either. Breakpoint gate both engines: run 39730956361.",
+   "leanFor": [
+    "Fw.Parts.PlatformFade.interp_eq",
+    "Fw.Parts.PlatformFade.interp_blur",
+    "Fw.Parts.PlatformFade.frame_eq",
+    "Fw.Parts.PlatformFade.frame_blur_eq",
+    "Fw.Parts.PlatformFade.threaded_eq",
+    "Fw.Parts.PlatformFade.retarget_from_shown",
+    "Fw.Parts.PlatformFade.props_accelerated",
+    "Fw.Parts.PlatformFade.ca_accepts"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.PlatformFade.recalc_same",
+    "Fw.Parts.PlatformFade.webkit_not_exact"
+   ],
+   "missingWhy": [
+    "Paint records during a push (about 95 per frame in both arms) are not modelled by element, so the section repaint saved by the effect is not separated from the rest",
+    "Compositor cost is not measured: the Simulator has no real GPU, and the open-push Composite drop rests on 3-4 frames per pass",
+    "Chromium not measured: Blink refuses to composite a pixel-moving filter effect, so the blur stays on the main thread there (INFERRED no saving)"
+   ],
+   "premises": [
+    "CONFIRMED: GraphicsLayerCA accepts the effect (rate 1, forward, nonzero duration, two or more keyframes, no steps, curve in [0, 1]) (Source/WebCore/platform/graphics/ca/GraphicsLayerCA.cpp:1169-1196@862f17d) and supports filter animations (:289@862f17d)",
+    "CONFIRMED: opacity and filter are accelerated without the threaded-animations setting (Source/WebCore/css/CSSProperties.json:7114, 10263@862f17d)",
+    "CONFIRMED: Blink marks a filter effect with a pixel-moving filter as not compositable (third_party/blink/renderer/core/animation/compositor_animations.cc:408-416@f842f52)",
+    "CONFIRMED: the tween writes the nav --morph and data-fw-morph on every tick (apps/site/src/parts/morph.tween/driver.ts:129, index.tsx:48-52)",
+    "WaapiPremises (Fw.Parts.MorphTweenOpt): linear number interpolation, an exact timing curve, one timeline offset for frames and start reads"
+   ],
+   "v1Evidence": "",
+   "lesson": "Moving one property of a frame to the compositor saves no style recalculation while another write on the same frame still invalidates style; count the writes per frame of every element the driver touches before expecting fewer recalcs. The possible gain of a threaded fade is paint and raster of the blurred section, which a Simulator count lane cannot show.",
+   "next": "Hold; no port task. Re-open only with the nav --morph off the main thread and the effect on the threaded-animations path (no per-tick invalidate), measured on a real-GPU lane.",
+   "evidence": "CI runs 39730956361, 39731023406, 39731104953; research/notes/2026/10-2x-platform-fade-threaded.md; results/platform-fade-threaded/report.json"
   }
  ],
  "notes": [
