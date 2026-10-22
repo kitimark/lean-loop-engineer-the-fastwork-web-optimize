@@ -12,6 +12,6 @@ Rule: `runCount` counts document-timeline animations only; page.mjs: 3 filters +
 Note: `research/notes/2026/10-2x-gate-settle-scroll-timeline.md` (section 4 result to fill from the gate run).
 
 Result (note section 4): unsettled 155 -> 0 on both engines; WebKit fails are `translate` of hero.orbit/hero.deck cards (rewrite -0.000022px vs 0px), a finding for hero-exit-threaded.
-Open: full package test + `lean/scripts/check.sh` via slot, ci-paths test, runner land-inputs test, dry land, `fw review ready`.
-A gate verdict that turns from unsettled into a real fail on hero.exit:threaded cells is a finding for hero-exit-threaded, not a defect here.
-Conventions: BSD sed needs `sed -i ''`; the worktree needs `pnpm install --offline --frozen-lockfile` before a push (pre-push hook).
+Verified before hand-back: `lean/scripts/check.sh` green (slot), `pnpm --filter @fw/gate-breakpoints test` 600 pass, `scripts/ci-paths.test.mjs` 54 pass, runner `land-inputs` 56 pass, dry land `VERDICT dry gate-settle-scroll-timeline` after merging main.
+Open: nothing for this task. Follow-up for hero-exit-threaded: WebKit `translate` of hero.orbit/hero.deck cards reads -0.000022px -0.000015px vs 0px (147 readings, 17 cells).
+Conventions: BSD sed needs `sed -i ''`; the worktree needs `pnpm install --offline --frozen-lockfile` before a push (pre-push hook); no code changed after the gate run (ff8c8cd1), only docs and merges of main.
