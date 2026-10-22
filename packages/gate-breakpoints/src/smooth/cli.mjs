@@ -3,6 +3,7 @@
 //   node src/smooth/cli.mjs continuity --runs <dir> --out <dir>   motion continuity from downloaded trajectory-probe runs (part A)
 //   node src/smooth/cli.mjs run --widths 390,1280 --search ?preset=v2-proved --reps 6 --out <dir>   the cadence lane on one runner (part B)
 //   node src/smooth/cli.mjs webkit --width 390 --search ?fw=... --reps 6 --cadence-reps 5 --out <dir>   leg 1 of smoothness-webkit-cadence (WebKit on macOS)
+//     [--arms base,aa,bound] runs just those arms (no --search needed); [--hold-ms 1400] holds each half of the end push that long
 //   node src/smooth/cli.mjs cadence --runs <dir> --out <dir>      frame cadence from downloaded smoothness runs (part B)
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -42,7 +43,8 @@ if (cmd === 'continuity') {
   // Leg 1 of smoothness-webkit-cadence: Playwright WebKit on a macOS runner, all arms, the Timeline profile and the cadence.
   const { runWebkitCadence } = await import('./webkit-cadence.mjs');
   const out = flag('--out') ?? 'out/smoothness-webkit';
-  const res = await runWebkitCadence({ width: Number(flag('--width') ?? 390), lookSearch: flag('--search'), reps: Number(flag('--reps') ?? 6), cadenceReps: Number(flag('--cadence-reps') ?? 5) });
+  const { parseArms } = await import('./bound.mjs');
+  const res = await runWebkitCadence({ width: Number(flag('--width') ?? 390), lookSearch: flag('--search'), only: parseArms(flag('--arms')), holdMs: flag('--hold-ms'), reps: Number(flag('--reps') ?? 6), cadenceReps: Number(flag('--cadence-reps') ?? 5) });
   mkdirSync(out, { recursive: true });
   const { writeRaws } = await import('../../../measure-webkit/src/profile/raw.mjs');
   writeFileSync(join(out, 'mac.json'), `${JSON.stringify(writeRaws(out, 'mac', res))}\n`);

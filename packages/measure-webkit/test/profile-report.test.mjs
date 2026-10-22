@@ -130,6 +130,20 @@ test('ratioTable: computed from the pooled medians, orig over base and base over
   assert.match(ratioTable(leg), /\| Composite n \| 0 \| 0 \| 0 \| - \| - \|/);
 });
 
+test('bound arm (task earn-bound-arm): base|bound is judged against the A/A pair; the ratio column shows only when the arm ran', () => {
+  const less = fileOf({ base: 200, aa: 200, bound: 100 });
+  assert.equal(jobVerdicts(less, 'hero')['base|bound'], 'second');
+  const noise = fileOf({ base: 200, aa: 100, bound: 100 });
+  assert.equal(jobVerdicts(noise, 'hero')['base|bound'], 'same');
+  const jobs = ['1:a', '2:a', '3:a'].map((label) => ({ label, leg: 'mac', file: fileOf({ base: 200, aa: 200, bound: 100 }) }));
+  const leg = legSummary(jobs, () => ({}));
+  assert.equal(leg.zones.hero.verdicts['base|bound'].verdict, 'second');
+  assert.match(ratioTable(leg), /\| metric \| base \| aa \| bound \| orig \/ base \| base \/ aa \| bound \/ base \|/);
+  assert.match(ratioTable(leg), /\| render work us \/ frame \| 202 \| 202 \| 102 \| - \| 1\.0 \| 0\.5 \|/);
+  const none = legSummary(['1:a', '2:a', '3:a'].map((label) => ({ label, leg: 'mac', file: fileOf({ orig: 400, base: 100, aa: 100 }) })), () => ({}));
+  assert.doesNotMatch(ratioTable(none), /bound/);
+});
+
 // ---- pooling over jobs: every value cell is one statistic over the concatenated windows of all loaded jobs ----
 
 const golden = readFileSync(new URL('../../contracts/golden/measure/webkit-profile.jsonl', import.meta.url), 'utf8').trim().split('\n').map((l) => JSON.parse(l));

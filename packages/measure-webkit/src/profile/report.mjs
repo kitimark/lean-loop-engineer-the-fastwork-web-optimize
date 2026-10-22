@@ -11,9 +11,9 @@ import { readRaws } from './raw.mjs';
 import { across, agreeNeeded, hitchVerdict, armRate, repOf, quantile, enoughN } from '../../../gate-breakpoints/src/smooth/reduce.mjs';
 
 /** The pairs judged, each against the A/A pair (base, aa): [first arm, second arm]. `first` = the first arm does less. */
-export const PAIRS = [['orig', 'base'], ['base', 'look'], ['orig', 'look'], ['base', 'v2']];
+export const PAIRS = [['orig', 'base'], ['base', 'look'], ['orig', 'look'], ['base', 'v2'], ['base', 'bound']];
 export const KEY_KINDS = ['RecalculateStyles', 'Layout', 'Paint', 'Composite', 'FunctionCall', 'FireAnimationFrame'];
-const ALL_ARMS = ['orig', 'base', 'aa', 'look', 'v2'];
+const ALL_ARMS = ['orig', 'base', 'aa', 'look', 'v2', 'bound'];
 
 const walk = (d) => readdirSync(d).flatMap((n) => { const p = join(d, n); return statSync(p).isDirectory() ? walk(p) : [p]; });
 const med = (l) => (l.length ? medianNat(l) : null);
@@ -199,10 +199,11 @@ export function ratioTable(leg) {
   const out = [];
   for (const z of ZONES) {
     const c = (a) => leg.zones[z].pool[a];
-    if (!leg.arms.includes('orig') || !leg.arms.includes('base')) continue;
+    if (!leg.arms.includes('base') || !(leg.arms.includes('orig') || leg.arms.includes('aa'))) continue;
+    const bound = leg.arms.includes('bound');
     out.push(`**${z}**\n`);
-    out.push(head(['metric', ...leg.arms, 'orig / base', 'base / aa']));
-    out.push(row(['n windows (per job)', ...leg.arms.map((a) => nOf(c(a))), '', '']));
+    out.push(head(['metric', ...leg.arms, 'orig / base', 'base / aa', ...(bound ? ['bound / base'] : [])]));
+    out.push(row(['n windows (per job)', ...leg.arms.map((a) => nOf(c(a))), '', '', ...(bound ? [''] : [])]));
     const metrics = [
       ['frames in zone', (x) => x.frames, fmt],
       ['window span ms', (x) => x.span, ms2],
@@ -215,7 +216,7 @@ export function ratioTable(leg) {
     ];
     for (const [name, f, show] of metrics) {
       const v = Object.fromEntries(leg.arms.map((a) => [a, sufficient(c(a)) ? f(c(a)) : null]));
-      out.push(row([name, ...leg.arms.map((a) => cellOr(c(a), f, show)), ratio(v.orig, v.base), ratio(v.base, v.aa)]));
+      out.push(row([name, ...leg.arms.map((a) => cellOr(c(a), f, show)), ratio(v.orig, v.base), ratio(v.base, v.aa), ...(bound ? [ratio(v.bound, v.base)] : [])]));
     }
     out.push('');
   }
