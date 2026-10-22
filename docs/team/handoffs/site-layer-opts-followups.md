@@ -1,15 +1,15 @@
 # site-layer-opts-followups (part-builder)
 
-Branch `worktree-wf_4dc1280f-1ad-1`, worktree `.claude/worktrees/wf_4dc1280f-1ad-1`. No CI push (none needed; local checks only).
-Last commit: see `git log -1` on the branch. CI runs: none.
+Branch `worktree-wf_4dc1280f-1ad-1`, worktree `.claude/worktrees/wf_4dc1280f-1ad-1`. No CI push (local checks only), CI runs: none.
+Code commit: f93f02fc (round 2 fixes plus merge of main); the handoff commit follows it.
 
-Done:
-- Order-exact replay: `apps/site/src/registry/layer-opts.test.ts` compares `layerOpts` to the canonical `fwl` in URL order (no sort).
-- Encoded-fwl rule, decided in Lean: refuse in both. `Fw.Console.BuildsOpen.okChar_percent`, `okChar_plus`,
-  `validate_encoded_fwl` (validate refuses `%`/`+` searches whole with `charsetReason`). Three new rows in
-  `layers-search.jsonl` (via `Fw.Ops.Golden.layersSearchCases`). `resolve.ts` refuses with the same reasons whenever `fwl=`
-  is present (length > 2000 or a char outside the console charset); no decoding. Searches without `fwl` keep the old behaviour (TS stand-in: the charset regex and length constant mirror Lean).
-- Reap tests on main tip 7fd1d23d (worktree, reap code untouched): `vitest run reap` in apps/runner, 5 files, 126 tests, all pass in 41 s. The builder's 10 failures did not reproduce (likely load or a branch-local cause). No task filed.
+Done (round 2):
+- `resolve.ts` guard is `new URLSearchParams(search).has('fwl')`: an encoded key (`?f%77l=...`) is refused like Lean.
+- Lean general theorems `validate_percent` and `validate_plus` (from `validate_charset` + `okChar_percent`/`okChar_plus`) replace the single instance.
+- Golden rows (regenerated with `lake build Fw.Ops.Golden` then `lake env lean --run scripts/OpsGolden.lean`): encoded fwl key, encoded key and value, and the two-layer URL-order row `?fwl=nav_earn:s,hero_copy:c` (canonical keeps input order).
+- Mutation check: sorting `layerOpts` by layer in resolve.ts makes the URL-order row fail (1 failed, 28 passed); reverted.
+- Round 1: order-exact replay, reap tests on main (126 pass, reap code untouched).
 
-Open: none beyond the lead's land.
-Read first: BuildsOpen.lean (validate_encoded_fwl), resolve.ts top.
+Verified: lean/scripts/check.sh green; `pnpm --filter site test` 114 files pass; ci-paths test 54 pass.
+Open follow-ups: UTF-16 vs code-point length reasons; non-fwl searches still decoded on the site.
+Read first: BuildsOpen.lean (validate_percent), resolve.ts top.
