@@ -15,7 +15,7 @@
 ## Open
 - Lead step: switch `packages/measure-webkit/src/safari-local-lease.mjs` to `fw slot acquire --kind measure` plus
   `fw slot pass start|stop` (read only here).
-- Outside the graph's write list: `apps/runner/src/slot-span.ts` (adds `pass` to the span subcommands).
+- `apps/runner/src/slot-span.ts` adds `pass` to the span subcommands (in the write list since graph r284).
 - Duration prediction is INFERRED: p90 of the last 20 local passing uncached `slot run <kind>` spans (at least 3). A
   job that runs past it can still overlap a pass; the pass's quiet check is the guard. `acquire` holders without
   `slot run` spans wait as `unknown` in a gap.
