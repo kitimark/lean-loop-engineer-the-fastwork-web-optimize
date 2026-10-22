@@ -493,10 +493,8 @@ test('storage: the ledger adds cache, workspace and artifact bytes over all pilo
   assert.equal(doc.storage.ledgerBytes, b.artifacts + b.cache + b.workspace);
   assert.equal(doc.storage.milli, storageNow(g, ledgerRows(readLedger(ledgerPath)), ctx.now()));
   assert.ok(doc.storage.milli <= storageMilli(doc.storage.ledgerBytes, 30));
-  // an earlier pilot pipeline of 1.2 GB of cache counts 600 at 15 days: no stop
   writeFileSync(ledgerPath, JSON.stringify({ pipelines: { old: { artifacts: 0, cache: 1200000000, workspace: 0 } } }));
   assert.deepEqual((await fetchPipeline(ctx, { slug: fx.slug, pipelineId: fx.pipelineId, out: join(dir, 'o1') })).storage.stops, []);
-  // one of 2.4 GB counts 1200: the next fetch stops, and so does a wait before any job runs
   writeFileSync(ledgerPath, JSON.stringify({ pipelines: { old: { artifacts: 0, cache: 2400000000, workspace: 0 } } }));
   const doc2 = await fetchPipeline(ctx, { slug: fx.slug, pipelineId: fx.pipelineId, out: join(dir, 'o2') });
   assert.deepEqual(doc2.storage.stops, ['storage']);
@@ -505,7 +503,6 @@ test('storage: the ledger adds cache, workspace and artifact bytes over all pilo
   const w = await waitPipeline({ ...ctx, fetchFn: async (u, i) => { calls.push(`${i?.method ?? 'GET'} ${String(u).replace(API, '')}`); return base(u, i); } }, { slug: fx.slug, pipelineId: fx.pipelineId });
   assert.equal(w.code, 5);
   assert.ok(calls.includes(`POST /workflow/${wfIdOf(fx)}/cancel`));
-  // a land-lane wait (storageStop false) on the same ledger applies Lean landStops: no cancel, the pipeline's own code
   calls.length = 0;
   const wl = await waitPipeline({ ...ctx, storageStop: false, fetchFn: async (u, i) => { calls.push(`${i?.method ?? 'GET'} ${String(u).replace(API, '')}`); return base(u, i); } }, { slug: fx.slug, pipelineId: fx.pipelineId });
   assert.equal(wl.code, 0);
@@ -542,7 +539,6 @@ test('jobMap: savesCache per row, and savesCacheJob (Lean) is false for a job ou
   for (const r of g.jobMap) assert.equal(savesCacheJob(g, r.circleci), r.savesCache, r.circleci);
   assert.deepEqual(g.jobMap.filter((r) => r.savesCache).map((r) => r.circleci), ['engine-chromium', 'engine-playwright-webkit']);
   assert.equal(savesCacheJob(g, 'probe'), false);
-  // the other branch of Lean savesCacheJob: a land job (Lean landJobs, equal to the legs by Overflow.landJobs_eq_legs)
   assert.deepEqual(g.landJobs, landLegs().map((l) => `land-${l}`));
   for (const j of g.landJobs) assert.equal(savesCacheJob(g, j), true, j);
   assert.equal(savesCacheJob(g, 'land-nope'), false);
@@ -797,8 +793,7 @@ test('land lane: fetchPipeline puts the lane record of each land job into run.js
     'GET /workflow/w1/job': { items: [{ name: 'land-suites-a', job_number: 7, status: 'success' }] },
     'GET /project/s/job/7': { name: 'land-suites-a', status: 'success', started_at: '2026-10-21T10:00:00Z', stopped_at: '2026-10-21T10:10:00Z', queued_at: '2026-10-21T09:59:00Z', duration: 600000, executor: { resource_class: 'arm-medium-gen2' } },
     'GET /project/s/7/artifacts': { items: [{ path: 'tmp/fw/artifacts/lane.json', url: 'https://x.test/lane.json' }] },
-    // a land job has a save step (Lean savesCacheJob), so its steps are read; this one halted before it (the exact Lake key was restored)
-    'GET https://circleci.com/api/v1.1/project/s/7': { steps: [{ actions: [{ name: 'Checkout code', status: 'success' }] }] },
+      'GET https://circleci.com/api/v1.1/project/s/7': { steps: [{ actions: [{ name: 'Checkout code', status: 'success' }] }] },
   };
   const body = `{"leg":"suites-a","sha":"${sha}","digest":"dd","engine":"false","rc":0}\n`;
   const ctx = { golden: loadGolden(), getToken: () => 't', sleep: async () => {}, now: () => 0, log: () => {}, fetchFn: async (url) => {

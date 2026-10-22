@@ -1,5 +1,3 @@
-// land-lane-circleci: GitHub first, CircleCI for the legs GitHub has no slot for. The rule is Lean Fw.Ci.Overflow (golden
-// packages/contracts/golden/ci/overflow.jsonl, replayed here through fwcore); the rest is glue, checked with fake providers.
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -35,7 +33,6 @@ describe("the Lean golden, replayed through fwcore", () => {
   });
 });
 
-// the width table is checked against the workflow files in land-overflow-widths.test.ts
 
 describe("the legs of land.yml are the legs of the overflow", () => {
   it("the workflow matrix lists exactly lean/land-legs.txt", () => {
@@ -271,7 +268,6 @@ describe("circleciAdapter", () => {
   });
 });
 
-/** An adapter that answers with the given states, for the groups. */
 const fakeProvider = (provider: "github" | "circleci", states: LaneRun["state"][], started: StartCtx[] = [], sha = SHA): Adapter => {
   let i = 0;
   return {

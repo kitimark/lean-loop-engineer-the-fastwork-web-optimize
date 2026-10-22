@@ -39,8 +39,6 @@ structure State where
   ccStorage : Nat
 deriving DecidableEq, Repr
 
-/-- CircleCI credits left: the storage overage (`Provider.storageCredits`) is spent from the same pool as the runs. No own save is
-charged (unlike `Overflow.storageCharged`): the pool's one CircleCI lane, `webkit-sim`, saves no cache (`.circleci/config.yml`). -/
 def State.fb (c : Cfg) (s : State) : Fallback.State :=
   { s.base with circleCreditsLeft := Overflow.classLeft c.base.circleCls (s.ccSpent + Fw.Ci.Provider.storageCredits s.ccStorage) }
 
@@ -174,8 +172,6 @@ theorem cc_credits_line (c : Cfg) (r : Req) (s : State) (t : Target) (h : route 
   rw [hcls]
   exact Overflow.classLeft_spec hle hp
 
-/-- Storage refuses CircleCI only through the budget: a run means its credits, the credits spent, the storage overage and the
-reserve fit the pool. -/
 theorem cc_storage_line (c : Cfg) (r : Req) (s : State) (t : Target) (h : route c r s = .base (.run t))
     (hv : t.via = .circleci) (hp : 0 < t.credits) :
     ∃ rt, Fw.Ci.Provider.rateOf t.cls = some rt ∧
@@ -183,7 +179,6 @@ theorem cc_storage_line (c : Cfg) (r : Req) (s : State) (t : Target) (h : route 
   obtain ⟨rt, hr, hle⟩ := cc_credits_line c r s t h hv hp
   exact ⟨rt, hr, by omega⟩
 
-/-- Storage within the allowance leaves the credits left as they are. -/
 theorem fb_storage_within_allow (c : Cfg) (s : State) (h : s.ccStorage ≤ Fw.Ci.Provider.storageAllowMilli) :
     s.fb c = { s.base with circleCreditsLeft := Overflow.classLeft c.base.circleCls s.ccSpent } := by
   simp [State.fb, Fw.Ci.Provider.storageCredits_within_allow _ h]

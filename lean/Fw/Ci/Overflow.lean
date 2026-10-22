@@ -4,13 +4,6 @@ import Fw.Console.LandLegs
 import Fw.Console.LandRemote
 /-!
 # Land overflow: which land legs run on GitHub Actions and which on CircleCI
-
-GitHub Actions comes first. A leg goes to CircleCI only when GitHub has no free job slot for it (or Actions is degraded) and
-CircleCI is usable: healthy and fresh status, run credits and storage overage within the monthly budget, a checkout key. Task
-`land-lane-circleci`; golden `packages/contracts/golden/ci/overflow.jsonl`; ops `ci.overflow`, `ci.overflowCombine`
-(`Fw.Wire.Ci`).
-
-The plan cap, the CircleCI class and the budget numbers below are the only constants; each says where it comes from.
 -/
 namespace Fw.Ci.Overflow
 open Fw.Console.LandLegs (Leg legs)
@@ -98,7 +91,6 @@ structure Facts where
   now : Nat
   /-- credits the pilot spent this month -/
   spent : Nat
-  /-- storage in thousandths of a GB-month (`Provider.storageNow`) -/
   storage : Nat
   /-- usable checkout keys of the CircleCI project (none: the list answered 403) -/
   keys : Option Nat
@@ -128,10 +120,8 @@ def ccFits (f : Facts) (n : Nat) : Bool :=
   | none => false
   | some c => decide (c + f.spent + creditReserve ≤ Provider.poolCredits .oss)
 
-/-- Storage charged to the decision: the ledger count plus the overflow's own Lake cache save. -/
 def storageCharged (f : Facts) : Nat := f.storage + Provider.ownSaveMilli
 
-/-- `n` legs fit the monthly budget: their estimate, the credits spent, the storage overage and the reserve fit the free pool. -/
 def budgetFits (f : Facts) (n : Nat) : Bool :=
   match Provider.credits ccClass (n * estLegMs) with
   | none => false
@@ -250,12 +240,10 @@ theorem budgetFits_ccFits (f : Facts) (n : Nat) (h : budgetFits f n = true) : cc
     simp only [decide_eq_true_eq] at h ⊢
     omega
 
-/-- ... the budget fits, storage overage included ... -/
 theorem overflow_needs_budget (f : Facts) (h : ccLegs f ≠ []) : budgetFits f (ccLegs f).length = true := by
   have := overflow_needs_ready f h
   simp [ccReady] at this; exact this.1.2
 
-/-- ... so the run credits fit on their own ... -/
 theorem overflow_needs_credits (f : Facts) (h : ccLegs f ≠ []) : ccFits f (ccLegs f).length = true :=
   budgetFits_ccFits f _ (overflow_needs_budget f h)
 
@@ -264,24 +252,20 @@ theorem overflow_needs_key (f : Facts) (h : ccLegs f ≠ []) : keyClear f = true
   have := overflow_needs_ready f h
   simp [ccReady] at this; exact this.2
 
-/-- Storage within the allowance, own save included, costs no credits: the budget is the run credits alone. -/
 theorem budget_within_allow (f : Facts) (n : Nat) (h : storageCharged f ≤ Provider.storageAllowMilli) :
     budgetFits f n = ccFits f n := by
   unfold budgetFits ccFits
   rw [Provider.storageCredits_within_allow _ h]
   simp
 
-/-- No refusal on storage alone: while the budget fits, CircleCI is ready exactly when it is up and has a key. -/
 theorem storage_alone_never_refuses (f : Facts) (n : Nat) (h : budgetFits f n = true) :
     ccReady f n = (ccUp f && keyClear f) := by
   simp [ccReady, h]
 
-/-- While the budget fits the overflow, the reason is never storage. -/
 theorem reason_not_storage (f : Facts) (h : budgetFits f (overflowSet f).length = true) : reason f ≠ "circleci-storage" := by
   unfold reason
   repeat (first | split | simp_all)
 
-/-- A storage overage that with the credits spent and the reserve passes the pool keeps every leg on GitHub. -/
 theorem storage_over_budget_keeps_github (f : Facts)
     (h : Provider.poolCredits .oss < Provider.storageCredits (storageCharged f) + f.spent + creditReserve) : ccLegs f = [] := by
   refine Classical.byContradiction fun hne => ?_
@@ -292,9 +276,6 @@ theorem storage_over_budget_keeps_github (f : Facts)
   · simp only [decide_eq_true_eq] at this
     omega
 
-/-- With `c` run credits for `n` legs, the budget fits exactly when the run credits, the credits spent and the reserve fit the pool
-and the storage overage fits the room they leave. `budget_within_allow` is the case without overage;
-`storage_over_budget_keeps_github` is the case where the overage alone leaves no room. -/
 theorem budgetFits_iff (f : Facts) (n c : Nat) (hc : Provider.credits ccClass (n * estLegMs) = some c) :
     budgetFits f n = true ↔
       c + f.spent + creditReserve ≤ Provider.poolCredits .oss ∧
@@ -448,17 +429,13 @@ theorem classLeft_spec {cls : String} {spent c : Nat} (h : c ≤ classLeft cls s
   | none => simp [hr] at h; omega
   | some r => simp only [hr] at h; exact ⟨r, rfl, by omega⟩
 
-/-- The second land of 2026-10-21 (21:21:46 +07:00): slots full, Actions degraded, 819 credits spent, storage counted from the
-ledger totals (`Provider.ledger20261021`). -/
 def facts20261021 : Facts :=
   { legs := legs, ghActive := some ["webkit-sim", "webkit-sim", "visual-diff", "path-pix"], ghActions := "degraded_performance",
     ghPrev := false, ccArm := "healthy", ccReadAt := some 1792592446000, now := 1792592506000, spent := 819,
     storage := Provider.storageNow [Provider.ledger20261021] 1792592506000, keys := some 1, checkout := none, forceFull := false }
 
-/-- Under the counted storage and the credit gate, that land sends every leg to CircleCI. -/
 theorem overflow_20261021 : ccLegs facts20261021 = legs ∧ reason facts20261021 = "github-degraded" := by decide
 
-/-- The same land under the old reading (1297, every byte held 30 days) and the old stop of 1000 refused, the new gate does not. -/
 theorem overflow_20261021_hold30 : ccLegs { facts20261021 with storage := 1297 } = legs := by decide
 
 #guard reserveOf .oss == 80000 && reserveOf .base == 6000

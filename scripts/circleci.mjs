@@ -105,8 +105,6 @@ export function storageMilli(bytes, days) {
   return Number((BigInt(bytes) * BigInt(days) * 1000n + 30n * 1000000000n - 1n) / (30n * 1000000000n));
 }
 
-/** Lean `storageNow`: the ledger rows fetched within the window (a row with no time always counts) at the documented retention per
- *  kind, rounded up once over the sum, in thousandths of a GB-month. */
 export function storageNow(g, rows, now) {
   const { windowMs, retentionDays: d } = g.constants;
   const byteDays = rows.filter((r) => r.at == null || now <= r.at + windowMs)
@@ -114,7 +112,6 @@ export function storageNow(g, rows, now) {
   return Number((byteDays * 1000n + 30n * 1000000000n - 1n) / (30n * 1000000000n));
 }
 
-/** Lean `storageCredits`: credits for the storage past the allowance, rounded up. */
 export function storageCredits(g, milli) {
   const c = g.constants;
   return Math.floor((Math.max(0, milli - c.storageAllowMilli) * c.overageCreditsPerGbMonth + 999) / 1000);
@@ -153,7 +150,6 @@ export function stops(g, i) {
   return [...(c.capMs <= i.durMs ? ['cap'] : []), ...(c.queueMaxMs < i.queueMs ? ['queue'] : []), ...(c.storageStopMilli < i.storageMilli ? ['storage'] : [])];
 }
 
-/** Lean `landStops`: the reasons a land-lane wait stops on, in the order cap, queue; never storage. */
 export function landStops(g, i) {
   const c = g.constants;
   return [...(c.capMs <= i.durMs ? ['cap'] : []), ...(c.queueMaxMs < i.queueMs ? ['queue'] : [])];
@@ -460,20 +456,14 @@ export function readLedger(path) {
 
 export const ledgerBytes = (ledger, exceptId = '') => Object.entries(ledger.pipelines ?? {}).filter(([id]) => id !== exceptId).reduce((n, [, b]) => n + (b.artifacts ?? 0) + (b.cache ?? 0) + (b.workspace ?? 0), 0);
 
-/** The ledger's pipelines except `exceptId` as Lean `LedgerRow`s; a pipeline without a numeric `at` has none. */
 export const ledgerRows = (ledger, exceptId = '') => Object.entries(ledger.pipelines ?? {}).filter(([id]) => id !== exceptId)
   .map(([, b]) => ({ at: typeof b.at === 'number' && Number.isFinite(b.at) ? b.at : null, cache: b.cache ?? 0, workspace: b.workspace ?? 0, artifacts: b.artifacts ?? 0 }));
 
-/** Lean `windowMs` in days: the window storage and credits are counted over. */
 export const WINDOW_DAYS = 30;
 
-/** Lean `storageNow` over the ledger except `exceptId` at `now` (0 without a ledger path). */
 export const storageSoFar = (ctx, exceptId = '', now = ctx.now?.() ?? Date.now()) =>
   (ctx.ledgerPath ? storageNow(ctx.golden ?? loadGolden(), ledgerRows(readLedger(ctx.ledgerPath), exceptId), now) : 0);
 
-/** Credits the fetched pilot pipelines of the ledger spent in the last WINDOW_DAYS days (a rolling month: it counts more than a
- *  calendar month does early in the month, the safe side). A pipeline that was never fetched, and every pipeline fetched before the
- *  ledger kept credits, counts 0. */
 export function creditsSoFar(ctx, now = Date.now()) {
   if (!ctx.ledgerPath) return 0;
   const since = now - WINDOW_DAYS * 86400000;
@@ -484,8 +474,6 @@ export function creditsSoFar(ctx, now = Date.now()) {
 
 const sleepReal = (s) => new Promise((r) => setTimeout(r, s * 1000));
 
-/** The stop rule over the jobs seen at one poll. Returns the Lean reasons per job: `stops` with the ledger of the earlier pilot
- *  pipelines as the storage input, or with `ctx.storageStop === false` (a land-lane wait) `landStops`, which reads no storage. */
 export async function pollOnce(ctx, { slug, pipelineId, now }) {
   const g = ctx.golden;
   const land = ctx.storageStop === false;
@@ -493,8 +481,6 @@ export async function pollOnce(ctx, { slug, pipelineId, now }) {
   const wfs = await listAll(ctx, urls.workflows(pipelineId));
   const jobs = [];
   for (const wf of wfs) {
-    // A workflow the pipeline listing has just created answers 404 on its job list for a moment (seen on the first poll right after a
-    // trigger, pipeline of task land-lane-circleci); that is "no jobs yet", and the workflow status still decides the exit code.
     let list = [];
     try { list = await listAll(ctx, urls.jobs(wf.id)); } catch (e) { if (!/HTTP 404/.test(String(e?.message))) throw e; }
     for (const j of list) {
@@ -511,8 +497,6 @@ export async function pollOnce(ctx, { slug, pipelineId, now }) {
   return { workflows: wfs, jobs };
 }
 
-/** Wait for a pipeline: polls every `intervalS` (at least MIN_POLL_S), stops when the stop rule of `pollOnce` fires (exit 5), else
- *  the exit code is Lean `waitStep` over the workflow statuses. Exit codes in the header. */
 export async function waitPipeline(ctx, { slug, pipelineId, timeoutS = 3600, intervalS = MIN_POLL_S, noWorkflowS = 300 }) {
   const log = ctx.log ?? console.log;
   const step = Math.max(intervalS, ctx.minPollS ?? MIN_POLL_S);
