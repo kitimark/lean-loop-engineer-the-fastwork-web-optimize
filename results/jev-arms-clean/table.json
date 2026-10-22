@@ -1,0 +1,201 @@
+{
+  "sets": {
+    "d1": {
+      "question": "incident-class",
+      "arms": {
+        "jev:recorded": {
+          "right": 65,
+          "rows": 116,
+          "answered": 116,
+          "holdRight": 18,
+          "holdRows": 33,
+          "certify": "none",
+          "missing": 0,
+          "invalid": null
+        },
+        "haiku:first": {
+          "right": 69,
+          "rows": 116,
+          "answered": 116,
+          "holdRight": 20,
+          "holdRows": 33,
+          "certify": "none",
+          "missing": 0,
+          "invalid": {
+            "probabilities: the sum is not 1 within eps": 15
+          }
+        },
+        "haiku:clean": {
+          "right": 64,
+          "rows": 116,
+          "answered": 116,
+          "holdRight": 17,
+          "holdRows": 33,
+          "certify": "none",
+          "missing": 0,
+          "invalid": {
+            "probabilities: the sum is not 1 within eps": 78,
+            "probabilities: the keys differ from the question's": 1
+          }
+        },
+        "sonnet:first": {
+          "right": 78,
+          "rows": 116,
+          "answered": 116,
+          "holdRight": 19,
+          "holdRows": 33,
+          "certify": "none",
+          "missing": 0,
+          "invalid": {
+            "choice: the pick is not the highest-probability option": 1,
+            "probabilities: the keys differ from the question's": 76,
+            "probabilities: the sum is not 1 within eps": 10
+          }
+        },
+        "sonnet:clean": {
+          "right": 75,
+          "rows": 116,
+          "answered": 116,
+          "holdRight": 20,
+          "holdRows": 33,
+          "certify": "none",
+          "missing": 0,
+          "invalid": {
+            "probabilities: the sum is not 1 within eps": 16,
+            "probabilities: the keys differ from the question's": 13
+          }
+        }
+      }
+    },
+    "d2": {
+      "question": "finding-severity",
+      "arms": {
+        "jev:recorded": {
+          "right": 40,
+          "rows": 83,
+          "answered": 83,
+          "holdRight": 34,
+          "holdRows": 73,
+          "certify": "none",
+          "missing": 7,
+          "invalid": null
+        },
+        "haiku:first": {
+          "right": 38,
+          "rows": 90,
+          "answered": 90,
+          "holdRight": 32,
+          "holdRows": 75,
+          "certify": "none",
+          "missing": 0,
+          "invalid": {}
+        },
+        "haiku:clean": {
+          "right": 43,
+          "rows": 90,
+          "answered": 90,
+          "holdRight": 36,
+          "holdRows": 75,
+          "certify": "none",
+          "missing": 0,
+          "invalid": {}
+        },
+        "sonnet:first": {
+          "right": 39,
+          "rows": 90,
+          "answered": 90,
+          "holdRight": 34,
+          "holdRows": 75,
+          "certify": "none",
+          "missing": 0,
+          "invalid": {}
+        },
+        "sonnet:clean": {
+          "right": 44,
+          "rows": 89,
+          "answered": 89,
+          "holdRight": 39,
+          "holdRows": 74,
+          "certify": "none",
+          "missing": 1,
+          "invalid": {}
+        }
+      }
+    }
+  },
+  "cost": {
+    "d1:haiku": {
+      "rows": 116,
+      "parses": {
+        "json": 116
+      },
+      "calls": 116,
+      "retried": 0,
+      "inputTokens": 218347,
+      "outputTokens": 54406,
+      "costUsd": 0.0706,
+      "models": [
+        "claude-haiku-5-5"
+      ],
+      "msMedian": 2823,
+      "msMax": 6991,
+      "wallMs": 140337,
+      "changedVsFirst": 36
+    },
+    "d1:sonnet": {
+      "rows": 116,
+      "parses": {
+        "json": 116
+      },
+      "calls": 116,
+      "retried": 0,
+      "inputTokens": 215934,
+      "outputTokens": 41942,
+      "costUsd": 1.2769,
+      "models": [
+        "claude-sonnet-5-5"
+      ],
+      "msMedian": 3566,
+      "msMax": 7631,
+      "wallMs": 156831,
+      "changedVsFirst": 31
+    },
+    "d2:haiku": {
+      "rows": 90,
+      "parses": {
+        "json": 90
+      },
+      "calls": 90,
+      "retried": 0,
+      "inputTokens": 160826,
+      "outputTokens": 34087,
+      "costUsd": 0.0492,
+      "models": [
+        "claude-haiku-5-5"
+      ],
+      "msMedian": 2570,
+      "msMax": 4919,
+      "wallMs": 104886,
+      "changedVsFirst": 14
+    },
+    "d2:sonnet": {
+      "rows": 90,
+      "parses": {
+        "json": 89,
+        "none": 1
+      },
+      "calls": 90,
+      "retried": 0,
+      "inputTokens": 158932,
+      "outputTokens": 19196,
+      "costUsd": 0.8273,
+      "models": [
+        "claude-sonnet-5-5"
+      ],
+      "msMedian": 2896,
+      "msMax": 5283,
+      "wallMs": 107734,
+      "changedVsFirst": 18
+    }
+  }
+}

@@ -7,6 +7,7 @@ import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFi
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ARM_PREAMBLE } from "../apps/runner/src/oracle-score.ts";
+import { fwcoreCall } from "../packages/gh-budget/src/index.ts";
 
 /** The `claude -p` argv of one isolated call: no tools, no settings, no MCP, no session file, `system` as the system prompt. */
 export function claudeArgs(model, system, format = "json", extra = []) {
@@ -297,11 +298,25 @@ export function costOf(rows, calls) {
     msMax: ms.at(-1) ?? null };
 }
 
+/** The answers Lean's `validate` rejects, counted by reason. The envelope names the pinned Jev model so that
+ * `oracle.validate` reaches the same `validate` call `oracle.score` makes on an arm answer. */
+export function invalidOf(core, question, answers) {
+  const bad = {};
+  const model = JSON.parse(String(core({ op: "oracle.request", name: question, names: [], state: {} }).bodyText)).model;
+  for (const x of answers) {
+    const reply = JSON.stringify({ model, answers: { [question]: { type: "choice", choice: x.choice,
+      probabilities: x.probabilities } } });
+    const v = core({ op: "oracle.validate", name: question, reply });
+    if (!v.ok) { const k = String(v.failure?.detail ?? v.failure?.kind); bad[k] = (bad[k] ?? 0) + 1; }
+  }
+  return bad;
+}
+
 function table(a) {
   const pct = (n, d) => (d ? `${((100 * n) / d).toFixed(1)} %` : "-");
   const out = { sets: {} };
-  const md = ["| set | arm | run | right / rows | accuracy | held-out right / rows | held-out accuracy | certify | missing |",
-    "|---|---|---|---|---|---|---|---|---|"];
+  const md = ["| set | arm | run | right / rows | accuracy | held-out right / rows | held-out accuracy | certify | missing | " +
+    "invalid (Lean validate) |", "|---|---|---|---|---|---|---|---|---|---|"];
   for (const set of ["d1", "d2"]) {
     const clean = JSON.parse(readFileSync(join(a.out, `${set}.json`), "utf8"));
     const old = JSON.parse(readFileSync(join(a.old, `${set}-scored.json`), "utf8"));
@@ -311,9 +326,13 @@ function table(a) {
       for (const [run, sc] of runs) {
         if (!sc) continue;
         const r = tableRow(sc);
+        const answers = run === "first" ? readJsonl(join(a.old, `${set}-${arm}.jsonl`))
+          : run === "clean" ? readJsonl(join(a.out, `${set}-${arm}.rows.jsonl`)).filter((x) => x.choice !== undefined) : null;
+        r.invalid = answers ? invalidOf(a.core, clean.question, answers) : null;
         out.sets[set].arms[`${arm}:${run}`] = r;
+        const inv = r.invalid ? Object.entries(r.invalid).map(([k, v]) => `${v} ${k}`).join("; ") || "0" : "-";
         md.push(`| ${set} | ${arm} | ${run} | ${r.right} / ${r.rows} | ${pct(r.right, r.rows)} | ${r.holdRight} / ${r.holdRows} | ` +
-          `${pct(r.holdRight, r.holdRows)} | ${r.certify} | ${r.missing} |`);
+          `${pct(r.holdRight, r.holdRows)} | ${r.certify} | ${r.missing} | ${inv} |`);
       }
     }
   }
@@ -347,7 +366,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const [sub, ...rest] = process.argv.slice(2);
   const f = flags(rest);
   if (sub === "probe" && f.work && f.out && f.prompts) process.exitCode = await probe({ work: resolve(f.work), out: resolve(f.out), prompts: f.prompts });
-  else if (sub === "table" && f.out && f.old) table({ out: resolve(f.out), old: resolve(f.old) });
+  else if (sub === "table" && f.out && f.old) table({ out: resolve(f.out), old: resolve(f.old), core: fwcoreCall(process.cwd()) });
   else if (sub === "run" && f.model && f.set && f.prompts && f.work && f.out) {
     await run({ model: f.model, set: f.set, prompts: f.prompts, work: resolve(f.work), out: resolve(f.out), jobs: Math.min(4, Number(f.jobs ?? 4)) });
   } else { console.error("usage: jev-arms-clean.mjs probe --work <dir> --prompts <file> --out <file> | run --model m --set s --prompts <file> --work <dir> --out <dir> [--jobs n]"); process.exitCode = 64; }
