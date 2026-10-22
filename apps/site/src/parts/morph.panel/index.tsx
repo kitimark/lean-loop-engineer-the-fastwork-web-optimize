@@ -4,6 +4,7 @@ import { useEffect, useRef, type MutableRefObject, type ReactNode } from 'react'
 import { GenSvg, art } from '../../GenSvg';
 import { createPanelWriter } from './driver';
 import { PANEL } from './content';
+import { THREADED } from './threaded.logic';
 import css from './morph.module.css';
 
 export const CONST_BOUNDS = 'const-bounds';
@@ -40,7 +41,7 @@ export function MorphPanel({ variant, impl = 'mui', initialMorph = 0, writerRef,
   return (
       <div
         ref={panelRef}
-        className={variant === CONST_BOUNDS ? `${css.panel} ${css.cb}` : css.panel}
+        className={variant === CONST_BOUNDS || variant === THREADED ? `${css.panel} ${css.cb}` : css.panel}
         data-fw="morph-panel"
         data-fw-layer="morph.panel_panel"
         data-fw-variant={variant}
