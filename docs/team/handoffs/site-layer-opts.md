@@ -2,7 +2,8 @@
 
 Branch `worktree-wf_2347cc65-024-1`, worktree `.claude/worktrees/wf_2347cc65-024-1`, CI branch `ci/site-layer-opts`.
 Last commit: 2b62ef0f (merge of main; later commits are in git log).
-CI runs: breakpoint-gate dispatch 39758534358 (both engines, default config, no fwl) running; lean push run 39758424234 (queued at push).
+CI runs: breakpoint-gate dispatch 39758534358 (both engines, default config, no fwl) running; lean push run 39758424234 success.
+Dry land: VERDICT scope site-layer-opts (8 files outside the task writes, listed in the report open).
 
 Done:
 - `lean/Fw/Site/LayerOpts.lean`: per-layer, per-option CSS (`will-change` rule on `[data-fw-layer]`, unlayered; snap adds
