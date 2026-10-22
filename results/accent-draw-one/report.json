@@ -1,0 +1,225 @@
+{
+ "id": "accent-draw-one",
+ "proposal": "accent-draw-one",
+ "title": "Phone: run the headline scribble draw on the visible copy only (flag hero.accent:draw-one), iOS Simulator",
+ "arms": [
+  {
+   "name": "base",
+   "search": ""
+  },
+  {
+   "name": "hero.accent:draw-one",
+   "search": "?fw=hero.accent:draw-one"
+  }
+ ],
+ "lanes": [
+  {
+   "name": "iOS Simulator 430x775, 107-step scroll, two passes",
+   "rows": [
+    {
+     "metric": "Layout events, whole scroll, pass 1",
+     "unit": "n",
+     "cells": [
+      {
+       "arm": "base",
+       "value": 612,
+       "tag": {
+        "kind": "measured",
+        "run": "39694385829"
+       }
+      },
+      {
+       "arm": "hero.accent:draw-one",
+       "value": 612,
+       "tag": {
+        "kind": "measured",
+        "run": "39699740380"
+       }
+      }
+     ]
+    },
+    {
+     "metric": "Layout events, whole scroll, pass 2",
+     "unit": "n",
+     "cells": [
+      {
+       "arm": "base",
+       "value": 627,
+       "tag": {
+        "kind": "measured",
+        "run": "39694385829"
+       }
+      },
+      {
+       "arm": "hero.accent:draw-one",
+       "value": 612,
+       "tag": {
+        "kind": "measured",
+        "run": "39699740380"
+       }
+      }
+     ]
+    },
+    {
+     "metric": "Layout events, hero band (y up to 775 px), pass 1",
+     "unit": "n",
+     "cells": [
+      {
+       "arm": "base",
+       "value": 108,
+       "tag": {
+        "kind": "measured",
+        "run": "39694385829"
+       }
+      },
+      {
+       "arm": "hero.accent:draw-one",
+       "value": 107,
+       "tag": {
+        "kind": "measured",
+        "run": "39699740380"
+       }
+      }
+     ]
+    },
+    {
+     "metric": "Layout events, hero band (y up to 775 px), pass 2",
+     "unit": "n",
+     "cells": [
+      {
+       "arm": "base",
+       "value": 116,
+       "tag": {
+        "kind": "measured",
+        "run": "39694385829"
+       }
+      },
+      {
+       "arm": "hero.accent:draw-one",
+       "value": 109,
+       "tag": {
+        "kind": "measured",
+        "run": "39699740380"
+       }
+      }
+     ]
+    },
+    {
+     "metric": "Layout time, hero band, pass 1",
+     "unit": "ms",
+     "cells": [
+      {
+       "arm": "base",
+       "value": 60.4,
+       "tag": {
+        "kind": "measured",
+        "run": "39694385829"
+       }
+      },
+      {
+       "arm": "hero.accent:draw-one",
+       "value": 63.8,
+       "tag": {
+        "kind": "measured",
+        "run": "39699740380"
+       }
+      }
+     ]
+    },
+    {
+     "metric": "Layout time, hero band, pass 2 (base pass 2 ran slow: scroll 14.4 s against 7.3 to 7.5 s)",
+     "unit": "ms",
+     "cells": [
+      {
+       "arm": "base",
+       "value": 126.2,
+       "tag": {
+        "kind": "measured",
+        "run": "39694385829"
+       }
+      },
+      {
+       "arm": "hero.accent:draw-one",
+       "value": 60.3,
+       "tag": {
+        "kind": "measured",
+        "run": "39699740380"
+       }
+      }
+     ]
+    },
+    {
+     "metric": "RecalculateStyles events, whole scroll, pass 1",
+     "unit": "n",
+     "cells": [
+      {
+       "arm": "base",
+       "value": 654,
+       "tag": {
+        "kind": "measured",
+        "run": "39694385829"
+       }
+      },
+      {
+       "arm": "hero.accent:draw-one",
+       "value": 650,
+       "tag": {
+        "kind": "measured",
+        "run": "39699740380"
+       }
+      }
+     ]
+    },
+    {
+     "metric": "RecalculateStyles events, whole scroll, pass 2",
+     "unit": "n",
+     "cells": [
+      {
+       "arm": "base",
+       "value": 681,
+       "tag": {
+        "kind": "measured",
+        "run": "39694385829"
+       }
+      },
+      {
+       "arm": "hero.accent:draw-one",
+       "value": 641,
+       "tag": {
+        "kind": "measured",
+        "run": "39699740380"
+       }
+      }
+     ]
+    },
+    {
+     "metric": "animated SVG paths per draw frame (Lean animatedCount_values)",
+     "unit": "n",
+     "cells": [
+      {
+       "arm": "base",
+       "value": 3,
+       "tag": {
+        "kind": "inferred",
+        "why": "Lean animatedCount_values: all three copies run the stroke animation in the draw window; not a CI reading, the lane records no per-SVG layout"
+       }
+      },
+      {
+       "arm": "hero.accent:draw-one",
+       "value": 1,
+       "tag": {
+        "kind": "inferred",
+        "why": "Lean animatedCount_values and drawOne_still_iff: only copy 0, the one copy that is not opacity 0 in the window; not a CI reading, the lane records no per-SVG layout"
+       }
+      }
+     ]
+    }
+   ],
+   "layers": []
+  }
+ ],
+ "recommendation": {
+  "word": "hold",
+  "why": "The picture is proved identical at every instant and width (Lean drawOne_visSame, from hidden_pause_eq; the two skipped copies are opacity 0 for the whole draw window), the breakpoint gate passes in both engines, and the animated paths per draw frame go from 3 to 1. But the saving is not visible on CI: the visible copy still forces a Layout every draw frame, so Layout and RecalculateStyles counts are equal within the pass-to-pass spread of the base, and the Layout time of the first passes is 60.4 against 63.8 ms. The lane records no per-SVG layout counts and no frame intervals, so p50, p90 and p99 are not available. Keep the flag registered and out of the preset; measure it again where frame time inside the draw windows is recorded."
+ }
+}
