@@ -1202,14 +1202,25 @@ def layersCases : List (String × Json) := [
   ("a registry whose Change fails alone is refused as a whole",
     armsReq "[{}]" r#"[{"id":"strip","picks":[{"part":"hero.countdown","variant":"strip"}]}]"#)]
 
-/-- `console.buildsSearch` over registry parts that declare layers: `?fwl=` entries are read and kept canonical. -/
+/-- A registry of the parts of `Fw.Parts.FootprintData.layerDecls`, each with its declared layers. -/
+def declReg : Json :=
+  let ids := (Fw.Parts.FootprintData.layerDecls.map (·.1)).eraseDups
+  Json.mkObj [("presets", Json.arr #[]), ("parts", Json.arr (ids.map fun p => Json.mkObj [("id", .str p),
+    ("variants", Json.arr #["faithful"]), ("impls", Json.arr #["plain"]),
+    ("layers", Json.arr ((Fw.Parts.FootprintData.layerDecls.filter (·.1 == p)).map (Json.str ·.2.1)).toArray)]).toArray)]
+
+/-- `console.buildsSearch` over registry parts that declare layers: `?fwl=` entries are read and kept canonical, and every
+layer id the extractor read from a `part.json` is accepted (the site's layer test reads these cases). -/
 def layersSearchCases : List (String × Json) :=
   let reg := lit r#"{"parts":[{"id":"hero","variants":["faithful","scene-pause"],"impls":["plain"],"layers":["hero_copy"]},{"id":"hero.countdown","variants":["faithful","hidden-pause"],"impls":["mui","plain"]}],"presets":[]}"#
   let s (q : String) : Json := Json.mkObj [("registry", reg), ("search", .str q)]
   [("a declared layer option is accepted", s "?fwl=hero_copy:c"),
    ("fw and fwl together, fw first in the canonical form", s "?fwl=hero_copy:c&fw=hero:scene-pause"),
    ("an unknown layer is refused", s "?fwl=nope:c"),
-   ("a layer entry without options is refused", s "?fwl=hero_copy")]
+   ("a layer entry without options is refused", s "?fwl=hero_copy"),
+   ("a layer id with a character outside okChar is refused", s "?fwl=hero_c/py:c")] ++
+  Fw.Parts.FootprintData.layerDecls.map fun (_, l, _) =>
+    (s!"declared layer {l}", Json.mkObj [("registry", declReg), ("search", .str s!"?fwl={l}:c")])
 
 /-- Golden files whose name is not their op: (directory under `packages/contracts/golden`, file stem, op, cases). -/
 def named (_ : Unit := ()) : List (String × String × String × List (String × Json)) := [
