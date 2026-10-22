@@ -1,10 +1,12 @@
 # land-leg-pending
 
-- Branch `worktree-wf_3956aa08-237-1`, worktree `.claude/worktrees/wf_3956aa08-237-1`; last code commit: see `git log -1` on the branch.
+- Branch `worktree-wf_3956aa08-237-1`, worktree `.claude/worktrees/wf_3956aa08-237-1`; code at merge `ec7256f8` (main 596de3e6 merged).
 - CI runs: none (pure Lean + runner tests; no CI push needed).
-- Verified: `lake build`, the golden regenerated (`lean/scripts/LandRemoteGolden.lean`), `pnpm --filter @fw/runner test` (91 files),
-  runner typecheck, `node --test scripts/ci-paths.test.mjs`; check.sh and the dry land at the final commit (see the report).
-- Open: none in the unit. Rerunning the refused gate-settle-scroll-timeline land is the lead's step.
+- Verified at ec7256f8: `sh lean/scripts/check.sh` green (5m45s, slot), contracts test 11/11, runner test 91 files / 2572 tests
+  (4m41s, slot), both typechecks, `node --test scripts/ci-paths.test.mjs` 54/54; dry land: see the report.
+- Behaviour change: a `skipped` leg now counts as ok.
+- Open: `apps/runner/test/land-legs.test.ts` edited outside the writes (job status added to its views). Rerunning the refused
+  gate-settle-scroll-timeline land is the lead's step.
 
 ## What changed
 - Lean `Fw.Console.LandRemote`: `Job` (status, conclusion), `legState` (pending when status is not `completed`, ok on success or
