@@ -7,6 +7,7 @@ import { ghCharged, realEnv, type Env } from "@fw/gh-budget";
 import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, statSync, statfsSync, writeFileSync } from "node:fs";
 import { homedir, loadavg, totalmem } from "node:os";
 import { basename, dirname, join } from "node:path";
+import { GhClock, phasedEnv } from "./run-phases.ts";
 import { collectGh, type GhFetch, type GhSnap } from "./watch-gh.ts";
 import { collectSvcs, type Svc } from "./watch-svc.ts";
 import { foldFile, sweepCache } from "./watch-cache.ts";
@@ -523,13 +524,16 @@ export function chargedRunner(base: Runner, getEnv: () => Env): Runner {
   return async (cmd, args, timeout, cwd, anyExit) => {
     if (cmd !== "gh") return base(cmd, args, timeout, cwd, anyExit);
     try {
-      const res = await ghCharged(getEnv(), args, { cost: args.includes("--workflow") ? 2 : 3 });
+      watchGh.start();
+      const res = await ghCharged(getEnv(), args, { cost: args.includes("--workflow") ? 2 : 3 }).finally(() => watchGh.end());
       return res.ran && res.code === 0 ? res.stdout : null;
     } catch { return null; }
   };
 }
 let sysEnv: { cwd: string; env: Env } | null = null;
-const systemEnv = (cwd: string): Env => (sysEnv?.cwd === cwd ? sysEnv.env : (sysEnv = { cwd, env: realEnv(cwd) }).env);
+/** The parts (lock, backoff, call) of the gh calls of the current `fw watch` pass; `watch.ts` writes them as sub-spans of `watch pass`. */
+export const watchGh = new GhClock();
+const systemEnv = (cwd: string): Env => (sysEnv?.cwd === cwd ? sysEnv.env : (sysEnv = { cwd, env: phasedEnv(realEnv(cwd), (e) => watchGh.on(e)) }).env);
 
 export function parseMemLevel(out: string | null): "normal" | "warn" | "critical" {
   // kern.memorystatus_vm_pressure_level: 1 normal, 2 warn, 4 critical (xnu sys/kern_memorystatus.h)

@@ -398,7 +398,7 @@ export async function runCli(argv: string[], cwd: string, env: Record<string, st
   const genv = args.dry ? null : realEnv(cwd);
   const unused = (): never => { throw new Error("no gh call in --dry"); };
   code = await runMain(args, {
-    call: fwcoreCall(cwd), gh: genv ? ph.gh(chargedGh(genv)) : unused, wait: genv ? ph.wait((t, timeoutS) => waitFor(genv, t, { timeoutS })) : unused,
+    call: fwcoreCall(cwd), gh: genv ? ph.gh(chargedGh(ph.env(genv))) : unused, wait: genv ? ph.wait((t, timeoutS) => waitFor(genv, t, { timeoutS })) : unused,
     now: genv ? genv.now : () => Math.floor(Date.now() / 1000),
     recordKind: (id, inputs) => { recordRunKind(id, inputs, cwd); },
     refSha: (r) => vcs("rev-parse", "--verify", "--quiet", `refs/remotes/origin/${r}^{commit}`) || vcs("rev-parse", "--verify", "--quiet", `refs/heads/${r}^{commit}`) || undefined,
