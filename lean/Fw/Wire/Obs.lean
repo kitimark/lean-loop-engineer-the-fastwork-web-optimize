@@ -934,11 +934,19 @@ def keyOf (j : Json) : Except String Fw.Obs.Timing.Key := do
   pure { tool := ← str j "tool", step := ← str j "step", host := ← hostOf "host" (← field j "host"),
          kind := ← Fw.Wire.Ops.strD j "runKind" "" }
 
-/-- Decode a sample (`load` default 0). -/
+/-- An optional integer field (absent or `null` is `none`). -/
+def optI (j : Json) (k : String) : Except String (Option Int) :=
+  match opt j k with
+  | none => .ok none
+  | some v => match v.getInt? with
+    | .ok n => .ok (some n)
+    | .error _ => .error s!"field {k}: expected an integer"
+
+/-- Decode a sample (`load` default 0, `exit` absent or `null` unknown, `skipped` default false). -/
 def sampleOf (j : Json) : Except String Fw.Obs.Timing.Sample := do
   pure { tool := ← str j "tool", step := ← str j "step", durMs := ← nat j "durMs",
          host := ← hostOf "host" (← field j "host"), load := ← natD j "load" 0,
-         kind := ← Fw.Wire.Ops.strD j "runKind" "" }
+         kind := ← Fw.Wire.Ops.strD j "runKind" "", exit := ← optI j "exit", skipped := ← boolD j "skipped" false }
 
 /-- Decode a group. -/
 def groupOf (j : Json) : Except String Fw.Obs.Timing.Group := do
@@ -1075,6 +1083,14 @@ def run (op : String) (r : String) : String :=
   "{\"slow\":[]}"
 #guard run "obs.slow" "{\"samples\":[{\"tool\":\"t\",\"step\":\"s\",\"durMs\":1,\"host\":\"mars\"}]}" == "error: field host: unknown host mars"
 #guard run "obs.slow" "{}" == "{\"slow\":[]}"
+-- obs.slow: a later early refusal (exit 16) or skipped step gets no verdict, so the slow sample stays the latest
+#guard run "obs.slow" "{\"params\":{\"nMin\":1,\"budgetMs\":1000},\"samples\":[{\"tool\":\"t\",\"step\":\"s\",\"durMs\":100,\"host\":\"local\",\"exit\":0},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":5000,\"host\":\"local\",\"exit\":null},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":100,\"host\":\"local\",\"exit\":16},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":0,\"host\":\"ci\",\"exit\":0,\"skipped\":true}]}" ==
+  "{\"slow\":[\"t/s\"]}"
+-- obs.slow: skipped 0 s steps stay out of the window, so a full run near the old ones is no alert
+#guard run "obs.slow" "{\"params\":{\"nMin\":1,\"budgetMs\":1000},\"samples\":[{\"tool\":\"t\",\"step\":\"s\",\"durMs\":2000,\"host\":\"ci\",\"exit\":0},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":0,\"host\":\"ci\",\"exit\":0,\"skipped\":true},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":0,\"host\":\"ci\",\"exit\":0,\"skipped\":true},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":2500,\"host\":\"ci\",\"exit\":0}]}" ==
+  "{\"slow\":[]}"
+#guard run "obs.slow" "{\"samples\":[{\"tool\":\"t\",\"step\":\"s\",\"durMs\":1,\"host\":\"ci\",\"exit\":\"0\"}]}" == "error: field exit: expected an integer"
+#guard run "obs.slow" "{\"samples\":[{\"tool\":\"t\",\"step\":\"s\",\"durMs\":1,\"host\":\"ci\",\"exit\":-1}]}" == "{\"slow\":[]}"
 -- obs.backoff: not loaded restarts at the first deadline; loaded (load >= cores) waits the rest of the stretched total; then restarts
 #guard run "obs.backoff" "{\"cores\":8,\"load\":3,\"baseMs\":10000,\"waitedMs\":10000}" == "{\"action\":\"restart\",\"waitMs\":0}"
 #guard run "obs.backoff" "{\"cores\":8,\"load\":115,\"baseMs\":10000,\"waitedMs\":10000}" == "{\"action\":\"wait\",\"waitMs\":20000}"
