@@ -22,6 +22,7 @@
 {"name":"retry empty 1/3","request":{"kind":"empty","max":3,"op":"landQueue.retry","tries":1},"response":{"retry":false}}
 {"name":"retry lint 1/3","request":{"kind":"lint","max":3,"op":"landQueue.retry","tries":1},"response":{"retry":false}}
 {"name":"retry rebuild 1/3","request":{"kind":"rebuild","max":3,"op":"landQueue.retry","tries":1},"response":{"retry":false}}
+{"name":"retry install 1/3","request":{"kind":"install","max":3,"op":"landQueue.retry","tries":1},"response":{"retry":false}}
 {"name":"retry busy 3/3","request":{"kind":"busy","max":3,"op":"landQueue.retry","tries":3},"response":{"retry":false}}
 {"name":"same start time","request":{"held":"Sat Oct 18 10:00:00 2026","op":"landQueue.live","probe":"Sat Oct 18 10:00:00 2026"},"response":{"live":true}}
 {"name":"pid reused (other start time)","request":{"held":"Sat Oct 18 10:00:00 2026","op":"landQueue.live","probe":"Sat Oct 18 11:00:00 2026"},"response":{"live":false}}
@@ -71,6 +72,9 @@
 {"name":"refusal reason rebuild none","request":{"kind":"rebuild","op":"landQueue.refusalReason","reason":null},"response":{"reason":"no message"}}
 {"name":"refusal reason rebuild empty","request":{"kind":"rebuild","op":"landQueue.refusalReason","reason":""},"response":{"reason":"no message"}}
 {"name":"refusal reason rebuild given","request":{"kind":"rebuild","op":"landQueue.refusalReason","reason":"m"},"response":{"reason":"m"}}
+{"name":"refusal reason install none","request":{"kind":"install","op":"landQueue.refusalReason","reason":null},"response":{"reason":"no message"}}
+{"name":"refusal reason install empty","request":{"kind":"install","op":"landQueue.refusalReason","reason":""},"response":{"reason":"no message"}}
+{"name":"refusal reason install given","request":{"kind":"install","op":"landQueue.refusalReason","reason":"m"},"response":{"reason":"m"}}
 {"name":"fwcore stale: no record","request":{"moved":false,"op":"landQueue.fwcoreStale","recorded":null,"same":false},"response":{"stale":true}}
 {"name":"fwcore stale: record is main's head","request":{"moved":false,"op":"landQueue.fwcoreStale","recorded":"abc","same":true},"response":{"stale":false}}
 {"name":"fwcore stale: other commit, lean moved","request":{"moved":true,"op":"landQueue.fwcoreStale","recorded":"abc","same":false},"response":{"stale":true}}

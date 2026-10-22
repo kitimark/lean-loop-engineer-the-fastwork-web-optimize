@@ -329,6 +329,26 @@ jobs:
           REPS: 5
         working-directory: packages/gate-breakpoints
         run: node src/trajectory/cli.mjs run --engine "$ENGINE" --widths "$WIDTHS" --search "$SEARCH" --paths "$PATHS" --reads "$READS" --reps "$REPS" --out out/trajectory
+      # The GPU cells (task gpu-trajectory-cells; Lean Fw.Gate.TrajectoryGpu): the first Chromium row also walks the faithful page for the
+      # nav clip, panel effect, pain dark and carousel cells and uploads them (cells-gpu-chromium). continue-on-error: the cells grade a
+      # rewrite against itself or a candidate, they are not part of the trajectory verdict.
+      - name: Walk the GPU cells (Chromium, first row only)
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' && matrix.engine == 'chromium' && strategy.job-index == 0 }}
+        continue-on-error: true
+        env:
+          SEARCH: ${{ needs.site.outputs.search }}
+          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
+          FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
+        working-directory: packages/gate-breakpoints
+        timeout-minutes: 15
+        run: node src/trajectory/cells-gpu-cli.mjs run --engine chromium --search "$SEARCH" --out out/cells-gpu
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' && matrix.engine == 'chromium' && strategy.job-index == 0 }}
+        with:
+          name: cells-gpu-chromium
+          path: packages/gate-breakpoints/out/cells-gpu
+          if-no-files-found: ignore
+          retention-days: 30
       # The artifact's own name inside it: a download that matches ONE artifact puts the files in the target itself, without the
       # artifact-name directory a download of several makes, and the merge job moves them back under their name from this file.
       - name: Name the leg inside its artifact

@@ -1,0 +1,558 @@
+{
+  "id": "morph-panel-threaded",
+  "proposal": "morph-panel-threaded",
+  "title": "Phone: run the morph panel's opacity, blur and scale as effects per push (flag morph.panel:threaded), end of page, iOS Simulator",
+  "arms": [
+    {
+      "name": "morph.panel:const-bounds",
+      "search": "?fw=morph.panel:const-bounds"
+    },
+    {
+      "name": "morph.panel:threaded",
+      "search": "?fw=morph.panel:threaded"
+    },
+    {
+      "name": "morph.panel:threaded + platform:fade-threaded",
+      "search": "?fw=morph.panel:threaded,platform:fade-threaded"
+    }
+  ],
+  "lanes": [
+    {
+      "name": "iOS Simulator 430x775, morph push down and up at the page end, passes of two vms",
+      "rows": [
+        {
+          "metric": "Composite per frame, open push, pass 1",
+          "unit": "ms",
+          "cells": [
+            {
+              "arm": "morph.panel:const-bounds",
+              "value": 213.2,
+              "tag": {
+                "kind": "measured",
+                "run": "39846941236"
+              }
+            },
+            {
+              "arm": "morph.panel:threaded",
+              "value": 275.3,
+              "tag": {
+                "kind": "measured",
+                "run": "39846909558"
+              }
+            },
+            {
+              "arm": "morph.panel:threaded + platform:fade-threaded",
+              "value": 149.6,
+              "tag": {
+                "kind": "measured",
+                "run": "39846948148"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "Composite per frame, open push, pass 2",
+          "unit": "ms",
+          "cells": [
+            {
+              "arm": "morph.panel:const-bounds",
+              "value": 150.5,
+              "tag": {
+                "kind": "measured",
+                "run": "39846941236"
+              }
+            },
+            {
+              "arm": "morph.panel:threaded",
+              "value": 235.8,
+              "tag": {
+                "kind": "measured",
+                "run": "39846909558"
+              }
+            },
+            {
+              "arm": "morph.panel:threaded + platform:fade-threaded",
+              "value": 308.2,
+              "tag": {
+                "kind": "measured",
+                "run": "39846948148"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "Composite per frame, open push, pass 3",
+          "unit": "ms",
+          "cells": [
+            {
+              "arm": "morph.panel:const-bounds",
+              "value": 157.6,
+              "tag": {
+                "kind": "measured",
+                "run": "39846941236"
+              }
+            },
+            {
+              "arm": "morph.panel:threaded",
+              "value": 425.0,
+              "tag": {
+                "kind": "measured",
+                "run": "39846909558"
+              }
+            },
+            {
+              "arm": "morph.panel:threaded + platform:fade-threaded",
+              "value": 139.5,
+              "tag": {
+                "kind": "measured",
+                "run": "39846948148"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "Composite per frame, open push, pass 4",
+          "unit": "ms",
+          "cells": [
+            {
+              "arm": "morph.panel:const-bounds",
+              "value": 169.0,
+              "tag": {
+                "kind": "measured",
+                "run": "39846941236"
+              }
+            },
+            {
+              "arm": "morph.panel:threaded",
+              "value": 552.1,
+              "tag": {
+                "kind": "measured",
+                "run": "39846909558"
+              }
+            },
+            {
+              "arm": "morph.panel:threaded + platform:fade-threaded",
+              "value": 176.3,
+              "tag": {
+                "kind": "measured",
+                "run": "39846948148"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "Composite per frame, close push, pass 1",
+          "unit": "ms",
+          "cells": [
+            {
+              "arm": "morph.panel:const-bounds",
+              "value": 107.3,
+              "tag": {
+                "kind": "measured",
+                "run": "39846941236"
+              }
+            },
+            {
+              "arm": "morph.panel:threaded",
+              "value": 142.4,
+              "tag": {
+                "kind": "measured",
+                "run": "39846909558"
+              }
+            },
+            {
+              "arm": "morph.panel:threaded + platform:fade-threaded",
+              "value": 85.9,
+              "tag": {
+                "kind": "measured",
+                "run": "39846948148"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "Composite per frame, close push, pass 2",
+          "unit": "ms",
+          "cells": [
+            {
+              "arm": "morph.panel:const-bounds",
+              "value": 117.5,
+              "tag": {
+                "kind": "measured",
+                "run": "39846941236"
+              }
+            },
+            {
+              "arm": "morph.panel:threaded",
+              "value": 241.5,
+              "tag": {
+                "kind": "measured",
+                "run": "39846909558"
+              }
+            },
+            {
+              "arm": "morph.panel:threaded + platform:fade-threaded",
+              "value": 208.5,
+              "tag": {
+                "kind": "measured",
+                "run": "39846948148"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "Composite per frame, close push, pass 3",
+          "unit": "ms",
+          "cells": [
+            {
+              "arm": "morph.panel:const-bounds",
+              "value": 128.8,
+              "tag": {
+                "kind": "measured",
+                "run": "39846941236"
+              }
+            },
+            {
+              "arm": "morph.panel:threaded",
+              "value": 249.8,
+              "tag": {
+                "kind": "measured",
+                "run": "39846909558"
+              }
+            },
+            {
+              "arm": "morph.panel:threaded + platform:fade-threaded",
+              "value": 122.9,
+              "tag": {
+                "kind": "measured",
+                "run": "39846948148"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "Composite per frame, close push, pass 4",
+          "unit": "ms",
+          "cells": [
+            {
+              "arm": "morph.panel:const-bounds",
+              "value": 148.0,
+              "tag": {
+                "kind": "measured",
+                "run": "39846941236"
+              }
+            },
+            {
+              "arm": "morph.panel:threaded",
+              "value": 184.1,
+              "tag": {
+                "kind": "measured",
+                "run": "39846909558"
+              }
+            },
+            {
+              "arm": "morph.panel:threaded + platform:fade-threaded",
+              "value": 91.6,
+              "tag": {
+                "kind": "measured",
+                "run": "39846948148"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "RecalculateStyles records in the morph pass, pass 1",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "morph.panel:const-bounds",
+              "value": 1202,
+              "tag": {
+                "kind": "measured",
+                "run": "39846941236"
+              }
+            },
+            {
+              "arm": "morph.panel:threaded",
+              "value": 938,
+              "tag": {
+                "kind": "measured",
+                "run": "39846909558"
+              }
+            },
+            {
+              "arm": "morph.panel:threaded + platform:fade-threaded",
+              "value": 1280,
+              "tag": {
+                "kind": "measured",
+                "run": "39846948148"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "RecalculateStyles records in the morph pass, pass 2",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "morph.panel:const-bounds",
+              "value": 442,
+              "tag": {
+                "kind": "measured",
+                "run": "39846941236"
+              }
+            },
+            {
+              "arm": "morph.panel:threaded",
+              "value": 306,
+              "tag": {
+                "kind": "measured",
+                "run": "39846909558"
+              }
+            },
+            {
+              "arm": "morph.panel:threaded + platform:fade-threaded",
+              "value": 562,
+              "tag": {
+                "kind": "measured",
+                "run": "39846948148"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "RecalculateStyles records in the morph pass, pass 3",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "morph.panel:const-bounds",
+              "value": 1348,
+              "tag": {
+                "kind": "measured",
+                "run": "39846941236"
+              }
+            },
+            {
+              "arm": "morph.panel:threaded",
+              "value": 322,
+              "tag": {
+                "kind": "measured",
+                "run": "39846909558"
+              }
+            },
+            {
+              "arm": "morph.panel:threaded + platform:fade-threaded",
+              "value": 354,
+              "tag": {
+                "kind": "measured",
+                "run": "39846948148"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "RecalculateStyles records in the morph pass, pass 4",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "morph.panel:const-bounds",
+              "value": 2258,
+              "tag": {
+                "kind": "measured",
+                "run": "39846941236"
+              }
+            },
+            {
+              "arm": "morph.panel:threaded",
+              "value": 310,
+              "tag": {
+                "kind": "measured",
+                "run": "39846909558"
+              }
+            },
+            {
+              "arm": "morph.panel:threaded + platform:fade-threaded",
+              "value": 324,
+              "tag": {
+                "kind": "measured",
+                "run": "39846948148"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "style recalculations saved per tween frame (expected from the model: none)",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "morph.panel:const-bounds",
+              "value": 0,
+              "tag": {
+                "kind": "inferred",
+                "why": "reference arm"
+              }
+            },
+            {
+              "arm": "morph.panel:threaded",
+              "value": 0,
+              "tag": {
+                "kind": "inferred",
+                "why": "Lean recalc_same: the variant drops only the panel writes; the nav --morph write still schedules a recalculation on every frame"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Chromium, swipe-v1 counts (no push in the profile)",
+      "rows": [
+        {
+          "metric": "RecalcStyleCount, scroll profile",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "morph.panel:const-bounds",
+              "value": 1832,
+              "tag": {
+                "kind": "measured",
+                "run": "39851664186"
+              }
+            },
+            {
+              "arm": "morph.panel:threaded",
+              "value": 1832,
+              "tag": {
+                "kind": "measured",
+                "run": "39851674587"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "Animation.begin, scroll profile (the profile never opens the panel)",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "morph.panel:const-bounds",
+              "value": 143,
+              "tag": {
+                "kind": "measured",
+                "run": "39851664186"
+              }
+            },
+            {
+              "arm": "morph.panel:threaded",
+              "value": 143,
+              "tag": {
+                "kind": "measured",
+                "run": "39851674587"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "Paint, scroll profile",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "morph.panel:const-bounds",
+              "value": 2493,
+              "tag": {
+                "kind": "measured",
+                "run": "39851664186"
+              }
+            },
+            {
+              "arm": "morph.panel:threaded",
+              "value": 2494,
+              "tag": {
+                "kind": "measured",
+                "run": "39851674587"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Chromium trajectory probe and GPU cells, flag morph.panel:threaded",
+      "rows": [
+        {
+          "metric": "trajectory units new against the faithful arm, content",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "morph.panel:threaded",
+              "value": 0,
+              "tag": {
+                "kind": "measured",
+                "run": "39846814254"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "trajectory units new against the faithful arm, coverage (open@1, first frame phase)",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "morph.panel:threaded",
+              "value": 84,
+              "tag": {
+                "kind": "measured",
+                "run": "39846814254"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "panel steps failing out of 152 (all open@1 coverage)",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "morph.panel:threaded",
+              "value": 3,
+              "tag": {
+                "kind": "measured",
+                "run": "39846814254"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "panel-effect cells graded E out of 4 (the L is a reference chord across the kink)",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "morph.panel:threaded",
+              "value": 3,
+              "tag": {
+                "kind": "measured",
+                "run": "39855506403"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "largest panel lag against the nav clip",
+          "unit": "frames",
+          "cells": [
+            {
+              "arm": "morph.panel:threaded",
+              "value": 0.013,
+              "tag": {
+                "kind": "measured",
+                "run": "39855506403"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "recommendation": {
+    "word": "hold",
+    "why": "The flag is proved to show the original panel on every frame under the WAAPI premises, every effect meets the Core Animation conditions, the gate passes on both engines, and the Chromium trajectory has no content difference. It does not lower the cost: on the Simulator the open push costs more Composite per frame than the constant-bounds flag, because the blur moves from Paint to the compositor on a panel whose box is already constant, and the style recalculation stays. Keep the flag registered, leave it out of the preset, and re-open it only when measured on a lane with a real GPU."
+  }
+}

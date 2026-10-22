@@ -56,7 +56,7 @@ const CHROME_ARGS = [
   '--font-render-hinting=none', '--force-color-profile=srgb', '--hide-scrollbars', '--mute-audio',
   '--disable-background-networking', '--disable-breakpad', '--no-first-run', '--lang=en-US', ...(process.env.FW_CHROME_EXTRA ? process.env.FW_CHROME_EXTRA.split(' ') : []), 'about:blank',
 ];
-const DROP = [...(process.env.FW_DROP_FLAGS ?? '').split(',').filter(Boolean), ...(profile.dropFlags ?? [])]; // profile.dropFlags: Chrome flags (by prefix) this profile runs without // debugging: remove flags by prefix
+const DROP = (process.env.FW_DROP_FLAGS ?? '').split(',').filter(Boolean); // debugging: remove flags by prefix
 for (let i = CHROME_ARGS.length - 1; i >= 0; i--) if (DROP.some((d) => CHROME_ARGS[i].startsWith(d))) CHROME_ARGS.splice(i, 1);
 const chrome = spawn(process.env.FW_CHROME, CHROME_ARGS, { stdio: ['ignore', DEBUG ? 'inherit' : openSync('/tmp/chrome.log', 'w'), DEBUG ? 'inherit' : openSync('/tmp/chrome.log', 'a')] });
 for (let i = 0; i < 200; i++) { try { await fetch('http://127.0.0.1:9222/json/version'); break; } catch { await sleep(50); } }

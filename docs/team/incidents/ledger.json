@@ -4259,6 +4259,33 @@
    "leanVerdict": "provable",
    "leanReason": "The inflight choice is a pure function of the folded lines: a later assistant message clears every older open call, so a missing result record cannot pin inflight.",
    "hardening": "watch-orphan-call"
+  },
+  {
+   "id": "inc-land-wt-lock-drift",
+   "at": "2026-10-23T03:40+07:00",
+   "title": "fw land refused morph-touch-band on a missing jsdom: the reused land worktree's node_modules had drifted behind main's lockfile, and the lead misattributed the cause to the swallowed offline install",
+   "symptom": "The first morph-touch-band land failed 'check FAILED: pnpm --filter ./apps/site test' (vitest: Cannot find package 'jsdom'; 37 packages missing in .claude/land-wt/1). The lead ran pnpm install --frozen-lockfile there by hand and filed land-install-fallback on the theory that land.ts:356 swallowed an offline install failure.",
+   "cause": "CONFIRMED (land-install-fallback review forensics): .claude/land-wt/1 was created 2026-10-18 (dir and node_modules birth time); jsdom entered apps/site/package.json on 2026-10-20 (5ab55d786). land-wt/1 is a registered worktree, so checkoutLandWt (apps/runner/src/land.ts:341-352) takes the known branch (git checkout only) and no install runs unless the land's own diff touches pnpm-lock.yaml or a package.json (INSTALL_READS). The offline install the lead blamed never ran. Lead error: the cause was named from the code path that looked responsible, without checking the worktree's age and the dependency's history. Lesson for the lead: name an incident cause only after forensics (timestamps, history); until then mark it INFERRED in the task title.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "apps/runner/src/land.ts",
+     "note": "checkoutLandWt known branch: checkout only; install only when the land diff touches lockfile/package.json"
+    },
+    {
+     "kind": "commit",
+     "ref": "5ab55d786",
+     "note": "jsdom added to apps/site/package.json on 2026-10-20, after land-wt/1 was created"
+    }
+   ],
+   "repro": "Create a land worktree, land a change on main that adds a dependency, then land a branch whose own diff does not touch the lockfile in the reused worktree: its checks run on node_modules without the new package.",
+   "fix": {
+    "task": "land-wt-lock-drift"
+   },
+   "regression": "Lean rule over the install decision: install when the lockfile hash at the checked-out commit differs from the hash stamped at the worktree's last install (installKind extended); golden case for a reused worktree behind main's lockfile.",
+   "leanVerdict": "provable",
+   "leanReason": "Whether to install is a pure function of (worktree known, lockfile hash now, stamped hash); 'no install while hashes differ' is a stated, checkable property.",
+   "hardening": "land-wt-lock-drift"
   }
  ]
 }

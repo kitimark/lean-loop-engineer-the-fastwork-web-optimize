@@ -1,12 +1,10 @@
 Branch: worktree-wf_2ffa3f6a-227-1 (CI branch ci/people-o-preview-translate)
-Worktree: .claude/worktrees/wf_2ffa3f6a-227-1 (under the repo root)
-Last commit: the CI branch tip 95ce7ae5f at checkpoint 3 (later commits follow)
-CI runs: gate 39850908365 SUCCESS (both engines, flagged config 08b2ef03265b7880, people.o row all pass). Chromium counts on every
-desktop-width profile FAIL at the first load frame, base and flag alike (39850913549, 39850930778, 39852501132, 39854385797,
-39855096795, 39855102093, 39855917125, 39856570778, 39857307732, 39857312848, 39857318162, 39859911878, 39860551961, 39861279374,
-39862057861): the renderer crashes (SIGSEGV, SEGV_MAPERR 0x84, a recursive tree walk, run 39862057861 chrome.log) 0.5 s after the
-first frame of any rewrite page wider than 860 px (900 wide dpr 3 mobile as well). swipe-v1 (430 wide) passes on this branch
-(39859057574), so it is not the flag. Running: flag-drop bisect profiles people-o-hover-d1..d4 (run.mjs profile.dropFlags).
+Worktree: .claude/worktrees/wf_2ffa3f6a-227-1
+Last commit: see git log (final merge of main r296 plus finish commit)
+CI runs: gate 39850908365 SUCCESS (both engines). Counts BLOCKED by task chromium-desktop-crash (renderer SIGSEGV at load of any page wider
+than 860 px, base and flag alike); the 15 failed run ids are in research/notes/2026/10-2x-people-o-preview-translate.md and results/people-o-preview-translate/report.json.
+Verified: Lean check.sh, site tests, gate. Open: re-run people-o-hover counts after chromium-desktop-crash; then set the ledger row (n 52) chromium/webkit.
+Removed: the flag-drop and width bisect profiles and run.mjs profile.dropFlags (untested). Kept in run.mjs: load diagnostics (crash log, hangProfile) for chromium-desktop-crash.
 
 # people-o-preview-translate: handoff
 
@@ -24,7 +22,7 @@ first frame of any rewrite page wider than 860 px (900 wide dpr 3 mobile as well
 - **Outside the task's writes (lead to accept):** `lean/Fw.lean`, `lean/scripts/check.sh`, `lean/scripts/PeopleOPreviewGolden.lean`,
   `lean/Fw/Ci/Trigger.lean` + `golden/ci/triggers.jsonl`, `lean/Fw/Parts/FootprintData.lean`, `FootprintRows.lean`,
   `golden/parts/footprint*.json`, `golden/preset/v2-proved.decisions.jsonl` (regenerated), `packages/measure-chromium/src/run.mjs`
-  (segment `anchor` and `eval`), `packages/measure-chromium/profiles/people-o-hover.json`.
+  (segment `anchor` and `eval`), `packages/measure-chromium/profiles/people-o-hover.json`, `research/findings/ledger.json` (row n 52).
 - **Counts scenario:** profile `people-o-hover` (1280x800, synthetic mouseover on the first face, 40 scroll frames at 10 px). Question:
   Layout count per frame of phase `scroll`, base vs `--fw people.o:preview-translate`.
-- **Open:** CI runs and note `research/notes/2026/10-2x-people-o-preview-translate.md`.
+- **Note:** `research/notes/2026/10-2x-people-o-preview-translate.md`.
