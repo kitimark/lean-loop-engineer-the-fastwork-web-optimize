@@ -1,12 +1,9 @@
-// fw polish: golden vectors of fwcore `plan.polishPlan` and `plan.polishCuts` (Fw.Plan.Polish) and the CLI around them. The
-// golden responses come from the fwcore binary; regenerate with
-//   FW_WRITE_POLISH_GOLDEN=1 pnpm --filter ./apps/runner exec vitest run test/polish.test.ts
 import { execFileSync, spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { genOutputs, polishCli } from "../src/polish.ts";
+import { genOutputs, genOwned, polishCli } from "../src/polish.ts";
 import { coreCandidates, coreCaller } from "../src/watch.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -194,6 +191,23 @@ describe("fw polish CLI", () => {
     const gen = await genOutputs(root);
     expect(gen).toContain(LAKE_GEN);
     expect(gen.filter((p) => p.startsWith(".github/workflows/")).length).toBeGreaterThan(3);
+  });
+
+  it("a workflow row only the branch adds is generator-owned: its edit is restored, the guard comment stays", async () => {
+    const wf = ".github/workflows/path-pix.yml";
+    const f = fake({}, [wf, "apps/x/a.ts"], [wf, "apps/x/a.ts"]);
+    const gen = async (r: string) => (r === wt ? [LAKE_GEN, wf] : [LAKE_GEN]);
+    expect(await polishCli(["commit", "--branch", "b", "--task", "t"], "/root", { ...f.deps, gen })).toBe(0);
+    expect(f.gitCalls.find((a) => a[0] === "checkout")).toEqual(["checkout", "HEAD", "--", wf]);
+    expect(f.gitCalls.find((a) => a[0] === "add")).toEqual(["add", "--", "apps/x/a.ts"]);
+    const p = fake({}, [wf]);
+    await polishCli(["plan", "--branch", "b", "--task", "t"], "/root", { ...p.deps, gen });
+    expect(p.lines.at(-1)).toBe("VERDICT polish-plan t none");
+  });
+
+  it("genOwned unions both tables and fails when the branch table does not load", async () => {
+    expect(await genOwned(async (r) => (r === "/wt" ? ["b"] : ["a"]), "/root", "/wt")).toEqual(["a", "b"]);
+    await expect(genOwned(async (r) => { if (r === "/wt") throw new Error("x"); return ["a"]; }, "/root", "/wt")).rejects.toThrow("x");
   });
 
   it("usage errors throw", async () => {

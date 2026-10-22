@@ -14387,7 +14387,8 @@
     "packages/contracts/golden/parts/footprint.gen.json",
     "packages/contracts/golden/parts/footprint-diff.gen.json",
     "packages/contracts/golden/preset/v2-proved.decisions.jsonl"
-   ]
+   ],
+   "evidence": "ad73ce3"
   },
   {
    "devices": [
@@ -16555,7 +16556,15 @@
     "packages/contracts/golden/parts/pain-dark-scroll*.jsonl",
     "research/notes/2026/10-2x-pain-dark-scroll.md",
     "results/pain-dark-scroll/**",
-    "docs/team/handoffs/pain-dark-scroll.md"
+    "docs/team/handoffs/pain-dark-scroll.md",
+    "lean/Fw/Parts/Bridge.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "research/findings/ledger.json",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json",
+    "packages/contracts/golden/preset/v2-proved.decisions.jsonl",
+    "lean/Fw.lean"
    ],
    "title": "GPU route (user 2026-10-22: \"experiment then measure and do lean prove ... navbar and the end-of-page\"; design workflow gpu-route-design, lead scratch gpu-route-tasks.json rank 4). pain:dark-scroll at <= 860 px: replace the is-pain-dark class flip (section restyle + 3.6-4.6 Mpx background repaint, 10-20 ms in the toggle frame, ledger n10-d) with a scroll-driven steps(1) opacity animation on an empty solid-colour layer behind the content, range start = header document top - 0.5 px on the root scroll timeline (written once per layout/resize); people.card stops toggling the class under the flag. ThreadedScrollDrivenAnimationsEnabled is stable and on by default (UnifiedWebPreferences.yaml:8518-8531@862f17d), steps allowed on the threaded branch (KeyframeEffect.cpp:2001-2004). Engines without ScrollTimeline keep faithful. Flag: Look E-s (opacity exactly 0 or 1). Premises to prove or measure: the card reveal transform has finished before the flip offset, and the original is current at that offset. Q only for flip-frame timing (UI-process flip vs main-thread class). Running in the UI process is INFERRED (UIProcess sources not in the clone). Must pass the engine.scroll throttle-lift rule: its only effect is completely accelerated. Layer budget: +1 to 3 solid-colour layers, 0 MB backing each (simple container: no radius, no painted content).. Lean: New Fw.Parts.PainDarkScroll: for all y, band <= 860, Reveal y and Cont: pixel(variant, y) = pixel(orig, y), orig = if headerTop(y) <= 0.5 then dark else white, variant = over(white, dark, step(y >= T)), T = headerDocTop - 0.5. Accelerated(darkEffect) (opacity only) so the throttle-lift gate passes. Work: stylePasses(variant, toggleFrame) = 0, paints = 0. Layer budget: solidColour layers <= 3, residentKpx 0 each. Measure: WebKit Simulator cost lane: RecalculateStyles and Paint in the crossing window, layer census (solid-colour contents, no backing). Breakpoint gate pixel cells at <= 860 px on both engines. Trajectory pain dark cell (class vs layer opacity per offset, from gpu-trajectory-cells). Local Safari lane via gpu-safari-lane."
   },
@@ -16713,7 +16722,10 @@
     "apps/runner/src/fw.ts",
     "apps/runner/test/slot-queue.test.ts",
     "apps/runner/test/slot.test.ts",
-    "docs/team/tools/slot.md"
+    "docs/team/tools/slot.md",
+    "lean/Fw/Sup/Adapt.lean",
+    "lean/Fw/Sup/AdaptGolden.lean",
+    "packages/contracts/golden/sup/adapt.jsonl"
    ],
    "title": "fw watch raised timing.slow for 'fw/slot acquire sim' at 1521 s (2026-10-22): the acquire waited behind another sim holder (locks.jsonl: one sim lease held 1826 s), i.e. a queue wait, not a slow step. Fw.Obs.Timing judges contention by load only (contendedLoad 8), so a lock wait at load 4 reads as slow. Closed rule by identity: the acquire span records the holder it waited behind (slot.ts: kind, owner, waitMs from the queue); Timing gives a sample that waited behind a live holder the verdict queued (never slow, never in a window) and judges only the remaining non-wait time; theorem queued_not_slow plus the existing windowOf properties. A queue wait longer than the holder's lease plus grace stays an alert (lease expiry is the real fault). Golden vectors from Lean; slot.ts and the timing reader checked against them."
   },
@@ -16777,7 +16789,8 @@
     "docs/team/tools/disk-gc.md",
     "docs/team/handoffs/disk-gc-tmp-followups.md"
    ],
-   "title": "Review follow-ups of disk-gc-tmp: (1) add usertmp to the post-land disk-gc list (fw-main.ts:25 runs lake, landed, console) so the temp folder no longer grows until sys.diskLow; (2) tmpPrefixes misses our own test leftovers (MEASURED: dryl* 715, jev* 679, cm* 678, slots* 306, difftest* 185, rr* 157, replay* 113, wkrep* 122, wkraw* 111, vd* 106, compose* 52, graph* 51): extend the allowlist from git grep of mkdtemp prefixes, with the usertmp_named docstring; (3) wire scripts/lint-tmpdirs.test.mjs into lean.yml's node --test line; (4) Cand.sym fails open: make it Option Bool, require some false in ruleConsole/ruleUsertmp, regenerate goldens; (5) port gatherEventFacts liveness (stop/resume ordered by seq) to Lean; (6) lint pairs each mkdtemp binding with an rm of that name."
+   "title": "Review follow-ups of disk-gc-tmp: (1) add usertmp to the post-land disk-gc list (fw-main.ts:25 runs lake, landed, console) so the temp folder no longer grows until sys.diskLow; (2) tmpPrefixes misses our own test leftovers (MEASURED: dryl* 715, jev* 679, cm* 678, slots* 306, difftest* 185, rr* 157, replay* 113, wkrep* 122, wkraw* 111, vd* 106, compose* 52, graph* 51): extend the allowlist from git grep of mkdtemp prefixes, with the usertmp_named docstring; (3) wire scripts/lint-tmpdirs.test.mjs into lean.yml's node --test line; (4) Cand.sym fails open: make it Option Bool, require some false in ruleConsole/ruleUsertmp, regenerate goldens; (5) port gatherEventFacts liveness (stop/resume ordered by seq) to Lean; (6) lint pairs each mkdtemp binding with an rm of that name.",
+   "evidence": "06b9f3d"
   },
   {
    "devices": [
@@ -16834,7 +16847,80 @@
     ".claude/agents/comment-sicko.md",
     "docs/team/handoffs/polish-skip-generated.md"
    ],
-   "title": "The build-review Polish stage (comment-sicko) deleted the guard comment that scripts/ci-paths.mjs generates in .github/workflows/path-pix.yml; the land dry then refused with VERDICT lint (ci-paths --check: 'the comment above the guard job differs'), costing a land cycle (2026-10-23). Closed rule by identity: fw polish never edits lines a generator owns; ask each generator (ci-paths --check, the golden writers) after the polish edits and revert any hunk the check refuses, or pass the generator-owned paths/blocks to comment-sicko as read-only. Test: a polish run over a workflow file keeps the generated guard comment."
+   "title": "The build-review Polish stage (comment-sicko) deleted the guard comment that scripts/ci-paths.mjs generates in .github/workflows/path-pix.yml; the land dry then refused with VERDICT lint (ci-paths --check: 'the comment above the guard job differs'), costing a land cycle (2026-10-23). Closed rule by identity: fw polish never edits lines a generator owns; ask each generator (ci-paths --check, the golden writers) after the polish edits and revert any hunk the check refuses, or pass the generator-owned paths/blocks to comment-sicko as read-only. Test: a polish run over a workflow file keeps the generated guard comment.",
+   "evidence": "f0909d2"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-install-fallback",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land-install*.test.ts",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/land-install-fallback.md"
+   ],
+   "title": "fw land refused morph-touch-band on 2026-10-23 with 'check FAILED: pnpm --filter ./apps/site test': the land worktree .claude/land-wt/1 lacked jsdom (vitest: Cannot find package 'jsdom'; 37 packages missing). land.ts:356 runs `pnpm install --offline --frozen-lockfile` in the land worktree and swallows any failure (catch {}), so a package absent from the local store leaves node_modules incomplete and the land fails later with an unrelated-looking test error (the lead's `pnpm install --frozen-lockfile` there added 37 packages and fixed it). Fix: on an offline install failure, run the online `pnpm install --frozen-lockfile`; if that fails too, refuse the land with a named reason (VERDICT install) instead of continuing; test both paths with a stubbed exec; doc in land.md."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "timing-lease-overrun",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Obs/LeaseOverrun.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/obs/lease-overrun.jsonl",
+    "apps/runner/src/timing.ts",
+    "apps/runner/src/watch-collect.ts",
+    "apps/runner/test/lease-overrun*.test.ts",
+    "docs/team/tools/slot.md",
+    "docs/team/handoffs/timing-lease-overrun.md"
+   ],
+   "title": "Split from timing-queue-wait after its 2nd review refusal (Fable advice, lead scratch fable-timing-queue-wait.md): the clause 'a wait longer than the holder's lease plus grace stays an alert' cannot be judged by the waiter (a renewing holder's hold is unbounded by design, slot-core.ts:84; the legacy sim-lock has no lease, slot-core.ts:171). Judge the holder instead: a Lean verdict over .fw-console/locks.jsonl `expire` events (lateMs beyond a grace; holder identity from the event: owner, token, leaseS, holdMs), with an fw watch alert, and optionally a hold-duration bound for renewing holders. Goldens from the 4 expire events seen 2026-10-22 (one lateMs 39000)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "usertmp-unknown-prefixes",
+   "owner": "researcher",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Ops/DiskGc.lean",
+    "packages/contracts/golden/ops/diskgc.jsonl",
+    "docs/team/tools/disk-gc.md",
+    "research/notes/2026/10-2x-usertmp-prefixes.md",
+    "docs/team/handoffs/usertmp-unknown-prefixes.md"
+   ],
+   "title": "Review follow-up of disk-gc-tmp-followups: this Mac's user temp folder holds entries the usertmp allowlist does not cover (MEASURED: about 200 mc-* entries such as mc-src-kit-, mc-alt-, mc-kit-, and probe-, wd-, rv-, dwf- entries with no source in git; shell mktemp prefixes axcheck. (lean/scripts/axiom-check.sh:7), check-fast. (lean/scripts/check-fast.sh:13); research warmup-fp-/warmup-count-). Identify each prefix's writer (git log -S, process names, Lean/Lake tools, other apps); add our own to tmpPrefixes with guards; list the rest as not ours. Also the runOf docstring ('newest wfid-label key' vs last in file order) and the lint's child-rm false negative."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "trajectory-carousel-lean",
+   "owner": "lean-prover",
+   "stream": "measure",
+   "deps": [
+    "gpu-trajectory-cells"
+   ],
+   "writes": [
+    "lean/Fw/Gate/TrajectoryGpu*.lean",
+    "packages/contracts/golden/gate/trajectory-gpu*.jsonl",
+    "packages/gate-breakpoints/src/trajectory/cells-gpu*.mjs",
+    "packages/gate-breakpoints/test/trajectory-gpu*.mjs",
+    "docs/team/handoffs/trajectory-carousel-lean.md"
+   ],
+   "title": "Review follow-up of gpu-trajectory-cells: the carousel and pain reducers are TS stand-ins (swapsOf, restedBefore, carouselCell pairing by order over min(bs,cs), worst dropping null reps, painCell's no-flip rule). A candidate with fewer or zero swaps grades only min pairs (zero swaps gives null, not L), and worst([E,null]) = E, so a stopped carousel is not flagged; restedBefore has no hold-out (all 12 Chromium recordings open mid-swap). Port the segmentation and pairing to Lean with goldens; swap-count mismatch grades L; a null rep among defined ones makes the unit not comparable; then a fresh hold-out A/A on a recording that starts at rest."
   }
  ],
  "deadline": {

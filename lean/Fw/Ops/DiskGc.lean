@@ -63,7 +63,7 @@ structure Cand where
   tracked : Bool
   newest : Nat
   dir : Bool
-  sym : Bool := false
+  sym : Option Bool := none
   owner : Option (String × String) := none
   lake : Option LakeGc.Fact := none
   branch : String := ""
@@ -147,7 +147,13 @@ def hexChar (x : Char) : Bool := x.isDigit || ('A' ≤ x && x ≤ 'F') || ('a' �
 def udidOk (u : String) : Bool :=
   (u.splitOn "-").map String.length == [8, 4, 4, 4, 12] && (u.splitOn "-").all (·.all hexChar)
 
-def tmpPrefixes : List String := ["fw", "oracle", "ghb", "engine-check", "premises", "land-base", "lint", "var"]
+def tmpPrefixes : List String :=
+  ["fw", "oracle", "ghb", "engine-check", "premises", "land-base", "lint", "var",
+   "dryl-", "jev", "cm-", "slots-", "slot-", "slotres-", "difftest-", "rr-", "replay-", "wkrep-", "wkraw-", "wktr-", "vd-",
+   "compose-", "graph-", "checkmap-", "changed-inputs-", "ci-intent-", "ci-paths-", "ci-pool-", "ci-push-",
+   "exitgen-", "freezegen-", "gate-", "jt-", "lake-slot-", "ledger-merge-", "math-pending-", "nodepin-",
+   "port-assets-", "port-fonts-", "reap-", "run-cite-", "runname-", "scopegen-", "scrub-", "settlegen-",
+   "diskgc", "lakegc"]
 
 def tmpNameOk (n : String) : Bool :=
   LakeGc.nameOk n && (tmpPrefixes.any (fun p => n.startsWith p) || (n.startsWith "instruments" && n.endsWith ".ktrace"))
@@ -248,9 +254,9 @@ def ruleSim (cfg : Config) (x : Cand) : Bool :=
   | some (n, st) => n.startsWith "fw-" && st == "Shutdown" && !named cfg n && cfg.simLock == some false
   | none => false
 
-def ruleConsole (cfg : Config) (x : Cand) : Bool := !x.sym && olderThan cfg x (cfg.keepDays * 86400)
+def ruleConsole (cfg : Config) (x : Cand) : Bool := x.sym == some false && olderThan cfg x (cfg.keepDays * 86400)
 
-def ruleUsertmp (cfg : Config) (x : Cand) : Bool := !x.sym && olderThan cfg x (cfg.tmpH * 3600)
+def ruleUsertmp (cfg : Config) (x : Cand) : Bool := x.sym == some false && olderThan cfg x (cfg.tmpH * 3600)
 
 def rule (cfg : Config) (x : Cand) : Bool :=
   match x.cls with
@@ -317,7 +323,7 @@ def exSim (n : String) : Cand :=
 
 def exConsole (rel : String) : Cand :=
   { cls := .console, path := s!"/u/r/.fw-console/{rel}", bytes := 1, uid := some 1, tracked := false, newest := 0,
-    dir := false }
+    dir := false, sym := some false }
 
 #guard chosen exCfg (exWt .landed "w1" true .free)
 #guard !chosen exCfg (exWt .landed "w1" false .free)
@@ -339,7 +345,7 @@ def exConsole (rel : String) : Cand :=
 #guard Cls.parse "4" == some .scratch && Cls.parse "sim" == some .sim && Cls.parse "7" == some .usertmp &&
   Cls.parse "8" == none
 #guard !chosen exCfg { exScratch "old" 0 with uid := none }
-#guard !chosen exCfg { exConsole "tmp/chromium-1" with sym := true }
+#guard !chosen exCfg { exConsole "tmp/chromium-1" with sym := some true }
 
 def exOwned (d : String) (newest : Nat) : Cand := { exScratch d newest with owner := some ("t1", "r1") }
 
@@ -363,11 +369,12 @@ def exPress : Config := { exCfg with pressure := true, liveAgents := some ["busy
 
 def exTmp (n : String) : Cand :=
   { cls := .usertmp, path := s!"/private/var/folders/ab/cd/T/{n}", bytes := 1, uid := some 1, tracked := false,
-    newest := 0, dir := true }
+    newest := 0, dir := true, sym := some false }
 
 #guard chosen exCfg (exTmp "fw-land-abc")
 #guard chosen exCfg (exTmp "oracle1")
 #guard chosen exCfg (exTmp "engine-check-x")
+#guard chosen exCfg (exTmp "slotres-1")
 #guard chosen exCfg { exTmp "instruments-1.ktrace" with dir := false }
 #guard !chosen exCfg (exTmp "instruments-1.trace")
 #guard !chosen exCfg (exTmp "com.apple.x")
@@ -377,7 +384,11 @@ def exTmp (n : String) : Cand :=
 #guard !chosen exCfg { exTmp "fw1" with path := "/private/var/folders/ab/cd/T/" }
 #guard !chosen exCfg { exTmp "fw1" with path := "/private/var/folders/ab/cd/T/fw1/x" }
 #guard !chosen exCfg { exTmp "fw1" with path := "/private/var/folders/ab/cd/T/../fw1" }
-#guard !chosen exCfg { exTmp "fw1" with sym := true }
+#guard !chosen exCfg { exTmp "fw1" with sym := some true }
+#guard !chosen exCfg { exTmp "fw1" with sym := none }
+#guard !chosen exCfg { exConsole "tmp/chromium-1" with sym := none }
+#guard chosen exCfg { exTmp "dryl-1" with newest := 0 } && chosen exCfg (exTmp "jev-arms-1") && chosen exCfg (exTmp "wkraw-9")
+#guard !chosen exCfg (exTmp "dryl1") && !chosen exCfg (exTmp "graph")
 #guard !chosen exCfg { exTmp "fw1" with uid := some 2 }
 #guard !chosen exCfg { exTmp "fw1" with uid := none }
 #guard !chosen exCfg { exTmp "fw1" with newest := 1000000 - 3600 }
@@ -618,12 +629,12 @@ theorem rule_sim (cfg : Config) (xs : List Cand) (x : Cand) (h : x ∈ select cf
     | some l => rw [hl] at hn; exact ⟨l, rfl, by simpa using hn⟩
 
 theorem rule_console (cfg : Config) (xs : List Cand) (x : Cand) (h : x ∈ select cfg xs) (hc : x.cls = .console) :
-    x.sym = false ∧ x.newest + cfg.keepDays * 86400 ≤ cfg.now := by
+    x.sym = some false ∧ x.newest + cfg.keepDays * 86400 ≤ cfg.now := by
   have hr := selected_rule cfg xs x h
   simpa [rule, hc, ruleConsole, olderThan] using hr
 
 theorem rule_usertmp (cfg : Config) (xs : List Cand) (x : Cand) (h : x ∈ select cfg xs) (hc : x.cls = .usertmp) :
-    x.sym = false ∧ x.newest + cfg.tmpH * 3600 ≤ cfg.now := by
+    x.sym = some false ∧ x.newest + cfg.tmpH * 3600 ≤ cfg.now := by
   have hr := selected_rule cfg xs x h
   simpa [rule, hc, ruleUsertmp, olderThan] using hr
 
@@ -656,6 +667,116 @@ theorem selectFast_eq (cfg : Config) (xs : List Cand) : selectFast cfg xs = sele
   · simp only [h, ite_true, rule, ruleLake, ruleLakeIx]
     cases cfg.lake <;> cases x.lake <;> simp [LakeGc.okFast_eq]
   · simp [h]
+
+structure Ev where
+  seq : Nat
+  type : String
+  key : String := ""
+  agent : String := ""
+  name : String := ""
+  task : String := ""
+deriving Repr
+
+def spawnSeqs (es : List Ev) (a : String) : List Nat :=
+  (es.filter fun e => e.type == "agent.spawn" && e.agent == a).map (·.seq)
+
+def stopSeqs (es : List Ev) (a : String) : List Nat :=
+  (es.filter fun e => e.type == "agent.stop" && e.agent == a).map (·.seq)
+
+def stopped (es : List Ev) (a : String) : Bool :=
+  (stopSeqs es a).any fun q => (spawnSeqs es a).all fun p => decide (p ≤ q)
+
+def runOfLabel (key : String) : Option String :=
+  match key.splitOn ":" with
+  | "wfid-label" :: r :: _ :: _ => if r.startsWith "wf_" && 3 < r.length then some r else none
+  | _ => none
+
+def runOfEnd (key : String) : Option String :=
+  if key.startsWith "wfr-end:" then
+    let r := ((key.drop 8).takeWhile fun c => c.isAlphanum || c == '_' || c == '-').toString
+    if r.startsWith "wf_" && 3 < r.length then some r else none
+  else none
+
+def labelled (es : List Ev) : List Ev :=
+  es.filter fun e => e.type == "agent.label" && e.agent != "" && e.name != ""
+
+def finishedRuns (es : List Ev) : List String :=
+  ((es.filter (·.type == "agent.stop")).filterMap fun e => runOfEnd e.key).eraseDups
+
+def landedTasks (es : List Ev) : List String :=
+  ((es.filter fun e => e.type == "task.done" && e.task != "").map (·.task)).eraseDups
+
+def runOf (es : List Ev) (a : String) : Option String :=
+  (((labelled es).filter (·.agent == a)).filterMap fun e => runOfLabel e.key).getLast?
+
+def agentsOf (es : List Ev) : List String := ((labelled es).map (·.agent)).eraseDups
+
+def namesOf (es : List Ev) (a : String) : List String :=
+  (((labelled es).filter (·.agent == a)).map (·.name)).eraseDups
+
+def running (es : List Ev) (a : String) : Bool :=
+  !stopped es a && !((runOf es a).any fun r => (finishedRuns es).contains r)
+
+def liveAgents (es : List Ev) : List String :=
+  (((agentsOf es).filter (running es)).flatMap (namesOf es)).eraseDups
+
+#guard liveAgents [⟨1, "agent.label", "", "a", "mid", ""⟩] == ["mid"]
+#guard liveAgents [⟨1, "agent.label", "", "a", "mid", ""⟩, ⟨2, "agent.stop", "", "a", "", ""⟩] == []
+#guard liveAgents [⟨1, "agent.label", "", "a", "mid", ""⟩, ⟨2, "agent.stop", "", "a", "", ""⟩,
+  ⟨3, "agent.spawn", "", "a", "", ""⟩] == ["mid"]
+#guard liveAgents [⟨1, "agent.label", "wfid-label:wf_12345678-abc:a:t", "a", "mid", ""⟩,
+  ⟨2, "agent.stop", "wfr-end:wf_12345678-abc", "wf:x", "", ""⟩] == []
+#guard finishedRuns [⟨2, "agent.stop", "wfr-end:wf_1:x", "q", "", ""⟩] == ["wf_1"]
+#guard (runOfEnd "wfr-end:wf_") == none && (runOfEnd "xwfr-end:wf_1") == none
+
+theorem stop_ends (es : List Ev) (a : String) (q : Nat) (hq : q ∈ stopSeqs es a)
+    (h : ∀ p ∈ spawnSeqs es a, p ≤ q) : stopped es a = true := by
+  unfold stopped
+  simp only [List.any_eq_true, List.all_eq_true, decide_eq_true_eq]
+  exact ⟨q, hq, h⟩
+
+theorem resume_not_stopped (es : List Ev) (a : String) (p : Nat) (hp : p ∈ spawnSeqs es a)
+    (h : ∀ q ∈ stopSeqs es a, q < p) : stopped es a = false := by
+  unfold stopped
+  cases hs : (stopSeqs es a).any fun q => (spawnSeqs es a).all fun p => decide (p ≤ q) with
+  | false => rfl
+  | true =>
+    simp only [List.any_eq_true, List.all_eq_true, decide_eq_true_eq] at hs
+    obtain ⟨q, hq, hall⟩ := hs
+    have := hall p hp
+    have := h q hq
+    omega
+
+theorem liveAgents_spec (es : List Ev) (n : String) (h : n ∈ liveAgents es) :
+    ∃ a, a ∈ agentsOf es ∧ n ∈ namesOf es a ∧ stopped es a = false ∧
+      ∀ r, runOf es a = some r → r ∉ finishedRuns es := by
+  unfold liveAgents at h
+  rw [List.mem_eraseDups, List.mem_flatMap] at h
+  obtain ⟨a, ha, hn⟩ := h
+  rw [List.mem_filter] at ha
+  have hr := ha.2
+  unfold running at hr
+  simp only [Bool.and_eq_true, Bool.not_eq_true'] at hr
+  refine ⟨a, ha.1, hn, hr.1, ?_⟩
+  intro r hr' hmem
+  have := hr.2
+  simp [hr', hmem] at this
+
+theorem finishedRuns_spec (es : List Ev) (r : String) (h : r ∈ finishedRuns es) :
+    ∃ e ∈ es, e.type = "agent.stop" ∧ runOfEnd e.key = some r := by
+  unfold finishedRuns at h
+  rw [List.mem_eraseDups, List.mem_filterMap] at h
+  obtain ⟨e, he, hr⟩ := h
+  rw [List.mem_filter] at he
+  exact ⟨e, he.1, by simpa using he.2, hr⟩
+
+theorem landedTasks_spec (es : List Ev) (t : String) (h : t ∈ landedTasks es) :
+    ∃ e ∈ es, e.type = "task.done" ∧ e.task = t := by
+  unfold landedTasks at h
+  rw [List.mem_eraseDups, List.mem_map] at h
+  obtain ⟨e, he, rfl⟩ := h
+  rw [List.mem_filter] at he
+  exact ⟨e, he.1, by simp at he; exact he.2.1, rfl⟩
 
 end Fw.Ops.DiskGc
 
@@ -707,7 +828,7 @@ def candOf (j : Json) : Except String Cand := do
   pure {
     cls := c, path := ← str j "path", bytes := ← nat j "bytes", uid := optNat j "uid",
     tracked := ← asBool "tracked" (← field j "tracked"), newest := ← nat j "newest",
-    dir := ← asBool "dir" (← field j "dir"), sym := (← optBool j "sym").getD false, owner, lake, branch := ← strD j "branch" "", merged := ← optBool j "merged",
+    dir := ← asBool "dir" (← field j "dir"), sym := ← optBool j "sym", owner, lake, branch := ← strD j "branch" "", merged := ← optBool j "merged",
     dirty := ← optBool j "dirty", lock := ← lockOf c j, device }
 
 def procOf (j : Json) : Except String Proc := do pure ⟨← nat j "pid", ← str j "start"⟩
@@ -761,12 +882,23 @@ def opDiskGcPath (req : Json) : Except String Reply := do
     pure (pathOk roots (← clsOf (← field j "cls")) (← str j "path"))
   pure [("ok", .arr (oks.toArray.map .bool))]
 
-def ops : List String := ["ops.diskGc", "ops.diskGcPath"]
+def evOf (j : Json) : Except String Ev := do
+  pure { seq := ← nat j "seq", type := ← str j "type", key := ← strD j "key" "", agent := ← strD j "agent" "",
+         name := ← strD j "name" "", task := ← strD j "task" "" }
+
+def opDiskGcFacts (req : Json) : Except String Reply := do
+  let es ← (← arr req "events").toList.mapM evOf
+  let strs (l : List String) : Json := .arr (l.toArray.map .str)
+  pure [("liveAgents", strs (liveAgents es)), ("landedTasks", strs (landedTasks es)),
+    ("finishedRuns", strs (finishedRuns es))]
+
+def ops : List String := ["ops.diskGc", "ops.diskGcPath", "ops.diskGcFacts"]
 
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
   match op with
   | "ops.diskGc" => some (opDiskGc req)
   | "ops.diskGcPath" => some (opDiskGcPath req)
+  | "ops.diskGcFacts" => some (opDiskGcFacts req)
   | _ => none
 
 #guard ops.all fun o => (handle o (Json.mkObj [("roots", Json.mkObj [("repo", .str "/r"),
