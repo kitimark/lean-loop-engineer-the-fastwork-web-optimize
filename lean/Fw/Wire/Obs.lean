@@ -971,7 +971,7 @@ def reqOf (j : Json) : Except String (Fw.Obs.Timing.Params × List Fw.Obs.Timing
     | some v => paramsOf v
   pure (p, ← (← arrD j "samples").mapM sampleOf)
 
-/-- `obs.timing`: one verdict per sample, then the structural verdicts (`Fw.Obs.Timing.timingVerdicts`). -/
+/-- `obs.timing`: one verdict per full sample (`Fw.Obs.Timing.fullRun`), then the structural verdicts (`Fw.Obs.Timing.timingVerdicts`). -/
 def opTiming (req : Json) : Except String Reply := do
   let (p, ss) ← reqOf req
   pure [("verdicts", .arr ((Fw.Obs.Timing.timingVerdicts p ss).map Fw.Wire.Obs.Timing.verdictJson).toArray)]
