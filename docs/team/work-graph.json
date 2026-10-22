@@ -17235,7 +17235,8 @@
     "lean/Fw.lean",
     "lean/FwTestMain.lean"
    ],
-   "title": "Ledger candidate numbers collide: two parallel lands both took the next free n (commission.band-gate and nav.clip-box are both n 48 on main; pain.dark-scroll and morph.touch-band collided at 46 earlier and a review caught it). Candidate rows (those with an id and a candidate text) must have unique n. Renumber the later row, then make the rule a check: find where the console reads the ledger (grep ledger.json apps/console-api), state the uniqueness rule in Lean with the existing ledger model if there is one (else a TS check with a test, listed as a stand-in), and fail the land checks on a duplicate so the second land must renumber after merging main."
+   "title": "Ledger candidate numbers collide: two parallel lands both took the next free n (commission.band-gate and nav.clip-box are both n 48 on main; pain.dark-scroll and morph.touch-band collided at 46 earlier and a review caught it). Candidate rows (those with an id and a candidate text) must have unique n. Renumber the later row, then make the rule a check: find where the console reads the ledger (grep ledger.json apps/console-api), state the uniqueness rule in Lean with the existing ledger model if there is one (else a TS check with a test, listed as a stand-in), and fail the land checks on a duplicate so the second land must renumber after merging main.",
+   "evidence": "daf541c"
   },
   {
    "devices": [
