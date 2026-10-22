@@ -14693,7 +14693,8 @@
     "packages/contracts/golden/ci/steps.jsonl",
     "packages/contracts/golden/ci/triggers.jsonl",
     "scripts/ci-paths.test.mjs"
-   ]
+   ],
+   "evidence": "ef3cd6d"
   },
   {
    "devices": [
