@@ -3903,8 +3903,8 @@
    "id": "inc-builder-no-result",
    "at": "2026-10-22T12:00+07:00",
    "title": "The xctrace-ci-probe builder ran 5.7 h, pushed 5 CI runs and ended with no report, note or handoff",
-   "symptom": "Workflow wf_3d7f87b0-856 (task xctrace-ci-probe) ran 5.7 h and pushed 5 CI runs; the agent never called StructuredOutput. The lead could restart only from git history and CI run state, and the last run kept 2 macOS VMs busy past the agent. The script returned [{ task, build: null }] with no worktree, branch or handoff.",
-   "cause": "CONFIRMED (.claude/workflows/build-review.js before builder-checkpoint): the builder prompt asked for no file state before the final report, so a builder that ended without a result left nothing to resume from, and the null-result path returned no pointer to its worktree.",
+   "symptom": "Workflow wf_3d7f87b0-856 (task xctrace-ci-probe) ran 5.7 h and pushed 5 CI runs (round 2 used a sixth; its handoff counts 6 runs used); the agent never called StructuredOutput. The lead could restart only from git history and CI run state; the last run kept 2 macOS VMs busy past the agent. The script returned [{ task, build: null }] with no worktree, branch or handoff.",
+   "cause": "CONFIRMED (.claude/workflows/build-review.js before builder-checkpoint): the builder prompt asked for no file state before the final report, so a builder that ended without a result left nothing to resume from, and the null-result path returned no worktree pointer.",
    "evidence": [
     {
      "kind": "file",

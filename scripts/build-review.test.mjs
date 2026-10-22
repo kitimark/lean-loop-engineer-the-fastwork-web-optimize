@@ -1,4 +1,3 @@
-// Runs .claude/workflows/build-review.js with a stub agent: a builder that returns nothing ends the run with a 'no-result' record.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
