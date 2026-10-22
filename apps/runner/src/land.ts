@@ -16,6 +16,7 @@ import { ccStatusFrom, forceFullFromEnv, ghStatusOnce, overflowFor, readSlots, r
 import { askCore, dropLock, lockFacts, lockFile, readLock, takeLock } from "../hooks/land-guard.mjs";
 import { FWCORE_STALE_REASON, checkFailKind, failedStages, fwcoreStale, lintPlan, outcome, outcomeKind, type Kind, type Outcome } from "./land-verdict.ts";
 import { consoleSecret } from "./lib.ts";
+import { CHECK_SH_READS } from "./land-reads.gen.ts";
 import { ConsoleUnreachable } from "./land-queue.ts";
 import { chargedGh, fwcoreCall, ghCost } from "./run.ts";
 import { chargedOnce, realEnv, type Env } from "@fw/gh-budget";
@@ -129,8 +130,7 @@ export function inScope(globs: string[], path: string): boolean {
 export const selectChecks = (ds: { id: string; reads: string[] }[], changed: string[]) =>
   ds.filter((d) => changed.some((c) => inScope(d.reads, c))).map((d) => d.id);
 
-export const CHECK_SH_READS = ["lean/**", "packages/contracts/golden/**", "apps/site/src/breakpoints.gen.json", "apps/site/src/sweeps.gen.json", "apps/site/src/head.gen.json", "packages/gate-breakpoints/src/scope.gen.json", ".github/workflows/**", "scripts/span.sh", "scripts/fwcore-build.sh", "scripts/fwcore-record-rule.sh", "scripts/lake-slot.sh", "scripts/lake-slot-lib.sh", "scripts/heavy-lock.mjs", "scripts/slot-self.mjs", "docs/team/incidents/ledger.json",
-  "research/findings/ledger.json", "apps/site/src/parts/**", "apps/site/src/registry/presets/v2-proved.json", "apps/site/src/registry/layer-opts.gen.ts", "packages/measure-chromium/scenarios.gen.json"];
+export { CHECK_SH_READS };
 export const INSTALL_READS = ["pnpm-lock.yaml", "**/package.json"];
 export function siteAssetReads(manifestPath = join(new URL(import.meta.url).pathname, "../../../site/assets.manifest.json")): string[] {
   const m = JSON.parse(readFileSync(manifestPath, "utf8")) as { files: { src: string }[]; bundled?: string[] };
