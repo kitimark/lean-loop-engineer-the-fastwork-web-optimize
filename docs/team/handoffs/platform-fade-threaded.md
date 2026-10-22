@@ -12,7 +12,7 @@
 - Site tests (110 files) and typecheck pass; `fade.test.ts` checks goldens and replays original against threaded.
 - Result: WebKit no-win. RecalculateStyles and Layout at the page end are equal within the pass gap, because the tween
   still writes the nav `--morph` on every frame that changes the fade (`recalc_same`).
-- Ledger row n=43 `platform.fade-threaded`, preset regenerated, note and `results/platform-fade-threaded/report.json`.
+- Ledger row n=44 `platform.fade-threaded` (n=43 went to accent.draw-one on main), preset regenerated, note and `results/platform-fade-threaded/report.json`.
 
 ## Open
 - Chromium not measured (Blink keeps a blur effect on the main thread, compositor_animations.cc:408-416@f842f52).
