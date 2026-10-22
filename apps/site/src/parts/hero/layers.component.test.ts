@@ -133,7 +133,7 @@ describe('data-fw-layer in the rendered DOM', () => {
       for (const impl of p.impls) {
         const host = await client(createElement(HeroCountdown, { variant, impl, inverse: true, fwId: 'morph-countdown-clock' }));
         const at = `hero.countdown:${variant}@${impl} in morph.countdown`;
-        expect(host.querySelectorAll('[data-face]').length, `${at} renders no face`).toBeGreaterThan(0);
+        expect(host.querySelectorAll('[data-fw="morph-countdown-clock"]').length, `${at} renders no morph root`).toBe(1);
         expect(host.querySelectorAll('[data-fw-layer]').length, `${at} carries a layer attribute`).toBe(0);
       }
     }
