@@ -4,8 +4,7 @@ import Fw.Console.LandLegs
 /-!
 # Land remote verdict: the combined land verdict over the local tier and normalized lane runs of any CI provider
 
-Golden: `packages/contracts/golden/console/land-remote.jsonl`; ops `console.landRemote`, `console.landLaneState`, `console.landLegStates`,
-`console.landDigest` (`Fw.Wire.Console`).
+Golden: `packages/contracts/golden/console/land-remote.jsonl`; ops `console.landRemote`, `.landLaneState`, `.landLegStates`, `.landDigest`.
 -/
 namespace Fw.Console.LandRemote
 open Lean

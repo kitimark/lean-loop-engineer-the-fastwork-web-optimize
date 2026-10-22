@@ -1,7 +1,4 @@
-// land-leg-pending, incident inc-land-leg-unfinished (2026-10-22, run 39792901389): the run record said completed / success while four leg
-// jobs still said in_progress with an empty conclusion; the land read those legs as failed and refused. Lean (`legState`, `laneState`) now
-// calls such a leg pending: the land reads the record again (one read per poll slice) up to `rereadBound` times, then counts the run as
-// unavailable, never as failed. The waiter and gh are scripted; fwcore decides; the golden lines are the Lean output.
+// Incident inc-land-leg-unfinished (run 39792901389): a completed success whose leg jobs GitHub had not finalised was refused as failed.
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
