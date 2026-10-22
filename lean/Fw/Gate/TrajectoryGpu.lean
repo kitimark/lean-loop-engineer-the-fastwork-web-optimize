@@ -468,16 +468,24 @@ def lagFrames (fs : List LagFrame) : Option Rat :=
   let ls := ((fs.zip fs.tail).filterMap fun (p, c) => lagAt p c).map absR
   if ls.length < 3 then none else some (ls.foldl max 0)
 
-/-- Q when the panel trails the nav by at most one frame, else L. -/
-def lagGrade (lag : Rat) : Grade := if lag ≤ 1 then .q else .l
+/-- A lag of one frame reads within a tenth of a frame of 1: the opacity and the morph value are read in thousandths. -/
+def lagSlack : Rat := 1 / 10
+
+/-- Q when the panel trails the nav by at most one frame (and the reading slack), else L. -/
+def lagGrade (lag : Rat) : Grade := if lag ≤ 1 + lagSlack then .q else .l
 
 /-- One frame or less is Q. -/
-theorem lagGrade_q (lag : Rat) (h : lag ≤ 1) : lagGrade lag = .q := by simp [lagGrade, h]
-
-/-- More than one frame is L. -/
-theorem lagGrade_l (lag : Rat) (h : 1 < lag) : lagGrade lag = .l := by
-  have : ¬ lag ≤ 1 := by grind
+theorem lagGrade_q (lag : Rat) (h : lag ≤ 1) : lagGrade lag = .q := by
+  have : lag ≤ 1 + lagSlack := by unfold lagSlack; grind
   simp [lagGrade, this]
+
+/-- Past one frame and the reading slack is L. -/
+theorem lagGrade_l (lag : Rat) (h : 1 + lagSlack < lag) : lagGrade lag = .l := by
+  have : ¬ lag ≤ 1 + lagSlack := by grind
+  simp [lagGrade, this]
+
+#guard lagGrade (21 / 20) == .q
+#guard lagGrade (6 / 5) == .l
 
 /-- The panel cell: the series grade when it is E, else the lag grade; none when no series was compared or the lag
 cannot be read. -/

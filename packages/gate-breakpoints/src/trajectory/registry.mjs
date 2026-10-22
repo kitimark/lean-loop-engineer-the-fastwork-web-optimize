@@ -76,6 +76,28 @@ export const MORPH_NODES = [
   // zero-sized sentinel (anchors.json), so there is nothing there to read.
 ];
 
+/**
+ * The nav and the panel as the GPU arms' cells read them (task gpu-trajectory-cells): the nav's clip-path next to its rect and
+ * radius, the panel's opacity, blur and scale. Separate from MORPH_NODES so the standard verdicts judge the same properties as before.
+ */
+export const GPU_NODES = [
+  { id: 'nav', part: 'nav', role: 'nav', props: [
+    P('rect', 'geometry', 'rect'), P('border-radius', 'geometry', 'lens', { css: 'border-top-left-radius' }),
+    P('clip-path', 'geometry', 'css', { css: 'clip-path' })] },
+  { id: 'panel', part: 'morph.panel', role: 'panel', props: [
+    P('opacity', 'unit', 'num', { css: 'opacity' }), P('filter.num', 'unit', 'fnnum', { css: 'filter' }), P('transform.lin', 'unit', 'tlin')] },
+];
+
+/**
+ * The page parts the pain-dark and carousel cells look at, each a (part, role) of anchors.json. The pain cell reads the class on the
+ * pain section while the people card scrolls by, only at widths where the original flips it (at most 860 px); the carousel cell
+ * reads every child of the avatar container relative to the container.
+ */
+export const GPU_CELLS = {
+  pain: { section: { part: 'pain', role: 'section' }, trigger: { part: 'people.card', role: 'section' }, cls: 'is-pain-dark', maxWidth: 860, stepPx: 4 },
+  carousel: { scene: { part: 'people.card', role: 'section' }, container: { part: 'people.carousel', role: 'avatars' }, sampleMs: 4200 },
+};
+
 /** The page itself: its height must be the same in both arms for the same scroll position to mean the same thing. */
 export const PAGE_PROPS = [P('scroll-height', 'geometry', 'scrollHeight')];
 
