@@ -1,9 +1,11 @@
 
-export type Kind = "busy" | "dirty" | "scope" | "reads" | "conflict" | "checks" | "stale" | "unknown" | "done" | "dry" | "queued" | "empty" | "lint" | "rebuild";
-export const KINDS: Kind[] = ["busy", "dirty", "scope", "reads", "conflict", "checks", "stale", "unknown", "done", "dry", "queued", "empty", "lint", "rebuild"];
+export type Kind = "busy" | "dirty" | "scope" | "reads" | "conflict" | "checks" | "stale" | "unknown" | "done" | "dry" | "queued" | "empty" | "lint" | "rebuild" | "install";
+export const KINDS: Kind[] = ["busy", "dirty", "scope", "reads", "conflict", "checks", "stale", "unknown", "done", "dry", "queued", "empty", "lint", "rebuild", "install"];
 
 export const isOk = (k: Kind): boolean => k === "done" || k === "dry" || k === "queued" || k === "empty";
-export const EXIT: Record<Kind, number> = { busy: 10, dirty: 11, scope: 12, reads: 13, conflict: 14, checks: 15, stale: 16, unknown: 2, done: 0, dry: 0, queued: 0, empty: 0, lint: 17, rebuild: 18 };
+export const EXIT: Record<Kind, number> = { busy: 10, dirty: 11, scope: 12, reads: 13, conflict: 14, checks: 15, stale: 16, unknown: 2, done: 0, dry: 0, queued: 0, empty: 0, lint: 17, rebuild: 18, install: 19 };
+export const installRunsOnline = (offlineOk: boolean): boolean => !offlineOk;
+export const installKind = (offlineOk: boolean, onlineOk: boolean): Kind | null => (offlineOk || onlineOk ? null : "install");
 export const exitCode = (k: Kind): number => EXIT[k];
 export const retryable = (k: Kind): boolean => k === "busy" || k === "dirty";
 export const verdictLine = (k: Kind, task: string): string => `VERDICT ${k} ${task === "" ? "-" : task}`;

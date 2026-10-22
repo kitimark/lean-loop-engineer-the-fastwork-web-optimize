@@ -6,6 +6,7 @@ import { ORDER, watchActive } from '../people/shared';
 import css from './card.module.css';
 import { createCardDriver, type CardEnv } from './driver';
 import { matchList } from './media';
+import { darkScrollSupported, layerOwnsFlip } from '../pain/darkScroll';
 
 export interface PeopleCardProps {
   variant: string;
@@ -39,6 +40,10 @@ export function PeopleCard({ variant, o, deck, pill }: PeopleCardProps) {
     const narrow = matchList('mq.w-le-860');
     const c860 = variant === 'mq' ? matchList('mq.c860') : null;
     const pain = () => document.querySelector<HTMLElement>(PAIN);
+    const flips = () => {
+      const p = pain();
+      return p !== null && !layerOwnsFlip(p.getAttribute('data-fw-variant'), darkScrollSupported()) ? p : null;
+    };
     const env: CardEnv = {
       reduced: () => reduce?.matches ?? false,
       narrow: () => narrow?.matches ?? false,
@@ -50,14 +55,14 @@ export function PeopleCard({ variant, o, deck, pill }: PeopleCardProps) {
         return { top: r.top, height: r.height };
       },
       cardBottom: () => card.getBoundingClientRect().bottom,
-      headerTop: () => pain()?.isConnected ? header.getBoundingClientRect().top : null,
-      painPresent: () => pain() !== null,
+      headerTop: () => flips()?.isConnected ? header.getBoundingClientRect().top : null,
+      painPresent: () => flips() !== null,
       write: {
         revealed: (on) => section.classList.toggle(css.isVisible!, on),
         shrink: (v) => section.style.setProperty('--future-shrink', String(v)),
         shrinking: (on) => section.classList.toggle(css.isShrinking!, on),
         painDark: (on) => {
-          const p = pain();
+          const p = flips();
           if (!p) return;
           p.classList.toggle('is-pain-dark', on);
           p.setAttribute('data-fw-pain-dark', String(on));

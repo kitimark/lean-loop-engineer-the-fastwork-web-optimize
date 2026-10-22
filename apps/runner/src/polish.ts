@@ -1,7 +1,3 @@
-// `fw polish plan|cuts|commit|staged` (task polish-in-flow): the Polish stage of the build-review workflow and of the lead's
-// own commits. Classes, stages, scopes, kept paths and cut verdicts are Lean (`Fw.Plan.Polish`, fwcore ops
-// `plan.polishPlan` and `plan.polishCuts`); this file reads git and files, calls fwcore, writes what fwcore returns and
-// prints one `VERDICT` line (last) that a script routes on.
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { isAbsolute, join, relative } from "node:path";
@@ -35,11 +31,16 @@ export interface Deps {
 const realGit = (cwd: string, args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", maxBuffer: 64 << 20 });
 const realRead = (p: string) => { try { return readFileSync(p, "utf8"); } catch { return null; } };
 
-/** Paths whose text a generator writes: the workflow files `scripts/ci-paths.mjs --write` reconciles, and its Lean file. */
 export async function genOutputs(root: string): Promise<string[]> {
   const m = await import(pathToFileURL(join(root, "scripts/ci-paths.mjs")).href);
   const { table } = m.loadGolden(root) as { table: { workflows: { file: string }[] } };
   return [...table.workflows.map((w) => `.github/workflows/${w.file}`), m.LAKE_GEN as string];
+}
+
+export async function genOwned(gen: (root: string) => Promise<string[]>, root: string, dir: string): Promise<string[]> {
+  const base = await gen(root);
+  if (dir === root) return base;
+  return [...new Set([...base, ...(await gen(dir))])];
 }
 
 const lines = (s: string) => s.split("\n").map((l) => l.trim()).filter((l) => l !== "");
@@ -78,7 +79,7 @@ export async function polishCli(argv: string[], cwd: string, deps: Deps = {}): P
     if (!dir) throw new Error(`no worktree has branch ${flags.branch}`);
     const paths = lines(staged ? git(dir, ["diff", "--cached", "--name-only"]) : git(dir, ["diff", "--name-only", `main...${flags.branch}`]));
     const heads = paths.map((p) => ({ path: p, head: (read(join(dir, p)) ?? "").split("\n", 1)[0]!.slice(0, 300) }));
-    const gen = await (deps.gen ?? genOutputs)(root);
+    const gen = await genOwned(deps.gen ?? genOutputs, root, dir);
     const call = coreOf(cwd, deps, git);
     const edited = verb === "commit" ? lines(git(dir, ["diff", "--name-only", "HEAD"])) : [];
     const plan = (await call({ op: "plan.polishPlan", gen, heads, paths, edited })) as unknown as Plan;
