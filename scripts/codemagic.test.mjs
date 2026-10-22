@@ -272,6 +272,8 @@ test('codemagic.yaml: one workflow, the pilot cap, no triggering block, the pinn
   assert.match(y, new RegExp(`max_build_duration: ${g.constants.maxCapMin}\\b`));
   assert.match(y, /xcode: 27\.0\b/);
   assert.match(y, /^ {6}node: 24\.22\.0$/m);
+  assert.match(y, /echo "PATH=\$bin:\$PATH" >> "\$CM_ENV"/);
+  assert.equal((y.match(/node --version \| grep -qx v24\.22\.0/g) ?? []).length, 1);
   assert.match(y, /HOMEBREW_NO_AUTO_UPDATE: "1"/);
   assert.match(y, /cache_paths:\n {8}- \$HOME\/fw-iwdp\n/);
   assert.match(y, /if ! command -v ios_webkit_debug_proxy/);

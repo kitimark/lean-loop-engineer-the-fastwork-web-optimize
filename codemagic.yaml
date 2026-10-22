@@ -15,9 +15,17 @@ workflows:
         FW_WK_TIMEOUT_SCALE: "8"
         FW_WK_ATTEMPTS: "3"
     scripts:
+      - name: Node 24.22.0 first on PATH
+        script: |
+          set -eu
+          # environment.node runs `n 24.22.0`, but the image's Node v26.8.2 stays first on PATH (Codemagic build 6ad9ad10c0a19be428a3fbc3).
+          bin=$(dirname "$(n which 24.22.0 2>/dev/null || echo "${N_PREFIX:-/usr/local}/bin/node")")
+          "$bin/node" --version | grep -qx v24.22.0
+          echo "PATH=$bin:$PATH" >> "$CM_ENV"
       - name: tool and runner facts
         script: |
           set -eu
+          node --version | grep -qx v24.22.0
           export RUNNER_TEMP=/tmp/fw; mkdir -p "$RUNNER_TEMP/result"
           date +%s > "$RUNNER_TEMP/t0"
           {
