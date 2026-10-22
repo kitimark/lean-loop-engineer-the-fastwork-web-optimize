@@ -571,6 +571,7 @@ theorem hitchVerdict_swap (a b aa1 aa2 : List Nat) : hitchVerdict b a aa1 aa2 = 
     have h' : okN a b aa1 aa2 = false := by simpa using h
     simp [hitchVerdict, h', hb, Verdict.swap]
 
+/-- Fewest decisive samples (first, second or same) before agreement means anything. -/
 def minSamples : Nat := 3
 
 def agreeNeeded (n : Nat) : Nat := (2 * n + 2) / 3
@@ -640,6 +641,77 @@ theorem across_swap (k : Nat) (vs : List Verdict) : across k (vs.map Verdict.swa
   rw [hf, hs, he]
   repeat' split
   all_goals first | rfl | omega
+
+/-- The verdict over jobs: `across` with `k` two thirds of the decisive jobs, so an insufficient job counts as absent. -/
+def acrossDecisive (vs : List Verdict) : Verdict := across (agreeNeeded (decisive vs)) vs
+
+private theorem agreeNeeded_pos (n : Nat) (h : minSamples ≤ n) : 0 < agreeNeeded n := by
+  unfold agreeNeeded minSamples at *
+  omega
+
+theorem acrossDecisive_insufficient (vs : List Verdict) (h : decisive vs < minSamples) :
+    acrossDecisive vs = .insufficient :=
+  across_insufficient _ vs h
+
+theorem acrossDecisive_first (vs : List Verdict) (hn : minSamples ≤ decisive vs)
+    (hf : agreeNeeded (decisive vs) ≤ vs.count .first) (hs : vs.count .second = 0) : acrossDecisive vs = .first :=
+  across_first _ vs (agreeNeeded_pos _ hn) hn hf hs
+
+theorem acrossDecisive_second (vs : List Verdict) (hn : minSamples ≤ decisive vs)
+    (hs : agreeNeeded (decisive vs) ≤ vs.count .second) (hf : vs.count .first = 0) : acrossDecisive vs = .second :=
+  across_second _ vs (agreeNeeded_pos _ hn) hn hs hf
+
+theorem acrossDecisive_split (vs : List Verdict) (hn : minSamples ≤ decisive vs)
+    (hf : 0 < vs.count .first) (hs : 0 < vs.count .second) : acrossDecisive vs = .same :=
+  across_split _ vs (agreeNeeded_pos _ hn) hn hf hs
+
+theorem acrossDecisive_same (vs : List Verdict) (hn : minSamples ≤ decisive vs)
+    (hf : vs.count .first < agreeNeeded (decisive vs)) (hs : vs.count .second < agreeNeeded (decisive vs)) :
+    acrossDecisive vs = .same :=
+  across_same _ vs (agreeNeeded_pos _ hn) hn hf hs
+
+theorem acrossDecisive_first_two_thirds (vs : List Verdict) (h : acrossDecisive vs = .first) :
+    minSamples ≤ decisive vs ∧ 2 * decisive vs ≤ 3 * vs.count .first ∧ vs.count .second = 0 := by
+  unfold acrossDecisive across agreeNeeded at h
+  unfold minSamples at *
+  repeat' split at h
+  all_goals first | exact absurd h (by decide) | omega
+
+theorem acrossDecisive_second_two_thirds (vs : List Verdict) (h : acrossDecisive vs = .second) :
+    minSamples ≤ decisive vs ∧ 2 * decisive vs ≤ 3 * vs.count .second ∧ vs.count .first = 0 := by
+  unfold acrossDecisive across agreeNeeded at h
+  unfold minSamples at *
+  repeat' split at h
+  all_goals first | exact absurd h (by decide) | omega
+
+private theorem count_filter_decisive (vs : List Verdict) (v : Verdict) (hv : v ≠ .insufficient) :
+    (vs.filter (· != .insufficient)).count v = vs.count v := by
+  induction vs with
+  | nil => simp
+  | cons x xs ih =>
+    cases x <;> cases v <;> simp_all (config := { decide := true }) [List.count_cons]
+
+theorem acrossDecisive_filter (vs : List Verdict) :
+    acrossDecisive (vs.filter (· != .insufficient)) = acrossDecisive vs := by
+  unfold acrossDecisive across decisive
+  rw [count_filter_decisive vs .first (by decide), count_filter_decisive vs .second (by decide),
+    count_filter_decisive vs .same (by decide)]
+
+theorem acrossDecisive_swap (vs : List Verdict) : acrossDecisive (vs.map Verdict.swap) = (acrossDecisive vs).swap := by
+  have hd : decisive (vs.map Verdict.swap) = decisive vs := by
+    have hf : (vs.map Verdict.swap).count .first = vs.count .second := count_swap vs .second
+    have hs : (vs.map Verdict.swap).count .second = vs.count .first := count_swap vs .first
+    have he : (vs.map Verdict.swap).count .same = vs.count .same := count_swap vs .same
+    unfold decisive
+    omega
+  unfold acrossDecisive
+  rw [hd]
+  exact across_swap _ vs
+
+theorem acrossDecisive_ne_all_jobs :
+    across (agreeNeeded 5) [.first, .first, .first, .insufficient, .insufficient] = .same ∧
+      acrossDecisive [.first, .first, .first, .insufficient, .insufficient] = .first := by
+  decide
 
 open Lean in
 def Metrics.toJson (m : Metrics) : Json :=
@@ -716,6 +788,16 @@ def acrossCases : List (Nat × List Verdict) := [
 
 def agreeCases : List Nat := [0, 1, 3, 4, 7, 10]
 
+def acrossDecisiveCases : List (List Verdict) := [
+  [.first, .first, .first, .insufficient, .insufficient],
+  [.second, .second, .same, .insufficient, .insufficient, .insufficient],
+  [.first, .same, .same, .insufficient, .insufficient],
+  [.first, .first, .insufficient, .insufficient, .insufficient],
+  [.first, .first, .first, .first, .second, .insufficient],
+  [.first, .first, .first, .first, .first, .same, .same],
+  [.insufficient, .insufficient, .insufficient],
+  []]
+
 open Lean in
 private def frameJson (f : Frame) : Json := Json.arr #[Lean.toJson f.t, Lean.toJson f.want, Lean.toJson f.shown]
 open Lean in
@@ -755,8 +837,12 @@ def goldenLines (_ : Unit := ()) : List String :=
   let ac := acrossCases.map fun (k, xs) =>
     (Json.mkObj [("op", "across"), ("k", Lean.toJson k), ("vs", Json.arr (xs.map fun v => Json.str v.name).toArray),
       ("out", Json.str (across k xs).name)]).compress
+  let ad := acrossDecisiveCases.map fun xs =>
+    (Json.mkObj [("op", "acrossDecisive"), ("vs", Json.arr (xs.map fun v => Json.str v.name).toArray),
+      ("decisive", Lean.toJson (decisive xs)), ("k", Lean.toJson (agreeNeeded (decisive xs))),
+      ("out", Json.str (acrossDecisive xs).name)]).compress
   let ag := agreeCases.map fun n => (Json.mkObj [("op", "agreeNeeded"), ("n", Lean.toJson n), ("out", Lean.toJson (agreeNeeded n))]).compress
-  [consts] ++ ms ++ ls ++ ws ++ qs ++ [med, med0] ++ reps ++ rs ++ vs ++ hs ++ hv ++ ac ++ ag
+  [consts] ++ ms ++ ls ++ ws ++ qs ++ [med, med0] ++ reps ++ rs ++ vs ++ hs ++ hv ++ ac ++ ad ++ ag
 
 /-- The exact bytes of `packages/contracts/golden/gate/smooth.jsonl`: the lines, each newline-terminated. -/
 def goldenText (_ : Unit := ()) : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
@@ -783,7 +869,7 @@ def run (args : List String) : IO UInt32 := do
 #guard (metrics (ramp 1000 10 [0, 0, 0, 0, 0, 0, 600, 700, 800, 900, 1000])).stalls == 5
 #guard (metrics (ramp 1000 10 [0, 0, 0, 0, 0, 0, 600, 700, 800, 900, 1000])).jumps == 1
 #guard (metrics (frames [(0, 0, 0), (160, 400, 400), (320, 800, 800), (480, 1000, 1000), (640, 1000, 1030), (800, 1000, 1050), (960, 1000, 1050)])).tailSteps == 2
-#guard goldenLines.length == 61 + 6 + 9 + 13 + 6
+#guard goldenLines.length == 61 + 6 + 9 + 13 + 8 + 6
 #guard (verdict (armOf 5 [1, 2, 1]) (armOf 5 [9, 11, 10]) (armOf 5 [3, 4, 3]) (armOf 5 [3, 3, 4])) == .first
 #guard (verdict (armOf 4 [1]) (armOf 5 [9]) (armOf 5 [3]) (armOf 5 [3])) == .insufficient
 #guard hitches [167, 600, 601, 1000] == 2
@@ -794,5 +880,9 @@ def run (args : List String) : IO UInt32 := do
 #guard across 3 [.insufficient, .insufficient, .insufficient, .insufficient] == .insufficient
 #guard across 2 [.first, .first, .insufficient, .insufficient] == .insufficient
 #guard across 2 [.first, .first, .same, .insufficient] == .first
+#guard acrossDecisive [.first, .first, .first, .insufficient, .insufficient] == .first
+#guard acrossDecisive [.second, .second, .same, .insufficient] == .second
+#guard acrossDecisive [.first, .same, .same, .insufficient] == .same
+#guard acrossDecisive [.first, .first, .insufficient] == .insufficient
 
 end Fw.Gate.Smooth

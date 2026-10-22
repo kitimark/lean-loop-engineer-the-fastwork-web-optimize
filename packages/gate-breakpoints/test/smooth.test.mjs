@@ -134,13 +134,15 @@ test('trace: the slow table has a fixed set of rows, none capped, absent events 
   assert.equal(slowOf([]).length, 5);
 });
 
-test('golden: hitches, hitch verdict, across and agreeNeeded equal the Lean values', () => {
+test('golden: hitches, hitch verdict, across, acrossDecisive and agreeNeeded equal the Lean values', () => {
   const c = ops('constants')[0];
   assert.deepEqual([S.HITCH_TENTHS, S.MIN_SAMPLES], [c.hitchTenths, c.minSamples]);
   for (const g of ops('hitches')) assert.equal(S.hitches(g.ivs), g.out, JSON.stringify(g.ivs));
   for (const g of ops('hitchVerdict')) assert.equal(S.hitchVerdict(g.a, g.b, g.aa1, g.aa2), g.out, JSON.stringify(g));
   for (const g of ops('across')) assert.equal(S.across(g.k, g.vs), g.out, JSON.stringify(g));
   for (const g of ops('agreeNeeded')) assert.equal(S.agreeNeeded(g.n), g.out, String(g.n));
+  for (const g of ops('acrossDecisive')) assert.deepEqual([S.decisive(g.vs), S.acrossDecisive(g.vs)], [g.decisive, g.out], JSON.stringify(g));
+  assert.deepEqual([...new Set(ops('acrossDecisive').map((g) => g.out))].sort(), ['first', 'insufficient', 'same', 'second']);
   assert.deepEqual([...new Set(ops('hitchVerdict').map((g) => g.out))].sort(), ['first', 'insufficient', 'same', 'second']);
   assert.deepEqual([...new Set(ops('across').map((g) => g.out))].sort(), ['first', 'insufficient', 'same', 'second']);
 });
