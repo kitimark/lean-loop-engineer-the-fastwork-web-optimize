@@ -17,7 +17,8 @@ import { collectCensus } from './census.mjs';
 const N0_ON = !process.env.FW_NO_N0; // FW_NO_N0=1: no N0 census in the page (harness-neutrality control)
 
 const args = Object.fromEntries(process.argv.slice(2).map((a) => { const s = a.replace(/^--/, ''); const i = s.indexOf('='); return i < 0 ? [s, true] : [s.slice(0, i), s.slice(i + 1)]; }));
-const { profile, strokes: replayStrokes } = parseProfile(JSON.parse(readFileSync(`/profiles/${args.profile ?? 'swipe-v1'}.json`, 'utf8')));
+const PROFILE_FILE = args['profile-file'] ?? `/profiles/${args.profile ?? 'swipe-v1'}.json`; // --profile-file: a derived profile (crash-probe.mjs)
+const { profile, strokes: replayStrokes } = parseProfile(JSON.parse(readFileSync(PROFILE_FILE, 'utf8')));
 const OUT = args.out ?? '/out';
 const DEBUG = !!process.env.FW_DEBUG;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -42,7 +43,7 @@ const TARGET = args.target ?? 'original';
 const POS = scrollRead(SEARCH) === 'scrollTop' ? 'document.scrollingElement.scrollTop' : 'scrollY'; // a stage page pins window.scrollY (Lean Fw.Site.StageMode)
 const srv = await startServer(ROOT);
 const CHROME_ARGS = [
-  '--remote-debugging-port=9222', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--user-data-dir=/tmp/fw-profile',
+  '--remote-debugging-port=9222', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', `--user-data-dir=${process.env.FW_PROFILE_DIR ?? '/tmp/fw-profile'}`,
   '--enable-begin-frame-control', '--run-all-compositor-stages-before-draw', // --deterministic-mode minus --disable-threaded-animation (compositor animations stay on the compositor, as on real Chrome)
   '--disable-new-content-rendering-timeout', '--disable-checker-imaging', '--disable-image-animation-resync', '--num-raster-threads=2',
   // cc features::kWaitForLateScrollEvents (default on, cc/base/features.cc@f842f52) arms a WAIT_FOR_SCROLL deadline at frame_time + 0.333 * interval while a scroll is active
@@ -56,9 +57,10 @@ const CHROME_ARGS = [
   '--font-render-hinting=none', '--force-color-profile=srgb', '--hide-scrollbars', '--mute-audio',
   '--disable-background-networking', '--disable-breakpad', '--no-first-run', '--lang=en-US', ...(process.env.FW_CHROME_EXTRA ? process.env.FW_CHROME_EXTRA.split(' ') : []), 'about:blank',
 ];
-const DROP = (process.env.FW_DROP_FLAGS ?? '').split(',').filter(Boolean); // debugging: remove flags by prefix
+const DROP = [...(process.env.FW_DROP_FLAGS ?? '').split(',').filter(Boolean), ...(profile.dropFlags ?? [])]; // profile.dropFlags: Chrome flags (by prefix) this profile runs without // debugging: remove flags by prefix
 for (let i = CHROME_ARGS.length - 1; i >= 0; i--) if (DROP.some((d) => CHROME_ARGS[i].startsWith(d))) CHROME_ARGS.splice(i, 1);
 const chrome = spawn(process.env.FW_CHROME, CHROME_ARGS, { stdio: ['ignore', DEBUG ? 'inherit' : openSync('/tmp/chrome.log', 'w'), DEBUG ? 'inherit' : openSync('/tmp/chrome.log', 'a')] });
+process.on('exit', () => { try { chrome.kill('SIGKILL'); } catch { /* already gone */ } }); // crash-probe runs this file once per variant: no Chrome may outlive its run and hold port 9222
 for (let i = 0; i < 200; i++) { try { await fetch('http://127.0.0.1:9222/json/version'); break; } catch { await sleep(50); } }
 const version = await (await fetch('http://127.0.0.1:9222/json/version')).json();
 
@@ -68,6 +70,17 @@ const browserArgs = CHROME_ARGS.filter((a) => !a.startsWith('--user-data-dir') &
 const { targetId } = await bs.send('Target.createTarget', { url: 'about:blank', enableBeginFrameControl: true, width: profile.viewport.width, height: profile.viewport.height });
 const page = await (await browser.waitForTarget((t) => t._targetId === targetId)).page();
 const c = await page.createCDPSession();
+// A renderer crash (the target dies, Runtime.evaluate then times out): print the signal block of chrome.log whole and stop with 76, so a
+// crash is told from a hang (75) in the job log within seconds, not after the 60 s protocol timeout. chrome.log has the stack once it is written.
+c.on('Inspector.targetCrashed', async () => {
+  console.error('FW_RENDERER_CRASH: Inspector.targetCrashed');
+  let log = '';
+  for (let i = 0; i < 40; i++) { await sleep(250); try { log = readFileSync('/tmp/chrome.log', 'utf8'); } catch { /* not yet */ } if (/Received signal/.test(log) && /\[end of stack trace\]/.test(log)) break; }
+  const at = log.indexOf('Received signal');
+  console.error('chrome.log signal block:\n' + (at >= 0 ? log.slice(at, at + 12000) : log.slice(-3000)));
+  chrome.kill('SIGKILL');
+  process.exit(76);
+});
 const ev = async (expression) => {
   const r = await c.send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: false });
   if (r.exceptionDetails) throw new Error('evaluate failed: ' + JSON.stringify(r.exceptionDetails).slice(0, 400));
@@ -78,14 +91,17 @@ const ev = async (expression) => {
 await c.send('Page.enable'); await c.send('Runtime.enable'); await c.send('Performance.enable');
 await c.send('Emulation.setDeviceMetricsOverride', { width: profile.viewport.width, height: profile.viewport.height, deviceScaleFactor: profile.viewport.dpr, mobile: profile.viewport.mobile, screenWidth: profile.viewport.width, screenHeight: profile.viewport.height });
 if (!process.env.FW_NOTOUCH) await c.send('Emulation.setTouchEmulationEnabled', { enabled: profile.viewport.touch, maxTouchPoints: 5 });
-await c.send('Emulation.setTimezoneOverride', { timezoneId: profile.timezone });
-await c.send('Emulation.setLocaleOverride', { locale: profile.locale });
-await c.send('Emulation.setUserAgentOverride', { userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36', acceptLanguage: profile.locale });
+const SKIP = new Set((process.env.FW_SKIP ?? '').split(',').filter(Boolean)); // crash-probe only: ua, locale, tz leave that Emulation override out
+if (!SKIP.has('tz')) await c.send('Emulation.setTimezoneOverride', { timezoneId: profile.timezone });
+if (!SKIP.has('locale')) await c.send('Emulation.setLocaleOverride', { locale: profile.locale });
+if (!SKIP.has('ua')) await c.send('Emulation.setUserAgentOverride', { userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36', acceptLanguage: profile.locale });
 const shim = readFileSync('/driver/clock-shim.js', 'utf8');
 await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `globalThis.__FW_CFG = ${JSON.stringify({ epochMs: EPOCH_MS, seed: profile.seed })};\n${shim}` });
 // The real frame size: the native innerWidth/innerHeight getters, captured before any page script can pin them (a stage page pins
 // both to its stage environment). The viewport gate decides on these (Lean Fw.Site.StageMode.gateSize).
 await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `(() => { const g = (k) => { const d = Object.getOwnPropertyDescriptor(window, k); return d && typeof d.get === 'function' ? d.get : null; }; const w = g('innerWidth'), h = g('innerHeight'); Object.defineProperty(window, '__fwRealSize', { value: () => (w && h ? { w: w.call(window), h: h.call(window) } : null) }); })();` });
+// profile.css (crash-probe only): rules added to the page at document start, to take one rule or part out of a bisect.
+if (profile.css) await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `(() => { const add = () => { const s = document.createElement('style'); s.textContent = ${JSON.stringify(profile.css)}; document.documentElement.appendChild(s); }; if (document.documentElement) add(); else new MutationObserver((_, o) => { if (document.documentElement) { o.disconnect(); add(); } }).observe(document, { childList: true }); })();` });
 if (N0_ON) await c.send('Page.addScriptToEvaluateOnNewDocument', { source: readFileSync('/driver/n0-census.js', 'utf8') }); // after the shim: it stamps events with the virtual clock
 
 let vt = 0;
@@ -152,6 +168,7 @@ loaded = true;
 // Jump to the fixed profile start, whatever number of frames the load took, then pre-roll with the page idle.
 vt = START_VT;
 for (let i = 0; i < profile.load.prerollFrames; i++, vt += dt) { await frame(vt); }
+if (process.env.FW_LOAD_ONLY) { console.error(`FW_LOAD_OK: ${loadFrames} load frames and ${profile.load.prerollFrames} pre-roll frames without a crash`); chrome.kill('SIGKILL'); process.exit(0); } // crash-probe only
 const geo = await ev(`({ docH: document.documentElement.scrollHeight, innerH: innerHeight, innerW: innerWidth, y: scrollY, dpr: devicePixelRatio, lang: navigator.language, tz: Intl.DateTimeFormat().resolvedOptions().timeZone, now: new Date().toISOString(), el: document.getElementsByTagName('*').length, real: window.__fwRealSize ? window.__fwRealSize() : null, scrollW: document.documentElement.scrollWidth, clientW: document.documentElement.clientWidth, clientH: document.documentElement.clientHeight, scale: window.visualViewport ? visualViewport.scale : null })`);
 // Content wider than the viewport enlarges the layout viewport under mobile emulation: not the profile, refuse (Lean Fw.Measure.Viewport).
 const profileSize = { w: profile.viewport.width, h: profile.viewport.height };
@@ -338,7 +355,7 @@ const servedSha = createHash('sha256').update(JSON.stringify(served)).digest('he
 const result = {
   schema: 'fw.counts/1',
   engine: 'chromium-headless-shell',
-  profile: { id: profile.id, file: `${profile.id}.json`, sha256: createHash('sha256').update(readFileSync(`/profiles/${args.profile ?? 'swipe-v1'}.json`)).digest('hex') },
+  profile: { id: profile.id, file: `${profile.id}.json`, sha256: createHash('sha256').update(readFileSync(PROFILE_FILE)).digest('hex') },
   meta: {
     browser: version.Browser, browserArgs, protocol: version['Protocol-Version'],
     image: process.env.FW_IMAGE_ID ?? null, snapshot: process.env.FW_SNAPSHOT_ID ?? null,

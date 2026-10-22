@@ -45,7 +45,8 @@ const imageId = sh('docker', ['image', 'inspect', '--format', '{{.Id}}', IMAGE])
 const out = join(PKG, 'out', profile, label);
 rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
-const inner = ['/driver/run.mjs', `--profile=${profile}`, `--target=${target}`, ...(search ? [`--search=${search}`] : []), ...(flag('dump-trace') ? ['--dump-trace'] : [])];
+const isProbe = !!JSON.parse(readFileSync(join(PKG, 'profiles', `${profile}.json`), 'utf8')).probe; // a profile with probe.variants runs the crash bisect (crash-probe.mjs), not a count
+const inner = [isProbe ? '/driver/crash-probe.mjs' : '/driver/run.mjs', `--profile=${profile}`, `--target=${target}`, ...(search ? [`--search=${search}`] : []), ...(flag('dump-trace') ? ['--dump-trace'] : [])];
 const t0 = Date.now();
 // Host load stamp, written NEXT TO counts.json (host.json), never into it: counts are virtual-time and must not carry wall data.
 const loadStamp = () => { let idle = null; try { const m = /([\d.]+)% idle/.exec(sh('top', ['-l', '1', '-n', '0'])); idle = m ? +m[1] : null; } catch { /* top unavailable */ } return { at: new Date().toISOString(), load1: +loadavg()[0].toFixed(2), cpuIdlePct: idle, cores: cpus().length }; };
@@ -69,6 +70,7 @@ writeFileSync(join(out, 'host.json'), JSON.stringify({ note: 'host-side wall fac
 console.error(`attempts=${attempts} (not part of the result)`);
 console.error(`wrote ${join(out, 'counts.json')} (host wall ${((Date.now() - t0) / 1000).toFixed(1)} s)`);
 if (r.status !== 0) process.exit(r.status ?? 1);
+if (isProbe) { writeFileSync(join(out, 'zones.json'), JSON.stringify({ schema: 'fw.zones/1', counts: 'counts.json', zoneHeightPx: 0, zones: [], note: 'crash probe: no counts' }) + '\n'); process.exit(0); }
 if (flag('no-zones')) process.exit(0); // fixture profiles with no scroll zones (engine premise fixtures): counts.json only
 // Per-zone sums come from fwcore (Lean Fw.Measure.zoneSums), never from TS. Without a built fwcore the raw counts stay
 // valid and only zones.json is missing.

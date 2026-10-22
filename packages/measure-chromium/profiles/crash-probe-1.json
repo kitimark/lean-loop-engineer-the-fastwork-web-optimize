@@ -1,0 +1,216 @@
+{
+ "id": "crash-probe-1",
+ "about": "Crash bisect (task chromium-desktop-crash): one fresh Chrome per probe.variants entry, each loaded to the end of the pre-roll at 1280x800 unless the variant sets a width; the row is ok, crash (76), hang (75) or other. Diagnostic, records no counts.",
+ "hz": 60,
+ "viewport": {
+  "width": 1280,
+  "height": 800,
+  "dpr": 1,
+  "mobile": false,
+  "touch": false
+ },
+ "pinnedDate": "2026-10-01T00:00:00+07:00",
+ "timezone": "Asia/Bangkok",
+ "locale": "en-US",
+ "seed": 1592661556,
+ "load": {
+  "quietFrames": 30,
+  "maxFrames": 900,
+  "prerollFrames": 60
+ },
+ "zoneHeightPx": 500,
+ "segments": [
+  {
+   "name": "rest",
+   "dyPerFrame": 0,
+   "frames": 10
+  },
+  {
+   "name": "scroll",
+   "dyPerFrame": 10,
+   "frames": 40
+  },
+  {
+   "name": "tail",
+   "dyPerFrame": 0,
+   "frames": 10
+  }
+ ],
+ "probe": {
+  "timeoutMs": 150000,
+  "variants": [
+   {
+    "id": "base"
+   },
+   {
+    "id": "w860",
+    "width": 860
+   },
+   {
+    "id": "w861",
+    "width": 861
+   },
+   {
+    "id": "w1920",
+    "width": 1920,
+    "height": 1080
+   },
+   {
+    "id": "tw-all-off",
+    "css": "*,*::before,*::after{text-wrap:wrap!important}"
+   },
+   {
+    "id": "tw-off-hero",
+    "css": "[data-fw=\"hero\"] *,[data-fw=\"hero\"]{text-wrap:wrap!important}"
+   },
+   {
+    "id": "tw-off-people",
+    "css": "[data-fw=\"people\"] *,[data-fw=\"people\"]{text-wrap:wrap!important}"
+   },
+   {
+    "id": "tw-off-pain",
+    "css": "[data-fw=\"pain\"] *,[data-fw=\"pain\"]{text-wrap:wrap!important}"
+   },
+   {
+    "id": "tw-off-commission",
+    "css": "[data-fw=\"commission\"] *,[data-fw=\"commission\"]{text-wrap:wrap!important}"
+   },
+   {
+    "id": "tw-off-platform",
+    "css": "[data-fw=\"platform\"] *,[data-fw=\"platform\"]{text-wrap:wrap!important}"
+   },
+   {
+    "id": "tw-off-nav",
+    "css": "[data-fw=\"nav\"] *,[data-fw=\"nav\"]{text-wrap:wrap!important}"
+   },
+   {
+    "id": "tw-off-morph-panel",
+    "css": "[data-fw=\"morph-panel\"] *,[data-fw=\"morph-panel\"]{text-wrap:wrap!important}"
+   },
+   {
+    "id": "hide-hero",
+    "css": "[data-fw=\"hero\"]{display:none!important}"
+   },
+   {
+    "id": "hide-people",
+    "css": "[data-fw=\"people\"]{display:none!important}"
+   },
+   {
+    "id": "hide-pain",
+    "css": "[data-fw=\"pain\"]{display:none!important}"
+   },
+   {
+    "id": "hide-commission",
+    "css": "[data-fw=\"commission\"]{display:none!important}"
+   },
+   {
+    "id": "hide-platform",
+    "css": "[data-fw=\"platform\"]{display:none!important}"
+   },
+   {
+    "id": "hide-nav",
+    "css": "[data-fw=\"nav\"]{display:none!important}"
+   },
+   {
+    "id": "hide-morph-panel",
+    "css": "[data-fw=\"morph-panel\"]{display:none!important}"
+   },
+   {
+    "id": "drop--disable-gpu",
+    "dropFlags": [
+     "--disable-gpu"
+    ]
+   },
+   {
+    "id": "drop--font-render-hinting",
+    "dropFlags": [
+     "--font-render-hinting"
+    ]
+   },
+   {
+    "id": "drop--force-color-profile",
+    "dropFlags": [
+     "--force-color-profile"
+    ]
+   },
+   {
+    "id": "drop--hide-scrollbars",
+    "dropFlags": [
+     "--hide-scrollbars"
+    ]
+   },
+   {
+    "id": "drop--lang",
+    "dropFlags": [
+     "--lang"
+    ]
+   },
+   {
+    "id": "drop--num-raster-threads",
+    "dropFlags": [
+     "--num-raster-threads"
+    ]
+   },
+   {
+    "id": "drop--run-all-compositor-stages-before-draw",
+    "dropFlags": [
+     "--run-all-compositor-stages-before-draw"
+    ]
+   },
+   {
+    "id": "drop--disable-checker-imaging",
+    "dropFlags": [
+     "--disable-checker-imaging"
+    ]
+   },
+   {
+    "id": "drop--disable-image-animation-resync",
+    "dropFlags": [
+     "--disable-image-animation-resync"
+    ]
+   },
+   {
+    "id": "drop--disable-new-content-rendering-timeout",
+    "dropFlags": [
+     "--disable-new-content-rendering-timeout"
+    ]
+   },
+   {
+    "id": "drop--mute-audio",
+    "dropFlags": [
+     "--mute-audio"
+    ]
+   },
+   {
+    "id": "skip-ua",
+    "skip": [
+     "ua"
+    ]
+   },
+   {
+    "id": "skip-locale",
+    "skip": [
+     "locale"
+    ]
+   },
+   {
+    "id": "skip-tz",
+    "skip": [
+     "tz"
+    ]
+   },
+   {
+    "id": "no-n0",
+    "env": {
+     "FW_NO_N0": "1"
+    }
+   },
+   {
+    "id": "no-touch-emul",
+    "env": {
+     "FW_NOTOUCH": "1"
+    }
+   }
+  ]
+ }
+}
