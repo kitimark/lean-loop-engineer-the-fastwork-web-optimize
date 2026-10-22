@@ -48,7 +48,7 @@ export async function main(argv) {
     if (!Number.isInteger(reps) || reps < 1 || reps > 5) { console.error('cells-gpu: reps must be 1 to 5'); return 1; }
     const dir = out === '' ? 'out/cells-gpu' : out;
     const { runCells } = await import('./cells-gpu-run.mjs');
-    const raw = await runCells({ engineName: arg(argv, '--engine', 'chromium'), widths, search: arg(argv, '--search'), reps, env: process.env });
+    const raw = await runCells({ engineName: arg(argv, '--engine', 'chromium'), widths, search: arg(argv, '--search'), reps, only: arg(argv, '--only'), env: process.env });
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, `raw-${raw.engine}.json`), JSON.stringify(raw));
     report(raw, dir);

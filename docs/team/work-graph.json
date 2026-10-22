@@ -17037,7 +17037,8 @@
     "packages/contracts/golden/preset/look-change.candidates.jsonl",
     "packages/contracts/golden/preset/v2-proved.decisions.jsonl"
    ],
-   "title": "Review follow-ups of pain-dark-scroll (landed HOLD): (1) the breakpoint gate compares only the pre-flip state (anchors.json excludes is-pain-dark; cells at scroll 0), so add a post-flip check on both engines (opacity or pixel at flipAt-1 and flipAt+1), or the trajectory pain-dark cell once gpu-trajectory-cells lands; (2) toggle_free and ride_exceeds hold by definition (varToggle, varRide), so tie the toggle-frame Work model to the measured counts (Chromium toggle-frame recalcs 4 -> 5) or relabel them as model assumptions in part.json provenance and the ledger leanFor; (3) a backing-free arrangement for WebKit: the overlap promotion of the stage text block adds 12.0 MB (run 39828605244); find the arrangement that keeps the paint saving (-28 to -34% per pass) without the backing, Lean layer budget first."
+   "title": "Review follow-ups of pain-dark-scroll (landed HOLD): (1) the breakpoint gate compares only the pre-flip state (anchors.json excludes is-pain-dark; cells at scroll 0), so add a post-flip check on both engines (opacity or pixel at flipAt-1 and flipAt+1), or the trajectory pain-dark cell once gpu-trajectory-cells lands; (2) toggle_free and ride_exceeds hold by definition (varToggle, varRide), so tie the toggle-frame Work model to the measured counts (Chromium toggle-frame recalcs 4 -> 5) or relabel them as model assumptions in part.json provenance and the ledger leanFor; (3) a backing-free arrangement for WebKit: the overlap promotion of the stage text block adds 12.0 MB (run 39828605244); find the arrangement that keeps the paint saving (-28 to -34% per pass) without the backing, Lean layer budget first.",
+   "evidence": "89d803f"
   },
   {
    "devices": [
