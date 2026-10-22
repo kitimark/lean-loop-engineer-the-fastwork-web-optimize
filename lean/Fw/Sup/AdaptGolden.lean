@@ -438,7 +438,8 @@ def rowJson (r : Row) : Json :=
   Json.mkObj [("step", .str r.step), ("durMs", toJson r.durMs), ("exit", optJson r.exit), ("host", .str r.host)]
 
 open Fw.Sup.MeasureWindow in
-def windowLines : List String :=
+set_option compiler.extract_closed false in
+def windowLines (_ : Unit := ()) : List String :=
   let wp : WParams := {}
   let m := mH "m" "M" 1000 2000
   let ck := chk "a" "1" .check 1390
@@ -523,7 +524,7 @@ def windowLines : List String :=
 set_option compiler.extract_closed false in
 def goldenLines (_ : Unit := ()) : List String :=
   [line "default parameters" "adapt.params" [] (paramsJson {})] ++ stepLines ++ verdictLines ++ threadsLines ++ memLines ++
-    leaseLines ++ simLines ++ buildLines ++ holdLines ++ stopLines ++ cacheLines ++ windowLines
+    leaseLines ++ simLines ++ buildLines ++ holdLines ++ stopLines ++ cacheLines ++ windowLines ()
 
 def genPath : System.FilePath := "../packages/contracts/golden/sup/adapt.jsonl"
 
