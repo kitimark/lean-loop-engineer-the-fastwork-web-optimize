@@ -1,28 +1,31 @@
 branch: worktree-wf_67501544-66c-1 (CI branch ci/earn-bound-arm)
 worktree: .claude/worktrees/wf_67501544-66c-1 (under the main checkout)
-last commit: 7c26af23 (third request commit; code in ac8932ee)
+last commit: see `git log -1` on the branch (code in ac8932ee; workflow tokens in the commits after it)
 
-# earn-bound-arm checkpoint 4 (mac done, run 2 done, run 3 sim-only running)
+# earn-bound-arm: done, verdict NO-GO for candidate B
 
-CI runs (smoothness.yml, head commit asks for [ci:smoothness] [webkit-cadence] [earn-bound]):
-- 39729682403 smoothness: FAILED as a whole but usable. mac jobs 1-3 complete (48 windows each, none refused). sim job 1 and 2
-  INCOMPLETE (Simulator died after 31 and 38 windows), sim job 3 hit the 45 min limit with no artifact.
-- 39744983394 smoothness (sim-only, 4 reps): success, 3 sim jobs, but only 4-6 finish windows per arm per job (a job needs 5), so
-  the Lean verdict is insufficient in those jobs. Mistake: 4 reps cannot reach the 5-window minimum (MIN_REPS 5).
-- third push 7c26af23 (tokens earn-bound + sim-only, now 6 reps): running, 3 sim jobs one after another (about 30 min each).
-Dispatches used: 2 of 6 (runs 1 and 2 are done, run 3 is running; a push is the run). Do not push a newer commit to ci/earn-bound-arm while the run is going (stale check).
+Verdict (MEASURED, Lean `across` pair base|bound, finish zone): `same` in every decisive job of both WebKit legs; no job says
+`second`. So bound does not beat A/A, B is not built, the faithful earn animation stays. Neither VM has a real GPU.
 
-Mac preview (3 jobs, finish zone, render work ms per window): base 725.77, aa 714.48, bound 733.64. Lean across verdict
-base|bound: `same` in hero, finish and rest. So no mac headroom: bound is not below A/A. Not final until the sim legs are in.
+CI runs (all on ci/earn-bound-arm, smoothness.yml; 3 of 6 dispatches used):
+- 39729682403: mac jobs 1-3 complete (8 reps, 48 windows each) = the macOS evidence. Sim jobs 1-2 died at 31/38 windows, sim job 3 hit
+  the 45 min limit (no artifact). The whole run shows cancelled.
+- 39744983394: [sim-only], 4 reps: too few finish windows (MIN_REPS 5), verdict insufficient. My planning error.
+- 39754568950: [sim-only], 6 reps: 3 sim jobs, 36 windows each, all decisive = the iOS Simulator evidence.
 
-What was built:
-- packages/gate-breakpoints/src/smooth/bound.mjs: BOUND_CSS/BOUND_JS (probe-only, injected after load, same config hash as base), parseArms, endPushFor.
-- --arms and --hold-ms on `smooth/cli.mjs webkit` and `measure-webkit/src/profile/cli.mjs sim`; webkit-cadence.mjs, sim-cadence.mjs take `only`, `holdMs`.
-- report.mjs: pair base|bound (first = base does less, so bound beats A/A = verdict `second`), ratio column "bound / base" only when the arm ran.
-- smoothness.yml: token [earn-bound] sets ARMS=base,aa,bound, HOLD_MS=1400, REPS 8 (mac) / 7 (sim).
-- Outside the graph writes: packages/measure-webkit/src/profile/** and test, apps/runner/src/land.ts (one declared read).
+Files: research/notes/2026/10-2x-earn-gpu.md (note, result section), results/earn-bound/report.json (checked with fwcore
+`console.report`: invalid empty; not posted), packages/gate-breakpoints/src/smooth/bound.mjs (+ webkit-cadence.mjs, cli.mjs),
+packages/measure-webkit/src/profile/{sim-cadence,cli,report}.mjs, smoothness.yml tokens [earn-bound] and [sim-only].
+Writes outside the graph: measure-webkit profile files and test, gate-breakpoints test/smooth-bound.test.mjs, apps/runner/src/land.ts
+(one declared read of bound.mjs for packages/measure-webkit).
 
-Open: wait for the second run, download the artifacts (smoothness-webkit-mac-N, smoothness-webkit-sim-N) into an empty dir, run
-`node packages/measure-webkit/src/profile/cli.mjs report --runs <dir> --out <dir>`, then results/earn-bound/report.json, the note
-research/notes/2026/10-2x-earn-gpu.md, package tests, merge main, dry land, `pnpm -s fw review ready`.
-No checker corrections for the earn-gpu note existed in the scratch folder (earn-r1-findings.md is the older earn drift task); the note is checked by the builder against the cited sources.
+How to read the numbers again: download smoothness-webkit-mac-N / -sim-N into <dir>/<runId>/<artifact>/ and run
+`node packages/measure-webkit/src/profile/cli.mjs report --runs <dir> --out <dir2>`.
+
+Open / follow-ups:
+- Phone replay of base vs bound (plan step 4) is the only check for GPU/UI-process time; the VMs cannot show it.
+- iOS Simulator leg: most hero windows read insufficient (frames land in the wrong zone in some windows); only the finish zone decides.
+  Cause not investigated. The Simulator dies after about 30-40 windows; keep sim reps at 6 or fewer per job.
+- TS stand-ins: PAIRS entry base|bound (reuses Lean-twin verdict fns); the go/no-go rule was applied by hand from the across table.
+- No checker corrections for the earn-gpu note existed (earn-r1-findings.md is the older earn drift task); self-checked the CSS line
+  cites (mask is none in the hero pill :195-196, mask on in the other states :224-225).

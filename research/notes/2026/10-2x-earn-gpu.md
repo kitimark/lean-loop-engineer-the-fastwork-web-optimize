@@ -214,11 +214,73 @@ Limits, all stated:
   animation would pay.
 - Each end-push half is held 1400 ms (`END_PUSH.holdMs` 1000 before), so the close collapse (1.35 s after the push)
   is no longer cut off. Windows from earlier notes used 1000 ms and do not compare exactly with these.
-- The existing lead note's finish-zone table (run 39634194664, `10-2x-smoothness-webkit.md`) is kept in the plan
-  history: base − look and base − aa were of the same size as the A/A spread there, which is why the bound arm was asked
-  for first.
+- Why this arm was asked for first: the closest earlier data, the `look` arm (`morph.tween:scroll-lock` plus
+  `nav:earn-no-transition`) in run 39634194664 (`10-2x-smoothness-webkit.md`), differed from base by about the A/A
+  spread. Finish-zone render work per 2 s window, macOS: base 600.67 ms, aa 564.92, look 551.87; iOS Simulator: base
+  225.84, aa 234.78, look 168.84. Layout covered ms, macOS: 72.92, 66.70, 59.68; iOS: 35.61, 27.59, 25.63. MEASURED
+  there; that the earn's own gain sits below CI noise was INFERRED, and the bound arm now confirms it for main-thread
+  work.
 
-RESULT_PLACEHOLDER
+## Result of the bound arm
+
+Go/no-go (plan step 1): build candidate B only if `bound` beats `aa` in Lean `across` (pair `base|bound`, verdict
+`second`) in the finish zone, in at least 2 of 3 jobs of a leg with none disagreeing. MEASURED outcome: **no-go**. In
+every decisive job of both WebKit legs the verdict is `same`; no job says `second`.
+
+| leg | run | jobs | finish-zone verdict per job (`first` / `second` / `same` / insufficient) | verdict over jobs |
+|---|---|---|---|---|
+| macOS Playwright WebKit, 390 px | 39729682403 (`smoothness-webkit-mac-1..3`, 8 reps per arm, 48 windows each, none refused) | 3 | 0 / 0 / 3 / 0 | same |
+| iOS Simulator, Mobile Safari, 430 px | 39754568950 (`smoothness-webkit-sim-1..3`, 6 reps, 36 windows each, none refused) | 3 | 0 / 0 / 3 / 0 | same |
+
+Finish zone, 2.8 s window, median over the kept windows of three jobs (MEASURED, the same runs; the Lean verdict is
+over per-job medians, these are pooled medians):
+
+| metric | mac base | mac aa | mac bound | sim base | sim aa | sim bound |
+|---|---|---|---|---|---|---|
+| render work ms per window | 725.77 | 714.48 | 733.64 | 225.73 | 204.04 | 200.90 |
+| render work us per frame | 7382 | 7302 | 7252 | 5887 | 6257 | 5637 |
+| RecalculateStyles ms | 505.20 | 494.74 | 498.68 | 147.63 | 143.94 | 127.40 |
+| Layout ms (covered) | 89.56 | 87.60 | 85.25 | 32.83 | 30.28 | 28.94 |
+| Layout records | 188 | 188 | 176 | 81 | 78 | 82 |
+| Paint ms | 179.20 | 178.18 | 184.06 | 61.47 | 60.43 | 59.39 |
+
+- The A/A spread (base − aa) is as large as the effect of removing every earn transition (base − bound), in both
+  legs. macOS render work: base − aa 11.3 ms, base − bound −7.9 ms (bound is the slower one). iOS Simulator render work:
+  base − aa 21.7 ms, base − bound 24.8 ms, bound − aa −3.1 ms. The iOS point estimate for bound is 11 % under base, but
+  aa is 10 % under base too, so that gap is revisit noise, which is what the A/A arm is for.
+- Class counts of the finish zone (deterministic / stable / quarantined; kMax 4, tMax 24, three jobs per leg): mac base
+  2 / 5 / 4, aa 2 / 7 / 2, bound 2 / 8 / 1; sim base 3 / 5 / 3, aa 2 / 5 / 4, bound 2 / 5 / 4. The bound arm has no
+  more deterministic counts than A/A. MEASURED.
+- The hero and rest zones agree on macOS (`same` in 3 of 3 jobs for both). On the iOS Simulator they cannot decide: most
+  hero windows have fewer than 5 kept frames in the hero zone (some windows put all their frames into the finish zone;
+  the cause was not investigated), so those zones read `insufficient` and only the finish zone carries the sim verdict.
+  Finish-zone windows of the sim legs therefore include a few frames that came from hero windows; this affects every
+  arm alike (INFERRED from the rotation of the arm order).
+
+How the three runs got there (all free runners, 3 of 6 dispatches):
+
+| run | what | outcome |
+|---|---|---|
+| 39729682403 | all of `[earn-bound]`: mac 8 reps and sim 7 reps, 3 jobs each | mac complete. Sim jobs 1 and 2 stopped after 31 and 38 windows (the Simulator shut down, `Timeline.stop` timeouts), sim job 3 hit the 45 min limit with no artifact |
+| 39744983394 | `[sim-only]`: 4 reps per sim job | jobs complete but each arm had only 4 to 6 kept finish windows, and the verdict needs at least 5 per arm (`MIN_REPS`); base had 4 in all three jobs. A planning error: 4 reps cannot reach 5 |
+| 39754568950 | `[sim-only]`: 6 reps per sim job | 36 windows per job, none refused, all three jobs decisive |
+
+Pooling all eleven jobs of the three runs gives the same answer (macOS: 3 of 3 `same`; sim finish: 5 `same`, 3
+insufficient, none `second`).
+
+What the result does not say:
+
+- No GPU or UI-process time is visible on either host (no real GPU). A compositor-run animation could still lower felt
+  jank on a phone; the bound arm shows only that the main thread has nothing to gain from the earn animation. The
+  phone replay (plan step 4) stays the open check. A real iPhone is where the earn variant would have to pay.
+- `bound` keeps the `.actions` gap transition and the earn mask and sheen animations (see above); a variant that also
+  removed those could save more, but that would change the look further.
+- The sim legs are scripted in-page scroll (no wheel device), so the iOS numbers say nothing about touch input.
+
+TS stand-ins (no new Lean was written for this task): the `base|bound` pair in `PAIRS`
+(`packages/measure-webkit/src/profile/report.mjs`) reuses the existing Lean-twin verdict functions; the go/no-go rule
+(at least 2 of 3 jobs, none disagreeing) was applied by the builder from the Lean `across` table, not computed by code.
+Both are listed in the task report.
 
 ## What this changes in the plan
 
