@@ -42,7 +42,7 @@ def traceLine (tr : List Ev) : String :=
 
 /-- Lines of `commission-gate.jsonl`: the write decision, the card's look per environment (the boolean `c1000` is Lean's
 evaluation of the generated condition at that environment) and inline pair, and the traces. -/
-def gateLines : List String :=
+def gateLines (_ : Unit := ()) : List String :=
   (([false, true] : List Bool).map fun g => line "planWrite" [("gated", .bool g)] (.bool (writeNow g))) ++
   (([(430, 430, true, false), (500, 500, false, false), (800, 800, false, false), (1000, 1000, false, false),
      (1001, 1001, false, false), (1001, 500, false, false), (1001, 501, false, false), (1200, 1200, true, true),
@@ -56,6 +56,6 @@ def gateLines : List String :=
   traces.map traceLine
 
 /-- The golden files of commission:band-gate: name and lines. -/
-def files (_ : Unit := ()) : List (String × List String) := [("commission-gate.jsonl", gateLines)]
+def files (_ : Unit := ()) : List (String × List String) := [("commission-gate.jsonl", gateLines ())]
 
 end Fw.Parts.CommissionOptGolden
