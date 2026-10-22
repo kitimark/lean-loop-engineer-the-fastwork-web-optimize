@@ -16400,7 +16400,32 @@
     "apps/runner/test/land-overflow*.test.ts",
     "docs/team/handoffs/cc-storage-count.md"
    ],
-   "title": "User 2026-10-22: 'github actions was degraded. why our system is not fallback to circle ci?' Research research/notes/2026/10-2x-cc-fallback-why.md: the second gate-settle land (21:21) overflowed all 5 legs but CircleCI was refused on storage: ledger 1297 vs stop 1000, while the real figure is about 650 and the Free allowance 2000. Lean rule changes: (1) storage counts caches and workspaces at CircleCI Free retention 15 days, artifacts at 30, only saves of the last 30 days (window like credits); (2) rename the stop storageStopMilli (half the allowance, documented) and add storageAllowMilli := 2000, no behaviour change; (3) charge the overflow's own Lake cache save (~153) before deciding; theorems: today's ledger row set yields < stop; storage_stop_keeps_github still holds; goldens; scripts/circleci.mjs storageSoFar follows. Follow-up (not this task): re-route a leg that stays pending to CircleCI while Actions is degraded (after land-leg-pending)."
+   "title": "User 2026-10-22: 'github actions was degraded. why our system is not fallback to circle ci?' Research research/notes/2026/10-2x-cc-fallback-why.md: the second gate-settle land (21:21) overflowed all 5 legs but CircleCI was refused on storage: ledger 1297 vs stop 1000, while the real figure is about 650 and the Free allowance 2000. Lean rule changes: (1) storage counts caches and workspaces at CircleCI Free retention 15 days, artifacts at 30, only saves of the last 30 days (window like credits); (2) rename the stop storageStopMilli (half the allowance, documented) and add storageAllowMilli := 2000, no behaviour change; (3) charge the overflow's own Lake cache save (~153) before deciding; theorems: today's ledger row set yields < stop; storage_stop_keeps_github still holds; goldens; scripts/circleci.mjs storageSoFar follows. Follow-up (not this task): re-route a leg that stays pending to CircleCI while Actions is degraded (after land-leg-pending). USER 2026-10-22 ('we can store more than 2 GB, they just charge credits?'): yes, overage is 420 credits per GB-month from the free 30k pool (price CONFIRMED, pool INFERRED). So (4) the storage gate becomes a credit gate: storage past the 2 GB-month allowance is charged at 420 credits per GB-month into the same monthly budget as run credits; the overflow is refused only when run credits + storage overage + the reserve exceed the pool (theorem: no refusal on storage alone while the budget fits); (5) a Lake cache save policy on CircleCI that bounds storage (save on cache-key change only, or a shorter retention), stated in Lean with its expected GB-month per day."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "disk-gc-tmp",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Ops/DiskGc.lean",
+    "lean/Fw/Ops/Wire.lean",
+    "packages/contracts/golden/ops/disk-gc*.jsonl",
+    "apps/runner/src/disk-gc.ts",
+    "apps/runner/src/run.ts",
+    "apps/runner/src/watch.ts",
+    "apps/runner/test/disk-gc*.test.ts",
+    "apps/runner/test/run*.test.ts",
+    "scripts/lint-tmpdirs.mjs",
+    "scripts/lint-tmpdirs.test.mjs",
+    "docs/team/tools/disk-gc.md",
+    "docs/team/tools/disk-cleanup.md",
+    "docs/team/handoffs/disk-gc-tmp.md"
+   ],
+   "title": "User 2026-10-22: 'delete it and investigate why it doesn't automatically gc?' then the disk filled (incident inc-tmp-trace-leak: 161 GB in the macOS user temp folder, ~140 GB of instruments*.ktrace from the xctrace probe plus ~103k fw* test temp dirs; ENOSPC stopped 3 builders). Investigation (workflow disk-gc-gaps, result in the lead scratch disk-gc-gaps-result.json): F1 a vanished candidate (lstat fails -> uid -1) aborts the whole Lean request ('field uid: expected a non-negative integer'): uid becomes Option, unknown owner is kept, never fatal; F2a under sys.diskLow the scratch age floor drops 8 h -> 2 h (theorem pressure_only_lowers, guards unchanged); F2b scratch dirs of a landed task by identity; F3 fw run leaks .fw-console/tmp/<engine>-<runId> (run.ts:286-289, no rmSync; ci.ts and ci-telemetry.ts remove theirs in finally). New: a Lean class for the user temp folder (DARWIN_USER_TEMP_DIR): owned entries whose name matches our prefix allowlist (fw*, oracle*, ghb*, engine-check*, premises*, land-base*, lint*, var*, instruments*.ktrace) older than a floor and not open (lsof, fails closed); never the folder itself, never other names; theorem deletes_subset_allowlist extends to it. A lint (scripts/lint-tmpdirs.mjs) that flags test mkdtemp without a matching rm in afterAll/finally. Report freed bytes per class."
   }
  ],
  "deadline": {
