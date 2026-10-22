@@ -14674,7 +14674,18 @@
     "apps/site/src/flags/**",
     "packages/contracts/golden/parts/platform-fade*.jsonl",
     "research/notes/2026/10-2x-platform-fade-threaded.md",
-    "docs/team/handoffs/platform-fade-threaded.md"
+    "docs/team/handoffs/platform-fade-threaded.md",
+    "apps/site/src/App.tsx",
+    "apps/site/src/parts/morph.tween/driver.ts",
+    "apps/site/src/parts/morph.tween/index.tsx",
+    "lean/Fw.lean",
+    "lean/Fw/Parts/PlatformGolden.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json",
+    "packages/contracts/golden/preset/v2-proved.decisions.jsonl",
+    "research/findings/ledger.json",
+    "results/platform-fade-threaded/report.json"
    ]
   },
   {
