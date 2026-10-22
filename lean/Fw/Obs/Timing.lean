@@ -14,9 +14,7 @@ Definitions (all durations in whole ms, `Nat`):
 * A local sample with `λ > L` is **contended** (`L = contendedLoad = 8`, the CPUs of the local Mac): the machine ran more
   runnable tasks than CPUs, so its duration says how busy the machine was, not how the step changed. It gets the verdict
   `contended` (never `slow`) and never enters a window. A CI sample is never contended.
-* A sample is **full** when it was not `skipped` and exited 0 or with an unknown code (`fullRun`); any other sample
-  gets no verdict and changes none (`timingVerdicts_indep`).
-* The **window** of a sample is the last `N` full uncontended samples with the same key that come before it in the input.
+* The **window** of a sample is the last `N` uncontended samples with the same key that come before it in the input.
 * The **baseline** is the nearest-rank median (p50) of the window: the `⌈ n/2 ⌉`-th smallest of its `n`
   values, defined by counting (`ord`), so no sort is needed and the proofs are about counts. It was the p90 until
   task `timing-small-n`: with `n ≤ 9` the p90 is the window maximum, so a regression seen twice became its own
@@ -75,25 +73,19 @@ structure Sample where
   skipped : Bool := false
 deriving DecidableEq, Repr
 
-/-- A run is full when it was not skipped and exited 0 or with an unknown code. -/
 def fullRun (exit : Option Int) (skipped : Bool) : Bool := !skipped && (exit == none || exit == some 0)
 
-/-- A sample is full when its run is: only full samples are judged and enter windows. -/
 def Sample.full (s : Sample) : Bool := fullRun s.exit s.skipped
 
 #guard fullRun none false && fullRun (some 0) false && !fullRun (some 1) false && !fullRun (some 16) false
 #guard !fullRun (some (-1)) false && !fullRun (some 0) true && !fullRun none true
 
-/-- An unknown exit code that was not skipped is full. -/
 theorem fullRun_none : fullRun none false = true := rfl
 
-/-- Exit 0 that was not skipped is full. -/
 theorem fullRun_zero : fullRun (some 0) false = true := rfl
 
-/-- A skipped run is never full. -/
 theorem fullRun_skipped (e : Option Int) : fullRun e true = false := rfl
 
-/-- A non-zero exit is never full. -/
 theorem fullRun_nonzero (n : Int) (b : Bool) (h : n ≠ 0) : fullRun (some n) b = false := by
   simp [fullRun, h]
 
@@ -213,12 +205,8 @@ def contended (p : Params) (s : Sample) : Bool := decide (s.host = .«local») &
 /-- The last `n` elements of a list (all of it when it is shorter). -/
 def lastN (n : Nat) (xs : List Nat) : List Nat := xs.drop (xs.length - n)
 
-/-- A sample counts toward a window when it is full and not contended. -/
 def counts (p : Params) (s : Sample) : Bool := s.full && !contended p s
 
-/-- The window of key `k` in a history: the durations of the last `N` samples of `hist` with key `k` that count,
-oldest first.
--/
 def windowOf (p : Params) (hist : List Sample) (k : Key) : List Nat :=
   lastN p.window ((hist.filter (fun s => decide (s.key = k) && counts p s)).map (·.durMs))
 
@@ -374,7 +362,6 @@ def isJob (s : Sample) : Bool := decide (s.host = .ci) && !s.step.contains '/'
 -/
 def family (step : String) : String := (step.splitOn " (").headD step
 
-/-- The keys of the full job-level CI samples, first occurrence order, without repeats. -/
 def jobKeys (ss : List Sample) : List Key := ((ss.filter (fun s => isJob s && s.full)).map Sample.key).eraseDups
 
 /-- The stages derived from the samples when the caller gives none: one stage per CI workflow (tool) that has at
@@ -403,7 +390,6 @@ inductive Verdict where
   | structural (v : StructVerdict)
 deriving DecidableEq, Repr
 
-/-- The verdicts of the full samples, in input order (each keeps its input index). -/
 def fullVerdicts (p : Params) (ss : List Sample) : List SampleVerdict :=
   ((ss.zip (sampleVerdicts p ss)).filter (fun x => x.1.full)).map (·.2)
 
@@ -537,7 +523,6 @@ theorem no_alert_within_budget (p : Params) (hist : List Sample) (i : Nat) (s : 
     | none => rw [hc] at h; simp only at h; omega
     | some c => rw [hc] at h; simp only at h; omega
 
-/-- Every sample verdict of the entry point is `judge` of a full sample against the samples before it. -/
 theorem mem_sample_full (p : Params) (hist : List Sample) (v : SampleVerdict)
     (h : Verdict.sample v ∈ timingVerdicts p hist) :
     ∃ i, ∃ hi : i < hist.length, hist[i].full = true ∧ v = judge p (hist.take i) i hist[i] := by
@@ -553,7 +538,6 @@ theorem mem_sample_full (p : Params) (hist : List Sample) (v : SampleVerdict)
     · rw [← he]; simp [sampleVerdicts, List.getElem_mapIdx]
   · cases he
 
-/-- Every sample verdict of the entry point is `judge` of its sample against the samples before it. -/
 theorem mem_sample (p : Params) (hist : List Sample) (v : SampleVerdict)
     (h : Verdict.sample v ∈ timingVerdicts p hist) :
     ∃ i, ∃ hi : i < hist.length, v = judge p (hist.take i) i hist[i] := by
@@ -651,9 +635,6 @@ theorem deterministic (p : Params) (hist : List Sample) (i : Nat) (s : Sample) :
     cases decide (x.key = s.key) <;> simp
   simp only [judge, this]
 
-/-! ## Proofs: full and other samples -/
-
-/-- With only full samples, every sample has its verdict. -/
 theorem fullVerdicts_all_full (p : Params) (ss : List Sample) (hf : ∀ s ∈ ss, s.full = true) :
     fullVerdicts p ss = sampleVerdicts p ss := by
   have hl : (sampleVerdicts p ss).length ≤ ss.length := by simp [sampleVerdicts]
@@ -661,14 +642,10 @@ theorem fullVerdicts_all_full (p : Params) (ss : List Sample) (hf : ∀ s ∈ ss
   rw [List.filter_eq_self.2 (fun x hx => hf x.1 (List.of_mem_zip hx).1)]
   exact List.map_snd_zip hl
 
-/-- **Old behaviour kept.** With only full samples the entry point is one verdict per sample, then the structural
-verdicts.
--/
 theorem timingVerdicts_all_full (p : Params) (ss : List Sample) (hf : ∀ s ∈ ss, s.full = true) :
     timingVerdicts p ss = (sampleVerdicts p ss).map .sample ++ (structuralVerdicts p ss).map .structural := by
   rw [timingVerdicts, fullVerdicts_all_full p ss hf]
 
-/-- **Old behaviour kept.** With only full samples a window is the last `N` uncontended samples of its key. -/
 theorem windowOf_all_full (p : Params) (hist : List Sample) (k : Key) (hf : ∀ s ∈ hist, s.full = true) :
     windowOf p hist k = lastN p.window ((hist.filter (fun s => decide (s.key = k) && !contended p s)).map (·.durMs)) := by
   unfold windowOf
@@ -677,7 +654,6 @@ theorem windowOf_all_full (p : Params) (hist : List Sample) (k : Key) (hf : ∀ 
   intro x hx
   simp [counts, hf x hx]
 
-/-- **Old behaviour kept.** With only full samples the job keys are those of every job sample. -/
 theorem jobKeys_all_full (ss : List Sample) (hf : ∀ s ∈ ss, s.full = true) :
     jobKeys ss = ((ss.filter isJob).map Sample.key).eraseDups := by
   unfold jobKeys
@@ -686,9 +662,6 @@ theorem jobKeys_all_full (ss : List Sample) (hf : ∀ s ∈ ss, s.full = true) :
   intro x hx
   simp [hf x hx]
 
-/-- Total: with only full samples the output holds one verdict per sample, in input order (sample `i` judged against
-the samples before it), followed by the structural verdicts.
--/
 theorem timingVerdicts_total (p : Params) (hist : List Sample) (hf : ∀ s ∈ hist, s.full = true) :
     (timingVerdicts p hist).length = hist.length + (structuralVerdicts p hist).length ∧
       ∀ i (hi : i < hist.length),
@@ -700,7 +673,6 @@ theorem timingVerdicts_total (p : Params) (hist : List Sample) (hf : ∀ s ∈ h
   rw [List.getElem?_append_left hl]
   simp [sampleVerdicts, hi]
 
-/-- A window reads only the full samples of a history. -/
 theorem windowOf_filter_full (p : Params) (hist : List Sample) (k : Key) :
     windowOf p hist k = windowOf p (hist.filter Sample.full) k := by
   simp only [windowOf, List.filter_filter]
@@ -708,29 +680,22 @@ theorem windowOf_filter_full (p : Params) (hist : List Sample) (k : Key) :
   funext x
   cases hx : x.full <;> simp [counts, hx]
 
-/-- The verdict of a sample reads only the full samples before it. -/
 theorem judge_filter_full (p : Params) (hist : List Sample) (i : Nat) (s : Sample) :
     judge p hist i s = judge p (hist.filter Sample.full) i s := by
   simp only [judge, ← windowOf_filter_full]
 
-/-- **Independence.** Two histories with the same full samples give every sample the same verdict, so adding samples
-with a non-zero exit or a skipped step changes no verdict.
--/
 theorem judge_indep (p : Params) (hist hist' : List Sample) (i : Nat) (s : Sample)
     (h : hist.filter Sample.full = hist'.filter Sample.full) : judge p hist i s = judge p hist' i s := by
   rw [judge_filter_full p hist, judge_filter_full p hist', h]
 
-/-- **Independence.** Inserting samples that are not full anywhere in a history changes no verdict. -/
 theorem judge_insert_other (p : Params) (a cs b : List Sample) (i : Nat) (s : Sample)
     (hc : ∀ c ∈ cs, c.full = false) : judge p (a ++ cs ++ b) i s = judge p (a ++ b) i s := by
   apply judge_indep
   have h : cs.filter Sample.full = [] := List.filter_eq_nil_iff.2 (fun c h' => by simp [hc c h'])
   simp only [List.filter_append, h, List.append_nil]
 
-/-- A sample verdict with its input index set to 0. -/
 def SampleVerdict.unindexed (v : SampleVerdict) : SampleVerdict := { v with idx := 0 }
 
-/-- A verdict with the input index of a sample verdict set to 0. -/
 def Verdict.unindexed : Verdict → Verdict
   | .sample v => .sample v.unindexed
   | .structural v => .structural v
@@ -785,7 +750,6 @@ theorem groupBaseline_filter_full (p : Params) (ss : List Sample) :
   funext g
   simp only [groupBaseline, hf]
 
-/-- The structural verdicts read only the full samples. -/
 theorem structuralVerdicts_filter_full (p : Params) (ss : List Sample) :
     structuralVerdicts p (ss.filter Sample.full) = structuralVerdicts p ss := by
   have hs : stagesOf p (ss.filter Sample.full) = stagesOf p ss := by
@@ -796,9 +760,6 @@ theorem structuralVerdicts_filter_full (p : Params) (ss : List Sample) :
     rw [groupBaseline_filter_full]
   simp only [structuralVerdicts, hs, hv]
 
-/-- **Independence, whole output.** Up to the input index of each sample verdict, the entry point gives the same
-verdicts as on the full samples alone: samples with a non-zero exit or a skipped step add no verdict and change none.
--/
 theorem timingVerdicts_indep (p : Params) (ss : List Sample) :
     (timingVerdicts p ss).map Verdict.unindexed = (timingVerdicts p (ss.filter Sample.full)).map Verdict.unindexed := by
   have hf : ∀ s ∈ ss.filter Sample.full, s.full = true := fun s hs => (List.mem_filter.1 hs).2
@@ -807,7 +768,6 @@ theorem timingVerdicts_indep (p : Params) (ss : List Sample) :
   have hc : (Verdict.unindexed ∘ Verdict.sample) = Verdict.sample ∘ SampleVerdict.unindexed := rfl
   rw [hc, ← List.map_map, ← List.map_map (g := Verdict.sample), fullVerdicts_unindexed]
 
-/-- **Independence, two histories.** Histories with the same full samples give the same verdicts up to input index. -/
 theorem timingVerdicts_same_full (p : Params) (ss ss' : List Sample)
     (h : ss.filter Sample.full = ss'.filter Sample.full) :
     (timingVerdicts p ss).map Verdict.unindexed = (timingVerdicts p ss').map Verdict.unindexed := by
@@ -1502,19 +1462,16 @@ def runK (tool step kind : String) (host : Host) (ds : List Nat) : List Sample :
 def runX (tool step : String) (host : Host) (load : Nat) (xs : List (Nat × Option Int × Bool)) : List Sample :=
   xs.map fun (d, exit, skipped) => { tool, step, durMs := d, host, load, exit, skipped }
 
-/-- The local `fw land --dry` runs of 2026-10-22 in order: duration in ms and exit code. -/
 def landDry : List (Nat × Option Int × Bool) :=
   [(256, some 12, false), (19140, some 0, false), (213, some 12, false), (20226, some 0, false),
    (20710, some 0, false), (75, some 16, false), (20102, some 0, false), (12, some 1, false), (72, some 16, false),
    (32103, some 0, false), (103, some 16, false), (28484, some 0, false), (124, some 2, false), (879, some 0, false)]
 
-/-- CI `gate-gaps` job `judge` in run order (`.fw-console/timings.jsonl`); the 0 s runs are read as skipped. -/
 def gateGapsJudge : List (Nat × Option Int × Bool) :=
   [(44000, some 0, false), (79000, some 0, false), (74000, some 0, false)] ++
     List.replicate 7 (0, some 0, true) ++
     [(82000, some 0, false), (88000, some 0, false), (91000, some 0, false), (76000, some 0, false)]
 
-/-- The 20 `land (chromium)` gate-engine steps before run 39722879593 and its 33 s step; the 0 s steps are skipped. -/
 def gateEngine : List (Nat × Option Int × Bool) :=
   ([18000, 31000, 23000, 18000, 20000, 22000, 19000, 22000, 18000, 22000, 0, 24000, 21000, 20000, 23000, 26000, 0,
     19000, 18000, 0, 33000].map fun d => (d, some 0, decide (d = 0)))

@@ -834,8 +834,7 @@ export async function collectSnapshot(p: Paths, now = Date.now(), params: Record
 /** A `Fw.Obs.Timing.Sample` on the wire. */
 export interface TimingSample { tool: string; step: string; durMs: number; host: "local" | "ci"; load: number; runKind?: string; exit?: number; skipped?: true }
 /** Spans in time order -> samples (the last `cap` ones: a bound on the input size, not a threshold; the verdict is Lean's).
- *  Lines that do not parse or lack a field are skipped. `load` is the floor of the 1-min load average; an optional span `kind` (the dispatch input digest) is the run kind of the history;
- *  an integer `exit` and `skipped: true` pass through unchanged (Lean `Fw.Obs.Timing.fullRun` decides). */
+ *  Lines that do not parse or lack a field are skipped. `load` is the floor of the 1-min load average; an optional span `kind` (the dispatch input digest) is the run kind of the history. */
 export function parseSamples(text: string, cap = 3000): TimingSample[] {
   const rows: { at: number; s: TimingSample }[] = [];
   for (const line of text.split("\n")) {

@@ -11,7 +11,6 @@ import { dirname, join, resolve } from "node:path";
 export type Span = { tool: string; step: string; startMs: number; durMs: number; exit: number | null; commit: string; load: number; host: "local" | "ci"; runId?: number;
   /** the run kind (Lean `Fw.Obs.Timing.Sample.kind`): for a CI run dispatched by `fw run`, the digest of its workflow inputs; "" and absent for every other span */
   kind?: string;
-  /** CI spans only: the job or step conclusion was `skipped` (Lean `Fw.Obs.Timing.Sample.skipped`); absent otherwise */
   skipped?: true;
   /** `fw ci wait` spans only (task ci-wait-lag): the runs the verdict covers (key `runIds`, never `runId`: `seenRuns` dedupes CI spans on `"runId":`) and the phase times of the wait (`WaitPhases`, epoch ms). */
   runIds?: number[]; phases?: Record<string, number | string | boolean> };

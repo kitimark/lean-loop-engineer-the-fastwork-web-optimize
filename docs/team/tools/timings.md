@@ -64,12 +64,12 @@ packages/contracts/golden/obs/timing.jsonl.
 A sample is judged only when it is a full run (Lean `Fw.Obs.Timing.fullRun`): not `skipped`, and `exit` 0 or unknown
 (absent or null). Any other sample gets no verdict, never enters a window and never names a CI job of the auto stages;
 `timingVerdicts_indep` proves the output equals the output on the full samples alone (up to input index), and
-`judge_insert_other` that inserting such samples anywhere changes no verdict. Decision in Lean only: `ciSpans` writes
-`skipped`, `parseSamples` passes `exit` and `skipped` through as recorded.
+`judge_insert_other` that inserting such samples anywhere changes no verdict. `ciSpans` writes
+`skipped`, `parseSamples` passes `exit` and `skipped` through.
 
 MEASURED (`.fw-console/timings.jsonl`, 2026-10-22):
 - land run 39722879593: the gate-engine and browser-suite steps of legs check-sh, suites-a and suites-b were skipped
-  (0 s, an `if:` in `.github/workflows/land.yml`); before this task they were written as exit-0 samples of 0 s. Keys are
+  (0 s, an `if:` in `.github/workflows/land.yml`); they were written as exit-0 samples of 0 s. Keys are
   per leg, so they never shared a window with the chromium leg; its 33 s step is slow under both rules (median 21 s over
   the full steps), a real outlier, not this bug.
 - local `fw land --dry`: early refusals (exit 1, 2, 12, 16; 12-256 ms) shared the window of full dry lands (19-32 s); the
@@ -95,4 +95,4 @@ swap below 60 percent; an idle machine always admits). `FW_HEAVY_LOCK=off` skips
 | `fw plan show` | 0.16 s | 0.17 s | 123.9 MB | 123.7 MB |
 | `fw slot status` | 0.16 s | 0.17 s | 123.6 MB | 122.4 MB |
 
-The slot path (fw.ts -> node-guard.ts, timing.ts, slot-span.ts, slot.ts -> slot-core.ts, slot-main.ts) has a static import closure that does not contain fw-groups.ts or any of the modules it imports; its only verb list is SLOT_SUBS in slot-span.ts, which imports nothing. The light waiter stays light.
+The slot path (fw.ts -> node-guard.ts, timing.ts, slot-span.ts, slot.ts -> slot-core.ts, slot-main.ts) has a static import closure that does not contain fw-groups.ts or any of the modules it imports; its only verb list is SLOT_SUBS in slot-span.ts, which imports nothing.

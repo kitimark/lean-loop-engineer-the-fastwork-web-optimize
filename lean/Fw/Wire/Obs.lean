@@ -934,7 +934,6 @@ def keyOf (j : Json) : Except String Fw.Obs.Timing.Key := do
   pure { tool := ← str j "tool", step := ← str j "step", host := ← hostOf "host" (← field j "host"),
          kind := ← Fw.Wire.Ops.strD j "runKind" "" }
 
-/-- An optional integer field (absent or `null` is `none`). -/
 def optI (j : Json) (k : String) : Except String (Option Int) :=
   match opt j k with
   | none => .ok none
@@ -942,7 +941,7 @@ def optI (j : Json) (k : String) : Except String (Option Int) :=
     | .ok n => .ok (some n)
     | .error _ => .error s!"field {k}: expected an integer"
 
-/-- Decode a sample (`load` default 0, `exit` absent or `null` unknown, `skipped` default false). -/
+/-- Decode a sample (`load` default 0). -/
 def sampleOf (j : Json) : Except String Fw.Obs.Timing.Sample := do
   pure { tool := ← str j "tool", step := ← str j "step", durMs := ← nat j "durMs",
          host := ← hostOf "host" (← field j "host"), load := ← natD j "load" 0,
@@ -1083,10 +1082,8 @@ def run (op : String) (r : String) : String :=
   "{\"slow\":[]}"
 #guard run "obs.slow" "{\"samples\":[{\"tool\":\"t\",\"step\":\"s\",\"durMs\":1,\"host\":\"mars\"}]}" == "error: field host: unknown host mars"
 #guard run "obs.slow" "{}" == "{\"slow\":[]}"
--- obs.slow: a later early refusal (exit 16) or skipped step gets no verdict, so the slow sample stays the latest
 #guard run "obs.slow" "{\"params\":{\"nMin\":1,\"budgetMs\":1000},\"samples\":[{\"tool\":\"t\",\"step\":\"s\",\"durMs\":100,\"host\":\"local\",\"exit\":0},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":5000,\"host\":\"local\",\"exit\":null},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":100,\"host\":\"local\",\"exit\":16},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":0,\"host\":\"ci\",\"exit\":0,\"skipped\":true}]}" ==
   "{\"slow\":[\"t/s\"]}"
--- obs.slow: skipped 0 s steps stay out of the window, so a full run near the old ones is no alert
 #guard run "obs.slow" "{\"params\":{\"nMin\":1,\"budgetMs\":1000},\"samples\":[{\"tool\":\"t\",\"step\":\"s\",\"durMs\":2000,\"host\":\"ci\",\"exit\":0},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":0,\"host\":\"ci\",\"exit\":0,\"skipped\":true},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":0,\"host\":\"ci\",\"exit\":0,\"skipped\":true},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":2500,\"host\":\"ci\",\"exit\":0}]}" ==
   "{\"slow\":[]}"
 #guard run "obs.slow" "{\"samples\":[{\"tool\":\"t\",\"step\":\"s\",\"durMs\":1,\"host\":\"ci\",\"exit\":\"0\"}]}" == "error: field exit: expected an integer"
