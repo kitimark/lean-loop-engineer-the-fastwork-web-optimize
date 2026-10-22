@@ -15153,8 +15153,11 @@
     "packages/measure-webkit/test/census*.test.mjs",
     "lean/Fw/Measure/Census*.lean",
     "packages/contracts/golden/measure/census*.jsonl",
-    "docs/team/handoffs/layer-census-check.md"
-   ]
+    "docs/team/handoffs/layer-census-check.md",
+    "apps/runner/src/land.ts",
+    "lean/Fw/Ci/Trigger.lean"
+   ],
+   "evidence": "225af2f"
   },
   {
    "devices": [
@@ -16063,7 +16066,8 @@
     "lean/scripts/check.sh",
     "packages/contracts/golden/obs/slot-key.jsonl",
     "packages/contracts/golden/obs/*.jsonl",
-    "docs/team/handoffs/slot-span-key-followups.md"
+    "docs/team/handoffs/slot-span-key-followups.md",
+    "apps/runner/src/fw-main.ts"
    ],
    "title": "Follow-ups of slot-span-key (accepted 2026-10-22). (1) `slot wait <kind>` spans are judged by timing.slow: a queue wait over the 30 s budget against a near-zero median alerts, which is the queue noise the task removed, under a new key; exclude wait spans from slow or give them their own Lean budget (theorem). (2) cmdKey maps `pnpm -s fw <sub>` to `pnpm fw`: treat fw as a launcher and key its subcommand. (3) The ` dry`/` cached` suffixes and the seenKeys parser live only in TS, and the 24-key cap counts the last 2 MB of timings.jsonl, so keys that scroll out free places: state the suffix and seen-set rule in Lean with goldens and make the cap per kind and window-independent. (4) slot.ts writes no run span when exec throws or the process exits on a signal: move endRun into a finally with an error exit code. (5) Mark the 16:51 test's `own` samples as synthetic. (6) `fw land/dry total` and `fw/land dry` are bimodal: about 22 s without the Lean build step and about 45 s with it (alerts of 2026-10-22 16:4x and 17:5x), so key the dry span by its Lean dry plan (with or without the lake build) and add apps/runner/src/land.ts to the writes for that. Unit: the six items with goldens and tests."
   },
@@ -16138,7 +16142,8 @@
     "scripts/build-review.test.mjs",
     "docs/team/handoffs/lead-hotfix-1022b.md"
    ],
-   "title": "lead-hotfix-1022 changed the resume-runner text '(no --allow)' that scripts/build-review.test.mjs:59 matches; the land passed (its lanes do not run that test) and the lean workflow on ci/land-lead-hotfix-1022-9fbf421 (run 39770576911) failed. Restore the asserted text, keep the git rev-parse branch, and assert it in the test (incident inc-land-misses-script-tests)."
+   "title": "lead-hotfix-1022 changed the resume-runner text '(no --allow)' that scripts/build-review.test.mjs:59 matches; the land passed (its lanes do not run that test) and the lean workflow on ci/land-lead-hotfix-1022-9fbf421 (run 39770576911) failed. Restore the asserted text, keep the git rev-parse branch, and assert it in the test (incident inc-land-misses-script-tests).",
+   "evidence": "2a96b45"
   },
   {
    "devices": [
@@ -16159,6 +16164,27 @@
     "docs/team/handoffs/land-script-tests.md"
    ],
    "title": "fw land misses the node:test suites that only the lean workflow runs (incident inc-land-misses-script-tests): lead-hotfix-1022 changed .claude/workflows/build-review.js, the land selected no check that runs scripts/build-review.test.mjs (it runs only in .github/workflows/lean.yml:105 with heavy-lock and fwcore-build tests), the land passed and main's lean run 39770576911 failed after it. (1) Declare a land check for the script tests of lean.yml:105 (and any other node --test line a workflow runs on scripts/*.test.mjs) with their reads (.claude/workflows/**, scripts/heavy-lock.mjs, scripts/fwcore-build.sh, the tested scripts), in the one Lean source (LandSpeed checks and the generated read list). (2) Theorem or golden: a change to .claude/workflows/build-review.js selects that check. (3) Also admit lean/Fw/Ops/Golden.lean in Land.goldenRegs when a write is under packages/contracts/golden/console/ (console-session-persist needed it, 2026-10-22). Unit: the check, the selection golden, the registration. Limits: workflows that need a macOS runner stay CI-only."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "census-load-variance",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "layer-census-check"
+   ],
+   "writes": [
+    "packages/measure-webkit/src/census.mjs",
+    "packages/measure-webkit/src/determinism.mjs",
+    "packages/measure-webkit/test/census.test.mjs",
+    "lean/Fw/Measure/Census.lean",
+    "packages/contracts/golden/measure/census.jsonl",
+    "research/notes/2026/10-2x-census-load-variance.md",
+    "docs/team/handoffs/census-load-variance.md"
+   ],
+   "title": "Follow-up of layer-census-check (2026-10-22): on the iOS Simulator the undeclared layer set differs between two loads of the same page at y=0 (original 124 vs 106 layers, rewrite 118 vs 110; runs 39760288475, 39763719675), so the base census refuses and no WebKit A/B census can accept. Find the cause (load timing, hold length, the running page's own animations, or the Simulator) with at most 3 dispatches; then state in Lean which undeclared boxes may vary between loads (a settle rule or an allowlist keyed by identity, never a count tolerance) so base vs base accepts, with goldens. Also amend design text section 2.4 / S1 so path-pix-core's S1 premise names the in-page node origin (InspectorLayerTreeAgent.cpp:189-191@862f17d gives integer CSS px bounds). Unit: the cause with run ids, the Lean rule, base vs base accepted on CI."
   }
  ],
  "deadline": {

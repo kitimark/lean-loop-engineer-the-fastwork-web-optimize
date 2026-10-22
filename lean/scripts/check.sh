@@ -113,6 +113,7 @@ run_group() {
   job "device-replay golden check" lake env lean --run scripts/DeviceReplayGolden.lean --check ../packages/contracts/golden/device/replay.jsonl  # the W3C action, replay-check and profile-generator vectors packages/measure-webkit/src/device-replay.mjs is checked against (Fw.Device.Replay)
   job "webkit-lag golden check" lake env lean --run scripts/WebkitLagGolden.lean --check ../packages/contracts/golden/measure/webkit-lag.jsonl  # the lag-region, paint-attribution and ranking vectors packages/measure-webkit/src/lag/reduce.mjs is checked against (Fw.Measure.WebKitLag)
   job "wkcost golden check" lake env lean --run scripts/WkCostGolden.lean --check ../packages/contracts/golden/measure/wkcost.jsonl  # the cost-counter vectors packages/measure-webkit/src/lag/cost.mjs is checked against (Fw.Measure.WkCost)
+  job "census golden check" lake env lean --run scripts/CensusGolden.lean --check ../packages/contracts/golden/measure/census.jsonl
   job "stage golden check" lake env lean --run scripts/StageGolden.lean --check ../packages/contracts/golden/parts/stage.jsonl  # the ?only= stage plans the site is checked against (Fw.Site.Stage)
   job "layer-opts golden check" lake env lean --run scripts/LayerOptsGolden.lean --check ../apps/site/src/registry/layer-opts.gen.ts ../packages/contracts/golden/console/layer-opts.jsonl
   job "reconcile-sched golden check" lake env lean --run scripts/ReconcileSchedGolden.lean --check  # golden/console/reconcile-sched.jsonl

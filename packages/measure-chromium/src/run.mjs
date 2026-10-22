@@ -12,6 +12,7 @@ import { accepts, gateSize, scrollRead, viewportGate } from './stage-mode.mjs';
 import { overflowExpr, formatOverflow } from './overflow.mjs';
 import { n0Windows, n0FrameCounts, byKind, N0_KEYS } from './n0.mjs';
 import { parseProfile, replayEvents } from './profile.mjs';
+import { collectCensus } from './census.mjs';
 
 const N0_ON = !process.env.FW_NO_N0; // FW_NO_N0=1: no N0 census in the page (harness-neutrality control)
 
@@ -321,6 +322,17 @@ if (N0_ON) {
   n0 = { enabled: true, keys: N0_KEYS, load: total(win.load), preroll: total(win.preroll), profile: total(n0Frames.flat()), after: total(win.after), shapeAtProfileStart: n0Start.shape, shapeAtEnd: n0End.shape, firstProfileEvents: n0Frames.flat().slice(0, 10) };
 }
 
+const censusPump = async () => {
+  vt += dt;
+  await ev(`__fwclock.advanceTo(${vt})`);
+  const bf = await Promise.race([c.send('HeadlessExperimental.beginFrame', { frameTimeTicks: T0 + vt, interval: dt }), sleep(5000).then(() => null)]);
+  if (!bf) throw new Error('beginFrame unanswered in the census');
+};
+const layerCensus = await Promise.race([
+  collectCensus(c, { ev, pump: censusPump, maxScroll: Math.round(maxScroll) }),
+  sleep(120000).then(() => ({ schema: 'fw.layer-census/1', engine: 'chromium', error: 'census timed out', samples: [] })),
+]).catch((e) => ({ schema: 'fw.layer-census/1', engine: 'chromium', error: String(e.message ?? e).slice(0, 300), samples: [] }));
+
 const served = srv.served();
 const servedSha = createHash('sha256').update(JSON.stringify(served)).digest('hex');
 const result = {
@@ -333,7 +345,7 @@ const result = {
     servedFiles: Object.keys(served).length, servedSha256: servedSha, missing: srv.missing(),
     viewport: profile.viewport, hz: profile.hz, startVirtualMs: START_VT, pinnedDate: profile.pinnedDate, pageDateAtStart: geo.now, timezone: geo.tz,
     target: TARGET, search: SEARCH, rewrite, input: { mode: inputMode, touchEventsSent: touch.sent }, trajectorySha256: createHash('sha256').update(JSON.stringify(frames.map((f) => [f.phase, f.scrollY]))).digest('hex'),
-    n0, docHeightPx: geo.docH, innerWidthPx: frame0.real.w, innerHeightPx: frame0.real.h, pinnedInnerWidthPx: geo.innerW, pinnedInnerHeightPx: geo.innerH, clientWidthPx: geo.clientW, clientHeightPx: geo.clientH, gateSize: gate, scrollRead: scrollRead(SEARCH), scrollWidthPx: geo.scrollW, visualViewportScale: geo.scale, maxScrollPx: maxScroll, elementCountAtStart: geo.el, threads,
+    n0, docHeightPx: geo.docH, innerWidthPx: frame0.real.w, innerHeightPx: frame0.real.h, pinnedInnerWidthPx: geo.innerW, pinnedInnerHeightPx: geo.innerH, clientWidthPx: geo.clientW, clientHeightPx: geo.clientH, gateSize: gate, scrollRead: scrollRead(SEARCH), scrollWidthPx: geo.scrollW, visualViewportScale: geo.scale, maxScrollPx: maxScroll, elementCountAtStart: geo.el, threads, layerCensus,
   },
   frames,
   runLevel,
