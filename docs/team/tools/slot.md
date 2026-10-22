@@ -91,7 +91,7 @@ pnpm -s fw slot pass stop --token "$t" --next 600         # gap of 600 s; releas
   cores; an admitted check's workers fit above the floor and the warming holders (`threads_fit`).
   `run` exports them as `LEAN_NUM_THREADS` and `LAKE_SLOT_CORES`.
 - **Measure window** (`Fw.Sup.MeasureWindow`). A `measure` ticket is admitted like any other kind and opens one
-  window: its owner, token, a pass end, the next pass's due time and a deadline 5400 s after the first due time
+  window: its owner, token, a pass end, the next pass's due time and a deadline 5400 s after the grant
   (`openAt_deadline`), fixed for the window's life (`deadline_fixed`). While a pass is live every other request waits
   as `pass` (`pass_live_waits`, `pass_live_no_admit`). A pass starts only when no other holder is live
   (`pass_start_quiet`), lasts at most 1200 s (`pass_start_bounded`), and `pass start` first sets the next due time to
