@@ -354,12 +354,12 @@ def heldJson (h : Held) : Json :=
 def outJson (o : Out) : Json :=
   Json.mkObj [("write", .bool o.write), ("tr", jr o.tr), ("top", jr o.top), ("left", jr o.left)]
 
-def regimeLines : List String :=
+def regimeLines (_ : Unit := ()) : List String :=
   [600, 900].flatMap fun vh => [0, 12, 100, 464, 464.5, 500, 700].flatMap fun t =>
     [t + 56, t + 100].map fun b =>
       line "regime" [("vh", jn vh), ("t", jn t), ("b", jn b)] (.str (regime vh t b).name)
 
-def snapLines : List String :=
+def snapLines (_ : Unit := ()) : List String :=
   [1, 2, 3 / 2].flatMap fun d => [0, 100.3, 100.5, 100.7, 99.75, -3.2].map fun v =>
     line "snapDev" [("d", jn d), ("v", jn v)] (.num ⟨snapDev d v, 0⟩)
 
@@ -371,7 +371,7 @@ def helds : List Held :=
 def mkInput (h : Held) (y dt vw : Rat) : Input :=
   { h with vw := vw, t := h.t + (h.y0 - y) + dt, b := h.b + (h.y0 - y) + dt, y0 := y }
 
-def stepLines : List String :=
+def stepLines (_ : Unit := ()) : List String :=
   helds.flatMap fun h => [1, 2].flatMap fun d => [1000, 1003, 997, 1100, 1000.5, 1002.5, 1400, 1500].flatMap fun y =>
     [0, 5].flatMap fun dt => [1280, 1000].map fun vw =>
       let i := mkInput h y dt vw
@@ -382,14 +382,14 @@ def engineName : Bool → String
   | true => "chromium"
   | false => "webkit"
 
-def workLines : List String :=
+def workLines (_ : Unit := ()) : List String :=
   [true, false].flatMap fun cr => [Variant.faithful, .translate].flatMap fun v => [true, false].map fun kept =>
     let n := if cr then layoutPasses Chromium.chromium crProps .own v kept else layoutPasses WebKit.webkit wkProps .own v kept
     line "layoutPasses" [("engine", .str (engineName cr)), ("variant", .str (if v == .faithful then "faithful" else "translate")),
       ("kept", .bool kept)] (.num ⟨n, 0⟩)
 
 /-- The golden lines `packages/contracts/golden/parts/people-o-preview.jsonl`. -/
-def lines (_ : Unit := ()) : List String := regimeLines ++ snapLines ++ stepLines ++ workLines
+def lines (_ : Unit := ()) : List String := regimeLines () ++ snapLines () ++ stepLines () ++ workLines ()
 
 def goldenText (_ : Unit := ()) : String := String.join ((lines ()).map (· ++ "\n"))
 
