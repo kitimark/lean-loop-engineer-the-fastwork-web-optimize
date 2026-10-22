@@ -3,6 +3,7 @@
 - Branch `worktree-wf_966da1fd-1d2-1`, worktree `.claude/worktrees/wf_966da1fd-1d2-1`, CI branch `ci/morph-constant-bounds`.
 - Final design commit b4cd0105 (pushed to the CI branch); results commit 3157d260; then a merge of main.
 - 5th dispatch: webkit-sim final design 39751427150 FAILED: cancelled at 60 min, hung in Determinism sessions, no artifact; last sha 41929a89.
+- 6th dispatch (final design, branch sha 9e62cdd8): webkit-sim 39760667274 started 10:07Z, RUNNING. If it hangs/fails: no 7th, final design unmeasured (blocked on sim-step-watchdog).
 - Runs (4 of 4 dispatches used): breakpoint-gate first design 39744563175 FAIL (wrapper element); webkit-sim base
   39744614747 pass; webkit-sim first design 39744653093 pass; breakpoint-gate final design 39747969466 pass.
 
