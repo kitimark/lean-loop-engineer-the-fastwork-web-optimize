@@ -97,14 +97,14 @@ GitHub Actions runs every leg of the land lane unless it has no free job slot fo
   workflow file (the heaviest set of jobs no two of which are ancestor and descendant, each job at most its matrix size, its `max-parallel` and
   5 on macOS; a `fromJSON` matrix at the largest its planner allows) by `apps/runner/test/land-overflow-widths.test.ts`, which fails when a
   matrix, a job or a workflow grows past its row, and when a row is not the derived value. The first legs that fit stay on GitHub, in matrix order; the rest go to CircleCI
-  only if CircleCI is usable (status fresh and healthy, a checkout key, credits and storage under the reserve). Theorems: `github_first`
+  only if CircleCI is usable (status fresh and healthy, a checkout key, and the legs' credits, the credits spent, the storage overage past 2 GB-month at 420 credits per GB-month, counted with the overflow's own Lake cache save, and the reserve fit the pool: `budgetFits`). Storage alone never refuses while the budget fits (`storage_alone_never_refuses`, `reason_not_storage`; `budgetFits_iff` gives the exact room), and the wait on CircleCI legs stops only on the 1 h cap or a 10 min queue (Lean `landStops`, which holds no storage reason: `storage_not_mem_landStops`). Theorems: `github_first`
   (no overflow while GitHub has room), `overflow_only_when_full`, `never_both` (a leg is on one provider), `verdict_same` (one bound pass is
   judged alike on either provider). A degraded Actions status moves every leg (`github-degraded`). `reason` says which branch decided.
 - **Facts (`apps/runner/src/land-overflow.ts`).** The slot count is one `gh run list --limit 100` (never `gh api`), cached in the gh-budget
   directory for 120 s, no retry on a refusal (unreadable means GitHub first). It is up to 120 s old, reads **this repository only** and sees only
   **the newest 100 runs**, so a run of another repository of the account and an older run still going are not counted: the slot count can
   under-count (named limits; the account-wide use of the 20 job slots is not visible to it). The CircleCI facts are read only when the first answer moves a leg: the console's
-  `/api/ci-status`, the key check and the credit and storage ledger of `scripts/circleci.mjs`. The test flag `FW_LAND_FORCE_FULL=1` marks GitHub full.
+  `/api/ci-status`, the key check and the credit and storage ledger of `scripts/circleci.mjs` (storage is Lean `storageNow`: saves of the last 30 days, caches and workspaces at 15 days, artifacts at 30). The test flag `FW_LAND_FORCE_FULL=1` marks GitHub full.
 - **One marker, two lanes.** Both providers use the same `ci/land-<task>-<sha7>` branch and marker commit (pushed once, `makePusher`). A
   land with legs on both says which GitHub gets in the marker message (`[legs:a,b]`); `land.yml`'s guard turns that into a matrix `exclude`.
   A land with no leg on GitHub leaves out `[ci:land]`, so GitHub starts nothing. The GitHub adapter passes a partial land only if the run has
