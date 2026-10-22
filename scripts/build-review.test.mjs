@@ -57,6 +57,7 @@ test('resume path: no build stage; runner reruns the dry; its last VERDICT line 
   assert.equal(calls[0].type, 'runner')
   assert.match(calls[0].p, /\/w\/x\/report\.json/)
   assert.match(calls[0].p, /--task demo-task --dry \(no --allow\)/)
+  assert.match(calls[0].p, /fw land "\$\(git rev-parse --abbrev-ref HEAD\)" --task demo-task/)
   assert.equal(out[0].build.dry, 'VERDICT dry demo-task')
   assert.match(calls[1].p, /"dry":"VERDICT dry demo-task"\}/)
   assert.equal(out[0].gate, 'returnToBuilder')
