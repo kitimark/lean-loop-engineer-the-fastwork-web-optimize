@@ -1,7 +1,7 @@
 ---
 id: 2026-10-22-jev-arms-clean
 kind: note
-title: "Clean Haiku and Sonnet arms for the Jev comparison: the first run's project context did not change the verdict"
+title: "Clean Haiku and Sonnet arms for the Jev comparison: the isolated re-run keeps the first run's verdict"
 status: review
 created: 2026-10-22
 topics: [jev, oracle, claude-p, isolation, haiku, sonnet, evaluation]
@@ -83,7 +83,7 @@ copies are in `results/jev-arms-clean/first-run/`; Jev is re-scored from its rec
 | d2 | sonnet | clean | 44 / 89 | 49.4 % | 39 / 74 | 52.7 % | none |
 
 Choices that differ from the first run's, per row (MEASURED, last column of `table.md`): Haiku 36 of 116 on D1 and 14
-of 90 on D2; Sonnet 31 of 116 and 18 of 90. One D1 row names its answer in its text (incident
+of 90 on D2; Sonnet 31 of 116 and, on D2, 17 of 89 answered rows plus 1 unparsed row. The Jev rows' invalid column in `table.md` shows '-'; the recorded run had 10 invalid Jev replies on D1 and 0 on D2 (first run `summary.json`). One D1 row names its answer in its text (incident
 `inc-orphan-wait-loop`, label `c-orphan-wait`). Both models picked that label in both runs, so that row cannot show
 a context effect either way.
 
