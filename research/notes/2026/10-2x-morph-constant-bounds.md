@@ -89,6 +89,8 @@ sits in the GPU process (F3) and in the F4 tiles, which the Simulator does not s
 
 ## Measurement (final design)
 
+The base run was built at 03afae6b; the default morph.panel markup is the same at 9e62cdd8.
+
 The 5th dispatch (webkit-sim run 39751427150) hung in `Determinism sessions` and was cancelled at 60 min with no artifact
 (incident inc-sim-step-unbounded, fix task sim-step-watchdog). The 6th dispatch, webkit-sim run 39760667274 (branch tip
 9e62cdd8, target=rewrite, lag=true, cost=on, fw=morph.panel:const-bounds), passed. `lag/cli.mjs cost-report` of the base

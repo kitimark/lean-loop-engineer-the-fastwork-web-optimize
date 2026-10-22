@@ -4,7 +4,7 @@
 - Final design commit b4cd0105 (pushed to the CI branch); results commit 3157d260; then a merge of main.
 - 5th dispatch: webkit-sim final design 39751427150 FAILED: cancelled at 60 min, hung in Determinism sessions, no artifact; last sha 41929a89.
 - 6th dispatch (final design, branch sha 9e62cdd8): webkit-sim 39760667274 started 10:07Z, PASSED. Reduced against base 39744614747 (cost-report): Composite/frame on the open push lower (100-148 ms vs 176-181 ms), all other cells overlap. Note, ledger, report.json updated.
-- Runs (4 of 4 dispatches used): breakpoint-gate first design 39744563175 FAIL (wrapper element); webkit-sim base
+- Runs (6 of 6 dispatches used; 5th 39751427150 hung, 6th 39760667274 passed): breakpoint-gate first design 39744563175 FAIL (wrapper element); webkit-sim base
   39744614747 pass; webkit-sim first design 39744653093 pass; breakpoint-gate final design 39747969466 pass.
 
 ## Verified
