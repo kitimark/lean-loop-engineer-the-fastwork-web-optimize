@@ -15402,7 +15402,8 @@
     "packages/contracts/golden/sup/**",
     "apps/runner/src/slot.ts",
     "apps/runner/test/slot.test.ts",
-    "docs/team/tools/slot.md"
+    "docs/team/tools/slot.md",
+    "apps/runner/src/slot-core.ts"
    ]
   }
  ],
