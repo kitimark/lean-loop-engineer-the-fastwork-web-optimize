@@ -404,7 +404,8 @@ export function buildClean(dir: string): boolean {
 }
 
 export function dryLintArgv(dir: string, changed: string[]): string[][] {
-  return lintPlan(changed, existsSync(join(dir, "scripts/ci-paths.mjs")), existsSync(join(dir, "lean/scripts/axiom-check.sh")));
+  return lintPlan(changed, existsSync(join(dir, "scripts/ci-paths.mjs")), existsSync(join(dir, "lean/scripts/axiom-check.sh")),
+    existsSync(join(dir, "apps/site/scripts/part-footprint.mjs")));
 }
 
 type PreResult = { kind: "done"; sha: string } | { kind: "refuse"; msg: string; k?: Kind } | { kind: "fallback"; why: string };
