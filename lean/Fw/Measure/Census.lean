@@ -83,10 +83,10 @@ theorem both_maps_once (l : Layer) (f i : String) (hf : l.fw = some f) (hl : l.l
 def undeclared (ls : List Layer) : List Box :=
   ls.filterMap fun l => if l.ident = .free then some ⟨l.name, l.bounds⟩ else none
 
-/-- Box-name prefixes of the page's own free-running animations (word rotation, scroll cue, typing or fee visual, and the commission section that follows them) and of the root layer, whose height is the page height of one load; their layers come and go or resize with the animation phase. -/
+/-- Box-name prefixes of the page's own free-running animations (word rotation, scroll cue, typing or fee visual, the hero feed, and the commission section that follows them) and of the root layer, whose height is the page height of one load; their layers come and go or resize with the animation phase. -/
 def runnerStems : List String :=
   ["#document", "span.accent-module_frame_", "svg.accent-module_svg_", "div.typing-module_visual_", "div.typing-module_beat_", "span.typing-module_avatar_",
-   "span.frame.", "svg.accent-svg.", "button.scroll-cue.", "section.commission.", "div.fee-visual"]
+   "span.frame.", "svg.accent-svg.", "button.scroll-cue.", "section.commission.", "div.fee-visual", "div.body.svelte-ty4hd7"]
 
 def varying (name : String) : Bool := runnerStems.any fun s => name.startsWith s
 
@@ -557,7 +557,7 @@ private def identCases : List (Option String × Option String) :=
 private def varyingCases : List String :=
   ["span.accent-module_frame_0z18R8", "svg.accent-module_svg_HwEYD1.accent-module_idleFrame_f6M8wO", "div.typing-module_visual_YdYZxz",
    "div.typing-module_beat_xRahAp.typing-module_scrollingOut_2jKdD5", "span.typing-module_avatar_lESUvo.typing-module_isLarge_uZcCpC", "span.frame.svelte-1fn2go6", "svg.accent-svg.is-idle-frame",
-   "button.scroll-cue.svelte-1p2vpne", "section.commission.compact", "div.fee-visual-beat.scrolling-out", "#document", "span.accent-module_frame", "div.typing-module_visualX_1", "div.nav-module_bar_4ex1vU",
+   "button.scroll-cue.svelte-1p2vpne", "section.commission.compact", "div.fee-visual-beat.scrolling-out", "div.body.svelte-ty4hd7", "#document", "span.accent-module_frame", "div.typing-module_visualX_1", "div.nav-module_bar_4ex1vU",
    "div.morph-module_track_CO8LmY", "?", "", "span.frame", "svg.accent-svg"]
 
 private def gridCases : List (Nat × Int) :=

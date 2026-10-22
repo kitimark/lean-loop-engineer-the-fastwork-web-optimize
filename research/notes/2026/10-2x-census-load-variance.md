@@ -71,4 +71,30 @@ micro grid.
 
 ## Results
 
-(filled in after the CI runs below)
+Each run is one VM, one session, two fresh-load passes, six y positions (5 after pinning). Lane: webkit-sim, iOS Simulator.
+Rule column: which version of the rule the stored artifact is judged by. "CI" is the verdict the run itself printed;
+"re-eval" is `checkPair` (the JS twin the golden pins) applied offline to the downloaded passes.
+
+| run | arm | commit | pass 2 vs pass 1 | note |
+|---|---|---|---|---|
+| 39760288475 | original | before fix | CI refused, re-eval refused | morph/nav layers only in pass 1 (start-selling nav bar) |
+| 39763719675 | rewrite | before fix | CI refused, re-eval refused | same, `nav-module_bar`, morph set |
+| 39775833487 | original | 5db37d95 | failed | seek stalled 741 s on the Simulator; scroll after load 0 |
+| 39775866606 | rewrite | 5db37d95 | CI refused (`samples`) | both loads at scroll 0; maxY 5231 vs 5267 |
+| 39785816004 | original | 2107815b | CI accepted | |
+| 39791097329 | original | 2107815b + empty | CI accepted | |
+| 39785868145 | rewrite | 2107815b | CI accepted | |
+| 39794304091 | rewrite | 2107815b | CI refused on `span.typing-module_avatar_*`; re-eval accepted with the avatar stem | |
+| 39795650433 | original | d8ae1db5 | CI refused on `section.commission.compact`, `div.fee-visual`; re-eval accepted with those stems | doc height 6042 vs 6006 |
+
+Net: after the scroll-to-top fix the morph and nav layers no longer differ in any of the four post-fix runs (MEASURED).
+What remains are the page's own animation phases; each new run so far has shown one more animated box, so the allowlist
+is not closed: 5 post-fix runs, 3 accepted by the CI rule of their own commit, 2 accepted only after the list grew.
+A stem added after a refusal is judged on the run that caused it, which is not independent evidence; the runs after the
+last stem change (below) are.
+
+## Accepted limits
+
+- The Simulator has no real GPU; a layer list here is WebKit's layer tree, not a GPU capture.
+- The allowlist is by prefix of a hashed name; a rename of a part is refused until its stem is listed.
+- At most 3 dispatches: the rewrite arm has 2 post-fix runs plus 1 that found the pin; the original arm runs from pushes.
