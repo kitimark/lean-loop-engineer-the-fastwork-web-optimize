@@ -1,9 +1,16 @@
 
-export type Kind = "busy" | "dirty" | "scope" | "reads" | "conflict" | "checks" | "stale" | "unknown" | "done" | "dry" | "queued" | "empty" | "lint" | "rebuild";
-export const KINDS: Kind[] = ["busy", "dirty", "scope", "reads", "conflict", "checks", "stale", "unknown", "done", "dry", "queued", "empty", "lint", "rebuild"];
+export type Kind = "busy" | "dirty" | "scope" | "reads" | "conflict" | "checks" | "stale" | "unknown" | "done" | "dry" | "queued" | "empty" | "lint" | "rebuild" | "install";
+export const KINDS: Kind[] = ["busy", "dirty", "scope", "reads", "conflict", "checks", "stale", "unknown", "done", "dry", "queued", "empty", "lint", "rebuild", "install"];
 
 export const isOk = (k: Kind): boolean => k === "done" || k === "dry" || k === "queued" || k === "empty";
-export const EXIT: Record<Kind, number> = { busy: 10, dirty: 11, scope: 12, reads: 13, conflict: 14, checks: 15, stale: 16, unknown: 2, done: 0, dry: 0, queued: 0, empty: 0, lint: 17, rebuild: 18 };
+export const EXIT: Record<Kind, number> = { busy: 10, dirty: 11, scope: 12, reads: 13, conflict: 14, checks: 15, stale: 16, unknown: 2, done: 0, dry: 0, queued: 0, empty: 0, lint: 17, rebuild: 18, install: 19 };
+export const installRunsOnline = (offlineOk: boolean): boolean => !offlineOk;
+export const installKind = (offlineOk: boolean, onlineOk: boolean): Kind | null => (offlineOk || onlineOk ? null : "install");
+export const installNeeded = (known: boolean, lock: string, stamp: string | null): boolean => !known || stamp !== lock;
+export function installStep(known: boolean, lock: string | null, stamp: string | null, offlineOk: boolean, onlineOk: boolean): { kind: Kind | null; stampAfter: string | null } {
+  if (lock === null || !installNeeded(known, lock, stamp)) return { kind: null, stampAfter: stamp };
+  return installKind(offlineOk, onlineOk) === null ? { kind: null, stampAfter: lock } : { kind: "install", stampAfter: null };
+}
 export const exitCode = (k: Kind): number => EXIT[k];
 export const retryable = (k: Kind): boolean => k === "busy" || k === "dirty";
 export const verdictLine = (k: Kind, task: string): string => `VERDICT ${k} ${task === "" ? "-" : task}`;
@@ -22,20 +29,21 @@ export function dryKind(f: { containsMain: boolean; scope: boolean; merges: bool
 export const handbackAllowed = (k: Kind): boolean => k === "dry";
 
 
-export type Outcome = { threw: boolean; fresh: boolean; own: boolean; scope: boolean; merges: boolean; reads: boolean; lints: boolean };
-export const outcome = (p: Partial<Outcome> = {}): Outcome => ({ threw: false, fresh: true, own: true, scope: true, merges: true, reads: true, lints: true, ...p });
+export type Outcome = { threw: boolean; fresh: boolean; own: boolean; scope: boolean; merges: boolean; installs: boolean; reads: boolean; lints: boolean };
+export const outcome = (p: Partial<Outcome> = {}): Outcome => ({ threw: false, fresh: true, own: true, scope: true, merges: true, installs: true, reads: true, lints: true, ...p });
 export function outcomeKind(o: Outcome): Kind {
   if (o.threw) return "unknown";
   if (!o.fresh) return "stale";
   if (!o.own) return "empty";
   if (!o.scope) return "scope";
   if (!o.merges) return "conflict";
+  if (!o.installs) return "install";
   if (!o.reads) return "reads";
   if (!o.lints) return "lint";
   return "dry";
 }
 const STAGES: [keyof Outcome, string, boolean][] = [["threw", "exception", true], ["fresh", "stale", false], ["own", "empty", false], ["scope", "scope", false],
-  ["merges", "conflict", false], ["reads", "reads", false], ["lints", "lint", false]];
+  ["merges", "conflict", false], ["installs", "install", false], ["reads", "reads", false], ["lints", "lint", false]];
 export function dryLog(o: Outcome): string[] {
   const out: string[] = [];
   for (const [f, name, inverted] of STAGES) { if (inverted ? o[f] : !o[f]) break; out.push(`dry: ${name} ok`); }

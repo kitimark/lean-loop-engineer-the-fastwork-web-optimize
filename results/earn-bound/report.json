@@ -1,0 +1,150 @@
+{
+  "id": "earn-bound-webkit",
+  "proposal": "earn-gpu",
+  "title": "Earn button GPU variant: the bound arm (earn transitions off at all times) on WebKit, finish zone, macOS and iOS Simulator",
+  "arms": [
+    { "name": "base", "search": "" },
+    { "name": "aa", "search": "" },
+    { "name": "bound", "search": "" }
+  ],
+  "lanes": [
+    {
+      "name": "macOS WebKit 390, finish zone, 3 jobs (no real GPU)",
+      "rows": [
+        {
+          "metric": "render work per window (median)",
+          "unit": "ms",
+          "cells": [
+            { "arm": "base", "value": 725.77, "tag": { "kind": "measured", "run": "39729682403" } },
+            { "arm": "aa", "value": 714.48, "tag": { "kind": "measured", "run": "39729682403" } },
+            { "arm": "bound", "value": 733.64, "tag": { "kind": "measured", "run": "39729682403" } }
+          ]
+        },
+        {
+          "metric": "render work per frame (median)",
+          "unit": "us",
+          "cells": [
+            { "arm": "base", "value": 7382, "tag": { "kind": "measured", "run": "39729682403" } },
+            { "arm": "aa", "value": 7302, "tag": { "kind": "measured", "run": "39729682403" } },
+            { "arm": "bound", "value": 7252, "tag": { "kind": "measured", "run": "39729682403" } }
+          ]
+        },
+        {
+          "metric": "RecalculateStyles time per window",
+          "unit": "ms",
+          "cells": [
+            { "arm": "base", "value": 505.20, "tag": { "kind": "measured", "run": "39729682403" } },
+            { "arm": "aa", "value": 494.74, "tag": { "kind": "measured", "run": "39729682403" } },
+            { "arm": "bound", "value": 498.68, "tag": { "kind": "measured", "run": "39729682403" } }
+          ]
+        },
+        {
+          "metric": "Layout time per window",
+          "unit": "ms",
+          "cells": [
+            { "arm": "base", "value": 89.56, "tag": { "kind": "measured", "run": "39729682403" } },
+            { "arm": "aa", "value": 87.60, "tag": { "kind": "measured", "run": "39729682403" } },
+            { "arm": "bound", "value": 85.25, "tag": { "kind": "measured", "run": "39729682403" } }
+          ]
+        },
+        {
+          "metric": "Layout records per window",
+          "unit": "n",
+          "cells": [
+            { "arm": "base", "value": 188, "tag": { "kind": "measured", "run": "39729682403" } },
+            { "arm": "aa", "value": 188, "tag": { "kind": "measured", "run": "39729682403" } },
+            { "arm": "bound", "value": 176, "tag": { "kind": "measured", "run": "39729682403" } }
+          ]
+        },
+        {
+          "metric": "Paint time per window",
+          "unit": "ms",
+          "cells": [
+            { "arm": "base", "value": 179.20, "tag": { "kind": "measured", "run": "39729682403" } },
+            { "arm": "aa", "value": 178.18, "tag": { "kind": "measured", "run": "39729682403" } },
+            { "arm": "bound", "value": 184.06, "tag": { "kind": "measured", "run": "39729682403" } }
+          ]
+        },
+        {
+          "metric": "jobs where the Lean zone verdict tells bound apart from base (of 3)",
+          "unit": "jobs",
+          "cells": [
+            { "arm": "bound", "value": 0, "tag": { "kind": "measured", "run": "39729682403" } }
+          ]
+        }
+      ],
+      "layers": []
+    },
+    {
+      "name": "iOS Simulator 430, finish zone incl. hero windows run at the page end, 3 jobs (no real GPU)",
+      "rows": [
+        {
+          "metric": "render work per window (median)",
+          "unit": "ms",
+          "cells": [
+            { "arm": "base", "value": 225.73, "tag": { "kind": "measured", "run": "39754568950" } },
+            { "arm": "aa", "value": 204.04, "tag": { "kind": "measured", "run": "39754568950" } },
+            { "arm": "bound", "value": 200.90, "tag": { "kind": "measured", "run": "39754568950" } }
+          ]
+        },
+        {
+          "metric": "render work per frame (median)",
+          "unit": "us",
+          "cells": [
+            { "arm": "base", "value": 5887, "tag": { "kind": "measured", "run": "39754568950" } },
+            { "arm": "aa", "value": 6257, "tag": { "kind": "measured", "run": "39754568950" } },
+            { "arm": "bound", "value": 5637, "tag": { "kind": "measured", "run": "39754568950" } }
+          ]
+        },
+        {
+          "metric": "RecalculateStyles time per window",
+          "unit": "ms",
+          "cells": [
+            { "arm": "base", "value": 147.63, "tag": { "kind": "measured", "run": "39754568950" } },
+            { "arm": "aa", "value": 143.94, "tag": { "kind": "measured", "run": "39754568950" } },
+            { "arm": "bound", "value": 127.40, "tag": { "kind": "measured", "run": "39754568950" } }
+          ]
+        },
+        {
+          "metric": "Layout time per window",
+          "unit": "ms",
+          "cells": [
+            { "arm": "base", "value": 32.83, "tag": { "kind": "measured", "run": "39754568950" } },
+            { "arm": "aa", "value": 30.28, "tag": { "kind": "measured", "run": "39754568950" } },
+            { "arm": "bound", "value": 28.94, "tag": { "kind": "measured", "run": "39754568950" } }
+          ]
+        },
+        {
+          "metric": "Layout records per window",
+          "unit": "n",
+          "cells": [
+            { "arm": "base", "value": 81, "tag": { "kind": "measured", "run": "39754568950" } },
+            { "arm": "aa", "value": 78, "tag": { "kind": "measured", "run": "39754568950" } },
+            { "arm": "bound", "value": 82, "tag": { "kind": "measured", "run": "39754568950" } }
+          ]
+        },
+        {
+          "metric": "Paint time per window",
+          "unit": "ms",
+          "cells": [
+            { "arm": "base", "value": 61.47, "tag": { "kind": "measured", "run": "39754568950" } },
+            { "arm": "aa", "value": 60.43, "tag": { "kind": "measured", "run": "39754568950" } },
+            { "arm": "bound", "value": 59.39, "tag": { "kind": "measured", "run": "39754568950" } }
+          ]
+        },
+        {
+          "metric": "jobs where the Lean zone verdict tells bound apart from base (of 3)",
+          "unit": "jobs",
+          "cells": [
+            { "arm": "bound", "value": 0, "tag": { "kind": "measured", "run": "39754568950" } }
+          ]
+        }
+      ],
+      "layers": []
+    }
+  ],
+  "recommendation": {
+    "word": "drop",
+    "why": "With every earn transition switched off at all times, the main-thread work in the finish zone stays the same as the faithful page and the same as the A/A control, on macOS WebKit and on the iOS Simulator, in every job. A GPU variant of the earn animation has no main-thread headroom to win on these hosts, so candidate B is not built and the faithful animation stays the default. Neither host has a real GPU, so GPU and UI-process work were not measured; the phone replay is the only open check. The bound arm is a probe and has no search to open it."
+  }
+}

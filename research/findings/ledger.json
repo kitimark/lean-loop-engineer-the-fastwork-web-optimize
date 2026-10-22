@@ -2917,6 +2917,133 @@
    "lesson": "A blocking touch listener can be scoped by an IntersectionObserver band and a finger-down hold without changing what any part sees; the cost moves to one more observer, and the win is only in WebKit pan-start latency, which the current lanes do not measure.",
    "next": "Add a touch-to-first-scroll probe to packages/measure-webkit and multi-flag prerender to the gate build, then measure base vs both flags (>= 3 runs) and gate them together.",
    "evidence": "CI runs 39778906252 (failed: multi-flag search not prerendered), 39779755536, 39779781978, 39781320030; docs/team/handoffs/morph-touch-band.md"
+  },
+  {
+   "id": "commission.band-gate",
+   "n": 48,
+   "part": "commission",
+   "candidate": "commission:band-gate: in the c1000 band skip the two custom-property writes (--commission-enter-shrink, --commission-shrink) every follower frame, since the CSS pins scale 1 and radius 0 there; write the current pair on the first frame that reads the band off",
+   "status": "partly-proved",
+   "flag": "commission:band-gate",
+   "flags": [
+    "commission:band-gate"
+   ],
+   "chromium": "win",
+   "webkit": "win",
+   "visual": "E (commission_visSame: visible scenes equal across band changes; look_gated: the band look is independent of the pair; exit_catchup, inl_settled, media_catchup: the pair is the original's on the first ungated body, at rest and after a band change) Limit: the theorems cover the look (scale, radius). While the follower moves in the band, the custom properties' own computed values differ from the original's (getComputedStyle would show it); they are equal again at rest and on band exit, which is what the breakpoint gate compares.",
+   "mechanism": "PROVED (Fw.Parts.CommissionOpt): the original writes two properties on every body (writes_orig); the variant writes none while the gate holds and the follower moves (moving_run), never more than the original (writes_le), and the follower and class bits are unchanged (fol_cls_agree). MEASURED, CI chromium-counts swipe-v1 x3 (430x932, base run 39837044649, flag run 39843560957), window scrollY 3070-3530 (commission bottom 0.85h..0.35h, INFERRED from the class-toggle spike): RecalcStyleCount 5.02 -> 3.07 per frame, elements recalculated 127.3 -> 60.1 per frame, in all three runs; FunctionCall 9.50, Layout 0.57, census layers 66.4, tiles 121.1 and Commit 1.00 per frame equal. MEASURED, CI webkit-sim (iOS Simulator 430x775, 50 px steps, 2 passes; base run 39837001915, flag run 39843567401), y 2500-3500: RecalculateStyles 124/127 -> 99/92, Composite 40/40 -> 40/40, Layout and Paint overlap, FunctionCall is noisy (282/299 against 379/294). Breakpoint gate both engines: run 39843552595 pass (the first design, which skipped every write, failed it: run 39836996121). Not a GPU route.",
+   "leanFor": [
+    "Fw.Parts.CommissionOpt.look_gated",
+    "Fw.Parts.CommissionOpt.look_const_iff",
+    "Fw.Parts.CommissionOpt.exit_catchup",
+    "Fw.Parts.CommissionOpt.inl_settled",
+    "Fw.Parts.CommissionOpt.media_catchup",
+    "Fw.Parts.CommissionOpt.commission_visSame",
+    "Fw.Parts.CommissionOpt.writes_le",
+    "Fw.Parts.CommissionOpt.moving_run"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "No frame-time percentiles: the count lanes record no frame times; a Simulator or phone replay of the scroll-in is a follow-up",
+    "The WebKit saving also shows at y 3500-4500 (RecalculateStyles 152/154 -> 106/101) where the model predicts no moving follower; the mechanism there is not explained",
+    "The commission window is derived from Chromium class-toggle spikes, not from a measured section rect"
+   ],
+   "premises": [
+    "CONFIRMED: commission is not the last section (platform follows), unlike platform.mq",
+    "CONFIRMED: the two properties are read only by the shrink scale and the card radius (commission.module.css lines 9, 48), pinned by the band at 438-446 (bandgate.test.ts)",
+    "INFERRED: a changed inherited custom property restyles every descendant (elementCount delta 67 per frame)"
+   ],
+   "v1Evidence": "",
+   "lesson": "A skip that leaves a computed value differing from the original in a state the gate compares fails the gate even when nothing shows: the first design failed on the section's custom properties at rest and on a media-change body the original does not run. Writing at settle and writing the follower's pair (not running a body) on a band change kept the saving and the gate.",
+   "next": "Lead decides promotion to the v2-proved preset (status stays partly-proved until a frame-time replay). Follow-up: Simulator or phone replay of the scroll-in for frame times.",
+   "evidence": "CI runs 39843527891 (lean), 39843552595 (gate), 39837044649, 39843560957 (chromium-counts), 39837001915, 39843567401 (webkit-sim); research/notes/2026/10-2x-commission-band-gate.md"
+  },
+  {
+   "id": "nav.clip-box",
+   "n": 48,
+   "part": "nav",
+   "candidate": "nav:clip-box: while the nav morphs the box is the union of its boxes at constant size and the pill is a clip-path inset, so the morph writes no width, height, top or border-radius and lays out nothing per frame",
+   "status": "partly-proved",
+   "flag": "nav:clip-box",
+   "flags": [
+    "nav:clip-box"
+   ],
+   "chromium": "unknown",
+   "webkit": "unknown",
+   "visual": "E: same-look breakpoint gate passes on chromium and webkit with the flag (run 39842609609); transition lists unchanged",
+   "mechanism": "PROVED (Fw.Parts.NavClipBox): clip rect equals the original nav rect (box_eq), no change at rest or with the locale menu open, the box is constant above the morphing cut (union_const) so layout happens only at the endpoints (layout_only_at_endpoints); the union width is width: pill-w plus min-width: panel-w, equal to the rest width at morph end (usedW_eq_unionW, decl_eq_rest_zero), so the original transition lists stay untouched and no width transition starts. Breakpoint gate on both engines with the flag: run 39842609609 PASS. Trajectory probe (verdict run) 39842561544.",
+   "leanFor": [
+    "Fw.Parts.NavClipBox.box_eq",
+    "Fw.Parts.NavClipBox.union_const",
+    "Fw.Parts.NavClipBox.layout_only_at_endpoints",
+    "Fw.Parts.NavClipBox.usedW_eq_unionW",
+    "Fw.Parts.NavClipBox.decl_eq_rest_zero"
+   ],
+   "leanAgainst": [],
+   "missingWhy": "Layer census and cost lane not run; the trajectory nav clip cell is pending on gpu-trajectory-cells.",
+   "premises": "The pill is drawn by clip-path on a box of constant size; the gate loads at rest, so mid-morph looks rest on the Lean rows and the trajectory probe.",
+   "v1Evidence": "",
+   "lesson": "A rule that changes a property named in a transition list must keep the list; reach the same used size through a property the list does not name (min-width) and prove the declared width equals the rest width where the class is dropped.",
+   "next": "Layer census on both engines, cost lane, trajectory nav clip cell.",
+   "evidence": "breakpoint-gate 39842609609, trajectory-probe 39842561544; first round gates 39835303279 and 39837964273 failed on the dropped width in transition-property."
+  },
+  {
+   "id": "nav.bar-fixed",
+   "n": 49,
+   "part": "nav",
+   "candidate": "nav:bar-fixed (includes clip-box): the bar keeps its union width and moves by translate, the logo and actions by closed-form translations, so the morph writes no layout property on the bar",
+   "status": "partly-proved",
+   "flag": "nav:bar-fixed",
+   "flags": [
+    "nav:bar-fixed"
+   ],
+   "chromium": "unknown",
+   "webkit": "unknown",
+   "visual": "E: same-look breakpoint gate passes on chromium and webkit with the flag (run 39846092556); transition lists unchanged",
+   "mechanism": "PROVED (Fw.Parts.NavBarFixed, NavBarFixedWork): bar width constant (barW_const) where the original grows; logo and actions translations are closed forms of the Lean rows; the union box of clip-box underlies it. Breakpoint gate on both engines with the flag: run 39846092556 PASS. Trajectory probe (verdict run) 39842569267.",
+   "leanFor": [
+    "Fw.Parts.NavClipBox.box_eq",
+    "Fw.Parts.NavClipBox.union_const",
+    "Fw.Parts.NavClipBox.layout_only_at_endpoints",
+    "Fw.Parts.NavClipBox.usedW_eq_unionW",
+    "Fw.Parts.NavClipBox.decl_eq_rest_zero"
+   ],
+   "leanAgainst": [],
+   "missingWhy": "Layer census and cost lane not run; the trajectory nav clip cell is pending on gpu-trajectory-cells.",
+   "premises": "The pill is drawn by clip-path on a box of constant size; the gate loads at rest, so mid-morph looks rest on the Lean rows and the trajectory probe.",
+   "v1Evidence": "",
+   "lesson": "A rule that changes a property named in a transition list must keep the list; reach the same used size through a property the list does not name (min-width) and prove the declared width equals the rest width where the class is dropped.",
+   "next": "Layer census on both engines, cost lane, trajectory nav clip cell.",
+   "evidence": "breakpoint-gate 39846092556, trajectory-probe 39842569267; first round gates 39835303279 and 39837964273 failed on the dropped width in transition-property."
+  },
+  {
+   "id": "nav.logo-3d",
+   "n": 50,
+   "part": "nav",
+   "candidate": "nav:logo-3d (includes bar-fixed): the logo moves by translate3d and scale in one transform so it composites instead of repainting",
+   "status": "partly-proved",
+   "flag": "nav:logo-3d",
+   "flags": [
+    "nav:logo-3d"
+   ],
+   "chromium": "unknown",
+   "webkit": "unknown",
+   "visual": "E: same-look breakpoint gate passes on chromium and webkit with the flag (run 39848853982); transition lists unchanged",
+   "mechanism": "PROVED (Fw.Parts.NavBarFixed): translate3d then scale keeps the original translate-then-scale order (translate_scale_order). Breakpoint gate on both engines with the flag: run 39848853982 PASS. Trajectory probe (verdict run) 39842581192.",
+   "leanFor": [
+    "Fw.Parts.NavClipBox.box_eq",
+    "Fw.Parts.NavClipBox.union_const",
+    "Fw.Parts.NavClipBox.layout_only_at_endpoints",
+    "Fw.Parts.NavClipBox.usedW_eq_unionW",
+    "Fw.Parts.NavClipBox.decl_eq_rest_zero"
+   ],
+   "leanAgainst": [],
+   "missingWhy": "Layer census and cost lane not run; the trajectory nav clip cell is pending on gpu-trajectory-cells.",
+   "premises": "The pill is drawn by clip-path on a box of constant size; the gate loads at rest, so mid-morph looks rest on the Lean rows and the trajectory probe.",
+   "v1Evidence": "",
+   "lesson": "A rule that changes a property named in a transition list must keep the list; reach the same used size through a property the list does not name (min-width) and prove the declared width equals the rest width where the class is dropped.",
+   "next": "Layer census on both engines, cost lane, trajectory nav clip cell.",
+   "evidence": "breakpoint-gate 39848853982, trajectory-probe 39842581192; first round gates 39835303279 and 39837964273 failed on the dropped width in transition-property."
   }
  ],
  "notes": [
@@ -3231,6 +3358,12 @@
    "task": "morph-strip-webkit",
    "field": "mechanism",
    "text": "MEASURED on WebKit (runs 39775174615, 39776549128 (base: default rewrite) and 39775198022, 39776554155 (flag: ?fw=hero.countdown:strip,morph.countdown:strip)): with both strips the page holds 52-56 composited layers before the morph push against 128 with faces (72 hero face layers fewer); see the n=13 strip row for the morph-open counts."
+  },
+  {
+   "entry": "nav:earn-no-transition: the earn button's max-width, padding-inline and opacity transitions are off while the nav morphs, so they follow --morph instead of retargeting every frame",
+   "task": "earn-bound-arm",
+   "field": "mechanism",
+   "text": "MEASURED NO-GO for GPU candidate B: the bound arm (all earn transitions off) against base, finish zone, Lean zoneVerdict then across (agreeNeeded 3 = 2): same in 3 of 3 jobs on macOS WebKit (run 39729682403) and on the iOS Simulator (run 39754568950); run 39744983394 insufficient (4 reps). Per-frame repeats overlap in every job (hitchJudge_same), so the earn work sits inside the A/A spread on the main thread. Lesson: measure a candidate's bound before building it. GPU/UI-process time is not measured (no real GPU on the VMs); the phone replay stays open. Note research/notes/2026/10-2x-earn-gpu.md."
   }
  ]
 }
