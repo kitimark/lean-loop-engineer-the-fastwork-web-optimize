@@ -16,4 +16,6 @@ Open
 - The seventh slot (CircleCI) needs the storage estimate under 1000: `scripts/circleci.mjs` counts every saved byte for 30 days, caches expire sooner. A measured storage figure or a cache retention per save is a follow-up (circleci.mjs is outside this task).
 - No poller calls `fw ci pool dispatch` yet; the GitHub busy count was read by hand (`gh run view` job lists).
 
-Conventions: `.local/` ledgers are per checkout. This worktree's `.local/codemagic-ledger.json` holds builds 1 to 5 (86 of 500 minutes in 2026-10); copy it to the main checkout before the next trigger from there.
+Conventions: `.local/` ledgers are per checkout; the lead copied this worktree's `.local/codemagic-ledger.json` (builds 1 to 5, 86 of 500 minutes in 2026-10) to the main checkout.
+
+Round 2 (gate): merged main at graph r241 (check.sh and sim.mjs are task writes now), dry land rerun without --allow; `runs` holds the five GitHub ids, the Codemagic builds are named in the live-proof evidence.
