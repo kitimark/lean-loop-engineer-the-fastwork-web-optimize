@@ -1,8 +1,7 @@
 import Fw.Sup.Adapt
 import Fw.Obs.Timing
 
-/-! Measure windows of the slot queue: a `measure` lease with pass windows layered on `Fw.Sup.Adapt.verdict`.
-Gap admissions rest on an INFERRED premise (a job of a kind ends within the p90 of its recent spans). -/
+/-! Measure windows of the slot queue. -/
 namespace Fw.Sup.MeasureWindow
 
 open Fw.Sup.Adapt
@@ -23,7 +22,6 @@ structure Window where
   next : Nat
 deriving DecidableEq, Repr
 
-/-- The window a measure grant at `now` opens: hard deadline `now + measureMaxS`, first pass not before `now + gapS`. -/
 def openAt (wp : WParams) (owner token : String) (now gapS : Nat) : Window :=
   { owner, token, deadline := now + wp.measureMaxS, next := now + gapS }
 
@@ -32,7 +30,6 @@ def active (now : Nat) (w : Window) : Bool := decide (now < w.deadline)
 def held (now : Nat) (hs : List Entry) (w : Window) : Bool :=
   (prune now hs).any (fun h => h.kind == .measure && h.token == w.token && h.owner == w.owner)
 
-/-- The window in force at `now`: before its deadline and while its measure holder is live; else none. -/
 def current (now : Nat) (hs : List Entry) : Option Window → Option Window
   | none => none
   | some w => if active now w && held now hs w then some w else none
@@ -55,7 +52,6 @@ def gate (wp : WParams) (w : Window) (pred : Option Nat) (p : Params) (now waite
       | some d => if fits wp now w.next d then .admit t f else waitOr p waited (.gap (d + wp.settleS) (w.next - now))
     | v => v
 
-/-- The slot verdict under a measure window; `pred` is the predicted run time in seconds of `me.kind` (`predict`). -/
 def wverdict (wp : WParams) (w : Option Window) (pred : Option Nat) (p : Params) (n : Nat) (s : Sample)
     (hs q : List Entry) (me : Entry) (waited : Nat) : Verdict :=
   match current s.time hs w with
@@ -78,8 +74,6 @@ def counts (k : Kind) (r : Row) : Bool :=
 def durs (wp : WParams) (k : Kind) (rows : List Row) : List Nat :=
   (((rows.filter (counts k)).map (·.durMs)).reverse.take wp.histN)
 
-/-- Predicted run time in whole seconds of kind `k`: the p90 of its last `histN` local successful uncached
-`slot run` spans (oldest first in `rows`), rounded up; none below `histMin` spans. -/
 def predict (wp : WParams) (k : Kind) (rows : List Row) : Option Nat :=
   if wp.histMin ≤ (durs wp k rows).length then some ((Fw.Obs.Timing.p90 (durs wp k rows) + 999) / 1000) else none
 
@@ -92,7 +86,6 @@ deriving DecidableEq, Repr
 def othersOf (now : Nat) (hs : List Entry) (token : String) : Nat :=
   ((prune now hs).filter (fun h => h.token != token)).length
 
-/-- May the measure holder `owner`/`token` start a pass of `forS` seconds now: only with no other live holder. -/
 def passStart (wp : WParams) (w : Option Window) (now : Nat) (hs : List Entry) (owner token : String) (forS : Nat) :
     PassVerdict :=
   match current now hs w with
@@ -171,8 +164,6 @@ theorem current_some (now : Nat) (hs : List Entry) (w : Option Window) (x : Wind
 theorem held_nonempty (now : Nat) (hs : List Entry) (w : Window) (h : held now hs w = true) : prune now hs ≠ [] := by
   intro he; simp [held, he] at h
 
-/-! ## (1) A live pass admits nothing else -/
-
 theorem pass_live_waits (wp : WParams) (w : Option Window) (pred : Option Nat) (p : Params) (n : Nat) (s : Sample)
     (hs q : List Entry) (me : Entry) (waited : Nat) (x : Window) (hc : current s.time hs w = some x)
     (hl : passLive s.time x = true) : wverdict wp w pred p n s hs q me waited = waitOr p waited .pass := by
@@ -213,8 +204,6 @@ theorem pass_start_bounded (wp : WParams) (w : Option Window) (now : Nat) (hs : 
       · cases h; exact ⟨x, hw, by omega, by omega, by omega⟩
 
 theorem passLive_begin (now till : Nat) (w : Window) : passLive now (begin w till) = decide (now < till) := rfl
-
-/-! ## (2) A gap job fits before the next pass -/
 
 theorem gap_admit (wp : WParams) (w : Option Window) (pred : Option Nat) (p : Params) (n : Nat) (s : Sample)
     (hs q : List Entry) (me : Entry) (waited t f : Nat) (x : Window) (hc : current s.time hs w = some x)
@@ -262,8 +251,6 @@ theorem gap_measure_waits (wp : WParams) (w : Option Window) (pred : Option Nat)
   split
   · exact waitOr_ne_admit _ _ _ _ _
   · simpa using waitOr_ne_admit p waited .measureBusy t f
-
-/-! ## (3) Bounded wait -/
 
 theorem wverdict_no_window (wp : WParams) (w : Option Window) (pred : Option Nat) (p : Params) (n : Nat) (s : Sample)
     (hs q : List Entry) (me : Entry) (waited : Nat) (hc : current s.time hs w = none) :
