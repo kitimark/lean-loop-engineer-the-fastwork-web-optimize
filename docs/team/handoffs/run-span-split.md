@@ -1,9 +1,9 @@
 branch: worktree-wf_a3ba2392-7af-1
 worktree: .claude/worktrees/wf_a3ba2392-7af-1
-last commit: see `git log -1` (round 2 commit 86a2cd6d, then handoff)
+last commit: 6931073b (round 3)
 CI runs: none (runner code and tests only)
 
-State: round 2 built. Runner test, ci-paths, slot-self tests and the dry land: see the report (verdict line in `dry`).
+State: round 3 done; dry land VERDICT dry, gate VERDICT review-ready.
 
 Round 2 changes
 - Verb lists exported by the dispatching modules: POLISH_VERBS (polish.ts), ORACLE_SUBS incl. score, arm-input (oracle.ts), CONSOLE_SUBS,

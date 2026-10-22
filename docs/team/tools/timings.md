@@ -73,4 +73,4 @@ swap below 60 percent; an idle machine always admits). `FW_HEAVY_LOCK=off` skips
 | `fw plan show` | 0.16 s | 0.17 s | 123.9 MB | 123.7 MB |
 | `fw slot status` | 0.16 s | 0.17 s | 123.6 MB | 122.4 MB |
 
-The slot path (fw.ts -> timing.ts, slot-span.ts, slot.ts, slot-main.ts) has a static import closure that does not contain fw-groups.ts or any module that exports a verb list.
+The slot path (fw.ts -> node-guard.ts, timing.ts, slot-span.ts, slot.ts -> slot-core.ts, slot-main.ts) has a static import closure that does not contain fw-groups.ts or any of the modules it imports; its only verb list is SLOT_SUBS in slot-span.ts, which imports nothing. The light waiter stays light.
