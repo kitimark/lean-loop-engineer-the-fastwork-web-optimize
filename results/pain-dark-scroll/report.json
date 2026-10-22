@@ -1,0 +1,105 @@
+{
+  "id": "pain-dark-scroll",
+  "proposal": "pain-dark-scroll",
+  "title": "Phone: flip the Pain dark colour by a scroll-driven opacity on two solid layers instead of the is-pain-dark class (flag pain:dark-scroll), final design",
+  "arms": [
+    { "name": "base", "search": "" },
+    { "name": "pain:dark-scroll", "search": "?fw=pain:dark-scroll" }
+  ],
+  "lanes": [
+    {
+      "name": "Chromium counts 430x932 dpr 3, swipe-v1, toggle frame (scroll 970)",
+      "rows": [
+        {
+          "metric": "invalidated paint area in the toggle frame",
+          "unit": "px",
+          "cells": [
+            { "arm": "base", "value": 3413963, "tag": { "kind": "measured", "run": "39818749535" } },
+            { "arm": "pain:dark-scroll", "value": 3013203, "tag": { "kind": "measured", "run": "39828614430" } }
+          ]
+        },
+        {
+          "metric": "raster tasks in the toggle frame",
+          "unit": "n",
+          "cells": [
+            { "arm": "base", "value": 26, "tag": { "kind": "measured", "run": "39818749535" } },
+            { "arm": "pain:dark-scroll", "value": 20, "tag": { "kind": "measured", "run": "39828614430" } }
+          ]
+        },
+        {
+          "metric": "layers per frame at rest",
+          "unit": "n",
+          "cells": [
+            { "arm": "base", "value": 19, "tag": { "kind": "measured", "run": "39818749535" } },
+            { "arm": "pain:dark-scroll", "value": 22, "tag": { "kind": "measured", "run": "39828614430" } }
+          ]
+        },
+        {
+          "metric": "style recalcs over the swipe",
+          "unit": "n",
+          "cells": [
+            { "arm": "base", "value": 1832, "tag": { "kind": "measured", "run": "39818749535" } },
+            { "arm": "pain:dark-scroll", "value": 1846, "tag": { "kind": "measured", "run": "39828614430" } }
+          ]
+        },
+        {
+          "metric": "invalidated paint area over the swipe",
+          "unit": "px",
+          "cells": [
+            { "arm": "base", "value": 94503701, "tag": { "kind": "measured", "run": "39818749535" } },
+            { "arm": "pain:dark-scroll", "value": 90741721, "tag": { "kind": "measured", "run": "39828614430" } }
+          ]
+        },
+        {
+          "metric": "tiles over the swipe",
+          "unit": "n",
+          "cells": [
+            { "arm": "base", "value": 50268, "tag": { "kind": "measured", "run": "39818749535" } },
+            { "arm": "pain:dark-scroll", "value": 46972, "tag": { "kind": "measured", "run": "39828614430" } }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "iOS Simulator 430x775, scroll pass 0 to max in 50 px steps, two passes",
+      "rows": [
+        {
+          "metric": "painted area of one scroll pass, pass 1",
+          "unit": "css px squared",
+          "cells": [
+            { "arm": "base", "value": 69136482, "tag": { "kind": "measured", "run": "39818734599" } },
+            { "arm": "pain:dark-scroll", "value": 49560289, "tag": { "kind": "measured", "run": "39828605244" } }
+          ]
+        },
+        {
+          "metric": "painted area of one scroll pass, pass 2",
+          "unit": "css px squared",
+          "cells": [
+            { "arm": "base", "value": 73740083, "tag": { "kind": "measured", "run": "39818734599" } },
+            { "arm": "pain:dark-scroll", "value": 48979304, "tag": { "kind": "measured", "run": "39828605244" } }
+          ]
+        },
+        {
+          "metric": "backing memory at scroll 1500, pass 1",
+          "unit": "bytes",
+          "cells": [
+            { "arm": "base", "value": 102898509, "tag": { "kind": "measured", "run": "39818734599" } },
+            { "arm": "pain:dark-scroll", "value": 114895992, "tag": { "kind": "measured", "run": "39828605244" } }
+          ]
+        },
+        {
+          "metric": "backing memory at scroll 3000, pass 1",
+          "unit": "bytes",
+          "cells": [
+            { "arm": "base", "value": 101255139, "tag": { "kind": "measured", "run": "39818734599" } },
+            { "arm": "pain:dark-scroll", "value": 113263023, "tag": { "kind": "measured", "run": "39828605244" } }
+          ]
+        }
+      ]
+    }
+  ],
+  "recommendation": {
+    "word": "hold",
+    "why": "Lean proves the variant shows the original's pixel under Reveal and Cont (pixel_eq) and bounds the difference where Reveal fails to 48 px of scroll (drift_window). The breakpoint gate passes on both engines (run 39828600078). The gate compares the pre-flip state only (anchors.json excludes is-pain-dark and the people flip; cells are read at scroll 0); the post-flip look rests on Lean pixel_eq and the pending trajectory pain-dark cell. The toggle frame paints one viewport less in Chromium and the scroll pass paints 28 to 34 percent less area in the WebKit Simulator, but Chromium adds 3 layers and 14 style recalcs and WebKit promotes the stage text block above the animated layer (12 MB more backing while the Pain stage is in view, run 39828605244). The flip-step paint in WebKit is not separable from noise and the flip runs in the UI process only by inference. Hold for the Safari lane (gpu-safari-lane) and the trajectory pain-dark cell (gpu-trajectory-cells, pending)."
+  }
+}

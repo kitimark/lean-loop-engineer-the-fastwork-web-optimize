@@ -102,7 +102,7 @@ jobs:
         run: node --test scripts/lake-slot.test.mjs
 
       - name: scripts/heavy-lock.mjs and scripts/fwcore-build.sh tests (the TS stand-ins against the Lean goldens, the build record)
-        run: node --test scripts/heavy-lock.test.mjs scripts/fwcore-build.test.mjs scripts/build-review.test.mjs
+        run: node --test scripts/heavy-lock.test.mjs scripts/fwcore-build.test.mjs scripts/build-review.test.mjs scripts/lint-tmpdirs.test.mjs
 
       - name: lean/scripts/check.sh
         env:

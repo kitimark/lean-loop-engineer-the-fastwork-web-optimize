@@ -624,7 +624,7 @@ def unreachableCases : List Json :=
    healthAfterCase "no core change" .done ["docs/x.md"],
    healthAfterCase "refused land with a lean path" .checks ["lean/Fw/A.lean"]]
 
-#guard cases.length == 86
+#guard cases.length == 90
 #guard unreachableCases.length == 19
 
 /-- The golden file text: one compressed JSON line per case. -/

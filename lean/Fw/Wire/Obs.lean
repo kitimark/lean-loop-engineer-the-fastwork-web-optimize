@@ -5,6 +5,7 @@ import Fw.Obs.Health
 import Fw.Obs.Next
 import Fw.Obs.Push
 import Fw.Obs.Timing
+import Fw.Sup.Adapt
 import Fw.Ops.Wire
 import Fw.Wire.SchedJson
 /-!
@@ -941,11 +942,16 @@ def optI (j : Json) (k : String) : Except String (Option Int) :=
     | .ok n => .ok (some n)
     | .error _ => .error s!"field {k}: expected an integer"
 
+def waitsOf (j : Json) : Except String (List (Fw.Sup.Adapt.WhyTag × Nat)) := do
+  let es ← (← arrD j "waits").mapM (fun e => do pure (← str e "why", ← nat e "ms"))
+  pure (es.filterMap (fun (n, ms) => (Fw.Sup.Adapt.WhyTag.ofName? n).map (·, ms)))
+
 /-- Decode a sample (`load` default 0). -/
 def sampleOf (j : Json) : Except String Fw.Obs.Timing.Sample := do
   pure { tool := ← str j "tool", step := ← str j "step", durMs := ← nat j "durMs",
          host := ← hostOf "host" (← field j "host"), load := ← natD j "load" 0,
-         kind := ← Fw.Wire.Ops.strD j "runKind" "", exit := ← optI j "exit", skipped := ← boolD j "skipped" false }
+         kind := ← Fw.Wire.Ops.strD j "runKind" "", exit := ← optI j "exit", skipped := ← boolD j "skipped" false,
+         waitMs := ← natD j "waitMs" 0, waits := ← waitsOf j }
 
 /-- Decode a group. -/
 def groupOf (j : Json) : Except String Fw.Obs.Timing.Group := do

@@ -10,9 +10,10 @@ import {
   admitBuild, agentsSeen, availMB, cacheHit, expired, grant, heldOf, keyOf, leanThreads, leaseOr, prune, release, renew, signal, simAction, simBoot,
   simDue, simIdleNext, simQueued, step, stopAct, swapActive, thrash, memLow, verdict, vmNext, withLegacy,
 } from "../src/slot-core.ts";
+import { WHY_TAGS, noteQueue, queueExtra } from "../src/slot-queue.ts";
 import {
   type Deps, type GitFacts, EXIT_REFUSED, SlotUsage, lastHealth, legacyLive, markNext, memOf, parseCompressorMB, parseSysctl, parseVmStat, recoverStale,
-  slotCli, spanRows, startOf, withState, SLOT_MAIN_REL, mainCheckout, resolveSlotMain,
+  acquire, releaseToken, slotCli, spanRows, startOf, withState, SLOT_MAIN_REL, mainCheckout, resolveSlotMain,
 } from "../src/slot.ts";
 
 const golden = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "packages", "contracts", "golden", "sup", "adapt.jsonl");
@@ -24,6 +25,7 @@ function answer(r: Record<string, unknown> & { op: string }): Record<string, unk
   const es = r.entries as Entry[];
   switch (r.op) {
     case "adapt.params": return { ...DEFAULT_PARAMS };
+    case "adapt.whyTags": return { names: [...WHY_TAGS] };
     case "adapt.step": {
       const c = r.ctl as Ctl, s = r.sample as Sample;
       return { ctl: step(p, c, s), signal: signal(p, c.prev, s) };
@@ -76,7 +78,7 @@ function answer(r: Record<string, unknown> & { op: string }): Record<string, unk
 
 describe("slot-core replays the Fw.Sup.Adapt golden vectors", () => {
   it(`${cases.length} cases, every op covered`, () => {
-    expect(new Set(cases.map((c) => c.request.op)).size).toBe(32);
+    expect(new Set(cases.map((c) => c.request.op)).size).toBe(33);
     for (const c of cases) expect(answer(c.request), c.name).toEqual(c.response);
   });
 });
@@ -315,6 +317,38 @@ describe("fw slot run", () => {
     expect(await slotCli(fargv, fail.d)).toBe(1);
     expect(readdirSync(fail.d.dir).includes("state.json")).toBe(true);
     expect(() => readdirSync(fail.d.cacheDir)).toThrow();
+  });
+});
+
+describe("acquire behind a live holder", () => {
+  it("waits for the sim holder, records the ms per reason on the grant and on the span extras", async () => {
+    const { d } = deps();
+    const first = await acquire(d, "sim", 900, 0);
+    expect(first.verdict.verdict).toBe("admit");
+    expect(first.queue).toBeUndefined();
+    setTimeout(() => { releaseToken(d, first.token); }, 1500);
+    const second = await acquire(d, "sim", 900, null);
+    expect(second.verdict.verdict).toBe("admit");
+    const q = second.queue!;
+    expect(q.kind).toBe("sim");
+    expect(q.waitMs).toBeGreaterThanOrEqual(1000);
+    expect(q.waits.length).toBeGreaterThan(0);
+    for (const w of q.waits) expect(WHY_TAGS).toContain(w.why);
+    expect(q.waits.some((w) => w.why === "simBusy")).toBe(true);
+    const sum = q.waits.reduce((a, w) => a + w.ms, 0);
+    expect(sum).toBeGreaterThan(0);
+    expect(sum).toBeLessThanOrEqual(q.waitMs);
+    expect(q.waitMs - sum).toBeLessThanOrEqual(d.pollMs + 2000);
+    expect(queueExtra()).toEqual({ queue: q });
+    noteQueue(null);
+  });
+  it("a refused acquire carries no queue", async () => {
+    const { d } = deps();
+    const first = await acquire(d, "sim", 900, 0);
+    expect(first.verdict.verdict).toBe("admit");
+    const second = await acquire(d, "sim", 900, 0);
+    expect(second.verdict.verdict).not.toBe("admit");
+    expect(second.queue).toBeUndefined();
   });
 });
 
