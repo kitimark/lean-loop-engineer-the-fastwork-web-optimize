@@ -270,6 +270,73 @@ async function probe(a) {
   return pass ? 0 : 1;
 }
 
+
+/** The certify verdict of an arm score: the options Lean advises on held-out rows, or none. */
+export function certifyOf(score) {
+  const c = score.holdoutCert;
+  const advised = c.options.filter((o) => o.advised > 0).map((o) => `${o.option} ${o.hits}/${o.advised}`);
+  return advised.length ? `${c.hits}/${c.covered}: ${advised.join(", ")}` : "none";
+}
+
+/** One table row of an arm score: accuracy, held-out accuracy, certify verdict, missing rows. */
+export function tableRow(score) {
+  return { right: score.all.right, rows: score.all.rows, answered: score.all.answered, holdRight: score.holdout.right,
+    holdRows: score.holdout.rows, certify: certifyOf(score), missing: score.missing };
+}
+
+/** Cost and time of one clean arm run: rows, parses, retries, tokens, Claude Code's dollar estimate, model ids, latency. */
+export function costOf(rows, calls) {
+  const ok = rows.filter((r) => !r.failed);
+  const ms = ok.map((r) => r.ms).filter((x) => typeof x === "number").sort((x, y) => x - y);
+  const parses = {};
+  for (const r of rows) { const k = r.failed ? "failed" : r.parse; parses[k] = (parses[k] ?? 0) + 1; }
+  const sum = (k) => ok.reduce((t, r) => t + (r[k] ?? 0), 0);
+  return { rows: rows.length, parses, calls: calls.length, retried: calls.filter((c) => c.attempt > 1).length,
+    inputTokens: sum("inputTokens"), outputTokens: sum("outputTokens"), costUsd: Number(sum("costUsd").toFixed(4)),
+    models: [...new Set(ok.map((r) => r.model))], msMedian: ms.length ? ms[Math.floor(ms.length / 2)] : null,
+    msMax: ms.at(-1) ?? null };
+}
+
+function table(a) {
+  const pct = (n, d) => (d ? `${((100 * n) / d).toFixed(1)} %` : "-");
+  const out = { sets: {} };
+  const md = ["| set | arm | run | right / rows | accuracy | held-out right / rows | held-out accuracy | certify | missing |",
+    "|---|---|---|---|---|---|---|---|---|"];
+  for (const set of ["d1", "d2"]) {
+    const clean = JSON.parse(readFileSync(join(a.out, `${set}.json`), "utf8"));
+    const old = JSON.parse(readFileSync(join(a.old, `${set}-scored.json`), "utf8"));
+    out.sets[set] = { question: clean.question, arms: {} };
+    for (const arm of ["jev", "haiku", "sonnet"]) {
+      const runs = arm === "jev" ? [["recorded", clean.arms.jev]] : [["first", old.arms[arm]], ["clean", clean.arms[arm]]];
+      for (const [run, sc] of runs) {
+        if (!sc) continue;
+        const r = tableRow(sc);
+        out.sets[set].arms[`${arm}:${run}`] = r;
+        md.push(`| ${set} | ${arm} | ${run} | ${r.right} / ${r.rows} | ${pct(r.right, r.rows)} | ${r.holdRight} / ${r.holdRows} | ` +
+          `${pct(r.holdRight, r.holdRows)} | ${r.certify} | ${r.missing} |`);
+      }
+    }
+  }
+  const runs = readJsonl(join(a.out, "runs.jsonl"));
+  md.push("", "| set | arm | rows | parses | calls (retried) | input tokens | output tokens | $ (Claude Code estimate) | model | ms median / max | wall s | choices changed vs first run |",
+    "|---|---|---|---|---|---|---|---|---|---|---|---|");
+  out.cost = {};
+  for (const set of ["d1", "d2"]) for (const arm of ["haiku", "sonnet"]) {
+    const c = costOf(readJsonl(join(a.out, `${set}-${arm}.rows.jsonl`)), readJsonl(join(a.out, `${set}-${arm}.calls.jsonl`)));
+    c.wallMs = runs.filter((r) => r.set === set && r.model === arm).reduce((t, r) => t + r.wallMs, 0);
+    const first = new Map(readJsonl(join(a.old, `${set}-${arm}.jsonl`)).map((r) => [r.id, r.choice]));
+    const now = readJsonl(join(a.out, `${set}-${arm}.rows.jsonl`));
+    c.changedVsFirst = now.filter((r) => first.has(r.id) && first.get(r.id) !== r.choice).length;
+    out.cost[`${set}:${arm}`] = c;
+    md.push(`| ${set} | ${arm} | ${c.rows} | ${Object.entries(c.parses).map(([k, v]) => `${k} ${v}`).join(", ")} | ` +
+      `${c.calls} (${c.retried}) | ${c.inputTokens} | ${c.outputTokens} | ${c.costUsd} | ${c.models.join(",")} | ` +
+      `${c.msMedian} / ${c.msMax} | ${(c.wallMs / 1000).toFixed(0)} | ${c.changedVsFirst} |`);
+  }
+  writeFileSync(join(a.out, "table.json"), JSON.stringify(out, null, 2) + "\n");
+  writeFileSync(join(a.out, "table.md"), md.join("\n") + "\n");
+  console.log(md.join("\n"));
+}
+
 function flags(argv) {
   const o = {};
   for (let i = 0; i < argv.length; i += 2) o[argv[i].replace(/^--/, "")] = argv[i + 1];
@@ -280,6 +347,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const [sub, ...rest] = process.argv.slice(2);
   const f = flags(rest);
   if (sub === "probe" && f.work && f.out && f.prompts) process.exitCode = await probe({ work: resolve(f.work), out: resolve(f.out), prompts: f.prompts });
+  else if (sub === "table" && f.out && f.old) table({ out: resolve(f.out), old: resolve(f.old) });
   else if (sub === "run" && f.model && f.set && f.prompts && f.work && f.out) {
     await run({ model: f.model, set: f.set, prompts: f.prompts, work: resolve(f.work), out: resolve(f.out), jobs: Math.min(4, Number(f.jobs ?? 4)) });
   } else { console.error("usage: jev-arms-clean.mjs probe --work <dir> --prompts <file> --out <file> | run --model m --set s --prompts <file> --work <dir> --out <dir> [--jobs n]"); process.exitCode = 64; }

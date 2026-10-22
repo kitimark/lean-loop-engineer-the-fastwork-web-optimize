@@ -1,0 +1,735 @@
+{
+  "file": "d2.jsonl",
+  "labeled": 1534,
+  "leaking": 281,
+  "question": "finding-severity",
+  "sampled": true,
+  "selected": 90,
+  "set": "d2",
+  "unknownLabel": 0,
+  "arms": {
+    "jev": {
+      "all": {
+        "accuracy": {
+          "den": "83",
+          "num": "40"
+        },
+        "answered": 83,
+        "options": [
+          {
+            "chosen": 43,
+            "labeled": 30,
+            "option": "blocker",
+            "precision": {
+              "den": "43",
+              "num": "23"
+            },
+            "recall": {
+              "den": "30",
+              "num": "23"
+            },
+            "right": 23
+          },
+          {
+            "chosen": 29,
+            "labeled": 30,
+            "option": "fix-before-land",
+            "precision": {
+              "den": "29",
+              "num": "11"
+            },
+            "recall": {
+              "den": "30",
+              "num": "11"
+            },
+            "right": 11
+          },
+          {
+            "chosen": 11,
+            "labeled": 23,
+            "option": "follow-up",
+            "precision": {
+              "den": "11",
+              "num": "6"
+            },
+            "recall": {
+              "den": "23",
+              "num": "6"
+            },
+            "right": 6
+          },
+          {
+            "chosen": 0,
+            "labeled": 0,
+            "option": "unclear",
+            "precision": null,
+            "recall": null,
+            "right": 0
+          }
+        ],
+        "right": 40,
+        "rows": 83
+      },
+      "arm": "jev",
+      "choose": {
+        "covered": 0,
+        "hits": 0,
+        "options": [
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "blocker"
+          },
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "fix-before-land"
+          },
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "follow-up"
+          }
+        ]
+      },
+      "confusion": {
+        "columns": [
+          "blocker",
+          "fix-before-land",
+          "follow-up",
+          "unclear",
+          "failed"
+        ],
+        "rows": [
+          {
+            "counts": [
+              23,
+              6,
+              1,
+              0,
+              0
+            ],
+            "label": "blocker"
+          },
+          {
+            "counts": [
+              15,
+              11,
+              4,
+              0,
+              0
+            ],
+            "label": "fix-before-land"
+          },
+          {
+            "counts": [
+              5,
+              12,
+              6,
+              0,
+              0
+            ],
+            "label": "follow-up"
+          },
+          {
+            "counts": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "label": "unclear"
+          }
+        ]
+      },
+      "dollars": {
+        "den": "25000000",
+        "num": "82551"
+      },
+      "holdout": {
+        "accuracy": {
+          "den": "73",
+          "num": "34"
+        },
+        "answered": 73,
+        "options": [
+          {
+            "chosen": 36,
+            "labeled": 25,
+            "option": "blocker",
+            "precision": {
+              "den": "36",
+              "num": "19"
+            },
+            "recall": {
+              "den": "25",
+              "num": "19"
+            },
+            "right": 19
+          },
+          {
+            "chosen": 26,
+            "labeled": 25,
+            "option": "fix-before-land",
+            "precision": {
+              "den": "26",
+              "num": "9"
+            },
+            "recall": {
+              "den": "25",
+              "num": "9"
+            },
+            "right": 9
+          },
+          {
+            "chosen": 11,
+            "labeled": 23,
+            "option": "follow-up",
+            "precision": {
+              "den": "11",
+              "num": "6"
+            },
+            "recall": {
+              "den": "23",
+              "num": "6"
+            },
+            "right": 6
+          },
+          {
+            "chosen": 0,
+            "labeled": 0,
+            "option": "unclear",
+            "precision": null,
+            "recall": null,
+            "right": 0
+          }
+        ],
+        "right": 34,
+        "rows": 73
+      },
+      "holdoutCert": {
+        "covered": 0,
+        "hits": 0,
+        "options": [
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "blocker"
+          },
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "fix-before-land"
+          },
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "follow-up"
+          }
+        ]
+      },
+      "inputTokens": 78620,
+      "labeled": 90,
+      "minHoldout": 25,
+      "missing": 7,
+      "msMax": 604,
+      "msMean": {
+        "den": "83",
+        "num": "28229"
+      },
+      "msMedian": 320,
+      "outputTokens": 4623,
+      "question": "finding-severity",
+      "thresholds": {
+        "blocker": null,
+        "fix-before-land": null,
+        "follow-up": null
+      }
+    },
+    "haiku": {
+      "all": {
+        "accuracy": {
+          "den": "45",
+          "num": "19"
+        },
+        "answered": 90,
+        "options": [
+          {
+            "chosen": 36,
+            "labeled": 30,
+            "option": "blocker",
+            "precision": {
+              "den": "9",
+              "num": "5"
+            },
+            "recall": {
+              "den": "3",
+              "num": "2"
+            },
+            "right": 20
+          },
+          {
+            "chosen": 39,
+            "labeled": 30,
+            "option": "fix-before-land",
+            "precision": {
+              "den": "39",
+              "num": "11"
+            },
+            "recall": {
+              "den": "30",
+              "num": "11"
+            },
+            "right": 11
+          },
+          {
+            "chosen": 13,
+            "labeled": 30,
+            "option": "follow-up",
+            "precision": {
+              "den": "13",
+              "num": "7"
+            },
+            "recall": {
+              "den": "30",
+              "num": "7"
+            },
+            "right": 7
+          },
+          {
+            "chosen": 2,
+            "labeled": 0,
+            "option": "unclear",
+            "precision": {
+              "den": "1",
+              "num": "0"
+            },
+            "recall": null,
+            "right": 0
+          }
+        ],
+        "right": 38,
+        "rows": 90
+      },
+      "arm": "haiku",
+      "choose": {
+        "covered": 0,
+        "hits": 0,
+        "options": [
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "blocker"
+          },
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "fix-before-land"
+          },
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "follow-up"
+          }
+        ]
+      },
+      "confusion": {
+        "columns": [
+          "blocker",
+          "fix-before-land",
+          "follow-up",
+          "unclear",
+          "failed"
+        ],
+        "rows": [
+          {
+            "counts": [
+              20,
+              8,
+              0,
+              2,
+              0
+            ],
+            "label": "blocker"
+          },
+          {
+            "counts": [
+              13,
+              11,
+              6,
+              0,
+              0
+            ],
+            "label": "fix-before-land"
+          },
+          {
+            "counts": [
+              3,
+              20,
+              7,
+              0,
+              0
+            ],
+            "label": "follow-up"
+          },
+          {
+            "counts": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "label": "unclear"
+          }
+        ]
+      },
+      "dollars": {
+        "den": "1",
+        "num": "0"
+      },
+      "holdout": {
+        "accuracy": {
+          "den": "75",
+          "num": "32"
+        },
+        "answered": 75,
+        "options": [
+          {
+            "chosen": 32,
+            "labeled": 25,
+            "option": "blocker",
+            "precision": {
+              "den": "16",
+              "num": "9"
+            },
+            "recall": {
+              "den": "25",
+              "num": "18"
+            },
+            "right": 18
+          },
+          {
+            "chosen": 34,
+            "labeled": 25,
+            "option": "fix-before-land",
+            "precision": {
+              "den": "17",
+              "num": "5"
+            },
+            "recall": {
+              "den": "5",
+              "num": "2"
+            },
+            "right": 10
+          },
+          {
+            "chosen": 8,
+            "labeled": 25,
+            "option": "follow-up",
+            "precision": {
+              "den": "2",
+              "num": "1"
+            },
+            "recall": {
+              "den": "25",
+              "num": "4"
+            },
+            "right": 4
+          },
+          {
+            "chosen": 1,
+            "labeled": 0,
+            "option": "unclear",
+            "precision": {
+              "den": "1",
+              "num": "0"
+            },
+            "recall": null,
+            "right": 0
+          }
+        ],
+        "right": 32,
+        "rows": 75
+      },
+      "holdoutCert": {
+        "covered": 0,
+        "hits": 0,
+        "options": [
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "blocker"
+          },
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "fix-before-land"
+          },
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "follow-up"
+          }
+        ]
+      },
+      "inputTokens": 0,
+      "labeled": 90,
+      "minHoldout": 25,
+      "missing": 0,
+      "msMax": null,
+      "msMean": null,
+      "msMedian": null,
+      "outputTokens": 0,
+      "question": "finding-severity",
+      "thresholds": {
+        "blocker": null,
+        "fix-before-land": null,
+        "follow-up": null
+      }
+    },
+    "sonnet": {
+      "all": {
+        "accuracy": {
+          "den": "30",
+          "num": "13"
+        },
+        "answered": 90,
+        "options": [
+          {
+            "chosen": 34,
+            "labeled": 30,
+            "option": "blocker",
+            "precision": {
+              "den": "34",
+              "num": "21"
+            },
+            "recall": {
+              "den": "10",
+              "num": "7"
+            },
+            "right": 21
+          },
+          {
+            "chosen": 44,
+            "labeled": 30,
+            "option": "fix-before-land",
+            "precision": {
+              "den": "11",
+              "num": "3"
+            },
+            "recall": {
+              "den": "5",
+              "num": "2"
+            },
+            "right": 12
+          },
+          {
+            "chosen": 9,
+            "labeled": 30,
+            "option": "follow-up",
+            "precision": {
+              "den": "3",
+              "num": "2"
+            },
+            "recall": {
+              "den": "5",
+              "num": "1"
+            },
+            "right": 6
+          },
+          {
+            "chosen": 3,
+            "labeled": 0,
+            "option": "unclear",
+            "precision": {
+              "den": "1",
+              "num": "0"
+            },
+            "recall": null,
+            "right": 0
+          }
+        ],
+        "right": 39,
+        "rows": 90
+      },
+      "arm": "sonnet",
+      "choose": {
+        "covered": 0,
+        "hits": 0,
+        "options": [
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "blocker"
+          },
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "fix-before-land"
+          },
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "follow-up"
+          }
+        ]
+      },
+      "confusion": {
+        "columns": [
+          "blocker",
+          "fix-before-land",
+          "follow-up",
+          "unclear",
+          "failed"
+        ],
+        "rows": [
+          {
+            "counts": [
+              21,
+              9,
+              0,
+              0,
+              0
+            ],
+            "label": "blocker"
+          },
+          {
+            "counts": [
+              12,
+              12,
+              3,
+              3,
+              0
+            ],
+            "label": "fix-before-land"
+          },
+          {
+            "counts": [
+              1,
+              23,
+              6,
+              0,
+              0
+            ],
+            "label": "follow-up"
+          },
+          {
+            "counts": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "label": "unclear"
+          }
+        ]
+      },
+      "dollars": {
+        "den": "1",
+        "num": "0"
+      },
+      "holdout": {
+        "accuracy": {
+          "den": "75",
+          "num": "34"
+        },
+        "answered": 75,
+        "options": [
+          {
+            "chosen": 29,
+            "labeled": 25,
+            "option": "blocker",
+            "precision": {
+              "den": "29",
+              "num": "18"
+            },
+            "recall": {
+              "den": "25",
+              "num": "18"
+            },
+            "right": 18
+          },
+          {
+            "chosen": 35,
+            "labeled": 25,
+            "option": "fix-before-land",
+            "precision": {
+              "den": "7",
+              "num": "2"
+            },
+            "recall": {
+              "den": "5",
+              "num": "2"
+            },
+            "right": 10
+          },
+          {
+            "chosen": 8,
+            "labeled": 25,
+            "option": "follow-up",
+            "precision": {
+              "den": "4",
+              "num": "3"
+            },
+            "recall": {
+              "den": "25",
+              "num": "6"
+            },
+            "right": 6
+          },
+          {
+            "chosen": 3,
+            "labeled": 0,
+            "option": "unclear",
+            "precision": {
+              "den": "1",
+              "num": "0"
+            },
+            "recall": null,
+            "right": 0
+          }
+        ],
+        "right": 34,
+        "rows": 75
+      },
+      "holdoutCert": {
+        "covered": 0,
+        "hits": 0,
+        "options": [
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "blocker"
+          },
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "fix-before-land"
+          },
+          {
+            "advised": 0,
+            "hits": 0,
+            "option": "follow-up"
+          }
+        ]
+      },
+      "inputTokens": 0,
+      "labeled": 90,
+      "minHoldout": 25,
+      "missing": 0,
+      "msMax": null,
+      "msMean": null,
+      "msMedian": null,
+      "outputTokens": 0,
+      "question": "finding-severity",
+      "thresholds": {
+        "blocker": null,
+        "fix-before-land": null,
+        "follow-up": null
+      }
+    }
+  }
+}

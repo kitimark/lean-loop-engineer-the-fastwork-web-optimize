@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { answerOf, blockKind, childEnv, claudeArgs, failed, fencedBlocks, optionsOf, probeVerdict, redactEnvelope,
+import { answerOf, blockKind, certifyOf, childEnv, claudeArgs, costOf, failed, fencedBlocks, optionsOf, probeVerdict, redactEnvelope,
   redactText, scoreLine } from "./jev-arms-clean.mjs";
 
 test("claudeArgs isolates the call: no tools, no setting sources, strict MCP, no session file, JSON out", () => {
@@ -93,4 +93,15 @@ test("probeVerdict passes the clean case and fails each leak on its own", () => 
     { ...passing, row: { promptTokens: 4000, budget: 1563 } },
   ];
   for (const f of fails) assert.equal(probeVerdict(f).pass, false, JSON.stringify(f).slice(0, 120));
+});
+
+test("certifyOf names advised options or none; costOf sums ok rows and counts retries", () => {
+  const sc = (advised) => ({ holdoutCert: { covered: advised, hits: advised, options: [{ option: "a", advised, hits: advised }] } });
+  assert.equal(certifyOf(sc(0)), "none");
+  assert.equal(certifyOf(sc(3)), "3/3: a 3/3");
+  const c = costOf([{ id: "1", parse: "json", inputTokens: 10, outputTokens: 2, ms: 5, costUsd: 0.5, model: "m" },
+    { id: "2", parse: "none", inputTokens: 20, outputTokens: 4, ms: 9, costUsd: 0.25, model: "m" }, { id: "3", failed: true }],
+  [{ attempt: 1 }, { attempt: 1 }, { attempt: 1 }, { attempt: 2 }]);
+  assert.deepEqual(c, { rows: 3, parses: { json: 1, none: 1, failed: 1 }, calls: 4, retried: 1, inputTokens: 30,
+    outputTokens: 6, costUsd: 0.75, models: ["m"], msMedian: 9, msMax: 9 });
 });
